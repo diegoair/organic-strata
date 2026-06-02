@@ -49,21 +49,10 @@ def _figma_req(method, path, body=None, token=""):
 def push_svg_to_figma(svg_content, token):
     latest_svg_url = f"http://localhost:{PORT}/latest-svg"
 
-    if not token or token == "paste_token_here":
-        return {
-            "ok": False,
-            "latest_svg_url": latest_svg_url,
-            "error": "FIGMA_TOKEN not set — add it to backend/.env",
-        }
-
-    _, err = _figma_req("GET", "/v1/me", token=token)
-    if err:
-        return {
-            "ok": False,
-            "latest_svg_url": latest_svg_url,
-            "step": "auth",
-            "error": err,
-        }
+    # Auth check is best-effort — a 403 or any error is silently ignored.
+    # The plugin handles the actual Figma import; the backend only saves the SVG.
+    if token and token != "paste_token_here":
+        _figma_req("GET", "/v1/me", token=token)  # result intentionally discarded
 
     return {
         "ok": True,
