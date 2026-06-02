@@ -54,7 +54,7 @@ def push_svg_to_figma(svg_content, token):
         return {**base, "ok": True, "method": "local_only",
                 "message": "SVG saved locally — use /latest-svg URL to import into Figma manually"}
 
-    me, err = _figma_req("GET", "/v1/me", token=token)
+    _, err = _figma_req("GET", f"/v1/files/{FIGMA_FILE_KEY}/nodes?ids=5%3A2", token=token)
     if err:
         return {**base, "ok": False, "step": "auth", "error": err}
 
