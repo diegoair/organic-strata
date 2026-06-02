@@ -35,7 +35,7 @@
     flex-shrink: 0;
     transition: background 0.3s;
   }
-  .dot.ok { background: #4caf50; }
+  .dot.ok  { background: #4caf50; }
   .dot.err { background: #f44336; }
   .btn {
     display: block;
@@ -52,7 +52,7 @@
     margin-bottom: 8px;
   }
   .btn:disabled { opacity: 0.4; cursor: default; }
-  .btn-primary { background: #e0e0e0; color: #1a1a1a; }
+  .btn-primary   { background: #e0e0e0; color: #1a1a1a; }
   .btn-primary:not(:disabled):hover { background: #fff; }
   .btn-secondary { background: #2e2e2e; color: #aaa; }
   .btn-secondary:not(:disabled):hover { background: #383838; color: #e0e0e0; }
@@ -60,11 +60,11 @@
     margin-top: 14px;
     font-size: 11px;
     color: #666;
-    min-height: 32px;
+    min-height: 36px;
     line-height: 1.6;
     word-break: break-all;
   }
-  #status-text.ok { color: #4caf50; }
+  #status-text.ok  { color: #4caf50; }
   #status-text.err { color: #f44336; }
 </style>
 </head>
@@ -109,8 +109,43 @@ document.getElementById('btn-refresh').addEventListener('click', () => {
 document.getElementById('btn-import').addEventListener('click', async () => {
   const txt = document.getElementById('status-text');
   txt.className = '';
-  txt.textContent = 'Fetching SVG…';
+  txt.textContent = 'Checking regions…';
 
+  // 1. Ask backend how many regions exist
+  let regionData;
+  try {
+    regionData = await fetch(BACKEND + '/regions').then(r => r.json());
+  } catch (e) {
+    txt.className = 'err';
+    txt.textContent = 'Cannot reach backend: ' + e.message;
+    return;
+  }
+
+  const regions = regionData.regions || [];
+
+  // 2a. Multiple regions — fetch each SVG and import separately
+  if (regions.length > 1) {
+    txt.textContent = `Fetching ${regions.length} regions…`;
+    const items = [];
+    for (const region of regions) {
+      try {
+        const resp = await fetch(region.url);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const svg = await resp.text();
+        items.push({ label: region.label, svg });
+      } catch (e) {
+        txt.className = 'err';
+        txt.textContent = 'Error fetching ' + region.label + ': ' + e.message;
+        return;
+      }
+    }
+    txt.textContent = 'Importing into Figma…';
+    parent.postMessage({ pluginMessage: { type: 'import-regions', items } }, '*');
+    return;
+  }
+
+  // 2b. Single region or none — use /latest-svg
+  txt.textContent = 'Fetching SVG…';
   let svg;
   try {
     const resp = await fetch(BACKEND + '/latest-svg');
@@ -124,7 +159,6 @@ document.getElementById('btn-import').addEventListener('click', async () => {
     txt.textContent = 'Fetch failed: ' + e.message;
     return;
   }
-
   txt.textContent = 'Importing into Figma…';
   parent.postMessage({ pluginMessage: { type: 'import-svg', svg } }, '*');
 });
@@ -136,6 +170,9 @@ window.onmessage = (ev) => {
   if (msg.type === 'done') {
     txt.className = 'ok';
     txt.textContent = 'Imported — node ' + msg.nodeId;
+  } else if (msg.type === 'done-regions') {
+    txt.className = 'ok';
+    txt.textContent = `Imported ${msg.count} region${msg.count !== 1 ? 's' : ''} side by side`;
   } else if (msg.type === 'error') {
     txt.className = 'err';
     txt.textContent = 'Error: ' + msg.message;

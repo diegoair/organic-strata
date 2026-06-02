@@ -121,6 +121,8 @@ class Handler(BaseHTTPRequestHandler):
             self.handle_health()
         elif path == "/latest-svg":
             self.handle_latest_svg()
+        elif path == "/regions":
+            self.handle_regions()
         elif path.startswith("/output/"):
             fname = path[8:]
             fpath = os.path.join(STATIC_DIR, "output", fname)
@@ -155,6 +157,14 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"error": "No SVG generated yet"}, 404)
             return
         self.serve_file(svg_path, "image/svg+xml")
+
+    def handle_regions(self):
+        manifest_path = os.path.join(STATIC_DIR, "output", "regions.json")
+        if not os.path.exists(manifest_path):
+            self.send_json({"count": 0, "regions": []})
+            return
+        with open(manifest_path) as f:
+            self.send_json(json.load(f))
 
     def handle_trace(self):
         content_type = self.headers.get("Content-Type", "")
@@ -232,6 +242,18 @@ class Handler(BaseHTTPRequestHandler):
                     })
                 except Exception as e:
                     print(f"  Warning reading region {r['label']}: {e}")
+
+            # Save regions manifest for the plugin
+            manifest = {
+                "count": len(regions_out),
+                "regions": [
+                    {"label": r["label"],
+                     "url": f"http://localhost:{PORT}/output/{r['label']}.svg"}
+                    for r in regions_out
+                ]
+            }
+            with open(os.path.join(out_dir, "regions.json"), "w", encoding="utf-8") as f:
+                json.dump(manifest, f)
 
             self.send_json({
                 "ok": True,

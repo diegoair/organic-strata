@@ -30,6 +30,52 @@ def normalise_orientation(img: np.ndarray) -> np.ndarray:
     return img
 
 
+def auto_crop(img: np.ndarray, padding: float = 0.02) -> np.ndarray:
+    """Remove outer border/margin (notebook edges, keyboard, physical frame).
+
+    Strategy: dilate ink blobs, filter out contours whose centre falls in the
+    outer 8% strip (border elements), then crop to the bounding box of what
+    remains.  Falls back to all contours if nothing is found inside.
+    """
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    ih, iw = img.shape[:2]
+
+    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    # Dilate to merge nearby marks into blobs
+    k = np.ones((7, 7), np.uint8)
+    dilated = cv2.dilate(thresh, k, iterations=2)
+
+    contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return img
+
+    # Keep contours whose centre lies inside the inner 84% of the image
+    margin_x = iw * 0.08
+    margin_y = ih * 0.08
+    inner = []
+    for c in contours:
+        x, y, w, h = cv2.boundingRect(c)
+        cx, cy = x + w / 2, y + h / 2
+        if margin_x < cx < iw - margin_x and margin_y < cy < ih - margin_y:
+            inner.append(c)
+
+    use = inner if inner else contours
+
+    all_pts = np.vstack(use)
+    x, y, w, h = cv2.boundingRect(all_pts)
+
+    pad_x = int(iw * padding)
+    pad_y = int(ih * padding)
+    x1 = max(0, x - pad_x)
+    y1 = max(0, y - pad_y)
+    x2 = min(iw, x + w + pad_x)
+    y2 = min(ih, y + h + pad_y)
+
+    cropped = img[y1:y2, x1:x2]
+    return cropped if cropped.size > 0 else img
+
+
 # ── 2. PREPROCESS ────────────────────────────────────────────────────────────
 
 def preprocess(img: np.ndarray, params: dict) -> np.ndarray:
@@ -276,6 +322,7 @@ def run_pipeline(input_path: str, output_dir: str,
     # Load
     img = load_image(input_path)
     img = normalise_orientation(img)
+    img = auto_crop(img)
     orig_h, orig_w = img.shape[:2]
 
     # Preprocess
