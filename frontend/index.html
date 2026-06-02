@@ -588,7 +588,7 @@
         <span class="param-name">Min shape size</span>
         <span class="param-val" id="v-area">80</span>
       </div>
-      <input type="range" id="p-area" min="10" max="500" step="10" value="80">
+      <input type="range" id="p-area" min="10" max="5000" step="50" value="80">
     </div>
   </div>
 
@@ -831,7 +831,7 @@ function fidelityLabel(f) {
 function getParams() {
   const fidelity = parseInt(document.getElementById('p-fidelity')?.value ?? 5);
   const { alpha, opttol, turd } = mapFidelity(fidelity);
-  return {
+  const p = {
     denoise:    document.getElementById('p-denoise')?.checked ?? true,
     contrast:   parseFloat(document.getElementById('p-contrast')?.value ?? 1.5),
     block:      parseInt(document.getElementById('p-block')?.value ?? 35),
@@ -843,6 +843,8 @@ function getParams() {
     trace_mode:  document.querySelector('input[name="p-trace-mode"]:checked')?.value ?? 'single',
     shape_style: document.querySelector('input[name="p-shape-style"]:checked')?.value ?? 'B',
   };
+  console.log('[OS] params:', JSON.stringify(p));
+  return p;
 }
 
 function applyPreset(name) {
