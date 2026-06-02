@@ -192,7 +192,7 @@ class Handler(BaseHTTPRequestHandler):
 
         self.send_json({
             "ok": True,
-            "figma_url": "https://figma.com/design/FYWyi41bGojxFATB0szSUb/Organic-Strata?node-id=5-2"
+            "figma_url": "https://www.figma.com/design/FYWyi41bGojxFATB0szSUb/Organic-Strata?node-id=5-2"
         })
 
     def serve_file(self, path, mime):

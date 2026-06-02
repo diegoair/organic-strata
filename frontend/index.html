@@ -826,6 +826,7 @@ async function generateSVGOutput(binaryCanvas, params) {
 
   try {
     const blob = await new Promise(r => binaryCanvas.toBlob(r, 'image/png'));
+    console.log('[OS] fetching from:', BACKEND_URL);
     const formData = new FormData();
     formData.append('image', blob, 'sketch.png');
     formData.append('params', JSON.stringify(params));
@@ -834,36 +835,54 @@ async function generateSVGOutput(binaryCanvas, params) {
       method: 'POST', body: formData,
       signal: AbortSignal.timeout(15000)
     });
+    console.log('[OS] response status:', resp.status, 'ok:', resp.ok);
 
     if (resp.ok) {
       const result = await resp.json();
+      console.log('[OS] result keys:', Object.keys(result));
+      console.log('[OS] svg length:', result.svg ? result.svg.length : 'MISSING');
+      if (!result.svg) {
+        showServerGuidance('Server returned empty SVG');
+        return;
+      }
+      console.log('[OS] calling renderSVGPreview');
       state.svgData = result.svg;
       state.regions = result.regions || [];
       renderSVGPreview(state.svgData);
       buildRegionTabs(state.regions);
       return;
     }
-  } catch (e) {
-    showBanner();
-  }
 
-  showServerGuidance();
+    let errMsg = `Server error ${resp.status}`;
+    try { const d = await resp.json(); if (d.error) errMsg = d.error; } catch (_) {}
+    console.log('[OS] server error:', errMsg);
+    showServerGuidance(errMsg);
+  } catch (e) {
+    console.log('[OS] fetch exception:', e.message);
+    showBanner();
+    showServerGuidance();
+  }
 }
 
-function showServerGuidance() {
+function showServerGuidance(errMsg) {
+  const errBlock = errMsg
+    ? `<div style="margin-top:10px;padding:8px 10px;background:#fef2f2;border-radius:4px;color:#b91c1c;font-size:10px;text-align:left;word-break:break-all">${errMsg}</div>`
+    : '';
   document.getElementById('svg-embed').innerHTML = `
-    <div style="text-align:center;padding:32px;font-family:var(--mono);font-size:12px;color:var(--muted);max-width:420px">
+    <div style="text-align:center;padding:32px;font-family:var(--mono);font-size:12px;color:var(--muted);max-width:480px">
       <div style="font-size:20px;margin-bottom:12px">⚡</div>
-      <div style="color:var(--ink);font-size:13px;margin-bottom:8px">Start the backend server</div>
-      <div style="margin-bottom:16px">Run this in your terminal to enable SVG generation:</div>
+      <div style="color:var(--ink);font-size:13px;margin-bottom:8px">Backend required</div>
+      <div style="margin-bottom:16px">Run this in your terminal to enable SVG tracing:</div>
       <code style="display:block;background:var(--surface);padding:12px;border-radius:4px;text-align:left;font-size:11px;line-height:1.8">
-        cd sketch_to_svg<br>
+        cd backend<br>
+        source venv/bin/activate<br>
         python3 server.py
       </code>
+      ${errBlock}
       <div style="margin-top:12px;font-size:11px">Then reload this page and drop your sketch again.</div>
     </div>
   `;
-  document.getElementById('svg-info').textContent = 'server offline';
+  document.getElementById('svg-info').textContent = errMsg ? 'trace error' : 'server offline';
   document.getElementById('btn-export').disabled = true;
   document.getElementById('btn-figma').disabled = true;
 }
