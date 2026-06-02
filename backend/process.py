@@ -390,8 +390,9 @@ def contour_to_bezier_path(contour, img_w, img_h, svg_w, svg_h, style='B'):
 
 def segment_regions(binary: np.ndarray, params: dict) -> str:
     """
-    Contour-hierarchy region detection → SVG string.
-    Works on line-art sketches by closing broken lines then finding enclosed regions.
+    Flood-fill region detection → SVG string.
+    Finds enclosed WHITE regions (areas between ink lines), not the ink itself.
+    Algorithm: flood-fill exterior from 4 corners → remaining white = enclosed regions.
     """
     shape_style = params.get("shape_style", "B")
     min_area    = params.get("min_area", 500)
@@ -399,32 +400,30 @@ def segment_regions(binary: np.ndarray, params: dict) -> str:
     img_h, img_w = binary.shape
     total_area   = img_h * img_w
 
-    # Invert: contour detection needs white objects on black background
-    inverted = cv2.bitwise_not(binary)
+    # Flood fill from all 4 corners to mark exterior (background) as black.
+    # What remains white after this step = enclosed regions inside the drawing.
+    flood = binary.copy()
+    mask  = np.zeros((img_h + 2, img_w + 2), np.uint8)
+    cv2.floodFill(flood, mask, (0,         0        ), 0)
+    cv2.floodFill(flood, mask, (img_w - 1, 0        ), 0)
+    cv2.floodFill(flood, mask, (0,         img_h - 1), 0)
+    cv2.floodFill(flood, mask, (img_w - 1, img_h - 1), 0)
 
-    # Morphological closing bridges small gaps in sketch lines
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    closed = cv2.morphologyEx(inverted, cv2.MORPH_CLOSE, kernel, iterations=3)
+    # Find contours of the enclosed white regions
+    contours, _ = cv2.findContours(flood, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    # Find contours with full hierarchy
-    contours, hierarchy = cv2.findContours(
-        closed, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE
-    )
-
-    if hierarchy is None or len(contours) == 0:
+    if not contours:
         return _fallback_single_trace(binary, params)
 
-    hierarchy = hierarchy[0]
-
-    # Keep contours within area bounds; drop full-image border artifacts
+    # Filter by area; skip full-image border artifacts
     valid = []
-    for i, cnt in enumerate(contours):
+    for cnt in contours:
         area = cv2.contourArea(cnt)
         if area < min_area:
             continue
         if area > total_area * 0.85:
             continue
-        valid.append((area, i, cnt))
+        valid.append((area, cnt))
 
     valid.sort(key=lambda x: x[0], reverse=True)
     valid = valid[:max_shapes]
@@ -440,7 +439,7 @@ def segment_regions(binary: np.ndarray, params: dict) -> str:
 
     paths_by_class: dict = {"primary": [], "secondary": [], "detail": []}
 
-    for idx, (area, _, cnt) in enumerate(valid):
+    for idx, (area, cnt) in enumerate(valid):
         path_d = contour_to_bezier_path(cnt, img_w, img_h, img_w, img_h, shape_style)
         if path_d is None:
             continue
