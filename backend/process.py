@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 import os
 import json
+import re
 
 
 # ── 1. LOAD & NORMALISE ──────────────────────────────────────────────────────
@@ -211,11 +212,9 @@ def postprocess_svg(svg_path: str, params: dict) -> str:
 
     # Potrace outputs filled black paths — switch to stroke-only for your language
     if fill_mode == "stroke_only":
+        content = re.sub(r'\s+stroke(?:-width)?="[^"]*"', '', content)
         style = f'fill="none" stroke="{stroke_color}" stroke-width="{stroke_width}"'
-        # Replace fill="black" and fill="#000000" 
-        content = content.replace('fill="black"', style)
-        content = content.replace('fill="#000000"', style)
-        content = content.replace('fill="#000"', style)
+        content = re.sub(r'fill="(?:black|#000000|#000)"', style, content)
 
     # Inject grammar metadata comment
     grammar = params.get("grammar_params", {})
