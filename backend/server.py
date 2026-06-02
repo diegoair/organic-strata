@@ -47,25 +47,43 @@ def _figma_req(method, path, body=None, token=""):
 
 
 def push_svg_to_figma(svg_content, token):
-    if not token:
-        return {"ok": False, "error": "FIGMA_TOKEN not set — add it to backend/.env"}
+    latest_svg_url = f"http://localhost:{PORT}/latest-svg"
+    base = {"latest_svg_url": latest_svg_url}
+
+    if not token or token == "paste_token_here":
+        return {**base, "ok": True, "method": "local_only",
+                "message": "SVG saved locally — use /latest-svg URL to import into Figma manually"}
 
     me, err = _figma_req("GET", "/v1/me", token=token)
     if err:
-        return {"ok": False, "step": "auth", "error": err}
+        return {**base, "ok": False, "step": "auth", "error": err}
 
-    node_name = f"organic-strata-{int(time.time())}"
-    payload = {
-        "parent": {"id": FIGMA_NODE_ID},
-        "nodes": [{"type": "FRAME", "name": node_name, "svg": svg_content}],
-    }
-    result, err = _figma_req(
-        "POST", f"/v1/files/{FIGMA_FILE_KEY}/nodes", payload, token
+    # Attempt 1: Figma image upload endpoint
+    svg_bytes = svg_content.encode("utf-8")
+    try:
+        req = urllib.request.Request(
+            "https://api.figma.com/v1/images/uploads",
+            data=svg_bytes, method="POST"
+        )
+        req.add_header("X-Figma-Token", token)
+        req.add_header("Content-Type", "image/svg+xml")
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            upload = json.loads(resp.read())
+        return {**base, "ok": True, "method": "figma_upload", "upload": upload}
+    except Exception:
+        pass
+
+    # Attempt 2: PATCH target node
+    patch, err = _figma_req(
+        "PATCH", f"/v1/files/{FIGMA_FILE_KEY}/nodes",
+        {FIGMA_NODE_ID: {"svg": svg_content}}, token
     )
-    if err:
-        return {"ok": False, "step": "push", "error": err}
+    if not err:
+        return {**base, "ok": True, "method": "figma_patch", "patch": patch}
 
-    return {"ok": True, "node_name": node_name, "figma": result}
+    # Fallback: local only
+    return {**base, "ok": True, "method": "local_only",
+            "message": "SVG saved locally — use /latest-svg URL to import into Figma manually"}
 
 
 def parse_multipart(data: bytes, boundary: str):
@@ -111,6 +129,10 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/" or path == "/index.html":
             self.serve_file(os.path.join(FRONTEND_DIR, "index.html"), "text/html")
+        elif path == "/health":
+            self.handle_health()
+        elif path == "/latest-svg":
+            self.handle_latest_svg()
         elif path.startswith("/output/"):
             fname = path[8:]
             fpath = os.path.join(STATIC_DIR, "output", fname)
@@ -129,6 +151,22 @@ class Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(200)
         self.end_headers()
+
+    def handle_health(self):
+        token_set = bool(FIGMA_TOKEN) and FIGMA_TOKEN != "paste_token_here"
+        self.send_json({
+            "ok": True,
+            "figma_token_set": token_set,
+            "backend": "organic-strata",
+            "version": "0.1",
+        })
+
+    def handle_latest_svg(self):
+        svg_path = os.path.join(STATIC_DIR, "output", "latest.svg")
+        if not os.path.exists(svg_path):
+            self.send_json({"error": "No SVG generated yet"}, 404)
+            return
+        self.serve_file(svg_path, "image/svg+xml")
 
     def handle_trace(self):
         content_type = self.headers.get("Content-Type", "")
@@ -280,7 +318,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"\n  ShapeGrammar server running")
+    print(f"\n  Organic Strata server running")
     print(f"  → http://localhost:{PORT}\n")
     server = HTTPServer(("localhost", PORT), Handler)
     try:

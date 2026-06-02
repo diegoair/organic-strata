@@ -1031,26 +1031,58 @@ function downloadString(str, filename, mime) {
 
 document.getElementById('btn-figma').addEventListener('click', async () => {
   if (!state.svgData) return;
+
   if (!BACKEND_URL) {
     downloadString(state.svgData, 'latest.svg', 'image/svg+xml');
     showBanner('Backend offline — SVG downloaded, drag into Figma manually');
     return;
   }
+
+  // 1. Health check — verify token is configured
+  let health;
+  try {
+    health = await fetch(BACKEND_URL + '/health').then(r => r.json());
+  } catch (e) {
+    showBanner('Cannot reach backend — is server.py running?');
+    return;
+  }
+  if (!health.figma_token_set) {
+    showBanner('Add your Figma token to backend/.env then restart the server');
+    return;
+  }
+
+  // 2. POST SVG to backend
   const activePreset = document.querySelector('.preset-btn.active')?.dataset.preset ?? 'typographic';
+  let result;
   try {
     const resp = await fetch(BACKEND_URL + '/send-to-figma', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ svg: state.svgData, preset: activePreset })
     });
-    const result = await resp.json();
-    if (result.ok && result.figma_url) {
-      window.open(result.figma_url, '_blank');
-    }
+    result = await resp.json();
   } catch (e) {
-    downloadString(state.svgData, 'latest.svg', 'image/svg+xml');
-    showBanner('Backend offline — SVG downloaded, drag into Figma manually');
+    showBanner('Backend error — ' + e.message);
+    return;
   }
+
+  // 3. Handle push result
+  const push = result.figma_push || {};
+
+  if (push.method === 'local_only') {
+    const svgUrl = push.latest_svg_url || (BACKEND_URL + '/latest-svg');
+    navigator.clipboard?.writeText(svgUrl).catch(() => {});
+    showBanner('SVG ready at ' + svgUrl + ' — In Figma: File → Place image → paste that URL');
+    window.open(result.figma_url, '_blank');
+    return;
+  }
+
+  if (!push.ok) {
+    showBanner('Figma push failed — ' + (push.error || JSON.stringify(push)));
+    return;
+  }
+
+  window.open(result.figma_url, '_blank');
 });
 
 // Init labels
