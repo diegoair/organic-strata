@@ -5,18 +5,67 @@ Run: python3 server.py
 Then open: http://localhost:5050
 """
 
-import os, json, tempfile, shutil
+import os, json, tempfile, shutil, time
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import urllib.parse
+import urllib.parse, urllib.request, urllib.error
 import sys
+from dotenv import load_dotenv
 
 # Add current dir to path
 sys.path.insert(0, os.path.dirname(__file__))
 from process import run_pipeline, DEFAULT_PARAMS
 
-PORT = 5050
-STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
-FRONTEND_DIR = os.path.join(os.path.dirname(STATIC_DIR), 'frontend')
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'))
+FIGMA_TOKEN    = os.environ.get('FIGMA_TOKEN', '')
+
+PORT           = 5050
+STATIC_DIR     = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR   = os.path.join(os.path.dirname(STATIC_DIR), 'frontend')
+FIGMA_FILE_KEY = "FYWyi41bGojxFATB0szSUb"
+FIGMA_NODE_ID  = "5:2"
+FIGMA_URL      = "https://www.figma.com/design/FYWyi41bGojxFATB0szSUb/Organic-Strata?node-id=5-2"
+
+
+def _figma_req(method, path, body=None, token=""):
+    url = f"https://api.figma.com{path}"
+    data = json.dumps(body).encode() if body else None
+    req = urllib.request.Request(url, data=data, method=method)
+    req.add_header("X-Figma-Token", token)
+    if body:
+        req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read()), None
+    except urllib.error.HTTPError as e:
+        try:
+            msg = json.loads(e.read().decode()).get("message", f"HTTP {e.code}")
+        except Exception:
+            msg = f"HTTP {e.code}"
+        return None, msg
+    except Exception as e:
+        return None, str(e)
+
+
+def push_svg_to_figma(svg_content, token):
+    if not token:
+        return {"ok": False, "error": "FIGMA_TOKEN not set — add it to backend/.env"}
+
+    me, err = _figma_req("GET", "/v1/me", token=token)
+    if err:
+        return {"ok": False, "step": "auth", "error": err}
+
+    node_name = f"organic-strata-{int(time.time())}"
+    payload = {
+        "parent": {"id": FIGMA_NODE_ID},
+        "nodes": [{"type": "FRAME", "name": node_name, "svg": svg_content}],
+    }
+    result, err = _figma_req(
+        "POST", f"/v1/files/{FIGMA_FILE_KEY}/nodes", payload, token
+    )
+    if err:
+        return {"ok": False, "step": "push", "error": err}
+
+    return {"ok": True, "node_name": node_name, "figma": result}
 
 
 def parse_multipart(data: bytes, boundary: str):
@@ -190,9 +239,12 @@ class Handler(BaseHTTPRequestHandler):
         with open(os.path.join(out_dir, "latest.svg"), "w", encoding="utf-8") as f:
             f.write(svg)
 
+        figma_result = push_svg_to_figma(svg, FIGMA_TOKEN)
+
         self.send_json({
             "ok": True,
-            "figma_url": "https://www.figma.com/design/FYWyi41bGojxFATB0szSUb/Organic-Strata?node-id=5-2"
+            "figma_url": FIGMA_URL,
+            "figma_push": figma_result,
         })
 
     def serve_file(self, path, mime):
