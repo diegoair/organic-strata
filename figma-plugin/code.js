@@ -22,6 +22,36 @@ figma.ui.onmessage = async (msg) => {
     }
     try {
       const frame = getOrCreateFrame();
+
+      // Separate-paths mode: each <path id="shape-NNN"> becomes its own vector node
+      const svgOpenTag = (svg.match(/<svg\b[^>]*>/) || ['<svg xmlns="http://www.w3.org/2000/svg">'])[0];
+      const pathElems = [...svg.matchAll(/<path\b[^>]*\bid="(shape-\d+)"[^>]*\/?>/g)];
+      if (pathElems.length > 1) {
+        const ts = Date.now();
+        const nodes = [];
+        for (const m of pathElems) {
+          const shapeId = m[1];
+          const pathElem = m[0];
+          const singleSvg = `${svgOpenTag}\n${pathElem}\n</svg>`;
+          try {
+            const node = figma.createNodeFromSvg(singleSvg);
+            node.name = shapeId;
+            nodes.push(node);
+          } catch (_) {}
+        }
+        if (nodes.length === 0) {
+          figma.ui.postMessage({ type: 'error', message: 'No paths imported' });
+          return;
+        }
+        const group = figma.group(nodes, figma.currentPage);
+        group.name = `organic-trace-${ts}`;
+        frame.appendChild(group);
+        figma.viewport.scrollAndZoomIntoView([group]);
+        figma.ui.postMessage({ type: 'done', nodeId: group.id });
+        return;
+      }
+
+      // Single / simplified mode: import as one node
       const node = figma.createNodeFromSvg(svg);
       node.name = `organic-trace-${Date.now()}`;
       const scale = 800 / node.width;

@@ -197,6 +197,7 @@ class Handler(BaseHTTPRequestHandler):
             "turdsize":         int(ui_params.get("turd", 4)),
             "stroke_width":     float(ui_params.get("stroke", 1.2)),
             "fill_mode":        ui_params.get("fill", "stroke_only"),
+            "trace_mode":       ui_params.get("trace_mode", "single"),
         }
 
         split_regions = ui_params.get("split", True)

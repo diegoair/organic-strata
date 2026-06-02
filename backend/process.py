@@ -193,6 +193,132 @@ def trace_region(binary: np.ndarray, region: dict, params: dict,
     return out_path
 
 
+# ── 5a. SEPARATE PATHS ───────────────────────────────────────────────────────
+
+def split_svg_paths(svg_path: str, params: dict) -> str:
+    """
+    Parse the compound path potrace produces and emit one <path> per closed
+    subpath (M…Z segment).  Each element gets id="shape-NNN".
+    Subpaths whose bounding box area falls below min_area are dropped.
+    """
+    with open(svg_path) as f:
+        content = f.read()
+
+    # Extract the single compound <path d="…"> potrace writes
+    path_match = re.search(r'<path\b[^>]*\bd="([^"]+)"', content)
+    if not path_match:
+        return svg_path                 # nothing to split
+
+    d_attr = path_match.group(1)
+
+    # Split on every M that opens a new subpath
+    subpaths = re.split(r'(?=M\s*[\d\-])', d_attr.strip())
+    subpaths = [s.strip() for s in subpaths if s.strip()]
+
+    stroke_color = params.get("stroke_color", "#1a1a1a")
+    stroke_width = params.get("stroke_width", 1.0)
+    fill_mode    = params.get("fill_mode", "stroke_only")
+    min_area     = params.get("min_area", 80)
+
+    if fill_mode == "stroke_only":
+        style = f'fill="none" stroke="{stroke_color}" stroke-width="{stroke_width}"'
+    else:
+        style = f'fill="{stroke_color}" stroke="none"'
+
+    kept = []
+    for seg in subpaths:
+        # Rough bounding-box area filter via coordinate range
+        nums = list(map(float, re.findall(r'[-+]?\d*\.?\d+', seg)))
+        if len(nums) < 4:
+            continue
+        xs = nums[0::2]; ys = nums[1::2]
+        w = max(xs) - min(xs); h = max(ys) - min(ys)
+        if w * h < min_area:
+            continue
+        kept.append(seg)
+
+    # Rebuild SVG: keep original header/viewBox, replace body
+    path_elements = "\n".join(
+        f'  <path id="shape-{i+1:03d}" {style} d="{seg}"/>'
+        for i, seg in enumerate(kept)
+    )
+
+    # Preserve viewBox from original
+    vb_match = re.search(r'viewBox="([^"]+)"', content)
+    vb = f'viewBox="{vb_match.group(1)}"' if vb_match else ''
+    wh_match = re.search(r'<svg[^>]*width="([^"]+)"[^>]*height="([^"]+)"', content)
+    if wh_match:
+        wh = f'width="{wh_match.group(1)}" height="{wh_match.group(2)}"'
+    else:
+        wh = ''
+
+    new_svg = f'<svg xmlns="http://www.w3.org/2000/svg" {wh} {vb}>\n{path_elements}\n</svg>'
+
+    with open(svg_path, 'w') as f:
+        f.write(new_svg)
+
+    return svg_path
+
+
+# ── 5b. SIMPLIFIED ────────────────────────────────────────────────────────────
+
+def simplify_svg(svg_path: str, params: dict) -> str:
+    """
+    Re-derive simplified paths via OpenCV contour approximation:
+    load the binary image, run approxPolyDP on every contour, emit SVG paths.
+    """
+    # The binary image was written alongside the SVG; reconstruct it from params
+    # We'll pass the binary as a side-channel via a temp file set in run_pipeline.
+    # If not present, return the svg unchanged.
+    bin_path = svg_path.replace('.svg', '_binary.png')
+    if not os.path.exists(bin_path):
+        return svg_path
+
+    binary = cv2.imread(bin_path, cv2.IMREAD_GRAYSCALE)
+    if binary is None:
+        return svg_path
+
+    h, w = binary.shape
+    stroke_color = params.get("stroke_color", "#1a1a1a")
+    stroke_width = params.get("stroke_width", 1.0)
+    fill_mode    = params.get("fill_mode", "stroke_only")
+    min_area     = params.get("min_area", 80)
+
+    if fill_mode == "stroke_only":
+        style = f'fill="none" stroke="{stroke_color}" stroke-width="{stroke_width}"'
+    else:
+        style = f'fill="{stroke_color}" stroke="none"'
+
+    # Invert: findContours expects white objects on black
+    inv = cv2.bitwise_not(binary)
+    contours, _ = cv2.findContours(inv, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    path_elements = []
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area < min_area:
+            continue
+        eps = 2.0 * cv2.arcLength(contour, True) * 0.002
+        approx = cv2.approxPolyDP(contour, eps, True)
+        if len(approx) < 3:
+            continue
+        pts = approx.reshape(-1, 2)
+        d = "M " + " L ".join(f"{x},{y}" for x, y in pts) + " Z"
+        path_elements.append(f'  <path {style} d="{d}"/>')
+
+    new_svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'width="{w}" height="{h}" viewBox="0 0 {w} {h}">\n'
+        + "\n".join(path_elements)
+        + "\n</svg>"
+    )
+
+    with open(svg_path, 'w') as f:
+        f.write(new_svg)
+
+    return svg_path
+
+
 # ── 5. SVG POST-PROCESS ──────────────────────────────────────────────────────
 
 def postprocess_svg(svg_path: str, params: dict) -> str:
@@ -244,6 +370,7 @@ DEFAULT_PARAMS = {
     "alphamax": 1.0,
     "opttolerance": 0.2,
     "turnpolicy": "minority",
+    "trace_mode": "single",   # single | separate | simplified
 
     # Output style
     "stroke_color": "#1a1a1a",
@@ -281,8 +408,14 @@ def run_pipeline(input_path: str, output_dir: str,
 
     # Preprocess
     binary = preprocess(img, p)
+    trace_mode = p.get("trace_mode", "single")
 
-    results = {"input": input_path, "regions": [], "params": p}
+    # Simplified mode overrides potrace params for aggressive simplification
+    if trace_mode == "simplified":
+        p = {**p, "turdsize": 20, "alphamax": 1.33, "opttolerance": 0.8}
+
+    results = {"input": input_path, "regions": [], "params": p,
+               "trace_mode": trace_mode}
 
     if split_regions:
         regions = detect_regions(binary)
@@ -292,6 +425,14 @@ def run_pipeline(input_path: str, output_dir: str,
     for region in regions:
         svg_path = trace_region(binary, region, p, output_dir)
         svg_path = postprocess_svg(svg_path, p)
+        # Save binary tile alongside SVG for simplified mode
+        if trace_mode == "simplified":
+            x, y, w, h = region["x"], region["y"], region["w"], region["h"]
+            bin_tile = binary[y:y+h, x:x+w]
+            cv2.imwrite(svg_path.replace(".svg", "_binary.png"), bin_tile)
+            svg_path = simplify_svg(svg_path, p)
+        elif trace_mode == "separate":
+            svg_path = split_svg_paths(svg_path, p)
         results["regions"].append({
             "label": region["label"],
             "bounds": {k: region[k] for k in ["x","y","w","h"]},
@@ -303,6 +444,11 @@ def run_pipeline(input_path: str, output_dir: str,
     full_path = os.path.join(output_dir, "full.svg")
     trace_to_svg(binary, p, full_path)
     postprocess_svg(full_path, p)
+    if trace_mode == "simplified":
+        cv2.imwrite(full_path.replace(".svg", "_binary.png"), binary)
+        simplify_svg(full_path, p)
+    elif trace_mode == "separate":
+        split_svg_paths(full_path, p)
     results["full_svg"] = full_path
     print(f"  ✓ full → {full_path}")
 

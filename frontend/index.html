@@ -430,6 +430,34 @@
   .export-label { color: var(--muted); }
   .export-info { margin-left: auto; color: var(--muted); font-size: 10px; }
 
+  /* Trace mode segmented toggle */
+  .seg-toggle {
+    display: flex;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .seg-toggle input { display: none; }
+  .seg-toggle label {
+    flex: 1;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 5px 4px;
+    cursor: pointer;
+    color: var(--muted);
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .seg-toggle label:last-of-type { border-right: none; }
+  .seg-toggle input:checked + label {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
   /* Grammar tags */
   .grammar-tags {
     display: flex;
@@ -603,6 +631,18 @@
         <span class="toggle-slider"></span>
       </label>
     </div>
+
+    <div class="param-row">
+      <div class="param-header"><span class="param-name">Trace mode</span></div>
+      <div class="seg-toggle">
+        <input type="radio" name="p-trace-mode" id="p-mode-single"     value="single"     checked>
+        <label for="p-mode-single">Single</label>
+        <input type="radio" name="p-trace-mode" id="p-mode-separate"   value="separate">
+        <label for="p-mode-separate">Separate</label>
+        <input type="radio" name="p-trace-mode" id="p-mode-simplified" value="simplified">
+        <label for="p-mode-simplified">Simplified</label>
+      </div>
+    </div>
   </div>
 
   <div>
@@ -750,8 +790,9 @@ function getParams() {
     opttol:   parseFloat(document.getElementById('p-opttol')?.value ?? 0.2),
     turd:     parseInt(document.getElementById('p-turd')?.value ?? 4),
     stroke:   parseFloat(document.getElementById('p-stroke')?.value ?? 1.2),
-    fill:     document.getElementById('p-fill')?.value ?? 'stroke_only',
-    split:    document.getElementById('p-split')?.checked ?? true,
+    fill:       document.getElementById('p-fill')?.value ?? 'stroke_only',
+    split:      document.getElementById('p-split')?.checked ?? true,
+    trace_mode: document.querySelector('input[name="p-trace-mode"]:checked')?.value ?? 'single',
   };
 }
 
@@ -1155,7 +1196,9 @@ document.getElementById('file-input').addEventListener('change', e => {
 });
 
 // Re-trace when any param changes and a crop selection exists
-document.querySelectorAll('input[type=range], select, input[type=checkbox]').forEach(el => {
+document.querySelectorAll(
+  'input[type=range], select, input[type=checkbox], input[type=radio]'
+).forEach(el => {
   el.addEventListener('change', () => {
     if (cropState.rect && cropState.img) traceSelection();
   });
