@@ -198,6 +198,7 @@ class Handler(BaseHTTPRequestHandler):
             "stroke_width":     float(ui_params.get("stroke", 1.2)),
             "fill_mode":        ui_params.get("fill", "stroke_only"),
             "trace_mode":       ui_params.get("trace_mode", "single"),
+            "shape_style":      ui_params.get("shape_style", "B"),
         }
 
         split_regions = ui_params.get("split", True)

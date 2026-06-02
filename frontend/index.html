@@ -430,6 +430,21 @@
   .export-label { color: var(--muted); }
   .export-info { margin-left: auto; color: var(--muted); font-size: 10px; }
 
+  /* Shape style sub-panel (Regions CV mode) */
+  #shape-style-row {
+    margin-top: 6px;
+    padding: 8px 10px;
+    background: var(--surface);
+    border-radius: 4px;
+    border: 1px solid var(--line);
+  }
+  #shape-style-row .param-name {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 5px;
+    display: block;
+  }
+
   /* Trace mode segmented toggle */
   .seg-toggle {
     display: flex;
@@ -625,6 +640,19 @@
         <label for="p-mode-separate">Separate layers</label>
         <input type="radio" name="p-trace-mode" id="p-mode-simplified" value="simplified">
         <label for="p-mode-simplified">Simplified</label>
+        <input type="radio" name="p-trace-mode" id="p-mode-regions"    value="regions">
+        <label for="p-mode-regions">Regions (CV)</label>
+      </div>
+      <div id="shape-style-row" class="hidden">
+        <span class="param-name">Shape style</span>
+        <div class="seg-toggle">
+          <input type="radio" name="p-shape-style" id="p-style-a" value="A">
+          <label for="p-style-a">A — Organic</label>
+          <input type="radio" name="p-shape-style" id="p-style-b" value="B" checked>
+          <label for="p-style-b">B — Balanced</label>
+          <input type="radio" name="p-shape-style" id="p-style-c" value="C">
+          <label for="p-style-c">C — Geometric</label>
+        </div>
       </div>
     </div>
   </div>
@@ -810,9 +838,10 @@ function getParams() {
     area:       parseInt(document.getElementById('p-area')?.value ?? 80),
     alpha, opttol, turd,
     stroke:     parseFloat(document.getElementById('p-stroke')?.value ?? 1.2),
-    fill:       document.getElementById('p-fill')?.value ?? 'stroke_only',
-    split:      document.getElementById('p-split')?.checked ?? true,
-    trace_mode: document.querySelector('input[name="p-trace-mode"]:checked')?.value ?? 'single',
+    fill:        document.getElementById('p-fill')?.value ?? 'stroke_only',
+    split:       document.getElementById('p-split')?.checked ?? true,
+    trace_mode:  document.querySelector('input[name="p-trace-mode"]:checked')?.value ?? 'single',
+    shape_style: document.querySelector('input[name="p-shape-style"]:checked')?.value ?? 'B',
   };
 }
 
@@ -1088,10 +1117,17 @@ async function traceSelection() {
 
   // Update status bar with layer counts
   if (state.svgData) {
-    const c = countLayers(state.svgData);
-    let txt = `Sketch processed · ${c.total} shape${c.total !== 1 ? 's' : ''}`;
+    const c    = countLayers(state.svgData);
+    const mode = getParams().trace_mode;
+    const isRegions = mode === 'regions';
+    const prefix = isRegions ? 'Regions detected' : 'Sketch processed';
+    let txt = `${prefix} · ${c.total} shape${c.total !== 1 ? 's' : ''}`;
     if (c.primary + c.secondary + c.detail > 0) {
       txt += ` · ${c.primary} primary · ${c.secondary} secondary · ${c.detail} details`;
+      if (isRegions) {
+        const style = getParams().shape_style;
+        txt += ` · [${style}]`;
+      }
     }
     document.getElementById('status-text').textContent = txt;
   }
@@ -1237,6 +1273,15 @@ document.getElementById('file-input').addEventListener('change', e => {
 document.getElementById('p-fidelity').addEventListener('input', () => {
   const f = parseInt(document.getElementById('p-fidelity').value);
   document.getElementById('v-fidelity').textContent = fidelityLabel(f);
+});
+
+// Show/hide shape-style sub-panel when trace mode changes
+document.querySelectorAll('input[name="p-trace-mode"]').forEach(el => {
+  el.addEventListener('change', () => {
+    const isRegions = el.value === 'regions' && el.checked;
+    document.getElementById('shape-style-row')
+      .classList.toggle('hidden', !isRegions);
+  });
 });
 
 // Re-trace when any param changes and a crop selection exists

@@ -346,6 +346,150 @@ def simplify_svg(svg_path: str, params: dict) -> str:
     return svg_path
 
 
+# ── 5c. REGIONS (CV) ─────────────────────────────────────────────────────────
+
+def contour_to_bezier_path(pts: np.ndarray) -> str:
+    """
+    Convert a closed contour (N,2) to an SVG cubic-bezier path using
+    Catmull-Rom → Bezier conversion for organic, smooth curves.
+    """
+    n = len(pts)
+    if n < 3:
+        return ""
+
+    def p(i):
+        return pts[i % n].astype(float)
+
+    x0, y0 = p(0)
+    d = [f"M {x0:.1f},{y0:.1f}"]
+    for i in range(n):
+        cur  = p(i)
+        nxt  = p(i + 1)
+        prev = p(i - 1)
+        nxt2 = p(i + 2)
+        cp1 = cur  + (nxt  - prev) / 6.0
+        cp2 = nxt  - (nxt2 - cur)  / 6.0
+        d.append(
+            f"C {cp1[0]:.1f},{cp1[1]:.1f} "
+            f"{cp2[0]:.1f},{cp2[1]:.1f} "
+            f"{nxt[0]:.1f},{nxt[1]:.1f}"
+        )
+    d.append("Z")
+    return " ".join(d)
+
+
+def segment_regions(binary: np.ndarray, params: dict, output_dir: str) -> dict:
+    """
+    Watershed-based region segmentation → SVG with per-region paths
+    classified as primary / secondary / detail.
+    """
+    h, w = binary.shape
+    total_area   = h * w
+    min_area     = params.get("min_area", 80)
+    stroke_color = params.get("stroke_color", "#1a1a1a")
+    stroke_width = params.get("stroke_width", 1.2)
+    fill_mode    = params.get("fill_mode", "stroke_only")
+    shape_style  = params.get("shape_style", "B")
+
+    eps_factor = {"A": 0.001, "B": 0.005, "C": 0.02}.get(shape_style, 0.005)
+
+    if fill_mode == "stroke_only":
+        style = f'fill="none" stroke="{stroke_color}" stroke-width="{stroke_width}"'
+    else:
+        style = f'fill="{stroke_color}" stroke="none"'
+
+    # ── Noise cleanup
+    kernel  = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    cleaned = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel, iterations=2)
+
+    # ── Distance transform
+    dist = cv2.distanceTransform(cv2.bitwise_not(cleaned), cv2.DIST_L2, 5)
+    cv2.normalize(dist, dist, 0, 1.0, cv2.NORM_MINMAX)
+
+    # ── Sure foreground markers
+    threshold = 0.4 * float(dist.max()) if dist.max() > 0 else 0.4
+    _, sure_fg = cv2.threshold(dist, threshold, 255, 0)
+    sure_fg = sure_fg.astype(np.uint8)
+
+    # ── Watershed
+    sure_bg = cv2.dilate(cv2.bitwise_not(cleaned), kernel, iterations=3)
+    unknown = cv2.subtract(sure_bg, sure_fg)
+    _, markers = cv2.connectedComponents(sure_fg)
+    markers = markers + 1
+    markers[unknown == 255] = 0
+    img_color = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
+    markers = cv2.watershed(img_color, markers)
+
+    # ── Extract, classify and convert each region
+    shapes = []
+    for label in np.unique(markers):
+        if label <= 1:          # skip border (-1) and background (1)
+            continue
+
+        mask = np.zeros((h, w), dtype=np.uint8)
+        mask[markers == label] = 255
+
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        if not contours:
+            continue
+        contour = max(contours, key=cv2.contourArea)
+
+        if cv2.contourArea(contour) < min_area:
+            continue
+
+        # Bounding-box area for classification
+        _, _, cw, ch = cv2.boundingRect(contour)
+        bbox_area = cw * ch
+
+        ratio = bbox_area / total_area
+        cls = "primary" if ratio > 0.30 else ("secondary" if ratio >= 0.05 else "detail")
+
+        # Contour simplification
+        arc_len = cv2.arcLength(contour, True)
+        epsilon = arc_len * eps_factor
+        approx  = cv2.approxPolyDP(contour, epsilon, True)
+        pts = approx.reshape(-1, 2)
+        if len(pts) < 3:
+            continue
+
+        d = contour_to_bezier_path(pts)
+        if not d:
+            continue
+
+        shapes.append({"d": d, "area": bbox_area, "cls": cls})
+
+    # Sort largest first, renumber
+    shapes.sort(key=lambda s: s["area"], reverse=True)
+
+    groups: dict = {"primary": [], "secondary": [], "detail": []}
+    for i, s in enumerate(shapes):
+        shape_id = f"shape-{i+1:03d}"
+        el = (f'    <path id="{shape_id}" data-class="{s["cls"]}" '
+              f'data-area="{int(s["area"])}" {style} d="{s["d"]}"/>')
+        groups[s["cls"]].append(el)
+
+    def make_group(gid, els):
+        inner = "\n".join(els) if els else ""
+        return f'  <g id="{gid}">\n{inner}\n  </g>'
+
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'width="{w}" height="{h}" viewBox="0 0 {w} {h}">\n'
+        f'{make_group("primary-shapes",   groups["primary"])}\n'
+        f'{make_group("secondary-shapes", groups["secondary"])}\n'
+        f'{make_group("detail-shapes",    groups["detail"])}\n'
+        f'</svg>'
+    )
+
+    os.makedirs(output_dir, exist_ok=True)
+    full_path = os.path.join(output_dir, "full.svg")
+    with open(full_path, "w") as f:
+        f.write(svg)
+
+    print(f"  ✓ regions (CV) → {full_path}  [{len(shapes)} shapes]")
+    return {"full_svg": full_path, "shapes": shapes}
+
+
 # ── 5. SVG POST-PROCESS ──────────────────────────────────────────────────────
 
 def postprocess_svg(svg_path: str, params: dict) -> str:
@@ -397,7 +541,8 @@ DEFAULT_PARAMS = {
     "alphamax": 1.0,
     "opttolerance": 0.2,
     "turnpolicy": "minority",
-    "trace_mode": "single",   # single | separate | simplified
+    "trace_mode": "single",   # single | separate | simplified | regions
+    "shape_style": "B",       # A=Organic B=Balanced C=Geometric (regions mode)
 
     # Output style
     "stroke_color": "#1a1a1a",
@@ -443,6 +588,15 @@ def run_pipeline(input_path: str, output_dir: str,
 
     results = {"input": input_path, "regions": [], "params": p,
                "trace_mode": trace_mode}
+
+    # Regions (CV) mode — bypass potrace entirely
+    if trace_mode == "regions":
+        cv_result = segment_regions(binary, p, output_dir)
+        results["full_svg"] = cv_result["full_svg"]
+        meta_path = os.path.join(output_dir, "metadata.json")
+        with open(meta_path, "w") as f:
+            json.dump(results, f, indent=2)
+        return results
 
     if split_regions:
         regions = detect_regions(binary)
