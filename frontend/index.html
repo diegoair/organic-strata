@@ -860,13 +860,16 @@ function redrawCrop(rect) {
   ctx.setLineDash([]);
 }
 
-function canvasEventPos(e, canvas) {
-  return {
-    cx: Math.max(0, Math.min(e.offsetX, canvas.width)),
-    cy: Math.max(0, Math.min(e.offsetY, canvas.height)),
-  };
+// Returns canvas-pixel coordinates clamped to [0, canvas.width/height].
+// Uses clientX/clientY + getBoundingClientRect — reliable near borders.
+function getClampedPos(e) {
+  const rect = cropCanvas.getBoundingClientRect();
+  const x = Math.max(0, Math.min(e.clientX - rect.left, cropCanvas.width));
+  const y = Math.max(0, Math.min(e.clientY - rect.top,  cropCanvas.height));
+  return { x, y };
 }
 
+// Converts two canvas-pixel points into an image-pixel rect.
 function buildRect(ax, ay, bx, by) {
   return {
     x: Math.round(Math.min(ax, bx) * cropState.scaleX),
@@ -876,33 +879,10 @@ function buildRect(ax, ay, bx, by) {
   };
 }
 
-const cropCanvas = document.getElementById('crop-canvas');
-
-cropCanvas.addEventListener('mousedown', e => {
-  e.preventDefault();
-  const { cx, cy } = canvasEventPos(e, cropCanvas);
-  cropState.drawing = true;
-  cropState.startX  = cx;
-  cropState.startY  = cy;
-  cropState.live    = null;
-  cropState.rect    = null;
-  document.getElementById('btn-trace-selection').disabled = true;
-  document.getElementById('crop-dims').textContent = '';
-  redrawCrop(null);
-});
-
-cropCanvas.addEventListener('mousemove', e => {
-  if (!cropState.drawing) return;
-  const { cx, cy } = canvasEventPos(e, cropCanvas);
-  cropState.live = buildRect(cropState.startX, cropState.startY, cx, cy);
-  redrawCrop(cropState.live);
-});
-
-function finishCrop(e) {
-  if (!cropState.drawing) return;
+// Commits the current drag to cropState.rect using the given canvas-pixel endpoint.
+function commitCrop(x, y) {
   cropState.drawing = false;
-  const { cx, cy } = canvasEventPos(e, cropCanvas);
-  const r = buildRect(cropState.startX, cropState.startY, cx, cy);
+  const r = buildRect(cropState.startX, cropState.startY, x, y);
   if (r.w < 10 || r.h < 10) {
     cropState.rect = null;
     redrawCrop(null);
@@ -917,25 +897,42 @@ function finishCrop(e) {
   document.getElementById('btn-trace-selection').disabled = false;
 }
 
-cropCanvas.addEventListener('mouseup', finishCrop);
+const cropCanvas = document.getElementById('crop-canvas');
 
-// On leave: finalize at the last tracked live position, not at the exit coords
+cropCanvas.addEventListener('mousedown', e => {
+  e.preventDefault();
+  const { x, y } = getClampedPos(e);
+  cropState.drawing = true;
+  cropState.startX  = x;
+  cropState.startY  = y;
+  cropState.lastX   = x;
+  cropState.lastY   = y;
+  cropState.live    = null;
+  cropState.rect    = null;
+  document.getElementById('btn-trace-selection').disabled = true;
+  document.getElementById('crop-dims').textContent = '';
+  redrawCrop(null);
+});
+
+cropCanvas.addEventListener('mousemove', e => {
+  if (!cropState.drawing) return;
+  const { x, y } = getClampedPos(e);
+  cropState.lastX = x;
+  cropState.lastY = y;
+  cropState.live  = buildRect(cropState.startX, cropState.startY, x, y);
+  redrawCrop(cropState.live);
+});
+
+cropCanvas.addEventListener('mouseup', e => {
+  if (!cropState.drawing) return;
+  const { x, y } = getClampedPos(e);
+  commitCrop(x, y);
+});
+
+// On leave: finalize at the last tracked in-bounds position, not the exit point.
 cropCanvas.addEventListener('mouseleave', () => {
   if (!cropState.drawing) return;
-  cropState.drawing = false;
-  const r = cropState.live;
-  if (!r || r.w < 10 || r.h < 10) {
-    cropState.rect = null;
-    redrawCrop(null);
-    document.getElementById('crop-dims').textContent = '';
-    document.getElementById('btn-trace-selection').disabled = true;
-    return;
-  }
-  cropState.rect = r;
-  cropState.live = null;
-  redrawCrop(r);
-  document.getElementById('crop-dims').textContent = `${r.w} × ${r.h} px`;
-  document.getElementById('btn-trace-selection').disabled = false;
+  commitCrop(cropState.lastX ?? cropState.startX, cropState.lastY ?? cropState.startY);
 });
 
 document.getElementById('btn-crop-clear').addEventListener('click', () => {
@@ -1006,17 +1003,17 @@ async function generateSVGOutput(imageCanvas, params) {
 
     if (resp.ok) {
       const result = await resp.json();
-      console.log('[OS] result keys:', Object.keys(result));
-      console.log('[OS] svg length:', result.svg ? result.svg.length : 'MISSING');
       console.log('[OS] crop trace result:', result.ok, 'svg length:', result.svg?.length);
-      if (!result.svg) { showServerGuidance('Server returned empty SVG'); return; }
-      state.svgData = result.svg;
-      state.regions = result.regions || [];
-      renderSVGPreview(state.svgData);
-      buildRegionTabs(state.regions);
-      // Ensure buttons are enabled (safety net in case renderSVGPreview missed them)
-      document.getElementById('btn-export').disabled = false;
-      document.getElementById('btn-figma').disabled  = false;
+      if (result.ok === true && result.svg) {
+        state.svgData = result.svg;
+        state.regions = result.regions || [];
+        renderSVGPreview(state.svgData);
+        buildRegionTabs(state.regions);
+        document.getElementById('btn-export').disabled = false;
+        document.getElementById('btn-figma').disabled  = false;
+        return;
+      }
+      showServerGuidance(result.error || 'Server returned empty SVG');
       return;
     }
 
