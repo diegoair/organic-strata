@@ -102,10 +102,7 @@
     justify-content: space-between;
     align-items: center;
   }
-  .param-name {
-    font-size: 12px;
-    color: var(--ink);
-  }
+  .param-name { font-size: 12px; color: var(--ink); }
   .param-val {
     font-family: var(--mono);
     font-size: 11px;
@@ -147,10 +144,7 @@
     margin-bottom: 10px;
   }
   .toggle-name { font-size: 12px; }
-  .toggle {
-    position: relative;
-    width: 32px; height: 18px;
-  }
+  .toggle { position: relative; width: 32px; height: 18px; }
   .toggle input { opacity: 0; width: 0; height: 0; }
   .toggle-slider {
     position: absolute;
@@ -172,11 +166,7 @@
   .toggle input:checked + .toggle-slider { background: var(--ink); }
   .toggle input:checked + .toggle-slider::before { transform: translateX(14px); }
 
-  .preset-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-  }
+  .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .preset-btn {
     font-family: var(--mono);
     font-size: 10px;
@@ -192,7 +182,7 @@
   .preset-btn:hover { background: var(--ink); color: var(--paper); }
   .preset-btn.active { background: var(--ink); color: var(--paper); }
 
-  /* ── MAIN CANVAS ── */
+  /* ── MAIN ── */
   main {
     display: flex;
     flex-direction: column;
@@ -206,21 +196,14 @@
     gap: 10px;
     font-family: var(--mono);
     font-size: 11px;
+    flex-shrink: 0;
   }
   .toolbar-sep { width: 1px; height: 20px; background: var(--line); }
-  .status-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--muted);
-  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
   .status-dot.active { background: #2d9e6b; }
   .status-text { color: var(--muted); font-size: 11px; }
 
-  .view-tabs {
-    display: flex;
-    gap: 2px;
-    margin-left: auto;
-  }
+  .view-tabs { display: flex; gap: 2px; margin-left: auto; }
   .view-tab {
     font-family: var(--mono);
     font-size: 10px;
@@ -255,9 +238,7 @@
     transition: background 0.15s;
     width: 100%;
   }
-  .drop-zone:hover, .drop-zone.dragover {
-    background: var(--surface);
-  }
+  .drop-zone:hover, .drop-zone.dragover { background: var(--surface); }
   .drop-icon {
     width: 64px; height: 64px;
     border: 1.5px dashed var(--muted);
@@ -272,6 +253,42 @@
   .drop-sub { font-size: 12px; color: var(--muted); font-family: var(--mono); }
   #file-input { display: none; }
 
+  /* ── CROP STAGE ── */
+  #crop-stage {
+    width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .crop-bar {
+    height: 42px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    background: var(--surface);
+  }
+  #crop-canvas-wrap {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: var(--surface);
+  }
+  #crop-canvas {
+    cursor: crosshair;
+    display: block;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.14);
+    user-select: none;
+  }
+
   /* Preview panels */
   .preview-grid {
     display: grid;
@@ -281,12 +298,7 @@
     width: 100%;
     flex: 1;
   }
-  .preview-panel {
-    background: var(--paper);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
+  .preview-panel { background: var(--paper); display: flex; flex-direction: column; overflow: hidden; }
   .panel-label {
     font-family: var(--mono);
     font-size: 9px;
@@ -308,17 +320,10 @@
     padding: 16px;
     min-height: 300px;
   }
-  .panel-body img,
-  .panel-body svg,
-  .panel-body .svg-embed {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
+  .panel-body img, .panel-body svg, .panel-body .svg-embed {
+    max-width: 100%; max-height: 100%; object-fit: contain;
   }
-  .panel-body canvas {
-    max-width: 100%;
-    image-rendering: pixelated;
-  }
+  .panel-body canvas { max-width: 100%; image-rendering: pixelated; }
 
   /* Region tabs */
   .region-tabs {
@@ -382,12 +387,7 @@
   .export-info { margin-left: auto; color: var(--muted); font-size: 10px; }
 
   /* Grammar tags */
-  .grammar-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 6px;
-  }
+  .grammar-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
   .gtag {
     font-family: var(--mono);
     font-size: 9px;
@@ -430,7 +430,6 @@
     padding: 0;
   }
 
-  /* Hidden state */
   .hidden { display: none !important; }
 </style>
 </head>
@@ -574,7 +573,7 @@
 <main>
   <div class="toolbar">
     <div class="status-dot" id="status-dot"></div>
-    <span class="status-text" id="status-text">No image loaded</span>
+    <span class="status-text" id="status-text">Drop sketch</span>
     <div class="toolbar-sep"></div>
     <span id="info-regions" style="color:var(--muted)"></span>
     <div class="view-tabs" id="view-tabs" style="display:none">
@@ -586,7 +585,8 @@
   </div>
 
   <div class="canvas-area" id="canvas-area">
-    <!-- Drop zone -->
+
+    <!-- Stage 1: Drop zone -->
     <div class="drop-zone" id="drop-zone">
       <div class="drop-icon">+</div>
       <div class="drop-title">Drop your sketch here</div>
@@ -595,7 +595,22 @@
       <input type="file" id="file-input" accept="image/*">
     </div>
 
-    <!-- Preview (hidden until loaded) -->
+    <!-- Stage 2: Crop selection -->
+    <div id="crop-stage" class="hidden">
+      <div class="crop-bar">
+        <span style="color:var(--muted)">Drag to select area to trace</span>
+        <span id="crop-dims" style="color:var(--ink);font-weight:500"></span>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn" id="btn-crop-clear">Clear</button>
+          <button class="btn primary" id="btn-trace-selection" disabled>Trace Selection</button>
+        </div>
+      </div>
+      <div id="crop-canvas-wrap">
+        <canvas id="crop-canvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Stage 3: Preview (hidden until traced) -->
     <div id="preview-area" class="hidden" style="width:100%;flex:1;display:flex;flex-direction:column;">
       <div class="region-tabs" id="region-tabs"></div>
       <div class="preview-grid">
@@ -604,7 +619,7 @@
           <div class="panel-body"><img id="preview-src" src="" alt="source"></div>
         </div>
         <div class="preview-panel">
-          <div class="panel-label">Binary (preprocessed) <span></span></div>
+          <div class="panel-label">Binary (preprocessed)</div>
           <div class="panel-body"><canvas id="preview-binary"></canvas></div>
         </div>
         <div class="preview-panel" style="grid-column:1/-1">
@@ -618,6 +633,7 @@
         </div>
       </div>
     </div>
+
   </div>
 
   <div class="export-panel" id="export-panel" style="display:none">
@@ -639,13 +655,21 @@
 // ── STATE ──────────────────────────────────────────────────────────────────
 const state = {
   imageFile: null,
-  imageURL: null,
-  originalImg: null,   // HTMLImageElement
-  binaryCanvas: null,
-  svgData: null,       // current SVG string
-  regions: [],         // [{label, svgData}]
+  imageURL:  null,
+  originalImg: null,
+  svgData: null,
+  regions: [],
   currentRegion: 'full',
-  params: getParams()
+};
+
+// Crop interaction state (separate so it doesn't mix with trace state)
+const cropState = {
+  img: null,
+  scaleX: 1, scaleY: 1,
+  drawing: false,
+  startX: 0, startY: 0,  // canvas px at mousedown
+  live: null,             // {x,y,w,h} in image px, while dragging
+  rect: null,             // {x,y,w,h} in image px, committed on mouseup
 };
 
 const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -656,6 +680,18 @@ function showBanner(msg) {
   document.getElementById('backend-banner').classList.remove('hidden');
 }
 
+// ── STAGE MANAGER ──────────────────────────────────────────────────────────
+function showStage(name) {
+  document.getElementById('drop-zone').classList.toggle('hidden',    name !== 'drop');
+  document.getElementById('crop-stage').classList.toggle('hidden',   name !== 'crop');
+  document.getElementById('preview-area').classList.toggle('hidden', name !== 'preview');
+  document.getElementById('view-tabs').style.display     = name === 'preview' ? 'flex' : 'none';
+  document.getElementById('export-panel').style.display  = name === 'preview' ? 'flex' : 'none';
+  document.getElementById('status-dot').classList.toggle('active', name === 'preview');
+  const labels = { drop: 'Drop sketch', crop: 'Select area to trace', preview: 'Sketch processed' };
+  document.getElementById('status-text').textContent = labels[name] || '';
+}
+
 // ── PRESETS ────────────────────────────────────────────────────────────────
 const PRESETS = {
   typographic: { contrast: 1.6, block: 31, area: 60,  alpha: 0.95, opttol: 0.15, turd: 3,  stroke: 1.0, fill: 'stroke_only' },
@@ -664,19 +700,18 @@ const PRESETS = {
   loose:       { contrast: 1.3, block: 51, area: 200, alpha: 1.2,  opttol: 0.5,  turd: 12, stroke: 1.6, fill: 'stroke_only' },
 };
 
-// ── PARAM HELPERS ──────────────────────────────────────────────────────────
 function getParams() {
   return {
-    denoise:   document.getElementById('p-denoise')?.checked ?? true,
-    contrast:  parseFloat(document.getElementById('p-contrast')?.value ?? 1.5),
-    block:     parseInt(document.getElementById('p-block')?.value ?? 35),
-    area:      parseInt(document.getElementById('p-area')?.value ?? 80),
-    alpha:     parseFloat(document.getElementById('p-alpha')?.value ?? 1.0),
-    opttol:    parseFloat(document.getElementById('p-opttol')?.value ?? 0.2),
-    turd:      parseInt(document.getElementById('p-turd')?.value ?? 4),
-    stroke:    parseFloat(document.getElementById('p-stroke')?.value ?? 1.2),
-    fill:      document.getElementById('p-fill')?.value ?? 'stroke_only',
-    split:     document.getElementById('p-split')?.checked ?? true,
+    denoise:  document.getElementById('p-denoise')?.checked ?? true,
+    contrast: parseFloat(document.getElementById('p-contrast')?.value ?? 1.5),
+    block:    parseInt(document.getElementById('p-block')?.value ?? 35),
+    area:     parseInt(document.getElementById('p-area')?.value ?? 80),
+    alpha:    parseFloat(document.getElementById('p-alpha')?.value ?? 1.0),
+    opttol:   parseFloat(document.getElementById('p-opttol')?.value ?? 0.2),
+    turd:     parseInt(document.getElementById('p-turd')?.value ?? 4),
+    stroke:   parseFloat(document.getElementById('p-stroke')?.value ?? 1.2),
+    fill:     document.getElementById('p-fill')?.value ?? 'stroke_only',
+    split:    document.getElementById('p-split')?.checked ?? true,
   };
 }
 
@@ -684,61 +719,45 @@ function applyPreset(name) {
   const p = PRESETS[name];
   if (!p) return;
   document.getElementById('p-contrast').value = p.contrast;
-  document.getElementById('p-block').value = p.block;
-  document.getElementById('p-area').value = p.area;
-  document.getElementById('p-alpha').value = p.alpha;
-  document.getElementById('p-opttol').value = p.opttol;
-  document.getElementById('p-turd').value = p.turd;
-  document.getElementById('p-stroke').value = p.stroke;
-  document.getElementById('p-fill').value = p.fill;
+  document.getElementById('p-block').value    = p.block;
+  document.getElementById('p-area').value     = p.area;
+  document.getElementById('p-alpha').value    = p.alpha;
+  document.getElementById('p-opttol').value   = p.opttol;
+  document.getElementById('p-turd').value     = p.turd;
+  document.getElementById('p-stroke').value   = p.stroke;
+  document.getElementById('p-fill').value     = p.fill;
   updateAllLabels();
   document.querySelectorAll('.preset-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.preset === name));
 }
 
 function updateAllLabels() {
-  const map = [
-    ['p-contrast','v-contrast'], ['p-block','v-block'],
-    ['p-area','v-area'], ['p-alpha','v-alpha'],
-    ['p-opttol','v-opttol'], ['p-turd','v-turd'], ['p-stroke','v-stroke']
-  ];
-  map.forEach(([inp, out]) => {
+  [['p-contrast','v-contrast'],['p-block','v-block'],['p-area','v-area'],
+   ['p-alpha','v-alpha'],['p-opttol','v-opttol'],['p-turd','v-turd'],['p-stroke','v-stroke']]
+  .forEach(([inp, out]) => {
     const el = document.getElementById(inp);
-    const lbl = document.getElementById(out);
-    if (el && lbl) lbl.textContent = el.value;
+    const lb = document.getElementById(out);
+    if (el && lb) lb.textContent = el.value;
   });
 }
 
-// ── PROCESSING (browser-side) ──────────────────────────────────────────────
-// We do preprocessing in-browser using Canvas API for live preview,
-// then for the final SVG we use a base64 data approach.
-
-function loadImageToCanvas(file) {
-  return new Promise(resolve => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => resolve({ img, url });
-    img.src = url;
-  });
-}
-
-function preprocessInBrowser(img, params) {
-  // Draw to offscreen canvas
+// ── BROWSER PREPROCESSING (binary preview only) ────────────────────────────
+// Accepts HTMLImageElement or HTMLCanvasElement as src.
+function preprocessInBrowser(src, params) {
   const canvas = document.createElement('canvas');
   const maxDim = 1200;
-  let w = img.naturalWidth, h = img.naturalHeight;
+  let w = src.naturalWidth  || src.width;
+  let h = src.naturalHeight || src.height;
   if (w > maxDim || h > maxDim) {
     const scale = maxDim / Math.max(w, h);
     w = Math.round(w * scale); h = Math.round(h * scale);
   }
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d');
-  ctx.drawImage(img, 0, 0, w, h);
+  ctx.drawImage(src, 0, 0, w, h);
 
   const imageData = ctx.getImageData(0, 0, w, h);
   const data = imageData.data;
-
-  // Grayscale + contrast boost
   const boost = params.contrast;
   for (let i = 0; i < data.length; i += 4) {
     let g = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
@@ -746,29 +765,27 @@ function preprocessInBrowser(img, params) {
     data[i] = data[i+1] = data[i+2] = g;
   }
 
-  // Simple adaptive threshold approximation (for preview only)
   const bCanvas = document.createElement('canvas');
   bCanvas.width = w; bCanvas.height = h;
   const bCtx = bCanvas.getContext('2d');
   bCtx.putImageData(imageData, 0, 0);
 
-  const src = bCtx.getImageData(0, 0, w, h);
-  const dst = bCtx.createImageData(w, h);
+  const src2 = bCtx.getImageData(0, 0, w, h);
+  const dst  = bCtx.createImageData(w, h);
   const blockH = Math.round(params.block);
   const C = 8;
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = (y * w + x) * 4;
-      const g = src.data[idx];
-      // local mean
+      const g = src2.data[idx];
       let sum = 0, count = 0;
       const bh = Math.floor(blockH / 2);
       for (let dy = -bh; dy <= bh; dy += 4) {
         for (let dx = -bh; dx <= bh; dx += 4) {
           const nx = x + dx, ny = y + dy;
           if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-            sum += src.data[(ny * w + nx) * 4]; count++;
+            sum += src2.data[(ny * w + nx) * 4]; count++;
           }
         }
       }
@@ -782,42 +799,175 @@ function preprocessInBrowser(img, params) {
   return bCanvas;
 }
 
-// ── MAIN PROCESS FLOW ──────────────────────────────────────────────────────
-async function processImage(file) {
-  setProcessing(true, 'Loading image...');
+// ── STEP 1: LOAD IMAGE → CROP STAGE ───────────────────────────────────────
+function loadImageToCanvas(file) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => resolve({ img, url });
+    img.src = url;
+  });
+}
 
+async function loadForCrop(file) {
+  state.imageFile = file;
   const { img, url } = await loadImageToCanvas(file);
+  cropState.img = img;
   state.originalImg = img;
   state.imageURL = url;
+  showStage('crop');
+  // Wait one frame for the crop-stage layout to settle before sizing the canvas
+  requestAnimationFrame(() => initCropCanvas(img));
+}
 
-  // Show source
-  document.getElementById('preview-src').src = url;
-  document.getElementById('src-dims').textContent =
-    `${img.naturalWidth} × ${img.naturalHeight}`;
+// ── STEP 2: CROP CANVAS ────────────────────────────────────────────────────
+function initCropCanvas(img) {
+  const canvas = document.getElementById('crop-canvas');
+  const wrap   = document.getElementById('crop-canvas-wrap');
+  const maxW   = Math.max(wrap.clientWidth  - 40, 100);
+  const maxH   = Math.max(wrap.clientHeight - 40, 100);
+  const scale  = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
+  canvas.width  = Math.round(img.naturalWidth  * scale);
+  canvas.height = Math.round(img.naturalHeight * scale);
+  cropState.scaleX  = img.naturalWidth  / canvas.width;
+  cropState.scaleY  = img.naturalHeight / canvas.height;
+  cropState.rect    = null;
+  cropState.live    = null;
+  cropState.drawing = false;
+  document.getElementById('btn-trace-selection').disabled = true;
+  document.getElementById('crop-dims').textContent = '';
+  redrawCrop(null);
+}
 
-  setProcessing(true, 'Preprocessing...');
+function redrawCrop(rect) {
+  const canvas = document.getElementById('crop-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (cropState.img) ctx.drawImage(cropState.img, 0, 0, canvas.width, canvas.height);
+  if (!rect || rect.w < 2 || rect.h < 2) return;
+
+  const cx = Math.round(rect.x / cropState.scaleX);
+  const cy = Math.round(rect.y / cropState.scaleY);
+  const cw = Math.round(rect.w / cropState.scaleX);
+  const ch = Math.round(rect.h / cropState.scaleY);
+
+  ctx.fillStyle = 'rgba(26,26,26,0.15)';
+  ctx.fillRect(cx, cy, cw, ch);
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 4]);
+  ctx.strokeRect(cx + 0.75, cy + 0.75, cw - 1.5, ch - 1.5);
+  ctx.setLineDash([]);
+}
+
+function canvasEventPos(e, canvas) {
+  const bbox = canvas.getBoundingClientRect();
+  return {
+    cx: (e.clientX - bbox.left) * (canvas.width  / bbox.width),
+    cy: (e.clientY - bbox.top)  * (canvas.height / bbox.height),
+  };
+}
+
+function buildRect(ax, ay, bx, by) {
+  return {
+    x: Math.round(Math.min(ax, bx) * cropState.scaleX),
+    y: Math.round(Math.min(ay, by) * cropState.scaleY),
+    w: Math.round(Math.abs(bx - ax) * cropState.scaleX),
+    h: Math.round(Math.abs(by - ay) * cropState.scaleY),
+  };
+}
+
+const cropCanvas = document.getElementById('crop-canvas');
+
+cropCanvas.addEventListener('mousedown', e => {
+  e.preventDefault();
+  const { cx, cy } = canvasEventPos(e, cropCanvas);
+  cropState.drawing = true;
+  cropState.startX  = cx;
+  cropState.startY  = cy;
+  cropState.live    = null;
+  cropState.rect    = null;
+  document.getElementById('btn-trace-selection').disabled = true;
+  document.getElementById('crop-dims').textContent = '';
+  redrawCrop(null);
+});
+
+cropCanvas.addEventListener('mousemove', e => {
+  if (!cropState.drawing) return;
+  const { cx, cy } = canvasEventPos(e, cropCanvas);
+  cropState.live = buildRect(cropState.startX, cropState.startY, cx, cy);
+  redrawCrop(cropState.live);
+});
+
+function finishCrop(e) {
+  if (!cropState.drawing) return;
+  cropState.drawing = false;
+  const { cx, cy } = canvasEventPos(e, cropCanvas);
+  const r = buildRect(cropState.startX, cropState.startY, cx, cy);
+  if (r.w < 10 || r.h < 10) {
+    cropState.rect = null;
+    redrawCrop(null);
+    document.getElementById('crop-dims').textContent = '';
+    document.getElementById('btn-trace-selection').disabled = true;
+    return;
+  }
+  cropState.rect = r;
+  cropState.live = null;
+  redrawCrop(r);
+  document.getElementById('crop-dims').textContent = `${r.w} × ${r.h} px`;
+  document.getElementById('btn-trace-selection').disabled = false;
+}
+
+cropCanvas.addEventListener('mouseup',    finishCrop);
+cropCanvas.addEventListener('mouseleave', finishCrop);
+
+document.getElementById('btn-crop-clear').addEventListener('click', () => {
+  cropState.rect    = null;
+  cropState.live    = null;
+  cropState.drawing = false;
+  redrawCrop(null);
+  document.getElementById('crop-dims').textContent = '';
+  document.getElementById('btn-trace-selection').disabled = true;
+});
+
+// ── STEP 3: TRACE SELECTION ────────────────────────────────────────────────
+async function traceSelection() {
+  const r = cropState.rect;
+  if (!r || r.w < 10 || r.h < 10) return;
+
+  setProcessing(true, 'Tracing...');
+  document.getElementById('status-text').textContent = 'Tracing...';
+
+  // Crop the original image to the selected rectangle
+  const offscreen = document.createElement('canvas');
+  offscreen.width  = r.w;
+  offscreen.height = r.h;
+  offscreen.getContext('2d').drawImage(cropState.img, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+
   const params = getParams();
-  const binaryCanvas = preprocessInBrowser(img, params);
-  state.binaryCanvas = binaryCanvas;
 
-  // Show binary preview
+  // Show source preview (the crop)
+  document.getElementById('preview-src').src = offscreen.toDataURL();
+  document.getElementById('src-dims').textContent = `${r.w} × ${r.h}`;
+
+  // Browser-side binary preview (display only — backend redoes this)
+  const binaryCanvas = preprocessInBrowser(offscreen, params);
   const prevBin = document.getElementById('preview-binary');
-  prevBin.width = binaryCanvas.width;
+  prevBin.width  = binaryCanvas.width;
   prevBin.height = binaryCanvas.height;
   prevBin.getContext('2d').drawImage(binaryCanvas, 0, 0);
 
-  setProcessing(true, 'Tracing paths...');
-
-  // Convert binary canvas to data URL and send to Python backend
-  // For now (standalone HTML) we simulate with potrace via a fetch to a local server
-  // OR we use the embedded SVG output we already generated
-  await generateSVGOutput(binaryCanvas, params);
+  // Send raw crop to backend for tracing
+  await generateSVGOutput(offscreen, params);
 
   setProcessing(false);
-  showPreview();
+  showStage('preview');
 }
 
-async function generateSVGOutput(binaryCanvas, params) {
+document.getElementById('btn-trace-selection').addEventListener('click', traceSelection);
+
+// ── SVG GENERATION (backend call) ─────────────────────────────────────────
+async function generateSVGOutput(imageCanvas, params) {
   if (!BACKEND_URL) {
     showBanner('Start local backend to process sketches — run: cd backend && source venv/bin/activate && python3 server.py');
     showServerGuidance();
@@ -825,7 +975,7 @@ async function generateSVGOutput(binaryCanvas, params) {
   }
 
   try {
-    const blob = await new Promise(r => binaryCanvas.toBlob(r, 'image/png'));
+    const blob = await new Promise(r => imageCanvas.toBlob(r, 'image/png'));
     console.log('[OS] fetching from:', BACKEND_URL);
     const formData = new FormData();
     formData.append('image', blob, 'sketch.png');
@@ -841,13 +991,9 @@ async function generateSVGOutput(binaryCanvas, params) {
       const result = await resp.json();
       console.log('[OS] result keys:', Object.keys(result));
       console.log('[OS] svg length:', result.svg ? result.svg.length : 'MISSING');
-      if (!result.svg) {
-        showServerGuidance('Server returned empty SVG');
-        return;
-      }
-      console.log('[OS] calling renderSVGPreview');
-      state.svgData = result.svg;
-      state.regions = result.regions || [];
+      if (!result.svg) { showServerGuidance('Server returned empty SVG'); return; }
+      state.svgData  = result.svg;
+      state.regions  = result.regions || [];
       renderSVGPreview(state.svgData);
       buildRegionTabs(state.regions);
       return;
@@ -874,9 +1020,7 @@ function showServerGuidance(errMsg) {
       <div style="color:var(--ink);font-size:13px;margin-bottom:8px">Backend required</div>
       <div style="margin-bottom:16px">Run this in your terminal to enable SVG tracing:</div>
       <code style="display:block;background:var(--surface);padding:12px;border-radius:4px;text-align:left;font-size:11px;line-height:1.8">
-        cd backend<br>
-        source venv/bin/activate<br>
-        python3 server.py
+        cd backend<br>source venv/bin/activate<br>python3 server.py
       </code>
       ${errBlock}
       <div style="margin-top:12px;font-size:11px">Then reload this page and drop your sketch again.</div>
@@ -884,32 +1028,28 @@ function showServerGuidance(errMsg) {
   `;
   document.getElementById('svg-info').textContent = errMsg ? 'trace error' : 'server offline';
   document.getElementById('btn-export').disabled = true;
-  document.getElementById('btn-figma').disabled = true;
+  document.getElementById('btn-figma').disabled  = true;
 }
 
 function renderSVGPreview(svgStr) {
-  // Inject SVG into preview, scale to fit
   const embed = document.getElementById('svg-embed');
   embed.innerHTML = svgStr;
   const svgEl = embed.querySelector('svg');
   if (svgEl) {
-    svgEl.style.maxWidth = '100%';
+    svgEl.style.maxWidth  = '100%';
     svgEl.style.maxHeight = '480px';
-    svgEl.style.height = 'auto';
+    svgEl.style.height    = 'auto';
   }
   const size = new Blob([svgStr]).size;
-  document.getElementById('svg-info').textContent =
-    `${(size/1024).toFixed(1)} kb`;
-  document.getElementById('btn-export').disabled = false;
-  document.getElementById('btn-figma').disabled = false;
-  document.getElementById('export-info').textContent =
-    `${(size/1024).toFixed(1)} KB · SVG`;
+  document.getElementById('svg-info').textContent = `${(size/1024).toFixed(1)} kb`;
+  document.getElementById('btn-export').disabled  = false;
+  document.getElementById('btn-figma').disabled   = false;
+  document.getElementById('export-info').textContent = `${(size/1024).toFixed(1)} KB · SVG`;
 }
 
 function buildRegionTabs(regions) {
   const tabs = document.getElementById('region-tabs');
   tabs.innerHTML = '';
-
   const all = [{ label: 'full' }, ...regions];
   all.forEach((r, i) => {
     const btn = document.createElement('button');
@@ -919,85 +1059,64 @@ function buildRegionTabs(regions) {
       document.querySelectorAll('.region-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.currentRegion = r.label;
-      if (r.label === 'full') {
-        renderSVGPreview(state.svgData);
-      } else if (r.svgData) {
-        renderSVGPreview(r.svgData);
-      }
+      if (r.label === 'full') renderSVGPreview(state.svgData);
+      else if (r.svgData)    renderSVGPreview(r.svgData);
     };
     tabs.appendChild(btn);
   });
-
   document.getElementById('info-regions').textContent =
     regions.length > 0 ? `${regions.length} regions` : '';
 }
 
 // ── UI HELPERS ─────────────────────────────────────────────────────────────
-function showPreview() {
-  document.getElementById('drop-zone').classList.add('hidden');
-  document.getElementById('preview-area').classList.remove('hidden');
-  document.getElementById('view-tabs').style.display = 'flex';
-  document.getElementById('export-panel').style.display = 'flex';
-  document.getElementById('status-dot').classList.add('active');
-  document.getElementById('status-text').textContent = 'Sketch processed';
-}
-
 function setProcessing(show, msg) {
-  const el = document.getElementById('processing');
-  el.classList.toggle('show', show);
+  document.getElementById('processing').classList.toggle('show', show);
   if (msg) document.getElementById('processing-msg').textContent = msg;
 }
 
 // ── EVENTS ─────────────────────────────────────────────────────────────────
-// Drag & drop
 const dropZone = document.getElementById('drop-zone');
-document.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+document.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('dragover'); });
 document.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
 document.addEventListener('drop', e => {
   e.preventDefault();
   dropZone.classList.remove('dragover');
   const file = e.dataTransfer?.files[0];
-  if (file && file.type.startsWith('image/')) {
-    state.imageFile = file;
-    processImage(file);
-  }
+  if (file && file.type.startsWith('image/')) loadForCrop(file);
 });
 
 document.getElementById('file-input').addEventListener('change', e => {
   const file = e.target.files[0];
-  if (file) { state.imageFile = file; processImage(file); }
+  if (file) loadForCrop(file);
 });
 
-// Sliders
+// Slider labels
 ['p-contrast','p-block','p-area','p-alpha','p-opttol','p-turd','p-stroke'].forEach(id => {
-  const el = document.getElementById(id);
+  const el  = document.getElementById(id);
   const lbl = document.getElementById(id.replace('p-','v-'));
   if (el && lbl) el.addEventListener('input', () => { lbl.textContent = el.value; });
 });
 
 // Presets
-document.querySelectorAll('.preset-btn').forEach(btn => {
-  btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
-});
-
-// Re-process button (rerun when params change + image loaded)
-document.querySelectorAll('input[type=range], select, input[type=checkbox]').forEach(el => {
-  el.addEventListener('change', () => {
-    if (state.imageFile) processImage(state.imageFile);
-  });
-});
+document.querySelectorAll('.preset-btn').forEach(btn =>
+  btn.addEventListener('click', () => applyPreset(btn.dataset.preset))
+);
 
 // Export
+function downloadString(str, filename, mime) {
+  const blob = new Blob([str], { type: mime });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 document.getElementById('btn-export').addEventListener('click', () => {
-  if (!state.svgData) return;
-  downloadString(state.svgData, 'sketch-grammar.svg', 'image/svg+xml');
+  if (state.svgData) downloadString(state.svgData, 'sketch-grammar.svg', 'image/svg+xml');
 });
-
 document.getElementById('btn-dl-svg').addEventListener('click', () => {
-  if (!state.svgData) return;
-  downloadString(state.svgData, 'sketch-grammar.svg', 'image/svg+xml');
+  if (state.svgData) downloadString(state.svgData, 'sketch-grammar.svg', 'image/svg+xml');
 });
-
 document.getElementById('btn-copy-svg').addEventListener('click', () => {
   if (!state.svgData) return;
   navigator.clipboard.writeText(state.svgData).then(() => {
@@ -1007,28 +1126,26 @@ document.getElementById('btn-copy-svg').addEventListener('click', () => {
   });
 });
 
+// Reset — works from any stage
 document.getElementById('btn-reset').addEventListener('click', () => {
   state.imageFile = null;
-  state.svgData = null;
-  document.getElementById('drop-zone').classList.remove('hidden');
-  document.getElementById('preview-area').classList.add('hidden');
-  document.getElementById('view-tabs').style.display = 'none';
-  document.getElementById('export-panel').style.display = 'none';
-  document.getElementById('status-dot').classList.remove('active');
-  document.getElementById('status-text').textContent = 'No image loaded';
+  state.svgData   = null;
+  state.regions   = [];
+  cropState.img   = null;
+  cropState.rect  = null;
+  cropState.live  = null;
+  cropState.drawing = false;
   document.getElementById('btn-export').disabled = true;
-  document.getElementById('btn-figma').disabled = true;
-  document.getElementById('file-input').value = '';
+  document.getElementById('btn-figma').disabled  = true;
+  document.getElementById('file-input').value    = '';
+  document.getElementById('region-tabs').innerHTML = '';
+  document.getElementById('info-regions').textContent = '';
+  document.getElementById('svg-embed').innerHTML = '';
+  document.getElementById('crop-dims').textContent = '';
+  showStage('drop');
 });
 
-function downloadString(str, filename, mime) {
-  const blob = new Blob([str], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
-}
-
+// → Figma
 document.getElementById('btn-figma').addEventListener('click', async () => {
   if (!state.svgData) return;
 
@@ -1038,7 +1155,6 @@ document.getElementById('btn-figma').addEventListener('click', async () => {
     return;
   }
 
-  // 1. Health check — verify token is configured
   let health;
   try {
     health = await fetch(BACKEND_URL + '/health').then(r => r.json());
@@ -1051,7 +1167,6 @@ document.getElementById('btn-figma').addEventListener('click', async () => {
     return;
   }
 
-  // 2. POST SVG to backend
   const activePreset = document.querySelector('.preset-btn.active')?.dataset.preset ?? 'typographic';
   let result;
   try {
@@ -1066,7 +1181,6 @@ document.getElementById('btn-figma').addEventListener('click', async () => {
     return;
   }
 
-  // 3. Handle push result
   if (!result.ok) {
     showBanner('Figma push failed — ' + (result.error || JSON.stringify(result)));
     return;
@@ -1078,7 +1192,7 @@ document.getElementById('btn-figma').addEventListener('click', async () => {
   window.open(result.figma_url, '_blank');
 });
 
-// Init labels
+// Init
 updateAllLabels();
 </script>
 </body>
