@@ -388,106 +388,110 @@ def contour_to_bezier_path(contour, img_w, img_h, svg_w, svg_h, style='B'):
     return d
 
 
-def segment_regions(binary: np.ndarray, params: dict, output_dir: str) -> dict:
+def segment_regions(binary: np.ndarray, params: dict) -> str:
     """
-    Watershed-based region segmentation → SVG with per-region paths
-    classified as primary / secondary / detail.
+    Contour-hierarchy region detection → SVG string.
+    Works on line-art sketches by closing broken lines then finding enclosed regions.
     """
-    h, w = binary.shape
-    total_area   = h * w
-    min_area     = params.get("min_area", 80)
-    stroke_color = params.get("stroke_color", "#1a1a1a")
-    stroke_width = params.get("stroke_width", 1.2)
-    fill_mode    = params.get("fill_mode", "stroke_only")
-    shape_style  = params.get("shape_style", "B")
+    shape_style = params.get("shape_style", "B")
+    min_area    = params.get("min_area", 500)
+    max_shapes  = params.get("max_shapes", 20)
+    img_h, img_w = binary.shape
+    total_area   = img_h * img_w
 
-    if fill_mode == "stroke_only":
-        style = f'fill="none" stroke="{stroke_color}" stroke-width="{stroke_width}"'
-    else:
-        style = f'fill="{stroke_color}" stroke="none"'
+    # Invert: contour detection needs white objects on black background
+    inverted = cv2.bitwise_not(binary)
 
-    # ── Noise cleanup
-    kernel  = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    cleaned = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel, iterations=2)
+    # Morphological closing bridges small gaps in sketch lines
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    closed = cv2.morphologyEx(inverted, cv2.MORPH_CLOSE, kernel, iterations=3)
 
-    # ── Distance transform
-    dist = cv2.distanceTransform(cv2.bitwise_not(cleaned), cv2.DIST_L2, 5)
-    cv2.normalize(dist, dist, 0, 1.0, cv2.NORM_MINMAX)
-
-    # ── Sure foreground markers
-    threshold = 0.4 * float(dist.max()) if dist.max() > 0 else 0.4
-    _, sure_fg = cv2.threshold(dist, threshold, 255, 0)
-    sure_fg = sure_fg.astype(np.uint8)
-
-    # ── Watershed
-    sure_bg = cv2.dilate(cv2.bitwise_not(cleaned), kernel, iterations=3)
-    unknown = cv2.subtract(sure_bg, sure_fg)
-    _, markers = cv2.connectedComponents(sure_fg)
-    markers = markers + 1
-    markers[unknown == 255] = 0
-    img_color = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
-    markers = cv2.watershed(img_color, markers)
-
-    # ── Extract, classify and convert each region
-    shapes = []
-    for label in np.unique(markers):
-        if label <= 1:          # skip border (-1) and background (1)
-            continue
-
-        mask = np.zeros((h, w), dtype=np.uint8)
-        mask[markers == label] = 255
-
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        if not contours:
-            continue
-        contour = max(contours, key=cv2.contourArea)
-
-        if cv2.contourArea(contour) < min_area:
-            continue
-
-        # Bounding-box area for classification
-        _, _, cw, ch = cv2.boundingRect(contour)
-        bbox_area = cw * ch
-
-        ratio = bbox_area / total_area
-        cls = "primary" if ratio > 0.30 else ("secondary" if ratio >= 0.05 else "detail")
-
-        d = contour_to_bezier_path(contour, w, h, w, h, shape_style)
-        if not d:
-            continue
-
-        shapes.append({"d": d, "area": bbox_area, "cls": cls})
-
-    # Sort largest first, renumber
-    shapes.sort(key=lambda s: s["area"], reverse=True)
-
-    groups: dict = {"primary": [], "secondary": [], "detail": []}
-    for i, s in enumerate(shapes):
-        shape_id = f"shape-{i+1:03d}"
-        el = (f'    <path id="{shape_id}" data-class="{s["cls"]}" '
-              f'data-area="{int(s["area"])}" {style} d="{s["d"]}"/>')
-        groups[s["cls"]].append(el)
-
-    def make_group(gid, els):
-        inner = "\n".join(els) if els else ""
-        return f'  <g id="{gid}">\n{inner}\n  </g>'
-
-    svg = (
-        f'<svg xmlns="http://www.w3.org/2000/svg" '
-        f'width="{w}" height="{h}" viewBox="0 0 {w} {h}">\n'
-        f'{make_group("primary-shapes",   groups["primary"])}\n'
-        f'{make_group("secondary-shapes", groups["secondary"])}\n'
-        f'{make_group("detail-shapes",    groups["detail"])}\n'
-        f'</svg>'
+    # Find contours with full hierarchy
+    contours, hierarchy = cv2.findContours(
+        closed, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE
     )
 
-    os.makedirs(output_dir, exist_ok=True)
-    full_path = os.path.join(output_dir, "full.svg")
-    with open(full_path, "w") as f:
-        f.write(svg)
+    if hierarchy is None or len(contours) == 0:
+        return _fallback_single_trace(binary, params)
 
-    print(f"  ✓ regions (CV) → {full_path}  [{len(shapes)} shapes]")
-    return {"full_svg": full_path, "shapes": shapes}
+    hierarchy = hierarchy[0]
+
+    # Keep contours within area bounds; drop full-image border artifacts
+    valid = []
+    for i, cnt in enumerate(contours):
+        area = cv2.contourArea(cnt)
+        if area < min_area:
+            continue
+        if area > total_area * 0.85:
+            continue
+        valid.append((area, i, cnt))
+
+    valid.sort(key=lambda x: x[0], reverse=True)
+    valid = valid[:max_shapes]
+
+    if not valid:
+        return _fallback_single_trace(binary, params)
+
+    def classify(area):
+        ratio = area / total_area
+        if ratio > 0.15:  return "primary"
+        if ratio > 0.03:  return "secondary"
+        return "detail"
+
+    paths_by_class: dict = {"primary": [], "secondary": [], "detail": []}
+
+    for idx, (area, _, cnt) in enumerate(valid):
+        path_d = contour_to_bezier_path(cnt, img_w, img_h, img_w, img_h, shape_style)
+        if path_d is None:
+            continue
+        cls = classify(area)
+        shape_id = f"shape-{idx+1:03d}"
+        paths_by_class[cls].append(
+            f'<path id="{shape_id}" data-class="{cls}" '
+            f'data-area="{int(area)}" d="{path_d}" '
+            f'fill="none" stroke="#1a1a1a" stroke-width="1.5"/>'
+        )
+
+    total_paths = sum(len(v) for v in paths_by_class.values())
+    if total_paths == 0:
+        return _fallback_single_trace(binary, params)
+
+    svg_parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'viewBox="0 0 {img_w} {img_h}" '
+        f'width="{img_w}" height="{img_h}">'
+    ]
+    for cls in ("primary", "secondary", "detail"):
+        if paths_by_class[cls]:
+            svg_parts.append(f'<g id="{cls}-shapes">')
+            svg_parts.extend(paths_by_class[cls])
+            svg_parts.append("</g>")
+    svg_parts.append("</svg>")
+
+    print(f"  ✓ regions (contour) — {total_paths} shapes "
+          f"({len(paths_by_class['primary'])}p / "
+          f"{len(paths_by_class['secondary'])}s / "
+          f"{len(paths_by_class['detail'])}d)")
+    return "\n".join(svg_parts)
+
+
+def _fallback_single_trace(binary: np.ndarray, params: dict) -> str:
+    """Fallback to potrace when contour detection finds nothing."""
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+        tmp_png = f.name
+    cv2.imwrite(tmp_png, binary)
+    pbm_path = tmp_png.replace(".png", ".pbm")
+    out_path = tmp_png.replace(".png", ".svg")
+    try:
+        Image.fromarray(binary).convert("1").save(pbm_path)
+        subprocess.run(["potrace", "--svg", "-o", out_path, pbm_path],
+                       capture_output=True)
+        with open(out_path) as f:
+            return f.read()
+    finally:
+        for p in (tmp_png, pbm_path, out_path):
+            try: os.unlink(p)
+            except FileNotFoundError: pass
 
 
 # ── 5. SVG POST-PROCESS ──────────────────────────────────────────────────────
@@ -543,6 +547,7 @@ DEFAULT_PARAMS = {
     "turnpolicy": "minority",
     "trace_mode": "single",   # single | separate | simplified | regions
     "shape_style": "B",       # A=Organic B=Balanced C=Geometric (regions mode)
+    "max_shapes": 20,         # cap on shapes extracted in regions mode
 
     # Output style
     "stroke_color": "#1a1a1a",
@@ -591,8 +596,11 @@ def run_pipeline(input_path: str, output_dir: str,
 
     # Regions (CV) mode — bypass potrace entirely
     if trace_mode == "regions":
-        cv_result = segment_regions(binary, p, output_dir)
-        results["full_svg"] = cv_result["full_svg"]
+        svg_str   = segment_regions(binary, p)
+        full_path = os.path.join(output_dir, "full.svg")
+        with open(full_path, "w") as f:
+            f.write(svg_str)
+        results["full_svg"] = full_path
         meta_path = os.path.join(output_dir, "metadata.json")
         with open(meta_path, "w") as f:
             json.dump(results, f, indent=2)
