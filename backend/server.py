@@ -16,6 +16,7 @@ from process import run_pipeline, DEFAULT_PARAMS
 
 PORT = 5050
 STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.join(os.path.dirname(STATIC_DIR), 'frontend')
 
 
 def parse_multipart(data: bytes, boundary: str):
@@ -60,7 +61,7 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?")[0]
 
         if path == "/" or path == "/index.html":
-            self.serve_file(os.path.join(STATIC_DIR, "app.html"), "text/html")
+            self.serve_file(os.path.join(FRONTEND_DIR, "index.html"), "text/html")
         elif path.startswith("/output/"):
             fname = path[8:]
             fpath = os.path.join(STATIC_DIR, "output", fname)
