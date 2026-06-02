@@ -23,31 +23,53 @@ figma.ui.onmessage = async (msg) => {
     try {
       const frame = getOrCreateFrame();
 
-      // Separate-paths mode: each <path id="shape-NNN"> becomes its own vector node
+      // Separate-layers mode: path elements with data-class → sub-groups
       const svgOpenTag = (svg.match(/<svg\b[^>]*>/) || ['<svg xmlns="http://www.w3.org/2000/svg">'])[0];
       const pathElems = [...svg.matchAll(/<path\b[^>]*\bid="(shape-\d+)"[^>]*\/?>/g)];
       if (pathElems.length > 1) {
         const ts = Date.now();
-        const nodes = [];
+
+        // Bucket nodes by data-class
+        const buckets = { primary: [], secondary: [], detail: [] };
         for (const m of pathElems) {
-          const shapeId = m[1];
-          const pathElem = m[0];
-          const singleSvg = `${svgOpenTag}\n${pathElem}\n</svg>`;
+          const fullElem = m[0];
+          const shapeId  = m[1];
+          const clsMatch = fullElem.match(/data-class="([^"]+)"/);
+          const cls      = clsMatch ? clsMatch[1] : 'detail';
+          const singleSvg = `${svgOpenTag}\n${fullElem}\n</svg>`;
           try {
             const node = figma.createNodeFromSvg(singleSvg);
-            node.name = shapeId;
-            nodes.push(node);
+            node.name = `${shapeId} [${cls}]`;
+            (buckets[cls] || buckets.detail).push(node);
           } catch (_) {}
         }
-        if (nodes.length === 0) {
+
+        const allNodes = [...buckets.primary, ...buckets.secondary, ...buckets.detail];
+        if (allNodes.length === 0) {
           figma.ui.postMessage({ type: 'error', message: 'No paths imported' });
           return;
         }
-        const group = figma.group(nodes, figma.currentPage);
-        group.name = `organic-trace-${ts}`;
-        frame.appendChild(group);
-        figma.viewport.scrollAndZoomIntoView([group]);
-        figma.ui.postMessage({ type: 'done', nodeId: group.id });
+
+        // Build sub-groups (skip empty buckets)
+        const subGroups = [];
+        const subGroupDefs = [
+          { key: 'primary',   name: 'Primary'   },
+          { key: 'secondary', name: 'Secondary' },
+          { key: 'detail',    name: 'Details'   },
+        ];
+        for (const def of subGroupDefs) {
+          const nodes = buckets[def.key];
+          if (nodes.length === 0) continue;
+          const sg = figma.group(nodes, figma.currentPage);
+          sg.name = def.name;
+          subGroups.push(sg);
+        }
+
+        const topGroup = figma.group(subGroups, figma.currentPage);
+        topGroup.name = `organic-trace-${ts}`;
+        frame.appendChild(topGroup);
+        figma.viewport.scrollAndZoomIntoView([topGroup]);
+        figma.ui.postMessage({ type: 'done', nodeId: topGroup.id });
         return;
       }
 

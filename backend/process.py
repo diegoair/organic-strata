@@ -197,23 +197,34 @@ def trace_region(binary: np.ndarray, region: dict, params: dict,
 
 def split_svg_paths(svg_path: str, params: dict) -> str:
     """
-    Parse the compound path potrace produces and emit one <path> per closed
-    subpath (M…Z segment).  Each element gets id="shape-NNN".
-    Subpaths whose bounding box area falls below min_area are dropped.
+    Parse potrace compound path → individual <path> elements classified as
+    primary / secondary / detail by bounding-box area relative to image area.
+    Shapes are ordered largest-first and grouped in three <g> elements.
     """
     with open(svg_path) as f:
         content = f.read()
 
-    # Extract the single compound <path d="…"> potrace writes
     path_match = re.search(r'<path\b[^>]*\bd="([^"]+)"', content)
     if not path_match:
-        return svg_path                 # nothing to split
+        return svg_path
 
     d_attr = path_match.group(1)
 
-    # Split on every M that opens a new subpath
-    subpaths = re.split(r'(?=M\s*[\d\-])', d_attr.strip())
-    subpaths = [s.strip() for s in subpaths if s.strip()]
+    # Preserve viewBox / dimensions
+    vb_match = re.search(r'viewBox="([^"]+)"', content)
+    vb = f'viewBox="{vb_match.group(1)}"' if vb_match else ''
+    wh_match = re.search(r'<svg[^>]*width="([^"]+)"[^>]*height="([^"]+)"', content)
+    wh = f'width="{wh_match.group(1)}" height="{wh_match.group(2)}"' if wh_match else ''
+
+    # Total image area from viewBox (fallback: large)
+    img_area = 1e9
+    if vb_match:
+        parts = vb_match.group(1).split()
+        if len(parts) == 4:
+            try:
+                img_area = float(parts[2]) * float(parts[3])
+            except ValueError:
+                pass
 
     stroke_color = params.get("stroke_color", "#1a1a1a")
     stroke_width = params.get("stroke_width", 1.0)
@@ -225,34 +236,50 @@ def split_svg_paths(svg_path: str, params: dict) -> str:
     else:
         style = f'fill="{stroke_color}" stroke="none"'
 
-    kept = []
+    # Split compound path on each M opener
+    subpaths = re.split(r'(?=M[\s\d\-])', d_attr.strip())
+    subpaths = [s.strip() for s in subpaths if s.strip()]
+
+    shapes = []
     for seg in subpaths:
-        # Rough bounding-box area filter via coordinate range
         nums = list(map(float, re.findall(r'[-+]?\d*\.?\d+', seg)))
         if len(nums) < 4:
             continue
         xs = nums[0::2]; ys = nums[1::2]
-        w = max(xs) - min(xs); h = max(ys) - min(ys)
-        if w * h < min_area:
+        bbox_w = max(xs) - min(xs)
+        bbox_h = max(ys) - min(ys)
+        bbox_area = bbox_w * bbox_h
+        if bbox_area < min_area:
             continue
-        kept.append(seg)
+        shapes.append({"d": seg, "area": bbox_area})
 
-    # Rebuild SVG: keep original header/viewBox, replace body
-    path_elements = "\n".join(
-        f'  <path id="shape-{i+1:03d}" {style} d="{seg}"/>'
-        for i, seg in enumerate(kept)
-    )
+    # Sort largest first
+    shapes.sort(key=lambda s: s["area"], reverse=True)
 
-    # Preserve viewBox from original
-    vb_match = re.search(r'viewBox="([^"]+)"', content)
-    vb = f'viewBox="{vb_match.group(1)}"' if vb_match else ''
-    wh_match = re.search(r'<svg[^>]*width="([^"]+)"[^>]*height="([^"]+)"', content)
-    if wh_match:
-        wh = f'width="{wh_match.group(1)}" height="{wh_match.group(2)}"'
-    else:
-        wh = ''
+    # Classify relative to total image area
+    for s in shapes:
+        ratio = s["area"] / img_area
+        if ratio > 0.30:
+            s["cls"] = "primary"
+        elif ratio >= 0.05:
+            s["cls"] = "secondary"
+        else:
+            s["cls"] = "detail"
 
-    new_svg = f'<svg xmlns="http://www.w3.org/2000/svg" {wh} {vb}>\n{path_elements}\n</svg>'
+    # Build grouped SVG
+    groups = {"primary": [], "secondary": [], "detail": []}
+    for i, s in enumerate(shapes):
+        shape_id = f"shape-{i+1:03d}"
+        el = (f'    <path id="{shape_id}" data-class="{s["cls"]}" '
+              f'data-area="{int(s["area"])}" {style} d="{s["d"]}"/>')
+        groups[s["cls"]].append(el)
+
+    g_primary   = "  <g id=\"primary-shapes\">\n"   + "\n".join(groups["primary"])   + "\n  </g>"
+    g_secondary = "  <g id=\"secondary-shapes\">\n" + "\n".join(groups["secondary"]) + "\n  </g>"
+    g_detail    = "  <g id=\"detail-shapes\">\n"    + "\n".join(groups["detail"])    + "\n  </g>"
+
+    new_svg = (f'<svg xmlns="http://www.w3.org/2000/svg" {wh} {vb}>\n'
+               f'{g_primary}\n{g_secondary}\n{g_detail}\n</svg>')
 
     with open(svg_path, 'w') as f:
         f.write(new_svg)

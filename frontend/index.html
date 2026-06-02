@@ -534,10 +534,10 @@
   <div>
     <div class="section-label">Presets</div>
     <div class="preset-grid">
-      <button class="preset-btn active" data-preset="typographic">typographic</button>
-      <button class="preset-btn" data-preset="scene">scene</button>
-      <button class="preset-btn" data-preset="tight">tight</button>
-      <button class="preset-btn" data-preset="loose">loose</button>
+      <button class="preset-btn" data-preset="sketch">Sketch</button>
+      <button class="preset-btn active" data-preset="balanced">Balanced</button>
+      <button class="preset-btn" data-preset="clean">Clean</button>
+      <button class="preset-btn" data-preset="geometric">Geometric</button>
     </div>
   </div>
 
@@ -570,7 +570,7 @@
 
     <div class="param-row">
       <div class="param-header">
-        <span class="param-name">Min shape area</span>
+        <span class="param-name">Min shape size</span>
         <span class="param-val" id="v-area">80</span>
       </div>
       <input type="range" id="p-area" min="10" max="500" step="10" value="80">
@@ -582,26 +582,10 @@
 
     <div class="param-row">
       <div class="param-header">
-        <span class="param-name">Curve smoothness</span>
-        <span class="param-val" id="v-alpha">1.0</span>
+        <span class="param-name">Fidelity</span>
+        <span class="param-val" id="v-fidelity">5 — Balanced</span>
       </div>
-      <input type="range" id="p-alpha" min="0" max="1.33" step="0.05" value="1.0">
-    </div>
-
-    <div class="param-row">
-      <div class="param-header">
-        <span class="param-name">Optimise tolerance</span>
-        <span class="param-val" id="v-opttol">0.2</span>
-      </div>
-      <input type="range" id="p-opttol" min="0.1" max="1.0" step="0.05" value="0.2">
-    </div>
-
-    <div class="param-row">
-      <div class="param-header">
-        <span class="param-name">Ignore speck ≤</span>
-        <span class="param-val" id="v-turd">4</span>
-      </div>
-      <input type="range" id="p-turd" min="1" max="50" step="1" value="4">
+      <input type="range" id="p-fidelity" min="1" max="10" step="1" value="5">
     </div>
   </div>
 
@@ -636,9 +620,9 @@
       <div class="param-header"><span class="param-name">Trace mode</span></div>
       <div class="seg-toggle">
         <input type="radio" name="p-trace-mode" id="p-mode-single"     value="single"     checked>
-        <label for="p-mode-single">Single</label>
+        <label for="p-mode-single">Single layer</label>
         <input type="radio" name="p-trace-mode" id="p-mode-separate"   value="separate">
-        <label for="p-mode-separate">Separate</label>
+        <label for="p-mode-separate">Separate layers</label>
         <input type="radio" name="p-trace-mode" id="p-mode-simplified" value="simplified">
         <label for="p-mode-simplified">Simplified</label>
       </div>
@@ -773,23 +757,59 @@ function showStage(name) {
 
 // ── PRESETS ────────────────────────────────────────────────────────────────
 const PRESETS = {
-  typographic: { contrast: 1.6, block: 31, area: 60,  alpha: 0.95, opttol: 0.15, turd: 3,  stroke: 1.0, fill: 'stroke_only' },
-  scene:       { contrast: 1.4, block: 41, area: 100, alpha: 1.0,  opttol: 0.25, turd: 5,  stroke: 1.2, fill: 'stroke_only' },
-  tight:       { contrast: 1.8, block: 25, area: 40,  alpha: 0.7,  opttol: 0.1,  turd: 2,  stroke: 0.8, fill: 'stroke_only' },
-  loose:       { contrast: 1.3, block: 51, area: 200, alpha: 1.2,  opttol: 0.5,  turd: 12, stroke: 1.6, fill: 'stroke_only' },
+  sketch:     { contrast: 1.3, block: 25, area: 30,  fidelity: 9, fill: 'stroke_only' },
+  balanced:   { contrast: 1.5, block: 35, area: 60,  fidelity: 5, fill: 'stroke_only' },
+  clean:      { contrast: 1.8, block: 45, area: 100, fidelity: 3, fill: 'stroke_only' },
+  geometric:  { contrast: 2.0, block: 55, area: 200, fidelity: 1, fill: 'stroke_only' },
 };
+
+// ── FIDELITY → POTRACE PARAMS ─────────────────────────────────────────────
+const FIDELITY_BREAKPOINTS = [
+  { f: 1,  alpha: 0.00, opttol: 1.00, turd: 50 },
+  { f: 3,  alpha: 0.50, opttol: 0.60, turd: 20 },
+  { f: 5,  alpha: 1.00, opttol: 0.20, turd: 8  },
+  { f: 7,  alpha: 1.20, opttol: 0.10, turd: 4  },
+  { f: 10, alpha: 1.33, opttol: 0.05, turd: 1  },
+];
+
+function mapFidelity(f) {
+  const bps = FIDELITY_BREAKPOINTS;
+  if (f <= bps[0].f) return { alpha: bps[0].alpha, opttol: bps[0].opttol, turd: bps[0].turd };
+  if (f >= bps[bps.length-1].f) {
+    const last = bps[bps.length-1];
+    return { alpha: last.alpha, opttol: last.opttol, turd: last.turd };
+  }
+  for (let i = 0; i < bps.length - 1; i++) {
+    if (f >= bps[i].f && f <= bps[i+1].f) {
+      const t = (f - bps[i].f) / (bps[i+1].f - bps[i].f);
+      return {
+        alpha:  bps[i].alpha  + t * (bps[i+1].alpha  - bps[i].alpha),
+        opttol: bps[i].opttol + t * (bps[i+1].opttol - bps[i].opttol),
+        turd:   Math.round(bps[i].turd + t * (bps[i+1].turd - bps[i].turd)),
+      };
+    }
+  }
+  return { alpha: 1.0, opttol: 0.2, turd: 8 };
+}
+
+function fidelityLabel(f) {
+  if (f <= 1)  return '1 — Clean';
+  if (f >= 10) return '10 — Raw';
+  const mid = { 3: 'Geometric', 5: 'Balanced', 7: 'Detailed' };
+  return mid[f] ? `${f} — ${mid[f]}` : String(f);
+}
 
 // ── PARAM HELPERS ──────────────────────────────────────────────────────────
 function getParams() {
+  const fidelity = parseInt(document.getElementById('p-fidelity')?.value ?? 5);
+  const { alpha, opttol, turd } = mapFidelity(fidelity);
   return {
-    denoise:  document.getElementById('p-denoise')?.checked ?? true,
-    contrast: parseFloat(document.getElementById('p-contrast')?.value ?? 1.5),
-    block:    parseInt(document.getElementById('p-block')?.value ?? 35),
-    area:     parseInt(document.getElementById('p-area')?.value ?? 80),
-    alpha:    parseFloat(document.getElementById('p-alpha')?.value ?? 1.0),
-    opttol:   parseFloat(document.getElementById('p-opttol')?.value ?? 0.2),
-    turd:     parseInt(document.getElementById('p-turd')?.value ?? 4),
-    stroke:   parseFloat(document.getElementById('p-stroke')?.value ?? 1.2),
+    denoise:    document.getElementById('p-denoise')?.checked ?? true,
+    contrast:   parseFloat(document.getElementById('p-contrast')?.value ?? 1.5),
+    block:      parseInt(document.getElementById('p-block')?.value ?? 35),
+    area:       parseInt(document.getElementById('p-area')?.value ?? 80),
+    alpha, opttol, turd,
+    stroke:     parseFloat(document.getElementById('p-stroke')?.value ?? 1.2),
     fill:       document.getElementById('p-fill')?.value ?? 'stroke_only',
     split:      document.getElementById('p-split')?.checked ?? true,
     trace_mode: document.querySelector('input[name="p-trace-mode"]:checked')?.value ?? 'single',
@@ -800,29 +820,39 @@ function applyPreset(name) {
   const p = PRESETS[name];
   if (!p) return;
   document.getElementById('p-contrast').value = p.contrast;
-  document.getElementById('p-block').value = p.block;
-  document.getElementById('p-area').value = p.area;
-  document.getElementById('p-alpha').value = p.alpha;
-  document.getElementById('p-opttol').value = p.opttol;
-  document.getElementById('p-turd').value = p.turd;
-  document.getElementById('p-stroke').value = p.stroke;
-  document.getElementById('p-fill').value = p.fill;
+  document.getElementById('p-block').value    = p.block;
+  document.getElementById('p-area').value     = p.area;
+  document.getElementById('p-fidelity').value = p.fidelity;
+  document.getElementById('p-fill').value     = p.fill;
   updateAllLabels();
   document.querySelectorAll('.preset-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.preset === name));
 }
 
 function updateAllLabels() {
-  const map = [
-    ['p-contrast','v-contrast'], ['p-block','v-block'],
-    ['p-area','v-area'], ['p-alpha','v-alpha'],
-    ['p-opttol','v-opttol'], ['p-turd','v-turd'], ['p-stroke','v-stroke']
-  ];
-  map.forEach(([inp, out]) => {
+  [['p-contrast','v-contrast'], ['p-block','v-block'], ['p-area','v-area'],
+   ['p-stroke','v-stroke']].forEach(([inp, out]) => {
     const el = document.getElementById(inp);
-    const lbl = document.getElementById(out);
-    if (el && lbl) lbl.textContent = el.value;
+    const lb = document.getElementById(out);
+    if (el && lb) lb.textContent = el.value;
   });
+  const fEl = document.getElementById('p-fidelity');
+  const fLb = document.getElementById('v-fidelity');
+  if (fEl && fLb) fLb.textContent = fidelityLabel(parseInt(fEl.value));
+}
+
+// ── LAYER COUNT ────────────────────────────────────────────────────────────
+function countLayers(svgStr) {
+  const doc = new DOMParser().parseFromString(svgStr, 'image/svg+xml');
+  const paths = doc.querySelectorAll('path');
+  const counts = { total: paths.length, primary: 0, secondary: 0, detail: 0 };
+  paths.forEach(p => {
+    const cls = p.getAttribute('data-class');
+    if (cls === 'primary')   counts.primary++;
+    else if (cls === 'secondary') counts.secondary++;
+    else if (cls === 'detail')    counts.detail++;
+  });
+  return counts;
 }
 
 // ── BROWSER PREPROCESSING (binary preview only) ────────────────────────────
@@ -1055,6 +1085,16 @@ async function traceSelection() {
 
   setProcessing(false);
   showStage('preview');
+
+  // Update status bar with layer counts
+  if (state.svgData) {
+    const c = countLayers(state.svgData);
+    let txt = `Sketch processed · ${c.total} shape${c.total !== 1 ? 's' : ''}`;
+    if (c.primary + c.secondary + c.detail > 0) {
+      txt += ` · ${c.primary} primary · ${c.secondary} secondary · ${c.detail} details`;
+    }
+    document.getElementById('status-text').textContent = txt;
+  }
 }
 
 document.getElementById('btn-trace-selection').addEventListener('click', traceSelection);
@@ -1189,10 +1229,14 @@ document.getElementById('file-input').addEventListener('change', e => {
 });
 
 // Slider labels
-['p-contrast','p-block','p-area','p-alpha','p-opttol','p-turd','p-stroke'].forEach(id => {
+['p-contrast','p-block','p-area','p-stroke'].forEach(id => {
   const el = document.getElementById(id);
   const lbl = document.getElementById(id.replace('p-','v-'));
   if (el && lbl) el.addEventListener('input', () => { lbl.textContent = el.value; });
+});
+document.getElementById('p-fidelity').addEventListener('input', () => {
+  const f = parseInt(document.getElementById('p-fidelity').value);
+  document.getElementById('v-fidelity').textContent = fidelityLabel(f);
 });
 
 // Re-trace when any param changes and a crop selection exists
@@ -1277,7 +1321,7 @@ document.getElementById('btn-figma').addEventListener('click', async () => {
     return;
   }
 
-  const activePreset = document.querySelector('.preset-btn.active')?.dataset.preset ?? 'typographic';
+  const activePreset = document.querySelector('.preset-btn.active')?.dataset.preset ?? 'balanced';
   let result;
   try {
     const resp = await fetch(BACKEND_URL + '/send-to-figma', {
