@@ -1067,21 +1067,14 @@ document.getElementById('btn-figma').addEventListener('click', async () => {
   }
 
   // 3. Handle push result
-  const push = result.figma_push || {};
-
-  if (push.method === 'local_only') {
-    const svgUrl = push.latest_svg_url || (BACKEND_URL + '/latest-svg');
-    navigator.clipboard?.writeText(svgUrl).catch(() => {});
-    showBanner('SVG ready at ' + svgUrl + ' — In Figma: File → Place image → paste that URL');
-    window.open(result.figma_url, '_blank');
+  if (!result.ok) {
+    showBanner('Figma push failed — ' + (result.error || JSON.stringify(result)));
     return;
   }
 
-  if (!push.ok) {
-    showBanner('Figma push failed — ' + (push.error || JSON.stringify(push)));
-    return;
-  }
-
+  const svgUrl = result.latest_svg_url || (BACKEND_URL + '/latest-svg');
+  navigator.clipboard?.writeText(svgUrl).catch(() => {});
+  showBanner('SVG ready — open the Figma plugin and click "Import Latest Shape"');
   window.open(result.figma_url, '_blank');
 });
 

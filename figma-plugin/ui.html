@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Mono', 'Courier New', monospace;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    padding: 20px;
+    font-size: 12px;
+  }
+  h1 {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    margin-bottom: 16px;
+    color: #fff;
+  }
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    font-size: 11px;
+    color: #888;
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #555;
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .dot.ok { background: #4caf50; }
+  .dot.err { background: #f44336; }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    transition: opacity 0.15s;
+    margin-bottom: 8px;
+  }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+  .btn-primary { background: #e0e0e0; color: #1a1a1a; }
+  .btn-primary:not(:disabled):hover { background: #fff; }
+  .btn-secondary { background: #2e2e2e; color: #aaa; }
+  .btn-secondary:not(:disabled):hover { background: #383838; color: #e0e0e0; }
+  #status-text {
+    margin-top: 14px;
+    font-size: 11px;
+    color: #666;
+    min-height: 32px;
+    line-height: 1.6;
+    word-break: break-all;
+  }
+  #status-text.ok { color: #4caf50; }
+  #status-text.err { color: #f44336; }
+</style>
+</head>
+<body>
+<h1>Organic Strata</h1>
+
+<div class="status-row">
+  <div class="dot" id="dot"></div>
+  <span id="server-status">Checking backend…</span>
+</div>
+
+<button class="btn btn-primary" id="btn-import" disabled>→ Import Latest Shape</button>
+<button class="btn btn-secondary" id="btn-refresh">⟳ Refresh</button>
+
+<div id="status-text"></div>
+
+<script>
+const BACKEND = 'http://localhost:5050';
+
+async function checkHealth() {
+  const dot = document.getElementById('dot');
+  const srv = document.getElementById('server-status');
+  const btn = document.getElementById('btn-import');
+  try {
+    const h = await fetch(BACKEND + '/health').then(r => r.json());
+    dot.className = 'dot ok';
+    srv.textContent = h.figma_token_set ? 'Backend ready' : 'Backend up — token missing';
+    btn.disabled = false;
+  } catch (e) {
+    dot.className = 'dot err';
+    srv.textContent = 'Backend offline';
+    btn.disabled = true;
+  }
+}
+
+document.getElementById('btn-refresh').addEventListener('click', () => {
+  document.getElementById('server-status').textContent = 'Checking…';
+  document.getElementById('dot').className = 'dot';
+  checkHealth();
+});
+
+document.getElementById('btn-import').addEventListener('click', async () => {
+  const txt = document.getElementById('status-text');
+  txt.className = '';
+  txt.textContent = 'Fetching SVG…';
+
+  let svg;
+  try {
+    const resp = await fetch(BACKEND + '/latest-svg');
+    if (!resp.ok) {
+      const j = await resp.json().catch(() => ({}));
+      throw new Error(j.error || 'HTTP ' + resp.status);
+    }
+    svg = await resp.text();
+  } catch (e) {
+    txt.className = 'err';
+    txt.textContent = 'Fetch failed: ' + e.message;
+    return;
+  }
+
+  txt.textContent = 'Importing into Figma…';
+  parent.postMessage({ pluginMessage: { type: 'import-svg', svg } }, '*');
+});
+
+window.onmessage = (ev) => {
+  const msg = ev.data.pluginMessage;
+  if (!msg) return;
+  const txt = document.getElementById('status-text');
+  if (msg.type === 'done') {
+    txt.className = 'ok';
+    txt.textContent = 'Imported — node ' + msg.nodeId;
+  } else if (msg.type === 'error') {
+    txt.className = 'err';
+    txt.textContent = 'Error: ' + msg.message;
+  }
+};
+
+checkHealth();
+</script>
+</body>
+</html>

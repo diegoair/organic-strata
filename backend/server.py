@@ -5,7 +5,7 @@ Run: python3 server.py
 Then open: http://localhost:5050
 """
 
-import os, json, tempfile, shutil, time
+import os, json, tempfile, shutil
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import urllib.parse, urllib.request, urllib.error
 import sys
@@ -48,42 +48,30 @@ def _figma_req(method, path, body=None, token=""):
 
 def push_svg_to_figma(svg_content, token):
     latest_svg_url = f"http://localhost:{PORT}/latest-svg"
-    base = {"latest_svg_url": latest_svg_url}
 
     if not token or token == "paste_token_here":
-        return {**base, "ok": True, "method": "local_only",
-                "message": "SVG saved locally — use /latest-svg URL to import into Figma manually"}
+        return {
+            "ok": False,
+            "latest_svg_url": latest_svg_url,
+            "error": "FIGMA_TOKEN not set — add it to backend/.env",
+        }
 
-    _, err = _figma_req("GET", f"/v1/files/{FIGMA_FILE_KEY}/nodes?ids=5%3A2", token=token)
+    _, err = _figma_req("GET", "/v1/me", token=token)
     if err:
-        return {**base, "ok": False, "step": "auth", "error": err}
+        return {
+            "ok": False,
+            "latest_svg_url": latest_svg_url,
+            "step": "auth",
+            "error": err,
+        }
 
-    # Attempt 1: Figma image upload endpoint
-    svg_bytes = svg_content.encode("utf-8")
-    try:
-        req = urllib.request.Request(
-            "https://api.figma.com/v1/images/uploads",
-            data=svg_bytes, method="POST"
-        )
-        req.add_header("X-Figma-Token", token)
-        req.add_header("Content-Type", "image/svg+xml")
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            upload = json.loads(resp.read())
-        return {**base, "ok": True, "method": "figma_upload", "upload": upload}
-    except Exception:
-        pass
-
-    # Attempt 2: PATCH target node
-    patch, err = _figma_req(
-        "PATCH", f"/v1/files/{FIGMA_FILE_KEY}/nodes",
-        {FIGMA_NODE_ID: {"svg": svg_content}}, token
-    )
-    if not err:
-        return {**base, "ok": True, "method": "figma_patch", "patch": patch}
-
-    # Fallback: local only
-    return {**base, "ok": True, "method": "local_only",
-            "message": "SVG saved locally — use /latest-svg URL to import into Figma manually"}
+    return {
+        "ok": True,
+        "method": "plugin",
+        "latest_svg_url": latest_svg_url,
+        "figma_url": FIGMA_URL,
+        "message": "SVG ready — use the Figma plugin to import",
+    }
 
 
 def parse_multipart(data: bytes, boundary: str):
@@ -277,13 +265,7 @@ class Handler(BaseHTTPRequestHandler):
         with open(os.path.join(out_dir, "latest.svg"), "w", encoding="utf-8") as f:
             f.write(svg)
 
-        figma_result = push_svg_to_figma(svg, FIGMA_TOKEN)
-
-        self.send_json({
-            "ok": True,
-            "figma_url": FIGMA_URL,
-            "figma_push": figma_result,
-        })
+        self.send_json(push_svg_to_figma(svg, FIGMA_TOKEN))
 
     def serve_file(self, path, mime):
         if not os.path.exists(path):

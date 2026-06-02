@@ -1,0 +1,10 @@
+{
+  "name": "Organic Strata",
+  "id": "organic-strata-dev",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "networkAccess": {
+    "allowedDomains": ["http://localhost:5050"]
+  }
+}
