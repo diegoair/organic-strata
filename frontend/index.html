@@ -398,11 +398,48 @@
     letter-spacing: 0.04em;
   }
 
+  /* Backend banner */
+  #backend-banner {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 999;
+    background: #fff8e7;
+    border-bottom: 1px solid rgba(200,150,0,0.2);
+    padding: 9px 24px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #7a5500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  #backend-banner code {
+    background: rgba(0,0,0,0.07);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  #backend-banner .banner-close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #7a5500;
+    font-size: 15px;
+    line-height: 1;
+    padding: 0;
+  }
+
   /* Hidden state */
   .hidden { display: none !important; }
 </style>
 </head>
 <body>
+
+<div id="backend-banner" class="hidden">
+  <span id="banner-msg">Backend offline — run <code>cd backend && source venv/bin/activate && python3 server.py</code> locally to enable SVG processing.</span>
+  <button class="banner-close" onclick="document.getElementById('backend-banner').classList.add('hidden')">✕</button>
+</div>
 
 <!-- HEADER -->
 <header>
@@ -611,6 +648,14 @@ const state = {
   params: getParams()
 };
 
+const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const BACKEND_URL = window.ORGANIC_STRATA_BACKEND || (isLocal ? 'http://localhost:5050' : null);
+
+function showBanner(msg) {
+  if (msg) document.getElementById('banner-msg').textContent = msg;
+  document.getElementById('backend-banner').classList.remove('hidden');
+}
+
 // ── PRESETS ────────────────────────────────────────────────────────────────
 const PRESETS = {
   typographic: { contrast: 1.6, block: 31, area: 60,  alpha: 0.95, opttol: 0.15, turd: 3,  stroke: 1.0, fill: 'stroke_only' },
@@ -773,15 +818,19 @@ async function processImage(file) {
 }
 
 async function generateSVGOutput(binaryCanvas, params) {
-  // Try local Python server first, fall back to embedded demo
+  if (!BACKEND_URL) {
+    showBanner('Start local backend to process sketches — run: cd backend && source venv/bin/activate && python3 server.py');
+    showServerGuidance();
+    return;
+  }
+
   try {
     const blob = await new Promise(r => binaryCanvas.toBlob(r, 'image/png'));
     const formData = new FormData();
     formData.append('image', blob, 'sketch.png');
     formData.append('params', JSON.stringify(params));
 
-    const backendURL = window.ORGANIC_STRATA_BACKEND || 'http://localhost:5050';
-    const resp = await fetch(backendURL + '/trace', {
+    const resp = await fetch(BACKEND_URL + '/trace', {
       method: 'POST', body: formData,
       signal: AbortSignal.timeout(15000)
     });
@@ -795,10 +844,9 @@ async function generateSVGOutput(binaryCanvas, params) {
       return;
     }
   } catch (e) {
-    // Server not running — use file input fallback
+    showBanner();
   }
 
-  // Fallback: show guidance to run server
   showServerGuidance();
 }
 
@@ -964,10 +1012,14 @@ function downloadString(str, filename, mime) {
 
 document.getElementById('btn-figma').addEventListener('click', async () => {
   if (!state.svgData) return;
-  const backendURL = window.ORGANIC_STRATA_BACKEND || 'http://localhost:5050';
+  if (!BACKEND_URL) {
+    downloadString(state.svgData, 'latest.svg', 'image/svg+xml');
+    showBanner('Backend offline — SVG downloaded, drag into Figma manually');
+    return;
+  }
   const activePreset = document.querySelector('.preset-btn.active')?.dataset.preset ?? 'typographic';
   try {
-    const resp = await fetch(backendURL + '/send-to-figma', {
+    const resp = await fetch(BACKEND_URL + '/send-to-figma', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ svg: state.svgData, preset: activePreset })
@@ -977,7 +1029,8 @@ document.getElementById('btn-figma').addEventListener('click', async () => {
       window.open(result.figma_url, '_blank');
     }
   } catch (e) {
-    console.error('Send to Figma failed:', e);
+    downloadString(state.svgData, 'latest.svg', 'image/svg+xml');
+    showBanner('Backend offline — SVG downloaded, drag into Figma manually');
   }
 });
 
