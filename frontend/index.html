@@ -102,7 +102,10 @@
     justify-content: space-between;
     align-items: center;
   }
-  .param-name { font-size: 12px; color: var(--ink); }
+  .param-name {
+    font-size: 12px;
+    color: var(--ink);
+  }
   .param-val {
     font-family: var(--mono);
     font-size: 11px;
@@ -144,7 +147,10 @@
     margin-bottom: 10px;
   }
   .toggle-name { font-size: 12px; }
-  .toggle { position: relative; width: 32px; height: 18px; }
+  .toggle {
+    position: relative;
+    width: 32px; height: 18px;
+  }
   .toggle input { opacity: 0; width: 0; height: 0; }
   .toggle-slider {
     position: absolute;
@@ -166,7 +172,11 @@
   .toggle input:checked + .toggle-slider { background: var(--ink); }
   .toggle input:checked + .toggle-slider::before { transform: translateX(14px); }
 
-  .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .preset-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
   .preset-btn {
     font-family: var(--mono);
     font-size: 10px;
@@ -182,7 +192,7 @@
   .preset-btn:hover { background: var(--ink); color: var(--paper); }
   .preset-btn.active { background: var(--ink); color: var(--paper); }
 
-  /* ── MAIN ── */
+  /* ── MAIN CANVAS ── */
   main {
     display: flex;
     flex-direction: column;
@@ -196,14 +206,21 @@
     gap: 10px;
     font-family: var(--mono);
     font-size: 11px;
-    flex-shrink: 0;
   }
   .toolbar-sep { width: 1px; height: 20px; background: var(--line); }
-  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
   .status-dot.active { background: #2d9e6b; }
   .status-text { color: var(--muted); font-size: 11px; }
 
-  .view-tabs { display: flex; gap: 2px; margin-left: auto; }
+  .view-tabs {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+  }
   .view-tab {
     font-family: var(--mono);
     font-size: 10px;
@@ -238,7 +255,9 @@
     transition: background 0.15s;
     width: 100%;
   }
-  .drop-zone:hover, .drop-zone.dragover { background: var(--surface); }
+  .drop-zone:hover, .drop-zone.dragover {
+    background: var(--surface);
+  }
   .drop-icon {
     width: 64px; height: 64px;
     border: 1.5px dashed var(--muted);
@@ -298,7 +317,12 @@
     width: 100%;
     flex: 1;
   }
-  .preview-panel { background: var(--paper); display: flex; flex-direction: column; overflow: hidden; }
+  .preview-panel {
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
   .panel-label {
     font-family: var(--mono);
     font-size: 9px;
@@ -320,10 +344,17 @@
     padding: 16px;
     min-height: 300px;
   }
-  .panel-body img, .panel-body svg, .panel-body .svg-embed {
-    max-width: 100%; max-height: 100%; object-fit: contain;
+  .panel-body img,
+  .panel-body svg,
+  .panel-body .svg-embed {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
   }
-  .panel-body canvas { max-width: 100%; image-rendering: pixelated; }
+  .panel-body canvas {
+    max-width: 100%;
+    image-rendering: pixelated;
+  }
 
   /* Region tabs */
   .region-tabs {
@@ -387,7 +418,12 @@
   .export-info { margin-left: auto; color: var(--muted); font-size: 10px; }
 
   /* Grammar tags */
-  .grammar-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .grammar-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
   .gtag {
     font-family: var(--mono);
     font-size: 9px;
@@ -430,6 +466,7 @@
     padding: 0;
   }
 
+  /* Hidden state */
   .hidden { display: none !important; }
 </style>
 </head>
@@ -573,7 +610,7 @@
 <main>
   <div class="toolbar">
     <div class="status-dot" id="status-dot"></div>
-    <span class="status-text" id="status-text">Drop sketch</span>
+    <span class="status-text" id="status-text">No image loaded</span>
     <div class="toolbar-sep"></div>
     <span id="info-regions" style="color:var(--muted)"></span>
     <div class="view-tabs" id="view-tabs" style="display:none">
@@ -619,7 +656,7 @@
           <div class="panel-body"><img id="preview-src" src="" alt="source"></div>
         </div>
         <div class="preview-panel">
-          <div class="panel-label">Binary (preprocessed)</div>
+          <div class="panel-label">Binary (preprocessed) <span></span></div>
           <div class="panel-body"><canvas id="preview-binary"></canvas></div>
         </div>
         <div class="preview-panel" style="grid-column:1/-1">
@@ -655,21 +692,21 @@
 // ── STATE ──────────────────────────────────────────────────────────────────
 const state = {
   imageFile: null,
-  imageURL:  null,
-  originalImg: null,
-  svgData: null,
-  regions: [],
+  imageURL: null,
+  originalImg: null,   // HTMLImageElement
+  svgData: null,       // current SVG string
+  regions: [],         // [{label, svgData}]
   currentRegion: 'full',
 };
 
-// Crop interaction state (separate so it doesn't mix with trace state)
+// Crop interaction state (separate from trace state)
 const cropState = {
   img: null,
   scaleX: 1, scaleY: 1,
   drawing: false,
-  startX: 0, startY: 0,  // canvas px at mousedown
-  live: null,             // {x,y,w,h} in image px, while dragging
-  rect: null,             // {x,y,w,h} in image px, committed on mouseup
+  startX: 0, startY: 0,
+  live: null,   // {x,y,w,h} in image px, while dragging
+  rect: null,   // {x,y,w,h} in image px, committed on mouseup
 };
 
 const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -685,10 +722,10 @@ function showStage(name) {
   document.getElementById('drop-zone').classList.toggle('hidden',    name !== 'drop');
   document.getElementById('crop-stage').classList.toggle('hidden',   name !== 'crop');
   document.getElementById('preview-area').classList.toggle('hidden', name !== 'preview');
-  document.getElementById('view-tabs').style.display     = name === 'preview' ? 'flex' : 'none';
-  document.getElementById('export-panel').style.display  = name === 'preview' ? 'flex' : 'none';
+  document.getElementById('view-tabs').style.display    = name === 'preview' ? 'flex' : 'none';
+  document.getElementById('export-panel').style.display = name === 'preview' ? 'flex' : 'none';
   document.getElementById('status-dot').classList.toggle('active', name === 'preview');
-  const labels = { drop: 'Drop sketch', crop: 'Select area to trace', preview: 'Sketch processed' };
+  const labels = { drop: 'No image loaded', crop: 'Select area to trace', preview: 'Sketch processed' };
   document.getElementById('status-text').textContent = labels[name] || '';
 }
 
@@ -700,6 +737,7 @@ const PRESETS = {
   loose:       { contrast: 1.3, block: 51, area: 200, alpha: 1.2,  opttol: 0.5,  turd: 12, stroke: 1.6, fill: 'stroke_only' },
 };
 
+// ── PARAM HELPERS ──────────────────────────────────────────────────────────
 function getParams() {
   return {
     denoise:  document.getElementById('p-denoise')?.checked ?? true,
@@ -719,25 +757,28 @@ function applyPreset(name) {
   const p = PRESETS[name];
   if (!p) return;
   document.getElementById('p-contrast').value = p.contrast;
-  document.getElementById('p-block').value    = p.block;
-  document.getElementById('p-area').value     = p.area;
-  document.getElementById('p-alpha').value    = p.alpha;
-  document.getElementById('p-opttol').value   = p.opttol;
-  document.getElementById('p-turd').value     = p.turd;
-  document.getElementById('p-stroke').value   = p.stroke;
-  document.getElementById('p-fill').value     = p.fill;
+  document.getElementById('p-block').value = p.block;
+  document.getElementById('p-area').value = p.area;
+  document.getElementById('p-alpha').value = p.alpha;
+  document.getElementById('p-opttol').value = p.opttol;
+  document.getElementById('p-turd').value = p.turd;
+  document.getElementById('p-stroke').value = p.stroke;
+  document.getElementById('p-fill').value = p.fill;
   updateAllLabels();
   document.querySelectorAll('.preset-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.preset === name));
 }
 
 function updateAllLabels() {
-  [['p-contrast','v-contrast'],['p-block','v-block'],['p-area','v-area'],
-   ['p-alpha','v-alpha'],['p-opttol','v-opttol'],['p-turd','v-turd'],['p-stroke','v-stroke']]
-  .forEach(([inp, out]) => {
+  const map = [
+    ['p-contrast','v-contrast'], ['p-block','v-block'],
+    ['p-area','v-area'], ['p-alpha','v-alpha'],
+    ['p-opttol','v-opttol'], ['p-turd','v-turd'], ['p-stroke','v-stroke']
+  ];
+  map.forEach(([inp, out]) => {
     const el = document.getElementById(inp);
-    const lb = document.getElementById(out);
-    if (el && lb) lb.textContent = el.value;
+    const lbl = document.getElementById(out);
+    if (el && lbl) lbl.textContent = el.value;
   });
 }
 
@@ -758,6 +799,8 @@ function preprocessInBrowser(src, params) {
 
   const imageData = ctx.getImageData(0, 0, w, h);
   const data = imageData.data;
+
+  // Grayscale + contrast boost
   const boost = params.contrast;
   for (let i = 0; i < data.length; i += 4) {
     let g = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
@@ -765,13 +808,14 @@ function preprocessInBrowser(src, params) {
     data[i] = data[i+1] = data[i+2] = g;
   }
 
+  // Simple adaptive threshold approximation (for preview only)
   const bCanvas = document.createElement('canvas');
   bCanvas.width = w; bCanvas.height = h;
   const bCtx = bCanvas.getContext('2d');
   bCtx.putImageData(imageData, 0, 0);
 
   const src2 = bCtx.getImageData(0, 0, w, h);
-  const dst  = bCtx.createImageData(w, h);
+  const dst = bCtx.createImageData(w, h);
   const blockH = Math.round(params.block);
   const C = 8;
 
@@ -816,7 +860,7 @@ async function loadForCrop(file) {
   state.originalImg = img;
   state.imageURL = url;
   showStage('crop');
-  // Wait one frame for the crop-stage layout to settle before sizing the canvas
+  // Wait one frame for layout to settle before sizing the canvas
   requestAnimationFrame(() => initCropCanvas(img));
 }
 
@@ -869,7 +913,7 @@ function getClampedPos(e) {
   return { x, y };
 }
 
-// Converts two canvas-pixel points into an image-pixel rect.
+// Converts two canvas-pixel corner points into an image-pixel rect.
 function buildRect(ax, ay, bx, by) {
   return {
     x: Math.round(Math.min(ax, bx) * cropState.scaleX),
@@ -950,7 +994,6 @@ async function traceSelection() {
   if (!r || r.w < 10 || r.h < 10) return;
 
   setProcessing(true, 'Tracing...');
-  document.getElementById('status-text').textContent = 'Tracing...';
 
   // Crop the original image to the selected rectangle
   const offscreen = document.createElement('canvas');
@@ -964,7 +1007,7 @@ async function traceSelection() {
   document.getElementById('preview-src').src = offscreen.toDataURL();
   document.getElementById('src-dims').textContent = `${r.w} × ${r.h}`;
 
-  // Browser-side binary preview (display only — backend redoes this)
+  // Browser-side binary preview (display only — backend redoes this properly)
   const binaryCanvas = preprocessInBrowser(offscreen, params);
   const prevBin = document.getElementById('preview-binary');
   prevBin.width  = binaryCanvas.width;
@@ -990,7 +1033,6 @@ async function generateSVGOutput(imageCanvas, params) {
 
   try {
     const blob = await new Promise(r => imageCanvas.toBlob(r, 'image/png'));
-    console.log('[OS] fetching from:', BACKEND_URL);
     const formData = new FormData();
     formData.append('image', blob, 'sketch.png');
     formData.append('params', JSON.stringify(params));
@@ -999,18 +1041,14 @@ async function generateSVGOutput(imageCanvas, params) {
       method: 'POST', body: formData,
       signal: AbortSignal.timeout(15000)
     });
-    console.log('[OS] response status:', resp.status, 'ok:', resp.ok);
 
     if (resp.ok) {
       const result = await resp.json();
-      console.log('[OS] crop trace result:', result.ok, 'svg length:', result.svg?.length);
-      if (result.ok === true && result.svg) {
+      if (result.svg) {
         state.svgData = result.svg;
         state.regions = result.regions || [];
         renderSVGPreview(state.svgData);
         buildRegionTabs(state.regions);
-        document.getElementById('btn-export').disabled = false;
-        document.getElementById('btn-figma').disabled  = false;
         return;
       }
       showServerGuidance(result.error || 'Server returned empty SVG');
@@ -1019,10 +1057,8 @@ async function generateSVGOutput(imageCanvas, params) {
 
     let errMsg = `Server error ${resp.status}`;
     try { const d = await resp.json(); if (d.error) errMsg = d.error; } catch (_) {}
-    console.log('[OS] server error:', errMsg);
     showServerGuidance(errMsg);
   } catch (e) {
-    console.log('[OS] fetch exception:', e.message);
     showBanner();
     showServerGuidance();
   }
@@ -1033,10 +1069,10 @@ function showServerGuidance(errMsg) {
     ? `<div style="margin-top:10px;padding:8px 10px;background:#fef2f2;border-radius:4px;color:#b91c1c;font-size:10px;text-align:left;word-break:break-all">${errMsg}</div>`
     : '';
   document.getElementById('svg-embed').innerHTML = `
-    <div style="text-align:center;padding:32px;font-family:var(--mono);font-size:12px;color:var(--muted);max-width:480px">
+    <div style="text-align:center;padding:32px;font-family:var(--mono);font-size:12px;color:var(--muted);max-width:420px">
       <div style="font-size:20px;margin-bottom:12px">⚡</div>
-      <div style="color:var(--ink);font-size:13px;margin-bottom:8px">Backend required</div>
-      <div style="margin-bottom:16px">Run this in your terminal to enable SVG tracing:</div>
+      <div style="color:var(--ink);font-size:13px;margin-bottom:8px">Start the backend server</div>
+      <div style="margin-bottom:16px">Run this in your terminal to enable SVG generation:</div>
       <code style="display:block;background:var(--surface);padding:12px;border-radius:4px;text-align:left;font-size:11px;line-height:1.8">
         cd backend<br>source venv/bin/activate<br>python3 server.py
       </code>
@@ -1046,29 +1082,32 @@ function showServerGuidance(errMsg) {
   `;
   document.getElementById('svg-info').textContent = errMsg ? 'trace error' : 'server offline';
   document.getElementById('btn-export').disabled = true;
-  document.getElementById('btn-figma').disabled  = true;
+  document.getElementById('btn-figma').disabled = true;
 }
 
 function renderSVGPreview(svgStr) {
+  // Inject SVG into preview, scale to fit
   const embed = document.getElementById('svg-embed');
   embed.innerHTML = svgStr;
   const svgEl = embed.querySelector('svg');
   if (svgEl) {
-    svgEl.style.maxWidth   = '100%';
-    svgEl.style.maxHeight  = '480px';
-    svgEl.style.height     = 'auto';
-    svgEl.style.background = '#fff';
+    svgEl.style.maxWidth = '100%';
+    svgEl.style.maxHeight = '480px';
+    svgEl.style.height = 'auto';
   }
   const size = new Blob([svgStr]).size;
-  document.getElementById('svg-info').textContent = `${(size/1024).toFixed(1)} kb`;
-  document.getElementById('btn-export').disabled  = false;
-  document.getElementById('btn-figma').disabled   = false;
-  document.getElementById('export-info').textContent = `${(size/1024).toFixed(1)} KB · SVG`;
+  document.getElementById('svg-info').textContent =
+    `${(size/1024).toFixed(1)} kb`;
+  document.getElementById('btn-export').disabled = false;
+  document.getElementById('btn-figma').disabled = false;
+  document.getElementById('export-info').textContent =
+    `${(size/1024).toFixed(1)} KB · SVG`;
 }
 
 function buildRegionTabs(regions) {
   const tabs = document.getElementById('region-tabs');
   tabs.innerHTML = '';
+
   const all = [{ label: 'full' }, ...regions];
   all.forEach((r, i) => {
     const btn = document.createElement('button');
@@ -1078,24 +1117,30 @@ function buildRegionTabs(regions) {
       document.querySelectorAll('.region-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.currentRegion = r.label;
-      if (r.label === 'full') renderSVGPreview(state.svgData);
-      else if (r.svgData)    renderSVGPreview(r.svgData);
+      if (r.label === 'full') {
+        renderSVGPreview(state.svgData);
+      } else if (r.svgData) {
+        renderSVGPreview(r.svgData);
+      }
     };
     tabs.appendChild(btn);
   });
+
   document.getElementById('info-regions').textContent =
     regions.length > 0 ? `${regions.length} regions` : '';
 }
 
 // ── UI HELPERS ─────────────────────────────────────────────────────────────
 function setProcessing(show, msg) {
-  document.getElementById('processing').classList.toggle('show', show);
+  const el = document.getElementById('processing');
+  el.classList.toggle('show', show);
   if (msg) document.getElementById('processing-msg').textContent = msg;
 }
 
 // ── EVENTS ─────────────────────────────────────────────────────────────────
+// Drag & drop
 const dropZone = document.getElementById('drop-zone');
-document.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+document.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
 document.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
 document.addEventListener('drop', e => {
   e.preventDefault();
@@ -1111,39 +1156,42 @@ document.getElementById('file-input').addEventListener('change', e => {
 
 // Slider labels
 ['p-contrast','p-block','p-area','p-alpha','p-opttol','p-turd','p-stroke'].forEach(id => {
-  const el  = document.getElementById(id);
+  const el = document.getElementById(id);
   const lbl = document.getElementById(id.replace('p-','v-'));
   if (el && lbl) el.addEventListener('input', () => { lbl.textContent = el.value; });
 });
 
 // Re-trace when any param changes and a crop selection exists
-['p-contrast','p-block','p-area','p-alpha','p-opttol','p-turd','p-stroke',
- 'p-denoise','p-split','p-fill'].forEach(id => {
-  document.getElementById(id)?.addEventListener('change', () => {
+document.querySelectorAll('input[type=range], select, input[type=checkbox]').forEach(el => {
+  el.addEventListener('change', () => {
     if (cropState.rect && cropState.img) traceSelection();
   });
 });
 
 // Presets
-document.querySelectorAll('.preset-btn').forEach(btn =>
-  btn.addEventListener('click', () => applyPreset(btn.dataset.preset))
-);
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
+});
 
 // Export
 function downloadString(str, filename, mime) {
   const blob = new Blob([str], { type: mime });
-  const url  = URL.createObjectURL(blob);
-  const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
-  a.click();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
 
 document.getElementById('btn-export').addEventListener('click', () => {
-  if (state.svgData) downloadString(state.svgData, 'sketch-grammar.svg', 'image/svg+xml');
+  if (!state.svgData) return;
+  downloadString(state.svgData, 'sketch-grammar.svg', 'image/svg+xml');
 });
+
 document.getElementById('btn-dl-svg').addEventListener('click', () => {
-  if (state.svgData) downloadString(state.svgData, 'sketch-grammar.svg', 'image/svg+xml');
+  if (!state.svgData) return;
+  downloadString(state.svgData, 'sketch-grammar.svg', 'image/svg+xml');
 });
+
 document.getElementById('btn-copy-svg').addEventListener('click', () => {
   if (!state.svgData) return;
   navigator.clipboard.writeText(state.svgData).then(() => {
@@ -1153,18 +1201,17 @@ document.getElementById('btn-copy-svg').addEventListener('click', () => {
   });
 });
 
-// Reset — works from any stage
 document.getElementById('btn-reset').addEventListener('click', () => {
   state.imageFile = null;
-  state.svgData   = null;
-  state.regions   = [];
-  cropState.img   = null;
-  cropState.rect  = null;
-  cropState.live  = null;
+  state.svgData = null;
+  state.regions = [];
+  cropState.img = null;
+  cropState.rect = null;
+  cropState.live = null;
   cropState.drawing = false;
   document.getElementById('btn-export').disabled = true;
-  document.getElementById('btn-figma').disabled  = true;
-  document.getElementById('file-input').value    = '';
+  document.getElementById('btn-figma').disabled = true;
+  document.getElementById('file-input').value = '';
   document.getElementById('region-tabs').innerHTML = '';
   document.getElementById('info-regions').textContent = '';
   document.getElementById('svg-embed').innerHTML = '';
@@ -1219,7 +1266,7 @@ document.getElementById('btn-figma').addEventListener('click', async () => {
   window.open(result.figma_url, '_blank');
 });
 
-// Init
+// Init labels
 updateAllLabels();
 </script>
 </body>
