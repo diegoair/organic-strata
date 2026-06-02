@@ -411,6 +411,7 @@
   <div class="header-actions">
     <button class="btn" id="btn-reset">Reset</button>
     <button class="btn primary" id="btn-export" disabled>Export SVG</button>
+    <button class="btn" id="btn-figma" disabled>→ Figma</button>
   </div>
 </header>
 
@@ -816,6 +817,7 @@ function showServerGuidance() {
   `;
   document.getElementById('svg-info').textContent = 'server offline';
   document.getElementById('btn-export').disabled = true;
+  document.getElementById('btn-figma').disabled = true;
 }
 
 function renderSVGPreview(svgStr) {
@@ -832,6 +834,7 @@ function renderSVGPreview(svgStr) {
   document.getElementById('svg-info').textContent =
     `${(size/1024).toFixed(1)} kb`;
   document.getElementById('btn-export').disabled = false;
+  document.getElementById('btn-figma').disabled = false;
   document.getElementById('export-info').textContent =
     `${(size/1024).toFixed(1)} KB · SVG`;
 }
@@ -947,6 +950,7 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   document.getElementById('status-dot').classList.remove('active');
   document.getElementById('status-text').textContent = 'No image loaded';
   document.getElementById('btn-export').disabled = true;
+  document.getElementById('btn-figma').disabled = true;
   document.getElementById('file-input').value = '';
 });
 
@@ -957,6 +961,25 @@ function downloadString(str, filename, mime) {
   a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
+
+document.getElementById('btn-figma').addEventListener('click', async () => {
+  if (!state.svgData) return;
+  const backendURL = window.ORGANIC_STRATA_BACKEND || 'http://localhost:5050';
+  const activePreset = document.querySelector('.preset-btn.active')?.dataset.preset ?? 'typographic';
+  try {
+    const resp = await fetch(backendURL + '/send-to-figma', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ svg: state.svgData, preset: activePreset })
+    });
+    const result = await resp.json();
+    if (result.ok && result.figma_url) {
+      window.open(result.figma_url, '_blank');
+    }
+  } catch (e) {
+    console.error('Send to Figma failed:', e);
+  }
+});
 
 // Init labels
 updateAllLabels();

@@ -71,6 +71,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path == "/trace":
             self.handle_trace()
+        elif self.path == "/send-to-figma":
+            self.handle_send_to_figma()
         else:
             self.send_error(404)
 
@@ -168,6 +170,30 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"error": str(e)}, 500)
         finally:
             shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    def handle_send_to_figma(self):
+        content_len = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_len)
+        try:
+            data = json.loads(body.decode())
+        except Exception:
+            self.send_json({"error": "Invalid JSON"}, 400)
+            return
+
+        svg = data.get("svg", "")
+        if not svg:
+            self.send_json({"error": "No SVG provided"}, 400)
+            return
+
+        out_dir = os.path.join(STATIC_DIR, "output")
+        os.makedirs(out_dir, exist_ok=True)
+        with open(os.path.join(out_dir, "latest.svg"), "w", encoding="utf-8") as f:
+            f.write(svg)
+
+        self.send_json({
+            "ok": True,
+            "figma_url": "https://figma.com/design/FYWyi41bGojxFATB0szSUb/Organic-Strata?node-id=5-2"
+        })
 
     def serve_file(self, path, mime):
         if not os.path.exists(path):
