@@ -861,10 +861,9 @@ function redrawCrop(rect) {
 }
 
 function canvasEventPos(e, canvas) {
-  const bbox = canvas.getBoundingClientRect();
   return {
-    cx: (e.clientX - bbox.left) * (canvas.width  / bbox.width),
-    cy: (e.clientY - bbox.top)  * (canvas.height / bbox.height),
+    cx: Math.max(0, Math.min(e.offsetX, canvas.width)),
+    cy: Math.max(0, Math.min(e.offsetY, canvas.height)),
   };
 }
 
@@ -918,8 +917,26 @@ function finishCrop(e) {
   document.getElementById('btn-trace-selection').disabled = false;
 }
 
-cropCanvas.addEventListener('mouseup',    finishCrop);
-cropCanvas.addEventListener('mouseleave', finishCrop);
+cropCanvas.addEventListener('mouseup', finishCrop);
+
+// On leave: finalize at the last tracked live position, not at the exit coords
+cropCanvas.addEventListener('mouseleave', () => {
+  if (!cropState.drawing) return;
+  cropState.drawing = false;
+  const r = cropState.live;
+  if (!r || r.w < 10 || r.h < 10) {
+    cropState.rect = null;
+    redrawCrop(null);
+    document.getElementById('crop-dims').textContent = '';
+    document.getElementById('btn-trace-selection').disabled = true;
+    return;
+  }
+  cropState.rect = r;
+  cropState.live = null;
+  redrawCrop(r);
+  document.getElementById('crop-dims').textContent = `${r.w} × ${r.h} px`;
+  document.getElementById('btn-trace-selection').disabled = false;
+});
 
 document.getElementById('btn-crop-clear').addEventListener('click', () => {
   cropState.rect    = null;
@@ -991,11 +1008,15 @@ async function generateSVGOutput(imageCanvas, params) {
       const result = await resp.json();
       console.log('[OS] result keys:', Object.keys(result));
       console.log('[OS] svg length:', result.svg ? result.svg.length : 'MISSING');
+      console.log('[OS] crop trace result:', result.ok, 'svg length:', result.svg?.length);
       if (!result.svg) { showServerGuidance('Server returned empty SVG'); return; }
-      state.svgData  = result.svg;
-      state.regions  = result.regions || [];
+      state.svgData = result.svg;
+      state.regions = result.regions || [];
       renderSVGPreview(state.svgData);
       buildRegionTabs(state.regions);
+      // Ensure buttons are enabled (safety net in case renderSVGPreview missed them)
+      document.getElementById('btn-export').disabled = false;
+      document.getElementById('btn-figma').disabled  = false;
       return;
     }
 
