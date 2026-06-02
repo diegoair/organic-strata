@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+venv/
+.venv/
+
+# Node / Frontend
+node_modules/
+dist/
+.DS_Store
+
+# Vercel
+.vercel/
