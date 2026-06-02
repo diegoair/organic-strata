@@ -348,34 +348,44 @@ def simplify_svg(svg_path: str, params: dict) -> str:
 
 # ── 5c. REGIONS (CV) ─────────────────────────────────────────────────────────
 
-def contour_to_bezier_path(pts: np.ndarray) -> str:
+def contour_to_bezier_path(contour, img_w, img_h, svg_w, svg_h, style='B'):
     """
-    Convert a closed contour (N,2) to an SVG cubic-bezier path using
-    Catmull-Rom → Bezier conversion for organic, smooth curves.
+    Simplify a raw OpenCV contour and convert to a closed cubic-bezier SVG path.
+    Anchor count targets: A=15-19, B=8-12, C=4-7.
+    Coordinates are scaled from image space to SVG viewBox space.
     """
-    n = len(pts)
-    if n < 3:
-        return ""
+    epsilon_map = {'A': 0.003, 'B': 0.008, 'C': 0.02}
+    eps = epsilon_map.get(style, 0.008)
+    epsilon = eps * cv2.arcLength(contour, True)
+    simplified = cv2.approxPolyDP(contour, epsilon, True)
 
-    def p(i):
-        return pts[i % n].astype(float)
+    points = []
+    for pt in simplified:
+        x = float(pt[0][0]) * svg_w / img_w
+        y = float(pt[0][1]) * svg_h / img_h
+        points.append((x, y))
 
-    x0, y0 = p(0)
-    d = [f"M {x0:.1f},{y0:.1f}"]
+    if len(points) < 3:
+        return None
+
+    def catmull_to_bezier(p0, p1, p2, p3, tension=0.4):
+        cp1x = p1[0] + (p2[0] - p0[0]) * tension
+        cp1y = p1[1] + (p2[1] - p0[1]) * tension
+        cp2x = p2[0] - (p3[0] - p1[0]) * tension
+        cp2y = p2[1] - (p3[1] - p1[1]) * tension
+        return (cp1x, cp1y, cp2x, cp2y)
+
+    n = len(points)
+    d = f"M {points[0][0]:.1f} {points[0][1]:.1f}"
     for i in range(n):
-        cur  = p(i)
-        nxt  = p(i + 1)
-        prev = p(i - 1)
-        nxt2 = p(i + 2)
-        cp1 = cur  + (nxt  - prev) / 6.0
-        cp2 = nxt  - (nxt2 - cur)  / 6.0
-        d.append(
-            f"C {cp1[0]:.1f},{cp1[1]:.1f} "
-            f"{cp2[0]:.1f},{cp2[1]:.1f} "
-            f"{nxt[0]:.1f},{nxt[1]:.1f}"
-        )
-    d.append("Z")
-    return " ".join(d)
+        p0 = points[(i - 1) % n]
+        p1 = points[i % n]
+        p2 = points[(i + 1) % n]
+        p3 = points[(i + 2) % n]
+        cp1x, cp1y, cp2x, cp2y = catmull_to_bezier(p0, p1, p2, p3)
+        d += f" C {cp1x:.1f} {cp1y:.1f} {cp2x:.1f} {cp2y:.1f} {p2[0]:.1f} {p2[1]:.1f}"
+    d += " Z"
+    return d
 
 
 def segment_regions(binary: np.ndarray, params: dict, output_dir: str) -> dict:
@@ -390,8 +400,6 @@ def segment_regions(binary: np.ndarray, params: dict, output_dir: str) -> dict:
     stroke_width = params.get("stroke_width", 1.2)
     fill_mode    = params.get("fill_mode", "stroke_only")
     shape_style  = params.get("shape_style", "B")
-
-    eps_factor = {"A": 0.001, "B": 0.005, "C": 0.02}.get(shape_style, 0.005)
 
     if fill_mode == "stroke_only":
         style = f'fill="none" stroke="{stroke_color}" stroke-width="{stroke_width}"'
@@ -444,15 +452,7 @@ def segment_regions(binary: np.ndarray, params: dict, output_dir: str) -> dict:
         ratio = bbox_area / total_area
         cls = "primary" if ratio > 0.30 else ("secondary" if ratio >= 0.05 else "detail")
 
-        # Contour simplification
-        arc_len = cv2.arcLength(contour, True)
-        epsilon = arc_len * eps_factor
-        approx  = cv2.approxPolyDP(contour, epsilon, True)
-        pts = approx.reshape(-1, 2)
-        if len(pts) < 3:
-            continue
-
-        d = contour_to_bezier_path(pts)
+        d = contour_to_bezier_path(contour, w, h, w, h, shape_style)
         if not d:
             continue
 
