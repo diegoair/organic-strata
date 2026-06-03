@@ -554,33 +554,80 @@ def _prepare_for_vtracer(binary_img: np.ndarray, output_dir: str = None) -> np.n
     return regions
 
 
-def _reduce_path_nodes(d_str: str, interval: int) -> str:
-    """Thin a path by keeping every Nth C command; replace skipped ones with L to endpoint."""
-    if interval <= 1:
-        return d_str
-    tokens = re.findall(r'[MmCcLlZzQqAaSsTtHhVv][^MmCcLlZzQqAaSsTtHhVv]*', d_str.strip())
-    if not tokens:
-        return d_str
-    result = []
-    c_idx = 0
-    for token in tokens:
-        cmd = token[0]
-        nums_str = token[1:].strip()
-        if cmd in ('M', 'm', 'Z', 'z'):
-            result.append(token.strip())
-        elif cmd == 'C':
-            if c_idx % interval == 0:
-                result.append(token.strip())
-            else:
-                nums = nums_str.split()
-                if len(nums) >= 6:
-                    result.append(f'L {nums[-2]} {nums[-1]}')
-                else:
-                    result.append(token.strip())
-            c_idx += 1
-        else:
-            result.append(token.strip())
-    return ' '.join(result)
+_EPSILON_MAP = {
+    1: 8.0, 2: 6.0, 3: 4.5, 4: 3.5, 5: 2.5,
+    6: 1.8, 7: 1.2, 8: 0.8, 9: 0.5, 10: 0.2,
+}
+
+def _rdp(points, epsilon):
+    """Ramer-Douglas-Peucker polyline simplification."""
+    if len(points) < 3:
+        return points
+    start, end = np.array(points[0]), np.array(points[-1])
+    line_vec = end - start
+    line_len = float(np.linalg.norm(line_vec))
+    if line_len == 0:
+        dists = [float(np.linalg.norm(np.array(p) - start)) for p in points]
+    else:
+        unit = line_vec / line_len
+        dists = [abs((np.array(p) - start)[0] * unit[1] - (np.array(p) - start)[1] * unit[0])
+                 for p in points]
+    max_dist = max(dists)
+    max_idx  = dists.index(max_dist)
+    if max_dist > epsilon:
+        left  = _rdp(points[:max_idx + 1], epsilon)
+        right = _rdp(points[max_idx:], epsilon)
+        return left[:-1] + right
+    return [points[0], points[-1]]
+
+
+def simplify_svg_paths(svg_content: str, fidelity) -> str:
+    """Apply RDP simplification to every path d attribute in an SVG string."""
+    epsilon = _EPSILON_MAP.get(int(fidelity), 2.5)
+
+    def _parse_points(d):
+        coords = re.findall(r'[-\d.]+', d)
+        pts = []
+        for i in range(0, len(coords) - 1, 2):
+            try:
+                pts.append((float(coords[i]), float(coords[i + 1])))
+            except ValueError:
+                pass
+        return pts
+
+    def _to_smooth_path(pts):
+        if len(pts) < 2:
+            return None
+        n = pts.__len__()
+        tension = 0.4
+        d = f"M {pts[0][0]:.1f} {pts[0][1]:.1f}"
+        for i in range(n - 1):
+            p0 = pts[max(0, i - 1)]
+            p1 = pts[i]
+            p2 = pts[min(n - 1, i + 1)]
+            p3 = pts[min(n - 1, i + 2)]
+            cp1x = p1[0] + (p2[0] - p0[0]) * tension
+            cp1y = p1[1] + (p2[1] - p0[1]) * tension
+            cp2x = p2[0] - (p3[0] - p1[0]) * tension
+            cp2y = p2[1] - (p3[1] - p1[1]) * tension
+            d += f" C {cp1x:.1f} {cp1y:.1f} {cp2x:.1f} {cp2y:.1f} {p2[0]:.1f} {p2[1]:.1f}"
+        d += " Z"
+        return d
+
+    def _simplify_path(m):
+        d_attr = m.group(1)
+        pts    = _parse_points(d_attr)
+        if len(pts) < 4:
+            return m.group(0)
+        simplified = _rdp(pts, epsilon)
+        if len(simplified) < 3:
+            return m.group(0)
+        new_d = _to_smooth_path(simplified)
+        if new_d is None:
+            return m.group(0)
+        return m.group(0).replace(f'd="{d_attr}"', f'd="{new_d}"')
+
+    return re.sub(r'd="([^"]+)"', _simplify_path, svg_content)
 
 
 def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None) -> str:
@@ -663,16 +710,11 @@ def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None)
 
     result_svg = re.sub(r'<path\b[^>]*/>', wrap_with_g, result_svg)
 
-    # Reduce node count based on fidelity (1=Clean→interval 4, 10=Raw→interval 1)
-    fidelity = int(params.get("fidelity", 5))
-    interval = max(1, round(4 - (fidelity / 10) * 3))
-    if interval > 1:
-        result_svg = re.sub(
-            r'\bd="([^"]+)"',
-            lambda m: 'd="' + _reduce_path_nodes(m.group(1), interval) + '"',
-            result_svg,
-        )
-        print(f"  node reduction: fidelity={fidelity} → interval={interval}")
+    # RDP simplification — fidelity 1 (Clean) = aggressive, 10 (Raw) = minimal
+    fidelity   = int(params.get("fidelity", 5))
+    epsilon    = _EPSILON_MAP.get(fidelity, 2.5)
+    result_svg = simplify_svg_paths(result_svg, fidelity)
+    print(f"  node simplification: fidelity={fidelity} → ε={epsilon}")
 
     # Add viewBox to SVG element (vtracer omits it)
     result_svg = re.sub(
