@@ -14,6 +14,11 @@ function getOrCreateFrame() {
 }
 
 figma.ui.onmessage = async (msg) => {
+  if (msg.type === 'reload') {
+    figma.closePlugin();
+    return;
+  }
+
   if (msg.type === 'import-svg') {
     const svg = msg.svg;
     if (!svg) {

@@ -78,6 +78,7 @@
 
 <button class="btn btn-primary" id="btn-import" disabled>→ Import Latest Shape</button>
 <button class="btn btn-secondary" id="btn-refresh">⟳ Refresh</button>
+<button class="btn btn-secondary" id="btn-reload">↺ Reload Plugin</button>
 
 <div id="status-text"></div>
 
@@ -183,6 +184,10 @@ window.onmessage = (ev) => {
     txt.textContent = 'Error: ' + msg.message;
   }
 };
+
+document.getElementById('btn-reload').addEventListener('click', () => {
+  parent.postMessage({ pluginMessage: { type: 'reload' } }, '*');
+});
 
 checkHealth();
 </script>
