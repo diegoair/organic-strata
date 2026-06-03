@@ -1213,6 +1213,15 @@ function renderSVGPreview(svgStr) {
   embed.innerHTML = svgStr;
   const svgEl = embed.querySelector('svg');
   if (svgEl) {
+    svgEl.removeAttribute('width');
+    svgEl.removeAttribute('height');
+    svgEl.setAttribute('width', '100%');
+    svgEl.setAttribute('height', '100%');
+    svgEl.style.width = '100%';
+    svgEl.style.height = '100%';
+    svgEl.style.maxWidth = '100%';
+    svgEl.style.maxHeight = '100%';
+    svgEl.style.objectFit = 'contain';
     svgEl.style.background = 'transparent';
   }
   const size = new Blob([svgStr]).size;
