@@ -593,68 +593,44 @@ def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None)
             try: os.unlink(p)
             except FileNotFoundError: pass
 
-    path_matches = list(re.finditer(r'<path\b([^>]*)/?>', svg_str))
-    if not path_matches:
+    if not re.search(r'<path', svg_str):
         return svg_str
 
-    # Use vtracer's own width/height as the viewBox (coordinates are in that space)
-    vt_w_m = re.search(r'<svg\b[^>]*\bwidth="([^"]+)"', svg_str)
-    vt_h_m = re.search(r'<svg\b[^>]*\bheight="([^"]+)"', svg_str)
-    svg_w = float(vt_w_m.group(1)) if vt_w_m else img_w
-    svg_h = float(vt_h_m.group(1)) if vt_h_m else img_h
-    vb_total = svg_w * svg_h if svg_w and svg_h else total_area
+    # Classify by d-attribute length as proxy for shape area
+    all_d = re.findall(r'd="([^"]+)"', svg_str)
+    avg_d = sum(len(d) for d in all_d) / max(len(all_d), 1)
 
-    def bbox_area_from_d(d_attr):
-        nums = list(map(float, re.findall(r'-?\d+\.?\d*', d_attr)))
-        if len(nums) < 4:
-            return 0.0
-        xs = nums[0::2]; ys = nums[1::2]
-        return (max(xs) - min(xs)) * (max(ys) - min(ys))
+    shape_counter = [0]
 
-    def classify(area):
-        ratio = area / vb_total
-        if ratio > 0.15: return "primary"
-        if ratio > 0.03: return "secondary"
-        return "detail"
+    def process_path(m):
+        shape_counter[0] += 1
+        tag = m.group(0)
+        idx = shape_counter[0]
 
-    paths_by_class: dict = {"primary": [], "secondary": [], "detail": []}
+        d_m = re.search(r'd="([^"]+)"', tag)
+        d_len = len(d_m.group(1)) if d_m else 0
+        ratio = d_len / avg_d if avg_d > 0 else 0
+        cls = "primary" if ratio > 0.15 else "secondary" if ratio > 0.04 else "detail"
 
-    for idx, m in enumerate(path_matches):
-        attrs = m.group(1)
-        d_match = re.search(r'd="([^"]*)"', attrs)
-        if not d_match:
-            continue
-        d_attr = d_match.group(1)
-        area = bbox_area_from_d(d_attr)
-        cls = classify(area)
-        shape_id = f"shape-{idx+1:03d}"
-        paths_by_class[cls].append(
-            f'<path id="{shape_id}" data-class="{cls}" '
-            f'data-area="{int(area)}" d="{d_attr}" '
-            f'fill="none" stroke="#1a1a1a" stroke-width="1.5"/>'
+        tag = re.sub(r'\bfill="[^"]*"', 'fill="none"', tag)
+        tag = re.sub(r'\bstroke(?:-width)?="[^"]*"', '', tag)
+        tag = tag.replace(
+            "<path ",
+            f'<path id="shape-{idx:03d}" data-class="{cls}" '
+            f'stroke="#1a1a1a" stroke-width="1.5" '
         )
+        return tag
 
-    total_paths = sum(len(v) for v in paths_by_class.values())
-    if total_paths == 0:
-        return svg_str
+    result_svg = re.sub(r'<path\b[^>]*/>', process_path, svg_str)
 
-    svg_parts = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" '
-        f'viewBox="0 0 {svg_w} {svg_h}" '
-        f'width="{svg_w}" height="{svg_h}">'
-    ]
-    for cls in ("primary", "secondary", "detail"):
-        if paths_by_class[cls]:
-            svg_parts.append(f'<g id="{cls}-shapes">')
-            svg_parts.extend(paths_by_class[cls])
-            svg_parts.append("</g>")
-    svg_parts.append("</svg>")
+    total  = result_svg.count('data-class=')
+    primaries  = result_svg.count('data-class="primary"')
+    secondaries = result_svg.count('data-class="secondary"')
+    details    = result_svg.count('data-class="detail"')
 
-    print(f"  ✓ vtracer — {total_paths} shapes "
-          f"({len(paths_by_class['primary'])}p / "
-          f"{len(paths_by_class['secondary'])}s / "
-          f"{len(paths_by_class['detail'])}d)")
-    return "\n".join(svg_parts)
+    print(f"  ✓ vtracer — {total} shapes "
+          f"({primaries}p / {secondaries}s / {details}d)")
+    return result_svg
 
 
 # ── 5. SVG POST-PROCESS ──────────────────────────────────────────────────────
