@@ -623,10 +623,28 @@ def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None)
 
     result_svg = re.sub(r'<path\b[^>]*/>', process_path, svg_str)
 
-    total  = result_svg.count('data-class=')
-    primaries  = result_svg.count('data-class="primary"')
+    # Move transform from <path> to wrapping <g> for broader renderer compatibility
+    def wrap_with_g(match):
+        full_tag = match.group(0)
+        t = re.search(r'transform="([^"]+)"', full_tag)
+        if t:
+            clean_tag = re.sub(r'\s*transform="[^"]+"', '', full_tag)
+            return f'<g transform="{t.group(1)}">{clean_tag}</g>'
+        return full_tag
+
+    result_svg = re.sub(r'<path\b[^>]*/>', wrap_with_g, result_svg)
+
+    # Add viewBox to SVG element (vtracer omits it)
+    result_svg = re.sub(
+        r'(<svg[^>]*width="([\d.]+)"[^>]*height="([\d.]+)"[^>]*>)',
+        lambda m: m.group(1).replace('>', f' viewBox="0 0 {m.group(2)} {m.group(3)}">', 1),
+        result_svg
+    )
+
+    total       = result_svg.count('data-class=')
+    primaries   = result_svg.count('data-class="primary"')
     secondaries = result_svg.count('data-class="secondary"')
-    details    = result_svg.count('data-class="detail"')
+    details     = result_svg.count('data-class="detail"')
 
     print(f"  ✓ vtracer — {total} shapes "
           f"({primaries}p / {secondaries}s / {details}d)")
