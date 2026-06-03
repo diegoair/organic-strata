@@ -562,30 +562,43 @@ def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None)
         print("  vtracer not installed — falling back to potrace")
         return _fallback_single_trace(binary, params)
 
-    import io
     img_h, img_w = binary.shape
     total_area = float(img_h * img_w)
 
     prepared = _prepare_for_vtracer(binary, output_dir)
 
-    buf = io.BytesIO()
-    Image.fromarray(prepared).convert("RGB").save(buf, format="PNG")
-    png_bytes = buf.getvalue()
-
-    svg_str = vtracer.convert_raw_image_to_svg(
-        png_bytes,
-        colormode="binary",
-        filter_speckle=int(params.get("vt_filter_speckle", 30)),
-        corner_threshold=int(params.get("vt_corner_threshold", 70)),
-        length_threshold=float(params.get("vt_length_threshold", 6.0)),
-        max_iterations=10,
-        splice_threshold=45,
-        path_precision=int(params.get("vt_path_precision", 3)),
-    )
+    tmp_in  = tempfile.mktemp(suffix=".png")
+    tmp_out = tempfile.mktemp(suffix=".svg")
+    try:
+        cv2.imwrite(tmp_in, prepared)
+        vtracer.convert_image_to_svg_py(
+            tmp_in, tmp_out,
+            colormode="binary",
+            mode="spline",
+            filter_speckle=int(params.get("vt_filter_speckle", 30)),
+            corner_threshold=int(params.get("vt_corner_threshold", 70)),
+            length_threshold=float(params.get("vt_length_threshold", 6.0)),
+            max_iterations=10,
+            splice_threshold=45,
+            path_precision=int(params.get("vt_path_precision", 3)),
+        )
+        with open(tmp_out) as f:
+            svg_str = f.read()
+    finally:
+        for p in (tmp_in, tmp_out):
+            try: os.unlink(p)
+            except FileNotFoundError: pass
 
     path_matches = list(re.finditer(r'<path\b([^>]*)/?>', svg_str))
     if not path_matches:
         return svg_str
+
+    # Use vtracer's own width/height as the viewBox (coordinates are in that space)
+    vt_w_m = re.search(r'<svg\b[^>]*\bwidth="([^"]+)"', svg_str)
+    vt_h_m = re.search(r'<svg\b[^>]*\bheight="([^"]+)"', svg_str)
+    svg_w = float(vt_w_m.group(1)) if vt_w_m else img_w
+    svg_h = float(vt_h_m.group(1)) if vt_h_m else img_h
+    vb_total = svg_w * svg_h if svg_w and svg_h else total_area
 
     def bbox_area_from_d(d_attr):
         nums = list(map(float, re.findall(r'-?\d+\.?\d*', d_attr)))
@@ -595,7 +608,7 @@ def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None)
         return (max(xs) - min(xs)) * (max(ys) - min(ys))
 
     def classify(area):
-        ratio = area / total_area
+        ratio = area / vb_total
         if ratio > 0.15: return "primary"
         if ratio > 0.03: return "secondary"
         return "detail"
@@ -623,8 +636,8 @@ def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None)
 
     svg_parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" '
-        f'viewBox="0 0 {img_w} {img_h}" '
-        f'width="{img_w}" height="{img_h}">'
+        f'viewBox="0 0 {svg_w} {svg_h}" '
+        f'width="{svg_w}" height="{svg_h}">'
     ]
     for cls in ("primary", "secondary", "detail"):
         if paths_by_class[cls]:
