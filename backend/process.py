@@ -554,80 +554,65 @@ def _prepare_for_vtracer(binary_img: np.ndarray, output_dir: str = None) -> np.n
     return regions
 
 
-_EPSILON_MAP = {
-    1: 8.0, 2: 6.0, 3: 4.5, 4: 3.5, 5: 2.5,
-    6: 1.8, 7: 1.2, 8: 0.8, 9: 0.5, 10: 0.2,
-}
-
-def _rdp(points, epsilon):
-    """Ramer-Douglas-Peucker polyline simplification."""
-    if len(points) < 3:
-        return points
-    start, end = np.array(points[0]), np.array(points[-1])
-    line_vec = end - start
-    line_len = float(np.linalg.norm(line_vec))
-    if line_len == 0:
-        dists = [float(np.linalg.norm(np.array(p) - start)) for p in points]
-    else:
-        unit = line_vec / line_len
-        dists = [abs((np.array(p) - start)[0] * unit[1] - (np.array(p) - start)[1] * unit[0])
-                 for p in points]
-    max_dist = max(dists)
-    max_idx  = dists.index(max_dist)
-    if max_dist > epsilon:
-        left  = _rdp(points[:max_idx + 1], epsilon)
-        right = _rdp(points[max_idx:], epsilon)
-        return left[:-1] + right
-    return [points[0], points[-1]]
+_FIDELITY_ANGLE = {1: 3, 2: 5, 3: 8, 4: 12, 5: 15, 6: 20, 7: 25, 8: 30, 9: 38, 10: 45}
 
 
-def simplify_svg_paths(svg_content: str, fidelity) -> str:
-    """Apply RDP simplification to every path d attribute in an SVG string."""
-    epsilon = _EPSILON_MAP.get(int(fidelity), 2.5)
+def _angle_between(p1, p2, p3):
+    import math
+    v1 = (p1[0] - p2[0], p1[1] - p2[1])
+    v2 = (p3[0] - p2[0], p3[1] - p2[1])
+    dot = v1[0] * v2[0] + v1[1] * v2[1]
+    mag = math.sqrt(v1[0] ** 2 + v1[1] ** 2) * math.sqrt(v2[0] ** 2 + v2[1] ** 2)
+    if mag == 0:
+        return 180.0
+    return math.degrees(math.acos(max(-1.0, min(1.0, dot / mag))))
 
-    def _parse_points(d):
-        coords = re.findall(r'[-\d.]+', d)
-        pts = []
-        for i in range(0, len(coords) - 1, 2):
-            try:
-                pts.append((float(coords[i]), float(coords[i + 1])))
-            except ValueError:
-                pass
-        return pts
 
-    def _to_smooth_path(pts):
-        if len(pts) < 2:
-            return None
-        n = pts.__len__()
-        tension = 0.4
-        d = f"M {pts[0][0]:.1f} {pts[0][1]:.1f}"
-        for i in range(n - 1):
-            p0 = pts[max(0, i - 1)]
-            p1 = pts[i]
-            p2 = pts[min(n - 1, i + 1)]
-            p3 = pts[min(n - 1, i + 2)]
-            cp1x = p1[0] + (p2[0] - p0[0]) * tension
-            cp1y = p1[1] + (p2[1] - p0[1]) * tension
-            cp2x = p2[0] - (p3[0] - p1[0]) * tension
-            cp2y = p2[1] - (p3[1] - p1[1]) * tension
-            d += f" C {cp1x:.1f} {cp1y:.1f} {cp2x:.1f} {cp2y:.1f} {p2[0]:.1f} {p2[1]:.1f}"
-        d += " Z"
-        return d
+def _reduce_path_collinear(d_str: str, angle_threshold: float) -> str:
+    import math
+    coords = re.findall(r'([-\d.]+)\s+([-\d.]+)', d_str)
+    if len(coords) < 4:
+        return d_str
 
-    def _simplify_path(m):
-        d_attr = m.group(1)
-        pts    = _parse_points(d_attr)
-        if len(pts) < 4:
-            return m.group(0)
-        simplified = _rdp(pts, epsilon)
-        if len(simplified) < 3:
-            return m.group(0)
-        new_d = _to_smooth_path(simplified)
-        if new_d is None:
-            return m.group(0)
-        return m.group(0).replace(f'd="{d_attr}"', f'd="{new_d}"')
+    keep = [True] * len(coords)
+    for i in range(1, len(coords) - 1):
+        p1 = (float(coords[i - 1][0]), float(coords[i - 1][1]))
+        p2 = (float(coords[i][0]),     float(coords[i][1]))
+        p3 = (float(coords[i + 1][0]), float(coords[i + 1][1]))
+        if _angle_between(p1, p2, p3) > (180.0 - angle_threshold):
+            keep[i] = False
 
-    return re.sub(r'd="([^"]+)"', _simplify_path, svg_content)
+    kept = [c for c, k in zip(coords, keep) if k]
+    if len(kept) < 3:
+        return d_str
+
+    pts = [(float(x), float(y)) for x, y in kept]
+    n = len(pts)
+    tension = 0.35
+    new_d = f"M {pts[0][0]:.1f} {pts[0][1]:.1f}"
+    for i in range(n - 1):
+        p0 = pts[max(0, i - 1)]
+        p1 = pts[i]
+        p2 = pts[min(n - 1, i + 1)]
+        p3 = pts[min(n - 1, i + 2)]
+        cp1x = p1[0] + (p2[0] - p0[0]) * tension
+        cp1y = p1[1] + (p2[1] - p0[1]) * tension
+        cp2x = p2[0] - (p3[0] - p1[0]) * tension
+        cp2y = p2[1] - (p3[1] - p1[1]) * tension
+        new_d += f" C {cp1x:.1f} {cp1y:.1f} {cp2x:.1f} {cp2y:.1f} {p2[0]:.1f} {p2[1]:.1f}"
+    new_d += " Z"
+    return new_d
+
+
+def reduce_collinear_nodes(svg_content: str, fidelity) -> str:
+    """Remove near-collinear bezier nodes; fidelity 1=aggressive, 10=minimal."""
+    threshold = _FIDELITY_ANGLE.get(int(fidelity), 15)
+
+    def _process(m):
+        new_d = _reduce_path_collinear(m.group(1), threshold)
+        return m.group(0).replace(f'd="{m.group(1)}"', f'd="{new_d}"')
+
+    return re.sub(r'd="([^"]+)"', _process, svg_content)
 
 
 def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None) -> str:
@@ -710,11 +695,11 @@ def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None)
 
     result_svg = re.sub(r'<path\b[^>]*/>', wrap_with_g, result_svg)
 
-    # RDP simplification — fidelity 1 (Clean) = aggressive, 10 (Raw) = minimal
+    # Remove near-collinear nodes — fidelity 1 (Clean) = aggressive, 10 (Raw) = minimal
     fidelity   = int(params.get("fidelity", 5))
-    epsilon    = _EPSILON_MAP.get(fidelity, 2.5)
-    result_svg = simplify_svg_paths(result_svg, fidelity)
-    print(f"  node simplification: fidelity={fidelity} → ε={epsilon}")
+    threshold  = _FIDELITY_ANGLE.get(fidelity, 15)
+    result_svg = reduce_collinear_nodes(result_svg, fidelity)
+    print(f"  node reduction: fidelity={fidelity} → angle_threshold={threshold}°")
 
     # Add viewBox to SVG element (vtracer omits it)
     result_svg = re.sub(
