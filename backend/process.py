@@ -555,6 +555,7 @@ def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None)
     Vectorize enclosed white regions using vtracer (Rust-backed spline tracing).
     Returns a structured SVG with paths classified as primary/secondary/detail.
     """
+    cv2.imwrite('output/debug_trace_input.png', binary)
     try:
         import vtracer
     except ImportError:
