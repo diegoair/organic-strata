@@ -1223,6 +1223,7 @@ function renderSVGPreview(svgStr) {
     svgEl.style.maxHeight = '100%';
     svgEl.style.objectFit = 'contain';
     svgEl.style.background = 'transparent';
+    svgEl.setAttribute('overflow', 'visible');
   }
   const size = new Blob([svgStr]).size;
   document.getElementById('svg-info').textContent =

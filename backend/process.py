@@ -542,6 +542,10 @@ def _prepare_for_vtracer(binary_img: np.ndarray, output_dir: str = None) -> np.n
     kernel_clean = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     regions = cv2.morphologyEx(regions, cv2.MORPH_OPEN, kernel_clean)
 
+    # Pad with 50px black border so vtracer coordinates never go negative
+    regions = cv2.copyMakeBorder(regions, 50, 50, 50, 50,
+                                  cv2.BORDER_CONSTANT, value=0)
+
     if output_dir:
         debug_path = os.path.join(output_dir, "debug_vtracer_input.png")
         cv2.imwrite(debug_path, regions)
@@ -776,6 +780,8 @@ def run_pipeline(input_path: str, output_dir: str,
         full_path = os.path.join(output_dir, "full.svg")
         with open(full_path, "w") as f:
             f.write(svg_str)
+        import shutil
+        shutil.copy(full_path, os.path.join(output_dir, "latest.svg"))
         results["full_svg"] = full_path
         meta_path = os.path.join(output_dir, "metadata.json")
         with open(meta_path, "w") as f:
