@@ -192,6 +192,7 @@ class Handler(BaseHTTPRequestHandler):
         # Map UI params → pipeline params
         pipeline_params = {
             **DEFAULT_PARAMS,
+            "fidelity":             int(ui_params.get("fidelity", 5)),
             "denoise":              ui_params.get("denoise", True),
             "contrast_boost":       float(ui_params.get("contrast", 1.5)),
             "threshold_block":      int(ui_params.get("block", 35)),

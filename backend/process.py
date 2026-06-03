@@ -554,6 +554,35 @@ def _prepare_for_vtracer(binary_img: np.ndarray, output_dir: str = None) -> np.n
     return regions
 
 
+def _reduce_path_nodes(d_str: str, interval: int) -> str:
+    """Thin a path by keeping every Nth C command; replace skipped ones with L to endpoint."""
+    if interval <= 1:
+        return d_str
+    tokens = re.findall(r'[MmCcLlZzQqAaSsTtHhVv][^MmCcLlZzQqAaSsTtHhVv]*', d_str.strip())
+    if not tokens:
+        return d_str
+    result = []
+    c_idx = 0
+    for token in tokens:
+        cmd = token[0]
+        nums_str = token[1:].strip()
+        if cmd in ('M', 'm', 'Z', 'z'):
+            result.append(token.strip())
+        elif cmd == 'C':
+            if c_idx % interval == 0:
+                result.append(token.strip())
+            else:
+                nums = nums_str.split()
+                if len(nums) >= 6:
+                    result.append(f'L {nums[-2]} {nums[-1]}')
+                else:
+                    result.append(token.strip())
+            c_idx += 1
+        else:
+            result.append(token.strip())
+    return ' '.join(result)
+
+
 def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None) -> str:
     """
     Vectorize enclosed white regions using vtracer (Rust-backed spline tracing).
@@ -633,6 +662,17 @@ def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None)
         return full_tag
 
     result_svg = re.sub(r'<path\b[^>]*/>', wrap_with_g, result_svg)
+
+    # Reduce node count based on fidelity (1=Clean→interval 4, 10=Raw→interval 1)
+    fidelity = int(params.get("fidelity", 5))
+    interval = max(1, round(4 - (fidelity / 10) * 3))
+    if interval > 1:
+        result_svg = re.sub(
+            r'\bd="([^"]+)"',
+            lambda m: 'd="' + _reduce_path_nodes(m.group(1), interval) + '"',
+            result_svg,
+        )
+        print(f"  node reduction: fidelity={fidelity} → interval={interval}")
 
     # Add viewBox to SVG element (vtracer omits it)
     result_svg = re.sub(

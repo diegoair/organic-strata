@@ -495,6 +495,78 @@
     letter-spacing: 0.04em;
   }
 
+  /* ── METHOD PILLS ── */
+  .method-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .method-pills input { display: none; }
+  .method-pill {
+    flex: 1 1 auto;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 7px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--line);
+    cursor: pointer;
+    color: var(--muted);
+    background: var(--surface);
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .method-pill.smart { color: #2d9e6b; border-color: rgba(45,158,107,0.35); }
+  .method-pills input:checked + .method-pill {
+    background: var(--ink); color: var(--paper); border-color: var(--ink);
+  }
+  .method-pills input:checked + .method-pill.smart {
+    background: #2d9e6b; color: #fff; border-color: #2d9e6b;
+  }
+
+  /* ── SLIDER EXTREMES ── */
+  .slider-extremes {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+    margin-top: 3px;
+    letter-spacing: 0.03em;
+  }
+
+  /* ── SHAPE STYLE SUB-PANEL ── */
+  #shape-style-row {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: var(--surface);
+    border-radius: 4px;
+    border: 1px solid var(--line);
+  }
+  .shape-style-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  /* ── ADVANCED COLLAPSIBLE ── */
+  .advanced-toggle {
+    width: 100%;
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    padding: 8px 0;
+    background: none;
+    border: none;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: color 0.15s;
+  }
+  .advanced-toggle:hover { color: var(--ink); }
+  .advanced-body { padding-top: 12px; }
+
   /* Backend banner */
   #backend-banner {
     position: fixed;
@@ -551,41 +623,78 @@
 
 <!-- SIDEBAR -->
 <aside>
+
+  <!-- SECTION 1 — TRACE METHOD -->
   <div>
-    <div class="section-label">Presets</div>
-    <div class="preset-grid">
-      <button class="preset-btn" data-preset="sketch">Sketch</button>
-      <button class="preset-btn active" data-preset="balanced">Balanced</button>
-      <button class="preset-btn" data-preset="clean">Clean</button>
-      <button class="preset-btn" data-preset="geometric">Geometric</button>
+    <div class="section-label">Trace method</div>
+    <div class="method-pills">
+      <input type="radio" name="p-trace-mode" id="p-mode-vtracer"    value="vtracer"    checked>
+      <label for="p-mode-vtracer"    class="method-pill smart">Smart ✦</label>
+      <input type="radio" name="p-trace-mode" id="p-mode-single"     value="single">
+      <label for="p-mode-single"     class="method-pill">Single</label>
+      <input type="radio" name="p-trace-mode" id="p-mode-separate"   value="separate">
+      <label for="p-mode-separate"   class="method-pill">Separate</label>
+      <input type="radio" name="p-trace-mode" id="p-mode-simplified" value="simplified">
+      <label for="p-mode-simplified" class="method-pill">Simplified</label>
+    </div>
+    <div id="shape-style-row">
+      <div class="shape-style-label">Shape style</div>
+      <div class="method-pills">
+        <input type="radio" name="p-shape-style" id="p-style-a" value="A">
+        <label for="p-style-a" class="method-pill">A — Organic</label>
+        <input type="radio" name="p-shape-style" id="p-style-b" value="B" checked>
+        <label for="p-style-b" class="method-pill">B — Balanced</label>
+        <input type="radio" name="p-shape-style" id="p-style-c" value="C">
+        <label for="p-style-c" class="method-pill">C — Geometric</label>
+      </div>
     </div>
   </div>
 
+  <!-- SECTION 2 — NODE DENSITY -->
   <div>
-    <div class="section-label">Preprocessing</div>
-
-    <div class="toggle-row">
-      <span class="toggle-name">Denoise</span>
-      <label class="toggle">
-        <input type="checkbox" id="p-denoise" checked>
-        <span class="toggle-slider"></span>
-      </label>
+    <div class="section-label">Node density</div>
+    <div class="param-row">
+      <div class="param-header">
+        <span class="param-name">Fidelity</span>
+        <span class="param-val" id="v-fidelity">5 — Balanced</span>
+      </div>
+      <input type="range" id="p-fidelity" min="1" max="10" step="1" value="5">
+      <div class="slider-extremes"><span>Clean</span><span>Raw</span></div>
     </div>
+  </div>
 
+  <!-- SECTION 3 — IMAGE QUALITY -->
+  <div>
+    <div class="section-label">Image quality</div>
     <div class="param-row">
       <div class="param-header">
         <span class="param-name">Contrast boost</span>
         <span class="param-val" id="v-contrast">1.5</span>
       </div>
       <input type="range" id="p-contrast" min="1.0" max="2.5" step="0.1" value="1.5">
+      <div class="slider-extremes"><span>Flat</span><span>Punchy</span></div>
     </div>
+  </div>
+
+  <!-- SECTION 4 — OUTPUT -->
+  <div>
+    <div class="section-label">Output</div>
 
     <div class="param-row">
       <div class="param-header">
-        <span class="param-name">Threshold block</span>
-        <span class="param-val" id="v-block">35</span>
+        <span class="param-name">Stroke width</span>
+        <span class="param-val" id="v-stroke">1.2</span>
       </div>
-      <input type="range" id="p-block" min="11" max="71" step="2" value="35">
+      <input type="range" id="p-stroke" min="0.3" max="3.0" step="0.1" value="1.2">
+      <div class="slider-extremes"><span>Thin</span><span>Thick</span></div>
+    </div>
+
+    <div class="param-row">
+      <div class="param-header"><span class="param-name">Fill mode</span></div>
+      <select id="p-fill">
+        <option value="stroke_only">stroke only</option>
+        <option value="filled">filled</option>
+      </select>
     </div>
 
     <div class="param-row">
@@ -594,88 +703,51 @@
         <span class="param-val" id="v-area">80</span>
       </div>
       <input type="range" id="p-area" min="10" max="5000" step="50" value="80">
+      <div class="slider-extremes"><span>All detail</span><span>Large only</span></div>
     </div>
   </div>
 
+  <!-- SECTION 5 — ADVANCED (collapsible) -->
   <div>
-    <div class="section-label">Tracing</div>
+    <button class="advanced-toggle" id="btn-advanced">Advanced ▾</button>
+    <div class="advanced-body hidden" id="advanced-body">
 
-    <div class="param-row">
-      <div class="param-header">
-        <span class="param-name">Fidelity</span>
-        <span class="param-val" id="v-fidelity">5 — Balanced</span>
+      <div class="param-row">
+        <div class="param-header">
+          <span class="param-name">Threshold block</span>
+          <span class="param-val" id="v-block">35</span>
+        </div>
+        <input type="range" id="p-block" min="11" max="71" step="2" value="35">
+        <div class="slider-extremes"><span>Fine</span><span>Coarse</span></div>
       </div>
-      <input type="range" id="p-fidelity" min="1" max="10" step="1" value="5">
-    </div>
-  </div>
 
-  <div>
-    <div class="section-label">Output style</div>
-
-    <div class="param-row">
-      <div class="param-header">
-        <span class="param-name">Stroke width</span>
-        <span class="param-val" id="v-stroke">1.2</span>
+      <div class="toggle-row">
+        <span class="toggle-name">Denoise</span>
+        <label class="toggle">
+          <input type="checkbox" id="p-denoise" checked>
+          <span class="toggle-slider"></span>
+        </label>
       </div>
-      <input type="range" id="p-stroke" min="0.3" max="3.0" step="0.1" value="1.2">
-    </div>
 
-    <div class="param-row">
-      <div class="param-header"><span class="param-name">Fill mode</span></div>
-      <select id="p-fill">
-        <option value="stroke_only">stroke only (contour)</option>
-        <option value="filled">filled (solid)</option>
-      </select>
-    </div>
-
-    <div class="toggle-row">
-      <span class="toggle-name">Split regions</span>
-      <label class="toggle">
-        <input type="checkbox" id="p-split" checked>
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-
-    <div class="param-row">
-      <div class="param-header"><span class="param-name">Trace mode</span></div>
-      <div class="seg-toggle">
-        <input type="radio" name="p-trace-mode" id="p-mode-single"     value="single"     checked>
-        <label for="p-mode-single">Single layer</label>
-        <input type="radio" name="p-trace-mode" id="p-mode-separate"   value="separate">
-        <label for="p-mode-separate">Separate layers</label>
-        <input type="radio" name="p-trace-mode" id="p-mode-simplified" value="simplified">
-        <label for="p-mode-simplified">Simplified</label>
-        <input type="radio" name="p-trace-mode" id="p-mode-regions"    value="regions">
-        <label for="p-mode-regions">Regions (CV)</label>
-        <input type="radio" name="p-trace-mode" id="p-mode-vtracer"   value="vtracer">
-        <label for="p-mode-vtracer" class="label-smart">Smart ✦</label>
+      <div class="toggle-row">
+        <span class="toggle-name">Split regions</span>
+        <label class="toggle">
+          <input type="checkbox" id="p-split" checked>
+          <span class="toggle-slider"></span>
+        </label>
       </div>
-      <div id="shape-style-row" class="hidden">
-        <span class="param-name">Shape style</span>
-        <div class="seg-toggle">
-          <input type="radio" name="p-shape-style" id="p-style-a" value="A">
-          <label for="p-style-a">A — Organic</label>
-          <input type="radio" name="p-shape-style" id="p-style-b" value="B" checked>
-          <label for="p-style-b">B — Balanced</label>
-          <input type="radio" name="p-shape-style" id="p-style-c" value="C">
-          <label for="p-style-c">C — Geometric</label>
+
+      <div class="param-row" style="margin-top:10px">
+        <div class="param-header"><span class="param-name">Region detection</span></div>
+        <div class="method-pills" style="margin-top:4px">
+          <input type="radio" name="p-trace-mode" id="p-mode-regions" value="regions">
+          <label for="p-mode-regions" class="method-pill">Regions (CV)</label>
         </div>
       </div>
+
     </div>
   </div>
 
-  <div>
-    <div class="section-label">Grammar</div>
-    <div class="grammar-tags">
-      <span class="gtag">closed-contour</span>
-      <span class="gtag">organic-arc</span>
-      <span class="gtag">space-fill</span>
-      <span class="gtag">nested-island</span>
-      <span class="gtag">curve-memory</span>
-      <span class="gtag">boundary-lean</span>
-      <span class="gtag">echo-variation</span>
-    </div>
-  </div>
 </aside>
 
 <!-- MAIN -->
@@ -839,6 +911,7 @@ function getParams() {
   const fidelity = parseInt(document.getElementById('p-fidelity')?.value ?? 5);
   const { alpha, opttol, turd } = mapFidelity(fidelity);
   const p = {
+    fidelity,
     denoise:    document.getElementById('p-denoise')?.checked ?? true,
     contrast:   parseFloat(document.getElementById('p-contrast')?.value ?? 1.5),
     block:      parseInt(document.getElementById('p-block')?.value ?? 35),
@@ -847,7 +920,7 @@ function getParams() {
     stroke:     parseFloat(document.getElementById('p-stroke')?.value ?? 1.2),
     fill:        document.getElementById('p-fill')?.value ?? 'stroke_only',
     split:       document.getElementById('p-split')?.checked ?? true,
-    trace_mode:  document.querySelector('input[name="p-trace-mode"]:checked')?.value ?? 'single',
+    trace_mode:  document.querySelector('input[name="p-trace-mode"]:checked')?.value ?? 'vtracer',
     shape_style: document.querySelector('input[name="p-shape-style"]:checked')?.value ?? 'B',
   };
   console.log('[OS] params:', JSON.stringify(p));
@@ -877,6 +950,14 @@ function updateAllLabels() {
   const fEl = document.getElementById('p-fidelity');
   const fLb = document.getElementById('v-fidelity');
   if (fEl && fLb) fLb.textContent = fidelityLabel(parseInt(fEl.value));
+}
+
+// ── NODE COUNT ─────────────────────────────────────────────────────────────
+function countNodes(svgString) {
+  const cCount    = (svgString.match(/\bC\b/g) || []).length;
+  const lCount    = (svgString.match(/\bL\b/g) || []).length;
+  const pathCount = (svgString.match(/<path/g)  || []).length;
+  return { paths: pathCount, nodes: cCount + lCount, curves: cCount, lines: lCount };
 }
 
 // ── LAYER COUNT ────────────────────────────────────────────────────────────
@@ -1124,20 +1205,22 @@ async function traceSelection() {
   setProcessing(false);
   showStage('preview');
 
-  // Update status bar with layer counts
+  // Update status bar with layer + node counts
   if (state.svgData) {
     const c    = countLayers(state.svgData);
+    const nc   = countNodes(state.svgData);
     const mode = getParams().trace_mode;
     const isRegions = mode === 'regions';
     const isVtracer = mode === 'vtracer';
     const prefix = isRegions ? 'Regions detected' : isVtracer ? 'Smart trace' : 'Sketch processed';
     let txt = `${prefix} · ${c.total} shape${c.total !== 1 ? 's' : ''}`;
     if (c.primary + c.secondary + c.detail > 0) {
-      txt += ` · ${c.primary} primary · ${c.secondary} secondary · ${c.detail} details`;
-      if (isRegions) {
-        const style = getParams().shape_style;
-        txt += ` · [${style}]`;
-      }
+      txt += ` · ${c.primary}p / ${c.secondary}s / ${c.detail}d`;
+      if (isRegions) txt += ` · [${getParams().shape_style}]`;
+    }
+    if (nc.nodes > 0 && c.total > 0) {
+      const perShape = Math.round(nc.nodes / c.total);
+      txt += ` · ~${perShape} nodes/shape`;
     }
     document.getElementById('status-text').textContent = txt;
   }
@@ -1226,8 +1309,12 @@ function renderSVGPreview(svgStr) {
     svgEl.setAttribute('overflow', 'visible');
   }
   const size = new Blob([svgStr]).size;
+  const nc   = countNodes(svgStr);
+  const cl   = countLayers(svgStr);
+  const shapeStr = cl.total > 0 ? `${cl.total} shape${cl.total !== 1 ? 's' : ''}` : '';
+  const nodeStr  = nc.nodes  > 0 ? `~${nc.nodes} nodes` : '';
   document.getElementById('svg-info').textContent =
-    `${(size/1024).toFixed(1)} kb`;
+    [shapeStr, nodeStr].filter(Boolean).join(' · ') || `${(size/1024).toFixed(1)} kb`;
   document.getElementById('btn-export').disabled = false;
   document.getElementById('btn-figma').disabled = false;
   document.getElementById('export-info').textContent =
@@ -1295,13 +1382,21 @@ document.getElementById('p-fidelity').addEventListener('input', () => {
   document.getElementById('v-fidelity').textContent = fidelityLabel(f);
 });
 
-// Show/hide shape-style sub-panel when trace mode changes
+// Show shape-style sub-panel only for Smart (vtracer) mode
 document.querySelectorAll('input[name="p-trace-mode"]').forEach(el => {
   el.addEventListener('change', () => {
-    const isRegions = el.value === 'regions' && el.checked;
+    const isSmart = document.getElementById('p-mode-vtracer').checked;
     document.getElementById('shape-style-row')
-      .classList.toggle('hidden', !isRegions);
+      .classList.toggle('hidden', !isSmart);
   });
+});
+
+// Advanced collapsible
+document.getElementById('btn-advanced').addEventListener('click', () => {
+  const body = document.getElementById('advanced-body');
+  const btn  = document.getElementById('btn-advanced');
+  const open = body.classList.toggle('hidden');
+  btn.textContent = open ? 'Advanced ▾' : 'Advanced ▴';
 });
 
 // Re-trace when any param changes and a crop selection exists
