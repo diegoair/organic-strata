@@ -1408,7 +1408,7 @@ document.getElementById('btn-figma').addEventListener('click', async () => {
   const svgUrl = result.latest_svg_url || (BACKEND_URL + '/latest-svg');
   navigator.clipboard?.writeText(svgUrl).catch(() => {});
   showBanner('SVG ready — open the Figma plugin and click "Import Latest Shape"');
-  window.open(result.figma_url, '_blank');
+  window.open(result.figma_url || 'figma://file/FYWyi41bGojxFATB0szSUb', '_blank');
 });
 
 // Init labels

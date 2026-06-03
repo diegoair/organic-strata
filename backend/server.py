@@ -23,7 +23,7 @@ STATIC_DIR     = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR   = os.path.join(os.path.dirname(STATIC_DIR), 'frontend')
 FIGMA_FILE_KEY = "FYWyi41bGojxFATB0szSUb"
 FIGMA_NODE_ID  = "5:2"
-FIGMA_URL      = "https://www.figma.com/design/FYWyi41bGojxFATB0szSUb/Organic-Strata?node-id=5-2"
+FIGMA_URL      = "figma://file/FYWyi41bGojxFATB0szSUb"
 
 
 def _figma_req(method, path, body=None, token=""):

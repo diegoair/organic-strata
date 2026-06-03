@@ -148,7 +148,7 @@ document.getElementById('btn-import').addEventListener('click', async () => {
   txt.textContent = 'Fetching SVG…';
   let svg;
   try {
-    const resp = await fetch(BACKEND + '/latest-svg');
+    const resp = await fetch(BACKEND + '/latest-svg?t=' + Date.now());
     if (!resp.ok) {
       const j = await resp.json().catch(() => ({}));
       throw new Error(j.error || 'HTTP ' + resp.status);
