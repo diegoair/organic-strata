@@ -154,6 +154,7 @@ document.getElementById('btn-import').addEventListener('click', async () => {
       throw new Error(j.error || 'HTTP ' + resp.status);
     }
     svg = await resp.text();
+    txt.textContent = 'Loaded SVG (' + new Date().toLocaleTimeString() + ')';
   } catch (e) {
     txt.className = 'err';
     txt.textContent = 'Fetch failed: ' + e.message;

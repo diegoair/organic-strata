@@ -148,6 +148,7 @@ class Handler(BaseHTTPRequestHandler):
         if not os.path.exists(svg_path):
             self.send_json({"error": "No SVG generated yet"}, 404)
             return
+        print(f"[latest-svg] serving: {svg_path}, size: {os.path.getsize(svg_path)} bytes, modified: {os.path.getmtime(svg_path)}")
         self.serve_file(svg_path, "image/svg+xml")
 
     def handle_regions(self):
