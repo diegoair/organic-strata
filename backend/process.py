@@ -554,65 +554,18 @@ def _prepare_for_vtracer(binary_img: np.ndarray, output_dir: str = None) -> np.n
     return regions
 
 
-_FIDELITY_ANGLE = {1: 3, 2: 5, 3: 8, 4: 12, 5: 15, 6: 20, 7: 25, 8: 30, 9: 38, 10: 45}
-
-
-def _angle_between(p1, p2, p3):
-    import math
-    v1 = (p1[0] - p2[0], p1[1] - p2[1])
-    v2 = (p3[0] - p2[0], p3[1] - p2[1])
-    dot = v1[0] * v2[0] + v1[1] * v2[1]
-    mag = math.sqrt(v1[0] ** 2 + v1[1] ** 2) * math.sqrt(v2[0] ** 2 + v2[1] ** 2)
-    if mag == 0:
-        return 180.0
-    return math.degrees(math.acos(max(-1.0, min(1.0, dot / mag))))
-
-
-def _reduce_path_collinear(d_str: str, angle_threshold: float) -> str:
-    import math
-    coords = re.findall(r'([-\d.]+)\s+([-\d.]+)', d_str)
-    if len(coords) < 4:
-        return d_str
-
-    keep = [True] * len(coords)
-    for i in range(1, len(coords) - 1):
-        p1 = (float(coords[i - 1][0]), float(coords[i - 1][1]))
-        p2 = (float(coords[i][0]),     float(coords[i][1]))
-        p3 = (float(coords[i + 1][0]), float(coords[i + 1][1]))
-        if _angle_between(p1, p2, p3) > (180.0 - angle_threshold):
-            keep[i] = False
-
-    kept = [c for c, k in zip(coords, keep) if k]
-    if len(kept) < 3:
-        return d_str
-
-    pts = [(float(x), float(y)) for x, y in kept]
-    n = len(pts)
-    tension = 0.35
-    new_d = f"M {pts[0][0]:.1f} {pts[0][1]:.1f}"
-    for i in range(n - 1):
-        p0 = pts[max(0, i - 1)]
-        p1 = pts[i]
-        p2 = pts[min(n - 1, i + 1)]
-        p3 = pts[min(n - 1, i + 2)]
-        cp1x = p1[0] + (p2[0] - p0[0]) * tension
-        cp1y = p1[1] + (p2[1] - p0[1]) * tension
-        cp2x = p2[0] - (p3[0] - p1[0]) * tension
-        cp2y = p2[1] - (p3[1] - p1[1]) * tension
-        new_d += f" C {cp1x:.1f} {cp1y:.1f} {cp2x:.1f} {cp2y:.1f} {p2[0]:.1f} {p2[1]:.1f}"
-    new_d += " Z"
-    return new_d
-
-
-def reduce_collinear_nodes(svg_content: str, fidelity) -> str:
-    """Remove near-collinear bezier nodes; fidelity 1=aggressive, 10=minimal."""
-    threshold = _FIDELITY_ANGLE.get(int(fidelity), 15)
-
-    def _process(m):
-        new_d = _reduce_path_collinear(m.group(1), threshold)
-        return m.group(0).replace(f'd="{m.group(1)}"', f'd="{new_d}"')
-
-    return re.sub(r'd="([^"]+)"', _process, svg_content)
+_FIDELITY_VTRACER = {
+    1:  dict(filter_speckle=80, corner_threshold=130, length_threshold=20.0, splice_threshold=90),
+    2:  dict(filter_speckle=60, corner_threshold=120, length_threshold=16.0, splice_threshold=80),
+    3:  dict(filter_speckle=45, corner_threshold=110, length_threshold=12.0, splice_threshold=70),
+    4:  dict(filter_speckle=35, corner_threshold=100, length_threshold=10.0, splice_threshold=60),
+    5:  dict(filter_speckle=25, corner_threshold=90,  length_threshold=8.0,  splice_threshold=50),
+    6:  dict(filter_speckle=18, corner_threshold=80,  length_threshold=6.0,  splice_threshold=45),
+    7:  dict(filter_speckle=12, corner_threshold=70,  length_threshold=4.5,  splice_threshold=40),
+    8:  dict(filter_speckle=8,  corner_threshold=60,  length_threshold=3.0,  splice_threshold=35),
+    9:  dict(filter_speckle=5,  corner_threshold=50,  length_threshold=2.0,  splice_threshold=30),
+    10: dict(filter_speckle=2,  corner_threshold=40,  length_threshold=1.0,  splice_threshold=25),
+}
 
 
 def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None) -> str:
@@ -636,16 +589,16 @@ def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None)
     tmp_out = tempfile.mktemp(suffix=".svg")
     try:
         cv2.imwrite(tmp_in, prepared)
+        fidelity  = int(params.get("fidelity", 5))
+        vt_params = _FIDELITY_VTRACER.get(fidelity, _FIDELITY_VTRACER[5])
+        print(f"  vtracer params: fidelity={fidelity} → {vt_params}")
         vtracer.convert_image_to_svg_py(
             tmp_in, tmp_out,
             colormode="binary",
             mode="spline",
-            filter_speckle=int(params.get("vt_filter_speckle", 30)),
-            corner_threshold=int(params.get("vt_corner_threshold", 70)),
-            length_threshold=float(params.get("vt_length_threshold", 6.0)),
             max_iterations=10,
-            splice_threshold=45,
-            path_precision=int(params.get("vt_path_precision", 3)),
+            path_precision=3,
+            **vt_params,
         )
         with open(tmp_out) as f:
             svg_str = f.read()
@@ -694,12 +647,6 @@ def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None)
         return full_tag
 
     result_svg = re.sub(r'<path\b[^>]*/>', wrap_with_g, result_svg)
-
-    # Remove near-collinear nodes — fidelity 1 (Clean) = aggressive, 10 (Raw) = minimal
-    fidelity   = int(params.get("fidelity", 5))
-    threshold  = _FIDELITY_ANGLE.get(fidelity, 15)
-    result_svg = reduce_collinear_nodes(result_svg, fidelity)
-    print(f"  node reduction: fidelity={fidelity} → angle_threshold={threshold}°")
 
     # Add viewBox to SVG element (vtracer omits it)
     result_svg = re.sub(
