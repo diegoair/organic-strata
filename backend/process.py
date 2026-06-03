@@ -354,10 +354,18 @@ def contour_to_bezier_path(contour, img_w, img_h, svg_w, svg_h, style='B'):
     Anchor count targets: A=15-19, B=8-12, C=4-7.
     Coordinates are scaled from image space to SVG viewBox space.
     """
-    epsilon_map = {'A': 0.003, 'B': 0.008, 'C': 0.02}
-    eps = epsilon_map.get(style, 0.008)
-    epsilon = eps * cv2.arcLength(contour, True)
-    simplified = cv2.approxPolyDP(contour, epsilon, True)
+    epsilon_map = {'A': 0.02, 'B': 0.04, 'C': 0.08}
+    arc_len = cv2.arcLength(contour, True)
+    eps = epsilon_map.get(style, 0.04) * arc_len
+    simplified = cv2.approxPolyDP(contour, eps, True)
+
+    # Force-reduce to ≤20 anchors, but never drop below 3 points
+    while len(simplified) > 20 and eps < arc_len * 0.5:
+        eps *= 1.5
+        candidate = cv2.approxPolyDP(contour, eps, True)
+        if len(candidate) < 3:
+            break
+        simplified = candidate
 
     points = []
     for pt in simplified:
@@ -400,14 +408,28 @@ def segment_regions(binary: np.ndarray, params: dict) -> str:
     img_h, img_w = binary.shape
     total_area   = img_h * img_w
 
-    # Flood fill from all 4 corners to mark exterior (background) as black.
-    # What remains white after this step = enclosed regions inside the drawing.
-    flood = binary.copy()
-    mask  = np.zeros((img_h + 2, img_w + 2), np.uint8)
-    cv2.floodFill(flood, mask, (0,         0        ), 0)
-    cv2.floodFill(flood, mask, (img_w - 1, 0        ), 0)
-    cv2.floodFill(flood, mask, (0,         img_h - 1), 0)
-    cv2.floodFill(flood, mask, (img_w - 1, img_h - 1), 0)
+    # Close gaps in ink lines so enclosed regions seal properly.
+    # Dilate then erode (closing) with a large kernel bridges sketch line breaks.
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+    closed = cv2.morphologyEx(binary, cv2.MORPH_DILATE, kernel, iterations=3)
+    closed = cv2.morphologyEx(closed,  cv2.MORPH_ERODE,  kernel, iterations=2)
+
+    # Pad 15px black border so corner flood-fill never misses edge-touching regions.
+    PAD = 15
+    padded = cv2.copyMakeBorder(closed, PAD, PAD, PAD, PAD,
+                                cv2.BORDER_CONSTANT, value=0)
+    ph, pw = padded.shape
+
+    # Flood fill exterior from all 4 corners → remaining white = enclosed regions.
+    flood = padded.copy()
+    mask  = np.zeros((ph + 2, pw + 2), np.uint8)
+    cv2.floodFill(flood, mask, (0,      0     ), 0)
+    cv2.floodFill(flood, mask, (pw - 1, 0     ), 0)
+    cv2.floodFill(flood, mask, (0,      ph - 1), 0)
+    cv2.floodFill(flood, mask, (pw - 1, ph - 1), 0)
+
+    # Crop padding back out
+    flood = flood[PAD:PAD + img_h, PAD:PAD + img_w]
 
     # Find contours of the enclosed white regions
     contours, _ = cv2.findContours(flood, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
