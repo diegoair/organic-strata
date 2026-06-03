@@ -515,6 +515,93 @@ def _fallback_single_trace(binary: np.ndarray, params: dict) -> str:
             except FileNotFoundError: pass
 
 
+def trace_with_vtracer(binary: np.ndarray, params: dict) -> str:
+    """
+    Vectorize binary image using vtracer (Rust-backed spline tracing).
+    Returns a structured SVG with paths classified as primary/secondary/detail.
+    """
+    try:
+        import vtracer
+    except ImportError:
+        print("  vtracer not installed — falling back to potrace")
+        return _fallback_single_trace(binary, params)
+
+    import io
+    img_h, img_w = binary.shape
+    total_area = float(img_h * img_w)
+
+    buf = io.BytesIO()
+    Image.fromarray(binary).convert("RGB").save(buf, format="PNG")
+    png_bytes = buf.getvalue()
+
+    svg_str = vtracer.convert_raw_image_to_svg(
+        png_bytes,
+        colormode="binary",
+        filter_speckle=int(params.get("vt_filter_speckle", 15)),
+        corner_threshold=int(params.get("vt_corner_threshold", 70)),
+        length_threshold=float(params.get("vt_length_threshold", 6.0)),
+        max_iterations=10,
+        splice_threshold=45,
+        path_precision=int(params.get("vt_path_precision", 3)),
+    )
+
+    path_matches = list(re.finditer(r'<path\b([^>]*)/?>', svg_str))
+    if not path_matches:
+        return svg_str
+
+    def bbox_area_from_d(d_attr):
+        nums = list(map(float, re.findall(r'-?\d+\.?\d*', d_attr)))
+        if len(nums) < 4:
+            return 0.0
+        xs = nums[0::2]; ys = nums[1::2]
+        return (max(xs) - min(xs)) * (max(ys) - min(ys))
+
+    def classify(area):
+        ratio = area / total_area
+        if ratio > 0.15: return "primary"
+        if ratio > 0.03: return "secondary"
+        return "detail"
+
+    paths_by_class: dict = {"primary": [], "secondary": [], "detail": []}
+
+    for idx, m in enumerate(path_matches):
+        attrs = m.group(1)
+        d_match = re.search(r'd="([^"]*)"', attrs)
+        if not d_match:
+            continue
+        d_attr = d_match.group(1)
+        area = bbox_area_from_d(d_attr)
+        cls = classify(area)
+        shape_id = f"shape-{idx+1:03d}"
+        paths_by_class[cls].append(
+            f'<path id="{shape_id}" data-class="{cls}" '
+            f'data-area="{int(area)}" d="{d_attr}" '
+            f'fill="none" stroke="#1a1a1a" stroke-width="1.5"/>'
+        )
+
+    total_paths = sum(len(v) for v in paths_by_class.values())
+    if total_paths == 0:
+        return svg_str
+
+    svg_parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'viewBox="0 0 {img_w} {img_h}" '
+        f'width="{img_w}" height="{img_h}">'
+    ]
+    for cls in ("primary", "secondary", "detail"):
+        if paths_by_class[cls]:
+            svg_parts.append(f'<g id="{cls}-shapes">')
+            svg_parts.extend(paths_by_class[cls])
+            svg_parts.append("</g>")
+    svg_parts.append("</svg>")
+
+    print(f"  ✓ vtracer — {total_paths} shapes "
+          f"({len(paths_by_class['primary'])}p / "
+          f"{len(paths_by_class['secondary'])}s / "
+          f"{len(paths_by_class['detail'])}d)")
+    return "\n".join(svg_parts)
+
+
 # ── 5. SVG POST-PROCESS ──────────────────────────────────────────────────────
 
 def postprocess_svg(svg_path: str, params: dict) -> str:
@@ -566,9 +653,14 @@ DEFAULT_PARAMS = {
     "alphamax": 1.0,
     "opttolerance": 0.2,
     "turnpolicy": "minority",
-    "trace_mode": "single",   # single | separate | simplified | regions
+    "trace_mode": "single",   # single | separate | simplified | regions | vtracer
     "shape_style": "B",       # A=Organic B=Balanced C=Geometric (regions mode)
     "max_shapes": 20,         # cap on shapes extracted in regions mode
+    # vtracer params (used when trace_mode == "vtracer")
+    "vt_filter_speckle": 15,
+    "vt_corner_threshold": 70,
+    "vt_length_threshold": 6.0,
+    "vt_path_precision": 3,
 
     # Output style
     "stroke_color": "#1a1a1a",
@@ -618,6 +710,18 @@ def run_pipeline(input_path: str, output_dir: str,
     # Regions (CV) mode — bypass potrace entirely
     if trace_mode == "regions":
         svg_str   = segment_regions(binary, p)
+        full_path = os.path.join(output_dir, "full.svg")
+        with open(full_path, "w") as f:
+            f.write(svg_str)
+        results["full_svg"] = full_path
+        meta_path = os.path.join(output_dir, "metadata.json")
+        with open(meta_path, "w") as f:
+            json.dump(results, f, indent=2)
+        return results
+
+    # vtracer (Smart) mode — bypass potrace entirely
+    if trace_mode == "vtracer":
+        svg_str   = trace_with_vtracer(binary, p)
         full_path = os.path.join(output_dir, "full.svg")
         with open(full_path, "w") as f:
             f.write(svg_str)

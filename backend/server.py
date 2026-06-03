@@ -188,20 +188,27 @@ class Handler(BaseHTTPRequestHandler):
         # Map UI params → pipeline params
         pipeline_params = {
             **DEFAULT_PARAMS,
-            "denoise":          ui_params.get("denoise", True),
-            "contrast_boost":   float(ui_params.get("contrast", 1.5)),
-            "threshold_block":  int(ui_params.get("block", 35)),
-            "min_area":         int(ui_params.get("area", 80)),
-            "alphamax":         float(ui_params.get("alpha", 1.0)),
-            "opttolerance":     float(ui_params.get("opttol", 0.2)),
-            "turdsize":         int(ui_params.get("turd", 4)),
-            "stroke_width":     float(ui_params.get("stroke", 1.2)),
-            "fill_mode":        ui_params.get("fill", "stroke_only"),
-            "trace_mode":       ui_params.get("trace_mode", "single"),
-            "shape_style":      ui_params.get("shape_style", "B"),
+            "denoise":              ui_params.get("denoise", True),
+            "contrast_boost":       float(ui_params.get("contrast", 1.5)),
+            "threshold_block":      int(ui_params.get("block", 35)),
+            "min_area":             int(ui_params.get("area", 80)),
+            "alphamax":             float(ui_params.get("alpha", 1.0)),
+            "opttolerance":         float(ui_params.get("opttol", 0.2)),
+            "turdsize":             int(ui_params.get("turd", 4)),
+            "stroke_width":         float(ui_params.get("stroke", 1.2)),
+            "fill_mode":            ui_params.get("fill", "stroke_only"),
+            "trace_mode":           ui_params.get("trace_mode", "single"),
+            "shape_style":          ui_params.get("shape_style", "B"),
+            "vt_filter_speckle":    int(ui_params.get("vt_filter_speckle", 15)),
+            "vt_corner_threshold":  int(ui_params.get("vt_corner_threshold", 70)),
+            "vt_length_threshold":  float(ui_params.get("vt_length_threshold", 6.0)),
+            "vt_path_precision":    int(ui_params.get("vt_path_precision", 3)),
         }
 
         split_regions = ui_params.get("split", True)
+        trace_mode  = pipeline_params.get("trace_mode", "single")
+        shape_style = pipeline_params.get("shape_style", "B")
+        print(f"[trace] mode={trace_mode}, style={shape_style}, split={split_regions}")
 
         # Write image to temp file
         tmp_dir  = tempfile.mkdtemp()

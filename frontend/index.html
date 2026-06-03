@@ -472,6 +472,11 @@
     background: var(--ink);
     color: var(--paper);
   }
+  .seg-toggle label.label-smart { color: #2d9e6b; }
+  .seg-toggle input:checked + label.label-smart {
+    background: #2d9e6b;
+    color: #fff;
+  }
 
   /* Grammar tags */
   .grammar-tags {
@@ -642,6 +647,8 @@
         <label for="p-mode-simplified">Simplified</label>
         <input type="radio" name="p-trace-mode" id="p-mode-regions"    value="regions">
         <label for="p-mode-regions">Regions (CV)</label>
+        <input type="radio" name="p-trace-mode" id="p-mode-vtracer"   value="vtracer">
+        <label for="p-mode-vtracer" class="label-smart">Smart ✦</label>
       </div>
       <div id="shape-style-row" class="hidden">
         <span class="param-name">Shape style</span>
@@ -1122,7 +1129,8 @@ async function traceSelection() {
     const c    = countLayers(state.svgData);
     const mode = getParams().trace_mode;
     const isRegions = mode === 'regions';
-    const prefix = isRegions ? 'Regions detected' : 'Sketch processed';
+    const isVtracer = mode === 'vtracer';
+    const prefix = isRegions ? 'Regions detected' : isVtracer ? 'Smart trace' : 'Sketch processed';
     let txt = `${prefix} · ${c.total} shape${c.total !== 1 ? 's' : ''}`;
     if (c.primary + c.secondary + c.detail > 0) {
       txt += ` · ${c.primary} primary · ${c.secondary} secondary · ${c.detail} details`;
