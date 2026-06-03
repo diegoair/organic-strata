@@ -148,13 +148,17 @@ document.getElementById('btn-import').addEventListener('click', async () => {
   txt.textContent = 'Fetching SVG…';
   let svg;
   try {
-    const resp = await fetch(BACKEND + '/latest-svg?t=' + Date.now());
+    const resp = await fetch('http://localhost:5050/latest-svg?t=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+    });
     if (!resp.ok) {
       const j = await resp.json().catch(() => ({}));
       throw new Error(j.error || 'HTTP ' + resp.status);
     }
     svg = await resp.text();
-    txt.textContent = 'Loaded SVG (' + new Date().toLocaleTimeString() + ')';
+    const kb = Math.round(svg.length / 1024);
+    txt.textContent = 'SVG loaded: ' + kb + 'kb @ ' + new Date().toLocaleTimeString();
   } catch (e) {
     txt.className = 'err';
     txt.textContent = 'Fetch failed: ' + e.message;

@@ -149,7 +149,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"error": "No SVG generated yet"}, 404)
             return
         print(f"[latest-svg] serving: {svg_path}, size: {os.path.getsize(svg_path)} bytes, modified: {os.path.getmtime(svg_path)}")
-        self.serve_file(svg_path, "image/svg+xml")
+        self.serve_file(svg_path, "image/svg+xml", no_cache=True)
 
     def handle_regions(self):
         manifest_path = os.path.join(STATIC_DIR, "output", "regions.json")
@@ -298,7 +298,7 @@ class Handler(BaseHTTPRequestHandler):
 
         self.send_json(push_svg_to_figma(svg, FIGMA_TOKEN))
 
-    def serve_file(self, path, mime):
+    def serve_file(self, path, mime, no_cache=False):
         if not os.path.exists(path):
             self.send_error(404)
             return
@@ -307,6 +307,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", mime)
         self.send_header("Content-Length", str(len(data)))
+        if no_cache:
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
         self.end_headers()
         self.wfile.write(data)
 
