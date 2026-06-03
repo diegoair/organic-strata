@@ -141,7 +141,10 @@ class Handler(BaseHTTPRequestHandler):
         })
 
     def handle_latest_svg(self):
-        svg_path = os.path.join(STATIC_DIR, "output", "latest.svg")
+        out_dir     = os.path.join(STATIC_DIR, "output")
+        full_path   = os.path.join(out_dir, "full.svg")
+        latest_path = os.path.join(out_dir, "latest.svg")
+        svg_path = full_path if os.path.exists(full_path) else latest_path
         if not os.path.exists(svg_path):
             self.send_json({"error": "No SVG generated yet"}, 404)
             return
@@ -275,12 +278,19 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"error": "Invalid JSON"}, 400)
             return
 
-        svg = data.get("svg", "")
-        if not svg:
-            self.send_json({"error": "No SVG provided"}, 400)
-            return
+        out_dir   = os.path.join(STATIC_DIR, "output")
+        full_path = os.path.join(out_dir, "full.svg")
 
-        out_dir = os.path.join(STATIC_DIR, "output")
+        # Prefer full.svg (latest pipeline output); fall back to POSTed SVG
+        if os.path.exists(full_path):
+            with open(full_path, encoding="utf-8") as f:
+                svg = f.read()
+        else:
+            svg = data.get("svg", "")
+            if not svg:
+                self.send_json({"error": "No SVG provided"}, 400)
+                return
+
         os.makedirs(out_dir, exist_ok=True)
         with open(os.path.join(out_dir, "latest.svg"), "w", encoding="utf-8") as f:
             f.write(svg)
