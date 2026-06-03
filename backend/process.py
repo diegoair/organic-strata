@@ -515,9 +515,44 @@ def _fallback_single_trace(binary: np.ndarray, params: dict) -> str:
             except FileNotFoundError: pass
 
 
-def trace_with_vtracer(binary: np.ndarray, params: dict) -> str:
+def _prepare_for_vtracer(binary_img: np.ndarray, output_dir: str = None) -> np.ndarray:
     """
-    Vectorize binary image using vtracer (Rust-backed spline tracing).
+    Convert a binary sketch image so enclosed white regions become BLACK
+    (which vtracer traces), and everything else is WHITE.
+    """
+    h, w = binary_img.shape
+
+    # Close small gaps between ink lines so enclosed regions seal properly
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+    dilated = cv2.dilate(cv2.bitwise_not(binary_img), kernel, iterations=2)
+    closed = cv2.bitwise_not(dilated)
+
+    # Flood fill exterior from all 4 corners → remaining white = enclosed regions
+    flood = closed.copy()
+    mask = np.zeros((h + 2, w + 2), np.uint8)
+    cv2.floodFill(flood, mask, (0,     0    ), 0)
+    cv2.floodFill(flood, mask, (w - 1, 0    ), 0)
+    cv2.floodFill(flood, mask, (0,     h - 1), 0)
+    cv2.floodFill(flood, mask, (w - 1, h - 1), 0)
+
+    # Invert: enclosed regions become BLACK (vtracer traces black shapes)
+    regions = cv2.bitwise_not(flood)
+
+    # Remove small noise specks
+    kernel_clean = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    regions = cv2.morphologyEx(regions, cv2.MORPH_OPEN, kernel_clean)
+
+    if output_dir:
+        debug_path = os.path.join(output_dir, "debug_vtracer_input.png")
+        cv2.imwrite(debug_path, regions)
+        print(f"  debug: vtracer input saved → {debug_path}")
+
+    return regions
+
+
+def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None) -> str:
+    """
+    Vectorize enclosed white regions using vtracer (Rust-backed spline tracing).
     Returns a structured SVG with paths classified as primary/secondary/detail.
     """
     try:
@@ -530,14 +565,16 @@ def trace_with_vtracer(binary: np.ndarray, params: dict) -> str:
     img_h, img_w = binary.shape
     total_area = float(img_h * img_w)
 
+    prepared = _prepare_for_vtracer(binary, output_dir)
+
     buf = io.BytesIO()
-    Image.fromarray(binary).convert("RGB").save(buf, format="PNG")
+    Image.fromarray(prepared).convert("RGB").save(buf, format="PNG")
     png_bytes = buf.getvalue()
 
     svg_str = vtracer.convert_raw_image_to_svg(
         png_bytes,
         colormode="binary",
-        filter_speckle=int(params.get("vt_filter_speckle", 15)),
+        filter_speckle=int(params.get("vt_filter_speckle", 30)),
         corner_threshold=int(params.get("vt_corner_threshold", 70)),
         length_threshold=float(params.get("vt_length_threshold", 6.0)),
         max_iterations=10,
@@ -657,7 +694,7 @@ DEFAULT_PARAMS = {
     "shape_style": "B",       # A=Organic B=Balanced C=Geometric (regions mode)
     "max_shapes": 20,         # cap on shapes extracted in regions mode
     # vtracer params (used when trace_mode == "vtracer")
-    "vt_filter_speckle": 15,
+    "vt_filter_speckle": 30,
     "vt_corner_threshold": 70,
     "vt_length_threshold": 6.0,
     "vt_path_precision": 3,
@@ -721,7 +758,7 @@ def run_pipeline(input_path: str, output_dir: str,
 
     # vtracer (Smart) mode — bypass potrace entirely
     if trace_mode == "vtracer":
-        svg_str   = trace_with_vtracer(binary, p)
+        svg_str   = trace_with_vtracer(binary, p, output_dir)
         full_path = os.path.join(output_dir, "full.svg")
         with open(full_path, "w") as f:
             f.write(svg_str)
