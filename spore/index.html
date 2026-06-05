@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spore — Organica</title>
+<style>
+  :root {
+    --ink: #0a0a0a;
+    --paper: #f5f2ec;
+    --mid: #c8c0b0;
+    --accent: #2a2a2a;
+    --panel: #eceae4;
+    --border: #d0c8b8;
+    --active: #1a1a1a;
+    --sans: 'DM Mono', 'Courier New', monospace;
+    --serif: Georgia, serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 11px;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOP BAR ── */
+  #topbar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 16px;
+    height: 40px;
+    border-bottom: 1px solid var(--border);
+    background: var(--paper);
+    flex-shrink: 0;
+    z-index: 100;
+  }
+
+  #topbar .logo {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--mid);
+    text-decoration: none;
+    margin-right: 24px;
+  }
+
+  #topbar .logo span { color: var(--ink); }
+
+  .tb-btn {
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: none;
+    border: 1px solid transparent;
+    color: var(--ink);
+    padding: 4px 10px;
+    cursor: pointer;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .tb-btn:hover { border-color: var(--border); background: var(--panel); }
+  .tb-btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .tb-btn.primary:hover { background: #333; border-color: #333; }
+  .tb-btn:disabled { opacity: 0.35; cursor: default; }
+
+  .tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 8px; }
+  .tb-spacer { flex: 1; }
+
+  #status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--mid);
+    flex-shrink: 0;
+  }
+  #status-dot.active { background: #5a8a5a; }
+  #status-dot.rendering { background: #c8a050; animation: pulse 0.8s ease-in-out infinite; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  #status-text { color: var(--mid); font-size: 10px; letter-spacing: 0.05em; }
+
+  /* ── LAYOUT ── */
+  #app {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── CANVAS AREA ── */
+  #canvas-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    position: relative;
+    overflow: hidden;
+  }
+
+  #canvas-wrap.drag-over { outline: 2px dashed var(--ink); outline-offset: -8px; }
+
+  #drop-hint {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.3s;
+  }
+
+  #drop-hint.hidden { opacity: 0; }
+
+  .drop-icon {
+    width: 48px; height: 48px;
+    border: 1.5px solid var(--mid);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--mid);
+    font-size: 20px;
+  }
+
+  #drop-hint p {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mid);
+    text-align: center;
+    line-height: 1.8;
+  }
+
+  #main-canvas {
+    display: none;
+    max-width: 100%;
+    max-height: 100%;
+    box-shadow: 0 4px 40px rgba(0,0,0,0.12);
+    transform-origin: 0 0;
+    will-change: transform;
+  }
+
+  #main-canvas.visible { display: block; }
+  #main-canvas.zoomed { cursor: grab; }
+  #main-canvas.panning { cursor: grabbing; }
+
+  /* zoom readout */
+  #zoom-hud {
+    position: absolute;
+    bottom: 16px; left: 16px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 6px 9px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+    user-select: none;
+  }
+  #zoom-hud.visible { display: flex; }
+  #zoom-hud .zoom-reset {
+    pointer-events: auto;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+  }
+  #zoom-hud .zoom-reset:hover { opacity: 1; }
+
+  /* ── RIGHT PANEL ── */
+  #panel {
+    width: 240px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--paper);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-section {
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+  }
+
+  .panel-section h3 {
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--mid);
+    margin-bottom: 12px;
+    font-weight: 400;
+  }
+
+  .ctrl-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 9px;
+    gap: 8px;
+  }
+
+  .ctrl-label {
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 60px;
+  }
+
+  .ctrl-val {
+    font-size: 10px;
+    color: var(--mid);
+    min-width: 28px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    flex: 1;
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--ink);
+    cursor: pointer;
+  }
+
+  input[type=range]::-moz-range-thumb {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: none;
+    cursor: pointer;
+  }
+
+  .seg-ctrl {
+    display: flex;
+    gap: 0;
+    flex: 1;
+  }
+
+  .seg-btn {
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    flex: 1;
+    padding: 4px 0;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--accent);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    margin-left: -1px;
+  }
+
+  .seg-btn.active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+    z-index: 1;
+    position: relative;
+  }
+
+  .check-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+
+  .check-row input[type=checkbox] { cursor: pointer; accent-color: var(--ink); }
+
+  .check-row span {
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+  }
+
+  /* Color inputs */
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .color-swatch {
+    width: 20px; height: 20px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    background: none;
+  }
+
+  .color-hex {
+    font-family: var(--sans);
+    font-size: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 3px 6px;
+    width: 70px;
+    letter-spacing: 0.05em;
+    outline: none;
+  }
+
+  input[type=color] {
+    opacity: 0;
+    position: absolute;
+    pointer-events: none;
+  }
+
+  /* Mark library */
+  #mark-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+
+  .mark-thumb {
+    aspect-ratio: 1;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: var(--panel);
+    transition: border-color 0.12s, background 0.12s;
+    padding: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mark-thumb:hover { border-color: var(--accent); }
+  .mark-thumb.selected { border-color: var(--ink); background: #e8e4dc; }
+
+  .mark-thumb svg, .mark-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .mark-name {
+    font-size: 8px;
+    letter-spacing: 0.04em;
+    color: var(--mid);
+    text-align: center;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mark-item { display: flex; flex-direction: column; }
+
+  .upload-mark-btn {
+    width: 100%;
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border: 1px dashed var(--border);
+    background: none;
+    color: var(--mid);
+    padding: 7px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .upload-mark-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Color mode */
+  .color-mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+
+  .cm-btn {
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 5px 0;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--accent);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+
+  .cm-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  /* Progress bar */
+  #progress-bar {
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 2px;
+    background: var(--ink);
+    width: 0%;
+    transition: width 0.1s;
+    pointer-events: none;
+  }
+
+  /* Figma banner */
+  #figma-banner {
+    position: absolute;
+    bottom: 16px; right: 16px;
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  #figma-banner:hover { background: #333; }
+  #figma-banner.visible { display: flex; }
+
+  /* scrollbar */
+  #panel::-webkit-scrollbar { width: 3px; }
+  #panel::-webkit-scrollbar-track { background: transparent; }
+  #panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 1px; }
+
+  /* hidden file inputs */
+  #file-input, #mark-upload-input { display: none; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <a href="/" class="logo"><span>Organica</span> / Spore</a>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="document.getElementById('file-input').click()">Open</button>
+  <button class="tb-btn" id="btn-refresh" onclick="triggerRender()" disabled>↻ Render</button>
+  <button class="tb-btn" id="btn-stop" onclick="stopRender()" disabled>■ Stop</button>
+  <div class="tb-spacer"></div>
+  <div id="status-dot"></div>
+  <span id="status-text" style="margin: 0 10px 0 6px">—</span>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="btn-save-png" onclick="exportPNG()" disabled>PNG</button>
+  <button class="tb-btn" id="btn-save-jpg" onclick="exportJPG()" disabled>JPG</button>
+  <button class="tb-btn" id="btn-save-svg" onclick="exportSVG()" disabled>SVG</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn primary" id="btn-figma" onclick="sendToFigma()" disabled>→ Figma</button>
+</div>
+
+<input type="file" id="file-input" accept="image/*" onchange="loadImage(this)">
+<input type="file" id="mark-upload-input" accept=".svg,image/svg+xml" onchange="uploadMark(this)">
+
+<!-- APP -->
+<div id="app">
+
+  <!-- CANVAS -->
+  <div id="canvas-wrap" id="drop-zone">
+    <div id="drop-hint">
+      <div class="drop-icon">+</div>
+      <p>Drop an image here<br>or click Open</p>
+    </div>
+    <canvas id="main-canvas"></canvas>
+    <div id="zoom-hud">
+      <span id="zoom-level">100%</span>
+      <span class="zoom-reset" onclick="resetZoom()">Reset</span>
+    </div>
+    <div id="progress-bar"></div>
+    <div id="figma-banner" onclick="sendToFigma()">
+      ↗ Send to Figma
+    </div>
+  </div>
+
+  <!-- PANEL -->
+  <div id="panel">
+
+    <!-- MARK LIBRARY -->
+    <div class="panel-section">
+      <h3>Mark</h3>
+      <div id="mark-grid"></div>
+      <button class="upload-mark-btn" onclick="document.getElementById('mark-upload-input').click()">+ Upload SVG mark</button>
+    </div>
+
+    <!-- STIPPLING -->
+    <div class="panel-section">
+      <h3>Stippling</h3>
+
+      <div class="ctrl-row">
+        <span class="ctrl-label">Spacing</span>
+        <input type="range" id="sl-spacing" min="4" max="40" value="12" oninput="syncVal(this,'vl-spacing');liveUpdate()">
+        <span class="ctrl-val" id="vl-spacing">12</span>
+      </div>
+
+      <div class="ctrl-row">
+        <span class="ctrl-label">Size</span>
+        <input type="range" id="sl-size" min="2" max="28" value="7" oninput="syncVal(this,'vl-size');liveUpdate()">
+        <span class="ctrl-val" id="vl-size">7</span>
+      </div>
+
+      <label class="check-row">
+        <input type="checkbox" id="ck-size-range" checked onchange="liveUpdate()">
+        <span>Size by brightness</span>
+      </label>
+
+      <div class="ctrl-row">
+        <span class="ctrl-label">Density</span>
+        <div class="seg-ctrl">
+          <button class="seg-btn active" onclick="setDensity('light',this)">Light</button>
+          <button class="seg-btn" onclick="setDensity('medium',this)">Med</button>
+          <button class="seg-btn" onclick="setDensity('dense',this)">Dense</button>
+        </div>
+      </div>
+
+      <div class="ctrl-row">
+        <span class="ctrl-label">Phases</span>
+        <input type="range" id="sl-phases" min="2" max="12" value="5" oninput="syncVal(this,'vl-phases')">
+        <span class="ctrl-val" id="vl-phases">5</span>
+      </div>
+
+      <label class="check-row">
+        <input type="checkbox" id="ck-invert" onchange="triggerRender()">
+        <span>Invert image</span>
+      </label>
+
+      <label class="check-row">
+        <input type="checkbox" id="ck-aa" checked onchange="liveUpdate()">
+        <span>Antialiasing</span>
+      </label>
+    </div>
+
+    <!-- MARK TRANSFORM -->
+    <div class="panel-section">
+      <h3>Transform</h3>
+
+      <div class="ctrl-row">
+        <span class="ctrl-label">Angle</span>
+        <input type="range" id="sl-angle" min="0" max="360" value="0" oninput="syncVal(this,'vl-angle');liveUpdate()">
+        <span class="ctrl-val" id="vl-angle">0°</span>
+      </div>
+
+      <label class="check-row">
+        <input type="checkbox" id="ck-angle-range" onchange="liveUpdate()">
+        <span>Angle by brightness</span>
+      </label>
+
+      <label class="check-row">
+        <input type="checkbox" id="ck-angle-random" onchange="liveUpdate()">
+        <span>Random angle</span>
+      </label>
+
+      <div class="ctrl-row">
+        <span class="ctrl-label">Warp</span>
+        <input type="range" id="sl-warp" min="0" max="1" step="0.05" value="0" oninput="syncVal(this,'vl-warp');liveUpdate()">
+        <span class="ctrl-val" id="vl-warp">0</span>
+      </div>
+    </div>
+
+    <!-- COLOR -->
+    <div class="panel-section">
+      <h3>Color</h3>
+
+      <div class="color-mode-grid" style="margin-bottom:12px">
+        <button class="cm-btn active" onclick="setColorMode('solid',this)">Solid</button>
+        <button class="cm-btn" onclick="setColorMode('adaptive',this)">Adaptive</button>
+        <button class="cm-btn" onclick="setColorMode('image',this)">Image</button>
+        <button class="cm-btn" onclick="setColorMode('multi',this)">Multi</button>
+      </div>
+
+      <div class="color-row">
+        <button class="color-swatch" id="swatch-mark" style="background:#0a0a0a" onclick="openColorPicker('cp-mark','swatch-mark','hex-mark')"></button>
+        <input type="color" id="cp-mark" value="#0a0a0a" oninput="syncColor('cp-mark','swatch-mark','hex-mark');liveUpdate()">
+        <input class="color-hex" id="hex-mark" value="#0a0a0a" maxlength="7" oninput="syncHex('hex-mark','cp-mark','swatch-mark');liveUpdate()">
+        <span class="ctrl-label" style="min-width:auto">Mark</span>
+      </div>
+
+      <div class="color-row">
+        <button class="color-swatch" id="swatch-bg" style="background:#f5f2ec" onclick="openColorPicker('cp-bg','swatch-bg','hex-bg')"></button>
+        <input type="color" id="cp-bg" value="#f5f2ec" oninput="syncColor('cp-bg','swatch-bg','hex-bg');liveUpdate()">
+        <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7" oninput="syncHex('hex-bg','cp-bg','swatch-bg');liveUpdate()">
+        <span class="ctrl-label" style="min-width:auto">BG</span>
+      </div>
+
+      <div class="ctrl-row">
+        <span class="ctrl-label">Opacity</span>
+        <input type="range" id="sl-opacity" min="0.1" max="1" step="0.05" value="1" oninput="syncVal(this,'vl-opacity');liveUpdate()">
+        <span class="ctrl-val" id="vl-opacity">1</span>
+      </div>
+    </div>
+
+  </div><!-- /panel -->
+</div><!-- /app -->
+
+<script>
+// ─────────────────────────────────────────────
+// MARK LIBRARY
+// ─────────────────────────────────────────────
+
+// Built-in marks: basic shapes (like Pointillist) + Organica SVG forms
+const BUILT_IN_MARKS = [
+  {
+    id: 'circle',
+    name: 'Circle',
+    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="currentColor"/></svg>`
+  },
+  {
+    id: 'square',
+    name: 'Square',
+    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="16" height="16" fill="currentColor"/></svg>`
+  },
+  {
+    id: 'triangle',
+    name: 'Triangle',
+    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><polygon points="10,2 18,18 2,18" fill="currentColor"/></svg>`
+  },
+  {
+    id: 'diamond',
+    name: 'Diamond',
+    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><polygon points="10,1 19,10 10,19 1,10" fill="currentColor"/></svg>`
+  },
+  {
+    id: 'cross',
+    name: 'Cross',
+    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="1" width="4" height="18" fill="currentColor"/><rect x="1" y="8" width="18" height="4" fill="currentColor"/></svg>`
+  },
+  {
+    id: 'star',
+    name: 'Star',
+    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><polygon points="10,1 12.4,7.4 19.5,7.6 14,12 16,19 10,15 4,19 6,12 0.5,7.6 7.6,7.4" fill="currentColor"/></svg>`
+  },
+  // Organica / Genesis-inspired marks
+  {
+    id: 'drop',
+    name: 'Drop',
+    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2 C10 2 3 10 3 14 a7 7 0 0 0 14 0 C17 10 10 2 10 2z" fill="currentColor"/></svg>`
+  },
+  {
+    id: 'blob',
+    name: 'Blob',
+    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 3.5C17 5 18 8 17.5 11c-.5 3-3 5.5-6 6s-6-.5-7.5-3S3 7.5 5 5 8 2 11 2s2.5.5 3.5 1.5z" fill="currentColor"/></svg>`
+  },
+  {
+    id: 'petal',
+    name: 'Petal',
+    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2 C14 2 18 6 18 10 C18 14 14 18 10 18 C10 18 2 14 2 10 C2 6 6 2 10 2z" fill="currentColor"/></svg>`
+  },
+  {
+    id: 'brushdot',
+    name: 'Brush',
+    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><ellipse cx="10" cy="10" rx="7" ry="4.5" fill="currentColor" transform="rotate(-25 10 10)"/></svg>`
+  },
+  {
+    id: 'crescent',
+    name: 'Crescent',
+    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a8 8 0 1 0 0 16A6 6 0 1 1 10 2z" fill="currentColor"/></svg>`
+  },
+  {
+    id: 'leaf',
+    name: 'Leaf',
+    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 18 C10 18 2 12 2 7 C2 3.5 5.5 1 10 1 C14.5 1 18 3.5 18 7 C18 12 10 18 10 18z" fill="currentColor"/></svg>`
+  }
+];
+
+// Custom uploaded marks
+let customMarks = [];
+let allMarks = [...BUILT_IN_MARKS];
+let selectedMarkId = 'circle';
+
+// Rendering state
+let sourceImage = null;
+let renderWorkerTimeout = null;
+let isRendering = false;
+let shouldStop = false;
+let colorMode = 'solid';
+let density = 'light';
+const densityMap = { light: 1.6, medium: 1.0, dense: 0.6 };
+
+// Canvas
+const canvas = document.getElementById('main-canvas');
+const ctx = canvas.getContext('2d');
+
+// ─────────────────────────────────────────────
+// MARK GRID
+// ─────────────────────────────────────────────
+function buildMarkGrid() {
+  const grid = document.getElementById('mark-grid');
+  grid.innerHTML = '';
+  allMarks.forEach(mark => {
+    const item = document.createElement('div');
+    item.className = 'mark-item';
+
+    const thumb = document.createElement('div');
+    thumb.className = 'mark-thumb' + (mark.id === selectedMarkId ? ' selected' : '');
+    thumb.onclick = () => selectMark(mark.id);
+
+    // Render SVG in thumb
+    thumb.innerHTML = mark.svg.replace(/currentColor/g, '#0a0a0a');
+
+    const lbl = document.createElement('div');
+    lbl.className = 'mark-name';
+    lbl.textContent = mark.name;
+
+    item.appendChild(thumb);
+    item.appendChild(lbl);
+    grid.appendChild(item);
+  });
+}
+
+function selectMark(id) {
+  selectedMarkId = id;
+  document.querySelectorAll('.mark-thumb').forEach((t,i) => {
+    t.classList.toggle('selected', allMarks[i].id === id);
+  });
+  liveUpdate();
+}
+
+function uploadMark(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const svgText = e.target.result;
+    const name = file.name.replace('.svg','').replace(/-_/g,' ').slice(0,12);
+    const id = 'custom_' + Date.now();
+    const mark = { id, name, svg: svgText };
+    customMarks.push(mark);
+    allMarks = [...BUILT_IN_MARKS, ...customMarks];
+    buildMarkGrid();
+    selectMark(id);
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+// ─────────────────────────────────────────────
+// IMAGE LOAD
+// ─────────────────────────────────────────────
+function loadImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    sourceImage = img;
+    resetZoom();
+    setStatus('active', 'Image loaded — ' + img.width + '×' + img.height);
+    document.getElementById('drop-hint').classList.add('hidden');
+    document.getElementById('btn-refresh').disabled = false;
+    triggerRender();
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+  input.value = '';
+}
+
+// Drag & drop on canvas wrap
+const canvasWrap = document.getElementById('canvas-wrap');
+canvasWrap.addEventListener('dragover', e => { e.preventDefault(); canvasWrap.classList.add('drag-over'); });
+canvasWrap.addEventListener('dragleave', () => canvasWrap.classList.remove('drag-over'));
+canvasWrap.addEventListener('drop', e => {
+  e.preventDefault();
+  canvasWrap.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('file-input').files = dt.files;
+    loadImage(document.getElementById('file-input'));
+  }
+});
+
+// ─────────────────────────────────────────────
+// CONTROLS
+// ─────────────────────────────────────────────
+function syncVal(slider, valId) {
+  const v = slider.value;
+  const el = document.getElementById(valId);
+  if (valId === 'vl-angle') el.textContent = v + '°';
+  else el.textContent = v;
+}
+
+function setDensity(d, btn) {
+  density = d;
+  document.querySelectorAll('#panel .seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  liveUpdate();
+}
+
+function setColorMode(mode, btn) {
+  colorMode = mode;
+  document.querySelectorAll('.cm-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  liveUpdate();
+}
+
+function openColorPicker(cpId, swatchId, hexId) {
+  document.getElementById(cpId).click();
+}
+
+function syncColor(cpId, swatchId, hexId) {
+  const v = document.getElementById(cpId).value;
+  document.getElementById(swatchId).style.background = v;
+  document.getElementById(hexId).value = v;
+}
+
+function syncHex(hexId, cpId, swatchId) {
+  let v = document.getElementById(hexId).value;
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+    document.getElementById(cpId).value = v;
+    document.getElementById(swatchId).style.background = v;
+  }
+}
+
+// ─────────────────────────────────────────────
+// RENDER ENGINE
+// ─────────────────────────────────────────────
+function liveUpdate() {
+  if (!sourceImage) return;
+  clearTimeout(renderWorkerTimeout);
+  renderWorkerTimeout = setTimeout(triggerRender, 350);
+}
+
+function triggerRender() {
+  if (!sourceImage) return;
+  if (isRendering) { shouldStop = true; setTimeout(triggerRender, 100); return; }
+  doRender();
+}
+
+function stopRender() {
+  shouldStop = true;
+  setStatus('active', 'Stopped');
+  document.getElementById('btn-stop').disabled = true;
+}
+
+async function doRender() {
+  isRendering = true;
+  shouldStop = false;
+  document.getElementById('btn-stop').disabled = false;
+  document.getElementById('btn-save-png').disabled = true;
+  document.getElementById('btn-save-jpg').disabled = true;
+  document.getElementById('btn-save-svg').disabled = true;
+  document.getElementById('btn-figma').disabled = true;
+  document.getElementById('figma-banner').classList.remove('visible');
+
+  // Read controls
+  const spacing = parseInt(document.getElementById('sl-spacing').value);
+  const sizeBase = parseInt(document.getElementById('sl-size').value);
+  const sizeByBrightness = document.getElementById('ck-size-range').checked;
+  const phases = parseInt(document.getElementById('sl-phases').value);
+  const invert = document.getElementById('ck-invert').checked;
+  const aa = document.getElementById('ck-aa').checked;
+  const angleBase = parseInt(document.getElementById('sl-angle').value) * Math.PI / 180;
+  const angleByBrightness = document.getElementById('ck-angle-range').checked;
+  const angleRandom = document.getElementById('ck-angle-random').checked;
+  const warp = parseFloat(document.getElementById('sl-warp').value);
+  const opacity = parseFloat(document.getElementById('sl-opacity').value);
+  const markColor = document.getElementById('hex-mark').value;
+  const bgColor = document.getElementById('hex-bg').value;
+  const densityMult = densityMap[density];
+  const spacingAdj = spacing * densityMult;
+
+  // Set canvas size (max 1200px wide for perf)
+  const maxW = 1200;
+  const scale = sourceImage.width > maxW ? maxW / sourceImage.width : 1;
+  const W = Math.floor(sourceImage.width * scale);
+  const H = Math.floor(sourceImage.height * scale);
+
+  canvas.width = W;
+  canvas.height = H;
+  canvas.classList.add('visible');
+
+  // Get pixel data
+  const offscreen = document.createElement('canvas');
+  offscreen.width = W; offscreen.height = H;
+  const octx = offscreen.getContext('2d');
+  octx.drawImage(sourceImage, 0, 0, W, H);
+  const imgData = octx.getImageData(0, 0, W, H).data;
+
+  function getLuma(x, y) {
+    const i = (Math.floor(y) * W + Math.floor(x)) * 4;
+    const r = imgData[i], g = imgData[i+1], b = imgData[i+2];
+    let l = (0.299*r + 0.587*g + 0.114*b) / 255;
+    return invert ? 1 - l : l;
+  }
+
+  function getColor(x, y) {
+    const i = (Math.floor(y) * W + Math.floor(x)) * 4;
+    return `rgb(${imgData[i]},${imgData[i+1]},${imgData[i+2]})`;
+  }
+
+  // Get current mark SVG — parse it
+  const mark = allMarks.find(m => m.id === selectedMarkId) || allMarks[0];
+
+  // Parse SVG to extract path/shape data
+  const parser = new DOMParser();
+  const svgDoc = parser.parseFromString(mark.svg, 'image/svg+xml');
+  const svgEl = svgDoc.querySelector('svg');
+  const vb = svgEl.getAttribute('viewBox')?.split(' ').map(Number) || [0,0,20,20];
+  const vbW = vb[2], vbH = vb[3];
+
+  // Fill background
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, W, H);
+
+  if (aa) ctx.imageSmoothingEnabled = true;
+
+  // Collect placement points sorted by phase (luminosity band)
+  const points = [];
+  const xSpacing = spacingAdj;
+  const ySpacing = spacingAdj * 0.866; // slight hex offset
+  let row = 0;
+
+  for (let y = 0; y < H; y += ySpacing) {
+    const xOffset = row % 2 === 0 ? 0 : xSpacing * 0.5;
+    for (let x = xOffset; x < W; x += xSpacing) {
+      const luma = getLuma(x, y);
+      points.push({ x, y, luma });
+    }
+    row++;
+  }
+
+  // Sort by luminosity phase (dark first)
+  points.sort((a, b) => a.luma - b.luma);
+
+  setStatus('rendering', 'Rendering…');
+  document.getElementById('progress-bar').style.width = '0%';
+
+  const total = points.length;
+  let drawn = 0;
+  const BATCH = 200;
+
+  // Store for SVG export
+  window._lastRenderData = { W, H, bgColor, marks: [], markSvgVb: [vbW, vbH], markSvg: mark.svg };
+
+  async function drawBatch(start) {
+    if (shouldStop) { finishRender(true); return; }
+
+    const end = Math.min(start + BATCH, total);
+    for (let i = start; i < end; i++) {
+      const { x, y, luma } = points[i];
+
+      // Skip very bright areas (nothing to draw)
+      if (luma > 0.92) continue;
+
+      // Size mapped to darkness
+      const darkness = 1 - luma;
+      const sz = sizeByBrightness
+        ? sizeBase * 0.4 + sizeBase * 0.6 * darkness
+        : sizeBase;
+
+      // Angle
+      let angle = angleBase;
+      if (angleRandom) angle = Math.random() * Math.PI * 2;
+      else if (angleByBrightness) angle = angleBase * darkness * 2;
+      // Add warp
+      if (warp > 0) angle += (Math.random() - 0.5) * warp * Math.PI;
+
+      // Color
+      let fillColor;
+      if (colorMode === 'image') fillColor = getColor(x, y);
+      else if (colorMode === 'multi') fillColor = `hsl(${Math.random()*360},60%,40%)`;
+      else if (colorMode === 'adaptive') {
+        // shift hue of mark color by brightness
+        fillColor = markColor; // simplified — full impl would parse HSL
+      }
+      else fillColor = markColor;
+
+      // Draw mark
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.globalAlpha = opacity * (0.6 + 0.4 * darkness);
+      drawMark(ctx, svgEl, sz, vbW, vbH, fillColor);
+      ctx.restore();
+
+      // Store for SVG export
+      window._lastRenderData.marks.push({ x, y, angle, sz, color: fillColor, opacity: opacity * (0.6 + 0.4 * darkness) });
+    }
+
+    drawn += (end - start);
+    document.getElementById('progress-bar').style.width = (drawn/total*100) + '%';
+
+    if (end < total) {
+      await new Promise(r => setTimeout(r, 0));
+      drawBatch(end);
+    } else {
+      finishRender(false);
+    }
+  }
+
+  drawBatch(0);
+}
+
+function drawMark(ctx, svgEl, size, vbW, vbH, color) {
+  const scale = size / Math.max(vbW, vbH);
+  const offX = -(vbW * scale) / 2;
+  const offY = -(vbH * scale) / 2;
+
+  ctx.save();
+  ctx.translate(offX, offY);
+  ctx.scale(scale, scale);
+  ctx.fillStyle = color;
+  ctx.strokeStyle = color;
+
+  // Draw each child element
+  Array.from(svgEl.children).forEach(el => drawSvgElement(ctx, el, color));
+  ctx.restore();
+}
+
+function drawSvgElement(ctx, el, color) {
+  const tag = el.tagName.toLowerCase();
+  const fill = el.getAttribute('fill');
+  const stroke = el.getAttribute('stroke');
+
+  if (fill !== 'none') ctx.fillStyle = (fill && fill !== 'currentColor') ? fill : color;
+  if (stroke) ctx.strokeStyle = (stroke !== 'currentColor') ? stroke : color;
+
+  if (tag === 'circle') {
+    const cx = +el.getAttribute('cx')||0, cy = +el.getAttribute('cy')||0, r = +el.getAttribute('r')||5;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+    if (fill !== 'none') ctx.fill();
+    if (stroke && stroke !== 'none') ctx.stroke();
+  }
+  else if (tag === 'rect') {
+    const x = +el.getAttribute('x')||0, y = +el.getAttribute('y')||0;
+    const w = +el.getAttribute('width')||10, h = +el.getAttribute('height')||10;
+    if (fill !== 'none') ctx.fillRect(x,y,w,h);
+    if (stroke) ctx.strokeRect(x,y,w,h);
+  }
+  else if (tag === 'polygon' || tag === 'polyline') {
+    const pts = (el.getAttribute('points')||'').trim().split(/[\s,]+/).map(Number);
+    ctx.beginPath();
+    for (let i=0; i<pts.length; i+=2) i===0 ? ctx.moveTo(pts[i],pts[i+1]) : ctx.lineTo(pts[i],pts[i+1]);
+    if (tag === 'polygon') ctx.closePath();
+    if (fill !== 'none') ctx.fill();
+    if (stroke) ctx.stroke();
+  }
+  else if (tag === 'path') {
+    const d = el.getAttribute('d')||'';
+    const p = new Path2D(d);
+    if (fill !== 'none') ctx.fill(p);
+    if (stroke && stroke !== 'none') ctx.stroke(p);
+  }
+  else if (tag === 'ellipse') {
+    const cx = +el.getAttribute('cx')||0, cy = +el.getAttribute('cy')||0;
+    const rx = +el.getAttribute('rx')||5, ry = +el.getAttribute('ry')||5;
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI*2);
+    if (fill !== 'none') ctx.fill();
+    if (stroke) ctx.stroke();
+  }
+  else if (tag === 'line') {
+    const x1 = +el.getAttribute('x1')||0, y1 = +el.getAttribute('y1')||0;
+    const x2 = +el.getAttribute('x2')||0, y2 = +el.getAttribute('y2')||0;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  }
+  // Groups/nested
+  else if (tag === 'g') {
+    Array.from(el.children).forEach(child => drawSvgElement(ctx, child, color));
+  }
+}
+
+function finishRender(stopped) {
+  isRendering = false;
+  document.getElementById('btn-stop').disabled = true;
+  document.getElementById('progress-bar').style.width = '100%';
+  setTimeout(() => { document.getElementById('progress-bar').style.width = '0%'; }, 600);
+
+  if (!stopped) {
+    const count = window._lastRenderData?.marks?.length || 0;
+    setStatus('active', count.toLocaleString() + ' marks placed');
+    document.getElementById('btn-save-png').disabled = false;
+    document.getElementById('btn-save-jpg').disabled = false;
+    document.getElementById('btn-save-svg').disabled = false;
+    document.getElementById('btn-figma').disabled = false;
+    document.getElementById('figma-banner').classList.add('visible');
+  }
+}
+
+// ─────────────────────────────────────────────
+// STATUS
+// ─────────────────────────────────────────────
+function setStatus(state, msg) {
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-text');
+  dot.className = '';
+  dot.classList.add(state);
+  txt.textContent = msg;
+}
+
+// ─────────────────────────────────────────────
+// EXPORT PNG
+// ─────────────────────────────────────────────
+function exportPNG() {
+  const a = document.createElement('a');
+  a.download = 'spore-' + Date.now() + '.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+
+// ─────────────────────────────────────────────
+// EXPORT JPG — high definition
+// Re-renders the stored marks onto an upscaled offscreen canvas
+// (the preview canvas is capped at 1200px; this restores full quality)
+// ─────────────────────────────────────────────
+function exportJPG() {
+  const d = window._lastRenderData;
+  if (!d) { alert('Render first.'); return; }
+  const { W, H, bgColor, marks, markSvg } = d;
+
+  // Target: native source resolution, then push further for print.
+  // Cap the longest side to avoid browser canvas limits.
+  const MAX_SIDE = 8000;
+  const nativeScale = sourceImage ? Math.max(1, sourceImage.width / W) : 1;
+  let scale = nativeScale * 2;            // 2× over native for crisp print
+  const longest = Math.max(W, H) * scale;
+  if (longest > MAX_SIDE) scale = MAX_SIDE / Math.max(W, H);
+
+  const oc = document.createElement('canvas');
+  oc.width = Math.round(W * scale);
+  oc.height = Math.round(H * scale);
+  const octx = oc.getContext('2d');
+  octx.imageSmoothingEnabled = true;
+  octx.imageSmoothingQuality = 'high';
+
+  // Background (JPG has no alpha — always paint a solid bg)
+  octx.fillStyle = bgColor;
+  octx.fillRect(0, 0, oc.width, oc.height);
+
+  // Re-parse the mark once
+  const parser = new DOMParser();
+  const svgDoc = parser.parseFromString(markSvg, 'image/svg+xml');
+  const svgEl = svgDoc.querySelector('svg');
+  const vb = svgEl.getAttribute('viewBox')?.split(' ').map(Number) || [0,0,20,20];
+  const vbW = vb[2], vbH = vb[3];
+
+  // Replay every stored mark at the upscaled coordinates
+  marks.forEach(m => {
+    octx.save();
+    octx.translate(m.x * scale, m.y * scale);
+    octx.rotate(m.angle);
+    octx.globalAlpha = m.opacity;
+    drawMark(octx, svgEl, m.sz * scale, vbW, vbH, m.color);
+    octx.restore();
+  });
+
+  setStatus('active', 'JPG exported — ' + oc.width + '×' + oc.height);
+
+  oc.toBlob(blob => {
+    const a = document.createElement('a');
+    a.download = 'spore-' + Date.now() + '.jpg';
+    a.href = URL.createObjectURL(blob);
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }, 'image/jpeg', 0.95);
+}
+
+// ─────────────────────────────────────────────
+// BUILD SVG (shared)
+// Inlines each mark's real geometry with an explicit transform that
+// mirrors the canvas draw exactly — so the vector matches the raster
+// pixel-for-pixel and imports correctly into Figma. No <symbol>/<use>,
+// no currentColor (which importers fail to resolve).
+// ─────────────────────────────────────────────
+function buildSporeSVG() {
+  const d = window._lastRenderData;
+  if (!d) return null;
+  const { W, H, bgColor, marks, markSvg, markSvgVb } = d;
+  const vbW = markSvgVb[0], vbH = markSvgVb[1];
+  const vbMax = Math.max(vbW, vbH);
+
+  const parser = new DOMParser();
+  const parsed = parser.parseFromString(markSvg, 'image/svg+xml');
+  const innerSVG = parsed.querySelector('svg').innerHTML;
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  svg += `<rect width="${W}" height="${H}" fill="${bgColor}"/>`;
+
+  marks.forEach(m => {
+    const deg = (m.angle * 180 / Math.PI).toFixed(2);
+    const s = (m.sz / vbMax).toFixed(4);
+    // Same composition the canvas applies in drawMark():
+    // translate(center) → rotate → scale → translate(-viewBox/2)
+    const tf = `translate(${m.x.toFixed(2)} ${m.y.toFixed(2)}) rotate(${deg}) `
+             + `scale(${s}) translate(${(-vbW/2).toFixed(2)} ${(-vbH/2).toFixed(2)})`;
+    // Resolve currentColor to this instance's actual fill colour.
+    const shapes = innerSVG.replace(/currentColor/g, m.color);
+    svg += `<g transform="${tf}" opacity="${m.opacity.toFixed(2)}">${shapes}</g>`;
+  });
+
+  svg += '</svg>';
+  return svg;
+}
+
+// ─────────────────────────────────────────────
+// EXPORT SVG
+// ─────────────────────────────────────────────
+function exportSVG() {
+  const svg = buildSporeSVG();
+  if (!svg) return;
+
+  // Store for Figma
+  window._lastSVG = svg;
+
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const a = document.createElement('a');
+  a.download = 'spore-' + Date.now() + '.svg';
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ─────────────────────────────────────────────
+// SEND TO FIGMA
+// Uses the same Figma plugin approach as Strata
+// Plugin listens for window.postMessage with { type: 'organica-svg', svg: '...' }
+// ─────────────────────────────────────────────
+function sendToFigma() {
+  const d = window._lastRenderData;
+  if (!d) { alert('Render first.'); return; }
+
+  // Build SVG if not already built
+  if (!window._lastSVG) exportSVGString();
+
+  // Post message to Figma plugin (same protocol as Strata)
+  window.parent.postMessage({
+    pluginMessage: {
+      type: 'organica-svg',
+      svg: window._lastSVG,
+      name: 'Spore — ' + new Date().toLocaleTimeString()
+    }
+  }, '*');
+
+  setStatus('active', 'Sent to Figma plugin ↗');
+}
+
+function exportSVGString() {
+  const svg = buildSporeSVG();
+  if (svg) window._lastSVG = svg;
+}
+
+// ─────────────────────────────────────────────
+// ZOOM & PAN (preview only — does not affect render/export)
+// ─────────────────────────────────────────────
+let zoom = 1, panX = 0, panY = 0;
+const ZOOM_MIN = 1, ZOOM_MAX = 12;
+let isPanning = false, panStartX = 0, panStartY = 0;
+
+function applyZoom() {
+  canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+  const z = Math.round(zoom * 100);
+  document.getElementById('zoom-level').textContent = z + '%';
+  const hud = document.getElementById('zoom-hud');
+  const zoomed = zoom > 1.001;
+  hud.classList.toggle('visible', zoomed && canvas.classList.contains('visible'));
+  canvas.classList.toggle('zoomed', zoomed);
+}
+
+function resetZoom() {
+  zoom = 1; panX = 0; panY = 0;
+  applyZoom();
+}
+
+// Wheel zoom toward the cursor
+canvasWrap.addEventListener('wheel', e => {
+  if (!canvas.classList.contains('visible')) return;
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  // cursor position relative to the canvas's current (transformed) top-left
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
+  const prev = zoom;
+  const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+  zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom * factor));
+  const ratio = zoom / prev;
+  // keep the point under the cursor stationary
+  panX -= cx * (ratio - 1);
+  panY -= cy * (ratio - 1);
+  if (zoom === ZOOM_MIN) { panX = 0; panY = 0; }
+  applyZoom();
+}, { passive: false });
+
+// Drag to pan when zoomed
+canvas.addEventListener('mousedown', e => {
+  if (zoom <= 1.001) return;
+  isPanning = true;
+  panStartX = e.clientX - panX;
+  panStartY = e.clientY - panY;
+  canvas.classList.add('panning');
+  e.preventDefault();
+});
+window.addEventListener('mousemove', e => {
+  if (!isPanning) return;
+  panX = e.clientX - panStartX;
+  panY = e.clientY - panStartY;
+  applyZoom();
+});
+window.addEventListener('mouseup', () => {
+  if (!isPanning) return;
+  isPanning = false;
+  canvas.classList.remove('panning');
+});
+
+// Double-click resets
+canvas.addEventListener('dblclick', resetZoom);
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+buildMarkGrid();
+setStatus('', '—');
+applyZoom();
+</script>
+</body>
+</html>

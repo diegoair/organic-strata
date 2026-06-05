@@ -1,14 +1,8 @@
 {
-  "version": 2,
-  "name": "organic-strata",
-  "builds": [
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "strata/**", "use": "@vercel/static" },
-    { "src": "genesis/**", "use": "@vercel/static" }
-  ],
-  "routes": [
-    { "src": "^/$", "dest": "/index.html" },
-    { "src": "/genesis/(.*)", "dest": "/genesis/$1" },
-    { "src": "/strata/(.*)", "dest": "/strata/$1" }
+  "rewrites": [
+    { "source": "/genesis/(.*)", "destination": "/genesis/$1" },
+    { "source": "/strata/(.*)", "destination": "/strata/$1" },
+    { "source": "/spore/(.*)", "destination": "/spore/$1" },
+    { "source": "/", "destination": "/index.html" }
   ]
 }
