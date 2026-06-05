@@ -59,10 +59,13 @@
       flex-direction: column;
       align-items: center;
       gap: 0.15em;
+      width: 100%;
+      overflow: hidden;
+      padding: 0 1rem;
     }
 
     .wordmark__title {
-      font-size: clamp(2.5rem, 18vw, 13rem);
+      font-size: clamp(2rem, 12vw, 13rem);
       font-weight: 800;
       line-height: 0.88;
       letter-spacing: -0.03em;
@@ -81,6 +84,9 @@
         fadeUp 0.9s ease forwards 0.05s,
         shimmer 6s ease-in-out infinite 1.5s;
       opacity: 0;
+      overflow: hidden;
+      width: 100%;
+      text-align: center;
     }
 
     .wordmark__sub {
