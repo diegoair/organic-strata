@@ -6,14 +6,14 @@
 ## Architecture
 
 ```
-frontend/        → Vercel (static, always deployed)
+strata/          → Vercel (static, always deployed)
 backend/         → Local (Python + OpenCV + potrace)
 figma-plugin/    → Figma MCP / Plugin API
 ```
 
 ## Quick Start
 
-### Frontend (Vercel)
+### Strata (Vercel)
 Deployed automatically on push to `main`.
 
 ### Backend (Local)
@@ -27,7 +27,7 @@ python3 server.py
 Server runs at `http://localhost:5050`
 
 ### Figma
-Set your Figma file URL in `frontend/.env.local`:
+Set your Figma file URL in `strata/.env.local`:
 ```
 FIGMA_FILE_URL=https://figma.com/design/...
 ```

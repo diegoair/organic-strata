@@ -25,13 +25,19 @@
     background: var(--paper);
     color: var(--ink);
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  #app-grid {
+    flex: 1;
     display: grid;
     grid-template-columns: 280px 1fr;
     grid-template-rows: 56px 1fr;
+    min-height: 0;
   }
 
   /* ── HEADER ── */
-  header {
+  #app-grid > header {
     grid-column: 1 / -1;
     border-bottom: 1px solid var(--line);
     display: flex;
@@ -567,6 +573,43 @@
   .advanced-toggle:hover { color: var(--ink); }
   .advanced-body { padding-top: 12px; }
 
+  /* Organica banner */
+  #organica-banner {
+    position: relative;
+    top: 0; left: 0; right: 0;
+    z-index: 1000;
+    background: #1a1a1a;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding: 7px 20px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #777;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: 0.02em;
+  }
+  #organica-banner a {
+    color: #999;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    padding-bottom: 1px;
+    transition: color 0.15s;
+  }
+  #organica-banner a:hover { color: #ccc; }
+  #organica-banner .banner-dismiss {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #555;
+    font-size: 13px;
+    line-height: 1;
+    padding: 0;
+    transition: color 0.15s;
+  }
+  #organica-banner .banner-dismiss:hover { color: #999; }
+
   /* Backend banner */
   #backend-banner {
     position: fixed;
@@ -605,11 +648,17 @@
 </head>
 <body>
 
+<div id="organica-banner">
+  Strata is now part of Organica &rarr;&nbsp;<a href="https://organica.vercel.app">organica.vercel.app</a>
+  <button class="banner-dismiss" onclick="document.getElementById('organica-banner').style.display='none'" aria-label="Dismiss">&times;</button>
+</div>
+
 <div id="backend-banner" class="hidden">
   <span id="banner-msg">Backend offline — run <code>cd backend && source venv/bin/activate && python3 server.py</code> locally to enable SVG processing.</span>
   <button class="banner-close" onclick="document.getElementById('backend-banner').classList.add('hidden')">✕</button>
 </div>
 
+<div id="app-grid">
 <!-- HEADER -->
 <header>
   <div class="logo">Organic<span>Strata</span></div>
@@ -815,6 +864,7 @@
     <span class="export-info" id="export-info"></span>
   </div>
 </main>
+</div><!-- /#app-grid -->
 
 <!-- Processing overlay -->
 <div class="processing" id="processing">
