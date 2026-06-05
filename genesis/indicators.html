@@ -1,0 +1,1386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Organic Indicators · 50</title>
+<style>
+  :root{
+    --bg:#f4f1ea;
+    --bg-cell:#efece4;
+    --ink:#15140f;
+    --ink-soft:#15140fcc;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:ui-monospace,Menlo,Consolas,monospace;
+    -webkit-font-smoothing:antialiased}
+  body{padding:48px 48px 96px}
+
+  /* Organica banner */
+  #organica-banner{
+    position:fixed;top:0;left:0;right:0;
+    z-index:1000;
+    background:#1a1a1a;
+    border-bottom:1px solid rgba(255,255,255,0.08);
+    padding:7px 20px;
+    font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:11px;
+    color:#777;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    letter-spacing:0.02em;
+  }
+  #organica-banner a{color:#999;text-decoration:none;border-bottom:1px solid rgba(255,255,255,0.2);padding-bottom:1px;transition:color .15s}
+  #organica-banner a:hover{color:#ccc}
+  #organica-banner .banner-dismiss{margin-left:auto;background:none;border:none;cursor:pointer;color:#555;font-size:13px;line-height:1;padding:0;transition:color .15s}
+  #organica-banner .banner-dismiss:hover{color:#999}
+  body.banner-visible{padding-top:calc(48px + 30px)}
+  header{max-width:1280px;margin:0 auto 40px;display:flex;align-items:baseline;justify-content:space-between;gap:24px}
+  header h1{font-family:Georgia,serif;font-weight:400;font-size:34px;letter-spacing:-.01em;margin:0}
+  header p{margin:0;font-size:12px;opacity:.55;letter-spacing:.04em;text-transform:uppercase}
+  .grid{max-width:1280px;margin:0 auto;display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+    gap:24px}
+  .cell{aspect-ratio:1/1;background:var(--bg-cell);border-radius:6px;
+    display:flex;align-items:center;justify-content:center;
+    position:relative;overflow:hidden}
+  .cell svg{width:100%;height:100%;display:block}
+  .num{position:absolute;left:10px;top:10px;font-size:9px;opacity:.32;letter-spacing:.08em}
+
+  /* shared timing */
+  @keyframes breathe{0%,100%{transform:scale(.78)}50%{transform:scale(1.02)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes spinR{to{transform:rotate(-360deg)}}
+
+  /* ============ 01 breath ============ */
+  .a01 .b{transform-origin:100px 100px;animation:breathe 3.4s cubic-bezier(.5,0,.5,1) infinite;fill:var(--ink)}
+
+  /* ============ 02 heartbeat blob ============ */
+  @keyframes heart{0%,55%,100%{transform:scale(.85)}20%{transform:scale(1.02)}30%{transform:scale(.92)}40%{transform:scale(1.06)}}
+  .a02 .b{transform-origin:100px 100px;animation:heart 1.6s ease-in-out infinite;fill:var(--ink)}
+
+  /* ============ 03 two metaballs merge ============ */
+  @keyframes mergeA{0%,100%{transform:translateX(-34px)}50%{transform:translateX(0)}}
+  @keyframes mergeB{0%,100%{transform:translateX(34px)}50%{transform:translateX(0)}}
+  .a03 g{filter:url(#goo)}
+  .a03 .l{animation:mergeA 2.8s ease-in-out infinite;transform-origin:100px 100px;fill:var(--ink)}
+  .a03 .r{animation:mergeB 2.8s ease-in-out infinite;transform-origin:100px 100px;fill:var(--ink)}
+
+  /* ============ 04 three orbiters ============ */
+  .a04 g.spin{transform-origin:100px 100px;animation:spin 3.6s linear infinite;filter:url(#goo)}
+  .a04 .core,.a04 .o{fill:var(--ink)}
+
+  /* ============ 05 swarm ============ */
+  @keyframes sw1{0%,100%{transform:translate(0,0)}50%{transform:translate(22px,-18px)}}
+  @keyframes sw2{0%,100%{transform:translate(0,0)}50%{transform:translate(-24px,14px)}}
+  @keyframes sw3{0%,100%{transform:translate(0,0)}50%{transform:translate(16px,22px)}}
+  @keyframes sw4{0%,100%{transform:translate(0,0)}50%{transform:translate(-18px,-22px)}}
+  @keyframes sw5{0%,100%{transform:translate(0,0)}50%{transform:translate(26px,8px)}}
+  @keyframes sw6{0%,100%{transform:translate(0,0)}50%{transform:translate(-12px,-10px)}}
+  .a05 g{filter:url(#goo)}
+  .a05 circle{fill:var(--ink);transform-origin:center}
+  .a05 .s1{animation:sw1 2.4s ease-in-out infinite}
+  .a05 .s2{animation:sw2 2.7s ease-in-out infinite}
+  .a05 .s3{animation:sw3 2.5s ease-in-out infinite}
+  .a05 .s4{animation:sw4 2.9s ease-in-out infinite}
+  .a05 .s5{animation:sw5 2.3s ease-in-out infinite}
+  .a05 .s6{animation:sw6 2.6s ease-in-out infinite}
+
+  /* ============ 06 ripple ============ */
+  @keyframes ripple{0%{r:6px;opacity:1}100%{r:80px;opacity:0}}
+  .a06 circle{cx:100px;cy:100px;fill:none;stroke:var(--ink);stroke-width:1.4}
+  .a06 .r1{animation:ripple 2.4s ease-out infinite}
+  .a06 .r2{animation:ripple 2.4s ease-out infinite;animation-delay:.8s}
+  .a06 .r3{animation:ripple 2.4s ease-out infinite;animation-delay:1.6s}
+
+  /* ============ 07 drop fall ============ */
+  @keyframes fall{0%{transform:translateY(-50px) scaleY(1.2)}55%{transform:translateY(40px) scaleY(.85)}65%{transform:translateY(40px) scaleY(.6)}100%{transform:translateY(-50px) scaleY(1.2);opacity:0}}
+  @keyframes splash{0%,55%{r:0;opacity:.9}90%,100%{r:46px;opacity:0}}
+  .a07 .drop{fill:var(--ink);transform-origin:100px 100px;animation:fall 2.4s cubic-bezier(.4,0,.7,1) infinite}
+  .a07 .sp{fill:none;stroke:var(--ink);stroke-width:1.2;cx:100px;cy:140px;animation:splash 2.4s ease-out infinite}
+
+  /* ============ 08 drop rise (lava lamp single) ============ */
+  @keyframes rise{0%{transform:translateY(60px) scale(1.1,.8)}50%{transform:translateY(-10px) scale(.85,1.2)}100%{transform:translateY(-70px) scale(1,.8);opacity:0}}
+  .a08 g{filter:url(#goo)}
+  .a08 .base{fill:var(--ink)}
+  .a08 .bub{fill:var(--ink);transform-origin:100px 100px;animation:rise 3.2s ease-in-out infinite}
+
+  /* ============ 09 lava lamp detach ============ */
+  @keyframes lava{0%{transform:translateY(35px) scale(1,.6)}30%{transform:translateY(20px) scale(.9,1.1)}65%{transform:translateY(-15px) scale(1,.95)}100%{transform:translateY(-50px) scale(.8,.8);opacity:0}}
+  .a09 g{filter:url(#goo)}
+  .a09 .pool{fill:var(--ink)}
+  .a09 .blob{fill:var(--ink);transform-origin:100px 100px;animation:lava 3.6s ease-in-out infinite}
+
+  /* ============ 10 honey drip ============ */
+  @keyframes honey{0%{transform:scaleY(1) translateY(0)}40%{transform:scaleY(2.6) translateY(8px)}55%{transform:scaleY(2.2) translateY(20px)}70%{transform:scaleY(.9) translateY(40px);opacity:.9}85%,100%{transform:scaleY(.9) translateY(60px);opacity:0}}
+  .a10 .ceiling{fill:var(--ink)}
+  .a10 .h{fill:var(--ink);transform-origin:100px 40px;transform-box:fill-box;animation:honey 2.8s cubic-bezier(.6,0,.5,1) infinite}
+
+  /* ============ 11 vine grow ============ */
+  @keyframes draw{0%{stroke-dashoffset:260}55%{stroke-dashoffset:0}100%{stroke-dashoffset:-260;opacity:0}}
+  .a11 path{fill:none;stroke:var(--ink);stroke-width:2.5;stroke-linecap:round;stroke-dasharray:260;animation:draw 3.4s ease-in-out infinite}
+
+  /* ============ 12 leaf sway ============ */
+  @keyframes sway{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
+  .a12 .leaf{fill:var(--ink);transform-origin:100px 160px;animation:sway 2.6s ease-in-out infinite}
+  .a12 .stem{stroke:var(--ink);stroke-width:1.6;fill:none}
+
+  /* ============ 13 flower bloom ============ */
+  @keyframes bloom{0%,100%{transform:scale(.18)}50%{transform:scale(1)}}
+  .a13 g.p{transform-origin:100px 100px;animation:bloom 3s ease-in-out infinite}
+  .a13 ellipse{fill:var(--ink)}
+  .a13 .core{fill:var(--ink)}
+
+  /* ============ 14 petal turn ============ */
+  @keyframes turn{0%{transform:rotate(0) scale(.9)}100%{transform:rotate(360deg) scale(.9)}}
+  .a14 g.t{transform-origin:100px 100px;animation:turn 4.8s cubic-bezier(.6,0,.4,1) infinite}
+  .a14 path{fill:var(--ink)}
+
+  /* ============ 15 sprout ============ */
+  @keyframes sprout{0%{stroke-dashoffset:140;opacity:0}10%{opacity:1}80%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+  @keyframes leafpop{0%,55%{transform:scale(0)}75%,95%{transform:scale(1)}100%{transform:scale(1);opacity:0}}
+  .a15 .ground{stroke:var(--ink);stroke-width:1.4;stroke-dasharray:3 4}
+  .a15 .stem{fill:none;stroke:var(--ink);stroke-width:2.4;stroke-linecap:round;stroke-dasharray:140;animation:sprout 3.4s ease-in-out infinite}
+  .a15 .l1{fill:var(--ink);transform-origin:80px 80px;animation:leafpop 3.4s ease-in-out infinite}
+  .a15 .l2{fill:var(--ink);transform-origin:120px 70px;animation:leafpop 3.4s ease-in-out infinite;animation-delay:.2s}
+
+  /* ============ 16 roots ============ */
+  @keyframes root{0%{stroke-dashoffset:220;opacity:1}80%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+  .a16 path{fill:none;stroke:var(--ink);stroke-width:1.8;stroke-linecap:round;stroke-dasharray:220;animation:root 3.6s ease-in-out infinite}
+  .a16 .r2{animation-delay:.15s}
+  .a16 .r3{animation-delay:.3s}
+
+  /* ============ 17 jellyfish ============ */
+  @keyframes bell{0%,100%{transform:scaleY(.8) scaleX(1.08)}50%{transform:scaleY(1.1) scaleX(.9)}}
+  @keyframes tent{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+  .a17 .bell{fill:var(--ink);transform-origin:100px 100px;animation:bell 1.8s ease-in-out infinite}
+  .a17 .tent{stroke:var(--ink);stroke-width:1.6;fill:none;stroke-linecap:round;animation:tent 1.8s ease-in-out infinite}
+
+  /* ============ 18 tadpole orbit ============ */
+  .a18 g.spin{transform-origin:100px 100px;animation:spin 3s linear infinite}
+  .a18 .t{fill:var(--ink)}
+
+  /* ============ 19 fish school ============ */
+  @keyframes fishWag{0%,100%{transform:translateX(-60px) rotate(0)}50%{transform:translateX(60px) rotate(0)}}
+  .a19 g.f{animation:fishWag 3.2s ease-in-out infinite}
+  .a19 ellipse,.a19 path{fill:var(--ink)}
+  .a19 .f2{animation-delay:.2s;transform:translateY(28px)}
+  .a19 .f3{animation-delay:.4s;transform:translateY(-28px)}
+
+  /* ============ 20 worm ============ */
+  @keyframes wormShift{0%,100%{transform:translateX(0)}50%{transform:translateX(0)}}
+  @keyframes wormWiggle{0%{d:path("M30 100 Q60 70 90 100 T150 100 T210 100")}50%{d:path("M30 100 Q60 130 90 100 T150 100 T210 100")}100%{d:path("M30 100 Q60 70 90 100 T150 100 T210 100")}}
+  .a20 path{fill:none;stroke:var(--ink);stroke-width:6;stroke-linecap:round;animation:wormWiggle 1.6s ease-in-out infinite}
+
+  /* ============ 21 caterpillar ============ */
+  @keyframes inch{0%,100%{transform:translateX(0)}50%{transform:translateX(0)}}
+  @keyframes seg{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.3)}}
+  .a21 circle{fill:var(--ink);transform-origin:center;transform-box:fill-box}
+  .a21 .c1{animation:seg 1.4s ease-in-out infinite}
+  .a21 .c2{animation:seg 1.4s ease-in-out infinite;animation-delay:.12s}
+  .a21 .c3{animation:seg 1.4s ease-in-out infinite;animation-delay:.24s}
+  .a21 .c4{animation:seg 1.4s ease-in-out infinite;animation-delay:.36s}
+  .a21 .c5{animation:seg 1.4s ease-in-out infinite;animation-delay:.48s}
+
+  /* ============ 22 cloud morph ============ */
+  @keyframes cloud{0%,100%{d:path("M40 110 q-10 -28 18 -30 q6 -22 30 -16 q14 -18 36 -4 q22 -8 30 14 q24 4 12 26 q-66 14 -126 10z")}50%{d:path("M40 110 q-6 -22 22 -26 q10 -20 26 -10 q16 -14 32 -2 q26 -12 34 16 q22 6 8 30 q-70 8 -122 2z")}}
+  .a22 path{fill:var(--ink);animation:cloud 4.2s ease-in-out infinite}
+
+  /* ============ 23 rain ============ */
+  @keyframes drip{0%{transform:translateY(-40px);opacity:0}20%{opacity:1}80%{opacity:1}100%{transform:translateY(150px);opacity:0}}
+  .a23 ellipse{fill:var(--ink);rx:2.5;ry:6}
+  .a23 .d1{animation:drip 1.6s linear infinite}
+  .a23 .d2{animation:drip 1.6s linear infinite;animation-delay:.2s}
+  .a23 .d3{animation:drip 1.6s linear infinite;animation-delay:.45s}
+  .a23 .d4{animation:drip 1.6s linear infinite;animation-delay:.7s}
+  .a23 .d5{animation:drip 1.6s linear infinite;animation-delay:.95s}
+  .a23 .d6{animation:drip 1.6s linear infinite;animation-delay:1.2s}
+
+  /* ============ 24 grass wind ============ */
+  @keyframes bend1{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(10deg)}}
+  @keyframes bend2{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(12deg)}}
+  .a24 path{fill:none;stroke:var(--ink);stroke-width:2.2;stroke-linecap:round;transform-origin:center 160px}
+  .a24 .g1{animation:bend1 2.4s ease-in-out infinite}
+  .a24 .g2{animation:bend2 2.6s ease-in-out infinite;animation-delay:.15s}
+  .a24 .g3{animation:bend1 2.5s ease-in-out infinite;animation-delay:.3s}
+  .a24 .g4{animation:bend2 2.3s ease-in-out infinite;animation-delay:.1s}
+  .a24 .g5{animation:bend1 2.7s ease-in-out infinite;animation-delay:.25s}
+
+  /* ============ 25 smoke ============ */
+  @keyframes puff{0%{transform:translateY(60px) scale(.4);opacity:0}20%{opacity:.9}100%{transform:translateY(-80px) scale(1.6);opacity:0}}
+  .a25 g{filter:url(#goo)}
+  .a25 circle{fill:var(--ink);transform-origin:center;transform-box:fill-box}
+  .a25 .p1{animation:puff 3.2s ease-out infinite}
+  .a25 .p2{animation:puff 3.2s ease-out infinite;animation-delay:.6s}
+  .a25 .p3{animation:puff 3.2s ease-out infinite;animation-delay:1.2s}
+  .a25 .p4{animation:puff 3.2s ease-out infinite;animation-delay:1.8s}
+  .a25 .p5{animation:puff 3.2s ease-out infinite;animation-delay:2.4s}
+
+  /* ============ 26 amoeba ============ */
+  @keyframes amoeba{0%,100%{d:path("M100 30 q44 0 50 50 q4 40 -38 56 q-44 14 -64 -16 q-22 -36 6 -68 q22 -22 46 -22z")}33%{d:path("M100 36 q50 -4 56 46 q-2 50 -42 60 q-50 8 -62 -22 q-14 -42 14 -66 q18 -20 34 -18z")}66%{d:path("M100 28 q40 8 56 42 q14 46 -34 64 q-46 16 -66 -10 q-22 -38 4 -70 q22 -28 40 -26z")}}
+  .a26 path{fill:var(--ink);animation:amoeba 5s ease-in-out infinite}
+
+  /* ============ 27 cell divide ============ */
+  @keyframes divA{0%,15%{transform:translateX(0) scale(1)}50%{transform:translateX(-22px) scale(.9)}85%,100%{transform:translateX(-30px) scale(1)}}
+  @keyframes divB{0%,15%{transform:translateX(0) scale(1)}50%{transform:translateX(22px) scale(.9)}85%,100%{transform:translateX(30px) scale(1)}}
+  .a27 g{filter:url(#goo)}
+  .a27 circle{fill:var(--ink);transform-origin:100px 100px}
+  .a27 .a{animation:divA 3.4s ease-in-out infinite}
+  .a27 .b{animation:divB 3.4s ease-in-out infinite}
+
+  /* ============ 28 mitosis trio ============ */
+  @keyframes mit{0%,100%{transform:scale(1)}40%{transform:scale(1.06)}50%{transform:scale(.96)}}
+  .a28 g{filter:url(#goo);transform-origin:100px 100px;animation:mit 2.8s ease-in-out infinite}
+  .a28 circle{fill:var(--ink)}
+
+  /* ============ 29 eye blink ============ */
+  @keyframes blink{0%,40%,100%{transform:scaleY(1)}45%,55%{transform:scaleY(.05)}}
+  .a29 .eye{transform-origin:100px 100px;animation:blink 3s ease-in-out infinite}
+  .a29 ellipse.b{fill:var(--ink)}
+  .a29 circle.iris{fill:var(--bg-cell)}
+  .a29 circle.p{fill:var(--ink)}
+
+  /* ============ 30 iris pulse ============ */
+  @keyframes iris{0%,100%{transform:scale(.6)}50%{transform:scale(1.2)}}
+  .a30 .ring{fill:none;stroke:var(--ink);stroke-width:14}
+  .a30 .pup{fill:var(--ink);transform-origin:100px 100px;animation:iris 2.6s ease-in-out infinite}
+
+  /* ============ 31 lung ============ */
+  @keyframes inhaleL{0%,100%{transform:scale(.78)}50%{transform:scale(1)}}
+  .a31 g{transform-origin:100px 100px;animation:inhaleL 3.4s ease-in-out infinite;filter:url(#goo)}
+  .a31 path{fill:var(--ink)}
+
+  /* ============ 32 mountain breath ============ */
+  @keyframes mtn{0%,100%{transform:translateY(8px)}50%{transform:translateY(-4px)}}
+  .a32 path{fill:var(--ink);animation:mtn 4.2s ease-in-out infinite}
+  .a32 .back{opacity:.4;animation-delay:-.5s}
+
+  /* ============ 33 seed pod ============ */
+  @keyframes pod{0%,30%,100%{transform:rotate(0)}55%,80%{transform:rotate(28deg)}}
+  @keyframes podR{0%,30%,100%{transform:rotate(0)}55%,80%{transform:rotate(-28deg)}}
+  .a33 .half-l{fill:var(--ink);transform-origin:100px 100px;animation:podR 3.6s ease-in-out infinite}
+  .a33 .half-r{fill:var(--ink);transform-origin:100px 100px;animation:pod 3.6s ease-in-out infinite}
+  @keyframes seedOut{0%,40%{transform:translate(0,0);opacity:0}55%{opacity:1}100%{transform:translate(0,-50px);opacity:0}}
+  .a33 .seed{fill:var(--ink);transform-origin:100px 100px;animation:seedOut 3.6s ease-out infinite}
+
+  /* ============ 34 spore burst ============ */
+  @keyframes spore{0%{transform:translate(0,0) scale(.5);opacity:0}30%{opacity:1}100%{opacity:0}}
+  .a34 .center{fill:var(--ink)}
+  .a34 circle.s{fill:var(--ink);transform-origin:100px 100px;animation:spore 2.6s ease-out infinite}
+
+  /* ============ 35 phyllotaxis spiral ============ */
+  @keyframes seed{0%,100%{transform:scale(.15);opacity:.25}45%{transform:scale(1);opacity:1}}
+  .a35 circle{fill:var(--ink);transform-box:fill-box;transform-origin:center;animation:seed 2.8s ease-in-out infinite}
+
+  /* ============ 36 moon phase ============ */
+  @keyframes moonOcclude{0%{transform:translateX(-72px)}100%{transform:translateX(72px)}}
+  .a36 .moon{fill:var(--ink)}
+  .a36 .mask{fill:var(--bg-cell);animation:moonOcclude 4s linear infinite}
+
+  /* ============ 37 sun pulse ============ */
+  @keyframes ray{0%,100%{transform:scale(.7)}50%{transform:scale(1)}}
+  .a37 .core{fill:var(--ink)}
+  .a37 .ray{stroke:var(--ink);stroke-width:3;stroke-linecap:round;transform-origin:100px 100px;animation:ray 2.4s ease-in-out infinite}
+  .a37 .r2{animation-delay:.3s}
+
+  /* ============ 38 spiral shell draw ============ */
+  @keyframes shell{0%{stroke-dashoffset:420}80%{stroke-dashoffset:0}100%{stroke-dashoffset:-420;opacity:0}}
+  .a38 path{fill:none;stroke:var(--ink);stroke-width:3;stroke-linecap:round;stroke-dasharray:420;animation:shell 3.8s ease-in-out infinite}
+
+  /* ============ 39 mycelium network ============ */
+  @keyframes myc{0%{stroke-dashoffset:200;opacity:0}10%{opacity:1}65%{stroke-dashoffset:0;opacity:1}92%,100%{stroke-dashoffset:0;opacity:0}}
+  @keyframes mycSpore{0%,100%{transform:scale(.6)}50%{transform:scale(1.1)}}
+  .a39 path{fill:none;stroke:var(--ink);stroke-width:1.4;stroke-linecap:round;stroke-dasharray:200;animation:myc 3.8s ease-in-out infinite}
+  .a39 circle.core{fill:var(--ink);transform-origin:100px 100px;animation:mycSpore 3.8s ease-in-out infinite}
+  .a39 circle.tip{fill:var(--ink);animation:myc 3.8s ease-in-out infinite}
+  .a39 .h2,.a39 .t2{animation-delay:.12s}
+  .a39 .h3,.a39 .t3{animation-delay:.24s}
+  .a39 .h4,.a39 .t4{animation-delay:.36s}
+  .a39 .h5,.a39 .t5{animation-delay:.48s}
+  .a39 .h6,.a39 .t6{animation-delay:.6s}
+  .a39 .h7,.a39 .t7{animation-delay:.72s}
+
+  /* ============ 40 bubble rise ============ */
+  @keyframes bubR{0%{transform:translateY(70px) scale(.4);opacity:0}30%{opacity:1}90%{transform:translateY(-60px) scale(1.2);opacity:1}100%{transform:translateY(-70px) scale(.3);opacity:0}}
+  .a40 circle{fill:none;stroke:var(--ink);stroke-width:1.6;transform-origin:center;transform-box:fill-box}
+  .a40 .b1{animation:bubR 3.4s ease-in-out infinite}
+  .a40 .b2{animation:bubR 3.4s ease-in-out infinite;animation-delay:.8s}
+  .a40 .b3{animation:bubR 3.4s ease-in-out infinite;animation-delay:1.6s}
+
+  /* ============ 41 bubble cluster ============ */
+  @keyframes bclu1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-6px,-8px) scale(1.06)}}
+  @keyframes bclu2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(8px,-6px) scale(.94)}}
+  @keyframes bclu3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-4px,6px) scale(1.04)}}
+  .a41 g{filter:url(#goo)}
+  .a41 circle{fill:var(--ink);transform-origin:center;transform-box:fill-box}
+  .a41 .b1{animation:bclu1 2.6s ease-in-out infinite}
+  .a41 .b2{animation:bclu2 2.6s ease-in-out infinite}
+  .a41 .b3{animation:bclu3 2.6s ease-in-out infinite}
+  .a41 .b4{animation:bclu1 2.6s ease-in-out infinite;animation-delay:-.4s}
+
+  /* ============ 42 pollen drift ============ */
+  @keyframes drift1{0%{transform:translate(20px,160px);opacity:0}10%{opacity:1}90%{opacity:1}100%{transform:translate(160px,20px);opacity:0}}
+  @keyframes drift2{0%{transform:translate(160px,160px);opacity:0}10%{opacity:1}90%{opacity:1}100%{transform:translate(40px,40px);opacity:0}}
+  @keyframes drift3{0%{transform:translate(80px,160px);opacity:0}10%{opacity:1}90%{opacity:1}100%{transform:translate(120px,30px);opacity:0}}
+  .a42 circle{fill:var(--ink);r:3}
+  .a42 .p1{animation:drift1 4.2s linear infinite}
+  .a42 .p2{animation:drift2 4.6s linear infinite;animation-delay:.6s}
+  .a42 .p3{animation:drift3 4.4s linear infinite;animation-delay:1.2s}
+  .a42 .p4{animation:drift1 4.8s linear infinite;animation-delay:1.8s}
+  .a42 .p5{animation:drift2 4.2s linear infinite;animation-delay:2.4s}
+
+  /* ============ 43 tide ============ */
+  @keyframes tide{0%,100%{transform:translateX(-40px)}50%{transform:translateX(40px)}}
+  .a43 path{fill:var(--ink);animation:tide 3.6s ease-in-out infinite}
+
+  /* ============ 44 dew form ============ */
+  @keyframes dew{0%{transform:scale(0)}40%{transform:scale(.4) translateY(-2px)}55%{transform:scale(.9) translateY(0)}80%{transform:scale(1)}95%,100%{transform:scale(1) translateY(20px);opacity:0}}
+  .a44 .leaf{fill:none;stroke:var(--ink);stroke-width:2}
+  .a44 .d{fill:var(--ink);transform-origin:100px 90px;transform-box:fill-box;animation:dew 3.2s cubic-bezier(.5,0,.5,1) infinite}
+
+  /* ============ 45 mushroom inflate ============ */
+  @keyframes cap{0%,100%{transform:scaleX(.8) scaleY(.7)}50%{transform:scaleX(1.05) scaleY(1.05)}}
+  .a45 .cap{fill:var(--ink);transform-origin:100px 110px;animation:cap 3s ease-in-out infinite}
+  .a45 .stem{fill:var(--ink)}
+
+  /* ============ 46 branch sway ============ */
+  @keyframes branch{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+  .a46 g{transform-origin:100px 180px;animation:branch 3.4s ease-in-out infinite}
+  .a46 path{fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:round}
+  .a46 ellipse{fill:var(--ink)}
+
+  /* ============ 47 horizon wave ============ */
+  @keyframes wave{0%{d:path("M0 100 Q40 80 80 100 T160 100 T240 100 L240 200 L0 200 Z")}50%{d:path("M0 100 Q40 120 80 100 T160 100 T240 100 L240 200 L0 200 Z")}100%{d:path("M0 100 Q40 80 80 100 T160 100 T240 100 L240 200 L0 200 Z")}}
+  .a47 path{fill:var(--ink);animation:wave 3s ease-in-out infinite}
+
+  /* ============ 48 tree rings ============ */
+  @keyframes ringDraw{0%,8%{stroke-dashoffset:var(--c);opacity:0}16%{opacity:1}68%{stroke-dashoffset:0;opacity:1}94%,100%{stroke-dashoffset:0;opacity:0}}
+  .a48 .ring{fill:none;stroke:var(--ink);stroke-width:1.4;stroke-linecap:round;stroke-dasharray:var(--c);animation:ringDraw 4.6s ease-in-out infinite}
+  .a48 .core{fill:var(--ink)}
+  .a48 .r1{--c:90}
+  .a48 .r2{--c:140;animation-delay:.16s}
+  .a48 .r3{--c:200;animation-delay:.32s}
+  .a48 .r4{--c:280;animation-delay:.48s}
+  .a48 .r5{--c:370;animation-delay:.64s}
+  .a48 .r6{--c:460;animation-delay:.8s}
+
+  /* ============ 49 pebble splash ============ */
+  @keyframes pebble{0%{transform:translateY(-30px);opacity:1}45%{transform:translateY(50px);opacity:1}50%,100%{opacity:0}}
+  @keyframes splash2{0%,45%{r:2;opacity:0}55%{opacity:1}100%{r:60px;opacity:0}}
+  .a49 .pb{fill:var(--ink);transform-origin:100px 100px;animation:pebble 2.6s cubic-bezier(.4,0,.7,1) infinite}
+  .a49 .s{fill:none;stroke:var(--ink);stroke-width:1.4;cx:100px;cy:140px;animation:splash2 2.6s ease-out infinite}
+
+  /* ============ 50 forest breathing chord ============ */
+  @keyframes b1{0%,100%{transform:scale(.7)}50%{transform:scale(1)}}
+  .a50 circle{fill:var(--ink);transform-origin:center;transform-box:fill-box}
+  .a50 .c1{animation:b1 2.8s ease-in-out infinite}
+  .a50 .c2{animation:b1 2.8s ease-in-out infinite;animation-delay:.18s}
+  .a50 .c3{animation:b1 2.8s ease-in-out infinite;animation-delay:.36s}
+  .a50 .c4{animation:b1 2.8s ease-in-out infinite;animation-delay:.54s}
+  .a50 .c5{animation:b1 2.8s ease-in-out infinite;animation-delay:.72s}
+  .a50 .c6{animation:b1 2.8s ease-in-out infinite;animation-delay:.9s}
+  .a50 .c7{animation:b1 2.8s ease-in-out infinite;animation-delay:1.08s}
+
+  /* ============ 51 vermicular wick ============ */
+  @keyframes vermDraw{0%{stroke-dashoffset:300;opacity:0}8%{opacity:1}68%{stroke-dashoffset:0;opacity:1}96%,100%{stroke-dashoffset:0;opacity:0}}
+  .a51 path{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linecap:round;stroke-dasharray:300;animation:vermDraw 4.8s ease-in-out infinite}
+  /* bottom row reveals first → travels upward */
+  .a51 .r5{animation-delay:0s}
+  .a51 .r4{animation-delay:.18s}
+  .a51 .r3{animation-delay:.36s}
+  .a51 .r2{animation-delay:.54s}
+  .a51 .r1{animation-delay:.72s}
+
+  /* ============ 52 shard rotation ============ */
+  @keyframes spinSlow52{to{transform:rotate(360deg)}}
+  @keyframes spinRev52{to{transform:rotate(-360deg)}}
+  .a52 .big{transform-origin:100px 100px;animation:spinSlow52 9s linear infinite}
+  .a52 .small{transform-origin:100px 100px;animation:spinRev52 14s linear infinite}
+  .a52 use{fill:var(--ink)}
+
+  /* ============ 53 scatter & gather ============ */
+  @keyframes scatter53{0%,100%{transform:translate(0,0)}50%{transform:translate(var(--tx),var(--ty))}}
+  .a53 use{fill:var(--ink);animation:scatter53 4s ease-in-out infinite}
+  .a53 .m2{animation-delay:.05s}.a53 .m3{animation-delay:.1s}
+  .a53 .m4{animation-delay:.15s}.a53 .m5{animation-delay:.2s}
+  .a53 .m6{animation-delay:.25s}.a53 .m7{animation-delay:.3s}
+  .a53 .m8{animation-delay:.35s}.a53 .m9{animation-delay:.4s}
+
+  /* ============ 54 sedimentation drift ============ */
+  @keyframes sink{0%{transform:translate(var(--x),-30px);opacity:0}10%{opacity:1}90%{opacity:1}100%{transform:translate(var(--x),230px);opacity:0}}
+  .a54 g.sed{animation:sink 7s linear infinite}
+  .a54 use{fill:var(--ink)}
+  .a54 .s2{animation-duration:8.6s;animation-delay:1s}
+  .a54 .s3{animation-duration:6s;animation-delay:.4s}
+  .a54 .s4{animation-duration:9.2s;animation-delay:2.2s}
+  .a54 .s5{animation-duration:7.6s;animation-delay:.2s}
+  .a54 .s6{animation-duration:8s;animation-delay:1.5s}
+  .a54 .s7{animation-duration:6.6s;animation-delay:3s}
+
+  /* ============ 55 lichen patches ============ */
+  @keyframes lichen{0%{transform:scale(.15);opacity:0}25%{opacity:.95}80%{transform:scale(1.05);opacity:.85}100%{transform:scale(1.2);opacity:0}}
+  .a55 g.patches{filter:url(#goosoft)}
+  .a55 .patch{fill:var(--ink)}
+  .a55 .l1{transform-origin:54px 56px;animation:lichen 4.2s ease-in-out infinite}
+  .a55 .l2{transform-origin:142px 64px;animation:lichen 4.2s ease-in-out infinite;animation-delay:.6s}
+  .a55 .l3{transform-origin:104px 120px;animation:lichen 4.2s ease-in-out infinite;animation-delay:1.2s}
+  .a55 .l4{transform-origin:48px 144px;animation:lichen 4.2s ease-in-out infinite;animation-delay:1.8s}
+  .a55 .l5{transform-origin:150px 152px;animation:lichen 4.2s ease-in-out infinite;animation-delay:2.4s}
+
+  /* hide the global defs SVG */
+  .defs{position:absolute;width:0;height:0;overflow:hidden}
+</style>
+</head>
+<body style="font-size: 20px; font-family: monospace" class="banner-visible">
+
+<div id="organica-banner">
+  Part of Organica &mdash; <a href="https://organica.vercel.app">organica.vercel.app</a>
+  <button class="banner-dismiss" onclick="document.getElementById('organica-banner').style.display='none';document.body.classList.remove('banner-visible')" aria-label="Dismiss">&times;</button>
+</div>
+
+<header>
+  <div>
+    <h1>Organic Form Studies</h1>
+    <a class="page-link" href="./index.html">← Genesis Creator</a>
+  </div>
+</header>
+
+<style>
+  header > div{display:flex;flex-direction:column;gap:6px}
+  .page-link{display:inline-block;font-size:11px;letter-spacing:.08em;
+    text-transform:uppercase;opacity:.55;color:inherit;text-decoration:none;
+    border-bottom:1px solid currentColor;padding-bottom:1px;width:fit-content}
+  .page-link:hover{opacity:.9}
+</style>
+
+<!-- ===== tweaks bar (centered box under header) ===== -->
+<div id="toolbar">
+  <span class="tb-label">tweaks</span>
+  <div class="tb-group">
+    <span class="tb-key">Theme</span>
+    <div class="seg" data-key="theme">
+      <button data-v="light">Light</button>
+      <button data-v="dark">Dark</button>
+    </div>
+  </div>
+  <div class="tb-group">
+    <span class="tb-key">Tone</span>
+    <div class="seg" data-key="tone">
+      <button data-v="warm">Warm</button>
+      <button data-v="neutral">Neutral</button>
+      <button data-v="cool">Cool</button>
+    </div>
+  </div>
+  <div class="tb-group">
+    <span class="tb-key">Tempo</span>
+    <div class="seg" data-key="tempo">
+      <button data-v="0.5">½×</button>
+      <button data-v="1">1×</button>
+      <button data-v="2">2×</button>
+    </div>
+  </div>
+  <div class="tb-group">
+    <span class="tb-key">Cells</span>
+    <div class="seg" data-key="cells">
+      <button data-v="on">On</button>
+      <button data-v="off">Off</button>
+    </div>
+  </div>
+  <div class="tb-group">
+    <span class="tb-key">Motion</span>
+    <div class="seg" data-key="paused">
+      <button data-v="false">Play</button>
+      <button data-v="true">Pause</button>
+    </div>
+  </div>
+  <div class="tb-group">
+    <span class="tb-key">Layout</span>
+    <div class="seg" data-key="layout">
+      <button data-v="cozy">Cozy</button>
+      <button data-v="comfortable">Comfortable</button>
+      <button data-v="airy">Airy</button>
+    </div>
+  </div>
+  <div class="tb-group">
+    <span class="tb-key">GIF size</span>
+    <div class="seg" data-key="gifsize">
+      <button data-v="200">200</button>
+      <button data-v="320">320</button>
+      <button data-v="480">480</button>
+    </div>
+  </div>
+</div>
+
+<!-- shared SVG defs (goo filter) -->
+<svg class="defs" aria-hidden="true">
+  <defs>
+    <filter id="goo">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+      <feColorMatrix in="blur" mode="matrix"
+        values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10" result="goo"/>
+      <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+    </filter>
+    <filter id="goosoft">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+      <feColorMatrix in="blur" mode="matrix"
+        values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8" result="goo"/>
+      <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+    </filter>
+    <!-- terrazzo chip shapes (origin-centered) -->
+    <path id="cA" d="M-12 -6 L-2 -14 L10 -10 L14 2 L8 12 L-8 12 L-14 2 Z"/>
+    <path id="cB" d="M-16 -4 L4 -10 L18 -2 L12 8 L-8 12 L-18 4 Z"/>
+    <path id="cC" d="M-10 -12 Q4 -14 12 -6 Q16 6 6 12 Q-8 14 -14 4 Q-16 -6 -10 -12 Z"/>
+    <path id="cD" d="M-12 8 L-4 -12 L14 -4 L8 10 Z"/>
+    <path id="cE" d="M-5 -3 L2 -5 L6 2 L-2 6 L-6 0 Z"/>
+    <path id="cF" d="M-10 -8 Q0 -10 8 -4 Q10 6 0 10 Q-12 6 -10 -8 Z"/>
+    <path id="cG" d="M-14 -2 L-6 -10 L10 -8 L14 4 L4 12 L-12 6 Z"/>
+  </defs>
+</svg>
+
+<div class="grid">
+
+<!-- 01 breath -->
+<div class="cell"><span class="num">01</span>
+<svg viewBox="0 0 200 200" class="a01"><circle class="b" cx="100" cy="100" r="58"/></svg></div>
+
+<!-- 02 heartbeat blob -->
+<div class="cell"><span class="num">02</span>
+<svg viewBox="0 0 200 200" class="a02"><path class="b" d="M100 50 q40 0 46 38 q4 32 -28 50 q-22 12 -38 0 q-30 -18 -28 -50 q4 -38 48 -38z"/></svg></div>
+
+<!-- 03 two metaballs merging -->
+<div class="cell"><span class="num">03</span>
+<svg viewBox="0 0 200 200" class="a03"><g><circle class="l" cx="100" cy="100" r="26"/><circle class="r" cx="100" cy="100" r="26"/></g></svg></div>
+
+<!-- 04 three orbiting metaballs -->
+<div class="cell"><span class="num">04</span>
+<svg viewBox="0 0 200 200" class="a04"><g class="spin">
+  <circle class="core" cx="100" cy="100" r="18"/>
+  <circle class="o" cx="100" cy="48" r="14"/>
+  <circle class="o" cx="145" cy="125" r="14"/>
+  <circle class="o" cx="55" cy="125" r="14"/>
+</g></svg></div>
+
+<!-- 05 swarm -->
+<div class="cell"><span class="num">05</span>
+<svg viewBox="0 0 200 200" class="a05"><g>
+  <circle class="s1" cx="80" cy="100" r="10"/>
+  <circle class="s2" cx="120" cy="100" r="10"/>
+  <circle class="s3" cx="100" cy="80" r="10"/>
+  <circle class="s4" cx="100" cy="120" r="10"/>
+  <circle class="s5" cx="90" cy="110" r="9"/>
+  <circle class="s6" cx="110" cy="90" r="9"/>
+</g></svg></div>
+
+<!-- 06 ripple -->
+<div class="cell"><span class="num">06</span>
+<svg viewBox="0 0 200 200" class="a06">
+  <circle class="r1"/><circle class="r2"/><circle class="r3"/>
+</svg></div>
+
+<!-- 07 drop fall -->
+<div class="cell"><span class="num">07</span>
+<svg viewBox="0 0 200 200" class="a07">
+  <path class="drop" d="M100 70 q-14 18 -14 32 a14 14 0 0 0 28 0 q0 -14 -14 -32z"/>
+  <circle class="sp"/>
+</svg></div>
+
+<!-- 08 lava single -->
+<div class="cell"><span class="num">08</span>
+<svg viewBox="0 0 200 200" class="a08"><g>
+  <ellipse class="base" cx="100" cy="172" rx="48" ry="18"/>
+  <ellipse class="bub" cx="100" cy="100" rx="18" ry="22"/>
+</g></svg></div>
+
+<!-- 09 lava detach -->
+<div class="cell"><span class="num">09</span>
+<svg viewBox="0 0 200 200" class="a09"><g>
+  <ellipse class="pool" cx="100" cy="170" rx="56" ry="22"/>
+  <ellipse class="blob" cx="100" cy="130" rx="22" ry="20"/>
+</g></svg></div>
+
+<!-- 10 honey drip -->
+<div class="cell"><span class="num">10</span>
+<svg viewBox="0 0 200 200" class="a10">
+  <path class="ceiling" d="M40 30 q60 -10 120 0 L160 50 q-60 -10 -120 0 Z"/>
+  <ellipse class="h" cx="100" cy="56" rx="10" ry="14"/>
+</svg></div>
+
+<!-- 11 vine grow -->
+<div class="cell"><span class="num">11</span>
+<svg viewBox="0 0 200 200" class="a11">
+  <path d="M40 170 q20 -30 50 -30 q40 0 30 -40 q-10 -30 -30 -10 q-20 22 10 38 q40 20 60 -8"/>
+</svg></div>
+
+<!-- 12 leaf sway -->
+<div class="cell"><span class="num">12</span>
+<svg viewBox="0 0 200 200" class="a12">
+  <path class="stem" d="M100 170 Q100 130 100 90"/>
+  <path class="leaf" d="M100 90 Q70 70 80 40 Q100 60 120 40 Q130 70 100 90 Z"/>
+</svg></div>
+
+<!-- 13 flower bloom -->
+<div class="cell"><span class="num">13</span>
+<svg viewBox="0 0 200 200" class="a13"><g class="p">
+  <ellipse cx="100" cy="64" rx="14" ry="34"/>
+  <ellipse cx="100" cy="136" rx="14" ry="34"/>
+  <ellipse cx="64" cy="100" rx="34" ry="14"/>
+  <ellipse cx="136" cy="100" rx="34" ry="14"/>
+  <ellipse cx="74" cy="74" rx="14" ry="30" transform="rotate(-45 74 74)"/>
+  <ellipse cx="126" cy="74" rx="14" ry="30" transform="rotate(45 126 74)"/>
+  <ellipse cx="74" cy="126" rx="14" ry="30" transform="rotate(45 74 126)"/>
+  <ellipse cx="126" cy="126" rx="14" ry="30" transform="rotate(-45 126 126)"/>
+  <circle class="core" cx="100" cy="100" r="12"/>
+</g></svg></div>
+
+<!-- 14 petal turn -->
+<div class="cell"><span class="num">14</span>
+<svg viewBox="0 0 200 200" class="a14"><g class="t">
+  <path d="M100 100 q40 -30 0 -60 q-40 30 0 60"/>
+  <path d="M100 100 q40 30 0 60 q-40 -30 0 -60"/>
+  <path d="M100 100 q30 40 60 0 q-30 -40 -60 0"/>
+  <path d="M100 100 q-30 40 -60 0 q30 -40 60 0"/>
+</g></svg></div>
+
+<!-- 15 sprout -->
+<div class="cell"><span class="num">15</span>
+<svg viewBox="0 0 200 200" class="a15">
+  <line class="ground" x1="40" y1="170" x2="160" y2="170"/>
+  <path class="stem" d="M100 170 Q100 120 100 60"/>
+  <path class="l1" d="M100 90 Q70 80 75 60 Q90 75 100 90 Z"/>
+  <path class="l2" d="M100 80 Q130 70 125 50 Q110 65 100 80 Z"/>
+</svg></div>
+
+<!-- 16 roots -->
+<div class="cell"><span class="num">16</span>
+<svg viewBox="0 0 200 200" class="a16">
+  <path class="r1" d="M100 30 q0 30 -20 50 q-20 20 -10 50"/>
+  <path class="r2" d="M100 30 q0 30 20 50 q20 20 10 50"/>
+  <path class="r3" d="M100 30 q0 40 0 70 q0 20 0 50"/>
+</svg></div>
+
+<!-- 17 jellyfish -->
+<div class="cell"><span class="num">17</span>
+<svg viewBox="0 0 200 200" class="a17">
+  <path class="bell" d="M50 100 q0 -50 50 -50 q50 0 50 50 q0 14 -14 14 q-6 -8 -12 0 q-6 8 -12 0 q-6 -8 -12 0 q-6 8 -12 0 q-6 -8 -14 0 q-14 0 -14 -14z"/>
+  <path class="tent" d="M70 110 q-4 18 4 36 q-6 16 4 34"/>
+  <path class="tent" d="M90 116 q-2 20 2 42"/>
+  <path class="tent" d="M110 116 q2 20 -2 42"/>
+  <path class="tent" d="M130 110 q4 18 -4 36 q6 16 -4 34"/>
+</svg></div>
+
+<!-- 18 tadpole orbit -->
+<div class="cell"><span class="num">18</span>
+<svg viewBox="0 0 200 200" class="a18"><g class="spin">
+  <path class="t" d="M100 40 q8 0 8 10 q0 10 -8 10 q-12 -2 -16 -6 q12 0 16 -14z"/>
+  <path class="t" d="M150 80 q-4 6 -12 4 q-8 -4 -4 -12 q8 -10 14 -10 q-6 12 2 18z" transform="rotate(120 100 100)"/>
+  <path class="t" d="M70 150 q-8 -2 -8 -12 q2 -10 12 -8 q12 4 14 10 q-12 -4 -18 10z" transform="rotate(240 100 100)"/>
+</g></svg></div>
+
+<!-- 19 fish school -->
+<div class="cell"><span class="num">19</span>
+<svg viewBox="0 0 200 200" class="a19">
+  <g class="f"><ellipse cx="100" cy="100" rx="16" ry="8"/><path d="M116 100 l10 -6 l0 12 z"/></g>
+  <g class="f f2"><ellipse cx="100" cy="100" rx="14" ry="7"/><path d="M114 100 l8 -5 l0 10 z"/></g>
+  <g class="f f3"><ellipse cx="100" cy="100" rx="14" ry="7"/><path d="M114 100 l8 -5 l0 10 z"/></g>
+</svg></div>
+
+<!-- 20 worm -->
+<div class="cell"><span class="num">20</span>
+<svg viewBox="0 0 200 200" class="a20">
+  <path d="M30 100 Q60 70 90 100 T150 100 T210 100"/>
+</svg></div>
+
+<!-- 21 caterpillar -->
+<div class="cell"><span class="num">21</span>
+<svg viewBox="0 0 200 200" class="a21">
+  <circle class="c1" cx="50" cy="100" r="14"/>
+  <circle class="c2" cx="76" cy="100" r="14"/>
+  <circle class="c3" cx="102" cy="100" r="14"/>
+  <circle class="c4" cx="128" cy="100" r="14"/>
+  <circle class="c5" cx="154" cy="100" r="14"/>
+</svg></div>
+
+<!-- 22 cloud morph -->
+<div class="cell"><span class="num">22</span>
+<svg viewBox="0 0 200 200" class="a22">
+  <path d="M40 110 q-10 -28 18 -30 q6 -22 30 -16 q14 -18 36 -4 q22 -8 30 14 q24 4 12 26 q-66 14 -126 10z"/>
+</svg></div>
+
+<!-- 23 rain -->
+<div class="cell"><span class="num">23</span>
+<svg viewBox="0 0 200 200" class="a23">
+  <ellipse class="d1" cx="50" cy="40"/>
+  <ellipse class="d2" cx="78" cy="60"/>
+  <ellipse class="d3" cx="100" cy="40"/>
+  <ellipse class="d4" cx="122" cy="60"/>
+  <ellipse class="d5" cx="150" cy="40"/>
+  <ellipse class="d6" cx="90" cy="60"/>
+</svg></div>
+
+<!-- 24 grass wind -->
+<div class="cell"><span class="num">24</span>
+<svg viewBox="0 0 200 200" class="a24">
+  <path class="g1" d="M50 160 q4 -50 8 -90"/>
+  <path class="g2" d="M75 160 q-4 -40 -8 -76"/>
+  <path class="g3" d="M100 160 q4 -50 8 -88"/>
+  <path class="g4" d="M125 160 q-4 -40 -8 -80"/>
+  <path class="g5" d="M150 160 q4 -50 8 -86"/>
+</svg></div>
+
+<!-- 25 smoke -->
+<div class="cell"><span class="num">25</span>
+<svg viewBox="0 0 200 200" class="a25"><g>
+  <circle class="p1" cx="100" cy="100" r="14"/>
+  <circle class="p2" cx="92" cy="100" r="12"/>
+  <circle class="p3" cx="108" cy="100" r="14"/>
+  <circle class="p4" cx="96" cy="100" r="13"/>
+  <circle class="p5" cx="104" cy="100" r="12"/>
+</g></svg></div>
+
+<!-- 26 amoeba -->
+<div class="cell"><span class="num">26</span>
+<svg viewBox="0 0 200 200" class="a26">
+  <path d="M100 30 q44 0 50 50 q4 40 -38 56 q-44 14 -64 -16 q-22 -36 6 -68 q22 -22 46 -22z"/>
+</svg></div>
+
+<!-- 27 cell divide -->
+<div class="cell"><span class="num">27</span>
+<svg viewBox="0 0 200 200" class="a27"><g>
+  <circle class="a" cx="100" cy="100" r="32"/>
+  <circle class="b" cx="100" cy="100" r="32"/>
+</g></svg></div>
+
+<!-- 28 mitosis trio -->
+<div class="cell"><span class="num">28</span>
+<svg viewBox="0 0 200 200" class="a28"><g>
+  <circle cx="100" cy="100" r="22"/>
+  <circle cx="70" cy="100" r="18"/>
+  <circle cx="130" cy="100" r="18"/>
+</g></svg></div>
+
+<!-- 29 eye blink -->
+<div class="cell"><span class="num">29</span>
+<svg viewBox="0 0 200 200" class="a29"><g class="eye">
+  <ellipse class="b" cx="100" cy="100" rx="60" ry="22"/>
+  <circle class="iris" cx="100" cy="100" r="14"/>
+  <circle class="p" cx="100" cy="100" r="6"/>
+</g></svg></div>
+
+<!-- 30 iris pulse -->
+<div class="cell"><span class="num">30</span>
+<svg viewBox="0 0 200 200" class="a30">
+  <circle class="ring" cx="100" cy="100" r="50"/>
+  <circle class="pup" cx="100" cy="100" r="20"/>
+</svg></div>
+
+<!-- 31 lung -->
+<div class="cell"><span class="num">31</span>
+<svg viewBox="0 0 200 200" class="a31"><g>
+  <path d="M100 60 q-30 0 -34 28 q-2 30 14 50 q14 14 20 6 q4 -8 4 -34 z"/>
+  <path d="M100 60 q30 0 34 28 q2 30 -14 50 q-14 14 -20 6 q-4 -8 -4 -34 z"/>
+</g></svg></div>
+
+<!-- 32 mountain breath -->
+<div class="cell"><span class="num">32</span>
+<svg viewBox="0 0 200 200" class="a32">
+  <path class="back" d="M0 140 q40 -40 80 -10 q40 -40 80 -10 q40 -20 80 0 L240 200 L0 200 Z"/>
+  <path d="M0 160 q40 -50 80 -20 q40 -40 80 -10 q40 -30 80 -10 L240 200 L0 200 Z"/>
+</svg></div>
+
+<!-- 33 seed pod -->
+<div class="cell"><span class="num">33</span>
+<svg viewBox="0 0 200 200" class="a33">
+  <circle class="seed" cx="100" cy="100" r="6"/>
+  <path class="half-l" d="M100 60 q-26 8 -28 40 q-2 32 28 40 z"/>
+  <path class="half-r" d="M100 60 q26 8 28 40 q2 32 -28 40 z"/>
+</svg></div>
+
+<!-- 34 spore burst -->
+<div class="cell"><span class="num">34</span>
+<svg viewBox="0 0 200 200" class="a34">
+  <circle class="center" cx="100" cy="100" r="10"/>
+  <circle class="s" cx="100" cy="40" r="3" style="animation-delay:0s"/>
+  <circle class="s" cx="160" cy="60" r="3" style="animation-delay:.2s;transform:translate(0,0)" />
+  <circle class="s" cx="170" cy="120" r="3" style="animation-delay:.4s"/>
+  <circle class="s" cx="140" cy="170" r="3" style="animation-delay:.6s"/>
+  <circle class="s" cx="80" cy="170" r="3" style="animation-delay:.8s"/>
+  <circle class="s" cx="40" cy="140" r="3" style="animation-delay:1s"/>
+  <circle class="s" cx="30" cy="80" r="3" style="animation-delay:1.2s"/>
+  <circle class="s" cx="60" cy="40" r="3" style="animation-delay:1.4s"/>
+</svg></div>
+
+<!-- 35 phyllotaxis spiral -->
+<div class="cell"><span class="num">35</span>
+<svg viewBox="0 0 200 200" class="a35" id="spiral35"></svg></div>
+
+<!-- 36 moon phase -->
+<div class="cell"><span class="num">36</span>
+<svg viewBox="0 0 200 200" class="a36">
+  <defs><clipPath id="moonClip"><circle cx="100" cy="100" r="50"/></clipPath></defs>
+  <circle class="moon" cx="100" cy="100" r="50"/>
+  <g clip-path="url(#moonClip)"><circle class="mask" cx="100" cy="100" r="50"/></g>
+</svg></div>
+
+<!-- 37 sun pulse -->
+<div class="cell"><span class="num">37</span>
+<svg viewBox="0 0 200 200" class="a37">
+  <circle class="core" cx="100" cy="100" r="18"/>
+  <g>
+    <line class="ray" x1="100" y1="40" x2="100" y2="58"/>
+    <line class="ray r2" x1="100" y1="160" x2="100" y2="142"/>
+    <line class="ray" x1="40" y1="100" x2="58" y2="100"/>
+    <line class="ray r2" x1="160" y1="100" x2="142" y2="100"/>
+    <line class="ray" x1="58" y1="58" x2="70" y2="70"/>
+    <line class="ray r2" x1="142" y1="142" x2="130" y2="130"/>
+    <line class="ray" x1="142" y1="58" x2="130" y2="70"/>
+    <line class="ray r2" x1="58" y1="142" x2="70" y2="130"/>
+  </g>
+</svg></div>
+
+<!-- 38 spiral shell -->
+<div class="cell"><span class="num">38</span>
+<svg viewBox="0 0 200 200" class="a38">
+  <path d="M100 100 m-4 0 a4 4 0 1 1 8 0 a8 8 0 1 1 -16 0 a16 16 0 1 1 32 0 a28 28 0 1 1 -56 0 a44 44 0 1 1 88 0"/>
+</svg></div>
+
+<!-- 39 mycelium network -->
+<div class="cell"><span class="num">39</span>
+<svg viewBox="0 0 200 200" class="a39">
+  <path class="h1" d="M100 100 q-18 -14 -28 -34 q-4 -10 -18 -12 m18 12 q-4 -10 0 -20"/>
+  <path class="h2" d="M100 100 q22 -10 32 -32 q4 -10 18 -10 m-18 10 q4 -10 14 -10"/>
+  <path class="h3" d="M100 100 q-28 2 -42 22 q-6 8 -20 8 m20 -8 q-6 8 -8 18"/>
+  <path class="h4" d="M100 100 q28 10 36 32 q6 10 18 12 m-18 -12 q8 6 10 18"/>
+  <path class="h5" d="M100 100 q-10 24 -2 44 q4 10 -6 18"/>
+  <path class="h6" d="M100 100 q12 -24 8 -44 q-4 -8 4 -16"/>
+  <path class="h7" d="M100 100 q-32 -6 -50 6 q-10 4 -18 -2"/>
+  <circle class="tip t1" cx="54" cy="36" r="2"/>
+  <circle class="tip t2" cx="160" cy="38" r="2"/>
+  <circle class="tip t3" cx="32" cy="138" r="2"/>
+  <circle class="tip t4" cx="164" cy="154" r="2"/>
+  <circle class="tip t5" cx="92" cy="166" r="2"/>
+  <circle class="tip t6" cx="112" cy="38" r="2"/>
+  <circle class="tip t7" cx="30" cy="108" r="2"/>
+  <circle class="core" cx="100" cy="100" r="4"/>
+</svg></div>
+
+<!-- 40 bubble rise -->
+<div class="cell"><span class="num">40</span>
+<svg viewBox="0 0 200 200" class="a40">
+  <circle class="b1" cx="80" cy="100" r="10"/>
+  <circle class="b2" cx="100" cy="100" r="8"/>
+  <circle class="b3" cx="120" cy="100" r="12"/>
+</svg></div>
+
+<!-- 41 bubble cluster -->
+<div class="cell"><span class="num">41</span>
+<svg viewBox="0 0 200 200" class="a41"><g>
+  <circle class="b1" cx="86" cy="100" r="22"/>
+  <circle class="b2" cx="120" cy="92" r="18"/>
+  <circle class="b3" cx="104" cy="124" r="16"/>
+  <circle class="b4" cx="76" cy="76" r="14"/>
+</g></svg></div>
+
+<!-- 42 pollen drift -->
+<div class="cell"><span class="num">42</span>
+<svg viewBox="0 0 200 200" class="a42">
+  <circle class="p1" cx="0" cy="0"/>
+  <circle class="p2" cx="0" cy="0"/>
+  <circle class="p3" cx="0" cy="0"/>
+  <circle class="p4" cx="0" cy="0"/>
+  <circle class="p5" cx="0" cy="0"/>
+</svg></div>
+
+<!-- 43 tide -->
+<div class="cell"><span class="num">43</span>
+<svg viewBox="0 0 200 200" class="a43">
+  <path d="M-50 110 Q-20 90 10 110 T70 110 T130 110 T190 110 T250 110 L250 200 L-50 200 Z"/>
+</svg></div>
+
+<!-- 44 dew -->
+<div class="cell"><span class="num">44</span>
+<svg viewBox="0 0 200 200" class="a44">
+  <path class="leaf" d="M30 110 q60 -50 140 -10"/>
+  <ellipse class="d" cx="100" cy="90" rx="10" ry="14"/>
+</svg></div>
+
+<!-- 45 mushroom -->
+<div class="cell"><span class="num">45</span>
+<svg viewBox="0 0 200 200" class="a45">
+  <rect class="stem" x="88" y="110" width="24" height="50" rx="10"/>
+  <path class="cap" d="M50 110 q0 -50 50 -50 q50 0 50 50 z"/>
+</svg></div>
+
+<!-- 46 branch sway -->
+<div class="cell"><span class="num">46</span>
+<svg viewBox="0 0 200 200" class="a46"><g>
+  <path d="M100 180 Q100 130 100 80"/>
+  <path d="M100 130 q-30 -10 -40 -30"/>
+  <path d="M100 110 q30 -10 40 -30"/>
+  <ellipse cx="60" cy="98" rx="10" ry="5" transform="rotate(-30 60 98)"/>
+  <ellipse cx="140" cy="78" rx="10" ry="5" transform="rotate(30 140 78)"/>
+  <ellipse cx="100" cy="78" rx="10" ry="5"/>
+</g></svg></div>
+
+<!-- 47 horizon wave -->
+<div class="cell"><span class="num">47</span>
+<svg viewBox="0 0 200 200" class="a47">
+  <path d="M0 100 Q40 80 80 100 T160 100 T240 100 L240 200 L0 200 Z"/>
+</svg></div>
+
+<!-- 48 tree rings -->
+<div class="cell"><span class="num">48</span>
+<svg viewBox="0 0 200 200" class="a48">
+  <ellipse class="ring r6" cx="100" cy="98" rx="72" ry="68"/>
+  <ellipse class="ring r5" cx="98" cy="100" rx="58" ry="54"/>
+  <ellipse class="ring r4" cx="100" cy="102" rx="44" ry="40"/>
+  <ellipse class="ring r3" cx="102" cy="100" rx="32" ry="28"/>
+  <ellipse class="ring r2" cx="100" cy="98" rx="22" ry="20"/>
+  <ellipse class="ring r1" cx="100" cy="100" rx="14" ry="13"/>
+  <circle class="core" cx="100" cy="100" r="3"/>
+</svg></div>
+
+<!-- 49 pebble splash -->
+<div class="cell"><span class="num">49</span>
+<svg viewBox="0 0 200 200" class="a49">
+  <circle class="pb" cx="100" cy="100" r="8"/>
+  <circle class="s"/>
+  <line x1="40" y1="160" x2="160" y2="160" stroke="#15140f" stroke-width="1" opacity=".3"/>
+</svg></div>
+
+<!-- 50 forest chord -->
+<div class="cell"><span class="num">50</span>
+<svg viewBox="0 0 200 200" class="a50">
+  <circle class="c1" cx="40" cy="120" r="10"/>
+  <circle class="c2" cx="68" cy="100" r="12"/>
+  <circle class="c3" cx="92" cy="116" r="11"/>
+  <circle class="c4" cx="116" cy="92" r="13"/>
+  <circle class="c5" cx="140" cy="112" r="11"/>
+  <circle class="c6" cx="164" cy="96" r="10"/>
+  <circle class="c7" cx="100" cy="60" r="9"/>
+</svg></div>
+
+<!-- 51 vermicular wick -->
+<div class="cell"><span class="num">51</span>
+<svg viewBox="0 0 200 200" class="a51">
+  <path class="r1" d="M-10 44 q14 -14 28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0"/>
+  <path class="r2" d="M-10 76 q14 14 28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0"/>
+  <path class="r3" d="M-10 108 q14 -14 28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0"/>
+  <path class="r4" d="M-10 140 q14 14 28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0"/>
+  <path class="r5" d="M-10 172 q14 -14 28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0 t28 0"/>
+</svg></div>
+
+<!-- 52 shard rotation -->
+<div class="cell"><span class="num">52</span>
+<svg viewBox="0 0 200 200" class="a52">
+  <g class="big"><use href="#cA" transform="translate(100 100) scale(3.6) rotate(-20)"/></g>
+  <g class="small">
+    <use href="#cE" transform="translate(40 48) scale(1.5) rotate(20)"/>
+    <use href="#cE" transform="translate(162 56) scale(1.1) rotate(-30)"/>
+    <use href="#cE" transform="translate(170 144) scale(1.6) rotate(10)"/>
+    <use href="#cE" transform="translate(36 150) scale(1.3) rotate(-40)"/>
+    <use href="#cF" transform="translate(28 102) scale(.7)"/>
+    <use href="#cF" transform="translate(172 100) scale(.7)"/>
+  </g>
+</svg></div>
+
+<!-- 53 scatter & gather -->
+<div class="cell"><span class="num">53</span>
+<svg viewBox="0 0 200 200" class="a53">
+  <g transform="translate(70 60)"><use class="m1" href="#cA" style="--tx:-32px;--ty:-32px"/></g>
+  <g transform="translate(140 70)"><use class="m2" href="#cB" style="--tx:34px;--ty:-30px"/></g>
+  <g transform="translate(100 100)"><use class="m3" href="#cC" transform="scale(1.3)" style="--tx:0;--ty:0"/></g>
+  <g transform="translate(60 132)"><use class="m4" href="#cD" style="--tx:-32px;--ty:30px"/></g>
+  <g transform="translate(140 138)"><use class="m5" href="#cF" style="--tx:30px;--ty:30px"/></g>
+  <g transform="translate(100 44)"><use class="m6" href="#cE" style="--tx:0;--ty:-30px"/></g>
+  <g transform="translate(40 100)"><use class="m7" href="#cE" style="--tx:-32px;--ty:0"/></g>
+  <g transform="translate(160 100)"><use class="m8" href="#cE" style="--tx:32px;--ty:0"/></g>
+  <g transform="translate(100 162)"><use class="m9" href="#cG" style="--tx:0;--ty:30px"/></g>
+</svg></div>
+
+<!-- 54 sedimentation drift -->
+<div class="cell"><span class="num">54</span>
+<svg viewBox="0 0 200 200" class="a54">
+  <g class="sed s1" style="--x:32px"><use href="#cA"/></g>
+  <g class="sed s2" style="--x:70px"><use href="#cE" transform="scale(1.4)"/></g>
+  <g class="sed s3" style="--x:104px"><use href="#cB"/></g>
+  <g class="sed s4" style="--x:142px"><use href="#cC"/></g>
+  <g class="sed s5" style="--x:172px"><use href="#cD" transform="scale(.8)"/></g>
+  <g class="sed s6" style="--x:54px"><use href="#cG" transform="scale(.7)"/></g>
+  <g class="sed s7" style="--x:124px"><use href="#cF" transform="scale(.9)"/></g>
+</svg></div>
+
+<!-- 55 lichen patches -->
+<div class="cell"><span class="num">55</span>
+<svg viewBox="0 0 200 200" class="a55"><g class="patches">
+  <g class="patch l1">
+    <circle cx="48" cy="48" r="16"/>
+    <circle cx="64" cy="44" r="13"/>
+    <circle cx="42" cy="66" r="14"/>
+    <circle cx="66" cy="64" r="12"/>
+  </g>
+  <g class="patch l2">
+    <circle cx="136" cy="56" r="14"/>
+    <circle cx="152" cy="66" r="12"/>
+    <circle cx="142" cy="76" r="13"/>
+  </g>
+  <g class="patch l3">
+    <circle cx="96" cy="110" r="16"/>
+    <circle cx="112" cy="120" r="13"/>
+    <circle cx="100" cy="132" r="14"/>
+    <circle cx="84" cy="120" r="12"/>
+  </g>
+  <g class="patch l4">
+    <circle cx="42" cy="140" r="14"/>
+    <circle cx="58" cy="148" r="12"/>
+    <circle cx="50" cy="158" r="13"/>
+  </g>
+  <g class="patch l5">
+    <circle cx="144" cy="146" r="16"/>
+    <circle cx="160" cy="156" r="13"/>
+    <circle cx="148" cy="164" r="12"/>
+  </g>
+</g></svg></div>
+
+</div>
+
+<!-- ===== top toolbar (moved above header) ===== -->
+
+<style>
+  /* theme variants */
+  body[data-theme="dark"]{--bg:#15140f;--ink:#f4f1ea}
+  body[data-theme="dark"][data-tone="warm"]{--bg-cell:#1d1b15}
+  body[data-theme="dark"][data-tone="neutral"]{--bg-cell:#1c1c1c}
+  body[data-theme="dark"][data-tone="cool"]{--bg-cell:#171a1d}
+  body[data-theme="light"][data-tone="warm"]{--bg:#f4f1ea;--bg-cell:#efece4}
+  body[data-theme="light"][data-tone="neutral"]{--bg:#f1f1ef;--bg-cell:#eaeaea}
+  body[data-theme="light"][data-tone="cool"]{--bg:#eef1f3;--bg-cell:#e6eaee}
+  body[data-cells="off"] .cell{background:transparent}
+  body[data-cells="off"] .num{opacity:.18}
+
+  /* layout density */
+  body[data-layout="cozy"] .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
+  body[data-layout="comfortable"] .grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:24px}
+  body[data-layout="airy"] .grid{grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:36px}
+
+  /* dark theme: invert masks that were painted in bg-cell */
+  body[data-theme="dark"] .a29 circle.iris{fill:var(--bg-cell)}
+  body[data-theme="dark"] .a36 .mask{fill:var(--bg-cell)}
+
+  /* per-cell label + action buttons */
+  .cell .label{position:absolute;left:10px;bottom:8px;font-size:9px;opacity:.42;
+    letter-spacing:.08em;text-transform:lowercase;pointer-events:none}
+  .cell .actions{position:absolute;right:8px;top:8px;display:flex;gap:4px;
+    opacity:0;transition:opacity .15s;z-index:2}
+  .cell:hover .actions{opacity:1}
+  .cell .act-btn{background:transparent;color:var(--ink);
+    border:1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+    border-radius:4px;padding:2px 6px;font-family:inherit;font-size:9px;
+    letter-spacing:.08em;cursor:pointer}
+  .cell .act-btn:hover{background:var(--ink);color:var(--bg-cell)}
+  .cell .act-btn[disabled]{opacity:.5;cursor:wait}
+  .cell .gif-progress{position:absolute;left:0;bottom:0;height:2px;background:var(--ink);
+    width:0;transition:width .1s linear;z-index:2}
+
+  /* tweaks bar — matches grid width, no background */
+  #toolbar{max-width:1280px;margin:0 auto 40px;
+    padding:0;
+    background:transparent;
+    display:flex;flex-wrap:wrap;gap:18px;align-items:center;
+    font-size:10px;letter-spacing:.04em}
+  #toolbar .tb-label{text-transform:uppercase;letter-spacing:.1em;font-size:9px;opacity:.55}
+  #toolbar .tb-group{display:flex;align-items:center;gap:8px}
+  #toolbar .tb-key{opacity:.55;text-transform:uppercase;font-size:9px;letter-spacing:.1em}
+  .seg{display:flex;border:1px solid color-mix(in srgb, var(--ink) 18%, transparent);border-radius:5px;overflow:hidden}
+  .seg button{background:transparent;color:inherit;border:none;
+    padding:5px 9px;font:inherit;font-size:10px;cursor:pointer;opacity:.55;
+    border-left:1px solid color-mix(in srgb, var(--ink) 12%, transparent)}
+  .seg button:first-child{border-left:none}
+  .seg button:hover{opacity:.9}
+  .seg button.on{background:var(--ink);color:var(--bg);opacity:1}
+</style>
+
+<script>
+/* ---- 35 phyllotaxis seeds ---- */
+(function(){
+  const svg=document.getElementById('spiral35');
+  if(!svg) return;
+  const N=44, GA=Math.PI*(3-Math.sqrt(5)), C=12;
+  let s='';
+  for(let i=1;i<=N;i++){
+    const r=C*Math.sqrt(i);
+    const a=i*GA;
+    const x=100+r*Math.cos(a), y=100+r*Math.sin(a);
+    const rad=(1.4+i*0.08).toFixed(2);
+    const delay=(-i*0.05).toFixed(2);
+    s+=`<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${rad}" style="animation-delay:${delay}s"/>`;
+  }
+  svg.innerHTML=s;
+})();
+</script>
+
+<script>
+/* ---- tweak defaults (persisted via host on edits) ---- */
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "light",
+  "tone": "neutral",
+  "tempo": "1",
+  "cells": "off",
+  "paused": "false",
+  "layout": "comfortable",
+  "gifsize": "320"
+}/*EDITMODE-END*/;
+
+/* ---- indicator names ---- */
+const LABELS = {
+  1:'breath',2:'heartbeat',3:'metaballs',4:'orbit',5:'swarm',6:'ripple',
+  7:'drop fall',8:'lava',9:'lava detach',10:'honey drip',11:'vine',
+  12:'leaf sway',13:'flower bloom',14:'petal turn',15:'sprout',16:'roots',
+  17:'jellyfish',18:'tadpole',19:'fish school',20:'worm',21:'caterpillar',
+  22:'cloud',23:'rain',24:'grass wind',25:'smoke',26:'amoeba',
+  27:'cell divide',28:'mitosis',29:'eye blink',30:'iris',31:'lung',
+  32:'mountain',33:'seed pod',34:'spore burst',35:'phyllotaxis',
+  36:'moon phase',37:'sun',38:'spiral shell',39:'mycelium',40:'bubble',
+  41:'bubble cluster',42:'pollen',43:'tide',44:'dew',45:'mushroom',
+  46:'branch sway',47:'horizon wave',48:'tree rings',49:'pebble splash',
+  50:'forest chord',51:'vermicular',52:'shard rotation',53:'scatter & gather',
+  54:'sedimentation',55:'lichen'
+};
+
+(function tweakUI(){
+  const panel = document.getElementById('toolbar');
+  const state = {...TWEAK_DEFAULTS};
+
+  function applyAll(){
+    document.body.dataset.theme  = state.theme;
+    document.body.dataset.tone   = state.tone;
+    document.body.dataset.cells  = state.cells;
+    document.body.dataset.layout = state.layout;
+    const rate = parseFloat(state.tempo) || 1;
+    const paused = state.paused === 'true' || state.paused === true;
+    document.getAnimations().forEach(a=>{
+      try{ a.playbackRate = rate; if(paused) a.pause(); else a.play(); }catch(e){}
+    });
+    panel.querySelectorAll('.seg').forEach(seg=>{
+      const key = seg.dataset.key;
+      seg.querySelectorAll('button').forEach(b=>{
+        b.classList.toggle('on', String(state[key])===b.dataset.v);
+      });
+    });
+  }
+
+  function set(key, val){
+    state[key] = val;
+    applyAll();
+    window.parent.postMessage({type:'__edit_mode_set_keys', edits:{[key]:val}}, '*');
+  }
+  window.__tweakState = state; // expose for GIF recorder
+
+  panel.querySelectorAll('.seg').forEach(seg=>{
+    seg.addEventListener('click', e=>{
+      const btn = e.target.closest('button'); if(!btn) return;
+      set(seg.dataset.key, btn.dataset.v);
+    });
+  });
+
+  requestAnimationFrame(()=>{ requestAnimationFrame(applyAll); });
+})();
+</script>
+
+<script>
+/* ---- add label + action buttons (SVG + GIF) to every cell ---- */
+(function decorate(){
+  document.querySelectorAll('.cell').forEach(cell=>{
+    const numEl = cell.querySelector('.num');
+    const n = parseInt(numEl?.textContent||'0', 10);
+    const name = LABELS[n] || '';
+    if(name){
+      const l = document.createElement('span');
+      l.className = 'label';
+      l.textContent = name;
+      cell.appendChild(l);
+    }
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    actions.innerHTML = `
+      <button class="act-btn" data-act="svg" title="Download static SVG">SVG</button>
+      <button class="act-btn" data-act="gif" title="Download animated GIF">GIF</button>`;
+    cell.appendChild(actions);
+    const p = document.createElement('div');
+    p.className = 'gif-progress';
+    cell.appendChild(p);
+  });
+})();
+</script>
+
+<!-- gif.js for browser-side GIF encoding -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js" crossorigin="anonymous"></script>
+
+<script>
+/* ---- GIF recording: bake CSS-animation state per frame, encode via gif.js ---- */
+let WORKER_BLOB_URL = null;
+async function getWorkerUrl(){
+  if(WORKER_BLOB_URL) return WORKER_BLOB_URL;
+  const r = await fetch('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');
+  WORKER_BLOB_URL = URL.createObjectURL(new Blob([await r.text()], {type:'application/javascript'}));
+  return WORKER_BLOB_URL;
+}
+
+function bakeSvgAtTime(srcSvg, time){
+  const anims = srcSvg.getAnimations({subtree:true});
+  anims.forEach(a=>{ a.pause(); try{ a.currentTime = time; }catch(e){} });
+  void srcSvg.getBoundingClientRect();
+  const clone = srcSvg.cloneNode(true);
+  const srcEls = srcSvg.querySelectorAll('*');
+  const cloneEls = clone.querySelectorAll('*');
+  const props = ['transform','opacity','fill','fill-opacity','stroke',
+    'stroke-width','stroke-opacity','stroke-dasharray','stroke-dashoffset',
+    'stroke-linecap','transform-origin','d','r','cx','cy','rx','ry'];
+  for(let i=0;i<srcEls.length;i++){
+    if(!cloneEls[i]) continue;
+    const cs = getComputedStyle(srcEls[i]);
+    let inline = cloneEls[i].getAttribute('style') || '';
+    for(const p of props){
+      const v = cs.getPropertyValue(p);
+      if(v && v !== 'normal' && v !== 'none'){
+        if((p==='opacity' && v==='1') || (p==='fill-opacity' && v==='1')) continue;
+        inline += `${p}:${v};`;
+      }
+    }
+    if(inline) cloneEls[i].setAttribute('style', inline);
+  }
+  anims.forEach(a=>a.play());
+  return new XMLSerializer().serializeToString(clone);
+}
+
+async function svgStringToImage(svgString){
+  const blob = new Blob([svgString], {type:'image/svg+xml;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = new Image();
+    await new Promise((resolve,reject)=>{
+      img.onload = resolve; img.onerror = reject; img.src = url;
+    });
+    return img;
+  } finally {
+    setTimeout(()=>URL.revokeObjectURL(url), 0);
+  }
+}
+
+async function recordCard(cell){
+  if(cell.classList.contains('busy')) return;
+  if(typeof GIF === 'undefined'){ alert('GIF library not loaded'); return; }
+  cell.classList.add('busy');
+  const btn = cell.querySelector('.act-btn[data-act="gif"]');
+  const progress = cell.querySelector('.gif-progress');
+  if(btn) btn.disabled = true;
+
+  const state = window.__tweakState || {};
+  const size = parseInt(state.gifsize, 10) || 320;
+  const fps = 20;
+  const duration = 3; // seconds
+  const total = Math.round(fps * duration);
+  const dt = 1000 / fps;
+
+  const srcSvg = cell.querySelector('svg');
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  // Use the current bg-cell color for the GIF background
+  const bg = getComputedStyle(cell).backgroundColor || '#efece4';
+  const transparent = bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent';
+  const fillBg = transparent ? getComputedStyle(document.body).backgroundColor : bg;
+
+  let gif;
+  try {
+    const workerScript = await getWorkerUrl();
+    gif = new GIF({
+      workers: 2, quality: 8, width: size, height: size,
+      workerScript, background: fillBg
+    });
+
+    const n = parseInt(cell.querySelector('.num')?.textContent||'0', 10);
+    const label = LABELS[n] || `n${n}`;
+    const fname = `${String(n).padStart(2,'0')}-${label.replace(/\s+/g,'-')}.gif`;
+
+    for(let i=0; i<total; i++){
+      const t = i * dt;
+      const svgString = bakeSvgAtTime(srcSvg, t);
+      const img = await svgStringToImage(svgString);
+      ctx.fillStyle = fillBg;
+      ctx.fillRect(0,0,size,size);
+      ctx.drawImage(img, 0, 0, size, size);
+      gif.addFrame(canvas, {copy:true, delay: dt});
+      progress.style.width = ((i+1)/total*50) + '%';
+      await new Promise(r=>setTimeout(r, 0));
+    }
+    await new Promise((resolve, reject)=>{
+      gif.on('progress', p => { progress.style.width = (50 + p*50) + '%'; });
+      gif.on('finished', blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = fname;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url), 1000);
+        resolve();
+      });
+      gif.on('abort', reject);
+      gif.render();
+    });
+  } catch(e){
+    console.error('GIF record failed', e);
+    alert('GIF failed: ' + (e?.message || e));
+  } finally {
+    srcSvg.getAnimations({subtree:true}).forEach(a=>a.play());
+    progress.style.width = '0';
+    cell.classList.remove('busy');
+    if(btn) btn.disabled = false;
+  }
+}
+
+async function downloadSvg(cell){
+  const n = parseInt(cell.querySelector('.num')?.textContent||'0', 10);
+  const label = (LABELS[n] || `n${n}`).replace(/\s+/g,'-').replace(/&/g,'and');
+  const padded = String(n).padStart(2,'0');
+  const fname = `${padded}-${label}.svg`;
+  // Try several relative paths in case the file is hosted from a different cwd
+  const candidates = [
+    `exports/svgs/${fname}`,
+    `./exports/svgs/${fname}`,
+    `svgs/${fname}`,
+    `./svgs/${fname}`
+  ];
+  let blob = null;
+  for(const url of candidates){
+    try{
+      const r = await fetch(url);
+      if(r.ok){ blob = await r.blob(); break; }
+    }catch(e){}
+  }
+  if(!blob){
+    alert(`Could not locate ${fname} in exports/svgs/`);
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+document.addEventListener('click', e=>{
+  const btn = e.target.closest('.act-btn');
+  if(!btn) return;
+  const cell = btn.closest('.cell');
+  if(btn.dataset.act === 'gif') recordCard(cell);
+  else if(btn.dataset.act === 'svg') downloadSvg(cell);
+});
+
+// announce edit-mode availability (toolbar is always visible, so the toggle is a no-op visually)
+window.addEventListener('message', ()=>{});
+window.parent.postMessage({type:'__edit_mode_available'}, '*');
+</script>
+
+</body>
+</html>

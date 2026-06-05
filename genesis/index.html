@@ -1,186 +1,285 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Genesis — Organica</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<meta charset="utf-8">
+<title>Genesis Creator — Organica</title>
+<link rel="stylesheet" href="organic-library.css">
 <style>
-  :root {
-    --bg: #111;
-    --surface: #1a1a1a;
-    --line: rgba(255,255,255,0.08);
-    --ink: #e8e4de;
-    --muted: #555;
-    --accent: #888;
-    --mono: 'DM Mono', monospace;
-    --sans: 'DM Sans', sans-serif;
+  :root{
+    --bg:#f1f1ef;
+    --ink:#15140f;
+    --ink-soft:#15140f99;
+    --cell:#eaeaea;
+    --line:#15140f1a;
+    --canvas:#ffffff;
+    --canvas-ink:#15140f;
+    --sel:#15140f;
   }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:ui-monospace,Menlo,Consolas,monospace;
+    -webkit-font-smoothing:antialiased}
+  body{padding:32px 48px 64px;min-height:100vh}
 
-  body {
-    font-family: var(--sans);
-    background: var(--bg);
-    color: var(--ink);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+  /* Organica banner */
+  #organica-banner{
+    position:fixed;top:0;left:0;right:0;
+    z-index:1000;
+    background:#1a1a1a;
+    border-bottom:1px solid rgba(255,255,255,0.08);
+    padding:7px 20px;
+    font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:11px;
+    color:#777;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    letter-spacing:0.02em;
   }
+  #organica-banner a{color:#999;text-decoration:none;border-bottom:1px solid rgba(255,255,255,0.2);padding-bottom:1px;transition:color .15s}
+  #organica-banner a:hover{color:#ccc}
+  #organica-banner .banner-dismiss{margin-left:auto;background:none;border:none;cursor:pointer;color:#555;font-size:13px;line-height:1;padding:0;transition:color .15s}
+  #organica-banner .banner-dismiss:hover{color:#999}
+  body.banner-visible{padding-top:calc(32px + 30px)}
 
-  header {
-    border-bottom: 1px solid var(--line);
-    padding: 0 24px;
-    height: 52px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-  .logo {
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 500;
-    letter-spacing: 0.02em;
-    color: var(--ink);
-  }
-  .logo span { color: var(--muted); }
-  .header-tag {
-    font-family: var(--mono);
-    font-size: 10px;
-    background: rgba(255,255,255,0.05);
-    padding: 3px 8px;
-    border-radius: 3px;
-    color: var(--muted);
-    letter-spacing: 0.05em;
-  }
-  nav {
-    margin-left: auto;
-    display: flex;
-    gap: 2px;
-  }
-  nav a {
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 5px 12px;
-    border-radius: 4px;
-    border: 1px solid transparent;
-    color: var(--muted);
-    text-decoration: none;
-    letter-spacing: 0.02em;
-    transition: all 0.15s;
-  }
-  nav a:hover { color: var(--ink); border-color: var(--line); background: var(--surface); }
+  header{max-width:1480px;margin:0 auto 28px;
+    display:flex;align-items:baseline;justify-content:space-between;gap:24px}
+  header h1{font-family:Georgia,serif;font-weight:400;font-size:34px;letter-spacing:-.01em;margin:0}
+  header .breadcrumb{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.55;margin-top:6px}
+  header .breadcrumb a{color:inherit;text-decoration:none;border-bottom:1px solid currentColor;padding-bottom:1px}
+  header .breadcrumb a:hover{opacity:.7}
+  header .meta{font-size:11px;opacity:.5;letter-spacing:.04em;text-transform:uppercase}
 
-  main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 80px 24px;
-    gap: 24px;
-    text-align: center;
-  }
+  .layout{max-width:1480px;margin:0 auto;display:grid;
+    grid-template-columns:240px 1fr 300px;gap:32px;align-items:start}
 
-  .eyebrow {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
+  /* ===== panels ===== */
+  .panel h3{margin:0 0 12px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+    opacity:.55;font-weight:600}
+  .panel section{margin-bottom:22px}
 
-  h1 {
-    font-family: var(--mono);
-    font-size: clamp(28px, 5vw, 52px);
-    font-weight: 300;
-    letter-spacing: -0.01em;
-    color: var(--ink);
-    line-height: 1.15;
-  }
-  h1 em {
-    font-style: normal;
-    color: var(--muted);
-  }
+  /* ===== tools panel (LEFT) ===== */
+  .tools-panel{position:sticky;top:24px}
 
-  .description {
-    font-size: 14px;
-    color: var(--accent);
-    line-height: 1.7;
-    max-width: 400px;
-    font-family: var(--mono);
-    letter-spacing: 0.01em;
-  }
+  /* palettes */
+  .palettes{display:flex;flex-direction:column;gap:6px}
+  .pal{display:flex;border:1px solid transparent;border-radius:5px;cursor:pointer;
+    overflow:hidden;height:32px;background:transparent;padding:0}
+  .pal .sw{flex:1}
+  .pal:hover{border-color:var(--line)}
+  .pal.active{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink) inset}
 
-  .status-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--muted);
-    background: var(--surface);
-    border: 1px solid var(--line);
-    padding: 5px 12px;
-    border-radius: 20px;
-  }
-  .status-dot {
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    background: var(--muted);
-  }
+  /* background options */
+  .bg-row{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+  .bg-opt{aspect-ratio:1/1;border-radius:5px;cursor:pointer;border:1px solid var(--line);
+    position:relative;overflow:hidden;background:#fff}
+  .bg-opt:hover{border-color:var(--ink)}
+  .bg-opt.active{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink) inset}
+  .bg-opt .lbl{position:absolute;left:3px;bottom:2px;font-size:7px;opacity:.45;
+    letter-spacing:.04em;text-transform:lowercase}
+  .bg-opt.empty{background:repeating-linear-gradient(45deg,transparent 0 3px,#15140f10 3px 4px),#fff}
 
-  footer {
-    border-top: 1px solid var(--line);
-    padding: 16px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.04em;
-    gap: 16px;
-  }
-  footer a {
-    color: var(--muted);
-    text-decoration: none;
-    border-bottom: 1px solid var(--line);
-    padding-bottom: 1px;
-    transition: color 0.15s;
-  }
-  footer a:hover { color: var(--accent); }
+  .bg-color-row{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:8px}
+  .bg-color{aspect-ratio:1/1;border-radius:50%;cursor:pointer;
+    box-shadow:0 0 0 1px var(--line) inset}
+  .bg-color:hover{transform:scale(1.08)}
+  .bg-color.active{box-shadow:0 0 0 2px var(--ink) inset}
+  .bg-color-row.hidden{display:none}
+
+  /* slider */
+  .slider-row{display:flex;align-items:center;gap:10px}
+  .slider-row input{flex:1;accent-color:var(--ink)}
+  .slider-row .val{font-size:11px;opacity:.7;min-width:36px;text-align:right}
+
+  /* fill color swatches */
+  .brush-colors{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+  .bc{aspect-ratio:1/1;border-radius:50%;cursor:pointer;border:1px solid transparent;
+    box-shadow:0 0 0 1px var(--line) inset}
+  .bc:hover{transform:scale(1.08)}
+  .bc.active{border-color:var(--ink);box-shadow:0 0 0 1.5px var(--ink) inset}
+  .bc.auto{background:repeating-conic-gradient(from 0deg,var(--ink) 0% 25%,transparent 25% 50%) 50% 50%/8px 8px,var(--cell);
+    box-shadow:0 0 0 1px var(--line) inset}
+
+  /* toggle row */
+  .toggle{display:flex;align-items:center;gap:10px;font-size:11px;
+    letter-spacing:.04em;cursor:pointer}
+  .toggle input{accent-color:var(--ink)}
+
+  /* actions */
+  .actions{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .btn{font:inherit;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    padding:11px 14px;border-radius:5px;cursor:pointer;border:1px solid var(--ink);
+    background:var(--ink);color:#fff;font-weight:600}
+  .btn:hover{opacity:.85}
+  .btn.ghost{background:transparent;color:var(--ink);border-color:var(--ink)}
+  .btn.ghost:hover{background:var(--ink);color:#fff}
+  .btn.tiny{font-size:9px;padding:7px 10px;font-weight:400;letter-spacing:.06em}
+
+  .hint{font-size:10px;opacity:.5;line-height:1.6;margin-top:4px}
+
+  /* ===== canvas (CENTER) ===== */
+  .canvas-panel{display:flex;flex-direction:column;align-items:center;gap:14px}
+  .status{font-size:10px;letter-spacing:.1em;text-transform:uppercase;opacity:.6;
+    min-height:14px;text-align:center}
+  .status strong{color:var(--ink);opacity:.95;font-weight:600}
+  .composer-frame{background:var(--canvas);padding:24px;border-radius:8px;
+    box-shadow:0 1px 0 var(--line), 0 24px 60px -24px #15140f22;
+    width:100%;max-width:760px;aspect-ratio:1/1;position:relative}
+  .composer{width:100%;height:100%;display:grid;gap:0;position:relative;
+    background:var(--canvas);background-size:cover;background-repeat:repeat;
+    user-select:none}
+  .composer.show-grid{outline:1px solid var(--line);outline-offset:0}
+  .composer.show-grid .gcell{outline:1px dashed var(--line);outline-offset:-1px}
+  .gcell{cursor:crosshair;background:transparent;transition:background .1s;
+    position:relative;z-index:1}
+  .gcell:hover:not(.in-sel){background:color-mix(in srgb, var(--ink) 4%, transparent)}
+  .gcell.in-sel{background:color-mix(in srgb, var(--sel) 14%, transparent)}
+
+  .shape{position:relative;pointer-events:none;z-index:2}
+  .shape svg{width:100%;height:100%;display:block}
+
+  .sel-overlay{pointer-events:none;outline:2px solid var(--sel);outline-offset:-2px;
+    z-index:5;border-radius:1px}
+
+  .canvas-meta{display:flex;gap:24px;font-size:10px;letter-spacing:.08em;
+    text-transform:uppercase;opacity:.55}
+  .canvas-meta strong{font-weight:600;opacity:.9;color:var(--ink)}
+
+  /* fill mode popover */
+  .popover{position:absolute;z-index:50;background:#fff;border:1px solid var(--ink);
+    border-radius:6px;box-shadow:0 8px 24px -8px #15140f55;
+    padding:8px;display:flex;gap:6px;font-size:10px;letter-spacing:.08em;
+    text-transform:uppercase}
+  .popover .pophead{align-self:center;padding:0 6px;opacity:.6}
+  .popover button{font:inherit;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+    border:1px solid var(--ink);background:#fff;color:var(--ink);
+    padding:7px 12px;border-radius:4px;cursor:pointer;font-weight:600}
+  .popover button:hover{background:var(--ink);color:#fff}
+  .popover .x{border:none;background:transparent;color:var(--ink);opacity:.5;font-size:14px;
+    padding:0 6px}
+  .popover .x:hover{opacity:1;background:transparent;color:var(--ink)}
+
+  /* ===== forms picker (RIGHT) ===== */
+  .forms-panel{position:sticky;top:24px;max-height:calc(100vh - 48px);overflow:auto;padding-left:8px}
+  .forms-panel::-webkit-scrollbar{width:6px}
+  .forms-panel::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .forms-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .form-thumb{aspect-ratio:1/1;background:var(--cell);border-radius:4px;cursor:pointer;
+    position:relative;border:1px solid transparent;transition:border-color .15s, transform .1s}
+  .form-thumb svg{width:100%;height:100%;display:block;pointer-events:none}
+  .form-thumb .n{position:absolute;left:3px;top:2px;font-size:7px;opacity:.45;letter-spacing:.06em}
+  .form-thumb:hover{border-color:var(--ink);transform:translateY(-1px)}
+  .form-thumb.armed{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink) inset;
+    background:color-mix(in srgb, var(--ink) 8%, var(--cell))}
+  .form-thumb.disabled{opacity:.45;cursor:not-allowed}
+  .form-thumb.disabled:hover{transform:none;border-color:transparent}
+
+  /* erase button (in forms panel) */
+  .erase-card{aspect-ratio:1/1;background:var(--cell);border-radius:4px;cursor:pointer;
+    position:relative;border:1px dashed var(--ink);transition:background .15s;
+    display:flex;align-items:center;justify-content:center;font-size:10px;
+    letter-spacing:.1em;text-transform:uppercase}
+  .erase-card:hover{background:var(--ink);color:#fff}
+  .erase-card.disabled{opacity:.4;cursor:not-allowed;border-style:dotted}
+  .erase-card.disabled:hover{background:var(--cell);color:inherit}
+
+  /* defs hidden */
+  svg.defs{position:absolute;width:0;height:0;overflow:hidden}
 </style>
 </head>
-<body>
+<body class="banner-visible">
+
+<div id="organica-banner">
+  Part of Organica &mdash; <a href="https://organica.vercel.app">organica.vercel.app</a>
+  <button class="banner-dismiss" onclick="document.getElementById('organica-banner').style.display='none';document.body.classList.remove('banner-visible')" aria-label="Dismiss">&times;</button>
+</div>
 
 <header>
-  <div class="logo">Organic<span>a</span></div>
-  <div class="header-tag">genesis</div>
-  <nav>
-    <a href="/">Hub</a>
-    <a href="https://organic-strata.vercel.app">Strata</a>
-  </nav>
+  <div>
+    <h1>Genesis Creator</h1>
+    <div class="breadcrumb"><a href="../">← Organica</a> &nbsp;/&nbsp; Genesis &nbsp;/&nbsp; <a href="./indicators.html">Indicators →</a></div>
+  </div>
+  <div class="meta">compose · 55 forms · 3 palettes · 5 backgrounds</div>
 </header>
 
-<main>
-  <div class="eyebrow">Organica — Genesis</div>
-  <h1>Shape <em>origin</em><br>system</h1>
-  <p class="description">A generative library of organic forms. Motion primitives, morphological rules, and visual grammar for natural interfaces.</p>
-  <div class="status-pill">
-    <span class="status-dot"></span>
-    In development
-  </div>
-</main>
+<div class="layout">
 
-<footer>
-  <a href="/">Organica</a>
-  <span>·</span>
-  <a href="https://organic-strata.vercel.app">Strata</a>
-  <span>·</span>
-  <span>Genesis placeholder</span>
-</footer>
+  <!-- ====== tools (LEFT) ====== -->
+  <aside class="panel tools-panel">
+    <section>
+      <h3>Palette</h3>
+      <div class="palettes" id="palettes"></div>
+    </section>
+
+    <section>
+      <h3>Background</h3>
+      <div class="bg-row" id="bgRow">
+        <div class="bg-opt empty active" data-bg="empty" title="empty"><span class="lbl">empty</span></div>
+        <div class="bg-opt" data-bg="dots" title="dots"><span class="lbl">dots</span></div>
+        <div class="bg-opt" data-bg="waves" title="waves"><span class="lbl">waves</span></div>
+        <div class="bg-opt" data-bg="hatch" title="hatch"><span class="lbl">hatch</span></div>
+        <div class="bg-opt" data-bg="color" title="solid color"><span class="lbl">color</span></div>
+      </div>
+      <div class="bg-color-row hidden" id="bgColorRow"></div>
+    </section>
+
+    <section>
+      <h3>Fill color</h3>
+      <div class="brush-colors" id="brushColors"></div>
+      <div class="hint">checkered = random from palette</div>
+    </section>
+
+    <section>
+      <h3>Grid size</h3>
+      <div class="slider-row">
+        <input type="range" min="4" max="20" value="10" id="gridSize">
+        <span class="val" id="gridVal">10</span>
+      </div>
+    </section>
+
+    <section>
+      <h3>Cell guides</h3>
+      <label class="toggle">
+        <input type="checkbox" id="gridToggle" checked>
+        <span>show grid lines</span>
+      </label>
+    </section>
+
+    <section class="actions">
+      <button class="btn" id="randomize">Randomize</button>
+      <button class="btn ghost" id="clear">Clear canvas</button>
+    </section>
+
+    <div class="hint">
+      <strong>1.</strong> Drag on the canvas to select cells.<br>
+      <strong>2.</strong> Click a form on the right to fill the selection.<br>
+      Non-square selection → choose <em>repeat</em> or <em>crop</em>.
+    </div>
+  </aside>
+
+  <!-- ====== canvas (CENTER) ====== -->
+  <main class="canvas-panel">
+    <div class="status" id="status">drag on the canvas to select cells</div>
+    <div class="composer-frame" id="composerFrame">
+      <div class="composer show-grid" id="composer"></div>
+    </div>
+    <div class="canvas-meta">
+      <span>grid <strong id="gridLabel">10 × 10</strong></span>
+      <span>placed <strong id="placedLabel">0</strong></span>
+      <span>selection <strong id="selLabel">—</strong></span>
+    </div>
+  </main>
+
+  <!-- ====== forms picker (RIGHT) ====== -->
+  <aside class="panel forms-panel">
+    <h3>Forms <span style="opacity:.4;font-weight:400">— click to fill</span></h3>
+    <div class="forms-grid" id="formsGrid"></div>
+  </aside>
+
+</div>
+
+<script src="organic-forms.js"></script>
+<script src="organic-defs.js"></script>
+<script src="genesis-creator.js"></script>
 
 </body>
 </html>

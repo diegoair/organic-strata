@@ -4,11 +4,12 @@
   "builds": [
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "strata/index.html", "use": "@vercel/static" },
-    { "src": "genesis/index.html", "use": "@vercel/static" }
+    { "src": "genesis/**", "use": "@vercel/static" }
   ],
   "routes": [
     { "src": "/strata", "dest": "/strata/index.html" },
     { "src": "/strata/(.*)", "dest": "/strata/$1" },
+    { "src": "/genesis/indicators", "dest": "/genesis/indicators.html" },
     { "src": "/genesis", "dest": "/genesis/index.html" },
     { "src": "/genesis/(.*)", "dest": "/genesis/$1" },
     { "src": "/", "dest": "/index.html" }
