@@ -154,7 +154,7 @@ Duration range `1.4s–14s` maps to real-world time scales. See `docs/ANIMATION-
 
 *Add dated notes here as the project evolves:*
 
-- **June 2026** — v0.1 live. Hub + Genesis + Strata deployed on theorganicalanguage.vercel.app. Vercel team renamed to studio_rann. Docs created (VISION, ROADMAP, ANIMATION-SYSTEM).
+- **June 2026** — Completed full setup: hub live at theorganicalanguage.vercel.app, Genesis Creator integrated with 55 forms, Strata with Smart+ at /strata/, Vercel team renamed to studio_rann, docs/ folder created with VISION.md, ROADMAP.md, ANIMATION-SYSTEM.md. CLAUDE.md added to root.
 
 ---
 
