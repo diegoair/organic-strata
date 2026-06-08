@@ -347,6 +347,20 @@
   }
   .mini-btn:hover { border-color: var(--accent); color: var(--ink); }
 
+  /* RGBA colour controls */
+  .rgba-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
+  .rgba-col .col-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .rgba-col .col-head span { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mid); }
+  .num-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+  .num-row > label { font-size: 9px; color: var(--accent); width: 9px; flex-shrink: 0; }
+  .num-in {
+    font-family: var(--sans); font-size: 10px;
+    background: var(--panel); border: 1px solid var(--border); color: var(--ink);
+    width: 100%; padding: 2px 4px; outline: none;
+    -moz-appearance: textfield;
+  }
+  .num-in::-webkit-outer-spin-button, .num-in::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
   /* 400% point preview */
   .preview-wrap { display: flex; justify-content: center; }
   #pt-preview {
@@ -548,18 +562,61 @@
         <input type="range" id="sl-phases" min="1" max="32" value="12" oninput="syncVal(this,'vl-phases');markDirty()">
         <span class="ctrl-val" id="vl-phases">12</span>
       </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Gamma</span>
+        <input type="range" id="sl-gamma" min="0.2" max="3" step="0.05" value="1" oninput="syncVal(this,'vl-gamma');markDirty()">
+        <span class="ctrl-val" id="vl-gamma">1</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Contrast</span>
+        <input type="range" id="sl-contrast" min="-100" max="100" value="0" oninput="syncVal(this,'vl-contrast');markDirty()">
+        <span class="ctrl-val" id="vl-contrast">0</span>
+      </div>
+      <label class="check-row">
+        <input type="checkbox" id="ck-overpaint" onchange="render()">
+        <span>Overpaint (additive)</span>
+      </label>
+      <label class="check-row" style="margin-bottom:4px">
+        <input type="checkbox" id="ck-hide" onchange="markDirty()">
+        <span>Hide Zone</span>
+      </label>
+      <div class="ctrl-row">
+        <span class="ctrl-label">→ range</span>
+        <input type="range" id="sl-hide-min" min="0" max="255" value="255" oninput="syncVal(this,'vl-hide-min');markDirty()" title="Hide points where brightness ≥ this">
+        <span class="ctrl-val" id="vl-hide-min">255</span>
+        <input type="range" id="sl-hide-max" min="0" max="255" value="255" oninput="syncVal(this,'vl-hide-max');markDirty()" title="…and ≤ this">
+        <span class="ctrl-val" id="vl-hide-max">255</span>
+      </div>
       <label class="check-row">
         <input type="checkbox" id="ck-aa" checked onchange="render()">
         <span>Antialiasing</span>
-      </label>
-      <label class="check-row">
-        <input type="checkbox" id="ck-invert" onchange="markDirty()">
-        <span>Invert</span>
       </label>
       <div class="ctrl-row" style="margin-top:6px">
         <span class="ctrl-label">Points</span>
         <span class="ctrl-val" id="vl-total" style="min-width:auto; color:var(--accent)">—</span>
       </div>
+    </div>
+
+    <!-- IMAGE (orientation & filter — needs ↻ refresh) -->
+    <div class="panel-section">
+      <h3>Image <span class="hint">orientation</span></h3>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Rotation</span>
+        <select class="panel-select" id="sel-rotation" onchange="markDirty()" style="flex:1">
+          <option value="0">0°</option>
+          <option value="90">90°</option>
+          <option value="180">180°</option>
+          <option value="270">270°</option>
+        </select>
+      </div>
+      <label class="check-row">
+        <input type="checkbox" id="ck-flip" onchange="markDirty()">
+        <span>Flip horizontal</span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" id="ck-invert" onchange="markDirty()">
+        <span>Invert (filter)</span>
+      </label>
     </div>
 
     <!-- COLOR -->
@@ -572,22 +629,36 @@
           <button class="seg-btn" data-val="adaptive" onclick="setColorMode('adaptive')">Adaptive</button>
         </div>
       </div>
-      <div class="color-row">
-        <button class="color-swatch" id="swatch-ink" style="background:#0a0a0a" onclick="document.getElementById('cp-ink').click()"></button>
-        <input type="color" id="cp-ink" value="#0a0a0a" oninput="syncColor('cp-ink','swatch-ink','hex-ink');render()">
-        <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7" oninput="syncHex('hex-ink','cp-ink','swatch-ink');render()">
-        <span class="ctrl-label" style="min-width:auto">Point</span>
-      </div>
-      <div class="color-row">
-        <button class="color-swatch" id="swatch-bg" style="background:#f5f2ec" onclick="document.getElementById('cp-bg').click()"></button>
-        <input type="color" id="cp-bg" value="#f5f2ec" oninput="syncColor('cp-bg','swatch-bg','hex-bg');render()">
-        <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7" oninput="syncHex('hex-bg','cp-bg','swatch-bg');render()">
-        <span class="ctrl-label" style="min-width:auto">BG</span>
-      </div>
-      <div class="ctrl-row">
-        <span class="ctrl-label">Alpha</span>
-        <input type="range" id="sl-alpha" min="0" max="100" value="100" oninput="syncVal(this,'vl-alpha');render()">
-        <span class="ctrl-val" id="vl-alpha">100</span>
+      <div class="rgba-grid">
+        <!-- POINT colour (R/G/B/A) -->
+        <div class="rgba-col">
+          <div class="col-head">
+            <button class="color-swatch" id="swatch-ink" style="background:#0a0a0a" onclick="document.getElementById('cp-ink').click()"></button>
+            <input type="color" id="cp-ink" value="#0a0a0a" oninput="setColorAll('ink',this.value);render()">
+            <span>Point</span>
+          </div>
+          <div class="num-row"><label>R</label><input class="num-in" type="number" min="0" max="255" id="r-ink" value="10" oninput="colorFromRGB('ink')"></div>
+          <div class="num-row"><label>G</label><input class="num-in" type="number" min="0" max="255" id="g-ink" value="10" oninput="colorFromRGB('ink')"></div>
+          <div class="num-row"><label>B</label><input class="num-in" type="number" min="0" max="255" id="b-ink" value="10" oninput="colorFromRGB('ink')"></div>
+          <div class="num-row"><label>A</label><input class="num-in" type="number" min="0" max="255" id="a-ink" value="255" oninput="render()"></div>
+          <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7" style="width:100%;margin-top:4px"
+            oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){setColorAll('ink',this.value);render()}">
+          <button class="mini-btn" style="margin-top:5px" onclick="randomColor('ink')">Random</button>
+        </div>
+        <!-- BACKGROUND colour (R/G/B) -->
+        <div class="rgba-col">
+          <div class="col-head">
+            <button class="color-swatch" id="swatch-bg" style="background:#f5f2ec" onclick="document.getElementById('cp-bg').click()"></button>
+            <input type="color" id="cp-bg" value="#f5f2ec" oninput="setColorAll('bg',this.value);render()">
+            <span>BG</span>
+          </div>
+          <div class="num-row"><label>R</label><input class="num-in" type="number" min="0" max="255" id="r-bg" value="245" oninput="colorFromRGB('bg')"></div>
+          <div class="num-row"><label>G</label><input class="num-in" type="number" min="0" max="255" id="g-bg" value="242" oninput="colorFromRGB('bg')"></div>
+          <div class="num-row"><label>B</label><input class="num-in" type="number" min="0" max="255" id="b-bg" value="236" oninput="colorFromRGB('bg')"></div>
+          <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7" style="width:100%;margin-top:4px"
+            oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){setColorAll('bg',this.value);render()}">
+          <button class="mini-btn" style="margin-top:5px" onclick="randomColor('bg')">Random</button>
+        </div>
       </div>
       <div class="row-btns">
         <button class="mini-btn" onclick="swapColors()">Swap colors</button>
@@ -671,23 +742,34 @@ function setPointType(t) {
 function setLineStyle(s) { lineStyle = s; segActive('linestyle-seg', s); render(); }
 function setColorMode(m) { colorMode = m; segActive('colormode-seg', m); render(); }
 
-function swapColors() {
-  const a = ctrl('hex-ink').value, b = ctrl('hex-bg').value;
-  ctrl('hex-ink').value = b; ctrl('cp-ink').value = b; ctrl('swatch-ink').style.background = b;
-  ctrl('hex-bg').value = a; ctrl('cp-bg').value = a; ctrl('swatch-bg').style.background = a;
+// ── COLOUR (hex ↔ RGBA spinboxes ↔ picker, all kept in sync) ──
+const COLOR_IDS = {
+  ink: { hex:'hex-ink', cp:'cp-ink', sw:'swatch-ink', r:'r-ink', g:'g-ink', b:'b-ink' },
+  bg:  { hex:'hex-bg',  cp:'cp-bg',  sw:'swatch-bg',  r:'r-bg',  g:'g-bg',  b:'b-bg' }
+};
+function clamp255(v) { v = parseInt(v, 10); return isNaN(v) ? 0 : Math.max(0, Math.min(255, v)); }
+function toHex(r, g, b) { return '#' + [r, g, b].map(n => clamp255(n).toString(16).padStart(2, '0')).join(''); }
+// Set a colour everywhere from a hex value.
+function setColorAll(which, hex) {
+  if (!/^#?[0-9a-fA-F]{6}$/.test(hex)) return;
+  if (hex[0] !== '#') hex = '#' + hex;
+  const id = COLOR_IDS[which], c = hexToRgb(hex);
+  ctrl(id.hex).value = hex; ctrl(id.cp).value = hex; ctrl(id.sw).style.background = hex;
+  ctrl(id.r).value = c.r; ctrl(id.g).value = c.g; ctrl(id.b).value = c.b;
+}
+function colorFromRGB(which) {
+  const id = COLOR_IDS[which];
+  setColorAll(which, toHex(ctrl(id.r).value, ctrl(id.g).value, ctrl(id.b).value));
   render();
 }
-function syncColor(cpId, swatchId, hexId) {
-  const v = document.getElementById(cpId).value;
-  document.getElementById(swatchId).style.background = v;
-  document.getElementById(hexId).value = v;
+function randomColor(which) {
+  setColorAll(which, toHex(Math.random() * 255, Math.random() * 255, Math.random() * 255));
+  render();
 }
-function syncHex(hexId, cpId, swatchId) {
-  const v = document.getElementById(hexId).value;
-  if (/^#[0-9a-fA-F]{6}$/.test(v)) {
-    document.getElementById(cpId).value = v;
-    document.getElementById(swatchId).style.background = v;
-  }
+function swapColors() {
+  const a = ctrl('hex-ink').value, b = ctrl('hex-bg').value;   // alpha stays with Point
+  setColorAll('ink', b); setColorAll('bg', a);
+  render();
 }
 
 // ── PRESETS ──
@@ -695,9 +777,9 @@ function syncHex(hexId, cpId, swatchId) {
 // with the tool; user presets persist in localStorage.
 const PRESET_SLIDERS = ['sl-size','sl-size-max','sl-angle','sl-angle-max','sl-vertices',
   'sl-poly-warp','sl-length','sl-length-max','sl-segments','sl-line-warp',
-  'sl-sp-min','sl-sp-max','sl-phases','sl-alpha'];
+  'sl-sp-min','sl-sp-max','sl-phases','sl-gamma','sl-contrast','sl-hide-min','sl-hide-max'];
 const PRESET_CHECKS = ['ck-size-range','ck-angle-range','ck-angle-random','ck-rounded',
-  'ck-length-range','ck-length-random','ck-aa','ck-invert'];
+  'ck-length-range','ck-length-random','ck-aa','ck-invert','ck-overpaint','ck-hide','ck-flip'];
 const RANGE_ROWS = { 'ck-size-range':'row-size-max', 'ck-angle-range':'row-angle-max', 'ck-length-range':'row-length-max' };
 
 const BUILTIN_PRESETS = {
@@ -713,17 +795,17 @@ const BUILTIN_PRESETS = {
 };
 
 function getState() {
-  const s = { pointType, lineStyle, colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value };
+  const s = { pointType, lineStyle, colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value,
+              alpha255: ctrl('a-ink').value, rotation: ctrl('sel-rotation').value };
   PRESET_SLIDERS.forEach(id => s[id] = ctrl(id).value);
   PRESET_CHECKS.forEach(id => s[id] = ctrl(id).checked);
   return s;
 }
-function setColorCtl(hexId, cpId, swId, hex) {
-  ctrl(hexId).value = hex; ctrl(cpId).value = hex; ctrl(swId).style.background = hex;
-}
 function setState(s) {
-  if (s.ink) setColorCtl('hex-ink','cp-ink','swatch-ink', s.ink);
-  if (s.bg)  setColorCtl('hex-bg','cp-bg','swatch-bg', s.bg);
+  if (s.ink) setColorAll('ink', s.ink);
+  if (s.bg)  setColorAll('bg', s.bg);
+  if (s.alpha255 !== undefined) ctrl('a-ink').value = s.alpha255;
+  if (s.rotation !== undefined) ctrl('sel-rotation').value = s.rotation;
   PRESET_SLIDERS.forEach(id => { if (s[id] !== undefined) { ctrl(id).value = s[id]; syncVal(ctrl(id), 'vl' + id.slice(2)); } });
   PRESET_CHECKS.forEach(id => { if (s[id] !== undefined) { ctrl(id).checked = s[id]; if (RANGE_ROWS[id]) toggleRow(RANGE_ROWS[id], s[id]); } });
   if (s.lineStyle) { lineStyle = s.lineStyle; segActive('linestyle-seg', s.lineStyle); }
@@ -843,23 +925,63 @@ function pointRGBA(P, b) {
   return { r, g, b: bl, a: P.alpha };
 }
 
-// Build the downscaled brightness map (Float32, 0=dark … 1=bright, Invert-aware)
-function buildBrightness() {
-  const scale = Math.min(1, PREVIEW_MAX / Math.max(sourceImage.width, sourceImage.height));
-  workW = Math.max(1, Math.round(sourceImage.width  * scale));
-  workH = Math.max(1, Math.round(sourceImage.height * scale));
+// ── IMAGE ORIENTATION + TONE PIPELINE ──
+function getRotation() { return parseInt(ctrl('sel-rotation').value, 10) || 0; }
+
+// Oriented working dimensions (90/270 swap width/height), scaled to maxSide.
+function workDims(maxSide) {
+  const rot = getRotation();
+  const sw = sourceImage.width, sh = sourceImage.height;
+  const ow = (rot === 90 || rot === 270) ? sh : sw;
+  const oh = (rot === 90 || rot === 270) ? sw : sh;
+  const s = Math.min(1, maxSide / Math.max(ow, oh));
+  return { W: Math.max(1, Math.round(ow * s)), H: Math.max(1, Math.round(oh * s)) };
+}
+
+// Draw the source rotated/flipped to fill a W×H context.
+function drawOriented(g, W, H) {
+  const rot = getRotation(), flip = ctrl('ck-flip').checked;
+  g.save();
+  g.translate(W / 2, H / 2);
+  g.rotate(rot * Math.PI / 180);
+  if (flip) g.scale(-1, 1);
+  const dw = (rot === 90 || rot === 270) ? H : W;
+  const dh = (rot === 90 || rot === 270) ? W : H;
+  g.drawImage(sourceImage, -dw / 2, -dh / 2, dw, dh);
+  g.restore();
+}
+
+// Tone shaping on a 0..1 luma value (already Invert-applied): Gamma then Contrast.
+function processLuma(l) {
+  const gamma = val('sl-gamma');
+  if (gamma !== 1) l = Math.pow(Math.max(0, l), gamma);
+  const c = val('sl-contrast');
+  if (c) { const cc = c * 2.55, f = (259 * (cc + 255)) / (255 * (259 - cc)); l = f * (l - 0.5) + 0.5; }
+  return Math.max(0, Math.min(1, l));
+}
+
+// Brightness map at W×H: oriented draw → luma → Invert → Gamma/Contrast.
+function brightnessMap(W, H) {
   const oc = document.createElement('canvas');
-  oc.width = workW; oc.height = workH;
-  const octx = oc.getContext('2d');
-  octx.drawImage(sourceImage, 0, 0, workW, workH);
-  const data = octx.getImageData(0, 0, workW, workH).data;
+  oc.width = W; oc.height = H;
+  const g = oc.getContext('2d');
+  drawOriented(g, W, H);
+  const data = g.getImageData(0, 0, W, H).data;
   const invert = ctrl('ck-invert').checked;
-  const b = new Float32Array(workW * workH);
+  const b = new Float32Array(W * H);
   for (let i = 0, p = 0; i < b.length; i++, p += 4) {
     let l = (0.299 * data[p] + 0.587 * data[p+1] + 0.114 * data[p+2]) / 255;
-    b[i] = invert ? 1 - l : l;
+    if (invert) l = 1 - l;
+    b[i] = processLuma(l);
   }
   return b;
+}
+
+// Preview brightness (sets working dims)
+function buildBrightness() {
+  const d = workDims(PREVIEW_MAX);
+  workW = d.W; workH = d.H;
+  return brightnessMap(workW, workH);
 }
 
 function stopCompute() {
@@ -918,16 +1040,19 @@ async function computePoints() {
   }
 
   // dart-throwing across phases; each phase fires a batch of candidates
+  const hide = hideBand();
   const attemptsPerPhase = Math.min(180000, Math.ceil((W * H) / (minSp * minSp)));
   for (let phase = 0; phase < phases; phase++) {
     for (let a = 0; a < attemptsPerPhase; a++) {
       if (px.length >= MAX_POINTS) break;
       const x = Math.random() * W, y = Math.random() * H;
+      const bb = bright[(Math.min(H-1, y|0)) * W + Math.min(W-1, x|0)];
+      if (hide && bb >= hide[0] && bb <= hide[1]) continue;   // Hide Zone
       const r = spacingAt(x, y);
       if (!accept(x, y, r)) continue;
       const i = px.length;
       px.push(x); py.push(y); pr.push(r);
-      pb.push(bright[(Math.min(H-1, y|0)) * W + Math.min(W-1, x|0)]);
+      pb.push(bb);
       prnd.push(Math.random());   // stable per-point random (for Random / warp)
       grid[((y / cell) | 0) * gw + ((x / cell) | 0)] = i;
     }
@@ -963,7 +1088,7 @@ function pointParams() {
     lenMin: val('sl-length'), lenMax: val('sl-length-max'),
     lenRange: ctrl('ck-length-range').checked, lenRandom: ctrl('ck-length-random').checked,
     segments: Math.round(val('sl-segments')), lineWarp: val('sl-line-warp'),
-    colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value, alpha: val('sl-alpha') / 100
+    colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value, alpha: clamp255(ctrl('a-ink').value) / 255
   };
 }
 
@@ -1024,8 +1149,11 @@ function drawShape(g, P, sz, len, b, rnd) {
 // `unit` scales shape size/length from preview space to the output resolution.
 function paintPoints(g, pts, P, W, H, aa, ink, bg, unit) {
   g.imageSmoothingEnabled = aa;
+  g.globalCompositeOperation = 'source-over';
   g.fillStyle = bg; g.fillRect(0, 0, W, H);
   g.lineJoin = 'round';
+  // Overpaint: overlapping marks accumulate tone (multiply). Best with Alpha < 1.
+  if (ctrl('ck-overpaint').checked) g.globalCompositeOperation = 'multiply';
   const adaptive = P.colorMode === 'adaptive';
   if (!adaptive) {                                  // Solid: one colour for all
     const c = pointRGBA(P, 0);
@@ -1096,20 +1224,13 @@ function updatePtPreview() {
 const EXPORT_MAX_SIDE = 4000;     // clamp output longest side (sanity)
 const EXPORT_CAP       = 300000;  // hard cap on exported points
 
-// Brightness map at an arbitrary resolution (Invert-aware)
-function brightnessAt(W, H) {
-  const oc = document.createElement('canvas');
-  oc.width = W; oc.height = H;
-  const g = oc.getContext('2d');
-  g.drawImage(sourceImage, 0, 0, W, H);
-  const data = g.getImageData(0, 0, W, H).data;
-  const invert = ctrl('ck-invert').checked;
-  const b = new Float32Array(W * H);
-  for (let i = 0, p = 0; i < b.length; i++, p += 4) {
-    let l = (0.299 * data[p] + 0.587 * data[p+1] + 0.114 * data[p+2]) / 255;
-    b[i] = invert ? 1 - l : l;
-  }
-  return b;
+// Brightness map at an arbitrary resolution (oriented + tone-shaped)
+function brightnessAt(W, H) { return brightnessMap(W, H); }
+
+// Current Hide Zone band as [min,max] in 0..1, or null when disabled.
+function hideBand() {
+  if (!ctrl('ck-hide').checked) return null;
+  return [val('sl-hide-min') / 255, val('sl-hide-max') / 255];
 }
 
 // Synchronous variable-radius Poisson-disk (same algorithm as the preview engine)
@@ -1118,6 +1239,7 @@ function dartThrow(W, H, bright, minSp, maxSp, phases, cap) {
   const gw = Math.ceil(W / cell), gh = Math.ceil(H / cell);
   const grid = new Int32Array(gw * gh).fill(-1);
   const px = [], py = [], pb = [], prnd = [];
+  const hide = hideBand();
   const spacingAt = (x, y) => {
     const ix = Math.min(W - 1, Math.max(0, x | 0)), iy = Math.min(H - 1, Math.max(0, y | 0));
     return minSp + (maxSp - minSp) * bright[iy * W + ix];
@@ -1137,12 +1259,13 @@ function dartThrow(W, H, bright, minSp, maxSp, phases, cap) {
   for (let phase = 0; phase < phases; phase++) {
     for (let a = 0; a < attemptsPerPhase; a++) {
       if (px.length >= cap) break;
-      const x = Math.random() * W, y = Math.random() * H, r = spacingAt(x, y);
+      const x = Math.random() * W, y = Math.random() * H;
+      const bb = bright[(Math.min(H-1, y|0)) * W + Math.min(W-1, x|0)];
+      if (hide && bb >= hide[0] && bb <= hide[1]) continue;   // Hide Zone
+      const r = spacingAt(x, y);
       if (!accept(x, y, r)) continue;
       const i = px.length;
-      px.push(x); py.push(y);
-      pb.push(bright[(Math.min(H-1, y|0)) * W + Math.min(W-1, x|0)]);
-      prnd.push(Math.random());
+      px.push(x); py.push(y); pb.push(bb); prnd.push(Math.random());
       grid[((y / cell) | 0) * gw + ((x / cell) | 0)] = i;
     }
     if (px.length >= cap) break;
@@ -1150,13 +1273,12 @@ function dartThrow(W, H, bright, minSp, maxSp, phases, cap) {
   return { px, py, pb, prnd };
 }
 
-// Recompute the full-resolution field for export
+// Recompute the full-resolution field for export (oriented dims)
 function exportField() {
-  let outW = sourceImage.width, outH = sourceImage.height;
-  const m = Math.max(outW, outH);
-  if (m > EXPORT_MAX_SIDE) { const s = EXPORT_MAX_SIDE / m; outW = Math.round(outW * s); outH = Math.round(outH * s); }
+  const d = workDims(EXPORT_MAX_SIDE);
+  const outW = d.W, outH = d.H;
   const unit = outW / workW;                         // preview → export scale
-  const bright = brightnessAt(outW, outH);
+  const bright = brightnessMap(outW, outH);
   const minSp = val('sl-sp-min') * unit;
   const maxSp = Math.max(minSp, val('sl-sp-max') * unit);
   const phases = Math.round(val('sl-phases'));
