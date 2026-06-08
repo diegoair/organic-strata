@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pollen — Organica</title>
+<style>
+  :root {
+    --ink: #0a0a0a;
+    --paper: #f5f2ec;
+    --mid: #c8c0b0;
+    --accent: #2a2a2a;
+    --panel: #eceae4;
+    --border: #d0c8b8;
+    --active: #1a1a1a;
+    --pollen: #c8a83a;
+    --sans: 'DM Mono', 'Courier New', monospace;
+    --serif: Georgia, serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 11px;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOP BAR ── */
+  #topbar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 16px;
+    height: 40px;
+    border-bottom: 1px solid var(--border);
+    background: var(--paper);
+    flex-shrink: 0;
+    z-index: 100;
+  }
+
+  #topbar .logo {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--mid);
+    text-decoration: none;
+    margin-right: 24px;
+  }
+
+  #topbar .logo span { color: var(--ink); }
+
+  .tb-btn {
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: none;
+    border: 1px solid transparent;
+    color: var(--ink);
+    padding: 4px 10px;
+    cursor: pointer;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .tb-btn:hover { border-color: var(--border); background: var(--panel); }
+  .tb-btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .tb-btn.primary:hover { background: #333; border-color: #333; }
+  .tb-btn:disabled { opacity: 0.35; cursor: default; }
+  /* Refresh goes bold when the image needs recalculating */
+  #btn-refresh.dirty { font-weight: 700; color: var(--pollen); }
+
+  .tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 8px; }
+  .tb-spacer { flex: 1; }
+
+  #status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--mid);
+    flex-shrink: 0;
+  }
+  #status-dot.active { background: #5a8a5a; }
+  #status-dot.rendering { background: #c8a050; animation: pulse 0.8s ease-in-out infinite; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  #status-text { color: var(--mid); font-size: 10px; letter-spacing: 0.05em; }
+
+  /* ── LAYOUT ── */
+  #app {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── CANVAS / PREVIEW AREA (left) ── */
+  #canvas-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    position: relative;
+    overflow: hidden;
+  }
+
+  #canvas-wrap.drag-over { outline: 2px dashed var(--ink); outline-offset: -8px; }
+
+  #drop-hint {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.3s;
+  }
+
+  #drop-hint.hidden { opacity: 0; }
+
+  .drop-icon {
+    width: 48px; height: 48px;
+    border: 1.5px solid var(--mid);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--mid);
+    font-size: 20px;
+    /* Only this circle is the click target (parent #drop-hint is pointer-events:none) */
+    pointer-events: auto;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .drop-icon:hover { border-color: var(--ink); color: var(--ink); }
+
+  #drop-hint p {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mid);
+    text-align: center;
+    line-height: 1.8;
+  }
+
+  #main-canvas {
+    display: none;
+    max-width: 100%;
+    max-height: 100%;
+    box-shadow: 0 4px 40px rgba(0,0,0,0.12);
+    transform-origin: 0 0;
+    will-change: transform;
+  }
+
+  #main-canvas.visible { display: block; }
+  #main-canvas.zoomed { cursor: grab; }
+  #main-canvas.panning { cursor: grabbing; }
+
+  /* zoom readout */
+  #zoom-hud {
+    position: absolute;
+    bottom: 16px; left: 16px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 6px 9px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+    user-select: none;
+  }
+  #zoom-hud.visible { display: flex; }
+  #zoom-hud .zoom-reset {
+    pointer-events: auto;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+  }
+  #zoom-hud .zoom-reset:hover { opacity: 1; }
+
+  /* ── RIGHT PANEL ── */
+  #panel {
+    width: 240px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--paper);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-section {
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+  }
+
+  .panel-section h3 {
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--mid);
+    margin-bottom: 12px;
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-section h3 .hint {
+    font-size: 8px;
+    color: var(--border);
+    letter-spacing: 0.05em;
+    text-transform: none;
+  }
+
+  .ctrl-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 9px;
+    gap: 8px;
+  }
+
+  .ctrl-label {
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 60px;
+  }
+
+  .ctrl-val {
+    font-size: 10px;
+    color: var(--mid);
+    min-width: 28px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    flex: 1;
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--ink);
+    cursor: pointer;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: none;
+    cursor: pointer;
+  }
+
+  .seg-ctrl { display: flex; gap: 0; flex: 1; }
+  .seg-btn {
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    flex: 1;
+    padding: 4px 0;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--accent);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    margin-left: -1px;
+  }
+  .seg-btn.active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+    z-index: 1;
+    position: relative;
+  }
+
+  .color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .color-swatch {
+    width: 20px; height: 20px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    background: none;
+  }
+  .color-hex {
+    font-family: var(--sans);
+    font-size: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 3px 6px;
+    width: 70px;
+    letter-spacing: 0.05em;
+    outline: none;
+  }
+  input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
+
+  .panel-select {
+    font-family: var(--sans);
+    font-size: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 4px 6px;
+    width: 100%;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .row-btns { display: flex; gap: 6px; margin-top: 8px; }
+  .mini-btn {
+    flex: 1;
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--accent);
+    padding: 6px 0;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .mini-btn:hover { border-color: var(--accent); color: var(--ink); }
+
+  /* 400% point preview */
+  .preview-wrap { display: flex; justify-content: center; }
+  #pt-preview {
+    width: 100%;
+    max-width: 208px;
+    aspect-ratio: 1;
+    border: 1px solid rgba(10,10,10,0.2);
+    background: var(--panel);
+    display: block;
+  }
+
+  /* progress bar */
+  #progress-bar {
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 2px;
+    background: var(--pollen);
+    width: 0%;
+    transition: width 0.1s;
+    pointer-events: none;
+  }
+
+  #panel::-webkit-scrollbar { width: 3px; }
+  #panel::-webkit-scrollbar-track { background: transparent; }
+  #panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 1px; }
+
+  /* visually-hidden file input (Safari opens the picker only if it's rendered) */
+  #file-input {
+    position: absolute; width: 1px; height: 1px;
+    opacity: 0; overflow: hidden; pointer-events: none; border: 0; padding: 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR (same logic as Spore) -->
+<div id="topbar">
+  <a href="/" class="logo"><span>Organica</span> / Pollen</a>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="document.getElementById('file-input').click()">Open…</button>
+  <button class="tb-btn" id="btn-refresh" onclick="refresh()" disabled title="Recalculate point placement (bold = needs refresh)">↻ Refresh</button>
+  <button class="tb-btn" id="btn-stop" onclick="stopCompute()" disabled title="Stop the calculation">■ Stop</button>
+  <div class="tb-spacer"></div>
+  <div id="status-dot"></div>
+  <span id="status-text" style="margin: 0 10px 0 6px">—</span>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="btn-save-png" onclick="exportPNG()" disabled>PNG</button>
+  <button class="tb-btn" id="btn-save-jpg" onclick="exportJPG()" disabled>JPG</button>
+  <button class="tb-btn" id="btn-save-svg" onclick="exportSVG()" disabled>SVG</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn primary" id="btn-figma" onclick="sendToFigma()" disabled>→ Figma</button>
+</div>
+
+<input type="file" id="file-input" accept="image/*" onchange="loadImage(this)">
+
+<!-- APP -->
+<div id="app">
+
+  <!-- LEFT: IMAGE / PREVIEW -->
+  <div id="canvas-wrap">
+    <div id="drop-hint">
+      <div class="drop-icon">+</div>
+      <p>Drop an image here<br>or click Open…</p>
+    </div>
+    <canvas id="main-canvas"></canvas>
+    <div id="zoom-hud">
+      <span id="zoom-level">100%</span>
+      <span class="zoom-reset" onclick="resetZoom()">Reset</span>
+    </div>
+    <div id="progress-bar"></div>
+  </div>
+
+  <!-- RIGHT: CONTROLS -->
+  <div id="panel">
+
+    <!-- POINT TYPE (appearance — live, no refresh) -->
+    <div class="panel-section">
+      <h3>Point Type <span class="hint">appearance · 400%</span></h3>
+
+      <div class="preview-wrap">
+        <canvas id="pt-preview" width="200" height="200"></canvas>
+      </div>
+
+      <div class="ctrl-row" style="margin-top:12px">
+        <span class="ctrl-label">Shape</span>
+        <div class="seg-ctrl" id="shape-seg">
+          <button class="seg-btn active" data-val="circle" onclick="setPointType('circle')">Circle</button>
+          <button class="seg-btn" data-val="polygon" onclick="setPointType('polygon')">Poly</button>
+          <button class="seg-btn" data-val="line" onclick="setPointType('line')">Line</button>
+        </div>
+      </div>
+
+      <!-- Size (+ Range: Min dark → Max bright) -->
+      <div class="ctrl-row">
+        <span class="ctrl-label">Size</span>
+        <input type="range" id="sl-size" min="0.5" max="16" step="0.5" value="2.5" oninput="syncVal(this,'vl-size');render()">
+        <span class="ctrl-val" id="vl-size">2.5</span>
+      </div>
+      <label class="check-row" style="margin-bottom:6px">
+        <input type="checkbox" id="ck-size-range" onchange="toggleRow('row-size-max',this.checked);render()">
+        <span>Range</span>
+      </label>
+      <div class="ctrl-row" id="row-size-max" style="display:none">
+        <span class="ctrl-label">→ max</span>
+        <input type="range" id="sl-size-max" min="0.5" max="16" step="0.5" value="6" oninput="syncVal(this,'vl-size-max');render()">
+        <span class="ctrl-val" id="vl-size-max">6</span>
+      </div>
+
+      <!-- Angle (+ Range by brightness, + Random) -->
+      <div class="ctrl-row">
+        <span class="ctrl-label">Angle</span>
+        <input type="range" id="sl-angle" min="0" max="360" value="0" oninput="syncVal(this,'vl-angle');render()">
+        <span class="ctrl-val" id="vl-angle">0°</span>
+      </div>
+      <label class="check-row" style="margin-bottom:4px">
+        <input type="checkbox" id="ck-angle-range" onchange="toggleRow('row-angle-max',this.checked);render()">
+        <span>Range</span>
+      </label>
+      <label class="check-row" style="margin-bottom:6px">
+        <input type="checkbox" id="ck-angle-random" onchange="render()">
+        <span>Random</span>
+      </label>
+      <div class="ctrl-row" id="row-angle-max" style="display:none">
+        <span class="ctrl-label">→ max</span>
+        <input type="range" id="sl-angle-max" min="0" max="360" value="360" oninput="syncVal(this,'vl-angle-max');render()">
+        <span class="ctrl-val" id="vl-angle-max">360°</span>
+      </div>
+
+      <!-- POLYGON sub-controls -->
+      <div id="poly-ctrls" style="display:none">
+        <div class="ctrl-row">
+          <span class="ctrl-label">Vertices</span>
+          <input type="range" id="sl-vertices" min="3" max="10" value="5" oninput="syncVal(this,'vl-vertices');render()">
+          <span class="ctrl-val" id="vl-vertices">5</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">Warping</span>
+          <input type="range" id="sl-poly-warp" min="0" max="1" step="0.05" value="0" oninput="syncVal(this,'vl-poly-warp');render()">
+          <span class="ctrl-val" id="vl-poly-warp">0</span>
+        </div>
+      </div>
+
+      <!-- LINE sub-controls -->
+      <div id="line-ctrls" style="display:none">
+        <div class="ctrl-row">
+          <span class="ctrl-label">Style</span>
+          <div class="seg-ctrl" id="linestyle-seg">
+            <button class="seg-btn active" data-val="linear" onclick="setLineStyle('linear')">— Linear</button>
+            <button class="seg-btn" data-val="radial" onclick="setLineStyle('radial')">⁕ Radial</button>
+          </div>
+        </div>
+        <label class="check-row" style="margin-bottom:6px">
+          <input type="checkbox" id="ck-rounded" checked onchange="render()">
+          <span>Rounded</span>
+        </label>
+        <div class="ctrl-row">
+          <span class="ctrl-label">Length</span>
+          <input type="range" id="sl-length" min="2" max="48" value="10" oninput="syncVal(this,'vl-length');render()">
+          <span class="ctrl-val" id="vl-length">10</span>
+        </div>
+        <label class="check-row" style="margin-bottom:4px">
+          <input type="checkbox" id="ck-length-range" onchange="toggleRow('row-length-max',this.checked);render()">
+          <span>Range</span>
+        </label>
+        <label class="check-row" style="margin-bottom:6px">
+          <input type="checkbox" id="ck-length-random" onchange="render()">
+          <span>Random</span>
+        </label>
+        <div class="ctrl-row" id="row-length-max" style="display:none">
+          <span class="ctrl-label">→ max</span>
+          <input type="range" id="sl-length-max" min="2" max="48" value="24" oninput="syncVal(this,'vl-length-max');render()">
+          <span class="ctrl-val" id="vl-length-max">24</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">Segments</span>
+          <input type="range" id="sl-segments" min="1" max="12" value="3" oninput="syncVal(this,'vl-segments');render()">
+          <span class="ctrl-val" id="vl-segments">3</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">Warping</span>
+          <input type="range" id="sl-line-warp" min="0" max="1" step="0.05" value="0" oninput="syncVal(this,'vl-line-warp');render()">
+          <span class="ctrl-val" id="vl-line-warp">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STIPPLING (point placement — needs ↻ refresh) -->
+    <div class="panel-section">
+      <h3>Stippling <span class="hint">points spacing</span></h3>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Spacing</span>
+        <input type="range" id="sl-sp-min" min="1" max="20" step="0.5" value="2" oninput="syncVal(this,'vl-sp-min');markDirty()" title="Min spacing (dark areas → dense)">
+        <span class="ctrl-val" id="vl-sp-min">2</span>
+        <input type="range" id="sl-sp-max" min="2" max="48" step="0.5" value="12" oninput="syncVal(this,'vl-sp-max');markDirty()" title="Max spacing (bright areas → sparse)">
+        <span class="ctrl-val" id="vl-sp-max">12</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Phases</span>
+        <input type="range" id="sl-phases" min="1" max="32" value="12" oninput="syncVal(this,'vl-phases');markDirty()">
+        <span class="ctrl-val" id="vl-phases">12</span>
+      </div>
+      <label class="check-row">
+        <input type="checkbox" id="ck-aa" checked onchange="render()">
+        <span>Antialiasing</span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" id="ck-invert" onchange="markDirty()">
+        <span>Invert</span>
+      </label>
+      <div class="ctrl-row" style="margin-top:6px">
+        <span class="ctrl-label">Points</span>
+        <span class="ctrl-val" id="vl-total" style="min-width:auto; color:var(--accent)">—</span>
+      </div>
+    </div>
+
+    <!-- COLOR -->
+    <div class="panel-section">
+      <h3>Color <span class="hint">color settings</span></h3>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Mode</span>
+        <div class="seg-ctrl" id="colormode-seg">
+          <button class="seg-btn active" data-val="solid" onclick="setColorMode('solid')">Solid</button>
+          <button class="seg-btn" data-val="adaptive" onclick="setColorMode('adaptive')">Adaptive</button>
+        </div>
+      </div>
+      <div class="color-row">
+        <button class="color-swatch" id="swatch-ink" style="background:#0a0a0a" onclick="document.getElementById('cp-ink').click()"></button>
+        <input type="color" id="cp-ink" value="#0a0a0a" oninput="syncColor('cp-ink','swatch-ink','hex-ink');render()">
+        <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7" oninput="syncHex('hex-ink','cp-ink','swatch-ink');render()">
+        <span class="ctrl-label" style="min-width:auto">Point</span>
+      </div>
+      <div class="color-row">
+        <button class="color-swatch" id="swatch-bg" style="background:#f5f2ec" onclick="document.getElementById('cp-bg').click()"></button>
+        <input type="color" id="cp-bg" value="#f5f2ec" oninput="syncColor('cp-bg','swatch-bg','hex-bg');render()">
+        <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7" oninput="syncHex('hex-bg','cp-bg','swatch-bg');render()">
+        <span class="ctrl-label" style="min-width:auto">BG</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Alpha</span>
+        <input type="range" id="sl-alpha" min="0" max="100" value="100" oninput="syncVal(this,'vl-alpha');render()">
+        <span class="ctrl-val" id="vl-alpha">100</span>
+      </div>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="swapColors()">Swap colors</button>
+      </div>
+    </div>
+
+    <!-- PRESETS -->
+    <div class="panel-section">
+      <h3>Presets <span class="hint">manage</span></h3>
+      <select class="panel-select" id="preset-select" onchange="applyPreset(this.value)">
+        <option value="">— Select —</option>
+      </select>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="savePreset()">Save</button>
+        <button class="mini-btn" onclick="deletePreset()">Delete</button>
+      </div>
+    </div>
+
+  </div><!-- /panel -->
+</div><!-- /app -->
+
+<script>
+// ─────────────────────────────────────────────
+// POLLEN — advanced stippling (scaffold)
+// The stippling algorithm is a stub for now; this wires up the shell:
+// image load, auto-generate, dirty/refresh, zoom/pan, exports (TODO).
+// ─────────────────────────────────────────────
+
+const canvas = document.getElementById('main-canvas');
+const ctx = canvas.getContext('2d');
+const canvasWrap = document.getElementById('canvas-wrap');
+
+let sourceImage = null;
+let pointType = 'circle';
+let lineStyle = 'linear';
+let colorMode = 'solid';
+let isDirty = false;
+
+// ── STATUS ──
+function setStatus(state, msg) {
+  const dot = document.getElementById('status-dot');
+  dot.className = '';
+  if (state) dot.classList.add(state);
+  document.getElementById('status-text').textContent = msg;
+}
+
+// ── DIRTY / REFRESH ──
+// When a control changes, the image needs recalculating → Refresh goes bold.
+function markDirty() {
+  if (!sourceImage) return;
+  isDirty = true;
+  document.getElementById('btn-refresh').classList.add('dirty');
+  setStatus('active', 'Needs refresh ↻');
+}
+function clearDirty() {
+  isDirty = false;
+  document.getElementById('btn-refresh').classList.remove('dirty');
+}
+function refresh() {
+  if (!sourceImage) return;
+  generate();
+}
+
+// ── CONTROLS ──
+function syncVal(slider, valId) {
+  document.getElementById(valId).textContent = /angle/.test(valId) ? slider.value + '°' : slider.value;
+}
+function toggleRow(id, show) { document.getElementById(id).style.display = show ? '' : 'none'; }
+
+function segActive(group, val) {
+  document.querySelectorAll('#' + group + ' .seg-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.val === val));
+}
+function setPointType(t) {
+  pointType = t;
+  segActive('shape-seg', t);
+  document.getElementById('poly-ctrls').style.display = t === 'polygon' ? '' : 'none';
+  document.getElementById('line-ctrls').style.display = t === 'line' ? '' : 'none';
+  render();   // appearance only — no placement recompute
+}
+function setLineStyle(s) { lineStyle = s; segActive('linestyle-seg', s); render(); }
+function setColorMode(m) { colorMode = m; segActive('colormode-seg', m); render(); }
+
+function swapColors() {
+  const a = ctrl('hex-ink').value, b = ctrl('hex-bg').value;
+  ctrl('hex-ink').value = b; ctrl('cp-ink').value = b; ctrl('swatch-ink').style.background = b;
+  ctrl('hex-bg').value = a; ctrl('cp-bg').value = a; ctrl('swatch-bg').style.background = a;
+  render();
+}
+function syncColor(cpId, swatchId, hexId) {
+  const v = document.getElementById(cpId).value;
+  document.getElementById(swatchId).style.background = v;
+  document.getElementById(hexId).value = v;
+}
+function syncHex(hexId, cpId, swatchId) {
+  const v = document.getElementById(hexId).value;
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+    document.getElementById(cpId).value = v;
+    document.getElementById(swatchId).style.background = v;
+  }
+}
+
+// ── PRESETS ──
+// A preset is a snapshot of every appearance/placement control. Built-ins ship
+// with the tool; user presets persist in localStorage.
+const PRESET_SLIDERS = ['sl-size','sl-size-max','sl-angle','sl-angle-max','sl-vertices',
+  'sl-poly-warp','sl-length','sl-length-max','sl-segments','sl-line-warp',
+  'sl-sp-min','sl-sp-max','sl-phases','sl-alpha'];
+const PRESET_CHECKS = ['ck-size-range','ck-angle-range','ck-angle-random','ck-rounded',
+  'ck-length-range','ck-length-random','ck-aa','ck-invert'];
+const RANGE_ROWS = { 'ck-size-range':'row-size-max', 'ck-angle-range':'row-angle-max', 'ck-length-range':'row-length-max' };
+
+const BUILTIN_PRESETS = {
+  'Fine Dots':  { pointType:'circle', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
+                  'sl-size':'1.5','ck-size-range':false,'sl-sp-min':'1.5','sl-sp-max':'8','sl-phases':'16' },
+  'Felt-tip':   { pointType:'circle', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
+                  'sl-size':'4','ck-size-range':true,'sl-size-max':'1','sl-sp-min':'3','sl-sp-max':'14','sl-phases':'12' },
+  'Lines Flow': { pointType:'line', lineStyle:'linear', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
+                  'ck-rounded':true,'sl-size':'1','sl-length':'18','ck-angle-random':true,'sl-angle':'0','sl-angle-max':'360',
+                  'sl-segments':'3','sl-sp-min':'2','sl-sp-max':'10' },
+  'Duotone':    { pointType:'circle', colorMode:'adaptive', ink:'#1a3a2a', bg:'#dfe6f0',
+                  'sl-size':'3','ck-size-range':false,'sl-sp-min':'1.5','sl-sp-max':'9','sl-phases':'14' }
+};
+
+function getState() {
+  const s = { pointType, lineStyle, colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value };
+  PRESET_SLIDERS.forEach(id => s[id] = ctrl(id).value);
+  PRESET_CHECKS.forEach(id => s[id] = ctrl(id).checked);
+  return s;
+}
+function setColorCtl(hexId, cpId, swId, hex) {
+  ctrl(hexId).value = hex; ctrl(cpId).value = hex; ctrl(swId).style.background = hex;
+}
+function setState(s) {
+  if (s.ink) setColorCtl('hex-ink','cp-ink','swatch-ink', s.ink);
+  if (s.bg)  setColorCtl('hex-bg','cp-bg','swatch-bg', s.bg);
+  PRESET_SLIDERS.forEach(id => { if (s[id] !== undefined) { ctrl(id).value = s[id]; syncVal(ctrl(id), 'vl' + id.slice(2)); } });
+  PRESET_CHECKS.forEach(id => { if (s[id] !== undefined) { ctrl(id).checked = s[id]; if (RANGE_ROWS[id]) toggleRow(RANGE_ROWS[id], s[id]); } });
+  if (s.lineStyle) { lineStyle = s.lineStyle; segActive('linestyle-seg', s.lineStyle); }
+  if (s.colorMode) { colorMode = s.colorMode; segActive('colormode-seg', s.colorMode); }
+  if (s.pointType) setPointType(s.pointType);     // updates seg + sub-panel visibility
+  if (sourceImage) generate(); else render();      // placement may have changed → recompute
+}
+
+function userPresets() {
+  try { return JSON.parse(localStorage.getItem('pollen-presets') || '{}'); } catch (e) { return {}; }
+}
+function populatePresets(sel) {
+  const u = userPresets();
+  const opt = ['<option value="">— Select —</option>'];
+  Object.keys(BUILTIN_PRESETS).forEach(n => opt.push(`<option value="b:${n}">${n}</option>`));
+  Object.keys(u).forEach(n => opt.push(`<option value="u:${n}">${n} ★</option>`));
+  ctrl('preset-select').innerHTML = opt.join('');
+  if (sel) ctrl('preset-select').value = sel;
+}
+function applyPreset(v) {
+  if (!v) return;
+  const kind = v.slice(0, 1), name = v.slice(2);
+  const s = kind === 'b' ? BUILTIN_PRESETS[name] : userPresets()[name];
+  if (s) setState(s);
+}
+function savePreset() {
+  const name = (prompt('Preset name:') || '').trim();
+  if (!name) return;
+  const u = userPresets(); u[name] = getState();
+  localStorage.setItem('pollen-presets', JSON.stringify(u));
+  populatePresets('u:' + name);
+}
+function deletePreset() {
+  const v = ctrl('preset-select').value;
+  if (!v || v.slice(0, 1) !== 'u') { alert('Select a saved preset (★) to delete.'); return; }
+  const u = userPresets(); delete u[v.slice(2)];
+  localStorage.setItem('pollen-presets', JSON.stringify(u));
+  populatePresets('');
+}
+
+// ── IMAGE LOAD ──
+function loadImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    sourceImage = img;
+    resetZoom();
+    document.getElementById('drop-hint').classList.add('hidden');
+    document.getElementById('btn-refresh').disabled = false;
+    setStatus('active', 'Image loaded — ' + img.width + '×' + img.height);
+    generate();                      // generated automatically on import
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+  input.value = '';
+}
+
+// Click the "+" circle to open the file picker.
+document.querySelector('.drop-icon').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('file-input').click();
+});
+
+// Drag & drop onto the left area.
+canvasWrap.addEventListener('dragover', e => { e.preventDefault(); canvasWrap.classList.add('drag-over'); });
+canvasWrap.addEventListener('dragleave', () => canvasWrap.classList.remove('drag-over'));
+canvasWrap.addEventListener('drop', e => {
+  e.preventDefault();
+  canvasWrap.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('file-input').files = dt.files;
+    loadImage(document.getElementById('file-input'));
+  }
+});
+
+// ─────────────────────────────────────────────
+// STIPPLING ENGINE — variable-radius Poisson-disk (blue noise)
+//   spacing(x,y) = lerp(Min, Max, brightness)  → dark = dense, bright = sparse
+//   placed by progressive dart-throwing over `Phases` passes, with a spatial
+//   grid for fast neighbour rejection. Runs on a downscaled working image.
+//   Points are computed once (placement); appearance (size/colour) re-renders
+//   the stored points live — no recompute.
+// ─────────────────────────────────────────────
+const PREVIEW_MAX = 1000;     // working image longest side (preview)
+const MAX_POINTS   = 70000;   // preview point cap (export recomputes uncapped)
+
+let points = [];              // { x, y, b }  (b = brightness 0..1)
+let workW = 0, workH = 0;
+let computeToken = 0;         // cancels stale async runs
+let computing = false;
+
+function ctrl(id) { return document.getElementById(id); }
+function val(id)  { return parseFloat(ctrl(id).value); }
+function lerp(a, b, t) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
+function srand(s) { const v = Math.sin(s * 12.9898) * 43758.5453; return v - Math.floor(v); }
+function hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec((hex || '').trim());
+  if (!m) return { r: 0, g: 0, b: 0 };
+  const n = parseInt(m[1], 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+// Per-point colour: Solid → Point colour; Adaptive → lerp(Point, BG) by brightness.
+function pointRGBA(P, b) {
+  const ink = hexToRgb(P.ink);
+  let r = ink.r, g = ink.g, bl = ink.b;
+  if (P.colorMode === 'adaptive') {
+    const bg = hexToRgb(P.bg);
+    r = Math.round(lerp(ink.r, bg.r, b));
+    g = Math.round(lerp(ink.g, bg.g, b));
+    bl = Math.round(lerp(ink.b, bg.b, b));
+  }
+  return { r, g, b: bl, a: P.alpha };
+}
+
+// Build the downscaled brightness map (Float32, 0=dark … 1=bright, Invert-aware)
+function buildBrightness() {
+  const scale = Math.min(1, PREVIEW_MAX / Math.max(sourceImage.width, sourceImage.height));
+  workW = Math.max(1, Math.round(sourceImage.width  * scale));
+  workH = Math.max(1, Math.round(sourceImage.height * scale));
+  const oc = document.createElement('canvas');
+  oc.width = workW; oc.height = workH;
+  const octx = oc.getContext('2d');
+  octx.drawImage(sourceImage, 0, 0, workW, workH);
+  const data = octx.getImageData(0, 0, workW, workH).data;
+  const invert = ctrl('ck-invert').checked;
+  const b = new Float32Array(workW * workH);
+  for (let i = 0, p = 0; i < b.length; i++, p += 4) {
+    let l = (0.299 * data[p] + 0.587 * data[p+1] + 0.114 * data[p+2]) / 255;
+    b[i] = invert ? 1 - l : l;
+  }
+  return b;
+}
+
+function stopCompute() {
+  computeToken++;            // invalidate the running pass
+  computing = false;
+  ctrl('btn-stop').disabled = true;
+  setStatus('active', points.length.toLocaleString() + ' points (stopped)');
+}
+
+// auto-generate on import / refresh
+function generate() {
+  if (!sourceImage) return;
+  computePoints();
+}
+
+async function computePoints() {
+  const token = ++computeToken;
+  computing = true;
+  ctrl('btn-stop').disabled = false;
+  setStatus('rendering', 'Placing points…');
+  ctrl('progress-bar').style.width = '0%';
+
+  const minSp = val('sl-sp-min');
+  const maxSp = Math.max(minSp, val('sl-sp-max'));
+  const phases = Math.round(val('sl-phases'));
+  const bright = buildBrightness();
+  const W = workW, H = workH;
+
+  // size canvas to the working image
+  canvas.width = W; canvas.height = H;
+  canvas.classList.add('visible');
+
+  // spatial grid (cell ≤ minSp/√2 → at most one point per cell)
+  const cell = Math.max(0.5, minSp / Math.SQRT2);
+  const gw = Math.ceil(W / cell), gh = Math.ceil(H / cell);
+  const grid = new Int32Array(gw * gh).fill(-1);
+  const px = [], py = [], pr = [], pb = [], prnd = [];
+
+  function spacingAt(x, y) {
+    const ix = Math.min(W - 1, Math.max(0, x | 0));
+    const iy = Math.min(H - 1, Math.max(0, y | 0));
+    return minSp + (maxSp - minSp) * bright[iy * W + ix];
+  }
+  function accept(x, y, r) {
+    const cx = (x / cell) | 0, cy = (y / cell) | 0;
+    const rad = Math.ceil(r / cell);
+    for (let gy = Math.max(0, cy - rad); gy <= Math.min(gh - 1, cy + rad); gy++) {
+      for (let gx = Math.max(0, cx - rad); gx <= Math.min(gw - 1, cx + rad); gx++) {
+        const idx = grid[gy * gw + gx];
+        if (idx === -1) continue;
+        const dx = px[idx] - x, dy = py[idx] - y;
+        if (dx * dx + dy * dy < r * r) return false;
+      }
+    }
+    return true;
+  }
+
+  // dart-throwing across phases; each phase fires a batch of candidates
+  const attemptsPerPhase = Math.min(180000, Math.ceil((W * H) / (minSp * minSp)));
+  for (let phase = 0; phase < phases; phase++) {
+    for (let a = 0; a < attemptsPerPhase; a++) {
+      if (px.length >= MAX_POINTS) break;
+      const x = Math.random() * W, y = Math.random() * H;
+      const r = spacingAt(x, y);
+      if (!accept(x, y, r)) continue;
+      const i = px.length;
+      px.push(x); py.push(y); pr.push(r);
+      pb.push(bright[(Math.min(H-1, y|0)) * W + Math.min(W-1, x|0)]);
+      prnd.push(Math.random());   // stable per-point random (for Random / warp)
+      grid[((y / cell) | 0) * gw + ((x / cell) | 0)] = i;
+    }
+    // yield to keep the UI responsive + allow Stop
+    ctrl('progress-bar').style.width = Math.round((phase + 1) / phases * 100) + '%';
+    ctrl('vl-total').textContent = px.length.toLocaleString();
+    await new Promise(r => setTimeout(r, 0));
+    if (token !== computeToken) return;   // cancelled / superseded
+    if (px.length >= MAX_POINTS) break;
+  }
+
+  points = px.map((x, i) => ({ x, y: py[i], b: pb[i], rnd: prnd[i] }));
+  computing = false;
+  ctrl('btn-stop').disabled = true;
+  ctrl('progress-bar').style.width = '100%';
+  setTimeout(() => { ctrl('progress-bar').style.width = '0%'; }, 500);
+  clearDirty();
+  ctrl('vl-total').textContent = points.length.toLocaleString();
+  ['btn-save-png','btn-save-jpg','btn-save-svg','btn-figma'].forEach(id => ctrl(id).disabled = false);
+  setStatus('active', points.length.toLocaleString() + ' points placed');
+  render();
+}
+
+// ── POINT APPEARANCE PARAMETERS (read live from the Point Type panel) ──
+function pointParams() {
+  return {
+    shape: pointType,
+    sizeMin: val('sl-size'), sizeMax: val('sl-size-max'), sizeRange: ctrl('ck-size-range').checked,
+    angleMin: val('sl-angle'), angleMax: val('sl-angle-max'),
+    angleRange: ctrl('ck-angle-range').checked, angleRandom: ctrl('ck-angle-random').checked,
+    vertices: Math.round(val('sl-vertices')), polyWarp: val('sl-poly-warp'),
+    lineStyle, rounded: ctrl('ck-rounded').checked,
+    lenMin: val('sl-length'), lenMax: val('sl-length-max'),
+    lenRange: ctrl('ck-length-range').checked, lenRandom: ctrl('ck-length-random').checked,
+    segments: Math.round(val('sl-segments')), lineWarp: val('sl-line-warp'),
+    colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value, alpha: val('sl-alpha') / 100
+  };
+}
+
+// Resolve a ranged value for a point: Random → by stored rnd; Range → by
+// brightness (Min dark … Max bright); otherwise the base (Min) value.
+function ranged(min, max, range, random, b, rnd) {
+  if (random) return lerp(min, max, rnd);
+  if (range)  return lerp(min, max, b);
+  return min;
+}
+
+// Draw one point's shape centred at the current origin (caller has translated
+// and rotated). Fill for circle/polygon, stroke for line.
+function drawShape(g, P, sz, len, b, rnd) {
+  if (P.shape === 'circle') {
+    g.beginPath();
+    g.arc(0, 0, sz / 2, 0, Math.PI * 2);
+    g.fill();
+  } else if (P.shape === 'polygon') {
+    const n = Math.max(3, P.vertices), R = sz / 2, w = P.polyWarp;
+    g.beginPath();
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const r = R * (1 + (srand(rnd * 1000 + i) * 2 - 1) * w);
+      const x = Math.cos(a) * r, y = Math.sin(a) * r;
+      i === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+    }
+    g.closePath();
+    g.fill();
+  } else { // line
+    g.lineWidth = Math.max(0.4, sz);
+    g.lineCap = P.rounded ? 'round' : 'butt';
+    const seg = Math.max(1, P.segments), w = P.lineWarp;
+    if (P.lineStyle === 'radial') {
+      for (let i = 0; i < seg; i++) {
+        const a = (i / seg) * Math.PI * 2;
+        const jit = (srand(rnd * 1000 + i) * 2 - 1) * w;
+        const L = (len / 2) * (1 + jit * 0.5);
+        g.beginPath();
+        g.moveTo(0, 0);
+        g.lineTo(Math.cos(a + jit * 0.6) * L, Math.sin(a + jit * 0.6) * L);
+        g.stroke();
+      }
+    } else { // linear polyline along x, centred, with tremor on interior joints
+      const amp = w * Math.max(2, len * 0.2);
+      g.beginPath();
+      for (let i = 0; i <= seg; i++) {
+        const x = -len / 2 + len * (i / seg);
+        const y = (i === 0 || i === seg) ? 0 : (srand(rnd * 1000 + i) * 2 - 1) * amp;
+        i === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+      }
+      g.stroke();
+    }
+  }
+}
+
+// Paint a set of points onto any 2D context (shared by preview render + export).
+// `unit` scales shape size/length from preview space to the output resolution.
+function paintPoints(g, pts, P, W, H, aa, ink, bg, unit) {
+  g.imageSmoothingEnabled = aa;
+  g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  g.lineJoin = 'round';
+  const adaptive = P.colorMode === 'adaptive';
+  if (!adaptive) {                                  // Solid: one colour for all
+    const c = pointRGBA(P, 0);
+    g.fillStyle = g.strokeStyle = `rgba(${c.r},${c.g},${c.b},${c.a})`;
+  }
+  for (let k = 0; k < pts.length; k++) {
+    const p = pts[k];
+    if (adaptive) {                                 // per-point colour
+      const c = pointRGBA(P, p.b);
+      g.fillStyle = g.strokeStyle = `rgba(${c.r},${c.g},${c.b},${c.a})`;
+    }
+    const sz  = ranged(P.sizeMin, P.sizeMax, P.sizeRange, false, p.b, p.rnd) * unit;
+    const ang = ranged(P.angleMin, P.angleMax, P.angleRange, P.angleRandom, p.b, p.rnd) * Math.PI / 180;
+    const len = ranged(P.lenMin, P.lenMax, P.lenRange, P.lenRandom, p.b, p.rnd) * unit;
+    g.save();
+    g.translate(p.x, p.y);
+    if (ang) g.rotate(ang);
+    drawShape(g, P, sz, len, p.b, p.rnd);
+    g.restore();
+  }
+}
+
+// ── RENDER (appearance only — draws the stored points on the main canvas) ──
+function render() {
+  updatePtPreview();                       // 400% preview always reflects params
+  if (!sourceImage || !points.length) return;
+  paintPoints(ctx, points, pointParams(), canvas.width, canvas.height,
+              ctrl('ck-aa').checked, ctrl('hex-ink').value, ctrl('hex-bg').value, 1);
+}
+
+// ── 400% PREVIEW (central point + ring of neighbours, shows appearance/spacing) ──
+function updatePtPreview() {
+  const pc = ctrl('pt-preview');
+  const g = pc.getContext('2d');
+  const PW = pc.width, PH = pc.height, cx = PW / 2, cy = PH / 2;
+  const P = pointParams();
+  const c = pointRGBA(P, 0.5);                       // preview uses mid brightness
+  g.clearRect(0, 0, PW, PH);
+  g.fillStyle = P.bg; g.fillRect(0, 0, PW, PH);
+  g.fillStyle = g.strokeStyle = `rgba(${c.r},${c.g},${c.b},${c.a})`;
+  g.lineJoin = 'round'; g.imageSmoothingEnabled = true;
+
+  const SCALE = 4;                                   // 400%
+  const sz  = (P.sizeRange ? (P.sizeMin + P.sizeMax) / 2 : P.sizeMin) * SCALE;
+  const len = (P.lenRange ? (P.lenMin + P.lenMax) / 2 : P.lenMin) * SCALE;
+  const baseAng = P.angleMin * Math.PI / 180;
+  const reach = Math.max(sz, P.shape === 'line' ? len : sz) * 0.6 + 26;
+
+  function stamp(x, y, seed) {
+    const rnd = srand(seed);
+    const ang = P.angleRandom ? rnd * Math.PI * 2 : baseAng;
+    g.save(); g.translate(x, y); if (ang) g.rotate(ang);
+    drawShape(g, P, sz, len, 0.5, rnd);
+    g.restore();
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    stamp(cx + Math.cos(a) * reach, cy + Math.sin(a) * reach, i + 3);
+  }
+  stamp(cx, cy, 1);
+}
+
+// ─────────────────────────────────────────────
+// EXPORT — recompute the stipple at full resolution (all points, uncapped),
+// then output PNG (raster) or SVG (vector). Spacing & shape size scale from the
+// preview so the visual density matches; the result is complete and crisp.
+// ─────────────────────────────────────────────
+const EXPORT_MAX_SIDE = 4000;     // clamp output longest side (sanity)
+const EXPORT_CAP       = 300000;  // hard cap on exported points
+
+// Brightness map at an arbitrary resolution (Invert-aware)
+function brightnessAt(W, H) {
+  const oc = document.createElement('canvas');
+  oc.width = W; oc.height = H;
+  const g = oc.getContext('2d');
+  g.drawImage(sourceImage, 0, 0, W, H);
+  const data = g.getImageData(0, 0, W, H).data;
+  const invert = ctrl('ck-invert').checked;
+  const b = new Float32Array(W * H);
+  for (let i = 0, p = 0; i < b.length; i++, p += 4) {
+    let l = (0.299 * data[p] + 0.587 * data[p+1] + 0.114 * data[p+2]) / 255;
+    b[i] = invert ? 1 - l : l;
+  }
+  return b;
+}
+
+// Synchronous variable-radius Poisson-disk (same algorithm as the preview engine)
+function dartThrow(W, H, bright, minSp, maxSp, phases, cap) {
+  const cell = Math.max(0.5, minSp / Math.SQRT2);
+  const gw = Math.ceil(W / cell), gh = Math.ceil(H / cell);
+  const grid = new Int32Array(gw * gh).fill(-1);
+  const px = [], py = [], pb = [], prnd = [];
+  const spacingAt = (x, y) => {
+    const ix = Math.min(W - 1, Math.max(0, x | 0)), iy = Math.min(H - 1, Math.max(0, y | 0));
+    return minSp + (maxSp - minSp) * bright[iy * W + ix];
+  };
+  const accept = (x, y, r) => {
+    const cx = (x / cell) | 0, cy = (y / cell) | 0, rad = Math.ceil(r / cell);
+    for (let gy = Math.max(0, cy - rad); gy <= Math.min(gh - 1, cy + rad); gy++)
+      for (let gx = Math.max(0, cx - rad); gx <= Math.min(gw - 1, cx + rad); gx++) {
+        const idx = grid[gy * gw + gx];
+        if (idx === -1) continue;
+        const dx = px[idx] - x, dy = py[idx] - y;
+        if (dx * dx + dy * dy < r * r) return false;
+      }
+    return true;
+  };
+  const attemptsPerPhase = Math.min(800000, Math.ceil((W * H) / (minSp * minSp)));
+  for (let phase = 0; phase < phases; phase++) {
+    for (let a = 0; a < attemptsPerPhase; a++) {
+      if (px.length >= cap) break;
+      const x = Math.random() * W, y = Math.random() * H, r = spacingAt(x, y);
+      if (!accept(x, y, r)) continue;
+      const i = px.length;
+      px.push(x); py.push(y);
+      pb.push(bright[(Math.min(H-1, y|0)) * W + Math.min(W-1, x|0)]);
+      prnd.push(Math.random());
+      grid[((y / cell) | 0) * gw + ((x / cell) | 0)] = i;
+    }
+    if (px.length >= cap) break;
+  }
+  return { px, py, pb, prnd };
+}
+
+// Recompute the full-resolution field for export
+function exportField() {
+  let outW = sourceImage.width, outH = sourceImage.height;
+  const m = Math.max(outW, outH);
+  if (m > EXPORT_MAX_SIDE) { const s = EXPORT_MAX_SIDE / m; outW = Math.round(outW * s); outH = Math.round(outH * s); }
+  const unit = outW / workW;                         // preview → export scale
+  const bright = brightnessAt(outW, outH);
+  const minSp = val('sl-sp-min') * unit;
+  const maxSp = Math.max(minSp, val('sl-sp-max') * unit);
+  const phases = Math.round(val('sl-phases'));
+  const f = dartThrow(outW, outH, bright, minSp, maxSp, phases, EXPORT_CAP);
+  const pts = f.px.map((x, i) => ({ x, y: f.py[i], b: f.pb[i], rnd: f.prnd[i] }));
+  return { pts, outW, outH, unit };
+}
+
+function download(blob, name) {
+  const a = document.createElement('a');
+  a.download = name; a.href = URL.createObjectURL(blob);
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+function exportPNG() {
+  if (!points.length) return;
+  setStatus('rendering', 'Exporting PNG…');
+  setTimeout(() => {
+    const { pts, outW, outH, unit } = exportField();
+    const oc = document.createElement('canvas'); oc.width = outW; oc.height = outH;
+    paintPoints(oc.getContext('2d'), pts, pointParams(), outW, outH,
+                ctrl('ck-aa').checked, ctrl('hex-ink').value, ctrl('hex-bg').value, unit);
+    oc.toBlob(b => {
+      download(b, 'pollen-' + Date.now() + '.png');
+      setStatus('active', pts.length.toLocaleString() + ' pts · PNG ' + outW + '×' + outH);
+    }, 'image/png');
+  }, 30);
+}
+
+// JPG — high-def raster (JPEG has no alpha → always a solid BG), quality 0.95
+function exportJPG() {
+  if (!points.length) return;
+  setStatus('rendering', 'Exporting JPG…');
+  setTimeout(() => {
+    const { pts, outW, outH, unit } = exportField();
+    const oc = document.createElement('canvas'); oc.width = outW; oc.height = outH;
+    paintPoints(oc.getContext('2d'), pts, pointParams(), outW, outH,
+                ctrl('ck-aa').checked, ctrl('hex-ink').value, ctrl('hex-bg').value, unit);
+    oc.toBlob(b => {
+      download(b, 'pollen-' + Date.now() + '.jpg');
+      setStatus('active', pts.length.toLocaleString() + ' pts · JPG ' + outW + '×' + outH);
+    }, 'image/jpeg', 0.95);
+  }, 30);
+}
+
+// Serialize one point's shape to SVG (vector). `fill` is an rgb() string, `op`
+// the alpha. Fill for circle/polygon, stroke for line.
+function shapeToSVG(P, x, y, sz, len, deg, b, rnd, fill, op) {
+  const tf = `translate(${x.toFixed(1)} ${y.toFixed(1)})` + (deg ? ` rotate(${deg.toFixed(1)})` : '');
+  const fo = op < 1 ? ` fill-opacity="${op.toFixed(2)}"` : '';
+  const so = op < 1 ? ` stroke-opacity="${op.toFixed(2)}"` : '';
+  if (P.shape === 'circle') {
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(sz/2).toFixed(1)}" fill="${fill}"${fo}/>`;
+  }
+  if (P.shape === 'polygon') {
+    const n = Math.max(3, P.vertices), R = sz / 2, w = P.polyWarp; let pts = '';
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const r = R * (1 + (srand(rnd * 1000 + i) * 2 - 1) * w);
+      pts += (Math.cos(a) * r).toFixed(1) + ',' + (Math.sin(a) * r).toFixed(1) + ' ';
+    }
+    return `<g transform="${tf}"><polygon points="${pts.trim()}" fill="${fill}"${fo}/></g>`;
+  }
+  // line
+  const cap = P.rounded ? 'round' : 'butt', seg = Math.max(1, P.segments), w = P.lineWarp;
+  if (P.lineStyle === 'radial') {
+    let ln = '';
+    for (let i = 0; i < seg; i++) {
+      const a = (i / seg) * Math.PI * 2, jit = (srand(rnd * 1000 + i) * 2 - 1) * w, L = (len / 2) * (1 + jit * 0.5);
+      ln += `<line x1="0" y1="0" x2="${(Math.cos(a + jit * 0.6) * L).toFixed(1)}" y2="${(Math.sin(a + jit * 0.6) * L).toFixed(1)}"/>`;
+    }
+    return `<g transform="${tf}" stroke="${fill}"${so} stroke-width="${sz.toFixed(1)}" stroke-linecap="${cap}" fill="none">${ln}</g>`;
+  }
+  const amp = w * Math.max(2, len * 0.2); let pts = '';
+  for (let i = 0; i <= seg; i++) {
+    const lx = -len / 2 + len * (i / seg);
+    const ly = (i === 0 || i === seg) ? 0 : (srand(rnd * 1000 + i) * 2 - 1) * amp;
+    pts += lx.toFixed(1) + ',' + ly.toFixed(1) + ' ';
+  }
+  return `<g transform="${tf}"><polyline points="${pts.trim()}" fill="none" stroke="${fill}"${so} stroke-width="${sz.toFixed(1)}" stroke-linecap="${cap}" stroke-linejoin="round"/></g>`;
+}
+
+function buildSVG(pts, W, H, unit) {
+  const P = pointParams();
+  const bg = ctrl('hex-bg').value;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  s += `<rect width="${W}" height="${H}" fill="${bg}"/>`;
+  for (let k = 0; k < pts.length; k++) {
+    const p = pts[k];
+    const sz  = ranged(P.sizeMin, P.sizeMax, P.sizeRange, false, p.b, p.rnd) * unit;
+    const deg = ranged(P.angleMin, P.angleMax, P.angleRange, P.angleRandom, p.b, p.rnd);
+    const len = ranged(P.lenMin, P.lenMax, P.lenRange, P.lenRandom, p.b, p.rnd) * unit;
+    const c = pointRGBA(P, p.b);
+    s += shapeToSVG(P, p.x, p.y, sz, len, deg, p.b, p.rnd, `rgb(${c.r},${c.g},${c.b})`, c.a);
+  }
+  return s + '</svg>';
+}
+
+function exportSVG() {
+  if (!points.length) return;
+  setStatus('rendering', 'Exporting SVG…');
+  setTimeout(() => {
+    const { pts, outW, outH, unit } = exportField();
+    const svg = buildSVG(pts, outW, outH, unit);
+    window._lastSVG = svg;
+    download(new Blob([svg], { type: 'image/svg+xml' }), 'pollen-' + Date.now() + '.svg');
+    setStatus('active', pts.length.toLocaleString() + ' pts · SVG ' + Math.round(svg.length / 1024) + ' KB');
+  }, 30);
+}
+
+// Send to the Figma plugin (same protocol as Strata/Spore)
+function sendToFigma() {
+  if (!points.length) return;
+  setStatus('rendering', 'Preparing for Figma…');
+  setTimeout(() => {
+    const { pts, outW, outH, unit } = exportField();
+    const svg = buildSVG(pts, outW, outH, unit);
+    window._lastSVG = svg;
+    window.parent.postMessage({
+      pluginMessage: { type: 'organica-svg', svg, name: 'Pollen — ' + new Date().toLocaleTimeString() }
+    }, '*');
+    setStatus('active', 'Sent to Figma plugin ↗');
+  }, 30);
+}
+
+// ─────────────────────────────────────────────
+// ZOOM & PAN (same approach as Spore) + ⌘± shortcuts
+// ─────────────────────────────────────────────
+let zoom = 1, panX = 0, panY = 0;
+const ZOOM_MIN = 1, ZOOM_MAX = 12;
+let isPanning = false, panStartX = 0, panStartY = 0;
+
+function applyZoom() {
+  canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+  document.getElementById('zoom-level').textContent = Math.round(zoom * 100) + '%';
+  const hud = document.getElementById('zoom-hud');
+  const zoomed = zoom > 1.001;
+  hud.classList.toggle('visible', zoomed && canvas.classList.contains('visible'));
+  canvas.classList.toggle('zoomed', zoomed);
+}
+function resetZoom() { zoom = 1; panX = 0; panY = 0; applyZoom(); }
+
+// zoom toward a focal point (cursor, or canvas centre for keyboard)
+function zoomBy(factor, fx, fy) {
+  if (!canvas.classList.contains('visible')) return;
+  const rect = canvas.getBoundingClientRect();
+  if (fx == null) { fx = rect.left + rect.width / 2; fy = rect.top + rect.height / 2; }
+  const cx = fx - rect.left, cy = fy - rect.top;
+  const prev = zoom;
+  zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom * factor));
+  const ratio = zoom / prev;
+  panX -= cx * (ratio - 1);
+  panY -= cy * (ratio - 1);
+  if (zoom === ZOOM_MIN) { panX = 0; panY = 0; }
+  applyZoom();
+}
+
+canvasWrap.addEventListener('wheel', e => {
+  if (!canvas.classList.contains('visible')) return;
+  e.preventDefault();
+  zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX, e.clientY);
+}, { passive: false });
+
+canvas.addEventListener('mousedown', e => {
+  if (zoom <= 1.001) return;
+  isPanning = true; panStartX = e.clientX - panX; panStartY = e.clientY - panY;
+  canvas.classList.add('panning'); e.preventDefault();
+});
+window.addEventListener('mousemove', e => {
+  if (!isPanning) return;
+  panX = e.clientX - panStartX; panY = e.clientY - panStartY; applyZoom();
+});
+window.addEventListener('mouseup', () => {
+  if (!isPanning) return;
+  isPanning = false; canvas.classList.remove('panning');
+});
+canvas.addEventListener('dblclick', resetZoom);
+
+// Keyboard: ⌘+ / ⌘- to zoom (also Ctrl for non-mac), ⌘0 to reset.
+window.addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey)) return;
+  if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomBy(1.2); }
+  else if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomBy(1 / 1.2); }
+  else if (e.key === '0') { e.preventDefault(); resetZoom(); }
+});
+
+// ── INIT ──
+setStatus('', '—');
+applyZoom();
+populatePresets();
+updatePtPreview();   // show the point shape preview before any image is loaded
+</script>
+</body>
+</html>
