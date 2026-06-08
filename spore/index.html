@@ -132,7 +132,12 @@
     display: flex; align-items: center; justify-content: center;
     color: var(--mid);
     font-size: 20px;
+    /* Only this circle is the click target (parent #drop-hint is pointer-events:none) */
+    pointer-events: auto;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
   }
+  .drop-icon:hover { border-color: var(--ink); color: var(--ink); }
 
   #drop-hint p {
     font-size: 10px;
@@ -787,6 +792,11 @@ function loadImage(input) {
 
 // Drag & drop on canvas wrap
 const canvasWrap = document.getElementById('canvas-wrap');
+// Click the "+" circle to open the file picker.
+document.querySelector('.drop-icon').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('file-input').click();
+});
 canvasWrap.addEventListener('dragover', e => { e.preventDefault(); canvasWrap.classList.add('drag-over'); });
 canvasWrap.addEventListener('dragleave', () => canvasWrap.classList.remove('drag-over'));
 canvasWrap.addEventListener('drop', e => {
