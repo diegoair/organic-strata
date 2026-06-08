@@ -1,7 +1,7 @@
 # Organica — Roadmap
 
 > Studio Rann · Development Priorities  
-> Last updated: June 2026 — v0.1
+> Last updated: June 5, 2026 — v0.1
 
 ---
 
@@ -12,6 +12,7 @@
 - [x] Strata — sketch → SVG pipeline with Smart+ algorithm
 - [x] Genesis — 55 animated organic forms + grid composer
 - [x] Genesis Indicators — full form catalog
+- [x] Spore — generative stippling from images (`/spore/`) — mark library, zoom/pan preview, PNG + hi-def JPG + SVG export, Send to Figma
 - [x] Vercel deployment — auto-deploy on push to `main`
 - [x] Animation system documentation
 
@@ -22,6 +23,23 @@
 - [ ] No typography module
 - [ ] No color system tool beyond Genesis palettes
 - [ ] No persistent storage — compositions reset on reload
+
+---
+
+## Spore — Post-Launch Backlog
+
+Shipped to production June 5, 2026 (commit `e44c857`). Open follow-ups from the launch:
+
+### Now — QA & verification
+- [ ] **Verify SVG ↔ raster parity in Figma** — re-export an SVG from Spore after a real render and re-import into Figma; confirm the new inlined-geometry vector now matches the PNG/JPG raster. *(The fix was reasoned from the Figma "Spore results" artboard — node `91:51639` — not yet validated with a live export.)*
+- [ ] **Verify zoom/pan + JPG export in-browser** — confirm wheel-zoom-to-cursor, drag-pan, reset, and the high-def JPG export all behave on a real image in a live browser session.
+
+### Next — polish & correctness
+- [ ] **Implement `adaptive` color mode** — currently a stub returning `markColor` unchanged (see comment "simplified — full impl would parse HSL" in `spore/index.html`); add real brightness-driven hue/lightness shift.
+- [ ] **Reconcile brushdot transform** — the `brushdot` mark has an element-level `transform="rotate(-25 …)"` that the canvas renderer ignores but the SVG export now applies; align so raster and vector match exactly.
+
+### Docs hygiene
+- [ ] **Document Spore** — add Spore to the CLAUDE.md tools table and the repo README; add a dated session note that Spore shipped to production.
 
 ---
 
@@ -95,4 +113,4 @@ These need decisions before building:
 
 ---
 
-*Studio Rann · Organica System v0.1 · June 2026*
+*Studio Rann · Organica System v0.1 · June 5, 2026*
