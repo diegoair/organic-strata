@@ -52,6 +52,8 @@ Modules in Organica:
 | **Genesis** | `theorganicalanguage.vercel.app/genesis/` | 55 animated organic forms + grid composer |
 | **Indicators** | `theorganicalanguage.vercel.app/genesis/indicators.html` | Full catalog of all 55 forms |
 | **Strata** | `theorganicalanguage.vercel.app/strata/` | Sketch → SVG tracing, Smart+ algorithm |
+| **Spore** | `theorganicalanguage.vercel.app/spore/` | Generative stippling from images — SVG mark library, zoom/pan, PNG/JPG/SVG export, Figma |
+| **Pollen** | `theorganicalanguage.vercel.app/pollen/` | Advanced stippling — blue-noise engine, Circle/Polygon/Line points, Adaptive duotone, presets, PNG/JPG/SVG export, Figma |
 
 ---
 
@@ -69,6 +71,10 @@ organic-strata/          ← GitHub repo name (diegoair/organic-strata)
 │   └── genesis-creator.js    ← Composer interaction logic
 ├── strata/
 │   └── index.html       ← Strata app (OrganicStrata with Smart+)
+├── spore/
+│   └── index.html       ← Spore — generative stippling (single-file, vanilla)
+├── pollen/
+│   └── index.html       ← Pollen — advanced stippling, blue-noise engine (single-file, vanilla)
 ├── backend/             ← Python + OpenCV + vtracer — DO NOT TOUCH
 ├── docs/
 │   ├── VISION.md        ← Full system vision and methodology
@@ -155,6 +161,7 @@ Duration range `1.4s–14s` maps to real-world time scales. See `docs/ANIMATION-
 *Add dated notes here as the project evolves:*
 
 - **June 2026** — Completed full setup: hub live at theorganicalanguage.vercel.app, Genesis Creator integrated with 55 forms, Strata with Smart+ at /strata/, Vercel team renamed to studio_rann, docs/ folder created with VISION.md, ROADMAP.md, ANIMATION-SYSTEM.md. CLAUDE.md added to root.
+- **June 9, 2026** — Shipped **Spore** (`/spore/`, generative stippling) and **Pollen** (`/pollen/`, advanced stippling). Pollen: variable-radius blue-noise engine, Circle/Polygon/Line points with Size/Angle Range + Random + Warping, Gamma/Contrast/Overpaint/Hide Zone, Rotation/Flip/Invert, Solid/Adaptive colour with RGBA + Random, presets, and WYSIWYG PNG/JPG/SVG/Figma export (export serialises the exact preview points). Both are single-file vanilla HTML/CSS/JS. Hub nav + `/spore/` + `/pollen/` routes added.
 
 ---
 

@@ -1,7 +1,7 @@
 # Organica — Roadmap
 
 > Studio Rann · Development Priorities  
-> Last updated: June 5, 2026 — v0.1
+> Last updated: June 9, 2026 — v0.1
 
 ---
 
@@ -13,6 +13,7 @@
 - [x] Genesis — 55 animated organic forms + grid composer
 - [x] Genesis Indicators — full form catalog
 - [x] Spore — generative stippling from images (`/spore/`) — mark library, zoom/pan preview, PNG + hi-def JPG + SVG export, Send to Figma
+- [x] Pollen — advanced stippling from images (`/pollen/`) — variable-radius blue-noise engine, Circle/Polygon/Line points, Adaptive duotone, presets, PNG/JPG/SVG export, Send to Figma
 - [x] Vercel deployment — auto-deploy on push to `main`
 - [x] Animation system documentation
 
@@ -39,7 +40,32 @@ Shipped to production June 5, 2026 (commit `e44c857`). Open follow-ups from the 
 - [ ] **Reconcile brushdot transform** — the `brushdot` mark has an element-level `transform="rotate(-25 …)"` that the canvas renderer ignores but the SVG export now applies; align so raster and vector match exactly.
 
 ### Docs hygiene
-- [ ] **Document Spore** — add Spore to the CLAUDE.md tools table and the repo README; add a dated session note that Spore shipped to production.
+- [x] **Document Spore** — added Spore to the CLAUDE.md tools table and the repo README (June 9, 2026).
+
+---
+
+## Pollen — Post-Launch Backlog
+
+Advanced stippling tool, shipped to production June 2026. The engine is variable-radius
+Poisson-disk (blue noise): spacing follows image brightness (dark = dense, bright = sparse).
+The preview is downscaled for responsiveness; **export is WYSIWYG** — it serialises the exact
+preview points (SVG is resolution-independent, PNG/JPG scale the same points up).
+
+### Done
+- [x] Engine, point shapes (Circle/Polygon/Line + Size/Angle Range, Random, Warping), 400% preview
+- [x] Stippling: Gamma, Contrast, Overpaint (additive), Hide Zone, Phases
+- [x] Image: Rotation, Flip, Invert; export Scale (raster)
+- [x] Colour: Solid / Adaptive (duotone), RGBA spinboxes + Random, Alpha, Swap
+- [x] Export PNG / JPG / SVG / Figma — faithful to the preview
+- [x] Presets (built-ins + user localStorage)
+
+### Open follow-ups
+- [ ] **Complete presets** — make presets full snapshots (today unspecified params keep
+  their current value) and sync the dropdown label after Apply.
+- [ ] **Higher detail ceiling** — preview point cap (~70k) bounds export richness; raise the
+  cap and/or move point placement to a **Web Worker** to stay fluid on large images.
+- [ ] **Optional** — RGBA per-channel for BG alpha; more built-in presets; Gamma/Contrast on
+  the 400% preview readout.
 
 ---
 
