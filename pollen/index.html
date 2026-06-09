@@ -597,17 +597,29 @@
       </div>
     </div>
 
-    <!-- IMAGE (orientation & filter — needs ↻ refresh) -->
+    <!-- IMAGE (orientation, filter & export scale) -->
     <div class="panel-section">
       <h3>Image <span class="hint">orientation</span></h3>
       <div class="ctrl-row">
         <span class="ctrl-label">Rotation</span>
-        <select class="panel-select" id="sel-rotation" onchange="markDirty()" style="flex:1">
+        <select class="panel-select" id="sel-rotation" onchange="markDirty();updateSizeReadout()" style="flex:1">
           <option value="0">0°</option>
           <option value="90">90°</option>
           <option value="180">180°</option>
           <option value="270">270°</option>
         </select>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Scale</span>
+        <select class="panel-select" id="sel-scale" onchange="updateSizeReadout()" style="flex:1" title="Export resolution multiplier (affects export only, not the preview)">
+          <option value="1">×1 (native)</option>
+          <option value="2">×2</option>
+          <option value="3">×3</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Size</span>
+        <span class="ctrl-val" id="vl-out-size" style="min-width:auto; color:var(--accent)">—</span>
       </div>
       <label class="check-row">
         <input type="checkbox" id="ck-flip" onchange="markDirty()">
@@ -796,7 +808,7 @@ const BUILTIN_PRESETS = {
 
 function getState() {
   const s = { pointType, lineStyle, colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value,
-              alpha255: ctrl('a-ink').value, rotation: ctrl('sel-rotation').value };
+              alpha255: ctrl('a-ink').value, rotation: ctrl('sel-rotation').value, scale: ctrl('sel-scale').value };
   PRESET_SLIDERS.forEach(id => s[id] = ctrl(id).value);
   PRESET_CHECKS.forEach(id => s[id] = ctrl(id).checked);
   return s;
@@ -806,6 +818,7 @@ function setState(s) {
   if (s.bg)  setColorAll('bg', s.bg);
   if (s.alpha255 !== undefined) ctrl('a-ink').value = s.alpha255;
   if (s.rotation !== undefined) ctrl('sel-rotation').value = s.rotation;
+  if (s.scale !== undefined) ctrl('sel-scale').value = s.scale;
   PRESET_SLIDERS.forEach(id => { if (s[id] !== undefined) { ctrl(id).value = s[id]; syncVal(ctrl(id), 'vl' + id.slice(2)); } });
   PRESET_CHECKS.forEach(id => { if (s[id] !== undefined) { ctrl(id).checked = s[id]; if (RANGE_ROWS[id]) toggleRow(RANGE_ROWS[id], s[id]); } });
   if (s.lineStyle) { lineStyle = s.lineStyle; segActive('linestyle-seg', s.lineStyle); }
@@ -1073,6 +1086,7 @@ async function computePoints() {
   ctrl('vl-total').textContent = points.length.toLocaleString();
   ['btn-save-png','btn-save-jpg','btn-save-svg','btn-figma'].forEach(id => ctrl(id).disabled = false);
   setStatus('active', points.length.toLocaleString() + ' points placed');
+  updateSizeReadout();
   render();
 }
 
@@ -1169,7 +1183,7 @@ function paintPoints(g, pts, P, W, H, aa, ink, bg, unit) {
     const ang = ranged(P.angleMin, P.angleMax, P.angleRange, P.angleRandom, p.b, p.rnd) * Math.PI / 180;
     const len = ranged(P.lenMin, P.lenMax, P.lenRange, P.lenRandom, p.b, p.rnd) * unit;
     g.save();
-    g.translate(p.x, p.y);
+    g.translate(p.x * unit, p.y * unit);   // positions scale to the output too
     if (ang) g.rotate(ang);
     drawShape(g, P, sz, len, p.b, p.rnd);
     g.restore();
@@ -1217,74 +1231,34 @@ function updatePtPreview() {
 }
 
 // ─────────────────────────────────────────────
-// EXPORT — recompute the stipple at full resolution (all points, uncapped),
-// then output PNG (raster) or SVG (vector). Spacing & shape size scale from the
-// preview so the visual density matches; the result is complete and crisp.
+// EXPORT — WYSIWYG: serialize the EXACT points shown in the preview.
+//   SVG (vector) is resolution-independent → identical to the preview.
+//   PNG/JPG (raster) scale the same points up to the chosen Scale resolution,
+//   so the raster is a high-dpi copy of the preview — no recompute, no drift.
 // ─────────────────────────────────────────────
-const EXPORT_MAX_SIDE = 4000;     // clamp output longest side (sanity)
-const EXPORT_CAP       = 300000;  // hard cap on exported points
+const EXPORT_MAX_SIDE = 4000;     // ×1 (native) baseline longest side (raster)
+const EXPORT_HARD_SIDE = 8000;    // absolute longest-side cap at high Scale (raster)
 
-// Brightness map at an arbitrary resolution (oriented + tone-shaped)
-function brightnessAt(W, H) { return brightnessMap(W, H); }
+// Raster output dimensions + scale factor (preview → output). SVG ignores this.
+function outputDims() {
+  if (!workW) return { outW: 0, outH: 0, outScale: 1 };
+  const scale = parseFloat(ctrl('sel-scale').value) || 1;
+  const base = workDims(EXPORT_MAX_SIDE);            // native (clamped) = ×1 baseline
+  let outW = Math.round(base.W * scale), outH = Math.round(base.H * scale);
+  const m = Math.max(outW, outH);
+  if (m > EXPORT_HARD_SIDE) { const k = EXPORT_HARD_SIDE / m; outW = Math.round(outW * k); outH = Math.round(outH * k); }
+  return { outW, outH, outScale: outW / workW };
+}
+function updateSizeReadout() {
+  if (!sourceImage || !points.length) { ctrl('vl-out-size').textContent = '—'; return; }
+  const d = outputDims();
+  ctrl('vl-out-size').textContent = d.outW + ' × ' + d.outH;
+}
 
 // Current Hide Zone band as [min,max] in 0..1, or null when disabled.
 function hideBand() {
   if (!ctrl('ck-hide').checked) return null;
   return [val('sl-hide-min') / 255, val('sl-hide-max') / 255];
-}
-
-// Synchronous variable-radius Poisson-disk (same algorithm as the preview engine)
-function dartThrow(W, H, bright, minSp, maxSp, phases, cap) {
-  const cell = Math.max(0.5, minSp / Math.SQRT2);
-  const gw = Math.ceil(W / cell), gh = Math.ceil(H / cell);
-  const grid = new Int32Array(gw * gh).fill(-1);
-  const px = [], py = [], pb = [], prnd = [];
-  const hide = hideBand();
-  const spacingAt = (x, y) => {
-    const ix = Math.min(W - 1, Math.max(0, x | 0)), iy = Math.min(H - 1, Math.max(0, y | 0));
-    return minSp + (maxSp - minSp) * bright[iy * W + ix];
-  };
-  const accept = (x, y, r) => {
-    const cx = (x / cell) | 0, cy = (y / cell) | 0, rad = Math.ceil(r / cell);
-    for (let gy = Math.max(0, cy - rad); gy <= Math.min(gh - 1, cy + rad); gy++)
-      for (let gx = Math.max(0, cx - rad); gx <= Math.min(gw - 1, cx + rad); gx++) {
-        const idx = grid[gy * gw + gx];
-        if (idx === -1) continue;
-        const dx = px[idx] - x, dy = py[idx] - y;
-        if (dx * dx + dy * dy < r * r) return false;
-      }
-    return true;
-  };
-  const attemptsPerPhase = Math.min(800000, Math.ceil((W * H) / (minSp * minSp)));
-  for (let phase = 0; phase < phases; phase++) {
-    for (let a = 0; a < attemptsPerPhase; a++) {
-      if (px.length >= cap) break;
-      const x = Math.random() * W, y = Math.random() * H;
-      const bb = bright[(Math.min(H-1, y|0)) * W + Math.min(W-1, x|0)];
-      if (hide && bb >= hide[0] && bb <= hide[1]) continue;   // Hide Zone
-      const r = spacingAt(x, y);
-      if (!accept(x, y, r)) continue;
-      const i = px.length;
-      px.push(x); py.push(y); pb.push(bb); prnd.push(Math.random());
-      grid[((y / cell) | 0) * gw + ((x / cell) | 0)] = i;
-    }
-    if (px.length >= cap) break;
-  }
-  return { px, py, pb, prnd };
-}
-
-// Recompute the full-resolution field for export (oriented dims)
-function exportField() {
-  const d = workDims(EXPORT_MAX_SIDE);
-  const outW = d.W, outH = d.H;
-  const unit = outW / workW;                         // preview → export scale
-  const bright = brightnessMap(outW, outH);
-  const minSp = val('sl-sp-min') * unit;
-  const maxSp = Math.max(minSp, val('sl-sp-max') * unit);
-  const phases = Math.round(val('sl-phases'));
-  const f = dartThrow(outW, outH, bright, minSp, maxSp, phases, EXPORT_CAP);
-  const pts = f.px.map((x, i) => ({ x, y: f.py[i], b: f.pb[i], rnd: f.prnd[i] }));
-  return { pts, outW, outH, unit };
 }
 
 function download(blob, name) {
@@ -1293,36 +1267,23 @@ function download(blob, name) {
   a.click(); URL.revokeObjectURL(a.href);
 }
 
-function exportPNG() {
+// Raster the preview points to the chosen Scale resolution (high-dpi copy).
+function exportRaster(mime, ext, quality) {
   if (!points.length) return;
-  setStatus('rendering', 'Exporting PNG…');
+  setStatus('rendering', 'Exporting ' + ext.toUpperCase() + '…');
   setTimeout(() => {
-    const { pts, outW, outH, unit } = exportField();
+    const { outW, outH, outScale } = outputDims();
     const oc = document.createElement('canvas'); oc.width = outW; oc.height = outH;
-    paintPoints(oc.getContext('2d'), pts, pointParams(), outW, outH,
-                ctrl('ck-aa').checked, ctrl('hex-ink').value, ctrl('hex-bg').value, unit);
+    paintPoints(oc.getContext('2d'), points, pointParams(), outW, outH,
+                ctrl('ck-aa').checked, ctrl('hex-ink').value, ctrl('hex-bg').value, outScale);
     oc.toBlob(b => {
-      download(b, 'pollen-' + Date.now() + '.png');
-      setStatus('active', pts.length.toLocaleString() + ' pts · PNG ' + outW + '×' + outH);
-    }, 'image/png');
+      download(b, 'pollen-' + Date.now() + '.' + ext);
+      setStatus('active', points.length.toLocaleString() + ' pts · ' + ext.toUpperCase() + ' ' + outW + '×' + outH);
+    }, mime, quality);
   }, 30);
 }
-
-// JPG — high-def raster (JPEG has no alpha → always a solid BG), quality 0.95
-function exportJPG() {
-  if (!points.length) return;
-  setStatus('rendering', 'Exporting JPG…');
-  setTimeout(() => {
-    const { pts, outW, outH, unit } = exportField();
-    const oc = document.createElement('canvas'); oc.width = outW; oc.height = outH;
-    paintPoints(oc.getContext('2d'), pts, pointParams(), outW, outH,
-                ctrl('ck-aa').checked, ctrl('hex-ink').value, ctrl('hex-bg').value, unit);
-    oc.toBlob(b => {
-      download(b, 'pollen-' + Date.now() + '.jpg');
-      setStatus('active', pts.length.toLocaleString() + ' pts · JPG ' + outW + '×' + outH);
-    }, 'image/jpeg', 0.95);
-  }, 30);
-}
+function exportPNG() { exportRaster('image/png', 'png'); }
+function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
 
 // Serialize one point's shape to SVG (vector). `fill` is an rgb() string, `op`
 // the alpha. Fill for circle/polygon, stroke for line.
@@ -1377,15 +1338,16 @@ function buildSVG(pts, W, H, unit) {
   return s + '</svg>';
 }
 
+// Vector SVG = the exact preview points (preview coords, unit 1). Resolution-
+// independent, so it scales to any size while staying identical to the preview.
 function exportSVG() {
   if (!points.length) return;
   setStatus('rendering', 'Exporting SVG…');
   setTimeout(() => {
-    const { pts, outW, outH, unit } = exportField();
-    const svg = buildSVG(pts, outW, outH, unit);
+    const svg = buildSVG(points, workW, workH, 1);
     window._lastSVG = svg;
     download(new Blob([svg], { type: 'image/svg+xml' }), 'pollen-' + Date.now() + '.svg');
-    setStatus('active', pts.length.toLocaleString() + ' pts · SVG ' + Math.round(svg.length / 1024) + ' KB');
+    setStatus('active', points.length.toLocaleString() + ' pts · SVG ' + Math.round(svg.length / 1024) + ' KB');
   }, 30);
 }
 
@@ -1394,8 +1356,7 @@ function sendToFigma() {
   if (!points.length) return;
   setStatus('rendering', 'Preparing for Figma…');
   setTimeout(() => {
-    const { pts, outW, outH, unit } = exportField();
-    const svg = buildSVG(pts, outW, outH, unit);
+    const svg = buildSVG(points, workW, workH, 1);
     window._lastSVG = svg;
     window.parent.postMessage({
       pluginMessage: { type: 'organica-svg', svg, name: 'Pollen — ' + new Date().toLocaleTimeString() }
