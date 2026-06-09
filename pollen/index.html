@@ -207,28 +207,54 @@
   }
 
   .panel-section h3 {
-    font-size: 9px;
-    letter-spacing: 0.18em;
+    font-size: 12px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--mid);
-    margin-bottom: 12px;
-    font-weight: 400;
+    color: var(--ink);
+    margin-bottom: 14px;
+    font-weight: 600;
     display: flex;
-    align-items: center;
+    align-items: baseline;
     justify-content: space-between;
   }
   .panel-section h3 .hint {
     font-size: 8px;
-    color: var(--border);
+    color: var(--mid);
     letter-spacing: 0.05em;
     text-transform: none;
+    font-weight: 400;
+  }
+  /* Placement block — these controls recompute the point field (↻ Refresh) */
+  .panel-section.placement { border-top: 2px solid var(--mid); }
+  .panel-section.placement h3 { color: var(--accent); }
+  .panel-section.placement h3 .hint { color: var(--pollen); }
+  .sub-label {
+    font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); margin: 14px 0 8px; font-weight: 500;
+  }
+  /* Shape library grid (SVG marks) */
+  #shape-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .shape-thumb {
+    position: relative;
+    aspect-ratio: 1; border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; background: var(--panel); padding: 5px;
+    transition: border-color 0.12s, background 0.12s;
+    overflow: hidden;
+  }
+  .shape-thumb:hover { border-color: var(--accent); }
+  .shape-thumb.selected { border-color: var(--ink); background: #e8e4dc; }
+  .shape-thumb svg { width: 100%; height: 100%; display: block; }
+  .thumb-num {
+    position: absolute; top: 1px; right: 2px;
+    font-size: 6px; line-height: 1; color: var(--mid); pointer-events: none;
   }
 
   .ctrl-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 9px;
+    margin-bottom: 10px;
     gap: 8px;
   }
 
@@ -243,15 +269,26 @@
 
   .ctrl-val {
     font-size: 10px;
-    color: var(--mid);
+    color: var(--accent);
     min-width: 28px;
     text-align: right;
     flex-shrink: 0;
   }
 
+  .check-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+  .check-row span { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); }
+  .check-row input[type=checkbox] { accent-color: var(--ink); cursor: pointer; flex-shrink: 0; }
+
   input[type=range] {
     -webkit-appearance: none;
     flex: 1;
+    min-width: 0;            /* allow flex sliders to shrink (fixes dual-slider overflow) */
     height: 2px;
     background: var(--border);
     border-radius: 1px;
@@ -296,7 +333,7 @@
     position: relative;
   }
 
-  .color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
   .color-swatch {
     width: 20px; height: 20px;
     border: 1px solid var(--border);
@@ -346,6 +383,23 @@
     transition: border-color 0.15s, color 0.15s;
   }
   .mini-btn:hover { border-color: var(--accent); color: var(--ink); }
+
+  .upload-btn {
+    width: 100%; margin-top: 8px;
+    font-family: var(--sans); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+    border: 1px dashed var(--border); background: none; color: var(--mid);
+    padding: 7px; cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .icon-btn {
+    background: none; border: 1px solid var(--border); color: var(--accent);
+    width: 22px; height: 20px; flex-shrink: 0; padding: 0; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .icon-btn:hover { border-color: var(--accent); color: var(--ink); }
 
   /* RGBA colour controls */
   .rgba-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
@@ -436,22 +490,30 @@
   <!-- RIGHT: CONTROLS -->
   <div id="panel">
 
-    <!-- POINT TYPE (appearance — live, no refresh) -->
+    <!-- PRESETS (load a starting style) -->
     <div class="panel-section">
-      <h3>Point Type <span class="hint">appearance · 400%</span></h3>
+      <h3>Presets <span class="hint">start from a style</span></h3>
+      <select class="panel-select" id="preset-select" onchange="applyPreset(this.value)">
+        <option value="">— Select —</option>
+      </select>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="savePreset()">Save</button>
+        <button class="mini-btn" onclick="deletePreset()">Delete</button>
+      </div>
+    </div>
+
+    <!-- SYMBOLS (appearance — live) -->
+    <div class="panel-section">
+      <h3>Symbols <span class="hint">live · 400%</span></h3>
 
       <div class="preview-wrap">
         <canvas id="pt-preview" width="200" height="200"></canvas>
       </div>
 
-      <div class="ctrl-row" style="margin-top:12px">
-        <span class="ctrl-label">Shape</span>
-        <div class="seg-ctrl" id="shape-seg">
-          <button class="seg-btn active" data-val="circle" onclick="setPointType('circle')">Circle</button>
-          <button class="seg-btn" data-val="polygon" onclick="setPointType('polygon')">Poly</button>
-          <button class="seg-btn" data-val="line" onclick="setPointType('line')">Line</button>
-        </div>
-      </div>
+      <div class="sub-label" style="margin-top:12px">Shape · primordial forms</div>
+      <div id="shape-grid"></div>
+      <input type="file" id="shape-upload" accept=".svg,image/svg+xml" style="display:none" onchange="uploadShape(this)">
+      <button class="upload-btn" onclick="document.getElementById('shape-upload').click()">+ Upload SVG</button>
 
       <!-- Size (+ Range: Min dark → Max bright) -->
       <div class="ctrl-row">
@@ -459,7 +521,7 @@
         <input type="range" id="sl-size" min="0.5" max="16" step="0.5" value="2.5" oninput="syncVal(this,'vl-size');render()">
         <span class="ctrl-val" id="vl-size">2.5</span>
       </div>
-      <label class="check-row" style="margin-bottom:6px">
+      <label class="check-row">
         <input type="checkbox" id="ck-size-range" onchange="toggleRow('row-size-max',this.checked);render()">
         <span>Range</span>
       </label>
@@ -475,11 +537,11 @@
         <input type="range" id="sl-angle" min="0" max="360" value="0" oninput="syncVal(this,'vl-angle');render()">
         <span class="ctrl-val" id="vl-angle">0°</span>
       </div>
-      <label class="check-row" style="margin-bottom:4px">
+      <label class="check-row">
         <input type="checkbox" id="ck-angle-range" onchange="toggleRow('row-angle-max',this.checked);render()">
         <span>Range</span>
       </label>
-      <label class="check-row" style="margin-bottom:6px">
+      <label class="check-row">
         <input type="checkbox" id="ck-angle-random" onchange="render()">
         <span>Random</span>
       </label>
@@ -489,79 +551,86 @@
         <span class="ctrl-val" id="vl-angle-max">360°</span>
       </div>
 
-      <!-- POLYGON sub-controls -->
-      <div id="poly-ctrls" style="display:none">
-        <div class="ctrl-row">
-          <span class="ctrl-label">Vertices</span>
-          <input type="range" id="sl-vertices" min="3" max="10" value="5" oninput="syncVal(this,'vl-vertices');render()">
-          <span class="ctrl-val" id="vl-vertices">5</span>
-        </div>
-        <div class="ctrl-row">
-          <span class="ctrl-label">Warping</span>
-          <input type="range" id="sl-poly-warp" min="0" max="1" step="0.05" value="0" oninput="syncVal(this,'vl-poly-warp');render()">
-          <span class="ctrl-val" id="vl-poly-warp">0</span>
+    </div>
+
+    <!-- COLOR (appearance — live) -->
+    <div class="panel-section">
+      <h3>Color <span class="hint">live</span></h3>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Mode</span>
+        <div class="seg-ctrl" id="colormode-seg">
+          <button class="seg-btn active" data-val="solid" onclick="setColorMode('solid')">Solid</button>
+          <button class="seg-btn" data-val="adaptive" onclick="setColorMode('adaptive')">Adaptive</button>
         </div>
       </div>
-
-      <!-- LINE sub-controls -->
-      <div id="line-ctrls" style="display:none">
-        <div class="ctrl-row">
-          <span class="ctrl-label">Style</span>
-          <div class="seg-ctrl" id="linestyle-seg">
-            <button class="seg-btn active" data-val="linear" onclick="setLineStyle('linear')">— Linear</button>
-            <button class="seg-btn" data-val="radial" onclick="setLineStyle('radial')">⁕ Radial</button>
-          </div>
-        </div>
-        <label class="check-row" style="margin-bottom:6px">
-          <input type="checkbox" id="ck-rounded" checked onchange="render()">
-          <span>Rounded</span>
-        </label>
-        <div class="ctrl-row">
-          <span class="ctrl-label">Length</span>
-          <input type="range" id="sl-length" min="2" max="48" value="10" oninput="syncVal(this,'vl-length');render()">
-          <span class="ctrl-val" id="vl-length">10</span>
-        </div>
-        <label class="check-row" style="margin-bottom:4px">
-          <input type="checkbox" id="ck-length-range" onchange="toggleRow('row-length-max',this.checked);render()">
-          <span>Range</span>
-        </label>
-        <label class="check-row" style="margin-bottom:6px">
-          <input type="checkbox" id="ck-length-random" onchange="render()">
-          <span>Random</span>
-        </label>
-        <div class="ctrl-row" id="row-length-max" style="display:none">
-          <span class="ctrl-label">→ max</span>
-          <input type="range" id="sl-length-max" min="2" max="48" value="24" oninput="syncVal(this,'vl-length-max');render()">
-          <span class="ctrl-val" id="vl-length-max">24</span>
-        </div>
-        <div class="ctrl-row">
-          <span class="ctrl-label">Segments</span>
-          <input type="range" id="sl-segments" min="1" max="12" value="3" oninput="syncVal(this,'vl-segments');render()">
-          <span class="ctrl-val" id="vl-segments">3</span>
-        </div>
-        <div class="ctrl-row">
-          <span class="ctrl-label">Warping</span>
-          <input type="range" id="sl-line-warp" min="0" max="1" step="0.05" value="0" oninput="syncVal(this,'vl-line-warp');render()">
-          <span class="ctrl-val" id="vl-line-warp">0</span>
-        </div>
+      <!-- POINT colour: label (left) + swatch (picker) + hex + Random icon -->
+      <div class="color-row">
+        <span class="ctrl-label">Point</span>
+        <button class="color-swatch" id="swatch-ink" style="background:#0a0a0a" onclick="document.getElementById('cp-ink').click()" title="Point colour"></button>
+        <input type="color" id="cp-ink" value="#0a0a0a" oninput="setColorAll('ink',this.value);render()">
+        <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7" style="flex:1"
+          oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){setColorAll('ink',this.value);render()}">
+        <button class="icon-btn" onclick="randomColor('ink')" title="Random colour">
+          <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
+        </button>
+      </div>
+      <!-- BACKGROUND colour -->
+      <div class="color-row">
+        <span class="ctrl-label">BG</span>
+        <button class="color-swatch" id="swatch-bg" style="background:#f5f2ec" onclick="document.getElementById('cp-bg').click()" title="Background colour"></button>
+        <input type="color" id="cp-bg" value="#f5f2ec" oninput="setColorAll('bg',this.value);render()">
+        <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7" style="flex:1"
+          oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){setColorAll('bg',this.value);render()}">
+        <button class="icon-btn" onclick="randomColor('bg')" title="Random colour">
+          <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
+        </button>
+      </div>
+      <!-- Point Alpha (native picker has no alpha) -->
+      <div class="ctrl-row">
+        <span class="ctrl-label">Alpha</span>
+        <input type="range" id="a-ink" min="0" max="255" value="255" oninput="syncVal(this,'vl-alpha');render()">
+        <span class="ctrl-val" id="vl-alpha">255</span>
+      </div>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="swapColors()">Swap colors</button>
       </div>
     </div>
 
-    <!-- STIPPLING (point placement — needs ↻ refresh) -->
+    <!-- RENDER (appearance — live) -->
     <div class="panel-section">
-      <h3>Stippling <span class="hint">points spacing</span></h3>
+      <h3>Render <span class="hint">live</span></h3>
+      <label class="check-row">
+        <input type="checkbox" id="ck-overpaint" onchange="render()">
+        <span>Overpaint (additive)</span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" id="ck-aa" checked onchange="render()">
+        <span>Antialiasing</span>
+      </label>
+    </div>
+
+    <!-- IMAGE & STIPPLING (placement — needs ↻ Refresh) -->
+    <div class="panel-section placement">
+      <h3>Image &amp; Stippling <span class="hint">↻ recompute</span></h3>
+
+      <div class="sub-label">Image</div>
       <div class="ctrl-row">
-        <span class="ctrl-label">Spacing</span>
-        <input type="range" id="sl-sp-min" min="1" max="20" step="0.5" value="2" oninput="syncVal(this,'vl-sp-min');markDirty()" title="Min spacing (dark areas → dense)">
-        <span class="ctrl-val" id="vl-sp-min">2</span>
-        <input type="range" id="sl-sp-max" min="2" max="48" step="0.5" value="12" oninput="syncVal(this,'vl-sp-max');markDirty()" title="Max spacing (bright areas → sparse)">
-        <span class="ctrl-val" id="vl-sp-max">12</span>
+        <span class="ctrl-label">Rotation</span>
+        <select class="panel-select" id="sel-rotation" onchange="markDirty();updateSizeReadout()" style="flex:1">
+          <option value="0">0°</option>
+          <option value="90">90°</option>
+          <option value="180">180°</option>
+          <option value="270">270°</option>
+        </select>
       </div>
-      <div class="ctrl-row">
-        <span class="ctrl-label">Phases</span>
-        <input type="range" id="sl-phases" min="1" max="32" value="12" oninput="syncVal(this,'vl-phases');markDirty()">
-        <span class="ctrl-val" id="vl-phases">12</span>
-      </div>
+      <label class="check-row">
+        <input type="checkbox" id="ck-flip" onchange="markDirty()">
+        <span>Flip horizontal</span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" id="ck-invert" onchange="markDirty()">
+        <span>Invert</span>
+      </label>
       <div class="ctrl-row">
         <span class="ctrl-label">Gamma</span>
         <input type="range" id="sl-gamma" min="0.2" max="3" step="0.05" value="1" oninput="syncVal(this,'vl-gamma');markDirty()">
@@ -572,126 +641,59 @@
         <input type="range" id="sl-contrast" min="-100" max="100" value="0" oninput="syncVal(this,'vl-contrast');markDirty()">
         <span class="ctrl-val" id="vl-contrast">0</span>
       </div>
+
+      <div class="sub-label">Stippling field</div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Spacing</span>
+        <input type="range" id="sl-sp-min" min="1" max="20" step="0.5" value="2" oninput="syncVal(this,'vl-sp-min');markDirty()" title="Min spacing (dark → dense)">
+        <span class="ctrl-val" id="vl-sp-min">2</span>
+        <input type="range" id="sl-sp-max" min="2" max="48" step="0.5" value="12" oninput="syncVal(this,'vl-sp-max');markDirty()" title="Max spacing (bright → sparse)">
+        <span class="ctrl-val" id="vl-sp-max">12</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Phases</span>
+        <input type="range" id="sl-phases" min="1" max="32" value="12" oninput="syncVal(this,'vl-phases');markDirty()">
+        <span class="ctrl-val" id="vl-phases">12</span>
+      </div>
       <label class="check-row">
-        <input type="checkbox" id="ck-overpaint" onchange="render()">
-        <span>Overpaint (additive)</span>
-      </label>
-      <label class="check-row" style="margin-bottom:4px">
-        <input type="checkbox" id="ck-hide" onchange="markDirty()">
+        <input type="checkbox" id="ck-hide" onchange="toggleRow('row-hide-range',this.checked);markDirty()">
         <span>Hide Zone</span>
       </label>
-      <div class="ctrl-row">
+      <div class="ctrl-row" id="row-hide-range" style="display:none">
         <span class="ctrl-label">→ range</span>
-        <input type="range" id="sl-hide-min" min="0" max="255" value="255" oninput="syncVal(this,'vl-hide-min');markDirty()" title="Hide points where brightness ≥ this">
+        <input type="range" id="sl-hide-min" min="0" max="255" value="255" oninput="syncVal(this,'vl-hide-min');markDirty()" title="Hide where brightness ≥ this">
         <span class="ctrl-val" id="vl-hide-min">255</span>
         <input type="range" id="sl-hide-max" min="0" max="255" value="255" oninput="syncVal(this,'vl-hide-max');markDirty()" title="…and ≤ this">
         <span class="ctrl-val" id="vl-hide-max">255</span>
       </div>
-      <label class="check-row">
-        <input type="checkbox" id="ck-aa" checked onchange="render()">
-        <span>Antialiasing</span>
-      </label>
       <div class="ctrl-row" style="margin-top:6px">
         <span class="ctrl-label">Points</span>
         <span class="ctrl-val" id="vl-total" style="min-width:auto; color:var(--accent)">—</span>
       </div>
     </div>
 
-    <!-- IMAGE (orientation, filter & export scale) -->
+    <!-- EXPORT -->
     <div class="panel-section">
-      <h3>Image <span class="hint">orientation</span></h3>
-      <div class="ctrl-row">
-        <span class="ctrl-label">Rotation</span>
-        <select class="panel-select" id="sel-rotation" onchange="markDirty();updateSizeReadout()" style="flex:1">
-          <option value="0">0°</option>
-          <option value="90">90°</option>
-          <option value="180">180°</option>
-          <option value="270">270°</option>
-        </select>
-      </div>
+      <h3>Export <span class="hint">resolution</span></h3>
       <div class="ctrl-row">
         <span class="ctrl-label">Scale</span>
-        <select class="panel-select" id="sel-scale" onchange="updateSizeReadout()" style="flex:1" title="Export resolution multiplier (affects export only, not the preview)">
+        <select class="panel-select" id="sel-scale" onchange="updateSizeReadout()" style="flex:1" title="Raster export multiplier — SVG is vector, scale-independent">
           <option value="1">×1 (native)</option>
           <option value="2">×2</option>
           <option value="3">×3</option>
         </select>
       </div>
       <div class="ctrl-row">
-        <span class="ctrl-label">Size</span>
+        <span class="ctrl-label">Output</span>
         <span class="ctrl-val" id="vl-out-size" style="min-width:auto; color:var(--accent)">—</span>
-      </div>
-      <label class="check-row">
-        <input type="checkbox" id="ck-flip" onchange="markDirty()">
-        <span>Flip horizontal</span>
-      </label>
-      <label class="check-row">
-        <input type="checkbox" id="ck-invert" onchange="markDirty()">
-        <span>Invert (filter)</span>
-      </label>
-    </div>
-
-    <!-- COLOR -->
-    <div class="panel-section">
-      <h3>Color <span class="hint">color settings</span></h3>
-      <div class="ctrl-row">
-        <span class="ctrl-label">Mode</span>
-        <div class="seg-ctrl" id="colormode-seg">
-          <button class="seg-btn active" data-val="solid" onclick="setColorMode('solid')">Solid</button>
-          <button class="seg-btn" data-val="adaptive" onclick="setColorMode('adaptive')">Adaptive</button>
-        </div>
-      </div>
-      <div class="rgba-grid">
-        <!-- POINT colour (R/G/B/A) -->
-        <div class="rgba-col">
-          <div class="col-head">
-            <button class="color-swatch" id="swatch-ink" style="background:#0a0a0a" onclick="document.getElementById('cp-ink').click()"></button>
-            <input type="color" id="cp-ink" value="#0a0a0a" oninput="setColorAll('ink',this.value);render()">
-            <span>Point</span>
-          </div>
-          <div class="num-row"><label>R</label><input class="num-in" type="number" min="0" max="255" id="r-ink" value="10" oninput="colorFromRGB('ink')"></div>
-          <div class="num-row"><label>G</label><input class="num-in" type="number" min="0" max="255" id="g-ink" value="10" oninput="colorFromRGB('ink')"></div>
-          <div class="num-row"><label>B</label><input class="num-in" type="number" min="0" max="255" id="b-ink" value="10" oninput="colorFromRGB('ink')"></div>
-          <div class="num-row"><label>A</label><input class="num-in" type="number" min="0" max="255" id="a-ink" value="255" oninput="render()"></div>
-          <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7" style="width:100%;margin-top:4px"
-            oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){setColorAll('ink',this.value);render()}">
-          <button class="mini-btn" style="margin-top:5px" onclick="randomColor('ink')">Random</button>
-        </div>
-        <!-- BACKGROUND colour (R/G/B) -->
-        <div class="rgba-col">
-          <div class="col-head">
-            <button class="color-swatch" id="swatch-bg" style="background:#f5f2ec" onclick="document.getElementById('cp-bg').click()"></button>
-            <input type="color" id="cp-bg" value="#f5f2ec" oninput="setColorAll('bg',this.value);render()">
-            <span>BG</span>
-          </div>
-          <div class="num-row"><label>R</label><input class="num-in" type="number" min="0" max="255" id="r-bg" value="245" oninput="colorFromRGB('bg')"></div>
-          <div class="num-row"><label>G</label><input class="num-in" type="number" min="0" max="255" id="g-bg" value="242" oninput="colorFromRGB('bg')"></div>
-          <div class="num-row"><label>B</label><input class="num-in" type="number" min="0" max="255" id="b-bg" value="236" oninput="colorFromRGB('bg')"></div>
-          <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7" style="width:100%;margin-top:4px"
-            oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){setColorAll('bg',this.value);render()}">
-          <button class="mini-btn" style="margin-top:5px" onclick="randomColor('bg')">Random</button>
-        </div>
-      </div>
-      <div class="row-btns">
-        <button class="mini-btn" onclick="swapColors()">Swap colors</button>
-      </div>
-    </div>
-
-    <!-- PRESETS -->
-    <div class="panel-section">
-      <h3>Presets <span class="hint">manage</span></h3>
-      <select class="panel-select" id="preset-select" onchange="applyPreset(this.value)">
-        <option value="">— Select —</option>
-      </select>
-      <div class="row-btns">
-        <button class="mini-btn" onclick="savePreset()">Save</button>
-        <button class="mini-btn" onclick="deletePreset()">Delete</button>
       </div>
     </div>
 
   </div><!-- /panel -->
 </div><!-- /app -->
 
+<!-- Centralized Organica shape library (window.ORGANIC_FORMS) shared with Genesis -->
+<script src="/genesis/organic-forms.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // POLLEN — advanced stippling (scaffold)
@@ -704,10 +706,72 @@ const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvas-wrap');
 
 let sourceImage = null;
-let pointType = 'circle';
-let lineStyle = 'linear';
+let pointType = 'g:1';      // 'g:<n>' — a Genesis form id from window.ORGANIC_FORMS
 let colorMode = 'solid';
 let isDirty = false;
+
+// ── SHAPE LIBRARY ──
+// Curated "primordial" subset of the centralized Genesis forms (window.ORGANIC_FORMS),
+// the base primitives for the Organica visual system. Plus user-uploaded SVG shapes.
+const FORMS = window.ORGANIC_FORMS || {};
+//          drop, line, circle, teardrop, ring, leaf, petal, seed, spiral, crescent, dew, iris, mushroom
+const PRIMORDIAL = [7, 56, 1, 2, 40, 12, 14, 33, 38, 36, 44, 30, 45];
+let customForms = {};            // { 'u1': svgString, … } from uploads
+let _customSeq = 0;
+
+const _shapeCache = {};
+function shapeSVG(key) {          // key = 'g:<n>' | 'u:<id>'
+  if (key.startsWith('g:')) return FORMS[key.slice(2)];
+  if (key.startsWith('u:')) return customForms[key.slice(2)];
+  return null;
+}
+function parseShape(key) {
+  if (!_shapeCache[key]) {
+    const svg = shapeSVG(key) || '<svg viewBox="0 0 20 20"/>';
+    const el = new DOMParser().parseFromString(svg, 'image/svg+xml').querySelector('svg');
+    const vb = (el.getAttribute('viewBox') || '0 0 200 200').split(/\s+/).map(Number);
+    _shapeCache[key] = { el, vbW: vb[2] || 200, vbH: vb[3] || 200 };
+  }
+  return _shapeCache[key];
+}
+function buildShapeGrid() {
+  const grid = document.getElementById('shape-grid');
+  grid.innerHTML = '';
+  // primordial Genesis forms
+  PRIMORDIAL.forEach(n => {
+    if (!FORMS[n]) return;
+    const t = document.createElement('div');
+    const key = 'g:' + n;
+    t.className = 'shape-thumb' + (pointType === key ? ' selected' : '');
+    t.title = '#' + n + (window.ORGANIC_LABELS && window.ORGANIC_LABELS[n] ? ' · ' + window.ORGANIC_LABELS[n] : '');
+    t.onclick = () => setPointType(key);
+    t.innerHTML = '<span class="thumb-num">' + n + '</span>' + FORMS[n];
+    grid.appendChild(t);
+  });
+  // user-uploaded custom shapes
+  Object.keys(customForms).forEach(id => {
+    const t = document.createElement('div');
+    const key = 'u:' + id;
+    t.className = 'shape-thumb' + (pointType === key ? ' selected' : '');
+    t.title = 'custom ' + id;
+    t.onclick = () => setPointType(key);
+    t.innerHTML = '<span class="thumb-num">' + id + '</span>' + customForms[id];
+    grid.appendChild(t);
+  });
+}
+function uploadShape(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const id = 'u' + (++_customSeq);
+    customForms[id] = e.target.result;
+    buildShapeGrid();
+    setPointType('u:' + id);
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
 
 // ── STATUS ──
 function setStatus(state, msg) {
@@ -745,34 +809,25 @@ function segActive(group, val) {
     b.classList.toggle('active', b.dataset.val === val));
 }
 function setPointType(t) {
-  pointType = t;
-  segActive('shape-seg', t);
-  document.getElementById('poly-ctrls').style.display = t === 'polygon' ? '' : 'none';
-  document.getElementById('line-ctrls').style.display = t === 'line' ? '' : 'none';
-  render();   // appearance only — no placement recompute
+  pointType = t;   // 'g:<n>' | 'u:<id>'
+  buildShapeGrid();   // refresh selected highlight
+  render();           // appearance only — no placement recompute
 }
-function setLineStyle(s) { lineStyle = s; segActive('linestyle-seg', s); render(); }
 function setColorMode(m) { colorMode = m; segActive('colormode-seg', m); render(); }
 
-// ── COLOUR (hex ↔ RGBA spinboxes ↔ picker, all kept in sync) ──
+// ── COLOUR (hex ↔ native picker swatch, kept in sync) ──
 const COLOR_IDS = {
-  ink: { hex:'hex-ink', cp:'cp-ink', sw:'swatch-ink', r:'r-ink', g:'g-ink', b:'b-ink' },
-  bg:  { hex:'hex-bg',  cp:'cp-bg',  sw:'swatch-bg',  r:'r-bg',  g:'g-bg',  b:'b-bg' }
+  ink: { hex:'hex-ink', cp:'cp-ink', sw:'swatch-ink' },
+  bg:  { hex:'hex-bg',  cp:'cp-bg',  sw:'swatch-bg' }
 };
 function clamp255(v) { v = parseInt(v, 10); return isNaN(v) ? 0 : Math.max(0, Math.min(255, v)); }
 function toHex(r, g, b) { return '#' + [r, g, b].map(n => clamp255(n).toString(16).padStart(2, '0')).join(''); }
-// Set a colour everywhere from a hex value.
+// Set a colour everywhere from a hex value (hex field, picker, swatch).
 function setColorAll(which, hex) {
   if (!/^#?[0-9a-fA-F]{6}$/.test(hex)) return;
   if (hex[0] !== '#') hex = '#' + hex;
-  const id = COLOR_IDS[which], c = hexToRgb(hex);
-  ctrl(id.hex).value = hex; ctrl(id.cp).value = hex; ctrl(id.sw).style.background = hex;
-  ctrl(id.r).value = c.r; ctrl(id.g).value = c.g; ctrl(id.b).value = c.b;
-}
-function colorFromRGB(which) {
   const id = COLOR_IDS[which];
-  setColorAll(which, toHex(ctrl(id.r).value, ctrl(id.g).value, ctrl(id.b).value));
-  render();
+  ctrl(id.hex).value = hex; ctrl(id.cp).value = hex; ctrl(id.sw).style.background = hex;
 }
 function randomColor(which) {
   setColorAll(which, toHex(Math.random() * 255, Math.random() * 255, Math.random() * 255));
@@ -787,27 +842,25 @@ function swapColors() {
 // ── PRESETS ──
 // A preset is a snapshot of every appearance/placement control. Built-ins ship
 // with the tool; user presets persist in localStorage.
-const PRESET_SLIDERS = ['sl-size','sl-size-max','sl-angle','sl-angle-max','sl-vertices',
-  'sl-poly-warp','sl-length','sl-length-max','sl-segments','sl-line-warp',
+const PRESET_SLIDERS = ['sl-size','sl-size-max','sl-angle','sl-angle-max',
   'sl-sp-min','sl-sp-max','sl-phases','sl-gamma','sl-contrast','sl-hide-min','sl-hide-max'];
-const PRESET_CHECKS = ['ck-size-range','ck-angle-range','ck-angle-random','ck-rounded',
-  'ck-length-range','ck-length-random','ck-aa','ck-invert','ck-overpaint','ck-hide','ck-flip'];
-const RANGE_ROWS = { 'ck-size-range':'row-size-max', 'ck-angle-range':'row-angle-max', 'ck-length-range':'row-length-max' };
+const PRESET_CHECKS = ['ck-size-range','ck-angle-range','ck-angle-random',
+  'ck-aa','ck-invert','ck-overpaint','ck-hide','ck-flip'];
+const RANGE_ROWS = { 'ck-size-range':'row-size-max', 'ck-angle-range':'row-angle-max' };
 
 const BUILTIN_PRESETS = {
-  'Fine Dots':  { pointType:'circle', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
+  'Fine Dots':  { pointType:'g:1', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
                   'sl-size':'1.5','ck-size-range':false,'sl-sp-min':'1.5','sl-sp-max':'8','sl-phases':'16' },
-  'Felt-tip':   { pointType:'circle', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
+  'Felt-tip':   { pointType:'g:1', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
                   'sl-size':'4','ck-size-range':true,'sl-size-max':'1','sl-sp-min':'3','sl-sp-max':'14','sl-phases':'12' },
-  'Lines Flow': { pointType:'line', lineStyle:'linear', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
-                  'ck-rounded':true,'sl-size':'1','sl-length':'18','ck-angle-random':true,'sl-angle':'0','sl-angle-max':'360',
-                  'sl-segments':'3','sl-sp-min':'2','sl-sp-max':'10' },
-  'Duotone':    { pointType:'circle', colorMode:'adaptive', ink:'#1a3a2a', bg:'#dfe6f0',
+  'Lines Flow': { pointType:'g:56', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
+                  'sl-size':'4','ck-angle-random':true,'sl-angle':'0','sl-angle-max':'360','sl-sp-min':'2','sl-sp-max':'10' },
+  'Duotone':    { pointType:'g:1', colorMode:'adaptive', ink:'#1a3a2a', bg:'#dfe6f0',
                   'sl-size':'3','ck-size-range':false,'sl-sp-min':'1.5','sl-sp-max':'9','sl-phases':'14' }
 };
 
 function getState() {
-  const s = { pointType, lineStyle, colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value,
+  const s = { pointType, colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value,
               alpha255: ctrl('a-ink').value, rotation: ctrl('sel-rotation').value, scale: ctrl('sel-scale').value };
   PRESET_SLIDERS.forEach(id => s[id] = ctrl(id).value);
   PRESET_CHECKS.forEach(id => s[id] = ctrl(id).checked);
@@ -821,9 +874,8 @@ function setState(s) {
   if (s.scale !== undefined) ctrl('sel-scale').value = s.scale;
   PRESET_SLIDERS.forEach(id => { if (s[id] !== undefined) { ctrl(id).value = s[id]; syncVal(ctrl(id), 'vl' + id.slice(2)); } });
   PRESET_CHECKS.forEach(id => { if (s[id] !== undefined) { ctrl(id).checked = s[id]; if (RANGE_ROWS[id]) toggleRow(RANGE_ROWS[id], s[id]); } });
-  if (s.lineStyle) { lineStyle = s.lineStyle; segActive('linestyle-seg', s.lineStyle); }
   if (s.colorMode) { colorMode = s.colorMode; segActive('colormode-seg', s.colorMode); }
-  if (s.pointType) setPointType(s.pointType);     // updates seg + sub-panel visibility
+  if (s.pointType) setPointType(s.pointType);
   if (sourceImage) generate(); else render();      // placement may have changed → recompute
 }
 
@@ -1097,11 +1149,6 @@ function pointParams() {
     sizeMin: val('sl-size'), sizeMax: val('sl-size-max'), sizeRange: ctrl('ck-size-range').checked,
     angleMin: val('sl-angle'), angleMax: val('sl-angle-max'),
     angleRange: ctrl('ck-angle-range').checked, angleRandom: ctrl('ck-angle-random').checked,
-    vertices: Math.round(val('sl-vertices')), polyWarp: val('sl-poly-warp'),
-    lineStyle, rounded: ctrl('ck-rounded').checked,
-    lenMin: val('sl-length'), lenMax: val('sl-length-max'),
-    lenRange: ctrl('ck-length-range').checked, lenRandom: ctrl('ck-length-random').checked,
-    segments: Math.round(val('sl-segments')), lineWarp: val('sl-line-warp'),
     colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value, alpha: clamp255(ctrl('a-ink').value) / 255
   };
 }
@@ -1116,47 +1163,49 @@ function ranged(min, max, range, random, b, rnd) {
 
 // Draw one point's shape centred at the current origin (caller has translated
 // and rotated). Fill for circle/polygon, stroke for line.
-function drawShape(g, P, sz, len, b, rnd) {
-  if (P.shape === 'circle') {
-    g.beginPath();
-    g.arc(0, 0, sz / 2, 0, Math.PI * 2);
-    g.fill();
-  } else if (P.shape === 'polygon') {
-    const n = Math.max(3, P.vertices), R = sz / 2, w = P.polyWarp;
-    g.beginPath();
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 - Math.PI / 2;
-      const r = R * (1 + (srand(rnd * 1000 + i) * 2 - 1) * w);
-      const x = Math.cos(a) * r, y = Math.sin(a) * r;
-      i === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
-    }
-    g.closePath();
-    g.fill();
-  } else { // line
-    g.lineWidth = Math.max(0.4, sz);
-    g.lineCap = P.rounded ? 'round' : 'butt';
-    const seg = Math.max(1, P.segments), w = P.lineWarp;
-    if (P.lineStyle === 'radial') {
-      for (let i = 0; i < seg; i++) {
-        const a = (i / seg) * Math.PI * 2;
-        const jit = (srand(rnd * 1000 + i) * 2 - 1) * w;
-        const L = (len / 2) * (1 + jit * 0.5);
-        g.beginPath();
-        g.moveTo(0, 0);
-        g.lineTo(Math.cos(a + jit * 0.6) * L, Math.sin(a + jit * 0.6) * L);
-        g.stroke();
-      }
-    } else { // linear polyline along x, centred, with tremor on interior joints
-      const amp = w * Math.max(2, len * 0.2);
-      g.beginPath();
-      for (let i = 0; i <= seg; i++) {
-        const x = -len / 2 + len * (i / seg);
-        const y = (i === 0 || i === seg) ? 0 : (srand(rnd * 1000 + i) * 2 - 1) * amp;
-        i === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
-      }
-      g.stroke();
-    }
+// Draw an SVG library mark centred at the origin, scaled to `sz`, using the
+// context's current fillStyle (set by the caller to the point colour).
+// Draw one SVG element (fill and/or stroke) using the context's current style.
+// Genesis forms colour via CSS classes (no inline fill) → treated as fill;
+// elements with an inline stroke (e.g. the Line form) are stroked.
+function drawSvgEl(g, el) {
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'g') { Array.from(el.children).forEach(c => drawSvgEl(g, c)); return; }
+  const fill = el.getAttribute('fill'), stroke = el.getAttribute('stroke');
+  const doFill = fill === 'none' ? false : (!!fill || !stroke);
+  const doStroke = !!stroke && stroke !== 'none';
+  let path = new Path2D();
+  if (tag === 'circle') path.arc(+el.getAttribute('cx')||0, +el.getAttribute('cy')||0, +el.getAttribute('r')||0, 0, Math.PI*2);
+  else if (tag === 'ellipse') path.ellipse(+el.getAttribute('cx')||0, +el.getAttribute('cy')||0, +el.getAttribute('rx')||0, +el.getAttribute('ry')||0, 0, 0, Math.PI*2);
+  else if (tag === 'rect') path.rect(+el.getAttribute('x')||0, +el.getAttribute('y')||0, +el.getAttribute('width')||0, +el.getAttribute('height')||0);
+  else if (tag === 'path') path = new Path2D(el.getAttribute('d')||'');
+  else if (tag === 'polygon' || tag === 'polyline') {
+    const p = (el.getAttribute('points')||'').trim().split(/[\s,]+/).map(Number);
+    for (let i=0;i<p.length;i+=2) i===0?path.moveTo(p[i],p[i+1]):path.lineTo(p[i],p[i+1]);
+    if (tag === 'polygon') path.closePath();
   }
+  else if (tag === 'line') { path.moveTo(+el.getAttribute('x1')||0,+el.getAttribute('y1')||0); path.lineTo(+el.getAttribute('x2')||0,+el.getAttribute('y2')||0); }
+  else return;
+  if (doStroke) {
+    const sw = el.getAttribute('stroke-width'); g.lineWidth = sw ? parseFloat(sw) : 1;
+    g.lineCap = el.getAttribute('stroke-linecap') || 'butt';
+  }
+  if (doFill) g.fill(path);
+  if (doStroke) g.stroke(path);
+}
+// Draw a library shape (Genesis form or uploaded SVG) centred at origin, scaled to `sz`.
+function drawFormShape(g, key, sz) {
+  const f = parseShape(key);
+  const scale = sz / Math.max(f.vbW, f.vbH);
+  g.save();
+  g.translate(-(f.vbW * scale) / 2, -(f.vbH * scale) / 2);
+  g.scale(scale, scale);
+  Array.from(f.el.children).forEach(el => drawSvgEl(g, el));
+  g.restore();
+}
+
+function drawShape(g, P, sz, b, rnd) {
+  if (P.shape && (P.shape.startsWith('g:') || P.shape.startsWith('u:'))) drawFormShape(g, P.shape, sz);
 }
 
 // Paint a set of points onto any 2D context (shared by preview render + export).
@@ -1181,11 +1230,10 @@ function paintPoints(g, pts, P, W, H, aa, ink, bg, unit) {
     }
     const sz  = ranged(P.sizeMin, P.sizeMax, P.sizeRange, false, p.b, p.rnd) * unit;
     const ang = ranged(P.angleMin, P.angleMax, P.angleRange, P.angleRandom, p.b, p.rnd) * Math.PI / 180;
-    const len = ranged(P.lenMin, P.lenMax, P.lenRange, P.lenRandom, p.b, p.rnd) * unit;
     g.save();
     g.translate(p.x * unit, p.y * unit);   // positions scale to the output too
     if (ang) g.rotate(ang);
-    drawShape(g, P, sz, len, p.b, p.rnd);
+    drawShape(g, P, sz, p.b, p.rnd);
     g.restore();
   }
 }
@@ -1212,15 +1260,14 @@ function updatePtPreview() {
 
   const SCALE = 4;                                   // 400%
   const sz  = (P.sizeRange ? (P.sizeMin + P.sizeMax) / 2 : P.sizeMin) * SCALE;
-  const len = (P.lenRange ? (P.lenMin + P.lenMax) / 2 : P.lenMin) * SCALE;
   const baseAng = P.angleMin * Math.PI / 180;
-  const reach = Math.max(sz, P.shape === 'line' ? len : sz) * 0.6 + 26;
+  const reach = sz * 0.6 + 26;
 
   function stamp(x, y, seed) {
     const rnd = srand(seed);
     const ang = P.angleRandom ? rnd * Math.PI * 2 : baseAng;
     g.save(); g.translate(x, y); if (ang) g.rotate(ang);
-    drawShape(g, P, sz, len, 0.5, rnd);
+    drawShape(g, P, sz, 0.5, rnd);
     g.restore();
   }
   for (let i = 0; i < 6; i++) {
@@ -1285,41 +1332,17 @@ function exportRaster(mime, ext, quality) {
 function exportPNG() { exportRaster('image/png', 'png'); }
 function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
 
-// Serialize one point's shape to SVG (vector). `fill` is an rgb() string, `op`
-// the alpha. Fill for circle/polygon, stroke for line.
-function shapeToSVG(P, x, y, sz, len, deg, b, rnd, fill, op) {
-  const tf = `translate(${x.toFixed(1)} ${y.toFixed(1)})` + (deg ? ` rotate(${deg.toFixed(1)})` : '');
-  const fo = op < 1 ? ` fill-opacity="${op.toFixed(2)}"` : '';
-  const so = op < 1 ? ` stroke-opacity="${op.toFixed(2)}"` : '';
-  if (P.shape === 'circle') {
-    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(sz/2).toFixed(1)}" fill="${fill}"${fo}/>`;
-  }
-  if (P.shape === 'polygon') {
-    const n = Math.max(3, P.vertices), R = sz / 2, w = P.polyWarp; let pts = '';
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 - Math.PI / 2;
-      const r = R * (1 + (srand(rnd * 1000 + i) * 2 - 1) * w);
-      pts += (Math.cos(a) * r).toFixed(1) + ',' + (Math.sin(a) * r).toFixed(1) + ' ';
-    }
-    return `<g transform="${tf}"><polygon points="${pts.trim()}" fill="${fill}"${fo}/></g>`;
-  }
-  // line
-  const cap = P.rounded ? 'round' : 'butt', seg = Math.max(1, P.segments), w = P.lineWarp;
-  if (P.lineStyle === 'radial') {
-    let ln = '';
-    for (let i = 0; i < seg; i++) {
-      const a = (i / seg) * Math.PI * 2, jit = (srand(rnd * 1000 + i) * 2 - 1) * w, L = (len / 2) * (1 + jit * 0.5);
-      ln += `<line x1="0" y1="0" x2="${(Math.cos(a + jit * 0.6) * L).toFixed(1)}" y2="${(Math.sin(a + jit * 0.6) * L).toFixed(1)}"/>`;
-    }
-    return `<g transform="${tf}" stroke="${fill}"${so} stroke-width="${sz.toFixed(1)}" stroke-linecap="${cap}" fill="none">${ln}</g>`;
-  }
-  const amp = w * Math.max(2, len * 0.2); let pts = '';
-  for (let i = 0; i <= seg; i++) {
-    const lx = -len / 2 + len * (i / seg);
-    const ly = (i === 0 || i === seg) ? 0 : (srand(rnd * 1000 + i) * 2 - 1) * amp;
-    pts += lx.toFixed(1) + ',' + ly.toFixed(1) + ' ';
-  }
-  return `<g transform="${tf}"><polyline points="${pts.trim()}" fill="none" stroke="${fill}"${so} stroke-width="${sz.toFixed(1)}" stroke-linecap="${cap}" stroke-linejoin="round"/></g>`;
+// Serialize one point (a Genesis form) to SVG: <g transform> wrapping the form's
+// geometry, with fill+stroke resolved to the point colour (forms colour via CSS
+// classes, so we set fill/stroke on the group). Resolution-independent.
+function shapeToSVG(P, x, y, sz, deg, b, rnd, fill, op) {
+  if (!(P.shape && (P.shape.startsWith('g:') || P.shape.startsWith('u:')))) return '';
+  const f = parseShape(P.shape);
+  const s = sz / Math.max(f.vbW, f.vbH);
+  const inner = f.el.innerHTML.replace(/currentColor/g, fill).replace(/ xmlns="[^"]*"/g, '');
+  const t = `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${deg.toFixed(1)}) scale(${s.toFixed(4)}) translate(${(-f.vbW/2).toFixed(2)} ${(-f.vbH/2).toFixed(2)})`;
+  const o = op < 1 ? ` opacity="${op.toFixed(2)}"` : '';
+  return `<g transform="${t}" fill="${fill}"${o}>${inner}</g>`;
 }
 
 function buildSVG(pts, W, H, unit) {
@@ -1331,9 +1354,8 @@ function buildSVG(pts, W, H, unit) {
     const p = pts[k];
     const sz  = ranged(P.sizeMin, P.sizeMax, P.sizeRange, false, p.b, p.rnd) * unit;
     const deg = ranged(P.angleMin, P.angleMax, P.angleRange, P.angleRandom, p.b, p.rnd);
-    const len = ranged(P.lenMin, P.lenMax, P.lenRange, P.lenRandom, p.b, p.rnd) * unit;
     const c = pointRGBA(P, p.b);
-    s += shapeToSVG(P, p.x, p.y, sz, len, deg, p.b, p.rnd, `rgb(${c.r},${c.g},${c.b})`, c.a);
+    s += shapeToSVG(P, p.x, p.y, sz, deg, p.b, p.rnd, `rgb(${c.r},${c.g},${c.b})`, c.a);
   }
   return s + '</svg>';
 }
@@ -1430,6 +1452,7 @@ window.addEventListener('keydown', e => {
 setStatus('', '—');
 applyZoom();
 populatePresets();
+buildShapeGrid();
 updatePtPreview();   // show the point shape preview before any image is loaded
 </script>
 </body>
