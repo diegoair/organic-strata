@@ -368,6 +368,10 @@
 
   .mark-thumb:hover { border-color: var(--accent); }
   .mark-thumb.selected { border-color: var(--ink); background: #e8e4dc; }
+  .mark-thumb .thumb-num {
+    position: absolute; top: 1px; right: 2px;
+    font-size: 6px; line-height: 1; color: var(--mid); pointer-events: none;
+  }
 
   .mark-thumb svg, .mark-thumb img {
     width: 100%;
@@ -387,6 +391,13 @@
   }
 
   .mark-item { display: flex; flex-direction: column; }
+
+  /* 400% symbol preview (aligned with Pollen) */
+  .preview-wrap { display: flex; justify-content: center; margin-bottom: 12px; }
+  #symbol-preview {
+    width: 100%; max-width: 208px; aspect-ratio: 1;
+    border: 1px solid rgba(10,10,10,0.2); background: var(--panel); display: block;
+  }
 
   .upload-mark-btn {
     width: 100%;
@@ -512,9 +523,10 @@
   <!-- PANEL -->
   <div id="panel">
 
-    <!-- MARK LIBRARY -->
+    <!-- SYMBOLS -->
     <div class="panel-section">
-      <h3>Mark</h3>
+      <h3>Symbols</h3>
+      <div class="preview-wrap"><canvas id="symbol-preview" width="200" height="200"></canvas></div>
       <div id="mark-grid"></div>
       <button class="upload-mark-btn" onclick="document.getElementById('mark-upload-input').click()">+ Upload SVG mark</button>
     </div>
@@ -628,80 +640,25 @@
   </div><!-- /panel -->
 </div><!-- /app -->
 
+<!-- Centralized Organica shape library (window.ORGANIC_FORMS), shared with Genesis/Pollen -->
+<script src="/genesis/organic-forms.js"></script>
 <script>
 // ─────────────────────────────────────────────
-// MARK LIBRARY
+// MARK LIBRARY — primordial subset of the centralized Genesis forms
+// (window.ORGANIC_FORMS): the base primitives for the Organica visual system.
 // ─────────────────────────────────────────────
-
-// Built-in marks: basic shapes (like Pointillist) + Organica SVG forms
-const BUILT_IN_MARKS = [
-  {
-    id: 'circle',
-    name: 'Circle',
-    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="currentColor"/></svg>`
-  },
-  {
-    id: 'square',
-    name: 'Square',
-    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="16" height="16" fill="currentColor"/></svg>`
-  },
-  {
-    id: 'triangle',
-    name: 'Triangle',
-    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><polygon points="10,2 18,18 2,18" fill="currentColor"/></svg>`
-  },
-  {
-    id: 'diamond',
-    name: 'Diamond',
-    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><polygon points="10,1 19,10 10,19 1,10" fill="currentColor"/></svg>`
-  },
-  {
-    id: 'cross',
-    name: 'Cross',
-    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="1" width="4" height="18" fill="currentColor"/><rect x="1" y="8" width="18" height="4" fill="currentColor"/></svg>`
-  },
-  {
-    id: 'star',
-    name: 'Star',
-    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><polygon points="10,1 12.4,7.4 19.5,7.6 14,12 16,19 10,15 4,19 6,12 0.5,7.6 7.6,7.4" fill="currentColor"/></svg>`
-  },
-  // Organica / Genesis-inspired marks
-  {
-    id: 'drop',
-    name: 'Drop',
-    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2 C10 2 3 10 3 14 a7 7 0 0 0 14 0 C17 10 10 2 10 2z" fill="currentColor"/></svg>`
-  },
-  {
-    id: 'blob',
-    name: 'Blob',
-    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 3.5C17 5 18 8 17.5 11c-.5 3-3 5.5-6 6s-6-.5-7.5-3S3 7.5 5 5 8 2 11 2s2.5.5 3.5 1.5z" fill="currentColor"/></svg>`
-  },
-  {
-    id: 'petal',
-    name: 'Petal',
-    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2 C14 2 18 6 18 10 C18 14 14 18 10 18 C10 18 2 14 2 10 C2 6 6 2 10 2z" fill="currentColor"/></svg>`
-  },
-  {
-    id: 'brushdot',
-    name: 'Brush',
-    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><ellipse cx="10" cy="10" rx="7" ry="4.5" fill="currentColor" transform="rotate(-25 10 10)"/></svg>`
-  },
-  {
-    id: 'crescent',
-    name: 'Crescent',
-    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a8 8 0 1 0 0 16A6 6 0 1 1 10 2z" fill="currentColor"/></svg>`
-  },
-  {
-    id: 'leaf',
-    name: 'Leaf',
-    svg: `<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 18 C10 18 2 12 2 7 C2 3.5 5.5 1 10 1 C14.5 1 18 3.5 18 7 C18 12 10 18 10 18z" fill="currentColor"/></svg>`
-  }
-];
+const GFORMS = window.ORGANIC_FORMS || {};
+const GLABELS = window.ORGANIC_LABELS || {};
+//          drop, line, circle, teardrop, ring, leaf, petal, seed, spiral, crescent, dew, iris, mushroom
+const PRIMORDIAL = [7, 56, 1, 2, 40, 12, 14, 33, 38, 36, 44, 30, 45];
+const BUILT_IN_MARKS = PRIMORDIAL.filter(n => GFORMS[n]).map(n => ({
+  id: 'g' + n, num: n, name: GLABELS[n] || ('#' + n), svg: GFORMS[n]
+}));
 
 // Custom uploaded marks
 let customMarks = [];
 let allMarks = [...BUILT_IN_MARKS];
-let selectedMarkId = 'circle';
+let selectedMarkId = 'g1';
 
 // Rendering state
 let sourceImage = null;
@@ -723,23 +680,13 @@ function buildMarkGrid() {
   const grid = document.getElementById('mark-grid');
   grid.innerHTML = '';
   allMarks.forEach(mark => {
-    const item = document.createElement('div');
-    item.className = 'mark-item';
-
     const thumb = document.createElement('div');
     thumb.className = 'mark-thumb' + (mark.id === selectedMarkId ? ' selected' : '');
+    thumb.title = mark.name || '';
     thumb.onclick = () => selectMark(mark.id);
-
-    // Render SVG in thumb
-    thumb.innerHTML = mark.svg.replace(/currentColor/g, '#0a0a0a');
-
-    const lbl = document.createElement('div');
-    lbl.className = 'mark-name';
-    lbl.textContent = mark.name;
-
-    item.appendChild(thumb);
-    item.appendChild(lbl);
-    grid.appendChild(item);
+    // Render SVG in thumb + small reference number (Genesis form id)
+    thumb.innerHTML = '<span class="thumb-num">' + (mark.num || '') + '</span>' + mark.svg.replace(/currentColor/g, '#0a0a0a');
+    grid.appendChild(thumb);
   });
 }
 
@@ -748,7 +695,43 @@ function selectMark(id) {
   document.querySelectorAll('.mark-thumb').forEach((t,i) => {
     t.classList.toggle('selected', allMarks[i].id === id);
   });
+  updateSymbolPreview();
   liveUpdate();
+}
+
+// 400% preview of the selected symbol (central + ring of neighbours) — aligned with Pollen.
+function updateSymbolPreview() {
+  const pc = document.getElementById('symbol-preview');
+  if (!pc) return;
+  const g = pc.getContext('2d');
+  const PW = pc.width, PH = pc.height, cx = PW / 2, cy = PH / 2;
+  const ink = (document.getElementById('hex-mark') || {}).value || '#0a0a0a';
+  const bg  = (document.getElementById('hex-bg') || {}).value || '#f5f2ec';
+  const sizeBase = parseFloat((document.getElementById('sl-size') || {}).value || 7);
+
+  g.clearRect(0, 0, PW, PH);
+  g.fillStyle = bg; g.fillRect(0, 0, PW, PH);
+  g.imageSmoothingEnabled = true;
+
+  const mark = allMarks.find(m => m.id === selectedMarkId) || allMarks[0];
+  if (!mark) return;
+  const svgEl = new DOMParser().parseFromString(mark.svg, 'image/svg+xml').querySelector('svg');
+  const vb = (svgEl.getAttribute('viewBox') || '0 0 20 20').split(/\s+/).map(Number);
+  const vbW = vb[2] || 20, vbH = vb[3] || 20;
+
+  const centerSize = 60 + sizeBase * 2;
+  const satSize = centerSize * 0.42;
+  const reach = 66;
+  function stamp(x, y, size) {
+    g.save(); g.translate(x, y);
+    drawMark(g, svgEl, size, vbW, vbH, ink);
+    g.restore();
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    stamp(cx + Math.cos(a) * reach, cy + Math.sin(a) * reach, satSize);
+  }
+  stamp(cx, cy, centerSize);
 }
 
 function uploadMark(input) {
@@ -857,6 +840,7 @@ function syncHex(hexId, cpId, swatchId) {
 // RENDER ENGINE
 // ─────────────────────────────────────────────
 function liveUpdate() {
+  updateSymbolPreview();          // 400% preview always reflects size/colour, image or not
   if (!sourceImage) return;
   clearTimeout(renderWorkerTimeout);
   renderWorkerTimeout = setTimeout(triggerRender, 350);
@@ -1055,7 +1039,11 @@ function drawSvgElement(ctx, el, color) {
   const stroke = el.getAttribute('stroke');
 
   if (fill !== 'none') ctx.fillStyle = (fill && fill !== 'currentColor') ? fill : color;
-  if (stroke) ctx.strokeStyle = (stroke !== 'currentColor') ? stroke : color;
+  if (stroke) {
+    ctx.strokeStyle = (stroke !== 'currentColor') ? stroke : color;
+    const sw = el.getAttribute('stroke-width'); if (sw) ctx.lineWidth = parseFloat(sw);
+    const lc = el.getAttribute('stroke-linecap'); if (lc) ctx.lineCap = lc;
+  }
 
   if (tag === 'circle') {
     const cx = +el.getAttribute('cx')||0, cy = +el.getAttribute('cy')||0, r = +el.getAttribute('r')||5;
@@ -1224,9 +1212,10 @@ function buildSporeSVG() {
     // translate(center) → rotate → scale → translate(-viewBox/2)
     const tf = `translate(${m.x.toFixed(2)} ${m.y.toFixed(2)}) rotate(${deg}) `
              + `scale(${s}) translate(${(-vbW/2).toFixed(2)} ${(-vbH/2).toFixed(2)})`;
-    // Resolve currentColor to this instance's actual fill colour.
-    const shapes = innerSVG.replace(/currentColor/g, m.color);
-    svg += `<g transform="${tf}" opacity="${m.opacity.toFixed(2)}">${shapes}</g>`;
+    // Genesis forms colour via CSS classes (no inline fill) → set fill on the
+    // group; the Line's inline stroke="currentColor" is resolved here too.
+    const shapes = innerSVG.replace(/currentColor/g, m.color).replace(/ xmlns="[^"]*"/g, '');
+    svg += `<g transform="${tf}" fill="${m.color}" opacity="${m.opacity.toFixed(2)}">${shapes}</g>`;
   });
 
   svg += '</svg>';
@@ -1349,6 +1338,7 @@ canvas.addEventListener('dblclick', resetZoom);
 // INIT
 // ─────────────────────────────────────────────
 buildMarkGrid();
+updateSymbolPreview();
 setStatus('', '—');
 applyZoom();
 </script>
