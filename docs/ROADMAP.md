@@ -76,7 +76,10 @@ preview points (SVG is resolution-independent, PNG/JPG scale the same points up)
   - **Simbolo procedurale "Stroke"** — polilinea multi-segmento ondulata con *Segments*
     e *Warping*; lunghezza = Size × 3. WYSIWYG (una `<polyline>` per punto).
   - Combinati → texture piume/pelo/erba che fluisce sulla forma.
-  - *Follow-up opzionali:* Style line/star + Rounded; porting in Spore.
+  - Stroke = **linea a spessore costante** (modello Pointillist): Size = spessore,
+    **Length** px, Segments, Warping (curvatura ad arco liscio), **Rounded** caps,
+    **Style — / ✳** (linea singola o star a 3 bracci).
+  - *Follow-up opzionale:* porting Flow + Stroke in Spore.
 - [ ] **Higher detail ceiling** — preview point cap (~70k) bounds export richness; raise the
   cap and/or move point placement to a **Web Worker** to stay fluid on large images.
 - [ ] **Animated stippling for video** (point 6) — animate the stored points (Reveal /

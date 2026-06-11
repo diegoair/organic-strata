@@ -628,18 +628,36 @@
         <span class="ctrl-val" id="vl-length">×1.00</span>
       </div>
 
-      <!-- Stroke controls (only for the procedural ~ Stroke symbol) -->
+      <!-- Stroke controls (only for the procedural ~ Stroke symbol).
+           Pointillist Line model: Size = thickness · Length px · Segments ·
+           Warping (bend) · Rounded caps -->
       <div id="stroke-controls" style="display:none">
         <div class="ctrl-row">
+          <span class="ctrl-label">Style</span>
+          <div class="seg-ctrl" id="strokestyle-seg" style="flex:1">
+            <button class="seg-btn active" data-val="line" onclick="setStrokeStyle('line')">—</button>
+            <button class="seg-btn" data-val="star" onclick="setStrokeStyle('star')">✳</button>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">Length</span>
+          <input type="range" id="sl-stroke-len" min="2" max="60" value="10" oninput="syncVal(this,'vl-stroke-len');render()">
+          <span class="ctrl-val" id="vl-stroke-len">10</span>
+        </div>
+        <div class="ctrl-row">
           <span class="ctrl-label">Segments</span>
-          <input type="range" id="sl-stroke-seg" min="2" max="24" value="8" oninput="syncVal(this,'vl-stroke-seg');render()">
-          <span class="ctrl-val" id="vl-stroke-seg">8</span>
+          <input type="range" id="sl-stroke-seg" min="2" max="24" value="10" oninput="syncVal(this,'vl-stroke-seg');render()">
+          <span class="ctrl-val" id="vl-stroke-seg">10</span>
         </div>
         <div class="ctrl-row">
           <span class="ctrl-label">Warping</span>
-          <input type="range" id="sl-stroke-warp" min="0" max="3" step="0.05" value="1" oninput="syncVal(this,'vl-stroke-warp');render()">
-          <span class="ctrl-val" id="vl-stroke-warp">1</span>
+          <input type="range" id="sl-stroke-warp" min="0" max="3" step="0.05" value="0" oninput="syncVal(this,'vl-stroke-warp');render()">
+          <span class="ctrl-val" id="vl-stroke-warp">0</span>
         </div>
+        <label class="check-row">
+          <input type="checkbox" id="ck-stroke-round" checked onchange="render()">
+          <span>Rounded</span>
+        </label>
       </div>
 
       <!-- Angle (+ Range by brightness, + Random) -->
@@ -837,6 +855,10 @@ let isDirty = false;
 let rmxOn = false;
 let rmxForms = [null, null, null];   // up to 3 pointType keys
 let rmxSlot = 0;                     // active slot to fill from the grid
+
+// Stroke style: '—' single line | '✳' star (3 crossed lines), as in Pointillist.
+let strokeStyle = 'line';
+function setStrokeStyle(v) { strokeStyle = v; segActive('strokestyle-seg', v); render(); }
 
 // ── RMX COLORS: a palette of up to 5 colours, assigned by a chosen mapping ──
 let rmxColors = ['#1a1a2e', '#e94f37', '#f6e8c3'];   // default palette (dark→bright)
@@ -1078,10 +1100,10 @@ function swapColors() {
 // ── PRESETS ──
 // A preset is a snapshot of every appearance/placement control. Built-ins ship
 // with the tool; user presets persist in localStorage.
-const PRESET_SLIDERS = ['sl-size','sl-size-max','sl-scale','sl-width','sl-length','sl-stroke-seg','sl-stroke-warp','sl-angle','sl-angle-max',
+const PRESET_SLIDERS = ['sl-size','sl-size-max','sl-scale','sl-width','sl-length','sl-stroke-len','sl-stroke-seg','sl-stroke-warp','sl-angle','sl-angle-max',
   'sl-sp-min','sl-sp-max','sl-sp-scale','sl-phases','sl-gamma','sl-contrast','sl-hide-min','sl-hide-max'];
 const PRESET_CHECKS = ['ck-size-range','ck-angle-range','ck-angle-random','ck-angle-flow',
-  'ck-aa','ck-invert','ck-overpaint','ck-hide','ck-flip'];
+  'ck-stroke-round','ck-aa','ck-invert','ck-overpaint','ck-hide','ck-flip'];
 const RANGE_ROWS = { 'ck-size-range':'row-size-max', 'ck-angle-range':'row-angle-max' };
 
 const BUILTIN_PRESETS = {
@@ -1098,7 +1120,7 @@ const BUILTIN_PRESETS = {
 function getState() {
   const s = { pointType, colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value,
               alpha255: ctrl('a-ink').value, rotation: ctrl('sel-rotation').value, scale: ctrl('sel-scale').value,
-              rmxOn, rmxForms: rmxForms.slice(), rmxColors: rmxColors.slice(), rmxColorMap };
+              rmxOn, rmxForms: rmxForms.slice(), rmxColors: rmxColors.slice(), rmxColorMap, strokeStyle };
   PRESET_SLIDERS.forEach(id => s[id] = ctrl(id).value);
   PRESET_CHECKS.forEach(id => s[id] = ctrl(id).checked);
   return s;
@@ -1121,6 +1143,7 @@ function setState(s) {
     document.getElementById('rmx-hint').style.display = rmxOn ? '' : 'none';
     buildRmxSlots();
   }
+  if (s.strokeStyle) { strokeStyle = s.strokeStyle; segActive('strokestyle-seg', s.strokeStyle); }
   if (s.colorMode) setColorMode(s.colorMode);   // toggles RMX palette UI + renders
   if (s.pointType) setPointType(s.pointType);
   if (sourceImage) generate(); else render();      // placement may have changed → recompute
@@ -1424,7 +1447,9 @@ function pointParams() {
     rmx: (rmx && rmx.length >= 2) ? rmx : null,
     sizeMin: val('sl-size') * sc, sizeMax: val('sl-size-max') * sc, sizeRange: ctrl('ck-size-range').checked,
     width: val('sl-width') || 1, length: val('sl-length') || 1,
-    strokeSeg: val('sl-stroke-seg') || 8, strokeWarp: val('sl-stroke-warp') || 0,
+    strokeLen: val('sl-stroke-len') || 10, strokeSeg: val('sl-stroke-seg') || 10,
+    strokeWarp: val('sl-stroke-warp') || 0, strokeRound: ctrl('ck-stroke-round').checked,
+    strokeStyle,
     angleMin: val('sl-angle'), angleMax: val('sl-angle-max'),
     angleRange: ctrl('ck-angle-range').checked, angleRandom: ctrl('ck-angle-random').checked,
     angleFlow: ctrl('ck-angle-flow').checked,
@@ -1546,31 +1571,54 @@ function pickShape(P, b, rnd) {
 // per-segment angular random-walk (Warping = curl). Deterministic in `rnd`
 // → identical in canvas and SVG export. Drawn centred along local X; the caller
 // rotates it (so it combines with Flow to follow the image's contours).
-const STROKE_LEN_K = 3;     // stroke length = Size × this (so it reads as a stroke)
-function strokePolyline(len, segs, warp, rnd) {
+// ── STROKE (Pointillist-style Line) ──
+// A constant-width curved line: Size = thickness, Length = px length,
+// Segments = smoothness, Warping = how much it bends, Rounded = round caps.
+// Smooth arc centreline: a constant per-stroke curvature (from rnd × Warping) so
+// each stroke is a clean curve, not a jagged walk. Centred on origin.
+function strokeCenterline(len, segs, warp, rnd) {
   const n = Math.max(2, segs | 0), step = len / n;
-  let ang = 0, x = -len / 2, y = 0, s = (rnd || 0) * 9999 + 1;
-  const pts = [[x, y]];
-  for (let i = 0; i < n; i++) {
-    s = Math.sin(s * 12.9898) * 43758.5453; s = s - Math.floor(s);
-    ang += (s - 0.5) * warp * 0.5;
-    x += Math.cos(ang) * step; y += Math.sin(ang) * step;
-    pts.push([x, y]);
-  }
-  return pts;
+  const bend = (rnd - 0.5) * warp * 2.4;     // total turn over the stroke (radians)
+  const dA = bend / n;
+  let ang = -bend / 2, x = 0, y = 0;
+  const pts = [[0, 0]];
+  for (let i = 0; i < n; i++) { ang += dA; x += Math.cos(ang) * step; y += Math.sin(ang) * step; pts.push([x, y]); }
+  // centre the arc on its midpoint
+  const mx = (pts[0][0] + pts[n][0]) / 2, my = (pts[0][1] + pts[n][1]) / 2;
+  return pts.map(p => [p[0] - mx, p[1] - my]);
 }
-function drawStroke(g, sz, segs, warp, rnd) {
-  const pts = strokePolyline(sz * STROKE_LEN_K, segs, warp, rnd);
-  g.beginPath();
-  pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]));
-  g.lineWidth = Math.max(0.8, sz * 0.14);
-  g.lineCap = 'round'; g.lineJoin = 'round';
-  g.stroke();
+// Smooth open path through the centreline (quadratic midpoint smoothing).
+function smoothOpenPath(g, pts) {
+  const n = pts.length;
+  g.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < n - 1; i++) {
+    g.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2);
+  }
+  g.lineTo(pts[n - 1][0], pts[n - 1][1]);
+}
+function smoothOpenPathD(pts) {
+  const n = pts.length;
+  let d = `M ${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
+  for (let i = 1; i < n - 1; i++) {
+    d += ` Q ${pts[i][0].toFixed(2)} ${pts[i][1].toFixed(2)} ${((pts[i][0] + pts[i + 1][0]) / 2).toFixed(2)} ${((pts[i][1] + pts[i + 1][1]) / 2).toFixed(2)}`;
+  }
+  return d + ` L ${pts[n - 1][0].toFixed(2)} ${pts[n - 1][1].toFixed(2)}`;
+}
+function drawStroke(g, P, sz, rnd, unit) {
+  const pts = strokeCenterline(P.strokeLen * (unit || 1), P.strokeSeg, P.strokeWarp, rnd);
+  g.lineWidth = Math.max(0.5, sz);           // Size = line thickness (Pointillist)
+  g.lineCap = P.strokeRound ? 'round' : 'butt';
+  g.lineJoin = 'round';
+  const arms = P.strokeStyle === 'star' ? 3 : 1;   // ✳ = the same line crossed 3×
+  for (let k = 0; k < arms; k++) {
+    g.beginPath(); smoothOpenPath(g, pts); g.stroke();
+    if (arms > 1) g.rotate(Math.PI / arms);
+  }
 }
 
-function drawShape(g, P, sz, b, rnd) {
+function drawShape(g, P, sz, b, rnd, unit) {
   const shape = pickShape(P, b, rnd);
-  if (shape === 'stroke') { drawStroke(g, sz, P.strokeSeg, P.strokeWarp, rnd); return; }
+  if (shape === 'stroke') { drawStroke(g, P, sz, rnd, unit || 1); return; }
   if (shape && (shape.startsWith('g:') || shape.startsWith('u:'))) drawFormShape(g, shape, sz, P.width, P.length);
 }
 
@@ -1599,7 +1647,7 @@ function paintPoints(g, pts, P, W, H, aa, ink, bg, unit) {
     g.save();
     g.translate(p.x * unit, p.y * unit);   // positions scale to the output too
     if (ang) g.rotate(ang);
-    drawShape(g, P, sz, p.b, p.rnd);
+    drawShape(g, P, sz, p.b, p.rnd, unit);
     g.restore();
   }
 }
@@ -1636,8 +1684,23 @@ function updatePtPreview() {
     if (perPoint) { const cc = pointRGBA(P, bb, rnd); g.fillStyle = g.strokeStyle = `rgba(${cc.r},${cc.g},${cc.b},${cc.a})`; }
     const ang = P.angleRandom ? rnd * Math.PI * 2 : baseAng;
     g.save(); g.translate(x, y); if (ang) g.rotate(ang);
-    drawShape(g, P, sz, bb, rnd);
+    drawShape(g, P, sz, bb, rnd, SCALE);
     g.restore();
+  }
+  // Stroke: showcase as a swirl (tangential strokes on concentric rings).
+  if (pointType === 'stroke') {
+    let seed = 1;
+    [[14, 7], [30, 11], [48, 13], [66, 13]].forEach(([r, count]) => {
+      for (let i = 0; i < count; i++) {
+        const a = (i / count) * Math.PI * 2 + r * 0.05;
+        g.save();
+        g.translate(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+        g.rotate(a + Math.PI / 2 + 0.45);              // tangential + swirl twist
+        drawShape(g, P, sz * 0.85, 0.5, srand(seed++), SCALE);
+        g.restore();
+      }
+    });
+    return;
   }
   // In RMX (shapes or colours) spread brightness across the ring so the full mix shows.
   const spread = P.rmx || P.colorMode === 'rmx';
@@ -1709,12 +1772,14 @@ function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
 function shapeToSVG(P, x, y, sz, deg, b, rnd, fill, op) {
   const shape = pickShape(P, b, rnd);
   if (shape === 'stroke') {
-    const pts = strokePolyline(sz * STROKE_LEN_K, P.strokeSeg, P.strokeWarp, rnd)
-      .map(pt => pt[0].toFixed(2) + ',' + pt[1].toFixed(2)).join(' ');
-    const th = Math.max(0.8, sz * 0.14);
+    const d = smoothOpenPathD(strokeCenterline(P.strokeLen, P.strokeSeg, P.strokeWarp, rnd));
     const o = op < 1 ? ` opacity="${op.toFixed(2)}"` : '';
-    return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${deg.toFixed(1)})"${o}>`
-      + `<polyline points="${pts}" fill="none" stroke="${fill}" stroke-width="${th.toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+    const cap = P.strokeRound ? 'round' : 'butt';
+    const attrs = `d="${d}" fill="none" stroke="${fill}" stroke-width="${Math.max(0.5, sz).toFixed(2)}" stroke-linecap="${cap}" stroke-linejoin="round"`;
+    const arms = P.strokeStyle === 'star' ? 3 : 1;
+    let inner = '';
+    for (let k = 0; k < arms; k++) inner += k ? `<path transform="rotate(${(180 / arms * k).toFixed(1)})" ${attrs}/>` : `<path ${attrs}/>`;
+    return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${deg.toFixed(1)})"${o}>${inner}</g>`;
   }
   if (!(shape && (shape.startsWith('g:') || shape.startsWith('u:')))) return '';
   const f = parseShape(shape);
