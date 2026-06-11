@@ -2,14 +2,14 @@
 
 > Studio Rann · Organica · Advanced Stippling
 > Live: [theorganicalanguage.vercel.app/pollen/](https://theorganicalanguage.vercel.app/pollen/)
-> Last updated: June 9, 2026
+> Last updated: June 11, 2026
 
 ---
 
 ## 1. What Pollen does
 
 Pollen turns an image into a **stippled field of symbols**. Each point is one of
-the Organica primordial forms (drop, line, circle, leaf…), placed so that **dark
+the Organica primordial forms (drop, line, circle, lung…), placed so that **dark
 areas are dense and bright areas are sparse**. The result is a vector-first,
 scale-agnostic translation of a photo into the Organica mark vocabulary — ready
 for print, screen, or mural.
@@ -24,7 +24,7 @@ Pollen places points with a **variable-radius Poisson-disk** algorithm
 (a "blue-noise" distribution — even, never gridded, never clumped):
 
 ```
-spacing(x, y) = lerp(SpacingMin, SpacingMax, brightness(x, y))
+spacing(x, y) = lerp(SpacingMin, SpacingMax, brightness(x, y)) × SpacingScale
    dark pixel  → small spacing → points close together → dense
    bright pixel → large spacing → points far apart      → sparse
 ```
@@ -39,139 +39,157 @@ spacing(x, y) = lerp(SpacingMin, SpacingMax, brightness(x, y))
 
 ### Placement vs. Appearance — the key mental model
 
-Two kinds of controls, deliberately separated in the UI:
+Two kinds of controls:
 
 | Type | What it changes | When it applies |
 |---|---|---|
-| **Placement** | *where* the points are | needs **↻ Refresh** (recompute) |
+| **Placement** | *where* the points are | recompute (now **live**, debounced) |
 | **Appearance** | *how* each point looks | **live** (instant re-render) |
 
-- **Placement (↻):** Spacing, Phases, Gamma, Contrast, Hide Zone, Invert,
-  Rotation, Flip. Changing one marks the field "dirty" — the ↻ button highlights
-  and the status reads *"Needs refresh ↻"*. Click ↻ to recompute.
-- **Appearance (live):** Symbol shape, Size, Angle, Color, Overpaint,
-  Antialiasing. These restyle the *existing* points with no recompute.
-
-This is why moving, say, **Spacing** doesn't change the canvas until you press ↻ —
-by design. Color or Size change instantly.
+- **Placement:** Spacing, Spacing ×, Phases, Gamma, Contrast, Hide Zone, Invert,
+  Rotation, Flip. These need the blue-noise to be recomputed — **Pollen now does
+  it automatically** ~300 ms after you stop moving a control, showing a
+  **"Recomputing…" overlay** on the image. A new change cancels an in-flight run.
+  The **↻ Refresh** button is still there for a manual recompute.
+- **Appearance (live):** Symbol(s), Size/Scale/Width/Length, Angle, Colour,
+  Overpaint, Antialiasing. These restyle the *existing* points instantly.
 
 ---
 
-## 3. The right column — controls, section by section
+## 3. Controls, section by section
 
-### Top toolbar
+### Top bar
 - **Open** — load an image (or drag-drop onto the canvas, or click the ⊕ circle).
-- **↻ Refresh** — recompute the point placement (bold = pending changes).
+- **↻ Refresh** — recompute placement manually (bold = pending changes).
 - **Stop** — interrupt a long computation.
-- **Status** — "1,475 points placed", "Needs refresh ↻", etc.
-- **PNG · JPG · SVG · Figma** — export buttons.
+- **Status** — "1,475 points placed", "Recomputing…", etc.
+- **Export Scale** — ×1 / ×2 / ×3 raster multiplier, with the output pixel size
+  next to it.
+- **PNG · JPG · SVG · → Figma** — exports.
 
 ### Presets
-A preset is a saved snapshot of the controls.
-- **Select** — apply a built-in or saved preset.
-- **Save** — store the current settings (persists in browser `localStorage`).
-- **Delete** — remove a saved preset.
+A saved snapshot of *the whole look* — including symbol(s), sizing, colour mode,
+RMX palette + mapping, RMX shapes, and placement.
+- **Select / Save / Delete** — built-ins + user presets (browser `localStorage`).
 
 ### Symbols  *(live · 400 %)*
 The symbol picker — shared, identical component with Spore.
-- **400 % preview** — large zoom of the selected symbol (centre + ring), reflects
-  Size and Color live.
-- **Shape · primordial forms** — 13 curated Genesis forms, each with its
-  reference number (top-right) for fine-tuning:
-  `7 drop · 56 line · 1 circle · 2 teardrop · 40 ring · 12 leaf · 14 petal ·
-  33 seed · 38 spiral · 36 crescent · 44 dew · 30 iris · 45 mushroom`.
+- **400 % preview** — large zoom of the current symbol(s); reflects size, colour
+  and the RMX mix live.
+- **Shape · primordial forms** — 8 curated Genesis forms, each with its reference
+  number (top-right):
+  `7 drop · 56 line · 1 circle · 2 teardrop · 14 petal · 33 seed · 38 spiral ·
+  31 lung`.
 - **+ Upload SVG** — add your own SVG as a custom symbol.
+- **RMX · remix by tone** — distribute points across **up to 3 symbols**, assigned
+  by brightness (see §4).
 - **Size** + **Range** — base marker size; Range varies size by brightness.
-- **Angle** + **Range** + **Random** — base rotation; Range varies by brightness;
-  Random scatters per-point.
+- **Scale** — global size multiplier (×) on top of Size.
+- **Width** / **Length** — non-uniform stretch on the symbol's *local* X / Y axes
+  (e.g. elongate a line). A rotated symbol stretches along its own direction.
+- **Angle** + **Range** + **Random** — base rotation; Range by brightness; Random
+  scatters per-point.
 
 > Symbols are sized and centred on their **real content bounding box** (not the
-> 200×200 viewBox), and stroke-based forms (line, ring) get a minimum stroke
-> width, so every symbol renders at the intended size — including the thin /
-> outline ones.
+> 200×200 viewBox), and stroke-based forms (line) get a minimum stroke width, so
+> every symbol renders at the intended size — including thin / outline ones.
 
 ### Color
-- **Mode — Solid / Adaptive**
-  - *Solid:* every point uses the Point colour.
-  - *Adaptive (duotone):* each point is interpolated between **Point** (dark) and
-    **BG** (bright) by its local brightness — a two-tone gradient mapped onto the
-    image tones.
-- **Point** — swatch + hex field (click swatch for the native picker) + 🎲 random.
-- **BG** — background colour, same controls.
-- **Alpha** — Point opacity (0–255).
-- **Swap colors** — exchange Point and BG.
+- **Mode — Solid / Adaptive / RMX**
+  - *Solid:* one Point colour for all marks.
+  - *Adaptive (duotone):* each mark is interpolated **Point → BG** by its
+    brightness — a two-tone gradient onto the image tones.
+  - *RMX:* a **palette of up to 5 colours** mapped onto the image — a gradient map
+    (see §4). The single Point control is hidden in this mode (the palette
+    replaces it).
+- **Point / BG** — swatch + hex + 🎲 random (Point hidden in RMX).
+- **Alpha** — point opacity (0–255).
+- **Swap colors** — exchange Point and BG (hidden in RMX).
 
 ### Render  *(live)*
-- **Overpaint (additive)** — overlapping marks darken (multiply) for built-up,
-  inky density.
+- **Overpaint (additive)** — overlapping marks darken (multiply) for inky density.
 - **Antialiasing** — smooth mark edges.
 
-### Image & Stippling  *(↻ recompute)*
+### Image & Stippling  *(live — debounced recompute)*
 **Image** (reshape the source before sampling):
 - **Rotation** — 0 / 90 / 180 / 270°.
-- **Flip horizontal**.
-- **Invert** — swap dark/bright (negative).
-- **Gamma** — midtone bias (──> more/less dense midtones).
-- **Contrast** — push tones toward black/white.
+- **Flip horizontal** · **Invert** (negative).
+- **Gamma** — midtone bias. **Contrast** — push tones toward black/white.
 
 **Stippling field:**
 - **Spacing (min ↔ max)** — the density range (dark→min, bright→max).
-- **Phases** — number of placement passes (higher = fuller fill).
-- **Hide Zone (min ↔ max)** — suppress points in a brightness band (e.g. drop the
-  brightest highlights so they stay empty).
+- **Spacing ×** — master multiplier: scales min+max together, **keeping their
+  ratio**. One knob for "denser / sparser" overall (↑ = sparser, ↓ = denser).
+- **Phases** — placement passes (higher = fuller fill).
+- **Hide Zone (min ↔ max)** — suppress points in a brightness band (e.g. clear the
+  brightest highlights).
 - **Points** — read-out of the current point count.
 
-### Export
-- **Scale — ×1 / ×2 / ×3** — raster output resolution multiplier.
-- **PNG / JPG** — raster, scaled by the chosen Scale.
-- **SVG** — resolution-independent vector.
-- **Figma** — send to Figma.
+---
 
-> **Export is WYSIWYG.** It serialises the **exact preview points** — no
-> recompute, no drift. The SVG uses the preview dimensions as its viewBox so it
-> scales to any size while staying pixel-faithful to what you see; raster honours
-> the Scale multiplier.
+## 4. RMX — Remix (the creative layer)
+
+RMX doesn't change *where* points go (the blue-noise stays) — it changes *what*
+each point is. Two independent remixers, both **tone-driven** and deterministic
+(→ WYSIWYG export):
+
+### RMX shapes (Symbols section)
+Pick up to **3 symbols**; each point gets one assigned by **tone** with smooth,
+overlapping triangular weights — shadows get symbol 1, mids symbol 2, highlights
+symbol 3, with gradual crossfades (no hard banding). Conceptually a "blue-noise
+ASCII": the alphabet is organic symbols, the placement is organic.
+
+### RMX colours (Color section, mode RMX)
+A palette of up to 5 colours with four **Mappings**:
+- **Tone (gradient)** — colours interpolated across brightness (a gradient map).
+- **Posterize** — same, but hard bands (silkscreen / poster look).
+- **Random** — each point picks a palette colour at random (confetti).
+- **Tone + Random** — tone chooses the zone, random varies among nearby colours.
+
+RMX shapes and RMX colours combine — forms *and* colours following tone together.
 
 ---
 
-## 4. A typical workflow
+## 5. A typical workflow
 
 1. **Open** an image.
-2. Set **Rotation / Flip / Invert**, then **Gamma / Contrast** to shape the tones
-   → press **↻**.
-3. Tune **Spacing** and **Phases** for the density you want → **↻**.
-4. Pick a **Symbol**, set **Size** (and Angle if the symbol is directional, e.g.
-   line) — these update live.
-5. Choose **Color** (Solid or Adaptive duotone), Alpha, Overpaint.
-6. (Optional) **Save** as a preset.
-7. **Export** — SVG for vector/print/mural, PNG/JPG for screen (set Scale first).
+2. Tune **Image** (Invert / Gamma / Contrast) and the **Stippling field**
+   (Spacing, Spacing ×, Phases) — the canvas recomputes live.
+3. Pick a **Symbol** (or enable **RMX** and pick up to 3); set **Size / Scale**,
+   and **Width/Length** to stretch.
+4. Choose **Colour** — Solid, Adaptive, or **RMX** palette + mapping.
+5. (Optional) **Save** a preset — it captures everything, RMX included.
+6. **Export** — set **Export Scale**, then SVG (vector/mural) or PNG/JPG.
 
 ---
 
-## 5. Tips & gotchas
+## 6. Tips & gotchas
 
-- **Canvas not updating?** You probably changed a *placement* control — press **↻**.
-- **A symbol looks empty?** Increase **Size**; thin forms (line, ring, leaf) read
-  better a little larger. All 13 forms now render (post bbox + stroke-min fix).
-- **Too dense / muddy?** Raise Spacing min, lower Phases, or reduce Size /
+- **Canvas flickers "Recomputing…"** — normal: a placement control changed and the
+  blue-noise is rebuilding (debounced). On huge images this can take a moment.
+- **A symbol looks empty?** Increase **Size / Scale**; thin forms (line) read
+  better a little larger. All 8 primordials render (bbox + stroke-min fix).
+- **Too dense / muddy?** Raise **Spacing ×**, lower Phases, or reduce Size /
   Overpaint.
 - **Highlights too busy?** Use **Hide Zone** to clear the brightest band.
-- **Export looks different from preview?** It shouldn't — export is WYSIWYG. If it
-  does, re-render (↻) then export.
+- **Export = preview.** It's WYSIWYG (exact points; SVG is resolution-independent,
+  raster honours Export Scale).
 
 ---
 
-## 6. Architecture notes (for future work)
+## 7. Architecture notes
 
 - **Symbols** come from the centralized Genesis library
   (`/genesis/organic-forms.js` → `window.ORGANIC_FORMS`), filtered to the
-  primordial subset `[7,56,1,2,40,12,14,33,38,36,44,30,45]`. The same component
-  is used in **Spore**.
+  primordial subset `[7, 56, 1, 2, 14, 33, 38, 31]`. The same picker component is
+  used in **Spore**.
 - `pointType` is `g:<n>` (Genesis form) or `u:<id>` (uploaded SVG).
 - Forms are measured by content bbox (`formBBox`, hidden-SVG `getBBox`, cached);
-  stroke width is floored to ~1.1 device px so stroke-based forms stay visible.
-- Open follow-ups live in `docs/ROADMAP.md` (full-snapshot presets, higher detail
-  ceiling / Web Worker, animated stippling for video).
+  stroke width floored to ~1.1 device px. Non-uniform Width/Length scale the local
+  axes; export mirrors both.
+- RMX is a per-point function of `(brightness, stableRandom)` → identical in
+  preview and export. `pickShape()` picks the form; `pointRGBA()` the colour.
+- Open follow-ups: `docs/ROADMAP.md`.
 
 ---
 

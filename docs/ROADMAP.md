@@ -1,7 +1,7 @@
 # Organica — Roadmap
 
 > Studio Rann · Development Priorities  
-> Last updated: June 9, 2026 — v0.1
+> Last updated: June 11, 2026 — v0.1
 
 ---
 
@@ -52,20 +52,39 @@ The preview is downscaled for responsiveness; **export is WYSIWYG** — it seria
 preview points (SVG is resolution-independent, PNG/JPG scale the same points up).
 
 ### Done
-- [x] Engine, point shapes (Circle/Polygon/Line + Size/Angle Range, Random, Warping), 400% preview
-- [x] Stippling: Gamma, Contrast, Overpaint (additive), Hide Zone, Phases
-- [x] Image: Rotation, Flip, Invert; export Scale (raster)
-- [x] Colour: Solid / Adaptive (duotone), RGBA spinboxes + Random, Alpha, Swap
-- [x] Export PNG / JPG / SVG / Figma — faithful to the preview
-- [x] Presets (built-ins + user localStorage)
+- [x] Engine (variable-radius Poisson blue-noise), 400% preview
+- [x] Symbols from the centralized Genesis library (primordial subset of 8) + Upload SVG;
+  bbox-based sizing + stroke-min floor so every form renders
+- [x] Sizing: Size + Range, **Scale** (global ×), **Width/Length** (non-uniform stretch)
+- [x] Stippling: Gamma, Contrast, Overpaint, Hide Zone, Phases, **Spacing ×** (master)
+- [x] Image: Rotation, Flip, Invert
+- [x] **Image & Stippling is live** — debounced auto-recompute (300ms) + "Recomputing…" overlay
+- [x] Colour: Solid / Adaptive (duotone) / **RMX palette** (Tone/Posterize/Random/Tone+Random)
+- [x] **RMX shapes** — remix up to 3 symbols by tone
+- [x] Export PNG / JPG / SVG / Figma — WYSIWYG; **Export Scale moved to the top bar**
+- [x] Presets (built-ins + user localStorage) — now persist colour mode, RMX palette,
+  mapping and RMX shapes
 
 ### Open follow-ups
-- [ ] **Complete presets** — make presets full snapshots (today unspecified params keep
-  their current value) and sync the dropdown label after Apply.
+- [ ] **Aggiornare i preset** — rivedere/riscrivere i preset built-in per il nuovo set di
+  forme (8 primordiali) e le nuove feature (RMX shapes/colours, Scale, Width/Length,
+  Spacing ×); sync dell'etichetta del dropdown dopo Apply. *(extends "Complete presets")*
+- [ ] **Stippling effect "come da foto" — flow-field / gradient-oriented strokes**
+  (rif: app *Pointillist*, screenshot di Diego). L'effetto: i marchi a **linea** (e affini)
+  si **orientano lungo il gradiente locale dell'immagine** invece che con angolo
+  random → i tratti seguono i contorni/la forma, dando il look "piume/pelo/incisione".
+  Sotto-feature:
+  - **Angle = by gradient/flow** (nuova opzione angolo, oltre a Range/Random): calcola
+    il gradiente dell'immagine (Sobel) e orienta ogni tratto di conseguenza.
+  - **Linea multi-segmento** ondulata: parametri *Length*, *Segments*, *Warping*
+    (polilinea che si curva), + *Style* (line / star, Rounded).
+  - Resta tutto WYSIWYG (angolo per-punto deterministico dal gradiente).
 - [ ] **Higher detail ceiling** — preview point cap (~70k) bounds export richness; raise the
   cap and/or move point placement to a **Web Worker** to stay fluid on large images.
-- [ ] **Optional** — RGBA per-channel for BG alpha; more built-in presets; Gamma/Contrast on
-  the 400% preview readout.
+- [ ] **Animated stippling for video** (point 6) — animate the stored points (Reveal /
+  Breathe / Drift / Twinkle / Rotate) for visualisation + WebM/GIF export.
+- [ ] **RMX in Spore shapes** — Spore has RMX colours; add RMX shapes too for parity.
+- [ ] **Optional** — more built-in presets; Gamma/Contrast on the 400% preview readout.
 
 ---
 
