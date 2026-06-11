@@ -1168,9 +1168,9 @@ function ranged(min, max, range, random, b, rnd) {
 // Draw one SVG element (fill and/or stroke) using the context's current style.
 // Genesis forms colour via CSS classes (no inline fill) → treated as fill;
 // elements with an inline stroke (e.g. the Line form) are stroked.
-function drawSvgEl(g, el) {
+function drawSvgEl(g, el, scale) {
   const tag = el.tagName.toLowerCase();
-  if (tag === 'g') { Array.from(el.children).forEach(c => drawSvgEl(g, c)); return; }
+  if (tag === 'g') { Array.from(el.children).forEach(c => drawSvgEl(g, c, scale)); return; }
   const fill = el.getAttribute('fill'), stroke = el.getAttribute('stroke');
   const doFill = fill === 'none' ? false : (!!fill || !stroke);
   const doStroke = !!stroke && stroke !== 'none';
@@ -1187,20 +1187,51 @@ function drawSvgEl(g, el) {
   else if (tag === 'line') { path.moveTo(+el.getAttribute('x1')||0,+el.getAttribute('y1')||0); path.lineTo(+el.getAttribute('x2')||0,+el.getAttribute('y2')||0); }
   else return;
   if (doStroke) {
-    const sw = el.getAttribute('stroke-width'); g.lineWidth = sw ? parseFloat(sw) : 1;
+    const sw = el.getAttribute('stroke-width');
+    let lw = sw ? parseFloat(sw) : 1;
+    // keep stroke-based forms (line, ring, vine…) visible at marker scale:
+    // floor the width to ~1.1 device px regardless of how small `scale` is.
+    if (scale) lw = Math.max(lw, 1.1 / scale);
+    g.lineWidth = lw;
     g.lineCap = el.getAttribute('stroke-linecap') || 'butt';
+    g.lineJoin = 'round';
   }
   if (doFill) g.fill(path);
   if (doStroke) g.stroke(path);
 }
+
+// Measure the real content bounding box of a form via a hidden SVG (cached).
+// Genesis forms only fill a fraction of their 200×200 viewBox and are often
+// off-centre — sizing/centring on the content (not the viewBox) makes every
+// symbol render at the intended marker size, centred.
+const _bboxCache = {};
+let _measureSvg = null;
+function formBBox(key, el) {
+  if (key in _bboxCache) return _bboxCache[key];
+  try {
+    if (!_measureSvg) {
+      _measureSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      _measureSvg.setAttribute('style', 'position:absolute;left:-9999px;top:-9999px;width:200px;height:200px;overflow:visible;');
+      document.body.appendChild(_measureSvg);
+    }
+    _measureSvg.setAttribute('viewBox', el.getAttribute('viewBox') || '0 0 200 200');
+    _measureSvg.innerHTML = el.innerHTML;
+    const bb = _measureSvg.getBBox();
+    _bboxCache[key] = (bb && bb.width > 0.01 && bb.height > 0.01)
+      ? { x: bb.x, y: bb.y, w: bb.width, h: bb.height } : null;
+  } catch (e) { _bboxCache[key] = null; }
+  return _bboxCache[key];
+}
+
 // Draw a library shape (Genesis form or uploaded SVG) centred at origin, scaled to `sz`.
 function drawFormShape(g, key, sz) {
   const f = parseShape(key);
-  const scale = sz / Math.max(f.vbW, f.vbH);
+  const bb = formBBox(key, f.el) || { x: 0, y: 0, w: f.vbW, h: f.vbH };
+  const scale = sz / Math.max(bb.w, bb.h);
   g.save();
-  g.translate(-(f.vbW * scale) / 2, -(f.vbH * scale) / 2);
+  g.translate(-(bb.x + bb.w / 2) * scale, -(bb.y + bb.h / 2) * scale);
   g.scale(scale, scale);
-  Array.from(f.el.children).forEach(el => drawSvgEl(g, el));
+  Array.from(f.el.children).forEach(el => drawSvgEl(g, el, scale));
   g.restore();
 }
 
@@ -1338,9 +1369,12 @@ function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
 function shapeToSVG(P, x, y, sz, deg, b, rnd, fill, op) {
   if (!(P.shape && (P.shape.startsWith('g:') || P.shape.startsWith('u:')))) return '';
   const f = parseShape(P.shape);
-  const s = sz / Math.max(f.vbW, f.vbH);
-  const inner = f.el.innerHTML.replace(/currentColor/g, fill).replace(/ xmlns="[^"]*"/g, '');
-  const t = `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${deg.toFixed(1)}) scale(${s.toFixed(4)}) translate(${(-f.vbW/2).toFixed(2)} ${(-f.vbH/2).toFixed(2)})`;
+  const bb = formBBox(P.shape, f.el) || { x: 0, y: 0, w: f.vbW, h: f.vbH };
+  const s = sz / Math.max(bb.w, bb.h);
+  const minSW = 1.1 / s;   // mirror the canvas stroke-width floor
+  let inner = f.el.innerHTML.replace(/currentColor/g, fill).replace(/ xmlns="[^"]*"/g, '');
+  inner = inner.replace(/stroke-width="([\d.]+)"/g, (m, w) => `stroke-width="${Math.max(parseFloat(w), minSW).toFixed(2)}"`);
+  const t = `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${deg.toFixed(1)}) scale(${s.toFixed(4)}) translate(${(-(bb.x + bb.w/2)).toFixed(2)} ${(-(bb.y + bb.h/2)).toFixed(2)})`;
   const o = op < 1 ? ` opacity="${op.toFixed(2)}"` : '';
   return `<g transform="${t}" fill="${fill}"${o}>${inner}</g>`;
 }

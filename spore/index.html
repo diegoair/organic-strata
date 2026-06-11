@@ -1017,23 +1017,46 @@ async function doRender() {
   drawBatch(0);
 }
 
+// Measure the real content bounding box of a mark via a hidden SVG (cached).
+// Genesis forms fill only a fraction of their viewBox and are often off-centre;
+// sizing/centring on the content (not the viewBox) renders every symbol at the
+// intended marker size, centred.
+const _markBBoxCache = {};
+let _markMeasureSvg = null;
+function markBBox(svgEl) {
+  const key = (svgEl.getAttribute('viewBox') || '') + '|' + svgEl.innerHTML;
+  if (key in _markBBoxCache) return _markBBoxCache[key];
+  try {
+    if (!_markMeasureSvg) {
+      _markMeasureSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      _markMeasureSvg.setAttribute('style', 'position:absolute;left:-9999px;top:-9999px;width:200px;height:200px;overflow:visible;');
+      document.body.appendChild(_markMeasureSvg);
+    }
+    _markMeasureSvg.setAttribute('viewBox', svgEl.getAttribute('viewBox') || '0 0 20 20');
+    _markMeasureSvg.innerHTML = svgEl.innerHTML;
+    const bb = _markMeasureSvg.getBBox();
+    _markBBoxCache[key] = (bb && bb.width > 0.01 && bb.height > 0.01)
+      ? { x: bb.x, y: bb.y, w: bb.width, h: bb.height } : null;
+  } catch (e) { _markBBoxCache[key] = null; }
+  return _markBBoxCache[key];
+}
+
 function drawMark(ctx, svgEl, size, vbW, vbH, color) {
-  const scale = size / Math.max(vbW, vbH);
-  const offX = -(vbW * scale) / 2;
-  const offY = -(vbH * scale) / 2;
+  const bb = markBBox(svgEl) || { x: 0, y: 0, w: vbW, h: vbH };
+  const scale = size / Math.max(bb.w, bb.h);
 
   ctx.save();
-  ctx.translate(offX, offY);
+  ctx.translate(-(bb.x + bb.w / 2) * scale, -(bb.y + bb.h / 2) * scale);
   ctx.scale(scale, scale);
   ctx.fillStyle = color;
   ctx.strokeStyle = color;
 
   // Draw each child element
-  Array.from(svgEl.children).forEach(el => drawSvgElement(ctx, el, color));
+  Array.from(svgEl.children).forEach(el => drawSvgElement(ctx, el, color, scale));
   ctx.restore();
 }
 
-function drawSvgElement(ctx, el, color) {
+function drawSvgElement(ctx, el, color, scale) {
   const tag = el.tagName.toLowerCase();
   const fill = el.getAttribute('fill');
   const stroke = el.getAttribute('stroke');
@@ -1041,8 +1064,11 @@ function drawSvgElement(ctx, el, color) {
   if (fill !== 'none') ctx.fillStyle = (fill && fill !== 'currentColor') ? fill : color;
   if (stroke) {
     ctx.strokeStyle = (stroke !== 'currentColor') ? stroke : color;
-    const sw = el.getAttribute('stroke-width'); if (sw) ctx.lineWidth = parseFloat(sw);
+    const sw = el.getAttribute('stroke-width'); let lw = sw ? parseFloat(sw) : 1;
+    if (scale) lw = Math.max(lw, 1.1 / scale);   // keep strokes visible at marker scale
+    ctx.lineWidth = lw;
     const lc = el.getAttribute('stroke-linecap'); if (lc) ctx.lineCap = lc;
+    ctx.lineJoin = 'round';
   }
 
   if (tag === 'circle') {
@@ -1085,7 +1111,7 @@ function drawSvgElement(ctx, el, color) {
   }
   // Groups/nested
   else if (tag === 'g') {
-    Array.from(el.children).forEach(child => drawSvgElement(ctx, child, color));
+    Array.from(el.children).forEach(child => drawSvgElement(ctx, child, color, scale));
   }
 }
 
@@ -1196,25 +1222,30 @@ function buildSporeSVG() {
   if (!d) return null;
   const { W, H, bgColor, marks, markSvg, markSvgVb } = d;
   const vbW = markSvgVb[0], vbH = markSvgVb[1];
-  const vbMax = Math.max(vbW, vbH);
 
   const parser = new DOMParser();
   const parsed = parser.parseFromString(markSvg, 'image/svg+xml');
-  const innerSVG = parsed.querySelector('svg').innerHTML;
+  const parsedSvg = parsed.querySelector('svg');
+  const innerSVG = parsedSvg.innerHTML;
+  // Size/centre on the real content bbox (matches the canvas renderer).
+  const bb = markBBox(parsedSvg) || { x: 0, y: 0, w: vbW, h: vbH };
+  const bbMax = Math.max(bb.w, bb.h);
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
   svg += `<rect width="${W}" height="${H}" fill="${bgColor}"/>`;
 
   marks.forEach(m => {
     const deg = (m.angle * 180 / Math.PI).toFixed(2);
-    const s = (m.sz / vbMax).toFixed(4);
+    const s = m.sz / bbMax;
+    const minSW = 1.1 / s;   // mirror the canvas stroke-width floor
     // Same composition the canvas applies in drawMark():
-    // translate(center) → rotate → scale → translate(-viewBox/2)
+    // translate(center) → rotate → scale → translate(-bboxCenter)
     const tf = `translate(${m.x.toFixed(2)} ${m.y.toFixed(2)}) rotate(${deg}) `
-             + `scale(${s}) translate(${(-vbW/2).toFixed(2)} ${(-vbH/2).toFixed(2)})`;
+             + `scale(${s.toFixed(4)}) translate(${(-(bb.x + bb.w/2)).toFixed(2)} ${(-(bb.y + bb.h/2)).toFixed(2)})`;
     // Genesis forms colour via CSS classes (no inline fill) → set fill on the
     // group; the Line's inline stroke="currentColor" is resolved here too.
-    const shapes = innerSVG.replace(/currentColor/g, m.color).replace(/ xmlns="[^"]*"/g, '');
+    let shapes = innerSVG.replace(/currentColor/g, m.color).replace(/ xmlns="[^"]*"/g, '');
+    shapes = shapes.replace(/stroke-width="([\d.]+)"/g, (mm, w) => `stroke-width="${Math.max(parseFloat(w), minSW).toFixed(2)}"`);
     svg += `<g transform="${tf}" fill="${m.color}" opacity="${m.opacity.toFixed(2)}">${shapes}</g>`;
   });
 
