@@ -8,7 +8,7 @@
   :root {
     --ink: #0a0a0a;
     --paper: #f5f2ec;
-    --mid: #c8c0b0;
+    --mid: #726a5e;
     --accent: #2a2a2a;
     --panel: #eceae4;
     --border: #d0c8b8;
@@ -82,6 +82,18 @@
   .tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 8px; }
   .tb-spacer { flex: 1; }
 
+  /* in-bar export resolution */
+  .tb-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mid); margin-right: 7px; }
+  .tb-select {
+    font-family: var(--sans); font-size: 10px; letter-spacing: 0.06em;
+    background: none; border: 1px solid var(--border); color: var(--ink);
+    height: 26px; padding: 0 6px; cursor: pointer;
+    accent-color: var(--ink); outline: none;
+  }
+  .tb-select:hover { border-color: var(--mid); }
+  .tb-select:focus, .tb-select:focus-visible { border-color: var(--ink); outline: none; box-shadow: none; }
+  .tb-out { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); margin-left: 8px; min-width: 64px; }
+
   #status-dot {
     width: 6px; height: 6px;
     border-radius: 50%;
@@ -114,6 +126,21 @@
   }
 
   #canvas-wrap.drag-over { outline: 2px dashed var(--ink); outline-offset: -8px; }
+
+  /* live recompute indicator (debounced placement updates) */
+  #recompute-overlay {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    display: none; align-items: center; gap: 7px;
+    padding: 6px 12px; background: rgba(10,10,10,0.82); color: #fff;
+    font-family: var(--mono, monospace); font-size: 10px; letter-spacing: 0.08em;
+    text-transform: uppercase; border-radius: 2px; z-index: 20; pointer-events: none;
+  }
+  #recompute-overlay.visible { display: flex; }
+  #recompute-overlay .spinner {
+    width: 10px; height: 10px; border: 1.5px solid rgba(255,255,255,0.35);
+    border-top-color: #fff; border-radius: 50%; animation: pollen-spin 0.6s linear infinite;
+  }
+  @keyframes pollen-spin { to { transform: rotate(360deg); } }
 
   #drop-hint {
     position: absolute;
@@ -250,6 +277,35 @@
     font-size: 6px; line-height: 1; color: var(--mid); pointer-events: none;
   }
 
+  /* RMX slots */
+  .rmx-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+  .rmx-slot {
+    position: relative; aspect-ratio: 1; border: 1px dashed var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; background: var(--panel); padding: 6px; overflow: hidden;
+    transition: border-color 0.12s, background 0.12s;
+  }
+  .rmx-slot:hover { border-color: var(--accent); }
+  .rmx-slot.filled { border-style: solid; }
+  .rmx-slot.active { border-color: var(--ink); background: #e8e4dc; }
+  .rmx-slot svg { width: 100%; height: 100%; display: block; }
+  .rmx-plus { font-size: 14px; color: var(--mid); line-height: 1; }
+
+  /* RMX colours palette */
+  .rmx-palette { display: flex; flex-wrap: wrap; gap: 6px; }
+  .rmx-color { position: relative; width: 36px; height: 28px; border: 1px solid var(--border); cursor: pointer; overflow: hidden; }
+  .rmx-color input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; cursor: pointer; }
+  .rmx-x {
+    position: absolute; top: 0; right: 0; width: 13px; height: 13px;
+    line-height: 11px; font-size: 11px; padding: 0; cursor: pointer;
+    background: rgba(255,255,255,0.82); color: #000; border: none;
+  }
+  .rmx-add {
+    width: 36px; height: 28px; border: 1px dashed var(--border); background: none;
+    color: var(--mid); font-size: 14px; cursor: pointer; line-height: 1;
+  }
+  .rmx-add:hover { border-color: var(--accent); color: var(--accent); }
+
   .ctrl-row {
     display: flex;
     align-items: center;
@@ -366,7 +422,10 @@
     width: 100%;
     outline: none;
     cursor: pointer;
+    accent-color: var(--ink);
   }
+  .panel-select:hover { border-color: var(--mid); }
+  .panel-select:focus, .panel-select:focus-visible { border-color: var(--ink); outline: none; box-shadow: none; }
 
   .row-btns { display: flex; gap: 6px; margin-top: 8px; }
   .mini-btn {
@@ -461,6 +520,14 @@
   <div id="status-dot"></div>
   <span id="status-text" style="margin: 0 10px 0 6px">—</span>
   <div class="tb-sep"></div>
+  <span class="tb-label">Export Scale</span>
+  <select class="tb-select" id="sel-scale" onchange="updateSizeReadout()" title="Raster export multiplier — SVG is vector, scale-independent">
+    <option value="1">×1 (native)</option>
+    <option value="2">×2</option>
+    <option value="3">×3</option>
+  </select>
+  <span class="tb-out" id="vl-out-size">—</span>
+  <div class="tb-sep"></div>
   <button class="tb-btn" id="btn-save-png" onclick="exportPNG()" disabled>PNG</button>
   <button class="tb-btn" id="btn-save-jpg" onclick="exportJPG()" disabled>JPG</button>
   <button class="tb-btn" id="btn-save-svg" onclick="exportSVG()" disabled>SVG</button>
@@ -480,6 +547,7 @@
       <p>Drop an image here<br>or click Open…</p>
     </div>
     <canvas id="main-canvas"></canvas>
+    <div id="recompute-overlay"><span class="spinner"></span>Recomputing…</div>
     <div id="zoom-hud">
       <span id="zoom-level">100%</span>
       <span class="zoom-reset" onclick="resetZoom()">Reset</span>
@@ -515,6 +583,18 @@
       <input type="file" id="shape-upload" accept=".svg,image/svg+xml" style="display:none" onchange="uploadShape(this)">
       <button class="upload-btn" onclick="document.getElementById('shape-upload').click()">+ Upload SVG</button>
 
+      <!-- RMX · remix up to 3 symbols, distributed by tone -->
+      <label class="check-row" style="margin-top:10px">
+        <input type="checkbox" id="ck-rmx" onchange="toggleRmx(this.checked)">
+        <span>RMX · remix by tone</span>
+      </label>
+      <div id="rmx-slots" class="rmx-slots" style="display:none">
+        <div class="rmx-slot" data-slot="0" onclick="rmxSelectSlot(0)"><span class="rmx-plus">+</span></div>
+        <div class="rmx-slot" data-slot="1" onclick="rmxSelectSlot(1)"><span class="rmx-plus">+</span></div>
+        <div class="rmx-slot" data-slot="2" onclick="rmxSelectSlot(2)"><span class="rmx-plus">+</span></div>
+      </div>
+      <div id="rmx-hint" class="sub-label" style="display:none; margin-top:6px">dark → mid → bright</div>
+
       <!-- Size (+ Range: Min dark → Max bright) -->
       <div class="ctrl-row">
         <span class="ctrl-label">Size</span>
@@ -529,6 +609,23 @@
         <span class="ctrl-label">→ max</span>
         <input type="range" id="sl-size-max" min="0.5" max="16" step="0.5" value="6" oninput="syncVal(this,'vl-size-max');render()">
         <span class="ctrl-val" id="vl-size-max">6</span>
+      </div>
+      <!-- Scale: global multiplier on Size (and → max) -->
+      <div class="ctrl-row">
+        <span class="ctrl-label">Scale</span>
+        <input type="range" id="sl-scale" min="0.25" max="4" step="0.05" value="1" oninput="document.getElementById('vl-scale').textContent='×'+(+this.value).toFixed(2);render()">
+        <span class="ctrl-val" id="vl-scale">×1.00</span>
+      </div>
+      <!-- Stretch: non-uniform multipliers on the symbol's local X / Y axes -->
+      <div class="ctrl-row">
+        <span class="ctrl-label">Width</span>
+        <input type="range" id="sl-width" min="0.25" max="4" step="0.05" value="1" oninput="document.getElementById('vl-width').textContent='×'+(+this.value).toFixed(2);render()">
+        <span class="ctrl-val" id="vl-width">×1.00</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Length</span>
+        <input type="range" id="sl-length" min="0.25" max="4" step="0.05" value="1" oninput="document.getElementById('vl-length').textContent='×'+(+this.value).toFixed(2);render()">
+        <span class="ctrl-val" id="vl-length">×1.00</span>
       </div>
 
       <!-- Angle (+ Range by brightness, + Random) -->
@@ -561,10 +658,30 @@
         <div class="seg-ctrl" id="colormode-seg">
           <button class="seg-btn active" data-val="solid" onclick="setColorMode('solid')">Solid</button>
           <button class="seg-btn" data-val="adaptive" onclick="setColorMode('adaptive')">Adaptive</button>
+          <button class="seg-btn" data-val="rmx" onclick="setColorMode('rmx')">RMX</button>
         </div>
       </div>
+
+      <!-- RMX palette: up to 5 colours assigned by a chosen mapping -->
+      <div id="rmx-color-block" style="display:none">
+        <div class="ctrl-row" style="margin-bottom:6px">
+          <span class="ctrl-label">Palette</span>
+          <span class="sub-label" id="rmx-color-hint" style="margin:0">dark → bright</span>
+        </div>
+        <div id="rmx-palette" class="rmx-palette"></div>
+        <div class="ctrl-row" style="margin-top:8px">
+          <span class="ctrl-label">Mapping</span>
+          <select class="panel-select" id="sel-rmx-map" style="flex:1" onchange="rmxColorMap=this.value;render()">
+            <option value="tone">Tone (gradient)</option>
+            <option value="posterize">Posterize</option>
+            <option value="random">Random</option>
+            <option value="tonernd">Tone + Random</option>
+          </select>
+        </div>
+      </div>
+
       <!-- POINT colour: label (left) + swatch (picker) + hex + Random icon -->
-      <div class="color-row">
+      <div class="color-row" id="row-point">
         <span class="ctrl-label">Point</span>
         <button class="color-swatch" id="swatch-ink" style="background:#0a0a0a" onclick="document.getElementById('cp-ink').click()" title="Point colour"></button>
         <input type="color" id="cp-ink" value="#0a0a0a" oninput="setColorAll('ink',this.value);render()">
@@ -591,7 +708,7 @@
         <input type="range" id="a-ink" min="0" max="255" value="255" oninput="syncVal(this,'vl-alpha');render()">
         <span class="ctrl-val" id="vl-alpha">255</span>
       </div>
-      <div class="row-btns">
+      <div class="row-btns" id="row-swap">
         <button class="mini-btn" onclick="swapColors()">Swap colors</button>
       </div>
     </div>
@@ -616,7 +733,7 @@
       <div class="sub-label">Image</div>
       <div class="ctrl-row">
         <span class="ctrl-label">Rotation</span>
-        <select class="panel-select" id="sel-rotation" onchange="markDirty();updateSizeReadout()" style="flex:1">
+        <select class="panel-select" id="sel-rotation" onchange="scheduleRecompute();updateSizeReadout()" style="flex:1">
           <option value="0">0°</option>
           <option value="90">90°</option>
           <option value="180">180°</option>
@@ -624,68 +741,56 @@
         </select>
       </div>
       <label class="check-row">
-        <input type="checkbox" id="ck-flip" onchange="markDirty()">
+        <input type="checkbox" id="ck-flip" onchange="scheduleRecompute()">
         <span>Flip horizontal</span>
       </label>
       <label class="check-row">
-        <input type="checkbox" id="ck-invert" onchange="markDirty()">
+        <input type="checkbox" id="ck-invert" onchange="scheduleRecompute()">
         <span>Invert</span>
       </label>
       <div class="ctrl-row">
         <span class="ctrl-label">Gamma</span>
-        <input type="range" id="sl-gamma" min="0.2" max="3" step="0.05" value="1" oninput="syncVal(this,'vl-gamma');markDirty()">
+        <input type="range" id="sl-gamma" min="0.2" max="3" step="0.05" value="1" oninput="syncVal(this,'vl-gamma');scheduleRecompute()">
         <span class="ctrl-val" id="vl-gamma">1</span>
       </div>
       <div class="ctrl-row">
         <span class="ctrl-label">Contrast</span>
-        <input type="range" id="sl-contrast" min="-100" max="100" value="0" oninput="syncVal(this,'vl-contrast');markDirty()">
+        <input type="range" id="sl-contrast" min="-100" max="100" value="0" oninput="syncVal(this,'vl-contrast');scheduleRecompute()">
         <span class="ctrl-val" id="vl-contrast">0</span>
       </div>
 
       <div class="sub-label">Stippling field</div>
       <div class="ctrl-row">
         <span class="ctrl-label">Spacing</span>
-        <input type="range" id="sl-sp-min" min="1" max="20" step="0.5" value="2" oninput="syncVal(this,'vl-sp-min');markDirty()" title="Min spacing (dark → dense)">
+        <input type="range" id="sl-sp-min" min="1" max="20" step="0.5" value="2" oninput="syncVal(this,'vl-sp-min');scheduleRecompute()" title="Min spacing (dark → dense)">
         <span class="ctrl-val" id="vl-sp-min">2</span>
-        <input type="range" id="sl-sp-max" min="2" max="48" step="0.5" value="12" oninput="syncVal(this,'vl-sp-max');markDirty()" title="Max spacing (bright → sparse)">
+        <input type="range" id="sl-sp-max" min="2" max="48" step="0.5" value="12" oninput="syncVal(this,'vl-sp-max');scheduleRecompute()" title="Max spacing (bright → sparse)">
         <span class="ctrl-val" id="vl-sp-max">12</span>
       </div>
       <div class="ctrl-row">
+        <span class="ctrl-label">Spacing ×</span>
+        <input type="range" id="sl-sp-scale" min="0.25" max="4" step="0.05" value="1" oninput="document.getElementById('vl-sp-scale').textContent='×'+(+this.value).toFixed(2);scheduleRecompute()" title="Master spacing — scales min+max together (keeps the ratio). ↑ = sparser, ↓ = denser">
+        <span class="ctrl-val" id="vl-sp-scale">×1.00</span>
+      </div>
+      <div class="ctrl-row">
         <span class="ctrl-label">Phases</span>
-        <input type="range" id="sl-phases" min="1" max="32" value="12" oninput="syncVal(this,'vl-phases');markDirty()">
+        <input type="range" id="sl-phases" min="1" max="32" value="12" oninput="syncVal(this,'vl-phases');scheduleRecompute()">
         <span class="ctrl-val" id="vl-phases">12</span>
       </div>
       <label class="check-row">
-        <input type="checkbox" id="ck-hide" onchange="toggleRow('row-hide-range',this.checked);markDirty()">
+        <input type="checkbox" id="ck-hide" onchange="toggleRow('row-hide-range',this.checked);scheduleRecompute()">
         <span>Hide Zone</span>
       </label>
       <div class="ctrl-row" id="row-hide-range" style="display:none">
         <span class="ctrl-label">→ range</span>
-        <input type="range" id="sl-hide-min" min="0" max="255" value="255" oninput="syncVal(this,'vl-hide-min');markDirty()" title="Hide where brightness ≥ this">
+        <input type="range" id="sl-hide-min" min="0" max="255" value="255" oninput="syncVal(this,'vl-hide-min');scheduleRecompute()" title="Hide where brightness ≥ this">
         <span class="ctrl-val" id="vl-hide-min">255</span>
-        <input type="range" id="sl-hide-max" min="0" max="255" value="255" oninput="syncVal(this,'vl-hide-max');markDirty()" title="…and ≤ this">
+        <input type="range" id="sl-hide-max" min="0" max="255" value="255" oninput="syncVal(this,'vl-hide-max');scheduleRecompute()" title="…and ≤ this">
         <span class="ctrl-val" id="vl-hide-max">255</span>
       </div>
       <div class="ctrl-row" style="margin-top:6px">
         <span class="ctrl-label">Points</span>
         <span class="ctrl-val" id="vl-total" style="min-width:auto; color:var(--accent)">—</span>
-      </div>
-    </div>
-
-    <!-- EXPORT -->
-    <div class="panel-section">
-      <h3>Export <span class="hint">resolution</span></h3>
-      <div class="ctrl-row">
-        <span class="ctrl-label">Scale</span>
-        <select class="panel-select" id="sel-scale" onchange="updateSizeReadout()" style="flex:1" title="Raster export multiplier — SVG is vector, scale-independent">
-          <option value="1">×1 (native)</option>
-          <option value="2">×2</option>
-          <option value="3">×3</option>
-        </select>
-      </div>
-      <div class="ctrl-row">
-        <span class="ctrl-label">Output</span>
-        <span class="ctrl-val" id="vl-out-size" style="min-width:auto; color:var(--accent)">—</span>
       </div>
     </div>
 
@@ -710,12 +815,22 @@ let pointType = 'g:1';      // 'g:<n>' — a Genesis form id from window.ORGANIC
 let colorMode = 'solid';
 let isDirty = false;
 
+// ── REMIX (RMX): distribute points across up to 3 symbols, assigned by tone ──
+let rmxOn = false;
+let rmxForms = [null, null, null];   // up to 3 pointType keys
+let rmxSlot = 0;                     // active slot to fill from the grid
+
+// ── RMX COLORS: a palette of up to 5 colours, assigned by a chosen mapping ──
+let rmxColors = ['#1a1a2e', '#e94f37', '#f6e8c3'];   // default palette (dark→bright)
+let rmxColorMap = 'tone';            // 'tone' | 'posterize' | 'random' | 'tonernd'
+const RMX_COLORS_MAX = 5;
+
 // ── SHAPE LIBRARY ──
 // Curated "primordial" subset of the centralized Genesis forms (window.ORGANIC_FORMS),
 // the base primitives for the Organica visual system. Plus user-uploaded SVG shapes.
 const FORMS = window.ORGANIC_FORMS || {};
 //          drop, line, circle, teardrop, ring, leaf, petal, seed, spiral, crescent, dew, iris, mushroom
-const PRIMORDIAL = [7, 56, 1, 2, 40, 12, 14, 33, 38, 36, 44, 30, 45];
+const PRIMORDIAL = [7, 56, 1, 2, 14, 33, 38, 31];
 let customForms = {};            // { 'u1': svgString, … } from uploads
 let _customSeq = 0;
 
@@ -742,9 +857,9 @@ function buildShapeGrid() {
     if (!FORMS[n]) return;
     const t = document.createElement('div');
     const key = 'g:' + n;
-    t.className = 'shape-thumb' + (pointType === key ? ' selected' : '');
+    t.className = 'shape-thumb' + (thumbSelected(key) ? ' selected' : '');
     t.title = '#' + n + (window.ORGANIC_LABELS && window.ORGANIC_LABELS[n] ? ' · ' + window.ORGANIC_LABELS[n] : '');
-    t.onclick = () => setPointType(key);
+    t.onclick = () => onPickShape(key);
     t.innerHTML = '<span class="thumb-num">' + n + '</span>' + FORMS[n];
     grid.appendChild(t);
   });
@@ -752,13 +867,17 @@ function buildShapeGrid() {
   Object.keys(customForms).forEach(id => {
     const t = document.createElement('div');
     const key = 'u:' + id;
-    t.className = 'shape-thumb' + (pointType === key ? ' selected' : '');
+    t.className = 'shape-thumb' + (thumbSelected(key) ? ' selected' : '');
     t.title = 'custom ' + id;
-    t.onclick = () => setPointType(key);
+    t.onclick = () => onPickShape(key);
     t.innerHTML = '<span class="thumb-num">' + id + '</span>' + customForms[id];
     grid.appendChild(t);
   });
 }
+// Highlight: in RMX mode, any form assigned to a slot; otherwise the single selection.
+function thumbSelected(key) { return rmxOn ? rmxForms.includes(key) : (pointType === key); }
+// A grid click assigns to the active RMX slot when RMX is on, else sets the single shape.
+function onPickShape(key) { rmxOn ? rmxAssign(key) : setPointType(key); }
 function uploadShape(input) {
   const file = input.files[0];
   if (!file) return;
@@ -798,6 +917,19 @@ function refresh() {
   generate();
 }
 
+// Live placement: debounced auto-recompute after a placement control changes.
+let recomputeTimer = null;
+function showRecomputing(on) {
+  document.getElementById('recompute-overlay').classList.toggle('visible', on);
+}
+function scheduleRecompute() {
+  if (!sourceImage) return;
+  markDirty();
+  showRecomputing(true);            // shown through the debounce + the compute
+  clearTimeout(recomputeTimer);
+  recomputeTimer = setTimeout(generate, 300);
+}
+
 // ── CONTROLS ──
 function syncVal(slider, valId) {
   document.getElementById(valId).textContent = /angle/.test(valId) ? slider.value + '°' : slider.value;
@@ -813,7 +945,75 @@ function setPointType(t) {
   buildShapeGrid();   // refresh selected highlight
   render();           // appearance only — no placement recompute
 }
-function setColorMode(m) { colorMode = m; segActive('colormode-seg', m); render(); }
+
+// ── REMIX (RMX) ──
+function toggleRmx(on) {
+  rmxOn = on;
+  document.getElementById('rmx-slots').style.display = on ? '' : 'none';
+  document.getElementById('rmx-hint').style.display = on ? '' : 'none';
+  if (on && !rmxForms.some(Boolean)) rmxForms[0] = pointType;   // seed slot 1 with current
+  rmxSlot = rmxForms.findIndex(f => !f); if (rmxSlot < 0) rmxSlot = 0;
+  buildRmxSlots(); buildShapeGrid(); render();
+}
+function rmxSelectSlot(i) {
+  // click a filled slot clears it; click an empty slot makes it active
+  if (rmxForms[i]) { rmxForms[i] = null; }
+  rmxSlot = i;
+  buildRmxSlots(); buildShapeGrid(); render();
+}
+function rmxAssign(key) {
+  rmxForms[rmxSlot] = key;
+  // advance to the next empty slot (wrap), so 3 clicks fill 3 slots
+  const next = rmxForms.findIndex((f, i) => !f && i > rmxSlot);
+  rmxSlot = next >= 0 ? next : (rmxForms.findIndex(f => !f) >= 0 ? rmxForms.findIndex(f => !f) : rmxSlot);
+  buildRmxSlots(); buildShapeGrid(); render();
+}
+function buildRmxSlots() {
+  for (let i = 0; i < 3; i++) {
+    const el = document.querySelector('.rmx-slot[data-slot="' + i + '"]');
+    if (!el) continue;
+    const key = rmxForms[i];
+    el.classList.toggle('active', i === rmxSlot);
+    el.classList.toggle('filled', !!key);
+    el.innerHTML = key ? shapeSVG(key).replace(/currentColor/g, '#0a0a0a') : '<span class="rmx-plus">+</span>';
+    el.title = key ? 'Tone ' + (i + 1) + ' · ' + key + ' (click to clear)' : 'Empty slot — click, then pick a symbol';
+  }
+}
+function setColorMode(m) {
+  colorMode = m; segActive('colormode-seg', m);
+  const rmx = m === 'rmx';
+  document.getElementById('rmx-color-block').style.display = rmx ? '' : 'none';
+  document.getElementById('row-point').style.display = rmx ? 'none' : '';
+  document.getElementById('row-swap').style.display = rmx ? 'none' : '';
+  if (rmx) buildRmxPalette();
+  render();
+}
+
+// ── RMX COLORS palette UI ──
+function buildRmxPalette() {
+  const wrap = document.getElementById('rmx-palette'); wrap.innerHTML = '';
+  rmxColors.forEach((col, i) => {
+    const sw = document.createElement('label');
+    sw.className = 'rmx-color'; sw.style.background = col;
+    sw.innerHTML = `<input type="color" value="${col}" oninput="rmxSetColor(${i}, this.value)">`
+      + (rmxColors.length > 2 ? `<button class="rmx-x" title="Remove" onclick="event.preventDefault();rmxRemoveColor(${i})">×</button>` : '');
+    wrap.appendChild(sw);
+  });
+  if (rmxColors.length < RMX_COLORS_MAX) {
+    const add = document.createElement('button');
+    add.className = 'rmx-add'; add.textContent = '+'; add.title = 'Add colour';
+    add.onclick = rmxAddColor;
+    wrap.appendChild(add);
+  }
+}
+function rmxSetColor(i, hex) {
+  rmxColors[i] = hex;
+  const sw = document.getElementById('rmx-palette').children[i];
+  if (sw) sw.style.background = hex;
+  render();
+}
+function rmxAddColor() { if (rmxColors.length < RMX_COLORS_MAX) { rmxColors.push('#888888'); buildRmxPalette(); render(); } }
+function rmxRemoveColor(i) { if (rmxColors.length > 2) { rmxColors.splice(i, 1); buildRmxPalette(); render(); } }
 
 // ── COLOUR (hex ↔ native picker swatch, kept in sync) ──
 const COLOR_IDS = {
@@ -842,8 +1042,8 @@ function swapColors() {
 // ── PRESETS ──
 // A preset is a snapshot of every appearance/placement control. Built-ins ship
 // with the tool; user presets persist in localStorage.
-const PRESET_SLIDERS = ['sl-size','sl-size-max','sl-angle','sl-angle-max',
-  'sl-sp-min','sl-sp-max','sl-phases','sl-gamma','sl-contrast','sl-hide-min','sl-hide-max'];
+const PRESET_SLIDERS = ['sl-size','sl-size-max','sl-scale','sl-width','sl-length','sl-angle','sl-angle-max',
+  'sl-sp-min','sl-sp-max','sl-sp-scale','sl-phases','sl-gamma','sl-contrast','sl-hide-min','sl-hide-max'];
 const PRESET_CHECKS = ['ck-size-range','ck-angle-range','ck-angle-random',
   'ck-aa','ck-invert','ck-overpaint','ck-hide','ck-flip'];
 const RANGE_ROWS = { 'ck-size-range':'row-size-max', 'ck-angle-range':'row-angle-max' };
@@ -861,7 +1061,8 @@ const BUILTIN_PRESETS = {
 
 function getState() {
   const s = { pointType, colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value,
-              alpha255: ctrl('a-ink').value, rotation: ctrl('sel-rotation').value, scale: ctrl('sel-scale').value };
+              alpha255: ctrl('a-ink').value, rotation: ctrl('sel-rotation').value, scale: ctrl('sel-scale').value,
+              rmxOn, rmxForms: rmxForms.slice(), rmxColors: rmxColors.slice(), rmxColorMap };
   PRESET_SLIDERS.forEach(id => s[id] = ctrl(id).value);
   PRESET_CHECKS.forEach(id => s[id] = ctrl(id).checked);
   return s;
@@ -874,7 +1075,17 @@ function setState(s) {
   if (s.scale !== undefined) ctrl('sel-scale').value = s.scale;
   PRESET_SLIDERS.forEach(id => { if (s[id] !== undefined) { ctrl(id).value = s[id]; syncVal(ctrl(id), 'vl' + id.slice(2)); } });
   PRESET_CHECKS.forEach(id => { if (s[id] !== undefined) { ctrl(id).checked = s[id]; if (RANGE_ROWS[id]) toggleRow(RANGE_ROWS[id], s[id]); } });
-  if (s.colorMode) { colorMode = s.colorMode; segActive('colormode-seg', s.colorMode); }
+  // RMX (shapes + colours) — restore before colour mode so palette/slots reflect
+  if (Array.isArray(s.rmxColors)) rmxColors = s.rmxColors.slice();
+  if (s.rmxColorMap) { rmxColorMap = s.rmxColorMap; const ms = document.getElementById('sel-rmx-map'); if (ms) ms.value = rmxColorMap; }
+  if (Array.isArray(s.rmxForms)) rmxForms = s.rmxForms.slice();
+  if (s.rmxOn !== undefined) {
+    rmxOn = s.rmxOn; ctrl('ck-rmx').checked = rmxOn;
+    document.getElementById('rmx-slots').style.display = rmxOn ? '' : 'none';
+    document.getElementById('rmx-hint').style.display = rmxOn ? '' : 'none';
+    buildRmxSlots();
+  }
+  if (s.colorMode) setColorMode(s.colorMode);   // toggles RMX palette UI + renders
   if (s.pointType) setPointType(s.pointType);
   if (sourceImage) generate(); else render();      // placement may have changed → recompute
 }
@@ -977,8 +1188,9 @@ function hexToRgb(hex) {
   const n = parseInt(m[1], 16);
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
-// Per-point colour: Solid → Point colour; Adaptive → lerp(Point, BG) by brightness.
-function pointRGBA(P, b) {
+// Per-point colour: Solid → Point; Adaptive → lerp(Point, BG) by brightness;
+// RMX → a palette of up to 5 colours assigned by the chosen mapping.
+function pointRGBA(P, b, rnd) {
   const ink = hexToRgb(P.ink);
   let r = ink.r, g = ink.g, bl = ink.b;
   if (P.colorMode === 'adaptive') {
@@ -986,6 +1198,18 @@ function pointRGBA(P, b) {
     r = Math.round(lerp(ink.r, bg.r, b));
     g = Math.round(lerp(ink.g, bg.g, b));
     bl = Math.round(lerp(ink.b, bg.b, b));
+  } else if (P.colorMode === 'rmx' && P.palette && P.palette.length >= 1) {
+    const pal = P.palette, n = pal.length;
+    let idx = 0, frac = 0;
+    if (n === 1) { idx = 0; }
+    else if (P.rmxMap === 'random')   { idx = Math.min(n - 1, Math.floor((rnd || 0) * n)); }
+    else if (P.rmxMap === 'posterize'){ idx = Math.max(0, Math.min(n - 1, Math.round(b * (n - 1)))); }
+    else if (P.rmxMap === 'tonernd')  { idx = Math.max(0, Math.min(n - 1, Math.round(b * (n - 1) + ((rnd || 0) - 0.5) * 1.2))); }
+    else { const t = b * (n - 1); idx = Math.floor(t); frac = t - idx; if (idx >= n - 1) { idx = n - 1; frac = 0; } }  // tone (smooth)
+    const c0 = hexToRgb(pal[idx]);
+    if (frac > 0) { const c1 = hexToRgb(pal[Math.min(n - 1, idx + 1)]);
+      r = Math.round(lerp(c0.r, c1.r, frac)); g = Math.round(lerp(c0.g, c1.g, frac)); bl = Math.round(lerp(c0.b, c1.b, frac));
+    } else { r = c0.r; g = c0.g; bl = c0.b; }
   }
   return { r, g, b: bl, a: P.alpha };
 }
@@ -1052,6 +1276,8 @@ function buildBrightness() {
 function stopCompute() {
   computeToken++;            // invalidate the running pass
   computing = false;
+  clearTimeout(recomputeTimer);
+  showRecomputing(false);
   ctrl('btn-stop').disabled = true;
   setStatus('active', points.length.toLocaleString() + ' points (stopped)');
 }
@@ -1069,8 +1295,9 @@ async function computePoints() {
   setStatus('rendering', 'Placing points…');
   ctrl('progress-bar').style.width = '0%';
 
-  const minSp = val('sl-sp-min');
-  const maxSp = Math.max(minSp, val('sl-sp-max'));
+  const spMul = val('sl-sp-scale') || 1;   // master spacing: scales min+max, keeps ratio
+  const minSp = val('sl-sp-min') * spMul;
+  const maxSp = Math.max(minSp, val('sl-sp-max') * spMul);
   const phases = Math.round(val('sl-phases'));
   const bright = buildBrightness();
   const W = workW, H = workH;
@@ -1140,16 +1367,22 @@ async function computePoints() {
   setStatus('active', points.length.toLocaleString() + ' points placed');
   updateSizeReadout();
   render();
+  showRecomputing(false);
 }
 
 // ── POINT APPEARANCE PARAMETERS (read live from the Point Type panel) ──
 function pointParams() {
+  const sc = val('sl-scale') || 1;   // global size multiplier (baked into sizes)
+  const rmx = rmxOn ? rmxForms.filter(Boolean) : null;
   return {
     shape: pointType,
-    sizeMin: val('sl-size'), sizeMax: val('sl-size-max'), sizeRange: ctrl('ck-size-range').checked,
+    rmx: (rmx && rmx.length >= 2) ? rmx : null,
+    sizeMin: val('sl-size') * sc, sizeMax: val('sl-size-max') * sc, sizeRange: ctrl('ck-size-range').checked,
+    width: val('sl-width') || 1, length: val('sl-length') || 1,
     angleMin: val('sl-angle'), angleMax: val('sl-angle-max'),
     angleRange: ctrl('ck-angle-range').checked, angleRandom: ctrl('ck-angle-random').checked,
-    colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value, alpha: clamp255(ctrl('a-ink').value) / 255
+    colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value, alpha: clamp255(ctrl('a-ink').value) / 255,
+    palette: colorMode === 'rmx' ? rmxColors.slice() : null, rmxMap: rmxColorMap
   };
 }
 
@@ -1224,19 +1457,39 @@ function formBBox(key, el) {
 }
 
 // Draw a library shape (Genesis form or uploaded SVG) centred at origin, scaled to `sz`.
-function drawFormShape(g, key, sz) {
+function drawFormShape(g, key, sz, wMul, lMul) {
   const f = parseShape(key);
   const bb = formBBox(key, f.el) || { x: 0, y: 0, w: f.vbW, h: f.vbH };
   const scale = sz / Math.max(bb.w, bb.h);
+  const sx = scale * (wMul || 1), sy = scale * (lMul || 1);
   g.save();
-  g.translate(-(bb.x + bb.w / 2) * scale, -(bb.y + bb.h / 2) * scale);
-  g.scale(scale, scale);
-  Array.from(f.el.children).forEach(el => drawSvgEl(g, el, scale));
+  g.translate(-(bb.x + bb.w / 2) * sx, -(bb.y + bb.h / 2) * sy);
+  g.scale(sx, sy);
+  Array.from(f.el.children).forEach(el => drawSvgEl(g, el, Math.min(sx, sy)));
   g.restore();
 }
 
+// RMX: choose which symbol a point gets, by tone. The forms peak at evenly
+// spaced brightness levels (dark…bright); triangular, overlapping weights give a
+// smooth tone-driven mix. Deterministic in (b, rnd) → identical in preview/export.
+function pickShape(P, b, rnd) {
+  const set = P.rmx;
+  if (!set || set.length < 2) return P.shape;
+  const n = set.length, span = n - 1;
+  let total = 0; const w = [];
+  for (let i = 0; i < n; i++) {
+    const peak = i / span;
+    const wi = Math.max(0.0001, 1 - Math.abs(b - peak) * span);   // 1 at peak → 0 at neighbour
+    w.push(wi); total += wi;
+  }
+  let r = (rnd || 0) * total;
+  for (let i = 0; i < n; i++) { r -= w[i]; if (r <= 0) return set[i]; }
+  return set[n - 1];
+}
+
 function drawShape(g, P, sz, b, rnd) {
-  if (P.shape && (P.shape.startsWith('g:') || P.shape.startsWith('u:'))) drawFormShape(g, P.shape, sz);
+  const shape = pickShape(P, b, rnd);
+  if (shape && (shape.startsWith('g:') || shape.startsWith('u:'))) drawFormShape(g, shape, sz, P.width, P.length);
 }
 
 // Paint a set of points onto any 2D context (shared by preview render + export).
@@ -1248,15 +1501,15 @@ function paintPoints(g, pts, P, W, H, aa, ink, bg, unit) {
   g.lineJoin = 'round';
   // Overpaint: overlapping marks accumulate tone (multiply). Best with Alpha < 1.
   if (ctrl('ck-overpaint').checked) g.globalCompositeOperation = 'multiply';
-  const adaptive = P.colorMode === 'adaptive';
-  if (!adaptive) {                                  // Solid: one colour for all
+  const perPoint = P.colorMode === 'adaptive' || P.colorMode === 'rmx';
+  if (!perPoint) {                                  // Solid: one colour for all
     const c = pointRGBA(P, 0);
     g.fillStyle = g.strokeStyle = `rgba(${c.r},${c.g},${c.b},${c.a})`;
   }
   for (let k = 0; k < pts.length; k++) {
     const p = pts[k];
-    if (adaptive) {                                 // per-point colour
-      const c = pointRGBA(P, p.b);
+    if (perPoint) {                                 // per-point colour
+      const c = pointRGBA(P, p.b, p.rnd);
       g.fillStyle = g.strokeStyle = `rgba(${c.r},${c.g},${c.b},${c.a})`;
     }
     const sz  = ranged(P.sizeMin, P.sizeMax, P.sizeRange, false, p.b, p.rnd) * unit;
@@ -1283,6 +1536,7 @@ function updatePtPreview() {
   const g = pc.getContext('2d');
   const PW = pc.width, PH = pc.height, cx = PW / 2, cy = PH / 2;
   const P = pointParams();
+  const perPoint = P.colorMode === 'adaptive' || P.colorMode === 'rmx';
   const c = pointRGBA(P, 0.5);                       // preview uses mid brightness
   g.clearRect(0, 0, PW, PH);
   g.fillStyle = P.bg; g.fillRect(0, 0, PW, PH);
@@ -1294,18 +1548,22 @@ function updatePtPreview() {
   const baseAng = P.angleMin * Math.PI / 180;
   const reach = sz * 0.6 + 26;
 
-  function stamp(x, y, seed) {
+  function stamp(x, y, seed, b) {
     const rnd = srand(seed);
+    const bb = b == null ? 0.5 : b;
+    if (perPoint) { const cc = pointRGBA(P, bb, rnd); g.fillStyle = g.strokeStyle = `rgba(${cc.r},${cc.g},${cc.b},${cc.a})`; }
     const ang = P.angleRandom ? rnd * Math.PI * 2 : baseAng;
     g.save(); g.translate(x, y); if (ang) g.rotate(ang);
-    drawShape(g, P, sz, 0.5, rnd);
+    drawShape(g, P, sz, bb, rnd);
     g.restore();
   }
+  // In RMX (shapes or colours) spread brightness across the ring so the full mix shows.
+  const spread = P.rmx || P.colorMode === 'rmx';
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
-    stamp(cx + Math.cos(a) * reach, cy + Math.sin(a) * reach, i + 3);
+    stamp(cx + Math.cos(a) * reach, cy + Math.sin(a) * reach, i + 3, spread ? i / 5 : 0.5);
   }
-  stamp(cx, cy, 1);
+  stamp(cx, cy, 1, 0.5);
 }
 
 // ─────────────────────────────────────────────
@@ -1367,14 +1625,16 @@ function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
 // geometry, with fill+stroke resolved to the point colour (forms colour via CSS
 // classes, so we set fill/stroke on the group). Resolution-independent.
 function shapeToSVG(P, x, y, sz, deg, b, rnd, fill, op) {
-  if (!(P.shape && (P.shape.startsWith('g:') || P.shape.startsWith('u:')))) return '';
-  const f = parseShape(P.shape);
-  const bb = formBBox(P.shape, f.el) || { x: 0, y: 0, w: f.vbW, h: f.vbH };
+  const shape = pickShape(P, b, rnd);
+  if (!(shape && (shape.startsWith('g:') || shape.startsWith('u:')))) return '';
+  const f = parseShape(shape);
+  const bb = formBBox(shape, f.el) || { x: 0, y: 0, w: f.vbW, h: f.vbH };
   const s = sz / Math.max(bb.w, bb.h);
-  const minSW = 1.1 / s;   // mirror the canvas stroke-width floor
+  const sx = s * (P.width || 1), sy = s * (P.length || 1);
+  const minSW = 1.1 / Math.min(sx, sy);   // mirror the canvas stroke-width floor
   let inner = f.el.innerHTML.replace(/currentColor/g, fill).replace(/ xmlns="[^"]*"/g, '');
   inner = inner.replace(/stroke-width="([\d.]+)"/g, (m, w) => `stroke-width="${Math.max(parseFloat(w), minSW).toFixed(2)}"`);
-  const t = `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${deg.toFixed(1)}) scale(${s.toFixed(4)}) translate(${(-(bb.x + bb.w/2)).toFixed(2)} ${(-(bb.y + bb.h/2)).toFixed(2)})`;
+  const t = `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${deg.toFixed(1)}) scale(${sx.toFixed(4)} ${sy.toFixed(4)}) translate(${(-(bb.x + bb.w/2)).toFixed(2)} ${(-(bb.y + bb.h/2)).toFixed(2)})`;
   const o = op < 1 ? ` opacity="${op.toFixed(2)}"` : '';
   return `<g transform="${t}" fill="${fill}"${o}>${inner}</g>`;
 }
@@ -1388,7 +1648,7 @@ function buildSVG(pts, W, H, unit) {
     const p = pts[k];
     const sz  = ranged(P.sizeMin, P.sizeMax, P.sizeRange, false, p.b, p.rnd) * unit;
     const deg = ranged(P.angleMin, P.angleMax, P.angleRange, P.angleRandom, p.b, p.rnd);
-    const c = pointRGBA(P, p.b);
+    const c = pointRGBA(P, p.b, p.rnd);
     s += shapeToSVG(P, p.x, p.y, sz, deg, p.b, p.rnd, `rgb(${c.r},${c.g},${c.b})`, c.a);
   }
   return s + '</svg>';
