@@ -628,6 +628,20 @@
         <span class="ctrl-val" id="vl-length">×1.00</span>
       </div>
 
+      <!-- Stroke controls (only for the procedural ~ Stroke symbol) -->
+      <div id="stroke-controls" style="display:none">
+        <div class="ctrl-row">
+          <span class="ctrl-label">Segments</span>
+          <input type="range" id="sl-stroke-seg" min="2" max="24" value="8" oninput="syncVal(this,'vl-stroke-seg');render()">
+          <span class="ctrl-val" id="vl-stroke-seg">8</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">Warping</span>
+          <input type="range" id="sl-stroke-warp" min="0" max="3" step="0.05" value="1" oninput="syncVal(this,'vl-stroke-warp');render()">
+          <span class="ctrl-val" id="vl-stroke-warp">1</span>
+        </div>
+      </div>
+
       <!-- Angle (+ Range by brightness, + Random) -->
       <div class="ctrl-row">
         <span class="ctrl-label">Angle</span>
@@ -641,6 +655,10 @@
       <label class="check-row">
         <input type="checkbox" id="ck-angle-random" onchange="render()">
         <span>Random</span>
+      </label>
+      <label class="check-row" title="Orient each mark along the image (strokes follow contours)">
+        <input type="checkbox" id="ck-angle-flow" onchange="render()">
+        <span>Flow (follow image)</span>
       </label>
       <div class="ctrl-row" id="row-angle-max" style="display:none">
         <span class="ctrl-label">→ max</span>
@@ -835,7 +853,9 @@ let customForms = {};            // { 'u1': svgString, … } from uploads
 let _customSeq = 0;
 
 const _shapeCache = {};
-function shapeSVG(key) {          // key = 'g:<n>' | 'u:<id>'
+const STROKE_THUMB = '<svg viewBox="0 0 200 200"><path d="M24 132 Q60 64 100 116 T176 88" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round"/></svg>';
+function shapeSVG(key) {          // key = 'g:<n>' | 'u:<id>' | 'stroke'
+  if (key === 'stroke') return STROKE_THUMB;
   if (key.startsWith('g:')) return FORMS[key.slice(2)];
   if (key.startsWith('u:')) return customForms[key.slice(2)];
   return null;
@@ -852,6 +872,15 @@ function parseShape(key) {
 function buildShapeGrid() {
   const grid = document.getElementById('shape-grid');
   grid.innerHTML = '';
+  // procedural Stroke — wavy multi-segment line
+  {
+    const t = document.createElement('div');
+    t.className = 'shape-thumb' + (thumbSelected('stroke') ? ' selected' : '');
+    t.title = 'Stroke · wavy multi-segment line';
+    t.onclick = () => onPickShape('stroke');
+    t.innerHTML = '<span class="thumb-num">~</span><svg viewBox="0 0 200 200"><path d="M24 132 Q60 64 100 116 T176 88" fill="none" stroke="#0a0a0a" stroke-width="11" stroke-linecap="round"/></svg>';
+    grid.appendChild(t);
+  }
   // primordial Genesis forms
   PRIMORDIAL.forEach(n => {
     if (!FORMS[n]) return;
@@ -940,9 +969,15 @@ function segActive(group, val) {
   document.querySelectorAll('#' + group + ' .seg-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.val === val));
 }
+// Show Segments/Warping only when the procedural Stroke is in play (single or RMX slot).
+function updateStrokeControls() {
+  const on = pointType === 'stroke' || (rmxOn && rmxForms.includes('stroke'));
+  document.getElementById('stroke-controls').style.display = on ? '' : 'none';
+}
 function setPointType(t) {
-  pointType = t;   // 'g:<n>' | 'u:<id>'
+  pointType = t;   // 'g:<n>' | 'u:<id>' | 'stroke'
   buildShapeGrid();   // refresh selected highlight
+  updateStrokeControls();
   render();           // appearance only — no placement recompute
 }
 
@@ -978,6 +1013,7 @@ function buildRmxSlots() {
     el.innerHTML = key ? shapeSVG(key).replace(/currentColor/g, '#0a0a0a') : '<span class="rmx-plus">+</span>';
     el.title = key ? 'Tone ' + (i + 1) + ' · ' + key + ' (click to clear)' : 'Empty slot — click, then pick a symbol';
   }
+  updateStrokeControls();
 }
 function setColorMode(m) {
   colorMode = m; segActive('colormode-seg', m);
@@ -1042,9 +1078,9 @@ function swapColors() {
 // ── PRESETS ──
 // A preset is a snapshot of every appearance/placement control. Built-ins ship
 // with the tool; user presets persist in localStorage.
-const PRESET_SLIDERS = ['sl-size','sl-size-max','sl-scale','sl-width','sl-length','sl-angle','sl-angle-max',
+const PRESET_SLIDERS = ['sl-size','sl-size-max','sl-scale','sl-width','sl-length','sl-stroke-seg','sl-stroke-warp','sl-angle','sl-angle-max',
   'sl-sp-min','sl-sp-max','sl-sp-scale','sl-phases','sl-gamma','sl-contrast','sl-hide-min','sl-hide-max'];
-const PRESET_CHECKS = ['ck-size-range','ck-angle-range','ck-angle-random',
+const PRESET_CHECKS = ['ck-size-range','ck-angle-range','ck-angle-random','ck-angle-flow',
   'ck-aa','ck-invert','ck-overpaint','ck-hide','ck-flip'];
 const RANGE_ROWS = { 'ck-size-range':'row-size-max', 'ck-angle-range':'row-angle-max' };
 
@@ -1356,7 +1392,16 @@ async function computePoints() {
     if (px.length >= MAX_POINTS) break;
   }
 
-  points = px.map((x, i) => ({ x, y: py[i], b: pb[i], rnd: prnd[i] }));
+  // Per-point image-gradient angle (Sobel-lite) for flow-field orientation.
+  points = px.map((x, i) => {
+    const ix = Math.min(W - 1, x | 0), iy = Math.min(H - 1, py[i] | 0);
+    const xm = Math.max(0, ix - 1), xp = Math.min(W - 1, ix + 1);
+    const ym = Math.max(0, iy - 1), yp = Math.min(H - 1, iy + 1);
+    const gx = bright[iy * W + xp] - bright[iy * W + xm];
+    const gy = bright[yp * W + ix] - bright[ym * W + ix];
+    const ga = (gx === 0 && gy === 0) ? null : Math.atan2(gy, gx);
+    return { x, y: py[i], b: pb[i], rnd: prnd[i], ga };
+  });
   computing = false;
   ctrl('btn-stop').disabled = true;
   ctrl('progress-bar').style.width = '100%';
@@ -1379,8 +1424,10 @@ function pointParams() {
     rmx: (rmx && rmx.length >= 2) ? rmx : null,
     sizeMin: val('sl-size') * sc, sizeMax: val('sl-size-max') * sc, sizeRange: ctrl('ck-size-range').checked,
     width: val('sl-width') || 1, length: val('sl-length') || 1,
+    strokeSeg: val('sl-stroke-seg') || 8, strokeWarp: val('sl-stroke-warp') || 0,
     angleMin: val('sl-angle'), angleMax: val('sl-angle-max'),
     angleRange: ctrl('ck-angle-range').checked, angleRandom: ctrl('ck-angle-random').checked,
+    angleFlow: ctrl('ck-angle-flow').checked,
     colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value, alpha: clamp255(ctrl('a-ink').value) / 255,
     palette: colorMode === 'rmx' ? rmxColors.slice() : null, rmxMap: rmxColorMap
   };
@@ -1392,6 +1439,14 @@ function ranged(min, max, range, random, b, rnd) {
   if (random) return lerp(min, max, rnd);
   if (range)  return lerp(min, max, b);
   return min;
+}
+
+// One point's rotation in degrees. Flow = align to the image (isophote: 90° off the
+// local gradient) so strokes follow contours; the Angle value adds as an offset.
+function pointAngle(P, p) {
+  let deg = ranged(P.angleMin, P.angleMax, P.angleRange, P.angleRandom, p.b, p.rnd);
+  if (P.angleFlow && p.ga != null) deg += (p.ga * 180 / Math.PI) + 90;
+  return deg;
 }
 
 // Draw one point's shape centred at the current origin (caller has translated
@@ -1487,8 +1542,35 @@ function pickShape(P, b, rnd) {
   return set[n - 1];
 }
 
+// Procedural multi-segment wavy stroke: a polyline that wanders via a small
+// per-segment angular random-walk (Warping = curl). Deterministic in `rnd`
+// → identical in canvas and SVG export. Drawn centred along local X; the caller
+// rotates it (so it combines with Flow to follow the image's contours).
+const STROKE_LEN_K = 3;     // stroke length = Size × this (so it reads as a stroke)
+function strokePolyline(len, segs, warp, rnd) {
+  const n = Math.max(2, segs | 0), step = len / n;
+  let ang = 0, x = -len / 2, y = 0, s = (rnd || 0) * 9999 + 1;
+  const pts = [[x, y]];
+  for (let i = 0; i < n; i++) {
+    s = Math.sin(s * 12.9898) * 43758.5453; s = s - Math.floor(s);
+    ang += (s - 0.5) * warp * 0.5;
+    x += Math.cos(ang) * step; y += Math.sin(ang) * step;
+    pts.push([x, y]);
+  }
+  return pts;
+}
+function drawStroke(g, sz, segs, warp, rnd) {
+  const pts = strokePolyline(sz * STROKE_LEN_K, segs, warp, rnd);
+  g.beginPath();
+  pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]));
+  g.lineWidth = Math.max(0.8, sz * 0.14);
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  g.stroke();
+}
+
 function drawShape(g, P, sz, b, rnd) {
   const shape = pickShape(P, b, rnd);
+  if (shape === 'stroke') { drawStroke(g, sz, P.strokeSeg, P.strokeWarp, rnd); return; }
   if (shape && (shape.startsWith('g:') || shape.startsWith('u:'))) drawFormShape(g, shape, sz, P.width, P.length);
 }
 
@@ -1513,7 +1595,7 @@ function paintPoints(g, pts, P, W, H, aa, ink, bg, unit) {
       g.fillStyle = g.strokeStyle = `rgba(${c.r},${c.g},${c.b},${c.a})`;
     }
     const sz  = ranged(P.sizeMin, P.sizeMax, P.sizeRange, false, p.b, p.rnd) * unit;
-    const ang = ranged(P.angleMin, P.angleMax, P.angleRange, P.angleRandom, p.b, p.rnd) * Math.PI / 180;
+    const ang = pointAngle(P, p) * Math.PI / 180;
     g.save();
     g.translate(p.x * unit, p.y * unit);   // positions scale to the output too
     if (ang) g.rotate(ang);
@@ -1626,6 +1708,14 @@ function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
 // classes, so we set fill/stroke on the group). Resolution-independent.
 function shapeToSVG(P, x, y, sz, deg, b, rnd, fill, op) {
   const shape = pickShape(P, b, rnd);
+  if (shape === 'stroke') {
+    const pts = strokePolyline(sz * STROKE_LEN_K, P.strokeSeg, P.strokeWarp, rnd)
+      .map(pt => pt[0].toFixed(2) + ',' + pt[1].toFixed(2)).join(' ');
+    const th = Math.max(0.8, sz * 0.14);
+    const o = op < 1 ? ` opacity="${op.toFixed(2)}"` : '';
+    return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${deg.toFixed(1)})"${o}>`
+      + `<polyline points="${pts}" fill="none" stroke="${fill}" stroke-width="${th.toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+  }
   if (!(shape && (shape.startsWith('g:') || shape.startsWith('u:')))) return '';
   const f = parseShape(shape);
   const bb = formBBox(shape, f.el) || { x: 0, y: 0, w: f.vbW, h: f.vbH };
@@ -1647,7 +1737,7 @@ function buildSVG(pts, W, H, unit) {
   for (let k = 0; k < pts.length; k++) {
     const p = pts[k];
     const sz  = ranged(P.sizeMin, P.sizeMax, P.sizeRange, false, p.b, p.rnd) * unit;
-    const deg = ranged(P.angleMin, P.angleMax, P.angleRange, P.angleRandom, p.b, p.rnd);
+    const deg = pointAngle(P, p);
     const c = pointRGBA(P, p.b, p.rnd);
     s += shapeToSVG(P, p.x, p.y, sz, deg, p.b, p.rnd, `rgb(${c.r},${c.g},${c.b})`, c.a);
   }

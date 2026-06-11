@@ -69,16 +69,14 @@ preview points (SVG is resolution-independent, PNG/JPG scale the same points up)
 - [ ] **Aggiornare i preset** — rivedere/riscrivere i preset built-in per il nuovo set di
   forme (8 primordiali) e le nuove feature (RMX shapes/colours, Scale, Width/Length,
   Spacing ×); sync dell'etichetta del dropdown dopo Apply. *(extends "Complete presets")*
-- [ ] **Stippling effect "come da foto" — flow-field / gradient-oriented strokes**
-  (rif: app *Pointillist*, screenshot di Diego). L'effetto: i marchi a **linea** (e affini)
-  si **orientano lungo il gradiente locale dell'immagine** invece che con angolo
-  random → i tratti seguono i contorni/la forma, dando il look "piume/pelo/incisione".
-  Sotto-feature:
-  - **Angle = by gradient/flow** (nuova opzione angolo, oltre a Range/Random): calcola
-    il gradiente dell'immagine (Sobel) e orienta ogni tratto di conseguenza.
-  - **Linea multi-segmento** ondulata: parametri *Length*, *Segments*, *Warping*
-    (polilinea che si curva), + *Style* (line / star, Rounded).
-  - Resta tutto WYSIWYG (angolo per-punto deterministico dal gradiente).
+- [x] **Stippling effect "come da foto" — flow-field / gradient-oriented strokes**
+  (rif: app *Pointillist*). DONE:
+  - **Angle = Flow (follow image)** — ogni marchio si orienta sull'isophote (gradiente
+    locale +90°), così i tratti seguono i contorni; l'Angle resta come offset.
+  - **Simbolo procedurale "Stroke"** — polilinea multi-segmento ondulata con *Segments*
+    e *Warping*; lunghezza = Size × 3. WYSIWYG (una `<polyline>` per punto).
+  - Combinati → texture piume/pelo/erba che fluisce sulla forma.
+  - *Follow-up opzionali:* Style line/star + Rounded; porting in Spore.
 - [ ] **Higher detail ceiling** — preview point cap (~70k) bounds export richness; raise the
   cap and/or move point placement to a **Web Worker** to stay fluid on large images.
 - [ ] **Animated stippling for video** (point 6) — animate the stored points (Reveal /
