@@ -88,11 +88,14 @@ Shared, identical picker with Pollen.
 | Sizing | Size + Size-by-brightness | Size + Range + **Scale** + **Width/Length** |
 | Remix | **RMX colours** | **RMX colours + RMX shapes** |
 | Colour | Solid / Adaptive / Image / Multi / RMX | Solid / Adaptive / RMX |
+| Hatching | — | **Stroke** (Pointillist Line) + **field streamlines** (Flow) |
+| Density | Spacing / Density | Spacing / Spacing × + **Light dropout** |
 | Tone tools | Invert | Invert / Gamma / Contrast / Hide Zone / Rotation / Flip |
 | Export | PNG / JPG / SVG / Figma | PNG / JPG / SVG / Figma (Export Scale) + WYSIWYG |
 
 Reach for **Spore** for a fast, expressive pass; **Pollen** when you need precise
-density, tonal control, stretch, and full WYSIWYG vector output.
+density, tonal control, stretch, hatching/engraving lines, and full WYSIWYG vector
+output.
 
 ---
 

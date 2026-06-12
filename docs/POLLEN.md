@@ -2,7 +2,7 @@
 
 > Studio Rann · Organica · Advanced Stippling
 > Live: [theorganicalanguage.vercel.app/pollen/](https://theorganicalanguage.vercel.app/pollen/)
-> Last updated: June 11, 2026
+> Last updated: June 12, 2026
 
 ---
 
@@ -80,6 +80,7 @@ The symbol picker — shared, identical component with Spore.
   number (top-right):
   `7 drop · 56 line · 1 circle · 2 teardrop · 14 petal · 33 seed · 38 spiral ·
   31 lung`.
+- **~ Stroke** — a procedural **Line** symbol (first tile), see §5.
 - **+ Upload SVG** — add your own SVG as a custom symbol.
 - **RMX · remix by tone** — distribute points across **up to 3 symbols**, assigned
   by brightness (see §4).
@@ -89,6 +90,9 @@ The symbol picker — shared, identical component with Spore.
   (e.g. elongate a line). A rotated symbol stretches along its own direction.
 - **Angle** + **Range** + **Random** — base rotation; Range by brightness; Random
   scatters per-point.
+- **Flow (follow image)** — orient each mark to the local image gradient (isophote),
+  so directional symbols follow the contours. Works on any shape (visible on
+  directional ones; on the Stroke it drives the streamline, see §5).
 
 > Symbols are sized and centred on their **real content bounding box** (not the
 > 200×200 viewBox), and stroke-based forms (line) get a minimum stroke width, so
@@ -109,6 +113,10 @@ The symbol picker — shared, identical component with Spore.
 ### Render  *(live)*
 - **Overpaint (additive)** — overlapping marks darken (multiply) for inky density.
 - **Antialiasing** — smooth mark edges.
+- **Light dropout** — randomly **thins marks in the bright areas** (probability
+  rises toward white; darks stay full). The organic "dirty" thinning of the
+  lights — works on every shape. Decorrelated from the size/angle/colour random,
+  WYSIWYG. Pair with Spacing (uniform density) for the natural look.
 
 ### Image & Stippling  *(live — debounced recompute)*
 **Image** (reshape the source before sampling):
@@ -150,20 +158,51 @@ RMX shapes and RMX colours combine — forms *and* colours following tone togeth
 
 ---
 
-## 5. A typical workflow
+## 5. The Stroke — hatching / engraving lines
+
+The first symbol (**~ Stroke**) is a procedural **Line** (Pointillist-style),
+not a Genesis form. Its controls appear only when it's selected:
+
+- **Style — / ✳** — single line, or a 3-armed star (the same curve crossed).
+- **Size** = the line **thickness**. · **Length** = its length in px.
+- **Segments** — smoothness of the curve. · **Warping** — hand-jitter / wobble.
+- **Rounded** — round vs. flat caps.
+
+### Streamline behaviour (the key idea)
+When an image is loaded, the **— line** is a **streamline**: every segment
+re-samples the image's local **angle field** and bends with it, so strokes curve
+*through* the image — they accumulate and overlap in the shadows and thin out into
+the lights. Two registers:
+
+- **Angle · Range 0→360** → vortex / hooks that wrap tonal blobs (engraving look).
+- **Flow (follow image)** → strokes follow the contours — plumage / fur / hatching.
+
+Even with **Warping 0** the lines curve (that's the field doing it); Warping adds
+hand-tremor on top. The 400 % preview shows a real mini-stipple of a test blob, so
+it predicts the render. The ✳ star and the no-image case fall back to a fixed
+smooth arc. Everything stays WYSIWYG (the SVG export integrates the same field).
+
+> Pair the Stroke with **Light dropout** (Render) for the natural random thinning
+> of the lights — see the **Hatch Flow** and **Hatch Swirl** presets.
+
+---
+
+## 6. A typical workflow
 
 1. **Open** an image.
 2. Tune **Image** (Invert / Gamma / Contrast) and the **Stippling field**
    (Spacing, Spacing ×, Phases) — the canvas recomputes live.
 3. Pick a **Symbol** (or enable **RMX** and pick up to 3); set **Size / Scale**,
-   and **Width/Length** to stretch.
+   and **Width/Length** to stretch. For a hatching look, pick the **~ Stroke**
+   and turn on **Flow** (or start from the **Hatch Flow / Hatch Swirl** presets).
 4. Choose **Colour** — Solid, Adaptive, or **RMX** palette + mapping.
-5. (Optional) **Save** a preset — it captures everything, RMX included.
-6. **Export** — set **Export Scale**, then SVG (vector/mural) or PNG/JPG.
+5. Tune **Light dropout** (Render) to thin the lights organically.
+6. (Optional) **Save** a preset — it captures everything (RMX, Stroke, dropout…).
+7. **Export** — set **Export Scale**, then SVG (vector/mural) or PNG/JPG.
 
 ---
 
-## 6. Tips & gotchas
+## 7. Tips & gotchas
 
 - **Canvas flickers "Recomputing…"** — normal: a placement control changed and the
   blue-noise is rebuilding (debounced). On huge images this can take a moment.
@@ -177,18 +216,23 @@ RMX shapes and RMX colours combine — forms *and* colours following tone togeth
 
 ---
 
-## 7. Architecture notes
+## 8. Architecture notes
 
 - **Symbols** come from the centralized Genesis library
   (`/genesis/organic-forms.js` → `window.ORGANIC_FORMS`), filtered to the
   primordial subset `[7, 56, 1, 2, 14, 33, 38, 31]`. The same picker component is
   used in **Spore**.
-- `pointType` is `g:<n>` (Genesis form) or `u:<id>` (uploaded SVG).
+- `pointType` is `g:<n>` (Genesis form), `u:<id>` (uploaded SVG), or `stroke`.
 - Forms are measured by content bbox (`formBBox`, hidden-SVG `getBBox`, cached);
   stroke width floored to ~1.1 device px. Non-uniform Width/Length scale the local
   axes; export mirrors both.
 - RMX is a per-point function of `(brightness, stableRandom)` → identical in
   preview and export. `pickShape()` picks the form; `pointRGBA()` the colour.
+- The **Stroke streamline** uses the brightness field kept from the last compute
+  (`fieldB`); `makeFieldAngle()` gives the per-position angle and `fieldStrokePts()`
+  integrates the line through it (forward + backward from the point). **Light
+  dropout** (`dropoutSkip()`) is a per-point skip biased by brightness. Both are
+  deterministic → canvas, 400 % preview and SVG export agree.
 - Open follow-ups: `docs/ROADMAP.md`.
 
 ---

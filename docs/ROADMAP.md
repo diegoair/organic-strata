@@ -1,7 +1,7 @@
 # Organica — Roadmap
 
 > Studio Rann · Development Priorities  
-> Last updated: June 11, 2026 — v0.1
+> Last updated: June 12, 2026 — v0.1
 
 ---
 
@@ -62,24 +62,26 @@ preview points (SVG is resolution-independent, PNG/JPG scale the same points up)
 - [x] Colour: Solid / Adaptive (duotone) / **RMX palette** (Tone/Posterize/Random/Tone+Random)
 - [x] **RMX shapes** — remix up to 3 symbols by tone
 - [x] Export PNG / JPG / SVG / Figma — WYSIWYG; **Export Scale moved to the top bar**
-- [x] Presets (built-ins + user localStorage) — now persist colour mode, RMX palette,
-  mapping and RMX shapes
+- [x] Presets (built-ins + user localStorage) — persist colour mode, RMX palette/shapes,
+  Stroke params, Light dropout; + **Hatch Flow / Hatch Swirl** built-ins
+- [x] **Stroke (Pointillist Line) + field streamlines** — see below
+- [x] **Light dropout** — random thinning of the lights (probability ∝ brightness),
+  works on all shapes, WYSIWYG, preset-persisted
 
 ### Open follow-ups
-- [ ] **Aggiornare i preset** — rivedere/riscrivere i preset built-in per il nuovo set di
-  forme (8 primordiali) e le nuove feature (RMX shapes/colours, Scale, Width/Length,
-  Spacing ×); sync dell'etichetta del dropdown dopo Apply. *(extends "Complete presets")*
+- [ ] **Aggiornare i preset** — rivedere/riscrivere i preset built-in per le nuove feature
+  (RMX shapes/colours, Scale, Width/Length, Spacing ×, Stroke/dropout) e sync
+  dell'etichetta del dropdown dopo Apply. *(extends "Complete presets"; Hatch presets già aggiunti)*
 - [x] **Stippling effect "come da foto" — flow-field / gradient-oriented strokes**
   (rif: app *Pointillist*). DONE:
-  - **Angle = Flow (follow image)** — ogni marchio si orienta sull'isophote (gradiente
-    locale +90°), così i tratti seguono i contorni; l'Angle resta come offset.
-  - **Simbolo procedurale "Stroke"** — polilinea multi-segmento ondulata con *Segments*
-    e *Warping*; lunghezza = Size × 3. WYSIWYG (una `<polyline>` per punto).
-  - Combinati → texture piume/pelo/erba che fluisce sulla forma.
-  - Stroke = **linea a spessore costante** (modello Pointillist): Size = spessore,
-    **Length** px, Segments, Warping (curvatura ad arco liscio), **Rounded** caps,
-    **Style — / ✳** (linea singola o star a 3 bracci).
-  - *Follow-up opzionale:* porting Flow + Stroke in Spore.
+  - **Angle = Flow (follow image)** — orienta ogni marchio sull'isophote (gradiente +90°).
+  - **Simbolo procedurale "Stroke"** = **linea a spessore costante** (Size = spessore,
+    **Length** px, Segments, Warping, **Rounded**, **Style — / ✳**).
+  - **Field streamline** — la linea integra il campo d'angolo dell'immagine
+    segmento-per-segmento (avanti+indietro dal punto), curvando *attraverso* i toni:
+    uncini (Angle Range) o piumaggio (Flow) anche con Warping 0. Warping = jitter "di mano".
+  - Preview 400% = mini-stipple reale su blob sintetico (predice il render). WYSIWYG.
+  - *Follow-up opzionale:* porting Flow + Stroke + dropout in Spore.
 - [ ] **Higher detail ceiling** — preview point cap (~70k) bounds export richness; raise the
   cap and/or move point placement to a **Web Worker** to stay fluid on large images.
 - [ ] **Animated stippling for video** (point 6) — animate the stored points (Reveal /
