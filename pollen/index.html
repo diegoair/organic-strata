@@ -760,6 +760,11 @@
         <input type="checkbox" id="ck-aa" checked onchange="render()">
         <span>Antialiasing</span>
       </label>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Light dropout</span>
+        <input type="range" id="sl-dropout" min="0" max="100" value="0" oninput="syncVal(this,'vl-dropout');render()" title="Randomly thin marks in the bright areas (more toward white)">
+        <span class="ctrl-val" id="vl-dropout">0</span>
+      </div>
     </div>
 
     <!-- IMAGE & STIPPLING (placement — needs ↻ Refresh) -->
@@ -1101,7 +1106,7 @@ function swapColors() {
 // A preset is a snapshot of every appearance/placement control. Built-ins ship
 // with the tool; user presets persist in localStorage.
 const PRESET_SLIDERS = ['sl-size','sl-size-max','sl-scale','sl-width','sl-length','sl-stroke-len','sl-stroke-seg','sl-stroke-warp','sl-angle','sl-angle-max',
-  'sl-sp-min','sl-sp-max','sl-sp-scale','sl-phases','sl-gamma','sl-contrast','sl-hide-min','sl-hide-max'];
+  'sl-sp-min','sl-sp-max','sl-sp-scale','sl-phases','sl-gamma','sl-contrast','sl-hide-min','sl-hide-max','sl-dropout'];
 const PRESET_CHECKS = ['ck-size-range','ck-angle-range','ck-angle-random','ck-angle-flow',
   'ck-stroke-round','ck-aa','ck-invert','ck-overpaint','ck-hide','ck-flip'];
 const RANGE_ROWS = { 'ck-size-range':'row-size-max', 'ck-angle-range':'row-angle-max' };
@@ -1114,7 +1119,16 @@ const BUILTIN_PRESETS = {
   'Lines Flow': { pointType:'g:56', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
                   'sl-size':'4','ck-angle-random':true,'sl-angle':'0','sl-angle-max':'360','sl-sp-min':'2','sl-sp-max':'10' },
   'Duotone':    { pointType:'g:1', colorMode:'adaptive', ink:'#1a3a2a', bg:'#dfe6f0',
-                  'sl-size':'3','ck-size-range':false,'sl-sp-min':'1.5','sl-sp-max':'9','sl-phases':'14' }
+                  'sl-size':'3','ck-size-range':false,'sl-sp-min':'1.5','sl-sp-max':'9','sl-phases':'14' },
+  // Stroke streamlines (the strokes curve through the image's angle field).
+  'Hatch Flow': { pointType:'stroke', strokeStyle:'line', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
+                  'sl-size':'1','sl-stroke-len':'12','sl-stroke-seg':'10','sl-stroke-warp':'0.3',
+                  'ck-stroke-round':true,'ck-angle-flow':true,'ck-angle-range':false,'ck-angle-random':false,
+                  'sl-sp-min':'1.5','sl-sp-max':'9','sl-phases':'16','sl-dropout':'50' },
+  'Hatch Swirl':{ pointType:'stroke', strokeStyle:'line', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
+                  'sl-size':'1.2','sl-stroke-len':'14','sl-stroke-seg':'10','sl-stroke-warp':'0',
+                  'ck-stroke-round':true,'ck-angle-flow':false,'ck-angle-range':true,'ck-angle-random':false,
+                  'sl-angle':'0','sl-angle-max':'360','sl-sp-min':'2','sl-sp-max':'12','sl-phases':'16','sl-dropout':'0' }
 };
 
 function getState() {
@@ -1234,6 +1248,7 @@ const MAX_POINTS   = 70000;   // preview point cap (export recomputes uncapped)
 
 let points = [];              // { x, y, b }  (b = brightness 0..1)
 let workW = 0, workH = 0;
+let fieldB = null, fieldW = 0, fieldH = 0;   // brightness field kept for stroke streamlines
 let computeToken = 0;         // cancels stale async runs
 let computing = false;
 
@@ -1360,6 +1375,7 @@ async function computePoints() {
   const phases = Math.round(val('sl-phases'));
   const bright = buildBrightness();
   const W = workW, H = workH;
+  fieldB = bright; fieldW = W; fieldH = H;   // keep the field for stroke streamlines
 
   // size canvas to the working image
   canvas.width = W; canvas.height = H;
@@ -1453,6 +1469,7 @@ function pointParams() {
     angleMin: val('sl-angle'), angleMax: val('sl-angle-max'),
     angleRange: ctrl('ck-angle-range').checked, angleRandom: ctrl('ck-angle-random').checked,
     angleFlow: ctrl('ck-angle-flow').checked,
+    lightDropout: (val('sl-dropout') || 0) / 100,
     colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value, alpha: clamp255(ctrl('a-ink').value) / 255,
     palette: colorMode === 'rmx' ? rmxColors.slice() : null, rmxMap: rmxColorMap
   };
@@ -1464,6 +1481,14 @@ function ranged(min, max, range, random, b, rnd) {
   if (random) return lerp(min, max, rnd);
   if (range)  return lerp(min, max, b);
   return min;
+}
+
+// Light dropout: drop marks at random in the bright areas (probability rises
+// toward white). Decorrelated from rnd so it doesn't bias size/angle/colour.
+function dropoutSkip(P, b, rnd) {
+  if (!P.lightDropout) return false;
+  let d = Math.sin((rnd + 0.123) * 99.13) * 43758.5453; d = d - Math.floor(d);
+  return d < P.lightDropout * Math.pow(b, 1.5);
 }
 
 // One point's rotation in degrees. Flow = align to the image (isophote: 90° off the
@@ -1616,6 +1641,65 @@ function drawStroke(g, P, sz, rnd, unit) {
   }
 }
 
+// ── FIELD STREAMLINE STROKE (the Pointillist behaviour) ──
+// The line is integrated through the image's angle field: every segment
+// re-samples the local angle (Angle/Range/Flow at that position), so strokes
+// bend with the image — curls around tonal blobs, plumage-like flows — even
+// with Warping 0. Deterministic in `rnd` → identical in canvas and SVG.
+function sampleWorkB(x, y) {
+  if (!fieldB) return 0.5;
+  const ix = Math.max(0, Math.min(fieldW - 1, x | 0));
+  const iy = Math.max(0, Math.min(fieldH - 1, y | 0));
+  return fieldB[iy * fieldW + ix];
+}
+// Angle (radians) of the field at (x,y): Angle/Range/Random by local tone,
+// plus Flow = isophote of the local gradient. `sampleB` makes it reusable
+// (work image / synthetic preview blob).
+function makeFieldAngle(P, sampleB) {
+  return (x, y, rnd) => {
+    const b = sampleB(x, y);
+    let deg = ranged(P.angleMin, P.angleMax, P.angleRange, P.angleRandom, b, rnd);
+    if (P.angleFlow) {
+      const e = 1.5;
+      const gx = sampleB(x + e, y) - sampleB(x - e, y);
+      const gy = sampleB(x, y + e) - sampleB(x, y - e);
+      if (gx || gy) deg += Math.atan2(gy, gx) * 180 / Math.PI + 90;
+    }
+    return deg * Math.PI / 180;
+  };
+}
+// Integrate a centred streamline from (x0,y0): half the segments forward along
+// the field, half backward. Warping adds per-segment hand jitter on top.
+function fieldStrokePts(x0, y0, P, rnd, angleAt, scale) {
+  const len = P.strokeLen * (scale || 1);
+  const n = Math.max(2, P.strokeSeg | 0), step = len / n;
+  const half = Math.ceil(n / 2);
+  let s = (rnd || 0) * 9999 + 1;
+  const nz = () => { s = Math.sin(s * 12.9898) * 43758.5453; return s - Math.floor(s); };
+  const fwd = [[x0, y0]];
+  let x = x0, y = y0;
+  for (let i = 0; i < half; i++) {
+    const a = angleAt(x, y, rnd) + (nz() - 0.5) * P.strokeWarp;
+    x += Math.cos(a) * step; y += Math.sin(a) * step; fwd.push([x, y]);
+  }
+  const back = [];
+  x = x0; y = y0;
+  for (let i = 0; i < n - half; i++) {
+    const a = angleAt(x, y, rnd) + Math.PI + (nz() - 0.5) * P.strokeWarp;
+    x += Math.cos(a) * step; y += Math.sin(a) * step; back.push([x, y]);
+  }
+  return back.reverse().concat(fwd);
+}
+function drawFieldStroke(g, x0, y0, P, thick, rnd, unit, angleAt) {
+  const pts = fieldStrokePts(x0, y0, P, rnd, angleAt, 1);
+  g.beginPath();
+  smoothOpenPath(g, unit === 1 ? pts : pts.map(q => [q[0] * unit, q[1] * unit]));
+  g.lineWidth = Math.max(0.5, thick);
+  g.lineCap = P.strokeRound ? 'round' : 'butt';
+  g.lineJoin = 'round';
+  g.stroke();
+}
+
 function drawShape(g, P, sz, b, rnd, unit) {
   const shape = pickShape(P, b, rnd);
   if (shape === 'stroke') { drawStroke(g, P, sz, rnd, unit || 1); return; }
@@ -1636,13 +1720,21 @@ function paintPoints(g, pts, P, W, H, aa, ink, bg, unit) {
     const c = pointRGBA(P, 0);
     g.fillStyle = g.strokeStyle = `rgba(${c.r},${c.g},${c.b},${c.a})`;
   }
+  const fAngle = fieldB ? makeFieldAngle(P, sampleWorkB) : null;   // stroke streamlines
   for (let k = 0; k < pts.length; k++) {
     const p = pts[k];
+    if (dropoutSkip(P, p.b, p.rnd)) continue;       // thin the lights at random
     if (perPoint) {                                 // per-point colour
       const c = pointRGBA(P, p.b, p.rnd);
       g.fillStyle = g.strokeStyle = `rgba(${c.r},${c.g},${c.b},${c.a})`;
     }
     const sz  = ranged(P.sizeMin, P.sizeMax, P.sizeRange, false, p.b, p.rnd) * unit;
+    const shp = pickShape(P, p.b, p.rnd);
+    if (shp === 'stroke' && P.strokeStyle !== 'star' && fAngle) {
+      // — line: streamline through the image's angle field
+      drawFieldStroke(g, p.x, p.y, P, sz, p.rnd, unit, fAngle);
+      continue;
+    }
     const ang = pointAngle(P, p) * Math.PI / 180;
     g.save();
     g.translate(p.x * unit, p.y * unit);   // positions scale to the output too
@@ -1687,19 +1779,36 @@ function updatePtPreview() {
     drawShape(g, P, sz, bb, rnd, SCALE);
     g.restore();
   }
-  // Stroke: showcase as a swirl (tangential strokes on concentric rings).
+  // Stroke: real mini-stipple of a synthetic blob (dark centre on light bg) —
+  // strokes are integrated through the blob's field, so the preview genuinely
+  // predicts the render (like Pointillist's Point preview).
   if (pointType === 'stroke') {
-    let seed = 1;
-    [[14, 7], [30, 11], [48, 13], [66, 13]].forEach(([r, count]) => {
-      for (let i = 0; i < count; i++) {
-        const a = (i / count) * Math.PI * 2 + r * 0.05;
-        g.save();
-        g.translate(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-        g.rotate(a + Math.PI / 2 + 0.45);              // tangential + swirl twist
-        drawShape(g, P, sz * 0.85, 0.5, srand(seed++), SCALE);
+    const R = Math.min(PW, PH) * 0.5;
+    const blobB = (x, y) => {                          // 0 dark centre → 1 bright edge
+      const d = Math.hypot(x - cx, y - cy) / R;
+      return Math.max(0, Math.min(1, d * d * 1.25));
+    };
+    const fA = makeFieldAngle(P, blobB);
+    let s = 7;
+    const nz = () => { s = Math.sin(s * 12.9898) * 43758.5453; return s - Math.floor(s); };
+    const thick = Math.max(0.5, sz * 0.5);
+    for (let k = 0; k < 230; k++) {
+      const x = nz() * PW, y = nz() * PH, b = blobB(x, y);
+      if (nz() > (1 - b) * 0.95 + 0.06) continue;      // denser where dark
+      const rnd = nz();
+      if (dropoutSkip(P, b, rnd)) continue;            // light dropout preview
+      if (perPoint) { const cc = pointRGBA(P, b, rnd); g.fillStyle = g.strokeStyle = `rgba(${cc.r},${cc.g},${cc.b},${cc.a})`; }
+      if (P.strokeStyle !== 'star') {
+        const pts = fieldStrokePts(x, y, P, rnd, fA, SCALE / 2);
+        g.beginPath(); smoothOpenPath(g, pts);
+        g.lineWidth = thick; g.lineCap = P.strokeRound ? 'round' : 'butt'; g.lineJoin = 'round';
+        g.stroke();
+      } else {
+        g.save(); g.translate(x, y); g.rotate(fA(x, y, rnd));
+        drawStroke(g, P, thick, rnd, SCALE / 2);
         g.restore();
       }
-    });
+    }
     return;
   }
   // In RMX (shapes or colours) spread brightness across the ring so the full mix shows.
@@ -1772,9 +1881,15 @@ function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
 function shapeToSVG(P, x, y, sz, deg, b, rnd, fill, op) {
   const shape = pickShape(P, b, rnd);
   if (shape === 'stroke') {
-    const d = smoothOpenPathD(strokeCenterline(P.strokeLen, P.strokeSeg, P.strokeWarp, rnd));
     const o = op < 1 ? ` opacity="${op.toFixed(2)}"` : '';
     const cap = P.strokeRound ? 'round' : 'butt';
+    if (P.strokeStyle !== 'star' && fieldB) {
+      // — line: same streamline as the canvas, in absolute field coords
+      if (!P._fa) P._fa = makeFieldAngle(P, sampleWorkB);
+      const d = smoothOpenPathD(fieldStrokePts(x, y, P, rnd, P._fa, 1));
+      return `<path d="${d}" fill="none" stroke="${fill}" stroke-width="${Math.max(0.5, sz).toFixed(2)}" stroke-linecap="${cap}" stroke-linejoin="round"${o}/>`;
+    }
+    const d = smoothOpenPathD(strokeCenterline(P.strokeLen, P.strokeSeg, P.strokeWarp, rnd));
     const attrs = `d="${d}" fill="none" stroke="${fill}" stroke-width="${Math.max(0.5, sz).toFixed(2)}" stroke-linecap="${cap}" stroke-linejoin="round"`;
     const arms = P.strokeStyle === 'star' ? 3 : 1;
     let inner = '';
@@ -1801,6 +1916,7 @@ function buildSVG(pts, W, H, unit) {
   s += `<rect width="${W}" height="${H}" fill="${bg}"/>`;
   for (let k = 0; k < pts.length; k++) {
     const p = pts[k];
+    if (dropoutSkip(P, p.b, p.rnd)) continue;       // thin the lights at random
     const sz  = ranged(P.sizeMin, P.sizeMax, P.sizeRange, false, p.b, p.rnd) * unit;
     const deg = pointAngle(P, p);
     const c = pointRGBA(P, p.b, p.rnd);
