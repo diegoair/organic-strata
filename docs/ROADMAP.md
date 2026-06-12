@@ -82,6 +82,19 @@ preview points (SVG is resolution-independent, PNG/JPG scale the same points up)
     uncini (Angle Range) o piumaggio (Flow) anche con Warping 0. Warping = jitter "di mano".
   - Preview 400% = mini-stipple reale su blob sintetico (predice il render). WYSIWYG.
   - *Follow-up opzionale:* porting Flow + Stroke + dropout in Spore.
+- [ ] **Hatching engine (proper)** — a *new* technique alongside Stippling, not a stroke
+  shape. The current Stroke streamline only *approximates* it (one line per blue-noise
+  point); true hatching uses a different placement philosophy. Discussed & parked
+  (June 12, 2026). Four pillars:
+  1. **Layered accumulation** — multiple hatching passes; darks build up by overlapping
+     layers (pass 1 everywhere, pass 2 on mids, pass 3 on shadows…), not one mark/point.
+  2. **Cross-hatch** — a second set crossed at ~60–90° in the darkest zones.
+  3. **Smoothed flow field** (structure tensor) — coherent flow, not the noisy per-pixel
+     gradient used by the current Flow.
+  4. **Humanizer** — real wobble/tremor, variable pressure (line weight), imperfection,
+     overshoot; per-stroke deterministic → WYSIWYG.
+  Architecture decision pending: inside Pollen as **Technique: Stippling | Hatching**
+  (reuses tone pipeline / colour / RMX / presets / export) vs. a separate `/hatch/` tool.
 - [ ] **Higher detail ceiling** — preview point cap (~70k) bounds export richness; raise the
   cap and/or move point placement to a **Web Worker** to stay fluid on large images.
 - [ ] **Animated stippling for video** (point 6) — animate the stored points (Reveal /
