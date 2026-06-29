@@ -58,6 +58,12 @@
       var(--bg);
     position:relative; overflow:hidden;
   }
+  .stage.drag::after{
+    content:'drop font or SVG'; position:absolute; inset:14px; z-index:5;
+    display:flex; align-items:center; justify-content:center;
+    border:2px dashed var(--pollen); border-radius:14px; background:rgba(200,168,58,.08);
+    font-size:13px; letter-spacing:.1em; color:var(--ink-soft); text-transform:uppercase;
+  }
   /* ── panel sections ── */
   .sec{border-bottom:1px solid var(--line-soft); padding:14px 16px}
   .sec h3{
@@ -604,9 +610,15 @@ function setSource(subs, flipY, kind, label){
 }
 
 // --- font ---
-function loadFontBuffer(buf){
+function loadFontBuffer(buf, name){
+  // opentype.js can't read WOFF2 — give a clear message instead of a cryptic throw
+  const sig=new Uint8Array(buf,0,4);
+  if(sig[0]===0x77&&sig[1]===0x4F&&sig[2]===0x46&&sig[3]===0x32){ // 'wOF2'
+    statusEl.textContent='✗ WOFF2 not supported — use TTF/OTF/WOFF'; return;
+  }
   let font;
-  try{ font=opentype.parse(buf); }catch(e){ statusEl.textContent='✗ bad font'; return; }
+  try{ font=opentype.parse(buf); }
+  catch(e){ statusEl.textContent='✗ '+(e.message||'bad font').slice(0,40); return; }
   window.__FONT=font;
   renderFontText();
 }
@@ -620,7 +632,7 @@ function renderFontText(){
 }
 
 // --- generic file readers ---
-function readFont(file){ const fr=new FileReader(); fr.onload=()=>loadFontBuffer(fr.result); fr.readAsArrayBuffer(file); }
+function readFont(file){ const fr=new FileReader(); fr.onload=()=>loadFontBuffer(fr.result, file.name); fr.readAsArrayBuffer(file); }
 function readSVG(file){ const fr=new FileReader(); fr.onload=()=>{
   try{ setSource(fromSVGString(fr.result), false, 'svg', `svg · ${file.name}`); }
   catch(e){ statusEl.textContent='✗ '+e.message; }
@@ -635,9 +647,36 @@ function wireDrop(el, accept, handler){
   el.addEventListener('dragleave',()=>el.classList.remove('over'));
   el.addEventListener('drop',e=>{e.preventDefault(); el.classList.remove('over'); if(e.dataTransfer.files[0])handler(e.dataTransfer.files[0]);});
 }
-wireDrop($('#dropFont'),'.otf,.ttf,font/*', readFont);
+wireDrop($('#dropFont'),'.otf,.ttf,.woff,font/*', readFont);
 wireDrop($('#dropSvg'),'.svg,image/svg+xml', readSVG);
 $('#fontText').addEventListener('input', renderFontText);
+
+// --- global drop: accept a font/SVG dropped ANYWHERE on the page ---
+// (the small dropzones were easy to miss; this also stops the browser
+//  from just opening the dropped file in a new tab).
+function selectSrcTab(src){
+  $('#srcSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.src===src));
+  document.querySelectorAll('[data-pane]').forEach(p=>p.hidden=(p.dataset.pane!==src));
+}
+function routeFile(file){
+  if(!file) return;
+  const n=(file.name||'').toLowerCase(), t=file.type||'';
+  if(/\.(otf|ttf|woff2?)$/.test(n) || /font/.test(t)){ selectSrcTab('font'); readFont(file); }
+  else if(/\.svg$/.test(n) || t.includes('svg')){ selectSrcTab('svg'); readSVG(file); }
+  else statusEl.textContent='✗ drop a font (OTF/TTF/WOFF) or an SVG';
+}
+const stage=document.querySelector('.stage');
+['dragenter','dragover'].forEach(ev=>window.addEventListener(ev,e=>{
+  if(e.dataTransfer && [...e.dataTransfer.types].includes('Files')){ e.preventDefault(); stage.classList.add('drag'); }
+}));
+['dragleave','dragend'].forEach(ev=>window.addEventListener(ev,e=>{
+  if(e.relatedTarget===null) stage.classList.remove('drag');
+}));
+window.addEventListener('drop',e=>{
+  if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length){
+    e.preventDefault(); stage.classList.remove('drag'); routeFile(e.dataTransfer.files[0]);
+  }
+});
 
 // --- Genesis forms ---
 const PRIMORDIAL=[7,56,1,2,14,33,38,31];
