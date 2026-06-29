@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Genesis Creator — Organica</title>
+  <link rel="stylesheet" href="organic-library.css">
+  <style>
+    /* ─── Base — Pollen palette (light / mono), shared with Library ─── */
+    :root {
+      --bg: #f5f2ec;
+      --surface: #eceae4;
+      --surface-raised: #e3dfd6;
+      --border: #d0c8b8;
+      --border-strong: #a89e88;
+      --ink: #0a0a0a;
+      --ink-muted: #726a5e;
+      --ink-faint: #a89e8c;
+      --accent: #0a0a0a;
+      --pollen: #c8a83a;
+
+      --panel-width-right: 260px;
+      --toolbar-height: 48px;
+      --font: 'DM Mono', 'Courier New', monospace;
+      --fs-xs: 10px; --fs-sm: 11px; --fs-md: 12px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: var(--fs-md); }
+
+    .app { display: grid; grid-template-columns: 1fr var(--panel-width-right); grid-template-rows: 100vh; height: 100vh; overflow: hidden; }
+
+    /* ─── Main ─────────────────────────────────────────────── */
+    .canvas-area { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+    .toolbar { height: var(--toolbar-height); display: flex; align-items: center; gap: 14px; padding: 0 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .toolbar a.back { font-size: var(--fs-xs); color: var(--ink-muted); text-decoration: none; text-transform: uppercase; letter-spacing: 0.1em; }
+    .toolbar a.back:hover { color: var(--ink); }
+    .toolbar .title { font-size: var(--fs-md); font-weight: 500; }
+    .toolbar .sep { width: 1px; height: 20px; background: var(--border); }
+    .toolbar .spacer { flex: 1; }
+
+    .mode-tabs { display: flex; gap: 0; }
+    .mode-tab { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.08em; padding: 5px 12px; background: none; border: 1px solid var(--border); color: var(--ink-muted); cursor: pointer; font-family: var(--font); margin-left: -1px; }
+    .mode-tab:hover { color: var(--ink); }
+    .mode-tab.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+    .tb-btn { font-size: var(--fs-xs); padding: 5px 12px; background: transparent; border: 1px solid var(--border); color: var(--ink-muted); cursor: pointer; font-family: var(--font); }
+    .tb-btn:hover { border-color: var(--border-strong); color: var(--ink); }
+
+    .stage { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .artwrap { position: relative; }
+    #art { display: block; width: 460px; height: 460px; background: var(--surface); border: 1px solid var(--border); cursor: crosshair; }
+    #art.notdraw { cursor: default; }
+    .art-hint { position: absolute; bottom: -22px; left: 0; right: 0; text-align: center; font-size: var(--fs-xs); color: var(--ink-faint); }
+
+    /* ─── Right panel ──────────────────────────────────────── */
+    .design-panel { background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+    .panel-section { padding: 12px 16px; }
+    .panel-section__title { font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-muted); margin-bottom: 10px; display: block; }
+    .panel-row { display: flex; align-items: center; justify-content: space-between; min-height: 28px; margin-bottom: 4px; gap: 8px; }
+    .panel-label { font-size: var(--fs-sm); color: var(--ink-muted); flex-shrink: 0; width: 78px; }
+    .panel-input-group { display: flex; align-items: center; gap: 4px; flex: 1; justify-content: flex-end; }
+    .panel-input { background: var(--bg); border: 1px solid var(--border); color: var(--ink); font-size: var(--fs-sm); font-family: var(--font); padding: 4px 8px; width: 64px; text-align: right; outline: none; -moz-appearance: textfield; }
+    .panel-input::-webkit-inner-spin-button, .panel-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .panel-input:focus { border-color: var(--ink); }
+    .panel-input--full { width: 100%; text-align: left; }
+    .panel-input:disabled { opacity: 0.45; }
+    .panel-unit { font-size: var(--fs-xs); color: var(--ink-muted); width: 14px; }
+    .panel-divider { height: 1px; background: var(--border); margin: 4px 0; }
+    .panel-range { flex: 1; }
+    input[type=range] { -webkit-appearance: none; height: 2px; background: var(--border); outline: none; min-width: 0; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%; background: var(--ink); cursor: pointer; }
+
+    select.panel-select { background: var(--bg); border: 1px solid var(--border); color: var(--ink); font-size: var(--fs-sm); font-family: var(--font); padding: 4px 6px; outline: none; accent-color: var(--ink); flex: 1; }
+    textarea.paste { width: 100%; height: 90px; resize: vertical; background: var(--bg); border: 1px solid var(--border); color: var(--ink); font-family: var(--font); font-size: var(--fs-xs); padding: 6px; outline: none; }
+    textarea.paste:focus { border-color: var(--ink); }
+
+    .seg { display: flex; gap: 0; }
+    .seg-btn { flex: 1; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.06em; padding: 5px 0; background: none; border: 1px solid var(--border); color: var(--ink-muted); cursor: pointer; font-family: var(--font); margin-left: -1px; }
+    .seg-btn:first-child { margin-left: 0; }
+    .seg-btn:hover { color: var(--ink); }
+    .seg-btn.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+    .check-row { display: flex; align-items: center; gap: 7px; min-height: 26px; cursor: pointer; }
+    .check-row input { accent-color: var(--ink); }
+    .check-row span { font-size: var(--fs-sm); color: var(--ink-muted); }
+
+    .type-pills { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+    .type-pill { font-size: 10px; padding: 2px 7px; border: 1px solid var(--border); background: transparent; color: var(--ink-muted); cursor: pointer; font-family: var(--font); }
+    .type-pill:hover { border-color: var(--border-strong); color: var(--ink); }
+    .type-pill.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+    .btn-primary { width: 100%; font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: 0.08em; padding: 9px; background: var(--ink); color: var(--bg); border: 1px solid var(--ink); cursor: pointer; font-family: var(--font); }
+    .btn-primary:hover { background: #000; }
+    .btn-primary:disabled { opacity: 0.4; cursor: default; }
+
+    .upload-btn { width: 100%; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.1em; border: 1px dashed var(--border); background: none; color: var(--ink-muted); padding: 8px; cursor: pointer; font-family: var(--font); margin-bottom: 8px; }
+    .upload-btn:hover { border-color: var(--border-strong); color: var(--ink); }
+
+    .mode-block { display: none; }
+    .mode-block.active { display: block; }
+
+    /* artboard layers */
+    .grid-line { stroke: var(--border); stroke-width: 0.5; }
+    .handle { fill: var(--bg); stroke: var(--ink); stroke-width: 1.5; cursor: grab; }
+    .handle:hover { fill: var(--pollen); }
+    .handle--first { fill: var(--pollen); }
+    #art:active .handle { cursor: grabbing; }
+    /* bezier tangent handles — pollen outline reads on both filled & light areas */
+    .thline { stroke: var(--pollen); stroke-width: 1; }
+    .thandle { fill: var(--bg); stroke: var(--pollen); stroke-width: 1.2; cursor: grab; }
+    .thandle:hover { fill: var(--pollen); }
+    .guide { stroke: var(--ink-faint); stroke-width: 0.75; stroke-dasharray: 3 3; fill: none; }
+    #form-layer { color: var(--ink); }
+  </style>
+</head>
+<body>
+
+  <div class="app">
+
+    <main class="canvas-area">
+      <div class="toolbar">
+        <a class="back" href="/genesis/library.html">« Library</a>
+        <div class="sep"></div>
+        <span class="title">Creator</span>
+        <div class="sep"></div>
+        <div class="mode-tabs" id="mode-tabs">
+          <button class="mode-tab active" data-mode="draw">Draw</button>
+          <button class="mode-tab" data-mode="import">Import</button>
+          <button class="mode-tab" data-mode="generate">Generate</button>
+        </div>
+        <div class="spacer"></div>
+        <button class="tb-btn" id="btn-undo">↶ Undo</button>
+        <button class="tb-btn" id="btn-clear">Clear</button>
+      </div>
+
+      <div class="stage">
+        <div class="artwrap">
+          <svg id="art" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <g id="grid-layer"></g>
+            <g id="form-layer"></g>
+            <g id="handles-layer"></g>
+          </svg>
+          <div class="art-hint" id="art-hint">Click on the artboard to add points</div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="design-panel">
+
+      <!-- SOURCE — mode-specific -->
+      <section class="panel-section">
+        <span class="panel-section__title">Source</span>
+
+        <!-- DRAW -->
+        <div class="mode-block active" data-mode="draw">
+          <label class="check-row"><input type="checkbox" id="ck-close" checked><span>Close path</span></label>
+          <label class="check-row"><input type="checkbox" id="ck-smooth" checked><span>Smooth (curve)</span></label>
+        </div>
+
+        <!-- IMPORT -->
+        <div class="mode-block" data-mode="import">
+          <input type="file" id="file-svg" accept=".svg,image/svg+xml" style="display:none">
+          <button class="upload-btn" id="btn-upload">+ Upload .svg</button>
+          <textarea class="paste" id="paste-svg" placeholder="…or paste SVG markup here"></textarea>
+        </div>
+
+        <!-- GENERATE -->
+        <div class="mode-block" data-mode="generate">
+          <div class="panel-row">
+            <label class="panel-label">Shape</label>
+            <div class="seg" id="gen-seg" style="flex:1">
+              <button class="seg-btn active" data-gen="circle">Circle</button>
+              <button class="seg-btn" data-gen="polygon">Poly</button>
+              <button class="seg-btn" data-gen="star">Star</button>
+            </div>
+          </div>
+          <div class="panel-row" id="row-gen-n">
+            <label class="panel-label">Sides</label>
+            <div class="panel-input-group"><input type="number" class="panel-input" id="gen-n" value="5" min="3" max="20"></div>
+          </div>
+          <div class="panel-row">
+            <label class="panel-label">Radius</label>
+            <div class="panel-input-group"><input type="range" class="panel-range" id="gen-r" min="10" max="95" value="60"><span class="panel-unit" id="gen-r-val" style="width:24px">60</span></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="panel-divider"></div>
+
+      <!-- APPEARANCE -->
+      <section class="panel-section">
+        <span class="panel-section__title">Appearance</span>
+        <div class="panel-row">
+          <label class="panel-label">Style</label>
+          <div class="seg" id="fill-seg" style="flex:1">
+            <button class="seg-btn active" data-fill="fill">Fill</button>
+            <button class="seg-btn" data-fill="stroke">Stroke</button>
+          </div>
+        </div>
+        <div class="panel-row" id="row-strokew">
+          <label class="panel-label">Stroke W</label>
+          <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-strokew" min="1" max="40" value="6"><span class="panel-unit" id="strokew-val" style="width:24px">6</span></div>
+        </div>
+        <label class="check-row" id="row-rounded"><input type="checkbox" id="ck-rounded" checked><span>Rounded caps</span></label>
+        <div class="panel-row">
+          <label class="panel-label">Scale</label>
+          <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-scale" min="0.2" max="2" step="0.05" value="1"><span class="panel-unit" id="scale-val" style="width:30px">1.00</span></div>
+        </div>
+        <div class="panel-row">
+          <label class="panel-label">Width</label>
+          <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-w" min="0.25" max="2" step="0.05" value="1"><span class="panel-unit" id="w-val" style="width:30px">×1.0</span></div>
+        </div>
+        <div class="panel-row">
+          <label class="panel-label">Length</label>
+          <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-l" min="0.25" max="2" step="0.05" value="1"><span class="panel-unit" id="l-val" style="width:30px">×1.0</span></div>
+        </div>
+        <div class="panel-row">
+          <label class="panel-label">Rotation</label>
+          <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-rot" min="0" max="360" value="0"><span class="panel-unit" id="rot-val" style="width:28px">0°</span></div>
+        </div>
+        <div class="panel-row">
+          <label class="panel-label">Move X</label>
+          <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-mx" min="-100" max="100" value="0"><span class="panel-unit" id="mx-val" style="width:28px">0</span></div>
+        </div>
+        <div class="panel-row">
+          <label class="panel-label">Move Y</label>
+          <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-my" min="-100" max="100" value="0"><span class="panel-unit" id="my-val" style="width:28px">0</span></div>
+        </div>
+        <div style="margin-top:6px"><button class="upload-btn" id="btn-fit" style="border-style:solid;margin-bottom:0">⤢ Fit to grid</button></div>
+      </section>
+
+      <div class="panel-divider"></div>
+
+      <!-- FORM META + SAVE -->
+      <section class="panel-section">
+        <span class="panel-section__title">Form</span>
+        <div class="panel-row">
+          <label class="panel-label">Name</label>
+          <input type="text" class="panel-input panel-input--full" id="ctrl-name" placeholder="form name">
+        </div>
+        <div class="panel-row">
+          <label class="panel-label">Type</label>
+          <div class="type-pills" id="type-pills">
+            <button class="type-pill active" data-type="asset">Asset</button>
+            <button class="type-pill" data-type="variant">Variant</button>
+            <button class="type-pill" data-type="mask">Mask</button>
+            <button class="type-pill" data-type="container">Container</button>
+          </div>
+        </div>
+        <div class="panel-row">
+          <label class="panel-label">Save to</label>
+          <select class="panel-select" id="ctrl-set"></select>
+        </div>
+        <div style="margin-top:10px"><button class="btn-primary" id="btn-save">Save to Library</button></div>
+      </section>
+
+    </aside>
+  </div>
+
+  <script src="organic-defs.js"></script>
+  <script src="organic-forms.js"></script>
+  <script>
+  // ─────────────────────────────────────────────────────────
+  // Genesis Creator — build a new static SVG form, save to the Library.
+  // Output is a <svg viewBox="0 0 200 200"> with colours as var(--ink)
+  // (per the critical rule). Shares the 'organica_library' localStorage
+  // model with library.html. No shared file is mutated.
+  // ─────────────────────────────────────────────────────────
+  const STORAGE_KEY = 'organica_library';
+  const BUILT_IN_SET_ID = 'organic-forms';
+  const NS = 'http://www.w3.org/2000/svg';
+
+  let S = {
+    mode: 'draw',
+    points: [],            // [[x,y], …] in viewBox coords
+    close: true,
+    smooth: true,
+    gen: { type: 'circle', n: 5, r: 60 },
+    importInner: null,     // normalised <g>…</g> string
+    fillMode: 'fill',
+    strokeW: 6,
+    rounded: true,
+    scale: 1,
+    w: 1,
+    l: 1,
+    rot: 0,
+    moveX: 0,
+    moveY: 0,
+    type: 'asset',
+  };
+
+  const $ = id => document.getElementById(id);
+
+  function init() {
+    buildGrid();
+    bindTabs();
+    bindArtboard();
+    bindControls();
+    populateSets();
+    render();
+  }
+
+  // ── Artboard grid ──────────────────────────────────────
+  function buildGrid() {
+    const g = $('grid-layer');
+    let s = '';
+    for (let i = 1; i < 4; i++) {
+      const p = i * 50;
+      s += `<line class="grid-line" x1="${p}" y1="0" x2="${p}" y2="200"/>`;
+      s += `<line class="grid-line" x1="0" y1="${p}" x2="200" y2="${p}"/>`;
+    }
+    g.innerHTML = s;
+  }
+
+  // ── Mode tabs ──────────────────────────────────────────
+  function bindTabs() {
+    $('mode-tabs').querySelectorAll('.mode-tab').forEach(t => {
+      t.addEventListener('click', () => setMode(t.dataset.mode));
+    });
+  }
+  function setMode(mode) {
+    S.mode = mode;
+    $('mode-tabs').querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+    document.querySelectorAll('.mode-block').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    $('art').classList.toggle('notdraw', mode !== 'draw');
+    $('art-hint').style.display = mode === 'draw' ? 'block' : 'none';
+    // import appearance toggle limited (geometry keeps its own fills)
+    const isImport = mode === 'import';
+    $('fill-seg').style.opacity = isImport ? '0.4' : '1';
+    $('fill-seg').style.pointerEvents = isImport ? 'none' : 'auto';
+    if (mode === 'generate') syncGenerator();
+    render();
+  }
+
+  // ── Artboard drawing — points are anchors {x,y,h} where h = out-tangent
+  // vector ([dx,dy]) or null (auto / Catmull-Rom). Drag anchors or their two
+  // mirrored tangent handles; double-click an anchor resets it to auto. ──
+  let dragIndex = null, tdrag = null, downPt = null, moved = false;
+  function artLoc(e) {
+    const art = $('art'); const pt = art.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    const l = pt.matrixTransform(art.getScreenCTM().inverse());
+    return [clamp(l.x, 0, 200), clamp(l.y, 0, 200)];
+  }
+  function bindArtboard() {
+    const art = $('art');
+    art.addEventListener('pointerdown', e => {
+      if (S.mode !== 'draw') return;
+      const th = e.target.closest('.thandle');
+      if (th) { tdrag = { i: +th.dataset.i, side: th.dataset.side }; try { art.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); return; }
+      const h = e.target.closest('.handle');
+      if (h) { dragIndex = +h.dataset.i; try { art.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); }
+      else { downPt = artLoc(e); moved = false; }
+    });
+    art.addEventListener('pointermove', e => {
+      if (S.mode !== 'draw') return;
+      if (tdrag) {                                   // drag a tangent → set the anchor's out-vector (mirrored = smooth)
+        const loc = invTF(artLoc(e)); const p = S.points[tdrag.i];
+        let h = [loc[0] - p.x, loc[1] - p.y];
+        if (tdrag.side === 'in') h = [-h[0], -h[1]];
+        p.h = h; render();
+      } else if (dragIndex != null) { const loc = invTF(artLoc(e)); S.points[dragIndex].x = loc[0]; S.points[dragIndex].y = loc[1]; render(); }
+      else if (downPt) { const p = artLoc(e); if (Math.hypot(p[0] - downPt[0], p[1] - downPt[1]) > 3) moved = true; }
+    });
+    art.addEventListener('pointerup', e => {
+      if (S.mode !== 'draw') return;
+      if (tdrag) { tdrag = null; try { art.releasePointerCapture(e.pointerId); } catch (_) {} }
+      else if (dragIndex != null) { dragIndex = null; try { art.releasePointerCapture(e.pointerId); } catch (_) {} }
+      else if (downPt && !moved) { const r = invTF(downPt); S.points.push({ x: r[0], y: r[1], h: null }); render(); }
+      downPt = null; moved = false;
+    });
+    // Double-click an anchor → reset its tangent to auto.
+    art.addEventListener('dblclick', e => {
+      const h = e.target.closest('.handle');
+      if (h && S.points[+h.dataset.i]) { S.points[+h.dataset.i].h = null; render(); }
+    });
+    // Undo last point with ⌘/Ctrl+Z
+    document.addEventListener('keydown', e => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
+        if (S.mode === 'draw' && S.points.length && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') {
+          e.preventDefault(); S.points.pop(); render();
+        }
+      }
+    });
+  }
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  // ── Controls ───────────────────────────────────────────
+  function bindControls() {
+    $('ck-close').addEventListener('change', e => { S.close = e.target.checked; render(); });
+    $('ck-smooth').addEventListener('change', e => { S.smooth = e.target.checked; render(); });
+
+    $('btn-undo').addEventListener('click', () => {
+      if (S.mode === 'draw' && S.points.length) { S.points.pop(); render(); }
+    });
+    $('btn-clear').addEventListener('click', () => {
+      S.points = []; S.importInner = null; $('paste-svg').value = ''; render();
+    });
+
+    // Import
+    $('btn-upload').addEventListener('click', () => $('file-svg').click());
+    $('file-svg').addEventListener('change', e => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => { importSVG(ev.target.result); };
+      r.readAsText(f); e.target.value = '';
+    });
+    $('paste-svg').addEventListener('input', e => importSVG(e.target.value));
+
+    // Generate
+    $('gen-seg').querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => {
+      $('gen-seg').querySelectorAll('.seg-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active'); S.gen.type = b.dataset.gen; syncGenerator(); render();
+    }));
+    $('gen-n').addEventListener('input', e => { S.gen.n = clamp(parseInt(e.target.value) || 3, 3, 20); render(); });
+    $('gen-r').addEventListener('input', e => { S.gen.r = parseInt(e.target.value); $('gen-r-val').textContent = S.gen.r; render(); });
+
+    // Appearance
+    $('fill-seg').querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => {
+      $('fill-seg').querySelectorAll('.seg-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active'); S.fillMode = b.dataset.fill;
+      const isStroke = S.fillMode === 'stroke';
+      $('row-strokew').style.opacity = isStroke ? '1' : '0.4';
+      $('row-rounded').style.opacity = isStroke ? '1' : '0.4';
+      render();
+    }));
+    $('ctrl-strokew').addEventListener('input', e => { S.strokeW = parseInt(e.target.value); $('strokew-val').textContent = S.strokeW; render(); });
+    $('ck-rounded').addEventListener('change', e => { S.rounded = e.target.checked; render(); });
+    $('ctrl-scale').addEventListener('input', e => { S.scale = parseFloat(e.target.value); $('scale-val').textContent = S.scale.toFixed(2); render(); });
+    $('ctrl-w').addEventListener('input', e => { S.w = parseFloat(e.target.value); $('w-val').textContent = '×' + S.w.toFixed(1); render(); });
+    $('ctrl-l').addEventListener('input', e => { S.l = parseFloat(e.target.value); $('l-val').textContent = '×' + S.l.toFixed(1); render(); });
+    $('ctrl-rot').addEventListener('input', e => { S.rot = parseInt(e.target.value); $('rot-val').textContent = S.rot + '°'; render(); });
+    $('ctrl-mx').addEventListener('input', e => { S.moveX = parseInt(e.target.value); $('mx-val').textContent = S.moveX; render(); });
+    $('ctrl-my').addEventListener('input', e => { S.moveY = parseInt(e.target.value); $('my-val').textContent = S.moveY; render(); });
+    $('btn-fit').addEventListener('click', fitToGrid);
+    $('row-strokew').style.opacity = '0.4';
+    $('row-rounded').style.opacity = '0.4';
+
+    // Meta
+    $('type-pills').querySelectorAll('.type-pill').forEach(p => p.addEventListener('click', () => {
+      $('type-pills').querySelectorAll('.type-pill').forEach(x => x.classList.remove('active'));
+      p.classList.add('active'); S.type = p.dataset.type;
+    }));
+
+    $('btn-save').addEventListener('click', saveForm);
+  }
+
+  function syncGenerator() {
+    $('row-gen-n').style.display = S.gen.type === 'circle' ? 'none' : 'flex';
+  }
+
+  // ── Import normalisation ───────────────────────────────
+  function importSVG(text) {
+    if (!text || !text.trim()) { S.importInner = null; render(); return; }
+    try {
+      const div = document.createElement('div'); div.innerHTML = text;
+      const svg = div.querySelector('svg');
+      if (!svg) { S.importInner = null; render(); return; }
+      let x = 0, y = 0, w = 200, h = 200;
+      const vb = svg.getAttribute('viewBox');
+      if (vb) { const p = vb.split(/[\s,]+/).map(Number); x = p[0]; y = p[1]; w = p[2]; h = p[3]; }
+      else { w = parseFloat(svg.getAttribute('width')) || 200; h = parseFloat(svg.getAttribute('height')) || 200; }
+
+      // Preserve the root <svg> presentation attributes on the wrapping <g> so
+      // stroke-based icons (fill=none stroke=… on the root) keep their look.
+      const recolor = v => (v && v !== 'none' && !/^url\(/.test(v)) ? 'var(--ink)' : v;
+      const rootAttrs = [];
+      ['fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-dasharray', 'fill-rule', 'fill-opacity', 'stroke-opacity', 'opacity'].forEach(a => {
+        let v = svg.getAttribute(a); if (v == null) return;
+        if (a === 'fill' || a === 'stroke') v = recolor(v);
+        rootAttrs.push(`${a}="${v}"`);
+      });
+      // If the root declared neither fill nor stroke, make it filled so it shows.
+      if (!svg.getAttribute('fill') && !svg.getAttribute('stroke')) rootAttrs.push('fill="var(--ink)"');
+
+      // Recolor concrete colours inside (attributes + inline styles), keep none / url().
+      const inner = svg.innerHTML
+        .replace(/(fill|stroke)="(?!none|url\()[^"]*"/g, '$1="var(--ink)"')
+        .replace(/(fill|stroke):\s*(?!none|url\()[^;"'}]+/g, '$1:var(--ink)');
+
+      const k = 200 / Math.max(w, h);
+      const tx = (200 - w * k) / 2 - x * k, ty = (200 - h * k) / 2 - y * k;
+      S.importInner = `<g transform="translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${k.toFixed(4)})" ${rootAttrs.join(' ')}>${inner}</g>`;
+    } catch (e) { S.importInner = null; }
+    render();
+  }
+
+  // ── Geometry builders ──────────────────────────────────
+  const f = v => (+v).toFixed(2);
+
+  // Sharp polyline through [x,y] arrays — used by Generate (polygon/star).
+  function linePathD(pts, close) {
+    const n = pts.length; if (n < 2) return '';
+    let d = `M ${f(pts[0][0])} ${f(pts[0][1])}`;
+    for (let i = 1; i < n; i++) d += ` L ${f(pts[i][0])} ${f(pts[i][1])}`;
+    return d + (close ? ' Z' : '');
+  }
+
+  // Out-tangent vector for draw anchor i: manual (p.h) or auto (Catmull-Rom).
+  function tangentOf(i) {
+    const p = S.points[i]; if (p.h) return p.h;
+    const n = S.points.length;
+    const P = j => S.close ? S.points[(j + n) % n] : S.points[Math.max(0, Math.min(n - 1, j))];
+    const a = P(i - 1), b = P(i + 1);
+    return [(b.x - a.x) / 6, (b.y - a.y) / 6];
+  }
+
+  // Cubic Bézier through the draw anchors using their tangents (smooth nodes).
+  function bezierPathD() {
+    const pts = S.points, n = pts.length;
+    if (n < 2) return '';
+    if (!S.smooth) {
+      let d = `M ${f(pts[0].x)} ${f(pts[0].y)}`;
+      for (let i = 1; i < n; i++) d += ` L ${f(pts[i].x)} ${f(pts[i].y)}`;
+      return d + (S.close ? ' Z' : '');
+    }
+    const segs = S.close ? n : n - 1;
+    let d = `M ${f(pts[0].x)} ${f(pts[0].y)}`;
+    for (let i = 0; i < segs; i++) {
+      const a = pts[i], b = pts[(i + 1) % n], ta = tangentOf(i), tb = tangentOf((i + 1) % n);
+      d += ` C ${f(a.x + ta[0])} ${f(a.y + ta[1])} ${f(b.x - tb[0])} ${f(b.y - tb[1])} ${f(b.x)} ${f(b.y)}`;
+    }
+    return d + (S.close ? ' Z' : '');
+  }
+
+  function polyPoints(n, r, star) {
+    const pts = [], cx = 100, cy = 100;
+    const count = star ? n * 2 : n;
+    for (let i = 0; i < count; i++) {
+      const ang = -Math.PI / 2 + (i / count) * Math.PI * 2;
+      const rr = star ? (i % 2 === 0 ? r : r * 0.45) : r;
+      pts.push([cx + Math.cos(ang) * rr, cy + Math.sin(ang) * rr]);
+    }
+    return pts;
+  }
+
+  // Inner geometry (before the appearance transform), as an SVG string.
+  function geometry() {
+    if (S.mode === 'import') return S.importInner || '';
+    if (S.mode === 'generate') {
+      if (S.gen.type === 'circle') return `<circle cx="100" cy="100" r="${S.gen.r}"/>`;
+      const pts = polyPoints(S.gen.n, S.gen.r, S.gen.type === 'star');
+      return `<path d="${linePathD(pts, true)}"/>`;
+    }
+    // draw
+    if (S.points.length < 2) return '';
+    return `<path d="${bezierPathD()}"/>`;
+  }
+
+  // Appearance transform string + its JS forward/inverse (to keep the draw
+  // handles on the transformed form, at constant size, and map the cursor back
+  // to raw point coords). SVG list applies right→left: translate(-c) scale rotate translate(c) translate(move).
+  function formTransform() {
+    const cx = 100, cy = 100;
+    const sx = (S.scale * S.w).toFixed(3), sy = (S.scale * S.l).toFixed(3);
+    return `translate(${(+S.moveX).toFixed(2)} ${(+S.moveY).toFixed(2)}) translate(${cx} ${cy}) rotate(${S.rot}) scale(${sx} ${sy}) translate(${-cx} ${-cy})`;
+  }
+  function applyTF(p) {
+    const cx = 100, cy = 100, sx = S.scale * S.w, sy = S.scale * S.l, r = S.rot * Math.PI / 180;
+    let x = (p[0] - cx) * sx, y = (p[1] - cy) * sy;
+    return [x * Math.cos(r) - y * Math.sin(r) + cx + (+S.moveX), x * Math.sin(r) + y * Math.cos(r) + cy + (+S.moveY)];
+  }
+  function invTF(p) {
+    const cx = 100, cy = 100, sx = S.scale * S.w, sy = S.scale * S.l, r = -S.rot * Math.PI / 180;
+    let x = p[0] - (+S.moveX) - cx, y = p[1] - (+S.moveY) - cy;
+    return [(x * Math.cos(r) - y * Math.sin(r)) / sx + cx, (x * Math.sin(r) + y * Math.cos(r)) / sy + cy];
+  }
+
+  // ── Shared markup (used by both the live render and Save) ──
+  function formMarkup() {
+    const geo = geometry();
+    if (!geo) return '';
+    const tf = formTransform();
+    let style;
+    if (S.mode === 'import') style = '';                 // import keeps its own re-coloured fills
+    else if (S.fillMode === 'stroke') style = `fill="none" stroke="var(--ink)" stroke-width="${S.strokeW}" stroke-linecap="${S.rounded ? 'round' : 'butt'}" stroke-linejoin="round"`;
+    else style = `fill="var(--ink)"`;
+    return `<g transform="${tf}" ${style}>${geo}</g>`;
+  }
+
+  // Push S.* appearance values back into the sliders + readouts.
+  function syncAppearanceInputs() {
+    $('ctrl-scale').value = S.scale; $('scale-val').textContent = S.scale.toFixed(2);
+    $('ctrl-w').value = S.w; $('w-val').textContent = '×' + S.w.toFixed(1);
+    $('ctrl-l').value = S.l; $('l-val').textContent = '×' + S.l.toFixed(1);
+    $('ctrl-rot').value = S.rot; $('rot-val').textContent = S.rot + '°';
+    $('ctrl-mx').value = Math.round(S.moveX); $('mx-val').textContent = Math.round(S.moveX);
+    $('ctrl-my').value = Math.round(S.moveY); $('my-val').textContent = Math.round(S.moveY);
+  }
+
+  // Fit the form into the artboard: reset transform, measure the raw geometry,
+  // then scale to ~85% of the board and centre it on (100,100).
+  function fitToGrid() {
+    if (!geometry()) return;
+    const keep = { scale: S.scale, w: S.w, l: S.l, rot: S.rot, mx: S.moveX, my: S.moveY };
+    S.scale = 1; S.w = 1; S.l = 1; S.rot = 0; S.moveX = 0; S.moveY = 0;
+    render();
+    let bb = null; try { bb = $('form-layer').getBBox(); } catch (e) {}
+    if (!bb || bb.width < 0.01 || bb.height < 0.01) { Object.assign(S, { scale: keep.scale, w: keep.w, l: keep.l, rot: keep.rot, moveX: keep.mx, moveY: keep.my }); render(); return; }
+    const s = 170 / Math.max(bb.width, bb.height);
+    const bcx = bb.x + bb.width / 2, bcy = bb.y + bb.height / 2;
+    S.scale = Math.round(s * 100) / 100; S.w = 1; S.l = 1;
+    S.moveX = Math.round((100 - bcx) * s); S.moveY = Math.round((100 - bcy) * s);
+    syncAppearanceInputs();
+    render();
+  }
+
+  // ── Render ─────────────────────────────────────────────
+  function render() {
+    const markup = formMarkup();
+    $('form-layer').innerHTML = markup;
+
+    // draw handles (movable points) — positioned through the appearance transform
+    // so they sit on the form, but drawn at constant size (handles-layer is untransformed).
+    const hl = $('handles-layer');
+    if (S.mode === 'draw' && S.points.length) {
+      const A = i => applyTF([S.points[i].x, S.points[i].y]);
+      let s = '';
+      // guide polygon through the anchors
+      if (S.points.length > 1) {
+        let d = 'M ' + S.points.map((p, i) => { const a = A(i); return f(a[0]) + ' ' + f(a[1]); }).join(' L ');
+        if (S.close) d += ' Z';
+        s += `<path class="guide" d="${d}"/>`;
+      }
+      // tangent handles (only when smoothing) — mirrored in/out controls
+      if (S.smooth) {
+        S.points.forEach((p, i) => {
+          const t = tangentOf(i); if (Math.hypot(t[0], t[1]) < 0.4) return;
+          const out = applyTF([p.x + t[0], p.y + t[1]]), inn = applyTF([p.x - t[0], p.y - t[1]]);
+          s += `<line class="thline" x1="${f(inn[0])}" y1="${f(inn[1])}" x2="${f(out[0])}" y2="${f(out[1])}"/>`;
+          s += `<rect class="thandle" data-i="${i}" data-side="out" x="${f(out[0] - 2.3)}" y="${f(out[1] - 2.3)}" width="4.6" height="4.6"/>`;
+          s += `<rect class="thandle" data-i="${i}" data-side="in" x="${f(inn[0] - 2.3)}" y="${f(inn[1] - 2.3)}" width="4.6" height="4.6"/>`;
+        });
+      }
+      // anchors on top
+      S.points.forEach((p, i) => { const a = A(i); s += `<circle class="handle${i === 0 ? ' handle--first' : ''}" data-i="${i}" cx="${f(a[0])}" cy="${f(a[1])}" r="3.4"/>`; });
+      hl.innerHTML = s;
+    } else hl.innerHTML = '';
+
+    $('btn-save').disabled = !markup;
+  }
+
+  // ── Sets dropdown ──────────────────────────────────────
+  function loadLib() {
+    let lib = null;
+    try { const s = localStorage.getItem(STORAGE_KEY); if (s) lib = JSON.parse(s); } catch (e) {}
+    if (!lib) lib = { sets: [], forms: [] };
+    if (!lib.sets) lib.sets = []; if (!lib.forms) lib.forms = [];
+    if (!lib.sets.find(s => s.id === BUILT_IN_SET_ID)) {
+      lib.sets.unshift({ id: BUILT_IN_SET_ID, name: 'Organic Forms', builtIn: true, gridConfig: { columns: 4, colGap: 16, rowGap: 16, padding: 24 }, formLayout: [] });
+    }
+    return lib;
+  }
+  function populateSets() {
+    const sel = $('ctrl-set');
+    const lib = loadLib();
+    const userSets = lib.sets.filter(s => !s.builtIn);
+    sel.innerHTML = userSets.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('')
+      + '<option value="__new__">+ New set…</option>';
+    if (!userSets.length) sel.value = '__new__';
+  }
+
+  // ── Save ───────────────────────────────────────────────
+  function saveForm() {
+    const markup = formMarkup();
+    if (!markup) return;
+    const svg = `<svg viewBox="0 0 200 200">${markup}</svg>`;
+
+    const lib = loadLib();
+    let setId = $('ctrl-set').value;
+    if (setId === '__new__') {
+      const name = (prompt('New set name:') || '').trim();
+      if (!name) return;
+      setId = 'set_' + name.toLowerCase().replace(/[^a-z0-9]/g, '-') + '_' + Date.now();
+      lib.sets.push({ id: setId, name, builtIn: false, forms: [], gridConfig: { columns: 4, colGap: 16, rowGap: 16, padding: 24 }, formLayout: [] });
+    }
+    const set = lib.sets.find(s => s.id === setId);
+    if (!set) return;
+
+    const form = { id: 'user-' + Date.now(), name: ($('ctrl-name').value.trim() || 'untitled'), svg, type: S.type, builtIn: false };
+    lib.forms.push(form);
+    if (!set.forms) set.forms = [];
+    set.forms.push(form.id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(lib));
+
+    // jump to the Library on the new set
+    location.href = '/genesis/library.html';
+  }
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+  document.addEventListener('DOMContentLoaded', init);
+  </script>
+
+</body>
+</html>

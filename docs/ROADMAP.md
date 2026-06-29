@@ -104,6 +104,45 @@ preview points (SVG is resolution-independent, PNG/JPG scale the same points up)
 
 ---
 
+## Genesis Creator + Library — Backlog
+
+New pages shipped alongside the composer: **`/genesis/library.html`** (Figma-like form
+catalog, set/grid config, Pollen theme) and **`/genesis/creator.html`** (from-scratch SVG
+form builder — Draw / Import / Generate, parametric controls, no animation, output to
+Library via `localStorage organica_library`).
+
+### To verify / fix
+- [ ] **Creator — Bézier tangent handles** (yellow/pollen handles on each anchor): the
+  rendering/visibility was fixed (was gray-on-black, now pollen-yellow), **but the
+  drag/edit behaviour is still to be verified and likely modified** — confirm tangent
+  drag, smooth-node mirroring, and double-click→auto (Catmull-Rom) all behave on a real
+  edit session. *(da modificare)*
+- [ ] **Library — delete form / delete set** — gap, not built yet.
+- [ ] **Creator — edit existing user form** — open Creator pre-loaded with an existing
+  form's data (currently only creates new).
+
+---
+
+## Living Path — Backlog
+
+**`/livingpath/`** — web JS port of [ivangrozny/LivingPath](https://github.com/ivangrozny/LivingPath)
+(a Python desktop tool that applies algorithmic effects to font glyphs). Our port is a
+single-file vanilla HTML/CSS/JS tool: input a **font (OTF/TTF)** *or* an **SVG** (upload or
+Genesis form), apply a stack of organic effects, export SVG/PNG.
+
+### To verify / fix
+- [ ] **Living Path — verify end-to-end, likely modify** — first build is shipped but
+  **not yet confirmed working** ("ora non lo vedo funzionare"): verify font loading
+  (opentype.js), SVG path parsing, each effect, the layer stack, and export on a real
+  session; modify as needed. *(da verificare e/o modificare)*
+
+### Next
+- [ ] **Font export (v2)** — write modified glyphs back to an OTF/TTF with opentype.js.
+- [ ] **Re-vectorization** — raster→vector via potrace-wasm for the pixel-based effects.
+- [ ] **Genesis integration** — pull a form straight from the Library into Living Path.
+
+---
+
 ## Phase 2 — Genesis Depth
 
 Deepen the Genesis composer into a real production tool.

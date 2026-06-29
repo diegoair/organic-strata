@@ -4,6 +4,7 @@
     { "source": "/strata/(.*)", "destination": "/strata/$1" },
     { "source": "/spore/(.*)", "destination": "/spore/$1" },
     { "source": "/pollen/(.*)", "destination": "/pollen/$1" },
+    { "source": "/livingpath/(.*)", "destination": "/livingpath/$1" },
     { "source": "/", "destination": "/index.html" }
   ]
 }
