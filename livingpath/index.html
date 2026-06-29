@@ -108,6 +108,15 @@
   .layer.open .layer-head .chev{transform:rotate(90deg)}
   .layer-body{padding:4px 10px 11px; display:none}
   .layer.open .layer-body{display:block}
+  .presets{display:flex; flex-wrap:wrap; gap:6px}
+  .presets button{
+    font-family:var(--font); font-size:11px; padding:6px 10px; cursor:pointer;
+    background:var(--card); color:var(--ink-soft); border:1px solid var(--line);
+    border-radius:20px; transition:.14s; letter-spacing:.02em;
+  }
+  .presets button:hover{border-color:var(--pollen); background:#fff; color:var(--ink)}
+  .presets button.tsafe{border-color:var(--pollen); color:var(--ink)}
+  .presets button.tsafe::before{content:'◆ '; color:var(--pollen)}
   .addfx{position:relative}
   .addfx select{
     width:100%; font-family:var(--font); font-size:11px; padding:7px 9px; cursor:pointer;
@@ -208,6 +217,11 @@
 
   <!-- RIGHT : effect stack -->
   <aside class="panel right">
+    <div class="sec">
+      <h3>Presets</h3>
+      <div class="presets" id="presets"></div>
+    </div>
+
     <div class="sec">
       <h3>Effect stack</h3>
       <div id="stack"></div>
@@ -451,6 +465,37 @@ function addEffect(type){
   STACK.push({id:++uid, type, on:true, open:true, params:{...def.defaults}});
   renderStack(); render();
 }
+
+// ── one-click presets — each is an ordered list of [type, paramOverrides] ──
+// "Type-safe" is tuned gentle so glyphs stay legible (low subdiv/push).
+const PRESETS = {
+  'Type-safe':{ safe:true, fx:[
+    ['roughen',{detail:2, amount:4, seed:7}], ['wobble',{amp:6, freq:5, phase:0}] ] },
+  'Eroded':{ fx:[
+    ['roughen',{detail:4, amount:14, seed:13}], ['wobble',{amp:12, freq:7, phase:20}] ] },
+  'Liquid':{ fx:[
+    ['smooth',{iter:3, strength:60}], ['inflate',{dist:10}], ['wobble',{amp:16, freq:4, phase:0}] ] },
+  'Vortex':{ fx:[
+    ['twist',{angle:90, falloff:70}], ['roughen',{detail:3, amount:8, seed:5}] ] },
+  'Shatter':{ fx:[
+    ['scatter',{dist:50, seed:5}], ['jitter',{amount:10, seed:21}] ] },
+};
+function applyPreset(name){
+  const p=PRESETS[name]; if(!p) return;
+  STACK=p.fx.map(([type,ov])=>({id:++uid, type, on:true, open:false,
+    params:{...FX[type].defaults, ...ov}}));
+  renderStack(); render();
+}
+function buildPresets(){
+  const host=$('#presets'); host.innerHTML='';
+  Object.keys(PRESETS).forEach(name=>{
+    const b=document.createElement('button');
+    if(PRESETS[name].safe) b.className='tsafe';
+    b.textContent=name; b.title=name==='Type-safe'?'Gentle — tuned for fonts/text':name;
+    b.addEventListener('click',()=>applyPreset(name));
+    host.appendChild(b);
+  });
+}
 function renderStack(){
   const host=$('#stack'); host.innerHTML='';
   STACK.forEach((layer,idx)=>{
@@ -661,6 +706,7 @@ $('#tgNodes').addEventListener('click',function(){ showNodes=!showNodes; this.cl
 ['cInk','cBg'].forEach(id=>$('#'+id).addEventListener('input',e=>{ $('#'+id+'V').textContent=e.target.value; render(); }));
 
 // boot
+buildPresets();
 buildGenesis();
 // start with a gentle default stack so loading anything shows the idea
 addEffect('roughen'); STACK[0].open=false; renderStack();
