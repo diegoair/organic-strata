@@ -130,15 +130,24 @@ Library via `localStorage organica_library`).
 single-file vanilla HTML/CSS/JS tool: input a **font (OTF/TTF)** *or* an **SVG** (upload or
 Genesis form), apply a stack of organic effects, export SVG/PNG.
 
-### To verify / fix
-- [ ] **Living Path — verify end-to-end, likely modify** — first build is shipped but
-  **not yet confirmed working** ("ora non lo vedo funzionare"): verify font loading
-  (opentype.js), SVG path parsing, each effect, the layer stack, and export on a real
-  session; modify as needed. *(da verificare e/o modificare)*
+### Done
+- [x] **Vector engine** — Bézier-node effects (jitter/wobble/inflate/roughen/smooth/
+  twist/scatter), layer stack, presets, font/SVG/Genesis input, SVG/PNG export.
+- [x] **Drop anywhere** — window-level file routing + WOFF2 guard + real parse errors.
+- [x] **Raster engine (the real LivingPath)** — Technique toggle **Vector | Raster**.
+  Pipeline: rasterise glyph → pixel algorithms (**dilate/erode · blur · threshold ·
+  noise · reaction-diffusion**) → **re-vectorise** (marching squares + segment stitch)
+  → Laplacian-smoothed contours → SVG. Gives the "glyph hydrography" flood/melt look
+  (strokes merge, edges bulge). Raster presets (Avulsion/Flood/Bulbs/Grain/Coral),
+  **Outline mode**, debounced recompute.
 
 ### Next
+- [ ] **Raster — particles + center-line (skeleton)** — the two remaining LivingPath
+  layers not yet ported. Reaction-diffusion is in but **experimental** (spots regime
+  erodes to dots on some glyphs; needs masking/tuning for the coral-fill look).
+- [ ] **Higher-res raster** — RES is 170 for live speed; raise it (or move to a Web
+  Worker) for crisper re-vectorisation, especially on words.
 - [ ] **Font export (v2)** — write modified glyphs back to an OTF/TTF with opentype.js.
-- [ ] **Re-vectorization** — raster→vector via potrace-wasm for the pixel-based effects.
 - [ ] **Genesis integration** — pull a form straight from the Library into Living Path.
 
 ---

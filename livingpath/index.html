@@ -148,6 +148,10 @@
 <div class="top">
   <a class="brand" href="/"><b>Living Path</b><span>Organica</span></a>
   <a class="home" href="/">← hub</a>
+  <div class="seg tech" id="techSeg" style="width:200px; margin:0 0 0 6px">
+    <button data-tech="vector" class="on">Vector</button>
+    <button data-tech="raster">Raster · LivingPath</button>
+  </div>
   <div class="sp"></div>
   <div class="status" id="status">no input</div>
   <button class="btn" id="reset">Reset fx</button>
@@ -212,6 +216,7 @@
   <main class="stage">
     <div class="gridtoggle">
       <button class="mini on" id="tgOrig">overlay original</button>
+      <button class="mini" id="tgOutline">outline</button>
       <button class="mini" id="tgNodes">nodes</button>
     </div>
     <svg id="board" viewBox="0 0 1000 1000" hidden></svg>
@@ -461,51 +466,259 @@ const FX = {
 };
 
 // ============================================================
-//  EFFECT STACK STATE
+//  RASTER ENGINE  — the real LivingPath pipeline:
+//  glyph → bitmap → pixel algorithms → re-vectorise (marching squares).
+//  Unlike the vector effects (which only nudge anchors), this changes
+//  TOPOLOGY: strokes merge, holes open, coral/cellular textures grow.
 // ============================================================
-let STACK = [];   // [{type, on, open, params}]
+const RES = 170;   // working grid resolution (speed vs. detail)
+
+function rasterize(subs){
+  const c=document.createElement('canvas'); c.width=c.height=RES;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,RES,RES);
+  ctx.fillStyle='#fff';
+  ctx.save(); ctx.scale(RES/1000, RES/1000);
+  try{ ctx.fill(new Path2D(dFromSubs(subs)),'evenodd'); }catch(e){}
+  ctx.restore();
+  const img=ctx.getImageData(0,0,RES,RES).data;
+  const f=new Float32Array(RES*RES);
+  for(let i=0;i<f.length;i++) f[i]=img[i*4]/255;   // red channel = density
+  return {w:RES,h:RES,f};
+}
+
+function morph(g, amt){                     // dilate (>0) / erode (<0)
+  const it=Math.abs(amt|0), grow=amt>0, {w,h}=g;
+  for(let k=0;k<it;k++){
+    const f=g.f, o=new Float32Array(f.length);
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+      let m=f[y*w+x];
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+        const xx=x+dx,yy=y+dy; if(xx<0||yy<0||xx>=w||yy>=h)continue;
+        const v=f[yy*w+xx]; m=grow?Math.max(m,v):Math.min(m,v);
+      }
+      o[y*w+x]=m;
+    }
+    g.f=o;
+  }
+}
+function boxBlur(g, r){
+  r=Math.round(r); if(r<=0)return; const {w,h}=g;
+  for(let pass=0;pass<2;pass++){
+    for(const horiz of [true,false]){
+      const f=g.f, o=new Float32Array(f.length);
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+        let sum=0,cnt=0;
+        for(let k=-r;k<=r;k++){
+          const xx=horiz?x+k:x, yy=horiz?y:y+k;
+          if(xx<0||yy<0||xx>=w||yy>=h)continue;
+          sum+=f[yy*w+xx]; cnt++;
+        }
+        o[y*w+x]=sum/cnt;
+      }
+      g.f=o;
+    }
+  }
+}
+function addNoise(g, amt, scale, seed){
+  const {w,h}=g, rnd=mulberry32((seed*99991)>>>0), gs=Math.max(2,scale);
+  const gw=Math.ceil(w/gs)+2, gh=Math.ceil(h/gs)+2, lat=new Float32Array(gw*gh);
+  for(let i=0;i<lat.length;i++)lat[i]=rnd();
+  const at=(gx,gy)=>lat[gy*gw+gx];
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const fx=x/gs, fy=y/gs, ix=Math.floor(fx), iy=Math.floor(fy), tx=fx-ix, ty=fy-iy;
+    const ux=tx*tx*(3-2*tx), uy=ty*ty*(3-2*ty);
+    const n=at(ix,iy)*(1-ux)*(1-uy)+at(ix+1,iy)*ux*(1-uy)+at(ix,iy+1)*(1-ux)*uy+at(ix+1,iy+1)*ux*uy;
+    const i=y*w+x; g.f[i]=Math.min(1,Math.max(0,g.f[i]+(n-0.5)*2*amt));
+  }
+}
+function grayScott(g, F, K, steps){          // reaction-diffusion (coral/cellular)
+  const {w,h}=g, N=w*h, Du=0.16, Dv=0.08;
+  let U=new Float32Array(N), V=new Float32Array(N);
+  for(let i=0;i<N;i++){ V[i]=g.f[i]>0.5?1:0; U[i]=1-V[i]*0.5; }
+  const U2=new Float32Array(N), V2=new Float32Array(N);
+  for(let s=0;s<steps;s++){
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+      const i=y*w+x;
+      const l=x>0?i-1:i, r=x<w-1?i+1:i, u=y>0?i-w:i, d=y<h-1?i+w:i;
+      const lapU=U[l]+U[r]+U[u]+U[d]-4*U[i], lapV=V[l]+V[r]+V[u]+V[d]-4*V[i];
+      const uvv=U[i]*V[i]*V[i];
+      U2[i]=U[i]+(Du*lapU-uvv+F*(1-U[i]));
+      V2[i]=V[i]+(Dv*lapV+uvv-(F+K)*V[i]);
+    }
+    U.set(U2); V.set(V2);
+  }
+  // normalise V to the full 0..1 range so the 0.5 contour always has signal
+  let mx=0; for(let i=0;i<N;i++) if(V[i]>mx)mx=V[i];
+  const inv=mx>1e-4?1/mx:1;
+  for(let i=0;i<N;i++) g.f[i]=Math.min(1,Math.max(0,V[i]*inv));
+}
+
+// ── marching squares → stitched contour polylines ──
+function contours(g, level){
+  const {w,h,f}=g, val=(x,y)=>f[y*w+x], segs=[];
+  const ip=(x1,y1,v1,x2,y2,v2)=>{ const t=(level-v1)/((v2-v1)||1e-6); return [x1+(x2-x1)*t, y1+(y2-y1)*t]; };
+  for(let y=0;y<h-1;y++)for(let x=0;x<w-1;x++){
+    const tl=val(x,y),tr=val(x+1,y),br=val(x+1,y+1),bl=val(x,y+1);
+    let idx=0; if(tl>level)idx|=8; if(tr>level)idx|=4; if(br>level)idx|=2; if(bl>level)idx|=1;
+    if(idx===0||idx===15)continue;
+    const T=()=>ip(x,y,tl,x+1,y,tr), R=()=>ip(x+1,y,tr,x+1,y+1,br),
+          B=()=>ip(x,y+1,bl,x+1,y+1,br), L=()=>ip(x,y,tl,x,y+1,bl);
+    const push=(a,b)=>segs.push([a,b]);
+    switch(idx){
+      case 1: push(L(),B()); break;      case 2: push(B(),R()); break;
+      case 3: push(L(),R()); break;      case 4: push(T(),R()); break;
+      case 5: push(L(),T()); push(B(),R()); break;
+      case 6: push(T(),B()); break;      case 7: push(L(),T()); break;
+      case 8: push(T(),L()); break;      case 9: push(T(),B()); break;
+      case 10: push(T(),R()); push(B(),L()); break;
+      case 11: push(T(),R()); break;     case 12: push(L(),R()); break;
+      case 13: push(B(),R()); break;     case 14: push(L(),B()); break;
+    }
+  }
+  // stitch segments into polylines by endpoint hashing
+  const key=p=>`${Math.round(p[0]*50)},${Math.round(p[1]*50)}`;
+  const map=new Map();
+  segs.forEach((s,i)=>[0,1].forEach(e=>{ const k=key(s[e]); (map.get(k)||map.set(k,[]).get(k)).push({i,e}); }));
+  const used=new Array(segs.length).fill(false), polys=[];
+  for(let i=0;i<segs.length;i++){
+    if(used[i])continue; used[i]=true;
+    const poly=[segs[i][0],segs[i][1]];
+    let grow=true;
+    while(grow){ grow=false;
+      const tail=poly[poly.length-1], cand=(map.get(key(tail))||[]).find(c=>!used[c.i]);
+      if(cand){ used[cand.i]=true; poly.push(segs[cand.i][cand.e^1]); grow=true; }
+    }
+    if(key(poly[0])===key(poly[poly.length-1])) poly.pop();
+    if(poly.length>2) polys.push({closed:true, pts:poly.map(p=>({x:p[0],y:p[1]}))});
+  }
+  return polys;
+}
+
+// Laplacian smoothing on a closed polyline → rounds the marching-squares
+// stair-steps into the bubbly LivingPath edge. Also lightly decimates.
+function smoothPoly(pts, iter){
+  let p=pts.map(q=>({x:q.x,y:q.y})); const n0=p.length;
+  for(let k=0;k<iter;k++){
+    const n=p.length, o=new Array(n);
+    for(let i=0;i<n;i++){
+      const a=p[(i-1+n)%n], b=p[i], c=p[(i+1)%n];
+      o[i]={x:(a.x+2*b.x+c.x)/4, y:(a.y+2*b.y+c.y)/4};
+    }
+    p=o;
+  }
+  // decimate: drop points closer than ~1.2 grid units
+  const out=[]; let last=null;
+  for(const q of p){ if(!last||Math.hypot(q.x-last.x,q.y-last.y)>1.2){ out.push(q); last=q; } }
+  return out.length>2?out:p;
+}
+function rasterCompute(){
+  let g=rasterize(SRC.subs);
+  for(const layer of STACKS.raster){ if(!layer.on)continue; RFX[layer.type].apply(g, layer.params); }
+  const sc=1000/RES;
+  return contours(g, 0.5)
+    .map(p=>({closed:true, pts:smoothPoly(p.pts,2)}))
+    .filter(p=>p.pts.length>2)
+    .map(p=>({closed:true, pts:p.pts.map(q=>({x:q.x*sc, y:q.y*sc}))}));
+}
+
+const RFX = {
+  dilate:{ name:'Dilate / Erode', defaults:{amount:2},
+    controls:[['amount','Grow',-8,8,1]],
+    apply(g,p){ morph(g, p.amount); } },
+  blur:{ name:'Blur (flood)', defaults:{radius:3},
+    controls:[['radius','Radius',0,14,1]],
+    apply(g,p){ boxBlur(g, p.radius); } },
+  threshold:{ name:'Threshold (melt)', defaults:{level:50},
+    controls:[['level','Level',2,98,1]],
+    apply(g,p){ const L=p.level/100; for(let i=0;i<g.f.length;i++)g.f[i]=g.f[i]>=L?1:0; } },
+  noise:{ name:'Noise', defaults:{amount:35, scale:9, seed:7},
+    controls:[['amount','Amount',0,100,1],['scale','Scale',2,28,1],['seed','Seed',1,99,1]],
+    apply(g,p){ addNoise(g, p.amount/100, p.scale, p.seed); } },
+  reaction:{ name:'Reaction-diffusion (exp)', defaults:{feed:34, kill:62, iters:10},
+    controls:[['feed','Feed',12,80,1],['kill','Kill',45,75,1],['iters','Steps',1,30,1]],
+    apply(g,p){ grayScott(g, p.feed/1000, p.kill/1000, p.iters*18); } },
+};
+
+// ============================================================
+//  EFFECT STACK STATE  (technique-aware: vector | raster)
+// ============================================================
+let TECH='vector';
+const STACKS={vector:[], raster:[]};
 let uid=0;
+const aStack=()=>STACKS[TECH];
+const aFX=()=>TECH==='vector'?FX:RFX;
 
 function addEffect(type){
-  const def=FX[type]; if(!def) return;
-  STACK.push({id:++uid, type, on:true, open:true, params:{...def.defaults}});
+  const reg=aFX(), def=reg[type]; if(!def) return;
+  aStack().push({id:++uid, type, on:true, open:true, params:{...def.defaults}});
   renderStack(); render();
 }
 
 // ── one-click presets — each is an ordered list of [type, paramOverrides] ──
-// "Type-safe" is tuned gentle so glyphs stay legible (low subdiv/push).
+// Two banks: vector presets and raster (LivingPath) presets.
 const PRESETS = {
-  'Type-safe':{ safe:true, fx:[
-    ['roughen',{detail:2, amount:4, seed:7}], ['wobble',{amp:6, freq:5, phase:0}] ] },
-  'Eroded':{ fx:[
-    ['roughen',{detail:4, amount:14, seed:13}], ['wobble',{amp:12, freq:7, phase:20}] ] },
-  'Liquid':{ fx:[
-    ['smooth',{iter:3, strength:60}], ['inflate',{dist:10}], ['wobble',{amp:16, freq:4, phase:0}] ] },
-  'Vortex':{ fx:[
-    ['twist',{angle:90, falloff:70}], ['roughen',{detail:3, amount:8, seed:5}] ] },
-  'Shatter':{ fx:[
-    ['scatter',{dist:50, seed:5}], ['jitter',{amount:10, seed:21}] ] },
+  vector:{
+    'Type-safe':{ safe:true, fx:[
+      ['roughen',{detail:2, amount:4, seed:7}], ['wobble',{amp:6, freq:5, phase:0}] ] },
+    'Eroded':{ fx:[
+      ['roughen',{detail:4, amount:14, seed:13}], ['wobble',{amp:12, freq:7, phase:20}] ] },
+    'Liquid':{ fx:[
+      ['smooth',{iter:3, strength:60}], ['inflate',{dist:10}], ['wobble',{amp:16, freq:4, phase:0}] ] },
+    'Vortex':{ fx:[
+      ['twist',{angle:90, falloff:70}], ['roughen',{detail:3, amount:8, seed:5}] ] },
+    'Shatter':{ fx:[
+      ['scatter',{dist:50, seed:5}], ['jitter',{amount:10, seed:21}] ] },
+  },
+  raster:{
+    'Avulsion':{ safe:true, fx:[                       // the signature bubbly look
+      ['dilate',{amount:1}], ['blur',{radius:3}], ['threshold',{level:48}], ['noise',{amount:22, scale:11, seed:7}] ] },
+    'Flood':{ fx:[
+      ['dilate',{amount:3}], ['blur',{radius:5}], ['threshold',{level:50}] ] },
+    'Bulbs':{ fx:[
+      ['dilate',{amount:1}], ['blur',{radius:6}], ['threshold',{level:38}] ] },
+    'Grain':{ fx:[
+      ['noise',{amount:45, scale:6, seed:11}], ['threshold',{level:52}] ] },
+    'Coral (exp)':{ fx:[
+      ['dilate',{amount:2}], ['reaction',{feed:30, kill:60, iters:14}] ] },
+    'Skeleton-ish':{ fx:[
+      ['blur',{radius:2}], ['threshold',{level:62}], ['dilate',{amount:-2}] ] },
+  },
 };
 function applyPreset(name){
-  const p=PRESETS[name]; if(!p) return;
-  STACK=p.fx.map(([type,ov])=>({id:++uid, type, on:true, open:false,
-    params:{...FX[type].defaults, ...ov}}));
+  const p=PRESETS[TECH][name]; if(!p) return;
+  const reg=aFX();
+  STACKS[TECH]=p.fx.map(([type,ov])=>({id:++uid, type, on:true, open:false,
+    params:{...reg[type].defaults, ...ov}}));
   renderStack(); render();
 }
 function buildPresets(){
   const host=$('#presets'); host.innerHTML='';
-  Object.keys(PRESETS).forEach(name=>{
+  const bank=PRESETS[TECH];
+  Object.keys(bank).forEach(name=>{
     const b=document.createElement('button');
-    if(PRESETS[name].safe) b.className='tsafe';
-    b.textContent=name; b.title=name==='Type-safe'?'Gentle — tuned for fonts/text':name;
+    if(bank[name].safe) b.className='tsafe';
+    b.textContent=name;
+    b.title=bank[name].safe?'Tuned starting point':name;
     b.addEventListener('click',()=>applyPreset(name));
     host.appendChild(b);
   });
 }
+function buildAddFx(){
+  const sel=$('#addFx'); const reg=aFX();
+  sel.innerHTML='<option value="">+ add effect…</option>'+
+    Object.keys(reg).map(k=>`<option value="${k}">${reg[k].name}</option>`).join('');
+}
+function switchTech(tech){
+  if(tech===TECH) return;
+  TECH=tech;
+  $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.tech===tech));
+  buildPresets(); buildAddFx(); renderStack(); render();
+}
 function renderStack(){
-  const host=$('#stack'); host.innerHTML='';
+  const host=$('#stack'); host.innerHTML=''; const STACK=aStack(), reg=aFX();
   STACK.forEach((layer,idx)=>{
-    const def=FX[layer.type];
+    const def=reg[layer.type];
     const el=document.createElement('div');
     el.className='layer'+(layer.on?' on':' off')+(layer.open?' open':'');
     let body='';
@@ -548,7 +761,7 @@ function renderStack(){
 // ============================================================
 //  RENDER
 // ============================================================
-let showOrig=true, showNodes=false;
+let showOrig=true, showNodes=false, showOutline=false, SRC_LABEL='';
 
 function dFromSubs(subs){
   // Catmull-Rom -> cubic for a smooth re-emission of the polyline
@@ -570,34 +783,48 @@ function dFromSubs(subs){
 
 function computed(){
   if(!SRC) return null;
+  if(TECH==='raster') return rasterCompute();
   let subs=SRC.subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>({x:p.x,y:p.y}))}));
-  for(const layer of STACK){
+  for(const layer of STACKS.vector){
     if(!layer.on) continue;
     subs=FX[layer.type].apply(subs, layer.params);
   }
   return subs;
 }
 
-function render(){
+let CACHE=null, rasterTimer=null;
+
+// repaint = cheap; just re-draws CACHE with current colours/outline/nodes
+function repaint(){
   if(!SRC){ board.hidden=true; empty.hidden=false; return; }
   empty.hidden=true; board.hidden=false;
   const ink=$('#cInk').value, bg=$('#cBg').value;
   board.style.background=bg;
-  const out=computed();
+  const out=CACHE; if(!out) return;
   let svg='';
-  // original ghost
-  if(showOrig){
+  if(showOrig)
     svg+=`<path d="${dFromSubs(SRC.subs)}" fill="none" stroke="${ink}" stroke-opacity=".16" stroke-width="2"/>`;
-  }
-  // result
-  svg+=`<path d="${dFromSubs(out)}" fill="${ink}" fill-rule="evenodd" stroke="none"/>`;
-  // nodes
-  if(showNodes){
+  if(showOutline)
+    svg+=`<path d="${dFromSubs(out)}" fill="none" stroke="${ink}" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>`;
+  else
+    svg+=`<path d="${dFromSubs(out)}" fill="${ink}" fill-rule="evenodd" stroke="none"/>`;
+  if(showNodes && TECH==='vector')
     for(const s of out) for(const p of s.pts)
       svg+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.4" fill="${bg}" stroke="${ink}" stroke-width="1"/>`;
-  }
   board.innerHTML=svg;
   $('#exSvg').disabled=$('#exPng').disabled=false;
+}
+
+// render = recompute geometry (raster is heavy → debounced) then repaint
+function render(){
+  if(!SRC){ repaint(); return; }
+  if(TECH==='raster'){
+    statusEl.textContent='raster…';
+    clearTimeout(rasterTimer);
+    rasterTimer=setTimeout(()=>{ CACHE=computed(); statusEl.textContent=SRC_LABEL; repaint(); }, 110);
+  } else {
+    CACHE=computed(); repaint();
+  }
 }
 
 // ============================================================
@@ -605,7 +832,7 @@ function render(){
 // ============================================================
 function setSource(subs, flipY, kind, label){
   SRC=normalise(subs, flipY); SRC_KIND=kind;
-  statusEl.textContent=label;
+  SRC_LABEL=label; statusEl.textContent=label;
   render();
 }
 
@@ -702,12 +929,13 @@ function buildGenesis(){
 // ============================================================
 function currentSVGString(scale=1){
   const ink=$('#cInk').value, bg=$('#cBg').value;
-  const out=computed();
+  const out=CACHE||computed();
   const W=1000*scale;
+  const shape=showOutline
+    ? `<path d="${dFromSubs(out)}" fill="none" stroke="${ink}" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>`
+    : `<path d="${dFromSubs(out)}" fill="${ink}" fill-rule="evenodd"/>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="${W}" height="${W}">`
-    +`<rect width="1000" height="1000" fill="${bg}"/>`
-    +`<path d="${dFromSubs(out)}" fill="${ink}" fill-rule="evenodd"/>`
-    +`</svg>`;
+    +`<rect width="1000" height="1000" fill="${bg}"/>`+shape+`</svg>`;
 }
 $('#exSvg').addEventListener('click',()=>{
   const blob=new Blob([currentSVGString()],{type:'image/svg+xml'});
@@ -738,17 +966,20 @@ $('#srcSeg').addEventListener('click',e=>{
   const src=b.dataset.src;
   document.querySelectorAll('[data-pane]').forEach(p=>p.hidden=(p.dataset.pane!==src));
 });
+$('#techSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) switchTech(b.dataset.tech); });
 $('#addFx').addEventListener('change',e=>{ if(e.target.value){ addEffect(e.target.value); e.target.value=''; }});
-$('#reset').addEventListener('click',()=>{ STACK=[]; renderStack(); render(); });
-$('#tgOrig').addEventListener('click',function(){ showOrig=!showOrig; this.classList.toggle('on',showOrig); render(); });
-$('#tgNodes').addEventListener('click',function(){ showNodes=!showNodes; this.classList.toggle('on',showNodes); render(); });
-['cInk','cBg'].forEach(id=>$('#'+id).addEventListener('input',e=>{ $('#'+id+'V').textContent=e.target.value; render(); }));
+$('#reset').addEventListener('click',()=>{ STACKS[TECH]=[]; renderStack(); render(); });
+$('#tgOrig').addEventListener('click',function(){ showOrig=!showOrig; this.classList.toggle('on',showOrig); repaint(); });
+$('#tgOutline').addEventListener('click',function(){ showOutline=!showOutline; this.classList.toggle('on',showOutline); repaint(); });
+$('#tgNodes').addEventListener('click',function(){ showNodes=!showNodes; this.classList.toggle('on',showNodes); repaint(); });
+['cInk','cBg'].forEach(id=>$('#'+id).addEventListener('input',e=>{ $('#'+id+'V').textContent=e.target.value; repaint(); }));
 
 // boot
 buildPresets();
+buildAddFx();
 buildGenesis();
-// start with a gentle default stack so loading anything shows the idea
-addEffect('roughen'); STACK[0].open=false; renderStack();
+// start with a gentle default vector stack so loading anything shows the idea
+addEffect('roughen'); STACKS.vector[0].open=false; renderStack();
 </script>
 <script src="/genesis/organic-forms.js" onload="buildGenesis()"></script>
 </body>
