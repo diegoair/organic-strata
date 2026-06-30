@@ -152,8 +152,16 @@ Genesis form), apply a stack of organic effects, export SVG/PNG.
   Worker) for crisper re-vectorisation, especially on words.
 - [ ] **Reaction-diffusion — stronger coral regime** — current masked output is subtle
   (texture mostly at edges); expose a "hole depth" / longer-run option for deeper cells.
-- [ ] **Font export (v2)** — write modified glyphs back to an OTF/TTF with opentype.js.
+- [x] **Font export (OTF)** — "Export modified font" runs the whole alphabet through
+  the active stack **in each glyph's own em space** (advance widths, unitsPerEm,
+  ascender/descender preserved), re-vectorises, and rebuilds an installable OTF with
+  opentype.js (family renamed "LivingPath …"). Works for both Vector and Raster;
+  counters/holes preserved (verified by round-trip re-parse). Vector caps at 320
+  glyphs, raster at 180 (raster ~1–25 ms/glyph; reaction-diffusion much slower).
 - [ ] **Genesis integration** — pull a form straight from the Library into Living Path.
+- [ ] **Font export — full charset + worker** — raise the glyph cap and move the heavy
+  raster export off the main thread (Web Worker) so big fonts / heavy presets don't
+  block the UI.
 
 ---
 
