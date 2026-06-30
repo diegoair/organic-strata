@@ -141,12 +141,17 @@ Genesis form), apply a stack of organic effects, export SVG/PNG.
   (strokes merge, edges bulge). Raster presets (Avulsion/Flood/Bulbs/Grain/Coral),
   **Outline mode**, debounced recompute.
 
+- [x] **Raster — particles** (disks accreting on the form → bubbly nodules) and
+  **center-line / skeleton** (Zhang–Suen thinning → constant-width stream stroke).
+  Presets **Bubbles** and **Stream**.
+- [x] **Reaction-diffusion masked to the glyph** — keeps the letter solid/readable
+  and carves cellular holes instead of dissolving to floating dots.
+
 ### Next
-- [ ] **Raster — particles + center-line (skeleton)** — the two remaining LivingPath
-  layers not yet ported. Reaction-diffusion is in but **experimental** (spots regime
-  erodes to dots on some glyphs; needs masking/tuning for the coral-fill look).
 - [ ] **Higher-res raster** — RES is 170 for live speed; raise it (or move to a Web
   Worker) for crisper re-vectorisation, especially on words.
+- [ ] **Reaction-diffusion — stronger coral regime** — current masked output is subtle
+  (texture mostly at edges); expose a "hole depth" / longer-run option for deeper cells.
 - [ ] **Font export (v2)** — write modified glyphs back to an OTF/TTF with opentype.js.
 - [ ] **Genesis integration** — pull a form straight from the Library into Living Path.
 

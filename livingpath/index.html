@@ -534,6 +534,7 @@ function addNoise(g, amt, scale, seed){
 }
 function grayScott(g, F, K, steps){          // reaction-diffusion (coral/cellular)
   const {w,h}=g, N=w*h, Du=0.16, Dv=0.08;
+  const M=new Uint8Array(N); for(let i=0;i<N;i++) M[i]=g.f[i]>0.5?1:0;  // glyph mask
   let U=new Float32Array(N), V=new Float32Array(N);
   for(let i=0;i<N;i++){ V[i]=g.f[i]>0.5?1:0; U[i]=1-V[i]*0.5; }
   const U2=new Float32Array(N), V2=new Float32Array(N);
@@ -551,7 +552,60 @@ function grayScott(g, F, K, steps){          // reaction-diffusion (coral/cellul
   // normalise V to the full 0..1 range so the 0.5 contour always has signal
   let mx=0; for(let i=0;i<N;i++) if(V[i]>mx)mx=V[i];
   const inv=mx>1e-4?1/mx:1;
-  for(let i=0;i<N;i++) g.f[i]=Math.min(1,Math.max(0,V[i]*inv));
+  // Keep the letter SOLID and readable; the RD pattern carves cellular holes
+  // into it (peaks of V → holes). No floating dots: everything outside the
+  // glyph mask is empty.
+  for(let i=0;i<N;i++) g.f[i]= M[i] ? Math.max(0, 1 - 0.9*V[i]*inv) : 0;
+}
+
+// particles — scatter disks seeded on the ink; they accrete into bubbly
+// nodules along the form (union into the field).
+function particles(g, count, size, spread, seed){
+  const {w,h,f}=g, rnd=mulberry32((seed*2654435761)>>>0);
+  const ink=[]; for(let i=0;i<f.length;i++) if(f[i]>0.5) ink.push(i);
+  if(!ink.length) return;
+  const out=new Float32Array(f.length); out.set(f);
+  for(let k=0;k<count;k++){
+    const i=ink[(rnd()*ink.length)|0];
+    let cx=(i%w)+(rnd()*2-1)*spread, cy=((i/w)|0)+(rnd()*2-1)*spread;
+    const r=size*(0.5+rnd());
+    const x0=Math.max(0,(cx-r)|0), x1=Math.min(w-1,(cx+r)|0),
+          y0=Math.max(0,(cy-r)|0), y1=Math.min(h-1,(cy+r)|0);
+    for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)
+      if((x-cx)*(x-cx)+(y-cy)*(y-cy)<=r*r) out[y*w+x]=1;
+  }
+  g.f=out;
+}
+
+// Zhang–Suen thinning → 1px skeleton, then dilate to a constant stream width.
+function skeleton(g, width){
+  const {w,h}=g; let b=new Uint8Array(w*h);
+  for(let i=0;i<b.length;i++) b[i]=g.f[i]>0.5?1:0;
+  const at=(x,y)=>(x<0||y<0||x>=w||y>=h)?0:b[y*w+x];
+  let changed=true, guard=0;
+  while(changed && guard++<60){
+    changed=false;
+    for(const step of [0,1]){
+      const del=[];
+      for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+        if(!at(x,y))continue;
+        const p2=at(x,y-1),p3=at(x+1,y-1),p4=at(x+1,y),p5=at(x+1,y+1),
+              p6=at(x,y+1),p7=at(x-1,y+1),p8=at(x-1,y),p9=at(x-1,y-1);
+        const C=(p2===0&&p3===1)+(p3===0&&p4===1)+(p4===0&&p5===1)+(p5===0&&p6===1)
+               +(p6===0&&p7===1)+(p7===0&&p8===1)+(p8===0&&p9===1)+(p9===0&&p2===1);
+        const Nn=p2+p3+p4+p5+p6+p7+p8+p9;
+        if(C!==1||Nn<2||Nn>6)continue;
+        if(step===0){ if(p2*p4*p6!==0||p4*p6*p8!==0)continue; }
+        else        { if(p2*p4*p8!==0||p2*p6*p8!==0)continue; }
+        del.push(y*w+x);
+      }
+      if(del.length){ changed=true; for(const i of del) b[i]=0; }
+    }
+  }
+  const sk={w,h,f:new Float32Array(w*h)};
+  for(let i=0;i<b.length;i++) sk.f[i]=b[i];
+  if(width>0) morph(sk, width);            // thicken the 1px line into a stream
+  g.f=sk.f;
 }
 
 // ── marching squares → stitched contour polylines ──
@@ -635,6 +689,12 @@ const RFX = {
   noise:{ name:'Noise', defaults:{amount:35, scale:9, seed:7},
     controls:[['amount','Amount',0,100,1],['scale','Scale',2,28,1],['seed','Seed',1,99,1]],
     apply(g,p){ addNoise(g, p.amount/100, p.scale, p.seed); } },
+  particles:{ name:'Particles', defaults:{count:260, size:5, spread:6, seed:5},
+    controls:[['count','Count',20,800,10],['size','Size',2,14,1],['spread','Spread',0,30,1],['seed','Seed',1,99,1]],
+    apply(g,p){ particles(g, p.count, p.size, p.spread, p.seed); } },
+  skeleton:{ name:'Center-line (skeleton)', defaults:{width:2},
+    controls:[['width','Stream width',0,8,1]],
+    apply(g,p){ skeleton(g, p.width); } },
   reaction:{ name:'Reaction-diffusion (exp)', defaults:{feed:34, kill:62, iters:10},
     controls:[['feed','Feed',12,80,1],['kill','Kill',45,75,1],['iters','Steps',1,30,1]],
     apply(g,p){ grayScott(g, p.feed/1000, p.kill/1000, p.iters*18); } },
@@ -679,10 +739,12 @@ const PRESETS = {
       ['dilate',{amount:1}], ['blur',{radius:6}], ['threshold',{level:38}] ] },
     'Grain':{ fx:[
       ['noise',{amount:45, scale:6, seed:11}], ['threshold',{level:52}] ] },
+    'Bubbles':{ fx:[
+      ['particles',{count:320, size:6, spread:5, seed:5}], ['blur',{radius:2}], ['threshold',{level:45}] ] },
+    'Stream':{ fx:[
+      ['skeleton',{width:3}], ['blur',{radius:2}], ['threshold',{level:42}] ] },
     'Coral (exp)':{ fx:[
-      ['dilate',{amount:2}], ['reaction',{feed:30, kill:60, iters:14}] ] },
-    'Skeleton-ish':{ fx:[
-      ['blur',{radius:2}], ['threshold',{level:62}], ['dilate',{amount:-2}] ] },
+      ['dilate',{amount:1}], ['reaction',{feed:34, kill:62, iters:16}] ] },
   },
 };
 function applyPreset(name){
