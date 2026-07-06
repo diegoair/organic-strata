@@ -229,6 +229,7 @@
   <!-- CENTER : stage -->
   <main class="stage">
     <div class="gridtoggle">
+      <button class="mini" id="tgSpec">text specimen</button>
       <button class="mini on" id="tgOrig">overlay original</button>
       <button class="mini" id="tgOutline">outline</button>
       <button class="mini" id="tgNodes">nodes</button>
@@ -928,16 +929,51 @@ function repaint(){
   $('#exSvg').disabled=$('#exPng').disabled=false;
 }
 
+// ── live text specimen: lay out a paragraph with the MODIFIED font ──
+let showSpecimen=false;
+const SPECIMEN_TEXT="Stream, delta & flow\nliving typographic forms\nthat follow their own path\nHamburgefonts 0123456789";
+function buildSpecimenSubs(){
+  const font=window.__FONT; if(!font) return null;
+  const upm=font.unitsPerEm||1000, size=82, scale=size/upm, lh=size*1.4, x0=45, y0=250;
+  const cache={}, all=[]; let y=y0;
+  for(const linetext of SPECIMEN_TEXT.split('\n')){
+    let x=x0;
+    for(const ch of linetext){
+      const gl=font.charToGlyph(ch);
+      if(!gl){ x+=size*0.5; continue; }
+      let subs=cache[ch];
+      if(subs===undefined){ try{ subs=processGlyphEm(gl,upm)||[]; }catch(e){ subs=[]; } cache[ch]=subs; }
+      const cx=x, cy=y;
+      for(const s of subs) all.push({closed:s.closed, pts:s.pts.map(p=>({x:cx+p.x*scale, y:cy-p.y*scale}))});
+      x += (gl.advanceWidth||upm*0.5)*scale;
+    }
+    y += lh;
+  }
+  return all;
+}
+function renderSpecimen(){
+  const subs=buildSpecimenSubs();
+  CACHE=subs;
+  const ink=$('#cInk').value, bg=$('#cBg').value;
+  board.style.background=bg; board.hidden=false; empty.hidden=true;
+  board.innerHTML = (subs&&subs.length)
+    ? (showOutline
+        ? `<path d="${dFromSubs(subs)}" fill="none" stroke="${ink}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>`
+        : `<path d="${dFromSubs(subs)}" fill="${ink}" fill-rule="evenodd"/>`)
+    : '';
+  $('#exSvg').disabled=$('#exPng').disabled=false;
+}
+
 // render = recompute geometry (raster is heavy → debounced) then repaint
 function render(){
   if(!SRC){ repaint(); return; }
+  const specimen = showSpecimen && window.__FONT && SRC_KIND==='font';
+  const doit = ()=>{ if(specimen) renderSpecimen(); else { CACHE=computed(); repaint(); } };
   if(TECH==='raster'){
     statusEl.textContent='raster…';
     clearTimeout(rasterTimer);
-    rasterTimer=setTimeout(()=>{ CACHE=computed(); statusEl.textContent=SRC_LABEL; repaint(); }, 110);
-  } else {
-    CACHE=computed(); repaint();
-  }
+    rasterTimer=setTimeout(()=>{ doit(); statusEl.textContent=SRC_LABEL; }, 110);
+  } else { doit(); }
 }
 
 // ============================================================
@@ -1175,6 +1211,11 @@ $('#exFont').addEventListener('click',async function(){
 });
 $('#techSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) switchTech(b.dataset.tech); });
 $('#reset').addEventListener('click',()=>{ GROUPS[TECH]=[newGroup('union')]; renderStack(); render(); });
+$('#tgSpec').addEventListener('click',function(){
+  showSpecimen=!showSpecimen; this.classList.toggle('on',showSpecimen);
+  if(showSpecimen && SRC_KIND!=='font'){ statusEl.textContent='specimen needs a font input'; }
+  render();
+});
 $('#tgOrig').addEventListener('click',function(){ showOrig=!showOrig; this.classList.toggle('on',showOrig); repaint(); });
 $('#tgOutline').addEventListener('click',function(){ showOutline=!showOutline; this.classList.toggle('on',showOutline); repaint(); });
 $('#tgNodes').addEventListener('click',function(){ showNodes=!showNodes; this.classList.toggle('on',showNodes); repaint(); });
