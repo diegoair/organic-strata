@@ -54,6 +54,7 @@ Modules in Organica:
 | **Strata** | `theorganicalanguage.vercel.app/strata/` | Sketch → SVG tracing, Smart+ algorithm |
 | **Spore** | `theorganicalanguage.vercel.app/spore/` | Generative stippling from images — SVG mark library, zoom/pan, PNG/JPG/SVG export, Figma |
 | **Pollen** | `theorganicalanguage.vercel.app/pollen/` | Advanced stippling — blue-noise engine, Circle/Polygon/Line points, Adaptive duotone, presets, PNG/JPG/SVG export, Figma |
+| **Living Path** | `theorganicalanguage.vercel.app/livingpath/` | Generative font/path modification (web port of ivangrozny/LivingPath). Vector + Raster engines, layer groups + blend modes, 9 raster algorithms, 24 presets, live text specimen, installable OTF export (Web Worker), .lvp projects |
 
 ---
 

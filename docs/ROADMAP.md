@@ -14,6 +14,7 @@
 - [x] Genesis Indicators — full form catalog
 - [x] Spore — generative stippling from images (`/spore/`) — mark library, zoom/pan preview, PNG + hi-def JPG + SVG export, Send to Figma
 - [x] Pollen — advanced stippling from images (`/pollen/`) — variable-radius blue-noise engine, Circle/Polygon/Line points, Adaptive duotone, presets, PNG/JPG/SVG export, Send to Figma
+- [x] Living Path — generative font/path modification (`/livingpath/`) — Vector + Raster engines, layer groups + blend modes, 9 raster algorithms, 24 presets, live text specimen, installable OTF export via Web Worker, `.lvp` projects. Manual: `docs/LIVINGPATH.md`
 - [x] Vercel deployment — auto-deploy on push to `main`
 - [x] Animation system documentation
 
