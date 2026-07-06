@@ -633,6 +633,46 @@ function skeleton(g, width){
   if(width>0) morph(sk, width);            // thicken the 1px line into a stream
   g.f=sk.f;
 }
+// seam carving — remove `count` minimum-energy seams (content-aware), which
+// pinches/slices the glyph. dir 0 = vertical seams (narrows width), 1 = horizontal.
+function seamCarve(g, count, dir){
+  let W = dir? g.h : g.w, H = dir? g.w : g.h;    // work where seams are vertical
+  let cur=new Float32Array(W*H);
+  if(dir){ for(let y=0;y<g.h;y++)for(let x=0;x<g.w;x++) cur[x*H+y]=g.f[y*g.w+x]; }  // transpose
+  else cur.set(g.f);
+  const startW=W; count=Math.max(0,Math.min(count|0, W-4));
+  for(let s=0;s<count;s++){
+    const en=new Float32Array(W*H);
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+      const l=cur[y*W+(x>0?x-1:0)], r=cur[y*W+(x<W-1?x+1:W-1)];
+      const u=cur[(y>0?y-1:0)*W+x], d=cur[(y<H-1?y+1:H-1)*W+x];
+      en[y*W+x]=Math.abs(r-l)+Math.abs(d-u);
+    }
+    const M=new Float32Array(W*H), back=new Int32Array(W*H);
+    for(let x=0;x<W;x++) M[x]=en[x];
+    for(let y=1;y<H;y++)for(let x=0;x<W;x++){
+      let best=M[(y-1)*W+x], bx=x;
+      if(x>0 && M[(y-1)*W+x-1]<best){best=M[(y-1)*W+x-1];bx=x-1;}
+      if(x<W-1 && M[(y-1)*W+x+1]<best){best=M[(y-1)*W+x+1];bx=x+1;}
+      M[y*W+x]=en[y*W+x]+best; back[y*W+x]=bx;
+    }
+    let minx=0,minv=Infinity;
+    for(let x=0;x<W;x++){ const v=M[(H-1)*W+x]; if(v<minv){minv=v;minx=x;} }
+    const nw=W-1, nf=new Float32Array(nw*H); let sx=minx;
+    for(let y=H-1;y>=0;y--){ let j=0;
+      for(let x=0;x<W;x++){ if(x===sx)continue; nf[y*nw+j]=cur[y*W+x]; j++; }
+      sx=back[y*W+sx];
+    }
+    cur=nf; W=nw;
+  }
+  // recentre the carved content in the original width
+  const full=new Float32Array(startW*H), off=Math.floor((startW-W)/2);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++) full[y*startW+x+off]=cur[y*W+x];
+  if(dir){ const o=new Float32Array(g.w*g.h);
+    for(let y=0;y<g.h;y++)for(let x=0;x<g.w;x++) o[y*g.w+x]=full[x*startW+y];
+    g.f=o;
+  } else g.f=full;
+}
 // block-quantise the field → chunky/faceted regions (pair with low contour smoothing)
 function polygonize(g, block){
   const {w,h,f}=g; block=Math.max(2,block|0);
@@ -739,6 +779,9 @@ const RFX = {
   polygonize:{ name:'Polygonize (facet)', defaults:{block:9},
     controls:[['block','Block',3,24,1]],
     apply(g,p){ polygonize(g, p.block); } },
+  seam:{ name:'Seam carve', defaults:{count:16, dir:0},
+    controls:[['count','Seams',0,50,1],['dir','Vertical',0,1,1]],
+    apply(g,p){ seamCarve(g, p.count, p.dir); } },
   reaction:{ name:'Reaction-diffusion (exp)', defaults:{feed:34, kill:62, iters:10},
     controls:[['feed','Feed',12,80,1],['kill','Kill',45,75,1],['iters','Steps',1,30,1]],
     apply(g,p){ grayScott(g, p.feed/1000, p.kill/1000, p.iters*18); } },
@@ -872,6 +915,9 @@ const PRESETS = {
     'Faceted':{ outline:true, smooth:0, fx:[['dilate',{amount:1}], ['polygonize',{block:9}]] },
     // faceted solid fill variant
     'Low-poly':{ smooth:0, fx:[['dilate',{amount:2}], ['polygonize',{block:11}]] },
+    // Sin-out: bold letters sliced/pinched by content-aware seam carving
+    'Sin-out':{ fx:[['dilate',{amount:2}], ['blur',{radius:1}], ['threshold',{level:48}], ['seam',{count:34, dir:0}]] },
+    'Sin-vert':{ fx:[['dilate',{amount:2}], ['blur',{radius:1}], ['threshold',{level:48}], ['seam',{count:34, dir:1}]] },
   },
 };
 function presetToGroups(p){

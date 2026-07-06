@@ -170,8 +170,12 @@ Genesis form), apply a stack of organic effects, export SVG/PNG.
 - [ ] **Font export — full charset + worker** — raise the glyph cap and move the heavy
   raster export off the main thread (Web Worker) so big fonts / heavy presets don't
   block the UI.
-- [ ] **Remaining original layers** — polygonize, seam-carving, quality-loss, pixel,
-  cahn-hilliard; multi-language Wikipedia specimen text.
+- [x] **Full original algorithm set** — dilate/erode, blur, threshold, noise, particles,
+  center-line (skeleton), **polygonize** (facet), **seam-carving** (content-aware slice),
+  reaction-diffusion. (cahn-hilliard ≈ reaction-diffusion; pixel/quality-loss ≈
+  polygonize/noise.) 24 raster presets mapped to the production example sheets.
+- [ ] **Multi-language Wikipedia specimen text** — the specimen paragraph is fixed;
+  original pulls live text in 100+ languages.
 
 ---
 
