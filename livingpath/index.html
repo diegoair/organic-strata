@@ -633,6 +633,18 @@ function skeleton(g, width){
   if(width>0) morph(sk, width);            // thicken the 1px line into a stream
   g.f=sk.f;
 }
+// block-quantise the field → chunky/faceted regions (pair with low contour smoothing)
+function polygonize(g, block){
+  const {w,h,f}=g; block=Math.max(2,block|0);
+  const o=new Float32Array(f.length);
+  for(let by=0;by<h;by+=block)for(let bx=0;bx<w;bx+=block){
+    let sum=0,c=0; const x1=Math.min(w,bx+block), y1=Math.min(h,by+block);
+    for(let y=by;y<y1;y++)for(let x=bx;x<x1;x++){ sum+=f[y*w+x]; c++; }
+    const v=sum/c>0.5?1:0;
+    for(let y=by;y<y1;y++)for(let x=bx;x<x1;x++) o[y*w+x]=v;
+  }
+  g.f=o;
+}
 
 // ── marching squares → stitched contour polylines ──
 function contours(g, level){
@@ -692,9 +704,10 @@ function smoothPoly(pts, iter){
   for(const q of p){ if(!last||Math.hypot(q.x-last.x,q.y-last.y)>1.2){ out.push(q); last=q; } }
   return out.length>2?out:p;
 }
+let CONTOUR_SMOOTH=2;   // 0 = angular/faceted contours; presets may set it
 function rasterFieldToSubs(g, sc){
   return contours(g, 0.5)
-    .map(p=>({closed:true, pts:smoothPoly(p.pts,2)}))
+    .map(p=>({closed:true, pts:smoothPoly(p.pts,CONTOUR_SMOOTH)}))
     .filter(p=>p.pts.length>2)
     .map(p=>({closed:true, pts:p.pts.map(q=>({x:q.x*sc, y:q.y*sc}))}));
 }
@@ -723,6 +736,9 @@ const RFX = {
   skeleton:{ name:'Center-line (skeleton)', defaults:{width:2},
     controls:[['width','Stream width',0,8,1]],
     apply(g,p){ skeleton(g, p.width); } },
+  polygonize:{ name:'Polygonize (facet)', defaults:{block:9},
+    controls:[['block','Block',3,24,1]],
+    apply(g,p){ polygonize(g, p.block); } },
   reaction:{ name:'Reaction-diffusion (exp)', defaults:{feed:34, kill:62, iters:10},
     controls:[['feed','Feed',12,80,1],['kill','Kill',45,75,1],['iters','Steps',1,30,1]],
     apply(g,p){ grayScott(g, p.feed/1000, p.kill/1000, p.iters*18); } },
@@ -852,6 +868,10 @@ const PRESETS = {
     ] },
     // gridouille: dense rough speckle over a bold body
     'Gridouille':{ fx:[['dilate',{amount:2}], ['noise',{amount:55, scale:4, seed:9}], ['threshold',{level:52}]] },
+    // 34567: faceted / low-poly outline (polygonize + no contour smoothing)
+    'Faceted':{ outline:true, smooth:0, fx:[['dilate',{amount:1}], ['polygonize',{block:9}]] },
+    // faceted solid fill variant
+    'Low-poly':{ smooth:0, fx:[['dilate',{amount:2}], ['polygonize',{block:11}]] },
   },
 };
 function presetToGroups(p){
@@ -864,6 +884,7 @@ function presetToGroups(p){
 function applyPreset(name){
   const p=PRESETS[TECH][name]; if(!p) return;
   GROUPS[TECH]=presetToGroups(p);
+  CONTOUR_SMOOTH = (p.smooth!==undefined) ? p.smooth : 2;   // faceted presets set 0
   // some raster presets read best stroked (cellular / beaded outlines)
   const wantOutline=!!p.outline;
   if(wantOutline!==showOutline){ showOutline=wantOutline; $('#tgOutline').classList.toggle('on',showOutline); }
@@ -1217,7 +1238,7 @@ function rasterGlyphEm(glyph, upm){
   const base={w:gw,h:gh,f};
   const g=rasterFieldFromGroups(base, GROUPS.raster);
   return contours(g,0.5)
-    .map(p=>({closed:true, pts:smoothPoly(p.pts,2)}))
+    .map(p=>({closed:true, pts:smoothPoly(p.pts,CONTOUR_SMOOTH)}))
     .filter(p=>p.pts.length>2)
     .map(p=>({closed:true, pts:p.pts.map(q=>({x:q.x/s+x0, y:(g.h-q.y)/s+y0}))}));
 }
