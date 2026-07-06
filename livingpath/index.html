@@ -1338,6 +1338,93 @@ async function buildModifiedFont(onProgress, opts){
     glyphs
   });
 }
+
+// ── Web Worker font export (raster) — heavy per-glyph pipeline OFF the main
+//   thread via OffscreenCanvas, so the whole charset exports without freezing.
+//   The pure field functions are reused verbatim (.toString) — no drift. ──
+let _lpWorkerURL=null;
+function livingPathWorkerURL(){
+  if(_lpWorkerURL) return _lpWorkerURL;
+  const shared=[mulberry32,morph,boxBlur,addNoise,grayScott,particles,skeleton,polygonize,seamCarve,blendField,contours,smoothPoly].map(f=>f.toString()).join('\n');
+  const wsrc=shared+'\n'+`
+function rasterGlyphW(d,bbox,upm,RES){
+  const pad=upm*0.14,x0=bbox.x1-pad,y0=bbox.y1-pad,W=(bbox.x2-bbox.x1)+2*pad,H=(bbox.y2-bbox.y1)+2*pad;
+  const s=RES/Math.max(W,H),gw=Math.max(8,Math.round(W*s)),gh=Math.max(8,Math.round(H*s));
+  const c=new OffscreenCanvas(gw,gh),ctx=c.getContext('2d');
+  ctx.fillStyle='#000';ctx.fillRect(0,0,gw,gh);ctx.fillStyle='#fff';
+  ctx.save();ctx.translate(0,gh);ctx.scale(s,-s);ctx.translate(-x0,-y0);
+  try{ctx.fill(new Path2D(d));}catch(e){}
+  ctx.restore();
+  const img=ctx.getImageData(0,0,gw,gh).data,f=new Float32Array(gw*gh);
+  for(let i=0;i<f.length;i++)f[i]=img[i*4]/255;
+  return {w:gw,h:gh,f:f,s:s,x0:x0,y0:y0};
+}
+function applyLayerW(g,t,p){
+  if(t==='dilate')morph(g,p.amount);
+  else if(t==='blur')boxBlur(g,p.radius);
+  else if(t==='threshold'){const L=p.level/100;for(let i=0;i<g.f.length;i++)g.f[i]=g.f[i]>=L?1:0;}
+  else if(t==='noise')addNoise(g,p.amount/100,p.scale,p.seed);
+  else if(t==='particles')particles(g,p.count,p.size,p.spread,p.seed,p.body);
+  else if(t==='skeleton')skeleton(g,p.width);
+  else if(t==='polygonize')polygonize(g,p.block);
+  else if(t==='seam')seamCarve(g,p.count,p.dir);
+  else if(t==='reaction')grayScott(g,p.feed/1000,p.kill/1000,p.iters*18);
+}
+function processGlyphW(gd,groups,upm,RES,smooth){
+  const base=rasterGlyphW(gd.d,gd.bbox,upm,RES);
+  let acc=null;
+  for(const grp of groups){ if(!grp.on)continue;
+    const g={w:base.w,h:base.h,f:new Float32Array(base.f)};
+    for(const L of grp.layers){ if(L.on) applyLayerW(g,L.type,L.params); }
+    acc=acc===null?g:{w:g.w,h:g.h,f:blendField(acc.f,g.f,grp.blend)};
+  }
+  const gf=acc||base;
+  return contours(gf,0.5).map(function(p){return {closed:true,pts:smoothPoly(p.pts,smooth)};})
+    .filter(function(p){return p.pts.length>2;})
+    .map(function(p){return {closed:true,pts:p.pts.map(function(q){return {x:q.x/base.s+base.x0,y:(gf.h-q.y)/base.s+base.y0};})};});
+}
+onmessage=function(e){
+  const D=e.data,out=[];
+  for(let i=0;i<D.glyphs.length;i++){ const gd=D.glyphs[i]; let subs=null;
+    if(!gd.empty){ try{ subs=processGlyphW(gd,D.groups,D.upm,D.RES,D.smooth); }catch(err){ subs=null; } }
+    out.push({unicode:gd.unicode,name:gd.name,adv:gd.adv,subs:(subs&&subs.length)?subs:null});
+    if(i%10===0) postMessage({progress:i+1,total:D.glyphs.length});
+  }
+  postMessage({done:true,results:out});
+};`;
+  _lpWorkerURL=URL.createObjectURL(new Blob([wsrc],{type:'text/javascript'}));
+  return _lpWorkerURL;
+}
+async function buildModifiedFontWorker(opts, onProgress){
+  opts=opts||{}; const ranges=opts.ranges||{upper:1,lower:1,digits:1,punct:1,other:1};
+  const src=window.__FONT; if(!src) throw new Error('load a font first');
+  const upm=src.unitsPerEm||1000, seen=new Set(), glyphs=[];
+  for(let i=0;i<src.glyphs.length;i++){ const gl=src.glyphs.get(i);
+    if(gl.unicode==null||gl.unicode<=0||seen.has(gl.unicode)||!inCharset(gl.unicode,ranges))continue; seen.add(gl.unicode);
+    const bb=gl.getBoundingBox(); const empty=!(isFinite(bb.x1)&&bb.x2>bb.x1&&bb.y2>bb.y1);
+    glyphs.push({unicode:gl.unicode, name:gl.name||('uni'+gl.unicode.toString(16)),
+      adv:Math.round(gl.advanceWidth)||Math.round(upm*0.5),
+      d: empty?'':gl.path.toPathData(2), bbox:{x1:bb.x1,y1:bb.y1,x2:bb.x2,y2:bb.y2}, empty});
+  }
+  const results=await new Promise((resolve,reject)=>{
+    const url=livingPathWorkerURL(); const w=new Worker(url);
+    w.onmessage=(e)=>{ if(e.data.progress){ onProgress&&onProgress(e.data.progress,e.data.total); }
+      else if(e.data.done){ resolve(e.data.results); w.terminate(); } };
+    w.onerror=(err)=>{ w.terminate(); reject(new Error('worker: '+(err.message||'failed'))); };
+    w.postMessage({glyphs, groups:JSON.parse(JSON.stringify(GROUPS.raster)), upm, RES:150, smooth:CONTOUR_SMOOTH});
+  });
+  const notdef=new opentype.Glyph({name:'.notdef',unicode:0,advanceWidth:Math.round(upm*0.5),path:new opentype.Path()});
+  const out=[notdef];
+  for(const r of results){
+    let path;
+    if(r.subs) path=subsToOTPath(r.subs);
+    else { const gl=src.glyphs.get(src.charToGlyphIndex(String.fromCharCode(r.unicode))); path=gl?gl.path:new opentype.Path(); }
+    out.push(new opentype.Glyph({name:r.name, unicode:r.unicode, advanceWidth:r.adv, path}));
+  }
+  const fam=(src.names&&src.names.fontFamily&&src.names.fontFamily.en)||'Font';
+  return new opentype.Font({ familyName:opts.name||('LivingPath '+fam), styleName:'Regular', unitsPerEm:upm,
+    ascender:src.ascender||Math.round(upm*0.8), descender:src.descender||-Math.round(upm*0.2), glyphs:out });
+}
 function ab2b64(buf){
   const bytes=new Uint8Array(buf); let bin='';
   for(let i=0;i<bytes.length;i+=0x8000) bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));
@@ -1387,7 +1474,14 @@ $('#exFont').addEventListener('click',async function(){
   const name=($('#exName').value||'LivingPath').trim();
   const prev=SRC_LABEL; this.disabled=true; const lbl=this.textContent; this.textContent='building…';
   try{
-    const font=await buildModifiedFont((i,n)=>{ statusEl.textContent=`exporting glyphs ${i}/${n}…`; }, {name, ranges:CHARSET});
+    const prog=(i,n)=>{ statusEl.textContent=`exporting glyphs ${i}/${n}…`; };
+    // Raster is heavy → run the whole charset in a Web Worker (no cap, no freeze).
+    // Vector is cheap and stays on the main thread. Fall back if Worker/OffscreenCanvas unavailable.
+    const useWorker = TECH==='raster' && typeof Worker!=='undefined' && typeof OffscreenCanvas!=='undefined';
+    let font;
+    try{ font = useWorker ? await buildModifiedFontWorker({name, ranges:CHARSET}, prog)
+                          : await buildModifiedFont(prog, {name, ranges:CHARSET}); }
+    catch(werr){ if(useWorker){ statusEl.textContent='worker failed, retrying…'; font=await buildModifiedFont(prog,{name, ranges:CHARSET}); } else throw werr; }
     const buf=font.toArrayBuffer();
     download(new Blob([buf],{type:'font/otf'}), name.replace(/\s+/g,'-')+'.otf');
     if($('#exSpec').checked) download(new Blob([specimenHTML(buf,name)],{type:'text/html'}), name.replace(/\s+/g,'-')+'-specimen.html');
