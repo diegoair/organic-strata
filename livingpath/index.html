@@ -557,11 +557,19 @@ function addNoise(g, amt, scale, seed){
     const i=y*w+x; g.f[i]=Math.min(1,Math.max(0,g.f[i]+(n-0.5)*2*amt));
   }
 }
-function grayScott(g, F, K, steps){          // reaction-diffusion (coral/cellular)
+function grayScott(g, F, K, steps, seedn, depth){     // reaction-diffusion (coral/cellular)
   const {w,h}=g, N=w*h, Du=0.16, Dv=0.08;
   const M=new Uint8Array(N); for(let i=0;i<N;i++) M[i]=g.f[i]>0.5?1:0;  // glyph mask
-  let U=new Float32Array(N), V=new Float32Array(N);
-  for(let i=0;i<N;i++){ V[i]=g.f[i]>0.5?1:0; U[i]=1-V[i]*0.5; }
+  const U=new Float32Array(N).fill(1), V=new Float32Array(N);
+  // seed random spots INSIDE the glyph — Gray-Scott grows a coral/labyrinth
+  // pattern from spots (seeding the whole mask just gives edge effects).
+  const rnd=mulberry32(((seedn||5)*2654435761)>>>0), ink=[];
+  for(let i=0;i<N;i++) if(M[i]) ink.push(i);
+  if(!ink.length) return;
+  const spots=Math.max(6, Math.floor(ink.length/55));
+  for(let k=0;k<spots;k++){ const c=ink[(rnd()*ink.length)|0], cx=c%w, cy=(c/w)|0;
+    for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){ const x=cx+dx,y=cy+dy;
+      if(x<0||y<0||x>=w||y>=h)continue; const i=y*w+x; if(M[i]){ V[i]=1; U[i]=0.35; } } }
   const U2=new Float32Array(N), V2=new Float32Array(N);
   for(let s=0;s<steps;s++){
     for(let y=0;y<h;y++)for(let x=0;x<w;x++){
@@ -571,16 +579,14 @@ function grayScott(g, F, K, steps){          // reaction-diffusion (coral/cellul
       const uvv=U[i]*V[i]*V[i];
       U2[i]=U[i]+(Du*lapU-uvv+F*(1-U[i]));
       V2[i]=V[i]+(Dv*lapV+uvv-(F+K)*V[i]);
+      if(!M[i]){ V2[i]=0; U2[i]=1; }                  // confine the reaction to the glyph
     }
     U.set(U2); V.set(V2);
   }
-  // normalise V to the full 0..1 range so the 0.5 contour always has signal
   let mx=0; for(let i=0;i<N;i++) if(V[i]>mx)mx=V[i];
-  const inv=mx>1e-4?1/mx:1;
-  // Keep the letter SOLID and readable; the RD pattern carves cellular holes
-  // into it (peaks of V → holes). No floating dots: everything outside the
-  // glyph mask is empty.
-  for(let i=0;i<N;i++) g.f[i]= M[i] ? Math.max(0, 1 - 0.9*V[i]*inv) : 0;
+  const inv=mx>1e-4?1/mx:1, dp=(depth==null?0.9:depth/100);
+  // letter stays solid; the coral pattern carves cellular holes (peaks of V)
+  for(let i=0;i<N;i++) g.f[i]= M[i] ? Math.max(0, 1 - dp*V[i]*inv) : 0;
 }
 
 // particles — scatter disks seeded on the ink; they accrete into bubbly
@@ -782,9 +788,9 @@ const RFX = {
   seam:{ name:'Seam carve', defaults:{count:16, dir:0},
     controls:[['count','Seams',0,50,1],['dir','Vertical',0,1,1]],
     apply(g,p){ seamCarve(g, p.count, p.dir); } },
-  reaction:{ name:'Reaction-diffusion (exp)', defaults:{feed:34, kill:62, iters:10},
-    controls:[['feed','Feed',12,80,1],['kill','Kill',45,75,1],['iters','Steps',1,30,1]],
-    apply(g,p){ grayScott(g, p.feed/1000, p.kill/1000, p.iters*18); } },
+  reaction:{ name:'Reaction-diffusion', defaults:{feed:55, kill:62, iters:18, depth:90, seed:5},
+    controls:[['feed','Feed',12,80,1],['kill','Kill',45,75,1],['iters','Steps',1,40,1],['depth','Depth',20,100,1],['seed','Seed',1,99,1]],
+    apply(g,p){ grayScott(g, p.feed/1000, p.kill/1000, p.iters*36, p.seed, p.depth); } },
 };
 
 // ============================================================
@@ -861,7 +867,7 @@ const PRESETS = {
       { blend:'union',    layers:[['dilate',{amount:2}], ['blur',{radius:2}], ['threshold',{level:45}]] },
       { blend:'subtract', layers:[['particles',{count:90, size:3, spread:7, seed:5, body:0}]] },
     ] },
-    'Coral (exp)':{ fx:[['dilate',{amount:1}], ['reaction',{feed:34, kill:62, iters:16}] ] },
+    'Coral':{ fx:[['dilate',{amount:3}], ['reaction',{feed:55, kill:62, iters:18, depth:90, seed:5}] ] },
 
     // ── styles echoing Ivan Murit's production examples ──
     // cahn hiliard: thin outline with a cellular texture inside
@@ -1368,7 +1374,7 @@ function applyLayerW(g,t,p){
   else if(t==='skeleton')skeleton(g,p.width);
   else if(t==='polygonize')polygonize(g,p.block);
   else if(t==='seam')seamCarve(g,p.count,p.dir);
-  else if(t==='reaction')grayScott(g,p.feed/1000,p.kill/1000,p.iters*18);
+  else if(t==='reaction')grayScott(g,p.feed/1000,p.kill/1000,p.iters*36,p.seed,p.depth);
 }
 function processGlyphW(gd,groups,upm,RES,smooth){
   const base=rasterGlyphW(gd.d,gd.bbox,upm,RES);
