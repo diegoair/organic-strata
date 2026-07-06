@@ -123,7 +123,19 @@
   .presets button:hover{border-color:var(--pollen); background:#fff; color:var(--ink)}
   .presets button.tsafe{border-color:var(--pollen); color:var(--ink)}
   .presets button.tsafe::before{content:'◆ '; color:var(--pollen)}
-  .addfx{position:relative}
+  /* groups */
+  .group{ border:1px solid var(--line); border-radius:9px; padding:8px; margin-bottom:9px; background:rgba(200,168,58,.04); }
+  .group.goff{ opacity:.5 }
+  .group-head{ display:flex; align-items:center; gap:8px; margin-bottom:8px }
+  .group-head .gtog{ width:15px; height:15px; flex:0 0 15px; border:1.5px solid var(--ink-muted); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--bg); cursor:pointer }
+  .group:not(.goff) .group-head .gtog{ background:var(--pollen); border-color:var(--pollen); color:var(--ink) }
+  .group-head .gbase{ font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-muted) }
+  .group-head .gsp{ flex:1 }
+  .blendsel{ font-family:var(--font); font-size:11px; padding:3px 6px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); cursor:pointer }
+  .gdel{ color:var(--accent) }
+  .newgroup{ font-size:11px; width:100%; margin-top:2px; border-style:dashed }
+  .addfx{position:relative; margin-top:2px}
+  .addfx select{width:100%}
   .addfx select{
     width:100%; font-family:var(--font); font-size:11px; padding:7px 9px; cursor:pointer;
     background:var(--card); color:var(--ink); border:1px dashed var(--line); border-radius:7px;
@@ -238,19 +250,7 @@
     <div class="sec">
       <h3>Effect stack</h3>
       <div id="stack"></div>
-      <div class="addfx">
-        <select id="addFx">
-          <option value="">+ add effect…</option>
-          <option value="jitter">Noise · jitter nodes</option>
-          <option value="wobble">Wobble · sine drift</option>
-          <option value="inflate">Inflate / Erode</option>
-          <option value="roughen">Roughen · subdivide + push</option>
-          <option value="smooth">Organic smooth</option>
-          <option value="twist">Twist · radial rotate</option>
-          <option value="scatter">Scatter · explode nodes</option>
-        </select>
-      </div>
-      <div class="hint">Effects run top→bottom on the Bézier nodes. Toggle the box to mute a layer; click a row to open its controls.</div>
+      <div class="hint">Layers run top→bottom. In <b>Raster</b>, add <b>groups</b> that each process the glyph, then composite with a <b>blend mode</b> (union/subtract/xor…) — overlap an outline group with a texture group for the frog-eggs look.</div>
     </div>
   </aside>
 </div>
@@ -562,11 +562,12 @@ function grayScott(g, F, K, steps){          // reaction-diffusion (coral/cellul
 
 // particles — scatter disks seeded on the ink; they accrete into bubbly
 // nodules along the form (union into the field).
-function particles(g, count, size, spread, seed){
+function particles(g, count, size, spread, seed, keepBody){
   const {w,h,f}=g, rnd=mulberry32((seed*2654435761)>>>0);
   const ink=[]; for(let i=0;i<f.length;i++) if(f[i]>0.5) ink.push(i);
   if(!ink.length) return;
-  const out=new Float32Array(f.length); out.set(f);
+  // keepBody=1 → nodules on the glyph; 0 → ONLY the disks (for subtract groups)
+  const out=new Float32Array(f.length); if(keepBody) out.set(f);
   for(let k=0;k<count;k++){
     const i=ink[(rnd()*ink.length)|0];
     let cx=(i%w)+(rnd()*2-1)*spread, cy=((i/w)|0)+(rnd()*2-1)*spread;
@@ -668,14 +669,16 @@ function smoothPoly(pts, iter){
   for(const q of p){ if(!last||Math.hypot(q.x-last.x,q.y-last.y)>1.2){ out.push(q); last=q; } }
   return out.length>2?out:p;
 }
-function rasterCompute(){
-  let g=rasterize(SRC.subs);
-  for(const layer of STACKS.raster){ if(!layer.on)continue; RFX[layer.type].apply(g, layer.params); }
-  const sc=1000/RES;
+function rasterFieldToSubs(g, sc){
   return contours(g, 0.5)
     .map(p=>({closed:true, pts:smoothPoly(p.pts,2)}))
     .filter(p=>p.pts.length>2)
     .map(p=>({closed:true, pts:p.pts.map(q=>({x:q.x*sc, y:q.y*sc}))}));
+}
+function rasterCompute(){
+  const base=rasterize(SRC.subs);
+  const g=rasterFieldFromGroups(base, GROUPS.raster);
+  return rasterFieldToSubs(g, 1000/RES);
 }
 
 const RFX = {
@@ -691,9 +694,9 @@ const RFX = {
   noise:{ name:'Noise', defaults:{amount:35, scale:9, seed:7},
     controls:[['amount','Amount',0,100,1],['scale','Scale',2,28,1],['seed','Seed',1,99,1]],
     apply(g,p){ addNoise(g, p.amount/100, p.scale, p.seed); } },
-  particles:{ name:'Particles', defaults:{count:260, size:5, spread:6, seed:5},
-    controls:[['count','Count',20,800,10],['size','Size',2,14,1],['spread','Spread',0,30,1],['seed','Seed',1,99,1]],
-    apply(g,p){ particles(g, p.count, p.size, p.spread, p.seed); } },
+  particles:{ name:'Particles', defaults:{count:260, size:5, spread:6, seed:5, body:1},
+    controls:[['count','Count',20,800,10],['size','Size',2,14,1],['spread','Spread',0,30,1],['seed','Seed',1,99,1],['body','Keep body',0,1,1]],
+    apply(g,p){ particles(g, p.count, p.size, p.spread, p.seed, p.body); } },
   skeleton:{ name:'Center-line (skeleton)', defaults:{width:2},
     controls:[['width','Stream width',0,8,1]],
     apply(g,p){ skeleton(g, p.width); } },
@@ -703,57 +706,92 @@ const RFX = {
 };
 
 // ============================================================
-//  EFFECT STACK STATE  (technique-aware: vector | raster)
+//  EFFECT STACK STATE  (technique-aware, GROUPS of layers)
+//  Each group processes the source glyph independently; groups are then
+//  composited with a blend mode (raster). This is what lets you overlap
+//  passes — e.g. an outline group + a texture group = the "frog-eggs" look.
+//  Vector keeps a single group (blend N/A) and just runs layers in order.
 // ============================================================
 let TECH='vector';
-const STACKS={vector:[], raster:[]};
 let uid=0;
-const aStack=()=>STACKS[TECH];
+const newGroup=(blend='union')=>({id:++uid, on:true, open:true, blend, layers:[]});
+const GROUPS={vector:[newGroup()], raster:[newGroup()]};
+const curGroups=()=>GROUPS[TECH];
 const aFX=()=>TECH==='vector'?FX:RFX;
+const BLENDS=['union','multiply','subtract','xor','add','screen'];
 
-function addEffect(type){
+function addEffectToGroup(grp, type){
   const reg=aFX(), def=reg[type]; if(!def) return;
-  aStack().push({id:++uid, type, on:true, open:true, params:{...def.defaults}});
+  grp.layers.push({id:++uid, type, on:true, open:true, params:{...def.defaults}});
   renderStack(); render();
 }
+// legacy single-arg helper (adds to the last group of the active technique)
+function addEffect(type){ const g=curGroups(); addEffectToGroup(g[g.length-1], type); }
 
-// ── one-click presets — each is an ordered list of [type, paramOverrides] ──
-// Two banks: vector presets and raster (LivingPath) presets.
+// ── shared appliers — used by BOTH the live preview and the font export ──
+function blendField(a,b,mode){
+  const o=new Float32Array(a.length);
+  for(let i=0;i<a.length;i++){ const x=a[i],y=b[i];
+    o[i]= mode==='multiply'? x*y
+        : mode==='subtract'? x*(1-y)
+        : mode==='xor'?      Math.min(1,Math.max(0,x+y-2*x*y))
+        : mode==='add'?      Math.min(1,x+y)
+        : mode==='screen'?   1-(1-x)*(1-y)
+        :                    Math.max(x,y); // union
+  }
+  return o;
+}
+function rasterFieldFromGroups(base, groups){
+  let acc=null;
+  for(const grp of groups){ if(!grp.on)continue;
+    const g={w:base.w,h:base.h,f:new Float32Array(base.f)};   // each group starts from source
+    for(const layer of grp.layers){ if(layer.on) RFX[layer.type].apply(g, layer.params); }
+    acc = acc===null ? g : {w:g.w,h:g.h,f:blendField(acc.f,g.f,grp.blend)};
+  }
+  return acc||base;
+}
+function applyVectorGroups(subs, groups){
+  for(const grp of groups){ if(!grp.on)continue;
+    for(const layer of grp.layers){ if(layer.on) subs=FX[layer.type].apply(subs, layer.params); }
+  }
+  return subs;
+}
+
+// ── presets — `fx:` = one group; `groups:` = multiple (with blend) ──
 const PRESETS = {
   vector:{
-    'Type-safe':{ safe:true, fx:[
-      ['roughen',{detail:2, amount:4, seed:7}], ['wobble',{amp:6, freq:5, phase:0}] ] },
-    'Eroded':{ fx:[
-      ['roughen',{detail:4, amount:14, seed:13}], ['wobble',{amp:12, freq:7, phase:20}] ] },
-    'Liquid':{ fx:[
-      ['smooth',{iter:3, strength:60}], ['inflate',{dist:10}], ['wobble',{amp:16, freq:4, phase:0}] ] },
-    'Vortex':{ fx:[
-      ['twist',{angle:90, falloff:70}], ['roughen',{detail:3, amount:8, seed:5}] ] },
-    'Shatter':{ fx:[
-      ['scatter',{dist:50, seed:5}], ['jitter',{amount:10, seed:21}] ] },
+    'Type-safe':{ safe:true, fx:[['roughen',{detail:2, amount:4, seed:7}], ['wobble',{amp:6, freq:5, phase:0}] ] },
+    'Eroded':{ fx:[['roughen',{detail:4, amount:14, seed:13}], ['wobble',{amp:12, freq:7, phase:20}] ] },
+    'Liquid':{ fx:[['smooth',{iter:3, strength:60}], ['inflate',{dist:10}], ['wobble',{amp:16, freq:4, phase:0}] ] },
+    'Vortex':{ fx:[['twist',{angle:90, falloff:70}], ['roughen',{detail:3, amount:8, seed:5}] ] },
+    'Shatter':{ fx:[['scatter',{dist:50, seed:5}], ['jitter',{amount:10, seed:21}] ] },
   },
   raster:{
-    'Avulsion':{ safe:true, fx:[                       // the signature bubbly look
-      ['dilate',{amount:1}], ['blur',{radius:3}], ['threshold',{level:48}], ['noise',{amount:22, scale:11, seed:7}] ] },
-    'Flood':{ fx:[
-      ['dilate',{amount:3}], ['blur',{radius:5}], ['threshold',{level:50}] ] },
-    'Bulbs':{ fx:[
-      ['dilate',{amount:1}], ['blur',{radius:6}], ['threshold',{level:38}] ] },
-    'Grain':{ fx:[
-      ['noise',{amount:45, scale:6, seed:11}], ['threshold',{level:52}] ] },
-    'Bubbles':{ fx:[
-      ['particles',{count:320, size:6, spread:5, seed:5}], ['blur',{radius:2}], ['threshold',{level:45}] ] },
-    'Stream':{ fx:[
-      ['skeleton',{width:3}], ['blur',{radius:2}], ['threshold',{level:42}] ] },
-    'Coral (exp)':{ fx:[
-      ['dilate',{amount:1}], ['reaction',{feed:34, kill:62, iters:16}] ] },
+    'Avulsion':{ safe:true, fx:[['dilate',{amount:1}], ['blur',{radius:3}], ['threshold',{level:48}], ['noise',{amount:22, scale:11, seed:7}] ] },
+    'Flood':{ fx:[['dilate',{amount:3}], ['blur',{radius:5}], ['threshold',{level:50}] ] },
+    'Bulbs':{ fx:[['dilate',{amount:1}], ['blur',{radius:6}], ['threshold',{level:38}] ] },
+    'Grain':{ fx:[['noise',{amount:45, scale:6, seed:11}], ['threshold',{level:52}] ] },
+    'Bubbles':{ fx:[['particles',{count:320, size:6, spread:5, seed:5}], ['blur',{radius:2}], ['threshold',{level:45}] ] },
+    'Stream':{ fx:[['skeleton',{width:3}], ['blur',{radius:2}], ['threshold',{level:42}] ] },
+    // multi-group: solid letter body MINUS a sparse bubble field → cellular
+    // holes ("roe"). Keep particles few/small so the glyph stays readable.
+    'Frog-eggs':{ safe:false, groups:[
+      { blend:'union',    layers:[['dilate',{amount:2}], ['blur',{radius:2}], ['threshold',{level:45}]] },
+      { blend:'subtract', layers:[['particles',{count:90, size:3, spread:7, seed:5, body:0}]] },
+    ] },
+    'Coral (exp)':{ fx:[['dilate',{amount:1}], ['reaction',{feed:34, kill:62, iters:16}] ] },
   },
 };
+function presetToGroups(p){
+  const reg=aFX();
+  const src = p.groups ? p.groups : [{blend:'union', layers:p.fx}];
+  return src.map(g=>({ id:++uid, on:true, open:false, blend:g.blend||'union',
+    layers:g.layers.map(([type,ov])=>({id:++uid, type, on:true, open:false,
+      params:{...reg[type].defaults, ...ov}})) }));
+}
 function applyPreset(name){
   const p=PRESETS[TECH][name]; if(!p) return;
-  const reg=aFX();
-  STACKS[TECH]=p.fx.map(([type,ov])=>({id:++uid, type, on:true, open:false,
-    params:{...reg[type].defaults, ...ov}}));
+  GROUPS[TECH]=presetToGroups(p);
   renderStack(); render();
 }
 function buildPresets(){
@@ -768,58 +806,73 @@ function buildPresets(){
     host.appendChild(b);
   });
 }
-function buildAddFx(){
-  const sel=$('#addFx'); const reg=aFX();
-  sel.innerHTML='<option value="">+ add effect…</option>'+
-    Object.keys(reg).map(k=>`<option value="${k}">${reg[k].name}</option>`).join('');
-}
 function switchTech(tech){
   if(tech===TECH) return;
   TECH=tech;
   $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.tech===tech));
-  buildPresets(); buildAddFx(); renderStack(); render();
+  buildPresets(); renderStack(); render();
+}
+// build one layer row inside a group
+function buildLayerEl(grp, layer, idx, reg){
+  const def=reg[layer.type];
+  const el=document.createElement('div');
+  el.className='layer'+(layer.on?' on':' off')+(layer.open?' open':'');
+  let body='';
+  def.controls.forEach(([key,label,min,max,step])=>{
+    body+=`<div class="row"><label>${label}</label>
+      <input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${layer.params[key]}">
+      <span class="val">${layer.params[key]}</span></div>`;
+  });
+  body+=`<div class="row" style="margin-top:6px; gap:6px">
+    <button class="mini" data-act="up" ${idx===0?'disabled':''}>↑</button>
+    <button class="mini" data-act="down" ${idx===grp.layers.length-1?'disabled':''}>↓</button>
+    <button class="mini" data-act="del" style="margin-left:auto; color:var(--accent)">remove</button></div>`;
+  el.innerHTML=`<div class="layer-head">
+      <div class="tog">✓</div><b>${def.name}</b><span class="chev">▶</span>
+    </div><div class="layer-body">${body}</div>`;
+  el.querySelector('.tog').addEventListener('click',e=>{ e.stopPropagation(); layer.on=!layer.on; renderStack(); render(); });
+  el.querySelector('.layer-head').addEventListener('click',()=>{ layer.open=!layer.open; renderStack(); });
+  el.querySelectorAll('input[type=range]').forEach(inp=>{
+    inp.addEventListener('input',()=>{ layer.params[inp.dataset.k]=+inp.value; inp.nextElementSibling.textContent=inp.value; render(); });
+  });
+  el.querySelectorAll('[data-act]').forEach(b=>b.addEventListener('click',e=>{
+    e.stopPropagation(); const act=b.dataset.act, L=grp.layers;
+    if(act==='del') L.splice(idx,1);
+    else if(act==='up'&&idx>0){ [L[idx-1],L[idx]]=[L[idx],L[idx-1]]; }
+    else if(act==='down'&&idx<L.length-1){ [L[idx+1],L[idx]]=[L[idx],L[idx+1]]; }
+    renderStack(); render();
+  }));
+  return el;
 }
 function renderStack(){
-  const host=$('#stack'); host.innerHTML=''; const STACK=aStack(), reg=aFX();
-  STACK.forEach((layer,idx)=>{
-    const def=reg[layer.type];
-    const el=document.createElement('div');
-    el.className='layer'+(layer.on?' on':' off')+(layer.open?' open':'');
-    let body='';
-    def.controls.forEach(([key,label,min,max,step])=>{
-      body+=`<div class="row"><label>${label}</label>
-        <input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${layer.params[key]}">
-        <span class="val">${layer.params[key]}</span></div>`;
-    });
-    body+=`<div class="row" style="margin-top:6px; gap:6px">
-      <button class="mini" data-act="up" ${idx===0?'disabled':''}>↑</button>
-      <button class="mini" data-act="down" ${idx===STACK.length-1?'disabled':''}>↓</button>
-      <button class="mini" data-act="del" style="margin-left:auto; color:var(--accent)">remove</button></div>`;
-    el.innerHTML=`<div class="layer-head">
-        <div class="tog">✓</div><b>${def.name}</b><span class="chev">▶</span>
-      </div><div class="layer-body">${body}</div>`;
-    // toggle on/off
-    el.querySelector('.tog').addEventListener('click',e=>{ e.stopPropagation(); layer.on=!layer.on; renderStack(); render(); });
-    // open/close
-    el.querySelector('.layer-head').addEventListener('click',()=>{ layer.open=!layer.open; renderStack(); });
-    // sliders
-    el.querySelectorAll('input[type=range]').forEach(inp=>{
-      inp.addEventListener('input',()=>{
-        layer.params[inp.dataset.k]=+inp.value;
-        inp.nextElementSibling.textContent=inp.value;
-        render();
-      });
-    });
-    // row buttons
-    el.querySelectorAll('[data-act]').forEach(b=>b.addEventListener('click',e=>{
-      e.stopPropagation(); const act=b.dataset.act;
-      if(act==='del') STACK.splice(idx,1);
-      else if(act==='up'&&idx>0){ [STACK[idx-1],STACK[idx]]=[STACK[idx],STACK[idx-1]]; }
-      else if(act==='down'&&idx<STACK.length-1){ [STACK[idx+1],STACK[idx]]=[STACK[idx],STACK[idx+1]]; }
-      renderStack(); render();
-    }));
-    host.appendChild(el);
+  const host=$('#stack'); host.innerHTML='';
+  const groups=curGroups(), reg=aFX(), grouped=(TECH==='raster');
+  groups.forEach((grp,gi)=>{
+    const gEl=document.createElement('div'); gEl.className='group'+(grp.on?'':' goff');
+    if(grouped){
+      const blend = gi===0
+        ? '<span class="gbase">base group</span>'
+        : `<select class="blendsel">${BLENDS.map(m=>`<option ${grp.blend===m?'selected':''}>${m}</option>`).join('')}</select>`;
+      const del = groups.length>1 ? '<button class="mini gdel">×</button>' : '';
+      const gh=document.createElement('div'); gh.className='group-head';
+      gh.innerHTML=`<div class="tog gtog">✓</div>${blend}<span class="gsp"></span>${del}`;
+      gh.querySelector('.gtog').addEventListener('click',()=>{ grp.on=!grp.on; renderStack(); render(); });
+      const bs=gh.querySelector('.blendsel'); if(bs) bs.addEventListener('change',e=>{ grp.blend=e.target.value; render(); });
+      const gd=gh.querySelector('.gdel'); if(gd) gd.addEventListener('click',()=>{ groups.splice(groups.indexOf(grp),1); renderStack(); render(); });
+      gEl.appendChild(gh);
+    }
+    grp.layers.forEach((layer,idx)=> gEl.appendChild(buildLayerEl(grp, layer, idx, reg)));
+    const add=document.createElement('div'); add.className='addfx';
+    add.innerHTML=`<select><option value="">+ add effect…</option>${Object.keys(reg).map(k=>`<option value="${k}">${reg[k].name}</option>`).join('')}</select>`;
+    add.querySelector('select').addEventListener('change',e=>{ if(e.target.value){ addEffectToGroup(grp, e.target.value); e.target.value=''; }});
+    gEl.appendChild(add);
+    host.appendChild(gEl);
   });
+  if(grouped){
+    const ng=document.createElement('button'); ng.className='btn newgroup'; ng.textContent='+ new group (overlap)';
+    ng.addEventListener('click',()=>{ groups.push(newGroup('union')); renderStack(); render(); });
+    host.appendChild(ng);
+  }
 }
 
 // ============================================================
@@ -849,11 +902,7 @@ function computed(){
   if(!SRC) return null;
   if(TECH==='raster') return rasterCompute();
   let subs=SRC.subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>({x:p.x,y:p.y}))}));
-  for(const layer of STACKS.vector){
-    if(!layer.on) continue;
-    subs=FX[layer.type].apply(subs, layer.params);
-  }
-  return subs;
+  return applyVectorGroups(subs, GROUPS.vector);
 }
 
 let CACHE=null, rasterTimer=null;
@@ -1055,8 +1104,8 @@ function rasterGlyphEm(glyph, upm){
   ctx.restore();
   const img=ctx.getImageData(0,0,gw,gh).data, f=new Float32Array(gw*gh);
   for(let i=0;i<f.length;i++) f[i]=img[i*4]/255;
-  const g={w:gw,h:gh,f};
-  for(const layer of STACKS.raster){ if(!layer.on)continue; RFX[layer.type].apply(g, layer.params); }
+  const base={w:gw,h:gh,f};
+  const g=rasterFieldFromGroups(base, GROUPS.raster);
   return contours(g,0.5)
     .map(p=>({closed:true, pts:smoothPoly(p.pts,2)}))
     .filter(p=>p.pts.length>2)
@@ -1066,8 +1115,7 @@ function processGlyphEm(glyph, upm){
   if(TECH==='vector'){
     let subs=fromOTCommands(glyph.path.commands);
     if(!subs.length) return null;
-    for(const layer of STACKS.vector){ if(!layer.on)continue; subs=FX[layer.type].apply(subs, layer.params); }
-    return subs;
+    return applyVectorGroups(subs, GROUPS.vector);
   }
   return rasterGlyphEm(glyph, upm);
 }
@@ -1126,8 +1174,7 @@ $('#exFont').addEventListener('click',async function(){
   this.textContent=lbl; this.disabled=false;
 });
 $('#techSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) switchTech(b.dataset.tech); });
-$('#addFx').addEventListener('change',e=>{ if(e.target.value){ addEffect(e.target.value); e.target.value=''; }});
-$('#reset').addEventListener('click',()=>{ STACKS[TECH]=[]; renderStack(); render(); });
+$('#reset').addEventListener('click',()=>{ GROUPS[TECH]=[newGroup('union')]; renderStack(); render(); });
 $('#tgOrig').addEventListener('click',function(){ showOrig=!showOrig; this.classList.toggle('on',showOrig); repaint(); });
 $('#tgOutline').addEventListener('click',function(){ showOutline=!showOutline; this.classList.toggle('on',showOutline); repaint(); });
 $('#tgNodes').addEventListener('click',function(){ showNodes=!showNodes; this.classList.toggle('on',showNodes); repaint(); });
@@ -1135,10 +1182,9 @@ $('#tgNodes').addEventListener('click',function(){ showNodes=!showNodes; this.cl
 
 // boot
 buildPresets();
-buildAddFx();
 buildGenesis();
 // start with a gentle default vector stack so loading anything shows the idea
-addEffect('roughen'); STACKS.vector[0].open=false; renderStack();
+addEffect('roughen'); GROUPS.vector[0].layers[0].open=false; renderStack();
 </script>
 <script src="/genesis/organic-forms.js" onload="buildGenesis()"></script>
 </body>
