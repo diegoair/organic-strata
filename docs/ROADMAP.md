@@ -158,10 +158,20 @@ Genesis form), apply a stack of organic effects, export SVG/PNG.
   opentype.js (family renamed "LivingPath …"). Works for both Vector and Raster;
   counters/holes preserved (verified by round-trip re-parse). Vector caps at 320
   glyphs, raster at 180 (raster ~1–25 ms/glyph; reaction-diffusion much slower).
+- [x] **Layer GROUPS + blend modes** — the original's compositing model. Each group
+  processes the glyph, groups blend (union/multiply/subtract/xor/add/screen). Unlocks
+  layered looks (the "Frog-eggs" 2-group preset = body − sparse bubbles). Shared by
+  preview and font export.
+- [x] **Live text specimen** — a paragraph rendered with the modified font, updating
+  live (per-glyph pipeline, cached), for both engines.
+- [x] **Export pro** — custom font name, charset selection (A–Z / a–z / 0–9 / punct /
+  accents), optional HTML specimen (base64 @font-face), and **save/load project (.lvp)**.
 - [ ] **Genesis integration** — pull a form straight from the Library into Living Path.
 - [ ] **Font export — full charset + worker** — raise the glyph cap and move the heavy
   raster export off the main thread (Web Worker) so big fonts / heavy presets don't
   block the UI.
+- [ ] **Remaining original layers** — polygonize, seam-carving, quality-loss, pixel,
+  cahn-hilliard; multi-language Wikipedia specimen text.
 
 ---
 

@@ -136,6 +136,12 @@
   .newgroup{ font-size:11px; width:100%; margin-top:2px; border-style:dashed }
   .addfx{position:relative; margin-top:2px}
   .addfx select{width:100%}
+  .exgrid{margin-top:11px; padding-top:11px; border-top:1px solid var(--line-soft)}
+  .chips{display:flex; flex-wrap:wrap; gap:4px; flex:1}
+  .chips button{font-family:var(--font); font-size:10px; padding:4px 7px; cursor:pointer; background:var(--card); color:var(--ink-muted); border:1px solid var(--line); border-radius:14px}
+  .chips button.on{background:var(--pollen); color:var(--ink); border-color:var(--pollen)}
+  .chk{display:flex; align-items:center; gap:7px; font-size:11px; color:var(--ink-soft); margin-top:9px; cursor:pointer}
+  .chk input{accent-color:var(--pollen)}
   .addfx select{
     width:100%; font-family:var(--font); font-size:11px; padding:7px 9px; cursor:pointer;
     background:var(--card); color:var(--ink); border:1px dashed var(--line); border-radius:7px;
@@ -193,8 +199,24 @@
             style="flex:1; font-family:var(--font); font-size:13px; padding:5px 8px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink)">
         </div>
         <div class="hint">Type 1–12 glyphs. Each is outlined and run through the effect stack.</div>
-        <button class="btn pri" id="exFont" disabled style="width:100%; margin-top:11px">⬇ Export modified font (OTF)</button>
-        <div class="hint" id="exFontHint">Runs the whole alphabet through the current stack and rebuilds an installable OTF — "let it flood your work."</div>
+
+        <div class="exgrid">
+          <div class="row"><label>Font name</label>
+            <input id="exName" value="LivingPath" style="flex:1; font-family:var(--font); font-size:12px; padding:5px 8px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink)"></div>
+          <div class="row"><label>Include</label>
+            <div class="chips" id="exChips">
+              <button data-r="upper" class="on">A–Z</button><button data-r="lower" class="on">a–z</button>
+              <button data-r="digits" class="on">0–9</button><button data-r="punct" class="on">!?.</button>
+              <button data-r="other" class="on">accents</button>
+            </div></div>
+          <label class="chk"><input type="checkbox" id="exSpec"> also save an HTML specimen</label>
+        </div>
+        <button class="btn pri" id="exFont" disabled style="width:100%; margin-top:9px">⬇ Export modified font (OTF)</button>
+        <div class="row" style="margin-top:7px; gap:6px">
+          <button class="btn" id="saveProj" style="flex:1">Save .lvp</button>
+          <button class="btn" id="loadProj" style="flex:1">Load .lvp</button>
+        </div>
+        <div class="hint" id="exFontHint">Rebuilds an installable OTF from the current stack — "let it flood your work." .lvp saves/reloads your whole setup.</div>
       </div>
 
       <div data-pane="svg" hidden>
@@ -1155,13 +1177,22 @@ function processGlyphEm(glyph, upm){
   }
   return rasterGlyphEm(glyph, upm);
 }
-async function buildModifiedFont(onProgress){
+function inCharset(u, r){
+  if(u===32) return true;                                   // always keep space
+  const upper=u>=65&&u<=90, lower=u>=97&&u<=122, digits=u>=48&&u<=57,
+        punct=(u>=33&&u<=47)||(u>=58&&u<=64)||(u>=91&&u<=96)||(u>=123&&u<=126);
+  if(upper) return r.upper; if(lower) return r.lower; if(digits) return r.digits; if(punct) return r.punct;
+  return r.other;                                           // accents / everything else
+}
+async function buildModifiedFont(onProgress, opts){
+  opts=opts||{};
+  const ranges=opts.ranges||{upper:1,lower:1,digits:1,punct:1,other:1};
   const src=window.__FONT; if(!src) throw new Error('load a font first');
   const upm=src.unitsPerEm||1000;
   const notdef=new opentype.Glyph({name:'.notdef', unicode:0, advanceWidth:Math.round(upm*0.5), path:new opentype.Path()});
   const glyphs=[notdef], seen=new Set(), list=[];
   for(let i=0;i<src.glyphs.length;i++){ const gl=src.glyphs.get(i);
-    if(gl.unicode!=null && gl.unicode>0 && !seen.has(gl.unicode)){ seen.add(gl.unicode); list.push(gl); } }
+    if(gl.unicode!=null && gl.unicode>0 && !seen.has(gl.unicode) && inCharset(gl.unicode, ranges)){ seen.add(gl.unicode); list.push(gl); } }
   // raster is ~10-25ms/glyph (more with reaction-diffusion) → cap tighter to
   // stay responsive; vector is cheap so allow the full set.
   const cap=TECH==='raster'?180:320;
@@ -1181,12 +1212,43 @@ async function buildModifiedFont(onProgress){
   }
   const fam=(src.names&&src.names.fontFamily&&src.names.fontFamily.en)||'Font';
   return new opentype.Font({
-    familyName:'LivingPath '+fam, styleName:'Regular',
+    familyName: opts.name || ('LivingPath '+fam), styleName:'Regular',
     unitsPerEm:upm,
     ascender: src.ascender||Math.round(upm*0.8),
     descender: src.descender||-Math.round(upm*0.2),
     glyphs
   });
+}
+function ab2b64(buf){
+  const bytes=new Uint8Array(buf); let bin='';
+  for(let i=0;i<bytes.length;i+=0x8000) bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));
+  return btoa(bin);
+}
+function specimenHTML(otfBuf, name){
+  const b64=ab2b64(otfBuf);
+  return `<!doctype html><meta charset="utf-8"><title>${name} · specimen</title>
+<style>@font-face{font-family:'${name}';src:url(data:font/otf;base64,${b64})}
+body{font-family:'${name}',sans-serif;background:#f5f2ec;color:#0a0a0a;margin:0;padding:6vw}
+h1{font-size:12vw;margin:0 0 .2em;line-height:.9}p{font-size:4vw;line-height:1.3;margin:.3em 0}
+.s{font-size:2.4vw;color:#8a8276;font-family:monospace}</style>
+<div class="s">${name} · LivingPath specimen</div>
+<h1>Living Path</h1>
+<p>Stream, delta &amp; flow — living typographic forms that follow their own path.</p>
+<p>ABCDEFGHIJKLMNOPQRSTUVWXYZ</p><p>abcdefghijklmnopqrstuvwxyz</p><p>0123456789 &amp; ?!.,;:</p>`;
+}
+// project save/load (.lvp = JSON of the whole setup)
+function projectJSON(){
+  return JSON.stringify({v:1, tech:TECH, groups:GROUPS, ink:$('#cInk').value, bg:$('#cBg').value, text:$('#fontText').value, name:$('#exName').value});
+}
+function loadProject(txt){
+  const p=JSON.parse(txt); if(!p.groups) throw new Error('not a .lvp');
+  GROUPS.vector=p.groups.vector||[newGroup()]; GROUPS.raster=p.groups.raster||[newGroup()];
+  TECH=p.tech==='raster'?'raster':'vector';
+  if(p.ink){ $('#cInk').value=p.ink; $('#cInkV').textContent=p.ink; }
+  if(p.bg){ $('#cBg').value=p.bg; $('#cBgV').textContent=p.bg; }
+  if(p.name) $('#exName').value=p.name;
+  $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.tech===TECH));
+  buildPresets(); renderStack(); render();
 }
 
 // ============================================================
@@ -1198,17 +1260,32 @@ $('#srcSeg').addEventListener('click',e=>{
   const src=b.dataset.src;
   document.querySelectorAll('[data-pane]').forEach(p=>p.hidden=(p.dataset.pane!==src));
 });
+const CHARSET={upper:1,lower:1,digits:1,punct:1,other:1};
+$('#exChips').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return;
+  const r=b.dataset.r; CHARSET[r]=CHARSET[r]?0:1; b.classList.toggle('on',!!CHARSET[r]); });
 $('#exFont').addEventListener('click',async function(){
   if(!window.__FONT){ statusEl.textContent='✗ load a font first'; return; }
+  const name=($('#exName').value||'LivingPath').trim();
   const prev=SRC_LABEL; this.disabled=true; const lbl=this.textContent; this.textContent='building…';
   try{
-    const font=await buildModifiedFont((i,n)=>{ statusEl.textContent=`exporting glyphs ${i}/${n}…`; });
-    font.download('LivingPath.otf');
-    statusEl.textContent='✓ font exported';
+    const font=await buildModifiedFont((i,n)=>{ statusEl.textContent=`exporting glyphs ${i}/${n}…`; }, {name, ranges:CHARSET});
+    const buf=font.toArrayBuffer();
+    download(new Blob([buf],{type:'font/otf'}), name.replace(/\s+/g,'-')+'.otf');
+    if($('#exSpec').checked) download(new Blob([specimenHTML(buf,name)],{type:'text/html'}), name.replace(/\s+/g,'-')+'-specimen.html');
+    statusEl.textContent='✓ exported'+($('#exSpec').checked?' + specimen':'');
     setTimeout(()=>{ statusEl.textContent=prev; }, 1800);
   }catch(e){ statusEl.textContent='✗ '+e.message; }
   this.textContent=lbl; this.disabled=false;
 });
+$('#saveProj').addEventListener('click',()=>{
+  download(new Blob([projectJSON()],{type:'application/json'}), (($('#exName').value||'LivingPath').replace(/\s+/g,'-'))+'.lvp');
+});
+(function(){ const inp=document.createElement('input'); inp.type='file'; inp.accept='.lvp,application/json'; inp.hidden=true; document.body.appendChild(inp);
+  $('#loadProj').addEventListener('click',()=>inp.click());
+  inp.addEventListener('change',()=>{ const f=inp.files[0]; if(!f)return; const fr=new FileReader();
+    fr.onload=()=>{ try{ loadProject(fr.result); statusEl.textContent='✓ project loaded'; }catch(e){ statusEl.textContent='✗ '+e.message; } };
+    fr.readAsText(f); inp.value=''; });
+})();
 $('#techSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) switchTech(b.dataset.tech); });
 $('#reset').addEventListener('click',()=>{ GROUPS[TECH]=[newGroup('union')]; renderStack(); render(); });
 $('#tgSpec').addEventListener('click',function(){
