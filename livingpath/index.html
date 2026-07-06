@@ -803,6 +803,34 @@ const PRESETS = {
       { blend:'subtract', layers:[['particles',{count:90, size:3, spread:7, seed:5, body:0}]] },
     ] },
     'Coral (exp)':{ fx:[['dilate',{amount:1}], ['reaction',{feed:34, kill:62, iters:16}] ] },
+
+    // ── styles echoing Ivan Murit's production examples ──
+    // cahn hiliard: thin outline with a cellular texture inside
+    'Cahn cells':{ outline:true, groups:[
+      { blend:'union',    layers:[['dilate',{amount:1}], ['blur',{radius:1}], ['threshold',{level:50}]] },
+      { blend:'subtract', layers:[['particles',{count:150, size:2, spread:6, seed:9, body:0}]] },
+    ] },
+    // Clear_LivingPath cahn: bolder outline, coarser cells
+    'Cahn bold':{ outline:true, groups:[
+      { blend:'union',    layers:[['dilate',{amount:3}], ['blur',{radius:2}], ['threshold',{level:46}]] },
+      { blend:'subtract', layers:[['particles',{count:110, size:3, spread:8, seed:4, body:0}]] },
+    ] },
+    // LivingPath-com: beaded / dotted outline (frog-eggs, stroked)
+    'Beaded':{ outline:true, groups:[
+      { blend:'union',    layers:[['dilate',{amount:2}], ['blur',{radius:2}], ['threshold',{level:45}]] },
+      { blend:'subtract', layers:[['particles',{count:70, size:3, spread:8, seed:5, body:0}]] },
+    ] },
+    // LivingPath-dilated-line: clean bold outline, minimal texture
+    'Dilated':{ outline:true, fx:[['dilate',{amount:3}], ['blur',{radius:2}], ['threshold',{level:44}]] },
+    // hillard bold: solid bold letters, rough speckled edge
+    'Rough bold':{ fx:[['dilate',{amount:2}], ['noise',{amount:38, scale:5, seed:11}], ['threshold',{level:55}]] },
+    // random1: low-res dotted / pixel-dust texture
+    'Pixel dust':{ groups:[
+      { blend:'union',    layers:[['dilate',{amount:1}]] },
+      { blend:'multiply', layers:[['particles',{count:520, size:2, spread:2, seed:7, body:0}], ['blur',{radius:1}]] },
+    ] },
+    // LivingPath-test: exploded particle fragments
+    'Exploded':{ fx:[['particles',{count:220, size:5, spread:16, seed:5, body:1}], ['blur',{radius:1}], ['threshold',{level:44}]] },
   },
 };
 function presetToGroups(p){
@@ -815,6 +843,9 @@ function presetToGroups(p){
 function applyPreset(name){
   const p=PRESETS[TECH][name]; if(!p) return;
   GROUPS[TECH]=presetToGroups(p);
+  // some raster presets read best stroked (cellular / beaded outlines)
+  const wantOutline=!!p.outline;
+  if(wantOutline!==showOutline){ showOutline=wantOutline; $('#tgOutline').classList.toggle('on',showOutline); }
   renderStack(); render();
 }
 function buildPresets(){
