@@ -831,6 +831,27 @@ const PRESETS = {
     ] },
     // LivingPath-test: exploded particle fragments
     'Exploded':{ fx:[['particles',{count:220, size:5, spread:16, seed:5, body:1}], ['blur',{radius:1}], ['threshold',{level:44}]] },
+
+    // ── styles from production sheet (2) ──
+    // Dotty_lineal-Bold: bold outline packed with dense small dots
+    'Dotty bold':{ outline:true, groups:[
+      { blend:'union',    layers:[['dilate',{amount:3}], ['blur',{radius:1}], ['threshold',{level:48}]] },
+      { blend:'subtract', layers:[['particles',{count:300, size:2, spread:3, seed:6, body:0}]] },
+    ] },
+    // Dotty_lineal-Light: thin outline, sparse dots
+    'Dotty light':{ outline:true, groups:[
+      { blend:'union',    layers:[['blur',{radius:1}], ['threshold',{level:56}]] },
+      { blend:'subtract', layers:[['particles',{count:130, size:2, spread:6, seed:3, body:0}]] },
+    ] },
+    // LivingPath-light: thin clean outline (eroded body)
+    'Thin line':{ outline:true, fx:[['dilate',{amount:-1}], ['blur',{radius:1}], ['threshold',{level:55}]] },
+    // Sin-out: solid bold letters with big chunks bitten out
+    'Sliced':{ groups:[
+      { blend:'union',    layers:[['dilate',{amount:2}], ['blur',{radius:2}], ['threshold',{level:44}]] },
+      { blend:'subtract', layers:[['particles',{count:14, size:13, spread:11, seed:8, body:0}]] },
+    ] },
+    // gridouille: dense rough speckle over a bold body
+    'Gridouille':{ fx:[['dilate',{amount:2}], ['noise',{amount:55, scale:4, seed:9}], ['threshold',{level:52}]] },
   },
 };
 function presetToGroups(p){
