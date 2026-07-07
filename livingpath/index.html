@@ -114,15 +114,19 @@
   .layer.open .layer-head .chev{transform:rotate(90deg)}
   .layer-body{padding:4px 10px 11px; display:none}
   .layer.open .layer-body{display:block}
-  .presets{display:flex; flex-wrap:wrap; gap:6px}
-  .presets button{
-    font-family:var(--font); font-size:11px; padding:6px 10px; cursor:pointer;
-    background:var(--card); color:var(--ink-soft); border:1px solid var(--line);
-    border-radius:20px; transition:.14s; letter-spacing:.02em;
-  }
-  .presets button:hover{border-color:var(--pollen); background:#fff; color:var(--ink)}
-  .presets button.tsafe{border-color:var(--pollen); color:var(--ink)}
-  .presets button.tsafe::before{content:'◆ '; color:var(--pollen)}
+  .presets{position:relative}
+  .preset-trigger{display:flex; align-items:center; gap:8px; width:100%; font-family:var(--font); font-size:12px; padding:6px 9px; cursor:pointer; background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:8px; transition:.14s}
+  .preset-trigger:hover{border-color:var(--pollen)}
+  .pt-ico{width:22px; height:22px; flex:0 0 22px; border:1px solid var(--line); border-radius:5px; overflow:hidden; background:#fff}
+  .pt-ico svg, .pi-ico svg{width:100%; height:100%; display:block}
+  .pt-name{flex:1; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .pt-chev{color:var(--ink-muted); font-size:10px}
+  .preset-menu{position:absolute; top:calc(100% + 5px); left:0; right:0; z-index:20; background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 28px rgba(10,10,10,.14); padding:6px; max-height:360px; overflow-y:auto; display:grid; grid-template-columns:1fr 1fr; gap:5px}
+  .preset-item{display:flex; flex-direction:column; align-items:center; gap:5px; padding:7px 4px; cursor:pointer; background:transparent; border:1px solid transparent; border-radius:7px; font-family:var(--font); font-size:10px; color:var(--ink-soft); transition:.12s}
+  .preset-item:hover{background:var(--panel); border-color:var(--line)}
+  .preset-item.on{border-color:var(--pollen)}
+  .pi-ico{width:100%; aspect-ratio:1; border:1px solid var(--line); border-radius:6px; overflow:hidden; background:#fff}
+  .pi-name{text-align:center; line-height:1.2}
   /* groups */
   .group{ border:1px solid var(--line); border-radius:9px; padding:8px; margin-bottom:9px; background:rgba(200,168,58,.04); }
   .group.goff{ opacity:.5 }
@@ -152,6 +156,8 @@
   .empty .big{font-family:var(--display); font-weight:700; font-size:30px; color:var(--ink-soft); margin-bottom:8px}
   .empty p{font-size:12px; line-height:1.7}
   .gridtoggle{position:absolute; top:14px; right:16px; display:flex; gap:6px}
+  .specctl{position:absolute; top:14px; left:16px; display:flex; gap:6px; z-index:6}
+  .specctl select{font-family:var(--font); font-size:11px; padding:5px 7px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); cursor:pointer}
   .mini{font-size:10px; padding:5px 9px; background:var(--card); border:1px solid var(--line); border-radius:6px; cursor:pointer; color:var(--ink-soft)}
   .mini.on{background:var(--ink); color:var(--bg); border-color:var(--ink)}
   .hint{font-size:10px; color:var(--ink-muted); line-height:1.6; margin-top:8px}
@@ -255,6 +261,16 @@
       <button class="mini on" id="tgOrig">overlay original</button>
       <button class="mini" id="tgOutline">outline</button>
       <button class="mini" id="tgNodes">nodes</button>
+    </div>
+    <div class="specctl" id="specctl" hidden>
+      <select id="specLang" title="Specimen language">
+        <option value="en">English</option><option value="it">Italiano</option>
+        <option value="fr">Français</option><option value="es">Español</option>
+        <option value="de">Deutsch</option><option value="pt">Português</option>
+        <option value="nl">Nederlands</option><option value="pl">Polski</option>
+        <option value="el">Ελληνικά</option><option value="ru">Русский</option>
+      </select>
+      <button class="mini" id="specNew" title="New random Wikipedia text (falls back to a sample)">↻ text</button>
     </div>
     <svg id="board" viewBox="0 0 1000 1000" hidden></svg>
     <div class="empty" id="empty">
@@ -933,6 +949,7 @@ function presetToGroups(p){
     layers:g.layers.map(([type,ov])=>({id:++uid, type, on:true, open:false,
       params:{...reg[type].defaults, ...ov}})) }));
 }
+let CURRENT_PRESET=null;
 function applyPreset(name){
   const p=PRESETS[TECH][name]; if(!p) return;
   GROUPS[TECH]=presetToGroups(p);
@@ -940,23 +957,67 @@ function applyPreset(name){
   // some raster presets read best stroked (cellular / beaded outlines)
   const wantOutline=!!p.outline;
   if(wantOutline!==showOutline){ showOutline=wantOutline; $('#tgOutline').classList.toggle('on',showOutline); }
+  CURRENT_PRESET=name; updatePresetTrigger();
   renderStack(); render();
 }
-function buildPresets(){
-  const host=$('#presets'); host.innerHTML='';
-  const bank=PRESETS[TECH];
-  Object.keys(bank).forEach(name=>{
-    const b=document.createElement('button');
-    if(bank[name].safe) b.className='tsafe';
-    b.textContent=name;
-    b.title=bank[name].safe?'Tuned starting point':name;
-    b.addEventListener('click',()=>applyPreset(name));
-    host.appendChild(b);
+
+// ── preset preview icons: apply the preset to a sample glyph, black-on-white ──
+const ICON_CACHE={}; let _sampleSRC=null, _sampleSig='';
+function fontSig(){ return window.__FONT ? ('f'+window.__FONT.glyphs.length+'_'+(window.__FONT.unitsPerEm||0)) : 'nofont'; }
+function sampleSRC(){
+  const sig=fontSig();
+  if(_sampleSRC && _sampleSig===sig) return _sampleSRC;
+  let subs=null;
+  if(window.__FONT){ try{ subs=fromOTCommands(window.__FONT.charToGlyph('a').path.commands); }catch(e){} }
+  if((!subs||!subs.length) && window.ORGANIC_FORMS){ try{ subs=fromSVGString(window.ORGANIC_FORMS[38]); }catch(e){} }
+  _sampleSRC = (subs&&subs.length) ? normalise(subs,false) : null; _sampleSig=sig;
+  return _sampleSRC;
+}
+function presetIcon(name){
+  const key=TECH+':'+name+':'+fontSig();
+  if(ICON_CACHE[key]) return ICON_CACHE[key];
+  const smp=sampleSRC();
+  let shape='';
+  if(smp){
+    const sG=GROUPS[TECH], sS=CONTOUR_SMOOTH, sSRC=SRC, p=PRESETS[TECH][name];
+    GROUPS[TECH]=presetToGroups(p); CONTOUR_SMOOTH=(p.smooth!==undefined)?p.smooth:2; SRC=smp;
+    let out=null; try{ out=computed(); }catch(e){}
+    GROUPS[TECH]=sG; CONTOUR_SMOOTH=sS; SRC=sSRC;
+    const d=out?dFromSubs(out):'';
+    shape = p.outline
+      ? `<path d="${d}" fill="none" stroke="#000" stroke-width="11" stroke-linejoin="round" stroke-linecap="round"/>`
+      : `<path d="${d}" fill="#000" fill-rule="evenodd"/>`;
+  }
+  const svg=`<svg viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"><rect width="1000" height="1000" fill="#fff"/>${shape}</svg>`;
+  ICON_CACHE[key]=svg; return svg;
+}
+function updatePresetTrigger(){
+  const ico=$('#ptIco'), nm=$('#ptName'); if(!ico) return;
+  const name=(CURRENT_PRESET && PRESETS[TECH][CURRENT_PRESET])?CURRENT_PRESET:null;
+  nm.textContent=name||'Choose a preset…';
+  ico.innerHTML=name?presetIcon(name):'';
+}
+function populatePresetMenu(){
+  const m=$('#presetMenu'); m.innerHTML='';
+  Object.keys(PRESETS[TECH]).forEach(name=>{
+    const row=document.createElement('button'); row.className='preset-item'+(name===CURRENT_PRESET?' on':'');
+    row.innerHTML=`<span class="pi-ico">${presetIcon(name)}</span><span class="pi-name">${name}</span>`;
+    row.addEventListener('click',()=>{ applyPreset(name); $('#presetMenu').hidden=true; populatePresetMenu(); });
+    m.appendChild(row);
   });
+}
+function buildPresets(){
+  const host=$('#presets');
+  host.innerHTML=`<button class="preset-trigger" id="presetTrigger">
+      <span class="pt-ico" id="ptIco"></span><span class="pt-name" id="ptName">Choose a preset…</span><span class="pt-chev">▾</span>
+    </button><div class="preset-menu" id="presetMenu" hidden></div>`;
+  $('#presetTrigger').addEventListener('click',e=>{ e.stopPropagation();
+    const m=$('#presetMenu'); if(m.hidden){ populatePresetMenu(); m.hidden=false; } else m.hidden=true; });
+  updatePresetTrigger();
 }
 function switchTech(tech){
   if(tech===TECH) return;
-  TECH=tech;
+  TECH=tech; CURRENT_PRESET=null;
   $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.tech===tech));
   buildPresets(); renderStack(); render();
 }
@@ -1078,25 +1139,59 @@ function repaint(){
 
 // ── live text specimen: lay out a paragraph with the MODIFIED font ──
 let showSpecimen=false;
-const SPECIMEN_TEXT="Stream, delta & flow\nliving typographic forms\nthat follow their own path\nHamburgefonts 0123456789";
+// curated samples per language (Latin + a couple of other scripts) — instant,
+// offline-safe. "↻ text" can also pull a live random Wikipedia extract.
+const SPECIMEN_SAMPLES={
+  en:["Stream, delta and flow — living typographic forms that follow their own path. Hamburgefonts 0123456789."],
+  it:["Il fiume scorre e trova la sua strada: forme tipografiche vive che seguono il proprio corso naturale."],
+  fr:["Le ruisseau, le delta et le courant — des formes typographiques vivantes qui suivent leur propre chemin."],
+  es:["El arroyo, el delta y la corriente: formas tipográficas vivas que siguen su propio camino natural."],
+  de:["Der Bach, das Delta und die Strömung — lebendige typografische Formen, die ihrem eigenen Weg folgen."],
+  pt:["O riacho, o delta e a corrente: formas tipográficas vivas que seguem o seu próprio caminho natural."],
+  nl:["De beek, de delta en de stroming — levende typografische vormen die hun eigen weg volgen."],
+  pl:["Strumień, delta i prąd — żywe formy typograficzne, które podążają własną ścieżką przez znaki."],
+  el:["Το ρεύμα, το δέλτα και η ροή — ζωντανές τυπογραφικές μορφές που ακολουθούν τον δρόμο τους."],
+  ru:["Ручей, дельта и течение — живые типографические формы, следующие своим путём сквозь буквы."],
+};
+let specimenText=SPECIMEN_SAMPLES.en[0];
 function buildSpecimenSubs(){
   const font=window.__FONT; if(!font) return null;
-  const upm=font.unitsPerEm||1000, size=82, scale=size/upm, lh=size*1.4, x0=45, y0=250;
+  const upm=font.unitsPerEm||1000, size=74, scale=size/upm, lh=size*1.5, x0=45, y0=210, maxX=955;
+  const spaceW=((font.charToGlyph(' ')&&font.charToGlyph(' ').advanceWidth)||upm*0.3)*scale;
   const cache={}, all=[]; let y=y0;
-  for(const linetext of SPECIMEN_TEXT.split('\n')){
+  for(const para of specimenText.split('\n')){
     let x=x0;
-    for(const ch of linetext){
-      const gl=font.charToGlyph(ch);
-      if(!gl){ x+=size*0.5; continue; }
-      let subs=cache[ch];
-      if(subs===undefined){ try{ subs=processGlyphEm(gl,upm)||[]; }catch(e){ subs=[]; } cache[ch]=subs; }
-      const cx=x, cy=y;
-      for(const s of subs) all.push({closed:s.closed, pts:s.pts.map(p=>({x:cx+p.x*scale, y:cy-p.y*scale}))});
-      x += (gl.advanceWidth||upm*0.5)*scale;
+    for(const word of para.split(/\s+/)){
+      if(!word) continue;
+      let ww=0; for(const ch of word){ const gl=font.charToGlyph(ch); ww+=((gl&&gl.advanceWidth)||upm*0.5)*scale; }
+      if(x>x0 && x+ww>maxX){ x=x0; y+=lh; }           // wrap
+      for(const ch of word){
+        const gl=font.charToGlyph(ch);
+        if(!gl){ x+=size*0.5; continue; }
+        let subs=cache[ch];
+        if(subs===undefined){ try{ subs=processGlyphEm(gl,upm)||[]; }catch(e){ subs=[]; } cache[ch]=subs; }
+        const cx=x, cy=y;
+        for(const s of subs) all.push({closed:s.closed, pts:s.pts.map(p=>({x:cx+p.x*scale, y:cy-p.y*scale}))});
+        x += (gl.advanceWidth||upm*0.5)*scale;
+      }
+      x += spaceW;
+      if(y>985) return all;                            // clip to the board
     }
     y += lh;
   }
   return all;
+}
+// pull a random Wikipedia extract for the chosen language (CORS-enabled REST),
+// fall back to the curated sample on any failure.
+async function fetchWikiText(lang){
+  try{
+    const r=await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/random/summary`,{headers:{'accept':'application/json'}});
+    if(!r.ok) throw 0;
+    const j=await r.json();
+    const t=(j.extract||'').trim();
+    if(t.length>20) return t.slice(0,320);
+  }catch(e){}
+  return null;
 }
 function renderSpecimen(){
   const subs=buildSpecimenSubs();
@@ -1153,6 +1248,7 @@ function renderFontText(){
   if(!subs.length){ statusEl.textContent='✗ empty glyphs'; return; }
   setSource(subs, false, 'font', `font · "${text}"`);
   $('#exFont').disabled=false;
+  updatePresetTrigger();     // sample glyph changed → refresh preview icon
 }
 
 // --- generic file readers ---
@@ -1509,13 +1605,28 @@ $('#techSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); 
 $('#reset').addEventListener('click',()=>{ GROUPS[TECH]=[newGroup('union')]; renderStack(); render(); });
 $('#tgSpec').addEventListener('click',function(){
   showSpecimen=!showSpecimen; this.classList.toggle('on',showSpecimen);
+  $('#specctl').hidden=!showSpecimen;
   if(showSpecimen && SRC_KIND!=='font'){ statusEl.textContent='specimen needs a font input'; }
   render();
+});
+$('#specLang').addEventListener('change',e=>{
+  const s=SPECIMEN_SAMPLES[e.target.value]; if(s) specimenText=s[0];
+  render();
+});
+$('#specNew').addEventListener('click',async function(){
+  const lang=$('#specLang').value, samples=SPECIMEN_SAMPLES[lang]||SPECIMEN_SAMPLES.en;
+  const prev=this.textContent; this.textContent='…';
+  const live=await fetchWikiText(lang);
+  specimenText = live || samples[Math.floor(Math.random()*samples.length)];
+  this.textContent=prev; render();
 });
 $('#tgOrig').addEventListener('click',function(){ showOrig=!showOrig; this.classList.toggle('on',showOrig); repaint(); });
 $('#tgOutline').addEventListener('click',function(){ showOutline=!showOutline; this.classList.toggle('on',showOutline); repaint(); });
 $('#tgNodes').addEventListener('click',function(){ showNodes=!showNodes; this.classList.toggle('on',showNodes); repaint(); });
 ['cInk','cBg'].forEach(id=>$('#'+id).addEventListener('input',e=>{ $('#'+id+'V').textContent=e.target.value; repaint(); }));
+
+// close the preset menu on outside click
+document.addEventListener('click',e=>{ const m=$('#presetMenu'); if(m && !m.hidden && !e.target.closest('.presets')) m.hidden=true; });
 
 // boot
 buildPresets();
