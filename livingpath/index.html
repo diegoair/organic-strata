@@ -121,12 +121,12 @@
   .pt-ico svg, .pi-ico svg{width:100%; height:100%; display:block}
   .pt-name{flex:1; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .pt-chev{color:var(--ink-muted); font-size:10px}
-  .preset-menu{position:absolute; top:calc(100% + 5px); left:0; right:0; z-index:20; background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 28px rgba(10,10,10,.14); padding:6px; max-height:360px; overflow-y:auto; display:grid; grid-template-columns:1fr 1fr; gap:5px}
-  .preset-item{display:flex; flex-direction:column; align-items:center; gap:5px; padding:7px 4px; cursor:pointer; background:transparent; border:1px solid transparent; border-radius:7px; font-family:var(--font); font-size:10px; color:var(--ink-soft); transition:.12s}
+  .preset-menu{position:absolute; top:calc(100% + 5px); left:0; right:0; z-index:20; background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 28px rgba(10,10,10,.14); padding:5px; max-height:360px; overflow-y:auto; display:flex; flex-direction:column; gap:2px}
+  .preset-item{display:flex; flex-direction:row; align-items:center; gap:9px; padding:5px 7px; cursor:pointer; background:transparent; border:1px solid transparent; border-radius:7px; font-family:var(--font); font-size:12px; color:var(--ink-soft); transition:.12s; text-align:left}
   .preset-item:hover{background:var(--panel); border-color:var(--line)}
-  .preset-item.on{border-color:var(--pollen)}
-  .pi-ico{width:100%; aspect-ratio:1; border:1px solid var(--line); border-radius:6px; overflow:hidden; background:#fff}
-  .pi-name{text-align:center; line-height:1.2}
+  .preset-item.on{border-color:var(--pollen); color:var(--ink)}
+  .pi-ico{width:26px; height:26px; flex:0 0 26px; border:1px solid var(--line); border-radius:5px; overflow:hidden; background:#fff}
+  .pi-name{flex:1; line-height:1.2}
   /* groups */
   .group{ border:1px solid var(--line); border-radius:9px; padding:8px; margin-bottom:9px; background:rgba(200,168,58,.04); }
   .group.goff{ opacity:.5 }
@@ -962,16 +962,17 @@ function applyPreset(name){
 }
 
 // ── preset preview icons: apply the preset to a sample glyph, black-on-white ──
-const ICON_CACHE={}; let _sampleSRC=null, _sampleSig='';
+const ICON_CACHE={}; const _sampleSRC={}; let _sampleSig='';
 function fontSig(){ return window.__FONT ? ('f'+window.__FONT.glyphs.length+'_'+(window.__FONT.unitsPerEm||0)) : 'nofont'; }
 function sampleSRC(){
-  const sig=fontSig();
-  if(_sampleSRC && _sampleSig===sig) return _sampleSRC;
+  const sig=fontSig(), ch=(TECH==='raster')?'g':'a';
+  if(_sampleSig!==sig){ for(const k in _sampleSRC) delete _sampleSRC[k]; _sampleSig=sig; }
+  if(_sampleSRC[ch]) return _sampleSRC[ch];
   let subs=null;
-  if(window.__FONT){ try{ subs=fromOTCommands(window.__FONT.charToGlyph('a').path.commands); }catch(e){} }
+  if(window.__FONT){ try{ subs=fromOTCommands(window.__FONT.charToGlyph(ch).path.commands); }catch(e){} }
   if((!subs||!subs.length) && window.ORGANIC_FORMS){ try{ subs=fromSVGString(window.ORGANIC_FORMS[38]); }catch(e){} }
-  _sampleSRC = (subs&&subs.length) ? normalise(subs,false) : null; _sampleSig=sig;
-  return _sampleSRC;
+  _sampleSRC[ch] = (subs&&subs.length) ? normalise(subs,false) : null;
+  return _sampleSRC[ch];
 }
 function presetIcon(name){
   const key=TECH+':'+name+':'+fontSig();
