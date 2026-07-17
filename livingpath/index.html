@@ -121,7 +121,7 @@
   .pt-ico svg, .pi-ico svg{width:100%; height:100%; display:block}
   .pt-name{flex:1; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .pt-chev{color:var(--ink-muted); font-size:10px}
-  .preset-menu{position:absolute; top:calc(100% + 5px); left:0; right:0; z-index:20; background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 28px rgba(10,10,10,.14); padding:5px; max-height:360px; overflow-y:auto; display:flex; flex-direction:column; gap:2px}
+  .preset-menu{position:fixed; z-index:40; background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 28px rgba(10,10,10,.18); padding:5px; overflow-y:auto; display:flex; flex-direction:column; gap:2px}
   .preset-item{display:flex; flex-direction:row; align-items:center; gap:9px; padding:5px 7px; cursor:pointer; background:transparent; border:1px solid transparent; border-radius:7px; font-family:var(--font); font-size:12px; color:var(--ink-soft); transition:.12s; text-align:left}
   .preset-item:hover{background:var(--panel); border-color:var(--line)}
   .preset-item.on{border-color:var(--pollen); color:var(--ink)}
@@ -827,7 +827,7 @@ const BLENDS=['union','multiply','subtract','xor','add','screen'];
 function addEffectToGroup(grp, type){
   const reg=aFX(), def=reg[type]; if(!def) return;
   grp.layers.push({id:++uid, type, on:true, open:true, params:{...def.defaults}});
-  renderStack(); render();
+  markCustom(); renderStack(); render();
 }
 // legacy single-arg helper (adds to the last group of the active technique)
 function addEffect(type){ const g=curGroups(); addEffectToGroup(g[g.length-1], type); }
@@ -998,6 +998,8 @@ function updatePresetTrigger(){
   nm.textContent=name||'Choose a preset…';
   ico.innerHTML=name?presetIcon(name):'';
 }
+// once the stack is hand-edited it no longer matches the preset → show "custom"
+function markCustom(){ if(CURRENT_PRESET!==null){ CURRENT_PRESET=null; updatePresetTrigger(); } }
 function populatePresetMenu(){
   const m=$('#presetMenu'); m.innerHTML='';
   Object.keys(PRESETS[TECH]).forEach(name=>{
@@ -1007,13 +1009,22 @@ function populatePresetMenu(){
     m.appendChild(row);
   });
 }
+// position the fixed menu under the trigger, capped to the viewport so the
+// scrolling side panel never clips it (flips above if there's more room up top)
+function positionPresetMenu(){
+  const t=$('#presetTrigger').getBoundingClientRect(), m=$('#presetMenu'), gap=5, margin=12;
+  const below=window.innerHeight-t.bottom-margin, above=t.top-margin;
+  m.style.left=t.left+'px'; m.style.width=t.width+'px';
+  if(below>=200 || below>=above){ m.style.top=(t.bottom+gap)+'px'; m.style.bottom='auto'; m.style.maxHeight=Math.max(160,below)+'px'; }
+  else { m.style.bottom=(window.innerHeight-t.top+gap)+'px'; m.style.top='auto'; m.style.maxHeight=Math.max(160,above)+'px'; }
+}
 function buildPresets(){
   const host=$('#presets');
   host.innerHTML=`<button class="preset-trigger" id="presetTrigger">
       <span class="pt-ico" id="ptIco"></span><span class="pt-name" id="ptName">Choose a preset…</span><span class="pt-chev">▾</span>
     </button><div class="preset-menu" id="presetMenu" hidden></div>`;
   $('#presetTrigger').addEventListener('click',e=>{ e.stopPropagation();
-    const m=$('#presetMenu'); if(m.hidden){ populatePresetMenu(); m.hidden=false; } else m.hidden=true; });
+    const m=$('#presetMenu'); if(m.hidden){ populatePresetMenu(); positionPresetMenu(); m.hidden=false; } else m.hidden=true; });
   updatePresetTrigger();
 }
 function switchTech(tech){
@@ -1040,17 +1051,17 @@ function buildLayerEl(grp, layer, idx, reg){
   el.innerHTML=`<div class="layer-head">
       <div class="tog">✓</div><b>${def.name}</b><span class="chev">▶</span>
     </div><div class="layer-body">${body}</div>`;
-  el.querySelector('.tog').addEventListener('click',e=>{ e.stopPropagation(); layer.on=!layer.on; renderStack(); render(); });
+  el.querySelector('.tog').addEventListener('click',e=>{ e.stopPropagation(); layer.on=!layer.on; markCustom(); renderStack(); render(); });
   el.querySelector('.layer-head').addEventListener('click',()=>{ layer.open=!layer.open; renderStack(); });
   el.querySelectorAll('input[type=range]').forEach(inp=>{
-    inp.addEventListener('input',()=>{ layer.params[inp.dataset.k]=+inp.value; inp.nextElementSibling.textContent=inp.value; render(); });
+    inp.addEventListener('input',()=>{ layer.params[inp.dataset.k]=+inp.value; inp.nextElementSibling.textContent=inp.value; markCustom(); render(); });
   });
   el.querySelectorAll('[data-act]').forEach(b=>b.addEventListener('click',e=>{
     e.stopPropagation(); const act=b.dataset.act, L=grp.layers;
     if(act==='del') L.splice(idx,1);
     else if(act==='up'&&idx>0){ [L[idx-1],L[idx]]=[L[idx],L[idx-1]]; }
     else if(act==='down'&&idx<L.length-1){ [L[idx+1],L[idx]]=[L[idx],L[idx+1]]; }
-    renderStack(); render();
+    markCustom(); renderStack(); render();
   }));
   return el;
 }
@@ -1066,9 +1077,9 @@ function renderStack(){
       const del = groups.length>1 ? '<button class="mini gdel">×</button>' : '';
       const gh=document.createElement('div'); gh.className='group-head';
       gh.innerHTML=`<div class="tog gtog">✓</div>${blend}<span class="gsp"></span>${del}`;
-      gh.querySelector('.gtog').addEventListener('click',()=>{ grp.on=!grp.on; renderStack(); render(); });
-      const bs=gh.querySelector('.blendsel'); if(bs) bs.addEventListener('change',e=>{ grp.blend=e.target.value; render(); });
-      const gd=gh.querySelector('.gdel'); if(gd) gd.addEventListener('click',()=>{ groups.splice(groups.indexOf(grp),1); renderStack(); render(); });
+      gh.querySelector('.gtog').addEventListener('click',()=>{ grp.on=!grp.on; markCustom(); renderStack(); render(); });
+      const bs=gh.querySelector('.blendsel'); if(bs) bs.addEventListener('change',e=>{ grp.blend=e.target.value; markCustom(); render(); });
+      const gd=gh.querySelector('.gdel'); if(gd) gd.addEventListener('click',()=>{ groups.splice(groups.indexOf(grp),1); markCustom(); renderStack(); render(); });
       gEl.appendChild(gh);
     }
     grp.layers.forEach((layer,idx)=> gEl.appendChild(buildLayerEl(grp, layer, idx, reg)));
@@ -1080,7 +1091,7 @@ function renderStack(){
   });
   if(grouped){
     const ng=document.createElement('button'); ng.className='btn newgroup'; ng.textContent='+ new group (overlap)';
-    ng.addEventListener('click',()=>{ groups.push(newGroup('union')); renderStack(); render(); });
+    ng.addEventListener('click',()=>{ groups.push(newGroup('union')); markCustom(); renderStack(); render(); });
     host.appendChild(ng);
   }
 }
@@ -1603,7 +1614,7 @@ $('#saveProj').addEventListener('click',()=>{
     fr.readAsText(f); inp.value=''; });
 })();
 $('#techSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) switchTech(b.dataset.tech); });
-$('#reset').addEventListener('click',()=>{ GROUPS[TECH]=[newGroup('union')]; renderStack(); render(); });
+$('#reset').addEventListener('click',()=>{ GROUPS[TECH]=[newGroup('union')]; CURRENT_PRESET=null; updatePresetTrigger(); renderStack(); render(); });
 $('#tgSpec').addEventListener('click',function(){
   showSpecimen=!showSpecimen; this.classList.toggle('on',showSpecimen);
   $('#specctl').hidden=!showSpecimen;
@@ -1626,8 +1637,11 @@ $('#tgOutline').addEventListener('click',function(){ showOutline=!showOutline; t
 $('#tgNodes').addEventListener('click',function(){ showNodes=!showNodes; this.classList.toggle('on',showNodes); repaint(); });
 ['cInk','cBg'].forEach(id=>$('#'+id).addEventListener('input',e=>{ $('#'+id+'V').textContent=e.target.value; repaint(); }));
 
-// close the preset menu on outside click
-document.addEventListener('click',e=>{ const m=$('#presetMenu'); if(m && !m.hidden && !e.target.closest('.presets')) m.hidden=true; });
+// close the preset menu on outside click, scroll (fixed menu) or resize
+const closeMenu=()=>{ const m=$('#presetMenu'); if(m && !m.hidden) m.hidden=true; };
+document.addEventListener('click',e=>{ const m=$('#presetMenu'); if(m && !m.hidden && !e.target.closest('.presets') && !e.target.closest('#presetMenu')) m.hidden=true; });
+window.addEventListener('resize',closeMenu);
+document.querySelector('.panel.right').addEventListener('scroll',closeMenu,true);
 
 // boot
 buildPresets();
