@@ -118,7 +118,9 @@ and set the contour smoothing (faceted presets go angular).
 ## 7. Preview controls (stage top-right)
 
 - **text specimen** — lay out a full paragraph rendered with the **modified font**,
-  live (font input only). This is the original's right-hand preview.
+  live (font input only). This is the original's right-hand preview. A **language**
+  selector (10 languages) + **↻ text** button pull a live random Wikipedia extract
+  (offline-safe curated fallback); the text word-wraps to the board.
 - **overlay original** — ghost of the source glyph behind the result.
 - **outline** — stroke the re-vectorised contour instead of filling (beaded / engraved).
 - **nodes** — show the Bézier anchors (vector only).
@@ -137,6 +139,12 @@ Font panel (font input only):
   preserved), re-vectorises, and rebuilds an **installable OTF**.
   - **Font name** — family name of the export.
   - **Include** — charset chips: `A–Z` / `a–z` / `0–9` / punctuation / accents.
+  - **Randomised alternates (rand)** — bakes the "human touch" into the font:
+    3 seed-variants per glyph are exported as alternates behind the OpenType
+    `rand` (auto-randomise) + `aalt` (access-all) features, so repeated letters
+    differ in apps that honour `rand` (macOS CoreText / Pages / TextEdit; in CSS
+    use `font-feature-settings:"rand"`). Only kicks in when the stack uses a
+    seeded effect (noise / particles / reaction / jitter / roughen / scatter).
   - **HTML specimen** — optionally also save a self-contained specimen page
     (base64 `@font-face` + type sample).
 - **Save / Load .lvp** — save the whole setup (technique, groups, blend modes,

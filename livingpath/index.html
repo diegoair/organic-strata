@@ -216,6 +216,7 @@
               <button data-r="digits" class="on">0–9</button><button data-r="punct" class="on">!?.</button>
               <button data-r="other" class="on">accents</button>
             </div></div>
+          <label class="chk"><input type="checkbox" id="exAlt"> randomised alternates (rand) — human variation in the font</label>
           <label class="chk"><input type="checkbox" id="exSpec"> also save an HTML specimen</label>
         </div>
         <button class="btn pri" id="exFont" disabled style="width:100%; margin-top:9px">⬇ Export modified font (OTF)</button>
@@ -1424,40 +1425,62 @@ function inCharset(u, r){
   if(upper) return r.upper; if(lower) return r.lower; if(digits) return r.digits; if(punct) return r.punct;
   return r.other;                                           // accents / everything else
 }
+// does the active stack use a seeded (randomisable) effect?
+const SEEDED_FX={noise:1,particles:1,reaction:1,jitter:1,roughen:1,scatter:1};
+function stackHasSeed(){
+  return GROUPS[TECH].some(g=>g.on && g.layers.some(l=>l.on && SEEDED_FX[l.type]));
+}
+// assemble an OTF from per-glyph variants. vars[0] = base; vars[1..] = alternates.
+// When alternates exist they're added as extra glyphs behind a `rand` (auto-
+// randomise) + `aalt` (access-all) GSUB feature, so the installed font varies.
+function assembleFont(entries, opts, upm, src){
+  const notdef=new opentype.Glyph({name:'.notdef', unicode:0, advanceWidth:Math.round(upm*0.5), path:new opentype.Path()});
+  const glyphs=[notdef], baseIdx=[], altIdx=[];
+  const basePath=(e)=>{
+    const s=e.vars[0];
+    if(s&&s.length) return subsToOTPath(s);
+    const gl=src.glyphs.get(src.charToGlyphIndex(String.fromCharCode(e.unicode))); return gl?gl.path:new opentype.Path();
+  };
+  entries.forEach(e=>{ baseIdx.push(glyphs.length);
+    glyphs.push(new opentype.Glyph({name:e.name, unicode:e.unicode, advanceWidth:e.adv, path:basePath(e)})); });
+  entries.forEach((e,i)=>{
+    if(!e.vars || e.vars.length<2 || !(e.vars[0]&&e.vars[0].length)) return;
+    const baseD=dFromSubs(e.vars[0]), alts=[];
+    for(let v=1;v<e.vars.length;v++){ const s=e.vars[v]; if(!s||!s.length) continue;
+      if(dFromSubs(s)===baseD) continue;                 // identical → skip
+      alts.push(glyphs.length);
+      glyphs.push(new opentype.Glyph({name:e.name+'.alt'+v, advanceWidth:e.adv, path:subsToOTPath(s)})); }
+    if(alts.length) altIdx[i]=alts;
+  });
+  const fam=(src.names&&src.names.fontFamily&&src.names.fontFamily.en)||'Font';
+  const font=new opentype.Font({ familyName:opts.name||('LivingPath '+fam), styleName:'Regular', unitsPerEm:upm,
+    ascender:src.ascender||Math.round(upm*0.8), descender:src.descender||-Math.round(upm*0.2), glyphs });
+  const varied=Object.keys(altIdx);
+  if(varied.length){ try{      // features must be added alphabetically: aalt, then rand
+    varied.forEach(i=>font.substitution.addAlternate('aalt',{sub:baseIdx[i],by:altIdx[i]},'DFLT','dflt'));
+    varied.forEach(i=>font.substitution.addAlternate('rand',{sub:baseIdx[i],by:altIdx[i]},'DFLT','dflt'));
+  }catch(e){ console.warn('GSUB alternates skipped:', e.message); } }
+  return font;
+}
 async function buildModifiedFont(onProgress, opts){
   opts=opts||{};
   const ranges=opts.ranges||{upper:1,lower:1,digits:1,punct:1,other:1};
+  const NV=Math.max(1, opts.variants||1);
   const src=window.__FONT; if(!src) throw new Error('load a font first');
   const upm=src.unitsPerEm||1000;
-  const notdef=new opentype.Glyph({name:'.notdef', unicode:0, advanceWidth:Math.round(upm*0.5), path:new opentype.Path()});
-  const glyphs=[notdef], seen=new Set(), list=[];
+  const seen=new Set(), list=[];
   for(let i=0;i<src.glyphs.length;i++){ const gl=src.glyphs.get(i);
     if(gl.unicode!=null && gl.unicode>0 && !seen.has(gl.unicode) && inCharset(gl.unicode, ranges)){ seen.add(gl.unicode); list.push(gl); } }
-  // raster is ~10-25ms/glyph (more with reaction-diffusion) → cap tighter to
-  // stay responsive; vector is cheap so allow the full set.
   const cap=TECH==='raster'?180:320;
-  const use=list.slice(0,cap);
+  const use=list.slice(0,cap), entries=[];
   for(let i=0;i<use.length;i++){
-    const gl=use[i];
-    let path;
-    try{ const subs=processGlyphEm(gl, upm); path = (subs&&subs.length)?subsToOTPath(subs):gl.path; }
-    catch(e){ path=gl.path; }
-    glyphs.push(new opentype.Glyph({
-      name: gl.name||('uni'+gl.unicode.toString(16)),
-      unicode: gl.unicode,
-      advanceWidth: Math.round(gl.advanceWidth)||Math.round(upm*0.5),
-      path
-    }));
+    const gl=use[i], vars=[];
+    for(let v=0;v<NV;v++){ SEED_OFFSET=v*17; let subs=null; try{ subs=processGlyphEm(gl,upm); }catch(e){} vars.push(subs&&subs.length?subs:null); }
+    SEED_OFFSET=0;
+    entries.push({unicode:gl.unicode, name:gl.name||('uni'+gl.unicode.toString(16)), adv:Math.round(gl.advanceWidth)||Math.round(upm*0.5), vars});
     if(onProgress && (i%12===0)){ onProgress(i+1, use.length); await new Promise(r=>setTimeout(r,0)); }
   }
-  const fam=(src.names&&src.names.fontFamily&&src.names.fontFamily.en)||'Font';
-  return new opentype.Font({
-    familyName: opts.name || ('LivingPath '+fam), styleName:'Regular',
-    unitsPerEm:upm,
-    ascender: src.ascender||Math.round(upm*0.8),
-    descender: src.descender||-Math.round(upm*0.2),
-    glyphs
-  });
+  return assembleFont(entries, opts, upm, src);
 }
 
 // ── Web Worker font export (raster) — heavy per-glyph pipeline OFF the main
@@ -1480,16 +1503,17 @@ function rasterGlyphW(d,bbox,upm,RES){
   for(let i=0;i<f.length;i++)f[i]=img[i*4]/255;
   return {w:gw,h:gh,f:f,s:s,x0:x0,y0:y0};
 }
+var SEEDOFF=0;
 function applyLayerW(g,t,p){
   if(t==='dilate')morph(g,p.amount);
   else if(t==='blur')boxBlur(g,p.radius);
   else if(t==='threshold'){const L=p.level/100;for(let i=0;i<g.f.length;i++)g.f[i]=g.f[i]>=L?1:0;}
-  else if(t==='noise')addNoise(g,p.amount/100,p.scale,p.seed);
-  else if(t==='particles')particles(g,p.count,p.size,p.spread,p.seed,p.body);
+  else if(t==='noise')addNoise(g,p.amount/100,p.scale,p.seed+SEEDOFF);
+  else if(t==='particles')particles(g,p.count,p.size,p.spread,p.seed+SEEDOFF,p.body);
   else if(t==='skeleton')skeleton(g,p.width);
   else if(t==='polygonize')polygonize(g,p.block);
   else if(t==='seam')seamCarve(g,p.count,p.dir);
-  else if(t==='reaction')grayScott(g,p.feed/1000,p.kill/1000,p.iters*36,p.seed,p.depth);
+  else if(t==='reaction')grayScott(g,p.feed/1000,p.kill/1000,p.iters*36,p.seed+SEEDOFF,p.depth);
 }
 function processGlyphW(gd,groups,upm,RES,smooth){
   const base=rasterGlyphW(gd.d,gd.bbox,upm,RES);
@@ -1505,10 +1529,13 @@ function processGlyphW(gd,groups,upm,RES,smooth){
     .map(function(p){return {closed:true,pts:p.pts.map(function(q){return {x:q.x/base.s+base.x0,y:(gf.h-q.y)/base.s+base.y0};})};});
 }
 onmessage=function(e){
-  const D=e.data,out=[];
-  for(let i=0;i<D.glyphs.length;i++){ const gd=D.glyphs[i]; let subs=null;
-    if(!gd.empty){ try{ subs=processGlyphW(gd,D.groups,D.upm,D.RES,D.smooth); }catch(err){ subs=null; } }
-    out.push({unicode:gd.unicode,name:gd.name,adv:gd.adv,subs:(subs&&subs.length)?subs:null});
+  const D=e.data,out=[],NV=Math.max(1,D.variants||1);
+  for(let i=0;i<D.glyphs.length;i++){ const gd=D.glyphs[i], vars=[];
+    for(var v=0;v<NV;v++){ var subs=null;
+      if(!gd.empty){ SEEDOFF=v*17; try{ subs=processGlyphW(gd,D.groups,D.upm,D.RES,D.smooth); }catch(err){ subs=null; } }
+      vars.push((subs&&subs.length)?subs:null); }
+    SEEDOFF=0;
+    out.push({unicode:gd.unicode,name:gd.name,adv:gd.adv,vars:vars});
     if(i%10===0) postMessage({progress:i+1,total:D.glyphs.length});
   }
   postMessage({done:true,results:out});
@@ -1527,24 +1554,16 @@ async function buildModifiedFontWorker(opts, onProgress){
       adv:Math.round(gl.advanceWidth)||Math.round(upm*0.5),
       d: empty?'':gl.path.toPathData(2), bbox:{x1:bb.x1,y1:bb.y1,x2:bb.x2,y2:bb.y2}, empty});
   }
+  const NV=Math.max(1, opts.variants||1);
   const results=await new Promise((resolve,reject)=>{
     const url=livingPathWorkerURL(); const w=new Worker(url);
     w.onmessage=(e)=>{ if(e.data.progress){ onProgress&&onProgress(e.data.progress,e.data.total); }
       else if(e.data.done){ resolve(e.data.results); w.terminate(); } };
     w.onerror=(err)=>{ w.terminate(); reject(new Error('worker: '+(err.message||'failed'))); };
-    w.postMessage({glyphs, groups:JSON.parse(JSON.stringify(GROUPS.raster)), upm, RES:150, smooth:CONTOUR_SMOOTH});
+    w.postMessage({glyphs, groups:JSON.parse(JSON.stringify(GROUPS.raster)), upm, RES:150, smooth:CONTOUR_SMOOTH, variants:NV});
   });
-  const notdef=new opentype.Glyph({name:'.notdef',unicode:0,advanceWidth:Math.round(upm*0.5),path:new opentype.Path()});
-  const out=[notdef];
-  for(const r of results){
-    let path;
-    if(r.subs) path=subsToOTPath(r.subs);
-    else { const gl=src.glyphs.get(src.charToGlyphIndex(String.fromCharCode(r.unicode))); path=gl?gl.path:new opentype.Path(); }
-    out.push(new opentype.Glyph({name:r.name, unicode:r.unicode, advanceWidth:r.adv, path}));
-  }
-  const fam=(src.names&&src.names.fontFamily&&src.names.fontFamily.en)||'Font';
-  return new opentype.Font({ familyName:opts.name||('LivingPath '+fam), styleName:'Regular', unitsPerEm:upm,
-    ascender:src.ascender||Math.round(upm*0.8), descender:src.descender||-Math.round(upm*0.2), glyphs:out });
+  const entries=results.map(r=>({unicode:r.unicode, name:r.name, adv:r.adv, vars:r.vars||[r.subs||null]}));
+  return assembleFont(entries, opts, upm, src);
 }
 function ab2b64(buf){
   const bytes=new Uint8Array(buf); let bin='';
@@ -1596,13 +1615,16 @@ $('#exFont').addEventListener('click',async function(){
   const prev=SRC_LABEL; this.disabled=true; const lbl=this.textContent; this.textContent='building…';
   try{
     const prog=(i,n)=>{ statusEl.textContent=`exporting glyphs ${i}/${n}…`; };
+    // randomised alternates only help when the stack actually varies by seed
+    const variants = ($('#exAlt').checked && stackHasSeed()) ? 3 : 1;
+    const oOpts={name, ranges:CHARSET, variants};
     // Raster is heavy → run the whole charset in a Web Worker (no cap, no freeze).
     // Vector is cheap and stays on the main thread. Fall back if Worker/OffscreenCanvas unavailable.
     const useWorker = TECH==='raster' && typeof Worker!=='undefined' && typeof OffscreenCanvas!=='undefined';
     let font;
-    try{ font = useWorker ? await buildModifiedFontWorker({name, ranges:CHARSET}, prog)
-                          : await buildModifiedFont(prog, {name, ranges:CHARSET}); }
-    catch(werr){ if(useWorker){ statusEl.textContent='worker failed, retrying…'; font=await buildModifiedFont(prog,{name, ranges:CHARSET}); } else throw werr; }
+    try{ font = useWorker ? await buildModifiedFontWorker(oOpts, prog)
+                          : await buildModifiedFont(prog, oOpts); }
+    catch(werr){ if(useWorker){ statusEl.textContent='worker failed, retrying…'; font=await buildModifiedFont(prog,oOpts); } else throw werr; }
     const buf=font.toArrayBuffer();
     download(new Blob([buf],{type:'font/otf'}), name.replace(/\s+/g,'-')+'.otf');
     if($('#exSpec').checked) download(new Blob([specimenHTML(buf,name)],{type:'text/html'}), name.replace(/\s+/g,'-')+'-specimen.html');
