@@ -418,7 +418,7 @@ function normalise(subs, flipY){
 const FX = {
   jitter:{ name:'Noise · jitter', defaults:{amount:6, seed:7},
     controls:[['amount','Amount',0,40,1],['seed','Seed',1,99,1]],
-    apply(subs,p){ const r=mulberry32(p.seed*2654435761>>>0);
+    apply(subs,p){ const r=mulberry32(((p.seed+SEED_OFFSET)*2654435761)>>>0);
       return subs.map(s=>({closed:s.closed, pts:s.pts.map(pt=>({
         x:pt.x+(r()*2-1)*p.amount, y:pt.y+(r()*2-1)*p.amount }))})); } },
 
@@ -451,7 +451,7 @@ const FX = {
 
   roughen:{ name:'Roughen', defaults:{detail:3, amount:10, seed:13},
     controls:[['detail','Subdiv',1,6,1],['amount','Push',0,40,1],['seed','Seed',1,99,1]],
-    apply(subs,p){ const r=mulberry32(p.seed*40503>>>0);
+    apply(subs,p){ const r=mulberry32(((p.seed+SEED_OFFSET)*40503)>>>0);
       return subs.map(s=>{
         let pts=s.pts.slice();
         for(let k=0;k<p.detail;k++){ // midpoint subdivide
@@ -497,7 +497,7 @@ const FX = {
     controls:[['dist','Distance',0,120,1],['seed','Seed',1,99,1]],
     apply(subs,p){
       const bb=bboxOf(subs), cx=bb.minX+bb.w/2, cy=bb.minY+bb.h/2;
-      const r=mulberry32(p.seed*2246822519>>>0);
+      const r=mulberry32(((p.seed+SEED_OFFSET)*2246822519)>>>0);
       return subs.map(s=>{
         const ox=(r()*2-1), oy=(r()*2-1);                 // per-subpath drift
         return {closed:s.closed, pts:s.pts.map(pt=>{
@@ -768,6 +768,7 @@ function smoothPoly(pts, iter){
   return out.length>2?out:p;
 }
 let CONTOUR_SMOOTH=2;   // 0 = angular/faceted contours; presets may set it
+let SEED_OFFSET=0;      // per-instance seed shift → glyph variants (human touch in the specimen)
 function rasterFieldToSubs(g, sc){
   return contours(g, 0.5)
     .map(p=>({closed:true, pts:smoothPoly(p.pts,CONTOUR_SMOOTH)}))
@@ -792,10 +793,10 @@ const RFX = {
     apply(g,p){ const L=p.level/100; for(let i=0;i<g.f.length;i++)g.f[i]=g.f[i]>=L?1:0; } },
   noise:{ name:'Noise', defaults:{amount:35, scale:9, seed:7},
     controls:[['amount','Amount',0,100,1],['scale','Scale',2,28,1],['seed','Seed',1,99,1]],
-    apply(g,p){ addNoise(g, p.amount/100, p.scale, p.seed); } },
+    apply(g,p){ addNoise(g, p.amount/100, p.scale, p.seed+SEED_OFFSET); } },
   particles:{ name:'Particles', defaults:{count:260, size:5, spread:6, seed:5, body:1},
     controls:[['count','Count',20,800,10],['size','Size',2,14,1],['spread','Spread',0,30,1],['seed','Seed',1,99,1],['body','Keep body',0,1,1]],
-    apply(g,p){ particles(g, p.count, p.size, p.spread, p.seed, p.body); } },
+    apply(g,p){ particles(g, p.count, p.size, p.spread, p.seed+SEED_OFFSET, p.body); } },
   skeleton:{ name:'Center-line (skeleton)', defaults:{width:2},
     controls:[['width','Stream width',0,8,1]],
     apply(g,p){ skeleton(g, p.width); } },
@@ -807,7 +808,7 @@ const RFX = {
     apply(g,p){ seamCarve(g, p.count, p.dir); } },
   reaction:{ name:'Reaction-diffusion', defaults:{feed:55, kill:62, iters:18, depth:90, seed:5},
     controls:[['feed','Feed',12,80,1],['kill','Kill',45,75,1],['iters','Steps',1,40,1],['depth','Depth',20,100,1],['seed','Seed',1,99,1]],
-    apply(g,p){ grayScott(g, p.feed/1000, p.kill/1000, p.iters*36, p.seed, p.depth); } },
+    apply(g,p){ grayScott(g, p.feed/1000, p.kill/1000, p.iters*36, p.seed+SEED_OFFSET, p.depth); } },
 };
 
 // ============================================================
@@ -1171,7 +1172,9 @@ function buildSpecimenSubs(){
   const font=window.__FONT; if(!font) return null;
   const upm=font.unitsPerEm||1000, size=74, scale=size/upm, lh=size*1.5, x0=45, y0=210, maxX=955;
   const spaceW=((font.charToGlyph(' ')&&font.charToGlyph(' ').advanceWidth)||upm*0.3)*scale;
-  const cache={}, all=[]; let y=y0;
+  // cycle N seed variants per character so repeated letters differ (the human
+  // touch you get in the whole-text preview). Cached per (char, variant).
+  const NVAR=4, cache={}, occ={}, all=[]; let y=y0;
   for(const para of specimenText.split('\n')){
     let x=x0;
     for(const word of para.split(/\s+/)){
@@ -1181,14 +1184,17 @@ function buildSpecimenSubs(){
       for(const ch of word){
         const gl=font.charToGlyph(ch);
         if(!gl){ x+=size*0.5; continue; }
-        let subs=cache[ch];
-        if(subs===undefined){ try{ subs=processGlyphEm(gl,upm)||[]; }catch(e){ subs=[]; } cache[ch]=subs; }
+        const vi=(occ[ch]=(occ[ch]||0)+1)%NVAR, key=ch+'#'+vi;
+        let subs=cache[key];
+        if(subs===undefined){ SEED_OFFSET=vi*17;
+          try{ subs=processGlyphEm(gl,upm)||[]; }catch(e){ subs=[]; }
+          SEED_OFFSET=0; cache[key]=subs; }
         const cx=x, cy=y;
         for(const s of subs) all.push({closed:s.closed, pts:s.pts.map(p=>({x:cx+p.x*scale, y:cy-p.y*scale}))});
         x += (gl.advanceWidth||upm*0.5)*scale;
       }
       x += spaceW;
-      if(y>985) return all;                            // clip to the board
+      if(y>985){ SEED_OFFSET=0; return all; }          // clip to the board
     }
     y += lh;
   }
