@@ -28,6 +28,24 @@ Single-file vanilla HTML/CSS/JS. No build step, no framework. Uses
 | Best for | clean roughening / distortion | the signature melted / cellular / flooded looks |
 | Speed | instant | fast (debounced), heavier effects slower |
 
+**Why Vector only touches the outline:** a vector shape *is* its contours — a
+boundary representation with no interior data, so the only thing you can move is
+the edge (you can't open a hole without inventing a new contour). Raster holds a
+2D field where every point inside the letter is real data — hence merging,
+holes and textures.
+
+**Chaining (⇄ vector → raster):** in Raster mode a toggle in the top bar feeds
+the Vector stack's output into the rasteriser:
+
+```
+glyph → [Vector effects on nodes] → rasterise → [Raster effects] → re-vectorise
+```
+
+So you can twist/wobble precisely on the nodes and *then* melt the result. The
+two stacks stay independent; with an empty Vector stack the toggle is a no-op.
+It applies to the preview, the specimen and the font export (the Vector stage is
+pre-computed per variant and shipped to the worker).
+
 The **key insight**: node displacement can only nudge existing points. The
 LivingPath aesthetic needs the raster pipeline:
 

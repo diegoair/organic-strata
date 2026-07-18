@@ -177,6 +177,7 @@
     <button data-tech="vector" class="on">Vector</button>
     <button data-tech="raster">Raster · LivingPath</button>
   </div>
+  <button class="mini" id="tgChain" hidden title="Run the Vector stack on the outline first, then rasterise">⇄ vector → raster</button>
   <div class="sp"></div>
   <div class="status" id="status">no input</div>
   <button class="btn" id="reset">Reset fx</button>
@@ -776,8 +777,16 @@ function rasterFieldToSubs(g, sc){
     .filter(p=>p.pts.length>2)
     .map(p=>({closed:true, pts:p.pts.map(q=>({x:q.x*sc, y:q.y*sc}))}));
 }
+// CHAIN: feed the Vector stack's output into the Raster engine, so node-level
+// moves (precise) happen BEFORE the glyph is rasterised and re-drawn.
+let CHAIN=false;
+const vectorActive=()=>GROUPS.vector.some(g=>g.on && g.layers.some(l=>l.on));
+function chainedSubs(subs){
+  if(!CHAIN || !vectorActive()) return subs;
+  return applyVectorGroups(subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>({x:p.x,y:p.y}))})), GROUPS.vector);
+}
 function rasterCompute(){
-  const base=rasterize(SRC.subs);
+  const base=rasterize(chainedSubs(SRC.subs));
   const g=rasterFieldFromGroups(base, GROUPS.raster);
   return rasterFieldToSubs(g, 1000/RES);
 }
@@ -1034,6 +1043,7 @@ function switchTech(tech){
   if(tech===TECH) return;
   TECH=tech; CURRENT_PRESET=null;
   $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.tech===tech));
+  $('#tgChain').hidden=(tech!=='raster');          // chaining only makes sense feeding raster
   buildPresets(); renderStack(); render();
 }
 // build one layer row inside a group
@@ -1391,7 +1401,14 @@ function subsToOTPath(subs){
 }
 // rasterise ONE glyph in its own em window, run the raster stack, re-vectorise
 function rasterGlyphEm(glyph, upm){
-  const bb=glyph.getBoundingBox();
+  // when chaining, run the Vector stack on the outline first, then rasterise that
+  let bb, d;
+  if(CHAIN && vectorActive()){
+    let subs=fromOTCommands(glyph.path.commands);
+    if(!subs.length) return null;
+    subs=applyVectorGroups(subs, GROUPS.vector);
+    const b=bboxOf(subs); bb={x1:b.minX,y1:b.minY,x2:b.maxX,y2:b.maxY}; d=dFromSubs(subs);
+  } else { bb=glyph.getBoundingBox(); d=glyph.path.toPathData(2); }
   if(!isFinite(bb.x1)||bb.x2<=bb.x1||bb.y2<=bb.y1) return null;   // empty (space)
   const pad=upm*0.14, x0=bb.x1-pad, y0=bb.y1-pad, W=(bb.x2-bb.x1)+2*pad, H=(bb.y2-bb.y1)+2*pad;
   const s=110/Math.max(W,H), gw=Math.max(8,Math.round(W*s)), gh=Math.max(8,Math.round(H*s));
@@ -1399,7 +1416,7 @@ function rasterGlyphEm(glyph, upm){
   const ctx=c.getContext('2d');
   ctx.fillStyle='#000'; ctx.fillRect(0,0,gw,gh); ctx.fillStyle='#fff';
   ctx.save(); ctx.translate(0,gh); ctx.scale(s,-s); ctx.translate(-x0,-y0);   // font y-up → canvas
-  try{ ctx.fill(new Path2D(glyph.path.toPathData(2))); }catch(e){}
+  try{ ctx.fill(new Path2D(d)); }catch(e){}
   ctx.restore();
   const img=ctx.getImageData(0,0,gw,gh).data, f=new Float32Array(gw*gh);
   for(let i=0;i<f.length;i++) f[i]=img[i*4]/255;
@@ -1532,7 +1549,9 @@ onmessage=function(e){
   const D=e.data,out=[],NV=Math.max(1,D.variants||1);
   for(let i=0;i<D.glyphs.length;i++){ const gd=D.glyphs[i], vars=[];
     for(var v=0;v<NV;v++){ var subs=null;
-      if(!gd.empty){ SEEDOFF=v*17; try{ subs=processGlyphW(gd,D.groups,D.upm,D.RES,D.smooth); }catch(err){ subs=null; } }
+      if(!gd.empty){ SEEDOFF=v*17;
+        var gsrc = gd.dv ? {d:gd.dv[Math.min(v,gd.dv.length-1)], bbox:gd.bboxv[Math.min(v,gd.bboxv.length-1)]} : gd;
+        try{ subs=processGlyphW(gsrc,D.groups,D.upm,D.RES,D.smooth); }catch(err){ subs=null; } }
       vars.push((subs&&subs.length)?subs:null); }
     SEEDOFF=0;
     out.push({unicode:gd.unicode,name:gd.name,adv:gd.adv,vars:vars});
@@ -1547,14 +1566,24 @@ async function buildModifiedFontWorker(opts, onProgress){
   opts=opts||{}; const ranges=opts.ranges||{upper:1,lower:1,digits:1,punct:1,other:1};
   const src=window.__FONT; if(!src) throw new Error('load a font first');
   const upm=src.unitsPerEm||1000, seen=new Set(), glyphs=[];
+  const NV=Math.max(1, opts.variants||1);
+  const chaining=CHAIN && vectorActive();
   for(let i=0;i<src.glyphs.length;i++){ const gl=src.glyphs.get(i);
     if(gl.unicode==null||gl.unicode<=0||seen.has(gl.unicode)||!inCharset(gl.unicode,ranges))continue; seen.add(gl.unicode);
     const bb=gl.getBoundingBox(); const empty=!(isFinite(bb.x1)&&bb.x2>bb.x1&&bb.y2>bb.y1);
-    glyphs.push({unicode:gl.unicode, name:gl.name||('uni'+gl.unicode.toString(16)),
+    const e={unicode:gl.unicode, name:gl.name||('uni'+gl.unicode.toString(16)),
       adv:Math.round(gl.advanceWidth)||Math.round(upm*0.5),
-      d: empty?'':gl.path.toPathData(2), bbox:{x1:bb.x1,y1:bb.y1,x2:bb.x2,y2:bb.y2}, empty});
+      d: empty?'':gl.path.toPathData(2), bbox:{x1:bb.x1,y1:bb.y1,x2:bb.x2,y2:bb.y2}, empty};
+    if(chaining && !empty){
+      // pre-run the Vector stage here (per variant) and ship the resulting paths
+      e.dv=[]; e.bboxv=[];
+      for(let v=0;v<NV;v++){ SEED_OFFSET=v*17;
+        let s=applyVectorGroups(fromOTCommands(gl.path.commands), GROUPS.vector);
+        const b=bboxOf(s); e.dv.push(dFromSubs(s)); e.bboxv.push({x1:b.minX,y1:b.minY,x2:b.maxX,y2:b.maxY}); }
+      SEED_OFFSET=0;
+    }
+    glyphs.push(e);
   }
-  const NV=Math.max(1, opts.variants||1);
   const results=await new Promise((resolve,reject)=>{
     const url=livingPathWorkerURL(); const w=new Worker(url);
     w.onmessage=(e)=>{ if(e.data.progress){ onProgress&&onProgress(e.data.progress,e.data.total); }
@@ -1584,7 +1613,7 @@ h1{font-size:12vw;margin:0 0 .2em;line-height:.9}p{font-size:4vw;line-height:1.3
 }
 // project save/load (.lvp = JSON of the whole setup)
 function projectJSON(){
-  return JSON.stringify({v:1, tech:TECH, groups:GROUPS, ink:$('#cInk').value, bg:$('#cBg').value, text:$('#fontText').value, name:$('#exName').value});
+  return JSON.stringify({v:1, tech:TECH, groups:GROUPS, chain:CHAIN, ink:$('#cInk').value, bg:$('#cBg').value, text:$('#fontText').value, name:$('#exName').value});
 }
 function loadProject(txt){
   const p=JSON.parse(txt); if(!p.groups) throw new Error('not a .lvp');
@@ -1594,6 +1623,8 @@ function loadProject(txt){
   if(p.bg){ $('#cBg').value=p.bg; $('#cBgV').textContent=p.bg; }
   if(p.name) $('#exName').value=p.name;
   $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.tech===TECH));
+  CHAIN=!!p.chain;
+  $('#tgChain').hidden=(TECH!=='raster'); $('#tgChain').classList.toggle('on',CHAIN);
   buildPresets(); renderStack(); render();
 }
 
@@ -1643,6 +1674,11 @@ $('#saveProj').addEventListener('click',()=>{
     fr.readAsText(f); inp.value=''; });
 })();
 $('#techSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) switchTech(b.dataset.tech); });
+$('#tgChain').addEventListener('click',function(){
+  CHAIN=!CHAIN; this.classList.toggle('on',CHAIN);
+  statusEl.textContent = CHAIN ? (vectorActive()?'vector → raster chained':'chain on (vector stack is empty)') : SRC_LABEL;
+  render();
+});
 $('#reset').addEventListener('click',()=>{ GROUPS[TECH]=[newGroup('union')]; CURRENT_PRESET=null; updatePresetTrigger(); renderStack(); render(); });
 $('#tgSpec').addEventListener('click',function(){
   showSpecimen=!showSpecimen; this.classList.toggle('on',showSpecimen);
