@@ -72,9 +72,13 @@
   }
   .row{display:flex; align-items:center; gap:9px; margin-bottom:10px}
   .row:last-child{margin-bottom:0}
-  .row label{flex:0 0 86px; font-size:11px; color:var(--ink-soft); letter-spacing:.02em}
-  .row input[type=range]{flex:1; accent-color:var(--pollen); height:3px}
-  .row .val{flex:0 0 42px; text-align:right; font-size:11px; color:var(--ink-muted); font-variant-numeric:tabular-nums}
+  .row label{flex:0 0 76px; font-size:11px; color:var(--ink-soft); letter-spacing:.02em;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  /* min-width:0 is required: a range input has a ~129px intrinsic width and
+     flex items default to min-width:auto, so it refuses to shrink and pushes
+     the value read-out outside the panel. */
+  .row input[type=range]{flex:1 1 0; min-width:0; accent-color:var(--pollen); height:3px}
+  .row .val{flex:0 0 34px; text-align:right; font-size:11px; color:var(--ink-muted); font-variant-numeric:tabular-nums}
   .drop{
     border:1.5px dashed var(--line); border-radius:10px; padding:18px 14px; text-align:center;
     cursor:pointer; transition:.16s; background:var(--card);
