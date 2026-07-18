@@ -1407,41 +1407,37 @@ function subsToOTPath(subs){
   }
   return path;
 }
-// rasterise ONE glyph in its own em window, run the raster stack, re-vectorise
-function rasterGlyphEm(glyph, upm){
-  // when chaining, run the Vector stack on the outline first, then rasterise that
-  let bb, d;
-  if(CHAIN && vectorActive()){
-    let subs=fromOTCommands(glyph.path.commands);
-    if(!subs.length) return null;
-    subs=applyVectorGroups(subs, GROUPS.vector);
-    const b=bboxOf(subs); bb={x1:b.minX,y1:b.minY,x2:b.maxX,y2:b.maxY}; d=dFromSubs(subs);
-  } else { bb=glyph.getBoundingBox(); d=glyph.path.toPathData(2); }
-  if(!isFinite(bb.x1)||bb.x2<=bb.x1||bb.y2<=bb.y1) return null;   // empty (space)
-  const pad=upm*0.14, x0=bb.x1-pad, y0=bb.y1-pad, W=(bb.x2-bb.x1)+2*pad, H=(bb.y2-bb.y1)+2*pad;
-  const s=110/Math.max(W,H), gw=Math.max(8,Math.round(W*s)), gh=Math.max(8,Math.round(H*s));
-  const c=document.createElement('canvas'); c.width=gw; c.height=gh;
-  const ctx=c.getContext('2d');
-  ctx.fillStyle='#000'; ctx.fillRect(0,0,gw,gh); ctx.fillStyle='#fff';
-  ctx.save(); ctx.translate(0,gh); ctx.scale(s,-s); ctx.translate(-x0,-y0);   // font y-up → canvas
-  try{ ctx.fill(new Path2D(d)); }catch(e){}
-  ctx.restore();
-  const img=ctx.getImageData(0,0,gw,gh).data, f=new Float32Array(gw*gh);
-  for(let i=0;i<f.length;i++) f[i]=img[i*4]/255;
-  const base={w:gw,h:gh,f};
-  const g=rasterFieldFromGroups(base, GROUPS.raster);
-  return contours(g,0.5)
-    .map(p=>({closed:true, pts:smoothPoly(p.pts,CONTOUR_SMOOTH)}))
-    .filter(p=>p.pts.length>2)
-    .map(p=>({closed:true, pts:p.pts.map(q=>({x:q.x/s+x0, y:(g.h-q.y)/s+y0}))}));
+// ── Effect params are absolute numbers, so they only mean the same thing if
+//    the glyph is always at the SAME scale. The preview normalises the source
+//    into a 1000-box (glyph ≈ 760 tall); per-glyph processing must do exactly
+//    the same, otherwise the export/specimen get a different effect strength.
+function normGlyph(subs){
+  const bb=bboxOf(subs), pad=120, span=1000-pad*2;      // identical to normalise()
+  const k=span/Math.max(bb.w, bb.h||1);
+  const ox=500-(bb.minX+bb.w/2)*k, oy=500-(bb.minY+bb.h/2)*k;
+  // em units are y-up, the preview space is y-down → flip so effects match
+  const norm=subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>({x:p.x*k+ox, y:1000-(p.y*k+oy)}))}));
+  return {norm,k,ox,oy};
 }
+function denormGlyph(subs,k,ox,oy){
+  return subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>({x:(p.x-ox)/k, y:((1000-p.y)-oy)/k}))}));
+}
+// Run ONE glyph through the exact same pipeline as the live preview, in the
+// same normalised 1000-box space, then map the result back to em units — so
+// preview, specimen and exported font all get identical effect strength.
 function processGlyphEm(glyph, upm){
+  const subs=fromOTCommands(glyph.path.commands);
+  if(!subs.length) return null;
+  const {norm,k,ox,oy}=normGlyph(subs);
+  let out;
   if(TECH==='vector'){
-    let subs=fromOTCommands(glyph.path.commands);
-    if(!subs.length) return null;
-    return applyVectorGroups(subs, GROUPS.vector);
+    out=applyVectorGroups(norm, GROUPS.vector);
+  } else {
+    const g=rasterFieldFromGroups(rasterize(chainedSubs(norm)), GROUPS.raster);
+    out=rasterFieldToSubs(g, 1000/RES);
   }
-  return rasterGlyphEm(glyph, upm);
+  if(!out||!out.length) return null;
+  return denormGlyph(out,k,ox,oy);
 }
 function inCharset(u, r){
   if(u===32) return true;                                   // always keep space
@@ -1516,17 +1512,17 @@ function livingPathWorkerURL(){
   if(_lpWorkerURL) return _lpWorkerURL;
   const shared=[mulberry32,morph,boxBlur,addNoise,grayScott,particles,skeleton,polygonize,seamCarve,blendField,contours,smoothPoly].map(f=>f.toString()).join('\n');
   const wsrc=shared+'\n'+`
-function rasterGlyphW(d,bbox,upm,RES){
-  const pad=upm*0.14,x0=bbox.x1-pad,y0=bbox.y1-pad,W=(bbox.x2-bbox.x1)+2*pad,H=(bbox.y2-bbox.y1)+2*pad;
-  const s=RES/Math.max(W,H),gw=Math.max(8,Math.round(W*s)),gh=Math.max(8,Math.round(H*s));
-  const c=new OffscreenCanvas(gw,gh),ctx=c.getContext('2d');
-  ctx.fillStyle='#000';ctx.fillRect(0,0,gw,gh);ctx.fillStyle='#fff';
-  ctx.save();ctx.translate(0,gh);ctx.scale(s,-s);ctx.translate(-x0,-y0);
-  try{ctx.fill(new Path2D(d));}catch(e){}
+// the glyph arrives already normalised into the 1000-box → rasterise exactly
+// like the live preview so the effect strength matches
+function rasterGlyphW(d,RES){
+  const c=new OffscreenCanvas(RES,RES),ctx=c.getContext('2d');
+  ctx.fillStyle='#000';ctx.fillRect(0,0,RES,RES);ctx.fillStyle='#fff';
+  ctx.save();ctx.scale(RES/1000,RES/1000);
+  try{ctx.fill(new Path2D(d),'evenodd');}catch(e){}
   ctx.restore();
-  const img=ctx.getImageData(0,0,gw,gh).data,f=new Float32Array(gw*gh);
+  const img=ctx.getImageData(0,0,RES,RES).data,f=new Float32Array(RES*RES);
   for(let i=0;i<f.length;i++)f[i]=img[i*4]/255;
-  return {w:gw,h:gh,f:f,s:s,x0:x0,y0:y0};
+  return {w:RES,h:RES,f:f};
 }
 var SEEDOFF=0;
 function applyLayerW(g,t,p){
@@ -1540,26 +1536,26 @@ function applyLayerW(g,t,p){
   else if(t==='seam')seamCarve(g,p.count,p.dir);
   else if(t==='reaction')grayScott(g,p.feed/1000,p.kill/1000,p.iters*36,p.seed+SEEDOFF,p.depth);
 }
-function processGlyphW(gd,groups,upm,RES,smooth){
-  const base=rasterGlyphW(gd.d,gd.bbox,upm,RES);
+function processGlyphW(d,groups,RES,smooth){
+  const base=rasterGlyphW(d,RES);
   let acc=null;
   for(const grp of groups){ if(!grp.on)continue;
     const g={w:base.w,h:base.h,f:new Float32Array(base.f)};
     for(const L of grp.layers){ if(L.on) applyLayerW(g,L.type,L.params); }
     acc=acc===null?g:{w:g.w,h:g.h,f:blendField(acc.f,g.f,grp.blend)};
   }
-  const gf=acc||base;
+  const gf=acc||base, sc=1000/RES;
   return contours(gf,0.5).map(function(p){return {closed:true,pts:smoothPoly(p.pts,smooth)};})
     .filter(function(p){return p.pts.length>2;})
-    .map(function(p){return {closed:true,pts:p.pts.map(function(q){return {x:q.x/base.s+base.x0,y:(gf.h-q.y)/base.s+base.y0};})};});
+    .map(function(p){return {closed:true,pts:p.pts.map(function(q){return {x:q.x*sc,y:q.y*sc};})};});
 }
 onmessage=function(e){
   const D=e.data,out=[],NV=Math.max(1,D.variants||1);
   for(let i=0;i<D.glyphs.length;i++){ const gd=D.glyphs[i], vars=[];
     for(var v=0;v<NV;v++){ var subs=null;
       if(!gd.empty){ SEEDOFF=v*17;
-        var gsrc = gd.dv ? {d:gd.dv[Math.min(v,gd.dv.length-1)], bbox:gd.bboxv[Math.min(v,gd.bboxv.length-1)]} : gd;
-        try{ subs=processGlyphW(gsrc,D.groups,D.upm,D.RES,D.smooth); }catch(err){ subs=null; } }
+        var dd=gd.dv[Math.min(v,gd.dv.length-1)];
+        try{ subs=processGlyphW(dd,D.groups,D.RES,D.smooth); }catch(err){ subs=null; } }
       vars.push((subs&&subs.length)?subs:null); }
     SEEDOFF=0;
     out.push({unicode:gd.unicode,name:gd.name,adv:gd.adv,vars:vars});
@@ -1578,16 +1574,19 @@ async function buildModifiedFontWorker(opts, onProgress){
   const chaining=CHAIN && vectorActive();
   for(let i=0;i<src.glyphs.length;i++){ const gl=src.glyphs.get(i);
     if(gl.unicode==null||gl.unicode<=0||seen.has(gl.unicode)||!inCharset(gl.unicode,ranges))continue; seen.add(gl.unicode);
-    const bb=gl.getBoundingBox(); const empty=!(isFinite(bb.x1)&&bb.x2>bb.x1&&bb.y2>bb.y1);
+    const subs=fromOTCommands(gl.path.commands);
+    const empty=!subs.length;
     const e={unicode:gl.unicode, name:gl.name||('uni'+gl.unicode.toString(16)),
-      adv:Math.round(gl.advanceWidth)||Math.round(upm*0.5),
-      d: empty?'':gl.path.toPathData(2), bbox:{x1:bb.x1,y1:bb.y1,x2:bb.x2,y2:bb.y2}, empty};
-    if(chaining && !empty){
-      // pre-run the Vector stage here (per variant) and ship the resulting paths
-      e.dv=[]; e.bboxv=[];
+      adv:Math.round(gl.advanceWidth)||Math.round(upm*0.5), empty};
+    if(!empty){
+      // normalise into the preview's 1000-box (so effect strength matches) and
+      // pre-run the Vector stage per variant when chaining
+      const n=normGlyph(subs); e.k=n.k; e.ox=n.ox; e.oy=n.oy; e.dv=[];
       for(let v=0;v<NV;v++){ SEED_OFFSET=v*17;
-        let s=applyVectorGroups(fromOTCommands(gl.path.commands), GROUPS.vector);
-        const b=bboxOf(s); e.dv.push(dFromSubs(s)); e.bboxv.push({x1:b.minX,y1:b.minY,x2:b.maxX,y2:b.maxY}); }
+        const s = chaining
+          ? applyVectorGroups(n.norm.map(x=>({closed:x.closed,pts:x.pts.map(p=>({x:p.x,y:p.y}))})), GROUPS.vector)
+          : n.norm;
+        e.dv.push(dFromSubs(s)); }
       SEED_OFFSET=0;
     }
     glyphs.push(e);
@@ -1597,9 +1596,14 @@ async function buildModifiedFontWorker(opts, onProgress){
     w.onmessage=(e)=>{ if(e.data.progress){ onProgress&&onProgress(e.data.progress,e.data.total); }
       else if(e.data.done){ resolve(e.data.results); w.terminate(); } };
     w.onerror=(err)=>{ w.terminate(); reject(new Error('worker: '+(err.message||'failed'))); };
-    w.postMessage({glyphs, groups:JSON.parse(JSON.stringify(GROUPS.raster)), upm, RES:150, smooth:CONTOUR_SMOOTH, variants:NV});
+    w.postMessage({glyphs, groups:JSON.parse(JSON.stringify(GROUPS.raster)), RES, smooth:CONTOUR_SMOOTH, variants:NV});
   });
-  const entries=results.map(r=>({unicode:r.unicode, name:r.name, adv:r.adv, vars:r.vars||[r.subs||null]}));
+  // worker returns 1000-box coords → map each variant back to em units
+  const entries=results.map((r,i)=>{
+    const g=glyphs[i];
+    const vars=(r.vars||[]).map(s=> (s&&s.length&&!g.empty) ? denormGlyph(s,g.k,g.ox,g.oy) : null);
+    return {unicode:r.unicode, name:r.name, adv:r.adv, vars};
+  });
   return assembleFont(entries, opts, upm, src);
 }
 function ab2b64(buf){
