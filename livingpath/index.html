@@ -152,7 +152,11 @@
     background:var(--card); color:var(--ink); border:1px dashed var(--line); border-radius:7px;
   }
   /* ── canvas/preview ── */
-  #board{max-width:92%; max-height:92%}
+  /* NB: `hidden` does NOT work on an <svg> (SVGElement has no hidden IDL prop
+     and the attribute doesn't hide it) — toggle .show instead, or the board
+     keeps occupying a flex box and shoves the empty state off-centre. */
+  #board{max-width:92%; max-height:92%; display:none}
+  #board.show{display:block}
   .empty{text-align:center; color:var(--ink-muted)}
   .empty .big{font-family:var(--display); font-weight:700; font-size:30px; color:var(--ink-soft); margin-bottom:8px}
   .empty p{font-size:12px; line-height:1.7}
@@ -275,7 +279,7 @@
       </select>
       <button class="mini" id="specNew" title="New random Wikipedia text (falls back to a sample)">↻ text</button>
     </div>
-    <svg id="board" viewBox="0 0 1000 1000" hidden></svg>
+    <svg id="board" viewBox="0 0 1000 1000"></svg>
     <div class="empty" id="empty">
       <div class="big">Living Path</div>
       <p>Load a <b>font</b>, an <b>SVG</b>, or a <b>Genesis form</b><br>then stack organic effects on the curve.</p>
@@ -1143,8 +1147,8 @@ let CACHE=null, rasterTimer=null;
 
 // repaint = cheap; just re-draws CACHE with current colours/outline/nodes
 function repaint(){
-  if(!SRC){ board.hidden=true; empty.hidden=false; return; }
-  empty.hidden=true; board.hidden=false;
+  if(!SRC){ board.classList.remove('show'); empty.hidden=false; return; }
+  empty.hidden=true; board.classList.add('show');
   const ink=$('#cInk').value, bg=$('#cBg').value;
   board.style.background=bg;
   const out=CACHE; if(!out) return;
@@ -1227,7 +1231,7 @@ function renderSpecimen(){
   const subs=buildSpecimenSubs();
   CACHE=subs;
   const ink=$('#cInk').value, bg=$('#cBg').value;
-  board.style.background=bg; board.hidden=false; empty.hidden=true;
+  board.style.background=bg; board.classList.add('show'); empty.hidden=true;
   board.innerHTML = (subs&&subs.length)
     ? (showOutline
         ? `<path d="${dFromSubs(subs)}" fill="none" stroke="${ink}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>`
