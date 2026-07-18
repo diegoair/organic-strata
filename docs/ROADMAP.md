@@ -175,8 +175,9 @@ Genesis form), apply a stack of organic effects, export SVG/PNG.
   center-line (skeleton), **polygonize** (facet), **seam-carving** (content-aware slice),
   reaction-diffusion. (cahn-hilliard ≈ reaction-diffusion; pixel/quality-loss ≈
   polygonize/noise.) 24 raster presets mapped to the production example sheets.
-- [ ] **Multi-language Wikipedia specimen text** — the specimen paragraph is fixed;
-  original pulls live text in 100+ languages.
+- [x] **Multi-language specimen text** — language selector (10 languages, Latin +
+  Greek/Cyrillic) with curated offline samples, plus **↻ text** pulling a live random
+  Wikipedia extract (CORS REST) with sample fallback. Specimen now word-wraps.
 
 ---
 
