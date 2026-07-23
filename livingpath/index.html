@@ -1156,9 +1156,10 @@ function repaint(){
   const ink=$('#cInk').value, bg=$('#cBg').value;
   board.style.background=bg;
   const out=CACHE; if(!out) return;
+  const ghost = (SRC_KIND==='font' && TYPED_GHOST) ? TYPED_GHOST : SRC.subs;
   let svg='';
   if(showOrig)
-    svg+=`<path d="${dFromSubs(SRC.subs)}" fill="none" stroke="${ink}" stroke-opacity=".16" stroke-width="2"/>`;
+    svg+=`<path d="${dFromSubs(ghost)}" fill="none" stroke="${ink}" stroke-opacity=".16" stroke-width="2"/>`;
   if(showOutline)
     svg+=`<path d="${dFromSubs(out)}" fill="none" stroke="${ink}" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>`;
   else
@@ -1244,11 +1245,41 @@ function renderSpecimen(){
   $('#exSvg').disabled=$('#exPng').disabled=false;
 }
 
+// Lay out the typed text PER GLYPH (each glyph run through the export pipeline,
+// then positioned by advance width) so the board preview matches the specimen
+// and the exported font exactly. The old path flattened the whole word and fit
+// it to the box, so a 5-letter word was scaled small and the effects hit far
+// harder than they ever do on a single exported glyph — the preview was lying.
+let TYPED_GHOST=null;
+function typedLayout(){
+  const font=window.__FONT; if(!font) return null;
+  const upm=font.unitsPerEm||1000, text=($('#fontText').value||'A').slice(0,12);
+  const cM={}, cR={}; let x=0; const melted=[], raw=[];
+  for(const ch of text){
+    const gl=font.charToGlyph(ch); if(!gl){ x+=upm*0.4; continue; }
+    let m=cM[ch]; if(m===undefined){ try{ m=processGlyphEm(gl,upm)||[]; }catch(e){ m=[]; } cM[ch]=m; }
+    let r=cR[ch]; if(r===undefined){ r=fromOTCommands(gl.path.commands)||[]; cR[ch]=r; }
+    for(const s of m) melted.push({closed:s.closed, pts:s.pts.map(p=>({x:p.x+x,y:p.y}))});
+    for(const s of r) raw.push({closed:s.closed, pts:s.pts.map(p=>({x:p.x+x,y:p.y}))});
+    x += gl.advanceWidth||upm*0.5;
+  }
+  if(!melted.length){ TYPED_GHOST=null; return null; }
+  const bb=bboxOf(melted), pad=100, span=1000-pad*2;
+  const k=span/Math.max(bb.w,bb.h||1), ox=500-(bb.minX+bb.w/2)*k, oy=500-(bb.minY+bb.h/2)*k;
+  const T=(subs)=>subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>({x:p.x*k+ox, y:1000-(p.y*k+oy)}))}));
+  TYPED_GHOST=T(raw);
+  return T(melted);
+}
 // render = recompute geometry (raster is heavy → debounced) then repaint
 function render(){
   if(!SRC){ repaint(); return; }
-  const specimen = showSpecimen && window.__FONT && SRC_KIND==='font';
-  const doit = ()=>{ if(specimen) renderSpecimen(); else { CACHE=computed(); repaint(); } };
+  const isFont = SRC_KIND==='font' && window.__FONT;
+  const specimen = showSpecimen && isFont;
+  const doit = ()=>{
+    if(specimen){ renderSpecimen(); }
+    else if(isFont){ CACHE=typedLayout(); repaint(); }
+    else { TYPED_GHOST=null; CACHE=computed(); repaint(); }
+  };
   if(TECH==='raster'){
     statusEl.textContent='raster…';
     clearTimeout(rasterTimer);
