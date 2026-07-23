@@ -2,7 +2,7 @@
 
 > Studio Rann · Organica · Generative Font / Path Modification
 > Live: [theorganicalanguage.vercel.app/livingpath/](https://theorganicalanguage.vercel.app/livingpath/)
-> Last updated: July 6, 2026
+> Last updated: July 23, 2026
 
 ---
 
@@ -211,11 +211,52 @@ thread if Worker/OffscreenCanvas isn't available.
   → cubic).
 - **Shared appliers** (`rasterFieldFromGroups` / `applyVectorGroups`) are used by BOTH
   the live preview and the font export, so what you see is what you export.
-- **Font export** processes each glyph in its own em window; the **Web Worker** reuses
-  the exact same pure field functions via `Function.toString()` (no code drift), only
-  rasterisation (OffscreenCanvas) and a layer dispatch are worker-specific.
+- **One scale everywhere (WYSIWYG).** Effect params are absolute numbers, so they only
+  mean the same thing if the glyph is always at the same scale. Every path — the board
+  preview, the text specimen and the font export — normalises each glyph into the **same
+  1000-box** (`normGlyph` / `denormGlyph`, glyph ≈ 760 tall, y-flipped) and runs the
+  identical pipeline, so what you see is what you export. `processGlyphEm` is the single
+  per-glyph entry point (vector or raster + chaining); the board's typed text is laid out
+  **per glyph** via `typedLayout` (not flattened), matching the specimen and the font.
+- **Font export** builds each glyph via that shared pipeline; the **Web Worker** reuses
+  the exact same pure field functions via `Function.toString()` (no code drift) — only
+  rasterisation (OffscreenCanvas) and a layer dispatch are worker-specific. The worker
+  receives glyphs already normalised into the 1000-box and returns 1000-box contours that
+  the main thread maps back to em units.
 - **Project files** (`.lvp`) are plain JSON of the state — portable and diff-able.
-- Open follow-ups: `docs/ROADMAP.md` (multi-language specimen text is the main gap).
+- Open follow-ups: `docs/ROADMAP.md`.
+
+---
+
+## 12. Development notes & context
+
+Things that aren't obvious from the code but matter when working on this tool:
+
+- **Dev-server caching.** The static preview server / browser aggressively caches
+  `livingpath/index.html`. After an edit, a plain reload often serves the **old** file —
+  do a hard refresh (⌘⇧R) or append a cache-buster (`?v=…`) to the URL when testing, or
+  you'll chase phantom bugs. (This bit us twice during development.)
+- **`hidden` doesn't work on every element.** `<svg>` (`SVGElement`) has no `hidden` IDL
+  property, and a CSS `display:flex/grid/block` beats the UA `[hidden]{display:none}`
+  rule. So toggling `el.hidden` can silently do nothing. Toggle an explicit class
+  (e.g. `.show`) or add `[hidden]{display:none}` with enough specificity. Both variants
+  caused real bugs here.
+- **Scale is the source of "preview ≠ export" bugs.** Any new effect must respect the
+  shared 1000-box scale (see §11). If the preview and the exported font ever look
+  different, it's almost always because something processed the glyph at a different
+  size. To get a *heavier* melt, push the effect params (e.g. blur ~13, dilate ~6, not
+  blur 2) — the preview now honestly reflects the font, so it won't over-melt for you.
+- **Verify visibility, not just the attribute.** When testing show/hide, check
+  `getComputedStyle(el).display` (and bounding box), not `el.hidden` — a stale attribute
+  passed tests while the element was still visible on screen.
+- **Reaction-diffusion is the slow effect.** ~90 ms/glyph vs ~1–2 ms for the others; it's
+  why the worker matters for full-charset export. It's confined to the glyph mask and
+  seeded with random spots, so it fills the letter with cells (Feed ≈ 55 / Kill ≈ 62).
+- **Files deliberately kept out of git:** `backend/fitCurves.py`, `backend/output/`
+  (debug images), `design_handoff_genesis_creator/` (has a `.DS_Store`).
+- **Open across the wider project (not Living Path):** the **Genesis Creator Bézier
+  tangent-handle drag/edit** is still to verify/fix — flagged since the start and never
+  closed. See the Genesis backlog in `docs/ROADMAP.md`.
 
 ---
 
