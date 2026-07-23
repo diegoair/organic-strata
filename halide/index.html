@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Halide — Organica</title>
+<style>
+  :root {
+    --ink: #0a0a0a;
+    --paper: #f5f2ec;
+    --mid: #726a5e;
+    --accent: #2a2a2a;
+    --panel: #eceae4;
+    --border: #d0c8b8;
+    --halide: #5a7a96;
+    --sans: 'DM Mono', 'Courier New', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 11px;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOP BAR ── */
+  #topbar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 16px;
+    height: 40px;
+    border-bottom: 1px solid var(--border);
+    background: var(--paper);
+    flex-shrink: 0;
+    z-index: 100;
+  }
+
+  #topbar .logo {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--mid);
+    text-decoration: none;
+    margin-right: 24px;
+  }
+  #topbar .logo span { color: var(--ink); }
+
+  .tb-btn {
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: none;
+    border: 1px solid transparent;
+    color: var(--ink);
+    padding: 4px 10px;
+    cursor: pointer;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .tb-btn:hover { border-color: var(--border); background: var(--panel); }
+  .tb-btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .tb-btn.primary:hover { background: #333; border-color: #333; }
+  .tb-btn:disabled { opacity: 0.35; cursor: default; }
+
+  .tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 8px; }
+  .tb-spacer { flex: 1; }
+
+  .tb-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mid); margin-right: 7px; }
+  .tb-select {
+    font-family: var(--sans); font-size: 10px; letter-spacing: 0.06em;
+    background: none; border: 1px solid var(--border); color: var(--ink);
+    height: 26px; padding: 0 6px; cursor: pointer; outline: none;
+  }
+  .tb-select:hover { border-color: var(--mid); }
+  .tb-out { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); margin-left: 8px; min-width: 64px; }
+
+  #status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mid); flex-shrink: 0; }
+  #status-dot.active { background: #5a8a5a; }
+  #status-text { color: var(--mid); font-size: 10px; letter-spacing: 0.05em; }
+
+  /* ── LAYOUT ── */
+  #app { display: flex; flex: 1; overflow: hidden; }
+
+  #canvas-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    position: relative;
+    overflow: hidden;
+  }
+  #canvas-wrap.drag-over { outline: 2px dashed var(--ink); outline-offset: -8px; }
+
+  #drop-hint {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.3s;
+  }
+  #drop-hint.hidden { opacity: 0; }
+
+  .drop-icon {
+    width: 48px; height: 48px;
+    border: 1.5px solid var(--mid);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--mid);
+    font-size: 20px;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .drop-icon:hover { border-color: var(--ink); color: var(--ink); }
+
+  #drop-hint p {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mid);
+    text-align: center;
+    line-height: 1.8;
+  }
+
+  #main-canvas {
+    display: none;
+    max-width: 100%;
+    max-height: 100%;
+    box-shadow: 0 4px 40px rgba(0,0,0,0.12);
+    transform-origin: 0 0;
+    will-change: transform;
+    image-rendering: pixelated;
+  }
+  #main-canvas.visible { display: block; }
+  #main-canvas.zoomed { cursor: grab; }
+  #main-canvas.panning { cursor: grabbing; }
+
+  #zoom-hud {
+    position: absolute;
+    bottom: 16px; left: 16px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 6px 9px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+    user-select: none;
+  }
+  #zoom-hud.visible { display: flex; }
+  #zoom-hud .zoom-reset { pointer-events: auto; cursor: pointer; opacity: 0.6; transition: opacity 0.15s; }
+  #zoom-hud .zoom-reset:hover { opacity: 1; }
+
+  /* ── RIGHT PANEL ── */
+  #panel {
+    width: 240px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--paper);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-section { border-bottom: 1px solid var(--border); padding: 14px 16px; }
+  .panel-section h3 {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin-bottom: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .panel-section h3 .hint { font-size: 8px; color: var(--mid); letter-spacing: 0.05em; text-transform: none; font-weight: 400; }
+
+  .sub-label {
+    font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); margin: 14px 0 8px; font-weight: 500;
+  }
+
+  .ctrl-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
+  .ctrl-label { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); white-space: nowrap; flex-shrink: 0; min-width: 60px; }
+  .ctrl-val { font-size: 10px; color: var(--accent); min-width: 30px; text-align: right; flex-shrink: 0; }
+
+  .check-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; }
+  .check-row span { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); }
+  .check-row input[type=checkbox] { accent-color: var(--ink); cursor: pointer; flex-shrink: 0; }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    flex: 1; min-width: 0;
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px; height: 10px; border-radius: 50%; background: var(--ink); cursor: pointer;
+  }
+  input[type=range]::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); border: none; cursor: pointer; }
+
+  .seg-ctrl { display: flex; gap: 0; flex: 1; }
+  .seg-btn {
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    flex: 1;
+    padding: 5px 0;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--accent);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    margin-left: -1px;
+  }
+  .seg-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); z-index: 1; position: relative; }
+
+  .color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .color-swatch { width: 20px; height: 20px; border: 1px solid var(--border); border-radius: 2px; cursor: pointer; flex-shrink: 0; padding: 0; background: none; }
+  .color-hex {
+    font-family: var(--sans); font-size: 10px;
+    background: var(--panel); border: 1px solid var(--border); color: var(--ink);
+    padding: 3px 6px; width: 70px; letter-spacing: 0.05em; outline: none; flex: 1;
+  }
+  input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
+
+  .panel-select {
+    font-family: var(--sans);
+    font-size: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 4px 6px;
+    width: 100%;
+    outline: none;
+    cursor: pointer;
+  }
+  .panel-select:hover { border-color: var(--mid); }
+
+  .row-btns { display: flex; gap: 6px; margin-top: 8px; }
+  .mini-btn {
+    flex: 1;
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--accent);
+    padding: 6px 0;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .mini-btn:hover { border-color: var(--accent); color: var(--ink); }
+
+  #panel::-webkit-scrollbar { width: 3px; }
+  #panel::-webkit-scrollbar-track { background: transparent; }
+  #panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 1px; }
+
+  #file-input {
+    position: absolute; width: 1px; height: 1px;
+    opacity: 0; overflow: hidden; pointer-events: none; border: 0; padding: 0;
+  }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <a href="/" class="logo"><span>Organica</span> / Halide</a>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="document.getElementById('file-input').click()">Open…</button>
+  <div class="tb-spacer"></div>
+  <div id="status-dot"></div>
+  <span id="status-text" style="margin: 0 10px 0 6px">—</span>
+  <div class="tb-sep"></div>
+  <span class="tb-label">Export Scale</span>
+  <select class="tb-select" id="sel-scale" onchange="updateSizeReadout()" title="Pixels per dithered cell in the exported file">
+    <option value="2">×2</option>
+    <option value="4" selected>×4</option>
+    <option value="6">×6</option>
+    <option value="8">×8</option>
+    <option value="12">×12</option>
+  </select>
+  <span class="tb-out" id="vl-out-size">—</span>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="btn-save-png" onclick="exportPNG()" disabled>PNG</button>
+  <button class="tb-btn" id="btn-save-jpg" onclick="exportJPG()" disabled>JPG</button>
+  <button class="tb-btn" id="btn-save-svg" onclick="exportSVG()" disabled>SVG</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn primary" id="btn-figma" onclick="sendToFigma()" disabled>→ Figma</button>
+</div>
+
+<input type="file" id="file-input" accept="image/*" onchange="loadImage(this)">
+
+<div id="app">
+
+  <div id="canvas-wrap">
+    <div id="drop-hint">
+      <div class="drop-icon">+</div>
+      <p>Drop a photo here<br>or click Open…</p>
+    </div>
+    <canvas id="main-canvas"></canvas>
+    <div id="zoom-hud">
+      <span id="zoom-level">100%</span>
+      <span class="zoom-reset" onclick="resetZoom()">Reset</span>
+    </div>
+  </div>
+
+  <div id="panel">
+
+    <div class="panel-section">
+      <h3>Presets <span class="hint">start from a style</span></h3>
+      <select class="panel-select" id="preset-select" onchange="applyPreset(this.value)">
+        <option value="">— Select —</option>
+      </select>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="savePreset()">Save</button>
+        <button class="mini-btn" onclick="deletePreset()">Delete</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Dither <span class="hint" id="vl-grid">live</span></h3>
+
+      <div class="ctrl-row">
+        <span class="ctrl-label">Algorithm</span>
+      </div>
+      <div class="seg-ctrl" id="alg-seg" style="margin-bottom:10px">
+        <button class="seg-btn active" data-val="fs" onclick="setAlg('fs')" title="Floyd–Steinberg error diffusion">F–S</button>
+        <button class="seg-btn" data-val="atkinson" onclick="setAlg('atkinson')" title="Atkinson error diffusion (Apple, 1984) — higher contrast">Atkinson</button>
+        <button class="seg-btn" data-val="bayer" onclick="setAlg('bayer')" title="Ordered dithering with a Bayer threshold matrix">Bayer</button>
+        <button class="seg-btn" data-val="threshold" onclick="setAlg('threshold')" title="Plain 50% threshold — no dithering, for comparison">Flat</button>
+      </div>
+
+      <div class="ctrl-row" id="row-bayer" style="display:none">
+        <span class="ctrl-label">Matrix</span>
+        <select class="panel-select" id="sel-bayer" onchange="scheduleRender()">
+          <option value="2">2 × 2</option>
+          <option value="4" selected>4 × 4</option>
+          <option value="8">8 × 8</option>
+          <option value="16">16 × 16</option>
+        </select>
+      </div>
+      <label class="check-row" id="row-serp">
+        <input type="checkbox" id="ck-serp" checked onchange="scheduleRender()">
+        <span>Serpentine scan</span>
+      </label>
+
+      <div class="sub-label">Resolution</div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Grid width</span>
+        <input type="range" id="sl-res" min="24" max="400" step="2" value="120" oninput="syncVal(this,'vl-res');scheduleRender()">
+        <span class="ctrl-val" id="vl-res">120</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Image</h3>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Rotation</span>
+        <select class="panel-select" id="sel-rotation" onchange="scheduleRender()" style="flex:1">
+          <option value="0">0°</option>
+          <option value="90">90°</option>
+          <option value="180">180°</option>
+          <option value="270">270°</option>
+        </select>
+      </div>
+      <label class="check-row">
+        <input type="checkbox" id="ck-flip" onchange="scheduleRender()">
+        <span>Flip horizontal</span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" id="ck-invert" onchange="scheduleRender()">
+        <span>Invert</span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" id="ck-square" onchange="scheduleRender()" title="Center-crop to a square — for avatar-style portraits">
+        <span>Square crop (avatar)</span>
+      </label>
+
+      <div class="ctrl-row" style="margin-top:10px">
+        <span class="ctrl-label">Gamma</span>
+        <input type="range" id="sl-gamma" min="0.2" max="3" step="0.05" value="1" oninput="syncVal(this,'vl-gamma');scheduleRender()">
+        <span class="ctrl-val" id="vl-gamma">1</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Contrast</span>
+        <input type="range" id="sl-contrast" min="-100" max="100" value="0" oninput="syncVal(this,'vl-contrast');scheduleRender()">
+        <span class="ctrl-val" id="vl-contrast">0</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Bias</span>
+        <input type="range" id="sl-bias" min="-50" max="50" value="0" oninput="syncVal(this,'vl-bias');scheduleRender()" title="Flat black/white balance shift, applied before dithering">
+        <span class="ctrl-val" id="vl-bias">0</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Color</h3>
+      <div class="color-row">
+        <span class="ctrl-label">Ink</span>
+        <button class="color-swatch" id="swatch-ink" style="background:#0a0a0a" onclick="document.getElementById('cp-ink').click()" title="Ink colour"></button>
+        <input type="color" id="cp-ink" value="#0a0a0a" oninput="syncColor('ink',this.value)">
+        <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7"
+          oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){syncColor('ink',this.value)}">
+      </div>
+      <div class="color-row">
+        <span class="ctrl-label">Paper</span>
+        <button class="color-swatch" id="swatch-paper" style="background:#f5f2ec" onclick="document.getElementById('cp-paper').click()" title="Paper colour"></button>
+        <input type="color" id="cp-paper" value="#f5f2ec" oninput="syncColor('paper',this.value)">
+        <input class="color-hex" id="hex-paper" value="#f5f2ec" maxlength="7"
+          oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){syncColor('paper',this.value)}">
+      </div>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="swapColors()">Swap colors</button>
+      </div>
+    </div>
+
+  </div><!-- /panel -->
+</div><!-- /app -->
+
+<script>
+// ─────────────────────────────────────────────
+// HALIDE — photo → true 1-bit dithered portrait
+// Real algorithms: Floyd–Steinberg / Atkinson error diffusion,
+// Bayer ordered dithering, flat threshold. Shell (drop-zone, zoom/pan,
+// tone pipeline, export plumbing, Figma protocol) ported from Pollen —
+// see docs/LIVINGPATH.md §11 for the shared-function WYSIWYG rationale
+// this suite follows: one function computes cells, both preview and
+// export paint/serialize from the exact same `runs`.
+// ─────────────────────────────────────────────
+
+const canvas = document.getElementById('main-canvas');
+const canvasWrap = document.getElementById('canvas-wrap');
+
+let sourceImage = null;
+let ditherAlg = 'fs';           // 'fs' | 'atkinson' | 'bayer' | 'threshold'
+let workW = 0, workH = 0;
+let runs = null;                // per-row run-length-encoded ink cells — shared by preview, PNG/JPG, SVG, Figma
+
+function ctrl(id) { return document.getElementById(id); }
+function val(id)  { return parseFloat(ctrl(id).value); }
+
+// ── STATUS ──
+function setStatus(state, msg) {
+  const dot = document.getElementById('status-dot');
+  dot.className = state ? state : '';
+  document.getElementById('status-text').textContent = msg;
+}
+
+// ── CONTROLS ──
+function syncVal(slider, valId) { document.getElementById(valId).textContent = slider.value; }
+
+function segActive(group, v) {
+  document.querySelectorAll('#' + group + ' .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.val === v));
+}
+function setAlg(a) {
+  ditherAlg = a;
+  segActive('alg-seg', a);
+  document.getElementById('row-bayer').style.display = a === 'bayer' ? '' : 'none';
+  document.getElementById('row-serp').style.display = (a === 'fs' || a === 'atkinson') ? '' : 'none';
+  scheduleRender();
+}
+
+function syncColor(which, hex) {
+  ctrl('cp-' + which).value = hex;
+  ctrl('hex-' + which).value = hex;
+  document.getElementById('swatch-' + which).style.background = hex;
+  paintPreview();   // colour is paint-only — no recompute needed
+  updateSizeReadout();
+}
+function swapColors() {
+  const ink = ctrl('hex-ink').value, paper = ctrl('hex-paper').value;
+  syncColor('ink', paper); syncColor('paper', ink);
+}
+
+// ── PRESETS ──
+const BUILTIN_PRESETS = {
+  'Mac Classic (Atkinson)':      { alg:'atkinson', bayer:4, serp:false, res:128, gamma:1,    contrast:10, bias:0,  square:false, ink:'#0a0a0a', paper:'#ffffff' },
+  'Newspaper (Bayer 4×4)':       { alg:'bayer',    bayer:4, serp:true,  res:200, gamma:1,    contrast:15, bias:0,  square:false, ink:'#0a0a0a', paper:'#f5f2ec' },
+  'Film Grain (Floyd–Steinberg)':{ alg:'fs',       bayer:4, serp:true,  res:260, gamma:1.05, contrast:0,  bias:0,  square:false, ink:'#0a0a0a', paper:'#f5f2ec' },
+  'Halftone Coarse (Bayer 8×8)': { alg:'bayer',    bayer:8, serp:true,  res:90,  gamma:1,    contrast:5,  bias:0,  square:false, ink:'#0a0a0a', paper:'#f5f2ec' },
+  'Fine Grain (Bayer 16×16)':    { alg:'bayer',    bayer:16,serp:true,  res:320, gamma:1,    contrast:0,  bias:0,  square:false, ink:'#0a0a0a', paper:'#f5f2ec' },
+  'High-Contrast Portrait':      { alg:'atkinson', bayer:4, serp:false, res:160, gamma:1,    contrast:35, bias:0,  square:true,  ink:'#0a0a0a', paper:'#ffffff' },
+  'Threshold (no dither)':       { alg:'threshold',bayer:4, serp:true,  res:128, gamma:1,    contrast:0,  bias:0,  square:false, ink:'#0a0a0a', paper:'#f5f2ec' },
+  'Studio Rann Ink':             { alg:'fs',       bayer:4, serp:true,  res:180, gamma:1,    contrast:0,  bias:0,  square:false, ink:'#0a0a0a', paper:'#f5f2ec' },
+};
+function userPresets() {
+  try { return JSON.parse(localStorage.getItem('halide-presets') || '{}'); } catch (e) { return {}; }
+}
+function populatePresets() {
+  const sel = document.getElementById('preset-select');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Select —</option>';
+  const groups = [['Built-in', BUILTIN_PRESETS], ['Custom', userPresets()]];
+  groups.forEach(([label, obj]) => {
+    if (!Object.keys(obj).length) return;
+    const og = document.createElement('optgroup'); og.label = label;
+    Object.keys(obj).forEach(name => { const o = document.createElement('option'); o.value = name; o.textContent = name; og.appendChild(o); });
+    sel.appendChild(og);
+  });
+  sel.value = cur in { ...BUILTIN_PRESETS, ...userPresets() } ? cur : '';
+}
+function applyPreset(name) {
+  if (!name) return;
+  const p = BUILTIN_PRESETS[name] || userPresets()[name];
+  if (!p) return;
+  setAlg(p.alg);
+  ctrl('sel-bayer').value = p.bayer;
+  ctrl('ck-serp').checked = p.serp;
+  ctrl('sl-res').value = p.res; syncVal(ctrl('sl-res'), 'vl-res');
+  ctrl('sl-gamma').value = p.gamma; syncVal(ctrl('sl-gamma'), 'vl-gamma');
+  ctrl('sl-contrast').value = p.contrast; syncVal(ctrl('sl-contrast'), 'vl-contrast');
+  ctrl('sl-bias').value = p.bias; syncVal(ctrl('sl-bias'), 'vl-bias');
+  ctrl('ck-square').checked = p.square;
+  syncColor('ink', p.ink); syncColor('paper', p.paper);
+  scheduleRender();
+}
+function savePreset() {
+  const name = prompt('Save current settings as:');
+  if (!name) return;
+  const u = userPresets();
+  u[name] = {
+    alg: ditherAlg, bayer: parseInt(ctrl('sel-bayer').value, 10), serp: ctrl('ck-serp').checked,
+    res: val('sl-res'), gamma: val('sl-gamma'), contrast: val('sl-contrast'), bias: val('sl-bias'),
+    square: ctrl('ck-square').checked, ink: ctrl('hex-ink').value, paper: ctrl('hex-paper').value,
+  };
+  localStorage.setItem('halide-presets', JSON.stringify(u));
+  populatePresets();
+  document.getElementById('preset-select').value = name;
+}
+function deletePreset() {
+  const sel = document.getElementById('preset-select');
+  const name = sel.value;
+  if (!name || BUILTIN_PRESETS[name]) return;
+  const u = userPresets(); delete u[name];
+  localStorage.setItem('halide-presets', JSON.stringify(u));
+  populatePresets();
+}
+
+// ── IMAGE LOAD ──
+function loadImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    sourceImage = img;
+    resetZoom();
+    document.getElementById('drop-hint').classList.add('hidden');
+    ['btn-save-png', 'btn-save-jpg', 'btn-save-svg', 'btn-figma'].forEach(id => ctrl(id).disabled = false);
+    setStatus('active', img.width + '×' + img.height + ' loaded');
+    computeAndPaint();
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+  input.value = '';
+}
+document.querySelector('.drop-icon').addEventListener('click', e => { e.stopPropagation(); document.getElementById('file-input').click(); });
+canvasWrap.addEventListener('dragover', e => { e.preventDefault(); canvasWrap.classList.add('drag-over'); });
+canvasWrap.addEventListener('dragleave', () => canvasWrap.classList.remove('drag-over'));
+canvasWrap.addEventListener('drop', e => {
+  e.preventDefault();
+  canvasWrap.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const dt = new DataTransfer(); dt.items.add(file);
+    document.getElementById('file-input').files = dt.files;
+    loadImage(document.getElementById('file-input'));
+  }
+});
+
+// ─────────────────────────────────────────────
+// TONE PIPELINE — oriented draw (rotate/flip) + 'cover' fit (also does the
+// square-crop: forcing dest W=H=res and covering crops the long side, so
+// no special-casing is needed), then luma + invert/gamma/contrast/bias.
+// ─────────────────────────────────────────────
+function getRotation() { return parseInt(ctrl('sel-rotation').value, 10) || 0; }
+
+function workDims(res) {
+  if (ctrl('ck-square').checked) return { W: res, H: res };
+  const rot = getRotation();
+  const sw = sourceImage.width, sh = sourceImage.height;
+  const ow = (rot === 90 || rot === 270) ? sh : sw;
+  const oh = (rot === 90 || rot === 270) ? sw : sh;
+  const s = res / Math.max(ow, oh);
+  return { W: Math.max(1, Math.round(ow * s)), H: Math.max(1, Math.round(oh * s)) };
+}
+
+function drawOriented(g, destW, destH) {
+  const rot = getRotation(), flip = ctrl('ck-flip').checked;
+  const sw = sourceImage.width, sh = sourceImage.height;
+  const ow = (rot === 90 || rot === 270) ? sh : sw;
+  const oh = (rot === 90 || rot === 270) ? sw : sh;
+  const scale = Math.max(destW / ow, destH / oh);   // 'cover' — fills dest, crops overflow (handles square-crop for free)
+  const dw = ow * scale, dh = oh * scale;
+  g.save();
+  g.translate(destW / 2, destH / 2);
+  g.rotate(rot * Math.PI / 180);
+  if (flip) g.scale(-1, 1);
+  const drawW = (rot === 90 || rot === 270) ? dh : dw;
+  const drawH = (rot === 90 || rot === 270) ? dw : dh;
+  g.drawImage(sourceImage, -drawW / 2, -drawH / 2, drawW, drawH);
+  g.restore();
+}
+
+function processLuma(l) {
+  const gamma = val('sl-gamma');
+  if (gamma !== 1) l = Math.pow(Math.max(0, l), gamma);
+  const c = val('sl-contrast');
+  if (c) { const cc = c * 2.55, f = (259 * (cc + 255)) / (255 * (259 - cc)); l = f * (l - 0.5) + 0.5; }
+  l += val('sl-bias') / 100;
+  return Math.max(0, Math.min(1, l));
+}
+
+function brightnessField(W, H) {
+  const oc = document.createElement('canvas'); oc.width = W; oc.height = H;
+  const g = oc.getContext('2d');
+  drawOriented(g, W, H);
+  const data = g.getImageData(0, 0, W, H).data;
+  const invert = ctrl('ck-invert').checked;
+  const b = new Float32Array(W * H);
+  for (let i = 0, p = 0; i < b.length; i++, p += 4) {
+    let l = (0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2]) / 255;
+    if (invert) l = 1 - l;
+    b[i] = processLuma(l);
+  }
+  return b;
+}
+
+// ─────────────────────────────────────────────
+// DITHER ALGORITHMS — all take a 0..1 luma field, return a Uint8Array of
+// 0/1 "ink" flags (1 = dark = draw ink here).
+// ─────────────────────────────────────────────
+
+// Floyd–Steinberg (1976): classic 4-neighbour error diffusion.
+const FS_KERNEL = [[1, 0, 7 / 16], [-1, 1, 3 / 16], [0, 1, 5 / 16], [1, 1, 1 / 16]];
+
+// Atkinson (Bill Atkinson, Apple, 1984): only diffuses 6/8 of the error,
+// discarding the rest — punchier, higher-contrast than Floyd–Steinberg,
+// the look of the original Mac's 1-bit screen and MacPaint.
+const ATKINSON_KERNEL = [[1, 0, 1 / 8], [2, 0, 1 / 8], [-1, 1, 1 / 8], [0, 1, 1 / 8], [1, 1, 1 / 8], [0, 2, 1 / 8]];
+
+function ditherErrorDiffusion(gray, W, H, kernel, serpentine) {
+  const buf = Float32Array.from(gray);
+  const cells = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) {
+    const ltr = !serpentine || (y % 2 === 0);
+    for (let xi = 0; xi < W; xi++) {
+      const x = ltr ? xi : W - 1 - xi;
+      const i = y * W + x;
+      const old = buf[i];
+      const ink = old < 0.5 ? 1 : 0;
+      cells[i] = ink;
+      const err = old - (ink ? 0 : 1);
+      for (let k = 0; k < kernel.length; k++) {
+        const dx = ltr ? kernel[k][0] : -kernel[k][0];
+        const nx = x + dx, ny = y + kernel[k][1];
+        if (nx < 0 || nx >= W || ny >= H) continue;
+        buf[ny * W + nx] += err * kernel[k][2];
+      }
+    }
+  }
+  return cells;
+}
+
+// Bayer ordered dithering: recursive matrix construction (standard
+// algorithm — each doubling tiles 4×[prev*4 + {0,2,3,1}]), normalised to
+// a 0..1 threshold and tiled across the image. No error diffusion, so it's
+// stable/repeatable — the halftone-screen look, no directional streaking.
+const _bayerCache = {};
+function bayerMatrix(n) {
+  if (n === 1) return [[0]];
+  const half = bayerMatrix(n / 2), s = half.length;
+  const m = Array.from({ length: n }, () => new Array(n));
+  for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
+    const v = half[y][x] * 4;
+    m[y][x] = v; m[y][x + s] = v + 2; m[y + s][x] = v + 3; m[y + s][x + s] = v + 1;
+  }
+  return m;
+}
+function bayerThresholds(n) {
+  if (!_bayerCache[n]) {
+    const m = bayerMatrix(n);
+    const t = new Float32Array(n * n);
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) t[y * n + x] = (m[y][x] + 0.5) / (n * n);
+    _bayerCache[n] = t;
+  }
+  return _bayerCache[n];
+}
+function ditherBayer(gray, W, H, n) {
+  const th = bayerThresholds(n);
+  const cells = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    cells[y * W + x] = gray[y * W + x] < th[(y % n) * n + (x % n)] ? 1 : 0;
+  }
+  return cells;
+}
+
+function ditherThreshold(gray, W, H) {
+  const cells = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) cells[i] = gray[i] < 0.5 ? 1 : 0;
+  return cells;
+}
+
+// Run-length encode each row's ink cells — the single shared representation
+// painted to canvas AND serialised to SVG, so preview and export can never
+// drift apart (same invariant Pollen/LivingPath rely on).
+function cellsToRuns(cells, W, H) {
+  const out = new Array(H);
+  for (let y = 0; y < H; y++) {
+    const row = [];
+    let x = 0;
+    while (x < W) {
+      if (cells[y * W + x]) {
+        let x2 = x + 1;
+        while (x2 < W && cells[y * W + x2]) x2++;
+        row.push([x, x2 - x]);
+        x = x2;
+      } else x++;
+    }
+    out[y] = row;
+  }
+  return out;
+}
+
+// ── COMPUTE + RENDER ──
+let renderPending = false;
+function scheduleRender() {
+  if (!sourceImage) return;
+  if (renderPending) return;
+  renderPending = true;
+  requestAnimationFrame(() => { renderPending = false; computeAndPaint(); });
+}
+
+function computeAndPaint() {
+  if (!sourceImage) return;
+  const res = Math.round(val('sl-res'));
+  const dims = workDims(res);
+  workW = dims.W; workH = dims.H;
+  const gray = brightnessField(workW, workH);
+
+  let cells;
+  if (ditherAlg === 'fs') cells = ditherErrorDiffusion(gray, workW, workH, FS_KERNEL, ctrl('ck-serp').checked);
+  else if (ditherAlg === 'atkinson') cells = ditherErrorDiffusion(gray, workW, workH, ATKINSON_KERNEL, ctrl('ck-serp').checked);
+  else if (ditherAlg === 'bayer') cells = ditherBayer(gray, workW, workH, parseInt(ctrl('sel-bayer').value, 10));
+  else cells = ditherThreshold(gray, workW, workH);
+
+  runs = cellsToRuns(cells, workW, workH);
+
+  let ink = 0; for (let i = 0; i < cells.length; i++) ink += cells[i];
+  document.getElementById('vl-grid').textContent = workW + '×' + workH + ' · ' + Math.round(100 * ink / cells.length) + '% ink';
+
+  paintPreview();
+  updateSizeReadout();
+  setStatus('active', workW + '×' + workH + ' grid');
+}
+
+// Paint ink runs onto any 2D context, at any block size — the one function
+// used by both the live preview and every raster export.
+function paintCanvas(g, W, H, block, ink, paper) {
+  g.imageSmoothingEnabled = false;
+  g.fillStyle = paper;
+  g.fillRect(0, 0, W * block, H * block);
+  g.fillStyle = ink;
+  for (let y = 0; y < H; y++) {
+    const row = runs[y];
+    for (let k = 0; k < row.length; k++) g.fillRect(row[k][0] * block, y * block, row[k][1] * block, block);
+  }
+}
+
+function paintPreview() {
+  if (!runs) return;
+  const target = 720;   // preview long side, px — independent of Export Scale
+  const block = Math.max(1, Math.round(target / Math.max(workW, workH)));
+  canvas.width = workW * block; canvas.height = workH * block;
+  canvas.classList.add('visible');
+  paintCanvas(canvas.getContext('2d'), workW, workH, block, ctrl('hex-ink').value, ctrl('hex-paper').value);
+}
+
+// ── EXPORT ──
+const EXPORT_HARD_SIDE = 6000;
+function outputDims(block) {
+  let outW = workW * block, outH = workH * block;
+  const m = Math.max(outW, outH);
+  if (m > EXPORT_HARD_SIDE) { const k = EXPORT_HARD_SIDE / m; block = Math.max(1, Math.floor(block * k)); outW = workW * block; outH = workH * block; }
+  return { block, outW, outH };
+}
+function updateSizeReadout() {
+  if (!runs) { ctrl('vl-out-size').textContent = '—'; return; }
+  const d = outputDims(parseInt(ctrl('sel-scale').value, 10) || 4);
+  ctrl('vl-out-size').textContent = d.outW + ' × ' + d.outH;
+}
+function download(blob, name) {
+  const a = document.createElement('a');
+  a.download = name; a.href = URL.createObjectURL(blob);
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function exportRaster(mime, ext, quality) {
+  if (!runs) return;
+  setStatus('active', 'Exporting ' + ext.toUpperCase() + '…');
+  setTimeout(() => {
+    const { block, outW, outH } = outputDims(parseInt(ctrl('sel-scale').value, 10) || 4);
+    const oc = document.createElement('canvas'); oc.width = outW; oc.height = outH;
+    paintCanvas(oc.getContext('2d'), workW, workH, block, ctrl('hex-ink').value, ctrl('hex-paper').value);
+    oc.toBlob(b => {
+      download(b, 'halide-' + Date.now() + '.' + ext);
+      setStatus('active', outW + '×' + outH + ' · ' + ext.toUpperCase() + ' saved');
+    }, mime, quality);
+  }, 20);
+}
+function exportPNG() { exportRaster('image/png', 'png'); }
+function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
+
+// True vector SVG: one <rect> per run, not a rasterised image wrapped in a tag.
+function buildSVG(block) {
+  const { outW, outH } = outputDims(block);
+  const ink = ctrl('hex-ink').value, paper = ctrl('hex-paper').value;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${outW} ${outH}">`;
+  s += `<rect width="100%" height="100%" fill="${paper}"/><g fill="${ink}">`;
+  for (let y = 0; y < workH; y++) {
+    const row = runs[y];
+    for (let k = 0; k < row.length; k++) {
+      s += `<rect x="${row[k][0] * block}" y="${y * block}" width="${row[k][1] * block}" height="${block}"/>`;
+    }
+  }
+  return s + '</g></svg>';
+}
+function exportSVG() {
+  if (!runs) return;
+  const svg = buildSVG(parseInt(ctrl('sel-scale').value, 10) || 4);
+  window._lastSVG = svg;
+  download(new Blob([svg], { type: 'image/svg+xml' }), 'halide-' + Date.now() + '.svg');
+  setStatus('active', 'SVG ' + Math.round(svg.length / 1024) + ' KB saved');
+}
+function sendToFigma() {
+  if (!runs) return;
+  const svg = buildSVG(parseInt(ctrl('sel-scale').value, 10) || 4);
+  window._lastSVG = svg;
+  window.parent.postMessage({ pluginMessage: { type: 'organica-svg', svg, name: 'Halide — ' + new Date().toLocaleTimeString() } }, '*');
+  setStatus('active', 'Sent to Figma plugin ↗');
+}
+
+// ── ZOOM & PAN (same approach as Pollen/Spore) ──
+let zoom = 1, panX = 0, panY = 0;
+const ZOOM_MIN = 1, ZOOM_MAX = 12;
+let isPanning = false, panStartX = 0, panStartY = 0;
+
+function applyZoom() {
+  canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+  document.getElementById('zoom-level').textContent = Math.round(zoom * 100) + '%';
+  const hud = document.getElementById('zoom-hud');
+  const zoomed = zoom > 1.001;
+  hud.classList.toggle('visible', zoomed && canvas.classList.contains('visible'));
+  canvas.classList.toggle('zoomed', zoomed);
+}
+function resetZoom() { zoom = 1; panX = 0; panY = 0; applyZoom(); }
+function zoomBy(factor, fx, fy) {
+  if (!canvas.classList.contains('visible')) return;
+  const rect = canvas.getBoundingClientRect();
+  if (fx == null) { fx = rect.left + rect.width / 2; fy = rect.top + rect.height / 2; }
+  const cx = fx - rect.left, cy = fy - rect.top;
+  const prev = zoom;
+  zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom * factor));
+  const ratio = zoom / prev;
+  panX -= cx * (ratio - 1); panY -= cy * (ratio - 1);
+  if (zoom === ZOOM_MIN) { panX = 0; panY = 0; }
+  applyZoom();
+}
+canvasWrap.addEventListener('wheel', e => {
+  if (!canvas.classList.contains('visible')) return;
+  e.preventDefault();
+  zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX, e.clientY);
+}, { passive: false });
+canvas.addEventListener('mousedown', e => {
+  if (zoom <= 1.001) return;
+  isPanning = true; panStartX = e.clientX - panX; panStartY = e.clientY - panY;
+  canvas.classList.add('panning'); e.preventDefault();
+});
+window.addEventListener('mousemove', e => { if (isPanning) { panX = e.clientX - panStartX; panY = e.clientY - panStartY; applyZoom(); } });
+window.addEventListener('mouseup', () => { if (isPanning) { isPanning = false; canvas.classList.remove('panning'); } });
+canvas.addEventListener('dblclick', resetZoom);
+window.addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey)) return;
+  if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomBy(1.2); }
+  else if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomBy(1 / 1.2); }
+  else if (e.key === '0') { e.preventDefault(); resetZoom(); }
+});
+
+// ── INIT ──
+setStatus('', '—');
+applyZoom();
+populatePresets();
+</script>
+</body>
+</html>

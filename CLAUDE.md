@@ -55,6 +55,7 @@ Modules in Organica:
 | **Spore** | `theorganicalanguage.vercel.app/spore/` | Generative stippling from images — SVG mark library, zoom/pan, PNG/JPG/SVG export, Figma |
 | **Pollen** | `theorganicalanguage.vercel.app/pollen/` | Advanced stippling — blue-noise engine, Circle/Polygon/Line points, Adaptive duotone, presets, PNG/JPG/SVG export, Figma |
 | **Living Path** | `theorganicalanguage.vercel.app/livingpath/` | Generative font/path modification (web port of ivangrozny/LivingPath). Vector + Raster engines, layer groups + blend modes, 9 raster algorithms, 24 presets, live text specimen, installable OTF export (Web Worker), .lvp projects |
+| **Halide** | `theorganicalanguage.vercel.app/halide/` | Photo → true 1-bit dithered portrait. Floyd–Steinberg / Atkinson / Bayer ordered / flat threshold, resolution + tone controls, square-crop for avatars, PNG/JPG/vector SVG/Figma export |
 
 ---
 
@@ -76,6 +77,8 @@ organic-strata/          ← GitHub repo name (diegoair/organic-strata)
 │   └── index.html       ← Spore — generative stippling (single-file, vanilla)
 ├── pollen/
 │   └── index.html       ← Pollen — advanced stippling, blue-noise engine (single-file, vanilla)
+├── halide/
+│   └── index.html       ← Halide — photo → 1-bit dithered portrait (single-file, vanilla)
 ├── backend/             ← Python + OpenCV + vtracer — DO NOT TOUCH
 ├── docs/
 │   ├── VISION.md        ← Full system vision and methodology
@@ -163,6 +166,7 @@ Duration range `1.4s–14s` maps to real-world time scales. See `docs/ANIMATION-
 
 - **June 2026** — Completed full setup: hub live at theorganicalanguage.vercel.app, Genesis Creator integrated with 55 forms, Strata with Smart+ at /strata/, Vercel team renamed to studio_rann, docs/ folder created with VISION.md, ROADMAP.md, ANIMATION-SYSTEM.md. CLAUDE.md added to root.
 - **June 9, 2026** — Shipped **Spore** (`/spore/`, generative stippling) and **Pollen** (`/pollen/`, advanced stippling). Pollen: variable-radius blue-noise engine, Circle/Polygon/Line points with Size/Angle Range + Random + Warping, Gamma/Contrast/Overpaint/Hide Zone, Rotation/Flip/Invert, Solid/Adaptive colour with RGBA + Random, presets, and WYSIWYG PNG/JPG/SVG/Figma export (export serialises the exact preview points). Both are single-file vanilla HTML/CSS/JS. Hub nav + `/spore/` + `/pollen/` routes added.
+- **July 23, 2026** — Prototyped **Halide** (`/halide/`), a single-file dither-portrait tool inspired by evaluating ditherface.com (a manual $150-per-slot commission service, not a tool). Real Floyd–Steinberg + Atkinson error diffusion and recursive-Bayer ordered dithering (verified: no prior dithering code existed in the repo — algorithms written from scratch), plus a flat-threshold baseline. Reuses Pollen's shell verbatim where it fit: drop-zone, zoom/pan, tone pipeline (rotation/flip/invert/gamma/contrast, + a new Bias shift), PNG/JPG/SVG export, and the `organica-svg` → Figma postMessage protocol. Square-crop toggle for avatar framing. One `runs` (row run-length-encoded ink cells) feeds preview canvas, raster export, and true-vector SVG output alike — same shared-function WYSIWYG discipline as Pollen/Living Path. 8 built-in presets + localStorage custom presets. Not yet added to `docs/` as a dedicated manual — do that once the prototype's shape is confirmed with Diego.
 - **July 2026** — Shipped **Living Path** (`/livingpath/`), a full web port of ivangrozny/LivingPath (single-file vanilla). Two engines (Vector node-effects | Raster "glyph hydrography"), layer **groups + blend modes**, 9 raster algorithms (dilate/erode, blur, threshold, noise, particles, center-line, polygonize, seam-carve, reaction-diffusion), 24 presets mapped to the author's example sheets, **Vector→Raster chaining**, live multi-language **text specimen**, and installable **OTF export** (charset/name/HTML specimen/`.lvp` projects/**randomised alternates** via `rand`+`aalt`) run off a **Web Worker**. Manual: `docs/LIVINGPATH.md` (incl. §12 Development notes). Key invariant: preview = specimen = export share one normalised 1000-box scale (WYSIWYG). **Dev gotchas** (also in the manual): the dev server caches aggressively — hard-refresh / `?v=` when testing; `<svg>` and `display:flex/grid` both defeat the `hidden` attribute (toggle a class instead); verify visibility via `getComputedStyle().display`, not the attribute. **Still open:** Genesis Creator Bézier tangent-handle drag/edit (flagged since setup, unresolved).
 
 ---
