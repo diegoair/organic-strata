@@ -347,6 +347,10 @@
   <div class="tb-sep"></div>
   <button class="tb-btn" id="btn-save-png" onclick="exportPNG()" disabled>PNG</button>
   <button class="tb-btn" id="btn-save-jpg" onclick="exportJPG()" disabled>JPG</button>
+  <label style="display:flex;align-items:center;gap:5px;margin-right:6px;cursor:pointer" title="SVG only: trace each region's real boundary as one path instead of tiling it with rectangles — far fewer shapes, same look">
+    <input type="checkbox" id="ck-svg-simplify" style="accent-color:var(--ink)">
+    <span class="tb-label" style="margin:0">Simplify</span>
+  </label>
   <button class="tb-btn" id="btn-save-svg" onclick="exportSVG()" disabled>SVG</button>
   <div class="tb-sep"></div>
   <button class="tb-btn primary" id="btn-figma" onclick="sendToFigma()" disabled>→ Figma</button>
@@ -559,6 +563,10 @@ let rects = null;               // 2D-merged ink blocks [x,y,w,h] — shared by 
 let outlineRects = null;        // 2D-merged white sticker-outline ring, or null when disabled
 let bgFillRects = null;         // 2D-merged "outside the outline" region — null unless Background fill is on
 let keptPaperRects = null;      // 2D-merged "kept, non-ink" region — only computed alongside bgFillRects, to scope Paper/Transparent to just the subject once the background is being filled separately
+// Raw per-cell binary masks (not merged into rects) kept for SVG contour
+// tracing — "Simplify shapes" traces each region's actual boundary instead
+// of tiling it with rectangles.
+let inkCellsMask = null, ringCellsMask = null, outsideCellsMask = null, keptNonInkCellsMask = null;
 let bgMask = null;              // Uint8Array, 1 = removed background, at the current working resolution
 let bgRefColor = null;          // manually-picked {r,g,b}; null = auto (border-colour average)
 let lastRGBA = null;            // raw samples at the current working resolution, for the colour picker
@@ -1156,6 +1164,107 @@ function fillEnclosedHoles(mask, W, H) {
   return out;
 }
 
+// ─────────────────────────────────────────────
+// CONTOUR TRACING — turns a binary cell mask into closed rectilinear
+// polygons (only horizontal/vertical segments — keeps the blocky look,
+// no curve-fitting) instead of tiling it with one <rect> per merged block.
+// Used by SVG export's "Simplify shapes": every region becomes ONE <path>
+// (fill-rule="evenodd" handles holes and nested regions correctly,
+// regardless of each loop's winding direction) instead of many <rect>s —
+// a large flat blob collapses to a handful of points; even fully noisy
+// dithering still consolidates into a single SVG element.
+//
+// Boundary edges are walked clockwise (in SVG's y-down space) around each
+// ink cell. At a "checkerboard" saddle point — two ink cells touching only
+// at a corner — a vertex can have two valid outgoing edges; the standard
+// disambiguation is to always prefer the tightest clockwise turn, which
+// keeps every loop simple (non-self-intersecting) without needing to
+// special-case the diagonal touch.
+// ─────────────────────────────────────────────
+const CONTOUR_DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];   // right, down, left, up
+function contourDirIndex(dx, dy) {
+  for (let i = 0; i < 4; i++) if (CONTOUR_DIRS[i][0] === dx && CONTOUR_DIRS[i][1] === dy) return i;
+  return -1;
+}
+function traceContours(mask, W, H) {
+  const ink = (x, y) => x >= 0 && x < W && y >= 0 && y < H && mask[y * W + x] === 1;
+  const edgesFrom = new Map();
+  const addEdge = (x1, y1, x2, y2) => {
+    const k = x1 + ',' + y1;
+    let arr = edgesFrom.get(k);
+    if (!arr) { arr = []; edgesFrom.set(k, arr); }
+    arr.push([x2, y2]);
+  };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (!ink(x, y)) continue;
+    if (!ink(x, y - 1)) addEdge(x, y, x + 1, y);           // top
+    if (!ink(x + 1, y)) addEdge(x + 1, y, x + 1, y + 1);   // right
+    if (!ink(x, y + 1)) addEdge(x + 1, y + 1, x, y + 1);   // bottom
+    if (!ink(x - 1, y)) addEdge(x, y + 1, x, y);           // left
+  }
+
+  const used = new Set();
+  const edgeKey = (x1, y1, x2, y2) => x1 + ',' + y1 + '>' + x2 + ',' + y2;
+  const loops = [];
+
+  for (const [fromKey, targets] of edgesFrom) {
+    for (const [tx, ty] of targets) {
+      const [fx, fy] = fromKey.split(',').map(Number);
+      if (used.has(edgeKey(fx, fy, tx, ty))) continue;
+      const loop = [[fx, fy]];
+      used.add(edgeKey(fx, fy, tx, ty));
+      loop.push([tx, ty]);
+      let curDir = contourDirIndex(tx - fx, ty - fy);
+      let cx = tx, cy = ty;
+      let guard = 0;
+      while (!(cx === fx && cy === fy) && guard++ < W * H * 4 + 8) {
+        const candidates = edgesFrom.get(cx + ',' + cy) || [];
+        const avail = candidates.filter(([tx2, ty2]) => !used.has(edgeKey(cx, cy, tx2, ty2)));
+        if (!avail.length) break;   // malformed boundary — bail out of this loop gracefully
+        let best = null, bestScore = -Infinity;
+        for (const [tx2, ty2] of avail) {
+          const d = contourDirIndex(tx2 - cx, ty2 - cy);
+          const turn = (d - curDir + 4) % 4;   // 0=straight,1=right,2=back,3=left
+          const score = turn === 1 ? 3 : turn === 0 ? 2 : turn === 3 ? 1 : 0;
+          if (score > bestScore) { bestScore = score; best = [tx2, ty2, d]; }
+        }
+        used.add(edgeKey(cx, cy, best[0], best[1]));
+        loop.push([best[0], best[1]]);
+        curDir = best[2];
+        cx = best[0]; cy = best[1];
+      }
+      loops.push(loop);
+    }
+  }
+  return loops;
+}
+// Merge consecutive collinear points — a straight run of unit steps becomes
+// one segment instead of many.
+function simplifyLoop(loop) {
+  const n = loop.length - 1;   // last point repeats the first (closed)
+  if (n < 3) return loop.slice(0, -1);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const prev = loop[(i - 1 + n) % n], cur = loop[i], next = loop[(i + 1) % n];
+    const dx1 = cur[0] - prev[0], dy1 = cur[1] - prev[1];
+    const dx2 = next[0] - cur[0], dy2 = next[1] - cur[1];
+    if (dx1 !== dx2 || dy1 !== dy2) out.push(cur);
+  }
+  return out;
+}
+function contoursToPathD(mask, W, H, block) {
+  const loops = traceContours(mask, W, H);
+  let d = '';
+  for (const loop of loops) {
+    const s = simplifyLoop(loop);
+    if (s.length < 3) continue;
+    d += 'M' + (s[0][0] * block) + ',' + (s[0][1] * block);
+    for (let i = 1; i < s.length; i++) d += 'L' + (s[i][0] * block) + ',' + (s[i][1] * block);
+    d += 'Z';
+  }
+  return d;
+}
+
 // ── COMPUTE + RENDER ──
 let renderPending = false;
 function scheduleRender() {
@@ -1188,6 +1297,7 @@ function computeAndPaint() {
   if (bgMask) for (let i = 0; i < cells.length; i++) if (bgMask[i]) cells[i] = 0;
 
   rects = mergeRects(cells, workW, workH);
+  inkCellsMask = cells;   // kept for SVG contour tracing (Simplify shapes)
 
   if (bgMask && ctrl('ck-outline').checked) {
     const kept = new Uint8Array(workW * workH);
@@ -1197,6 +1307,7 @@ function computeAndPaint() {
     for (let i = 0; i < bgForOutline.length; i++) bgForOutline[i] = cleaned[i] ? 0 : 1;
     const ring = bridgeDiagonalGaps(outlineRing(bgForOutline, workW, workH, Math.round(val('sl-outline-width'))), workW, workH);
     outlineRects = mergeRects(ring, workW, workH);
+    ringCellsMask = ring;
 
     // Background fill: everything outside the outline, found purely by
     // subtraction (canvas minus the silhouette minus the ring itself) — a
@@ -1207,15 +1318,19 @@ function computeAndPaint() {
       const outside = new Uint8Array(workW * workH);
       for (let i = 0; i < outside.length; i++) outside[i] = (!cleaned[i] && !ring[i]) ? 1 : 0;
       bgFillRects = mergeRects(outside, workW, workH);
+      outsideCellsMask = outside;
       const keptNonInk = new Uint8Array(workW * workH);
       for (let i = 0; i < keptNonInk.length; i++) keptNonInk[i] = (cleaned[i] && !cells[i]) ? 1 : 0;
       keptPaperRects = mergeRects(keptNonInk, workW, workH);
+      keptNonInkCellsMask = keptNonInk;
     } else {
       bgFillRects = null; keptPaperRects = null;
+      outsideCellsMask = null; keptNonInkCellsMask = null;
     }
   } else {
     outlineRects = null;
     bgFillRects = null; keptPaperRects = null;
+    ringCellsMask = null; outsideCellsMask = null; keptNonInkCellsMask = null;
   }
 
   canvasWrap.classList.toggle('checker', ctrl('ck-transparent').checked);
@@ -1329,20 +1444,33 @@ function svgRects(list, block) {
   }
   return s;
 }
+// "Simplify shapes": trace each region's real boundary as one <path>
+// (rectilinear — straight segments only, no curve-fitting) instead of
+// tiling it with a <rect> per merged block. Off by default since some
+// downstream workflows (e.g. per-cell editing after → Figma) want the
+// individual rects; wireframe mode always keeps rects (that view exists
+// specifically to show the individual blocks).
 function buildSVG(block) {
   const { outW, outH } = outputDims(block);
   const ink = ctrl('hex-ink').value, paper = ctrl('hex-paper').value;
   const wireframe = ctrl('ck-structure').checked;
   const transparent = ctrl('ck-transparent').checked;
+  const simplify = ctrl('ck-svg-simplify').checked && !wireframe;
+  const region = (mask, rectList, color) => simplify
+    ? `<path fill="${color}" fill-rule="evenodd" d="${contoursToPathD(mask, workW, workH, block)}"/>`
+    : `<g fill="${color}">${svgRects(rectList, block)}</g>`;
+
   let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${outW} ${outH}">`;
   if (bgFillRects) {
-    s += `<g fill="${ctrl('hex-bgfill').value}">${svgRects(bgFillRects, block)}</g>`;
-    if (!transparent) s += `<g fill="${paper}">${svgRects(keptPaperRects, block)}</g>`;
+    s += region(outsideCellsMask, bgFillRects, ctrl('hex-bgfill').value);
+    if (!transparent) s += region(keptNonInkCellsMask, keptPaperRects, paper);
   } else if (!transparent) {
     s += `<rect width="100%" height="100%" fill="${paper}"/>`;
   }
-  if (outlineRects) s += `<g fill="#ffffff">${svgRects(outlineRects, block)}</g>`;
-  s += wireframe ? `<g fill="none" stroke="${ink}" stroke-width="1">${svgRects(rects, block)}</g>` : `<g fill="${ink}">${svgRects(rects, block)}</g>`;
+  if (outlineRects) s += region(ringCellsMask, outlineRects, '#ffffff');
+  s += wireframe
+    ? `<g fill="none" stroke="${ink}" stroke-width="1">${svgRects(rects, block)}</g>`
+    : region(inkCellsMask, rects, ink);
   return s + '</svg>';
 }
 function exportSVG() {
