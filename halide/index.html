@@ -103,6 +103,17 @@
   }
   #canvas-wrap.drag-over { outline: 2px dashed var(--ink); outline-offset: -8px; }
 
+  /* Transparent-mode indicator, same idea as Photoshop/Figma's alpha checker */
+  #canvas-wrap.checker {
+    background-image:
+      linear-gradient(45deg, #cac5ba 25%, transparent 25%),
+      linear-gradient(-45deg, #cac5ba 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #cac5ba 75%),
+      linear-gradient(-45deg, transparent 75%, #cac5ba 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+  }
+
   #drop-hint {
     position: absolute;
     display: flex;
@@ -149,6 +160,7 @@
   #main-canvas.visible { display: block; }
   #main-canvas.zoomed { cursor: grab; }
   #main-canvas.panning { cursor: grabbing; }
+  #main-canvas.picking { cursor: crosshair; }
 
   #zoom-hud {
     position: absolute;
@@ -169,6 +181,31 @@
   #zoom-hud.visible { display: flex; }
   #zoom-hud .zoom-reset { pointer-events: auto; cursor: pointer; opacity: 0.6; transition: opacity 0.15s; }
   #zoom-hud .zoom-reset:hover { opacity: 1; }
+
+  /* ── CROP OVERLAY (drag-to-position the square crop window) ── */
+  #crop-overlay {
+    position: absolute; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    background: rgba(10,10,10,0.9);
+    z-index: 60;
+  }
+  #crop-overlay.active { display: flex; }
+  #crop-stage { position: relative; }
+  #crop-preview-canvas { display: block; }
+  #crop-frame {
+    position: absolute;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 3000px rgba(10,10,10,0.62);
+    cursor: grab;
+  }
+  #crop-frame.dragging { cursor: grabbing; }
+  #crop-hint {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(255,255,255,0.92); color: var(--ink);
+    font-family: var(--sans); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 7px 14px; pointer-events: none; white-space: nowrap;
+  }
 
   /* ── RIGHT PANEL ── */
   #panel {
@@ -329,6 +366,13 @@
       <span id="zoom-level">100%</span>
       <span class="zoom-reset" onclick="resetZoom()">Reset</span>
     </div>
+    <div id="crop-overlay">
+      <div id="crop-stage">
+        <canvas id="crop-preview-canvas"></canvas>
+        <div id="crop-frame"></div>
+      </div>
+      <div id="crop-hint">Drag to position · Enter to confirm · Esc to cancel</div>
+    </div>
   </div>
 
   <div id="panel">
@@ -405,19 +449,27 @@
         <span>Invert</span>
       </label>
       <label class="check-row">
-        <input type="checkbox" id="ck-square" onchange="scheduleRender()" title="Center-crop to a square — for avatar-style portraits">
+        <input type="checkbox" id="ck-square" onchange="toggleRow('row-crop-position',this.checked);scheduleRender()" title="Center-crop to a square — for avatar-style portraits">
         <span>Square crop (avatar)</span>
       </label>
+      <div class="ctrl-row" id="row-crop-position" style="display:none">
+        <span class="ctrl-label"></span>
+        <button class="mini-btn" onclick="enterCropMode()" style="flex:1">Position crop…</button>
+      </div>
       <label class="check-row">
-        <input type="checkbox" id="ck-bgremove" onchange="toggleRow('row-bgtol',this.checked);scheduleRender()">
+        <input type="checkbox" id="ck-bgremove" onchange="toggleBgRows(this.checked);scheduleRender()">
         <span>Remove background</span>
       </label>
       <div class="ctrl-row" id="row-bgtol" style="display:none">
         <span class="ctrl-label">Tolerance</span>
-        <input type="range" id="sl-bgtol" min="2" max="100" value="24" oninput="syncVal(this,'vl-bgtol');scheduleRender()" title="Colour-similarity reach from the image border — raise it if background scraps remain">
+        <input type="range" id="sl-bgtol" min="2" max="100" value="24" oninput="syncVal(this,'vl-bgtol');scheduleRender()" title="Colour-similarity reach from the reference — raise it if background scraps remain">
         <span class="ctrl-val" id="vl-bgtol">24</span>
       </div>
-
+      <div class="ctrl-row" id="row-bgpick" style="display:none">
+        <span class="ctrl-label">Reference</span>
+        <button class="mini-btn" id="btn-bgpick" onclick="startPickBg()" title="Click a spot in the image that's really background">Pick…</button>
+        <button class="mini-btn" onclick="bgRefColor=null;scheduleRender()" title="Back to the automatic border-colour guess">Auto</button>
+      </div>
       <div class="ctrl-row" style="margin-top:10px">
         <span class="ctrl-label">Gamma</span>
         <input type="range" id="sl-gamma" min="0.2" max="3" step="0.05" value="1" oninput="syncVal(this,'vl-gamma');scheduleRender()">
@@ -432,6 +484,18 @@
         <span class="ctrl-label">Bias</span>
         <input type="range" id="sl-bias" min="-50" max="50" value="0" oninput="syncVal(this,'vl-bias');scheduleRender()" title="Flat black/white balance shift, applied before dithering">
         <span class="ctrl-val" id="vl-bias">0</span>
+      </div>
+
+      <div style="border-top:1px solid var(--border); margin:14px 0 12px;"></div>
+
+      <label class="check-row" id="row-outline">
+        <input type="checkbox" id="ck-outline" onchange="toggleRow('row-outline-width',this.checked);scheduleRender()" title="A solid white ring traced around the silhouette — the sticker look, especially over Transparent">
+        <span>Outline</span>
+      </label>
+      <div class="ctrl-row" id="row-outline-width" style="display:none">
+        <span class="ctrl-label">Width</span>
+        <input type="range" id="sl-outline-width" min="1" max="12" value="1" oninput="syncVal(this,'vl-outline-width');scheduleRender()">
+        <span class="ctrl-val" id="vl-outline-width">1</span>
       </div>
     </div>
 
@@ -454,6 +518,10 @@
       <div class="row-btns">
         <button class="mini-btn" onclick="swapColors()">Swap colors</button>
       </div>
+      <label class="check-row" style="margin-top:10px">
+        <input type="checkbox" id="ck-transparent" onchange="scheduleRender()" title="PNG/SVG: skip Paper entirely, leaving it as real alpha transparency — only Ink is drawn. JPG has no alpha channel, so it always falls back to a flat Paper fill.">
+        <span>Paper is transparent (PNG/SVG)</span>
+      </label>
     </div>
 
   </div><!-- /panel -->
@@ -477,6 +545,13 @@ let sourceImage = null;
 let ditherAlg = 'fs';           // 'fs' | 'atkinson' | 'bayer' | 'threshold'
 let workW = 0, workH = 0;
 let rects = null;               // 2D-merged ink blocks [x,y,w,h] — shared by preview, PNG/JPG, SVG, Figma
+let outlineRects = null;        // 2D-merged white sticker-outline ring, or null when disabled
+let bgMask = null;              // Uint8Array, 1 = removed background, at the current working resolution
+let bgRefColor = null;          // manually-picked {r,g,b}; null = auto (border-colour average)
+let lastRGBA = null;            // raw samples at the current working resolution, for the colour picker
+let pickingBg = false;
+let cropOffsetX = 0, cropOffsetY = 0;   // -100..100, % of available slack from centre — set by dragging the crop frame
+let cropMode = false;
 
 function ctrl(id) { return document.getElementById(id); }
 function val(id)  { return parseFloat(ctrl(id).value); }
@@ -491,6 +566,120 @@ function setStatus(state, msg) {
 // ── CONTROLS ──
 function syncVal(slider, valId) { document.getElementById(valId).textContent = slider.value; }
 function toggleRow(id, show) { document.getElementById(id).style.display = show ? '' : 'none'; }
+function toggleBgRows(show) {
+  toggleRow('row-bgtol', show);
+  toggleRow('row-bgpick', show);
+  toggleRow('row-outline', show);
+  toggleRow('row-outline-width', show && ctrl('ck-outline').checked);
+}
+
+// Manual background colour pick: click a spot in the image that's actually
+// background. Far more reliable than guessing from the border average,
+// which gets contaminated the moment hair/a shoulder/a garment touches the
+// frame edge — a very common case in real portraits.
+function startPickBg() {
+  if (!sourceImage) return;
+  pickingBg = true;
+  canvas.classList.add('picking');
+  setStatus('active', 'Click the background in the image…');
+}
+canvas.addEventListener('click', e => {
+  if (!pickingBg || !lastRGBA) return;
+  const rect = canvas.getBoundingClientRect();
+  const px = Math.floor((e.clientX - rect.left) / rect.width * canvas.width);
+  const py = Math.floor((e.clientY - rect.top) / rect.height * canvas.height);
+  const block = canvas.width / workW;
+  const cx = Math.min(workW - 1, Math.max(0, Math.floor(px / block)));
+  const cy = Math.min(workH - 1, Math.max(0, Math.floor(py / block)));
+  const p = (cy * workW + cx) * 4;
+  bgRefColor = { r: lastRGBA[p], g: lastRGBA[p + 1], b: lastRGBA[p + 2] };
+  pickingBg = false;
+  canvas.classList.remove('picking');
+  setStatus('active', 'Background reference set');
+  scheduleRender();
+});
+
+// ── CROP POSITIONING — drag a square frame over the (un-dithered, un-
+// cropped) source image, Enter to confirm, Esc to cancel. Frame size is
+// fixed (the square is always the shorter oriented side); it can only slide
+// along whichever axis actually has overflow, matching the 'cover' fit
+// drawOriented() uses to render the real crop.
+let cropMaxLeft = 0, cropMaxTop = 0;
+let cropDragging = false, cropDragStartX = 0, cropDragStartY = 0, cropFrameStartLeft = 0, cropFrameStartTop = 0;
+
+function enterCropMode() {
+  if (!sourceImage) return;
+  const rot = getRotation(), flip = ctrl('ck-flip').checked;
+  const sw = sourceImage.width, sh = sourceImage.height;
+  const ow = (rot === 90 || rot === 270) ? sh : sw;
+  const oh = (rot === 90 || rot === 270) ? sw : sh;
+  const wrap = canvasWrap.getBoundingClientRect();
+  const s = Math.min((wrap.width - 60) / ow, (wrap.height - 100) / oh, 1);
+
+  const pc = document.getElementById('crop-preview-canvas');
+  pc.width = Math.round(ow * s); pc.height = Math.round(oh * s);
+  pc.style.width = pc.width + 'px'; pc.style.height = pc.height + 'px';
+  const g = pc.getContext('2d');
+  g.save();
+  g.translate(pc.width / 2, pc.height / 2);
+  g.rotate(rot * Math.PI / 180);
+  if (flip) g.scale(-1, 1);
+  const dw = (rot === 90 || rot === 270) ? sh * s : sw * s;
+  const dh = (rot === 90 || rot === 270) ? sw * s : sh * s;
+  g.drawImage(sourceImage, -dw / 2, -dh / 2, dw, dh);
+  g.restore();
+
+  document.getElementById('crop-stage').style.width = pc.width + 'px';
+  document.getElementById('crop-stage').style.height = pc.height + 'px';
+
+  const side = Math.min(ow, oh) * s;
+  cropMaxLeft = Math.max(0, pc.width - side);
+  cropMaxTop = Math.max(0, pc.height - side);
+  const frame = document.getElementById('crop-frame');
+  frame.style.width = side + 'px'; frame.style.height = side + 'px';
+  frame.style.left = (cropMaxLeft / 2 * (1 + cropOffsetX / 100)) + 'px';
+  frame.style.top = (cropMaxTop / 2 * (1 + cropOffsetY / 100)) + 'px';
+
+  cropMode = true;
+  document.getElementById('crop-overlay').classList.add('active');
+}
+document.getElementById('crop-frame').addEventListener('mousedown', e => {
+  cropDragging = true;
+  cropDragStartX = e.clientX; cropDragStartY = e.clientY;
+  cropFrameStartLeft = parseFloat(document.getElementById('crop-frame').style.left) || 0;
+  cropFrameStartTop = parseFloat(document.getElementById('crop-frame').style.top) || 0;
+  document.getElementById('crop-frame').classList.add('dragging');
+  e.preventDefault();
+});
+window.addEventListener('mousemove', e => {
+  if (!cropDragging) return;
+  const frame = document.getElementById('crop-frame');
+  const left = Math.min(cropMaxLeft, Math.max(0, cropFrameStartLeft + (e.clientX - cropDragStartX)));
+  const top = Math.min(cropMaxTop, Math.max(0, cropFrameStartTop + (e.clientY - cropDragStartY)));
+  frame.style.left = left + 'px'; frame.style.top = top + 'px';
+});
+window.addEventListener('mouseup', () => {
+  if (!cropDragging) return;
+  cropDragging = false;
+  document.getElementById('crop-frame').classList.remove('dragging');
+});
+function confirmCrop() {
+  const frame = document.getElementById('crop-frame');
+  const left = parseFloat(frame.style.left) || 0, top = parseFloat(frame.style.top) || 0;
+  cropOffsetX = cropMaxLeft > 0 ? (left / cropMaxLeft) * 200 - 100 : 0;
+  cropOffsetY = cropMaxTop > 0 ? (top / cropMaxTop) * 200 - 100 : 0;
+  exitCropMode();
+  scheduleRender();
+}
+function exitCropMode() {
+  cropMode = false;
+  document.getElementById('crop-overlay').classList.remove('active');
+}
+window.addEventListener('keydown', e => {
+  if (!cropMode) return;
+  if (e.key === 'Enter') { e.preventDefault(); confirmCrop(); }
+  else if (e.key === 'Escape') { e.preventDefault(); exitCropMode(); }
+});
 
 function segActive(group, v) {
   document.querySelectorAll('#' + group + ' .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.val === v));
@@ -510,6 +699,12 @@ function syncColor(which, hex) {
   paintPreview();   // colour is paint-only — no recompute needed
   updateSizeReadout();
 }
+// A true swap: the ink/paper CELLS (which pixels are which) don't change at
+// all — only which of the two colours paints which role. Same shapes, same
+// dither pattern, colours traded. (Toggling Invert instead would recompute
+// which cells count as ink — a different operation: it changes the image,
+// not just its palette. Use the Invert checkbox directly if that's what's
+// wanted.)
 function swapColors() {
   const ink = ctrl('hex-ink').value, paper = ctrl('hex-paper').value;
   syncColor('ink', paper); syncColor('paper', ink);
@@ -524,7 +719,7 @@ const BUILTIN_PRESETS = {
   'Fine Grain (Bayer 16×16)':    { alg:'bayer',    bayer:16,serp:true,  res:320, gamma:1,    contrast:0,  bias:0,  square:false, ink:'#0a0a0a', paper:'#f5f2ec' },
   'High-Contrast Portrait':      { alg:'atkinson', bayer:4, serp:false, res:160, gamma:1,    contrast:35, bias:0,  square:true,  ink:'#0a0a0a', paper:'#ffffff' },
   'Threshold (no dither)':       { alg:'threshold',bayer:4, serp:true,  res:128, gamma:1,    contrast:0,  bias:0,  square:false, ink:'#0a0a0a', paper:'#f5f2ec' },
-  'Studio Rann Ink':             { alg:'fs',       bayer:4, serp:true,  res:180, gamma:1,    contrast:0,  bias:0,  square:false, ink:'#0a0a0a', paper:'#f5f2ec' },
+  'Ditherface':                  { alg:'atkinson', bayer:4, serp:true,  res:260, gamma:1,    contrast:0,  bias:0,  square:true,  ink:'#0a0a0a', paper:'#f5f2ec', bgremove:true, bgtol:24 },
 };
 function userPresets() {
   try { return JSON.parse(localStorage.getItem('halide-presets') || '{}'); } catch (e) { return {}; }
@@ -554,6 +749,13 @@ function applyPreset(name) {
   ctrl('sl-contrast').value = p.contrast; syncVal(ctrl('sl-contrast'), 'vl-contrast');
   ctrl('sl-bias').value = p.bias; syncVal(ctrl('sl-bias'), 'vl-bias');
   ctrl('ck-square').checked = p.square;
+  toggleRow('row-crop-position', p.square);
+  cropOffsetX = 0; cropOffsetY = 0;   // crop position is photo-specific, not part of a preset
+  ctrl('ck-invert').checked = !!p.invert;
+  ctrl('ck-bgremove').checked = !!p.bgremove;
+  toggleBgRows(!!p.bgremove);
+  ctrl('sl-bgtol').value = p.bgtol != null ? p.bgtol : 24; syncVal(ctrl('sl-bgtol'), 'vl-bgtol');
+  bgRefColor = null;   // a preset can't carry a photo-specific picked reference
   syncColor('ink', p.ink); syncColor('paper', p.paper);
   scheduleRender();
 }
@@ -565,6 +767,7 @@ function savePreset() {
     alg: ditherAlg, bayer: parseInt(ctrl('sel-bayer').value, 10), serp: ctrl('ck-serp').checked,
     res: val('sl-res'), gamma: val('sl-gamma'), contrast: val('sl-contrast'), bias: val('sl-bias'),
     square: ctrl('ck-square').checked, ink: ctrl('hex-ink').value, paper: ctrl('hex-paper').value,
+    invert: ctrl('ck-invert').checked, bgremove: ctrl('ck-bgremove').checked, bgtol: val('sl-bgtol'),
   };
   localStorage.setItem('halide-presets', JSON.stringify(u));
   populatePresets();
@@ -587,6 +790,8 @@ function loadImage(input) {
   const img = new Image();
   img.onload = () => {
     sourceImage = img;
+    bgRefColor = null;   // a picked reference belongs to the old photo, not this one
+    cropOffsetX = 0; cropOffsetY = 0;
     resetZoom();
     document.getElementById('drop-hint').classList.add('hidden');
     ['btn-save-png', 'btn-save-jpg', 'btn-save-svg', 'btn-figma'].forEach(id => ctrl(id).disabled = false);
@@ -635,8 +840,16 @@ function drawOriented(g, destW, destH) {
   const oh = (rot === 90 || rot === 270) ? sw : sh;
   const scale = Math.max(destW / ow, destH / oh);   // 'cover' — fills dest, crops overflow (handles square-crop for free)
   const dw = ow * scale, dh = oh * scale;
+  // cropOffsetX/Y (set by dragging the crop frame, see enterCropMode/
+  // confirmCrop) reposition the window within whatever 'cover' overflow
+  // (slack) exists on each axis — 0 is centred, ±100 pushes it to that edge.
+  // Applied in DESTINATION space (before rotation), so it pans the same
+  // visual direction on screen regardless of Rotation/Flip.
+  const slackX = Math.max(0, dw - destW), slackY = Math.max(0, dh - destH);
+  const offX = (cropOffsetX / 100) * (slackX / 2);
+  const offY = (cropOffsetY / 100) * (slackY / 2);
   g.save();
-  g.translate(destW / 2, destH / 2);
+  g.translate(destW / 2 - offX, destH / 2 - offY);
   g.rotate(rot * Math.PI / 180);
   if (flip) g.scale(-1, 1);
   const drawW = (rot === 90 || rot === 270) ? dh : dw;
@@ -661,43 +874,30 @@ function sampleOriented(W, H) {
   return g.getImageData(0, 0, W, H).data;
 }
 
-// Border-seeded flood fill ("magic wand" from the edges): a pixel counts as
-// background only if it's within Tolerance of the border's own average
-// colour AND reachable from the border through other such pixels.
-// Deliberately NOT chained pixel-to-pixel (comparing each new pixel only to
-// its already-accepted neighbour) — on a photo, any soft lighting gradient
-// on skin/hair/clothing is a chain of tiny steps that a chained fill happily
-// walks straight through, eating the subject. Testing against one fixed
-// reference colour stops at the real subject/background edge instead.
+// Colour-key background removal: any pixel within Tolerance of a reference
+// colour counts as background, full stop — no border-connectivity
+// requirement. The reference is either a manually-picked spot (bgRefColor,
+// via "Pick…" — the reliable path) or, by default, the average colour of
+// the image border. The border average is only a starting guess: the
+// moment hair, a shoulder or a garment touches the frame edge it pollutes
+// that average, which is exactly why "Pick…" exists — click an actual
+// patch of background instead of trusting the auto guess.
 function backgroundMask(rgba, W, H, tolerance) {
-  let rs = 0, gs = 0, bs = 0, n = 0;
-  function sample(x, y) { const p = (y * W + x) * 4; rs += rgba[p]; gs += rgba[p + 1]; bs += rgba[p + 2]; n++; }
-  for (let x = 0; x < W; x++) { sample(x, 0); sample(x, H - 1); }
-  for (let y = 0; y < H; y++) { sample(0, y); sample(W - 1, y); }
-  const rRef = rs / n, gRef = gs / n, bRef = bs / n;
+  let rRef, gRef, bRef;
+  if (bgRefColor) {
+    rRef = bgRefColor.r; gRef = bgRefColor.g; bRef = bgRefColor.b;
+  } else {
+    let rs = 0, gs = 0, bs = 0, n = 0;
+    const sample = (x, y) => { const p = (y * W + x) * 4; rs += rgba[p]; gs += rgba[p + 1]; bs += rgba[p + 2]; n++; };
+    for (let x = 0; x < W; x++) { sample(x, 0); sample(x, H - 1); }
+    for (let y = 0; y < H; y++) { sample(0, y); sample(W - 1, y); }
+    rRef = rs / n; gRef = gs / n; bRef = bs / n;
+  }
   const tol = tolerance * 7.65;   // 0..100 → 0..765 (max Manhattan RGB distance)
-
   const mask = new Uint8Array(W * H);
-  const visited = new Uint8Array(W * H);
-  const stack = [];
-  for (let x = 0; x < W; x++) { stack.push(x); stack.push((H - 1) * W + x); }
-  for (let y = 0; y < H; y++) { stack.push(y * W); stack.push(y * W + (W - 1)); }
-  while (stack.length) {
-    const i = stack.pop();
-    if (visited[i]) continue;
-    visited[i] = 1;
-    const p = i * 4;
+  for (let i = 0, p = 0; i < mask.length; i++, p += 4) {
     const d = Math.abs(rgba[p] - rRef) + Math.abs(rgba[p + 1] - gRef) + Math.abs(rgba[p + 2] - bRef);
-    if (d > tol) continue;   // not background-coloured — stop, don't expand from here
-    mask[i] = 1;
-    const x = i % W, y = (i / W) | 0;
-    const neighbours = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]];
-    for (let k = 0; k < 4; k++) {
-      const nx = neighbours[k][0], ny = neighbours[k][1];
-      if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
-      const ni = ny * W + nx;
-      if (!visited[ni]) stack.push(ni);
-    }
+    mask[i] = d <= tol ? 1 : 0;
   }
   return mask;
 }
@@ -822,6 +1022,112 @@ function mergeRects(cells, W, H) {
   return out;
 }
 
+// Sticker outline: multi-source BFS (8-connected) from every "kept" (non-
+// background) cell out into the background, recording step-distance. The
+// ring is the background cells within [1, width] steps of the silhouette —
+// a solid band tracing the subject's edge, meant to sit in the (often
+// transparent) removed-background area.
+function outlineRing(bgMask, W, H, width) {
+  const dist = new Int32Array(W * H).fill(-1);
+  const queue = new Int32Array(W * H);
+  let qh = 0, qt = 0;
+  for (let i = 0; i < W * H; i++) if (!bgMask[i]) { dist[i] = 0; queue[qt++] = i; }
+  while (qh < qt) {
+    const i = queue[qh++];
+    const d = dist[i];
+    if (d >= width) continue;
+    const x = i % W, y = (i / W) | 0;
+    const neighbours = [[x-1,y],[x+1,y],[x,y-1],[x,y+1],[x-1,y-1],[x+1,y-1],[x-1,y+1],[x+1,y+1]];
+    for (let k = 0; k < 8; k++) {
+      const nx = neighbours[k][0], ny = neighbours[k][1];
+      if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+      const ni = ny * W + nx;
+      if (dist[ni] === -1) { dist[ni] = d + 1; queue[qt++] = ni; }
+    }
+  }
+  const ring = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) if (bgMask[i] && dist[i] >= 1 && dist[i] <= width) ring[i] = 1;
+  return ring;
+}
+
+// A ring built from an 8-connected distance transform is one connected
+// shape mathematically, but wherever the silhouette steps diagonally two
+// ring cells can end up touching only at a corner, not a full edge. Filled
+// as separate squares that's a real visual pinch — at high zoom it reads as
+// a gap even though the ring never actually breaks. Bridge every such
+// corner-only 2×2 crossing with one elbow cell so the outline always reads
+// as one solid, unbroken band.
+function bridgeDiagonalGaps(mask, W, H) {
+  const out = Uint8Array.from(mask);
+  for (let y = 0; y < H - 1; y++) {
+    for (let x = 0; x < W - 1; x++) {
+      const a = mask[y*W+x], b = mask[y*W+x+1], c = mask[(y+1)*W+x], d = mask[(y+1)*W+x+1];
+      if (a && d && !b && !c) out[y*W+x+1] = 1;
+      else if (b && c && !a && !d) out[y*W+x] = 1;
+    }
+  }
+  return out;
+}
+
+// Clean up the kept-subject mask before tracing the outline: colour-key
+// background removal leaves gaps wherever a wispy, rim-lit hair strand or a
+// bright highlight blends close enough to the backdrop colour to be misread
+// as background. Two targeted fixes (found to work far better than a
+// generic morphological closing, which either left gaps or ate square
+// chunks out of real concavities like the neck):
+//   1. Keep only the LARGEST connected blob — drops stray hair wisps that
+//      broke off from the main silhouette, instead of tracing around each one.
+//   2. Fill any hole fully enclosed by that blob (e.g. a bright spot on skin
+//      briefly misread as background) via a border flood-fill of the
+//      complement: whatever it can't reach is enclosed, so fold it in.
+// Neither touches the dithered image itself (that still uses the raw,
+// precise bgMask) — only where the decorative outline is traced.
+function largestComponent(mask, W, H) {
+  const visited = new Uint8Array(W * H);
+  let best = null, bestSize = 0;
+  for (let start = 0; start < W * H; start++) {
+    if (!mask[start] || visited[start]) continue;
+    const comp = [];
+    const stack = [start]; visited[start] = 1;
+    while (stack.length) {
+      const i = stack.pop();
+      comp.push(i);
+      const x = i % W, y = (i / W) | 0;
+      const neighbours = [[x-1,y],[x+1,y],[x,y-1],[x,y+1],[x-1,y-1],[x+1,y-1],[x-1,y+1],[x+1,y+1]];
+      for (let k = 0; k < 8; k++) {
+        const nx = neighbours[k][0], ny = neighbours[k][1];
+        if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+        const ni = ny * W + nx;
+        if (mask[ni] && !visited[ni]) { visited[ni] = 1; stack.push(ni); }
+      }
+    }
+    if (comp.length > bestSize) { bestSize = comp.length; best = comp; }
+  }
+  const out = new Uint8Array(W * H);
+  if (best) for (const i of best) out[i] = 1;
+  return out;
+}
+function fillEnclosedHoles(mask, W, H) {
+  const reachable = new Uint8Array(W * H);
+  const stack = [];
+  function seed(i) { if (!mask[i] && !reachable[i]) { reachable[i] = 1; stack.push(i); } }
+  for (let x = 0; x < W; x++) { seed(x); seed((H - 1) * W + x); }
+  for (let y = 0; y < H; y++) { seed(y * W); seed(y * W + W - 1); }
+  while (stack.length) {
+    const i = stack.pop();
+    const x = i % W, y = (i / W) | 0;
+    const neighbours = [[x-1,y],[x+1,y],[x,y-1],[x,y+1]];
+    for (let k = 0; k < 4; k++) {
+      const nx = neighbours[k][0], ny = neighbours[k][1];
+      if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+      seed(ny * W + nx);
+    }
+  }
+  const out = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) out[i] = (mask[i] || !reachable[i]) ? 1 : 0;
+  return out;
+}
+
 // ── COMPUTE + RENDER ──
 let renderPending = false;
 function scheduleRender() {
@@ -838,8 +1144,9 @@ function computeAndPaint() {
   workW = dims.W; workH = dims.H;
 
   const rgba = sampleOriented(workW, workH);
+  lastRGBA = rgba;   // kept for the "Pick…" colour sampler
   const bgOn = ctrl('ck-bgremove').checked;
-  const bgMask = bgOn ? backgroundMask(rgba, workW, workH, val('sl-bgtol')) : null;
+  bgMask = bgOn ? backgroundMask(rgba, workW, workH, val('sl-bgtol')) : null;
   const gray = brightnessField(rgba, workW, workH, bgMask);
 
   let cells;
@@ -854,6 +1161,20 @@ function computeAndPaint() {
 
   rects = mergeRects(cells, workW, workH);
 
+  if (bgMask && ctrl('ck-outline').checked) {
+    const kept = new Uint8Array(workW * workH);
+    for (let i = 0; i < kept.length; i++) kept[i] = bgMask[i] ? 0 : 1;
+    const cleaned = fillEnclosedHoles(largestComponent(kept, workW, workH), workW, workH);
+    const bgForOutline = new Uint8Array(workW * workH);
+    for (let i = 0; i < bgForOutline.length; i++) bgForOutline[i] = cleaned[i] ? 0 : 1;
+    const ring = bridgeDiagonalGaps(outlineRing(bgForOutline, workW, workH, Math.round(val('sl-outline-width'))), workW, workH);
+    outlineRects = mergeRects(ring, workW, workH);
+  } else {
+    outlineRects = null;
+  }
+
+  canvasWrap.classList.toggle('checker', ctrl('ck-transparent').checked);
+
   let ink = 0; for (let i = 0; i < cells.length; i++) ink += cells[i];
   document.getElementById('vl-grid').textContent = workW + '×' + workH + ' · ' + Math.round(100 * ink / cells.length) + '% ink · ' + rects.length.toLocaleString() + ' shapes';
 
@@ -865,11 +1186,25 @@ function computeAndPaint() {
 // Paint the merged ink rects onto any 2D context, at any block size — the
 // one function used by both the live preview and every raster export.
 // Wireframe strokes the block boundaries instead of filling them — the
-// "adaptive structure" debug/aesthetic view.
-function paintCanvas(g, W, H, block, ink, paper, wireframe) {
+// "adaptive structure" debug/aesthetic view. Transparent skips Paper
+// entirely (real alpha) so only the Ink marks are drawn — independent of
+// Remove Background: this is "the dither texture as a stamp/overlay",
+// not specifically a photo cutout.
+function paintCanvas(g, W, H, block, ink, paper, wireframe, transparent) {
   g.imageSmoothingEnabled = false;
-  g.fillStyle = paper;
-  g.fillRect(0, 0, W * block, H * block);
+  if (transparent) {
+    g.clearRect(0, 0, W * block, H * block);
+  } else {
+    g.fillStyle = paper;
+    g.fillRect(0, 0, W * block, H * block);
+  }
+  if (outlineRects) {
+    g.fillStyle = '#ffffff';
+    for (let k = 0; k < outlineRects.length; k++) {
+      const r = outlineRects[k];
+      g.fillRect(r[0] * block, r[1] * block, r[2] * block, r[3] * block);
+    }
+  }
   if (wireframe) {
     g.strokeStyle = ink;
     g.lineWidth = 1;
@@ -892,7 +1227,7 @@ function paintPreview() {
   const block = Math.max(1, Math.round(target / Math.max(workW, workH)));
   canvas.width = workW * block; canvas.height = workH * block;
   canvas.classList.add('visible');
-  paintCanvas(canvas.getContext('2d'), workW, workH, block, ctrl('hex-ink').value, ctrl('hex-paper').value, ctrl('ck-structure').checked);
+  paintCanvas(canvas.getContext('2d'), workW, workH, block, ctrl('hex-ink').value, ctrl('hex-paper').value, ctrl('ck-structure').checked, ctrl('ck-transparent').checked);
 }
 
 // ── EXPORT ──
@@ -919,7 +1254,8 @@ function exportRaster(mime, ext, quality) {
   setTimeout(() => {
     const { block, outW, outH } = outputDims(parseInt(ctrl('sel-scale').value, 10) || 4);
     const oc = document.createElement('canvas'); oc.width = outW; oc.height = outH;
-    paintCanvas(oc.getContext('2d'), workW, workH, block, ctrl('hex-ink').value, ctrl('hex-paper').value, ctrl('ck-structure').checked);
+    const transparent = ext !== 'jpg' && ctrl('ck-transparent').checked;   // JPG has no alpha channel
+    paintCanvas(oc.getContext('2d'), workW, workH, block, ctrl('hex-ink').value, ctrl('hex-paper').value, ctrl('ck-structure').checked, transparent);
     oc.toBlob(b => {
       download(b, 'halide-' + Date.now() + '.' + ext);
       setStatus('active', outW + '×' + outH + ' · ' + ext.toUpperCase() + ' saved');
@@ -930,13 +1266,24 @@ function exportPNG() { exportRaster('image/png', 'png'); }
 function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
 
 // True vector SVG: one <rect> per merged block, not a rasterised image
-// wrapped in a tag, and not one shape per pixel either.
+// wrapped in a tag, and not one shape per pixel either. Transparent mode
+// omits the full-canvas paper wash, so anywhere Ink doesn't cover stays
+// empty (transparent) SVG canvas.
 function buildSVG(block) {
   const { outW, outH } = outputDims(block);
   const ink = ctrl('hex-ink').value, paper = ctrl('hex-paper').value;
   const wireframe = ctrl('ck-structure').checked;
+  const transparent = ctrl('ck-transparent').checked;
   let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${outW} ${outH}">`;
-  s += `<rect width="100%" height="100%" fill="${paper}"/>`;
+  if (!transparent) s += `<rect width="100%" height="100%" fill="${paper}"/>`;
+  if (outlineRects) {
+    s += `<g fill="#ffffff">`;
+    for (let k = 0; k < outlineRects.length; k++) {
+      const r = outlineRects[k];
+      s += `<rect x="${r[0] * block}" y="${r[1] * block}" width="${r[2] * block}" height="${r[3] * block}"/>`;
+    }
+    s += '</g>';
+  }
   s += wireframe ? `<g fill="none" stroke="${ink}" stroke-width="1">` : `<g fill="${ink}">`;
   for (let k = 0; k < rects.length; k++) {
     const r = rects[k];
