@@ -377,6 +377,12 @@
         <input type="range" id="sl-res" min="24" max="400" step="2" value="120" oninput="syncVal(this,'vl-res');scheduleRender()">
         <span class="ctrl-val" id="vl-res">120</span>
       </div>
+
+      <div class="sub-label">Preview</div>
+      <label class="check-row">
+        <input type="checkbox" id="ck-structure" onchange="paintPreview()">
+        <span>Show block structure</span>
+      </label>
     </div>
 
     <div class="panel-section">
@@ -402,6 +408,15 @@
         <input type="checkbox" id="ck-square" onchange="scheduleRender()" title="Center-crop to a square — for avatar-style portraits">
         <span>Square crop (avatar)</span>
       </label>
+      <label class="check-row">
+        <input type="checkbox" id="ck-bgremove" onchange="toggleRow('row-bgtol',this.checked);scheduleRender()">
+        <span>Remove background</span>
+      </label>
+      <div class="ctrl-row" id="row-bgtol" style="display:none">
+        <span class="ctrl-label">Tolerance</span>
+        <input type="range" id="sl-bgtol" min="2" max="100" value="24" oninput="syncVal(this,'vl-bgtol');scheduleRender()" title="Colour-similarity reach from the image border — raise it if background scraps remain">
+        <span class="ctrl-val" id="vl-bgtol">24</span>
+      </div>
 
       <div class="ctrl-row" style="margin-top:10px">
         <span class="ctrl-label">Gamma</span>
@@ -452,7 +467,7 @@
 // tone pipeline, export plumbing, Figma protocol) ported from Pollen —
 // see docs/LIVINGPATH.md §11 for the shared-function WYSIWYG rationale
 // this suite follows: one function computes cells, both preview and
-// export paint/serialize from the exact same `runs`.
+// export paint/serialize from the exact same `rects`.
 // ─────────────────────────────────────────────
 
 const canvas = document.getElementById('main-canvas');
@@ -461,7 +476,7 @@ const canvasWrap = document.getElementById('canvas-wrap');
 let sourceImage = null;
 let ditherAlg = 'fs';           // 'fs' | 'atkinson' | 'bayer' | 'threshold'
 let workW = 0, workH = 0;
-let runs = null;                // per-row run-length-encoded ink cells — shared by preview, PNG/JPG, SVG, Figma
+let rects = null;               // 2D-merged ink blocks [x,y,w,h] — shared by preview, PNG/JPG, SVG, Figma
 
 function ctrl(id) { return document.getElementById(id); }
 function val(id)  { return parseFloat(ctrl(id).value); }
@@ -475,6 +490,7 @@ function setStatus(state, msg) {
 
 // ── CONTROLS ──
 function syncVal(slider, valId) { document.getElementById(valId).textContent = slider.value; }
+function toggleRow(id, show) { document.getElementById(id).style.display = show ? '' : 'none'; }
 
 function segActive(group, v) {
   document.querySelectorAll('#' + group + ' .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.val === v));
@@ -638,15 +654,62 @@ function processLuma(l) {
   return Math.max(0, Math.min(1, l));
 }
 
-function brightnessField(W, H) {
+function sampleOriented(W, H) {
   const oc = document.createElement('canvas'); oc.width = W; oc.height = H;
   const g = oc.getContext('2d');
   drawOriented(g, W, H);
-  const data = g.getImageData(0, 0, W, H).data;
+  return g.getImageData(0, 0, W, H).data;
+}
+
+// Border-seeded flood fill ("magic wand" from the edges): a pixel counts as
+// background only if it's within Tolerance of the border's own average
+// colour AND reachable from the border through other such pixels.
+// Deliberately NOT chained pixel-to-pixel (comparing each new pixel only to
+// its already-accepted neighbour) — on a photo, any soft lighting gradient
+// on skin/hair/clothing is a chain of tiny steps that a chained fill happily
+// walks straight through, eating the subject. Testing against one fixed
+// reference colour stops at the real subject/background edge instead.
+function backgroundMask(rgba, W, H, tolerance) {
+  let rs = 0, gs = 0, bs = 0, n = 0;
+  function sample(x, y) { const p = (y * W + x) * 4; rs += rgba[p]; gs += rgba[p + 1]; bs += rgba[p + 2]; n++; }
+  for (let x = 0; x < W; x++) { sample(x, 0); sample(x, H - 1); }
+  for (let y = 0; y < H; y++) { sample(0, y); sample(W - 1, y); }
+  const rRef = rs / n, gRef = gs / n, bRef = bs / n;
+  const tol = tolerance * 7.65;   // 0..100 → 0..765 (max Manhattan RGB distance)
+
+  const mask = new Uint8Array(W * H);
+  const visited = new Uint8Array(W * H);
+  const stack = [];
+  for (let x = 0; x < W; x++) { stack.push(x); stack.push((H - 1) * W + x); }
+  for (let y = 0; y < H; y++) { stack.push(y * W); stack.push(y * W + (W - 1)); }
+  while (stack.length) {
+    const i = stack.pop();
+    if (visited[i]) continue;
+    visited[i] = 1;
+    const p = i * 4;
+    const d = Math.abs(rgba[p] - rRef) + Math.abs(rgba[p + 1] - gRef) + Math.abs(rgba[p + 2] - bRef);
+    if (d > tol) continue;   // not background-coloured — stop, don't expand from here
+    mask[i] = 1;
+    const x = i % W, y = (i / W) | 0;
+    const neighbours = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]];
+    for (let k = 0; k < 4; k++) {
+      const nx = neighbours[k][0], ny = neighbours[k][1];
+      if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+      const ni = ny * W + nx;
+      if (!visited[ni]) stack.push(ni);
+    }
+  }
+  return mask;
+}
+
+// bgMask cells are forced to pure white (1) so they never contribute error
+// to the diffusion pass and always land on the "paper" side of the threshold.
+function brightnessField(rgba, W, H, bgMask) {
   const invert = ctrl('ck-invert').checked;
   const b = new Float32Array(W * H);
   for (let i = 0, p = 0; i < b.length; i++, p += 4) {
-    let l = (0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2]) / 255;
+    if (bgMask && bgMask[i]) { b[i] = 1; continue; }
+    let l = (0.299 * rgba[p] + 0.587 * rgba[p + 1] + 0.114 * rgba[p + 2]) / 255;
     if (invert) l = 1 - l;
     b[i] = processLuma(l);
   }
@@ -728,23 +791,33 @@ function ditherThreshold(gray, W, H) {
   return cells;
 }
 
-// Run-length encode each row's ink cells — the single shared representation
+// Greedy 2D rectangle covering of the ink cells (grow each rect right, then
+// down, as far as it stays solid ink) — the single shared representation
 // painted to canvas AND serialised to SVG, so preview and export can never
-// drift apart (same invariant Pollen/LivingPath rely on).
-function cellsToRuns(cells, W, H) {
-  const out = new Array(H);
+// drift apart (same invariant Pollen/LivingPath rely on). This is the
+// "adaptive block" structure: flat regions collapse into one big rect,
+// while noisy dithered texture stays as small cells that can't merge —
+// far fewer, simpler shapes than one-rect-per-pixel, identical fill result.
+function mergeRects(cells, W, H) {
+  const used = new Uint8Array(W * H);
+  const out = [];
   for (let y = 0; y < H; y++) {
-    const row = [];
-    let x = 0;
-    while (x < W) {
-      if (cells[y * W + x]) {
-        let x2 = x + 1;
-        while (x2 < W && cells[y * W + x2]) x2++;
-        row.push([x, x2 - x]);
-        x = x2;
-      } else x++;
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (used[i] || !cells[i]) continue;
+      let w = 1;
+      while (x + w < W && !used[y * W + x + w] && cells[y * W + x + w]) w++;
+      let h = 1;
+      grow: while (y + h < H) {
+        for (let k = 0; k < w; k++) {
+          const idx = (y + h) * W + x + k;
+          if (used[idx] || !cells[idx]) break grow;
+        }
+        h++;
+      }
+      for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) used[(y + yy) * W + x + xx] = 1;
+      out.push([x, y, w, h]);
     }
-    out[y] = row;
   }
   return out;
 }
@@ -763,7 +836,11 @@ function computeAndPaint() {
   const res = Math.round(val('sl-res'));
   const dims = workDims(res);
   workW = dims.W; workH = dims.H;
-  const gray = brightnessField(workW, workH);
+
+  const rgba = sampleOriented(workW, workH);
+  const bgOn = ctrl('ck-bgremove').checked;
+  const bgMask = bgOn ? backgroundMask(rgba, workW, workH, val('sl-bgtol')) : null;
+  const gray = brightnessField(rgba, workW, workH, bgMask);
 
   let cells;
   if (ditherAlg === 'fs') cells = ditherErrorDiffusion(gray, workW, workH, FS_KERNEL, ctrl('ck-serp').checked);
@@ -771,36 +848,51 @@ function computeAndPaint() {
   else if (ditherAlg === 'bayer') cells = ditherBayer(gray, workW, workH, parseInt(ctrl('sel-bayer').value, 10));
   else cells = ditherThreshold(gray, workW, workH);
 
-  runs = cellsToRuns(cells, workW, workH);
+  // Belt-and-suspenders: even if diffusion carried stray error into a
+  // background cell, force it back to paper so the backdrop is always flat.
+  if (bgMask) for (let i = 0; i < cells.length; i++) if (bgMask[i]) cells[i] = 0;
+
+  rects = mergeRects(cells, workW, workH);
 
   let ink = 0; for (let i = 0; i < cells.length; i++) ink += cells[i];
-  document.getElementById('vl-grid').textContent = workW + '×' + workH + ' · ' + Math.round(100 * ink / cells.length) + '% ink';
+  document.getElementById('vl-grid').textContent = workW + '×' + workH + ' · ' + Math.round(100 * ink / cells.length) + '% ink · ' + rects.length.toLocaleString() + ' shapes';
 
   paintPreview();
   updateSizeReadout();
   setStatus('active', workW + '×' + workH + ' grid');
 }
 
-// Paint ink runs onto any 2D context, at any block size — the one function
-// used by both the live preview and every raster export.
-function paintCanvas(g, W, H, block, ink, paper) {
+// Paint the merged ink rects onto any 2D context, at any block size — the
+// one function used by both the live preview and every raster export.
+// Wireframe strokes the block boundaries instead of filling them — the
+// "adaptive structure" debug/aesthetic view.
+function paintCanvas(g, W, H, block, ink, paper, wireframe) {
   g.imageSmoothingEnabled = false;
   g.fillStyle = paper;
   g.fillRect(0, 0, W * block, H * block);
-  g.fillStyle = ink;
-  for (let y = 0; y < H; y++) {
-    const row = runs[y];
-    for (let k = 0; k < row.length; k++) g.fillRect(row[k][0] * block, y * block, row[k][1] * block, block);
+  if (wireframe) {
+    g.strokeStyle = ink;
+    g.lineWidth = 1;
+    for (let k = 0; k < rects.length; k++) {
+      const r = rects[k];
+      g.strokeRect(r[0] * block + 0.5, r[1] * block + 0.5, r[2] * block - 1, r[3] * block - 1);
+    }
+  } else {
+    g.fillStyle = ink;
+    for (let k = 0; k < rects.length; k++) {
+      const r = rects[k];
+      g.fillRect(r[0] * block, r[1] * block, r[2] * block, r[3] * block);
+    }
   }
 }
 
 function paintPreview() {
-  if (!runs) return;
+  if (!rects) return;
   const target = 720;   // preview long side, px — independent of Export Scale
   const block = Math.max(1, Math.round(target / Math.max(workW, workH)));
   canvas.width = workW * block; canvas.height = workH * block;
   canvas.classList.add('visible');
-  paintCanvas(canvas.getContext('2d'), workW, workH, block, ctrl('hex-ink').value, ctrl('hex-paper').value);
+  paintCanvas(canvas.getContext('2d'), workW, workH, block, ctrl('hex-ink').value, ctrl('hex-paper').value, ctrl('ck-structure').checked);
 }
 
 // ── EXPORT ──
@@ -812,7 +904,7 @@ function outputDims(block) {
   return { block, outW, outH };
 }
 function updateSizeReadout() {
-  if (!runs) { ctrl('vl-out-size').textContent = '—'; return; }
+  if (!rects) { ctrl('vl-out-size').textContent = '—'; return; }
   const d = outputDims(parseInt(ctrl('sel-scale').value, 10) || 4);
   ctrl('vl-out-size').textContent = d.outW + ' × ' + d.outH;
 }
@@ -822,12 +914,12 @@ function download(blob, name) {
   a.click(); URL.revokeObjectURL(a.href);
 }
 function exportRaster(mime, ext, quality) {
-  if (!runs) return;
+  if (!rects) return;
   setStatus('active', 'Exporting ' + ext.toUpperCase() + '…');
   setTimeout(() => {
     const { block, outW, outH } = outputDims(parseInt(ctrl('sel-scale').value, 10) || 4);
     const oc = document.createElement('canvas'); oc.width = outW; oc.height = outH;
-    paintCanvas(oc.getContext('2d'), workW, workH, block, ctrl('hex-ink').value, ctrl('hex-paper').value);
+    paintCanvas(oc.getContext('2d'), workW, workH, block, ctrl('hex-ink').value, ctrl('hex-paper').value, ctrl('ck-structure').checked);
     oc.toBlob(b => {
       download(b, 'halide-' + Date.now() + '.' + ext);
       setStatus('active', outW + '×' + outH + ' · ' + ext.toUpperCase() + ' saved');
@@ -837,29 +929,30 @@ function exportRaster(mime, ext, quality) {
 function exportPNG() { exportRaster('image/png', 'png'); }
 function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
 
-// True vector SVG: one <rect> per run, not a rasterised image wrapped in a tag.
+// True vector SVG: one <rect> per merged block, not a rasterised image
+// wrapped in a tag, and not one shape per pixel either.
 function buildSVG(block) {
   const { outW, outH } = outputDims(block);
   const ink = ctrl('hex-ink').value, paper = ctrl('hex-paper').value;
+  const wireframe = ctrl('ck-structure').checked;
   let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${outW} ${outH}">`;
-  s += `<rect width="100%" height="100%" fill="${paper}"/><g fill="${ink}">`;
-  for (let y = 0; y < workH; y++) {
-    const row = runs[y];
-    for (let k = 0; k < row.length; k++) {
-      s += `<rect x="${row[k][0] * block}" y="${y * block}" width="${row[k][1] * block}" height="${block}"/>`;
-    }
+  s += `<rect width="100%" height="100%" fill="${paper}"/>`;
+  s += wireframe ? `<g fill="none" stroke="${ink}" stroke-width="1">` : `<g fill="${ink}">`;
+  for (let k = 0; k < rects.length; k++) {
+    const r = rects[k];
+    s += `<rect x="${r[0] * block}" y="${r[1] * block}" width="${r[2] * block}" height="${r[3] * block}"/>`;
   }
   return s + '</g></svg>';
 }
 function exportSVG() {
-  if (!runs) return;
+  if (!rects) return;
   const svg = buildSVG(parseInt(ctrl('sel-scale').value, 10) || 4);
   window._lastSVG = svg;
   download(new Blob([svg], { type: 'image/svg+xml' }), 'halide-' + Date.now() + '.svg');
   setStatus('active', 'SVG ' + Math.round(svg.length / 1024) + ' KB saved');
 }
 function sendToFigma() {
-  if (!runs) return;
+  if (!rects) return;
   const svg = buildSVG(parseInt(ctrl('sel-scale').value, 10) || 4);
   window._lastSVG = svg;
   window.parent.postMessage({ pluginMessage: { type: 'organica-svg', svg, name: 'Halide — ' + new Date().toLocaleTimeString() } }, '*');
