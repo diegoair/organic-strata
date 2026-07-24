@@ -489,13 +489,24 @@
       <div style="border-top:1px solid var(--border); margin:14px 0 12px;"></div>
 
       <label class="check-row" id="row-outline">
-        <input type="checkbox" id="ck-outline" onchange="toggleRow('row-outline-width',this.checked);scheduleRender()" title="A solid white ring traced around the silhouette — the sticker look, especially over Transparent">
+        <input type="checkbox" id="ck-outline" onchange="toggleOutlineRows(this.checked);scheduleRender()" title="A solid white ring traced around the silhouette — the sticker look, especially over Transparent">
         <span>Outline</span>
       </label>
       <div class="ctrl-row" id="row-outline-width" style="display:none">
         <span class="ctrl-label">Width</span>
         <input type="range" id="sl-outline-width" min="1" max="12" value="1" oninput="syncVal(this,'vl-outline-width');scheduleRender()">
         <span class="ctrl-val" id="vl-outline-width">1</span>
+      </div>
+      <label class="check-row" id="row-bgfill" style="display:none">
+        <input type="checkbox" id="ck-bgfill" onchange="toggleRow('row-bgfill-color',this.checked);scheduleRender()" title="Fill everything outside the outline (canvas margins minus the traced silhouette) with its own colour — by subtraction, not tied to Paper">
+        <span>Background fill</span>
+      </label>
+      <div class="color-row" id="row-bgfill-color" style="display:none">
+        <span class="ctrl-label">Color</span>
+        <button class="color-swatch" id="swatch-bgfill" style="background:#cccccc" onclick="document.getElementById('cp-bgfill').click()" title="Background colour"></button>
+        <input type="color" id="cp-bgfill" value="#cccccc" oninput="syncColor('bgfill',this.value)">
+        <input class="color-hex" id="hex-bgfill" value="#cccccc" maxlength="7"
+          oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){syncColor('bgfill',this.value)}">
       </div>
     </div>
 
@@ -546,6 +557,8 @@ let ditherAlg = 'fs';           // 'fs' | 'atkinson' | 'bayer' | 'threshold'
 let workW = 0, workH = 0;
 let rects = null;               // 2D-merged ink blocks [x,y,w,h] — shared by preview, PNG/JPG, SVG, Figma
 let outlineRects = null;        // 2D-merged white sticker-outline ring, or null when disabled
+let bgFillRects = null;         // 2D-merged "outside the outline" region — null unless Background fill is on
+let keptPaperRects = null;      // 2D-merged "kept, non-ink" region — only computed alongside bgFillRects, to scope Paper/Transparent to just the subject once the background is being filled separately
 let bgMask = null;              // Uint8Array, 1 = removed background, at the current working resolution
 let bgRefColor = null;          // manually-picked {r,g,b}; null = auto (border-colour average)
 let lastRGBA = null;            // raw samples at the current working resolution, for the colour picker
@@ -570,7 +583,12 @@ function toggleBgRows(show) {
   toggleRow('row-bgtol', show);
   toggleRow('row-bgpick', show);
   toggleRow('row-outline', show);
-  toggleRow('row-outline-width', show && ctrl('ck-outline').checked);
+  toggleOutlineRows(show && ctrl('ck-outline').checked);
+}
+function toggleOutlineRows(show) {
+  toggleRow('row-outline-width', show);
+  toggleRow('row-bgfill', show);
+  toggleRow('row-bgfill-color', show && ctrl('ck-bgfill').checked);
 }
 
 // Manual background colour pick: click a spot in the image that's actually
@@ -719,7 +737,7 @@ const BUILTIN_PRESETS = {
   'Fine Grain (Bayer 16×16)':    { alg:'bayer',    bayer:16,serp:true,  res:320, gamma:1,    contrast:0,  bias:0,  square:false, ink:'#0a0a0a', paper:'#f5f2ec' },
   'High-Contrast Portrait':      { alg:'atkinson', bayer:4, serp:false, res:160, gamma:1,    contrast:35, bias:0,  square:true,  ink:'#0a0a0a', paper:'#ffffff' },
   'Threshold (no dither)':       { alg:'threshold',bayer:4, serp:true,  res:128, gamma:1,    contrast:0,  bias:0,  square:false, ink:'#0a0a0a', paper:'#f5f2ec' },
-  'Ditherface':                  { alg:'atkinson', bayer:4, serp:true,  res:260, gamma:1,    contrast:0,  bias:0,  square:true,  ink:'#0a0a0a', paper:'#f5f2ec', bgremove:true, bgtol:24 },
+  'Ditherface':                  { alg:'atkinson', bayer:4, serp:true,  res:260, gamma:1,    contrast:0,  bias:0,  square:true,  ink:'#0a0a0a', paper:'#f5f2ec', bgremove:true, bgtol:24, outline:true, outlineWidth:1, bgfill:true, bgfillColor:'#000000', transparent:false },
 };
 function userPresets() {
   try { return JSON.parse(localStorage.getItem('halide-presets') || '{}'); } catch (e) { return {}; }
@@ -756,6 +774,13 @@ function applyPreset(name) {
   toggleBgRows(!!p.bgremove);
   ctrl('sl-bgtol').value = p.bgtol != null ? p.bgtol : 24; syncVal(ctrl('sl-bgtol'), 'vl-bgtol');
   bgRefColor = null;   // a preset can't carry a photo-specific picked reference
+  ctrl('ck-outline').checked = !!p.outline;
+  toggleOutlineRows(!!p.bgremove && !!p.outline);
+  ctrl('sl-outline-width').value = p.outlineWidth != null ? p.outlineWidth : 1; syncVal(ctrl('sl-outline-width'), 'vl-outline-width');
+  ctrl('ck-bgfill').checked = !!p.bgfill;
+  toggleRow('row-bgfill-color', !!p.bgfill);
+  syncColor('bgfill', p.bgfillColor || '#cccccc');
+  ctrl('ck-transparent').checked = !!p.transparent;
   syncColor('ink', p.ink); syncColor('paper', p.paper);
   scheduleRender();
 }
@@ -768,6 +793,9 @@ function savePreset() {
     res: val('sl-res'), gamma: val('sl-gamma'), contrast: val('sl-contrast'), bias: val('sl-bias'),
     square: ctrl('ck-square').checked, ink: ctrl('hex-ink').value, paper: ctrl('hex-paper').value,
     invert: ctrl('ck-invert').checked, bgremove: ctrl('ck-bgremove').checked, bgtol: val('sl-bgtol'),
+    outline: ctrl('ck-outline').checked, outlineWidth: val('sl-outline-width'),
+    bgfill: ctrl('ck-bgfill').checked, bgfillColor: ctrl('hex-bgfill').value,
+    transparent: ctrl('ck-transparent').checked,
   };
   localStorage.setItem('halide-presets', JSON.stringify(u));
   populatePresets();
@@ -1169,8 +1197,25 @@ function computeAndPaint() {
     for (let i = 0; i < bgForOutline.length; i++) bgForOutline[i] = cleaned[i] ? 0 : 1;
     const ring = bridgeDiagonalGaps(outlineRing(bgForOutline, workW, workH, Math.round(val('sl-outline-width'))), workW, workH);
     outlineRects = mergeRects(ring, workW, workH);
+
+    // Background fill: everything outside the outline, found purely by
+    // subtraction (canvas minus the silhouette minus the ring itself) — a
+    // colour independent of Paper. Only computed when the feature is on;
+    // scopes the existing Paper/Transparent behaviour to just the kept
+    // subject once this takes over the "outside" area.
+    if (ctrl('ck-bgfill').checked) {
+      const outside = new Uint8Array(workW * workH);
+      for (let i = 0; i < outside.length; i++) outside[i] = (!cleaned[i] && !ring[i]) ? 1 : 0;
+      bgFillRects = mergeRects(outside, workW, workH);
+      const keptNonInk = new Uint8Array(workW * workH);
+      for (let i = 0; i < keptNonInk.length; i++) keptNonInk[i] = (cleaned[i] && !cells[i]) ? 1 : 0;
+      keptPaperRects = mergeRects(keptNonInk, workW, workH);
+    } else {
+      bgFillRects = null; keptPaperRects = null;
+    }
   } else {
     outlineRects = null;
+    bgFillRects = null; keptPaperRects = null;
   }
 
   canvasWrap.classList.toggle('checker', ctrl('ck-transparent').checked);
@@ -1190,9 +1235,22 @@ function computeAndPaint() {
 // entirely (real alpha) so only the Ink marks are drawn — independent of
 // Remove Background: this is "the dither texture as a stamp/overlay",
 // not specifically a photo cutout.
+function fillRectList(g, list, block) {
+  for (let k = 0; k < list.length; k++) {
+    const r = list[k];
+    g.fillRect(r[0] * block, r[1] * block, r[2] * block, r[3] * block);
+  }
+}
+
 function paintCanvas(g, W, H, block, ink, paper, wireframe, transparent) {
   g.imageSmoothingEnabled = false;
-  if (transparent) {
+  if (bgFillRects) {
+    // Background fill owns the "outside the outline" area; Paper/Transparent
+    // now only govern the kept subject's own non-ink cells.
+    g.fillStyle = ctrl('hex-bgfill').value;
+    fillRectList(g, bgFillRects, block);
+    if (!transparent) { g.fillStyle = paper; fillRectList(g, keptPaperRects, block); }
+  } else if (transparent) {
     g.clearRect(0, 0, W * block, H * block);
   } else {
     g.fillStyle = paper;
@@ -1200,10 +1258,7 @@ function paintCanvas(g, W, H, block, ink, paper, wireframe, transparent) {
   }
   if (outlineRects) {
     g.fillStyle = '#ffffff';
-    for (let k = 0; k < outlineRects.length; k++) {
-      const r = outlineRects[k];
-      g.fillRect(r[0] * block, r[1] * block, r[2] * block, r[3] * block);
-    }
+    fillRectList(g, outlineRects, block);
   }
   if (wireframe) {
     g.strokeStyle = ink;
@@ -1214,10 +1269,7 @@ function paintCanvas(g, W, H, block, ink, paper, wireframe, transparent) {
     }
   } else {
     g.fillStyle = ink;
-    for (let k = 0; k < rects.length; k++) {
-      const r = rects[k];
-      g.fillRect(r[0] * block, r[1] * block, r[2] * block, r[3] * block);
-    }
+    fillRectList(g, rects, block);
   }
 }
 
@@ -1269,27 +1321,29 @@ function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
 // wrapped in a tag, and not one shape per pixel either. Transparent mode
 // omits the full-canvas paper wash, so anywhere Ink doesn't cover stays
 // empty (transparent) SVG canvas.
+function svgRects(list, block) {
+  let s = '';
+  for (let k = 0; k < list.length; k++) {
+    const r = list[k];
+    s += `<rect x="${r[0] * block}" y="${r[1] * block}" width="${r[2] * block}" height="${r[3] * block}"/>`;
+  }
+  return s;
+}
 function buildSVG(block) {
   const { outW, outH } = outputDims(block);
   const ink = ctrl('hex-ink').value, paper = ctrl('hex-paper').value;
   const wireframe = ctrl('ck-structure').checked;
   const transparent = ctrl('ck-transparent').checked;
   let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${outW} ${outH}">`;
-  if (!transparent) s += `<rect width="100%" height="100%" fill="${paper}"/>`;
-  if (outlineRects) {
-    s += `<g fill="#ffffff">`;
-    for (let k = 0; k < outlineRects.length; k++) {
-      const r = outlineRects[k];
-      s += `<rect x="${r[0] * block}" y="${r[1] * block}" width="${r[2] * block}" height="${r[3] * block}"/>`;
-    }
-    s += '</g>';
+  if (bgFillRects) {
+    s += `<g fill="${ctrl('hex-bgfill').value}">${svgRects(bgFillRects, block)}</g>`;
+    if (!transparent) s += `<g fill="${paper}">${svgRects(keptPaperRects, block)}</g>`;
+  } else if (!transparent) {
+    s += `<rect width="100%" height="100%" fill="${paper}"/>`;
   }
-  s += wireframe ? `<g fill="none" stroke="${ink}" stroke-width="1">` : `<g fill="${ink}">`;
-  for (let k = 0; k < rects.length; k++) {
-    const r = rects[k];
-    s += `<rect x="${r[0] * block}" y="${r[1] * block}" width="${r[2] * block}" height="${r[3] * block}"/>`;
-  }
-  return s + '</g></svg>';
+  if (outlineRects) s += `<g fill="#ffffff">${svgRects(outlineRects, block)}</g>`;
+  s += wireframe ? `<g fill="none" stroke="${ink}" stroke-width="1">${svgRects(rects, block)}</g>` : `<g fill="${ink}">${svgRects(rects, block)}</g>`;
+  return s + '</svg>';
 }
 function exportSVG() {
   if (!rects) return;
