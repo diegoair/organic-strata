@@ -4,8 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Genesis Library — Organica</title>
-  <link rel="stylesheet" href="organic-library.css">
+  <!-- animations only: this is an app shell, not a catalog page.
+       The chrome half (body padding, header, .grid) would fight the grid layout. -->
+  <link rel="stylesheet" href="organic-animations.css">
   <link rel="stylesheet" href="/shared/organica-tokens.css">
+  <link rel="stylesheet" href="/shared/organica-header.css">
   <style>
     /* ─── Base — Pollen palette (light / mono) ───────────────── */
     :root {
@@ -14,12 +17,23 @@
       --surface-raised: #e3dfd6; /* tile hover / selected background */
       --border: #d0c8b8;         /* subtle dividers */
       --border-strong: #a89e88;  /* active / focus borders */
-      --ink: #0a0a0a;            /* main text + SVG fill */
+      --ink: #0a0a0a;
+      --bg-cell: #eceae4;   /* required by organic-animations.css — forms 29/36 punch holes with it */            /* main text + SVG fill */
       --ink-muted: #726a5e;      /* secondary text, labels */
       --ink-faint: #a89e8c;      /* very subtle text */
       --accent: #0a0a0a;         /* selection / active — ink (Pollen) */
       --accent-blue: #0a0a0a;    /* input focus ring */
-      --pollen: #c8a83a;         /* warm pollen yellow (sparingly) */
+      --pollen: #c8a83a;
+
+      /* Palette contract for shared/organica-header.css — these pages name
+         the same roles differently (--bg/--surface/--ink-muted), so alias
+         rather than rename. Without --paper the primary button painted its
+         label in nothing and rendered as a solid black box. */
+      --paper: var(--bg);
+      --mid: var(--ink-muted);
+      --panel: var(--surface);
+      --tool: #c8a83a;
+      --tool: #c8a83a;   /* header focus ring */         /* warm pollen yellow (sparingly) */
 
       --panel-width-left: 200px;
       --panel-width-right: 260px;
@@ -40,8 +54,8 @@
     .app {
       display: grid;
       grid-template-columns: var(--panel-width-left) 1fr var(--panel-width-right);
-      grid-template-rows: 100vh;
-      height: 100vh;
+      grid-template-rows: calc(100vh - var(--header-h));
+      height: calc(100vh - var(--header-h));
       overflow: hidden;
     }
 
@@ -194,6 +208,27 @@
 </head>
 <body>
 
+  <header class="org-header org-header--catalog" role="banner">
+    <a class="org-header__logo" href="/"><b>Organica</b><span>/ Library</span></a>
+
+    <div class="org-header__context">
+      <span class="org-header__title" id="toolbar-set-name">Organic Forms</span>
+      <span class="org-header__sub" id="toolbar-count">— forms</span>
+    </div>
+
+    <div class="org-header__spacer"></div>
+
+    <output class="org-header__status" aria-live="polite" aria-atomic="true">
+      <span class="org-header__dot" id="status-dot"></span>
+      <span class="org-header__state" id="status-text">Ready</span>
+    </output>
+
+    <div class="org-header__actions">
+      <button class="org-btn" id="btn-add-form">+ Add Form</button>
+      <button class="org-btn org-btn--primary" id="btn-export-set">Export .js</button>
+    </div>
+  </header>
+
   <div class="app">
 
     <!-- LEFT: Sets sidebar -->
@@ -207,16 +242,6 @@
 
     <!-- MAIN: Toolbar + Grid canvas -->
     <main class="canvas-area">
-      <div class="toolbar">
-        <div class="toolbar__left">
-          <span class="toolbar__set-name" id="toolbar-set-name">Organic Forms</span>
-          <span class="toolbar__count" id="toolbar-count">— forms</span>
-        </div>
-        <div class="toolbar__right">
-          <button class="btn-secondary" id="btn-add-form">+ Add Form</button>
-          <button class="btn-secondary" id="btn-export-set">Export .js</button>
-        </div>
-      </div>
 
       <!-- Hidden SVG defs container — organic-defs.js content injected here -->
       <div id="svg-defs-container" style="position:absolute;width:0;height:0;overflow:hidden;"></div>
@@ -307,6 +332,7 @@
   </div>
 
   <!-- Load form data (shared, read-only) -->
+  <script src="/shared/organica-core.js"></script>
   <script src="organic-defs.js"></script>
   <script src="organic-forms.js"></script>
   <script>

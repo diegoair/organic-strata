@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Spore — Organica</title>
 <link rel="stylesheet" href="/shared/organica-tokens.css">
+  <link rel="stylesheet" href="/shared/organica-header.css">
+  <link rel="stylesheet" href="/shared/organica-panel.css">
   <style>
   :root {
+    --tool: #5a7a96;   /* header focus ring */
     --ink: #0a0a0a;
     --paper: #f5f2ec;
     --mid: #c8c0b0;
@@ -28,68 +31,6 @@
     display: flex;
     flex-direction: column;
   }
-
-  /* ── TOP BAR ── */
-  #topbar {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    padding: 0 16px;
-    height: 40px;
-    border-bottom: 1px solid var(--border);
-    background: var(--paper);
-    flex-shrink: 0;
-    z-index: 100;
-  }
-
-  #topbar .logo {
-    font-size: 10px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--mid);
-    text-decoration: none;
-    margin-right: 24px;
-  }
-
-  #topbar .logo span { color: var(--ink); }
-
-  .tb-btn {
-    font-family: var(--sans);
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    background: none;
-    border: 1px solid transparent;
-    color: var(--ink);
-    padding: 4px 10px;
-    cursor: pointer;
-    height: 26px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    transition: border-color 0.15s, background 0.15s;
-  }
-
-  .tb-btn:hover { border-color: var(--border); background: var(--panel); }
-  .tb-btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-  .tb-btn.primary:hover { background: #333; border-color: #333; }
-  .tb-btn:disabled { opacity: 0.35; cursor: default; }
-
-  .tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 8px; }
-  .tb-spacer { flex: 1; }
-
-  #status-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--mid);
-    flex-shrink: 0;
-  }
-  #status-dot.active { background: #5a8a5a; }
-  #status-dot.rendering { background: #c8a050; animation: pulse 0.8s ease-in-out infinite; }
-
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-
-  #status-text { color: var(--mid); font-size: 10px; letter-spacing: 0.05em; }
 
   /* ── LAYOUT ── */
   #app {
@@ -141,7 +82,6 @@
   #drop-hint p {
     font-size: 10px;
     letter-spacing: 0.1em;
-    text-transform: uppercase;
     color: var(--mid);
     text-align: center;
     line-height: 1.8;
@@ -169,7 +109,6 @@
     font-family: var(--sans);
     font-size: 9px;
     letter-spacing: 0.1em;
-    text-transform: uppercase;
     padding: 6px 9px;
     display: none;
     align-items: center;
@@ -187,155 +126,13 @@
   #zoom-hud .zoom-reset:hover { opacity: 1; }
 
   /* ── RIGHT PANEL ── */
-  #panel {
-    width: 240px;
-    flex-shrink: 0;
-    border-left: 1px solid var(--border);
-    background: var(--paper);
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-  }
 
   .panel-section {
     border-bottom: 1px solid var(--border);
     padding: 14px 16px;
   }
 
-  .panel-section h3 {
-    font-size: 9px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--mid);
-    margin-bottom: 12px;
-    font-weight: 400;
-  }
-
-  .ctrl-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 9px;
-    gap: 8px;
-  }
-
-  .ctrl-label {
-    font-size: 10px;
-    letter-spacing: 0.05em;
-    color: var(--accent);
-    white-space: nowrap;
-    flex-shrink: 0;
-    min-width: 60px;
-  }
-
-  .ctrl-val {
-    font-size: 10px;
-    color: var(--mid);
-    min-width: 28px;
-    text-align: right;
-    flex-shrink: 0;
-  }
-
-  input[type=range] {
-    -webkit-appearance: none;
-    flex: 1;
-    height: 2px;
-    background: var(--border);
-    border-radius: 1px;
-    outline: none;
-    cursor: pointer;
-  }
-
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    background: var(--ink);
-    cursor: pointer;
-  }
-
-  input[type=range]::-moz-range-thumb {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    background: var(--ink);
-    border: none;
-    cursor: pointer;
-  }
-
-  .seg-ctrl {
-    display: flex;
-    gap: 0;
-    flex: 1;
-  }
-
-  .seg-btn {
-    font-family: var(--sans);
-    font-size: 9px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    flex: 1;
-    padding: 4px 0;
-    border: 1px solid var(--border);
-    background: none;
-    color: var(--accent);
-    cursor: pointer;
-    transition: background 0.12s, color 0.12s;
-    margin-left: -1px;
-  }
-
-  .seg-btn.active {
-    background: var(--ink);
-    color: var(--paper);
-    border-color: var(--ink);
-    z-index: 1;
-    position: relative;
-  }
-
-  .check-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-    cursor: pointer;
-  }
-
-  .check-row input[type=checkbox] { cursor: pointer; accent-color: var(--ink); }
-
-  .check-row span {
-    font-size: 10px;
-    letter-spacing: 0.05em;
-    color: var(--accent);
-  }
-
   /* Color inputs */
-  .color-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-
-  .color-swatch {
-    width: 20px; height: 20px;
-    border: 1px solid var(--border);
-    border-radius: 2px;
-    cursor: pointer;
-    flex-shrink: 0;
-    padding: 0;
-    background: none;
-  }
-
-  .color-hex {
-    font-family: var(--sans);
-    font-size: 10px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    color: var(--ink);
-    padding: 3px 6px;
-    width: 70px;
-    letter-spacing: 0.05em;
-    outline: none;
-  }
 
   input[type=color] {
     opacity: 0;
@@ -369,7 +166,7 @@
   .mark-thumb.selected { border-color: var(--ink); background: #e8e4dc; }
   .mark-thumb .thumb-num {
     position: absolute; top: 1px; right: 2px;
-    font-size: 6px; line-height: 1; color: var(--mid); pointer-events: none;
+    font-size: var(--fs-micro); line-height: 1; color: var(--mid); pointer-events: none;
   }
 
   .mark-thumb svg, .mark-thumb img {
@@ -379,7 +176,7 @@
   }
 
   .mark-name {
-    font-size: 8px;
+    font-size: var(--fs-micro);
     letter-spacing: 0.04em;
     color: var(--mid);
     text-align: center;
@@ -403,7 +200,6 @@
     font-family: var(--sans);
     font-size: 9px;
     letter-spacing: 0.1em;
-    text-transform: uppercase;
     border: 1px dashed var(--border);
     background: none;
     color: var(--mid);
@@ -434,7 +230,6 @@
     font-family: var(--sans);
     font-size: 9px;
     letter-spacing: 0.06em;
-    text-transform: uppercase;
     padding: 5px 0;
     border: 1px solid var(--border);
     background: none;
@@ -464,7 +259,6 @@
     color: var(--paper);
     font-size: 9px;
     letter-spacing: 0.1em;
-    text-transform: uppercase;
     padding: 8px 12px;
     display: none;
     align-items: center;
@@ -477,33 +271,72 @@
   #figma-banner.visible { display: flex; }
 
   /* scrollbar */
-  #panel::-webkit-scrollbar { width: 3px; }
-  #panel::-webkit-scrollbar-track { background: transparent; }
-  #panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 1px; }
 
   /* hidden file inputs */
   #file-input, #mark-upload-input { display: none; }
+
+  /* ── ON-CANVAS COMPUTE CONTROLS ── */
+  #compute-bar {
+    position: absolute; top: 16px; left: 16px;
+    display: flex; gap: 6px; z-index: 20;
+  }
+  .hud-btn {
+    font-family: var(--font); font-size: 10px; letter-spacing: 0.08em;
+    background: rgba(10,10,10,0.82); color: #f5f2ec;
+    border: 1px solid rgba(245,242,236,0.24); border-radius: 2px;
+    min-height: 26px; padding: 0 9px; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .hud-btn:hover:not(:disabled) { border-color: #f5f2ec; background: rgba(10,10,10,0.95); }
+  .hud-btn:disabled { opacity: 0.42; cursor: not-allowed; }
+  .hud-btn:focus-visible { outline: 2px solid var(--tool); outline-offset: 2px; }
 </style>
 </head>
 <body>
 
 <!-- TOP BAR -->
-<div id="topbar">
-  <a href="/" class="logo"><span>Organica</span> / Spore</a>
-  <div class="tb-sep"></div>
-  <button class="tb-btn" onclick="document.getElementById('file-input').click()">Open</button>
-  <button class="tb-btn" id="btn-refresh" onclick="triggerRender()" disabled>↻ Render</button>
-  <button class="tb-btn" id="btn-stop" onclick="stopRender()" disabled>■ Stop</button>
-  <div class="tb-spacer"></div>
-  <div id="status-dot"></div>
-  <span id="status-text" style="margin: 0 10px 0 6px">—</span>
-  <div class="tb-sep"></div>
-  <button class="tb-btn" id="btn-save-png" onclick="exportPNG()" disabled>PNG</button>
-  <button class="tb-btn" id="btn-save-jpg" onclick="exportJPG()" disabled>JPG</button>
-  <button class="tb-btn" id="btn-save-svg" onclick="exportSVG()" disabled>SVG</button>
-  <div class="tb-sep"></div>
-  <button class="tb-btn primary" id="btn-figma" onclick="sendToFigma()" disabled>→ Figma</button>
-</div>
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Spore</span></a>
+
+  <div class="org-header__spacer"></div>
+
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Drop an image to begin</span>
+  </output>
+
+  <div class="org-header__actions">
+    <button class="org-btn" onclick="document.getElementById('file-input').click()">Open&hellip;</button>
+    <div class="org-popover-wrap">
+      <button class="org-btn" id="btn-export" disabled>Export &#9662;</button>
+      <div class="org-popover" id="export-popover" aria-label="Export options">
+        <div class="org-popover__title">Format</div>
+        <div class="org-formats">
+          <button class="org-btn" id="btn-save-png" onclick="exportPNG()">PNG</button>
+          <button class="org-btn" id="btn-save-jpg" onclick="exportJPG()">JPG</button>
+          <button class="org-btn" id="btn-save-svg" onclick="exportSVG()">SVG</button>
+        </div>
+
+        <div class="org-popover__divider"></div>
+
+        <div class="org-popover__row">
+          <label class="org-popover__label" for="sel-scale">Scale</label>
+          <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
+            <option value="1">&times;1</option>
+            <option value="2" selected>&times;2</option>
+            <option value="3">&times;3</option>
+          </select>
+        </div>
+        <div class="org-popover__row">
+          <span class="org-popover__label">Output</span>
+          <span class="org-out" id="vl-out-size">&mdash;</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="org-btn org-btn--primary" id="btn-figma" onclick="sendToFigma()" disabled>&rarr; Figma</button>
+  </div>
+</header>
 
 <input type="file" id="file-input" accept="image/*" onchange="loadImage(this)">
 <input type="file" id="mark-upload-input" accept=".svg,image/svg+xml" onchange="uploadMark(this)">
@@ -518,6 +351,13 @@
       <p>Drop an image here<br>or click Open</p>
     </div>
     <canvas id="main-canvas"></canvas>
+    <!-- Compute controls sit ON the canvas: they drive the render whose
+         progress overlay is already here. Keeps the header at three actions
+         — see docs/UI-SHELL.md §4b. -->
+    <div id="compute-bar" role="group" aria-label="Render">
+      <button class="hud-btn" id="btn-refresh" onclick="triggerRender()" disabled>&#8635; Render</button>
+      <button class="hud-btn" id="btn-stop" onclick="stopRender()" disabled>&#9632; Stop</button>
+    </div>
     <div id="zoom-hud">
       <span id="zoom-level">100%</span>
       <span class="zoom-reset" onclick="resetZoom()">Reset</span>
@@ -938,7 +778,7 @@ async function doRender() {
   isRendering = true;
   shouldStop = false;
   document.getElementById('btn-stop').disabled = false;
-  document.getElementById('btn-save-png').disabled = true;
+  document.getElementById('btn-export', 'btn-save-png').disabled = true;
   document.getElementById('btn-save-jpg').disabled = true;
   document.getElementById('btn-save-svg').disabled = true;
   document.getElementById('btn-figma').disabled = true;
@@ -1201,7 +1041,7 @@ function finishRender(stopped) {
   if (!stopped) {
     const count = window._lastRenderData?.marks?.length || 0;
     setStatus('active', count.toLocaleString() + ' marks placed');
-    document.getElementById('btn-save-png').disabled = false;
+    document.getElementById('btn-export', 'btn-save-png').disabled = false;
     document.getElementById('btn-save-jpg').disabled = false;
     document.getElementById('btn-save-svg').disabled = false;
     document.getElementById('btn-figma').disabled = false;
@@ -1212,13 +1052,8 @@ function finishRender(stopped) {
 // ─────────────────────────────────────────────
 // STATUS
 // ─────────────────────────────────────────────
-function setStatus(state, msg) {
-  const dot = document.getElementById('status-dot');
-  const txt = document.getElementById('status-text');
-  dot.className = '';
-  dot.classList.add(state);
-  txt.textContent = msg;
-}
+// Announced via the header's <output> live region — see organica-core.js.
+const setStatus = Organica.status();
 
 // ─────────────────────────────────────────────
 // EXPORT PNG
@@ -1449,6 +1284,8 @@ buildMarkGrid();
 updateSymbolPreview();
 setStatus('', '—');
 applyZoom();
+
+Organica.popover(document.getElementById('btn-export'), document.getElementById('export-popover'));
 </script>
 </body>
 </html>

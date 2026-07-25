@@ -5,8 +5,11 @@
 <title>Genesis Creator — Organica</title>
 <link rel="stylesheet" href="organic-library.css">
 <link rel="stylesheet" href="/shared/organica-tokens.css">
+  <link rel="stylesheet" href="/shared/organica-header.css">
   <style>
   :root{
+    --paper:#f1f1ef; --mid:#6b6860; --panel:#e8e8e4; --tool:#c8f060;
+    --border-strong:#958462;
     --bg:#f1f1ef;
     --ink:#15140f;
     --ink-soft:#15140f99;
@@ -22,25 +25,6 @@
   body{padding:32px 48px 64px;min-height:100vh}
 
   /* Organica banner */
-  #organica-banner{
-    position:fixed;top:0;left:0;right:0;
-    z-index:1000;
-    background:#1a1a1a;
-    border-bottom:1px solid rgba(255,255,255,0.08);
-    padding:7px 20px;
-    font-family: var(--font);
-    font-size:11px;
-    color:#777;
-    display:flex;
-    align-items:center;
-    gap:8px;
-    letter-spacing:0.02em;
-  }
-  #organica-banner a{color:#999;text-decoration:none;border-bottom:1px solid rgba(255,255,255,0.2);padding-bottom:1px;transition:color .15s}
-  #organica-banner a:hover{color:#ccc}
-  #organica-banner .banner-dismiss{margin-left:auto;background:none;border:none;cursor:pointer;color:#555;font-size:13px;line-height:1;padding:0;transition:color .15s}
-  #organica-banner .banner-dismiss:hover{color:#999}
-  body.banner-visible{padding-top:calc(32px + 30px)}
 
   header{max-width:1480px;margin:0 auto 28px;
     display:flex;align-items:baseline;justify-content:space-between;gap:24px}
@@ -185,21 +169,33 @@
 
   /* defs hidden */
   svg.defs{position:absolute;width:0;height:0;overflow:hidden}
+
+  /* The catalog page chrome pads the body for the form grid; the banner is not
+     part of that column, so it escapes the padding and stays edge-to-edge —
+     consistent with the app-shell pages. */
+  .org-header {
+    margin: -48px -48px 32px;
+    position: sticky;
+    top: 0;
+  }
 </style>
 </head>
-<body class="banner-visible">
+<body>
 
-<div id="organica-banner">
-  Part of Organica &mdash; <a href="https://organic-strata.vercel.app">organic-strata.vercel.app</a>
-  <button class="banner-dismiss" onclick="document.getElementById('organica-banner').style.display='none';document.body.classList.remove('banner-visible')" aria-label="Dismiss">&times;</button>
-</div>
+<header class="org-header org-header--catalog" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Genesis</span></a>
 
-<header>
-  <div>
-    <h1>Genesis Creator</h1>
-    <div class="breadcrumb"><a href="../">← Organica</a> &nbsp;/&nbsp; Genesis &nbsp;/&nbsp; <a href="./indicators.html">Indicators →</a></div>
+  <div class="org-header__context">
+    <span class="org-header__title">Genesis Creator</span>
+    <span class="org-header__sub">55 forms &middot; 3 palettes</span>
   </div>
-  <div class="meta">compose · 55 forms · 3 palettes · 5 backgrounds</div>
+
+  <div class="org-header__spacer"></div>
+
+  <div class="org-header__actions">
+    <a class="org-btn" href="./library.html">Library</a>
+    <a class="org-btn" href="./indicators.html">Indicators &rarr;</a>
+  </div>
 </header>
 
 <div class="layout">

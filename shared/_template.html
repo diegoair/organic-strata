@@ -9,6 +9,7 @@
      Typeface, type scale, spacing: shared/organica-tokens.css
      Full reference: docs/DESIGN-SYSTEM.md + docs/UI-SHELL.md -->
 <link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
 <style>
   :root {
     --ink: #0a0a0a;
@@ -17,7 +18,7 @@
     --accent: #2a2a2a;
     --panel: #eceae4;
     --border: #d0c8b8;
-    --tool: #8aa054;   /* identity colour — see docs/DESIGN-SYSTEM.md §5 */
+    --tool: #8aa054;   /* identity colour — drives the header focus ring */
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -340,30 +341,51 @@
 </head>
 <body>
 
-<!-- ══ TOPBAR — left: input actions · right: export ══ -->
-<div id="topbar">
-  <a href="/" class="logo"><span>Organica</span> / New Tool</a>
-  <div class="tb-sep"></div>
-  <button class="tb-btn" onclick="document.getElementById('file-input').click()">Open…</button>
+<!-- ══ HEADER — identity · context · status · max 3 actions ══
+     Everything else belongs closer to what it acts on: export settings in
+     the popover, playback on the canvas. See docs/UI-SHELL.md §4b. -->
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ New Tool</span></a>
 
-  <div class="tb-spacer"></div>
+  <div class="org-header__spacer"></div>
 
-  <div id="status-dot"></div>
-  <span id="status-text" style="margin: 0 10px 0 6px">—</span>
-  <div class="tb-sep"></div>
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Drop an image to begin</span>
+  </output>
 
-  <span class="tb-label">Export Scale</span>
-  <select class="tb-select" id="sel-scale" onchange="updateSizeReadout()">
-    <option value="1">×1</option>
-    <option value="2" selected>×2</option>
-    <option value="4">×4</option>
-  </select>
-  <span class="tb-out" id="out-size">—</span>
-  <div class="tb-sep"></div>
+  <div class="org-header__actions">
+    <button class="org-btn" onclick="document.getElementById('file-input').click()">Open…</button>
 
-  <button class="tb-btn" onclick="exportPNG()">PNG</button>
-  <button class="tb-btn primary" onclick="sendToFigma()">→ Figma</button>
-</div>
+    <div class="org-popover-wrap">
+      <button class="org-btn" id="btn-export">Export &#9662;</button>
+      <div class="org-popover" id="export-popover" aria-label="Export options">
+        <div class="org-popover__title">Format</div>
+        <div class="org-formats">
+          <button class="org-btn" onclick="exportPNG()">PNG</button>
+          <button class="org-btn" onclick="exportSVG()">SVG</button>
+        </div>
+
+        <div class="org-popover__divider"></div>
+
+        <div class="org-popover__row">
+          <label class="org-popover__label" for="sel-scale">Scale</label>
+          <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
+            <option value="1">&times;1</option>
+            <option value="2" selected>&times;2</option>
+            <option value="4">&times;4</option>
+          </select>
+        </div>
+        <div class="org-popover__row">
+          <span class="org-popover__label">Output</span>
+          <span class="org-out" id="out-size">&mdash;</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="org-btn org-btn--primary" onclick="sendToFigma()">&rarr; Figma</button>
+  </div>
+</header>
 
 <div id="app">
 
@@ -435,10 +457,8 @@
 function ctrl(id) { return document.getElementById(id); }
 function val(id)  { return parseFloat(ctrl(id).value); }
 
-function setStatus(state, msg) {
-  ctrl('status-dot').className = state === 'active' ? 'active' : '';
-  ctrl('status-text').textContent = msg;
-}
+// Announced via the header's <output> live region.
+const setStatus = Organica.status();
 
 function syncVal(slider, valId) { ctrl(valId).textContent = slider.value; }
 function setSeg(group, btn) {
@@ -501,7 +521,8 @@ Organica.createZoomPan({
 });
 
 // ── INIT ──
-setStatus('', '—');
+Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+setStatus('', 'Drop an image to begin');
 populatePresets();
 syncColor('ink', ctrl('hex-ink').value);   // paint the swatch from its initial value
 </script>

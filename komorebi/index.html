@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Komorebi — Organica</title>
 <link rel="stylesheet" href="/shared/organica-tokens.css">
+  <link rel="stylesheet" href="/shared/organica-header.css">
+  <link rel="stylesheet" href="/shared/organica-panel.css">
   <style>
   :root {
     --ink: #0a0a0a;
@@ -14,6 +16,7 @@
     --panel: #eceae4;
     --border: #d0c8b8;
     --komorebi: #8aa054;
+    --tool: #8aa054;   /* header focus ring — see organica-header.css */
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,68 +31,6 @@
     display: flex;
     flex-direction: column;
   }
-
-  /* ── TOP BAR ── */
-  #topbar {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    padding: 0 16px;
-    height: 40px;
-    border-bottom: 1px solid var(--border);
-    background: var(--paper);
-    flex-shrink: 0;
-    z-index: 100;
-  }
-
-  #topbar .logo {
-    font-size: 10px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--mid);
-    text-decoration: none;
-    margin-right: 24px;
-  }
-  #topbar .logo span { color: var(--ink); }
-
-  .tb-btn {
-    font-family: var(--sans);
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    background: none;
-    border: 1px solid transparent;
-    color: var(--ink);
-    padding: 4px 10px;
-    cursor: pointer;
-    height: 26px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    transition: border-color 0.15s, background 0.15s;
-  }
-  .tb-btn:hover { border-color: var(--border); background: var(--panel); }
-  .tb-btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-  .tb-btn.primary:hover { background: #333; border-color: #333; }
-  .tb-btn.rec { color: #a03828; }
-  .tb-btn.rec.recording { background: #a03828; color: var(--paper); border-color: #a03828; }
-  .tb-btn:disabled { opacity: 0.35; cursor: default; }
-
-  .tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 8px; }
-  .tb-spacer { flex: 1; }
-
-  .tb-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mid); margin-right: 7px; }
-  .tb-select {
-    font-family: var(--sans); font-size: 10px; letter-spacing: 0.06em;
-    background: none; border: 1px solid var(--border); color: var(--ink);
-    height: 26px; padding: 0 6px; cursor: pointer; outline: none;
-  }
-  .tb-select:hover { border-color: var(--mid); }
-  .tb-out { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); margin-left: 8px; min-width: 64px; }
-
-  #status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mid); flex-shrink: 0; }
-  #status-dot.active { background: #5a8a5a; }
-  #status-text { color: var(--mid); font-size: 10px; letter-spacing: 0.05em; }
 
   /* ── LAYOUT ── */
   #app { display: flex; flex: 1; overflow: hidden; }
@@ -123,14 +64,27 @@
     font-family: var(--sans);
     font-size: 9px;
     letter-spacing: 0.1em;
-    text-transform: uppercase;
     padding: 6px 9px;
     display: flex;
     align-items: center;
     gap: 10px;
-    pointer-events: none;
     user-select: none;
   }
+  #hud .hud-hint { pointer-events: none; }
+  .hud-btn {
+    font-family: var(--font);
+    font-size: var(--fs-small);
+    background: none;
+    border: 1px solid rgba(245,242,236,0.28);
+    border-radius: var(--radius-sm);
+    color: var(--paper);
+    min-width: 26px; min-height: 24px;
+    padding: 0 var(--space-2);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .hud-btn:hover { border-color: var(--paper); background: rgba(245,242,236,0.12); }
+  .hud-btn:focus-visible { outline: 2px solid var(--paper); outline-offset: 2px; }
   #hud .hud-hint { opacity: 0.55; }
 
   #gl-error {
@@ -141,122 +95,13 @@
     font-size: 10px;
     letter-spacing: 0.08em;
     color: var(--mid);
-    text-transform: uppercase;
   }
   #gl-error.visible { display: block; }
 
   /* ── RIGHT PANEL ── */
-  #panel {
-    width: 244px;
-    flex-shrink: 0;
-    border-left: 1px solid var(--border);
-    background: var(--paper);
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-  }
 
   .panel-section { border-bottom: 1px solid var(--border); padding: 14px 16px; }
-  .panel-section h3 {
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink);
-    margin-bottom: 14px;
-    font-weight: 600;
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-  }
-  .panel-section h3 .hint { font-size: 8px; color: var(--mid); letter-spacing: 0.05em; text-transform: none; font-weight: 400; }
-
-  .sub-label {
-    font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--accent); margin: 14px 0 8px; font-weight: 500;
-  }
-
-  .ctrl-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
-  .ctrl-label { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); white-space: nowrap; flex-shrink: 0; min-width: 62px; }
-  .ctrl-val { font-size: 10px; color: var(--accent); min-width: 32px; text-align: right; flex-shrink: 0; }
-
-  .check-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; }
-  .check-row span { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); }
-  .check-row input[type=checkbox] { accent-color: var(--ink); cursor: pointer; flex-shrink: 0; }
-
-  input[type=range] {
-    -webkit-appearance: none;
-    flex: 1; min-width: 0;
-    height: 2px;
-    background: var(--border);
-    border-radius: 1px;
-    outline: none;
-    cursor: pointer;
-  }
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 10px; height: 10px; border-radius: 50%; background: var(--ink); cursor: pointer;
-  }
-  input[type=range]::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); border: none; cursor: pointer; }
-
-  .seg-ctrl { display: flex; gap: 0; flex: 1; }
-  .seg-btn {
-    font-family: var(--sans);
-    font-size: 9px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    flex: 1;
-    padding: 5px 0;
-    border: 1px solid var(--border);
-    background: none;
-    color: var(--accent);
-    cursor: pointer;
-    transition: background 0.12s, color 0.12s;
-    margin-left: -1px;
-  }
-  .seg-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); z-index: 1; position: relative; }
-
-  .color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-  .color-swatch { width: 20px; height: 20px; border: 1px solid var(--border); border-radius: 2px; cursor: pointer; flex-shrink: 0; padding: 0; background: none; }
-  .color-hex {
-    font-family: var(--sans); font-size: 10px;
-    background: var(--panel); border: 1px solid var(--border); color: var(--ink);
-    padding: 3px 6px; width: 70px; letter-spacing: 0.05em; outline: none; flex: 1;
-  }
-  .color-name { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mid); min-width: 52px; }
   input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
-
-  .panel-select {
-    font-family: var(--sans);
-    font-size: 10px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    color: var(--ink);
-    padding: 4px 6px;
-    width: 100%;
-    outline: none;
-    cursor: pointer;
-  }
-  .panel-select:hover { border-color: var(--mid); }
-
-  .row-btns { display: flex; gap: 6px; margin-top: 8px; }
-  .mini-btn {
-    flex: 1;
-    font-family: var(--sans);
-    font-size: 9px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    border: 1px solid var(--border);
-    background: none;
-    color: var(--accent);
-    padding: 6px 0;
-    cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .mini-btn:hover { border-color: var(--accent); color: var(--ink); }
-
-  #panel::-webkit-scrollbar { width: 3px; }
-  #panel::-webkit-scrollbar-track { background: transparent; }
-  #panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 1px; }
 
   #file-input {
     position: absolute; width: 1px; height: 1px;
@@ -266,31 +111,64 @@
 </head>
 <body>
 
-<div id="topbar">
-  <a href="/" class="logo"><span>Organica</span> / Komorebi</a>
-  <div class="tb-sep"></div>
-  <button class="tb-btn" id="btn-play" onclick="togglePlay()">❚❚ Pause</button>
-  <button class="tb-btn" onclick="resetTime()" title="Rewind the wind clock to zero">↺ Reset</button>
-  <div class="tb-spacer"></div>
-  <div id="status-dot"></div>
-  <span id="status-text" style="margin: 0 10px 0 6px">—</span>
-  <div class="tb-sep"></div>
-  <span class="tb-label">Export Scale</span>
-  <select class="tb-select" id="sel-scale" onchange="updateSizeReadout()" title="Multiplier on the preview resolution">
-    <option value="1">×1</option>
-    <option value="2" selected>×2</option>
-    <option value="3">×3</option>
-    <option value="4">×4</option>
-  </select>
-  <span class="tb-out" id="out-size">—</span>
-  <div class="tb-sep"></div>
-  <button class="tb-btn" onclick="exportPNG()">PNG</button>
-  <button class="tb-btn" onclick="exportJPG()">JPG</button>
-  <button class="tb-btn rec" id="btn-rec" onclick="toggleRecord()" title="Record the animation as a WebM video loop">● REC</button>
-  <div class="tb-sep"></div>
-  <button class="tb-btn" onclick="exportSVG()" title="Posterised tone-band separation — flat vector bands, one path per band">SVG</button>
-  <button class="tb-btn primary" onclick="sendToFigma()">→ Figma</button>
-</div>
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Komorebi</span></a>
+
+  <div class="org-header__spacer"></div>
+
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Ready</span>
+  </output>
+
+  <div class="org-header__actions">
+    <div class="org-popover-wrap">
+      <button class="org-btn" id="btn-export">Export &#9662;</button>
+      <div class="org-popover" id="export-popover" aria-label="Export options">
+        <div class="org-popover__title">Still</div>
+        <div class="org-formats">
+          <button class="org-btn" onclick="exportPNG()">PNG</button>
+          <button class="org-btn" onclick="exportJPG()">JPG</button>
+          <button class="org-btn" onclick="exportSVG()">SVG</button>
+        </div>
+        <p class="org-popover__hint">
+          SVG is a posterised tone-band separation — one flat path per
+          luminance band, a real riso/screen-print plate.
+        </p>
+
+        <div class="org-popover__divider"></div>
+
+        <div class="org-popover__row">
+          <label class="org-popover__label" for="sel-scale">Scale</label>
+          <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
+            <option value="1">&times;1</option>
+            <option value="2" selected>&times;2</option>
+            <option value="3">&times;3</option>
+            <option value="4">&times;4</option>
+          </select>
+        </div>
+        <div class="org-popover__row">
+          <span class="org-popover__label">Output</span>
+          <span class="org-out" id="out-size">&mdash;</span>
+        </div>
+
+        <div class="org-popover__divider"></div>
+
+        <div class="org-popover__title">Motion</div>
+        <div class="org-popover__row">
+          <span class="org-popover__label">WebM video</span>
+          <button class="org-btn" id="btn-rec" onclick="toggleRecord()">&#9679; Record</button>
+        </div>
+        <p class="org-popover__hint">
+          In <b>Sway</b> wind mode the field is exactly periodic — record one
+          Loop period for a seamless installation loop.
+        </p>
+      </div>
+    </div>
+
+    <button class="org-btn org-btn--primary" onclick="sendToFigma()">&rarr; Figma</button>
+  </div>
+</header>
 
 <div id="app">
 
@@ -300,8 +178,13 @@
       WebGL 2 is not available in this browser.<br>
       Komorebi renders its light field on the GPU and needs it.
     </p>
-    <div id="hud">
-      <span id="hud-time">0.0s</span>
+    <!-- Transport lives ON the canvas, next to the clock it controls.
+         It used to sit in the header, so the time was read bottom-left and
+         controlled top-right — see docs/UI-SHELL.md §Header. -->
+    <div id="hud" role="group" aria-label="Playback">
+      <button class="hud-btn" id="btn-play" onclick="togglePlay()" aria-pressed="false">&#10074;&#10074;</button>
+      <button class="hud-btn" id="btn-reset" onclick="resetTime()" title="Rewind the wind clock to zero">&#8634;</button>
+      <span id="hud-time" aria-live="off">0.0s</span>
       <span class="hud-hint">Drag on canvas to move the sun</span>
     </div>
   </div>
@@ -594,10 +477,8 @@ if (!gl) {
 }
 
 // ── STATUS ──
-function setStatus(state, msg) {
-  ctrl('status-dot').className = state === 'active' ? 'active' : '';
-  ctrl('status-text').textContent = msg;
-}
+// Announced via the header's <output> live region — see organica-core.js.
+const setStatus = Organica.status();
 
 // ── CONTROLS ──
 function syncVal(slider, valId) { ctrl(valId).textContent = slider.value; }
@@ -1093,7 +974,11 @@ let simTime = 0, playing = true, lastTS = 0;
 
 function togglePlay() {
   playing = !playing;
-  ctrl('btn-play').textContent = playing ? '❚❚ Pause' : '▶ Play';
+  const b = ctrl('btn-play');
+  b.textContent = playing ? '\u276E\u276F' : '\u25B6';
+  b.textContent = playing ? '❚❚' : '▶';
+  b.setAttribute('aria-pressed', String(!playing));
+  b.setAttribute('aria-label', playing ? 'Pause' : 'Play');
 }
 function resetTime() { simTime = 0; if (!playing) tick(performance.now()); }
 
@@ -1472,6 +1357,7 @@ function deletePreset() {
 // ─────────────────────────────────────────────
 if (gl) {
   initGL();
+  Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
   COLORS.forEach(c => syncColor(c, ctrl('hex-' + c).value));
   syncConditionalRows();
   resizeCanvas();

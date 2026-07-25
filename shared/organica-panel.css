@@ -1,0 +1,422 @@
+/* ─────────────────────────────────────────────────────────────
+   ORGANICA — organica-panel.css
+   The control sidebar, as one component.
+
+   Audited before writing: six panels, no two alike —
+     · four section-heading styles   9/400, 10/500, 12/600 (×3)
+     · three widths                  240px, 244px, 280px
+     · two slider tracks             2px and 3px
+     · two label sizes               10px and 11px
+     · 76 uppercase elements         across the six
+     · two markup vocabularies       .ctrl-row vs .row
+
+   Modelled on Figma's Design panel, which is the reference for a dense
+   inspector that stays readable:
+     · sentence case everywhere — NO uppercase, no tracking on labels
+     · one section → sub-label → row hierarchy, three levels, no more
+     · label left, control right, values right-aligned and tabular
+     · section header carries its own actions on the right
+     · every row the same height, so controls align down the column
+
+   Class names match what the tools already used (.panel-section,
+   .ctrl-row, .ctrl-label, .sub-label, .seg-btn …), so adopting this is
+   "link the file, delete the local copy" rather than a markup rewrite.
+   Aliases at the bottom cover Strata's and Living Path's vocabularies.
+
+   Requires shared/organica-tokens.css and the tool palette
+   (--ink --paper --mid --accent --panel --border --tool).
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  --panel-w: 248px;          /* was 240 / 244 / 280 — one width */
+  --row-h: 26px;             /* every control row, so columns align */
+  --panel-pad: 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SHELL
+   ═══════════════════════════════════════════════════════════ */
+
+#panel, .org-panel {
+  width: var(--panel-w);
+  flex-shrink: 0;
+  border-left: 1px solid var(--border-strong, var(--border));
+  background: var(--paper);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+}
+
+#panel::-webkit-scrollbar, .org-panel::-webkit-scrollbar { width: 3px; }
+#panel::-webkit-scrollbar-track, .org-panel::-webkit-scrollbar-track { background: transparent; }
+#panel::-webkit-scrollbar-thumb, .org-panel::-webkit-scrollbar-thumb {
+  background: var(--border-strong, var(--border));
+  border-radius: 1px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HIERARCHY — exactly three levels
+
+   1. SECTION   a titled group, divided by a rule
+   2. SUB-LABEL a subdivision inside a section
+   3. ROW       label + control + value
+   ═══════════════════════════════════════════════════════════ */
+
+.panel-section {
+  border-bottom: 1px solid var(--border);
+  padding: var(--panel-pad) var(--space-6);
+}
+.panel-section:last-child { border-bottom: 0; }
+
+/* 1 — SECTION TITLE
+   Sentence case, no tracking. Was 12px/600 uppercase with 0.1em tracking,
+   which at that size reads as a wall of spaced capitals; 11px medium in
+   sentence case is smaller on the page yet easier to scan, which is the
+   whole point of the Figma model. */
+.panel-section h3,
+.panel-section__title,
+.org-panel__title,
+.sec h3,                    /* Living Path names its sections .sec */
+aside h3, .panel h3 {       /* Strata / any panel that just uses h3 */
+  font-size: var(--fs-base);
+  font-weight: var(--w-medium);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  margin: 0 0 var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 18px;
+}
+
+/* The muted note some sections carry ("live", "the gobo", "penumbra
+   physics"). Right-aligned in the title row, like Figma's section meta. */
+.panel-section h3 .hint,
+.org-panel__hint {
+  font-size: var(--fs-micro);
+  font-weight: var(--w-regular);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--mid);
+  flex-shrink: 0;
+}
+
+/* 2 — SUB-LABEL */
+.sub-label {
+  font-size: var(--fs-micro);
+  font-weight: var(--w-medium);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--mid);
+  margin: var(--space-5) 0 var(--space-3);
+}
+.sub-label:first-child { margin-top: 0; }
+
+/* 3 — ROW */
+.ctrl-row,
+.panel-row,
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--row-h);
+  margin-bottom: var(--space-2);
+}
+
+.ctrl-label,
+.panel-label {
+  font-size: var(--fs-small);
+  font-weight: var(--w-regular);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--accent);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 62px;
+}
+
+/* Values are numbers in a column — tabular figures stop them jittering
+   as they change under a dragging slider. */
+.ctrl-val,
+.panel-value,
+.row .val {
+  font-size: var(--fs-small);
+  color: var(--mid);
+  min-width: 34px;
+  text-align: right;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SLIDER — one implementation
+   Was 2px in four tools and 3px in two, with a 10px thumb, no focus ring
+   and no hover feedback. 11px thumb keeps the target usable while the
+   2px track stays visually quiet.
+   ═══════════════════════════════════════════════════════════ */
+
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 2px;
+  background: var(--border-strong, var(--border));
+  border-radius: 1px;
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 0;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+input[type=range]::-moz-range-thumb {
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 0;
+  cursor: pointer;
+}
+input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.15); }
+input[type=range]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tool) 45%, transparent);
+}
+input[type=range]:focus-visible { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  input[type=range]::-webkit-slider-thumb { transition: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CONTROLS
+   ═══════════════════════════════════════════════════════════ */
+
+/* Checkbox row — the label is the target, so the whole line is clickable */
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--row-h);
+  cursor: pointer;
+}
+.check-row span {
+  font-size: var(--fs-small);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--accent);
+}
+.check-row input[type=checkbox],
+.org-check input[type=checkbox] {
+  accent-color: var(--tool, var(--ink));
+  width: 13px; height: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Segmented control — Figma's tab row. aria-pressed is the state where the
+   markup supports it; .active is kept for the tools not yet converted. */
+.seg-ctrl, .seg { display: flex; flex: 1; min-width: 0; }
+.seg-btn {
+  font-family: var(--font);
+  font-size: var(--fs-small);
+  font-weight: var(--w-regular);
+  letter-spacing: 0;
+  text-transform: none;
+  flex: 1;
+  min-width: 0;
+  min-height: var(--row-h);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  margin-left: -1px;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.seg-btn:first-child { margin-left: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.seg-btn:last-child  { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.seg-btn:hover { color: var(--ink); }
+.seg-btn.active,
+.seg-btn[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+  position: relative;
+  z-index: 1;
+}
+
+/* Select */
+.panel-select {
+  font-family: var(--font);
+  font-size: var(--fs-small);
+  letter-spacing: 0;
+  background: var(--panel);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  min-height: var(--row-h);
+  padding: 0 var(--space-2);
+  width: 100%;
+  outline: none;
+  cursor: pointer;
+}
+.panel-select:hover { border-color: var(--mid); }
+
+/* Numeric / text input — Figma's field, with room for a leading unit */
+.panel-input {
+  font-family: var(--font);
+  font-size: var(--fs-small);
+  background: var(--panel);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  min-height: var(--row-h);
+  padding: 0 var(--space-2);
+  width: 68px;
+  text-align: right;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+}
+.panel-input::-webkit-inner-spin-button,
+.panel-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.panel-input:focus { border-color: var(--ink); }
+.panel-input--full { width: 100%; text-align: left; }
+
+/* Colour row */
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--row-h);
+  margin-bottom: var(--space-2);
+}
+.color-name {
+  font-size: var(--fs-small);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--accent);
+  min-width: 52px;
+  flex-shrink: 0;
+}
+.color-swatch {
+  width: 18px; height: 18px;
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  background: none;
+}
+.color-hex {
+  font-family: var(--font);
+  font-size: var(--fs-small);
+  background: var(--panel);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  min-height: var(--row-h);
+  padding: 0 var(--space-2);
+  letter-spacing: 0;
+  outline: none;
+  flex: 1;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+.color-hex:focus { border-color: var(--ink); }
+input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
+
+/* Paired buttons (Save / Delete) */
+.row-btns { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+.mini-btn {
+  flex: 1;
+  font-family: var(--font);
+  font-size: var(--fs-small);
+  font-weight: var(--w-regular);
+  letter-spacing: 0;
+  text-transform: none;
+  min-height: var(--row-h);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.mini-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+/* Full-width primary action inside a section */
+.panel-btn {
+  width: 100%;
+  font-family: var(--font);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+  letter-spacing: 0;
+  text-transform: none;
+  min-height: 30px;
+  background: var(--ink);
+  color: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.panel-btn:hover { background: #333; border-color: #333; }
+.panel-btn:disabled { opacity: 0.42; cursor: not-allowed; }
+
+/* Explanatory note under a control — replaces title= tooltips, which are
+   unreachable by keyboard and ignored by most assistive tech. */
+.panel-note {
+  font-size: var(--fs-micro);
+  line-height: var(--lh-snug);
+  color: var(--mid);
+  margin: calc(var(--space-1) * -1) 0 var(--space-3);
+}
+
+/* Divider inside a section */
+.panel-divider {
+  height: 1px;
+  background: var(--border);
+  margin: var(--space-4) 0;
+}
+
+/* Focus — one visible ring for every control in the panel */
+#panel :focus-visible,
+.org-panel :focus-visible {
+  outline: 2px solid var(--tool, var(--ink));
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ALIASES — Strata and Living Path name their parts differently.
+   Mapping beats renaming: their JS keeps working untouched.
+   ═══════════════════════════════════════════════════════════ */
+
+.group-label, .section-label, .panel-label--group {
+  font-size: var(--fs-micro);
+  font-weight: var(--w-medium);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--mid);
+}
+.row .lbl, .row > span:first-child {
+  font-size: var(--fs-small);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--accent);
+}

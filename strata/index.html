@@ -5,8 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Organic Strata</title>
 <link rel="stylesheet" href="/shared/organica-tokens.css">
+  <link rel="stylesheet" href="/shared/organica-header.css">
+  <link rel="stylesheet" href="/shared/organica-panel.css">
   <style>
   :root {
+    --paper: #f5f2ec; --mid: #726a5e; --panel: #eceae4; --tool: #f06030;
+    --border-strong: #958462;
     --ink: #111;
     --paper: #f5f2ed;
     --surface: #ece9e3;
@@ -29,19 +33,14 @@
   #app-grid {
     flex: 1;
     display: grid;
-    grid-template-columns: 280px 1fr;
+    grid-template-columns: 1fr var(--panel-w);   /* canvas left, controls right */
     grid-template-rows: 56px 1fr;
     min-height: 0;
   }
 
   /* ── HEADER ── */
   #app-grid > header {
-    grid-column: 1 / -1;
-    border-bottom: 1px solid var(--line);
-    display: flex;
-    align-items: center;
-    padding: 0 24px;
-    gap: 16px;
+    grid-column: 1 / -1;   /* placement only — organica-header.css owns the rest */
     background: var(--paper);
   }
   .logo {
@@ -80,7 +79,11 @@
 
   /* ── SIDEBAR ── */
   aside {
-    border-right: 1px solid var(--line);
+    width: var(--panel-w);      /* one width across the suite — organica-panel.css */
+    flex-shrink: 0;
+    grid-column: 2;             /* controls live on the right, like every other tool */
+    grid-row: 2;                /* row 1 is the header, which spans both columns */
+    border-left: 1px solid var(--line);
     overflow-y: auto;
     padding: 20px 16px;
     display: flex;
@@ -92,7 +95,6 @@
     font-size: 9px;
     letter-spacing: 0.12em;
     color: var(--muted);
-    text-transform: uppercase;
     margin-bottom: 10px;
   }
   .param-row {
@@ -116,21 +118,6 @@
     color: var(--muted);
     min-width: 32px;
     text-align: right;
-  }
-  input[type=range] {
-    width: 100%;
-    height: 3px;
-    -webkit-appearance: none;
-    background: var(--line);
-    border-radius: 2px;
-    outline: none;
-  }
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 14px; height: 14px;
-    border-radius: 50%;
-    background: var(--ink);
-    cursor: pointer;
   }
   select {
     width: 100%;
@@ -335,7 +322,6 @@
     color: var(--muted);
     padding: 8px 12px;
     border-bottom: 1px solid var(--line);
-    text-transform: uppercase;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -548,7 +534,6 @@
     font-size: 9px;
     letter-spacing: 0.1em;
     color: var(--muted);
-    text-transform: uppercase;
     margin-bottom: 6px;
   }
 
@@ -565,48 +550,12 @@
     border-top: 1px solid var(--line);
     color: var(--muted);
     cursor: pointer;
-    text-transform: uppercase;
     transition: color 0.15s;
   }
   .advanced-toggle:hover { color: var(--ink); }
   .advanced-body { padding-top: 12px; }
 
   /* Organica banner */
-  #organica-banner {
-    position: relative;
-    top: 0; left: 0; right: 0;
-    z-index: 1000;
-    background: #1a1a1a;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    padding: 7px 20px;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: #777;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    letter-spacing: 0.02em;
-  }
-  #organica-banner a {
-    color: #999;
-    text-decoration: none;
-    border-bottom: 1px solid rgba(255,255,255,0.2);
-    padding-bottom: 1px;
-    transition: color 0.15s;
-  }
-  #organica-banner a:hover { color: #ccc; }
-  #organica-banner .banner-dismiss {
-    margin-left: auto;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #555;
-    font-size: 13px;
-    line-height: 1;
-    padding: 0;
-    transition: color 0.15s;
-  }
-  #organica-banner .banner-dismiss:hover { color: #999; }
 
   /* Backend banner */
   #backend-banner {
@@ -646,11 +595,6 @@
 </head>
 <body>
 
-<div id="organica-banner">
-  Strata is now part of Organica &rarr;&nbsp;<a href="https://organic-strata.vercel.app">organic-strata.vercel.app</a>
-  <button class="banner-dismiss" onclick="document.getElementById('organica-banner').style.display='none'" aria-label="Dismiss">&times;</button>
-</div>
-
 <div id="backend-banner" class="hidden">
   <span id="banner-msg">Backend offline — run <code>cd backend && source venv/bin/activate && python3 server.py</code> locally to enable SVG processing.</span>
   <button class="banner-close" onclick="document.getElementById('backend-banner').classList.add('hidden')">✕</button>
@@ -658,13 +602,24 @@
 
 <div id="app-grid">
 <!-- HEADER -->
-<header>
-  <div class="logo">Organic<span>Strata</span></div>
-  <div class="header-tag">v0.1 — phase 1</div>
-  <div class="header-actions">
-    <button class="btn" id="btn-reset">Reset</button>
-    <button class="btn primary" id="btn-export" disabled>Export SVG</button>
-    <button class="btn" id="btn-figma" disabled>→ Figma</button>
+<header class="org-header org-header--editor" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Strata</span></a>
+
+  <div class="org-header__context">
+    <span class="org-header__title">Sketch &rarr; SVG</span>
+  </div>
+
+  <div class="org-header__spacer"></div>
+
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">No image loaded</span>
+  </output>
+
+  <div class="org-header__actions">
+    <button class="org-btn" id="btn-reset">Reset</button>
+    <button class="org-btn" id="btn-export" disabled>Export SVG</button>
+    <button class="org-btn org-btn--primary" id="btn-figma" disabled>&rarr; Figma</button>
   </div>
 </header>
 
@@ -800,9 +755,6 @@
 <!-- MAIN -->
 <main>
   <div class="toolbar">
-    <div class="status-dot" id="status-dot"></div>
-    <span class="status-text" id="status-text">No image loaded</span>
-    <div class="toolbar-sep"></div>
     <span id="info-regions" style="color:var(--muted)"></span>
   </div>
 
@@ -870,6 +822,7 @@
   <span id="processing-msg">Processing sketch...</span>
 </div>
 
+<script src="/shared/organica-core.js"></script>
 <script>
 // ── STATE ──────────────────────────────────────────────────────────────────
 const state = {
@@ -905,7 +858,7 @@ function showStage(name) {
   document.getElementById('crop-stage').classList.toggle('hidden',   name !== 'crop');
   document.getElementById('preview-area').classList.toggle('hidden', name !== 'preview');
   document.getElementById('export-panel').style.display = name === 'preview' ? 'flex' : 'none';
-  document.getElementById('status-dot').classList.toggle('active', name === 'preview');
+  document.getElementById('status-dot').classList.toggle('active', name === 'preview');   // header component dot
   const labels = { drop: 'No image loaded', crop: 'Select area to trace', preview: 'Sketch processed' };
   document.getElementById('status-text').textContent = labels[name] || '';
 }

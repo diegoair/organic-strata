@@ -7,9 +7,13 @@
 <!-- opentype.js — read OTF/TTF glyph outlines in the browser -->
 <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
 <link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
+  <link rel="stylesheet" href="/shared/organica-panel.css">
   <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
   :root{
+  --paper:#f5f2ec; --mid:#726a5e; --panel:#eceae4; --tool:#b48cf0;
+  --border-strong:#958462;
     --bg:#f5f2ec; --panel:#efeae1; --card:#faf8f3;
     --ink:#0a0a0a; --ink-soft:#3a352e; --ink-muted:#8a8276;
     --line:rgba(10,10,10,.10); --line-soft:rgba(10,10,10,.06);
@@ -28,7 +32,7 @@
   }
   .brand{display:flex; align-items:baseline; gap:10px; text-decoration:none}
   .brand b{font-family:var(--display); font-weight:800; font-size:17px; letter-spacing:-.01em; color:var(--ink)}
-  .brand span{font-size:10px; letter-spacing:.22em; text-transform:uppercase; color:var(--ink-muted)}
+  .brand span{font-size:10px; letter-spacing:.22em; color:var(--ink-muted)}
   .home{font-size:11px; color:var(--ink-muted); text-decoration:none; letter-spacing:.1em}
   .home:hover{color:var(--ink)}
   .top .sp{flex:1}
@@ -45,7 +49,7 @@
   /* ── layout ── */
   .shell{flex:1; display:flex; min-height:0}
   .panel{
-    width:280px; flex:0 0 280px; background:var(--panel); border-right:1px solid var(--line);
+    width:var(--panel-w); flex:0 0 var(--panel-w); background:var(--panel); border-right:1px solid var(--line);
     overflow-y:auto; padding:0 0 40px;
   }
   .panel.right{border-right:none; border-left:1px solid var(--line)}
@@ -60,14 +64,13 @@
     content:'drop font or SVG'; position:absolute; inset:14px; z-index:5;
     display:flex; align-items:center; justify-content:center;
     border:2px dashed var(--pollen); border-radius:14px; background:rgba(200,168,58,.08);
-    font-size:13px; letter-spacing:.1em; color:var(--ink-soft); text-transform:uppercase;
+    font-size:13px; letter-spacing:.1em; color:var(--ink-soft);
   }
   /* ── panel sections ── */
   .sec{border-bottom:1px solid var(--line-soft); padding:14px 16px}
-  .sec h3{
-    font-family:var(--font); font-weight:500; font-size:10px; letter-spacing:.2em;
-    text-transform:uppercase; color:var(--ink-muted); margin-bottom:11px;
-  }
+  /* section heading comes from shared/organica-panel.css — only the margin
+     is local, because Living Path's sections are more tightly packed */
+  .sec h3{margin:0 0 8px}
   .row{display:flex; align-items:center; gap:9px; margin-bottom:10px}
   .row:last-child{margin-bottom:0}
   .row label{flex:0 0 76px; font-size:11px; color:var(--ink-soft); letter-spacing:.02em;
@@ -75,7 +78,6 @@
   /* min-width:0 is required: a range input has a ~129px intrinsic width and
      flex items default to min-width:auto, so it refuses to shrink and pushes
      the value read-out outside the panel. */
-  .row input[type=range]{flex:1 1 0; min-width:0; accent-color:var(--pollen); height:3px}
   .row .val{flex:0 0 34px; text-align:right; font-size:11px; color:var(--ink-muted); font-variant-numeric:tabular-nums}
   .drop{
     border:1.5px dashed var(--line); border-radius:10px; padding:18px 14px; text-align:center;
@@ -136,7 +138,7 @@
   .group-head{ display:flex; align-items:center; gap:8px; margin-bottom:8px }
   .group-head .gtog{ width:15px; height:15px; flex:0 0 15px; border:1.5px solid var(--ink-muted); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--bg); cursor:pointer }
   .group:not(.goff) .group-head .gtog{ background:var(--pollen); border-color:var(--pollen); color:var(--ink) }
-  .group-head .gbase{ font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-muted) }
+  .group-head .gbase{ font-size:10px; letter-spacing:.14em; color:var(--ink-muted) }
   .group-head .gsp{ flex:1 }
   .blendsel{ font-family:var(--font); font-size:11px; padding:3px 6px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); cursor:pointer }
   .gdel{ color:var(--accent) }
@@ -176,24 +178,72 @@
 </head>
 <body>
 
-<div class="top">
-  <a class="brand" href="/"><b>Living Path</b><span>Organica</span></a>
-  <a class="home" href="/">← hub</a>
-  <div class="seg tech" id="techSeg" style="width:200px; margin:0 0 0 6px">
-    <button data-tech="vector" class="on">Vector</button>
-    <button data-tech="raster">Raster · LivingPath</button>
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Living Path</span></a>
+
+  <div class="org-header__context">
+    <div class="org-tabs seg tech" id="techSeg" role="group" aria-label="Engine">
+      <button class="org-btn" data-tech="vector" aria-pressed="true">Vector</button>
+      <button class="org-btn" data-tech="raster" aria-pressed="false">Raster</button>
+    </div>
+    <button class="org-btn" id="tgChain" hidden>&#8646; vector &rarr; raster</button>
   </div>
-  <button class="mini" id="tgChain" hidden title="Run the Vector stack on the outline first, then rasterise">⇄ vector → raster</button>
-  <div class="sp"></div>
-  <div class="status" id="status">no input</div>
-  <button class="btn" id="reset">Reset fx</button>
-  <button class="btn" id="exSvg" disabled>SVG</button>
-  <button class="btn pri" id="exPng" disabled>PNG</button>
-</div>
+
+  <div class="org-header__spacer"></div>
+
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status">no input</span>
+  </output>
+
+  <div class="org-header__actions">
+    <button class="org-btn" id="reset">Reset fx</button>
+    <div class="org-popover-wrap">
+      <button class="org-btn" id="btn-export">Export &#9662;</button>
+      <div class="org-popover" id="export-popover" aria-label="Export options">
+        <div class="org-popover__title">Format</div>
+        <div class="org-formats">
+          <button class="org-btn" id="exSvg" disabled>SVG</button>
+          <button class="org-btn" id="exPng" disabled>PNG</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
 
 <div class="shell">
   <!-- LEFT : input -->
-  <aside class="panel">
+
+  <!-- CENTER : stage -->
+  <main class="stage">
+    <div class="gridtoggle">
+      <button class="mini" id="tgSpec">text specimen</button>
+      <button class="mini on" id="tgOrig">overlay original</button>
+      <button class="mini" id="tgOutline">outline</button>
+      <button class="mini" id="tgNodes">nodes</button>
+    </div>
+    <div class="specctl" id="specctl" hidden>
+      <select id="specLang" title="Specimen language">
+        <option value="en">English</option><option value="it">Italiano</option>
+        <option value="fr">Français</option><option value="es">Español</option>
+        <option value="de">Deutsch</option><option value="pt">Português</option>
+        <option value="nl">Nederlands</option><option value="pl">Polski</option>
+        <option value="el">Ελληνικά</option><option value="ru">Русский</option>
+      </select>
+      <button class="mini" id="specNew" title="New random Wikipedia text (falls back to a sample)">↻ text</button>
+    </div>
+    <svg id="board" viewBox="0 0 1000 1000"></svg>
+    <div class="empty" id="empty">
+      <div class="big">Living Path</div>
+      <p>Load a <b>font</b>, an <b>SVG</b>, or a <b>Genesis form</b><br>then stack organic effects on the curve.</p>
+    </div>
+  </main>
+
+  <!-- RIGHT : effect stack -->
+  <aside class="panel right">
+    <!-- One panel, on the right — the left column was removed so the
+         stage gets the full width and controls read top-to-bottom:
+         what you load → what you apply → what you inspect. -->
     <div class="sec">
       <h3>Input</h3>
       <div class="seg" id="srcSeg">
@@ -247,7 +297,16 @@
         <div class="hint">Pick an Organica primordial form to transform.</div>
       </div>
     </div>
+    <div class="sec">
+      <h3>Presets</h3>
+      <div class="presets" id="presets"></div>
+    </div>
 
+    <div class="sec">
+      <h3>Effect stack</h3>
+      <div id="stack"></div>
+      <div class="hint">Layers run top→bottom. In <b>Raster</b>, add <b>groups</b> that each process the glyph, then composite with a <b>blend mode</b> (union/subtract/xor…) — overlap an outline group with a texture group for the frog-eggs look.</div>
+    </div>
     <div class="sec">
       <h3>Source view</h3>
       <div class="swatch row" style="margin-bottom:10px">
@@ -260,45 +319,6 @@
         <input type="color" id="cBg" value="#f5f2ec">
         <span class="val" id="cBgV" style="flex:1; text-align:left">#f5f2ec</span>
       </div>
-    </div>
-  </aside>
-
-  <!-- CENTER : stage -->
-  <main class="stage">
-    <div class="gridtoggle">
-      <button class="mini" id="tgSpec">text specimen</button>
-      <button class="mini on" id="tgOrig">overlay original</button>
-      <button class="mini" id="tgOutline">outline</button>
-      <button class="mini" id="tgNodes">nodes</button>
-    </div>
-    <div class="specctl" id="specctl" hidden>
-      <select id="specLang" title="Specimen language">
-        <option value="en">English</option><option value="it">Italiano</option>
-        <option value="fr">Français</option><option value="es">Español</option>
-        <option value="de">Deutsch</option><option value="pt">Português</option>
-        <option value="nl">Nederlands</option><option value="pl">Polski</option>
-        <option value="el">Ελληνικά</option><option value="ru">Русский</option>
-      </select>
-      <button class="mini" id="specNew" title="New random Wikipedia text (falls back to a sample)">↻ text</button>
-    </div>
-    <svg id="board" viewBox="0 0 1000 1000"></svg>
-    <div class="empty" id="empty">
-      <div class="big">Living Path</div>
-      <p>Load a <b>font</b>, an <b>SVG</b>, or a <b>Genesis form</b><br>then stack organic effects on the curve.</p>
-    </div>
-  </main>
-
-  <!-- RIGHT : effect stack -->
-  <aside class="panel right">
-    <div class="sec">
-      <h3>Presets</h3>
-      <div class="presets" id="presets"></div>
-    </div>
-
-    <div class="sec">
-      <h3>Effect stack</h3>
-      <div id="stack"></div>
-      <div class="hint">Layers run top→bottom. In <b>Raster</b>, add <b>groups</b> that each process the glyph, then composite with a <b>blend mode</b> (union/subtract/xor…) — overlap an outline group with a texture group for the frog-eggs look.</div>
     </div>
   </aside>
 </div>
@@ -1755,6 +1775,7 @@ buildGenesis();
 // start with a gentle default vector stack so loading anything shows the idea
 addEffect('roughen'); GROUPS.vector[0].layers[0].open=false; renderStack();
 </script>
+<script src="/shared/organica-core.js"></script>
 <script src="/genesis/organic-forms.js" onload="buildGenesis()"></script>
 </body>
 </html>

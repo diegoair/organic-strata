@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Halide — Organica</title>
 <link rel="stylesheet" href="/shared/organica-tokens.css">
+  <link rel="stylesheet" href="/shared/organica-header.css">
+  <link rel="stylesheet" href="/shared/organica-panel.css">
   <style>
   :root {
     --ink: #0a0a0a;
@@ -14,6 +16,7 @@
     --panel: #eceae4;
     --border: #d0c8b8;
     --halide: #5a7a96;
+    --tool: #5a7a96;   /* drives the header focus ring — see organica-header.css */
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,66 +31,6 @@
     display: flex;
     flex-direction: column;
   }
-
-  /* ── TOP BAR ── */
-  #topbar {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    padding: 0 16px;
-    height: 40px;
-    border-bottom: 1px solid var(--border);
-    background: var(--paper);
-    flex-shrink: 0;
-    z-index: 100;
-  }
-
-  #topbar .logo {
-    font-size: 10px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--mid);
-    text-decoration: none;
-    margin-right: 24px;
-  }
-  #topbar .logo span { color: var(--ink); }
-
-  .tb-btn {
-    font-family: var(--sans);
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    background: none;
-    border: 1px solid transparent;
-    color: var(--ink);
-    padding: 4px 10px;
-    cursor: pointer;
-    height: 26px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    transition: border-color 0.15s, background 0.15s;
-  }
-  .tb-btn:hover { border-color: var(--border); background: var(--panel); }
-  .tb-btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-  .tb-btn.primary:hover { background: #333; border-color: #333; }
-  .tb-btn:disabled { opacity: 0.35; cursor: default; }
-
-  .tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 8px; }
-  .tb-spacer { flex: 1; }
-
-  .tb-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mid); margin-right: 7px; }
-  .tb-select {
-    font-family: var(--sans); font-size: 10px; letter-spacing: 0.06em;
-    background: none; border: 1px solid var(--border); color: var(--ink);
-    height: 26px; padding: 0 6px; cursor: pointer; outline: none;
-  }
-  .tb-select:hover { border-color: var(--mid); }
-  .tb-out { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); margin-left: 8px; min-width: 64px; }
-
-  #status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mid); flex-shrink: 0; }
-  #status-dot.active { background: #5a8a5a; }
-  #status-text { color: var(--mid); font-size: 10px; letter-spacing: 0.05em; }
 
   /* ── LAYOUT ── */
   #app { display: flex; flex: 1; overflow: hidden; }
@@ -142,7 +85,6 @@
   #drop-hint p {
     font-size: 10px;
     letter-spacing: 0.1em;
-    text-transform: uppercase;
     color: var(--mid);
     text-align: center;
     line-height: 1.8;
@@ -170,7 +112,6 @@
     font-family: var(--sans);
     font-size: 9px;
     letter-spacing: 0.1em;
-    text-transform: uppercase;
     padding: 6px 9px;
     display: none;
     align-items: center;
@@ -203,121 +144,14 @@
   #crop-hint {
     position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
     background: rgba(255,255,255,0.92); color: var(--ink);
-    font-family: var(--sans); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    font-family: var(--sans); font-size: 10px; letter-spacing: 0.08em;
     padding: 7px 14px; pointer-events: none; white-space: nowrap;
   }
 
   /* ── RIGHT PANEL ── */
-  #panel {
-    width: 240px;
-    flex-shrink: 0;
-    border-left: 1px solid var(--border);
-    background: var(--paper);
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-  }
 
   .panel-section { border-bottom: 1px solid var(--border); padding: 14px 16px; }
-  .panel-section h3 {
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink);
-    margin-bottom: 14px;
-    font-weight: 600;
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-  }
-  .panel-section h3 .hint { font-size: 8px; color: var(--mid); letter-spacing: 0.05em; text-transform: none; font-weight: 400; }
-
-  .sub-label {
-    font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--accent); margin: 14px 0 8px; font-weight: 500;
-  }
-
-  .ctrl-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
-  .ctrl-label { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); white-space: nowrap; flex-shrink: 0; min-width: 60px; }
-  .ctrl-val { font-size: 10px; color: var(--accent); min-width: 30px; text-align: right; flex-shrink: 0; }
-
-  .check-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; }
-  .check-row span { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); }
-  .check-row input[type=checkbox] { accent-color: var(--ink); cursor: pointer; flex-shrink: 0; }
-
-  input[type=range] {
-    -webkit-appearance: none;
-    flex: 1; min-width: 0;
-    height: 2px;
-    background: var(--border);
-    border-radius: 1px;
-    outline: none;
-    cursor: pointer;
-  }
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 10px; height: 10px; border-radius: 50%; background: var(--ink); cursor: pointer;
-  }
-  input[type=range]::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); border: none; cursor: pointer; }
-
-  .seg-ctrl { display: flex; gap: 0; flex: 1; }
-  .seg-btn {
-    font-family: var(--sans);
-    font-size: 9px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    flex: 1;
-    padding: 5px 0;
-    border: 1px solid var(--border);
-    background: none;
-    color: var(--accent);
-    cursor: pointer;
-    transition: background 0.12s, color 0.12s;
-    margin-left: -1px;
-  }
-  .seg-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); z-index: 1; position: relative; }
-
-  .color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-  .color-swatch { width: 20px; height: 20px; border: 1px solid var(--border); border-radius: 2px; cursor: pointer; flex-shrink: 0; padding: 0; background: none; }
-  .color-hex {
-    font-family: var(--sans); font-size: 10px;
-    background: var(--panel); border: 1px solid var(--border); color: var(--ink);
-    padding: 3px 6px; width: 70px; letter-spacing: 0.05em; outline: none; flex: 1;
-  }
   input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
-
-  .panel-select {
-    font-family: var(--sans);
-    font-size: 10px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    color: var(--ink);
-    padding: 4px 6px;
-    width: 100%;
-    outline: none;
-    cursor: pointer;
-  }
-  .panel-select:hover { border-color: var(--mid); }
-
-  .row-btns { display: flex; gap: 6px; margin-top: 8px; }
-  .mini-btn {
-    flex: 1;
-    font-family: var(--sans);
-    font-size: 9px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    border: 1px solid var(--border);
-    background: none;
-    color: var(--accent);
-    padding: 6px 0;
-    cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .mini-btn:hover { border-color: var(--accent); color: var(--ink); }
-
-  #panel::-webkit-scrollbar { width: 3px; }
-  #panel::-webkit-scrollbar-track { background: transparent; }
-  #panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 1px; }
 
   #file-input {
     position: absolute; width: 1px; height: 1px;
@@ -327,34 +161,65 @@
 </head>
 <body>
 
-<div id="topbar">
-  <a href="/" class="logo"><span>Organica</span> / Halide</a>
-  <div class="tb-sep"></div>
-  <button class="tb-btn" onclick="document.getElementById('file-input').click()">Open…</button>
-  <div class="tb-spacer"></div>
-  <div id="status-dot"></div>
-  <span id="status-text" style="margin: 0 10px 0 6px">—</span>
-  <div class="tb-sep"></div>
-  <span class="tb-label">Export Scale</span>
-  <select class="tb-select" id="sel-scale" onchange="updateSizeReadout()" title="Pixels per dithered cell in the exported file">
-    <option value="2">×2</option>
-    <option value="4" selected>×4</option>
-    <option value="6">×6</option>
-    <option value="8">×8</option>
-    <option value="12">×12</option>
-  </select>
-  <span class="tb-out" id="vl-out-size">—</span>
-  <div class="tb-sep"></div>
-  <button class="tb-btn" id="btn-save-png" onclick="exportPNG()" disabled>PNG</button>
-  <button class="tb-btn" id="btn-save-jpg" onclick="exportJPG()" disabled>JPG</button>
-  <label style="display:flex;align-items:center;gap:5px;margin-right:6px;cursor:pointer" title="SVG only: trace each region's real boundary as one path instead of tiling it with rectangles — far fewer shapes, same look">
-    <input type="checkbox" id="ck-svg-simplify" style="accent-color:var(--ink)">
-    <span class="tb-label" style="margin:0">Simplify</span>
-  </label>
-  <button class="tb-btn" id="btn-save-svg" onclick="exportSVG()" disabled>SVG</button>
-  <div class="tb-sep"></div>
-  <button class="tb-btn primary" id="btn-figma" onclick="sendToFigma()" disabled>→ Figma</button>
-</div>
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Halide</span></a>
+
+  <div class="org-header__spacer"></div>
+
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Drop a photo to begin</span>
+  </output>
+
+  <div class="org-header__actions">
+    <button class="org-btn" onclick="document.getElementById('file-input').click()">Open…</button>
+
+    <div class="org-popover-wrap">
+      <button class="org-btn" id="btn-export" disabled
+              aria-describedby="export-why">Export ▾</button>
+      <div class="org-popover" id="export-popover" aria-label="Export options">
+        <div class="org-popover__title">Format</div>
+        <div class="org-formats">
+          <button class="org-btn" id="btn-save-png" onclick="exportPNG()">PNG</button>
+          <button class="org-btn" id="btn-save-jpg" onclick="exportJPG()">JPG</button>
+          <button class="org-btn" id="btn-save-svg" onclick="exportSVG()">SVG</button>
+        </div>
+
+        <div class="org-popover__divider"></div>
+
+        <div class="org-popover__row">
+          <label class="org-popover__label" for="sel-scale">Scale</label>
+          <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
+            <option value="2">×2</option>
+            <option value="4" selected>×4</option>
+            <option value="6">×6</option>
+            <option value="8">×8</option>
+            <option value="12">×12</option>
+          </select>
+        </div>
+        <div class="org-popover__row">
+          <span class="org-popover__label">Output</span>
+          <span class="org-out" id="vl-out-size">—</span>
+        </div>
+
+        <div class="org-popover__divider"></div>
+
+        <label class="org-check" for="ck-svg-simplify">
+          <input type="checkbox" id="ck-svg-simplify">
+          <span>Simplify shapes</span>
+        </label>
+        <p class="org-popover__hint">
+          SVG only. Traces each region as one path instead of tiling it with
+          rectangles — same look, far fewer shapes.
+        </p>
+      </div>
+    </div>
+
+    <button class="org-btn org-btn--primary" id="btn-figma" onclick="sendToFigma()" disabled>→ Figma</button>
+  </div>
+</header>
+
+<p id="export-why" hidden>Open a photo before exporting.</p>
 
 <input type="file" id="file-input" accept="image/*" onchange="loadImage(this)">
 
@@ -579,11 +444,10 @@ function ctrl(id) { return document.getElementById(id); }
 function val(id)  { return parseFloat(ctrl(id).value); }
 
 // ── STATUS ──
-function setStatus(state, msg) {
-  const dot = document.getElementById('status-dot');
-  dot.className = state ? state : '';
-  document.getElementById('status-text').textContent = msg;
-}
+// Writes into the header component's <output>, which is a polite live region —
+// so progress is announced to assistive tech, not only painted. Before, this
+// mutated a bare <span> and was silent. See shared/organica-core.js.
+const setStatus = Organica.status();
 
 // ── CONTROLS ──
 function syncVal(slider, valId) { document.getElementById(valId).textContent = slider.value; }
@@ -832,7 +696,9 @@ function loadImage(input) {
     cropOffsetX = 0; cropOffsetY = 0;
     resetZoom();
     document.getElementById('drop-hint').classList.add('hidden');
-    ['btn-save-png', 'btn-save-jpg', 'btn-save-svg', 'btn-figma'].forEach(id => ctrl(id).disabled = false);
+    // btn-export is the popover trigger; the three format buttons live inside it
+    ['btn-export', 'btn-save-png', 'btn-save-jpg', 'btn-save-svg', 'btn-figma']
+      .forEach(id => ctrl(id).disabled = false);
     setStatus('active', img.width + '×' + img.height + ' loaded');
     computeAndPaint();
     URL.revokeObjectURL(url);
@@ -1439,7 +1305,11 @@ window.addEventListener('keydown', e => {
 });
 
 // ── INIT ──
-setStatus('', '—');
+// The Export popover owns the accessibility contract (aria-expanded, Escape,
+// click-outside, focus return) — see shared/organica-core.js.
+Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+
+setStatus('', 'Drop a photo to begin');
 applyZoom();
 populatePresets();
 </script>

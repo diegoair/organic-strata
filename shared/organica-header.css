@@ -1,0 +1,362 @@
+/* ─────────────────────────────────────────────────────────────
+   ORGANICA — organica-header.css
+   One header component, three variants.
+
+   Replaces five divergent bars (#topbar in Spore/Pollen/Halide/Komorebi,
+   .top in Living Path, <header>+.toolbar in Strata, the editorial <header>
+   in Genesis index/Indicators, .toolbar in Library/Creator).
+
+   ── THE RULE ──
+   The header holds IDENTITY, CONTEXT, STATUS and at most THREE actions.
+   Everything else lives closer to what it acts on:
+     · export settings (scale, format options) → the Export popover
+     · playback / transport                    → over the canvas
+     · undo / clear / refresh                  → panel or canvas
+   An audit found 8–9 interactive controls in a 40px bar; this brings it
+   to 3–4. See docs/UI-SHELL.md §Header.
+
+   ── WHAT THIS FIXES (measured, not asserted) ──
+   · no landmark   — the four main tools had no <header>/<nav>/<main> at all
+   · no ARIA       — zero aria-* attributes across all four
+   · silent status — #status-text changed from JS with no live region, so the
+                     one thing you need during an export was never announced
+   · no focus ring — only 3 of 10 pages defined any :focus style
+   · contrast      — --border #d0c8b8 on paper = 1.49:1, failing even the
+                     3:1 UI minimum. --border-strong below is 3.27:1.
+
+   Requires shared/organica-tokens.css (loaded first) and the tool's own
+   palette: --ink --paper --mid --accent --panel --border.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  /* Accessible companion to --border. The original (#d0c8b8, 1.49:1) stays
+     valid for decorative fills; anything that must be SEEN as a boundary —
+     the header rule, control outlines, separators — uses this. */
+  /* Measured, not eyeballed: 3.27:1 on --paper and 3.03:1 on --panel, so it
+     clears the WCAG 1.4.11 minimum of 3:1 on BOTH surfaces a border can land
+     on. (A first pass at #b5a992 looked plausible but measured 2.08:1 — this
+     is why the value is computed rather than picked.) */
+  --border-strong: #958462;
+
+  /* Per-tool identity colour. Each tool overrides it; the focus ring and
+     the primary action read from here so the header is tinted by the tool
+     without duplicating any rule. */
+  --tool: var(--ink);
+
+  --header-h: 44px;              /* was 40 — 26px controls + 9px labels were
+                                    cramped, and 44 is the comfortable
+                                    minimum for a 24px+ touch target */
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THE BAR
+   ═══════════════════════════════════════════════════════════ */
+
+.org-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--header-h);
+  padding: 0 var(--space-6);
+  background: var(--paper);
+  border-bottom: 1px solid var(--border-strong);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 100;
+}
+
+/* ── SLOT 1 — identity ── */
+.org-header__logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  font-size: var(--fs-small);
+  letter-spacing: var(--ls-widest);
+  text-transform: uppercase;
+  color: var(--mid);
+  text-decoration: none;
+  white-space: nowrap;           /* never wrap the wordmark inside a 44px bar */
+  flex-shrink: 0;
+  /* It's a navigation link, not inline prose, so WCAG 2.2's inline exception
+     doesn't apply — the text box alone measured 14px tall. Padding brings the
+     hit area to the 24px minimum without moving the type. */
+  min-height: 26px;
+  padding: 0 var(--space-1);
+  margin-left: calc(var(--space-1) * -1);
+}
+.org-header__logo b { font-weight: var(--w-bold); color: var(--ink); }
+.org-header__logo:hover { color: var(--ink); }
+
+/* ── SLOT 2 — context: title, breadcrumb, or mode tabs (variant-dependent) ── */
+.org-header__context {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;                  /* lets the title ellipsis instead of pushing */
+}
+.org-header__title {
+  font-size: var(--fs-medium);
+  font-weight: var(--w-medium);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.org-header__sub {
+  font-size: var(--fs-micro);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
+  color: var(--mid);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── SLOT 3 — spacer ── */
+.org-header__spacer { flex: 1 1 auto; min-width: var(--space-3); }
+
+/* ── SLOT 4 — status, announced to assistive tech ──
+   <output> is already role="status" (an implicit polite live region), so
+   screen readers announce "Exporting SVG…" / "1800×1200 saved" without the
+   user having to look. aria-atomic re-reads the whole message, not the diff. */
+.org-header__status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-small);
+  letter-spacing: var(--ls-wide);
+  color: var(--mid);
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.org-header__dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--mid);
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.org-header__dot.active { background: #4a7a4a; }   /* 4.6:1 on paper */
+.org-header__dot.busy   { background: var(--tool); animation: org-pulse 1s ease-in-out infinite; }
+@keyframes org-pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }
+
+@media (prefers-reduced-motion: reduce) {
+  .org-header__dot.busy { animation: none; }
+}
+
+/* ── SLOT 5 — actions, max three ── */
+.org-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CONTROLS
+   ═══════════════════════════════════════════════════════════ */
+
+.org-btn {
+  font-family: var(--font);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  padding: 0 var(--space-4);
+  min-height: 28px;              /* ≥24px WCAG 2.2 target, with room to breathe */
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.org-btn:hover { border-color: var(--border-strong); background: var(--panel); }
+
+.org-btn--primary {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+  font-weight: var(--w-bold);
+}
+.org-btn--primary:hover { background: #333; border-color: #333; }
+
+/* A disabled control must say WHY. Tools set aria-describedby or a
+   data-why the popover/tooltip reads; the cursor change alone is not an
+   explanation. Opacity kept above 0.4 so the label stays readable. */
+.org-btn:disabled,
+.org-btn[aria-disabled="true"] { opacity: 0.42; cursor: not-allowed; }
+.org-btn:disabled:hover { border-color: transparent; background: none; }
+
+.org-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border-strong);
+  flex-shrink: 0;
+}
+
+/* ── FOCUS — visible on every interactive element in the header ──
+   :focus-visible only, so a mouse click doesn't leave a ring, but every
+   keyboard tab does. Two-pixel outline in the tool's identity colour,
+   offset so it never collides with the 1px border. */
+.org-header :focus-visible,
+.org-popover :focus-visible {
+  outline: 2px solid var(--tool);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EXPORT POPOVER
+   Collapses PNG/JPG/SVG + scale + per-tool options into one action.
+   Halide had a checkbox wedged between export buttons; Komorebi a red REC
+   in the same row. Both belong here, with room for a real label instead of
+   a title= tooltip (which is unreachable by keyboard and ignored by most
+   assistive tech).
+   ═══════════════════════════════════════════════════════════ */
+
+.org-popover-wrap { position: relative; display: inline-flex; }
+
+.org-popover {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  min-width: 268px;
+  background: var(--paper);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.14);
+  padding: var(--space-5);
+  z-index: 200;
+  display: none;
+}
+.org-popover[data-open="true"] { display: block; }
+
+.org-popover__title {
+  font-size: var(--fs-micro);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--ls-widest);
+  text-transform: uppercase;
+  color: var(--mid);
+  margin-bottom: var(--space-3);
+}
+
+.org-popover__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.org-popover__row:last-child { margin-bottom: 0; }
+
+.org-popover__label {
+  font-size: var(--fs-base);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* An option needs its explanation visible, not hidden in a title attribute. */
+.org-popover__hint {
+  font-size: var(--fs-micro);
+  line-height: var(--lh-snug);
+  color: var(--mid);
+  margin: calc(var(--space-1) * -1) 0 var(--space-4);
+}
+
+.org-popover__divider {
+  height: 1px;
+  background: var(--border-strong);
+  margin: var(--space-4) 0;
+}
+
+.org-select {
+  font-family: var(--font);
+  font-size: var(--fs-small);
+  letter-spacing: var(--ls-wide);
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  min-height: 28px;
+  padding: 0 var(--space-2);
+  cursor: pointer;
+}
+
+.org-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  cursor: pointer;
+  font-size: var(--fs-base);
+  color: var(--accent);
+  min-height: 28px;
+}
+.org-check input { accent-color: var(--tool); width: 15px; height: 15px; cursor: pointer; }
+
+/* Format buttons — the three export targets, side by side */
+.org-formats { display: flex; gap: var(--space-2); }
+.org-formats .org-btn { flex: 1; justify-content: center; border-color: var(--border-strong); }
+
+.org-out {
+  font-size: var(--fs-small);
+  letter-spacing: var(--ls-wide);
+  color: var(--mid);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VARIANTS — only the CONTEXT slot differs
+   ═══════════════════════════════════════════════════════════ */
+
+/* Tool — no context. Spore, Pollen, Halide, Komorebi, Living Path. */
+.org-header--tool .org-header__context { display: none; }
+
+/* Catalog — set name + count. Genesis Library, Indicators. */
+.org-header--catalog .org-header__context::before {
+  content: '';
+  width: 1px; height: 18px;
+  background: var(--border-strong);
+  margin-right: var(--space-3);
+}
+
+/* Editor — mode tabs / breadcrumb. Creator, Strata. */
+.org-header--editor .org-header__context { gap: var(--space-4); }
+.org-tabs { display: flex; }
+.org-tabs .org-btn {
+  border-color: var(--border-strong);
+  border-radius: 0;
+  margin-left: -1px;
+}
+.org-tabs .org-btn:first-child { margin-left: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.org-tabs .org-btn:last-child  { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.org-tabs .org-btn[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+  position: relative;
+  z-index: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE
+   At 700px the old bar didn't overflow — flex just squeezed items until the
+   logo, "EXPORT SCALE" and "→ FIGMA" each wrapped onto two lines inside a
+   40px bar. Shedding the least-critical text is better than compressing
+   everything: the icon and the primary action survive.
+   ═══════════════════════════════════════════════════════════ */
+
+@media (max-width: 820px) {
+  .org-header { padding: 0 var(--space-4); gap: var(--space-2); }
+  .org-header__logo span { display: none; }        /* keep "Organica", drop "/ Tool" */
+  .org-header__status .org-header__state { display: none; }   /* dot survives */
+}
+
+@media (max-width: 600px) {
+  .org-header__context { display: none; }
+  .org-btn { padding: 0 var(--space-3); }
+}

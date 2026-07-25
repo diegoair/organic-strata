@@ -326,5 +326,75 @@
     };
   };
 
+  // ═══════════════════════════════════════════════════════════
+  // HEADER
+  //
+  // The bar is markup (see shared/organica-header.css); this owns the two
+  // behaviours that were missing everywhere and are easy to get wrong.
+  // ═══════════════════════════════════════════════════════════
+
+  // Status. The element is an <output> — implicitly role="status", a polite
+  // live region — so this announces to a screen reader as well as painting
+  // pixels. Before, #status-text was mutated silently: the one piece of
+  // feedback you need mid-export was invisible to anyone not watching.
+  //   state: 'active' (done) | 'busy' (working) | '' (idle)
+  Organica.status = function (root) {
+    root = root || document;
+    const dot = root.querySelector('.org-header__dot');
+    const text = root.querySelector('.org-header__state');
+    return function setStatus(state, msg) {
+      if (dot) dot.className = 'org-header__dot' + (state ? ' ' + state : '');
+      if (text) text.textContent = msg;
+    };
+  };
+
+  // Export popover. Handles the accessibility contract a bare click handler
+  // always forgets: aria-expanded on the trigger, Escape to dismiss,
+  // click-outside to dismiss, and returning focus to the trigger on close
+  // so keyboard users don't get dropped at the top of the document.
+  Organica.popover = function (triggerEl, panelEl) {
+    let open = false;
+
+    function setOpen(next) {
+      open = next;
+      panelEl.dataset.open = String(open);
+      triggerEl.setAttribute('aria-expanded', String(open));
+      if (open) {
+        const first = panelEl.querySelector('button, select, input, a[href]');
+        if (first) first.focus();
+      }
+    }
+
+    function close(returnFocus) {
+      if (!open) return;
+      setOpen(false);
+      if (returnFocus) triggerEl.focus();
+    }
+
+    triggerEl.setAttribute('aria-expanded', 'false');
+    triggerEl.setAttribute('aria-haspopup', 'dialog');
+    panelEl.setAttribute('role', 'dialog');
+    panelEl.dataset.open = 'false';
+
+    triggerEl.addEventListener('click', e => { e.stopPropagation(); setOpen(!open); });
+
+    document.addEventListener('click', e => {
+      if (!open) return;
+      if (!panelEl.contains(e.target) && e.target !== triggerEl) close(false);
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') close(true);
+    });
+
+    // Tabbing past the last control should close rather than leave an open
+    // panel behind the rest of the page.
+    panelEl.addEventListener('focusout', e => {
+      if (open && !panelEl.contains(e.relatedTarget) && e.relatedTarget !== triggerEl) close(false);
+    });
+
+    return { close: () => close(false), get isOpen() { return open; } };
+  };
+
   global.Organica = Organica;
 })(window);

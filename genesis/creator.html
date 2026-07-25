@@ -4,8 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Genesis Creator — Organica</title>
-  <link rel="stylesheet" href="organic-library.css">
+  <!-- animations only: this is an app shell, not a catalog page.
+       The chrome half (body padding, header, .grid) would fight the grid layout. -->
+  <link rel="stylesheet" href="organic-animations.css">
   <link rel="stylesheet" href="/shared/organica-tokens.css">
+  <link rel="stylesheet" href="/shared/organica-header.css">
   <style>
     /* ─── Base — Pollen palette (light / mono), shared with Library ─── */
     :root {
@@ -15,10 +18,20 @@
       --border: #d0c8b8;
       --border-strong: #a89e88;
       --ink: #0a0a0a;
+      --bg-cell: #eceae4;   /* required by organic-animations.css — forms 29/36 punch holes with it */
       --ink-muted: #726a5e;
       --ink-faint: #a89e8c;
       --accent: #0a0a0a;
       --pollen: #c8a83a;
+
+      /* Palette contract for shared/organica-header.css — these pages name
+         the same roles differently (--bg/--surface/--ink-muted), so alias
+         rather than rename. Without --paper the primary button painted its
+         label in nothing and rendered as a solid black box. */
+      --paper: var(--bg);
+      --mid: var(--ink-muted);
+      --panel: var(--surface);
+      --tool: #c8a83a;
 
       --panel-width-right: 260px;
       --toolbar-height: 48px;
@@ -27,7 +40,7 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: var(--fs-md); }
 
-    .app { display: grid; grid-template-columns: 1fr var(--panel-width-right); grid-template-rows: 100vh; height: 100vh; overflow: hidden; }
+    .app { display: grid; grid-template-columns: 1fr var(--panel-width-right); grid-template-rows: calc(100vh - var(--header-h)); height: calc(100vh - var(--header-h)); overflow: hidden; }
 
     /* ─── Main ─────────────────────────────────────────────── */
     .canvas-area { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
@@ -115,23 +128,34 @@
 </head>
 <body>
 
+  <header class="org-header org-header--editor" role="banner">
+    <a class="org-header__logo" href="/"><b>Organica</b><span>/ Creator</span></a>
+
+    <div class="org-header__context">
+      <a class="org-header__sub" href="/genesis/library.html">&laquo; Library</a>
+      <div class="org-tabs" id="mode-tabs" role="group" aria-label="Mode">
+        <button class="org-btn" data-mode="draw" aria-pressed="true">Draw</button>
+        <button class="org-btn" data-mode="import" aria-pressed="false">Import</button>
+        <button class="org-btn" data-mode="generate" aria-pressed="false">Generate</button>
+      </div>
+    </div>
+
+    <div class="org-header__spacer"></div>
+
+    <output class="org-header__status" aria-live="polite" aria-atomic="true">
+      <span class="org-header__dot" id="status-dot"></span>
+      <span class="org-header__state" id="status-text">Draw a shape to begin</span>
+    </output>
+
+    <div class="org-header__actions">
+      <button class="org-btn" id="btn-undo">&#8630; Undo</button>
+      <button class="org-btn" id="btn-clear">Clear</button>
+    </div>
+  </header>
+
   <div class="app">
 
     <main class="canvas-area">
-      <div class="toolbar">
-        <a class="back" href="/genesis/library.html">« Library</a>
-        <div class="sep"></div>
-        <span class="title">Creator</span>
-        <div class="sep"></div>
-        <div class="mode-tabs" id="mode-tabs">
-          <button class="mode-tab active" data-mode="draw">Draw</button>
-          <button class="mode-tab" data-mode="import">Import</button>
-          <button class="mode-tab" data-mode="generate">Generate</button>
-        </div>
-        <div class="spacer"></div>
-        <button class="tb-btn" id="btn-undo">↶ Undo</button>
-        <button class="tb-btn" id="btn-clear">Clear</button>
-      </div>
 
       <div class="stage">
         <div class="artwrap">
@@ -257,6 +281,7 @@
     </aside>
   </div>
 
+  <script src="/shared/organica-core.js"></script>
   <script src="organic-defs.js"></script>
   <script src="organic-forms.js"></script>
   <script>
@@ -331,13 +356,16 @@
 
   // ── Mode tabs ──────────────────────────────────────────
   function bindTabs() {
-    $('mode-tabs').querySelectorAll('.mode-tab').forEach(t => {
+    $('mode-tabs').querySelectorAll('[data-mode]').forEach(t => {
       t.addEventListener('click', () => setMode(t.dataset.mode));
     });
   }
   function setMode(mode) {
     S.mode = mode;
-    $('mode-tabs').querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+    // aria-pressed is the state, not a class — the component styles from it,
+    // so assistive tech and the visuals can never disagree.
+    $('mode-tabs').querySelectorAll('[data-mode]')
+      .forEach(t => t.setAttribute('aria-pressed', String(t.dataset.mode === mode)));
     document.querySelectorAll('.mode-block').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
     $('art').classList.toggle('notdraw', mode !== 'draw');
     $('art-hint').style.display = mode === 'draw' ? 'block' : 'none';
