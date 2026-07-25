@@ -4,9 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Organica</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Syne+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/shared/organica-tokens.css">
   <style>
     *, *::before, *::after {
       margin: 0;
@@ -29,7 +27,7 @@
       height: 100%;
       background: var(--bg);
       color: var(--ink);
-      font-family: 'Syne', sans-serif;
+      font-family: var(--font);
       overflow: hidden;
     }
 
@@ -85,7 +83,7 @@
     }
 
     .wordmark__sub {
-      font-family: 'Syne Mono', monospace;
+      font-family: var(--font);
       font-size: clamp(0.55rem, 0.9vw, 0.7rem);
       letter-spacing: 0.22em;
       color: var(--ink-dim);
@@ -95,11 +93,17 @@
       animation: fadeUp 0.8s ease forwards 0.4s;
     }
 
-    /* ── nav links ── */
+    /* ── nav links ──
+       Wraps: body is overflow:hidden, so a nav wider than the viewport would
+       push the outer links off-screen with no way to scroll to them. */
     .nav {
       display: flex;
-      gap: clamp(2rem, 6vw, 5rem);
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: clamp(1rem, 3vw, 2.25rem) clamp(1.5rem, 5vw, 4rem);
       margin-top: clamp(2.5rem, 5vh, 4.5rem);
+      padding: 0 clamp(1.25rem, 5vw, 3rem);
+      max-width: 100%;
       opacity: 0;
       animation: fadeUp 0.9s ease forwards 0.65s;
     }
@@ -111,6 +115,7 @@
       font-weight: 700;
       letter-spacing: 0.12em;
       text-transform: uppercase;
+      white-space: nowrap;   /* wrap between links, never inside one */
       color: var(--ink-dim);
       transition: color 0.25s ease;
       padding-bottom: 0.35em;
@@ -134,6 +139,14 @@
 
     .nav__link:hover::after {
       width: 100%;
+    }
+
+    /* creator gets a teal — the one gap left in the palette */
+    .nav__link--creator:hover {
+      color: #5fc9b4;
+    }
+    .nav__link--creator::after {
+      background: #5fc9b4;
     }
 
     /* genesis gets a subtle accent tint on hover */
@@ -200,7 +213,7 @@
       right: 0;
       text-align: center;
       transform: none;
-      font-family: 'Syne Mono', monospace;
+      font-family: var(--font);
       font-size: 0.6rem;
       letter-spacing: 0.25em;
       color: var(--ink-dim);
@@ -232,6 +245,7 @@
     </div>
 
     <nav class="nav">
+      <a class="nav__link nav__link--creator" href="/genesis/creator.html">Creator</a>
       <a class="nav__link nav__link--genesis" href="/genesis/">Genesis</a>
       <a class="nav__link nav__link--strata" href="/strata/">Strata</a>
       <a class="nav__link nav__link--spore" href="/spore/">Spore</a>

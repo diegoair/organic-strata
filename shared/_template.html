@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New Tool — Organica</title>
+
+<!-- Tokens FIRST so the tool can override without !important.
+     Typeface, type scale, spacing: shared/organica-tokens.css
+     Full reference: docs/DESIGN-SYSTEM.md + docs/UI-SHELL.md -->
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+<style>
+  :root {
+    --ink: #0a0a0a;
+    --paper: #f5f2ec;
+    --mid: #726a5e;
+    --accent: #2a2a2a;
+    --panel: #eceae4;
+    --border: #d0c8b8;
+    --tool: #8aa054;   /* identity colour — see docs/DESIGN-SYSTEM.md §5 */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 11px;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOP BAR ── */
+  #topbar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 16px;
+    height: 40px;
+    border-bottom: 1px solid var(--border);
+    background: var(--paper);
+    flex-shrink: 0;
+    z-index: 100;
+  }
+
+  #topbar .logo {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--mid);
+    text-decoration: none;
+    margin-right: 24px;
+  }
+  #topbar .logo span { color: var(--ink); }
+
+  .tb-btn {
+    font-family: var(--font);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: none;
+    border: 1px solid transparent;
+    color: var(--ink);
+    padding: 4px 10px;
+    cursor: pointer;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .tb-btn:hover { border-color: var(--border); background: var(--panel); }
+  .tb-btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .tb-btn.primary:hover { background: #333; border-color: #333; }
+  .tb-btn.rec { color: #a03828; }
+  .tb-btn.rec.recording { background: #a03828; color: var(--paper); border-color: #a03828; }
+  .tb-btn:disabled { opacity: 0.35; cursor: default; }
+
+  .tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 8px; }
+  .tb-spacer { flex: 1; }
+
+  .tb-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mid); margin-right: 7px; }
+  .tb-select {
+    font-family: var(--font); font-size: 10px; letter-spacing: 0.06em;
+    background: none; border: 1px solid var(--border); color: var(--ink);
+    height: 26px; padding: 0 6px; cursor: pointer; outline: none;
+  }
+  .tb-select:hover { border-color: var(--mid); }
+  .tb-out { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); margin-left: 8px; min-width: 64px; }
+
+  #status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mid); flex-shrink: 0; }
+  #status-dot.active { background: #5a8a5a; }
+  #status-text { color: var(--mid); font-size: 10px; letter-spacing: 0.05em; }
+
+  /* ── LAYOUT ── */
+  #app { display: flex; flex: 1; overflow: hidden; }
+
+  #canvas-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    position: relative;
+    overflow: hidden;
+    padding: 24px;
+  }
+  #canvas-wrap.drag-over { outline: 2px dashed var(--ink); outline-offset: -8px; }
+
+  #gl-canvas {
+    max-width: 100%;
+    max-height: 100%;
+    box-shadow: 0 4px 40px rgba(0,0,0,0.18);
+    cursor: crosshair;
+    display: block;
+  }
+  #gl-canvas.dragging-sun { cursor: none; }
+
+  #hud {
+    position: absolute;
+    bottom: 16px; left: 16px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--font);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 6px 9px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+    user-select: none;
+  }
+  #hud .hud-hint { opacity: 0.55; }
+
+  #gl-error {
+    display: none;
+    max-width: 460px;
+    text-align: center;
+    line-height: 1.9;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--mid);
+    text-transform: uppercase;
+  }
+  #gl-error.visible { display: block; }
+
+  /* ── RIGHT PANEL ── */
+  #panel {
+    width: 244px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--paper);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-section { border-bottom: 1px solid var(--border); padding: 14px 16px; }
+  .panel-section h3 {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin-bottom: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .panel-section h3 .hint { font-size: 8px; color: var(--mid); letter-spacing: 0.05em; text-transform: none; font-weight: 400; }
+
+  .sub-label {
+    font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); margin: 14px 0 8px; font-weight: 500;
+  }
+
+  .ctrl-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
+  .ctrl-label { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); white-space: nowrap; flex-shrink: 0; min-width: 62px; }
+  .ctrl-val { font-size: 10px; color: var(--accent); min-width: 32px; text-align: right; flex-shrink: 0; }
+
+  .check-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; }
+  .check-row span { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); }
+  .check-row input[type=checkbox] { accent-color: var(--ink); cursor: pointer; flex-shrink: 0; }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    flex: 1; min-width: 0;
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px; height: 10px; border-radius: 50%; background: var(--ink); cursor: pointer;
+  }
+  input[type=range]::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); border: none; cursor: pointer; }
+
+  .seg-ctrl { display: flex; gap: 0; flex: 1; }
+  .seg-btn {
+    font-family: var(--font);
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    flex: 1;
+    padding: 5px 0;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--accent);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    margin-left: -1px;
+  }
+  .seg-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); z-index: 1; position: relative; }
+
+  .color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .color-swatch { width: 20px; height: 20px; border: 1px solid var(--border); border-radius: 2px; cursor: pointer; flex-shrink: 0; padding: 0; background: none; }
+  .color-hex {
+    font-family: var(--font); font-size: 10px;
+    background: var(--panel); border: 1px solid var(--border); color: var(--ink);
+    padding: 3px 6px; width: 70px; letter-spacing: 0.05em; outline: none; flex: 1;
+  }
+  .color-name { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mid); min-width: 52px; }
+  input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
+
+  .panel-select {
+    font-family: var(--font);
+    font-size: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 4px 6px;
+    width: 100%;
+    outline: none;
+    cursor: pointer;
+  }
+  .panel-select:hover { border-color: var(--mid); }
+
+  .row-btns { display: flex; gap: 6px; margin-top: 8px; }
+  .mini-btn {
+    flex: 1;
+    font-family: var(--font);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--accent);
+    padding: 6px 0;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .mini-btn:hover { border-color: var(--accent); color: var(--ink); }
+
+  #panel::-webkit-scrollbar { width: 3px; }
+  #panel::-webkit-scrollbar-track { background: transparent; }
+  #panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 1px; }
+
+  #file-input {
+    position: absolute; width: 1px; height: 1px;
+    opacity: 0; overflow: hidden; pointer-events: none; border: 0; padding: 0;
+  }
+
+  /* ── CANVAS + DROP HINT ── */
+  #drop-hint {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.3s;
+  }
+  #drop-hint.hidden { opacity: 0; }
+
+  .drop-icon {
+    width: 48px; height: 48px;
+    border: 1.5px solid var(--mid);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--mid);
+    font-size: 20px;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .drop-icon:hover { border-color: var(--ink); color: var(--ink); }
+
+  #drop-hint p {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mid);
+    text-align: center;
+    line-height: 1.8;
+  }
+
+  #main-canvas {
+    display: none;
+    max-width: 100%;
+    max-height: 100%;
+    box-shadow: 0 4px 40px rgba(0,0,0,0.12);
+    transform-origin: 0 0;
+    will-change: transform;
+    image-rendering: pixelated;
+  }
+  #main-canvas.visible { display: block; }
+  #main-canvas.zoomed { cursor: grab; }
+  #main-canvas.panning { cursor: grabbing; }
+  #main-canvas.picking { cursor: crosshair; }
+
+  #zoom-hud {
+    position: absolute;
+    bottom: 16px; left: 16px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 6px 9px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+    user-select: none;
+  }
+  #zoom-hud.visible { display: flex; }
+  #zoom-hud .zoom-reset { pointer-events: auto; cursor: pointer; opacity: 0.6; transition: opacity 0.15s; }
+  #zoom-hud .zoom-reset:hover { opacity: 1; }
+
+</style>
+</head>
+<body>
+
+<!-- ══ TOPBAR — left: input actions · right: export ══ -->
+<div id="topbar">
+  <a href="/" class="logo"><span>Organica</span> / New Tool</a>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="document.getElementById('file-input').click()">Open…</button>
+
+  <div class="tb-spacer"></div>
+
+  <div id="status-dot"></div>
+  <span id="status-text" style="margin: 0 10px 0 6px">—</span>
+  <div class="tb-sep"></div>
+
+  <span class="tb-label">Export Scale</span>
+  <select class="tb-select" id="sel-scale" onchange="updateSizeReadout()">
+    <option value="1">×1</option>
+    <option value="2" selected>×2</option>
+    <option value="4">×4</option>
+  </select>
+  <span class="tb-out" id="out-size">—</span>
+  <div class="tb-sep"></div>
+
+  <button class="tb-btn" onclick="exportPNG()">PNG</button>
+  <button class="tb-btn primary" onclick="sendToFigma()">→ Figma</button>
+</div>
+
+<div id="app">
+
+  <!-- ══ CANVAS — drop target, zoom/pan, HUD ══ -->
+  <div id="canvas-wrap">
+    <div id="drop-hint">
+      <div class="drop-icon">+</div>
+      <p>Drop an image<br>or click to open</p>
+    </div>
+    <canvas id="main-canvas"></canvas>
+    <div id="hud"><span id="hud-state">ready</span></div>
+  </div>
+
+  <!-- ══ PANEL — one .panel-section per control group ══ -->
+  <div id="panel">
+
+    <div class="panel-section">
+      <h3>Preset</h3>
+      <select class="panel-select" id="sel-preset" onchange="applyPreset(this.value)"></select>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="savePreset()">Save</button>
+        <button class="mini-btn" onclick="deletePreset()">Delete</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Controls <span class="hint">what this group does</span></h3>
+
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-mode">
+          <button class="seg-btn active" data-v="a" onclick="setSeg('seg-mode', this)">Mode A</button>
+          <button class="seg-btn" data-v="b" onclick="setSeg('seg-mode', this)">Mode B</button>
+        </div>
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Amount</div>
+        <input type="range" id="rg-amount" min="0" max="1" step="0.01" value="0.5"
+               oninput="syncVal(this,'v-amount')">
+        <span class="ctrl-val" id="v-amount">0.5</span>
+      </div>
+
+      <label class="check-row"><input type="checkbox" id="ck-flag" checked><span>A toggle</span></label>
+
+      <div class="color-row">
+        <span class="color-name">Ink</span>
+        <button class="color-swatch" id="sw-ink" onclick="ctrl('cp-ink').click()"></button>
+        <input type="color" id="cp-ink" value="#0a0a0a" oninput="syncColor('ink', this.value)">
+        <input class="color-hex" id="hex-ink" value="#0a0a0a" onchange="syncColor('ink', this.value)">
+      </div>
+    </div>
+
+  </div><!-- /panel -->
+</div>
+
+<input type="file" id="file-input" accept="image/*" onchange="loadImage(this)">
+
+<!-- Core BEFORE the tool script so Organica.* exists at parse time. -->
+<script src="/shared/organica-core.js"></script>
+<script>
+// ─────────────────────────────────────────────
+// NEW TOOL — see docs/UI-SHELL.md §5 for the behaviour contract.
+//
+// THE ONE RULE: a single render function serves the preview AND every
+// export. Only the resolution differs. If an export can disagree with
+// what is on screen, the tool is broken.
+// ─────────────────────────────────────────────
+
+function ctrl(id) { return document.getElementById(id); }
+function val(id)  { return parseFloat(ctrl(id).value); }
+
+function setStatus(state, msg) {
+  ctrl('status-dot').className = state === 'active' ? 'active' : '';
+  ctrl('status-text').textContent = msg;
+}
+
+function syncVal(slider, valId) { ctrl(valId).textContent = slider.value; }
+function setSeg(group, btn) {
+  ctrl(group).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+  render();
+}
+function seg(group) { return ctrl(group).querySelector('.seg-btn.active').dataset.v; }
+
+// Hex validation is shared; the repaint side effect is this tool's own.
+function syncColor(which, hex) {
+  hex = Organica.normalizeHex(hex, ctrl('cp-' + which).value);
+  ctrl('cp-' + which).value = hex;
+  ctrl('hex-' + which).value = hex;
+  ctrl('sw-' + which).style.background = hex;
+  render();
+}
+
+// ── PRESETS — storage + legacy migration are shared ──
+const PRESETS = Organica.presetStore('newtool');
+function userPresets() { return PRESETS.read(); }
+function savePreset() {
+  const name = prompt('Preset name'); if (!name) return;
+  const all = userPresets(); all[name] = readState();
+  PRESETS.write(all); populatePresets(name);
+}
+function deletePreset() { /* … */ }
+function populatePresets(select) { /* … */ }
+function applyPreset(name) { /* … */ }
+function readState() { return {}; }
+
+// ── RENDER — the single source of truth ──
+const canvas = ctrl('main-canvas');
+function renderFrame(w, h) { /* draw at w×h — resolution-independent */ }
+function render() { renderFrame(canvas.width, canvas.height); }
+
+// ── EXPORT ──
+function updateSizeReadout() { /* … */ }
+function exportPNG() {
+  // toDataURL, not toBlob — toBlob is async and races the canvas resize-back.
+  const url = canvas.toDataURL('image/png');
+  const bin = atob(url.split(',')[1]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('newtool', 'png'));
+}
+function sendToFigma() { Organica.sendToFigma(buildSVG(), 'New Tool'); }
+function buildSVG() { return '<svg xmlns="http://www.w3.org/2000/svg"></svg>'; }
+
+function loadImage(input) { /* … */ }
+
+// ── ZOOM & PAN — shared maths, this tool owns the HUD ──
+Organica.createZoomPan({
+  canvas,
+  wrap: ctrl('canvas-wrap'),
+  isReady: () => canvas.classList.contains('visible'),
+  onChange: ({ zoom, zoomed }) => {
+    ctrl('hud-state').textContent = Math.round(zoom * 100) + '%';
+    canvas.classList.toggle('zoomed', zoomed);
+  },
+});
+
+// ── INIT ──
+setStatus('', '—');
+populatePresets();
+syncColor('ink', ctrl('hex-ink').value);   // paint the swatch from its initial value
+</script>
+</body>
+</html>

@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pollen — Organica</title>
-<style>
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+  <style>
   :root {
     --ink: #0a0a0a;
     --paper: #f5f2ec;
@@ -14,8 +15,6 @@
     --border: #d0c8b8;
     --active: #1a1a1a;
     --pollen: #c8a83a;
-    --sans: 'DM Mono', 'Courier New', monospace;
-    --serif: Georgia, serif;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -839,6 +838,7 @@
 </div><!-- /app -->
 
 <!-- Centralized Organica shape library (window.ORGANIC_FORMS) shared with Genesis -->
+<script src="/shared/organica-core.js"></script>
 <script src="/genesis/organic-forms.js"></script>
 <script>
 // ─────────────────────────────────────────────
@@ -1163,9 +1163,10 @@ function setState(s) {
   if (sourceImage) generate(); else render();      // placement may have changed → recompute
 }
 
-function userPresets() {
-  try { return JSON.parse(localStorage.getItem('pollen-presets') || '{}'); } catch (e) { return {}; }
-}
+// Preset storage + legacy-key migration live in /shared/organica-core.js.
+const PRESETS = Organica.presetStore('pollen', 'pollen-presets');
+const PRESET_KEY = PRESETS.key;
+function userPresets() { return PRESETS.read(); }
 function populatePresets(sel) {
   const u = userPresets();
   const opt = ['<option value="">— Select —</option>'];
@@ -1184,14 +1185,14 @@ function savePreset() {
   const name = (prompt('Preset name:') || '').trim();
   if (!name) return;
   const u = userPresets(); u[name] = getState();
-  localStorage.setItem('pollen-presets', JSON.stringify(u));
+  PRESETS.write(u);
   populatePresets('u:' + name);
 }
 function deletePreset() {
   const v = ctrl('preset-select').value;
   if (!v || v.slice(0, 1) !== 'u') { alert('Select a saved preset (★) to delete.'); return; }
   const u = userPresets(); delete u[v.slice(2)];
-  localStorage.setItem('pollen-presets', JSON.stringify(u));
+  PRESETS.write(u);
   populatePresets('');
 }
 
@@ -1851,11 +1852,7 @@ function hideBand() {
   return [val('sl-hide-min') / 255, val('sl-hide-max') / 255];
 }
 
-function download(blob, name) {
-  const a = document.createElement('a');
-  a.download = name; a.href = URL.createObjectURL(blob);
-  a.click(); URL.revokeObjectURL(a.href);
-}
+const download = Organica.download;   // shared — delayed revoke, see /shared/organica-core.js
 
 // Raster the preview points to the chosen Scale resolution (high-dpi copy).
 function exportRaster(mime, ext, quality) {

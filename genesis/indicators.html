@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <title>Organic Indicators · 50</title>
-<style>
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+  <style>
   :root{
     --bg:#f4f1ea;
     --bg-cell:#efece4;
@@ -12,7 +13,7 @@
   }
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--ink);
-    font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-family: var(--font);
     -webkit-font-smoothing:antialiased}
   body{padding:48px 48px 96px}
 
@@ -23,7 +24,7 @@
     background:#1a1a1a;
     border-bottom:1px solid rgba(255,255,255,0.08);
     padding:7px 20px;
-    font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-family: var(--font);
     font-size:11px;
     color:#777;
     display:flex;
@@ -37,7 +38,7 @@
   #organica-banner .banner-dismiss:hover{color:#999}
   body.banner-visible{padding-top:calc(48px + 30px)}
   header{max-width:1280px;margin:0 auto 40px;display:flex;align-items:baseline;justify-content:space-between;gap:24px}
-  header h1{font-family:Georgia,serif;font-weight:400;font-size:34px;letter-spacing:-.01em;margin:0}
+  header h1{font-family: var(--font);font-weight:400;font-size:34px;letter-spacing:-.01em;margin:0}
   header p{margin:0;font-size:12px;opacity:.55;letter-spacing:.04em;text-transform:uppercase}
   .grid{max-width:1280px;margin:0 auto;display:grid;
     grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
@@ -432,7 +433,7 @@
   .defs{position:absolute;width:0;height:0;overflow:hidden}
 </style>
 </head>
-<body style="font-size: 20px; font-family: monospace" class="banner-visible">
+<body class="banner-visible">
 
 <div id="organica-banner">
   Part of Organica &mdash; <a href="https://organic-strata.vercel.app">organic-strata.vercel.app</a>

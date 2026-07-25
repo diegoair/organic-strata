@@ -1,0 +1,125 @@
+/* ─────────────────────────────────────────────────────────────
+   ORGANICA — organica-tokens.css
+   The design system: one typeface, one type scale, one set of names.
+
+   Before this file, Organica ran on four typefaces (Syne, Syne Mono,
+   DM Mono, DM Sans, plus Georgia and system ui-monospace), under four
+   different variable names for the same idea (--font, --sans, --mono,
+   --display) — and six of the eleven pages declared 'DM Mono' without
+   ever loading it, so they silently rendered system monospace.
+
+   Now: Manrope, everywhere, via --font. Nothing else.
+
+   Manrope is a variable font (weight 200–800 on a single axis), so the
+   whole weight range costs one file. Load order matters — this file must
+   come BEFORE a tool's own <style>, so the tool can still override a
+   token locally without !important.
+
+   Mirrored in Figma as text styles — see docs/DESIGN-SYSTEM.md for the
+   table and the exact Figma settings.
+   ───────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
+
+/* Form controls and <code>/<pre> never inherit font-family by default in any
+   browser — that's the UA stylesheet, not a bug in any one tool. Without this
+   rule every <input>, <select>, <button>, <textarea> silently renders Arial
+   (or Times/monospace for <code>/<html>-level mistakes) even on a page that
+   otherwise loads Manrope correctly. Caught by an audit of computed styles,
+   not by reading the CSS — the declaration always looked right. */
+input, select, button, textarea, code, pre, kbd, samp {
+  font-family: inherit;
+}
+
+/* Most tools set font-family on body but not html. Nothing renders directly
+   on <html>, so this was invisible — but leaving it serif meant one stray
+   rule (a `*, html { … }` reset, a component that inherits from the root
+   instead of body) would silently print Times. Closed at the root so it
+   can't resurface. */
+html {
+  font-family: var(--font);
+}
+
+:root {
+  /* ── TYPEFACE ────────────────────────────────────────────
+     One family. --font is the only name; the old --sans / --mono /
+     --display aliases are kept at the bottom of this file so existing
+     rules keep working, but new code should use --font. */
+  --font: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+
+  /* ── WEIGHTS ─────────────────────────────────────────────
+     Manrope's axis runs 200–800. Organica uses four stops; anything
+     between them is available but undefined by the system, so don't
+     reach for it without adding it here first. */
+  --w-light:    300;   /* long-form body, captions in dense panels */
+  --w-regular:  400;   /* default body */
+  --w-medium:   500;   /* control labels, table headers, sub-labels */
+  --w-bold:     700;   /* section titles, wordmark, emphasis */
+
+  /* ── TYPE SCALE ──────────────────────────────────────────
+     A 1.2 (minor third) ratio anchored at 11px, the size the tool
+     panels were already built around. Steps are rounded to whole pixels
+     so they land on the pixel grid in a dense UI.
+
+       9  ← micro    hint text, unit labels
+       10 ← small    buttons, selects, values in a control row
+       11 ← base     panel body — the anchor
+       12 ← medium   panel section titles
+       14 ← large    page-level headings inside a tool
+       17 ← xl       tool title
+       34 ← display  hub wordmark (fluid, see --fs-display) */
+  --fs-micro:   9px;
+  --fs-small:   10px;
+  --fs-base:    11px;
+  --fs-medium:  12px;
+  --fs-large:   14px;
+  --fs-xl:      17px;
+  --fs-display: clamp(1.5rem, 9vw, 13rem);   /* hub wordmark only */
+
+  /* ── LINE HEIGHT ─────────────────────────────────────────
+     Unitless, so it scales with the element's own font-size.
+     Dense UI wants tight; reading text wants loose. */
+  --lh-tight:   1.2;    /* headings, single-line controls */
+  --lh-snug:    1.45;   /* multi-line labels in panels */
+  --lh-normal:  1.7;    /* body copy, docs, help text */
+
+  /* ── LETTER SPACING ──────────────────────────────────────
+     Organica's UI voice is uppercase-and-tracked. The rule of thumb the
+     tools already followed: the smaller and more uppercase the text,
+     the more tracking it needs to stay legible. */
+  --ls-tight:   -0.02em;   /* display / wordmark — big type needs negative */
+  --ls-normal:  0;         /* body copy */
+  --ls-wide:    0.05em;    /* values, hex fields, readouts */
+  --ls-wider:   0.08em;    /* buttons, control labels */
+  --ls-widest:  0.15em;    /* uppercase micro-labels, the tool logo */
+
+  /* ── RADIUS / BORDER ─────────────────────────────────────
+     Organica's surfaces are flat and near-square; radius is a whisper,
+     not a feature. */
+  --radius-sm:  2px;
+  --radius-md:  4px;
+  --radius-lg:  8px;
+
+  /* ── SPACING ─────────────────────────────────────────────
+     4px base grid. The panel layout was already built on these. */
+  --space-1:  4px;
+  --space-2:  6px;
+  --space-3:  8px;
+  --space-4:  10px;
+  --space-5:  14px;
+  --space-6:  16px;
+  --space-7:  24px;
+  --space-8:  32px;
+}
+
+/* ── LEGACY ALIASES ───────────────────────────────────────────
+   Every tool used to name the typeface differently. These keep the old
+   rules rendering while the codebase converges on --font. They all
+   resolve to the same family now, which is the point: the "sans vs mono
+   vs display" distinction described three fonts that no longer exist.
+   Do not use these in new code. */
+:root {
+  --sans:    var(--font);
+  --mono:    var(--font);
+  --display: var(--font);
+}

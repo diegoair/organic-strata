@@ -2,7 +2,7 @@
 
 > Studio Rann · Organica · 木漏れ日 — Dappled Sunlight Through a Canopy
 > Live: [theorganicalanguage.vercel.app/komorebi/](https://theorganicalanguage.vercel.app/komorebi/)
-> Last updated: July 25, 2026
+> Last updated: July 25, 2026 (Gobo-only pattern focus)
 
 ---
 
@@ -63,30 +63,39 @@ light pools.
 
 ---
 
-## 3. Two modes — Projection
+## 3. Format — pattern framing
 
-The **Projection** segmented control chooses what you are looking at:
+Komorebi renders **Gobo** only: an orthographic, flat projection — no camera, no horizon, the
+whole frame *is* the lit plane. This is what makes it a **pattern tool** rather than a scene
+renderer: the output tiles, and it feeds the Organica pattern engine (Phase 4). An earlier
+"Scene" mode (a perspective horizon/sky/ground camera picture) existed during prototyping and
+was dropped from the UI once the priority became realistic, usable dapple *patterns* rather
+than a landscape picture — see §15.
 
-- **Scene** — the picture. A horizon line; above it you look up through a canopy ceiling
-  that recedes toward the horizon and a glowing sky; below it a ground plane receding to the
-  same line, covered in dappled light with god rays raking across. Controls: **Horizon**
-  (height of the line) and **Depth** (perspective strength — how fast the ground recedes).
-- **Gobo** — the flat pattern. Orthographic, no camera, the whole frame is the lit plane.
-  This is the mode for making **tileable dapple patterns** (it feeds the Organica pattern
-  engine). Its one geometry control is **Spread** (how much of the canopy fills the frame).
+- **Format** — output aspect ratio (Square, Portrait, Landscape, Wide, A-series).
+- **Spread** — how much of the canopy fills the frame (zoom).
 
 ---
 
 ## 4. Canopy — the gobo source
 
-- **Procedural** — a two-layer fBm foliage mask. The layers are combined with `max()`, so a
-  gap exists only where *both* layers happen to be open — this produces the sparse,
-  irregular apertures a real canopy has, instead of even noise.
+- **Procedural** — a layered fBm foliage mask, tuned for organic realism rather than smooth
+  cloud-noise blobs:
   - **Scale** — canopy zoom (bigger = smaller, finer leaves).
   - **Density** — leaf coverage vs. open sky.
   - **Edge** — softness of the leaf edges (low = crisp, high = feathered).
-  - **Layer 2** — frequency ratio of the second layer relative to the first; higher adds
-    finer secondary structure.
+  - **Layer 2** — frequency ratio of a second fBm layer, combined with the first via `max()`
+    so a gap exists only where *both* layers happen to be open — the sparse, irregular
+    apertures a real canopy has, instead of even noise holes.
+  - **Clumping** — a slow, low-frequency field nudges the local density up or down across the
+    frame, so the canopy forms denser thickets and wider open gaps instead of one uniform
+    threshold everywhere. This is the single biggest lever for "this looks like a real
+    canopy" vs. "this looks like noise."
+  - **Leaf detail** — a fine high-frequency layer nibbles the boundary, turning smooth blob
+    edges into scalloped, leaf-like edges, and flecks a few pinholes of light through
+    otherwise-solid interior — real foliage is never fully opaque up close. High values on an
+    already-dense canopy can close off *more* light than they add (they nibble both ways) —
+    if a dense preset reads too flat/dark, lower this before raising Density.
   - **Seed** — reshuffles the whole canopy.
 - **Image** — upload any silhouette to use as the canopy: **Open image…**, or **drag and
   drop** a file anywhere on the canvas. Its luminance becomes the mask (bright = gap). This
@@ -194,17 +203,20 @@ regions resolve regardless of winding.
 
 ## 12. Presets
 
-Eight built-ins, each a complete deterministic state (applying one never inherits leftovers
+Six built-ins, each a complete deterministic state (applying one never inherits leftovers
 from the previous look — it is layered over the *Forest Floor* baseline):
 
-- **Forest Floor** — the default balanced woodland scene.
-- **High Noon** — small hard sun, tight sharp pools, low haze.
-- **Cathedral** — high horizon, long hazy shafts, soft large dapple.
-- **Shoji** — Gobo mode, paper-and-shadow palette; the flat pattern look.
-- **Undergrowth** — dense dark canopy, high contrast, saturated green.
-- **Riso Two-Tone** — Gobo mode, 3 bands, flat print palette; made for the SVG separation.
-- **Dusk Ember** — low warm sun, purple sky, long amber rays.
-- **Bamboo** — tall thin fast-swaying canopy, fine vertical structure.
+- **Forest Floor** — the default balanced organic dapple pattern.
+- **Riso Two-Tone** — 3 bands, flat print palette, high Clumping for bold graphic shapes;
+  built for the SVG separation (§11) — a real screen-print / riso plate output.
+- **Shoji** — soft, low-contrast, paper-and-shadow palette; diffused light, minimal Leaf
+  detail — the flat, even pattern look.
+- **Dense Canopy** — deep shade, high Density, only scattered pinhole coins of light —
+  demonstrates the penumbra/pinhole effect (§2) at its most dramatic.
+- **Sparse Grove** — mostly open, sunlit ground with a few soft dark leaf-clumps — the
+  inverse read of Dense Canopy.
+- **Fine Foliage** — small Scale, high Leaf detail, low Clumping — a delicate, fine-grained
+  texture rather than large shapes.
 
 **Save** stores the current state to `localStorage`; **Delete** removes a saved preset
 (built-ins can't be deleted).
@@ -242,6 +254,16 @@ from the previous look — it is layered over the *Forest Floor* baseline):
 
 ## 15. Evaluated and deferred
 
+- **Scene mode — dropped from the UI (July 25, 2026)** — the perspective camera picture
+  (horizon, canopy ceiling, sky, receding ground) that Komorebi first shipped with. Once the
+  priority became realistic, usable dapple *patterns* for design work rather than a landscape
+  render, Scene stopped earning its panel space; Diego asked for it gone in favour of doubling
+  down on Gobo. The underlying shader code (`PROJECT_LIB`'s `groundPoint`/`ceilingPoint`
+  branches, the `uMode`/`uHorizon` uniforms) was left in place rather than deleted — it's
+  inert (the JS always sets `uMode = 1`, gobo), so it carries no runtime cost and nothing
+  downstream (occlusion pass, rays, SVG separation) had to change. Revisit by re-exposing the
+  Projection toggle if a "picture" output is wanted again later; don't re-derive the geometry
+  from scratch.
 - **Structure-tensor flow field for wind** — the current warp is per-pixel fBm (some
   shimmer); a smoothed flow field would give coherent branch sway. Parked (mirrors the same
   note in the Pollen hatching backlog).

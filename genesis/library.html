@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Genesis Library — Organica</title>
   <link rel="stylesheet" href="organic-library.css">
+  <link rel="stylesheet" href="/shared/organica-tokens.css">
   <style>
     /* ─── Base — Pollen palette (light / mono) ───────────────── */
     :root {
@@ -27,7 +28,6 @@
 
       --radius-sm: 0px;
       --radius-md: 0px;
-      --font: 'DM Mono', 'Courier New', monospace;
       --font-size-xs: 10px;
       --font-size-sm: 11px;
       --font-size-md: 12px;
@@ -321,7 +321,23 @@
   // ─────────────────────────────────────────────────────────
 
   const BUILT_IN_SET_ID = 'organic-forms';
-  const STORAGE_KEY = 'organica_library';
+  // Storage key follows the Organica convention: organica.<tool>.<thing>.
+  // This store is shared with creator.html — both must migrate identically,
+  // so keep readLibraryRaw() in sync between the two files.
+  // The pre-July-2026 key is read once as a fallback and copied forward, then
+  // left in place rather than deleted: these are the user's own saved forms.
+  // See docs/SHARED-LIBRARY.md §Storage.
+  const STORAGE_KEY = 'organica.library.forms';
+  const LEGACY_STORAGE_KEY = 'organica_library';
+
+  function readLibraryRaw() {
+    const cur = localStorage.getItem(STORAGE_KEY);
+    if (cur !== null) return cur;
+    const old = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (old === null) return null;
+    localStorage.setItem(STORAGE_KEY, old);      // migrate forward, keep the original
+    return old;
+  }
 
   let state = {
     activeSetId: BUILT_IN_SET_ID,
@@ -364,7 +380,7 @@
 
   function loadLibrary() {
     let lib = null;
-    try { const s = localStorage.getItem(STORAGE_KEY); if (s) lib = JSON.parse(s); } catch (e) { lib = null; }
+    try { const s = readLibraryRaw(); if (s) lib = JSON.parse(s); } catch (e) { lib = null; }
     state.library = lib || defaultLibrary();
     // Always ensure the built-in set exists and is first
     if (!state.library.sets) state.library.sets = [];

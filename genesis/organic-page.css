@@ -1,0 +1,37 @@
+/* ─────────────────────────────────────────────────────────────
+   ORGANICA — organic-page.css
+   Page chrome for the Genesis catalog-style pages: the :root palette
+   plus body / header / .grid / .cell / .num layout.
+
+   This is the PAGE half of the old organic-library.css. It is NOT
+   required to render the forms — link organic-animations.css for that.
+   Split out on July 25, 2026 — see docs/SHARED-LIBRARY.md.
+
+   NOTE: this file owns the default --ink / --bg-cell values. Pages that
+   link organic-animations.css WITHOUT this file must define both
+   themselves (see the contract at the top of organic-animations.css).
+   ───────────────────────────────────────────────────────────── */
+
+
+  :root{
+    --bg:#f4f1ea;
+    --bg-cell:#efece4;
+    --ink:#15140f;
+    --ink-soft:#15140fcc;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:var(--font);
+    -webkit-font-smoothing:antialiased}
+  body{padding:48px 48px 96px}
+  header{max-width:1280px;margin:0 auto 40px;display:flex;align-items:baseline;justify-content:space-between;gap:24px}
+  header h1{font-family:var(--font);font-weight:400;font-size:34px;letter-spacing:-.01em;margin:0}
+  header p{margin:0;font-size:12px;opacity:.55;letter-spacing:.04em;text-transform:uppercase}
+  .grid{max-width:1280px;margin:0 auto;display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+    gap:24px}
+  .cell{aspect-ratio:1/1;background:var(--bg-cell);border-radius:6px;
+    display:flex;align-items:center;justify-content:center;
+    position:relative;overflow:hidden}
+  .cell svg{width:100%;height:100%;display:block}
+  .num{position:absolute;left:10px;top:10px;font-size:9px;opacity:.32;letter-spacing:.08em}

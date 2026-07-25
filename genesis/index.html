@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <title>Genesis Creator — Organica</title>
 <link rel="stylesheet" href="organic-library.css">
-<style>
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+  <style>
   :root{
     --bg:#f1f1ef;
     --ink:#15140f;
@@ -16,7 +17,7 @@
     --sel:#15140f;
   }
   html,body{margin:0;background:var(--bg);color:var(--ink);
-    font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-family: var(--font);
     -webkit-font-smoothing:antialiased}
   body{padding:32px 48px 64px;min-height:100vh}
 
@@ -27,7 +28,7 @@
     background:#1a1a1a;
     border-bottom:1px solid rgba(255,255,255,0.08);
     padding:7px 20px;
-    font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-family: var(--font);
     font-size:11px;
     color:#777;
     display:flex;
@@ -43,7 +44,7 @@
 
   header{max-width:1480px;margin:0 auto 28px;
     display:flex;align-items:baseline;justify-content:space-between;gap:24px}
-  header h1{font-family:Georgia,serif;font-weight:400;font-size:34px;letter-spacing:-.01em;margin:0}
+  header h1{font-family: var(--font);font-weight:400;font-size:34px;letter-spacing:-.01em;margin:0}
   header .breadcrumb{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.55;margin-top:6px}
   header .breadcrumb a{color:inherit;text-decoration:none;border-bottom:1px solid currentColor;padding-bottom:1px}
   header .breadcrumb a:hover{opacity:.7}

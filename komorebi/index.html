@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Komorebi — Organica</title>
-<style>
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+  <style>
   :root {
     --ink: #0a0a0a;
     --paper: #f5f2ec;
@@ -13,7 +14,6 @@
     --panel: #eceae4;
     --border: #d0c8b8;
     --komorebi: #8aa054;
-    --sans: 'DM Mono', 'Courier New', monospace;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -318,15 +318,8 @@
     </div>
 
     <div class="panel-section">
-      <h3>Projection <span class="hint">what we're looking at</span></h3>
+      <h3>Format <span class="hint">tileable gobo pattern</span></h3>
       <div class="ctrl-row">
-        <div class="seg-ctrl" id="seg-mode">
-          <button class="seg-btn active" data-v="scene" onclick="setSeg('seg-mode', this)">Scene</button>
-          <button class="seg-btn" data-v="gobo" onclick="setSeg('seg-mode', this)">Gobo</button>
-        </div>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label">Format</div>
         <select class="panel-select" id="sel-format" onchange="resizeCanvas()">
           <option value="1:1">Square 1:1</option>
           <option value="4:5">Portrait 4:5</option>
@@ -336,13 +329,8 @@
           <option value="1:1.414">A-series √2</option>
         </select>
       </div>
-      <div class="ctrl-row" id="row-horizon">
-        <div class="ctrl-label">Horizon</div>
-        <input type="range" id="rg-horizon" min="0.15" max="0.85" step="0.01" value="0.42" oninput="syncVal(this,'v-horizon')">
-        <span class="ctrl-val" id="v-horizon">0.42</span>
-      </div>
       <div class="ctrl-row">
-        <div class="ctrl-label" id="lbl-persp">Depth</div>
+        <div class="ctrl-label" id="lbl-persp">Spread</div>
         <input type="range" id="rg-persp" min="0.02" max="0.60" step="0.01" value="0.18" oninput="syncVal(this,'v-persp')">
         <span class="ctrl-val" id="v-persp">0.18</span>
       </div>
@@ -378,6 +366,16 @@
         <div class="ctrl-label">Layer 2</div>
         <input type="range" id="rg-ratio" min="1.0" max="5.0" step="0.05" value="2.35" oninput="syncVal(this,'v-ratio')">
         <span class="ctrl-val" id="v-ratio">2.35</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Varies leaf density across the frame with a slow low-frequency field, instead of one uniform threshold — real canopies have denser clumps and more open gaps, not an even scatter.">Clumping</div>
+        <input type="range" id="rg-clump" min="0" max="0.5" step="0.01" value="0.18" oninput="syncVal(this,'v-clump')">
+        <span class="ctrl-val" id="v-clump">0.18</span>
+      </div>
+      <div class="ctrl-row" title="A fine high-frequency layer that nibbles the leaf boundary — turns smooth blob edges into scalloped, leaf-like edges and flecks light through the canopy interior.">
+        <div class="ctrl-label">Leaf detail</div>
+        <input type="range" id="rg-leafdetail" min="0" max="1" step="0.02" value="0.35" oninput="syncVal(this,'v-leafdetail')">
+        <span class="ctrl-val" id="v-leafdetail">0.35</span>
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label">Seed</div>
@@ -552,6 +550,7 @@
 
 <input type="file" id="file-input" accept="image/*" onchange="loadCookie(this)">
 
+<script src="/shared/organica-core.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // KOMORE BI — 木漏れ日, "sunlight leaking through trees"
@@ -612,9 +611,6 @@ function setSegValue(group, v) {
   if (btn) ctrl(group).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
 }
 function syncConditionalRows() {
-  const scene = seg('seg-mode') === 'scene';
-  ctrl('row-horizon').style.display = scene ? '' : 'none';
-  ctrl('lbl-persp').textContent = scene ? 'Depth' : 'Spread';
   ctrl('row-cookie-load').style.display = seg('seg-source') === 'cookie' ? '' : 'none';
 }
 
@@ -653,6 +649,8 @@ uniform float uCanopyScale;
 uniform float uDensity;
 uniform float uEdge;
 uniform float uLayerRatio;
+uniform float uDensityVar;
+uniform float uLeafDetail;
 uniform float uWindAmp;
 uniform float uWindSpeed;
 uniform float uWindPeriod;
@@ -704,6 +702,16 @@ vec2 windOffset(vec2 p, float k) {
 // Two layers combined with max(): occlusion stacks, so a gap only exists
 // where BOTH layers happen to be open — that is what produces the sparse,
 // irregular apertures real canopies have, instead of even noise holes.
+//
+// Three additions on top of that base, all aimed at reading as real foliage
+// rather than cloud-noise blobs:
+//   - CLUMPING — a slow, low-frequency field nudges the local threshold up
+//     or down across the frame, so some regions clump into dense thickets
+//     and others open into wide gaps, instead of one uniform density.
+//   - LEAF DETAIL — a fine high-frequency layer nibbles the boundary,
+//     turning smooth blob edges into scalloped, leaf-like edges, and
+//     flecks a few pinholes of light through otherwise-solid interior —
+//     the way real leaf canopies are never fully opaque up close.
 float canopy(vec2 p) {
   p = p * uCanopyScale + uSeed * 13.71;
 
@@ -713,13 +721,20 @@ float canopy(vec2 p) {
     return 1.0 - smoothstep(uDensity - uEdge, uDensity + uEdge, lum);
   }
 
+  float clumpField = fbm(p * 0.22 + vec2(71.0, 5.0)) - 0.5;
+  float density = clamp(uDensity + clumpField * uDensityVar, 0.02, 0.98);
+
   vec2 w1 = windOffset(p, 1.0);
   vec2 w2 = windOffset(p * 0.7 + vec2(31.0, 17.0), 1.45);
   float a = fbm(p + w1);
   float b = fbm(p * uLayerRatio + w2 + vec2(37.0, 11.0));
-  float m1 = 1.0 - smoothstep(uDensity - uEdge, uDensity + uEdge, a);
-  float m2 = 1.0 - smoothstep(uDensity - uEdge, uDensity + uEdge, b);
-  return max(m1, m2);
+  float m1 = 1.0 - smoothstep(density - uEdge, density + uEdge, a);
+  float m2 = 1.0 - smoothstep(density - uEdge, density + uEdge, b);
+  float base = max(m1, m2);
+
+  float detail = fbm(p * (uLayerRatio * 3.3) + vec2(91.0, 44.0) + w1 * 0.6);
+  float nibble = (detail - 0.5) * uLeafDetail;
+  return clamp(base + nibble, 0.0, 1.0);
 }
 `;
 
@@ -989,13 +1004,15 @@ function setSharedUniforms(p, w, h) {
   gl.uniform1f(u('uDensity'), val('rg-density'));
   gl.uniform1f(u('uEdge'), val('rg-soft'));
   gl.uniform1f(u('uLayerRatio'), val('rg-ratio'));
+  gl.uniform1f(u('uDensityVar'), val('rg-clump'));
+  gl.uniform1f(u('uLeafDetail'), val('rg-leafdetail'));
   gl.uniform1f(u('uWindAmp'), val('rg-wind'));
   gl.uniform1f(u('uWindSpeed'), val('rg-windspd'));
   gl.uniform1f(u('uWindPeriod'), val('rg-period'));
   gl.uniform1i(u('uWindMode'), seg('seg-wind') === 'sway' ? 0 : 1);
   gl.uniform1i(u('uUseCookie'), (seg('seg-source') === 'cookie' && hasCookie) ? 1 : 0);
-  gl.uniform1i(u('uMode'), seg('seg-mode') === 'scene' ? 0 : 1);
-  gl.uniform1f(u('uHorizon'), val('rg-horizon'));
+  gl.uniform1i(u('uMode'), 1);   // Gobo only — Scene mode removed from the UI (see docs/KOMOREBI.md §15)
+  gl.uniform1f(u('uHorizon'), 0.5);
   gl.uniform1f(u('uPersp'), val('rg-persp'));
   gl.uniform1f(u('uPenumbra'), val('rg-penumbra'));
   gl.uniform2f(u('uSunUV'), val('rg-sunx'), val('rg-suny'));
@@ -1151,11 +1168,7 @@ function updateSizeReadout() {
   const d = outputDims(parseInt(ctrl('sel-scale').value, 10) || 2);
   ctrl('out-size').textContent = d.w + ' × ' + d.h;
 }
-function download(blob, name) {
-  const a = document.createElement('a');
-  a.download = name; a.href = URL.createObjectURL(blob);
-  a.click(); URL.revokeObjectURL(a.href);
-}
+const download = Organica.download;   // shared — delayed revoke, see /shared/organica-core.js
 
 // Render one frame at export size, hand the canvas to the caller, then put
 // the preview size back. simTime is untouched, so the export is exactly the
@@ -1231,82 +1244,10 @@ function toggleRecord() {
 // boundary walk, evenodd fill so holes and nesting resolve without caring
 // about winding direction.
 // ─────────────────────────────────────────────
-const CONTOUR_DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
-function contourDirIndex(dx, dy) {
-  for (let i = 0; i < 4; i++) if (CONTOUR_DIRS[i][0] === dx && CONTOUR_DIRS[i][1] === dy) return i;
-  return -1;
-}
-function traceContours(mask, W, H) {
-  const ink = (x, y) => x >= 0 && x < W && y >= 0 && y < H && mask[y * W + x] === 1;
-  const edgesFrom = new Map();
-  const addEdge = (x1, y1, x2, y2) => {
-    const k = x1 + ',' + y1;
-    let arr = edgesFrom.get(k);
-    if (!arr) { arr = []; edgesFrom.set(k, arr); }
-    arr.push([x2, y2]);
-  };
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    if (!ink(x, y)) continue;
-    if (!ink(x, y - 1)) addEdge(x, y, x + 1, y);
-    if (!ink(x + 1, y)) addEdge(x + 1, y, x + 1, y + 1);
-    if (!ink(x, y + 1)) addEdge(x + 1, y + 1, x, y + 1);
-    if (!ink(x - 1, y)) addEdge(x, y + 1, x, y);
-  }
-  const used = new Set();
-  const edgeKey = (x1, y1, x2, y2) => x1 + ',' + y1 + '>' + x2 + ',' + y2;
-  const loops = [];
-  for (const [fromKey, targets] of edgesFrom) {
-    for (const [tx, ty] of targets) {
-      const [fx, fy] = fromKey.split(',').map(Number);
-      if (used.has(edgeKey(fx, fy, tx, ty))) continue;
-      const loop = [[fx, fy]];
-      used.add(edgeKey(fx, fy, tx, ty));
-      loop.push([tx, ty]);
-      let curDir = contourDirIndex(tx - fx, ty - fy);
-      let cx = tx, cy = ty, guard = 0;
-      while (!(cx === fx && cy === fy) && guard++ < W * H * 4 + 8) {
-        const candidates = edgesFrom.get(cx + ',' + cy) || [];
-        const avail = candidates.filter(([tx2, ty2]) => !used.has(edgeKey(cx, cy, tx2, ty2)));
-        if (!avail.length) break;
-        let best = null, bestScore = -Infinity;
-        for (const [tx2, ty2] of avail) {
-          const d = contourDirIndex(tx2 - cx, ty2 - cy);
-          const turn = (d - curDir + 4) % 4;                       // 0 straight, 1 right, 2 back, 3 left
-          const score = turn === 1 ? 3 : turn === 0 ? 2 : turn === 3 ? 1 : 0;
-          if (score > bestScore) { bestScore = score; best = [tx2, ty2, d]; }
-        }
-        used.add(edgeKey(cx, cy, best[0], best[1]));
-        loop.push([best[0], best[1]]);
-        curDir = best[2];
-        cx = best[0]; cy = best[1];
-      }
-      loops.push(loop);
-    }
-  }
-  return loops;
-}
-function simplifyLoop(loop) {
-  const n = loop.length - 1;
-  if (n < 3) return loop.slice(0, -1);
-  const out = [];
-  for (let i = 0; i < n; i++) {
-    const prev = loop[(i - 1 + n) % n], cur = loop[i], next = loop[(i + 1) % n];
-    if (cur[0] - prev[0] !== next[0] - cur[0] || cur[1] - prev[1] !== next[1] - cur[1]) out.push(cur);
-  }
-  return out;
-}
-function contoursToPathD(mask, W, H, block) {
-  const loops = traceContours(mask, W, H);
-  let d = '';
-  for (const loop of loops) {
-    const s = simplifyLoop(loop);
-    if (s.length < 3) continue;
-    d += 'M' + (s[0][0] * block).toFixed(2) + ',' + (s[0][1] * block).toFixed(2);
-    for (let i = 1; i < s.length; i++) d += 'L' + (s[i][0] * block).toFixed(2) + ',' + (s[i][1] * block).toFixed(2);
-    d += 'Z';
-  }
-  return d;
-}
+// The rectilinear contour tracer now lives in /shared/organica-core.js —
+// Halide and Komorebi each had a copy and they had drifted apart on
+// coordinate formatting. See docs/SHARED-LIBRARY.md.
+const contoursToPathD = Organica.contoursToPathD;
 
 function toHex(r, g, b) {
   const c = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
@@ -1392,18 +1333,18 @@ function exportSVG() {
 function sendToFigma() {
   const r = buildSVG();
   window._lastSVG = r.svg;
-  window.parent.postMessage({ pluginMessage: { type: 'organica-svg', svg: r.svg, name: 'Komorebi — ' + new Date().toLocaleTimeString() } }, '*');
+  Organica.sendToFigma(r.svg, 'Komorebi');
   setStatus('active', 'Sent to Figma plugin ↗');
 }
 
 // ─────────────────────────────────────────────
 // STATE / PRESETS
 // ─────────────────────────────────────────────
-const RANGES = ['rg-horizon','rg-persp','rg-scale','rg-density','rg-soft','rg-ratio','rg-seed',
-  'rg-wind','rg-windspd','rg-period','rg-sunx','rg-suny','rg-sunsize','rg-raydens','rg-rayweight',
-  'rg-raydecay','rg-rayexp','rg-penumbra','rg-gain','rg-lift','rg-bands','rg-haze','rg-grain',
-  'rg-vig','rg-svgbands'];
-const SEGS   = ['seg-mode','seg-source','seg-wind'];
+const RANGES = ['rg-persp','rg-scale','rg-density','rg-soft','rg-ratio','rg-clump','rg-leafdetail',
+  'rg-seed','rg-wind','rg-windspd','rg-period','rg-sunx','rg-suny','rg-sunsize','rg-raydens',
+  'rg-rayweight','rg-raydecay','rg-rayexp','rg-penumbra','rg-gain','rg-lift','rg-bands','rg-haze',
+  'rg-grain','rg-vig','rg-svgbands'];
+const SEGS   = ['seg-source','seg-wind'];
 const COLORS = ['sun','sky','canopy','ground','shadow'];
 const SELECTS = ['sel-format','sel-svgdetail'];
 
@@ -1427,83 +1368,63 @@ function applyState(s) {
 }
 
 // Built-ins. Each is a complete state — applying one is fully deterministic,
-// nothing carries over from whatever was set before.
+// nothing carries over from whatever was set before. All are Gobo-mode
+// (the flat, tileable pattern) — Komorebi's Scene/camera mode was dropped
+// from the UI in favour of pattern-making; see docs/KOMOREBI.md §15.
 const BUILTIN_PRESETS = {
   'Forest Floor': {},   // filled from the document defaults at init
-  'High Noon': {
-    'seg-mode': 'scene', 'rg-horizon': '0.30', 'rg-persp': '0.13', 'rg-scale': '3.4',
-    'rg-density': '0.62', 'rg-soft': '0.03', 'rg-ratio': '2.6', 'rg-seed': '19',
-    'rg-wind': '0.18', 'rg-period': '9', 'rg-sunx': '0.50', 'rg-suny': '0.06',
-    'rg-sunsize': '0.05', 'rg-raydens': '0.62', 'rg-rayweight': '0.30',
-    'rg-raydecay': '0.960', 'rg-rayexp': '0.30', 'rg-penumbra': '0.06', 'rg-gain': '1.9',
-    'rg-lift': '0.06', 'rg-haze': '0.10', 'rg-grain': '0.03', 'rg-vig': '0.22',
-    'c-sun': '#fff4cf', 'c-sky': '#dbe8c8', 'c-canopy': '#101a0c',
-    'c-ground': '#cbb27c', 'c-shadow': '#39351f'
-  },
-  'Cathedral': {
-    'seg-mode': 'scene', 'rg-horizon': '0.62', 'rg-persp': '0.09', 'rg-scale': '1.6',
-    'rg-density': '0.72', 'rg-soft': '0.02', 'rg-ratio': '3.1', 'rg-seed': '31',
-    'rg-wind': '0.12', 'rg-windspd': '0.08', 'rg-period': '18', 'rg-sunx': '0.38',
-    'rg-suny': '0.09', 'rg-sunsize': '0.10', 'rg-raydens': '1.05', 'rg-rayweight': '0.62',
-    'rg-raydecay': '0.982', 'rg-rayexp': '0.78', 'rg-penumbra': '0.22', 'rg-gain': '1.1',
-    'rg-lift': '0.05', 'rg-haze': '0.52', 'rg-grain': '0.04', 'rg-vig': '0.48',
-    'c-sun': '#ffdf9a', 'c-sky': '#a9c39a', 'c-canopy': '#0b1109',
-    'c-ground': '#8f7548', 'c-shadow': '#1b190f'
-  },
-  'Shoji': {
-    'seg-mode': 'gobo', 'rg-persp': '0.26', 'rg-scale': '2.1', 'rg-density': '0.50',
-    'rg-soft': '0.09', 'rg-ratio': '2.0', 'rg-seed': '4', 'rg-wind': '0.22',
-    'rg-period': '14', 'rg-sunx': '0.5', 'rg-suny': '0.30', 'rg-penumbra': '0.20',
-    'rg-gain': '0.85', 'rg-lift': '0.18', 'rg-rayexp': '0.0', 'ck-rays': false,
-    'rg-haze': '0.06', 'rg-grain': '0.02', 'rg-vig': '0.14',
-    'c-sun': '#f5e6c4', 'c-sky': '#e8e2d2', 'c-canopy': '#2a2a24',
-    'c-ground': '#efe8d8', 'c-shadow': '#9a9384'
-  },
-  'Undergrowth': {
-    'seg-mode': 'scene', 'rg-horizon': '0.34', 'rg-persp': '0.22', 'rg-scale': '4.6',
-    'rg-density': '0.76', 'rg-soft': '0.02', 'rg-ratio': '1.7', 'rg-seed': '44',
-    'rg-wind': '0.42', 'rg-period': '11', 'rg-sunx': '0.72', 'rg-suny': '0.11',
-    'rg-sunsize': '0.06', 'rg-raydens': '0.9', 'rg-rayweight': '0.45',
-    'rg-raydecay': '0.972', 'rg-rayexp': '0.35', 'rg-penumbra': '0.05', 'rg-gain': '2.4',
-    'rg-lift': '0.03', 'rg-haze': '0.16', 'rg-grain': '0.05', 'rg-vig': '0.42',
-    'c-sun': '#e8ffa8', 'c-sky': '#7fa05a', 'c-canopy': '#0a1206',
-    'c-ground': '#4d5a2c', 'c-shadow': '#131a0c'
-  },
   'Riso Two-Tone': {
-    'seg-mode': 'gobo', 'rg-persp': '0.30', 'rg-scale': '2.4', 'rg-density': '0.56',
-    'rg-soft': '0.05', 'rg-ratio': '2.4', 'rg-seed': '12', 'rg-wind': '0.25',
-    'rg-period': '10', 'rg-sunx': '0.5', 'rg-suny': '0.30', 'rg-penumbra': '0.14',
-    'rg-gain': '1.2', 'rg-lift': '0.08', 'ck-rays': false, 'rg-rayexp': '0.0',
-    'rg-bands': '3', 'rg-svgbands': '3', 'rg-haze': '0.0', 'rg-grain': '0.0', 'rg-vig': '0.0',
+    'rg-persp': '0.30', 'rg-scale': '2.4', 'rg-density': '0.54', 'rg-soft': '0.04',
+    'rg-ratio': '2.4', 'rg-clump': '0.30', 'rg-leafdetail': '0.15', 'rg-seed': '12',
+    'rg-wind': '0.25', 'rg-period': '10', 'rg-sunx': '0.5', 'rg-suny': '0.30',
+    'rg-penumbra': '0.14', 'rg-gain': '1.2', 'rg-lift': '0.08', 'ck-rays': false,
+    'rg-rayexp': '0.0', 'rg-bands': '3', 'rg-svgbands': '3', 'rg-haze': '0.0',
+    'rg-grain': '0.0', 'rg-vig': '0.0',
     'c-sun': '#ff6b3d', 'c-sky': '#f2ede2', 'c-canopy': '#1b2a3a',
     'c-ground': '#f2ede2', 'c-shadow': '#1b2a3a'
   },
-  'Dusk Ember': {
-    'seg-mode': 'scene', 'rg-horizon': '0.50', 'rg-persp': '0.16', 'rg-scale': '2.2',
-    'rg-density': '0.66', 'rg-soft': '0.035', 'rg-ratio': '2.9', 'rg-seed': '23',
-    'rg-wind': '0.30', 'rg-period': '16', 'rg-sunx': '0.84', 'rg-suny': '0.30',
-    'rg-sunsize': '0.14', 'rg-raydens': '1.15', 'rg-rayweight': '0.55',
-    'rg-raydecay': '0.978', 'rg-rayexp': '0.62', 'rg-penumbra': '0.26', 'rg-gain': '1.0',
-    'rg-lift': '0.12', 'rg-haze': '0.46', 'rg-grain': '0.05', 'rg-vig': '0.46',
-    'c-sun': '#ff9d4a', 'c-sky': '#6b5570', 'c-canopy': '#170f16',
-    'c-ground': '#8a5f42', 'c-shadow': '#241a22'
+  'Shoji': {
+    'rg-persp': '0.26', 'rg-scale': '2.1', 'rg-density': '0.50', 'rg-soft': '0.09',
+    'rg-ratio': '2.0', 'rg-clump': '0.10', 'rg-leafdetail': '0.10', 'rg-seed': '4',
+    'rg-wind': '0.22', 'rg-period': '14', 'rg-sunx': '0.5', 'rg-suny': '0.30',
+    'rg-penumbra': '0.20', 'rg-gain': '0.85', 'rg-lift': '0.18', 'rg-rayexp': '0.0',
+    'ck-rays': false, 'rg-haze': '0.06', 'rg-grain': '0.02', 'rg-vig': '0.14',
+    'c-sun': '#f5e6c4', 'c-sky': '#e8e2d2', 'c-canopy': '#2a2a24',
+    'c-ground': '#efe8d8', 'c-shadow': '#9a9384'
   },
-  'Bamboo': {
-    'seg-mode': 'scene', 'rg-horizon': '0.46', 'rg-persp': '0.11', 'rg-scale': '5.2',
-    'rg-density': '0.54', 'rg-soft': '0.015', 'rg-ratio': '4.4', 'rg-seed': '52',
-    'rg-wind': '0.55', 'rg-windspd': '0.30', 'rg-period': '7', 'rg-sunx': '0.44',
-    'rg-suny': '0.10', 'rg-sunsize': '0.06', 'rg-raydens': '0.95', 'rg-rayweight': '0.40',
-    'rg-raydecay': '0.974', 'rg-rayexp': '0.48', 'rg-penumbra': '0.09', 'rg-gain': '1.6',
-    'rg-lift': '0.07', 'rg-haze': '0.30', 'rg-grain': '0.035', 'rg-vig': '0.34',
+  'Dense Canopy': {
+    'rg-persp': '0.22', 'rg-scale': '4.4', 'rg-density': '0.60', 'rg-soft': '0.03',
+    'rg-ratio': '1.8', 'rg-clump': '0.18', 'rg-leafdetail': '0.35', 'rg-seed': '44',
+    'rg-wind': '0.40', 'rg-period': '11', 'rg-sunx': '0.66', 'rg-suny': '0.20',
+    'rg-penumbra': '0.08', 'rg-gain': '2.6', 'rg-lift': '0.03', 'ck-rays': false,
+    'rg-rayexp': '0.0', 'rg-haze': '0.10', 'rg-grain': '0.05', 'rg-vig': '0.32',
+    'c-sun': '#e8ffa8', 'c-sky': '#7fa05a', 'c-canopy': '#0a1206',
+    'c-ground': '#4d5a2c', 'c-shadow': '#131a0c'
+  },
+  'Sparse Grove': {
+    'rg-persp': '0.34', 'rg-scale': '1.5', 'rg-density': '0.34', 'rg-soft': '0.07',
+    'rg-ratio': '2.6', 'rg-clump': '0.35', 'rg-leafdetail': '0.20', 'rg-seed': '31',
+    'rg-wind': '0.20', 'rg-period': '16', 'rg-sunx': '0.4', 'rg-suny': '0.24',
+    'rg-penumbra': '0.30', 'rg-gain': '1.0', 'rg-lift': '0.10', 'ck-rays': false,
+    'rg-rayexp': '0.0', 'rg-haze': '0.14', 'rg-grain': '0.02', 'rg-vig': '0.18',
+    'c-sun': '#ffe9b0', 'c-sky': '#cfe0c0', 'c-canopy': '#141d10',
+    'c-ground': '#b99a63', 'c-shadow': '#2b2718'
+  },
+  'Fine Foliage': {
+    'rg-persp': '0.24', 'rg-scale': '5.6', 'rg-density': '0.52', 'rg-soft': '0.015',
+    'rg-ratio': '3.6', 'rg-clump': '0.12', 'rg-leafdetail': '0.65', 'rg-seed': '52',
+    'rg-wind': '0.32', 'rg-period': '9', 'rg-sunx': '0.5', 'rg-suny': '0.22',
+    'rg-penumbra': '0.10', 'rg-gain': '1.5', 'rg-lift': '0.06', 'ck-rays': false,
+    'rg-rayexp': '0.0', 'rg-haze': '0.08', 'rg-grain': '0.03', 'rg-vig': '0.22',
     'c-sun': '#f4ffc8', 'c-sky': '#b9cf9a', 'c-canopy': '#16240f',
     'c-ground': '#9aa86a', 'c-shadow': '#25301a'
   }
 };
 
-const PRESET_KEY = 'organica_komorebi_presets';
-function userPresets() {
-  try { return JSON.parse(localStorage.getItem(PRESET_KEY) || '{}'); } catch (e) { return {}; }
-}
+// Preset storage + legacy-key migration live in /shared/organica-core.js.
+const PRESETS = Organica.presetStore('komorebi', 'organica_komorebi_presets');
+const PRESET_KEY = PRESETS.key;
+function userPresets() { return PRESETS.read(); }
 function populatePresets(select) {
   const sel = ctrl('sel-preset');
   const user = userPresets();
@@ -1531,7 +1452,7 @@ function savePreset() {
   if (!name) return;
   const all = userPresets();
   all[name] = readState();
-  localStorage.setItem(PRESET_KEY, JSON.stringify(all));
+  PRESETS.write(all);
   populatePresets(name);
   setStatus('active', 'Saved preset · ' + name);
 }
@@ -1541,7 +1462,7 @@ function deletePreset() {
   const all = userPresets();
   if (!all[name]) return;
   delete all[name];
-  localStorage.setItem(PRESET_KEY, JSON.stringify(all));
+  PRESETS.write(all);
   populatePresets();
   setStatus('active', 'Deleted · ' + name);
 }
