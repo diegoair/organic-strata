@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Komorebi — Organica</title>
+<style>
+  :root {
+    --ink: #0a0a0a;
+    --paper: #f5f2ec;
+    --mid: #726a5e;
+    --accent: #2a2a2a;
+    --panel: #eceae4;
+    --border: #d0c8b8;
+    --komorebi: #8aa054;
+    --sans: 'DM Mono', 'Courier New', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 11px;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOP BAR ── */
+  #topbar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 16px;
+    height: 40px;
+    border-bottom: 1px solid var(--border);
+    background: var(--paper);
+    flex-shrink: 0;
+    z-index: 100;
+  }
+
+  #topbar .logo {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--mid);
+    text-decoration: none;
+    margin-right: 24px;
+  }
+  #topbar .logo span { color: var(--ink); }
+
+  .tb-btn {
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: none;
+    border: 1px solid transparent;
+    color: var(--ink);
+    padding: 4px 10px;
+    cursor: pointer;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .tb-btn:hover { border-color: var(--border); background: var(--panel); }
+  .tb-btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .tb-btn.primary:hover { background: #333; border-color: #333; }
+  .tb-btn.rec { color: #a03828; }
+  .tb-btn.rec.recording { background: #a03828; color: var(--paper); border-color: #a03828; }
+  .tb-btn:disabled { opacity: 0.35; cursor: default; }
+
+  .tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 8px; }
+  .tb-spacer { flex: 1; }
+
+  .tb-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mid); margin-right: 7px; }
+  .tb-select {
+    font-family: var(--sans); font-size: 10px; letter-spacing: 0.06em;
+    background: none; border: 1px solid var(--border); color: var(--ink);
+    height: 26px; padding: 0 6px; cursor: pointer; outline: none;
+  }
+  .tb-select:hover { border-color: var(--mid); }
+  .tb-out { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); margin-left: 8px; min-width: 64px; }
+
+  #status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mid); flex-shrink: 0; }
+  #status-dot.active { background: #5a8a5a; }
+  #status-text { color: var(--mid); font-size: 10px; letter-spacing: 0.05em; }
+
+  /* ── LAYOUT ── */
+  #app { display: flex; flex: 1; overflow: hidden; }
+
+  #canvas-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    position: relative;
+    overflow: hidden;
+    padding: 24px;
+  }
+  #canvas-wrap.drag-over { outline: 2px dashed var(--ink); outline-offset: -8px; }
+
+  #gl-canvas {
+    max-width: 100%;
+    max-height: 100%;
+    box-shadow: 0 4px 40px rgba(0,0,0,0.18);
+    cursor: crosshair;
+    display: block;
+  }
+  #gl-canvas.dragging-sun { cursor: none; }
+
+  #hud {
+    position: absolute;
+    bottom: 16px; left: 16px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 6px 9px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+    user-select: none;
+  }
+  #hud .hud-hint { opacity: 0.55; }
+
+  #gl-error {
+    display: none;
+    max-width: 460px;
+    text-align: center;
+    line-height: 1.9;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--mid);
+    text-transform: uppercase;
+  }
+  #gl-error.visible { display: block; }
+
+  /* ── RIGHT PANEL ── */
+  #panel {
+    width: 244px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--paper);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-section { border-bottom: 1px solid var(--border); padding: 14px 16px; }
+  .panel-section h3 {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin-bottom: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .panel-section h3 .hint { font-size: 8px; color: var(--mid); letter-spacing: 0.05em; text-transform: none; font-weight: 400; }
+
+  .sub-label {
+    font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); margin: 14px 0 8px; font-weight: 500;
+  }
+
+  .ctrl-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
+  .ctrl-label { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); white-space: nowrap; flex-shrink: 0; min-width: 62px; }
+  .ctrl-val { font-size: 10px; color: var(--accent); min-width: 32px; text-align: right; flex-shrink: 0; }
+
+  .check-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; }
+  .check-row span { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); }
+  .check-row input[type=checkbox] { accent-color: var(--ink); cursor: pointer; flex-shrink: 0; }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    flex: 1; min-width: 0;
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px; height: 10px; border-radius: 50%; background: var(--ink); cursor: pointer;
+  }
+  input[type=range]::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); border: none; cursor: pointer; }
+
+  .seg-ctrl { display: flex; gap: 0; flex: 1; }
+  .seg-btn {
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    flex: 1;
+    padding: 5px 0;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--accent);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    margin-left: -1px;
+  }
+  .seg-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); z-index: 1; position: relative; }
+
+  .color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .color-swatch { width: 20px; height: 20px; border: 1px solid var(--border); border-radius: 2px; cursor: pointer; flex-shrink: 0; padding: 0; background: none; }
+  .color-hex {
+    font-family: var(--sans); font-size: 10px;
+    background: var(--panel); border: 1px solid var(--border); color: var(--ink);
+    padding: 3px 6px; width: 70px; letter-spacing: 0.05em; outline: none; flex: 1;
+  }
+  .color-name { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mid); min-width: 52px; }
+  input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
+
+  .panel-select {
+    font-family: var(--sans);
+    font-size: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 4px 6px;
+    width: 100%;
+    outline: none;
+    cursor: pointer;
+  }
+  .panel-select:hover { border-color: var(--mid); }
+
+  .row-btns { display: flex; gap: 6px; margin-top: 8px; }
+  .mini-btn {
+    flex: 1;
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--accent);
+    padding: 6px 0;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .mini-btn:hover { border-color: var(--accent); color: var(--ink); }
+
+  #panel::-webkit-scrollbar { width: 3px; }
+  #panel::-webkit-scrollbar-track { background: transparent; }
+  #panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 1px; }
+
+  #file-input {
+    position: absolute; width: 1px; height: 1px;
+    opacity: 0; overflow: hidden; pointer-events: none; border: 0; padding: 0;
+  }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <a href="/" class="logo"><span>Organica</span> / Komorebi</a>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="btn-play" onclick="togglePlay()">❚❚ Pause</button>
+  <button class="tb-btn" onclick="resetTime()" title="Rewind the wind clock to zero">↺ Reset</button>
+  <div class="tb-spacer"></div>
+  <div id="status-dot"></div>
+  <span id="status-text" style="margin: 0 10px 0 6px">—</span>
+  <div class="tb-sep"></div>
+  <span class="tb-label">Export Scale</span>
+  <select class="tb-select" id="sel-scale" onchange="updateSizeReadout()" title="Multiplier on the preview resolution">
+    <option value="1">×1</option>
+    <option value="2" selected>×2</option>
+    <option value="3">×3</option>
+    <option value="4">×4</option>
+  </select>
+  <span class="tb-out" id="out-size">—</span>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="exportPNG()">PNG</button>
+  <button class="tb-btn" onclick="exportJPG()">JPG</button>
+  <button class="tb-btn rec" id="btn-rec" onclick="toggleRecord()" title="Record the animation as a WebM video loop">● REC</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="exportSVG()" title="Posterised tone-band separation — flat vector bands, one path per band">SVG</button>
+  <button class="tb-btn primary" onclick="sendToFigma()">→ Figma</button>
+</div>
+
+<div id="app">
+
+  <div id="canvas-wrap">
+    <canvas id="gl-canvas"></canvas>
+    <p id="gl-error">
+      WebGL 2 is not available in this browser.<br>
+      Komorebi renders its light field on the GPU and needs it.
+    </p>
+    <div id="hud">
+      <span id="hud-time">0.0s</span>
+      <span class="hud-hint">Drag on canvas to move the sun</span>
+    </div>
+  </div>
+
+  <div id="panel">
+
+    <div class="panel-section">
+      <h3>Preset</h3>
+      <select class="panel-select" id="sel-preset" onchange="applyPreset(this.value)"></select>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="savePreset()">Save</button>
+        <button class="mini-btn" onclick="deletePreset()">Delete</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Projection <span class="hint">what we're looking at</span></h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-mode">
+          <button class="seg-btn active" data-v="scene" onclick="setSeg('seg-mode', this)">Scene</button>
+          <button class="seg-btn" data-v="gobo" onclick="setSeg('seg-mode', this)">Gobo</button>
+        </div>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Format</div>
+        <select class="panel-select" id="sel-format" onchange="resizeCanvas()">
+          <option value="1:1">Square 1:1</option>
+          <option value="4:5">Portrait 4:5</option>
+          <option value="2:3">Portrait 2:3</option>
+          <option value="3:2" selected>Landscape 3:2</option>
+          <option value="16:9">Wide 16:9</option>
+          <option value="1:1.414">A-series √2</option>
+        </select>
+      </div>
+      <div class="ctrl-row" id="row-horizon">
+        <div class="ctrl-label">Horizon</div>
+        <input type="range" id="rg-horizon" min="0.15" max="0.85" step="0.01" value="0.42" oninput="syncVal(this,'v-horizon')">
+        <span class="ctrl-val" id="v-horizon">0.42</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" id="lbl-persp">Depth</div>
+        <input type="range" id="rg-persp" min="0.02" max="0.60" step="0.01" value="0.18" oninput="syncVal(this,'v-persp')">
+        <span class="ctrl-val" id="v-persp">0.18</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Canopy <span class="hint">the gobo</span></h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-source">
+          <button class="seg-btn active" data-v="proc" onclick="setSeg('seg-source', this)">Procedural</button>
+          <button class="seg-btn" data-v="cookie" onclick="setSeg('seg-source', this)">Image</button>
+        </div>
+      </div>
+      <div class="row-btns" id="row-cookie-load">
+        <button class="mini-btn" onclick="document.getElementById('file-input').click()">Open image…</button>
+      </div>
+      <div class="ctrl-row" style="margin-top:10px">
+        <div class="ctrl-label">Scale</div>
+        <input type="range" id="rg-scale" min="0.4" max="8" step="0.1" value="2.6" oninput="syncVal(this,'v-scale')">
+        <span class="ctrl-val" id="v-scale">2.6</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Density</div>
+        <input type="range" id="rg-density" min="0.20" max="0.90" step="0.01" value="0.58" oninput="syncVal(this,'v-density')">
+        <span class="ctrl-val" id="v-density">0.58</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Edge</div>
+        <input type="range" id="rg-soft" min="0.005" max="0.25" step="0.005" value="0.045" oninput="syncVal(this,'v-soft')">
+        <span class="ctrl-val" id="v-soft">0.045</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Layer 2</div>
+        <input type="range" id="rg-ratio" min="1.0" max="5.0" step="0.05" value="2.35" oninput="syncVal(this,'v-ratio')">
+        <span class="ctrl-val" id="v-ratio">2.35</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Seed</div>
+        <input type="range" id="rg-seed" min="0" max="60" step="1" value="7" oninput="syncVal(this,'v-seed')">
+        <span class="ctrl-val" id="v-seed">7</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Wind</h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-wind">
+          <button class="seg-btn active" data-v="sway" onclick="setSeg('seg-wind', this)" title="Purely periodic — the WebM export loops seamlessly">Sway</button>
+          <button class="seg-btn" data-v="drift" onclick="setSeg('seg-wind', this)" title="Continuous travel — does not loop">Drift</button>
+        </div>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Amount</div>
+        <input type="range" id="rg-wind" min="0" max="1.2" step="0.01" value="0.30" oninput="syncVal(this,'v-wind')">
+        <span class="ctrl-val" id="v-wind">0.30</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Speed</div>
+        <input type="range" id="rg-windspd" min="0.02" max="1.0" step="0.01" value="0.16" oninput="syncVal(this,'v-windspd')">
+        <span class="ctrl-val" id="v-windspd">0.16</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Loop</div>
+        <input type="range" id="rg-period" min="2" max="30" step="1" value="12" oninput="syncVal(this,'v-period')">
+        <span class="ctrl-val" id="v-period">12</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Sun</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Azimuth</div>
+        <input type="range" id="rg-sunx" min="0" max="1" step="0.005" value="0.62" oninput="syncVal(this,'v-sunx')">
+        <span class="ctrl-val" id="v-sunx">0.62</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Altitude</div>
+        <input type="range" id="rg-suny" min="0" max="1" step="0.005" value="0.16" oninput="syncVal(this,'v-suny')">
+        <span class="ctrl-val" id="v-suny">0.16</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Size</div>
+        <input type="range" id="rg-sunsize" min="0.01" max="0.35" step="0.005" value="0.07" oninput="syncVal(this,'v-sunsize')">
+        <span class="ctrl-val" id="v-sunsize">0.07</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Rays <span class="hint">volumetric</span></h3>
+      <label class="check-row"><input type="checkbox" id="ck-rays" checked><span>God rays</span></label>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Density</div>
+        <input type="range" id="rg-raydens" min="0.1" max="1.4" step="0.01" value="0.82" oninput="syncVal(this,'v-raydens')">
+        <span class="ctrl-val" id="v-raydens">0.82</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Weight</div>
+        <input type="range" id="rg-rayweight" min="0.05" max="1.2" step="0.01" value="0.38" oninput="syncVal(this,'v-rayweight')">
+        <span class="ctrl-val" id="v-rayweight">0.38</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Decay</div>
+        <input type="range" id="rg-raydecay" min="0.85" max="1.0" step="0.002" value="0.968" oninput="syncVal(this,'v-raydecay')">
+        <span class="ctrl-val" id="v-raydecay">0.968</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Exposure</div>
+        <input type="range" id="rg-rayexp" min="0" max="1.2" step="0.01" value="0.42" oninput="syncVal(this,'v-rayexp')">
+        <span class="ctrl-val" id="v-rayexp">0.42</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Dapple <span class="hint">penumbra physics</span></h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Canopy height above the ground. The sun subtends 0.53°, so a gap at height h blurs by ≈ h/108 — when a gap is smaller than that, it turns into a pinhole and projects a disc of the sun instead of the leaf shape.">Height</div>
+        <input type="range" id="rg-penumbra" min="0" max="0.6" step="0.005" value="0.14" oninput="syncVal(this,'v-penumbra')">
+        <span class="ctrl-val" id="v-penumbra">0.14</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Contrast</div>
+        <input type="range" id="rg-gain" min="0.3" max="4.0" step="0.05" value="1.35" oninput="syncVal(this,'v-gain')">
+        <span class="ctrl-val" id="v-gain">1.35</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Lift</div>
+        <input type="range" id="rg-lift" min="0" max="0.6" step="0.01" value="0.10" oninput="syncVal(this,'v-lift')">
+        <span class="ctrl-val" id="v-lift">0.10</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Colour</h3>
+      <div class="color-row">
+        <span class="color-name">Sun</span>
+        <button class="color-swatch" id="sw-sun" onclick="ctrl('cp-sun').click()"></button>
+        <input type="color" id="cp-sun" value="#ffe9b0" oninput="syncColor('sun',this.value)">
+        <input class="color-hex" id="hex-sun" value="#ffe9b0" onchange="syncColor('sun',this.value)">
+      </div>
+      <div class="color-row">
+        <span class="color-name">Sky</span>
+        <button class="color-swatch" id="sw-sky" onclick="ctrl('cp-sky').click()"></button>
+        <input type="color" id="cp-sky" value="#cfe0c0" oninput="syncColor('sky',this.value)">
+        <input class="color-hex" id="hex-sky" value="#cfe0c0" onchange="syncColor('sky',this.value)">
+      </div>
+      <div class="color-row">
+        <span class="color-name">Canopy</span>
+        <button class="color-swatch" id="sw-canopy" onclick="ctrl('cp-canopy').click()"></button>
+        <input type="color" id="cp-canopy" value="#141d10" oninput="syncColor('canopy',this.value)">
+        <input class="color-hex" id="hex-canopy" value="#141d10" onchange="syncColor('canopy',this.value)">
+      </div>
+      <div class="color-row">
+        <span class="color-name">Ground</span>
+        <button class="color-swatch" id="sw-ground" onclick="ctrl('cp-ground').click()"></button>
+        <input type="color" id="cp-ground" value="#b99a63" oninput="syncColor('ground',this.value)">
+        <input class="color-hex" id="hex-ground" value="#b99a63" onchange="syncColor('ground',this.value)">
+      </div>
+      <div class="color-row">
+        <span class="color-name">Shadow</span>
+        <button class="color-swatch" id="sw-shadow" onclick="ctrl('cp-shadow').click()"></button>
+        <input type="color" id="cp-shadow" value="#2b2718" oninput="syncColor('shadow',this.value)">
+        <input class="color-hex" id="hex-shadow" value="#2b2718" onchange="syncColor('shadow',this.value)">
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Grade</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="0 = continuous gradient. Any other value flattens the image into N luminance bands — this is also exactly what the SVG export traces.">Posterize</div>
+        <input type="range" id="rg-bands" min="0" max="12" step="1" value="0" oninput="syncVal(this,'v-bands')">
+        <span class="ctrl-val" id="v-bands">0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Haze</div>
+        <input type="range" id="rg-haze" min="0" max="1" step="0.01" value="0.22" oninput="syncVal(this,'v-haze')">
+        <span class="ctrl-val" id="v-haze">0.22</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Grain</div>
+        <input type="range" id="rg-grain" min="0" max="0.20" step="0.005" value="0.035" oninput="syncVal(this,'v-grain')">
+        <span class="ctrl-val" id="v-grain">0.035</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Vignette</div>
+        <input type="range" id="rg-vig" min="0" max="1" step="0.01" value="0.30" oninput="syncVal(this,'v-vig')">
+        <span class="ctrl-val" id="v-vig">0.30</span>
+      </div>
+      <div class="sub-label">SVG separation</div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Number of flat tone bands the SVG export traces. Independent of the Posterize preview control — but set them the same for exact WYSIWYG.">Bands</div>
+        <input type="range" id="rg-svgbands" min="2" max="10" step="1" value="5" oninput="syncVal(this,'v-svgbands')">
+        <span class="ctrl-val" id="v-svgbands">5</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Trace resolution — the width in samples at which band boundaries are walked. Higher = more faithful, bigger file.">Detail</div>
+        <select class="panel-select" id="sel-svgdetail">
+          <option value="240">Coarse · 240</option>
+          <option value="400" selected>Medium · 400</option>
+          <option value="640">Fine · 640</option>
+          <option value="900">Max · 900</option>
+        </select>
+      </div>
+    </div>
+
+  </div><!-- /panel -->
+</div>
+
+<input type="file" id="file-input" accept="image/*" onchange="loadCookie(this)">
+
+<script>
+// ─────────────────────────────────────────────
+// KOMORE BI — 木漏れ日, "sunlight leaking through trees"
+//
+// Three mechanics, all on the GPU:
+//
+//   1. LIGHT COOKIE / GOBO — a canopy mask (procedural fBm foliage, or an
+//      uploaded silhouette) projected onto a ground plane in perspective.
+//      Two layers domain-warped at different rates = wind through branches.
+//
+//   2. PENUMBRA + PINHOLE — the part almost nobody implements, and the part
+//      that makes it read as komorebi rather than "leaf shadows". The sun is
+//      not a point: it subtends ~0.53°, so a gap at height h blurs its own
+//      shadow edge by ≈ h/108. Once a gap is SMALLER than that blur it stops
+//      projecting its own shape and becomes a pinhole camera, projecting a
+//      round image of the sun. We get that for free by sampling the cookie
+//      through a disc kernel whose radius is the penumbra — small gaps wash
+//      out into soft coins of light, big gaps keep their leaf edges.
+//
+//   3. GOD RAYS — post-process radial blur (Mitchell, GPU Gems 3 ch.13).
+//      Pass A renders an occlusion buffer (sun disc, minus canopy, minus
+//      ground). Pass B smears it radially from the sun's screen position.
+//      No shadow map, no 3D scene — the occluder is the same 2D canopy.
+//
+// WYSIWYG discipline, same as Pollen/Halide/Living Path: ONE render function
+// serves the live preview, the raster export, the WebM recording, and the
+// pixel source the SVG separation is traced from. Export differs only in the
+// resolution it runs at — every uniform is resolution-independent.
+// ─────────────────────────────────────────────
+
+function ctrl(id) { return document.getElementById(id); }
+function val(id)  { return parseFloat(ctrl(id).value); }
+
+const canvas = ctrl('gl-canvas');
+const gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true, antialias: false, premultipliedAlpha: false });
+
+if (!gl) {
+  canvas.style.display = 'none';
+  ctrl('gl-error').classList.add('visible');
+  ctrl('hud').style.display = 'none';
+}
+
+// ── STATUS ──
+function setStatus(state, msg) {
+  ctrl('status-dot').className = state === 'active' ? 'active' : '';
+  ctrl('status-text').textContent = msg;
+}
+
+// ── CONTROLS ──
+function syncVal(slider, valId) { ctrl(valId).textContent = slider.value; }
+function setSeg(group, btn) {
+  ctrl(group).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+  syncConditionalRows();
+}
+function seg(group) { return ctrl(group).querySelector('.seg-btn.active').dataset.v; }
+function setSegValue(group, v) {
+  const btn = ctrl(group).querySelector('.seg-btn[data-v="' + v + '"]');
+  if (btn) ctrl(group).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+}
+function syncConditionalRows() {
+  const scene = seg('seg-mode') === 'scene';
+  ctrl('row-horizon').style.display = scene ? '' : 'none';
+  ctrl('lbl-persp').textContent = scene ? 'Depth' : 'Spread';
+  ctrl('row-cookie-load').style.display = seg('seg-source') === 'cookie' ? '' : 'none';
+}
+
+function syncColor(which, hex) {
+  hex = (hex || '').trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) { hex = ctrl('cp-' + which).value; }
+  hex = hex.toLowerCase();
+  ctrl('cp-' + which).value = hex;
+  ctrl('hex-' + which).value = hex;
+  ctrl('sw-' + which).style.background = hex;
+}
+function hexToRGB(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+}
+
+// ─────────────────────────────────────────────
+// SHADERS
+// ─────────────────────────────────────────────
+const VERT = `#version 300 es
+in vec2 aPos;
+out vec2 vUv;
+void main() { vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }`;
+
+// Shared chunk: noise, wind, and the canopy mask itself. Compiled into both
+// passes so the occlusion buffer and the ground dapple are guaranteed to be
+// reading the exact same canopy — if these ever diverged, the rays would
+// stream out of gaps that cast no light pools.
+const CANOPY_LIB = `
+precision highp float;
+
+uniform vec2  uRes;
+uniform float uTime;
+uniform float uSeed;
+uniform float uCanopyScale;
+uniform float uDensity;
+uniform float uEdge;
+uniform float uLayerRatio;
+uniform float uWindAmp;
+uniform float uWindSpeed;
+uniform float uWindPeriod;
+uniform int   uWindMode;      // 0 = sway (periodic, loops), 1 = drift
+uniform int   uUseCookie;
+uniform sampler2D uCookie;
+
+float hash21(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+float vnoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  float a = hash21(i);
+  float b = hash21(i + vec2(1.0, 0.0));
+  float c = hash21(i + vec2(0.0, 1.0));
+  float d = hash21(i + vec2(1.0, 1.0));
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+float fbm(vec2 p) {
+  float s = 0.0, a = 0.5;
+  for (int i = 0; i < 4; i++) { s += a * vnoise(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; }
+  return s / 0.9375;
+}
+
+// Wind offset. In SWAY mode every time-dependent term is a function of a
+// single phase angle, so the whole field is exactly periodic with period
+// uWindPeriod — which is what makes the WebM export a true seamless loop.
+// DRIFT mode translates continuously and deliberately does not loop.
+vec2 windOffset(vec2 p, float k) {
+  if (uWindMode == 0) {
+    float ph = 6.2831853 * uTime / max(uWindPeriod, 0.001);
+    vec2 orbit = vec2(cos(ph), sin(ph) * 0.55);
+    // domain warp whose own phase also closes the loop
+    vec2 q = p * 0.55 + orbit * 0.42;
+    vec2 warp = vec2(fbm(q), fbm(q + vec2(5.2, 1.3))) - 0.5;
+    return (orbit * 0.35 + warp * 1.15) * uWindAmp * k;
+  } else {
+    float t = uTime * uWindSpeed;
+    vec2 q = p * 0.55 + vec2(t * 0.7, t * 0.25);
+    vec2 warp = vec2(fbm(q), fbm(q + vec2(5.2, 1.3))) - 0.5;
+    return (vec2(t, t * 0.32) * 0.55 + warp * 1.15) * uWindAmp * k;
+  }
+}
+
+// 1.0 = leaf (opaque), 0.0 = gap (light passes).
+// Two layers combined with max(): occlusion stacks, so a gap only exists
+// where BOTH layers happen to be open — that is what produces the sparse,
+// irregular apertures real canopies have, instead of even noise holes.
+float canopy(vec2 p) {
+  p = p * uCanopyScale + uSeed * 13.71;
+
+  if (uUseCookie == 1) {
+    vec2 w = windOffset(p * 0.35, 0.25);
+    float lum = texture(uCookie, fract(p * 0.16 + w)).r;
+    return 1.0 - smoothstep(uDensity - uEdge, uDensity + uEdge, lum);
+  }
+
+  vec2 w1 = windOffset(p, 1.0);
+  vec2 w2 = windOffset(p * 0.7 + vec2(31.0, 17.0), 1.45);
+  float a = fbm(p + w1);
+  float b = fbm(p * uLayerRatio + w2 + vec2(37.0, 11.0));
+  float m1 = 1.0 - smoothstep(uDensity - uEdge, uDensity + uEdge, a);
+  float m2 = 1.0 - smoothstep(uDensity - uEdge, uDensity + uEdge, b);
+  return max(m1, m2);
+}
+`;
+
+// The camera model, shared by both passes so the sun's occluders and the
+// visible scene agree. uv is y-down (0 = top of frame).
+//
+//   Scene mode: a horizon line. Above it we look UP through a canopy ceiling
+//   that recedes to infinity at the horizon; below it a ground plane recedes
+//   to infinity at the same line. Both use z = depth / distance-from-horizon,
+//   which is just the standard 1/y perspective divide.
+//
+//   Gobo mode: no camera at all — orthographic, the whole frame is the lit
+//   plane. This is the mode that produces flat, tileable pattern output.
+const PROJECT_LIB = `
+uniform int   uMode;          // 0 = scene, 1 = gobo
+uniform float uHorizon;
+uniform float uPersp;
+uniform float uPenumbra;
+uniform vec2  uSunUV;
+
+// Ground-plane coordinate for a screen pixel, plus how strongly it is
+// foreshortened (used to fade grain/dapple detail into the distance).
+// Returns w = 0.0 when the pixel is not on the ground.
+vec3 groundPoint(vec2 uv) {
+  if (uMode == 1) {
+    vec2 g = (uv - 0.5) * (uPersp * 22.0);
+    return vec3(g, 1.0);
+  }
+  float d = uv.y - uHorizon;
+  if (d <= 0.0005) return vec3(0.0, 0.0, 0.0);
+  float z = uPersp / d;
+  return vec3((uv.x - 0.5) * z * 2.0, z, 1.0 / (1.0 + z * 0.35));
+}
+
+// Canopy ceiling seen overhead, same 1/y divide mirrored above the horizon.
+vec2 ceilingPoint(vec2 uv) {
+  float d = uHorizon - uv.y;
+  float z = uPersp / max(d, 0.0005);
+  return vec2((uv.x - 0.5) * z * 2.0, -z);
+}
+
+// Sun disc in screen space, aspect-corrected so it stays round.
+float sunDisc(vec2 uv, float size) {
+  vec2 d = (uv - uSunUV) * vec2(uRes.x / uRes.y, 1.0);
+  float r = length(d);
+  float core = 1.0 - smoothstep(size * 0.35, size, r);
+  float glow = pow(max(0.0, 1.0 - smoothstep(0.0, size * 5.0, r)), 2.0);
+  return clamp(core + glow * 0.55, 0.0, 1.0);
+}
+`;
+
+// ── PASS A — occlusion buffer ──
+// Sun rendered bright, everything that blocks it rendered black. This is the
+// only input the ray blur needs; it is deliberately rendered at half
+// resolution because a radial blur destroys high frequencies anyway.
+const FRAG_OCC = `#version 300 es
+` + CANOPY_LIB + PROJECT_LIB + `
+uniform float uSunSize;
+in vec2 vUv;
+out vec4 fragColor;
+
+void main() {
+  vec2 uv = vec2(vUv.x, 1.0 - vUv.y);
+  float light = sunDisc(uv, uSunSize);
+
+  float occ;
+  if (uMode == 1) {
+    vec3 g = groundPoint(uv);
+    occ = canopy(g.xy);
+  } else if (uv.y >= uHorizon) {
+    occ = 1.0;                       // the ground blocks everything behind it
+  } else {
+    occ = canopy(ceilingPoint(uv));
+  }
+
+  fragColor = vec4(vec3(light * (1.0 - occ)), 1.0);
+}`;
+
+// ── PASS B — scene composite ──
+const FRAG_MAIN = `#version 300 es
+` + CANOPY_LIB + PROJECT_LIB + `
+uniform sampler2D uOcc;
+uniform float uSunSize;
+uniform vec3  uColSun, uColSky, uColCanopy, uColGround, uColShadow;
+uniform float uRayDensity, uRayWeight, uRayDecay, uRayExposure;
+uniform int   uRaysOn;
+uniform float uGain, uLift, uHaze, uGrain, uVignette, uBands;
+
+in vec2 vUv;
+out vec4 fragColor;
+
+const int PEN_TAPS = 14;
+const int RAY_STEPS = 48;
+
+// Dappled light on the ground: the cookie sampled through a disc kernel whose
+// radius IS the penumbra. Nothing here special-cases "pinhole" — when a gap
+// is smaller than the kernel, averaging naturally washes its shape away into
+// a soft round spot, which is exactly the physical result.
+float dapple(vec2 g, float radius) {
+  if (radius < 0.0005) return 1.0 - canopy(g);
+  float rot = hash21(g * 91.7) * 6.2831853;   // per-sample kernel rotation kills banding
+  float ca = cos(rot), sa = sin(rot);
+  float sum = 0.0;
+  for (int i = 0; i < PEN_TAPS; i++) {
+    float fi = float(i) + 0.5;
+    float rr = sqrt(fi / float(PEN_TAPS));
+    float aa = fi * 2.39996323;                // golden angle → even disc coverage
+    vec2 o = vec2(cos(aa), sin(aa)) * rr * radius;
+    o = vec2(o.x * ca - o.y * sa, o.x * sa + o.y * ca);
+    sum += 1.0 - canopy(g + o);
+  }
+  return sum / float(PEN_TAPS);
+}
+
+void main() {
+  vec2 uv = vec2(vUv.x, 1.0 - vUv.y);
+  vec3 col;
+  float depthFade = 1.0;
+
+  // The sun's horizontal position slides the light pools across the floor,
+  // by an amount proportional to how high the canopy is — the same geometry
+  // that sets the penumbra also sets the parallax.
+  vec2 sunShift = vec2(uSunUV.x - 0.5, uSunUV.y - 0.35) * uPenumbra * 7.0;
+
+  if (uMode == 1) {
+    vec3 g = groundPoint(uv);
+    float lit = dapple(g.xy + sunShift, uPenumbra * 1.6);
+    lit = pow(clamp(lit, 0.0, 1.0), max(uGain, 0.01));
+    lit = uLift + (1.0 - uLift) * lit;
+    col = mix(uColShadow, uColGround, lit);
+    col += uColSun * lit * lit * 0.45;
+  } else if (uv.y >= uHorizon) {
+    vec3 g = groundPoint(uv);
+    depthFade = g.z;
+    float lit = dapple(g.xy + sunShift, uPenumbra * 1.6);
+    lit = pow(clamp(lit, 0.0, 1.0), max(uGain, 0.01));
+    lit = uLift + (1.0 - uLift) * lit;
+    col = mix(uColShadow, uColGround, lit);
+    col += uColSun * lit * lit * 0.45;
+    // ground haze toward the horizon
+    col = mix(col, uColSky * 0.7 + uColSun * 0.3, uHaze * (1.0 - depthFade) * 0.85);
+  } else {
+    float sky = smoothstep(0.0, uHorizon, uv.y);
+    col = mix(uColSky * 0.82, uColSky, sky);
+    col += uColSun * sunDisc(uv, uSunSize) * 1.15;
+    float leaf = canopy(ceilingPoint(uv));
+    // leaves nearest the top of frame are closest to us, so darkest;
+    // toward the horizon they wash into the sky
+    vec3 leafCol = mix(uColCanopy, uColSky * 0.85 + uColSun * 0.15, sky * 0.75 + uHaze * 0.2);
+    col = mix(col, leafCol, leaf);
+  }
+
+  // ── god rays: radial blur of the occlusion buffer, from the sun outward ──
+  if (uRaysOn == 1) {
+    vec2 tc = vUv;
+    vec2 sunTC = vec2(uSunUV.x, 1.0 - uSunUV.y);
+    vec2 delta = (tc - sunTC) * (uRayDensity / float(RAY_STEPS));
+    float illum = 1.0;
+    vec3 acc = vec3(0.0);
+    // dither the start position so the finite step count doesn't band
+    tc -= delta * hash21(vUv * uRes);
+    for (int i = 0; i < RAY_STEPS; i++) {
+      tc -= delta;
+      vec3 s = texture(uOcc, clamp(tc, 0.0, 1.0)).rgb * illum * uRayWeight;
+      acc += s;
+      illum *= uRayDecay;
+    }
+    col += acc * uColSun * uRayExposure;
+  }
+
+  // ── grade ──
+  col = mix(col, uColSky * 0.55 + uColSun * 0.45, uHaze * 0.18);
+
+  if (uBands > 1.5) {
+    float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
+    float q = clamp(floor(l * uBands) / max(uBands - 1.0, 1.0), 0.0, 1.0);
+    col *= q / max(l, 1e-4);
+  }
+
+  float vig = 1.0 - uVignette * pow(length((uv - 0.5) * vec2(1.1, 1.0)) * 1.35, 2.2);
+  col *= clamp(vig, 0.0, 1.0);
+
+  col += (hash21(uv * uRes + fract(uTime) * 71.3) - 0.5) * uGrain;
+
+  fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+}`;
+
+// ─────────────────────────────────────────────
+// GL PLUMBING
+// ─────────────────────────────────────────────
+let progOcc, progMain, quadVAO, occFBO, occTex, occW = 0, occH = 0;
+let cookieTex = null, hasCookie = false;
+
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    console.error(gl.getShaderInfoLog(s), src);
+    throw new Error('shader compile failed');
+  }
+  return s;
+}
+function link(vsSrc, fsSrc) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compile(gl.VERTEX_SHADER, vsSrc));
+  gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fsSrc));
+  gl.bindAttribLocation(p, 0, 'aPos');
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+    console.error(gl.getProgramInfoLog(p));
+    throw new Error('program link failed');
+  }
+  return p;
+}
+
+function initGL() {
+  progOcc  = link(VERT, FRAG_OCC);
+  progMain = link(VERT, FRAG_MAIN);
+
+  quadVAO = gl.createVertexArray();
+  gl.bindVertexArray(quadVAO);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+  occFBO = gl.createFramebuffer();
+  occTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, occTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  // 1×1 white placeholder so the cookie sampler is always bound to something
+  cookieTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, cookieTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+}
+
+function ensureOccTarget(w, h) {
+  const tw = Math.max(2, Math.floor(w / 2)), th = Math.max(2, Math.floor(h / 2));
+  if (tw === occW && th === occH) return;
+  occW = tw; occH = th;
+  gl.bindTexture(gl.TEXTURE_2D, occTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, occW, occH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, occFBO);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, occTex, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+// Every uniform the two passes share. Resolution is passed in explicitly
+// rather than read off the canvas so that an export render at 4× produces
+// the identical image, just sampled finer.
+function setSharedUniforms(p, w, h) {
+  const u = n => gl.getUniformLocation(p, n);
+  gl.uniform2f(u('uRes'), w, h);
+  gl.uniform1f(u('uTime'), simTime);
+  gl.uniform1f(u('uSeed'), val('rg-seed'));
+  gl.uniform1f(u('uCanopyScale'), val('rg-scale'));
+  gl.uniform1f(u('uDensity'), val('rg-density'));
+  gl.uniform1f(u('uEdge'), val('rg-soft'));
+  gl.uniform1f(u('uLayerRatio'), val('rg-ratio'));
+  gl.uniform1f(u('uWindAmp'), val('rg-wind'));
+  gl.uniform1f(u('uWindSpeed'), val('rg-windspd'));
+  gl.uniform1f(u('uWindPeriod'), val('rg-period'));
+  gl.uniform1i(u('uWindMode'), seg('seg-wind') === 'sway' ? 0 : 1);
+  gl.uniform1i(u('uUseCookie'), (seg('seg-source') === 'cookie' && hasCookie) ? 1 : 0);
+  gl.uniform1i(u('uMode'), seg('seg-mode') === 'scene' ? 0 : 1);
+  gl.uniform1f(u('uHorizon'), val('rg-horizon'));
+  gl.uniform1f(u('uPersp'), val('rg-persp'));
+  gl.uniform1f(u('uPenumbra'), val('rg-penumbra'));
+  gl.uniform2f(u('uSunUV'), val('rg-sunx'), val('rg-suny'));
+  gl.uniform1f(u('uSunSize'), val('rg-sunsize'));
+
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, cookieTex);
+  gl.uniform1i(u('uCookie'), 1);
+}
+
+// The one render function. Preview, PNG/JPG export, WebM frames and the SVG
+// separation's pixel source all go through here — only w/h differ.
+function renderFrame(w, h) {
+  ensureOccTarget(w, h);
+  gl.bindVertexArray(quadVAO);
+
+  // pass A — occlusion
+  gl.bindFramebuffer(gl.FRAMEBUFFER, occFBO);
+  gl.viewport(0, 0, occW, occH);
+  gl.useProgram(progOcc);
+  setSharedUniforms(progOcc, occW, occH);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  // pass B — composite
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, w, h);
+  gl.useProgram(progMain);
+  setSharedUniforms(progMain, w, h);
+  const u = n => gl.getUniformLocation(progMain, n);
+  gl.uniform3fv(u('uColSun'), hexToRGB(ctrl('hex-sun').value));
+  gl.uniform3fv(u('uColSky'), hexToRGB(ctrl('hex-sky').value));
+  gl.uniform3fv(u('uColCanopy'), hexToRGB(ctrl('hex-canopy').value));
+  gl.uniform3fv(u('uColGround'), hexToRGB(ctrl('hex-ground').value));
+  gl.uniform3fv(u('uColShadow'), hexToRGB(ctrl('hex-shadow').value));
+  gl.uniform1f(u('uRayDensity'), val('rg-raydens'));
+  gl.uniform1f(u('uRayWeight'), val('rg-rayweight'));
+  gl.uniform1f(u('uRayDecay'), val('rg-raydecay'));
+  gl.uniform1f(u('uRayExposure'), val('rg-rayexp'));
+  gl.uniform1i(u('uRaysOn'), ctrl('ck-rays').checked ? 1 : 0);
+  gl.uniform1f(u('uGain'), val('rg-gain'));
+  gl.uniform1f(u('uLift'), val('rg-lift'));
+  gl.uniform1f(u('uHaze'), val('rg-haze'));
+  gl.uniform1f(u('uGrain'), val('rg-grain'));
+  gl.uniform1f(u('uVignette'), val('rg-vig'));
+  gl.uniform1f(u('uBands'), val('rg-bands'));
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, occTex);
+  gl.uniform1i(u('uOcc'), 0);
+
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+
+// ─────────────────────────────────────────────
+// SIZING
+// ─────────────────────────────────────────────
+const BASE_LONG = 900;
+let previewW = 900, previewH = 600;
+
+function formatRatio() {
+  const [a, b] = ctrl('sel-format').value.split(':').map(Number);
+  return a / b;
+}
+function resizeCanvas() {
+  const r = formatRatio();
+  if (r >= 1) { previewW = BASE_LONG; previewH = Math.round(BASE_LONG / r); }
+  else        { previewH = BASE_LONG; previewW = Math.round(BASE_LONG * r); }
+  canvas.width = previewW;
+  canvas.height = previewH;
+  canvas.style.aspectRatio = previewW + ' / ' + previewH;
+  updateSizeReadout();
+}
+
+// ─────────────────────────────────────────────
+// ANIMATION LOOP
+// ─────────────────────────────────────────────
+let simTime = 0, playing = true, lastTS = 0;
+
+function togglePlay() {
+  playing = !playing;
+  ctrl('btn-play').textContent = playing ? '❚❚ Pause' : '▶ Play';
+}
+function resetTime() { simTime = 0; if (!playing) tick(performance.now()); }
+
+function tick(ts) {
+  const dt = lastTS ? Math.min(0.1, (ts - lastTS) / 1000) : 0;
+  lastTS = ts;
+  if (playing) simTime += dt;
+  ctrl('hud-time').textContent = simTime.toFixed(1) + 's';
+  renderFrame(previewW, previewH);
+  requestAnimationFrame(tick);
+}
+
+// ─────────────────────────────────────────────
+// SUN DRAGGING — the primary interaction. Moving the sun moves the rays AND
+// slides the light pools, because both read the same uSunUV.
+// ─────────────────────────────────────────────
+let draggingSun = false;
+function sunFromEvent(e) {
+  const r = canvas.getBoundingClientRect();
+  ctrl('rg-sunx').value = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)).toFixed(3);
+  ctrl('rg-suny').value = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)).toFixed(3);
+  syncVal(ctrl('rg-sunx'), 'v-sunx');
+  syncVal(ctrl('rg-suny'), 'v-suny');
+}
+canvas.addEventListener('mousedown', e => { draggingSun = true; canvas.classList.add('dragging-sun'); sunFromEvent(e); e.preventDefault(); });
+window.addEventListener('mousemove', e => { if (draggingSun) sunFromEvent(e); });
+window.addEventListener('mouseup', () => { draggingSun = false; canvas.classList.remove('dragging-sun'); });
+
+// ─────────────────────────────────────────────
+// COOKIE IMAGE — any silhouette works as the canopy. A Halide 1-bit export
+// or a Strata trace drops straight in; so does a photo of a real canopy.
+// ─────────────────────────────────────────────
+function loadCookie(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  useCookieFile(file);
+  input.value = '';
+}
+function useCookieFile(file) {
+  const img = new Image();
+  img.onload = () => {
+    gl.bindTexture(gl.TEXTURE_2D, cookieTex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    hasCookie = true;
+    setSegValue('seg-source', 'cookie');
+    syncConditionalRows();
+    setStatus('active', 'Cookie · ' + img.width + '×' + img.height);
+    URL.revokeObjectURL(img.src);
+  };
+  img.onerror = () => setStatus('', 'Could not read that image');
+  img.src = URL.createObjectURL(file);
+}
+const wrap = ctrl('canvas-wrap');
+['dragenter', 'dragover'].forEach(ev => wrap.addEventListener(ev, e => { e.preventDefault(); wrap.classList.add('drag-over'); }));
+['dragleave', 'drop'].forEach(ev => wrap.addEventListener(ev, e => { e.preventDefault(); wrap.classList.remove('drag-over'); }));
+wrap.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f && f.type.startsWith('image/')) useCookieFile(f); });
+
+// ─────────────────────────────────────────────
+// EXPORT
+// ─────────────────────────────────────────────
+const EXPORT_HARD_SIDE = 6000;
+function outputDims(scale) {
+  let w = previewW * scale, h = previewH * scale;
+  const m = Math.max(w, h);
+  if (m > EXPORT_HARD_SIDE) { const k = EXPORT_HARD_SIDE / m; w = Math.round(w * k); h = Math.round(h * k); }
+  return { w, h };
+}
+function updateSizeReadout() {
+  const d = outputDims(parseInt(ctrl('sel-scale').value, 10) || 2);
+  ctrl('out-size').textContent = d.w + ' × ' + d.h;
+}
+function download(blob, name) {
+  const a = document.createElement('a');
+  a.download = name; a.href = URL.createObjectURL(blob);
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+// Render one frame at export size, hand the canvas to the caller, then put
+// the preview size back. simTime is untouched, so the export is exactly the
+// frame on screen — WYSIWYG regardless of resolution.
+function withExportSize(w, h, fn) {
+  canvas.width = w; canvas.height = h;
+  renderFrame(w, h);
+  try { return fn(); }
+  finally {
+    canvas.width = previewW; canvas.height = previewH;
+    renderFrame(previewW, previewH);
+  }
+}
+// toDataURL, not toBlob: toBlob is asynchronous, and we resize the canvas
+// back to preview size the instant withExportSize returns — which would race
+// the encoder and hand back a preview-sized (or blank) image. toDataURL
+// snapshots synchronously, so the export size is guaranteed.
+function exportRaster(mime, ext, quality) {
+  const { w, h } = outputDims(parseInt(ctrl('sel-scale').value, 10) || 2);
+  setStatus('active', 'Rendering ' + ext.toUpperCase() + '…');
+  const url = withExportSize(w, h, () => canvas.toDataURL(mime, quality));
+  const bin = atob(url.split(',')[1]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  download(new Blob([bytes], { type: mime }), 'komorebi-' + Date.now() + '.' + ext);
+  setStatus('active', w + '×' + h + ' · ' + ext.toUpperCase() + ' saved');
+}
+function exportPNG() { exportRaster('image/png', 'png'); }
+function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
+
+// ── WEBM RECORDING ──
+// captureStream on the live canvas, so what is recorded is literally the
+// preview. In Sway wind mode the field is exactly periodic — record one
+// Loop period and the file cuts seamlessly.
+let recorder = null, recChunks = [];
+function toggleRecord() {
+  const btn = ctrl('btn-rec');
+  if (recorder) { recorder.stop(); return; }
+  if (!canvas.captureStream) { setStatus('', 'Canvas recording unsupported here'); return; }
+  const mime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
+    .find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
+  if (!mime) { setStatus('', 'WebM recording unsupported here'); return; }
+
+  recChunks = [];
+  recorder = new MediaRecorder(canvas.captureStream(30), { mimeType: mime, videoBitsPerSecond: 12000000 });
+  recorder.ondataavailable = e => { if (e.data.size) recChunks.push(e.data); };
+  recorder.onstop = () => {
+    download(new Blob(recChunks, { type: 'video/webm' }), 'komorebi-' + Date.now() + '.webm');
+    recorder = null;
+    btn.classList.remove('recording');
+    btn.textContent = '● REC';
+    setStatus('active', 'WebM saved');
+  };
+  recorder.start();
+  btn.classList.add('recording');
+  btn.textContent = '■ STOP';
+  const loops = seg('seg-wind') === 'sway';
+  setStatus('active', 'Recording' + (loops ? ' · loops every ' + val('rg-period') + 's' : ' · drift, no loop'));
+}
+
+// ─────────────────────────────────────────────
+// SVG SEPARATION
+//
+// A volumetric light field is continuous — there is no honest one-to-one
+// vector form of it. What IS honest, and more useful for print, is a tone
+// separation: quantise luminance into N bands and trace each band's real
+// boundary. Every band becomes one flat-colour path — i.e. one screen /
+// riso plate. Bands are stacked (each is "luminance ≥ threshold", drawn
+// darkest first) rather than disjoint, so there can be no hairline gaps
+// between them however coarse the trace.
+//
+// The tracer is the one from Halide's "Simplify shapes" — rectilinear
+// boundary walk, evenodd fill so holes and nesting resolve without caring
+// about winding direction.
+// ─────────────────────────────────────────────
+const CONTOUR_DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+function contourDirIndex(dx, dy) {
+  for (let i = 0; i < 4; i++) if (CONTOUR_DIRS[i][0] === dx && CONTOUR_DIRS[i][1] === dy) return i;
+  return -1;
+}
+function traceContours(mask, W, H) {
+  const ink = (x, y) => x >= 0 && x < W && y >= 0 && y < H && mask[y * W + x] === 1;
+  const edgesFrom = new Map();
+  const addEdge = (x1, y1, x2, y2) => {
+    const k = x1 + ',' + y1;
+    let arr = edgesFrom.get(k);
+    if (!arr) { arr = []; edgesFrom.set(k, arr); }
+    arr.push([x2, y2]);
+  };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (!ink(x, y)) continue;
+    if (!ink(x, y - 1)) addEdge(x, y, x + 1, y);
+    if (!ink(x + 1, y)) addEdge(x + 1, y, x + 1, y + 1);
+    if (!ink(x, y + 1)) addEdge(x + 1, y + 1, x, y + 1);
+    if (!ink(x - 1, y)) addEdge(x, y + 1, x, y);
+  }
+  const used = new Set();
+  const edgeKey = (x1, y1, x2, y2) => x1 + ',' + y1 + '>' + x2 + ',' + y2;
+  const loops = [];
+  for (const [fromKey, targets] of edgesFrom) {
+    for (const [tx, ty] of targets) {
+      const [fx, fy] = fromKey.split(',').map(Number);
+      if (used.has(edgeKey(fx, fy, tx, ty))) continue;
+      const loop = [[fx, fy]];
+      used.add(edgeKey(fx, fy, tx, ty));
+      loop.push([tx, ty]);
+      let curDir = contourDirIndex(tx - fx, ty - fy);
+      let cx = tx, cy = ty, guard = 0;
+      while (!(cx === fx && cy === fy) && guard++ < W * H * 4 + 8) {
+        const candidates = edgesFrom.get(cx + ',' + cy) || [];
+        const avail = candidates.filter(([tx2, ty2]) => !used.has(edgeKey(cx, cy, tx2, ty2)));
+        if (!avail.length) break;
+        let best = null, bestScore = -Infinity;
+        for (const [tx2, ty2] of avail) {
+          const d = contourDirIndex(tx2 - cx, ty2 - cy);
+          const turn = (d - curDir + 4) % 4;                       // 0 straight, 1 right, 2 back, 3 left
+          const score = turn === 1 ? 3 : turn === 0 ? 2 : turn === 3 ? 1 : 0;
+          if (score > bestScore) { bestScore = score; best = [tx2, ty2, d]; }
+        }
+        used.add(edgeKey(cx, cy, best[0], best[1]));
+        loop.push([best[0], best[1]]);
+        curDir = best[2];
+        cx = best[0]; cy = best[1];
+      }
+      loops.push(loop);
+    }
+  }
+  return loops;
+}
+function simplifyLoop(loop) {
+  const n = loop.length - 1;
+  if (n < 3) return loop.slice(0, -1);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const prev = loop[(i - 1 + n) % n], cur = loop[i], next = loop[(i + 1) % n];
+    if (cur[0] - prev[0] !== next[0] - cur[0] || cur[1] - prev[1] !== next[1] - cur[1]) out.push(cur);
+  }
+  return out;
+}
+function contoursToPathD(mask, W, H, block) {
+  const loops = traceContours(mask, W, H);
+  let d = '';
+  for (const loop of loops) {
+    const s = simplifyLoop(loop);
+    if (s.length < 3) continue;
+    d += 'M' + (s[0][0] * block).toFixed(2) + ',' + (s[0][1] * block).toFixed(2);
+    for (let i = 1; i < s.length; i++) d += 'L' + (s[i][0] * block).toFixed(2) + ',' + (s[i][1] * block).toFixed(2);
+    d += 'Z';
+  }
+  return d;
+}
+
+function toHex(r, g, b) {
+  const c = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+  return '#' + c(r) + c(g) + c(b);
+}
+
+function buildSVG() {
+  const detailW = parseInt(ctrl('sel-svgdetail').value, 10);
+  const bands = parseInt(val('rg-svgbands'), 10);
+  const W = detailW;
+  const H = Math.max(2, Math.round(detailW * previewH / previewW));
+
+  // Read the real rendered pixels at trace resolution — the separation is
+  // derived from the actual image, not re-simulated.
+  const px = withExportSize(W, H, () => {
+    const buf = new Uint8Array(W * H * 4);
+    gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    return buf;
+  });
+
+  // readPixels is bottom-up; flip into top-down luminance + keep RGB for
+  // per-band average colour.
+  const lum = new Float32Array(W * H);
+  const rgb = new Uint8Array(W * H * 3);
+  for (let y = 0; y < H; y++) {
+    const src = (H - 1 - y) * W * 4;
+    for (let x = 0; x < W; x++) {
+      const s = src + x * 4, d = y * W + x;
+      const r = px[s], g = px[s + 1], b = px[s + 2];
+      rgb[d * 3] = r; rgb[d * 3 + 1] = g; rgb[d * 3 + 2] = b;
+      lum[d] = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    }
+  }
+
+  // Band index per pixel, then average colour per band.
+  const bandOf = new Uint8Array(W * H);
+  const sums = new Float64Array(bands * 4);
+  for (let i = 0; i < W * H; i++) {
+    const b = Math.min(bands - 1, Math.floor(lum[i] * bands));
+    bandOf[i] = b;
+    sums[b * 4] += rgb[i * 3]; sums[b * 4 + 1] += rgb[i * 3 + 1]; sums[b * 4 + 2] += rgb[i * 3 + 2]; sums[b * 4 + 3]++;
+  }
+  const bandColor = [];
+  let lastSeen = '#000000';
+  for (let b = 0; b < bands; b++) {
+    const n = sums[b * 4 + 3];
+    if (n) { lastSeen = toHex(sums[b * 4] / n, sums[b * 4 + 1] / n, sums[b * 4 + 2] / n); }
+    bandColor.push(lastSeen);
+  }
+
+  const scale = parseInt(ctrl('sel-scale').value, 10) || 2;
+  const { w: outW, h: outH } = outputDims(scale);
+  const block = outW / W;
+
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${outW} ${outH}">`;
+  // darkest band as the base wash, then each brighter band stacked on top as
+  // a "≥ this level" region — overlapping, so no seams are possible
+  s += `<rect width="100%" height="100%" fill="${bandColor[0]}"/>`;
+  let paths = 1;
+  const mask = new Uint8Array(W * H);
+  for (let b = 1; b < bands; b++) {
+    let any = false;
+    for (let i = 0; i < W * H; i++) { const on = bandOf[i] >= b ? 1 : 0; mask[i] = on; if (on) any = true; }
+    if (!any) continue;
+    const d = contoursToPathD(mask, W, H, block);
+    if (!d) continue;
+    s += `<path fill="${bandColor[b]}" fill-rule="evenodd" d="${d}"/>`;
+    paths++;
+  }
+  s += '</svg>';
+  return { svg: s, paths, bands, W, H };
+}
+
+function exportSVG() {
+  setStatus('active', 'Tracing separation…');
+  setTimeout(() => {
+    const r = buildSVG();
+    window._lastSVG = r.svg;
+    download(new Blob([r.svg], { type: 'image/svg+xml' }), 'komorebi-' + Date.now() + '.svg');
+    setStatus('active', r.bands + ' bands · ' + r.paths + ' paths · ' + Math.round(r.svg.length / 1024) + ' KB');
+  }, 20);
+}
+function sendToFigma() {
+  const r = buildSVG();
+  window._lastSVG = r.svg;
+  window.parent.postMessage({ pluginMessage: { type: 'organica-svg', svg: r.svg, name: 'Komorebi — ' + new Date().toLocaleTimeString() } }, '*');
+  setStatus('active', 'Sent to Figma plugin ↗');
+}
+
+// ─────────────────────────────────────────────
+// STATE / PRESETS
+// ─────────────────────────────────────────────
+const RANGES = ['rg-horizon','rg-persp','rg-scale','rg-density','rg-soft','rg-ratio','rg-seed',
+  'rg-wind','rg-windspd','rg-period','rg-sunx','rg-suny','rg-sunsize','rg-raydens','rg-rayweight',
+  'rg-raydecay','rg-rayexp','rg-penumbra','rg-gain','rg-lift','rg-bands','rg-haze','rg-grain',
+  'rg-vig','rg-svgbands'];
+const SEGS   = ['seg-mode','seg-source','seg-wind'];
+const COLORS = ['sun','sky','canopy','ground','shadow'];
+const SELECTS = ['sel-format','sel-svgdetail'];
+
+function readState() {
+  const s = {};
+  RANGES.forEach(id => s[id] = ctrl(id).value);
+  SEGS.forEach(id => s[id] = seg(id));
+  COLORS.forEach(c => s['c-' + c] = ctrl('hex-' + c).value);
+  SELECTS.forEach(id => s[id] = ctrl(id).value);
+  s['ck-rays'] = ctrl('ck-rays').checked;
+  return s;
+}
+function applyState(s) {
+  RANGES.forEach(id => { if (s[id] !== undefined) { ctrl(id).value = s[id]; syncVal(ctrl(id), id.replace('rg-', 'v-')); } });
+  SEGS.forEach(id => { if (s[id] !== undefined) setSegValue(id, s[id]); });
+  COLORS.forEach(c => { if (s['c-' + c] !== undefined) syncColor(c, s['c-' + c]); });
+  SELECTS.forEach(id => { if (s[id] !== undefined) ctrl(id).value = s[id]; });
+  if (s['ck-rays'] !== undefined) ctrl('ck-rays').checked = s['ck-rays'];
+  syncConditionalRows();
+  resizeCanvas();
+}
+
+// Built-ins. Each is a complete state — applying one is fully deterministic,
+// nothing carries over from whatever was set before.
+const BUILTIN_PRESETS = {
+  'Forest Floor': {},   // filled from the document defaults at init
+  'High Noon': {
+    'seg-mode': 'scene', 'rg-horizon': '0.30', 'rg-persp': '0.13', 'rg-scale': '3.4',
+    'rg-density': '0.62', 'rg-soft': '0.03', 'rg-ratio': '2.6', 'rg-seed': '19',
+    'rg-wind': '0.18', 'rg-period': '9', 'rg-sunx': '0.50', 'rg-suny': '0.06',
+    'rg-sunsize': '0.05', 'rg-raydens': '0.62', 'rg-rayweight': '0.30',
+    'rg-raydecay': '0.960', 'rg-rayexp': '0.30', 'rg-penumbra': '0.06', 'rg-gain': '1.9',
+    'rg-lift': '0.06', 'rg-haze': '0.10', 'rg-grain': '0.03', 'rg-vig': '0.22',
+    'c-sun': '#fff4cf', 'c-sky': '#dbe8c8', 'c-canopy': '#101a0c',
+    'c-ground': '#cbb27c', 'c-shadow': '#39351f'
+  },
+  'Cathedral': {
+    'seg-mode': 'scene', 'rg-horizon': '0.62', 'rg-persp': '0.09', 'rg-scale': '1.6',
+    'rg-density': '0.72', 'rg-soft': '0.02', 'rg-ratio': '3.1', 'rg-seed': '31',
+    'rg-wind': '0.12', 'rg-windspd': '0.08', 'rg-period': '18', 'rg-sunx': '0.38',
+    'rg-suny': '0.09', 'rg-sunsize': '0.10', 'rg-raydens': '1.05', 'rg-rayweight': '0.62',
+    'rg-raydecay': '0.982', 'rg-rayexp': '0.78', 'rg-penumbra': '0.22', 'rg-gain': '1.1',
+    'rg-lift': '0.05', 'rg-haze': '0.52', 'rg-grain': '0.04', 'rg-vig': '0.48',
+    'c-sun': '#ffdf9a', 'c-sky': '#a9c39a', 'c-canopy': '#0b1109',
+    'c-ground': '#8f7548', 'c-shadow': '#1b190f'
+  },
+  'Shoji': {
+    'seg-mode': 'gobo', 'rg-persp': '0.26', 'rg-scale': '2.1', 'rg-density': '0.50',
+    'rg-soft': '0.09', 'rg-ratio': '2.0', 'rg-seed': '4', 'rg-wind': '0.22',
+    'rg-period': '14', 'rg-sunx': '0.5', 'rg-suny': '0.30', 'rg-penumbra': '0.20',
+    'rg-gain': '0.85', 'rg-lift': '0.18', 'rg-rayexp': '0.0', 'ck-rays': false,
+    'rg-haze': '0.06', 'rg-grain': '0.02', 'rg-vig': '0.14',
+    'c-sun': '#f5e6c4', 'c-sky': '#e8e2d2', 'c-canopy': '#2a2a24',
+    'c-ground': '#efe8d8', 'c-shadow': '#9a9384'
+  },
+  'Undergrowth': {
+    'seg-mode': 'scene', 'rg-horizon': '0.34', 'rg-persp': '0.22', 'rg-scale': '4.6',
+    'rg-density': '0.76', 'rg-soft': '0.02', 'rg-ratio': '1.7', 'rg-seed': '44',
+    'rg-wind': '0.42', 'rg-period': '11', 'rg-sunx': '0.72', 'rg-suny': '0.11',
+    'rg-sunsize': '0.06', 'rg-raydens': '0.9', 'rg-rayweight': '0.45',
+    'rg-raydecay': '0.972', 'rg-rayexp': '0.35', 'rg-penumbra': '0.05', 'rg-gain': '2.4',
+    'rg-lift': '0.03', 'rg-haze': '0.16', 'rg-grain': '0.05', 'rg-vig': '0.42',
+    'c-sun': '#e8ffa8', 'c-sky': '#7fa05a', 'c-canopy': '#0a1206',
+    'c-ground': '#4d5a2c', 'c-shadow': '#131a0c'
+  },
+  'Riso Two-Tone': {
+    'seg-mode': 'gobo', 'rg-persp': '0.30', 'rg-scale': '2.4', 'rg-density': '0.56',
+    'rg-soft': '0.05', 'rg-ratio': '2.4', 'rg-seed': '12', 'rg-wind': '0.25',
+    'rg-period': '10', 'rg-sunx': '0.5', 'rg-suny': '0.30', 'rg-penumbra': '0.14',
+    'rg-gain': '1.2', 'rg-lift': '0.08', 'ck-rays': false, 'rg-rayexp': '0.0',
+    'rg-bands': '3', 'rg-svgbands': '3', 'rg-haze': '0.0', 'rg-grain': '0.0', 'rg-vig': '0.0',
+    'c-sun': '#ff6b3d', 'c-sky': '#f2ede2', 'c-canopy': '#1b2a3a',
+    'c-ground': '#f2ede2', 'c-shadow': '#1b2a3a'
+  },
+  'Dusk Ember': {
+    'seg-mode': 'scene', 'rg-horizon': '0.50', 'rg-persp': '0.16', 'rg-scale': '2.2',
+    'rg-density': '0.66', 'rg-soft': '0.035', 'rg-ratio': '2.9', 'rg-seed': '23',
+    'rg-wind': '0.30', 'rg-period': '16', 'rg-sunx': '0.84', 'rg-suny': '0.30',
+    'rg-sunsize': '0.14', 'rg-raydens': '1.15', 'rg-rayweight': '0.55',
+    'rg-raydecay': '0.978', 'rg-rayexp': '0.62', 'rg-penumbra': '0.26', 'rg-gain': '1.0',
+    'rg-lift': '0.12', 'rg-haze': '0.46', 'rg-grain': '0.05', 'rg-vig': '0.46',
+    'c-sun': '#ff9d4a', 'c-sky': '#6b5570', 'c-canopy': '#170f16',
+    'c-ground': '#8a5f42', 'c-shadow': '#241a22'
+  },
+  'Bamboo': {
+    'seg-mode': 'scene', 'rg-horizon': '0.46', 'rg-persp': '0.11', 'rg-scale': '5.2',
+    'rg-density': '0.54', 'rg-soft': '0.015', 'rg-ratio': '4.4', 'rg-seed': '52',
+    'rg-wind': '0.55', 'rg-windspd': '0.30', 'rg-period': '7', 'rg-sunx': '0.44',
+    'rg-suny': '0.10', 'rg-sunsize': '0.06', 'rg-raydens': '0.95', 'rg-rayweight': '0.40',
+    'rg-raydecay': '0.974', 'rg-rayexp': '0.48', 'rg-penumbra': '0.09', 'rg-gain': '1.6',
+    'rg-lift': '0.07', 'rg-haze': '0.30', 'rg-grain': '0.035', 'rg-vig': '0.34',
+    'c-sun': '#f4ffc8', 'c-sky': '#b9cf9a', 'c-canopy': '#16240f',
+    'c-ground': '#9aa86a', 'c-shadow': '#25301a'
+  }
+};
+
+const PRESET_KEY = 'organica_komorebi_presets';
+function userPresets() {
+  try { return JSON.parse(localStorage.getItem(PRESET_KEY) || '{}'); } catch (e) { return {}; }
+}
+function populatePresets(select) {
+  const sel = ctrl('sel-preset');
+  const user = userPresets();
+  sel.innerHTML = '';
+  const add = (label, group) => {
+    const og = document.createElement('optgroup');
+    og.label = label;
+    group.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; og.appendChild(o); });
+    if (group.length) sel.appendChild(og);
+  };
+  add('Built-in', Object.keys(BUILTIN_PRESETS));
+  add('Saved', Object.keys(user));
+  if (select) sel.value = select;
+}
+function applyPreset(name) {
+  const p = BUILTIN_PRESETS[name] || userPresets()[name];
+  if (!p) return;
+  // Start from the "Forest Floor" baseline so a preset that omits a control
+  // still lands somewhere defined, rather than inheriting the last look.
+  applyState(Object.assign({}, BUILTIN_PRESETS['Forest Floor'], p));
+  setStatus('active', 'Preset · ' + name);
+}
+function savePreset() {
+  const name = prompt('Preset name');
+  if (!name) return;
+  const all = userPresets();
+  all[name] = readState();
+  localStorage.setItem(PRESET_KEY, JSON.stringify(all));
+  populatePresets(name);
+  setStatus('active', 'Saved preset · ' + name);
+}
+function deletePreset() {
+  const name = ctrl('sel-preset').value;
+  if (BUILTIN_PRESETS[name]) { setStatus('', 'Built-in presets cannot be deleted'); return; }
+  const all = userPresets();
+  if (!all[name]) return;
+  delete all[name];
+  localStorage.setItem(PRESET_KEY, JSON.stringify(all));
+  populatePresets();
+  setStatus('active', 'Deleted · ' + name);
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+if (gl) {
+  initGL();
+  COLORS.forEach(c => syncColor(c, ctrl('hex-' + c).value));
+  syncConditionalRows();
+  resizeCanvas();
+  BUILTIN_PRESETS['Forest Floor'] = readState();   // the document's own defaults
+  populatePresets('Forest Floor');
+  setStatus('active', 'Ready');
+  requestAnimationFrame(tick);
+}
+</script>
+</body>
+</html>

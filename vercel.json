@@ -6,6 +6,7 @@
     { "source": "/pollen/(.*)", "destination": "/pollen/$1" },
     { "source": "/livingpath/(.*)", "destination": "/livingpath/$1" },
     { "source": "/halide/(.*)", "destination": "/halide/$1" },
+    { "source": "/komorebi/(.*)", "destination": "/komorebi/$1" },
     { "source": "/", "destination": "/index.html" }
   ]
 }

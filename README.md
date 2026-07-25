@@ -17,6 +17,9 @@ Organica is both a visual language and the AI-powered toolset built to develop, 
 | **Strata** | [/strata/](https://theorganicalanguage.vercel.app/strata/) | Sketch → SVG, Smart+ algorithm |
 | **Spore** | [/spore/](https://theorganicalanguage.vercel.app/spore/) | Generative stippling from images — SVG mark library, PNG/JPG/SVG export |
 | **Pollen** | [/pollen/](https://theorganicalanguage.vercel.app/pollen/) | Advanced stippling — blue-noise engine, point shapes, Adaptive duotone, presets |
+| **Living Path** | [/livingpath/](https://theorganicalanguage.vercel.app/livingpath/) | Generative font/path modification — Vector + Raster engines, layer groups + blend modes, installable OTF export |
+| **Halide** | [/halide/](https://theorganicalanguage.vercel.app/halide/) | Photo → true 1-bit dithered portrait — Floyd–Steinberg/Atkinson/Bayer, background removal, sticker outline, PNG/JPG/SVG/Figma export |
+| **Komorebi** | [/komorebi/](https://theorganicalanguage.vercel.app/komorebi/) | 木漏れ日 — real-time WebGL2 dappled sunlight through a canopy: light-cookie/gobo, penumbra/pinhole physics, god rays, seamless WebM loop, tone-band SVG separation |
 
 ---
 
@@ -38,11 +41,20 @@ organic-strata/
 │   └── index.html       ← Spore — generative stippling (single-file)
 ├── pollen/
 │   └── index.html       ← Pollen — advanced stippling, blue-noise engine (single-file)
+├── livingpath/
+│   └── index.html       ← Living Path — generative font/path modification (single-file)
+├── halide/
+│   └── index.html       ← Halide — photo → 1-bit dithered portrait (single-file)
+├── komorebi/
+│   └── index.html       ← Komorebi — WebGL2 volumetric light / god rays / dapple (single-file)
 ├── backend/             ← Python + OpenCV + vtracer (local only)
 ├── docs/
 │   ├── VISION.md        ← System vision and methodology
 │   ├── ROADMAP.md       ← Development phases
-│   └── ANIMATION-SYSTEM.md  ← Animation pattern documentation
+│   ├── ANIMATION-SYSTEM.md  ← Animation pattern documentation
+│   ├── LIVINGPATH.md    ← Living Path manual
+│   ├── HALIDE.md        ← Halide manual
+│   └── KOMOREBI.md      ← Komorebi manual
 ├── CLAUDE.md            ← Project memory for AI sessions
 └── vercel.json          ← Routing configuration
 ```
@@ -57,6 +69,9 @@ Hub (index.html)
 ├── /strata/      → Strata tracing app (static, Vercel)
 ├── /spore/       → Spore stippling app (static, Vercel)
 ├── /pollen/      → Pollen advanced stippling app (static, Vercel)
+├── /livingpath/  → Living Path font/path tool (static, Vercel)
+├── /halide/      → Halide dither-portrait tool (static, Vercel)
+├── /komorebi/    → Komorebi volumetric-light tool (static, Vercel)
 └── /backend      → Python server (local only, not deployed)
 ```
 
@@ -129,6 +144,50 @@ Scale). Single-file vanilla HTML/CSS/JS — the placement runs on a downscaled p
 
 ---
 
+## Living Path — Generative Font/Path Modification
+
+Web port of [ivangrozny/LivingPath](https://github.com/ivangrozny/LivingPath) ("glyph
+hydrography"). Two engines — **Vector** (Bézier-node jitter/wobble/inflate/roughen/twist,
+topology-preserving) and **Raster** (rasterise → 9 pixel algorithms — dilate/erode, blur,
+threshold, noise, particles, centre-line, polygonize, seam-carve, reaction-diffusion →
+re-vectorise; can change topology — the melted/cellular look), chainable Vector→Raster. Layer
+**groups + blend modes**, 24 presets, live multi-language text specimen, and installable
+**OTF export** (full charset, randomised `rand`/`aalt` alternates) run off a Web Worker so it
+never blocks the UI. Manual: `docs/LIVINGPATH.md`.
+
+---
+
+## Halide — Photo → 1-bit Dithered Portrait
+
+Real dithering — **Floyd–Steinberg**, **Atkinson**, and recursive-**Bayer** ordered dithering,
+plus a flat-threshold baseline — not a filter. **Remove background** (colour-key, click-to-pick
+reference), a sticker **Outline** (silhouette clean-up handles wispy hair and enclosed
+highlights), **Background fill** outside the outline, and an interactive **drag-to-position**
+square crop. Export **PNG/JPG/SVG/Figma**; SVG has an opt-in **Simplify shapes** toggle that
+traces each region into a single rectilinear path instead of tiling it with rectangles (verified
+pixel-exact, ~36% smaller files). Manual: `docs/HALIDE.md`.
+
+---
+
+## Komorebi — Volumetric Light / God Rays / Dapple
+
+木漏れ日 ("sunlight leaking through trees") replicated in real time on the GPU (WebGL2 —
+a browser API, not a framework, so it holds the vanilla single-file rule). Three real
+graphics mechanics: a **light cookie / gobo** (procedural two-layer fBm canopy *or* an
+uploaded silhouette — a Halide 1-bit export, a Strata trace, or a photo) projected onto a
+ground plane in perspective; **penumbra + pinhole physics** — because the sun subtends
+~0.53°, gaps smaller than their own shadow-blur turn into pinholes and cast round coins of
+light instead of leaf shapes (the thing that actually reads as komorebi), exposed as one
+"Height" control; and **god rays** — a post-process radial blur of an occlusion buffer
+(Mitchell, GPU Gems 3), no shadow map or 3D scene needed. **Scene** mode is the picture
+(horizon, canopy ceiling, rays, dappled floor); **Gobo** mode is the flat tileable pattern.
+Wind **Sway** is exactly periodic, so the **WebM export loops seamlessly**. Export
+PNG/JPG/WebM plus a posterised **tone-band SVG separation** (one flat path per luminance
+band — a real print/riso plate, traced with Halide's rectilinear contour tracer) and Figma.
+Manual: `docs/KOMOREBI.md`.
+
+---
+
 ## Roadmap
 
 - [x] Hub — Organica entry point
@@ -136,7 +195,10 @@ Scale). Single-file vanilla HTML/CSS/JS — the placement runs on a downscaled p
 - [x] Strata — Smart+ sketch-to-SVG pipeline
 - [x] Spore — generative stippling from images
 - [x] Pollen — advanced stippling (blue-noise engine)
-- [x] Docs — Vision, Roadmap, Animation System
+- [x] Living Path — generative font/path modification (Vector + Raster, OTF export)
+- [x] Halide — photo → 1-bit dithered portrait (real dithering, background removal, outline)
+- [x] Komorebi — WebGL2 volumetric light / god rays / penumbra dapple (Scene + Gobo, WebM loop, SVG separation)
+- [x] Docs — Vision, Roadmap, Animation System, Living Path, Halide, Komorebi
 - [ ] Phase 2 — Genesis export (SVG/PNG/GIF), save/load, more forms
 - [ ] Phase 3 — Figma direct push (Genesis + Strata)
 - [ ] Phase 4 — Pattern engine (tiling, grid variants)
@@ -147,4 +209,4 @@ See `docs/ROADMAP.md` for full detail.
 
 ---
 
-*Studio Rann · Organica System v0.1 · June 2026*
+*Studio Rann · Organica System v0.1 · July 2026*

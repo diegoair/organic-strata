@@ -1,7 +1,7 @@
 # Organica — Roadmap
 
 > Studio Rann · Development Priorities  
-> Last updated: June 12, 2026 — v0.1
+> Last updated: July 24, 2026 — v0.1
 
 ---
 
@@ -15,6 +15,8 @@
 - [x] Spore — generative stippling from images (`/spore/`) — mark library, zoom/pan preview, PNG + hi-def JPG + SVG export, Send to Figma
 - [x] Pollen — advanced stippling from images (`/pollen/`) — variable-radius blue-noise engine, Circle/Polygon/Line points, Adaptive duotone, presets, PNG/JPG/SVG export, Send to Figma
 - [x] Living Path — generative font/path modification (`/livingpath/`) — Vector + Raster engines, layer groups + blend modes, 9 raster algorithms, 24 presets, live text specimen, installable OTF export via Web Worker, `.lvp` projects. Manual: `docs/LIVINGPATH.md`
+- [x] Halide — photo → true 1-bit dithered portrait (`/halide/`) — Floyd–Steinberg/Atkinson/Bayer/flat threshold, colour-key background removal (Pick/Auto), sticker Outline, Background fill, drag-to-position square crop, PNG/JPG/SVG (opt-in contour-traced "Simplify shapes")/Figma export, 8 presets incl. **Ditherface**. Manual: `docs/HALIDE.md`
+- [x] Komorebi — 木漏れ日, real-time WebGL2 dappled sunlight (`/komorebi/`) — light-cookie/gobo canopy (procedural fBm or uploaded silhouette), penumbra/pinhole physics, post-process god rays, Scene + Gobo modes, Sway (seamless WebM loop) / Drift wind, PNG/JPG/WebM/tone-band SVG separation/Figma export, 8 presets. Manual: `docs/KOMOREBI.md`
 - [x] Vercel deployment — auto-deploy on push to `main`
 - [x] Animation system documentation
 
@@ -181,6 +183,102 @@ Genesis form), apply a stack of organic effects, export SVG/PNG.
 
 ---
 
+## Halide — Backlog
+
+**`/halide/`** — photo → true 1-bit dithered portrait, prototyped July 23, 2026 after
+evaluating ditherface.com (a manual commission service, not a tool) as a reference look.
+Single-file vanilla HTML/CSS/JS, no dependencies. First full arc closed July 24, 2026 —
+validated against a real test photo (`halide/test-photos/`, kept out of git). Manual:
+`docs/HALIDE.md`.
+
+### Done
+- [x] **Real dithering** — Floyd–Steinberg + Atkinson error diffusion, recursive-Bayer
+  ordered dithering, flat-threshold baseline. Serpentine scan, Resolution (grid width).
+- [x] **Tone pipeline** — Rotation/Flip/Invert, Gamma/Contrast/Bias.
+- [x] **Interactive crop positioning** — drag a square frame over the un-cropped source
+  image, Enter/Esc to confirm/cancel. Replaced the original Crop X/Y sliders entirely.
+- [x] **Background removal** — colour-key (global threshold, not connected flood-fill —
+  the latter let lighting gradients bleed into the subject), **Pick…**/Auto reference.
+- [x] **Sticker Outline** — largest-connected-component + enclosed-hole-fill for
+  silhouette clean-up (handles wispy rim-lit hair), diagonal-corner-touch bridging so
+  the ring always renders as one solid band.
+- [x] **Background fill** — colours everything outside the outline (pure subtraction),
+  independent of Paper; Paper/Transparent still govern the kept subject's own cells.
+- [x] **True colour swap** — Swap Colors only trades Ink/Paper hex values now (verified
+  byte-identical shapes before/after); does not silently recompute which cells are ink.
+- [x] **Presets** — 8 built-ins incl. **Ditherface** (the validated reference-matching
+  combo: Atkinson + square + background-removed + Outline + Background fill), fully
+  deterministic on apply; custom presets via `localStorage`.
+- [x] **Export** — PNG/JPG/SVG/Figma; **Simplify shapes** (SVG-only, opt-in) traces each
+  region into one rectilinear `<path>` instead of tiling it with `<rect>`s — verified
+  pixel-exact, ~36% smaller files, 4,789 rects → 4 paths on the reference photo.
+
+### Evaluated and declined
+- **Genesis organic-form marks instead of square pixels** — would duplicate Pollen
+  (which already places Genesis forms by tone-driven density), and would undo the
+  Simplify-shapes win (organic marks don't merge like rectilinear cells; SVG export
+  would go back to one shape per cell, and live preview would get slower).
+
+### Open follow-ups
+- [ ] **Autonomous pixel animation** — noise/time-driven motion (no user input), fits
+  the existing Motion vocabulary (Genesis's "Collective Behaviour" — staggered
+  `animation-delay` + goo filter); could ship as an animated SVG export. Discussed,
+  not yet built.
+- [ ] **Hover-reactive pixel animation** — needs real JS reading cursor position; can't
+  be a static export file (PNG/SVG). Would need a separate interactive page/demo, a
+  different deliverable from what Halide produces today. Discussed, not yet built.
+- [ ] **Mark-shape style beyond squares** — if an organic-dithering hybrid look is
+  wanted later, scope it as an *additional* mark style (small Genesis primitive
+  filling the cell 1:1, no overlap with neighbours), not a replacement — accepting
+  that Simplify wouldn't apply to that mode.
+
+---
+
+## Komorebi — Backlog
+
+**`/komorebi/`** — 木漏れ日, dappled sunlight filtering through a canopy, rendered live on
+the GPU. First WebGL2 tool in Organica (a browser API, not a framework — a Canvas2D radial
+blur would be ~9M ops/frame). Shipped July 25, 2026. Manual: `docs/KOMOREBI.md`.
+
+### Done
+- [x] **Light cookie / gobo** — canopy mask projected onto a ground plane in perspective.
+  Procedural: two fBm layers combined with `max()` (gaps only where both open) + a second
+  layer at a settable frequency ratio. Or an **uploaded silhouette** (drag-drop / Open) —
+  a Halide 1-bit export, a Strata trace, or a photo becomes the canopy.
+- [x] **Penumbra + pinhole physics** — sun subtends ~0.53°, so a gap at height h blurs by
+  ≈ h/108; below that it becomes a pinhole and projects a disc of the sun. One "Height"
+  control = a disc-kernel sample radius (golden-angle taps + per-sample rotation) over the
+  cookie; small gaps wash into round coins of light for free.
+- [x] **God rays** — post-process radial blur (Mitchell, GPU Gems 3 ch.13) of a half-res
+  occlusion buffer. No shadow map / 3D scene — occluder is the same 2D canopy, shared GLSL
+  so occlusion and dapple can't diverge. Density/Weight/Decay/Exposure + on/off.
+- [x] **Scene + Gobo modes** — Scene: horizon, receding canopy ceiling, rays, dappled
+  floor. Gobo: orthographic flat fill = the tileable pattern (feeds Phase 4).
+- [x] **Wind Sway / Drift** — Sway is a single phase angle → exactly periodic field →
+  **seamless WebM loop** (record one Loop period). Drift travels, no loop.
+- [x] **Sun drag** — drag on canvas moves the sun; rays and light pools both read it.
+- [x] **Export** — PNG/JPG (`toDataURL`, sync — WYSIWYG at any Export Scale), **WebM**
+  recording (`captureStream` on the live canvas), and a posterised **tone-band SVG
+  separation** (N flat luminance bands, one path/band, stacked "≥ level" so no seams —
+  Halide's rectilinear tracer verbatim) + Figma push.
+- [x] **8 presets** — Forest Floor / High Noon / Cathedral / Shoji / Undergrowth / Riso
+  Two-Tone / Dusk Ember / Bamboo, each a full deterministic state; custom via localStorage.
+
+### Open follow-ups
+- [ ] **Structure-tensor flow for wind** — current domain warp is per-pixel fBm; a smoothed
+  flow field would give coherent branch-sway rather than shimmer (mirrors the Pollen
+  hatching-flow note).
+- [ ] **Timeline / sun path** — animate the sun along an arc (dawn→dusk) with colour-temp
+  keyframes, for the installation loop; currently sun is static per frame.
+- [ ] **GIF export** — WebM covers video; a quantised GIF (as discussed for Pollen/Halide
+  animation) would round out the social/web deliverables.
+- [ ] **Multi-plate riso export** — the SVG is already a band separation; emit one SVG file
+  *per* band (named plates) for a true print hand-off, not just one layered file.
+- [ ] **Genesis canopy** — feed a Genesis form / composed grid directly as the cookie,
+  closing the loop with the form library the same way the image upload already does.
+
+---
+
 ## Phase 2 — Genesis Depth
 
 Deepen the Genesis composer into a real production tool.
@@ -251,4 +349,4 @@ These need decisions before building:
 
 ---
 
-*Studio Rann · Organica System v0.1 · June 5, 2026*
+*Studio Rann · Organica System v0.1 · July 24, 2026*
