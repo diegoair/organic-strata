@@ -71,16 +71,17 @@
 
 /* 1 — SECTION TITLE
    Sentence case, no tracking. Was 12px/600 uppercase with 0.1em tracking,
-   which at that size reads as a wall of spaced capitals; 11px medium in
+   which at that size reads as a wall of spaced capitals; 11px/400 in
    sentence case is smaller on the page yet easier to scan, which is the
-   whole point of the Figma model. */
+   whole point of the Figma model. Sizes and weights come from the
+   --t-* role tokens so this file never hardcodes type. */
 .panel-section h3,
 .panel-section__title,
 .org-panel__title,
 .sec h3,                    /* Living Path names its sections .sec */
 aside h3, .panel h3 {       /* Strata / any panel that just uses h3 */
-  font-size: var(--fs-base);
-  font-weight: var(--w-medium);
+  font-size: var(--t-section-size);
+  font-weight: var(--t-section-weight);
   letter-spacing: 0;
   text-transform: none;
   color: var(--ink);
@@ -106,8 +107,8 @@ aside h3, .panel h3 {       /* Strata / any panel that just uses h3 */
 
 /* 2 — SUB-LABEL */
 .sub-label {
-  font-size: var(--fs-micro);
-  font-weight: var(--w-medium);
+  font-size: var(--t-sublabel-size);
+  font-weight: var(--t-sublabel-weight);
   letter-spacing: 0;
   text-transform: none;
   color: var(--mid);
@@ -129,8 +130,8 @@ aside h3, .panel h3 {       /* Strata / any panel that just uses h3 */
 
 .ctrl-label,
 .panel-label {
-  font-size: var(--fs-small);
-  font-weight: var(--w-regular);
+  font-size: var(--t-label-size);
+  font-weight: var(--t-label-weight);
   letter-spacing: 0;
   text-transform: none;
   color: var(--accent);
@@ -144,7 +145,8 @@ aside h3, .panel h3 {       /* Strata / any panel that just uses h3 */
 .ctrl-val,
 .panel-value,
 .row .val {
-  font-size: var(--fs-small);
+  font-size: var(--t-value-size);
+  font-weight: var(--t-value-weight);
   color: var(--mid);
   min-width: 34px;
   text-align: right;
@@ -211,7 +213,8 @@ input[type=range]:focus-visible { outline: none; }
   cursor: pointer;
 }
 .check-row span {
-  font-size: var(--fs-small);
+  font-size: var(--t-label-size);
+  font-weight: var(--t-label-weight);
   letter-spacing: 0;
   text-transform: none;
   color: var(--accent);
@@ -229,8 +232,8 @@ input[type=range]:focus-visible { outline: none; }
 .seg-ctrl, .seg { display: flex; flex: 1; min-width: 0; }
 .seg-btn {
   font-family: var(--font);
-  font-size: var(--fs-small);
-  font-weight: var(--w-regular);
+  font-size: var(--t-control-size);
+  font-weight: var(--t-control-weight);
   letter-spacing: 0;
   text-transform: none;
   flex: 1;
@@ -263,7 +266,8 @@ input[type=range]:focus-visible { outline: none; }
 /* Select */
 .panel-select {
   font-family: var(--font);
-  font-size: var(--fs-small);
+  font-size: var(--t-control-size);
+  font-weight: var(--t-control-weight);
   letter-spacing: 0;
   background: var(--panel);
   border: 1px solid var(--border-strong, var(--border));
@@ -280,7 +284,8 @@ input[type=range]:focus-visible { outline: none; }
 /* Numeric / text input — Figma's field, with room for a leading unit */
 .panel-input {
   font-family: var(--font);
-  font-size: var(--fs-small);
+  font-size: var(--t-control-size);
+  font-weight: var(--t-control-weight);
   background: var(--panel);
   border: 1px solid var(--border-strong, var(--border));
   border-radius: var(--radius-sm);
@@ -325,7 +330,8 @@ input[type=range]:focus-visible { outline: none; }
 }
 .color-hex {
   font-family: var(--font);
-  font-size: var(--fs-small);
+  font-size: var(--t-control-size);
+  font-weight: var(--t-control-weight);
   background: var(--panel);
   border: 1px solid var(--border-strong, var(--border));
   border-radius: var(--radius-sm);
@@ -346,8 +352,8 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 .mini-btn {
   flex: 1;
   font-family: var(--font);
-  font-size: var(--fs-small);
-  font-weight: var(--w-regular);
+  font-size: var(--t-control-size);
+  font-weight: var(--t-control-weight);
   letter-spacing: 0;
   text-transform: none;
   min-height: var(--row-h);
@@ -408,14 +414,15 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
    ═══════════════════════════════════════════════════════════ */
 
 .group-label, .section-label, .panel-label--group {
-  font-size: var(--fs-micro);
-  font-weight: var(--w-medium);
+  font-size: var(--t-sublabel-size);
+  font-weight: var(--t-sublabel-weight);
   letter-spacing: 0;
   text-transform: none;
   color: var(--mid);
 }
 .row .lbl, .row > span:first-child {
-  font-size: var(--fs-small);
+  font-size: var(--t-label-size);
+  font-weight: var(--t-label-weight);
   letter-spacing: 0;
   text-transform: none;
   color: var(--accent);

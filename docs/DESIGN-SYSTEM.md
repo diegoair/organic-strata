@@ -2,7 +2,12 @@
 
 > Studio Rann · Organica · Typography, tokens, and the Figma mapping
 > Last updated: July 25, 2026
-> Source of truth: `shared/organica-tokens.css`
+>
+> **Single source of truth: `shared/organica-tokens.json`.**
+> `shared/organica-tokens.css` mirrors it for the browser; this document
+> explains it; Figma variables and text styles are named to match. A value
+> changes **here first**, then in the CSS, then in Figma. Anything that
+> disagrees with the JSON is a bug, not a variant.
 
 ---
 
@@ -42,46 +47,55 @@ A **1.2 ratio (minor third)** anchored at **11px** — the size the tool panels
 were already built around. Steps are rounded to whole pixels so text lands on
 the pixel grid in a dense UI.
 
-| Token | Size | Weight | Tracking | Line height | Used for |
-|---|---|---|---|---|---|
-| `--fs-micro` | 9px | 500 | 0.12em | 1.2 | hint text, unit labels |
-| `--fs-small` | 10px | 500 | 0.08em | 1.2 | buttons, selects, control values |
-| `--fs-base` | 11px | 400 | 0.05em | 1.45 | panel body — **the anchor** |
-| `--fs-medium` | 12px | 600 | 0.10em | 1.2 | panel section titles |
-| `--fs-large` | 14px | 500 | 0.05em | 1.45 | headings inside a tool |
-| `--fs-xl` | 17px | 700 | 0 | 1.2 | tool title |
-| `--fs-display` | fluid | 800 | −0.03em | 0.88 | hub wordmark only |
+| Token | Size | Used for |
+|---|---|---|
+| `--fs-micro` | 9px | sub-labels, hints, notes — **the floor** |
+| `--fs-small` | 10px | control labels, values, buttons |
+| `--fs-base` | 11px | panel section titles — **the anchor** |
+| `--fs-medium` | 12px | header context title |
+| `--fs-large` | 14px | headings inside a tool |
+| `--fs-xl` | 17px | tool title |
+| `--fs-display` | fluid | hub wordmark only |
 
 `--fs-display` is `clamp(1.5rem, 9vw, 13rem)` — it scales with the viewport and
 exists only on the hub. Everything else is fixed, because a tool panel that
 reflows with the window is harder to use, not easier.
 
+**Nothing goes below 9px.** Spore and Pollen had 6px index numerals and 8px
+captions; at panel density they stop being readable.
+
 ### Weights
 
-Manrope's axis is 200–800. Organica defines four stops. Anything between them
-is *available* but **undefined by the system** — don't reach for it without
-adding it here first.
+Manrope's axis is 200–800. Organica defines four stops.
 
-| Token | Value | Used for |
-|---|---|---|
-| `--w-light` | 300 | long-form body, captions in dense panels |
-| `--w-regular` | 400 | default body |
-| `--w-medium` | 500 | control labels, table headers, sub-labels |
-| `--w-bold` | 700 | section titles, wordmark, emphasis |
+**The number is canonical, not the token name.** Figma's weight picker shows the
+font's own style names, so a token called "medium" holding 400 would read as
+*Regular* in Figma and the two would silently disagree. Each stop records the
+Manrope name it maps to.
+
+| Token | Value | Manrope name | Used for |
+|---|---|---|---|
+| `--w-light` | 300 | Light | panel labels and values |
+| `--w-regular` | 400 | Regular | panel sections and sub-labels, body |
+| `--w-medium` | 500 | Medium | emphasis, primary action |
+| `--w-bold` | 700 | Bold | wordmark |
 
 ### Letter spacing
 
-Organica's UI voice is **uppercase and tracked**. The rule the tools already
-followed, now formalised: *the smaller and more uppercase the text, the more
-tracking it needs to stay legible.*
+**Panel type carries no tracking at all.** Tracking exists only for the
+uppercase micro-labels that survive in the header (the tool logo, button
+labels) — the rule being that the smaller and more uppercase the text, the more
+tracking it needs to stay legible. Sentence-case text never needs it.
 
-| Token | Value | Used for |
-|---|---|---|
-| `--ls-tight` | −0.02em | display / wordmark — big type needs negative |
-| `--ls-normal` | 0 | body copy |
-| `--ls-wide` | 0.05em | values, hex fields, readouts |
-| `--ls-wider` | 0.08em | buttons, control labels |
-| `--ls-widest` | 0.15em | uppercase micro-labels, the tool logo |
+| Token | Value | Figma | Used for |
+|---|---|---|---|
+| `--ls-tight` | −0.02em | −2% | display / wordmark — big type needs negative |
+| `--ls-normal` | 0 | 0% | **everything in the panel** |
+| `--ls-wide` | 0.05em | 5% | hex fields |
+| `--ls-wider` | 0.08em | 8% | header button labels |
+| `--ls-widest` | 0.15em | 15% | the tool logo |
+
+CSS em maps **1:1** to Figma percent — `0.08em` = `8%`. Don't type `0.08`.
 
 ### Line height
 
@@ -95,20 +109,52 @@ Unitless, so it scales with the element's own size.
 
 ---
 
-## 3. Porting to Figma
+## 3. Text styles — the roles
 
-Create these as **text styles** in Figma. Font: **Manrope**, from Google Fonts —
-Figma exposes the variable weight axis directly, so pick the numeric weight.
+Components reference a **role**, never a raw size or weight. These are the
+composed styles, and they map one-for-one to Figma text styles.
 
-| Figma style name | Font | Size | Weight | Letter spacing | Line height |
-|---|---|---|---|---|---|
-| `UI/Micro` | Manrope | 9 | 500 | 12% | 120% |
-| `UI/Small` | Manrope | 10 | 500 | 8% | 120% |
-| `UI/Base` | Manrope | 11 | 400 | 5% | 145% |
-| `UI/Section` | Manrope | 12 | 600 | 10% | 120% |
-| `UI/Heading` | Manrope | 14 | 500 | 5% | 145% |
-| `UI/Title` | Manrope | 17 | 700 | 0% | 120% |
-| `Display/Wordmark` | Manrope | 96* | 800 | −3% | 88% |
+| Role | Size | Weight | Manrope | Tracking | Colour | Example |
+|---|---|---|---|---|---|---|
+| `panel/section` | 11 | 400 | Regular | 0 | `--ink` | Presets, Dither, Canopy |
+| `panel/sub-label` | 9 | 400 | Regular | 0 | `--mid` | Algorithm, Resolution |
+| `panel/label` | 10 | 300 | Light | 0 | `--accent` | Grid width, Gamma |
+| `panel/value` | 10 | 300 | Light | 0 | `--mid` | 120, 1.5 · tabular |
+| `panel/control` | 10 | 400 | Regular | 0 | `--accent` | segmented buttons, selects |
+| `header/logo` | 10 | 700 | Bold | 15% | `--mid` | ORGANICA / HALIDE |
+| `header/title` | 12 | 500 | Medium | 0 | `--ink` | Sketch → SVG |
+| `header/action` | 10 | 500 | Medium | 8% | `--ink` | EXPORT, FIGMA |
+| `display/wordmark` | 96\* | 700 | ExtraBold 800 | −3% | — | ORGANICA |
+
+The panel hierarchy is carried by **weight and colour, not size** — section 11
+vs label 10 is a single pixel. Black for sections, grey for everything else.
+That's the Figma Design-panel model: contrast does the work, not bulk.
+
+In CSS these are the `--t-*` role tokens:
+
+```css
+--t-section-size / --t-section-weight
+--t-sublabel-size / --t-sublabel-weight
+--t-label-size / --t-value-weight   /* … etc */
+```
+
+## 3b. Porting to Figma
+
+Create the roles above as **text styles**, named exactly as in the table
+(`panel/section`, `header/logo`, …) so a Figma layer and a CSS rule can be
+traced to each other by name.
+
+Font: **Manrope** from Google Fonts. Pick the style by its Manrope name
+(Light / Regular / Medium / Bold), which is what Figma's picker shows.
+
+Two conversions that catch people out:
+
+- **Tracking**: Figma is a percentage, CSS is em — they map 1:1. `0.08em` = `8%`.
+- **Line height**: enter as a **percentage**, not pixels, so the style survives
+  a size change.
+
+\* The web wordmark is fluid (`clamp(1.5rem, 9vw, 13rem)`); 96 is a sensible
+fixed stand-in for a Figma frame.
 
 \* The web wordmark is fluid (`clamp(1.5rem, 9vw, 13rem)`); 96 is a sensible
 fixed stand-in for a Figma frame. Adjust per artboard — the *ratio* matters

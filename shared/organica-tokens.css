@@ -15,8 +15,13 @@
    come BEFORE a tool's own <style>, so the tool can still override a
    token locally without !important.
 
-   Mirrored in Figma as text styles — see docs/DESIGN-SYSTEM.md for the
-   table and the exact Figma settings.
+   ── SOURCE OF TRUTH ──
+   This file is the BROWSER MIRROR of shared/organica-tokens.json, which is
+   the single source the design system is defined in. Change a value there
+   first, then here, then in Figma. If this file and the JSON disagree, the
+   JSON wins and this is the bug.
+
+   docs/DESIGN-SYSTEM.md explains the system and carries the Figma mapping.
    ───────────────────────────────────────────────────────────── */
 
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
@@ -50,11 +55,35 @@ html {
   /* ── WEIGHTS ─────────────────────────────────────────────
      Manrope's axis runs 200–800. Organica uses four stops; anything
      between them is available but undefined by the system, so don't
-     reach for it without adding it here first. */
-  --w-light:    300;   /* long-form body, captions in dense panels */
-  --w-regular:  400;   /* default body */
-  --w-medium:   500;   /* control labels, table headers, sub-labels */
-  --w-bold:     700;   /* section titles, wordmark, emphasis */
+     reach for it without adding it here first.
+
+     The NUMBER is canonical, not the token name — Figma's weight picker
+     shows the font's own style names, so a token called "medium" holding
+     400 would read as "Regular" in Figma and the two would disagree.
+     Manrope's names are noted per stop so code and Figma stay in sync. */
+  --w-light:    300;   /* Manrope Light    — panel labels and values      */
+  --w-regular:  400;   /* Manrope Regular  — panel sections, sub-labels   */
+  --w-medium:   500;   /* Manrope Medium   — emphasis, primary action     */
+  --w-bold:     700;   /* Manrope Bold     — wordmark                     */
+
+  /* ── PANEL TYPE ROLES ────────────────────────────────────
+     The four roles the control panel is built from. Named by ROLE, not by
+     size, so a component never hardcodes a value and Figma can mirror the
+     same four text styles one-for-one. See docs/DESIGN-SYSTEM.md §3. */
+  --t-section-size:    var(--fs-base);    /* 11px */
+  --t-section-weight:  var(--w-regular);  /* 400  */
+  --t-sublabel-size:   var(--fs-micro);   /*  9px */
+  --t-sublabel-weight: var(--w-regular);  /* 400  */
+  --t-label-size:      var(--fs-small);   /* 10px */
+  --t-label-weight:    var(--w-light);    /* 300  */
+  --t-value-size:      var(--fs-small);   /* 10px */
+  --t-value-weight:    var(--w-light);    /* 300  */
+  /* Interactive control text (segmented buttons, selects, inputs) sits one
+     stop above its own label: a control has to read as actionable, and at
+     300 in a 26px row it goes soft. Stated as a role so the difference is a
+     decision, not an accident of which rule was written last. */
+  --t-control-size:    var(--fs-small);   /* 10px */
+  --t-control-weight:  var(--w-regular);  /* 400  */
 
   /* ── TYPE SCALE ──────────────────────────────────────────
      A 1.2 (minor third) ratio anchored at 11px, the size the tool
