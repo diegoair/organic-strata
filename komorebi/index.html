@@ -6,6 +6,7 @@
 <title>Komorebi — Organica</title>
 <link rel="stylesheet" href="/shared/organica-tokens.css">
   <link rel="stylesheet" href="/shared/organica-header.css">
+  <link rel="stylesheet" href="/shared/organica-floatbar.css">
   <link rel="stylesheet" href="/shared/organica-panel.css">
   <style>
   :root {
@@ -121,54 +122,63 @@
     <span class="org-header__state" id="status-text">Ready</span>
   </output>
 
-  <div class="org-header__actions">
-    <div class="org-popover-wrap">
-      <button class="org-btn" id="btn-export">Export &#9662;</button>
-      <div class="org-popover" id="export-popover" aria-label="Export options">
-        <div class="org-popover__title">Still</div>
-        <div class="org-formats">
-          <button class="org-btn" onclick="exportPNG()">PNG</button>
-          <button class="org-btn" onclick="exportJPG()">JPG</button>
-          <button class="org-btn" onclick="exportSVG()">SVG</button>
-        </div>
-        <p class="org-popover__hint">
-          SVG is a posterised tone-band separation — one flat path per
-          luminance band, a real riso/screen-print plate.
-        </p>
-
-        <div class="org-popover__divider"></div>
-
-        <div class="org-popover__row">
-          <label class="org-popover__label" for="sel-scale">Scale</label>
-          <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
-            <option value="1">&times;1</option>
-            <option value="2" selected>&times;2</option>
-            <option value="3">&times;3</option>
-            <option value="4">&times;4</option>
-          </select>
-        </div>
-        <div class="org-popover__row">
-          <span class="org-popover__label">Output</span>
-          <span class="org-out" id="out-size">&mdash;</span>
-        </div>
-
-        <div class="org-popover__divider"></div>
-
-        <div class="org-popover__title">Motion</div>
-        <div class="org-popover__row">
-          <span class="org-popover__label">WebM video</span>
-          <button class="org-btn" id="btn-rec" onclick="toggleRecord()">&#9679; Record</button>
-        </div>
-        <p class="org-popover__hint">
-          In <b>Sway</b> wind mode the field is exactly periodic — record one
-          Loop period for a seamless installation loop.
-        </p>
-      </div>
-    </div>
-
-    <button class="org-btn org-btn--primary" onclick="sendToFigma()">&rarr; Figma</button>
-  </div>
 </header>
+
+<!-- FLOATING TOOLBAR — Export (stills + motion) / Figma, fixed bottom-centre over the canvas -->
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Still</div>
+      <div class="org-formats">
+        <button class="org-btn" onclick="exportPNG()">PNG</button>
+        <button class="org-btn" onclick="exportJPG()">JPG</button>
+        <button class="org-btn" onclick="exportSVG()">SVG</button>
+      </div>
+      <p class="org-popover__hint">
+        SVG is a posterised tone-band separation — one flat path per
+        luminance band, a real riso/screen-print plate.
+      </p>
+
+      <div class="org-popover__divider"></div>
+
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-scale">Scale</label>
+        <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
+          <option value="1">&times;1</option>
+          <option value="2" selected>&times;2</option>
+          <option value="3">&times;3</option>
+          <option value="4">&times;4</option>
+        </select>
+      </div>
+      <div class="org-popover__row">
+        <span class="org-popover__label">Output</span>
+        <span class="org-out" id="out-size">&mdash;</span>
+      </div>
+
+      <div class="org-popover__divider"></div>
+
+      <div class="org-popover__title">Motion</div>
+      <div class="org-popover__row">
+        <span class="org-popover__label">WebM video</span>
+        <button class="org-btn" id="btn-rec" onclick="toggleRecord()">&#9679; Record</button>
+      </div>
+      <p class="org-popover__hint">
+        In <b>Sway</b> wind mode the field is exactly periodic — record one
+        Loop period for a seamless installation loop.
+      </p>
+    </div>
+  </div>
+
+  <div class="org-floatbar__sep"></div>
+
+  <button class="org-floatbar__btn org-floatbar__btn--primary" onclick="sendToFigma()" aria-label="Send to Figma">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 1.5h2.25a2 2 0 1 1 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 5.5h2.25a2 2 0 1 1 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 9.5h1.25a2 2 0 1 1 0 4A2 2 0 0 1 6 11.5v-2Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 1.5H4.25a2 2 0 1 0 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+  </button>
+</div>
 
 <div id="app">
 

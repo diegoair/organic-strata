@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="organic-animations.css">
   <link rel="stylesheet" href="/shared/organica-tokens.css">
   <link rel="stylesheet" href="/shared/organica-header.css">
+  <link rel="stylesheet" href="/shared/organica-floatbar.css">
   <style>
     /* ─── Base — Pollen palette (light / mono), shared with Library ─── */
     :root {
@@ -166,11 +167,18 @@
       <span class="org-header__state" id="status-text">Draw a shape to begin</span>
     </output>
 
-    <div class="org-header__actions">
-      <button class="org-btn" id="btn-undo">&#8630; Undo</button>
-      <button class="org-btn" id="btn-clear">Clear</button>
-    </div>
   </header>
+
+  <!-- FLOATING TOOLBAR — Undo / Clear, fixed bottom-centre over the canvas -->
+  <div class="org-floatbar" role="toolbar" aria-label="Actions">
+    <button class="org-floatbar__btn" id="btn-undo" aria-label="Undo">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 3.5 2 6l2.5 2.5M2 6h7.5a4 4 0 1 1 0 8H8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-floatbar__sep"></div>
+    <button class="org-floatbar__btn" id="btn-clear" aria-label="Clear">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4.5h11M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M4.3 4.5 5 13.1a1 1 0 0 0 1 .9h4a1 1 0 0 0 1-.9l.7-8.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
 
   <div class="app">
 

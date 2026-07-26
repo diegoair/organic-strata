@@ -6,6 +6,7 @@
 <title>Organic Strata</title>
 <link rel="stylesheet" href="/shared/organica-tokens.css">
   <link rel="stylesheet" href="/shared/organica-header.css">
+  <link rel="stylesheet" href="/shared/organica-floatbar.css">
   <link rel="stylesheet" href="/shared/organica-panel.css">
   <style>
   :root {
@@ -406,20 +407,6 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Export panel */
-  .export-panel {
-    border-top: 1px solid var(--line);
-    padding: 12px 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-family: var(--mono);
-    font-size: 11px;
-    background: var(--surface);
-  }
-  .export-label { color: var(--muted); }
-  .export-info { margin-left: auto; color: var(--muted); font-size: 10px; }
-
   /* Shape style sub-panel (Regions CV mode) */
   #shape-style-row {
     margin-top: 6px;
@@ -616,12 +603,41 @@
     <span class="org-header__state" id="status-text">No image loaded</span>
   </output>
 
-  <div class="org-header__actions">
-    <button class="org-btn" id="btn-reset">Reset</button>
-    <button class="org-btn" id="btn-export" disabled>Export SVG</button>
-    <button class="org-btn org-btn--primary" id="btn-figma" disabled>&rarr; Figma</button>
-  </div>
 </header>
+
+<!-- FLOATING TOOLBAR — Open / Reset / Export / Figma, fixed bottom-centre over the canvas -->
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <button class="org-floatbar__btn" aria-label="Browse for a sketch" onclick="document.getElementById('file-input').click()">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M1.5 4A1 1 0 0 1 2.5 3h2.8l1 1.3H13.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <button class="org-floatbar__btn" id="btn-reset" aria-label="Reset">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13 4.8A5.5 5.5 0 1 0 14 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M13.3 1.5v3.5H9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" disabled aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Ready to export</div>
+      <button class="org-btn" id="btn-dl-svg" style="width:100%; justify-content:center; margin-bottom:var(--space-2)">&darr; Download SVG</button>
+      <button class="org-btn" id="btn-dl-all" style="width:100%; justify-content:center; margin-bottom:var(--space-2)">&darr; All regions (.zip)</button>
+      <button class="org-btn" id="btn-copy-svg" style="width:100%; justify-content:center">Copy SVG code</button>
+      <div class="org-popover__divider"></div>
+      <span class="org-out" id="export-info"></span>
+    </div>
+  </div>
+
+  <div class="org-floatbar__sep"></div>
+
+  <button class="org-floatbar__btn org-floatbar__btn--primary" id="btn-figma" disabled aria-label="Send to Figma">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 1.5h2.25a2 2 0 1 1 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 5.5h2.25a2 2 0 1 1 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 9.5h1.25a2 2 0 1 1 0 4A2 2 0 0 1 6 11.5v-2Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 1.5H4.25a2 2 0 1 0 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+  </button>
+</div>
 
 <!-- SIDEBAR -->
 <aside>
@@ -806,13 +822,6 @@
 
   </div>
 
-  <div class="export-panel" id="export-panel" style="display:none">
-    <span class="export-label">Ready to export</span>
-    <button class="btn primary" id="btn-dl-svg">↓ Download SVG</button>
-    <button class="btn" id="btn-dl-all">↓ All regions (.zip)</button>
-    <button class="btn" id="btn-copy-svg">Copy SVG code</button>
-    <span class="export-info" id="export-info"></span>
-  </div>
 </main>
 </div><!-- /#app-grid -->
 
@@ -857,7 +866,7 @@ function showStage(name) {
   document.getElementById('drop-zone').classList.toggle('hidden',    name !== 'drop');
   document.getElementById('crop-stage').classList.toggle('hidden',   name !== 'crop');
   document.getElementById('preview-area').classList.toggle('hidden', name !== 'preview');
-  document.getElementById('export-panel').style.display = name === 'preview' ? 'flex' : 'none';
+  document.getElementById('btn-export').disabled = name !== 'preview';
   document.getElementById('status-dot').classList.toggle('active', name === 'preview');   // header component dot
   const labels = { drop: 'No image loaded', crop: 'Select area to trace', preview: 'Sketch processed' };
   document.getElementById('status-text').textContent = labels[name] || '';
@@ -1423,11 +1432,6 @@ function downloadString(str, filename, mime) {
   URL.revokeObjectURL(url);
 }
 
-document.getElementById('btn-export').addEventListener('click', () => {
-  if (!state.svgData) return;
-  downloadString(state.svgData, 'sketch-grammar.svg', 'image/svg+xml');
-});
-
 document.getElementById('btn-dl-svg').addEventListener('click', () => {
   if (!state.svgData) return;
   downloadString(state.svgData, 'sketch-grammar.svg', 'image/svg+xml');
@@ -1511,6 +1515,7 @@ document.getElementById('btn-figma').addEventListener('click', async () => {
 updateAllLabels();
 Organica.autoLabelPanel(document);   // accessible names for row controls
 Organica.enhanceSliders(document);   // filled track + click-to-edit value
+Organica.popover(document.getElementById('btn-export'), document.getElementById('export-popover'));
 </script>
 </body>
 </html>

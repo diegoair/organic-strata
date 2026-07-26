@@ -1,0 +1,133 @@
+/* ─────────────────────────────────────────────────────────────
+   ORGANICA — organica-floatbar.css
+   The floating action bar. One component, fixed at the bottom-centre of
+   the canvas, replacing the header's action slot (Open / Export / Figma
+   / per-tool extras) across every tool.
+
+   --panel (a quiet grey, the same token the slider chips and format
+   fields use), not white — the design-system fill for a floating surface.
+   Radius comes from --radius-lg (8px), one step up from the panel
+   controls' --radius-md, so a bigger floating surface still reads as the
+   same family at a bigger size.
+
+   Centred on the CANVAS, not the browser viewport: the panel sits fixed
+   at --panel-w (or --panel-width-right in Genesis Creator, which never
+   linked organica-panel.css) on the right, so centring on 50vw would
+   drift the bar visibly toward the panel. The offset below shifts the
+   centre point left by half the panel's width, which is a static value
+   in every tool (the panel doesn't resize), so a fixed calc() is enough
+   — no ResizeObserver needed.
+
+   Content is per-tool (icon-only buttons, in whatever combination that
+   tool needs — Open+Export+Figma, or just Undo+Clear for Creator, or
+   Export+Record for Komorebi); the shell, spacing, icon sizing, popover
+   anchoring and states are shared. Reuses .org-popover / Organica.popover
+   from organica-header.css / organica-core.js verbatim for any button
+   that opens a panel — only the anchor direction flips (the trigger is
+   now at the BOTTOM of the screen, so the popover opens upward).
+
+   Requires organica-tokens.css and organica-header.css (for --border-strong,
+   .org-popover, .org-btn's disabled contract) loaded first.
+   ───────────────────────────────────────────────────────────── */
+
+.org-floatbar {
+  position: fixed;
+  left: calc(50% - var(--panel-w, var(--panel-width-right, 248px)) / 2);
+  bottom: var(--space-6);
+  transform: translateX(-50%);
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 48px;
+  padding: 0 var(--space-4);
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.org-floatbar__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.org-floatbar__btn svg { display: block; flex-shrink: 0; }
+.org-floatbar__btn .ico { width: 16px; height: 16px; }
+.org-floatbar__btn .chev { width: 7px; height: 7px; margin-left: 1px; }
+
+/* Hover/active read against --track-bg, not --panel — the bar's own
+   background IS --panel now, so a --panel hover state would be invisible. */
+.org-floatbar__btn:hover { background: var(--track-bg); }
+.org-floatbar__btn[aria-expanded="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.org-floatbar__btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.org-floatbar__btn:disabled:hover { background: none; }
+
+/* Wider hit area for a two-glyph button (icon + dropdown chevron) */
+.org-floatbar__btn--wide { width: auto; padding: 0 var(--space-3); }
+
+/* Primary action — send to Figma. Warm accent, not the header's plain
+   ink-fill --org-btn--primary, so it reads as the one "ship it" action
+   in a row of otherwise neutral icon buttons. */
+.org-floatbar__btn--primary {
+  background: var(--accent-warm);
+  color: #fff;
+}
+.org-floatbar__btn--primary:hover {
+  background: color-mix(in srgb, var(--accent-warm) 85%, black);
+}
+
+/* Recording state — Komorebi. A filled red dot reads as "live" the same
+   way it does in every capture UI; the icon swaps to a stop-square while
+   armed, same convention as the old text toggle ("Record" → "STOP"). */
+.org-floatbar__btn--rec[aria-pressed="true"] {
+  background: #c23b2a;
+  color: #fff;
+}
+.org-floatbar__btn--rec[aria-pressed="true"]:hover {
+  background: #a83323;
+}
+
+.org-floatbar__sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border-strong);
+  flex-shrink: 0;
+  margin: 0 var(--space-1);
+}
+
+/* The popover opens UPWARD from a bottom-fixed trigger — .org-popover's
+   default (top: 100%, right: 0) would push it off the bottom of the
+   viewport. Anchor from the bottom edge, centred over its trigger. */
+.org-floatbar .org-popover-wrap { position: relative; display: inline-flex; }
+.org-floatbar .org-popover {
+  top: auto;
+  right: auto;
+  bottom: calc(100% + var(--space-3));
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Small screens: let the bar shrink to content width without spilling
+   past the viewport edge (it's centred, not edge-anchored). */
+@media (max-width: 480px) {
+  .org-floatbar { max-width: calc(100vw - 24px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .org-floatbar__btn { transition: none; }
+}
