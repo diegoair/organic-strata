@@ -186,14 +186,6 @@
 <header class="org-header org-header--tool" role="banner">
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ Living Path</span></a>
 
-  <div class="org-header__context">
-    <div class="org-tabs seg tech" id="techSeg" role="group" aria-label="Engine">
-      <button class="org-btn" data-tech="vector" aria-pressed="true">Vector</button>
-      <button class="org-btn" data-tech="raster" aria-pressed="false">Raster</button>
-    </div>
-    <button class="org-btn" id="tgChain" hidden>&#8646; vector &rarr; raster</button>
-  </div>
-
   <div class="org-header__spacer"></div>
 
   <output class="org-header__status" aria-live="polite" aria-atomic="true">
@@ -259,6 +251,15 @@
     <!-- One panel, on the right — the left column was removed so the
          stage gets the full width and controls read top-to-bottom:
          what you load → what you apply → what you inspect. -->
+    <div class="sec">
+      <h3>Engine</h3>
+      <div class="seg" id="techSeg" role="group" aria-label="Engine">
+        <button data-tech="vector" class="on">Vector</button>
+        <button data-tech="raster">Raster</button>
+      </div>
+      <button class="mini" id="tgChain" hidden style="width:100%">&#8646; vector &rarr; raster</button>
+    </div>
+
     <div class="sec">
       <h3>Input</h3>
       <div class="seg" id="srcSeg">
@@ -1779,11 +1780,18 @@ $('#tgOutline').addEventListener('click',function(){ showOutline=!showOutline; t
 $('#tgNodes').addEventListener('click',function(){ showNodes=!showNodes; this.classList.toggle('on',showNodes); repaint(); });
 ['cInk','cBg'].forEach(id=>$('#'+id).addEventListener('input',e=>{ $('#'+id+'V').textContent=e.target.value; repaint(); }));
 
-// close the preset menu on outside click, scroll (fixed menu) or resize
+// close the preset menu on outside click, scroll (fixed menu) or resize.
+// The scroll listener is on .panel.right with capture:true so it also
+// catches scrolling on the panel's ancestors/siblings — but that capture
+// phase fires for ANY descendant's own scroll too, including the preset
+// menu's own internal list once it has more items than fit (Raster has
+// 24). Without the target check below, scrolling inside the menu closed
+// it immediately instead of scrolling it — found by testing the actual
+// scroll gesture, not by reading the listener.
 const closeMenu=()=>{ const m=$('#presetMenu'); if(m && !m.hidden) m.hidden=true; };
 document.addEventListener('click',e=>{ const m=$('#presetMenu'); if(m && !m.hidden && !e.target.closest('.presets') && !e.target.closest('#presetMenu')) m.hidden=true; });
 window.addEventListener('resize',closeMenu);
-document.querySelector('.panel.right').addEventListener('scroll',closeMenu,true);
+document.querySelector('.panel.right').addEventListener('scroll',e=>{ if(!e.target.closest('#presetMenu')) closeMenu(); },true);
 
 // boot
 buildPresets();
