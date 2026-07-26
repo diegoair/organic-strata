@@ -185,6 +185,11 @@
 }
 .org-btn--primary:hover { background: #333; border-color: #333; }
 
+/* Full-width, centred label — a stack of equal-weight actions inside a
+   popover (Strata's Download SVG / All regions / Copy code), instead of
+   the row's default left-aligned inline-flex sizing. */
+.org-btn--block { width: 100%; justify-content: center; }
+
 /* A disabled control must say WHY. Tools set aria-describedby or a
    data-why the popover/tooltip reads; the cursor change alone is not an
    explanation. Opacity kept above 0.4 so the label stays readable. */

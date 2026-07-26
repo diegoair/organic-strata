@@ -246,9 +246,10 @@
       <!-- Hidden SVG defs container — organic-defs.js content injected here -->
       <div id="svg-defs-container" style="position:absolute;width:0;height:0;overflow:hidden;"></div>
 
-      <!-- The grid — CSS custom properties drive layout -->
-      <div class="form-grid" id="form-grid"
-           style="--grid-cols: 4; --col-gap: 16px; --row-gap: 16px; --grid-padding: 24px;"></div>
+      <!-- The grid — CSS custom properties drive layout. Defaults live once,
+           in the CSS var() fallbacks below (4 cols / 16px gaps / 24px pad) —
+           JS only sets an inline override once a set defines its own. -->
+      <div class="form-grid" id="form-grid"></div>
     </main>
 
     <!-- RIGHT: Design panel (Figma-style) -->

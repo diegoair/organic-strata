@@ -205,6 +205,15 @@
       background: #8aa054;
     }
 
+    /* design system is documentation, not a tool — a quiet neutral, not a
+       new hue in the palette */
+    .nav__link--ds:hover {
+      color: #b8b0a0;
+    }
+    .nav__link--ds::after {
+      background: #b8b0a0;
+    }
+
     /* ── corner metadata ── */
     .meta {
       position: fixed;
@@ -253,6 +262,7 @@
       <a class="nav__link nav__link--living" href="/livingpath/">Living Path</a>
       <a class="nav__link nav__link--halide" href="/halide/">Halide</a>
       <a class="nav__link nav__link--komorebi" href="/komorebi/">Komorebi</a>
+      <a class="nav__link nav__link--ds" href="/design-system/">Design System</a>
     </nav>
   </main>
 

@@ -164,6 +164,39 @@ html {
   --track-bg: color-mix(in srgb, var(--ink) 10%, var(--panel));
 }
 
+/* ── SPACING UTILITIES ────────────────────────────────────────
+   An audit of every tool found the same handful of spacing values —
+   6px, 8px, 10px, 12px, 14px — repeated as one-off `style="margin-top:
+   Npx"` attributes, dozens of times across Spore/Pollen/Halide/Strata/
+   Living Path. Every one of those values already exists as a --space-*
+   step; the inline style just wasn't spending it. These classes are
+   that token spent as a class instead of retyped as a raw number — the
+   class name IS the token index (.mt-4 is margin-top: var(--space-4)),
+   so there's no second numbering scheme to memorise on top of the
+   token scale that already exists. Use these instead of a new inline
+   style; if the spacing you need isn't a --space-* step, that's a sign
+   to add the step, not to reach for a raw px value. */
+   A utility only does its job if it always wins — the alternative is
+   remembering the specificity of every component class it might land
+   on (a slider row's own rule is a compound selector, .row .val, which
+   already outranks a single class). !important here isn't a hack, it's
+   the point: these are the one category of class that must never lose
+   a cascade fight, so every instance below carries it on purpose. */
+.mt-1 { margin-top: var(--space-1) !important; } .mb-1 { margin-bottom: var(--space-1) !important; }
+.mt-2 { margin-top: var(--space-2) !important; } .mb-2 { margin-bottom: var(--space-2) !important; }
+.mt-3 { margin-top: var(--space-3) !important; } .mb-3 { margin-bottom: var(--space-3) !important; }
+.mt-4 { margin-top: var(--space-4) !important; } .mb-4 { margin-bottom: var(--space-4) !important; }
+.mt-5 { margin-top: var(--space-5) !important; } .mb-5 { margin-bottom: var(--space-5) !important; }
+.mt-6 { margin-top: var(--space-6) !important; } .mb-6 { margin-bottom: var(--space-6) !important; }
+.mt-7 { margin-top: var(--space-7) !important; } .mb-7 { margin-bottom: var(--space-7) !important; }
+.mt-8 { margin-top: var(--space-8) !important; } .mb-8 { margin-bottom: var(--space-8) !important; }
+
+/* The two non-spacing one-offs common enough (dozens of occurrences) to
+   be worth a name: an element that should just fill the remaining row
+   width, and one hidden by default until JS reveals it. */
+.u-flex1 { flex: 1 1 auto !important; min-width: 0 !important; }
+.u-hidden { display: none !important; }
+
 /* ── LEGACY ALIASES ───────────────────────────────────────────
    Every tool used to name the typeface differently. These keep the old
    rules rendering while the codebase converges on --font. They all

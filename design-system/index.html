@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System — Organica</title>
+
+<!-- This page IS the component library: every example below renders with
+     the real, live shared/*.css — not a screenshot or a re-implementation.
+     If a token or class changes in shared/, this page changes with it. -->
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<style>
+  :root {
+    --ink: #0a0a0a;
+    --paper: #f5f2ec;
+    --mid: #696256;
+    --panel: #eceae4;
+    --border: #d0c8b8;
+    --border-strong: #958462;
+    --tool: #726a5e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: var(--fs-base);
+  }
+
+  /* ── LAYOUT — header on top, left nav + content below ── */
+  .ds-shell { display: flex; height: calc(100vh - var(--header-h)); }
+
+  .ds-nav {
+    width: 232px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border-strong);
+    background: var(--paper);
+    overflow-y: auto;
+    padding: var(--space-6) 0;
+  }
+  .ds-nav__group { margin-bottom: var(--space-6); padding: 0 var(--space-6); }
+  .ds-nav__title {
+    font-size: var(--t-section-size);
+    font-weight: var(--t-section-weight);
+    color: var(--mid);
+    margin-bottom: var(--space-3);
+  }
+  .ds-nav a {
+    display: block;
+    font-size: var(--fs-base);
+    color: var(--ink);
+    text-decoration: none;
+    padding: var(--space-2) 0;
+    border-left: 2px solid transparent;
+    padding-left: var(--space-3);
+    margin-left: calc(var(--space-3) * -1);
+  }
+  .ds-nav a:hover { color: var(--accent-warm); }
+  .ds-nav a.current { border-left-color: var(--accent-warm); color: var(--accent-warm); font-weight: var(--w-medium); }
+
+  .ds-content { flex: 1; overflow-y: auto; padding: var(--space-8) var(--space-8) 240px; }
+  .ds-content > p.ds-intro {
+    max-width: 640px;
+    font-size: var(--fs-large);
+    line-height: var(--lh-normal);
+    color: var(--mid);
+    margin: 0 0 var(--space-8);
+  }
+
+  section.ds-entry { max-width: 780px; margin-bottom: var(--space-8); scroll-margin-top: var(--space-6); }
+  section.ds-entry h2 {
+    font-size: var(--fs-xl);
+    font-weight: var(--w-medium);
+    margin: 0 0 var(--space-2);
+  }
+  section.ds-entry > p.ds-desc {
+    font-size: var(--fs-base);
+    line-height: var(--lh-normal);
+    color: var(--mid);
+    max-width: 620px;
+    margin: 0 0 var(--space-5);
+  }
+  .ds-group-title {
+    font-size: var(--fs-xl);
+    font-weight: var(--w-bold);
+    margin: 0 0 var(--space-3);
+    padding-top: var(--space-7);
+    border-top: 1px solid var(--border);
+  }
+  .ds-group-title:first-child { padding-top: 0; border-top: 0; }
+
+  /* Where / how used — the sidebar-requested "how and where it can be used" */
+  .ds-usage {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-5);
+  }
+  .ds-usage span {
+    font-size: var(--fs-micro);
+    letter-spacing: var(--ls-wide);
+    color: var(--mid);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 2px var(--space-2);
+  }
+  .ds-usage strong { color: var(--mid); font-weight: var(--w-regular); margin-right: var(--space-1); }
+
+  /* Live example stage */
+  .ds-example {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-6);
+    margin-bottom: var(--space-3);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-5);
+  }
+  .ds-example--column { flex-direction: column; align-items: stretch; }
+  .ds-example--dark { background: var(--ink); }
+
+  /* Code block */
+  pre.ds-code {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-4) var(--space-5);
+    margin: 0 0 var(--space-2);
+    overflow-x: auto;
+    font-family: var(--font);
+    font-size: var(--fs-small);
+    line-height: var(--lh-snug);
+    color: var(--ink-soft, var(--ink));
+    white-space: pre;
+  }
+  pre.ds-code .tag { color: #8a5a2a; }
+  pre.ds-code .attr { color: #4a7a6a; }
+  pre.ds-code .str { color: #7a3a5a; }
+
+  .ds-note {
+    font-size: var(--fs-small);
+    color: var(--mid);
+    line-height: var(--lh-snug);
+    margin: 0 0 var(--space-5);
+  }
+
+  /* Swatch grid for color tokens */
+  .ds-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--space-4); width: 100%; }
+  .ds-swatch { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: #fff; }
+  .ds-swatch__fill { height: 56px; }
+  .ds-swatch__meta { padding: var(--space-3); }
+  .ds-swatch__name { font-size: var(--fs-small); font-weight: var(--w-medium); }
+  .ds-swatch__val { font-size: var(--fs-micro); color: var(--mid); font-variant-numeric: tabular-nums; }
+
+  /* Type scale rows */
+  .ds-type-row { display: flex; align-items: baseline; gap: var(--space-5); padding: var(--space-3) 0; border-bottom: 1px solid var(--border); }
+  .ds-type-row:last-child { border-bottom: 0; }
+  .ds-type-row .ds-type-tag { width: 110px; flex-shrink: 0; font-size: var(--fs-micro); color: var(--mid); font-variant-numeric: tabular-nums; }
+  .ds-type-row .ds-type-sample { color: var(--ink); }
+
+  /* Spacing scale bars */
+  .ds-space-row { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) 0; }
+  .ds-space-row .ds-space-tag { width: 150px; flex-shrink: 0; font-size: var(--fs-small); color: var(--mid); font-variant-numeric: tabular-nums; }
+  .ds-space-bar { height: 12px; background: var(--accent-warm); border-radius: 2px; }
+
+  /* Radius demo boxes */
+  .ds-radius-box { width: 64px; height: 64px; background: var(--accent-warm); display: flex; align-items: center; justify-content: center; color: #fff; font-size: var(--fs-micro); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Design System</span></a>
+  <div class="org-header__spacer"></div>
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__state">Every element in code — live, not a screenshot</span>
+  </output>
+</header>
+
+<div class="ds-shell">
+  <!-- ══ LEFT SIDEBAR — one entry per design-system element ══ -->
+  <nav class="ds-nav" aria-label="Design system contents">
+    <div class="ds-nav__group">
+      <div class="ds-nav__title">Foundations</div>
+      <a href="#typography">Typography</a>
+      <a href="#color">Color tokens</a>
+      <a href="#spacing">Spacing</a>
+      <a href="#radius">Radius</a>
+    </div>
+    <div class="ds-nav__group">
+      <div class="ds-nav__title">Panel</div>
+      <a href="#panel-shell">Panel shell</a>
+      <a href="#panel-section">Section &amp; sub-label</a>
+      <a href="#panel-row">Row, label &amp; value</a>
+      <a href="#slider">Slider</a>
+      <a href="#panel-controls">Select, input &amp; color row</a>
+      <a href="#seg-ctrl">Segmented control</a>
+    </div>
+    <div class="ds-nav__group">
+      <div class="ds-nav__title">Actions</div>
+      <a href="#buttons">Buttons</a>
+      <a href="#header">Header</a>
+      <a href="#floatbar">Floating toolbar</a>
+      <a href="#popover">Popover</a>
+    </div>
+    <div class="ds-nav__group">
+      <div class="ds-nav__title">Utilities</div>
+      <a href="#utilities">Spacing &amp; layout utilities</a>
+    </div>
+  </nav>
+
+  <!-- ══ CONTENT ══ -->
+  <main class="ds-content">
+    <p class="ds-intro">
+      Every token and component Organica is built from, rendered with the
+      exact CSS every tool loads (<code>shared/organica-tokens.css</code>,
+      <code>organica-header.css</code>, <code>organica-panel.css</code>,
+      <code>organica-floatbar.css</code>). Nothing on this page is a copy —
+      change a value in <code>shared/</code> and this page changes with it,
+      same as every tool.
+    </p>
+
+    <!-- ═══════════════════ FOUNDATIONS ═══════════════════ -->
+    <h1 class="ds-group-title">Foundations</h1>
+
+    <section class="ds-entry" id="typography">
+      <h2>Typography</h2>
+      <p class="ds-desc">One family — Manrope, variable weight 200–800 — via <code>--font</code>. The panel runs on exactly two styles (10/400 and 9/300); everything outside the panel uses the type scale below. No second typeface, no hardcoded <code>font-size</code>.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-tokens.css</span><strong>Used in</strong><span>every page</span></div>
+      <div class="ds-example ds-example--column">
+        <div class="ds-type-row"><span class="ds-type-tag">--fs-micro · 9px</span><span class="ds-type-sample" style="font-size:var(--fs-micro)">Sub-labels, panel values, captions</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--fs-small · 10px</span><span class="ds-type-sample" style="font-size:var(--fs-small)">Section titles, controls</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--fs-base · 11px</span><span class="ds-type-sample" style="font-size:var(--fs-base)">Header &amp; body text outside the panel</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--fs-medium · 12px</span><span class="ds-type-sample" style="font-size:var(--fs-medium)">Header context title</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--fs-large · 14px</span><span class="ds-type-sample" style="font-size:var(--fs-large)">Page-level heading inside a tool</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--fs-xl · 17px</span><span class="ds-type-sample" style="font-size:var(--fs-xl)">Tool title</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--w-light · 300</span><span class="ds-type-sample" style="font-weight:300">Manrope Light — sub-labels, labels, values</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--w-regular · 400</span><span class="ds-type-sample" style="font-weight:400">Manrope Regular — section titles, controls</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--w-medium · 500</span><span class="ds-type-sample" style="font-weight:500">Manrope Medium — emphasis, primary action</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--w-bold · 700</span><span class="ds-type-sample" style="font-weight:700">Manrope Bold — wordmark</span></div>
+      </div>
+      <pre class="ds-code"><span class="attr">font-family</span>: var(--font);
+<span class="attr">font-size</span>: var(--fs-base);      <span class="attr">/* never a raw px */</span>
+<span class="attr">font-weight</span>: var(--w-regular);</pre>
+    </section>
+
+    <section class="ds-entry" id="color">
+      <h2>Color tokens</h2>
+      <p class="ds-desc"><code>--ink</code>/<code>--paper</code>/<code>--panel</code>/<code>--mid</code>/<code>--border</code> are per-tool (each tool sets its own hex in a local <code>:root</code>) — everything downstream reads the role, not a hex. <code>--accent-warm</code> and <code>--track-bg</code> are the two exceptions: one fixed accent, the same in every tool, so a slider or a floating toolbar reads identically regardless of which tool it's in.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-tokens.css</span><span>each tool's own :root</span></div>
+      <div class="ds-example">
+        <div class="ds-swatches">
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--ink)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--ink</div><div class="ds-swatch__val">text, thumbs, primary fills</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--paper)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--paper</div><div class="ds-swatch__val">page &amp; sidebar shell</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--panel)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--panel</div><div class="ds-swatch__val">control fields, chips</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--mid)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--mid</div><div class="ds-swatch__val">≥4.5:1 — sub-labels, values</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--border-strong)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--border-strong</div><div class="ds-swatch__val">≥3:1 — rules, outlines</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--accent-warm)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--accent-warm</div><div class="ds-swatch__val">one accent, every tool</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--track-bg)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--track-bg</div><div class="ds-swatch__val">ink mixed into panel</div></div></div>
+        </div>
+      </div>
+      <pre class="ds-code"><span class="attr">color</span>: var(--ink);
+<span class="attr">background</span>: var(--panel);
+<span class="attr">border-color</span>: var(--border-strong);</pre>
+    </section>
+
+    <section class="ds-entry" id="spacing">
+      <h2>Spacing</h2>
+      <p class="ds-desc">4px base grid, 8 steps. Used for gaps, padding, margins — never a raw px value that happens to look right.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-tokens.css</span><strong>Used in</strong><span>every component</span></div>
+      <div class="ds-example ds-example--column">
+        <div class="ds-space-row"><span class="ds-space-tag">--space-1 · 4px</span><div class="ds-space-bar" style="width:4px"></div></div>
+        <div class="ds-space-row"><span class="ds-space-tag">--space-2 · 6px</span><div class="ds-space-bar" style="width:6px"></div></div>
+        <div class="ds-space-row"><span class="ds-space-tag">--space-3 · 8px</span><div class="ds-space-bar" style="width:8px"></div></div>
+        <div class="ds-space-row"><span class="ds-space-tag">--space-4 · 10px</span><div class="ds-space-bar" style="width:10px"></div></div>
+        <div class="ds-space-row"><span class="ds-space-tag">--space-5 · 14px</span><div class="ds-space-bar" style="width:14px"></div></div>
+        <div class="ds-space-row"><span class="ds-space-tag">--space-6 · 16px</span><div class="ds-space-bar" style="width:16px"></div></div>
+        <div class="ds-space-row"><span class="ds-space-tag">--space-7 · 24px</span><div class="ds-space-bar" style="width:24px"></div></div>
+        <div class="ds-space-row"><span class="ds-space-tag">--space-8 · 32px</span><div class="ds-space-bar" style="width:32px"></div></div>
+      </div>
+      <p class="ds-note">If the spacing you need isn't one of these eight, that's a sign to add a step — not to reach for a raw px value.</p>
+    </section>
+
+    <section class="ds-entry" id="radius">
+      <h2>Radius</h2>
+      <p class="ds-desc">Three steps, flat by default — Organica's surfaces are near-square, radius is a whisper. <code>--radius-lg</code> is reserved for the one surface that floats free of the grid (the floating toolbar); everything docked to an edge uses <code>sm</code> or <code>md</code>.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-tokens.css</span></div>
+      <div class="ds-example">
+        <div class="ds-radius-box" style="border-radius:var(--radius-sm)">sm · 2px</div>
+        <div class="ds-radius-box" style="border-radius:var(--radius-md)">md · 4px</div>
+        <div class="ds-radius-box" style="border-radius:var(--radius-lg)">lg · 8px</div>
+      </div>
+      <pre class="ds-code"><span class="attr">border-radius</span>: var(--radius-sm);   <span class="attr">/* inputs, swatches, chips */</span>
+<span class="attr">border-radius</span>: var(--radius-md);   <span class="attr">/* popovers, dividers, slider track */</span>
+<span class="attr">border-radius</span>: var(--radius-lg);   <span class="attr">/* the floating toolbar only */</span></pre>
+    </section>
+
+    <!-- ═══════════════════ PANEL ═══════════════════ -->
+    <h1 class="ds-group-title">Panel</h1>
+
+    <section class="ds-entry" id="panel-shell">
+      <h2>Panel shell</h2>
+      <p class="ds-desc">The control sidebar. One width (248px), always on the right (Genesis Library is the one deliberate exception — it lists <em>sets</em>, which is navigation, not controls).</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-panel.css</span><strong>Used in</strong><span>Strata</span><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Living Path</span></div>
+      <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"panel"</span>&gt;
+  &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"panel-section"</span>&gt;…&lt;/<span class="tag">div</span>&gt;
+&lt;/<span class="tag">div</span>&gt;</pre>
+    </section>
+
+    <section class="ds-entry" id="panel-section">
+      <h2>Section &amp; sub-label</h2>
+      <p class="ds-desc">Three levels of hierarchy, carried by colour and position, not by size — the panel runs on only two type styles.</p>
+      <div class="ds-usage"><strong>Used in</strong><span>every panel</span></div>
+      <div class="ds-example ds-example--column" style="max-width:280px">
+        <div class="panel-section" style="border:0;padding:0">
+          <h3>Section title <span class="hint">optional hint</span></h3>
+          <div class="sub-label">Sub-label</div>
+        </div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"panel-section"</span>&gt;
+  &lt;<span class="tag">h3</span>&gt;Section title &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"hint"</span>&gt;optional&lt;/<span class="tag">span</span>&gt;&lt;/<span class="tag">h3</span>&gt;
+  &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"sub-label"</span>&gt;Sub-label&lt;/<span class="tag">div</span>&gt;
+&lt;/<span class="tag">div</span>&gt;</pre>
+    </section>
+
+    <section class="ds-entry" id="panel-row">
+      <h2>Row, label &amp; value</h2>
+      <p class="ds-desc">Label left, control right, value right-aligned and tabular. The value is click-to-edit — <code>Organica.enhanceSliders()</code> wires this on every <code>.ctrl-val</code> next to a range input, delegated so it also reaches rows built later by JS.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-panel.css</span><strong>JS</strong><span>Organica.enhanceSliders() — organica-core.js</span></div>
+      <div class="ds-example ds-example--column" style="max-width:280px">
+        <div class="ctrl-row">
+          <span class="ctrl-label">Label</span>
+          <span class="ctrl-val">1.00</span>
+        </div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"ctrl-row"</span>&gt;
+  &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-label"</span>&gt;Label&lt;/<span class="tag">span</span>&gt;
+  &lt;<span class="tag">input</span> <span class="attr">type</span>=<span class="str">"range"</span>&gt;
+  &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-val"</span>&gt;1.00&lt;/<span class="tag">span</span>&gt;
+&lt;/<span class="tag">div</span>&gt;</pre>
+    </section>
+
+    <section class="ds-entry" id="slider">
+      <h2>Slider</h2>
+      <p class="ds-desc">A filled housing (<code>--track-bg</code>) with the value up to the thumb in <code>--accent-warm</code> — one accent everywhere, not each tool's own hue, the same way Figma's own inspector uses one blue for every handle regardless of file content. <code>--fill</code> is written live by <code>Organica.enhanceSliders()</code>, on drag and on any script assignment to <code>.value</code> (so presets stay honest too).</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-panel.css</span><strong>JS</strong><span>Organica.enhanceSliders()</span><strong>Used in</strong><span>every panel</span></div>
+      <div class="ds-example ds-example--column" style="max-width:280px">
+        <div class="ctrl-row">
+          <span class="ctrl-label">Dot scale</span>
+          <input type="range" min="0" max="10" value="6" style="--fill:60%">
+          <span class="ctrl-val">6</span>
+        </div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">input</span> <span class="attr">type</span>=<span class="str">"range"</span> <span class="attr">min</span>=<span class="str">"0"</span> <span class="attr">max</span>=<span class="str">"10"</span> <span class="attr">value</span>=<span class="str">"6"</span>&gt;
+&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-val"</span>&gt;6&lt;/<span class="tag">span</span>&gt;
+
+<span class="attr">/* once, at page init */</span>
+Organica.enhanceSliders(document);</pre>
+    </section>
+
+    <section class="ds-entry" id="panel-controls">
+      <h2>Select, input &amp; color row</h2>
+      <p class="ds-desc">The rest of the panel's control vocabulary — a native select styled to match, a numeric field with tabular figures, and the three-part colour row (swatch → native picker → hex field) used everywhere a colour is exposed.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-panel.css</span></div>
+      <div class="ds-example ds-example--column" style="max-width:280px">
+        <select class="panel-select mb-3">
+          <option>stroke only</option>
+          <option>fill</option>
+        </select>
+        <input class="panel-input mb-3" value="1.2">
+        <div class="color-row">
+          <span class="color-name">Ink</span>
+          <button class="color-swatch" style="background:var(--ink)"></button>
+          <input class="color-hex" value="#0a0a0a">
+        </div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">select</span> <span class="attr">class</span>=<span class="str">"panel-select"</span>&gt;…&lt;/<span class="tag">select</span>&gt;
+&lt;<span class="tag">input</span> <span class="attr">class</span>=<span class="str">"panel-input"</span>&gt;
+&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"color-row"</span>&gt;
+  &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"color-name"</span>&gt;Ink&lt;/<span class="tag">span</span>&gt;
+  &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"color-swatch"</span>&gt;&lt;/<span class="tag">button</span>&gt;
+  &lt;<span class="tag">input</span> <span class="attr">class</span>=<span class="str">"color-hex"</span>&gt;
+&lt;/<span class="tag">div</span>&gt;</pre>
+    </section>
+
+    <section class="ds-entry" id="seg-ctrl">
+      <h2>Segmented control</h2>
+      <p class="ds-desc">A tab row inside the panel or header — mode switches, algorithm choices. Reads <code>aria-pressed</code> where a tool has converted to it; <code>.active</code> is kept for tools not yet migrated.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-panel.css</span><strong>Used in</strong><span>Halide (F–S/Atkinson/Bayer/Flat)</span><span>Living Path (Vector/Raster)</span></div>
+      <div class="ds-example" style="max-width:280px">
+        <div class="seg-ctrl">
+          <button class="seg-btn active">A</button>
+          <button class="seg-btn">B</button>
+          <button class="seg-btn">C</button>
+        </div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"seg-ctrl"</span>&gt;
+  &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"seg-btn active"</span>&gt;A&lt;/<span class="tag">button</span>&gt;
+  &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"seg-btn"</span>&gt;B&lt;/<span class="tag">button</span>&gt;
+&lt;/<span class="tag">div</span>&gt;</pre>
+    </section>
+
+    <!-- ═══════════════════ ACTIONS ═══════════════════ -->
+    <h1 class="ds-group-title">Actions</h1>
+
+    <section class="ds-entry" id="buttons">
+      <h2>Buttons</h2>
+      <p class="ds-desc">One base (<code>.org-btn</code>), three modifiers: <code>--primary</code> for the one "ship it" action in a row, <code>--block</code> to stack full-width inside a popover. <code>.mini-btn</code> and <code>.panel-btn</code> are the panel's own smaller/full-width variants.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-header.css</span><span>organica-panel.css</span></div>
+      <div class="ds-example">
+        <button class="org-btn">Reset</button>
+        <button class="org-btn org-btn--primary">→ Figma</button>
+        <button class="mini-btn">Save</button>
+        <button class="panel-btn" style="width:auto;padding:0 var(--space-4)">Full action</button>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-btn"</span>&gt;Reset&lt;/<span class="tag">button</span>&gt;
+&lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-btn org-btn--primary"</span>&gt;→ Figma&lt;/<span class="tag">button</span>&gt;
+&lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-btn org-btn--block"</span>&gt;Full width, stacked&lt;/<span class="tag">button</span>&gt;</pre>
+    </section>
+
+    <section class="ds-entry" id="header">
+      <h2>Header</h2>
+      <p class="ds-desc">Identity, context, status — and nothing else. Actions moved out to the floating toolbar (below); the header's own <code>.org-header__actions</code> slot still exists for a tool that genuinely needs an inline action, but every tool in the suite now keeps it empty.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-header.css</span><strong>Used in</strong><span>every page</span></div>
+      <div class="ds-example" style="padding:0;background:var(--paper)">
+        <header class="org-header org-header--tool" role="banner" style="width:100%;position:static">
+          <a class="org-header__logo" href="#"><b>Organica</b><span>/ Tool</span></a>
+          <div class="org-header__spacer"></div>
+          <output class="org-header__status"><span class="org-header__dot active"></span><span class="org-header__state">Ready</span></output>
+        </header>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">header</span> <span class="attr">class</span>=<span class="str">"org-header org-header--tool"</span> <span class="attr">role</span>=<span class="str">"banner"</span>&gt;
+  &lt;<span class="tag">a</span> <span class="attr">class</span>=<span class="str">"org-header__logo"</span> <span class="attr">href</span>=<span class="str">"/"</span>&gt;&lt;<span class="tag">b</span>&gt;Organica&lt;/<span class="tag">b</span>&gt;&lt;<span class="tag">span</span>&gt;/ Tool&lt;/<span class="tag">span</span>&gt;&lt;/<span class="tag">a</span>&gt;
+  &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-header__spacer"</span>&gt;&lt;/<span class="tag">div</span>&gt;
+  &lt;<span class="tag">output</span> <span class="attr">class</span>=<span class="str">"org-header__status"</span>&gt;
+    &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"org-header__dot"</span>&gt;&lt;/<span class="tag">span</span>&gt;
+    &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"org-header__state"</span>&gt;Ready&lt;/<span class="tag">span</span>&gt;
+  &lt;/<span class="tag">output</span>&gt;
+&lt;/<span class="tag">header</span>&gt;</pre>
+    </section>
+
+    <section class="ds-entry" id="floatbar">
+      <h2>Floating toolbar</h2>
+      <p class="ds-desc">Fixed bottom-centre <em>over the canvas</em>, not the browser viewport — offset by half the panel's width so it centres on the visible working area. Content is per-tool (icon buttons in whatever combination that tool needs); the shell, icon sizing and states are shared.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-floatbar.css</span><strong>Used in</strong><span>Strata</span><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Living Path</span><span>Genesis Creator</span></div>
+      <div class="ds-example" style="justify-content:center">
+        <div class="org-floatbar" style="position:static;transform:none">
+          <button class="org-floatbar__btn" aria-label="Open">
+            <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M1.5 4A1 1 0 0 1 2.5 3h2.8l1 1.3H13.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="org-floatbar__sep"></div>
+          <button class="org-floatbar__btn org-floatbar__btn--wide" aria-label="Export">
+            <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="org-floatbar__sep"></div>
+          <button class="org-floatbar__btn org-floatbar__btn--primary" aria-label="Send to Figma">
+            <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 1.5h2.25a2 2 0 1 1 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 5.5h2.25a2 2 0 1 1 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 9.5h1.25a2 2 0 1 1 0 4A2 2 0 0 1 6 11.5v-2Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 1.5H4.25a2 2 0 1 0 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-floatbar"</span> <span class="attr">role</span>=<span class="str">"toolbar"</span> <span class="attr">aria-label</span>=<span class="str">"Actions"</span>&gt;
+  &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-floatbar__btn"</span> <span class="attr">aria-label</span>=<span class="str">"Open"</span>&gt;…svg…&lt;/<span class="tag">button</span>&gt;
+  &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-floatbar__sep"</span>&gt;&lt;/<span class="tag">div</span>&gt;
+  &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-floatbar__btn org-floatbar__btn--primary"</span>&gt;…&lt;/<span class="tag">button</span>&gt;
+&lt;/<span class="tag">div</span>&gt;</pre>
+      <p class="ds-note">Centring formula: <code>left: calc(50% - var(--panel-w, var(--panel-width-right, 248px)) / 2)</code> — the nested fallback covers Genesis Creator, which names its panel width variable differently.</p>
+    </section>
+
+    <section class="ds-entry" id="popover">
+      <h2>Popover</h2>
+      <p class="ds-desc">Handles the accessibility contract a bare click handler always forgets: <code>aria-expanded</code>, Escape to dismiss, click-outside to dismiss, focus return. Anchors upward when it lives inside the floating toolbar (the trigger sits at the bottom of the screen).</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-header.css</span><strong>JS</strong><span>Organica.popover() — organica-core.js</span></div>
+      <div class="ds-example" style="justify-content:center;padding-top:var(--space-8);padding-bottom:var(--space-8)">
+        <div class="org-popover-wrap">
+          <button class="org-btn">Export ▾</button>
+          <div class="org-popover" data-open="true" style="position:static;transform:none;display:block">
+            <div class="org-popover__title">Format</div>
+            <div class="org-formats">
+              <button class="org-btn">PNG</button>
+              <button class="org-btn">SVG</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-popover-wrap"</span>&gt;
+  &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-btn"</span> <span class="attr">id</span>=<span class="str">"btn-export"</span>&gt;Export ▾&lt;/<span class="tag">button</span>&gt;
+  &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-popover"</span> <span class="attr">id</span>=<span class="str">"export-popover"</span>&gt;…&lt;/<span class="tag">div</span>&gt;
+&lt;/<span class="tag">div</span>&gt;
+
+<span class="attr">/* once, at page init */</span>
+Organica.popover(document.getElementById(<span class="str">'btn-export'</span>), document.getElementById(<span class="str">'export-popover'</span>));</pre>
+    </section>
+
+    <!-- ═══════════════════ UTILITIES ═══════════════════ -->
+    <h1 class="ds-group-title">Utilities</h1>
+
+    <section class="ds-entry" id="utilities">
+      <h2>Spacing &amp; layout utilities</h2>
+      <p class="ds-desc">An audit found the same handful of spacing values — 6/8/10/12/14px — repeated as one-off <code>style="margin-top:Npx"</code> attributes, dozens of times across the suite. These classes are that token spent as a class instead of retyped as a raw number: the class name <em>is</em> the token index. They carry <code>!important</code> on purpose — a utility only does its job if it always wins the cascade, and a panel row's own class (<code>.row .val</code>) already outranks a single class without it.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-tokens.css</span></div>
+      <pre class="ds-code">.mt-1 … .mt-8   <span class="attr">/* margin-top: var(--space-1…8) */</span>
+.mb-1 … .mb-8   <span class="attr">/* margin-bottom: var(--space-1…8) */</span>
+.u-flex1        <span class="attr">/* flex: 1 1 auto; min-width: 0 */</span>
+.u-hidden       <span class="attr">/* display: none — only for elements NEVER
+                   toggled via el.style.display in JS; toggled rows must
+                   keep style="display:none" so clearing it works */</span></pre>
+    </section>
+
+  </main>
+</div>
+</body>
+</html>

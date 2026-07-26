@@ -173,6 +173,9 @@
   .mini{font-size:10px; padding:5px 9px; background:var(--card); border:1px solid var(--line); border-radius:6px; cursor:pointer; color:var(--ink-soft)}
   .mini.on{background:var(--ink); color:var(--bg); border-color:var(--ink)}
   .hint{font-size:10px; color:var(--ink-muted); line-height:1.6; margin-top:8px}
+  /* Shared text-field style — was duplicated verbatim (font/size/padding/
+     border/radius/background/color) on every .row input in this panel. */
+  .field{flex:1; font-family:var(--font); font-size:12px; padding:5px 8px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink)}
   .swatch{display:flex; align-items:center; gap:8px}
   .swatch input[type=color]{width:30px; height:24px; border:1px solid var(--line); border-radius:5px; background:none; cursor:pointer; padding:0}
   ::-webkit-scrollbar{width:9px;height:9px}
@@ -272,14 +275,13 @@
         </div>
         <div class="row" style="margin-top:11px">
           <label>Text</label>
-          <input id="fontText" value="A" maxlength="12"
-            style="flex:1; font-family:var(--font); font-size:13px; padding:5px 8px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink)">
+          <input id="fontText" class="field" value="A" maxlength="12" style="font-size:13px">
         </div>
         <div class="hint">Type 1–12 glyphs. Each is outlined and run through the effect stack.</div>
 
         <div class="exgrid">
           <div class="row"><label>Font name</label>
-            <input id="exName" value="LivingPath" style="flex:1; font-family:var(--font); font-size:12px; padding:5px 8px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink)"></div>
+            <input id="exName" class="field" value="LivingPath"></div>
           <div class="row"><label>Include</label>
             <div class="chips" id="exChips">
               <button data-r="upper" class="on">A–Z</button><button data-r="lower" class="on">a–z</button>
@@ -291,8 +293,8 @@
         </div>
         <button class="btn pri" id="exFont" disabled style="width:100%; margin-top:9px">⬇ Export modified font (OTF)</button>
         <div class="row" style="margin-top:7px; gap:6px">
-          <button class="btn" id="saveProj" style="flex:1">Save .lvp</button>
-          <button class="btn" id="loadProj" style="flex:1">Load .lvp</button>
+          <button class="btn u-flex1" id="saveProj">Save .lvp</button>
+          <button class="btn u-flex1" id="loadProj">Load .lvp</button>
         </div>
         <div class="hint" id="exFontHint">Rebuilds an installable OTF from the current stack — "let it flood your work." .lvp saves/reloads your whole setup.</div>
       </div>
@@ -322,15 +324,15 @@
     </div>
     <div class="sec">
       <h3>Source view</h3>
-      <div class="swatch row" style="margin-bottom:10px">
+      <div class="swatch row mb-4">
         <label style="flex:0 0 86px">Ink</label>
         <input type="color" id="cInk" value="#0a0a0a">
-        <span class="val" id="cInkV" style="flex:1; text-align:left">#0a0a0a</span>
+        <span class="val u-flex1" id="cInkV" style="text-align:left">#0a0a0a</span>
       </div>
       <div class="swatch row">
         <label style="flex:0 0 86px">Paper</label>
         <input type="color" id="cBg" value="#f5f2ec">
-        <span class="val" id="cBgV" style="flex:1; text-align:left">#f5f2ec</span>
+        <span class="val u-flex1" id="cBgV" style="text-align:left">#f5f2ec</span>
       </div>
     </div>
   </aside>

@@ -388,11 +388,11 @@
 
       <div class="sub-label" style="margin-top:12px">Shape · primordial forms</div>
       <div id="shape-grid"></div>
-      <input type="file" id="shape-upload" aria-label="Upload SVG shape" accept=".svg,image/svg+xml" style="display:none" onchange="uploadShape(this)">
+      <input type="file" id="shape-upload" aria-label="Upload SVG shape" accept=".svg,image/svg+xml" class="u-hidden" onchange="uploadShape(this)">
       <button class="upload-btn" onclick="document.getElementById('shape-upload').click()">+ Upload SVG</button>
 
       <!-- RMX · remix up to 3 symbols, distributed by tone -->
-      <label class="check-row" style="margin-top:10px">
+      <label class="check-row mt-4">
         <input type="checkbox" id="ck-rmx" onchange="toggleRmx(this.checked)">
         <span>RMX · remix by tone</span>
       </label>
@@ -442,7 +442,7 @@
       <div id="stroke-controls" style="display:none">
         <div class="ctrl-row">
           <span class="ctrl-label">Style</span>
-          <div class="seg-ctrl" id="strokestyle-seg" style="flex:1">
+          <div class="seg-ctrl" id="strokestyle-seg">
             <button class="seg-btn active" data-val="line" onclick="setStrokeStyle('line')">—</button>
             <button class="seg-btn" data-val="star" onclick="setStrokeStyle('star')">✳</button>
           </div>
@@ -508,14 +508,14 @@
 
       <!-- RMX palette: up to 5 colours assigned by a chosen mapping -->
       <div id="rmx-color-block" style="display:none">
-        <div class="ctrl-row" style="margin-bottom:6px">
+        <div class="ctrl-row mb-2">
           <span class="ctrl-label">Palette</span>
           <span class="sub-label" id="rmx-color-hint" style="margin:0">dark → bright</span>
         </div>
         <div id="rmx-palette" class="rmx-palette"></div>
-        <div class="ctrl-row" style="margin-top:8px">
+        <div class="ctrl-row mt-3">
           <span class="ctrl-label">Mapping</span>
-          <select class="panel-select" id="sel-rmx-map" style="flex:1" onchange="rmxColorMap=this.value;render()">
+          <select class="panel-select u-flex1" id="sel-rmx-map" onchange="rmxColorMap=this.value;render()">
             <option value="tone">Tone (gradient)</option>
             <option value="posterize">Posterize</option>
             <option value="random">Random</option>
@@ -529,7 +529,7 @@
         <span class="ctrl-label">Point</span>
         <button class="color-swatch" id="swatch-ink" style="background:#0a0a0a" onclick="document.getElementById('cp-ink').click()" title="Point colour"></button>
         <input type="color" id="cp-ink" value="#0a0a0a" oninput="setColorAll('ink',this.value);render()">
-        <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7" style="flex:1"
+        <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7"
           oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){setColorAll('ink',this.value);render()}">
         <button class="icon-btn" onclick="randomColor('ink')" title="Random colour">
           <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
@@ -540,7 +540,7 @@
         <span class="ctrl-label">BG</span>
         <button class="color-swatch" id="swatch-bg" style="background:#f5f2ec" onclick="document.getElementById('cp-bg').click()" title="Background colour"></button>
         <input type="color" id="cp-bg" value="#f5f2ec" oninput="setColorAll('bg',this.value);render()">
-        <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7" style="flex:1"
+        <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7"
           oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){setColorAll('bg',this.value);render()}">
         <button class="icon-btn" onclick="randomColor('bg')" title="Random colour">
           <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
@@ -582,7 +582,7 @@
       <div class="sub-label">Image</div>
       <div class="ctrl-row">
         <span class="ctrl-label">Rotation</span>
-        <select class="panel-select" id="sel-rotation" onchange="scheduleRecompute();updateSizeReadout()" style="flex:1">
+        <select class="panel-select u-flex1" id="sel-rotation" onchange="scheduleRecompute();updateSizeReadout()">
           <option value="0">0°</option>
           <option value="90">90°</option>
           <option value="180">180°</option>
@@ -637,7 +637,7 @@
         <input type="range" id="sl-hide-max" min="0" max="255" value="255" oninput="syncVal(this,'vl-hide-max');scheduleRecompute()" title="…and ≤ this">
         <span class="ctrl-val" id="vl-hide-max">255</span>
       </div>
-      <div class="ctrl-row" style="margin-top:6px">
+      <div class="ctrl-row mt-2">
         <span class="ctrl-label">Points</span>
         <span class="ctrl-val" id="vl-total" style="min-width:auto; color:var(--accent)">—</span>
       </div>
