@@ -151,6 +151,57 @@
     margin: 0 0 var(--space-5);
   }
 
+  /* Prose — guide sections read as documentation, not a component demo */
+  .ds-prose h3 {
+    font-size: var(--fs-medium);
+    font-weight: var(--w-medium);
+    margin: var(--space-6) 0 var(--space-3);
+  }
+  .ds-prose h3:first-child { margin-top: 0; }
+  .ds-prose p, .ds-prose li {
+    font-size: var(--fs-base);
+    line-height: var(--lh-normal);
+    color: var(--ink);
+    max-width: 640px;
+  }
+  .ds-prose p { margin: 0 0 var(--space-4); }
+  .ds-prose ul, .ds-prose ol { margin: 0 0 var(--space-4); padding-left: var(--space-6); }
+  .ds-prose li { margin-bottom: var(--space-2); }
+  .ds-prose code {
+    font-family: var(--font);
+    background: var(--panel);
+    border-radius: var(--radius-sm);
+    padding: 1px var(--space-1);
+    font-size: 0.95em;
+  }
+  .ds-prose table { border-collapse: collapse; width: 100%; max-width: 700px; margin: 0 0 var(--space-5); }
+  .ds-prose th, .ds-prose td {
+    text-align: left;
+    font-size: var(--fs-small);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .ds-prose th { color: var(--mid); font-weight: var(--w-medium); }
+
+  /* A documented mistake — not a warning to the reader, a record of what
+     actually broke, kept next to the rule it justifies. */
+  .ds-mistake {
+    border-left: 3px solid var(--accent-warm);
+    background: var(--panel);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    padding: var(--space-4) var(--space-5);
+    margin: 0 0 var(--space-4);
+    max-width: 640px;
+  }
+  .ds-mistake__title {
+    font-size: var(--fs-small);
+    font-weight: var(--w-medium);
+    color: var(--ink);
+    margin-bottom: var(--space-1);
+  }
+  .ds-mistake p { font-size: var(--fs-small); color: var(--mid); margin: 0; max-width: none; }
+
   /* Swatch grid for color tokens */
   .ds-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--space-4); width: 100%; }
   .ds-swatch { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: #fff; }
@@ -217,6 +268,13 @@
     <div class="ds-nav__group">
       <div class="ds-nav__title">Utilities</div>
       <a href="#utilities">Spacing &amp; layout utilities</a>
+    </div>
+    <div class="ds-nav__group">
+      <div class="ds-nav__title">Maintaining the system</div>
+      <a href="#file-architecture">File architecture</a>
+      <a href="#tool-palette">Per-tool palette contract</a>
+      <a href="#adding-tokens">Adding a token or class</a>
+      <a href="#common-mistakes">Common mistakes</a>
     </div>
   </nav>
 
@@ -516,6 +574,78 @@ Organica.popover(document.getElementById(<span class="str">'btn-export'</span>),
 .u-hidden       <span class="attr">/* display: none — only for elements NEVER
                    toggled via el.style.display in JS; toggled rows must
                    keep style="display:none" so clearing it works */</span></pre>
+    </section>
+
+    <!-- ═══════════════════ MAINTAINING THE SYSTEM ═══════════════════ -->
+    <h1 class="ds-group-title">Maintaining the system</h1>
+
+    <section class="ds-entry ds-prose" id="file-architecture">
+      <h2>File architecture</h2>
+      <p class="ds-desc">Four shared files, each owning one concern. A tool links all four, in this order — order matters, later files may reference tokens the earlier ones define, and <code>organica-panel.css</code>/<code>organica-floatbar.css</code> both style <code>.org-popover</code> and rely on <code>organica-header.css</code> having defined it first.</p>
+      <table>
+        <tr><th>File</th><th>Owns</th><th>Depends on</th></tr>
+        <tr><td><code>organica-tokens.css</code></td><td>Typeface, weights, type scale, spacing scale, radius scale, <code>--accent-warm</code>, <code>--track-bg</code>, the <code>.mt-*</code>/<code>.mb-*</code>/<code>.u-flex1</code>/<code>.u-hidden</code> utilities</td><td>nothing — load first, always</td></tr>
+        <tr><td><code>organica-header.css</code></td><td>The header shell (identity/context/status/actions), <code>.org-btn</code> and its modifiers, <code>.org-popover</code></td><td>organica-tokens.css</td></tr>
+        <tr><td><code>organica-panel.css</code></td><td>The right-hand control sidebar — section/sub-label/row, slider, select/input/color-row, segmented control</td><td>organica-tokens.css</td></tr>
+        <tr><td><code>organica-floatbar.css</code></td><td>The bottom-centre floating action bar and its popover-anchoring override</td><td>organica-tokens.css, organica-header.css (reuses <code>.org-popover</code>/<code>.org-btn</code>)</td></tr>
+      </table>
+      <p>A tool's own <code>&lt;style&gt;</code> block comes <strong>after</strong> all four — that's what lets a tool override a token locally (its own <code>--ink</code>, <code>--tool</code> accent, etc.) without <code>!important</code>. It should contain only that tool's own layout and one-off components (its canvas, its HUD, its drop zone) — never a redefinition of something the shared files already own. <code>shared/organica-core.js</code> is the JS half: <code>Organica.popover()</code>, <code>Organica.status()</code>, <code>Organica.enhanceSliders()</code>, <code>Organica.autoLabelPanel()</code> — load it before a tool's own script.</p>
+    </section>
+
+    <section class="ds-entry ds-prose" id="tool-palette">
+      <h2>Per-tool palette contract</h2>
+      <p class="ds-desc">Every tool declares its own <code>:root</code> with the same seven names — that's the whole contract. Get the names right and every shared component (header, panel, floatbar, popover) inherits the tool's identity automatically; nothing shared ever hardcodes a hex.</p>
+      <pre class="ds-code">:root {
+  --ink: #0a0a0a;      <span class="attr">/* text, thumbs, primary fills */</span>
+  --paper: #f5f2ec;    <span class="attr">/* page & sidebar shell */</span>
+  --panel: #eceae4;    <span class="attr">/* control fields, chips */</span>
+  --mid: #696256;      <span class="attr">/* ≥4.5:1 on paper — sub-labels, values */</span>
+  --border: #d0c8b8;   <span class="attr">/* decorative fills */</span>
+  --border-strong: #958462; <span class="attr">/* ≥3:1 — rules the eye must register */</span>
+  --tool: #726a5e;     <span class="attr">/* identity colour — focus ring, header accent */</span>
+}</pre>
+      <p><code>--accent-warm</code> and <code>--track-bg</code> are the two exceptions on purpose (see <a href="#color">Color tokens</a>) — every other visual difference between tools should come from these seven values, not from a component-level override.</p>
+    </section>
+
+    <section class="ds-entry ds-prose" id="adding-tokens">
+      <h2>Adding a token or class</h2>
+      <p class="ds-desc">Before adding anything, check whether it already exists — most "new" needs turn out to be an existing token at a slightly different pixel value, which is drift, not a gap.</p>
+      <h3>A new spacing or radius value</h3>
+      <p>Only add a step if you'll reuse it — a single one-off doesn't earn a token, it stays as a local rule in the tool's own <code>&lt;style&gt;</code>. If you do add one: it goes in <code>organica-tokens.css</code>, in the existing scale, keeping the numbering contiguous (a new smallest spacing step becomes <code>--space-0</code>, not <code>--space-9</code> tacked onto the wrong end).</p>
+      <h3>A new component class</h3>
+      <p>Decide which file owns it first (see <a href="#file-architecture">File architecture</a>): does it live in the header, the panel, the floatbar, or is it genuinely new? Name it <code>.org-*</code> if it's shared chrome, matching the existing <code>.org-btn</code> / <code>.org-popover</code> family. Add a live example to this page in the matching sidebar group — an element only counts as "in the system" once someone besides its author can find it here.</p>
+      <h3>A new per-tool colour need</h3>
+      <p>If it's a UI-chrome colour (another border weight, another text tone), it's almost certainly a variant of <code>--mid</code>/<code>--border-strong</code>, with contrast checked against both <code>--paper</code> and <code>--panel</code> — don't eyeball it, compute the ratio (see <a href="#color">Color tokens</a> for how <code>--border-strong</code> was derived). If it's the tool's own content colour (Halide's ink/paper for the dithered image, Pollen's point colour) it is <strong>not</strong> a design-system token at all — it's user data that happens to default near <code>--ink</code>/<code>--paper</code>. Don't tokenise it; see the first row of <a href="#common-mistakes">Common mistakes</a>.</p>
+    </section>
+
+    <section class="ds-entry ds-prose" id="common-mistakes">
+      <h2>Common mistakes</h2>
+      <p class="ds-desc">Real ones, found auditing this codebase — not hypotheticals.</p>
+
+      <div class="ds-mistake">
+        <div class="ds-mistake__title">Treating user data as a design token</div>
+        <p>Spore/Pollen/Halide's ink &amp; paper colour-swatch buttons have <code>style="background:#0a0a0a"</code> — that hex matches <code>--ink</code> by coincidence (it's the default artwork colour), not by role. It's set from the colour picker at runtime; forcing it to <code>var(--ink)</code> would be wrong the moment a user picks a different colour. Before "fixing" a hardcoded colour, check whether JS ever reassigns it.</p>
+      </div>
+
+      <div class="ds-mistake">
+        <div class="ds-mistake__title">A utility class that loses the cascade</div>
+        <p><code>.u-flex1</code> (one class, specificity 0-1-0) silently lost to <code>.row .val</code> (two classes, 0-2-0) already setting <code>flex-shrink:0</code> — the browser doesn't care which file loaded last, only which selector is more specific. Found by checking <code>getComputedStyle().flexGrow</code>, not by reading the CSS. Every utility in this file now carries <code>!important</code> for exactly this reason.</p>
+      </div>
+
+      <div class="ds-mistake">
+        <div class="ds-mistake__title">Forcing a pill onto the corner-radius scale</div>
+        <p>Strata's toggle switch (<code>border-radius: 9px</code> on an 18px-tall track) and <code>.method-pill</code> (<code>border-radius: 20px</code>) are stadium shapes — radius = exactly half the element's height. Snapping either to <code>--radius-md</code> (4px) would leave visible flat corners, breaking the capsule. A radius on the token scale corners a rectangle; a radius that happens to equal half the height rounds it fully — they're different intents that look similar in the source.</p>
+      </div>
+
+      <div class="ds-mistake">
+        <div class="ds-mistake__title">A duplicate selector, silently overridden</div>
+        <p>Strata declared <code>#shape-style-row</code> twice in the same <code>&lt;style&gt;</code> block, 100 lines apart, with a different <code>margin-top</code> each time. CSS doesn't warn on this — the second declaration wins outright, and the first becomes dead code that looks live to anyone reading it top-to-bottom. <code>grep -c</code> the selector before trusting what a rule says it does.</p>
+      </div>
+
+      <div class="ds-mistake">
+        <div class="ds-mistake__title">Toggled visibility as a class, not an inline style</div>
+        <p><code>.u-hidden { display: none }</code> looks like the obvious replacement for every <code>style="display:none"</code> in the codebase — except most of them are toggled from JS via <code>el.style.display = show ? '' : 'none'</code>. Clearing an inline style falls back to the stylesheet; if the stylesheet still has <code>.u-hidden</code> on the element, it stays hidden forever. Only apply the class to elements that are hidden once and never shown again (a permanently-hidden file-input trigger, for example).</p>
+      </div>
     </section>
 
   </main>

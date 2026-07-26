@@ -407,14 +407,8 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Shape style sub-panel (Regions CV mode) */
-  #shape-style-row {
-    margin-top: var(--space-2);
-    padding: var(--space-3) var(--space-4);
-    background: var(--surface);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--line);
-  }
+  /* #shape-style-row's own box styling lives further down, next to
+     .shape-style-label — this rule only names the label inside it. */
   #shape-style-row .param-name {
     font-size: var(--fs-base);
     color: var(--muted);
