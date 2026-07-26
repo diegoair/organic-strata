@@ -15,7 +15,7 @@
   --paper:#f5f2ec; --mid:#726a5e; --panel:#eceae4; --tool:#b48cf0;
   --border-strong:#958462;
     --bg:#f5f2ec; --panel:#efeae1; --card:#faf8f3;
-    --ink:#0a0a0a; --ink-soft:#3a352e; --ink-muted:#8a8276;
+    --ink:#0a0a0a; --ink-soft:#3a352e; --ink-muted:#696256;
     --line:rgba(10,10,10,.10); --line-soft:rgba(10,10,10,.06);
     --pollen:#c8a83a; --pollen-bright:#e8c84a; --accent:#b0532a;
 
@@ -325,6 +325,8 @@
   </aside>
 </div>
 
+<!-- core BEFORE the tool script, per docs/UI-SHELL.md -->
+<script src="/shared/organica-core.js"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -1125,7 +1127,7 @@ function renderStack(){
     }
     grp.layers.forEach((layer,idx)=> gEl.appendChild(buildLayerEl(grp, layer, idx, reg)));
     const add=document.createElement('div'); add.className='addfx';
-    add.innerHTML=`<select><option value="">+ add effect…</option>${Object.keys(reg).map(k=>`<option value="${k}">${reg[k].name}</option>`).join('')}</select>`;
+    add.innerHTML=`<select aria-label="Add effect"><option value="">+ add effect…</option>${Object.keys(reg).map(k=>`<option value="${k}">${reg[k].name}</option>`).join('')}</select>`;
     add.querySelector('select').addEventListener('change',e=>{ if(e.target.value){ addEffectToGroup(grp, e.target.value); e.target.value=''; }});
     gEl.appendChild(add);
     host.appendChild(gEl);
@@ -1776,8 +1778,8 @@ buildPresets();
 buildGenesis();
 // start with a gentle default vector stack so loading anything shows the idea
 addEffect('roughen'); GROUPS.vector[0].layers[0].open=false; renderStack();
+Organica.autoLabelPanel(document);   // accessible names for row controls
 </script>
-<script src="/shared/organica-core.js"></script>
 <script src="/genesis/organic-forms.js" onload="buildGenesis()"></script>
 </body>
 </html>

@@ -12,7 +12,7 @@
     --tool: #c8a83a;   /* header focus ring */
     --ink: #0a0a0a;
     --paper: #f5f2ec;
-    --mid: #726a5e;
+    --mid: #696256;
     --accent: #2a2a2a;
     --panel: #eceae4;
     --border: #d0c8b8;
@@ -354,7 +354,7 @@
     <!-- PRESETS (load a starting style) -->
     <div class="panel-section">
       <h3>Presets <span class="hint">start from a style</span></h3>
-      <select class="panel-select" id="preset-select" onchange="applyPreset(this.value)">
+      <select class="panel-select" id="preset-select" aria-label="Preset" onchange="applyPreset(this.value)">
         <option value="">— Select —</option>
       </select>
       <div class="row-btns">
@@ -373,7 +373,7 @@
 
       <div class="sub-label" style="margin-top:12px">Shape · primordial forms</div>
       <div id="shape-grid"></div>
-      <input type="file" id="shape-upload" accept=".svg,image/svg+xml" style="display:none" onchange="uploadShape(this)">
+      <input type="file" id="shape-upload" aria-label="Upload SVG shape" accept=".svg,image/svg+xml" style="display:none" onchange="uploadShape(this)">
       <button class="upload-btn" onclick="document.getElementById('shape-upload').click()">+ Upload SVG</button>
 
       <!-- RMX · remix up to 3 symbols, distributed by tone -->
@@ -1808,6 +1808,7 @@ buildShapeGrid();
 updatePtPreview();   // show the point shape preview before any image is loaded
 
 Organica.popover(document.getElementById('btn-export'), document.getElementById('export-popover'));
+Organica.autoLabelPanel(document);   // accessible names for row controls
 </script>
 </body>
 </html>

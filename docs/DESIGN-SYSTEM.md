@@ -232,9 +232,73 @@ hub nav and as the tool's identity colour.
 The palette spans green → yellow → orange → blue → violet → teal. When adding a
 tool, pick a hue that isn't already taken and note it here.
 
+### `--mid` — the one colour that IS systematic
+
+Every tool's secondary-text colour (labels, values, sub-labels — most of the
+panel, per §3) must be **`#696256`**. Not a per-tool choice.
+
+An audit found three different values doing this job — Strata's own
+`--muted: #888` (hardcoded, not even the same variable name), Spore's
+`--mid: #c8c0b0`, and everyone else's `--mid: #726a5e` — with real contrast
+failures, not close calls:
+
+| Was | vs paper | vs panel | |
+|---|---|---|---|
+| Strata `#888` | 3.17:1 | — | fails AA (4.5:1) |
+| Spore `#c8c0b0` | 1.62:1 | — | fails badly — this was rendering section titles, hints and index numerals |
+| Everyone else `#726a5e` | 4.77:1 | 4.43:1 | fails AA **on panel background** |
+
+`#696256` clears **5.4:1 on paper, ≥5.0:1 on panel** — real headroom above the
+4.5:1 floor, not a value tuned to just barely pass. Computed the same way as
+`--border-strong` (§ above): don't eyeball a "looks dark enough" grey.
+
 ---
 
-## 6. Rules
+## 6. Accessible names
+
+**Every interactive control needs a name a screen reader can announce.** An
+audit of all six panels found 121 of ~210 form controls with no accessible
+name at all — a slider sat next to a `.ctrl-label` reading "Grid width", but
+nothing tied them together programmatically, so the control announced as
+"slider" with no name. The label was there for sighted users and invisible
+to everyone else. That is a WCAG 4.1.2 failure, and it was the same markup
+pattern (row → label + control, no `for`/`aria-labelledby`) repeated in
+every tool.
+
+**Fix once, not 121 times:** `Organica.autoLabelPanel(document)` in
+`shared/organica-core.js` walks every row (`.ctrl-row`, `.param-row`,
+`.color-row`, `.toggle-row`, …), finds the row's label, and wires it to the
+row's control(s) via `aria-labelledby` — generating an id on the label if it
+doesn't have one. It's idempotent (controls that already have a name are
+left alone) and safe to call more than once, so a tool that builds rows
+dynamically (a preset list, an effect stack) can call it again after
+populating.
+
+Call it once, after the panel's static rows exist and again after any
+dynamic population:
+
+```js
+Organica.autoLabelPanel(document);
+```
+
+**What it does not catch** — fix these by hand where they occur:
+- A control with no adjacent row label at all (a lone `<select>` under a
+  section title, e.g. a preset picker) → add `aria-label` directly.
+- A button whose only content is an icon or a colour swatch → needs its own
+  `aria-label` if it isn't the colour-row pattern (which the function does
+  handle — a colour row's swatch button, native `<input type=color>` and hex
+  field all take the row's `.color-name` label).
+- Content injected via `innerHTML` after the initial call → either re-call
+  `autoLabelPanel`, or set `aria-label` directly in the template string.
+
+Verified across all six tools: **0 of ~210 controls unnamed**, segmented
+buttons keep their own visible text as their name (the function skips a
+button that already has text — `aria-labelledby` would replace it, not add
+to it), zero runtime errors.
+
+---
+
+## 7. Rules
 
 1. **One family.** If a design needs a second typeface, that is a system-level
    decision — change it here, not in a tool.

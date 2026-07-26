@@ -11,7 +11,7 @@
   :root {
     --ink: #0a0a0a;
     --paper: #f5f2ec;
-    --mid: #726a5e;
+    --mid: #696256;
     --accent: #2a2a2a;
     --panel: #eceae4;
     --border: #d0c8b8;
@@ -193,7 +193,7 @@
 
     <div class="panel-section">
       <h3>Preset</h3>
-      <select class="panel-select" id="sel-preset" onchange="applyPreset(this.value)"></select>
+      <select class="panel-select" id="sel-preset" aria-label="Preset" onchange="applyPreset(this.value)"></select>
       <div class="row-btns">
         <button class="mini-btn" onclick="savePreset()">Save</button>
         <button class="mini-btn" onclick="deletePreset()">Delete</button>
@@ -203,7 +203,7 @@
     <div class="panel-section">
       <h3>Format <span class="hint">tileable gobo pattern</span></h3>
       <div class="ctrl-row">
-        <select class="panel-select" id="sel-format" onchange="resizeCanvas()">
+        <select class="panel-select" id="sel-format" aria-label="Format" onchange="resizeCanvas()">
           <option value="1:1">Square 1:1</option>
           <option value="4:5">Portrait 4:5</option>
           <option value="2:3">Portrait 2:3</option>
@@ -1365,6 +1365,7 @@ if (gl) {
   populatePresets('Forest Floor');
   setStatus('active', 'Ready');
   requestAnimationFrame(tick);
+  Organica.autoLabelPanel(document);   // accessible names for row controls
 }
 </script>
 </body>

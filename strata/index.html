@@ -9,14 +9,14 @@
   <link rel="stylesheet" href="/shared/organica-panel.css">
   <style>
   :root {
-    --paper: #f5f2ec; --mid: #726a5e; --panel: #eceae4; --tool: #f06030;
+    --paper: #f5f2ec; --mid: #696256; --panel: #eceae4; --tool: #f06030;
     --border-strong: #958462;
     --ink: #111;
     --paper: #f5f2ed;
     --surface: #ece9e3;
     --line: rgba(0,0,0,0.12);
     --accent: #2a2a2a;
-    --muted: #888;
+    --muted: #696256;   /* aliases --mid — same accessible-contrast value, see docs/DESIGN-SYSTEM.md */
     --active: #1a1a1a;
     --tag-bg: rgba(0,0,0,0.06);
   }
@@ -1509,6 +1509,7 @@ document.getElementById('btn-figma').addEventListener('click', async () => {
 
 // Init labels
 updateAllLabels();
+Organica.autoLabelPanel(document);   // accessible names for row controls
 </script>
 </body>
 </html>

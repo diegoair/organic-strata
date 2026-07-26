@@ -11,7 +11,7 @@
   :root {
     --ink: #0a0a0a;
     --paper: #f5f2ec;
-    --mid: #726a5e;
+    --mid: #696256;
     --accent: #2a2a2a;
     --panel: #eceae4;
     --border: #d0c8b8;
@@ -248,7 +248,7 @@
 
     <div class="panel-section">
       <h3>Presets <span class="hint">start from a style</span></h3>
-      <select class="panel-select" id="preset-select" onchange="applyPreset(this.value)">
+      <select class="panel-select" id="preset-select" aria-label="Preset" onchange="applyPreset(this.value)">
         <option value="">— Select —</option>
       </select>
       <div class="row-btns">
@@ -1312,6 +1312,7 @@ Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 setStatus('', 'Drop a photo to begin');
 applyZoom();
 populatePresets();
+Organica.autoLabelPanel(document);   // accessible names for row controls
 </script>
 </body>
 </html>

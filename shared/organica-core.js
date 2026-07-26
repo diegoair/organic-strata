@@ -396,5 +396,70 @@
     return { close: () => close(false), get isOpen() { return open; } };
   };
 
+  // ═══════════════════════════════════════════════════════════
+  // ACCESSIBLE NAMES
+  //
+  // Audit finding: 121 of ~210 form controls across the six panels had no
+  // accessible name — a slider sits next to a ".ctrl-label" that says
+  // "Grid width", but nothing programmatically ties them together, so a
+  // screen reader announces "slider" with no name. Visually the label is
+  // right there; to assistive tech it doesn't exist. That's a WCAG 4.1.2
+  // failure, and it's the same markup pattern (row → label + control)
+  // repeated in every tool, so it gets one fix here rather than 121
+  // hand-edits across six files.
+  //
+  // Call once after a panel's rows exist (population from JS is fine —
+  // this runs after, or call it again if you build rows dynamically).
+  // Idempotent: controls that already have a name are left untouched, so
+  // it's safe to call more than once.
+  // ═══════════════════════════════════════════════════════════
+
+  let autoLabelSeq = 0;
+
+  Organica.autoLabelPanel = function (root) {
+    root = root || document;
+    const rowSel = '.ctrl-row, .panel-row, .row, .color-row, .check-row, .param-row, .toggle-row';
+    // .param-name covers Strata's deliberate slider-with-captions variant
+    // (see docs/UI-SHELL.md "Deliberate variant") — same association need,
+    // different markup.
+    const labelSel = '.ctrl-label, .panel-label, .color-name, .group-label, .param-name, .toggle-name, label';
+    const controlSel = 'input, select, textarea';
+    let fixed = 0;
+
+    // A button with its own visible text (Save, Delete, F–S, Atkinson…)
+    // already has an accessible name FROM that text — aria-labelledby would
+    // replace it, not add to it, so a segmented control's four buttons
+    // would all announce as their shared row label instead of their own
+    // text. Only a button with no text of its own (an icon-only colour
+    // swatch) needs the row label.
+    // A wrapping <label> with no text of its own (a toggle-switch styled
+    // purely with a ::before/::after slider knob, no visible copy inside)
+    // is not a name — .closest('label') existing isn't enough, it has to
+    // have text. Missed this on the first pass: Strata's toggle switches
+    // wrap the checkbox in an empty <label class="toggle">, so the naive
+    // check called them "already named" while they announced nothing.
+    const hasName = el =>
+      !!(el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') ||
+         (el.id && root.querySelector(`label[for="${el.id}"]`)) ||
+         (el.closest('label') && el.closest('label').textContent.trim()) ||
+         (el.tagName === 'BUTTON' && el.textContent.trim()));
+
+    root.querySelectorAll(rowSel).forEach(row => {
+      const label = row.querySelector(labelSel);
+      if (!label) return;
+      if (!label.id) label.id = 'organica-label-' + (++autoLabelSeq);
+      // A colour row has up to three controls sharing one label (icon-only
+      // swatch button, native <input type=color>, hex text field) — name
+      // all of them. Every other row has exactly one control.
+      row.querySelectorAll(controlSel + ', button').forEach(control => {
+        if (control === label || hasName(control)) return;
+        control.setAttribute('aria-labelledby', label.id);
+        fixed++;
+      });
+    });
+
+    return fixed;
+  };
+
   global.Organica = Organica;
 })(window);

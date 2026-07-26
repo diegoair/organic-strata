@@ -356,6 +356,11 @@
         "$type": "color",
         "$value": "#8aa054"
       }
+    },
+    "mid": {
+      "$type": "color",
+      "$value": "#696256",
+      "$description": "The one text colour that IS systematic across tools (labels, values, sub-labels). Computed like borderStrong: 5.4:1 on paper, >=5.0:1 on panel -- real headroom above the 4.5:1 AA floor. Audit found three different values doing this job before unification: Strata's own --muted #888 (3.17:1, fails), Spore's --mid #c8c0b0 (1.62:1, fails badly), everyone else's #726a5e (4.43:1 on panel, fails). Every tool's --mid / --muted / --ink-muted must resolve to this value."
     }
   }
 }
