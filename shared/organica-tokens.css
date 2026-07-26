@@ -145,6 +145,23 @@ html {
   --space-6:  16px;
   --space-7:  24px;
   --space-8:  32px;
+
+  /* ── SLIDER FILL ─────────────────────────────────────────
+     One accent for every slider's filled track, across every tool —
+     deliberately NOT --tool (which varies per tool and is blue for
+     Halide/Spore). A warm orange reads as "you're dragging this" the
+     same way regardless of which tool you're in, mirroring how Figma's
+     own inspector uses one blue for every control handle regardless of
+     the file's content colour. Computed, not eyeballed: 3.79:1 on
+     --panel, 4.08:1 on --paper, 4.56:1 on a white thumb — real headroom
+     over the 3:1 non-text-contrast floor. */
+  --accent-warm: #c2551b;
+
+  /* Slider track housing — a quiet grey chip, mixed from each tool's own
+     --ink into its own --panel so it stays visible-but-subordinate no
+     matter which tool's palette it sits in, instead of one hardcoded hex
+     that would read differently against every panel colour. */
+  --track-bg: color-mix(in srgb, var(--ink) 10%, var(--panel));
 }
 
 /* ── LEGACY ALIASES ───────────────────────────────────────────

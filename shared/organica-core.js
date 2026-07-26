@@ -461,5 +461,122 @@
     return fixed;
   };
 
+  // ── SLIDERS — filled track + click-to-edit value ──────────────────────
+  // Two things every input[type=range] in the panel gets, wired once and
+  // reaching content added later (Living Path rebuilds its effect rows on
+  // every layer toggle):
+  //   1. A live --fill custom property (0%–100%), read by the gradient in
+  //      organica-panel.css. User drags update it via the bubbling 'input'
+  //      event; script-driven changes (a preset doing `slider.value = x`)
+  //      update it via a wrapped .value accessor, since presets never
+  //      dispatch a synthetic input event.
+  //   2. Click the number beside a slider to type an exact value. This is
+  //      a delegated click handler, not a per-element one, so it survives
+  //      DOM rebuilt after this function ran (Living Path's layer rows) —
+  //      those sliders still get their fill wired via a MutationObserver.
+  const rangeValSel = '.ctrl-val, .panel-value, .row .val, .param-val, .panel-unit, .val';
+  const rangeRowSel = '.ctrl-row, .panel-row, .row, .param-row, .panel-input-group';
+
+  function organicaUpdateFill(range) {
+    const min = range.min !== '' ? parseFloat(range.min) : 0;
+    const max = range.max !== '' ? parseFloat(range.max) : 100;
+    const v = parseFloat(range.value);
+    const pct = max > min ? Math.min(100, Math.max(0, ((v - min) / (max - min)) * 100)) : 0;
+    range.style.setProperty('--fill', pct + '%');
+  }
+
+  function organicaWireRange(range) {
+    if (range.__orgFillWired) return;
+    range.__orgFillWired = true;
+    const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    Object.defineProperty(range, 'value', {
+      configurable: true,
+      get() { return desc.get.call(range); },
+      set(v) { desc.set.call(range, v); organicaUpdateFill(range); },
+    });
+    organicaUpdateFill(range);
+  }
+
+  function organicaBeginValueEdit(val, range) {
+    const original = val.textContent;
+    const m = original.match(/-?\d+\.?\d*/);
+    val.dataset.orgOriginal = original;
+    val.contentEditable = ('plaintext-only' in document.body.style) ? 'plaintext-only' : 'true';
+    val.classList.add('editing');
+    val.textContent = m ? m[0] : original;
+
+    const sel = window.getSelection();
+    const r = document.createRange();
+    r.selectNodeContents(val);
+    sel.removeAllRanges();
+    sel.addRange(r);
+    val.focus();
+
+    const finish = commit => {
+      val.removeEventListener('blur', onBlur);
+      val.removeEventListener('keydown', onKey);
+      val.contentEditable = 'false';
+      val.classList.remove('editing');
+      if (!commit) { val.textContent = val.dataset.orgOriginal; return; }
+      const n0 = parseFloat(val.textContent);
+      if (isNaN(n0)) { val.textContent = val.dataset.orgOriginal; return; }
+      const min = range.min !== '' ? parseFloat(range.min) : 0;
+      const max = range.max !== '' ? parseFloat(range.max) : 100;
+      const step = (range.step && range.step !== 'any') ? parseFloat(range.step) : null;
+      let n = Math.min(max, Math.max(min, n0));
+      if (step) n = Math.round((n - min) / step) * step + min;
+      n = Math.round(n * 1e6) / 1e6;
+      range.value = n;
+      range.dispatchEvent(new Event('input', { bubbles: true }));
+      range.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    const onBlur = () => finish(true);
+    const onKey = e => {
+      if (e.key === 'Enter') { e.preventDefault(); val.blur(); }
+      else if (e.key === 'Escape') { e.preventDefault(); finish(false); val.blur(); }
+    };
+    val.addEventListener('blur', onBlur);
+    val.addEventListener('keydown', onKey);
+  }
+
+  let sliderObserver = null;
+  let sliderDelegatesWired = false;
+
+  Organica.enhanceSliders = function (root) {
+    root = root || document;
+    root.querySelectorAll('input[type=range]').forEach(organicaWireRange);
+
+    if (!sliderDelegatesWired) {
+      sliderDelegatesWired = true;
+      document.addEventListener('input', e => {
+        if (e.target && e.target.matches && e.target.matches('input[type=range]')) {
+          organicaWireRange(e.target);
+          organicaUpdateFill(e.target);
+        }
+      });
+      document.addEventListener('click', e => {
+        const val = e.target.closest && e.target.closest(rangeValSel);
+        if (!val || val.isContentEditable) return;
+        const row = val.closest(rangeRowSel);
+        const range = row && row.querySelector('input[type=range]');
+        if (!range) return;
+        organicaBeginValueEdit(val, range);
+      });
+    }
+
+    if (!sliderObserver) {
+      sliderObserver = new MutationObserver(muts => {
+        muts.forEach(m => {
+          m.addedNodes.forEach(n => {
+            if (n.nodeType !== 1) return;
+            if (n.matches && n.matches('input[type=range]')) organicaWireRange(n);
+            if (n.querySelectorAll) n.querySelectorAll('input[type=range]').forEach(organicaWireRange);
+          });
+        });
+      });
+      sliderObserver.observe(document.body, { childList: true, subtree: true });
+    }
+  };
+
   global.Organica = Organica;
 })(window);

@@ -14,7 +14,7 @@
   :root{
   --paper:#f5f2ec; --mid:#726a5e; --panel:#eceae4; --tool:#b48cf0;
   --border-strong:#958462;
-    --bg:#f5f2ec; --panel:#efeae1; --card:#faf8f3;
+    --bg:#f5f2ec; --card:#faf8f3;
     --ink:#0a0a0a; --ink-soft:#3a352e; --ink-muted:#696256;
     --line:rgba(10,10,10,.10); --line-soft:rgba(10,10,10,.06);
     --pollen:#c8a83a; --pollen-bright:#e8c84a; --accent:#b0532a;
@@ -49,7 +49,7 @@
   /* ── layout ── */
   .shell{flex:1; display:flex; min-height:0}
   .panel{
-    width:var(--panel-w); flex:0 0 var(--panel-w); background:var(--panel); border-right:1px solid var(--line);
+    width:var(--panel-w); flex:0 0 var(--panel-w); background:var(--paper); border-right:1px solid var(--line);
     overflow-y:auto; padding:0 0 40px;
   }
   .panel.right{border-right:none; border-left:1px solid var(--line)}
@@ -1779,6 +1779,7 @@ buildGenesis();
 // start with a gentle default vector stack so loading anything shows the idea
 addEffect('roughen'); GROUPS.vector[0].layers[0].open=false; renderStack();
 Organica.autoLabelPanel(document);   // accessible names for row controls
+Organica.enhanceSliders(document);   // filled track + click-to-edit value
 </script>
 <script src="/genesis/organic-forms.js" onload="buildGenesis()"></script>
 </body>

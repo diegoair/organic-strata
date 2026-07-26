@@ -141,10 +141,18 @@ aside h3, .panel h3 {       /* Strata / any panel that just uses h3 */
 }
 
 /* Values are numbers in a column — tabular figures stop them jittering
-   as they change under a dragging slider. */
+   as they change under a dragging slider. Click one to type an exact
+   value: Organica.enhanceSliders() (organica-core.js) makes every value
+   next to a range input editable in place, no markup change needed —
+   it's a delegated click handler, so it also reaches values rendered
+   later (Living Path's per-layer effect rows). Idle it reads as plain
+   text; only .editing gets a box, so it doesn't look like a field until
+   you mean to type in one. */
 .ctrl-val,
 .panel-value,
-.row .val {
+.row .val,
+.param-val,
+.panel-unit {
   font-size: var(--t-value-size);
   font-weight: var(--t-value-weight);
   color: var(--mid);
@@ -152,13 +160,39 @@ aside h3, .panel h3 {       /* Strata / any panel that just uses h3 */
   text-align: right;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
+  border-radius: var(--radius-sm);
+  cursor: text;
+}
+.ctrl-val:hover,
+.panel-value:hover,
+.row .val:hover,
+.param-val:hover,
+.panel-unit:hover {
+  color: var(--ink);
+}
+.ctrl-val.editing,
+.panel-value.editing,
+.row .val.editing,
+.param-val.editing,
+.panel-unit.editing {
+  background: var(--panel);
+  color: var(--ink);
+  outline: 1px solid var(--border-strong, var(--border));
+  outline-offset: -1px;
+  cursor: text;
+  user-select: text;
 }
 
 /* ═══════════════════════════════════════════════════════════
-   SLIDER — one implementation
-   Was 2px in four tools and 3px in two, with a 10px thumb, no focus ring
-   and no hover feedback. 11px thumb keeps the target usable while the
-   2px track stays visually quiet.
+   SLIDER — one implementation, Figma's Design-panel handle
+   Was a flat 2–3px line with a flat thumb — no fill, so the only way to
+   read a value was the number beside it. Now a filled pill: the track
+   reads its own value (--accent-warm up to the thumb, --panel after),
+   and a white floating thumb with its own shadow separates it from the
+   track under it. --fill is written by Organica.enhanceSliders() in
+   organica-core.js, both on drag (bubbled 'input') and on any script
+   assignment to .value (a wrapped property setter) — so presets and
+   hand-dragging both keep the fill honest.
    ═══════════════════════════════════════════════════════════ */
 
 input[type=range] {
@@ -166,38 +200,72 @@ input[type=range] {
   appearance: none;
   flex: 1 1 auto;
   min-width: 0;
-  height: 2px;
-  background: var(--border-strong, var(--border));
-  border-radius: 1px;
+  height: 11px;              /* the track itself is the visible chip now */
+  background: transparent;
   outline: none;
   cursor: pointer;
   margin: 0;
 }
 
+/* The empty portion of the track IS the "grey rounded background" — not a
+   separate wrapper element, so it has to be thick enough to read as a
+   housing rather than a hairline. --track-bg is derived per-tool from
+   --ink mixed into --panel, so it stays a visible-but-quiet chip against
+   each tool's own panel colour without a hardcoded hex. Radius comes from
+   --radius-md, the same token every other panel control (.panel-select,
+   .panel-input, .color-swatch…) uses — a card corner, not a stadium cap,
+   so the housing reads as the same component family as the rest of the
+   panel instead of a one-off pill shape. */
+input[type=range]::-webkit-slider-runnable-track {
+  height: 9px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(to right,
+    var(--accent-warm) 0%, var(--accent-warm) var(--fill, 0%),
+    var(--track-bg, var(--panel)) var(--fill, 0%), var(--track-bg, var(--panel)) 100%);
+}
+input[type=range]::-moz-range-track {
+  height: 9px;
+  border-radius: var(--radius-md);
+  background: var(--track-bg, var(--panel));
+}
+input[type=range]::-moz-range-progress {
+  height: 9px;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  background: var(--accent-warm);
+}
+
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 11px; height: 11px;
+  margin-top: -1px;   /* (9px track − 11px thumb) / 2, centers the thumb */
   border-radius: 50%;
-  background: var(--ink);
+  background: #fff;
   border: 0;
+  box-shadow: 0 1px 2px rgba(0,0,0,.3), 0 0 0 1px rgba(0,0,0,.08);
   cursor: pointer;
   transition: transform 0.12s, box-shadow 0.12s;
 }
 input[type=range]::-moz-range-thumb {
   width: 11px; height: 11px;
   border-radius: 50%;
-  background: var(--ink);
+  background: #fff;
   border: 0;
+  box-shadow: 0 1px 2px rgba(0,0,0,.3), 0 0 0 1px rgba(0,0,0,.08);
   cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
 }
-input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.15); }
-input[type=range]:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tool) 45%, transparent);
+input[type=range]:hover::-webkit-slider-thumb,
+input[type=range]:hover::-moz-range-thumb { transform: scale(1.15); }
+input[type=range]:focus-visible::-webkit-slider-thumb,
+input[type=range]:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-warm) 45%, transparent),
+              0 1px 2px rgba(0,0,0,.3);
 }
 input[type=range]:focus-visible { outline: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  input[type=range]::-webkit-slider-thumb { transition: none; }
+  input[type=range]::-webkit-slider-thumb,
+  input[type=range]::-moz-range-thumb { transition: none; }
 }
 
 /* ═══════════════════════════════════════════════════════════
