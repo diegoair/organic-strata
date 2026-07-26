@@ -49,9 +49,9 @@ the pixel grid in a dense UI.
 
 | Token | Size | Used for |
 |---|---|---|
-| `--fs-micro` | 9px | sub-labels, hints, notes — **the floor** |
-| `--fs-small` | 10px | control labels, values, buttons |
-| `--fs-base` | 11px | panel section titles — **the anchor** |
+| `--fs-micro` | 9px | sub-labels, labels, values — **the panel floor** |
+| `--fs-small` | 10px | section titles, controls |
+| `--fs-base` | 11px | header and body text outside the panel |
 | `--fs-medium` | 12px | header context title |
 | `--fs-large` | 14px | headings inside a tool |
 | `--fs-xl` | 17px | tool title |
@@ -75,8 +75,8 @@ Manrope name it maps to.
 
 | Token | Value | Manrope name | Used for |
 |---|---|---|---|
-| `--w-light` | 300 | Light | panel labels and values |
-| `--w-regular` | 400 | Regular | panel sections and sub-labels, body |
+| `--w-light` | 300 | Light | panel sub-labels, labels, values |
+| `--w-regular` | 400 | Regular | panel section titles and controls, body |
 | `--w-medium` | 500 | Medium | emphasis, primary action |
 | `--w-bold` | 700 | Bold | wordmark |
 
@@ -116,55 +116,77 @@ composed styles, and they map one-for-one to Figma text styles.
 
 | Role | Size | Weight | Manrope | Tracking | Colour | Example |
 |---|---|---|---|---|---|---|
-| `panel/section` | 11 | 400 | Regular | 0 | `--ink` | Presets, Dither, Canopy |
-| `panel/sub-label` | 9 | 400 | Regular | 0 | `--mid` | Algorithm, Resolution |
-| `panel/label` | 10 | 300 | Light | 0 | `--accent` | Grid width, Gamma |
-| `panel/value` | 10 | 300 | Light | 0 | `--mid` | 120, 1.5 · tabular |
+| `panel/section` | 10 | 400 | Regular | 0 | `--ink` | Presets, Dither, Canopy |
 | `panel/control` | 10 | 400 | Regular | 0 | `--accent` | segmented buttons, selects |
+| `panel/sub-label` | 9 | 300 | Light | 0 | `--mid` | Algorithm, Resolution |
+| `panel/label` | 9 | 300 | Light | 0 | `--accent` | Grid width, Gamma |
+| `panel/value` | 9 | 300 | Light | 0 | `--mid` | 120, 1.5 · tabular |
+
+Outside the panel:
+
+| Role | Size | Weight | Manrope | Tracking | Colour | Example |
+|---|---|---|---|---|---|---|
 | `header/logo` | 10 | 700 | Bold | 15% | `--mid` | ORGANICA / HALIDE |
 | `header/title` | 12 | 500 | Medium | 0 | `--ink` | Sketch → SVG |
 | `header/action` | 10 | 500 | Medium | 8% | `--ink` | EXPORT, FIGMA |
-| `display/wordmark` | 96\* | 700 | ExtraBold 800 | −3% | — | ORGANICA |
+| `display/wordmark` | 96\* | 800 | ExtraBold | −3% | — | ORGANICA |
 
-The panel hierarchy is carried by **weight and colour, not size** — section 11
-vs label 10 is a single pixel. Black for sections, grey for everything else.
-That's the Figma Design-panel model: contrast does the work, not bulk.
+### Two styles, and colour does the rest
 
-In CSS these are the `--t-*` role tokens:
+**The panel runs on exactly two type styles: 10/400 and 9/300.**
+
+`panel/section` and `panel/control` are typographically identical — a section
+title is told from a button only by being `--ink` (near-black) rather than
+`--accent`, and by sitting on its own line. Likewise `sub-label`, `label` and
+`value` share one style and differ only in colour and alignment.
+
+This is the Figma Design-panel model taken to its conclusion: **contrast does
+the work, not bulk.** It is also the system's most fragile point — if a future
+role needs distinguishing, reach for colour or position first, and add a type
+style only if neither works.
+
+`--fs-micro` (9px) is the floor. Three of the five panel roles now sit on it,
+in Light. That is deliberate density, but it means there is no headroom left
+below: anything that needs to recede further has to do it with colour.
+
+### In CSS
+
+Components reference the role tokens, never a raw value:
 
 ```css
---t-section-size / --t-section-weight
+--t-section-size  / --t-section-weight
+--t-control-size  / --t-control-weight
 --t-sublabel-size / --t-sublabel-weight
---t-label-size / --t-value-weight   /* … etc */
+--t-label-size    / --t-label-weight
+--t-value-size    / --t-value-weight
 ```
+
+---
 
 ## 3b. Porting to Figma
 
-Create the roles above as **text styles**, named exactly as in the table
+Create the roles above as **text styles**, named exactly as in the tables
 (`panel/section`, `header/logo`, …) so a Figma layer and a CSS rule can be
 traced to each other by name.
 
 Font: **Manrope** from Google Fonts. Pick the style by its Manrope name
-(Light / Regular / Medium / Bold), which is what Figma's picker shows.
+(Light / Regular / Medium / Bold / ExtraBold) — that is what Figma's picker
+shows, and it is why the tokens record the font's own names rather than
+inventing their own.
+
+Every role in `shared/organica-tokens.json` carries a `$figma` block with the
+values already converted, so they can be copied across without arithmetic.
 
 Two conversions that catch people out:
 
-- **Tracking**: Figma is a percentage, CSS is em — they map 1:1. `0.08em` = `8%`.
-- **Line height**: enter as a **percentage**, not pixels, so the style survives
+- **Tracking** — Figma is a percentage, CSS is em. They map 1:1: `0.08em` = `8%`.
+  Don't type `0.08` into Figma.
+- **Line height** — enter as a **percentage**, not pixels, so the style survives
   a size change.
 
 \* The web wordmark is fluid (`clamp(1.5rem, 9vw, 13rem)`); 96 is a sensible
-fixed stand-in for a Figma frame.
-
-\* The web wordmark is fluid (`clamp(1.5rem, 9vw, 13rem)`); 96 is a sensible
-fixed stand-in for a Figma frame. Adjust per artboard — the *ratio* matters
+fixed stand-in for a Figma frame. Adjust per artboard — the *ratios* matter
 (0.88 line height, −3% tracking), not the absolute size.
-
-**Figma letter-spacing note:** Figma expresses tracking as a **percentage**,
-CSS as **em**. They map 1:1 — `0.08em` = `8%`. Don't enter `0.08` in Figma.
-
-**Figma line-height note:** enter these as **percentages**, not pixels, so the
-styles survive a size change.
 
 ---
 

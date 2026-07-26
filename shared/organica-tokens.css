@@ -61,39 +61,45 @@ html {
      shows the font's own style names, so a token called "medium" holding
      400 would read as "Regular" in Figma and the two would disagree.
      Manrope's names are noted per stop so code and Figma stay in sync. */
-  --w-light:    300;   /* Manrope Light    — panel labels and values      */
-  --w-regular:  400;   /* Manrope Regular  — panel sections, sub-labels   */
+  --w-light:    300;   /* Manrope Light    — sub-labels, labels, values   */
+  --w-regular:  400;   /* Manrope Regular  — section titles, controls     */
   --w-medium:   500;   /* Manrope Medium   — emphasis, primary action     */
   --w-bold:     700;   /* Manrope Bold     — wordmark                     */
 
   /* ── PANEL TYPE ROLES ────────────────────────────────────
-     The four roles the control panel is built from. Named by ROLE, not by
+     The five roles the control panel is built from. Named by ROLE, not by
      size, so a component never hardcodes a value and Figma can mirror the
-     same four text styles one-for-one. See docs/DESIGN-SYSTEM.md §3. */
-  --t-section-size:    var(--fs-base);    /* 11px */
-  --t-section-weight:  var(--w-regular);  /* 400  */
+     same five text styles one-for-one.
+
+     The panel runs on TWO type styles — 10/400 and 9/300. Hierarchy is
+     carried by COLOUR, not by size: --ink for section titles, --accent for
+     labels and controls, --mid for sub-labels and values. That is the Figma
+     Design-panel model taken to its conclusion.
+     See docs/DESIGN-SYSTEM.md §3. */
+  --t-section-size:    var(--fs-small);   /* 10px */
+  --t-section-weight:  var(--w-regular);  /* 400  Manrope Regular */
   --t-sublabel-size:   var(--fs-micro);   /*  9px */
-  --t-sublabel-weight: var(--w-regular);  /* 400  */
-  --t-label-size:      var(--fs-small);   /* 10px */
-  --t-label-weight:    var(--w-light);    /* 300  */
-  --t-value-size:      var(--fs-small);   /* 10px */
-  --t-value-weight:    var(--w-light);    /* 300  */
-  /* Interactive control text (segmented buttons, selects, inputs) sits one
-     stop above its own label: a control has to read as actionable, and at
-     300 in a 26px row it goes soft. Stated as a role so the difference is a
-     decision, not an accident of which rule was written last. */
+  --t-sublabel-weight: var(--w-light);    /* 300  Manrope Light   */
+  --t-label-size:      var(--fs-micro);   /*  9px */
+  --t-label-weight:    var(--w-light);    /* 300  Manrope Light   */
+  --t-value-size:      var(--fs-micro);   /*  9px */
+  --t-value-weight:    var(--w-light);    /* 300  Manrope Light   */
+  /* Interactive control text (segmented buttons, selects, inputs). Same
+     size and weight as a section title — the two are told apart by colour
+     (section is --ink, control is --accent) and by position, not by type.
+     A control still has to out-weigh its own label to read as actionable. */
   --t-control-size:    var(--fs-small);   /* 10px */
-  --t-control-weight:  var(--w-regular);  /* 400  */
+  --t-control-weight:  var(--w-regular);  /* 400  Manrope Regular */
 
   /* ── TYPE SCALE ──────────────────────────────────────────
      A 1.2 (minor third) ratio anchored at 11px, the size the tool
      panels were already built around. Steps are rounded to whole pixels
      so they land on the pixel grid in a dense UI.
 
-       9  ← micro    hint text, unit labels
-       10 ← small    buttons, selects, values in a control row
-       11 ← base     panel body — the anchor
-       12 ← medium   panel section titles
+       9  ← micro    sub-labels, labels, values — the panel floor
+       10 ← small    section titles, controls
+       11 ← base     header/body text outside the panel
+       12 ← medium   header context title
        14 ← large    page-level headings inside a tool
        17 ← xl       tool title
        34 ← display  hub wordmark (fluid, see --fs-display) */
