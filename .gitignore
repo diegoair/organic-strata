@@ -14,3 +14,13 @@ dist/
 # Vercel
 .vercel/
 .vercel
+
+# Reference / test imagery — real photos used to tune the tools, deliberately
+# kept out of the repo (see docs/KOMOREBI.md §20). Documented as "kept out of
+# git" since these folders were created; ignored here so that's actually
+# enforced rather than relying on remembering.
+komorebi/reference-photos/
+halide/test-photos/
+
+# Local backend scratch output
+backend/output/

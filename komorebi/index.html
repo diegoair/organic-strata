@@ -48,56 +48,13 @@
   }
   #canvas-wrap.drag-over { outline: 2px dashed var(--ink); outline-offset: -8px; }
 
-  #gl-canvas {
+  #view-canvas {
     max-width: 100%;
     max-height: 100%;
     box-shadow: 0 4px 40px rgba(0,0,0,0.18);
     cursor: crosshair;
     display: block;
   }
-  #gl-canvas.dragging-sun { cursor: none; }
-
-  #hud {
-    position: absolute;
-    bottom: 16px; left: 16px;
-    background: var(--ink);
-    color: var(--paper);
-    font-family: var(--font);
-    font-size: var(--fs-micro);
-    letter-spacing: 0.1em;
-    padding: var(--space-2) var(--space-4);
-    display: flex;
-    align-items: center;
-    gap: var(--space-4);
-    user-select: none;
-  }
-  #hud .hud-hint { pointer-events: none; opacity: 0.55; }
-  .hud-btn {
-    font-family: var(--font);
-    font-size: var(--fs-small);
-    background: none;
-    border: 1px solid rgba(245,242,236,0.28);
-    border-radius: var(--radius-sm);
-    color: var(--paper);
-    min-width: 26px; min-height: 24px;
-    padding: 0 var(--space-2);
-    cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
-  }
-  .hud-btn:hover { border-color: var(--paper); background: rgba(245,242,236,0.12); }
-  .hud-btn:focus-visible { outline: 2px solid var(--paper); outline-offset: 2px; }
-
-  #gl-error {
-    display: none;
-    max-width: 460px;
-    text-align: center;
-    line-height: 1.9;
-    font-size: var(--fs-small);
-    letter-spacing: 0.08em;
-    color: var(--mid);
-  }
-  #gl-error.visible { display: block; }
-
   /* ── RIGHT PANEL ── */
 
   .panel-section { border-bottom: 1px solid var(--border); padding: var(--space-5) var(--space-6); }
@@ -123,7 +80,7 @@
 
 </header>
 
-<!-- FLOATING TOOLBAR — Export (stills + motion) / Figma, fixed bottom-centre over the canvas -->
+<!-- FLOATING TOOLBAR — Export (stills) / Figma, fixed bottom-centre over the canvas -->
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
   <div class="org-popover-wrap">
     <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
@@ -163,11 +120,11 @@
       <div class="org-popover__title">Motion</div>
       <div class="org-popover__row">
         <span class="org-popover__label">WebM video</span>
-        <button class="org-btn" id="btn-rec" onclick="toggleRecord()">&#9679; Record</button>
+        <button class="org-btn" id="btn-rec" disabled title="Coming back once wind animation ships — see docs/KOMOREBI.md §17">&#9679; Record</button>
       </div>
       <p class="org-popover__hint">
-        In <b>Sway</b> wind mode the field is exactly periodic — record one
-        Loop period for a seamless installation loop.
+        Komorebi currently composes one static frame — wind/animation is a
+        later pass. Video export returns with it.
       </p>
     </div>
   </div>
@@ -182,20 +139,7 @@
 <div id="app">
 
   <div id="canvas-wrap">
-    <canvas id="gl-canvas"></canvas>
-    <p id="gl-error">
-      WebGL 2 is not available in this browser.<br>
-      Komorebi renders its light field on the GPU and needs it.
-    </p>
-    <!-- Transport lives ON the canvas, next to the clock it controls.
-         It used to sit in the header, so the time was read bottom-left and
-         controlled top-right — see docs/UI-SHELL.md §Header. -->
-    <div id="hud" role="group" aria-label="Playback">
-      <button class="hud-btn" id="btn-play" onclick="togglePlay()" aria-pressed="false">&#10074;&#10074;</button>
-      <button class="hud-btn" id="btn-reset" onclick="resetTime()" title="Rewind the wind clock to zero">&#8634;</button>
-      <span id="hud-time" aria-live="off">0.0s</span>
-      <span class="hud-hint">Drag on canvas to move the sun</span>
-    </div>
+    <canvas id="view-canvas"></canvas>
   </div>
 
   <div id="panel">
@@ -226,6 +170,16 @@
         <input type="range" id="rg-persp" min="0.02" max="0.60" step="0.01" value="0.18" oninput="syncVal(this,'v-persp')">
         <span class="ctrl-val" id="v-persp">0.18</span>
       </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Light striking the surface at a glancing angle stretches the whole pattern along one axis — every shape elongates the same way, the way raking light really behaves. 0 = light straight on.">Raking</div>
+        <input type="range" id="rg-rake" min="0" max="1" step="0.01" value="0" oninput="syncVal(this,'v-rake')">
+        <span class="ctrl-val" id="v-rake">0</span>
+      </div>
+      <div class="ctrl-row" id="row-rakeangle">
+        <div class="ctrl-label" title="Which way the raking light comes from — the axis the pattern stretches along.">Rake angle</div>
+        <input type="range" id="rg-rakeangle" min="0" max="1" step="0.01" value="0.25" oninput="syncVal(this,'v-rakeangle')">
+        <span class="ctrl-val" id="v-rakeangle">0.25</span>
+      </div>
     </div>
 
     <div class="panel-section">
@@ -239,35 +193,60 @@
       <div class="row-btns" id="row-cookie-load">
         <button class="mini-btn" onclick="document.getElementById('file-input').click()">Open image…</button>
       </div>
-      <div class="ctrl-row" style="margin-top: var(--space-4)">
-        <div class="ctrl-label">Scale</div>
+      <div class="ctrl-row" id="row-pattern" style="margin-top: var(--space-4)">
+        <div class="ctrl-label">Pattern</div>
+        <select class="panel-select" id="sel-pattern" onchange="applyPatternLabels()">
+          <option value="foliage" selected>Broadleaf</option>
+          <option value="conifer">Conifer</option>
+          <option value="cellular">Cellular</option>
+          <option value="veins">Veins</option>
+          <option value="drop">Drop mark</option>
+          <option value="blinds">Blinds</option>
+          <option value="fronds">Palm / Bamboo</option>
+          <option value="leaves">Leaves</option>
+          <option value="cluster">Cluster</option>
+          <option value="blob">Blob</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" id="lbl-scale">Scale</div>
         <input type="range" id="rg-scale" min="0.4" max="8" step="0.1" value="2.6" oninput="syncVal(this,'v-scale')">
         <span class="ctrl-val" id="v-scale">2.6</span>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label">Density</div>
+        <div class="ctrl-label" id="lbl-density">Density</div>
         <input type="range" id="rg-density" min="0.20" max="0.90" step="0.01" value="0.58" oninput="syncVal(this,'v-density')">
         <span class="ctrl-val" id="v-density">0.58</span>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label">Edge</div>
+        <div class="ctrl-label" id="lbl-edge">Edge</div>
         <input type="range" id="rg-soft" min="0.005" max="0.25" step="0.005" value="0.045" oninput="syncVal(this,'v-soft')">
         <span class="ctrl-val" id="v-soft">0.045</span>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label">Layer 2</div>
+        <div class="ctrl-label" id="lbl-ratio">Layer 2</div>
         <input type="range" id="rg-ratio" min="1.0" max="5.0" step="0.05" value="2.35" oninput="syncVal(this,'v-ratio')">
         <span class="ctrl-val" id="v-ratio">2.35</span>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label" title="Varies leaf density across the frame with a slow low-frequency field, instead of one uniform threshold — real canopies have denser clumps and more open gaps, not an even scatter.">Clumping</div>
+        <div class="ctrl-label" id="lbl-clump" title="Varies leaf density across the frame with a slow low-frequency field, instead of one uniform threshold — real canopies have denser clumps and more open gaps, not an even scatter.">Clumping</div>
         <input type="range" id="rg-clump" min="0" max="0.5" step="0.01" value="0.18" oninput="syncVal(this,'v-clump')">
         <span class="ctrl-val" id="v-clump">0.18</span>
       </div>
-      <div class="ctrl-row" title="A fine high-frequency layer that nibbles the leaf boundary — turns smooth blob edges into scalloped, leaf-like edges and flecks light through the canopy interior.">
-        <div class="ctrl-label">Leaf detail</div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" id="lbl-leafdetail" title="A fine high-frequency layer that nibbles the leaf boundary — turns smooth blob edges into scalloped, leaf-like edges and flecks light through the canopy interior.">Leaf detail</div>
         <input type="range" id="rg-leafdetail" min="0" max="1" step="0.02" value="0.35" oninput="syncVal(this,'v-leafdetail')">
         <span class="ctrl-val" id="v-leafdetail">0.35</span>
+      </div>
+      <div class="ctrl-row" id="row-sizerange">
+        <div class="ctrl-label" title="How much the shape sizes vary. 0 = every shape near-identical (reads as placed/artificial); high = mostly small with a rare few very large, which is how natural scatter actually distributes.">Size range</div>
+        <input type="range" id="rg-sizerange" min="0" max="1" step="0.02" value="0.55" oninput="syncVal(this,'v-sizerange')">
+        <span class="ctrl-val" id="v-sizerange">0.55</span>
+      </div>
+      <div class="ctrl-row" id="row-merge">
+        <div class="ctrl-label" title="How much overlapping shapes melt into each other. 0 = shapes stay separate with hard creases where they cross; high = they fuse into continuous flowing masses with bulging joins — this is what creates branch-like continuity out of scattered shapes.">Merge</div>
+        <input type="range" id="rg-merge" min="0" max="1" step="0.02" value="0.30" oninput="syncVal(this,'v-merge')">
+        <span class="ctrl-val" id="v-merge">0.30</span>
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label">Seed</div>
@@ -277,78 +256,24 @@
     </div>
 
     <div class="panel-section">
-      <h3>Wind</h3>
+      <h3>Wind <span class="hint">static for now</span></h3>
       <div class="ctrl-row">
         <div class="seg-ctrl" id="seg-wind">
-          <button class="seg-btn active" data-v="sway" onclick="setSeg('seg-wind', this)" title="Purely periodic — the WebM export loops seamlessly">Sway</button>
-          <button class="seg-btn" data-v="drift" onclick="setSeg('seg-wind', this)" title="Continuous travel — does not loop">Drift</button>
+          <button class="seg-btn active" data-v="sway" onclick="setSeg('seg-wind', this)" title="A different static warp shape than Drift — both are frozen frames until animation returns">Sway</button>
+          <button class="seg-btn" data-v="drift" onclick="setSeg('seg-wind', this)" title="A different static warp shape than Sway">Drift</button>
         </div>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label">Amount</div>
+        <div class="ctrl-label" title="Wind is a frozen single frame in this build — Amount still shapes the pattern as a static domain warp. Speed and Loop had no visible effect while frozen, so they're hidden until animation ships (see docs/KOMOREBI.md §18).">Amount</div>
         <input type="range" id="rg-wind" min="0" max="1.2" step="0.01" value="0.30" oninput="syncVal(this,'v-wind')">
         <span class="ctrl-val" id="v-wind">0.30</span>
       </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label">Speed</div>
-        <input type="range" id="rg-windspd" min="0.02" max="1.0" step="0.01" value="0.16" oninput="syncVal(this,'v-windspd')">
-        <span class="ctrl-val" id="v-windspd">0.16</span>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label">Loop</div>
-        <input type="range" id="rg-period" min="2" max="30" step="1" value="12" oninput="syncVal(this,'v-period')">
-        <span class="ctrl-val" id="v-period">12</span>
-      </div>
     </div>
 
     <div class="panel-section">
-      <h3>Sun</h3>
+      <h3>Dapple <span class="hint">soft-edge blur</span></h3>
       <div class="ctrl-row">
-        <div class="ctrl-label">Azimuth</div>
-        <input type="range" id="rg-sunx" min="0" max="1" step="0.005" value="0.62" oninput="syncVal(this,'v-sunx')">
-        <span class="ctrl-val" id="v-sunx">0.62</span>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label">Altitude</div>
-        <input type="range" id="rg-suny" min="0" max="1" step="0.005" value="0.16" oninput="syncVal(this,'v-suny')">
-        <span class="ctrl-val" id="v-suny">0.16</span>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label">Size</div>
-        <input type="range" id="rg-sunsize" min="0.01" max="0.35" step="0.005" value="0.07" oninput="syncVal(this,'v-sunsize')">
-        <span class="ctrl-val" id="v-sunsize">0.07</span>
-      </div>
-    </div>
-
-    <div class="panel-section">
-      <h3>Rays <span class="hint">volumetric</span></h3>
-      <label class="check-row"><input type="checkbox" id="ck-rays" checked><span>God rays</span></label>
-      <div class="ctrl-row">
-        <div class="ctrl-label">Density</div>
-        <input type="range" id="rg-raydens" min="0.1" max="1.4" step="0.01" value="0.82" oninput="syncVal(this,'v-raydens')">
-        <span class="ctrl-val" id="v-raydens">0.82</span>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label">Weight</div>
-        <input type="range" id="rg-rayweight" min="0.05" max="1.2" step="0.01" value="0.38" oninput="syncVal(this,'v-rayweight')">
-        <span class="ctrl-val" id="v-rayweight">0.38</span>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label">Decay</div>
-        <input type="range" id="rg-raydecay" min="0.85" max="1.0" step="0.002" value="0.968" oninput="syncVal(this,'v-raydecay')">
-        <span class="ctrl-val" id="v-raydecay">0.968</span>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label">Exposure</div>
-        <input type="range" id="rg-rayexp" min="0" max="1.2" step="0.01" value="0.42" oninput="syncVal(this,'v-rayexp')">
-        <span class="ctrl-val" id="v-rayexp">0.42</span>
-      </div>
-    </div>
-
-    <div class="panel-section">
-      <h3>Dapple <span class="hint">penumbra physics</span></h3>
-      <div class="ctrl-row">
-        <div class="ctrl-label" title="Canopy height above the ground. The sun subtends 0.53°, so a gap at height h blurs by ≈ h/108 — when a gap is smaller than that, it turns into a pinhole and projects a disc of the sun instead of the leaf shape.">Height</div>
+        <div class="ctrl-label" title="How much the pattern's edge is blurred before it's lit — approximates the real penumbra a canopy at this height would cast.">Height</div>
         <input type="range" id="rg-penumbra" min="0" max="0.6" step="0.005" value="0.14" oninput="syncVal(this,'v-penumbra')">
         <span class="ctrl-val" id="v-penumbra">0.14</span>
       </div>
@@ -377,12 +302,6 @@
         <button class="color-swatch" id="sw-sky" onclick="ctrl('cp-sky').click()"></button>
         <input type="color" id="cp-sky" value="#cfe0c0" oninput="syncColor('sky',this.value)">
         <input class="color-hex" id="hex-sky" value="#cfe0c0" onchange="syncColor('sky',this.value)">
-      </div>
-      <div class="color-row">
-        <span class="color-name">Canopy</span>
-        <button class="color-swatch" id="sw-canopy" onclick="ctrl('cp-canopy').click()"></button>
-        <input type="color" id="cp-canopy" value="#141d10" oninput="syncColor('canopy',this.value)">
-        <input class="color-hex" id="hex-canopy" value="#141d10" onchange="syncColor('canopy',this.value)">
       </div>
       <div class="color-row">
         <span class="color-name">Ground</span>
@@ -445,48 +364,38 @@
 <script src="/shared/organica-core.js"></script>
 <script>
 // ─────────────────────────────────────────────
-// KOMORE BI — 木漏れ日, "sunlight leaking through trees"
+// KOMOREBI — 木漏れ日, "sunlight leaking through trees"
 //
-// Three mechanics, all on the GPU:
+// Rewritten off WebGL2/GLSL onto plain Canvas2D + JavaScript (July 27, 2026)
+// — see docs/KOMOREBI.md §17 for why. The brief narrowed to: build the best
+// possible STATIC pattern shapes, always exportable as real vector SVG;
+// wind/animation is a deliberately later pass. A hand-rolled fragment shader
+// was overkill (and hard to verify — see §16's luminance bug) for a tool that
+// no longer needs to run at 60fps. Every mask/compositing routine below is a
+// direct, checkable port of the old GLSL — same maths, plain functions,
+// readable with a debugger and console.log instead of shader introspection.
 //
-//   1. LIGHT COOKIE / GOBO — a canopy mask (procedural fBm foliage, or an
-//      uploaded silhouette) projected onto a ground plane in perspective.
-//      Two layers domain-warped at different rates = wind through branches.
-//
-//   2. PENUMBRA + PINHOLE — the part almost nobody implements, and the part
-//      that makes it read as komorebi rather than "leaf shadows". The sun is
-//      not a point: it subtends ~0.53°, so a gap at height h blurs its own
-//      shadow edge by ≈ h/108. Once a gap is SMALLER than that blur it stops
-//      projecting its own shape and becomes a pinhole camera, projecting a
-//      round image of the sun. We get that for free by sampling the cookie
-//      through a disc kernel whose radius is the penumbra — small gaps wash
-//      out into soft coins of light, big gaps keep their leaf edges.
-//
-//   3. GOD RAYS — post-process radial blur (Mitchell, GPU Gems 3 ch.13).
-//      Pass A renders an occlusion buffer (sun disc, minus canopy, minus
-//      ground). Pass B smears it radially from the sun's screen position.
-//      No shadow map, no 3D scene — the occluder is the same 2D canopy.
-//
-// WYSIWYG discipline, same as Pollen/Halide/Living Path: ONE render function
-// serves the live preview, the raster export, the WebM recording, and the
-// pixel source the SVG separation is traced from. Export differs only in the
-// resolution it runs at — every uniform is resolution-independent.
+// WYSIWYG discipline is unchanged: ONE render function (renderFrame) serves
+// the live preview, the raster export, and the pixel source the SVG
+// separation is traced from — export differs only in the resolution it runs
+// at.
 // ─────────────────────────────────────────────
 
 function ctrl(id) { return document.getElementById(id); }
 function val(id)  { return parseFloat(ctrl(id).value); }
-
-const canvas = ctrl('gl-canvas');
-const gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true, antialias: false, premultipliedAlpha: false });
-
-if (!gl) {
-  canvas.style.display = 'none';
-  ctrl('gl-error').classList.add('visible');
-  ctrl('hud').style.display = 'none';
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function mix(a, b, t) { return a + (b - a) * t; }
+function fract(v) { return v - Math.floor(v); }
+function smoothstepFn(e0, e1, x) {
+  if (e0 === e1) return x < e0 ? 0 : 1;
+  const t = clamp((x - e0) / (e1 - e0), 0, 1);
+  return t * t * (3 - 2 * t);
 }
 
+const canvas = ctrl('view-canvas');
+const ctx2d = canvas.getContext('2d');
+
 // ── STATUS ──
-// Announced via the header's <output> live region — see organica-core.js.
 const setStatus = Organica.status();
 
 // ── CONTROLS ──
@@ -494,466 +403,728 @@ function syncVal(slider, valId) { ctrl(valId).textContent = slider.value; }
 function setSeg(group, btn) {
   ctrl(group).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
   syncConditionalRows();
+  scheduleRender();
 }
 function seg(group) { return ctrl(group).querySelector('.seg-btn.active').dataset.v; }
 function setSegValue(group, v) {
   const btn = ctrl(group).querySelector('.seg-btn[data-v="' + v + '"]');
   if (btn) ctrl(group).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
 }
+// The masks that place discrete shapes via scatterField, and so are the only
+// ones Size range / Merge mean anything for — the noise-field masks
+// (Broadleaf, Cellular, Veins, Blinds, Blob) have no shapes to size or fuse,
+// so those two rows hide rather than sit there dead. See docs/KOMOREBI.md §18
+// for why dead controls are treated as a bug here.
+const SCATTER_PATTERNS = new Set(['drop', 'conifer', 'fronds', 'leaves', 'cluster']);
+
 function syncConditionalRows() {
-  ctrl('row-cookie-load').style.display = seg('seg-source') === 'cookie' ? '' : 'none';
+  const cookie = seg('seg-source') === 'cookie';
+  ctrl('row-cookie-load').style.display = cookie ? '' : 'none';
+  ctrl('row-pattern').style.display = cookie ? 'none' : '';
+  const scatter = !cookie && SCATTER_PATTERNS.has(ctrl('sel-pattern').value);
+  ctrl('row-sizerange').style.display = scatter ? '' : 'none';
+  ctrl('row-merge').style.display = scatter ? '' : 'none';
+}
+
+// Each mask repurposes the same six sliders — relabel the panel to match
+// whichever one is active. Ranges/steps stay untouched so presets and
+// stored state keep working across pattern switches.
+const PATTERN_LABELS = {
+  foliage: {
+    scale: ['Scale', ''], density: ['Density', ''], edge: ['Edge', ''],
+    ratio: ['Layer 2', ''],
+    clump: ['Clumping', 'Varies leaf density across the frame with a slow low-frequency field, instead of one uniform threshold — real canopies have denser clumps and more open gaps, not an even scatter.'],
+    leafdetail: ['Leaf detail', 'A fine high-frequency layer that nibbles the leaf boundary — turns smooth blob edges into scalloped, leaf-like edges and flecks light through the canopy interior.']
+  },
+  conifer: {
+    scale: ['Scale', 'Grid size the needle tufts are scattered on.'], density: ['Coverage', 'Fraction of cells that contain a tuft.'], edge: ['Softness', 'Softness of the needle edges.'],
+    ratio: ['Needle count', 'Number of needle spikes per tuft.'],
+    clump: ['Scatter', 'How far tufts jitter off the grid.'],
+    leafdetail: ['Sharpness', 'How pointed vs. rounded the needles are.']
+  },
+  fronds: {
+    scale: ['Scale', 'Grid size the clusters are scattered on.'], density: ['Coverage', 'Fraction of cells that contain a frond cluster.'], edge: ['Softness', 'Softness of the frond edges.'],
+    ratio: ['Frond count', 'Number of fronds / canes per cluster.'],
+    clump: ['Spread', "How wide the fronds fan out — narrow for bamboo canes, wide for a radiating palm."],
+    leafdetail: ['Taper', 'How sharply each frond tapers to a point.']
+  },
+  cellular: {
+    scale: ['Scale', 'Average cell size.'], density: ['Density', 'Bias toward solid cell walls vs open cracks.'], edge: ['Crack width', 'Softness/width of the crack lines.'],
+    ratio: ['Fine cracks', 'Scale of the secondary, finer crack layer relative to the main cells.'],
+    clump: ['Jitter', 'How irregular the cell placement is — 0 is a perfect grid.'],
+    leafdetail: ['Crack detail', 'Extra width added to the fine capillary cracks.']
+  },
+  veins: {
+    scale: ['Scale', 'Scale of the main branch network.'], density: ['Thickness', 'Overall vein thickness / coverage.'], edge: ['Softness', 'Softness of the vein edges.'],
+    ratio: ['Capillary scale', 'Scale of the finer capillary veins relative to the main branches.'],
+    clump: ['Variation', 'Local density variance across the frame.'],
+    leafdetail: ['Capillaries', 'Amount of fine capillary veins layered over the main branches.']
+  },
+  drop: {
+    scale: ['Scale', 'Grid size the drops are scattered on.'], density: ['Coverage', 'Fraction of cells that contain a drop.'], edge: ['Softness', 'Softness of the drop edges.'],
+    ratio: ['Splat', 'How much each drop spreads sideways on impact — 1 is a round drop, high is a flattened splat.'],
+    clump: ['Scatter', 'How far drops jitter off the grid.'],
+    leafdetail: ['Tail length', 'How far gravity elongates each drop into a tail.']
+  },
+  blinds: {
+    scale: ['Slat frequency', 'Number of slats.'], density: ['Slat width', 'Duty cycle — wider slats vs wider gaps.'], edge: ['Softness', 'Softness of the slat edges.'],
+    ratio: ['Cross grid', 'Blend in a second, vertical set of slats to form a grid / mullion pattern.'],
+    clump: ['Irregularity', 'Row-to-row jitter — imperfectly hung slats.'],
+    leafdetail: ['Bend', 'Slight warp added to the slats.']
+  },
+  leaves: {
+    scale: ['Scale', 'Grid size the leaves are scattered on.'], density: ['Coverage', 'Fraction of cells that contain a leaf.'], edge: ['Softness', 'Softness of the leaf edges.'],
+    ratio: ['Elongation', 'Length-to-width ratio of each leaf — low is round, high is slender.'],
+    clump: ['Scatter', 'How far leaves jitter off the grid.'],
+    leafdetail: ['Serration', 'How toothed/wavy the leaf edge is — 0 is a smooth bay leaf, higher is jagged like holly or maple.']
+  },
+  cluster: {
+    scale: ['Scale', 'Overall size of the whole cluster field.'], density: ['Coverage', 'How many blobs are placed — low is isolated dots, high is a continuous merged mass.'], edge: ['Softness', 'Softness of the outer edge.'],
+    ratio: ['Elongation', 'Stretches each blob into an ellipse instead of a circle.'],
+    clump: ['Scatter', 'How far each blob wanders off its own cell — higher fully hides any underlying lattice.'],
+    leafdetail: ['Irregularity', 'Wobbles each blob’s radius by angle so it reads as a hand-made lump rather than a geometric circle.']
+  },
+  blob: {
+    scale: ['Scale', 'Base size of the blob fields.'], density: ['Balance', 'Balance between the two tones — light vs dark blob coverage.'], edge: ['Softness', 'Width of the blurred edge between the two blob regions.'],
+    ratio: ['Complexity', 'Adds a second, differently-scaled warp layer for more intricate blob boundaries.'],
+    clump: ['Balance drift', 'Lets the light/dark balance drift slowly across the frame instead of staying uniform.'],
+    leafdetail: ['Flow', 'How much the blob boundaries themselves warp and meander.']
+  }
+};
+function applyPatternLabels() {
+  const p = PATTERN_LABELS[ctrl('sel-pattern').value] || PATTERN_LABELS.foliage;
+  const set = (id, [text, title]) => { const el = ctrl(id); el.textContent = text; if (title) el.title = title; else el.removeAttribute('title'); };
+  set('lbl-scale', p.scale); set('lbl-density', p.density); set('lbl-edge', p.edge);
+  set('lbl-ratio', p.ratio); set('lbl-clump', p.clump); set('lbl-leafdetail', p.leafdetail);
+  syncConditionalRows();   // Size range / Merge only apply to scatter patterns
 }
 
 function syncColor(which, hex) {
-  hex = (hex || '').trim();
-  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) { hex = ctrl('cp-' + which).value; }
-  hex = hex.toLowerCase();
+  hex = Organica.normalizeHex(hex, ctrl('cp-' + which).value);
   ctrl('cp-' + which).value = hex;
   ctrl('hex-' + which).value = hex;
   ctrl('sw-' + which).style.background = hex;
 }
-function hexToRGB(hex) {
-  const n = parseInt(hex.slice(1), 16);
-  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
-}
 
 // ─────────────────────────────────────────────
-// SHADERS
+// NOISE — plain-JS ports of the old GLSL hash/value-noise/fbm. Scalar (x,y)
+// in, scalar (or [x,y] pair) out — no vec2 objects in the hot loop.
 // ─────────────────────────────────────────────
-const VERT = `#version 300 es
-in vec2 aPos;
-out vec2 vUv;
-void main() { vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }`;
-
-// Shared chunk: noise, wind, and the canopy mask itself. Compiled into both
-// passes so the occlusion buffer and the ground dapple are guaranteed to be
-// reading the exact same canopy — if these ever diverged, the rays would
-// stream out of gaps that cast no light pools.
-const CANOPY_LIB = `
-precision highp float;
-
-uniform vec2  uRes;
-uniform float uTime;
-uniform float uSeed;
-uniform float uCanopyScale;
-uniform float uDensity;
-uniform float uEdge;
-uniform float uLayerRatio;
-uniform float uDensityVar;
-uniform float uLeafDetail;
-uniform float uWindAmp;
-uniform float uWindSpeed;
-uniform float uWindPeriod;
-uniform int   uWindMode;      // 0 = sway (periodic, loops), 1 = drift
-uniform int   uUseCookie;
-uniform sampler2D uCookie;
-
-float hash21(vec2 p) {
-  p = fract(p * vec2(123.34, 456.21));
-  p += dot(p, p + 45.32);
-  return fract(p.x * p.y);
+function hash2(x, y) {
+  let px = fract(x * 123.34), py = fract(y * 456.21);
+  const d = px * (px + 45.32) + py * (py + 45.32);
+  px += d; py += d;
+  return fract(px * py);
 }
-float vnoise(vec2 p) {
-  vec2 i = floor(p), f = fract(p);
-  vec2 u = f * f * (3.0 - 2.0 * f);
-  float a = hash21(i);
-  float b = hash21(i + vec2(1.0, 0.0));
-  float c = hash21(i + vec2(0.0, 1.0));
-  float d = hash21(i + vec2(1.0, 1.0));
-  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+function hash2b(x, y) { return [hash2(x, y), hash2(x + 17.3, y + 17.3)]; }
+function vnoise(x, y) {
+  const ix = Math.floor(x), iy = Math.floor(y);
+  const fx = x - ix, fy = y - iy;
+  const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
+  const a = hash2(ix, iy), b = hash2(ix + 1, iy), c = hash2(ix, iy + 1), d = hash2(ix + 1, iy + 1);
+  return mix(mix(a, b, ux), mix(c, d, ux), uy);
 }
-float fbm(vec2 p) {
-  float s = 0.0, a = 0.5;
-  for (int i = 0; i < 4; i++) { s += a * vnoise(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; }
+function fbm(x, y) {
+  let s = 0, a = 0.5;
+  for (let i = 0; i < 4; i++) {
+    s += a * vnoise(x, y);
+    const nx = x * 2.03 + 1.7, ny = y * 2.03 + 9.2;
+    x = nx; y = ny; a *= 0.5;
+  }
   return s / 0.9375;
 }
-
-// Wind offset. In SWAY mode every time-dependent term is a function of a
-// single phase angle, so the whole field is exactly periodic with period
-// uWindPeriod — which is what makes the WebM export a true seamless loop.
-// DRIFT mode translates continuously and deliberately does not loop.
-vec2 windOffset(vec2 p, float k) {
-  if (uWindMode == 0) {
-    float ph = 6.2831853 * uTime / max(uWindPeriod, 0.001);
-    vec2 orbit = vec2(cos(ph), sin(ph) * 0.55);
-    // domain warp whose own phase also closes the loop
-    vec2 q = p * 0.55 + orbit * 0.42;
-    vec2 warp = vec2(fbm(q), fbm(q + vec2(5.2, 1.3))) - 0.5;
-    return (orbit * 0.35 + warp * 1.15) * uWindAmp * k;
-  } else {
-    float t = uTime * uWindSpeed;
-    vec2 q = p * 0.55 + vec2(t * 0.7, t * 0.25);
-    vec2 warp = vec2(fbm(q), fbm(q + vec2(5.2, 1.3))) - 0.5;
-    return (vec2(t, t * 0.32) * 0.55 + warp * 1.15) * uWindAmp * k;
+// Ridged fbm: noise ridges sharpened into thin lines — the basis for Veins.
+function ridgedFbm(x, y) {
+  let s = 0, a = 0.55, sum = 0;
+  for (let i = 0; i < 5; i++) {
+    const r = 1 - Math.abs(vnoise(x, y) * 2 - 1);
+    s += r * r * a; sum += a;
+    const nx = x * 2.13 + 3.1, ny = y * 2.13 + 7.7;
+    x = nx; y = ny; a *= 0.55;
   }
+  return s / sum;
 }
-
-// 1.0 = leaf (opaque), 0.0 = gap (light passes).
-// Two layers combined with max(): occlusion stacks, so a gap only exists
-// where BOTH layers happen to be open — that is what produces the sparse,
-// irregular apertures real canopies have, instead of even noise holes.
-//
-// Three additions on top of that base, all aimed at reading as real foliage
-// rather than cloud-noise blobs:
-//   - CLUMPING — a slow, low-frequency field nudges the local threshold up
-//     or down across the frame, so some regions clump into dense thickets
-//     and others open into wide gaps, instead of one uniform density.
-//   - LEAF DETAIL — a fine high-frequency layer nibbles the boundary,
-//     turning smooth blob edges into scalloped, leaf-like edges, and
-//     flecks a few pinholes of light through otherwise-solid interior —
-//     the way real leaf canopies are never fully opaque up close.
-float canopy(vec2 p) {
-  p = p * uCanopyScale + uSeed * 13.71;
-
-  if (uUseCookie == 1) {
-    vec2 w = windOffset(p * 0.35, 0.25);
-    float lum = texture(uCookie, fract(p * 0.16 + w)).r;
-    return 1.0 - smoothstep(uDensity - uEdge, uDensity + uEdge, lum);
-  }
-
-  float clumpField = fbm(p * 0.22 + vec2(71.0, 5.0)) - 0.5;
-  float density = clamp(uDensity + clumpField * uDensityVar, 0.02, 0.98);
-
-  vec2 w1 = windOffset(p, 1.0);
-  vec2 w2 = windOffset(p * 0.7 + vec2(31.0, 17.0), 1.45);
-  float a = fbm(p + w1);
-  float b = fbm(p * uLayerRatio + w2 + vec2(37.0, 11.0));
-  float m1 = 1.0 - smoothstep(density - uEdge, density + uEdge, a);
-  float m2 = 1.0 - smoothstep(density - uEdge, density + uEdge, b);
-  float base = max(m1, m2);
-
-  float detail = fbm(p * (uLayerRatio * 3.3) + vec2(91.0, 44.0) + w1 * 0.6);
-  float nibble = (detail - 0.5) * uLeafDetail;
-  return clamp(base + nibble, 0.0, 1.0);
-}
-`;
-
-// The camera model, shared by both passes so the sun's occluders and the
-// visible scene agree. uv is y-down (0 = top of frame).
-//
-//   Scene mode: a horizon line. Above it we look UP through a canopy ceiling
-//   that recedes to infinity at the horizon; below it a ground plane recedes
-//   to infinity at the same line. Both use z = depth / distance-from-horizon,
-//   which is just the standard 1/y perspective divide.
-//
-//   Gobo mode: no camera at all — orthographic, the whole frame is the lit
-//   plane. This is the mode that produces flat, tileable pattern output.
-const PROJECT_LIB = `
-uniform int   uMode;          // 0 = scene, 1 = gobo
-uniform float uHorizon;
-uniform float uPersp;
-uniform float uPenumbra;
-uniform vec2  uSunUV;
-
-// Ground-plane coordinate for a screen pixel, plus how strongly it is
-// foreshortened (used to fade grain/dapple detail into the distance).
-// Returns w = 0.0 when the pixel is not on the ground.
-vec3 groundPoint(vec2 uv) {
-  if (uMode == 1) {
-    vec2 g = (uv - 0.5) * (uPersp * 22.0);
-    return vec3(g, 1.0);
-  }
-  float d = uv.y - uHorizon;
-  if (d <= 0.0005) return vec3(0.0, 0.0, 0.0);
-  float z = uPersp / d;
-  return vec3((uv.x - 0.5) * z * 2.0, z, 1.0 / (1.0 + z * 0.35));
-}
-
-// Canopy ceiling seen overhead, same 1/y divide mirrored above the horizon.
-vec2 ceilingPoint(vec2 uv) {
-  float d = uHorizon - uv.y;
-  float z = uPersp / max(d, 0.0005);
-  return vec2((uv.x - 0.5) * z * 2.0, -z);
-}
-
-// Sun disc in screen space, aspect-corrected so it stays round.
-float sunDisc(vec2 uv, float size) {
-  vec2 d = (uv - uSunUV) * vec2(uRes.x / uRes.y, 1.0);
-  float r = length(d);
-  float core = 1.0 - smoothstep(size * 0.35, size, r);
-  float glow = pow(max(0.0, 1.0 - smoothstep(0.0, size * 5.0, r)), 2.0);
-  return clamp(core + glow * 0.55, 0.0, 1.0);
-}
-`;
-
-// ── PASS A — occlusion buffer ──
-// Sun rendered bright, everything that blocks it rendered black. This is the
-// only input the ray blur needs; it is deliberately rendered at half
-// resolution because a radial blur destroys high frequencies anyway.
-const FRAG_OCC = `#version 300 es
-` + CANOPY_LIB + PROJECT_LIB + `
-uniform float uSunSize;
-in vec2 vUv;
-out vec4 fragColor;
-
-void main() {
-  vec2 uv = vec2(vUv.x, 1.0 - vUv.y);
-  float light = sunDisc(uv, uSunSize);
-
-  float occ;
-  if (uMode == 1) {
-    vec3 g = groundPoint(uv);
-    occ = canopy(g.xy);
-  } else if (uv.y >= uHorizon) {
-    occ = 1.0;                       // the ground blocks everything behind it
-  } else {
-    occ = canopy(ceilingPoint(uv));
-  }
-
-  fragColor = vec4(vec3(light * (1.0 - occ)), 1.0);
-}`;
-
-// ── PASS B — scene composite ──
-const FRAG_MAIN = `#version 300 es
-` + CANOPY_LIB + PROJECT_LIB + `
-uniform sampler2D uOcc;
-uniform float uSunSize;
-uniform vec3  uColSun, uColSky, uColCanopy, uColGround, uColShadow;
-uniform float uRayDensity, uRayWeight, uRayDecay, uRayExposure;
-uniform int   uRaysOn;
-uniform float uGain, uLift, uHaze, uGrain, uVignette, uBands;
-
-in vec2 vUv;
-out vec4 fragColor;
-
-const int PEN_TAPS = 14;
-const int RAY_STEPS = 48;
-
-// Dappled light on the ground: the cookie sampled through a disc kernel whose
-// radius IS the penumbra. Nothing here special-cases "pinhole" — when a gap
-// is smaller than the kernel, averaging naturally washes its shape away into
-// a soft round spot, which is exactly the physical result.
-float dapple(vec2 g, float radius) {
-  if (radius < 0.0005) return 1.0 - canopy(g);
-  float rot = hash21(g * 91.7) * 6.2831853;   // per-sample kernel rotation kills banding
-  float ca = cos(rot), sa = sin(rot);
-  float sum = 0.0;
-  for (int i = 0; i < PEN_TAPS; i++) {
-    float fi = float(i) + 0.5;
-    float rr = sqrt(fi / float(PEN_TAPS));
-    float aa = fi * 2.39996323;                // golden angle → even disc coverage
-    vec2 o = vec2(cos(aa), sin(aa)) * rr * radius;
-    o = vec2(o.x * ca - o.y * sa, o.x * sa + o.y * ca);
-    sum += 1.0 - canopy(g + o);
-  }
-  return sum / float(PEN_TAPS);
-}
-
-void main() {
-  vec2 uv = vec2(vUv.x, 1.0 - vUv.y);
-  vec3 col;
-  float depthFade = 1.0;
-
-  // The sun's horizontal position slides the light pools across the floor,
-  // by an amount proportional to how high the canopy is — the same geometry
-  // that sets the penumbra also sets the parallax.
-  vec2 sunShift = vec2(uSunUV.x - 0.5, uSunUV.y - 0.35) * uPenumbra * 7.0;
-
-  if (uMode == 1) {
-    vec3 g = groundPoint(uv);
-    float lit = dapple(g.xy + sunShift, uPenumbra * 1.6);
-    lit = pow(clamp(lit, 0.0, 1.0), max(uGain, 0.01));
-    lit = uLift + (1.0 - uLift) * lit;
-    col = mix(uColShadow, uColGround, lit);
-    col += uColSun * lit * lit * 0.45;
-  } else if (uv.y >= uHorizon) {
-    vec3 g = groundPoint(uv);
-    depthFade = g.z;
-    float lit = dapple(g.xy + sunShift, uPenumbra * 1.6);
-    lit = pow(clamp(lit, 0.0, 1.0), max(uGain, 0.01));
-    lit = uLift + (1.0 - uLift) * lit;
-    col = mix(uColShadow, uColGround, lit);
-    col += uColSun * lit * lit * 0.45;
-    // ground haze toward the horizon
-    col = mix(col, uColSky * 0.7 + uColSun * 0.3, uHaze * (1.0 - depthFade) * 0.85);
-  } else {
-    float sky = smoothstep(0.0, uHorizon, uv.y);
-    col = mix(uColSky * 0.82, uColSky, sky);
-    col += uColSun * sunDisc(uv, uSunSize) * 1.15;
-    float leaf = canopy(ceilingPoint(uv));
-    // leaves nearest the top of frame are closest to us, so darkest;
-    // toward the horizon they wash into the sky
-    vec3 leafCol = mix(uColCanopy, uColSky * 0.85 + uColSun * 0.15, sky * 0.75 + uHaze * 0.2);
-    col = mix(col, leafCol, leaf);
-  }
-
-  // ── god rays: radial blur of the occlusion buffer, from the sun outward ──
-  if (uRaysOn == 1) {
-    vec2 tc = vUv;
-    vec2 sunTC = vec2(uSunUV.x, 1.0 - uSunUV.y);
-    vec2 delta = (tc - sunTC) * (uRayDensity / float(RAY_STEPS));
-    float illum = 1.0;
-    vec3 acc = vec3(0.0);
-    // dither the start position so the finite step count doesn't band
-    tc -= delta * hash21(vUv * uRes);
-    for (int i = 0; i < RAY_STEPS; i++) {
-      tc -= delta;
-      vec3 s = texture(uOcc, clamp(tc, 0.0, 1.0)).rgb * illum * uRayWeight;
-      acc += s;
-      illum *= uRayDecay;
+// Nearest/second-nearest distance to a jittered point grid — the basis for
+// the Cellular mask (crack = where the two distances are close together).
+function voronoiF1F2(x, y, jitter) {
+  const ix = Math.floor(x), iy = Math.floor(y);
+  const fx = x - ix, fy = y - iy;
+  let f1 = 8, f2 = 8;
+  for (let gy = -1; gy <= 1; gy++) {
+    for (let gx = -1; gx <= 1; gx++) {
+      const h = hash2b(ix + gx, iy + gy);
+      const dx = gx + h[0] * jitter - fx, dy = gy + h[1] * jitter - fy;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < f1) { f2 = f1; f1 = d; } else if (d < f2) { f2 = d; }
     }
-    col += acc * uColSun * uRayExposure;
   }
+  return [f1, f2];
+}
 
-  // ── grade ──
-  col = mix(col, uColSky * 0.55 + uColSun * 0.45, uHaze * 0.18);
-
-  if (uBands > 1.5) {
-    float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
-    float q = clamp(floor(l * uBands) / max(uBands - 1.0, 1.0), 0.0, 1.0);
-    col *= q / max(l, 1e-4);
+// Wind offset. Time is frozen (see docs/KOMOREBI.md §17) so Sway and Drift
+// are two different static warp SHAPES rather than two motions — Amount
+// still shapes the pattern; Speed/Loop are inert until animation returns.
+function windOffset(x, y, k, P) {
+  if (P.windMode === 0) {
+    const qx = x * 0.55 + 0.42, qy = y * 0.55;
+    const wx = fbm(qx, qy) - 0.5, wy = fbm(qx + 5.2, qy + 1.3) - 0.5;
+    return [(0.35 + wx * 1.15) * P.windAmt * k, (wy * 1.15) * P.windAmt * k];
   }
-
-  float vig = 1.0 - uVignette * pow(length((uv - 0.5) * vec2(1.1, 1.0)) * 1.35, 2.2);
-  col *= clamp(vig, 0.0, 1.0);
-
-  col += (hash21(uv * uRes + fract(uTime) * 71.3) - 0.5) * uGrain;
-
-  fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
-}`;
+  const qx = x * 0.55, qy = y * 0.55;
+  const wx = fbm(qx, qy) - 0.5, wy = fbm(qx + 5.2, qy + 1.3) - 0.5;
+  return [wx * 1.15 * P.windAmt * k, wy * 1.15 * P.windAmt * k];
+}
 
 // ─────────────────────────────────────────────
-// GL PLUMBING
+// MASKS — 1.0 = opaque (blocks light), 0.0 = gap (light passes). Nine
+// interchangeable masks share the same Scale / Density / Edge / Layer2 /
+// Clumping / Leaf detail controls — each repurposes them to fit its own
+// pattern; the panel relabels the rows to match (applyPatternLabels above).
+// The shape-scatter masks additionally get Size range and Merge, which
+// belong to the scatter engine rather than to any one shape.
 // ─────────────────────────────────────────────
-let progOcc, progMain, quadVAO, occFBO, occTex, occW = 0, occH = 0;
-let cookieTex = null, hasCookie = false;
 
-function compile(type, src) {
-  const s = gl.createShader(type);
-  gl.shaderSource(s, src);
-  gl.compileShader(s);
-  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-    console.error(gl.getShaderInfoLog(s), src);
-    throw new Error('shader compile failed');
+// Smooth minimum (polynomial). A plain min() unions two SDFs with a hard
+// crease where they meet; smin melts them together with a fillet, so two
+// overlapping shapes read as one bulging organic mass rather than a
+// figure-of-eight. This single function is what separates "shapes that
+// happen to overlap" from the merged, flowing forms in the reference
+// paintings — see docs/KOMOREBI.md §21/§22.
+function smin(a, b, k) {
+  if (k <= 0) return Math.min(a, b);
+  const h = clamp(0.5 + 0.5 * (b - a) / k, 0, 1);
+  return mix(b, a, h) - k * h * (1 - h);
+}
+
+// ── THE SCATTER ENGINE ──
+// One place for the organic-randomness technique; every shape-based pattern
+// (Drop mark, Conifer, Fronds, Leaves, Cluster) calls this and supplies only
+// its own shape SDF. Three ingredients, none of which a single jittered grid
+// can provide — see docs/KOMOREBI.md §21 for the reference-photo analysis
+// and §22 for the retro-fit:
+//
+//   1. MULTI-OCTAVE SCATTER, ROTATED PER OCTAVE. A jittered grid still reads
+//      as a grid however hard it is jittered, because two lattice statistics
+//      survive: every cell contributes the same NUMBER of shapes, and every
+//      shape is the same SIZE. Overlaying octaves at different cell sizes,
+//      each evaluated in its own frame rotated by an irrational-ish angle,
+//      means no two lattices can ever align — there is no recoverable repeat.
+//   2. HEAVY-TAILED SIZES. size = sizeMin + sizeSpan·u^p with p ≫ 1, so most
+//      shapes are small and a rare few are very large. Uniform size is the
+//      single biggest reason a scatter reads as "placed" rather than natural.
+//   3. SMOOTH UNION. smin() rather than min(), so overlapping shapes fuse
+//      into continuous flowing masses with fillets at the joins. Branch-like
+//      continuity EMERGES from chains of overlapping shapes — it is not
+//      drawn (an earlier attempt to draw it explicitly, via a thresholded
+//      ridged-fbm layer, failed; see §21).
+//
+// shapeFn(qx, qy, size, cx, cy, P) receives coordinates relative to the
+// shape's centre in octave-local units, and does its own rotation — Fronds
+// and Drop mark need a constrained orientation rather than a free 360°.
+function scatterField(x, y, P, shapeFn, cfg) {
+  const w = windOffset(x, y, 0.5, P);
+  const wx = x + w[0], wy = y + w[1];
+  const tailPow = 1 + P.sizeRange * 5;            // Size range → 1 (uniform) … 6 (extreme)
+  const blend = P.merge * 0.30;                   // Merge → smin fillet radius, 0 = hard union
+  const jitter = cfg.jitter;
+  // Size range gates the octave count too, not just the within-octave radius
+  // spread. Extra octaves ARE a size difference (each is a whole population
+  // at a smaller scale), so leaving them on at Size range ≈ 0 made the
+  // control dishonest — Bamboo Grove kept sprouting tiny specks with the
+  // slider at its floor. One control, one meaning: all size variety.
+  const octaves = P.sizeRange < 0.20 ? 1 : cfg.octaves;
+  let d = 1e5;
+  for (let o = 0; o < octaves; o++) {
+    const s = Math.pow(2.3, o);
+    const ang = o * 1.10714872;                   // atan(2): never a rational multiple of π/2
+    const ca = Math.cos(ang), sa = Math.sin(ang);
+    const rx = wx * ca - wy * sa, ry = wx * sa + wy * ca;
+    const px = rx * s + o * 37.1, py = ry * s + o * 91.7;
+    const ix = Math.floor(px), iy = Math.floor(py);
+    for (let gy = -1; gy <= 1; gy++) {
+      for (let gx = -1; gx <= 1; gx++) {
+        const cx = ix + gx, cy = iy + gy;
+        // One hash culls most cells before any shape maths runs — this is
+        // what keeps 2–3 octaves affordable in JS.
+        if (hash2(cx + o * 13.7, cy + o * 29.3) > P.density) continue;
+        const hj = hash2b(cx + o * 5.1, cy + o * 7.9);
+        const ox = cx + 0.5 + (hj[0] - 0.5) * jitter;
+        const oy = cy + 0.5 + (hj[1] - 0.5) * jitter;
+        const u = hash2(cx + 3.3 + o * 2.1, cy + 8.8 + o * 4.2);
+        const size = cfg.sizeMin + cfg.sizeSpan * Math.pow(u, tailPow);
+        // /s converts this octave's local distance back to world units, so
+        // the smin blend radius means the same thing at every octave.
+        d = smin(d, shapeFn(px - ox, py - oy, size, cx, cy, P) / s, blend);
+      }
+    }
   }
-  return s;
+  return d;
 }
-function link(vsSrc, fsSrc) {
-  const p = gl.createProgram();
-  gl.attachShader(p, compile(gl.VERTEX_SHADER, vsSrc));
-  gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fsSrc));
-  gl.bindAttribLocation(p, 0, 'aPos');
-  gl.linkProgram(p);
-  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
-    console.error(gl.getProgramInfoLog(p));
-    throw new Error('program link failed');
+
+// FOLIAGE — two noise layers combined with max(): occlusion stacks, so a gap
+// only exists where BOTH layers happen to be open, producing the sparse,
+// irregular apertures real canopies have. Clumping biases local density;
+// Leaf detail nibbles the boundary into scalloped edges and flecks a few
+// pinholes through the interior.
+// PILOT (July 27, 2026, §21) — no-grid multi-scale organic randomness. Every
+// grid-scatter pattern (Drop mark/Conifer/Fronds/Leaves) places same-size
+// shapes on a jittered grid, which still reads as a grid no matter how much
+// jitter is added, because every cell is roughly the same size and roughly
+// the same distance from its neighbours. A real branch+leaf shadow (the
+// reference photo) has none of that: one or two bold, continuous, flowing
+// solid shapes (the branch) plus a fine dapple texture whose PATCH SIZES
+// vary hugely and non-periodically. That's a continuous-field property, not
+// a placement property — so the fix is not "jitter the grid harder", it's
+// "combine independent noise fields at very different scales, with no grid
+// at all, and let a bold ridged layer punch through the fine texture."
+// Piloted here on Broadleaf before touching any grid-based pattern.
+// Pilot notes (July 27, 2026, §21) — two attempts at a no-grid, multi-scale
+// "organic randomness" technique were tried here and reverted after
+// rendering each in isolation to check, rather than shipping on faith:
+//   1. A thresholded ridged-fbm "bold branch" layer, combined via max() with
+//      the texture below — isolated and rendered alone, it produced blobby
+//      "cow-spot" patches, not a flowing branch shape.
+//   2. Modulating the sampling FREQUENCY continuously via a slow selector
+//      field, meant to make some regions read as big shapes and others as
+//      fine speckle — produced wood-grain/fingerprint concentric rings, a
+//      classic frequency-modulation artifact.
+// A third attempt (blending two fixed-frequency fields' output VALUES,
+// weighted by a slow selector — safe against the ring artifact since no
+// frequency is modulated) didn't obviously improve on the plain version
+// below, so this was left as the shipped mask pending more time. See
+// docs/KOMOREBI.md §21 for the reference photo and the open problem.
+function foliageMask(x, y, P) {
+  const clump = fbm(x * 0.22 + 71.0, y * 0.22 + 5.0) - 0.5;
+  const density = clamp(P.density + clump * P.densityVar, 0.02, 0.98);
+
+  const w1 = windOffset(x, y, 1.0, P);
+  const w2 = windOffset(x * 0.7 + 31.0, y * 0.7 + 17.0, 1.45, P);
+  const a = fbm(x + w1[0], y + w1[1]);
+  const b = fbm(x * P.ratio + w2[0] + 37.0, y * P.ratio + w2[1] + 11.0);
+  const m1 = 1 - smoothstepFn(density - P.edge, density + P.edge, a);
+  const m2 = 1 - smoothstepFn(density - P.edge, density + P.edge, b);
+  const base = Math.max(m1, m2);
+
+  const detail = fbm(x * (P.ratio * 3.3) + 91.0 + w1[0] * 0.6, y * (P.ratio * 3.3) + 44.0 + w1[1] * 0.6);
+  const nibble = (detail - 0.5) * P.leafDetail;
+  return clamp(base + nibble, 0, 1);
+}
+
+// CELLULAR — cracked earth / cell walls. Two Voronoi scales; a crack opens
+// wherever EITHER scale cracks, so fine capillary cracks run inside the
+// coarse cell walls, the way dried mud cracks at more than one scale.
+function cellularMask(x, y, P) {
+  const w = windOffset(x, y, 0.6, P);
+  const f = voronoiF1F2(x + w[0], y + w[1], 0.35 + P.densityVar);
+  const g = voronoiF1F2(x * P.ratio + w[0] * 1.3 + 53.0, y * P.ratio + w[1] * 1.3 + 19.0, 0.35 + P.densityVar);
+  const crackWidth = P.edge + P.leafDetail * 0.1;
+  const mA = smoothstepFn(0, crackWidth, f[1] - f[0]);
+  const mB = smoothstepFn(0, crackWidth, (g[1] - g[0]) / Math.max(P.ratio, 1));
+  return clamp(Math.min(mA, mB) + (P.density - 0.5) * 0.7, 0, 1);
+}
+
+// VEINS — a branching network from ridged fbm, plus a finer capillary layer
+// gated by Leaf detail, the way real venation runs thin veins off the main
+// branches.
+function veinsMask(x, y, P) {
+  const w = windOffset(x, y, 0.8, P);
+  const clump = fbm(x * 0.18 + 9.0, y * 0.18 + 44.0) - 0.5;
+  const thresh = 1 - clamp(P.density + clump * P.densityVar, 0.05, 0.95);
+
+  const rMain = ridgedFbm(x + w[0], y + w[1]);
+  const mMain = smoothstepFn(thresh - P.edge, thresh + P.edge, rMain);
+
+  const rFine = ridgedFbm(x * P.ratio + w[0] * 1.3 + 23.0, y * P.ratio + w[1] * 1.3 + 61.0);
+  const threshFine = clamp(thresh + 0.18, 0, 0.98);
+  const mFine = smoothstepFn(threshFine - P.edge, threshFine + P.edge, rFine) * P.leafDetail;
+
+  return clamp(Math.max(mMain, mFine), 0, 1);
+}
+
+// DROP MARK — Organica's own gesture as the gobo: pigment drops, each a
+// circle pulled into a gravity tail. Scattered by the shared engine below,
+// so it inherits multi-octave placement, heavy-tailed sizes and smooth
+// union; the tail is the only thing specific to this shape.
+function shapeDrop(qx, qy, size, cx, cy, P) {
+  // Only a slight tilt: gravity has a real direction, so unlike the other
+  // shapes a drop must not be rotated a full 360°.
+  const rot = (hash2(cx + 3.3, cy + 8.1) - 0.5) * 0.7;
+  const ca = Math.cos(-rot), sa = Math.sin(-rot);
+  // Splat: pigment hitting a surface spreads wider than it is tall. Took
+  // over Layer 2 here — the old "Satellite scale" it used to drive became
+  // meaningless once the scatter engine's finer octave replaced the
+  // hand-rolled satellite-droplet pass.
+  const splat = 1 + (P.ratio - 1) / 4 * 1.2;
+  const ax = (qx * ca - qy * sa) / splat, ay = qx * sa + qy * ca;
+  let d = Math.sqrt(ax * ax + ay * ay) - size;
+  const elong = P.leafDetail * (0.6 + hash2(cx + 8.8, cy + 8.8) * 0.8);
+  const tail = smoothstepFn(0, size * 3, ay) * (1 - smoothstepFn(0, size * 1.1, Math.abs(ax)));
+  return d - tail * size * elong * 1.6;
+}
+function dropMask(x, y, P) {
+  return 1 - smoothstepFn(0, P.edge + 0.02,
+    scatterField(x, y, P, shapeDrop, { octaves: 2, sizeMin: 0.12, sizeSpan: 0.45, jitter: 0.35 + P.densityVar * 1.3 }));
+}
+
+// BLINDS — venetian slats, an optional crossed vertical set (Layer 2 blends
+// it in) for a window-grid look, with row/column jitter for slightly bent,
+// imperfectly hung slats rather than a machined grate. The one deliberately
+// non-natural pattern.
+function blindsMask(x, y, P) {
+  const w = windOffset(x, y, 0.3, P);
+  const wpx = x + w[0] * 0.3, wpy = y + w[1] * 0.3;
+  const duty = clamp(P.density, 0.05, 0.95);
+
+  const rowJitter = (hash2(Math.floor(wpy * 6.0), 3.0) - 0.5) * P.densityVar;
+  const mH = 1 - smoothstepFn(duty - P.edge, duty + P.edge, fract(wpy * 6.0) + rowJitter);
+
+  const crossMix = clamp((P.ratio - 1.0) / 4.0, 0, 1);
+  const colJitter = (hash2(Math.floor(wpx * 5.4), 7.0) - 0.5) * P.densityVar;
+  const mV = 1 - smoothstepFn(duty - P.edge, duty + P.edge, fract(wpx * 5.4) + colJitter);
+
+  const base = Math.max(mH, mV * crossMix);
+  const warp = (fbm(wpx * 2.3 + 14.0, wpy * 2.3 + 7.0) - 0.5) * P.leafDetail * 0.3;
+  return clamp(base + warp * (1 - base), 0, 1);
+}
+
+// BLOB — large, soft two-tone fields with a wide blurred edge, made by
+// domain-warping fbm instead of thresholding it directly: the warp is what
+// turns noise-grain edges into the rounded, flowing boundary of painted
+// blobs merging into each other, rather than a leafy/cellular texture.
+function blobMask(x, y, P) {
+  const w = windOffset(x, y, 1.0, P);
+  const warp1x = fbm(x * 0.6 + w[0] + 11.0, y * 0.6 + w[1] + 3.0) - 0.5;
+  const warp1y = fbm(x * 0.6 + w[0] + 47.0, y * 0.6 + w[1] + 21.0) - 0.5;
+  const wpx = x + warp1x * (1.1 + P.leafDetail * 1.4);
+  const wpy = y + warp1y * (1.1 + P.leafDetail * 1.4);
+
+  const warp2x = fbm(x * 0.6 * P.ratio + w[0] * 1.3 + 71.0, y * 0.6 * P.ratio + w[1] * 1.3 + 29.0) - 0.5;
+  const warp2y = fbm(x * 0.6 * P.ratio + w[0] * 1.3 + 5.0, y * 0.6 * P.ratio + w[1] * 1.3 + 88.0) - 0.5;
+  const fpx = wpx + warp2x * 0.5, fpy = wpy + warp2y * 0.5;
+
+  const clump = fbm(fpx * 0.22 + 19.0, fpy * 0.22 + 61.0) - 0.5;
+  const density = clamp(P.density + clump * P.densityVar, 0.05, 0.95);
+
+  const n = fbm(fpx * 0.5, fpy * 0.5);
+  const edge = P.edge * 4 + 0.04;
+  return smoothstepFn(density - edge, density + edge, n);
+}
+
+// CONIFER — a needle tuft: a spiky radial "star" from a single
+// cosine-in-angle modulation (no per-needle loop) sharpened by Sharpness,
+// giving a bristly rosette silhouette cheaply.
+function shapeNeedle(qx, qy, size, cx, cy, P) {
+  const needleCount = Math.max(3, Math.round(3 + P.ratio * 2));
+  const sharpness = 1.5 + P.leafDetail * 6;
+  const rot = hash2(cx + 3.3, cy + 8.1) * 6.2831853;
+  const ca = Math.cos(-rot), sa = Math.sin(-rot);
+  const ax = qx * ca - qy * sa, ay = qx * sa + qy * ca;
+  const rho = Math.sqrt(ax * ax + ay * ay);
+  const spike = Math.pow(Math.abs(Math.cos(needleCount * 0.5 * Math.atan2(ay, ax))), sharpness);
+  return rho - size * (0.3 + 0.7 * spike);
+}
+function coniferMask(x, y, P) {
+  return 1 - smoothstepFn(0, P.edge + 0.02,
+    scatterField(x, y, P, shapeNeedle, { octaves: 2, sizeMin: 0.15, sizeSpan: 0.45, jitter: 0.35 + P.densityVar * 1.3 }));
+}
+
+// FRONDS — palm or bamboo, one shape covering both. Long strokes fan out
+// from the centre within an angular window (Spread): narrow ≈ near-parallel
+// canes reaching mostly upward (bamboo), wide ≈ a full radiating burst
+// (palm). Same cosine-star trick as Conifer, windowed to an arc.
+// Note this is the one shape that keeps densityVar as its OWN control
+// (Spread) rather than letting it drive scatter jitter — so its caller
+// passes a fixed jitter. The panel labels already say "Spread" here and
+// "Scatter" elsewhere, so the UI stays honest about the difference.
+function shapeFrond(qx, qy, size, cx, cy, P) {
+  const count = Math.max(2, Math.round(3 + P.ratio));
+  const spreadDeg = 20 + clamp(P.densityVar / 0.5, 0, 1) * 300;
+  const spreadRad = spreadDeg * Math.PI / 180;
+  const sharpness = 1.2 + P.leafDetail * 4;
+  const jitterAmt = (spreadDeg / 320) * 1.2;
+  const rot = -Math.PI / 2 + (hash2(cx + 3.3, cy + 8.1) - 0.5) * jitterAmt;
+  const ca = Math.cos(-rot), sa = Math.sin(-rot);
+  const ax = qx * ca - qy * sa, ay = qx * sa + qy * ca;
+  const rho = Math.sqrt(ax * ax + ay * ay);
+  const phi = Math.atan2(ay, ax);
+  if (Math.abs(phi) > spreadRad * 0.5) return rho + 1;
+  const spike = Math.pow(Math.abs(Math.cos(phi / spreadRad * count * Math.PI)), sharpness);
+  return rho - size * (0.15 + 0.85 * spike);
+}
+function frondsMask(x, y, P) {
+  return 1 - smoothstepFn(0, P.edge + 0.02,
+    scatterField(x, y, P, shapeFrond, { octaves: 2, sizeMin: 0.25, sizeSpan: 0.60, jitter: 0.3 }));
+}
+
+// LEAVES — recognizable single-leaf silhouettes scattered on a jittered
+// grid, not a fine generic texture. Each leaf is a lens/vesica shape (width
+// tapers to zero at both the base and the tip via sin(π·t)) so it reads as
+// an actual leaf outline rather than a blob, with an optional wavy/toothed
+// edge (Serration) for a holly/maple-like margin instead of a smooth bay
+// leaf. Outside the leaf's own length it falls back to a capsule-style
+// distance to the nearest end, so the field stays a true (if approximate)
+// signed distance rather than reading "opaque" along a stray centreline.
+function shapeLeaf(qx, qy, size, cx, cy, P) {
+  const aspect = 1.5 + P.ratio * 0.5;
+  const L = size * 2 * aspect;
+  const rot = hash2(cx + 3.3, cy + 8.1) * 6.2831853;
+  const ca = Math.cos(-rot), sa = Math.sin(-rot);
+  const ax = qx * ca - qy * sa, ay = qx * sa + qy * ca;
+  const t = ay / L + 0.5;
+  if (t < 0 || t > 1) {
+    const capY = (t < 0 ? -0.5 : 0.5) * L;
+    const dy = ay - capY;
+    return Math.sqrt(ax * ax + dy * dy);
   }
-  return p;
+  const serrationPhase = hash2(cx + 1.1, cy + 6.6) * 6.2831853;
+  const serration = 1 - P.leafDetail * 0.35 + P.leafDetail * 0.35 * Math.cos(t * Math.PI * 10 + serrationPhase);
+  return Math.abs(ax) - size * Math.pow(Math.sin(Math.PI * t), 0.7) * serration;
+}
+function leafMask(x, y, P) {
+  return 1 - smoothstepFn(0, P.edge + 0.02,
+    scatterField(x, y, P, shapeLeaf, { octaves: 2, sizeMin: 0.10, sizeSpan: 0.35, jitter: 0.35 + P.densityVar * 1.3 }));
 }
 
-function initGL() {
-  progOcc  = link(VERT, FRAG_OCC);
-  progMain = link(VERT, FRAG_MAIN);
-
-  quadVAO = gl.createVertexArray();
-  gl.bindVertexArray(quadVAO);
-  const buf = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-  gl.enableVertexAttribArray(0);
-  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-
-  occFBO = gl.createFramebuffer();
-  occTex = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, occTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-  // 1×1 white placeholder so the cookie sampler is always bound to something
-  cookieTex = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, cookieTex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+// CLUSTER — plain discs, the purest expression of the scatter engine, with
+// two shape controls of its own now that Size range and Merge have their own
+// sliders: Elongation squashes each disc into an ellipse, Irregularity
+// wobbles its radius by angle so it isn't a perfect circle. The reference
+// paintings' blobs are elongated and slightly lumpy, never geometric.
+function shapeDisc(qx, qy, size, cx, cy, P) {
+  const rot = hash2(cx + 3.3, cy + 8.1) * 6.2831853;
+  const ca = Math.cos(-rot), sa = Math.sin(-rot);
+  let ax = qx * ca - qy * sa;
+  const ay = qx * sa + qy * ca;
+  ax *= 1 + P.ratio * 0.5;                        // Elongation
+  const rho = Math.sqrt(ax * ax + ay * ay);
+  const wob = 1 + P.leafDetail * 0.30 * Math.cos(Math.atan2(ay, ax) * 3 + rot * 2);
+  return rho - size * wob;
+}
+function clusterMask(x, y, P) {
+  return 1 - smoothstepFn(0, P.edge + 0.015,
+    scatterField(x, y, P, shapeDisc, { octaves: 3, sizeMin: 0.10, sizeSpan: 0.75, jitter: 0.35 + P.densityVar * 1.3 }));
 }
 
-function ensureOccTarget(w, h) {
-  const tw = Math.max(2, Math.floor(w / 2)), th = Math.max(2, Math.floor(h / 2));
-  if (tw === occW && th === occH) return;
-  occW = tw; occH = th;
-  gl.bindTexture(gl.TEXTURE_2D, occTex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, occW, occH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, occFBO);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, occTex, 0);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+const MASK_FNS = { conifer: coniferMask, cellular: cellularMask, veins: veinsMask, drop: dropMask, blinds: blindsMask, fronds: frondsMask, leaves: leafMask, cluster: clusterMask, blob: blobMask };
+
+// ── COOKIE IMAGE SAMPLING ──
+let cookieData = null, hasCookie = false, cookieGen = 0;
+function sampleCookieLum(u, v) {
+  u = fract(u); v = fract(v);
+  const cx = Math.min(cookieData.w - 1, Math.floor(u * cookieData.w));
+  const cy = Math.min(cookieData.h - 1, Math.floor(v * cookieData.h));
+  const idx = (cy * cookieData.w + cx) * 4;
+  const d = cookieData.data;
+  return (0.2126 * d[idx] + 0.7152 * d[idx + 1] + 0.0722 * d[idx + 2]) / 255;
 }
 
-// Every uniform the two passes share. Resolution is passed in explicitly
-// rather than read off the canvas so that an export render at 4× produces
-// the identical image, just sampled finer.
-function setSharedUniforms(p, w, h) {
-  const u = n => gl.getUniformLocation(p, n);
-  gl.uniform2f(u('uRes'), w, h);
-  gl.uniform1f(u('uTime'), simTime);
-  gl.uniform1f(u('uSeed'), val('rg-seed'));
-  gl.uniform1f(u('uCanopyScale'), val('rg-scale'));
-  gl.uniform1f(u('uDensity'), val('rg-density'));
-  gl.uniform1f(u('uEdge'), val('rg-soft'));
-  gl.uniform1f(u('uLayerRatio'), val('rg-ratio'));
-  gl.uniform1f(u('uDensityVar'), val('rg-clump'));
-  gl.uniform1f(u('uLeafDetail'), val('rg-leafdetail'));
-  gl.uniform1f(u('uWindAmp'), val('rg-wind'));
-  gl.uniform1f(u('uWindSpeed'), val('rg-windspd'));
-  gl.uniform1f(u('uWindPeriod'), val('rg-period'));
-  gl.uniform1i(u('uWindMode'), seg('seg-wind') === 'sway' ? 0 : 1);
-  gl.uniform1i(u('uUseCookie'), (seg('seg-source') === 'cookie' && hasCookie) ? 1 : 0);
-  gl.uniform1i(u('uMode'), 1);   // Gobo only — Scene mode removed from the UI (see docs/KOMOREBI.md §15)
-  gl.uniform1f(u('uHorizon'), 0.5);
-  gl.uniform1f(u('uPersp'), val('rg-persp'));
-  gl.uniform1f(u('uPenumbra'), val('rg-penumbra'));
-  gl.uniform2f(u('uSunUV'), val('rg-sunx'), val('rg-suny'));
-  gl.uniform1f(u('uSunSize'), val('rg-sunsize'));
-
-  gl.activeTexture(gl.TEXTURE1);
-  gl.bindTexture(gl.TEXTURE_2D, cookieTex);
-  gl.uniform1i(u('uCookie'), 1);
+// Applies canopy scale + seed, then dispatches to the selected mask (or the
+// uploaded image). One function, six patterns — a direct port of the old
+// GLSL canopy() dispatcher.
+function canopyValue(gx, gy, P) {
+  const px = gx * P.scale + P.seed * 13.71;
+  const py = gy * P.scale + P.seed * 13.71;
+  if (P.useCookie && hasCookie) {
+    const w = windOffset(px * 0.35, py * 0.35, 0.25, P);
+    const lum = sampleCookieLum(px * 0.16 + w[0], py * 0.16 + w[1]);
+    return 1 - smoothstepFn(P.density - P.edge, P.density + P.edge, lum);
+  }
+  const fn = MASK_FNS[P.pattern];
+  return fn ? fn(px, py, P) : foliageMask(px, py, P);
 }
 
-// The one render function. Preview, PNG/JPG export, WebM frames and the SVG
-// separation's pixel source all go through here — only w/h differ.
+// Ground-plane coordinate for a screen pixel — orthographic, no camera (this
+// is Komorebi's "flat, tileable pattern" mode; see docs/KOMOREBI.md §15 for
+// the perspective Scene mode this replaced, kept inert since July 2026).
+//
+// RAKING LIGHT (§23): light striking a surface obliquely foreshortens the
+// whole projected pattern along the direction of incidence — every shape
+// stretches the SAME way, which is what a per-shape elongation control can
+// never produce (it rotates each shape independently). Implemented as an
+// anisotropic squash of the sampling coordinates: compressing the sample
+// space along an axis makes the sampled pattern appear stretched along it.
+// Because it acts on the coordinates feeding the mask, it works for every
+// pattern, noise-field and shape-scatter alike.
+function groundPoint(px, py, w, h, P) {
+  const u = (px + 0.5) / w, v = (py + 0.5) / h;
+  let gx = (u - 0.5) * P.persp * 22, gy = (v - 0.5) * P.persp * 22;
+  if (P.rake > 0.001) {
+    const a = P.rakeAngle * Math.PI;              // 0…1 → 0…180°
+    const ca = Math.cos(a), sa = Math.sin(a);
+    const rx = gx * ca + gy * sa, ry = -gx * sa + gy * ca;
+    const k = 1 / (1 + P.rake * 4);
+    gx = rx * k * ca - ry * sa;
+    gy = rx * k * sa + ry * ca;
+  }
+  return [gx, gy, u, v];
+}
+// ── PARAMS ──
+function buildParams() {
+  return {
+    pattern: ctrl('sel-pattern').value,
+    useCookie: seg('seg-source') === 'cookie',
+    scale: val('rg-scale'), density: val('rg-density'), edge: val('rg-soft'),
+    ratio: val('rg-ratio'), densityVar: val('rg-clump'), leafDetail: val('rg-leafdetail'),
+    sizeRange: val('rg-sizerange'), merge: val('rg-merge'),
+    rake: val('rg-rake'), rakeAngle: val('rg-rakeangle'),
+    seed: val('rg-seed'),
+    windAmt: val('rg-wind'), windMode: seg('seg-wind') === 'sway' ? 0 : 1,
+    persp: val('rg-persp'), penumbra: val('rg-penumbra'), gain: val('rg-gain'), lift: val('rg-lift'),
+    haze: val('rg-haze'), grain: val('rg-grain'), vignette: val('rg-vig'), bands: val('rg-bands'),
+    colSun: Organica.hexToRGB255(ctrl('hex-sun').value),
+    colSky: Organica.hexToRGB255(ctrl('hex-sky').value),
+    colGround: Organica.hexToRGB255(ctrl('hex-ground').value),
+    colShadow: Organica.hexToRGB255(ctrl('hex-shadow').value),
+    cookieGen,
+  };
+}
+
+// ─────────────────────────────────────────────
+// COMPOSITOR — occlusion (cached) → soft-edge blur → colourise → grade.
+// Every stage is O(w·h); the raw occlusion buffer is cached and reused
+// whenever only colour/grade controls change, so the common "tweak the
+// light, not the shape" edit is near-instant. (God rays and the Sun position
+// panel that drove them were removed July 27, 2026 — see docs/KOMOREBI.md
+// §18 — since they pulled the tool back toward photoreal light simulation
+// when the priority is flat pattern shapes for vector export, and cost the
+// single most expensive render pass.)
+// ─────────────────────────────────────────────
+
+let occCache = { key: '', buf: null };
+function computeOcclusion(w, h, P) {
+  const key = [P.pattern, P.useCookie, P.scale, P.density, P.edge, P.ratio, P.densityVar,
+    P.leafDetail, P.sizeRange, P.merge, P.rake, P.rakeAngle, P.seed, P.windAmt, P.windMode, P.persp, w, h, P.cookieGen].join('|');
+  if (occCache.key === key) return occCache.buf;
+  const buf = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const g = groundPoint(x, y, w, h, P);
+      buf[y * w + x] = canopyValue(g[0], g[1], P);
+    }
+  }
+  occCache = { key, buf };
+  return buf;
+}
+
+// Separable box blur, sliding-window sum — O(w·h) regardless of radius.
+// Stands in for the old per-pixel disc-kernel penumbra sampling: same "soft
+// edge whose width is the canopy height" idea, much cheaper in JS.
+function boxBlur(src, w, h, radius) {
+  if (radius < 1) return src;
+  const r = Math.min(radius, 400);
+  const tmp = new Float32Array(w * h), out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    const row = y * w;
+    let sum = 0;
+    for (let x = -r; x <= r; x++) sum += src[row + clamp(x, 0, w - 1)];
+    for (let x = 0; x < w; x++) {
+      tmp[row + x] = sum / (2 * r + 1);
+      sum += src[row + clamp(x + r + 1, 0, w - 1)] - src[row + clamp(x - r, 0, w - 1)];
+    }
+  }
+  for (let x = 0; x < w; x++) {
+    let sum = 0;
+    for (let y = -r; y <= r; y++) sum += tmp[clamp(y, 0, h - 1) * w + x];
+    for (let y = 0; y < h; y++) {
+      out[y * w + x] = sum / (2 * r + 1);
+      sum += tmp[clamp(y + r + 1, 0, h - 1) * w + x] - tmp[clamp(y - r, 0, h - 1) * w + x];
+    }
+  }
+  return out;
+}
+
 function renderFrame(w, h) {
-  ensureOccTarget(w, h);
-  gl.bindVertexArray(quadVAO);
+  const P = buildParams();
+  canvas.width = w; canvas.height = h;
 
-  // pass A — occlusion
-  gl.bindFramebuffer(gl.FRAMEBUFFER, occFBO);
-  gl.viewport(0, 0, occW, occH);
-  gl.useProgram(progOcc);
-  setSharedUniforms(progOcc, occW, occH);
-  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  const rawOcc = computeOcclusion(w, h, P);
+  // The /5 calibration: a dense box blur over a radius is a much stronger
+  // low-pass than the old GPU's 14-tap Monte-Carlo disc sample at the same
+  // nominal radius (14 sparse taps under-sample fine noise and leave visible
+  // texture; a full box average erases it) — verified visually, not derived.
+  const radiusPx = Math.round(clamp(P.penumbra * 1.6 * (w / (P.persp * 22)) / 5, 0, 400));
+  const litSrc = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) litSrc[i] = 1 - rawOcc[i];
+  const litBuf = boxBlur(litSrc, w, h, radiusPx);
 
-  // pass B — composite
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  gl.viewport(0, 0, w, h);
-  gl.useProgram(progMain);
-  setSharedUniforms(progMain, w, h);
-  const u = n => gl.getUniformLocation(progMain, n);
-  gl.uniform3fv(u('uColSun'), hexToRGB(ctrl('hex-sun').value));
-  gl.uniform3fv(u('uColSky'), hexToRGB(ctrl('hex-sky').value));
-  gl.uniform3fv(u('uColCanopy'), hexToRGB(ctrl('hex-canopy').value));
-  gl.uniform3fv(u('uColGround'), hexToRGB(ctrl('hex-ground').value));
-  gl.uniform3fv(u('uColShadow'), hexToRGB(ctrl('hex-shadow').value));
-  gl.uniform1f(u('uRayDensity'), val('rg-raydens'));
-  gl.uniform1f(u('uRayWeight'), val('rg-rayweight'));
-  gl.uniform1f(u('uRayDecay'), val('rg-raydecay'));
-  gl.uniform1f(u('uRayExposure'), val('rg-rayexp'));
-  gl.uniform1i(u('uRaysOn'), ctrl('ck-rays').checked ? 1 : 0);
-  gl.uniform1f(u('uGain'), val('rg-gain'));
-  gl.uniform1f(u('uLift'), val('rg-lift'));
-  gl.uniform1f(u('uHaze'), val('rg-haze'));
-  gl.uniform1f(u('uGrain'), val('rg-grain'));
-  gl.uniform1f(u('uVignette'), val('rg-vig'));
-  gl.uniform1f(u('uBands'), val('rg-bands'));
+  const img = ctx2d.createImageData(w, h);
+  const data = img.data;
+  const gain = Math.max(P.gain, 0.01);
+  for (let i = 0; i < w * h; i++) {
+    let lit = clamp(litBuf[i], 0, 1);
+    lit = Math.pow(lit, gain);
+    lit = P.lift + (1 - P.lift) * lit;
+    const litSq = lit * lit * 0.45;
+    const idx = i * 4;
+    data[idx]     = mix(P.colShadow[0], P.colGround[0], lit) + P.colSun[0] * litSq;
+    data[idx + 1] = mix(P.colShadow[1], P.colGround[1], lit) + P.colSun[1] * litSq;
+    data[idx + 2] = mix(P.colShadow[2], P.colGround[2], lit) + P.colSun[2] * litSq;
+    data[idx + 3] = 255;
+  }
 
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, occTex);
-  gl.uniform1i(u('uOcc'), 0);
+  // ── grade: haze, posterize, vignette, grain — same order/formulas as the
+  // old FRAG_MAIN's common tail (Sky only ever mattered here, tinting Haze —
+  // Canopy was Scene-mode-only and has been dropped from the panel).
+  if (P.haze > 0) {
+    const t = P.haze * 0.18;
+    const hr = P.colSky[0] * 0.55 + P.colSun[0] * 0.45;
+    const hg = P.colSky[1] * 0.55 + P.colSun[1] * 0.45;
+    const hb = P.colSky[2] * 0.55 + P.colSun[2] * 0.45;
+    for (let i = 0; i < w * h; i++) {
+      const idx = i * 4;
+      data[idx] = mix(data[idx], hr, t);
+      data[idx + 1] = mix(data[idx + 1], hg, t);
+      data[idx + 2] = mix(data[idx + 2], hb, t);
+    }
+  }
 
-  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  if (P.bands > 1.5) {
+    for (let i = 0; i < w * h; i++) {
+      const idx = i * 4;
+      const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+      const l = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+      const q = clamp(Math.floor(l * P.bands) / Math.max(P.bands - 1, 1), 0, 1);
+      const ratio = l > 1e-4 ? q / l : 0;
+      data[idx] = clamp(r * ratio, 0, 255);
+      data[idx + 1] = clamp(g * ratio, 0, 255);
+      data[idx + 2] = clamp(b * ratio, 0, 255);
+    }
+  }
+
+  if (P.vignette > 0.001) {
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const u = (x + 0.5) / w, v = (y + 0.5) / h;
+        const dx = (u - 0.5) * 1.1, dy = (v - 0.5) * 1.0;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        const vig = clamp(1 - P.vignette * Math.pow(d * 1.35, 2.2), 0, 1);
+        const idx = (y * w + x) * 4;
+        data[idx] *= vig; data[idx + 1] *= vig; data[idx + 2] *= vig;
+      }
+    }
+  }
+
+  if (P.grain > 0.001) {
+    for (let i = 0; i < w * h; i++) {
+      const x = i % w, y = (i / w) | 0;
+      const n = (hash2(x, y) - 0.5) * P.grain * 255;
+      const idx = i * 4;
+      data[idx] = clamp(data[idx] + n, 0, 255);
+      data[idx + 1] = clamp(data[idx + 1] + n, 0, 255);
+      data[idx + 2] = clamp(data[idx + 2] + n, 0, 255);
+    }
+  }
+
+  ctx2d.putImageData(img, 0, 0);
+}
+
+// ── RENDER SCHEDULING — no continuous animation loop (wind is frozen), so a
+// render is queued (rAF-coalesced) whenever a control changes instead. ──
+let renderQueued = false;
+function scheduleRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; renderFrame(previewW, previewH); });
 }
 
 // ─────────────────────────────────────────────
@@ -970,51 +1141,10 @@ function resizeCanvas() {
   const r = formatRatio();
   if (r >= 1) { previewW = BASE_LONG; previewH = Math.round(BASE_LONG / r); }
   else        { previewH = BASE_LONG; previewW = Math.round(BASE_LONG * r); }
-  canvas.width = previewW;
-  canvas.height = previewH;
   canvas.style.aspectRatio = previewW + ' / ' + previewH;
   updateSizeReadout();
+  scheduleRender();
 }
-
-// ─────────────────────────────────────────────
-// ANIMATION LOOP
-// ─────────────────────────────────────────────
-let simTime = 0, playing = true, lastTS = 0;
-
-function togglePlay() {
-  playing = !playing;
-  const b = ctrl('btn-play');
-  b.textContent = playing ? '\u276E\u276F' : '\u25B6';
-  b.textContent = playing ? '❚❚' : '▶';
-  b.setAttribute('aria-pressed', String(!playing));
-  b.setAttribute('aria-label', playing ? 'Pause' : 'Play');
-}
-function resetTime() { simTime = 0; if (!playing) tick(performance.now()); }
-
-function tick(ts) {
-  const dt = lastTS ? Math.min(0.1, (ts - lastTS) / 1000) : 0;
-  lastTS = ts;
-  if (playing) simTime += dt;
-  ctrl('hud-time').textContent = simTime.toFixed(1) + 's';
-  renderFrame(previewW, previewH);
-  requestAnimationFrame(tick);
-}
-
-// ─────────────────────────────────────────────
-// SUN DRAGGING — the primary interaction. Moving the sun moves the rays AND
-// slides the light pools, because both read the same uSunUV.
-// ─────────────────────────────────────────────
-let draggingSun = false;
-function sunFromEvent(e) {
-  const r = canvas.getBoundingClientRect();
-  ctrl('rg-sunx').value = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)).toFixed(3);
-  ctrl('rg-suny').value = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)).toFixed(3);
-  syncVal(ctrl('rg-sunx'), 'v-sunx');
-  syncVal(ctrl('rg-suny'), 'v-suny');
-}
-canvas.addEventListener('mousedown', e => { draggingSun = true; canvas.classList.add('dragging-sun'); sunFromEvent(e); e.preventDefault(); });
-window.addEventListener('mousemove', e => { if (draggingSun) sunFromEvent(e); });
-window.addEventListener('mouseup', () => { draggingSun = false; canvas.classList.remove('dragging-sun'); });
 
 // ─────────────────────────────────────────────
 // COOKIE IMAGE — any silhouette works as the canopy. A Halide 1-bit export
@@ -1029,16 +1159,19 @@ function loadCookie(input) {
 function useCookieFile(file) {
   const img = new Image();
   img.onload = () => {
-    gl.bindTexture(gl.TEXTURE_2D, cookieTex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-    gl.generateMipmap(gl.TEXTURE_2D);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    const off = document.createElement('canvas');
+    off.width = img.width; off.height = img.height;
+    const octx = off.getContext('2d');
+    octx.drawImage(img, 0, 0);
+    const id = octx.getImageData(0, 0, img.width, img.height);
+    cookieData = { data: id.data, w: img.width, h: img.height };
     hasCookie = true;
+    cookieGen++;
     setSegValue('seg-source', 'cookie');
     syncConditionalRows();
     setStatus('active', 'Cookie · ' + img.width + '×' + img.height);
     URL.revokeObjectURL(img.src);
+    scheduleRender();
   };
   img.onerror = () => setStatus('', 'Could not read that image');
   img.src = URL.createObjectURL(file);
@@ -1065,82 +1198,42 @@ function updateSizeReadout() {
 const download = Organica.download;   // shared — delayed revoke, see /shared/organica-core.js
 
 // Render one frame at export size, hand the canvas to the caller, then put
-// the preview size back. simTime is untouched, so the export is exactly the
-// frame on screen — WYSIWYG regardless of resolution.
+// the preview size back. There is no time dimension any more, so the export
+// is exactly the frame on screen — WYSIWYG regardless of resolution.
 function withExportSize(w, h, fn) {
-  canvas.width = w; canvas.height = h;
   renderFrame(w, h);
   try { return fn(); }
-  finally {
-    canvas.width = previewW; canvas.height = previewH;
-    renderFrame(previewW, previewH);
-  }
+  finally { renderFrame(previewW, previewH); }
 }
-// toDataURL, not toBlob: toBlob is asynchronous, and we resize the canvas
-// back to preview size the instant withExportSize returns — which would race
-// the encoder and hand back a preview-sized (or blank) image. toDataURL
-// snapshots synchronously, so the export size is guaranteed.
 function exportRaster(mime, ext, quality) {
   const { w, h } = outputDims(parseInt(ctrl('sel-scale').value, 10) || 2);
   setStatus('active', 'Rendering ' + ext.toUpperCase() + '…');
-  const url = withExportSize(w, h, () => canvas.toDataURL(mime, quality));
-  const bin = atob(url.split(',')[1]);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  download(new Blob([bytes], { type: mime }), 'komorebi-' + Date.now() + '.' + ext);
-  setStatus('active', w + '×' + h + ' · ' + ext.toUpperCase() + ' saved');
+  setTimeout(() => {
+    const url = withExportSize(w, h, () => canvas.toDataURL(mime, quality));
+    const bin = atob(url.split(',')[1]);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    download(new Blob([bytes], { type: mime }), 'komorebi-' + Date.now() + '.' + ext);
+    setStatus('active', w + '×' + h + ' · ' + ext.toUpperCase() + ' saved');
+  }, 20);
 }
 function exportPNG() { exportRaster('image/png', 'png'); }
 function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
 
-// ── WEBM RECORDING ──
-// captureStream on the live canvas, so what is recorded is literally the
-// preview. In Sway wind mode the field is exactly periodic — record one
-// Loop period and the file cuts seamlessly.
-let recorder = null, recChunks = [];
-function toggleRecord() {
-  const btn = ctrl('btn-rec');
-  if (recorder) { recorder.stop(); return; }
-  if (!canvas.captureStream) { setStatus('', 'Canvas recording unsupported here'); return; }
-  const mime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
-    .find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
-  if (!mime) { setStatus('', 'WebM recording unsupported here'); return; }
-
-  recChunks = [];
-  recorder = new MediaRecorder(canvas.captureStream(30), { mimeType: mime, videoBitsPerSecond: 12000000 });
-  recorder.ondataavailable = e => { if (e.data.size) recChunks.push(e.data); };
-  recorder.onstop = () => {
-    download(new Blob(recChunks, { type: 'video/webm' }), 'komorebi-' + Date.now() + '.webm');
-    recorder = null;
-    btn.classList.remove('recording');
-    btn.textContent = '● REC';
-    setStatus('active', 'WebM saved');
-  };
-  recorder.start();
-  btn.classList.add('recording');
-  btn.textContent = '■ STOP';
-  const loops = seg('seg-wind') === 'sway';
-  setStatus('active', 'Recording' + (loops ? ' · loops every ' + val('rg-period') + 's' : ' · drift, no loop'));
-}
-
 // ─────────────────────────────────────────────
 // SVG SEPARATION
 //
-// A volumetric light field is continuous — there is no honest one-to-one
-// vector form of it. What IS honest, and more useful for print, is a tone
-// separation: quantise luminance into N bands and trace each band's real
-// boundary. Every band becomes one flat-colour path — i.e. one screen /
-// riso plate. Bands are stacked (each is "luminance ≥ threshold", drawn
-// darkest first) rather than disjoint, so there can be no hairline gaps
-// between them however coarse the trace.
+// A continuous light field has no honest one-to-one vector form. What IS
+// honest, and more useful for print, is a tone separation: quantise
+// luminance into N bands and trace each band's real boundary. Every band
+// becomes one flat-colour path — i.e. one screen / riso plate. Bands are
+// stacked ("luminance ≥ threshold", darkest first) rather than disjoint, so
+// there can be no hairline gaps between them however coarse the trace.
 //
-// The tracer is the one from Halide's "Simplify shapes" — rectilinear
-// boundary walk, evenodd fill so holes and nesting resolve without caring
-// about winding direction.
+// The tracer is Halide's rectilinear boundary walk, now shared via
+// /shared/organica-core.js. Reading pixels off a real <canvas> 2D context
+// is top-down already — the old WebGL readPixels y-flip is gone entirely.
 // ─────────────────────────────────────────────
-// The rectilinear contour tracer now lives in /shared/organica-core.js —
-// Halide and Komorebi each had a copy and they had drifted apart on
-// coordinate formatting. See docs/SHARED-LIBRARY.md.
 const contoursToPathD = Organica.contoursToPathD;
 
 function toHex(r, g, b) {
@@ -1154,29 +1247,16 @@ function buildSVG() {
   const W = detailW;
   const H = Math.max(2, Math.round(detailW * previewH / previewW));
 
-  // Read the real rendered pixels at trace resolution — the separation is
-  // derived from the actual image, not re-simulated.
-  const px = withExportSize(W, H, () => {
-    const buf = new Uint8Array(W * H * 4);
-    gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, buf);
-    return buf;
-  });
+  const rgba = withExportSize(W, H, () => ctx2d.getImageData(0, 0, W, H).data);
 
-  // readPixels is bottom-up; flip into top-down luminance + keep RGB for
-  // per-band average colour.
   const lum = new Float32Array(W * H);
   const rgb = new Uint8Array(W * H * 3);
-  for (let y = 0; y < H; y++) {
-    const src = (H - 1 - y) * W * 4;
-    for (let x = 0; x < W; x++) {
-      const s = src + x * 4, d = y * W + x;
-      const r = px[s], g = px[s + 1], b = px[s + 2];
-      rgb[d * 3] = r; rgb[d * 3 + 1] = g; rgb[d * 3 + 2] = b;
-      lum[d] = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-    }
+  for (let i = 0; i < W * H; i++) {
+    const r = rgba[i * 4], g = rgba[i * 4 + 1], b = rgba[i * 4 + 2];
+    rgb[i * 3] = r; rgb[i * 3 + 1] = g; rgb[i * 3 + 2] = b;
+    lum[i] = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
   }
 
-  // Band index per pixel, then average colour per band.
   const bandOf = new Uint8Array(W * H);
   const sums = new Float64Array(bands * 4);
   for (let i = 0; i < W * H; i++) {
@@ -1197,8 +1277,6 @@ function buildSVG() {
   const block = outW / W;
 
   let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${outW} ${outH}">`;
-  // darkest band as the base wash, then each brighter band stacked on top as
-  // a "≥ this level" region — overlapping, so no seams are possible
   s += `<rect width="100%" height="100%" fill="${bandColor[0]}"/>`;
   let paths = 1;
   const mask = new Uint8Array(W * H);
@@ -1234,13 +1312,16 @@ function sendToFigma() {
 // ─────────────────────────────────────────────
 // STATE / PRESETS
 // ─────────────────────────────────────────────
+// rg-windspd / rg-period (only ever drove the GLSL wind's time term) and the
+// whole Sun/Rays cluster (rg-sunx/suny/sunsize, rg-raydens/rayweight/
+// raydecay/rayexp, ck-rays) are gone — see docs/KOMOREBI.md §18. Kept out of
+// RANGES/COLORS so a stray key in an old saved preset is just ignored.
 const RANGES = ['rg-persp','rg-scale','rg-density','rg-soft','rg-ratio','rg-clump','rg-leafdetail',
-  'rg-seed','rg-wind','rg-windspd','rg-period','rg-sunx','rg-suny','rg-sunsize','rg-raydens',
-  'rg-rayweight','rg-raydecay','rg-rayexp','rg-penumbra','rg-gain','rg-lift','rg-bands','rg-haze',
+  'rg-sizerange','rg-merge','rg-rake','rg-rakeangle','rg-seed','rg-wind','rg-penumbra','rg-gain','rg-lift','rg-bands','rg-haze',
   'rg-grain','rg-vig','rg-svgbands'];
 const SEGS   = ['seg-source','seg-wind'];
-const COLORS = ['sun','sky','canopy','ground','shadow'];
-const SELECTS = ['sel-format','sel-svgdetail'];
+const COLORS = ['sun','sky','ground','shadow'];
+const SELECTS = ['sel-format','sel-svgdetail','sel-pattern'];
 
 function readState() {
   const s = {};
@@ -1248,7 +1329,6 @@ function readState() {
   SEGS.forEach(id => s[id] = seg(id));
   COLORS.forEach(c => s['c-' + c] = ctrl('hex-' + c).value);
   SELECTS.forEach(id => s[id] = ctrl(id).value);
-  s['ck-rays'] = ctrl('ck-rays').checked;
   return s;
 }
 function applyState(s) {
@@ -1256,8 +1336,8 @@ function applyState(s) {
   SEGS.forEach(id => { if (s[id] !== undefined) setSegValue(id, s[id]); });
   COLORS.forEach(c => { if (s['c-' + c] !== undefined) syncColor(c, s['c-' + c]); });
   SELECTS.forEach(id => { if (s[id] !== undefined) ctrl(id).value = s[id]; });
-  if (s['ck-rays'] !== undefined) ctrl('ck-rays').checked = s['ck-rays'];
   syncConditionalRows();
+  applyPatternLabels();
   resizeCanvas();
 }
 
@@ -1270,48 +1350,157 @@ const BUILTIN_PRESETS = {
   'Riso Two-Tone': {
     'rg-persp': '0.30', 'rg-scale': '2.4', 'rg-density': '0.54', 'rg-soft': '0.04',
     'rg-ratio': '2.4', 'rg-clump': '0.30', 'rg-leafdetail': '0.15', 'rg-seed': '12',
-    'rg-wind': '0.25', 'rg-period': '10', 'rg-sunx': '0.5', 'rg-suny': '0.30',
-    'rg-penumbra': '0.14', 'rg-gain': '1.2', 'rg-lift': '0.08', 'ck-rays': false,
-    'rg-rayexp': '0.0', 'rg-bands': '3', 'rg-svgbands': '3', 'rg-haze': '0.0',
+    'rg-wind': '0.25',
+    'rg-penumbra': '0.14', 'rg-gain': '1.2', 'rg-lift': '0.08',
+    'rg-bands': '3', 'rg-svgbands': '3', 'rg-haze': '0.0',
     'rg-grain': '0.0', 'rg-vig': '0.0',
-    'c-sun': '#ff6b3d', 'c-sky': '#f2ede2', 'c-canopy': '#1b2a3a',
+    'c-sun': '#ff6b3d', 'c-sky': '#f2ede2',
     'c-ground': '#f2ede2', 'c-shadow': '#1b2a3a'
   },
   'Shoji': {
     'rg-persp': '0.26', 'rg-scale': '2.1', 'rg-density': '0.50', 'rg-soft': '0.09',
     'rg-ratio': '2.0', 'rg-clump': '0.10', 'rg-leafdetail': '0.10', 'rg-seed': '4',
-    'rg-wind': '0.22', 'rg-period': '14', 'rg-sunx': '0.5', 'rg-suny': '0.30',
-    'rg-penumbra': '0.20', 'rg-gain': '0.85', 'rg-lift': '0.18', 'rg-rayexp': '0.0',
-    'ck-rays': false, 'rg-haze': '0.06', 'rg-grain': '0.02', 'rg-vig': '0.14',
-    'c-sun': '#f5e6c4', 'c-sky': '#e8e2d2', 'c-canopy': '#2a2a24',
+    'rg-wind': '0.22',
+    'rg-penumbra': '0.20', 'rg-gain': '0.85', 'rg-lift': '0.18',
+    'rg-haze': '0.06', 'rg-grain': '0.02', 'rg-vig': '0.14',
+    'c-sun': '#f5e6c4', 'c-sky': '#e8e2d2',
     'c-ground': '#efe8d8', 'c-shadow': '#9a9384'
   },
   'Dense Canopy': {
     'rg-persp': '0.22', 'rg-scale': '4.4', 'rg-density': '0.60', 'rg-soft': '0.03',
     'rg-ratio': '1.8', 'rg-clump': '0.18', 'rg-leafdetail': '0.35', 'rg-seed': '44',
-    'rg-wind': '0.40', 'rg-period': '11', 'rg-sunx': '0.66', 'rg-suny': '0.20',
-    'rg-penumbra': '0.08', 'rg-gain': '2.6', 'rg-lift': '0.03', 'ck-rays': false,
-    'rg-rayexp': '0.0', 'rg-haze': '0.10', 'rg-grain': '0.05', 'rg-vig': '0.32',
-    'c-sun': '#e8ffa8', 'c-sky': '#7fa05a', 'c-canopy': '#0a1206',
+    'rg-wind': '0.40',
+    'rg-penumbra': '0.08', 'rg-gain': '2.6', 'rg-lift': '0.03',
+    'rg-haze': '0.10', 'rg-grain': '0.05', 'rg-vig': '0.32',
+    'c-sun': '#e8ffa8', 'c-sky': '#7fa05a',
     'c-ground': '#4d5a2c', 'c-shadow': '#131a0c'
   },
   'Sparse Grove': {
     'rg-persp': '0.34', 'rg-scale': '1.5', 'rg-density': '0.34', 'rg-soft': '0.07',
     'rg-ratio': '2.6', 'rg-clump': '0.35', 'rg-leafdetail': '0.20', 'rg-seed': '31',
-    'rg-wind': '0.20', 'rg-period': '16', 'rg-sunx': '0.4', 'rg-suny': '0.24',
-    'rg-penumbra': '0.30', 'rg-gain': '1.0', 'rg-lift': '0.10', 'ck-rays': false,
-    'rg-rayexp': '0.0', 'rg-haze': '0.14', 'rg-grain': '0.02', 'rg-vig': '0.18',
-    'c-sun': '#ffe9b0', 'c-sky': '#cfe0c0', 'c-canopy': '#141d10',
+    'rg-wind': '0.20',
+    'rg-penumbra': '0.30', 'rg-gain': '1.0', 'rg-lift': '0.10',
+    'rg-haze': '0.14', 'rg-grain': '0.02', 'rg-vig': '0.18',
+    'c-sun': '#ffe9b0', 'c-sky': '#cfe0c0',
     'c-ground': '#b99a63', 'c-shadow': '#2b2718'
   },
   'Fine Foliage': {
     'rg-persp': '0.24', 'rg-scale': '5.6', 'rg-density': '0.52', 'rg-soft': '0.015',
     'rg-ratio': '3.6', 'rg-clump': '0.12', 'rg-leafdetail': '0.65', 'rg-seed': '52',
-    'rg-wind': '0.32', 'rg-period': '9', 'rg-sunx': '0.5', 'rg-suny': '0.22',
-    'rg-penumbra': '0.10', 'rg-gain': '1.5', 'rg-lift': '0.06', 'ck-rays': false,
-    'rg-rayexp': '0.0', 'rg-haze': '0.08', 'rg-grain': '0.03', 'rg-vig': '0.22',
-    'c-sun': '#f4ffc8', 'c-sky': '#b9cf9a', 'c-canopy': '#16240f',
+    'rg-wind': '0.32',
+    'rg-penumbra': '0.10', 'rg-gain': '1.5', 'rg-lift': '0.06',
+    'rg-haze': '0.08', 'rg-grain': '0.03', 'rg-vig': '0.22',
+    'c-sun': '#f4ffc8', 'c-sky': '#b9cf9a',
     'c-ground': '#9aa86a', 'c-shadow': '#25301a'
+  },
+  'Canvas Bloom': {
+    'sel-pattern': 'blob',
+    'rg-persp': '0.22', 'rg-scale': '0.6', 'rg-density': '0.50', 'rg-soft': '0.025',
+    'rg-ratio': '1.6', 'rg-clump': '0.15', 'rg-leafdetail': '0.20', 'rg-seed': '21',
+    'rg-wind': '0.15',
+    'rg-penumbra': '0.02', 'rg-gain': '1.0', 'rg-lift': '0.0',
+    'rg-bands': '0', 'rg-svgbands': '2', 'rg-haze': '0.0',
+    'rg-grain': '0.0', 'rg-vig': '0.0',
+    'c-sun': '#f5f3ea', 'c-sky': '#f5f3ea',
+    'c-ground': '#f2f0e6', 'c-shadow': '#5f7f46'
+  },
+  'Birch Grove': {
+    'sel-pattern': 'foliage',
+    'rg-persp': '0.20', 'rg-scale': '4.5', 'rg-density': '0.30', 'rg-soft': '0.05',
+    'rg-ratio': '2.0', 'rg-clump': '0.35', 'rg-leafdetail': '0.55', 'rg-seed': '27',
+    'rg-wind': '0.15',
+    'rg-penumbra': '0.05', 'rg-gain': '1.1', 'rg-lift': '0.15',
+    'rg-bands': '0', 'rg-svgbands': '5', 'rg-haze': '0.15',
+    'rg-grain': '0.02', 'rg-vig': '0.15',
+    'c-sun': '#fff8e8', 'c-sky': '#f0ede0',
+    'c-ground': '#f5f0e0', 'c-shadow': '#7d8a6e'
+  },
+  'Palm Shade': {
+    'sel-pattern': 'fronds',
+    'rg-persp': '0.30', 'rg-scale': '1.0', 'rg-density': '0.50', 'rg-soft': '0.03',
+    'rg-ratio': '3.0', 'rg-clump': '0.50', 'rg-leafdetail': '0.30', 'rg-seed': '8',
+    'rg-wind': '0.20',
+    'rg-penumbra': '0.03', 'rg-gain': '1.3', 'rg-lift': '0.05',
+    'rg-bands': '0', 'rg-svgbands': '3', 'rg-haze': '0.10',
+    'rg-grain': '0.02', 'rg-vig': '0.25',
+    'c-sun': '#fff3d0', 'c-sky': '#f5ecd0',
+    'c-ground': '#f5ecd0', 'c-shadow': '#16352a'
+  },
+  'Bamboo Grove': {
+    'sel-pattern': 'fronds',
+    // Low Size range on purpose: bamboo canes are genuinely near-uniform, so
+    // the heavy tail (great for palm) has to be dialled back here.
+    'rg-sizerange': '0.30', 'rg-merge': '0.10',
+    'rg-persp': '0.20', 'rg-scale': '1.4', 'rg-density': '0.75', 'rg-soft': '0.02',
+    'rg-ratio': '1.0', 'rg-clump': '0.05', 'rg-leafdetail': '0.15', 'rg-seed': '33',
+    'rg-wind': '0.15',
+    'rg-penumbra': '0.02', 'rg-gain': '1.2', 'rg-lift': '0.05',
+    'rg-bands': '0', 'rg-svgbands': '3', 'rg-haze': '0.05',
+    'rg-grain': '0.02', 'rg-vig': '0.15',
+    'c-sun': '#eaf5df', 'c-sky': '#dcead0',
+    'c-ground': '#dcead0', 'c-shadow': '#1f3a1a'
+  },
+  'Window Light': {
+    'sel-pattern': 'blinds',
+    'rg-persp': '0.03', 'rg-scale': '0.4', 'rg-density': '0.20', 'rg-soft': '0.06',
+    'rg-ratio': '5.0', 'rg-clump': '0.05', 'rg-leafdetail': '0.06', 'rg-seed': '7',
+    'rg-wind': '0.30',
+    'rg-penumbra': '0.02', 'rg-gain': '1.0', 'rg-lift': '0.0',
+    'rg-bands': '0', 'rg-svgbands': '2', 'rg-haze': '0.0',
+    'rg-grain': '0.02', 'rg-vig': '0.15',
+    'c-sun': '#eaffc0', 'c-sky': '#dde8a0',
+    'c-ground': '#dde8a0', 'c-shadow': '#2d4a1f'
+  },
+  'Cluster Bloom': {
+    'sel-pattern': 'cluster',
+    'rg-sizerange': '1.0', 'rg-merge': '0.77',
+    'rg-persp': '0.26', 'rg-scale': '1.6', 'rg-density': '0.58', 'rg-soft': '0.02',
+    'rg-ratio': '0.8', 'rg-clump': '0.35', 'rg-leafdetail': '0.35', 'rg-seed': '5',
+    'rg-wind': '0.30',
+    'rg-penumbra': '0.015', 'rg-gain': '1.0', 'rg-lift': '0.0',
+    'rg-bands': '0', 'rg-svgbands': '2', 'rg-haze': '0.0',
+    'rg-grain': '0.0', 'rg-vig': '0.0',
+    'c-sun': '#f5e34a', 'c-sky': '#f5e34a',
+    'c-ground': '#f5e34a', 'c-shadow': '#3f7a1e'
+  },
+  'Cluster Scatter': {
+    'sel-pattern': 'cluster',
+    'rg-sizerange': '1.0', 'rg-merge': '0.40',
+    'rg-persp': '0.26', 'rg-scale': '1.6', 'rg-density': '0.20', 'rg-soft': '0.02',
+    'rg-ratio': '0.6', 'rg-clump': '0.35', 'rg-leafdetail': '0.30', 'rg-seed': '7',
+    'rg-wind': '0.30',
+    'rg-penumbra': '0.015', 'rg-gain': '1.0', 'rg-lift': '0.0',
+    'rg-bands': '0', 'rg-svgbands': '2', 'rg-haze': '0.0',
+    'rg-grain': '0.0', 'rg-vig': '0.0',
+    'c-sun': '#f7f2d8', 'c-sky': '#f7f2d8',
+    'c-ground': '#f7f2d8', 'c-shadow': '#2f3a24'
+  },
+  'Raking Leather': {
+    // Built against a reference photo of raking light on leather (§23): the
+    // light pools are all elongated along ONE diagonal, which no per-shape
+    // elongation can do — that alignment is what the Raking control adds.
+    'sel-pattern': 'cluster',
+    'rg-rake': '0.45', 'rg-rakeangle': '0.30',
+    'rg-sizerange': '0.40', 'rg-merge': '0.76',
+    'rg-persp': '0.20', 'rg-scale': '1.0', 'rg-density': '0.48', 'rg-soft': '0.05',
+    'rg-ratio': '1.6', 'rg-clump': '0.30', 'rg-leafdetail': '0.30', 'rg-seed': '14',
+    'rg-wind': '0.30',
+    'rg-penumbra': '0.14', 'rg-gain': '1.1', 'rg-lift': '0.06',
+    'rg-bands': '0', 'rg-svgbands': '4', 'rg-haze': '0.10',
+    'rg-grain': '0.05', 'rg-vig': '0.25',
+    'c-sun': '#f0dcc0', 'c-sky': '#e8d5b8',
+    'c-ground': '#e8d5b8', 'c-shadow': '#3a2214'
+  },
+  'Leaf Litter': {
+    'sel-pattern': 'leaves',
+    'rg-persp': '0.28', 'rg-scale': '2.0', 'rg-density': '0.55', 'rg-soft': '0.03',
+    'rg-ratio': '2.5', 'rg-clump': '0.25', 'rg-leafdetail': '0.40', 'rg-seed': '12',
+    'rg-wind': '0.20',
+    'rg-penumbra': '0.03', 'rg-gain': '1.2', 'rg-lift': '0.05',
+    'rg-bands': '0', 'rg-svgbands': '3', 'rg-haze': '0.08',
+    'rg-grain': '0.02', 'rg-vig': '0.20',
+    'c-sun': '#ffe9a0', 'c-sky': '#f2e6c8',
+    'c-ground': '#f2e6c8', 'c-shadow': '#6b3a1f'
   }
 };
 
@@ -1364,19 +1553,18 @@ function deletePreset() {
 // ─────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────
-if (gl) {
-  initGL();
-  Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
-  COLORS.forEach(c => syncColor(c, ctrl('hex-' + c).value));
-  syncConditionalRows();
-  resizeCanvas();
-  BUILTIN_PRESETS['Forest Floor'] = readState();   // the document's own defaults
-  populatePresets('Forest Floor');
-  setStatus('active', 'Ready');
-  requestAnimationFrame(tick);
-  Organica.autoLabelPanel(document);   // accessible names for row controls
-  Organica.enhanceSliders(document);   // filled track + click-to-edit value
-}
+Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+COLORS.forEach(c => syncColor(c, ctrl('hex-' + c).value));
+syncConditionalRows();
+applyPatternLabels();
+resizeCanvas();
+BUILTIN_PRESETS['Forest Floor'] = readState();   // the document's own defaults
+populatePresets('Forest Floor');
+setStatus('active', 'Ready');
+Organica.autoLabelPanel(document);   // accessible names for row controls
+Organica.enhanceSliders(document);   // filled track + click-to-edit value
+ctrl('panel').addEventListener('input', scheduleRender);
+ctrl('panel').addEventListener('change', scheduleRender);
 </script>
 </body>
 </html>
