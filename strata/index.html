@@ -359,6 +359,48 @@
     height: 100%;
     display: block;
   }
+  #paper-editor-wrap {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background: var(--surface);
+    /* Flex items default to min-height:auto, so the canvas (which paper.js
+       sizes in px) could grow this wrap, which grew the canvas again — a
+       runaway that reached ~16.7M px. min-height:0 lets the wrap be bounded
+       by its flex parent instead of by its content. */
+    min-height: 0;
+    overflow: hidden;
+  }
+  #paper-editor-wrap canvas {
+    /* Absolute so the canvas never contributes to layout — it reads its size
+       FROM the wrap, and can never feed back into it. */
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: crosshair;
+  }
+  .output-view-toggle {
+    display: flex;
+    gap: var(--space-1);
+  }
+  .output-view-btn {
+    font-family: var(--font);
+    font-size: var(--fs-micro);
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .output-view-btn.active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  #refine-section.hidden { display: none; }
 
   /* Region tabs */
   .region-tabs {
@@ -719,6 +761,34 @@
     </div>
   </div>
 
+  <!-- SECTION — REFINE (after trace, Paper.js) -->
+  <div id="refine-section" class="hidden">
+    <div class="section-label">Refine paths</div>
+    <p style="font-size:var(--fs-small);color:var(--muted);margin-bottom:var(--space-4);line-height:1.45">
+      Sketch stays as a dim underlay. Drag anchors on the traced paths, then smooth or simplify before export.
+    </p>
+    <div class="preset-grid" style="margin-bottom:var(--space-4)">
+      <button type="button" class="preset-btn" id="btn-paper-smooth">Smooth</button>
+      <button type="button" class="preset-btn" id="btn-paper-simplify">Simplify</button>
+      <button type="button" class="preset-btn" id="btn-paper-unite">Unite all</button>
+      <button type="button" class="preset-btn" id="btn-paper-reset">Reset trace</button>
+    </div>
+    <div class="param-row">
+      <div class="param-header">
+        <span class="param-name">Simplify tolerance</span>
+        <span class="param-val" id="v-paper-simplify">2.5</span>
+      </div>
+      <input type="range" id="p-paper-simplify" min="0.5" max="8" step="0.5" value="2.5">
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-name">Show sketch underlay</span>
+      <label class="toggle">
+        <input type="checkbox" id="p-paper-sketch" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </div>
+
   <!-- SECTION 5 — ADVANCED (collapsible) -->
   <div>
     <button class="advanced-toggle" id="btn-advanced">Advanced ▾</button>
@@ -804,11 +874,18 @@
         </div>
         <div class="preview-panel">
           <div class="panel-label">
-            SVG output
+            <span>Vector output</span>
+            <div class="output-view-toggle" role="group" aria-label="Output view">
+              <button type="button" class="output-view-btn active" id="btn-view-preview">Preview</button>
+              <button type="button" class="output-view-btn" id="btn-view-refine">Refine</button>
+            </div>
             <span id="svg-info" style="font-size:var(--fs-micro);color:var(--muted)"></span>
           </div>
           <div class="panel-body" id="svg-preview-body">
             <div id="svg-embed"></div>
+            <div id="paper-editor-wrap" class="hidden" hidden>
+              <canvas id="paper-canvas"></canvas>
+            </div>
           </div>
         </div>
       </div>
@@ -826,15 +903,21 @@
 </div>
 
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/paper-full.min.js"></script>
+<script src="/shared/organica-paper.js"></script>
 <script>
 // ── STATE ──────────────────────────────────────────────────────────────────
 const state = {
   imageFile: null,
   imageURL: null,
   originalImg: null,   // HTMLImageElement
-  svgData: null,       // current SVG string
+  svgData: null,       // current SVG string (raw trace)
   regions: [],         // [{label, svgData}]
   currentRegion: 'full',
+  sketchPreviewUrl: null,  // PNG data URL of the traced crop — always from image
+  paperEditor: null,
+  paperDirty: false,
+  outputView: 'preview',   // 'preview' | 'refine'
 };
 
 // Crop interaction state (separate from trace state)
@@ -1199,11 +1282,12 @@ async function traceSelection() {
 
   const params = getParams();
 
-  // Show source preview (the crop)
-  document.getElementById('preview-src').src = offscreen.toDataURL();
+  // Show source preview (the crop) — import is always raster sketch
+  state.sketchPreviewUrl = offscreen.toDataURL('image/png');
+  document.getElementById('preview-src').src = state.sketchPreviewUrl;
   document.getElementById('src-dims').textContent = `${r.w} × ${r.h}`;
 
-  // Send raw crop to backend for tracing
+  // Send raw crop PNG to backend for tracing
   await generateSVGOutput(offscreen, params);
 
   setProcessing(false);
@@ -1294,6 +1378,75 @@ function showServerGuidance(errMsg) {
   document.getElementById('btn-figma').disabled = true;
 }
 
+function currentSvgForRegion() {
+  if (state.currentRegion === 'full') return state.svgData;
+  const region = state.regions.find(r => r.label === state.currentRegion);
+  return region?.svgData || state.svgData;
+}
+
+function getExportSvg() {
+  if (state.paperDirty && state.paperEditor) {
+    return state.paperEditor.exportSvg();
+  }
+  return currentSvgForRegion();
+}
+
+function setOutputView(mode) {
+  state.outputView = mode;
+  const isRefine = mode === 'refine';
+  document.getElementById('btn-view-preview').classList.toggle('active', !isRefine);
+  document.getElementById('btn-view-refine').classList.toggle('active', isRefine);
+  document.getElementById('svg-embed').classList.toggle('hidden', isRefine);
+  const paperWrap = document.getElementById('paper-editor-wrap');
+  paperWrap.classList.toggle('hidden', !isRefine);
+  paperWrap.hidden = !isRefine;
+  document.getElementById('refine-section').classList.toggle('hidden', !state.svgData);
+
+  if (isRefine && state.svgData) {
+    initPaperEditor().catch(err => {
+      console.error('[Strata] Paper editor failed:', err);
+      setOutputView('preview');
+    });
+  } else if (state.paperEditor) {
+    state.paperEditor.fitToView();
+  }
+}
+
+async function initPaperEditor() {
+  const svgStr = currentSvgForRegion();
+  if (!svgStr) return;
+
+  const canvas = document.getElementById('paper-canvas');
+  if (!state.paperEditor) {
+    state.paperEditor = Organica.createTraceEditor(canvas, {
+      fill: '#0a0a0a',
+      sketchOpacity: 0.32,
+      onChange() {
+        state.paperDirty = true;
+        refreshExportInfo();
+      }
+    });
+  }
+
+  state.paperEditor.setSketchUrl(state.sketchPreviewUrl);
+  await state.paperEditor.load(svgStr, state.sketchPreviewUrl);
+  state.paperEditor.setSketchVisible(document.getElementById('p-paper-sketch').checked);
+  state.paperDirty = false;
+}
+
+function refreshExportInfo() {
+  const svgStr = getExportSvg();
+  if (!svgStr) return;
+  const size = new Blob([svgStr]).size;
+  const nc = countNodes(svgStr);
+  const cl = countLayers(svgStr);
+  const refined = state.paperDirty ? ' · refined' : '';
+  document.getElementById('svg-info').textContent =
+    `${cl.total} shape${cl.total !== 1 ? 's' : ''} · ~${nc.nodes} nodes${refined}`;
+  document.getElementById('export-info').textContent =
+    `${(size / 1024).toFixed(1)} KB · SVG${state.paperDirty ? ' (edited)' : ''}`;
+}
+
 function renderSVGPreview(svgStr) {
   // Inject SVG into preview, scale to fit
   const embed = document.getElementById('svg-embed');
@@ -1312,17 +1465,16 @@ function renderSVGPreview(svgStr) {
     svgEl.style.background = 'transparent';
     svgEl.setAttribute('overflow', 'visible');
   }
-  const size = new Blob([svgStr]).size;
-  const nc   = countNodes(svgStr);
-  const cl   = countLayers(svgStr);
-  const shapeStr = cl.total > 0 ? `${cl.total} shape${cl.total !== 1 ? 's' : ''}` : '';
-  const nodeStr  = nc.nodes  > 0 ? `~${nc.nodes} nodes` : '';
-  document.getElementById('svg-info').textContent =
-    [shapeStr, nodeStr].filter(Boolean).join(' · ') || `${(size/1024).toFixed(1)} kb`;
   document.getElementById('btn-export').disabled = false;
   document.getElementById('btn-figma').disabled = false;
-  document.getElementById('export-info').textContent =
-    `${(size/1024).toFixed(1)} KB · SVG`;
+  document.getElementById('refine-section').classList.remove('hidden');
+  state.paperDirty = false;
+
+  if (state.outputView === 'refine') {
+    initPaperEditor().catch(err => console.error('[Strata] Paper editor failed:', err));
+  }
+
+  refreshExportInfo();
 }
 
 function buildRegionTabs(regions) {
@@ -1338,10 +1490,11 @@ function buildRegionTabs(regions) {
       document.querySelectorAll('.region-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.currentRegion = r.label;
-      if (r.label === 'full') {
-        renderSVGPreview(state.svgData);
-      } else if (r.svgData) {
-        renderSVGPreview(r.svgData);
+      state.paperDirty = false;
+      const svg = r.label === 'full' ? state.svgData : r.svgData;
+      if (svg) renderSVGPreview(svg);
+      if (state.outputView === 'refine') {
+        initPaperEditor().catch(err => console.error('[Strata] Paper editor failed:', err));
       }
     };
     tabs.appendChild(btn);
@@ -1426,14 +1579,43 @@ function downloadString(str, filename, mime) {
   URL.revokeObjectURL(url);
 }
 
+document.getElementById('btn-view-preview').addEventListener('click', () => setOutputView('preview'));
+document.getElementById('btn-view-refine').addEventListener('click', () => setOutputView('refine'));
+
+document.getElementById('btn-paper-smooth').addEventListener('click', () => {
+  state.paperEditor?.smoothAll();
+});
+document.getElementById('btn-paper-simplify').addEventListener('click', () => {
+  const tol = parseFloat(document.getElementById('p-paper-simplify').value);
+  state.paperEditor?.simplifyAll(tol);
+});
+document.getElementById('btn-paper-unite').addEventListener('click', () => {
+  state.paperEditor?.uniteAll();
+});
+document.getElementById('btn-paper-reset').addEventListener('click', () => {
+  if (!state.paperEditor) return;
+  state.paperEditor.reset().then(() => {
+    state.paperDirty = false;
+    refreshExportInfo();
+  });
+});
+document.getElementById('p-paper-sketch').addEventListener('change', e => {
+  state.paperEditor?.setSketchVisible(e.target.checked);
+});
+document.getElementById('p-paper-simplify').addEventListener('input', e => {
+  document.getElementById('v-paper-simplify').textContent = e.target.value;
+});
+
 document.getElementById('btn-dl-svg').addEventListener('click', () => {
-  if (!state.svgData) return;
-  downloadString(state.svgData, 'sketch-grammar.svg', 'image/svg+xml');
+  const svg = getExportSvg();
+  if (!svg) return;
+  downloadString(svg, 'sketch-grammar.svg', 'image/svg+xml');
 });
 
 document.getElementById('btn-copy-svg').addEventListener('click', () => {
-  if (!state.svgData) return;
-  navigator.clipboard.writeText(state.svgData).then(() => {
+  const svg = getExportSvg();
+  if (!svg) return;
+  navigator.clipboard.writeText(svg).then(() => {
     const btn = document.getElementById('btn-copy-svg');
     btn.textContent = '✓ Copied';
     setTimeout(() => btn.textContent = 'Copy SVG code', 1500);
@@ -1444,6 +1626,14 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   state.imageFile = null;
   state.svgData = null;
   state.regions = [];
+  state.sketchPreviewUrl = null;
+  state.paperDirty = false;
+  if (state.paperEditor) {
+    state.paperEditor.destroy();
+    state.paperEditor = null;
+  }
+  setOutputView('preview');
+  document.getElementById('refine-section').classList.add('hidden');
   cropState.img = null;
   cropState.rect = null;
   cropState.live = null;
@@ -1460,10 +1650,11 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 
 // → Figma
 document.getElementById('btn-figma').addEventListener('click', async () => {
-  if (!state.svgData) return;
+  const svg = getExportSvg();
+  if (!svg) return;
 
   if (!BACKEND_URL) {
-    downloadString(state.svgData, 'latest.svg', 'image/svg+xml');
+    downloadString(svg, 'latest.svg', 'image/svg+xml');
     showBanner('Backend offline — SVG downloaded, drag into Figma manually');
     return;
   }
@@ -1486,7 +1677,7 @@ document.getElementById('btn-figma').addEventListener('click', async () => {
     const resp = await fetch(BACKEND_URL + '/send-to-figma', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ svg: state.svgData, preset: activePreset })
+      body: JSON.stringify({ svg: svg, preset: activePreset })
     });
     result = await resp.json();
   } catch (e) {
