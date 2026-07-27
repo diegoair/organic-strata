@@ -209,6 +209,24 @@ are written down now so the next tool doesn't invent its own.
 Organica's surfaces are flat and near-square — **radius is a whisper, not a
 feature**. `--radius-lg` (8px) is already the loudest the system gets.
 
+**Spacing utility classes** (`shared/organica-tokens.css`): `.mt-1`…`.mt-8` /
+`.mb-1`…`.mb-8` (`margin-top`/`margin-bottom: var(--space-N)`), `.u-flex1`
+(`flex: 1 1 auto`), `.u-hidden` (`display: none`). All carry `!important` —
+a utility only does its job if it always wins the cascade; a component's own
+compound selector (`.row .val`) already outranks a single class without it.
+`.u-hidden` is only safe on elements that are hidden once and never shown
+again (a permanently-hidden file-input trigger) — anything toggled from JS
+via `el.style.display = show ? '' : 'none'` must keep the inline
+`style="display:none"` it started with, or clearing the inline style falls
+back to the class and it never shows.
+
+**Two tokens outside the spacing/radius scale:**
+
+| Token | Value | Role |
+|---|---|---|
+| `--accent-warm` | `#c2551b` | The one accent for every slider fill and the floating toolbar's primary button — deliberately *not* `--tool` (which is blue for Halide/Spore), so a control reads as "you're dragging this" identically regardless of which tool it's in. Computed for contrast: 3.79:1 on `--panel`, 4.08:1 on `--paper`. |
+| `--track-bg` | `color-mix(in srgb, var(--ink) 10%, var(--panel))` | The slider track's empty-portion housing — derived per-tool automatically, never a hardcoded hex. |
+
 ---
 
 ## 5. Colour — per-tool accents
@@ -302,14 +320,30 @@ to it), zero runtime errors.
 
 1. **One family.** If a design needs a second typeface, that is a system-level
    decision — change it here, not in a tool.
-2. **Use the tokens.** A hardcoded `font-size: 13px` in a tool is a bug; either
-   use a step or add one.
-3. **`--font` only** in new code. `--sans` / `--mono` / `--display` are legacy
+2. **Use the tokens — mandatory for every new development, not just typography.**
+   A hardcoded `font-size: 13px`, a raw `padding: 9px 14px`, a bare
+   `border-radius: 6px`, or a hex colour standing in for `--ink`/`--mid`/
+   `--border-strong` is a bug, the same way a hardcoded font-size is. Use the
+   matching `--fs-*` / `--space-*` / `--radius-*` / palette token.
+3. **Missing a value on the scale? Stop and ask, don't invent one.** If the
+   spacing, radius, or size you need doesn't exist on any current step,
+   that's a real gap — but the fix is a conversation, not a silent new value
+   or a "just this once" raw px/hex. Confirm before adding a token here.
+   Two things that look like exceptions but aren't a licence to skip this:
+   a tool's own **content** colour (Halide's ink/paper for the dithered
+   image, Pollen's point colour) is user data, not chrome — don't tokenise
+   it; and a genuine pill/stadium shape (`border-radius` = half the
+   element's height, e.g. a toggle switch) isn't a corner radius — forcing
+   it onto `--radius-sm/md/lg` flattens the capsule.
+4. **`--font` only** in new code. `--sans` / `--mono` / `--display` are legacy
    aliases kept so old rules render; they all resolve to Manrope.
-4. **Load order matters.** `organica-tokens.css` must come *before* the tool's
+5. **Load order matters.** `organica-tokens.css` must come *before* the tool's
    own `<style>`, so a tool can override a token without `!important`.
-5. **Weights are the four defined stops.** 200, 600 and 800 exist in the font
+6. **Weights are the four defined stops.** 200, 600 and 800 exist in the font
    but aren't in the system — add them here before using them.
+7. **Live reference:** `/design-system/` (linked from the hub) renders every
+   token and shared component from the real CSS — not a screenshot. Check
+   there before assuming something doesn't exist yet.
 
 ---
 
