@@ -26,8 +26,8 @@
   body {
     background: var(--paper);
     color: var(--ink);
-    font-family: var(--sans);
-    font-size: 11px;
+    font-family: var(--font);
+    font-size: var(--fs-base);
     height: 100vh;
     overflow: hidden;
     display: flex;
@@ -57,9 +57,9 @@
   /* live recompute indicator (debounced placement updates) */
   #recompute-overlay {
     position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-    display: none; align-items: center; gap: 7px;
-    padding: 6px 12px; background: rgba(10,10,10,0.82); color: #fff;
-    font-family: var(--mono, monospace); font-size: 10px; letter-spacing: 0.08em; border-radius: 2px; z-index: 20; pointer-events: none;
+    display: none; align-items: center; gap: var(--space-3);
+    padding: var(--space-2) var(--space-5); background: rgba(10,10,10,0.82); color: #fff;
+    font-family: var(--mono, monospace); font-size: var(--fs-small); letter-spacing: 0.08em; border-radius: var(--radius-sm); z-index: 20; pointer-events: none;
   }
   #recompute-overlay.visible { display: flex; }
   #recompute-overlay .spinner {
@@ -73,7 +73,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-5);
     pointer-events: none;
     opacity: 1;
     transition: opacity 0.3s;
@@ -87,7 +87,7 @@
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     color: var(--mid);
-    font-size: 20px;
+    font-size: var(--fs-xl);
     /* Only this circle is the click target (parent #drop-hint is pointer-events:none) */
     pointer-events: auto;
     cursor: pointer;
@@ -96,7 +96,7 @@
   .drop-icon:hover { border-color: var(--ink); color: var(--ink); }
 
   #drop-hint p {
-    font-size: 10px;
+    font-size: var(--fs-small);
     letter-spacing: 0.1em;
     color: var(--mid);
     text-align: center;
@@ -122,13 +122,13 @@
     bottom: 16px; left: 16px;
     background: var(--ink);
     color: var(--paper);
-    font-family: var(--sans);
-    font-size: 9px;
+    font-family: var(--font);
+    font-size: var(--fs-micro);
     letter-spacing: 0.1em;
-    padding: 6px 9px;
+    padding: var(--space-2) var(--space-4);
     display: none;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-3);
     pointer-events: none;
     user-select: none;
   }
@@ -145,19 +145,19 @@
 
   .panel-section {
     border-bottom: 1px solid var(--border);
-    padding: 14px 16px;
+    padding: var(--space-5) var(--space-6);
   }
   /* Placement block — these controls recompute the point field (↻ Refresh) */
   .panel-section.placement { border-top: 2px solid var(--mid); }
   .panel-section.placement h3 { color: var(--accent); }
   .panel-section.placement h3 .hint { color: var(--pollen); }
   /* Shape library grid (SVG marks) */
-  #shape-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  #shape-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-1); }
   .shape-thumb {
     position: relative;
     aspect-ratio: 1; border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; background: var(--panel); padding: 5px;
+    cursor: pointer; background: var(--panel); padding: var(--space-2);
     transition: border-color 0.12s, background 0.12s;
     overflow: hidden;
   }
@@ -170,41 +170,41 @@
   }
 
   /* RMX slots */
-  .rmx-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+  .rmx-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); margin-top: var(--space-3); }
   .rmx-slot {
     position: relative; aspect-ratio: 1; border: 1px dashed var(--border);
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; background: var(--panel); padding: 6px; overflow: hidden;
+    cursor: pointer; background: var(--panel); padding: var(--space-2); overflow: hidden;
     transition: border-color 0.12s, background 0.12s;
   }
   .rmx-slot:hover { border-color: var(--accent); }
   .rmx-slot.filled { border-style: solid; }
   .rmx-slot.active { border-color: var(--ink); background: #e8e4dc; }
   .rmx-slot svg { width: 100%; height: 100%; display: block; }
-  .rmx-plus { font-size: 14px; color: var(--mid); line-height: 1; }
+  .rmx-plus { font-size: var(--fs-large); color: var(--mid); line-height: 1; }
 
   /* RMX colours palette */
-  .rmx-palette { display: flex; flex-wrap: wrap; gap: 6px; }
+  .rmx-palette { display: flex; flex-wrap: wrap; gap: var(--space-2); }
   .rmx-color { position: relative; width: 36px; height: 28px; border: 1px solid var(--border); cursor: pointer; overflow: hidden; }
   .rmx-color input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; cursor: pointer; }
   .rmx-x {
     position: absolute; top: 0; right: 0; width: 13px; height: 13px;
-    line-height: 11px; font-size: 11px; padding: 0; cursor: pointer;
+    line-height: 11px; font-size: var(--fs-base); padding: 0; cursor: pointer;
     background: rgba(255,255,255,0.82); color: #000; border: none;
   }
   .rmx-add {
     width: 36px; height: 28px; border: 1px dashed var(--border); background: none;
-    color: var(--mid); font-size: 14px; cursor: pointer; line-height: 1;
+    color: var(--mid); font-size: var(--fs-large); cursor: pointer; line-height: 1;
   }
   .rmx-add:hover { border-color: var(--accent); color: var(--accent); }
   input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
   .panel-select:focus, .panel-select:focus-visible { border-color: var(--ink); outline: none; box-shadow: none; }
 
   .upload-btn {
-    width: 100%; margin-top: 8px;
-    font-family: var(--sans); font-size: 9px; letter-spacing: 0.1em;
+    width: 100%; margin-top: var(--space-3);
+    font-family: var(--font); font-size: var(--fs-micro); letter-spacing: 0.1em;
     border: 1px dashed var(--border); background: none; color: var(--mid);
-    padding: 7px; cursor: pointer;
+    padding: var(--space-3); cursor: pointer;
     transition: border-color 0.15s, color 0.15s;
   }
   .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
@@ -218,15 +218,15 @@
   .icon-btn:hover { border-color: var(--accent); color: var(--ink); }
 
   /* RGBA colour controls */
-  .rgba-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
-  .rgba-col .col-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-  .rgba-col .col-head span { font-size: 9px; letter-spacing: 0.1em; color: var(--mid); }
-  .num-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
-  .num-row > label { font-size: 9px; color: var(--accent); width: 9px; flex-shrink: 0; }
+  .rgba-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); margin-bottom: var(--space-3); }
+  .rgba-col .col-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+  .rgba-col .col-head span { font-size: var(--fs-micro); letter-spacing: 0.1em; color: var(--mid); }
+  .num-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); }
+  .num-row > label { font-size: var(--fs-micro); color: var(--accent); width: 9px; flex-shrink: 0; }
   .num-in {
-    font-family: var(--sans); font-size: 10px;
+    font-family: var(--font); font-size: var(--fs-small);
     background: var(--panel); border: 1px solid var(--border); color: var(--ink);
-    width: 100%; padding: 2px 4px; outline: none;
+    width: 100%; padding: var(--space-1) var(--space-1); outline: none;
     -moz-appearance: textfield;
   }
   .num-in::-webkit-outer-spin-button, .num-in::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -262,12 +262,12 @@
   /* ── ON-CANVAS COMPUTE CONTROLS ── */
   #compute-bar {
     position: absolute; top: 16px; left: 16px;
-    display: flex; gap: 6px; z-index: 20;
+    display: flex; gap: var(--space-2); z-index: 20;
   }
   .hud-btn {
-    font-family: var(--font); font-size: 10px; letter-spacing: 0.08em;
+    font-family: var(--font); font-size: var(--fs-small); letter-spacing: 0.08em;
     background: rgba(10,10,10,0.82); color: #f5f2ec;
-    border: 1px solid rgba(245,242,236,0.24); border-radius: 2px;
+    border: 1px solid rgba(245,242,236,0.24); border-radius: var(--radius-sm);
     min-height: 26px; padding: 0 9px; cursor: pointer;
     transition: border-color .15s, background .15s;
   }
@@ -386,7 +386,7 @@
         <canvas id="pt-preview" width="200" height="200"></canvas>
       </div>
 
-      <div class="sub-label" style="margin-top:12px">Shape · primordial forms</div>
+      <div class="sub-label" style="margin-top: var(--space-5)">Shape · primordial forms</div>
       <div id="shape-grid"></div>
       <input type="file" id="shape-upload" aria-label="Upload SVG shape" accept=".svg,image/svg+xml" class="u-hidden" onchange="uploadShape(this)">
       <button class="upload-btn" onclick="document.getElementById('shape-upload').click()">+ Upload SVG</button>
@@ -401,7 +401,7 @@
         <div class="rmx-slot" data-slot="1" onclick="rmxSelectSlot(1)"><span class="rmx-plus">+</span></div>
         <div class="rmx-slot" data-slot="2" onclick="rmxSelectSlot(2)"><span class="rmx-plus">+</span></div>
       </div>
-      <div id="rmx-hint" class="sub-label" style="display:none; margin-top:6px">dark → mid → bright</div>
+      <div id="rmx-hint" class="sub-label" style="display:none; margin-top: var(--space-2)">dark → mid → bright</div>
 
       <!-- Size (+ Range: Min dark → Max bright) -->
       <div class="ctrl-row">

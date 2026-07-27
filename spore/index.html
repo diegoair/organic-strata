@@ -25,8 +25,8 @@
   body {
     background: var(--paper);
     color: var(--ink);
-    font-family: var(--sans);
-    font-size: 11px;
+    font-family: var(--font);
+    font-size: var(--fs-base);
     height: 100vh;
     overflow: hidden;
     display: flex;
@@ -58,7 +58,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-5);
     pointer-events: none;
     opacity: 1;
     transition: opacity 0.3s;
@@ -72,7 +72,7 @@
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     color: var(--mid);
-    font-size: 20px;
+    font-size: var(--fs-xl);
     /* Only this circle is the click target (parent #drop-hint is pointer-events:none) */
     pointer-events: auto;
     cursor: pointer;
@@ -81,7 +81,7 @@
   .drop-icon:hover { border-color: var(--ink); color: var(--ink); }
 
   #drop-hint p {
-    font-size: 10px;
+    font-size: var(--fs-small);
     letter-spacing: 0.1em;
     color: var(--mid);
     text-align: center;
@@ -107,13 +107,13 @@
     bottom: 16px; left: 16px;
     background: var(--ink);
     color: var(--paper);
-    font-family: var(--sans);
-    font-size: 9px;
+    font-family: var(--font);
+    font-size: var(--fs-micro);
     letter-spacing: 0.1em;
-    padding: 6px 9px;
+    padding: var(--space-2) var(--space-4);
     display: none;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-3);
     pointer-events: none;
     user-select: none;
   }
@@ -130,7 +130,7 @@
 
   .panel-section {
     border-bottom: 1px solid var(--border);
-    padding: 14px 16px;
+    padding: var(--space-5) var(--space-6);
   }
 
   /* Color inputs */
@@ -145,8 +145,8 @@
   #mark-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
-    margin-bottom: 10px;
+    gap: var(--space-1);
+    margin-bottom: var(--space-4);
   }
 
   .mark-thumb {
@@ -158,7 +158,7 @@
     cursor: pointer;
     background: var(--panel);
     transition: border-color 0.12s, background 0.12s;
-    padding: 4px;
+    padding: var(--space-1);
     position: relative;
     overflow: hidden;
   }
@@ -181,7 +181,7 @@
     letter-spacing: 0.04em;
     color: var(--mid);
     text-align: center;
-    margin-top: 2px;
+    margin-top: var(--space-1);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -190,7 +190,7 @@
   .mark-item { display: flex; flex-direction: column; }
 
   /* 400% symbol preview (aligned with Pollen) */
-  .preview-wrap { display: flex; justify-content: center; margin-bottom: 12px; }
+  .preview-wrap { display: flex; justify-content: center; margin-bottom: var(--space-5); }
   #symbol-preview {
     width: 100%; max-width: 208px; aspect-ratio: 1;
     border: 1px solid rgba(10,10,10,0.2); background: var(--panel); display: block;
@@ -198,13 +198,13 @@
 
   .upload-mark-btn {
     width: 100%;
-    font-family: var(--sans);
-    font-size: 9px;
+    font-family: var(--font);
+    font-size: var(--fs-micro);
     letter-spacing: 0.1em;
     border: 1px dashed var(--border);
     background: none;
     color: var(--mid);
-    padding: 7px;
+    padding: var(--space-3);
     cursor: pointer;
     transition: border-color 0.15s, color 0.15s;
   }
@@ -215,23 +215,23 @@
   .color-mode-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 4px;
+    gap: var(--space-1);
   }
 
   /* RMX colours palette */
-  .rmx-palette { display: flex; flex-wrap: wrap; gap: 6px; }
+  .rmx-palette { display: flex; flex-wrap: wrap; gap: var(--space-2); }
   .rmx-color { position: relative; width: 36px; height: 28px; border: 1px solid var(--border); cursor: pointer; overflow: hidden; }
   .rmx-color input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; cursor: pointer; }
-  .rmx-x { position: absolute; top: 0; right: 0; width: 13px; height: 13px; line-height: 11px; font-size: 11px; padding: 0; cursor: pointer; background: rgba(255,255,255,0.82); color: #000; border: none; }
-  .rmx-add { width: 36px; height: 28px; border: 1px dashed var(--border); background: none; color: var(--mid); font-size: 14px; cursor: pointer; line-height: 1; }
+  .rmx-x { position: absolute; top: 0; right: 0; width: 13px; height: 13px; line-height: 11px; font-size: var(--fs-base); padding: 0; cursor: pointer; background: rgba(255,255,255,0.82); color: #000; border: none; }
+  .rmx-add { width: 36px; height: 28px; border: 1px dashed var(--border); background: none; color: var(--mid); font-size: var(--fs-large); cursor: pointer; line-height: 1; }
   .rmx-add:hover { border-color: var(--accent); color: var(--accent); }
-  #sel-rmx-map { font-family: var(--sans); font-size: 10px; background: var(--panel); border: 1px solid var(--border); color: var(--ink); padding: 4px 6px; accent-color: var(--ink); }
+  #sel-rmx-map { font-family: var(--font); font-size: var(--fs-small); background: var(--panel); border: 1px solid var(--border); color: var(--ink); padding: var(--space-1) var(--space-2); accent-color: var(--ink); }
 
   .cm-btn {
-    font-family: var(--sans);
-    font-size: 9px;
+    font-family: var(--font);
+    font-size: var(--fs-micro);
     letter-spacing: 0.06em;
-    padding: 5px 0;
+    padding: var(--space-2) 0;
     border: 1px solid var(--border);
     background: none;
     color: var(--accent);
@@ -261,12 +261,12 @@
   /* ── ON-CANVAS COMPUTE CONTROLS ── */
   #compute-bar {
     position: absolute; top: 16px; left: 16px;
-    display: flex; gap: 6px; z-index: 20;
+    display: flex; gap: var(--space-2); z-index: 20;
   }
   .hud-btn {
-    font-family: var(--font); font-size: 10px; letter-spacing: 0.08em;
+    font-family: var(--font); font-size: var(--fs-small); letter-spacing: 0.08em;
     background: rgba(10,10,10,0.82); color: #f5f2ec;
-    border: 1px solid rgba(245,242,236,0.24); border-radius: 2px;
+    border: 1px solid rgba(245,242,236,0.24); border-radius: var(--radius-sm);
     min-height: 26px; padding: 0 9px; cursor: pointer;
     transition: border-color .15s, background .15s;
   }
@@ -451,7 +451,7 @@
     <div class="panel-section">
       <h3>Color</h3>
 
-      <div class="color-mode-grid" style="margin-bottom:12px">
+      <div class="color-mode-grid" style="margin-bottom: var(--space-5)">
         <button class="cm-btn active" onclick="setColorMode('solid',this)">Solid</button>
         <button class="cm-btn" onclick="setColorMode('adaptive',this)">Adaptive</button>
         <button class="cm-btn" onclick="setColorMode('image',this)">Image</button>
@@ -460,7 +460,7 @@
       </div>
 
       <!-- RMX palette: up to 5 colours assigned by a chosen mapping (by tone) -->
-      <div id="rmx-color-block" style="display:none; margin-bottom:12px">
+      <div id="rmx-color-block" style="display:none; margin-bottom: var(--space-5)">
         <div class="ctrl-row mb-2">
           <span class="ctrl-label">Palette</span>
           <span class="ctrl-label" style="min-width:auto; color:var(--mid)">dark → bright</span>
