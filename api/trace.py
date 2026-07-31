@@ -4,8 +4,15 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import shutil
+import sys
 import tempfile
 import traceback
+
+# Vercel bundles each file under api/ as its own isolated function and does
+# not put this directory on sys.path automatically, so a sibling import
+# ("from _shared import ...") 404s at runtime with ModuleNotFoundError even
+# though the file sits right next to this one. Confirmed in production logs.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from _shared import send_json, send_options, read_body, parse_multipart, work_dir
 
