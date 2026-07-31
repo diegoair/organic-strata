@@ -1,0 +1,14 @@
+# Dependencies for the Vercel Python functions in api/.
+#
+# Deliberately NOT the same file as backend/requirements.txt: this one pins
+# opencv-python-headless, which is the same library without the GUI/X11
+# bindings that cannot load on a serverless host anyway. Everything else
+# matches, and backend/process.py is shared verbatim between the two.
+#
+# Measured unzipped, x86_64 manylinux wheels: opencv-headless 143 MB,
+# numpy 57 MB, pillow 19 MB, vtracer 3 MB — 222 MB against Vercel's 500 MB
+# uncompressed limit for Python functions.
+opencv-python-headless
+numpy
+Pillow
+vtracer

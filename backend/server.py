@@ -21,6 +21,19 @@ FIGMA_TOKEN    = os.environ.get('FIGMA_TOKEN', '')
 PORT           = 5050
 STATIC_DIR     = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR   = os.path.join(os.path.dirname(STATIC_DIR), 'frontend')
+
+
+def writable_dir():
+    """Where the pipeline may write.
+
+    Locally that is backend/output/, which is also served over HTTP and is
+    handy to inspect while tuning. On a serverless host the bundle is
+    read-only and only /tmp is writable, so STRATA_WORK_DIR redirects
+    everything there. Nothing in the pipeline may assume a relative path.
+    """
+    d = os.environ.get('STRATA_WORK_DIR') or os.path.join(STATIC_DIR, 'output')
+    os.makedirs(d, exist_ok=True)
+    return d
 FIGMA_FILE_KEY = "FYWyi41bGojxFATB0szSUb"
 FIGMA_NODE_ID  = "5:2"
 FIGMA_URL      = "figma://file/FYWyi41bGojxFATB0szSUb"
@@ -141,7 +154,7 @@ class Handler(BaseHTTPRequestHandler):
         })
 
     def handle_latest_svg(self):
-        out_dir     = os.path.join(STATIC_DIR, "output")
+        out_dir     = writable_dir()
         full_path   = os.path.join(out_dir, "full.svg")
         latest_path = os.path.join(out_dir, "latest.svg")
         svg_path = full_path if os.path.exists(full_path) else latest_path
@@ -218,7 +231,7 @@ class Handler(BaseHTTPRequestHandler):
         # Write image to temp file
         tmp_dir  = tempfile.mkdtemp()
         img_path = os.path.join(tmp_dir, "input.png")
-        out_dir  = os.path.join(STATIC_DIR, "output")
+        out_dir  = writable_dir()
         os.makedirs(out_dir, exist_ok=True)
 
         try:
@@ -280,18 +293,23 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"error": "Invalid JSON"}, 400)
             return
 
-        out_dir   = os.path.join(STATIC_DIR, "output")
-        full_path = os.path.join(out_dir, "full.svg")
+        out_dir = writable_dir()
 
-        # Prefer full.svg (latest pipeline output); fall back to POSTed SVG
-        if os.path.exists(full_path):
-            with open(full_path, encoding="utf-8") as f:
-                svg = f.read()
-        else:
-            svg = data.get("svg", "")
-            if not svg:
-                self.send_json({"error": "No SVG provided"}, 400)
-                return
+        # Trust the SVG the client sent. This used to prefer output/full.svg
+        # whenever that file existed, which silently discarded whatever the
+        # client posted — so the Refine editor's edited geometry, and any
+        # region other than "full", never reached Figma. The client always
+        # knows which SVG the user is actually looking at; the file on disk
+        # is only ever the last raw full-frame trace.
+        svg = data.get("svg", "")
+        if not svg:
+            full_path = os.path.join(out_dir, "full.svg")
+            if os.path.exists(full_path):
+                with open(full_path, encoding="utf-8") as f:
+                    svg = f.read()
+        if not svg:
+            self.send_json({"error": "No SVG provided"}, 400)
+            return
 
         os.makedirs(out_dir, exist_ok=True)
         with open(os.path.join(out_dir, "latest.svg"), "w", encoding="utf-8") as f:

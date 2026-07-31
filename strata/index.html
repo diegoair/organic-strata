@@ -931,7 +931,10 @@ const cropState = {
 };
 
 const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-const BACKEND_URL = window.ORGANIC_STRATA_BACKEND || (isLocal ? 'http://localhost:5050' : null);
+// Locally the Python server on :5050 does the tracing. Deployed, the same
+// pipeline runs as Vercel Python functions under /api — same endpoints, same
+// response shapes, so nothing downstream has to know which one answered.
+const BACKEND_URL = window.ORGANIC_STRATA_BACKEND || (isLocal ? 'http://localhost:5050' : '/api');
 
 function showBanner(msg) {
   if (msg) document.getElementById('banner-msg').textContent = msg;
@@ -1690,6 +1693,15 @@ document.getElementById('btn-figma').addEventListener('click', async () => {
     return;
   }
   if (!health.figma_token_set) {
+    // The Figma plugin route is shared by every Organica tool and has not
+    // been ported to the deployed backend yet — it still expects to fetch
+    // the SVG from a URL the local server keeps on disk. Rather than a
+    // confusing failure, hand the user the same file by download.
+    if (!isLocal) {
+      downloadString(svg, 'latest.svg', 'image/svg+xml');
+      showBanner('Figma push is local-only for now — SVG downloaded, drag it into Figma');
+      return;
+    }
     showBanner('Add your Figma token to backend/.env then restart the server');
     return;
   }

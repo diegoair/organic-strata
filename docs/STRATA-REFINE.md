@@ -131,4 +131,53 @@ running it, not by reading it; all are fixed.
 
 ---
 
-*Studio Rann · Organica System v0.1 · July 27, 2026*
+---
+
+## 6. Running in production (July 31, 2026)
+
+Strata used to be local-only: `BACKEND_URL` was `null` on any non-localhost
+host, so tracing never worked on the deployed site. The same pipeline now also
+runs as **Vercel Python functions** under `/api`, and the frontend picks
+whichever is there — `http://localhost:5050` locally, `/api` deployed. Same
+endpoints, same response shapes, so nothing downstream knows the difference.
+
+`backend/process.py` stays the **single source of truth** and is shared
+verbatim; `api/*.py` only supply the serverless request plumbing.
+
+### What had to change for a read-only filesystem
+
+| Problem | Fix |
+|---|---|
+| `cv2.imwrite('output/debug_trace_input.png', …)` — an unconditional write to a **relative** path, so it depended on the process's cwd and on that folder existing. Raises on any read-only filesystem. | Only dumps when a writable `output_dir` is actually passed in. |
+| Server wrote into `backend/output/` unconditionally. | All writes go through `writable_dir()`, which honours `STRATA_WORK_DIR` (`/tmp/strata-work` on Vercel, `backend/output/` locally). |
+| `potrace` is an external **binary**, used by the fallback when contour detection finds nothing. It does not exist on a serverless host. | Missing binary is caught and returns a valid empty SVG, so the caller sees "nothing traced" instead of a 500 from a missing executable. |
+| `/trace` wrote SVGs to disk and a later request read them back. Serverless invocations do not share a filesystem. | Every response already carried the SVGs inline; the per-invocation scratch dir is now created under `/tmp` and removed in a `finally`. Verified clean after repeated invocations — Fluid Compute reuses instances, so a leak would accumulate. |
+
+### Bundle size
+
+Measured from the actual x86_64 manylinux wheels: opencv-python-headless
+143 MB, numpy 57 MB, pillow 19 MB, vtracer 3 MB — **222 MB unzipped against
+Vercel's 500 MB limit** for Python functions. `opencv-python-headless`
+replaces `opencv-python` because the GUI/X11 bindings cannot load there
+anyway. `vercel.json` gives the functions 2048 MB memory and a 60 s ceiling.
+
+### Still local-only: the Figma push
+
+`/api/send-to-figma` deliberately does **not** exist. The Figma route works by
+the plugin fetching an SVG from a URL the local server keeps on disk, which
+serverless has nowhere to put. The plugin is shared by every Organica tool, so
+it gets one unified pass rather than a Strata-specific workaround. Until then,
+pressing → Figma on the deployed site downloads the SVG and says so.
+
+### A bug this uncovered
+
+`handle_send_to_figma` preferred `output/full.svg` whenever that file existed,
+and only fell back to the SVG the client posted. So the Refine editor's edited
+geometry — and any region other than "full" — never reached Figma; it silently
+sent the last raw full-frame trace instead. Verified with a marker SVG: the
+POSTed body was discarded. The client now wins, since it is the only side that
+knows which SVG the user is actually looking at.
+
+---
+
+*Studio Rann · Organica System v0.1 · July 31, 2026*

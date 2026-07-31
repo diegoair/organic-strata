@@ -505,8 +505,18 @@ def _fallback_single_trace(binary: np.ndarray, params: dict) -> str:
     out_path = tmp_png.replace(".png", ".svg")
     try:
         Image.fromarray(binary).convert("1").save(pbm_path)
-        subprocess.run(["potrace", "--svg", "-o", out_path, pbm_path],
-                       capture_output=True)
+        try:
+            subprocess.run(["potrace", "--svg", "-o", out_path, pbm_path],
+                           capture_output=True, check=True)
+        except (FileNotFoundError, subprocess.CalledProcessError) as e:
+            # potrace is an external binary and is NOT present on a
+            # serverless host. Returning an empty-but-valid SVG keeps the
+            # response shape intact — the caller gets "nothing was traced"
+            # rather than a 500 from a missing executable.
+            print(f"  potrace unavailable ({e.__class__.__name__}) — returning empty SVG")
+            h, w = binary.shape[:2]
+            return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" '
+                    f'height="{h}" viewBox="0 0 {w} {h}"></svg>')
         with open(out_path) as f:
             return f.read()
     finally:
@@ -573,7 +583,13 @@ def trace_with_vtracer(binary: np.ndarray, params: dict, output_dir: str = None)
     Vectorize enclosed white regions using vtracer (Rust-backed spline tracing).
     Returns a structured SVG with paths classified as primary/secondary/detail.
     """
-    cv2.imwrite('output/debug_trace_input.png', binary)
+    # Debug dump, only when a writable dir was actually passed in. This used
+    # to be an unconditional cv2.imwrite('output/debug_trace_input.png'),
+    # a RELATIVE path that depended on the process's cwd and on that folder
+    # existing — it raises on a read-only filesystem, which is every
+    # serverless host.
+    if output_dir:
+        cv2.imwrite(os.path.join(output_dir, "debug_trace_input.png"), binary)
     try:
         import vtracer
     except ImportError:
