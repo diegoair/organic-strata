@@ -202,31 +202,17 @@ class Handler(BaseHTTPRequestHandler):
         else:
             ui_params = {}
 
-        # Map UI params → pipeline params
+        # Map UI params → pipeline params (Smart/vtracer is the only engine)
         pipeline_params = {
             **DEFAULT_PARAMS,
-            "fidelity":             int(ui_params.get("fidelity", 5)),
-            "denoise":              ui_params.get("denoise", True),
-            "contrast_boost":       float(ui_params.get("contrast", 1.5)),
-            "threshold_block":      int(ui_params.get("block", 35)),
-            "min_area":             int(ui_params.get("area", 80)),
-            "alphamax":             float(ui_params.get("alpha", 1.0)),
-            "opttolerance":         float(ui_params.get("opttol", 0.2)),
-            "turdsize":             int(ui_params.get("turd", 4)),
-            "stroke_width":         float(ui_params.get("stroke", 1.2)),
-            "fill_mode":            ui_params.get("fill", "stroke_only"),
-            "trace_mode":           ui_params.get("trace_mode", "single"),
-            "shape_style":          ui_params.get("shape_style", "B"),
-            "vt_filter_speckle":    int(ui_params.get("vt_filter_speckle", 15)),
-            "vt_corner_threshold":  int(ui_params.get("vt_corner_threshold", 70)),
-            "vt_length_threshold":  float(ui_params.get("vt_length_threshold", 6.0)),
-            "vt_path_precision":    int(ui_params.get("vt_path_precision", 3)),
+            "fidelity":       int(ui_params.get("fidelity", 5)),
+            "denoise":        ui_params.get("denoise", True),
+            "contrast_boost": float(ui_params.get("contrast", 1.5)),
+            "threshold_block": int(ui_params.get("block", 35)),
+            "min_area":       int(ui_params.get("area", 80)),
+            "stroke_width":   float(ui_params.get("stroke", 1.2)),
         }
-
-        split_regions = ui_params.get("split", True)
-        trace_mode  = pipeline_params.get("trace_mode", "single")
-        shape_style = pipeline_params.get("shape_style", "B")
-        print(f"[trace] mode={trace_mode}, style={shape_style}, split={split_regions}")
+        print(f"[trace] fidelity={pipeline_params['fidelity']}")
 
         # Write image to temp file
         tmp_dir  = tempfile.mkdtemp()
@@ -239,7 +225,7 @@ class Handler(BaseHTTPRequestHandler):
                 f.write(img_bytes)
 
             # Run pipeline
-            results = run_pipeline(img_path, out_dir, pipeline_params, split_regions)
+            results = run_pipeline(img_path, out_dir, pipeline_params)
 
             # Read SVGs
             full_svg = ""

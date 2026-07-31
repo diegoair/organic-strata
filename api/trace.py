@@ -50,11 +50,7 @@ class handler(BaseHTTPRequestHandler):
             "threshold_block": int(ui.get("block", 35)),
             "min_area":       int(ui.get("area", 80)),
             "stroke_width":   float(ui.get("stroke", 1.2)),
-            "fill_mode":      ui.get("fill", "stroke_only"),
-            "shape_style":    ui.get("style", "B"),
-            "trace_mode":     ui.get("mode", "smart"),
         }
-        split_regions = ui.get("mode") == "separate"
 
         # Per-invocation scratch dir, removed on the way out. /tmp is the only
         # writable place and it is not shared between invocations, so every
@@ -65,7 +61,7 @@ class handler(BaseHTTPRequestHandler):
             with open(img_path, "wb") as f:
                 f.write(parts["image"]["data"])
 
-            results = run_pipeline(img_path, run_dir, params, split_regions)
+            results = run_pipeline(img_path, run_dir, params)
 
             with open(results["full_svg"], encoding="utf-8") as f:
                 full_svg = f.read()

@@ -132,6 +132,15 @@
     outline: none;
     cursor: pointer;
   }
+  input[type="color"] {
+    width: 100%;
+    height: 28px;
+    padding: 2px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+  }
   .toggle-row {
     display: flex;
     justify-content: space-between;
@@ -379,8 +388,60 @@
     width: 100%;
     height: 100%;
     display: block;
-    cursor: crosshair;
+    /* cursor is owned by organica-paper.js at runtime (arrow by default,
+       hand on spacebar for pan) — no static cursor here to fight with it. */
   }
+  .refine-zoom-controls {
+    position: absolute;
+    right: var(--space-4);
+    bottom: var(--space-4);
+    display: flex;
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    z-index: 4;
+  }
+  #shape-labels-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .shape-label-pill {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--font);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    pointer-events: auto;
+    cursor: pointer;
+    user-select: none;
+  }
+  .shape-label-pill:hover { background: #333; }
+  .shape-label-pill.selected { background: var(--tool); }
+  .refine-zoom-controls button {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--paper);
+    border: none;
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .refine-zoom-controls button:hover { background: var(--surface); }
   .output-view-toggle {
     display: flex;
     gap: var(--space-1);
@@ -401,29 +462,6 @@
     border-color: var(--ink);
   }
   #refine-section.hidden { display: none; }
-
-  /* Region tabs */
-  .region-tabs {
-    display: flex;
-    gap: 0;
-    border-bottom: 1px solid var(--line);
-    overflow-x: auto;
-    padding: 0 16px;
-    background: var(--surface);
-  }
-  .region-tab {
-    font-family: var(--font);
-    font-size: var(--fs-small);
-    padding: var(--space-3) var(--space-5);
-    border: none;
-    border-bottom: 2px solid transparent;
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-    white-space: nowrap;
-    margin-bottom: -1px;
-  }
-  .region-tab.active { color: var(--ink); border-bottom-color: var(--ink); }
 
   /* Processing overlay */
   .processing {
@@ -449,90 +487,6 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* #shape-style-row's own box styling lives further down, next to
-     .shape-style-label — this rule only names the label inside it. */
-  #shape-style-row .param-name {
-    font-size: var(--fs-base);
-    color: var(--muted);
-    margin-bottom: var(--space-2);
-    display: block;
-  }
-
-  /* Trace mode segmented toggle */
-  .seg-toggle {
-    display: flex;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    margin-top: var(--space-1);
-  }
-  .seg-toggle input { display: none; }
-  .seg-toggle label {
-    flex: 1;
-    text-align: center;
-    font-family: var(--font);
-    font-size: var(--fs-small);
-    padding: var(--space-2) var(--space-1);
-    cursor: pointer;
-    color: var(--muted);
-    background: var(--surface);
-    border-right: 1px solid var(--line);
-    transition: all 0.15s;
-    user-select: none;
-  }
-  .seg-toggle label:last-of-type { border-right: none; }
-  .seg-toggle input:checked + label {
-    background: var(--ink);
-    color: var(--paper);
-  }
-  .seg-toggle label.label-smart { color: #2d9e6b; }
-  .seg-toggle input:checked + label.label-smart {
-    background: #2d9e6b;
-    color: #fff;
-  }
-
-  /* Grammar tags */
-  .grammar-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1);
-    margin-top: var(--space-2);
-  }
-  .gtag {
-    font-family: var(--font);
-    font-size: var(--fs-micro);
-    padding: var(--space-1) var(--space-2);
-    border-radius: var(--radius-sm);
-    background: var(--tag-bg);
-    color: var(--muted);
-    letter-spacing: 0.04em;
-  }
-
-  /* ── METHOD PILLS ── */
-  .method-pills { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-1); }
-  .method-pills input { display: none; }
-  .method-pill {
-    flex: 1 1 auto;
-    text-align: center;
-    font-family: var(--font);
-    font-size: var(--fs-base);
-    padding: var(--space-2) var(--space-3);
-    border-radius: 20px;
-    border: 1px solid var(--line);
-    cursor: pointer;
-    color: var(--muted);
-    background: var(--surface);
-    transition: all 0.15s;
-    user-select: none;
-  }
-  .method-pill.smart { color: #2d9e6b; border-color: rgba(45,158,107,0.35); }
-  .method-pills input:checked + .method-pill {
-    background: var(--ink); color: var(--paper); border-color: var(--ink);
-  }
-  .method-pills input:checked + .method-pill.smart {
-    background: #2d9e6b; color: #fff; border-color: #2d9e6b;
-  }
-
   /* ── SLIDER EXTREMES ── */
   .slider-extremes {
     display: flex;
@@ -542,22 +496,6 @@
     color: var(--muted);
     margin-top: var(--space-1);
     letter-spacing: 0.03em;
-  }
-
-  /* ── SHAPE STYLE SUB-PANEL ── */
-  #shape-style-row {
-    margin-top: var(--space-4);
-    padding: var(--space-3) var(--space-4);
-    background: var(--surface);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--line);
-  }
-  .shape-style-label {
-    font-family: var(--font);
-    font-size: var(--fs-micro);
-    letter-spacing: 0.1em;
-    color: var(--muted);
-    margin-bottom: var(--space-2);
   }
 
   /* ── ADVANCED COLLAPSIBLE ── */
@@ -661,7 +599,6 @@
     <div class="org-popover" id="export-popover" aria-label="Export options">
       <div class="org-popover__title">Ready to export</div>
       <button class="org-btn org-btn--block mb-2" id="btn-dl-svg">&darr; Download SVG</button>
-      <button class="org-btn org-btn--block mb-2" id="btn-dl-all">&darr; All regions (.zip)</button>
       <button class="org-btn org-btn--block" id="btn-copy-svg">Copy SVG code</button>
       <div class="org-popover__divider"></div>
       <span class="org-out" id="export-info"></span>
@@ -677,32 +614,6 @@
 
 <!-- SIDEBAR -->
 <aside>
-
-  <!-- SECTION 1 — TRACE METHOD -->
-  <div>
-    <div class="section-label">Trace method</div>
-    <div class="method-pills">
-      <input type="radio" name="p-trace-mode" id="p-mode-vtracer"    value="vtracer"    checked>
-      <label for="p-mode-vtracer"    class="method-pill smart">Smart ✦</label>
-      <input type="radio" name="p-trace-mode" id="p-mode-single"     value="single">
-      <label for="p-mode-single"     class="method-pill">Single</label>
-      <input type="radio" name="p-trace-mode" id="p-mode-separate"   value="separate">
-      <label for="p-mode-separate"   class="method-pill">Separate</label>
-      <input type="radio" name="p-trace-mode" id="p-mode-simplified" value="simplified">
-      <label for="p-mode-simplified" class="method-pill">Simplified</label>
-    </div>
-    <div id="shape-style-row">
-      <div class="shape-style-label">Shape style</div>
-      <div class="method-pills">
-        <input type="radio" name="p-shape-style" id="p-style-a" value="A">
-        <label for="p-style-a" class="method-pill">A — Organic</label>
-        <input type="radio" name="p-shape-style" id="p-style-b" value="B" checked>
-        <label for="p-style-b" class="method-pill">B — Balanced</label>
-        <input type="radio" name="p-shape-style" id="p-style-c" value="C">
-        <label for="p-style-c" class="method-pill">C — Geometric</label>
-      </div>
-    </div>
-  </div>
 
   <!-- SECTION 2 — NODE DENSITY -->
   <div>
@@ -744,14 +655,6 @@
     </div>
 
     <div class="param-row">
-      <div class="param-header"><span class="param-name">Fill mode</span></div>
-      <select id="p-fill">
-        <option value="stroke_only">stroke only</option>
-        <option value="filled">filled</option>
-      </select>
-    </div>
-
-    <div class="param-row">
       <div class="param-header">
         <span class="param-name">Min shape size</span>
         <span class="param-val" id="v-area">80</span>
@@ -769,16 +672,20 @@
     </p>
     <div class="preset-grid" style="margin-bottom:var(--space-4)">
       <button type="button" class="preset-btn" id="btn-paper-smooth">Smooth</button>
-      <button type="button" class="preset-btn" id="btn-paper-simplify">Simplify</button>
       <button type="button" class="preset-btn" id="btn-paper-unite">Unite all</button>
       <button type="button" class="preset-btn" id="btn-paper-reset">Reset trace</button>
     </div>
     <div class="param-row">
       <div class="param-header">
-        <span class="param-name">Simplify tolerance</span>
+        <span class="param-name">Simplify — <span id="simplify-scope-label" style="color:var(--muted)">all shapes</span></span>
         <span class="param-val" id="v-paper-simplify">2.5</span>
       </div>
+      <!-- Live, Figma-style: moves the slider, the path updates immediately —
+           no separate Apply step. Always re-derived from each shape's
+           original geometry, so dragging back down recovers detail instead
+           of only ever being able to simplify further. -->
       <input type="range" id="p-paper-simplify" min="0.5" max="8" step="0.5" value="2.5">
+      <div class="slider-extremes"><span>Detailed</span><span>Simple</span></div>
     </div>
     <div class="toggle-row">
       <span class="toggle-name">Show sketch underlay</span>
@@ -787,6 +694,38 @@
         <span class="toggle-slider"></span>
       </label>
     </div>
+    <div class="toggle-row">
+      <span class="toggle-name">Show shape labels</span>
+      <label class="toggle">
+        <input type="checkbox" id="p-paper-labels">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- SECTION — SHAPE STYLE (shown when a Shape_X pill/anchor is selected) -->
+  <div id="shape-style-panel" class="hidden">
+    <div class="section-label">
+      <span id="shape-style-label">Shape</span>
+    </div>
+    <div class="param-row">
+      <div class="param-header"><span class="param-name">Fill</span></div>
+      <button type="button" class="color-swatch" id="swatch-shape-fill" style="background:#ffffff" onclick="document.getElementById('p-shape-fill').click()" title="Fill colour"></button>
+      <input type="color" id="p-shape-fill" value="#ffffff" style="position:absolute">
+    </div>
+    <div class="param-row">
+      <div class="param-header"><span class="param-name">Border color</span></div>
+      <button type="button" class="color-swatch" id="swatch-shape-stroke" style="background:#1a1a1a" onclick="document.getElementById('p-shape-stroke').click()" title="Border colour"></button>
+      <input type="color" id="p-shape-stroke" value="#1a1a1a" style="position:absolute">
+    </div>
+    <div class="param-row">
+      <div class="param-header">
+        <span class="param-name">Border width</span>
+        <span class="param-val" id="v-shape-stroke-width">1.2</span>
+      </div>
+      <input type="range" id="p-shape-stroke-width" min="0" max="60" step="0.5" value="1.2">
+    </div>
+    <button type="button" class="preset-btn" id="btn-shape-delete" style="width:100%;color:#b91c1c" disabled>Delete shape</button>
   </div>
 
   <!-- SECTION 5 — ADVANCED (collapsible) -->
@@ -811,22 +750,6 @@
         </label>
       </div>
 
-      <div class="toggle-row">
-        <span class="toggle-name">Split regions</span>
-        <label class="toggle">
-          <input type="checkbox" id="p-split" checked>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-
-      <div class="param-row mt-4">
-        <div class="param-header"><span class="param-name">Region detection</span></div>
-        <div class="method-pills mt-1">
-          <input type="radio" name="p-trace-mode" id="p-mode-regions" value="regions">
-          <label for="p-mode-regions" class="method-pill">Regions (CV)</label>
-        </div>
-      </div>
-
     </div>
   </div>
 
@@ -834,9 +757,7 @@
 
 <!-- MAIN -->
 <main>
-  <div class="toolbar">
-    <span id="info-regions" style="color:var(--muted)"></span>
-  </div>
+  <div class="toolbar"></div>
 
   <div class="canvas-area" id="canvas-area">
 
@@ -866,7 +787,6 @@
 
     <!-- Stage 3: Preview (hidden until traced) -->
     <div id="preview-area" class="hidden" style="width:100%;flex:1;display:flex;flex-direction:column;">
-      <div class="region-tabs" id="region-tabs"></div>
       <div class="preview-grid">
         <div class="preview-panel">
           <div class="panel-label">Source <span id="src-dims"></span></div>
@@ -876,15 +796,20 @@
           <div class="panel-label">
             <span>Vector output</span>
             <div class="output-view-toggle" role="group" aria-label="Output view">
-              <button type="button" class="output-view-btn active" id="btn-view-preview">Preview</button>
-              <button type="button" class="output-view-btn" id="btn-view-refine">Refine</button>
+              <button type="button" class="output-view-btn active" id="btn-view-refine">Refine</button>
+              <button type="button" class="output-view-btn" id="btn-view-preview">Preview</button>
             </div>
             <span id="svg-info" style="font-size:var(--fs-micro);color:var(--muted)"></span>
           </div>
           <div class="panel-body" id="svg-preview-body">
-            <div id="svg-embed"></div>
-            <div id="paper-editor-wrap" class="hidden" hidden>
+            <div id="svg-embed" class="hidden" hidden></div>
+            <div id="paper-editor-wrap">
               <canvas id="paper-canvas"></canvas>
+              <div id="shape-labels-overlay"></div>
+              <div class="refine-zoom-controls" role="group" aria-label="Zoom">
+                <button type="button" id="btn-zoom-out" aria-label="Zoom out">&minus;</button>
+                <button type="button" id="btn-zoom-in" aria-label="Zoom in">&plus;</button>
+              </div>
             </div>
           </div>
         </div>
@@ -911,13 +836,11 @@ const state = {
   imageFile: null,
   imageURL: null,
   originalImg: null,   // HTMLImageElement
-  svgData: null,       // current SVG string (raw trace)
-  regions: [],         // [{label, svgData}]
-  currentRegion: 'full',
+  svgData: null,       // current SVG string (trace, auto-simplified)
   sketchPreviewUrl: null,  // PNG data URL of the traced crop — always from image
   paperEditor: null,
   paperDirty: false,
-  outputView: 'preview',   // 'preview' | 'refine'
+  outputView: 'refine',   // 'preview' | 'refine' — Refine is the default view
 };
 
 // Crop interaction state (separate from trace state)
@@ -952,43 +875,6 @@ function showStage(name) {
   document.getElementById('status-text').textContent = labels[name] || '';
 }
 
-// ── PRESETS ────────────────────────────────────────────────────────────────
-const PRESETS = {
-  sketch:     { contrast: 1.3, block: 25, area: 30,  fidelity: 9, fill: 'stroke_only' },
-  balanced:   { contrast: 1.5, block: 35, area: 60,  fidelity: 5, fill: 'stroke_only' },
-  clean:      { contrast: 1.8, block: 45, area: 100, fidelity: 3, fill: 'stroke_only' },
-  geometric:  { contrast: 2.0, block: 55, area: 200, fidelity: 1, fill: 'stroke_only' },
-};
-
-// ── FIDELITY → POTRACE PARAMS ─────────────────────────────────────────────
-const FIDELITY_BREAKPOINTS = [
-  { f: 1,  alpha: 0.00, opttol: 1.00, turd: 50 },
-  { f: 3,  alpha: 0.50, opttol: 0.60, turd: 20 },
-  { f: 5,  alpha: 1.00, opttol: 0.20, turd: 8  },
-  { f: 7,  alpha: 1.20, opttol: 0.10, turd: 4  },
-  { f: 10, alpha: 1.33, opttol: 0.05, turd: 1  },
-];
-
-function mapFidelity(f) {
-  const bps = FIDELITY_BREAKPOINTS;
-  if (f <= bps[0].f) return { alpha: bps[0].alpha, opttol: bps[0].opttol, turd: bps[0].turd };
-  if (f >= bps[bps.length-1].f) {
-    const last = bps[bps.length-1];
-    return { alpha: last.alpha, opttol: last.opttol, turd: last.turd };
-  }
-  for (let i = 0; i < bps.length - 1; i++) {
-    if (f >= bps[i].f && f <= bps[i+1].f) {
-      const t = (f - bps[i].f) / (bps[i+1].f - bps[i].f);
-      return {
-        alpha:  bps[i].alpha  + t * (bps[i+1].alpha  - bps[i].alpha),
-        opttol: bps[i].opttol + t * (bps[i+1].opttol - bps[i].opttol),
-        turd:   Math.round(bps[i].turd + t * (bps[i+1].turd - bps[i].turd)),
-      };
-    }
-  }
-  return { alpha: 1.0, opttol: 0.2, turd: 8 };
-}
-
 function fidelityLabel(f) {
   if (f <= 1)  return '1 — Clean';
   if (f >= 10) return '10 — Raw';
@@ -998,36 +884,16 @@ function fidelityLabel(f) {
 
 // ── PARAM HELPERS ──────────────────────────────────────────────────────────
 function getParams() {
-  const fidelity = parseInt(document.getElementById('p-fidelity')?.value ?? 5);
-  const { alpha, opttol, turd } = mapFidelity(fidelity);
   const p = {
-    fidelity,
+    fidelity:   parseInt(document.getElementById('p-fidelity')?.value ?? 5),
     denoise:    document.getElementById('p-denoise')?.checked ?? true,
     contrast:   parseFloat(document.getElementById('p-contrast')?.value ?? 1.5),
     block:      parseInt(document.getElementById('p-block')?.value ?? 35),
     area:       parseInt(document.getElementById('p-area')?.value ?? 80),
-    alpha, opttol, turd,
     stroke:     parseFloat(document.getElementById('p-stroke')?.value ?? 1.2),
-    fill:        document.getElementById('p-fill')?.value ?? 'stroke_only',
-    split:       document.getElementById('p-split')?.checked ?? true,
-    trace_mode:  document.querySelector('input[name="p-trace-mode"]:checked')?.value ?? 'vtracer',
-    shape_style: document.querySelector('input[name="p-shape-style"]:checked')?.value ?? 'B',
   };
   console.log('[OS] params:', JSON.stringify(p));
   return p;
-}
-
-function applyPreset(name) {
-  const p = PRESETS[name];
-  if (!p) return;
-  document.getElementById('p-contrast').value = p.contrast;
-  document.getElementById('p-block').value    = p.block;
-  document.getElementById('p-area').value     = p.area;
-  document.getElementById('p-fidelity').value = p.fidelity;
-  document.getElementById('p-fill').value     = p.fill;
-  updateAllLabels();
-  document.querySelectorAll('.preset-btn').forEach(b =>
-    b.classList.toggle('active', b.dataset.preset === name));
 }
 
 function updateAllLabels() {
@@ -1044,9 +910,17 @@ function updateAllLabels() {
 
 // ── NODE COUNT ─────────────────────────────────────────────────────────────
 function countNodes(svgString) {
-  const cCount    = (svgString.match(/\bC\b/g) || []).length;
-  const lCount    = (svgString.match(/\bL\b/g) || []).length;
-  const pathCount = (svgString.match(/<path/g)  || []).length;
+  // Scoped to d="..." values, case-insensitive: the raw backend trace uses
+  // spaced uppercase commands ("M x,y C x,y ..."), but Paper.js's exported
+  // paths (post auto-simplify) use unspaced lowercase relative commands
+  // ("M0,0c392.47,-684.8 ...") — matching only uppercase left this at 0.
+  const dAttrs = svgString.match(/\sd="[^"]*"/g) || [];
+  let cCount = 0, lCount = 0;
+  dAttrs.forEach(attr => {
+    cCount += (attr.match(/[Cc]/g) || []).length;
+    lCount += (attr.match(/[Ll]/g) || []).length;
+  });
+  const pathCount = (svgString.match(/<path/g) || []).length;
   return { paths: pathCount, nodes: cCount + lCount, curves: cCount, lines: lCount };
 }
 
@@ -1062,67 +936,6 @@ function countLayers(svgStr) {
     else if (cls === 'detail')    counts.detail++;
   });
   return counts;
-}
-
-// ── BROWSER PREPROCESSING (binary preview only) ────────────────────────────
-// Accepts HTMLImageElement or HTMLCanvasElement as src.
-function preprocessInBrowser(src, params) {
-  const canvas = document.createElement('canvas');
-  const maxDim = 1200;
-  let w = src.naturalWidth  || src.width;
-  let h = src.naturalHeight || src.height;
-  if (w > maxDim || h > maxDim) {
-    const scale = maxDim / Math.max(w, h);
-    w = Math.round(w * scale); h = Math.round(h * scale);
-  }
-  canvas.width = w; canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(src, 0, 0, w, h);
-
-  const imageData = ctx.getImageData(0, 0, w, h);
-  const data = imageData.data;
-
-  // Grayscale + contrast boost
-  const boost = params.contrast;
-  for (let i = 0; i < data.length; i += 4) {
-    let g = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-    g = Math.min(255, g * boost);
-    data[i] = data[i+1] = data[i+2] = g;
-  }
-
-  // Simple adaptive threshold approximation (for preview only)
-  const bCanvas = document.createElement('canvas');
-  bCanvas.width = w; bCanvas.height = h;
-  const bCtx = bCanvas.getContext('2d');
-  bCtx.putImageData(imageData, 0, 0);
-
-  const src2 = bCtx.getImageData(0, 0, w, h);
-  const dst = bCtx.createImageData(w, h);
-  const blockH = Math.round(params.block);
-  const C = 8;
-
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const idx = (y * w + x) * 4;
-      const g = src2.data[idx];
-      let sum = 0, count = 0;
-      const bh = Math.floor(blockH / 2);
-      for (let dy = -bh; dy <= bh; dy += 4) {
-        for (let dx = -bh; dx <= bh; dx += 4) {
-          const nx = x + dx, ny = y + dy;
-          if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-            sum += src2.data[(ny * w + nx) * 4]; count++;
-          }
-        }
-      }
-      const mean = sum / count;
-      const val = g < mean - C ? 0 : 255;
-      dst.data[idx] = dst.data[idx+1] = dst.data[idx+2] = val;
-      dst.data[idx+3] = 255;
-    }
-  }
-  bCtx.putImageData(dst, 0, 0);
-  return bCanvas;
 }
 
 // ── STEP 1: LOAD IMAGE → CROP STAGE ───────────────────────────────────────
@@ -1293,21 +1106,50 @@ async function traceSelection() {
   // Send raw crop PNG to backend for tracing
   await generateSVGOutput(offscreen, params);
 
+  // Traced shapes are meant to end up as few-node bezier curves, not a
+  // pixel-faithful polyline — vtracer's own spline fit alone leaves far more
+  // nodes than the shapes need (measured ~100 nodes/shape on a real sketch).
+  // Paper.js's simplify() (Refine's "Simplify" button) already fits clean
+  // low-node curves; running it once automatically here means every trace
+  // starts simplified instead of requiring a manual step. Tolerance 4 cut
+  // node count ~68% with no visible shape loss in testing; the slider in
+  // Refine is still there to override per-sketch.
+  if (state.svgData) {
+    try {
+      await initPaperEditor();
+      state.paperEditor.simplifyAll(4);
+      // Bake the simplified geometry in as the trace itself (still
+      // fill="none" — that only becomes white at export time, see
+      // getExportSvg). Without this, reopening Refine reloads the raw
+      // pre-simplify SVG from state.svgData and silently discards the
+      // simplification the moment you look at it.
+      state.svgData = state.paperEditor.exportSvg();
+      renderSVGPreview(state.svgData);
+    } catch (err) {
+      console.error('[Strata] auto-simplify failed:', err);
+    }
+  }
+
   setProcessing(false);
   showStage('preview');
+  // The Refine canvas initializes (inside the auto-simplify block above)
+  // while #preview-area is still hidden — 0×0 layout — so its first
+  // fitToView() correctly bails out (rect too small) but nothing re-fits it
+  // afterward: paper.js is left at the browser's bare <canvas> default,
+  // 300×150. CSS then stretches that backing store to fill the real panel,
+  // so everything paper.js draws (traced paths, hit-testing, the sketch
+  // underlay) is off relative to what's actually on screen — the paths read
+  // as "shifted," and clicks land on the wrong shape or nothing. Now that
+  // the container is guaranteed visible, force one more fit.
+  requestAnimationFrame(() => state.paperEditor?.fitToView());
 
-  // Update status bar with layer + node counts
+  // Update status bar with shape + node counts
   if (state.svgData) {
-    const c    = countLayers(state.svgData);
-    const nc   = countNodes(state.svgData);
-    const mode = getParams().trace_mode;
-    const isRegions = mode === 'regions';
-    const isVtracer = mode === 'vtracer';
-    const prefix = isRegions ? 'Regions detected' : isVtracer ? 'Smart trace' : 'Sketch processed';
-    let txt = `${prefix} · ${c.total} shape${c.total !== 1 ? 's' : ''}`;
+    const c  = countLayers(state.svgData);
+    const nc = countNodes(state.svgData);
+    let txt = `Smart trace · ${c.total} shape${c.total !== 1 ? 's' : ''}`;
     if (c.primary + c.secondary + c.detail > 0) {
       txt += ` · ${c.primary}p / ${c.secondary}s / ${c.detail}d`;
-      if (isRegions) txt += ` · [${getParams().shape_style}]`;
     }
     if (nc.nodes > 0 && c.total > 0) {
       const perShape = Math.round(nc.nodes / c.total);
@@ -1342,9 +1184,7 @@ async function generateSVGOutput(imageCanvas, params) {
       const result = await resp.json();
       if (result.svg) {
         state.svgData = result.svg;
-        state.regions = result.regions || [];
         renderSVGPreview(state.svgData);
-        buildRegionTabs(state.regions);
         return;
       }
       showServerGuidance(result.error || 'Server returned empty SVG');
@@ -1404,17 +1244,15 @@ function showServerGuidance(errMsg) {
   document.getElementById('btn-figma').disabled = true;
 }
 
-function currentSvgForRegion() {
-  if (state.currentRegion === 'full') return state.svgData;
-  const region = state.regions.find(r => r.label === state.currentRegion);
-  return region?.svgData || state.svgData;
-}
-
 function getExportSvg() {
-  if (state.paperDirty && state.paperEditor) {
-    return state.paperEditor.exportSvg();
-  }
-  return currentSvgForRegion();
+  const svg = state.paperDirty && state.paperEditor
+    ? state.paperEditor.exportSvg()
+    : state.svgData;
+  // The trace itself uses fill="none" (transparent) so overlapping shapes
+  // stay easy to see and edit in Refine. The exported file is meant to be a
+  // real closed shape — white fill, black stroke — so a layer placed over
+  // other art actually covers it instead of leaving gaps showing through.
+  return svg ? svg.replace(/fill="none"/g, 'fill="#ffffff"') : svg;
 }
 
 function setOutputView(mode) {
@@ -1439,7 +1277,7 @@ function setOutputView(mode) {
 }
 
 async function initPaperEditor() {
-  const svgStr = currentSvgForRegion();
+  const svgStr = state.svgData;
   if (!svgStr) return;
 
   const canvas = document.getElementById('paper-canvas');
@@ -1450,7 +1288,10 @@ async function initPaperEditor() {
       onChange() {
         state.paperDirty = true;
         refreshExportInfo();
-      }
+        renderShapeLabels();
+      },
+      onSelectionChange(style) { showShapeStyle(style); },
+      onViewChange() { renderShapeLabels(); },
     });
   }
 
@@ -1458,6 +1299,68 @@ async function initPaperEditor() {
   await state.paperEditor.load(svgStr, state.sketchPreviewUrl);
   state.paperEditor.setSketchVisible(document.getElementById('p-paper-sketch').checked);
   state.paperDirty = false;
+  showShapeStyle(null);
+  renderShapeLabels();
+  scaleShapeStrokeWidthRange();
+}
+
+// SVG stroke-width lives in the same units as the viewBox — thousands of
+// units for a full-photo trace — so a fixed 0-8 range read as "stuck on
+// hairline" no matter the value: 8 units on a ~2268-wide image is under a
+// screen pixel at fit-to-view zoom. Scale the slider to the loaded image's
+// own size instead; 3% of the shorter viewBox side reads as a genuinely
+// bold border at default zoom, on a crop of any size.
+function scaleShapeStrokeWidthRange() {
+  if (!state.svgData) return;
+  const vb = Organica.parseSvgViewBox(state.svgData);
+  const shortSide = Math.min(vb.width, vb.height);
+  const max = Math.max(8, Math.round(shortSide * 0.03));
+  const el = document.getElementById('p-shape-stroke-width');
+  el.max = max;
+  el.step = max > 20 ? 1 : 0.5;
+}
+
+// ── SHAPE LABELS (optional Shape_N pill overlay) ───────────────────────────
+function renderShapeLabels() {
+  const overlay = document.getElementById('shape-labels-overlay');
+  const show = document.getElementById('p-paper-labels').checked;
+  if (!show || !state.paperEditor) {
+    overlay.innerHTML = '';
+    return;
+  }
+  const markers = state.paperEditor.getShapeMarkers();
+  overlay.innerHTML = markers.map(m =>
+    `<button type="button" class="shape-label-pill${m.selected ? ' selected' : ''}" ` +
+    `style="left:${m.x}px;top:${m.y}px" data-label="${m.label}">${m.label}</button>`
+  ).join('');
+  overlay.querySelectorAll('.shape-label-pill').forEach(pill => {
+    pill.addEventListener('click', () => state.paperEditor?.selectShape(pill.dataset.label));
+  });
+}
+
+// ── SHAPE STYLE (fill + border colour/width — selected shape, or every
+// shape when nothing is selected) ──────────────────────────────────────────
+function showShapeStyle(style) {
+  const panel = document.getElementById('shape-style-panel');
+  const scopeLabel = document.getElementById('simplify-scope-label');
+  if (!state.svgData) {
+    panel.classList.add('hidden');
+    return;
+  }
+  panel.classList.remove('hidden');
+  document.getElementById('shape-style-label').textContent = style ? style.label : 'All shapes';
+  scopeLabel.textContent = style ? style.label.toLowerCase().replace('_', ' ') : 'all shapes';
+  const fillHex = (style && style.fill) || '#ffffff';
+  const strokeHex = (style && style.stroke) || '#1a1a1a';
+  document.getElementById('p-shape-fill').value = fillHex;
+  document.getElementById('swatch-shape-fill').style.background = fillHex;
+  document.getElementById('p-shape-stroke').value = strokeHex;
+  document.getElementById('swatch-shape-stroke').style.background = strokeHex;
+  const sw = (style && style.strokeWidth) || 1.2;
+  document.getElementById('p-shape-stroke-width').value = sw;
+  document.getElementById('v-shape-stroke-width').textContent = sw;
+  document.getElementById('btn-shape-delete').disabled = !style;   // only a single selected shape can be deleted
+  renderShapeLabels();   // reflect the newly-selected pill's highlight
 }
 
 function refreshExportInfo() {
@@ -1503,33 +1406,6 @@ function renderSVGPreview(svgStr) {
   refreshExportInfo();
 }
 
-function buildRegionTabs(regions) {
-  const tabs = document.getElementById('region-tabs');
-  tabs.innerHTML = '';
-
-  const all = [{ label: 'full' }, ...regions];
-  all.forEach((r, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'region-tab' + (i === 0 ? ' active' : '');
-    btn.textContent = r.label;
-    btn.onclick = () => {
-      document.querySelectorAll('.region-tab').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.currentRegion = r.label;
-      state.paperDirty = false;
-      const svg = r.label === 'full' ? state.svgData : r.svgData;
-      if (svg) renderSVGPreview(svg);
-      if (state.outputView === 'refine') {
-        initPaperEditor().catch(err => console.error('[Strata] Paper editor failed:', err));
-      }
-    };
-    tabs.appendChild(btn);
-  });
-
-  document.getElementById('info-regions').textContent =
-    regions.length > 0 ? `${regions.length} regions` : '';
-}
-
 // ── UI HELPERS ─────────────────────────────────────────────────────────────
 function setProcessing(show, msg) {
   const el = document.getElementById('processing');
@@ -1565,15 +1441,6 @@ document.getElementById('p-fidelity').addEventListener('input', () => {
   document.getElementById('v-fidelity').textContent = fidelityLabel(f);
 });
 
-// Show shape-style sub-panel only for Smart (vtracer) mode
-document.querySelectorAll('input[name="p-trace-mode"]').forEach(el => {
-  el.addEventListener('change', () => {
-    const isSmart = document.getElementById('p-mode-vtracer').checked;
-    document.getElementById('shape-style-row')
-      .classList.toggle('hidden', !isSmart);
-  });
-});
-
 // Advanced collapsible
 document.getElementById('btn-advanced').addEventListener('click', () => {
   const body = document.getElementById('advanced-body');
@@ -1582,18 +1449,21 @@ document.getElementById('btn-advanced').addEventListener('click', () => {
   btn.textContent = open ? 'Advanced ▾' : 'Advanced ▴';
 });
 
-// Re-trace when any param changes and a crop selection exists
+// Re-trace only for controls the BACKEND actually reads (getParams()'s
+// fidelity/contrast/stroke/area/block/denoise). This used to be every
+// range/select/checkbox/radio on the page — a blanket selector that looked
+// safe until Refine grew its own controls (sketch underlay, shape labels,
+// per-shape fill/stroke/width, simplify tolerance): none of those touch the
+// backend, but the generic listener re-ran the whole trace on every one of
+// them anyway, discarding in-progress edits each time.
+const RETRACE_IDS = new Set(['p-fidelity', 'p-contrast', 'p-stroke', 'p-area', 'p-block', 'p-denoise']);
 document.querySelectorAll(
   'input[type=range], select, input[type=checkbox], input[type=radio]'
 ).forEach(el => {
+  if (!RETRACE_IDS.has(el.id)) return;
   el.addEventListener('change', () => {
     if (cropState.rect && cropState.img) traceSelection();
   });
-});
-
-// Presets
-document.querySelectorAll('.preset-btn').forEach(btn => {
-  btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
 });
 
 // Export
@@ -1611,10 +1481,6 @@ document.getElementById('btn-view-refine').addEventListener('click', () => setOu
 document.getElementById('btn-paper-smooth').addEventListener('click', () => {
   state.paperEditor?.smoothAll();
 });
-document.getElementById('btn-paper-simplify').addEventListener('click', () => {
-  const tol = parseFloat(document.getElementById('p-paper-simplify').value);
-  state.paperEditor?.simplifyAll(tol);
-});
 document.getElementById('btn-paper-unite').addEventListener('click', () => {
   state.paperEditor?.uniteAll();
 });
@@ -1628,8 +1494,31 @@ document.getElementById('btn-paper-reset').addEventListener('click', () => {
 document.getElementById('p-paper-sketch').addEventListener('change', e => {
   state.paperEditor?.setSketchVisible(e.target.checked);
 });
+document.getElementById('p-paper-labels').addEventListener('change', renderShapeLabels);
+document.getElementById('p-shape-fill').addEventListener('input', e => {
+  document.getElementById('swatch-shape-fill').style.background = e.target.value;
+  state.paperEditor?.setSelectedShapeStyle({ fill: e.target.value });
+});
+document.getElementById('p-shape-stroke').addEventListener('input', e => {
+  document.getElementById('swatch-shape-stroke').style.background = e.target.value;
+  state.paperEditor?.setSelectedShapeStyle({ stroke: e.target.value });
+});
+document.getElementById('p-shape-stroke-width').addEventListener('input', e => {
+  document.getElementById('v-shape-stroke-width').textContent = e.target.value;
+  state.paperEditor?.setSelectedShapeStyle({ strokeWidth: e.target.value });
+});
+document.getElementById('btn-shape-delete').addEventListener('click', () => {
+  state.paperEditor?.deleteSelected();
+});
+document.getElementById('btn-zoom-in').addEventListener('click', () => {
+  state.paperEditor?.zoomIn();
+});
+document.getElementById('btn-zoom-out').addEventListener('click', () => {
+  state.paperEditor?.zoomOut();
+});
 document.getElementById('p-paper-simplify').addEventListener('input', e => {
   document.getElementById('v-paper-simplify').textContent = e.target.value;
+  state.paperEditor?.simplifyLive(parseFloat(e.target.value));
 });
 
 document.getElementById('btn-dl-svg').addEventListener('click', () => {
@@ -1651,15 +1540,16 @@ document.getElementById('btn-copy-svg').addEventListener('click', () => {
 document.getElementById('btn-reset').addEventListener('click', () => {
   state.imageFile = null;
   state.svgData = null;
-  state.regions = [];
   state.sketchPreviewUrl = null;
   state.paperDirty = false;
   if (state.paperEditor) {
     state.paperEditor.destroy();
     state.paperEditor = null;
   }
-  setOutputView('preview');
+  setOutputView('refine');
   document.getElementById('refine-section').classList.add('hidden');
+  document.getElementById('shape-labels-overlay').innerHTML = '';
+  showShapeStyle(null);
   cropState.img = null;
   cropState.rect = null;
   cropState.live = null;
@@ -1667,8 +1557,6 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   document.getElementById('btn-export').disabled = true;
   document.getElementById('btn-figma').disabled = true;
   document.getElementById('file-input').value = '';
-  document.getElementById('region-tabs').innerHTML = '';
-  document.getElementById('info-regions').textContent = '';
   document.getElementById('svg-embed').innerHTML = '';
   document.getElementById('crop-dims').textContent = '';
   showStage('drop');
@@ -1706,13 +1594,12 @@ document.getElementById('btn-figma').addEventListener('click', async () => {
     return;
   }
 
-  const activePreset = document.querySelector('.preset-btn.active')?.dataset.preset ?? 'balanced';
   let result;
   try {
     const resp = await fetch(BACKEND_URL + '/send-to-figma', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ svg: svg, preset: activePreset })
+      body: JSON.stringify({ svg: svg })
     });
     result = await resp.json();
   } catch (e) {

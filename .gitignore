@@ -21,6 +21,7 @@ dist/
 # enforced rather than relying on remembering.
 komorebi/reference-photos/
 halide/test-photos/
+strata/test-photos/
 
 # Local backend scratch output
 backend/output/
