@@ -2,3 +2,9 @@ opencv-python
 numpy
 Pillow
 python-dotenv
+
+# Rust-backed spline tracer used by process.py:trace_with_vtracer().
+# It was missing here while the code imported it, so a fresh clone installed
+# everything EXCEPT vtracer, the import failed, and the tracer fell back to
+# potrace silently — same tool, different output quality, no error shown.
+vtracer

@@ -1361,9 +1361,13 @@ function showServerGuidance(errMsg) {
   const errBlock = errMsg
     ? `<div style="margin-top: var(--space-4);padding:var(--space-3) var(--space-4);background:#fef2f2;border-radius:var(--radius-md);color:#b91c1c;font-size:var(--fs-small);text-align:left;word-break:break-all">${errMsg}</div>`
     : '';
-  document.getElementById('svg-embed').innerHTML = `
-    <div style="text-align:center;padding:var(--space-8);font-family:var(--font);font-size:var(--fs-medium);color:var(--muted);max-width:420px">
-      <div style="font-size:var(--fs-xl);margin-bottom:var(--space-5)">⚡</div>
+
+  // Two genuinely different situations, and telling them apart matters:
+  // running locally you CAN start the backend, so the terminal commands are
+  // the fix. On the deployed site there is no backend to start — Vercel
+  // serves static files and tracing needs Python + OpenCV + vtracer — so the
+  // old "run this in your terminal" text was advice nobody could act on.
+  const body = BACKEND_URL ? `
       <div style="color:var(--ink);font-size:var(--fs-large);margin-bottom:var(--space-3)">Start the backend server</div>
       <div style="margin-bottom:var(--space-6)">Run this in your terminal to enable SVG generation:</div>
       <code style="display:block;background:var(--surface);padding:var(--space-5);border-radius:var(--radius-md);text-align:left;font-size:var(--fs-base);line-height:1.8">
@@ -1371,9 +1375,28 @@ function showServerGuidance(errMsg) {
       </code>
       ${errBlock}
       <div style="margin-top: var(--space-5);font-size:var(--fs-base)">Then reload this page and drop your sketch again.</div>
+  ` : `
+      <div style="color:var(--ink);font-size:var(--fs-large);margin-bottom:var(--space-3)">Strata runs locally</div>
+      <div style="margin-bottom:var(--space-5);line-height:1.6">
+        Tracing uses Python, OpenCV and vtracer, which can't run on this
+        static site. Clone the repo and run Strata on your own machine —
+        everything else in Organica works here as normal.
+      </div>
+      <code style="display:block;background:var(--surface);padding:var(--space-5);border-radius:var(--radius-md);text-align:left;font-size:var(--fs-base);line-height:1.8">
+        git clone github.com/diegoair/organic-strata<br>cd organic-strata/backend<br>python3 -m venv venv &amp;&amp; source venv/bin/activate<br>pip install -r requirements.txt<br>python3 server.py
+      </code>
+      ${errBlock}
+      <div style="margin-top: var(--space-5);font-size:var(--fs-base)">Then open Strata at <b>localhost</b> and drop your sketch.</div>
+  `;
+
+  document.getElementById('svg-embed').innerHTML = `
+    <div style="text-align:center;padding:var(--space-8);font-family:var(--font);font-size:var(--fs-medium);color:var(--muted);max-width:460px">
+      <div style="font-size:var(--fs-xl);margin-bottom:var(--space-5)">⚡</div>
+      ${body}
     </div>
   `;
-  document.getElementById('svg-info').textContent = errMsg ? 'trace error' : 'server offline';
+  document.getElementById('svg-info').textContent =
+    errMsg ? 'trace error' : (BACKEND_URL ? 'server offline' : 'local-only feature');
   document.getElementById('btn-export').disabled = true;
   document.getElementById('btn-figma').disabled = true;
 }
