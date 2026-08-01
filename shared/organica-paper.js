@@ -55,13 +55,25 @@
     if (item.children) item.children.slice().forEach(child => walkItems(child, fn));
   }
 
+  // Recurses through Groups (the trace's primary/secondary/detail layers)
+  // but STOPS at the first Path/CompoundPath match, same rule as
+  // collectTopShapes below. A CompoundPath's own children are its hole/outer
+  // sub-paths, not separate drawn shapes — recursing into them too (as this
+  // used to) made smoothAll/simplifyAll call .smooth()/.simplify() on both
+  // the CompoundPath AND each of its own sub-paths, double-processing it
+  // (harmless for simplify's math but wasted work, and the double pass on a
+  // CompoundPath.smooth() briefly went through this same tree twice).
   function collectPaths(root) {
     const paths = [];
-    walkItems(root, item => {
+    function walk(item) {
+      if (!item) return;
       if (item.className === 'Path' || item.className === 'CompoundPath') {
         paths.push(item);
+        return;
       }
-    });
+      if (item.children) item.children.slice().forEach(walk);
+    }
+    walk(root);
     return paths;
   }
 
@@ -314,12 +326,22 @@
       raster.name = 'sketch';
       raster.locked = true;
       raster.onLoad = function () {
+        // The trace's own viewBox is padded on every side by the backend
+        // (copyMakeBorder, see backend/process.py) before tracing, but the
+        // sketch image is the unpadded crop — scaling it to the FULL
+        // viewBox stretched it into that padding, leaving the sketch
+        // ~2·pad/dimension too big and its content sitting `pad` above/left
+        // of where the real traced paths start. Center position is
+        // unaffected (padding is symmetric), only the scale needs the inset
+        // subtracted so the sketch's own content lines up with the interior
+        // box the trace was actually generated from.
+        const pad = (opts.sketchPadding || 0) * 2;
         raster.position = new paper.Point(
           viewBox.x + viewBox.width / 2,
           viewBox.y + viewBox.height / 2
         );
-        const sx = viewBox.width / raster.width;
-        const sy = viewBox.height / raster.height;
+        const sx = (viewBox.width - pad) / raster.width;
+        const sy = (viewBox.height - pad) / raster.height;
         raster.scale(Math.min(sx, sy));
         raster.opacity = opts.sketchOpacity == null ? 0.32 : opts.sketchOpacity;
         raster.sendToBack();
@@ -387,10 +409,41 @@
       );
     }
 
+    // A path/compound path that simplify() has reduced to zero segments is
+    // invisible, unhittable and exportSVG() silently drops it from the
+    // markup — but it's still sitting in traceRoot with its shapeLabel, so
+    // the shape count and the style-panel pills kept referring to a "ghost"
+    // shape the exported file didn't actually contain. Remove it from the
+    // live model the moment it goes degenerate, so pills/count and export
+    // always agree.
+    function isDegenerate(shape) {
+      if (shape.className === 'Path') return !shape.segments || shape.segments.length === 0;
+      if (shape.className === 'CompoundPath') {
+        return !shape.children || shape.children.length === 0 ||
+          shape.children.every(c => !c.segments || c.segments.length === 0);
+      }
+      return false;
+    }
+
+    function pruneDegenerateShapes() {
+      if (!traceRoot) return;
+      collectTopShapes(traceRoot).forEach(shape => {
+        if (isDegenerate(shape)) {
+          if (shape === selectedShape) selectedShape = null;
+          shape.remove();
+        }
+      });
+    }
+
+    // Same selection rule as style edits/simplify: a selected shape only
+    // smooths itself, nothing selected smooths every shape.
     function smoothAll() {
       if (!traceRoot) return;
-      collectPaths(traceRoot).forEach(path => {
-        try { path.smooth(); } catch (_) { /* open paths */ }
+      const targets = selectedShape ? [selectedShape] : collectTopShapes(traceRoot);
+      targets.forEach(shape => {
+        collectPaths(shape).forEach(path => {
+          try { path.smooth(); } catch (_) { /* open paths */ }
+        });
       });
       notifyChange();
     }
@@ -401,6 +454,7 @@
       collectPaths(traceRoot).forEach(path => {
         try { path.simplify(tol); } catch (_) { /* skip */ }
       });
+      pruneDegenerateShapes();
       notifyChange();
     }
 

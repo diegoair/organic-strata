@@ -836,9 +836,12 @@ const state = {
   imageFile: null,
   imageURL: null,
   originalImg: null,   // HTMLImageElement
-  svgData: null,       // current SVG string (trace, auto-simplified)
+  svgData: null,       // current SVG string (trace, auto-simplified) — kept
+                       // live-synced with the Paper.js editor on every edit,
+                       // see the onChange handler in initPaperEditor()
   sketchPreviewUrl: null,  // PNG data URL of the traced crop — always from image
   paperEditor: null,
+  paperEditorLoadedSvg: null,  // the svgData string currently loaded into paperEditor
   paperDirty: false,
   outputView: 'refine',   // 'preview' | 'refine' — Refine is the default view
 };
@@ -1117,13 +1120,11 @@ async function traceSelection() {
   if (state.svgData) {
     try {
       await initPaperEditor();
+      // simplifyAll's own onChange callback bakes the simplified geometry
+      // straight back into state.svgData (still fill="none" — that only
+      // becomes white at export time, see getExportSvg), so nothing here
+      // needs to re-export it manually.
       state.paperEditor.simplifyAll(4);
-      // Bake the simplified geometry in as the trace itself (still
-      // fill="none" — that only becomes white at export time, see
-      // getExportSvg). Without this, reopening Refine reloads the raw
-      // pre-simplify SVG from state.svgData and silently discards the
-      // simplification the moment you look at it.
-      state.svgData = state.paperEditor.exportSvg();
       renderSVGPreview(state.svgData);
     } catch (err) {
       console.error('[Strata] auto-simplify failed:', err);
@@ -1271,8 +1272,11 @@ function setOutputView(mode) {
       console.error('[Strata] Paper editor failed:', err);
       setOutputView('preview');
     });
-  } else if (state.paperEditor) {
-    state.paperEditor.fitToView();
+  } else if (state.svgData) {
+    // svg-embed's innerHTML is only ever set by renderSVGPreview (at trace
+    // time); without this, coming back from Refine after an edit showed the
+    // pre-edit markup forever, since nothing else refreshes it.
+    updateSvgEmbed(state.svgData);
   }
 }
 
@@ -1281,11 +1285,23 @@ async function initPaperEditor() {
   if (!svgStr) return;
 
   const canvas = document.getElementById('paper-canvas');
-  if (!state.paperEditor) {
+  const isNewEditor = !state.paperEditor;
+  if (isNewEditor) {
     state.paperEditor = Organica.createTraceEditor(canvas, {
       fill: '#0a0a0a',
       sketchOpacity: 0.32,
+      sketchPadding: 50,   // backend/process.py pads the trace 50px on every
+                           // side (copyMakeBorder) — the unpadded sketch crop
+                           // must be scaled/positioned to match that inset,
+                           // see loadSketchUnderlay()
       onChange() {
+        // Bake every edit straight back into state.svgData — this is the
+        // single source of truth Refine/Preview both read on reopen, so
+        // without this line a live edit only ever lived inside paper.js and
+        // was silently discarded the moment Refine reloaded from the stale
+        // post-trace snapshot.
+        state.svgData = state.paperEditor.exportSvg();
+        state.paperEditorLoadedSvg = state.svgData;
         state.paperDirty = true;
         refreshExportInfo();
         renderShapeLabels();
@@ -1295,10 +1311,17 @@ async function initPaperEditor() {
     });
   }
 
-  state.paperEditor.setSketchUrl(state.sketchPreviewUrl);
-  await state.paperEditor.load(svgStr, state.sketchPreviewUrl);
+  // Only reimport into paper.js when the content actually changed (a new
+  // trace, or first-ever open) — reloading on every Refine visit would wipe
+  // out live edits and reset pan/zoom/selection for no reason, since
+  // state.svgData now already reflects whatever the editor last exported.
+  if (isNewEditor || state.paperEditorLoadedSvg !== svgStr) {
+    state.paperEditor.setSketchUrl(state.sketchPreviewUrl);
+    await state.paperEditor.load(svgStr, state.sketchPreviewUrl);
+    state.paperEditorLoadedSvg = svgStr;
+    state.paperDirty = false;
+  }
   state.paperEditor.setSketchVisible(document.getElementById('p-paper-sketch').checked);
-  state.paperDirty = false;
   showShapeStyle(null);
   renderShapeLabels();
   scaleShapeStrokeWidthRange();
@@ -1376,8 +1399,11 @@ function refreshExportInfo() {
     `${(size / 1024).toFixed(1)} KB · SVG${state.paperDirty ? ' (edited)' : ''}`;
 }
 
-function renderSVGPreview(svgStr) {
-  // Inject SVG into preview, scale to fit
+// Just the injection + fit-to-container styling, with no side effects on
+// paperDirty/export state — used both by renderSVGPreview (a fresh trace)
+// and by setOutputView (re-showing Preview after Refine edits), which must
+// NOT reset paperDirty or it would silently drop the "(edited)" indicator.
+function updateSvgEmbed(svgStr) {
   const embed = document.getElementById('svg-embed');
   embed.innerHTML = svgStr;
   const svgEl = embed.querySelector('svg');
@@ -1394,6 +1420,10 @@ function renderSVGPreview(svgStr) {
     svgEl.style.background = 'transparent';
     svgEl.setAttribute('overflow', 'visible');
   }
+}
+
+function renderSVGPreview(svgStr) {
+  updateSvgEmbed(svgStr);
   document.getElementById('btn-export').disabled = false;
   document.getElementById('btn-figma').disabled = false;
   document.getElementById('refine-section').classList.remove('hidden');
@@ -1487,7 +1517,15 @@ document.getElementById('btn-paper-unite').addEventListener('click', () => {
 document.getElementById('btn-paper-reset').addEventListener('click', () => {
   if (!state.paperEditor) return;
   state.paperEditor.reset().then(() => {
+    // reset() reloads paper.js in place without going through initPaperEditor,
+    // so state.svgData has to be re-synced here too — otherwise Preview and
+    // Download kept showing the pre-reset content even though Refine itself
+    // visibly reverted.
+    state.svgData = state.paperEditor.exportSvg();
+    state.paperEditorLoadedSvg = state.svgData;
     state.paperDirty = false;
+    showShapeStyle(null);
+    renderShapeLabels();
     refreshExportInfo();
   });
 });

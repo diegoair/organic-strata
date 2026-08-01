@@ -174,8 +174,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def handle_trace(self):
         content_type = self.headers.get("Content-Type", "")
-        content_len  = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(content_len)
+        body = self.read_body()
+        if body is None:
+            return
 
         # Parse multipart
         if "multipart/form-data" in content_type:
@@ -271,8 +272,9 @@ class Handler(BaseHTTPRequestHandler):
             shutil.rmtree(tmp_dir, ignore_errors=True)
 
     def handle_send_to_figma(self):
-        content_len = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(content_len)
+        body = self.read_body()
+        if body is None:
+            return
         try:
             data = json.loads(body.decode())
         except Exception:
@@ -302,6 +304,25 @@ class Handler(BaseHTTPRequestHandler):
             f.write(svg)
 
         self.send_json(push_svg_to_figma(svg, FIGMA_TOKEN))
+
+    # Content-Length was read with a bare int(...) and no upper bound — a
+    # missing/non-numeric header raised an uncaught ValueError, and a huge
+    # (or forged) header made rfile.read() try to buffer that many bytes
+    # into memory before anything validated the request. Local-only server,
+    # so this is a robustness fix rather than an internet-facing one.
+    def read_body(self, max_bytes=64 * 1024 * 1024):
+        try:
+            content_len = int(self.headers.get("Content-Length", 0))
+        except (TypeError, ValueError):
+            self.send_json({"error": "Invalid Content-Length"}, 400)
+            return None
+        if content_len < 0:
+            self.send_json({"error": "Invalid Content-Length"}, 400)
+            return None
+        if content_len > max_bytes:
+            self.send_json({"error": f"Request too large (max {max_bytes // (1024*1024)}MB)"}, 413)
+            return None
+        return self.rfile.read(content_len)
 
     def serve_file(self, path, mime, no_cache=False):
         if not os.path.exists(path):
