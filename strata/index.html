@@ -1162,6 +1162,33 @@ async function traceSelection() {
 
 document.getElementById('btn-trace-selection').addEventListener('click', traceSelection);
 
+// Vercel's Serverless Functions reject any request body over 4.5MB before
+// api/trace.py even runs (platform-level, not something app code can raise —
+// see vercel.com/docs/functions/limitations) — a full-res PNG crop of a
+// phone photo routinely blows past that. cv2.imread() on the backend is
+// format-agnostic, so re-encoding as JPEG (near-lossless at high quality,
+// fine for line art) buys most of the margin back before falling to a
+// downscale as a last resort.
+async function encodeCropForUpload(canvas, maxBytes) {
+  maxBytes = maxBytes || 3.5 * 1024 * 1024;   // headroom under the 4.5MB cap
+  let source = canvas;
+  let quality = 0.92;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const blob = await new Promise(res => source.toBlob(res, 'image/jpeg', quality));
+    if (blob && (blob.size <= maxBytes || attempt === 5)) return blob;
+    if (quality > 0.55) {
+      quality -= 0.15;
+    } else {
+      const scaled = document.createElement('canvas');
+      scaled.width = Math.max(1, Math.round(source.width * 0.75));
+      scaled.height = Math.max(1, Math.round(source.height * 0.75));
+      scaled.getContext('2d').drawImage(source, 0, 0, scaled.width, scaled.height);
+      source = scaled;
+      quality = 0.85;
+    }
+  }
+}
+
 // ── SVG GENERATION (backend call) ─────────────────────────────────────────
 async function generateSVGOutput(imageCanvas, params) {
   if (!BACKEND_URL) {
@@ -1171,9 +1198,9 @@ async function generateSVGOutput(imageCanvas, params) {
   }
 
   try {
-    const blob = await new Promise(r => imageCanvas.toBlob(r, 'image/png'));
+    const blob = await encodeCropForUpload(imageCanvas);
     const formData = new FormData();
-    formData.append('image', blob, 'sketch.png');
+    formData.append('image', blob, 'sketch.jpg');
     formData.append('params', JSON.stringify(params));
 
     const resp = await fetch(BACKEND_URL + '/trace', {
@@ -1192,7 +1219,13 @@ async function generateSVGOutput(imageCanvas, params) {
       return;
     }
 
-    let errMsg = `Server error ${resp.status}`;
+    // Vercel rejects an oversized request body itself, before api/trace.py
+    // ever runs — that 413 comes back as a platform error page, not JSON
+    // from our own code, so d.error is never set and the generic "Server
+    // error 413" told the user nothing actionable.
+    let errMsg = resp.status === 413
+      ? 'Image too large for the server (crop is over the size limit) — try selecting a smaller area or use a lower-resolution photo.'
+      : `Server error ${resp.status}`;
     try { const d = await resp.json(); if (d.error) errMsg = d.error; } catch (_) {}
     showServerGuidance(errMsg);
   } catch (e) {
@@ -1206,12 +1239,18 @@ function showServerGuidance(errMsg) {
     ? `<div style="margin-top: var(--space-4);padding:var(--space-3) var(--space-4);background:#fef2f2;border-radius:var(--radius-md);color:#b91c1c;font-size:var(--fs-small);text-align:left;word-break:break-all">${errMsg}</div>`
     : '';
 
-  // Two genuinely different situations, and telling them apart matters:
-  // running locally you CAN start the backend, so the terminal commands are
-  // the fix. On the deployed site there is no backend to start — Vercel
-  // serves static files and tracing needs Python + OpenCV + vtracer — so the
-  // old "run this in your terminal" text was advice nobody could act on.
-  const body = BACKEND_URL ? `
+  // Three genuinely different situations, and telling them apart matters:
+  // - local + not running: the terminal commands are the fix, and are
+  //   something the user can actually act on.
+  // - deployed + the /api function responded (even with an error, like this
+  //   413): tracing DOES run in production (it's a Vercel Python function,
+  //   see api/trace.py), so telling the user to "clone the repo, it can't
+  //   run here" would be actively false — show the real reason instead.
+  // - deployed + no response at all (network/connectivity failure, fetch
+  //   itself threw): the one case where we genuinely can't say more than
+  //   "try running it locally" as a fallback.
+  const reachedServer = !!errMsg;
+  const body = isLocal ? `
       <div style="color:var(--ink);font-size:var(--fs-large);margin-bottom:var(--space-3)">Start the backend server</div>
       <div style="margin-bottom:var(--space-6)">Run this in your terminal to enable SVG generation:</div>
       <code style="display:block;background:var(--surface);padding:var(--space-5);border-radius:var(--radius-md);text-align:left;font-size:var(--fs-base);line-height:1.8">
@@ -1219,12 +1258,18 @@ function showServerGuidance(errMsg) {
       </code>
       ${errBlock}
       <div style="margin-top: var(--space-5);font-size:var(--fs-base)">Then reload this page and drop your sketch again.</div>
-  ` : `
-      <div style="color:var(--ink);font-size:var(--fs-large);margin-bottom:var(--space-3)">Strata runs locally</div>
+  ` : reachedServer ? `
+      <div style="color:var(--ink);font-size:var(--fs-large);margin-bottom:var(--space-3)">Trace failed</div>
       <div style="margin-bottom:var(--space-5);line-height:1.6">
-        Tracing uses Python, OpenCV and vtracer, which can't run on this
-        static site. Clone the repo and run Strata on your own machine —
-        everything else in Organica works here as normal.
+        The server processed the request but couldn't return a result.
+      </div>
+      ${errBlock}
+      <div style="margin-top: var(--space-5);font-size:var(--fs-base)">Try again, with a different crop or a smaller image.</div>
+  ` : `
+      <div style="color:var(--ink);font-size:var(--fs-large);margin-bottom:var(--space-3)">Couldn't reach the server</div>
+      <div style="margin-bottom:var(--space-5);line-height:1.6">
+        The request never got a response — check your connection and try
+        again, or run Strata locally on your own machine.
       </div>
       <code style="display:block;background:var(--surface);padding:var(--space-5);border-radius:var(--radius-md);text-align:left;font-size:var(--fs-base);line-height:1.8">
         git clone github.com/diegoair/organic-strata<br>cd organic-strata/backend<br>python3 -m venv venv &amp;&amp; source venv/bin/activate<br>pip install -r requirements.txt<br>python3 server.py
@@ -1240,7 +1285,7 @@ function showServerGuidance(errMsg) {
     </div>
   `;
   document.getElementById('svg-info').textContent =
-    errMsg ? 'trace error' : (BACKEND_URL ? 'server offline' : 'local-only feature');
+    errMsg ? 'trace error' : (isLocal ? 'server offline' : 'connection error');
   document.getElementById('btn-export').disabled = true;
   document.getElementById('btn-figma').disabled = true;
 }
