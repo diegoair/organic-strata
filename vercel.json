@@ -36,6 +36,10 @@
       "destination": "/komorebi/$1"
     },
     {
+      "source": "/camouflage/(.*)",
+      "destination": "/camouflage/$1"
+    },
+    {
       "source": "/shared/(.*)",
       "destination": "/shared/$1"
     },
