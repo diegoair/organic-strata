@@ -536,6 +536,57 @@ Also exposed: **Sites**, the nucleation-point count, previously hardcoded at `5 
 
 ---
 
+## 11e. Bug fixes + convergence readout (August 3, 2026)
+
+Three fixes, two of them bugs found by re-reading the code against what the UI claims.
+
+**1. `Sites` was dead whenever Anisotropy > 0.3.** The anisotropic branch of `seed()` lays
+nucleation points out as rows along the stripe direction and never read the control. Measured:
+at Anisotropy 0.85, Sites 5 / 20 / 40 all seeded exactly **675 cells**. Sites now drives the
+row spacing.
+
+Its range there is deliberately narrower than on the isotropic path, and that is physics, not
+a UI compromise: suppressed perpendicular diffusion cannot carry the pattern sideways into an
+unseeded band, so rows sparser than ~3.2×size leave bare canvas between stripes. **The first
+attempt did exactly that** — mapping Sites straight onto a row count seeded 3 rows on a 176
+grid at the default and left most of the frame empty, a regression caught by looking at the
+render rather than at the numbers. Sites now interpolates between "just dense enough to fill"
+and "tightly packed", with the default landing on the spacing that was previously hardcoded.
+
+**2. The canonical f/k values were not reachable.** A range input snaps to `min + n·step`, and
+at `step="0.0005"` the Pearson/Munafo spots-mitosis pair fell between stops:
+
+| Wanted | Actually got |
+|---|---|
+| f 0.0367 | **0.0365** |
+| k 0.0649 | **0.0650** |
+
+So `Leopard spots` declared 0.0367 / 0.0649 in its definition and the simulation ran 0.0365 /
+0.0650 — visible in the status bar, and the tool was quietly saying one thing and doing
+another. Step on f, k, f2 and k2 is now `0.0001`; both canonical values are exact. (`Coral
+labyrinth`'s 0.0545 / 0.0620 happened to land on a stop and were always correct.)
+
+**3. Convergence readout.** The status line said only "Simmering…", which matters more now
+that Feature size exists: raising it lowers dt, so a high-Feature-size preset genuinely needs
+proportionally more steps and can look stalled when it is simply working. It now reads
+"Simmering… 47%".
+
+`lastDiff` decays roughly exponentially, so progress is measured on a **log scale** between the
+peak diff seen since the last restart and the convergence threshold; the final 10% is reserved
+for the settle streak, so the bar cannot reach 100% while stability is still being confirmed.
+Two refinements came from watching a real run rather than trusting the formula: `lastDiff`
+**rises** during the growth phase (the pattern is still forming, so change per step increases),
+which pinned a first-sample baseline at 0% for half the run — fixed by baselining on the peak;
+and it fluctuates near the end, which made the readout go **85% → 81% → 99%** — fixed by
+making the reading monotonic. Traced before/after:
+
+```
+before   0 → 0 → 0 → 0 → 9 → 71 → 85 → 81 → 99 → 100
+after   27 → 27 → 27 → 37 → 67 → 82 → 88 → 90 → 94 → 100
+```
+
+---
+
 ## 12. Open follow-ups
 
 - [x] **Anisotropic stripes** — done (§11c). Real parallel stripes at any angle via a

@@ -215,12 +215,12 @@
         <h3>Pattern <span class="hint">Gray-Scott f / k</span></h3>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Feed rate — how fast chemical A is replenished. Governs how the pattern grows.">Feed (f)</div>
-          <input type="range" id="rg-f" min="0.010" max="0.090" step="0.0005" value="0.0367" oninput="onFK()">
+          <input type="range" id="rg-f" min="0.010" max="0.090" step="0.0001" value="0.0367" oninput="onFK()">
           <span class="ctrl-val" id="v-f">0.0367</span>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Kill rate — how fast chemical B is removed. Governs how the pattern breaks apart.">Kill (k)</div>
-          <input type="range" id="rg-k" min="0.030" max="0.075" step="0.0005" value="0.0649" oninput="onFK()">
+          <input type="range" id="rg-k" min="0.030" max="0.075" step="0.0001" value="0.0649" oninput="onFK()">
           <span class="ctrl-val" id="v-k">0.0649</span>
         </div>
         <div id="regime-readout">nearest regime: spots / mitosis</div>
@@ -318,12 +318,12 @@
         <div id="row-grad2">
           <div class="ctrl-row">
             <div class="ctrl-label">Feed 2 (f)</div>
-            <input type="range" id="rg-f2" min="0.010" max="0.090" step="0.0005" value="0.0545" oninput="syncVal(this,'v-f2')">
+            <input type="range" id="rg-f2" min="0.010" max="0.090" step="0.0001" value="0.0545" oninput="syncVal(this,'v-f2')">
             <span class="ctrl-val" id="v-f2">0.0545</span>
           </div>
           <div class="ctrl-row">
             <div class="ctrl-label">Kill 2 (k)</div>
-            <input type="range" id="rg-k2" min="0.030" max="0.075" step="0.0005" value="0.0620" oninput="syncVal(this,'v-k2')">
+            <input type="range" id="rg-k2" min="0.030" max="0.075" step="0.0001" value="0.0620" oninput="syncVal(this,'v-k2')">
             <span class="ctrl-val" id="v-k2">0.0620</span>
           </div>
           <p class="org-panel__hint">e.g. leopard spots on one edge blending into labyrinth on the other, across a single canvas.</p>
@@ -809,8 +809,24 @@ function seed() {
     const ux = Math.cos(angle), uy = Math.sin(angle);       // along the stripes
     const vx = -Math.sin(angle), vy = Math.cos(angle);      // across the stripes
     const size = Math.max(2, Math.round(N * 0.018 * seedScale));
-    const spacing = size * 3.2;
     const half = N * 0.75;
+    // Sites drives ROW SPACING here, not a loop count — this branch lays
+    // seeds out as rows along the stripe direction, so "how many
+    // nucleation sites" becomes "how densely those rows are packed".
+    // Without this the control was simply unread on this path: measured at
+    // Anisotropy 0.85, Sites 5 / 20 / 40 all seeded exactly 675 cells.
+    //
+    // Its range is deliberately NARROWER than on the isotropic path, and
+    // that is a physical constraint rather than a UI choice: suppressed
+    // perpendicular diffusion cannot carry the pattern sideways into an
+    // unseeded band, so rows sparser than ~3.2×size leave bare canvas
+    // between the stripes. A first attempt mapped Sites straight onto a
+    // row count and did exactly that — at Sites 7 it seeded 3 rows on a
+    // 176 grid and left most of the frame empty. So Sites interpolates
+    // between "just dense enough to fill" and "tightly packed"; the
+    // default lands on the spacing that was hardcoded before.
+    const t = clamp((val('rg-seedcount') - 2) / 38, 0, 1);
+    const spacing = size * mix(3.2, 1.2, t);
     for (let s = -half; s <= half; s += spacing) {
       const jitterAlong = (rng() - 0.5) * spacing * 0.6;
       const along = s + jitterAlong;
@@ -1191,9 +1207,47 @@ const CONVERGE_FRAMES = 40;
 let running = false;
 let convergedStreak = 0;
 
+// ── CONVERGENCE READOUT ──
+//
+// "Simmering…" alone gave no sense of how much longer, which matters more
+// now that Feature size exists: raising it lowers dt, so a high-Feature-size
+// preset genuinely needs proportionally more steps to settle and can look
+// stalled when it is simply working.
+//
+// lastDiff decays roughly EXPONENTIALLY toward CONVERGE_THRESHOLD, so a
+// linear reading of it would sit near 0% for most of the run and then leap.
+// Progress is measured on a log scale between the first diff seen after a
+// restart and the threshold, which tracks the eye's sense of "nearly there"
+// far better. The last 10% is reserved for the settle streak, so the bar
+// cannot show 100% while the field is still being confirmed as stable.
+let startDiff = null;
+let progressShown = 0;
+function convergenceProgress() {
+  if (!running) return 1;
+  let p;
+  if (lastDiff < CONVERGE_THRESHOLD) {
+    p = 0.9 + 0.1 * Math.min(1, convergedStreak / CONVERGE_FRAMES);
+  } else if (startDiff === null || !isFinite(lastDiff)) {
+    p = 0;
+  } else {
+    const span = Math.log(startDiff / CONVERGE_THRESHOLD);
+    p = span > 0 ? clamp(Math.log(startDiff / lastDiff) / span, 0, 1) * 0.9 : 0;
+  }
+  // Never walk backwards. lastDiff is noisy — it RISES during the growth
+  // phase (the pattern is still forming, so change per step increases) and
+  // fluctuates near the end. A raw reading of it showed 0% for the first
+  // half of the run and then went 85% → 81% → 99%, which reads as a bug
+  // even though the simulation is fine. Monotonic + a visible floor once
+  // running, so the bar always means "at least this far along".
+  progressShown = Math.max(progressShown, p, running ? 0.02 : 0);
+  return progressShown;
+}
+
 function resumeSimulation() {
   running = true;
   convergedStreak = 0;
+  startDiff = null;      // re-baseline: a control change restarts the descent
+  progressShown = 0;
   if (!loopHandle) loopHandle = requestAnimationFrame(loop);
 }
 let loopHandle = null;
@@ -1202,6 +1256,7 @@ function loop() {
   if (running && mode === 'disruptive') {
     for (let s = 0; s < STEPS_PER_FRAME; s++) step();
     renderFrame(canvas.width, canvas.height);
+    if (isFinite(lastDiff) && lastDiff > CONVERGE_THRESHOLD && (startDiff === null || lastDiff > startDiff)) startDiff = lastDiff;
     if (lastDiff < CONVERGE_THRESHOLD) {
       convergedStreak++;
       if (convergedStreak > CONVERGE_FRAMES) {
@@ -1211,7 +1266,7 @@ function loop() {
     } else {
       convergedStreak = 0;
     }
-    if (running) setStatus('busy', 'Simmering…');
+    if (running) setStatus('busy', 'Simmering… ' + Math.round(convergenceProgress() * 100) + '%');
   }
   loopHandle = requestAnimationFrame(loop);
 }
