@@ -1201,11 +1201,67 @@ function renderDisruptive(w, h) {
 // ── SIMULATION LOOP — see file header. Only steps while Disruptive is the
 // active mode; switching away just stops repainting (running/lastDiff are
 // untouched, so coming back resumes exactly where convergence left off). ──
-const STEPS_PER_FRAME = 20;
-const CONVERGE_THRESHOLD = 0.00004;
-const CONVERGE_FRAMES = 40;
+// Steps per frame is scaled by 1/dt so that a frame always advances the
+// same amount of SIMULATED time. Feature size lowers dt (see scaleParams),
+// and without this compensation a high-Feature-size preset needed ~2.4x the
+// frames for the same progress — measured: 'Giant cell' ran past the 30s
+// hard cap and stopped before settling, while every other preset finished
+// in 7-13s. Cost per frame rises proportionally, but the wall-clock time to
+// converge stays roughly constant, which is what the user actually feels.
+const BASE_STEPS_PER_FRAME = 20;
+function stepsPerFrame() {
+  return Math.max(1, Math.round(BASE_STEPS_PER_FRAME / scaleParams().dt));
+}
+// ── WHEN IS IT DONE? ──
+//
+// The first version stopped once the mean per-cell change fell below a
+// FIXED threshold (4e-5) for 40 frames. Measured on a real run, that is
+// the wrong test: lastDiff never reaches zero. Gray-Scott settles onto a
+// permanent noise plateau — features keep slowly migrating, merging and
+// splitting — and for Coral labyrinth that plateau sits at ~2.4e-5, only
+// marginally under the 4e-5 cutoff. So the cutoff fired while the pattern
+// was still visibly evolving: continuing 5000 steps past "Settled" still
+// flipped 11.0% of cells (Leopard spots) and 7.4% (Giant cell).
+//
+// Lowering the number is not the fix — anything under the plateau would
+// mean it never stops at all, and the plateau itself moves with the
+// regime, the grid and dt (Feature size lowers dt, which shrinks every
+// per-step delta proportionally).
+//
+// So the test is now RELATIVE: stop when lastDiff stops IMPROVING, rather
+// than when it gets small. That is self-calibrating — it finds each run's
+// own plateau instead of being told one in advance — and a hard frame cap
+// guarantees termination for regimes (mitosis) that genuinely never settle.
+// Measure the FIELD, not the derivative. Two earlier attempts both failed
+// because they judged convergence from lastDiff (mean per-cell change per
+// step), and traced against a real run that signal is not monotonic at all:
+//
+//   f19 6.2e-5 ↓   f31 5.1e-5 ↑   f55 1.6e-4 ↑   f73 1.6e-4 ↓
+//
+// Gray-Scott grows in phases — an initial formation where change falls, then
+// an EXPANSION where spots multiply to fill the canvas and change climbs
+// again, then the real settle. A fixed threshold fired during the first dip
+// (11% of cells still to flip afterwards); a "stopped improving" test fired
+// during the climb, which is worse (30.7% still to flip).
+//
+// So convergence is now measured the way a viewer would: snapshot the field,
+// wait a window, and see how much the PICTURE actually moved. Drift over a
+// 600-step window, measured on a settling run, goes
+//   0.057 → 0.128 (expansion peak) → 0.081 → 0.026 → 0.012 → ~0.010 plateau
+// so 0.015 sits below the expansion phase and just above the residual noise
+// floor. Two consecutive quiet windows are required, and a hard frame cap
+// guarantees termination for regimes (mitosis) that never truly settle.
+const WINDOW_FRAMES = 30;       // one measurement window
+const SETTLE_FRACTION = 0.12;   // drift down to 12% of its own peak = settled
+const QUIET_WINDOWS = 2;        // counted cumulatively, not consecutively
+const MAX_FRAMES = 1800;        // hard ceiling, ~30s at 60fps
 let running = false;
-let convergedStreak = 0;
+let frameCount = 0;
+let windowSnapshot = null;
+let windowStartFrame = 0;
+let lastDrift = null;
+let peakDrift = 0;
+let quietWindows = 0;
 
 // ── CONVERGENCE READOUT ──
 //
@@ -1214,24 +1270,22 @@ let convergedStreak = 0;
 // preset genuinely needs proportionally more steps to settle and can look
 // stalled when it is simply working.
 //
-// lastDiff decays roughly EXPONENTIALLY toward CONVERGE_THRESHOLD, so a
-// linear reading of it would sit near 0% for most of the run and then leap.
-// Progress is measured on a log scale between the first diff seen after a
-// restart and the threshold, which tracks the eye's sense of "nearly there"
-// far better. The last 10% is reserved for the settle streak, so the bar
-// cannot show 100% while the field is still being confirmed as stable.
-let startDiff = null;
+// Field drift falls roughly EXPONENTIALLY after the expansion peak, so a
+// linear reading would sit near 0% for most of the run and then leap.
+// Progress is a log scale between that peak and the quiet threshold, which
+// tracks the eye's sense of "nearly there" far better. The last 15% is
+// reserved for confirming the quiet windows, so the bar cannot reach 100%
+// while the field is still being checked.
 let progressShown = 0;
 function convergenceProgress() {
   if (!running) return 1;
-  let p;
-  if (lastDiff < CONVERGE_THRESHOLD) {
-    p = 0.9 + 0.1 * Math.min(1, convergedStreak / CONVERGE_FRAMES);
-  } else if (startDiff === null || !isFinite(lastDiff)) {
-    p = 0;
-  } else {
-    const span = Math.log(startDiff / CONVERGE_THRESHOLD);
-    p = span > 0 ? clamp(Math.log(startDiff / lastDiff) / span, 0, 1) * 0.9 : 0;
+  let p = 0;
+  if (lastDrift !== null && peakDrift > 0) {
+    // Log scale between the expansion peak and the settle fraction, so the
+    // long tail of slow settling still reads as forward movement.
+    const span = Math.log(1 / SETTLE_FRACTION);
+    p = span > 0 ? clamp(Math.log(peakDrift / lastDrift) / span, 0, 1) * 0.85 : 0;
+    p += 0.15 * (quietWindows / QUIET_WINDOWS);
   }
   // Never walk backwards. lastDiff is noisy — it RISES during the growth
   // phase (the pattern is still forming, so change per step increases) and
@@ -1245,26 +1299,50 @@ function convergenceProgress() {
 
 function resumeSimulation() {
   running = true;
-  convergedStreak = 0;
-  startDiff = null;      // re-baseline: a control change restarts the descent
-  progressShown = 0;
+  progressShown = 0;   // a control change restarts the descent
+  frameCount = 0;
+  windowSnapshot = null;
+  windowStartFrame = 0;
+  lastDrift = null;
+  peakDrift = 0;
+  quietWindows = 0;
   if (!loopHandle) loopHandle = requestAnimationFrame(loop);
 }
 let loopHandle = null;
 function loop() {
   loopHandle = null;
   if (running && mode === 'disruptive') {
-    for (let s = 0; s < STEPS_PER_FRAME; s++) step();
+    const spf = stepsPerFrame();
+    for (let s = 0; s < spf; s++) step();
     renderFrame(canvas.width, canvas.height);
-    if (isFinite(lastDiff) && lastDiff > CONVERGE_THRESHOLD && (startDiff === null || lastDiff > startDiff)) startDiff = lastDiff;
-    if (lastDiff < CONVERGE_THRESHOLD) {
-      convergedStreak++;
-      if (convergedStreak > CONVERGE_FRAMES) {
-        running = false;
-        setStatus('active', 'Settled · f=' + val('rg-f').toFixed(4) + ' k=' + val('rg-k').toFixed(4));
+    frameCount++;
+    if (frameCount - windowStartFrame >= WINDOW_FRAMES) {
+      if (windowSnapshot) {
+        let d = 0;
+        for (let i = 0; i < N * N; i++) d += Math.abs((a[i] - b[i]) - windowSnapshot[i]);
+        lastDrift = d / (N * N);
+        if (lastDrift > peakDrift) { peakDrift = lastDrift; quietWindows = 0; }
+        // Measured against the run's OWN peak, which is what makes this work
+        // across regimes without a magic absolute number. A "stopped
+        // improving" test was tried first and never fires: drift decays
+        // smoothly and indefinitely (Giant cell went 35% → 11% → 8% → 4% →
+        // 1% of peak with no plateau at all), so it always ran to the cap
+        // even though the structure had stopped changing seconds earlier —
+        // ink% was flat from 7.5s while the loop kept going to 30s.
+        //
+        // Counted CUMULATIVELY rather than consecutively: drift occasionally
+        // spikes back up (Leopard spots jumps 7.4% → 15.0% → 8.0% near the
+        // end), and a consecutive counter would reset on every such blip.
+        if (lastDrift < peakDrift * SETTLE_FRACTION) quietWindows++;
       }
-    } else {
-      convergedStreak = 0;
+      windowSnapshot = Float32Array.from(a, (v, i) => v - b[i]);
+      windowStartFrame = frameCount;
+    }
+    if (quietWindows >= QUIET_WINDOWS || frameCount > MAX_FRAMES) {
+      running = false;
+      const capped = quietWindows < QUIET_WINDOWS;
+      setStatus('active', (capped ? 'Stopped at limit · ' : 'Settled · ') +
+        'f=' + val('rg-f').toFixed(4) + ' k=' + val('rg-k').toFixed(4));
     }
     if (running) setStatus('busy', 'Simmering… ' + Math.round(convergenceProgress() * 100) + '%');
   }

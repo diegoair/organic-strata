@@ -536,9 +536,9 @@ Also exposed: **Sites**, the nucleation-point count, previously hardcoded at `5 
 
 ---
 
-## 11e. Bug fixes + convergence readout (August 3, 2026)
+## 11e. Bug fixes: dead control, unreachable values, premature stop (August 3, 2026)
 
-Three fixes, two of them bugs found by re-reading the code against what the UI claims.
+Four fixes. Two came from re-reading the code against what the UI claims; the third is the one Diego actually noticed on screen ("the animation stops at some point").
 
 **1. `Sites` was dead whenever Anisotropy > 0.3.** The anisotropic branch of `seed()` lays
 nucleation points out as rows along the stripe direction and never read the control. Measured:
@@ -566,19 +566,59 @@ So `Leopard spots` declared 0.0367 / 0.0649 in its definition and the simulation
 another. Step on f, k, f2 and k2 is now `0.0001`; both canonical values are exact. (`Coral
 labyrinth`'s 0.0545 / 0.0620 happened to land on a stop and were always correct.)
 
-**3. Convergence readout.** The status line said only "Simmering…", which matters more now
-that Feature size exists: raising it lowers dt, so a high-Feature-size preset genuinely needs
-proportionally more steps and can look stalled when it is simply working. It now reads
-"Simmering… 47%".
+**3. The simulation stopped too early — the visible "it freezes" symptom.**
 
-`lastDiff` decays roughly exponentially, so progress is measured on a **log scale** between the
-peak diff seen since the last restart and the convergence threshold; the final 10% is reserved
-for the settle streak, so the bar cannot reach 100% while stability is still being confirmed.
-Two refinements came from watching a real run rather than trusting the formula: `lastDiff`
-**rises** during the growth phase (the pattern is still forming, so change per step increases),
-which pinned a first-sample baseline at 0% for half the run — fixed by baselining on the peak;
-and it fluctuates near the end, which made the readout go **85% → 81% → 99%** — fixed by
-making the reading monotonic. Traced before/after:
+Reported as "the animation stops at some point". The stop itself is deliberate (Gray-Scott
+converges; continuing would redraw an identical frame forever), but it was firing far too soon.
+
+The original test was "mean per-cell change per step below 4e-5 for 40 frames". Three things
+were wrong with it, each found by measuring rather than reasoning:
+
+- **`lastDiff` never reaches zero.** It settles onto a permanent noise plateau — for Coral
+  labyrinth around 2.4e-5, only marginally under the 4e-5 cutoff — so the cutoff fired while
+  the pattern was still visibly evolving. Lowering the number is not the fix: anything under
+  the plateau never stops at all, and the plateau moves with regime, grid and dt.
+- **It is not monotonic.** Traced live: `f19 6.2e-5 ↓ · f31 5.1e-5 ↑ · f55 1.6e-4 ↑ · f73
+  1.6e-4 ↓`. Gray-Scott grows in phases — formation, then an **expansion** where spots
+  multiply to fill the canvas and per-step change climbs again, then the real settle. A
+  "stopped improving" test (tried second) fires during that climb and was *worse*: it stopped
+  at 1.2s with **30.7%** of cells still to flip.
+- **The structure was still forming.** At the old stop point Leopard spots had 47 blobs at
+  25.8% ink; left running it reaches 49 blobs at 26.7% and holds there. It was stopping
+  mid-mitosis.
+
+Fixed by measuring the **field**, the way a viewer would: snapshot it, wait a window, and see
+how much the picture actually moved. Stop when that drift falls to **12% of the run's own
+peak** — self-calibrating across regimes, with no magic absolute constant. A third attempt
+using "drift stopped improving" also failed and is documented in-code: drift decays smoothly
+and indefinitely (Giant cell: 35% → 11% → 8% → 4% → 1% of peak, no plateau ever), so it ran to
+the 30s cap even though ink% had been flat since 7.5s. Quiet windows are counted
+**cumulatively**, because drift occasionally spikes back up (Leopard spots: 7.4% → 15.0% →
+8.0%) and a consecutive counter would reset on every blip.
+
+**Steps per frame is now scaled by 1/dt.** Feature size lowers dt, so a frame advanced less
+simulated time and a high-Feature-size preset needed ~2.4× the frames — `Giant cell` ran past
+the cap while everything else finished in 7–13s. Now a frame always advances the same
+simulated time, so wall-clock convergence is roughly constant across Feature size.
+
+| | before | after |
+|---|---|---|
+| Leopard spots | 6.6s, 11.0% still to flip | 8.5s, 8.5% |
+| Giant cell | hit the 30s cap | 6.0s, 4.0% |
+| Cheetah fine | — | 7.5s, 8.8% |
+
+**Disclosed honestly**: the residual never reaches zero. Once the structure is fixed (ink %,
+blob count) the features still migrate slowly, essentially forever — measured 16.3% → 7.9% →
+5.2% flip over a 5000-step window at 6k / 12k / 20k steps. What the new criterion guarantees
+is that the *structure* has stopped changing, not that every pixel has.
+
+**4. Convergence readout.** The status line now reads "Simmering… 47%" — worth having now
+that a settle takes several seconds and varies by preset. Progress is a log scale between the
+drift peak and the settle threshold, with the last 15% reserved for confirming the quiet
+windows. Two refinements came from watching a real run rather than trusting the formula: the
+underlying signal **rises** during the growth phase, which pinned a first-sample baseline at
+0% for half the run, and it fluctuates near the end, which made the readout go **85% → 81% →
+99%**. The reading is now peak-baselined and monotonic:
 
 ```
 before   0 → 0 → 0 → 0 → 9 → 71 → 85 → 81 → 99 → 100
