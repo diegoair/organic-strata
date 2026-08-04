@@ -23,5 +23,11 @@ komorebi/reference-photos/
 halide/test-photos/
 strata/test-photos/
 
+# Generated preset previews — one PNG per built-in preset, regenerated on
+# demand from the tool itself. Kept local rather than shipped: they are
+# tool output, not source, and 1.6MB of them would ride along in every
+# deploy for no runtime benefit.
+camouflage/previews/
+
 # Local backend scratch output
 backend/output/
