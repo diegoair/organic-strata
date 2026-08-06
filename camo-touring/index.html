@@ -2126,6 +2126,7 @@ if (initGL()) {
   resetSim();
   buildRmxPalette();   // needs dispMat, so only after initGL() succeeds
   buildPresetsUI();    // needs simMat/seedMat/renderer for thumbnails, so only after initGL() succeeds
+  applyPreset('Turing patterns');   // first-load default — a named, verified pattern instead of an anonymous f/k starting point
   setStatus('busy', 'Simmering…');
   loop();
 }
