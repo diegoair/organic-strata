@@ -1,0 +1,2105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camo Touring — Organica</title>
+
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-panel.css">
+<!-- Needed only to resolve Genesis forms' CSS-driven geometry when
+     rasterizing them as seed shapes — see rasterizeGenesisSource(). -->
+<link rel="stylesheet" href="/genesis/organic-animations.css">
+<style>
+  :root {
+    --ink: #0a0a0a;
+    --paper: #f5f2ec;
+    --mid: #696256;
+    --accent: #2a2a2a;
+    --panel: #eceae4;
+    --border: #d0c8b8;
+    --tool: #3f8fa0;   /* header focus ring — see organica-header.css */
+    --bg-cell: #f5f2ec;   /* required by organic-animations.css — see rasterizeGenesisSource() */
+  }
+
+  .shape-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin-bottom: var(--space-3); }
+  .shape-thumb {
+    aspect-ratio: 1; border: 1px solid var(--border); background: var(--panel);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    padding: var(--space-2); position: relative;
+  }
+  .shape-thumb.active { border-color: var(--ink); border-width: 2px; }
+  .shape-thumb svg { width: 100%; height: 100%; display: block; fill: var(--ink); }
+  .shape-thumb .thumb-num { position: absolute; top: 2px; right: 3px; font-size: var(--fs-micro); color: var(--mid); }
+  .upload-btn {
+    width: 100%; padding: var(--space-3); border: 1px dashed var(--border); background: none;
+    color: var(--mid); font-family: var(--font); font-size: var(--fs-small); cursor: pointer;
+  }
+  .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .icon-btn {
+    background: none; border: 1px solid var(--border); color: var(--accent);
+    width: 22px; height: 20px; flex-shrink: 0; padding: 0; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .icon-btn:hover { border-color: var(--accent); color: var(--ink); }
+  .rmx-palette { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .rmx-color { position: relative; width: 36px; height: 28px; border: 1px solid var(--border); cursor: pointer; overflow: hidden; }
+  .rmx-color input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; cursor: pointer; }
+  .rmx-x {
+    position: absolute; top: 0; right: 0; width: 13px; height: 13px;
+    line-height: 11px; font-size: var(--fs-base); padding: 0; cursor: pointer;
+    background: rgba(255,255,255,0.82); color: #000; border: none;
+  }
+  .rmx-add {
+    width: 36px; height: 28px; border: 1px dashed var(--border); background: none;
+    color: var(--mid); font-size: var(--fs-large); cursor: pointer; line-height: 1;
+  }
+  .rmx-add:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* preset picker — thumbnail dropdown, ported from Living Path's
+     preset-trigger/preset-menu pattern (its own tokens swapped for this
+     tool's: --card→--panel, --pollen→--tool, --ink-soft/--ink-muted→--mid,
+     --line→--border) since a plain <select> can't show a pattern preview. */
+  .presets { position: relative; }
+  .preset-trigger {
+    display: flex; align-items: center; gap: var(--space-3); width: 100%;
+    font-family: var(--font); font-size: var(--fs-small); padding: var(--space-2) var(--space-3);
+    cursor: pointer; background: var(--panel); color: var(--ink);
+    border: 1px solid var(--border); transition: border-color .14s;
+  }
+  .preset-trigger:hover { border-color: var(--tool); }
+  .pt-ico, .pi-ico {
+    width: 26px; height: 26px; flex: 0 0 26px; border: 1px solid var(--border);
+    overflow: hidden; background: var(--paper);
+  }
+  .pt-ico img, .pi-ico img { width: 100%; height: 100%; display: block; object-fit: cover; image-rendering: pixelated; }
+  .pt-name { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pt-chev { color: var(--mid); font-size: var(--fs-small); }
+  .preset-menu {
+    position: fixed; z-index: 40; background: var(--panel); border: 1px solid var(--border);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.22); padding: var(--space-2); overflow-y: auto;
+    display: flex; flex-direction: column; gap: var(--space-1);
+  }
+  .preset-menu[hidden] { display: none; }
+  .preset-item {
+    display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-2);
+    cursor: pointer; background: none; border: 1px solid transparent; text-align: left;
+    font-family: var(--font); font-size: var(--fs-small); color: var(--ink);
+  }
+  .preset-item:hover { border-color: var(--border); }
+  .preset-item.on { border-color: var(--tool); }
+  .pi-name { flex: 1; line-height: 1.2; }
+  .pi-group { font-size: var(--fs-micro); color: var(--mid); padding: var(--space-2) var(--space-2) 0; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: var(--fs-base);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #app { display: flex; flex: 1; overflow: hidden; }
+
+  #canvas-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    position: relative;
+    overflow: hidden;
+    padding: var(--space-7);
+  }
+
+  #gl-canvas {
+    /* The canvas's width/height ATTRIBUTES are the simulation's own
+       resolution (gridW×gridH) — without an explicit CSS size a canvas
+       displays at exactly that many CSS pixels, which is why it used to
+       render tiny in a much bigger #canvas-wrap. width/height:100% +
+       object-fit:contain decouples DISPLAY size (fill the available
+       space, letterboxed to the current Format's aspect) from the
+       simulation's own pixel resolution, same relationship a browser
+       gives a plain <img>. */
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    box-shadow: 0 4px 40px rgba(0,0,0,0.18);
+    cursor: crosshair;
+    display: block;
+    image-rendering: pixelated;
+  }
+
+  #gl-error {
+    display: none;
+    max-width: 420px;
+    text-align: center;
+    line-height: 1.8;
+    font-size: var(--fs-small);
+    color: var(--mid);
+  }
+  #gl-error.visible { display: block; }
+
+  /* ── Step stat — the one tool-specific addition inside the shared
+     floatbar (see the HTML comment above .org-floatbar): a two-line
+     label/value readout, sized to sit flush with the 34px icon buttons
+     either side of it. ── */
+  .floatbar-stat {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    line-height: 1.3; padding: 0 var(--space-2); flex-shrink: 0; min-width: 40px;
+    user-select: none;
+  }
+  .floatbar-stat__label {
+    font-size: 8px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mid);
+  }
+  .floatbar-stat__value {
+    font-size: var(--fs-small); color: var(--ink); font-variant-numeric: tabular-nums;
+  }
+
+  #panel { width: 248px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Camo Touring</span></a>
+
+  <div class="org-header__spacer"></div>
+
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Ready</span>
+  </output>
+</header>
+
+<!-- FLOATING TOOLBAR — Play/pause, step counter, Reset, Export, Figma —
+     fixed bottom-centre over the canvas, the same shared component every
+     other tool's actions live in (see camouflage/index.html). Play/pause
+     and the step stat are the one genuinely tool-specific addition (no
+     other tool has a running simulation to pause) — everything else
+     (shell, spacing, icon sizing, popover) is the shared component
+     unchanged. -->
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <button class="org-floatbar__btn" id="btn-playpause" onclick="togglePlay()" aria-label="Pause">
+    <svg class="ico" id="ico-playpause" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 3.5v9M11 3.5v9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+
+  <div class="floatbar-stat" aria-label="Step count">
+    <span class="floatbar-stat__label">Step</span>
+    <span class="floatbar-stat__value" id="hud-state">0</span>
+  </div>
+
+  <div class="org-floatbar__sep"></div>
+
+  <button class="org-floatbar__btn" onclick="resetSim()" aria-label="Reset">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M13 2.3V6h-3.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" onclick="exportPNG()">PNG</button>
+        <button class="org-btn" onclick="exportSVG()">SVG</button>
+      </div>
+      <p class="org-popover__hint" id="export-hint">Pause the simulation to export — SVG traces the frozen field, so it needs a still frame to trace.</p>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-scale">Scale</label>
+        <select class="org-select" id="sel-scale">
+          <option value="1">&times;1</option>
+          <option value="2" selected>&times;2</option>
+          <option value="4">&times;4</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="org-floatbar__sep"></div>
+
+  <button class="org-floatbar__btn org-floatbar__btn--primary" onclick="sendToFigma()" aria-label="Send to Figma">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 1.5h2.25a2 2 0 1 1 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 5.5h2.25a2 2 0 1 1 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 9.5h1.25a2 2 0 1 1 0 4A2 2 0 0 1 6 11.5v-2Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 1.5H4.25a2 2 0 1 0 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+  </button>
+</div>
+
+<div id="app">
+
+  <div id="canvas-wrap">
+    <canvas id="gl-canvas" width="256" height="256"></canvas>
+    <p id="gl-error">WebGL2 isn't available in this browser — Camo Touring needs it for the GPU-accelerated simulation. Try a recent Chrome, Firefox, Edge or Safari.</p>
+  </div>
+
+  <div id="panel">
+
+    <div class="panel-section">
+      <h3>Resolution <span class="hint">simulation grid, long side</span></h3>
+      <select class="panel-select" id="sel-grid" aria-label="Grid resolution" onchange="rebuildGrid()">
+        <option value="128">Coarse &middot; 128</option>
+        <option value="256" selected>Medium &middot; 256</option>
+        <option value="512">Fine &middot; 512</option>
+      </select>
+    </div>
+
+    <div class="panel-section">
+      <h3>Format <span class="hint">canvas aspect ratio</span></h3>
+      <select class="panel-select" id="sel-format" aria-label="Format" onchange="resizeFormat()">
+        <option value="1:1" selected>Square 1:1</option>
+        <option value="4:5">Portrait 4:5</option>
+        <option value="2:3">Portrait 2:3</option>
+        <option value="3:2">Landscape 3:2</option>
+        <option value="16:9">Wide 16:9</option>
+        <option value="1:1.414">A-series √2</option>
+      </select>
+    </div>
+
+    <div class="panel-section">
+      <h3>Pattern <span class="hint" id="pattern-hint">Gray-Scott, GPU-live</span></h3>
+      <div class="presets" id="presets"></div>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="savePreset()">Save</button>
+        <button class="mini-btn" onclick="deletePreset()">Delete</button>
+      </div>
+      <div class="ctrl-row" style="margin-top: var(--space-4)">
+        <div class="ctrl-label" title="Feed rate — how fast chemical A is replenished.">Feed (f)</div>
+        <input type="range" id="rg-f" min="0.010" max="0.090" step="0.0001" value="0.0367" oninput="syncVal(this,'v-f'); onParamChange();">
+        <span class="ctrl-val" id="v-f">0.0367</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Kill rate — how fast chemical B is removed.">Kill (k)</div>
+        <input type="range" id="rg-k" min="0.030" max="0.075" step="0.0001" value="0.0649" oninput="syncVal(this,'v-k'); onParamChange();">
+        <span class="ctrl-val" id="v-k">0.0649</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Diffusion rate of chemical A (substrate). Larger = wider-spreading features.">dA</div>
+        <input type="range" id="rg-da" min="0.2" max="2" step="0.01" value="1.0" oninput="syncVal(this,'v-da'); onParamChange();">
+        <span class="ctrl-val" id="v-da">1.0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Diffusion rate of chemical B (activator). Larger relative to dA = softer features.">dB</div>
+        <input type="range" id="rg-db" min="0.1" max="1" step="0.01" value="0.5" oninput="syncVal(this,'v-db'); onParamChange();">
+        <span class="ctrl-val" id="v-db">0.5</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Simulation step size. Higher = faster evolution per frame, but can go numerically unstable if raised too far.">Timestep</div>
+        <input type="range" id="rg-dt" min="0.2" max="1.5" step="0.01" value="1.0" oninput="syncVal(this,'v-dt'); onParamChange();">
+        <span class="ctrl-val" id="v-dt">1.0</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Seeds</h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-seedsource">
+          <button class="seg-btn active" data-v="genesis" onclick="setSeedSource(this)">Genesis</button>
+          <button class="seg-btn" data-v="svg" onclick="setSeedSource(this)">SVG</button>
+          <button class="seg-btn" data-v="text" onclick="setSeedSource(this)">Text</button>
+          <button class="seg-btn" data-v="image" onclick="setSeedSource(this)">Image</button>
+        </div>
+      </div>
+
+      <div id="seedsrc-genesis">
+        <div class="shape-grid" id="genesis-grid"></div>
+      </div>
+
+      <div id="seedsrc-svg" style="display:none">
+        <button class="upload-btn" onclick="ctrl('svg-input').click()" id="svg-upload-btn">+ Upload SVG</button>
+      </div>
+
+      <div id="seedsrc-text" style="display:none">
+        <div class="ctrl-row">
+          <input type="text" id="seed-text" value="A" maxlength="24" placeholder="Type text…" aria-label="Seed text" class="panel-select" oninput="onTextChange()" style="cursor:text">
+        </div>
+        <button class="upload-btn" onclick="ctrl('font-input').click()" id="font-upload-btn">Font: Manrope (upload to change)</button>
+      </div>
+
+      <div id="seedsrc-image" style="display:none">
+        <button class="upload-btn" onclick="ctrl('image-input').click()" id="image-upload-btn">+ Upload image</button>
+      </div>
+
+      <div class="ctrl-row" style="margin-top: var(--space-4)">
+        <div class="ctrl-label" title="Fill: the coverage mask stamps the reaction directly, once — same as Genesis-form seeding in Camouflage. Confine: the mask permanently pins every cell outside it to the resting state, every step — the pattern grows freely but never escapes the shape. Trace outline: nucleation points are sampled along the shape's edge only, not its interior — growth radiates from the contour. Regime boundary: two different f/k values meet at the shape's edge, and the WHOLE canvas keeps evolving on both sides — the shape becomes a border between two regimes, not a container.">Mode</div>
+        <select class="panel-select" id="sel-seedmode" onchange="syncSeedModeRows()">
+          <option value="fill">Fill</option>
+          <option value="confine">Confine</option>
+          <option value="trace">Trace outline</option>
+          <option value="boundary">Regime boundary</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Size</div>
+        <input type="range" id="rg-seedsize" min="0.15" max="0.9" step="0.01" value="0.55" oninput="syncVal(this,'v-seedsize')">
+        <span class="ctrl-val" id="v-seedsize">0.55</span>
+      </div>
+      <div class="ctrl-row" id="row-boundary-fk">
+        <div class="ctrl-label" title="Feed/Kill used OUTSIDE the shape, when Mode is Regime boundary.">Outside f/k</div>
+        <span class="ctrl-val">0.0545 / 0.0620</span>
+      </div>
+
+      <label class="check-row" style="margin-top: var(--space-3)">
+        <input type="checkbox" id="ck-twoshape" onchange="syncTwoShapeRows()">
+        <span>Two shapes (A + B)</span>
+      </label>
+      <p class="org-panel__hint" id="twoshape-hint" style="display:none">The shape above becomes Shape B — it still drives Mode exactly as usual. Shape A is independent: it depletes chemical A directly, with no effect of its own (A alone can't react) — it only matters where Shape B's growth reaches it before A recovers. Verified live: a circle (B) straddling a square (A) shows the square-side half visibly held back, like a bite taken out of it.</p>
+      <div id="seedsrc-a-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Shape A</div>
+          <div class="seg-ctrl" id="seg-seedsource-a">
+            <button class="seg-btn active" data-v="genesis" onclick="setSeedSourceA(this)">Genesis</button>
+            <button class="seg-btn" data-v="svg" onclick="setSeedSourceA(this)">SVG</button>
+          </div>
+        </div>
+        <div id="seedsrc-a-genesis">
+          <div class="shape-grid" id="genesis-grid-a"></div>
+        </div>
+        <div id="seedsrc-a-svg" style="display:none">
+          <button class="upload-btn" onclick="ctrl('svg-input-a').click()" id="svg-upload-btn-a">+ Upload SVG</button>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How starved Shape A's region starts (how far chemical A is depleted from its resting value of 1.0). Deeper = takes longer to recover, so Shape B's growth has a longer window where reaching this zone actually matters.">Famine depth</div>
+          <input type="range" id="rg-famine-depth" min="0" max="0.95" step="0.01" value="0.7" oninput="syncVal(this,'v-famine-depth')">
+          <span class="ctrl-val" id="v-famine-depth">0.7</span>
+        </div>
+      </div>
+
+      <button class="mini-btn" style="width:100%; margin-top: var(--space-2)" onclick="applySeed()">Apply seed</button>
+      <p class="org-panel__hint" id="seed-status-hint"></p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Palette <span class="hint">Pollen-style</span></h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-colormode">
+          <button class="seg-btn active" data-v="solid" onclick="setColorMode('solid')">Solid</button>
+          <button class="seg-btn" data-v="adaptive" onclick="setColorMode('adaptive')">Adaptive</button>
+          <button class="seg-btn" data-v="rmx" onclick="setColorMode('rmx')">RMX</button>
+        </div>
+      </div>
+
+      <div id="rmx-color-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Palette</div>
+          <select class="panel-select" id="sel-rmx-map" onchange="rmxColorMap=this.value; syncRmxUniforms();">
+            <option value="tone">Tone (gradient)</option>
+            <option value="posterize">Posterize</option>
+            <option value="random">Random</option>
+            <option value="tonernd">Tone + Random</option>
+          </select>
+        </div>
+        <div id="rmx-palette" class="rmx-palette"></div>
+      </div>
+
+      <div class="color-row" id="row-point">
+        <span class="color-name">Ink</span>
+        <button class="color-swatch" id="sw-ink" onclick="ctrl('cp-ink').click()"></button>
+        <input type="color" id="cp-ink" value="#0a0a0a" oninput="syncColor('ink', this.value)">
+        <input class="color-hex" id="hex-ink" value="#0a0a0a" onchange="syncColor('ink', this.value)">
+        <button class="icon-btn" onclick="randomColor('ink')" title="Random colour" aria-label="Random ink colour">
+          <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
+        </button>
+      </div>
+      <div class="color-row" id="row-paper">
+        <span class="color-name">Paper</span>
+        <button class="color-swatch" id="sw-paper" onclick="ctrl('cp-paper').click()"></button>
+        <input type="color" id="cp-paper" value="#f5f2ec" oninput="syncColor('paper', this.value)">
+        <input class="color-hex" id="hex-paper" value="#f5f2ec" onchange="syncColor('paper', this.value)">
+        <button class="icon-btn" onclick="randomColor('paper')" title="Random colour" aria-label="Random paper colour">
+          <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
+        </button>
+      </div>
+      <p class="org-panel__hint" id="colormode-hint">Solid: the field's own threshold decides ink vs paper, same as Duotone everywhere else in Organica. Adaptive: a smooth blend between Ink and Paper by the field's own value, no hard edge. RMX: up to 5 colours mapped across the field — Tone blends them like a gradient, Posterize bands them, Random/Tone+Random add a hashed jitter (a texture, not per-blob colour — the field is continuous, not discrete marks like Pollen's stipple points).</p>
+    </div>
+
+  </div><!-- /panel -->
+</div>
+
+<input type="file" id="svg-input" accept=".svg,image/svg+xml" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;border:0;padding:0">
+<input type="file" id="svg-input-a" accept=".svg,image/svg+xml" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;border:0;padding:0">
+<input type="file" id="image-input" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;border:0;padding:0">
+<input type="file" id="font-input" accept=".ttf,.otf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;border:0;padding:0">
+
+<script src="/shared/organica-core.js"></script>
+<!-- Genesis forms — "port as data" per CLAUDE.md; shared verbatim with Genesis/Pollen/Camouflage. -->
+<script src="/genesis/organic-forms.js"></script>
+<!-- opentype.js v1.3.4, MIT, sha256 c0f9c7ca85e18075a8819e5fe2dee6e1d535f9a2269f5314f36cce94a183adba — reads real glyph outlines for the Text seed source. -->
+<script src="/shared/opentype.min.js"></script>
+<script type="module">
+// ─────────────────────────────────────────────
+// CAMO TOURING — GPU-live Gray-Scott reaction-diffusion.
+//
+// The one deliberate architectural exception in Organica: every other tool
+// is vanilla Canvas2D/JS with no runtime dependency beyond Paper.js
+// (Strata). This tool runs the simulation on the GPU via hand-written GLSL
+// shaders, orchestrated by a vendored Three.js (shared/three.module.js,
+// r160, MIT, sha256 76dea8151bc9352aef3528b4262e249b2604f62543828328db978d060d61a495)
+// — chosen because live, interactive parameter dragging and brush painting
+// at real resolution is a capability a CPU double-for-loop cannot give,
+// no matter how well-tuned (see Camouflage's own multi-session tuning
+// effort to make ITS Canvas2D Gray-Scott merely fast-to-settle, not
+// live-interactive — a structurally different problem this tool exists to
+// solve). Three.js is loaded as a native ES module (no bundler, no CDN,
+// no build step) — "vanilla" here means no build tooling, not zero
+// libraries; the precedent is Paper.js, vendored the same way for Strata.
+//
+// buildSVG()/export reuse the rest of the system's conventions (shared
+// Export popover, Organica.download/stamp) — only the compute substrate
+// changes, not the shell.
+// ─────────────────────────────────────────────
+import * as THREE from '/shared/three.module.js';
+
+function ctrl(id) { return document.getElementById(id); }
+function val(id) { return parseFloat(ctrl(id).value); }
+function syncVal(slider, valId) { ctrl(valId).textContent = slider.value; }
+const setStatus = Organica.status();
+
+// ── SHADERS ──
+const PASSTHROUGH_VERT = `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = vec4(position, 1.0);
+}`;
+
+// Same 9-point kernel Camouflage's CPU engine uses (center -1, orthogonal
+// 0.2, diagonal 0.05, weights sum to 0) — kept identical on purpose so the
+// two engines' f/k behave the same way, in case presets ever need to move
+// between them.
+const SIM_FRAG = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uState;
+uniform sampler2D uMask;
+uniform vec2 uTexel;
+uniform float uF, uK, uDa, uDb, uDt;
+// Seed › Mode support. uConfineOn/uBoundaryOn are 0.0/1.0 flags rather than
+// bool uniforms (some GLSL ES drivers are stricter about bool uniform
+// handling than float) — mutually exclusive in the UI, but the shader
+// doesn't assume that, it just checks each independently.
+uniform float uConfineOn, uBoundaryOn;
+uniform float uF2, uK2;
+
+vec2 laplacian(vec2 uv) {
+  vec2 c = texture2D(uState, uv).rg;
+  vec2 sum = c * -1.0;
+  sum += texture2D(uState, uv + vec2( uTexel.x, 0.0)).rg * 0.2;
+  sum += texture2D(uState, uv + vec2(-uTexel.x, 0.0)).rg * 0.2;
+  sum += texture2D(uState, uv + vec2(0.0,  uTexel.y)).rg * 0.2;
+  sum += texture2D(uState, uv + vec2(0.0, -uTexel.y)).rg * 0.2;
+  sum += texture2D(uState, uv + vec2( uTexel.x,  uTexel.y)).rg * 0.05;
+  sum += texture2D(uState, uv + vec2(-uTexel.x,  uTexel.y)).rg * 0.05;
+  sum += texture2D(uState, uv + vec2( uTexel.x, -uTexel.y)).rg * 0.05;
+  sum += texture2D(uState, uv + vec2(-uTexel.x, -uTexel.y)).rg * 0.05;
+  return sum;
+}
+
+void main() {
+  float m = texture2D(uMask, vUv).a;
+  // Confine: every cell outside the shape is pinned to the resting state
+  // EVERY STEP (not just at t=0), so the pattern can never spread past the
+  // silhouette no matter how long it runs — same masked-reaction-diffusion
+  // technique already proven in Camouflage's "Seed from Shape".
+  if (uConfineOn > 0.5 && m < 0.5) {
+    gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+    return;
+  }
+  vec2 c = texture2D(uState, vUv).rg;
+  float a = c.r, b = c.g;
+  vec2 lap = laplacian(vUv);
+  float f = uF, k = uK;
+  // Regime boundary: two different chemistries meet at the shape's edge —
+  // the WHOLE canvas keeps evolving on both sides, unlike Confine.
+  if (uBoundaryOn > 0.5) {
+    f = mix(uF2, uF, m);
+    k = mix(uK2, uK, m);
+  }
+  float reaction = a * b * b;
+  float na = a + uDt * (uDa * lap.r - reaction + f * (1.0 - a));
+  float nb = b + uDt * (uDb * lap.g + reaction - (k + f) * b);
+  gl_FragColor = vec4(clamp(na, 0.0, 1.0), clamp(nb, 0.0, 1.0), 0.0, 1.0);
+}`;
+
+// Fill mode: stamps (0.5,0.25) wherever the mask covers, in ONE pass — the
+// same bootstrap concentration SEED_FRAG uses for a circle, just reading
+// coverage from an arbitrary rasterized shape instead of a distance check.
+// Confine mode reuses this SAME pass to seed its initial fill (a full-shape
+// bump), then lets the per-step pinning in SIM_FRAG sculpt it from there.
+const MASK_FILL_FRAG = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uPrev;
+uniform sampler2D uMask;
+uniform float uClear;
+uniform float uThreshold;
+void main() {
+  vec2 prev = uClear > 0.5 ? vec2(1.0, 0.0) : texture2D(uPrev, vUv).rg;
+  float m = texture2D(uMask, vUv).a;
+  if (m > uThreshold) prev = vec2(0.5, 0.25);
+  gl_FragColor = vec4(prev, 0.0, 1.0);
+}`;
+
+// ── EXPERIMENTAL PROBE — two independent shapes, one for each chemical. ──
+// Not a shipped feature yet — testing the actual behaviour before deciding
+// whether it's worth a permanent two-shape Seeds UI. maskB RAISES B where
+// it covers (an activator injection — the reaction can ignite there even
+// without touching A at all, since A already sits at its resting value of
+// 1.0). maskA LOWERS A where it covers, independently — with B=0 there,
+// A·B²=0, so on its own this does nothing visible; it only matters once B
+// (from its own separate shape, or from diffusion) reaches that region and
+// finds less fuel waiting.
+const TWO_SEED_FRAG = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uPrev;
+uniform sampler2D uMaskA;
+uniform sampler2D uMaskB;
+uniform float uClear;
+uniform float uADepleted, uBInjected;
+void main() {
+  vec2 prev = uClear > 0.5 ? vec2(1.0, 0.0) : texture2D(uPrev, vUv).rg;
+  float ma = texture2D(uMaskA, vUv).a;
+  float mb = texture2D(uMaskB, vUv).a;
+  if (ma > 0.5) prev.r = uADepleted;
+  if (mb > 0.5) prev.g = uBInjected;
+  gl_FragColor = vec4(prev, 0.0, 1.0);
+}`;
+
+// Pollen's own Solid/Adaptive/RMX palette system, reused verbatim (same
+// three modes, same Point/BG + up-to-5 RMX swatches + Tone/Posterize/
+// Random/Tone+Random mapping) — remapped from "image brightness" (what
+// Pollen colours by) to the reaction-diffusion field's own value (A−B),
+// since that's this tool's equivalent of "brightness". uColorMode/
+// uMapping are floats compared with `> 0.5` rather than GLSL ints/bool
+// uniforms — some GLSL ES drivers are stricter about int/bool uniform
+// handling, the same reason SIM_FRAG's uConfineOn/uBoundaryOn are floats.
+const DISPLAY_FRAG = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uState;
+uniform vec3 uInk, uPaper;
+uniform float uThreshold;
+uniform float uColorMode;      // 0 solid, 1 adaptive, 2 rmx
+uniform vec3 uPalette[5];
+uniform float uPaletteCount;
+uniform float uMapping;        // 0 tone, 1 posterize, 2 random, 3 tone+random
+
+float hash1(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
+vec3 paletteAt(int idx) {
+  if (idx <= 0) return uPalette[0];
+  else if (idx == 1) return uPalette[1];
+  else if (idx == 2) return uPalette[2];
+  else if (idx == 3) return uPalette[3];
+  else return uPalette[4];
+}
+vec3 rmxColor(float v) {
+  int count = int(uPaletteCount);
+  if (count <= 1) return uPalette[0];
+  float t = clamp(v, 0.0, 1.0) * float(count - 1);
+  int i0 = int(floor(t));
+  int i1 = i0 + 1; if (i1 > count - 1) i1 = count - 1;
+  float f = fract(t);
+  if (uMapping < 0.5) {                    // Tone — smooth gradient across the palette
+    return mix(paletteAt(i0), paletteAt(i1), f);
+  } else if (uMapping < 1.5) {             // Posterize — hard bands
+    return paletteAt(i0);
+  } else if (uMapping < 2.5) {             // Random — hashed per cell; a texture, not per-blob colour (the field is continuous, unlike Pollen's discrete stipple points)
+    float h = hash1(floor(vUv * 48.0));
+    int ri = int(floor(h * float(count)));
+    if (ri > count - 1) ri = count - 1;
+    return paletteAt(ri);
+  } else {                                  // Tone + Random — gradient position jittered by noise
+    float h = hash1(floor(vUv * 48.0)) - 0.5;
+    float tt = clamp(t + h * 1.5, 0.0, float(count - 1));
+    int j0 = int(floor(tt)); int j1 = j0 + 1; if (j1 > count - 1) j1 = count - 1;
+    return mix(paletteAt(j0), paletteAt(j1), fract(tt));
+  }
+}
+void main() {
+  vec2 c = texture2D(uState, vUv).rg;
+  float v = c.r - c.g;
+  vec3 rgb;
+  if (uColorMode < 0.5) {                  // Solid — same threshold duotone every other Organica tool uses
+    rgb = v < uThreshold ? uInk : uPaper;
+  } else if (uColorMode < 1.5) {           // Adaptive — smooth blend, no hard edge
+    rgb = mix(uInk, uPaper, clamp(v, 0.0, 1.0));
+  } else {                                  // RMX
+    rgb = rmxColor(v);
+  }
+  gl_FragColor = vec4(rgb, 1.0);
+}`;
+
+// Renders A=0.5,B=0.25 inside a circle (Gray-Scott's own bootstrap
+// concentration, matching the CPU engine's stampBlob), resting state
+// (1,0) elsewhere. A shader pass like every other state change here,
+// not a CPU-side texture upload — keeps "how do I get pixels onto the
+// GPU" down to one mechanism.
+const SEED_FRAG = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uPrev;
+uniform vec2 uCenter;
+uniform float uRadius;
+uniform float uClear;
+void main() {
+  vec2 prev = uClear > 0.5 ? vec2(1.0, 0.0) : texture2D(uPrev, vUv).rg;
+  float d = distance(vUv, uCenter);
+  if (d < uRadius) prev = vec2(0.5, 0.25);
+  gl_FragColor = vec4(prev, 0.0, 1.0);
+}`;
+
+// Format (aspect ratio) changes the CONTAINER only — the field itself
+// must not restart or resample. This blits the old field into the new
+// (possibly differently-shaped) render target at the same PIXEL scale,
+// centred, padding any newly-exposed area with resting state (1,0) and
+// silently cropping whatever no longer fits. Deliberately not a
+// resample/rescale — that's a different operation (what changing
+// Resolution does, which DOES start fresh) and would answer a question
+// nobody asked here.
+const COPY_FRAG = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uOld;
+uniform vec2 uNewSize;
+uniform vec2 uOldSize;
+uniform vec2 uOffset;
+void main() {
+  vec2 newPx = vUv * uNewSize;
+  vec2 oldPx = newPx - uOffset;
+  if (oldPx.x < 0.0 || oldPx.y < 0.0 || oldPx.x >= uOldSize.x || oldPx.y >= uOldSize.y) {
+    gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+    return;
+  }
+  gl_FragColor = vec4(texture2D(uOld, oldPx / uOldSize).rg, 0.0, 1.0);
+}`;
+
+// ── STATE ──
+// gridW/gridH — the simulation's own resolution, independent axes so the
+// Format (aspect ratio) control can make it genuinely non-square, not
+// just a differently-cropped square. `N` no longer exists as a single
+// number; anywhere a SQUARE working canvas is still wanted on purpose
+// (seed-mask rasterization, the debug probes) uses MASK_N, a fixed
+// constant unrelated to the sim's own shape — masks are sampled by UV
+// (0..1 on both axes) so they still land correctly on a non-square grid.
+let gridW = 256, gridH = 256;
+const MASK_N = 256;
+let renderer, quad;
+let simScene, simMat, dispScene, dispMat, seedScene, seedMat, copyScene, copyMat;
+let maskFillScene, maskFillMat, defaultMaskTex;
+let twoSeedScene, twoSeedMat;   // experimental probe — see TWO_SEED_FRAG
+let camera;
+let rtA, rtB;
+let running = true;
+let stepCount = 0;
+let rafHandle = null;
+
+function makeRenderTarget(w, h) {
+  return new THREE.WebGLRenderTarget(w, h, {
+    type: THREE.FloatType,
+    format: THREE.RGBAFormat,
+    minFilter: THREE.NearestFilter,
+    magFilter: THREE.NearestFilter,
+    wrapS: THREE.RepeatWrapping,   // toroidal, same as the CPU engine
+    wrapT: THREE.RepeatWrapping,
+  });
+}
+
+// Base resolution (Resolution select, "long side") × current Format
+// aspect ratio → actual {w,h} for the simulation grid. Same long-side
+// convention Komorebi/Camouflage use for their own canvas (see
+// Organica.formatRatio's own note), applied here to the grid itself
+// rather than to an output canvas.
+function computeGridDims() {
+  const base = parseInt(ctrl('sel-grid').value, 10);
+  const r = Organica.formatRatio(ctrl('sel-format'));
+  return r >= 1
+    ? { w: base, h: Math.round(base / r) }
+    : { w: Math.round(base * r), h: base };
+}
+
+function initGL() {
+  const canvas = ctrl('gl-canvas');
+  let context;
+  try { context = canvas.getContext('webgl2'); } catch (e) { context = null; }
+  if (!context) {
+    ctrl('gl-error').classList.add('visible');
+    canvas.style.display = 'none';
+    setStatus('', 'WebGL2 unavailable');
+    return false;
+  }
+
+  renderer = new THREE.WebGLRenderer({ canvas, context, antialias: false, preserveDrawingBuffer: true });
+  renderer.autoClear = false;
+
+  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  quad = new THREE.PlaneGeometry(2, 2);
+
+  ({ w: gridW, h: gridH } = computeGridDims());
+  canvas.width = gridW; canvas.height = gridH;
+  renderer.setSize(gridW, gridH, false);
+  rtA = makeRenderTarget(gridW, gridH);
+  rtB = makeRenderTarget(gridW, gridH);
+
+  // Default mask: a 1×1 fully-opaque white texture, so Confine/Boundary
+  // read m=1.0 EVERYWHERE until a real seed shape is applied — "no shape
+  // yet" behaves as "the whole canvas is inside", not an undefined texture.
+  defaultMaskTex = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1, THREE.RGBAFormat);
+  defaultMaskTex.needsUpdate = true;
+
+  simMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uState: { value: null },
+      uMask: { value: defaultMaskTex },
+      uTexel: { value: new THREE.Vector2(1 / gridW, 1 / gridH) },
+      uF: { value: val('rg-f') }, uK: { value: val('rg-k') },
+      uDa: { value: val('rg-da') }, uDb: { value: val('rg-db') }, uDt: { value: val('rg-dt') },
+      uConfineOn: { value: 0.0 }, uBoundaryOn: { value: 0.0 },
+      uF2: { value: 0.0545 }, uK2: { value: 0.0620 },
+    },
+    vertexShader: PASSTHROUGH_VERT, fragmentShader: SIM_FRAG,
+  });
+  simScene = new THREE.Scene();
+  simScene.add(new THREE.Mesh(quad, simMat));
+
+  maskFillMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uPrev: { value: null }, uMask: { value: defaultMaskTex },
+      uClear: { value: 1.0 }, uThreshold: { value: 0.5 },
+    },
+    vertexShader: PASSTHROUGH_VERT, fragmentShader: MASK_FILL_FRAG,
+  });
+  maskFillScene = new THREE.Scene();
+  maskFillScene.add(new THREE.Mesh(quad, maskFillMat));
+
+  twoSeedMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uPrev: { value: null }, uMaskA: { value: defaultMaskTex }, uMaskB: { value: defaultMaskTex },
+      uClear: { value: 1.0 }, uADepleted: { value: 0.3 }, uBInjected: { value: 0.35 },
+    },
+    vertexShader: PASSTHROUGH_VERT, fragmentShader: TWO_SEED_FRAG,
+  });
+  twoSeedScene = new THREE.Scene();
+  twoSeedScene.add(new THREE.Mesh(quad, twoSeedMat));
+
+  dispMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uState: { value: null },
+      uInk: { value: new THREE.Color(ctrl('hex-ink').value) },
+      uPaper: { value: new THREE.Color(ctrl('hex-paper').value) },
+      uThreshold: { value: 0.5 },
+      uColorMode: { value: 0.0 },
+      uPalette: { value: [new THREE.Color(0x1a1a2e), new THREE.Color(0xe94f37), new THREE.Color(0xf6e8c3), new THREE.Color(0xffffff), new THREE.Color(0x000000)] },
+      uPaletteCount: { value: 3.0 },
+      uMapping: { value: 0.0 },
+    },
+    vertexShader: PASSTHROUGH_VERT, fragmentShader: DISPLAY_FRAG,
+  });
+  dispScene = new THREE.Scene();
+  dispScene.add(new THREE.Mesh(quad, dispMat));
+
+  seedMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uPrev: { value: null },
+      uCenter: { value: new THREE.Vector2(0.5, 0.5) },
+      uRadius: { value: 0.08 },
+      uClear: { value: 1.0 },
+    },
+    vertexShader: PASSTHROUGH_VERT, fragmentShader: SEED_FRAG,
+  });
+  seedScene = new THREE.Scene();
+  seedScene.add(new THREE.Mesh(quad, seedMat));
+
+  copyMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uOld: { value: null },
+      uNewSize: { value: new THREE.Vector2() },
+      uOldSize: { value: new THREE.Vector2() },
+      uOffset: { value: new THREE.Vector2() },
+    },
+    vertexShader: PASSTHROUGH_VERT, fragmentShader: COPY_FRAG,
+  });
+  copyScene = new THREE.Scene();
+  copyScene.add(new THREE.Mesh(quad, copyMat));
+
+  return true;
+}
+
+function seedAt(cx, cy, radius, clear) {
+  seedMat.uniforms.uPrev.value = rtA.texture;
+  seedMat.uniforms.uCenter.value.set(cx, cy);
+  seedMat.uniforms.uRadius.value = radius;
+  seedMat.uniforms.uClear.value = clear ? 1.0 : 0.0;
+  renderer.setRenderTarget(rtB);
+  renderer.render(seedScene, camera);
+  [rtA, rtB] = [rtB, rtA];
+}
+
+const DEFAULT_SEED_RADIUS = 0.045;   // fraction of canvas — the plain "random circles" bootstrap, independent of whatever the Seeds component's own Size slider is set to
+function resetSim() {
+  stepCount = 0;
+  simMat.uniforms.uConfineOn.value = 0.0;
+  simMat.uniforms.uBoundaryOn.value = 0.0;
+  seedAt(0.5, 0.5, 0.0, true);   // clear pass — resting state everywhere
+  const rng = mulberry32(currentSeed());
+  const n = 6 + Math.floor(rng() * 4);
+  for (let i = 0; i < n; i++) seedAt(rng(), rng(), DEFAULT_SEED_RADIUS, false);
+  draw();
+  ctrl('hud-state').textContent = '0';
+  setStatus('active', 'Reseeded');
+}
+
+function mulberry32(seed) {
+  let t = seed >>> 0;
+  return function () {
+    t |= 0; t = (t + 0x6D2B79F5) | 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function currentSeed() { return 1; }
+
+function stepSim() {
+  simMat.uniforms.uState.value = rtA.texture;
+  renderer.setRenderTarget(rtB);
+  renderer.render(simScene, camera);
+  [rtA, rtB] = [rtB, rtA];
+  stepCount++;
+}
+
+function draw() {
+  dispMat.uniforms.uState.value = rtA.texture;
+  renderer.setRenderTarget(null);
+  renderer.render(dispScene, camera);
+}
+
+let applyingPreset = false;   // set true only inside applyPreset(), so a manual slider drag can tell itself apart from a preset load
+function onParamChange() {
+  simMat.uniforms.uF.value = val('rg-f');
+  simMat.uniforms.uK.value = val('rg-k');
+  simMat.uniforms.uDa.value = val('rg-da');
+  simMat.uniforms.uDb.value = val('rg-db');
+  simMat.uniforms.uDt.value = val('rg-dt');
+  if (!applyingPreset && currentPresetName) { currentPresetName = null; updatePresetTrigger(); }
+}
+
+function loop() {
+  if (running) {
+    for (let i = 0; i < 4; i++) stepSim();   // a few steps per rendered frame — GPU cost per step is tiny, this just keeps the pattern evolving at a legible pace
+    draw();
+    ctrl('hud-state').textContent = stepCount;
+  }
+  rafHandle = requestAnimationFrame(loop);
+}
+
+// Icon-only toggle, matching every other floatbar button — swaps the
+// pause-bars glyph for a play-triangle and back, rather than a text label.
+const ICO_PAUSE = '<path d="M5 3.5v9M11 3.5v9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>';
+const ICO_PLAY = '<path d="M4.5 3.2v9.6l9-4.8-9-4.8z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" fill="none"/>';
+function togglePlay() {
+  running = !running;
+  ctrl('ico-playpause').innerHTML = running ? ICO_PAUSE : ICO_PLAY;
+  ctrl('btn-playpause').setAttribute('aria-label', running ? 'Pause' : 'Play');
+  setStatus(running ? 'busy' : 'active', running ? 'Simmering…' : 'Paused');
+}
+
+function rebuildGrid() {
+  ({ w: gridW, h: gridH } = computeGridDims());
+  ctrl('gl-canvas').width = gridW; ctrl('gl-canvas').height = gridH;
+  renderer.setSize(gridW, gridH, false);
+  rtA.dispose(); rtB.dispose();
+  rtA = makeRenderTarget(gridW, gridH); rtB = makeRenderTarget(gridW, gridH);
+  simMat.uniforms.uTexel.value.set(1 / gridW, 1 / gridH);
+  // Any rasterized seed mask was built at the OLD resolution — clearing
+  // back to "no shape" rather than stretching a mismatched texture; the
+  // user re-applies the seed at the new resolution via Apply seed.
+  simMat.uniforms.uMask.value = defaultMaskTex;
+  simMat.uniforms.uConfineOn.value = 0.0;
+  simMat.uniforms.uBoundaryOn.value = 0.0;
+  resetSim();
+}
+
+// Format (aspect ratio) changes the CONTAINER, not the content — the
+// evolving field keeps evolving, just reframed. Unlike rebuildGrid()
+// above (Resolution: a genuinely different fidelity to explore, so it
+// starts fresh), this blits the current field into the new-shaped
+// render targets via COPY_FRAG rather than reseeding.
+function resizeFormat() {
+  const oldW = gridW, oldH = gridH, oldTex = rtA.texture;
+  ({ w: gridW, h: gridH } = computeGridDims());
+  if (gridW === oldW && gridH === oldH) return;
+
+  const newA = makeRenderTarget(gridW, gridH), newB = makeRenderTarget(gridW, gridH);
+  copyMat.uniforms.uOld.value = oldTex;
+  copyMat.uniforms.uNewSize.value.set(gridW, gridH);
+  copyMat.uniforms.uOldSize.value.set(oldW, oldH);
+  copyMat.uniforms.uOffset.value.set(Math.round((gridW - oldW) / 2), Math.round((gridH - oldH) / 2));
+  renderer.setRenderTarget(newA);
+  renderer.render(copyScene, camera);
+
+  rtA.dispose(); rtB.dispose();
+  rtA = newA; rtB = newB;
+
+  ctrl('gl-canvas').width = gridW; ctrl('gl-canvas').height = gridH;
+  renderer.setSize(gridW, gridH, false);
+  simMat.uniforms.uTexel.value.set(1 / gridW, 1 / gridH);
+  draw();
+}
+
+// Palette controls change a uniform but don't themselves advance the
+// simulation — while PAUSED, loop() only calls draw() when `running` is
+// true, so a colour/palette change would otherwise silently do nothing
+// until Play is pressed again (the exact "control with no visible effect"
+// bug Organica's own conventions treat as a real bug, not a cosmetic one).
+// This forces one immediate repaint regardless of play state.
+function scheduleRender() { if (renderer) draw(); }
+
+function syncColor(which, hex) {
+  hex = Organica.normalizeHex(hex, ctrl('cp-' + which).value);
+  ctrl('cp-' + which).value = hex;
+  ctrl('hex-' + which).value = hex;
+  ctrl('sw-' + which).style.background = hex;
+  if (dispMat) dispMat.uniforms[which === 'ink' ? 'uInk' : 'uPaper'].value = new THREE.Color(hex);
+  scheduleRender();
+}
+function randomColor(which) {
+  const hex = '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
+  syncColor(which, hex);
+}
+
+// ── COLOR MODE — Solid / Adaptive / RMX, Pollen's own three modes. ──
+let rmxColors = ['#1a1a2e', '#e94f37', '#f6e8c3'];
+let rmxColorMap = 'tone';
+const RMX_COLORS_MAX = 5;
+
+function setColorMode(mode) {
+  ctrl('seg-colormode').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === mode));
+  ctrl('rmx-color-block').style.display = mode === 'rmx' ? 'block' : 'none';
+  ctrl('row-point').style.display = mode === 'rmx' ? 'none' : 'flex';   // RMX supplies its own colours — Ink/Paper become dead controls otherwise, not silently ignored
+  ctrl('row-paper').style.display = mode === 'rmx' ? 'none' : 'flex';
+  dispMat.uniforms.uColorMode.value = mode === 'solid' ? 0.0 : mode === 'adaptive' ? 1.0 : 2.0;
+  scheduleRender();
+}
+function buildRmxPalette() {
+  const wrap = ctrl('rmx-palette'); wrap.innerHTML = '';
+  rmxColors.forEach((col, i) => {
+    const sw = document.createElement('label');
+    sw.className = 'rmx-color'; sw.style.background = col;
+    sw.setAttribute('aria-label', 'RMX colour ' + (i + 1));
+    sw.innerHTML = '<input type="color" value="' + col + '" oninput="rmxSetColor(' + i + ', this.value)" aria-label="RMX colour ' + (i + 1) + '">'
+      + (rmxColors.length > 2 ? '<button class="rmx-x" title="Remove" aria-label="Remove colour ' + (i + 1) + '" onclick="event.preventDefault();rmxRemoveColor(' + i + ')">×</button>' : '');
+    wrap.appendChild(sw);
+  });
+  if (rmxColors.length < RMX_COLORS_MAX) {
+    const add = document.createElement('button');
+    add.className = 'rmx-add'; add.textContent = '+'; add.title = 'Add colour'; add.setAttribute('aria-label', 'Add RMX colour');
+    add.onclick = rmxAddColor;
+    wrap.appendChild(add);
+  }
+  syncRmxUniforms();
+}
+function syncRmxUniforms() {
+  const arr = dispMat.uniforms.uPalette.value;
+  rmxColors.forEach((col, i) => { arr[i] = new THREE.Color(col); });
+  dispMat.uniforms.uPaletteCount.value = rmxColors.length;
+  dispMat.uniforms.uMapping.value = { tone: 0, posterize: 1, random: 2, tonernd: 3 }[rmxColorMap];
+  scheduleRender();
+}
+function rmxSetColor(i, hex) { rmxColors[i] = hex; syncRmxUniforms(); }
+function rmxAddColor() { if (rmxColors.length < RMX_COLORS_MAX) { rmxColors.push('#888888'); buildRmxPalette(); } }
+function rmxRemoveColor(i) { if (rmxColors.length > 2) { rmxColors.splice(i, 1); buildRmxPalette(); } }
+
+// ── CANVAS CLICK: re-seed at a point, matching the CPU engine's "click to
+// re-seed" affordance nowhere yet — placeholder until the full Seeds
+// component (Genesis/SVG/text/image, 4 modes) replaces this. ──
+ctrl('gl-canvas').addEventListener('click', (e) => {
+  const rect = e.target.getBoundingClientRect();
+  const cx = (e.clientX - rect.left) / rect.width;
+  const cy = 1 - (e.clientY - rect.top) / rect.height;
+  seedAt(cx, cy, DEFAULT_SEED_RADIUS, false);
+  draw();
+});
+
+// ── SEEDS COMPONENT ──
+//
+// Four sources (Genesis form, uploaded SVG, text via a real font, uploaded
+// image), all converging on ONE output contract: a coverage mask, rendered
+// onto a shared offscreen canvas at the current simulation resolution. Four
+// modes then decide what that mask actually DOES to the simulation (Fill,
+// Confine, Trace outline, Regime boundary) — the source and the mode are
+// fully independent, any combination is valid.
+//
+// Designed to be lifted into shared/ later (per Diego's own framing —
+// "questo è un componente che sarà successivamente centralizzato"): the
+// rasterizer functions take explicit inputs and return a canvas, no
+// camo-touring globals baked into the rasterization logic itself.
+let seedSourceType = 'genesis';
+let seedGenesisForm = 1;
+let seedSvgText = null;
+let seedFont = null;      // opentype.js Font — null means "use bundled Manrope"
+let seedFontBuf = null;   // cached ArrayBuffer of the bundled Manrope, fetched once
+let seedImageEl = null;
+
+const PRIMORDIAL = [7, 56, 1, 2, 14, 33, 38, 31];   // curated subset — same list as Pollen's shape library
+const maskCanvas = document.createElement('canvas');
+const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true });
+
+function populateGenesisGrid() {
+  const grid = ctrl('genesis-grid');
+  PRIMORDIAL.forEach(id => {
+    const svg = (window.ORGANIC_FORMS && window.ORGANIC_FORMS[id]) || '';
+    const thumb = document.createElement('div');
+    thumb.className = 'shape-thumb' + (id === seedGenesisForm ? ' active' : '');
+    thumb.innerHTML = svg + '<span class="thumb-num">' + id + '</span>';
+    thumb.setAttribute('role', 'button');
+    thumb.setAttribute('aria-label', 'Genesis form ' + id);
+    thumb.onclick = () => {
+      seedGenesisForm = id;
+      grid.querySelectorAll('.shape-thumb').forEach(t => t.classList.remove('active'));
+      thumb.classList.add('active');
+    };
+    grid.appendChild(thumb);
+  });
+}
+
+function setSeedSource(btn) {
+  ctrl('seg-seedsource').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+  seedSourceType = btn.dataset.v;
+  ['genesis', 'svg', 'text', 'image'].forEach(t => { ctrl('seedsrc-' + t).style.display = t === seedSourceType ? 'block' : 'none'; });
+}
+function onTextChange() { /* read at Apply time — nothing to precompute */ }
+
+// ── SHAPE A (famine) — the "two shapes" extension. ──
+// Scoped to Genesis + SVG only, not the full four sources Shape B gets:
+// a starvation zone is a simple silhouette need, and duplicating the
+// Text/Image machinery for a secondary, less-common picker wasn't worth
+// the panel space this round — an easy follow-up if it turns out wanted.
+let seedSourceTypeA = 'genesis';
+let seedGenesisFormA = 2;
+let seedSvgTextA = null;
+
+function populateGenesisGridA() {
+  const grid = ctrl('genesis-grid-a');
+  PRIMORDIAL.forEach(id => {
+    const svg = (window.ORGANIC_FORMS && window.ORGANIC_FORMS[id]) || '';
+    const thumb = document.createElement('div');
+    thumb.className = 'shape-thumb' + (id === seedGenesisFormA ? ' active' : '');
+    thumb.innerHTML = svg + '<span class="thumb-num">' + id + '</span>';
+    thumb.setAttribute('role', 'button');
+    thumb.setAttribute('aria-label', 'Genesis form ' + id + ' (shape A)');
+    thumb.onclick = () => {
+      seedGenesisFormA = id;
+      grid.querySelectorAll('.shape-thumb').forEach(t => t.classList.remove('active'));
+      thumb.classList.add('active');
+    };
+    grid.appendChild(thumb);
+  });
+}
+function setSeedSourceA(btn) {
+  ctrl('seg-seedsource-a').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+  seedSourceTypeA = btn.dataset.v;
+  ['genesis', 'svg'].forEach(t => { ctrl('seedsrc-a-' + t).style.display = t === seedSourceTypeA ? 'block' : 'none'; });
+}
+function syncTwoShapeRows() {
+  const on = ctrl('ck-twoshape').checked;
+  ctrl('seedsrc-a-block').style.display = on ? 'block' : 'none';
+  ctrl('twoshape-hint').style.display = on ? 'block' : 'none';
+}
+function rasterizeShapeA(w, h, done) {
+  if (seedSourceTypeA === 'genesis') {
+    const svgText = window.ORGANIC_FORMS && window.ORGANIC_FORMS[seedGenesisFormA];
+    if (!svgText) { done(null); return; }
+    const host = ensureGenesisRasterHost();
+    host.innerHTML = svgText;
+    const svgEl = host.querySelector('svg');
+    if (!svgEl) { done(null); return; }
+    bakeComputedGeometry(svgEl);
+    svgEl.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    const serialized = svgEl.outerHTML;
+    host.innerHTML = '';
+    rasterizeSvgTextInto(serialized, w, h, maskCanvasA, maskCtxA, done);
+  } else {
+    if (!seedSvgTextA) { done(null); return; }
+    rasterizeSvgTextInto(seedSvgTextA, w, h, maskCanvasA, maskCtxA, done);
+  }
+}
+// Same rasterizeSvgText logic Shape B uses, parametrized on which
+// canvas/ctx to draw into — Shape A needs its OWN canvas (maskCanvasA),
+// not the shared single-shape `maskCanvas`, for the same reason the
+// experimental two-shape probes needed separate canvases (see the note
+// above testTwoShapeSeed): two textures alive from one shared canvas race
+// against whichever draw happened last.
+//
+// w×h is the CURRENT sim grid's own shape, not a fixed square — the mask
+// is sampled 1:1 against the sim's own UV space (see SIM_FRAG's uMask),
+// so rasterizing it at any other aspect ratio would silently squash or
+// stretch the shape once the canvas Format isn't 1:1. The source content
+// itself keeps ITS OWN proportions (fitSize = the smaller side), just
+// centred within the w×h canvas — a circle stays a circle even on a
+// widescreen grid, it doesn't become an ellipse to fill the frame.
+function rasterizeSvgTextInto(svgText, w, h, canvas, ctx2d, done) {
+  const img = new Image();
+  img.onload = () => {
+    canvas.width = w; canvas.height = h;
+    ctx2d.clearRect(0, 0, w, h);
+    const fit = Math.min(w, h);
+    const pad = fit * 0.1;
+    const size = fit - pad * 2;
+    ctx2d.drawImage(img, (w - size) / 2, (h - size) / 2, size, size);
+    URL.revokeObjectURL(img.src);
+    done(canvas);
+  };
+  img.onerror = () => done(null);
+  let text = svgText;
+  if (!/xmlns=/.test(text)) text = text.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+  img.src = URL.createObjectURL(new Blob([text], { type: 'image/svg+xml' }));
+}
+ctrl('svg-input-a').addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { seedSvgTextA = reader.result; ctrl('svg-upload-btn-a').textContent = '✓ ' + file.name; };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// ── GENESIS FORM → mask (ported from Camouflage's rasterizeGenesisForm) ──
+// Genesis forms aren't self-contained SVGs — several encode geometry
+// entirely through organic-animations.css (e.g. form 7's second circle has
+// no cx/cy in its own markup). Mounting the form LIVE in this page's DOM
+// (the stylesheet is linked in <head>) resolves that; computed geometry is
+// then baked into literal attributes before serializing out to a
+// standalone SVG string an <img> can load.
+let genesisRasterHost = null;
+function ensureGenesisRasterHost() {
+  if (genesisRasterHost) return genesisRasterHost;
+  genesisRasterHost = document.createElement('div');
+  genesisRasterHost.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:200px;height:200px';
+  document.body.appendChild(genesisRasterHost);
+  return genesisRasterHost;
+}
+function bakeComputedGeometry(svgEl) {
+  svgEl.querySelectorAll('*').forEach(el => {
+    const cs = getComputedStyle(el);
+    ['cx', 'cy', 'r', 'rx', 'ry'].forEach(p => {
+      const v = cs.getPropertyValue(p);
+      if (v && parseFloat(v) !== 0) el.setAttribute(p, parseFloat(v));
+    });
+    el.setAttribute('fill', cs.fill === 'none' ? 'none' : '#000');
+    el.setAttribute('stroke', cs.fill === 'none' ? '#000' : 'none');
+    if (cs.fill === 'none') el.setAttribute('stroke-width', cs.strokeWidth || '2');
+    el.removeAttribute('class');
+  });
+}
+function rasterizeGenesisSource(cw, ch, done) {
+  const svgText = window.ORGANIC_FORMS && window.ORGANIC_FORMS[seedGenesisForm];
+  if (!svgText) { done(null); return; }
+  const host = ensureGenesisRasterHost();
+  host.innerHTML = svgText;
+  const svgEl = host.querySelector('svg');
+  if (!svgEl) { done(null); return; }
+  bakeComputedGeometry(svgEl);
+  svgEl.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  const serialized = svgEl.outerHTML;
+  host.innerHTML = '';
+  rasterizeSvgText(serialized, cw, ch, done);
+}
+
+// cw×ch is the current sim grid's own aspect — see rasterizeSvgTextInto's
+// note above. The form itself is inscribed at fit = min(cw,ch), centred,
+// so it keeps its own proportions instead of stretching to the frame.
+function rasterizeSvgText(svgText, cw, ch, done) {
+  const img = new Image();
+  img.onload = () => {
+    maskCanvas.width = cw; maskCanvas.height = ch;
+    maskCtx.clearRect(0, 0, cw, ch);
+    const fit = Math.min(cw, ch);
+    const pad = fit * 0.1;
+    const size = fit - pad * 2;
+    maskCtx.drawImage(img, (cw - size) / 2, (ch - size) / 2, size, size);
+    URL.revokeObjectURL(img.src);
+    done(maskCanvas);
+  };
+  img.onerror = () => done(null);
+  let text = svgText;
+  if (!/xmlns=/.test(text)) text = text.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+  img.src = URL.createObjectURL(new Blob([text], { type: 'image/svg+xml' }));
+}
+
+// ── TEXT → mask, via opentype.js real glyph outlines ──
+// Bundled Manrope loads once and is cached; an uploaded font (Living
+// Path's own input model) replaces it. Either way the output is the same:
+// draw the glyph path onto the mask canvas and let fill() rasterize it —
+// the vector precision is what keeps the mask's edge crisp at whatever
+// resolution it's rasterized at, not because the mask itself stays vector.
+function withFont(done) {
+  if (seedFont) { done(seedFont); return; }
+  if (seedFontBuf) { seedFont = opentype.parse(seedFontBuf); done(seedFont); return; }
+  fetch('/shared/manrope-variable.ttf').then(r => r.arrayBuffer()).then(buf => {
+    seedFontBuf = buf;
+    seedFont = opentype.parse(buf);
+    done(seedFont);
+  }).catch(() => done(null));
+}
+function rasterizeTextSource(cw, ch, done) {
+  withFont(font => {
+    if (!font) { done(null); return; }
+    const text = (ctrl('seed-text').value || 'A').trim() || 'A';
+    maskCanvas.width = cw; maskCanvas.height = ch;
+    maskCtx.clearRect(0, 0, cw, ch);
+    // getPath's own (x,y,fontSize) args don't compose into a clean
+    // centred fit — get the UNPOSITIONED path's bounding box first, then
+    // fit it to the canvas via an explicit ctx transform instead. Fit
+    // against the SMALLER side (fit = min(cw,ch)) so the glyph keeps its
+    // own proportions on a non-square grid instead of stretching.
+    const fit = Math.min(cw, ch);
+    const fontSize = fit * 0.6;
+    const rawPath = font.getPath(text, 0, 0, fontSize);
+    const bbox = rawPath.getBoundingBox();
+    const bw = bbox.x2 - bbox.x1, bh = bbox.y2 - bbox.y1;
+    const scale = Math.min((fit * 0.8) / bw, (fit * 0.8) / bh);
+    maskCtx.save();
+    maskCtx.setTransform(scale, 0, 0, scale, cw / 2 - (bbox.x1 + bw / 2) * scale, ch / 2 - (bbox.y1 + bh / 2) * scale);
+    maskCtx.fillStyle = '#000';
+    maskCtx.beginPath();
+    rawPath.commands.forEach(c => {
+      if (c.type === 'M') maskCtx.moveTo(c.x, c.y);
+      else if (c.type === 'L') maskCtx.lineTo(c.x, c.y);
+      else if (c.type === 'C') maskCtx.bezierCurveTo(c.x1, c.y1, c.x2, c.y2, c.x, c.y);
+      else if (c.type === 'Q') maskCtx.quadraticCurveTo(c.x1, c.y1, c.x, c.y);
+      else if (c.type === 'Z') maskCtx.closePath();
+    });
+    maskCtx.fill();
+    maskCtx.restore();
+    done(maskCanvas);
+  });
+}
+
+// ── IMAGE → mask, luminance threshold (dark = inside, same convention as
+// Camouflage's Seed from Shape). ──
+function rasterizeImageSource(cw, ch, done) {
+  if (!seedImageEl) { done(null); return; }
+  maskCanvas.width = cw; maskCanvas.height = ch;
+  maskCtx.clearRect(0, 0, cw, ch);
+  const iw = seedImageEl.width, ih = seedImageEl.height;
+  const scale = Math.min(cw / iw, ch / ih);   // already fits within cw×ch preserving the image's own aspect
+  const dw = iw * scale, dh = ih * scale;
+  maskCtx.drawImage(seedImageEl, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+  const id = maskCtx.getImageData(0, 0, cw, ch);
+  const px = id.data;
+  for (let i = 0; i < px.length; i += 4) {
+    const lum = (0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]) / 255;
+    const a = px[i + 3] / 255;
+    px[i + 3] = a > 0 && lum < 0.5 ? 255 : 0;   // dark pixels = inside the shape
+  }
+  maskCtx.putImageData(id, 0, 0);
+  done(maskCanvas);
+}
+
+function rasterizeCurrentSeed(cw, ch, done) {
+  if (seedSourceType === 'genesis') rasterizeGenesisSource(cw, ch, done);
+  else if (seedSourceType === 'svg') { if (seedSvgText) rasterizeSvgText(seedSvgText, cw, ch, done); else done(null); }
+  else if (seedSourceType === 'text') rasterizeTextSource(cw, ch, done);
+  else rasterizeImageSource(cw, ch, done);
+}
+
+// ── FOUR MODES, dispatched from the mask a source produced ──
+// Both test probes below need TWO textures alive at once (one for A, one
+// for B) — reusing the single shared `maskCanvas` for both, sequentially,
+// is NOT safe here the way it is in applySeed(): THREE.CanvasTexture reads
+// its source canvas's CURRENT pixels at upload time (when render() first
+// uses it), not at construction time. applySeed() only ever has one such
+// texture in flight, uploaded before anything else touches the canvas, so
+// that reuse is fine there. Two live at once is a real race — confirmed by
+// reading back the field directly: a probe's "A" texture came back
+// completely unmodified (still 1.0 everywhere) because by the time
+// anything rendered, the shared canvas had already been overwritten by
+// the SECOND shape. Fixed here with two independent canvas elements.
+const maskCanvasA = document.createElement('canvas');
+const maskCtxA = maskCanvasA.getContext('2d');
+const maskCanvasB = document.createElement('canvas');
+const maskCtxB = maskCanvasB.getContext('2d');
+
+// ── EXPERIMENTAL: circle → B, square → A, independently. ──
+// Not wired to any panel control yet — a direct test of the "two
+// independent shapes" question before building real UI for it.
+function testTwoShapeSeed() {
+  rasterizeGenesisSource(MASK_N, MASK_N, (circleCanvas) => {
+    if (!circleCanvas) { setStatus('', 'Circle rasterize failed'); return; }
+    maskCanvasB.width = MASK_N; maskCanvasB.height = MASK_N;
+    maskCtxB.clearRect(0, 0, MASK_N, MASK_N);
+    maskCtxB.drawImage(circleCanvas, 0, 0);
+    const circleTex = new THREE.CanvasTexture(maskCanvasB);
+    circleTex.wrapS = circleTex.wrapT = THREE.ClampToEdgeWrapping;
+    circleTex.minFilter = circleTex.magFilter = THREE.LinearFilter;
+    circleTex.needsUpdate = true;
+
+    // Square, drawn directly — no Genesis form for it, doesn't need one.
+    maskCanvasA.width = MASK_N; maskCanvasA.height = MASK_N;
+    maskCtxA.clearRect(0, 0, MASK_N, MASK_N);
+    const s = MASK_N * 0.42;
+    maskCtxA.fillStyle = '#000';
+    maskCtxA.fillRect((MASK_N - s) / 2, (MASK_N - s) / 2, s, s);
+    const squareTex = new THREE.CanvasTexture(maskCanvasA);
+    squareTex.wrapS = squareTex.wrapT = THREE.ClampToEdgeWrapping;
+    squareTex.minFilter = squareTex.magFilter = THREE.LinearFilter;
+    squareTex.needsUpdate = true;
+
+    stepCount = 0;
+    simMat.uniforms.uConfineOn.value = 0.0;
+    simMat.uniforms.uBoundaryOn.value = 0.0;
+    simMat.uniforms.uMask.value = defaultMaskTex;
+
+    twoSeedMat.uniforms.uPrev.value = rtA.texture;
+    twoSeedMat.uniforms.uMaskA.value = squareTex;   // square depletes A
+    twoSeedMat.uniforms.uMaskB.value = circleTex;   // circle raises B
+    twoSeedMat.uniforms.uClear.value = 1.0;
+    renderer.setRenderTarget(rtB);
+    renderer.render(twoSeedScene, camera);
+    [rtA, rtB] = [rtB, rtA];
+
+    draw();
+    setStatus('active', 'Probe · circle→B, square→A');
+  });
+}
+
+// ── EXPERIMENTAL: make the famine zone's effect actually visible. ──
+// The first probe never showed it, because the B circle and the A square
+// didn't overlap — B's growth front never crossed into the depleted zone
+// before A recovered. This one puts a SINGLE B seed straddling the square's
+// edge (half already inside the famine zone at t=0, half in fresh A=1.0),
+// plus an identical, isolated control circle elsewhere with no square near
+// it — so the same growing front's two halves, and a matched control, are
+// all visible in one frame for direct comparison.
+function testFamineZoneVisible() {
+  // A: the square — sized so it only overlaps PART of the circle below,
+  // not half of it. 256px doesn't have room for a full-size circle (the
+  // radius that actually survives, ~0.23N) split 50/50 AND a separate
+  // full-size control circle without them touching, so this version
+  // drops the separate control and relies on the SAME circle's own
+  // skew (grows away from the square, not evenly) as the signature —
+  // that comparison doesn't need a second shape at all.
+  const sq = MASK_N * 0.30, sqX = MASK_N * 0.08, sqY = MASK_N * 0.30;
+  maskCanvasA.width = MASK_N; maskCanvasA.height = MASK_N;
+  maskCtxA.clearRect(0, 0, MASK_N, MASK_N);
+  maskCtxA.fillStyle = '#000';
+  maskCtxA.fillRect(sqX, sqY, sq, sq);
+  const squareTex = new THREE.CanvasTexture(maskCanvasA);
+  squareTex.wrapS = squareTex.wrapT = THREE.ClampToEdgeWrapping;
+  squareTex.minFilter = squareTex.magFilter = THREE.LinearFilter;
+  squareTex.needsUpdate = true;
+
+  // B: one circle overlapping the square's right portion by roughly a
+  // third of its own width — matched to the radius that actually
+  // survived earlier (Genesis form 1's rasterized circle, ~0.23N); two
+  // smaller attempts (0.09N, 0.16N) both died regardless of the famine
+  // question, a separate, already-known minimum-viable-nucleation-size
+  // floor.
+  maskCanvasB.width = MASK_N; maskCanvasB.height = MASK_N;
+  maskCtxB.clearRect(0, 0, MASK_N, MASK_N);
+  const r = MASK_N * 0.23;
+  const cx = sqX + sq + r * 0.35, cy = sqY + sq / 2;
+  maskCtxB.fillStyle = '#000';
+  maskCtxB.beginPath();
+  maskCtxB.arc(cx, cy, r, 0, Math.PI * 2);
+  maskCtxB.fill();
+  const circleTex = new THREE.CanvasTexture(maskCanvasB);
+  circleTex.wrapS = circleTex.wrapT = THREE.ClampToEdgeWrapping;
+  circleTex.minFilter = circleTex.magFilter = THREE.LinearFilter;
+  circleTex.needsUpdate = true;
+
+  stepCount = 0;
+  simMat.uniforms.uConfineOn.value = 0.0;
+  simMat.uniforms.uBoundaryOn.value = 0.0;
+  simMat.uniforms.uMask.value = defaultMaskTex;
+
+  twoSeedMat.uniforms.uPrev.value = rtA.texture;
+  twoSeedMat.uniforms.uMaskA.value = squareTex;
+  twoSeedMat.uniforms.uMaskB.value = circleTex;
+  twoSeedMat.uniforms.uClear.value = 1.0;
+  twoSeedMat.uniforms.uADepleted.value = 0.3;
+  twoSeedMat.uniforms.uBInjected.value = 0.35;
+  renderer.setRenderTarget(rtB);
+  renderer.render(twoSeedScene, camera);
+  [rtA, rtB] = [rtB, rtA];
+
+  draw();
+  setStatus('active', 'Probe · famine zone vs control');
+}
+
+// ── EXPERIMENTAL: the SAME idea, tuned for a clean single-frame result. ──
+// Numerically proven already (fresh side held ~40-70% more B than the
+// famine side through the transient) but the plain duotone threshold
+// never showed a clean "one half survives, one half doesn't" frame — the
+// whole circle died too fast for A to visibly diverge from B before both
+// collapsed. Three changes, each addressing one specific cause:
+//  1. f/k switched to Coral/labyrinth (0.0545/0.0620) — measured
+//     throughout this project as the most robust, space-filling regime;
+//     Mitosis (the default) is viable but lives close to its own survival
+//     edge even with NO famine zone involved, which is what was actually
+//     killing the earlier attempts.
+//  2. Bigger circle (0.30N vs 0.23N) and deeper depletion (A→0.05 vs 0.3)
+//     — more starting mass to survive on the fresh side, and a famine
+//     zone that takes noticeably longer to recover from (recovery time
+//     scales with how far below 1.0 it starts).
+//  3. Genuinely centred straddle (50/50 through the middle) rather than a
+//     one-third overlap, so the two halves are as directly comparable as
+//     possible.
+function testFamineZoneClean() {
+  ctrl('rg-f').value = 0.0545; ctrl('rg-k').value = 0.0620;
+  syncVal(ctrl('rg-f'), 'v-f'); syncVal(ctrl('rg-k'), 'v-k');
+  onParamChange();
+
+  const sq = MASK_N * 0.34, sqX = MASK_N * 0.10, sqY = MASK_N * 0.33;
+  maskCanvasA.width = MASK_N; maskCanvasA.height = MASK_N;
+  maskCtxA.clearRect(0, 0, MASK_N, MASK_N);
+  maskCtxA.fillStyle = '#000';
+  maskCtxA.fillRect(sqX, sqY, sq, sq);
+  const squareTex = new THREE.CanvasTexture(maskCanvasA);
+  squareTex.wrapS = squareTex.wrapT = THREE.ClampToEdgeWrapping;
+  squareTex.minFilter = squareTex.magFilter = THREE.LinearFilter;
+  squareTex.needsUpdate = true;
+
+  const r = MASK_N * 0.30;
+  const cx = sqX + sq, cy = sqY + sq / 2;   // centred exactly on the square's right edge — a true 50/50 straddle
+  maskCanvasB.width = MASK_N; maskCanvasB.height = MASK_N;
+  maskCtxB.clearRect(0, 0, MASK_N, MASK_N);
+  maskCtxB.fillStyle = '#000';
+  maskCtxB.beginPath();
+  maskCtxB.arc(cx, cy, r, 0, Math.PI * 2);
+  maskCtxB.fill();
+  const circleTex = new THREE.CanvasTexture(maskCanvasB);
+  circleTex.wrapS = circleTex.wrapT = THREE.ClampToEdgeWrapping;
+  circleTex.minFilter = circleTex.magFilter = THREE.LinearFilter;
+  circleTex.needsUpdate = true;
+
+  stepCount = 0;
+  simMat.uniforms.uConfineOn.value = 0.0;
+  simMat.uniforms.uBoundaryOn.value = 0.0;
+  simMat.uniforms.uMask.value = defaultMaskTex;
+
+  twoSeedMat.uniforms.uPrev.value = rtA.texture;
+  twoSeedMat.uniforms.uMaskA.value = squareTex;
+  twoSeedMat.uniforms.uMaskB.value = circleTex;
+  twoSeedMat.uniforms.uClear.value = 1.0;
+  twoSeedMat.uniforms.uADepleted.value = 0.05;
+  twoSeedMat.uniforms.uBInjected.value = 0.4;
+  renderer.setRenderTarget(rtB);
+  renderer.render(twoSeedScene, camera);
+  [rtA, rtB] = [rtB, rtA];
+
+  draw();
+  setStatus('active', 'Probe · famine zone (clean)');
+}
+
+function applySeed() {
+  rasterizeCurrentSeed(gridW, gridH, (canvas) => {
+    if (!canvas) { ctrl('seed-status-hint').textContent = 'Nothing to seed yet — pick a form, upload a file, or type text.'; return; }
+    const maskTex = new THREE.CanvasTexture(canvas);
+    maskTex.wrapS = maskTex.wrapT = THREE.ClampToEdgeWrapping;
+    maskTex.minFilter = maskTex.magFilter = THREE.LinearFilter;
+    maskTex.needsUpdate = true;
+
+    const mode = ctrl('sel-seedmode').value;
+    stepCount = 0;
+    if (mode === 'fill' || mode === 'confine') {
+      simMat.uniforms.uConfineOn.value = mode === 'confine' ? 1.0 : 0.0;
+      simMat.uniforms.uBoundaryOn.value = 0.0;
+      simMat.uniforms.uMask.value = maskTex;
+      maskFillMat.uniforms.uPrev.value = rtA.texture;
+      maskFillMat.uniforms.uMask.value = maskTex;
+      maskFillMat.uniforms.uClear.value = 1.0;
+      renderer.setRenderTarget(rtB);
+      renderer.render(maskFillScene, camera);
+      [rtA, rtB] = [rtB, rtA];
+    } else if (mode === 'trace') {
+      simMat.uniforms.uConfineOn.value = 0.0;
+      simMat.uniforms.uBoundaryOn.value = 0.0;
+      simMat.uniforms.uMask.value = defaultMaskTex;
+      seedAt(0.5, 0.5, 0.0, true);   // clear first — outline nucleation replaces whatever was there
+      const ctx2 = canvas.getContext('2d');
+      const id = ctx2.getImageData(0, 0, gridW, gridH).data;
+      const inside = (x, y) => { if (x < 0 || y < 0 || x >= gridW || y >= gridH) return false; return id[(y * gridW + x) * 4 + 3] > 128; };
+      const edgePts = [];
+      for (let y = 0; y < gridH; y++) for (let x = 0; x < gridW; x++) {
+        if (!inside(x, y)) continue;
+        if (!inside(x + 1, y) || !inside(x - 1, y) || !inside(x, y + 1) || !inside(x, y - 1)) edgePts.push([x, y]);
+      }
+      const step = Math.max(1, Math.floor(edgePts.length / 220));   // cap the stamp count regardless of shape complexity
+      const r = (val('rg-seedsize') * 0.06);
+      for (let i = 0; i < edgePts.length; i += step) {
+        const [x, y] = edgePts[i];
+        seedAt(x / gridW, 1 - y / gridH, r, false);
+      }
+    } else {   // boundary
+      // resetSim() clears to resting + scatters random circles on BOTH
+      // sides (it doesn't know or care about the mask) and, as a side
+      // effect, zeroes uConfineOn/uBoundaryOn — so the mask + boundary
+      // flag are set AFTER it runs, not before.
+      resetSim();
+      simMat.uniforms.uMask.value = maskTex;
+      simMat.uniforms.uBoundaryOn.value = 1.0;
+    }
+    // Shape A (famine) layers on top of WHATEVER the mode above just did,
+    // as one extra pass — it doesn't touch B at all (uMaskB left at the
+    // default "never true" texture, uClear=0 so B is preserved), so every
+    // mode keeps working exactly as it already does; this only adds an
+    // independent depletion of A. See the two-shape probes this was
+    // proven against: A alone never does anything visible on its own, it
+    // only matters where Shape B's own growth reaches it before A
+    // recovers.
+    if (ctrl('ck-twoshape').checked) {
+      rasterizeShapeA(gridW, gridH, (canvasA) => {
+        if (canvasA) {
+          const maskATex = new THREE.CanvasTexture(canvasA);
+          maskATex.wrapS = maskATex.wrapT = THREE.ClampToEdgeWrapping;
+          maskATex.minFilter = maskATex.magFilter = THREE.LinearFilter;
+          maskATex.needsUpdate = true;
+          twoSeedMat.uniforms.uPrev.value = rtA.texture;
+          twoSeedMat.uniforms.uMaskA.value = maskATex;
+          twoSeedMat.uniforms.uMaskB.value = defaultMaskTex;
+          twoSeedMat.uniforms.uClear.value = 0.0;
+          twoSeedMat.uniforms.uADepleted.value = 1.0 - val('rg-famine-depth');
+          renderer.setRenderTarget(rtB);
+          renderer.render(twoSeedScene, camera);
+          [rtA, rtB] = [rtB, rtA];
+        }
+        draw();
+        setStatus('active', 'Seeded · ' + seedSourceType + ' · ' + mode + ' + famine zone');
+      });
+    } else {
+      draw();
+      setStatus('active', 'Seeded · ' + seedSourceType + ' · ' + mode);
+    }
+  });
+}
+function syncSeedModeRows() {
+  ctrl('row-boundary-fk').style.display = ctrl('sel-seedmode').value === 'boundary' ? 'flex' : 'none';
+}
+
+// ── FILE INPUTS ──
+ctrl('svg-input').addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { seedSvgText = reader.result; ctrl('svg-upload-btn').textContent = '✓ ' + file.name; };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+ctrl('image-input').addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0]; if (!file) return;
+  const img = new Image();
+  img.onload = () => { seedImageEl = img; ctrl('image-upload-btn').textContent = '✓ ' + file.name; URL.revokeObjectURL(img.src); };
+  img.src = URL.createObjectURL(file);
+  e.target.value = '';
+});
+ctrl('font-input').addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      seedFont = opentype.parse(reader.result);
+      ctrl('font-upload-btn').textContent = 'Font: ' + file.name + ' (upload to change)';
+    } catch (err) {
+      // opentype.js can't read WOFF2 — a clear message beats a cryptic throw (same lesson Living Path's own upload handler learned).
+      ctrl('seed-status-hint').textContent = 'Could not read that font — try a .ttf or .otf (not .woff2).';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = '';
+});
+
+// ── EXPORT ──
+function exportPNG() {
+  const url = ctrl('gl-canvas').toDataURL('image/png');
+  const bin = atob(url.split(',')[1]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('camo-touring', 'png'));
+}
+
+// ── SVG export — traces the FROZEN field into genuine vector paths, with
+// the simulation parameters embedded as real SVG <metadata> (not just a
+// filename) — "vettore tracciato + metadati", the definition Diego chose
+// for "parametric" at the very start of this tool's scope. Only runs
+// while paused: the field has to hold still to be traced at all, the
+// same rule Halide/Komorebi/Camouflage all apply to their own frozen-
+// frame exports.
+//
+// Curved-contour geometry ported verbatim from Camouflage (see that
+// file's own note above smoothLoop): Organica.contoursToPathD walks CELL
+// EDGES and emits axis-aligned segments — exactly right for Halide's
+// dithered pixels, exactly wrong for an organic reaction-diffusion
+// field. So this reuses the shared tracer for TOPOLOGY only (which cells
+// form which closed loop, holes included) and replaces the GEOMETRY:
+// decimate → low-pass smooth → Catmull-Rom cubic Béziers.
+function smoothLoop(loop, passes) {
+  let pts = loop.slice(0, -1);
+  for (let p = 0; p < passes; p++) {
+    const n = pts.length;
+    if (n < 5) break;
+    const next = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const a0 = pts[(i - 1 + n) % n], b0 = pts[i], c0 = pts[(i + 1) % n];
+      next[i] = [(a0[0] + 2 * b0[0] + c0[0]) / 4, (a0[1] + 2 * b0[1] + c0[1]) / 4];
+    }
+    pts = next;
+  }
+  return pts;
+}
+function loopToCurveD(pts, block) {
+  const n = pts.length;
+  if (n < 3) return '';
+  const P = i => pts[(i % n + n) % n];
+  const cd = v => String(Math.round(v * block * 100) / 100);
+  let d = 'M' + cd(P(0)[0]) + ',' + cd(P(0)[1]);
+  for (let i = 0; i < n; i++) {
+    const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += 'C' + cd(c1x) + ',' + cd(c1y) + ' ' + cd(c2x) + ',' + cd(c2y) + ' ' + cd(p2[0]) + ',' + cd(p2[1]);
+  }
+  return d + 'Z';
+}
+function decimateLoop(pts, k) {
+  if (k <= 1 || pts.length < k * 4) return pts;
+  const out = [];
+  for (let i = 0; i < pts.length; i += k) out.push(pts[i]);
+  return out;
+}
+function organicPathD(mask, W, H, block) {
+  const loops = Organica.traceContours(mask, W, H);
+  let d = '';
+  for (const loop of loops) {
+    if (loop.length < 8) continue;
+    const thinned = decimateLoop(loop.slice(0, -1), 2);
+    const smooth = smoothLoop(thinned.concat([thinned[0]]), 3);
+    d += loopToCurveD(smooth, block);
+  }
+  return d;
+}
+function svgToHex(c) {
+  const h = v => Math.max(0, Math.min(255, Math.round(v * 255))).toString(16).padStart(2, '0');
+  return '#' + h(c.r) + h(c.g) + h(c.b);
+}
+
+// Reads the live field back off the GPU and returns field[y*gridW+x] =
+// A-B, already flipped so row 0 is the TOP of the canvas
+// (readRenderTargetPixels comes back bottom-up, same fix already applied
+// to the preset thumbnails — see buildPresetThumb's own note).
+function readFrozenField() {
+  const buf = new Float32Array(gridW * gridH * 4);
+  renderer.setRenderTarget(rtA);
+  renderer.readRenderTargetPixels(rtA, 0, 0, gridW, gridH, buf);
+  renderer.setRenderTarget(null);
+  const field = new Float32Array(gridW * gridH);
+  for (let y = 0; y < gridH; y++) {
+    const srcY = gridH - 1 - y;
+    for (let x = 0; x < gridW; x++) {
+      const si = (srcY * gridW + x) * 4;
+      field[y * gridW + x] = buf[si] - buf[si + 1];
+    }
+  }
+  return field;
+}
+
+function exportSVG() {
+  if (document.getElementById('btn-playpause').getAttribute('aria-label') === 'Pause') {
+    setStatus('', 'Pause the simulation before exporting SVG');
+    return;
+  }
+  const scale = parseInt(ctrl('sel-scale').value, 10) || 2;
+  const outW = gridW * scale, outH = gridH * scale;
+  const block = scale;
+  const field = readFrozenField();
+
+  const colorMode = dispMat.uniforms.uColorMode.value;   // 0 solid, 1 adaptive, 2 rmx
+  let bands, bandColor;
+  if (colorMode < 0.5) {
+    bands = 2;
+    bandColor = [ctrl('hex-paper').value, ctrl('hex-ink').value];
+  } else if (colorMode < 1.5) {
+    bands = 8;   // Adaptive is a continuous blend — 8 stacked bands is a disclosed vector approximation, same trade Camouflage's own Bands mode makes
+    const inkC = new THREE.Color(ctrl('hex-ink').value), paperC = new THREE.Color(ctrl('hex-paper').value);
+    bandColor = [];
+    for (let s = 0; s < bands; s++) { const t = s / (bands - 1); bandColor.push(svgToHex(paperC.clone().lerp(inkC, t))); }
+    bandColor.reverse();   // band 0 = lightest (paper-ward), matches the stacking convention below
+  } else {
+    bands = rmxColors.length;   // RMX's Random/Tone+Random mappings are per-cell hashed noise — no vector form; export always renders as hard posterized bands, same simplification Camouflage discloses for its own Random mapping
+    bandColor = rmxColors.slice();
+  }
+
+  const bandOf = new Uint8Array(gridW * gridH);
+  for (let i = 0; i < gridW * gridH; i++) {
+    const v = Math.max(0, Math.min(1, field[i]));
+    bandOf[i] = Math.min(bands - 1, Math.floor(v * bands));
+  }
+
+  let body = `<rect width="${outW}" height="${outH}" fill="${bandColor[0]}"/>`;
+  const mask = new Uint8Array(gridW * gridH);
+  for (let bd = 1; bd < bands; bd++) {
+    let any = false;
+    for (let i = 0; i < gridW * gridH; i++) { const on = bandOf[i] >= bd ? 1 : 0; mask[i] = on; if (on) any = true; }
+    if (!any) continue;
+    const d = organicPathD(mask, gridW, gridH, block);
+    if (!d) continue;
+    body += `<path fill="${bandColor[bd]}" fill-rule="evenodd" d="${d}"/>`;
+  }
+
+  const meta = {
+    tool: 'Camo Touring', engine: 'gray-scott', f: val('rg-f'), k: val('rg-k'),
+    dA: val('rg-da'), dB: val('rg-db'), timestep: val('rg-dt'),
+    gridW, gridH, step: stepCount, seed: currentSeed(),
+    colorMode: colorMode < 0.5 ? 'solid' : colorMode < 1.5 ? 'adaptive' : 'rmx',
+    exportedAt: new Date().toISOString(),
+  };
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${outW} ${outH}">`
+    + `<metadata>${JSON.stringify(meta)}</metadata>${body}</svg>`;
+
+  Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('camo-touring', 'svg'));
+  setStatus('active', 'Exported SVG · step ' + stepCount);
+}
+
+function sendToFigma() { setStatus('', 'Figma export lands in a later step'); }
+
+// ── PRESETS ──
+// Real f/k values from Robert Munafo's (mrob's) Gray-Scott map, as used by
+// jasonwebb/reaction-diffusion-playground (js/parameterPresets.js on its
+// master branch) — the reference repo this tool was scoped against. Only
+// f/k are ported: that repo's dA/dB (0.2097/0.105) are on a different
+// absolute-diffusion convention than this tool's relative multiplier
+// sliders (centred at 1.0/0.5), so porting those numbers directly would
+// misrepresent the source: dA/dB/timestep are left at the panel's own
+// defaults for every built-in preset.
+//
+// Six of mrob's 24 named entries are deliberately NOT here, verified by
+// measurement rather than assumption: seeded with this tool's own
+// multi-blob bootstrap at this dA/dB convention and run thousands of
+// steps (via the same thumbnail engine below, at several seed radii),
+// 'Negative bubbles', 'Positive bubbles', 'Precritical bubbles', 'Worms
+// and loops' and 'Stable solitons' (the whole high-f "bubbles/soliton"
+// tier, f≥0.074) and 'Waves' (the opposite extreme, f=0.014/k=0.045) all
+// decayed to pure resting state (0 of 9216 sampled cells ever crossed the
+// threshold) — every other radius/step combination tried made no
+// difference. Bubbles/solitons and true travelling waves are known in
+// the Gray-Scott literature to be numerically delicate, and mrob's own
+// values were tuned against a specific bootstrap this tool doesn't
+// reproduce; shipping them as dead presets would be the same mistake
+// Camouflage's preset rebuild called out (docs/CAMOUFLAGE.md §11d/§11e)
+// — a preset that doesn't do what its name promises.
+const BUILTIN_PRESETS = {
+  'The U-Skate World': { f: 0.062, k: 0.0609 },
+  'Worms': { f: 0.058, k: 0.065 },
+  'Worms join into maze': { f: 0.046, k: 0.063 },
+  'Negatons': { f: 0.046, k: 0.0594 },
+  'Turing patterns': { f: 0.042, k: 0.059 },
+  'Chaos to Turing negatons': { f: 0.039, k: 0.058 },
+  'Fingerprints': { f: 0.037, k: 0.06 },
+  'Chaos with negatons': { f: 0.0353, k: 0.0566 },
+  'Spots and worms': { f: 0.034, k: 0.0618 },
+  'Self-replicating spots': { f: 0.03, k: 0.063 },
+  'Super-resonant mazes': { f: 0.03, k: 0.0565 },
+  'Mazes': { f: 0.029, k: 0.057 },
+  'Mazes with some chaos': { f: 0.026, k: 0.055 },
+  'Chaos': { f: 0.026, k: 0.051 },
+  'Pulsating solitons': { f: 0.025, k: 0.06 },
+  'Warring microbes': { f: 0.022, k: 0.059 },
+  'Spots and loops': { f: 0.018, k: 0.051 },
+  'Moving spots': { f: 0.014, k: 0.054 },
+};
+
+function presetStore() { return Organica.presetStore('camotouring'); }
+function userPresets() { return presetStore().read(); }
+function allPresets() { return Object.assign({}, BUILTIN_PRESETS, userPresets()); }
+let currentPresetName = null;
+
+// ── thumbnail engine ──
+// Renders each preset's own settled field at a small offscreen resolution,
+// completely separate from the live rtA/rtB grid — same materials/scenes
+// (simMat/seedMat/simScene/seedScene), different render targets, so it
+// never touches what's on screen. Always seeds with the plain default
+// multi-blob bootstrap (ignoring whatever seed shape/mode is live) and a
+// fixed Ink/Paper duotone (ignoring the live palette), so every thumbnail
+// reads consistently regardless of the user's current settings.
+const THUMB_N = 96;
+const THUMB_STEPS = 2000;
+const thumbCache = {};
+
+// mrob's higher-f/k regimes (bubbles, solitons) need a substantially
+// bigger bootstrap disturbance than the live tool's own DEFAULT_SEED_RADIUS
+// to nucleate at all at this tiny resolution — verified empirically (see
+// docs/CAMOTOURING.md): at DEFAULT_SEED_RADIUS/900 steps, 5 of 24 presets
+// (the whole "bubbles"/soliton family) died back to pure resting state
+// and rendered as a blank swatch.
+const THUMB_SEED_RADIUS = 0.08;
+
+function simulateThumbField(f, k, radius, steps, seedNum, da, db) {
+  if (da === undefined) da = 1.0;
+  if (db === undefined) db = 0.5;
+  const rt0 = makeRenderTarget(THUMB_N, THUMB_N), rt1 = makeRenderTarget(THUMB_N, THUMB_N);
+  let a = rt0, b = rt1;
+
+  // clear to resting state
+  seedMat.uniforms.uPrev.value = a.texture;
+  seedMat.uniforms.uCenter.value.set(0.5, 0.5);
+  seedMat.uniforms.uRadius.value = 0.0;
+  seedMat.uniforms.uClear.value = 1.0;
+  renderer.setRenderTarget(b);
+  renderer.render(seedScene, camera);
+  [a, b] = [b, a];
+
+  // scatter a handful of bootstrap blobs, deterministic per preset
+  const rng = mulberry32(seedNum);
+  const n = 6 + Math.floor(rng() * 4);
+  for (let i = 0; i < n; i++) {
+    seedMat.uniforms.uPrev.value = a.texture;
+    seedMat.uniforms.uCenter.value.set(rng(), rng());
+    seedMat.uniforms.uRadius.value = radius;
+    seedMat.uniforms.uClear.value = 0.0;
+    renderer.setRenderTarget(b);
+    renderer.render(seedScene, camera);
+    [a, b] = [b, a];
+  }
+
+  // run the reaction, saving/restoring every simMat uniform this touches
+  // (the live simulation shares this same material — see the note above
+  // stepSim()) so building thumbnails can never leak into what's running.
+  const save = {
+    uF: simMat.uniforms.uF.value, uK: simMat.uniforms.uK.value,
+    uDa: simMat.uniforms.uDa.value, uDb: simMat.uniforms.uDb.value, uDt: simMat.uniforms.uDt.value,
+    uTexel: simMat.uniforms.uTexel.value.clone(), uMask: simMat.uniforms.uMask.value,
+    uConfineOn: simMat.uniforms.uConfineOn.value, uBoundaryOn: simMat.uniforms.uBoundaryOn.value,
+  };
+  simMat.uniforms.uF.value = f; simMat.uniforms.uK.value = k;
+  simMat.uniforms.uDa.value = da; simMat.uniforms.uDb.value = db; simMat.uniforms.uDt.value = 1.0;
+  simMat.uniforms.uTexel.value.set(1 / THUMB_N, 1 / THUMB_N);
+  simMat.uniforms.uMask.value = defaultMaskTex;
+  simMat.uniforms.uConfineOn.value = 0.0; simMat.uniforms.uBoundaryOn.value = 0.0;
+
+  for (let s = 0; s < steps; s++) {
+    simMat.uniforms.uState.value = a.texture;
+    renderer.setRenderTarget(b);
+    renderer.render(simScene, camera);
+    [a, b] = [b, a];
+  }
+
+  simMat.uniforms.uF.value = save.uF; simMat.uniforms.uK.value = save.uK;
+  simMat.uniforms.uDa.value = save.uDa; simMat.uniforms.uDb.value = save.uDb; simMat.uniforms.uDt.value = save.uDt;
+  simMat.uniforms.uTexel.value.copy(save.uTexel); simMat.uniforms.uMask.value = save.uMask;
+  simMat.uniforms.uConfineOn.value = save.uConfineOn; simMat.uniforms.uBoundaryOn.value = save.uBoundaryOn;
+
+  const buf = new Float32Array(THUMB_N * THUMB_N * 4);
+  renderer.setRenderTarget(a);
+  renderer.readRenderTargetPixels(a, 0, 0, THUMB_N, THUMB_N, buf);
+  renderer.setRenderTarget(null);
+  rt0.dispose(); rt1.dispose();
+  return buf;
+}
+
+function buildPresetThumb(f, k, seedNum) {
+  const buf = simulateThumbField(f, k, THUMB_SEED_RADIUS, THUMB_STEPS, seedNum);
+
+  // WebGL read-back is bottom-up; flip rows so the thumbnail reads the
+  // same way up as the live canvas.
+  const cnv = document.createElement('canvas');
+  cnv.width = THUMB_N; cnv.height = THUMB_N;
+  const ictx = cnv.getContext('2d');
+  const img = ictx.createImageData(THUMB_N, THUMB_N);
+  for (let y = 0; y < THUMB_N; y++) {
+    const srcY = THUMB_N - 1 - y;
+    for (let x = 0; x < THUMB_N; x++) {
+      const si = (srcY * THUMB_N + x) * 4;
+      const di = (y * THUMB_N + x) * 4;
+      const v = buf[si] - buf[si + 1];   // A - B, same threshold convention as DISPLAY_FRAG's Solid mode
+      const c = v < 0.5 ? 20 : 235;
+      img.data[di] = c; img.data[di + 1] = c; img.data[di + 2] = c; img.data[di + 3] = 255;
+    }
+  }
+  ictx.putImageData(img, 0, 0);
+  return cnv.toDataURL();
+}
+
+function hashSeed(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) { h = (Math.imul(31, h) + str.charCodeAt(i)) | 0; }
+  return h >>> 0;
+}
+
+function presetThumb(name, p) {
+  const key = name + ':' + p.f + ':' + p.k;
+  if (thumbCache[key]) return thumbCache[key];
+  const url = buildPresetThumb(p.f, p.k, hashSeed(key));
+  thumbCache[key] = url;
+  return url;
+}
+
+function updatePresetTrigger() {
+  const ico = ctrl('pt-ico'), nm = ctrl('pt-name');
+  if (!ico) return;
+  const p = currentPresetName ? allPresets()[currentPresetName] : null;
+  nm.textContent = currentPresetName || 'Choose a preset…';
+  ico.innerHTML = p ? `<img src="${presetThumb(currentPresetName, p)}" alt="">` : '';
+  // Pattern's own section header carries the active preset's name (or
+  // falls back to the section's default hint once the user diverges from
+  // it — see onParamChange's applyingPreset guard, which clears
+  // currentPresetName the moment a slider is dragged by hand).
+  const ph = ctrl('pattern-hint');
+  if (ph) ph.textContent = currentPresetName || 'Gray-Scott, GPU-live';
+}
+
+function populatePresetMenu() {
+  const m = ctrl('preset-menu');
+  m.innerHTML = '';
+  const addGroup = (label, names, source) => {
+    if (!names.length) return;
+    const h = document.createElement('div');
+    h.className = 'pi-group';
+    h.textContent = label;
+    m.appendChild(h);
+    names.forEach(name => {
+      const p = source[name];
+      const row = document.createElement('button');
+      row.className = 'preset-item' + (name === currentPresetName ? ' on' : '');
+      row.innerHTML = `<span class="pi-ico"><img src="${presetThumb(name, p)}" alt=""></span><span class="pi-name">${name}</span>`;
+      row.addEventListener('click', () => { applyPreset(name); ctrl('preset-menu').hidden = true; populatePresetMenu(); });
+      m.appendChild(row);
+    });
+  };
+  addGroup('Built-in', Object.keys(BUILTIN_PRESETS), BUILTIN_PRESETS);
+  addGroup('Saved', Object.keys(userPresets()), userPresets());
+}
+
+function positionPresetMenu() {
+  const t = ctrl('preset-trigger').getBoundingClientRect(), m = ctrl('preset-menu'), gap = 5, margin = 12;
+  const below = window.innerHeight - t.bottom - margin, above = t.top - margin;
+  m.style.left = t.left + 'px'; m.style.width = t.width + 'px';
+  if (below >= 200 || below >= above) { m.style.top = (t.bottom + gap) + 'px'; m.style.bottom = 'auto'; m.style.maxHeight = Math.max(160, below) + 'px'; }
+  else { m.style.bottom = (window.innerHeight - t.top + gap) + 'px'; m.style.top = 'auto'; m.style.maxHeight = Math.max(160, above) + 'px'; }
+}
+
+function buildPresetsUI() {
+  const host = ctrl('presets');
+  host.innerHTML = `<button class="preset-trigger" id="preset-trigger">
+      <span class="pt-ico" id="pt-ico"></span><span class="pt-name" id="pt-name">Choose a preset…</span><span class="pt-chev">▾</span>
+    </button><div class="preset-menu" id="preset-menu" hidden></div>`;
+  ctrl('preset-trigger').addEventListener('click', e => {
+    e.stopPropagation();
+    const m = ctrl('preset-menu');
+    if (m.hidden) { populatePresetMenu(); positionPresetMenu(); m.hidden = false; }
+    else m.hidden = true;
+  });
+  document.addEventListener('click', e => {
+    const m = ctrl('preset-menu');
+    if (!m.hidden && !e.target.closest('.presets') && !e.target.closest('#preset-menu')) m.hidden = true;
+  });
+  updatePresetTrigger();
+}
+
+function applyPreset(name) {
+  const p = allPresets()[name];
+  if (!p) return;
+  const f = ctrl('rg-f'), k = ctrl('rg-k');
+  f.value = p.f; k.value = p.k;
+  syncVal(f, 'v-f'); syncVal(k, 'v-k');
+  applyingPreset = true;
+  onParamChange();
+  applyingPreset = false;
+  currentPresetName = name;
+  updatePresetTrigger();
+  setStatus('busy', 'Preset · ' + name);
+}
+
+function savePreset() {
+  const name = prompt('Preset name');
+  if (!name) return;
+  const all = userPresets();
+  all[name] = { f: parseFloat(val('rg-f')), k: parseFloat(val('rg-k')) };
+  presetStore().write(all);
+  currentPresetName = name;
+  updatePresetTrigger();
+  setStatus('active', 'Saved preset · ' + name);
+}
+
+function deletePreset() {
+  if (!currentPresetName) return;
+  if (BUILTIN_PRESETS[currentPresetName]) { setStatus('', 'Built-in presets cannot be deleted'); return; }
+  const all = userPresets();
+  if (!all[currentPresetName]) return;
+  delete all[currentPresetName];
+  presetStore().write(all);
+  delete thumbCache[currentPresetName];
+  currentPresetName = null;
+  updatePresetTrigger();
+  setStatus('active', 'Deleted preset');
+}
+
+// ── INIT ──
+Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+window.ctrl = ctrl;
+window.togglePlay = togglePlay;
+window.resetSim = resetSim;
+window.rebuildGrid = rebuildGrid;
+window.resizeFormat = resizeFormat;
+window.syncVal = syncVal;
+window.syncColor = syncColor;
+window.randomColor = randomColor;
+window.setColorMode = setColorMode;
+window.rmxSetColor = rmxSetColor;
+window.rmxAddColor = rmxAddColor;
+window.rmxRemoveColor = rmxRemoveColor;
+window.scheduleRender = scheduleRender;
+window.syncRmxUniforms = syncRmxUniforms;
+window.onParamChange = onParamChange;
+window.exportPNG = exportPNG;
+window.exportSVG = exportSVG;
+window.sendToFigma = sendToFigma;
+window.applyPreset = applyPreset;
+window.savePreset = savePreset;
+window.deletePreset = deletePreset;
+window.setSeedSource = setSeedSource;
+window.onTextChange = onTextChange;
+window.applySeed = applySeed;
+window.testTwoShapeSeed = testTwoShapeSeed;   // experimental probe, see the function's own comment
+window.testFamineZoneVisible = testFamineZoneVisible;   // experimental probe, see the function's own comment
+window.testFamineZoneClean = testFamineZoneClean;   // experimental probe, see the function's own comment
+window.__step = (n) => { for (let i = 0; i < n; i++) stepSim(); draw(); return stepCount; };   // temporary — precise manual stepping for the famine-zone probe
+window.__read = () => {   // temporary — read back the raw A/B field for the famine-zone probe
+  const buf = new Float32Array(gridW * gridH * 4);
+  renderer.setRenderTarget(rtA);
+  renderer.readRenderTargetPixels(rtA, 0, 0, gridW, gridH, buf);
+  renderer.setRenderTarget(null);
+  return { N: gridW, gridW, gridH, buf };
+};
+window.syncSeedModeRows = syncSeedModeRows;
+window.setSeedSourceA = setSeedSourceA;
+window.syncTwoShapeRows = syncTwoShapeRows;
+
+populateGenesisGrid();
+populateGenesisGridA();
+syncSeedModeRows();
+syncTwoShapeRows();
+
+if (initGL()) {
+  resetSim();
+  buildRmxPalette();   // needs dispMat, so only after initGL() succeeds
+  buildPresetsUI();    // needs simMat/seedMat/renderer for thumbnails, so only after initGL() succeeds
+  setStatus('busy', 'Simmering…');
+  loop();
+}
+
+Organica.autoLabelPanel(document);
+</script>
+</body>
+</html>

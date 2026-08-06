@@ -247,6 +247,25 @@
   };
 
   // ═══════════════════════════════════════════════════════════
+  // FORMAT — aspect-ratio select
+  //
+  // Komorebi and Camouflage each carried their own copy of this exact
+  // "N:M" parse (Komorebi's select has 6 options incl. 2:3 and the
+  // A-series root-2 ratio; Camouflage's has 4 and had already drifted
+  // to a subset). What's genuinely shared is the parsing, not the
+  // resize itself — each tool reacts to a new ratio differently
+  // (Komorebi just restyles a CSS aspect-ratio and re-renders on demand;
+  // Camouflage resizes its CPU pixel buffer; Camo Touring reallocates
+  // its WebGL simulation render targets) so ONLY the ratio math is
+  // centralised here — each tool still owns its own resizeCanvas().
+  // ═══════════════════════════════════════════════════════════
+
+  Organica.formatRatio = function (select) {
+    const [a, b] = select.value.split(':').map(Number);
+    return a / b;
+  };
+
+  // ═══════════════════════════════════════════════════════════
   // ZOOM & PAN
   //
   // Wheel-zoom toward the cursor, drag to pan, double-click to reset,

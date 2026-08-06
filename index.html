@@ -213,6 +213,16 @@
       background: #7a6a8a;
     }
 
+    /* camo touring gets a GPU-shader cyan — distinct from camouflage's own
+       mauve, since it's a companion tool with a different engine, not a
+       variant of the same one */
+    .nav__link--touring:hover {
+      color: #3f8fa0;
+    }
+    .nav__link--touring::after {
+      background: #3f8fa0;
+    }
+
     /* design system is documentation, not a tool — a quiet neutral, not a
        new hue in the palette */
     .nav__link--ds:hover {
@@ -271,6 +281,7 @@
       <a class="nav__link nav__link--halide" href="/halide/">Halide</a>
       <a class="nav__link nav__link--komorebi" href="/komorebi/">Komorebi</a>
       <a class="nav__link nav__link--camouflage" href="/camouflage/">Camouflage</a>
+      <a class="nav__link nav__link--touring" href="/camo-touring/">Camo Touring</a>
       <a class="nav__link nav__link--ds" href="/design-system/">Design System</a>
     </nav>
   </main>

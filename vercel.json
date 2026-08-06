@@ -40,6 +40,10 @@
       "destination": "/camouflage/$1"
     },
     {
+      "source": "/camo-touring/(.*)",
+      "destination": "/camo-touring/$1"
+    },
+    {
       "source": "/shared/(.*)",
       "destination": "/shared/$1"
     },

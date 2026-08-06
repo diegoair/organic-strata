@@ -1134,8 +1134,7 @@ const BASE_LONG = 900;
 let previewW = 900, previewH = 600;
 
 function formatRatio() {
-  const [a, b] = ctrl('sel-format').value.split(':').map(Number);
-  return a / b;
+  return Organica.formatRatio(ctrl('sel-format'));
 }
 function resizeCanvas() {
   const r = formatRatio();
