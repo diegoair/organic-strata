@@ -117,7 +117,7 @@
     background: var(--panel);
     position: relative;
     overflow: hidden;
-    padding: var(--space-7);
+    padding: var(--space-4);
   }
 
   #gl-canvas {
@@ -135,7 +135,12 @@
     box-shadow: 0 4px 40px rgba(0,0,0,0.18);
     cursor: crosshair;
     display: block;
-    image-rendering: pixelated;
+    /* The drawing buffer itself now renders at DISPLAY_LONG (1024), not
+       the simulation's own low-res grid (see computeDisplayDims()) — the
+       field is genuinely interpolated at that resolution, not just a
+       blocky upscale of a small bitmap, so the crisp/blocky "pixelated"
+       hint is no longer wanted here. */
+    image-rendering: auto;
   }
 
   #gl-error {
@@ -180,13 +185,14 @@
   </output>
 </header>
 
-<!-- FLOATING TOOLBAR — Play/pause, step counter, Reset, Export, Figma —
-     fixed bottom-centre over the canvas, the same shared component every
-     other tool's actions live in (see camouflage/index.html). Play/pause
-     and the step stat are the one genuinely tool-specific addition (no
-     other tool has a running simulation to pause) — everything else
-     (shell, spacing, icon sizing, popover) is the shared component
-     unchanged. -->
+<!-- FLOATING TOOLBAR — Play/pause, step counter, Reset, Export — fixed
+     bottom-centre over the canvas, the same shared component every other
+     tool's actions live in (see camouflage/index.html). Play/pause and
+     the step stat are the one genuinely tool-specific addition (no other
+     tool has a running simulation to pause) — everything else (shell,
+     spacing, icon sizing, popover) is the shared component unchanged.
+     No Figma button — removed product-wide; direct Figma export is
+     coming back as a tab inside the Export popover instead. -->
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
   <button class="org-floatbar__btn" id="btn-playpause" onclick="togglePlay()" aria-label="Pause">
     <svg class="ico" id="ico-playpause" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 3.5v9M11 3.5v9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -229,11 +235,6 @@
     </div>
   </div>
 
-  <div class="org-floatbar__sep"></div>
-
-  <button class="org-floatbar__btn org-floatbar__btn--primary" onclick="sendToFigma()" aria-label="Send to Figma">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 1.5h2.25a2 2 0 1 1 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 5.5h2.25a2 2 0 1 1 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 9.5h1.25a2 2 0 1 1 0 4A2 2 0 0 1 6 11.5v-2Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 1.5H4.25a2 2 0 1 0 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-  </button>
 </div>
 
 <div id="app">
@@ -264,40 +265,6 @@
         <option value="16:9">Wide 16:9</option>
         <option value="1:1.414">A-series √2</option>
       </select>
-    </div>
-
-    <div class="panel-section">
-      <h3>Pattern <span class="hint" id="pattern-hint">Gray-Scott, GPU-live</span></h3>
-      <div class="presets" id="presets"></div>
-      <div class="row-btns">
-        <button class="mini-btn" onclick="savePreset()">Save</button>
-        <button class="mini-btn" onclick="deletePreset()">Delete</button>
-      </div>
-      <div class="ctrl-row" style="margin-top: var(--space-4)">
-        <div class="ctrl-label" title="Feed rate — how fast chemical A is replenished.">Feed (f)</div>
-        <input type="range" id="rg-f" min="0.010" max="0.090" step="0.0001" value="0.0367" oninput="syncVal(this,'v-f'); onParamChange();">
-        <span class="ctrl-val" id="v-f">0.0367</span>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label" title="Kill rate — how fast chemical B is removed.">Kill (k)</div>
-        <input type="range" id="rg-k" min="0.030" max="0.075" step="0.0001" value="0.0649" oninput="syncVal(this,'v-k'); onParamChange();">
-        <span class="ctrl-val" id="v-k">0.0649</span>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label" title="Diffusion rate of chemical A (substrate). Larger = wider-spreading features.">dA</div>
-        <input type="range" id="rg-da" min="0.2" max="2" step="0.01" value="1.0" oninput="syncVal(this,'v-da'); onParamChange();">
-        <span class="ctrl-val" id="v-da">1.0</span>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label" title="Diffusion rate of chemical B (activator). Larger relative to dA = softer features.">dB</div>
-        <input type="range" id="rg-db" min="0.1" max="1" step="0.01" value="0.5" oninput="syncVal(this,'v-db'); onParamChange();">
-        <span class="ctrl-val" id="v-db">0.5</span>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label" title="Simulation step size. Higher = faster evolution per frame, but can go numerically unstable if raised too far.">Timestep</div>
-        <input type="range" id="rg-dt" min="0.2" max="1.5" step="0.01" value="1.0" oninput="syncVal(this,'v-dt'); onParamChange();">
-        <span class="ctrl-val" id="v-dt">1.0</span>
-      </div>
     </div>
 
     <div class="panel-section">
@@ -377,6 +344,40 @@
 
       <button class="mini-btn" style="width:100%; margin-top: var(--space-2)" onclick="applySeed()">Apply seed</button>
       <p class="org-panel__hint" id="seed-status-hint"></p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Pattern <span class="hint" id="pattern-hint">Gray-Scott, GPU-live</span></h3>
+      <div class="presets" id="presets"></div>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="savePreset()">Save</button>
+        <button class="mini-btn" onclick="deletePreset()">Delete</button>
+      </div>
+      <div class="ctrl-row" style="margin-top: var(--space-4)">
+        <div class="ctrl-label" title="Feed rate — how fast chemical A is replenished.">Feed (f)</div>
+        <input type="range" id="rg-f" min="0.010" max="0.090" step="0.0001" value="0.0367" oninput="syncVal(this,'v-f'); onParamChange();">
+        <span class="ctrl-val" id="v-f">0.0367</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Kill rate — how fast chemical B is removed.">Kill (k)</div>
+        <input type="range" id="rg-k" min="0.030" max="0.075" step="0.0001" value="0.0649" oninput="syncVal(this,'v-k'); onParamChange();">
+        <span class="ctrl-val" id="v-k">0.0649</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Diffusion rate of chemical A (substrate). Larger = wider-spreading features.">dA</div>
+        <input type="range" id="rg-da" min="0.2" max="2" step="0.01" value="1.0" oninput="syncVal(this,'v-da'); onParamChange();">
+        <span class="ctrl-val" id="v-da">1.0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Diffusion rate of chemical B (activator). Larger relative to dA = softer features.">dB</div>
+        <input type="range" id="rg-db" min="0.1" max="1" step="0.01" value="0.5" oninput="syncVal(this,'v-db'); onParamChange();">
+        <span class="ctrl-val" id="v-db">0.5</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Simulation step size. Higher = faster evolution per frame, but can go numerically unstable if raised too far.">Timestep</div>
+        <input type="range" id="rg-dt" min="0.2" max="1.5" step="0.01" value="1.0" oninput="syncVal(this,'v-dt'); onParamChange();">
+        <span class="ctrl-val" id="v-dt">1.0</span>
+      </div>
     </div>
 
     <div class="panel-section">
@@ -710,8 +711,16 @@ function makeRenderTarget(w, h) {
   return new THREE.WebGLRenderTarget(w, h, {
     type: THREE.FloatType,
     format: THREE.RGBAFormat,
-    minFilter: THREE.NearestFilter,
-    magFilter: THREE.NearestFilter,
+    // Linear, not Nearest — every sample this tool ever takes (the sim's
+    // own Laplacian neighbours, COPY_FRAG's format-resize blit) lands
+    // exactly on a texel centre (offsets are whole texels / rounded whole
+    // pixels), where bilinear and nearest are mathematically identical —
+    // so this is free precision for the one case that ISN'T texel-aligned:
+    // the display pass, once the canvas renders at a higher resolution
+    // than the simulation grid itself (see computeDisplayDims()). That's
+    // where the field gets genuinely smooth instead of blocky.
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
     wrapS: THREE.RepeatWrapping,   // toroidal, same as the CPU engine
     wrapT: THREE.RepeatWrapping,
   });
@@ -728,6 +737,22 @@ function computeGridDims() {
   return r >= 1
     ? { w: base, h: Math.round(base / r) }
     : { w: Math.round(base * r), h: base };
+}
+
+// The CANVAS's own drawing-buffer resolution — deliberately decoupled
+// from the simulation grid (gridW/gridH). Resolution controls how many
+// cells actually REACT each step (a real compute cost); this only
+// controls how many pixels the display pass (dispMat, a single cheap
+// full-screen shader) renders — free quality, since rtA/rtB are now
+// Linear-filtered (see makeRenderTarget's own note) and sampling them at
+// more output pixels than input texels genuinely interpolates between
+// cells instead of showing each one as a flat block.
+const DISPLAY_LONG = 1024;
+function computeDisplayDims() {
+  const r = Organica.formatRatio(ctrl('sel-format'));
+  return r >= 1
+    ? { w: DISPLAY_LONG, h: Math.round(DISPLAY_LONG / r) }
+    : { w: Math.round(DISPLAY_LONG * r), h: DISPLAY_LONG };
 }
 
 function initGL() {
@@ -748,8 +773,9 @@ function initGL() {
   quad = new THREE.PlaneGeometry(2, 2);
 
   ({ w: gridW, h: gridH } = computeGridDims());
-  canvas.width = gridW; canvas.height = gridH;
-  renderer.setSize(gridW, gridH, false);
+  const dispDims0 = computeDisplayDims();
+  canvas.width = dispDims0.w; canvas.height = dispDims0.h;
+  renderer.setSize(dispDims0.w, dispDims0.h, false);
   rtA = makeRenderTarget(gridW, gridH);
   rtB = makeRenderTarget(gridW, gridH);
 
@@ -918,8 +944,9 @@ function togglePlay() {
 
 function rebuildGrid() {
   ({ w: gridW, h: gridH } = computeGridDims());
-  ctrl('gl-canvas').width = gridW; ctrl('gl-canvas').height = gridH;
-  renderer.setSize(gridW, gridH, false);
+  const dispDims1 = computeDisplayDims();
+  ctrl('gl-canvas').width = dispDims1.w; ctrl('gl-canvas').height = dispDims1.h;
+  renderer.setSize(dispDims1.w, dispDims1.h, false);
   rtA.dispose(); rtB.dispose();
   rtA = makeRenderTarget(gridW, gridH); rtB = makeRenderTarget(gridW, gridH);
   simMat.uniforms.uTexel.value.set(1 / gridW, 1 / gridH);
@@ -953,8 +980,9 @@ function resizeFormat() {
   rtA.dispose(); rtB.dispose();
   rtA = newA; rtB = newB;
 
-  ctrl('gl-canvas').width = gridW; ctrl('gl-canvas').height = gridH;
-  renderer.setSize(gridW, gridH, false);
+  const dispDims2 = computeDisplayDims();
+  ctrl('gl-canvas').width = dispDims2.w; ctrl('gl-canvas').height = dispDims2.h;
+  renderer.setSize(dispDims2.w, dispDims2.h, false);
   simMat.uniforms.uTexel.value.set(1 / gridW, 1 / gridH);
   draw();
 }
@@ -2018,7 +2046,10 @@ function applyPreset(name) {
   applyingPreset = false;
   currentPresetName = name;
   updatePresetTrigger();
-  setStatus('busy', 'Preset · ' + name);
+  // No header status text here — the preset name already lives in the
+  // Pattern section's own header (see updatePresetTrigger); repeating it
+  // in the header status too was the redundancy being removed. The
+  // header keeps showing whatever running/paused state it already had.
 }
 
 function savePreset() {
