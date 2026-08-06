@@ -604,12 +604,6 @@
       <span class="org-out" id="export-info"></span>
     </div>
   </div>
-
-  <div class="org-floatbar__sep"></div>
-
-  <button class="org-floatbar__btn org-floatbar__btn--primary" id="btn-figma" disabled aria-label="Send to Figma">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 1.5h2.25a2 2 0 1 1 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 5.5h2.25a2 2 0 1 1 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 9.5h1.25a2 2 0 1 1 0 4A2 2 0 0 1 6 11.5v-2Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 1.5H4.25a2 2 0 1 0 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-  </button>
 </div>
 
 <!-- SIDEBAR -->
@@ -1287,7 +1281,6 @@ function showServerGuidance(errMsg) {
   document.getElementById('svg-info').textContent =
     errMsg ? 'trace error' : (isLocal ? 'server offline' : 'connection error');
   document.getElementById('btn-export').disabled = true;
-  document.getElementById('btn-figma').disabled = true;
 }
 
 function getExportSvg() {
@@ -1470,7 +1463,6 @@ function updateSvgEmbed(svgStr) {
 function renderSVGPreview(svgStr) {
   updateSvgEmbed(svgStr);
   document.getElementById('btn-export').disabled = false;
-  document.getElementById('btn-figma').disabled = false;
   document.getElementById('refine-section').classList.remove('hidden');
   state.paperDirty = false;
 
@@ -1638,15 +1630,17 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   cropState.live = null;
   cropState.drawing = false;
   document.getElementById('btn-export').disabled = true;
-  document.getElementById('btn-figma').disabled = true;
   document.getElementById('file-input').value = '';
   document.getElementById('svg-embed').innerHTML = '';
   document.getElementById('crop-dims').textContent = '';
   showStage('drop');
 });
 
-// → Figma
-document.getElementById('btn-figma').addEventListener('click', async () => {
+// → Figma. No floatbar button for this anymore (removed product-wide —
+// see camo-touring/index.html's own note); kept as a plain function,
+// not wired to any element, so the logic is ready to reuse once this
+// becomes a tab inside the Export popover instead.
+async function sendToFigma() {
   const svg = getExportSvg();
   if (!svg) return;
 
@@ -1699,7 +1693,7 @@ document.getElementById('btn-figma').addEventListener('click', async () => {
   navigator.clipboard?.writeText(svgUrl).catch(() => {});
   showBanner('SVG ready — open the Figma plugin and click "Import Latest Shape"');
   window.open(result.figma_url || 'figma://file/FYWyi41bGojxFATB0szSUb', '_blank');
-});
+}
 
 // Init labels
 updateAllLabels();

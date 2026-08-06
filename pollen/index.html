@@ -330,12 +330,6 @@
       </div>
     </div>
   </div>
-
-  <div class="org-floatbar__sep"></div>
-
-  <button class="org-floatbar__btn org-floatbar__btn--primary" id="btn-figma" onclick="sendToFigma()" disabled aria-label="Send to Figma">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 1.5h2.25a2 2 0 1 1 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 5.5h2.25a2 2 0 1 1 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 9.5h1.25a2 2 0 1 1 0 4A2 2 0 0 1 6 11.5v-2Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 1.5H4.25a2 2 0 1 0 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-  </button>
 </div>
 
 <!-- APP -->
@@ -1253,7 +1247,7 @@ async function computePoints() {
   setTimeout(() => { ctrl('progress-bar').style.width = '0%'; }, 500);
   clearDirty();
   ctrl('vl-total').textContent = points.length.toLocaleString();
-  ['btn-export', 'btn-save-png','btn-save-jpg','btn-save-svg','btn-figma'].forEach(id => ctrl(id).disabled = false);
+  ['btn-export', 'btn-save-png','btn-save-jpg','btn-save-svg'].forEach(id => ctrl(id).disabled = false);
   setStatus('active', points.length.toLocaleString() + ' points placed');
   updateSizeReadout();
   render();

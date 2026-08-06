@@ -229,12 +229,6 @@
       </p>
     </div>
   </div>
-
-  <div class="org-floatbar__sep"></div>
-
-  <button class="org-floatbar__btn org-floatbar__btn--primary" id="btn-figma" onclick="sendToFigma()" disabled aria-label="Send to Figma">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 1.5h2.25a2 2 0 1 1 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 5.5h2.25a2 2 0 1 1 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 9.5h1.25a2 2 0 1 1 0 4A2 2 0 0 1 6 11.5v-2Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 1.5H4.25a2 2 0 1 0 0 4H6v-4Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-  </button>
 </div>
 
 <div id="app">
@@ -711,7 +705,7 @@ function loadImage(input) {
     resetZoom();
     document.getElementById('drop-hint').classList.add('hidden');
     // btn-export is the popover trigger; the three format buttons live inside it
-    ['btn-export', 'btn-save-png', 'btn-save-jpg', 'btn-save-svg', 'btn-figma']
+    ['btn-export', 'btn-save-png', 'btn-save-jpg', 'btn-save-svg']
       .forEach(id => ctrl(id).disabled = false);
     setStatus('active', img.width + '×' + img.height + ' loaded');
     computeAndPaint();
