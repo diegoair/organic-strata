@@ -1895,6 +1895,49 @@ function svgToHex(c) {
   return '#' + h(c.r) + h(c.g) + h(c.b);
 }
 
+// JS mirror of DISPLAY_FRAG's hash1(vec2) — same formula, same inputs
+// (integer cell coords from floor(vUv*48.0)), so export picks the exact
+// same per-cell colour/jitter the shader picked, not an approximation.
+function hash1JS(x, y) {
+  const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+  return s - Math.floor(s);
+}
+// JS mirror of paletteAt()+the Tone mix — continuous position p in
+// [0, colors.length-1] across an arbitrary-length palette.
+function rmxLerpColor(colors, p) {
+  const count = colors.length;
+  if (count <= 1) return colors[0];
+  p = Math.max(0, Math.min(count - 1, p));
+  const i0 = Math.floor(p), i1 = Math.min(i0 + 1, count - 1), f = p - i0;
+  const c0 = new THREE.Color(colors[i0]), c1 = new THREE.Color(colors[i1]);
+  return svgToHex(c0.clone().lerp(c1, f));
+}
+// Random's hashed grid is fixed at 48×48 UV cells regardless of gridW/
+// gridH or export scale — see DISPLAY_FRAG's `floor(vUv * 48.0)`. Each
+// cell is a genuinely flat colour (no blending), so the honest vector
+// form is exact per-cell rects, not a posterized approximation of a
+// continuous field. vUv.y=1 is the TOP of the canvas (three.js/GL UV
+// convention for a directly-rendered, not read-back, quad), so row 0 of
+// the hash grid maps to the BOTTOM of the SVG, not the top.
+function buildRandomGridSVG(outW, outH, colors) {
+  const N = 48;
+  const cellW = outW / N, cellH = outH / N;
+  const count = colors.length;
+  const r2 = v => Math.round(v * 100) / 100;
+  let s = '';
+  for (let cy = 0; cy < N; cy++) {
+    const svgY = outH * (1 - (cy + 1) / N);
+    for (let cx = 0; cx < N; cx++) {
+      const h = hash1JS(cx, cy);
+      let ri = Math.floor(h * count);
+      if (ri > count - 1) ri = count - 1;
+      const svgX = outW * (cx / N);
+      s += `<rect x="${r2(svgX)}" y="${r2(svgY)}" width="${r2(cellW)}" height="${r2(cellH)}" fill="${colors[ri]}"/>`;
+    }
+  }
+  return s;
+}
+
 // Reads the live field back off the GPU and returns field[y*gridW+x] =
 // A-B, already flipped so row 0 is the TOP of the canvas
 // (readRenderTargetPixels comes back bottom-up, same fix already applied
@@ -1926,7 +1969,7 @@ function exportSVG() {
   const field = readFrozenField();
 
   const colorMode = dispMat.uniforms.uColorMode.value;   // 0 solid, 1 adaptive, 2 rmx
-  let bands, bandColor;
+  let bands, bandColor, score = field, body = null;
   if (colorMode < 0.5) {
     bands = 2;
     bandColor = [ctrl('hex-paper').value, ctrl('hex-ink').value];
@@ -1936,26 +1979,62 @@ function exportSVG() {
     bandColor = [];
     for (let s = 0; s < bands; s++) { const t = s / (bands - 1); bandColor.push(svgToHex(paperC.clone().lerp(inkC, t))); }
     bandColor.reverse();   // band 0 = lightest (paper-ward), matches the stacking convention below
+  } else if (rmxColorMap === 'random') {
+    // Found by testing: this used to fall through to the same posterized-
+    // band export every other RMX mapping uses, silently discarding the
+    // hashed noise texture — the exported file looked nothing like the
+    // preview. Random's grid is fixed 48×48 flat cells (no blending), so
+    // unlike Tone/Adaptive it has an exact vector form: real per-cell rects.
+    body = buildRandomGridSVG(outW, outH, rmxColors);
+  } else if (rmxColorMap === 'tonernd') {
+    // Same bug as Random, different fix: Tone+Random's colour is still a
+    // continuous per-pixel blend (no exact vector form, same class of
+    // approximation Tone/Adaptive already accept), but WHERE the blend
+    // sits is shifted by the same per-cell hash jitter the shader uses —
+    // that part is exact, not approximated. Recomputing a finer per-pixel
+    // score with the jitter folded in means the traced contours actually
+    // show the jittered/broken-up edges, instead of ignoring them.
+    const count = rmxColors.length;
+    const subBandsPerUnit = 6;
+    bands = count > 1 ? (count - 1) * subBandsPerUnit + 1 : 1;
+    bandColor = [];
+    for (let s = 0; s < bands; s++) bandColor.push(rmxLerpColor(rmxColors, (s / (bands - 1)) * (count - 1)));
+    score = new Float32Array(gridW * gridH);
+    for (let y = 0; y < gridH; y++) {
+      const vv = 1 - (y + 0.5) / gridH;   // field row 0 is the TOP (see readFrozenField); vUv.y=1 is also the top, hence the flip
+      const cy = Math.min(47, Math.max(0, Math.floor(vv * 48)));
+      for (let x = 0; x < gridW; x++) {
+        const uu = (x + 0.5) / gridW;
+        const cx = Math.min(47, Math.max(0, Math.floor(uu * 48)));
+        const h = hash1JS(cx, cy) - 0.5;
+        const v = Math.max(0, Math.min(1, field[y * gridW + x]));
+        const t = v * (count - 1);
+        const tt = Math.max(0, Math.min(count - 1, t + h * 1.5));
+        score[y * gridW + x] = count > 1 ? tt / (count - 1) : 0;
+      }
+    }
   } else {
-    bands = rmxColors.length;   // RMX's Random/Tone+Random mappings are per-cell hashed noise — no vector form; export always renders as hard posterized bands, same simplification Camouflage discloses for its own Random mapping
+    bands = rmxColors.length;   // Tone/Posterize: unchanged — Posterize's hard-band shader logic already matches this exactly, and Tone's smooth blend accepts the same N-band approximation Adaptive does.
     bandColor = rmxColors.slice();
   }
 
-  const bandOf = new Uint8Array(gridW * gridH);
-  for (let i = 0; i < gridW * gridH; i++) {
-    const v = Math.max(0, Math.min(1, field[i]));
-    bandOf[i] = Math.min(bands - 1, Math.floor(v * bands));
-  }
+  if (body === null) {
+    const bandOf = new Uint8Array(gridW * gridH);
+    for (let i = 0; i < gridW * gridH; i++) {
+      const v = Math.max(0, Math.min(1, score[i]));
+      bandOf[i] = Math.min(bands - 1, Math.floor(v * bands));
+    }
 
-  let body = `<rect width="${outW}" height="${outH}" fill="${bandColor[0]}"/>`;
-  const mask = new Uint8Array(gridW * gridH);
-  for (let bd = 1; bd < bands; bd++) {
-    let any = false;
-    for (let i = 0; i < gridW * gridH; i++) { const on = bandOf[i] >= bd ? 1 : 0; mask[i] = on; if (on) any = true; }
-    if (!any) continue;
-    const d = organicPathD(mask, gridW, gridH, block);
-    if (!d) continue;
-    body += `<path fill="${bandColor[bd]}" fill-rule="evenodd" d="${d}"/>`;
+    body = `<rect width="${outW}" height="${outH}" fill="${bandColor[0]}"/>`;
+    const mask = new Uint8Array(gridW * gridH);
+    for (let bd = 1; bd < bands; bd++) {
+      let any = false;
+      for (let i = 0; i < gridW * gridH; i++) { const on = bandOf[i] >= bd ? 1 : 0; mask[i] = on; if (on) any = true; }
+      if (!any) continue;
+      const d = organicPathD(mask, gridW, gridH, block);
+      if (!d) continue;
+      body += `<path fill="${bandColor[bd]}" fill-rule="evenodd" d="${d}"/>`;
+    }
   }
 
   const meta = {
@@ -1963,6 +2042,7 @@ function exportSVG() {
     dA: val('rg-da'), dB: val('rg-db'), timestep: val('rg-dt'),
     gridW, gridH, step: stepCount, seed: currentSeed(),
     colorMode: colorMode < 0.5 ? 'solid' : colorMode < 1.5 ? 'adaptive' : 'rmx',
+    rmxMapping: colorMode >= 1.5 ? rmxColorMap : undefined,
     exportedAt: new Date().toISOString(),
   };
 
