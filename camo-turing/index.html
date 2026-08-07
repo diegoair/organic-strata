@@ -120,23 +120,27 @@
   }
 
   #gl-canvas {
-    /* The canvas's width/height ATTRIBUTES are the simulation's own
-       resolution (gridW×gridH) — without an explicit CSS size a canvas
-       displays at exactly that many CSS pixels, which is why it used to
-       render tiny in a much bigger #canvas-wrap. width/height:100% +
-       object-fit:cover decouples DISPLAY size from the simulation's own
-       pixel resolution and always fills the whole tray — no letterbox
-       bands regardless of Format vs. window shape. Cover crops instead
-       of distorting (scale stays uniform on both axes, same as contain
-       — it just doesn't shrink to fit, it grows to fill and clips
-       whatever overflows), so a circle seed still reads as a circle,
-       never stretched into an ellipse; measured this against contain at
-       five formats (Square/Portrait 4:5/2:3/Landscape 3:2/Wide 16:9) —
-       contain left visible panel-coloured bands on four of five, cover
-       leaves none on any. */
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    /* Caught by visual debugging, not assumed: an earlier version of
+       this rule used width/height:90% (of the WRAPPER) with object-
+       fit:cover — that sizes the canvas's CSS BOX to 90% of the
+       wrapper's own shape, which has nothing to do with the chosen
+       Format. Landscape 3:2 measured as a 539×788 (portrait!) box with
+       a 1024×683 (correctly 3:2) drawing buffer cropped inside it — the
+       Format selector became a lie, you could pick Landscape and see a
+       portrait card. A canvas is a replaced element with its own
+       intrinsic aspect ratio (from the width/height ATTRIBUTES, i.e.
+       the simulation's real gridW:gridH) — max-width/max-height instead
+       of width/height lets the browser size the BOX from that intrinsic
+       ratio, capped at 90% of the wrapper on whichever axis is
+       tighter, the same "contain" fit as before but at a 90% ceiling
+       instead of 100% — which is also what makes room for the outer
+       box-shadow below without it being clipped by the wrapper's
+       overflow:hidden. */
+    max-width: 90%;
+    max-height: 90%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
     box-shadow: 0 4px 40px rgba(0,0,0,0.18);
     cursor: crosshair;
     display: block;
