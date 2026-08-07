@@ -36,10 +36,6 @@
       "destination": "/komorebi/$1"
     },
     {
-      "source": "/camouflage/(.*)",
-      "destination": "/camouflage/$1"
-    },
-    {
       "source": "/camo-turing/(.*)",
       "destination": "/camo-turing/$1"
     },
