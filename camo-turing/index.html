@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Camo Touring — Organica</title>
+<title>Camo Turing — Organica</title>
 
 <link rel="stylesheet" href="/shared/organica-tokens.css">
 <link rel="stylesheet" href="/shared/organica-header.css">
@@ -175,7 +175,7 @@
 <body>
 
 <header class="org-header org-header--tool" role="banner">
-  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Camo Touring</span></a>
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Camo Turing</span></a>
 
   <div class="org-header__spacer"></div>
 
@@ -241,7 +241,7 @@
 
   <div id="canvas-wrap">
     <canvas id="gl-canvas" width="256" height="256"></canvas>
-    <p id="gl-error">WebGL2 isn't available in this browser — Camo Touring needs it for the GPU-accelerated simulation. Try a recent Chrome, Firefox, Edge or Safari.</p>
+    <p id="gl-error">WebGL2 isn't available in this browser — Camo Turing needs it for the GPU-accelerated simulation. Try a recent Chrome, Firefox, Edge or Safari.</p>
   </div>
 
   <div id="panel">
@@ -1073,7 +1073,7 @@ ctrl('gl-canvas').addEventListener('click', (e) => {
 // Designed to be lifted into shared/ later (per Diego's own framing —
 // "questo è un componente che sarà successivamente centralizzato"): the
 // rasterizer functions take explicit inputs and return a canvas, no
-// camo-touring globals baked into the rasterization logic itself.
+// camo-turing globals baked into the rasterization logic itself.
 let seedSourceType = 'genesis';
 let seedGenesisForm = 1;
 let seedSvgText = null;
@@ -1654,7 +1654,7 @@ function exportPNG() {
   const bin = atob(url.split(',')[1]);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('camo-touring', 'png'));
+  Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('camo-turing', 'png'));
 }
 
 // ── SVG export — traces the FROZEN field into genuine vector paths, with
@@ -1786,7 +1786,7 @@ function exportSVG() {
   }
 
   const meta = {
-    tool: 'Camo Touring', engine: 'gray-scott', f: val('rg-f'), k: val('rg-k'),
+    tool: 'Camo Turing', engine: 'gray-scott', f: val('rg-f'), k: val('rg-k'),
     dA: val('rg-da'), dB: val('rg-db'), timestep: val('rg-dt'),
     gridW, gridH, step: stepCount, seed: currentSeed(),
     colorMode: colorMode < 0.5 ? 'solid' : colorMode < 1.5 ? 'adaptive' : 'rmx',
@@ -1796,7 +1796,7 @@ function exportSVG() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${outW} ${outH}">`
     + `<metadata>${JSON.stringify(meta)}</metadata>${body}</svg>`;
 
-  Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('camo-touring', 'svg'));
+  Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('camo-turing', 'svg'));
   setStatus('active', 'Exported SVG · step ' + stepCount);
 }
 
@@ -1848,7 +1848,7 @@ const BUILTIN_PRESETS = {
   'Moving spots': { f: 0.014, k: 0.054 },
 };
 
-function presetStore() { return Organica.presetStore('camotouring'); }
+function presetStore() { return Organica.presetStore('camoturing', 'organica.camotouring.presets'); }
 function userPresets() { return presetStore().read(); }
 function allPresets() { return Object.assign({}, BUILTIN_PRESETS, userPresets()); }
 let currentPresetName = null;

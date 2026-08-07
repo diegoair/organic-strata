@@ -255,7 +255,7 @@
   // to a subset). What's genuinely shared is the parsing, not the
   // resize itself — each tool reacts to a new ratio differently
   // (Komorebi just restyles a CSS aspect-ratio and re-renders on demand;
-  // Camouflage resizes its CPU pixel buffer; Camo Touring reallocates
+  // Camouflage resizes its CPU pixel buffer; Camo Turing reallocates
   // its WebGL simulation render targets) so ONLY the ratio math is
   // centralised here — each tool still owns its own resizeCanvas().
   // ═══════════════════════════════════════════════════════════
