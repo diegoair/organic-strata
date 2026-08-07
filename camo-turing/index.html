@@ -512,7 +512,7 @@
       <div id="rmx-color-block" style="display:none">
         <div class="ctrl-row">
           <div class="ctrl-label">Palette</div>
-          <select class="panel-select" id="sel-rmx-map" onchange="rmxColorMap=this.value; syncRmxUniforms();">
+          <select class="panel-select" id="sel-rmx-map" onchange="setRmxMapping(this.value)">
             <option value="tone">Tone (gradient)</option>
             <option value="posterize">Posterize</option>
             <option value="random">Random</option>
@@ -1175,7 +1175,28 @@ function syncRmxUniforms() {
   dispMat.uniforms.uMapping.value = { tone: 0, posterize: 1, random: 2, tonernd: 3 }[rmxColorMap];
   scheduleRender();
 }
-function rmxSetColor(i, hex) { rmxColors[i] = hex; syncRmxUniforms(); }
+// Real bug, found by testing: the <select>'s onchange used to do the bare
+// assignment `rmxColorMap=this.value` inline. Inline event-handler
+// attributes compile as plain global (non-module) functions, which can't
+// see a `let` declared inside this <script type="module"> — the
+// assignment silently created a disconnected `window.rmxColorMap`
+// instead, so this module's own rmxColorMap never changed and every
+// mapping (Posterize/Random/Tone+Random) rendered identically to Tone.
+// Routing the write through an exported function keeps the assignment
+// inside the module, where it actually reaches this variable.
+function setRmxMapping(v) { rmxColorMap = v; syncRmxUniforms(); }
+function rmxSetColor(i, hex) {
+  rmxColors[i] = hex;
+  // Real bug, found by testing: picking a new colour updated the
+  // simulation render correctly but the swatch chip itself (its visible
+  // colour is the wrapping <label>'s background — the <input type=color>
+  // underneath is opacity:0) was only ever painted once, in
+  // buildRmxPalette(). Every colour pick after that looked like it had no
+  // effect, even though it had. Keep the chip's own background in sync.
+  const sw = ctrl('rmx-palette').children[i];
+  if (sw) sw.style.background = hex;
+  syncRmxUniforms();
+}
 function rmxAddColor() { if (rmxColors.length < RMX_COLORS_MAX) { rmxColors.push('#888888'); buildRmxPalette(); } }
 function rmxRemoveColor(i) { if (rmxColors.length > 2) { rmxColors.splice(i, 1); buildRmxPalette(); } }
 
@@ -2253,6 +2274,7 @@ window.rmxAddColor = rmxAddColor;
 window.rmxRemoveColor = rmxRemoveColor;
 window.scheduleRender = scheduleRender;
 window.syncRmxUniforms = syncRmxUniforms;
+window.setRmxMapping = setRmxMapping;
 window.onParamChange = onParamChange;
 window.exportPNG = exportPNG;
 window.exportSVG = exportSVG;
