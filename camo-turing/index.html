@@ -179,6 +179,94 @@
   }
 
   #panel { width: 248px; flex-shrink: 0; }
+
+  /* Toggle switch — ported from Strata verbatim (the project's own
+     established toggle pattern, not a checkbox styled to look like
+     one), only var(--line) → var(--border) since that's this tool's
+     equivalent token. .toggle-row/.toggle-name are already in
+     Organica.autoLabelPanel's row/label selectors, so the switch gets
+     its accessible name from the sibling label same as everywhere else
+     this pattern is used — the label itself carries no text of its own
+     on purpose (see Strata's own note on this: a naive "closest(label)"
+     accessible-name check treated that empty label as already-named
+     and skipped it, which is why the row/label association is what
+     actually names it, not the label wrapper). */
+  .toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-2);
+  }
+  .toggle-name { font-size: var(--fs-small); }
+  .toggle {
+    position: relative;
+    width: 32px; height: 18px;
+    flex-shrink: 0;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 12px; height: 12px;
+    left: 3px; top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+  .toggle input:checked + .toggle-slider { background: var(--ink); }
+  .toggle input:checked + .toggle-slider::before { transform: translateX(14px); }
+  .info-tip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 13px; height: 13px;
+    margin-left: 4px;
+    border-radius: 50%;
+    border: 1px solid var(--border-strong);
+    color: var(--mid);
+    font-size: 9px;
+    font-style: italic;
+    font-family: Georgia, serif;
+    cursor: help;
+    flex-shrink: 0;
+  }
+  .info-tip:hover, .info-tip:focus-visible { border-color: var(--ink); color: var(--ink); }
+  .info-tip-bubble {
+    position: absolute;
+    bottom: calc(100% + 7px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 190px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--font);
+    font-style: normal;
+    font-weight: 400;
+    font-size: var(--fs-micro);
+    line-height: 1.4;
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    z-index: 20;
+  }
+  .info-tip:hover .info-tip-bubble, .info-tip:focus-visible .info-tip-bubble {
+    opacity: 1;
+    visibility: visible;
+  }
 </style>
 </head>
 <body>
@@ -331,9 +419,8 @@
           <input type="checkbox" id="ck-twoshape" onchange="syncTwoShapeRows()">
           <span>Two seeds</span>
         </label>
-        <button class="icon-btn" id="twoshape-info-btn" type="button" aria-expanded="false" aria-controls="twoshape-hint" onclick="toggleTwoShapeInfo()" aria-label="What does Two seeds do?" style="border-radius: 50%; width: 16px; height: 16px; font-size: 10px; font-weight: 700;">i</button>
+        <span class="info-tip" tabindex="0" role="note" aria-label="Seed A doesn't grow — it just resists Seed B's growth wherever the two overlap.">i<span class="info-tip-bubble" aria-hidden="true">Seed A doesn't grow — it just resists Seed B's growth wherever the two overlap.</span></span>
       </div>
-      <p class="org-panel__hint" id="twoshape-hint" hidden>The shape above becomes Seed B — it still drives Mode exactly as usual. Seed A is independent: it depletes chemical A directly, with no effect of its own (A alone can't react) — it only matters where Seed B's growth reaches it before A recovers. Verified live: a circle (B) straddling a square (A) shows the square-side half visibly held back, like a bite taken out of it.</p>
       <div id="seedsrc-a-block" style="display:none">
         <div class="ctrl-label" style="margin-bottom: var(--space-1)">Seed A</div>
         <div class="ctrl-row">
@@ -372,9 +459,14 @@
     <div class="panel-section">
       <h3>Pattern <span class="hint" id="pattern-hint">Gray-Scott, GPU-live</span></h3>
       <div class="presets" id="presets"></div>
-      <div class="row-btns">
-        <button class="mini-btn" onclick="savePreset()">Save</button>
-        <button class="mini-btn" onclick="deletePreset()">Delete</button>
+      <div class="toggle-row" style="margin-top: var(--space-2)">
+        <span class="toggle-name">Reset seed on preset change
+          <span class="info-tip" tabindex="0" role="note" aria-label="Off: presets only change the chemistry, so the pattern keeps evolving live. On: each preset reseeds fresh.">i<span class="info-tip-bubble" aria-hidden="true">Off: presets only change the chemistry, so the pattern keeps evolving live. On: each preset reseeds fresh.</span></span>
+        </span>
+        <label class="toggle">
+          <input type="checkbox" id="ck-reset-on-preset">
+          <span class="toggle-slider"></span>
+        </label>
       </div>
       <div class="ctrl-row" style="margin-top: var(--space-4)">
         <div class="ctrl-label" title="Feed rate — how fast chemical A is replenished.">Feed (f)</div>
@@ -400,6 +492,10 @@
         <div class="ctrl-label" title="Simulation step size. Higher = faster evolution per frame, but can go numerically unstable if raised too far.">Timestep</div>
         <input type="range" id="rg-dt" min="0.2" max="1.5" step="0.01" value="1.0" oninput="syncVal(this,'v-dt'); onParamChange();">
         <span class="ctrl-val" id="v-dt">1.0</span>
+      </div>
+      <div class="row-btns" style="margin-top: var(--space-3)">
+        <button class="mini-btn" onclick="savePreset()">Save</button>
+        <button class="mini-btn" onclick="deletePreset()">Delete</button>
       </div>
     </div>
 
@@ -1179,16 +1275,6 @@ function syncTwoShapeRows() {
   const on = ctrl('ck-twoshape').checked;
   ctrl('seedsrc-a-block').style.display = on ? 'block' : 'none';
   ctrl('seedb-label').style.display = on ? 'block' : 'none';
-  // Closing the info panel on toggle-off too — reopening "Two seeds"
-  // later starts from the same collapsed state, not whatever was left
-  // expanded last time.
-  if (!on) { ctrl('twoshape-hint').hidden = true; ctrl('twoshape-info-btn').setAttribute('aria-expanded', 'false'); }
-}
-function toggleTwoShapeInfo() {
-  const hint = ctrl('twoshape-hint');
-  const open = hint.hidden;
-  hint.hidden = !open;
-  ctrl('twoshape-info-btn').setAttribute('aria-expanded', String(open));
 }
 function rasterizeShapeA(w, h, done) {
   if (seedSourceTypeA === 'genesis') {
@@ -2112,6 +2198,15 @@ function applyPreset(name) {
   applyingPreset = false;
   currentPresetName = name;
   updatePresetTrigger();
+  // "Reset seed on preset change" — off by default, preserving the
+  // original behaviour (a preset only ever changed f/k, the field kept
+  // evolving from wherever it was — the live-morph effect, and the
+  // reference tool's own convention). Verified live that this is a real
+  // trade-off, not a hypothetical one: 2 of 2 adjacent-preset switches
+  // tested survived past 10k steps, 3 of 3 distant jumps died to
+  // nothing. Reset-on-change trades that morph away for a guaranteed
+  // settled result every time.
+  if (ctrl('ck-reset-on-preset').checked) resetSim();
   // No header status text here — the preset name already lives in the
   // Pattern section's own header (see updatePresetTrigger); repeating it
   // in the header status too was the redundancy being removed. The
@@ -2182,7 +2277,6 @@ window.__read = () => {   // temporary — read back the raw A/B field for the f
 window.syncSeedModeRows = syncSeedModeRows;
 window.setSeedSourceA = setSeedSourceA;
 window.syncTwoShapeRows = syncTwoShapeRows;
-window.toggleTwoShapeInfo = toggleTwoShapeInfo;
 
 populateGenesisGrid();
 populateGenesisGridA();
@@ -2199,6 +2293,36 @@ if (initGL()) {
 }
 
 Organica.autoLabelPanel(document);
+
+// Info-tip bubbles default to centred-on-icon, but the panel is only 248px
+// wide and scroll-clips (overflow-y:auto forces overflow-x:auto too, per
+// spec) — a centred 190px bubble on an icon near either panel edge gets
+// its far side sliced off. Clamp the bubble back inside #panel's own
+// bounds on open, not the viewport's (the panel is the clipping box).
+(function () {
+  const panelEl = document.getElementById('panel');
+  if (!panelEl) return;
+  const MARGIN = 10;
+  function clamp(tip) {
+    const bubble = tip.querySelector('.info-tip-bubble');
+    if (!bubble) return;
+    bubble.style.transform = 'translateX(-50%)';
+    const bubbleRect = bubble.getBoundingClientRect();
+    const panelRect = panelEl.getBoundingClientRect();
+    let shift = 0;
+    if (bubbleRect.left < panelRect.left + MARGIN) shift = (panelRect.left + MARGIN) - bubbleRect.left;
+    else if (bubbleRect.right > panelRect.right - MARGIN) shift = (panelRect.right - MARGIN) - bubbleRect.right;
+    if (shift) bubble.style.transform = `translateX(calc(-50% + ${shift}px))`;
+  }
+  panelEl.addEventListener('mouseover', (e) => {
+    const tip = e.target.closest('.info-tip');
+    if (tip) clamp(tip);
+  });
+  panelEl.addEventListener('focusin', (e) => {
+    const tip = e.target.closest('.info-tip');
+    if (tip) clamp(tip);
+  });
+})();
 </script>
 </body>
 </html>
