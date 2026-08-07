@@ -279,6 +279,25 @@ blur would be ~9M ops/frame). Shipped July 25, 2026. Manual: `docs/KOMOREBI.md`.
 
 ---
 
+## Camo Turing — Backlog
+
+**`/camo-turing/`** — GPU-accelerated (WebGL2/GLSL) Gray-Scott reaction-diffusion, scoped
+against jasonwebb/reaction-diffusion-playground. Noted 2026-08-08, to pick up next session.
+
+### Open follow-ups
+- [ ] **Overlay diff effect** — a difference-style overlay mode (used ad hoc during this
+  session's SVG-export debugging via a mix-blend-mode diff against the live canvas — worth
+  evaluating as a real tool feature, not just a debug trick).
+- [ ] **Tiles and Patterns** — tileable/repeating export, closing the loop with the Phase 4
+  Pattern Engine the same way Komorebi's toroidal grid does.
+- [ ] **Zoom via mouse wheel** — scroll-to-zoom on the canvas.
+- [ ] **Video recording** — WebM export of the live simulation, same mechanism as Komorebi's
+  (`captureStream` on the canvas) — Camo Turing currently has no video export at all.
+- [ ] **Evaluate a Pollen effect for porting** — identify something from Pollen's stack
+  (blue-noise, flow-field, etc.) worth trying here; scope once picked.
+
+---
+
 ## Phase 2 — Genesis Depth
 
 Deepen the Genesis composer into a real production tool.
