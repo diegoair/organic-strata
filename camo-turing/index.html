@@ -117,7 +117,6 @@
     background: var(--panel);
     position: relative;
     overflow: hidden;
-    padding: var(--space-4);
   }
 
   #gl-canvas {
@@ -125,13 +124,19 @@
        resolution (gridW×gridH) — without an explicit CSS size a canvas
        displays at exactly that many CSS pixels, which is why it used to
        render tiny in a much bigger #canvas-wrap. width/height:100% +
-       object-fit:contain decouples DISPLAY size (fill the available
-       space, letterboxed to the current Format's aspect) from the
-       simulation's own pixel resolution, same relationship a browser
-       gives a plain <img>. */
+       object-fit:cover decouples DISPLAY size from the simulation's own
+       pixel resolution and always fills the whole tray — no letterbox
+       bands regardless of Format vs. window shape. Cover crops instead
+       of distorting (scale stays uniform on both axes, same as contain
+       — it just doesn't shrink to fit, it grows to fill and clips
+       whatever overflows), so a circle seed still reads as a circle,
+       never stretched into an ellipse; measured this against contain at
+       five formats (Square/Portrait 4:5/2:3/Landscape 3:2/Wide 16:9) —
+       contain left visible panel-coloured bands on four of five, cover
+       leaves none on any. */
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
     box-shadow: 0 4px 40px rgba(0,0,0,0.18);
     cursor: crosshair;
     display: block;
@@ -178,19 +183,19 @@
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ Camo Turing</span></a>
 
   <div class="org-header__spacer"></div>
-
-  <output class="org-header__status" aria-live="polite" aria-atomic="true">
-    <span class="org-header__dot" id="status-dot"></span>
-    <span class="org-header__state" id="status-text">Ready</span>
-  </output>
 </header>
 
-<!-- FLOATING TOOLBAR — Play/pause, step counter, Reset, Export — fixed
-     bottom-centre over the canvas, the same shared component every other
-     tool's actions live in (see camouflage/index.html). Play/pause and
-     the step stat are the one genuinely tool-specific addition (no other
-     tool has a running simulation to pause) — everything else (shell,
-     spacing, icon sizing, popover) is the shared component unchanged.
+<!-- FLOATING TOOLBAR — Play/pause, step counter, status, Reset, Export —
+     fixed bottom-centre over the canvas, the same shared component every
+     other tool's actions live in (see camouflage/index.html). Play/pause,
+     the step stat is the genuinely tool-specific addition (no other tool
+     has a running simulation to pause) — everything else (shell, spacing,
+     icon sizing, popover) is the shared component unchanged. No separate
+     status readout — the Play/Pause icon itself already carries that
+     state (bars = running, triangle = paused), a second word saying the
+     same thing was redundant. setStatus() calls elsewhere are still safe
+     no-ops (Organica.status() null-checks both elements before touching
+     them) so nothing else needed to change.
      No Figma button — removed product-wide; direct Figma export is
      coming back as a tab inside the Export popover instead. -->
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
@@ -269,6 +274,7 @@
 
     <div class="panel-section">
       <h3>Seeds</h3>
+      <div class="ctrl-label" id="seedb-label" style="display:none; margin-bottom: var(--space-1)">Seed B</div>
       <div class="ctrl-row">
         <div class="seg-ctrl" id="seg-seedsource">
           <button class="seg-btn active" data-v="genesis" onclick="setSeedSource(this)">Genesis</button>
@@ -316,17 +322,22 @@
         <span class="ctrl-val">0.0545 / 0.0620</span>
       </div>
 
-      <label class="check-row" style="margin-top: var(--space-3)">
-        <input type="checkbox" id="ck-twoshape" onchange="syncTwoShapeRows()">
-        <span>Two shapes (A + B)</span>
-      </label>
-      <p class="org-panel__hint" id="twoshape-hint" style="display:none">The shape above becomes Shape B — it still drives Mode exactly as usual. Shape A is independent: it depletes chemical A directly, with no effect of its own (A alone can't react) — it only matters where Shape B's growth reaches it before A recovers. Verified live: a circle (B) straddling a square (A) shows the square-side half visibly held back, like a bite taken out of it.</p>
+      <div style="margin-top: var(--space-3); display: flex; align-items: center; gap: var(--space-2)">
+        <label class="check-row" style="margin: 0">
+          <input type="checkbox" id="ck-twoshape" onchange="syncTwoShapeRows()">
+          <span>Two seeds</span>
+        </label>
+        <button class="icon-btn" id="twoshape-info-btn" type="button" aria-expanded="false" aria-controls="twoshape-hint" onclick="toggleTwoShapeInfo()" aria-label="What does Two seeds do?" style="border-radius: 50%; width: 16px; height: 16px; font-size: 10px; font-weight: 700;">i</button>
+      </div>
+      <p class="org-panel__hint" id="twoshape-hint" hidden>The shape above becomes Seed B — it still drives Mode exactly as usual. Seed A is independent: it depletes chemical A directly, with no effect of its own (A alone can't react) — it only matters where Seed B's growth reaches it before A recovers. Verified live: a circle (B) straddling a square (A) shows the square-side half visibly held back, like a bite taken out of it.</p>
       <div id="seedsrc-a-block" style="display:none">
+        <div class="ctrl-label" style="margin-bottom: var(--space-1)">Seed A</div>
         <div class="ctrl-row">
-          <div class="ctrl-label">Shape A</div>
           <div class="seg-ctrl" id="seg-seedsource-a">
             <button class="seg-btn active" data-v="genesis" onclick="setSeedSourceA(this)">Genesis</button>
             <button class="seg-btn" data-v="svg" onclick="setSeedSourceA(this)">SVG</button>
+            <button class="seg-btn" data-v="text" onclick="setSeedSourceA(this)">Text</button>
+            <button class="seg-btn" data-v="image" onclick="setSeedSourceA(this)">Image</button>
           </div>
         </div>
         <div id="seedsrc-a-genesis">
@@ -334,6 +345,14 @@
         </div>
         <div id="seedsrc-a-svg" style="display:none">
           <button class="upload-btn" onclick="ctrl('svg-input-a').click()" id="svg-upload-btn-a">+ Upload SVG</button>
+        </div>
+        <div id="seedsrc-a-text" style="display:none">
+          <div class="ctrl-row">
+            <input type="text" id="seed-text-a" value="A" maxlength="24" placeholder="Type text…" aria-label="Seed A text" class="panel-select" style="cursor:text">
+          </div>
+        </div>
+        <div id="seedsrc-a-image" style="display:none">
+          <button class="upload-btn" onclick="ctrl('image-input-a').click()" id="image-upload-btn-a">+ Upload image</button>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label" title="How starved Shape A's region starts (how far chemical A is depleted from its resting value of 1.0). Deeper = takes longer to recover, so Shape B's growth has a longer window where reaching this zone actually matters.">Famine depth</div>
@@ -430,6 +449,7 @@
 <input type="file" id="svg-input" accept=".svg,image/svg+xml" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;border:0;padding:0">
 <input type="file" id="svg-input-a" accept=".svg,image/svg+xml" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;border:0;padding:0">
 <input type="file" id="image-input" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;border:0;padding:0">
+<input type="file" id="image-input-a" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;border:0;padding:0">
 <input type="file" id="font-input" accept=".ttf,.otf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;border:0;padding:0">
 
 <script src="/shared/organica-core.js"></script>
@@ -699,7 +719,7 @@ let gridW = 256, gridH = 256;
 const MASK_N = 256;
 let renderer, quad;
 let simScene, simMat, dispScene, dispMat, seedScene, seedMat, copyScene, copyMat;
-let maskFillScene, maskFillMat, defaultMaskTex;
+let maskFillScene, maskFillMat, defaultMaskTex, emptyMaskTex;
 let twoSeedScene, twoSeedMat;   // experimental probe — see TWO_SEED_FRAG
 let camera;
 let rtA, rtB;
@@ -784,6 +804,15 @@ function initGL() {
   // yet" behaves as "the whole canvas is inside", not an undefined texture.
   defaultMaskTex = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1, THREE.RGBAFormat);
   defaultMaskTex.needsUpdate = true;
+  // Opposite meaning, needed separately — Two shapes' "leave this
+  // chemical alone" case needs a mask that reads as "never inside"
+  // (alpha 0), not "always inside". Found by testing: uMaskB was reusing
+  // defaultMaskTex (alpha 255 = ALWAYS true), so every Two-shapes seed
+  // silently injected B across the ENTIRE canvas instead of leaving
+  // Shape B's own fill alone — verified live, 65536 of 65536 cells over
+  // threshold when it should have matched Shape B's own ~11k.
+  emptyMaskTex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat);
+  emptyMaskTex.needsUpdate = true;
 
   simMat = new THREE.ShaderMaterial({
     uniforms: {
@@ -1118,6 +1147,7 @@ function onTextChange() { /* read at Apply time — nothing to precompute */ }
 let seedSourceTypeA = 'genesis';
 let seedGenesisFormA = 2;
 let seedSvgTextA = null;
+let seedImageElA = null;   // Seed A's own Image element — independent of the main Seed B's seedImageEl
 
 function populateGenesisGridA() {
   const grid = ctrl('genesis-grid-a');
@@ -1139,12 +1169,22 @@ function populateGenesisGridA() {
 function setSeedSourceA(btn) {
   ctrl('seg-seedsource-a').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
   seedSourceTypeA = btn.dataset.v;
-  ['genesis', 'svg'].forEach(t => { ctrl('seedsrc-a-' + t).style.display = t === seedSourceTypeA ? 'block' : 'none'; });
+  ['genesis', 'svg', 'text', 'image'].forEach(t => { ctrl('seedsrc-a-' + t).style.display = t === seedSourceTypeA ? 'block' : 'none'; });
 }
 function syncTwoShapeRows() {
   const on = ctrl('ck-twoshape').checked;
   ctrl('seedsrc-a-block').style.display = on ? 'block' : 'none';
-  ctrl('twoshape-hint').style.display = on ? 'block' : 'none';
+  ctrl('seedb-label').style.display = on ? 'block' : 'none';
+  // Closing the info panel on toggle-off too — reopening "Two seeds"
+  // later starts from the same collapsed state, not whatever was left
+  // expanded last time.
+  if (!on) { ctrl('twoshape-hint').hidden = true; ctrl('twoshape-info-btn').setAttribute('aria-expanded', 'false'); }
+}
+function toggleTwoShapeInfo() {
+  const hint = ctrl('twoshape-hint');
+  const open = hint.hidden;
+  hint.hidden = !open;
+  ctrl('twoshape-info-btn').setAttribute('aria-expanded', String(open));
 }
 function rasterizeShapeA(w, h, done) {
   if (seedSourceTypeA === 'genesis') {
@@ -1159,9 +1199,13 @@ function rasterizeShapeA(w, h, done) {
     const serialized = svgEl.outerHTML;
     host.innerHTML = '';
     rasterizeSvgTextInto(serialized, w, h, maskCanvasA, maskCtxA, done);
-  } else {
+  } else if (seedSourceTypeA === 'svg') {
     if (!seedSvgTextA) { done(null); return; }
     rasterizeSvgTextInto(seedSvgTextA, w, h, maskCanvasA, maskCtxA, done);
+  } else if (seedSourceTypeA === 'text') {
+    rasterizeTextSource(w, h, done, maskCanvasA, maskCtxA, ctrl('seed-text-a').value);
+  } else {
+    rasterizeImageSource(w, h, done, maskCanvasA, maskCtxA, seedImageElA);
   }
 }
 // Same rasterizeSvgText logic Shape B uses, parametrized on which
@@ -1225,9 +1269,18 @@ function bakeComputedGeometry(svgEl) {
       const v = cs.getPropertyValue(p);
       if (v && parseFloat(v) !== 0) el.setAttribute(p, parseFloat(v));
     });
-    el.setAttribute('fill', cs.fill === 'none' ? 'none' : '#000');
-    el.setAttribute('stroke', cs.fill === 'none' ? '#000' : 'none');
-    if (cs.fill === 'none') el.setAttribute('stroke-width', cs.strokeWidth || '2');
+    // <line> has no fillable area — SVG never fills it regardless of the
+    // fill attribute — so treating it like every other element (fill by
+    // default) silently produced a BLANK mask. Found on form 56 (a bare
+    // <line>, its entire content): stroke="currentColor" in the source
+    // was overwritten to stroke="none", 0 of 65536 cells ever seeded.
+    // Forms with a <line> as one of several sub-elements degraded rather
+    // than failed outright, which is why this stayed hidden until a form
+    // that's JUST a line was tested.
+    const isLine = el.tagName.toLowerCase() === 'line';
+    el.setAttribute('fill', (cs.fill === 'none' || isLine) ? 'none' : '#000');
+    el.setAttribute('stroke', (cs.fill === 'none' || isLine) ? '#000' : 'none');
+    if (cs.fill === 'none' || isLine) el.setAttribute('stroke-width', cs.strokeWidth && parseFloat(cs.strokeWidth) > 0 ? cs.strokeWidth : '2');
     el.removeAttribute('class');
   });
 }
@@ -1281,12 +1334,13 @@ function withFont(done) {
     done(seedFont);
   }).catch(() => done(null));
 }
-function rasterizeTextSource(cw, ch, done) {
+function rasterizeTextSource(cw, ch, done, canvas, ctx2d, textVal) {
+  canvas = canvas || maskCanvas; ctx2d = ctx2d || maskCtx;
   withFont(font => {
     if (!font) { done(null); return; }
-    const text = (ctrl('seed-text').value || 'A').trim() || 'A';
-    maskCanvas.width = cw; maskCanvas.height = ch;
-    maskCtx.clearRect(0, 0, cw, ch);
+    const text = (textVal !== undefined ? textVal : ctrl('seed-text').value) || 'A';
+    canvas.width = cw; canvas.height = ch;
+    ctx2d.clearRect(0, 0, cw, ch);
     // getPath's own (x,y,fontSize) args don't compose into a clean
     // centred fit — get the UNPOSITIONED path's bounding box first, then
     // fit it to the canvas via an explicit ctx transform instead. Fit
@@ -1298,42 +1352,43 @@ function rasterizeTextSource(cw, ch, done) {
     const bbox = rawPath.getBoundingBox();
     const bw = bbox.x2 - bbox.x1, bh = bbox.y2 - bbox.y1;
     const scale = Math.min((fit * 0.8) / bw, (fit * 0.8) / bh);
-    maskCtx.save();
-    maskCtx.setTransform(scale, 0, 0, scale, cw / 2 - (bbox.x1 + bw / 2) * scale, ch / 2 - (bbox.y1 + bh / 2) * scale);
-    maskCtx.fillStyle = '#000';
-    maskCtx.beginPath();
+    ctx2d.save();
+    ctx2d.setTransform(scale, 0, 0, scale, cw / 2 - (bbox.x1 + bw / 2) * scale, ch / 2 - (bbox.y1 + bh / 2) * scale);
+    ctx2d.fillStyle = '#000';
+    ctx2d.beginPath();
     rawPath.commands.forEach(c => {
-      if (c.type === 'M') maskCtx.moveTo(c.x, c.y);
-      else if (c.type === 'L') maskCtx.lineTo(c.x, c.y);
-      else if (c.type === 'C') maskCtx.bezierCurveTo(c.x1, c.y1, c.x2, c.y2, c.x, c.y);
-      else if (c.type === 'Q') maskCtx.quadraticCurveTo(c.x1, c.y1, c.x, c.y);
-      else if (c.type === 'Z') maskCtx.closePath();
+      if (c.type === 'M') ctx2d.moveTo(c.x, c.y);
+      else if (c.type === 'L') ctx2d.lineTo(c.x, c.y);
+      else if (c.type === 'C') ctx2d.bezierCurveTo(c.x1, c.y1, c.x2, c.y2, c.x, c.y);
+      else if (c.type === 'Q') ctx2d.quadraticCurveTo(c.x1, c.y1, c.x, c.y);
+      else if (c.type === 'Z') ctx2d.closePath();
     });
-    maskCtx.fill();
-    maskCtx.restore();
-    done(maskCanvas);
+    ctx2d.fill();
+    ctx2d.restore();
+    done(canvas);
   });
 }
 
 // ── IMAGE → mask, luminance threshold (dark = inside, same convention as
 // Camouflage's Seed from Shape). ──
-function rasterizeImageSource(cw, ch, done) {
-  if (!seedImageEl) { done(null); return; }
-  maskCanvas.width = cw; maskCanvas.height = ch;
-  maskCtx.clearRect(0, 0, cw, ch);
-  const iw = seedImageEl.width, ih = seedImageEl.height;
+function rasterizeImageSource(cw, ch, done, canvas, ctx2d, imgEl) {
+  canvas = canvas || maskCanvas; ctx2d = ctx2d || maskCtx; imgEl = imgEl || seedImageEl;
+  if (!imgEl) { done(null); return; }
+  canvas.width = cw; canvas.height = ch;
+  ctx2d.clearRect(0, 0, cw, ch);
+  const iw = imgEl.width, ih = imgEl.height;
   const scale = Math.min(cw / iw, ch / ih);   // already fits within cw×ch preserving the image's own aspect
   const dw = iw * scale, dh = ih * scale;
-  maskCtx.drawImage(seedImageEl, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
-  const id = maskCtx.getImageData(0, 0, cw, ch);
+  ctx2d.drawImage(imgEl, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+  const id = ctx2d.getImageData(0, 0, cw, ch);
   const px = id.data;
   for (let i = 0; i < px.length; i += 4) {
     const lum = (0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]) / 255;
     const a = px[i + 3] / 255;
     px[i + 3] = a > 0 && lum < 0.5 ? 255 : 0;   // dark pixels = inside the shape
   }
-  maskCtx.putImageData(id, 0, 0);
-  done(maskCanvas);
+  ctx2d.putImageData(id, 0, 0);
+  done(canvas);
 }
 
 function rasterizeCurrentSeed(cw, ch, done) {
@@ -1597,7 +1652,7 @@ function applySeed() {
           maskATex.needsUpdate = true;
           twoSeedMat.uniforms.uPrev.value = rtA.texture;
           twoSeedMat.uniforms.uMaskA.value = maskATex;
-          twoSeedMat.uniforms.uMaskB.value = defaultMaskTex;
+          twoSeedMat.uniforms.uMaskB.value = emptyMaskTex;
           twoSeedMat.uniforms.uClear.value = 0.0;
           twoSeedMat.uniforms.uADepleted.value = 1.0 - val('rg-famine-depth');
           renderer.setRenderTarget(rtB);
@@ -1629,6 +1684,13 @@ ctrl('image-input').addEventListener('change', (e) => {
   const file = e.target.files && e.target.files[0]; if (!file) return;
   const img = new Image();
   img.onload = () => { seedImageEl = img; ctrl('image-upload-btn').textContent = '✓ ' + file.name; URL.revokeObjectURL(img.src); };
+  img.src = URL.createObjectURL(file);
+  e.target.value = '';
+});
+ctrl('image-input-a').addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0]; if (!file) return;
+  const img = new Image();
+  img.onload = () => { seedImageElA = img; ctrl('image-upload-btn-a').textContent = '✓ ' + file.name; URL.revokeObjectURL(img.src); };
   img.src = URL.createObjectURL(file);
   e.target.value = '';
 });
@@ -2116,6 +2178,7 @@ window.__read = () => {   // temporary — read back the raw A/B field for the f
 window.syncSeedModeRows = syncSeedModeRows;
 window.setSeedSourceA = setSeedSourceA;
 window.syncTwoShapeRows = syncTwoShapeRows;
+window.toggleTwoShapeInfo = toggleTwoShapeInfo;
 
 populateGenesisGrid();
 populateGenesisGridA();
