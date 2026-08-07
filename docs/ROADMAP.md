@@ -293,8 +293,11 @@ against jasonwebb/reaction-diffusion-playground. Noted 2026-08-08, to pick up ne
 - [ ] **Zoom via mouse wheel** — scroll-to-zoom on the canvas.
 - [ ] **Video recording** — WebM export of the live simulation, same mechanism as Komorebi's
   (`captureStream` on the canvas) — Camo Turing currently has no video export at all.
-- [ ] **Evaluate a Pollen effect for porting** — identify something from Pollen's stack
-  (blue-noise, flow-field, etc.) worth trying here; scope once picked.
+- [ ] **Port Living Path's "Bubbles" effect as a new Seed source** — `livingpath/index.html`'s
+  raster effect stack, the `Bubbles` preset specifically (`particles` — scattered disks of
+  varying size unioned onto the ink, seeded/reproducible via `mulberry32` — → `blur` →
+  `threshold`). Fits Camo Turing's existing Seeds system (Genesis/SVG/Text/Image) as a new
+  scattered-disk source, the same slot Camouflage's drop-mark seeding used.
 
 ---
 
