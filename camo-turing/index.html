@@ -362,7 +362,7 @@
       <div class="org-popover__divider"></div>
       <div class="org-popover__title">Motion</div>
       <button class="org-btn org-btn--block" id="btn-record" onclick="toggleRecording()">Start recording</button>
-      <p class="org-popover__hint" id="record-hint">Records the live canvas as WebM. Format/Resolution/Tile at time of Start apply to the whole clip.</p>
+      <p class="org-popover__hint" id="record-hint">Records the live canvas as MP4 (WebM if MP4 isn't supported in this browser). Format/Resolution/Tile at time of Start apply to the whole clip.</p>
       <div class="org-popover__divider"></div>
       <div class="org-popover__row">
         <label class="org-popover__label" for="sel-scale">Scale</label>
@@ -2064,12 +2064,19 @@ ctrl('font-input').addEventListener('change', (e) => {
 });
 
 // ── EXPORT ──
-// ── VIDEO RECORDING — canvas.captureStream() + MediaRecorder, same
-// mechanism Komorebi used for its own WebM export. Recording a frozen
-// frame isn't useful, so Start forces the sim running if it was paused;
-// Stop is the only other trigger (no auto-stop — Camo Turing has no
-// convergence/auto-pause detection to race against, unlike Camouflage).
-let mediaRecorder = null, recordedChunks = [];
+// ── VIDEO RECORDING — canvas.captureStream() + MediaRecorder. MP4/H.264
+// (avc1) is tried FIRST, not WebM — found by testing MediaRecorder.
+// isTypeSupported directly: this is no longer the Safari-only exception
+// it used to be, current Chrome supports MP4 output natively, and MP4 is
+// the one that opens everywhere (QuickTime, Windows, iOS Photos,
+// PowerPoint/Keynote, every editor and social upload) without friction —
+// unlike WebM, which is what Komorebi's own older export used and is
+// still the fallback here for browsers that don't support MP4 output.
+// Recording a frozen frame isn't useful, so Start forces the sim running
+// if it was paused; Stop is the only other trigger (no auto-stop — Camo
+// Turing has no convergence/auto-pause detection to race against, unlike
+// Camouflage).
+let mediaRecorder = null, recordedChunks = [], recordingExt = 'mp4', recordingMime = 'video/mp4';
 function toggleRecording() {
   const btn = ctrl('btn-record');
   if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -2083,19 +2090,29 @@ function toggleRecording() {
   }
   const stream = canvas.captureStream(30);
   recordedChunks = [];
-  let mimeType = 'video/webm';
-  if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) mimeType = 'video/webm;codecs=vp9';
-  else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) mimeType = 'video/webm;codecs=vp8';
+  const candidates = [
+    ['video/mp4;codecs=avc1', 'mp4'],
+    ['video/mp4', 'mp4'],
+    ['video/webm;codecs=vp9', 'webm'],
+    ['video/webm;codecs=vp8', 'webm'],
+    ['video/webm', 'webm'],
+  ];
+  const picked = candidates.find(([mime]) => MediaRecorder.isTypeSupported(mime));
+  if (!picked) {
+    setStatus('', 'No supported video format found in this browser');
+    return;
+  }
+  [recordingMime, recordingExt] = picked;
   try {
-    mediaRecorder = new MediaRecorder(stream, { mimeType });
+    mediaRecorder = new MediaRecorder(stream, { mimeType: recordingMime });
   } catch (err) {
     setStatus('', 'Could not start recording: ' + err.message);
     return;
   }
   mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
   mediaRecorder.onstop = () => {
-    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-    Organica.download(blob, Organica.stamp('camo-turing', 'webm'));
+    const blob = new Blob(recordedChunks, { type: recordingMime });
+    Organica.download(blob, Organica.stamp('camo-turing', recordingExt));
     btn.textContent = 'Start recording';
     btn.classList.remove('org-btn--primary');
     setStatus('active', 'Recording saved');
