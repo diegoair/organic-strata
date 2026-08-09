@@ -76,6 +76,7 @@
     overflow: hidden; background: var(--paper);
   }
   .pt-ico img, .pi-ico img { width: 100%; height: 100%; display: block; object-fit: cover; image-rendering: pixelated; }
+  .pt-ico svg, .pi-ico svg { width: 100%; height: 100%; display: block; color: var(--ink); }
   .pt-name { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pt-chev { color: var(--mid); font-size: var(--fs-small); }
   .preset-menu {
@@ -252,16 +253,6 @@
   .toggle input:checked + .toggle-slider { background: var(--ink); }
   .toggle input:checked + .toggle-slider::before { transform: translateX(14px); }
 
-  /* Seeds' segmented control went from 4 sources to 5 with Bubbles —
-     found by testing, not assumed: at the shared component's default
-     padding/font-size, "Genesis" and "Bubbles" (the two 7-char labels)
-     both ellipsis-truncated ("Gen…"/"Bub…") at the panel's 248px width.
-     Scoped to this one control by #id, not a shared-component change —
-     other tools' 3-4 button segments are unaffected. */
-  #seg-seedsource .seg-btn {
-    padding: 0 3px;
-    font-size: 9px;
-  }
   .info-tip {
     position: relative;
     display: inline-flex;
@@ -426,7 +417,6 @@
           <button class="seg-btn" data-v="svg" onclick="setSeedSource(this)">SVG</button>
           <button class="seg-btn" data-v="text" onclick="setSeedSource(this)">Text</button>
           <button class="seg-btn" data-v="image" onclick="setSeedSource(this)">Image</button>
-          <button class="seg-btn" data-v="bubbles" onclick="setSeedSource(this)">Bubbles</button>
         </div>
       </div>
 
@@ -447,32 +437,6 @@
 
       <div id="seedsrc-image" style="display:none">
         <button class="upload-btn" onclick="ctrl('image-input').click()" id="image-upload-btn">+ Upload image</button>
-      </div>
-
-      <!-- Bubbles — ported from Living Path's raster effect stack (the
-           "Bubbles" preset: scattered disks of varying size, unioned
-           together — see livingpath/index.html's particles()). Living
-           Path scatters onto EXISTING ink pixels; here there's no prior
-           ink to scatter onto, so centres are sampled uniformly across a
-           disk of the canvas instead (Spread controls that disk's
-           radius). Reuses the same seeded mulberry32 RNG already used
-           for the default reseed, so it's reproducible. -->
-      <div id="seedsrc-bubbles" style="display:none">
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="How many bubbles to scatter.">Count</div>
-          <input type="range" id="rg-bub-count" min="10" max="400" step="1" value="150" oninput="syncVal(this,'v-bub-count')">
-          <span class="ctrl-val" id="v-bub-count">150</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Base bubble radius, before the per-bubble random size variation.">Size</div>
-          <input type="range" id="rg-bub-size" min="1" max="20" step="0.5" value="6" oninput="syncVal(this,'v-bub-size')">
-          <span class="ctrl-val" id="v-bub-size">6</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="How far from the centre bubbles can land — small = a tight cluster, large = scattered across the whole canvas.">Spread</div>
-          <input type="range" id="rg-bub-spread" min="0.1" max="1" step="0.01" value="0.6" oninput="syncVal(this,'v-bub-spread')">
-          <span class="ctrl-val" id="v-bub-spread">0.6</span>
-        </div>
       </div>
 
       <div class="ctrl-row" style="margin-top: var(--space-4)">
@@ -534,6 +498,57 @@
 
       <button class="mini-btn" style="width:100%; margin-top: var(--space-2)" onclick="applySeed()">Apply seed</button>
       <p class="org-panel__hint" id="seed-status-hint"></p>
+    </div>
+
+    <!-- Transformers — a registry-driven stack (see TRANSFORMERS below in
+         the script), each entry {name, defaults, controls, apply(canvas,
+         ctx,params)} — first test, kept isolated to Camo Turing on
+         purpose; centralize into shared/ later only if it proves useful
+         in another tool. Ported from Living Path's RASTER effect stack
+         (RFX in livingpath/index.html) — ONLY the raster family for now,
+         not the vector-node family (jitter/wobble/twist), which needs a
+         different pipeline (path points, not a mask canvas) this tool
+         doesn't have. Runs AFTER whatever Seeds produced, on that SAME
+         mask canvas — "Particles" now genuinely scatters onto the
+         existing shape's ink, matching Living Path's own semantics,
+         instead of the blank-canvas approximation the old Bubbles source
+         used before it lived here. -->
+    <div class="panel-section">
+      <h3>Transformers <span class="hint">raster stack, runs after Seeds</span></h3>
+      <div class="presets" id="tx-presets"></div>
+
+      <div id="tx-particles-controls" style="display:none">
+        <p class="org-panel__hint">Scatters disks of varying size onto the seed shape's own ink, unioned together — ported from Living Path's Bubbles preset.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How many disks to scatter.">Count</div>
+          <input type="range" id="tx-particles-count" min="10" max="400" step="1" value="150" oninput="syncVal(this,'v-tx-particles-count')">
+          <span class="ctrl-val" id="v-tx-particles-count">150</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Base disk radius, before the per-disk random size variation.">Size</div>
+          <input type="range" id="tx-particles-size" min="1" max="20" step="0.5" value="6" oninput="syncVal(this,'v-tx-particles-size')">
+          <span class="ctrl-val" id="v-tx-particles-size">6</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How far a disk can land from the ink pixel it was scattered from.">Spread</div>
+          <input type="range" id="tx-particles-spread" min="0" max="60" step="1" value="20" oninput="syncVal(this,'v-tx-particles-spread')">
+          <span class="ctrl-val" id="v-tx-particles-spread">20</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Changes which random disks get placed, without changing count/size/spread.">Seed</div>
+          <input type="range" id="tx-particles-seed" min="1" max="99" step="1" value="5" oninput="syncVal(this,'v-tx-particles-seed')">
+          <span class="ctrl-val" id="v-tx-particles-seed">5</span>
+        </div>
+      </div>
+
+      <div id="tx-dilate-controls" style="display:none">
+        <p class="org-panel__hint">Grows (positive) or shrinks (negative) the seed shape's own boundary — ported from Living Path's morph(). Blur-then-rethreshold: cheap, no per-pixel neighbour scan.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Positive grows the shape (dilate), negative shrinks it (erode).">Amount</div>
+          <input type="range" id="tx-dilate-amount" min="-16" max="16" step="1" value="4" oninput="syncVal(this,'v-tx-dilate-amount')">
+          <span class="ctrl-val" id="v-tx-dilate-amount">4</span>
+        </div>
+      </div>
     </div>
 
     <div class="panel-section">
@@ -1469,7 +1484,7 @@ function populateGenesisGrid() {
 function setSeedSource(btn) {
   ctrl('seg-seedsource').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
   seedSourceType = btn.dataset.v;
-  ['genesis', 'svg', 'text', 'image', 'bubbles'].forEach(t => { ctrl('seedsrc-' + t).style.display = t === seedSourceType ? 'block' : 'none'; });
+  ['genesis', 'svg', 'text', 'image'].forEach(t => { ctrl('seedsrc-' + t).style.display = t === seedSourceType ? 'block' : 'none'; });
 }
 function onTextChange() { /* read at Apply time — nothing to precompute */ }
 
@@ -1715,40 +1730,160 @@ function rasterizeImageSource(cw, ch, done, canvas, ctx2d, imgEl) {
   done(canvas);
 }
 
-// Bubbles — JS port of Living Path's particles() (livingpath/index.html),
-// adapted from "scatter onto existing ink" to "scatter within a disk of
-// the canvas" since there's no prior ink here. Uniform-disk sampling
-// (sqrt(rng()) for radius) so density stays even out to the edge instead
-// of clumping toward the centre.
-function rasterizeBubblesSource(cw, ch, done) {
-  maskCanvas.width = cw; maskCanvas.height = ch;
-  maskCtx.clearRect(0, 0, cw, ch);
-  maskCtx.fillStyle = '#000';
-  const count = parseInt(ctrl('rg-bub-count').value, 10);
-  const size = parseFloat(ctrl('rg-bub-size').value);
-  const spread = parseFloat(ctrl('rg-bub-spread').value);
-  const rng = mulberry32((currentSeed() * 2654435761) >>> 0);
-  const fit = Math.min(cw, ch);
-  const sizeScale = fit / 256;   // keeps bubble size visually consistent as Resolution changes
-  const rangeR = fit * 0.5 * spread;
-  const cx0 = cw / 2, cy0 = ch / 2;
-  for (let k = 0; k < count; k++) {
-    const ang = rng() * Math.PI * 2, rad = Math.sqrt(rng()) * rangeR;
-    const cx = cx0 + Math.cos(ang) * rad, cy = cy0 + Math.sin(ang) * rad;
-    const r = size * sizeScale * (0.5 + rng());
-    maskCtx.beginPath();
-    maskCtx.arc(cx, cy, r, 0, Math.PI * 2);
-    maskCtx.fill();
-  }
-  done(maskCanvas);
-}
-
 function rasterizeCurrentSeed(cw, ch, done) {
   if (seedSourceType === 'genesis') rasterizeGenesisSource(cw, ch, done);
   else if (seedSourceType === 'svg') { if (seedSvgText) rasterizeSvgText(seedSvgText, cw, ch, done); else done(null); }
   else if (seedSourceType === 'text') rasterizeTextSource(cw, ch, done);
-  else if (seedSourceType === 'bubbles') rasterizeBubblesSource(cw, ch, done);
   else rasterizeImageSource(cw, ch, done);
+}
+
+// ── TRANSFORMERS — a small registry-driven RASTER stack, ported from
+// Living Path's RFX (its raster effect family only — the vector-NODE
+// family, jitter/wobble/twist, needs a different pipeline entirely, path
+// points rather than a mask canvas, and isn't built here). Runs AFTER
+// rasterizeCurrentSeed, mutating that SAME mask canvas in place, so
+// "Particles" genuinely scatters onto whatever ink Seeds just produced —
+// Living Path's own semantics — instead of the blank-canvas
+// approximation the old Bubbles seed SOURCE used when it lived inside
+// Seeds. First test, deliberately kept isolated to Camo Turing rather
+// than shared/ — centralize only once this proves useful in a second
+// tool, not before.
+const TRANSFORMERS = {
+  particles: {
+    name: 'Particles',
+    // apply(canvas, ctx, params) — canvas/ctx already hold the seed
+    // shape's mask (alpha>0 = ink); mutates ctx in place, same contract
+    // Living Path's own RFX.apply(g,p) uses, just canvas-shaped instead
+    // of a Float32 field, to match how Camo Turing's masks already work.
+    apply(canvas, ctx, p) {
+      const cw = canvas.width, ch = canvas.height;
+      const id = ctx.getImageData(0, 0, cw, ch);
+      const px = id.data;
+      const ink = [];
+      for (let i = 0; i < cw * ch; i++) if (px[i * 4 + 3] > 128) ink.push(i);
+      if (!ink.length) return;   // nothing to scatter onto
+      const rng = mulberry32((p.seed * 2654435761) >>> 0);
+      const fit = Math.min(cw, ch);
+      const sizeScale = fit / 256;   // keeps disk size visually consistent as Resolution changes
+      const spreadPx = (p.spread / 100) * fit;
+      ctx.fillStyle = '#000';
+      for (let k = 0; k < p.count; k++) {
+        const i = ink[(rng() * ink.length) | 0];
+        const cx = (i % cw) + (rng() * 2 - 1) * spreadPx;
+        const cy = ((i / cw) | 0) + (rng() * 2 - 1) * spreadPx;
+        const r = p.size * sizeScale * (0.5 + rng());
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+  },
+  dilate: {
+    name: 'Dilate / Erode',
+    // Found by testing: dashed-ring-around-a-dot read as near-identical
+    // to Particles' scattered-dots icon at 26px — swapped for 4 outward
+    // spokes (a "grow/shrink" resize glyph), clearly distinct from both
+    // Particles' irregular dot scatter and None's plain dashed ring.
+    icon: '<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="4" fill="currentColor"/><path d="M13 3v4M13 23v-4M3 13h4M23 13h-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    // JS port of Living Path's morph() — that one's a real per-pixel
+    // neighbour scan; this is the cheaper canvas-native equivalent
+    // (blur softens the edge into a 0–255 alpha ramp, re-thresholding
+    // off-centre either counts the faint halo as inside — grow — or
+    // keeps only the strongly-covered core — shrink) rather than a
+    // second hand-rolled morphology pass.
+    apply(canvas, ctx, p) {
+      const amount = p.amount;
+      if (!amount) return;
+      const cw = canvas.width, ch = canvas.height;
+      const off = document.createElement('canvas'); off.width = cw; off.height = ch;
+      const octx = off.getContext('2d');
+      octx.filter = `blur(${Math.abs(amount)}px)`;
+      octx.drawImage(canvas, 0, 0);
+      octx.filter = 'none';
+      const id = octx.getImageData(0, 0, cw, ch);
+      const px = id.data;
+      const level = amount > 0 ? 12 : 243;   // low threshold = grow (dilate), high threshold = shrink (erode)
+      for (let i = 3; i < px.length; i += 4) px[i] = px[i] > level ? 255 : 0;
+      octx.putImageData(id, 0, 0);
+      ctx.clearRect(0, 0, cw, ch);
+      ctx.drawImage(off, 0, 0);
+    },
+  },
+};
+TRANSFORMERS.particles.icon = '<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="6" fill="currentColor"/><circle cx="6" cy="8" r="1.6" fill="currentColor"/><circle cx="21" cy="7" r="1.3" fill="currentColor"/><circle cx="20" cy="18" r="1.8" fill="currentColor"/><circle cx="6" cy="19" r="1.4" fill="currentColor"/><circle cx="15" cy="4" r="1.1" fill="currentColor"/></svg>';
+const TX_ICON_NONE = '<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2.5 2.5"/></svg>';
+
+function runTransformers(canvas, done) {
+  if (!canvas) { done(canvas); return; }
+  if (activeTransformer === 'particles') {
+    TRANSFORMERS.particles.apply(canvas, canvas.getContext('2d'), {
+      count: parseInt(ctrl('tx-particles-count').value, 10),
+      size: parseFloat(ctrl('tx-particles-size').value),
+      spread: parseFloat(ctrl('tx-particles-spread').value),
+      seed: parseInt(ctrl('tx-particles-seed').value, 10),
+    });
+  } else if (activeTransformer === 'dilate') {
+    TRANSFORMERS.dilate.apply(canvas, canvas.getContext('2d'), {
+      amount: parseInt(ctrl('tx-dilate-amount').value, 10),
+    });
+  }
+  done(canvas);
+}
+
+// ── Transformer picker — same thumbnail-dropdown UI as Pattern's own
+// preset-trigger/preset-menu (see buildPresetsUI/populatePresetMenu
+// below), reusing its .presets/.preset-trigger/.preset-menu/.pi-ico/
+// .pi-name CSS verbatim. The one real difference: Pattern's thumbnails
+// are LIVE simulated previews (buildPresetThumb runs a real mini Gray-
+// Scott pass), which has no equivalent for a Transformer — "what does
+// Particles look like" isn't a function of f/k. Small static SVG icons
+// instead, one per registry entry, cheap and always correct.
+let activeTransformer = '';
+function txIcon(key) { return key ? TRANSFORMERS[key].icon : TX_ICON_NONE; }
+function txLabel(key) { return key ? TRANSFORMERS[key].name : 'None'; }
+function updateTransformerTrigger() {
+  ctrl('tx-pt-ico').innerHTML = txIcon(activeTransformer);
+  ctrl('tx-pt-name').textContent = txLabel(activeTransformer);
+}
+function populateTransformerMenu() {
+  const m = ctrl('tx-preset-menu');
+  m.innerHTML = '';
+  ['', ...Object.keys(TRANSFORMERS)].forEach(key => {
+    const row = document.createElement('button');
+    row.className = 'preset-item' + (key === activeTransformer ? ' on' : '');
+    row.innerHTML = `<span class="pi-ico">${txIcon(key)}</span><span class="pi-name">${txLabel(key)}</span>`;
+    row.addEventListener('click', () => { setActiveTransformer(key); ctrl('tx-preset-menu').hidden = true; });
+    m.appendChild(row);
+  });
+}
+function positionTransformerMenu() {
+  const t = ctrl('tx-preset-trigger').getBoundingClientRect(), m = ctrl('tx-preset-menu'), gap = 5, margin = 12;
+  const below = window.innerHeight - t.bottom - margin, above = t.top - margin;
+  m.style.left = t.left + 'px'; m.style.width = t.width + 'px';
+  if (below >= 160 || below >= above) { m.style.top = (t.bottom + gap) + 'px'; m.style.bottom = 'auto'; m.style.maxHeight = Math.max(120, below) + 'px'; }
+  else { m.style.bottom = (window.innerHeight - t.top + gap) + 'px'; m.style.top = 'auto'; m.style.maxHeight = Math.max(120, above) + 'px'; }
+}
+function buildTransformerUI() {
+  const host = ctrl('tx-presets');
+  host.innerHTML = `<button class="preset-trigger" id="tx-preset-trigger" aria-label="Transformer">
+      <span class="pt-ico" id="tx-pt-ico"></span><span class="pt-name" id="tx-pt-name">None</span><span class="pt-chev">▾</span>
+    </button><div class="preset-menu" id="tx-preset-menu" hidden></div>`;
+  ctrl('tx-preset-trigger').addEventListener('click', e => {
+    e.stopPropagation();
+    const m = ctrl('tx-preset-menu');
+    if (m.hidden) { populateTransformerMenu(); positionTransformerMenu(); m.hidden = false; }
+    else m.hidden = true;
+  });
+  document.addEventListener('click', e => {
+    const m = ctrl('tx-preset-menu');
+    if (!m.hidden && !e.target.closest('#tx-presets') && !e.target.closest('#tx-preset-menu')) m.hidden = true;
+  });
+  updateTransformerTrigger();
+}
+function setActiveTransformer(key) {
+  activeTransformer = key;
+  updateTransformerTrigger();
+  Object.keys(TRANSFORMERS).forEach(t => { ctrl('tx-' + t + '-controls').style.display = t === key ? 'block' : 'none'; });
 }
 
 // ── FOUR MODES, dispatched from the mask a source produced ──
@@ -1941,8 +2076,9 @@ function testFamineZoneClean() {
 }
 
 function applySeed() {
-  rasterizeCurrentSeed(gridW, gridH, (canvas) => {
-    if (!canvas) { ctrl('seed-status-hint').textContent = 'Nothing to seed yet — pick a form, upload a file, or type text.'; return; }
+  rasterizeCurrentSeed(gridW, gridH, (rawCanvas) => {
+    if (!rawCanvas) { ctrl('seed-status-hint').textContent = 'Nothing to seed yet — pick a form, upload a file, or type text.'; return; }
+    runTransformers(rawCanvas, (canvas) => {
     const maskTex = new THREE.CanvasTexture(canvas);
     maskTex.wrapS = maskTex.wrapT = THREE.ClampToEdgeWrapping;
     maskTex.minFilter = maskTex.magFilter = THREE.LinearFilter;
@@ -2019,6 +2155,7 @@ function applySeed() {
       draw();
       setStatus('active', 'Seeded · ' + seedSourceType + ' · ' + mode);
     }
+    });
   });
 }
 function syncSeedModeRows() {
@@ -2828,6 +2965,7 @@ populateGenesisGrid();
 populateGenesisGridA();
 syncSeedModeRows();
 syncTwoShapeRows();
+buildTransformerUI();   // no renderer dependency, unlike buildPresetsUI's live thumbnails — safe before initGL()
 
 if (initGL()) {
   resetSim();
