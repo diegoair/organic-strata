@@ -150,7 +150,35 @@
        blocky upscale of a small bitmap, so the crisp/blocky "pixelated"
        hint is no longer wanted here. */
     image-rendering: auto;
+    transition: transform 0.08s ease-out;
   }
+
+  .zoom-badge {
+    position: absolute;
+    left: var(--space-3);
+    bottom: var(--space-3);
+    background: rgba(0,0,0,0.65);
+    color: #fff;
+    font-size: var(--fs-micro);
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 5;
+    user-select: none;
+  }
+  .zoom-badge.visible { opacity: 1; }
+
+  #export-diff-overlay {
+    position: absolute;
+    z-index: 6;
+    mix-blend-mode: difference;
+    pointer-events: none;
+    background: #fff;
+    overflow: hidden;
+  }
+  #export-diff-overlay svg { display: block; }
 
   #gl-error {
     display: none;
@@ -223,6 +251,17 @@
   }
   .toggle input:checked + .toggle-slider { background: var(--ink); }
   .toggle input:checked + .toggle-slider::before { transform: translateX(14px); }
+
+  /* Seeds' segmented control went from 4 sources to 5 with Bubbles —
+     found by testing, not assumed: at the shared component's default
+     padding/font-size, "Genesis" and "Bubbles" (the two 7-char labels)
+     both ellipsis-truncated ("Gen…"/"Bub…") at the panel's 248px width.
+     Scoped to this one control by #id, not a shared-component change —
+     other tools' 3-4 button segments are unaffected. */
+  #seg-seedsource .seg-btn {
+    padding: 0 3px;
+    font-size: 9px;
+  }
   .info-tip {
     position: relative;
     display: inline-flex;
@@ -321,6 +360,10 @@
       </div>
       <p class="org-popover__hint" id="export-hint">Pause the simulation to export — SVG traces the frozen field, so it needs a still frame to trace.</p>
       <div class="org-popover__divider"></div>
+      <div class="org-popover__title">Motion</div>
+      <button class="org-btn org-btn--block" id="btn-record" onclick="toggleRecording()">Start recording</button>
+      <p class="org-popover__hint" id="record-hint">Records the live canvas as WebM. Format/Resolution/Tile at time of Start apply to the whole clip.</p>
+      <div class="org-popover__divider"></div>
       <div class="org-popover__row">
         <label class="org-popover__label" for="sel-scale">Scale</label>
         <select class="org-select" id="sel-scale">
@@ -339,6 +382,7 @@
   <div id="canvas-wrap">
     <canvas id="gl-canvas" width="256" height="256"></canvas>
     <p id="gl-error">WebGL2 isn't available in this browser — Camo Turing needs it for the GPU-accelerated simulation. Try a recent Chrome, Firefox, Edge or Safari.</p>
+    <div class="zoom-badge" id="zoom-badge" aria-live="polite">100%</div>
   </div>
 
   <div id="panel">
@@ -362,6 +406,15 @@
         <option value="16:9">Wide 16:9</option>
         <option value="1:1.414">A-series √2</option>
       </select>
+      <div class="ctrl-row" style="margin-top: var(--space-2)">
+        <div class="ctrl-label" title="Repeats the live field N×N — the simulation grid is already toroidal (wraps seamlessly), so this is a genuine tile preview, not a crop. PNG and SVG export both follow it.">Tile preview</div>
+        <select class="panel-select" id="sel-tile" aria-label="Tile preview" onchange="setTilePreview()">
+          <option value="1" selected>&times;1</option>
+          <option value="2">&times;2</option>
+          <option value="3">&times;3</option>
+          <option value="4">&times;4</option>
+        </select>
+      </div>
     </div>
 
     <div class="panel-section">
@@ -373,6 +426,7 @@
           <button class="seg-btn" data-v="svg" onclick="setSeedSource(this)">SVG</button>
           <button class="seg-btn" data-v="text" onclick="setSeedSource(this)">Text</button>
           <button class="seg-btn" data-v="image" onclick="setSeedSource(this)">Image</button>
+          <button class="seg-btn" data-v="bubbles" onclick="setSeedSource(this)">Bubbles</button>
         </div>
       </div>
 
@@ -393,6 +447,32 @@
 
       <div id="seedsrc-image" style="display:none">
         <button class="upload-btn" onclick="ctrl('image-input').click()" id="image-upload-btn">+ Upload image</button>
+      </div>
+
+      <!-- Bubbles — ported from Living Path's raster effect stack (the
+           "Bubbles" preset: scattered disks of varying size, unioned
+           together — see livingpath/index.html's particles()). Living
+           Path scatters onto EXISTING ink pixels; here there's no prior
+           ink to scatter onto, so centres are sampled uniformly across a
+           disk of the canvas instead (Spread controls that disk's
+           radius). Reuses the same seeded mulberry32 RNG already used
+           for the default reseed, so it's reproducible. -->
+      <div id="seedsrc-bubbles" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How many bubbles to scatter.">Count</div>
+          <input type="range" id="rg-bub-count" min="10" max="400" step="1" value="150" oninput="syncVal(this,'v-bub-count')">
+          <span class="ctrl-val" id="v-bub-count">150</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Base bubble radius, before the per-bubble random size variation.">Size</div>
+          <input type="range" id="rg-bub-size" min="1" max="20" step="0.5" value="6" oninput="syncVal(this,'v-bub-size')">
+          <span class="ctrl-val" id="v-bub-size">6</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How far from the centre bubbles can land — small = a tight cluster, large = scattered across the whole canvas.">Spread</div>
+          <input type="range" id="rg-bub-spread" min="0.1" max="1" step="0.01" value="0.6" oninput="syncVal(this,'v-bub-spread')">
+          <span class="ctrl-val" id="v-bub-spread">0.6</span>
+        </div>
       </div>
 
       <div class="ctrl-row" style="margin-top: var(--space-4)">
@@ -497,6 +577,23 @@
         <button class="mini-btn" onclick="savePreset()">Save</button>
         <button class="mini-btn" onclick="deletePreset()">Delete</button>
       </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Compare <span class="hint">diff vs. a snapshot</span></h3>
+      <div class="toggle-row">
+        <span class="toggle-name">Diff overlay
+          <span class="info-tip" tabindex="0" role="note" aria-label="Shows how much the field has changed since your last Snapshot — Ink where it moved a lot, Paper where it barely moved.">i<span class="info-tip-bubble" aria-hidden="true">Shows how much the field has changed since your last Snapshot — Ink where it moved a lot, Paper where it barely moved.</span></span>
+        </span>
+        <label class="toggle">
+          <input type="checkbox" id="ck-diff" onchange="toggleDiffOverlay()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <button class="mini-btn" style="width:100%; margin-top: var(--space-2)" onclick="snapshotDiff()">Snapshot</button>
+      <div class="org-popover__divider" style="margin: var(--space-3) 0"></div>
+      <div class="ctrl-label" style="margin-bottom: var(--space-1)" title="The literal technique used to verify this session's SVG-export fixes: overlays the exported SVG on the live canvas at mix-blend-mode:difference — near-black means the export matches the preview exactly.">Export vs. preview</div>
+      <button class="mini-btn" style="width:100%" id="btn-export-diff" onclick="toggleExportDiff()">Export vs. preview (CSS diff)</button>
     </div>
 
     <div class="panel-section">
@@ -715,6 +812,9 @@ uniform float uColorMode;      // 0 solid, 1 adaptive, 2 rmx
 uniform vec3 uPalette[5];
 uniform float uPaletteCount;
 uniform float uMapping;        // 0 tone, 1 posterize, 2 random, 3 tone+random
+uniform float uTileN;          // live tile-preview repeat count — uState's RepeatWrapping does the rest
+uniform sampler2D uStateRef;   // Diff overlay — a snapshot of uState taken earlier
+uniform float uDiffOn;
 
 float hash1(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -726,7 +826,7 @@ vec3 paletteAt(int idx) {
   else if (idx == 3) return uPalette[3];
   else return uPalette[4];
 }
-vec3 rmxColor(float v) {
+vec3 rmxColor(float v, vec2 uv) {
   int count = int(uPaletteCount);
   if (count <= 1) return uPalette[0];
   float t = clamp(v, 0.0, 1.0) * float(count - 1);
@@ -738,27 +838,35 @@ vec3 rmxColor(float v) {
   } else if (uMapping < 1.5) {             // Posterize — hard bands
     return paletteAt(i0);
   } else if (uMapping < 2.5) {             // Random — hashed per cell; a texture, not per-blob colour (the field is continuous, unlike Pollen's discrete stipple points)
-    float h = hash1(floor(vUv * 48.0));
+    float h = hash1(floor(uv * 48.0));
     int ri = int(floor(h * float(count)));
     if (ri > count - 1) ri = count - 1;
     return paletteAt(ri);
   } else {                                  // Tone + Random — gradient position jittered by noise
-    float h = hash1(floor(vUv * 48.0)) - 0.5;
+    float h = hash1(floor(uv * 48.0)) - 0.5;
     float tt = clamp(t + h * 1.5, 0.0, float(count - 1));
     int j0 = int(floor(tt)); int j1 = j0 + 1; if (j1 > count - 1) j1 = count - 1;
     return mix(paletteAt(j0), paletteAt(j1), fract(tt));
   }
 }
 void main() {
-  vec2 c = texture2D(uState, vUv).rg;
+  vec2 uvT = vUv * uTileN;   // >1 lands outside [0,1] — uState's wrapS/wrapT are RepeatWrapping (toroidal), so this repeats seamlessly for free
+  vec2 c = texture2D(uState, uvT).rg;
   float v = c.r - c.g;
+  if (uDiffOn > 0.5) {
+    vec2 cRef = texture2D(uStateRef, uvT).rg;
+    float vRef = cRef.r - cRef.g;
+    float diff = clamp(abs(v - vRef) * 3.0, 0.0, 1.0);   // ×3 — most single-step deltas are small, this keeps the overlay legible instead of near-black
+    gl_FragColor = vec4(mix(uPaper, uInk, diff), 1.0);
+    return;
+  }
   vec3 rgb;
   if (uColorMode < 0.5) {                  // Solid — same threshold duotone every other Organica tool uses
     rgb = v < uThreshold ? uInk : uPaper;
   } else if (uColorMode < 1.5) {           // Adaptive — smooth blend, no hard edge
     rgb = mix(uInk, uPaper, clamp(v, 0.0, 1.0));
   } else {                                  // RMX
-    rgb = rmxColor(v);
+    rgb = rmxColor(v, uvT);
   }
   gl_FragColor = vec4(rgb, 1.0);
 }`;
@@ -959,6 +1067,9 @@ function initGL() {
       uPalette: { value: [new THREE.Color(0x1a1a2e), new THREE.Color(0xe94f37), new THREE.Color(0xf6e8c3), new THREE.Color(0xffffff), new THREE.Color(0x000000)] },
       uPaletteCount: { value: 3.0 },
       uMapping: { value: 0.0 },
+      uTileN: { value: 1.0 },
+      uStateRef: { value: defaultMaskTex },   // placeholder until a Diff snapshot is taken; harmless since uDiffOn gates the branch that reads it
+      uDiffOn: { value: 0.0 },
     },
     vertexShader: PASSTHROUGH_VERT, fragmentShader: DISPLAY_FRAG,
   });
@@ -1072,6 +1183,7 @@ function togglePlay() {
 }
 
 function rebuildGrid() {
+  invalidateDiffRef();
   ({ w: gridW, h: gridH } = computeGridDims());
   const dispDims1 = computeDisplayDims();
   ctrl('gl-canvas').width = dispDims1.w; ctrl('gl-canvas').height = dispDims1.h;
@@ -1097,6 +1209,7 @@ function resizeFormat() {
   const oldW = gridW, oldH = gridH, oldTex = rtA.texture;
   ({ w: gridW, h: gridH } = computeGridDims());
   if (gridW === oldW && gridH === oldH) return;
+  invalidateDiffRef();
 
   const newA = makeRenderTarget(gridW, gridH), newB = makeRenderTarget(gridW, gridH);
   copyMat.uniforms.uOld.value = oldTex;
@@ -1123,6 +1236,64 @@ function resizeFormat() {
 // bug Organica's own conventions treat as a real bug, not a cosmetic one).
 // This forces one immediate repaint regardless of play state.
 function scheduleRender() { if (renderer) draw(); }
+
+// Tile preview — live-only (uTileN), see DISPLAY_FRAG. Export (PNG/SVG)
+// each read this same select independently: PNG just captures whatever
+// the canvas already shows (uTileN did the work), SVG re-derives its own
+// tiling from the vector geometry (see exportSVG) since a shader uniform
+// can't reach into a traced path.
+function setTilePreview() {
+  if (!dispMat) return;
+  dispMat.uniforms.uTileN.value = parseInt(ctrl('sel-tile').value, 10) || 1;
+  scheduleRender();
+}
+
+// ── DIFF OVERLAY — a difference-blend view against a saved snapshot. ──
+// Started life as an ad-hoc debug trick this session (a CSS mix-blend-
+// mode:difference overlay used to verify the SVG-export fix matched the
+// live canvas) — promoted to a real feature since it's a genuinely
+// useful way to SEE how much the field has moved since a point in time,
+// not just eyeball two screenshots. Reuses copyMat/copyScene (the same
+// blit COPY_FRAG already does for Format resizing) for the snapshot
+// itself, rather than a new shader.
+let rtRef = null;
+function ensureRtRef() {
+  if (!rtRef || rtRef.width !== gridW || rtRef.height !== gridH) {
+    if (rtRef) rtRef.dispose();
+    rtRef = makeRenderTarget(gridW, gridH);
+  }
+}
+function invalidateDiffRef() {
+  // Resolution/Format changes leave any prior snapshot at the WRONG
+  // dimensions — safer to require a fresh one than silently compare
+  // against stale/mismatched data. Diff toggle auto-clears too, so it
+  // can't stay silently on with no valid reference.
+  if (rtRef) { rtRef.dispose(); rtRef = null; }
+  if (ctrl('ck-diff')) { ctrl('ck-diff').checked = false; }
+  if (dispMat) {
+    dispMat.uniforms.uDiffOn.value = 0.0;
+    dispMat.uniforms.uStateRef.value = defaultMaskTex;   // don't leave the uniform pointing at the texture we just disposed
+  }
+}
+function snapshotDiff() {
+  ensureRtRef();
+  copyMat.uniforms.uOld.value = rtA.texture;
+  copyMat.uniforms.uNewSize.value.set(gridW, gridH);
+  copyMat.uniforms.uOldSize.value.set(gridW, gridH);
+  copyMat.uniforms.uOffset.value.set(0, 0);
+  renderer.setRenderTarget(rtRef);
+  renderer.render(copyScene, camera);
+  renderer.setRenderTarget(null);
+  dispMat.uniforms.uStateRef.value = rtRef.texture;
+  setStatus('active', 'Snapshot taken · step ' + stepCount);
+  scheduleRender();
+}
+function toggleDiffOverlay() {
+  const on = ctrl('ck-diff').checked;
+  if (on && !rtRef) { snapshotDiff(); }   // no snapshot yet — take one now instead of showing an empty/undefined diff
+  dispMat.uniforms.uDiffOn.value = on ? 1.0 : 0.0;
+  scheduleRender();
+}
 
 function syncColor(which, hex) {
   hex = Organica.normalizeHex(hex, ctrl('cp-' + which).value);
@@ -1211,6 +1382,48 @@ ctrl('gl-canvas').addEventListener('click', (e) => {
   draw();
 });
 
+// ── ZOOM — mouse wheel over the canvas ──
+// A pure CSS transform on the canvas ELEMENT, not a simulation-resolution
+// change — doesn't touch gridW/gridH, doesn't affect export (PNG/SVG both
+// read the underlying data, not the zoomed screen box). transform-origin
+// tracks the cursor so it zooms toward whatever you're pointing at, same
+// feel as a map/image viewer; #canvas-wrap's own overflow:hidden clips
+// the zoomed-in overflow instead of it spilling into the panel. The
+// existing click-to-seed handler above needs no change — getBoundingClientRect()
+// already reflects the transformed (zoomed) box, so cx/cy stay correct.
+let zoomLevel = 1;
+let zoomBadgeTimer = null;
+function showZoomBadge() {
+  const badge = ctrl('zoom-badge');
+  badge.textContent = Math.round(zoomLevel * 100) + '%';
+  badge.classList.add('visible');
+  clearTimeout(zoomBadgeTimer);
+  zoomBadgeTimer = setTimeout(() => badge.classList.remove('visible'), 1000);
+}
+ctrl('gl-canvas').addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const canvas = e.currentTarget;
+  const rect = canvas.getBoundingClientRect();
+  const originX = ((e.clientX - rect.left) / rect.width) * 100;
+  const originY = ((e.clientY - rect.top) / rect.height) * 100;
+  canvas.style.transformOrigin = originX + '% ' + originY + '%';
+  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+  zoomLevel = Math.min(6, Math.max(1, zoomLevel * factor));
+  canvas.style.transform = zoomLevel === 1 ? 'none' : `scale(${zoomLevel})`;
+  showZoomBadge();
+}, { passive: false });
+ctrl('gl-canvas').addEventListener('dblclick', (e) => {
+  // dblclick already can't seed-stamp meaningfully (two overlapping
+  // stamps), so repurposing it as "reset zoom" doesn't take anything away.
+  if (zoomLevel === 1) return;
+  e.stopPropagation();
+  zoomLevel = 1;
+  const canvas = e.currentTarget;
+  canvas.style.transform = 'none';
+  canvas.style.transformOrigin = '';
+  showZoomBadge();
+});
+
 // ── SEEDS COMPONENT ──
 //
 // Four sources (Genesis form, uploaded SVG, text via a real font, uploaded
@@ -1256,7 +1469,7 @@ function populateGenesisGrid() {
 function setSeedSource(btn) {
   ctrl('seg-seedsource').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
   seedSourceType = btn.dataset.v;
-  ['genesis', 'svg', 'text', 'image'].forEach(t => { ctrl('seedsrc-' + t).style.display = t === seedSourceType ? 'block' : 'none'; });
+  ['genesis', 'svg', 'text', 'image', 'bubbles'].forEach(t => { ctrl('seedsrc-' + t).style.display = t === seedSourceType ? 'block' : 'none'; });
 }
 function onTextChange() { /* read at Apply time — nothing to precompute */ }
 
@@ -1502,10 +1715,39 @@ function rasterizeImageSource(cw, ch, done, canvas, ctx2d, imgEl) {
   done(canvas);
 }
 
+// Bubbles — JS port of Living Path's particles() (livingpath/index.html),
+// adapted from "scatter onto existing ink" to "scatter within a disk of
+// the canvas" since there's no prior ink here. Uniform-disk sampling
+// (sqrt(rng()) for radius) so density stays even out to the edge instead
+// of clumping toward the centre.
+function rasterizeBubblesSource(cw, ch, done) {
+  maskCanvas.width = cw; maskCanvas.height = ch;
+  maskCtx.clearRect(0, 0, cw, ch);
+  maskCtx.fillStyle = '#000';
+  const count = parseInt(ctrl('rg-bub-count').value, 10);
+  const size = parseFloat(ctrl('rg-bub-size').value);
+  const spread = parseFloat(ctrl('rg-bub-spread').value);
+  const rng = mulberry32((currentSeed() * 2654435761) >>> 0);
+  const fit = Math.min(cw, ch);
+  const sizeScale = fit / 256;   // keeps bubble size visually consistent as Resolution changes
+  const rangeR = fit * 0.5 * spread;
+  const cx0 = cw / 2, cy0 = ch / 2;
+  for (let k = 0; k < count; k++) {
+    const ang = rng() * Math.PI * 2, rad = Math.sqrt(rng()) * rangeR;
+    const cx = cx0 + Math.cos(ang) * rad, cy = cy0 + Math.sin(ang) * rad;
+    const r = size * sizeScale * (0.5 + rng());
+    maskCtx.beginPath();
+    maskCtx.arc(cx, cy, r, 0, Math.PI * 2);
+    maskCtx.fill();
+  }
+  done(maskCanvas);
+}
+
 function rasterizeCurrentSeed(cw, ch, done) {
   if (seedSourceType === 'genesis') rasterizeGenesisSource(cw, ch, done);
   else if (seedSourceType === 'svg') { if (seedSvgText) rasterizeSvgText(seedSvgText, cw, ch, done); else done(null); }
   else if (seedSourceType === 'text') rasterizeTextSource(cw, ch, done);
+  else if (seedSourceType === 'bubbles') rasterizeBubblesSource(cw, ch, done);
   else rasterizeImageSource(cw, ch, done);
 }
 
@@ -1822,8 +2064,85 @@ ctrl('font-input').addEventListener('change', (e) => {
 });
 
 // ── EXPORT ──
+// ── VIDEO RECORDING — canvas.captureStream() + MediaRecorder, same
+// mechanism Komorebi used for its own WebM export. Recording a frozen
+// frame isn't useful, so Start forces the sim running if it was paused;
+// Stop is the only other trigger (no auto-stop — Camo Turing has no
+// convergence/auto-pause detection to race against, unlike Camouflage).
+let mediaRecorder = null, recordedChunks = [];
+function toggleRecording() {
+  const btn = ctrl('btn-record');
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    return;
+  }
+  const canvas = ctrl('gl-canvas');
+  if (typeof canvas.captureStream !== 'function' || typeof window.MediaRecorder === 'undefined') {
+    setStatus('', 'Video recording isn\'t supported in this browser');
+    return;
+  }
+  const stream = canvas.captureStream(30);
+  recordedChunks = [];
+  let mimeType = 'video/webm';
+  if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) mimeType = 'video/webm;codecs=vp9';
+  else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) mimeType = 'video/webm;codecs=vp8';
+  try {
+    mediaRecorder = new MediaRecorder(stream, { mimeType });
+  } catch (err) {
+    setStatus('', 'Could not start recording: ' + err.message);
+    return;
+  }
+  mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+  mediaRecorder.onstop = () => {
+    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+    Organica.download(blob, Organica.stamp('camo-turing', 'webm'));
+    btn.textContent = 'Start recording';
+    btn.classList.remove('org-btn--primary');
+    setStatus('active', 'Recording saved');
+  };
+  if (!running) togglePlay();
+  mediaRecorder.start();
+  btn.textContent = 'Stop recording';
+  btn.classList.add('org-btn--primary');
+  setStatus('busy', 'Recording…');
+}
+
 function exportPNG() {
-  const url = ctrl('gl-canvas').toDataURL('image/png');
+  // Real bug, found by testing: the Scale selector (×1/×2/×4) sits in the
+  // same popover row as both PNG and SVG, but only SVG ever read it — PNG
+  // always came out at the fixed on-screen display size (DISPLAY_LONG),
+  // silently ignoring Scale. Fixed by temporarily resizing the canvas'
+  // drawing buffer to Scale× the normal display size, rendering ONE frame
+  // at that size (still respecting whatever Tile/Diff/Palette state is
+  // currently live, since draw() reads it fresh), capturing, then
+  // restoring the canvas back to its normal on-screen size — the resize
+  // never touches gridW/gridH, so the simulation itself is untouched.
+  const scale = parseInt(ctrl('sel-scale').value, 10) || 1;
+  const canvas = ctrl('gl-canvas');
+  const baseDims = computeDisplayDims();
+  const resized = scale > 1;
+  if (resized) {
+    canvas.width = baseDims.w * scale;
+    canvas.height = baseDims.h * scale;
+    renderer.setSize(canvas.width, canvas.height, false);
+  }
+  // Real bug, found by testing: canvas.toDataURL() on this WebGL canvas
+  // does NOT reliably return the last-drawn frame — even with
+  // preserveDrawingBuffer:true and the sim actively running (loop()
+  // drawing every ~16ms), a plain click on Export → PNG intermittently
+  // captured solid black, while the on-screen canvas was visibly correct
+  // at that exact moment. Reproduced via direct button clicks, not just
+  // synthetic calls. A render() in the SAME synchronous tick as
+  // toDataURL() fixed it every time in testing — scheduleRender() forces
+  // exactly that; also needed here regardless, to draw the just-resized buffer.
+  scheduleRender();
+  const url = canvas.toDataURL('image/png');
+  if (resized) {
+    canvas.width = baseDims.w;
+    canvas.height = baseDims.h;
+    renderer.setSize(baseDims.w, baseDims.h, false);
+    scheduleRender();   // restore the on-screen frame — otherwise the canvas stays blank (0×0 GL viewport) at the old buffer size until the next natural redraw
+  }
   const bin = atob(url.split(',')[1]);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -1958,11 +2277,11 @@ function readFrozenField() {
   return field;
 }
 
-function exportSVG() {
-  if (document.getElementById('btn-playpause').getAttribute('aria-label') === 'Pause') {
-    setStatus('', 'Pause the simulation before exporting SVG');
-    return;
-  }
+// Split out of exportSVG() so the CSS-diff preview below (toggleExportDiff)
+// can build the exact same markup exportSVG() would download, without
+// actually triggering a download — same tracing/banding code either way,
+// no second implementation to drift out of sync with the real export.
+function buildExportSVGString() {
   const scale = parseInt(ctrl('sel-scale').value, 10) || 2;
   const outW = gridW * scale, outH = gridH * scale;
   const block = scale;
@@ -1972,7 +2291,13 @@ function exportSVG() {
   let bands, bandColor, score = field, body = null;
   if (colorMode < 0.5) {
     bands = 2;
-    bandColor = [ctrl('hex-paper').value, ctrl('hex-ink').value];
+    // Real bug, found by testing (while verifying Tile export, unrelated):
+    // this array was [paper, ink] — backwards from DISPLAY_FRAG's own
+    // `v < uThreshold ? uInk : uPaper`, where the LOW band (index 0, what
+    // the base <rect> below gets painted) is ink, not paper. Confirmed by
+    // comparing a live canvas screenshot against the exported SVG side by
+    // side — the export came out with fully inverted tone.
+    bandColor = [ctrl('hex-ink').value, ctrl('hex-paper').value];
   } else if (colorMode < 1.5) {
     bands = 8;   // Adaptive is a continuous blend — 8 stacked bands is a disclosed vector approximation, same trade Camouflage's own Bands mode makes
     const inkC = new THREE.Color(ctrl('hex-ink').value), paperC = new THREE.Color(ctrl('hex-paper').value);
@@ -2018,23 +2343,61 @@ function exportSVG() {
     bandColor = rmxColors.slice();
   }
 
+  const tileN = Math.max(1, parseInt(ctrl('sel-tile').value, 10) || 1);
+  // Real bug, found by testing (using the new "Export vs. preview" CSS-
+  // diff feature on the Tile export itself): organicPathD/traceContours
+  // treats the grid as a flat rectangle — a feature that straddles the
+  // toroidal wrap gets cut into two independent loops at the edge, and
+  // smoothLoop/decimateLoop (see below) don't move the two cuts by
+  // exactly the same sub-pixel amount, so tiled copies could show a
+  // faint seam exactly where 4 tiles meet. Only matters when actually
+  // tiling — a lone export (tileN=1) is untouched, PAD stays 0.
+  const PAD = tileN > 1 ? 6 : 0;
+  const pgw = gridW + PAD * 2, pgh = gridH + PAD * 2;
+
   if (body === null) {
-    const bandOf = new Uint8Array(gridW * gridH);
-    for (let i = 0; i < gridW * gridH; i++) {
-      const v = Math.max(0, Math.min(1, score[i]));
-      bandOf[i] = Math.min(bands - 1, Math.floor(v * bands));
+    const bandOf = new Uint8Array(pgw * pgh);
+    for (let py = 0; py < pgh; py++) {
+      const sy = ((py - PAD) % gridH + gridH) % gridH;
+      for (let px = 0; px < pgw; px++) {
+        const sx = ((px - PAD) % gridW + gridW) % gridW;
+        const v = Math.max(0, Math.min(1, score[sy * gridW + sx]));
+        bandOf[py * pgw + px] = Math.min(bands - 1, Math.floor(v * bands));
+      }
     }
 
-    body = `<rect width="${outW}" height="${outH}" fill="${bandColor[0]}"/>`;
-    const mask = new Uint8Array(gridW * gridH);
+    const rectXY = PAD > 0 ? ` x="${-PAD * block}" y="${-PAD * block}"` : '';
+    body = `<rect${rectXY} width="${pgw * block}" height="${pgh * block}" fill="${bandColor[0]}"/>`;
+    const mask = new Uint8Array(pgw * pgh);
     for (let bd = 1; bd < bands; bd++) {
       let any = false;
-      for (let i = 0; i < gridW * gridH; i++) { const on = bandOf[i] >= bd ? 1 : 0; mask[i] = on; if (on) any = true; }
+      for (let i = 0; i < pgw * pgh; i++) { const on = bandOf[i] >= bd ? 1 : 0; mask[i] = on; if (on) any = true; }
       if (!any) continue;
-      const d = organicPathD(mask, gridW, gridH, block);
+      const d = organicPathD(mask, pgw, pgh, block);
       if (!d) continue;
-      body += `<path fill="${bandColor[bd]}" fill-rule="evenodd" d="${d}"/>`;
+      // organicPathD's coordinates are in the PADDED grid's own space
+      // (0..pgw*block) — translate back so the padding bleeds OUTSIDE
+      // the tile's real outW×outH box on all four sides, instead of the
+      // whole traced shape sitting offset from where band 0's rect (and
+      // every other export mode) expects it.
+      const transformAttr = PAD > 0 ? ` transform="translate(${-PAD * block},${-PAD * block})"` : '';
+      body += `<path fill="${bandColor[bd]}" fill-rule="evenodd"${transformAttr} d="${d}"/>`;
     }
+  }
+
+  // Tile preview reads the SAME select PNG export does. The field is
+  // genuinely toroidal (RepeatWrapping), so N adjacent copies of the
+  // traced geometry tile seamlessly — PAD (above) gives each copy a few
+  // cells of bleed past its own outW×outH box so neighbouring copies'
+  // bleed overlaps and hides any sub-pixel mismatch at the cut, rather
+  // than leaving the two independently-smoothed cut edges butted exactly
+  // together with nothing to hide a mismatch behind.
+  const finalW = outW * tileN, finalH = outH * tileN;
+  let finalBody = body;
+  if (tileN > 1) {
+    let uses = '';
+    for (let ty = 0; ty < tileN; ty++) for (let tx = 0; tx < tileN; tx++) uses += `<use href="#tile" x="${tx * outW}" y="${ty * outH}"/>`;
+    finalBody = `<defs><clipPath id="tileClip"><rect width="${outW}" height="${outH}"/></clipPath><g id="tile" clip-path="url(#tileClip)">${body}</g></defs>${uses}`;
   }
 
   const meta = {
@@ -2043,14 +2406,73 @@ function exportSVG() {
     gridW, gridH, step: stepCount, seed: currentSeed(),
     colorMode: colorMode < 0.5 ? 'solid' : colorMode < 1.5 ? 'adaptive' : 'rmx',
     rmxMapping: colorMode >= 1.5 ? rmxColorMap : undefined,
+    tile: tileN,
     exportedAt: new Date().toISOString(),
   };
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${outW} ${outH}">`
-    + `<metadata>${JSON.stringify(meta)}</metadata>${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${finalW}" height="${finalH}" viewBox="0 0 ${finalW} ${finalH}">`
+    + `<metadata>${JSON.stringify(meta)}</metadata>${finalBody}</svg>`;
+}
 
+function exportSVG() {
+  if (document.getElementById('btn-playpause').getAttribute('aria-label') === 'Pause') {
+    setStatus('', 'Pause the simulation before exporting SVG');
+    return;
+  }
+  const svg = buildExportSVGString();
   Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('camo-turing', 'svg'));
   setStatus('active', 'Exported SVG · step ' + stepCount);
+}
+
+// ── EXPORT-DIFF PREVIEW — the actual technique used to VERIFY the SVG
+// export this session (mix-blend-mode:difference between the live canvas
+// and the exported SVG, as two real DOM layers) is now a real, visible
+// toggle instead of a one-off script: builds the same SVG exportSVG()
+// would download, lays it over the canvas at mix-blend-mode:difference.
+// Near-black = the export matches the preview; any visible residual is
+// exactly what it would look like in the downloaded file too. Requires
+// Pause for the same reason exportSVG() does — it traces the FROZEN field.
+let exportDiffEl = null;
+function positionExportDiffOverlay() {
+  if (!exportDiffEl) return;
+  // Absolute + offsetLeft/Top/Width/Height (canvas-wrap is the offsetParent,
+  // being position:relative) rather than getBoundingClientRect + fixed —
+  // fixed positioning would ignore canvas-wrap's own overflow:hidden clip
+  // (fixed elements establish their containing block from the viewport,
+  // not a non-transformed ancestor), and the canvas can be smaller than
+  // canvas-wrap on any non-square Format, so it has to track the CANVAS's
+  // own box, not the wrapper's.
+  const canvas = ctrl('gl-canvas');
+  exportDiffEl.style.top = canvas.offsetTop + 'px';
+  exportDiffEl.style.left = canvas.offsetLeft + 'px';
+  exportDiffEl.style.width = canvas.offsetWidth + 'px';
+  exportDiffEl.style.height = canvas.offsetHeight + 'px';
+  const svgEl = exportDiffEl.querySelector('svg');
+  if (svgEl) { svgEl.style.width = canvas.offsetWidth + 'px'; svgEl.style.height = canvas.offsetHeight + 'px'; }
+}
+function toggleExportDiff() {
+  const btn = ctrl('btn-export-diff');
+  if (exportDiffEl) {
+    exportDiffEl.remove();
+    exportDiffEl = null;
+    window.removeEventListener('resize', positionExportDiffOverlay);
+    btn.textContent = 'Export vs. preview (CSS diff)';
+    btn.classList.remove('org-btn--primary');
+    return;
+  }
+  if (document.getElementById('btn-playpause').getAttribute('aria-label') === 'Pause') {
+    setStatus('', 'Pause the simulation to compare against the export');
+    return;
+  }
+  const svg = buildExportSVGString();
+  exportDiffEl = document.createElement('div');
+  exportDiffEl.id = 'export-diff-overlay';
+  exportDiffEl.innerHTML = svg;
+  ctrl('canvas-wrap').appendChild(exportDiffEl);
+  positionExportDiffOverlay();
+  window.addEventListener('resize', positionExportDiffOverlay);
+  btn.textContent = 'Stop comparing';
+  btn.classList.add('org-btn--primary');
 }
 
 function sendToFigma() { setStatus('', 'Figma export lands in a later step'); }
@@ -2345,6 +2767,11 @@ window.togglePlay = togglePlay;
 window.resetSim = resetSim;
 window.rebuildGrid = rebuildGrid;
 window.resizeFormat = resizeFormat;
+window.setTilePreview = setTilePreview;
+window.snapshotDiff = snapshotDiff;
+window.toggleExportDiff = toggleExportDiff;
+window.toggleDiffOverlay = toggleDiffOverlay;
+window.toggleRecording = toggleRecording;
 window.syncVal = syncVal;
 window.syncColor = syncColor;
 window.randomColor = randomColor;
