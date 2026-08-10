@@ -439,15 +439,17 @@
       </div>
 
       <div class="ctrl-row" style="margin-top: var(--space-4)">
-        <div class="ctrl-label" title="Fill: the coverage mask stamps the reaction directly, once — same as Genesis-form seeding in Camouflage. Confine: the mask permanently pins every cell outside it to the resting state, every step — the pattern grows freely but never escapes the shape. Trace outline: nucleation points are sampled along the shape's edge only, not its interior — growth radiates from the contour. Regime boundary: two different f/k values meet at the shape's edge, and the WHOLE canvas keeps evolving on both sides — the shape becomes a border between two regimes, not a container.">Mode</div>
+        <div class="ctrl-label" title="Fill: the coverage mask stamps the reaction directly, once — same as Genesis-form seeding in Camouflage. Confine: the mask permanently pins every cell outside it to the resting state, every step — the pattern grows freely but never escapes the shape. Trace outline: nucleation points are sampled along the shape's edge only, not its interior — growth radiates from the contour. Regime boundary: two different f/k values meet at the shape's edge, and the WHOLE canvas keeps evolving on both sides — the shape becomes a border between two regimes, not a container. Background image: doesn't seed the simulation at all — the current Image/SVG source becomes Paper's background, in full colour, wherever the pattern isn't Ink. Stencil: same source image, but visible only THROUGH the Ink shapes instead — Paper stays flat.">Mode</div>
         <select class="panel-select" id="sel-seedmode" onchange="syncSeedModeRows()">
           <option value="fill">Fill</option>
           <option value="confine">Confine</option>
           <option value="trace">Trace outline</option>
           <option value="boundary">Regime boundary</option>
+          <option value="bgimage">Background image</option>
+          <option value="stencil">Stencil (image through ink)</option>
         </select>
       </div>
-      <div class="ctrl-row">
+      <div class="ctrl-row" id="row-seedsize">
         <div class="ctrl-label">Size</div>
         <input type="range" id="rg-seedsize" min="0.15" max="0.9" step="0.01" value="0.55" oninput="syncVal(this,'v-seedsize')">
         <span class="ctrl-val" id="v-seedsize">0.55</span>
@@ -456,6 +458,7 @@
         <div class="ctrl-label" title="Feed/Kill used OUTSIDE the shape, when Mode is Regime boundary.">Outside f/k</div>
         <span class="ctrl-val">0.0545 / 0.0620</span>
       </div>
+      <p class="org-panel__hint" id="paper-img-hint" style="display:none">Needs an Image or SVG source above (Genesis/Text shapes have no colour of their own to show).</p>
 
       <div style="margin-top: var(--space-3); display: flex; align-items: center; gap: var(--space-2)">
         <label class="check-row" style="margin: 0">
@@ -956,6 +959,15 @@ uniform float uTileN;          // live tile-preview repeat count — uState's Re
 uniform sampler2D uStateRef;   // Diff overlay — a snapshot of uState taken earlier
 uniform float uDiffOn;
 uniform float uScoreIsFinal;   // 1.0 when uState is the Layers composite (uState.r is already a final 0..1 score, not a raw A,B pair to diff) — see compositeAndDraw()
+// Paper background image / stencil — set via the Seeds panel's Mode
+// dropdown (Background image / Stencil), reusing whatever Image/SVG
+// source is already loaded there rather than a second upload control.
+// uPaperImgScale/Offset do a CSS background-size:cover-style fit so the
+// image doesn't stretch to the canvas's own aspect ratio.
+uniform sampler2D uPaperTex;
+uniform float uPaperImgOn;
+uniform float uPaperImgInvert;   // 0 = image shows where Paper would (background); 1 = image shows only through Ink (stencil), Paper stays flat
+uniform vec2 uPaperImgScale, uPaperImgOffset;
 
 float hash1(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -1000,6 +1012,16 @@ vec3 rmxColor(float score, vec2 uv) {
     return mix(paletteAt(j0), paletteAt(j1), fract(tt));
   }
 }
+// Sampled at the plain (untiled) vUv, not uvT — a background photo
+// shouldn't fracture into uTileN copies just because the PATTERN repeats;
+// it stays one whole image under a tiled pattern. Transparent PNG regions
+// (s.a < 1) fall back to the flat uPaper colour rather than showing black.
+vec3 paperOrImage(vec2 uv) {
+  if (uPaperImgOn < 0.5) return uPaper;
+  vec2 iuv = uv * uPaperImgScale + uPaperImgOffset;
+  vec4 s = texture2D(uPaperTex, iuv);
+  return mix(uPaper, s.rgb, s.a);
+}
 void main() {
   vec2 uvT = vUv * uTileN;   // >1 lands outside [0,1] — uState's wrapS/wrapT are RepeatWrapping (toroidal), so this repeats seamlessly for free
   vec2 c = texture2D(uState, uvT).rg;
@@ -1021,11 +1043,14 @@ void main() {
   // total, on either path.
   float score = uScoreIsFinal > 0.5 ? v : remapV(v);
   vec3 rgb;
+  vec3 paperColor = paperOrImage(vUv);
   if (uColorMode < 0.5) {                  // Solid — same threshold duotone every other Organica tool uses
-    rgb = v < uThreshold ? uInk : uPaper;
+    if (uPaperImgInvert > 0.5) rgb = v < uThreshold ? paperColor : uPaper;   // Stencil — image only through Ink
+    else rgb = v < uThreshold ? uInk : paperColor;                          // Background — image where Paper would be
   } else if (uColorMode < 1.5) {           // Adaptive — smooth blend, no hard edge
-    rgb = mix(uInk, uPaper, score);
-  } else {                                  // RMX
+    if (uPaperImgInvert > 0.5) rgb = mix(paperColor, uPaper, score);
+    else rgb = mix(uInk, paperColor, score);
+  } else {                                  // RMX — Paper image not supported here, uPaperImgOn is left off whenever RMX-relevant
     rgb = rmxColor(score, uvT);
   }
   gl_FragColor = vec4(rgb, 1.0);
@@ -1315,6 +1340,8 @@ function initGL() {
       uStateRef: { value: defaultMaskTex },   // placeholder until a Diff snapshot is taken; harmless since uDiffOn gates the branch that reads it
       uDiffOn: { value: 0.0 },
       uScoreIsFinal: { value: 0.0 },
+      uPaperTex: { value: defaultMaskTex }, uPaperImgOn: { value: 0.0 }, uPaperImgInvert: { value: 0.0 },
+      uPaperImgScale: { value: new THREE.Vector2(1, 1) }, uPaperImgOffset: { value: new THREE.Vector2(0, 0) },
     },
     vertexShader: PASSTHROUGH_VERT, fragmentShader: DISPLAY_FRAG,
   });
@@ -1866,6 +1893,7 @@ function rebuildGrid() {
   simMat.uniforms.uMask.value = defaultMaskTex;
   simMat.uniforms.uConfineOn.value = 0.0;
   simMat.uniforms.uBoundaryOn.value = 0.0;
+  dispMat.uniforms.uPaperImgOn.value = 0.0;   // same "fresh start" as the mask clear above
   if (extraLayers.length) rebuildExtraLayers();
   resetSim();
 }
@@ -1897,6 +1925,13 @@ function resizeFormat() {
   renderer.setSize(dispDims2.w, dispDims2.h, false);
   simMat.uniforms.uTexel.value.set(1 / gridW, 1 / gridH);
   if (extraLayers.length) rebuildExtraLayers();
+  // Format reframes the canvas but keeps the content (unlike Resolution
+  // above) — a background image should stay on and just re-fit its
+  // cover crop to the new aspect ratio, not vanish.
+  if (dispMat.uniforms.uPaperImgOn.value > 0.5 && paperTexture && paperTexture.image) {
+    const img = paperTexture.image;
+    updatePaperImgFit(img.naturalWidth || img.width, img.naturalHeight || img.height);
+  }
   draw();
 }
 
@@ -2114,6 +2149,7 @@ let seedSvgText = null;
 let seedFont = null;      // opentype.js Font — null means "use bundled Manrope"
 let seedFontBuf = null;   // cached ArrayBuffer of the bundled Manrope, fetched once
 let seedImageEl = null;
+let paperTexture = null;   // Background image / Stencil mode — see applyPaperImageMode()
 
 const PRIMORDIAL = [7, 56, 1, 2, 14, 33, 38, 31];   // curated subset — same list as Pollen's shape library
 const maskCanvas = document.createElement('canvas');
@@ -2700,7 +2736,62 @@ function testFamineZoneClean() {
   setStatus('active', 'Probe · famine zone (clean)');
 }
 
+// Background image / Stencil — cover-fit UV transform (CSS
+// background-size:cover math), computed from the image's own natural
+// dimensions against the CANVAS's aspect ratio (computeDisplayDims(), not
+// the sim grid — this is a display-only concern, same reasoning
+// DISPLAY_LONG's own comment gives for decoupling the two).
+function updatePaperImgFit(imgW, imgH) {
+  const dims = computeDisplayDims();
+  const canvasAspect = dims.w / dims.h, imgAspect = imgW / imgH;
+  const sx = imgAspect > canvasAspect ? canvasAspect / imgAspect : 1;
+  const sy = imgAspect > canvasAspect ? 1 : imgAspect / canvasAspect;
+  dispMat.uniforms.uPaperImgScale.value.set(sx, sy);
+  dispMat.uniforms.uPaperImgOffset.value.set((1 - sx) * 0.5, (1 - sy) * 0.5);
+}
+function setPaperImage(source, mode) {
+  if (paperTexture) paperTexture.dispose();
+  paperTexture = source instanceof HTMLCanvasElement ? new THREE.CanvasTexture(source) : new THREE.Texture(source);
+  paperTexture.minFilter = paperTexture.magFilter = THREE.LinearFilter;
+  paperTexture.wrapS = paperTexture.wrapT = THREE.ClampToEdgeWrapping;
+  paperTexture.needsUpdate = true;
+  dispMat.uniforms.uPaperTex.value = paperTexture;
+  dispMat.uniforms.uPaperImgOn.value = 1.0;
+  dispMat.uniforms.uPaperImgInvert.value = mode === 'stencil' ? 1.0 : 0.0;
+  updatePaperImgFit(source.naturalWidth || source.width, source.naturalHeight || source.height);
+  draw();
+  setStatus('active', (mode === 'stencil' ? 'Stencil' : 'Background image') + ' set · ' + seedSourceType);
+}
+// Deliberately bypasses rasterizeCurrentSeed() — that pipeline threshold s
+// Image sources to a binary luminance mask (see rasterizeImageSource),
+// which is right for seeding but would throw away the actual photo colours
+// these two modes exist to show. SVG is rasterized fresh here too (real
+// colours, not thresholded) rather than reusing the Seeds panel's own SVG
+// mask canvas. Genesis/Text sources have no colour content of their own
+// (just the tool's Ink/Paper on a glyph shape), so they're not supported —
+// same message as paper-img-hint's own static copy.
+function applyPaperImageMode(mode) {
+  if (seedSourceType === 'image' && seedImageEl) { setPaperImage(seedImageEl, mode); return; }
+  if (seedSourceType === 'svg' && seedSvgText) {
+    const svgCanvas = document.createElement('canvas');
+    rasterizeSvgTextInto(seedSvgText, 1024, 1024, svgCanvas, svgCanvas.getContext('2d'), (canvas) => {
+      if (!canvas) { ctrl('seed-status-hint').textContent = 'Could not load this SVG.'; return; }
+      setPaperImage(canvas, mode);
+    });
+    return;
+  }
+  ctrl('seed-status-hint').textContent = (mode === 'stencil' ? 'Stencil' : 'Background image') + ' needs an Image or SVG source — switch the tab above and upload one.';
+}
+
 function applySeed() {
+  const seedMode0 = ctrl('sel-seedmode').value;
+  if (seedMode0 === 'bgimage' || seedMode0 === 'stencil') { applyPaperImageMode(seedMode0); return; }
+  // A real seed mode replaces whatever Background image/Stencil was doing —
+  // otherwise the two would silently coexist (a stale image uniform still
+  // on, painted UNDER a freshly-seeded pattern that has nothing to do with
+  // it), which is exactly the "leftover state from a different mode" class
+  // of bug this project's own conventions call out.
+  dispMat.uniforms.uPaperImgOn.value = 0.0;
   rasterizeCurrentSeed(gridW, gridH, (rawCanvas) => {
     if (!rawCanvas) { ctrl('seed-status-hint').textContent = 'Nothing to seed yet — pick a form, upload a file, or type text.'; return; }
     runTransformers(rawCanvas, (canvas) => {
@@ -2784,7 +2875,11 @@ function applySeed() {
   });
 }
 function syncSeedModeRows() {
-  ctrl('row-boundary-fk').style.display = ctrl('sel-seedmode').value === 'boundary' ? 'flex' : 'none';
+  const mode = ctrl('sel-seedmode').value;
+  ctrl('row-boundary-fk').style.display = mode === 'boundary' ? 'flex' : 'none';
+  const isPaperImg = mode === 'bgimage' || mode === 'stencil';
+  ctrl('row-seedsize').style.display = isPaperImg ? 'none' : 'flex';   // Size doesn't apply — no simulation seeding happens in these two modes
+  ctrl('paper-img-hint').style.display = isPaperImg ? 'block' : 'none';
 }
 
 // ── FILE INPUTS ──
@@ -3201,12 +3296,14 @@ function buildExportSVGString() {
     const rectXY = PAD > 0 ? ` x="${-PAD * block}" y="${-PAD * block}"` : '';
     body = `<rect${rectXY} width="${pgw * block}" height="${pgh * block}" fill="${bandColor[0]}"/>`;
     const mask = new Uint8Array(pgw * pgh);
+    let paperRegionD = null;   // band 1's own traced path — captured for the image-embedding special case below (Solid mode only)
     for (let bd = 1; bd < bands; bd++) {
       let any = false;
       for (let i = 0; i < pgw * pgh; i++) { const on = bandOf[i] >= bd ? 1 : 0; mask[i] = on; if (on) any = true; }
       if (!any) continue;
       const d = organicPathD(mask, pgw, pgh, block);
       if (!d) continue;
+      if (bd === 1) paperRegionD = d;
       // organicPathD's coordinates are in the PADDED grid's own space
       // (0..pgw*block) — translate back so the padding bleeds OUTSIDE
       // the tile's real outW×outH box on all four sides, instead of the
@@ -3214,6 +3311,43 @@ function buildExportSVGString() {
       // every other export mode) expects it.
       const transformAttr = PAD > 0 ? ` transform="translate(${-PAD * block},${-PAD * block})"` : '';
       body += `<path fill="${bandColor[bd]}" fill-rule="evenodd"${transformAttr} d="${d}"/>`;
+    }
+
+    // Background image / Stencil — genuinely embedded, not silently
+    // dropped: SVG's <image> element takes a raster source directly, and
+    // preserveAspectRatio="xMidYMid slice" is the native SVG equivalent of
+    // the shader's own cover-fit math (DISPLAY_FRAG's uPaperImgScale/
+    // Offset), so no separate fit calculation is needed here. The clip
+    // region reuses whichever contour was ALREADY traced above for band 1
+    // (Background: clip to the paper region, same path the flat-colour
+    // fallback above just used) or its OUTLINE-only complement for Stencil
+    // (image visible through ink instead) — see the ink-mask trace below.
+    // Scoped to Solid + a single (untiled) export: RMX/Adaptive's colour
+    // is itself a multi-band approximation with no one "paper region" path
+    // to clip to, and tiling the image per-tile is a bigger, separate
+    // problem from tiling a flat-coloured vector shape.
+    if (colorMode < 0.5 && tileN === 1 && paperRegionD && dispMat.uniforms.uPaperImgOn.value > 0.5 && paperTexture && paperTexture.image) {
+      const invert = dispMat.uniforms.uPaperImgInvert.value > 0.5;
+      let clipD = paperRegionD, clipTransform = PAD > 0 ? ` transform="translate(${-PAD * block},${-PAD * block})"` : '';
+      if (invert) {
+        // Stencil — image shows through INK instead, so clip to the ink
+        // region's own outline: trace the complement of the paper mask
+        // (every cell paper's mask marked 0) rather than reusing paperRegionD.
+        const inkMask = new Uint8Array(pgw * pgh);
+        for (let i = 0; i < pgw * pgh; i++) inkMask[i] = mask[i] ? 0 : 1;
+        const inkD = organicPathD(inkMask, pgw, pgh, block);
+        if (inkD) clipD = inkD;
+      }
+      const img = paperTexture.image;
+      const dataURL = img instanceof HTMLCanvasElement ? img.toDataURL('image/png') : (() => {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth || img.width; c.height = img.naturalHeight || img.height;
+        c.getContext('2d').drawImage(img, 0, 0);
+        return c.toDataURL('image/png');
+      })();
+      const clipId = 'paperImgClip';
+      body += `<defs><clipPath id="${clipId}"><path fill-rule="evenodd"${clipTransform} d="${clipD}"/></clipPath></defs>`
+        + `<image href="${dataURL}" x="0" y="0" width="${outW}" height="${outH}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})"/>`;
     }
   }
 
