@@ -396,6 +396,23 @@ input[type=range]:focus-visible { outline: none; }
   padding: 0;
   background: none;
 }
+/* Wraps a .color-swatch button + its hidden native input[type=color] sibling.
+   Found by testing (Chrome/macOS, real click, no automation involved): with
+   no wrapper, the hidden input's `position:absolute` (see the bare
+   input[type=color] rule below) has no top/left, so it falls back to CSS's
+   "static position" — but it's a flex item of .color-row, and per spec an
+   absolutely-positioned flex child's static position is defined by the flex
+   algorithm, not simply "where it visually sits next to the swatch". That
+   made the invisible input land somewhere other than on top of the visible
+   button, and Chrome anchors its colour-picker popup to the INPUT's own
+   rect, not the button's — so clicking the visible swatch fired the click
+   (verified) but the popup opened anchored to the wrong, invisible spot,
+   reading as "nothing happens". This wrapper is a fixed 18×18
+   position:relative box the input can inset:0 into, guaranteeing it exactly
+   overlays the visible swatch — the same pattern already proven working for
+   the RMX palette swatches (.rmx-color, further down this file's host page). */
+.color-swatch-wrap { position: relative; width: 18px; height: 18px; flex-shrink: 0; }
+.color-swatch-wrap input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; }
 .color-hex {
   font-family: var(--font);
   font-size: var(--t-control-size);

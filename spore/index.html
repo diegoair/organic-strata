@@ -472,15 +472,19 @@
       </div>
 
       <div class="color-row" id="row-mark">
-        <button class="color-swatch" id="swatch-mark" style="background:#0a0a0a" onclick="openColorPicker('cp-mark','swatch-mark','hex-mark')"></button>
-        <input type="color" id="cp-mark" value="#0a0a0a" oninput="syncColor('cp-mark','swatch-mark','hex-mark');liveUpdate()">
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="swatch-mark" style="background:#0a0a0a" onclick="openColorPicker('cp-mark','swatch-mark','hex-mark')"></button>
+          <input type="color" id="cp-mark" value="#0a0a0a" oninput="syncColor('cp-mark','swatch-mark','hex-mark');liveUpdate()">
+        </span>
         <input class="color-hex" id="hex-mark" value="#0a0a0a" maxlength="7" oninput="syncHex('hex-mark','cp-mark','swatch-mark');liveUpdate()">
         <span class="ctrl-label" style="min-width:auto">Mark</span>
       </div>
 
       <div class="color-row">
-        <button class="color-swatch" id="swatch-bg" style="background:#f5f2ec" onclick="openColorPicker('cp-bg','swatch-bg','hex-bg')"></button>
-        <input type="color" id="cp-bg" value="#f5f2ec" oninput="syncColor('cp-bg','swatch-bg','hex-bg');liveUpdate()">
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="swatch-bg" style="background:#f5f2ec" onclick="openColorPicker('cp-bg','swatch-bg','hex-bg')"></button>
+          <input type="color" id="cp-bg" value="#f5f2ec" oninput="syncColor('cp-bg','swatch-bg','hex-bg');liveUpdate()">
+        </span>
         <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7" oninput="syncHex('hex-bg','cp-bg','swatch-bg');liveUpdate()">
         <span class="ctrl-label" style="min-width:auto">BG</span>
       </div>

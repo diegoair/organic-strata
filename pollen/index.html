@@ -521,8 +521,10 @@
       <!-- POINT colour: label (left) + swatch (picker) + hex + Random icon -->
       <div class="color-row" id="row-point">
         <span class="ctrl-label">Point</span>
-        <button class="color-swatch" id="swatch-ink" style="background:#0a0a0a" onclick="document.getElementById('cp-ink').click()" title="Point colour"></button>
-        <input type="color" id="cp-ink" value="#0a0a0a" oninput="setColorAll('ink',this.value);render()">
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="swatch-ink" style="background:#0a0a0a" onclick="document.getElementById('cp-ink').click()" title="Point colour"></button>
+          <input type="color" id="cp-ink" value="#0a0a0a" oninput="setColorAll('ink',this.value);render()">
+        </span>
         <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7"
           oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){setColorAll('ink',this.value);render()}">
         <button class="icon-btn" onclick="randomColor('ink')" title="Random colour">
@@ -532,8 +534,10 @@
       <!-- BACKGROUND colour -->
       <div class="color-row">
         <span class="ctrl-label">BG</span>
-        <button class="color-swatch" id="swatch-bg" style="background:#f5f2ec" onclick="document.getElementById('cp-bg').click()" title="Background colour"></button>
-        <input type="color" id="cp-bg" value="#f5f2ec" oninput="setColorAll('bg',this.value);render()">
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="swatch-bg" style="background:#f5f2ec" onclick="document.getElementById('cp-bg').click()" title="Background colour"></button>
+          <input type="color" id="cp-bg" value="#f5f2ec" oninput="setColorAll('bg',this.value);render()">
+        </span>
         <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7"
           oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){setColorAll('bg',this.value);render()}">
         <button class="icon-btn" onclick="randomColor('bg')" title="Random colour">
