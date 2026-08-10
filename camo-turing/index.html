@@ -697,6 +697,20 @@
     </div>
 
     <div class="panel-section">
+      <h3>Anisotropy <span class="hint">real parallel stripes</span></h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Isotropic Gray-Scott (0) can only meander — it has no preferred direction, so it never bands into straight stripes. Diffusion stronger along one axis suppresses modulation there, forcing the pattern into bands running the other way.">Amount</div>
+        <input type="range" id="rg-aniso" min="0" max="0.95" step="0.01" value="0" oninput="syncVal(this,'v-aniso'); onAnisoChange();">
+        <span class="ctrl-val" id="v-aniso">0</span>
+      </div>
+      <div class="ctrl-row" id="row-aniso-angle" style="display:none">
+        <div class="ctrl-label">Direction</div>
+        <input type="range" id="rg-aniso-angle" min="0" max="180" step="1" value="0" oninput="syncVal(this,'v-aniso-angle'); onAnisoChange();">
+        <span class="ctrl-val" id="v-aniso-angle">0</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
       <h3>Layers <span class="hint">stack + blend, same algorithm</span></h3>
       <p class="org-panel__hint">Each layer is its own independent Gray-Scott sim, blended onto the pattern above (BEFORE colour) so Multiply/Diff carve genuinely new shapes, not just new colours. Select a layer below to edit its own Feed/Kill/dA/dB with the sliders above — Seeds/Transformers/export still work on the base pattern only.</p>
       <div class="toggle-row">
@@ -851,6 +865,15 @@ uniform float uF, uK, uDa, uDb, uDt;
 // doesn't assume that, it just checks each independently.
 uniform float uConfineOn, uBoundaryOn;
 uniform float uF2, uK2;
+// Anisotropic diffusion — real parallel stripes (zebra/tiger/watermelon),
+// ported from Camouflage's own anisoLaplacian (see docs/CAMOUFLAGE.md
+// §11c for the full history, including two failed attempts kept there as
+// the record of why they didn't work). Isotropic Gray-Scott can only
+// meander — no preferred direction, so it never bands into straight
+// stripes; diffusion stronger along one axis suppresses modulation there,
+// forcing the pattern into bands running the OTHER way.
+uniform float uAnisoAmount;   // 0 = isotropic, identical to the plain laplacian() below; up to 0.95
+uniform float uAnisoAngle;    // radians — direction the stripes run
 
 vec2 laplacian(vec2 uv) {
   vec2 c = texture2D(uState, uv).rg;
@@ -866,6 +889,34 @@ vec2 laplacian(vec2 uv) {
   return sum;
 }
 
+// NEAREST-neighbour taps, not bilinear — Camouflage's own record shows
+// bilinear sampling at a rotated, generally non-axis-aligned offset leaks
+// a small blur INTO the suppressed axis, exactly where it matters most
+// (measured there: a clean 9.24× directional ratio at θ=0° collapsed to
+// 2.15× at θ=50° with bilinear taps). Rounding the offset to the nearest
+// whole texel before sampling means the lookup always lands exactly on a
+// texel centre — bilinear and nearest are then mathematically identical
+// (same reasoning makeRenderTarget's own LinearFilter comment gives for
+// every OTHER sample in this file, which all happen to be texel-aligned;
+// this is the one case that genuinely isn't, so it earns the explicit
+// rounding step).
+vec2 anisoTap(vec2 uv, vec2 dir) {
+  vec2 off = floor(dir + 0.5) * uTexel;
+  return texture2D(uState, uv + off).rg;
+}
+vec2 anisoLaplacian(vec2 uv) {
+  float c = cos(uAnisoAngle), s = sin(uAnisoAngle);
+  vec2 axU = vec2(c, s), axV = vec2(-s, c);   // along the stripes / across the stripes
+  // 0.2 matches the plain kernel's own edge weight, so Amount 0→1 stays on
+  // the same effective diffusion scale rather than secretly also changing
+  // overall speed.
+  float Dpar = 0.2, Dperp = 0.2 * (1.0 - uAnisoAmount);
+  vec2 center = texture2D(uState, uv).rg;
+  vec2 duu = anisoTap(uv, axU) - 2.0 * center + anisoTap(uv, -axU);
+  vec2 dvv = anisoTap(uv, axV) - 2.0 * center + anisoTap(uv, -axV);
+  return Dpar * duu + Dperp * dvv;
+}
+
 void main() {
   float m = texture2D(uMask, vUv).a;
   // Confine: every cell outside the shape is pinned to the resting state
@@ -878,7 +929,7 @@ void main() {
   }
   vec2 c = texture2D(uState, vUv).rg;
   float a = c.r, b = c.g;
-  vec2 lap = laplacian(vUv);
+  vec2 lap = uAnisoAmount > 0.0 ? anisoLaplacian(vUv) : laplacian(vUv);
   float f = uF, k = uK;
   // Regime boundary: two different chemistries meet at the shape's edge —
   // the WHOLE canvas keeps evolving on both sides, unlike Confine.
@@ -1300,6 +1351,7 @@ function initGL() {
       uDa: { value: val('rg-da') }, uDb: { value: val('rg-db') }, uDt: { value: val('rg-dt') },
       uConfineOn: { value: 0.0 }, uBoundaryOn: { value: 0.0 },
       uF2: { value: 0.0545 }, uK2: { value: 0.0620 },
+      uAnisoAmount: { value: val('rg-aniso') }, uAnisoAngle: { value: val('rg-aniso-angle') * Math.PI / 180 },
     },
     vertexShader: PASSTHROUGH_VERT, fragmentShader: SIM_FRAG,
   });
@@ -1493,9 +1545,11 @@ function stepExtraLayers() {
     f: simMat.uniforms.uF.value, k: simMat.uniforms.uK.value,
     da: simMat.uniforms.uDa.value, db: simMat.uniforms.uDb.value, dt: simMat.uniforms.uDt.value,
     confine: simMat.uniforms.uConfineOn.value, boundary: simMat.uniforms.uBoundaryOn.value,
+    aniso: simMat.uniforms.uAnisoAmount.value,
   };
   simMat.uniforms.uConfineOn.value = 0.0;   // Confine/Boundary regimes aren't ported to extra layers in this first pass
   simMat.uniforms.uBoundaryOn.value = 0.0;
+  simMat.uniforms.uAnisoAmount.value = 0.0;   // Anisotropy is main-sim-only in this first pass too — same reasoning, see the Anisotropy panel's own scope
   for (const layer of extraLayers) {
     if (!layer.on) continue;
     simMat.uniforms.uF.value = layer.f; simMat.uniforms.uK.value = layer.k;
@@ -1505,6 +1559,7 @@ function stepExtraLayers() {
   simMat.uniforms.uF.value = saved.f; simMat.uniforms.uK.value = saved.k;
   simMat.uniforms.uDa.value = saved.da; simMat.uniforms.uDb.value = saved.db; simMat.uniforms.uDt.value = saved.dt;
   simMat.uniforms.uConfineOn.value = saved.confine; simMat.uniforms.uBoundaryOn.value = saved.boundary;
+  simMat.uniforms.uAnisoAmount.value = saved.aniso;
 }
 
 function ensureCompositeTargets() {
@@ -1604,12 +1659,53 @@ function resetSim() {
   simMat.uniforms.uConfineOn.value = 0.0;
   simMat.uniforms.uBoundaryOn.value = 0.0;
   seedAt(0.5, 0.5, 0.0, true);   // clear pass — resting state everywhere
-  const rng = mulberry32(currentSeed());
-  const n = 6 + Math.floor(rng() * 4);
-  for (let i = 0; i < n; i++) seedAt(rng(), rng(), DEFAULT_SEED_RADIUS, false);
+  seedDefaultNucleation((cx, cy, r, clear) => seedAt(cx, cy, r, clear), currentSeed());
   draw();
   ctrl('hud-state').textContent = '0';
   setStatus('active', 'Reseeded');
+}
+
+// Random scattered blobs normally. Above Anisotropy 0.3, scattered seeds
+// leave most of the canvas blank instead — verified visually, not assumed
+// (ported straight from Camouflage's own finding, docs/CAMOUFLAGE.md
+// §11c): strong anisotropy nearly kills diffusion along the suppressed
+// axis, so information from a handful of random points can no longer
+// spread far enough to reach the rest of the canvas. The fix is physical,
+// not cosmetic — lay seeds out as a jittered ROW along the stripe
+// direction itself, repeated at intervals across the perpendicular axis,
+// so every band gets its own nucleation point instead of relying on
+// lateral spread the anisotropy has mostly switched off. Coordinates are
+// in this tool's own UV (0..1) space rather than Camouflage's pixel
+// space — same shape, different unit, RepeatWrapping handles anything
+// that lands outside [0,1] exactly like Camouflage's own unclamped coords
+// relied on its toroidal grid to.
+function seedDefaultNucleation(seedFn, seedNum) {
+  const rng = mulberry32(seedNum);
+  const anisoAmt = simMat.uniforms.uAnisoAmount.value;
+  if (anisoAmt > 0.3) {
+    const angle = simMat.uniforms.uAnisoAngle.value;
+    const ux = Math.cos(angle), uy = Math.sin(angle);     // along the stripes
+    const vx = -Math.sin(angle), vy = Math.cos(angle);    // across the stripes
+    const size = DEFAULT_SEED_RADIUS;
+    const spacing = size * 3.2;   // fixed row spacing — no per-tool "Sites" density control yet, see Camouflage's own for the future variable-density version
+    for (let s = -0.75; s <= 0.75; s += spacing) {
+      const along = s + (rng() - 0.5) * spacing * 0.6;
+      const perpCount = 2 + Math.floor(rng() * 2);
+      for (let p = 0; p < perpCount; p++) {
+        const across = (rng() - 0.5) * 1.4;
+        seedFn(0.5 + ux * across + vx * along, 0.5 + uy * across + vy * along, size, false);
+      }
+    }
+    return;
+  }
+  const n = 6 + Math.floor(rng() * 4);
+  for (let i = 0; i < n; i++) seedFn(rng(), rng(), DEFAULT_SEED_RADIUS, false);
+}
+
+function onAnisoChange() {
+  simMat.uniforms.uAnisoAmount.value = val('rg-aniso');
+  simMat.uniforms.uAnisoAngle.value = val('rg-aniso-angle') * Math.PI / 180;
+  ctrl('row-aniso-angle').style.display = val('rg-aniso') > 0 ? 'flex' : 'none';
 }
 
 function mulberry32(seed) {
@@ -3487,6 +3583,25 @@ const BUILTIN_PRESETS = {
   'Warring microbes': { f: 0.022, k: 0.059 },
   'Spots and loops': { f: 0.018, k: 0.051 },
   'Moving spots': { f: 0.014, k: 0.054 },
+
+  // Animal/plant reference patterns (August 2026) — each run to
+  // convergence and checked visually before naming, same discipline the
+  // set above was built with. f/k for Leopard/Cheetah/Tiger are Camouflage's
+  // own already-verified values (docs/CAMOUFLAGE.md's feline preset work,
+  // that tool's BUILTIN_PRESETS.disruptive) — ported, not re-derived from
+  // scratch, since Camo Turing runs the identical Gray-Scott core.
+  // Zebra/Watermelon are new, tuned and verified here. dA/dB is Cheetah's
+  // scaled-down feature size (Camouflage's own pscale=0.55 → dA=1·0.55,
+  // dB=0.5·0.55). Anisotropy amount/angle are Camo Turing's own port of
+  // Camouflage's anisoLaplacian (see SIM_FRAG's own header note) — applying
+  // any of the three anisotropic presets below forces a reseed regardless
+  // of "Reset seed on preset change" (see applyPreset's own note) since the
+  // row-seeded nucleation is what makes the stripes fill the whole canvas.
+  'Leopard spots': { f: 0.0367, k: 0.0649 },
+  'Cheetah spots': { f: 0.0367, k: 0.0649, dA: 0.55, dB: 0.275 },
+  'Tiger stripes': { f: 0.027, k: 0.056, aniso: 0.85, anisoAngle: 15 },
+  'Zebra stripes': { f: 0.029, k: 0.057, aniso: 0.93, anisoAngle: 90 },
+  'Watermelon rind': { f: 0.026, k: 0.055, aniso: 0.78, anisoAngle: 90 },
 };
 
 function presetStore() { return Organica.presetStore('camoturing', 'organica.camotouring.presets'); }
@@ -3550,12 +3665,14 @@ function simulateThumbField(f, k, radius, steps, seedNum, da, db) {
     uDa: simMat.uniforms.uDa.value, uDb: simMat.uniforms.uDb.value, uDt: simMat.uniforms.uDt.value,
     uTexel: simMat.uniforms.uTexel.value.clone(), uMask: simMat.uniforms.uMask.value,
     uConfineOn: simMat.uniforms.uConfineOn.value, uBoundaryOn: simMat.uniforms.uBoundaryOn.value,
+    uAnisoAmount: simMat.uniforms.uAnisoAmount.value,
   };
   simMat.uniforms.uF.value = f; simMat.uniforms.uK.value = k;
   simMat.uniforms.uDa.value = da; simMat.uniforms.uDb.value = db; simMat.uniforms.uDt.value = 1.0;
   simMat.uniforms.uTexel.value.set(1 / THUMB_N, 1 / THUMB_N);
   simMat.uniforms.uMask.value = defaultMaskTex;
   simMat.uniforms.uConfineOn.value = 0.0; simMat.uniforms.uBoundaryOn.value = 0.0;
+  simMat.uniforms.uAnisoAmount.value = 0.0;   // thumbnails are isotropic previews of f/k only — live Anisotropy shouldn't leak in, same reasoning as Confine/Boundary above
 
   for (let s = 0; s < steps; s++) {
     simMat.uniforms.uState.value = a.texture;
@@ -3568,6 +3685,7 @@ function simulateThumbField(f, k, radius, steps, seedNum, da, db) {
   simMat.uniforms.uDa.value = save.uDa; simMat.uniforms.uDb.value = save.uDb; simMat.uniforms.uDt.value = save.uDt;
   simMat.uniforms.uTexel.value.copy(save.uTexel); simMat.uniforms.uMask.value = save.uMask;
   simMat.uniforms.uConfineOn.value = save.uConfineOn; simMat.uniforms.uBoundaryOn.value = save.uBoundaryOn;
+  simMat.uniforms.uAnisoAmount.value = save.uAnisoAmount;
 
   const buf = new Float32Array(THUMB_N * THUMB_N * 4);
   renderer.setRenderTarget(a);
@@ -3682,6 +3800,20 @@ function applyPreset(name) {
   const f = ctrl('rg-f'), k = ctrl('rg-k');
   f.value = p.f; k.value = p.k;
   syncVal(f, 'v-f'); syncVal(k, 'v-k');
+  // dA/dB/Anisotropy — most presets don't specify these (every ORIGINAL
+  // built-in preset's own header note: "dA/dB/timestep are left at the
+  // panel's own defaults") so they reset to baseline on every preset
+  // switch, same as f/k. Otherwise a preset that DOES set them (Cheetah's
+  // smaller scale, Tiger/Zebra/Watermelon's anisotropy) would leak into
+  // the next preset picked — which doesn't ask for it and has no way to
+  // know it's there — the exact "control silently carrying stale state
+  // from somewhere else" bug class this project's own conventions call out.
+  const da = ctrl('rg-da'), db = ctrl('rg-db'), aniso = ctrl('rg-aniso'), anisoAngle = ctrl('rg-aniso-angle');
+  da.value = p.dA != null ? p.dA : 1.0; syncVal(da, 'v-da');
+  db.value = p.dB != null ? p.dB : 0.5; syncVal(db, 'v-db');
+  aniso.value = p.aniso != null ? p.aniso : 0; syncVal(aniso, 'v-aniso');
+  anisoAngle.value = p.anisoAngle != null ? p.anisoAngle : 0; syncVal(anisoAngle, 'v-aniso-angle');
+  onAnisoChange();   // pushes aniso/angle into simMat + shows/hides the Direction row
   applyingPreset = true;
   onParamChange();
   applyingPreset = false;
@@ -3695,7 +3827,14 @@ function applyPreset(name) {
   // tested survived past 10k steps, 3 of 3 distant jumps died to
   // nothing. Reset-on-change trades that morph away for a guaranteed
   // settled result every time.
-  if (ctrl('ck-reset-on-preset').checked) resetSim();
+  // Anisotropic presets are the one exception, regardless of the toggle:
+  // stripes above Anisotropy 0.3 need the row-seeded nucleation
+  // (seedDefaultNucleation's own note) to fill the whole canvas rather
+  // than a few local bands near whatever was already on screen — applying
+  // Tiger/Zebra/Watermelon onto an unrelated existing pattern without a
+  // reseed would not reliably produce the look the name promises.
+  const needsAnisoReseed = (p.aniso || 0) > 0.3;
+  if (ctrl('ck-reset-on-preset').checked || needsAnisoReseed) resetSim();
   // No header status text here — the preset name already lives in the
   // Pattern section's own header (see updatePresetTrigger); repeating it
   // in the header status too was the redundancy being removed. The
@@ -3749,6 +3888,7 @@ window.scheduleRender = scheduleRender;
 window.syncRmxUniforms = syncRmxUniforms;
 window.setRmxMapping = setRmxMapping;
 window.onParamChange = onParamChange;
+window.onAnisoChange = onAnisoChange;
 window.exportPNG = exportPNG;
 window.exportSVG = exportSVG;
 window.sendToFigma = sendToFigma;
