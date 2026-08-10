@@ -40,6 +40,10 @@
       "destination": "/camo-turing/$1"
     },
     {
+      "source": "/warping/(.*)",
+      "destination": "/warping/$1"
+    },
+    {
       "source": "/shared/(.*)",
       "destination": "/shared/$1"
     },

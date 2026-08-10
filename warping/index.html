@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Warping — Organica</title>
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-panel.css">
+<style>
+:root {
+  --ink: #241b14;
+  --paper: #f5f2ec;
+  --mid: #696256;
+  --accent: #2a2a2a;
+  --panel: #eceae4;
+  --border: #d0c8b8;
+  --tool: #a9683e;   /* header focus ring — wood/warm terracotta, this tool's identity colour */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs-base);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#app { display: flex; flex: 1; overflow: hidden; }
+
+#canvas-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-7);
+}
+
+#view-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  box-shadow: 0 4px 40px rgba(0,0,0,0.18);
+  display: block;
+}
+
+.panel-section { border-bottom: 1px solid var(--border); padding: var(--space-5) var(--space-6); }
+input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Warping</span></a>
+
+  <div class="org-header__spacer"></div>
+
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Ready</span>
+  </output>
+
+  <div class="org-header__actions">
+    <div class="org-popover-wrap">
+      <button class="org-btn" id="btn-export">Export &#9662;</button>
+      <div class="org-popover" id="export-popover" aria-label="Export options">
+        <div class="org-popover__title">Format</div>
+        <div class="org-formats">
+          <button class="org-btn" onclick="exportPNG()">PNG</button>
+          <button class="org-btn" onclick="exportJPG()">JPG</button>
+          <button class="org-btn" onclick="exportSVG()">SVG</button>
+        </div>
+        <p class="org-popover__hint">
+          SVG is a posterised tone-band separation — one flat path per
+          band, the same real vector export every Organica noise tool shares.
+        </p>
+
+        <div class="org-popover__divider"></div>
+
+        <div class="org-popover__row">
+          <label class="org-popover__label" for="sel-scale">Scale</label>
+          <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
+            <option value="1">&times;1</option>
+            <option value="2" selected>&times;2</option>
+            <option value="3">&times;3</option>
+            <option value="4">&times;4</option>
+          </select>
+        </div>
+        <div class="org-popover__row">
+          <span class="org-popover__label">Output</span>
+          <span class="org-out" id="out-size">&mdash;</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="org-btn org-btn--primary" onclick="sendToFigma()">&rarr; Figma</button>
+  </div>
+</header>
+
+<div id="app">
+
+  <div id="canvas-wrap">
+    <canvas id="view-canvas"></canvas>
+  </div>
+
+  <div id="panel">
+
+    <div class="panel-section">
+      <h3>Preset</h3>
+      <select class="panel-select" id="sel-preset" aria-label="Preset" onchange="applyPreset(this.value)"></select>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="savePreset()">Save</button>
+        <button class="mini-btn" onclick="deletePreset()">Delete</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Format</h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-format" aria-label="Format" onchange="resizeCanvas()">
+          <option value="1:1">Square 1:1</option>
+          <option value="4:5">Portrait 4:5</option>
+          <option value="2:3">Portrait 2:3</option>
+          <option value="3:2" selected>Landscape 3:2</option>
+          <option value="16:9">Wide 16:9</option>
+          <option value="1:1.414">A-series √2</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Pattern <span class="hint">what the noise draws</span></h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-pattern" aria-label="Pattern" onchange="syncConditionalRows()">
+          <option value="wood" selected>Wood grain</option>
+          <option value="marble">Marble veining</option>
+          <option value="cellular">Cellular network</option>
+          <option value="contour">Level curves</option>
+        </select>
+      </div>
+
+      <div id="block-wood">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Rings</div>
+          <input type="range" id="rg-rings" min="1" max="20" step="0.5" value="7">
+          <span class="ctrl-val" id="v-rings">7</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Squashes the rings from circular pith rings toward straight plank-cut lines.">Squash</div>
+          <input type="range" id="rg-squash" min="0.2" max="1" step="0.02" value="1">
+          <span class="ctrl-val" id="v-squash">1</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="A finer noise layer riding on top of the rings themselves — figure/curl in the grain, independent of the Warp below which bends the whole field.">Grain</div>
+          <input type="range" id="rg-grain" min="0" max="1" step="0.02" value="0.25">
+          <span class="ctrl-val" id="v-grain">0.25</span>
+        </div>
+      </div>
+
+      <div id="block-marble" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Vein freq.</div>
+          <input type="range" id="rg-veinfreq" min="1" max="24" step="0.5" value="8">
+          <span class="ctrl-val" id="v-veinfreq">8</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How strongly the underlying noise bends the vein lines — 0 is dead-straight bands, unlike marble.">Turbulence</div>
+          <input type="range" id="rg-turb" min="0" max="2" step="0.02" value="0.8">
+          <span class="ctrl-val" id="v-turb">0.8</span>
+        </div>
+      </div>
+
+      <div id="block-cellular" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Cell size</div>
+          <input type="range" id="rg-cellscale" min="0.5" max="12" step="0.1" value="4">
+          <span class="ctrl-val" id="v-cellscale">4</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How far each cell centre is jittered off a plain grid — 0 gives a perfectly regular honeycomb, higher gives an irregular, more organic reticulation.">Jitter</div>
+          <input type="range" id="rg-jitter" min="0" max="1" step="0.02" value="0.85">
+          <span class="ctrl-val" id="v-jitter">0.85</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Wall width</div>
+          <input type="range" id="rg-wallwidth" min="0.02" max="0.6" step="0.01" value="0.18">
+          <span class="ctrl-val" id="v-wallwidth">0.18</span>
+        </div>
+      </div>
+
+      <div id="block-contour" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Field scale</div>
+          <input type="range" id="rg-contourscale" min="0.3" max="8" step="0.1" value="1.6">
+          <span class="ctrl-val" id="v-contourscale">1.6</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Levels</div>
+          <input type="range" id="rg-levels" min="2" max="40" step="1" value="14">
+          <span class="ctrl-val" id="v-levels">14</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Line width</div>
+          <input type="range" id="rg-linewidth" min="0.02" max="0.4" step="0.01" value="0.10">
+          <span class="ctrl-val" id="v-linewidth">0.10</span>
+        </div>
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Sharpness</div>
+        <input type="range" id="rg-sharp" min="0.3" max="6" step="0.1" value="1.6">
+        <span class="ctrl-val" id="v-sharp">1.6</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Warp <span class="hint">bends the field, not the shape</span></h3>
+      <p class="org-panel__hint">Bends the sampled coordinates with a low-frequency noise field before the pattern above ever runs — wood becomes burl, straight marble veins go organic, a honeycomb goes irregular. This is what the tool is named for.</p>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Amount</div>
+        <input type="range" id="rg-warpamt" min="0" max="1" step="0.01" value="0">
+        <span class="ctrl-val" id="v-warpamt">0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Warp scale</div>
+        <input type="range" id="rg-warpscale" min="0.1" max="4" step="0.05" value="0.6">
+        <span class="ctrl-val" id="v-warpscale">0.6</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Tone</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Bands</div>
+        <input type="range" id="rg-bands" min="0" max="12" step="1" value="0">
+        <span class="ctrl-val" id="v-bands">Smooth</span>
+      </div>
+      <div class="color-row">
+        <span class="color-name">Ink</span>
+        <button class="color-swatch" id="sw-ink" onclick="ctrl('cp-ink').click()"></button>
+        <input type="color" id="cp-ink" value="#241b14" oninput="syncColor('ink', this.value)">
+        <input class="color-hex" id="hex-ink" value="#241b14" onchange="syncColor('ink', this.value)">
+      </div>
+      <div class="color-row">
+        <span class="color-name">Paper</span>
+        <button class="color-swatch" id="sw-paper" onclick="ctrl('cp-paper').click()"></button>
+        <input type="color" id="cp-paper" value="#f5f2ec" oninput="syncColor('paper', this.value)">
+        <input class="color-hex" id="hex-paper" value="#f5f2ec" onchange="syncColor('paper', this.value)">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Seed</div>
+        <input type="range" id="rg-seed" min="0" max="60" step="1" value="4">
+        <span class="ctrl-val" id="v-seed">4</span>
+      </div>
+    </div>
+
+  </div><!-- /panel -->
+</div>
+
+<!-- Core BEFORE noise, noise BEFORE the tool's own script — see
+     organica-noise.js's own header for why the order matters. -->
+<script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-noise.js"></script>
+<script>
+// ─────────────────────────────────────────────
+// WARPING — domain-warped value-noise / Worley pattern generator.
+//
+// Covers the pattern family Gray-Scott (Camo Turing) can't honestly
+// produce: wood/marble veining, a giraffe-style polygonal cell network,
+// topographic level curves. All four patterns are pure functions of
+// (x,y) — no iterative convergence, unlike reaction-diffusion — so this
+// runs on Canvas2D/JS like Komorebi, not WebGL/GLSL like Camo Turing;
+// same reasoning Komorebi's own move off WebGL already established for
+// this exact category of pattern (docs/KOMOREBI.md §17).
+//
+// hash2/vnoise/fbm/voronoiF1F2 are /shared/organica-noise.js — the same
+// primitives Komorebi's canopy patterns and Camo Turing's anisotropic
+// warp already use, pulled into one place with this tool as the third
+// consumer (see that file's own header).
+// ─────────────────────────────────────────────
+
+function ctrl(id) { return document.getElementById(id); }
+function val(id)  { return parseFloat(ctrl(id).value); }
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function mix(a, b, t) { return a + (b - a) * t; }
+
+const setStatus = Organica.status();
+const canvas = ctrl('view-canvas');
+const ctx2d = canvas.getContext('2d');
+const N = Organica.noise;
+
+function syncVal(slider, valId) { ctrl(valId).textContent = slider.value; }
+ctrl('rg-bands').addEventListener('input', function () {
+  ctrl('v-bands').textContent = this.value === '0' ? 'Smooth' : this.value;
+});
+['rg-rings', 'rg-squash', 'rg-grain', 'rg-veinfreq', 'rg-turb', 'rg-cellscale', 'rg-jitter',
+ 'rg-wallwidth', 'rg-contourscale', 'rg-levels', 'rg-linewidth', 'rg-sharp', 'rg-warpamt',
+ 'rg-warpscale', 'rg-seed'].forEach(id => {
+  ctrl(id).addEventListener('input', function () { syncVal(this, 'v-' + id.slice(3)); });
+});
+
+function syncConditionalRows() {
+  const p = ctrl('sel-pattern').value;
+  ctrl('block-wood').style.display = p === 'wood' ? '' : 'none';
+  ctrl('block-marble').style.display = p === 'marble' ? '' : 'none';
+  ctrl('block-cellular').style.display = p === 'cellular' ? '' : 'none';
+  ctrl('block-contour').style.display = p === 'contour' ? '' : 'none';
+  scheduleRender();
+}
+
+function syncColor(which, hex) {
+  hex = Organica.normalizeHex(hex, ctrl('cp-' + which).value);
+  ctrl('cp-' + which).value = hex;
+  ctrl('hex-' + which).value = hex;
+  ctrl('sw-' + which).style.background = hex;
+}
+['ink', 'paper'].forEach(c => syncColor(c, ctrl('hex-' + c).value));
+
+// ─────────────────────────────────────────────
+// DOMAIN WARP — bends the SAMPLED COORDINATES with a low-frequency noise
+// field before the pattern function ever runs. Two decorrelated fbm taps
+// (offset by the same (5.2, 1.3) constant Komorebi's own windOffset uses)
+// so the x/y displacement isn't just one field read diagonally twice.
+// Amount 0 is an exact no-op — every pattern's straight/regular form is
+// still reachable, warp is additive on top of it, not a replacement.
+// ─────────────────────────────────────────────
+// World coordinates from computeField span roughly ±NORM (half the grid's
+// own worldScale=20, see below) — every pattern normalizes by NORM first,
+// so a slider like Rings/Vein freq/Levels reads as "cycles across the
+// canvas half-width" regardless of the underlying coordinate range,
+// instead of each function silently disagreeing on what its own numbers
+// mean (the bug the first version of this file shipped with — verified
+// visually: rings=6 produced ~25 stripes, not 6, until this normalisation
+// was added).
+const NORM = 10;
+
+function warpPoint(x, y, P) {
+  if (P.warpAmt <= 0) return [x, y];
+  const nx = x / NORM, ny = y / NORM;
+  const so = P.seed * 1.7;
+  const n1 = N.fbm(nx * P.warpScale * 3 + so, ny * P.warpScale * 3 + so) - 0.5;
+  const n2 = N.fbm(nx * P.warpScale * 3 + so + 5.2, ny * P.warpScale * 3 + so + 1.3) - 0.5;
+  return [x + n1 * P.warpAmt * NORM * 0.35, y + n2 * P.warpAmt * NORM * 0.35];
+}
+
+function woodValue(x, y, P) {
+  const [wx, wy] = warpPoint(x, y, P);
+  const nx = wx / NORM, ny = wy / NORM;
+  const so = P.seed * 1.7;
+  const r = Math.sqrt(nx * nx + (ny * P.squash) * (ny * P.squash));
+  const grain = N.fbm(nx * 8 + so, ny * 8 + so) - 0.5;
+  const t = r * P.rings + grain * P.grainAmt * 0.6;
+  const v = Math.sin(t * Math.PI * 2) * 0.5 + 0.5;
+  return Math.pow(v, P.sharp);
+}
+
+function marbleValue(x, y, P) {
+  const [wx, wy] = warpPoint(x, y, P);
+  const nx = wx / NORM, ny = wy / NORM;
+  const so = P.seed * 1.7;
+  const t = N.fbm(nx * 3 + so, ny * 3 + so);
+  const v = Math.sin(nx * P.veinFreq * Math.PI + t * P.turb * Math.PI * 2) * 0.5 + 0.5;
+  return Math.pow(v, P.sharp);
+}
+
+function cellularValue(x, y, P) {
+  const [wx, wy] = warpPoint(x, y, P);
+  const nx = wx / NORM, ny = wy / NORM;
+  const so = P.seed * 3.1;
+  const cells = NORM / P.cellScale;   // how many Worley cells span the canvas half-width
+  const [f1, f2] = N.voronoiF1F2(nx * cells + so, ny * cells + so, P.jitter);
+  const edge = f2 - f1;
+  const v = 1 - smoothstepFn(0, P.wallWidth, edge);
+  return Math.pow(v, Math.max(P.sharp * 0.4, 0.3));
+}
+
+function contourValue(x, y, P) {
+  const [wx, wy] = warpPoint(x, y, P);
+  const nx = wx / NORM, ny = wy / NORM;
+  const so = P.seed * 1.7;
+  const h = N.fbm(nx * P.contourScale + so, ny * P.contourScale + so);
+  const t = h * P.levels;
+  const frac = t - Math.floor(t);
+  const d = Math.min(frac, 1 - frac);
+  const v = 1 - smoothstepFn(0, P.lineWidth, d);
+  return Math.pow(v, Math.max(P.sharp * 0.4, 0.3));
+}
+
+function smoothstepFn(e0, e1, x) {
+  if (e0 === e1) return x < e0 ? 0 : 1;
+  const t = clamp((x - e0) / (e1 - e0), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function fieldValue(x, y, P) {
+  switch (P.pattern) {
+    case 'wood': return woodValue(x, y, P);
+    case 'marble': return marbleValue(x, y, P);
+    case 'cellular': return cellularValue(x, y, P);
+    case 'contour': return contourValue(x, y, P);
+  }
+  return 0;
+}
+
+// ── PARAMS ──
+function buildParams() {
+  return {
+    pattern: ctrl('sel-pattern').value,
+    rings: val('rg-rings'), squash: val('rg-squash'), grainAmt: val('rg-grain'),
+    veinFreq: val('rg-veinfreq'), turb: val('rg-turb'),
+    cellScale: val('rg-cellscale'), jitter: val('rg-jitter'), wallWidth: val('rg-wallwidth'),
+    contourScale: val('rg-contourscale'), levels: val('rg-levels'), lineWidth: val('rg-linewidth'),
+    sharp: val('rg-sharp'),
+    warpAmt: val('rg-warpamt'), warpScale: val('rg-warpscale'),
+    bands: val('rg-bands'), seed: val('rg-seed'),
+    ink: Organica.hexToRGB255(ctrl('hex-ink').value),
+    paper: Organica.hexToRGB255(ctrl('hex-paper').value),
+  };
+}
+
+// ── FIELD — cached like Komorebi's occlusion buffer, so colour/Ink/Paper
+// tweaks (cheap) don't repay the noise-evaluation cost that a shape change
+// (Pattern/Warp/Rings/…) does. ──
+let fieldCache = { key: '', buf: null };
+function computeField(w, h, P) {
+  const key = [P.pattern, P.rings, P.squash, P.grainAmt, P.veinFreq, P.turb, P.cellScale,
+    P.jitter, P.wallWidth, P.contourScale, P.levels, P.lineWidth, P.sharp,
+    P.warpAmt, P.warpScale, P.seed, w, h].join('|');
+  if (fieldCache.key === key) return fieldCache.buf;
+  const buf = new Float32Array(w * h);
+  const worldScale = 20;
+  const m = Math.min(w, h);
+  // Seed is NOT baked into gx/gy here — every pattern's own geometric
+  // centre (wood's rings, marble's vein direction) is defined relative to
+  // the canvas centre, so offsetting the base coordinate would just push
+  // that centre far off-frame and make rings read as near-straight lines
+  // (verified: this was exactly the first version's bug at the default
+  // seed). Each pattern function instead folds the seed into its OWN
+  // noise sampling only — see the "so" (seed offset) in woodValue etc.
+  for (let y = 0; y < h; y++) {
+    const gy = (y - h / 2) / m * worldScale;
+    for (let x = 0; x < w; x++) {
+      const gx = (x - w / 2) / m * worldScale;
+      buf[y * w + x] = clamp(fieldValue(gx, gy, P), 0, 1);
+    }
+  }
+  fieldCache = { key, buf };
+  return buf;
+}
+
+function renderFrame(w, h) {
+  const P = buildParams();
+  canvas.width = w; canvas.height = h;
+  const field = computeField(w, h, P);
+  const img = ctx2d.createImageData(w, h);
+  const data = img.data;
+  const ink = P.ink, paper = P.paper;
+  const bands = P.bands;
+  for (let i = 0; i < w * h; i++) {
+    let v = field[i];
+    if (bands > 1.5) v = clamp(Math.floor(v * bands) / Math.max(bands - 1, 1), 0, 1);
+    const idx = i * 4;
+    data[idx]     = mix(paper[0], ink[0], v);
+    data[idx + 1] = mix(paper[1], ink[1], v);
+    data[idx + 2] = mix(paper[2], ink[2], v);
+    data[idx + 3] = 255;
+  }
+  ctx2d.putImageData(img, 0, 0);
+}
+
+let renderQueued = false;
+function scheduleRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; renderFrame(previewW, previewH); });
+}
+
+// ── SIZING ──
+const BASE_LONG = 900;
+let previewW = 900, previewH = 600;
+function resizeCanvas() {
+  const r = Organica.formatRatio(ctrl('sel-format'));
+  if (r >= 1) { previewW = BASE_LONG; previewH = Math.round(BASE_LONG / r); }
+  else        { previewH = BASE_LONG; previewW = Math.round(BASE_LONG * r); }
+  canvas.style.aspectRatio = previewW + ' / ' + previewH;
+  updateSizeReadout();
+  scheduleRender();
+}
+
+// ── EXPORT — same shape as Komorebi's own (contoursToPathD is shared);
+// PNG/JPG read the live canvas, SVG re-renders at trace resolution and
+// posterises luminance into N stacked bands ("≥ level", darkest first) so
+// there can be no hairline seam between bands however coarse the trace. ──
+const EXPORT_HARD_SIDE = 6000;
+function outputDims(scale) {
+  let w = previewW * scale, h = previewH * scale;
+  const m = Math.max(w, h);
+  if (m > EXPORT_HARD_SIDE) { const k = EXPORT_HARD_SIDE / m; w = Math.round(w * k); h = Math.round(h * k); }
+  return { w, h };
+}
+function updateSizeReadout() {
+  const d = outputDims(parseInt(ctrl('sel-scale').value, 10) || 2);
+  ctrl('out-size').textContent = d.w + ' × ' + d.h;
+}
+function withExportSize(w, h, fn) {
+  renderFrame(w, h);
+  try { return fn(); }
+  finally { renderFrame(previewW, previewH); }
+}
+function exportRaster(mime, ext, quality) {
+  const { w, h } = outputDims(parseInt(ctrl('sel-scale').value, 10) || 2);
+  setStatus('active', 'Rendering ' + ext.toUpperCase() + '…');
+  setTimeout(() => {
+    const url = withExportSize(w, h, () => canvas.toDataURL(mime, quality));
+    const bin = atob(url.split(',')[1]);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    Organica.download(new Blob([bytes], { type: mime }), Organica.stamp('warping', ext));
+    setStatus('active', w + '×' + h + ' · ' + ext.toUpperCase() + ' saved');
+  }, 20);
+}
+function exportPNG() { exportRaster('image/png', 'png'); }
+function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
+
+const contoursToPathD = Organica.contoursToPathD;
+function toHex(r, g, b) {
+  const c = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+  return '#' + c(r) + c(g) + c(b);
+}
+const SVG_DETAIL = 600;
+function buildSVG() {
+  const bands = Math.max(2, Math.round(val('rg-bands')) || 6);
+  const W = SVG_DETAIL;
+  const H = Math.max(2, Math.round(SVG_DETAIL * previewH / previewW));
+
+  const rgba = withExportSize(W, H, () => ctx2d.getImageData(0, 0, W, H).data);
+
+  const lum = new Float32Array(W * H);
+  const rgb = new Uint8Array(W * H * 3);
+  for (let i = 0; i < W * H; i++) {
+    const r = rgba[i * 4], g = rgba[i * 4 + 1], b = rgba[i * 4 + 2];
+    rgb[i * 3] = r; rgb[i * 3 + 1] = g; rgb[i * 3 + 2] = b;
+    lum[i] = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  }
+
+  const bandOf = new Uint8Array(W * H);
+  const sums = new Float64Array(bands * 4);
+  for (let i = 0; i < W * H; i++) {
+    const b = Math.min(bands - 1, Math.floor(lum[i] * bands));
+    bandOf[i] = b;
+    sums[b * 4] += rgb[i * 3]; sums[b * 4 + 1] += rgb[i * 3 + 1]; sums[b * 4 + 2] += rgb[i * 3 + 2]; sums[b * 4 + 3]++;
+  }
+  const bandColor = [];
+  let lastSeen = '#000000';
+  for (let b = 0; b < bands; b++) {
+    const n = sums[b * 4 + 3];
+    if (n) lastSeen = toHex(sums[b * 4] / n, sums[b * 4 + 1] / n, sums[b * 4 + 2] / n);
+    bandColor.push(lastSeen);
+  }
+
+  const scale = parseInt(ctrl('sel-scale').value, 10) || 2;
+  const { w: outW, h: outH } = outputDims(scale);
+  const block = outW / W;
+
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${outW} ${outH}">`;
+  s += `<rect width="100%" height="100%" fill="${bandColor[0]}"/>`;
+  let paths = 1;
+  const mask = new Uint8Array(W * H);
+  for (let b = 1; b < bands; b++) {
+    let any = false;
+    for (let i = 0; i < W * H; i++) { const on = bandOf[i] >= b ? 1 : 0; mask[i] = on; if (on) any = true; }
+    if (!any) continue;
+    const d = contoursToPathD(mask, W, H, block);
+    if (!d) continue;
+    s += `<path fill="${bandColor[b]}" fill-rule="evenodd" d="${d}"/>`;
+    paths++;
+  }
+  s += '</svg>';
+  return { svg: s, paths, bands, W, H };
+}
+function exportSVG() {
+  setStatus('active', 'Tracing separation…');
+  setTimeout(() => {
+    const r = buildSVG();
+    window._lastSVG = r.svg;
+    Organica.download(new Blob([r.svg], { type: 'image/svg+xml' }), Organica.stamp('warping', 'svg'));
+    setStatus('active', r.bands + ' bands · ' + r.paths + ' paths · ' + Math.round(r.svg.length / 1024) + ' KB');
+  }, 20);
+}
+function sendToFigma() {
+  const r = buildSVG();
+  window._lastSVG = r.svg;
+  Organica.sendToFigma(r.svg, 'Warping');
+  setStatus('active', 'Sent to Figma plugin ↗');
+}
+
+// ── PRESETS ──
+function readState() {
+  return {
+    pattern: ctrl('sel-pattern').value,
+    rings: val('rg-rings'), squash: val('rg-squash'), grain: val('rg-grain'),
+    veinfreq: val('rg-veinfreq'), turb: val('rg-turb'),
+    cellscale: val('rg-cellscale'), jitter: val('rg-jitter'), wallwidth: val('rg-wallwidth'),
+    contourscale: val('rg-contourscale'), levels: val('rg-levels'), linewidth: val('rg-linewidth'),
+    sharp: val('rg-sharp'),
+    warpamt: val('rg-warpamt'), warpscale: val('rg-warpscale'),
+    bands: val('rg-bands'), seed: val('rg-seed'),
+    ink: ctrl('hex-ink').value, paper: ctrl('hex-paper').value,
+  };
+}
+function applyState(s) {
+  const set = (id, v, dflt) => { ctrl(id).value = v != null ? v : dflt; };
+  ctrl('sel-pattern').value = s.pattern || 'wood';
+  set('rg-rings', s.rings, 7); set('rg-squash', s.squash, 1); set('rg-grain', s.grain, 0.25);
+  set('rg-veinfreq', s.veinfreq, 8); set('rg-turb', s.turb, 0.8);
+  set('rg-cellscale', s.cellscale, 4); set('rg-jitter', s.jitter, 0.85); set('rg-wallwidth', s.wallwidth, 0.18);
+  set('rg-contourscale', s.contourscale, 1.6); set('rg-levels', s.levels, 14); set('rg-linewidth', s.linewidth, 0.10);
+  set('rg-sharp', s.sharp, 1.6);
+  set('rg-warpamt', s.warpamt, 0); set('rg-warpscale', s.warpscale, 0.6);
+  set('rg-bands', s.bands, 0); set('rg-seed', s.seed, 4);
+  ['rg-rings', 'rg-squash', 'rg-grain', 'rg-veinfreq', 'rg-turb', 'rg-cellscale', 'rg-jitter',
+   'rg-wallwidth', 'rg-contourscale', 'rg-levels', 'rg-linewidth', 'rg-sharp', 'rg-warpamt',
+   'rg-warpscale', 'rg-seed'].forEach(id => syncVal(ctrl(id), 'v-' + id.slice(3)));
+  ctrl('v-bands').textContent = ctrl('rg-bands').value === '0' ? 'Smooth' : ctrl('rg-bands').value;
+  syncColor('ink', s.ink || '#241b14');
+  syncColor('paper', s.paper || '#f5f2ec');
+  syncConditionalRows();
+}
+
+// Each preset run visually and checked against its own name before being
+// kept — same discipline as Komorebi/Camouflage's own preset passes.
+// Warp is the tool's namesake control, so most presets lean on it rather
+// than leaving it at 0 (which would just be "another noise tool").
+const BUILTIN_PRESETS = {
+  'Oak plank': { pattern: 'wood', rings: 6, squash: 0.45, grain: 0.15, sharp: 2.2, warpamt: 0.1, warpscale: 0.5, bands: 0, ink: '#3c2a1c', paper: '#e8d3ab' },
+  'Burl wood': { pattern: 'wood', rings: 9, squash: 1, grain: 0.6, sharp: 1.4, warpamt: 0.75, warpscale: 0.9, bands: 0, ink: '#2c1c10', paper: '#d9b988' },
+  'White marble': { pattern: 'marble', veinfreq: 6, turb: 0.6, sharp: 4, warpamt: 0.3, warpscale: 0.4, bands: 0, ink: '#8c8a86', paper: '#f7f5f0' },
+  'Black marble': { pattern: 'marble', veinfreq: 10, turb: 1.1, sharp: 3, warpamt: 0.55, warpscale: 0.6, bands: 0, ink: '#e8c67a', paper: '#141210' },
+  'Giraffe hide': { pattern: 'cellular', cellscale: 3.2, jitter: 0.55, wallwidth: 0.14, sharp: 1.6, warpamt: 0.2, warpscale: 0.7, bands: 0, ink: '#3a2313', paper: '#dba85e' },
+  'Cracked earth': { pattern: 'cellular', cellscale: 5.5, jitter: 0.9, wallwidth: 0.3, sharp: 1.2, warpamt: 0.1, warpscale: 0.5, bands: 0, ink: '#4a3524', paper: '#c9ab7c' },
+  'Topographic map': { pattern: 'contour', contourscale: 1.4, levels: 16, linewidth: 0.08, sharp: 1.4, warpamt: 0.25, warpscale: 0.5, bands: 0, ink: '#2e4a3a', paper: '#eee7d6' },
+  'Wavy contour': { pattern: 'contour', contourscale: 2.2, levels: 10, linewidth: 0.14, sharp: 1.2, warpamt: 0.85, warpscale: 1.4, bands: 0, ink: '#241b14', paper: '#f5f2ec' },
+};
+
+function presetStoreObj() { return Organica.presetStore('warping', 'organica.warping.presets'); }
+function userPresets() { return presetStoreObj().read(); }
+function allPresets() { return Object.assign({}, BUILTIN_PRESETS, userPresets()); }
+let currentPresetName = null;
+
+function populatePresets(select) {
+  const sel = ctrl('sel-preset');
+  sel.innerHTML = '';
+  Object.keys(allPresets()).forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  if (select) sel.value = select;
+}
+function applyPreset(name) {
+  const p = allPresets()[name];
+  if (!p) return;
+  applyState(p);
+  currentPresetName = name;
+  scheduleRender();
+}
+function savePreset() {
+  const name = prompt('Preset name');
+  if (!name) return;
+  const all = userPresets();
+  all[name] = readState();
+  presetStoreObj().write(all);
+  currentPresetName = name;
+  populatePresets(name);
+  setStatus('active', 'Saved preset · ' + name);
+}
+function deletePreset() {
+  if (!currentPresetName) return;
+  if (BUILTIN_PRESETS[currentPresetName]) { setStatus('', 'Built-in presets cannot be deleted'); return; }
+  const all = userPresets();
+  if (!all[currentPresetName]) return;
+  delete all[currentPresetName];
+  presetStoreObj().write(all);
+  currentPresetName = null;
+  populatePresets();
+  setStatus('active', 'Deleted preset');
+}
+
+// ── INIT ──
+Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+applyState(BUILTIN_PRESETS['Oak plank']);   // panel's raw HTML values are placeholders only — this is the real default
+resizeCanvas();
+populatePresets('Oak plank');
+setStatus('active', 'Ready');
+Organica.autoLabelPanel(document);
+Organica.enhanceSliders(document);
+ctrl('panel').addEventListener('input', scheduleRender);
+ctrl('panel').addEventListener('change', scheduleRender);
+</script>
+</body>
+</html>

@@ -356,6 +356,7 @@
 <input type="file" id="file-input" accept="image/*" onchange="loadCookie(this)">
 
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-noise.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // KOMOREBI — 木漏れ日, "sunlight leaking through trees"
@@ -501,59 +502,14 @@ function syncColor(which, hex) {
 }
 
 // ─────────────────────────────────────────────
-// NOISE — plain-JS ports of the old GLSL hash/value-noise/fbm. Scalar (x,y)
-// in, scalar (or [x,y] pair) out — no vec2 objects in the hot loop.
+// NOISE — hash/value-noise/fbm/Worley, now shared with Camo Turing and
+// Warping via /shared/organica-noise.js (see that file's own header for
+// why: three independent copies is the exact drift condition
+// organica-core.js was created to stop). Aliased to the original bare
+// names so every call site below is untouched — this is a storage move,
+// not a retune; verified byte-identical against every existing preset.
 // ─────────────────────────────────────────────
-function hash2(x, y) {
-  let px = fract(x * 123.34), py = fract(y * 456.21);
-  const d = px * (px + 45.32) + py * (py + 45.32);
-  px += d; py += d;
-  return fract(px * py);
-}
-function hash2b(x, y) { return [hash2(x, y), hash2(x + 17.3, y + 17.3)]; }
-function vnoise(x, y) {
-  const ix = Math.floor(x), iy = Math.floor(y);
-  const fx = x - ix, fy = y - iy;
-  const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
-  const a = hash2(ix, iy), b = hash2(ix + 1, iy), c = hash2(ix, iy + 1), d = hash2(ix + 1, iy + 1);
-  return mix(mix(a, b, ux), mix(c, d, ux), uy);
-}
-function fbm(x, y) {
-  let s = 0, a = 0.5;
-  for (let i = 0; i < 4; i++) {
-    s += a * vnoise(x, y);
-    const nx = x * 2.03 + 1.7, ny = y * 2.03 + 9.2;
-    x = nx; y = ny; a *= 0.5;
-  }
-  return s / 0.9375;
-}
-// Ridged fbm: noise ridges sharpened into thin lines — the basis for Veins.
-function ridgedFbm(x, y) {
-  let s = 0, a = 0.55, sum = 0;
-  for (let i = 0; i < 5; i++) {
-    const r = 1 - Math.abs(vnoise(x, y) * 2 - 1);
-    s += r * r * a; sum += a;
-    const nx = x * 2.13 + 3.1, ny = y * 2.13 + 7.7;
-    x = nx; y = ny; a *= 0.55;
-  }
-  return s / sum;
-}
-// Nearest/second-nearest distance to a jittered point grid — the basis for
-// the Cellular mask (crack = where the two distances are close together).
-function voronoiF1F2(x, y, jitter) {
-  const ix = Math.floor(x), iy = Math.floor(y);
-  const fx = x - ix, fy = y - iy;
-  let f1 = 8, f2 = 8;
-  for (let gy = -1; gy <= 1; gy++) {
-    for (let gx = -1; gx <= 1; gx++) {
-      const h = hash2b(ix + gx, iy + gy);
-      const dx = gx + h[0] * jitter - fx, dy = gy + h[1] * jitter - fy;
-      const d = Math.sqrt(dx * dx + dy * dy);
-      if (d < f1) { f2 = f1; f1 = d; } else if (d < f2) { f2 = d; }
-    }
-  }
-  return [f1, f2];
-}
+const { hash2, hash2b, vnoise, fbm, ridgedFbm, voronoiF1F2 } = Organica.noise;
 
 // Wind offset. Time is frozen (see docs/KOMOREBI.md §17) so Sway and Drift
 // are two different static warp SHAPES rather than two motions — Amount
