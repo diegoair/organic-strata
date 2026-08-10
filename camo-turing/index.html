@@ -59,41 +59,10 @@
   }
   .rmx-add:hover { border-color: var(--accent); color: var(--accent); }
 
-  /* preset picker — thumbnail dropdown, ported from Living Path's
-     preset-trigger/preset-menu pattern (its own tokens swapped for this
-     tool's: --card→--panel, --pollen→--tool, --ink-soft/--ink-muted→--mid,
-     --line→--border) since a plain <select> can't show a pattern preview. */
-  .presets { position: relative; }
-  .preset-trigger {
-    display: flex; align-items: center; gap: var(--space-3); width: 100%;
-    font-family: var(--font); font-size: var(--fs-small); padding: var(--space-2) var(--space-3);
-    cursor: pointer; background: var(--panel); color: var(--ink);
-    border: 1px solid var(--border); transition: border-color .14s;
-  }
-  .preset-trigger:hover { border-color: var(--tool); }
-  .pt-ico, .pi-ico {
-    width: 26px; height: 26px; flex: 0 0 26px; border: 1px solid var(--border);
-    overflow: hidden; background: var(--paper);
-  }
-  .pt-ico img, .pi-ico img { width: 100%; height: 100%; display: block; object-fit: cover; image-rendering: pixelated; }
-  .pt-ico svg, .pi-ico svg { width: 100%; height: 100%; display: block; color: var(--ink); }
-  .pt-name { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .pt-chev { color: var(--mid); font-size: var(--fs-small); }
-  .preset-menu {
-    position: fixed; z-index: 40; background: var(--panel); border: 1px solid var(--border);
-    box-shadow: 0 10px 28px rgba(0,0,0,0.22); padding: var(--space-2); overflow-y: auto;
-    display: flex; flex-direction: column; gap: var(--space-1);
-  }
-  .preset-menu[hidden] { display: none; }
-  .preset-item {
-    display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-2);
-    cursor: pointer; background: none; border: 1px solid transparent; text-align: left;
-    font-family: var(--font); font-size: var(--fs-small); color: var(--ink);
-  }
-  .preset-item:hover { border-color: var(--border); }
-  .preset-item.on { border-color: var(--tool); }
-  .pi-name { flex: 1; line-height: 1.2; }
-  .pi-group { font-size: var(--fs-micro); color: var(--mid); padding: var(--space-2) var(--space-2) 0; }
+  /* Preset/Transformer picker CSS now lives in shared/organica-panel.css
+     (.presets/.preset-trigger/.preset-menu/.pi-ico/.pi-name/...) —
+     centralized once it was proven useful for both Pattern's own picker
+     and the new Transformer one. */
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -271,6 +240,22 @@
   }
   .info-tip:hover, .info-tip:focus-visible { border-color: var(--ink); color: var(--ink); }
   .info-tip-bubble {
+    /* display:none (not visibility:hidden) — a visibility:hidden box still
+       takes up layout space, and this bubble is wide (190px) centered on a
+       13px icon, so an icon anywhere near the panel's right edge made it
+       overflow the panel horizontally EVEN WHILE HIDDEN. That overflow, in
+       turn, made the browser draw a real native (unstyled) horizontal
+       scrollbar across the whole panel — visible as a stray brown/olive bar
+       at the panel's bottom edge, found by testing. display:none removes it
+       from layout entirely until hovered, which fixes that at the root
+       instead of clipping the panel (clipping was tried first and reverted
+       — see git history — because an ancestor with overflow:hidden can stop
+       Chrome from opening the native <input type=color> picker triggered
+       from inside it, which would have traded one bug for a worse one). The
+       cost: no fade transition on open, since a property can't transition
+       from display:none — an accepted, minor trade for not touching #panel.
+    */
+    display: none;
     position: absolute;
     bottom: calc(100% + 7px);
     left: 50%;
@@ -287,15 +272,11 @@
     padding: var(--space-2);
     border-radius: var(--radius-sm);
     box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-    opacity: 0;
-    visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.15s ease;
     z-index: 20;
   }
   .info-tip:hover .info-tip-bubble, .info-tip:focus-visible .info-tip-bubble {
-    opacity: 1;
-    visibility: visible;
+    display: block;
   }
 </style>
 </head>
@@ -542,11 +523,111 @@
       </div>
 
       <div id="tx-dilate-controls" style="display:none">
-        <p class="org-panel__hint">Grows (positive) or shrinks (negative) the seed shape's own boundary — ported from Living Path's morph(). Blur-then-rethreshold: cheap, no per-pixel neighbour scan.</p>
+        <p class="org-panel__hint">Grows (positive) or shrinks (negative) the seed shape's own boundary, one pixel-neighbour pass per unit of Amount — ported from Living Path's morph().</p>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Positive grows the shape (dilate), negative shrinks it (erode).">Amount</div>
-          <input type="range" id="tx-dilate-amount" min="-16" max="16" step="1" value="4" oninput="syncVal(this,'v-tx-dilate-amount')">
-          <span class="ctrl-val" id="v-tx-dilate-amount">4</span>
+          <div class="ctrl-label" title="Positive grows the shape (dilate), negative shrinks it (erode). Each unit is one more neighbour-scan pass, so larger amounts cost more to compute.">Amount</div>
+          <input type="range" id="tx-dilate-amount" min="-8" max="8" step="1" value="3" oninput="syncVal(this,'v-tx-dilate-amount')">
+          <span class="ctrl-val" id="v-tx-dilate-amount">3</span>
+        </div>
+      </div>
+
+      <div id="tx-blur-controls" style="display:none">
+        <p class="org-panel__hint">Softens the seed shape's edge into a graduated ramp instead of a hard boundary — ported from Living Path's boxBlur().</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Blur radius in cells.">Radius</div>
+          <input type="range" id="tx-blur-radius" min="0" max="14" step="1" value="4" oninput="syncVal(this,'v-tx-blur-radius')">
+          <span class="ctrl-val" id="v-tx-blur-radius">4</span>
+        </div>
+      </div>
+
+      <div id="tx-threshold-controls" style="display:none">
+        <p class="org-panel__hint">Re-cuts the shape at a hard level — most useful after Blur or Noise, to melt a softened/grainy edge back into a clean binary one.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Cells at or above this level become fully ink; below it, fully empty.">Level</div>
+          <input type="range" id="tx-threshold-level" min="2" max="98" step="1" value="50" oninput="syncVal(this,'v-tx-threshold-level')">
+          <span class="ctrl-val" id="v-tx-threshold-level">50</span>
+        </div>
+      </div>
+
+      <div id="tx-noise-controls" style="display:none">
+        <p class="org-panel__hint">Adds smooth random jitter to the shape's edge — a grainy, degraded boundary instead of a clean one. Ported from Living Path's addNoise().</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How strong the jitter is.">Amount</div>
+          <input type="range" id="tx-noise-amount" min="0" max="100" step="1" value="35" oninput="syncVal(this,'v-tx-noise-amount')">
+          <span class="ctrl-val" id="v-tx-noise-amount">35</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How large the noise grain is — small scale = fine grain, large = coarse blotches.">Scale</div>
+          <input type="range" id="tx-noise-scale" min="2" max="28" step="1" value="9" oninput="syncVal(this,'v-tx-noise-scale')">
+          <span class="ctrl-val" id="v-tx-noise-scale">9</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Changes the jitter pattern without changing amount/scale.">Seed</div>
+          <input type="range" id="tx-noise-seed" min="1" max="99" step="1" value="7" oninput="syncVal(this,'v-tx-noise-seed')">
+          <span class="ctrl-val" id="v-tx-noise-seed">7</span>
+        </div>
+      </div>
+
+      <div id="tx-skeleton-controls" style="display:none">
+        <p class="org-panel__hint">Reduces the shape to its 1px centre-line (Zhang–Suen thinning), then thickens that line back to a constant width — a shape becomes a stream/wire tracing its own middle. Ported from Living Path's skeleton().</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How thick to redraw the centre-line. 0 leaves it at 1px.">Width</div>
+          <input type="range" id="tx-skeleton-width" min="0" max="8" step="1" value="2" oninput="syncVal(this,'v-tx-skeleton-width')">
+          <span class="ctrl-val" id="v-tx-skeleton-width">2</span>
+        </div>
+      </div>
+
+      <div id="tx-polygonize-controls" style="display:none">
+        <p class="org-panel__hint">Quantizes the shape onto a coarse block grid — a faceted, low-poly look instead of a smooth boundary. Ported from Living Path's polygonize().</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Block size in cells — larger blocks read as chunkier.">Block</div>
+          <input type="range" id="tx-polygonize-block" min="3" max="24" step="1" value="9" oninput="syncVal(this,'v-tx-polygonize-block')">
+          <span class="ctrl-val" id="v-tx-polygonize-block">9</span>
+        </div>
+      </div>
+
+      <div id="tx-seam-controls" style="display:none">
+        <p class="org-panel__hint">Content-aware carving (like Photoshop's Seam Carving) — removes low-energy seams one at a time, pinching/warping the shape instead of uniformly scaling it. Ported from Living Path's seamCarve(). Found by testing: a small shape with a lot of empty margin around it (Size well under 1) can absorb quite a few seams from the blank space alone before any visible pinch reaches the shape itself — push Seams higher if nothing seems to happen.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How many seams to remove.">Seams</div>
+          <input type="range" id="tx-seam-count" min="0" max="160" step="1" value="16" oninput="syncVal(this,'v-tx-seam-count')">
+          <span class="ctrl-val" id="v-tx-seam-count">16</span>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-name">Horizontal seams</span>
+          <label class="toggle">
+            <input type="checkbox" id="tx-seam-dir">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div id="tx-reaction-controls" style="display:none">
+        <p class="org-panel__hint">Runs a real Gray-Scott pass CONFINED to the seed shape's own ink, then carves the settled pattern as holes into it — the shape becomes coral/cellular instead of solid. A genuine second reaction-diffusion, independent of the tool's own live simulation. Ported from Living Path's grayScott().</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Feed rate.">Feed</div>
+          <input type="range" id="tx-reaction-feed" min="12" max="80" step="1" value="55" oninput="syncVal(this,'v-tx-reaction-feed')">
+          <span class="ctrl-val" id="v-tx-reaction-feed">55</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Kill rate.">Kill</div>
+          <input type="range" id="tx-reaction-kill" min="45" max="75" step="1" value="62" oninput="syncVal(this,'v-tx-reaction-kill')">
+          <span class="ctrl-val" id="v-tx-reaction-kill">62</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How many simulation steps to run — more steps, more developed pattern, slower to compute.">Steps</div>
+          <input type="range" id="tx-reaction-iters" min="1" max="40" step="1" value="18" oninput="syncVal(this,'v-tx-reaction-iters')">
+          <span class="ctrl-val" id="v-tx-reaction-iters">18</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How deep the carved holes cut into the shape.">Depth</div>
+          <input type="range" id="tx-reaction-depth" min="20" max="100" step="1" value="90" oninput="syncVal(this,'v-tx-reaction-depth')">
+          <span class="ctrl-val" id="v-tx-reaction-depth">90</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Changes where the pattern nucleates, without changing feed/kill/steps.">Seed</div>
+          <input type="range" id="tx-reaction-seed" min="1" max="99" step="1" value="5" oninput="syncVal(this,'v-tx-reaction-seed')">
+          <span class="ctrl-val" id="v-tx-reaction-seed">5</span>
         </div>
       </div>
     </div>
@@ -638,7 +719,8 @@
         <span class="color-name">Ink</span>
         <button class="color-swatch" id="sw-ink" onclick="ctrl('cp-ink').click()"></button>
         <input type="color" id="cp-ink" value="#0a0a0a" oninput="syncColor('ink', this.value)">
-        <input class="color-hex" id="hex-ink" value="#0a0a0a" onchange="syncColor('ink', this.value)">
+        <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7"
+          oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){syncColor('ink', this.value)}">
         <button class="icon-btn" onclick="randomColor('ink')" title="Random colour" aria-label="Random ink colour">
           <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
         </button>
@@ -647,7 +729,8 @@
         <span class="color-name">Paper</span>
         <button class="color-swatch" id="sw-paper" onclick="ctrl('cp-paper').click()"></button>
         <input type="color" id="cp-paper" value="#f5f2ec" oninput="syncColor('paper', this.value)">
-        <input class="color-hex" id="hex-paper" value="#f5f2ec" onchange="syncColor('paper', this.value)">
+        <input class="color-hex" id="hex-paper" value="#f5f2ec" maxlength="7"
+          oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){syncColor('paper', this.value)}">
         <button class="icon-btn" onclick="randomColor('paper')" title="Random colour" aria-label="Random paper colour">
           <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
         </button>
@@ -665,6 +748,10 @@
 <input type="file" id="font-input" accept=".ttf,.otf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;border:0;padding:0">
 
 <script src="/shared/organica-core.js"></script>
+<!-- Transformer — centralized raster effect-stack module (see the file's
+     own header): field algorithms ported from Living Path's RFX, canvas
+     adapters, and the thumbnail-picker UI. -->
+<script src="/shared/organica-transformer.js"></script>
 <!-- Genesis forms — "port as data" per CLAUDE.md; shared verbatim with Genesis/Pollen/Camouflage. -->
 <script src="/genesis/organic-forms.js"></script>
 <!-- opentype.js v1.3.4, MIT, sha256 c0f9c7ca85e18075a8819e5fe2dee6e1d535f9a2269f5314f36cce94a183adba — reads real glyph outlines for the Text seed source. -->
@@ -834,6 +921,16 @@ uniform float uDiffOn;
 float hash1(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
 }
+// Real bug, found by testing: Adaptive (and every RMX mapping that isn't
+// Random, since they all read the same t value below) clamped v to [0,1] as
+// if the field's meaningful range WAS [0,1] — a leftover of porting this
+// straight from Pollen, where brightness genuinely is 0..1. Here
+// v = A-B, and measured live across 5 presets it actually runs
+// roughly -0.22..1.0 (worst case seen), not 0..1 — so every pixel below
+// 0 was silently flattened to solid Ink instead of shading toward it,
+// contradicting Adaptive's own "no hard edge" hint text. Solid is NOT
+// affected (v < uThreshold compares the raw value directly, no clamp).
+float remapV(float v) { return clamp((v + 0.25) / 1.25, 0.0, 1.0); }
 vec3 paletteAt(int idx) {
   if (idx <= 0) return uPalette[0];
   else if (idx == 1) return uPalette[1];
@@ -844,7 +941,7 @@ vec3 paletteAt(int idx) {
 vec3 rmxColor(float v, vec2 uv) {
   int count = int(uPaletteCount);
   if (count <= 1) return uPalette[0];
-  float t = clamp(v, 0.0, 1.0) * float(count - 1);
+  float t = remapV(v) * float(count - 1);
   int i0 = int(floor(t));
   int i1 = i0 + 1; if (i1 > count - 1) i1 = count - 1;
   float f = fract(t);
@@ -879,7 +976,7 @@ void main() {
   if (uColorMode < 0.5) {                  // Solid — same threshold duotone every other Organica tool uses
     rgb = v < uThreshold ? uInk : uPaper;
   } else if (uColorMode < 1.5) {           // Adaptive — smooth blend, no hard edge
-    rgb = mix(uInk, uPaper, clamp(v, 0.0, 1.0));
+    rgb = mix(uInk, uPaper, remapV(v));
   } else {                                  // RMX
     rgb = rmxColor(v, uvT);
   }
@@ -1737,153 +1834,122 @@ function rasterizeCurrentSeed(cw, ch, done) {
   else rasterizeImageSource(cw, ch, done);
 }
 
-// ── TRANSFORMERS — a small registry-driven RASTER stack, ported from
-// Living Path's RFX (its raster effect family only — the vector-NODE
-// family, jitter/wobble/twist, needs a different pipeline entirely, path
-// points rather than a mask canvas, and isn't built here). Runs AFTER
-// rasterizeCurrentSeed, mutating that SAME mask canvas in place, so
-// "Particles" genuinely scatters onto whatever ink Seeds just produced —
-// Living Path's own semantics — instead of the blank-canvas
-// approximation the old Bubbles seed SOURCE used when it lived inside
-// Seeds. First test, deliberately kept isolated to Camo Turing rather
-// than shared/ — centralize only once this proves useful in a second
-// tool, not before.
+// ── TRANSFORMERS — a registry-driven RASTER stack. Started as a Camo-
+// Turing-only first test (see the project's own history for that pass);
+// centralized into shared/organica-transformer.js once it proved useful
+// — the field ALGORITHMS and the picker UI now live there, ported
+// verbatim from Living Path's RFX raster family (the vector-NODE family,
+// jitter/wobble/twist, needs a different pipeline entirely — path
+// points, not a field — and isn't built here). This registry is still
+// Camo-Turing-specific: it's just the {name, icon, apply} wiring that
+// reads THIS tool's own control IDs and calls into Organica.Transformer.
+// Runs AFTER rasterizeCurrentSeed, on that SAME mask canvas, so every
+// entry acts on whatever ink Seeds already produced.
+const T = Organica.Transformer;
+function fieldApply(canvas, fn) {
+  const g = T.canvasToField(canvas);
+  fn(g);
+  T.fieldToCanvas(g, canvas);
+}
 const TRANSFORMERS = {
   particles: {
     name: 'Particles',
-    // apply(canvas, ctx, params) — canvas/ctx already hold the seed
-    // shape's mask (alpha>0 = ink); mutates ctx in place, same contract
-    // Living Path's own RFX.apply(g,p) uses, just canvas-shaped instead
-    // of a Float32 field, to match how Camo Turing's masks already work.
-    apply(canvas, ctx, p) {
-      const cw = canvas.width, ch = canvas.height;
-      const id = ctx.getImageData(0, 0, cw, ch);
-      const px = id.data;
-      const ink = [];
-      for (let i = 0; i < cw * ch; i++) if (px[i * 4 + 3] > 128) ink.push(i);
-      if (!ink.length) return;   // nothing to scatter onto
-      const rng = mulberry32((p.seed * 2654435761) >>> 0);
-      const fit = Math.min(cw, ch);
-      const sizeScale = fit / 256;   // keeps disk size visually consistent as Resolution changes
-      const spreadPx = (p.spread / 100) * fit;
-      ctx.fillStyle = '#000';
-      for (let k = 0; k < p.count; k++) {
-        const i = ink[(rng() * ink.length) | 0];
-        const cx = (i % cw) + (rng() * 2 - 1) * spreadPx;
-        const cy = ((i / cw) | 0) + (rng() * 2 - 1) * spreadPx;
-        const r = p.size * sizeScale * (0.5 + rng());
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    },
+    icon: '<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="6" fill="currentColor"/><circle cx="6" cy="8" r="1.6" fill="currentColor"/><circle cx="21" cy="7" r="1.3" fill="currentColor"/><circle cx="20" cy="18" r="1.8" fill="currentColor"/><circle cx="6" cy="19" r="1.4" fill="currentColor"/><circle cx="15" cy="4" r="1.1" fill="currentColor"/></svg>',
+    apply(canvas, ctx, p) { fieldApply(canvas, g => T.particles(g, p.count, p.size, p.spread, p.seed, 1)); },
   },
   dilate: {
     name: 'Dilate / Erode',
-    // Found by testing: dashed-ring-around-a-dot read as near-identical
-    // to Particles' scattered-dots icon at 26px — swapped for 4 outward
-    // spokes (a "grow/shrink" resize glyph), clearly distinct from both
-    // Particles' irregular dot scatter and None's plain dashed ring.
     icon: '<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="4" fill="currentColor"/><path d="M13 3v4M13 23v-4M3 13h4M23 13h-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
-    // JS port of Living Path's morph() — that one's a real per-pixel
-    // neighbour scan; this is the cheaper canvas-native equivalent
-    // (blur softens the edge into a 0–255 alpha ramp, re-thresholding
-    // off-centre either counts the faint halo as inside — grow — or
-    // keeps only the strongly-covered core — shrink) rather than a
-    // second hand-rolled morphology pass.
-    apply(canvas, ctx, p) {
-      const amount = p.amount;
-      if (!amount) return;
-      const cw = canvas.width, ch = canvas.height;
-      const off = document.createElement('canvas'); off.width = cw; off.height = ch;
-      const octx = off.getContext('2d');
-      octx.filter = `blur(${Math.abs(amount)}px)`;
-      octx.drawImage(canvas, 0, 0);
-      octx.filter = 'none';
-      const id = octx.getImageData(0, 0, cw, ch);
-      const px = id.data;
-      const level = amount > 0 ? 12 : 243;   // low threshold = grow (dilate), high threshold = shrink (erode)
-      for (let i = 3; i < px.length; i += 4) px[i] = px[i] > level ? 255 : 0;
-      octx.putImageData(id, 0, 0);
-      ctx.clearRect(0, 0, cw, ch);
-      ctx.drawImage(off, 0, 0);
-    },
+    apply(canvas, ctx, p) { fieldApply(canvas, g => T.morph(g, p.amount)); },
+  },
+  blur: {
+    name: 'Blur',
+    icon: '<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="9" fill="currentColor" opacity="0.25"/><circle cx="13" cy="13" r="6.5" fill="currentColor" opacity="0.45"/><circle cx="13" cy="13" r="4" fill="currentColor" opacity="0.9"/></svg>',
+    apply(canvas, ctx, p) { fieldApply(canvas, g => T.boxBlur(g, p.radius)); },
+  },
+  threshold: {
+    name: 'Threshold',
+    icon: '<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="9" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M13 4a9 9 0 000 18z" fill="currentColor"/></svg>',
+    apply(canvas, ctx, p) { fieldApply(canvas, g => T.threshold(g, p.level / 100)); },
+  },
+  noise: {
+    name: 'Noise',
+    icon: '<svg viewBox="0 0 26 26">' + [[4,5],[9,3],[15,6],[21,4],[6,10],[12,9],[18,11],[23,9],[3,15],[9,16],[15,15],[20,17],[5,22],[11,21],[17,22],[22,21]].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="0.9" fill="currentColor"/>`).join('') + '</svg>',
+    apply(canvas, ctx, p) { fieldApply(canvas, g => T.addNoise(g, p.amount / 100, p.scale, p.seed)); },
+  },
+  skeleton: {
+    name: 'Skeleton',
+    icon: '<svg viewBox="0 0 26 26"><path d="M4 20 Q13 4 22 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+    apply(canvas, ctx, p) { fieldApply(canvas, g => T.skeleton(g, p.width)); },
+  },
+  polygonize: {
+    name: 'Polygonize',
+    icon: '<svg viewBox="0 0 26 26"><rect x="4" y="4" width="8" height="8" fill="currentColor"/><rect x="14" y="4" width="8" height="8" fill="currentColor" opacity="0.6"/><rect x="4" y="14" width="8" height="8" fill="currentColor" opacity="0.6"/><rect x="14" y="14" width="8" height="8" fill="currentColor"/></svg>',
+    apply(canvas, ctx, p) { fieldApply(canvas, g => T.polygonize(g, p.block)); },
+  },
+  seam: {
+    name: 'Seam carve',
+    icon: '<svg viewBox="0 0 26 26"><path d="M9 4v18M17 4v18" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 2"/><path d="M9 13h8" stroke="currentColor" stroke-width="1.3"/></svg>',
+    apply(canvas, ctx, p) { fieldApply(canvas, g => T.seamCarve(g, p.count, p.dir)); },
+  },
+  reaction: {
+    name: 'Reaction-diffusion',
+    icon: '<svg viewBox="0 0 26 26"><path d="M4 9c3-4 6 4 9 0s6 4 9 0M4 17c3-4 6 4 9 0s6 4 9 0" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    apply(canvas, ctx, p) { fieldApply(canvas, g => T.grayScott(g, p.feed / 1000, p.kill / 1000, p.iters * 36, p.seed, p.depth)); },
   },
 };
-TRANSFORMERS.particles.icon = '<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="6" fill="currentColor"/><circle cx="6" cy="8" r="1.6" fill="currentColor"/><circle cx="21" cy="7" r="1.3" fill="currentColor"/><circle cx="20" cy="18" r="1.8" fill="currentColor"/><circle cx="6" cy="19" r="1.4" fill="currentColor"/><circle cx="15" cy="4" r="1.1" fill="currentColor"/></svg>';
-const TX_ICON_NONE = '<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2.5 2.5"/></svg>';
 
 function runTransformers(canvas, done) {
   if (!canvas) { done(canvas); return; }
   if (activeTransformer === 'particles') {
-    TRANSFORMERS.particles.apply(canvas, canvas.getContext('2d'), {
+    TRANSFORMERS.particles.apply(canvas, null, {
       count: parseInt(ctrl('tx-particles-count').value, 10),
       size: parseFloat(ctrl('tx-particles-size').value),
       spread: parseFloat(ctrl('tx-particles-spread').value),
       seed: parseInt(ctrl('tx-particles-seed').value, 10),
     });
   } else if (activeTransformer === 'dilate') {
-    TRANSFORMERS.dilate.apply(canvas, canvas.getContext('2d'), {
-      amount: parseInt(ctrl('tx-dilate-amount').value, 10),
+    TRANSFORMERS.dilate.apply(canvas, null, { amount: parseInt(ctrl('tx-dilate-amount').value, 10) });
+  } else if (activeTransformer === 'blur') {
+    TRANSFORMERS.blur.apply(canvas, null, { radius: parseFloat(ctrl('tx-blur-radius').value) });
+  } else if (activeTransformer === 'threshold') {
+    TRANSFORMERS.threshold.apply(canvas, null, { level: parseFloat(ctrl('tx-threshold-level').value) });
+  } else if (activeTransformer === 'noise') {
+    TRANSFORMERS.noise.apply(canvas, null, {
+      amount: parseFloat(ctrl('tx-noise-amount').value),
+      scale: parseFloat(ctrl('tx-noise-scale').value),
+      seed: parseInt(ctrl('tx-noise-seed').value, 10),
+    });
+  } else if (activeTransformer === 'skeleton') {
+    TRANSFORMERS.skeleton.apply(canvas, null, { width: parseFloat(ctrl('tx-skeleton-width').value) });
+  } else if (activeTransformer === 'polygonize') {
+    TRANSFORMERS.polygonize.apply(canvas, null, { block: parseInt(ctrl('tx-polygonize-block').value, 10) });
+  } else if (activeTransformer === 'seam') {
+    TRANSFORMERS.seam.apply(canvas, null, {
+      count: parseInt(ctrl('tx-seam-count').value, 10),
+      dir: ctrl('tx-seam-dir').checked ? 1 : 0,
+    });
+  } else if (activeTransformer === 'reaction') {
+    TRANSFORMERS.reaction.apply(canvas, null, {
+      feed: parseFloat(ctrl('tx-reaction-feed').value),
+      kill: parseFloat(ctrl('tx-reaction-kill').value),
+      iters: parseInt(ctrl('tx-reaction-iters').value, 10),
+      depth: parseFloat(ctrl('tx-reaction-depth').value),
+      seed: parseInt(ctrl('tx-reaction-seed').value, 10),
     });
   }
   done(canvas);
 }
 
-// ── Transformer picker — same thumbnail-dropdown UI as Pattern's own
-// preset-trigger/preset-menu (see buildPresetsUI/populatePresetMenu
-// below), reusing its .presets/.preset-trigger/.preset-menu/.pi-ico/
-// .pi-name CSS verbatim. The one real difference: Pattern's thumbnails
-// are LIVE simulated previews (buildPresetThumb runs a real mini Gray-
-// Scott pass), which has no equivalent for a Transformer — "what does
-// Particles look like" isn't a function of f/k. Small static SVG icons
-// instead, one per registry entry, cheap and always correct.
 let activeTransformer = '';
-function txIcon(key) { return key ? TRANSFORMERS[key].icon : TX_ICON_NONE; }
-function txLabel(key) { return key ? TRANSFORMERS[key].name : 'None'; }
-function updateTransformerTrigger() {
-  ctrl('tx-pt-ico').innerHTML = txIcon(activeTransformer);
-  ctrl('tx-pt-name').textContent = txLabel(activeTransformer);
-}
-function populateTransformerMenu() {
-  const m = ctrl('tx-preset-menu');
-  m.innerHTML = '';
-  ['', ...Object.keys(TRANSFORMERS)].forEach(key => {
-    const row = document.createElement('button');
-    row.className = 'preset-item' + (key === activeTransformer ? ' on' : '');
-    row.innerHTML = `<span class="pi-ico">${txIcon(key)}</span><span class="pi-name">${txLabel(key)}</span>`;
-    row.addEventListener('click', () => { setActiveTransformer(key); ctrl('tx-preset-menu').hidden = true; });
-    m.appendChild(row);
-  });
-}
-function positionTransformerMenu() {
-  const t = ctrl('tx-preset-trigger').getBoundingClientRect(), m = ctrl('tx-preset-menu'), gap = 5, margin = 12;
-  const below = window.innerHeight - t.bottom - margin, above = t.top - margin;
-  m.style.left = t.left + 'px'; m.style.width = t.width + 'px';
-  if (below >= 160 || below >= above) { m.style.top = (t.bottom + gap) + 'px'; m.style.bottom = 'auto'; m.style.maxHeight = Math.max(120, below) + 'px'; }
-  else { m.style.bottom = (window.innerHeight - t.top + gap) + 'px'; m.style.top = 'auto'; m.style.maxHeight = Math.max(120, above) + 'px'; }
-}
 function buildTransformerUI() {
-  const host = ctrl('tx-presets');
-  host.innerHTML = `<button class="preset-trigger" id="tx-preset-trigger" aria-label="Transformer">
-      <span class="pt-ico" id="tx-pt-ico"></span><span class="pt-name" id="tx-pt-name">None</span><span class="pt-chev">▾</span>
-    </button><div class="preset-menu" id="tx-preset-menu" hidden></div>`;
-  ctrl('tx-preset-trigger').addEventListener('click', e => {
-    e.stopPropagation();
-    const m = ctrl('tx-preset-menu');
-    if (m.hidden) { populateTransformerMenu(); positionTransformerMenu(); m.hidden = false; }
-    else m.hidden = true;
+  Organica.Transformer.buildPicker(ctrl('tx-presets'), TRANSFORMERS, {
+    ariaLabel: 'Transformer',
+    onChange(key) {
+      activeTransformer = key;
+      Object.keys(TRANSFORMERS).forEach(t => { ctrl('tx-' + t + '-controls').style.display = t === key ? 'block' : 'none'; });
+    },
   });
-  document.addEventListener('click', e => {
-    const m = ctrl('tx-preset-menu');
-    if (!m.hidden && !e.target.closest('#tx-presets') && !e.target.closest('#tx-preset-menu')) m.hidden = true;
-  });
-  updateTransformerTrigger();
-}
-function setActiveTransformer(key) {
-  activeTransformer = key;
-  updateTransformerTrigger();
-  Object.keys(TRANSFORMERS).forEach(t => { ctrl('tx-' + t + '-controls').style.display = t === key ? 'block' : 'none'; });
 }
 
 // ── FOUR MODES, dispatched from the mask a source produced ──
@@ -2368,6 +2434,10 @@ function svgToHex(c) {
   return '#' + h(c.r) + h(c.g) + h(c.b);
 }
 
+// JS mirror of DISPLAY_FRAG's remapV() — see that comment. v = A-B runs
+// slightly below 0 in practice, not just 0..1; this stretches the real
+// range into 0..1 instead of clamping negative pixels flat.
+function remapVJS(v) { return Math.max(0, Math.min(1, (v + 0.25) / 1.25)); }
 // JS mirror of DISPLAY_FRAG's hash1(vec2) — same formula, same inputs
 // (integer cell coords from floor(vUv*48.0)), so export picks the exact
 // same per-cell colour/jitter the shader picked, not an approximation.
@@ -2452,12 +2522,21 @@ function buildExportSVGString() {
     // comparing a live canvas screenshot against the exported SVG side by
     // side — the export came out with fully inverted tone.
     bandColor = [ctrl('hex-ink').value, ctrl('hex-paper').value];
+    // score stays = field (raw) — Solid compares v to uThreshold directly
+    // in the shader too, no remap, so this one export mode is untouched.
   } else if (colorMode < 1.5) {
     bands = 8;   // Adaptive is a continuous blend — 8 stacked bands is a disclosed vector approximation, same trade Camouflage's own Bands mode makes
     const inkC = new THREE.Color(ctrl('hex-ink').value), paperC = new THREE.Color(ctrl('hex-paper').value);
     bandColor = [];
     for (let s = 0; s < bands; s++) { const t = s / (bands - 1); bandColor.push(svgToHex(paperC.clone().lerp(inkC, t))); }
     bandColor.reverse();   // band 0 = lightest (paper-ward), matches the stacking convention below
+    // Real bug, found by testing: matches the DISPLAY_FRAG remapV() fix —
+    // v = A-B legitimately runs slightly below 0 (measured -0.22..-0.03
+    // across 5 presets), and this export used to clamp it to [0,1]
+    // directly, flattening those pixels to band 0 same as the old shader
+    // bug. Same remap here keeps preview and export in agreement.
+    score = new Float32Array(gridW * gridH);
+    for (let i = 0; i < gridW * gridH; i++) score[i] = remapVJS(field[i]);
   } else if (rmxColorMap === 'random') {
     // Found by testing: this used to fall through to the same posterized-
     // band export every other RMX mapping uses, silently discarding the
@@ -2486,15 +2565,17 @@ function buildExportSVGString() {
         const uu = (x + 0.5) / gridW;
         const cx = Math.min(47, Math.max(0, Math.floor(uu * 48)));
         const h = hash1JS(cx, cy) - 0.5;
-        const v = Math.max(0, Math.min(1, field[y * gridW + x]));
+        const v = remapVJS(field[y * gridW + x]);   // same remapV() fix as Adaptive/Tone/Posterize — see there
         const t = v * (count - 1);
         const tt = Math.max(0, Math.min(count - 1, t + h * 1.5));
         score[y * gridW + x] = count > 1 ? tt / (count - 1) : 0;
       }
     }
   } else {
-    bands = rmxColors.length;   // Tone/Posterize: unchanged — Posterize's hard-band shader logic already matches this exactly, and Tone's smooth blend accepts the same N-band approximation Adaptive does.
+    bands = rmxColors.length;   // Tone/Posterize: same shape as Adaptive — Posterize's hard-band shader logic and Tone's smooth blend both read the shader's remapV()'d t, so this export needs the same remap to match.
     bandColor = rmxColors.slice();
+    score = new Float32Array(gridW * gridH);
+    for (let i = 0; i < gridW * gridH; i++) score[i] = remapVJS(field[i]);
   }
 
   const tileN = Math.max(1, parseInt(ctrl('sel-tile').value, 10) || 1);

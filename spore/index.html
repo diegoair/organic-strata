@@ -497,6 +497,7 @@
 
 <!-- Centralized Organica shape library (window.ORGANIC_FORMS), shared with Genesis/Pollen -->
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-palette.js"></script>
 <script src="/genesis/organic-forms.js"></script>
 <script>
 // ─────────────────────────────────────────────
@@ -520,27 +521,8 @@ let selectedMarkId = 'g1';
 let rmxColors = ['#1a1a2e', '#e94f37', '#f6e8c3'];   // default palette (dark→bright)
 let rmxColorMap = 'tone';            // 'tone' | 'posterize' | 'random' | 'tonernd'
 const RMX_COLORS_MAX = 5;
-function hx2rgb(hex) {
-  const m = /^#?([0-9a-f]{6})$/i.exec((hex || '').trim());
-  if (!m) return { r: 0, g: 0, b: 0 };
-  const n = parseInt(m[1], 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
-}
-// b = brightness 0..1 (palette[0] = dark … palette[n-1] = bright). Returns an rgb() string.
-function rmxColorAt(b) {
-  const pal = rmxColors, n = pal.length;
-  if (n < 1) return '#000';
-  let idx = 0, frac = 0;
-  if (n === 1) idx = 0;
-  else if (rmxColorMap === 'random')    idx = Math.min(n - 1, Math.floor(Math.random() * n));
-  else if (rmxColorMap === 'posterize') idx = Math.max(0, Math.min(n - 1, Math.round(b * (n - 1))));
-  else if (rmxColorMap === 'tonernd')   idx = Math.max(0, Math.min(n - 1, Math.round(b * (n - 1) + (Math.random() - 0.5) * 1.2)));
-  else { const t = b * (n - 1); idx = Math.floor(t); frac = t - idx; if (idx >= n - 1) { idx = n - 1; frac = 0; } }
-  const c0 = hx2rgb(pal[idx]);
-  if (frac > 0) { const c1 = hx2rgb(pal[Math.min(n - 1, idx + 1)]);
-    return `rgb(${Math.round(c0.r + (c1.r - c0.r) * frac)},${Math.round(c0.g + (c1.g - c0.g) * frac)},${Math.round(c0.b + (c1.b - c0.b) * frac)})`;
-  }
-  return `rgb(${c0.r},${c0.g},${c0.b})`;
-}
+// Colour math now lives in shared/organica-palette.js (Organica.Palette.colorAt) —
+// see the 'rmx'/'adaptive' branch in drawBatch().
 function buildRmxPalette() {
   const wrap = document.getElementById('rmx-palette'); wrap.innerHTML = '';
   rmxColors.forEach((col, i) => {
@@ -842,7 +824,7 @@ async function doRender() {
     const xOffset = row % 2 === 0 ? 0 : xSpacing * 0.5;
     for (let x = xOffset; x < W; x += xSpacing) {
       const luma = getLuma(x, y);
-      points.push({ x, y, luma });
+      points.push({ x, y, luma, rnd: Math.random() });
     }
     row++;
   }
@@ -865,7 +847,7 @@ async function doRender() {
 
     const end = Math.min(start + BATCH, total);
     for (let i = start; i < end; i++) {
-      const { x, y, luma } = points[i];
+      const { x, y, luma, rnd } = points[i];
 
       // Skip very bright areas (nothing to draw)
       if (luma > 0.92) continue;
@@ -886,12 +868,13 @@ async function doRender() {
       // Color
       let fillColor;
       if (colorMode === 'image') fillColor = getColor(x, y);
-      else if (colorMode === 'rmx') fillColor = rmxColorAt(luma);   // palette by tone
-      else if (colorMode === 'multi') fillColor = `hsl(${Math.random()*360},60%,40%)`;
-      else if (colorMode === 'adaptive') {
-        // shift hue of mark color by brightness
-        fillColor = markColor; // simplified — full impl would parse HSL
+      else if (colorMode === 'rmx' || colorMode === 'adaptive') {
+        fillColor = Organica.Palette.colorAt(luma, {
+          mode: colorMode, ink: markColor, paper: bgColor,
+          colors: rmxColors, submode: rmxColorMap, rnd,
+        });
       }
+      else if (colorMode === 'multi') fillColor = `hsl(${Math.random()*360},60%,40%)`;
       else fillColor = markColor;
 
       // Draw mark
