@@ -69,6 +69,7 @@
   .layer-blend-select { flex-shrink: 0; }
   .layer-opacity { flex: 1; }
   .layer-opacity-val { font-size: var(--fs-micro); color: var(--mid); min-width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+  .layer-color-hint { font-size: var(--fs-micro); color: var(--mid); }
   .layer-base-row {
     display: block; width: 100%; text-align: left; border: 1px solid var(--border);
     padding: var(--space-2); margin-bottom: var(--space-2); background: var(--panel);
@@ -1065,6 +1066,38 @@ void main() {
   gl_FragColor = vec4(result, 0.0, 0.0, 1.0);
 }`;
 
+// Per-layer colour — deliberately separate from COMPOSITE_FRAG's field
+// blend above, not folded into it. The field blend (Diff/Multiply/…)
+// decides SHAPE: how much ink ends up where. This decides TINT: once a
+// layer has a colour turned on, its own flat colour shows through
+// wherever THAT layer's own pattern is active, weighted by opacity —
+// independent of which structural blend mode is chosen for shape, so a
+// layer can carve new geometry via Multiply while still tinting with its
+// own colour, without those two knobs fighting each other's math.
+const COLOR_FOLD_FRAG = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uDstColor, uSrcField;
+uniform vec3 uLayerColor;
+uniform float uOpacity;
+float remapV(float v) { return clamp((v + 0.25) / 1.25, 0.0, 1.0); }
+void main() {
+  vec3 dst = texture2D(uDstColor, vUv).rgb;
+  vec2 s = texture2D(uSrcField, vUv).rg;
+  float src = remapV(s.r - s.g);
+  gl_FragColor = vec4(mix(dst, uLayerColor, src * uOpacity), 1.0);
+}`;
+
+// Final blit — the colour-fold chain above already produced final RGB (the
+// base pattern's own Solid/Adaptive/RMX colour, pre-rendered into a
+// texture, then tinted per layer), so displaying it is a plain copy, not
+// another colour-mapping pass.
+const BLIT_FRAG = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uTex;
+void main() { gl_FragColor = texture2D(uTex, vUv); }`;
+
 // Renders A=0.5,B=0.25 inside a circle (Gray-Scott's own bootstrap
 // concentration, matching the CPU engine's stampBlob), resting state
 // (1,0) elsewhere. A shader pass like every other state change here,
@@ -1124,6 +1157,7 @@ let simScene, simMat, dispScene, dispMat, seedScene, seedMat, copyScene, copyMat
 let maskFillScene, maskFillMat, defaultMaskTex, emptyMaskTex;
 let twoSeedScene, twoSeedMat;   // experimental probe — see TWO_SEED_FRAG
 let compositeScene, compositeMat;   // Layers — see compositeAndDraw()
+let colorFoldScene, colorFoldMat, blitScene, blitMat;   // Layers — per-layer colour, see compositeAndDraw()
 let camera;
 let rtA, rtB;
 let running = true;
@@ -1141,7 +1175,9 @@ let extraLayers = [];
 let activeLayerId = null;
 let nextLayerId = 1;
 let rtComposite, rtCompositeTmp;   // ping-ponged accumulator for compositeAndDraw()
+let rtBaseColor, rtColorAccum, rtColorAccumTmp;   // per-layer colour chain, see compositeAndDraw()
 const LAYER_BLENDS = ['normal', 'diff', 'multiply', 'screen', 'add', 'darken', 'exclusion'];
+const LAYER_DEFAULT_COLORS = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#d35400', '#16a085'];
 
 function makeRenderTarget(w, h) {
   return new THREE.WebGLRenderTarget(w, h, {
@@ -1319,6 +1355,23 @@ function initGL() {
   compositeScene = new THREE.Scene();
   compositeScene.add(new THREE.Mesh(quad, compositeMat));
 
+  colorFoldMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uDstColor: { value: null }, uSrcField: { value: null },
+      uLayerColor: { value: new THREE.Color(0xc0392b) }, uOpacity: { value: 1.0 },
+    },
+    vertexShader: PASSTHROUGH_VERT, fragmentShader: COLOR_FOLD_FRAG,
+  });
+  colorFoldScene = new THREE.Scene();
+  colorFoldScene.add(new THREE.Mesh(quad, colorFoldMat));
+
+  blitMat = new THREE.ShaderMaterial({
+    uniforms: { uTex: { value: null } },
+    vertexShader: PASSTHROUGH_VERT, fragmentShader: BLIT_FRAG,
+  });
+  blitScene = new THREE.Scene();
+  blitScene.add(new THREE.Mesh(quad, blitMat));
+
   return true;
 }
 
@@ -1357,6 +1410,7 @@ function makeLayer(f, k) {
     id, name: 'Layer ' + id, on: true, opacity: 0.85, blend: 'multiply',
     f: f != null ? f : 0.037, k: k != null ? k : 0.06, dA: 1.0, dB: 0.5, dt: 1.0,
     presetName: null,   // which entry in allPresets() this layer's f/k came from, if any — see applyPresetToLayer()
+    color: LAYER_DEFAULT_COLORS[(id - 1) % LAYER_DEFAULT_COLORS.length], colorOn: false,
     rtA: makeRenderTarget(gridW, gridH), rtB: makeRenderTarget(gridW, gridH),
     stepCount: 0,
   };
@@ -1388,6 +1442,9 @@ function rebuildExtraLayers() {
   }
   if (rtComposite) { rtComposite.dispose(); rtComposite = null; }
   if (rtCompositeTmp) { rtCompositeTmp.dispose(); rtCompositeTmp = null; }
+  if (rtBaseColor) { rtBaseColor.dispose(); rtBaseColor = null; }
+  if (rtColorAccum) { rtColorAccum.dispose(); rtColorAccum = null; }
+  if (rtColorAccumTmp) { rtColorAccumTmp.dispose(); rtColorAccumTmp = null; }
 }
 
 function stepLayer(layer) {
@@ -1430,18 +1487,30 @@ function ensureCompositeTargets() {
   rtComposite = makeRenderTarget(gridW, gridH);
   rtCompositeTmp = makeRenderTarget(gridW, gridH);
 }
+function ensureColorTargets() {
+  if (rtBaseColor && rtBaseColor.width === gridW && rtBaseColor.height === gridH) return;
+  if (rtBaseColor) rtBaseColor.dispose();
+  if (rtColorAccum) rtColorAccum.dispose();
+  if (rtColorAccumTmp) rtColorAccumTmp.dispose();
+  rtBaseColor = makeRenderTarget(gridW, gridH);
+  rtColorAccum = makeRenderTarget(gridW, gridH);
+  rtColorAccumTmp = makeRenderTarget(gridW, gridH);
+}
 
-// Folds each visible extra layer onto the main sim in turn — one
-// COMPOSITE_FRAG pass per layer, ping-ponging the accumulator (same
-// pattern as stepSim's own rtA/rtB swap, just walking a layer list instead
-// of time). Called from draw() whenever Layers is on and at least one
-// extra layer is visible; falls through to the plain single-sim path
-// otherwise, so draw() is safe to call from every existing call site
-// (resetSim, rebuildGrid, Apply seed, …) unchanged.
-function compositeAndDraw() {
+// The structural fold — one COMPOSITE_FRAG pass per visible layer,
+// ping-ponging the accumulator (same pattern as stepSim's own rtA/rtB
+// swap, just walking a layer list instead of time). Factored out of
+// compositeAndDraw() so the SVG/PNG export path (readCompositedScoreField,
+// below) can trace the SAME shape the canvas shows instead of quietly
+// falling back to the un-blended base — the gap a live "export vs.
+// preview" diff check surfaced (see readCompositedScoreField's own note).
+// Returns {tex, isRaw, rt}: rt is the actual WebGLRenderTarget holding tex
+// (null when isRaw, i.e. no layer actually folded — tex is just rtA.texture
+// and callers that need to read it back use rtA itself).
+function runStructuralFold() {
   ensureCompositeTargets();
   const visible = extraLayers.filter(l => l.on);
-  let dstTex = rtA.texture, dstIsRaw = 1.0, target = rtComposite;
+  let dstTex = rtA.texture, dstIsRaw = 1.0, target = rtComposite, lastRT = null;
   for (const layer of visible) {
     compositeMat.uniforms.uDst.value = dstTex;
     compositeMat.uniforms.uDstIsRaw.value = dstIsRaw;
@@ -1451,13 +1520,57 @@ function compositeAndDraw() {
     renderer.setRenderTarget(target);
     renderer.render(compositeScene, camera);
     dstTex = target.texture;
+    lastRT = target;
     dstIsRaw = 0.0;
     target = (target === rtComposite) ? rtCompositeTmp : rtComposite;
   }
+  return { tex: dstTex, isRaw: dstIsRaw > 0.5, rt: lastRT };
+}
+
+// Then, only if at least one visible layer has its own colour turned on, a
+// SECOND chain decides TINT: the shaped result gets coloured with the
+// existing global Palette (exactly as it would be with no layers at all)
+// into an offscreen texture, then each coloured layer folds its own flat
+// colour on top via COLOR_FOLD_FRAG (see that shader's own note on why
+// this is a separate pass from the shape blend, not merged into it).
+// Called from draw() whenever Layers is on and at least one extra layer is
+// visible; falls through to the plain single-sim path otherwise, so
+// draw() is safe to call from every existing call site (resetSim,
+// rebuildGrid, Apply seed, …) unchanged.
+function compositeAndDraw() {
+  const fold = runStructuralFold();
+  const dstTex = fold.tex, dstIsRaw = fold.isRaw;
+  const visible = extraLayers.filter(l => l.on);
+
+  const coloredLayers = visible.filter(l => l.colorOn);
+  if (!coloredLayers.length) {
+    dispMat.uniforms.uState.value = dstTex;
+    dispMat.uniforms.uScoreIsFinal.value = dstIsRaw ? 0.0 : 1.0;
+    renderer.setRenderTarget(null);
+    renderer.render(dispScene, camera);
+    return;
+  }
+
+  ensureColorTargets();
   dispMat.uniforms.uState.value = dstTex;
-  dispMat.uniforms.uScoreIsFinal.value = dstIsRaw > 0.5 ? 0.0 : 1.0;
-  renderer.setRenderTarget(null);
+  dispMat.uniforms.uScoreIsFinal.value = dstIsRaw ? 0.0 : 1.0;
+  renderer.setRenderTarget(rtBaseColor);
   renderer.render(dispScene, camera);
+
+  let colorTex = rtBaseColor.texture, colorTarget = rtColorAccum;
+  for (const layer of coloredLayers) {
+    colorFoldMat.uniforms.uDstColor.value = colorTex;
+    colorFoldMat.uniforms.uSrcField.value = layer.rtA.texture;
+    colorFoldMat.uniforms.uLayerColor.value.set(layer.color);
+    colorFoldMat.uniforms.uOpacity.value = layer.opacity;
+    renderer.setRenderTarget(colorTarget);
+    renderer.render(colorFoldScene, camera);
+    colorTex = colorTarget.texture;
+    colorTarget = (colorTarget === rtColorAccum) ? rtColorAccumTmp : rtColorAccum;
+  }
+  blitMat.uniforms.uTex.value = colorTex;
+  renderer.setRenderTarget(null);
+  renderer.render(blitScene, camera);
 }
 function resetSim() {
   stepCount = 0;
@@ -1586,6 +1699,17 @@ function setLayerOpacity(id, pct) {
   if (layer) { layer.opacity = pct / 100; draw(); }
 }
 
+function toggleLayerColor(id) {
+  const layer = extraLayers.find(l => l.id === id);
+  if (layer) { layer.colorOn = !layer.colorOn; buildLayersUI(); draw(); }
+}
+function setLayerColor(id, hex) {
+  const layer = extraLayers.find(l => l.id === id);
+  if (!layer) return;
+  layer.color = Organica.normalizeHex(hex, layer.color);
+  draw();
+}
+
 // A preset only ever sets f/k (same scope applyPreset() uses for the main
 // sim — dA/dB/timestep are left at the layer's own values, matching the
 // "built-in presets don't carry a diffusion convention" note on
@@ -1674,6 +1798,14 @@ function buildLayersUI() {
           </optgroup>
           ${Object.keys(userPresets()).length ? `<optgroup label="Saved">${Object.keys(userPresets()).map(n => `<option value="${n}"${n === layer.presetName ? ' selected' : ''}>${n}</option>`).join('')}</optgroup>` : ''}
         </select>
+      </div>
+      <div class="layer-card__body">
+        <button class="layer-dot${layer.colorOn ? ' on' : ''}" title="Colour on/off" aria-label="${layer.name} colour on/off"></button>
+        <span class="color-swatch-wrap" style="width:18px;height:18px">
+          <button class="color-swatch" style="background:${layer.color}" title="Layer colour" aria-label="${layer.name} colour"></button>
+          <input type="color" value="${layer.color}" aria-label="${layer.name} colour value">
+        </span>
+        <span class="layer-color-hint">Tints where this layer is active</span>
       </div>`;
     card.querySelector('.layer-dot').addEventListener('click', e => { e.stopPropagation(); toggleLayerOn(layer.id); });
     card.querySelector('.layer-name').addEventListener('click', () => setActiveLayer(layer.id));
@@ -1683,6 +1815,12 @@ function buildLayersUI() {
     removeBtn.addEventListener('click', e => { e.stopPropagation(); removeLayer(layer.id); });
     card.querySelector('.layer-blend-select').addEventListener('change', e => setLayerBlend(layer.id, e.target.value));
     card.querySelector('.layer-preset-select').addEventListener('change', e => { if (e.target.value) applyPresetToLayer(layer.id, e.target.value); });
+    card.querySelectorAll('.layer-card__body .layer-dot')[0].addEventListener('click', e => { e.stopPropagation(); toggleLayerColor(layer.id); });
+    const colorInput = card.querySelector('.color-swatch-wrap input[type=color]');
+    colorInput.addEventListener('input', e => {
+      setLayerColor(layer.id, e.target.value);
+      card.querySelector('.color-swatch').style.background = e.target.value;
+    });
     const opacityInput = card.querySelector('.layer-opacity');
     opacityInput.addEventListener('input', e => {
       card.querySelector('.layer-opacity-val').textContent = e.target.value + '%';
@@ -2922,6 +3060,43 @@ function readFrozenField() {
   return field;
 }
 
+// Layers WYSIWYG — found by testing (the "Export vs. preview" CSS-diff
+// tool showed large white blobs where the export's own dots sat against
+// the canvas's actual blended/tinted pattern, not near-black like every
+// other verified export mode): this used to always read readFrozenField()
+// (the un-blended base sim only), so exporting with Layers on silently
+// dropped every layer's structural contribution. Re-runs the exact same
+// structural fold compositeAndDraw() uses (runStructuralFold(), shared —
+// one implementation, not two that can drift), then reads that back
+// instead of the raw base whenever it actually folded something.
+// isFinal=true means the returned field is already a final 0..1 score
+// (matches DISPLAY_FRAG's uScoreIsFinal convention) — callers must NOT
+// remapVJS() it again, same "remap once, total" discipline as the shader.
+// Per-layer COLOUR is a separate, disclosed gap: it's a smooth per-pixel
+// tint (see COLOR_FOLD_FRAG), not a hard-edged region, so it has no honest
+// vector form the way the global Palette's bands do — SVG export always
+// uses the global Palette's colours, never a layer's own tint. PNG export
+// (a straight canvas capture) has no such limitation and is the accurate
+// WYSIWYG option whenever per-layer colour is in use.
+function readCompositedScoreField() {
+  if (!layersOn || !extraLayers.some(l => l.on)) return { field: readFrozenField(), isFinal: false };
+  const fold = runStructuralFold();
+  if (fold.isRaw) return { field: readFrozenField(), isFinal: false };
+  const buf = new Float32Array(gridW * gridH * 4);
+  renderer.setRenderTarget(fold.rt);
+  renderer.readRenderTargetPixels(fold.rt, 0, 0, gridW, gridH, buf);
+  renderer.setRenderTarget(null);
+  const field = new Float32Array(gridW * gridH);
+  for (let y = 0; y < gridH; y++) {
+    const srcY = gridH - 1 - y;
+    for (let x = 0; x < gridW; x++) {
+      const si = (srcY * gridW + x) * 4;
+      field[y * gridW + x] = buf[si];   // already a final 0..1 score, not raw A-B
+    }
+  }
+  return { field, isFinal: true };
+}
+
 // Split out of exportSVG() so the CSS-diff preview below (toggleExportDiff)
 // can build the exact same markup exportSVG() would download, without
 // actually triggering a download — same tracing/banding code either way,
@@ -2930,7 +3105,8 @@ function buildExportSVGString() {
   const scale = parseInt(ctrl('sel-scale').value, 10) || 2;
   const outW = gridW * scale, outH = gridH * scale;
   const block = scale;
-  const field = readFrozenField();
+  const { field, isFinal } = readCompositedScoreField();
+  const remap = isFinal ? (v => v) : remapVJS;   // see readCompositedScoreField's own note
 
   const colorMode = dispMat.uniforms.uColorMode.value;   // 0 solid, 1 adaptive, 2 rmx
   let bands, bandColor, score = field, body = null;
@@ -2957,7 +3133,7 @@ function buildExportSVGString() {
     // directly, flattening those pixels to band 0 same as the old shader
     // bug. Same remap here keeps preview and export in agreement.
     score = new Float32Array(gridW * gridH);
-    for (let i = 0; i < gridW * gridH; i++) score[i] = remapVJS(field[i]);
+    for (let i = 0; i < gridW * gridH; i++) score[i] = remap(field[i]);
   } else if (rmxColorMap === 'random') {
     // Found by testing: this used to fall through to the same posterized-
     // band export every other RMX mapping uses, silently discarding the
@@ -2986,7 +3162,7 @@ function buildExportSVGString() {
         const uu = (x + 0.5) / gridW;
         const cx = Math.min(47, Math.max(0, Math.floor(uu * 48)));
         const h = hash1JS(cx, cy) - 0.5;
-        const v = remapVJS(field[y * gridW + x]);   // same remapV() fix as Adaptive/Tone/Posterize — see there
+        const v = remap(field[y * gridW + x]);   // same remapV() fix as Adaptive/Tone/Posterize — see there
         const t = v * (count - 1);
         const tt = Math.max(0, Math.min(count - 1, t + h * 1.5));
         score[y * gridW + x] = count > 1 ? tt / (count - 1) : 0;
@@ -2996,7 +3172,7 @@ function buildExportSVGString() {
     bands = rmxColors.length;   // Tone/Posterize: same shape as Adaptive — Posterize's hard-band shader logic and Tone's smooth blend both read the shader's remapV()'d t, so this export needs the same remap to match.
     bandColor = rmxColors.slice();
     score = new Float32Array(gridW * gridH);
-    for (let i = 0; i < gridW * gridH; i++) score[i] = remapVJS(field[i]);
+    for (let i = 0; i < gridW * gridH; i++) score[i] = remap(field[i]);
   }
 
   const tileN = Math.max(1, parseInt(ctrl('sel-tile').value, 10) || 1);
