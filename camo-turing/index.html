@@ -58,6 +58,23 @@
     color: var(--mid); font-size: var(--fs-large); cursor: pointer; line-height: 1;
   }
   .rmx-add:hover { border-color: var(--accent); color: var(--accent); }
+  .layer-card { border: 1px solid var(--border); padding: var(--space-2); margin-bottom: var(--space-2); }
+  .layer-card.active { border-color: var(--tool, var(--ink)); }
+  .layer-card__head { display: flex; align-items: center; gap: var(--space-2); }
+  .layer-dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--border-strong, var(--border)); background: none; flex-shrink: 0; padding: 0; cursor: pointer; }
+  .layer-dot.on { background: var(--tool, var(--ink)); }
+  .layer-name { flex: 1; text-align: left; background: none; border: none; font-family: var(--font); font-size: var(--fs-small); color: var(--ink); cursor: pointer; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .layer-name.active { font-weight: 600; }
+  .layer-card__body { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+  .layer-blend-select { flex-shrink: 0; }
+  .layer-opacity { flex: 1; }
+  .layer-opacity-val { font-size: var(--fs-micro); color: var(--mid); min-width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+  .layer-base-row {
+    display: block; width: 100%; text-align: left; border: 1px solid var(--border);
+    padding: var(--space-2); margin-bottom: var(--space-2); background: var(--panel);
+    color: var(--mid);
+  }
+  .layer-base-row.active { border-color: var(--tool, var(--ink)); color: var(--ink); font-weight: 600; }
 
   /* Preset/Transformer picker CSS now lives in shared/organica-panel.css
      (.presets/.preset-trigger/.preset-menu/.pi-ico/.pi-name/...) —
@@ -676,6 +693,22 @@
     </div>
 
     <div class="panel-section">
+      <h3>Layers <span class="hint">stack + blend, same algorithm</span></h3>
+      <p class="org-panel__hint">Each layer is its own independent Gray-Scott sim, blended onto the pattern above (BEFORE colour) so Multiply/Diff carve genuinely new shapes, not just new colours. Select a layer below to edit its own Feed/Kill/dA/dB with the sliders above — Seeds/Transformers/export still work on the base pattern only.</p>
+      <div class="toggle-row">
+        <span class="toggle-name">Enable layers</span>
+        <label class="toggle">
+          <input type="checkbox" id="ck-layers-on" onchange="toggleLayersOn()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div id="layers-block" style="display:none">
+        <div id="layers-stack"></div>
+        <button class="mini-btn" style="width:100%; margin-top: var(--space-2)" onclick="addLayer()">+ Add layer</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
       <h3>Compare <span class="hint">diff vs. a snapshot</span></h3>
       <div class="toggle-row">
         <span class="toggle-name">Diff overlay
@@ -921,6 +954,7 @@ uniform float uMapping;        // 0 tone, 1 posterize, 2 random, 3 tone+random
 uniform float uTileN;          // live tile-preview repeat count — uState's RepeatWrapping does the rest
 uniform sampler2D uStateRef;   // Diff overlay — a snapshot of uState taken earlier
 uniform float uDiffOn;
+uniform float uScoreIsFinal;   // 1.0 when uState is the Layers composite (uState.r is already a final 0..1 score, not a raw A,B pair to diff) — see compositeAndDraw()
 
 float hash1(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -942,10 +976,10 @@ vec3 paletteAt(int idx) {
   else if (idx == 3) return uPalette[3];
   else return uPalette[4];
 }
-vec3 rmxColor(float v, vec2 uv) {
+vec3 rmxColor(float score, vec2 uv) {
   int count = int(uPaletteCount);
   if (count <= 1) return uPalette[0];
-  float t = remapV(v) * float(count - 1);
+  float t = score * float(count - 1);
   int i0 = int(floor(t));
   int i1 = i0 + 1; if (i1 > count - 1) i1 = count - 1;
   float f = fract(t);
@@ -968,7 +1002,11 @@ vec3 rmxColor(float v, vec2 uv) {
 void main() {
   vec2 uvT = vUv * uTileN;   // >1 lands outside [0,1] — uState's wrapS/wrapT are RepeatWrapping (toroidal), so this repeats seamlessly for free
   vec2 c = texture2D(uState, uvT).rg;
-  float v = c.r - c.g;
+  // Layers composite mode writes its finished 0..1 score into .r (see
+  // compositeAndDraw's COMPOSITE_FRAG) — .g is unused there, so reading v
+  // straight from .r instead of the usual A-B skips a meaningless "minus
+  // zero" rather than needing a second uState-shaped convention.
+  float v = uScoreIsFinal > 0.5 ? c.r : (c.r - c.g);
   if (uDiffOn > 0.5) {
     vec2 cRef = texture2D(uStateRef, uvT).rg;
     float vRef = cRef.r - cRef.g;
@@ -976,15 +1014,55 @@ void main() {
     gl_FragColor = vec4(mix(uPaper, uInk, diff), 1.0);
     return;
   }
+  // The composite's v is already a final 0..1 score (each layer's own v was
+  // remapV()'d before blending — see COMPOSITE_FRAG) — remapping it AGAIN
+  // here would double-compress the range, so this only applies remapV once,
+  // total, on either path.
+  float score = uScoreIsFinal > 0.5 ? v : remapV(v);
   vec3 rgb;
   if (uColorMode < 0.5) {                  // Solid — same threshold duotone every other Organica tool uses
     rgb = v < uThreshold ? uInk : uPaper;
   } else if (uColorMode < 1.5) {           // Adaptive — smooth blend, no hard edge
-    rgb = mix(uInk, uPaper, remapV(v));
+    rgb = mix(uInk, uPaper, score);
   } else {                                  // RMX
-    rgb = rmxColor(v, uvT);
+    rgb = rmxColor(score, uvT);
   }
   gl_FragColor = vec4(rgb, 1.0);
+}`;
+
+// Layers — folds one extra Gray-Scott layer's field on top of an
+// accumulator, one layer per draw call (compositeAndDraw() calls this once
+// per visible extra layer, ping-ponging the accumulator). Blends happen in
+// FIELD space (before any Palette colouring), not RGB — multiplying two
+// independent Turing patterns' own fields carves a genuinely new shape
+// (ink only where BOTH layers are "on"), not just a recoloured overlay,
+// which is the actual point of stacking layers on the same algorithm.
+// uDst holds either the base sim's raw (A,B) pair (uDstIsRaw=1, the very
+// first fold only) or a previous fold's already-final 0..1 score in .r
+// (uDstIsRaw=0) — same "remap once, total" discipline as DISPLAY_FRAG.
+const COMPOSITE_FRAG = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uDst, uSrc;
+uniform float uDstIsRaw;
+uniform float uBlendMode;   // 0 normal, 1 diff, 2 multiply, 3 screen, 4 add, 5 darken, 6 exclusion
+uniform float uOpacity;
+float remapV(float v) { return clamp((v + 0.25) / 1.25, 0.0, 1.0); }
+void main() {
+  vec2 d = texture2D(uDst, vUv).rg;
+  float dst = uDstIsRaw > 0.5 ? remapV(d.r - d.g) : d.r;
+  vec2 s = texture2D(uSrc, vUv).rg;
+  float src = remapV(s.r - s.g);
+  float blended;
+  if (uBlendMode < 0.5) blended = src;                                   // Normal — opacity alone does the "over" compositing
+  else if (uBlendMode < 1.5) blended = abs(dst - src);                   // Diff
+  else if (uBlendMode < 2.5) blended = dst * src;                        // Multiply
+  else if (uBlendMode < 3.5) blended = 1.0 - (1.0 - dst) * (1.0 - src);  // Screen
+  else if (uBlendMode < 4.5) blended = min(1.0, dst + src);              // Add / Lighten
+  else if (uBlendMode < 5.5) blended = min(dst, src);                    // Darken
+  else blended = dst + src - 2.0 * dst * src;                            // Exclusion
+  float result = mix(dst, blended, uOpacity);
+  gl_FragColor = vec4(result, 0.0, 0.0, 1.0);
 }`;
 
 // Renders A=0.5,B=0.25 inside a circle (Gray-Scott's own bootstrap
@@ -1045,11 +1123,25 @@ let renderer, quad;
 let simScene, simMat, dispScene, dispMat, seedScene, seedMat, copyScene, copyMat;
 let maskFillScene, maskFillMat, defaultMaskTex, emptyMaskTex;
 let twoSeedScene, twoSeedMat;   // experimental probe — see TWO_SEED_FRAG
+let compositeScene, compositeMat;   // Layers — see compositeAndDraw()
 let camera;
 let rtA, rtB;
 let running = true;
 let stepCount = 0;
 let rafHandle = null;
+
+// Layers — each extra layer is its own independent Gray-Scott sim (own
+// ping-pong pair, own f/k/dA/dB/dt), auto-seeded on creation, blended down
+// onto the main sim (rtA, everything above — Seeds/Transformers/Pattern/
+// Export all keep working on it exactly as before) via compositeAndDraw().
+// Deliberately NOT touching Seeds/export/diff/stamping for extra layers in
+// this first pass — see the panel's own hint text for what that means.
+let layersOn = false;
+let extraLayers = [];
+let activeLayerId = null;
+let nextLayerId = 1;
+let rtComposite, rtCompositeTmp;   // ping-ponged accumulator for compositeAndDraw()
+const LAYER_BLENDS = ['normal', 'diff', 'multiply', 'screen', 'add', 'darken', 'exclusion'];
 
 function makeRenderTarget(w, h) {
   return new THREE.WebGLRenderTarget(w, h, {
@@ -1186,6 +1278,7 @@ function initGL() {
       uTileN: { value: 1.0 },
       uStateRef: { value: defaultMaskTex },   // placeholder until a Diff snapshot is taken; harmless since uDiffOn gates the branch that reads it
       uDiffOn: { value: 0.0 },
+      uScoreIsFinal: { value: 0.0 },
     },
     vertexShader: PASSTHROUGH_VERT, fragmentShader: DISPLAY_FRAG,
   });
@@ -1216,20 +1309,156 @@ function initGL() {
   copyScene = new THREE.Scene();
   copyScene.add(new THREE.Mesh(quad, copyMat));
 
+  compositeMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uDst: { value: null }, uSrc: { value: null }, uDstIsRaw: { value: 1.0 },
+      uBlendMode: { value: 0.0 }, uOpacity: { value: 1.0 },
+    },
+    vertexShader: PASSTHROUGH_VERT, fragmentShader: COMPOSITE_FRAG,
+  });
+  compositeScene = new THREE.Scene();
+  compositeScene.add(new THREE.Mesh(quad, compositeMat));
+
   return true;
 }
 
-function seedAt(cx, cy, radius, clear) {
-  seedMat.uniforms.uPrev.value = rtA.texture;
+// Generalized seedAt — operates on an arbitrary {rtA,rtB} pair (an extra
+// Layer's own pair, not just the module-level globals) so layer creation
+// can reuse the exact same nucleation-seeding code path as the main sim.
+function seedPair(pair, cx, cy, radius, clear) {
+  seedMat.uniforms.uPrev.value = pair.rtA.texture;
   seedMat.uniforms.uCenter.value.set(cx, cy);
   seedMat.uniforms.uRadius.value = radius;
   seedMat.uniforms.uClear.value = clear ? 1.0 : 0.0;
-  renderer.setRenderTarget(rtB);
+  renderer.setRenderTarget(pair.rtB);
   renderer.render(seedScene, camera);
-  [rtA, rtB] = [rtB, rtA];
+  const t = pair.rtA; pair.rtA = pair.rtB; pair.rtB = t;
+}
+function seedAt(cx, cy, radius, clear) {
+  const pair = { rtA, rtB };
+  seedPair(pair, cx, cy, radius, clear);
+  rtA = pair.rtA; rtB = pair.rtB;
 }
 
 const DEFAULT_SEED_RADIUS = 0.045;   // fraction of canvas — the plain "random circles" bootstrap, independent of whatever the Seeds component's own Size slider is set to
+
+// ═══════════════════════════════════════════════════════════
+// LAYERS — extra independent Gray-Scott sims, blended down onto the main
+// sim (rtA) in FIELD space before Palette colouring. See COMPOSITE_FRAG's
+// own header comment for why field-space, not RGB-space, blending.
+// ═══════════════════════════════════════════════════════════
+
+// Auto-seeded on creation (same nucleation recipe resetSim() uses for the
+// main sim) — an extra layer's whole point is instant visual complexity,
+// not asking the user to run the full Seeds panel a second time per layer.
+function makeLayer(f, k) {
+  const id = nextLayerId++;
+  const layer = {
+    id, name: 'Layer ' + id, on: true, opacity: 0.85, blend: 'multiply',
+    f: f != null ? f : 0.037, k: k != null ? k : 0.06, dA: 1.0, dB: 0.5, dt: 1.0,
+    presetName: null,   // which entry in allPresets() this layer's f/k came from, if any — see applyPresetToLayer()
+    rtA: makeRenderTarget(gridW, gridH), rtB: makeRenderTarget(gridW, gridH),
+    stepCount: 0,
+  };
+  seedLayer(layer);
+  return layer;
+}
+function seedLayer(layer) {
+  const pair = { rtA: layer.rtA, rtB: layer.rtB };
+  seedPair(pair, 0.5, 0.5, 0.0, true);   // clear to resting state
+  const rng = mulberry32((layer.id * 2654435761) >>> 0);
+  const n = 6 + Math.floor(rng() * 4);
+  for (let i = 0; i < n; i++) seedPair(pair, rng(), rng(), DEFAULT_SEED_RADIUS, false);
+  layer.rtA = pair.rtA; layer.rtB = pair.rtB;
+  layer.stepCount = 0;
+}
+function disposeLayer(layer) { layer.rtA.dispose(); layer.rtB.dispose(); }
+
+// A grid resize (Resolution) or reframe (Format) leaves extra layers'
+// render targets at the OLD gridW/gridH — rather than blitting each one
+// through COPY_FRAG (resizeFormat()'s approach for the main sim), extra
+// layers just restart fresh at the new size, same "Resolution is a fresh
+// start" philosophy rebuildGrid() already applies to the main sim itself.
+function rebuildExtraLayers() {
+  for (const layer of extraLayers) {
+    layer.rtA.dispose(); layer.rtB.dispose();
+    layer.rtA = makeRenderTarget(gridW, gridH);
+    layer.rtB = makeRenderTarget(gridW, gridH);
+    seedLayer(layer);
+  }
+  if (rtComposite) { rtComposite.dispose(); rtComposite = null; }
+  if (rtCompositeTmp) { rtCompositeTmp.dispose(); rtCompositeTmp = null; }
+}
+
+function stepLayer(layer) {
+  simMat.uniforms.uState.value = layer.rtA.texture;
+  renderer.setRenderTarget(layer.rtB);
+  renderer.render(simScene, camera);
+  const t = layer.rtA; layer.rtA = layer.rtB; layer.rtB = t;
+  layer.stepCount++;
+}
+
+// simMat is a shared singleton (one compiled shader program reused for
+// every step, main sim or layer) — borrowing its uniforms for extra layers
+// mid-frame means the main sim's OWN params (already sitting in simMat
+// from the slider-driven onParamChange()) must be saved and restored
+// around the loop, or the main sim's NEXT stepSim() call would silently
+// pick up whichever layer stepped last.
+function stepExtraLayers() {
+  const saved = {
+    f: simMat.uniforms.uF.value, k: simMat.uniforms.uK.value,
+    da: simMat.uniforms.uDa.value, db: simMat.uniforms.uDb.value, dt: simMat.uniforms.uDt.value,
+    confine: simMat.uniforms.uConfineOn.value, boundary: simMat.uniforms.uBoundaryOn.value,
+  };
+  simMat.uniforms.uConfineOn.value = 0.0;   // Confine/Boundary regimes aren't ported to extra layers in this first pass
+  simMat.uniforms.uBoundaryOn.value = 0.0;
+  for (const layer of extraLayers) {
+    if (!layer.on) continue;
+    simMat.uniforms.uF.value = layer.f; simMat.uniforms.uK.value = layer.k;
+    simMat.uniforms.uDa.value = layer.dA; simMat.uniforms.uDb.value = layer.dB; simMat.uniforms.uDt.value = layer.dt;
+    for (let i = 0; i < 4; i++) stepLayer(layer);
+  }
+  simMat.uniforms.uF.value = saved.f; simMat.uniforms.uK.value = saved.k;
+  simMat.uniforms.uDa.value = saved.da; simMat.uniforms.uDb.value = saved.db; simMat.uniforms.uDt.value = saved.dt;
+  simMat.uniforms.uConfineOn.value = saved.confine; simMat.uniforms.uBoundaryOn.value = saved.boundary;
+}
+
+function ensureCompositeTargets() {
+  if (rtComposite && rtComposite.width === gridW && rtComposite.height === gridH) return;
+  if (rtComposite) rtComposite.dispose();
+  if (rtCompositeTmp) rtCompositeTmp.dispose();
+  rtComposite = makeRenderTarget(gridW, gridH);
+  rtCompositeTmp = makeRenderTarget(gridW, gridH);
+}
+
+// Folds each visible extra layer onto the main sim in turn — one
+// COMPOSITE_FRAG pass per layer, ping-ponging the accumulator (same
+// pattern as stepSim's own rtA/rtB swap, just walking a layer list instead
+// of time). Called from draw() whenever Layers is on and at least one
+// extra layer is visible; falls through to the plain single-sim path
+// otherwise, so draw() is safe to call from every existing call site
+// (resetSim, rebuildGrid, Apply seed, …) unchanged.
+function compositeAndDraw() {
+  ensureCompositeTargets();
+  const visible = extraLayers.filter(l => l.on);
+  let dstTex = rtA.texture, dstIsRaw = 1.0, target = rtComposite;
+  for (const layer of visible) {
+    compositeMat.uniforms.uDst.value = dstTex;
+    compositeMat.uniforms.uDstIsRaw.value = dstIsRaw;
+    compositeMat.uniforms.uSrc.value = layer.rtA.texture;
+    compositeMat.uniforms.uBlendMode.value = LAYER_BLENDS.indexOf(layer.blend);
+    compositeMat.uniforms.uOpacity.value = layer.opacity;
+    renderer.setRenderTarget(target);
+    renderer.render(compositeScene, camera);
+    dstTex = target.texture;
+    dstIsRaw = 0.0;
+    target = (target === rtComposite) ? rtCompositeTmp : rtComposite;
+  }
+  dispMat.uniforms.uState.value = dstTex;
+  dispMat.uniforms.uScoreIsFinal.value = dstIsRaw > 0.5 ? 0.0 : 1.0;
+  renderer.setRenderTarget(null);
+  renderer.render(dispScene, camera);
+}
 function resetSim() {
   stepCount = 0;
   simMat.uniforms.uConfineOn.value = 0.0;
@@ -1263,13 +1492,31 @@ function stepSim() {
 }
 
 function draw() {
+  if (layersOn && extraLayers.some(l => l.on)) { compositeAndDraw(); return; }
   dispMat.uniforms.uState.value = rtA.texture;
+  dispMat.uniforms.uScoreIsFinal.value = 0.0;
   renderer.setRenderTarget(null);
   renderer.render(dispScene, camera);
 }
 
 let applyingPreset = false;   // set true only inside applyPreset(), so a manual slider drag can tell itself apart from a preset load
+// While a layer is selected as active, the SAME Feed/Kill/dA/dB/Timestep
+// sliders edit that layer's own params instead of the main sim's — one
+// set of controls, two possible destinations, rather than duplicating the
+// whole Pattern panel per layer.
 function onParamChange() {
+  if (layersOn && activeLayerId != null) {
+    const layer = extraLayers.find(l => l.id === activeLayerId);
+    if (layer) {
+      layer.f = val('rg-f'); layer.k = val('rg-k');
+      layer.dA = val('rg-da'); layer.dB = val('rg-db'); layer.dt = val('rg-dt');
+      // A hand-dragged slider diverges from whatever preset this layer was
+      // showing — same "currentPresetName = null on manual edit" rule the
+      // main sim's own onParamChange applies below, mirrored per layer.
+      if (layer.presetName) { layer.presetName = null; buildLayersUI(); }
+      return;
+    }
+  }
   simMat.uniforms.uF.value = val('rg-f');
   simMat.uniforms.uK.value = val('rg-k');
   simMat.uniforms.uDa.value = val('rg-da');
@@ -1278,9 +1525,177 @@ function onParamChange() {
   if (!applyingPreset && currentPresetName) { currentPresetName = null; updatePresetTrigger(); }
 }
 
+// ═══════════════════════════════════════════════════════════
+// LAYERS UI
+// ═══════════════════════════════════════════════════════════
+function toggleLayersOn() {
+  layersOn = ctrl('ck-layers-on').checked;
+  ctrl('layers-block').style.display = layersOn ? 'block' : 'none';
+  if (layersOn && !extraLayers.length) addLayer();
+  if (!layersOn) setActiveLayer(null);
+  draw();
+}
+
+function addLayer() {
+  // Each new layer starts on a different point of the f/k plane than the
+  // last (small deterministic offset), so stacking several right away
+  // already looks varied instead of every layer defaulting to the exact
+  // same chemistry.
+  const n = extraLayers.length;
+  const layer = makeLayer(0.030 + (n % 4) * 0.006, 0.055 + (n % 3) * 0.004);
+  extraLayers.push(layer);
+  buildLayersUI();
+  setActiveLayer(layer.id);
+  draw();
+}
+
+function removeLayer(id) {
+  const idx = extraLayers.findIndex(l => l.id === id);
+  if (idx < 0) return;
+  disposeLayer(extraLayers[idx]);
+  extraLayers.splice(idx, 1);
+  if (activeLayerId === id) setActiveLayer(extraLayers.length ? extraLayers[Math.max(0, idx - 1)].id : null);
+  buildLayersUI();
+  draw();
+}
+
+function moveLayer(id, dir) {
+  const idx = extraLayers.findIndex(l => l.id === id);
+  const swapWith = idx + dir;
+  if (idx < 0 || swapWith < 0 || swapWith >= extraLayers.length) return;
+  [extraLayers[idx], extraLayers[swapWith]] = [extraLayers[swapWith], extraLayers[idx]];
+  buildLayersUI();
+  draw();
+}
+
+function toggleLayerOn(id) {
+  const layer = extraLayers.find(l => l.id === id);
+  if (!layer) return;
+  layer.on = !layer.on;
+  buildLayersUI();
+  draw();
+}
+
+function setLayerBlend(id, blend) {
+  const layer = extraLayers.find(l => l.id === id);
+  if (layer) { layer.blend = blend; draw(); }
+}
+
+function setLayerOpacity(id, pct) {
+  const layer = extraLayers.find(l => l.id === id);
+  if (layer) { layer.opacity = pct / 100; draw(); }
+}
+
+// A preset only ever sets f/k (same scope applyPreset() uses for the main
+// sim — dA/dB/timestep are left at the layer's own values, matching the
+// "built-in presets don't carry a diffusion convention" note on
+// BUILTIN_PRESETS itself). Doesn't reseed the layer — same live-morph
+// default the main sim's own "Reset seed on preset change" toggle guards,
+// just without a per-layer toggle for it in this first pass (a layer's
+// whole point is a quick, disposable extra texture, not a second full
+// Pattern workflow).
+function applyPresetToLayer(id, name) {
+  const layer = extraLayers.find(l => l.id === id);
+  const p = allPresets()[name];
+  if (!layer || !p) return;
+  layer.f = p.f; layer.k = p.k;
+  layer.presetName = name;
+  // Sliders reflect the change for display only when this IS the active
+  // layer — NOT routed through onParamChange(), which would also read
+  // back rg-da/rg-db/rg-dt and overwrite this layer's own dA/dB/dt with
+  // whatever those sliders currently show (stale, if they were last
+  // showing a different layer or the main sim) — a preset only ever
+  // touches f/k (see this function's own header comment).
+  if (activeLayerId === id) {
+    ctrl('rg-f').value = p.f; syncVal(ctrl('rg-f'), 'v-f');
+    ctrl('rg-k').value = p.k; syncVal(ctrl('rg-k'), 'v-k');
+  }
+  buildLayersUI();
+  draw();
+}
+
+// Puts the Feed/Kill/dA/dB/Timestep sliders in front of a layer's own
+// params (id=null means "back to the main sim") — mirrors resetSim()'s own
+// slider-to-state direction, just reversed (state → sliders instead of
+// sliders → state), since selecting a layer must show ITS numbers, not
+// silently keep whatever the sliders last displayed.
+function setActiveLayer(id) {
+  activeLayerId = id;
+  const layer = id == null ? null : extraLayers.find(l => l.id === id);
+  const f = layer ? layer.f : simMat.uniforms.uF.value;
+  const k = layer ? layer.k : simMat.uniforms.uK.value;
+  const da = layer ? layer.dA : simMat.uniforms.uDa.value;
+  const db = layer ? layer.dB : simMat.uniforms.uDb.value;
+  const dt = layer ? layer.dt : simMat.uniforms.uDt.value;
+  ctrl('rg-f').value = f; syncVal(ctrl('rg-f'), 'v-f');
+  ctrl('rg-k').value = k; syncVal(ctrl('rg-k'), 'v-k');
+  ctrl('rg-da').value = da; syncVal(ctrl('rg-da'), 'v-da');
+  ctrl('rg-db').value = db; syncVal(ctrl('rg-db'), 'v-db');
+  ctrl('rg-dt').value = dt; syncVal(ctrl('rg-dt'), 'v-dt');
+  ctrl('pattern-hint').textContent = layer ? ('Editing ' + layer.name) : 'Gray-Scott, GPU-live';
+  buildLayersUI();
+}
+
+function buildLayersUI() {
+  const host = ctrl('layers-stack');
+  host.innerHTML = '';
+  // Once a layer is selected, the Feed/Kill sliders point at it — this row
+  // is the only way back to editing the base pattern's own params without
+  // switching Layers off entirely (which also hides the whole stack).
+  const baseRow = document.createElement('button');
+  baseRow.className = 'layer-name layer-base-row' + (activeLayerId == null ? ' active' : '');
+  baseRow.textContent = 'Base pattern';
+  baseRow.title = "Edit the base pattern's own Feed/Kill/dA/dB above";
+  baseRow.addEventListener('click', () => setActiveLayer(null));
+  host.appendChild(baseRow);
+  extraLayers.forEach(layer => {
+    const card = document.createElement('div');
+    card.className = 'layer-card' + (layer.id === activeLayerId ? ' active' : '');
+    card.innerHTML = `
+      <div class="layer-card__head">
+        <button class="layer-dot${layer.on ? ' on' : ''}" title="On/off" aria-label="${layer.name} on/off"></button>
+        <button class="layer-name${layer.id === activeLayerId ? ' active' : ''}" title="Edit this layer's Feed/Kill/dA/dB above">${layer.name}</button>
+        <button class="icon-btn" title="Move up" aria-label="Move ${layer.name} up">↑</button>
+        <button class="icon-btn" title="Move down" aria-label="Move ${layer.name} down">↓</button>
+        <button class="icon-btn" title="Remove" aria-label="Remove ${layer.name}">×</button>
+      </div>
+      <div class="layer-card__body">
+        <select class="panel-select layer-blend-select" title="Blend mode" aria-label="${layer.name} blend mode">
+          ${LAYER_BLENDS.map(b => `<option value="${b}"${b === layer.blend ? ' selected' : ''}>${b[0].toUpperCase()}${b.slice(1)}</option>`).join('')}
+        </select>
+        <input type="range" class="layer-opacity" min="0" max="100" step="1" value="${Math.round(layer.opacity * 100)}" aria-label="${layer.name} opacity">
+        <span class="layer-opacity-val">${Math.round(layer.opacity * 100)}%</span>
+      </div>
+      <div class="layer-card__body">
+        <select class="panel-select layer-preset-select" title="Preset (sets this layer's own Feed/Kill)" aria-label="${layer.name} preset">
+          <option value=""${layer.presetName ? '' : ' selected'}>Custom (f ${layer.f.toFixed(4)} / k ${layer.k.toFixed(4)})</option>
+          <optgroup label="Built-in">
+            ${Object.keys(BUILTIN_PRESETS).map(n => `<option value="${n}"${n === layer.presetName ? ' selected' : ''}>${n}</option>`).join('')}
+          </optgroup>
+          ${Object.keys(userPresets()).length ? `<optgroup label="Saved">${Object.keys(userPresets()).map(n => `<option value="${n}"${n === layer.presetName ? ' selected' : ''}>${n}</option>`).join('')}</optgroup>` : ''}
+        </select>
+      </div>`;
+    card.querySelector('.layer-dot').addEventListener('click', e => { e.stopPropagation(); toggleLayerOn(layer.id); });
+    card.querySelector('.layer-name').addEventListener('click', () => setActiveLayer(layer.id));
+    const [upBtn, downBtn, removeBtn] = card.querySelectorAll('.layer-card__head .icon-btn');
+    upBtn.addEventListener('click', e => { e.stopPropagation(); moveLayer(layer.id, -1); });
+    downBtn.addEventListener('click', e => { e.stopPropagation(); moveLayer(layer.id, 1); });
+    removeBtn.addEventListener('click', e => { e.stopPropagation(); removeLayer(layer.id); });
+    card.querySelector('.layer-blend-select').addEventListener('change', e => setLayerBlend(layer.id, e.target.value));
+    card.querySelector('.layer-preset-select').addEventListener('change', e => { if (e.target.value) applyPresetToLayer(layer.id, e.target.value); });
+    const opacityInput = card.querySelector('.layer-opacity');
+    opacityInput.addEventListener('input', e => {
+      card.querySelector('.layer-opacity-val').textContent = e.target.value + '%';
+      setLayerOpacity(layer.id, e.target.value);
+    });
+    host.appendChild(card);
+  });
+}
+
 function loop() {
   if (running) {
     for (let i = 0; i < 4; i++) stepSim();   // a few steps per rendered frame — GPU cost per step is tiny, this just keeps the pattern evolving at a legible pace
+    if (layersOn && extraLayers.length) stepExtraLayers();
     draw();
     ctrl('hud-state').textContent = stepCount;
   }
@@ -1313,6 +1728,7 @@ function rebuildGrid() {
   simMat.uniforms.uMask.value = defaultMaskTex;
   simMat.uniforms.uConfineOn.value = 0.0;
   simMat.uniforms.uBoundaryOn.value = 0.0;
+  if (extraLayers.length) rebuildExtraLayers();
   resetSim();
 }
 
@@ -1342,6 +1758,7 @@ function resizeFormat() {
   ctrl('gl-canvas').width = dispDims2.w; ctrl('gl-canvas').height = dispDims2.h;
   renderer.setSize(dispDims2.w, dispDims2.h, false);
   simMat.uniforms.uTexel.value.set(1 / gridW, 1 / gridH);
+  if (extraLayers.length) rebuildExtraLayers();
   draw();
 }
 
@@ -3045,6 +3462,8 @@ window.__read = () => {   // temporary — read back the raw A/B field for the f
 window.syncSeedModeRows = syncSeedModeRows;
 window.setSeedSourceA = setSeedSourceA;
 window.syncTwoShapeRows = syncTwoShapeRows;
+window.toggleLayersOn = toggleLayersOn;
+window.addLayer = addLayer;
 
 populateGenesisGrid();
 populateGenesisGridA();
