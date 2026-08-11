@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loom — Organica</title>
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<style>
+:root {
+  --ink: #0a0a0a;
+  --paper: #f5f2ec;
+  --mid: #696256;
+  --accent: #2a2a2a;
+  --panel: #eceae4;
+  --border: #d0c8b8;
+  --tool: #4a7fc9;   /* header focus ring — blueprint blue, this tool's identity colour */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs-base);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#app { display: flex; flex: 1; overflow: hidden; }
+
+#canvas-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-7);
+}
+
+#canvas-frame {
+  position: relative;
+  background: #ffffff;
+  box-shadow: 0 4px 40px rgba(0,0,0,0.18);
+  flex-shrink: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+  cursor: default;
+}
+#canvas-frame.zoomed { cursor: grab; }
+#canvas-frame.panning { cursor: grabbing; }
+
+/* Zoom HUD — same shared pattern as Halide/Spore/Pollen/Strata's own
+   zoom/pan (Organica.createZoomPan, shared/organica-core.js). */
+#zoom-hud {
+  position: absolute;
+  bottom: 16px; left: 16px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font);
+  font-size: var(--fs-micro, 9px);
+  letter-spacing: 0.1em;
+  padding: var(--space-2) var(--space-4);
+  display: none;
+  align-items: center;
+  gap: var(--space-3);
+  pointer-events: none;
+  user-select: none;
+  z-index: 10;
+}
+#zoom-hud.visible { display: flex; }
+#zoom-hud .zoom-reset { pointer-events: auto; cursor: pointer; opacity: 0.6; transition: opacity 0.15s; }
+#zoom-hud .zoom-reset:hover { opacity: 1; }
+
+#grid-preview {
+  position: relative;
+  z-index: 2;
+}
+
+.loom-cell {
+  border: 1px solid var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  color: var(--mid);
+  background: transparent;
+}
+
+.loom-guide {
+  position: absolute;
+  pointer-events: none;
+  border: 1px dashed var(--border);
+  z-index: 1;
+}
+#guide-safe { border-color: #c98a4a; }
+
+.panel-section { border-bottom: 1px solid var(--border); padding: var(--space-5) var(--space-6); }
+
+#json-panel { display: none; }
+#json-view {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  overflow: auto;
+  font-family: ui-monospace, monospace;
+  font-size: 9px;
+  line-height: 1.5;
+  white-space: pre;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: var(--space-3);
+  color: var(--ink);
+}
+</style>
+</head>
+<body>
+
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Loom</span></a>
+
+  <div class="org-header__spacer"></div>
+
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Ready</span>
+  </output>
+</header>
+
+<!-- FLOATING TOOLBAR — Export, fixed bottom-centre over the canvas, same
+     shared component as Strata/Spore/Pollen/Halide/Komorebi/Camo Turing
+     (shared/organica-floatbar.css). No Figma button — removed product-wide
+     (see camo-turing/index.html's own note); sendToFigma() stays defined
+     as a plain function, ready to reuse once Figma becomes a tab inside
+     this same Export popover instead of its own button. -->
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" onclick="exportPNG()">PNG</button>
+        <button class="org-btn" onclick="exportSVG()">SVG</button>
+        <button class="org-btn" onclick="exportHTML()">HTML</button>
+        <button class="org-btn" onclick="exportJSON()">JSON</button>
+      </div>
+      <p class="org-popover__hint">JSON is the Universal Grid Model itself — the single source of truth every renderer here reads.</p>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-scale">PNG scale</label>
+        <select class="org-select" id="sel-scale">
+          <option value="1">&times;1</option>
+          <option value="2" selected>&times;2</option>
+          <option value="4">&times;4</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+
+  <div id="canvas-wrap">
+    <div id="canvas-frame">
+      <div class="loom-guide" id="guide-margin"></div>
+      <div class="loom-guide" id="guide-safe"></div>
+      <div id="grid-preview"></div>
+    </div>
+    <div id="zoom-hud">
+      <span id="zoom-level">100%</span>
+      <span class="zoom-reset" onclick="resetZoom()">Reset</span>
+    </div>
+  </div>
+
+  <div id="panel">
+
+    <div class="panel-section">
+      <h3>Canvas <span class="hint">the physical space</span></h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-canvas-preset" aria-label="Canvas preset" onchange="applyCanvasPreset()">
+          <option value="">Custom…</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Width</div>
+        <input type="number" class="panel-select" id="num-width" value="1080" min="10" step="1" style="width:100%">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Height</div>
+        <input type="number" class="panel-select" id="num-height" value="1080" min="10" step="1" style="width:100%">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Unit</div>
+        <select class="panel-select" id="sel-unit" aria-label="Unit" onchange="syncUnitRows()">
+          <option value="px" selected>px</option>
+          <option value="mm">mm</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Percentage of the canvas's own shorter side, applied to all four sides. Per-side margins land with WYSIWYG editing in a later phase.">Margin</div>
+        <input type="range" id="rg-margin" min="0" max="20" step="0.5" value="4">
+        <span class="ctrl-val" id="v-margin">4</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="A guide only in this phase — doesn't clip generator output.">Safe area</div>
+        <input type="range" id="rg-safearea" min="0" max="20" step="0.5" value="0">
+        <span class="ctrl-val" id="v-safearea">0</span>
+      </div>
+      <div class="ctrl-row" id="row-bleed" style="display:none">
+        <div class="ctrl-label">Bleed (mm)</div>
+        <input type="number" class="panel-select" id="num-bleed" value="3" min="0" step="0.5" style="width:100%">
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Grid <span class="hint" id="hint-solver">Kiwi constraint solver</span></h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-gridtype" aria-label="Grid type" onchange="syncGeneratorRows()">
+          <option value="bento" selected>Bento</option>
+          <option value="sinusoidal">Sinusoidal</option>
+        </select>
+      </div>
+
+      <div id="block-bento">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Columns</div>
+          <input type="range" id="rg-bento-cols" min="2" max="10" step="1" value="4">
+          <span class="ctrl-val" id="v-bento-cols">4</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Rows</div>
+          <input type="range" id="rg-bento-rows" min="2" max="10" step="1" value="4">
+          <span class="ctrl-val" id="v-bento-rows">4</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How often adjacent cells merge into 2×1/1×2/2×2 spans. 0 = a plain uniform grid.">Variety</div>
+          <input type="range" id="rg-bento-variety" min="0" max="1" step="0.05" value="0.5">
+          <span class="ctrl-val" id="v-bento-variety">0.5</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Gap</div>
+          <input type="range" id="rg-bento-gap" min="0" max="40" step="1" value="12">
+          <span class="ctrl-val" id="v-bento-gap">12</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="range" id="rg-bento-seed" min="0" max="99" step="1" value="7">
+          <span class="ctrl-val" id="v-bento-seed">7</span>
+        </div>
+      </div>
+
+      <div id="block-sinusoidal" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Columns</div>
+          <input type="range" id="rg-sin-cols" min="2" max="20" step="1" value="8">
+          <span class="ctrl-val" id="v-sin-cols">8</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Rows</div>
+          <input type="range" id="rg-sin-rows" min="2" max="20" step="1" value="5">
+          <span class="ctrl-val" id="v-sin-rows">5</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Axis</div>
+          <div class="seg-ctrl" id="seg-sin-axis">
+            <button class="seg-btn active" data-v="cols" onclick="setSeg('seg-sin-axis', this)">Columns</button>
+            <button class="seg-btn" data-v="rows" onclick="setSeg('seg-sin-axis', this)">Rows</button>
+            <button class="seg-btn" data-v="both" onclick="setSeg('seg-sin-axis', this)">Both</button>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="0 = uniform tracks, the sine wave's amplitude relative to the base track size.">Amplitude</div>
+          <input type="range" id="rg-sin-amp" min="0" max="0.9" step="0.02" value="0.5">
+          <span class="ctrl-val" id="v-sin-amp">0.5</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Frequency</div>
+          <input type="range" id="rg-sin-freq" min="0.5" max="6" step="0.1" value="2">
+          <span class="ctrl-val" id="v-sin-freq">2</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Phase</div>
+          <input type="range" id="rg-sin-phase" min="0" max="6.283" step="0.05" value="0">
+          <span class="ctrl-val" id="v-sin-phase">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Gap</div>
+          <input type="range" id="rg-sin-gap" min="0" max="40" step="1" value="8">
+          <span class="ctrl-val" id="v-sin-gap">8</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Model <span class="hint">the single source of truth</span></h3>
+      <label class="check-row"><input type="checkbox" id="ck-json-view" onchange="toggleJSONView()"><span>View JSON</span></label>
+      <div id="json-panel" style="margin-top: var(--space-2)">
+        <pre id="json-view"></pre>
+      </div>
+    </div>
+
+  </div><!-- /panel -->
+</div>
+
+<!-- Load order: core → kiwi (classic global, shared/kiwi.min.js's own
+     header) → this tool's own ES modules, which read `kiwi` unqualified
+     the same way they read `Organica` unqualified. -->
+<script src="/shared/organica-core.js"></script>
+<script src="/shared/kiwi.min.js"></script>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>
