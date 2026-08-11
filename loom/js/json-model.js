@@ -61,3 +61,38 @@ export function resolveCellRects(model, inner) {
     return { ...c, x, y, width, height };
   });
 }
+
+/**
+ * De-duplicated edge list from a set of cell rects — one segment per
+ * unique boundary, not one stroked rect per cell. Two adjacent cells
+ * (at Gap 0, or any two spans that happen to touch) share an edge at
+ * IDENTICAL coordinates; stroking each cell's own rect draws that shared
+ * edge twice, and two coincident anti-aliased 1px strokes visibly compound
+ * into a bolder/darker line than a genuine single border — this is what
+ * "two lines look like one, but bolder" actually was, not a positioning
+ * bug (rects already landed pixel-exact, verified: adjacent cells'
+ * touching edges measured a 0.0000076px gap, i.e. exact). Coordinates are
+ * rounded before keying so floating-point noise from the Kiwi/parametric
+ * solvers can't produce two "different" keys for what is geometrically
+ * the same edge.
+ */
+export function collectEdges(rects) {
+  const seen = new Set();
+  const edges = [];
+  function r2(n) { return Math.round(n * 100) / 100; }
+  function add(x1, y1, x2, y2) {
+    let a = [r2(x1), r2(y1)], b = [r2(x2), r2(y2)];
+    if (a[0] > b[0] || (a[0] === b[0] && a[1] > b[1])) { const t = a; a = b; b = t; }
+    const key = a[0] + ',' + a[1] + '|' + b[0] + ',' + b[1];
+    if (seen.has(key)) return;
+    seen.add(key);
+    edges.push({ x1: a[0], y1: a[1], x2: b[0], y2: b[1] });
+  }
+  rects.forEach(r => {
+    add(r.x, r.y, r.x + r.width, r.y);                        // top
+    add(r.x, r.y + r.height, r.x + r.width, r.y + r.height);   // bottom
+    add(r.x, r.y, r.x, r.y + r.height);                        // left
+    add(r.x + r.width, r.y, r.x + r.width, r.y + r.height);    // right
+  });
+  return edges;
+}

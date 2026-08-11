@@ -22,6 +22,10 @@ function val(id) { return parseFloat(ctrl(id).value); }
 const setStatus = Organica.status();
 const previewEl = ctrl('grid-preview');
 const canvasFrame = ctrl('canvas-frame');
+// Read once from the CSS custom property that .loom-cell's own border
+// already uses — SVG/PNG can't drift from the live preview's colour
+// since both read this same value, not two hand-matched hex literals.
+const GUIDE_COLOR = getComputedStyle(document.documentElement).getPropertyValue('--guide-blue').trim() || '#3399ff';
 
 let currentModel = null;
 let currentInner = null;
@@ -98,6 +102,7 @@ function build() {
   const params = readGridParams();
 
   const { grid, cells } = generator.generate(params, inner);
+  cells.forEach((c, i) => { c.number = i + 1; });   // sequential by default — Shuffle numbers randomises on top of this
   currentModel = buildModel({ canvas, grid, cells });
   currentInner = inner;
 
@@ -127,10 +132,37 @@ function toggleJSONView() {
   if (ctrl('ck-json-view').checked) paintJSON();
 }
 
+// ── Numbering — which block shows which number. Independent of col/row/
+// span (the actual layout), so shuffling never touches the model's real
+// geometry, only the label each cell happens to display. Resets to
+// sequential on the next rebuild (any panel change re-runs build(), which
+// re-generates cells from scratch) — a deliberate simplification: the
+// shuffle is a one-off action on the CURRENT grid, not a persisted param.
+function shuffleNumbers() {
+  if (!currentModel) return;
+  const numbers = currentModel.cells.map(c => c.number);
+  // Fisher–Yates — uniform, not the classic biased "sort by Math.random()".
+  for (let i = numbers.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+  }
+  currentModel.cells.forEach((c, i) => { c.number = numbers[i]; });
+  paintGridDOM(previewEl, currentModel);
+  if (ctrl('ck-json-view').checked) paintJSON();
+  setStatus('active', 'Numbers shuffled');
+}
+function sequentialNumbers() {
+  if (!currentModel) return;
+  currentModel.cells.forEach((c, i) => { c.number = i + 1; });
+  paintGridDOM(previewEl, currentModel);
+  if (ctrl('ck-json-view').checked) paintJSON();
+  setStatus('active', 'Numbers reset');
+}
+
 // ── Export ──
 function exportPNG() {
   const rects = resolveCellRects(currentModel, currentInner);
-  const c = renderRaster(currentModel, rects, currentInner, parseInt(ctrl('sel-scale').value, 10) || 2);
+  const c = renderRaster(currentModel, rects, currentInner, parseInt(ctrl('sel-scale').value, 10) || 2, GUIDE_COLOR);
   const url = c.toDataURL('image/png');
   const bin = atob(url.split(',')[1]);
   const bytes = new Uint8Array(bin.length);
@@ -140,7 +172,7 @@ function exportPNG() {
 }
 function buildSVGString() {
   const rects = resolveCellRects(currentModel, currentInner);
-  return renderSVG(currentModel, rects, currentInner);
+  return renderSVG(currentModel, rects, currentInner, GUIDE_COLOR);
 }
 function exportSVG() {
   Organica.download(new Blob([buildSVGString()], { type: 'image/svg+xml' }), Organica.stamp('loom', 'svg'));
@@ -217,6 +249,8 @@ window.exportHTML = exportHTML;
 window.exportJSON = exportJSON;
 window.sendToFigma = sendToFigma;
 window.resetZoom = resetZoom;
+window.shuffleNumbers = shuffleNumbers;
+window.sequentialNumbers = sequentialNumbers;
 
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 Organica.autoLabelPanel(document);

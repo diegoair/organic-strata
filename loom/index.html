@@ -17,6 +17,15 @@
   --panel: #eceae4;
   --border: #d0c8b8;
   --tool: #4a7fc9;   /* header focus ring — blueprint blue, this tool's identity colour */
+  /* Grid cell border colour — Photoshop's own default guide-line blue, per
+     Diego's own ask. This is the grid's CONTENT colour (the line itself,
+     what the tool draws), not UI chrome, so it lives here rather than in
+     shared/organica-tokens.css — same exception CLAUDE.md already carves
+     out for Halide's ink/paper and Pollen's point colour. main.js reads
+     this same variable via getComputedStyle before drawing the SVG/PNG
+     renderers' own strokes, so the preview and every export can't drift
+     apart on this colour. */
+  --guide-blue: #3399ff;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -85,7 +94,12 @@ body {
 }
 
 .loom-cell {
-  border: 1px solid var(--ink);
+  /* No border here — each cell's own border-right/border-bottom (plus
+     border-top/border-left only on row-0/col-0 cells) is set inline per
+     cell in html-renderer.js's buildGridCSS, so a shared edge between two
+     adjacent cells is drawn by exactly ONE of them, never both. A full
+     4-side border per cell would double-stroke every internal boundary —
+     same root cause the SVG/PNG renderers' collectEdges fixes there. */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -299,6 +313,14 @@ body {
           <input type="range" id="rg-sin-gap" min="0" max="40" step="1" value="8">
           <span class="ctrl-val" id="v-sin-gap">8</span>
         </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Numbering <span class="hint">block order</span></h3>
+      <div class="row-btns" style="margin-top:0">
+        <button class="mini-btn" onclick="shuffleNumbers()">Shuffle</button>
+        <button class="mini-btn" onclick="sequentialNumbers()">Sequential</button>
       </div>
     </div>
 

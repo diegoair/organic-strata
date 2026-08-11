@@ -1,11 +1,18 @@
 /* ─────────────────────────────────────────────────────────────
-   Raster (PNG) renderer — draws the same resolved cell rects the SVG
-   renderer uses onto a plain <canvas>. Kept a thin, separate function
-   rather than rasterising the SVG string (Image + drawImage), so PNG
-   export has no dependency on SVG parsing succeeding first.
+   Raster (PNG) renderer — draws the DE-DUPLICATED edge set (json-model.js's
+   collectEdges) the SVG renderer also uses, as ONE stroked path, onto a
+   plain <canvas>. Not one strokeRect() per cell — that draws every shared
+   boundary between adjacent cells twice, and two coincident anti-aliased
+   1px strokes compound into a visibly bolder line than a genuine single
+   border (collectEdges's own header has the full story). Kept a thin,
+   separate function rather than rasterising the SVG string (Image +
+   drawImage), so PNG export has no dependency on SVG parsing succeeding
+   first.
    ───────────────────────────────────────────────────────────── */
 
-export function renderRaster(model, rects, inner, scale = 2) {
+import { collectEdges } from '../json-model.js';
+
+export function renderRaster(model, rects, inner, scale = 2, lineColor) {
   const { canvas } = model;
   const c = document.createElement('canvas');
   c.width = Math.round(canvas.width * scale);
@@ -19,8 +26,11 @@ export function renderRaster(model, rects, inner, scale = 2) {
   ctx.lineWidth = 0.75;
   ctx.strokeRect(inner.x, inner.y, inner.width, inner.height);
   ctx.setLineDash([]);
-  ctx.strokeStyle = '#0a0a0a';
+  ctx.strokeStyle = lineColor || '#3399ff';
   ctx.lineWidth = 1;
-  rects.forEach(r => ctx.strokeRect(r.x, r.y, r.width, r.height));
+  const edges = collectEdges(rects);
+  ctx.beginPath();
+  edges.forEach(e => { ctx.moveTo(e.x1, e.y1); ctx.lineTo(e.x2, e.y2); });
+  ctx.stroke();
   return c;
 }

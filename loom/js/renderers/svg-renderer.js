@@ -1,20 +1,31 @@
 /* ─────────────────────────────────────────────────────────────
    SVG renderer — reads resolved cell rects (json-model.js's own
-   resolveCellRects), draws each as an outlined rect. A grid DEFINITION
-   export — guides for a designer to build on in Figma/Affinity, not
-   filled shapes claiming to be a finished layout.
+   resolveCellRects), draws the DE-DUPLICATED edge set (collectEdges) as
+   <line> segments rather than one stroked <rect> per cell. A grid
+   DEFINITION export — guides for a designer to build on in Figma/Affinity,
+   not filled shapes claiming to be a finished layout. Per-cell rects would
+   stroke every shared boundary between adjacent cells twice — geometrically
+   coincident, but two overlapping anti-aliased strokes compound into a
+   visibly bolder line than the single strokes elsewhere (json-model.js's
+   own collectEdges header has the full story).
    ───────────────────────────────────────────────────────────── */
+
+import { collectEdges } from '../json-model.js';
 
 function r2(n) { return Math.round(n * 100) / 100; }
 
-export function renderSVG(model, rects, inner) {
+export function renderSVG(model, rects, inner, lineColor) {
   const { canvas } = model;
+  const stroke = lineColor || '#3399ff';
   let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(canvas.width)}" height="${r2(canvas.height)}" viewBox="0 0 ${r2(canvas.width)} ${r2(canvas.height)}">`;
   s += `<rect width="100%" height="100%" fill="#ffffff"/>`;
   s += `<rect x="${r2(inner.x)}" y="${r2(inner.y)}" width="${r2(inner.width)}" height="${r2(inner.height)}" fill="none" stroke="#c8c0b0" stroke-width="0.75" stroke-dasharray="3 3"/>`;
-  rects.forEach(c => {
-    s += `<rect x="${r2(c.x)}" y="${r2(c.y)}" width="${r2(c.width)}" height="${r2(c.height)}" fill="none" stroke="#0a0a0a" stroke-width="1"/>`;
+  const edges = collectEdges(rects);
+  s += `<g stroke="${stroke}" stroke-width="1">`;
+  edges.forEach(e => {
+    s += `<line x1="${e.x1}" y1="${e.y1}" x2="${e.x2}" y2="${e.y2}"/>`;
   });
+  s += '</g>';
   s += '</svg>';
   return s;
 }

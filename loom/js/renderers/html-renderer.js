@@ -8,6 +8,8 @@
    <canvas>.
    ───────────────────────────────────────────────────────────── */
 
+import { innerRect } from '../canvas-manager.js';
+
 function r2(n) { return Math.round(n * 100) / 100; }
 
 export function buildGridCSS(model) {
@@ -15,11 +17,33 @@ export function buildGridCSS(model) {
   const unit = canvas.unit === 'mm' ? 'mm' : 'px';
   const cols = grid.tracks.cols.map(w => `${r2(w)}px`).join(' ');
   const rows = grid.tracks.rows.map(h => `${r2(h)}px`).join(' ');
+  // grid.tracks sums to the INNER rect (canvas minus margin), not the full
+  // canvas — the container itself stays sized to the full canvas and gets
+  // that margin as real CSS padding (border-box), so the leftover space
+  // lands evenly on all four sides instead of only at the bottom-right
+  // (the bug this replaced: a container sized to the full canvas with no
+  // padding left every track's own unfilled remainder pinned to the
+  // default grid-content start corner).
+  const inner = innerRect(canvas);
+  const marginPx = r2(inner.x);
   return {
-    containerCSS: `display: grid; grid-template-columns: ${cols}; grid-template-rows: ${rows}; gap: ${grid.gap}px; width: ${r2(canvas.width)}${unit}; height: ${r2(canvas.height)}${unit};`,
-    cellCSS: model.cells.map(c =>
-      `grid-column: ${c.col + 1} / span ${c.colSpan}; grid-row: ${c.row + 1} / span ${c.rowSpan};`
-    ),
+    containerCSS: `display: grid; box-sizing: border-box; grid-template-columns: ${cols}; grid-template-rows: ${rows}; gap: ${grid.gap}px; padding: ${marginPx}px; width: ${r2(canvas.width)}${unit}; height: ${r2(canvas.height)}${unit};`,
+    // Every cell draws its own right + bottom border; only col-0/row-0
+    // cells also draw left/top. A shared edge between two adjacent cells
+    // is then drawn by exactly ONE of them — the cell to its left or
+    // above — instead of both cells independently bordering all 4 sides,
+    // which doubles every internal boundary (same fix as the SVG/PNG
+    // renderers' collectEdges, applied here as CSS instead of geometry
+    // dedup since a DOM grid can't draw a "line" independent of its cells).
+    cellCSS: model.cells.map(c => {
+      // Fallback value inline (var(--guide-blue, #3399ff)) — the exported
+      // HTML snippet is meant to stand alone in an arbitrary page that
+      // won't have Loom's own :root definition loaded.
+      let b = `border-right: 1px solid var(--guide-blue, #3399ff); border-bottom: 1px solid var(--guide-blue, #3399ff);`;
+      if (c.col === 0) b += ` border-left: 1px solid var(--guide-blue, #3399ff);`;
+      if (c.row === 0) b += ` border-top: 1px solid var(--guide-blue, #3399ff);`;
+      return `grid-column: ${c.col + 1} / span ${c.colSpan}; grid-row: ${c.row + 1} / span ${c.rowSpan}; ${b}`;
+    }),
   };
 }
 
@@ -33,7 +57,7 @@ export function paintGridDOM(el, model) {
     const cell = document.createElement('div');
     cell.className = 'loom-cell';
     cell.style.cssText = cellCSS[i];
-    cell.textContent = i + 1;
+    cell.textContent = c.number != null ? c.number : i + 1;
     el.appendChild(cell);
   });
 }
@@ -43,7 +67,7 @@ export function paintGridDOM(el, model) {
 export function buildHTMLSnippet(model) {
   const { containerCSS, cellCSS } = buildGridCSS(model);
   const cellsHTML = model.cells.map((c, i) =>
-    `  <div class="loom-cell" style="${cellCSS[i]}">${i + 1}</div>`
+    `  <div class="loom-cell" style="${cellCSS[i]}">${c.number != null ? c.number : i + 1}</div>`
   ).join('\n');
   return `<div class="loom-grid" style="${containerCSS}">\n${cellsHTML}\n</div>`;
 }
