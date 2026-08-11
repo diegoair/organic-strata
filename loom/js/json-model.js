@@ -48,17 +48,30 @@ function offsets(sizes, gap) {
  * at the canvas's own inner rect (post-margin). Pure function of the
  * model — call it again any time canvas/grid/cells change, never cache
  * stale rects across a param change.
+ *
+ * `model.grid.padding` insets each cell's own rect inward on all four
+ * sides — visual breathing room inside a cell, independent of Gap (which
+ * changes the track sizes the solver/math actually resolves). Applied
+ * here, after track resolution, so it never affects a generator's own
+ * geometry — only how the already-resolved rect is drawn. A useful side
+ * effect: once padding pulls two adjacent cells apart, collectEdges
+ * naturally stops treating their (no longer coincident) edges as shared —
+ * no special-casing needed, dedup just doesn't fire when there's nothing
+ * to dedup. Read off the model (not a separate function argument) since
+ * it's a real persisted render parameter, not ephemeral UI state — every
+ * renderer that needs it reads the same single source of truth.
  */
 export function resolveCellRects(model, inner) {
-  const { tracks, gap } = model.grid;
+  const { tracks, gap, padding } = model.grid;
+  const pad = padding || 0;
   const colOff = offsets(tracks.cols, gap);
   const rowOff = offsets(tracks.rows, gap);
   return model.cells.map(c => {
-    const x = inner.x + colOff[c.col];
-    const y = inner.y + rowOff[c.row];
-    const width = colOff[c.col + c.colSpan] - colOff[c.col] - gap;
-    const height = rowOff[c.row + c.rowSpan] - rowOff[c.row] - gap;
-    return { ...c, x, y, width, height };
+    const x = inner.x + colOff[c.col] + pad;
+    const y = inner.y + rowOff[c.row] + pad;
+    const width = colOff[c.col + c.colSpan] - colOff[c.col] - gap - 2 * pad;
+    const height = rowOff[c.row + c.rowSpan] - rowOff[c.row] - gap - 2 * pad;
+    return { ...c, x, y, width: Math.max(0, width), height: Math.max(0, height) };
   });
 }
 

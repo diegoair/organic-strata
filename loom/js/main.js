@@ -102,6 +102,7 @@ function build() {
   const params = readGridParams();
 
   const { grid, cells } = generator.generate(params, inner);
+  grid.padding = val('rg-padding');   // visual inset per cell, applied post-resolution by every renderer that reads it
   cells.forEach((c, i) => { c.number = i + 1; });   // sequential by default — Shuffle numbers randomises on top of this
   currentModel = buildModel({ canvas, grid, cells });
   currentInner = inner;

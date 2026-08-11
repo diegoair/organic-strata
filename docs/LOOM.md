@@ -83,6 +83,8 @@ Export lives in the shared bottom-centre floating toolbar (`shared/organica-floa
 6. Phase 5 — native Figma Auto Layout frame generation, nested Auto Layout, roundtrip editing (extends `figma-plugin/`, doesn't fork it)
 7. Phase 6 — randomisation UI, tests, worked examples
 
+**Not on this list, deliberately not extracted yet**: `canvas-manager.js` (unit mm/px, margin %, safe area %, bleed, industry presets) is a plausible seed for `docs/ROADMAP.md`'s own Phase 6 output pipeline (print PDF, mural schema) — but it's a real *system-wide* Phase 6, not a Loom one, and every prior Organica shared-module extraction (`organica-noise.js`, `organica-panel.css`) happened only once a **second real consumer** existed, never speculatively. `canvas-manager.js` is already written with zero coupling to Loom's own UI (pure functions, no DOM), so moving it to `shared/organica-canvas.js` will be cheap whenever a second tool (most likely Halide or Strata, for a poster/mural export) actually needs physical units — that is the trigger, not a target date. Revisit then.
+
 ---
 
 *Studio Rann · Organica*

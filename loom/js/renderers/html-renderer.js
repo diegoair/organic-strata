@@ -42,6 +42,14 @@ export function buildGridCSS(model) {
       let b = `border-right: 1px solid var(--guide-blue, #3399ff); border-bottom: 1px solid var(--guide-blue, #3399ff);`;
       if (c.col === 0) b += ` border-left: 1px solid var(--guide-blue, #3399ff);`;
       if (c.row === 0) b += ` border-top: 1px solid var(--guide-blue, #3399ff);`;
+      // Padding (grid.padding) insets the VISIBLE box inward from its
+      // track allocation — implemented as CSS margin, not padding: a
+      // literal `padding` would only push the centred number label
+      // further from an unmoved border (a no-op for symmetric content
+      // that's already centred), margin is what actually shrinks the
+      // bordered box within its grid area.
+      const pad = grid.padding || 0;
+      if (pad) b += ` margin: ${pad}px;`;
       return `grid-column: ${c.col + 1} / span ${c.colSpan}; grid-row: ${c.row + 1} / span ${c.rowSpan}; ${b}`;
     }),
   };
