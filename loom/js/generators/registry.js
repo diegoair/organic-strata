@@ -10,6 +10,7 @@ import { generateBento } from './bento.js';
 import { generateSinusoidal } from './sinusoidal.js';
 import { generateVoronoi } from './voronoi.js';
 import { generateHexagonal } from './hexagonal.js';
+import { generateRadial } from './radial.js';
 
 export const GENERATORS = {
   bento: {
@@ -42,5 +43,12 @@ export const GENERATORS = {
     cellShape: 'polygon',
     generate: generateHexagonal,
     defaults: { cols: 8, rotation: 0, spinMode: 'off', spinAmount: 20, noiseScale: 3, gap: 0.06, jitter: 0, seed: 7 },
+  },
+  radial: {
+    label: 'Radial',
+    solver: 'geometric',
+    cellShape: 'polygon',
+    generate: generateRadial,
+    defaults: { rings: 4, sectors: 12, innerRadiusFrac: 0.15, gap: 0.08, startAngle: 0 },
   },
 };

@@ -153,10 +153,11 @@ function syncGeneratorRows() {
   ctrl('block-sinusoidal').style.display = type === 'sinusoidal' ? '' : 'none';
   ctrl('block-voronoi').style.display = type === 'voronoi' ? '' : 'none';
   ctrl('block-hexagonal').style.display = type === 'hexagonal' ? '' : 'none';
+  ctrl('block-radial').style.display = type === 'radial' ? '' : 'none';
   // Padding has no defined meaning on a polygon cell yet (voronoi.js's own
   // header) — hidden rather than left as a dead control that visibly does
   // nothing, same rule Komorebi's own control audit already established.
-  ctrl('row-padding').style.display = (type === 'voronoi' || type === 'hexagonal') ? 'none' : '';
+  ctrl('row-padding').style.display = (type === 'voronoi' || type === 'hexagonal' || type === 'radial') ? 'none' : '';
   ctrl('hint-solver').textContent = SOLVER_LABELS[GENERATORS[type].solver];
   if (type === 'hexagonal') syncHexSpinRow();
 }
@@ -187,6 +188,13 @@ function readGridParams() {
       spinMode: ctrl('sel-hex-spinmode').value, spinAmount: val('rg-hex-spinamount'),
       noiseScale: val('rg-hex-noisescale'),
       gap: val('rg-hex-gap'), jitter: val('rg-hex-jitter'), seed: Math.round(val('rg-hex-seed')),
+    };
+  }
+  if (type === 'radial') {
+    return {
+      rings: Math.round(val('rg-radial-rings')), sectors: Math.round(val('rg-radial-sectors')),
+      innerRadiusFrac: val('rg-radial-innerradius'), gap: val('rg-radial-gap'),
+      startAngle: val('rg-radial-startangle'),
     };
   }
   return {
