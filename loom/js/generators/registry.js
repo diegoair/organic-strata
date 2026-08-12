@@ -13,6 +13,7 @@ import { generateHexagonal } from './hexagonal.js';
 import { generateRadial } from './radial.js';
 import { generateTriangular } from './triangular.js';
 import { generateDiamond } from './diamond.js';
+import { generateCircular } from './circular.js';
 
 export const GENERATORS = {
   bento: {
@@ -69,5 +70,12 @@ export const GENERATORS = {
     // pattern out of the box, matching this generator's own name (see
     // diamond.js's own header: 0 = axis-aligned squares, 45 = diamonds).
     defaults: { cols: 8, rotation: 45, spinMode: 'off', spinAmount: 20, noiseScale: 3, gap: 0.06, jitter: 0, seed: 7 },
+  },
+  circular: {
+    label: 'Circular',
+    solver: 'geometric',
+    cellShape: 'polygon',
+    generate: generateCircular,
+    defaults: { cols: 8, gap: 0.06 },
   },
 };

@@ -156,10 +156,11 @@ function syncGeneratorRows() {
   ctrl('block-radial').style.display = type === 'radial' ? '' : 'none';
   ctrl('block-triangular').style.display = type === 'triangular' ? '' : 'none';
   ctrl('block-diamond').style.display = type === 'diamond' ? '' : 'none';
+  ctrl('block-circular').style.display = type === 'circular' ? '' : 'none';
   // Padding has no defined meaning on a polygon cell yet (voronoi.js's own
   // header) — hidden rather than left as a dead control that visibly does
   // nothing, same rule Komorebi's own control audit already established.
-  ctrl('row-padding').style.display = ['voronoi', 'hexagonal', 'radial', 'triangular', 'diamond'].includes(type) ? 'none' : '';
+  ctrl('row-padding').style.display = ['voronoi', 'hexagonal', 'radial', 'triangular', 'diamond', 'circular'].includes(type) ? 'none' : '';
   ctrl('hint-solver').textContent = SOLVER_LABELS[GENERATORS[type].solver];
   if (type === 'hexagonal') syncHexSpinRow();
   if (type === 'triangular') syncTriSpinRow();
@@ -229,6 +230,11 @@ function readGridParams() {
       spinMode: ctrl('sel-dia-spinmode').value, spinAmount: val('rg-dia-spinamount'),
       noiseScale: val('rg-dia-noisescale'),
       gap: val('rg-dia-gap'), jitter: val('rg-dia-jitter'), seed: Math.round(val('rg-dia-seed')),
+    };
+  }
+  if (type === 'circular') {
+    return {
+      cols: Math.round(val('rg-cir-cols')), gap: val('rg-cir-gap'),
     };
   }
   return {

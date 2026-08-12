@@ -250,6 +250,7 @@ body {
           <option value="radial">Radial</option>
           <option value="triangular">Triangular</option>
           <option value="diamond">Diamond</option>
+          <option value="circular">Circular</option>
         </select>
       </div>
       <div class="ctrl-row" id="row-padding">
@@ -517,6 +518,20 @@ body {
           <div class="ctrl-label">Seed</div>
           <input type="range" id="rg-dia-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-dia-seed">7</span>
+        </div>
+      </div>
+
+      <div id="block-circular" style="display:none">
+        <p class="org-panel__hint">A genuine circle-packing grid — each cell IS a circle, arranged on the densest (hex-packing) lattice. Circles touch at a point, not a shared edge, so real void space between neighbours is expected, correct circle-packing geometry.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Target circle diameter across the canvas width — density, not a literal count.">Columns</div>
+          <input type="range" id="rg-cir-cols" min="3" max="24" step="1" value="8">
+          <span class="ctrl-val" id="v-cir-cols">8</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Shrinks each circle's radius from the touching size. 0 = circles touch (maximum packing).">Gap</div>
+          <input type="range" id="rg-cir-gap" min="0" max="0.4" step="0.02" value="0.06">
+          <span class="ctrl-val" id="v-cir-gap">0.06</span>
         </div>
       </div>
     </div>
