@@ -82,6 +82,15 @@
        sets how many field cycles span the canvas — the one Spin mode
        that needs a second control, since "how chaotic" (Amount) and "how
        big are the swirled regions" (Scale) are genuinely independent.
+       `fbm` itself has no seed parameter (Diego caught this live: turning
+       Seed at Jitter 0 did nothing under Noise, a real dead-control gap,
+       unlike Random/Checkerboard/Radial/Spiral which are either genuinely
+       seeded or genuinely deterministic by design) — fixed by sampling
+       `fbm` at a per-generation offset drawn from its OWN independent
+       `mulberry32` stream (seeded from a distinct transform of `seed`,
+       never sharing draws with the main `rng` that feeds Jitter/Random),
+       so Seed now reliably reshuffles the Noise field too without
+       perturbing Jitter's or Random's own output at the same seed.
    Applied to the hexagon's OWN local vertex angles before the rigid
    `Rotation` step, so Spin composes with Rotation correctly (rotate
    locally first, then carry that already-spun shape through the same
@@ -109,7 +118,7 @@ function hexPoints(cx, cy, r, spinDeg) {
 
 // Per-cell Spin angle (degrees) — see this file's own header for why this
 // is a distinct control from the rigid, tiling-preserving `Rotation`.
-function spinFor(mode, amount, col, row, cx, cy, centerX, centerY, halfDiag, rng, noiseFreq) {
+function spinFor(mode, amount, col, row, cx, cy, centerX, centerY, halfDiag, rng, noiseFreq, noiseOffset) {
   if (!mode || mode === 'off' || !amount) return 0;
   if (mode === 'random') return (rng() - 0.5) * 2 * amount;
   if (mode === 'checkerboard') return ((((col + row) % 2) + 2) % 2 === 0 ? 1 : -1) * amount;
@@ -122,7 +131,7 @@ function spinFor(mode, amount, col, row, cx, cy, centerX, centerY, halfDiag, rng
     return amount * (theta / Math.PI);
   }
   if (mode === 'noise') {
-    const n = Organica.noise.fbm(cx * noiseFreq, cy * noiseFreq);
+    const n = Organica.noise.fbm(cx * noiseFreq + noiseOffset[0], cy * noiseFreq + noiseOffset[1]);
     return (n * 2 - 1) * amount;
   }
   return 0;
@@ -184,6 +193,11 @@ export function generateHexagonal(params, inner) {
   // same reasoning as Warping's own NORM constant, just local to this
   // generator since it's the only Spin mode that needs it.
   const noiseFreq = (noiseScale || 3) / (inner.width / 2);
+  // A distinct rng stream, never sharing draws with `rng` above — the
+  // Noise field's own seed-dependence must not perturb Jitter/Random's
+  // output at the same seed (this file's own header explains why).
+  const noiseRng = mulberry32((seed >>> 0) ^ 0x9E3779B9);
+  const noiseOffset = [noiseRng() * 1000, noiseRng() * 1000];
 
   const hSpacing0 = inner.width / cols;
   const r = hSpacing0 / 1.5;
@@ -210,7 +224,7 @@ export function generateHexagonal(params, inner) {
         cx += (rng() - 0.5) * 2 * jitter * r;
         cy += (rng() - 0.5) * 2 * jitter * r;
       }
-      const spinDeg = spinFor(spinMode, spinAmount, col, row, cx, cy, centerX, centerY, halfDiag, rng, noiseFreq);
+      const spinDeg = spinFor(spinMode, spinAmount, col, row, cx, cy, centerX, centerY, halfDiag, rng, noiseFreq, noiseOffset);
       let poly = hexPoints(cx, cy, effR, spinDeg);
       if (rad !== 0) {
         poly = poly.map(p => rotatePoint(p, centerX, centerY, rad));

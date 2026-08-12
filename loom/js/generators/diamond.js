@@ -74,8 +74,10 @@ function rotatePoint(p, cx, cy, rad) {
 }
 
 // Per-cell Spin angle (degrees) — identical to hexagonal.js/triangular.js's
-// own spinFor (each polygon generator keeps its own copy).
-function spinFor(mode, amount, col, row, cx, cy, centerX, centerY, halfDiag, rng, noiseFreq) {
+// own spinFor (each polygon generator keeps its own copy). `noiseOffset`
+// decorrelates the Noise field per Seed (fbm itself has no seed parameter
+// — see hexagonal.js's own header for why this fix exists).
+function spinFor(mode, amount, col, row, cx, cy, centerX, centerY, halfDiag, rng, noiseFreq, noiseOffset) {
   if (!mode || mode === 'off' || !amount) return 0;
   if (mode === 'random') return (rng() - 0.5) * 2 * amount;
   if (mode === 'checkerboard') return ((((col + row) % 2) + 2) % 2 === 0 ? 1 : -1) * amount;
@@ -88,7 +90,7 @@ function spinFor(mode, amount, col, row, cx, cy, centerX, centerY, halfDiag, rng
     return amount * (theta / Math.PI);
   }
   if (mode === 'noise') {
-    const n = Organica.noise.fbm(cx * noiseFreq, cy * noiseFreq);
+    const n = Organica.noise.fbm(cx * noiseFreq + noiseOffset[0], cy * noiseFreq + noiseOffset[1]);
     return (n * 2 - 1) * amount;
   }
   return 0;
@@ -147,6 +149,9 @@ export function generateDiamond(params, inner) {
   const centerX = inner.x + inner.width / 2, centerY = inner.y + inner.height / 2;
   const halfDiag = Math.hypot(inner.width, inner.height) / 2 + side;
   const noiseFreq = (noiseScale || 3) / (inner.width / 2);
+  // Distinct rng stream from `rng` above — see spinFor's own comment.
+  const noiseRng = mulberry32((seed >>> 0) ^ 0x9E3779B9);
+  const noiseOffset = [noiseRng() * 1000, noiseRng() * 1000];
   const steps = Math.ceil((2 * halfDiag) / side) + 2;
   const start = -Math.floor(steps / 2);
   const effHalfSide = halfSide * (1 - gap);
@@ -159,7 +164,7 @@ export function generateDiamond(params, inner) {
         cx += (rng() - 0.5) * 2 * jitter * halfSide;
         cy += (rng() - 0.5) * 2 * jitter * halfSide;
       }
-      const spinDeg = spinFor(spinMode, spinAmount, col, row, cx, cy, centerX, centerY, halfDiag, rng, noiseFreq);
+      const spinDeg = spinFor(spinMode, spinAmount, col, row, cx, cy, centerX, centerY, halfDiag, rng, noiseFreq, noiseOffset);
       let poly = squarePoints(cx, cy, effHalfSide, spinDeg);
       if (rad !== 0) {
         poly = poly.map(p => rotatePoint(p, centerX, centerY, rad));

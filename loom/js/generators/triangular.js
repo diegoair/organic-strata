@@ -80,8 +80,11 @@ function rotatePoint(p, cx, cy, rad) {
 
 // Per-cell Spin angle (degrees) — identical to hexagonal.js's own spinFor,
 // ported rather than shared (each polygon generator keeps its own copy,
-// this file set's established pattern).
-function spinFor(mode, amount, col, row, cx, cy, centerX, centerY, halfDiag, rng, noiseFreq) {
+// this file set's established pattern). `noiseOffset` decorrelates the
+// Noise field per Seed (fbm itself has no seed parameter — see
+// hexagonal.js's own header for why this fix exists and how it avoids
+// perturbing Jitter/Random's own output at the same seed).
+function spinFor(mode, amount, col, row, cx, cy, centerX, centerY, halfDiag, rng, noiseFreq, noiseOffset) {
   if (!mode || mode === 'off' || !amount) return 0;
   if (mode === 'random') return (rng() - 0.5) * 2 * amount;
   if (mode === 'checkerboard') return ((((col + row) % 2) + 2) % 2 === 0 ? 1 : -1) * amount;
@@ -94,7 +97,7 @@ function spinFor(mode, amount, col, row, cx, cy, centerX, centerY, halfDiag, rng
     return amount * (theta / Math.PI);
   }
   if (mode === 'noise') {
-    const n = Organica.noise.fbm(cx * noiseFreq, cy * noiseFreq);
+    const n = Organica.noise.fbm(cx * noiseFreq + noiseOffset[0], cy * noiseFreq + noiseOffset[1]);
     return (n * 2 - 1) * amount;
   }
   return 0;
@@ -163,6 +166,9 @@ export function generateTriangular(params, inner) {
   const centerX = inner.x + inner.width / 2, centerY = inner.y + inner.height / 2;
   const halfDiag = Math.hypot(inner.width, inner.height) / 2 + side;
   const noiseFreq = (noiseScale || 3) / (inner.width / 2);
+  // Distinct rng stream from `rng` above — see spinFor's own comment.
+  const noiseRng = mulberry32((seed >>> 0) ^ 0x9E3779B9);
+  const noiseOffset = [noiseRng() * 1000, noiseRng() * 1000];
   const rowSteps = Math.ceil((2 * halfDiag) / h) + 2;
   const colSteps = Math.ceil((2 * halfDiag) / (side / 2)) + 2;
   const rowStart = -Math.floor(rowSteps / 2), colStart = -Math.floor(colSteps / 2);
@@ -184,7 +190,7 @@ export function generateTriangular(params, inner) {
         poly = poly.map(p => [p[0] + dx, p[1] + dy]);
         centroid = [centroid[0] + dx, centroid[1] + dy];
       }
-      const spinDeg = spinFor(spinMode, spinAmount, i, row, centroid[0], centroid[1], centerX, centerY, halfDiag, rng, noiseFreq);
+      const spinDeg = spinFor(spinMode, spinAmount, i, row, centroid[0], centroid[1], centerX, centerY, halfDiag, rng, noiseFreq, noiseOffset);
       if (spinDeg) {
         const spinRad = (Math.PI / 180) * spinDeg;
         poly = poly.map(p => rotatePoint(p, centroid[0], centroid[1], spinRad));
