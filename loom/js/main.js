@@ -9,7 +9,7 @@
    renderer is allowed to recompute geometry its own way.
    ───────────────────────────────────────────────────────────── */
 
-import { CANVAS_PRESETS, createCanvas, innerRect, safeAreaRect } from './canvas-manager.js';
+import { CANVAS_PRESETS, createCanvas, innerRect, safeAreaRect, UNIT_TO_MM, toCanonical } from './canvas-manager.js';
 import { buildModel, resolveCellRects } from './json-model.js';
 import { GENERATORS } from './generators/registry.js';
 import { renderSVG } from './renderers/svg-renderer.js';
@@ -43,14 +43,27 @@ function applyCanvasPreset() {
   const name = ctrl('sel-canvas-preset').value;
   const p = CANVAS_PRESETS[name];
   if (!p) return;
+  // A preset can silently change the unit (px presets vs. A4/Letter's mm)
+  // — Gap/Padding still need rescaling to the new unit's range (a real
+  // bug caught testing preset switches: their slider stayed at the
+  // PREVIOUS unit's range/value while the Unit field read something else
+  // entirely). Width/Height do NOT go through the same rescale — the
+  // preset already supplies the exact correct number in its own unit;
+  // treating it as still being in the OLD unit and reconverting would
+  // double-convert (a second real bug, caught the same way: A4 landed at
+  // "2100" instead of "210" after switching units by hand first, then
+  // picking A4 — onUnitChange()'s own width/height rescale ran a second
+  // time on a value the preset had already written correctly).
+  rescaleGapPadding(lastUnit, p.unit);
   ctrl('num-width').value = p.width;
   ctrl('num-height').value = p.height;
   ctrl('sel-unit').value = p.unit;
+  lastUnit = p.unit;
   syncUnitRows();
   build();
 }
 function syncUnitRows() {
-  ctrl('row-bleed').style.display = ctrl('sel-unit').value === 'mm' ? '' : 'none';
+  ctrl('row-bleed').style.display = ctrl('sel-unit').value !== 'px' ? '' : 'none';
 }
 function readCanvas() {
   return createCanvas({
@@ -62,6 +75,74 @@ function readCanvas() {
     bleed: val('num-bleed'),
   });
 }
+
+// Gap/Padding are absolute numbers, not percentages like Margin/Safe area
+// — they need the SAME canonicalisation as Width/Height (see
+// canvas-manager.js's own header) so a Gap of "12" means 12mm when the
+// canvas unit is mm and 12m when it's m, not the same raw number treated
+// identically regardless of scale.
+function unitVal(id) {
+  return toCanonical(val(id), ctrl('sel-unit').value);
+}
+
+// Physical-unit ranges for the two absolute-number sliders (Gap, Padding)
+// — px and mm share one range (1 canonical unit ≈ 1 on-screen px, the
+// pre-existing simplification), cm/m get their own so the slider stays
+// physically sensible at that scale instead of e.g. "0–40" meaning
+// 0–40 METRES of gap.
+const UNIT_RANGES = {
+  gap:     { px: { min: 0, max: 40, step: 1 }, mm: { min: 0, max: 40, step: 1 }, cm: { min: 0, max: 10, step: 0.2 }, m: { min: 0, max: 1, step: 0.02 } },
+  padding: { px: { min: 0, max: 30, step: 1 }, mm: { min: 0, max: 30, step: 1 }, cm: { min: 0, max: 5, step: 0.1 }, m: { min: 0, max: 0.5, step: 0.01 } },
+};
+let lastUnit = 'px';
+
+// Rescales a Gap/Padding slider's raw value + range to a newly-selected
+// unit, preserving the PHYSICAL size it represented under the old one
+// (convert old raw value → mm-equivalent → new unit's raw value) rather
+// than leaving the number unchanged and silently meaning something
+// completely different.
+function rescaleUnitField(id, rangeKey, oldUnit, newUnit) {
+  const el = ctrl(id);
+  const oldFactor = oldUnit === 'px' ? 1 : UNIT_TO_MM[oldUnit];
+  const newFactor = newUnit === 'px' ? 1 : UNIT_TO_MM[newUnit];
+  const mmEquivalent = parseFloat(el.value) * oldFactor;
+  const r = UNIT_RANGES[rangeKey][newUnit] || UNIT_RANGES[rangeKey].mm;
+  el.min = r.min; el.max = r.max; el.step = r.step;
+  let newValue = mmEquivalent / newFactor;
+  newValue = Math.min(r.max, Math.max(r.min, Math.round(newValue / r.step) * r.step));
+  el.value = newValue;
+  const valEl = ctrl('v-' + id.slice(3));
+  if (valEl) valEl.textContent = el.value;
+}
+
+function rescaleGapPadding(oldUnit, newUnit) {
+  rescaleUnitField('rg-bento-gap', 'gap', oldUnit, newUnit);
+  rescaleUnitField('rg-sin-gap', 'gap', oldUnit, newUnit);
+  rescaleUnitField('rg-padding', 'padding', oldUnit, newUnit);
+}
+
+function onUnitChange() {
+  const newUnit = ctrl('sel-unit').value;
+  if (newUnit !== lastUnit) {
+    rescaleGapPadding(lastUnit, newUnit);
+    // Width/Height too — but ONLY between two physical units (mm/cm/m),
+    // where "preserve the real size" is well-defined. px has no fixed
+    // physical size to preserve, so a transition to/from px leaves the
+    // raw number untouched (same as it always has) rather than inventing
+    // a conversion. Without this, switching mm→cm left "210" meaning
+    // 210cm instead of 21cm — a real 10× jump for no reason the user
+    // asked for, on top of the zoom/fit issue this session already found.
+    if (lastUnit !== 'px' && newUnit !== 'px') {
+      const oldFactor = UNIT_TO_MM[lastUnit], newFactor = UNIT_TO_MM[newUnit];
+      ctrl('num-width').value = round4(val('num-width') * oldFactor / newFactor);
+      ctrl('num-height').value = round4(val('num-height') * oldFactor / newFactor);
+    }
+  }
+  lastUnit = newUnit;
+  syncUnitRows();
+  build();
+}
+function round4(n) { return Math.round(n * 10000) / 10000; }
 
 // ── Grid params (per-generator blocks, same show/hide pattern as
 // Warping's syncConditionalRows) ──
@@ -78,13 +159,13 @@ function readGridParams() {
   if (type === 'bento') {
     return {
       cols: Math.round(val('rg-bento-cols')), rows: Math.round(val('rg-bento-rows')),
-      variety: val('rg-bento-variety'), gap: val('rg-bento-gap'), seed: Math.round(val('rg-bento-seed')),
+      variety: val('rg-bento-variety'), gap: unitVal('rg-bento-gap'), seed: Math.round(val('rg-bento-seed')),
     };
   }
   return {
     cols: Math.round(val('rg-sin-cols')), rows: Math.round(val('rg-sin-rows')),
     amplitude: val('rg-sin-amp'), frequency: val('rg-sin-freq'), phase: val('rg-sin-phase'),
-    axis: seg('seg-sin-axis'), gap: val('rg-sin-gap'),
+    axis: seg('seg-sin-axis'), gap: unitVal('rg-sin-gap'),
   };
 }
 function seg(groupId) { return ctrl(groupId).querySelector('.seg-btn.active').dataset.v; }
@@ -101,8 +182,25 @@ function build() {
   const generator = GENERATORS[type];
   const params = readGridParams();
 
-  const { grid, cells } = generator.generate(params, inner);
-  grid.padding = val('rg-padding');   // visual inset per cell, applied post-resolution by every renderer that reads it
+  // Kiwi throws (an uncaught exception, not a return value) when a
+  // canvas is too small for the current Columns/Rows/Gap combination to
+  // satisfy each track's own hard minimum-size constraint — there's no
+  // fixed "safe" canvas floor to pre-check against, since the real
+  // minimum depends on whatever Columns/Gap/Margin happen to be dialled
+  // in. Reproduced live: a physically tiny canvas (e.g. typed while
+  // working in m, then the unit switched to px with no conversion — px
+  // has no physical equivalent to convert TO, so the raw number is
+  // deliberately left as-is) crashed the whole app rather than just
+  // failing to render. Caught here so any unreachable combination, not
+  // only this one path to it, degrades to a status message instead.
+  let grid, cells;
+  try {
+    ({ grid, cells } = generator.generate(params, inner));
+  } catch (err) {
+    setStatus('', 'Canvas too small for this grid — increase size or reduce Columns/Rows/Gap');
+    return;
+  }
+  grid.padding = unitVal('rg-padding');   // visual inset per cell, applied post-resolution by every renderer that reads it
   cells.forEach((c, i) => { c.number = i + 1; });   // sequential by default — Shuffle numbers randomises on top of this
   currentModel = buildModel({ canvas, grid, cells });
   currentInner = inner;
@@ -209,8 +307,19 @@ function sendToFigma() {
 const zoomPan = Organica.createZoomPan({
   canvas: canvasFrame,
   wrap: ctrl('canvas-wrap'),
-  min: 0.1,   // canvas can be a large social-format px size or a small
-              // print mm size — 1.0 alone isn't guaranteed to fit either
+  // 0.01, not 0.1: with cm/m units a canvas can be metres wide — canonical
+  // mm-equivalents in the tens of thousands — and createZoomPan has a
+  // sharp edge at its own minimum: when a requested zoom clamps EXACTLY
+  // to `min`, it zeroes pan outright (its own "back to a clean state"
+  // shortcut), which fitToViewIfNeeded's own reset()+zoomBy(scale) hits
+  // whenever the fit scale it wants is below `min`. At the old min:0.1, a
+  // 10.8m canvas (a bare Width/Height number carried over from a px/mm
+  // canvas, now reinterpreted in cm/m) needed ~0.05 to fit, clamped to
+  // 0.1, and the resulting zeroed pan left the whole canvas off-screen —
+  // reproduced live via getBoundingClientRect() landing at x:-5087,
+  // y:-4908. 0.01 covers real canvases up to ~50–100m before the same
+  // edge case could recur.
+  min: 0.01,
   onChange: ({ zoom, zoomed }) => {
     ctrl('zoom-level').textContent = Math.round(zoom * 100) + '%';
     ctrl('zoom-hud').classList.toggle('visible', zoomed);
@@ -241,6 +350,7 @@ syncGeneratorRows();
 window.build = build;
 window.applyCanvasPreset = applyCanvasPreset;
 window.syncUnitRows = syncUnitRows;
+window.onUnitChange = onUnitChange;
 window.syncGeneratorRows = syncGeneratorRows;
 window.setSeg = setSeg;
 window.toggleJSONView = toggleJSONView;

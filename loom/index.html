@@ -216,9 +216,11 @@ body {
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label">Unit</div>
-        <select class="panel-select" id="sel-unit" aria-label="Unit" onchange="syncUnitRows()">
+        <select class="panel-select" id="sel-unit" aria-label="Unit" onchange="onUnitChange()">
           <option value="px" selected>px</option>
           <option value="mm">mm</option>
+          <option value="cm">cm</option>
+          <option value="m">m</option>
         </select>
       </div>
       <div class="ctrl-row">
@@ -232,7 +234,7 @@ body {
         <span class="ctrl-val" id="v-safearea">0</span>
       </div>
       <div class="ctrl-row" id="row-bleed" style="display:none">
-        <div class="ctrl-label">Bleed (mm)</div>
+        <div class="ctrl-label" title="Always specified in mm regardless of the canvas's own unit — the real print convention, a bleed spec doesn't change because the document happens to be quoted in cm or m.">Bleed (mm)</div>
         <input type="number" class="panel-select" id="num-bleed" value="3" min="0" step="0.5" style="width:100%">
       </div>
     </div>

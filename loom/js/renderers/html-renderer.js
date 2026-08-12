@@ -14,7 +14,16 @@ function r2(n) { return Math.round(n * 100) / 100; }
 
 export function buildGridCSS(model) {
   const { grid, canvas } = model;
-  const unit = canvas.unit === 'mm' ? 'mm' : 'px';
+  // Same reasoning as svg-renderer.js: canvas.width/height are already the
+  // canonical mm-equivalent number for any physical unit (cm/m included —
+  // CSS has no native "m" length unit either, only mm/cm/in/px/pt/pc), so
+  // every non-px unit gets a literal "mm" suffix on the OUTER declared
+  // size only. The grid's own internal geometry (template columns/rows,
+  // gap, padding below) stays in bare canonical numbers rendered as CSS
+  // px — that's the on-screen/DOM rendering unit regardless of what
+  // physical size the outer box declares itself to be, matching the
+  // pre-existing "1 canonical unit = 1 CSS px" convention.
+  const unit = canvas.unit === 'px' ? 'px' : 'mm';
   const cols = grid.tracks.cols.map(w => `${r2(w)}px`).join(' ');
   const rows = grid.tracks.rows.map(h => `${r2(h)}px`).join(' ');
   // grid.tracks sums to the INNER rect (canvas minus margin), not the full
