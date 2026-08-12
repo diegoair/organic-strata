@@ -245,10 +245,11 @@ body {
         <select class="panel-select" id="sel-gridtype" aria-label="Grid type" onchange="syncGeneratorRows()">
           <option value="bento" selected>Bento</option>
           <option value="sinusoidal">Sinusoidal</option>
+          <option value="voronoi">Voronoi</option>
         </select>
       </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label" title="Insets each cell's own visible box inward from its track allocation — breathing room inside a cell, independent of Gap (which changes the track spacing the solver/math actually resolves). Applies to every generator.">Padding</div>
+      <div class="ctrl-row" id="row-padding">
+        <div class="ctrl-label" title="Insets each cell's own visible box inward from its track allocation — breathing room inside a cell, independent of Gap (which changes the track spacing the solver/math actually resolves). Rect grids only — Voronoi's polygon cells don't have a defined inset yet.">Padding</div>
         <input type="range" id="rg-padding" min="0" max="30" step="1" value="0">
         <span class="ctrl-val" id="v-padding">0</span>
       </div>
@@ -319,6 +320,20 @@ body {
           <div class="ctrl-label">Gap</div>
           <input type="range" id="rg-sin-gap" min="0" max="40" step="1" value="8">
           <span class="ctrl-val" id="v-sin-gap">8</span>
+        </div>
+      </div>
+
+      <div id="block-voronoi" style="display:none">
+        <p class="org-panel__hint">Real polygon cells (half-plane intersection), not a rectangular approximation — no honest way to fit them onto CSS Grid's own track lattice, so this preview renders as an embedded SVG instead of a live DOM grid. Gap/Padding don't apply yet.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Number of seed points — one per cell.">Points</div>
+          <input type="range" id="rg-voronoi-points" min="4" max="60" step="1" value="18">
+          <span class="ctrl-val" id="v-voronoi-points">18</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="range" id="rg-voronoi-seed" min="0" max="99" step="1" value="7">
+          <span class="ctrl-val" id="v-voronoi-seed">7</span>
         </div>
       </div>
     </div>

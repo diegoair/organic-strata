@@ -10,7 +10,7 @@
    ───────────────────────────────────────────────────────────── */
 
 import { CANVAS_PRESETS, createCanvas, innerRect, safeAreaRect, UNIT_TO_MM, toCanonical } from './canvas-manager.js';
-import { buildModel, resolveCellRects } from './json-model.js';
+import { buildModel } from './json-model.js';
 import { GENERATORS } from './generators/registry.js';
 import { renderSVG } from './renderers/svg-renderer.js';
 import { paintGridDOM, buildHTMLSnippet } from './renderers/html-renderer.js';
@@ -146,13 +146,17 @@ function round4(n) { return Math.round(n * 10000) / 10000; }
 
 // ── Grid params (per-generator blocks, same show/hide pattern as
 // Warping's syncConditionalRows) ──
+const SOLVER_LABELS = { kiwi: 'Kiwi constraint solver', parametric: 'Direct parametric math', geometric: 'Geometric (half-plane clip)' };
 function syncGeneratorRows() {
   const type = ctrl('sel-gridtype').value;
   ctrl('block-bento').style.display = type === 'bento' ? '' : 'none';
   ctrl('block-sinusoidal').style.display = type === 'sinusoidal' ? '' : 'none';
-  ctrl('hint-solver').textContent = GENERATORS[type].solver === 'kiwi'
-    ? 'Kiwi constraint solver'
-    : 'Direct parametric math';
+  ctrl('block-voronoi').style.display = type === 'voronoi' ? '' : 'none';
+  // Padding has no defined meaning on a polygon cell yet (voronoi.js's own
+  // header) — hidden rather than left as a dead control that visibly does
+  // nothing, same rule Komorebi's own control audit already established.
+  ctrl('row-padding').style.display = type === 'voronoi' ? 'none' : '';
+  ctrl('hint-solver').textContent = SOLVER_LABELS[GENERATORS[type].solver];
 }
 function readGridParams() {
   const type = ctrl('sel-gridtype').value;
@@ -160,6 +164,11 @@ function readGridParams() {
     return {
       cols: Math.round(val('rg-bento-cols')), rows: Math.round(val('rg-bento-rows')),
       variety: val('rg-bento-variety'), gap: unitVal('rg-bento-gap'), seed: Math.round(val('rg-bento-seed')),
+    };
+  }
+  if (type === 'voronoi') {
+    return {
+      points: Math.round(val('rg-voronoi-points')), seed: Math.round(val('rg-voronoi-seed')),
     };
   }
   return {
@@ -208,7 +217,7 @@ function build() {
   canvasFrame.style.width = canvas.width + 'px';
   canvasFrame.style.height = canvas.height + 'px';
   fitToViewIfNeeded(canvas);
-  paintGridDOM(previewEl, currentModel);
+  paintGridDOM(previewEl, currentModel, inner, GUIDE_COLOR);
   paintGuides(canvas, inner);
   if (ctrl('ck-json-view').checked) paintJSON();
 
@@ -246,22 +255,21 @@ function shuffleNumbers() {
     [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
   }
   currentModel.cells.forEach((c, i) => { c.number = numbers[i]; });
-  paintGridDOM(previewEl, currentModel);
+  paintGridDOM(previewEl, currentModel, currentInner, GUIDE_COLOR);
   if (ctrl('ck-json-view').checked) paintJSON();
   setStatus('active', 'Numbers shuffled');
 }
 function sequentialNumbers() {
   if (!currentModel) return;
   currentModel.cells.forEach((c, i) => { c.number = i + 1; });
-  paintGridDOM(previewEl, currentModel);
+  paintGridDOM(previewEl, currentModel, currentInner, GUIDE_COLOR);
   if (ctrl('ck-json-view').checked) paintJSON();
   setStatus('active', 'Numbers reset');
 }
 
 // ── Export ──
 function exportPNG() {
-  const rects = resolveCellRects(currentModel, currentInner);
-  const c = renderRaster(currentModel, rects, currentInner, parseInt(ctrl('sel-scale').value, 10) || 2, GUIDE_COLOR);
+  const c = renderRaster(currentModel, currentInner, parseInt(ctrl('sel-scale').value, 10) || 2, GUIDE_COLOR);
   const url = c.toDataURL('image/png');
   const bin = atob(url.split(',')[1]);
   const bytes = new Uint8Array(bin.length);
@@ -270,15 +278,14 @@ function exportPNG() {
   setStatus('active', 'PNG saved');
 }
 function buildSVGString() {
-  const rects = resolveCellRects(currentModel, currentInner);
-  return renderSVG(currentModel, rects, currentInner, GUIDE_COLOR);
+  return renderSVG(currentModel, currentInner, GUIDE_COLOR);
 }
 function exportSVG() {
   Organica.download(new Blob([buildSVGString()], { type: 'image/svg+xml' }), Organica.stamp('loom', 'svg'));
   setStatus('active', 'SVG saved');
 }
 function exportHTML() {
-  const html = buildHTMLSnippet(currentModel);
+  const html = buildHTMLSnippet(currentModel, currentInner, GUIDE_COLOR);
   Organica.download(new Blob([html], { type: 'text/html' }), Organica.stamp('loom', 'html'));
   setStatus('active', 'HTML snippet saved');
 }

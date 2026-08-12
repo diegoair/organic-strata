@@ -1,19 +1,20 @@
 /* ─────────────────────────────────────────────────────────────
-   Raster (PNG) renderer — draws the DE-DUPLICATED edge set (json-model.js's
-   collectEdges) the SVG renderer also uses, as ONE stroked path, onto a
-   plain <canvas>. Not one strokeRect() per cell — that draws every shared
-   boundary between adjacent cells twice, and two coincident anti-aliased
-   1px strokes compound into a visibly bolder line than a genuine single
-   border (collectEdges's own header has the full story). Kept a thin,
-   separate function rather than rasterising the SVG string (Image +
-   drawImage), so PNG export has no dependency on SVG parsing succeeding
-   first.
+   Raster (PNG) renderer — resolves cell geometry itself (rect grids or
+   polygon grids, same split as svg-renderer.js), draws the DE-DUPLICATED
+   edge set (json-model.js's collectEdges/collectPolygonEdges) as ONE
+   stroked path onto a plain <canvas>. Not one strokeRect()/polygon per
+   cell — that draws every shared boundary between adjacent cells twice,
+   and two coincident anti-aliased 1px strokes compound into a visibly
+   bolder line than a genuine single border (collectEdges's own header
+   has the full story). Kept a thin, separate function rather than
+   rasterising the SVG string (Image + drawImage), so PNG export has no
+   dependency on SVG parsing succeeding first.
    ───────────────────────────────────────────────────────────── */
 
-import { collectEdges } from '../json-model.js';
+import { resolveCellRects, collectEdges, collectPolygonEdges } from '../json-model.js';
 
-export function renderRaster(model, rects, inner, scale = 2, lineColor) {
-  const { canvas } = model;
+export function renderRaster(model, inner, scale = 2, lineColor) {
+  const { canvas, grid } = model;
   const c = document.createElement('canvas');
   c.width = Math.round(canvas.width * scale);
   c.height = Math.round(canvas.height * scale);
@@ -28,7 +29,9 @@ export function renderRaster(model, rects, inner, scale = 2, lineColor) {
   ctx.setLineDash([]);
   ctx.strokeStyle = lineColor || '#3399ff';
   ctx.lineWidth = 1;
-  const edges = collectEdges(rects);
+  const edges = grid.cellShape === 'polygon'
+    ? collectPolygonEdges(model.cells)
+    : collectEdges(resolveCellRects(model, inner));
   ctx.beginPath();
   edges.forEach(e => { ctx.moveTo(e.x1, e.y1); ctx.lineTo(e.x2, e.y2); });
   ctx.stroke();

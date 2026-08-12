@@ -8,18 +8,31 @@
 
 import { generateBento } from './bento.js';
 import { generateSinusoidal } from './sinusoidal.js';
+import { generateVoronoi } from './voronoi.js';
 
 export const GENERATORS = {
   bento: {
     label: 'Bento',
     solver: 'kiwi',
+    cellShape: 'rect',
     generate: generateBento,
     defaults: { cols: 4, rows: 4, variety: 0.5, gap: 12, seed: 7 },
   },
   sinusoidal: {
     label: 'Sinusoidal',
     solver: 'parametric',
+    cellShape: 'rect',
     generate: generateSinusoidal,
     defaults: { cols: 8, rows: 5, amplitude: 0.5, frequency: 2, phase: 0, axis: 'cols', gap: 8 },
+  },
+  // Polygon-shaped, not a track lattice — main.js branches its preview
+  // and export wiring on this flag (see voronoi.js's own header for why
+  // there's no honest rect/CSS-Grid form of a Voronoi cell).
+  voronoi: {
+    label: 'Voronoi',
+    solver: 'geometric',
+    cellShape: 'polygon',
+    generate: generateVoronoi,
+    defaults: { points: 18, seed: 7 },
   },
 };
