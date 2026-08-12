@@ -311,6 +311,19 @@
     wrap.addEventListener('wheel', e => {
       if (!isReady()) return;
       e.preventDefault();
+      // A focused <input type=range>/number captures wheel scroll GLOBALLY in
+      // Chromium — independent of where the cursor actually is — so leaving a
+      // panel slider focused after dragging it, then scrolling over the canvas
+      // to zoom, silently nudges that slider's value too (found live: Gap and
+      // Seed both drifted while scroll-zooming Loom's Hexagonal preview, which
+      // read as "some hexagons are wrong" once the grid quietly regenerated
+      // under different params). Blurring any focused control outside the
+      // zoom/pan surface itself, right before zooming, makes wheel-over-canvas
+      // mean "zoom" only, never "zoom AND adjust whatever slider I last used."
+      if (document.activeElement && document.activeElement !== document.body &&
+          !wrap.contains(document.activeElement)) {
+        document.activeElement.blur();
+      }
       zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX, e.clientY);
     }, { passive: false });
 

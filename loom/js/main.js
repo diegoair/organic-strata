@@ -152,10 +152,11 @@ function syncGeneratorRows() {
   ctrl('block-bento').style.display = type === 'bento' ? '' : 'none';
   ctrl('block-sinusoidal').style.display = type === 'sinusoidal' ? '' : 'none';
   ctrl('block-voronoi').style.display = type === 'voronoi' ? '' : 'none';
+  ctrl('block-hexagonal').style.display = type === 'hexagonal' ? '' : 'none';
   // Padding has no defined meaning on a polygon cell yet (voronoi.js's own
   // header) — hidden rather than left as a dead control that visibly does
   // nothing, same rule Komorebi's own control audit already established.
-  ctrl('row-padding').style.display = type === 'voronoi' ? 'none' : '';
+  ctrl('row-padding').style.display = (type === 'voronoi' || type === 'hexagonal') ? 'none' : '';
   ctrl('hint-solver').textContent = SOLVER_LABELS[GENERATORS[type].solver];
 }
 function readGridParams() {
@@ -169,6 +170,12 @@ function readGridParams() {
   if (type === 'voronoi') {
     return {
       points: Math.round(val('rg-voronoi-points')), seed: Math.round(val('rg-voronoi-seed')),
+    };
+  }
+  if (type === 'hexagonal') {
+    return {
+      cols: Math.round(val('rg-hex-cols')), orientation: seg('seg-hex-orientation'),
+      gap: val('rg-hex-gap'), jitter: val('rg-hex-jitter'), seed: Math.round(val('rg-hex-seed')),
     };
   }
   return {

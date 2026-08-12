@@ -9,6 +9,7 @@
 import { generateBento } from './bento.js';
 import { generateSinusoidal } from './sinusoidal.js';
 import { generateVoronoi } from './voronoi.js';
+import { generateHexagonal } from './hexagonal.js';
 
 export const GENERATORS = {
   bento: {
@@ -34,5 +35,12 @@ export const GENERATORS = {
     cellShape: 'polygon',
     generate: generateVoronoi,
     defaults: { points: 18, seed: 7 },
+  },
+  hexagonal: {
+    label: 'Hexagonal',
+    solver: 'geometric',
+    cellShape: 'polygon',
+    generate: generateHexagonal,
+    defaults: { cols: 8, orientation: 'flat', gap: 0.06, jitter: 0, seed: 7 },
   },
 };
