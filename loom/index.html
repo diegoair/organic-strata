@@ -249,6 +249,7 @@ body {
           <option value="hexagonal">Hexagonal</option>
           <option value="radial">Radial</option>
           <option value="triangular">Triangular</option>
+          <option value="diamond">Diamond</option>
         </select>
       </div>
       <div class="ctrl-row" id="row-padding">
@@ -466,6 +467,56 @@ body {
           <div class="ctrl-label">Seed</div>
           <input type="range" id="rg-tri-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-tri-seed">7</span>
+        </div>
+      </div>
+
+      <div id="block-diamond" style="display:none">
+        <p class="org-panel__hint">Squares on a plain lattice, rotated as a whole field — Rotation 0 is a plain square grid, 45 is the diamond/argyle pattern. Same polygon-cell pipeline as Voronoi/Hexagonal/Radial/Triangular.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Target squares across the canvas width — density, not a literal count.">Columns</div>
+          <input type="range" id="rg-dia-cols" min="3" max="30" step="1" value="8">
+          <span class="ctrl-val" id="v-dia-cols">8</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Rigidly rotates the whole tessellation — centres and squares together, which is why it still tiles edge-to-edge at any angle. Repeats every 90°: 0 = axis-aligned squares, 45 = diamonds.">Rotation</div>
+          <input type="range" id="rg-dia-rotation" min="0" max="90" step="1" value="45">
+          <span class="ctrl-val" id="v-dia-rotation">45</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Rotates each square's OWN orientation independently, on top of Rotation — unlike Rotation this does not preserve edge-to-edge tiling (same trade-off as Jitter). Off = no per-cell rotation.">Spin mode</div>
+          <select class="panel-select" id="sel-dia-spinmode" aria-label="Spin mode" onchange="syncDiaSpinRow()">
+            <option value="off" selected>Off</option>
+            <option value="random">Random</option>
+            <option value="checkerboard">Checkerboard</option>
+            <option value="radial">Radial</option>
+            <option value="spiral">Spiral</option>
+            <option value="noise">Noise</option>
+          </select>
+        </div>
+        <div class="ctrl-row" id="row-dia-spinamount" style="display:none">
+          <div class="ctrl-label" title="Random: max degrees off-centre either way. Checkerboard/Spiral: degrees reached at full swing. Radial: degrees reached at the canvas edge. Noise: max degrees either way.">Spin amount</div>
+          <input type="range" id="rg-dia-spinamount" min="0" max="60" step="1" value="20">
+          <span class="ctrl-val" id="v-dia-spinamount">20</span>
+        </div>
+        <div class="ctrl-row" id="row-dia-noisescale" style="display:none">
+          <div class="ctrl-label" title="Cycles of the noise field across the canvas — low values give a few broad swirled regions, high values a fine, choppier variation.">Noise scale</div>
+          <input type="range" id="rg-dia-noisescale" min="1" max="10" step="0.5" value="3">
+          <span class="ctrl-val" id="v-dia-noisescale">3</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Shrinks each square toward its own centroid. 0 = edge-to-edge tessellation.">Gap</div>
+          <input type="range" id="rg-dia-gap" min="0" max="0.4" step="0.02" value="0.06">
+          <span class="ctrl-val" id="v-dia-gap">0.06</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Random offset per square. 0 = perfect tessellation.">Jitter</div>
+          <input type="range" id="rg-dia-jitter" min="0" max="1" step="0.05" value="0">
+          <span class="ctrl-val" id="v-dia-jitter">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="range" id="rg-dia-seed" min="0" max="99" step="1" value="7">
+          <span class="ctrl-val" id="v-dia-seed">7</span>
         </div>
       </div>
     </div>

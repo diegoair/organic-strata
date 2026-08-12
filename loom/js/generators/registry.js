@@ -12,6 +12,7 @@ import { generateVoronoi } from './voronoi.js';
 import { generateHexagonal } from './hexagonal.js';
 import { generateRadial } from './radial.js';
 import { generateTriangular } from './triangular.js';
+import { generateDiamond } from './diamond.js';
 
 export const GENERATORS = {
   bento: {
@@ -58,5 +59,15 @@ export const GENERATORS = {
     cellShape: 'polygon',
     generate: generateTriangular,
     defaults: { cols: 8, rotation: 0, spinMode: 'off', spinAmount: 20, noiseScale: 3, gap: 0.06, jitter: 0, seed: 7 },
+  },
+  diamond: {
+    label: 'Diamond',
+    solver: 'geometric',
+    cellShape: 'polygon',
+    generate: generateDiamond,
+    // Rotation defaults to 45, not 0 — reads as an actual diamond/argyle
+    // pattern out of the box, matching this generator's own name (see
+    // diamond.js's own header: 0 = axis-aligned squares, 45 = diamonds).
+    defaults: { cols: 8, rotation: 45, spinMode: 'off', spinAmount: 20, noiseScale: 3, gap: 0.06, jitter: 0, seed: 7 },
   },
 };

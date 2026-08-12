@@ -155,13 +155,15 @@ function syncGeneratorRows() {
   ctrl('block-hexagonal').style.display = type === 'hexagonal' ? '' : 'none';
   ctrl('block-radial').style.display = type === 'radial' ? '' : 'none';
   ctrl('block-triangular').style.display = type === 'triangular' ? '' : 'none';
+  ctrl('block-diamond').style.display = type === 'diamond' ? '' : 'none';
   // Padding has no defined meaning on a polygon cell yet (voronoi.js's own
   // header) — hidden rather than left as a dead control that visibly does
   // nothing, same rule Komorebi's own control audit already established.
-  ctrl('row-padding').style.display = ['voronoi', 'hexagonal', 'radial', 'triangular'].includes(type) ? 'none' : '';
+  ctrl('row-padding').style.display = ['voronoi', 'hexagonal', 'radial', 'triangular', 'diamond'].includes(type) ? 'none' : '';
   ctrl('hint-solver').textContent = SOLVER_LABELS[GENERATORS[type].solver];
   if (type === 'hexagonal') syncHexSpinRow();
   if (type === 'triangular') syncTriSpinRow();
+  if (type === 'diamond') syncDiaSpinRow();
 }
 // Spin Amount only means something once a Spin mode other than Off is
 // picked — hidden rather than left as a dead control when Off, same rule
@@ -178,6 +180,12 @@ function syncTriSpinRow() {
   const mode = ctrl('sel-tri-spinmode').value;
   ctrl('row-tri-spinamount').style.display = mode === 'off' ? 'none' : '';
   ctrl('row-tri-noisescale').style.display = mode === 'noise' ? '' : 'none';
+}
+// Same idea, Diamond's own Spin block.
+function syncDiaSpinRow() {
+  const mode = ctrl('sel-dia-spinmode').value;
+  ctrl('row-dia-spinamount').style.display = mode === 'off' ? 'none' : '';
+  ctrl('row-dia-noisescale').style.display = mode === 'noise' ? '' : 'none';
 }
 function readGridParams() {
   const type = ctrl('sel-gridtype').value;
@@ -213,6 +221,14 @@ function readGridParams() {
       spinMode: ctrl('sel-tri-spinmode').value, spinAmount: val('rg-tri-spinamount'),
       noiseScale: val('rg-tri-noisescale'),
       gap: val('rg-tri-gap'), jitter: val('rg-tri-jitter'), seed: Math.round(val('rg-tri-seed')),
+    };
+  }
+  if (type === 'diamond') {
+    return {
+      cols: Math.round(val('rg-dia-cols')), rotation: val('rg-dia-rotation'),
+      spinMode: ctrl('sel-dia-spinmode').value, spinAmount: val('rg-dia-spinamount'),
+      noiseScale: val('rg-dia-noisescale'),
+      gap: val('rg-dia-gap'), jitter: val('rg-dia-jitter'), seed: Math.round(val('rg-dia-seed')),
     };
   }
   return {
@@ -426,6 +442,7 @@ window.shuffleNumbers = shuffleNumbers;
 window.sequentialNumbers = sequentialNumbers;
 window.syncHexSpinRow = syncHexSpinRow;
 window.syncTriSpinRow = syncTriSpinRow;
+window.syncDiaSpinRow = syncDiaSpinRow;
 
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 Organica.autoLabelPanel(document);
