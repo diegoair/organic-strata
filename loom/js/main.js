@@ -154,12 +154,14 @@ function syncGeneratorRows() {
   ctrl('block-voronoi').style.display = type === 'voronoi' ? '' : 'none';
   ctrl('block-hexagonal').style.display = type === 'hexagonal' ? '' : 'none';
   ctrl('block-radial').style.display = type === 'radial' ? '' : 'none';
+  ctrl('block-triangular').style.display = type === 'triangular' ? '' : 'none';
   // Padding has no defined meaning on a polygon cell yet (voronoi.js's own
   // header) — hidden rather than left as a dead control that visibly does
   // nothing, same rule Komorebi's own control audit already established.
-  ctrl('row-padding').style.display = (type === 'voronoi' || type === 'hexagonal' || type === 'radial') ? 'none' : '';
+  ctrl('row-padding').style.display = ['voronoi', 'hexagonal', 'radial', 'triangular'].includes(type) ? 'none' : '';
   ctrl('hint-solver').textContent = SOLVER_LABELS[GENERATORS[type].solver];
   if (type === 'hexagonal') syncHexSpinRow();
+  if (type === 'triangular') syncTriSpinRow();
 }
 // Spin Amount only means something once a Spin mode other than Off is
 // picked — hidden rather than left as a dead control when Off, same rule
@@ -168,6 +170,14 @@ function syncHexSpinRow() {
   const mode = ctrl('sel-hex-spinmode').value;
   ctrl('row-hex-spinamount').style.display = mode === 'off' ? 'none' : '';
   ctrl('row-hex-noisescale').style.display = mode === 'noise' ? '' : 'none';
+}
+// Same idea, Triangular's own Spin block — kept as its own function rather
+// than parameterising syncHexSpinRow, matching this file's existing
+// per-generator-block pattern (readGridParams' own explicit branches).
+function syncTriSpinRow() {
+  const mode = ctrl('sel-tri-spinmode').value;
+  ctrl('row-tri-spinamount').style.display = mode === 'off' ? 'none' : '';
+  ctrl('row-tri-noisescale').style.display = mode === 'noise' ? '' : 'none';
 }
 function readGridParams() {
   const type = ctrl('sel-gridtype').value;
@@ -195,6 +205,14 @@ function readGridParams() {
       rings: Math.round(val('rg-radial-rings')), sectors: Math.round(val('rg-radial-sectors')),
       innerRadiusFrac: val('rg-radial-innerradius'), gap: val('rg-radial-gap'),
       startAngle: val('rg-radial-startangle'),
+    };
+  }
+  if (type === 'triangular') {
+    return {
+      cols: Math.round(val('rg-tri-cols')), rotation: val('rg-tri-rotation'),
+      spinMode: ctrl('sel-tri-spinmode').value, spinAmount: val('rg-tri-spinamount'),
+      noiseScale: val('rg-tri-noisescale'),
+      gap: val('rg-tri-gap'), jitter: val('rg-tri-jitter'), seed: Math.round(val('rg-tri-seed')),
     };
   }
   return {
@@ -407,6 +425,7 @@ window.resetZoom = resetZoom;
 window.shuffleNumbers = shuffleNumbers;
 window.sequentialNumbers = sequentialNumbers;
 window.syncHexSpinRow = syncHexSpinRow;
+window.syncTriSpinRow = syncTriSpinRow;
 
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 Organica.autoLabelPanel(document);
