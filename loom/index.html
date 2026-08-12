@@ -346,11 +346,30 @@ body {
           <span class="ctrl-val" id="v-hex-cols">8</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label">Orientation</div>
-          <div class="seg-ctrl" id="seg-hex-orientation">
-            <button class="seg-btn active" data-v="flat" onclick="setSeg('seg-hex-orientation', this)">Flat-top</button>
-            <button class="seg-btn" data-v="pointy" onclick="setSeg('seg-hex-orientation', this)">Pointy-top</button>
-          </div>
+          <div class="ctrl-label" title="Rigidly rotates the whole tessellation — centres and hexagons together, which is why it still tiles edge-to-edge at any angle. Repeats every 60°: 0 is the old 'Flat-top', 30 is the old 'Pointy-top'.">Rotation</div>
+          <input type="range" id="rg-hex-rotation" min="0" max="60" step="1" value="0">
+          <span class="ctrl-val" id="v-hex-rotation">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Rotates each hexagon's OWN orientation independently, on top of Rotation — unlike Rotation this does not preserve edge-to-edge tiling (same trade-off as Jitter). Off = no per-cell rotation.">Spin mode</div>
+          <select class="panel-select" id="sel-hex-spinmode" aria-label="Spin mode" onchange="syncHexSpinRow()">
+            <option value="off" selected>Off</option>
+            <option value="random">Random</option>
+            <option value="checkerboard">Checkerboard</option>
+            <option value="radial">Radial</option>
+            <option value="spiral">Spiral</option>
+            <option value="noise">Noise</option>
+          </select>
+        </div>
+        <div class="ctrl-row" id="row-hex-spinamount" style="display:none">
+          <div class="ctrl-label" title="Random: max degrees off-centre either way. Checkerboard/Spiral: degrees reached at full swing. Radial: degrees reached at the canvas edge. Noise: max degrees either way.">Spin amount</div>
+          <input type="range" id="rg-hex-spinamount" min="0" max="60" step="1" value="20">
+          <span class="ctrl-val" id="v-hex-spinamount">20</span>
+        </div>
+        <div class="ctrl-row" id="row-hex-noisescale" style="display:none">
+          <div class="ctrl-label" title="Cycles of the noise field across the canvas — low values give a few broad swirled regions, high values a fine, choppier variation.">Noise scale</div>
+          <input type="range" id="rg-hex-noisescale" min="1" max="10" step="0.5" value="3">
+          <span class="ctrl-val" id="v-hex-noisescale">3</span>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Shrinks each hexagon toward its own centre. 0 = edge-to-edge tessellation.">Gap</div>
@@ -389,10 +408,12 @@ body {
   </div><!-- /panel -->
 </div>
 
-<!-- Load order: core → kiwi (classic global, shared/kiwi.min.js's own
-     header) → this tool's own ES modules, which read `kiwi` unqualified
-     the same way they read `Organica` unqualified. -->
+<!-- Load order: core → noise (organica-noise.js's own header: must load
+     AFTER core, or core's closing `global.Organica = Organica` clobbers
+     it) → kiwi (classic global, shared/kiwi.min.js's own header) → this
+     tool's own ES modules, which read `kiwi`/`Organica` unqualified. -->
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-noise.js"></script>
 <script src="/shared/kiwi.min.js"></script>
 <script type="module" src="./js/main.js"></script>
 </body>

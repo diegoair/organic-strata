@@ -158,6 +158,15 @@ function syncGeneratorRows() {
   // nothing, same rule Komorebi's own control audit already established.
   ctrl('row-padding').style.display = (type === 'voronoi' || type === 'hexagonal') ? 'none' : '';
   ctrl('hint-solver').textContent = SOLVER_LABELS[GENERATORS[type].solver];
+  if (type === 'hexagonal') syncHexSpinRow();
+}
+// Spin Amount only means something once a Spin mode other than Off is
+// picked — hidden rather than left as a dead control when Off, same rule
+// as row-padding/the Voronoi hint above (Komorebi's own control audit).
+function syncHexSpinRow() {
+  const mode = ctrl('sel-hex-spinmode').value;
+  ctrl('row-hex-spinamount').style.display = mode === 'off' ? 'none' : '';
+  ctrl('row-hex-noisescale').style.display = mode === 'noise' ? '' : 'none';
 }
 function readGridParams() {
   const type = ctrl('sel-gridtype').value;
@@ -174,7 +183,9 @@ function readGridParams() {
   }
   if (type === 'hexagonal') {
     return {
-      cols: Math.round(val('rg-hex-cols')), orientation: seg('seg-hex-orientation'),
+      cols: Math.round(val('rg-hex-cols')), rotation: val('rg-hex-rotation'),
+      spinMode: ctrl('sel-hex-spinmode').value, spinAmount: val('rg-hex-spinamount'),
+      noiseScale: val('rg-hex-noisescale'),
       gap: val('rg-hex-gap'), jitter: val('rg-hex-jitter'), seed: Math.round(val('rg-hex-seed')),
     };
   }
@@ -349,9 +360,20 @@ let lastFitKey = '';
 function fitToViewIfNeeded(canvas) {
   const key = canvas.width + 'x' + canvas.height;
   if (key === lastFitKey) return;
-  lastFitKey = key;
   const wrap = ctrl('canvas-wrap');
   const availW = wrap.clientWidth - 64, availH = wrap.clientHeight - 64;
+  // The very first build() runs synchronously at module init, before the
+  // panel's own layout has necessarily settled — caught live: canvas-wrap
+  // measured a clientWidth small enough that availW went negative, which
+  // fed a negative scale into zoomBy and landed on the zoom floor (1%,
+  // fully off-screen) on every fresh load, not just Hexagonal/Spin.
+  // Retrying on the next frame (without committing lastFitKey yet) instead
+  // of fitting to garbage dimensions fixes this without guessing a delay.
+  if (availW <= 0 || availH <= 0) {
+    requestAnimationFrame(() => fitToViewIfNeeded(canvas));
+    return;
+  }
+  lastFitKey = key;
   const scale = Math.min(1, availW / canvas.width, availH / canvas.height);
   zoomPan.reset();
   if (scale < 0.999) zoomPan.zoomBy(scale);
@@ -376,6 +398,7 @@ window.sendToFigma = sendToFigma;
 window.resetZoom = resetZoom;
 window.shuffleNumbers = shuffleNumbers;
 window.sequentialNumbers = sequentialNumbers;
+window.syncHexSpinRow = syncHexSpinRow;
 
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 Organica.autoLabelPanel(document);

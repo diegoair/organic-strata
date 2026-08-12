@@ -41,6 +41,6 @@ export const GENERATORS = {
     solver: 'geometric',
     cellShape: 'polygon',
     generate: generateHexagonal,
-    defaults: { cols: 8, orientation: 'flat', gap: 0.06, jitter: 0, seed: 7 },
+    defaults: { cols: 8, rotation: 0, spinMode: 'off', spinAmount: 20, noiseScale: 3, gap: 0.06, jitter: 0, seed: 7 },
   },
 };
