@@ -376,24 +376,18 @@ body {
       <div class="ctrl-row">
         <select class="panel-select" id="sel-gridtype" aria-label="Grid type" onchange="syncGeneratorRows()">
           <option value="bento" selected>Bento</option>
-          <option value="sinusoidal">Sinusoidal</option>
-          <option value="voronoi">Voronoi</option>
+          <option value="sinusoidal">Wave</option>
           <option value="hexagonal">Hexagonal</option>
           <option value="radial">Radial</option>
           <option value="triangular">Triangular</option>
           <option value="diamond">Diamond</option>
           <option value="circular">Circular</option>
-          <option value="noise">Noise</option>
           <option value="linear">Linear</option>
-          <option value="modular">Modular</option>
           <option value="rectangular">Rectangular</option>
           <option value="diagonal">Diagonal</option>
           <option value="angular">Angular</option>
-          <option value="polar">Polar</option>
-          <option value="elliptical">Elliptical</option>
           <option value="masonry">Masonry</option>
           <option value="fractal">Fractal</option>
-          <option value="recursive">Recursive</option>
           <option value="organic">Organic</option>
           <option value="spiral">Spiral</option>
         </select>
@@ -436,6 +430,14 @@ body {
       </div>
 
       <div id="block-sinusoidal" style="display:none">
+        <p class="org-panel__hint">Sine and Noise, combined — same Columns×Rows lattice, rhythm in track SIZE not topology, the only difference is which function supplies the per-track weight.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Function</div>
+          <div class="seg-ctrl" id="seg-sin-fn">
+            <button class="seg-btn active" data-v="sine" onclick="setSeg('seg-sin-fn', this)">Sine</button>
+            <button class="seg-btn" data-v="noise" onclick="setSeg('seg-sin-fn', this)">Noise</button>
+          </div>
+        </div>
         <div class="ctrl-row">
           <div class="ctrl-label">Columns</div>
           <input type="range" id="rg-sin-cols" min="2" max="20" step="1" value="8">
@@ -455,38 +457,34 @@ body {
           </div>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="0 = uniform tracks, the sine wave's amplitude relative to the base track size.">Amplitude</div>
-          <input type="range" id="rg-sin-amp" min="0" max="0.9" step="0.02" value="0.5">
-          <span class="ctrl-val" id="v-sin-amp">0.5</span>
+          <div class="ctrl-label" title="0 = uniform tracks, either function's amplitude relative to the base track size.">Amount</div>
+          <input type="range" id="rg-sin-amount" min="0" max="0.9" step="0.02" value="0.5">
+          <span class="ctrl-val" id="v-sin-amount">0.5</span>
         </div>
-        <div class="ctrl-row">
+        <div class="ctrl-row" id="row-sin-freq">
           <div class="ctrl-label">Frequency</div>
           <input type="range" id="rg-sin-freq" min="0.5" max="6" step="0.1" value="2">
           <span class="ctrl-val" id="v-sin-freq">2</span>
         </div>
-        <div class="ctrl-row">
+        <div class="ctrl-row" id="row-sin-phase">
           <div class="ctrl-label">Phase</div>
           <input type="range" id="rg-sin-phase" min="0" max="6.283" step="0.05" value="0">
           <span class="ctrl-val" id="v-sin-phase">0</span>
+        </div>
+        <div class="ctrl-row" id="row-sin-scale" style="display:none">
+          <div class="ctrl-label" title="Cycles of the noise field across the tracks — low values give a few broad swells, high values a choppier, more granular rhythm.">Scale</div>
+          <input type="range" id="rg-sin-scale" min="0.5" max="8" step="0.1" value="2">
+          <span class="ctrl-val" id="v-sin-scale">2</span>
+        </div>
+        <div class="ctrl-row" id="row-sin-seed" style="display:none">
+          <div class="ctrl-label">Seed</div>
+          <input type="range" id="rg-sin-seed" min="0" max="99" step="1" value="7">
+          <span class="ctrl-val" id="v-sin-seed">7</span>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label">Gap</div>
           <input type="range" id="rg-sin-gap" min="0" max="40" step="1" value="8">
           <span class="ctrl-val" id="v-sin-gap">8</span>
-        </div>
-      </div>
-
-      <div id="block-voronoi" style="display:none">
-        <p class="org-panel__hint">Real polygon cells (half-plane intersection), not a rectangular approximation — no honest way to fit them onto CSS Grid's own track lattice, so this preview renders as an embedded SVG instead of a live DOM grid. Gap/Padding don't apply yet.</p>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Number of seed points — one per cell.">Points</div>
-          <input type="range" id="rg-voronoi-points" min="4" max="60" step="1" value="18">
-          <span class="ctrl-val" id="v-voronoi-points">18</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
-          <input type="range" id="rg-voronoi-seed" min="0" max="99" step="1" value="7">
-          <span class="ctrl-val" id="v-voronoi-seed">7</span>
         </div>
       </div>
 
@@ -541,7 +539,7 @@ body {
       </div>
 
       <div id="block-radial" style="display:none">
-        <p class="org-panel__hint">Real polar coordinates — concentric rings crossed with angular sectors, each cell a curved ring-sector wedge. No honest CSS Grid form, same as Voronoi/Hexagonal, so this preview renders as an embedded SVG.</p>
+        <p class="org-panel__hint">Real polar coordinates — concentric rings crossed with angular sectors, each cell a curved ring-sector wedge. Covers the old Radial/Polar/Elliptical trio: Radius curve bunches ring thickness, Stretch fits an ellipse to the canvas instead of a circle inscribed with margin left over.</p>
         <div class="ctrl-row">
           <div class="ctrl-label">Rings</div>
           <input type="range" id="rg-radial-rings" min="1" max="12" step="1" value="4">
@@ -552,6 +550,14 @@ body {
           <input type="range" id="rg-radial-sectors" min="3" max="36" step="1" value="12">
           <span class="ctrl-val" id="v-radial-sectors">12</span>
         </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="1 = linear ring spacing (the old Radial's own default). Higher bunches rings toward the centre; lower bunches them toward the outer edge.">Radius curve</div>
+          <input type="range" id="rg-radial-curve" min="0.3" max="3" step="0.1" value="1">
+          <span class="ctrl-val" id="v-radial-curve">1</span>
+        </div>
+        <label class="check-row">
+          <input type="checkbox" id="ck-radial-stretch"><span title="Off = a circle inscribed in the canvas (the old Radial's own default). On = an ellipse touching all four edges (the old Elliptical), scaled independently per axis.">Stretch to canvas</span>
+        </label>
         <div class="ctrl-row">
           <div class="ctrl-label" title="0 = true pie-slice wedges at the centre (donut hole closed). Higher values open a hole in the middle, dartboard-style.">Inner radius</div>
           <input type="range" id="rg-radial-innerradius" min="0" max="0.8" step="0.02" value="0.15">
@@ -698,47 +704,6 @@ body {
         </div>
       </div>
 
-      <div id="block-noise" style="display:none">
-        <p class="org-panel__hint">Sinusoidal's own architecture (a Columns×Rows lattice, rhythm in track SIZE not topology), a noise field instead of a sine wave — an irregular, hand-felt rhythm rather than a periodic one.</p>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Columns</div>
-          <input type="range" id="rg-noise-cols" min="2" max="20" step="1" value="8">
-          <span class="ctrl-val" id="v-noise-cols">8</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Rows</div>
-          <input type="range" id="rg-noise-rows" min="2" max="20" step="1" value="5">
-          <span class="ctrl-val" id="v-noise-rows">5</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Axis</div>
-          <div class="seg-ctrl" id="seg-noise-axis">
-            <button class="seg-btn active" data-v="cols" onclick="setSeg('seg-noise-axis', this)">Columns</button>
-            <button class="seg-btn" data-v="rows" onclick="setSeg('seg-noise-axis', this)">Rows</button>
-            <button class="seg-btn" data-v="both" onclick="setSeg('seg-noise-axis', this)">Both</button>
-          </div>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="0 = uniform tracks, the noise field's amplitude relative to the base track size.">Amount</div>
-          <input type="range" id="rg-noise-amount" min="0" max="0.9" step="0.02" value="0.5">
-          <span class="ctrl-val" id="v-noise-amount">0.5</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Cycles of the noise field across the tracks — low values give a few broad swells, high values a choppier, more granular rhythm.">Scale</div>
-          <input type="range" id="rg-noise-scale" min="0.5" max="8" step="0.1" value="2">
-          <span class="ctrl-val" id="v-noise-scale">2</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
-          <input type="range" id="rg-noise-seed" min="0" max="99" step="1" value="7">
-          <span class="ctrl-val" id="v-noise-seed">7</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Gap</div>
-          <input type="range" id="rg-noise-gap" min="0" max="40" step="1" value="8">
-          <span class="ctrl-val" id="v-noise-gap">8</span>
-        </div>
-      </div>
 
       <div id="block-linear" style="display:none">
         <p class="org-panel__hint">Column and Row combined into one generator — Axis picks full-height vertical strips (Columns), full-width horizontal bands (Rows), or a 2D lattice (Both), and the whole field can be rotated/jittered as one rigid tessellation, same technique as Hexagonal/Triangular/Diamond.</p>
@@ -782,24 +747,6 @@ body {
         </div>
       </div>
 
-      <div id="block-modular" style="display:none">
-        <p class="org-panel__hint">The plain uniform module scaffold — Columns×Rows, no merged spans, no randomness. Mechanically Bento with Variety at 0, shipped without Bento's own merge/variety/seed controls.</p>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Columns</div>
-          <input type="range" id="rg-mod-cols" min="1" max="16" step="1" value="6">
-          <span class="ctrl-val" id="v-mod-cols">6</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Rows</div>
-          <input type="range" id="rg-mod-rows" min="1" max="16" step="1" value="6">
-          <span class="ctrl-val" id="v-mod-rows">6</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Gap</div>
-          <input type="range" id="rg-mod-gap" min="0" max="40" step="1" value="12">
-          <span class="ctrl-val" id="v-mod-gap">12</span>
-        </div>
-      </div>
 
       <div id="block-rectangular" style="display:none">
         <p class="org-panel__hint">Explicit hand-set proportions instead of an equal or periodic rule — the classic asymmetric magazine grid (one lead column next to narrow ones). Column/row count comes from how many numbers you type, not a separate slider.</p>
@@ -881,68 +828,6 @@ body {
         </div>
       </div>
 
-      <div id="block-polar" style="display:none">
-        <p class="org-panel__hint">Radial's own twin — rings × sectors, inscribed in a circle — plus Radius curve: a power exponent that bunches ring thickness toward the centre (>1) or the outer edge (&lt;1) instead of Radial's always-equal spacing. Curve 1 reproduces Radial exactly.</p>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Rings</div>
-          <input type="range" id="rg-pol-rings" min="1" max="12" step="1" value="5">
-          <span class="ctrl-val" id="v-pol-rings">5</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Sectors</div>
-          <input type="range" id="rg-pol-sectors" min="3" max="36" step="1" value="12">
-          <span class="ctrl-val" id="v-pol-sectors">12</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="1 = Radial's own linear spacing. Higher bunches rings toward the centre; lower bunches them toward the outer edge.">Radius curve</div>
-          <input type="range" id="rg-pol-curve" min="0.3" max="3" step="0.1" value="1.8">
-          <span class="ctrl-val" id="v-pol-curve">1.8</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="0 = true pie-slice wedges at the centre.">Inner radius</div>
-          <input type="range" id="rg-pol-innerradius" min="0" max="0.8" step="0.02" value="0.1">
-          <span class="ctrl-val" id="v-pol-innerradius">0.1</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Insets each wedge inward on both its radial and angular sides.">Gap</div>
-          <input type="range" id="rg-pol-gap" min="0" max="0.4" step="0.02" value="0.08">
-          <span class="ctrl-val" id="v-pol-gap">0.08</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Start angle</div>
-          <input type="range" id="rg-pol-startangle" min="0" max="360" step="5" value="0">
-          <span class="ctrl-val" id="v-pol-startangle">0</span>
-        </div>
-      </div>
-
-      <div id="block-elliptical" style="display:none">
-        <p class="org-panel__hint">Radial's other twin — rings × sectors scaled independently to the canvas's own aspect ratio, so the outer ring touches all four edges instead of Radial's circle inscribed with margin space left over.</p>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Rings</div>
-          <input type="range" id="rg-ell-rings" min="1" max="12" step="1" value="4">
-          <span class="ctrl-val" id="v-ell-rings">4</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Sectors</div>
-          <input type="range" id="rg-ell-sectors" min="3" max="36" step="1" value="16">
-          <span class="ctrl-val" id="v-ell-sectors">16</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="0 = true pie-slice wedges at the centre.">Inner radius</div>
-          <input type="range" id="rg-ell-innerradius" min="0" max="0.8" step="0.02" value="0.15">
-          <span class="ctrl-val" id="v-ell-innerradius">0.15</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Insets each wedge inward on both its radial and angular sides.">Gap</div>
-          <input type="range" id="rg-ell-gap" min="0" max="0.4" step="0.02" value="0.08">
-          <span class="ctrl-val" id="v-ell-gap">0.08</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Start angle</div>
-          <input type="range" id="rg-ell-startangle" min="0" max="360" step="5" value="0">
-          <span class="ctrl-val" id="v-ell-startangle">0</span>
-        </div>
-      </div>
 
       <div id="block-masonry" style="display:none">
         <p class="org-panel__hint">Pinterest-style stacked columns — each column fills independently with randomised heights, so row boundaries don't line up across columns (the whole point of masonry). Each cell is a plain rect, carried as a 4-point polygon since there's no shared row lattice to place it on.</p>
@@ -974,7 +859,14 @@ body {
       </div>
 
       <div id="block-fractal" style="display:none">
-        <p class="org-panel__hint">Recursive binary subdivision where the split axis strictly alternates with depth — the same rule applied at every scale, the literal definition of self-similar. Recursive (its own sibling) picks the axis by the longer side instead.</p>
+        <p class="org-panel__hint">Recursive binary subdivision. Axis mode is the one real difference between the two generators this merged: Alternating applies the same rule at every scale (true self-similarity, slivers included); Longest side is a real treemap heuristic that keeps leaves closer to square.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Axis mode</div>
+          <div class="seg-ctrl" id="seg-frac-axismode">
+            <button class="seg-btn active" data-v="alternate" onclick="setSeg('seg-frac-axismode', this)">Alternating</button>
+            <button class="seg-btn" data-v="longest" onclick="setSeg('seg-frac-axismode', this)">Longest side</button>
+          </div>
+        </div>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Leaves = 2^Depth.">Depth</div>
           <input type="range" id="rg-frac-depth" min="1" max="8" step="1" value="5">
@@ -994,30 +886,6 @@ body {
           <div class="ctrl-label">Seed</div>
           <input type="range" id="rg-frac-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-frac-seed">7</span>
-        </div>
-      </div>
-
-      <div id="block-recursive" style="display:none">
-        <p class="org-panel__hint">Fractal's own sibling — identical recursive split, but the axis is chosen by whichever side of the current rect is longer (a real treemap heuristic), keeping leaves closer to square instead of alternating strictly.</p>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Leaves = 2^Depth.">Depth</div>
-          <input type="range" id="rg-rec-depth" min="1" max="8" step="1" value="6">
-          <span class="ctrl-val" id="v-rec-depth">6</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="0 = perfectly regular quad-subdivision. Higher wobbles each cut away from an exact 50/50.">Split variance</div>
-          <input type="range" id="rg-rec-variance" min="0" max="0.5" step="0.02" value="0.3">
-          <span class="ctrl-val" id="v-rec-variance">0.3</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Gap</div>
-          <input type="range" id="rg-rec-gap" min="0" max="30" step="1" value="8">
-          <span class="ctrl-val" id="v-rec-gap">8</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
-          <input type="range" id="rg-rec-seed" min="0" max="99" step="1" value="7">
-          <span class="ctrl-val" id="v-rec-seed">7</span>
         </div>
       </div>
 

@@ -1,56 +1,55 @@
 /* ─────────────────────────────────────────────────────────────
-   Radial generator — third POLYGON-shaped generator, and a genuinely
-   different structure from both families that came before it: Bento/
-   Sinusoidal are a Columns×Rows track lattice; Voronoi/Hexagonal are a
-   tessellation of the SAME repeated cell shape. Radial is real polar
-   coordinates — concentric Rings crossed with angular Sectors, each cell
-   a ring-sector wedge (an annular quadrilateral with two straight radial
-   edges and two curved arc edges), the dartboard/sunburst/mandala
+   Radial generator — third POLYGON-shaped generator: real polar
+   coordinates — concentric Rings crossed with angular Sectors, each
+   cell a ring-sector wedge (an annular quadrilateral with two straight
+   radial edges and two curved arc edges), the dartboard/sunburst/mandala
    structure no rect-lattice or polygon-tessellation generator can honestly
    produce.
 
-   `cellShape = 'polygon'` again (Voronoi's own fork), but each cell's
-   `points` approximate its two arcs as short line segments rather than
-   the 3–6 straight edges every other polygon generator emits — a real
-   circular arc has no exact polygon form, so the arc is subdivided finely
-   enough (one vertex roughly every 10°) that the SVG/PNG export and the
-   live preview both read as smoothly curved at any reasonable Rings ×
-   Sectors count, not faceted.
+   Consolidated from three generators that turned out to be the exact
+   same mechanism at different fixed parameter values — Polar was
+   "Radial plus a Radius curve exponent" (curve=1 reproduced Radial
+   exactly, verified byte-identical when it shipped), Elliptical was
+   "Radial with independent x/y scaling instead of one radius" (an
+   ellipse that touches all four canvas edges rather than a circle
+   inscribed with margin left over). Both differences are real but
+   orthogonal — a curved radius profile and an elliptical aspect ratio
+   don't interact, so exposing both as their own controls on ONE
+   generator (rather than three separate generators, two of which were
+   provably reproducible from the third at specific settings) covers
+   every case the three used to, with two more controls instead of two
+   more generator entries. `Radius curve` 1 and `Stretch to canvas`
+   off are the exact old Radial defaults; every other combination is a
+   genuinely new, real option this merge adds rather than removes.
 
-   No clipping against the inner rect is needed here, unlike Voronoi/
-   Hexagonal — by construction the whole radial field is built inside a
-   circle already inscribed within the inner rect (`outerRadius =
-   min(inner.width, inner.height) / 2`), so every wedge is guaranteed to
-   land fully inside it. Simpler than the other two polygon generators,
-   not a shortcut: there is genuinely no boundary case to handle.
+   `cellShape = 'polygon'` (Voronoi's own fork), each cell's `points`
+   approximate its two arcs as short line segments — a real circular
+   (or elliptical) arc has no exact polygon form, so it's subdivided
+   finely enough (one vertex roughly every 10°) that the SVG/PNG export
+   and the live preview both read as smoothly curved. No clipping
+   against the inner rect is needed — by construction the whole field
+   is built inside the outer ring, whether that ring is a circle
+   inscribed in the inner rect (Stretch off) or an ellipse touching all
+   four edges (Stretch on).
 
-   `Inner radius` (0–0.8, fraction of the outer radius) is the classic
-   dartboard/donut-chart control — 0 gives true pie-slice wedges at the
-   innermost ring (the "inner arc" degenerates to a single point at the
-   centre, handled as a real, not special-cased, zero-radius arc: same
-   arc-point code, just repeated points at (cx, cy), which draw as
-   zero-length segments and cost nothing). `Gap` insets each wedge inward
-   on BOTH its radial and angular sides before the arc is built — same
-   "shrink toward the cell's own middle" idea as Hexagonal's own Gap, just
-   with two independent inset amounts (ring-width-relative radially,
-   sector-angle-relative angularly) since a wedge has two genuinely
-   different kinds of edge. At Gap 0 this tiles edge-to-edge exactly, the
-   same "0 = true no-op" discipline as every other Organica control.
+   `Radius curve`: ring boundary i sits at the normalised position
+   `(i/rings)^curve` instead of the always-linear `i/rings` — curve>1
+   bunches thin rings near the centre (a dartboard/iris-like density
+   gradient), curve<1 bunches them toward the outer edge.
+
+   `Inner radius`/`Gap`/`Start angle` — unchanged from Radial's own
+   original meaning: 0 = true pie-slice wedges at the centre; Gap insets
+   each wedge on both its radial and angular sides, same "shrink toward
+   the cell's own middle" idea as every other polygon generator's Gap.
    ───────────────────────────────────────────────────────────── */
 
-// Points along a circular arc from `a0` to `a1` (radians) at radius `r`,
-// centred on (cx,cy) — subdivided finely enough (~10° per segment) that
-// the polygon reads as a smooth curve, not a facet, at any wedge size.
-// A near-zero radius (the innermost ring at Inner radius 0) still walks
-// this same path rather than being special-cased — every point just
-// lands at (cx, cy), a real (if degenerate) arc.
-function arcPoints(cx, cy, r, a0, a1) {
+function arcPoints(cx, cy, rx, ry, a0, a1) {
   const span = a1 - a0;
   const steps = Math.max(1, Math.ceil(Math.abs(span) / (Math.PI / 18)));
   const pts = [];
   for (let i = 0; i <= steps; i++) {
     const a = a0 + (span * i) / steps;
-    pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    pts.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]);
   }
   return pts;
 }
@@ -62,30 +61,35 @@ function polygonCentroid(poly) {
 }
 
 /**
- * @param {{rings:number, sectors:number, innerRadiusFrac:number, gap:number, startAngle:number}} params
+ * @param {{rings:number, sectors:number, innerRadiusFrac:number, gap:number, startAngle:number, curve:number, stretch:boolean}} params
  * @param {{x:number, y:number, width:number, height:number}} inner
  */
 export function generateRadial(params, inner) {
-  const { rings, sectors, innerRadiusFrac, gap, startAngle } = params;
+  const { rings, sectors, innerRadiusFrac, gap, startAngle, curve, stretch } = params;
   const cx = inner.x + inner.width / 2, cy = inner.y + inner.height / 2;
-  const outerRadius = Math.min(inner.width, inner.height) / 2;
-  const innerRadius = outerRadius * innerRadiusFrac;
-  const ringWidth = (outerRadius - innerRadius) / rings;
+  // Stretch off: both axes share the smaller radius, inscribed in a
+  // circle (old Radial/Polar). Stretch on: each axis gets its own full
+  // half-extent, touching all four canvas edges (old Elliptical).
+  const outerRx = stretch ? inner.width / 2 : Math.min(inner.width, inner.height) / 2;
+  const outerRy = stretch ? inner.height / 2 : Math.min(inner.width, inner.height) / 2;
+  const innerFrac = innerRadiusFrac || 0;
+  const pow = curve || 1;
+  const fracAt = i => innerFrac + Math.pow(i / rings, pow) * (1 - innerFrac);
   const sectorAngle = (2 * Math.PI) / sectors;
   const start = (startAngle || 0) * (Math.PI / 180);
 
   const cells = [];
   for (let i = 0; i < rings; i++) {
-    const r0 = innerRadius + i * ringWidth, r1 = r0 + ringWidth;
-    const rGap = gap * ringWidth * 0.4;
-    const r0g = Math.max(0, r0 + rGap), r1g = Math.max(r0g, r1 - rGap);
+    const f0 = fracAt(i), f1 = fracAt(i + 1);
+    const rGap = (gap || 0) * (f1 - f0) * 0.4;
+    const f0g = Math.max(0, f0 + rGap), f1g = Math.max(f0g, f1 - rGap);
     for (let j = 0; j < sectors; j++) {
       const a0 = start + j * sectorAngle, a1 = a0 + sectorAngle;
-      const aGap = gap * sectorAngle * 0.4;
+      const aGap = (gap || 0) * sectorAngle * 0.4;
       const a0g = a0 + aGap, a1g = a1 - aGap;
 
-      const outer = arcPoints(cx, cy, r1g, a0g, a1g);
-      const innerArc = arcPoints(cx, cy, r0g, a1g, a0g); // reversed, closes the loop
+      const outer = arcPoints(cx, cy, outerRx * f1g, outerRy * f1g, a0g, a1g);
+      const innerArc = arcPoints(cx, cy, outerRx * f0g, outerRy * f0g, a1g, a0g); // reversed, closes the loop
       const poly = outer.concat(innerArc);
       cells.push({ id: 'c' + cells.length, points: poly, centroid: polygonCentroid(poly) });
     }
@@ -96,7 +100,7 @@ export function generateRadial(params, inner) {
       type: 'radial',
       solver: 'geometric',
       cellShape: 'polygon',
-      params: { rings, sectors, innerRadiusFrac, gap, startAngle },
+      params: { rings, sectors, innerRadiusFrac, gap, startAngle, curve, stretch },
       gap: 0,
     },
     cells,

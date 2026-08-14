@@ -120,8 +120,6 @@ function rescaleUnitField(id, rangeKey, oldUnit, newUnit) {
 function rescaleGapPadding(oldUnit, newUnit) {
   rescaleUnitField('rg-bento-gap', 'gap', oldUnit, newUnit);
   rescaleUnitField('rg-sin-gap', 'gap', oldUnit, newUnit);
-  rescaleUnitField('rg-noise-gap', 'gap', oldUnit, newUnit);
-  rescaleUnitField('rg-mod-gap', 'gap', oldUnit, newUnit);
   rescaleUnitField('rg-rect-gap', 'gap', oldUnit, newUnit);
   rescaleUnitField('rg-padding', 'padding', oldUnit, newUnit);
 }
@@ -156,33 +154,28 @@ function syncGeneratorRows() {
   const type = ctrl('sel-gridtype').value;
   ctrl('block-bento').style.display = type === 'bento' ? '' : 'none';
   ctrl('block-sinusoidal').style.display = type === 'sinusoidal' ? '' : 'none';
-  ctrl('block-voronoi').style.display = type === 'voronoi' ? '' : 'none';
   ctrl('block-hexagonal').style.display = type === 'hexagonal' ? '' : 'none';
   ctrl('block-radial').style.display = type === 'radial' ? '' : 'none';
   ctrl('block-triangular').style.display = type === 'triangular' ? '' : 'none';
   ctrl('block-diamond').style.display = type === 'diamond' ? '' : 'none';
   ctrl('block-circular').style.display = type === 'circular' ? '' : 'none';
-  ctrl('block-noise').style.display = type === 'noise' ? '' : 'none';
   ctrl('block-linear').style.display = type === 'linear' ? '' : 'none';
-  ctrl('block-modular').style.display = type === 'modular' ? '' : 'none';
   ctrl('block-rectangular').style.display = type === 'rectangular' ? '' : 'none';
   ctrl('block-diagonal').style.display = type === 'diagonal' ? '' : 'none';
   ctrl('block-angular').style.display = type === 'angular' ? '' : 'none';
-  ctrl('block-polar').style.display = type === 'polar' ? '' : 'none';
-  ctrl('block-elliptical').style.display = type === 'elliptical' ? '' : 'none';
   ctrl('block-masonry').style.display = type === 'masonry' ? '' : 'none';
   ctrl('block-fractal').style.display = type === 'fractal' ? '' : 'none';
-  ctrl('block-recursive').style.display = type === 'recursive' ? '' : 'none';
   ctrl('block-organic').style.display = type === 'organic' ? '' : 'none';
   ctrl('block-spiral').style.display = type === 'spiral' ? '' : 'none';
   // Padding has no defined meaning on a polygon cell yet (voronoi.js's own
   // header) — hidden rather than left as a dead control that visibly does
   // nothing, same rule Komorebi's own control audit already established.
-  ctrl('row-padding').style.display = ['voronoi', 'hexagonal', 'radial', 'triangular', 'diamond', 'circular', 'diagonal', 'angular', 'polar', 'elliptical', 'masonry', 'fractal', 'recursive', 'organic', 'spiral', 'linear'].includes(type) ? 'none' : '';
+  ctrl('row-padding').style.display = ['hexagonal', 'radial', 'triangular', 'diamond', 'circular', 'diagonal', 'angular', 'masonry', 'fractal', 'organic', 'spiral', 'linear'].includes(type) ? 'none' : '';
   ctrl('hint-solver').textContent = SOLVER_LABELS[GENERATORS[type].solver];
   if (type === 'hexagonal') syncHexSpinRow();
   if (type === 'triangular') syncTriSpinRow();
   if (type === 'diamond') syncDiaSpinRow();
+  if (type === 'sinusoidal') syncWaveFnRow();
   if (type === 'linear') syncLinearAxisRow();
 }
 // Columns only means something under Axis Columns/Both, Rows only under
@@ -224,6 +217,11 @@ function randomizeParams() {
     const btn = btns[Math.floor(Math.random() * btns.length)];
     btns.forEach(b => b.classList.toggle('active', b === btn));
     if (seg.id === 'seg-lin-axis') syncLinearAxisRow();
+    if (seg.id === 'seg-sin-fn') syncWaveFnRow();
+  });
+  block.querySelectorAll('input[type=checkbox]').forEach(c => {
+    // Radial's Stretch to canvas today — a plain coin-flip.
+    c.checked = Math.random() < 0.5;
   });
   block.querySelectorAll('input[type=text]').forEach(t => {
     // Only Rectangular's Column/Row weights today — a plausible random
@@ -257,17 +255,20 @@ function syncDiaSpinRow() {
   ctrl('row-dia-spinamount').style.display = mode === 'off' ? 'none' : '';
   ctrl('row-dia-noisescale').style.display = mode === 'noise' ? '' : 'none';
 }
+// Wave's Function toggle (Sine/Noise) — Frequency/Phase only mean
+// something for Sine, Scale/Seed only for Noise, same conditional-row
+// discipline as every Spin-mode row above.
+function syncWaveFnRow() {
+  const fn = seg('seg-sin-fn');
+  ['row-sin-freq', 'row-sin-phase'].forEach(id => { ctrl(id).style.display = fn === 'noise' ? 'none' : ''; });
+  ['row-sin-scale', 'row-sin-seed'].forEach(id => { ctrl(id).style.display = fn === 'noise' ? '' : 'none'; });
+}
 function readGridParams() {
   const type = ctrl('sel-gridtype').value;
   if (type === 'bento') {
     return {
       cols: Math.round(val('rg-bento-cols')), rows: Math.round(val('rg-bento-rows')),
       variety: val('rg-bento-variety'), gap: unitVal('rg-bento-gap'), seed: Math.round(val('rg-bento-seed')),
-    };
-  }
-  if (type === 'voronoi') {
-    return {
-      points: Math.round(val('rg-voronoi-points')), seed: Math.round(val('rg-voronoi-seed')),
     };
   }
   if (type === 'hexagonal') {
@@ -282,7 +283,8 @@ function readGridParams() {
     return {
       rings: Math.round(val('rg-radial-rings')), sectors: Math.round(val('rg-radial-sectors')),
       innerRadiusFrac: val('rg-radial-innerradius'), gap: val('rg-radial-gap'),
-      startAngle: val('rg-radial-startangle'),
+      startAngle: val('rg-radial-startangle'), curve: val('rg-radial-curve'),
+      stretch: ctrl('ck-radial-stretch').checked,
     };
   }
   if (type === 'triangular') {
@@ -307,24 +309,11 @@ function readGridParams() {
       gap: val('rg-cir-gap'), jitter: val('rg-cir-jitter'), seed: Math.round(val('rg-cir-seed')),
     };
   }
-  if (type === 'noise') {
-    return {
-      cols: Math.round(val('rg-noise-cols')), rows: Math.round(val('rg-noise-rows')),
-      amount: val('rg-noise-amount'), scale: val('rg-noise-scale'),
-      axis: seg('seg-noise-axis'), seed: Math.round(val('rg-noise-seed')), gap: unitVal('rg-noise-gap'),
-    };
-  }
   if (type === 'linear') {
     return {
       cols: Math.round(val('rg-lin-cols')), rows: Math.round(val('rg-lin-rows')),
       axis: seg('seg-lin-axis'), rotation: val('rg-lin-rotation'), jitter: val('rg-lin-jitter'),
       gap: val('rg-lin-gap'), seed: Math.round(val('rg-lin-seed')),
-    };
-  }
-  if (type === 'modular') {
-    return {
-      cols: Math.round(val('rg-mod-cols')), rows: Math.round(val('rg-mod-rows')),
-      gap: unitVal('rg-mod-gap'),
     };
   }
   if (type === 'rectangular') {
@@ -346,20 +335,6 @@ function readGridParams() {
       centerX: val('rg-ang-centerx'), centerY: val('rg-ang-centery'), gap: val('rg-ang-gap'),
     };
   }
-  if (type === 'polar') {
-    return {
-      rings: Math.round(val('rg-pol-rings')), sectors: Math.round(val('rg-pol-sectors')),
-      innerRadiusFrac: val('rg-pol-innerradius'), gap: val('rg-pol-gap'),
-      startAngle: val('rg-pol-startangle'), curve: val('rg-pol-curve'),
-    };
-  }
-  if (type === 'elliptical') {
-    return {
-      rings: Math.round(val('rg-ell-rings')), sectors: Math.round(val('rg-ell-sectors')),
-      innerRadiusFrac: val('rg-ell-innerradius'), gap: val('rg-ell-gap'),
-      startAngle: val('rg-ell-startangle'),
-    };
-  }
   if (type === 'masonry') {
     return {
       cols: Math.round(val('rg-mas-cols')), minHeight: val('rg-mas-minheight'), maxHeight: val('rg-mas-maxheight'),
@@ -369,13 +344,8 @@ function readGridParams() {
   if (type === 'fractal') {
     return {
       depth: Math.round(val('rg-frac-depth')), variance: val('rg-frac-variance'),
+      axisMode: seg('seg-frac-axismode'),
       gap: unitVal('rg-frac-gap'), seed: Math.round(val('rg-frac-seed')),
-    };
-  }
-  if (type === 'recursive') {
-    return {
-      depth: Math.round(val('rg-rec-depth')), variance: val('rg-rec-variance'),
-      gap: unitVal('rg-rec-gap'), seed: Math.round(val('rg-rec-seed')),
     };
   }
   if (type === 'organic') {
@@ -389,9 +359,12 @@ function readGridParams() {
       count: Math.round(val('rg-spi-count')), ratio: val('rg-spi-ratio'), gap: unitVal('rg-spi-gap'),
     };
   }
+  // Wave — fallback branch (also the default generator on fresh load).
   return {
     cols: Math.round(val('rg-sin-cols')), rows: Math.round(val('rg-sin-rows')),
-    amplitude: val('rg-sin-amp'), frequency: val('rg-sin-freq'), phase: val('rg-sin-phase'),
+    fn: seg('seg-sin-fn'), amount: val('rg-sin-amount'),
+    frequency: val('rg-sin-freq'), phase: val('rg-sin-phase'),
+    scale: val('rg-sin-scale'), seed: Math.round(val('rg-sin-seed')),
     axis: seg('seg-sin-axis'), gap: unitVal('rg-sin-gap'),
   };
 }
@@ -399,6 +372,7 @@ function seg(groupId) { return ctrl(groupId).querySelector('.seg-btn.active').da
 function setSeg(groupId, btn) {
   ctrl(groupId).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
   if (groupId === 'seg-lin-axis') syncLinearAxisRow();
+  if (groupId === 'seg-sin-fn') syncWaveFnRow();
   build();
 }
 
@@ -668,9 +642,14 @@ const gridPresetStore = Organica.presetStore('loom');
 // margin/safeArea, grid.type/params/padding); tracks/cells are always
 // re-derived by build(), never stored redundantly here.
 const BUILTIN_GRID_PRESETS = {
+  // Swiss/Rule of Thirds/Modular Grid all target Bento at Variety 0 — a
+  // plain uniform grid IS Bento with no merging, verified as an exact
+  // no-op when Bento shipped, so the removed Modular generator's own
+  // exact output stays one click away, just as a preset instead of a
+  // fourth registry entry with no other behaviour of its own.
   'Swiss': {
     canvas: { displayWidth: 1080, displayHeight: 1080, unit: 'px', margin: 6, safeArea: 0 },
-    grid: { type: 'modular', params: { cols: 6, rows: 10, gap: 8 }, padding: 0 },
+    grid: { type: 'bento', params: { cols: 6, rows: 10, variety: 0, gap: 8, seed: 7 }, padding: 0 },
   },
   'Golden Ratio': {
     canvas: { displayWidth: 1080, displayHeight: 680, unit: 'px', margin: 4, safeArea: 0 },
@@ -678,7 +657,11 @@ const BUILTIN_GRID_PRESETS = {
   },
   'Rule of Thirds': {
     canvas: { displayWidth: 1080, displayHeight: 1080, unit: 'px', margin: 0, safeArea: 0 },
-    grid: { type: 'modular', params: { cols: 3, rows: 3, gap: 0 }, padding: 0 },
+    grid: { type: 'bento', params: { cols: 3, rows: 3, variety: 0, gap: 0, seed: 7 }, padding: 0 },
+  },
+  'Modular Grid': {
+    canvas: { displayWidth: 1080, displayHeight: 1080, unit: 'px', margin: 4, safeArea: 0 },
+    grid: { type: 'bento', params: { cols: 6, rows: 6, variety: 0, gap: 12, seed: 7 }, padding: 0 },
   },
   'Timeline': {
     canvas: { displayWidth: 1600, displayHeight: 260, unit: 'px', margin: 4, safeArea: 0 },
@@ -742,11 +725,12 @@ function applyGridParamsToUI(type, params) {
     setR('rg-bento-variety', params.variety); setR('rg-bento-gap', params.gap); setR('rg-bento-seed', params.seed);
   } else if (type === 'sinusoidal') {
     setR('rg-sin-cols', params.cols); setR('rg-sin-rows', params.rows);
-    setR('rg-sin-amp', params.amplitude); setR('rg-sin-freq', params.frequency); setR('rg-sin-phase', params.phase);
+    setR('rg-sin-amount', params.amount); setR('rg-sin-freq', params.frequency); setR('rg-sin-phase', params.phase);
+    setR('rg-sin-scale', params.scale); setR('rg-sin-seed', params.seed);
     setR('rg-sin-gap', params.gap);
     if (params.axis) setSegValue('seg-sin-axis', params.axis);
-  } else if (type === 'voronoi') {
-    setR('rg-voronoi-points', params.points); setR('rg-voronoi-seed', params.seed);
+    if (params.fn) setSegValue('seg-sin-fn', params.fn);
+    syncWaveFnRow();
   } else if (type === 'hexagonal') {
     setR('rg-hex-cols', params.cols); setR('rg-hex-rotation', params.rotation);
     setS('sel-hex-spinmode', params.spinMode); setR('rg-hex-spinamount', params.spinAmount);
@@ -756,7 +740,8 @@ function applyGridParamsToUI(type, params) {
   } else if (type === 'radial') {
     setR('rg-radial-rings', params.rings); setR('rg-radial-sectors', params.sectors);
     setR('rg-radial-innerradius', params.innerRadiusFrac); setR('rg-radial-gap', params.gap);
-    setR('rg-radial-startangle', params.startAngle);
+    setR('rg-radial-startangle', params.startAngle); setR('rg-radial-curve', params.curve);
+    if (params.stretch != null) ctrl('ck-radial-stretch').checked = params.stretch;
   } else if (type === 'triangular') {
     setR('rg-tri-cols', params.cols); setR('rg-tri-rotation', params.rotation);
     setS('sel-tri-spinmode', params.spinMode); setR('rg-tri-spinamount', params.spinAmount);
@@ -772,19 +757,12 @@ function applyGridParamsToUI(type, params) {
   } else if (type === 'circular') {
     setR('rg-cir-cols', params.cols); setR('rg-cir-rotation', params.rotation);
     setR('rg-cir-gap', params.gap); setR('rg-cir-jitter', params.jitter); setR('rg-cir-seed', params.seed);
-  } else if (type === 'noise') {
-    setR('rg-noise-cols', params.cols); setR('rg-noise-rows', params.rows);
-    setR('rg-noise-amount', params.amount); setR('rg-noise-scale', params.scale);
-    setR('rg-noise-seed', params.seed); setR('rg-noise-gap', params.gap);
-    if (params.axis) setSegValue('seg-noise-axis', params.axis);
   } else if (type === 'linear') {
     setR('rg-lin-cols', params.cols); setR('rg-lin-rows', params.rows);
     setR('rg-lin-rotation', params.rotation); setR('rg-lin-jitter', params.jitter);
     setR('rg-lin-gap', params.gap); setR('rg-lin-seed', params.seed);
     if (params.axis) setSegValue('seg-lin-axis', params.axis);
     syncLinearAxisRow();
-  } else if (type === 'modular') {
-    setR('rg-mod-cols', params.cols); setR('rg-mod-rows', params.rows); setR('rg-mod-gap', params.gap);
   } else if (type === 'rectangular') {
     if (params.colWeights != null) ctrl('txt-rect-colweights').value = params.colWeights;
     if (params.rowWeights != null) ctrl('txt-rect-rowweights').value = params.rowWeights;
@@ -795,23 +773,13 @@ function applyGridParamsToUI(type, params) {
   } else if (type === 'angular') {
     setR('rg-ang-sectors', params.sectors); setR('rg-ang-startangle', params.startAngle);
     setR('rg-ang-centerx', params.centerX); setR('rg-ang-centery', params.centerY); setR('rg-ang-gap', params.gap);
-  } else if (type === 'polar') {
-    setR('rg-pol-rings', params.rings); setR('rg-pol-sectors', params.sectors);
-    setR('rg-pol-innerradius', params.innerRadiusFrac); setR('rg-pol-gap', params.gap);
-    setR('rg-pol-startangle', params.startAngle); setR('rg-pol-curve', params.curve);
-  } else if (type === 'elliptical') {
-    setR('rg-ell-rings', params.rings); setR('rg-ell-sectors', params.sectors);
-    setR('rg-ell-innerradius', params.innerRadiusFrac); setR('rg-ell-gap', params.gap);
-    setR('rg-ell-startangle', params.startAngle);
   } else if (type === 'masonry') {
     setR('rg-mas-cols', params.cols); setR('rg-mas-minheight', params.minHeight);
     setR('rg-mas-maxheight', params.maxHeight); setR('rg-mas-gap', params.gap); setR('rg-mas-seed', params.seed);
   } else if (type === 'fractal') {
     setR('rg-frac-depth', params.depth); setR('rg-frac-variance', params.variance);
     setR('rg-frac-gap', params.gap); setR('rg-frac-seed', params.seed);
-  } else if (type === 'recursive') {
-    setR('rg-rec-depth', params.depth); setR('rg-rec-variance', params.variance);
-    setR('rg-rec-gap', params.gap); setR('rg-rec-seed', params.seed);
+    if (params.axisMode) setSegValue('seg-frac-axismode', params.axisMode);
   } else if (type === 'organic') {
     setR('rg-org-points', params.points); setR('rg-org-iterations', params.iterations); setR('rg-org-seed', params.seed);
   } else if (type === 'spiral') {

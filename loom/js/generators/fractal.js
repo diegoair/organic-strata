@@ -1,23 +1,27 @@
 /* ─────────────────────────────────────────────────────────────
-   Fractal generator — recursive binary space partition where the split
-   AXIS strictly alternates with depth (horizontal, vertical, horizontal,
-   …) — the same rule applied at every scale, which is the literal
-   definition of self-similar. `Recursive` (recursive.js, its own direct
-   sibling) runs the same binary split but picks the axis by which side
-   is currently longer instead of alternating — a real algorithmic
-   difference, not a cosmetic one: strict alternation can and does
-   produce thin slivers once depth is high on an already-narrow rect,
-   which is the genuine "fractal" look (self-similar structure visible
-   at every scale, slivers included); Recursive's longer-side heuristic
-   is a real treemap algorithm that actively avoids that.
+   Fractal generator — recursive binary space partition. Consolidated
+   from two generators that shared the identical recursion, `Split
+   variance` wobble, `Depth` (leaves = 2^depth), `Gap` and `Seed`, and
+   differed in exactly one real, load-bearing way: which axis each cut
+   uses. `Axis mode` makes that the single control it always should
+   have been, instead of two separate generator entries:
 
-   `Split variance` wobbles each cut away from an exact 50/50 (clamped
-   to [0.15, 0.85] so no cut degenerates to zero width) — 0 gives a
-   perfectly regular quad-subdivision (still genuinely fractal: every
-   leaf at depth N is identical in size, self-similarity at its purest).
-   `Depth` leaves are `2^depth` — depth 0 is the inner rect itself, one
-   cell, the same "0 = true no-op start point" every recursive control
-   here begins from.
+   - **Alternating** (the old "Fractal"): the split axis strictly
+     alternates with recursion depth (horizontal, vertical, horizontal,
+     …) — the same rule applied at every scale, the literal definition
+     of self-similar, and genuinely capable of producing thin slivers
+     at high depth on an already-narrow rect (a real, expected artefact
+     of true alternation, not a bug).
+   - **Longest side** (the old "Recursive"): the axis is chosen by
+     whichever side of the CURRENT rect is longer — a real treemap
+     heuristic (the same family as squarified/slice-and-dice
+     algorithms) that actively keeps leaves closer to square instead of
+     alternating strictly.
+
+   Both are genuinely useful, genuinely different-looking outputs from
+   the identical underlying recursion — exactly the kind of "one real
+   parameter, not two generators" case Column/Row→Linear and the
+   Radial/Polar/Elliptical merge already established.
    ───────────────────────────────────────────────────────────── */
 
 function mulberry32(seed) {
@@ -39,30 +43,33 @@ function polygonCentroid(poly) {
   return [x / poly.length, y / poly.length];
 }
 
-function split(rect, depth, variance, rng, out, alternateAxis) {
+function split(rect, depth, variance, rng, out, chooseAxis) {
   if (depth <= 0) { out.push(rect); return; }
-  const axis = alternateAxis(depth);
+  const axis = chooseAxis(rect, depth);
   const frac = Math.min(0.85, Math.max(0.15, 0.5 + (rng() - 0.5) * 2 * variance));
   if (axis === 'v') {
     const w1 = rect.width * frac;
-    split({ x: rect.x, y: rect.y, width: w1, height: rect.height }, depth - 1, variance, rng, out, alternateAxis);
-    split({ x: rect.x + w1, y: rect.y, width: rect.width - w1, height: rect.height }, depth - 1, variance, rng, out, alternateAxis);
+    split({ x: rect.x, y: rect.y, width: w1, height: rect.height }, depth - 1, variance, rng, out, chooseAxis);
+    split({ x: rect.x + w1, y: rect.y, width: rect.width - w1, height: rect.height }, depth - 1, variance, rng, out, chooseAxis);
   } else {
     const h1 = rect.height * frac;
-    split({ x: rect.x, y: rect.y, width: rect.width, height: h1 }, depth - 1, variance, rng, out, alternateAxis);
-    split({ x: rect.x, y: rect.y + h1, width: rect.width, height: rect.height - h1 }, depth - 1, variance, rng, out, alternateAxis);
+    split({ x: rect.x, y: rect.y, width: rect.width, height: h1 }, depth - 1, variance, rng, out, chooseAxis);
+    split({ x: rect.x, y: rect.y + h1, width: rect.width, height: rect.height - h1 }, depth - 1, variance, rng, out, chooseAxis);
   }
 }
 
 /**
- * @param {{depth:number, variance:number, gap:number, seed:number}} params
+ * @param {{depth:number, variance:number, axisMode:'alternate'|'longest', gap:number, seed:number}} params
  * @param {{x:number, y:number, width:number, height:number}} inner
  */
 export function generateFractal(params, inner) {
-  const { depth, variance, gap, seed } = params;
+  const { depth, variance, axisMode, gap, seed } = params;
   const rng = mulberry32(seed);
+  const chooseAxis = axisMode === 'longest'
+    ? (rect) => (rect.width >= rect.height ? 'v' : 'h')
+    : (rect, d) => (d % 2 === 0 ? 'v' : 'h');
   const leaves = [];
-  split({ x: inner.x, y: inner.y, width: inner.width, height: inner.height }, depth, variance, rng, leaves, d => d % 2 === 0 ? 'v' : 'h');
+  split({ x: inner.x, y: inner.y, width: inner.width, height: inner.height }, depth, variance, rng, leaves, chooseAxis);
 
   const inset = (gap || 0) / 2;
   const cells = leaves.map((r, i) => {
@@ -75,7 +82,7 @@ export function generateFractal(params, inner) {
       type: 'fractal',
       solver: 'geometric',
       cellShape: 'polygon',
-      params: { depth, variance, gap, seed },
+      params: { depth, variance, axisMode, gap, seed },
       gap: 0,
     },
     cells,
