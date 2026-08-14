@@ -301,8 +301,7 @@ body {
           <option value="diamond">Diamond</option>
           <option value="circular">Circular</option>
           <option value="noise">Noise</option>
-          <option value="column">Column</option>
-          <option value="row">Row</option>
+          <option value="linear">Linear</option>
           <option value="modular">Modular</option>
           <option value="rectangular">Rectangular</option>
           <option value="diagonal">Diagonal</option>
@@ -655,31 +654,45 @@ body {
         </div>
       </div>
 
-      <div id="block-column" style="display:none">
-        <p class="org-panel__hint">A plain vertical column grid, full canvas height — the literal typographic "column grid", uncluttered by Bento's own merge/variety controls.</p>
+      <div id="block-linear" style="display:none">
+        <p class="org-panel__hint">Column and Row combined into one generator — Axis picks full-height vertical strips (Columns), full-width horizontal bands (Rows), or a 2D lattice (Both), and the whole field can be rotated/jittered as one rigid tessellation, same technique as Hexagonal/Triangular/Diamond.</p>
         <div class="ctrl-row">
+          <div class="ctrl-label">Axis</div>
+          <div class="seg-ctrl" id="seg-lin-axis">
+            <button class="seg-btn active" data-v="cols" onclick="setSeg('seg-lin-axis', this)">Columns</button>
+            <button class="seg-btn" data-v="rows" onclick="setSeg('seg-lin-axis', this)">Rows</button>
+            <button class="seg-btn" data-v="both" onclick="setSeg('seg-lin-axis', this)">Both</button>
+          </div>
+        </div>
+        <div class="ctrl-row" id="row-lin-cols">
           <div class="ctrl-label">Columns</div>
-          <input type="range" id="rg-col-count" min="1" max="24" step="1" value="6">
-          <span class="ctrl-val" id="v-col-count">6</span>
+          <input type="range" id="rg-lin-cols" min="1" max="24" step="1" value="6">
+          <span class="ctrl-val" id="v-lin-cols">6</span>
         </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Gap</div>
-          <input type="range" id="rg-col-gap" min="0" max="40" step="1" value="16">
-          <span class="ctrl-val" id="v-col-gap">16</span>
-        </div>
-      </div>
-
-      <div id="block-row" style="display:none">
-        <p class="org-panel__hint">Column's own mirror — full canvas width, horizontal bands.</p>
-        <div class="ctrl-row">
+        <div class="ctrl-row" id="row-lin-rows">
           <div class="ctrl-label">Rows</div>
-          <input type="range" id="rg-row-count" min="1" max="24" step="1" value="6">
-          <span class="ctrl-val" id="v-row-count">6</span>
+          <input type="range" id="rg-lin-rows" min="1" max="24" step="1" value="6">
+          <span class="ctrl-val" id="v-lin-rows">6</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label">Gap</div>
-          <input type="range" id="rg-row-gap" min="0" max="40" step="1" value="16">
-          <span class="ctrl-val" id="v-row-gap">16</span>
+          <div class="ctrl-label" title="Rigidly rotates the whole field — strips/lattice and their spacing together, clipped to the canvas. Repeats every 180°.">Rotation</div>
+          <input type="range" id="rg-lin-rotation" min="0" max="180" step="1" value="0">
+          <span class="ctrl-val" id="v-lin-rotation">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Random offset per strip/cell along the division axis. 0 = perfectly even spacing.">Jitter</div>
+          <input type="range" id="rg-lin-jitter" min="0" max="1" step="0.05" value="0">
+          <span class="ctrl-val" id="v-lin-jitter">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Shrinks each strip/cell toward its own centre. 0 = edge-to-edge tessellation.">Gap</div>
+          <input type="range" id="rg-lin-gap" min="0" max="0.4" step="0.02" value="0.05">
+          <span class="ctrl-val" id="v-lin-gap">0.05</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="range" id="rg-lin-seed" min="0" max="99" step="1" value="7">
+          <span class="ctrl-val" id="v-lin-seed">7</span>
         </div>
       </div>
 

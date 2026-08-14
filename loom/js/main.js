@@ -119,8 +119,6 @@ function rescaleGapPadding(oldUnit, newUnit) {
   rescaleUnitField('rg-bento-gap', 'gap', oldUnit, newUnit);
   rescaleUnitField('rg-sin-gap', 'gap', oldUnit, newUnit);
   rescaleUnitField('rg-noise-gap', 'gap', oldUnit, newUnit);
-  rescaleUnitField('rg-col-gap', 'gap', oldUnit, newUnit);
-  rescaleUnitField('rg-row-gap', 'gap', oldUnit, newUnit);
   rescaleUnitField('rg-mod-gap', 'gap', oldUnit, newUnit);
   rescaleUnitField('rg-rect-gap', 'gap', oldUnit, newUnit);
   rescaleUnitField('rg-padding', 'padding', oldUnit, newUnit);
@@ -163,8 +161,7 @@ function syncGeneratorRows() {
   ctrl('block-diamond').style.display = type === 'diamond' ? '' : 'none';
   ctrl('block-circular').style.display = type === 'circular' ? '' : 'none';
   ctrl('block-noise').style.display = type === 'noise' ? '' : 'none';
-  ctrl('block-column').style.display = type === 'column' ? '' : 'none';
-  ctrl('block-row').style.display = type === 'row' ? '' : 'none';
+  ctrl('block-linear').style.display = type === 'linear' ? '' : 'none';
   ctrl('block-modular').style.display = type === 'modular' ? '' : 'none';
   ctrl('block-rectangular').style.display = type === 'rectangular' ? '' : 'none';
   ctrl('block-diagonal').style.display = type === 'diagonal' ? '' : 'none';
@@ -179,11 +176,20 @@ function syncGeneratorRows() {
   // Padding has no defined meaning on a polygon cell yet (voronoi.js's own
   // header) — hidden rather than left as a dead control that visibly does
   // nothing, same rule Komorebi's own control audit already established.
-  ctrl('row-padding').style.display = ['voronoi', 'hexagonal', 'radial', 'triangular', 'diamond', 'circular', 'diagonal', 'angular', 'polar', 'elliptical', 'masonry', 'fractal', 'recursive', 'organic', 'spiral'].includes(type) ? 'none' : '';
+  ctrl('row-padding').style.display = ['voronoi', 'hexagonal', 'radial', 'triangular', 'diamond', 'circular', 'diagonal', 'angular', 'polar', 'elliptical', 'masonry', 'fractal', 'recursive', 'organic', 'spiral', 'linear'].includes(type) ? 'none' : '';
   ctrl('hint-solver').textContent = SOLVER_LABELS[GENERATORS[type].solver];
   if (type === 'hexagonal') syncHexSpinRow();
   if (type === 'triangular') syncTriSpinRow();
   if (type === 'diamond') syncDiaSpinRow();
+  if (type === 'linear') syncLinearAxisRow();
+}
+// Columns only means something under Axis Columns/Both, Rows only under
+// Axis Rows/Both — hidden rather than left as a dead control the other
+// axis mode doesn't read, same rule as row-padding/Spin-amount above.
+function syncLinearAxisRow() {
+  const axis = seg('seg-lin-axis');
+  ctrl('row-lin-cols').style.display = (axis === 'rows') ? 'none' : '';
+  ctrl('row-lin-rows').style.display = (axis === 'cols') ? 'none' : '';
 }
 // Spin Amount only means something once a Spin mode other than Off is
 // picked — hidden rather than left as a dead control when Off, same rule
@@ -264,11 +270,12 @@ function readGridParams() {
       axis: seg('seg-noise-axis'), seed: Math.round(val('rg-noise-seed')), gap: unitVal('rg-noise-gap'),
     };
   }
-  if (type === 'column') {
-    return { count: Math.round(val('rg-col-count')), gap: unitVal('rg-col-gap') };
-  }
-  if (type === 'row') {
-    return { count: Math.round(val('rg-row-count')), gap: unitVal('rg-row-gap') };
+  if (type === 'linear') {
+    return {
+      cols: Math.round(val('rg-lin-cols')), rows: Math.round(val('rg-lin-rows')),
+      axis: seg('seg-lin-axis'), rotation: val('rg-lin-rotation'), jitter: val('rg-lin-jitter'),
+      gap: val('rg-lin-gap'), seed: Math.round(val('rg-lin-seed')),
+    };
   }
   if (type === 'modular') {
     return {
@@ -347,6 +354,7 @@ function readGridParams() {
 function seg(groupId) { return ctrl(groupId).querySelector('.seg-btn.active').dataset.v; }
 function setSeg(groupId, btn) {
   ctrl(groupId).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+  if (groupId === 'seg-lin-axis') syncLinearAxisRow();
   build();
 }
 
@@ -519,7 +527,7 @@ const BUILTIN_GRID_PRESETS = {
   },
   'Timeline': {
     canvas: { displayWidth: 1600, displayHeight: 260, unit: 'px', margin: 4, safeArea: 0 },
-    grid: { type: 'column', params: { count: 16, gap: 6 }, padding: 0 },
+    grid: { type: 'linear', params: { cols: 16, rows: 1, axis: 'cols', rotation: 0, jitter: 0, gap: 0.04, seed: 7 }, padding: 0 },
   },
   'Isometric': {
     canvas: { displayWidth: 1080, displayHeight: 1080, unit: 'px', margin: 4, safeArea: 0 },
@@ -614,10 +622,12 @@ function applyGridParamsToUI(type, params) {
     setR('rg-noise-amount', params.amount); setR('rg-noise-scale', params.scale);
     setR('rg-noise-seed', params.seed); setR('rg-noise-gap', params.gap);
     if (params.axis) setSegValue('seg-noise-axis', params.axis);
-  } else if (type === 'column') {
-    setR('rg-col-count', params.count); setR('rg-col-gap', params.gap);
-  } else if (type === 'row') {
-    setR('rg-row-count', params.count); setR('rg-row-gap', params.gap);
+  } else if (type === 'linear') {
+    setR('rg-lin-cols', params.cols); setR('rg-lin-rows', params.rows);
+    setR('rg-lin-rotation', params.rotation); setR('rg-lin-jitter', params.jitter);
+    setR('rg-lin-gap', params.gap); setR('rg-lin-seed', params.seed);
+    if (params.axis) setSegValue('seg-lin-axis', params.axis);
+    syncLinearAxisRow();
   } else if (type === 'modular') {
     setR('rg-mod-cols', params.cols); setR('rg-mod-rows', params.rows); setR('rg-mod-gap', params.gap);
   } else if (type === 'rectangular') {
