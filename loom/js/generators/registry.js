@@ -102,7 +102,7 @@ export const GENERATORS = {
     solver: 'geometric',
     cellShape: 'polygon',
     generate: generateLinear,
-    defaults: { cols: 6, rows: 6, axis: 'cols', rotation: 0, jitter: 0, gap: 0.05, seed: 7 },
+    defaults: { cols: 6, rows: 6, axis: 'cols', rotation: 0, jitter: 0, gap: 0.05, seed: 7, distortMode: 'off', distortAmount: 0.3, distortFrequency: 2, distortPhase: 0 },
   },
   rectangular: {
     label: 'Rectangular',

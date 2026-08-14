@@ -758,6 +758,29 @@ body {
           <input type="range" id="rg-lin-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-lin-seed">7</span>
         </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Bends the division lines themselves into curves — real polygon geometry, not a track-size trick the way Wave's own Sine/Noise is limited to. Off = straight lines (the original behaviour).">Distortion</div>
+          <div class="seg-ctrl" id="seg-lin-distort">
+            <button class="seg-btn active" data-v="off" onclick="setSeg('seg-lin-distort', this)">Off</button>
+            <button class="seg-btn" data-v="sine" onclick="setSeg('seg-lin-distort', this)">Sine</button>
+            <button class="seg-btn" data-v="noise" onclick="setSeg('seg-lin-distort', this)">Noise</button>
+          </div>
+        </div>
+        <div class="ctrl-row" id="row-lin-distort-amount" style="display:none">
+          <div class="ctrl-label" title="0 = straight lines, either mode's bend relative to a track's own width.">Amount</div>
+          <input type="range" id="rg-lin-distort-amount" min="0" max="0.9" step="0.02" value="0.3">
+          <span class="ctrl-val" id="v-lin-distort-amount">0.3</span>
+        </div>
+        <div class="ctrl-row" id="row-lin-distort-freq" style="display:none">
+          <div class="ctrl-label" title="Sine: cycles across the canvas. Noise: cycles of the noise field across the canvas.">Frequency</div>
+          <input type="range" id="rg-lin-distort-freq" min="0.5" max="8" step="0.1" value="2">
+          <span class="ctrl-val" id="v-lin-distort-freq">2</span>
+        </div>
+        <div class="ctrl-row" id="row-lin-distort-phase" style="display:none">
+          <div class="ctrl-label">Phase</div>
+          <input type="range" id="rg-lin-distort-phase" min="0" max="6.283" step="0.05" value="0">
+          <span class="ctrl-val" id="v-lin-distort-phase">0</span>
+        </div>
       </div>
 
 

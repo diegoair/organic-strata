@@ -186,7 +186,7 @@ function syncGeneratorRows() {
   // (its own onchange attribute) — one place to keep in sync, not one
   // per caller.
   gridtypePicker.refresh();
-  if (type === 'linear') syncLinearAxisRow();
+  if (type === 'linear') { syncLinearAxisRow(); syncLinearDistortRow(); }
 }
 // Columns only means something under Axis Columns/Both, Rows only under
 // Axis Rows/Both — hidden rather than left as a dead control the other
@@ -195,6 +195,15 @@ function syncLinearAxisRow() {
   const axis = seg('seg-lin-axis');
   ctrl('row-lin-cols').style.display = (axis === 'rows') ? 'none' : '';
   ctrl('row-lin-rows').style.display = (axis === 'cols') ? 'none' : '';
+}
+// Distortion's Amount/Frequency show only once a mode is picked (Off
+// has nothing for them to affect); Phase only means something for
+// Sine (fbm has no phase, same reason Wave hides it for Noise too).
+function syncLinearDistortRow() {
+  const mode = seg('seg-lin-distort');
+  ctrl('row-lin-distort-amount').style.display = mode === 'off' ? 'none' : '';
+  ctrl('row-lin-distort-freq').style.display = mode === 'off' ? 'none' : '';
+  ctrl('row-lin-distort-phase').style.display = mode === 'sine' ? '' : 'none';
 }
 
 // ── Phase 6 — Randomisation UI. Scoped to the CURRENT generator's own
@@ -227,6 +236,7 @@ function randomizeParams() {
     const btn = btns[Math.floor(Math.random() * btns.length)];
     btns.forEach(b => b.classList.toggle('active', b === btn));
     if (seg.id === 'seg-lin-axis') syncLinearAxisRow();
+    if (seg.id === 'seg-lin-distort') syncLinearDistortRow();
     if (seg.id === 'seg-sin-fn') syncWaveFnRow();
   });
   block.querySelectorAll('input[type=checkbox]').forEach(c => {
@@ -324,6 +334,8 @@ function readGridParams() {
       cols: Math.round(val('rg-lin-cols')), rows: Math.round(val('rg-lin-rows')),
       axis: seg('seg-lin-axis'), rotation: val('rg-lin-rotation'), jitter: val('rg-lin-jitter'),
       gap: val('rg-lin-gap'), seed: Math.round(val('rg-lin-seed')),
+      distortMode: seg('seg-lin-distort'), distortAmount: val('rg-lin-distort-amount'),
+      distortFrequency: val('rg-lin-distort-freq'), distortPhase: val('rg-lin-distort-phase'),
     };
   }
   if (type === 'rectangular') {
@@ -382,6 +394,7 @@ function seg(groupId) { return ctrl(groupId).querySelector('.seg-btn.active').da
 function setSeg(groupId, btn) {
   ctrl(groupId).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
   if (groupId === 'seg-lin-axis') syncLinearAxisRow();
+  if (groupId === 'seg-lin-distort') syncLinearDistortRow();
   if (groupId === 'seg-sin-fn') syncWaveFnRow();
   build();
 }
@@ -771,8 +784,12 @@ function applyGridParamsToUI(type, params) {
     setR('rg-lin-cols', params.cols); setR('rg-lin-rows', params.rows);
     setR('rg-lin-rotation', params.rotation); setR('rg-lin-jitter', params.jitter);
     setR('rg-lin-gap', params.gap); setR('rg-lin-seed', params.seed);
+    setR('rg-lin-distort-amount', params.distortAmount); setR('rg-lin-distort-freq', params.distortFrequency);
+    setR('rg-lin-distort-phase', params.distortPhase);
     if (params.axis) setSegValue('seg-lin-axis', params.axis);
+    if (params.distortMode) setSegValue('seg-lin-distort', params.distortMode);
     syncLinearAxisRow();
+    syncLinearDistortRow();
   } else if (type === 'rectangular') {
     if (params.colWeights != null) ctrl('txt-rect-colweights').value = params.colWeights;
     if (params.rowWeights != null) ctrl('txt-rect-rowweights').value = params.rowWeights;
