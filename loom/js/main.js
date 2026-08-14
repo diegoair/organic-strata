@@ -989,17 +989,19 @@ ctrl('panel').addEventListener('input', e => {
   const valEl = e.target.closest('.ctrl-row')?.querySelector('.ctrl-val');
   if (valEl) valEl.textContent = e.target.value;
 });
-// Link margin sides — dragging any one of the four Margin sliders while
+// Link margin sides — editing any one of the four Margin fields while
 // linked copies its value to the other three (checked by default, since
 // "all four equal" was the only behaviour before per-side margins
-// existed). Off, each side is fully independent.
+// existed). Off, each side is fully independent. The four fields are
+// plain number inputs (the 2×2 corner-bracket grid), not sliders — no
+// separate .ctrl-val readout to sync, the input's own value IS the
+// display.
 ctrl('panel').addEventListener('input', e => {
   if (!e.target.matches('.margin-side') || !ctrl('ck-margin-link').checked) return;
   const v = e.target.value;
   ['rg-margin-top', 'rg-margin-right', 'rg-margin-bottom', 'rg-margin-left'].forEach(id => {
     if (id === e.target.id) return;
     ctrl(id).value = v;
-    ctrl('v-' + id.slice(3)).textContent = v;
   });
 });
 ctrl('panel').addEventListener('input', build);
