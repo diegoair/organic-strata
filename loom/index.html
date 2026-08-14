@@ -282,6 +282,10 @@ body {
       <label class="check-row">
         <input type="checkbox" id="ck-show-numbers" checked onchange="syncCanvasOverlays()"><span>Show numbers</span>
       </label>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="shuffleNumbers()">Shuffle</button>
+        <button class="mini-btn" onclick="sequentialNumbers()">Sequential</button>
+      </div>
     </div>
 
     <div class="panel-section">
@@ -593,14 +597,6 @@ body {
           <input type="range" id="rg-cir-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-cir-seed">7</span>
         </div>
-      </div>
-    </div>
-
-    <div class="panel-section">
-      <h3>Numbering <span class="hint">block order</span></h3>
-      <div class="row-btns" style="margin-top:0">
-        <button class="mini-btn" onclick="shuffleNumbers()">Shuffle</button>
-        <button class="mini-btn" onclick="sequentialNumbers()">Sequential</button>
       </div>
     </div>
 
