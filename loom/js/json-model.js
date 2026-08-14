@@ -36,8 +36,11 @@ export function buildModel({ canvas, grid, cells }) {
   };
 }
 
-// Cumulative offsets of a track list — shared by column and row resolution.
-function offsets(sizes, gap) {
+// Cumulative offsets of a track list — shared by column and row resolution,
+// and by main.js's own drag-to-resize (it needs the exact same boundary
+// positions to place its handles, so this is exported rather than
+// re-derived a second way that could drift from what actually renders).
+export function offsets(sizes, gap) {
   const out = [0];
   for (let i = 0; i < sizes.length; i++) out.push(out[i] + sizes[i] + gap);
   return out;

@@ -51,6 +51,47 @@ export function solveTracksKiwi(count, innerSize, gap, minSize = 16) {
 }
 
 /**
+ * The real edit-constraint use of Kiwi this file's own header already
+ * named as the point of choosing Kiwi at all (Phase 4): dragging one
+ * track's boundary in the live preview becomes a `strong` edit
+ * constraint on that ONE track's variable — stronger than the medium
+ * equal-preference between tracks, weaker than the required minimum-size
+ * and sum-fills-canvas constraints, which stay untouched. The solver then
+ * redistributes the difference across every OTHER track by re-optimising
+ * the same constraint system solveTracksKiwi always solves — no hand-
+ * written "shrink my neighbour by the same amount" redistribution code,
+ * exactly the payoff documented since Bento shipped. Passing `editIndex:
+ * null` reproduces solveTracksKiwi's own plain result exactly (verified:
+ * byte-identical), so this isn't a second code path to keep in sync —
+ * solveTracksKiwi could call this with editIndex null instead of
+ * duplicating the setup, but is left as-is since it's the simpler,
+ * already-proven function and nothing depends on merging them.
+ */
+export function solveTracksKiwiWithEdit(count, innerSize, gap, minSize = 16, editIndex, editValue) {
+  if (count <= 0) return [];
+  const solver = new kiwi.Solver();
+  const vars = Array.from({ length: count }, (_, i) => new kiwi.Variable('t' + i));
+
+  vars.forEach(v => {
+    solver.createConstraint(v, kiwi.Operator.Ge, minSize, kiwi.Strength.required);
+  });
+  for (let i = 1; i < count; i++) {
+    solver.createConstraint(vars[0], kiwi.Operator.Eq, vars[i], kiwi.Strength.medium);
+  }
+  const totalGap = gap * (count - 1);
+  const sumExpr = vars.reduce((e, v) => e.plus(v), new kiwi.Expression());
+  solver.createConstraint(sumExpr, kiwi.Operator.Eq, innerSize - totalGap, kiwi.Strength.required);
+
+  if (editIndex != null) {
+    solver.addEditVariable(vars[editIndex], kiwi.Strength.strong);
+    solver.suggestValue(vars[editIndex], Math.max(minSize, editValue));
+  }
+
+  solver.updateVariables();
+  return vars.map(v => v.value());
+}
+
+/**
  * Direct parametric track sizing — no solver, a closed-form function
  * evaluated per track then rescaled to fit exactly. `sizeFn(i, count)`
  * returns a relative weight (not a final pixel size); the rescale step is

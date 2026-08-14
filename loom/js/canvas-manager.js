@@ -77,36 +77,43 @@ const MIN_CANONICAL = 20;
 const MAX_CANONICAL = 50000;
 
 /**
- * @param {{width:number, height:number, unit:'px'|'mm'|'cm'|'m', marginPct:number, safeAreaPct:number, bleed:number}} opts
+ * @param {{width:number, height:number, unit:'px'|'mm'|'cm'|'m', marginTop:number, marginRight:number, marginBottom:number, marginLeft:number, safeAreaPct:number, bleed:number}} opts
  */
-export function createCanvas({ width, height, unit = 'px', marginPct = 0, safeAreaPct = 0, bleed = 0 }) {
+export function createCanvas({ width, height, unit = 'px', marginTop = 0, marginRight = 0, marginBottom = 0, marginLeft = 0, safeAreaPct = 0, bleed = 0 }) {
   const cw = clampCanonical(toCanonical(width, unit));
   const ch = clampCanonical(toCanonical(height, unit));
   return {
     width: cw, height: ch,             // canonical — every generator/renderer reads this
     displayWidth: width, displayHeight: height, unit,   // what the user actually typed, for labels only
     orientation: cw >= ch ? 'landscape' : 'portrait',
-    // MVP simplification, disclosed rather than hidden: one margin value
-    // applied to all four sides. Per-side margins are a real brief
-    // requirement ("Margins" is its own constraint parameter) — deferred
-    // to the phase that adds WYSIWYG editing, since per-side controls want
-    // a visual handle, not four more sliders nobody will tune blind.
-    margin: marginPct,
+    // Per-side margins (Phase 4) — each a percentage of the canvas's own
+    // shorter side, same convention the old single uniform `margin` used,
+    // so a saved grid/preset from before this shipped (only `margin`, no
+    // per-side fields) still resolves identically: main.js's own
+    // loadGridPreset falls back to `margin` for all four sides when the
+    // per-side fields aren't present, and `margin` itself is kept here,
+    // mirroring marginTop, purely for that backward-compatible read —
+    // innerRect() below never reads it.
+    marginTop, marginRight, marginBottom, marginLeft,
+    margin: marginTop,
     safeArea: safeAreaPct,
     bleed: unit !== 'px' ? bleed : 0,   // always mm-equivalent already, never re-converted (see header)
   };
 }
 
-// The rect every grid actually resolves inside — canvas minus margin
-// (a percentage of the shorter side, so portrait and landscape canvases
-// get proportionally similar margins rather than one axis being crushed).
+// The rect every grid actually resolves inside — canvas minus margin,
+// independently per side (a percentage of the shorter side each, so
+// portrait and landscape canvases get proportionally similar margins
+// rather than one axis being crushed, same reasoning as the old uniform
+// version, just applied per edge instead of all four at once).
 export function innerRect(canvas) {
   const shortSide = Math.min(canvas.width, canvas.height);
-  const m = shortSide * (canvas.margin / 100);
+  const mt = shortSide * (canvas.marginTop / 100), mr = shortSide * (canvas.marginRight / 100);
+  const mb = shortSide * (canvas.marginBottom / 100), ml = shortSide * (canvas.marginLeft / 100);
   return {
-    x: m, y: m,
-    width: Math.max(1, canvas.width - 2 * m),
-    height: Math.max(1, canvas.height - 2 * m),
+    x: ml, y: mt,
+    width: Math.max(1, canvas.width - ml - mr),
+    height: Math.max(1, canvas.height - mt - mb),
   };
 }
 

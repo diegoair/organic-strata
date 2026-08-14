@@ -10,11 +10,12 @@
    ───────────────────────────────────────────────────────────── */
 
 import { CANVAS_PRESETS, createCanvas, innerRect, safeAreaRect, UNIT_TO_MM, toCanonical } from './canvas-manager.js';
-import { buildModel } from './json-model.js';
+import { buildModel, offsets } from './json-model.js';
 import { GENERATORS } from './generators/registry.js';
 import { renderSVG } from './renderers/svg-renderer.js';
 import { paintGridDOM, buildHTMLSnippet } from './renderers/html-renderer.js';
 import { renderRaster } from './renderers/raster-renderer.js';
+import { solveTracksKiwiWithEdit } from './constraint-engine.js';
 
 function ctrl(id) { return document.getElementById(id); }
 function val(id) { return parseFloat(ctrl(id).value); }
@@ -70,7 +71,8 @@ function readCanvas() {
     width: val('num-width'),
     height: val('num-height'),
     unit: ctrl('sel-unit').value,
-    marginPct: val('rg-margin'),
+    marginTop: val('rg-margin-top'), marginRight: val('rg-margin-right'),
+    marginBottom: val('rg-margin-bottom'), marginLeft: val('rg-margin-left'),
     safeAreaPct: val('rg-safearea'),
     bleed: val('num-bleed'),
   });
@@ -395,9 +397,120 @@ function build() {
   paintGridDOM(previewEl, currentModel, inner, GUIDE_COLOR);
   paintGuides(canvas, inner);
   syncCanvasOverlays();
+  dragState = null;   // a full rebuild always discards any in-progress WYSIWYG edit
+  renderTrackHandles();
   if (ctrl('ck-json-view').checked) paintJSON();
 
   setStatus('active', `${generator.label} · ${cells.length} cells · ${grid.solver}`);
+}
+
+// ── Phase 4 — WYSIWYG track drag-to-resize. Only rect-cellShape
+// generators (Bento/Modular — Kiwi; Sinusoidal/Noise/Rectangular —
+// parametric) have a single linear track boundary to grab; every
+// polygon-cellShape generator has no equivalent (a Voronoi/Hexagonal
+// edge is one of many, shared unpredictably between neighbours, not a
+// single draggable line the way a track boundary is). Dragging mutates
+// `currentModel.grid.tracks` DIRECTLY and repaints — it deliberately
+// never calls build(), which would regenerate from params/seed and
+// throw the edit away; the cells array (topology/spans) is untouched,
+// since a track-size edit never changes which cell owns which span.
+// The edit is exactly as real as any other model state: Save grid and
+// every export already read `currentModel` as-is, so a dragged layout
+// exports correctly with no extra plumbing.
+let dragState = null;
+
+function renderTrackHandles() {
+  const container = ctrl('track-handles');
+  container.innerHTML = '';
+  // Rect-lattice generators never set cellShape:'rect' explicitly (only
+  // polygon generators set their own flag) — same convention every other
+  // cellShape check in this codebase already follows (paintGridDOM etc.),
+  // so this checks for the polygon case, not for an explicit 'rect'.
+  if (!currentModel || currentModel.grid.cellShape === 'polygon') return;
+  const grid = currentModel.grid, inner = currentInner;
+  const colOff = offsets(grid.tracks.cols, grid.gap);
+  const rowOff = offsets(grid.tracks.rows, grid.gap);
+  for (let i = 1; i < grid.tracks.cols.length; i++) {
+    const h = document.createElement('div');
+    h.className = 'track-handle track-handle--col';
+    h.style.left = (inner.x + colOff[i] - grid.gap / 2) + 'px';
+    h.dataset.axis = 'cols'; h.dataset.index = i - 1;
+    h.addEventListener('pointerdown', onHandlePointerDown);
+    container.appendChild(h);
+  }
+  for (let i = 1; i < grid.tracks.rows.length; i++) {
+    const h = document.createElement('div');
+    h.className = 'track-handle track-handle--row';
+    h.style.top = (inner.y + rowOff[i] - grid.gap / 2) + 'px';
+    h.dataset.axis = 'rows'; h.dataset.index = i - 1;
+    h.addEventListener('pointerdown', onHandlePointerDown);
+    container.appendChild(h);
+  }
+  if (dragState) {
+    const sel = `.track-handle--${dragState.axis === 'cols' ? 'col' : 'row'}[data-index="${dragState.index}"]`;
+    container.querySelector(sel)?.classList.add('dragging');
+  }
+}
+
+function onHandlePointerDown(e) {
+  e.preventDefault();
+  e.stopPropagation();   // don't also start #canvas-frame's own pan-drag
+  const axis = e.currentTarget.dataset.axis;
+  const index = parseInt(e.currentTarget.dataset.index, 10);
+  const innerSize = axis === 'cols' ? currentInner.width : currentInner.height;
+  dragState = {
+    axis, index,
+    startClientX: e.clientX, startClientY: e.clientY,
+    startTracks: currentModel.grid.tracks[axis].slice(),
+    innerSize,
+    solver: GENERATORS[ctrl('sel-gridtype').value].solver,
+  };
+  e.currentTarget.classList.add('dragging');
+  window.addEventListener('pointermove', onHandlePointerMove);
+  window.addEventListener('pointerup', onHandlePointerUp);
+}
+
+function onHandlePointerMove(e) {
+  if (!dragState) return;
+  const { axis, index, startClientX, startClientY, startTracks, innerSize, solver } = dragState;
+  const deltaScreen = axis === 'cols' ? (e.clientX - startClientX) : (e.clientY - startClientY);
+  const deltaCanvas = deltaScreen / zoomPan.zoom;   // #canvas-frame is CSS-scaled by the current zoom
+  const gap = currentModel.grid.gap;
+  const count = startTracks.length;
+  const minSize = 16;
+  const maxSize = innerSize - gap * (count - 1) - minSize * (count - 1);
+  const newSize = Math.max(minSize, Math.min(maxSize, startTracks[index] + deltaCanvas));
+
+  let newTracks;
+  if (solver === 'kiwi') {
+    // The real edit-constraint path: every OTHER track re-solves around
+    // this one automatically (constraint-engine.js's own header).
+    newTracks = solveTracksKiwiWithEdit(count, innerSize, gap, minSize, index, newSize);
+  } else {
+    // Parametric generators have no live solver instance to re-suggest —
+    // the dragged track is set directly, every other track rescaled
+    // proportionally so the sum still fills innerSize exactly, the same
+    // normalise-then-rescale discipline solveTracksParametric's own
+    // rescale step already applies (just run in reverse, from a fixed
+    // point instead of a fixed ratio).
+    const otherSum = startTracks.reduce((s, v, i) => i === index ? s : s + v, 0);
+    const targetOtherSum = innerSize - gap * (count - 1) - newSize;
+    const scale = otherSum > 0 ? targetOtherSum / otherSum : 1;
+    newTracks = startTracks.map((v, i) => i === index ? newSize : Math.max(minSize, v * scale));
+  }
+  currentModel.grid.tracks[axis] = newTracks;
+  paintGridDOM(previewEl, currentModel, currentInner, GUIDE_COLOR);
+  renderTrackHandles();
+  if (ctrl('ck-json-view').checked) paintJSON();
+}
+
+function onHandlePointerUp() {
+  if (!dragState) return;
+  dragState = null;
+  window.removeEventListener('pointermove', onHandlePointerMove);
+  window.removeEventListener('pointerup', onHandlePointerUp);
+  renderTrackHandles();
+  setStatus('active', 'Track resized');
 }
 
 function paintGuides(canvas, inner) {
@@ -683,7 +796,20 @@ function loadGridPreset() {
   ctrl('num-height').value = model.canvas.displayHeight;
   ctrl('sel-unit').value = model.canvas.unit;
   lastUnit = model.canvas.unit;
-  ctrl('rg-margin').value = model.canvas.margin;
+  // Per-side fields fall back to the old single `margin` for any grid
+  // saved before Phase 4 (including the built-in presets above, none of
+  // which carry the new fields) — same "legacy key stays readable"
+  // discipline every other Organica localStorage migration in this repo
+  // follows.
+  const mc = model.canvas;
+  ctrl('rg-margin-top').value = mc.marginTop ?? mc.margin ?? 0;
+  ctrl('rg-margin-right').value = mc.marginRight ?? mc.margin ?? 0;
+  ctrl('rg-margin-bottom').value = mc.marginBottom ?? mc.margin ?? 0;
+  ctrl('rg-margin-left').value = mc.marginLeft ?? mc.margin ?? 0;
+  ctrl('ck-margin-link').checked =
+    (mc.marginTop ?? mc.margin) === (mc.marginRight ?? mc.margin) &&
+    (mc.marginTop ?? mc.margin) === (mc.marginBottom ?? mc.margin) &&
+    (mc.marginTop ?? mc.margin) === (mc.marginLeft ?? mc.margin);
   ctrl('rg-safearea').value = model.canvas.safeArea;
   if (model.canvas.bleed) ctrl('num-bleed').value = model.canvas.bleed;
   syncUnitRows();
@@ -691,6 +817,22 @@ function loadGridPreset() {
   syncGeneratorRows();
   if (model.grid.padding != null) ctrl('rg-padding').value = model.grid.padding;
   build();
+  // build() just regenerated fresh tracks from params/seed alone — correct
+  // for every OTHER control, but it silently threw away a WYSIWYG drag
+  // edit the saved model itself carried (verified live: dragging a Bento
+  // column then Save/Load round-tripped back to the plain equal-width
+  // grid, the edit gone). The saved model's own tracks ARE the drag edit
+  // — restoring them post-build, same "cells/topology untouched, only
+  // track sizes overridden" idea the drag handlers themselves already
+  // use — makes Save grid a real snapshot of an edited layout, not just
+  // of the generator's recipe. Track counts always match (same params
+  // just re-generated them), so no length-mismatch guard is needed.
+  if (model.grid.tracks && currentModel) {
+    currentModel.grid.tracks = { cols: model.grid.tracks.cols.slice(), rows: model.grid.tracks.rows.slice() };
+    paintGridDOM(previewEl, currentModel, currentInner, GUIDE_COLOR);
+    renderTrackHandles();
+    if (ctrl('ck-json-view').checked) paintJSON();
+  }
   setStatus('active', `Loaded "${name}"`);
 }
 function sendToFigma() {
@@ -803,6 +945,19 @@ ctrl('panel').addEventListener('input', e => {
   if (!e.target.matches('input[type=range]')) return;
   const valEl = e.target.closest('.ctrl-row')?.querySelector('.ctrl-val');
   if (valEl) valEl.textContent = e.target.value;
+});
+// Link margin sides — dragging any one of the four Margin sliders while
+// linked copies its value to the other three (checked by default, since
+// "all four equal" was the only behaviour before per-side margins
+// existed). Off, each side is fully independent.
+ctrl('panel').addEventListener('input', e => {
+  if (!e.target.matches('.margin-side') || !ctrl('ck-margin-link').checked) return;
+  const v = e.target.value;
+  ['rg-margin-top', 'rg-margin-right', 'rg-margin-bottom', 'rg-margin-left'].forEach(id => {
+    if (id === e.target.id) return;
+    ctrl(id).value = v;
+    ctrl('v-' + id.slice(3)).textContent = v;
+  });
 });
 ctrl('panel').addEventListener('input', build);
 ctrl('panel').addEventListener('change', build);

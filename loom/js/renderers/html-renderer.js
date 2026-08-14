@@ -65,9 +65,14 @@ export function buildGridCSS(model) {
   // padding left every track's own unfilled remainder pinned to the
   // default grid-content start corner).
   const inner = innerRect(canvas);
-  const marginPx = r2(inner.x);
+  // Per-side margins (Phase 4) — padding is genuinely per-edge now, not
+  // one value on all four sides: top/left come straight from inner's own
+  // origin, right/bottom are back-derived from what inner didn't already
+  // account for (the same rect the tracks themselves were solved inside).
+  const padTop = r2(inner.y), padLeft = r2(inner.x);
+  const padRight = r2(canvas.width - inner.width - inner.x), padBottom = r2(canvas.height - inner.height - inner.y);
   return {
-    containerCSS: `display: grid; box-sizing: border-box; grid-template-columns: ${cols}; grid-template-rows: ${rows}; gap: ${grid.gap}px; padding: ${marginPx}px; width: ${r2(canvas.width)}${unit}; height: ${r2(canvas.height)}${unit};`,
+    containerCSS: `display: grid; box-sizing: border-box; grid-template-columns: ${cols}; grid-template-rows: ${rows}; gap: ${grid.gap}px; padding: ${padTop}px ${padRight}px ${padBottom}px ${padLeft}px; width: ${r2(canvas.width)}${unit}; height: ${r2(canvas.height)}${unit};`,
     // Every cell draws its own right + bottom border; only col-0/row-0
     // cells also draw left/top. A shared edge between two adjacent cells
     // is then drawn by exactly ONE of them — the cell to its left or

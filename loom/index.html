@@ -138,6 +138,27 @@ body {
 }
 #guide-bg-grid.visible { display: block; }
 
+/* Phase 4 — WYSIWYG track drag-to-resize. Handles sit above the grid
+   preview (z-index 4, #grid-preview's own 2) as thin invisible hit
+   zones straddling each internal track boundary; only rect-cellShape
+   generators (Bento/Modular/Sinusoidal/Noise/Rectangular) get any —
+   polygon generators have no single linear boundary to grab. */
+#track-handles {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.track-handle {
+  position: absolute;
+  pointer-events: auto;
+  background: transparent;
+  transition: background 0.1s ease;
+}
+.track-handle--col { top: 0; bottom: 0; width: 9px; margin-left: -4.5px; cursor: col-resize; }
+.track-handle--row { left: 0; right: 0; height: 9px; margin-top: -4.5px; cursor: row-resize; }
+.track-handle:hover, .track-handle.dragging { background: rgba(51, 153, 255, 0.35); }
+
 /* Preview fill (§ ck-preview-fill) — a faint tint on every cell so a
    real closed/fillable shape is obvious at a glance, purely a live-canvas
    verification aid: CSS overriding the SVG polygons'/rects' own
@@ -226,6 +247,7 @@ body {
       <div class="loom-guide" id="guide-margin"></div>
       <div class="loom-guide" id="guide-safe"></div>
       <div id="grid-preview"></div>
+      <div id="track-handles"></div>
     </div>
     <div id="zoom-hud">
       <span id="zoom-level">100%</span>
@@ -259,10 +281,28 @@ body {
           <option value="m">m</option>
         </select>
       </div>
+      <label class="check-row">
+        <input type="checkbox" id="ck-margin-link" checked><span>Link margin sides</span>
+      </label>
       <div class="ctrl-row">
-        <div class="ctrl-label" title="Percentage of the canvas's own shorter side, applied to all four sides. Per-side margins land with WYSIWYG editing in a later phase.">Margin</div>
-        <input type="range" id="rg-margin" min="0" max="20" step="0.5" value="4">
-        <span class="ctrl-val" id="v-margin">4</span>
+        <div class="ctrl-label" title="Percentage of the canvas's own shorter side.">Top</div>
+        <input type="range" class="margin-side" id="rg-margin-top" min="0" max="20" step="0.5" value="4">
+        <span class="ctrl-val" id="v-margin-top">4</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Percentage of the canvas's own shorter side.">Right</div>
+        <input type="range" class="margin-side" id="rg-margin-right" min="0" max="20" step="0.5" value="4">
+        <span class="ctrl-val" id="v-margin-right">4</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Percentage of the canvas's own shorter side.">Bottom</div>
+        <input type="range" class="margin-side" id="rg-margin-bottom" min="0" max="20" step="0.5" value="4">
+        <span class="ctrl-val" id="v-margin-bottom">4</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Percentage of the canvas's own shorter side.">Left</div>
+        <input type="range" class="margin-side" id="rg-margin-left" min="0" max="20" step="0.5" value="4">
+        <span class="ctrl-val" id="v-margin-left">4</span>
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label" title="A guide only in this phase — doesn't clip generator output.">Safe area</div>
