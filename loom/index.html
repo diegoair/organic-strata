@@ -300,6 +300,7 @@ body {
           <option value="triangular">Triangular</option>
           <option value="diamond">Diamond</option>
           <option value="circular">Circular</option>
+          <option value="noise">Noise</option>
         </select>
       </div>
       <div class="ctrl-row" id="row-padding">
@@ -596,6 +597,48 @@ body {
           <div class="ctrl-label">Seed</div>
           <input type="range" id="rg-cir-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-cir-seed">7</span>
+        </div>
+      </div>
+
+      <div id="block-noise" style="display:none">
+        <p class="org-panel__hint">Sinusoidal's own architecture (a Columns×Rows lattice, rhythm in track SIZE not topology), a noise field instead of a sine wave — an irregular, hand-felt rhythm rather than a periodic one.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Columns</div>
+          <input type="range" id="rg-noise-cols" min="2" max="20" step="1" value="8">
+          <span class="ctrl-val" id="v-noise-cols">8</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Rows</div>
+          <input type="range" id="rg-noise-rows" min="2" max="20" step="1" value="5">
+          <span class="ctrl-val" id="v-noise-rows">5</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Axis</div>
+          <div class="seg-ctrl" id="seg-noise-axis">
+            <button class="seg-btn active" data-v="cols" onclick="setSeg('seg-noise-axis', this)">Columns</button>
+            <button class="seg-btn" data-v="rows" onclick="setSeg('seg-noise-axis', this)">Rows</button>
+            <button class="seg-btn" data-v="both" onclick="setSeg('seg-noise-axis', this)">Both</button>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="0 = uniform tracks, the noise field's amplitude relative to the base track size.">Amount</div>
+          <input type="range" id="rg-noise-amount" min="0" max="0.9" step="0.02" value="0.5">
+          <span class="ctrl-val" id="v-noise-amount">0.5</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Cycles of the noise field across the tracks — low values give a few broad swells, high values a choppier, more granular rhythm.">Scale</div>
+          <input type="range" id="rg-noise-scale" min="0.5" max="8" step="0.1" value="2">
+          <span class="ctrl-val" id="v-noise-scale">2</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="range" id="rg-noise-seed" min="0" max="99" step="1" value="7">
+          <span class="ctrl-val" id="v-noise-seed">7</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Gap</div>
+          <input type="range" id="rg-noise-gap" min="0" max="40" step="1" value="8">
+          <span class="ctrl-val" id="v-noise-gap">8</span>
         </div>
       </div>
     </div>

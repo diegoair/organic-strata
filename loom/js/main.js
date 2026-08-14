@@ -157,6 +157,7 @@ function syncGeneratorRows() {
   ctrl('block-triangular').style.display = type === 'triangular' ? '' : 'none';
   ctrl('block-diamond').style.display = type === 'diamond' ? '' : 'none';
   ctrl('block-circular').style.display = type === 'circular' ? '' : 'none';
+  ctrl('block-noise').style.display = type === 'noise' ? '' : 'none';
   // Padding has no defined meaning on a polygon cell yet (voronoi.js's own
   // header) — hidden rather than left as a dead control that visibly does
   // nothing, same rule Komorebi's own control audit already established.
@@ -236,6 +237,13 @@ function readGridParams() {
     return {
       cols: Math.round(val('rg-cir-cols')), rotation: val('rg-cir-rotation'),
       gap: val('rg-cir-gap'), jitter: val('rg-cir-jitter'), seed: Math.round(val('rg-cir-seed')),
+    };
+  }
+  if (type === 'noise') {
+    return {
+      cols: Math.round(val('rg-noise-cols')), rows: Math.round(val('rg-noise-rows')),
+      amount: val('rg-noise-amount'), scale: val('rg-noise-scale'),
+      axis: seg('seg-noise-axis'), seed: Math.round(val('rg-noise-seed')), gap: unitVal('rg-noise-gap'),
     };
   }
   return {
@@ -473,6 +481,11 @@ function applyGridParamsToUI(type, params) {
   } else if (type === 'circular') {
     setR('rg-cir-cols', params.cols); setR('rg-cir-rotation', params.rotation);
     setR('rg-cir-gap', params.gap); setR('rg-cir-jitter', params.jitter); setR('rg-cir-seed', params.seed);
+  } else if (type === 'noise') {
+    setR('rg-noise-cols', params.cols); setR('rg-noise-rows', params.rows);
+    setR('rg-noise-amount', params.amount); setR('rg-noise-scale', params.scale);
+    setR('rg-noise-seed', params.seed); setR('rg-noise-gap', params.gap);
+    if (params.axis) setSegValue('seg-noise-axis', params.axis);
   }
   // Live numeric readouts (the delegated panel listener only fires on a
   // real user `input` event, not a programmatic .value set) — sync every

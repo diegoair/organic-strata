@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Concept test — Mix &amp; Restructure (Loom grid + Spore-style stippling per cell)</title>
+<script src="/shared/organica-core.js"></script>
+<style>
+  body { margin:0; background:#eceae4; font-family: ui-sans-serif, system-ui; display:flex; flex-direction:column; align-items:center; padding:32px; gap:16px; }
+  h1 { font-size:15px; margin:0; }
+  p { font-size:12px; color:#696256; max-width:760px; text-align:center; margin:0; }
+  #controls { display:flex; gap:16px; align-items:center; background:#fff; padding:14px 18px; border-radius:6px; box-shadow:0 2px 12px rgba(0,0,0,0.08); flex-wrap:wrap; justify-content:center; }
+  #controls label { font-size:12px; display:flex; flex-direction:column; gap:4px; }
+  #status { font-size:13px; color:#696256; }
+  canvas { box-shadow: 0 4px 40px rgba(0,0,0,0.18); background:#fff; max-width:100%; height:auto; }
+  button { font: inherit; padding:6px 14px; cursor:pointer; }
+</style>
+</head>
+<body>
+<h1>Concept test — Mix &amp; Restructure</h1>
+<p>Each Loom grid cell runs its OWN independent stippling pass (Spore's real algorithm — a hex-jittered lattice, mark size driven by local image darkness — ported to plain circles for this test, not Spore's full Genesis-mark rendering) over its own sub-region of one shared source image. "Same structure" uses identical spacing/size in every cell (only the clip shape differs); "Vary structure per cell" gives each cell its own spacing/size/rotation, proving a grid cell can be a genuinely independent generative container, not just a crop window.</p>
+<div id="controls">
+  <label>Loom grid JSON <input type="file" id="file-json" accept="application/json"></label>
+  <label>Source image <input type="file" id="file-image" accept="image/*"></label>
+  <label>Vary structure per cell <input type="checkbox" id="ck-vary" checked></label>
+  <button id="btn-render">Render</button>
+</div>
+<div id="status">Load a Loom JSON export and an image, then Render.</div>
+<canvas id="c" width="900" height="900"></canvas>
+<script>
+let gridJSON = null, sourceImg = null;
+
+document.getElementById('file-json').addEventListener('change', (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => { gridJSON = reader.result; setStatus(); };
+  reader.readAsText(f);
+});
+document.getElementById('file-image').addEventListener('change', (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const img = new Image();
+  img.onload = () => { sourceImg = img; setStatus(); };
+  img.src = URL.createObjectURL(f);
+});
+function setStatus() {
+  document.getElementById('status').textContent =
+    (gridJSON ? 'Grid loaded. ' : 'Load a Loom JSON export. ') +
+    (sourceImg ? 'Image loaded. ' : 'Load a source image. ') +
+    (gridJSON && sourceImg ? 'Ready — click Render.' : '');
+}
+
+function mulberry32(seed) {
+  let t = seed >>> 0;
+  return function () {
+    t |= 0; t = (t + 0x6D2B79F5) | 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function cellBounds(cell) {
+  if (cell.shape === 'rect') return cell;
+  const xs = cell.points.map(p => p[0]), ys = cell.points.map(p => p[1]);
+  return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+}
+function clipToCell(ctx, cell) {
+  ctx.beginPath();
+  if (cell.shape === 'polygon') {
+    cell.points.forEach((p, i) => i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1]));
+    ctx.closePath();
+  } else {
+    ctx.rect(cell.x, cell.y, cell.width, cell.height);
+  }
+  ctx.clip();
+}
+
+// Spore's own placement algorithm (spore/index.html's doRender, ~line
+// 751 on), ported faithfully for the LATTICE + SIZING math, simplified
+// for the MARK itself — plain filled circles here, not a full replay of
+// a Genesis SVG symbol's own DOM (that needs organic-forms.js's mark
+// data, a bigger dependency than this concept test needs; disclosed,
+// not hidden). Hex-jittered grid: rows at 0.866× spacing, alternate rows
+// offset by half a step — NOT blue-noise/Poisson-disc, Spore doesn't use
+// one either. Mark radius scales 40%–100% of a base size by local
+// darkness (1 − luma), the same linear mapping Spore's own
+// sizeByBrightness option uses.
+function stippleCell(ctx, imgData, iw, ih, target, spacing, sizeBase, rotationDeg, seed) {
+  const rng = mulberry32(seed);
+  const xSpacing = spacing, ySpacing = spacing * 0.866;
+  const rad = (Math.PI / 180) * rotationDeg;
+  const cosA = Math.cos(rad), sinA = Math.sin(rad);
+  // Rotate the SAMPLING lattice around the cell's own centre — a genuine
+  // structural difference between cells, not just a recolour, the same
+  // "rotate the whole field, not just one mark" discipline every Loom
+  // polygon generator this project already uses for its own Rotation.
+  const cx = target.x + target.width / 2, cy = target.y + target.height / 2;
+  const diag = Math.hypot(target.width, target.height);
+  for (let ry = -diag; ry < diag; ry += ySpacing) {
+    const offset = (Math.round(ry / ySpacing) % 2 !== 0) ? xSpacing / 2 : 0;
+    for (let rx = -diag + offset; rx < diag; rx += xSpacing) {
+      const lx = cx + (rx * cosA - ry * sinA), ly = cy + (rx * sinA + ry * cosA);
+      if (lx < target.x || lx > target.x + target.width || ly < target.y || ly > target.y + target.height) continue;
+      const jx = lx + (rng() - 0.5) * spacing * 0.3, jy = ly + (rng() - 0.5) * spacing * 0.3;
+      const ix = Math.floor((jx - target.x) / target.width * iw);
+      const iy = Math.floor((jy - target.y) / target.height * ih);
+      if (ix < 0 || ix >= iw || iy < 0 || iy >= ih) continue;
+      const p = (iy * iw + ix) * 4;
+      const luma = (0.299 * imgData[p] + 0.587 * imgData[p + 1] + 0.114 * imgData[p + 2]) / 255;
+      if (luma > 0.92) continue;   // Spore's own skip-near-white threshold
+      const darkness = 1 - luma;
+      const r = sizeBase * 0.4 + sizeBase * 0.6 * darkness;
+      ctx.beginPath();
+      ctx.arc(jx, jy, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fill();
+    }
+  }
+}
+
+document.getElementById('btn-render').addEventListener('click', () => {
+  if (!gridJSON || !sourceImg) { setStatus(); return; }
+  let resolved;
+  try { resolved = Organica.loadLoomGrid(gridJSON); }
+  catch (e) { document.getElementById('status').textContent = 'Could not read grid: ' + e.message; return; }
+
+  const canvas = document.getElementById('c');
+  canvas.width = resolved.canvas.width;
+  canvas.height = resolved.canvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const vary = document.getElementById('ck-vary').checked;
+  // A small, deliberately varied preset PER cell (spacing/size/rotation)
+  // — cycled by cell index, not random every render, so results are
+  // reproducible: proof the grid can carry genuinely different STRUCTURE
+  // per container, not just a random look.
+  const STRUCTURES = [
+    { spacing: 10, sizeBase: 4, rotation: 0 },
+    { spacing: 20, sizeBase: 8, rotation: 30 },
+    { spacing: 14, sizeBase: 5, rotation: 60 },
+    { spacing: 28, sizeBase: 11, rotation: 15 },
+    { spacing: 8, sizeBase: 3, rotation: 45 },
+  ];
+  const UNIFORM = { spacing: 14, sizeBase: 5, rotation: 0 };
+
+  const off = document.createElement('canvas');
+  const octx = off.getContext('2d');
+
+  resolved.cells.forEach((cell, i) => {
+    const target = cellBounds(cell);
+    if (target.width <= 0 || target.height <= 0) return;
+    // Same fractional-region mapping as the Slice & Reposition test —
+    // each cell samples the source image at the SAME footprint as its
+    // own position (a faithful correspondence; shuffling the SOURCE
+    // region, like the other prototype does, is an orthogonal knob this
+    // test doesn't also turn, to isolate what "different structure per
+    // cell" alone looks like).
+    const sx = target.x / resolved.canvas.width * sourceImg.naturalWidth;
+    const sy = target.y / resolved.canvas.height * sourceImg.naturalHeight;
+    const sw = target.width / resolved.canvas.width * sourceImg.naturalWidth;
+    const sh = target.height / resolved.canvas.height * sourceImg.naturalHeight;
+    const iw = Math.max(1, Math.round(sw)), ih = Math.max(1, Math.round(sh));
+    off.width = iw; off.height = ih;
+    octx.clearRect(0, 0, iw, ih);
+    octx.drawImage(sourceImg, sx, sy, sw, sh, 0, 0, iw, ih);
+    const imgData = octx.getImageData(0, 0, iw, ih).data;
+
+    const s = vary ? STRUCTURES[i % STRUCTURES.length] : UNIFORM;
+
+    ctx.save();
+    clipToCell(ctx, cell);
+    stippleCell(ctx, imgData, iw, ih, target, s.spacing, s.sizeBase, s.rotation, 1000 + i);
+    ctx.restore();
+
+    ctx.strokeStyle = '#3399ff';
+    ctx.lineWidth = 1;
+    if (cell.shape === 'polygon') {
+      ctx.beginPath();
+      cell.points.forEach((p, j) => j === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1]));
+      ctx.closePath();
+      ctx.stroke();
+    } else {
+      ctx.strokeRect(cell.x, cell.y, cell.width, cell.height);
+    }
+  });
+
+  document.getElementById('status').textContent =
+    `Rendered ${resolved.cells.length} cells (${resolved.cellShape}) — ${vary ? 'varied structure per cell' : 'uniform structure'}.`;
+});
+</script>
+</body>
+</html>

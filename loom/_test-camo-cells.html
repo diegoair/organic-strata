@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Concept test — Bento cells as independent Gray-Scott containers</title>
+<style>
+  body { margin:0; background:#eceae4; font-family: ui-sans-serif, system-ui; display:flex; flex-direction:column; align-items:center; padding:32px; gap:16px; }
+  #status { font-size:13px; color:#696256; }
+  canvas { box-shadow: 0 4px 40px rgba(0,0,0,0.18); background:#fff; }
+</style>
+</head>
+<body>
+<div id="status">Generating…</div>
+<canvas id="c" width="900" height="900"></canvas>
+<script>
+// ── Concept test: each Bento cell runs its OWN independent Gray-Scott
+// reaction-diffusion sim (Camo Turing's own core), rendered into that
+// cell's own pixel rect. f/k pairs are Camo Turing's own verified
+// BUILTIN_PRESETS values (camo-turing/index.html), not re-derived —
+// same 9-point Laplacian kernel and update equations, ported from the
+// GLSL (SIM_FRAG) to plain CPU JS since a one-off concept test doesn't
+// need WebGL. Purpose: prove each grid cell can be an independent
+// generative visual container, a building block toward composed
+// generative images assembled from a Loom grid.
+
+function mulberry32(seed) {
+  let t = seed >>> 0;
+  return function () {
+    t |= 0; t = (t + 0x6D2B79F5) | 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Camo Turing's own SIM_FRAG, ported 1:1: 9-point kernel (centre -1,
+// orthogonal 0.2, diagonal 0.05), reaction = a*b*b, dA=1.0/dB=0.5/dt=1.0
+// defaults (BUILTIN_PRESETS' own unstated defaults).
+function runGrayScott(size, f, k, seed, steps) {
+  const dA = 1.0, dB = 0.5, dt = 1.0;
+  const n = size * size;
+  let A = new Float32Array(n).fill(1);
+  let B = new Float32Array(n).fill(0);
+  const rng = mulberry32(seed);
+  // Seed: a handful of small circular patches of activator — the
+  // classic Gray-Scott bootstrap (resting state + a few nucleation
+  // points), same shape as Camo Turing's own seedAt blobs.
+  const blobs = 6 + Math.floor(rng() * 4);
+  // Radius as a fraction of the grid, not a fixed pixel count — Gray-Scott's
+  // nucleation/feature scale is fixed in ABSOLUTE pixels for given
+  // f/k/dA/dB, so this only ignites reliably once the grid itself is close
+  // to Camo Turing's own real resolution (256×256 — see SIM_SIZE below); a
+  // 72px test grid at Camo Turing's own DEFAULT_SEED_RADIUS (0.045)
+  // measured a dead (~0) field for every preset after 2000+ steps, not
+  // because of instability but because the seed was simply too few
+  // absolute pixels to survive the kill term before the autocatalytic
+  // reaction (∝ b²) could take hold. 0.06 (vs. Camo Turing's own 0.045) and
+  // more blobs (6–9, vs. 5–7) are a deliberately more generous bootstrap
+  // than the live tool's own default — this test runs far fewer total
+  // steps (thousands, not the tens of thousands a live 60fps session
+  // accumulates over several seconds), so a bigger nucleation head start
+  // was needed for marginal presets (e.g. Leopard spots) to survive at all.
+  const radiusPx = Math.max(3, Math.floor(0.06 * size));
+  for (let i = 0; i < blobs; i++) {
+    const cx = Math.floor(rng() * size), cy = Math.floor(rng() * size);
+    // Integer radius/bounds — a fractional loop start (the original bug
+    // here) makes every subsequent index fractional too (x++ from a
+    // float start stays fractional forever), and Float32Array silently
+    // no-ops a write at a non-integer index instead of throwing, so the
+    // seed blobs never actually landed.
+    const r = radiusPx;
+    for (let y = Math.max(0, cy - r); y < Math.min(size, cy + r); y++) {
+      for (let x = Math.max(0, cx - r); x < Math.min(size, cx + r); x++) {
+        if ((x - cx) ** 2 + (y - cy) ** 2 <= r * r) {
+          const idx = y * size + x;
+          A[idx] = 0.5; B[idx] = 0.25;
+        }
+      }
+    }
+  }
+  let A2 = new Float32Array(n), B2 = new Float32Array(n);
+  const wrap = (v) => (v + size) % size;
+  for (let s = 0; s < steps; s++) {
+    for (let y = 0; y < size; y++) {
+      const yN = wrap(y - 1) * size, yS = wrap(y + 1) * size, yRow = y * size;
+      for (let x = 0; x < size; x++) {
+        const xW = wrap(x - 1), xE = wrap(x + 1);
+        const idx = yRow + x;
+        const a = A[idx], b = B[idx];
+        const lapA = A[yRow + xE] * 0.2 + A[yRow + xW] * 0.2 + A[yN + x] * 0.2 + A[yS + x] * 0.2
+          + A[yN + xE] * 0.05 + A[yN + xW] * 0.05 + A[yS + xE] * 0.05 + A[yS + xW] * 0.05 - a;
+        const lapB = B[yRow + xE] * 0.2 + B[yRow + xW] * 0.2 + B[yN + x] * 0.2 + B[yS + x] * 0.2
+          + B[yN + xE] * 0.05 + B[yN + xW] * 0.05 + B[yS + xE] * 0.05 + B[yS + xW] * 0.05 - b;
+        const reaction = a * b * b;
+        A2[idx] = Math.min(1, Math.max(0, a + dt * (dA * lapA - reaction + f * (1 - a))));
+        B2[idx] = Math.min(1, Math.max(0, b + dt * (dB * lapB + reaction - (k + f) * b)));
+      }
+    }
+    [A, A2] = [A2, A]; [B, B2] = [B2, B];
+  }
+  return B;
+}
+
+// A basic slice of Camo Turing's own catalogue — verified f/k pairs,
+// each visually distinct, one per Bento cell.
+// Leopard spots (the one real casualty) measured genuinely dead (max B
+// = 0, not just faint) at this resolution/step/seed budget — a real
+// edge-of-parameter-space preset, not a rendering bug, so it's the one
+// swap kept (for U-Skate World, confirmed vivid). Mazes and Chaos were
+// ALSO first suspected dead from the same empty-looking screenshots, but
+// direct measurement (mean 0.16–0.22, a real reacted fraction of the
+// canvas) proved that was the renderFieldToCell threshold bug above, not
+// these presets — restored once the actual fix (adaptive threshold) was
+// in, rather than staying swapped out for a problem they didn't have.
+const PRESETS = [
+  ['Worms', 0.058, 0.065],
+  ['Mazes', 0.029, 0.057],
+  ['Pulsating solitons', 0.025, 0.06],
+  ['Spots and worms', 0.034, 0.0618],
+  ['Self-replicating spots', 0.03, 0.063],
+  ['Chaos', 0.026, 0.051],
+  ['Fingerprints', 0.037, 0.06],
+  ['Moving spots', 0.014, 0.054],
+  ['U-Skate World', 0.062, 0.0609],
+];
+
+const SIM_SIZE = 200, STEPS = 8000;
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const margin = 40, gap = 14, cols = 3, rows = 3;
+const innerW = W - margin * 2, innerH = H - margin * 2;
+const cellW = (innerW - gap * (cols - 1)) / cols;
+const cellH = (innerH - gap * (rows - 1)) / rows;
+
+ctx.fillStyle = '#ffffff';
+ctx.fillRect(0, 0, W, H);
+
+function renderFieldToCell(field, size, x, y, w, h, label) {
+  // A real bug caught by measuring, not eyeballing: a FIXED threshold
+  // (0.35) was calibrated against Worms (peak B ≈ 0.44) and silently
+  // broke every preset whose own settled peak sits lower — Negatons
+  // measured a healthy field (mean 0.25, real reacted structure over
+  // ~75% of the canvas) but a peak of only 0.31, so a 0.35 cutoff caught
+  // 0% of it and rendered as an empty cell that LOOKED like a dead sim.
+  // Each preset's own Gray-Scott plateau value is different, so the
+  // threshold has to be adaptive per field, not one constant across all
+  // nine — 0.8 of the field's own max reproduces the old fixed-0.35 look
+  // for Worms (0.44 × 0.8 ≈ 0.35) while correctly adapting for presets
+  // with a lower ceiling.
+  let maxB = 0;
+  for (let i = 0; i < size * size; i++) if (field[i] > maxB) maxB = field[i];
+  const threshold = Math.max(0.03, maxB * 0.8);
+  const off = document.createElement('canvas');
+  off.width = size; off.height = size;
+  const octx = off.getContext('2d');
+  const img = octx.createImageData(size, size);
+  for (let i = 0; i < size * size; i++) {
+    // Duotone — Organica's own paper/ink pair, bold graphic read
+    // matching Camo Turing's default look, not a soft grayscale.
+    const on = field[i] > threshold;
+    const v = on ? 10 : 245;
+    img.data[i * 4] = v; img.data[i * 4 + 1] = v; img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255;
+  }
+  octx.putImageData(img, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(off, x, y, w, h);
+  ctx.strokeStyle = '#3399ff';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, h);
+  ctx.fillStyle = '#696256';
+  ctx.font = '11px ui-sans-serif, system-ui';
+  ctx.fillText(label, x + 6, y + h - 8);
+}
+
+function generate() {
+  const status = document.getElementById('status');
+  let i = 0;
+  function step() {
+    if (i >= PRESETS.length) { status.textContent = 'Done — ' + PRESETS.length + ' independent Gray-Scott cells'; return; }
+    const [label, f, k] = PRESETS[i];
+    const col = i % cols, row = Math.floor(i / cols);
+    const x = margin + col * (cellW + gap), y = margin + row * (cellH + gap);
+    const field = runGrayScott(SIM_SIZE, f, k, 100 + i, STEPS);
+    renderFieldToCell(field, SIM_SIZE, x, y, cellW, cellH, label);
+    status.textContent = `Generating… ${i + 1}/${PRESETS.length} (${label})`;
+    i++;
+    setTimeout(step, 0);   // yield so the status text actually repaints between cells
+  }
+  step();
+}
+setTimeout(generate, 30);
+</script>
+</body>
+</html>

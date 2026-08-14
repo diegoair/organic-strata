@@ -14,6 +14,7 @@ import { generateRadial } from './radial.js';
 import { generateTriangular } from './triangular.js';
 import { generateDiamond } from './diamond.js';
 import { generateCircular } from './circular.js';
+import { generateNoise } from './noise.js';
 
 export const GENERATORS = {
   bento: {
@@ -77,5 +78,12 @@ export const GENERATORS = {
     cellShape: 'polygon',
     generate: generateCircular,
     defaults: { cols: 8, rotation: 0, gap: 0.06, jitter: 0, seed: 7 },
+  },
+  noise: {
+    label: 'Noise',
+    solver: 'parametric',
+    cellShape: 'rect',
+    generate: generateNoise,
+    defaults: { cols: 8, rows: 5, amount: 0.5, scale: 2, axis: 'cols', seed: 7, gap: 8 },
   },
 };
