@@ -111,6 +111,10 @@ The seventh polygon-shaped generator, and a second first-draft correction caught
 
 **Verified**: Gap 0 shows circles genuinely touching (maximum packing, visible triangular voids between neighbours, not overlapping and not gapped); Gap > 0 opens visible space between circles cleanly; SVG export real vector geometry (3579 `<line>`s on a 95-cell canvas — high count is expected and correct, since circles don't share edges to dedup); 0 unaccessibly-named controls; all eight generators (Bento/Sinusoidal/Voronoi/Hexagonal/Radial/Triangular/Diamond/Circular) regression-clean, console watched live through every actual switch.
 
+**`Rotation`/`Jitter`/`Seed`**, added same session per Diego's own follow-up ask. `Rotation` (0–60°, the hex-packing lattice's own period) rigidly rotates the whole lattice of centres, built the identical proven way as Hexagonal/Triangular/Diamond (unrotated frame sized from the inner rect's diagonal, centred on its centre, rotated as a whole, then clipped) — the one honest wrinkle specific to Circular: a circle's own outline is rotationally symmetric, so Rotation never changes an individual cell's SHAPE, only how the rows/columns align relative to the canvas, which changes how the boundary clips (visibly different diagonal cuts at the edges, confirmed at Rotation 30°). `Jitter` offsets each circle's centre by a seeded random amount before clipping, same accepted trade-off as every sibling generator's own Jitter — circles can end up overlapping or unevenly spaced, a hand-scattered "pebble/bubble" look instead of mechanically perfect packing (verified visually at Jitter 0.4).
+
+**Verified**: Rotation 0 reproduces the pre-Rotation render exactly; Rotation 30 still shows circles genuinely touching/round (shape unchanged, only lattice orientation and boundary clipping differ); Jitter 0.4 gives a genuinely distinct organic scattered look; SVG export still real vector geometry (3702 `<line>`s at Jitter 0.4); 0 unaccessibly-named controls; all eight generators regression-clean, console watched live through every actual switch.
+
 ## 5. Universal JSON Model (`js/json-model.js`)
 
 ```js

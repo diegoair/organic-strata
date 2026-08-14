@@ -31,12 +31,39 @@
    every other polygon generator's density-not-count convention. `Gap`
    shrinks each circle's radius from the touching size — 0 leaves circles
    touching (maximum packing), higher values open visible space between
-   them (a dot-grid/perforation look). Inner-rect clipping is needed,
-   same as Hexagonal/Triangular/Diamond and for the same reason (a plain
-   lattice loop has no built-in boundary) — boundary circles are trimmed
-   into real partial-disc shapes by the canvas edge, the same
-   `clipToRect` technique every sibling generator already uses.
+   them (a dot-grid/perforation look).
+
+   `Rotation` (0–60°, the hex-packing lattice's own period, same as
+   Hexagonal) rigidly rotates the whole lattice of CENTRES — a circle's
+   own outline is rotationally symmetric, so Rotation never changes an
+   individual cell's shape, only how the rows/columns of the packing
+   align relative to the canvas, which changes how the boundary clips.
+   Built the same proven way as Hexagonal/Triangular/Diamond: the lattice
+   is generated in its own unrotated frame (sized from the inner rect's
+   diagonal, centred on its centre), rotated as a whole, THEN clipped.
+
+   `Jitter` offsets each circle's centre by a seeded random amount before
+   clipping — same accepted trade-off as every sibling generator's own
+   Jitter: circles can end up overlapping or with a wider gap than Gap
+   alone would give, a hand-scattered "pebble" look instead of a
+   mechanically perfect packing.
+
+   Inner-rect clipping is needed, same as Hexagonal/Triangular/Diamond and
+   for the same reason (a plain lattice loop has no built-in boundary) —
+   boundary circles are trimmed into real partial-disc shapes by the
+   canvas edge, the same `clipToRect` technique every sibling generator
+   already uses.
    ───────────────────────────────────────────────────────────── */
+
+function mulberry32(seed) {
+  let t = seed >>> 0;
+  return function () {
+    t |= 0; t = (t + 0x6D2B79F5) | 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 function circlePoints(cx, cy, r, segments) {
   const pts = [];
@@ -45,6 +72,12 @@ function circlePoints(cx, cy, r, segments) {
     pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
   }
   return pts;
+}
+
+function rotatePoint(p, cx, cy, rad) {
+  const dx = p[0] - cx, dy = p[1] - cy;
+  const cosA = Math.cos(rad), sinA = Math.sin(rad);
+  return [cx + dx * cosA - dy * sinA, cy + dx * sinA + dy * cosA];
 }
 
 function polygonCentroid(poly) {
@@ -84,25 +117,40 @@ function clipToRect(poly, rect) {
 }
 
 /**
- * @param {{cols:number, gap:number}} params
+ * @param {{cols:number, rotation:number, gap:number, jitter:number, seed:number}} params
  * @param {{x:number, y:number, width:number, height:number}} inner
  */
 export function generateCircular(params, inner) {
-  const { cols, gap } = params;
+  const { cols, rotation, gap, jitter, seed } = params;
+  const rng = mulberry32(seed);
+  const rad = (Math.PI / 180) * (rotation || 0);
 
   const d = inner.width / cols;   // diameter at Gap 0 (touching circles)
   const r = d / 2;
   const hSpacing = d, vSpacing = d * (Math.sqrt(3) / 2);
   const effR = r * (1 - gap);
 
-  const colSteps = Math.ceil(inner.width / hSpacing) + 2;
-  const rowSteps = Math.ceil(inner.height / vSpacing) + 2;
+  // Unrotated lattice must cover the inner rect's own bounding CIRCLE,
+  // centred on the inner rect's centre — same reasoning as
+  // hexagonal.js/triangular.js/diamond.js's own header.
+  const centerX = inner.x + inner.width / 2, centerY = inner.y + inner.height / 2;
+  const halfDiag = Math.hypot(inner.width, inner.height) / 2 + r;
+  const colSteps = Math.ceil((2 * halfDiag) / hSpacing) + 2;
+  const rowSteps = Math.ceil((2 * halfDiag) / vSpacing) + 2;
+  const colStart = -Math.floor(colSteps / 2), rowStart = -Math.floor(rowSteps / 2);
 
   const cells = [];
-  for (let row = -1; row < rowSteps; row++) {
-    for (let col = -1; col < colSteps; col++) {
-      const cx = inner.x + col * hSpacing + (row % 2 !== 0 ? hSpacing / 2 : 0);
-      const cy = inner.y + row * vSpacing;
+  for (let row = rowStart; row < rowStart + rowSteps; row++) {
+    for (let col = colStart; col < colStart + colSteps; col++) {
+      let cx = centerX + col * hSpacing + (row % 2 !== 0 ? hSpacing / 2 : 0);
+      let cy = centerY + row * vSpacing;
+      if (jitter > 0) {
+        cx += (rng() - 0.5) * 2 * jitter * r;
+        cy += (rng() - 0.5) * 2 * jitter * r;
+      }
+      if (rad !== 0) {
+        [cx, cy] = rotatePoint([cx, cy], centerX, centerY, rad);
+      }
       const poly = clipToRect(circlePoints(cx, cy, effR, 48), inner);
       if (poly.length < 3) continue;
       cells.push({ id: 'c' + cells.length, points: poly, centroid: polygonCentroid(poly) });
@@ -114,7 +162,7 @@ export function generateCircular(params, inner) {
       type: 'circular',
       solver: 'geometric',
       cellShape: 'polygon',
-      params: { cols, gap },
+      params: { cols, rotation, gap, jitter, seed },
       gap: 0,
     },
     cells,

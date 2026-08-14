@@ -234,7 +234,8 @@ function readGridParams() {
   }
   if (type === 'circular') {
     return {
-      cols: Math.round(val('rg-cir-cols')), gap: val('rg-cir-gap'),
+      cols: Math.round(val('rg-cir-cols')), rotation: val('rg-cir-rotation'),
+      gap: val('rg-cir-gap'), jitter: val('rg-cir-jitter'), seed: Math.round(val('rg-cir-seed')),
     };
   }
   return {

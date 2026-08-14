@@ -76,6 +76,6 @@ export const GENERATORS = {
     solver: 'geometric',
     cellShape: 'polygon',
     generate: generateCircular,
-    defaults: { cols: 8, gap: 0.06 },
+    defaults: { cols: 8, rotation: 0, gap: 0.06, jitter: 0, seed: 7 },
   },
 };

@@ -529,9 +529,24 @@ body {
           <span class="ctrl-val" id="v-cir-cols">8</span>
         </div>
         <div class="ctrl-row">
+          <div class="ctrl-label" title="Rigidly rotates the whole packing lattice — an individual circle's own outline never changes (a circle is rotationally symmetric), only how rows/columns align, which changes how the boundary clips. Repeats every 60°.">Rotation</div>
+          <input type="range" id="rg-cir-rotation" min="0" max="60" step="1" value="0">
+          <span class="ctrl-val" id="v-cir-rotation">0</span>
+        </div>
+        <div class="ctrl-row">
           <div class="ctrl-label" title="Shrinks each circle's radius from the touching size. 0 = circles touch (maximum packing).">Gap</div>
           <input type="range" id="rg-cir-gap" min="0" max="0.4" step="0.02" value="0.06">
           <span class="ctrl-val" id="v-cir-gap">0.06</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Random offset per circle centre. 0 = perfect packing.">Jitter</div>
+          <input type="range" id="rg-cir-jitter" min="0" max="1" step="0.05" value="0">
+          <span class="ctrl-val" id="v-cir-jitter">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="range" id="rg-cir-seed" min="0" max="99" step="1" value="7">
+          <span class="ctrl-val" id="v-cir-seed">7</span>
         </div>
       </div>
     </div>
