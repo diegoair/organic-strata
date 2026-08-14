@@ -12,9 +12,9 @@
 import { CANVAS_PRESETS, createCanvas, innerRect, safeAreaRect, UNIT_TO_MM, toCanonical } from './canvas-manager.js';
 import { buildModel, offsets } from './json-model.js';
 import { GENERATORS } from './generators/registry.js';
-import { renderSVG } from './renderers/svg-renderer.js';
+import { renderSVG, cellsMarkup } from './renderers/svg-renderer.js';
 import { paintGridDOM, buildHTMLSnippet } from './renderers/html-renderer.js';
-import { renderRaster } from './renderers/raster-renderer.js';
+import { renderRaster, drawCells } from './renderers/raster-renderer.js';
 import { solveTracksKiwiWithEdit } from './constraint-engine.js';
 
 function ctrl(id) { return document.getElementById(id); }
@@ -27,6 +27,7 @@ const canvasFrame = ctrl('canvas-frame');
 // already uses — SVG/PNG can't drift from the live preview's colour
 // since both read this same value, not two hand-matched hex literals.
 const GUIDE_COLOR = getComputedStyle(document.documentElement).getPropertyValue('--guide-blue').trim() || '#3399ff';
+const OVERLAY_COLOR = getComputedStyle(document.documentElement).getPropertyValue('--overlay-orange').trim() || '#ff6b35';
 
 let currentModel = null;
 let currentInner = null;
@@ -456,6 +457,7 @@ function build() {
   paintGridDOM(previewEl, currentModel, inner, GUIDE_COLOR);
   paintGuides(canvas, inner);
   syncCanvasOverlays();
+  renderOverlay();
   dragState = null;   // a full rebuild always discards any in-progress WYSIWYG edit
   renderTrackHandles();
   if (ctrl('ck-json-view').checked) paintJSON();
@@ -639,8 +641,21 @@ function sequentialNumbers() {
 }
 
 // ── Export ──
+// Overlay grid gets baked into SVG/PNG exports too — the same two draw
+// calls into the same document/canvas the live preview already does with
+// two stacked DOM layers, just combined into one flat output file rather
+// than kept as two elements. HTML export stays Layer-A-only for now (its
+// CSS-Grid path has no absolute-overlay slot the way #canvas-frame does)
+// — not attempted this round, scoped down on request to SVG/PNG only.
 function exportPNG() {
   const c = renderRaster(currentModel, currentInner, parseInt(ctrl('sel-scale').value, 10) || 2, GUIDE_COLOR);
+  const overlayModel = buildOverlayModel();
+  if (overlayModel) {
+    const ctx = c.getContext('2d');   // same context renderRaster scaled — the transform persists, so overlay draws at the same physical scale for free
+    ctx.globalAlpha = parseFloat(ctrl('rg-overlay-opacity').value) || 1;
+    drawCells(ctx, overlayModel, currentInner, OVERLAY_COLOR);
+    ctx.globalAlpha = 1;
+  }
   const url = c.toDataURL('image/png');
   const bin = atob(url.split(',')[1]);
   const bytes = new Uint8Array(bin.length);
@@ -648,8 +663,14 @@ function exportPNG() {
   Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('loom', 'png'));
   setStatus('active', 'PNG saved');
 }
+function overlaySVGGroup() {
+  const model = buildOverlayModel();
+  if (!model) return '';
+  const opacity = ctrl('rg-overlay-opacity').value;
+  return `<g opacity="${opacity}">${cellsMarkup(model, currentInner, OVERLAY_COLOR)}</g>`;
+}
 function buildSVGString() {
-  return renderSVG(currentModel, currentInner, GUIDE_COLOR);
+  return renderSVG(currentModel, currentInner, GUIDE_COLOR).replace('</svg>', overlaySVGGroup() + '</svg>');
 }
 function exportSVG() {
   Organica.download(new Blob([buildSVGString()], { type: 'image/svg+xml' }), Organica.stamp('loom', 'svg'));
@@ -716,6 +737,17 @@ const BUILTIN_GRID_PRESETS = {
   },
 };
 function allGridPresets() { return Object.assign({}, BUILTIN_GRID_PRESETS, gridPresetStore.read()); }
+// Bento/Masonry/Rectangular/Wave's own generate() stores `gap` only at
+// `grid.gap` (top-level), not inside its own returned `grid.params` — see
+// buildOverlayModel()'s own header for the full reasoning. Restores it
+// onto a copy of params for any caller that needs a complete, regenerable
+// params object (Load saved grid, Overlay grid) — a no-op for every other
+// generator, which already carries `gap` inside `params` itself.
+function paramsWithGap(grid) {
+  const params = { ...(grid.params || {}) };
+  if (params.gap == null && grid.gap != null) params.gap = grid.gap;
+  return params;
+}
 
 function populateSavedGrids() {
   const sel = ctrl('sel-saved-grids');
@@ -739,6 +771,7 @@ function saveGridPreset() {
   if (!gridPresetStore.write(presets)) { setStatus('', 'Could not save — storage full or unavailable'); return; }
   ctrl('txt-save-name').value = '';
   populateSavedGrids();
+  populateOverlayGrids();
   ctrl('sel-saved-grids').value = name;
   setStatus('active', `Saved "${name}"`);
 }
@@ -750,8 +783,80 @@ function deleteGridPreset() {
   delete presets[name];
   gridPresetStore.write(presets);
   populateSavedGrids();
+  populateOverlayGrids();
+  if (ctrl('sel-overlay-grid').value === name) renderOverlay();
   setStatus('active', `Deleted "${name}"`);
 }
+
+// ── Overlay grid — a SECOND saved grid, drawn on top of the current one
+// so two definitions can be lined up/compared by eye, and baked into the
+// same SVG/PNG export. Deliberately NOT a general N-layer compositing
+// system (blend modes, reorderable stack, its own Model schema) — that's
+// a materially bigger feature, evaluated and scoped down on request to
+// exactly this: one extra grid, same canvas, visualisation + export only.
+// Reuses the SAME preset list as Save/Load (`allGridPresets()`) rather
+// than a separate store, since it's the identical "a named grid
+// definition" concept. Deliberately regenerates from the preset's own
+// `grid.type`/`grid.params` against the CURRENT canvas's inner rect —
+// the opposite choice from Load saved grid (which adopts the preset's
+// OWN canvas size) — so the overlay always fits and aligns with Layer A
+// regardless of what canvas it was originally saved on; the preset's own
+// saved canvas/cells are read for Load, never for Overlay.
+function populateOverlayGrids() {
+  const sel = ctrl('sel-overlay-grid');
+  const cur = sel.value;
+  const presets = allGridPresets();
+  sel.innerHTML = '<option value="">None</option>';
+  Object.keys(presets).sort().forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  if (presets[cur]) sel.value = cur;
+}
+function buildOverlayModel() {
+  const name = ctrl('sel-overlay-grid').value;
+  if (!name || !currentModel || !currentInner) return null;
+  const preset = allGridPresets()[name];
+  if (!preset) return null;
+  const generator = GENERATORS[preset.grid.type];
+  if (!generator) return null;
+  try {
+    // A real, pre-existing gap: Bento/Masonry/Rectangular/Wave's own
+    // generate() destructures `gap` OUT of params before echoing the rest
+    // back as `grid.params` (it's stored once, at the top-level `grid.gap`
+    // instead) — every other generator keeps `gap` inside its own params
+    // object. Feeding a saved preset's bare `grid.params` straight back
+    // into generate() silently drops Gap for exactly those four types
+    // (Kiwi/solveTracksParametric then received `gap: undefined`, which
+    // threw and was swallowed by this same try/catch — the overlay simply
+    // never appeared, no visible error). paramsWithGap() below fixes it
+    // here AND in loadGridPreset()'s own identical call, the same root
+    // cause affecting Save/Load's own Gap-restore for those four types.
+    const params = paramsWithGap(preset.grid);
+    const { grid, cells } = generator.generate(params, currentInner);
+    grid.padding = preset.grid.padding || 0;
+    return { grid, cells };
+  } catch (err) {
+    return null;   // same "canvas too small for these params" case build() already guards against
+  }
+}
+function renderOverlay() {
+  const frame = ctrl('overlay-frame');
+  const model = buildOverlayModel();
+  ctrl('v-overlay-opacity').textContent = ctrl('rg-overlay-opacity').value;
+  if (!model) {
+    frame.classList.remove('visible');
+    frame.innerHTML = '';
+    return;
+  }
+  const { width, height } = currentModel.canvas;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${cellsMarkup(model, currentInner, OVERLAY_COLOR)}</svg>`;
+  frame.innerHTML = svg;
+  frame.style.opacity = ctrl('rg-overlay-opacity').value;
+  frame.classList.add('visible');
+}
+window.renderOverlay = renderOverlay;
 
 // Per-generator param-key → control-id mapping, the mirror image of
 // readGridParams()'s own explicit per-type branches — deliberately
@@ -888,7 +993,7 @@ function loadGridPreset() {
   ctrl('rg-safearea').value = model.canvas.safeArea;
   if (model.canvas.bleed) ctrl('num-bleed').value = model.canvas.bleed;
   syncUnitRows();
-  applyGridParamsToUI(model.grid.type, model.grid.params || {});
+  applyGridParamsToUI(model.grid.type, paramsWithGap(model.grid));
   syncGeneratorRows();
   if (model.grid.padding != null) ctrl('rg-padding').value = model.grid.padding;
   build();
@@ -1072,6 +1177,7 @@ syncUnitRows();
 const gridtypePicker = buildGeneratorPicker();   // before syncGeneratorRows() — it refreshes the picker's own trigger on every call
 syncGeneratorRows();
 populateSavedGrids();
+populateOverlayGrids();
 window.saveGridPreset = saveGridPreset;
 window.deleteGridPreset = deleteGridPreset;
 window.loadGridPreset = loadGridPreset;

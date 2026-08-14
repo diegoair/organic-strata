@@ -26,6 +26,11 @@
      renderers' own strokes, so the preview and every export can't drift
      apart on this colour. */
   --guide-blue: #3399ff;
+  /* Overlay grid's own line colour — same "content colour, not UI chrome"
+     exception as --guide-blue above, deliberately a different hue so a
+     second grid drawn on top of the first reads as visually distinct at
+     a glance, not just "the same lines, offset". */
+  --overlay-orange: #ff6b35;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -137,6 +142,23 @@ body {
   display: none;
 }
 #guide-bg-grid.visible { display: block; }
+
+/* Overlay grid — a SECOND grid, generated against the same inner rect
+   as the main one, drawn on top purely so two grid definitions can be
+   compared/aligned by eye (and, for export, baked into the same SVG/PNG
+   file — see main.js's own renderOverlay()). Sits above the main grid
+   (z-index 3.5, between #grid-preview's 2 and #track-handles' 4) but
+   below the drag handles, and is itself non-interactive — it's a second
+   set of shapes, never a second thing to drag. */
+#overlay-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  display: none;
+}
+#overlay-frame.visible { display: block; }
+#overlay-frame svg { display: block; width: 100%; height: 100%; }
 
 /* Phase 4 — WYSIWYG track drag-to-resize. Handles sit above the grid
    preview (z-index 4, #grid-preview's own 2) as thin invisible hit
@@ -292,6 +314,7 @@ body {
       <div class="loom-guide" id="guide-margin"></div>
       <div class="loom-guide" id="guide-safe"></div>
       <div id="grid-preview"></div>
+      <div id="overlay-frame"></div>
       <div id="track-handles"></div>
     </div>
     <div id="zoom-hud">
@@ -1079,6 +1102,21 @@ body {
         <select class="panel-select" id="sel-saved-grids" aria-label="Saved grids" onchange="loadGridPreset()">
           <option value="">Load saved…</option>
         </select>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Overlay grid <span class="hint">compare two grids</span></h3>
+      <p class="org-panel__hint">Draws a SECOND saved grid on top of the current one, on the same canvas — for lining up or comparing two definitions. Included in SVG/PNG export.</p>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-overlay-grid" aria-label="Overlay grid" onchange="renderOverlay()">
+          <option value="">None</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Opacity</div>
+        <input type="range" id="rg-overlay-opacity" min="0.1" max="1" step="0.05" value="0.6" oninput="renderOverlay()">
+        <span class="ctrl-val" id="v-overlay-opacity">0.6</span>
       </div>
     </div>
 
