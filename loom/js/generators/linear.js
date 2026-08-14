@@ -109,19 +109,39 @@ export function generateLinear(params, inner) {
     cells.push({ id: 'c' + cells.length, points: poly, centroid: polygonCentroid(poly) });
   };
 
+  // At Rotation 0 the division axis (nx1 for Columns, nx2 for Rows) is
+  // exactly the canvas's own axis, so `cols`/`rows` strips of width sx/sy
+  // span precisely inner.width/inner.height — no more, no less. Once
+  // rotated, the rect's own footprint projected onto that axis grows past
+  // that fixed span (up to the full diagonal near 45°), so building only
+  // exactly `cols`/`rows` strips left two opposite corners uncovered —
+  // reported live via a rotated Linear/Axis:Columns grid with visible
+  // blank triangles at two corners. Fixed the same way Diamond/Hexagonal/
+  // Triangular already cover their own rotation case: build the SAME
+  // periodic strip field far enough past `cols`/`rows` to cover the
+  // canvas diagonal regardless of angle, then let clipToRect discard
+  // whatever falls outside — at Rotation 0 the extras clip away to
+  // nothing, so exactly `cols`/`rows` strips remain visible, unchanged
+  // from before; away from 0° the extra strips are what actually reach
+  // the far corners.
+  const extra = (span) => Math.ceil(halfLen / span) + 1;
+
   if (axis === 'cols') {
-    for (let i = 0; i < cols; i++) {
+    const pad = extra(sx);
+    for (let i = -pad; i < cols + pad; i++) {
       const off = (i - (cols - 1) / 2) * sx + (j ? (rng() - 0.5) * 2 * j * sx : 0);
       push(cx + off * nx1[0], cy + off * nx1[1], sx / 2, halfLen);
     }
   } else if (axis === 'rows') {
-    for (let r = 0; r < rows; r++) {
+    const pad = extra(sy);
+    for (let r = -pad; r < rows + pad; r++) {
       const off = (r - (rows - 1) / 2) * sy + (j ? (rng() - 0.5) * 2 * j * sy : 0);
       push(cx + off * nx2[0], cy + off * nx2[1], halfLen, sy / 2);
     }
   } else {
-    for (let r = 0; r < rows; r++) {
-      for (let i = 0; i < cols; i++) {
+    const padC = extra(sx), padR = extra(sy);
+    for (let r = -padR; r < rows + padR; r++) {
+      for (let i = -padC; i < cols + padC; i++) {
         let offX = (i - (cols - 1) / 2) * sx, offY = (r - (rows - 1) / 2) * sy;
         if (j) { offX += (rng() - 0.5) * 2 * j * sx; offY += (rng() - 0.5) * 2 * j * sy; }
         push(cx + offX * nx1[0] + offY * nx2[0], cy + offX * nx1[1] + offY * nx2[1], sx / 2, sy / 2);
