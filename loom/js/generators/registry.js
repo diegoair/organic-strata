@@ -15,6 +15,14 @@ import { generateTriangular } from './triangular.js';
 import { generateDiamond } from './diamond.js';
 import { generateCircular } from './circular.js';
 import { generateNoise } from './noise.js';
+import { generateColumn } from './column.js';
+import { generateRow } from './row.js';
+import { generateModular } from './modular.js';
+import { generateRectangular } from './rectangular.js';
+import { generateDiagonal } from './diagonal.js';
+import { generateAngular } from './angular.js';
+import { generatePolar } from './polar.js';
+import { generateElliptical } from './elliptical.js';
 
 export const GENERATORS = {
   bento: {
@@ -85,5 +93,62 @@ export const GENERATORS = {
     cellShape: 'rect',
     generate: generateNoise,
     defaults: { cols: 8, rows: 5, amount: 0.5, scale: 2, axis: 'cols', seed: 7, gap: 8 },
+  },
+  // ── Phase 2 — remaining elementary generators ──
+  column: {
+    label: 'Column',
+    solver: 'kiwi',
+    cellShape: 'rect',
+    generate: generateColumn,
+    defaults: { count: 6, gap: 16 },
+  },
+  row: {
+    label: 'Row',
+    solver: 'kiwi',
+    cellShape: 'rect',
+    generate: generateRow,
+    defaults: { count: 6, gap: 16 },
+  },
+  modular: {
+    label: 'Modular',
+    solver: 'kiwi',
+    cellShape: 'rect',
+    generate: generateModular,
+    defaults: { cols: 6, rows: 6, gap: 12 },
+  },
+  rectangular: {
+    label: 'Rectangular',
+    solver: 'parametric',
+    cellShape: 'rect',
+    generate: generateRectangular,
+    defaults: { colWeights: '2,1,1', rowWeights: '1,1,2', gap: 12 },
+  },
+  diagonal: {
+    label: 'Diagonal',
+    solver: 'geometric',
+    cellShape: 'polygon',
+    generate: generateDiagonal,
+    defaults: { count: 8, angle: 20, skew: 90, gap: 0.06, jitter: 0, seed: 7 },
+  },
+  angular: {
+    label: 'Angular',
+    solver: 'geometric',
+    cellShape: 'polygon',
+    generate: generateAngular,
+    defaults: { sectors: 12, startAngle: 0, centerX: 0.5, centerY: 0.5, gap: 0.06 },
+  },
+  polar: {
+    label: 'Polar',
+    solver: 'geometric',
+    cellShape: 'polygon',
+    generate: generatePolar,
+    defaults: { rings: 5, sectors: 12, innerRadiusFrac: 0.1, gap: 0.08, startAngle: 0, curve: 1.8 },
+  },
+  elliptical: {
+    label: 'Elliptical',
+    solver: 'geometric',
+    cellShape: 'polygon',
+    generate: generateElliptical,
+    defaults: { rings: 4, sectors: 16, innerRadiusFrac: 0.15, gap: 0.08, startAngle: 0 },
   },
 };

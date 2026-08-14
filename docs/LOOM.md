@@ -2,7 +2,7 @@
 
 `/loom/` — a universal layout-grid engine: every grid is generated from a common mathematical model, resolved once into a Universal JSON Model, then rendered by independent renderers (live HTML/CSS Grid, SVG, PNG, and — via the existing shared Figma pipeline — a Figma import). Not a column generator: the brief this was built from (`Grid Definition`, Notion) is explicit that this is a constraint-driven, multi-generator system meant to become an industry-standard layout tool.
 
-**Status: Phase 1 (MVP) + five Phase 2 generators + two Phase 3 presets.** Two MVP generators (Bento, Sinusoidal — the brief's own "one simple, one complex" pairing to prove the architecture end to end) plus Noise (Sinusoidal's own direct sibling — identical parametric architecture, a noise field instead of a sine wave) and Voronoi, Hexagonal, Radial, Triangular, Diamond, Circular (six `cellShape: 'polygon'` generators, each a real structural variant — tessellation-of-arbitrary-cells, tessellation-of-one-repeated-hexagon, true polar coordinates, tessellation-of-one-repeated-triangle, tessellation-of-one-repeated-square, circle-packing), the full pipeline below, a cross-tool grid-import path (`Organica.loadLoomGrid`, §3), and a Figma export that reuses the existing SVG-import plugin as-is. The remaining ~17 elementary/preset grid types, WYSIWYG cell editing, and native Figma Auto Layout frame generation are later phases — see §7.
+**Status: Phase 1 (MVP) + Phase 2 complete (all 9 remaining elementary generators) + two Phase 3 presets.** Two MVP generators (Bento, Sinusoidal — the brief's own "one simple, one complex" pairing to prove the architecture end to end) plus Noise (Sinusoidal's own direct sibling — identical parametric architecture, a noise field instead of a sine wave), Voronoi, Hexagonal, Radial, Triangular, Diamond, Circular (six `cellShape: 'polygon'` generators, each a real structural variant), and Phase 2's own final eight — Column, Row, Modular, Rectangular, Diagonal, Angular, Polar, Elliptical (§4) — the full pipeline below, a cross-tool grid-import path (`Organica.loadLoomGrid`, §3), and a Figma export that reuses the existing SVG-import plugin as-is. 17 generators live in total. The remaining 10 Phase 3 presets, WYSIWYG cell editing, and native Figma Auto Layout frame generation are later phases — see §7.
 
 ## 1. Architecture
 
@@ -136,6 +136,40 @@ The ninth generator, and Sinusoidal's own direct sibling — identical architect
 
 **Verified**: Amount 0 renders a perfectly uniform grid; Amount 0.6 gives an irregular, non-periodic rhythm clearly distinct from Sinusoidal's own smooth wave at any Frequency; `Axis: Both` confirmed decorrelated (column and row track-size arrays differ, not just visually but in the exported JSON); Seed changes the pattern (confirmed by diffing exported track arrays before/after); Save-grid round-trip verified (saved, switched to Bento, loaded back — Axis correctly restored to `both`); SVG export real closed `<rect>` shapes, zero `<line>` elements; 0 unaccessibly-named controls (the "Colu.." truncation on the Axis segmented control is a pre-existing cosmetic quirk shared with Sinusoidal's own identical control, confirmed by comparison, not a Noise-specific regression); all nine generators regression-clean, console watched live through every actual switch.
 
+### Column (`column.js`) / Row (`row.js`) — Kiwi
+
+Phase 2's remaining eight, shipped as one batch. Column and Row are the plain single-axis typographic grid — the most literal "12-column grid" — deliberately NOT Bento with the other axis pinned to 1, which would still surface Bento's own merge/variety/seed controls that have no meaning in this mental model. Kiwi-solved (`solveTracksKiwi`, the same equal-by-default-overridable solver Bento's own column/row axes already use), one axis fixed to a single full-width/full-height track. `count`, `gap` are the only two params.
+
+### Modular (`modular.js`) — Kiwi
+
+The plain uniform Columns×Rows module scaffold (Müller-Brockmann style) — no merged spans, no randomness. Mechanically this IS Bento with Variety hardwired to 0 (same `solveTracksKiwi` call on both axes, same 1×1-everywhere cell list), shipped as its own generator rather than telling users to zero out Bento's Variety slider — the same precedent Noise already set against Sinusoidal (identical architecture, distinct purpose/UI, not worth hiding behind a parameter on a differently-focused panel).
+
+### Rectangular (`rectangular.js`) — parametric
+
+The asymmetric/hierarchical sibling to Modular: still a plain lattice, no merged spans, but track sizes come from explicit user-typed ratio strings ("2,1,1") instead of being equal (Modular) or following a periodic/noise function (Sinusoidal/Noise) — the classic content-driven magazine grid, one wide lead column next to narrow ones, a proportion neither a uniform rule nor a periodic wave can express. Solved by the same `solveTracksParametric` every parametric generator already uses — the parsed ratio array IS the `sizeFn` weight, no new solving strategy needed. Column/row COUNT is derived from how many numbers are typed, not a separate slider, so the text field is the only thing that can change topology — there's never a mismatch between "how many tracks" and "how many ratios" to reconcile.
+
+### Diagonal (`diagonal.js`) — geometric
+
+Diamond's own parallelogram sibling: Diamond is a plain square lattice rigidly ROTATED as a whole field (its two edge families are always exactly 90° apart); Diagonal exposes that inter-family angle itself as `Skew`, so the cell shape genuinely changes — square → rhombus → increasingly sheared parallelogram — rather than only spinning. Two families of parallel lines is exactly what an affine-sheared regular lattice already is, so no separate line-intersection code was needed: each cell is the parallelogram spanned by two basis vectors `u` (at `Angle`) and `v` (at `Angle + Skew`) from a lattice point, the direct 2D generalisation of Diamond's own "build what already tiles, then transform the whole field" construction. `Skew = 90` reproduces a plain rotated rect lattice exactly (Diamond's own case); away from 90° it shears into genuine rhombi no other generator here can produce.
+
+**Verified**: Skew 90/Angle 20 renders as a plain rotated grid, matching Diamond's own Rotation-0 case visually; Skew 50 produces genuinely sheared parallelogram (rhombus) cells, confirmed both visually and via the exported cell-vertex counts (interior cells hold exactly 4 points; boundary cells clip to 3–5, the same expected pattern Hexagonal/Triangular/Diamond already show at their own edges); SVG export real closed `<polygon>` shapes matching the cell count exactly.
+
+### Angular (`angular.js`) — geometric
+
+Pure radiating sectors from a point, with NO ring subdivision — the direct sibling Radial's own header already implies but never builds. Each wedge is a straight-edged triangle from the centre out far enough to exceed the canvas in every direction, then Sutherland–Hodgman-clipped to the inner RECT (not a circle) — so wedges reach every edge and corner of the canvas, a genuine sunburst/fan filling the full rectangle, which Radial/Polar's own circular boundary structurally cannot produce. `Center X`/`Center Y` (0–1, fraction of the inner rect) move the fan's own apex off-centre — at a corner this reads as a classic dazzle/op-art radiating composition instead of a centred sunburst.
+
+**Verified**: default render reaches all four canvas corners with the apex centred, confirmed visually; SVG export real closed `<polygon>` triangles/quads (post-clip), one per sector, matching the cell count exactly.
+
+### Polar (`polar.js`) — geometric
+
+Radial's own direct twin (identical rings × sectors, curved wedge cells, inscribed-circle boundary), plus one real addition: `Radius curve`, a power exponent remapping the normalised ring index through `t^curve` before scaling it into a radius. Radial's own ring spacing is always linear (equal thickness); Polar's curve>1 bunches thin rings near the centre (a dartboard/iris-like density gradient, verified visually), curve<1 bunches them toward the outer edge, and curve=1 reproduces Radial's own linear spacing exactly — a genuine non-uniform-ring case no other generator here can produce.
+
+### Elliptical (`elliptical.js`) — geometric
+
+Radial's other twin: same rings × sectors construction, but scaled independently on x/y to the inner rect's OWN aspect ratio (`rx = inner.width/2`, `ry = inner.height/2`) instead of Radial's single radius (`min(width,height)/2`, inscribed in a circle with real leftover canvas on the long axis). The outer ring here touches all four edges of the canvas at its own cardinal points — verified live on a 1080×700 canvas: the ellipse's horizontal extent reaches both side edges and its vertical extent reaches top/bottom, where Radial would leave visible margin on the wider axis.
+
+**Verified (Column/Row/Modular/Rectangular/Diagonal/Angular/Polar/Elliptical, together)**: all eight render without error; SVG export for every one produces real closed per-cell shapes (`<rect>` count = cell count + 2 background/guide rects for the four rect-lattice generators; `<polygon>` count = cell count exactly, `<rect>` = 2, for the four polygon generators) — verified by parsing the actual exported blob, not just eyeballing the preview; Rectangular's ratio-string round-trips correctly through Save grid/Load saved (saved "3,1,2,1", switched generators, reloaded — text field and resulting track proportions both restored exactly); 0 of 100 panel controls unaccessibly-named; zero console errors across every switch, drag, and export tested. All 17 generators regression-clean together.
+
 ## 5. Universal JSON Model (`js/json-model.js`)
 
 ```js
@@ -166,7 +200,7 @@ Export lives in the shared bottom-centre floating toolbar (`shared/organica-floa
 
 1. ~~Phase 0 — architecture analysis~~ (done, this session)
 2. ~~**Phase 1 (MVP)** — Canvas Manager, Bento + Sinusoidal, JSON Model, CSS Grid/SVG/PNG renderers, Figma via the existing plugin~~ (done, this session)
-3. Phase 2 — remaining 8 elementary generators (Rectangular, ~~Radial~~ done — see §4, Elliptical, ~~Circular~~ done — see §4, Polar, ~~Hexagonal~~ done — see §4, ~~Triangular~~ done — see §4, ~~Diamond~~ done — see §4, Diagonal, Angular, Column, Row, Modular, ~~Noise~~ done — see §4)
+3. ~~Phase 2 — remaining 8 elementary generators~~ (done — see §4: Rectangular, Radial, Elliptical, Circular, Polar, Hexagonal, Triangular, Diamond, Diagonal, Angular, Column, Row, Modular, Noise)
 4. Phase 3 — remaining 10 presets (~~Voronoi~~ done — see §4; turned out to need real half-plane-clipped polygon cells, not a reuse of `shared/organica-noise.js`'s raster-only `voronoiF1F2`, and became the first `cellShape: 'polygon'` generator): Swiss, Golden Ratio, Rule of Thirds, Timeline, Masonry, Fractal, Recursive, Organic, Isometric, Spiral
 5. Phase 4 — WYSIWYG cell editing (drag/resize), per-side margins, real edit-constraint use of Kiwi (`addEditVariable` + `suggestValue`, unused by any generator in Phase 1)
 6. Phase 5 — native Figma Auto Layout frame generation, nested Auto Layout, roundtrip editing (extends `figma-plugin/`, doesn't fork it)

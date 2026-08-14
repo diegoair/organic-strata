@@ -158,10 +158,18 @@ function syncGeneratorRows() {
   ctrl('block-diamond').style.display = type === 'diamond' ? '' : 'none';
   ctrl('block-circular').style.display = type === 'circular' ? '' : 'none';
   ctrl('block-noise').style.display = type === 'noise' ? '' : 'none';
+  ctrl('block-column').style.display = type === 'column' ? '' : 'none';
+  ctrl('block-row').style.display = type === 'row' ? '' : 'none';
+  ctrl('block-modular').style.display = type === 'modular' ? '' : 'none';
+  ctrl('block-rectangular').style.display = type === 'rectangular' ? '' : 'none';
+  ctrl('block-diagonal').style.display = type === 'diagonal' ? '' : 'none';
+  ctrl('block-angular').style.display = type === 'angular' ? '' : 'none';
+  ctrl('block-polar').style.display = type === 'polar' ? '' : 'none';
+  ctrl('block-elliptical').style.display = type === 'elliptical' ? '' : 'none';
   // Padding has no defined meaning on a polygon cell yet (voronoi.js's own
   // header) — hidden rather than left as a dead control that visibly does
   // nothing, same rule Komorebi's own control audit already established.
-  ctrl('row-padding').style.display = ['voronoi', 'hexagonal', 'radial', 'triangular', 'diamond', 'circular'].includes(type) ? 'none' : '';
+  ctrl('row-padding').style.display = ['voronoi', 'hexagonal', 'radial', 'triangular', 'diamond', 'circular', 'diagonal', 'angular', 'polar', 'elliptical'].includes(type) ? 'none' : '';
   ctrl('hint-solver').textContent = SOLVER_LABELS[GENERATORS[type].solver];
   if (type === 'hexagonal') syncHexSpinRow();
   if (type === 'triangular') syncTriSpinRow();
@@ -244,6 +252,51 @@ function readGridParams() {
       cols: Math.round(val('rg-noise-cols')), rows: Math.round(val('rg-noise-rows')),
       amount: val('rg-noise-amount'), scale: val('rg-noise-scale'),
       axis: seg('seg-noise-axis'), seed: Math.round(val('rg-noise-seed')), gap: unitVal('rg-noise-gap'),
+    };
+  }
+  if (type === 'column') {
+    return { count: Math.round(val('rg-col-count')), gap: unitVal('rg-col-gap') };
+  }
+  if (type === 'row') {
+    return { count: Math.round(val('rg-row-count')), gap: unitVal('rg-row-gap') };
+  }
+  if (type === 'modular') {
+    return {
+      cols: Math.round(val('rg-mod-cols')), rows: Math.round(val('rg-mod-rows')),
+      gap: unitVal('rg-mod-gap'),
+    };
+  }
+  if (type === 'rectangular') {
+    return {
+      colWeights: ctrl('txt-rect-colweights').value,
+      rowWeights: ctrl('txt-rect-rowweights').value,
+      gap: unitVal('rg-rect-gap'),
+    };
+  }
+  if (type === 'diagonal') {
+    return {
+      count: Math.round(val('rg-diag-count')), angle: val('rg-diag-angle'), skew: val('rg-diag-skew'),
+      gap: val('rg-diag-gap'), jitter: val('rg-diag-jitter'), seed: Math.round(val('rg-diag-seed')),
+    };
+  }
+  if (type === 'angular') {
+    return {
+      sectors: Math.round(val('rg-ang-sectors')), startAngle: val('rg-ang-startangle'),
+      centerX: val('rg-ang-centerx'), centerY: val('rg-ang-centery'), gap: val('rg-ang-gap'),
+    };
+  }
+  if (type === 'polar') {
+    return {
+      rings: Math.round(val('rg-pol-rings')), sectors: Math.round(val('rg-pol-sectors')),
+      innerRadiusFrac: val('rg-pol-innerradius'), gap: val('rg-pol-gap'),
+      startAngle: val('rg-pol-startangle'), curve: val('rg-pol-curve'),
+    };
+  }
+  if (type === 'elliptical') {
+    return {
+      rings: Math.round(val('rg-ell-rings')), sectors: Math.round(val('rg-ell-sectors')),
+      innerRadiusFrac: val('rg-ell-innerradius'), gap: val('rg-ell-gap'),
+      startAngle: val('rg-ell-startangle'),
     };
   }
   return {
@@ -486,6 +539,30 @@ function applyGridParamsToUI(type, params) {
     setR('rg-noise-amount', params.amount); setR('rg-noise-scale', params.scale);
     setR('rg-noise-seed', params.seed); setR('rg-noise-gap', params.gap);
     if (params.axis) setSegValue('seg-noise-axis', params.axis);
+  } else if (type === 'column') {
+    setR('rg-col-count', params.count); setR('rg-col-gap', params.gap);
+  } else if (type === 'row') {
+    setR('rg-row-count', params.count); setR('rg-row-gap', params.gap);
+  } else if (type === 'modular') {
+    setR('rg-mod-cols', params.cols); setR('rg-mod-rows', params.rows); setR('rg-mod-gap', params.gap);
+  } else if (type === 'rectangular') {
+    if (params.colWeights != null) ctrl('txt-rect-colweights').value = params.colWeights;
+    if (params.rowWeights != null) ctrl('txt-rect-rowweights').value = params.rowWeights;
+    setR('rg-rect-gap', params.gap);
+  } else if (type === 'diagonal') {
+    setR('rg-diag-count', params.count); setR('rg-diag-angle', params.angle); setR('rg-diag-skew', params.skew);
+    setR('rg-diag-gap', params.gap); setR('rg-diag-jitter', params.jitter); setR('rg-diag-seed', params.seed);
+  } else if (type === 'angular') {
+    setR('rg-ang-sectors', params.sectors); setR('rg-ang-startangle', params.startAngle);
+    setR('rg-ang-centerx', params.centerX); setR('rg-ang-centery', params.centerY); setR('rg-ang-gap', params.gap);
+  } else if (type === 'polar') {
+    setR('rg-pol-rings', params.rings); setR('rg-pol-sectors', params.sectors);
+    setR('rg-pol-innerradius', params.innerRadiusFrac); setR('rg-pol-gap', params.gap);
+    setR('rg-pol-startangle', params.startAngle); setR('rg-pol-curve', params.curve);
+  } else if (type === 'elliptical') {
+    setR('rg-ell-rings', params.rings); setR('rg-ell-sectors', params.sectors);
+    setR('rg-ell-innerradius', params.innerRadiusFrac); setR('rg-ell-gap', params.gap);
+    setR('rg-ell-startangle', params.startAngle);
   }
   // Live numeric readouts (the delegated panel listener only fires on a
   // real user `input` event, not a programmatic .value set) — sync every

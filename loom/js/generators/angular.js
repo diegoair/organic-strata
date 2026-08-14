@@ -1,0 +1,94 @@
+/* ─────────────────────────────────────────────────────────────
+   Angular generator — seventh polygon-shaped generator: pure radiating
+   sectors from a point, with NO ring subdivision — the direct sibling
+   Radial's own header already implies but doesn't build (Radial is
+   rings × sectors, bounded inside a circle inscribed in the inner rect).
+   Angular is sectors alone, each wedge a straight-edged triangle from
+   the centre out far enough to exceed the canvas, then clipped to the
+   inner RECT (not a circle) — so wedges reach every edge and corner of
+   the canvas, a full sunburst/fan filling the rectangle edge-to-edge,
+   which Radial's own circular boundary can't produce.
+
+   `Center X`/`Center Y` (0–1, fraction of the inner rect) let the fan's
+   own apex move off-centre — at the canvas edge or a corner this reads
+   as a classic dazzle/op-art radiating-lines composition instead of a
+   centred sunburst. `Gap` insets each wedge angularly on both edges
+   (same "shrink toward the cell's own middle" idea as every other
+   polygon generator's Gap, just one-dimensional here since a wedge has
+   only an angular boundary to inset, unlike Radial's own two-axis Gap).
+   ───────────────────────────────────────────────────────────── */
+
+function clipToRect(poly, rect) {
+  const planes = [
+    { p: [rect.x, rect.y], n: [1, 0] },
+    { p: [rect.x + rect.width, rect.y], n: [-1, 0] },
+    { p: [rect.x, rect.y], n: [0, 1] },
+    { p: [rect.x, rect.y + rect.height], n: [0, -1] },
+  ];
+  let out = poly;
+  for (const plane of planes) {
+    if (out.length === 0) break;
+    const input = out;
+    out = [];
+    const side = (p) => (p[0] - plane.p[0]) * plane.n[0] + (p[1] - plane.p[1]) * plane.n[1];
+    for (let i = 0; i < input.length; i++) {
+      const cur = input[i], prev = input[(i - 1 + input.length) % input.length];
+      const curSide = side(cur), prevSide = side(prev);
+      const curIn = curSide >= 0, prevIn = prevSide >= 0;
+      if (curIn !== prevIn) {
+        const t = prevSide / (prevSide - curSide);
+        out.push([prev[0] + t * (cur[0] - prev[0]), prev[1] + t * (cur[1] - prev[1])]);
+      }
+      if (curIn) out.push(cur);
+    }
+  }
+  return out;
+}
+
+function polygonCentroid(poly) {
+  let x = 0, y = 0;
+  poly.forEach(p => { x += p[0]; y += p[1]; });
+  return [x / poly.length, y / poly.length];
+}
+
+/**
+ * @param {{sectors:number, startAngle:number, centerX:number, centerY:number, gap:number}} params
+ * @param {{x:number, y:number, width:number, height:number}} inner
+ */
+export function generateAngular(params, inner) {
+  const { sectors, startAngle, centerX, centerY, gap } = params;
+  const cx = inner.x + inner.width * (centerX != null ? centerX : 0.5);
+  const cy = inner.y + inner.height * (centerY != null ? centerY : 0.5);
+  // Far enough that every wedge edge exceeds the rect in every direction
+  // before clipping — the corner-to-apex distance is the worst case.
+  const reach = Math.hypot(inner.width, inner.height) * 2 +
+    Math.hypot(Math.max(cx - inner.x, inner.x + inner.width - cx), Math.max(cy - inner.y, inner.y + inner.height - cy));
+  const sectorAngle = (2 * Math.PI) / sectors;
+  const start = (startAngle || 0) * (Math.PI / 180);
+
+  const cells = [];
+  for (let j = 0; j < sectors; j++) {
+    const a0 = start + j * sectorAngle, a1 = a0 + sectorAngle;
+    const aGap = (gap || 0) * sectorAngle * 0.4;
+    const a0g = a0 + aGap, a1g = a1 - aGap;
+    const poly0 = [
+      [cx, cy],
+      [cx + reach * Math.cos(a0g), cy + reach * Math.sin(a0g)],
+      [cx + reach * Math.cos(a1g), cy + reach * Math.sin(a1g)],
+    ];
+    const poly = clipToRect(poly0, inner);
+    if (poly.length < 3) continue;
+    cells.push({ id: 'c' + cells.length, points: poly, centroid: polygonCentroid(poly) });
+  }
+
+  return {
+    grid: {
+      type: 'angular',
+      solver: 'geometric',
+      cellShape: 'polygon',
+      params: { sectors, startAngle, centerX, centerY, gap },
+      gap: 0,
+    },
+    cells,
+  };
+}

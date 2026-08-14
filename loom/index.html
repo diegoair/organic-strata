@@ -301,6 +301,14 @@ body {
           <option value="diamond">Diamond</option>
           <option value="circular">Circular</option>
           <option value="noise">Noise</option>
+          <option value="column">Column</option>
+          <option value="row">Row</option>
+          <option value="modular">Modular</option>
+          <option value="rectangular">Rectangular</option>
+          <option value="diagonal">Diagonal</option>
+          <option value="angular">Angular</option>
+          <option value="polar">Polar</option>
+          <option value="elliptical">Elliptical</option>
         </select>
       </div>
       <div class="ctrl-row" id="row-padding">
@@ -639,6 +647,196 @@ body {
           <div class="ctrl-label">Gap</div>
           <input type="range" id="rg-noise-gap" min="0" max="40" step="1" value="8">
           <span class="ctrl-val" id="v-noise-gap">8</span>
+        </div>
+      </div>
+
+      <div id="block-column" style="display:none">
+        <p class="org-panel__hint">A plain vertical column grid, full canvas height — the literal typographic "column grid", uncluttered by Bento's own merge/variety controls.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Columns</div>
+          <input type="range" id="rg-col-count" min="1" max="24" step="1" value="6">
+          <span class="ctrl-val" id="v-col-count">6</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Gap</div>
+          <input type="range" id="rg-col-gap" min="0" max="40" step="1" value="16">
+          <span class="ctrl-val" id="v-col-gap">16</span>
+        </div>
+      </div>
+
+      <div id="block-row" style="display:none">
+        <p class="org-panel__hint">Column's own mirror — full canvas width, horizontal bands.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Rows</div>
+          <input type="range" id="rg-row-count" min="1" max="24" step="1" value="6">
+          <span class="ctrl-val" id="v-row-count">6</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Gap</div>
+          <input type="range" id="rg-row-gap" min="0" max="40" step="1" value="16">
+          <span class="ctrl-val" id="v-row-gap">16</span>
+        </div>
+      </div>
+
+      <div id="block-modular" style="display:none">
+        <p class="org-panel__hint">The plain uniform module scaffold — Columns×Rows, no merged spans, no randomness. Mechanically Bento with Variety at 0, shipped without Bento's own merge/variety/seed controls.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Columns</div>
+          <input type="range" id="rg-mod-cols" min="1" max="16" step="1" value="6">
+          <span class="ctrl-val" id="v-mod-cols">6</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Rows</div>
+          <input type="range" id="rg-mod-rows" min="1" max="16" step="1" value="6">
+          <span class="ctrl-val" id="v-mod-rows">6</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Gap</div>
+          <input type="range" id="rg-mod-gap" min="0" max="40" step="1" value="12">
+          <span class="ctrl-val" id="v-mod-gap">12</span>
+        </div>
+      </div>
+
+      <div id="block-rectangular" style="display:none">
+        <p class="org-panel__hint">Explicit hand-set proportions instead of an equal or periodic rule — the classic asymmetric magazine grid (one lead column next to narrow ones). Column/row count comes from how many numbers you type, not a separate slider.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Comma-separated relative widths, e.g. 2,1,1,3 — one wide lead column next to three narrow ones.">Column weights</div>
+          <input type="text" class="panel-select" id="txt-rect-colweights" value="2,1,1" aria-label="Column weights" style="width:100%">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Comma-separated relative heights, same convention as Column weights.">Row weights</div>
+          <input type="text" class="panel-select" id="txt-rect-rowweights" value="1,1,2" aria-label="Row weights" style="width:100%">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Gap</div>
+          <input type="range" id="rg-rect-gap" min="0" max="40" step="1" value="12">
+          <span class="ctrl-val" id="v-rect-gap">12</span>
+        </div>
+      </div>
+
+      <div id="block-diagonal" style="display:none">
+        <p class="org-panel__hint">Diamond's parallelogram sibling — two families of parallel lines at Angle and Angle+Skew. Skew 90 is a plain rotated rect lattice (Diamond's own case); away from 90 it shears into rhombi. Same polygon-cell pipeline as Voronoi/Hexagonal/Diamond.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Target divisions across the canvas width — density, not a literal count.">Count</div>
+          <input type="range" id="rg-diag-count" min="3" max="30" step="1" value="8">
+          <span class="ctrl-val" id="v-diag-count">8</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Direction of the primary line family.">Angle</div>
+          <input type="range" id="rg-diag-angle" min="0" max="180" step="1" value="20">
+          <span class="ctrl-val" id="v-diag-angle">20</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Angle between the two line families. 90 = a plain rotated rect grid (Diamond's own case). Away from 90 shears the cells into rhombi/parallelograms.">Skew</div>
+          <input type="range" id="rg-diag-skew" min="30" max="150" step="1" value="90">
+          <span class="ctrl-val" id="v-diag-skew">90</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Shrinks each parallelogram toward its own centroid. 0 = edge-to-edge tessellation.">Gap</div>
+          <input type="range" id="rg-diag-gap" min="0" max="0.4" step="0.02" value="0.06">
+          <span class="ctrl-val" id="v-diag-gap">0.06</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Random offset per lattice point. 0 = perfect tessellation.">Jitter</div>
+          <input type="range" id="rg-diag-jitter" min="0" max="1" step="0.05" value="0">
+          <span class="ctrl-val" id="v-diag-jitter">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="range" id="rg-diag-seed" min="0" max="99" step="1" value="7">
+          <span class="ctrl-val" id="v-diag-seed">7</span>
+        </div>
+      </div>
+
+      <div id="block-angular" style="display:none">
+        <p class="org-panel__hint">Pure radiating sectors from a point, no rings — each wedge reaches every edge/corner of the canvas rect (unlike Radial/Polar's own circular boundary). A sunburst/fan filling the full rectangle.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Sectors</div>
+          <input type="range" id="rg-ang-sectors" min="2" max="48" step="1" value="12">
+          <span class="ctrl-val" id="v-ang-sectors">12</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Start angle</div>
+          <input type="range" id="rg-ang-startangle" min="0" max="360" step="5" value="0">
+          <span class="ctrl-val" id="v-ang-startangle">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Fan apex position, fraction of the canvas width. 0.5 = centred.">Center X</div>
+          <input type="range" id="rg-ang-centerx" min="0" max="1" step="0.02" value="0.5">
+          <span class="ctrl-val" id="v-ang-centerx">0.5</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Fan apex position, fraction of the canvas height. 0.5 = centred.">Center Y</div>
+          <input type="range" id="rg-ang-centery" min="0" max="1" step="0.02" value="0.5">
+          <span class="ctrl-val" id="v-ang-centery">0.5</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Insets each wedge angularly on both sides. 0 = edge-to-edge tessellation.">Gap</div>
+          <input type="range" id="rg-ang-gap" min="0" max="0.4" step="0.02" value="0.06">
+          <span class="ctrl-val" id="v-ang-gap">0.06</span>
+        </div>
+      </div>
+
+      <div id="block-polar" style="display:none">
+        <p class="org-panel__hint">Radial's own twin — rings × sectors, inscribed in a circle — plus Radius curve: a power exponent that bunches ring thickness toward the centre (>1) or the outer edge (&lt;1) instead of Radial's always-equal spacing. Curve 1 reproduces Radial exactly.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Rings</div>
+          <input type="range" id="rg-pol-rings" min="1" max="12" step="1" value="5">
+          <span class="ctrl-val" id="v-pol-rings">5</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Sectors</div>
+          <input type="range" id="rg-pol-sectors" min="3" max="36" step="1" value="12">
+          <span class="ctrl-val" id="v-pol-sectors">12</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="1 = Radial's own linear spacing. Higher bunches rings toward the centre; lower bunches them toward the outer edge.">Radius curve</div>
+          <input type="range" id="rg-pol-curve" min="0.3" max="3" step="0.1" value="1.8">
+          <span class="ctrl-val" id="v-pol-curve">1.8</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="0 = true pie-slice wedges at the centre.">Inner radius</div>
+          <input type="range" id="rg-pol-innerradius" min="0" max="0.8" step="0.02" value="0.1">
+          <span class="ctrl-val" id="v-pol-innerradius">0.1</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Insets each wedge inward on both its radial and angular sides.">Gap</div>
+          <input type="range" id="rg-pol-gap" min="0" max="0.4" step="0.02" value="0.08">
+          <span class="ctrl-val" id="v-pol-gap">0.08</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Start angle</div>
+          <input type="range" id="rg-pol-startangle" min="0" max="360" step="5" value="0">
+          <span class="ctrl-val" id="v-pol-startangle">0</span>
+        </div>
+      </div>
+
+      <div id="block-elliptical" style="display:none">
+        <p class="org-panel__hint">Radial's other twin — rings × sectors scaled independently to the canvas's own aspect ratio, so the outer ring touches all four edges instead of Radial's circle inscribed with margin space left over.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Rings</div>
+          <input type="range" id="rg-ell-rings" min="1" max="12" step="1" value="4">
+          <span class="ctrl-val" id="v-ell-rings">4</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Sectors</div>
+          <input type="range" id="rg-ell-sectors" min="3" max="36" step="1" value="16">
+          <span class="ctrl-val" id="v-ell-sectors">16</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="0 = true pie-slice wedges at the centre.">Inner radius</div>
+          <input type="range" id="rg-ell-innerradius" min="0" max="0.8" step="0.02" value="0.15">
+          <span class="ctrl-val" id="v-ell-innerradius">0.15</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Insets each wedge inward on both its radial and angular sides.">Gap</div>
+          <input type="range" id="rg-ell-gap" min="0" max="0.4" step="0.02" value="0.08">
+          <span class="ctrl-val" id="v-ell-gap">0.08</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Start angle</div>
+          <input type="range" id="rg-ell-startangle" min="0" max="360" step="5" value="0">
+          <span class="ctrl-val" id="v-ell-startangle">0</span>
         </div>
       </div>
     </div>
