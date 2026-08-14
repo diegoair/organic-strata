@@ -373,25 +373,38 @@ body {
 
     <div class="panel-section">
       <h3>Grid <span class="hint" id="hint-solver">Kiwi constraint solver</span></h3>
-      <div class="ctrl-row">
-        <select class="panel-select" id="sel-gridtype" aria-label="Grid type" onchange="syncGeneratorRows()">
-          <option value="bento" selected>Bento</option>
-          <option value="sinusoidal">Wave</option>
-          <option value="hexagonal">Hexagonal</option>
-          <option value="radial">Radial</option>
-          <option value="triangular">Triangular</option>
-          <option value="diamond">Diamond</option>
-          <option value="circular">Circular</option>
-          <option value="linear">Linear</option>
-          <option value="rectangular">Rectangular</option>
-          <option value="diagonal">Diagonal</option>
-          <option value="angular">Angular</option>
-          <option value="masonry">Masonry</option>
-          <option value="fractal">Fractal</option>
-          <option value="organic">Organic</option>
-          <option value="spiral">Spiral</option>
-        </select>
-      </div>
+      <!-- Real <select>, kept as the single source of truth every existing
+           function (readGridParams/syncGeneratorRows/applyGridParamsToUI/
+           randomizeParams/loadGridPreset) already reads via ctrl('sel-
+           gridtype').value — hidden, not removed, so none of that had to
+           change. The thumbnail picker below is a pure front-end: picking
+           an item sets this select's value and dispatches a real `change`
+           event, which the picker doesn't listen for again itself. -->
+      <select class="panel-select" id="sel-gridtype" aria-label="Grid type" onchange="syncGeneratorRows()" style="display:none">
+        <option value="bento" selected>Bento</option>
+        <option value="sinusoidal">Wave</option>
+        <option value="hexagonal">Hexagonal</option>
+        <option value="radial">Radial</option>
+        <option value="triangular">Triangular</option>
+        <option value="diamond">Diamond</option>
+        <option value="circular">Circular</option>
+        <option value="linear">Linear</option>
+        <option value="rectangular">Rectangular</option>
+        <option value="diagonal">Diagonal</option>
+        <option value="angular">Angular</option>
+        <option value="masonry">Masonry</option>
+        <option value="fractal">Fractal</option>
+        <option value="organic">Organic</option>
+        <option value="spiral">Spiral</option>
+      </select>
+      <!-- Thumbnail dropdown — the shared design-system component
+           (shared/organica-panel.css's own "PRESET/TRANSFORMER PICKER":
+           .presets/.preset-trigger/.preset-menu/.pt-ico/.pi-ico), the
+           same one Camo Turing's Pattern picker and Living Path's
+           Transformer picker already use, applied here to Grid type
+           instead of a plain <select> so each generator gets a real
+           small icon instead of just a name. -->
+      <div class="presets ctrl-row" id="gridtype-picker" style="margin-bottom:var(--space-2)"></div>
       <div class="row-btns" style="margin-top:0">
         <button class="mini-btn" onclick="randomizeParams()" title="Randomizes every control belonging to the CURRENT generator only — Canvas, Padding and generator type itself are untouched.">Randomize</button>
       </div>

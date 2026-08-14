@@ -176,6 +176,16 @@ function syncGeneratorRows() {
   if (type === 'triangular') syncTriSpinRow();
   if (type === 'diamond') syncDiaSpinRow();
   if (type === 'sinusoidal') syncWaveFnRow();
+  // Refreshes the thumbnail-picker trigger for EVERY path that changes
+  // sel-gridtype.value, not just the picker's own click handler — the
+  // picker click path already updates itself, so this is a harmless
+  // no-op re-render there, but it's the only thing that keeps the
+  // trigger in sync when the type changes via loadGridPreset() or any
+  // future caller of applyGridParamsToUI, since syncGeneratorRows()
+  // already runs unconditionally on every real `change` to the select
+  // (its own onchange attribute) — one place to keep in sync, not one
+  // per caller.
+  gridtypePicker.refresh();
   if (type === 'linear') syncLinearAxisRow();
 }
 // Columns only means something under Axis Columns/Both, Rows only under
@@ -717,7 +727,7 @@ function deleteGridPreset() {
 // — Sinusoidal's amp/freq, Radial's innerradius/startangle — would make a
 // generic mapper either wrong or its own pile of special cases anyway).
 function applyGridParamsToUI(type, params) {
-  ctrl('sel-gridtype').value = type;
+  ctrl('sel-gridtype').value = type;   // syncGeneratorRows() below refreshes the thumbnail-picker trigger
   const setR = (id, v) => { if (v != null) ctrl(id).value = v; };
   const setS = (id, v) => { if (v != null) ctrl(id).value = v; };
   if (type === 'bento') {
@@ -913,9 +923,93 @@ function fitToViewIfNeeded(canvas) {
   if (scale < 0.999) zoomPan.zoomBy(scale);
 }
 
+// ── Grid-type thumbnail picker — the shared design-system component
+// (organica-panel.css's own "PRESET/TRANSFORMER PICKER":
+// .presets/.preset-trigger/.preset-menu/.pt-ico/.pi-ico, the same one
+// Camo Turing's Pattern picker and Living Path's Transformer picker
+// already use) applied to Grid type instead of a plain <select>. Static
+// SVG icons, not live-simulated thumbnails — a grid TYPE (unlike a
+// Gray-Scott f/k preset) isn't a function of one scalar the icon could
+// render live, so a small representative pictogram per generator is
+// the honest equivalent Camo Turing's own Transformer picker already
+// uses for the same reason (see organica-transformer.js's own header).
+// 26×26 viewBox to match .pt-ico/.pi-ico's own fixed box; stroke=
+// currentColor so it inherits --ink from the CSS component, never a
+// hardcoded colour.
+const GENERATOR_ICONS = {
+  bento: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3" y="3" width="20" height="20"/><line x1="12" y1="3" x2="12" y2="13"/><line x1="3" y1="13" x2="12" y2="13"/><line x1="12" y1="13" x2="12" y2="23"/></svg>',
+  sinusoidal: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 13 Q 7 4, 11 13 T 19 13 T 27 13" stroke-width="1.6"/><line x1="3" y1="20" x2="23" y2="20" stroke-width="0.9" stroke-dasharray="1.5 1.8"/></svg>',
+  hexagonal: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><polygon points="13,3 21,8 21,18 13,23 5,18 5,8"/></svg>',
+  radial: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="13" cy="13" r="10"/><circle cx="13" cy="13" r="4.5"/><line x1="13" y1="3" x2="13" y2="8.5"/><line x1="13" y1="17.5" x2="13" y2="23"/><line x1="3" y1="13" x2="8.5" y2="13"/><line x1="17.5" y1="13" x2="23" y2="13"/></svg>',
+  triangular: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><polygon points="3,21 10,7 17,21"/><polygon points="10,7 17,21 24,7"/></svg>',
+  diamond: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><polygon points="13,3 23,13 13,23 3,13"/></svg>',
+  circular: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="9" cy="9" r="5.5"/><circle cx="18" cy="9" r="5.5"/><circle cx="13.5" cy="18.5" r="5.5"/></svg>',
+  linear: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><line x1="7" y1="3" x2="7" y2="23"/><line x1="13" y1="3" x2="13" y2="23"/><line x1="19" y1="3" x2="19" y2="23"/></svg>',
+  rectangular: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3" y="3" width="20" height="20"/><line x1="14" y1="3" x2="14" y2="23"/><line x1="19" y1="3" x2="19" y2="23"/></svg>',
+  diagonal: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><line x1="0" y1="20" x2="12" y2="0"/><line x1="7" y1="26" x2="19" y2="0"/><line x1="14" y1="26" x2="26" y2="4"/></svg>',
+  angular: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 23 L3 13 A10 10 0 0 1 13 3 Z"/><path d="M3 23 L13 23 A10 10 0 0 0 13 3 Z" stroke-dasharray="1.5 1.8"/></svg>',
+  masonry: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3" y="3" width="6" height="10"/><rect x="3" y="13" width="6" height="10"/><rect x="10" y="3" width="6" height="15"/><rect x="10" y="18" width="6" height="5"/><rect x="17" y="3" width="6" height="6"/><rect x="17" y="9" width="6" height="14"/></svg>',
+  fractal: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3" y="3" width="20" height="20"/><line x1="13" y1="3" x2="13" y2="23"/><line x1="3" y1="13" x2="13" y2="13"/><line x1="13" y1="8" x2="23" y2="8"/></svg>',
+  organic: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M13 3 L21 7 L23 15 L17 22 L9 22 L3 15 L5 7 Z"/><path d="M13 3 L13 11 M21 7 L13 11 M23 15 L13 11 M13 11 L9 22 M13 11 L17 22 M13 11 L3 15" stroke-width="0.9"/></svg>',
+  spiral: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 3 H23 V16 H10 V9 H17"/></svg>',
+};
+const GENERATOR_ICON_FALLBACK = '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3" y="3" width="20" height="20"/></svg>';
+
+function buildGeneratorPicker() {
+  const host = ctrl('gridtype-picker');
+  const sel = ctrl('sel-gridtype');
+  const id = 'gridtype';
+  host.innerHTML = `<button class="preset-trigger" id="${id}-trigger" aria-label="Grid type">
+      <span class="pt-ico" id="${id}-ico"></span><span class="pt-name" id="${id}-name"></span><span class="pt-chev">▾</span>
+    </button><div class="preset-menu" id="${id}-menu" hidden></div>`;
+  const trigger = ctrl(id + '-trigger'), menu = ctrl(id + '-menu');
+  const icoEl = ctrl(id + '-ico'), nameEl = ctrl(id + '-name');
+
+  const icon = type => GENERATOR_ICONS[type] || GENERATOR_ICON_FALLBACK;
+  const label = type => GENERATORS[type] ? GENERATORS[type].label : type;
+
+  function updateTrigger() {
+    const type = sel.value;
+    icoEl.innerHTML = icon(type);
+    nameEl.textContent = label(type);
+  }
+  function populateMenu() {
+    menu.innerHTML = '';
+    Object.keys(GENERATORS).forEach(type => {
+      const row = document.createElement('button');
+      row.className = 'preset-item' + (type === sel.value ? ' on' : '');
+      row.innerHTML = `<span class="pi-ico">${icon(type)}</span><span class="pi-name">${label(type)}</span>`;
+      row.addEventListener('click', () => {
+        sel.value = type;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        updateTrigger();
+        menu.hidden = true;
+      });
+      menu.appendChild(row);
+    });
+  }
+  function positionMenu() {
+    const t = trigger.getBoundingClientRect(), gap = 5, margin = 12;
+    const below = window.innerHeight - t.bottom - margin, above = t.top - margin;
+    menu.style.left = t.left + 'px'; menu.style.width = t.width + 'px';
+    if (below >= 200 || below >= above) { menu.style.top = (t.bottom + gap) + 'px'; menu.style.bottom = 'auto'; menu.style.maxHeight = Math.max(160, below) + 'px'; }
+    else { menu.style.bottom = (window.innerHeight - t.top + gap) + 'px'; menu.style.top = 'auto'; menu.style.maxHeight = Math.max(160, above) + 'px'; }
+  }
+  trigger.addEventListener('click', e => {
+    e.stopPropagation();
+    if (menu.hidden) { populateMenu(); positionMenu(); menu.hidden = false; } else menu.hidden = true;
+  });
+  document.addEventListener('click', e => {
+    if (!menu.hidden && !host.contains(e.target) && !menu.contains(e.target)) menu.hidden = true;
+  });
+  updateTrigger();
+  return { refresh: updateTrigger };
+}
+
 // ── INIT ──
 populateCanvasPresets();
 syncUnitRows();
+const gridtypePicker = buildGeneratorPicker();   // before syncGeneratorRows() — it refreshes the picker's own trigger on every call
 syncGeneratorRows();
 populateSavedGrids();
 window.saveGridPreset = saveGridPreset;
