@@ -37,7 +37,7 @@ function buildPolygonSVG(model, inner, lineColor) {
   s += '</g>';
   cells.forEach((c, i) => {
     const [cx, cy] = c.centroid;
-    s += `<text x="${r2(cx)}" y="${r2(cy)}" font-size="10" text-anchor="middle" dominant-baseline="middle" fill="#696256">${c.number != null ? c.number : i + 1}</text>`;
+    s += `<text x="${r2(cx)}" y="${r2(cy)}" font-size="13" text-anchor="middle" dominant-baseline="middle" fill="#696256">${c.number != null ? c.number : i + 1}</text>`;
   });
   s += '</svg>';
   return s;

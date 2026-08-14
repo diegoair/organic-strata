@@ -286,6 +286,7 @@ function build() {
   fitToViewIfNeeded(canvas);
   paintGridDOM(previewEl, currentModel, inner, GUIDE_COLOR);
   paintGuides(canvas, inner);
+  syncCanvasOverlays();
   if (ctrl('ck-json-view').checked) paintJSON();
 
   setStatus('active', `${generator.label} · ${cells.length} cells · ${grid.solver}`);
@@ -297,6 +298,29 @@ function paintGuides(canvas, inner) {
     `left:${inner.x}px; top:${inner.y}px; width:${inner.width}px; height:${inner.height}px;`;
   ctrl('guide-safe').style.cssText =
     `left:${safe.x}px; top:${safe.y}px; width:${safe.width}px; height:${safe.height}px;`;
+}
+
+// Three preview-only verification aids (§ user request) — none of them
+// touch the model or any export, all three are pure #canvas-frame CSS
+// state, kept in sync with the current canvas here in one place rather
+// than scattered across build()'s own render calls.
+function syncCanvasOverlays() {
+  canvasFrame.classList.toggle('preview-fill', ctrl('ck-preview-fill').checked);
+  canvasFrame.classList.toggle('hide-numbers', !ctrl('ck-show-numbers').checked);
+  const bgGridOn = ctrl('ck-bg-grid').checked;
+  const bgGrid = ctrl('guide-bg-grid');
+  bgGrid.classList.toggle('visible', bgGridOn);
+  if (bgGridOn && currentModel) {
+    // 12 divisions across the canvas's own width — a plain reference
+    // reticle sized off the canvas's own dimensions, same "derive from
+    // the physical space, don't hardcode a pixel count" reasoning as
+    // every other canvas-relative control in this tool (Hexagonal's own
+    // Columns density, Radial's outer radius, etc.).
+    const spacing = currentModel.canvas.width / 12;
+    bgGrid.style.backgroundImage =
+      `repeating-linear-gradient(to right, rgba(10,10,10,0.06) 0, rgba(10,10,10,0.06) 1px, transparent 1px, transparent ${spacing}px),` +
+      `repeating-linear-gradient(to bottom, rgba(10,10,10,0.06) 0, rgba(10,10,10,0.06) 1px, transparent 1px, transparent ${spacing}px)`;
+  }
 }
 
 function paintJSON() {
@@ -450,6 +474,7 @@ window.sequentialNumbers = sequentialNumbers;
 window.syncHexSpinRow = syncHexSpinRow;
 window.syncTriSpinRow = syncTriSpinRow;
 window.syncDiaSpinRow = syncDiaSpinRow;
+window.syncCanvasOverlays = syncCanvasOverlays;
 
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 Organica.autoLabelPanel(document);

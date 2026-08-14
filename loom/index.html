@@ -106,8 +106,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
-  letter-spacing: 0.05em;
+  font-size: 13px;
+  letter-spacing: 0.02em;
   color: var(--mid);
   background: transparent;
 }
@@ -119,6 +119,38 @@ body {
   z-index: 1;
 }
 #guide-safe { border-color: #c98a4a; }
+
+/* Background reticle — a viewing aid only (§ ck-bg-grid), sized in
+   main.js's syncCanvasOverlays() off the canvas's own dimensions, never
+   part of any export. Drawn ABOVE the grid (z-index 3 vs. #grid-preview's
+   2), a translucent overlay the same way a light-table guide layer sits
+   above content in Photoshop/Illustrator — every polygon/rect renderer
+   here paints its own opaque white background rect (needed so a
+   standalone exported SVG/PNG has one), which would otherwise fully
+   block a reticle placed underneath; on top, at low opacity, it reads
+   over both the shapes and that white backing. */
+#guide-bg-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  display: none;
+}
+#guide-bg-grid.visible { display: block; }
+
+/* Preview fill (§ ck-preview-fill) — a faint tint on every cell so a
+   real closed/fillable shape is obvious at a glance, purely a live-canvas
+   verification aid: CSS overriding the SVG polygons'/rects' own
+   fill="none" presentation attribute (CSS wins over presentation
+   attributes in SVG, so no renderer code needs to change), plus the
+   equivalent background-color for the CSS-Grid rect-cell preview path.
+   Never baked into any export. */
+#canvas-frame.preview-fill .loom-cell { background: rgba(51, 153, 255, 0.12); }
+#canvas-frame.preview-fill #grid-preview svg g { fill: rgba(51, 153, 255, 0.12); }
+
+/* Show/hide numbers (§ ck-show-numbers) — same "preview only" rule. */
+#canvas-frame.hide-numbers .loom-cell { color: transparent; }
+#canvas-frame.hide-numbers #grid-preview svg text { display: none; }
 
 .panel-section { border-bottom: 1px solid var(--border); padding: var(--space-5) var(--space-6); }
 
@@ -190,6 +222,7 @@ body {
 
   <div id="canvas-wrap">
     <div id="canvas-frame">
+      <div id="guide-bg-grid"></div>
       <div class="loom-guide" id="guide-margin"></div>
       <div class="loom-guide" id="guide-safe"></div>
       <div id="grid-preview"></div>
@@ -240,6 +273,15 @@ body {
         <div class="ctrl-label" title="Always specified in mm regardless of the canvas's own unit — the real print convention, a bleed spec doesn't change because the document happens to be quoted in cm or m.">Bleed (mm)</div>
         <input type="number" class="panel-select" id="num-bleed" value="3" min="0" step="0.5" style="width:100%">
       </div>
+      <label class="check-row" title="A reference reticle behind the grid, spaced off the canvas's own dimensions — a viewing aid only, never exported.">
+        <input type="checkbox" id="ck-bg-grid" onchange="syncCanvasOverlays()"><span>Background grid</span>
+      </label>
+      <label class="check-row" title="Fills every cell with a faint tint so you can confirm each one is a real closed, fillable shape — a verification aid only, never exported.">
+        <input type="checkbox" id="ck-preview-fill" onchange="syncCanvasOverlays()"><span>Preview fill</span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" id="ck-show-numbers" checked onchange="syncCanvasOverlays()"><span>Show numbers</span>
+      </label>
     </div>
 
     <div class="panel-section">
