@@ -355,6 +355,9 @@ body {
           <option value="spiral">Spiral</option>
         </select>
       </div>
+      <div class="row-btns" style="margin-top:0">
+        <button class="mini-btn" onclick="randomizeParams()" title="Randomizes every control belonging to the CURRENT generator only — Canvas, Padding and generator type itself are untouched.">Randomize</button>
+      </div>
       <div class="ctrl-row" id="row-padding">
         <div class="ctrl-label" title="Insets each cell's own visible box inward from its track allocation — breathing room inside a cell, independent of Gap (which changes the track spacing the solver/math actually resolves). Rect grids only — Voronoi's polygon cells don't have a defined inset yet.">Padding</div>
         <input type="range" id="rg-padding" min="0" max="30" step="1" value="0">

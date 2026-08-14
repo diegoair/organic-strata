@@ -193,6 +193,48 @@ function syncLinearAxisRow() {
   ctrl('row-lin-cols').style.display = (axis === 'rows') ? 'none' : '';
   ctrl('row-lin-rows').style.display = (axis === 'cols') ? 'none' : '';
 }
+
+// ── Phase 6 — Randomisation UI. Scoped to the CURRENT generator's own
+// `#block-<type>` element only (never Canvas, Padding, or the generator
+// type itself) — a predictable "reroll this recipe" action, not a
+// surprise grab-bag across unrelated controls. Every control kind in
+// every block is handled generically (range/select/segmented/text)
+// rather than one randomizer per generator, so a future generator needs
+// no changes here to get Randomize for free.
+function randomizeParams() {
+  const type = ctrl('sel-gridtype').value;
+  const block = ctrl('block-' + type);
+  if (!block) return;
+
+  block.querySelectorAll('input[type=range]').forEach(r => {
+    const min = parseFloat(r.min), max = parseFloat(r.max), step = parseFloat(r.step) || 1;
+    const steps = Math.round((max - min) / step);
+    const v = min + Math.floor(Math.random() * (steps + 1)) * step;
+    r.value = Math.round(v * 1e6) / 1e6;   // clear off float drift from repeated *step
+    const valEl = r.closest('.ctrl-row')?.querySelector('.ctrl-val');
+    if (valEl) valEl.textContent = r.value;
+  });
+  block.querySelectorAll('select').forEach(s => {
+    const opts = Array.from(s.options);
+    s.value = opts[Math.floor(Math.random() * opts.length)].value;
+    s.dispatchEvent(new Event('change', { bubbles: true }));   // fires e.g. syncHexSpinRow
+  });
+  block.querySelectorAll('.seg-ctrl').forEach(seg => {
+    const btns = Array.from(seg.querySelectorAll('.seg-btn'));
+    const btn = btns[Math.floor(Math.random() * btns.length)];
+    btns.forEach(b => b.classList.toggle('active', b === btn));
+    if (seg.id === 'seg-lin-axis') syncLinearAxisRow();
+  });
+  block.querySelectorAll('input[type=text]').forEach(t => {
+    // Only Rectangular's Column/Row weights today — a plausible random
+    // ratio string, same 2–4-number shape as its own default ("2,1,1").
+    const n = 2 + Math.floor(Math.random() * 3);
+    t.value = Array.from({ length: n }, () => 1 + Math.floor(Math.random() * 4)).join(',');
+  });
+
+  build();
+  setStatus('active', `${GENERATORS[type].label} randomized`);
+}
 // Spin Amount only means something once a Spin mode other than Off is
 // picked — hidden rather than left as a dead control when Off, same rule
 // as row-padding/the Voronoi hint above (Komorebi's own control audit).
@@ -930,6 +972,7 @@ window.syncHexSpinRow = syncHexSpinRow;
 window.syncTriSpinRow = syncTriSpinRow;
 window.syncDiaSpinRow = syncDiaSpinRow;
 window.syncCanvasOverlays = syncCanvasOverlays;
+window.randomizeParams = randomizeParams;
 
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 Organica.autoLabelPanel(document);
