@@ -384,6 +384,127 @@ function exportJSON() {
   Organica.download(new Blob([JSON.stringify(currentModel, null, 2)], { type: 'application/json' }), Organica.stamp('loom', 'json'));
   setStatus('active', 'JSON model saved');
 }
+
+// ── Save grid — named presets in the SAME shared store every other
+// Organica tool's own presets use (Organica.presetStore), so the exact
+// JSON another tool later reads via Organica.loadLoomGrid() is available
+// cross-tool for free, not a Loom-only mechanism. Each preset stores the
+// full model (buildModel()'s own output) — the single source of truth
+// this file's own header already insists on, so "load" is exact, not an
+// approximation reconstructed from separate fields. ──
+const gridPresetStore = Organica.presetStore('loom');
+
+function populateSavedGrids() {
+  const sel = ctrl('sel-saved-grids');
+  const cur = sel.value;
+  const presets = gridPresetStore.read();
+  sel.innerHTML = '<option value="">Load saved…</option>';
+  Object.keys(presets).sort().forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  if (presets[cur]) sel.value = cur;
+}
+function saveGridPreset() {
+  const name = ctrl('txt-save-name').value.trim();
+  if (!name) { setStatus('', 'Name the grid before saving'); return; }
+  if (!currentModel) return;
+  const presets = gridPresetStore.read();
+  presets[name] = currentModel;
+  if (!gridPresetStore.write(presets)) { setStatus('', 'Could not save — storage full or unavailable'); return; }
+  ctrl('txt-save-name').value = '';
+  populateSavedGrids();
+  ctrl('sel-saved-grids').value = name;
+  setStatus('active', `Saved "${name}"`);
+}
+function deleteGridPreset() {
+  const name = ctrl('sel-saved-grids').value;
+  if (!name) return;
+  const presets = gridPresetStore.read();
+  delete presets[name];
+  gridPresetStore.write(presets);
+  populateSavedGrids();
+  setStatus('active', `Deleted "${name}"`);
+}
+
+// Per-generator param-key → control-id mapping, the mirror image of
+// readGridParams()'s own explicit per-type branches — deliberately
+// explicit per generator rather than a naming-convention guesser, same
+// reasoning readGridParams already follows (a few irregular abbreviations
+// — Sinusoidal's amp/freq, Radial's innerradius/startangle — would make a
+// generic mapper either wrong or its own pile of special cases anyway).
+function applyGridParamsToUI(type, params) {
+  ctrl('sel-gridtype').value = type;
+  const setR = (id, v) => { if (v != null) ctrl(id).value = v; };
+  const setS = (id, v) => { if (v != null) ctrl(id).value = v; };
+  if (type === 'bento') {
+    setR('rg-bento-cols', params.cols); setR('rg-bento-rows', params.rows);
+    setR('rg-bento-variety', params.variety); setR('rg-bento-gap', params.gap); setR('rg-bento-seed', params.seed);
+  } else if (type === 'sinusoidal') {
+    setR('rg-sin-cols', params.cols); setR('rg-sin-rows', params.rows);
+    setR('rg-sin-amp', params.amplitude); setR('rg-sin-freq', params.frequency); setR('rg-sin-phase', params.phase);
+    setR('rg-sin-gap', params.gap);
+    if (params.axis) setSegValue('seg-sin-axis', params.axis);
+  } else if (type === 'voronoi') {
+    setR('rg-voronoi-points', params.points); setR('rg-voronoi-seed', params.seed);
+  } else if (type === 'hexagonal') {
+    setR('rg-hex-cols', params.cols); setR('rg-hex-rotation', params.rotation);
+    setS('sel-hex-spinmode', params.spinMode); setR('rg-hex-spinamount', params.spinAmount);
+    setR('rg-hex-noisescale', params.noiseScale);
+    setR('rg-hex-gap', params.gap); setR('rg-hex-jitter', params.jitter); setR('rg-hex-seed', params.seed);
+    syncHexSpinRow();
+  } else if (type === 'radial') {
+    setR('rg-radial-rings', params.rings); setR('rg-radial-sectors', params.sectors);
+    setR('rg-radial-innerradius', params.innerRadiusFrac); setR('rg-radial-gap', params.gap);
+    setR('rg-radial-startangle', params.startAngle);
+  } else if (type === 'triangular') {
+    setR('rg-tri-cols', params.cols); setR('rg-tri-rotation', params.rotation);
+    setS('sel-tri-spinmode', params.spinMode); setR('rg-tri-spinamount', params.spinAmount);
+    setR('rg-tri-noisescale', params.noiseScale);
+    setR('rg-tri-gap', params.gap); setR('rg-tri-jitter', params.jitter); setR('rg-tri-seed', params.seed);
+    syncTriSpinRow();
+  } else if (type === 'diamond') {
+    setR('rg-dia-cols', params.cols); setR('rg-dia-rotation', params.rotation);
+    setS('sel-dia-spinmode', params.spinMode); setR('rg-dia-spinamount', params.spinAmount);
+    setR('rg-dia-noisescale', params.noiseScale);
+    setR('rg-dia-gap', params.gap); setR('rg-dia-jitter', params.jitter); setR('rg-dia-seed', params.seed);
+    syncDiaSpinRow();
+  } else if (type === 'circular') {
+    setR('rg-cir-cols', params.cols); setR('rg-cir-rotation', params.rotation);
+    setR('rg-cir-gap', params.gap); setR('rg-cir-jitter', params.jitter); setR('rg-cir-seed', params.seed);
+  }
+  // Live numeric readouts (the delegated panel listener only fires on a
+  // real user `input` event, not a programmatic .value set) — sync every
+  // slider's own displayed number to match what was just loaded.
+  ctrl('panel').querySelectorAll('input[type=range]').forEach(r => {
+    const valEl = r.closest('.ctrl-row')?.querySelector('.ctrl-val');
+    if (valEl) valEl.textContent = r.value;
+  });
+}
+function setSegValue(groupId, value) {
+  ctrl(groupId).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === value));
+}
+function loadGridPreset() {
+  const name = ctrl('sel-saved-grids').value;
+  if (!name) return;
+  const presets = gridPresetStore.read();
+  const model = presets[name];
+  if (!model) return;
+  ctrl('num-width').value = model.canvas.displayWidth;
+  ctrl('num-height').value = model.canvas.displayHeight;
+  ctrl('sel-unit').value = model.canvas.unit;
+  lastUnit = model.canvas.unit;
+  ctrl('rg-margin').value = model.canvas.margin;
+  ctrl('rg-safearea').value = model.canvas.safeArea;
+  if (model.canvas.bleed) ctrl('num-bleed').value = model.canvas.bleed;
+  syncUnitRows();
+  applyGridParamsToUI(model.grid.type, model.grid.params || {});
+  syncGeneratorRows();
+  if (model.grid.padding != null) ctrl('rg-padding').value = model.grid.padding;
+  build();
+  setStatus('active', `Loaded "${name}"`);
+}
 function sendToFigma() {
   // Phase 1 reuses the existing shared SVG-import pipeline verbatim — the
   // grid arrives in Figma as vector guides, not yet native Auto Layout
@@ -456,6 +577,10 @@ function fitToViewIfNeeded(canvas) {
 populateCanvasPresets();
 syncUnitRows();
 syncGeneratorRows();
+populateSavedGrids();
+window.saveGridPreset = saveGridPreset;
+window.deleteGridPreset = deleteGridPreset;
+window.loadGridPreset = loadGridPreset;
 window.build = build;
 window.applyCanvasPreset = applyCanvasPreset;
 window.syncUnitRows = syncUnitRows;

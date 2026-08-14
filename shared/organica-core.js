@@ -112,6 +112,81 @@
   };
 
   // ═══════════════════════════════════════════════════════════
+  // LOOM GRID IMPORT
+  //
+  // Reads Loom's own Universal JSON Model (the exact object
+  // loom/js/json-model.js's buildModel() produces — canvas/grid/cells)
+  // and resolves it into absolute per-cell geometry any OTHER Organica
+  // tool can consume, without that tool needing to know anything about
+  // tracks, spans, Kiwi, or polygon generators. This is the cross-tool
+  // half of Loom's own brief — "the user can save a grid in Loom, then
+  // use it as an import in any other Organica tool."
+  //
+  // Deliberately NOT an ES module import of Loom's own json-model.js:
+  // every other Organica tool is a plain single-file `<script>` (no
+  // bundler), the same reason every polygon generator in loom/js/
+  // keeps its own private copy of clipToRect rather than sharing one —
+  // this ports the same two small, pure functions (innerRect,
+  // resolveCellRects) rather than pulling in a module loader for two
+  // functions. Kept easy to eyeball against the originals if either
+  // ever drifts (loom/js/canvas-manager.js's own innerRect,
+  // loom/js/json-model.js's own resolveCellRects).
+  // ═══════════════════════════════════════════════════════════
+
+  function loomInnerRect(canvas) {
+    const shortSide = Math.min(canvas.width, canvas.height);
+    const m = shortSide * ((canvas.margin || 0) / 100);
+    return {
+      x: m, y: m,
+      width: Math.max(1, canvas.width - 2 * m),
+      height: Math.max(1, canvas.height - 2 * m),
+    };
+  }
+
+  function loomResolveCellRects(model, inner) {
+    const { tracks, gap, padding } = model.grid;
+    const pad = padding || 0;
+    const offsets = (sizes) => {
+      const out = [0];
+      for (let i = 0; i < sizes.length; i++) out.push(out[i] + sizes[i] + gap);
+      return out;
+    };
+    const colOff = offsets(tracks.cols), rowOff = offsets(tracks.rows);
+    return model.cells.map(c => {
+      const x = inner.x + colOff[c.col] + pad;
+      const y = inner.y + rowOff[c.row] + pad;
+      const width = colOff[c.col + c.colSpan] - colOff[c.col] - gap - 2 * pad;
+      const height = rowOff[c.row + c.rowSpan] - rowOff[c.row] - gap - 2 * pad;
+      return { ...c, shape: 'rect', x, y, width: Math.max(0, width), height: Math.max(0, height) };
+    });
+  }
+
+  // @param {string|object} input — a Loom JSON export, parsed or not.
+  // @returns {{canvas, inner, cellShape, cells}} or throws a plain Error
+  //   with a message safe to show a user directly (not a stack trace) —
+  //   callers are expected to try/catch this, the same "never let a bad
+  //   import crash the host tool" discipline every file-input handler in
+  //   Organica already follows (Living Path's .lvp load, Warping's own
+  //   image drop, etc.).
+  Organica.loadLoomGrid = function (input) {
+    let model;
+    try {
+      model = typeof input === 'string' ? JSON.parse(input) : input;
+    } catch (e) {
+      throw new Error('Not valid JSON.');
+    }
+    if (!model || !model.canvas || !model.grid || !Array.isArray(model.cells)) {
+      throw new Error('Not a Loom grid export — missing canvas/grid/cells.');
+    }
+    const inner = loomInnerRect(model.canvas);
+    const cellShape = model.grid.cellShape === 'polygon' ? 'polygon' : 'rect';
+    const cells = cellShape === 'polygon'
+      ? model.cells.map(c => ({ ...c, shape: 'polygon' }))   // already absolute points/centroid
+      : loomResolveCellRects(model, inner);
+    return { canvas: model.canvas, grid: model.grid, inner, cellShape, cells };
+  };
+
+  // ═══════════════════════════════════════════════════════════
   // FIGMA
   //
   // The one formal contract between Organica tools and the plugin:

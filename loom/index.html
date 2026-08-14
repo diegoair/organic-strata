@@ -601,6 +601,23 @@ body {
     </div>
 
     <div class="panel-section">
+      <h3>Save grid <span class="hint">reuse across tools</span></h3>
+      <p class="org-panel__hint">Saves the current canvas + grid definition by name (`organica.loom.presets`, the same shared store every other Organica tool's own presets use) — the same JSON `Organica.loadLoomGrid()` can read back in any other Organica tool.</p>
+      <div class="ctrl-row">
+        <input type="text" class="panel-select" id="txt-save-name" placeholder="Grid name" aria-label="Grid name" style="width:100%">
+      </div>
+      <div class="row-btns" style="margin-top:0">
+        <button class="mini-btn" onclick="saveGridPreset()">Save</button>
+        <button class="mini-btn" onclick="deleteGridPreset()">Delete</button>
+      </div>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-saved-grids" aria-label="Saved grids" onchange="loadGridPreset()">
+          <option value="">Load saved…</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel-section">
       <h3>Model <span class="hint">the single source of truth</span></h3>
       <label class="check-row"><input type="checkbox" id="ck-json-view" onchange="toggleJSONView()"><span>View JSON</span></label>
       <div id="json-panel" style="margin-top: var(--space-2)">
