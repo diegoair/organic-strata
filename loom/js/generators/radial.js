@@ -15,11 +15,7 @@
    circular arc has no exact polygon form, so the arc is subdivided finely
    enough (one vertex roughly every 10°) that the SVG/PNG export and the
    live preview both read as smoothly curved at any reasonable Rings ×
-   Sectors count, not faceted. `collectPolygonEdges`'s existing dedup
-   still works unmodified: two adjacent wedges share their straight radial
-   edge exactly (same two endpoints), so it collapses to one line same as
-   any other polygon pair — only the CURVED edges (unique to each wedge,
-   nothing to dedup against) stay as their own short segments.
+   Sectors count, not faceted.
 
    No clipping against the inner rect is needed here, unlike Voronoi/
    Hexagonal — by construction the whole radial field is built inside a

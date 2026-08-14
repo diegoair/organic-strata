@@ -99,7 +99,10 @@ body {
      cell in html-renderer.js's buildGridCSS, so a shared edge between two
      adjacent cells is drawn by exactly ONE of them, never both. A full
      4-side border per cell would double-stroke every internal boundary —
-     same root cause the SVG/PNG renderers' collectEdges fixes there. */
+     the CSS-side version of the same "shared edge, don't draw it twice"
+     idea; the SVG/PNG renderers accept the doubled-stroke look now, in
+     exchange for real closed per-cell shapes (see svg-renderer.js's own
+     header for why closed/fillable shapes take priority there). */
   display: flex;
   align-items: center;
   justify-content: center;

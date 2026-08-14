@@ -23,9 +23,8 @@
    circles touch their neighbours at a single point, not a shared edge,
    so real triangular voids remain between any three mutually-touching
    circles. That void is correct circle-packing geometry, not a rendering
-   bug, and it's why `collectPolygonEdges`'s dedup finds nothing to merge
-   here (no cell shares an actual edge segment with another) — every
-   circle's own outline draws in full, independently.
+   bug — every circle's own outline draws as its own closed `<polygon>`,
+   independently.
 
    `Columns` sets the target diameter (`inner.width / cols`), matching
    every other polygon generator's density-not-count convention. `Gap`

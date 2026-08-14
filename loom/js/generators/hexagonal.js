@@ -2,10 +2,9 @@
    Hexagonal generator — second POLYGON-shaped generator (Voronoi's own
    header: `grid.cellShape = 'polygon'` is the fork every renderer already
    branches on), reusing that whole pipeline for free: SVG/PNG export,
-   the embedded-SVG live preview, edge dedup (collectPolygonEdges) — none
-   of it had to change to add this generator, which is the whole point of
-   the fork being a flag on the model rather than per-generator code in
-   every renderer.
+   the embedded-SVG live preview — none of it had to change to add this
+   generator, which is the whole point of the fork being a flag on the
+   model rather than per-generator code in every renderer.
 
    Real regular-hexagon tessellation (redblobgames' standard flat-top
    formulas — 1.5r horizontal spacing, √3·r vertical, odd columns offset

@@ -9,7 +9,6 @@
    ───────────────────────────────────────────────────────────── */
 
 import { innerRect } from '../canvas-manager.js';
-import { collectPolygonEdges } from '../json-model.js';
 
 function r2(n) { return Math.round(n * 100) / 100; }
 
@@ -17,20 +16,24 @@ function r2(n) { return Math.round(n * 100) / 100; }
 // own header. The "live CSS Grid preview" convention above simply doesn't
 // apply, so this branch embeds a real SVG instead: the preview and the
 // SVG export are then AS CLOSE to byte-identical as this tool gets (same
-// edges, same stroke colour), the one deliberate difference being that
-// this preview also draws each cell's number at its centroid — numbers
-// were always a preview/HTML-snippet-only feature for rect grids too
-// (svg-renderer.js's own SVG export has never drawn them), so this keeps
-// that same convention rather than inventing a new one.
+// per-cell closed `<polygon>` shapes, same stroke colour — see
+// svg-renderer.js's own header for why closed per-cell shapes replaced an
+// earlier de-duplicated-line-list version), the one deliberate difference
+// being that this preview also draws each cell's number at its centroid —
+// numbers were always a preview/HTML-snippet-only feature for rect grids
+// too (svg-renderer.js's own SVG export has never drawn them), so this
+// keeps that same convention rather than inventing a new one.
 function buildPolygonSVG(model, inner, lineColor) {
   const { canvas, cells } = model;
   const stroke = lineColor || '#3399ff';
   let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${r2(canvas.width)} ${r2(canvas.height)}" style="display:block; width:100%; height:100%;">`;
   s += `<rect width="100%" height="100%" fill="#ffffff"/>`;
   s += `<rect x="${r2(inner.x)}" y="${r2(inner.y)}" width="${r2(inner.width)}" height="${r2(inner.height)}" fill="none" stroke="#c8c0b0" stroke-width="0.75" stroke-dasharray="3 3"/>`;
-  const edges = collectPolygonEdges(cells);
-  s += `<g stroke="${stroke}" stroke-width="1">`;
-  edges.forEach(e => { s += `<line x1="${e.x1}" y1="${e.y1}" x2="${e.x2}" y2="${e.y2}"/>`; });
+  s += `<g fill="none" stroke="${stroke}" stroke-width="1">`;
+  cells.forEach(cell => {
+    const pts = cell.points.map(p => `${r2(p[0])},${r2(p[1])}`).join(' ');
+    s += `<polygon points="${pts}"/>`;
+  });
   s += '</g>';
   cells.forEach((c, i) => {
     const [cx, cy] = c.centroid;
@@ -69,9 +72,12 @@ export function buildGridCSS(model) {
     // cells also draw left/top. A shared edge between two adjacent cells
     // is then drawn by exactly ONE of them — the cell to its left or
     // above — instead of both cells independently bordering all 4 sides,
-    // which doubles every internal boundary (same fix as the SVG/PNG
-    // renderers' collectEdges, applied here as CSS instead of geometry
-    // dedup since a DOM grid can't draw a "line" independent of its cells).
+    // which doubles every internal boundary. Each `.loom-cell` is already
+    // a real closed DOM box (unlike the old SVG/PNG line-list export this
+    // avoids the doubled-border look at zero cost — a `<div>`'s border is
+    // never "two lines", so there's no dedup needed here the way the
+    // vector renderers used to need it; each cell is trivially fillable
+    // via `background-color` in CSS already.
     cellCSS: model.cells.map(c => {
       // Fallback value inline (var(--guide-blue, #3399ff)) — the exported
       // HTML snippet is meant to stand alone in an arbitrary page that

@@ -3,17 +3,25 @@
    json-model.js's resolveCellRects, polygon grids read model.cells'
    own absolute points directly — see voronoi.js's own header for why
    there's no shared "rect" representation between the two), then draws
-   the DE-DUPLICATED edge set (collectEdges / collectPolygonEdges) as
-   <line> segments rather than one stroked shape per cell. A grid
-   DEFINITION export — guides for a designer to build on in Figma/Affinity,
-   not filled shapes claiming to be a finished layout. Per-cell shapes
-   would stroke every shared boundary between adjacent cells twice —
-   geometrically coincident, but two overlapping anti-aliased strokes
-   compound into a visibly bolder line than the single strokes elsewhere
-   (json-model.js's own collectEdges header has the full story).
+   ONE CLOSED SHAPE PER CELL (`<rect>` or `<polygon>`) — every cell a
+   real closed, fillable path, not a network of disconnected `<line>`
+   segments that only look closed on screen.
+
+   This replaced an earlier de-duplicated-edge-list version (one `<line>`
+   per unique boundary, never a closed per-cell shape) that Diego caught
+   in real use: opening the exported file, nothing was actually a closed
+   shape — no path a design tool could select and fill with a colour, just
+   independent line segments that happened to line up. That's a real
+   defect for a grid export whose whole job is to hand off usable
+   geometry, not a stylistic choice to preserve. The de-dup approach's own
+   original motivation — avoiding a doubled-stroke look where two
+   adjacent cells each draw their own copy of a shared edge — is a real,
+   secondary cosmetic effect, but it's strictly less important than the
+   shapes being closed and fillable at all, so it's an accepted trade-off
+   now rather than the deciding constraint.
    ───────────────────────────────────────────────────────────── */
 
-import { resolveCellRects, collectEdges, collectPolygonEdges } from '../json-model.js';
+import { resolveCellRects } from '../json-model.js';
 
 function r2(n) { return Math.round(n * 100) / 100; }
 
@@ -32,13 +40,17 @@ export function renderSVG(model, inner, lineColor) {
   let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(canvas.width)}${suffix}" height="${r2(canvas.height)}${suffix}" viewBox="0 0 ${r2(canvas.width)} ${r2(canvas.height)}">`;
   s += `<rect width="100%" height="100%" fill="#ffffff"/>`;
   s += `<rect x="${r2(inner.x)}" y="${r2(inner.y)}" width="${r2(inner.width)}" height="${r2(inner.height)}" fill="none" stroke="#c8c0b0" stroke-width="0.75" stroke-dasharray="3 3"/>`;
-  const edges = grid.cellShape === 'polygon'
-    ? collectPolygonEdges(model.cells)
-    : collectEdges(resolveCellRects(model, inner));
-  s += `<g stroke="${stroke}" stroke-width="1">`;
-  edges.forEach(e => {
-    s += `<line x1="${e.x1}" y1="${e.y1}" x2="${e.x2}" y2="${e.y2}"/>`;
-  });
+  s += `<g fill="none" stroke="${stroke}" stroke-width="1">`;
+  if (grid.cellShape === 'polygon') {
+    model.cells.forEach(cell => {
+      const pts = cell.points.map(p => `${r2(p[0])},${r2(p[1])}`).join(' ');
+      s += `<polygon points="${pts}"/>`;
+    });
+  } else {
+    resolveCellRects(model, inner).forEach(r => {
+      s += `<rect x="${r2(r.x)}" y="${r2(r.y)}" width="${r2(r.width)}" height="${r2(r.height)}"/>`;
+    });
+  }
   s += '</g>';
   s += '</svg>';
   return s;

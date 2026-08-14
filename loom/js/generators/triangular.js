@@ -29,9 +29,7 @@
    Hexagonal's own header explains for hexagons. Range `[0, 60)` for the
    identical reason: the pattern repeats every 60°.
 
-   `cellShape = 'polygon'` again — `collectPolygonEdges`'s existing dedup
-   needs no changes: two adjacent triangles share one exact edge (two of
-   their three), same as any Voronoi/Hexagonal pair. Inner-rect clipping
+   `cellShape = 'polygon'` again. Inner-rect clipping
    IS needed here, same as Voronoi/Hexagonal and unlike Radial — a plain
    row/column loop has no reason to stay inside the inner rect the way
    Radial's field is inherently bounded by its own outer radius, so
