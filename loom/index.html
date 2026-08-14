@@ -309,6 +309,11 @@ body {
           <option value="angular">Angular</option>
           <option value="polar">Polar</option>
           <option value="elliptical">Elliptical</option>
+          <option value="masonry">Masonry</option>
+          <option value="fractal">Fractal</option>
+          <option value="recursive">Recursive</option>
+          <option value="organic">Organic</option>
+          <option value="spiral">Spiral</option>
         </select>
       </div>
       <div class="ctrl-row" id="row-padding">
@@ -837,6 +842,121 @@ body {
           <div class="ctrl-label">Start angle</div>
           <input type="range" id="rg-ell-startangle" min="0" max="360" step="5" value="0">
           <span class="ctrl-val" id="v-ell-startangle">0</span>
+        </div>
+      </div>
+
+      <div id="block-masonry" style="display:none">
+        <p class="org-panel__hint">Pinterest-style stacked columns — each column fills independently with randomised heights, so row boundaries don't line up across columns (the whole point of masonry). Each cell is a plain rect, carried as a 4-point polygon since there's no shared row lattice to place it on.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Columns</div>
+          <input type="range" id="rg-mas-cols" min="2" max="12" step="1" value="5">
+          <span class="ctrl-val" id="v-mas-cols">5</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Minimum cell height, as a multiple of the column width.">Min height</div>
+          <input type="range" id="rg-mas-minheight" min="0.2" max="2" step="0.1" value="0.5">
+          <span class="ctrl-val" id="v-mas-minheight">0.5</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Maximum cell height, as a multiple of the column width.">Max height</div>
+          <input type="range" id="rg-mas-maxheight" min="0.5" max="3" step="0.1" value="1.8">
+          <span class="ctrl-val" id="v-mas-maxheight">1.8</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Gap</div>
+          <input type="range" id="rg-mas-gap" min="0" max="40" step="1" value="12">
+          <span class="ctrl-val" id="v-mas-gap">12</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="range" id="rg-mas-seed" min="0" max="99" step="1" value="7">
+          <span class="ctrl-val" id="v-mas-seed">7</span>
+        </div>
+      </div>
+
+      <div id="block-fractal" style="display:none">
+        <p class="org-panel__hint">Recursive binary subdivision where the split axis strictly alternates with depth — the same rule applied at every scale, the literal definition of self-similar. Recursive (its own sibling) picks the axis by the longer side instead.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Leaves = 2^Depth.">Depth</div>
+          <input type="range" id="rg-frac-depth" min="1" max="8" step="1" value="5">
+          <span class="ctrl-val" id="v-frac-depth">5</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="0 = perfectly regular quad-subdivision. Higher wobbles each cut away from an exact 50/50.">Split variance</div>
+          <input type="range" id="rg-frac-variance" min="0" max="0.5" step="0.02" value="0.2">
+          <span class="ctrl-val" id="v-frac-variance">0.2</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Gap</div>
+          <input type="range" id="rg-frac-gap" min="0" max="30" step="1" value="8">
+          <span class="ctrl-val" id="v-frac-gap">8</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="range" id="rg-frac-seed" min="0" max="99" step="1" value="7">
+          <span class="ctrl-val" id="v-frac-seed">7</span>
+        </div>
+      </div>
+
+      <div id="block-recursive" style="display:none">
+        <p class="org-panel__hint">Fractal's own sibling — identical recursive split, but the axis is chosen by whichever side of the current rect is longer (a real treemap heuristic), keeping leaves closer to square instead of alternating strictly.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Leaves = 2^Depth.">Depth</div>
+          <input type="range" id="rg-rec-depth" min="1" max="8" step="1" value="6">
+          <span class="ctrl-val" id="v-rec-depth">6</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="0 = perfectly regular quad-subdivision. Higher wobbles each cut away from an exact 50/50.">Split variance</div>
+          <input type="range" id="rg-rec-variance" min="0" max="0.5" step="0.02" value="0.3">
+          <span class="ctrl-val" id="v-rec-variance">0.3</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Gap</div>
+          <input type="range" id="rg-rec-gap" min="0" max="30" step="1" value="8">
+          <span class="ctrl-val" id="v-rec-gap">8</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="range" id="rg-rec-seed" min="0" max="99" step="1" value="7">
+          <span class="ctrl-val" id="v-rec-seed">7</span>
+        </div>
+      </div>
+
+      <div id="block-organic" style="display:none">
+        <p class="org-panel__hint">Voronoi's relaxed sibling — Lloyd's algorithm: each seed is repeatedly pulled to its own cell's centroid, producing more even, rounded, naturally-packed cells than raw Voronoi's sliver-prone random seeding. Iterations 0 reproduces raw Voronoi exactly.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Number of seed points — one per cell.">Points</div>
+          <input type="range" id="rg-org-points" min="4" max="60" step="1" value="24">
+          <span class="ctrl-val" id="v-org-points">24</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="0 = raw Voronoi, no relaxation. Higher converges toward more even cell sizes.">Iterations</div>
+          <input type="range" id="rg-org-iterations" min="0" max="8" step="1" value="4">
+          <span class="ctrl-val" id="v-org-iterations">4</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="range" id="rg-org-seed" min="0" max="99" step="1" value="7">
+          <span class="ctrl-val" id="v-org-seed">7</span>
+        </div>
+      </div>
+
+      <div id="block-spiral" style="display:none">
+        <p class="org-panel__hint">Whirling-rectangle subdivision — cuts a strip off the current rect, rotating direction 90° clockwise each time. At Ratio ≈0.382/0.618 this is the classic golden-rectangle/Fibonacci spiral (the built-in "Golden Ratio" preset is exactly this, at that ratio).</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Count</div>
+          <input type="range" id="rg-spi-count" min="2" max="16" step="1" value="8">
+          <span class="ctrl-val" id="v-spi-count">8</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Fraction of the current rect cut off at each step. ~0.382/0.618 gives the golden-ratio spiral.">Ratio</div>
+          <input type="range" id="rg-spi-ratio" min="0.2" max="0.7" step="0.01" value="0.382">
+          <span class="ctrl-val" id="v-spi-ratio">0.382</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Gap</div>
+          <input type="range" id="rg-spi-gap" min="0" max="30" step="1" value="8">
+          <span class="ctrl-val" id="v-spi-gap">8</span>
         </div>
       </div>
     </div>

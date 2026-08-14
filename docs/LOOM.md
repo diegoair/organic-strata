@@ -2,7 +2,7 @@
 
 `/loom/` — a universal layout-grid engine: every grid is generated from a common mathematical model, resolved once into a Universal JSON Model, then rendered by independent renderers (live HTML/CSS Grid, SVG, PNG, and — via the existing shared Figma pipeline — a Figma import). Not a column generator: the brief this was built from (`Grid Definition`, Notion) is explicit that this is a constraint-driven, multi-generator system meant to become an industry-standard layout tool.
 
-**Status: Phase 1 (MVP) + Phase 2 complete (all 9 remaining elementary generators) + two Phase 3 presets.** Two MVP generators (Bento, Sinusoidal — the brief's own "one simple, one complex" pairing to prove the architecture end to end) plus Noise (Sinusoidal's own direct sibling — identical parametric architecture, a noise field instead of a sine wave), Voronoi, Hexagonal, Radial, Triangular, Diamond, Circular (six `cellShape: 'polygon'` generators, each a real structural variant), and Phase 2's own final eight — Column, Row, Modular, Rectangular, Diagonal, Angular, Polar, Elliptical (§4) — the full pipeline below, a cross-tool grid-import path (`Organica.loadLoomGrid`, §3), and a Figma export that reuses the existing SVG-import plugin as-is. 17 generators live in total. The remaining 10 Phase 3 presets, WYSIWYG cell editing, and native Figma Auto Layout frame generation are later phases — see §7.
+**Status: Phase 1 (MVP) + Phase 2 + Phase 3 all complete — every generator/preset from the original brief is now live.** Two MVP generators (Bento, Sinusoidal), Noise, six original `cellShape: 'polygon'` generators (Voronoi, Hexagonal, Radial, Triangular, Diamond, Circular), Phase 2's eight (Column, Row, Modular, Rectangular, Diagonal, Angular, Polar, Elliptical), and Phase 3's five genuinely-new generators (Masonry, Fractal, Recursive, Organic, Spiral — §4) — **22 generators live in total**. Phase 3's other five list items (Swiss, Golden Ratio, Rule of Thirds, Timeline, Isometric) turned out to need no new generator code — each is a specific named parameter set on a generator that already exists, shipped as read-only **built-in grid presets** (`BUILTIN_GRID_PRESETS` in `main.js`, merged into the same "Load saved…" dropdown as user presets, delete blocked) rather than duplicated as fake distinct generators. Also live: the full pipeline below, a cross-tool grid-import path (`Organica.loadLoomGrid`, §3), and a Figma export that reuses the existing SVG-import plugin as-is. WYSIWYG cell editing and native Figma Auto Layout frame generation remain later phases — see §7.
 
 ## 1. Architecture
 
@@ -170,6 +170,38 @@ Radial's other twin: same rings × sectors construction, but scaled independentl
 
 **Verified (Column/Row/Modular/Rectangular/Diagonal/Angular/Polar/Elliptical, together)**: all eight render without error; SVG export for every one produces real closed per-cell shapes (`<rect>` count = cell count + 2 background/guide rects for the four rect-lattice generators; `<polygon>` count = cell count exactly, `<rect>` = 2, for the four polygon generators) — verified by parsing the actual exported blob, not just eyeballing the preview; Rectangular's ratio-string round-trips correctly through Save grid/Load saved (saved "3,1,2,1", switched generators, reloaded — text field and resulting track proportions both restored exactly); 0 of 100 panel controls unaccessibly-named; zero console errors across every switch, drag, and export tested. All 17 generators regression-clean together.
 
+### Masonry (`masonry.js`) — geometric
+
+Pinterest-style stacked columns: N equal-width columns, each independently filled with cells of randomised height (seeded, `Min height`/`Max height` as multiples of the column width) until the column reaches the canvas bottom — a structure no track-lattice generator can express, since row boundaries genuinely differ column to column (that's the entire point of masonry). Every cell is a plain axis-aligned rect, carried as a 4-point polygon rather than a col/row/span into a shared track list, since there is no shared row lattice on this axis for it to reference — the same trick Diagonal/Fractal/Recursive/Spiral all reuse rather than extending the JSON Model with a third cell representation just for this one shape. Each column's LAST cell is clamped to exactly fill whatever height remains, the same "no leftover unaccounted space" discipline `solveTracksParametric`'s own rescale step already applies elsewhere.
+
+### Fractal (`fractal.js`) / Recursive (`recursive.js`) — geometric
+
+Both are recursive binary-space-partition subdivision with a `Split variance` wobble around 50/50 and `Depth` (leaves = 2^Depth) — but they differ in a real, load-bearing way, not a cosmetic one: **Fractal**'s split axis strictly *alternates* with recursion depth (horizontal, vertical, horizontal, …), the same rule applied at every scale — the literal definition of self-similar, and genuinely capable of producing thin slivers at high depth on an already-narrow rect (verified visually: a real, expected artefact of true alternation, not a bug). **Recursive** instead picks the axis by whichever side of the CURRENT rect is longer — a real treemap heuristic (the same family as squarified/slice-and-dice algorithms) that actively keeps leaves closer to square. Verified side by side at matched params: Fractal reads as a regular, repeating subdivision pattern; Recursive reads as a genuine treemap with varied, mostly-square block sizes — a real algorithmic difference, confirmed visually, not just in the code.
+
+### Organic (`organic.js`) — geometric
+
+Voronoi's relaxed sibling: identical half-plane-intersection cell construction, but after the first pass each seed is moved to its own cell's centroid and the whole tessellation rebuilt, `Iterations` times — Lloyd's algorithm, producing a centroidal Voronoi tessellation. Raw Voronoi's uniform-random seeding reliably produces some sliver cells next to normal ones; relaxation pulls every seed toward the middle of the region it already owns, converging toward more even, rounded, naturally-packed cells — verified visually as a clear, more hexagon-like regularity at Iterations 4 versus raw Voronoi's jagged polygons at the same seed. **Iterations 0 is an exact no-op**, verified by diffing: Organic's own cell list at Iterations 0 is byte-identical to Voronoi's own output at the same Points/Seed.
+
+### Spiral (`spiral.js`) — geometric
+
+The classic whirling-rectangle subdivision: cuts a strip off the current rect (`Ratio` of its relevant side), rotating direction 90° clockwise each time (right → down → left → up → right → …), `Count` cells total, the final leftover rect as the last cell. At `Ratio ≈ 0.382` (or its complement `0.618`) this IS the literal golden-rectangle/Fibonacci spiral construction — verified visually as the classic whirling-squares pattern. The built-in **"Golden Ratio"** preset (see below) is exactly this generator at that ratio on a canvas near the golden aspect ratio (1080×680) — not a separate generator, since the golden spiral is a specific parameterisation of this one, not a distinct topology.
+
+### Built-in grid presets (`BUILTIN_GRID_PRESETS` in `main.js`)
+
+Phase 3's other five brief items — **Swiss**, **Golden Ratio**, **Rule of Thirds**, **Timeline**, **Isometric** — turned out to need no new generator code at all once the five generators above existed: each is a specific, named canvas + parameter combination on a generator that already exists, not a new topology.
+
+| Preset | Generator | What it sets |
+|---|---|---|
+| Swiss | Modular | 6×10 uniform grid, 8px gap — the classic Swiss/International Style column-and-row scaffold |
+| Golden Ratio | Spiral | Ratio 0.382, Count 8, on a 1080×680 (≈golden aspect) canvas |
+| Rule of Thirds | Modular | 3×3, zero gap, zero margin — the literal photography/composition grid |
+| Timeline | Column | 16 columns, 1600×260 wide canvas — a horizontal sequence of equal time-segments |
+| Isometric | Diagonal | Angle 30°, Skew 60° — true 60°/120° isometric rhombi (real isometric-paper geometry: elongated diamonds, not squares — verified against how real isometric drawing paper looks, not assumed) |
+
+Merged into the same "Load saved…" dropdown as the user's own named grids (`allGridPresets()`), same convention as Komorebi/Camo Turing/Warping's own `BUILTIN_PRESETS` — read-only (Delete is blocked with a status message), and a user can't accidentally overwrite one (Save checks the name against the built-in list first). Only the minimal fields `loadGridPreset()` actually reads are stored (`canvas.displayWidth/Height/unit/margin/safeArea`, `grid.type/params/padding`) — tracks and cells are always re-derived by `build()`, never stored redundantly.
+
+**Verified (Masonry/Fractal/Recursive/Organic/Spiral + the 5 built-in presets, together)**: all 22 generators (17 from Phase 1–2 plus these 5) render without error in one regression sweep, correct cell counts at every default; SVG export for all five new generators produces real closed `<polygon>` shapes matching the cell count exactly (parsed from the actual exported blob); Organic's Iterations-0 no-op verified byte-identical to Voronoi's own output; all 5 built-in presets load correctly (verified type/canvas/cell-count for each), appear merged with user presets in the dropdown, and correctly refuse Delete; 0 of 119 panel controls unaccessibly-named; zero console errors across every switch, drag, load, and export tested.
+
 ## 5. Universal JSON Model (`js/json-model.js`)
 
 ```js
@@ -201,7 +233,7 @@ Export lives in the shared bottom-centre floating toolbar (`shared/organica-floa
 1. ~~Phase 0 — architecture analysis~~ (done, this session)
 2. ~~**Phase 1 (MVP)** — Canvas Manager, Bento + Sinusoidal, JSON Model, CSS Grid/SVG/PNG renderers, Figma via the existing plugin~~ (done, this session)
 3. ~~Phase 2 — remaining 8 elementary generators~~ (done — see §4: Rectangular, Radial, Elliptical, Circular, Polar, Hexagonal, Triangular, Diamond, Diagonal, Angular, Column, Row, Modular, Noise)
-4. Phase 3 — remaining 10 presets (~~Voronoi~~ done — see §4; turned out to need real half-plane-clipped polygon cells, not a reuse of `shared/organica-noise.js`'s raster-only `voronoiF1F2`, and became the first `cellShape: 'polygon'` generator): Swiss, Golden Ratio, Rule of Thirds, Timeline, Masonry, Fractal, Recursive, Organic, Isometric, Spiral
+4. ~~Phase 3 — remaining 10 presets~~ (done — see §4: Voronoi became its own generator earlier; Masonry, Fractal, Recursive, Organic, Spiral are five more real generators; Swiss, Golden Ratio, Rule of Thirds, Timeline, Isometric turned out to be pure parameter presets on generators that already exist, shipped as `BUILTIN_GRID_PRESETS`, not duplicated code)
 5. Phase 4 — WYSIWYG cell editing (drag/resize), per-side margins, real edit-constraint use of Kiwi (`addEditVariable` + `suggestValue`, unused by any generator in Phase 1)
 6. Phase 5 — native Figma Auto Layout frame generation, nested Auto Layout, roundtrip editing (extends `figma-plugin/`, doesn't fork it)
 7. Phase 6 — randomisation UI, tests, worked examples

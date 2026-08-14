@@ -118,6 +118,11 @@ function rescaleUnitField(id, rangeKey, oldUnit, newUnit) {
 function rescaleGapPadding(oldUnit, newUnit) {
   rescaleUnitField('rg-bento-gap', 'gap', oldUnit, newUnit);
   rescaleUnitField('rg-sin-gap', 'gap', oldUnit, newUnit);
+  rescaleUnitField('rg-noise-gap', 'gap', oldUnit, newUnit);
+  rescaleUnitField('rg-col-gap', 'gap', oldUnit, newUnit);
+  rescaleUnitField('rg-row-gap', 'gap', oldUnit, newUnit);
+  rescaleUnitField('rg-mod-gap', 'gap', oldUnit, newUnit);
+  rescaleUnitField('rg-rect-gap', 'gap', oldUnit, newUnit);
   rescaleUnitField('rg-padding', 'padding', oldUnit, newUnit);
 }
 
@@ -166,10 +171,15 @@ function syncGeneratorRows() {
   ctrl('block-angular').style.display = type === 'angular' ? '' : 'none';
   ctrl('block-polar').style.display = type === 'polar' ? '' : 'none';
   ctrl('block-elliptical').style.display = type === 'elliptical' ? '' : 'none';
+  ctrl('block-masonry').style.display = type === 'masonry' ? '' : 'none';
+  ctrl('block-fractal').style.display = type === 'fractal' ? '' : 'none';
+  ctrl('block-recursive').style.display = type === 'recursive' ? '' : 'none';
+  ctrl('block-organic').style.display = type === 'organic' ? '' : 'none';
+  ctrl('block-spiral').style.display = type === 'spiral' ? '' : 'none';
   // Padding has no defined meaning on a polygon cell yet (voronoi.js's own
   // header) — hidden rather than left as a dead control that visibly does
   // nothing, same rule Komorebi's own control audit already established.
-  ctrl('row-padding').style.display = ['voronoi', 'hexagonal', 'radial', 'triangular', 'diamond', 'circular', 'diagonal', 'angular', 'polar', 'elliptical'].includes(type) ? 'none' : '';
+  ctrl('row-padding').style.display = ['voronoi', 'hexagonal', 'radial', 'triangular', 'diamond', 'circular', 'diagonal', 'angular', 'polar', 'elliptical', 'masonry', 'fractal', 'recursive', 'organic', 'spiral'].includes(type) ? 'none' : '';
   ctrl('hint-solver').textContent = SOLVER_LABELS[GENERATORS[type].solver];
   if (type === 'hexagonal') syncHexSpinRow();
   if (type === 'triangular') syncTriSpinRow();
@@ -297,6 +307,35 @@ function readGridParams() {
       rings: Math.round(val('rg-ell-rings')), sectors: Math.round(val('rg-ell-sectors')),
       innerRadiusFrac: val('rg-ell-innerradius'), gap: val('rg-ell-gap'),
       startAngle: val('rg-ell-startangle'),
+    };
+  }
+  if (type === 'masonry') {
+    return {
+      cols: Math.round(val('rg-mas-cols')), minHeight: val('rg-mas-minheight'), maxHeight: val('rg-mas-maxheight'),
+      gap: unitVal('rg-mas-gap'), seed: Math.round(val('rg-mas-seed')),
+    };
+  }
+  if (type === 'fractal') {
+    return {
+      depth: Math.round(val('rg-frac-depth')), variance: val('rg-frac-variance'),
+      gap: unitVal('rg-frac-gap'), seed: Math.round(val('rg-frac-seed')),
+    };
+  }
+  if (type === 'recursive') {
+    return {
+      depth: Math.round(val('rg-rec-depth')), variance: val('rg-rec-variance'),
+      gap: unitVal('rg-rec-gap'), seed: Math.round(val('rg-rec-seed')),
+    };
+  }
+  if (type === 'organic') {
+    return {
+      points: Math.round(val('rg-org-points')), iterations: Math.round(val('rg-org-iterations')),
+      seed: Math.round(val('rg-org-seed')),
+    };
+  }
+  if (type === 'spiral') {
+    return {
+      count: Math.round(val('rg-spi-count')), ratio: val('rg-spi-ratio'), gap: unitVal('rg-spi-gap'),
     };
   }
   return {
@@ -455,10 +494,44 @@ function exportJSON() {
 // approximation reconstructed from separate fields. ──
 const gridPresetStore = Organica.presetStore('loom');
 
+// Phase 3's other five list items (Swiss, Golden Ratio, Rule of Thirds,
+// Timeline, Isometric) turned out to need no new generator code at all —
+// each is a specific, named parameter set on a generator that already
+// exists (registry.js's own header explains the split). Shipped as
+// read-only built-ins, same convention as Komorebi/Camo Turing/Warping's
+// own BUILTIN_PRESETS: merged with the user's own saved grids in the
+// dropdown, blocked from Delete. Minimal model shape — only the fields
+// loadGridPreset() actually reads (canvas.displayWidth/Height/unit/
+// margin/safeArea, grid.type/params/padding); tracks/cells are always
+// re-derived by build(), never stored redundantly here.
+const BUILTIN_GRID_PRESETS = {
+  'Swiss': {
+    canvas: { displayWidth: 1080, displayHeight: 1080, unit: 'px', margin: 6, safeArea: 0 },
+    grid: { type: 'modular', params: { cols: 6, rows: 10, gap: 8 }, padding: 0 },
+  },
+  'Golden Ratio': {
+    canvas: { displayWidth: 1080, displayHeight: 680, unit: 'px', margin: 4, safeArea: 0 },
+    grid: { type: 'spiral', params: { count: 8, ratio: 0.382, gap: 0 }, padding: 0 },
+  },
+  'Rule of Thirds': {
+    canvas: { displayWidth: 1080, displayHeight: 1080, unit: 'px', margin: 0, safeArea: 0 },
+    grid: { type: 'modular', params: { cols: 3, rows: 3, gap: 0 }, padding: 0 },
+  },
+  'Timeline': {
+    canvas: { displayWidth: 1600, displayHeight: 260, unit: 'px', margin: 4, safeArea: 0 },
+    grid: { type: 'column', params: { count: 16, gap: 6 }, padding: 0 },
+  },
+  'Isometric': {
+    canvas: { displayWidth: 1080, displayHeight: 1080, unit: 'px', margin: 4, safeArea: 0 },
+    grid: { type: 'diagonal', params: { count: 10, angle: 30, skew: 60, gap: 0.04, jitter: 0, seed: 7 }, padding: 0 },
+  },
+};
+function allGridPresets() { return Object.assign({}, BUILTIN_GRID_PRESETS, gridPresetStore.read()); }
+
 function populateSavedGrids() {
   const sel = ctrl('sel-saved-grids');
   const cur = sel.value;
-  const presets = gridPresetStore.read();
+  const presets = allGridPresets();
   sel.innerHTML = '<option value="">Load saved…</option>';
   Object.keys(presets).sort().forEach(name => {
     const opt = document.createElement('option');
@@ -470,6 +543,7 @@ function populateSavedGrids() {
 function saveGridPreset() {
   const name = ctrl('txt-save-name').value.trim();
   if (!name) { setStatus('', 'Name the grid before saving'); return; }
+  if (BUILTIN_GRID_PRESETS[name]) { setStatus('', 'That name is a built-in preset — pick another'); return; }
   if (!currentModel) return;
   const presets = gridPresetStore.read();
   presets[name] = currentModel;
@@ -482,6 +556,7 @@ function saveGridPreset() {
 function deleteGridPreset() {
   const name = ctrl('sel-saved-grids').value;
   if (!name) return;
+  if (BUILTIN_GRID_PRESETS[name]) { setStatus('', 'Built-in presets cannot be deleted'); return; }
   const presets = gridPresetStore.read();
   delete presets[name];
   gridPresetStore.write(presets);
@@ -563,6 +638,19 @@ function applyGridParamsToUI(type, params) {
     setR('rg-ell-rings', params.rings); setR('rg-ell-sectors', params.sectors);
     setR('rg-ell-innerradius', params.innerRadiusFrac); setR('rg-ell-gap', params.gap);
     setR('rg-ell-startangle', params.startAngle);
+  } else if (type === 'masonry') {
+    setR('rg-mas-cols', params.cols); setR('rg-mas-minheight', params.minHeight);
+    setR('rg-mas-maxheight', params.maxHeight); setR('rg-mas-gap', params.gap); setR('rg-mas-seed', params.seed);
+  } else if (type === 'fractal') {
+    setR('rg-frac-depth', params.depth); setR('rg-frac-variance', params.variance);
+    setR('rg-frac-gap', params.gap); setR('rg-frac-seed', params.seed);
+  } else if (type === 'recursive') {
+    setR('rg-rec-depth', params.depth); setR('rg-rec-variance', params.variance);
+    setR('rg-rec-gap', params.gap); setR('rg-rec-seed', params.seed);
+  } else if (type === 'organic') {
+    setR('rg-org-points', params.points); setR('rg-org-iterations', params.iterations); setR('rg-org-seed', params.seed);
+  } else if (type === 'spiral') {
+    setR('rg-spi-count', params.count); setR('rg-spi-ratio', params.ratio); setR('rg-spi-gap', params.gap);
   }
   // Live numeric readouts (the delegated panel listener only fires on a
   // real user `input` event, not a programmatic .value set) — sync every
@@ -578,7 +666,7 @@ function setSegValue(groupId, value) {
 function loadGridPreset() {
   const name = ctrl('sel-saved-grids').value;
   if (!name) return;
-  const presets = gridPresetStore.read();
+  const presets = allGridPresets();
   const model = presets[name];
   if (!model) return;
   ctrl('num-width').value = model.canvas.displayWidth;

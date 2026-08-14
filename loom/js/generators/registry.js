@@ -23,6 +23,11 @@ import { generateDiagonal } from './diagonal.js';
 import { generateAngular } from './angular.js';
 import { generatePolar } from './polar.js';
 import { generateElliptical } from './elliptical.js';
+import { generateMasonry } from './masonry.js';
+import { generateFractal } from './fractal.js';
+import { generateRecursive } from './recursive.js';
+import { generateOrganic } from './organic.js';
+import { generateSpiral } from './spiral.js';
 
 export const GENERATORS = {
   bento: {
@@ -150,5 +155,45 @@ export const GENERATORS = {
     cellShape: 'polygon',
     generate: generateElliptical,
     defaults: { rings: 4, sectors: 16, innerRadiusFrac: 0.15, gap: 0.08, startAngle: 0 },
+  },
+  // ── Phase 3 — the five generators that needed real new geometry;
+  // the other five Phase-3 list items (Swiss, Golden Ratio, Rule of
+  // Thirds, Timeline, Isometric) turned out to be pure parameter
+  // presets on generators that already exist — see main.js's own
+  // BUILTIN_GRID_PRESETS rather than duplicate code here. ──
+  masonry: {
+    label: 'Masonry',
+    solver: 'geometric',
+    cellShape: 'polygon',
+    generate: generateMasonry,
+    defaults: { cols: 5, minHeight: 0.5, maxHeight: 1.8, gap: 12, seed: 7 },
+  },
+  fractal: {
+    label: 'Fractal',
+    solver: 'geometric',
+    cellShape: 'polygon',
+    generate: generateFractal,
+    defaults: { depth: 5, variance: 0.2, gap: 8, seed: 7 },
+  },
+  recursive: {
+    label: 'Recursive',
+    solver: 'geometric',
+    cellShape: 'polygon',
+    generate: generateRecursive,
+    defaults: { depth: 6, variance: 0.3, gap: 8, seed: 7 },
+  },
+  organic: {
+    label: 'Organic',
+    solver: 'geometric',
+    cellShape: 'polygon',
+    generate: generateOrganic,
+    defaults: { points: 24, iterations: 4, seed: 7 },
+  },
+  spiral: {
+    label: 'Spiral',
+    solver: 'geometric',
+    cellShape: 'polygon',
+    generate: generateSpiral,
+    defaults: { count: 8, ratio: 0.382, gap: 8 },
   },
 };
