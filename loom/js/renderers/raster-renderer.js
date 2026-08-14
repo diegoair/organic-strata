@@ -9,7 +9,7 @@
    first.
    ───────────────────────────────────────────────────────────── */
 
-import { resolveCellRects } from '../json-model.js';
+import { resolveCellRects, catmullRomPathD } from '../json-model.js';
 
 export function renderRaster(model, inner, scale = 2, lineColor) {
   const { canvas, grid } = model;
@@ -29,6 +29,14 @@ export function renderRaster(model, inner, scale = 2, lineColor) {
   ctx.lineWidth = 1;
   if (grid.cellShape === 'polygon') {
     model.cells.forEach(cell => {
+      if (cell.smooth) {
+        // Reuses the exact same path string svg-renderer.js builds (via
+        // Path2D, a real browser primitive) rather than re-deriving the
+        // Catmull-Rom curve math a second way for canvas — the two
+        // exports can't drift from each other this way.
+        ctx.stroke(new Path2D(catmullRomPathD(cell.points)));
+        return;
+      }
       const pts = cell.points;
       ctx.beginPath();
       ctx.moveTo(pts[0][0], pts[0][1]);

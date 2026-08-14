@@ -168,10 +168,15 @@ export function generateLinear(params, inner) {
   const cellSubdiv = distortCols || distortRows ? 6 : 1;
 
   const cells = [];
+  // Only true when a boundary was actually subdivided into a curve
+  // (Distortion active) — Off keeps plain straight-segment cells, the
+  // exact pre-Distortion export, no smoothing applied to something that
+  // was never meant to be a curve in the first place.
+  const smoothCells = stripSubdiv > 1 || cellSubdiv > 1;
   const pushPoly = (rawPoly) => {
     const poly = clipToRect(rawPoly, inner);
     if (poly.length < 3) return;
-    cells.push({ id: 'c' + cells.length, points: poly, centroid: polygonCentroid(poly) });
+    cells.push({ id: 'c' + cells.length, points: poly, centroid: polygonCentroid(poly), smooth: smoothCells });
   };
 
   // At Rotation 0 the division axis (nx1 for Columns, nx2 for Rows) is

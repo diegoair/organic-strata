@@ -21,10 +21,26 @@
    Rotation-0 case); away from 90° it shears into parallelograms no
    other generator here can produce.
 
+   `Distortion` (Off/Sine/Noise) — the same construction Linear's own
+   header derives in full: ONE `warp(a, b)` function used for every
+   point on every cell edge, where the displacement along `u` depends
+   only on the `b` (v-axis) lattice coordinate and the displacement
+   along `v` depends only on the `a` (u-axis) coordinate. That
+   separability is what guarantees two cells sharing a nominal edge —
+   even though `u`/`v` aren't perpendicular here — always compute the
+   identical warped position for it, since a shared edge always has
+   one of its two lattice coordinates literally constant along its own
+   length. Diagonal is really Linear's own `Axis: Both` case with a
+   non-90° basis, so the identical warp idea carries over unchanged.
+
    `Gap` shrinks each parallelogram toward its own centroid (same
    "shrink toward the cell's own middle" idea as every other polygon
-   generator's Gap); `Jitter` offsets each lattice point before the
-   shape is built, same accepted "breaks exact shared edges" trade-off.
+   generator's Gap, applied post-warp so it still works on a curved,
+   many-point cell exactly as it did on a plain 4-corner one); `Jitter`
+   offsets each lattice point before the shape is built, same accepted
+   "breaks exact shared edges" trade-off — applied as a uniform
+   translation of the cell's own already-warped points, so Jitter and
+   Distortion don't fight each other's own math.
    ───────────────────────────────────────────────────────────── */
 
 function mulberry32(seed) {
@@ -37,9 +53,6 @@ function mulberry32(seed) {
   };
 }
 
-// Sutherland–Hodgman clip of a convex polygon against an axis-aligned
-// rect — same technique as every other polygon generator's own private
-// copy (voronoi.js/hexagonal.js/diamond.js/etc.).
 function clipToRect(poly, rect) {
   const planes = [
     { p: [rect.x, rect.y], n: [1, 0] },
@@ -73,19 +86,40 @@ function polygonCentroid(poly) {
   return [x / poly.length, y / poly.length];
 }
 
+// Same distortion shape as linear.js's own distortAt — a lattice-index
+// offset (not a physical length; `a`/`b` are already in units of "whole
+// lattice steps", so the result is dimensionless too, scaled into
+// u/v's own physical length automatically when multiplied by the basis
+// vector).
+function distortAt(pos, mode, amount, freq, phase, seedOffset) {
+  if (mode === 'off' || !amount) return 0;
+  if (mode === 'sine') return amount * Math.sin(pos * freq * 2 * Math.PI / 8 + phase);
+  const n = Organica.noise.fbm(pos * freq / 8, seedOffset);
+  return amount * (n * 2 - 1);
+}
+
+function traceEdge(realPoint, a0, b0, a1, b1, subdiv) {
+  const pts = [];
+  for (let k = 0; k <= subdiv; k++) {
+    const t = k / subdiv;
+    pts.push(realPoint(a0 + (a1 - a0) * t, b0 + (b1 - b0) * t));
+  }
+  return pts;
+}
+
 /**
- * @param {{count:number, angle:number, skew:number, gap:number, jitter:number, seed:number}} params
+ * @param {{count:number, angle:number, skew:number, gap:number, jitter:number, seed:number, distortMode:'off'|'sine'|'noise', distortAmount:number, distortFrequency:number, distortPhase:number}} params
  * @param {{x:number, y:number, width:number, height:number}} inner
  */
 export function generateDiagonal(params, inner) {
-  const { count, angle, skew, gap, jitter, seed } = params;
+  const { count, angle, skew, gap, jitter, seed, distortMode, distortAmount, distortFrequency, distortPhase } = params;
   const rng = mulberry32(seed);
 
   const s = inner.width / count;
-  const a0 = (angle || 0) * (Math.PI / 180);
-  const a1 = a0 + (skew != null ? skew : 90) * (Math.PI / 180);
-  const u = [s * Math.cos(a0), s * Math.sin(a0)];
-  const v = [s * Math.cos(a1), s * Math.sin(a1)];
+  const a0deg = (angle || 0) * (Math.PI / 180);
+  const a1deg = a0deg + (skew != null ? skew : 90) * (Math.PI / 180);
+  const u = [s * Math.cos(a0deg), s * Math.sin(a0deg)];
+  const v = [s * Math.cos(a1deg), s * Math.sin(a1deg)];
 
   const centerX = inner.x + inner.width / 2, centerY = inner.y + inner.height / 2;
   const halfDiag = Math.hypot(inner.width, inner.height) / 2 + s;
@@ -93,28 +127,38 @@ export function generateDiagonal(params, inner) {
   const start = -Math.floor(steps / 2);
   const shrink = 1 - Math.min(0.9, gap || 0);
 
+  const mode = distortMode || 'off';
+  const active = mode !== 'off' && distortAmount > 0;
+  const seedOffsetA = (seed || 0) * 0.137 + 5.1, seedOffsetB = (seed || 0) * 0.137 + 13.9;
+  const distortA = active ? (b) => distortAt(b, mode, distortAmount, distortFrequency, distortPhase, seedOffsetA) : null;
+  const distortB = active ? (a) => distortAt(a, mode, distortAmount, distortFrequency, distortPhase, seedOffsetB) : null;
+  const subdiv = active ? 6 : 1;
+
+  const realPoint = (a, b) => {
+    const da = distortA ? distortA(b) : 0, db = distortB ? distortB(a) : 0;
+    const ra = a + da, rb = b + db;
+    return [centerX + ra * u[0] + rb * v[0], centerY + ra * u[1] + rb * v[1]];
+  };
+
   const cells = [];
   for (let j = start; j < start + steps; j++) {
     for (let i = start; i < start + steps; i++) {
-      let px = centerX + i * u[0] + j * v[0];
-      let py = centerY + i * u[1] + j * v[1];
+      let poly = traceEdge(realPoint, i, j, i + 1, j, subdiv)
+        .concat(traceEdge(realPoint, i + 1, j, i + 1, j + 1, subdiv))
+        .concat(traceEdge(realPoint, i + 1, j + 1, i, j + 1, subdiv))
+        .concat(traceEdge(realPoint, i, j + 1, i, j, subdiv));
+
       if (jitter > 0) {
-        px += (rng() - 0.5) * 2 * jitter * s;
-        py += (rng() - 0.5) * 2 * jitter * s;
+        const dx = (rng() - 0.5) * 2 * jitter * s, dy = (rng() - 0.5) * 2 * jitter * s;
+        poly = poly.map(p => [p[0] + dx, p[1] + dy]);
       }
-      let poly = [
-        [px, py],
-        [px + u[0], py + u[1]],
-        [px + u[0] + v[0], py + u[1] + v[1]],
-        [px + v[0], py + v[1]],
-      ];
       if (shrink < 1) {
         const c = polygonCentroid(poly);
         poly = poly.map(p => [c[0] + (p[0] - c[0]) * shrink, c[1] + (p[1] - c[1]) * shrink]);
       }
       poly = clipToRect(poly, inner);
       if (poly.length < 3) continue;
-      cells.push({ id: 'c' + cells.length, points: poly, centroid: polygonCentroid(poly) });
+      cells.push({ id: 'c' + cells.length, points: poly, centroid: polygonCentroid(poly), smooth: subdiv > 1 });
     }
   }
 
@@ -123,7 +167,7 @@ export function generateDiagonal(params, inner) {
       type: 'diagonal',
       solver: 'geometric',
       cellShape: 'polygon',
-      params: { count, angle, skew, gap, jitter, seed },
+      params: { count, angle, skew, gap, jitter, seed, distortMode, distortAmount, distortFrequency, distortPhase },
       gap: 0,
     },
     cells,

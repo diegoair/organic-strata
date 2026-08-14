@@ -586,6 +586,34 @@ body {
           <input type="range" id="rg-radial-startangle" min="0" max="360" step="5" value="0">
           <span class="ctrl-val" id="v-radial-startangle">0</span>
         </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="range" id="rg-radial-seed" min="0" max="99" step="1" value="7">
+          <span class="ctrl-val" id="v-radial-seed">7</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Bends spokes (angle wobbles with radius, a pinwheel twist) and rings (radius wobbles with angle, a wobbly dartboard ring) together — real curved polygon geometry. Off = the plain straight-spoke/circular-ring case.">Distortion</div>
+          <div class="seg-ctrl" id="seg-radial-distort">
+            <button class="seg-btn active" data-v="off" onclick="setSeg('seg-radial-distort', this)">Off</button>
+            <button class="seg-btn" data-v="sine" onclick="setSeg('seg-radial-distort', this)">Sine</button>
+            <button class="seg-btn" data-v="noise" onclick="setSeg('seg-radial-distort', this)">Noise</button>
+          </div>
+        </div>
+        <div class="ctrl-row" id="row-radial-distort-amount" style="display:none">
+          <div class="ctrl-label" title="0 = straight spokes/circular rings.">Amount</div>
+          <input type="range" id="rg-radial-distort-amount" min="0" max="0.9" step="0.02" value="0.3">
+          <span class="ctrl-val" id="v-radial-distort-amount">0.3</span>
+        </div>
+        <div class="ctrl-row" id="row-radial-distort-freq" style="display:none">
+          <div class="ctrl-label" title="Sine: cycles along the spoke/ring. Noise: cycles of the noise field.">Frequency</div>
+          <input type="range" id="rg-radial-distort-freq" min="0.5" max="8" step="0.1" value="2">
+          <span class="ctrl-val" id="v-radial-distort-freq">2</span>
+        </div>
+        <div class="ctrl-row" id="row-radial-distort-phase" style="display:none">
+          <div class="ctrl-label">Phase</div>
+          <input type="range" id="rg-radial-distort-phase" min="0" max="6.283" step="0.05" value="0">
+          <span class="ctrl-val" id="v-radial-distort-phase">0</span>
+        </div>
       </div>
 
       <div id="block-triangular" style="display:none">
@@ -833,6 +861,29 @@ body {
           <input type="range" id="rg-diag-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-diag-seed">7</span>
         </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Bends both line families into curves — real curved polygon geometry, same construction as Linear's own Distortion. Off = the plain straight-sheared case.">Distortion</div>
+          <div class="seg-ctrl" id="seg-diag-distort">
+            <button class="seg-btn active" data-v="off" onclick="setSeg('seg-diag-distort', this)">Off</button>
+            <button class="seg-btn" data-v="sine" onclick="setSeg('seg-diag-distort', this)">Sine</button>
+            <button class="seg-btn" data-v="noise" onclick="setSeg('seg-diag-distort', this)">Noise</button>
+          </div>
+        </div>
+        <div class="ctrl-row" id="row-diag-distort-amount" style="display:none">
+          <div class="ctrl-label" title="0 = straight lines.">Amount</div>
+          <input type="range" id="rg-diag-distort-amount" min="0" max="0.9" step="0.02" value="0.3">
+          <span class="ctrl-val" id="v-diag-distort-amount">0.3</span>
+        </div>
+        <div class="ctrl-row" id="row-diag-distort-freq" style="display:none">
+          <div class="ctrl-label" title="Sine: cycles across the lattice. Noise: cycles of the noise field.">Frequency</div>
+          <input type="range" id="rg-diag-distort-freq" min="0.5" max="8" step="0.1" value="2">
+          <span class="ctrl-val" id="v-diag-distort-freq">2</span>
+        </div>
+        <div class="ctrl-row" id="row-diag-distort-phase" style="display:none">
+          <div class="ctrl-label">Phase</div>
+          <input type="range" id="rg-diag-distort-phase" min="0" max="6.283" step="0.05" value="0">
+          <span class="ctrl-val" id="v-diag-distort-phase">0</span>
+        </div>
       </div>
 
       <div id="block-angular" style="display:none">
@@ -862,8 +913,35 @@ body {
           <input type="range" id="rg-ang-gap" min="0" max="0.4" step="0.02" value="0.06">
           <span class="ctrl-val" id="v-ang-gap">0.06</span>
         </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="range" id="rg-ang-seed" min="0" max="99" step="1" value="7">
+          <span class="ctrl-val" id="v-ang-seed">7</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Bends each spoke's own angle as a function of radius — a twisting/pinwheel wobble. Off = plain straight radiating spokes.">Distortion</div>
+          <div class="seg-ctrl" id="seg-ang-distort">
+            <button class="seg-btn active" data-v="off" onclick="setSeg('seg-ang-distort', this)">Off</button>
+            <button class="seg-btn" data-v="sine" onclick="setSeg('seg-ang-distort', this)">Sine</button>
+            <button class="seg-btn" data-v="noise" onclick="setSeg('seg-ang-distort', this)">Noise</button>
+          </div>
+        </div>
+        <div class="ctrl-row" id="row-ang-distort-amount" style="display:none">
+          <div class="ctrl-label" title="0 = straight spokes.">Amount</div>
+          <input type="range" id="rg-ang-distort-amount" min="0" max="0.9" step="0.02" value="0.3">
+          <span class="ctrl-val" id="v-ang-distort-amount">0.3</span>
+        </div>
+        <div class="ctrl-row" id="row-ang-distort-freq" style="display:none">
+          <div class="ctrl-label" title="Sine: cycles along the spoke. Noise: cycles of the noise field.">Frequency</div>
+          <input type="range" id="rg-ang-distort-freq" min="0.5" max="8" step="0.1" value="2">
+          <span class="ctrl-val" id="v-ang-distort-freq">2</span>
+        </div>
+        <div class="ctrl-row" id="row-ang-distort-phase" style="display:none">
+          <div class="ctrl-label">Phase</div>
+          <input type="range" id="rg-ang-distort-phase" min="0" max="6.283" step="0.05" value="0">
+          <span class="ctrl-val" id="v-ang-distort-phase">0</span>
+        </div>
       </div>
-
 
       <div id="block-masonry" style="display:none">
         <p class="org-panel__hint">Pinterest-style stacked columns — each column fills independently with randomised heights, so row boundaries don't line up across columns (the whole point of masonry). Each cell is a plain rect, carried as a 4-point polygon since there's no shared row lattice to place it on.</p>
@@ -891,6 +969,29 @@ body {
           <div class="ctrl-label">Seed</div>
           <input type="range" id="rg-mas-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-mas-seed">7</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Bends the seams between columns — every seam shares the identical curve, so columns stay perfectly aligned along it. Off = plain straight seams.">Distortion</div>
+          <div class="seg-ctrl" id="seg-mas-distort">
+            <button class="seg-btn active" data-v="off" onclick="setSeg('seg-mas-distort', this)">Off</button>
+            <button class="seg-btn" data-v="sine" onclick="setSeg('seg-mas-distort', this)">Sine</button>
+            <button class="seg-btn" data-v="noise" onclick="setSeg('seg-mas-distort', this)">Noise</button>
+          </div>
+        </div>
+        <div class="ctrl-row" id="row-mas-distort-amount" style="display:none">
+          <div class="ctrl-label" title="0 = straight seams.">Amount</div>
+          <input type="range" id="rg-mas-distort-amount" min="0" max="0.9" step="0.02" value="0.3">
+          <span class="ctrl-val" id="v-mas-distort-amount">0.3</span>
+        </div>
+        <div class="ctrl-row" id="row-mas-distort-freq" style="display:none">
+          <div class="ctrl-label" title="Sine: cycles across the canvas height. Noise: cycles of the noise field.">Frequency</div>
+          <input type="range" id="rg-mas-distort-freq" min="0.5" max="8" step="0.1" value="2">
+          <span class="ctrl-val" id="v-mas-distort-freq">2</span>
+        </div>
+        <div class="ctrl-row" id="row-mas-distort-phase" style="display:none">
+          <div class="ctrl-label">Phase</div>
+          <input type="range" id="rg-mas-distort-phase" min="0" max="6.283" step="0.05" value="0">
+          <span class="ctrl-val" id="v-mas-distort-phase">0</span>
         </div>
       </div>
 

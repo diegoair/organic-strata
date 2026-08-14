@@ -21,7 +21,7 @@
    now rather than the deciding constraint.
    ───────────────────────────────────────────────────────────── */
 
-import { resolveCellRects } from '../json-model.js';
+import { resolveCellRects, catmullRomPathD } from '../json-model.js';
 
 function r2(n) { return Math.round(n * 100) / 100; }
 
@@ -43,8 +43,16 @@ export function renderSVG(model, inner, lineColor) {
   s += `<g fill="none" stroke="${stroke}" stroke-width="1">`;
   if (grid.cellShape === 'polygon') {
     model.cells.forEach(cell => {
-      const pts = cell.points.map(p => `${r2(p[0])},${r2(p[1])}`).join(' ');
-      s += `<polygon points="${pts}"/>`;
+      // Distortion-bent cells (Linear/Diagonal/Masonry/Angular, only when
+      // actually subdivided) get a real smooth curve instead of a dense
+      // straight-segment polygon — see catmullRomPathD's own header for
+      // why this exists and why sharp-cornered generators never set it.
+      if (cell.smooth) {
+        s += `<path d="${catmullRomPathD(cell.points, r2)}"/>`;
+      } else {
+        const pts = cell.points.map(p => `${r2(p[0])},${r2(p[1])}`).join(' ');
+        s += `<polygon points="${pts}"/>`;
+      }
     });
   } else {
     resolveCellRects(model, inner).forEach(r => {

@@ -71,7 +71,7 @@ export const GENERATORS = {
     solver: 'geometric',
     cellShape: 'polygon',
     generate: generateRadial,
-    defaults: { rings: 4, sectors: 12, innerRadiusFrac: 0.15, gap: 0.08, startAngle: 0, curve: 1, stretch: false },
+    defaults: { rings: 4, sectors: 12, innerRadiusFrac: 0.15, gap: 0.08, startAngle: 0, curve: 1, stretch: false, seed: 7, distortMode: 'off', distortAmount: 0.3, distortFrequency: 2, distortPhase: 0 },
   },
   triangular: {
     label: 'Triangular',
@@ -116,21 +116,21 @@ export const GENERATORS = {
     solver: 'geometric',
     cellShape: 'polygon',
     generate: generateDiagonal,
-    defaults: { count: 8, angle: 20, skew: 90, gap: 0.06, jitter: 0, seed: 7 },
+    defaults: { count: 8, angle: 20, skew: 90, gap: 0.06, jitter: 0, seed: 7, distortMode: 'off', distortAmount: 0.3, distortFrequency: 2, distortPhase: 0 },
   },
   angular: {
     label: 'Angular',
     solver: 'geometric',
     cellShape: 'polygon',
     generate: generateAngular,
-    defaults: { sectors: 12, startAngle: 0, centerX: 0.5, centerY: 0.5, gap: 0.06 },
+    defaults: { sectors: 12, startAngle: 0, centerX: 0.5, centerY: 0.5, gap: 0.06, seed: 7, distortMode: 'off', distortAmount: 0.3, distortFrequency: 2, distortPhase: 0 },
   },
   masonry: {
     label: 'Masonry',
     solver: 'geometric',
     cellShape: 'polygon',
     generate: generateMasonry,
-    defaults: { cols: 5, minHeight: 0.5, maxHeight: 1.8, gap: 12, seed: 7 },
+    defaults: { cols: 5, minHeight: 0.5, maxHeight: 1.8, gap: 12, seed: 7, distortMode: 'off', distortAmount: 0.3, distortFrequency: 2, distortPhase: 0 },
   },
   fractal: {
     // Covers the old Fractal/Recursive pair — `axisMode: 'alternate'`

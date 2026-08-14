@@ -9,6 +9,7 @@
    ───────────────────────────────────────────────────────────── */
 
 import { innerRect } from '../canvas-manager.js';
+import { catmullRomPathD } from '../json-model.js';
 
 function r2(n) { return Math.round(n * 100) / 100; }
 
@@ -31,8 +32,12 @@ function buildPolygonSVG(model, inner, lineColor) {
   s += `<rect x="${r2(inner.x)}" y="${r2(inner.y)}" width="${r2(inner.width)}" height="${r2(inner.height)}" fill="none" stroke="#c8c0b0" stroke-width="0.75" stroke-dasharray="3 3"/>`;
   s += `<g fill="none" stroke="${stroke}" stroke-width="1">`;
   cells.forEach(cell => {
-    const pts = cell.points.map(p => `${r2(p[0])},${r2(p[1])}`).join(' ');
-    s += `<polygon points="${pts}"/>`;
+    if (cell.smooth) {
+      s += `<path d="${catmullRomPathD(cell.points, r2)}"/>`;
+    } else {
+      const pts = cell.points.map(p => `${r2(p[0])},${r2(p[1])}`).join(' ');
+      s += `<polygon points="${pts}"/>`;
+    }
   });
   s += '</g>';
   cells.forEach((c, i) => {

@@ -186,7 +186,12 @@ function syncGeneratorRows() {
   // (its own onchange attribute) — one place to keep in sync, not one
   // per caller.
   gridtypePicker.refresh();
-  if (type === 'linear') { syncLinearAxisRow(); syncLinearDistortRow(); }
+  if (type === 'linear') syncLinearAxisRow();
+  // Every generator carrying a Distortion control shares the id pattern
+  // syncDistortRow() reads — one call covers all of them.
+  if (['linear', 'diagonal', 'angular', 'masonry', 'radial'].includes(type)) {
+    syncDistortRow(type === 'linear' ? 'lin' : type === 'diagonal' ? 'diag' : type === 'angular' ? 'ang' : type === 'masonry' ? 'mas' : 'radial');
+  }
 }
 // Columns only means something under Axis Columns/Both, Rows only under
 // Axis Rows/Both — hidden rather than left as a dead control the other
@@ -199,11 +204,15 @@ function syncLinearAxisRow() {
 // Distortion's Amount/Frequency show only once a mode is picked (Off
 // has nothing for them to affect); Phase only means something for
 // Sine (fbm has no phase, same reason Wave hides it for Noise too).
-function syncLinearDistortRow() {
-  const mode = seg('seg-lin-distort');
-  ctrl('row-lin-distort-amount').style.display = mode === 'off' ? 'none' : '';
-  ctrl('row-lin-distort-freq').style.display = mode === 'off' ? 'none' : '';
-  ctrl('row-lin-distort-phase').style.display = mode === 'sine' ? '' : 'none';
+// Generic — every generator that carries a Distortion control (Linear,
+// Diagonal, Angular, Radial, Masonry) uses the identical id pattern
+// (seg-<prefix>-distort, row-<prefix>-distort-amount/freq/phase), so one
+// function serves all of them rather than five near-identical copies.
+function syncDistortRow(prefix) {
+  const mode = seg('seg-' + prefix + '-distort');
+  ctrl('row-' + prefix + '-distort-amount').style.display = mode === 'off' ? 'none' : '';
+  ctrl('row-' + prefix + '-distort-freq').style.display = mode === 'off' ? 'none' : '';
+  ctrl('row-' + prefix + '-distort-phase').style.display = mode === 'sine' ? '' : 'none';
 }
 
 // ── Phase 6 — Randomisation UI. Scoped to the CURRENT generator's own
@@ -236,8 +245,9 @@ function randomizeParams() {
     const btn = btns[Math.floor(Math.random() * btns.length)];
     btns.forEach(b => b.classList.toggle('active', b === btn));
     if (seg.id === 'seg-lin-axis') syncLinearAxisRow();
-    if (seg.id === 'seg-lin-distort') syncLinearDistortRow();
     if (seg.id === 'seg-sin-fn') syncWaveFnRow();
+    const distortMatch = seg.id.match(/^seg-(.+)-distort$/);
+    if (distortMatch) syncDistortRow(distortMatch[1]);
   });
   block.querySelectorAll('input[type=checkbox]').forEach(c => {
     // Radial's Stretch to canvas today — a plain coin-flip.
@@ -304,7 +314,9 @@ function readGridParams() {
       rings: Math.round(val('rg-radial-rings')), sectors: Math.round(val('rg-radial-sectors')),
       innerRadiusFrac: val('rg-radial-innerradius'), gap: val('rg-radial-gap'),
       startAngle: val('rg-radial-startangle'), curve: val('rg-radial-curve'),
-      stretch: ctrl('ck-radial-stretch').checked,
+      stretch: ctrl('ck-radial-stretch').checked, seed: Math.round(val('rg-radial-seed')),
+      distortMode: seg('seg-radial-distort'), distortAmount: val('rg-radial-distort-amount'),
+      distortFrequency: val('rg-radial-distort-freq'), distortPhase: val('rg-radial-distort-phase'),
     };
   }
   if (type === 'triangular') {
@@ -349,18 +361,25 @@ function readGridParams() {
     return {
       count: Math.round(val('rg-diag-count')), angle: val('rg-diag-angle'), skew: val('rg-diag-skew'),
       gap: val('rg-diag-gap'), jitter: val('rg-diag-jitter'), seed: Math.round(val('rg-diag-seed')),
+      distortMode: seg('seg-diag-distort'), distortAmount: val('rg-diag-distort-amount'),
+      distortFrequency: val('rg-diag-distort-freq'), distortPhase: val('rg-diag-distort-phase'),
     };
   }
   if (type === 'angular') {
     return {
       sectors: Math.round(val('rg-ang-sectors')), startAngle: val('rg-ang-startangle'),
       centerX: val('rg-ang-centerx'), centerY: val('rg-ang-centery'), gap: val('rg-ang-gap'),
+      seed: Math.round(val('rg-ang-seed')),
+      distortMode: seg('seg-ang-distort'), distortAmount: val('rg-ang-distort-amount'),
+      distortFrequency: val('rg-ang-distort-freq'), distortPhase: val('rg-ang-distort-phase'),
     };
   }
   if (type === 'masonry') {
     return {
       cols: Math.round(val('rg-mas-cols')), minHeight: val('rg-mas-minheight'), maxHeight: val('rg-mas-maxheight'),
       gap: unitVal('rg-mas-gap'), seed: Math.round(val('rg-mas-seed')),
+      distortMode: seg('seg-mas-distort'), distortAmount: val('rg-mas-distort-amount'),
+      distortFrequency: val('rg-mas-distort-freq'), distortPhase: val('rg-mas-distort-phase'),
     };
   }
   if (type === 'fractal') {
@@ -394,8 +413,9 @@ function seg(groupId) { return ctrl(groupId).querySelector('.seg-btn.active').da
 function setSeg(groupId, btn) {
   ctrl(groupId).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
   if (groupId === 'seg-lin-axis') syncLinearAxisRow();
-  if (groupId === 'seg-lin-distort') syncLinearDistortRow();
   if (groupId === 'seg-sin-fn') syncWaveFnRow();
+  const distortMatch = groupId.match(/^seg-(.+)-distort$/);
+  if (distortMatch) syncDistortRow(distortMatch[1]);
   build();
 }
 
@@ -765,6 +785,11 @@ function applyGridParamsToUI(type, params) {
     setR('rg-radial-innerradius', params.innerRadiusFrac); setR('rg-radial-gap', params.gap);
     setR('rg-radial-startangle', params.startAngle); setR('rg-radial-curve', params.curve);
     if (params.stretch != null) ctrl('ck-radial-stretch').checked = params.stretch;
+    setR('rg-radial-seed', params.seed);
+    setR('rg-radial-distort-amount', params.distortAmount); setR('rg-radial-distort-freq', params.distortFrequency);
+    setR('rg-radial-distort-phase', params.distortPhase);
+    if (params.distortMode) setSegValue('seg-radial-distort', params.distortMode);
+    syncDistortRow('radial');
   } else if (type === 'triangular') {
     setR('rg-tri-cols', params.cols); setR('rg-tri-rotation', params.rotation);
     setS('sel-tri-spinmode', params.spinMode); setR('rg-tri-spinamount', params.spinAmount);
@@ -789,7 +814,7 @@ function applyGridParamsToUI(type, params) {
     if (params.axis) setSegValue('seg-lin-axis', params.axis);
     if (params.distortMode) setSegValue('seg-lin-distort', params.distortMode);
     syncLinearAxisRow();
-    syncLinearDistortRow();
+    syncDistortRow('lin');
   } else if (type === 'rectangular') {
     if (params.colWeights != null) ctrl('txt-rect-colweights').value = params.colWeights;
     if (params.rowWeights != null) ctrl('txt-rect-rowweights').value = params.rowWeights;
@@ -797,12 +822,25 @@ function applyGridParamsToUI(type, params) {
   } else if (type === 'diagonal') {
     setR('rg-diag-count', params.count); setR('rg-diag-angle', params.angle); setR('rg-diag-skew', params.skew);
     setR('rg-diag-gap', params.gap); setR('rg-diag-jitter', params.jitter); setR('rg-diag-seed', params.seed);
+    setR('rg-diag-distort-amount', params.distortAmount); setR('rg-diag-distort-freq', params.distortFrequency);
+    setR('rg-diag-distort-phase', params.distortPhase);
+    if (params.distortMode) setSegValue('seg-diag-distort', params.distortMode);
+    syncDistortRow('diag');
   } else if (type === 'angular') {
     setR('rg-ang-sectors', params.sectors); setR('rg-ang-startangle', params.startAngle);
     setR('rg-ang-centerx', params.centerX); setR('rg-ang-centery', params.centerY); setR('rg-ang-gap', params.gap);
+    setR('rg-ang-seed', params.seed);
+    setR('rg-ang-distort-amount', params.distortAmount); setR('rg-ang-distort-freq', params.distortFrequency);
+    setR('rg-ang-distort-phase', params.distortPhase);
+    if (params.distortMode) setSegValue('seg-ang-distort', params.distortMode);
+    syncDistortRow('ang');
   } else if (type === 'masonry') {
     setR('rg-mas-cols', params.cols); setR('rg-mas-minheight', params.minHeight);
     setR('rg-mas-maxheight', params.maxHeight); setR('rg-mas-gap', params.gap); setR('rg-mas-seed', params.seed);
+    setR('rg-mas-distort-amount', params.distortAmount); setR('rg-mas-distort-freq', params.distortFrequency);
+    setR('rg-mas-distort-phase', params.distortPhase);
+    if (params.distortMode) setSegValue('seg-mas-distort', params.distortMode);
+    syncDistortRow('mas');
   } else if (type === 'fractal') {
     setR('rg-frac-depth', params.depth); setR('rg-frac-variance', params.variance);
     setR('rg-frac-gap', params.gap); setR('rg-frac-seed', params.seed);
@@ -955,7 +993,12 @@ function fitToViewIfNeeded(canvas) {
 // hardcoded colour.
 const GENERATOR_ICONS = {
   bento: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3" y="3" width="20" height="20"/><line x1="12" y1="3" x2="12" y2="13"/><line x1="3" y1="13" x2="12" y2="13"/><line x1="12" y1="13" x2="12" y2="23"/></svg>',
-  sinusoidal: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 13 Q 7 4, 11 13 T 19 13 T 27 13" stroke-width="1.6"/><line x1="3" y1="20" x2="23" y2="20" stroke-width="0.9" stroke-dasharray="1.5 1.8"/></svg>',
+  // A sine-curve glyph here would be actively misleading — Wave is
+  // cellShape:'rect' (real CSS Grid tracks), so it only ever modulates
+  // track WIDTH rhythmically, never bends a boundary into a visible
+  // curve (that's Linear's own Distortion, which genuinely can). The
+  // icon draws what Wave actually produces: uneven-width straight bars.
+  sinusoidal: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><line x1="4" y1="4" x2="4" y2="22"/><line x1="9" y1="7" x2="9" y2="19"/><line x1="14" y1="3" x2="14" y2="23"/><line x1="19" y1="9" x2="19" y2="17"/><line x1="23" y1="6" x2="23" y2="20"/></svg>',
   hexagonal: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><polygon points="13,3 21,8 21,18 13,23 5,18 5,8"/></svg>',
   radial: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="13" cy="13" r="10"/><circle cx="13" cy="13" r="4.5"/><line x1="13" y1="3" x2="13" y2="8.5"/><line x1="13" y1="17.5" x2="13" y2="23"/><line x1="3" y1="13" x2="8.5" y2="13"/><line x1="17.5" y1="13" x2="23" y2="13"/></svg>',
   triangular: '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><polygon points="3,21 10,7 17,21"/><polygon points="10,7 17,21 24,7"/></svg>',
