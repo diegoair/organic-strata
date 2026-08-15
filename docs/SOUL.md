@@ -418,6 +418,59 @@ Seeds/Motion controls unaccessibly-named. Zero console errors across every
 tab switch, source load, pattern/stagger combination, zoom/pan gesture,
 and export tested.
 
+## 6c. Design-system audit — four real cascade/token defects, all found by direct check
+
+Requested explicitly, separate from the UI overhaul itself: "verify everything
+is centralized and reuses the right components." Rather than eyeball it,
+diffed Soul's local `<style>` block's own selector list against every shared
+file it links (`organica-panel.css`/`organica-header.css`/
+`organica-floatbar.css`/`organica-tokens.css`) and grepped for hardcoded hex/px
+values that should be tokens. Found four real defects, all the same root
+mistake in different clothes — Soul's own local `<style>` block loads AFTER
+the shared `<link>`s, so any selector it redefines silently WINS the cascade,
+even though the shared file was already linked and already correct:
+
+1. **`.panel-select`/`.ctrl-row`/`.ctrl-label`/`.ctrl-val`/`input[type=range]`**
+   — Soul's local copies overrode the shared component's filled-track
+   custom-property system and thumb hover-scale entirely; sliders looked and
+   behaved like a plainer, worse copy of every other tool's own for no
+   reason. Fixed by deleting the local block and wiring
+   `Organica.enhanceSliders(document)`, the JS the shared CSS needs to
+   actually paint the fill.
+2. **`.mini-btn`** — the local copy reintroduced 9px uppercase tracked text
+   on the "Apply text" button, the exact style the July 25, 2026
+   panel-component pass (documented in `CLAUDE.md`) moved every tool away
+   from (sentence case, no tracking on labels). Fixed by deleting the local
+   duplicate.
+3. **`#panel` width** — the shared file declares the unified `--panel-w`
+   (248px, "was 240 / 244 / 280 — one width"), but Soul's local `#panel` rule
+   redeclared 260px with `--border` instead of `--border-strong`. Fixed by
+   deleting the local duplicate; the panel is now visibly narrower and
+   matches every sibling tool exactly.
+4. **`--mid` token stale value** — Soul's `:root` shipped `#726a5e`, the
+   exact value the July 26, 2026 contrast fix (documented in `CLAUDE.md`)
+   retired everywhere for failing AA at 3.17:1 on panel background. Every
+   other tool (Halide/Komorebi/Camo Turing/Warping/Loom) already carries the
+   unified `#696256` (5.4:1 paper / ≥5.0:1 panel) — Soul, built after that
+   fix, should have inherited it but didn't. Corrected to match.
+
+Also checked and explicitly NOT changed: `#stage-frame`'s `background:
+#ffffff` is the canvas/artwork surface colour, the same documented content-
+colour exception CLAUDE.md already carves out for Halide's ink/paper — not
+UI chrome. `#zoom-hud`'s raw `16px` position and `#drop-hint`'s raw `12px`
+gap / `48px` icon size are copied verbatim from Loom's own zoom-hud and
+`shared/_template.html`'s own drop-hint respectively — consistent with the
+existing pattern, not local drift, so left alone. One genuine value-identical
+tokenisation made: `#canvas-wrap`'s `padding: 24px` → `var(--space-7)` (exact
+match on the scale, no visual change).
+
+Verified after each fix, not just visually: filled-track slider style
+confirmed live (screenshot), zero console errors after every change, "Apply
+text" renders sentence-case, panel width visibly narrower with layout intact,
+0 of 11 controls unaccessibly-named (re-checked, unchanged), play/stop still
+functions correctly on a live Genesis seed. Four separate commits, one per
+defect, each independently revertable.
+
 ## 6a. Real-world stress test — a live Pollen "Hatch Flow" export, and a scanline-relief prototype
 
 Diego pointed at a reference (generative-gestaltung.de's `P_4_3_1_01`, a
