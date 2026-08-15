@@ -252,6 +252,17 @@
       const g = requireGSAP();
       const amt = p.amount != null ? p.amount : 1;
       const dur = p.duration || 1.8;
+      // Keyframe timing recalibrated after measuring the perceptual start
+      // live (Diego's own feedback: "takes a moment to start"): the
+      // acceleration phase (0→8*amt, `power1.in` — genuinely correct
+      // physics, a falling object starts at rest) previously ran across
+      // the first 40% of the WHOLE duration, so at the default 3s
+      // duration that's 1.2s of near-imperceptible motion — measured
+      // directly, only 0.19px of movement 300ms in. The physical SHAPE
+      // is unchanged (accelerate → fall → impact squash → settle/fade),
+      // only WHERE each stage lands on the timeline — compressed so the
+      // slow-start phase is a small, honest fraction of total duration
+      // instead of nearly half of it.
       return g.to(el, {
         transformOrigin: '50% 0%',
         repeat: -1,
@@ -259,9 +270,9 @@
         ease: 'none',
         keyframes: {
           '0%': { y: 0, scaleY: 1 },
-          '40%': { y: 8 * amt, scaleY: 1 + 1.6 * amt, ease: 'power1.in' },
-          '55%': { y: 20 * amt, scaleY: 1 + 1.2 * amt },
-          '70%': { y: 40 * amt, scaleY: 1 - 0.1 * amt, opacity: 0.9, ease: 'power2.out' },
+          '18%': { y: 8 * amt, scaleY: 1 + 1.6 * amt, ease: 'power1.in' },
+          '32%': { y: 20 * amt, scaleY: 1 + 1.2 * amt },
+          '50%': { y: 40 * amt, scaleY: 1 - 0.1 * amt, opacity: 0.9, ease: 'power2.out' },
           '100%': { y: 60 * amt, scaleY: 1 - 0.1 * amt, opacity: 0 },
         },
       });
@@ -275,12 +286,22 @@
     growth: function (el, p) {
       const g = requireGSAP();
       const dur = p.duration || 2.6;
+      // `power1.inOut` measured directly (via the real strokeDasharray
+      // segment length, not assumed): only 1.85% of the path drawn at
+      // 300ms into a 3s duration, 7.7% at 600ms — a genuinely flat, near-
+      // invisible start, the concrete cause behind "takes a moment to
+      // start" feedback. Switched to `power1.out` — a fast, immediately
+      // visible start that decelerates toward completion. Also more
+      // botanically honest for THIS pattern than the old ease: a vine or
+      // root doesn't need to build up momentum from rest the way a
+      // falling object does (gravity's own `power1.in` stays a slow
+      // start, correctly — that one really is accelerating from zero).
       if (g.plugins && (g.plugins.drawSVG || typeof DrawSVGPlugin !== 'undefined')) {
-        return g.fromTo(el, { drawSVG: '0%' }, { drawSVG: '100%', duration: dur, repeat: -1, ease: 'power1.inOut' });
+        return g.fromTo(el, { drawSVG: '0%' }, { drawSVG: '100%', duration: dur, repeat: -1, ease: 'power1.out' });
       }
       const len = el.getTotalLength ? el.getTotalLength() : 100;
       g.set(el, { strokeDasharray: len, strokeDashoffset: len });
-      return g.to(el, { strokeDashoffset: 0, duration: dur, repeat: -1, ease: 'power1.inOut' });
+      return g.to(el, { strokeDashoffset: 0, duration: dur, repeat: -1, ease: 'power1.out' });
     },
 
     // 5. Environmental Forces — continuous, uniform drift (wind,
@@ -309,7 +330,120 @@
       const dir = (ctx && ctx.index % 2 === 0) ? 1 : -1;
       return g.to(el, { rotation: '+=' + (360 * dir), transformOrigin: '50% 50%', duration: dur, repeat: -1, ease: 'none' });
     },
+
+    // 7. Organic Wobble — NOT one of Genesis's 6 physics patterns; added
+    // directly from feedback that the first 5 (pure affine transforms —
+    // scale/translate/rotate on clean periodic curves) read as "basic".
+    // The real difference in kind: every pattern above is a fixed,
+    // repeating GSAP timeline — this one is CONTINUOUS, procedural motion
+    // driven by simplex3(x, y, t)'s own genuinely non-repeating time axis
+    // (organica-noise.js, verified continuous to 0.004 max delta per
+    // 0.001s of t when it was built). Because each primitive samples the
+    // noise field at ITS OWN (cx, cy) as the spatial seed, neighbouring
+    // elements drift in a correlated but never-identical way — the same
+    // "organic field" quality Komorebi's canopy patterns have, applied to
+    // motion instead of a static mask. Amplitude scales with the
+    // primitive's own size (`prim.r`), so small dots sway a little and
+    // large shapes sway more, in proportion — reads as each element's own
+    // natural weight, not one global pixel amount applied uniformly.
+    //
+    // Returns a plain object with `.kill()`/`.delay()`, NOT a real GSAP
+    // tween — there's no fixed-duration timeline to hand back, the motion
+    // never completes or repeats in the traditional sense. `animate()`'s
+    // own contract only needs `.kill()`/`.delay()` to exist, so this is a
+    // legitimate second implementation strategy behind the same interface,
+    // not a special case bolted awkwardly onto the tween-based one.
+    wobble: function (el, p, ctx) {
+      const prim = ctx.primitive;
+      const amt = p.amount != null ? p.amount : 0.4;
+      const speed = p.duration ? 3 / p.duration : 1;   // Duration still means "how fast" here — inverted, since a wobble has no fixed cycle length to call its own duration
+      const seedX = prim.cx * 0.01, seedY = prim.cy * 0.01 + 500;
+      const amp = amt * Math.max(prim.r || 10, 10) * 1.3;
+      const origin = { x: 0, y: 0, rot: 0 };
+      const startTime = gsap.ticker.time;
+      let delaySec = 0;
+      const tick = () => {
+        const t = gsap.ticker.time - startTime;
+        if (t < delaySec) return;
+        const lt = (t - delaySec) * speed;
+        const nx = Organica.noise.simplex3(seedX, seedY, lt);
+        const ny = Organica.noise.simplex3(seedX + 37.1, seedY, lt);
+        const nr = Organica.noise.simplex3(seedX, seedY + 71.3, lt);
+        gsap.set(el, { x: nx * amp, y: ny * amp, rotation: nr * 16 * amt, transformOrigin: '50% 50%' });
+      };
+      gsap.ticker.add(tick);
+      const handle = {
+        kill: () => { gsap.ticker.remove(tick); return handle; },
+        delay: (d) => { if (d === undefined) return delaySec; delaySec = d; return handle; },
+      };
+      return handle;
+    },
+
+    // 8. Morph — the other "not one of the 6" addition, this one from
+    // MorphSVG (vendored since the engine's own first commit, never
+    // invoked by a real feature until now). Morphs a point-type primitive
+    // between its own native circle shape and a noise-perturbed organic
+    // blob built from the SAME primitive's own centre/radius — genuinely
+    // different in KIND from the other patterns, since it changes the
+    // primitive's own SHAPE over time, not just its position/scale.
+    // Scoped to point-type primitives only (same "not every pattern
+    // applies to every primitive type" precedent Growth already sets for
+    // path-type) — a path primitive morphing into an unrelated blob has
+    // no principled target shape the way a circle-to-blob does.
+    morph: function (el, p, ctx) {
+      const g = requireGSAP();
+      const prim = ctx.primitive;
+      if (prim.type !== 'point') return g.timeline();   // valid, killable no-op — Soul's own playMotion() already filters Growth this way for the inverse case; Morph filters itself so any caller gets a safe object regardless
+      const amt = p.amount != null ? p.amount : 0.4;
+      const dur = p.duration || 3;
+      const blobD = organicBlobPath(prim.x, prim.y, Math.max(prim.r, 4), prim.cx * 0.02 + prim.cy * 0.013, amt);
+      // MorphSVGPlugin does NOT auto-convert a non-<path> target — a
+      // bare morphSVG tween on a <circle> was verified live to do
+      // nothing at all (no error, `d` never set, `r` unchanged), while
+      // the identical tween on a real <path> worked immediately.
+      // `convertToPath(el, true)` does the conversion explicitly and
+      // swaps the new <path> into the DOM in place of the original — the
+      // primitive's own `.el` is updated to it so anything reading the
+      // primitive afterward (Soul's own Stop/re-Play) targets the live
+      // element, not the circle that's no longer in the document.
+      let target = el;
+      if (el.tagName.toLowerCase() !== 'path') {
+        const converted = MorphSVGPlugin.convertToPath(el, true);
+        target = Array.isArray(converted) ? converted[0] : converted;
+        prim.el = target;
+        // The circle-as-path `d` convertToPath just produced IS the rest
+        // state — captured here so a caller (Soul's own Stop) can reset
+        // to it. `gsap.set(el, {clearProps:'all'})` alone doesn't do
+        // this: `d` is an SVG attribute MorphSVG writes directly, not a
+        // CSS property with a real GSAP-remembered original value, so a
+        // killed morph tween would otherwise leave the shape frozen
+        // mid-blob instead of genuinely reverting to a circle.
+        prim._morphRestD = target.getAttribute('d');
+      }
+      return g.to(target, { morphSVG: blobD, duration: dur / 2, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+    },
   };
+
+  // Builds a closed polygon path approximating a noise-perturbed organic
+  // blob around (cx, cy) at base radius r — MorphSVG's own target shape
+  // for the Morph pattern above. Deliberately straight segments, not
+  // curved: MorphSVG interpolates point-to-point smoothly regardless of
+  // whether the TARGET path itself has sharp corners, so a polygon target
+  // still reads as an organic wobble once animated, and it's simpler/
+  // cheaper to generate than a Catmull-Rom fit.
+  function organicBlobPath(cx, cy, r, seed, amount) {
+    const n = 10;
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const noiseVal = Organica.noise.simplex2(Math.cos(a) * 0.7 + seed, Math.sin(a) * 0.7 + seed);
+      const rr = r * (1 + noiseVal * 0.4 * amount);
+      pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr]);
+    }
+    let d = 'M ' + pts[0][0] + ',' + pts[0][1] + ' ';
+    for (let i = 1; i < pts.length; i++) d += 'L ' + pts[i][0] + ',' + pts[i][1] + ' ';
+    return d + 'Z';
+  }
 
   // Stagger — a per-primitive delay formula, the composable half of
   // "collective behaviour" (see PATTERNS' own header). Pure function of

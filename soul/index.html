@@ -201,9 +201,12 @@
           <option value="growth" id="opt-growth">Growth by tracing</option>
           <option value="environmental">Environmental force</option>
           <option value="rotation">Differential rotation</option>
+          <option value="wobble">Organic wobble</option>
+          <option value="morph">Morph</option>
         </select>
       </div>
       <p id="growth-hint" class="org-panel__hint" style="display:none">Growth by tracing only affects PATH primitives (it animates a stroke being drawn) — point primitives (dots) stay static under this pattern.</p>
+      <p id="morph-hint" class="org-panel__hint" style="display:none">Morph only affects POINT primitives (dots) — it needs a shape to morph a circle into; path primitives stay static under this pattern.</p>
 
       <div class="ctrl-row">
         <div class="ctrl-label">Amount</div>
@@ -381,10 +384,18 @@ function renderStats() {
 
 // ── MOTION ──
 function syncGrowthHint() {
-  const isGrowth = ctrl('sel-pattern').value === 'growth';
-  ctrl('growth-hint').style.display = isGrowth ? '' : 'none';
+  const pattern = ctrl('sel-pattern').value;
+  ctrl('growth-hint').style.display = pattern === 'growth' ? '' : 'none';
+  ctrl('morph-hint').style.display = pattern === 'morph' ? '' : 'none';
 }
 ctrl('sel-pattern').addEventListener('change', syncGrowthHint);
+
+// Which primitive TYPE a pattern is scoped to, if any — Growth (DrawSVG)
+// needs a path to draw, Morph needs a circle to morph FROM. Both filtered
+// here (not left for GSAP/organica-motion.js to silently no-op on) so the
+// status readout reports an accurate count and the UI can't claim
+// "playing on 40 primitives" when only 12 of them actually moved.
+const PATTERN_TYPE_SCOPE = { growth: 'path', morph: 'point' };
 
 function playMotion() {
   if (!currentParse) { setStatus('', 'Load an SVG first'); return; }
@@ -393,14 +404,11 @@ function playMotion() {
   const params = { amount: parseFloat(ctrl('rg-amount').value), duration: parseFloat(ctrl('rg-duration').value) };
   const staggerCfg = { by: ctrl('sel-stagger').value, amount: parseFloat(ctrl('rg-stagger-amount').value) };
 
-  // Growth (DrawSVG) only makes sense on path primitives — a circle has
-  // no meaningful "stroke being drawn" the way an open/closed path does,
-  // and DrawSVG's own drawSVG property is undefined behaviour on some
-  // shape types. Filtered here rather than left for GSAP to fail on.
   let primitives = currentParse.primitives;
   let targets = primitives.map(p => p.el);
-  if (pattern === 'growth') {
-    const filtered = primitives.map((p, i) => ({ p, i })).filter(x => x.p.type === 'path');
+  const scopeType = PATTERN_TYPE_SCOPE[pattern];
+  if (scopeType) {
+    const filtered = primitives.map((p, i) => ({ p, i })).filter(x => x.p.type === scopeType);
     primitives = filtered.map(x => x.p);
     targets = filtered.map(x => x.p.el);
   }
@@ -415,7 +423,15 @@ function stopMotion() {
   activeTweens.forEach(t => t.kill());
   activeTweens = [];
   if (currentParse) {
-    currentParse.primitives.forEach(p => { if (p.el) gsap.set(p.el, { clearProps: 'all' }); });
+    currentParse.primitives.forEach(p => {
+      if (!p.el) return;
+      gsap.set(p.el, { clearProps: 'all' });
+      // Morph writes the `d` attribute directly (an SVG attribute, not a
+      // CSS property clearProps can restore) — organica-motion.js's own
+      // morph() stashes the pre-morph circle-as-path `d` on the
+      // primitive for exactly this reset.
+      if (p._morphRestD) p.el.setAttribute('d', p._morphRestD);
+    });
     if (wasPlaying) setStatus('active', currentParse.primitives.length + ' primitives loaded');
   }
 }

@@ -103,7 +103,7 @@ bbox in Chromium) — `parsePrimitives` keeps one hidden, positioned
 off-screen (not `display:none`, which also breaks layout/measurement) host
 node for this, built lazily on first use.
 
-### `PATTERNS` — the 6 physics patterns, GSAP-backed
+### `PATTERNS` — the 6 physics patterns, GSAP-backed, plus 2 that aren't in Genesis at all
 
 | Pattern | Genesis pattern # | GSAP mechanism |
 |---|---|---|
@@ -112,13 +112,50 @@ node for this, built lazily on first use.
 | `growth` | 3. Growth by Tracing | **DrawSVG plugin** — direct match, no approximation (`drawSVG: '0%' → '100%'`); falls back to a manual `strokeDasharray`/`strokeDashoffset` tween if DrawSVG isn't registered |
 | `environmental` | 5. Environmental Forces | continuous `x`/`y` drift, `ease: 'none'` (linear — the documented distinction from biological easing) |
 | `rotation` | 6. Differential Rotation | per-primitive rotation, direction alternating by index parity (a per-element approximation of "counter-spinning layers" — Soul has no explicit layer/group concept yet) |
+| `wobble` | *(not in Genesis)* | **Continuous, procedural** — not a fixed repeating tween at all. Each primitive samples `Organica.noise.simplex3(x, y, t)` at its OWN `(cx, cy)` every `gsap.ticker` frame, so neighbours drift in a correlated but never-identical, never-repeating way |
+| `morph` | *(not in Genesis)* | **MorphSVGPlugin**, morphing a circle into a noise-perturbed organic blob built from its own radius/seed and back — changes the primitive's own SHAPE, not just position/scale, the first genuinely different-in-KIND pattern |
 
 **"Collective Behaviour" (Genesis's own pattern 4) is deliberately not a
 7th pattern function.** Its own definition in `docs/ANIMATION-SYSTEM.md` —
 "the same simple animation on many elements, phase-shifted" — is exactly
-what any of the 5 patterns above, composed with a Stagger, already gives
-you. Building it separately would duplicate one of the 5 with a stagger
-bolted on.
+what any of the patterns above, composed with a Stagger, already gives
+you. Building it separately would duplicate one of the others with a
+stagger bolted on.
+
+**`wobble` and `morph` were added directly from feedback that the first 5
+(pure affine transforms on clean periodic curves) read as "basic".**
+Both lean on infrastructure that existed but was unused: `wobble` is the
+first real consumer of `simplex3`'s own continuous time axis (built the
+same session, verified but never actually used by a feature until now);
+`morph` is the first real consumer of MorphSVG (vendored since Soul's
+first commit, registered, never invoked). `wobble` also has a different
+RUNTIME SHAPE from the other 6 — there's no fixed-duration tween to hand
+back (the motion never completes or loops in the traditional sense), so
+its own pattern function returns a plain `{kill(), delay(d)}` object
+driven by `gsap.ticker.add()` instead of a real GSAP tween/timeline.
+`animate()`'s own contract only needs those two methods to exist, so this
+is a second legitimate implementation strategy behind the same interface,
+not a special case grafted onto the tween-based one.
+
+**A real bug caught immediately by testing, not assumed to work from the
+GSAP docs**: a bare `morphSVG` tween targeting a `<circle>` element does
+**nothing** — no error, no `d` attribute ever appears, `r` stays
+unchanged — MorphSVGPlugin does NOT auto-convert a non-`<path>` target the
+way a first read of its docs suggested. Isolated with a minimal two-line
+repro before touching the real code: the identical tween on an actual
+`<path>` worked immediately, on a `<circle>` did nothing. Fixed with
+`MorphSVGPlugin.convertToPath(el, true)`, which explicitly converts the
+element to a real `<path>` AND swaps it into the live DOM in place of the
+original — the primitive's own `.el` is updated to point at the new node,
+so anything reading it afterward targets the element actually on stage. A
+second, related gap: `d` is an SVG attribute MorphSVG writes directly, not
+a CSS property GSAP's own `clearProps` can restore, so a killed morph
+tween left the shape frozen mid-blob after Stop instead of genuinely
+reverting to a circle — fixed by stashing the pre-morph circle-as-path `d`
+string on the primitive (`_morphRestD`) the moment `convertToPath` produces
+it, and having Soul's own `stopMotion()` write it back explicitly.
+Verified before/after: mid-morph the path's `d` is genuinely a distorted
+blob, and after Stop it's byte-identical to the captured rest value.
 
 `growth` is the one pattern that only makes meaningful sense on path-type
 primitives (a circle has no "stroke being drawn" to animate) — Soul's own
@@ -253,7 +290,30 @@ generalised "stagger works" from that, without ever actually selecting
 `noise` and pressing Play; fixed to `Organica.noise.simplexFbm2`, the same
 cross-file access pattern Warping/Komorebi/Camo Turing already use. Lesson
 recorded for next time: exercise every option in a dropdown at least once,
-not a representative sample.
+not a representative sample. **The lesson held**: while adding `morph`'s
+own blob-path generator, the exact same bare-`noise.` mistake was typed
+again — caught by re-reading the new code against the lesson just recorded,
+before ever running it, not by a second live failure.
+
+**Direct feedback ("le animazioni sono davvero basiche", "ci vuole sempre
+un po' ad iniziare l'immagine") drove two more fixes, both measured before
+and after rather than tuned by eye:**
+- `growth`'s `power1.inOut` ease measured genuinely flat at the start —
+  only 1.85% of the path drawn 300ms into a 3s duration, 7.7% at 600ms
+  (read via the live `strokeDasharray` segment length, not assumed).
+  Switched to `power1.out` (fast start, gentle deceleration) — 18.4% at
+  300ms, 35.5% at 600ms after the fix, verified the same way.
+- `gravity`'s own slow start (`power1.in` on the first keyframe segment)
+  is physically correct — a falling object starts at rest — but that
+  segment spanned 40% of total duration, so at the default 3s duration
+  that's 1.2s of near-invisible motion (measured: 0.19px moved at 300ms).
+  Recalibrated the keyframe percentages (0/40/55/70/100 → 0/18/32/50/100)
+  to keep the exact same physical shape (accelerate → fall → impact
+  squash → settle/fade) while reaching each stage sooner — 1.1px moved at
+  300ms after the fix, a ~5.8× improvement at the same measurement point.
+- Both `wobble` and `morph` (above) are the actual answer to "basic" —
+  richer motion classes, not just re-tuned versions of the same 5
+  transforms.
 
 ## 7. Not built yet
 
@@ -263,10 +323,13 @@ not a representative sample.
   precedent, but it needs an SVG-to-canvas rasterisation loop first
   (`captureStream()` only exists on `<canvas>`, not `<svg>`) — a real next
   step, not attempted this pass.
-- **MorphSVG** — vendored and registered (`shared/gsap-morphsvg.min.js`),
-  never yet invoked by a real Soul feature. The natural next use: morphing
-  between two primitive sets (e.g. two different Loom grids, or a Pollen
-  dot cloud reshaping into a Strata trace).
+- **MorphSVG shape-to-shape** — now used by the `morph` pattern (circle →
+  noise-perturbed blob → circle, on a single primitive). Morphing BETWEEN
+  two different primitive SETS (e.g. two different Loom grids, or a Pollen
+  dot cloud reshaping into a Strata trace) is still open — that needs a
+  point-correspondence strategy across two independently-parsed primitive
+  lists, a bigger feature than one primitive morphing against its own
+  generated variant.
 - **Large-particle-count rendering** — today's DOM/SVG-element approach is
   right for the scale tested (dozens to low hundreds of primitives); a
   Pollen export with thousands of dots would want the Three.js/WebGL path
