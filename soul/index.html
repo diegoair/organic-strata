@@ -126,7 +126,11 @@
     color: var(--mid); text-align: center; line-height: 1.8;
   }
 
-  #panel { width: 260px; flex-shrink: 0; border-left: 1px solid var(--border); background: var(--paper); overflow-y: auto; display: flex; flex-direction: column; }
+  /* #panel — deliberately NOT redefined here. Same cascade bug as
+     .mini-btn/input[type=range] above: the shared organica-panel.css
+     already declares #panel at the unified --panel-w (248px, "was 240 /
+     244 / 280 — one width"), and this local copy was silently winning
+     at a stale 260px with --border instead of --border-strong. */
 
   #file-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; border: 0; padding: 0; }
 
