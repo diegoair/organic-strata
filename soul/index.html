@@ -310,9 +310,8 @@
   <div class="org-floatbar__sep"></div>
 
   <div class="org-popover-wrap">
-    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-loop" aria-label="Loop duration" aria-describedby="loop-readout">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-loop" aria-label="Loop duration">
       <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M13 2.3V6h-3.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span id="loop-readout" style="font-size:9px;letter-spacing:0.05em;margin-left:2px;">Off</span>
       <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
     <div class="org-popover" id="loop-popover" aria-label="Loop options">
@@ -613,7 +612,6 @@ function syncLoop(slider) {
   loopSeconds = parseFloat(slider.value);
   const label = loopSeconds > 0 ? loopSeconds + 's' : 'Off';
   ctrl('v-loop-seconds').textContent = label;
-  ctrl('loop-readout').textContent = label;
 }
 
 function playMotion() {
