@@ -131,11 +131,13 @@
 </head>
 <body>
 
-<!-- ══ HEADER — identity · status only. No Export/Figma yet: nothing
-     produced here is animated (that's the next pass, GSAP timeline over
-     these same parsed primitives) — a control with no real effect is a
-     bug, per Komorebi's own audit, so it isn't in the header until it
-     does something. ══ -->
+<!-- ══ HEADER — identity · status · export. PNG/SVG only, both a snapshot
+     of the CURRENT stage state (mid-animation or at rest) — real,
+     verified capability, unlike a video/GIF export which isn't built yet
+     (docs/SOUL.md §7). No Figma button: sendToFigma() would need a real
+     "what does this become" decision (a still frame? which one?) that
+     hasn't been made, so it isn't wired to look like it works when it
+     wouldn't mean anything yet. ══ -->
 <header class="org-header org-header--tool" role="banner">
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ Soul</span></a>
 
@@ -145,6 +147,11 @@
     <span class="org-header__dot" id="status-dot"></span>
     <span class="org-header__state" id="status-text">Load an SVG to begin</span>
   </output>
+
+  <div class="org-header__actions">
+    <button class="org-btn" onclick="exportPNG()">PNG</button>
+    <button class="org-btn" onclick="exportSVG()">SVG</button>
+  </div>
 </header>
 
 <div id="app">
@@ -411,6 +418,47 @@ function stopMotion() {
     currentParse.primitives.forEach(p => { if (p.el) gsap.set(p.el, { clearProps: 'all' }); });
     if (wasPlaying) setStatus('active', currentParse.primitives.length + ' primitives loaded');
   }
+}
+
+// ── EXPORT — a snapshot of the stage exactly as it looks right now,
+// mid-animation or at rest (GSAP writes real inline `transform`/
+// `stroke-dashoffset` etc onto the actual elements every tick, so
+// serialising the live DOM already captures whatever pose it's in — no
+// separate "bake the current frame" step needed). Same
+// Organica.download/Organica.stamp convention every other tool's own
+// export uses.
+function serialiseStage() {
+  const clone = stageSVG.cloneNode(true);
+  clone.setAttribute('xmlns', SVG_NS);
+  return new XMLSerializer().serializeToString(clone);
+}
+function exportSVG() {
+  if (!currentParse) { setStatus('', 'Load an SVG first'); return; }
+  Organica.download(new Blob([serialiseStage()], { type: 'image/svg+xml' }), Organica.stamp('soul', 'svg'));
+  setStatus('active', 'SVG saved');
+}
+function exportPNG() {
+  if (!currentParse) { setStatus('', 'Load an SVG first'); return; }
+  const svgStr = serialiseStage();
+  const { width, height } = currentParse.canvas;
+  const scale = 2;
+  const img = new Image();
+  const url = URL.createObjectURL(new Blob([svgStr], { type: 'image/svg+xml' }));
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = width * scale; c.height = height * scale;
+    const cctx = c.getContext('2d');
+    cctx.drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    const dataUrl = c.toDataURL('image/png');
+    const bin = atob(dataUrl.split(',')[1]);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('soul', 'png'));
+    setStatus('active', 'PNG saved');
+  };
+  img.onerror = () => setStatus('', 'PNG export failed — could not rasterise the current stage');
+  img.src = url;
 }
 
 setStatus('', 'Load an SVG to begin');

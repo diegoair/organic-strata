@@ -172,10 +172,15 @@ Organica export), **Primitives** (read-only stats: canvas size, total,
 point/path counts — proves the parse worked before anything else runs),
 **Motion** (Pattern/Amount/Duration/Stagger/Stagger-amount + Play/Stop).
 
-No Export/Figma buttons in the header yet — per Komorebi's own audit
-precedent ("a control with no real effect is a bug"), nothing is exportable
-until there's a real render pipeline (video/GIF/SVG-with-baked-keyframes)
-to hand it to; that's explicitly the next layer, not built this pass.
+Header has PNG/SVG export — both a snapshot of the stage EXACTLY as it
+looks at export time, mid-animation or at rest. This works with no special
+"bake the current frame" step because GSAP already writes real inline
+`transform`/`stroke-dashoffset` etc. onto the live DOM every tick;
+`serialiseStage()` just clones and serialises whatever the DOM already is.
+No Figma button — `sendToFigma()` implies "this becomes a Figma frame",
+and what a moving animation becomes as a still frame is a real design
+decision nobody's made yet, so it isn't wired to look like it works before
+it means something.
 
 `playMotion()`/`stopMotion()` are the whole runtime: `activeTweens` holds
 exactly what the last `playMotion()` call created, so `stopMotion()` kills
@@ -214,11 +219,21 @@ clean reset, not just pausing mid-pose.
   verified via `aria-labelledby`, not just visual proximity).
 - Zero console errors across every load, pattern switch, play, and stop
   tested.
+- PNG/SVG export verified against actual output, not just "downloaded
+  without throwing": exported SVG mid-animation confirmed to contain a
+  real live `transform="matrix(...)"` value (proves it's exporting the
+  ACTUAL current pose, not a reset/rest state); exported PNG decoded back
+  and its pixels sampled, confirming the real content colour is present
+  at the correct dimensions (2x scale).
 
 ## 7. Not built yet
 
-- **Export** — no render-to-file pipeline (video/GIF/SVG-with-baked-
-  keyframes) exists yet; Soul only plays live in the browser today.
+- **Video/GIF export** — PNG/SVG (a single-frame snapshot, mid-animation
+  or at rest) work today; there's no render-to-video pipeline yet. Camo
+  Turing's own `canvas.captureStream()` + `MediaRecorder` approach is the
+  precedent, but it needs an SVG-to-canvas rasterisation loop first
+  (`captureStream()` only exists on `<canvas>`, not `<svg>`) — a real next
+  step, not attempted this pass.
 - **MorphSVG** — vendored and registered (`shared/gsap-morphsvg.min.js`),
   never yet invoked by a real Soul feature. The natural next use: morphing
   between two primitive sets (e.g. two different Loom grids, or a Pollen
