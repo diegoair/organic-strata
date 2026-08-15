@@ -86,11 +86,18 @@
   #zoom-hud .zoom-reset { pointer-events: auto; cursor: pointer; opacity: 0.6; transition: opacity 0.15s; }
   #zoom-hud .zoom-reset:hover { opacity: 1; }
 
-  /* .org-header__status already truncates (organica-header.css) — just
-     cap its width to something sane for the floatbar's own fixed-width
-     context, since a header bar and a floating pill have different
-     amounts of room. */
-  .floatbar-status { max-width: 200px; padding-left: var(--space-2); }
+  /* Status text is visually removed from the floatbar (Diego's own call —
+     Camo Turing's floatbar carries no status message either, only an
+     icon-only bar + its Step counter, a live metric, not a text readout).
+     Kept in the DOM, not display:none, so aria-live announcements (errors,
+     "Playing X on N primitives", etc.) still reach a screen reader —
+     display:none content changes are silently ignored by assistive tech,
+     the same reasoning already applied to #file-input's own sr-only rule
+     just below. */
+  .floatbar-status {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0,0,0,0); white-space: nowrap; border: 0; padding: 0; margin: -1px;
+  }
 
   /* Drop zone — same centralised pattern every other Organica tool uses
      (shared/_template.html's own #drop-hint/.drop-icon), replacing Soul's
@@ -344,15 +351,13 @@
     </div>
   </div>
 
-  <div class="org-floatbar__sep"></div>
-
-  <!-- Status feedback — moved out of the header into the same centralised
-       floatbar (system + video feedback both land here now). Kept the
-       EXACT classes Organica.status() already queries by selector
+  <!-- Status feedback — visually hidden (see .floatbar-status above), kept
+       only as an aria-live announcer so errors/play-state changes still
+       reach a screen reader without showing text in the visible bar. Kept
+       the EXACT classes Organica.status() already queries by selector
        (.org-header__dot/.org-header__state), so setStatus() needed no
-       changes — only the element's own location moved. Truncates long
-       messages rather than letting them blow out the bar's fixed
-       layout; the full text is still in the title attribute. -->
+       changes — only its visibility did. No separator before it now that
+       nothing is visibly rendered here. -->
   <output class="org-header__status floatbar-status" aria-live="polite" aria-atomic="true">
     <span class="org-header__dot" id="status-dot"></span>
     <span class="org-header__state" id="status-text" title="Load an SVG to begin">Load an SVG to begin</span>
