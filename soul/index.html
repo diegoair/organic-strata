@@ -154,31 +154,19 @@
   }
   .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-  .mini-btn {
-    font-family: var(--font);
-    font-size: 9px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    border: 1px solid var(--border);
-    background: none;
-    color: var(--accent);
-    padding: 6px 0;
-    cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .mini-btn:hover { border-color: var(--accent); color: var(--ink); }
-
-  /* .panel-select, .ctrl-row/.ctrl-label/.ctrl-val, input[type=range] —
+  /* .mini-btn, .panel-select, .ctrl-row/.ctrl-label/.ctrl-val, input[type=range] —
      deliberately NOT redefined here. A first version duplicated all of
      these locally; since this <style> block loads AFTER
      organica-panel.css, the local (plainer) rules silently WON the
      cascade, overriding the shared component's own richer behaviour —
      concretely, its filled-track custom-property system and thumb
-     hover-scale never applied, and Soul's sliders looked and behaved
-     like a worse copy of every other tool's own for no reason. Caught by
-     a direct design-system consistency check, not visually — removed
-     the local duplicates and wired Organica.enhanceSliders(document)
-     (below) instead of re-inventing what the shared file already does. */
+     hover-scale never applied, and .mini-btn's local copy reintroduced
+     9px uppercase tracked text, the exact style the July 25 panel-
+     component pass moved every tool away from (sentence case, no
+     tracking on labels). Caught by a direct design-system consistency
+     check, not visually — removed the local duplicates and wired
+     Organica.enhanceSliders(document) (below) instead of re-inventing
+     what the shared file already does. */
 </style>
 </head>
 <body>
