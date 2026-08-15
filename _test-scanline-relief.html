@@ -1,0 +1,122 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Scanline relief — concept test</title>
+<style>
+body{background:#111;color:#eee;font-family:monospace;padding:20px}
+canvas{border:1px solid #444;background:#fff}
+.row{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+label{display:block;margin:6px 0;font-size:12px}
+input[type=range]{width:220px;vertical-align:middle}
+</style></head><body>
+<h3>Scanline relief — brightness-as-vertical-displacement along horizontal scanlines</h3>
+<p>Not a per-tool feature yet — a standalone algorithm prototype, same "test before deciding where it lives" discipline as Loom's own concept-test pages. Reference: mode 5 of generative-gestaltung.de's P_4_3_1_01 (a p5.js sketch — studied for the TECHNIQUE, no code copied, hand-rolled here in vanilla Canvas2D/SVG per this project's own conventions).</p>
+<div class="row">
+  <div>
+    <div><label>Row spacing (px) <span id="v-rowgap">6</span><input type="range" id="rowgap" min="2" max="16" value="6"></label></div>
+    <div><label>Sample step (px) <span id="v-step">2</span><input type="range" id="step" min="1" max="8" value="2"></label></div>
+    <div><label>Amplitude <span id="v-amp">14</span><input type="range" id="amp" min="0" max="40" value="14"></label></div>
+    <div><label>Invert <input type="checkbox" id="invert"></label></div>
+    <button id="btn-export">Export SVG</button>
+    <canvas id="c" width="500" height="500"></canvas>
+  </div>
+  <div>
+    <div>Source (for reference)</div>
+    <canvas id="src" width="250" height="250"></canvas>
+    <pre id="stats"></pre>
+  </div>
+</div>
+<script>
+const img = new Image();
+img.crossOrigin = 'anonymous';
+img.onload = () => { draw(); };
+img.src = '/halide/test-photos/images%20(1).jpeg';
+
+const srcCanvas = document.getElementById('src');
+const sctx = srcCanvas.getContext('2d');
+let brightData = null, bw = 0, bh = 0;
+
+function sampleBrightness() {
+  sctx.clearRect(0,0,srcCanvas.width,srcCanvas.height);
+  sctx.drawImage(img, 0, 0, srcCanvas.width, srcCanvas.height);
+  const id = sctx.getImageData(0, 0, srcCanvas.width, srcCanvas.height);
+  bw = srcCanvas.width; bh = srcCanvas.height;
+  brightData = new Float32Array(bw*bh);
+  for (let i = 0; i < bw*bh; i++) {
+    const r = id.data[i*4], g = id.data[i*4+1], b = id.data[i*4+2];
+    brightData[i] = (0.2126*r + 0.7152*g + 0.0722*b) / 255;   // relative luminance, same weights the rest of this repo's own tools use
+  }
+}
+
+function brightnessAt(x01, y01) {
+  const xi = Math.max(0, Math.min(bw-1, Math.round(x01*bw)));
+  const yi = Math.max(0, Math.min(bh-1, Math.round(y01*bh)));
+  return brightData[yi*bw+xi];
+}
+
+function buildScanlines(W, H, rowGap, step, amp, invert) {
+  const lines = [];
+  for (let y = rowGap/2; y < H; y += rowGap) {
+    const pts = [];
+    for (let x = 0; x <= W; x += step) {
+      const b = brightnessAt(x/W, y/H);
+      const bb = invert ? (1-b) : b;
+      pts.push([x, y - bb*amp]);
+    }
+    lines.push(pts);
+  }
+  return lines;
+}
+
+function pathD(pts) {
+  let d = 'M ' + pts[0][0].toFixed(1) + ',' + pts[0][1].toFixed(1);
+  for (let i = 1; i < pts.length; i++) d += ' L ' + pts[i][0].toFixed(1) + ',' + pts[i][1].toFixed(1);
+  return d;
+}
+
+function draw() {
+  sampleBrightness();
+  const c = document.getElementById('c'), ctx = c.getContext('2d');
+  const rowGap = +document.getElementById('rowgap').value;
+  const step = +document.getElementById('step').value;
+  const amp = +document.getElementById('amp').value;
+  const invert = document.getElementById('invert').checked;
+  const lines = buildScanlines(c.width, c.height, rowGap, step, amp, invert);
+  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,c.width,c.height);
+  ctx.strokeStyle = '#0a0a0a'; ctx.lineWidth = 1;
+  lines.forEach(pts => {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.stroke();
+  });
+  document.getElementById('stats').textContent = 'Lines: ' + lines.length + '\nPoints/line: ' + lines[0].length + '\nTotal points: ' + (lines.length*lines[0].length);
+}
+
+['rowgap','step','amp'].forEach(id => {
+  document.getElementById(id).addEventListener('input', e => {
+    document.getElementById('v-'+id).textContent = e.target.value;
+    draw();
+  });
+});
+document.getElementById('invert').addEventListener('change', draw);
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  const c = document.getElementById('c');
+  const rowGap = +document.getElementById('rowgap').value;
+  const step = +document.getElementById('step').value;
+  const amp = +document.getElementById('amp').value;
+  const invert = document.getElementById('invert').checked;
+  const lines = buildScanlines(c.width, c.height, rowGap, step, amp, invert);
+  let svg = '<svg xmlns="http://www.w3.org/2000/svg" width="'+c.width+'" height="'+c.height+'" viewBox="0 0 '+c.width+' '+c.height+'">';
+  svg += '<rect width="100%" height="100%" fill="#ffffff"/>';
+  svg += '<g fill="none" stroke="#0a0a0a" stroke-width="1">';
+  lines.forEach(pts => { svg += '<path d="'+pathD(pts)+'"/>'; });
+  svg += '</g></svg>';
+  window.__lastSVG = svg;
+  const blob = new Blob([svg], {type:'image/svg+xml'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'scanline-relief.svg';
+  a.click();
+});
+</script>
+</body></html>

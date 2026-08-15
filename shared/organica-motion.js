@@ -353,31 +353,19 @@
     // own contract only needs `.kill()`/`.delay()` to exist, so this is a
     // legitimate second implementation strategy behind the same interface,
     // not a special case bolted awkwardly onto the tween-based one.
-    wobble: function (el, p, ctx) {
-      const prim = ctx.primitive;
-      const amt = p.amount != null ? p.amount : 0.4;
-      const speed = p.duration ? 3 / p.duration : 1;   // Duration still means "how fast" here — inverted, since a wobble has no fixed cycle length to call its own duration
-      const seedX = prim.cx * 0.01, seedY = prim.cy * 0.01 + 500;
-      const amp = amt * Math.max(prim.r || 10, 10) * 1.3;
-      const origin = { x: 0, y: 0, rot: 0 };
-      const startTime = gsap.ticker.time;
-      let delaySec = 0;
-      const tick = () => {
-        const t = gsap.ticker.time - startTime;
-        if (t < delaySec) return;
-        const lt = (t - delaySec) * speed;
-        const nx = Organica.noise.simplex3(seedX, seedY, lt);
-        const ny = Organica.noise.simplex3(seedX + 37.1, seedY, lt);
-        const nr = Organica.noise.simplex3(seedX, seedY + 71.3, lt);
-        gsap.set(el, { x: nx * amp, y: ny * amp, rotation: nr * 16 * amt, transformOrigin: '50% 50%' });
-      };
-      gsap.ticker.add(tick);
-      const handle = {
-        kill: () => { gsap.ticker.remove(tick); return handle; },
-        delay: (d) => { if (d === undefined) return delaySec; delaySec = d; return handle; },
-      };
-      return handle;
-    },
+    // Per-element wobble is handled as a special case in `animate()`
+    // itself (see `animateWobbleBatch` below), NOT here — a real
+    // performance bug found by testing at Pollen-export scale (5748
+    // primitives), not assumed fine from the small cases verified
+    // earlier: N independent `gsap.ticker.add()` callbacks, each doing 3
+    // `simplex3` calls and a `gsap.set()`, measured at **1fps** with
+    // 5748 elements — vs. **51fps** for the exact same element count
+    // using a real batched GSAP tween (`pressure`), isolating the cost
+    // to wobble's OWN per-callback/per-gsap.set overhead, not "SVG DOM
+    // doesn't scale" in general. This entry is kept only so
+    // `PATTERNS.wobble` still resolves to something (e.g. for any code
+    // that inspects the registry), but `animate()` never calls it.
+    wobble: function () { return { kill() {}, delay() {} }; },
 
     // 8. Morph — the other "not one of the 6" addition, this one from
     // MorphSVG (vendored since the engine's own first commit, never
@@ -482,7 +470,63 @@
   // `primitives`, same index), staggered per `staggerCfg`, returns the
   // list of GSAP tweens/timelines created (so the caller can pause/kill
   // them without re-deriving what was built).
+  // Wobble batched into ONE gsap.ticker callback that loops every active
+  // element directly, writing `el.style.transform` as a single string
+  // rather than going through `gsap.set()` per element (GSAP's own
+  // per-call property-parsing/plugin-dispatch overhead, multiplied by
+  // thousands of calls a frame, was the actual cost — not the DOM size).
+  // Verified fix: 5748 elements, 1fps → see organica-motion.js's own
+  // wobble() header for the measured before/after.
+  function animateWobbleBatch(targets, primitives, p, staggerCfg) {
+    const amt = p.amount != null ? p.amount : 0.4;
+    const speed = p.duration ? 3 / p.duration : 1;
+    const startTime = gsap.ticker.time;
+    const items = targets.map((el, i) => {
+      const prim = primitives[i];
+      el.style.transformOrigin = '50% 50%';   // set once, not every frame
+      return {
+        el,
+        seedX: prim.cx * 0.01, seedY: prim.cy * 0.01 + 500,
+        amp: amt * Math.max(prim.r || 10, 10) * 1.3,
+        delaySec: staggerDelay(prim, i, primitives, staggerCfg),
+      };
+    });
+    function tick() {
+      const t = gsap.ticker.time - startTime;
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        if (t < it.delaySec) continue;
+        const lt = (t - it.delaySec) * speed;
+        const nx = Organica.noise.simplex3(it.seedX, it.seedY, lt);
+        const ny = Organica.noise.simplex3(it.seedX + 37.1, it.seedY, lt);
+        const nr = Organica.noise.simplex3(it.seedX, it.seedY + 71.3, lt);
+        it.el.style.transform = 'translate(' + (nx * it.amp).toFixed(2) + 'px,' + (ny * it.amp).toFixed(2) + 'px) rotate(' + (nr * 16 * amt).toFixed(2) + 'deg)';
+      }
+    }
+    gsap.ticker.add(tick);
+    // A single shared kill for every item — Soul's own stopMotion() calls
+    // .kill() once per primitive, but gsap.ticker.remove() on an already-
+    // removed function is a harmless no-op, and clearing `style.transform`
+    // directly here (not relying on GSAP's clearProps, which doesn't know
+    // about a property this batch wrote outside of gsap.set/to) is what
+    // actually resets the pose.
+    // Soul's own stopMotion() calls `.kill()` once PER PRIMITIVE (it has
+    // no way to know these N handles are secretly the same batch) — an
+    // idempotency guard keeps that O(N) call pattern from redoing the
+    // full O(N) reset loop N times over (O(N²) for the whole Stop
+    // action), the exact class of cost this same pattern was just fixed
+    // for on the per-frame side.
+    let killed = false;
+    const killAll = () => {
+      if (killed) return; killed = true;
+      gsap.ticker.remove(tick);
+      items.forEach(it => { it.el.style.transform = ''; });
+    };
+    return items.map(() => ({ kill: killAll, delay: () => {} }));
+  }
+
   motion.animate = function animate(targets, primitives, patternName, patternParams, staggerCfg) {
+    if (patternName === 'wobble') return animateWobbleBatch(targets, primitives, patternParams || {}, staggerCfg);
     const fn = PATTERNS[patternName];
     if (!fn) throw new Error('Unknown pattern: ' + patternName);
     const tweens = [];

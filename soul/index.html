@@ -414,6 +414,23 @@ function playMotion() {
   }
   if (!targets.length) { setStatus('', 'Nothing this pattern can animate (try a different pattern or source)'); return; }
 
+  // Wobble writes a fresh inline `transform` to every element on every
+  // animation frame — measured live against a real ~5700-primitive
+  // Pollen export: smooth (60fps+) up to ~3000 elements, a sharp cliff
+  // to 1-3fps by ~4000+ (the browser's own SVG paint/composite cost for
+  // that many continuously-changing elements, not a JS bottleneck — a
+  // clean isolated rAF loop with zero GSAP involvement showed the same
+  // ceiling). GSAP's own real tweens (every other pattern) don't hit
+  // this at the same scale — verified the identical 5748-primitive case
+  // at a smooth 51fps on `pressure`. Warned here rather than silently
+  // freezing the tab; large particle counts are the documented Three.js/
+  // WebGL follow-up (docs/SOUL.md §7), not something this DOM/SVG stage
+  // is built for.
+  if (pattern === 'wobble' && targets.length > 3000) {
+    setStatus('', 'Wobble on ' + targets.length + ' primitives will be very slow in this browser (SVG paint cost, not this engine) — try a smaller source or a different pattern');
+    return;
+  }
+
   activeTweens = Organica.motion.animate(targets, primitives, pattern, params, staggerCfg);
   setStatus('active', 'Playing ' + pattern + ' on ' + targets.length + ' primitives');
 }

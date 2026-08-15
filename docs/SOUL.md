@@ -315,6 +315,78 @@ and after rather than tuned by eye:**
   richer motion classes, not just re-tuned versions of the same 5
   transforms.
 
+## 6a. Real-world stress test — a live Pollen "Hatch Flow" export, and a scanline-relief prototype
+
+Diego pointed at a reference (generative-gestaltung.de's `P_4_3_1_01`, a
+p5.js sketch — studied for the TECHNIQUE only, no code copied, consistent
+with this project's own "reference, don't import" rule for creative-coding
+frameworks). Two things came out of evaluating it against a real photo
+(`halide/test-photos/`) run through the actual production pipeline, not a
+synthetic test case.
+
+**Pollen already covers most of it.** The sketch's mode 1 (line angle from
+brightness) and mode 3 (variable-size dots) are already real Pollen
+features — Line marks with `Angle Range` (`ranged(min,max,range,random,b,rnd)`,
+`b` = local brightness) for mode 1, and Pollen's own default Circle
+behaviour for mode 3. Pollen's **Flow** mode (align to the image's
+isophotes — 90° off the local gradient) is more sophisticated than the
+reference's flat linear brightness ramp. Verified end-to-end: loaded a
+real photo into Pollen, applied the built-in **"Hatch Flow"** preset
+(`pointType:'stroke', strokeStyle:'line', ck-angle-flow:true` — confirmed
+by reading the preset table, not assumed), exported real SVG (2.3MB,
+5748 line-mark paths, genuine contour-following hatching), loaded it into
+Soul.
+
+**A real, serious performance bug found at this scale**: `wobble` on 5748
+primitives measured **1fps** — the browser essentially frozen. Isolated
+carefully (a real GSAP tween — `pressure` — on the SAME 5748 elements
+measured a smooth **51fps**, ruling out "too many SVG elements" as the
+cause): the fault was wobble's own architecture, N independent
+`gsap.ticker.add()` callbacks each doing 3 `simplex3()` calls plus a
+`gsap.set()`. Fixed by batching into ONE ticker callback that loops every
+active element directly, writing `el.style.transform` as a single string
+(bypassing GSAP's own per-call property-dispatch overhead). Re-profiling
+after the fix found the true remaining ceiling isn't JS cost at all
+(isolated: 17,244 `simplex3` calls = 2ms, 5748 raw style writes = 10ms) —
+it's the BROWSER's own SVG paint/composite cost for that many
+continuously-changing elements. Binary-searched cleanly (each point
+tested in isolation, since a first sweep done as one chained sequential
+function gave nonsense results across the board — a harness bug, not a
+real per-scale finding, caught by re-testing n=100 alone and getting a
+normal 62fps): **smooth (60fps+) up to ~3000 elements, a sharp cliff to
+1-3fps by ~4000**. A UI warning was added in `soul/index.html`'s own
+`playMotion()` (Wobble specifically, >3000 primitives) rather than letting
+the tab silently freeze — the real fix (Three.js/WebGL for large particle
+counts) is the same follow-up already flagged during scoping (§7).
+
+**An open, unresolved finding, disclosed rather than hidden**: `growth`
+(DrawSVG) showed inconsistent, hard-to-explain behaviour on the
+scanline-relief prototype's own multi-segment polyline paths (250+ `L`
+commands per path) — `strokeDasharray` stuck at `"0px, 999999px"` for a
+disproportionate fraction of the tween's duration in repeated isolated
+tests, independent of segment count (even a 2-segment zigzag showed it),
+independent of which browser tab ran it (reproduced fresh in a brand-new
+tab, ruling out session/tab degradation). `wobble` on the SAME
+scanline-relief content works correctly and looks genuinely good
+(screenshot-confirmed, real organic "breathing" line-relief). Not
+root-caused tonight — flagged honestly rather than either (a) claiming
+growth+scanline works when it doesn't reliably, or (b) spending
+unbounded time chasing what may be a narrow GSAP DrawSVG quirk with
+many-segment paths specifically. Worth a focused pass on its own.
+
+**Scanline relief itself** — the reference's mode 5 (brightness as
+vertical displacement along horizontal scanlines, a topographic/relief
+look) has no equivalent in any existing Organica tool. Prototyped
+standalone at `/_test-scanline-relief.html` (same "test before deciding
+where it lives" discipline as Loom's own concept-test pages) — real
+luminance sampling (`0.2126R+0.7152G+0.0722B`, the same weights every
+other tool in this repo already uses), real SVG export (verified: 125
+real `<path>` elements, not a raster embed). Where this belongs
+architecturally is still open — closest existing kin is Halide (image
+processing) or a small new tool, not Soul itself (Soul animates
+primitives, it doesn't decompose raster images — that boundary was set
+explicitly during the engine's own scoping).
+
 ## 7. Not built yet
 
 - **Video/GIF export** — PNG/SVG (a single-frame snapshot, mid-animation
