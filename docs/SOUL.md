@@ -471,6 +471,44 @@ text" renders sentence-case, panel width visibly narrower with layout intact,
 functions correctly on a live Genesis seed. Four separate commits, one per
 defect, each independently revertable.
 
+A follow-up round on the same request found two more real discrepancies in
+the floatbar specifically, both caught only because Diego pushed back after
+an initial "checked, matches" claim that hadn't actually diffed the SVG path
+data: the **Play icon** was a solid filled triangle with an arc-based path,
+not Camo Turing's stroked-outline triangle (`fill:none`, straight-line path
+`M4.5 3.2v9.6l9-4.8-9-4.8z`) — same concept, genuinely different technique.
+The **Loop icon** reused Camo Turing's Reset arrow shape but with the
+arrowhead coordinates altered (`M13 2.8v3h-3` vs Camo Turing's own
+`M13 2.3V6h-3.7`) — not byte-identical. Both fixed to match exactly.
+
+A third, larger gap surfaced in the same pass: Soul had Play/Stop, not
+Play/**Pause**. Camo Turing's floatbar is a genuine toggle — freeze the
+running state in place, resume from there — plus a separate Reset; Soul's
+Stop only covered the reset half, with no way to freeze an animation and
+pick it back up. Fixed by replacing the two buttons with one `#btn-playpause`
+toggle, the exact id/icon-swap/aria-label technique Camo Turing's own
+`togglePlay()` uses (`ICO_PLAY`/`ICO_PAUSE` consts ported verbatim). GSAP
+tweens (every pattern except wobble) already support `.pause()`/`.resume()`
+natively — no core change needed there. `wobble`'s batched ticker handle
+didn't have those methods, so they were added to `animateWobbleBatch`'s
+return value in `organica-motion.js`.
+
+The first version of that addition had a real bug, caught by a controlled
+test rather than assumed correct from the visual state changing: it shifted
+`startTime` using `gsap.ticker.time` deltas, but `ticker.time` only advances
+when the ticker actually ticks — with wobble as the ticker's only listener,
+pausing it (removing that one callback) can let GSAP's own ticker go idle
+for the whole pause, so `ticker.time` reads the identical stale value at
+both the pause and resume moments, computing a zero shift. A controlled
+same-script test (busy-wait 300ms real time, comparing continuous play
+against pause→wait→resume) showed the bug directly: continuous play across
+that gap moved the shape ~26px on the next tick (expected, coarse manual
+ticking); the paused case ALSO produced a large jump instead of a small one,
+proving the shift wasn't being applied. Fixed by measuring the pause
+duration with `performance.now()` instead — a live clock independent of
+whether the ticker itself is running. Re-verified with the identical
+controlled test: the paused case now shows an exact 0px jump on resume.
+
 ## 6a. Real-world stress test — a live Pollen "Hatch Flow" export, and a scanline-relief prototype
 
 Diego pointed at a reference (generative-gestaltung.de's `P_4_3_1_01`, a
