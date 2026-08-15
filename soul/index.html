@@ -168,23 +168,17 @@
   }
   .mini-btn:hover { border-color: var(--accent); color: var(--ink); }
 
-  .panel-select {
-    font-family: var(--font); font-size: 10px;
-    background: var(--panel); border: 1px solid var(--border); color: var(--ink);
-    padding: 4px 6px; width: 100%; outline: none; cursor: pointer;
-  }
-  .panel-select:hover { border-color: var(--mid); }
-
-  .ctrl-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
-  .ctrl-label { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); white-space: nowrap; flex-shrink: 0; min-width: 62px; }
-  .ctrl-val { font-size: 10px; color: var(--accent); min-width: 32px; text-align: right; flex-shrink: 0; }
-  input[type=range] {
-    -webkit-appearance: none; flex: 1; min-width: 0; height: 2px;
-    background: var(--border); border-radius: 1px; outline: none; cursor: pointer;
-  }
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: var(--ink); cursor: pointer;
-  }
+  /* .panel-select, .ctrl-row/.ctrl-label/.ctrl-val, input[type=range] —
+     deliberately NOT redefined here. A first version duplicated all of
+     these locally; since this <style> block loads AFTER
+     organica-panel.css, the local (plainer) rules silently WON the
+     cascade, overriding the shared component's own richer behaviour —
+     concretely, its filled-track custom-property system and thumb
+     hover-scale never applied, and Soul's sliders looked and behaved
+     like a worse copy of every other tool's own for no reason. Caught by
+     a direct design-system consistency check, not visually — removed
+     the local duplicates and wired Organica.enhanceSliders(document)
+     (below) instead of re-inventing what the shared file already does. */
 </style>
 </head>
 <body>
@@ -839,6 +833,7 @@ setStatus('', 'Load an SVG to begin');
 syncGrowthHint();
 syncLoop(ctrl('rg-loop-seconds'));
 Organica.autoLabelPanel(document);
+Organica.enhanceSliders(document);
 </script>
 </body>
 </html>
