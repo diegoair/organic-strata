@@ -225,6 +225,35 @@ clean reset, not just pausing mid-pose.
   ACTUAL current pose, not a reset/rest state); exported PNG decoded back
   and its pixels sampled, confirming the real content colour is present
   at the correct dimensions (2x scale).
+- Edge cases: empty paste, genuinely malformed XML, and valid-but-empty
+  SVG (only `<text>`, no recognisable shapes) each produce a distinct,
+  correct status message rather than a silent failure or a crash; the
+  Growth pattern correctly refuses (with a clear message, 0 tweens
+  created) when every loaded primitive is a point (a circle has no
+  meaningful "stroke being drawn"); loading a new SVG while a previous
+  animation is mid-play correctly kills the old tweens first; switching
+  Pattern and hitting Play again while already playing correctly replaces
+  the running animation rather than stacking a second one on top.
+- Scale-tested against Loom's own real Triangular export (171 primitives:
+  170 cells + 1 guide rect) — 8ms parse+render, all three stagger
+  formulas confirmed producing genuinely varying per-tween delays at this
+  scale (via `tween.delay()`, not assumed), zero console errors.
+
+**Two real bugs found and fixed by testing every code path, not just the
+ones exercised in earlier passes**: (1) Chromium's XML parser doesn't
+replace the document root on a parse error — it keeps the outer tag open
+and injects a `<parsererror>` as a CHILD, so genuinely malformed markup
+was silently read as "valid SVG, zero shapes found" instead of a real parse
+error; fixed by explicitly checking for an injected `<parsererror>` node.
+(2) The `noise` stagger formula referenced a bare `noise.simplexFbm2(...)`
+that was never in scope in `organica-motion.js`'s own closure (that name
+only exists inside `organica-noise.js`'s own IIFE) — every earlier
+verification pass happened to test `index`/`distance` stagger and
+generalised "stagger works" from that, without ever actually selecting
+`noise` and pressing Play; fixed to `Organica.noise.simplexFbm2`, the same
+cross-file access pattern Warping/Komorebi/Camo Turing already use. Lesson
+recorded for next time: exercise every option in a dropdown at least once,
+not a representative sample.
 
 ## 7. Not built yet
 

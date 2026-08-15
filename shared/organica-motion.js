@@ -180,6 +180,17 @@
     if (!svgEl || svgEl.tagName.toLowerCase() !== 'svg') {
       throw new Error('Not a valid SVG document.');
     }
+    // Chromium's XML parser doesn't replace the document root on a parse
+    // error — it keeps the outer tag open and injects a <parsererror> as
+    // a CHILD, so `documentElement.tagName === 'svg'` still passes above
+    // even for genuinely broken markup (caught live: a truncated <svg>
+    // tag silently produced "found no recognisable shapes" instead of a
+    // real parse error, since <parsererror> just isn't in SUPPORTED and
+    // gets walked past like any other unknown tag). Checked explicitly
+    // rather than trusting the root tag alone.
+    if (svgEl.getElementsByTagNameNS('http://www.w3.org/1999/xhtml', 'parsererror').length) {
+      throw new Error('Malformed SVG markup.');
+    }
     const vb = svgEl.getAttribute('viewBox');
     let width = parseFloat(svgEl.getAttribute('width')) || 0;
     let height = parseFloat(svgEl.getAttribute('height')) || 0;
@@ -321,7 +332,13 @@
     }
     if (by === 'noise') {
       const scale = cfg.noiseScale || 0.006;
-      const n = noise.simplexFbm2(prim.cx * scale, prim.cy * scale);   // reuses this file's own Simplex noise, not a separate RNG
+      // Organica.noise, not a bare `noise` — this file has no local noise
+      // object of its own (that's organica-noise.js's own closure); a
+      // first version referenced the bare name assuming it was in scope,
+      // which it never was — caught only when the 'noise' stagger option
+      // was actually exercised for the first time, not by any earlier
+      // pass that happened to test 'index'/'distance' and generalised.
+      const n = Organica.noise.simplexFbm2(prim.cx * scale, prim.cy * scale);
       return ((n + 1) / 2) * amount * all.length * 0.3;
     }
     return 0;
