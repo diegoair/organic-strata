@@ -300,8 +300,8 @@
 
   <div class="org-floatbar__sep"></div>
 
-  <button class="org-floatbar__btn" id="btn-play" aria-label="Play" onclick="playMotion()">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 3.2v9.6l9-4.8-9-4.8z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" fill="none"/></svg>
+  <button class="org-floatbar__btn" id="btn-playpause" aria-label="Play" onclick="togglePlayPause()">
+    <svg class="ico" id="ico-playpause" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 3.2v9.6l9-4.8-9-4.8z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" fill="none"/></svg>
   </button>
   <button class="org-floatbar__btn" id="btn-stop" aria-label="Stop" onclick="stopMotion()">
     <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1" fill="currentColor"/></svg>
@@ -391,6 +391,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 let currentParse = null;   // { primitives, canvas } — the one thing render/stats/motion all read, so they can't disagree
 let activeTweens = [];     // whatever playMotion() last created — stopMotion() kills exactly these, nothing guessed
+let isPaused = false;      // freeze-in-place state — distinct from "nothing playing" (activeTweens.length === 0)
 
 // ── ZOOM & PAN — the same shared mechanics every other Organica tool
 // uses (Organica.createZoomPan: wheel zooms toward the cursor, drag pans
@@ -650,6 +651,8 @@ function playMotion() {
   }
 
   activeTweens = Organica.motion.animate(targets, primitives, pattern, params, staggerCfg);
+  isPaused = false;
+  setPlayIcon(true);
   setStatus('active', 'Playing ' + pattern + ' on ' + targets.length + ' primitives');
 
   if (loopSeconds > 0) loopTimeoutId = setTimeout(stopMotion, loopSeconds * 1000);
@@ -661,6 +664,8 @@ function stopMotion() {
   const wasPlaying = activeTweens.length > 0;
   activeTweens.forEach(t => t.kill());
   activeTweens = [];
+  isPaused = false;
+  setPlayIcon(false);
   if (currentParse) {
     currentParse.primitives.forEach(p => {
       if (!p.el) return;
@@ -672,6 +677,34 @@ function stopMotion() {
       if (p._morphRestD) p.el.setAttribute('d', p._morphRestD);
     });
     if (wasPlaying) setStatus('active', currentParse.primitives.length + ' primitives loaded');
+  }
+}
+
+// ── PLAY / PAUSE — Camo Turing's own pattern verbatim: one button whose
+// icon swaps between a play-triangle and pause-bars glyph, aria-label
+// tracking the state it'll switch TO. Pause freezes every tween/timeline
+// in place via GSAP's own .pause()/.resume() (the wobble batch handle
+// gets the same two methods wired in organica-motion.js, since it isn't
+// a real GSAP tween) — Stop stays the separate hard reset (Camo Turing's
+// own analogue there is Reset, a different action from Pause).
+const ICO_PAUSE = '<path d="M5 3.5v9M11 3.5v9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>';
+const ICO_PLAY = '<path d="M4.5 3.2v9.6l9-4.8-9-4.8z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" fill="none"/>';
+function setPlayIcon(playing) {
+  ctrl('ico-playpause').innerHTML = playing ? ICO_PAUSE : ICO_PLAY;
+  ctrl('btn-playpause').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+}
+function togglePlayPause() {
+  if (!activeTweens.length) { playMotion(); return; }   // nothing running — Play starts fresh, same as before
+  if (isPaused) {
+    activeTweens.forEach(t => t.resume && t.resume());
+    isPaused = false;
+    setPlayIcon(true);
+    if (currentParse) setStatus('active', 'Playing ' + ctrl('sel-pattern').value + ' on ' + activeTweens.length + ' primitives');
+  } else {
+    activeTweens.forEach(t => t.pause && t.pause());
+    isPaused = true;
+    setPlayIcon(false);
+    setStatus('active', 'Paused');
   }
 }
 

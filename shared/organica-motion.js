@@ -480,7 +480,7 @@
   function animateWobbleBatch(targets, primitives, p, staggerCfg) {
     const amt = p.amount != null ? p.amount : 0.4;
     const speed = p.duration ? 3 / p.duration : 1;
-    const startTime = gsap.ticker.time;
+    let startTime = gsap.ticker.time;
     const items = targets.map((el, i) => {
       const prim = primitives[i];
       el.style.transformOrigin = '50% 50%';   // set once, not every frame
@@ -522,7 +522,37 @@
       gsap.ticker.remove(tick);
       items.forEach(it => { it.el.style.transform = ''; });
     };
-    return items.map(() => ({ kill: killAll, delay: () => {} }));
+    // Pause/resume freeze the pose in place rather than resetting it (that's
+    // Stop/killAll's job) — removing `tick` from the ticker stops every
+    // element's transform from being overwritten, and on resume `startTime`
+    // is shifted forward by the paused duration so `t` in tick() picks up
+    // from where it left off instead of jumping ahead by however long the
+    // pause lasted.
+    //
+    // Measured via performance.now(), NOT gsap.ticker.time: ticker.time only
+    // advances when the ticker actually fires a tick, and if wobble's own
+    // callback is the ONLY thing registered on gsap.ticker (no other pattern
+    // running elsewhere on the page), removing it can let GSAP's ticker go
+    // idle for the whole pause — so reading gsap.ticker.time at pause and
+    // again at resume can read the exact same stale value regardless of how
+    // much real time passed, computing a zero shift. Verified live: with a
+    // real 300ms pause, the ticker.time-based version produced a full
+    // 300ms jump in the pose on the very next tick after resume (no shift
+    // applied); performance.now() has no such gap since it's a live clock
+    // independent of whether the ticker itself is running.
+    let pausedAt = null;
+    const pauseAll = () => {
+      if (killed || pausedAt !== null) return;
+      pausedAt = performance.now();
+      gsap.ticker.remove(tick);
+    };
+    const resumeAll = () => {
+      if (killed || pausedAt === null) return;
+      startTime += (performance.now() - pausedAt) / 1000;
+      pausedAt = null;
+      gsap.ticker.add(tick);
+    };
+    return items.map(() => ({ kill: killAll, delay: () => {}, pause: pauseAll, resume: resumeAll }));
   }
 
   motion.animate = function animate(targets, primitives, patternName, patternParams, staggerCfg) {
