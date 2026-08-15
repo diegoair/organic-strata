@@ -1,0 +1,551 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Flow Field — Organica exploration</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<style>
+  :root {
+    --ink: #0a0a0a; --paper: #f6e8c3; --panel: #131313; --border: #2a2a2a; --mid: #8a8578; --accent: #e94f37;
+    /* --mark: the actual canvas stroke colour. Organica's own --ink is a
+       DARK mark meant for a LIGHT paper background (every other tool's
+       convention) — this canvas is the opposite pairing, near-black on
+       near-black, so a literal --ink stroke read as barely-visible grey
+       (only the alpha channel lifted it off pure background at all), a
+       real contrast bug caught by direct feedback, not a design choice.
+       --mark reuses --paper's own light cream for legible lines on a
+       dark canvas — same "read the colour from a CSS variable, not a
+       hardcoded hex" requirement, just the correctly-paired variable. */
+    --mark: var(--paper);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #060606; color: var(--paper); font-family: -apple-system, sans-serif; display: flex; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; display: flex; align-items: center; justify-content: center; }
+  canvas { display: block; }
+  #panel { width: 280px; flex-shrink: 0; background: var(--panel); border-left: 1px solid var(--border); padding: 16px; overflow-y: auto; }
+  h1 { font-size: 13px; margin: 0 0 4px; }
+  .sub { font-size: 10px; color: var(--mid); margin: 0 0 16px; line-height: 1.5; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .row label { font-size: 10px; color: var(--mid); flex-shrink: 0; }
+  .row .val { font-size: 10px; min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+  input[type=range] { flex: 1; accent-color: var(--accent); }
+  button { width: 100%; background: none; border: 1px solid var(--border); color: var(--paper); padding: 7px; font-size: 11px; cursor: pointer; margin-bottom: 10px; }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  .toggle-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .toggle-row label { font-size: 10px; color: var(--mid); }
+  .hint { font-size: 9.5px; color: var(--mid); line-height: 1.5; margin: 10px 0; }
+  .sec-title { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mid); margin: 16px 0 8px; border-top: 1px solid var(--border); padding-top: 12px; }
+  select { width: 100%; background: #0a0a0a; color: var(--paper); border: 1px solid var(--border); padding: 7px; font-size: 11px; margin-bottom: 4px; cursor: pointer; }
+  [data-panel] { display: none; }
+  [data-panel].active { display: block; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="panel">
+  <h1>Flow Field</h1>
+  <p class="sub">Organica exploration — one noise-driven vector-field engine, particle trails. Perlin flow fields, Tyler Hobbs' base technique.</p>
+
+  <select id="mode-select">
+    <option value="static">Static field</option>
+    <option value="evolve">Evolving field</option>
+    <option value="svg">SVG seed</option>
+  </select>
+
+  <div class="sec-title">Engine (shared by every mode)</div>
+  <div class="row"><label>Cell size</label><input type="range" id="rg-cell" min="8" max="60" step="2" value="20"><span class="val" id="v-cell">20</span></div>
+  <div class="row"><label>Noise scale</label><input type="range" id="rg-noisescale" min="0.01" max="0.3" step="0.005" value="0.08"><span class="val" id="v-noisescale">0.08</span></div>
+  <div class="row"><label>Angle mult</label><input type="range" id="rg-anglemult" min="0.5" max="6" step="0.1" value="2"><span class="val" id="v-anglemult">2.0</span></div>
+  <div class="row"><label>Speed</label><input type="range" id="rg-speed" min="0.2" max="6" step="0.1" value="1.5"><span class="val" id="v-speed">1.5</span></div>
+  <div class="row"><label>Particles</label><input type="range" id="rg-count" min="20" max="2000" step="10" value="400"><span class="val" id="v-count">400</span></div>
+  <div class="row"><label>Fade</label><input type="range" id="rg-fade" min="1" max="40" step="1" value="8"><span class="val" id="v-fade">8</span></div>
+  <div class="row"><label>Mark style</label>
+    <select id="sel-markstyle" style="margin:0;width:auto;flex:1;padding:5px 6px;font-size:10px;">
+      <option value="line">Line</option>
+      <option value="dots">Dots</option>
+      <option value="drop">Drop marks</option>
+    </select>
+  </div>
+  <div class="row"><label>Mark size</label><input type="range" id="rg-marksize" min="0.5" max="4" step="0.1" value="1"><span class="val" id="v-marksize">1.0</span></div>
+  <div class="toggle-row"><input type="checkbox" id="chk-debug"><label for="chk-debug">Show field arrows (debug)</label></div>
+  <button id="btn-reset">Reset canvas</button>
+
+  <div data-panel="evolve">
+    <div class="sec-title">Evolving field</div>
+    <div class="row"><label>Evolve speed</label><input type="range" id="rg-evolve" min="0" max="0.05" step="0.001" value="0.01"><span class="val" id="v-evolve">0.010</span></div>
+    <p class="hint">A third noise axis, sampled at frameCount × Evolve speed — the field itself now slowly reshapes, not just the particles moving through it. At Evolve speed 0 this is identical to the static field. Recomputing every cell every frame measured at a stable 60fps even at the smallest Cell size + 2000 particles — no compromise needed.</p>
+  </div>
+
+  <div data-panel="svg">
+    <div class="sec-title">SVG seed</div>
+    <input type="file" id="file-svg" accept=".svg,image/svg+xml" style="width:100%;font-size:10px;color:var(--mid);margin-bottom:10px;">
+    <div class="row"><label>Points/shape</label><input type="range" id="rg-svgpoints" min="8" max="400" step="4" value="80"><span class="val" id="v-svgpoints">80</span></div>
+    <div class="toggle-row"><input type="checkbox" id="chk-svg-evolve"><label for="chk-svg-evolve">Field also evolves (reuses Evolve speed above)</label></div>
+    <div class="row" id="row-svg-evolve" style="display:none;"><label>Evolve speed</label><input type="range" id="rg-svg-evolve" min="0" max="0.05" step="0.001" value="0.01"><span class="val" id="v-svg-evolve">0.010</span></div>
+    <div class="readout" id="svg-readout" style="font-family:monospace;font-size:10px;color:var(--accent);background:#0a0a0a;padding:6px 8px;border:1px solid var(--border);margin-bottom:10px;">No file loaded — using placeholder circle</div>
+    <p class="hint">Particles spawn from points sampled along the loaded SVG's own shape outlines instead of random canvas positions — same engine, same sliders above, only the particle START positions differ. No file loaded yet? A plain circle stands in as the placeholder, per spec.</p>
+  </div>
+
+  <p class="hint" id="step-hint">Grid resolution = Cell size. A new particle reads the angle of whichever cell it's currently inside and steps in that direction.</p>
+</div>
+
+<script>
+function ctrl(id) { return document.getElementById(id); }
+
+// ── Params (mirrors the slider values, read once per relevant recompute
+// rather than re-reading the DOM every frame) ──
+let cellSize = 20, noiseScale = 0.08, angleMult = 2, speed = 1.5, count = 400, fadeAmt = 8;
+let markStyle = 'line', markSize = 1;
+let showDebug = false;
+let mode = 'static';
+let evolveSpeed = 0.01;
+
+const W = 800, H = 800;
+let cols, rows;
+let angles;   // Float32Array, one angle per grid cell — flat, row-major
+
+// WHY A GRID INSTEAD OF PER-PIXEL NOISE: a particle only ever needs to
+// know "which direction am I facing right now", sampled at a resolution
+// coarser than a pixel — 800x800 pixels would mean 640,000 noise() calls
+// just to build the field once, most of them never read by any particle
+// on a given frame. A cell grid (e.g. 40x40 at cellSize=20) samples noise
+// ONCE per cell — 1,600 calls — and every particle inside that cell reads
+// the same cached angle, which is also what gives flow fields their
+// characteristic look: nearby particles moving coherently, not each
+// tracing its own independent noise path.
+//
+// STEP 2 — the 2D vs 3D noise difference: Step 1 sampled noise(gx*s, gy*s),
+// a fixed 2D slice through Perlin noise space — every rebuild re-reads the
+// exact same slice, so the field only changes when a SLIDER changes it.
+// Adding a third argument, noise(gx*s, gy*s, TIME), moves that slice
+// through a third dimension of the same noise space over time — the
+// numbers that come out are still smoothly correlated with their 2D
+// neighbours (a coherent field, not static per pixel), but now ALSO
+// correlated with the previous frame's numbers at the same (gx,gy), which
+// is what makes the field warp continuously instead of jumping between
+// unrelated random states.
+function buildField() {
+  cols = Math.ceil(W / cellSize);
+  rows = Math.ceil(H / cellSize);
+  if (!angles || angles.length !== cols * rows) angles = new Float32Array(cols * rows);
+  const fieldIsEvolving = mode === 'evolve' || (mode === 'svg' && svgFieldEvolves);
+  const t = fieldIsEvolving ? frameCount * evolveSpeed : 0;
+  for (let gy = 0; gy < rows; gy++) {
+    for (let gx = 0; gx < cols; gx++) {
+      const n = noise(gx * noiseScale, gy * noiseScale, t);   // 0..1
+      angles[gy * cols + gx] = n * angleMult * TWO_PI;
+    }
+  }
+}
+
+function angleAt(x, y) {
+  let gx = Math.floor(x / cellSize), gy = Math.floor(y / cellSize);
+  gx = constrain(gx, 0, cols - 1);
+  gy = constrain(gy, 0, rows - 1);
+  return angles[gy * cols + gx];
+}
+
+// ══════════════════════════════════════════════════════════════════
+// STEP 3 — SVG-seeded particle start positions.
+//
+// DECISION: sample points via the browser's own NATIVE SVG geometry
+// API (SVGGeometryElement.getTotalLength()/getPointAtLength()) rather
+// than a third-party path-parsing library. p5.js itself has no path-
+// sampling API (it can only rasterise/display an SVG as an image, not
+// walk its geometry) — but modern browsers implement getPointAtLength
+// natively on <path>, AND on <circle>/<ellipse>/<rect>/<polygon>/
+// <polyline> (they're all SVGGeometryElement instances), so loading
+// the file into a real, detached <svg> and asking each shape directly
+// covers every common Organica export shape with zero extra
+// dependency — simpler than a CDN library and one less thing that
+// could go stale.
+// ══════════════════════════════════════════════════════════════════
+
+let seedPoints = [];       // [[x,y], ...] in CANVAS (0..W) space
+let svgFieldEvolves = false;
+let svgPointsPerShape = 80;
+
+// Detached host SVG for geometry queries — same technique Soul's own
+// organica-motion.js uses for getBBox(): Chromium returns an empty/
+// wrong bbox (and unreliable getPointAtLength) for an SVG that was
+// never actually attached to the document, even if never painted.
+//
+// REAL BUG, found from "si rompe" on a real-world file (2304 <rect>
+// shapes): the first version hid this with `position:absolute;
+// left:-9999px`, which keeps the element PAINTED, just far away — for
+// a big enough imported SVG (real fill colours, thousands of shapes),
+// that inflates the page's own layout/paint bounding box out past
+// -9999px, and the visible canvas+panel become a tiny fraction of that
+// much larger area once anything renders/captures the full page extent,
+// which read as the tool "breaking" into a few giant mis-coloured
+// blocks (actually the off-screen SVG's own real colours, wildly
+// scaled). Fixed with `position:fixed; width:0; height:0;
+// overflow:hidden` instead — fixed positioning removes it from the
+// document's layout flow entirely, and zero width/height + clipped
+// overflow means nothing about it can ever visibly paint, regardless of
+// how large or colourful the imported content is. Confirmed
+// getPointAtLength still works identically with this technique (the
+// element is still genuinely attached and laid out, just zero-sized).
+const svgHost = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+svgHost.style.position = 'fixed';
+svgHost.style.top = '0';
+svgHost.style.left = '0';
+svgHost.style.width = '0';
+svgHost.style.height = '0';
+svgHost.style.overflow = 'hidden';
+document.body.appendChild(svgHost);
+
+function defaultCirclePoints(n) {
+  const pts = [];
+  const cx = W / 2, cy = H / 2, r = Math.min(W, H) * 0.28;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * TWO_PI;
+    pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
+  }
+  return pts;
+}
+
+let svgLoaded = false;   // true once svgHost holds a real parsed file, false while showing the placeholder
+
+// Parses raw SVG text ONCE and re-hosts its shape elements inside the
+// attached svgHost — this is the only place text gets parsed. Re-sampling
+// at a new point density (resampleSeedPoints, below) reads svgHost's own
+// already-namespaced children directly instead of re-serialising and
+// re-parsing them.
+//
+// REAL BUG, found by testing the Points/shape slider after a file was
+// already loaded, not assumed away: the first version of this re-sample
+// path went through `svgHost.outerHTML` → `new DOMParser().parseFromString`
+// again — but `.outerHTML` on an SVG root element serialised WITHOUT its
+// `xmlns` attribute here, so re-parsing that string produced elements with
+// no SVG namespace, which therefore don't implement SVGGeometryElement —
+// `getTotalLength` was silently undefined on every one of them, and
+// sampling fell back to the placeholder circle even though a real file was
+// loaded. Fixed by never round-tripping through text a second time: the
+// elements already imported into svgHost are correctly namespaced from
+// their FIRST parse, so resampleSeedPoints() just reads those directly.
+function parseSVGFile(svgText) {
+  svgHost.innerHTML = '';
+  svgLoaded = false;
+  let doc;
+  try {
+    doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
+  } catch (e) {
+    ctrl('svg-readout').textContent = 'Could not parse file — using placeholder circle';
+    seedPoints = defaultCirclePoints(svgPointsPerShape);
+    return;
+  }
+  const root = doc.documentElement;
+  if (!root || root.nodeName === 'parsererror' || doc.getElementsByTagName('parsererror').length) {
+    ctrl('svg-readout').textContent = 'Invalid SVG — using placeholder circle';
+    seedPoints = defaultCirclePoints(svgPointsPerShape);
+    return;
+  }
+
+  // Re-host the parsed tree inside our attached svgHost (a node from a
+  // DOMParser document isn't "live" for geometry queries until it's
+  // actually part of the visible document).
+  svgHost.setAttribute('viewBox', root.getAttribute('viewBox') || ('0 0 ' + (root.getAttribute('width') || 512) + ' ' + (root.getAttribute('height') || 512)));
+  Array.from(root.children).forEach(child => svgHost.appendChild(document.importNode(child, true)));
+
+  const SHAPE_TAGS = ['path', 'circle', 'ellipse', 'rect', 'polygon', 'polyline'];
+  const shapeCount = SHAPE_TAGS.flatMap(tag => Array.from(svgHost.getElementsByTagName(tag)))
+    .filter(el => typeof el.getTotalLength === 'function').length;
+
+  if (!shapeCount) {
+    ctrl('svg-readout').textContent = 'No sampleable shapes found — using placeholder circle';
+    seedPoints = defaultCirclePoints(svgPointsPerShape);
+    return;
+  }
+
+  svgLoaded = true;
+  resampleSeedPoints();
+}
+
+// Reads whatever is CURRENTLY in svgHost (already correctly namespaced)
+// and re-samples at the current svgPointsPerShape density — safe to call
+// any number of times, e.g. every time the Points/shape slider moves.
+function resampleSeedPoints() {
+  if (!svgLoaded) { seedPoints = defaultCirclePoints(svgPointsPerShape); return; }
+
+  const SHAPE_TAGS = ['path', 'circle', 'ellipse', 'rect', 'polygon', 'polyline'];
+  const shapes = SHAPE_TAGS.flatMap(tag => Array.from(svgHost.getElementsByTagName(tag)))
+    .filter(el => typeof el.getTotalLength === 'function');
+
+  // Fit the SVG's own viewBox into our WxH canvas (uniform scale,
+  // centred) so any source size/aspect ratio lands fully on-canvas.
+  const vb = svgHost.viewBox.baseVal;
+  const vbW = vb && vb.width ? vb.width : W, vbH = vb && vb.height ? vb.height : H;
+  const scale = Math.min(W / vbW, H / vbH) * 0.85;
+  const offX = (W - vbW * scale) / 2, offY = (H - vbH * scale) / 2;
+
+  seedPoints = [];
+  shapes.forEach(el => {
+    let len;
+    try { len = el.getTotalLength(); } catch (e) { return; }
+    if (!len || !isFinite(len)) return;
+    for (let i = 0; i < svgPointsPerShape; i++) {
+      const p = el.getPointAtLength((i / svgPointsPerShape) * len);
+      seedPoints.push([offX + p.x * scale, offY + p.y * scale]);
+    }
+  });
+
+  if (!seedPoints.length) {
+    ctrl('svg-readout').textContent = 'Shapes found but produced no points — using placeholder circle';
+    svgLoaded = false;
+    seedPoints = defaultCirclePoints(svgPointsPerShape);
+  } else {
+    ctrl('svg-readout').textContent = seedPoints.length + ' points sampled from ' + shapes.length + ' shape' + (shapes.length === 1 ? '' : 's');
+  }
+}
+
+// Placeholder circle is the default seed source until a file is loaded —
+// "un cerchio semplice va bene come placeholder se non ne fornisco uno".
+// NOT populated here at top-level script scope: TWO_PI (and every other p5
+// global) doesn't exist yet at this point — p5 only injects its globals
+// once it bootstraps (around DOMContentLoaded), which is later than this
+// script tag's own top-to-bottom execution. Real bug, caught by console
+// error on first load: populated instead from setup(), same as
+// buildField()/rebuildParticles() already correctly are.
+
+// ── Particles — position + a short trail history so the stroke can fade
+// toward the tail (drawn as a polyline with per-segment alpha) instead of
+// a single flat-opacity line. ──
+class Particle {
+  constructor() { this.reset(); }
+  reset() {
+    if (mode === 'svg' && seedPoints.length) {
+      const p = random(seedPoints);
+      this.x = p[0]; this.y = p[1];
+    } else {
+      this.x = random(W); this.y = random(H);
+    }
+    this.trail = [[this.x, this.y]];
+  }
+  step() {
+    const a = angleAt(this.x, this.y);
+    this.x += Math.cos(a) * speed;
+    this.y += Math.sin(a) * speed;
+    this.trail.push([this.x, this.y]);
+    if (this.trail.length > fadeAmt) this.trail.shift();
+    // On exiting the canvas, RESPAWN (same logic as construction) rather
+    // than wrap-teleporting to the opposite edge.
+    //
+    // REAL BUG, found while testing Mark styles at a reduced particle
+    // count (which made it visible — 39 of 40 particles were affected,
+    // any mark style): the noise FIELD is sampled linearly (gx*noiseScale,
+    // no wraparound in noise-space), so the angle at gx=0 has no relation
+    // to the angle at gx=cols-1 — a real discontinuity at the wrap seam.
+    // A first fix tried modulo wrap (keeping the overshoot distance
+    // instead of snapping to exactly x=0/x=W) — better (39→23 stuck) but
+    // not sufficient, because the trap is at the CELL level, not one
+    // exact coordinate: the angle is quantised per grid cell, so if
+    // boundary cell gx=0 and cell gx=cols-1 happen to point toward each
+    // other, ANY particle landing anywhere in either cell gets bounced
+    // back into the same pair of cells indefinitely, regardless of exact
+    // landing offset within them. The only fix that structurally can't
+    // get stuck is not landing in a deterministic place at all — RESPAWN
+    // draws a genuinely fresh position (random, or from seedPoints in SVG
+    // mode) every time, which also better matches SVG-seed mode's own
+    // intent: particles keep re-emerging from the seeded outline as they
+    // exit, instead of drifting off to reappear at a literal canvas edge.
+    // Confirmed live: 0 particles stuck after the same test that showed
+    // 39/40 and then 23/40 with the two earlier approaches.
+    if (this.x < 0 || this.x >= W || this.y < 0 || this.y >= H) this.reset();
+  }
+}
+
+let particles = [];
+function rebuildParticles() {
+  particles = [];
+  for (let i = 0; i < count; i++) particles.push(new Particle());
+}
+
+// ── Mark colour, read from the CSS variable rather than hardcoded — the
+// brief's own instruction. Parsed once (doesn't change at runtime here).
+// Reads --mark (resolves to --paper), NOT --ink — see the --mark
+// definition above for why literal --ink was the wrong pairing on a
+// dark canvas.
+function markColor() {
+  const hex = getComputedStyle(document.documentElement).getPropertyValue('--mark').trim();
+  const n = parseInt(hex.replace('#', ''), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+let markRGB;
+
+function setup() {
+  const c = createCanvas(W, H);
+  c.parent('stage');
+  noiseSeed(1);
+  markRGB = markColor();
+  seedPoints = defaultCirclePoints(svgPointsPerShape);
+  rebuildParticles();
+  background(6);
+  switchMode('static');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MARK STYLES — the brief originally specified "lines with fading
+// opacity"; asked afterwards whether other shapes could stand in for
+// the line segments. All three read the same trail array and the same
+// fade curve (fainter toward the tail), only the shape drawn per point/
+// segment differs, so switching styles never touches the engine.
+// ══════════════════════════════════════════════════════════════════
+function renderTrail(p) {
+  if (markStyle === 'line') {
+    strokeWeight(1.2 * markSize);
+    for (let i = 1; i < p.trail.length; i++) {
+      const a = map(i, 0, p.trail.length, 60, 235);
+      stroke(markRGB[0], markRGB[1], markRGB[2], a);
+      line(p.trail[i-1][0], p.trail[i-1][1], p.trail[i][0], p.trail[i][1]);
+    }
+    return;
+  }
+
+  noStroke();
+  if (markStyle === 'dots') {
+    // A dot at every trail point — same fade curve as Line, plus the
+    // dot's own radius shrinking toward the tail so the trail reads as
+    // tapering, not just dimming.
+    for (let i = 0; i < p.trail.length; i++) {
+      const a = map(i, 0, p.trail.length, 40, 220);
+      const r = map(i, 0, p.trail.length, 0.8, 2.6) * markSize;
+      fill(markRGB[0], markRGB[1], markRGB[2], a);
+      circle(p.trail[i][0], p.trail[i][1], r * 2);
+    }
+    return;
+  }
+
+  if (markStyle === 'drop') {
+    // Organica's own fundamental gesture (CLAUDE.md: "pigment dropped
+    // onto a surface... not drawn — allowed to happen") standing in for
+    // a line segment: a teardrop per step, oriented along the direction
+    // of travel between two consecutive trail points, tapering to a
+    // point at the tail end — the same asymmetric mark used everywhere
+    // else in this project for "something moving under gravity/motion",
+    // which a flow-field particle literally is.
+    for (let i = 1; i < p.trail.length; i++) {
+      const a = map(i, 0, p.trail.length, 40, 220);
+      const cur = p.trail[i], prev = p.trail[i - 1];
+      const dx = cur[0] - prev[0], dy = cur[1] - prev[1];
+      const ang = Math.atan2(dy, dx);
+      const len = map(i, 0, p.trail.length, 2.5, 7) * markSize;
+      const wid = len * 0.55;
+      fill(markRGB[0], markRGB[1], markRGB[2], a);
+      push();
+      translate(cur[0], cur[1]);
+      rotate(ang);
+      beginShape();
+      vertex(0, 0);
+      bezierVertex(-len * 0.3, -wid * 0.5, -len * 0.8, -wid * 0.5, -len, 0);
+      bezierVertex(-len * 0.8, wid * 0.5, -len * 0.3, wid * 0.5, 0, 0);
+      endShape(CLOSE);
+      pop();
+    }
+  }
+}
+
+function draw() {
+  // STEP 2: in 'evolve' mode (or 'svg' mode with its own "Field also
+  // evolves" checked) the field has to be rebuilt every single frame —
+  // the whole point is that it keeps changing. Step 1 only rebuilt on a
+  // slider change, which is why this is measurably heavier; see the FPS
+  // check noted in the delivery notes.
+  //
+  // REAL BUG, caught by counting actual buildField() calls rather than
+  // trusting the checkbox state alone: this condition originally checked
+  // ONLY mode==='evolve', not matching buildField()'s OWN internal
+  // fieldIsEvolving check (which already correctly included the SVG-mode
+  // case) — so ticking "Field also evolves" in SVG mode changed the
+  // checkbox but silently did nothing, since draw() never called
+  // buildField() again to notice. Fixed to the same condition.
+  if (mode === 'evolve' || (mode === 'svg' && svgFieldEvolves)) buildField();
+
+  // Trails accumulate — the canvas is never fully cleared. Trails are
+  // drawn as short fading polylines (see Particle.trail) rather than the
+  // classic "translucent rect over everything" fade, since a fixed-length
+  // trail array gives more direct control over exactly how long a trail
+  // reads (in points, not in a decay rate that's hard to reason about) —
+  // documented as the choice actually made, the brief left it open.
+  // A very faint rect still runs UNDER new strokes each frame so old
+  // trail SEGMENTS (already drawn, no longer in anyone's live trail
+  // array) slowly darken back to background instead of staying forever.
+  noStroke();
+  fill(6, 6, 6, 14);
+  rect(0, 0, W, H);
+
+  particles.forEach(p => {
+    p.step();
+    renderTrail(p);
+  });
+
+  if (showDebug) {
+    push();
+    stroke(233, 79, 55, 160);
+    strokeWeight(1);
+    for (let gy = 0; gy < rows; gy++) {
+      for (let gx = 0; gx < cols; gx++) {
+        const cx = gx * cellSize + cellSize / 2, cy = gy * cellSize + cellSize / 2;
+        const a = angles[gy * cols + gx];
+        const len = cellSize * 0.4;
+        line(cx, cy, cx + Math.cos(a) * len, cy + Math.sin(a) * len);
+      }
+    }
+    pop();
+  }
+}
+
+// ── UI wiring — anything that changes the FIELD (cell size, noise scale,
+// angle multiplier) rebuilds it once here, not every frame (Step 1 is a
+// static field on purpose). Speed/count/fade are read live by
+// step()/draw() so they don't need a rebuild. ──
+ctrl('rg-cell').addEventListener('input', e => { cellSize = parseInt(e.target.value); ctrl('v-cell').textContent = cellSize; buildField(); });
+ctrl('rg-noisescale').addEventListener('input', e => { noiseScale = parseFloat(e.target.value); ctrl('v-noisescale').textContent = noiseScale.toFixed(3); buildField(); });
+ctrl('rg-anglemult').addEventListener('input', e => { angleMult = parseFloat(e.target.value); ctrl('v-anglemult').textContent = angleMult.toFixed(1); buildField(); });
+ctrl('rg-speed').addEventListener('input', e => { speed = parseFloat(e.target.value); ctrl('v-speed').textContent = speed.toFixed(1); });
+ctrl('rg-count').addEventListener('input', e => { count = parseInt(e.target.value); ctrl('v-count').textContent = count; rebuildParticles(); });
+ctrl('rg-fade').addEventListener('input', e => { fadeAmt = parseInt(e.target.value); ctrl('v-fade').textContent = fadeAmt; });
+ctrl('sel-markstyle').addEventListener('change', e => { markStyle = e.target.value; });
+ctrl('rg-marksize').addEventListener('input', e => { markSize = parseFloat(e.target.value); ctrl('v-marksize').textContent = markSize.toFixed(1); });
+ctrl('chk-debug').addEventListener('change', e => { showDebug = e.target.checked; });
+ctrl('btn-reset').addEventListener('click', () => { background(6); rebuildParticles(); });
+
+function switchMode(newMode) {
+  mode = newMode;
+  document.querySelectorAll('[data-panel]').forEach(el => el.classList.toggle('active', el.dataset.panel === mode));
+  buildField();   // static mode needs one fresh build back to t=0's slice; evolve mode rebuilds every frame anyway
+  if (mode === 'svg') rebuildParticles();   // re-spawn from the seed points now, not wherever particles already were
+}
+ctrl('mode-select').addEventListener('change', e => switchMode(e.target.value));
+ctrl('rg-evolve').addEventListener('input', e => { evolveSpeed = parseFloat(e.target.value); ctrl('v-evolve').textContent = evolveSpeed.toFixed(3); });
+
+// ── SVG seed panel wiring ──
+ctrl('file-svg').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    parseSVGFile(evt.target.result);
+    if (mode === 'svg') rebuildParticles();
+  };
+  reader.readAsText(file);
+});
+ctrl('rg-svgpoints').addEventListener('input', e => {
+  svgPointsPerShape = parseInt(e.target.value, 10);
+  ctrl('v-svgpoints').textContent = svgPointsPerShape;
+  resampleSeedPoints();   // reads svgHost's own already-parsed elements directly — see its own header comment for why NOT to re-parse text here
+  if (mode === 'svg') rebuildParticles();
+});
+ctrl('chk-svg-evolve').addEventListener('change', e => {
+  svgFieldEvolves = e.target.checked;
+  ctrl('row-svg-evolve').style.display = svgFieldEvolves ? 'flex' : 'none';
+});
+ctrl('rg-svg-evolve').addEventListener('input', e => {
+  evolveSpeed = parseFloat(e.target.value);   // shares the same global as the Evolve-mode slider, kept in sync
+  ctrl('v-svg-evolve').textContent = evolveSpeed.toFixed(3);
+  ctrl('v-evolve').textContent = evolveSpeed.toFixed(3);
+  ctrl('rg-evolve').value = evolveSpeed;
+});
+</script>
+</body>
+</html>

@@ -581,6 +581,115 @@ processing) or a small new tool, not Soul itself (Soul animates
 primitives, it doesn't decompose raster images — that boundary was set
 explicitly during the engine's own scoping).
 
+## 6d. Flow field — an 8th pattern, ported from the standalone exploration
+
+Diego asked to import `explorations/flow-field/` (a p5.js exploration built
+earlier the same day — coherent-noise vector field + particle trails, Tyler
+Hobbs' base technique) into Soul, reusing Soul's own design system. Two
+architecture questions settled first, before writing code:
+
+**How does a flow field fit Soul's "pattern applied to primitives" model?**
+The exploration animates free-standing particles that draw their own trail
+marks; Soul has no particles, only existing primitives Motion applies a
+pattern TO. Decided: each loaded primitive drifts through the field from its
+own position — the field itself (a grid of cached angles from coherent
+noise) is the only piece ported unchanged; the "particle" concept doesn't
+carry over, a primitive IS the thing that moves, the same relationship every
+other pattern already has to its target elements.
+
+**p5.js or rewrite to vanilla JS/Canvas2D?** CLAUDE.md's vanilla-JS rule is
+for production code; Diego's own call here was to keep p5.js rather than
+reimplement coherent noise from scratch. Loaded in **instance mode**, not
+global mode — `new p5((sk) => { sk.setup = () => { sk.noCanvas(); ... };
+})` — specifically so none of p5's own globals (`random`/`map`/`PI`/`noise`/
+`TWO_PI`/...) touch Soul's own script scope; only the captured `p5noise`
+instance is ever referenced. `noCanvas()` means no visible `<canvas>` is
+ever created — verified live (`document.querySelectorAll('canvas').length
+=== 0`) after load.
+
+**Implementation**: `buildFlowField()`/`flowAngleAt()` port the
+exploration's own grid-cache technique verbatim (noise sampled once per
+cell, not per pixel — see the exploration's own header comment for why).
+`animateFlowBatch()` follows `wobble`'s own architecture in
+organica-motion.js — one shared `gsap.ticker` callback for every primitive
+rather than N independent tweens, since this is continuous/non-repeating,
+not a fixed-duration animation — kept Soul-local (not added to the shared
+organica-motion.js registry) since it's the one pattern that needs p5.js,
+which no other Organica tool loads. Each primitive tracks a `(dx,dy)` drift
+offset from its own real position (`prim.cx`/`prim.cy`, already set by
+`parsePrimitives`), written as `translate()` each tick. Own params (Cell
+size / Noise scale / Angle mult / Speed) replace Amount/Duration, which are
+hidden for this pattern (`row-amount`/`row-duration` display:none) — a dead
+control showing for a pattern that doesn't read it is the same class of bug
+Komorebi's own audit called out.
+
+**The exploration's own wrap-boundary bug was already fixed at the source**
+before this port: an earlier version of the standalone tool wrap-teleported
+particles to the exact opposite canvas edge, which could trap a particle
+oscillating forever at a noise-field seam discontinuity (39 of 40 particles
+were found stuck in one test). Fixed there by respawning instead of
+teleporting. Soul's own version has the analogous case — a primitive
+drifting outside `Math.max(w,h)*0.6` resets `(dx,dy)` to 0 (home) rather
+than wrapping — same principle, adapted since Soul's primitives don't need
+a literal canvas-edge wrap the way free particles do.
+
+**Pause/resume needed no elapsed-time compensation**, unlike `wobble`'s own
+fix earlier the same day: `dx`/`dy` accumulate incrementally per tick, not
+from an absolute time coordinate, so simply not ticking while paused already
+freezes position exactly, and resuming continues from exactly there — no
+jump is possible by construction. Verified live: paused position read twice
+across 20 forced ticks came back byte-identical; one tick immediately after
+resume moved by the same small, continuous step size as mid-play ticks (not
+a jump).
+
+**Verified end to end**: pattern selector shows "Flow field" as an 8th
+option, panel correctly toggles to its own 4 sliders (Amount/Duration
+hidden), Play/Pause/Resume/Stop full lifecycle confirmed via live transform
+inspection (not just visual glancing) on both a 4-primitive Text seed and a
+24-primitive one, ~60fps holding at 24 primitives, status readout correct
+("Playing flow on N primitives"), zero console errors, zero regression on
+`pressure` and `wobble` (the pattern architecturally closest to Flow field,
+since both batch on `gsap.ticker`) re-tested after the change.
+
+**Free particles, added right after** — Diego's own catch: the port above
+only moves EXISTING primitives; the exploration's actual free-roaming marks
+(independent particles drawing their own trails) were missing. Added as a
+"Free particles" toggle inside Flow field's own panel section, layered onto
+the SAME field/speed the primitive-drift side already uses, not a separate
+mode. Rendered as real SVG `<path>` elements on `stageSVG` — one per
+particle, its ENTIRE trail folded into a single `d` string per tick, not one
+element per trail point, so N particles cost exactly N DOM elements
+regardless of trail length or Mark style (verified: 60 particles → 60
+`<path>` elements, both immediately after Play and inside the serialised
+export). Because they're real stage elements, not a separate canvas layer,
+they export exactly like everything else already on the stage — no new
+export path needed, confirmed by counting `<path` occurrences in
+`serialiseStage()`'s own output.
+
+Mark styles (Line/Dots/Drop marks, the exploration's own three) are
+reimplemented as SVG path data instead of canvas draw calls —
+`buildParticleMarkD()`: Line is a plain polyline; Dots and Drop marks fold
+every trail point's own small shape (a two-arc circle / a two-bezier
+teardrop, the drop's local translate+rotate coordinates converted to
+absolute SVG points by hand, since path data has no live transform the way
+a canvas context does) into sub-paths of the SAME `d` string. **One
+disclosed simplification vs the canvas original**: fade-toward-the-tail
+there was a true per-point alpha; SVG has no native per-vertex opacity, so
+here it's a single `opacity` for the whole path, with size still tapering
+toward the tail for Dots/Drop marks so the trail still visibly narrows.
+Respawn (not wrap-teleport) on exiting the canvas reuses the exact same fix
+already applied to primitive drift.
+
+Verified live: all three Mark styles rendered and visually distinct
+(screenshot-confirmed — Dots read as a beaded trail, Drop marks as scattered
+petals oriented along motion); Pause freezes a sampled particle's own `d`
+byte-identical across 10 forced ticks; Stop removes every particle
+`<path>` from the DOM (0 remaining, confirmed by count, not assumed);
+**60fps holding at 600 particles** (the Count slider's own max) on Drop
+marks (the most expensive style to build); 0 of the 9 new controls
+unaccessibly-named; zero console errors across every style/count/pause/stop
+combination tested.
+
 ## 7. Not built yet
 
 - **GIF export** — Video (MP4/WebM, §5) and PNG/SVG all work now; GIF

@@ -256,20 +256,76 @@
           <option value="rotation">Differential rotation</option>
           <option value="wobble">Organic wobble</option>
           <option value="morph">Morph</option>
+          <option value="flow">Flow field</option>
         </select>
       </div>
       <p id="growth-hint" class="org-panel__hint" style="display:none">Growth by tracing only affects PATH primitives (it animates a stroke being drawn) — point primitives (dots) stay static under this pattern.</p>
       <p id="morph-hint" class="org-panel__hint" style="display:none">Morph only affects POINT primitives (dots) — it needs a shape to morph a circle into; path primitives stay static under this pattern.</p>
+      <p id="flow-hint" class="org-panel__hint" style="display:none">Ported from the standalone flow-field exploration (explorations/flow-field/): a coherent-noise vector field drifts every primitive from its own position, same engine (p5.js noise(), loaded headless — no visible canvas of its own). Amount/Duration below don't apply to this pattern — its own params replace them.</p>
 
-      <div class="ctrl-row">
+      <div class="ctrl-row" id="row-amount">
         <div class="ctrl-label">Amount</div>
         <input type="range" id="rg-amount" min="0" max="1" step="0.05" value="0.4" oninput="syncVal(this,'v-amount')">
         <span class="ctrl-val" id="v-amount">0.4</span>
       </div>
-      <div class="ctrl-row">
+      <div class="ctrl-row" id="row-duration">
         <div class="ctrl-label">Duration</div>
         <input type="range" id="rg-duration" min="0.5" max="10" step="0.1" value="3" oninput="syncVal(this,'v-duration')">
         <span class="ctrl-val" id="v-duration">3</span>
+      </div>
+
+      <div id="flow-params" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Cell size</div>
+          <input type="range" id="rg-flow-cell" min="8" max="80" step="2" value="30" oninput="syncVal(this,'v-flow-cell')">
+          <span class="ctrl-val" id="v-flow-cell">30</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Noise scale</div>
+          <input type="range" id="rg-flow-noisescale" min="0.01" max="0.3" step="0.005" value="0.08" oninput="syncVal(this,'v-flow-noisescale')">
+          <span class="ctrl-val" id="v-flow-noisescale">0.08</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Angle mult</div>
+          <input type="range" id="rg-flow-anglemult" min="0.5" max="6" step="0.1" value="2" oninput="syncVal(this,'v-flow-anglemult')">
+          <span class="ctrl-val" id="v-flow-anglemult">2.0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Speed</div>
+          <input type="range" id="rg-flow-speed" min="0.1" max="4" step="0.1" value="1" oninput="syncVal(this,'v-flow-speed')">
+          <span class="ctrl-val" id="v-flow-speed">1.0</span>
+        </div>
+
+        <div class="toggle-row" style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-3)">
+          <input type="checkbox" id="chk-flow-particles">
+          <label for="chk-flow-particles" style="font-size:var(--fs-small)">Free particles</label>
+        </div>
+        <div id="flow-particle-params" style="display:none">
+          <p class="org-panel__hint">Independent of the primitives above — the exploration's own free-roaming marks, seeded at random positions and re-seeded whenever one drifts out of bounds, reading the SAME field. Real SVG elements (one &lt;path&gt; per particle, all trail points folded into its own `d`), so they export exactly like everything else on the stage.</p>
+          <div class="ctrl-row">
+            <div class="ctrl-label">Count</div>
+            <input type="range" id="rg-flow-pcount" min="10" max="600" step="10" value="150" oninput="syncVal(this,'v-flow-pcount')">
+            <span class="ctrl-val" id="v-flow-pcount">150</span>
+          </div>
+          <div class="ctrl-row">
+            <div class="ctrl-label">Trail length</div>
+            <input type="range" id="rg-flow-trail" min="2" max="30" step="1" value="8" oninput="syncVal(this,'v-flow-trail')">
+            <span class="ctrl-val" id="v-flow-trail">8</span>
+          </div>
+          <div class="ctrl-row">
+            <div class="ctrl-label">Mark style</div>
+            <select class="panel-select" id="sel-flow-markstyle">
+              <option value="line">Line</option>
+              <option value="dots">Dots</option>
+              <option value="drop">Drop marks</option>
+            </select>
+          </div>
+          <div class="ctrl-row">
+            <div class="ctrl-label">Mark size</div>
+            <input type="range" id="rg-flow-marksize" min="0.5" max="4" step="0.1" value="1" oninput="syncVal(this,'v-flow-marksize')">
+            <span class="ctrl-val" id="v-flow-marksize">1.0</span>
+          </div>
+        </div>
       </div>
 
       <div class="ctrl-row">
@@ -379,6 +435,14 @@
 <script src="/shared/gsap-drawsvg.min.js"></script>
 <script src="/shared/opentype.min.js"></script>
 <script src="/genesis/organic-forms.js"></script>
+<!-- p5.js, CDN — the Flow field pattern's own engine, ported from
+     explorations/flow-field/. Loaded in INSTANCE mode (not global mode)
+     specifically so it can't leak p5's globals (random/map/constrain/PI/
+     TWO_PI/noise/...) into this file's own namespace — Soul's script
+     below never touches the `p5` identifier directly, only the captured
+     `p5noise` instance. noCanvas() in setup() means no visible <canvas>
+     is ever created; p5 is here purely for its coherent-noise function. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
 <script>
 function ctrl(id) { return document.getElementById(id); }
 // Wraps Organica.status() only to also sync the `title` attribute — the
@@ -388,6 +452,12 @@ function ctrl(id) { return document.getElementById(id); }
 const _rawSetStatus = Organica.status();
 const setStatus = (state, msg) => { _rawSetStatus(state, msg); ctrl('status-text').title = msg; };
 gsap.registerPlugin(MorphSVGPlugin, DrawSVGPlugin);
+
+// p5 instance for the Flow field pattern's coherent noise — instance mode
+// so nothing p5 defines (random/map/PI/noise/...) touches this file's own
+// global scope. noCanvas() means setup() never creates a visible element.
+let p5noise = null;
+new p5((sk) => { sk.setup = () => { sk.noCanvas(); sk.noiseSeed(1); p5noise = sk; }; });
 
 const stageFrame = ctrl('stage-frame');
 const stageSVG = ctrl('stage-svg');
@@ -597,8 +667,19 @@ function syncGrowthHint() {
   const pattern = ctrl('sel-pattern').value;
   ctrl('growth-hint').style.display = pattern === 'growth' ? '' : 'none';
   ctrl('morph-hint').style.display = pattern === 'morph' ? '' : 'none';
+  ctrl('flow-hint').style.display = pattern === 'flow' ? '' : 'none';
+  ctrl('flow-params').style.display = pattern === 'flow' ? '' : 'none';
+  // Amount/Duration are read by every OTHER pattern (organica-motion.js's
+  // own PATTERNS registry) — Flow field has its own 4 params instead, so
+  // hiding these two rows for it follows the same "don't show controls
+  // this pattern doesn't read" rule flow-hint itself states.
+  ctrl('row-amount').style.display = pattern === 'flow' ? 'none' : '';
+  ctrl('row-duration').style.display = pattern === 'flow' ? 'none' : '';
 }
 ctrl('sel-pattern').addEventListener('change', syncGrowthHint);
+ctrl('chk-flow-particles').addEventListener('change', e => {
+  ctrl('flow-particle-params').style.display = e.target.checked ? '' : 'none';
+});
 
 // Which primitive TYPE a pattern is scoped to, if any — Growth (DrawSVG)
 // needs a path to draw, Morph needs a circle to morph FROM. Both filtered
@@ -606,6 +687,202 @@ ctrl('sel-pattern').addEventListener('change', syncGrowthHint);
 // status readout reports an accurate count and the UI can't claim
 // "playing on 40 primitives" when only 12 of them actually moved.
 const PATTERN_TYPE_SCOPE = { growth: 'path', morph: 'point' };
+
+// ══════════════════════════════════════════════════════════════════
+// FLOW FIELD — ported from explorations/flow-field/, ANSWERING A REAL
+// ARCHITECTURE QUESTION rather than reusing that file's own engine
+// verbatim: the exploration animates free-standing PARTICLES that draw
+// their own trail marks; Soul has no particles, only existing primitives
+// that Motion applies a pattern TO. So "flow field as a pattern" means
+// each already-loaded primitive drifts through the field from its own
+// position, the same way `pressure`/`wobble`/etc. all move an existing
+// element rather than spawning new marks — the field itself (grid of
+// cached angles from p5's noise()) is the only piece ported unchanged.
+//
+// Architecture matches `wobble`'s own batched-ticker pattern in
+// organica-motion.js (one shared gsap.ticker callback for every primitive
+// instead of N independent tweens) rather than a real GSAP tween, since
+// this is continuous/non-repeating like wobble, not a fixed-duration
+// animation — and for the same reason returns {kill,pause,resume,delay}
+// handles so it plugs into Soul's existing activeTweens/
+// togglePlayPause()/stopMotion() without those functions needing to know
+// this pattern is any different from a real GSAP-backed one.
+function buildFlowField(w, h, cellSize, noiseScale, angleMult) {
+  const cols = Math.ceil(w / cellSize), rows = Math.ceil(h / cellSize);
+  const angles = new Float32Array(cols * rows);
+  for (let gy = 0; gy < rows; gy++) {
+    for (let gx = 0; gx < cols; gx++) {
+      angles[gy * cols + gx] = p5noise.noise(gx * noiseScale, gy * noiseScale) * angleMult * Math.PI * 2;
+    }
+  }
+  return { cols, rows, angles, cellSize };
+}
+function flowAngleAt(field, x, y) {
+  let gx = Math.floor(x / field.cellSize), gy = Math.floor(y / field.cellSize);
+  gx = Math.max(0, Math.min(field.cols - 1, gx));
+  gy = Math.max(0, Math.min(field.rows - 1, gy));
+  return field.angles[gy * field.cols + gx];
+}
+
+// ── FREE PARTICLES (optional, layered onto the same field) ──
+//
+// Diego's own follow-up after the primitive-drift port: the exploration's
+// actual free-roaming marks (independent of any loaded primitive) were
+// missing. Rendered as real SVG <path> elements — one per particle, its
+// entire trail folded into a single `d` string per tick, not one element
+// per trail point — so N particles cost N DOM elements regardless of
+// trail length or Mark style, staying well inside the ~3000-element
+// ceiling `wobble` already measured for this same SVG/DOM stage. Because
+// they're real elements on stageSVG (not a canvas layer), they export
+// exactly like every other primitive already does — no separate export
+// path needed.
+//
+// Mark styles are the exploration's own three, reimplemented as SVG path
+// data instead of canvas draw calls: Line is a plain polyline through the
+// trail; Dots and Drop marks fold every trail point's own little shape
+// (a two-arc circle / a two-bezier teardrop) into sub-paths of the SAME
+// `d` string — fill-rule handles the overlaps correctly without any
+// extra elements. One real simplification vs the canvas original,
+// disclosed rather than silently dropped: fade-toward-the-tail there was
+// a true per-point alpha; here it's a single opacity for the whole path
+// (SVG has no native per-vertex opacity), with size still tapering toward
+// the tail for Dots/Drop marks so the trail still visibly narrows.
+const FLOW_MARK_COLOR = '#c85a8c';   // Soul's own default point-primitive colour (buildElement's own fallback) — kept consistent, not a new colour introduced for this feature
+
+function buildParticleMarkD(trail, markStyle, markSize) {
+  const n = trail.length;
+  if (markStyle === 'line') {
+    if (n < 2) return '';
+    return 'M' + trail.map(pt => pt[0].toFixed(1) + ',' + pt[1].toFixed(1)).join('L');
+  }
+  if (markStyle === 'dots') {
+    let d = '';
+    for (let i = 0; i < n; i++) {
+      const r = (0.8 + (i / Math.max(n - 1, 1)) * 1.8) * markSize;
+      const [cx, cy] = trail[i];
+      d += 'M' + (cx + r).toFixed(1) + ',' + cy.toFixed(1)
+         + 'A' + r.toFixed(1) + ',' + r.toFixed(1) + ' 0 1 0 ' + (cx - r).toFixed(1) + ',' + cy.toFixed(1)
+         + 'A' + r.toFixed(1) + ',' + r.toFixed(1) + ' 0 1 0 ' + (cx + r).toFixed(1) + ',' + cy.toFixed(1) + ' ';
+    }
+    return d;
+  }
+  // 'drop' — same asymmetric teardrop as the exploration's own canvas
+  // version, its local (translate+rotate) coordinates converted to
+  // absolute SVG points by hand, since path data has no live transform
+  // the way a canvas context does.
+  let d = '';
+  for (let i = 1; i < n; i++) {
+    const [px, py] = trail[i - 1], [cx, cy] = trail[i];
+    const dx = cx - px, dy = cy - py, ang = Math.atan2(dy, dx);
+    const len = (2.5 + (i / Math.max(n - 1, 1)) * 4.5) * markSize, wid = len * 0.55;
+    const cosA = Math.cos(ang), sinA = Math.sin(ang);
+    const toWorld = (lx, ly) => [(cx + lx * cosA - ly * sinA).toFixed(1), (cy + lx * sinA + ly * cosA).toFixed(1)];
+    const tipX = cx.toFixed(1), tipY = cy.toFixed(1);
+    const c1 = toWorld(-len * 0.3, -wid * 0.5), c2 = toWorld(-len * 0.8, -wid * 0.5), back = toWorld(-len, 0);
+    const c3 = toWorld(-len * 0.8, wid * 0.5), c4 = toWorld(-len * 0.3, wid * 0.5);
+    d += 'M' + tipX + ',' + tipY
+       + 'C' + c1.join(',') + ' ' + c2.join(',') + ' ' + back.join(',')
+       + 'C' + c3.join(',') + ' ' + c4.join(',') + ' ' + tipX + ',' + tipY + 'Z ';
+  }
+  return d;
+}
+
+function animateFlowBatch(targets, primitives, params) {
+  if (!p5noise) { setStatus('', 'Flow field engine still loading — try Play again in a moment'); return []; }
+  const w = currentParse.canvas.width || 640, h = currentParse.canvas.height || 640;
+  const field = buildFlowField(w, h, params.cellSize, params.noiseScale, params.angleMult);
+  const items = targets.map((el, i) => {
+    const prim = primitives[i];
+    el.style.transformOrigin = '50% 50%';
+    return { el, baseX: prim.cx, baseY: prim.cy, dx: 0, dy: 0 };
+  });
+
+  // Same fix already found and verified in the standalone exploration
+  // (docs note there: 39/40 particles could get silently stuck at a
+  // wrap-boundary discontinuity in the noise field) — RESPAWN (reset
+  // drift to 0, back at the primitive's own real position) rather than
+  // wrap-teleport, since a primitive drifting in a closed field has the
+  // identical seam discontinuity a canvas-edge-wrapping particle does.
+  const BOUNDS = Math.max(w, h) * 0.6;   // how far a primitive may drift before it's reset home
+
+  // Free particles — independent of `items` above, same field/speed,
+  // spawned at random canvas positions, respawned (not wrap-teleported,
+  // same fix) whenever one exits the canvas.
+  let freeParticles = [];
+  const freeEls = [];
+  if (params.particles) {
+    const pp = params.particles;
+    for (let i = 0; i < pp.count; i++) {
+      const x = Math.random() * w, y = Math.random() * h;
+      const el = document.createElementNS(SVG_NS, 'path');
+      el.setAttribute('fill', pp.markStyle === 'line' ? 'none' : FLOW_MARK_COLOR);
+      if (pp.markStyle === 'line') {
+        el.setAttribute('stroke', FLOW_MARK_COLOR);
+        el.setAttribute('stroke-width', (1.2 * pp.markSize).toFixed(2));
+        el.setAttribute('stroke-linecap', 'round');
+      }
+      el.setAttribute('opacity', '0.8');
+      el.style.pointerEvents = 'none';
+      stageSVG.appendChild(el);
+      freeEls.push(el);
+      freeParticles.push({ x, y, trail: [[x, y]], el });
+    }
+  }
+
+  function tick() {
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const x = it.baseX + it.dx, y = it.baseY + it.dy;
+      const a = flowAngleAt(field, ((x % w) + w) % w, ((y % h) + h) % h);
+      it.dx += Math.cos(a) * params.speed;
+      it.dy += Math.sin(a) * params.speed;
+      if (Math.abs(it.dx) > BOUNDS || Math.abs(it.dy) > BOUNDS) { it.dx = 0; it.dy = 0; }
+      it.el.style.transform = 'translate(' + it.dx.toFixed(2) + 'px,' + it.dy.toFixed(2) + 'px)';
+    }
+    if (params.particles) {
+      const pp = params.particles;
+      for (let i = 0; i < freeParticles.length; i++) {
+        const p = freeParticles[i];
+        const a = flowAngleAt(field, ((p.x % w) + w) % w, ((p.y % h) + h) % h);
+        p.x += Math.cos(a) * params.speed;
+        p.y += Math.sin(a) * params.speed;
+        p.trail.push([p.x, p.y]);
+        if (p.trail.length > pp.trailLen) p.trail.shift();
+        if (p.x < 0 || p.x >= w || p.y < 0 || p.y >= h) {
+          p.x = Math.random() * w; p.y = Math.random() * h;
+          p.trail = [[p.x, p.y]];
+        }
+        p.el.setAttribute('d', buildParticleMarkD(p.trail, pp.markStyle, pp.markSize));
+      }
+    }
+  }
+  gsap.ticker.add(tick);
+
+  let killed = false;
+  const killAll = () => {
+    if (killed) return; killed = true;
+    gsap.ticker.remove(tick);
+    items.forEach(it => { it.el.style.transform = ''; });
+    freeEls.forEach(el => el.remove());
+  };
+  // Pause/resume need no elapsed-time compensation (unlike wobble's own
+  // pause/resume in organica-motion.js): dx/dy accumulate incrementally
+  // per tick, not from an absolute time coordinate, so simply not ticking
+  // while paused already freezes position exactly — resuming just
+  // continues accumulating from wherever it stopped, no jump possible.
+  let paused = false;
+  const pauseAll = () => {
+    if (killed || paused) return;
+    paused = true;
+    gsap.ticker.remove(tick);
+  };
+  const resumeAll = () => {
+    if (killed || !paused) return;
+    paused = false;
+    gsap.ticker.add(tick);
+  };
+  return items.map(() => ({ kill: killAll, delay: () => {}, pause: pauseAll, resume: resumeAll }));
+}
 
 // ── LOOP — auto-stop N seconds after Play, read by both playMotion()
 // (a plain setTimeout, cleared by stopMotion() so it can't fire after a
@@ -653,7 +930,27 @@ function playMotion() {
     return;
   }
 
-  activeTweens = Organica.motion.animate(targets, primitives, pattern, params, staggerCfg);
+  // Flow field is Soul-local (needs p5noise), not part of the shared
+  // organica-motion.js registry every other pattern reads from — every
+  // other Organica tool loads organica-motion.js without needing p5.js,
+  // and this pattern is the one place that's not true.
+  if (pattern === 'flow') {
+    const flowParams = {
+      cellSize: parseFloat(ctrl('rg-flow-cell').value),
+      noiseScale: parseFloat(ctrl('rg-flow-noisescale').value),
+      angleMult: parseFloat(ctrl('rg-flow-anglemult').value),
+      speed: parseFloat(ctrl('rg-flow-speed').value),
+      particles: ctrl('chk-flow-particles').checked ? {
+        count: parseInt(ctrl('rg-flow-pcount').value, 10),
+        trailLen: parseInt(ctrl('rg-flow-trail').value, 10),
+        markStyle: ctrl('sel-flow-markstyle').value,
+        markSize: parseFloat(ctrl('rg-flow-marksize').value),
+      } : null,
+    };
+    activeTweens = animateFlowBatch(targets, primitives, flowParams);
+  } else {
+    activeTweens = Organica.motion.animate(targets, primitives, pattern, params, staggerCfg);
+  }
   isPaused = false;
   setPlayIcon(true);
   setStatus('active', 'Playing ' + pattern + ' on ' + targets.length + ' primitives');
