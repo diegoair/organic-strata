@@ -194,5 +194,158 @@
     return { primitives: out, canvas };
   };
 
+  // ═══════════════════════════════════════════════════════════
+  // MOTION MODEL — pattern + stagger, applied to primitives via GSAP.
+  //
+  // The 6 patterns are `docs/ANIMATION-SYSTEM.md`'s own 6 physics
+  // patterns, REBUILT parametric and GSAP-backed instead of hand-typed
+  // per-form CSS keyframes — the exact gap that document itself implies
+  // (every Genesis form re-derives the same physics by hand). Each
+  // pattern function takes a real SVG element (not a canvas primitive
+  // object) and returns a GSAP timeline/tween — GSAP needs a DOM/SVG
+  // target to animate, which is why Soul's stage renders primitives as
+  // real `<circle>`/`<path>` elements, not canvas draws, once animation
+  // is involved (the primitive-parsing step above stays canvas-preview
+  // for the static case, animation is SVG-native).
+  //
+  // "Collective behaviour" (Genesis's own 4th pattern) is deliberately
+  // NOT a 7th pattern function here — its own header already says why:
+  // "the same simple animation on many elements, phase-shifted" is
+  // exactly what PATTERN + STAGGER composed together already gives you,
+  // for free, on any of the other 5. Building it as a separate pattern
+  // would duplicate one of the other 5 with a stagger bolted on.
+  // ═══════════════════════════════════════════════════════════
+
+  function requireGSAP() {
+    if (typeof gsap === 'undefined') throw new Error('GSAP not loaded — include shared/gsap.min.js before calling Organica.motion pattern functions.');
+    return gsap;
+  }
+
+  const PATTERNS = {
+    // 1. Internal Pressure — scale, asymmetric compress/expand, real
+    // biological pressure systems (breath, heartbeat, bloom).
+    pressure: function (el, p) {
+      const g = requireGSAP();
+      const amt = p.amount != null ? p.amount : 0.25;
+      const dur = p.duration || 3.4;
+      const tl = g.timeline({ repeat: -1, defaults: { transformOrigin: '50% 50%' } });
+      tl.to(el, { scale: 1 + amt * 0.32, duration: dur * 0.55, ease: 'sine.out' })
+        .to(el, { scale: 1 - amt * 0.72, duration: dur * 0.45, ease: 'sine.inOut' });
+      return tl;
+    },
+
+    // 2. Gravity + Viscosity — translateY + scaleY, stretch on fall,
+    // squash on impact. Real percentage keyframes, same shape as the
+    // CSS original (`docs/ANIMATION-SYSTEM.md`'s own honey-drip example).
+    gravity: function (el, p) {
+      const g = requireGSAP();
+      const amt = p.amount != null ? p.amount : 1;
+      const dur = p.duration || 1.8;
+      return g.to(el, {
+        transformOrigin: '50% 0%',
+        repeat: -1,
+        duration: dur,
+        ease: 'none',
+        keyframes: {
+          '0%': { y: 0, scaleY: 1 },
+          '40%': { y: 8 * amt, scaleY: 1 + 1.6 * amt, ease: 'power1.in' },
+          '55%': { y: 20 * amt, scaleY: 1 + 1.2 * amt },
+          '70%': { y: 40 * amt, scaleY: 1 - 0.1 * amt, opacity: 0.9, ease: 'power2.out' },
+          '100%': { y: 60 * amt, scaleY: 1 - 0.1 * amt, opacity: 0 },
+        },
+      });
+    },
+
+    // 3. Growth by Tracing — DrawSVG is the exact, direct match for
+    // this pattern (stroke-dashoffset animated 0→100%), no approximation
+    // needed. Falls back to a manual stroke-dasharray tween if DrawSVG
+    // wasn't registered, so the pattern still runs (a straight, honest
+    // degrade, not a silent no-op).
+    growth: function (el, p) {
+      const g = requireGSAP();
+      const dur = p.duration || 2.6;
+      if (g.plugins && (g.plugins.drawSVG || typeof DrawSVGPlugin !== 'undefined')) {
+        return g.fromTo(el, { drawSVG: '0%' }, { drawSVG: '100%', duration: dur, repeat: -1, ease: 'power1.inOut' });
+      }
+      const len = el.getTotalLength ? el.getTotalLength() : 100;
+      g.set(el, { strokeDasharray: len, strokeDashoffset: len });
+      return g.to(el, { strokeDashoffset: 0, duration: dur, repeat: -1, ease: 'power1.inOut' });
+    },
+
+    // 5. Environmental Forces — continuous, uniform drift (wind,
+    // current). Linear easing, deliberately not eased in/out — that's
+    // what distinguishes an external force from a biological one, per
+    // the same document's own header.
+    environmental: function (el, p) {
+      const g = requireGSAP();
+      const amt = p.amount != null ? p.amount : 20;
+      const dur = p.duration || 6;
+      const axis = p.axis === 'y' ? 'y' : 'x';
+      const tl = g.timeline({ repeat: -1, yoyo: true, defaults: { ease: 'none', duration: dur / 2 } });
+      tl.to(el, { [axis]: amt }).to(el, { [axis]: -amt });
+      return tl;
+    },
+
+    // 6. Differential Rotation — counter-spinning layers. At the single-
+    // primitive level (no explicit "layer" grouping exists yet), applied
+    // per-primitive with direction alternating by index parity — real
+    // differential rotation between neighbours, the same visual idea as
+    // two counter-spinning layers, just decided per-element instead of
+    // per-declared-layer since Soul has no layer concept yet.
+    rotation: function (el, p, ctx) {
+      const g = requireGSAP();
+      const dur = p.duration || 8;
+      const dir = (ctx && ctx.index % 2 === 0) ? 1 : -1;
+      return g.to(el, { rotation: '+=' + (360 * dir), transformOrigin: '50% 50%', duration: dur, repeat: -1, ease: 'none' });
+    },
+  };
+
+  // Stagger — a per-primitive delay formula, the composable half of
+  // "collective behaviour" (see PATTERNS' own header). Pure function of
+  // (primitive, index, all primitives, config) → delay in seconds, so
+  // it can be computed once per primitive and handed to GSAP's own
+  // timeline `delay` option, no dependency on GSAP's own (position-
+  // string-only) stagger DSL.
+  function staggerDelay(prim, index, all, cfg) {
+    cfg = cfg || {};
+    const by = cfg.by || 'none';
+    const amount = cfg.amount != null ? cfg.amount : 0.15;
+    if (by === 'none' || !amount) return 0;
+    if (by === 'index') return index * amount;
+    if (by === 'distance') {
+      const cx = cfg.originX != null ? cfg.originX : all.reduce((s, p) => s + p.cx, 0) / all.length;
+      const cy = cfg.originY != null ? cfg.originY : all.reduce((s, p) => s + p.cy, 0) / all.length;
+      const dist = Math.hypot(prim.cx - cx, prim.cy - cy);
+      const maxDist = Math.max(1, ...all.map(p => Math.hypot(p.cx - cx, p.cy - cy)));
+      return (dist / maxDist) * amount * all.length * 0.3;
+    }
+    if (by === 'noise') {
+      const scale = cfg.noiseScale || 0.006;
+      const n = noise.simplexFbm2(prim.cx * scale, prim.cy * scale);   // reuses this file's own Simplex noise, not a separate RNG
+      return ((n + 1) / 2) * amount * all.length * 0.3;
+    }
+    return 0;
+  }
+
+  // Applies one pattern to every element in `targets` (parallel to
+  // `primitives`, same index), staggered per `staggerCfg`, returns the
+  // list of GSAP tweens/timelines created (so the caller can pause/kill
+  // them without re-deriving what was built).
+  motion.animate = function animate(targets, primitives, patternName, patternParams, staggerCfg) {
+    const fn = PATTERNS[patternName];
+    if (!fn) throw new Error('Unknown pattern: ' + patternName);
+    const tweens = [];
+    targets.forEach((el, i) => {
+      const tween = fn(el, patternParams || {}, { index: i, primitive: primitives[i] });
+      const d = staggerDelay(primitives[i], i, primitives, staggerCfg);
+      if (d) tween.delay(d);
+      tweens.push(tween);
+    });
+    return tweens;
+  };
+
+  motion.PATTERNS = PATTERNS;
+  motion.staggerDelay = staggerDelay;
+
   Organica.motion = motion;
 })(window);

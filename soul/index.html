@@ -54,7 +54,7 @@
     box-shadow: 0 4px 40px rgba(0,0,0,0.18);
     flex-shrink: 0;
   }
-  #stage-canvas { display: block; }
+  #stage-svg { display: block; }
 
   #empty-hint {
     position: absolute;
@@ -107,6 +107,26 @@
   .stat-row b { color: var(--ink); font-weight: 600; }
 
   #file-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; border: 0; padding: 0; }
+
+  .panel-select {
+    font-family: var(--font); font-size: 10px;
+    background: var(--panel); border: 1px solid var(--border); color: var(--ink);
+    padding: 4px 6px; width: 100%; outline: none; cursor: pointer;
+  }
+  .panel-select:hover { border-color: var(--mid); }
+
+  .ctrl-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
+  .ctrl-label { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); white-space: nowrap; flex-shrink: 0; min-width: 62px; }
+  .ctrl-val { font-size: 10px; color: var(--accent); min-width: 32px; text-align: right; flex-shrink: 0; }
+  input[type=range] {
+    -webkit-appearance: none; flex: 1; min-width: 0; height: 2px;
+    background: var(--border); border-radius: 1px; outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: var(--ink); cursor: pointer;
+  }
+
+  .row-btns .mini-btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 </style>
 </head>
 <body>
@@ -131,7 +151,7 @@
 
   <div id="canvas-wrap">
     <div id="stage-frame">
-      <canvas id="stage-canvas" width="640" height="640"></canvas>
+      <svg id="stage-svg" width="640" height="640" xmlns="http://www.w3.org/2000/svg"></svg>
       <div id="empty-hint">
         <p>Paste or open an SVG<br>from any Organica tool's export</p>
       </div>
@@ -163,29 +183,82 @@
     </div>
 
     <div class="panel-section">
-      <h3>Next <span class="hint">not built yet</span></h3>
-      <p class="org-panel__hint">Motion Model (pattern + stagger + timeline) over these primitives, GSAP for timing/morph, Canvas/SVG/video render targets. This section is the primitive pipeline only — proven working, ready for the engine to build on.</p>
+      <h3>Motion <span class="hint">pattern + stagger</span></h3>
+      <p class="org-panel__hint">The 6 physics patterns from Genesis's own animation system (docs/ANIMATION-SYSTEM.md), rebuilt parametric on GSAP instead of hand-typed per-form CSS — applied to whatever primitives are loaded above. "Collective behaviour" isn't a 7th pattern: it's any of these 5 plus a Stagger, the same relationship Genesis's own docs describe.</p>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Pattern</div>
+        <select class="panel-select" id="sel-pattern">
+          <option value="pressure">Internal pressure</option>
+          <option value="gravity">Gravity + viscosity</option>
+          <option value="growth" id="opt-growth">Growth by tracing</option>
+          <option value="environmental">Environmental force</option>
+          <option value="rotation">Differential rotation</option>
+        </select>
+      </div>
+      <p id="growth-hint" class="org-panel__hint" style="display:none">Growth by tracing only affects PATH primitives (it animates a stroke being drawn) — point primitives (dots) stay static under this pattern.</p>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Amount</div>
+        <input type="range" id="rg-amount" min="0" max="1" step="0.05" value="0.4" oninput="syncVal(this,'v-amount')">
+        <span class="ctrl-val" id="v-amount">0.4</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Duration</div>
+        <input type="range" id="rg-duration" min="0.5" max="10" step="0.1" value="3" oninput="syncVal(this,'v-duration')">
+        <span class="ctrl-val" id="v-duration">3</span>
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Stagger</div>
+        <select class="panel-select" id="sel-stagger">
+          <option value="none">None</option>
+          <option value="index" selected>Index</option>
+          <option value="distance">Distance from centre</option>
+          <option value="noise">Simplex noise</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Stagger amt</div>
+        <input type="range" id="rg-stagger-amount" min="0" max="1" step="0.02" value="0.15" oninput="syncVal(this,'v-stagger-amount')">
+        <span class="ctrl-val" id="v-stagger-amount">0.15</span>
+      </div>
+
+      <div class="row-btns">
+        <button class="mini-btn primary" onclick="playMotion()">Play</button>
+        <button class="mini-btn" onclick="stopMotion()">Stop</button>
+      </div>
     </div>
 
   </div><!-- /panel -->
 </div>
 
-<!-- Load order: core → noise → motion → this tool's own script — noise/
-     motion each extend window.Organica and must load after core, or
-     core's own closing `global.Organica = Organica` would clobber them
-     (same contract organica-noise.js's own header documents). -->
+<!-- Load order: core → noise → motion → GSAP + plugins → this tool's
+     own script. noise/motion each extend window.Organica and must load
+     after core (core's own closing `global.Organica = Organica` would
+     clobber them otherwise). GSAP plugins attach as their own globals
+     and need `gsap.registerPlugin(...)` before first use — done in this
+     tool's own init, not inside organica-motion.js, since registration
+     is a one-time page-level concern, not a per-call one. -->
 <script src="/shared/organica-core.js"></script>
 <script src="/shared/organica-noise.js"></script>
 <script src="/shared/organica-motion.js"></script>
+<script src="/shared/gsap.min.js"></script>
+<script src="/shared/gsap-morphsvg.min.js"></script>
+<script src="/shared/gsap-drawsvg.min.js"></script>
 <script>
 function ctrl(id) { return document.getElementById(id); }
 const setStatus = Organica.status();
+gsap.registerPlugin(MorphSVGPlugin, DrawSVGPlugin);
 
 const stageFrame = ctrl('stage-frame');
-const canvas = ctrl('stage-canvas');
-const ctx = canvas.getContext('2d');
+const stageSVG = ctrl('stage-svg');
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
-let currentParse = null;   // { primitives, canvas } — the one thing the render + stats both read, so they can't disagree
+let currentParse = null;   // { primitives, canvas } — the one thing render/stats/motion all read, so they can't disagree
+let activeTweens = [];     // whatever playMotion() last created — stopMotion() kills exactly these, nothing guessed
+
+function syncVal(slider, valId) { ctrl(valId).textContent = slider.value; }
 
 function loadSVG(svgString) {
   let parsed;
@@ -199,6 +272,7 @@ function loadSVG(svgString) {
     setStatus('', 'Parsed, but found no recognisable shapes');
     return;
   }
+  stopMotion();
   currentParse = parsed;
   renderStage();
   renderStats();
@@ -220,58 +294,70 @@ function loadFromFile(input) {
   input.value = '';
 }
 
-// Rebuilds a Path2D from the primitive's own preserved sourceTag/
-// sourceAttrs — mirrors Pollen's own drawSvgEl() tag handling (the same
-// proven set organica-motion.js's own parser targets) rather than
-// assuming every primitive has a `d` string, which only `<path>` itself
-// actually does; a rect/polygon/polyline/line primitive needs its own
-// geometry reconstructed the same way Pollen already does when it
-// replays a mark onto its own canvas.
-function pathFor(p) {
+function validColor(c) { return c && c !== 'none' ? c : null; }
+
+// Builds a REAL SVG DOM element from a primitive's own preserved
+// sourceTag/sourceAttrs — GSAP (and DrawSVG/MorphSVG specifically) need
+// an actual element to animate, not a canvas draw call, which is the
+// whole reason the stage moved from <canvas> to a real <svg> once
+// animation entered the picture. Mirrors Pollen's own drawSvgEl() tag
+// handling one more time (the same proven tag set), but building DOM
+// nodes instead of Path2D calls.
+function buildElement(p) {
   const a = p.sourceAttrs;
-  const path = new Path2D();
-  if (p.sourceTag === 'rect') path.rect(+a.x || 0, +a.y || 0, +a.width || 0, +a.height || 0);
-  else if (p.sourceTag === 'path') path.addPath(new Path2D(a.d || ''));
-  else if (p.sourceTag === 'polygon' || p.sourceTag === 'polyline') {
-    const pts = (a.points || '').trim().split(/[\s,]+/).map(Number);
-    for (let i = 0; i < pts.length; i += 2) i === 0 ? path.moveTo(pts[i], pts[i + 1]) : path.lineTo(pts[i], pts[i + 1]);
-    if (p.sourceTag === 'polygon') path.closePath();
-  } else if (p.sourceTag === 'line') { path.moveTo(+a.x1 || 0, +a.y1 || 0); path.lineTo(+a.x2 || 0, +a.y2 || 0); }
-  return path;
+  let el;
+  if (p.type === 'point') {
+    el = document.createElementNS(SVG_NS, 'circle');
+    el.setAttribute('cx', p.x); el.setAttribute('cy', p.y); el.setAttribute('r', Math.max(p.r, 1));
+  } else if (p.sourceTag === 'rect') {
+    el = document.createElementNS(SVG_NS, 'rect');
+    el.setAttribute('x', a.x || 0); el.setAttribute('y', a.y || 0);
+    el.setAttribute('width', a.width || 0); el.setAttribute('height', a.height || 0);
+  } else if (p.sourceTag === 'path') {
+    el = document.createElementNS(SVG_NS, 'path');
+    el.setAttribute('d', a.d || '');
+  } else if (p.sourceTag === 'polygon' || p.sourceTag === 'polyline') {
+    el = document.createElementNS(SVG_NS, p.sourceTag);
+    el.setAttribute('points', a.points || '');
+  } else if (p.sourceTag === 'line') {
+    el = document.createElementNS(SVG_NS, 'line');
+    el.setAttribute('x1', a.x1 || 0); el.setAttribute('y1', a.y1 || 0);
+    el.setAttribute('x2', a.x2 || 0); el.setAttribute('y2', a.y2 || 0);
+  } else {
+    el = document.createElementNS(SVG_NS, 'circle');   // unreachable given SUPPORTED in organica-motion.js, kept as a safe fallback rather than throwing
+  }
+  const hasFill = validColor(p.fill), hasStroke = validColor(p.stroke);
+  el.setAttribute('fill', hasFill || (p.type === 'point' ? '#c85a8c' : 'none'));
+  if (hasStroke || (!hasFill && p.type !== 'point')) {
+    el.setAttribute('stroke', hasStroke || '#c85a8c');
+    el.setAttribute('stroke-width', p.strokeWidth || 1);
+  }
+  el.dataset.primId = p.id;
+  return el;
 }
 
-// One render function, the same "single source of truth" rule every
-// Organica tool holds — a static preview for now (dots for point
-// primitives, stroked/filled outline for path primitives), the exact
-// surface the motion engine attaches to next, not a placeholder to
-// throw away.
+// The one render function every Organica tool holds to — builds the
+// live DOM once per load, stores each primitive's own element back onto
+// it (`p.el`) so Motion can target the exact same nodes without a second
+// lookup pass or a risk of the two drifting apart.
 function renderStage() {
   if (!currentParse) return;
   const { primitives, canvas: srcCanvas } = currentParse;
   const w = srcCanvas.width || 640, h = srcCanvas.height || 640;
-  canvas.width = w; canvas.height = h;
-  ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, w, h);
+  stageSVG.setAttribute('width', w);
+  stageSVG.setAttribute('height', h);
+  stageSVG.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+  stageSVG.innerHTML = '';
+  const bg = document.createElementNS(SVG_NS, 'rect');
+  bg.setAttribute('width', '100%'); bg.setAttribute('height', '100%'); bg.setAttribute('fill', '#ffffff');
+  stageSVG.appendChild(bg);
   primitives.forEach(p => {
-    if (p.type === 'point') {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, Math.max(p.r, 1), 0, Math.PI * 2);
-      ctx.fillStyle = validColor(p.fill) || '#c85a8c';
-      ctx.fill();
-      return;
-    }
-    const path = pathFor(p);
-    const hasFill = validColor(p.fill);
-    const hasStroke = validColor(p.stroke);
-    if (hasFill) { ctx.fillStyle = hasFill; ctx.fill(path); }
-    if (hasStroke) { ctx.strokeStyle = hasStroke; ctx.lineWidth = p.strokeWidth || 1; ctx.stroke(path); }
-    if (!hasFill && !hasStroke) { ctx.strokeStyle = '#c85a8c'; ctx.lineWidth = 1; ctx.stroke(path); }
+    const el = buildElement(p);
+    p.el = el;
+    stageSVG.appendChild(el);
   });
   stageFrame.classList.add('has-content');
 }
-
-function validColor(c) { return c && c !== 'none' ? c : null; }
 
 function renderStats() {
   if (!currentParse) return;
@@ -286,7 +372,50 @@ function renderStats() {
   ctrl('stat-paths').textContent = paths;
 }
 
+// ── MOTION ──
+function syncGrowthHint() {
+  const isGrowth = ctrl('sel-pattern').value === 'growth';
+  ctrl('growth-hint').style.display = isGrowth ? '' : 'none';
+}
+ctrl('sel-pattern').addEventListener('change', syncGrowthHint);
+
+function playMotion() {
+  if (!currentParse) { setStatus('', 'Load an SVG first'); return; }
+  stopMotion();
+  const pattern = ctrl('sel-pattern').value;
+  const params = { amount: parseFloat(ctrl('rg-amount').value), duration: parseFloat(ctrl('rg-duration').value) };
+  const staggerCfg = { by: ctrl('sel-stagger').value, amount: parseFloat(ctrl('rg-stagger-amount').value) };
+
+  // Growth (DrawSVG) only makes sense on path primitives — a circle has
+  // no meaningful "stroke being drawn" the way an open/closed path does,
+  // and DrawSVG's own drawSVG property is undefined behaviour on some
+  // shape types. Filtered here rather than left for GSAP to fail on.
+  let primitives = currentParse.primitives;
+  let targets = primitives.map(p => p.el);
+  if (pattern === 'growth') {
+    const filtered = primitives.map((p, i) => ({ p, i })).filter(x => x.p.type === 'path');
+    primitives = filtered.map(x => x.p);
+    targets = filtered.map(x => x.p.el);
+  }
+  if (!targets.length) { setStatus('', 'Nothing this pattern can animate (try a different pattern or source)'); return; }
+
+  activeTweens = Organica.motion.animate(targets, primitives, pattern, params, staggerCfg);
+  setStatus('active', 'Playing ' + pattern + ' on ' + targets.length + ' primitives');
+}
+
+function stopMotion() {
+  const wasPlaying = activeTweens.length > 0;
+  activeTweens.forEach(t => t.kill());
+  activeTweens = [];
+  if (currentParse) {
+    currentParse.primitives.forEach(p => { if (p.el) gsap.set(p.el, { clearProps: 'all' }); });
+    if (wasPlaying) setStatus('active', currentParse.primitives.length + ' primitives loaded');
+  }
+}
+
 setStatus('', 'Load an SVG to begin');
+syncGrowthHint();
+Organica.autoLabelPanel(document);
 </script>
 </body>
 </html>
