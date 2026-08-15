@@ -1,0 +1,198 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Membrane — Organica exploration</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<style>
+  :root { --ink: #0a0a0a; --paper: #f6e8c3; --panel: #131313; --border: #2a2a2a; --mid: #8a8578; --accent: #e94f37; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #060606; color: var(--paper); font-family: -apple-system, sans-serif; display: flex; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; display: flex; align-items: center; justify-content: center; }
+  canvas { display: block; }
+  #panel { width: 300px; flex-shrink: 0; background: var(--panel); border-left: 1px solid var(--border); padding: 16px; overflow-y: auto; }
+  h1 { font-size: 13px; margin: 0 0 4px; }
+  .sub { font-size: 10px; color: var(--mid); margin: 0 0 16px; line-height: 1.5; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .row label { font-size: 10px; color: var(--mid); flex-shrink: 0; }
+  .row .val { font-size: 10px; min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+  input[type=range] { flex: 1; accent-color: var(--accent); }
+  select { width: auto; flex: 1; padding: 5px 6px; font-size: 10px; background: #0a0a0a; color: var(--paper); border: 1px solid var(--border); cursor: pointer; }
+  .toggle-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .toggle-row label { font-size: 10px; color: var(--mid); }
+  .hint { font-size: 9.5px; color: var(--mid); line-height: 1.5; margin: 10px 0; }
+  .sec-title { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mid); margin: 16px 0 8px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .transport { display: flex; gap: 6px; margin-bottom: 16px; }
+  .transport button { flex: 1; background: none; border: 1px solid var(--border); color: var(--paper); padding: 7px; font-size: 11px; cursor: pointer; }
+  .transport button:hover { border-color: var(--accent); color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="panel">
+  <h1>Membrane</h1>
+  <p class="sub">Organica exploration — ported from <a href="https://github.com/generative-design/Code-Package-p5.js/blob/master/01_P/P_2_2_3_02/sketch.js" style="color:var(--accent)">generative-design's P_2_2_3_02</a> ("form morphing process by connected random agents", Groß/Bohnacker/Laub/Lazzeroni, Generative Gestaltung, Apache 2.0). A ring of points each takes its own small independent random step every frame; drawn as one smooth curve through all of them, on a canvas that's never cleared, the accumulating strokes read as a soft membrane breathing and drifting — Organica's own "not drawn, allowed to happen" gesture, one step removed from the drop mark.</p>
+
+  <div class="transport">
+    <button id="btn-freeze">Freeze</button>
+    <button id="btn-clear">Clear canvas</button>
+    <button id="btn-save">Save PNG</button>
+  </div>
+
+  <div class="sec-title">Form</div>
+  <div class="row"><label>Resolution</label><input type="range" id="rg-res" min="4" max="60" step="1" value="15"><span class="val" id="v-res">15</span></div>
+  <div class="row"><label>Init radius</label><input type="range" id="rg-radius" min="20" max="320" step="5" value="150"><span class="val" id="v-radius">150</span></div>
+  <div class="row"><label>Draw mode</label>
+    <select id="sel-mode">
+      <option value="circle">Circle (closed)</option>
+      <option value="line">Line (open)</option>
+    </select>
+  </div>
+  <p class="hint">Resolution is how many points make up the form; Init radius sets the size of a freshly spawned one. Circle closes the curve into a loop; Line leaves it open, stretched between two random endpoints.</p>
+
+  <div class="sec-title">Motion</div>
+  <div class="row"><label>Step size</label><input type="range" id="rg-step" min="0.2" max="15" step="0.1" value="2"><span class="val" id="v-step">2.0</span></div>
+  <div class="row"><label>Float speed</label><input type="range" id="rg-float" min="0" max="0.2" step="0.005" value="0.01"><span class="val" id="v-float">0.010</span></div>
+  <p class="hint">Step size is how far each point can wander in one frame — small values breathe gently, large values tear the form apart into chaos. Float speed is how eagerly the whole form drifts toward the mouse (0 = anchored in place). Click anywhere on the canvas to spawn a fresh form at that point.</p>
+
+  <div class="sec-title">Ink</div>
+  <div class="row"><label>Stroke weight</label><input type="range" id="rg-weight" min="0.25" max="4" step="0.05" value="0.75"><span class="val" id="v-weight">0.75</span></div>
+  <div class="row"><label>Stroke alpha</label><input type="range" id="rg-alpha" min="5" max="255" step="5" value="50"><span class="val" id="v-alpha">50</span></div>
+  <div class="toggle-row"><input type="checkbox" id="chk-fill"><label for="chk-fill">Fill each frame (random ink density)</label></div>
+  <p class="hint">Fill mode washes a new random translucent fill under the stroke every single frame — since the canvas never clears, this is what turns the drifting outline into dense, layered membrane tissue instead of a bare wireframe.</p>
+</div>
+
+<script>
+function ctrl(id) { return document.getElementById(id); }
+
+const W = 800, H = 800;
+
+let formResolution = 15;
+let stepSize = 2;
+let initRadius = 150;
+let floatSpeed = 0.01;
+let drawMode = 'circle';
+let strokeW = 0.75;
+let strokeAlpha = 50;
+let fillEachFrame = false;
+let frozen = false;
+
+let centerX, centerY;
+let xs = [], ys = [];
+let inkRGB, accentRGB;
+
+// ── Shape init — mirrors the original sketch's own setup()/mousePressed()
+// branching (circle: evenly spaced points around a radius; line: N points
+// interpolated between two random endpoints), just factored into one
+// function called from both places instead of duplicated.
+function initShape(cx, cy, radius) {
+  centerX = cx;
+  centerY = cy;
+  xs = []; ys = [];
+  if (drawMode === 'circle') {
+    const angle = radians(360 / formResolution);
+    for (let i = 0; i < formResolution; i++) {
+      xs.push(Math.cos(angle * i) * radius);
+      ys.push(Math.sin(angle * i) * radius);
+    }
+  } else {
+    const ang = random(PI);
+    const x1 = Math.cos(ang) * radius, y1 = Math.sin(ang) * radius;
+    const x2 = Math.cos(ang - PI) * radius, y2 = Math.sin(ang - PI) * radius;
+    for (let i = 0; i < formResolution; i++) {
+      xs.push(lerp(x1, x2, i / formResolution));
+      ys.push(lerp(y1, y2, i / formResolution));
+    }
+  }
+}
+
+function hexToRgb(hex) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function setup() {
+  const c = createCanvas(W, H);
+  c.parent('stage');
+  inkRGB = hexToRgb(getComputedStyle(document.documentElement).getPropertyValue('--paper').trim());
+  accentRGB = hexToRgb(getComputedStyle(document.documentElement).getPropertyValue('--ink').trim());
+  initShape(W / 2, H / 2, initRadius * random(0.5, 1));
+  background(6);
+}
+
+function draw() {
+  // Float toward the mouse — same ease-toward-pointer as the original,
+  // just gated to only run while the pointer is actually over the canvas
+  // (mouseX/mouseY are canvas-relative in p5's default mode, but can sit
+  // outside 0..W/0..H while the pointer is over the panel instead — an
+  // ungated float would have the whole form lurch toward whatever stale
+  // position mouseX/Y last held there).
+  if (mouseX >= 0 && mouseX <= W && mouseY >= 0 && mouseY <= H) {
+    centerX += (mouseX - centerX) * floatSpeed;
+    centerY += (mouseY - centerY) * floatSpeed;
+  }
+
+  // Every point takes its own small independent step — no shared
+  // direction, no coherent field like Flow Field's own angleAt(): each
+  // agent's wander is entirely its own, which is the whole mechanic this
+  // sketch is named for ("connected random agents").
+  for (let i = 0; i < formResolution; i++) {
+    xs[i] += random(-stepSize, stepSize);
+    ys[i] += random(-stepSize, stepSize);
+  }
+
+  if (fillEachFrame) {
+    // A random blend between --ink and --paper (Organica's own duotone
+    // convention, e.g. Camouflage/Halide) stands in for the original's
+    // literal fill(random(255)) grayscale wash — same "a fresh random
+    // density every frame" idea, tuned to the palette already in use
+    // here instead of a flat grayscale unrelated to it.
+    const t = random(1);
+    fill(lerp(accentRGB[0], inkRGB[0], t), lerp(accentRGB[1], inkRGB[1], t), lerp(accentRGB[2], inkRGB[2], t), 30);
+  } else {
+    noFill();
+  }
+  stroke(inkRGB[0], inkRGB[1], inkRGB[2], strokeAlpha);
+  strokeWeight(strokeW);
+
+  beginShape();
+  if (drawMode === 'circle') {
+    // Wraps the control points around the loop so the closed curve has
+    // no visible seam at the start/end join.
+    curveVertex(xs[formResolution - 1] + centerX, ys[formResolution - 1] + centerY);
+    for (let i = 0; i < formResolution; i++) curveVertex(xs[i] + centerX, ys[i] + centerY);
+    curveVertex(xs[0] + centerX, ys[0] + centerY);
+    curveVertex(xs[1] + centerX, ys[1] + centerY);
+  } else {
+    curveVertex(xs[0] + centerX, ys[0] + centerY);
+    for (let i = 0; i < formResolution; i++) curveVertex(xs[i] + centerX, ys[i] + centerY);
+    curveVertex(xs[formResolution - 1] + centerX, ys[formResolution - 1] + centerY);
+  }
+  endShape();
+}
+
+function mousePressed() {
+  if (mouseX < 0 || mouseX > W || mouseY < 0 || mouseY > H) return;   // ignore clicks on the panel
+  const radius = drawMode === 'circle' ? initRadius * random(0.5, 1) : initRadius * random(0.5, 5);
+  initShape(mouseX, mouseY, radius);
+}
+
+ctrl('rg-res').addEventListener('input', e => { formResolution = parseInt(e.target.value, 10); ctrl('v-res').textContent = formResolution; });
+ctrl('rg-radius').addEventListener('input', e => { initRadius = parseFloat(e.target.value); ctrl('v-radius').textContent = initRadius; });
+ctrl('sel-mode').addEventListener('change', e => { drawMode = e.target.value; });
+ctrl('rg-step').addEventListener('input', e => { stepSize = parseFloat(e.target.value); ctrl('v-step').textContent = stepSize.toFixed(1); });
+ctrl('rg-float').addEventListener('input', e => { floatSpeed = parseFloat(e.target.value); ctrl('v-float').textContent = floatSpeed.toFixed(3); });
+ctrl('rg-weight').addEventListener('input', e => { strokeW = parseFloat(e.target.value); ctrl('v-weight').textContent = strokeW.toFixed(2); });
+ctrl('rg-alpha').addEventListener('input', e => { strokeAlpha = parseInt(e.target.value, 10); ctrl('v-alpha').textContent = strokeAlpha; });
+ctrl('chk-fill').addEventListener('change', e => { fillEachFrame = e.target.checked; });
+
+ctrl('btn-freeze').addEventListener('click', () => {
+  frozen = !frozen;
+  ctrl('btn-freeze').textContent = frozen ? 'Resume' : 'Freeze';
+  if (frozen) noLoop(); else loop();
+});
+ctrl('btn-clear').addEventListener('click', () => background(6));
+ctrl('btn-save').addEventListener('click', () => saveCanvas('membrane-' + Date.now(), 'png'));
+</script>
+</body>
+</html>

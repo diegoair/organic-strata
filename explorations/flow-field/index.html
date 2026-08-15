@@ -52,23 +52,53 @@
     <option value="svg">SVG seed</option>
   </select>
 
+  <div class="sec-title">Grid</div>
+  <select id="grid-source-select">
+    <option value="noise">Noise grid (uniform)</option>
+    <option value="loom">Loom grid (JSON)</option>
+  </select>
+  <div id="loom-grid-panel" style="display:none">
+    <input type="file" id="file-loom" accept=".json,application/json" style="width:100%;font-size:10px;color:var(--mid);margin-bottom:10px;">
+    <div class="readout" id="loom-readout" style="font-family:monospace;font-size:10px;color:var(--accent);background:#0a0a0a;padding:6px 8px;border:1px solid var(--border);margin-bottom:10px;">No grid loaded — falling back to noise grid</div>
+    <div class="toggle-row"><input type="checkbox" id="chk-loom-outline" checked><label for="chk-loom-outline">Show grid outline</label></div>
+    <p class="hint">Loads a Loom (/loom/) JSON export and uses ITS cells — rect or any polygon shape (Hexagonal, Voronoi, Radial, Triangular, Diamond, Circular…) — as the flow field's own grid, instead of uniform squares. Each Loom cell gets one coherent-noise angle sampled at its own centroid, so every particle inside that cell drifts together; Cell size below becomes the RESOLUTION at which a point is resolved to its containing Loom cell, not the flow cell itself.</p>
+  </div>
+
   <div class="sec-title">Engine (shared by every mode)</div>
   <div class="row"><label>Cell size</label><input type="range" id="rg-cell" min="8" max="60" step="2" value="20"><span class="val" id="v-cell">20</span></div>
   <div class="row"><label>Noise scale</label><input type="range" id="rg-noisescale" min="0.01" max="0.3" step="0.005" value="0.08"><span class="val" id="v-noisescale">0.08</span></div>
   <div class="row"><label>Angle mult</label><input type="range" id="rg-anglemult" min="0.5" max="6" step="0.1" value="2"><span class="val" id="v-anglemult">2.0</span></div>
   <div class="row"><label>Speed</label><input type="range" id="rg-speed" min="0.2" max="6" step="0.1" value="1.5"><span class="val" id="v-speed">1.5</span></div>
   <div class="row"><label>Particles</label><input type="range" id="rg-count" min="20" max="2000" step="10" value="400"><span class="val" id="v-count">400</span></div>
-  <div class="row"><label>Fade</label><input type="range" id="rg-fade" min="1" max="40" step="1" value="8"><span class="val" id="v-fade">8</span></div>
+  <div class="row"><label>Fade</label><input type="range" id="rg-fade" min="1" max="100" step="1" value="8"><span class="val" id="v-fade">8</span></div>
+
+  <div class="sec-title">Movement</div>
+  <div class="row"><label>Inertia</label><input type="range" id="rg-inertia" min="0" max="0.95" step="0.01" value="0"><span class="val" id="v-inertia">0.00</span></div>
+  <div class="row"><label>Speed variation</label><input type="range" id="rg-speedvar" min="0" max="1" step="0.02" value="0"><span class="val" id="v-speedvar">0.00</span></div>
+  <div class="row"><label>Turbulence</label><input type="range" id="rg-turbulence" min="0" max="1.5" step="0.02" value="0"><span class="val" id="v-turbulence">0.00</span></div>
+  <div class="row"><label>Center pull</label><input type="range" id="rg-centerpull" min="0" max="1" step="0.02" value="0"><span class="val" id="v-centerpull">0.00</span></div>
+  <p class="hint">All four default to 0 — an exact no-op, same instant-snap-to-field-angle-at-constant-speed motion as before. Inertia steers the heading toward the field's angle over several steps instead of snapping every frame (smoother turns, more visible at Loom cell boundaries). Speed variation pulses each particle's own speed up/down on its own phase. Turbulence adds a small random wobble to the direction each step. Center pull blends the movement angle toward the canvas centre — at 1 it overrides the field entirely and every particle heads straight for the middle; in between, the field and the pull both have a say.</p>
+
   <div class="row"><label>Mark style</label>
     <select id="sel-markstyle" style="margin:0;width:auto;flex:1;padding:5px 6px;font-size:10px;">
       <option value="line">Line</option>
       <option value="dots">Dots</option>
       <option value="drop">Drop marks</option>
+      <option value="letters">DIEGO letters</option>
+      <option value="polygon">Hexagon</option>
     </select>
   </div>
-  <div class="row"><label>Mark size</label><input type="range" id="rg-marksize" min="0.5" max="4" step="0.1" value="1"><span class="val" id="v-marksize">1.0</span></div>
+  <div class="row"><label>Mark size</label><input type="range" id="rg-marksize" min="0.5" max="8" step="0.1" value="2.5"><span class="val" id="v-marksize">2.5</span></div>
+  <div class="toggle-row"><input type="checkbox" id="chk-neon"><label for="chk-neon">Neon gradient colors</label></div>
   <div class="toggle-row"><input type="checkbox" id="chk-debug"><label for="chk-debug">Show field arrows (debug)</label></div>
   <button id="btn-reset">Reset canvas</button>
+
+  <div class="sec-title">Trail</div>
+  <div class="row"><label>Opacity min</label><input type="range" id="rg-alphamin" min="0" max="255" step="5" value="40"><span class="val" id="v-alphamin">40</span></div>
+  <div class="row"><label>Opacity max</label><input type="range" id="rg-alphamax" min="0" max="255" step="5" value="230"><span class="val" id="v-alphamax">230</span></div>
+  <div class="row"><label>Size taper</label><input type="range" id="rg-taper" min="0" max="2" step="0.05" value="1"><span class="val" id="v-taper">1.0</span></div>
+  <div class="row"><label>Hue drift</label><input type="range" id="rg-huedrift" min="0" max="15" step="0.2" value="2.2"><span class="val" id="v-huedrift">2.2</span></div>
+  <p class="hint">Opacity min/max set the fade curve from tail to head (every mark style). Size taper controls how much a Dots/Drop/Letters mark shrinks toward the tail — 0 keeps every point the same size, 1 is the original taper, above 1 exaggerates it. Hue drift only applies with Neon gradient colors on: how many degrees the hue rotates per trail point.</p>
 
   <div data-panel="evolve">
     <div class="sec-title">Evolving field</div>
@@ -95,7 +125,8 @@ function ctrl(id) { return document.getElementById(id); }
 // ── Params (mirrors the slider values, read once per relevant recompute
 // rather than re-reading the DOM every frame) ──
 let cellSize = 20, noiseScale = 0.08, angleMult = 2, speed = 1.5, count = 400, fadeAmt = 8;
-let markStyle = 'line', markSize = 1;
+let inertia = 0, speedVariation = 0, turbulence = 0, centerPull = 0;
+let markStyle = 'line', markSize = 2.5;
 let showDebug = false;
 let mode = 'static';
 let evolveSpeed = 0.01;
@@ -130,6 +161,42 @@ function buildField() {
   if (!angles || angles.length !== cols * rows) angles = new Float32Array(cols * rows);
   const fieldIsEvolving = mode === 'evolve' || (mode === 'svg' && svgFieldEvolves);
   const t = fieldIsEvolving ? frameCount * evolveSpeed : 0;
+
+  if (gridSource === 'loom' && loomCells.length && binCellIndex) {
+    // One noise sample per LOOM CELL, at its own centroid — broadcast to
+    // every bin the cell covers, so the whole cell drifts as one coherent
+    // region.
+    //
+    // REAL BUG, found by inspecting a particle stuck oscillating across a
+    // single ~3px gap: two ADJACENT hexagons (centroids ~40-80px apart)
+    // got angles ~180° apart (67° vs 248°), so a particle crossing that
+    // boundary got bounced almost straight back every single step,
+    // trapped there indefinitely — same failure class as the original
+    // canvas-edge "wrap trap" documented in Particle.step() below, just
+    // triggered at any interior cell boundary instead of only the edge.
+    // Root cause: this branch sampled noise at the centroid's raw PIXEL
+    // coordinates (cx*noiseScale), while the uniform-grid branch below
+    // samples noise at GRID INDICES (gx*noiseScale, gx = pixelX/cellSize)
+    // — a much coarser, smoother spatial frequency. Two Loom cells 60px
+    // apart landed ~4.8 noise-space units apart at noiseScale=0.08,
+    // essentially uncorrelated random values; the same 60px gap in the
+    // uniform grid's own convention is only ~3 grid-index units, still
+    // inside noise's natural smoothness. Fixed by sampling at the SAME
+    // index-scale convention (divide by cellSize first) so nearby Loom
+    // cells get smoothly correlated angles exactly like nearby squares
+    // always did.
+    const cellAngles = new Float32Array(loomCells.length);
+    for (let i = 0; i < loomCells.length; i++) {
+      const c = loomCells[i];
+      const cx = (c.cx * loomFit.scale + loomFit.offX) / cellSize;
+      const cy = (c.cy * loomFit.scale + loomFit.offY) / cellSize;
+      const n = noise(cx * noiseScale, cy * noiseScale, t);
+      cellAngles[i] = n * angleMult * TWO_PI;
+    }
+    for (let i = 0; i < binCellIndex.length; i++) angles[i] = cellAngles[binCellIndex[i]];
+    return;
+  }
+
   for (let gy = 0; gy < rows; gy++) {
     for (let gx = 0; gx < cols; gx++) {
       const n = noise(gx * noiseScale, gy * noiseScale, t);   // 0..1
@@ -143,6 +210,158 @@ function angleAt(x, y) {
   gx = constrain(gx, 0, cols - 1);
   gy = constrain(gy, 0, rows - 1);
   return angles[gy * cols + gx];
+}
+
+// ══════════════════════════════════════════════════════════════════
+// LOOM GRID SOURCE — swaps WHAT COUNTS AS A CELL from the uniform square
+// lattice above to an arbitrary Loom (/loom/) JSON export: rect tracks
+// (Bento/Sinusoidal/…) or any polygon tessellation (Hexagonal/Voronoi/
+// Radial/Triangular/Diamond/Circular/…).
+//
+// KEY DECISION: angleAt()/Particle.step() above are NOT touched. They
+// still just index into the same flat `angles` Float32Array at
+// `cellSize` resolution — the square lattice never goes away, it just
+// becomes a RASTER used to resolve "which Loom cell is this point inside
+// of", exactly the same performance discipline buildField()'s own header
+// comment already states for noise (sample once per coarse cell, not per
+// pixel). `binCellIndex` (Int32Array, same cols*rows shape as `angles`)
+// caches that raster→Loom-cell mapping — built once per grid load / Cell
+// size change, NOT per frame — then buildField() computes one noise
+// angle per Loom cell (at its own centroid) and broadcasts it to every
+// bin that maps to that cell, so the whole Loom cell drifts as one
+// coherent region instead of each bin picking its own noise value.
+// ══════════════════════════════════════════════════════════════════
+
+let gridSource = 'noise';
+let loomCells = [];            // [{shape:'rect'|'polygon', x,y,w,h | points, cx, cy}, ...]
+let loomFit = null;            // {scale, offX, offY} — Loom canvas space → this canvas's WxH
+let binCellIndex = null;       // Int32Array, cols*rows — which loomCells[] index each bin maps to
+let binIsFreeSpace = null;     // Uint8Array, cols*rows — 1 = bin is genuinely outside every polygon (a real gap), 0 = inside a cell
+let showLoomOutline = true;
+
+function pointInRect(x, y, c) {
+  return x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h;
+}
+
+// Standard ray-casting point-in-polygon test.
+function pointInPolygon(x, y, points) {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const xi = points[i][0], yi = points[i][1], xj = points[j][0], yj = points[j][1];
+    const intersects = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+// Resolves a rect-shaped Loom grid's tracks+spans into absolute pixel
+// rects — same math as loom/js/json-model.js's own resolveCellRects and
+// shared/organica-core.js's loadLoomGrid, ported rather than imported
+// since this exploration is a zero-dependency standalone page (no
+// organica-core.js / design-token CSS pulled in just for this one path).
+function resolveLoomRectCells(model) {
+  const canvas = model.canvas;
+  const shortSide = Math.min(canvas.width, canvas.height);
+  const pct = (v) => shortSide * ((v || 0) / 100);
+  const mt = pct(canvas.marginTop != null ? canvas.marginTop : canvas.margin);
+  const mr = pct(canvas.marginRight != null ? canvas.marginRight : canvas.margin);
+  const mb = pct(canvas.marginBottom != null ? canvas.marginBottom : canvas.margin);
+  const ml = pct(canvas.marginLeft != null ? canvas.marginLeft : canvas.margin);
+  const inner = { x: ml, y: mt, width: Math.max(1, canvas.width - ml - mr), height: Math.max(1, canvas.height - mt - mb) };
+
+  const { tracks, gap, padding } = model.grid;
+  const pad = padding || 0;
+  const offsets = (sizes) => {
+    const out = [0];
+    for (let i = 0; i < sizes.length; i++) out.push(out[i] + sizes[i] + gap);
+    return out;
+  };
+  const colOff = offsets(tracks.cols), rowOff = offsets(tracks.rows);
+  return model.cells.map(c => {
+    const x = inner.x + colOff[c.col] + pad;
+    const y = inner.y + rowOff[c.row] + pad;
+    const w = Math.max(0, colOff[c.col + c.colSpan] - colOff[c.col] - gap - 2 * pad);
+    const h = Math.max(0, rowOff[c.row + c.rowSpan] - rowOff[c.row] - gap - 2 * pad);
+    return { shape: 'rect', x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
+  });
+}
+
+function loadLoomGridJSON(jsonText) {
+  let model;
+  try {
+    model = JSON.parse(jsonText);
+  } catch (e) {
+    ctrl('loom-readout').textContent = 'Could not parse file — not valid JSON.';
+    return;
+  }
+  if (!model || !model.canvas || !model.grid || !Array.isArray(model.cells) || !model.cells.length) {
+    ctrl('loom-readout').textContent = 'Not a Loom grid export — missing canvas/grid/cells.';
+    return;
+  }
+
+  const isPolygon = model.grid.cellShape === 'polygon';
+  loomCells = isPolygon
+    ? model.cells.map(c => ({ shape: 'polygon', points: c.points, cx: c.centroid[0], cy: c.centroid[1] }))
+    : resolveLoomRectCells(model);
+
+  // Fit the Loom canvas's own physical size into this exploration's fixed
+  // WxH stage — uniform scale, centred — same "fit and centre" technique
+  // as the SVG-seed panel's resampleSeedPoints() above.
+  const scale = Math.min(W / model.canvas.width, H / model.canvas.height);
+  loomFit = { scale, offX: (W - model.canvas.width * scale) / 2, offY: (H - model.canvas.height * scale) / 2 };
+
+  ctrl('loom-readout').textContent = loomCells.length + ' cells loaded — ' + (model.grid.type || 'unknown type') + (isPolygon ? ' (polygon)' : ' (rect)');
+  rebuildBinCellIndex();
+  buildField();
+}
+
+// Maps a point in THIS canvas's WxH space back into the loaded Loom
+// grid's own native coordinate space (inverse of the fit transform).
+function canvasToLoomSpace(x, y) {
+  return [(x - loomFit.offX) / loomFit.scale, (y - loomFit.offY) / loomFit.scale];
+}
+
+// Returns { idx, inside } — idx is always a valid loomCells[] index (falls
+// back to the nearest cell by centroid so the FIELD stays fully defined
+// even in a Gap/Jitter sliver no polygon actually covers), but `inside`
+// tells the caller whether the point genuinely landed inside a real cell
+// shape or only got there via that fallback — the distinction the debug
+// arrow overlay needs to draw ONLY in true free space between polygons.
+function findLoomCellAt(lx, ly) {
+  for (let i = 0; i < loomCells.length; i++) {
+    const c = loomCells[i];
+    if (c.shape === 'rect' ? pointInRect(lx, ly, c) : pointInPolygon(lx, ly, c.points)) return { idx: i, inside: true };
+  }
+  let best = 0, bestD = Infinity;
+  for (let i = 0; i < loomCells.length; i++) {
+    const c = loomCells[i];
+    const d = (c.cx - lx) * (c.cx - lx) + (c.cy - ly) * (c.cy - ly);
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return { idx: best, inside: false };
+}
+
+// Built once per grid load / Cell size change — NOT per frame. cols/rows
+// mirror buildField()'s own square-lattice sizing so the two stay the
+// exact same raster shape. `binIsFreeSpace` is the debug-arrow filter:
+// true only for bins that fall genuinely OUTSIDE every polygon (the real
+// gaps Gap/Jitter leave between cells), false for anything inside a cell.
+function rebuildBinCellIndex() {
+  if (gridSource !== 'loom' || !loomCells.length) { binCellIndex = null; binIsFreeSpace = null; return; }
+  cols = Math.ceil(W / cellSize);
+  rows = Math.ceil(H / cellSize);
+  binCellIndex = new Int32Array(cols * rows);
+  binIsFreeSpace = new Uint8Array(cols * rows);
+  for (let gy = 0; gy < rows; gy++) {
+    for (let gx = 0; gx < cols; gx++) {
+      const cx = gx * cellSize + cellSize / 2, cy = gy * cellSize + cellSize / 2;
+      const [lx, ly] = canvasToLoomSpace(cx, cy);
+      const { idx, inside } = findLoomCellAt(lx, ly);
+      const bin = gy * cols + gx;
+      binCellIndex[bin] = idx;
+      binIsFreeSpace[bin] = inside ? 0 : 1;
+    }
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -320,13 +539,77 @@ class Particle {
     } else {
       this.x = random(W); this.y = random(H);
     }
-    this.trail = [[this.x, this.y]];
+    // Third element is the LETTER index (0-4, DIEGO) this point was
+    // created with — stored at push time, not recomputed from the
+    // point's position in the trail array, since the array is a ring
+    // buffer that shifts every step: a fixed loop-index→letter mapping
+    // would make every point's letter change as older points fall off
+    // the front, instead of each point keeping the letter it was born
+    // with as it travels.
+    this.stepCount = 0;
+    this.trail = [[this.x, this.y, this.stepCount % 5, 0]];
+    // Each particle's own fluo hue (0-360, HSB space) — reassigned fresh on
+    // every respawn too, so the population keeps cycling through the full
+    // spectrum rather than settling into a fixed per-slot palette.
+    this.hue = random(360);
+    // MOVEMENT — heading starts snapped to the field's own angle at the
+    // spawn point (so Inertia doesn't cause a slow "wind-up" turn on the
+    // very first step); speedPhase gives each particle its OWN pulse
+    // timing for Speed variation, so a population doesn't all breathe in
+    // lockstep.
+    this.heading = angleAt(this.x, this.y);
+    this.speedPhase = random(TWO_PI);
   }
   step() {
-    const a = angleAt(this.x, this.y);
-    this.x += Math.cos(a) * speed;
-    this.y += Math.sin(a) * speed;
-    this.trail.push([this.x, this.y]);
+    const fieldA = angleAt(this.x, this.y);
+    // Inertia — steer the particle's own heading TOWARD the field's
+    // angle instead of snapping to it every step. inertia=0 reproduces
+    // the original instant-snap behaviour exactly (turnRate=1). Uses the
+    // shortest angular distance (wrapped to [-PI,PI] via atan2/sin/cos)
+    // so a heading near 359° steering toward 2° turns the short way
+    // (through 0°) instead of the long way around.
+    let diff = fieldA - this.heading;
+    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+    const turnRate = 1 - inertia;
+    this.heading += diff * turnRate;
+
+    // Turbulence — a small per-step random wobble added to the MOVEMENT
+    // angle only (not fed back into `heading` itself), so jitter reads as
+    // noise around the steered direction rather than a second thing
+    // Inertia has to smooth out.
+    const jitter = turbulence > 0 ? (Math.random() - 0.5) * 2 * turbulence : 0;
+    let moveAngle = this.heading + jitter;
+
+    // Center pull — blends the movement angle (only, same ephemeral
+    // treatment as jitter above — doesn't feed back into `heading`)
+    // toward the angle pointing at the canvas centre, by shortest
+    // angular distance. 0 leaves moveAngle untouched; 1 replaces it
+    // outright, so every particle heads straight for the middle and the
+    // field stops having any say at all.
+    if (centerPull > 0) {
+      const centerAngle = Math.atan2(H / 2 - this.y, W / 2 - this.x);
+      let cDiff = centerAngle - moveAngle;
+      cDiff = Math.atan2(Math.sin(cDiff), Math.cos(cDiff));
+      moveAngle += cDiff * centerPull;
+    }
+
+    // Speed variation — each particle pulses faster/slower over time on
+    // its own phase, sampled from p5's own frameCount so it's smooth and
+    // continuous without needing a per-particle timer.
+    const effSpeed = speedVariation > 0
+      ? speed * (1 + speedVariation * Math.sin(frameCount * 0.05 + this.speedPhase))
+      : speed;
+
+    const prevX = this.x, prevY = this.y;
+    this.x += Math.cos(moveAngle) * effSpeed;
+    this.y += Math.sin(moveAngle) * effSpeed;
+    // 4th element: the distance actually covered THIS step — feeds the
+    // stuck guard below. Storing it per-point (not just relying on a
+    // nominal `speed`) is what lets the guard stay correct once Speed
+    // variation makes the real per-step distance a moving target.
+    const stepDist = Math.hypot(this.x - prevX, this.y - prevY);
+    this.stepCount++;
+    this.trail.push([this.x, this.y, this.stepCount % 5, stepDist]);
     if (this.trail.length > fadeAmt) this.trail.shift();
     // On exiting the canvas, RESPAWN (same logic as construction) rather
     // than wrap-teleporting to the opposite edge.
@@ -351,7 +634,42 @@ class Particle {
     // exit, instead of drifting off to reappear at a literal canvas edge.
     // Confirmed live: 0 particles stuck after the same test that showed
     // 39/40 and then 23/40 with the two earlier approaches.
-    if (this.x < 0 || this.x >= W || this.y < 0 || this.y >= H) this.reset();
+    if (this.x < 0 || this.x >= W || this.y < 0 || this.y >= H) { this.reset(); return; }
+
+    // LOOM-GRID STUCK GUARD — same "respawn is the only fix that
+    // structurally can't get stuck" reasoning as the canvas-edge case
+    // above, applied to an INTERIOR trap: two adjacent Loom cells whose
+    // sampled angles land close to opposite directions still bounce a
+    // particle back and forth across their shared boundary forever, even
+    // after smoothing the noise sampling scale (buildField()'s own fix
+    // above shrinks how OFTEN this happens, it can't guarantee zero for
+    // every possible imported grid/seed). Detected the same way you'd
+    // spot it by eye: once the trail is fully populated, a particle that
+    // has actually been flowing covers a real distance; one oscillating
+    // in place covers almost none. Only checked in 'loom' mode — the
+    // uniform grid never has this failure mode once its own smooth noise
+    // field is intact.
+    //
+    // REAL BUG, found while testing Speed variation: comparing against a
+    // fixed `speed * steps` expected distance assumed constant speed —
+    // once effSpeed legitimately oscillates (Speed variation) or a
+    // curving path legitimately covers less straight-line ground per
+    // step (Inertia), a particle that was never stuck could still test
+    // below the 25% threshold just by sampling a slow phase, and got
+    // wrongly respawned (14/60 particles measured, none actually
+    // oscillating). Fixed by comparing against the ACTUAL distance
+    // walked (sum of each step's own stored distance, `trail[i][3]`)
+    // instead of a nominal speed — a genuinely stuck particle still
+    // walks plenty of path length while covering almost no NET distance
+    // (a straightness ratio near 0), which stays true regardless of how
+    // fast or curved that walking was.
+    if (gridSource === 'loom' && this.trail.length >= fadeAmt) {
+      const head = this.trail[this.trail.length - 1], tail = this.trail[0];
+      const covered = Math.hypot(head[0] - tail[0], head[1] - tail[1]);
+      let pathLength = 0;
+      for (let i = 1; i < this.trail.length; i++) pathLength += this.trail[i][3];
+      if (pathLength > 0 && covered < pathLength * 0.25) { this.reset(); return; }
+    }
   }
 }
 
@@ -372,16 +690,86 @@ function markColor() {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 let markRGB;
+let markHSB;        // [hue, sat, bright] equivalent of markRGB, once colorMode switches to HSB below
+let accentHSB;       // [hue, sat, bright] equivalent of --accent, for the debug/outline overlays
+let neonColors = false;
+
+// Plain-JS RGB(0-255)→HSB(h:0-360, s/v:0-100) conversion — NOT p5's own
+// hue()/saturation()/brightness(), which turned out ambiguous: calling
+// saturation() on a colour built while colorMode was still RGB returned
+// the HSL saturation (73.9%) instead of the HSB one (20.7%) for the same
+// --mark colour, a real, confirmed discrepancy (brightness() agreed with
+// the HSB formula, saturation() didn't) — not worth depending on p5's
+// internal mode bookkeeping when the formula itself is this small.
+function rgbToHsb(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), delta = max - min;
+  const v = max * 100;
+  const s = max === 0 ? 0 : (delta / max) * 100;
+  let h = 0;
+  if (delta !== 0) {
+    if (max === r) h = 60 * (((g - b) / delta) % 6);
+    else if (max === g) h = 60 * ((b - r) / delta + 2);
+    else h = 60 * ((r - b) / delta + 4);
+    if (h < 0) h += 360;
+  }
+  return [h, s, v];
+}
 
 function setup() {
   const c = createCanvas(W, H);
   c.parent('stage');
   noiseSeed(1);
   markRGB = markColor();
+  markHSB = rgbToHsb(markRGB[0], markRGB[1], markRGB[2]);
+  accentHSB = rgbToHsb(233, 79, 55);   // --accent, same conversion for the debug/outline overlays below
+  // HSB from here on for every stroke/fill in renderTrail() — Neon mode
+  // needs a hue dial (rotating hue at fixed full saturation/brightness IS
+  // the fluo look), which RGB has no direct equivalent for; the default
+  // --mark colour is expressed as markHSB above so both paths share one
+  // colour space instead of switching colorMode per frame.
+  colorMode(HSB, 360, 100, 100, 255);
   seedPoints = defaultCirclePoints(svgPointsPerShape);
+  // REAL BUG, found on first load: Particle.reset() now calls angleAt()
+  // (to seed `heading` for Inertia) — but rebuildParticles() used to run
+  // BEFORE buildField() had ever populated cols/rows/angles, so that
+  // very first angleAt() call indexed into an undefined array. buildField()
+  // is cheap and idempotent, so it's called here too, ahead of
+  // rebuildParticles(), instead of only inside switchMode() below.
+  buildField();
   rebuildParticles();
-  background(6);
+  background(0, 0, 2.4);   // HSB equivalent of the original RGB(6,6,6) near-black
   switchMode('static');
+}
+
+// Resolves the [hue, sat, bright] a trail POINT should draw in — the
+// default --mark colour (flat, same for every particle/point) when Neon
+// is off, or each particle's OWN fluo hue when on, drifted a little per
+// point (HUE_DRIFT_PER_STEP) so a single trail itself reads as a colour
+// gradient (a comet with a colour-shifting tail), not just a population
+// of differently-coloured but internally flat particles.
+let hueDrift = 2.2;         // degrees/point, Trail panel "Hue drift"
+const DIEGO_LETTERS = ['D', 'I', 'E', 'G', 'O'];
+function markHSBAt(p, i) {
+  if (!neonColors) return markHSB;
+  return [(p.hue + i * hueDrift) % 360, 100, 100];
+}
+
+// Trail opacity range (Trail panel) — shared by every mark style's own
+// fade-toward-tail curve, replacing what used to be a slightly different
+// hardcoded range per style (60-235 for Line/Letters, 40-220 for
+// Dots/Drop) with one tunable pair.
+let trailAlphaMin = 40, trailAlphaMax = 230;
+function trailAlphaAt(i, len) { return map(i, 0, len, trailAlphaMin, trailAlphaMax); }
+
+// Size taper (Trail panel) — 0 keeps a mark's size constant at its own
+// BASE_MAX across the whole trail, 1 reproduces the original hardcoded
+// taper (shrinks to BASE_MIN at the tail), values above 1 exaggerate it
+// past what BASE_MIN used to allow.
+let sizeTaper = 1;
+function taperedSize(i, len, baseMin, baseMax) {
+  const effMin = baseMax - (baseMax - baseMin) * sizeTaper;
+  return map(i, 0, len, effMin, baseMax);
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -395,8 +783,9 @@ function renderTrail(p) {
   if (markStyle === 'line') {
     strokeWeight(1.2 * markSize);
     for (let i = 1; i < p.trail.length; i++) {
-      const a = map(i, 0, p.trail.length, 60, 235);
-      stroke(markRGB[0], markRGB[1], markRGB[2], a);
+      const a = trailAlphaAt(i, p.trail.length);
+      const [h, s, b] = markHSBAt(p, i);
+      stroke(h, s, b, a);
       line(p.trail[i-1][0], p.trail[i-1][1], p.trail[i][0], p.trail[i][1]);
     }
     return;
@@ -408,9 +797,10 @@ function renderTrail(p) {
     // dot's own radius shrinking toward the tail so the trail reads as
     // tapering, not just dimming.
     for (let i = 0; i < p.trail.length; i++) {
-      const a = map(i, 0, p.trail.length, 40, 220);
-      const r = map(i, 0, p.trail.length, 0.8, 2.6) * markSize;
-      fill(markRGB[0], markRGB[1], markRGB[2], a);
+      const a = trailAlphaAt(i, p.trail.length);
+      const r = taperedSize(i, p.trail.length, 0.8, 2.6) * markSize;
+      const [h, s, b] = markHSBAt(p, i);
+      fill(h, s, b, a);
       circle(p.trail[i][0], p.trail[i][1], r * 2);
     }
     return;
@@ -425,13 +815,14 @@ function renderTrail(p) {
     // else in this project for "something moving under gravity/motion",
     // which a flow-field particle literally is.
     for (let i = 1; i < p.trail.length; i++) {
-      const a = map(i, 0, p.trail.length, 40, 220);
+      const a = trailAlphaAt(i, p.trail.length);
       const cur = p.trail[i], prev = p.trail[i - 1];
       const dx = cur[0] - prev[0], dy = cur[1] - prev[1];
       const ang = Math.atan2(dy, dx);
-      const len = map(i, 0, p.trail.length, 2.5, 7) * markSize;
+      const len = taperedSize(i, p.trail.length, 2.5, 7) * markSize;
       const wid = len * 0.55;
-      fill(markRGB[0], markRGB[1], markRGB[2], a);
+      const [h, s, b] = markHSBAt(p, i);
+      fill(h, s, b, a);
       push();
       translate(cur[0], cur[1]);
       rotate(ang);
@@ -439,6 +830,58 @@ function renderTrail(p) {
       vertex(0, 0);
       bezierVertex(-len * 0.3, -wid * 0.5, -len * 0.8, -wid * 0.5, -len, 0);
       bezierVertex(-len * 0.8, wid * 0.5, -len * 0.3, wid * 0.5, 0, 0);
+      endShape(CLOSE);
+      pop();
+    }
+    return;
+  }
+
+  if (markStyle === 'letters') {
+    // Spells the trail out of D-I-E-G-O instead of a continuous stroke —
+    // each trail POINT carries its own letter (assigned once, at
+    // creation, in Particle.step()/reset()) rather than one recomputed
+    // from the point's current position in the trail array, so a given
+    // letter stays attached to the same physical spot as it travels
+    // instead of relabelling itself every frame as older points shift
+    // out. Same taper curve as Dots (size shrinks toward the tail).
+    noStroke();
+    textAlign(CENTER, CENTER);
+    textStyle(BOLD);
+    for (let i = 0; i < p.trail.length; i++) {
+      const a = trailAlphaAt(i, p.trail.length);
+      const sz = taperedSize(i, p.trail.length, 5, 12) * markSize;
+      const [h, s, b] = markHSBAt(p, i);
+      fill(h, s, b, a);
+      textSize(sz);
+      const letterIdx = p.trail[i][2] != null ? p.trail[i][2] : 0;
+      text(DIEGO_LETTERS[letterIdx], p.trail[i][0], p.trail[i][1]);
+    }
+    return;
+  }
+
+  if (markStyle === 'polygon') {
+    // A regular hexagon per trail point — same "oriented along the
+    // direction of travel" idea as Drop marks (one vertex leads the way
+    // instead of a fixed on-screen orientation, so the shape visibly
+    // tumbles as the particle turns through the field), same taper/
+    // opacity curves as every other style.
+    const SIDES = 6;
+    noStroke();
+    for (let i = 1; i < p.trail.length; i++) {
+      const a = trailAlphaAt(i, p.trail.length);
+      const cur = p.trail[i], prev = p.trail[i - 1];
+      const ang = Math.atan2(cur[1] - prev[1], cur[0] - prev[0]);
+      const r = taperedSize(i, p.trail.length, 1.5, 5) * markSize;
+      const [h, s, b] = markHSBAt(p, i);
+      fill(h, s, b, a);
+      push();
+      translate(cur[0], cur[1]);
+      rotate(ang);
+      beginShape();
+      for (let k = 0; k < SIDES; k++) {
+        const theta = (k / SIDES) * TWO_PI;
+        vertex(Math.cos(theta) * r, Math.sin(theta) * r);
+      }
       endShape(CLOSE);
       pop();
     }
@@ -471,7 +914,7 @@ function draw() {
   // trail SEGMENTS (already drawn, no longer in anyone's live trail
   // array) slowly darken back to background instead of staying forever.
   noStroke();
-  fill(6, 6, 6, 14);
+  fill(0, 0, 2.4, 14);
   rect(0, 0, W, H);
 
   particles.forEach(p => {
@@ -479,14 +922,25 @@ function draw() {
     renderTrail(p);
   });
 
+  if (gridSource === 'loom' && showLoomOutline && loomCells.length) drawLoomOutline();
+
   if (showDebug) {
     push();
-    stroke(233, 79, 55, 160);
+    stroke(accentHSB[0], accentHSB[1], accentHSB[2], 160);
     strokeWeight(1);
+    // In Loom mode, only draw a bin's arrow if it's genuinely OUTSIDE
+    // every polygon (a real gap left by Gap/Jitter) — inside a cell the
+    // outline already shows its shape, and one flat colour-coded arrow
+    // per cell (not per bin) is truer to "this whole region shares one
+    // angle" than a dense field of identical arrows stacked on top of
+    // each other inside it.
+    const loomActive = gridSource === 'loom' && binIsFreeSpace;
     for (let gy = 0; gy < rows; gy++) {
       for (let gx = 0; gx < cols; gx++) {
+        const bin = gy * cols + gx;
+        if (loomActive && !binIsFreeSpace[bin]) continue;
         const cx = gx * cellSize + cellSize / 2, cy = gy * cellSize + cellSize / 2;
-        const a = angles[gy * cols + gx];
+        const a = angles[bin];
         const len = cellSize * 0.4;
         line(cx, cy, cx + Math.cos(a) * len, cy + Math.sin(a) * len);
       }
@@ -495,20 +949,71 @@ function draw() {
   }
 }
 
+// Draws the imported Loom grid's own real cell boundaries directly on the
+// stage, in the LOOM canvas's own fit-transform space — so it's obvious,
+// at a glance, that particles are actually following THIS grid and not
+// just producing angular trails that happen to look grid-like. Redrawn
+// every frame (cheap: ~87 cells) rather than baked once, since trails
+// accumulate over a translucent fade and would otherwise bury it.
+function drawLoomOutline() {
+  push();
+  noFill();
+  stroke(accentHSB[0], accentHSB[1], accentHSB[2], 130);
+  strokeWeight(1);
+  loomCells.forEach(c => {
+    beginShape();
+    if (c.shape === 'rect') {
+      vertex(c.x * loomFit.scale + loomFit.offX, c.y * loomFit.scale + loomFit.offY);
+      vertex((c.x + c.w) * loomFit.scale + loomFit.offX, c.y * loomFit.scale + loomFit.offY);
+      vertex((c.x + c.w) * loomFit.scale + loomFit.offX, (c.y + c.h) * loomFit.scale + loomFit.offY);
+      vertex(c.x * loomFit.scale + loomFit.offX, (c.y + c.h) * loomFit.scale + loomFit.offY);
+    } else {
+      c.points.forEach(p => vertex(p[0] * loomFit.scale + loomFit.offX, p[1] * loomFit.scale + loomFit.offY));
+    }
+    endShape(CLOSE);
+  });
+  pop();
+}
+
 // ── UI wiring — anything that changes the FIELD (cell size, noise scale,
 // angle multiplier) rebuilds it once here, not every frame (Step 1 is a
 // static field on purpose). Speed/count/fade are read live by
 // step()/draw() so they don't need a rebuild. ──
-ctrl('rg-cell').addEventListener('input', e => { cellSize = parseInt(e.target.value); ctrl('v-cell').textContent = cellSize; buildField(); });
+ctrl('rg-cell').addEventListener('input', e => { cellSize = parseInt(e.target.value); ctrl('v-cell').textContent = cellSize; rebuildBinCellIndex(); buildField(); });
+
+// ── Grid source panel wiring ──
+ctrl('grid-source-select').addEventListener('change', e => {
+  gridSource = e.target.value;
+  ctrl('loom-grid-panel').style.display = gridSource === 'loom' ? '' : 'none';
+  rebuildBinCellIndex();
+  buildField();
+});
+ctrl('chk-loom-outline').addEventListener('change', e => { showLoomOutline = e.target.checked; });
+ctrl('file-loom').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => loadLoomGridJSON(evt.target.result);
+  reader.readAsText(file);
+});
 ctrl('rg-noisescale').addEventListener('input', e => { noiseScale = parseFloat(e.target.value); ctrl('v-noisescale').textContent = noiseScale.toFixed(3); buildField(); });
 ctrl('rg-anglemult').addEventListener('input', e => { angleMult = parseFloat(e.target.value); ctrl('v-anglemult').textContent = angleMult.toFixed(1); buildField(); });
 ctrl('rg-speed').addEventListener('input', e => { speed = parseFloat(e.target.value); ctrl('v-speed').textContent = speed.toFixed(1); });
 ctrl('rg-count').addEventListener('input', e => { count = parseInt(e.target.value); ctrl('v-count').textContent = count; rebuildParticles(); });
 ctrl('rg-fade').addEventListener('input', e => { fadeAmt = parseInt(e.target.value); ctrl('v-fade').textContent = fadeAmt; });
+ctrl('rg-inertia').addEventListener('input', e => { inertia = parseFloat(e.target.value); ctrl('v-inertia').textContent = inertia.toFixed(2); });
+ctrl('rg-speedvar').addEventListener('input', e => { speedVariation = parseFloat(e.target.value); ctrl('v-speedvar').textContent = speedVariation.toFixed(2); });
+ctrl('rg-turbulence').addEventListener('input', e => { turbulence = parseFloat(e.target.value); ctrl('v-turbulence').textContent = turbulence.toFixed(2); });
+ctrl('rg-centerpull').addEventListener('input', e => { centerPull = parseFloat(e.target.value); ctrl('v-centerpull').textContent = centerPull.toFixed(2); });
+ctrl('rg-alphamin').addEventListener('input', e => { trailAlphaMin = parseInt(e.target.value); ctrl('v-alphamin').textContent = trailAlphaMin; });
+ctrl('rg-alphamax').addEventListener('input', e => { trailAlphaMax = parseInt(e.target.value); ctrl('v-alphamax').textContent = trailAlphaMax; });
+ctrl('rg-taper').addEventListener('input', e => { sizeTaper = parseFloat(e.target.value); ctrl('v-taper').textContent = sizeTaper.toFixed(2); });
+ctrl('rg-huedrift').addEventListener('input', e => { hueDrift = parseFloat(e.target.value); ctrl('v-huedrift').textContent = hueDrift.toFixed(1); });
 ctrl('sel-markstyle').addEventListener('change', e => { markStyle = e.target.value; });
 ctrl('rg-marksize').addEventListener('input', e => { markSize = parseFloat(e.target.value); ctrl('v-marksize').textContent = markSize.toFixed(1); });
 ctrl('chk-debug').addEventListener('change', e => { showDebug = e.target.checked; });
-ctrl('btn-reset').addEventListener('click', () => { background(6); rebuildParticles(); });
+ctrl('btn-reset').addEventListener('click', () => { background(0, 0, 2.4); rebuildParticles(); });
+ctrl('chk-neon').addEventListener('change', e => { neonColors = e.target.checked; });
 
 function switchMode(newMode) {
   mode = newMode;
