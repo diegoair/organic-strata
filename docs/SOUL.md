@@ -204,26 +204,107 @@ shipped output against `vnoise`'s exact byte behaviour.
 
 ## 5. `soul/index.html` — the tool itself
 
-Three panel sections: **Source** (paste or open an SVG file — any
-Organica export), **Primitives** (read-only stats: canvas size, total,
-point/path counts — proves the parse worked before anything else runs),
-**Motion** (Pattern/Amount/Duration/Stagger/Stagger-amount + Play/Stop).
+**Header**: logo + spacer only. No actions, no status — both moved out
+(see below), matching Loom's own precedent of an empty action slot once
+Export moved to the floatbar.
 
-Header has PNG/SVG export — both a snapshot of the stage EXACTLY as it
-looks at export time, mid-animation or at rest. This works with no special
-"bake the current frame" step because GSAP already writes real inline
-`transform`/`stroke-dashoffset` etc. onto the live DOM every tick;
-`serialiseStage()` just clones and serialises whatever the DOM already is.
-No Figma button — `sendToFigma()` implies "this becomes a Figma frame",
-and what a moving animation becomes as a still frame is a real design
-decision nobody's made yet, so it isn't wired to look like it works before
-it means something.
+**Panel — two sections**: **Seeds** (Genesis/SVG/Text — see §5a) and
+**Motion** (Pattern/Amount/Duration/Stagger/Stagger-amount). The earlier
+**Primitives** stats section (canvas size, point/path counts) was removed
+per direct request — deferred, not deleted outright; if it comes back
+it's a small, self-contained addition.
 
-`playMotion()`/`stopMotion()` are the whole runtime: `activeTweens` holds
-exactly what the last `playMotion()` call created, so `stopMotion()` kills
-precisely those (no guessing, no `gsap.globalTimeline` sweep) and resets
-every primitive's element via `gsap.set(el, {clearProps: 'all'})` — a real
-clean reset, not just pausing mid-pose.
+**Canvas**: a real drop zone (`#drop-hint`, the same centralised pattern
+`shared/_template.html` and every image-loading tool already use — drag a
+file, or click the "+" to open a picker), plus `Organica.createZoomPan`
+(wheel-zoom toward the cursor, drag-to-pan once zoomed, Reset) — the same
+shared zoom/pan mechanics Loom/Halide/Spore/Pollen/Strata already use,
+wired identically. Verified drag-pan specifically needed raw dispatched
+`mousedown`/`mousemove`/`mouseup` events to test reliably — the browser
+automation tool's own synthetic drag gesture doesn't reliably trigger real
+listener chains the way an actual user drag does; not an app bug, a test-
+tooling quirk caught by cross-checking two measurement methods before
+concluding pan was broken.
+
+**Floating toolbar** (`org-floatbar`, the same centralised bottom-centre
+component Halide/Komorebi/Loom/Camo Turing all use for canvas-level
+actions) now holds everything that used to be split across the header and
+two panel sections: **Open** (file picker) · **Play/Stop** · **Loop**
+(auto-stop popover) · **Export** (PNG/SVG/**Video**) · **status readout**.
+The status output kept its exact original classes
+(`.org-header__dot`/`.org-header__state`) when it moved, so
+`Organica.status()` needed zero changes — only the element's location in
+the DOM changed, not the contract every other call site already relies on.
+
+**Video export** — the deferred item from the engine's own first pass,
+built this round: `canvas.captureStream()` + `MediaRecorder`, MP4/H.264
+tried first, WebM fallback (`MediaRecorder.isTypeSupported`, not assumed
+— same technique Camo Turing's own recorder already uses). SVG has no
+`captureStream()` of its own, so each frame is redrawn directly onto a
+plain `<canvas>` from the primitives' own LIVE state (`drawPrimitiveToCanvas`,
+reading each element's current `transform`/`d`/`stroke-dasharray` — mirrors
+Pollen's own `drawSvgEl()` structure once more, but reading animated
+attributes instead of static ones) rather than serialising the SVG to an
+`<img>` every frame, which would need an async image decode per frame and
+race the animation. Recording length is the Loop popover's own duration
+(defaults to 5s if Loop is Off — a downloadable FILE needs a real end
+point the way a live preview doesn't).
+
+**A real bug caught before shipping, not assumed to work**: `startRecording()`
+originally set `recording = true` BEFORE calling `playMotion()` (to start
+playback for free if nothing was already animating) — but `playMotion()`'s
+own first line is `stopMotion()` (clearing any previous animation), and
+`stopMotion()` itself checks `if (recording) stopRecording()` so a manual
+Stop mid-record ends the file cleanly. With the flag already `true`, that
+very same convenience call killed the recording before a single frame was
+captured — reproduced directly (an isolated `MediaRecorder` test captured
+real data; the full `startRecording()` path always produced a 0-byte file)
+and fixed by reordering: `playMotion()` first, `recording = true` only
+after. Verified after the fix with a real decoded video element (not just
+blob size): a genuine playable MP4, duration matching the Loop setting,
+dimensions matching the source canvas.
+
+`playMotion()`/`stopMotion()` are still the whole animation runtime:
+`activeTweens` holds exactly what the last `playMotion()` call created, so
+`stopMotion()` kills precisely those (no guessing, no `gsap.globalTimeline`
+sweep) and resets every primitive's element via `gsap.set(el, {clearProps:
+'all'})` — a real clean reset, not just pausing mid-pose. It also now
+clears any pending Loop timeout and stops an in-progress recording, so a
+manual Stop always leaves the tool in a fully idle state.
+
+### 5a. Seeds — Genesis / SVG / Text
+
+The same tabbed source-picker component Camo Turing's own Seeds panel
+uses (`.seg-ctrl`/`.seg-btn` from the shared `organica-panel.css`;
+`.shape-grid`/`.shape-thumb`/`.upload-btn` are Camo Turing's own local
+additions, not yet promoted to a shared file, replicated verbatim here —
+same situation Camo Turing itself is in), scoped down to what Soul
+actually needs: **no Image tab** — a raster image has no vector form
+without a decomposition step, and that's Pollen/Halide's job, not this
+engine's; no Mode/Size/Two-seeds — those are Gray-Scott simulation
+parameters specific to Camo Turing, nothing here is analogous.
+
+- **Genesis** — the same curated 8-form subset (`PRIMORDIAL = [7, 56, 1,
+  2, 14, 33, 38, 31]`) Camo Turing's own Seeds panel shows, thumbnails
+  read straight from `window.ORGANIC_FORMS` (`/genesis/organic-forms.js`).
+  Clicking a thumbnail calls `loadSVG()` directly — the exact same load
+  path every other source uses, so a Genesis form goes through the same
+  `parsePrimitives()` → render pipeline as everything else, not a special
+  case.
+- **SVG** — an "+ Upload SVG" button (opens the same `#file-input`) plus
+  the canvas's own drop zone; both routes converge on `loadSVG()`.
+- **Text** — real vector letterforms, not a raster mask (Camo Turing's own
+  Text seed rasterises text into a simulation mask, correct for THAT tool,
+  wrong here — Soul's whole contract is vector primitives).
+  `opentype.js` (vendored, `shared/opentype.min.js`) reads the same
+  vendored Manrope file every Organica tool's own typography already
+  commits to (`shared/manrope-variable.ttf`, `docs/DESIGN-SYSTEM.md`).
+  `font.getPaths(text, ...)` — plural — returns one `Path` per GLYPH
+  rather than one fused path for the whole string, deliberately: it means
+  Motion's own stagger addresses individual LETTERS, not the word as one
+  blob (screenshot-verified: "Soul" → 4 primitives, one per letter,
+  Growth-by-tracing staggered by index reads as the word drawing itself
+  letter by letter).
 
 ## 6. Verified
 
@@ -315,6 +396,28 @@ and after rather than tuned by eye:**
   richer motion classes, not just re-tuned versions of the same 5
   transforms.
 
+## 6b. UI overhaul — Seeds panel, floatbar consolidation, zoom/pan, video export
+
+Verified this round: Genesis tab loads any of the 8 curated forms via a
+single click (thumbnail marked active, primitive count updates); SVG tab's
+Upload button and the canvas's own drag-drop both converge on the same
+`loadSVG()`; Text tab produces real per-glyph vector paths ("Soul" → 4
+primitives, confirmed via `currentParse.primitives.length`), and a pattern
+played on it (Growth, index stagger) staggers letter-by-letter as intended
+(screenshot-confirmed). All 7 patterns × 4 stagger formulas (28
+combinations) re-verified clean after the full markup/JS restructuring.
+Zoom confirmed via real transform inspection (wheel zooms toward cursor,
+HUD shows correct %); pan confirmed via dispatched raw mouse events after
+the browser automation tool's own synthetic drag didn't reliably trigger
+the real listener chain (a test-tooling gap, not an app bug — caught by
+cross-checking two measurement approaches rather than concluding pan was
+broken from one). Video export produces a genuinely valid, decodable file
+(loaded into a real `<video>` element and read back: correct duration,
+correct dimensions) after the recording race-condition fix (§5). 0 of the
+Seeds/Motion controls unaccessibly-named. Zero console errors across every
+tab switch, source load, pattern/stagger combination, zoom/pan gesture,
+and export tested.
+
 ## 6a. Real-world stress test — a live Pollen "Hatch Flow" export, and a scanline-relief prototype
 
 Diego pointed at a reference (generative-gestaltung.de's `P_4_3_1_01`, a
@@ -389,12 +492,10 @@ explicitly during the engine's own scoping).
 
 ## 7. Not built yet
 
-- **Video/GIF export** — PNG/SVG (a single-frame snapshot, mid-animation
-  or at rest) work today; there's no render-to-video pipeline yet. Camo
-  Turing's own `canvas.captureStream()` + `MediaRecorder` approach is the
-  precedent, but it needs an SVG-to-canvas rasterisation loop first
-  (`captureStream()` only exists on `<canvas>`, not `<svg>`) — a real next
-  step, not attempted this pass.
+- **GIF export** — Video (MP4/WebM, §5) and PNG/SVG all work now; GIF
+  specifically doesn't (would need a separate encoder — MediaRecorder has
+  no GIF output — not attempted, since video already covers the "share a
+  loop" use case).
 - **MorphSVG shape-to-shape** — now used by the `morph` pattern (circle →
   noise-perturbed blob → circle, on a single primitive). Morphing BETWEEN
   two different primitive SETS (e.g. two different Loom grids, or a Pollen

@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/shared/organica-tokens.css">
 <link rel="stylesheet" href="/shared/organica-header.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
 <style>
   :root {
     --ink: #0a0a0a;
@@ -48,48 +49,112 @@
     padding: 24px;
   }
 
+  #canvas-wrap.drag-over { outline: 2px dashed var(--ink); outline-offset: -8px; }
+
   #stage-frame {
     position: relative;
     background: #ffffff;
     box-shadow: 0 4px 40px rgba(0,0,0,0.18);
     flex-shrink: 0;
+    transform-origin: 0 0;
+    will-change: transform;
+    cursor: default;
   }
+  #stage-frame.zoomed { cursor: grab; }
+  #stage-frame.panning { cursor: grabbing; }
   #stage-svg { display: block; }
 
-  #empty-hint {
+  /* Zoom HUD — same shared pattern as Loom/Halide/Spore/Pollen/Strata's
+     own zoom/pan (Organica.createZoomPan, shared/organica-core.js). */
+  #zoom-hud {
+    position: absolute;
+    bottom: 16px; left: 16px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--font);
+    font-size: var(--fs-micro, 9px);
+    letter-spacing: 0.1em;
+    padding: var(--space-2) var(--space-4);
+    display: none;
+    align-items: center;
+    gap: var(--space-3);
+    pointer-events: none;
+    user-select: none;
+    z-index: 10;
+  }
+  #zoom-hud.visible { display: flex; }
+  #zoom-hud .zoom-reset { pointer-events: auto; cursor: pointer; opacity: 0.6; transition: opacity 0.15s; }
+  #zoom-hud .zoom-reset:hover { opacity: 1; }
+
+  /* .org-header__status already truncates (organica-header.css) — just
+     cap its width to something sane for the floatbar's own fixed-width
+     context, since a header bar and a floating pill have different
+     amounts of room. */
+  .floatbar-status { max-width: 200px; padding-left: var(--space-2); }
+
+  /* Drop zone — same centralised pattern every other Organica tool uses
+     (shared/_template.html's own #drop-hint/.drop-icon), replacing Soul's
+     own bespoke paste-textarea "Source" panel block. Sits on the CANVAS,
+     not the side panel, and doubles as the empty-state message. */
+  #drop-hint {
     position: absolute;
     inset: 0;
+    z-index: 2;   /* above #stage-frame — same-stacking-context siblings paint in DOM order otherwise, and stage-frame comes second */
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 12px;
-    color: var(--mid);
-    text-align: center;
     pointer-events: none;
+    transition: opacity 0.3s;
   }
-  #empty-hint p { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; line-height: 1.8; }
-  #stage-frame.has-content #empty-hint { display: none; }
+  #drop-hint.hidden { opacity: 0; }
+  .drop-icon {
+    width: 48px; height: 48px;
+    border: 1.5px solid var(--mid);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--mid);
+    font-size: 20px;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .drop-icon:hover { border-color: var(--ink); color: var(--ink); }
+  #drop-hint p {
+    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--mid); text-align: center; line-height: 1.8;
+  }
 
   #panel { width: 260px; flex-shrink: 0; border-left: 1px solid var(--border); background: var(--paper); overflow-y: auto; display: flex; flex-direction: column; }
 
-  textarea#txt-svg-paste {
-    width: 100%;
-    height: 90px;
-    font-family: var(--font);
-    font-size: 9px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    color: var(--ink);
-    padding: 6px;
-    resize: vertical;
-    outline: none;
-  }
-  textarea#txt-svg-paste:focus { border-color: var(--ink); }
+  #file-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; border: 0; padding: 0; }
 
-  .row-btns { display: flex; gap: 6px; margin-top: 8px; }
+  /* Seeds panel — the same tabbed source-picker component Camo Turing's
+     own Seeds panel uses (.seg-ctrl/.seg-btn come from the shared
+     organica-panel.css already linked; .shape-grid/.shape-thumb/
+     .upload-btn are Camo Turing's own local additions, not yet promoted
+     to the shared file, replicated verbatim here for the same reason
+     Camo Turing itself carries them locally). Genesis/SVG/Text only —
+     no Image tab, since Soul's whole contract is vector primitives, and
+     an uploaded raster image has no vector form without a decomposition
+     step (that's Pollen/Halide's job, not Soul's). */
+  .shape-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin-bottom: var(--space-3); }
+  .shape-thumb {
+    aspect-ratio: 1; border: 1px solid var(--border); background: var(--panel);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    padding: var(--space-2); position: relative;
+  }
+  .shape-thumb.active { border-color: var(--ink); border-width: 2px; }
+  .shape-thumb svg { width: 100%; height: 100%; display: block; fill: var(--ink); }
+  .shape-thumb .thumb-num { position: absolute; top: 2px; right: 3px; font-size: var(--fs-micro); color: var(--mid); }
+  .upload-btn {
+    width: 100%; padding: var(--space-3); border: 1px dashed var(--border); background: none;
+    color: var(--mid); font-family: var(--font); font-size: var(--fs-small); cursor: pointer;
+  }
+  .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+
   .mini-btn {
-    flex: 1;
     font-family: var(--font);
     font-size: 9px;
     letter-spacing: 0.08em;
@@ -102,11 +167,6 @@
     transition: border-color 0.15s, color 0.15s;
   }
   .mini-btn:hover { border-color: var(--accent); color: var(--ink); }
-
-  .stat-row { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 0.03em; color: var(--accent); margin-bottom: 6px; }
-  .stat-row b { color: var(--ink); font-weight: 600; }
-
-  #file-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; border: 0; padding: 0; }
 
   .panel-select {
     font-family: var(--font); font-size: 10px;
@@ -125,67 +185,67 @@
   input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: var(--ink); cursor: pointer;
   }
-
-  .row-btns .mini-btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 </style>
 </head>
 <body>
 
-<!-- ══ HEADER — identity · status · export. PNG/SVG only, both a snapshot
-     of the CURRENT stage state (mid-animation or at rest) — real,
-     verified capability, unlike a video/GIF export which isn't built yet
-     (docs/SOUL.md §7). No Figma button: sendToFigma() would need a real
+<!-- ══ HEADER — identity · status only. Export lives in the floating
+     toolbar over the canvas now (org-floatbar, the same centralised
+     component every other Organica tool uses for canvas-level actions),
+     not here — consistent with Loom's own move of Export out of its
+     header, and with Strata/Camo Turing/Komorebi never having put it
+     here to begin with. No Figma button: sendToFigma() would need a real
      "what does this become" decision (a still frame? which one?) that
      hasn't been made, so it isn't wired to look like it works when it
      wouldn't mean anything yet. ══ -->
 <header class="org-header org-header--tool" role="banner">
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ Soul</span></a>
-
   <div class="org-header__spacer"></div>
-
-  <output class="org-header__status" aria-live="polite" aria-atomic="true">
-    <span class="org-header__dot" id="status-dot"></span>
-    <span class="org-header__state" id="status-text">Load an SVG to begin</span>
-  </output>
-
-  <div class="org-header__actions">
-    <button class="org-btn" onclick="exportPNG()">PNG</button>
-    <button class="org-btn" onclick="exportSVG()">SVG</button>
-  </div>
 </header>
 
 <div id="app">
 
   <div id="canvas-wrap">
+    <div id="drop-hint">
+      <div class="drop-icon" onclick="ctrl('file-input').click()">+</div>
+      <p>Drop an SVG here<br>or click to open — any Organica tool's export</p>
+    </div>
     <div id="stage-frame">
       <svg id="stage-svg" width="640" height="640" xmlns="http://www.w3.org/2000/svg"></svg>
-      <div id="empty-hint">
-        <p>Paste or open an SVG<br>from any Organica tool's export</p>
-      </div>
+    </div>
+    <div id="zoom-hud">
+      <span id="zoom-level">100%</span>
+      <span class="zoom-reset" onclick="resetZoom()">Reset</span>
     </div>
   </div>
 
   <div id="panel">
 
     <div class="panel-section">
-      <h3>Source <span class="hint">any Organica SVG export</span></h3>
-      <p class="org-panel__hint">Soul reads the same SVG every tool already exports (Pollen's dots, Strata's traces, Loom's grids, Genesis's forms, Halide/Komorebi/Warping's vectorised output) — no per-tool adapter, one parser, per the engine's own scoping call.</p>
-      <textarea id="txt-svg-paste" placeholder="Paste SVG markup here…" aria-label="Paste SVG markup"></textarea>
-      <div class="row-btns">
-        <button class="mini-btn" onclick="ctrl('file-input').click()">Open file…</button>
-        <button class="mini-btn" onclick="loadFromPaste()">Load pasted</button>
+      <h3>Seeds</h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-seedsource">
+          <button class="seg-btn active" data-v="genesis" onclick="setSeedSource(this)">Genesis</button>
+          <button class="seg-btn" data-v="svg" onclick="setSeedSource(this)">SVG</button>
+          <button class="seg-btn" data-v="text" onclick="setSeedSource(this)">Text</button>
+        </div>
       </div>
-      <input type="file" id="file-input" accept=".svg,image/svg+xml" onchange="loadFromFile(this)">
-    </div>
 
-    <div class="panel-section">
-      <h3>Primitives <span class="hint">what the engine sees</span></h3>
-      <div id="stats-empty" style="font-size:10px;color:var(--mid);letter-spacing:0.05em;">Nothing loaded yet.</div>
-      <div id="stats" style="display:none">
-        <div class="stat-row"><span>Canvas</span><b id="stat-canvas">—</b></div>
-        <div class="stat-row"><span>Total</span><b id="stat-total">—</b></div>
-        <div class="stat-row"><span>Points</span><b id="stat-points">—</b></div>
-        <div class="stat-row"><span>Paths</span><b id="stat-paths">—</b></div>
+      <div id="seedsrc-genesis">
+        <div class="shape-grid" id="genesis-grid"></div>
+      </div>
+
+      <div id="seedsrc-svg" style="display:none">
+        <button class="upload-btn" onclick="ctrl('file-input').click()">+ Upload SVG</button>
+        <p class="org-panel__hint">Or drop an SVG anywhere on the canvas — any Organica tool's own export (Pollen's dots, Strata's traces, Loom's grids, Halide/Komorebi/Warping's vectorised output).</p>
+      </div>
+
+      <div id="seedsrc-text" style="display:none">
+        <div class="ctrl-row">
+          <input type="text" id="seed-text" value="Soul" maxlength="24" placeholder="Type text…" aria-label="Seed text" class="panel-select" style="cursor:text">
+        </div>
+        <button class="mini-btn" style="width:100%" onclick="applyTextSeed()">Apply text</button>
+        <p class="org-panel__hint">Manrope, converted to real vector letterforms (opentype.js reading the same vendored font every Organica tool uses) — one primitive per glyph, so Motion can stagger letter by letter.</p>
       </div>
     </div>
 
@@ -233,14 +293,85 @@
         <input type="range" id="rg-stagger-amount" min="0" max="1" step="0.02" value="0.15" oninput="syncVal(this,'v-stagger-amount')">
         <span class="ctrl-val" id="v-stagger-amount">0.15</span>
       </div>
-
-      <div class="row-btns">
-        <button class="mini-btn primary" onclick="playMotion()">Play</button>
-        <button class="mini-btn" onclick="stopMotion()">Stop</button>
-      </div>
     </div>
 
   </div><!-- /panel -->
+</div>
+
+<input type="file" id="file-input" accept=".svg,image/svg+xml" onchange="loadFromFile(this)">
+
+<!-- ══ FLOATING TOOLBAR — Open / Play / Stop / Loop, fixed bottom-centre
+     over the canvas. The same centralised component every other Organica
+     tool uses for its own canvas-level actions (Halide's Open+Export,
+     Komorebi's Record, Loom's Export) — Soul's own Play/Stop move here
+     from the Motion panel, alongside a new Loop control, rather than
+     staying as panel buttons a floating action bar already exists to
+     replace. ══ -->
+<div class="org-floatbar" role="toolbar" aria-label="Playback">
+  <button class="org-floatbar__btn" aria-label="Open SVG" onclick="ctrl('file-input').click()">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M1.5 4A1 1 0 0 1 2.5 3h2.8l1 1.3H13.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <button class="org-floatbar__btn" id="btn-play" aria-label="Play" onclick="playMotion()">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 3.2v9.6a.6.6 0 0 0 .92.5l7.6-4.8a.6.6 0 0 0 0-1l-7.6-4.8a.6.6 0 0 0-.92.5Z" fill="currentColor"/></svg>
+  </button>
+  <button class="org-floatbar__btn" id="btn-stop" aria-label="Stop" onclick="stopMotion()">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1" fill="currentColor"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-loop" aria-label="Loop duration" aria-describedby="loop-readout">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M13 2.8v3h-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span id="loop-readout" style="font-size:9px;letter-spacing:0.05em;margin-left:2px;">Off</span>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="loop-popover" aria-label="Loop options">
+      <div class="org-popover__title">Auto-stop after</div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Seconds</div>
+        <input type="range" id="rg-loop-seconds" min="0" max="30" step="1" value="0" oninput="syncLoop(this)">
+        <span class="ctrl-val" id="v-loop-seconds">Off</span>
+      </div>
+      <p class="org-popover__hint">0 = play indefinitely (the current default). Otherwise Play automatically calls Stop after this many seconds — useful for a bounded loop to preview or hand off, without watching the clock yourself. Video export (below) also uses this as its own recording length.</p>
+    </div>
+  </div>
+
+  <div class="org-floatbar__sep"></div>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" onclick="exportPNG()">PNG</button>
+        <button class="org-btn" onclick="exportSVG()">SVG</button>
+        <button class="org-btn" id="btn-video" onclick="toggleRecording()">Video</button>
+      </div>
+      <div class="org-popover__divider"></div>
+      <p class="org-popover__hint" id="video-hint">PNG/SVG capture the CURRENT pose (mid-animation or at rest) — the same live DOM every export in this repo reads from. Video records the running animation to a real file (canvas.captureStream + MediaRecorder, MP4 where supported, WebM fallback — same technique as Camo Turing's own recorder), for as long as the Loop duration above is set to (defaults to 5s if Loop is Off).</p>
+    </div>
+  </div>
+
+  <div class="org-floatbar__sep"></div>
+
+  <!-- Status feedback — moved out of the header into the same centralised
+       floatbar (system + video feedback both land here now). Kept the
+       EXACT classes Organica.status() already queries by selector
+       (.org-header__dot/.org-header__state), so setStatus() needed no
+       changes — only the element's own location moved. Truncates long
+       messages rather than letting them blow out the bar's fixed
+       layout; the full text is still in the title attribute. -->
+  <output class="org-header__status floatbar-status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text" title="Load an SVG to begin">Load an SVG to begin</span>
+  </output>
 </div>
 
 <!-- Load order: core → noise → motion → GSAP + plugins → this tool's
@@ -256,9 +387,16 @@
 <script src="/shared/gsap.min.js"></script>
 <script src="/shared/gsap-morphsvg.min.js"></script>
 <script src="/shared/gsap-drawsvg.min.js"></script>
+<script src="/shared/opentype.min.js"></script>
+<script src="/genesis/organic-forms.js"></script>
 <script>
 function ctrl(id) { return document.getElementById(id); }
-const setStatus = Organica.status();
+// Wraps Organica.status() only to also sync the `title` attribute — the
+// floatbar's own status readout truncates long messages (organica-header.css's
+// existing ellipsis rule, reused as-is), so the full text needs to be
+// reachable on hover; Organica.status() itself only ever set textContent.
+const _rawSetStatus = Organica.status();
+const setStatus = (state, msg) => { _rawSetStatus(state, msg); ctrl('status-text').title = msg; };
 gsap.registerPlugin(MorphSVGPlugin, DrawSVGPlugin);
 
 const stageFrame = ctrl('stage-frame');
@@ -267,6 +405,22 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 let currentParse = null;   // { primitives, canvas } — the one thing render/stats/motion all read, so they can't disagree
 let activeTweens = [];     // whatever playMotion() last created — stopMotion() kills exactly these, nothing guessed
+
+// ── ZOOM & PAN — the same shared mechanics every other Organica tool
+// uses (Organica.createZoomPan: wheel zooms toward the cursor, drag pans
+// once zoomed, dblclick/Reset returns to 100%, Cmd/Ctrl +/-/0 shortcuts).
+// A pure CSS transform on #stage-frame — never touches the SVG's own
+// width/height/viewBox, so it can't affect any export.
+const zoomPan = Organica.createZoomPan({
+  canvas: stageFrame,
+  wrap: ctrl('canvas-wrap'),
+  onChange: ({ zoom, zoomed }) => {
+    ctrl('zoom-level').textContent = Math.round(zoom * 100) + '%';
+    ctrl('zoom-hud').classList.toggle('visible', zoomed);
+    stageFrame.classList.toggle('zoomed', zoomed);
+  },
+});
+function resetZoom() { zoomPan.reset(); }
 
 function syncVal(slider, valId) { ctrl(valId).textContent = slider.value; }
 
@@ -285,23 +439,102 @@ function loadSVG(svgString) {
   stopMotion();
   currentParse = parsed;
   renderStage();
-  renderStats();
+  ctrl('drop-hint').classList.add('hidden');
   setStatus('active', parsed.primitives.length + ' primitives loaded');
-}
-
-function loadFromPaste() {
-  const svg = ctrl('txt-svg-paste').value.trim();
-  if (!svg) { setStatus('', 'Paste an SVG first'); return; }
-  loadSVG(svg);
 }
 
 function loadFromFile(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = () => { ctrl('txt-svg-paste').value = reader.result; loadSVG(reader.result); };
+  reader.onload = () => loadSVG(reader.result);
   reader.readAsText(file);
   input.value = '';
+}
+
+// Drag-and-drop onto the canvas — the same centralised pattern every
+// other Organica tool uses (Halide's own dragover/dragleave/drop
+// handlers on #canvas-wrap), reused verbatim rather than re-derived,
+// just routed to an SVG text file instead of an image.
+const canvasWrap = ctrl('canvas-wrap');
+canvasWrap.addEventListener('dragover', e => { e.preventDefault(); canvasWrap.classList.add('drag-over'); });
+canvasWrap.addEventListener('dragleave', () => canvasWrap.classList.remove('drag-over'));
+canvasWrap.addEventListener('drop', e => {
+  e.preventDefault();
+  canvasWrap.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && (file.type === 'image/svg+xml' || file.name.endsWith('.svg'))) {
+    const reader = new FileReader();
+    reader.onload = () => loadSVG(reader.result);
+    reader.readAsText(file);
+  }
+});
+
+// ── SEEDS — Genesis / SVG / Text, the same tabbed source-picker Camo
+// Turing's own Seeds panel uses, adapted down to what Soul actually
+// needs: no Image tab (a raster image has no vector form without a
+// decomposition step — that's Pollen/Halide's job, not this engine's),
+// no Mode/Size/Two-seeds (those are Gray-Scott simulation parameters
+// with nothing analogous here). Genesis and SVG both just call the same
+// loadSVG() every other path already goes through — one load function,
+// three ways to reach it.
+const PRIMORDIAL = [7, 56, 1, 2, 14, 33, 38, 31];   // same curated subset Camo Turing's own Seeds panel uses
+function populateGenesisGrid() {
+  const grid = ctrl('genesis-grid');
+  PRIMORDIAL.forEach(id => {
+    const svg = (window.ORGANIC_FORMS && window.ORGANIC_FORMS[id]) || '';
+    const thumb = document.createElement('div');
+    thumb.className = 'shape-thumb';
+    thumb.innerHTML = svg + '<span class="thumb-num">' + id + '</span>';
+    thumb.setAttribute('role', 'button');
+    thumb.setAttribute('aria-label', 'Genesis form ' + id);
+    thumb.onclick = () => {
+      grid.querySelectorAll('.shape-thumb').forEach(t => t.classList.remove('active'));
+      thumb.classList.add('active');
+      loadSVG(svg);
+    };
+    grid.appendChild(thumb);
+  });
+}
+
+function setSeedSource(btn) {
+  ctrl('seg-seedsource').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+  const type = btn.dataset.v;
+  ['genesis', 'svg', 'text'].forEach(t => { ctrl('seedsrc-' + t).style.display = t === type ? 'block' : 'none'; });
+}
+
+// Text → real vector letterforms, not a raster mask (Camo Turing's own
+// Text seed rasterises, which is right for feeding a reaction-diffusion
+// field but wrong here — Soul's whole contract is vector primitives).
+// opentype.js reads the same vendored Manrope file every Organica tool's
+// own typography already commits to (docs/DESIGN-SYSTEM.md), and
+// getPaths() (plural) returns one Path per GLYPH rather than one fused
+// path for the whole string — deliberately, so Motion's own stagger can
+// address individual letters, not just the word as a single blob.
+let manropeFont = null;
+opentype.load('/shared/manrope-variable.ttf', (err, font) => {
+  if (!err) manropeFont = font;
+});
+function applyTextSeed() {
+  const text = ctrl('seed-text').value.trim();
+  if (!text) { setStatus('', 'Type some text first'); return; }
+  if (!manropeFont) { setStatus('', 'Font still loading — try again in a moment'); return; }
+  const fontSize = 150;
+  const paths = manropeFont.getPaths(text, 0, fontSize, fontSize);
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const dList = paths.map(p => {
+    const bb = p.getBoundingBox();
+    minX = Math.min(minX, bb.x1); minY = Math.min(minY, bb.y1);
+    maxX = Math.max(maxX, bb.x2); maxY = Math.max(maxY, bb.y2);
+    return p.toPathData(2);
+  });
+  const pad = 20;
+  const w = (maxX - minX) + pad * 2, h = (maxY - minY) + pad * 2;
+  let svg = '<svg xmlns="' + SVG_NS + '" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">';
+  svg += '<g fill="#0a0a0a" transform="translate(' + (pad - minX) + ' ' + (pad - minY) + ')">';
+  dList.forEach(d => { svg += '<path d="' + d + '"/>'; });
+  svg += '</g></svg>';
+  loadSVG(svg);
 }
 
 function validColor(c) { return c && c !== 'none' ? c : null; }
@@ -366,20 +599,6 @@ function renderStage() {
     p.el = el;
     stageSVG.appendChild(el);
   });
-  stageFrame.classList.add('has-content');
-}
-
-function renderStats() {
-  if (!currentParse) return;
-  const { primitives, canvas: srcCanvas } = currentParse;
-  const points = primitives.filter(p => p.type === 'point').length;
-  const paths = primitives.length - points;
-  ctrl('stats-empty').style.display = 'none';
-  ctrl('stats').style.display = '';
-  ctrl('stat-canvas').textContent = Math.round(srcCanvas.width) + '×' + Math.round(srcCanvas.height);
-  ctrl('stat-total').textContent = primitives.length;
-  ctrl('stat-points').textContent = points;
-  ctrl('stat-paths').textContent = paths;
 }
 
 // ── MOTION ──
@@ -396,6 +615,19 @@ ctrl('sel-pattern').addEventListener('change', syncGrowthHint);
 // status readout reports an accurate count and the UI can't claim
 // "playing on 40 primitives" when only 12 of them actually moved.
 const PATTERN_TYPE_SCOPE = { growth: 'path', morph: 'point' };
+
+// ── LOOP — auto-stop N seconds after Play, read by both playMotion()
+// (a plain setTimeout, cleared by stopMotion() so it can't fire after a
+// manual Stop) and startRecording() (the video's own length, since a
+// recording needs a real end point the way a live preview doesn't).
+let loopSeconds = 0;
+let loopTimeoutId = null;
+function syncLoop(slider) {
+  loopSeconds = parseFloat(slider.value);
+  const label = loopSeconds > 0 ? loopSeconds + 's' : 'Off';
+  ctrl('v-loop-seconds').textContent = label;
+  ctrl('loop-readout').textContent = label;
+}
 
 function playMotion() {
   if (!currentParse) { setStatus('', 'Load an SVG first'); return; }
@@ -433,9 +665,13 @@ function playMotion() {
 
   activeTweens = Organica.motion.animate(targets, primitives, pattern, params, staggerCfg);
   setStatus('active', 'Playing ' + pattern + ' on ' + targets.length + ' primitives');
+
+  if (loopSeconds > 0) loopTimeoutId = setTimeout(stopMotion, loopSeconds * 1000);
 }
 
 function stopMotion() {
+  if (loopTimeoutId) { clearTimeout(loopTimeoutId); loopTimeoutId = null; }
+  if (recording) stopRecording();   // a manual Stop mid-recording should end the file cleanly, not leave the recorder dangling
   const wasPlaying = activeTweens.length > 0;
   activeTweens.forEach(t => t.kill());
   activeTweens = [];
@@ -494,8 +730,114 @@ function exportPNG() {
   img.src = url;
 }
 
+// ── VIDEO — canvas.captureStream() + MediaRecorder, the same technique
+// Camo Turing's own recorder uses (MP4/H.264 tried first, WebM fallback
+// — found by testing MediaRecorder.isTypeSupported, not assumed). SVG
+// elements have no captureStream() of their own, so each frame is
+// re-drawn directly onto a plain <canvas> from the primitives' own LIVE
+// state (current transform + current d/dasharray, whatever GSAP has
+// written to them that tick) — mirrors Pollen's drawSvgEl() structure
+// once more, reading animated attributes instead of static ones, rather
+// than serialising the SVG to an <img> every frame (that path needs an
+// async image decode per frame, which races the animation).
+let recording = false, mediaRecorder = null, recordCtx = null, recordRafId = null;
+
+function drawPrimitiveToCanvas(ctx, p) {
+  const el = p.el;
+  if (!el) return;
+  ctx.save();
+  const t = el.style.transform;
+  if (t) {
+    const m = t.match(/matrix\(([^)]+)\)/);
+    if (m) { const v = m[1].split(',').map(Number); ctx.transform(v[0], v[1], v[2], v[3], v[4], v[5]); }
+  }
+  const fill = el.getAttribute('fill'), stroke = el.getAttribute('stroke');
+  const hasFill = fill && fill !== 'none', hasStroke = stroke && stroke !== 'none';
+  const dash = el.style.strokeDasharray;
+  ctx.setLineDash(dash ? dash.split(',').map(parseFloat) : []);
+  ctx.lineWidth = parseFloat(el.getAttribute('stroke-width')) || 1;
+  const tag = el.tagName.toLowerCase();
+  const path = new Path2D();
+  if (tag === 'circle') path.arc(+el.getAttribute('cx') || 0, +el.getAttribute('cy') || 0, +el.getAttribute('r') || 0, 0, Math.PI * 2);
+  else if (tag === 'rect') path.rect(+el.getAttribute('x') || 0, +el.getAttribute('y') || 0, +el.getAttribute('width') || 0, +el.getAttribute('height') || 0);
+  else if (tag === 'path') path.addPath(new Path2D(el.getAttribute('d') || ''));
+  else if (tag === 'polygon' || tag === 'polyline') {
+    const pts = (el.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number);
+    for (let i = 0; i < pts.length; i += 2) i === 0 ? path.moveTo(pts[i], pts[i + 1]) : path.lineTo(pts[i], pts[i + 1]);
+    if (tag === 'polygon') path.closePath();
+  } else if (tag === 'line') { path.moveTo(+el.getAttribute('x1') || 0, +el.getAttribute('y1') || 0); path.lineTo(+el.getAttribute('x2') || 0, +el.getAttribute('y2') || 0); }
+  if (hasFill) { ctx.fillStyle = fill; ctx.fill(path); }
+  if (hasStroke) { ctx.strokeStyle = stroke; ctx.stroke(path); }
+  ctx.restore();
+}
+
+function toggleRecording() {
+  if (recording) { stopRecording(); return; }
+  startRecording();
+}
+
+function startRecording() {
+  if (!currentParse) { setStatus('', 'Load an SVG first'); return; }
+  if (typeof MediaRecorder === 'undefined') { setStatus('', 'Video recording is not supported in this browser'); return; }
+  const seconds = loopSeconds > 0 ? loopSeconds : 5;   // Loop=Off still needs a real end point for a FILE, unlike live preview which can run forever
+  const { width, height } = currentParse.canvas;
+  const canvas = document.createElement('canvas');
+  canvas.width = width; canvas.height = height;
+  recordCtx = canvas.getContext('2d');
+
+  const stream = canvas.captureStream(30);
+  const candidates = ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9', 'video/webm'];
+  const mimeType = candidates.find(c => MediaRecorder.isTypeSupported(c));
+  const chunks = [];
+  mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+  mediaRecorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  mediaRecorder.onstop = () => {
+    const outType = mediaRecorder.mimeType || 'video/webm';
+    const ext = outType.includes('mp4') ? 'mp4' : 'webm';
+    Organica.download(new Blob(chunks, { type: outType }), Organica.stamp('soul', ext));
+    setStatus('active', 'Video saved (' + ext.toUpperCase() + ')');
+  };
+  // playMotion() FIRST, `recording = true` only after — a real bug caught
+  // live before shipping: playMotion() calls stopMotion() as its own
+  // first line (to clear any previous animation), and stopMotion() itself
+  // checks `if (recording) stopRecording()` so a manual Stop mid-record
+  // ends the file cleanly. Setting `recording = true` before this call
+  // meant that check fired on the recording's OWN startup, killing it
+  // before a single frame was captured — reproduced directly (an isolated
+  // MediaRecorder test captured real data; the full startRecording() path
+  // always produced a 0-byte file) and fixed by reordering, not by special-
+  // casing the check.
+  if (activeTweens.length === 0) playMotion();   // recording nothing moving isn't useful — start playback for free if it isn't already running
+  mediaRecorder.start();
+  recording = true;
+  ctrl('btn-video').textContent = 'Stop rec.';
+
+  function frame() {
+    if (!recording) return;
+    recordCtx.fillStyle = '#ffffff';
+    recordCtx.fillRect(0, 0, width, height);
+    currentParse.primitives.forEach(p => drawPrimitiveToCanvas(recordCtx, p));
+    recordRafId = requestAnimationFrame(frame);
+  }
+  frame();
+  setStatus('active', 'Recording ' + seconds + 's…');
+  setTimeout(() => { if (recording) stopRecording(); }, seconds * 1000);
+}
+
+function stopRecording() {
+  if (!recording) return;
+  recording = false;
+  cancelAnimationFrame(recordRafId);
+  ctrl('btn-video').textContent = 'Video';
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+}
+
+populateGenesisGrid();
+Organica.popover(ctrl('btn-loop'), ctrl('loop-popover'));
+Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 setStatus('', 'Load an SVG to begin');
 syncGrowthHint();
+syncLoop(ctrl('rg-loop-seconds'));
 Organica.autoLabelPanel(document);
 </script>
 </body>
