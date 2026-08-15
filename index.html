@@ -229,6 +229,15 @@
       background: #a9683e;
     }
 
+    /* soul gets a living rose/pulse — the animation engine, "what gives
+       it life", deliberately distinct from Strata's warmer ember */
+    .nav__link--soul:hover {
+      color: #c85a8c;
+    }
+    .nav__link--soul::after {
+      background: #c85a8c;
+    }
+
     /* design system is documentation, not a tool — a quiet neutral, not a
        new hue in the palette */
     .nav__link--ds:hover {
@@ -323,6 +332,7 @@
       <a class="nav__link nav__link--komorebi" href="/komorebi/">Komorebi</a>
       <a class="nav__link nav__link--turing" href="/camo-turing/">Camo Turing</a>
       <a class="nav__link nav__link--warping" href="/warping/">Warping</a>
+      <a class="nav__link nav__link--soul" href="/soul/">Soul</a>
       <a class="nav__link nav__link--ds" href="/design-system/">Design System</a>
     </nav>
   </main>

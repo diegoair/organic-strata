@@ -48,6 +48,10 @@
       "destination": "/loom/$1"
     },
     {
+      "source": "/soul/(.*)",
+      "destination": "/soul/$1"
+    },
+    {
       "source": "/shared/(.*)",
       "destination": "/shared/$1"
     },

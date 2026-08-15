@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soul — Organica</title>
+
+<!-- Tokens FIRST so the tool can override without !important.
+     Typeface, type scale, spacing: shared/organica-tokens.css
+     Full reference: docs/DESIGN-SYSTEM.md + docs/UI-SHELL.md -->
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-panel.css">
+<style>
+  :root {
+    --ink: #0a0a0a;
+    --paper: #f5f2ec;
+    --mid: #726a5e;
+    --accent: #2a2a2a;
+    --panel: #eceae4;
+    --border: #d0c8b8;
+    --tool: #c85a8c;   /* identity colour — a living rose/pulse, distinct from Strata's warmer ember */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 11px;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #app { display: flex; flex: 1; overflow: hidden; }
+
+  #canvas-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    position: relative;
+    overflow: hidden;
+    padding: 24px;
+  }
+
+  #stage-frame {
+    position: relative;
+    background: #ffffff;
+    box-shadow: 0 4px 40px rgba(0,0,0,0.18);
+    flex-shrink: 0;
+  }
+  #stage-canvas { display: block; }
+
+  #empty-hint {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--mid);
+    text-align: center;
+    pointer-events: none;
+  }
+  #empty-hint p { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; line-height: 1.8; }
+  #stage-frame.has-content #empty-hint { display: none; }
+
+  #panel { width: 260px; flex-shrink: 0; border-left: 1px solid var(--border); background: var(--paper); overflow-y: auto; display: flex; flex-direction: column; }
+
+  textarea#txt-svg-paste {
+    width: 100%;
+    height: 90px;
+    font-family: var(--font);
+    font-size: 9px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 6px;
+    resize: vertical;
+    outline: none;
+  }
+  textarea#txt-svg-paste:focus { border-color: var(--ink); }
+
+  .row-btns { display: flex; gap: 6px; margin-top: 8px; }
+  .mini-btn {
+    flex: 1;
+    font-family: var(--font);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--accent);
+    padding: 6px 0;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .mini-btn:hover { border-color: var(--accent); color: var(--ink); }
+
+  .stat-row { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 0.03em; color: var(--accent); margin-bottom: 6px; }
+  .stat-row b { color: var(--ink); font-weight: 600; }
+
+  #file-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; border: 0; padding: 0; }
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER — identity · status only. No Export/Figma yet: nothing
+     produced here is animated (that's the next pass, GSAP timeline over
+     these same parsed primitives) — a control with no real effect is a
+     bug, per Komorebi's own audit, so it isn't in the header until it
+     does something. ══ -->
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Soul</span></a>
+
+  <div class="org-header__spacer"></div>
+
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Load an SVG to begin</span>
+  </output>
+</header>
+
+<div id="app">
+
+  <div id="canvas-wrap">
+    <div id="stage-frame">
+      <canvas id="stage-canvas" width="640" height="640"></canvas>
+      <div id="empty-hint">
+        <p>Paste or open an SVG<br>from any Organica tool's export</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel">
+
+    <div class="panel-section">
+      <h3>Source <span class="hint">any Organica SVG export</span></h3>
+      <p class="org-panel__hint">Soul reads the same SVG every tool already exports (Pollen's dots, Strata's traces, Loom's grids, Genesis's forms, Halide/Komorebi/Warping's vectorised output) — no per-tool adapter, one parser, per the engine's own scoping call.</p>
+      <textarea id="txt-svg-paste" placeholder="Paste SVG markup here…" aria-label="Paste SVG markup"></textarea>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="ctrl('file-input').click()">Open file…</button>
+        <button class="mini-btn" onclick="loadFromPaste()">Load pasted</button>
+      </div>
+      <input type="file" id="file-input" accept=".svg,image/svg+xml" onchange="loadFromFile(this)">
+    </div>
+
+    <div class="panel-section">
+      <h3>Primitives <span class="hint">what the engine sees</span></h3>
+      <div id="stats-empty" style="font-size:10px;color:var(--mid);letter-spacing:0.05em;">Nothing loaded yet.</div>
+      <div id="stats" style="display:none">
+        <div class="stat-row"><span>Canvas</span><b id="stat-canvas">—</b></div>
+        <div class="stat-row"><span>Total</span><b id="stat-total">—</b></div>
+        <div class="stat-row"><span>Points</span><b id="stat-points">—</b></div>
+        <div class="stat-row"><span>Paths</span><b id="stat-paths">—</b></div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Next <span class="hint">not built yet</span></h3>
+      <p class="org-panel__hint">Motion Model (pattern + stagger + timeline) over these primitives, GSAP for timing/morph, Canvas/SVG/video render targets. This section is the primitive pipeline only — proven working, ready for the engine to build on.</p>
+    </div>
+
+  </div><!-- /panel -->
+</div>
+
+<!-- Load order: core → noise → motion → this tool's own script — noise/
+     motion each extend window.Organica and must load after core, or
+     core's own closing `global.Organica = Organica` would clobber them
+     (same contract organica-noise.js's own header documents). -->
+<script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-noise.js"></script>
+<script src="/shared/organica-motion.js"></script>
+<script>
+function ctrl(id) { return document.getElementById(id); }
+const setStatus = Organica.status();
+
+const stageFrame = ctrl('stage-frame');
+const canvas = ctrl('stage-canvas');
+const ctx = canvas.getContext('2d');
+
+let currentParse = null;   // { primitives, canvas } — the one thing the render + stats both read, so they can't disagree
+
+function loadSVG(svgString) {
+  let parsed;
+  try {
+    parsed = Organica.motion.parsePrimitives(svgString);
+  } catch (err) {
+    setStatus('', 'Could not parse: ' + err.message);
+    return;
+  }
+  if (!parsed.primitives.length) {
+    setStatus('', 'Parsed, but found no recognisable shapes');
+    return;
+  }
+  currentParse = parsed;
+  renderStage();
+  renderStats();
+  setStatus('active', parsed.primitives.length + ' primitives loaded');
+}
+
+function loadFromPaste() {
+  const svg = ctrl('txt-svg-paste').value.trim();
+  if (!svg) { setStatus('', 'Paste an SVG first'); return; }
+  loadSVG(svg);
+}
+
+function loadFromFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { ctrl('txt-svg-paste').value = reader.result; loadSVG(reader.result); };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+// Rebuilds a Path2D from the primitive's own preserved sourceTag/
+// sourceAttrs — mirrors Pollen's own drawSvgEl() tag handling (the same
+// proven set organica-motion.js's own parser targets) rather than
+// assuming every primitive has a `d` string, which only `<path>` itself
+// actually does; a rect/polygon/polyline/line primitive needs its own
+// geometry reconstructed the same way Pollen already does when it
+// replays a mark onto its own canvas.
+function pathFor(p) {
+  const a = p.sourceAttrs;
+  const path = new Path2D();
+  if (p.sourceTag === 'rect') path.rect(+a.x || 0, +a.y || 0, +a.width || 0, +a.height || 0);
+  else if (p.sourceTag === 'path') path.addPath(new Path2D(a.d || ''));
+  else if (p.sourceTag === 'polygon' || p.sourceTag === 'polyline') {
+    const pts = (a.points || '').trim().split(/[\s,]+/).map(Number);
+    for (let i = 0; i < pts.length; i += 2) i === 0 ? path.moveTo(pts[i], pts[i + 1]) : path.lineTo(pts[i], pts[i + 1]);
+    if (p.sourceTag === 'polygon') path.closePath();
+  } else if (p.sourceTag === 'line') { path.moveTo(+a.x1 || 0, +a.y1 || 0); path.lineTo(+a.x2 || 0, +a.y2 || 0); }
+  return path;
+}
+
+// One render function, the same "single source of truth" rule every
+// Organica tool holds — a static preview for now (dots for point
+// primitives, stroked/filled outline for path primitives), the exact
+// surface the motion engine attaches to next, not a placeholder to
+// throw away.
+function renderStage() {
+  if (!currentParse) return;
+  const { primitives, canvas: srcCanvas } = currentParse;
+  const w = srcCanvas.width || 640, h = srcCanvas.height || 640;
+  canvas.width = w; canvas.height = h;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  primitives.forEach(p => {
+    if (p.type === 'point') {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(p.r, 1), 0, Math.PI * 2);
+      ctx.fillStyle = validColor(p.fill) || '#c85a8c';
+      ctx.fill();
+      return;
+    }
+    const path = pathFor(p);
+    const hasFill = validColor(p.fill);
+    const hasStroke = validColor(p.stroke);
+    if (hasFill) { ctx.fillStyle = hasFill; ctx.fill(path); }
+    if (hasStroke) { ctx.strokeStyle = hasStroke; ctx.lineWidth = p.strokeWidth || 1; ctx.stroke(path); }
+    if (!hasFill && !hasStroke) { ctx.strokeStyle = '#c85a8c'; ctx.lineWidth = 1; ctx.stroke(path); }
+  });
+  stageFrame.classList.add('has-content');
+}
+
+function validColor(c) { return c && c !== 'none' ? c : null; }
+
+function renderStats() {
+  if (!currentParse) return;
+  const { primitives, canvas: srcCanvas } = currentParse;
+  const points = primitives.filter(p => p.type === 'point').length;
+  const paths = primitives.length - points;
+  ctrl('stats-empty').style.display = 'none';
+  ctrl('stats').style.display = '';
+  ctrl('stat-canvas').textContent = Math.round(srcCanvas.width) + '×' + Math.round(srcCanvas.height);
+  ctrl('stat-total').textContent = primitives.length;
+  ctrl('stat-points').textContent = points;
+  ctrl('stat-paths').textContent = paths;
+}
+
+setStatus('', 'Load an SVG to begin');
+</script>
+</body>
+</html>
