@@ -52,6 +52,10 @@
       "destination": "/soul/$1"
     },
     {
+      "source": "/membrane/(.*)",
+      "destination": "/membrane/$1"
+    },
+    {
       "source": "/shared/(.*)",
       "destination": "/shared/$1"
     },

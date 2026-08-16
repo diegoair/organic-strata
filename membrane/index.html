@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Membrane — Organica</title>
+
+<!-- Tokens → header → floatbar → panel, in this order (load-bearing —
+     UI-SHELL.md §2/§4b/§4c: each later sheet can override the one before
+     without !important). organica-core.js is a plain script (not a
+     module) so Organica.* exists before js/main.js (the ES module entry)
+     parses. -->
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-panel.css">
+<style>
+  :root {
+    --ink: #0a0a0a;
+    --paper: #f5f2ec;
+    --mid: #696256;
+    --accent: #2a2a2a;
+    --panel: #eceae4;
+    --border: #d0c8b8;
+    --tool: #c15b4a;   /* identity colour — warm coral/tissue-red, header focus ring */
+
+    /* Content colours (the canvas's own ink/accent — see CLAUDE.md's own
+       Halide/Pollen exception: these are what gets DRAWN, not UI chrome,
+       so they aren't the --ink/--paper pair above). Cream mark on a
+       near-black stage, same pairing the exploration this migrates from
+       used and the same reasoning: --ink here would read as barely-
+       visible grey on grey. */
+    --stage-bg: #060606;
+    --mark-ink: #f6e8c3;
+    --mark-accent: #0a0a0a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: var(--fs-base); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+  #app { display: flex; flex: 1; overflow: hidden; height: calc(100vh - var(--header-h, 40px)); }
+
+  #canvas-wrap { flex: 1; display: flex; align-items: center; justify-content: center; background: var(--stage-bg); position: relative; overflow: hidden; }
+  #canvas-wrap canvas { display: block; }
+  #zoom-hud { position: absolute; left: var(--space-4); bottom: var(--space-4); font-size: var(--fs-micro); color: var(--mark-ink); opacity: 0.6; pointer-events: none; }
+
+  #panel { width: var(--panel-w, 248px); flex-shrink: 0; background: var(--panel); border-left: 1px solid var(--border); overflow-y: auto; }
+
+  /* Not part of organica-panel.css — every tool that needs a file-upload
+     trigger defines this locally (Camo Turing, Halide, Komorebi); copied
+     verbatim rather than inventing a fourth variant. .org-panel__readout
+     doesn't exist as a shared class either (organica-panel.css has no
+     status-line component) — modelled on the same visual language as
+     other tools' own ad-hoc readouts (monospace, --accent text on a
+     sunken field). */
+  .upload-btn { width: 100%; padding: var(--space-3); border: 1px dashed var(--border); background: none; color: var(--mid); font-family: var(--font); font-size: var(--fs-small); cursor: pointer; margin-bottom: var(--space-2); }
+  .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .org-panel__readout { font-family: monospace; font-size: var(--fs-micro); color: var(--tool); background: var(--paper); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); margin-bottom: var(--space-3); word-break: break-word; }
+</style>
+</head>
+<body>
+
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Membrane</span></a>
+  <div class="org-header__spacer"></div>
+</header>
+
+<!-- Floating toolbar — Play/Pause, Clear, Export. Same shared component
+     every other tool's transport/export lives in (Camo Turing, Komorebi,
+     Loom, Soul) — this is the "central export component on the canvas"
+     the design system calls for, not a bespoke one. -->
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <button class="org-floatbar__btn" id="btn-playpause" aria-label="Pause">
+    <svg class="ico" id="ico-playpause" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 3.5v9M11 3.5v9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <button class="org-floatbar__btn" id="btn-clear" aria-label="Clear canvas">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 5h10M6.5 5V3.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1V5M4.5 5l.6 8a1 1 0 0 0 1 .9h3.8a1 1 0 0 0 1-.9l.6-8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <button class="org-floatbar__btn" id="btn-reseed" aria-label="Reseed">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M13 2.3V6h-3.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-export-png">PNG</button>
+      </div>
+      <p class="org-popover__hint">×1 saves the canvas exactly as shown. ×2/×4 upsample that same bitmap — the canvas accumulates every frame's own trail rather than being a pure function of the current parameters, so a higher-resolution export can't re-render from scratch without losing that history.</p>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-export-scale">Scale</label>
+        <select class="org-select" id="sel-export-scale">
+          <option value="1">&times;1</option>
+          <option value="2" selected>&times;2</option>
+          <option value="4">&times;4</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <div id="canvas-wrap">
+    <div id="zoom-hud">Membrane</div>
+  </div>
+
+  <div id="panel">
+
+    <div class="panel-section">
+      <h3>Form</h3>
+      <div class="ctrl-row" id="row-resolution">
+        <div class="ctrl-label">Resolution</div>
+        <input type="range" id="rg-res" min="4" max="60" step="1" value="15">
+        <span class="ctrl-val" id="v-res">15</span>
+      </div>
+      <div class="ctrl-row" id="row-initradius">
+        <div class="ctrl-label">Init radius</div>
+        <input type="range" id="rg-radius" min="20" max="320" step="5" value="150">
+        <span class="ctrl-val" id="v-radius">150</span>
+      </div>
+      <div class="ctrl-row" id="row-pointsize" style="display:none">
+        <div class="ctrl-label">Point size</div>
+        <input type="range" id="rg-pointsize" min="2" max="60" step="1" value="8">
+        <span class="ctrl-val" id="v-pointsize">8</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Draw mode</div>
+        <select class="panel-select" id="sel-mode">
+          <option value="circle">Circle (closed)</option>
+          <option value="line" selected>Line (open)</option>
+          <option value="point">Point</option>
+        </select>
+      </div>
+      <p class="org-panel__hint">Resolution is how many points make up the form; Init radius sets a freshly spawned one's size. Circle closes the curve into a loop; Line leaves it open; Point collapses the form to a single dot — no curve, driven by any Movement pattern below. Fill (Ink section) has no effect in Point mode.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Seed</h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-seedsource">
+          <button class="seg-btn active" data-v="procedural">Procedural</button>
+          <button class="seg-btn" data-v="image">Image</button>
+          <button class="seg-btn" data-v="text">Text</button>
+        </div>
+      </div>
+
+      <div id="seedsrc-image" style="display:none">
+        <button class="upload-btn" id="btn-upload-image">+ Upload image</button>
+        <div class="org-panel__readout" id="image-readout">No image loaded</div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed style</div>
+          <select class="panel-select" id="sel-seedstyle">
+            <option value="contour">Contour (silhouette)</option>
+            <option value="scatter">Luminance scatter</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Threshold</div>
+          <input type="range" id="rg-threshold" min="0" max="255" step="1" value="128">
+          <span class="ctrl-val" id="v-threshold">128</span>
+        </div>
+        <label class="check-row"><input type="checkbox" id="chk-invert"><span>Invert (light = subject)</span></label>
+        <p class="org-panel__hint">Contour rays out from the image's own weighted centroid, tracing the subject's silhouette. Luminance scatter samples points weighted toward dark areas, angle-sorted into one coherent loop.</p>
+      </div>
+
+      <div id="seedsrc-text" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Word</div>
+          <input type="text" class="panel-select" id="txt-seedtext" value="AMO" maxlength="24" style="cursor:text">
+        </div>
+        <p class="org-panel__hint" id="font-status-hint">Loading font…</p>
+        <p class="org-panel__hint">Real glyph outline points (opentype.js reading the same vendored Manrope every Organica tool uses) — not a raster guess. Each letter's own outer ring and any inner hole (A, O) are separate contours; the curve never connects one to the next.</p>
+      </div>
+
+      <div class="ctrl-row" id="row-imgscale">
+        <div class="ctrl-label">Image scale</div>
+        <input type="range" id="rg-imgscale" min="0.1" max="1.5" step="0.05" value="0.85">
+        <span class="ctrl-val" id="v-imgscale">0.85</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Motion</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Step size</div>
+        <input type="range" id="rg-step" min="0.2" max="15" step="0.1" value="2">
+        <span class="ctrl-val" id="v-step">2.0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Movement</div>
+        <select class="panel-select" id="sel-movement">
+          <option value="mouse">Float to mouse</option>
+          <option value="linear">Linear (bounce)</option>
+          <option value="orbit">Orbit</option>
+          <option value="zigzag">Zigzag</option>
+          <option value="figure8">Figure-8</option>
+          <option value="sine">Sine drift</option>
+          <option value="textpath">Follow path</option>
+        </select>
+      </div>
+      <div class="ctrl-row" id="row-float">
+        <div class="ctrl-label">Float speed</div>
+        <input type="range" id="rg-float" min="0" max="0.2" step="0.005" value="0.01">
+        <span class="ctrl-val" id="v-float">0.010</span>
+      </div>
+      <div class="ctrl-row" id="row-movespeed" style="display:none">
+        <div class="ctrl-label">Move speed</div>
+        <input type="range" id="rg-movespeed" min="0.1" max="5" step="0.1" value="1">
+        <span class="ctrl-val" id="v-movespeed">1.0</span>
+      </div>
+
+      <div id="followpath-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Path source</div>
+          <select class="panel-select" id="sel-pathsource">
+            <option value="text">Text outline</option>
+            <option value="loom">Loom grid (JSON)</option>
+          </select>
+        </div>
+        <div id="loompath-block" style="display:none">
+          <button class="upload-btn" id="btn-upload-loompath">+ Upload Loom JSON</button>
+          <div class="ctrl-row">
+            <div class="ctrl-label">Loom path</div>
+            <select class="panel-select" id="sel-loompathstyle">
+              <option value="borders">Polygon borders</option>
+              <option value="centroids">Cell centroids</option>
+            </select>
+          </div>
+          <div class="org-panel__readout" id="loompath-readout">No grid loaded</div>
+        </div>
+        <label class="check-row"><input type="checkbox" id="chk-drawpath" checked><span>Draw full path (clean static line)</span></label>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Path render</div>
+          <select class="panel-select" id="sel-pathrender">
+            <option value="line">Line</option>
+            <option value="dots">Dots (beaded)</option>
+          </select>
+        </div>
+        <div class="ctrl-row" id="row-pathdotsize" style="display:none">
+          <div class="ctrl-label">Dot size</div>
+          <input type="range" id="rg-pathdotsize" min="1" max="16" step="0.5" value="6">
+          <span class="ctrl-val" id="v-pathdotsize">6.0</span>
+        </div>
+        <label class="check-row"><input type="checkbox" id="chk-glow"><span>Glow (neon halo)</span></label>
+        <label class="check-row"><input type="checkbox" id="chk-writebrush"><span>Write as brush (small dot traces the path)</span></label>
+        <div class="ctrl-row" id="row-brushsize" style="display:none">
+          <div class="ctrl-label">Brush size</div>
+          <input type="range" id="rg-brushsize" min="4" max="80" step="2" value="20">
+          <span class="ctrl-val" id="v-brushsize">20</span>
+        </div>
+        <p class="org-panel__hint">Follow path walks an ordered sequence of waypoints and loops. Text outline needs Seed set to Text at least once first. Draw full path traces the whole path immediately as a clean static line, independent of Step size/Move speed/Draw mode.</p>
+      </div>
+      <p class="org-panel__hint">Float to mouse eases toward the pointer; the rest are fixed trajectories. Click the canvas to spawn a fresh form there (Movement keeps driving it).</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Ink</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Color mode</div>
+        <select class="panel-select" id="sel-colorsrc">
+          <option value="ink">Single ink</option>
+          <option value="rainbow">Rainbow (per segment)</option>
+          <option value="image">Sample from image</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Stroke weight</div>
+        <input type="range" id="rg-weight" min="0.25" max="4" step="0.05" value="0.75">
+        <span class="ctrl-val" id="v-weight">0.75</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Stroke alpha</div>
+        <input type="range" id="rg-alpha" min="5" max="255" step="5" value="50">
+        <span class="ctrl-val" id="v-alpha">50</span>
+      </div>
+      <label class="check-row" id="row-fill"><input type="checkbox" id="chk-fill"><span>Fill each frame (random ink density)</span></label>
+      <p class="org-panel__hint">Single ink is the only mode Fill applies to. Rainbow cycles the spectrum once around the form/path. Sample from image reads live colour from the loaded image.</p>
+    </div>
+
+  </div>
+</div>
+
+<input type="file" id="file-image" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;">
+<input type="file" id="file-loompath" accept=".json,application/json" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;">
+
+<script src="/shared/organica-core.js"></script>
+<script src="/shared/opentype.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>
