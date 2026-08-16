@@ -105,6 +105,14 @@
   </div>
   <div class="readout" id="loompath-readout" style="font-family:monospace;font-size:10px;color:var(--accent);background:#0a0a0a;padding:6px 8px;border:1px solid var(--border);margin-bottom:10px;display:none">No grid loaded</div>
   <div class="toggle-row" id="row-drawpath" style="display:none"><input type="checkbox" id="chk-drawpath" checked><label for="chk-drawpath">Draw full path (clean static line)</label></div>
+  <div class="row" id="row-pathrender" style="display:none"><label>Path render</label>
+    <select id="sel-pathrender">
+      <option value="line">Line</option>
+      <option value="dots">Dots (beaded)</option>
+    </select>
+  </div>
+  <div class="row" id="row-pathdotsize" style="display:none"><label>Dot size</label><input type="range" id="rg-pathdotsize" min="1" max="16" step="0.5" value="6"><span class="val" id="v-pathdotsize">6.0</span></div>
+  <div class="toggle-row" id="row-glow" style="display:none"><input type="checkbox" id="chk-glow"><label for="chk-glow">Glow (neon halo)</label></div>
   <div class="toggle-row" id="row-writebrush" style="display:none"><input type="checkbox" id="chk-writebrush"><label for="chk-writebrush">Write as brush (small dot traces the path)</label></div>
   <div class="row" id="row-brushsize" style="display:none"><label>Brush size</label><input type="range" id="rg-brushsize" min="4" max="80" step="2" value="20"><span class="val" id="v-brushsize">20</span></div>
   <p class="hint">Step size is how far each point can wander in one frame — small values breathe gently, large values tear the form apart into chaos. Movement pattern is what drives the whole form's own centre: Float to mouse (original behaviour) eases toward the pointer; the rest are fixed, predictable trajectories independent of the mouse — Linear bounces off the canvas edges like a ball, Orbit circles the centre, Zigzag bounces along a diagonal, Figure-8 and Sine drift trace their own named curves, Follow path walks an ordered sequence of waypoints start to end and loops. Path source picks where those waypoints come from: Text outline re-traces the last Text seed's own dense glyph outline (needs Seed source set to Text at least once first); Loom grid instead walks a JSON grid exported from /loom/, cell centroid to cell centroid or vertex to vertex along each cell's own border (Loom path style), in the cells' own Number order (Sequential/Shuffle) — same file format Flow Field's own Loom-grid loader reads. Draw full path draws the WHOLE path immediately as one clean static line, breaks skipped, regardless of Step size/Move speed/Draw mode — the direct fix for Line/Circle at real speed just smearing a fresh shape onto a new position every frame instead of tracing cleanly; Write as brush additionally shrinks the form to a small dot that visibly travels the path on top of that static line — re-seeding reproduces both every time instead of needing a one-off manual fix. Click anywhere on the canvas to spawn a fresh form at that point (Movement then keeps driving it from there).</p>
@@ -482,6 +490,9 @@ const TEXT_PATH_DENSITY = 300;
 // grid only takes over once you actually pick it as the Path source).
 let pathSource = 'text';
 let drawFullPath = true;
+let glowEnabled = false;
+let pathRenderStyle = 'line';
+let pathDotSize = 6;
 
 function seedFromText() {
   const word = seedText || 'AMO';
@@ -790,24 +801,102 @@ function setup() {
 // a new position every frame — since the canvas never clears, that reads
 // as a blurry smear, not a traced line, and there was no way to get a
 // clean result without giving up on Line/Circle and waiting.
+// Colour for path point i — same three Color-mode sources renderMultiColor
+// Segments already reads for the breathing shape, just working off
+// textPathPoints' own ABSOLUTE canvas coordinates instead of xs/ys
+// offsets (Sample from image inverts imgFit's own W/2,H/2-centred fit
+// transform to get back to image pixel space).
+function pathColorAt(i, n) {
+  if (colorSrc === 'rainbow') return hsbToRgb((i / n) * 360, 85, 100);
+  if (colorSrc === 'image' && imgFit) {
+    const p = textPathPoints[i];
+    return imgColorAt(imgFit.refX + (p[0] - W / 2) / imgFit.scale, imgFit.refY + (p[1] - H / 2) / imgFit.scale);
+  }
+  return inkRGB;
+}
+
+// Draws the whole captured path as a clean static line (see this
+// function's own call site for why: Line/Circle at real speed just
+// smears, this doesn't). Glow adds a neon halo (Canvas2D's own
+// shadowBlur/shadowColor, reset back to 0 afterward so nothing else
+// this frame accidentally inherits it) plus small brighter dots at a
+// sparse sample of waypoints, standing in for the little bright
+// "sparkle" points along a real neon tube.
+// Dots (beaded) style — draws every single waypoint as its own filled
+// circle, no connecting stroke at all. Breaks need no special handling
+// here (unlike Line style): with nothing connecting one point to the
+// next in the first place, a jump between contours just reads as a
+// slightly wider gap in the beads, never a phantom line — the dots
+// naturally can't draw an edge that isn't there.
+function renderPathDots() {
+  const n = textPathPoints.length;
+  noStroke();
+  if (glowEnabled) drawingContext.shadowBlur = 14;
+  for (let i = 0; i < n; i++) {
+    const col = pathColorAt(i, n);
+    if (glowEnabled) drawingContext.shadowColor = `rgba(${col[0]},${col[1]},${col[2]},0.9)`;
+    fill(col[0], col[1], col[2], strokeAlpha);
+    circle(textPathPoints[i][0], textPathPoints[i][1], pathDotSize);
+  }
+  if (glowEnabled) drawingContext.shadowBlur = 0;
+}
+
 function renderFullPath() {
   if (textPathPoints.length < 2) return;
-  stroke(inkRGB[0], inkRGB[1], inkRGB[2], strokeAlpha);
+  if (pathRenderStyle === 'dots') { renderPathDots(); return; }
+  const n = textPathPoints.length;
   strokeWeight(strokeW);
   noFill();
+  if (glowEnabled) drawingContext.shadowBlur = 14;
+
   let runStart = 0;
-  for (let i = 1; i <= textPathPoints.length; i++) {
-    if (i === textPathPoints.length || pathBreaks.has(i)) {
-      const i1 = i - 1;
-      if (i1 > runStart) {
-        beginShape();
-        curveVertex(textPathPoints[runStart][0], textPathPoints[runStart][1]);
-        for (let j = runStart; j <= i1; j++) curveVertex(textPathPoints[j][0], textPathPoints[j][1]);
-        curveVertex(textPathPoints[i1][0], textPathPoints[i1][1]);
-        endShape();
+  for (let i = 1; i <= n; i++) {
+    if (i === n || pathBreaks.has(i)) {
+      const runEnd = i - 1;
+      if (runEnd > runStart) {
+        if (colorSrc === 'ink') {
+          if (glowEnabled) drawingContext.shadowColor = `rgba(${inkRGB[0]},${inkRGB[1]},${inkRGB[2]},0.9)`;
+          stroke(inkRGB[0], inkRGB[1], inkRGB[2], strokeAlpha);
+          beginShape();
+          curveVertex(textPathPoints[runStart][0], textPathPoints[runStart][1]);
+          for (let j = runStart; j <= runEnd; j++) curveVertex(textPathPoints[j][0], textPathPoints[j][1]);
+          curveVertex(textPathPoints[runEnd][0], textPathPoints[runEnd][1]);
+          endShape();
+        } else {
+          // Rainbow/Sample-from-image both vary ALONG the run, so each
+          // little sub-segment gets its own colour (and, with Glow on,
+          // its own matching shadow colour) — same per-segment technique
+          // renderMultiColorSegments() already uses for the breathing
+          // shape, just walking runStart..runEnd instead of the whole
+          // array so it still respects this run's own break boundaries.
+          for (let k = runStart; k < runEnd; k++) {
+            const i0 = Math.max(k - 1, runStart), i1 = k, i2 = k + 1, i3 = Math.min(k + 2, runEnd);
+            const col = pathColorAt(i1, n);
+            if (glowEnabled) drawingContext.shadowColor = `rgba(${col[0]},${col[1]},${col[2]},0.9)`;
+            stroke(col[0], col[1], col[2], strokeAlpha);
+            beginShape();
+            curveVertex(textPathPoints[i0][0], textPathPoints[i0][1]);
+            curveVertex(textPathPoints[i1][0], textPathPoints[i1][1]);
+            curveVertex(textPathPoints[i2][0], textPathPoints[i2][1]);
+            curveVertex(textPathPoints[i3][0], textPathPoints[i3][1]);
+            endShape();
+          }
+        }
       }
       runStart = i;
     }
+  }
+
+  if (glowEnabled) {
+    noStroke();
+    const dotStep = Math.max(1, Math.floor(n / 60));   // ~60 sparkle dots regardless of path density
+    for (let i = 0; i < n; i += dotStep) {
+      const col = pathColorAt(i, n);
+      drawingContext.shadowColor = `rgba(${col[0]},${col[1]},${col[2]},0.9)`;
+      fill(Math.min(255, col[0] + 70), Math.min(255, col[1] + 70), Math.min(255, col[2] + 70), 230);
+      circle(textPathPoints[i][0], textPathPoints[i][1], 3.5);
+    }
+    drawingContext.shadowBlur = 0;   // never leak the glow into whatever draws next this frame (moving dot, Point mode, etc.)
   }
 }
 
@@ -1009,6 +1098,9 @@ ctrl('sel-movement').addEventListener('change', e => {
   const isTextPath = movementPattern === 'textpath';
   ctrl('row-pathsource').style.display = isTextPath ? '' : 'none';
   ctrl('row-drawpath').style.display = isTextPath ? '' : 'none';
+  ctrl('row-pathrender').style.display = isTextPath ? '' : 'none';
+  ctrl('row-pathdotsize').style.display = isTextPath && pathRenderStyle === 'dots' ? '' : 'none';
+  ctrl('row-glow').style.display = isTextPath ? '' : 'none';
   ctrl('row-writebrush').style.display = isTextPath ? '' : 'none';
   ctrl('row-brushsize').style.display = isTextPath && writeBrush ? '' : 'none';
   const showLoomNow = isTextPath && pathSource === 'loom';
@@ -1018,6 +1110,12 @@ ctrl('sel-movement').addEventListener('change', e => {
 });
 ctrl('rg-movespeed').addEventListener('input', e => { moveSpeed = parseFloat(e.target.value); ctrl('v-movespeed').textContent = moveSpeed.toFixed(1); });
 ctrl('chk-drawpath').addEventListener('change', e => { drawFullPath = e.target.checked; });
+ctrl('chk-glow').addEventListener('change', e => { glowEnabled = e.target.checked; });
+ctrl('sel-pathrender').addEventListener('change', e => {
+  pathRenderStyle = e.target.value;
+  ctrl('row-pathdotsize').style.display = pathRenderStyle === 'dots' ? '' : 'none';
+});
+ctrl('rg-pathdotsize').addEventListener('input', e => { pathDotSize = parseFloat(e.target.value); ctrl('v-pathdotsize').textContent = pathDotSize.toFixed(1); });
 ctrl('sel-pathsource').addEventListener('change', e => {
   pathSource = e.target.value;
   const showLoom = pathSource === 'loom';
