@@ -40,26 +40,87 @@
   </div>
 
   <div class="sec-title">Form</div>
-  <div class="row"><label>Resolution</label><input type="range" id="rg-res" min="4" max="60" step="1" value="15"><span class="val" id="v-res">15</span></div>
-  <div class="row"><label>Init radius</label><input type="range" id="rg-radius" min="20" max="320" step="5" value="150"><span class="val" id="v-radius">150</span></div>
+  <div class="row" id="row-resolution"><label>Resolution</label><input type="range" id="rg-res" min="4" max="60" step="1" value="15"><span class="val" id="v-res">15</span></div>
+  <div class="row" id="row-initradius"><label>Init radius</label><input type="range" id="rg-radius" min="20" max="320" step="5" value="150"><span class="val" id="v-radius">150</span></div>
+  <div class="row" id="row-pointsize" style="display:none"><label>Point size</label><input type="range" id="rg-pointsize" min="2" max="60" step="1" value="8"><span class="val" id="v-pointsize">8</span></div>
   <div class="row"><label>Draw mode</label>
     <select id="sel-mode">
       <option value="circle">Circle (closed)</option>
-      <option value="line">Line (open)</option>
+      <option value="line" selected>Line (open)</option>
+      <option value="point">Point</option>
     </select>
   </div>
-  <p class="hint">Resolution is how many points make up the form; Init radius sets the size of a freshly spawned one. Circle closes the curve into a loop; Line leaves it open, stretched between two random endpoints.</p>
+  <p class="hint" id="hint-form">Resolution is how many points make up the form; Init radius sets the size of a freshly spawned one. Circle closes the curve into a loop; Line leaves it open, stretched between two random endpoints; Point collapses the form to a single dot — no curve, no Resolution, just one agent that still breathes with Step size and can be driven by any Movement pattern (this is the same "small dot" Write as brush already gave Follow path specifically, now available everywhere). Fill (Ink section) has no effect in Point mode, a single dot has no enclosed shape to wash a fill under.</p>
+
+  <div class="sec-title">Seed</div>
+  <div class="row"><label>Source</label>
+    <select id="sel-seedsource">
+      <option value="procedural">Procedural (circle/line)</option>
+      <option value="image">Image</option>
+      <option value="text">Text</option>
+    </select>
+  </div>
+  <input type="file" id="file-image" accept="image/*" style="width:100%;font-size:10px;color:var(--mid);margin-bottom:10px;display:none">
+  <div class="readout" id="image-readout" style="font-family:monospace;font-size:10px;color:var(--accent);background:#0a0a0a;padding:6px 8px;border:1px solid var(--border);margin-bottom:10px;display:none">No image loaded</div>
+  <div class="row" id="row-seedtext" style="display:none"><label>Word</label><input type="text" id="txt-seedtext" value="AMO" maxlength="24" style="flex:1;background:#0a0a0a;color:var(--paper);border:1px solid var(--border);padding:5px 6px;font-size:11px;"></div>
+  <div class="row" id="row-seedstyle"><label>Seed style</label>
+    <select id="sel-seedstyle">
+      <option value="contour">Contour (silhouette)</option>
+      <option value="scatter">Luminance scatter</option>
+    </select>
+  </div>
+  <div class="row" id="row-threshold"><label>Threshold</label><input type="range" id="rg-threshold" min="0" max="255" step="1" value="128"><span class="val" id="v-threshold">128</span></div>
+  <div class="row" id="row-imgscale"><label>Image scale</label><input type="range" id="rg-imgscale" min="0.1" max="1.5" step="0.05" value="0.85"><span class="val" id="v-imgscale">0.85</span></div>
+  <div class="toggle-row" id="row-invert"><input type="checkbox" id="chk-invert"><label for="chk-invert">Invert (light = subject)</label></div>
+  <button id="btn-reseed" style="width:100%;background:none;border:1px solid var(--border);color:var(--paper);padding:7px;font-size:11px;cursor:pointer;margin-bottom:10px;">Reseed</button>
+  <p class="hint" id="hint-seed">Contour walks Resolution rays outward from the image's own weighted centroid and stops each one at the last dark (or, inverted, light) pixel — the ring of points traces the subject's silhouette. Luminance scatter instead samples Resolution points at random, weighted toward dark areas, then sorts them by angle around their own centroid so the connected curve still reads as one coherent loop instead of a scribble. Once an Image source is active, clicking the canvas (or Reseed) re-samples — deterministic for Contour, freshly random for Scatter. Text instead samples the REAL glyph outline of the typed Word (a vendored font, not a raster guess) — Seed style/Threshold/Invert don't apply to it.</p>
 
   <div class="sec-title">Motion</div>
   <div class="row"><label>Step size</label><input type="range" id="rg-step" min="0.2" max="15" step="0.1" value="2"><span class="val" id="v-step">2.0</span></div>
-  <div class="row"><label>Float speed</label><input type="range" id="rg-float" min="0" max="0.2" step="0.005" value="0.01"><span class="val" id="v-float">0.010</span></div>
-  <p class="hint">Step size is how far each point can wander in one frame — small values breathe gently, large values tear the form apart into chaos. Float speed is how eagerly the whole form drifts toward the mouse (0 = anchored in place). Click anywhere on the canvas to spawn a fresh form at that point.</p>
+  <div class="row"><label>Movement pattern</label>
+    <select id="sel-movement">
+      <option value="mouse">Float to mouse</option>
+      <option value="linear">Linear (bounce)</option>
+      <option value="orbit">Orbit</option>
+      <option value="zigzag">Zigzag</option>
+      <option value="figure8">Figure-8</option>
+      <option value="sine">Sine drift</option>
+      <option value="textpath">Follow path</option>
+    </select>
+  </div>
+  <div class="row" id="row-float"><label>Float speed</label><input type="range" id="rg-float" min="0" max="0.2" step="0.005" value="0.01"><span class="val" id="v-float">0.010</span></div>
+  <div class="row" id="row-movespeed" style="display:none"><label>Move speed</label><input type="range" id="rg-movespeed" min="0.1" max="5" step="0.1" value="1"><span class="val" id="v-movespeed">1.0</span></div>
+  <div class="row" id="row-pathsource" style="display:none"><label>Path source</label>
+    <select id="sel-pathsource">
+      <option value="text">Text outline</option>
+      <option value="loom">Loom grid (JSON)</option>
+    </select>
+  </div>
+  <input type="file" id="file-loompath" accept=".json,application/json" style="width:100%;font-size:10px;color:var(--mid);margin-bottom:10px;display:none">
+  <div class="row" id="row-loompathstyle" style="display:none"><label>Loom path style</label>
+    <select id="sel-loompathstyle">
+      <option value="borders">Polygon borders</option>
+      <option value="centroids">Cell centroids</option>
+    </select>
+  </div>
+  <div class="readout" id="loompath-readout" style="font-family:monospace;font-size:10px;color:var(--accent);background:#0a0a0a;padding:6px 8px;border:1px solid var(--border);margin-bottom:10px;display:none">No grid loaded</div>
+  <div class="toggle-row" id="row-drawpath" style="display:none"><input type="checkbox" id="chk-drawpath" checked><label for="chk-drawpath">Draw full path (clean static line)</label></div>
+  <div class="toggle-row" id="row-writebrush" style="display:none"><input type="checkbox" id="chk-writebrush"><label for="chk-writebrush">Write as brush (small dot traces the path)</label></div>
+  <div class="row" id="row-brushsize" style="display:none"><label>Brush size</label><input type="range" id="rg-brushsize" min="4" max="80" step="2" value="20"><span class="val" id="v-brushsize">20</span></div>
+  <p class="hint">Step size is how far each point can wander in one frame — small values breathe gently, large values tear the form apart into chaos. Movement pattern is what drives the whole form's own centre: Float to mouse (original behaviour) eases toward the pointer; the rest are fixed, predictable trajectories independent of the mouse — Linear bounces off the canvas edges like a ball, Orbit circles the centre, Zigzag bounces along a diagonal, Figure-8 and Sine drift trace their own named curves, Follow path walks an ordered sequence of waypoints start to end and loops. Path source picks where those waypoints come from: Text outline re-traces the last Text seed's own dense glyph outline (needs Seed source set to Text at least once first); Loom grid instead walks a JSON grid exported from /loom/, cell centroid to cell centroid or vertex to vertex along each cell's own border (Loom path style), in the cells' own Number order (Sequential/Shuffle) — same file format Flow Field's own Loom-grid loader reads. Draw full path draws the WHOLE path immediately as one clean static line, breaks skipped, regardless of Step size/Move speed/Draw mode — the direct fix for Line/Circle at real speed just smearing a fresh shape onto a new position every frame instead of tracing cleanly; Write as brush additionally shrinks the form to a small dot that visibly travels the path on top of that static line — re-seeding reproduces both every time instead of needing a one-off manual fix. Click anywhere on the canvas to spawn a fresh form at that point (Movement then keeps driving it from there).</p>
 
   <div class="sec-title">Ink</div>
+  <div class="row"><label>Color mode</label>
+    <select id="sel-colorsrc">
+      <option value="ink">Single ink</option>
+      <option value="rainbow">Rainbow (per segment)</option>
+      <option value="image">Sample from image</option>
+    </select>
+  </div>
   <div class="row"><label>Stroke weight</label><input type="range" id="rg-weight" min="0.25" max="4" step="0.05" value="0.75"><span class="val" id="v-weight">0.75</span></div>
   <div class="row"><label>Stroke alpha</label><input type="range" id="rg-alpha" min="5" max="255" step="5" value="50"><span class="val" id="v-alpha">50</span></div>
-  <div class="toggle-row"><input type="checkbox" id="chk-fill"><label for="chk-fill">Fill each frame (random ink density)</label></div>
-  <p class="hint">Fill mode washes a new random translucent fill under the stroke every single frame — since the canvas never clears, this is what turns the drifting outline into dense, layered membrane tissue instead of a bare wireframe.</p>
+  <div class="toggle-row" id="row-fill"><input type="checkbox" id="chk-fill"><label for="chk-fill">Fill each frame (random ink density)</label></div>
+  <p class="hint" id="hint-color">Single ink is the original one-colour stroke, and the only mode Fill applies to (a per-segment stroke has no single enclosed shape to wash a fill under). Rainbow gives each of the curve's own segments a fixed hue by position, cycling the full spectrum once around the form. Sample from image reads each segment's own colour live from the loaded image, at whatever position that segment currently drifts to — needs an Image seed loaded above.</p>
 </div>
 
 <script>
@@ -71,7 +132,111 @@ let formResolution = 15;
 let stepSize = 2;
 let initRadius = 150;
 let floatSpeed = 0.01;
-let drawMode = 'circle';
+
+// ── Movement patterns ──
+let movementPattern = 'mouse';
+let moveSpeed = 1;
+let moveClock = 0;
+let linVX = 1, linVY = 0.6;   // current bounce direction for 'linear' — reseeded whenever that pattern is (re)selected
+
+// Reseeds a fresh random bounce direction — called when Linear is
+// selected so switching back to it doesn't always send the form off in
+// the exact same direction as last time.
+function reseedLinear() {
+  const ang = random(TWO_PI);
+  linVX = Math.cos(ang);
+  linVY = Math.sin(ang);
+}
+
+// Five fixed, predictable trajectories for the form's own centre,
+// independent of the mouse — the counterpart to Float to mouse's own
+// pointer-chasing ease. All but Linear are pure functions of elapsed
+// time (`t`, seconds since the pattern was selected), centred on the
+// canvas; Linear is stateful (a real bounced velocity) since a genuine
+// "ball off the walls" path isn't a clean closed-form function of t.
+function movementCenter(t) {
+  const cx0 = W / 2, cy0 = H / 2;
+  const ang = t * moveSpeed;
+  // Math.asin(Math.sin(x)) turns a plain sine into a clean -1..1
+  // triangle wave — no piecewise branching needed for the back-and-forth
+  // legs Zigzag wants.
+  const tri = a => Math.asin(Math.sin(a)) * (2 / Math.PI);
+  switch (movementPattern) {
+    case 'orbit': {
+      const r = Math.min(W, H) * 0.3;
+      return [cx0 + Math.cos(ang) * r, cy0 + Math.sin(ang) * r];
+    }
+    case 'zigzag':
+      return [cx0 + tri(ang) * W * 0.35, cy0 + tri(ang * 0.6 + Math.PI / 2) * H * 0.3];
+    case 'figure8':
+      return [cx0 + Math.sin(ang) * W * 0.3, cy0 + Math.sin(ang * 2) * H * 0.25];
+    case 'sine':
+      return [cx0 + tri(ang * 0.4) * W * 0.4, cy0 + Math.sin(ang * 3) * H * 0.22];
+    default:
+      return [cx0, cy0];
+  }
+}
+
+function updateMovement(dt) {
+  if (movementPattern === 'mouse') {
+    // Original behaviour, byte-for-byte — gated to only ease while the
+    // pointer is actually over the canvas (see this block's own original
+    // comment: mouseX/mouseY can sit outside 0..W/0..H over the panel).
+    if (mouseX >= 0 && mouseX <= W && mouseY >= 0 && mouseY <= H) {
+      centerX += (mouseX - centerX) * floatSpeed;
+      centerY += (mouseY - centerY) * floatSpeed;
+    }
+    return;
+  }
+  moveClock += dt;
+  if (movementPattern === 'linear') {
+    const margin = 60;   // keeps the form's own centre (and therefore most of its extent) on-canvas before bouncing
+    centerX += linVX * moveSpeed * 60 * dt;
+    centerY += linVY * moveSpeed * 60 * dt;
+    if (centerX < margin || centerX > W - margin) linVX *= -1;
+    if (centerY < margin || centerY > H - margin) linVY *= -1;
+    centerX = constrain(centerX, margin, W - margin);
+    centerY = constrain(centerY, margin, H - margin);
+    return;
+  }
+  if (movementPattern === 'textpath') {
+    // Walks the STABLE snapshot seedFromText() built (a dense ~300-point
+    // resample of the real glyph outline, not the breathing shape's own
+    // sparse Resolution points — see seedFromText()'s own comment for
+    // the bug this fixes), interpolating linearly between consecutive
+    // waypoints. Loops back to the start rather than stopping dead at
+    // the last letter, since every other pattern here loops too.
+    if (!textPathPoints.length) return;   // no text seeded yet — nothing to follow
+    const n = textPathPoints.length;
+    // Point-rate scaled by n itself (not a fixed constant) so a full
+    // loop takes a fixed ~15s at moveSpeed=1 REGARDLESS of how dense the
+    // path is — decouples traversal speed from TEXT_PATH_DENSITY, which
+    // the old fixed "×8" was silently tuned to the previous, much
+    // sparser point count and would have made a 300-point path take
+    // 37.5s just to guess-correct by luck.
+    const pos = (moveClock * moveSpeed * (n / 15)) % n;
+    const i0 = Math.floor(pos), i1 = (i0 + 1) % n, frac = pos - i0;
+    // A break at i1 means this segment isn't real geometry (a jump
+    // between two unrelated letters/cells) — lerping across it would
+    // draw/leave a visible connecting streak over however many frames it
+    // takes `pos` to cross that one index-unit. Snapping straight to the
+    // destination instead means the point sits still there (in canvas
+    // space) for the rest of this segment's duration rather than
+    // visibly traversing the gap — the same "pen lift" a real plotter
+    // would do between disconnected strokes.
+    if (pathBreaks.has(i1)) {
+      centerX = textPathPoints[i1][0];
+      centerY = textPathPoints[i1][1];
+    } else {
+      const a = textPathPoints[i0], b = textPathPoints[i1];
+      centerX = lerp(a[0], b[0], frac);
+      centerY = lerp(a[1], b[1], frac);
+    }
+    return;
+  }
+  [centerX, centerY] = movementCenter(moveClock);
+}
+let drawMode = 'line';
 let strokeW = 0.75;
 let strokeAlpha = 50;
 let fillEachFrame = false;
@@ -80,15 +245,502 @@ let frozen = false;
 let centerX, centerY;
 let xs = [], ys = [];
 let inkRGB, accentRGB;
+// Indices i where segment (i-1 → i) is a jump between two unrelated
+// contours/cells rather than real outline geometry — skipped by both the
+// breathing shape's own curve rendering (shapeBreaks) and Follow path's
+// movement (pathBreaks). Empty (the default) for every source that only
+// ever produces ONE real closed/open contour — Procedural, Image
+// (Contour/Scatter both already sort/trace their way to a single coherent
+// loop) — so this is a genuine no-op there, not just "usually empty."
+let shapeBreaks = new Set();
+let pathBreaks = new Set();
+
+// ── Image seed ──
+let seedSource = 'procedural';
+let seedStyle = 'contour';
+let threshold = 128;
+let imageScale = 0.85;
+let seedText = 'AMO';
+let invertMask = false;
+let loadedImg = null;
+
+function luminanceAt(pixels, w, h, x, y) {
+  x = constrain(Math.floor(x), 0, w - 1);
+  y = constrain(Math.floor(y), 0, h - 1);
+  const idx = 4 * (y * w + x);
+  return (pixels[idx] + pixels[idx + 1] + pixels[idx + 2]) / 3;
+}
+function isForeground(lum) { return invertMask ? lum > threshold : lum < threshold; }
+
+// Ray-casts `n` evenly-spaced angles out from the image's own weighted
+// centroid (of foreground pixels), stopping each ray at the last
+// foreground pixel it passed through — traces a star-convex approximation
+// of the subject's silhouette. Works well for a roughly centred subject
+// on a contrasting background (most photos framed for this kind of
+// tracing); a deeply concave or multi-blob silhouette will read as its
+// own convex-ish envelope rather than every inlet, an accepted
+// simplification for a 15-60 point ring, not a full contour tracer like
+// Halide's/Strata's own pixel-boundary walk.
+function sampleContour(img, n) {
+  img.loadPixels();
+  const iw = img.width, ih = img.height, px = img.pixels;
+  let sumX = 0, sumY = 0, count = 0;
+  const step = Math.max(1, Math.floor(Math.min(iw, ih) / 150));
+  for (let y = 0; y < ih; y += step) {
+    for (let x = 0; x < iw; x += step) {
+      if (isForeground(luminanceAt(px, iw, ih, x, y))) { sumX += x; sumY += y; count++; }
+    }
+  }
+  const cx = count > 0 ? sumX / count : iw / 2, cy = count > 0 ? sumY / count : ih / 2;
+  const maxR = Math.hypot(Math.max(cx, iw - cx), Math.max(cy, ih - cy));
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const ang = (i / n) * TWO_PI;
+    const dx = Math.cos(ang), dy = Math.sin(ang);
+    let lastR = 0;
+    for (let r = 0; r < maxR; r += 2) {
+      const x = cx + dx * r, y = cy + dy * r;
+      if (x < 0 || x >= iw || y < 0 || y >= ih) break;
+      if (isForeground(luminanceAt(px, iw, ih, x, y))) lastR = r;
+    }
+    pts.push([dx * lastR, dy * lastR]);
+  }
+  return { pts, iw, ih, refX: cx, refY: cy };
+}
+
+// Rejection-samples `n` points weighted toward dark (or, inverted, light)
+// areas — same idea as Pollen/Spore's own stippling. A random scatter has
+// no inherent ORDER though, and curveVertex draws points in array order —
+// connecting them in scatter order would zigzag chaotically across the
+// image instead of reading as a form. Sorting by angle around the
+// scatter's own centroid turns it into a coherent (if wobbly) closed loop
+// without needing real path-ordering (nearest-neighbour/TSP), matching
+// this exploration's own "simple over exact" scope.
+function sampleScatter(img, n) {
+  img.loadPixels();
+  const iw = img.width, ih = img.height, px = img.pixels;
+  const weightAt = (x, y) => {
+    const lum = luminanceAt(px, iw, ih, x, y);
+    return invertMask ? lum / 255 : 1 - lum / 255;
+  };
+  const pts = [];
+  let guard = 0;
+  while (pts.length < n && guard < n * 400) {
+    guard++;
+    const x = random(iw), y = random(ih);
+    if (random(1) < weightAt(x, y)) pts.push([x, y]);
+  }
+  while (pts.length < n) pts.push([random(iw), random(ih)]);   // sparse image fallback — never leaves a point unseeded
+  let sumX = 0, sumY = 0;
+  pts.forEach(p => { sumX += p[0]; sumY += p[1]; });
+  const cx = sumX / pts.length, cy = sumY / pts.length;
+  pts.sort((a, b) => Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx));
+  return { pts: pts.map(p => [p[0] - cx, p[1] - cy]), iw, ih, refX: cx, refY: cy };
+}
+
+// Fits the image's own sampled points (in IMAGE pixel space) into the
+// canvas, uniformly scaled and centred on it — same "fit and centre"
+// technique flow-field's own Loom-grid loader uses, just one axis
+// simpler since there's no separate outer/inner rect here.
+//
+// `imgFit` (scale + the image-space point that lands on centerX/centerY)
+// is kept around after seeding, not just used once here — it's what lets
+// "Sample from image" colour mode invert a POINT'S CURRENT canvas
+// position back into image pixel space every frame, even as the point
+// (and the whole form's centerX/centerY, floating toward the mouse)
+// drifts well away from where it was originally seeded.
+// Shared by seedFromImage() and seedFromText() below — both just hand
+// this the SAME { pts, iw, ih, refX, refY } shape sampleContour/
+// sampleScatter already return, whether the raster it was read from was
+// an uploaded p5.Image or a p5.Graphics with typed text drawn onto it.
+// Detects "this segment isn't real geometry, it's just where two
+// unrelated contours happen to sit next to each other in the array" —
+// used for Text (glyph outlines have no explicit contour-boundary
+// markers in p5's own textToPoints() return value, so a break is
+// inferred from an anomalously long gap relative to the array's own
+// typical spacing). Returns a Set of indices i where the segment
+// (i-1 → i) should NOT be drawn/traced. Also checks the WRAP segment
+// (last point → first point) since a closed loop or a looping Follow
+// path would otherwise draw one more phantom connector closing the
+// whole traced word back on itself.
+function detectBreaksByDistance(pts, factor, minAbs) {
+  const breaks = new Set();
+  if (pts.length < 3) return breaks;
+  const dists = [];
+  for (let i = 1; i < pts.length; i++) dists.push(Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const sorted = dists.slice().sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)] || 1;
+  const threshold = Math.max(factor * median, minAbs);
+  for (let i = 1; i < pts.length; i++) if (dists[i - 1] > threshold) breaks.add(i);
+  const wrapDist = Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]);
+  if (wrapDist > threshold) breaks.add(0);
+  return breaks;
+}
+
+function applySeedResult(result) {
+  const scale = Math.min(W / result.iw, H / result.ih) * imageScale;
+  centerX = W / 2;
+  centerY = H / 2;
+  xs = result.pts.map(p => p[0] * scale);
+  ys = result.pts.map(p => p[1] * scale);
+  imgFit = { scale, refX: result.refX, refY: result.refY };
+}
+
+// Point mode means exactly ONE agent regardless of seed source — Image/
+// Text otherwise still sample formResolution points from the raster/
+// glyph outline and renderPoint() would just silently draw index 0 of
+// that array, wasting the rest on a per-frame random walk nobody sees.
+function effectiveN() { return drawMode === 'point' ? 1 : formResolution; }
+
+function seedFromImage() {
+  if (!loadedImg) return;
+  shapeBreaks = new Set();   // Contour's ray-cast and Scatter's angle-sort both already resolve to one coherent loop
+  applySeedResult(seedStyle === 'contour' ? sampleContour(loadedImg, effectiveN()) : sampleScatter(loadedImg, effectiveN()));
+}
+
+// ── Text seed — samples REAL glyph outline points via the vendored
+// font's own textToPoints(), not a raster guess. Tried a raster
+// approach first (render the word to an offscreen canvas, reuse
+// sampleContour/sampleScatter verbatim) and it genuinely failed: Contour
+// ray-casts from a centroid and assumes the silhouette roughly surrounds
+// it in every direction, which a short WIDE word never does (most
+// vertical rays never hit any letter at all, collapsing to a near-empty
+// shape); Scatter's angle-sort assumes points roughly ring one centre,
+// which scrambles a left-to-right word into a chaotic star. Neither is
+// a case the star-convex/angle-sort assumptions were ever meant to
+// cover. Direct glyph outlines sidestep both problems entirely.
+//
+// textToPoints() returns EVERY contour of every glyph back-to-back —
+// including each letter's own OUTER boundary and, for a letter like O
+// or A, its INNER hole — as one long ordered list, not one single loop.
+// Membrane's own curveVertex rendering only ever draws ONE connected
+// ring/line through its points, so multiple disjoint letter contours
+// can't be represented as fully separate strokes without a bigger
+// rendering change (per-contour drawing, not attempted here) — evenly
+// subsampling the WHOLE ordered list instead means the curve mostly
+// traces each contour in turn with occasional connecting jumps between
+// letters/holes, which reads as a single continuous pen stroke sketching
+// the word rather than perfectly separated letterforms. An accepted
+// simplification, not hidden: documented here same as Contour/Scatter's
+// own limitations above.
+// Returns the FULL, un-subsampled glyph outline (typically several
+// hundred points for a short word — 922 for "AMO" at this fontSize),
+// rotated to start at the first letter's own lowest point. Kept separate
+// from any n-point subsampling below: the breathing SHAPE and the
+// MOVEMENT PATH have very different, legitimately different point-count
+// needs (see the real bug this fixes, documented at sampleTextGlyphs).
+function glyphOutline(word) {
+  if (!manropeFont || !word) return null;
+  const fontSize = 220;
+  const bounds = manropeFont.textBounds(word, 0, 0, fontSize);
+  if (!bounds || !bounds.w || !bounds.h) return null;
+  const ox = -(bounds.x + bounds.w / 2), oy = -(bounds.y + bounds.h / 2);
+  let raw = manropeFont.textToPoints(word, ox, oy, fontSize, { sampleFactor: 0.3 });
+  if (!raw || !raw.length) return null;
+
+  // Rotates the point list so it STARTS at the first letter's own lowest
+  // point (its "bottom vertex" — e.g. where A's two legs meet the
+  // baseline) instead of wherever textToPoints happened to start
+  // tracing that glyph's outline. Only the first character's own x-range
+  // is searched (via a second textBounds call, same ox offset), so a
+  // word starting with a letter that ALSO has a low point elsewhere
+  // (M's legs, say) still picks a point that actually belongs to the
+  // first glyph, not just "the lowest point in the whole word."
+  const firstBounds = manropeFont.textBounds(word[0], 0, 0, fontSize);
+  const fx0 = ox + firstBounds.x, fx1 = fx0 + firstBounds.w;
+  let startIdx = 0, maxY = -Infinity;
+  for (let i = 0; i < raw.length; i++) {
+    const p = raw[i];
+    if (p.x >= fx0 && p.x <= fx1 && p.y > maxY) { maxY = p.y; startIdx = i; }
+  }
+  if (startIdx > 0) raw = raw.slice(startIdx).concat(raw.slice(0, startIdx));
+  return { raw, iw: bounds.w, ih: bounds.h };
+}
+function subsampleOutline(raw, n) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const p = raw[Math.floor((i / n) * raw.length)];
+    pts.push([p.x, p.y]);
+  }
+  return pts;
+}
+function sampleTextGlyphs(word, n) {
+  const g = glyphOutline(word);
+  if (!g) return null;
+  return { pts: subsampleOutline(g.raw, n), iw: g.iw, ih: g.ih, refX: 0, refY: 0 };
+}
+
+let writeBrush = false;
+let brushSize = 20;
+// How many waypoints "Follow path" gets from a Text outline, independent
+// of the breathing shape's own (usually much smaller) Resolution.
+const TEXT_PATH_DENSITY = 300;
+
+// "Follow path"'s waypoints can come from either source below — pathSource
+// is which one currently OWNS textPathPoints, so re-seeding Text doesn't
+// clobber a loaded Loom grid's own path (and vice versa: loading a Loom
+// grid only takes over once you actually pick it as the Path source).
+let pathSource = 'text';
+let drawFullPath = true;
+
+function seedFromText() {
+  const word = seedText || 'AMO';
+  const g = glyphOutline(word);
+  if (!g) return;
+  applySeedResult({ pts: subsampleOutline(g.raw, effectiveN()), iw: g.iw, ih: g.ih, refX: 0, refY: 0 });
+  // "AMO" is 5 real contours (A outer+hole, M, O outer+hole) concatenated
+  // into one array — detect where the shape's OWN (subsampled) points
+  // jump between them, in canvas space (absolute xs/ys + centerX/Y,
+  // matching detectBreaksByDistance's own distance-in-pixels contract).
+  shapeBreaks = xs.length >= 3 ? detectBreaksByDistance(xs.map((x, i) => [centerX + x, centerY + ys[i]]), 4, 25) : new Set();
+
+  if (pathSource === 'text') {
+    // REAL BUG, found by measuring rather than assuming: this used to
+    // call captureTextPath(), which just read the breathing shape's own
+    // xs/ys — at the default Resolution (15) that's 15 waypoints
+    // standing in for "AMO"'s real ~900-point outline (5 separate
+    // contours: A's outer ring + its inner hole, M, O's outer ring + its
+    // inner hole), a 60x subsampling. Consecutive waypoints routinely
+    // landed on DIFFERENT contours, so the path jumped in big straight
+    // lines that didn't trace any letter at all — confirmed by
+    // inspecting the actual captured points, not just eyeballing the
+    // render. Fixed by giving the path its own much denser sample (up to
+    // 300 points) of the SAME rotated outline, scaled by the identical
+    // imgFit the shape itself just got from applySeedResult (so path and
+    // shape always agree on where the word sits on canvas).
+    const denseN = Math.min(TEXT_PATH_DENSITY, g.raw.length);
+    const densePts = subsampleOutline(g.raw, denseN);
+    textPathPoints = densePts.map(p => [W / 2 + p[0] * imgFit.scale, H / 2 + p[1] * imgFit.scale]);
+    pathBreaks = detectBreaksByDistance(textPathPoints, 4, 25);
+    if (writeBrush) initShape(textPathPoints[0][0], textPathPoints[0][1], brushSize);
+  }
+}
+
+// ── Loom grid path — reads a /loom/ JSON export (same format Flow
+// Field's own Loom-grid loader reads). Two styles, both walked in the
+// cells' own Number order (Sequential/Shuffle both already give every
+// cell a real, meaningful order — falls back to array order if a cell
+// is somehow missing one): Cell centroids (one waypoint per cell, a
+// straight jump cell to cell) or Polygon borders (every one of each
+// cell's own boundary VERTICES, so the path actually walks the grid's
+// real line-work instead of just visiting cell centres — the two do
+// look genuinely different, borders traces the drawn grid, centroids
+// traces a route through it).
+function loomRectCorners(model) {
+  const canvas = model.canvas;
+  const shortSide = Math.min(canvas.width, canvas.height);
+  const pct = v => shortSide * ((v || 0) / 100);
+  const mt = pct(canvas.marginTop != null ? canvas.marginTop : canvas.margin);
+  const mr = pct(canvas.marginRight != null ? canvas.marginRight : canvas.margin);
+  const mb = pct(canvas.marginBottom != null ? canvas.marginBottom : canvas.margin);
+  const ml = pct(canvas.marginLeft != null ? canvas.marginLeft : canvas.margin);
+  const inner = { x: ml, y: mt, width: Math.max(1, canvas.width - ml - mr), height: Math.max(1, canvas.height - mt - mb) };
+  const { tracks, gap, padding } = model.grid;
+  const pad = padding || 0;
+  const offsets = sizes => { const out = [0]; for (let i = 0; i < sizes.length; i++) out.push(out[i] + sizes[i] + gap); return out; };
+  const colOff = offsets(tracks.cols), rowOff = offsets(tracks.rows);
+  return model.cells.map(c => {
+    const x = inner.x + colOff[c.col] + pad, y = inner.y + rowOff[c.row] + pad;
+    const w = Math.max(0, colOff[c.col + c.colSpan] - colOff[c.col] - gap - 2 * pad);
+    const h = Math.max(0, rowOff[c.row + c.rowSpan] - rowOff[c.row] - gap - 2 * pad);
+    return { cx: x + w / 2, cy: y + h / 2, points: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], number: c.number };
+  });
+}
+function buildLoomPath(model, style) {
+  const isPolygon = model.grid.cellShape === 'polygon';
+  const cells = isPolygon
+    ? model.cells.map(c => ({ cx: c.centroid[0], cy: c.centroid[1], points: c.points, number: c.number }))
+    : loomRectCorners(model);
+  if (cells.every(c => c.number != null)) cells.sort((a, b) => a.number - b.number);
+
+  // Deterministic breaks — no distance-heuristic needed here, unlike
+  // Text, since the exact cell boundary is already known while
+  // concatenating: `breaks` marks the raw-array index where each NEW
+  // cell's own points begin, so its last vertex never gets connected
+  // straight to the NEXT cell's first vertex (that's not a real edge in
+  // the grid, just where two unrelated polygons happen to sit next to
+  // each other in the list). Centroids style deliberately gets NO
+  // breaks: unlike Borders (where within-cell vertices are real
+  // geometry and between-cell jumps are the artifact), every single
+  // centroid-to-centroid segment there IS the intended "a route through
+  // the grid" — there's no narrower "real" geometry inside it to
+  // preserve.
+  const raw = [];
+  const breaks = new Set();
+  if (style === 'borders') {
+    cells.forEach(c => {
+      breaks.add(raw.length);   // this cell's own first vertex — never connect back to the previous cell's last one
+      c.points.forEach(p => raw.push(p));
+    });
+    breaks.delete(0);   // index 0 has no previous segment to skip
+  } else {
+    cells.forEach(c => raw.push([c.cx, c.cy]));
+  }
+
+  // Fit the Loom canvas's own physical size into this canvas — same
+  // "fit and centre" transform Flow Field's own Loom-grid loader uses.
+  const scale = Math.min(W / model.canvas.width, H / model.canvas.height) * 0.85;
+  const offX = (W - model.canvas.width * scale) / 2, offY = (H - model.canvas.height * scale) / 2;
+  textPathPoints = raw.map(p => [p[0] * scale + offX, p[1] * scale + offY]);
+  pathBreaks = breaks;
+
+  const label = style === 'borders' ? 'vertices (borders)' : 'cells (centroids)';
+  ctrl('loompath-readout').textContent = (style === 'borders' ? textPathPoints.length : cells.length) + ' ' + label + ' — ' + (model.grid.type || 'unknown type');
+  if (writeBrush && textPathPoints.length) initShape(textPathPoints[0][0], textPathPoints[0][1], brushSize);
+}
+
+let lastLoomModel = null;   // kept so switching Loom path style rebuilds without needing to re-choose the file
+let loompathStyle = 'borders';
+function loadLoomPathJSON(jsonText) {
+  let model;
+  try { model = JSON.parse(jsonText); } catch (e) { ctrl('loompath-readout').textContent = 'Could not parse file — not valid JSON.'; return; }
+  if (!model || !model.canvas || !model.grid || !Array.isArray(model.cells) || !model.cells.length) {
+    ctrl('loompath-readout').textContent = 'Not a Loom grid export — missing canvas/grid/cells.';
+    return;
+  }
+  lastLoomModel = model;
+  buildLoomPath(model, loompathStyle);
+}
+
+// ── Follow path movement — textPathPoints is a STABLE snapshot (built by
+// seedFromText() or loadLoomPathJSON() above, never read live from
+// xs/ys) so Follow path stays put regardless of how the breathing
+// shape's own random walk wanders afterward.
+let textPathPoints = [];
+
+// Single dispatch point for "something that affects the current seed
+// changed" — Seed style/Threshold/Invert/Image scale controls all just
+// call this instead of each re-deriving the image-vs-text branch.
+function reseedCurrent() {
+  if (seedSource === 'image' && loadedImg) seedFromImage();
+  else if (seedSource === 'text') seedFromText();
+  // Procedural has no file/word to re-sample, but "Reseed" doing nothing
+  // there would be a dead control same as the others this pass fixed —
+  // a fresh circle/line at the form's own current centre is the direct
+  // Procedural equivalent (same spawn logic mousePressed already uses).
+  else {
+    initShape(centerX, centerY, proceduralSpawnRadius());
+  }
+}
+
+// ── Multi-colour rendering ──
+let colorSrc = 'ink';
+let imgFit = null;              // {scale, refX, refY} — set by seedFromImage(), used by imgColorAt()
+let imgPixelsCache = null, imgPW = 0, imgPH = 0;
+
+// Cached ONCE when an image loads (a static image's own pixels never
+// change), not reloaded per point/frame — loadPixels() copies the whole
+// buffer, which would be real, measurable waste called 15-60 times a
+// frame for nothing.
+function cacheImagePixels(img) {
+  img.loadPixels();
+  imgPixelsCache = img.pixels;
+  imgPW = img.width;
+  imgPH = img.height;
+}
+
+function imgColorAt(ix, iy) {
+  if (!imgPixelsCache) return inkRGB;
+  const x = constrain(Math.floor(ix), 0, imgPW - 1);
+  const y = constrain(Math.floor(iy), 0, imgPH - 1);
+  const idx = 4 * (y * imgPW + x);
+  return [imgPixelsCache[idx], imgPixelsCache[idx + 1], imgPixelsCache[idx + 2]];
+}
+
+// Standard HSB→RGB, 0-255 out — Membrane stays in p5's default RGB
+// colorMode throughout (never switches to HSB globally, unlike Flow
+// Field), so Rainbow mode converts by hand instead, one hue per segment.
+function hsbToRgb(h, s, v) {
+  s /= 100; v /= 100;
+  const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;
+  let r, g, b;
+  if (h < 60) { r = c; g = x; b = 0; }
+  else if (h < 120) { r = x; g = c; b = 0; }
+  else if (h < 180) { r = 0; g = c; b = x; }
+  else if (h < 240) { r = 0; g = x; b = c; }
+  else if (h < 300) { r = x; g = 0; b = c; }
+  else { r = c; g = 0; b = x; }
+  return [(r + m) * 255, (g + m) * 255, (b + m) * 255];
+}
+
+// Draws Point mode's single agent as one filled dot — no curve, no
+// segments, so Color mode collapses to "whatever colour THIS one point
+// would have": ink for Single ink, one fixed hue for Rainbow (nothing to
+// vary a hue ACROSS with only one point), and a live image-colour sample
+// for Sample from image, same imgColorAt() the segment renderer uses.
+function renderPoint() {
+  const px = centerX + xs[0], py = centerY + ys[0];
+  let col;
+  if (colorSrc === 'rainbow') col = hsbToRgb(0, 85, 100);
+  else if (colorSrc === 'image' && imgFit) col = imgColorAt(imgFit.refX + xs[0] / imgFit.scale, imgFit.refY + ys[0] / imgFit.scale);
+  else col = inkRGB;
+  noStroke();
+  fill(col[0], col[1], col[2], strokeAlpha);
+  circle(px, py, pointSize * 2);
+}
+
+// Draws the SAME closed/open Catmull-Rom curve as the original single-
+// shape path, one SEGMENT at a time, each with its own stroke colour —
+// needed because neither p5 nor the underlying Canvas2D API supports a
+// per-vertex stroke colour within one continuous path. Each segment gets
+// the same 4-point control window (prev, start, end, next) the original
+// single beginShape()/endShape() implicitly builds for every point along
+// the way, so the curvature is identical — just drawn as N short strokes
+// instead of one long one.
+function renderMultiColorSegments() {
+  noFill();   // Fill only applies to Single ink's own one-shape path — see this section's own hint text
+  strokeWeight(strokeW);
+  const n = xs.length;
+  const segCount = drawMode === 'circle' ? n : n - 1;
+  for (let k = 0; k < segCount; k++) {
+    let i0, i1, i2, i3;
+    if (drawMode === 'circle') {
+      i0 = (k - 1 + n) % n; i1 = k % n; i2 = (k + 1) % n; i3 = (k + 2) % n;
+    } else {
+      i0 = Math.max(k - 1, 0); i1 = k; i2 = k + 1; i3 = Math.min(k + 2, n - 1);
+    }
+    // The drawn portion of this segment is i1→i2 — if i2 starts a new
+    // contour (shapeBreaks), that's not a real edge, just where two
+    // unrelated letters/contours sit next to each other in the array.
+    if (shapeBreaks.has(i2)) continue;
+    let col;
+    if (colorSrc === 'rainbow') {
+      col = hsbToRgb((k / segCount) * 360, 85, 100);
+    } else if (colorSrc === 'image' && imgFit) {
+      col = imgColorAt(imgFit.refX + xs[i1] / imgFit.scale, imgFit.refY + ys[i1] / imgFit.scale);
+    } else {
+      col = inkRGB;   // "Sample from image" with no image loaded yet — falls back to plain ink rather than crashing
+    }
+    stroke(col[0], col[1], col[2], strokeAlpha);
+    beginShape();
+    curveVertex(xs[i0] + centerX, ys[i0] + centerY);
+    curveVertex(xs[i1] + centerX, ys[i1] + centerY);
+    curveVertex(xs[i2] + centerX, ys[i2] + centerY);
+    curveVertex(xs[i3] + centerX, ys[i3] + centerY);
+    endShape();
+  }
+}
 
 // ── Shape init — mirrors the original sketch's own setup()/mousePressed()
 // branching (circle: evenly spaced points around a radius; line: N points
 // interpolated between two random endpoints), just factored into one
 // function called from both places instead of duplicated.
+let pointSize = 8;   // on-canvas radius of the dot when Draw mode is Point — set from whatever `radius` initShape() was called with
+
 function initShape(cx, cy, radius) {
   centerX = cx;
   centerY = cy;
   xs = []; ys = [];
+  shapeBreaks = new Set();   // Procedural circle/line/point is always one real, unbroken loop/point
+  if (drawMode === 'point') {
+    // A single agent — still a real member of xs/ys (Motion's own
+    // per-point random walk applies to it exactly like every other
+    // point), just Resolution=1 by construction rather than by slider.
+    xs.push(0);
+    ys.push(0);
+    pointSize = radius;
+    return;
+  }
   if (drawMode === 'circle') {
     const angle = radians(360 / formResolution);
     for (let i = 0; i < formResolution; i++) {
@@ -111,6 +763,14 @@ function hexToRgb(hex) {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
+let manropeFont = null;
+function preload() {
+  // Vendored TTF, same file Soul already loads — real glyph outlines,
+  // not the system font substitution p5's default text() rendering uses
+  // (which has no queryable outline geometry at all).
+  manropeFont = loadFont('../../shared/manrope-variable.ttf');
+}
+
 function setup() {
   const c = createCanvas(W, H);
   c.parent('stage');
@@ -120,25 +780,67 @@ function setup() {
   background(6);
 }
 
-function draw() {
-  // Float toward the mouse — same ease-toward-pointer as the original,
-  // just gated to only run while the pointer is actually over the canvas
-  // (mouseX/mouseY are canvas-relative in p5's default mode, but can sit
-  // outside 0..W/0..H while the pointer is over the panel instead — an
-  // ungated float would have the whole form lurch toward whatever stale
-  // position mouseX/Y last held there).
-  if (mouseX >= 0 && mouseX <= W && mouseY >= 0 && mouseY <= H) {
-    centerX += (mouseX - centerX) * floatSpeed;
-    centerY += (mouseY - centerY) * floatSpeed;
+// Draws the WHOLE captured path (Text outline or Loom grid) as one clean
+// static stroke, broken at pathBreaks exactly like the moving agent's own
+// snap-across-breaks does — but drawn directly from textPathPoints every
+// frame, at a fixed canvas position, completely independent of Step
+// size/Move speed/Draw mode. Fixes the real gap those introduced: a
+// small Point moving slowly builds a clean trail over many seconds, but
+// Line/Circle at any real speed just stacks a fresh multi-point shape at
+// a new position every frame — since the canvas never clears, that reads
+// as a blurry smear, not a traced line, and there was no way to get a
+// clean result without giving up on Line/Circle and waiting.
+function renderFullPath() {
+  if (textPathPoints.length < 2) return;
+  stroke(inkRGB[0], inkRGB[1], inkRGB[2], strokeAlpha);
+  strokeWeight(strokeW);
+  noFill();
+  let runStart = 0;
+  for (let i = 1; i <= textPathPoints.length; i++) {
+    if (i === textPathPoints.length || pathBreaks.has(i)) {
+      const i1 = i - 1;
+      if (i1 > runStart) {
+        beginShape();
+        curveVertex(textPathPoints[runStart][0], textPathPoints[runStart][1]);
+        for (let j = runStart; j <= i1; j++) curveVertex(textPathPoints[j][0], textPathPoints[j][1]);
+        curveVertex(textPathPoints[i1][0], textPathPoints[i1][1]);
+        endShape();
+      }
+      runStart = i;
+    }
   }
+}
+
+function draw() {
+  updateMovement(deltaTime / 1000);
+  if (movementPattern === 'textpath' && drawFullPath) renderFullPath();
 
   // Every point takes its own small independent step — no shared
   // direction, no coherent field like Flow Field's own angleAt(): each
   // agent's wander is entirely its own, which is the whole mechanic this
   // sketch is named for ("connected random agents").
-  for (let i = 0; i < formResolution; i++) {
+  //
+  // REAL BUG, caught while adding Point mode: this looped to
+  // formResolution, not xs.length — harmless while every drawMode kept
+  // xs sized to exactly formResolution, but Point mode's xs is a single
+  // element regardless of whatever formResolution the slider is still
+  // set to, so this would have walked past the real array and written
+  // `undefined + number` (NaN) into brand new indices, quietly
+  // corrupting xs/ys. xs.length is the only value that's ever actually
+  // correct for "how many points does this form have right now."
+  for (let i = 0; i < xs.length; i++) {
     xs[i] += random(-stepSize, stepSize);
     ys[i] += random(-stepSize, stepSize);
+  }
+
+  if (drawMode === 'point') {
+    renderPoint();
+    return;
+  }
+
+  if (colorSrc !== 'ink') {
+    renderMultiColorSegments();
+    return;
   }
 
   if (fillEachFrame) {
@@ -155,36 +857,203 @@ function draw() {
   stroke(inkRGB[0], inkRGB[1], inkRGB[2], strokeAlpha);
   strokeWeight(strokeW);
 
-  beginShape();
-  if (drawMode === 'circle') {
-    // Wraps the control points around the loop so the closed curve has
-    // no visible seam at the start/end join.
-    curveVertex(xs[formResolution - 1] + centerX, ys[formResolution - 1] + centerY);
-    for (let i = 0; i < formResolution; i++) curveVertex(xs[i] + centerX, ys[i] + centerY);
-    curveVertex(xs[0] + centerX, ys[0] + centerY);
-    curveVertex(xs[1] + centerX, ys[1] + centerY);
+  if (shapeBreaks.size === 0) {
+    // Original single-shape path, untouched — every source that only
+    // ever produces one real contour (Procedural, Image) never sets
+    // shapeBreaks, so this stays byte-for-byte the same as before.
+    beginShape();
+    if (drawMode === 'circle') {
+      // Wraps the control points around the loop so the closed curve has
+      // no visible seam at the start/end join.
+      curveVertex(xs[formResolution - 1] + centerX, ys[formResolution - 1] + centerY);
+      for (let i = 0; i < formResolution; i++) curveVertex(xs[i] + centerX, ys[i] + centerY);
+      curveVertex(xs[0] + centerX, ys[0] + centerY);
+      curveVertex(xs[1] + centerX, ys[1] + centerY);
+    } else {
+      curveVertex(xs[0] + centerX, ys[0] + centerY);
+      for (let i = 0; i < formResolution; i++) curveVertex(xs[i] + centerX, ys[i] + centerY);
+      curveVertex(xs[formResolution - 1] + centerX, ys[formResolution - 1] + centerY);
+    }
+    endShape();
   } else {
-    curveVertex(xs[0] + centerX, ys[0] + centerY);
-    for (let i = 0; i < formResolution; i++) curveVertex(xs[i] + centerX, ys[i] + centerY);
-    curveVertex(xs[formResolution - 1] + centerX, ys[formResolution - 1] + centerY);
+    // A multi-contour Text shape (letters, each with its own outer ring
+    // and, for A/O, an inner hole) — draws each contiguous RUN of points
+    // between breaks as its own open sub-curve, so no stroke ever
+    // connects one letter/hole to the next. Circle mode's own closed-loop
+    // wraparound doesn't apply once there's more than one real contour —
+    // each run stays open, same simplification Follow path's own
+    // pathBreaks handling already accepts.
+    let runStart = 0;
+    for (let i = 1; i <= xs.length; i++) {
+      if (i === xs.length || shapeBreaks.has(i)) {
+        const i1 = i - 1;
+        if (i1 > runStart) {
+          beginShape();
+          curveVertex(xs[runStart] + centerX, ys[runStart] + centerY);
+          for (let j = runStart; j <= i1; j++) curveVertex(xs[j] + centerX, ys[j] + centerY);
+          curveVertex(xs[i1] + centerX, ys[i1] + centerY);
+          endShape();
+        }
+        runStart = i;
+      }
+    }
   }
-  endShape();
+}
+
+let pointSizeSetting = 8;
+
+// Shared by mousePressed() and reseedCurrent()'s own Procedural branch —
+// Point mode reads the dedicated Point size slider (2-60, sane for an
+// actual on-screen dot radius); Circle/Line keep their own original
+// Init-radius-based spawn logic (20-320, sized for spreading a curve's
+// worth of points, not for one dot).
+function proceduralSpawnRadius() {
+  if (drawMode === 'point') return pointSizeSetting;
+  return drawMode === 'circle' ? initRadius * random(0.5, 1) : initRadius * random(0.5, 5);
 }
 
 function mousePressed() {
   if (mouseX < 0 || mouseX > W || mouseY < 0 || mouseY > H) return;   // ignore clicks on the panel
-  const radius = drawMode === 'circle' ? initRadius * random(0.5, 1) : initRadius * random(0.5, 5);
-  initShape(mouseX, mouseY, radius);
+  if (seedSource === 'image' && loadedImg) { seedFromImage(); return; }
+  if (seedSource === 'text') { seedFromText(); return; }
+  initShape(mouseX, mouseY, proceduralSpawnRadius());
 }
 
-ctrl('rg-res').addEventListener('input', e => { formResolution = parseInt(e.target.value, 10); ctrl('v-res').textContent = formResolution; });
+ctrl('rg-res').addEventListener('input', e => {
+  formResolution = parseInt(e.target.value, 10);
+  ctrl('v-res').textContent = formResolution;
+  reseedCurrent();   // resolution changed the point count — re-sample so xs/ys stay in sync with it
+});
+
+// ── Image/Text seed wiring ──
+// Single place that decides which Seed-section rows apply to the
+// CURRENT source — file picker/readout only mean anything for Image,
+// Seed style/Threshold/Invert only apply to a RASTER source (Image;
+// Text samples real vector glyph outlines directly, no raster involved),
+// Image scale applies to either Image or Text (both go through
+// applySeedResult's own scale), never Procedural. Same "a control with
+// no effect is a bug" rule already applied everywhere else this session
+// — called from both the Source select AND the file-image load
+// callback, so neither path can leave the other's rows stale.
+function syncSeedSourceUI() {
+  ctrl('file-image').style.display = seedSource === 'image' ? '' : 'none';
+  ctrl('image-readout').style.display = seedSource === 'image' ? '' : 'none';
+  ctrl('row-seedtext').style.display = seedSource === 'text' ? '' : 'none';
+  const rasterOnly = seedSource === 'image' ? '' : 'none';
+  ctrl('row-seedstyle').style.display = rasterOnly;
+  ctrl('row-threshold').style.display = rasterOnly;
+  ctrl('row-invert').style.display = rasterOnly;
+  ctrl('row-imgscale').style.display = seedSource === 'procedural' ? 'none' : '';
+}
+ctrl('sel-seedsource').addEventListener('change', e => {
+  seedSource = e.target.value;
+  syncSeedSourceUI();
+  reseedCurrent();
+});
+ctrl('file-image').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    loadImage(evt.target.result, img => {
+      loadedImg = img;
+      cacheImagePixels(img);
+      ctrl('image-readout').textContent = file.name + ' — ' + img.width + '×' + img.height;
+      seedSource = 'image';
+      ctrl('sel-seedsource').value = 'image';
+      syncSeedSourceUI();
+      seedFromImage();
+    }, () => { ctrl('image-readout').textContent = 'Could not load image.'; });
+  };
+  reader.readAsDataURL(file);
+});
+ctrl('txt-seedtext').addEventListener('input', e => {
+  seedText = e.target.value;
+  if (seedSource === 'text') seedFromText();
+});
+ctrl('sel-seedstyle').addEventListener('change', e => { seedStyle = e.target.value; reseedCurrent(); });
+ctrl('rg-threshold').addEventListener('input', e => {
+  threshold = parseInt(e.target.value, 10);
+  ctrl('v-threshold').textContent = threshold;
+  reseedCurrent();
+});
+ctrl('rg-imgscale').addEventListener('input', e => {
+  imageScale = parseFloat(e.target.value);
+  ctrl('v-imgscale').textContent = imageScale.toFixed(2);
+  reseedCurrent();
+});
+ctrl('chk-invert').addEventListener('change', e => { invertMask = e.target.checked; reseedCurrent(); });
+ctrl('btn-reseed').addEventListener('click', () => reseedCurrent());
 ctrl('rg-radius').addEventListener('input', e => { initRadius = parseFloat(e.target.value); ctrl('v-radius').textContent = initRadius; });
-ctrl('sel-mode').addEventListener('change', e => { drawMode = e.target.value; });
+ctrl('sel-mode').addEventListener('change', e => {
+  drawMode = e.target.value;
+  const isPoint = drawMode === 'point';
+  ctrl('row-resolution').style.display = isPoint ? 'none' : '';
+  ctrl('row-initradius').style.display = isPoint ? 'none' : '';
+  ctrl('row-pointsize').style.display = isPoint ? '' : 'none';
+  reseedCurrent();   // switching TO/FROM Point needs an immediate respawn — a stale multi-point xs/ys array left over from Circle/Line would otherwise sit there until the next unrelated reseed
+});
+ctrl('rg-pointsize').addEventListener('input', e => {
+  pointSizeSetting = parseFloat(e.target.value);
+  ctrl('v-pointsize').textContent = pointSizeSetting;
+  if (drawMode === 'point') reseedCurrent();
+});
 ctrl('rg-step').addEventListener('input', e => { stepSize = parseFloat(e.target.value); ctrl('v-step').textContent = stepSize.toFixed(1); });
 ctrl('rg-float').addEventListener('input', e => { floatSpeed = parseFloat(e.target.value); ctrl('v-float').textContent = floatSpeed.toFixed(3); });
+ctrl('sel-movement').addEventListener('change', e => {
+  movementPattern = e.target.value;
+  moveClock = 0;   // restart every pattern's own t=0 pose instead of jumping in mid-cycle
+  if (movementPattern === 'linear') reseedLinear();
+  ctrl('row-float').style.display = movementPattern === 'mouse' ? '' : 'none';
+  ctrl('row-movespeed').style.display = movementPattern === 'mouse' ? 'none' : '';
+  const isTextPath = movementPattern === 'textpath';
+  ctrl('row-pathsource').style.display = isTextPath ? '' : 'none';
+  ctrl('row-drawpath').style.display = isTextPath ? '' : 'none';
+  ctrl('row-writebrush').style.display = isTextPath ? '' : 'none';
+  ctrl('row-brushsize').style.display = isTextPath && writeBrush ? '' : 'none';
+  const showLoomNow = isTextPath && pathSource === 'loom';
+  ctrl('file-loompath').style.display = showLoomNow ? '' : 'none';
+  ctrl('row-loompathstyle').style.display = showLoomNow ? '' : 'none';
+  ctrl('loompath-readout').style.display = showLoomNow ? '' : 'none';
+});
+ctrl('rg-movespeed').addEventListener('input', e => { moveSpeed = parseFloat(e.target.value); ctrl('v-movespeed').textContent = moveSpeed.toFixed(1); });
+ctrl('chk-drawpath').addEventListener('change', e => { drawFullPath = e.target.checked; });
+ctrl('sel-pathsource').addEventListener('change', e => {
+  pathSource = e.target.value;
+  const showLoom = pathSource === 'loom';
+  ctrl('file-loompath').style.display = showLoom ? '' : 'none';
+  ctrl('row-loompathstyle').style.display = showLoom ? '' : 'none';
+  ctrl('loompath-readout').style.display = showLoom ? '' : 'none';
+  if (pathSource === 'text' && seedSource === 'text') seedFromText();   // hand ownership of textPathPoints back to the Text outline
+});
+ctrl('sel-loompathstyle').addEventListener('change', e => {
+  loompathStyle = e.target.value;
+  if (lastLoomModel) buildLoomPath(lastLoomModel, loompathStyle);
+});
+ctrl('file-loompath').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => loadLoomPathJSON(evt.target.result);
+  reader.readAsText(file);
+});
+ctrl('chk-writebrush').addEventListener('change', e => {
+  writeBrush = e.target.checked;
+  ctrl('row-brushsize').style.display = writeBrush ? '' : 'none';
+  if (seedSource === 'text') seedFromText();
+});
+ctrl('rg-brushsize').addEventListener('input', e => {
+  brushSize = parseFloat(e.target.value);
+  ctrl('v-brushsize').textContent = brushSize;
+  if (writeBrush && seedSource === 'text') seedFromText();
+});
 ctrl('rg-weight').addEventListener('input', e => { strokeW = parseFloat(e.target.value); ctrl('v-weight').textContent = strokeW.toFixed(2); });
 ctrl('rg-alpha').addEventListener('input', e => { strokeAlpha = parseInt(e.target.value, 10); ctrl('v-alpha').textContent = strokeAlpha; });
 ctrl('chk-fill').addEventListener('change', e => { fillEachFrame = e.target.checked; });
+ctrl('sel-colorsrc').addEventListener('change', e => {
+  colorSrc = e.target.value;
+  ctrl('row-fill').style.display = colorSrc === 'ink' ? '' : 'none';   // Fill only ever applied to Single ink's one-shape path — a dead control otherwise
+});
 
 ctrl('btn-freeze').addEventListener('click', () => {
   frozen = !frozen;
@@ -193,6 +1062,8 @@ ctrl('btn-freeze').addEventListener('click', () => {
 });
 ctrl('btn-clear').addEventListener('click', () => background(6));
 ctrl('btn-save').addEventListener('click', () => saveCanvas('membrane-' + Date.now(), 'png'));
+
+syncSeedSourceUI();   // hide whatever doesn't apply to the page's own default Source (Procedural) from the very first paint, not just after the first change event
 </script>
 </body>
 </html>
