@@ -16,6 +16,17 @@
 <link rel="stylesheet" href="/shared/organica-panel.css">
 <style>
   :root {
+    /* Not declared ANYWHERE in Organica (checked before adding it) — a
+       real, product-wide gap, not a Membrane-only one. Without it, native
+       form-control chrome (a <select>'s own dropdown popup, checkboxes,
+       date pickers) follows the OS/browser's OWN dark-mode preference
+       independently of this page's fixed light UI, and the popup can
+       render dark-background text on top of the --ink (#0a0a0a) colour
+       this stylesheet explicitly sets — dark-on-dark, unreadable. Fixed
+       here since it's this session's own dropdown-contrast finding;
+       worth promoting to shared/organica-tokens.css in its own pass so
+       every tool gets it, not just Membrane. */
+    color-scheme: light;
     --ink: #0a0a0a;
     --paper: #f5f2ec;
     --mid: #696256;
@@ -26,11 +37,12 @@
 
     /* Content colours (the canvas's own ink/accent — see CLAUDE.md's own
        Halide/Pollen exception: these are what gets DRAWN, not UI chrome,
-       so they aren't the --ink/--paper pair above). Cream mark on a
-       near-black stage, same pairing the exploration this migrates from
-       used and the same reasoning: --ink here would read as barely-
-       visible grey on grey. */
-    --stage-bg: #060606;
+       so they aren't the --ink/--paper pair above). Cream mark, same
+       pairing the exploration this migrates from used. #canvas-wrap
+       itself uses --panel (Camo Turing's own convention: the letterbox
+       around a canvas smaller than the wrap is UI chrome, not the
+       artwork's own ground) — the canvas's actual fill is Palette's own
+       Background colour (state.canvasBgRGB), painted directly by p5. */
     --mark-ink: #f6e8c3;
     --mark-accent: #0a0a0a;
   }
@@ -40,9 +52,29 @@
 
   #app { display: flex; flex: 1; overflow: hidden; height: calc(100vh - var(--header-h, 40px)); }
 
-  #canvas-wrap { flex: 1; display: flex; align-items: center; justify-content: center; background: var(--stage-bg); position: relative; overflow: hidden; }
-  #canvas-wrap canvas { display: block; }
-  #zoom-hud { position: absolute; left: var(--space-4); bottom: var(--space-4); font-size: var(--fs-micro); color: var(--mark-ink); opacity: 0.6; pointer-events: none; }
+  #canvas-wrap { flex: 1; display: flex; align-items: center; justify-content: center; background: var(--panel); position: relative; overflow: hidden; }
+  #canvas-wrap canvas { display: block; cursor: default; transform-origin: 0 0; will-change: transform; }
+  #canvas-wrap canvas.zoomed { cursor: grab; }
+  #canvas-wrap canvas.panning { cursor: grabbing; }
+  #tool-label { position: absolute; left: var(--space-4); bottom: var(--space-4); font-size: var(--fs-micro); color: var(--mark-ink); opacity: 0.6; pointer-events: none; }
+
+  /* Zoom HUD — same shared pattern as Loom/Halide/Spore/Pollen/Strata's
+     own zoom/pan (Organica.createZoomPan, shared/organica-core.js).
+     Stacked above #tool-label (bottom:16px there) rather than sharing
+     its corner, so the two never overlap when both are visible. */
+  #zoom-hud {
+    position: absolute;
+    bottom: calc(var(--space-4) + 20px); left: var(--space-4);
+    background: var(--ink); color: var(--paper);
+    font-family: var(--font); font-size: var(--fs-micro, 9px);
+    letter-spacing: 0.1em;
+    padding: var(--space-2) var(--space-4);
+    display: none; align-items: center; gap: var(--space-3);
+    pointer-events: none; user-select: none; z-index: 10;
+  }
+  #zoom-hud.visible { display: flex; }
+  #zoom-hud .zoom-reset { pointer-events: auto; cursor: pointer; opacity: 0.6; transition: opacity 0.15s; }
+  #zoom-hud .zoom-reset:hover { opacity: 1; }
 
   #panel { width: var(--panel-w, 248px); flex-shrink: 0; background: var(--panel); border-left: 1px solid var(--border); overflow-y: auto; }
 
@@ -56,6 +88,32 @@
   .upload-btn { width: 100%; padding: var(--space-3); border: 1px dashed var(--border); background: none; color: var(--mid); font-family: var(--font); font-size: var(--fs-small); cursor: pointer; margin-bottom: var(--space-2); }
   .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
   .org-panel__readout { font-family: monospace; font-size: var(--fs-micro); color: var(--tool); background: var(--paper); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); margin-bottom: var(--space-3); word-break: break-word; }
+
+  /* Also not in organica-panel.css — Camo Turing's own Palette random-
+     colour button, copied verbatim rather than inventing a variant. */
+  .icon-btn {
+    background: none; border: 1px solid var(--border); color: var(--accent);
+    width: 22px; height: 20px; flex-shrink: 0; padding: 0; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .icon-btn:hover { border-color: var(--accent); color: var(--ink); }
+
+  /* RMX palette — Camo Turing's own up-to-5-colour swatch grid, copied
+     verbatim (also not in organica-panel.css, same as .icon-btn above). */
+  .rmx-palette { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .rmx-color { position: relative; width: 36px; height: 28px; border: 1px solid var(--border); cursor: pointer; overflow: hidden; }
+  .rmx-color input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; cursor: pointer; }
+  .rmx-x {
+    position: absolute; top: 0; right: 0; width: 13px; height: 13px;
+    line-height: 11px; font-size: var(--fs-base); padding: 0; cursor: pointer;
+    background: rgba(255,255,255,0.82); color: #000; border: none;
+  }
+  .rmx-add {
+    width: 36px; height: 28px; border: 1px dashed var(--border); background: none;
+    color: var(--mid); font-size: var(--fs-large); cursor: pointer; line-height: 1;
+  }
+  .rmx-add:hover { border-color: var(--accent); color: var(--accent); }
 </style>
 </head>
 <body>
@@ -97,8 +155,13 @@
       <div class="org-popover__title">Format</div>
       <div class="org-formats">
         <button class="org-btn" id="btn-export-png">PNG</button>
+        <button class="org-btn" id="btn-export-svg">SVG</button>
       </div>
-      <p class="org-popover__hint">×1 saves the canvas exactly as shown. ×2/×4 upsample that same bitmap — the canvas accumulates every frame's own trail rather than being a pure function of the current parameters, so a higher-resolution export can't re-render from scratch without losing that history.</p>
+      <p class="org-popover__hint">PNG ×1 saves the canvas exactly as shown; ×2/×4 upsample that same bitmap. SVG is real vector geometry (Catmull-Rom curves, same maths as the live curve render) — a recorded history of recent frames, the same "record marks as data" approach Spore/Pollen's own SVG export uses, capped to the last ~24s of drawing so the file stays a genuine vector document rather than an unbounded one. Clear/resize/Background changes reset that history along with the canvas itself.</p>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__title">Motion</div>
+      <button class="org-btn org-btn--block" id="btn-record">Start recording</button>
+      <p class="org-popover__hint" id="record-hint">Records the live canvas as MP4 (WebM if MP4 isn't supported in this browser).</p>
       <div class="org-popover__divider"></div>
       <div class="org-popover__row">
         <label class="org-popover__label" for="sel-export-scale">Scale</label>
@@ -114,10 +177,32 @@
 
 <div id="app">
   <div id="canvas-wrap">
-    <div id="zoom-hud">Membrane</div>
+    <div id="tool-label">Membrane</div>
+    <div id="zoom-hud">
+      <span id="zoom-level">100%</span>
+      <span class="zoom-reset" id="btn-zoom-reset">Reset</span>
+    </div>
   </div>
 
   <div id="panel">
+
+    <div class="panel-section">
+      <h3>Canvas <span class="hint">the physical space</span></h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-canvas-preset" aria-label="Canvas preset">
+          <option value="">Custom…</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Width</div>
+        <input type="number" class="panel-select" id="num-canvas-width" value="800" min="200" max="4000" step="10" style="width:100%">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Height</div>
+        <input type="number" class="panel-select" id="num-canvas-height" value="800" min="200" max="4000" step="10" style="width:100%">
+      </div>
+      <p class="org-panel__hint">Resizing rebuilds the drawing surface — like Clear/Reseed, the accumulated trail can't survive a structural change to the canvas itself. Background colour lives in Palette below, next to Ink.</p>
+    </div>
 
     <div class="panel-section">
       <h3>Form</h3>
@@ -267,15 +352,53 @@
     </div>
 
     <div class="panel-section">
-      <h3>Ink</h3>
+      <h3>Palette <span class="hint">Camo Turing-style</span></h3>
       <div class="ctrl-row">
         <div class="ctrl-label">Color mode</div>
         <select class="panel-select" id="sel-colorsrc">
           <option value="ink">Single ink</option>
           <option value="rainbow">Rainbow (per segment)</option>
           <option value="image">Sample from image</option>
+          <option value="rmx">RMX (multi-colour)</option>
         </select>
       </div>
+
+      <div id="rmx-color-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Mapping</div>
+          <select class="panel-select" id="sel-rmx-map">
+            <option value="tone">Tone (gradient)</option>
+            <option value="posterize">Posterize</option>
+            <option value="random">Random</option>
+            <option value="tonernd">Tone + Random</option>
+          </select>
+        </div>
+        <div id="rmx-palette" class="rmx-palette"></div>
+      </div>
+
+      <div class="color-row" id="row-ink">
+        <span class="color-name">Ink</span>
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-ink"></button>
+          <input type="color" id="cp-ink" value="#f6e8c3">
+        </span>
+        <input class="color-hex" id="hex-ink" value="#f6e8c3" maxlength="7">
+        <button class="icon-btn" id="btn-random-ink" title="Random colour" aria-label="Random ink colour">
+          <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
+        </button>
+      </div>
+      <div class="color-row" id="row-canvasbg">
+        <span class="color-name">Background</span>
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-bg"></button>
+          <input type="color" id="cp-bg" value="#060606">
+        </span>
+        <input class="color-hex" id="hex-bg" value="#060606" maxlength="7">
+        <button class="icon-btn" id="btn-random-bg" title="Random colour" aria-label="Random background colour">
+          <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
+        </button>
+      </div>
+
       <div class="ctrl-row">
         <div class="ctrl-label">Stroke weight</div>
         <input type="range" id="rg-weight" min="0.25" max="4" step="0.05" value="0.75">
@@ -287,7 +410,7 @@
         <span class="ctrl-val" id="v-alpha">50</span>
       </div>
       <label class="check-row" id="row-fill"><input type="checkbox" id="chk-fill"><span>Fill each frame (random ink density)</span></label>
-      <p class="org-panel__hint">Single ink is the only mode Fill applies to. Rainbow cycles the spectrum once around the form/path. Sample from image reads live colour from the loaded image.</p>
+      <p class="org-panel__hint">Single ink is the only mode Fill applies to and the only mode the Ink swatch drives directly — Rainbow cycles the spectrum once around the form/path, Sample from image reads live colour from the loaded image, RMX maps up to 5 colours across the form/path by the chosen mapping (Camo Turing's own Tone/Posterize/Random/Tone+Random, ported from its GLSL to plain JS since Membrane has no shader). Background is the canvas's own ground, independent of Color mode — Camo Turing's Ink/Paper pairing, split here between Palette (Ink) and the canvas's own fill (Background), since Membrane draws marks over a ground rather than a duotone field.</p>
     </div>
 
   </div>

@@ -13,8 +13,71 @@ import { loadMembraneFont, isFontReady, seedFromText } from './seeds/text.js';
 import { loadLoomPathJSON } from './seeds/loom.js';
 import { reseedLinear, updateMovement } from './movement.js';
 import { renderPoint, renderShape, renderFullPath } from './render.js';
+import { CANVAS_PRESETS, clampCanvasSize } from './canvas.js';
+import { buildExportSVGString } from './svgexport.js';
 
 function ctrl(id) { return document.getElementById(id); }
+
+// Single choke point for the canvas's own fill colour — Palette's
+// "Background" swatch (state.canvasBgRGB), painted directly onto the
+// canvas by p5. #canvas-wrap's own CSS background is --panel (UI chrome,
+// Camo Turing's own convention — see index.html's own comment), not
+// this colour, so there's no CSS var to keep in sync here any more.
+// Guarded on state.p.canvas, not just state.p: `state.p = p` runs
+// synchronously inside `new p5(sketch)`
+// (the sketch function's own first line, before setup/draw are even
+// registered), so state.p itself is already a real p5 instance by the
+// time the Palette's own initial swatch-sync call runs at module load —
+// but createCanvas() is still deferred inside setup(), and calling
+// background() before it exists throws deep inside p5's own renderer
+// lookup. setup() calls paintBackground() again right after
+// createCanvas(), so skipping a not-yet-possible repaint here loses
+// nothing.
+function paintBackground() {
+  if (!state.p || !state.p.canvas) return;
+  state.p.background(state.canvasBgRGB[0], state.canvasBgRGB[1], state.canvasBgRGB[2]);
+  // A flat repaint wipes every stroke actually on screen — state.shapeHistory
+  // (render.js's own recorded frames, replayed by svgexport.js) must be
+  // wiped in lockstep, or an SVG export after Clear/resize/Background
+  // change would draw strokes that no longer exist on the canvas.
+  state.shapeHistory.length = 0;
+}
+
+// ── Zoom/pan — the same shared component every other Organica tool's
+// own canvas/frame uses (Organica.createZoomPan, shared/organica-core.js:
+// wheel zooms toward the cursor, drag pans once zoomed, dblclick/Reset
+// returns to 100%, Cmd/Ctrl +/-/0 as keyboard shortcuts). Wired once,
+// right after createCanvas() creates the real canvas element setup()
+// needs — resizeCanvas() (Canvas panel's own resize) keeps that same
+// DOM node, just changes its size, so this never needs to run twice.
+function setupZoomPan() {
+  const zoomPan = Organica.createZoomPan({
+    canvas: state.p.canvas,
+    wrap: ctrl('canvas-wrap'),
+    onChange: ({ zoom, zoomed }) => {
+      ctrl('zoom-level').textContent = Math.round(zoom * 100) + '%';
+      ctrl('zoom-hud').classList.toggle('visible', zoomed);
+      state.p.canvas.classList.toggle('zoomed', zoomed);
+    },
+  });
+  ctrl('btn-zoom-reset').addEventListener('click', () => zoomPan.reset());
+}
+
+// Tracks state.mouseX/mouseY in canvas-LOGICAL coordinates (0..state.W,
+// 0..state.H) from real DOM mousemove events — getBoundingClientRect()
+// reflects the canvas's live CSS transform (zoom scale + pan translate),
+// which is exactly what p5's own p.mouseX/mouseY does NOT account for
+// (see state.js's own header comment). Listened on document, not just
+// the canvas, so the "ignore clicks on the panel" bounds check in
+// mousePressed still sees an out-of-[0,W]-range position for a panel
+// click, the same defensive behaviour the original p.mouseX-based code had.
+function setupMouseTracking() {
+  document.addEventListener('mousemove', e => {
+    const rect = state.p.canvas.getBoundingClientRect();
+    state.mouseX = ((e.clientX - rect.left) / rect.width) * state.W;
+    state.mouseY = ((e.clientY - rect.top) / rect.height) * state.H;
+  });
+}
 
 // ── Reseed dispatch — "something that affects the current seed changed"
 // routes here instead of every control re-deriving the branch. Procedural
@@ -34,10 +97,22 @@ const sketch = (p) => {
   p.setup = () => {
     const c = p.createCanvas(state.W, state.H);
     c.parent('canvas-wrap');
-    state.inkRGB = hexToRgb(getComputedStyle(document.documentElement).getPropertyValue('--mark-ink').trim());
+    // inkSwatch.set (defined further down, hoisted — safe to call here
+    // since this callback only ever RUNS once the whole module has
+    // finished evaluating), not a direct state.inkRGB assignment: a real
+    // bug, found by tracing the two assignments — this used to write
+    // state.inkRGB straight from the CSS var, bypassing the swatch
+    // entirely, so the Palette's own Ink swatch/hex fields (set by the
+    // OTHER, module-load-time createColorSwatch call from state.js's own
+    // default) could silently disagree with the colour actually being
+    // drawn if --mark-ink and state.js's default array ever drifted
+    // apart. One call, one source of truth, UI and state can't disagree.
+    inkSwatch.set(getComputedStyle(document.documentElement).getPropertyValue('--mark-ink').trim());
     state.accentRGB = hexToRgb(getComputedStyle(document.documentElement).getPropertyValue('--mark-accent').trim());
     initShape(state.W / 2, state.H / 2, state.initRadius * p.random(0.5, 1));
-    p.background(6);
+    paintBackground();
+    setupZoomPan();
+    setupMouseTracking();
   };
 
   p.draw = () => {
@@ -60,10 +135,13 @@ const sketch = (p) => {
   };
 
   p.mousePressed = () => {
-    if (p.mouseX < 0 || p.mouseX > state.W || p.mouseY < 0 || p.mouseY > state.H) return;   // ignore clicks on the panel
+    // state.mouseX/mouseY (our own tracked position), not p.mouseX/
+    // p.mouseY — see state.js's own header comment on why p5's own
+    // values go wrong once the canvas is CSS-zoomed (Organica.createZoomPan).
+    if (state.mouseX < 0 || state.mouseX > state.W || state.mouseY < 0 || state.mouseY > state.H) return;   // ignore clicks on the panel
     if (state.seedSource === 'image' && state.loadedImg) { seedFromImage(); return; }
     if (state.seedSource === 'text') { if (isFontReady()) seedFromText(); return; }
-    initShape(p.mouseX, p.mouseY, proceduralSpawnRadius());
+    initShape(state.mouseX, state.mouseY, proceduralSpawnRadius());
   };
 };
 
@@ -215,21 +293,101 @@ ctrl('rg-brushsize').addEventListener('input', e => {
 ctrl('sel-colorsrc').addEventListener('change', e => {
   state.colorSrc = e.target.value;
   ctrl('row-fill').style.display = state.colorSrc === 'ink' ? '' : 'none';   // Fill only ever applies to Single ink's own one-shape path
+  ctrl('rmx-color-block').style.display = state.colorSrc === 'rmx' ? '' : 'none';
 });
 ctrl('rg-weight').addEventListener('input', e => { state.strokeW = parseFloat(e.target.value); ctrl('v-weight').textContent = state.strokeW.toFixed(2); });
 ctrl('rg-alpha').addEventListener('input', e => { state.strokeAlpha = parseInt(e.target.value, 10); ctrl('v-alpha').textContent = state.strokeAlpha; });
 ctrl('chk-fill').addEventListener('change', e => { state.fillEachFrame = e.target.checked; });
 
+// ── RMX — Camo Turing's own up-to-5-colour palette (state.rmxColors/
+// rmxColorMap, mapped by color.js's own rmxColorAt — see its header for
+// why the mapping math is a JS port of Camo Turing's GLSL rmxColor()
+// rather than a shader). Chips are built dynamically (add/remove), so
+// they're wired with addEventListener at creation time rather than
+// through Organica.createColorSwatch — that factory assumes fixed,
+// static DOM ids per colour, which doesn't fit a variable-length list;
+// this is deliberately its own small, separate abstraction, the same
+// call Camo Turing's own buildRmxPalette/rmxSetColor/rmxAddColor/
+// rmxRemoveColor make (kept apart from Ink/Background's own pair).
+const RMX_COLORS_MAX = 5;
+function buildRmxPalette() {
+  const wrap = ctrl('rmx-palette');
+  wrap.innerHTML = '';
+  state.rmxColors.forEach((col, i) => {
+    const chip = document.createElement('label');
+    chip.className = 'rmx-color';
+    chip.style.background = col;
+    chip.setAttribute('aria-label', 'RMX colour ' + (i + 1));
+    const input = document.createElement('input');
+    input.type = 'color'; input.value = col;
+    input.setAttribute('aria-label', 'RMX colour ' + (i + 1));
+    input.addEventListener('input', e => rmxSetColor(i, e.target.value));
+    chip.appendChild(input);
+    if (state.rmxColors.length > 2) {
+      const x = document.createElement('button');
+      x.className = 'rmx-x'; x.textContent = '×'; x.title = 'Remove';
+      x.setAttribute('aria-label', 'Remove colour ' + (i + 1));
+      x.addEventListener('click', e => { e.preventDefault(); rmxRemoveColor(i); });
+      chip.appendChild(x);
+    }
+    wrap.appendChild(chip);
+  });
+  if (state.rmxColors.length < RMX_COLORS_MAX) {
+    const add = document.createElement('button');
+    add.className = 'rmx-add'; add.textContent = '+'; add.title = 'Add colour';
+    add.setAttribute('aria-label', 'Add RMX colour');
+    add.addEventListener('click', rmxAddColor);
+    wrap.appendChild(add);
+  }
+}
+function rmxSetColor(i, hex) {
+  state.rmxColors[i] = hex;
+  // Real bug Camo Turing's own rmxSetColor already documents and fixes:
+  // the chip's own visible background (the wrapping <label>, since the
+  // <input type=color> underneath is opacity:0) is only painted once in
+  // buildRmxPalette() — without repainting it here, every colour pick
+  // after the first would visually look like it had no effect.
+  const chip = ctrl('rmx-palette').children[i];
+  if (chip) chip.style.background = hex;
+}
+function rmxAddColor() {
+  if (state.rmxColors.length >= RMX_COLORS_MAX) return;
+  state.rmxColors.push('#888888');
+  buildRmxPalette();
+}
+function rmxRemoveColor(i) {
+  if (state.rmxColors.length <= 2) return;
+  state.rmxColors.splice(i, 1);
+  buildRmxPalette();
+}
+ctrl('sel-rmx-map').addEventListener('change', e => { state.rmxColorMap = e.target.value; });
+buildRmxPalette();
+
 // ── Floatbar: Play/Pause, Clear, Reseed, Export ──
-ctrl('btn-playpause').addEventListener('click', () => {
+function togglePlayPause() {
   state.frozen = !state.frozen;
   ctrl('btn-playpause').setAttribute('aria-label', state.frozen ? 'Play' : 'Pause');
   ctrl('ico-playpause').innerHTML = state.frozen
     ? '<path d="M5 3.5v9l7-4.5-7-4.5z" fill="currentColor"/>'
     : '<path d="M5 3.5v9M11 3.5v9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>';
   if (state.frozen) state.p.noLoop(); else state.p.loop();
+}
+ctrl('btn-playpause').addEventListener('click', togglePlayPause);
+// Spacebar toggles Play/Pause from anywhere EXCEPT while a text/number
+// field or a range slider has focus — Space needs to keep typing a
+// literal space in the Word field and keep its native "nudge the
+// slider" behaviour on a focused range input, not steal either one.
+// Also prevents the page's own default Space-scrolls-the-page action,
+// which would otherwise fire since #panel is a real scrollable region.
+document.addEventListener('keydown', e => {
+  if (e.code !== 'Space' && e.key !== ' ') return;
+  const t = document.activeElement;
+  const tag = t && t.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+  e.preventDefault();
+  togglePlayPause();
 });
-ctrl('btn-clear').addEventListener('click', () => state.p.background(6));
+ctrl('btn-clear').addEventListener('click', () => paintBackground());
 ctrl('btn-reseed').addEventListener('click', () => reseedCurrent());
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 ctrl('btn-export-png').addEventListener('click', () => {
@@ -252,6 +410,123 @@ ctrl('btn-export-png').addEventListener('click', () => {
   octx.drawImage(state.p.canvas, 0, 0, off.width, off.height);
   off.toBlob(blob => Organica.download(blob, Organica.stamp('membrane', 'png')));
 });
+
+// ── Canvas — Loom's own Preset + custom Width/Height standard, px only
+// (see canvas.js's own header for why unit conversion doesn't apply
+// here). Resizing is a structural change to the drawing surface — same
+// category as Clear/Reseed, not the export-scale case that must NEVER
+// clear (that one upsamples the CURRENT bitmap instead, see the PNG
+// export handler below).
+Object.keys(CANVAS_PRESETS).forEach(name => {
+  const opt = document.createElement('option');
+  opt.value = name; opt.textContent = name;
+  ctrl('sel-canvas-preset').appendChild(opt);
+});
+function applyCanvasSize(w, h) {
+  w = clampCanvasSize(w); h = clampCanvasSize(h);
+  ctrl('num-canvas-width').value = w;
+  ctrl('num-canvas-height').value = h;
+  state.W = w; state.H = h;
+  state.p.resizeCanvas(w, h);
+  state.centerX = w / 2; state.centerY = h / 2;
+  paintBackground();
+  reseedCurrent();
+}
+ctrl('sel-canvas-preset').addEventListener('change', e => {
+  const p = CANVAS_PRESETS[e.target.value];
+  if (!p) return;
+  applyCanvasSize(p.width, p.height);
+});
+ctrl('num-canvas-width').addEventListener('change', e => {
+  ctrl('sel-canvas-preset').value = '';   // typing a custom size stops claiming to be a preset
+  applyCanvasSize(parseFloat(e.target.value), state.H);
+});
+ctrl('num-canvas-height').addEventListener('change', e => {
+  ctrl('sel-canvas-preset').value = '';
+  applyCanvasSize(state.W, parseFloat(e.target.value));
+});
+
+// ── Palette — Ink + Background, Camo Turing's own Ink/Paper pairing
+// (see index.html's own Palette section comment for why Background isn't
+// literally called "Paper" here). Wired via the shared
+// Organica.createColorSwatch (shared/organica-core.js) — extracted from
+// this exact pair (which started as a hand-copy of Camo Turing's own
+// syncColor) once a repo-wide survey found the same swatch+hex+random+
+// native-picker-forward wiring reimplemented independently in 7 tools.
+// `initial` syncs the visible swatch/hex fields to state.js's own
+// defaults immediately; `onChange` is this tool's own side effect
+// (state.*RGB, plus a full repaint for Background).
+const inkSwatch = Organica.createColorSwatch('ink', {
+  initial: Organica.rgbToHex(...state.inkRGB),
+  onChange: (hex, rgb) => { state.inkRGB = rgb; },
+});
+const bgSwatch = Organica.createColorSwatch('bg', {
+  initial: Organica.rgbToHex(...state.canvasBgRGB),
+  onChange: (hex, rgb) => { state.canvasBgRGB = rgb; paintBackground(); },
+});
+
+// ── Export: SVG (real vector geometry of the current shape/path — see
+// svgexport.js's own header for the disclosed "current frame, not the
+// accumulated trail" scope) ──
+ctrl('btn-export-svg').addEventListener('click', () => {
+  const svg = buildExportSVGString();
+  Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('membrane', 'svg'));
+});
+
+// ── Export: Video — canvas.captureStream() + MediaRecorder, MP4 first
+// then WebM, the exact technique Camo Turing's own toggleRecording()
+// uses (ported, not reinvented — same candidate list, same onstop
+// download). Unlike Camo Turing's evolving simulation, Membrane's canvas
+// is already always "live" (never auto-pauses), so Start never needs to
+// force anything running first.
+let mediaRecorder = null, recordedChunks = [], recordingExt = 'mp4', recordingMime = 'video/mp4';
+function toggleRecording() {
+  const btn = ctrl('btn-record');
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    return;
+  }
+  const canvas = state.p.canvas;
+  if (typeof canvas.captureStream !== 'function' || typeof window.MediaRecorder === 'undefined') {
+    ctrl('record-hint').textContent = 'Video recording isn\'t supported in this browser.';
+    return;
+  }
+  const stream = canvas.captureStream(30);
+  recordedChunks = [];
+  const candidates = [
+    ['video/mp4;codecs=avc1', 'mp4'],
+    ['video/mp4', 'mp4'],
+    ['video/webm;codecs=vp9', 'webm'],
+    ['video/webm;codecs=vp8', 'webm'],
+    ['video/webm', 'webm'],
+  ];
+  const picked = candidates.find(([mime]) => MediaRecorder.isTypeSupported(mime));
+  if (!picked) {
+    ctrl('record-hint').textContent = 'No supported video format found in this browser.';
+    return;
+  }
+  [recordingMime, recordingExt] = picked;
+  try {
+    mediaRecorder = new MediaRecorder(stream, { mimeType: recordingMime });
+  } catch (err) {
+    ctrl('record-hint').textContent = 'Could not start recording: ' + err.message;
+    return;
+  }
+  mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+  mediaRecorder.onstop = () => {
+    const blob = new Blob(recordedChunks, { type: recordingMime });
+    Organica.download(blob, Organica.stamp('membrane', recordingExt));
+    btn.textContent = 'Start recording';
+    btn.classList.remove('org-btn--primary');
+    ctrl('record-hint').textContent = 'Recording saved.';
+  };
+  if (state.frozen) ctrl('btn-playpause').click();   // recording a frozen canvas isn't useful
+  mediaRecorder.start();
+  btn.textContent = 'Stop recording';
+  btn.classList.add('org-btn--primary');
+  ctrl('record-hint').textContent = 'Recording…';
+}
+ctrl('btn-record').addEventListener('click', toggleRecording);
 
 // ── Accessibility + slider polish (organica-core.js) ──
 Organica.autoLabelPanel(document);

@@ -48,9 +48,12 @@ function movementCenter(pattern, t, moveSpeed) {
 export function updateMovement(dt) {
   const p = state.p;
   if (state.movementPattern === 'mouse') {
-    if (p.mouseX >= 0 && p.mouseX <= state.W && p.mouseY >= 0 && p.mouseY <= state.H) {
-      state.centerX += (p.mouseX - state.centerX) * state.floatSpeed;
-      state.centerY += (p.mouseY - state.centerY) * state.floatSpeed;
+    // state.mouseX/mouseY, not p.mouseX/p.mouseY — see state.js's own
+    // header comment on why p5's own values go wrong once the canvas is
+    // CSS-zoomed.
+    if (state.mouseX >= 0 && state.mouseX <= state.W && state.mouseY >= 0 && state.mouseY <= state.H) {
+      state.centerX += (state.mouseX - state.centerX) * state.floatSpeed;
+      state.centerY += (state.mouseY - state.centerY) * state.floatSpeed;
     }
     return;
   }

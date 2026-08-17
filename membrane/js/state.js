@@ -40,6 +40,16 @@ export const state = {
   imgPixelsCache: null,      // { pixels, w, h } — cached once per image load, not reloaded per point/frame
 
   // ── Motion ──
+  // mouseX/mouseY are OUR OWN tracked pointer position in canvas-local
+  // logical coordinates (0..W, 0..H) — not p5's own p.mouseX/p.mouseY.
+  // p5 computes those from the canvas's LAYOUT size (offsetWidth), which
+  // a CSS zoom transform (Organica.createZoomPan) never changes — only
+  // the visual box does — so p.mouseX/mouseY go wrong the moment the
+  // canvas is zoomed (confirmed live: expected ~360 at a real cursor
+  // position, p5 reported 582 at 115% zoom). main.js's own mousemove
+  // listener keeps these correct by reading getBoundingClientRect()
+  // directly, which DOES reflect the live transform.
+  mouseX: 0, mouseY: 0,
   movementPattern: 'mouse',  // mouse | linear | orbit | zigzag | figure8 | sine | textpath
   floatSpeed: 0.01,
   moveSpeed: 1,
@@ -59,13 +69,34 @@ export const state = {
   writeBrush: false,
   brushSize: 20,
 
-  // ── Ink ──
-  colorSrc: 'ink',           // 'ink' | 'rainbow' | 'image'
+  // ── Palette ── (Camo Turing's own Ink/Paper pairing — Membrane's
+  // "Paper" is the canvas's own background fill, canvasBgRGB, since
+  // there's no second duotone ink here, just marks over a ground)
+  colorSrc: 'ink',           // 'ink' | 'rainbow' | 'image' | 'rmx'
+  rmxColors: ['#f6e8c3', '#c15b4a', '#0a0a0a'],   // mark ink / tool identity / mark accent — an on-brand default triple
+  rmxColorMap: 'tone',       // 'tone' | 'posterize' | 'random' | 'tonernd' — see color.js's own rmxColorAt
   strokeW: 0.75,
   strokeAlpha: 50,
   fillEachFrame: false,
   inkRGB: [246, 232, 195],
   accentRGB: [10, 10, 10],
+  canvasBgRGB: [6, 6, 6],    // the drawing surface's own fill — p.background() target; #canvas-wrap's own CSS background is --panel (UI chrome), independent of this
+
+  // ── Shape history — a RECORDED LIST of past frames' own curve/point
+  // geometry, the same "marks[]" architecture Spore/Pollen's own SVG
+  // export already uses (window._lastRenderData.marks / points[]): every
+  // draw call pushes its own absolute geometry + resolved colour into a
+  // plain array, and SVG export replays that array as real vector
+  // elements instead of re-deriving it from a raster. Membrane's own
+  // difference from Spore/Pollen is that a single frame is a MOVING
+  // point/curve, not a one-shot batch of discrete marks — so this is a
+  // capped, throttled RECORDING of many frames over time (render.js's
+  // own pushHistory()), not a one-time render pass. See render.js's own
+  // header for the entry shape and the cap/throttle constants. Cleared
+  // by paintBackground() (main.js) — the single choke point for "the
+  // canvas pixels got wiped", so history can never claim to represent
+  // strokes that are no longer actually on screen.
+  shapeHistory: [],
 
   frozen: false,
 };

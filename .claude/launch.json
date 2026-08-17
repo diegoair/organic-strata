@@ -4,7 +4,7 @@
     {
       "name": "frontend-static",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "python3 -m http.server \"$PORT\""],
+      "runtimeArgs": ["-c", "python3 .claude/nocache_server.py \"$PORT\""],
       "port": 8000,
       "autoPort": true
     },

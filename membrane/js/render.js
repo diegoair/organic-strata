@@ -4,12 +4,24 @@
      2. renderShapeSingleColor()  — Circle/Line, Single ink (broken-aware)
      3. renderShapeMultiColor()   — Circle/Line, Rainbow/Sample-from-image (broken-aware)
      4. renderFullPath()          — Follow path's own clean static trace (Line/Dots, + Glow)
+
+   Every one of the first three ALSO records what it just drew into
+   state.shapeHistory — the same "marks[]" list Spore/Pollen's own SVG
+   export reads (see state.js's own header) — so svgexport.js can
+   replay real vector geometry for what's actually accumulated on
+   screen, not just the current frame. renderFullPath() does NOT record:
+   its own line is identical every frame while Follow path is active
+   (a fixed, non-accumulating trace), so svgexport.js rebuilds it fresh
+   from state.textPathPoints at export time instead — recording an
+   unchanging shape hundreds of times would just bloat the history for
+   no benefit.
    ───────────────────────────────────────────────────────────── */
 import { state } from './state.js';
-import { hsbToRgb, imgColorAt } from './color.js';
+import { hsbToRgb, imgColorAt, rmxColorAt } from './color.js';
 
 function shapeColorAt(i) {
   if (state.colorSrc === 'rainbow') return hsbToRgb((i / state.xs.length) * 360, 85, 100);
+  if (state.colorSrc === 'rmx') return rmxColorAt(i / state.xs.length, state.rmxColors, state.rmxColorMap, i);
   if (state.colorSrc === 'image' && state.imgFit) {
     return imgColorAt(state.imgPixelsCache, state.inkRGB, state.imgFit.refX + state.xs[i] / state.imgFit.scale, state.imgFit.refY + state.ys[i] / state.imgFit.scale);
   }
@@ -18,11 +30,28 @@ function shapeColorAt(i) {
 function pathColorAt(i) {
   const n = state.textPathPoints.length;
   if (state.colorSrc === 'rainbow') return hsbToRgb((i / n) * 360, 85, 100);
+  if (state.colorSrc === 'rmx') return rmxColorAt(i / n, state.rmxColors, state.rmxColorMap, i);
   if (state.colorSrc === 'image' && state.imgFit) {
     const pt = state.textPathPoints[i];
     return imgColorAt(state.imgPixelsCache, state.inkRGB, state.imgFit.refX + (pt[0] - state.W / 2) / state.imgFit.scale, state.imgFit.refY + (pt[1] - state.H / 2) / state.imgFit.scale);
   }
   return state.inkRGB;
+}
+
+// ── History recording — throttled (real time, not frame count, so it
+// behaves the same at any framerate) and capped (oldest dropped first,
+// a ring buffer via shift() — the array never holds more than
+// HISTORY_MAX entries, so neither memory nor the eventual SVG's own
+// path count grows without bound the longer Membrane is left running).
+const HISTORY_MAX = 220;
+const HISTORY_INTERVAL_MS = 110;
+let lastRecordTime = 0;
+function pushHistory(entry) {
+  const now = performance.now();
+  if (now - lastRecordTime < HISTORY_INTERVAL_MS) return;
+  lastRecordTime = now;
+  state.shapeHistory.push(entry);
+  if (state.shapeHistory.length > HISTORY_MAX) state.shapeHistory.shift();
 }
 
 export function renderPoint() {
@@ -32,6 +61,7 @@ export function renderPoint() {
   p.noStroke();
   p.fill(col[0], col[1], col[2], state.strokeAlpha);
   p.circle(px, py, state.pointSize * 2);
+  pushHistory({ kind: 'point', x: px, y: py, r: state.pointSize, rgb: col.slice(), alpha: state.strokeAlpha });
 }
 
 export function renderShape() {
@@ -46,26 +76,36 @@ export function renderShape() {
   if (state.shapeBreaks.size === 0) {
     // One real contour (Procedural, Image) — the original single-shape
     // path, byte-for-byte.
+    let fillEntry = null;
     if (state.fillEachFrame) {
       const t = p.random(1);
-      p.fill(p.lerp(state.accentRGB[0], state.inkRGB[0], t), p.lerp(state.accentRGB[1], state.inkRGB[1], t), p.lerp(state.accentRGB[2], state.inkRGB[2], t), 30);
+      const fr = p.lerp(state.accentRGB[0], state.inkRGB[0], t);
+      const fg = p.lerp(state.accentRGB[1], state.inkRGB[1], t);
+      const fb = p.lerp(state.accentRGB[2], state.inkRGB[2], t);
+      p.fill(fr, fg, fb, 30);
+      fillEntry = { rgb: [fr, fg, fb], alpha: 30 };
     } else {
       p.noFill();
     }
     p.stroke(state.inkRGB[0], state.inkRGB[1], state.inkRGB[2], state.strokeAlpha);
     const n = state.formResolution;
     p.beginShape();
+    const pts = [];
     if (state.drawMode === 'circle') {
       p.curveVertex(state.xs[n - 1] + state.centerX, state.ys[n - 1] + state.centerY);
-      for (let i = 0; i < n; i++) p.curveVertex(state.xs[i] + state.centerX, state.ys[i] + state.centerY);
+      for (let i = 0; i < n; i++) { const x = state.xs[i] + state.centerX, y = state.ys[i] + state.centerY; p.curveVertex(x, y); pts.push([x, y]); }
       p.curveVertex(state.xs[0] + state.centerX, state.ys[0] + state.centerY);
       p.curveVertex(state.xs[1] + state.centerX, state.ys[1] + state.centerY);
     } else {
       p.curveVertex(state.xs[0] + state.centerX, state.ys[0] + state.centerY);
-      for (let i = 0; i < n; i++) p.curveVertex(state.xs[i] + state.centerX, state.ys[i] + state.centerY);
+      for (let i = 0; i < n; i++) { const x = state.xs[i] + state.centerX, y = state.ys[i] + state.centerY; p.curveVertex(x, y); pts.push([x, y]); }
       p.curveVertex(state.xs[n - 1] + state.centerX, state.ys[n - 1] + state.centerY);
     }
     p.endShape();
+    pushHistory({
+      kind: 'curve', strokeW: state.strokeW, fill: fillEntry,
+      runs: [{ pts, colors: [state.inkRGB.slice()], closed: state.drawMode === 'circle' }],
+    });
     return;
   }
 
@@ -75,32 +115,40 @@ export function renderShape() {
   // apply once there's more than one real contour — each run stays open.
   p.noFill();
   p.stroke(state.inkRGB[0], state.inkRGB[1], state.inkRGB[2], state.strokeAlpha);
+  const runs = [];
   let runStart = 0;
   for (let i = 1; i <= state.xs.length; i++) {
     if (i === state.xs.length || state.shapeBreaks.has(i)) {
       const i1 = i - 1;
       if (i1 > runStart) {
         p.beginShape();
+        const pts = [];
         p.curveVertex(state.xs[runStart] + state.centerX, state.ys[runStart] + state.centerY);
-        for (let j = runStart; j <= i1; j++) p.curveVertex(state.xs[j] + state.centerX, state.ys[j] + state.centerY);
+        for (let j = runStart; j <= i1; j++) { const x = state.xs[j] + state.centerX, y = state.ys[j] + state.centerY; p.curveVertex(x, y); pts.push([x, y]); }
         p.curveVertex(state.xs[i1] + state.centerX, state.ys[i1] + state.centerY);
         p.endShape();
+        runs.push({ pts, colors: [state.inkRGB.slice()], closed: false });
       }
       runStart = i;
     }
   }
+  pushHistory({ kind: 'curve', strokeW: state.strokeW, fill: null, runs });
 }
 
 // Draws the SAME closed/open Catmull-Rom curve one SEGMENT at a time,
 // each with its own stroke colour — neither p5 nor Canvas2D supports a
 // per-vertex stroke colour within one continuous path. Each segment gets
 // the same 4-point control window (prev, start, end, next) the single-
-// shape path implicitly builds for every point along the way.
+// shape path implicitly builds for every point along the way. Recorded
+// as ONE history entry per FRAME (a run per drawn segment, not one
+// pushHistory() call per segment) — same throttle, far fewer array
+// operations than pushing per segment.
 function renderShapeMultiColor() {
   const p = state.p;
   p.noFill();
   const n = state.xs.length;
   const segCount = state.drawMode === 'circle' ? n : n - 1;
+  const runs = [];
   for (let k = 0; k < segCount; k++) {
     let i0, i1, i2, i3;
     if (state.drawMode === 'circle') {
@@ -117,7 +165,13 @@ function renderShapeMultiColor() {
     p.curveVertex(state.xs[i2] + state.centerX, state.ys[i2] + state.centerY);
     p.curveVertex(state.xs[i3] + state.centerX, state.ys[i3] + state.centerY);
     p.endShape();
+    runs.push({
+      pts: [[state.xs[i0] + state.centerX, state.ys[i0] + state.centerY], [state.xs[i1] + state.centerX, state.ys[i1] + state.centerY],
+      [state.xs[i2] + state.centerX, state.ys[i2] + state.centerY], [state.xs[i3] + state.centerX, state.ys[i3] + state.centerY]],
+      colors: [col.slice()], closed: false, isSegment: true,
+    });
   }
+  pushHistory({ kind: 'curve', strokeW: state.strokeW, fill: null, runs });
 }
 
 // Dots (beaded) style — every waypoint its own filled circle, no
@@ -146,7 +200,8 @@ function renderPathDots() {
 // fresh multi-point shape at a new position every frame (canvas never
 // clears) — a blurry smear, not a traced line. Glow adds a neon halo
 // (Canvas2D's own shadowBlur/shadowColor, reset to 0 after so nothing
-// else this frame inherits it) plus small brighter "sparkle" dots.
+// else this frame inherits it) plus small brighter "sparkle" dots. Not
+// recorded into shapeHistory — see this file's own header.
 export function renderFullPath() {
   const p = state.p;
   if (state.textPathPoints.length < 2) return;

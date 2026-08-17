@@ -44,3 +44,45 @@ export function imgColorAt(cache, fallbackRGB, ix, iy) {
   const idx = 4 * (y * cache.w + x);
   return [cache.pixels[idx], cache.pixels[idx + 1], cache.pixels[idx + 2]];
 }
+
+function lerpRgb(a, b, t) {
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+}
+
+// Same sine-dot-product hash Camo Turing's own GLSL hash1(vec2) uses,
+// ported to a single scalar input — Membrane has no 2D field coordinate
+// to hash (Camo Turing hashes screen-space uv), just a point INDEX along
+// the curve/path, so the jitter is a function of that index instead.
+// Deterministic per index, so Random/Tone+Random stay visually STABLE
+// frame to frame at a given point, not flickering noise.
+function hash1(n) {
+  const x = Math.sin(n * 127.1) * 43758.5453123;
+  return x - Math.floor(x);
+}
+
+// RMX — Camo Turing's own "up to 5 colours, 4 mapping modes" palette
+// (rmxColor() in its own GLSL, ported here verbatim since Membrane has
+// no shader to run it in). `t` is the point's own position along the
+// curve/path (i/n, 0..1 — exactly what Rainbow already uses for its hue
+// cycle); `seedIndex` drives the Random/Tone+Random hash so the jitter
+// is index-stable rather than re-rolled every frame.
+export function rmxColorAt(t, colors, mapping, seedIndex) {
+  const count = colors.length;
+  if (count <= 1) return hexToRgb(colors[0] || '#888888');
+  const paletteAt = i => hexToRgb(colors[Math.max(0, Math.min(count - 1, i))]);
+  const scaled = t * (count - 1);
+  const i0 = Math.floor(scaled), i1 = Math.min(i0 + 1, count - 1), f = scaled - i0;
+  if (mapping === 'tone') {
+    return lerpRgb(paletteAt(i0), paletteAt(i1), f);
+  } else if (mapping === 'posterize') {
+    return paletteAt(i0);
+  } else if (mapping === 'random') {
+    const h = hash1(seedIndex);
+    return paletteAt(Math.min(count - 1, Math.floor(h * count)));
+  } else {   // tonernd — Tone + Random: gradient position jittered by the same hash
+    const h = hash1(seedIndex) - 0.5;
+    const tt = Math.max(0, Math.min(count - 1, scaled + h * 1.5));
+    const j0 = Math.floor(tt), j1 = Math.min(j0 + 1, count - 1);
+    return lerpRgb(paletteAt(j0), paletteAt(j1), tt - j0);
+  }
+}

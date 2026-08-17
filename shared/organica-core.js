@@ -79,6 +79,47 @@
     return '#' + c(r) + c(g) + c(b);
   };
 
+  // Wires the shared swatch+hex+random-button+native-picker component
+  // (organica-panel.css's own .color-row/.color-swatch/.color-hex) —
+  // #cp-<prefix> (native input[type=color]), #hex-<prefix> (text field),
+  // #sw-<prefix> (visible swatch button), #btn-random-<prefix> (optional).
+  // Found duplicated near-identically in 7 tools (Camo Turing, Membrane,
+  // Halide, Komorebi, Warping, Spore, Pollen) before this — only the CSS
+  // was actually shared, every tool reimplemented its own wiring under a
+  // different name. Extracted once Membrane's own syncInk/syncCanvasBg
+  // and Camo Turing's syncColor turned out byte-for-byte parallel in
+  // shape. The swatch BUTTON sits on top of its own hidden native input
+  // (.color-swatch-wrap's own comment explains why: the input must be
+  // positioned exactly over the button for the browser's colour-picker
+  // popup to anchor correctly) — without forwarding the click, the
+  // swatch is a dead control (a real bug, found by testing Membrane's
+  // own Palette: elementFromPoint() at the swatch centre resolved to the
+  // button, never the input underneath).
+  Organica.createColorSwatch = function (prefix, opts) {
+    opts = opts || {};
+    const onChange = opts.onChange || function () {};
+    const cp = document.getElementById('cp-' + prefix);
+    const hexEl = document.getElementById('hex-' + prefix);
+    const sw = document.getElementById('sw-' + prefix);
+    const randomBtn = document.getElementById('btn-random-' + prefix);
+
+    function set(hex) {
+      hex = Organica.normalizeHex(hex, cp.value);
+      cp.value = hex;
+      hexEl.value = hex;
+      sw.style.background = hex;
+      onChange(hex, Organica.hexToRGB255(hex));
+    }
+
+    cp.addEventListener('input', e => set(e.target.value));
+    hexEl.addEventListener('input', e => { if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) set(e.target.value); });
+    if (randomBtn) randomBtn.addEventListener('click', () => set('#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')));
+    if (sw) sw.addEventListener('click', () => cp.click());
+
+    if (opts.initial) set(opts.initial);
+    return { set, get: () => hexEl.value };
+  };
+
   // ═══════════════════════════════════════════════════════════
   // PRESET STORAGE
   //
