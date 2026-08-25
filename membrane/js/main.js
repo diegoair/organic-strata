@@ -50,10 +50,25 @@ function paintBackground() {
 // right after createCanvas() creates the real canvas element setup()
 // needs — resizeCanvas() (Canvas panel's own resize) keeps that same
 // DOM node, just changes its size, so this never needs to run twice.
+//
+// min:0.1, not the shared default of 1 — a real bug, found by testing:
+// createZoomPan's own default range is [1, 12], so zooming OUT below
+// 100% is impossible out of the box (exactly the gap Loom's own session
+// notes already documented and fixed the same way). Every Canvas preset
+// (even Square 1:1) measured wider or taller than #canvas-wrap at a
+// normal browser size, and with no way to zoom below 100% there was
+// simply no way to ever see the whole canvas — confirmed live: 5 wheel-
+// down events plus Ctrl+- all left the canvas pinned at scale(1). 0.1
+// covers Membrane's own real range (canvas.js caps custom size at
+// 4000px; a 4000px canvas in a ~900px wrap needs ≈0.225 to fit, well
+// inside 0.1) without Loom's own sharper edge case at 0.01 (multi-metre
+// print canvases don't exist here).
+let zoomPan = null;
 function setupZoomPan() {
-  const zoomPan = Organica.createZoomPan({
+  zoomPan = Organica.createZoomPan({
     canvas: state.p.canvas,
     wrap: ctrl('canvas-wrap'),
+    min: 0.1,
     onChange: ({ zoom, zoomed }) => {
       ctrl('zoom-level').textContent = Math.round(zoom * 100) + '%';
       ctrl('zoom-hud').classList.toggle('visible', zoomed);
@@ -61,6 +76,28 @@ function setupZoomPan() {
     },
   });
   ctrl('btn-zoom-reset').addEventListener('click', () => zoomPan.reset());
+  fitToViewIfNeeded();
+}
+
+// Auto-fits whenever the canvas's own physical size changes (a fresh
+// preset/custom size shouldn't land clipped by #canvas-wrap's own
+// overflow:hidden) — same technique and same "retry next frame if the
+// wrap hasn't been laid out yet" guard Loom's own fitToViewIfNeeded()
+// uses, ported rather than re-derived.
+let lastFitKey = '';
+function fitToViewIfNeeded() {
+  const key = state.W + 'x' + state.H;
+  if (key === lastFitKey || !zoomPan) return;
+  const wrap = ctrl('canvas-wrap');
+  const availW = wrap.clientWidth - 64, availH = wrap.clientHeight - 64;
+  if (availW <= 0 || availH <= 0) {
+    requestAnimationFrame(fitToViewIfNeeded);
+    return;
+  }
+  lastFitKey = key;
+  const scale = Math.min(1, availW / state.W, availH / state.H);
+  zoomPan.reset();
+  if (scale < 0.999) zoomPan.zoomBy(scale);
 }
 
 // Tracks state.mouseX/mouseY in canvas-LOGICAL coordinates (0..state.W,
@@ -431,6 +468,7 @@ function applyCanvasSize(w, h) {
   state.centerX = w / 2; state.centerY = h / 2;
   paintBackground();
   reseedCurrent();
+  fitToViewIfNeeded();
 }
 ctrl('sel-canvas-preset').addEventListener('change', e => {
   const p = CANVAS_PRESETS[e.target.value];
