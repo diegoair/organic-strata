@@ -64,6 +64,16 @@
     .artwrap { position: relative; }
     #art { display: block; width: 460px; height: 460px; background: var(--surface); border: 1px solid var(--border); cursor: crosshair; }
     #art.notdraw { cursor: default; }
+    /* Paper.js's own input surface for Draw mode — sits exactly over #art
+       (same 460x460 box) so its project coordinates share the artboard's
+       0-200 space. Pointer-events stay off outside Draw mode so clicks pass
+       straight through to whatever #art itself does in Import/Generate. */
+    /* opacity, not just pointer-events: none — the canvas keeps rendering
+       its own last-drawn path + selection overlay (anchor squares, handle
+       guides) regardless of pointer-events, so leaving Draw mode left that
+       overlay visibly stacked on top of Generate/Import's own content. */
+    #draw-canvas { position: absolute; top: 0; left: 0; width: 460px; height: 460px; border: 1px solid transparent; pointer-events: none; opacity: 0; cursor: crosshair; }
+    #draw-canvas.active { pointer-events: auto; opacity: 1; }
     .art-hint { position: absolute; bottom: -22px; left: 0; right: 0; text-align: center; font-size: var(--fs-xs); color: var(--ink-faint); }
 
     /* ─── Right panel ──────────────────────────────────────── */
@@ -75,6 +85,8 @@
     .panel-input-group { display: flex; align-items: center; gap: 4px; flex: 1; justify-content: flex-end; }
     .panel-input { background: var(--bg); border: 1px solid var(--border); color: var(--ink); font-size: var(--fs-sm); font-family: var(--font); padding: 4px 8px; width: 64px; text-align: right; outline: none; -moz-appearance: textfield; }
     .panel-input::-webkit-inner-spin-button, .panel-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .transform-preview { display: flex; flex-wrap: wrap; gap: 6px; }
+    .transform-preview svg { width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--border); display: block; }
     .panel-input:focus { border-color: var(--ink); }
     .panel-input--full { width: 100%; text-align: left; }
     .panel-input:disabled { opacity: 0.45; }
@@ -132,15 +144,9 @@
 
     /* artboard layers */
     .grid-line { stroke: var(--border); stroke-width: 0.5; }
-    .handle { fill: var(--bg); stroke: var(--ink); stroke-width: 1.5; cursor: grab; }
-    .handle:hover { fill: var(--pollen); }
-    .handle--first { fill: var(--pollen); }
-    #art:active .handle { cursor: grabbing; }
-    /* bezier tangent handles — pollen outline reads on both filled & light areas */
-    .thline { stroke: var(--pollen); stroke-width: 1; }
-    .thandle { fill: var(--bg); stroke: var(--pollen); stroke-width: 1.2; cursor: grab; }
-    .thandle:hover { fill: var(--pollen); }
-    .guide { stroke: var(--ink-faint); stroke-width: 0.75; stroke-dasharray: 3 3; fill: none; }
+    /* Draw mode's own anchor/handle overlay is Paper.js's fullySelected
+       rendering on #draw-canvas now (see initDrawEditor) — .handle/
+       .thandle/.thline/.guide (the old hand-rolled SVG markers) are gone. */
     #form-layer { color: var(--ink); }
   </style>
 </head>
@@ -189,6 +195,7 @@
             <g id="form-layer"></g>
             <g id="handles-layer"></g>
           </svg>
+          <canvas id="draw-canvas" class="active" width="460" height="460"></canvas>
           <div class="art-hint" id="art-hint">Click on the artboard to add points</div>
         </div>
       </div>
@@ -276,6 +283,8 @@
           <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-my" min="-100" max="100" value="0"><span class="panel-unit" id="my-val" style="width:28px">0</span></div>
         </div>
         <div class="mt-2"><button class="upload-btn" id="btn-fit" style="border-style:solid;margin-bottom:0">⤢ Fit to grid</button></div>
+        <div class="panel-row" style="margin-top:12px;margin-bottom:6px"><label class="panel-label">Preview — rotation &amp; flip</label></div>
+        <div id="transform-preview" class="transform-preview" aria-label="Shape transform preview"></div>
       </section>
 
       <div class="panel-divider"></div>
@@ -307,6 +316,8 @@
   </div>
 
   <script src="/shared/organica-core.js"></script>
+  <script src="/shared/paper-full.min.js"></script>
+  <script src="/shared/organica-paper.js"></script>
   <script src="organic-defs.js"></script>
   <script src="organic-forms.js"></script>
   <script>
@@ -339,9 +350,8 @@
 
   let S = {
     mode: 'draw',
-    points: [],            // [[x,y], …] in viewBox coords
-    close: true,
-    smooth: true,
+    // Draw mode's own anchor/close/smooth state now lives inside drawEditor
+    // (Organica.createPaperDrawEditor), not here.
     gen: { type: 'circle', n: 5, r: 60 },
     importInner: null,     // normalised <g>…</g> string
     fillMode: 'fill',
@@ -357,10 +367,12 @@
   };
 
   const $ = id => document.getElementById(id);
+  const setStatus = Organica.status();
 
   function init() {
     buildGrid();
     bindTabs();
+    initDrawEditor();
     bindArtboard();
     bindControls();
     populateSets();
@@ -393,6 +405,7 @@
       .forEach(t => t.setAttribute('aria-pressed', String(t.dataset.mode === mode)));
     document.querySelectorAll('.mode-block').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
     $('art').classList.toggle('notdraw', mode !== 'draw');
+    $('draw-canvas').classList.toggle('active', mode === 'draw');
     $('art-hint').style.display = mode === 'draw' ? 'block' : 'none';
     // import appearance toggle limited (geometry keeps its own fills)
     const isImport = mode === 'import';
@@ -402,52 +415,43 @@
     render();
   }
 
-  // ── Artboard drawing — points are anchors {x,y,h} where h = out-tangent
-  // vector ([dx,dy]) or null (auto / Catmull-Rom). Drag anchors or their two
-  // mirrored tangent handles; double-click an anchor resets it to auto. ──
-  let dragIndex = null, tdrag = null, downPt = null, moved = false;
-  function artLoc(e) {
-    const art = $('art'); const pt = art.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
-    const l = pt.matrixTransform(art.getScreenCTM().inverse());
-    return [clamp(l.x, 0, 200), clamp(l.y, 0, 200)];
+  // ── Artboard drawing (Phase B — Paper.js) ──
+  // Draw mode's anchor placement/drag/tangent-editing used to be hand-rolled
+  // directly against S.points (Catmull-Rom auto-tangents, manual mirrored
+  // handles) — replaced by Organica.createPaperDrawEditor (shared/organica-
+  // paper.js), the same Path/Segment model Strata's Refine editor already
+  // proved for anchor-drag/smooth. #draw-canvas sits exactly over #art (see
+  // CSS) with fitBox mapping its project space 1:1 onto the artboard's own
+  // 0–200 box, so getPathData() returns a "d" string usable directly by
+  // geometry() below with no coordinate conversion.
+  //
+  // One disclosed simplification: clicks land in that raw 0–200 space
+  // regardless of the live Appearance transform (rotation/scale/move) —
+  // the old hand-rolled version ran clicks through invTF() so a new point
+  // landed correctly under the cursor even mid-rotation. Drawing new points
+  // while a non-default Appearance transform is already dialled in is a
+  // rare workflow (the natural order is draw first, then transform), so
+  // this wasn't carried over; flagged here rather than silently dropped.
+  let drawEditor = null;
+  function initDrawEditor() {
+    const canvas = $('draw-canvas');
+    drawEditor = Organica.createPaperDrawEditor(canvas, {
+      strokeColor: 'transparent', // the SVG form-layer is the shape's one visual source of truth; the canvas only shows Paper's own anchor/handle overlay
+      fitBox: { x: 0, y: 0, width: 200, height: 200 },
+      onChange: render,
+    });
+    // Match #ck-close's own default checked state (the old S.close: true).
+    drawEditor.setClosed(true);
   }
   function bindArtboard() {
-    const art = $('art');
-    art.addEventListener('pointerdown', e => {
-      if (S.mode !== 'draw') return;
-      const th = e.target.closest('.thandle');
-      if (th) { tdrag = { i: +th.dataset.i, side: th.dataset.side }; try { art.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); return; }
-      const h = e.target.closest('.handle');
-      if (h) { dragIndex = +h.dataset.i; try { art.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); }
-      else { downPt = artLoc(e); moved = false; }
-    });
-    art.addEventListener('pointermove', e => {
-      if (S.mode !== 'draw') return;
-      if (tdrag) {                                   // drag a tangent → set the anchor's out-vector (mirrored = smooth)
-        const loc = invTF(artLoc(e)); const p = S.points[tdrag.i];
-        let h = [loc[0] - p.x, loc[1] - p.y];
-        if (tdrag.side === 'in') h = [-h[0], -h[1]];
-        p.h = h; render();
-      } else if (dragIndex != null) { const loc = invTF(artLoc(e)); S.points[dragIndex].x = loc[0]; S.points[dragIndex].y = loc[1]; render(); }
-      else if (downPt) { const p = artLoc(e); if (Math.hypot(p[0] - downPt[0], p[1] - downPt[1]) > 3) moved = true; }
-    });
-    art.addEventListener('pointerup', e => {
-      if (S.mode !== 'draw') return;
-      if (tdrag) { tdrag = null; try { art.releasePointerCapture(e.pointerId); } catch (_) {} }
-      else if (dragIndex != null) { dragIndex = null; try { art.releasePointerCapture(e.pointerId); } catch (_) {} }
-      else if (downPt && !moved) { const r = invTF(downPt); S.points.push({ x: r[0], y: r[1], h: null }); render(); }
-      downPt = null; moved = false;
-    });
-    // Double-click an anchor → reset its tangent to auto.
-    art.addEventListener('dblclick', e => {
-      const h = e.target.closest('.handle');
-      if (h && S.points[+h.dataset.i]) { S.points[+h.dataset.i].h = null; render(); }
-    });
+    // draw-canvas's own 'active' class (only Draw mode's canvas should
+    // intercept clicks) is toggled by setMode(), which also runs once at
+    // init since S.mode starts as 'draw'.
     // Undo last point with ⌘/Ctrl+Z
     document.addEventListener('keydown', e => {
       if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
-        if (S.mode === 'draw' && S.points.length && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') {
-          e.preventDefault(); S.points.pop(); render();
+        if (S.mode === 'draw' && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') {
+          e.preventDefault(); drawEditor.undo();
         }
       }
     });
@@ -456,14 +460,15 @@
 
   // ── Controls ───────────────────────────────────────────
   function bindControls() {
-    $('ck-close').addEventListener('change', e => { S.close = e.target.checked; render(); });
-    $('ck-smooth').addEventListener('change', e => { S.smooth = e.target.checked; render(); });
+    $('ck-close').addEventListener('change', e => drawEditor.setClosed(e.target.checked));
+    $('ck-smooth').addEventListener('change', e => drawEditor.setSmooth(e.target.checked));
 
     $('btn-undo').addEventListener('click', () => {
-      if (S.mode === 'draw' && S.points.length) { S.points.pop(); render(); }
+      if (S.mode === 'draw') drawEditor.undo();
     });
     $('btn-clear').addEventListener('click', () => {
-      S.points = []; S.importInner = null; $('paste-svg').value = ''; render();
+      if (S.mode === 'draw') drawEditor.clear();
+      S.importInner = null; $('paste-svg').value = ''; render();
     });
 
     // Import
@@ -481,7 +486,15 @@
       $('gen-seg').querySelectorAll('.seg-btn').forEach(x => x.classList.remove('active'));
       b.classList.add('active'); S.gen.type = b.dataset.gen; syncGenerator(); render();
     }));
+    // Clamp what's actually USED for rendering on every keystroke, but only
+    // rewrite the field's own displayed value on blur — clamping it live
+    // (e.g. typing "2" of "20" briefly parses to 2, which clamp() would
+    // instantly force back to "3", making "20" untypeable) fought the user's
+    // own typing. Found by testing "99": the geometry correctly clamped to
+    // a 20-gon, but the field kept showing the raw "99" forever, since
+    // nothing ever wrote the clamped value back.
     $('gen-n').addEventListener('input', e => { S.gen.n = clamp(parseInt(e.target.value) || 3, 3, 20); render(); });
+    $('gen-n').addEventListener('blur', e => { e.target.value = S.gen.n; });
     $('gen-r').addEventListener('input', e => { S.gen.r = parseInt(e.target.value); $('gen-r-val').textContent = S.gen.r; render(); });
 
     // Appearance
@@ -565,33 +578,6 @@
     return d + (close ? ' Z' : '');
   }
 
-  // Out-tangent vector for draw anchor i: manual (p.h) or auto (Catmull-Rom).
-  function tangentOf(i) {
-    const p = S.points[i]; if (p.h) return p.h;
-    const n = S.points.length;
-    const P = j => S.close ? S.points[(j + n) % n] : S.points[Math.max(0, Math.min(n - 1, j))];
-    const a = P(i - 1), b = P(i + 1);
-    return [(b.x - a.x) / 6, (b.y - a.y) / 6];
-  }
-
-  // Cubic Bézier through the draw anchors using their tangents (smooth nodes).
-  function bezierPathD() {
-    const pts = S.points, n = pts.length;
-    if (n < 2) return '';
-    if (!S.smooth) {
-      let d = `M ${f(pts[0].x)} ${f(pts[0].y)}`;
-      for (let i = 1; i < n; i++) d += ` L ${f(pts[i].x)} ${f(pts[i].y)}`;
-      return d + (S.close ? ' Z' : '');
-    }
-    const segs = S.close ? n : n - 1;
-    let d = `M ${f(pts[0].x)} ${f(pts[0].y)}`;
-    for (let i = 0; i < segs; i++) {
-      const a = pts[i], b = pts[(i + 1) % n], ta = tangentOf(i), tb = tangentOf((i + 1) % n);
-      d += ` C ${f(a.x + ta[0])} ${f(a.y + ta[1])} ${f(b.x - tb[0])} ${f(b.y - tb[1])} ${f(b.x)} ${f(b.y)}`;
-    }
-    return d + (S.close ? ' Z' : '');
-  }
-
   function polyPoints(n, r, star) {
     const pts = [], cx = 100, cy = 100;
     const count = star ? n * 2 : n;
@@ -612,27 +598,31 @@
       return `<path d="${linePathD(pts, true)}"/>`;
     }
     // draw
-    if (S.points.length < 2) return '';
-    return `<path d="${bezierPathD()}"/>`;
+    if (!drawEditor || drawEditor.getSegmentCount() < 2) return '';
+    return `<path d="${drawEditor.getPathData()}"/>`;
   }
 
-  // Appearance transform string + its JS forward/inverse (to keep the draw
-  // handles on the transformed form, at constant size, and map the cursor back
-  // to raw point coords). SVG list applies right→left: translate(-c) scale rotate translate(c) translate(move).
+  // Appearance transform string. SVG list applies right→left:
+  // translate(-c) scale rotate translate(c) translate(move).
+  // (applyTF()/invTF(), the old JS forward/inverse of this same transform,
+  // are gone — they only existed to map draw-mode cursor positions through
+  // the live Appearance transform; Paper.js's own draw-canvas clicks always
+  // land in raw 0–200 space now, see the note above initDrawEditor.)
   function formTransform() {
     const cx = 100, cy = 100;
     const sx = (S.scale * S.w).toFixed(3), sy = (S.scale * S.l).toFixed(3);
     return `translate(${(+S.moveX).toFixed(2)} ${(+S.moveY).toFixed(2)}) translate(${cx} ${cy}) rotate(${S.rot}) scale(${sx} ${sy}) translate(${-cx} ${-cy})`;
   }
-  function applyTF(p) {
-    const cx = 100, cy = 100, sx = S.scale * S.w, sy = S.scale * S.l, r = S.rot * Math.PI / 180;
-    let x = (p[0] - cx) * sx, y = (p[1] - cy) * sy;
-    return [x * Math.cos(r) - y * Math.sin(r) + cx + (+S.moveX), x * Math.sin(r) + y * Math.cos(r) + cy + (+S.moveY)];
-  }
-  function invTF(p) {
-    const cx = 100, cy = 100, sx = S.scale * S.w, sy = S.scale * S.l, r = -S.rot * Math.PI / 180;
-    let x = p[0] - (+S.moveX) - cx, y = p[1] - (+S.moveY) - cy;
-    return [(x * Math.cos(r) - y * Math.sin(r)) / sx + cx, (x * Math.sin(r) + y * Math.cos(r)) / sy + cy];
+
+  // Shared by formMarkup() (main artboard + Save) and renderTransformPreview()
+  // (the 7-tile strip) — factored out after the preview strip shipped with
+  // its own hardcoded fill="var(--ink)", silently ignoring the Style toggle
+  // (Fill vs Stroke) entirely. One function means the two can't drift apart
+  // the same way again.
+  function styleAttrs() {
+    if (S.mode === 'import') return '';                 // import keeps its own re-coloured fills
+    if (S.fillMode === 'stroke') return `fill="none" stroke="var(--ink)" stroke-width="${S.strokeW}" stroke-linecap="${S.rounded ? 'round' : 'butt'}" stroke-linejoin="round"`;
+    return `fill="var(--ink)"`;
   }
 
   // ── Shared markup (used by both the live render and Save) ──
@@ -640,11 +630,7 @@
     const geo = geometry();
     if (!geo) return '';
     const tf = formTransform();
-    let style;
-    if (S.mode === 'import') style = '';                 // import keeps its own re-coloured fills
-    else if (S.fillMode === 'stroke') style = `fill="none" stroke="var(--ink)" stroke-width="${S.strokeW}" stroke-linecap="${S.rounded ? 'round' : 'butt'}" stroke-linejoin="round"`;
-    else style = `fill="var(--ink)"`;
-    return `<g transform="${tf}" ${style}>${geo}</g>`;
+    return `<g transform="${tf}" ${styleAttrs()}>${geo}</g>`;
   }
 
   // Push S.* appearance values back into the sliders + readouts.
@@ -678,38 +664,84 @@
   function render() {
     const markup = formMarkup();
     $('form-layer').innerHTML = markup;
-
-    // draw handles (movable points) — positioned through the appearance transform
-    // so they sit on the form, but drawn at constant size (handles-layer is untransformed).
-    const hl = $('handles-layer');
-    if (S.mode === 'draw' && S.points.length) {
-      const A = i => applyTF([S.points[i].x, S.points[i].y]);
-      let s = '';
-      // guide polygon through the anchors
-      if (S.points.length > 1) {
-        let d = 'M ' + S.points.map((p, i) => { const a = A(i); return f(a[0]) + ' ' + f(a[1]); }).join(' L ');
-        if (S.close) d += ' Z';
-        s += `<path class="guide" d="${d}"/>`;
-      }
-      // tangent handles (only when smoothing) — mirrored in/out controls
-      if (S.smooth) {
-        S.points.forEach((p, i) => {
-          const t = tangentOf(i); if (Math.hypot(t[0], t[1]) < 0.4) return;
-          const out = applyTF([p.x + t[0], p.y + t[1]]), inn = applyTF([p.x - t[0], p.y - t[1]]);
-          s += `<line class="thline" x1="${f(inn[0])}" y1="${f(inn[1])}" x2="${f(out[0])}" y2="${f(out[1])}"/>`;
-          s += `<rect class="thandle" data-i="${i}" data-side="out" x="${f(out[0] - 2.3)}" y="${f(out[1] - 2.3)}" width="4.6" height="4.6"/>`;
-          s += `<rect class="thandle" data-i="${i}" data-side="in" x="${f(inn[0] - 2.3)}" y="${f(inn[1] - 2.3)}" width="4.6" height="4.6"/>`;
-        });
-      }
-      // anchors on top
-      S.points.forEach((p, i) => { const a = A(i); s += `<circle class="handle${i === 0 ? ' handle--first' : ''}" data-i="${i}" cx="${f(a[0])}" cy="${f(a[1])}" r="3.4"/>`; });
-      hl.innerHTML = s;
-    } else hl.innerHTML = '';
+    // handles-layer is now unused — Draw mode's anchor/handle overlay is
+    // Paper.js's own fullySelected rendering on #draw-canvas (see
+    // initDrawEditor above), drawn directly on the canvas rather than as
+    // SVG here.
+    $('handles-layer').innerHTML = '';
 
     $('btn-save').disabled = !markup;
+    renderTransformPreview();
+    updateStatus(!!markup);
+  }
+
+  // #status-text was pure static markup — never once touched by JS, so it
+  // always read "Draw a shape to begin" regardless of mode or whether a
+  // shape actually existed (Generate mode always has a shape; Draw mode
+  // still said "begin" after a shape was already drawn). `Organica.status`
+  // already exists for exactly this (Loom/Komorebi both use it) but Creator
+  // never called it.
+  function updateStatus(hasShape) {
+    if (S.mode === 'import') {
+      setStatus(hasShape ? 'active' : '', hasShape ? 'SVG imported' : 'Paste or upload an SVG to begin');
+    } else if (S.mode === 'generate') {
+      const n = S.gen.type === 'circle' ? '' : ` (${S.gen.n}-sided)`;
+      setStatus('active', `${S.gen.type}${n} generated`);
+    } else {
+      const n = drawEditor ? drawEditor.getSegmentCount() : 0;
+      setStatus(hasShape ? 'active' : '', hasShape ? `${n} points · shape ready` : 'Draw a shape to begin');
+    }
+  }
+
+  // ── Transform preview strip — the current shape (whatever geometry()
+  // returns right now, in any of the three modes) at 7 fixed reference
+  // states: 0/90/180/270° and each flip. Genuinely complementary to the
+  // Appearance sliders above rather than a duplicate of them — those
+  // TUNE one live state, this COMPARES all of them side by side at
+  // once, the same discrepancy a slider alone can't show. Reuses the
+  // exact transform primitive formTransform() already builds (translate
+  // move → translate to centre → rotate → scale → translate back), just
+  // with rot/flip overridden per tile instead of read from S.*, so nothing
+  // about the main artboard's own transform math needed to change.
+  const TRANSFORM_PREVIEW_STATES = [
+    [0, 1, 1], [90, 1, 1], [180, 1, 1], [270, 1, 1],
+    [0, -1, 1], [0, 1, -1], [0, -1, -1],
+  ];
+  function renderTransformPreview() {
+    const el = $('transform-preview');
+    const geo = geometry();
+    if (!geo) { el.innerHTML = ''; return; }
+    const cx = 100, cy = 100;
+    const style = styleAttrs();
+    el.innerHTML = TRANSFORM_PREVIEW_STATES.map(([rot, sx, sy]) => {
+      const tf = `translate(${cx} ${cy}) rotate(${rot}) scale(${sx},${sy}) translate(${-cx} ${-cy})`;
+      return `<svg viewBox="0 0 200 200"><g transform="${tf}" ${style}>${geo}</g></svg>`;
+    }).join('');
   }
 
   // ── Sets dropdown ──────────────────────────────────────
+  // Clean, tileable geometric primitives — FVS's own grid-composition
+  // engine needs shapes that meet edge-to-edge (a quarter-circle, a
+  // plain square), which the 55 organic blob forms were never designed
+  // for. Seeded once as a real user-style set (own forms.push()'d
+  // entries, own set.forms id-list) rather than special-cased into the
+  // organic-forms.js/formLayout machinery the "Organic Forms" built-in
+  // set actually uses — that machinery is a different, more involved
+  // mechanism this file's own saveForm() doesn't produce, and reusing
+  // the plain user-set shape here is what stays compatible with it
+  // (and with FVS's own reader, which expects exactly that shape).
+  const BASIC_SHAPES_SET_ID = 'basic-shapes';
+  function basicShapeForms() {
+    const ink = 'fill="var(--ink)"';
+    return [
+      { id: 'basic-square', name: 'Square', svg: `<svg viewBox="0 0 200 200"><rect x="10" y="10" width="180" height="180" ${ink}/></svg>` },
+      { id: 'basic-circle', name: 'Circle', svg: `<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="90" ${ink}/></svg>` },
+      { id: 'basic-triangle', name: 'Triangle', svg: `<svg viewBox="0 0 200 200"><path d="M 100,10 L 10,190 L 190,190 Z" ${ink}/></svg>` },
+      { id: 'basic-arc', name: 'Arc (quarter)', svg: `<svg viewBox="0 0 200 200"><path d="M 0,0 L 200,0 A 200,200 0 0,1 0,200 Z" ${ink}/></svg>` },
+      { id: 'basic-hexagon', name: 'Hexagon', svg: `<svg viewBox="0 0 200 200"><polygon points="100,10 182,55 182,145 100,190 18,145 18,55" ${ink}/></svg>` },
+      { id: 'basic-star', name: 'Star', svg: `<svg viewBox="0 0 200 200"><polygon points="100,10 122,78 194,78 136,120 158,188 100,146 42,188 64,120 6,78 78,78" ${ink}/></svg>` },
+    ];
+  }
   function loadLib() {
     let lib = null;
     try { const s = readLibraryRaw(); if (s) lib = JSON.parse(s); } catch (e) {}
@@ -717,6 +749,12 @@
     if (!lib.sets) lib.sets = []; if (!lib.forms) lib.forms = [];
     if (!lib.sets.find(s => s.id === BUILT_IN_SET_ID)) {
       lib.sets.unshift({ id: BUILT_IN_SET_ID, name: 'Organic Forms', builtIn: true, gridConfig: { columns: 4, colGap: 16, rowGap: 16, padding: 24 }, formLayout: [] });
+    }
+    if (!lib.sets.find(s => s.id === BASIC_SHAPES_SET_ID)) {
+      const shapes = basicShapeForms();
+      lib.forms.push(...shapes);
+      lib.sets.splice(1, 0, { id: BASIC_SHAPES_SET_ID, name: 'Basic Shapes', builtIn: false, forms: shapes.map(s => s.id), gridConfig: { columns: 4, colGap: 16, rowGap: 16, padding: 24 }, formLayout: [] });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(lib));
     }
     return lib;
   }

@@ -629,5 +629,255 @@
     };
   };
 
+  // ─────────────────────────────────────────────────────────────
+  // createPaperDrawEditor — click-to-place freehand drawing on a single
+  // paper.Path, built for Genesis Creator's own Draw mode (Phase B).
+  //
+  // Distinct from createTraceEditor above on purpose: that factory is
+  // Strata-shaped (loads an existing multi-shape trace, sketch underlay,
+  // cross-shape boolean unite). This one draws ONE path from nothing —
+  // anchors added by click, dragged by their point, with mirrored tangent
+  // handles for manual smoothing. Additive: createTraceEditor is untouched,
+  // Strata is unaffected.
+  //
+  // Smooth is "live" the way Creator's own hand-rolled tangentOf() was:
+  // every add/drag re-derives ALL auto segments' handles via the real
+  // path.smooth(), since paper.js has no live-recompute mode of its own.
+  // A segment whose handle was dragged by hand is remembered in
+  // manualSegments and restored after each re-smooth, so a manual edit
+  // survives editing elsewhere on the path — the same persistence
+  // Creator's own p.h field gave a manually-set tangent. Double-click a
+  // segment to release it back to auto, matching Creator's own dblclick
+  // convention for resetting a tangent.
+  //
+  // @param {HTMLCanvasElement} canvasEl
+  // @param {{ onChange?: Function, strokeColor?: string, strokeWidth?: number }} opts
+  Organica.createPaperDrawEditor = function (canvasEl, opts) {
+    opts = opts || {};
+    const onChange = typeof opts.onChange === 'function' ? opts.onChange : function () {};
+
+    paper.setup(canvasEl);
+    canvasEl.style.cursor = 'crosshair';
+
+    // Map project-space coordinates onto the canvas's own declared box —
+    // needed when the host page draws the actual shape somewhere else (e.g.
+    // Creator's own SVG form-layer) and wants clicks/segments to land in
+    // that same coordinate space (e.g. Creator's 0–200 artboard box) rather
+    // than raw canvas pixels. No-op when omitted (project space = canvas
+    // pixels 1:1, the prototype test page's own default).
+    if (opts.fitBox) {
+      const b = opts.fitBox;
+      paper.view.zoom = paper.view.viewSize.width / b.width;
+      paper.view.center = new paper.Point(b.x + b.width / 2, b.y + b.height / 2);
+    }
+
+    const tool = new paper.Tool();
+    let path = new paper.Path({
+      strokeColor: opts.strokeColor || '#0a0a0a',
+      strokeWidth: opts.strokeWidth || 2,
+      // Paper.js's own selection overlay (hollow anchor squares + handle
+      // circles/lines) is the prototype's ONLY visual affordance for handles
+      // — there is no hand-rolled marker layer here. Fine for verifying the
+      // interaction model in isolation; Creator's own real integration will
+      // want its own handle rendering to match its existing thandle/handle
+      // visual style instead of Paper's default blue.
+      fullySelected: true,
+    });
+    let smooth = true;
+    const manualSegments = new Set(); // segment indices with a hand-set tangent
+    let draggingSegment = null;
+    let draggingHandle = null; // { index, which: 'handleIn' | 'handleOut' }
+    let dragMoved = false;
+
+    // The geometry simplify() should re-derive from every time it runs — same
+    // rule as Strata's own simplifyLive (see above): without this, dragging
+    // the tolerance slider back down could never recover detail an earlier,
+    // higher tolerance had already discarded, since simplify() would just be
+    // sharpening its own already-lossy output instead of the real drawing.
+    let baselineJSON = path.exportJSON();
+    function snapshotBaseline() { baselineJSON = path.exportJSON(); }
+
+    function notify() { onChange(); }
+
+    // Recompute every AUTO segment's handles from current point positions,
+    // then restore whichever segments were manually tangent-edited — the
+    // one deliberate divergence from a plain path.smooth() call, needed so
+    // dragging one anchor doesn't silently erase a hand-tuned tangent on
+    // another.
+    function resmooth() {
+      if (!smooth) {
+        path.segments.forEach(s => {
+          s.handleIn = new paper.Point(0, 0);
+          s.handleOut = new paper.Point(0, 0);
+        });
+        return;
+      }
+      // path.smooth() throws on a path with under 2 segments (nothing to
+      // smooth yet) — reachable in practice, since a host page can toggle
+      // Closed/Smooth before the user has clicked a single anchor (Creator
+      // does exactly this, syncing its Close checkbox's default at init).
+      if (path.segments.length < 2) return;
+      const saved = [];
+      manualSegments.forEach(i => {
+        const s = path.segments[i];
+        if (s) saved.push({ i, hIn: s.handleIn.clone(), hOut: s.handleOut.clone() });
+      });
+      path.smooth({ type: 'continuous' });
+      saved.forEach(({ i, hIn, hOut }) => {
+        const s = path.segments[i];
+        if (s) { s.handleIn = hIn; s.handleOut = hOut; }
+      });
+    }
+
+    function addPoint(point) {
+      path.add(point);
+      resmooth();
+      snapshotBaseline();
+      notify();
+    }
+
+    // Double-click a segment → release its manual tangent back to auto,
+    // matching Creator's own dblclick-resets-tangent convention. paper.js's
+    // Tool has no native dblclick event, so it's detected here as two
+    // same-segment mousedowns within 350ms.
+    let lastClickTime = 0, lastClickIndex = null;
+    tool.onMouseDown = function (event) {
+      const hit = path.hitTest(event.point, {
+        segments: true,
+        handles: true,
+        tolerance: 8 / paper.view.zoom,
+      });
+      if (hit && hit.type === 'segment') {
+        const idx = path.segments.indexOf(hit.segment);
+        const now = Date.now();
+        if (idx === lastClickIndex && now - lastClickTime < 350) {
+          manualSegments.delete(idx);
+          resmooth();
+          notify();
+          lastClickTime = 0;
+          lastClickIndex = null;
+          return;
+        }
+        lastClickTime = now;
+        lastClickIndex = idx;
+        draggingSegment = idx;
+        return;
+      }
+      lastClickIndex = null;
+      if (hit && (hit.type === 'handle-in' || hit.type === 'handle-out')) {
+        draggingHandle = {
+          index: path.segments.indexOf(hit.segment),
+          which: hit.type === 'handle-in' ? 'handleIn' : 'handleOut',
+        };
+        manualSegments.add(draggingHandle.index);
+        return;
+      }
+      addPoint(event.point);
+    };
+
+    tool.onMouseDrag = function (event) {
+      dragMoved = true;
+      if (draggingSegment != null) {
+        const seg = path.segments[draggingSegment];
+        if (seg) seg.point = seg.point.add(event.delta);
+        if (smooth) resmooth();
+        notify();
+      } else if (draggingHandle) {
+        const seg = path.segments[draggingHandle.index];
+        if (!seg) return;
+        // Mirror the dragged handle onto its opposite so the anchor stays
+        // smooth (a continuous tangent through the point) rather than
+        // creating a hard corner — same "mirrored = smooth" rule Creator's
+        // own tdrag handling used.
+        if (draggingHandle.which === 'handleOut') {
+          seg.handleOut = seg.handleOut.add(event.delta);
+          seg.handleIn = seg.handleOut.multiply(-1);
+        } else {
+          seg.handleIn = seg.handleIn.add(event.delta);
+          seg.handleOut = seg.handleIn.multiply(-1);
+        }
+        notify();
+      }
+    };
+
+    tool.onMouseUp = function () {
+      if (dragMoved && (draggingSegment != null || draggingHandle)) snapshotBaseline();
+      draggingSegment = null;
+      draggingHandle = null;
+      dragMoved = false;
+    };
+
+    tool.activate();
+
+    function setSmooth(value) {
+      smooth = !!value;
+      resmooth();
+      snapshotBaseline();
+      notify();
+    }
+
+    function setClosed(value) {
+      path.closed = !!value;
+      // Closing/opening changes which segments are adjacent (the wraparound
+      // segment only exists once closed), so the smoothed handles have to be
+      // recomputed here too — without this the new closing edge rendered as
+      // a straight line even with Smooth checked, since it never existed as
+      // a segment pair for path.smooth() to curve when it last ran.
+      resmooth();
+      snapshotBaseline();
+      notify();
+    }
+
+    function undo() {
+      if (!path.segments.length) return;
+      const lastIndex = path.segments.length - 1;
+      manualSegments.delete(lastIndex);
+      path.removeSegments(lastIndex);
+      resmooth();
+      snapshotBaseline();
+      notify();
+    }
+
+    function clear() {
+      path.removeSegments();
+      manualSegments.clear();
+      snapshotBaseline();
+      notify();
+    }
+
+    // Re-derives from baselineJSON every call rather than compounding on the
+    // previous simplify() output — see the comment on baselineJSON above.
+    function simplify(tolerance) {
+      path.importJSON(baselineJSON);
+      path.simplify(tolerance == null ? 2.5 : tolerance);
+      manualSegments.clear(); // simplify rebuilds segments; old indices no longer mean anything
+      notify();
+    }
+
+    function getPathData() {
+      return path.segments.length >= 2 ? path.pathData : '';
+    }
+
+    function getSegmentCount() {
+      return path.segments.length;
+    }
+
+    function destroy() {
+      tool.remove();
+      path.remove();
+    }
+
+    return {
+      setSmooth,
+      setClosed,
+      undo,
+      clear,
+      simplify,
+      getPathData,
+      getSegmentCount,
+      destroy,
+    };
+  };
+
   global.Organica = Organica;
 }(typeof window !== 'undefined' ? window : global));

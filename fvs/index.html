@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FVS — Organica</title>
+
+<!-- Tokens → header → floatbar → panel, in this order (load-bearing —
+     UI-SHELL.md §2/§4b/§4c). organica-core.js is a plain script, loaded
+     before this tool's own inline <script>, so Organica.* exists at parse time. -->
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-panel.css">
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #0a0a0a;
+    --paper: #f5f2ec;
+    --mid: #696256;
+    --accent: #2a2a2a;
+    --panel: #eceae4;
+    --border: #d0c8b8;
+    --tool: #3fa876;   /* identity colour — emerald, unclaimed hue gap between Komorebi's olive and Camo Turing's teal */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: var(--fs-base); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+  #app { display: flex; flex: 1; overflow: hidden; height: calc(100vh - var(--header-h, 40px)); }
+
+  /* No zoom/pan — the gallery is a static, scrollable grid of thumbnails,
+     not a single pannable canvas (there is no one canvas to zoom). */
+  #canvas-wrap { flex: 1; overflow-y: auto; background: var(--panel); padding: var(--space-7); }
+  #gallery-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: var(--space-3); color: var(--mid); font-size: var(--fs-small); text-align: center; }
+  #gallery { display: none; flex-wrap: wrap; gap: var(--space-5); align-content: flex-start; }
+  #gallery.visible { display: flex; }
+  #gallery-status { width: 100%; font-size: var(--fs-micro); color: var(--mid); margin-bottom: var(--space-2); }
+
+  .fvs-thumb {
+    width: 96px; height: 96px; flex-shrink: 0;
+    border: 1px solid var(--border);
+    cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.12s, box-shadow 0.12s;
+  }
+  .fvs-thumb:hover { border-color: var(--mid); }
+  .fvs-thumb.selected { border-color: var(--tool); box-shadow: 0 0 0 1px var(--tool); }
+  .fvs-thumb svg { width: 100%; height: 100%; display: block; }
+
+  /* Not in organica-panel.css — copied verbatim from Membrane/Vortex's
+     own local convention (Camo Turing's original Palette random-colour
+     button + RMX chip grid). */
+  .icon-btn {
+    background: none; border: 1px solid var(--border); color: var(--accent);
+    width: 22px; height: 20px; flex-shrink: 0; padding: 0; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .icon-btn:hover { border-color: var(--accent); color: var(--ink); }
+
+  .rmx-palette { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .rmx-color { position: relative; width: 36px; height: 28px; border: 1px solid var(--border); cursor: pointer; overflow: hidden; }
+  .rmx-color input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; cursor: pointer; }
+  .rmx-x {
+    position: absolute; top: 0; right: 0; width: 13px; height: 13px;
+    line-height: 11px; font-size: var(--fs-base); padding: 0; cursor: pointer;
+    background: rgba(255,255,255,0.82); color: #000; border: none;
+  }
+  .rmx-add {
+    width: 36px; height: 28px; border: 1px dashed var(--border); background: none;
+    color: var(--mid); font-size: var(--fs-large); cursor: pointer; line-height: 1;
+  }
+  .rmx-add:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Manual per-cell mini-editor — 4 compact groups, one per grid cell. */
+  .fvs-cell-group { border: 1px solid var(--border); padding: var(--space-3); margin-bottom: var(--space-3); }
+  .fvs-cell-group .sub-label { margin: 0 0 var(--space-2); }
+  .fvs-cell-group .ctrl-row:last-child { margin-bottom: 0; }
+
+  #rule-total-hint { font-size: var(--fs-micro); color: var(--mid); margin-top: var(--space-2); line-height: 1.5; }
+  #rule-total-hint.over-cap { color: #a03828; }
+
+  .fvs-element-preview { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
+  .fvs-element-preview svg { width: 48px; height: 48px; flex-shrink: 0; border: 1px solid var(--border); display: block; }
+
+  .fvs-library { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .fvs-library-item { position: relative; width: 64px; height: 64px; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; padding: 0; background: none; }
+  .fvs-library-item:hover { border-color: var(--mid); }
+  .fvs-library-item svg { width: 100%; height: 100%; display: block; }
+  .fvs-library-item .rmx-x { position: absolute; top: 0; right: 0; }
+  .fvs-library-empty { font-size: var(--fs-micro); color: var(--mid); margin-bottom: var(--space-2); }
+</style>
+</head>
+<body>
+
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ FVS</span></a>
+  <div class="org-header__spacer"></div>
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">No components yet</span>
+  </output>
+</header>
+
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-export-png">PNG</button>
+        <button class="org-btn" id="btn-export-svg">SVG</button>
+      </div>
+      <p class="org-popover__hint">Exports the selected component only — click one in the gallery first. Paper background (Palette section), real vector geometry (one path per cell).</p>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-export-scale">Scale</label>
+        <select class="org-select" id="sel-export-scale">
+          <option value="1">&times;1</option>
+          <option value="2" selected>&times;2</option>
+          <option value="4">&times;4</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <div id="canvas-wrap">
+    <div id="gallery-empty">
+      <p>No components generated yet.<br>Pick a rule below and hit Generate.</p>
+    </div>
+    <div id="gallery-status"></div>
+    <div id="gallery"></div>
+  </div>
+
+  <div id="panel">
+
+    <div class="panel-section">
+      <h3>Element</h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-element-type" aria-label="Element type">
+          <option value="triangle">Isosceles triangle</option>
+          <option value="arc">Arc</option>
+        </select>
+      </div>
+      <div id="element-triangle-block">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Base</div>
+          <input type="range" id="rg-base" min="20" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-base">100</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Height</div>
+          <input type="range" id="rg-height" min="20" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-height">100</span>
+        </div>
+      </div>
+      <div id="element-arc-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Thickness</div>
+          <input type="range" id="rg-thickness" min="1" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-thickness">100</span>
+        </div>
+      </div>
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-upload-element">Upload SVG…</button>
+        <button class="mini-btn" id="btn-browse-creator">Creator library…</button>
+      </div>
+      <div id="element-upload-error" class="org-panel__hint" style="display:none;color:#a03828"></div>
+      <div id="creator-library-picker" style="display:none">
+        <div id="creator-library-empty" class="fvs-library-empty">No saved Seeds found — save one in Creator first.</div>
+        <div id="creator-library-tiles" class="fvs-library"></div>
+      </div>
+      <div class="sub-label" style="margin-top:var(--space-3)">Preview — rotation &amp; flip</div>
+      <div id="element-preview" class="fvs-element-preview" aria-label="Element transform preview"></div>
+      <p class="org-panel__hint">Base/Height (triangle) and Thickness (arc) default to 100 — the Element fills its cell exactly, corner to corner, edge to edge. Upload an SVG or pick a Seed saved in Creator (first drawable shape, fitted to the cell). The strip above shows this exact Element at 0/90/180/270° and each flip, on its own — check it looks right before generating a full grid of it. Colour lives in Palette below.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Palette</h3>
+      <div id="fvs-palette" class="rmx-palette"></div>
+      <p class="org-panel__hint">Ink — colours cycle across the grid's own cells by index (cell 1 → colour 1, cell 2 → colour 2, wrapping if there are more cells than colours). One colour by default (a plain fill); add more for a genuinely multi-colour grid.</p>
+      <div class="color-row">
+        <span class="color-name">Paper</span>
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-paper"></button>
+          <input type="color" id="cp-paper" value="#ffffff">
+        </span>
+        <input class="color-hex" id="hex-paper" value="#ffffff" maxlength="7">
+      </div>
+      <p class="org-panel__hint">Paper is the ground every Component renders and exports against — the gallery thumbnail, PNG, and SVG all read this same colour, not a fixed white.</p>
+    </div>
+
+    <input type="file" id="file-element" accept=".svg,image/svg+xml" aria-label="Upload SVG element" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;">
+    <input type="file" id="file-loom-grid" accept=".json,application/json" aria-label="Upload Loom grid JSON" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;">
+
+    <div class="panel-section">
+      <h3>Grid <span class="hint" id="grid-cellcount-hint">4 cells</span></h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-grid-type" aria-label="Grid type">
+          <option value="square2x2">Square 2×2</option>
+          <option value="square3x3">Square 3×3</option>
+          <option value="square4x4">Square 4×4</option>
+          <option value="loom">Import from Loom (JSON)…</option>
+        </select>
+      </div>
+      <div id="grid-square-block">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Cell size</div>
+          <input type="range" id="rg-cellsize" min="60" max="260" step="1" value="160">
+          <span class="ctrl-val" id="v-cellsize">160</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Gap</div>
+          <input type="range" id="rg-gap" min="0" max="40" step="1" value="0">
+          <span class="ctrl-val" id="v-gap">0</span>
+        </div>
+      </div>
+      <div id="grid-loom-block" style="display:none">
+        <button class="mini-btn" id="btn-upload-loom" style="width:100%">Upload Loom grid JSON…</button>
+        <div id="loom-grid-error" class="org-panel__hint" style="display:none;color:#a03828"></div>
+      </div>
+      <p class="org-panel__hint">Square grids use Cell size/Gap directly. A Loom import uses that grid's own saved cell geometry (rect or polygon) exactly as exported — Cell size/Gap don't apply to it. Named symmetry rules (Pinwheel/Mirror/Diagonal/Checkerboard/Row/Column/Radial) only make sense for a 4-cell grid and grey out otherwise — Identity/Random/Exhaustive/Manual work at any cell count.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Transform axes <span class="hint">Random + Exhaustive only</span></h3>
+      <label class="check-row"><input type="checkbox" id="chk-axis-rotation" checked><span>Rotation (0/90/180/270°)</span></label>
+      <label class="check-row"><input type="checkbox" id="chk-axis-flip"><span>Flip (none/H/V/both)</span></label>
+      <label class="check-row"><input type="checkbox" id="chk-axis-scale"><span>Scale</span></label>
+      <div id="scale-values-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Small %</div>
+          <input type="range" id="rg-scale-small" min="10" max="400" step="1" value="75">
+          <span class="ctrl-val" id="v-scale-small">75</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Medium %</div>
+          <input type="range" id="rg-scale-medium" min="10" max="400" step="1" value="100">
+          <span class="ctrl-val" id="v-scale-medium">100</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Large %</div>
+          <input type="range" id="rg-scale-large" min="10" max="400" step="1" value="125">
+          <span class="ctrl-val" id="v-scale-large">125</span>
+        </div>
+      </div>
+      <p class="org-panel__hint">Named rules (Identity/Pinwheel/Mirror/Diagonal/Checkerboard) use their own fixed pattern and ignore these. Random and Exhaustive instead pick from a small library of symmetric arrangements built from these same rules — active axes gate which arrangements are eligible (Pinwheel/Diagonal need Rotation, Mirror needs Flip, Checkerboard needs any one) and how much each varies. Every result is still a real symmetry, never 4 independently-chosen cells — that's deliberate, it's what keeps Random/Exhaustive from looking like noise.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Rule</h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-rule" aria-label="Rule mode">
+          <option value="identity">Identity</option>
+          <option value="pinwheel">Pinwheel</option>
+          <option value="mirror">Mirror (kaleidoscope)</option>
+          <option value="diagonal">Diagonal mirror</option>
+          <option value="checkerboard">Checkerboard</option>
+          <option value="rowmirror">Row mirror</option>
+          <option value="columnmirror">Column mirror</option>
+          <option value="radial">Radial</option>
+          <option value="random" selected>Random seeded</option>
+          <option value="exhaustive">Exhaustive</option>
+          <option value="manual">Manual</option>
+        </select>
+      </div>
+
+      <div id="rule-random-block">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Count</div>
+          <input type="range" id="rg-random-count" min="1" max="256" step="1" value="16">
+          <span class="ctrl-val" id="v-random-count">16</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="number" class="panel-select" id="num-seed" value="1" min="0" max="999999" step="1" style="width:70%">
+          <button class="icon-btn" id="btn-seed-random" title="Random seed" aria-label="Random seed">
+            <svg viewBox="0 0 16 16" width="11" height="11"><path d="M13 8a5 5 0 1 1-1.6-3.65" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M13 2.3V6h-3.7" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="rule-exhaustive-block" style="display:none">
+        <p id="rule-total-hint"></p>
+      </div>
+
+      <div id="rule-manual-block" style="display:none">
+        <!-- 4 cell groups injected by JS -->
+      </div>
+
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-generate">Generate</button>
+        <button class="mini-btn" id="btn-clear-gallery">Clear</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Library <span class="hint">saved for reuse</span></h3>
+      <div id="library-empty" class="fvs-library-empty">Nothing saved yet.</div>
+      <div id="fvs-library" class="fvs-library"></div>
+      <button class="mini-btn" id="btn-save-library" style="width:100%">Save selected to library</button>
+      <div id="library-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
+        <input type="text" class="panel-select" id="txt-library-name" placeholder="Name this component" aria-label="Name this component" style="flex:1">
+      </div>
+      <div id="library-save-actions" class="row-btns" style="display:none">
+        <button class="mini-btn" id="btn-library-confirm">Save</button>
+        <button class="mini-btn" id="btn-library-cancel">Cancel</button>
+      </div>
+      <p class="org-panel__hint">A saved entry is a full snapshot — Element (incl. an upload's own shape), Grid, Palette, and the exact generated arrangement — not just a link back to the current controls. Click a tile to load it back exactly as saved.</p>
+    </div>
+
+  </div>
+</div>
+
+<script src="/shared/organica-core.js"></script>
+<script>
+/* ─────────────────────────────────────────────────────────────
+   FVS — Flexible Visual System. First pass: Elements → Components only
+   (the Symbols/Pattern/Applications tiers from the reference brief are
+   later phases, not built here).
+
+   One canonical array of "items" (cx, cy, rotation, flipH, flipV, scale)
+   per component feeds BOTH the canvas raster export and the SVG string —
+   same discipline as vortex/js/render.js + svgexport.js: identical
+   transform math in both places, so nothing can visually disagree
+   between preview/PNG/SVG.
+   ───────────────────────────────────────────────────────────── */
+
+function ctrl(id) { return document.getElementById(id); }
+function val(id) { return parseFloat(ctrl(id).value); }
+
+const setStatus = Organica.status();
+
+const state = {
+  components: [],   // [{id, ruleSource, cells:[{rotation,flipH,flipV,scale} x4]}]
+  selectedId: null,
+  colors: ['#000000'],   // the centralised Palette (Ink) — see buildPalette()/colorAt() below
+  paperColor: '#ffffff',   // the ground every render/export paints against
+  customElement: null,   // {d, normTx, normTy, normScale} from an uploaded SVG, or null
+  loomGrid: null,   // {cellShape, cells, inner:{width,height}} from Organica.loadLoomGrid, or null until a file is imported
+};
+
+// ── Palette — centralised colour assignment (moved out of Element, which
+// is now pure shape geometry). Same RMX chip UI Membrane/Vortex already
+// use, min 1 (a single colour IS a plain flat fill, the old Fill
+// default) rather than their own min-2, since a one-Element single-cell-
+// colour grid is a legitimate baseline here, not a degenerate case. Max 8,
+// matching Vortex's own ceiling (no shader array-size bound applies).
+const PALETTE_MAX = 8;
+function colorAt(i) { return state.colors[i % state.colors.length]; }
+
+function buildPalette() {
+  const wrap = ctrl('fvs-palette');
+  wrap.innerHTML = '';
+  state.colors.forEach((col, i) => {
+    const chip = document.createElement('label');
+    chip.className = 'rmx-color';
+    chip.style.background = col;
+    chip.setAttribute('aria-label', 'Palette colour ' + (i + 1));
+    const input = document.createElement('input');
+    input.type = 'color'; input.value = col;
+    input.setAttribute('aria-label', 'Palette colour ' + (i + 1));
+    input.addEventListener('input', e => setColor(i, e.target.value));
+    chip.appendChild(input);
+    if (state.colors.length > 1) {
+      const x = document.createElement('button');
+      x.className = 'rmx-x'; x.textContent = '×'; x.title = 'Remove';
+      x.setAttribute('aria-label', 'Remove colour ' + (i + 1));
+      x.addEventListener('click', e => { e.preventDefault(); removeColor(i); });
+      chip.appendChild(x);
+    }
+    wrap.appendChild(chip);
+  });
+  if (state.colors.length < PALETTE_MAX) {
+    const add = document.createElement('button');
+    add.className = 'rmx-add'; add.textContent = '+'; add.title = 'Add colour';
+    add.setAttribute('aria-label', 'Add palette colour');
+    add.addEventListener('click', addColor);
+    wrap.appendChild(add);
+  }
+}
+
+function setColor(i, hex) {
+  state.colors[i] = hex;
+  const chip = ctrl('fvs-palette').children[i];
+  if (chip) chip.style.background = hex;
+  renderGallery();
+  renderElementPreview();
+}
+
+function addColor() {
+  if (state.colors.length >= PALETTE_MAX) return;
+  state.colors.push('#888888');
+  buildPalette();
+  renderGallery();
+  renderElementPreview();
+}
+
+function removeColor(i) {
+  if (state.colors.length <= 1) return;
+  state.colors.splice(i, 1);
+  buildPalette();
+  renderGallery();
+  renderElementPreview();
+}
+
+// ── Element ──
+// Each type exposes geometry(params) → { d, normTx, normTy, normScale }.
+// d is an SVG path in a normalized 0..100 box; normTx/normTy/normScale
+// default to identity (0,0,1) for hand-authored shapes (triangle, the 4
+// arcs) already drawn directly in that box. They exist for uploaded
+// custom shapes (see extractElementFromSVG below), whose own bbox-fit
+// transform lives here as a SEPARATE nested transform layer rather than
+// being baked into `d` — baking it in would mean parsing and rewriting
+// every coordinate token in arbitrary path data (arcs/beziers/etc, too
+// many shapes to safely regex-transform); one more <g transform> /
+// ctx.translate+scale nesting is trivial and handles any path losslessly.
+//
+// Real curves (the arcs) are why this moved off a plain polygon
+// point-list: SVG renders `d` directly via <path>, Canvas2D via
+// `ctx.fill(new Path2D(d))` — both support arc (A) commands natively.
+function triangleGeometry(base, height) {
+  const halfBase = base / 2;
+  const apexY = 50 - height / 2;
+  const baseY = 50 + height / 2;
+  const d = `M 50,${apexY} L ${50 - halfBase},${baseY} L ${50 + halfBase},${baseY} Z`;
+  return { d, normTx: 0, normTy: 0, normScale: 1 };
+}
+
+// Apex/pivot anchored at the box's own (0,0) corner, sweeping the
+// quadrant toward (100,0) and (0,100) — outer radius fixed at 100 so the
+// outer curve always reaches the cell's own far edges. thicknessPct sets
+// how much of that radius is filled, from the outer edge inward; 100 =
+// solid quarter-disc (Diego's own "fills the grid" description).
+function arcPathD(thicknessPct) {
+  const ir = 100 * (1 - thicknessPct / 100);
+  if (ir <= 0.5) return 'M 0,0 L 100,0 A 100,100 0 0,1 0,100 Z';
+  return `M 100,0 A 100,100 0 0,1 0,100 L 0,${ir} A ${ir},${ir} 0 0,0 ${ir},0 Z`;
+}
+function arcGeometry(thicknessPct) {
+  return { d: arcPathD(thicknessPct), normTx: 0, normTy: 0, normScale: 1 };
+}
+
+const ELEMENT_TYPES = {
+  triangle: { label: 'Isosceles triangle', geometry: (p) => triangleGeometry(p.base, p.height) },
+  arc: { label: 'Arc', geometry: (p) => arcGeometry(p.thickness) },
+  custom: {
+    label: 'Custom (uploaded)',
+    geometry: () => state.customElement || { d: '', normTx: 0, normTy: 0, normScale: 1 },
+  },
+};
+
+function getElement() {
+  return {
+    type: ctrl('sel-element-type').value,
+    base: val('rg-base'),
+    height: val('rg-height'),
+    thickness: val('rg-thickness'),
+  };
+}
+
+// ── SVG upload → one custom Element. Finds the FIRST drawable shape in
+// the file (multi-shape SVGs only use that one — no shape-merging in
+// v1, same scoping this project uses elsewhere: Loom's own polygon
+// generators, Soul's Seeds panel), measures its untransformed local
+// bbox via a real off-DOM <svg> host (Pollen's own `getBBox()`
+// technique), and stores the fit as normTx/normTy/normScale (see
+// ELEMENT_TYPES's own header for why that's a separate transform layer
+// rather than baked into `d`). No existing helper in the repo already
+// does this (checked shared/organica-core.js, Soul's parsePrimitives,
+// Pollen's own element-replay) — genuinely new code.
+const SHAPE_SELECTOR = 'path, circle, rect, ellipse, polygon, polyline';
+
+function shapeToPathD(el) {
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'path') return el.getAttribute('d') || '';
+  if (tag === 'polygon' || tag === 'polyline') {
+    const pts = (el.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number);
+    if (pts.length < 4) return '';
+    let d = `M ${pts[0]},${pts[1]}`;
+    for (let i = 2; i < pts.length - 1; i += 2) d += ` L ${pts[i]},${pts[i + 1]}`;
+    return d + (tag === 'polygon' ? ' Z' : '');
+  }
+  if (tag === 'rect') {
+    const x = +el.getAttribute('x') || 0, y = +el.getAttribute('y') || 0;
+    const w = +el.getAttribute('width') || 0, h = +el.getAttribute('height') || 0;
+    return `M ${x},${y} L ${x + w},${y} L ${x + w},${y + h} L ${x},${y + h} Z`;   // rx/ry rounding ignored for v1
+  }
+  if (tag === 'circle') {
+    const cx = +el.getAttribute('cx') || 0, cy = +el.getAttribute('cy') || 0, r = +el.getAttribute('r') || 0;
+    return `M ${cx - r},${cy} A ${r},${r} 0 1,0 ${cx + r},${cy} A ${r},${r} 0 1,0 ${cx - r},${cy} Z`;
+  }
+  if (tag === 'ellipse') {
+    const cx = +el.getAttribute('cx') || 0, cy = +el.getAttribute('cy') || 0;
+    const rx = +el.getAttribute('rx') || 0, ry = +el.getAttribute('ry') || 0;
+    return `M ${cx - rx},${cy} A ${rx},${ry} 0 1,0 ${cx + rx},${cy} A ${rx},${ry} 0 1,0 ${cx - rx},${cy} Z`;
+  }
+  return '';
+}
+
+// A real, standalone SVG FILE always declares xmlns on its root <svg> tag,
+// which is what makes an XML parse resolve every descendant into the real
+// SVG namespace (SVGPathElement etc., with a working getBBox()). Organica's
+// own tools don't bother writing that attribute on the SVG STRINGS they
+// pass around internally — inline markup dropped into innerHTML never needs
+// it, since the browser already knows it's inside an <svg> — so a string
+// straight from Creator's own library (organica.library.forms) parses here
+// with every element in the null namespace and no getBBox at all. Only
+// caught by testing this function against a real Creator-saved string, not
+// against an uploaded file (which always has xmlns already).
+function ensureSvgNamespace(svgString) {
+  if (/<svg[^>]*\sxmlns\s*=/.test(svgString)) return svgString;
+  return svgString.replace(/<svg\b/, '<svg xmlns="http://www.w3.org/2000/svg"');
+}
+
+function extractElementFromSVG(svgString) {
+  const doc = new DOMParser().parseFromString(ensureSvgNamespace(svgString), 'image/svg+xml');
+  if (doc.querySelector('parsererror')) throw new Error('Invalid SVG file.');
+  const svgRoot = doc.querySelector('svg');
+  if (!svgRoot) throw new Error('No <svg> root element found.');
+  const shape = svgRoot.querySelector(SHAPE_SELECTOR);
+  if (!shape) throw new Error('No drawable shape (path/circle/rect/ellipse/polygon) found in this SVG.');
+
+  const hidden = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  hidden.setAttribute('width', '0');
+  hidden.setAttribute('height', '0');
+  hidden.style.cssText = 'position:absolute;overflow:hidden;';
+  const clone = shape.cloneNode(true);
+  hidden.appendChild(clone);
+  document.body.appendChild(hidden);
+  let bbox;
+  try { bbox = clone.getBBox(); } finally { document.body.removeChild(hidden); }
+  if (!bbox || bbox.width <= 0 || bbox.height <= 0) throw new Error('Shape has no visible area.');
+
+  const d = shapeToPathD(clone);
+  if (!d) throw new Error("Could not read this shape's geometry.");
+
+  const normScale = 100 / Math.max(bbox.width, bbox.height);
+  const fitW = bbox.width * normScale, fitH = bbox.height * normScale;
+  const offX = (100 - fitW) / 2, offY = (100 - fitH) / 2;
+  return { d, normScale, normTx: -bbox.x + offX / normScale, normTy: -bbox.y + offY / normScale };
+}
+
+function useSvgAsElement(svgString) {
+  state.customElement = extractElementFromSVG(svgString);
+  let opt = ctrl('sel-element-type').querySelector('option[value="custom"]');
+  if (!opt) {
+    opt = document.createElement('option');
+    opt.value = 'custom'; opt.textContent = 'Custom (uploaded)';
+    ctrl('sel-element-type').appendChild(opt);
+  }
+  ctrl('sel-element-type').value = 'custom';
+  syncElementUI();
+  ctrl('element-upload-error').style.display = 'none';
+  renderGallery();
+  renderElementPreview();
+}
+
+function handleElementUpload(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      useSvgAsElement(reader.result);
+    } catch (e) {
+      ctrl('element-upload-error').textContent = e.message;
+      ctrl('element-upload-error').style.display = '';
+    }
+  };
+  reader.onerror = () => {
+    ctrl('element-upload-error').textContent = 'Could not read that file.';
+    ctrl('element-upload-error').style.display = '';
+  };
+  reader.readAsText(file);
+}
+
+// ── Creator library — reads the SAME localStorage key Genesis Creator
+// (genesis/creator.html) and its own library.html save to, no live sync
+// needed (this is the same cross-page localStorage read every Organica
+// preset already relies on — reload FVS after saving in Creator to see
+// it here). A saved form's own .svg string is a complete
+// <svg viewBox="0 0 200 200">…</svg> — feeding it to extractElementFromSVG
+// (already built for file-upload) is the exact same code path, just a
+// different source; builtIn sets (the "Organic Forms"/"Basic Shapes"
+// catalogues) are included too, not just user-drawn ones.
+function getCreatorLibraryForms() {
+  let lib;
+  try { lib = JSON.parse(localStorage.getItem('organica.library.forms') || '{}'); } catch (e) { return []; }
+  // Verified directly against genesis/creator.html's own saveForm(): the
+  // real shape is a TOP-LEVEL lib.forms array of full {id,name,svg,...}
+  // objects; each set.forms is only an array of ID strings referencing
+  // into it — NOT full form objects nested under the set (an earlier,
+  // wrong assumption here would have silently produced undefined
+  // id/name/svg for every real Creator-saved shape while happening to
+  // "work" against hand-built test data that got the shape wrong the
+  // same way).
+  const byId = {};
+  for (const f of lib.forms || []) byId[f.id] = f;
+  const forms = [];
+  for (const set of lib.sets || []) {
+    for (const fid of set.forms || []) {
+      const f = byId[fid];
+      if (f) forms.push({ id: f.id, name: f.name, svg: f.svg });
+    }
+  }
+  return forms;
+}
+
+function toggleCreatorLibraryPicker() {
+  const picker = ctrl('creator-library-picker');
+  const opening = picker.style.display === 'none';
+  picker.style.display = opening ? '' : 'none';
+  if (opening) renderCreatorLibraryPicker();
+}
+
+function renderCreatorLibraryPicker() {
+  const forms = getCreatorLibraryForms();
+  ctrl('creator-library-empty').style.display = forms.length ? 'none' : '';
+  const wrap = ctrl('creator-library-tiles');
+  wrap.innerHTML = '';
+  for (const form of forms) {
+    const btn = document.createElement('button');
+    btn.className = 'fvs-library-item';
+    btn.title = form.name;
+    btn.setAttribute('aria-label', 'Use Seed ' + form.name);
+    btn.innerHTML = form.svg;
+    btn.addEventListener('click', () => {
+      try {
+        useSvgAsElement(form.svg);
+        ctrl('creator-library-picker').style.display = 'none';
+      } catch (e) {
+        ctrl('element-upload-error').textContent = e.message;
+        ctrl('element-upload-error').style.display = '';
+      }
+    });
+    wrap.appendChild(btn);
+  }
+}
+
+// ── Loom grid import ──
+function handleLoomGridUpload(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      state.loomGrid = Organica.loadLoomGrid(reader.result);
+      ctrl('loom-grid-error').style.display = 'none';
+      syncRuleAvailability();
+      renderGallery();
+    } catch (e) {
+      ctrl('loom-grid-error').textContent = e.message;
+      ctrl('loom-grid-error').style.display = '';
+    }
+  };
+  reader.onerror = () => {
+    ctrl('loom-grid-error').textContent = 'Could not read that file.';
+    ctrl('loom-grid-error').style.display = '';
+  };
+  reader.readAsText(file);
+}
+
+// ── Grid — either a plain square NxN (cellSize/gap-driven) or an
+// imported Loom grid (rect or polygon cellShape, arbitrary cell count
+// and layout, read via Organica.loadLoomGrid). Cell centres are always
+// resolved relative to the component's own centre (0,0), so
+// buildComponentSVG/Canvas only ever need one translate. ──
+function getGrid() {
+  const type = ctrl('sel-grid-type').value;
+  if (type === 'loom' && state.loomGrid) {
+    return { kind: 'loom', cellShape: state.loomGrid.cellShape, cells: state.loomGrid.cells, width: state.loomGrid.inner.width, height: state.loomGrid.inner.height };
+  }
+  const n = type === 'square3x3' ? 3 : type === 'square4x4' ? 4 : 2;
+  return { kind: 'square', cols: n, rows: n, cellSize: val('rg-cellsize'), gap: val('rg-gap') };
+}
+
+// Returns [{cx, cy, cellSize}], one per cell, relative to the grid's own
+// centre. cellSize per cell (not a single grid-wide value) is what lets
+// a Loom import's own variable cell sizes (Bento's merged spans, a
+// Voronoi diagram's differently-sized regions) scale the Element
+// correctly per cell instead of assuming uniformity.
+function resolveGridCells(grid) {
+  if (grid.kind === 'loom') {
+    const originX = grid.width / 2, originY = grid.height / 2;
+    return grid.cells.map(c => {
+      if (grid.cellShape === 'polygon') {
+        const xs = c.points.map(p => p[0]), ys = c.points.map(p => p[1]);
+        const w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
+        return { cx: c.centroid[0] - originX, cy: c.centroid[1] - originY, cellSize: Math.min(w, h) };
+      }
+      return { cx: c.x + c.width / 2 - originX, cy: c.y + c.height / 2 - originY, cellSize: Math.min(c.width, c.height) };
+    });
+  }
+  const totalW = grid.cols * grid.cellSize + (grid.cols - 1) * grid.gap;
+  const totalH = grid.rows * grid.cellSize + (grid.rows - 1) * grid.gap;
+  const originX = -totalW / 2, originY = -totalH / 2;
+  const centers = [];
+  for (let r = 0; r < grid.rows; r++) {
+    for (let c = 0; c < grid.cols; c++) {
+      centers.push({
+        cx: originX + c * (grid.cellSize + grid.gap) + grid.cellSize / 2,
+        cy: originY + r * (grid.cellSize + grid.gap) + grid.cellSize / 2,
+        cellSize: grid.cellSize,
+      });
+    }
+  }
+  return centers;   // square grids: row-major, e.g. 2×2 = [TL, TR, BL, BR]
+}
+
+function frameSize(grid) {
+  if (grid.kind === 'loom') return Math.max(grid.width, grid.height);
+  return grid.cols * grid.cellSize + (grid.cols - 1) * grid.gap;
+}
+
+// ── Transform axes — the full vocabulary. ──
+const ROTATIONS = [0, 90, 180, 270];
+const FLIPS = [{ h: false, v: false }, { h: true, v: false }, { h: false, v: true }, { h: true, v: true }];
+
+function scaleValues() {
+  return [val('rg-scale-small') / 100, val('rg-scale-medium') / 100, val('rg-scale-large') / 100];
+}
+
+function activeAxes() {
+  return {
+    rotation: ctrl('chk-axis-rotation').checked,
+    flip: ctrl('chk-axis-flip').checked,
+    scale: ctrl('chk-axis-scale').checked,
+  };
+}
+
+function axisValues() {
+  const axes = activeAxes();
+  return {
+    rotations: axes.rotation ? ROTATIONS : [0],
+    flips: axes.flip ? FLIPS : [{ h: false, v: false }],
+    scales: axes.scale ? scaleValues() : [1.0],
+  };
+}
+
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Drops components whose 4-cell transform set is identical to one
+// already in the list — Pinwheel's chirality pairs and Mirror's seed-
+// corner variants can coincide for a 2×2 grid; this keeps the gallery
+// honest (no two visually-identical entries presented as distinct).
+function dedupeComponents(list) {
+  const seen = new Set();
+  const out = [];
+  for (const comp of list) {
+    const key = JSON.stringify(comp.cells);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(comp);
+  }
+  return out;
+}
+
+// ── Rule engine ──────────────────────────────────────────────
+// Two layers share the same geometry:
+//   1. Named STANDALONE rules (the dropdown) — each enumerates its own
+//      small, curated, always-symmetric set, ignoring the axis
+//      checkboxes entirely (unchanged design: "Identity/Pinwheel/Mirror
+//      use their own fixed pattern").
+//   2. The FAMILIES registry — used ONLY by Random/Exhaustive, which
+//      pick a family (Identity/Pinwheel/Mirror/Diagonal/Checkerboard)
+//      and vary ITS OWN parameters over the active axes, rather than
+//      choosing all 4 cells independently. This is the direct fix for
+//      "random/exhaustive often look like noise": every result, no
+//      matter how it's picked, is still a member of a real symmetry
+//      family, which is what the reference brief's own examples all
+//      are. It's also what makes "low-entropy" happen for free — every
+//      family caps how many DISTINCT states can appear across the 4
+//      cells (1 for Identity, 2 for Mirror/Diagonal/Checkerboard, at
+//      most 4 rotations sharing one shape for Pinwheel) rather than
+//      allowing 4 fully independent cells the way the old design did.
+// Each returns an array of {id, ruleSource, cells:[4]}.
+
+function stateFrom(rotation, flipH, flipV, scale) { return { rotation, flipH, flipV, scale }; }
+
+function buildIdentityCells(rotation, flipH, flipV, scale, count) {
+  const c = stateFrom(rotation, flipH, flipV, scale);
+  return new Array(count).fill(c);
+}
+
+function activeCellCount() { return resolveGridCells(getGrid()).length; }
+
+function buildPinwheelCells(base, chirality, scale) {
+  return [0, 1, 2, 3].map(i => {
+    const rot = (((base + chirality * i * 90) % 360) + 360) % 360;
+    return stateFrom(rot, false, false, scale);
+  });
+}
+
+// Row-major grid indices: 0=TL, 1=TR, 2=BL, 3=BR. For each possible
+// "seed" cell, its actual horizontal neighbour (same row) gets flipH,
+// its vertical neighbour (same column) gets flipV, and the remaining
+// diagonal cell gets both — a direct adjacency table rather than a
+// generic cycle-then-reindex, which (caught by diffing the actual cells
+// output, not by eyeballing — the isosceles triangle's own left-right
+// symmetry hides a wrong flipH visually) previously mismatched which
+// cell got the diagonal "both" flip.
+const MIRROR_RELATIONS = [
+  { hNeighbor: 1, vNeighbor: 2, diagonal: 3 },   // seed = TL
+  { hNeighbor: 0, vNeighbor: 3, diagonal: 2 },   // seed = TR
+  { hNeighbor: 3, vNeighbor: 0, diagonal: 1 },   // seed = BL
+  { hNeighbor: 2, vNeighbor: 1, diagonal: 0 },   // seed = BR
+];
+function buildMirrorCells(seed, scale) {
+  const rel = MIRROR_RELATIONS[seed];
+  const cells = new Array(4);
+  cells[seed] = stateFrom(0, false, false, scale);
+  cells[rel.hNeighbor] = stateFrom(0, true, false, scale);
+  cells[rel.vNeighbor] = stateFrom(0, false, true, scale);
+  cells[rel.diagonal] = stateFrom(0, true, true, scale);
+  return cells;
+}
+
+// Reflects across the grid's own 45° (TL–BR) diagonal: the on-diagonal
+// pair (TL,BR) shares rotation R, the off-diagonal pair (TR,BL) shares
+// R's diagonal reflection, (90−R) mod 360 — the discrete-90°-rotation
+// equivalent of mirroring across a 45° line (an "up"-pointing shape's
+// diagonal reflection is a "right"-pointing one, which (90−0)=90 gives
+// correctly under this file's own 0°=up convention).
+function buildDiagonalCells(rotation, scale) {
+  const onDiag = stateFrom(rotation, false, false, scale);
+  const offRot = (((90 - rotation) % 360) + 360) % 360;
+  const offDiag = stateFrom(offRot, false, false, scale);
+  return [onDiag, offDiag, offDiag, onDiag];   // TL,BR = onDiag; TR,BL = offDiag
+}
+
+function buildCheckerboardCells(stateA, stateB) {
+  return [stateA, stateB, stateB, stateA];   // TL,BR = A; TR,BL = B — exactly 2 distinct states
+}
+
+// Row mirror — top row (TL,TR) = A, bottom row (BL,BR) = A reflected
+// across X (flipV). Column mirror — left column (TL,BL) = A, right
+// column (TR,BR) = A reflected across Y (flipH). Both genuinely
+// different groupings from Checkerboard's own diagonal pairing
+// (TL,BR)/(TR,BL) — derived directly from how Diego described
+// Components 4 ("S" curve) and 5 ("bowtie") in the reference brief.
+function buildRowMirrorCells(rotation, scale) {
+  const a = stateFrom(rotation, false, false, scale);
+  const b = stateFrom(rotation, false, true, scale);
+  return [a, a, b, b];   // TL,TR,BL,BR
+}
+function buildColumnMirrorCells(rotation, scale) {
+  // Left column (TL,BL) = flipH; right column (TR,BR) = original — per
+  // Diego's own description of Component 5 ("cella 1 riflesso sulla y,
+  // cella 2 come l'originale").
+  const a = stateFrom(rotation, true, false, scale);
+  const b = stateFrom(rotation, false, false, scale);
+  return [a, b, a, b];   // TL,TR,BL,BR
+}
+
+// Radial — true rotational tiling around the grid's own shared centre,
+// for shapes (like the solid-quarter-circle Arc) meant to meet edge-to-
+// edge into a full circle/rosette. Pinwheel steps rotation by ROW-MAJOR
+// cell index (TL,TR,BL,BR), which is what makes its own "windmill" look
+// — but that ISN'T the grid's actual rotational adjacency. Walking the
+// square's corners in true clockwise order (TL,TR,BR,BL) is what makes
+// 4 quarter-shapes actually meet seamlessly at the centre.
+const RADIAL_ORDER = [0, 1, 3, 2];   // TL, TR, BR, BL — true clockwise walk
+function buildRadialCells(base, chirality, scale) {
+  const cells = new Array(4);
+  RADIAL_ORDER.forEach((cellIdx, k) => {
+    const rot = (((base + chirality * k * 90) % 360) + 360) % 360;
+    cells[cellIdx] = stateFrom(rot, false, false, scale);
+  });
+  return cells;
+}
+
+function ruleIdentity() {
+  return [{ id: 'identity-0', ruleSource: 'identity', cells: buildIdentityCells(0, false, false, 1.0, activeCellCount()) }];
+}
+
+function rulePinwheel() {
+  const out = [];
+  for (const chirality of [1, -1]) for (const base of [0, 90, 180, 270]) {
+    out.push({ id: `pinwheel-${base}-${chirality}`, ruleSource: 'pinwheel', cells: buildPinwheelCells(base, chirality, 1.0) });
+  }
+  return dedupeComponents(out);
+}
+
+function ruleMirror() {
+  const out = [];
+  for (let seed = 0; seed < 4; seed++) {
+    out.push({ id: `mirror-${seed}`, ruleSource: 'mirror', cells: buildMirrorCells(seed, 1.0) });
+  }
+  return dedupeComponents(out);
+}
+
+function ruleDiagonal() {
+  const out = [];
+  for (const r of [0, 90, 180, 270]) {
+    out.push({ id: `diagonal-${r}`, ruleSource: 'diagonal', cells: buildDiagonalCells(r, 1.0) });
+  }
+  return dedupeComponents(out);
+}
+
+// A small curated set — full free cross of stateA×stateB belongs to the
+// FAMILIES registry below (Random/Exhaustive), not to this standalone
+// dropdown option, which stays a handful of clearly-different pairings
+// like every other named rule here.
+function ruleCheckerboard() {
+  const pairs = [
+    [stateFrom(0, false, false, 1), stateFrom(180, false, false, 1)],
+    [stateFrom(90, false, false, 1), stateFrom(270, false, false, 1)],
+    [stateFrom(0, false, false, 1), stateFrom(0, true, true, 1)],
+    [stateFrom(0, true, false, 1), stateFrom(0, false, true, 1)],
+  ];
+  const out = pairs.map(([a, b], i) => ({ id: `checkerboard-${i}`, ruleSource: 'checkerboard', cells: buildCheckerboardCells(a, b) }));
+  return dedupeComponents(out);
+}
+
+function ruleRowMirror() {
+  const out = [0, 90, 180, 270].map(r => ({ id: `rowmirror-${r}`, ruleSource: 'rowmirror', cells: buildRowMirrorCells(r, 1.0) }));
+  return dedupeComponents(out);
+}
+
+function ruleColumnMirror() {
+  const out = [0, 90, 180, 270].map(r => ({ id: `columnmirror-${r}`, ruleSource: 'columnmirror', cells: buildColumnMirrorCells(r, 1.0) }));
+  return dedupeComponents(out);
+}
+
+function ruleRadial() {
+  const out = [];
+  for (const chirality of [1, -1]) for (const base of [0, 90, 180, 270]) {
+    out.push({ id: `radial-${base}-${chirality}`, ruleSource: 'radial', cells: buildRadialCells(base, chirality, 1.0) });
+  }
+  return dedupeComponents(out);
+}
+
+// ── Family registry — Random/Exhaustive draw from here. requiresAxis
+// gates which families are even eligible: Pinwheel/Diagonal only mean
+// anything with Rotation active, Mirror only with Flip active,
+// Checkerboard with any axis active (else stateA===stateB, degenerating
+// to Identity) — Identity itself has no such requirement, so
+// activeFamilies() always returns at least one entry, never empty. ──
+const FAMILIES = {
+  identity: {
+    requiresAxis: null,
+    paramSpace(av) {
+      const out = [];
+      for (const r of av.rotations) for (const f of av.flips) for (const s of av.scales) out.push({ rotation: r, flipH: f.h, flipV: f.v, scale: s });
+      return out;
+    },
+    build(p) { return buildIdentityCells(p.rotation, p.flipH, p.flipV, p.scale, 4); },   // this registry path only ever runs at cell count 4 (see ruleRandom/ruleExhaustive)
+  },
+  pinwheel: {
+    requiresAxis: 'rotation',
+    paramSpace(av) {
+      const out = [];
+      for (const base of [0, 90, 180, 270]) for (const chirality of [1, -1]) for (const s of av.scales) out.push({ base, chirality, scale: s });
+      return out;
+    },
+    build(p) { return buildPinwheelCells(p.base, p.chirality, p.scale); },
+  },
+  mirror: {
+    requiresAxis: 'flip',
+    paramSpace(av) {
+      const out = [];
+      for (let seed = 0; seed < 4; seed++) for (const s of av.scales) out.push({ seed, scale: s });
+      return out;
+    },
+    build(p) { return buildMirrorCells(p.seed, p.scale); },
+  },
+  diagonal: {
+    requiresAxis: 'rotation',
+    paramSpace(av) {
+      const out = [];
+      for (const r of [0, 90, 180, 270]) for (const s of av.scales) out.push({ rotation: r, scale: s });
+      return out;
+    },
+    build(p) { return buildDiagonalCells(p.rotation, p.scale); },
+  },
+  checkerboard: {
+    requiresAxis: 'any',
+    paramSpace(av) {
+      const states = [];
+      for (const r of av.rotations) for (const f of av.flips) for (const s of av.scales) states.push(stateFrom(r, f.h, f.v, s));
+      const out = [];
+      for (const a of states) for (const b of states) out.push({ a, b });
+      return out;
+    },
+    build(p) { return buildCheckerboardCells(p.a, p.b); },
+  },
+  rowmirror: {
+    requiresAxis: 'flip',
+    paramSpace(av) {
+      const out = [];
+      for (const r of av.rotations) for (const s of av.scales) out.push({ rotation: r, scale: s });
+      return out;
+    },
+    build(p) { return buildRowMirrorCells(p.rotation, p.scale); },
+  },
+  columnmirror: {
+    requiresAxis: 'flip',
+    paramSpace(av) {
+      const out = [];
+      for (const r of av.rotations) for (const s of av.scales) out.push({ rotation: r, scale: s });
+      return out;
+    },
+    build(p) { return buildColumnMirrorCells(p.rotation, p.scale); },
+  },
+  radial: {
+    requiresAxis: 'rotation',
+    paramSpace(av) {
+      const out = [];
+      for (const base of [0, 90, 180, 270]) for (const chirality of [1, -1]) for (const s of av.scales) out.push({ base, chirality, scale: s });
+      return out;
+    },
+    build(p) { return buildRadialCells(p.base, p.chirality, p.scale); },
+  },
+};
+
+function activeFamilies() {
+  const axes = activeAxes();
+  return Object.keys(FAMILIES).filter(key => {
+    const req = FAMILIES[key].requiresAxis;
+    if (req === null) return true;
+    if (req === 'any') return axes.rotation || axes.flip || axes.scale;
+    return axes[req];
+  });
+}
+
+// Named symmetry families (Pinwheel/Mirror/Diagonal/Checkerboard/Row/
+// Column/Radial) are all hand-derived for exactly 4 cells — what
+// "Pinwheel" even means on a 7-cell hex grid isn't solved here, on
+// purpose (a real, separate design problem). At any OTHER cell count,
+// Random/Exhaustive fall back to drawing each cell independently from
+// the active axes — an honest fallback, not a curated one; the FAMILIES
+// registry path only ever runs when activeCellCount() === 4.
+function ruleRandom() {
+  const count = Math.round(val('rg-random-count'));
+  const seed = Math.round(val('num-seed'));
+  const rng = mulberry32(seed);
+  const av = axisValues();
+  const cellCount = activeCellCount();
+  const out = [];
+  if (cellCount === 4) {
+    const families = activeFamilies();
+    for (let n = 0; n < count; n++) {
+      const famKey = families[Math.floor(rng() * families.length)];
+      const fam = FAMILIES[famKey];
+      const space = fam.paramSpace(av);
+      const params = space[Math.floor(rng() * space.length)];
+      out.push({ id: `random-${seed}-${n}`, ruleSource: 'random', cells: fam.build(params) });
+    }
+  } else {
+    for (let n = 0; n < count; n++) {
+      const cells = [];
+      for (let i = 0; i < cellCount; i++) {
+        const r = av.rotations[Math.floor(rng() * av.rotations.length)];
+        const f = av.flips[Math.floor(rng() * av.flips.length)];
+        const s = av.scales[Math.floor(rng() * av.scales.length)];
+        cells.push(stateFrom(r, f.h, f.v, s));
+      }
+      out.push({ id: `random-${seed}-${n}`, ruleSource: 'random', cells });
+    }
+  }
+  return out;   // deliberately not deduped — the count the user asked for should be the count they get
+}
+
+function exhaustiveTotal() {
+  const av = axisValues();
+  const cellCount = activeCellCount();
+  if (cellCount === 4) return activeFamilies().reduce((sum, key) => sum + FAMILIES[key].paramSpace(av).length, 0);
+  const perCell = av.rotations.length * av.flips.length * av.scales.length;
+  return Math.pow(perCell, cellCount);
+}
+const EXHAUSTIVE_CAP = 512;
+
+function ruleExhaustive() {
+  const av = axisValues();
+  const cellCount = activeCellCount();
+  const out = [];
+  let idx = 0;
+  if (cellCount === 4) {
+    for (const key of activeFamilies()) {
+      const fam = FAMILIES[key];
+      for (const params of fam.paramSpace(av)) {
+        out.push({ id: `exhaustive-${idx++}`, ruleSource: 'exhaustive', cells: fam.build(params) });
+      }
+    }
+    return dedupeComponents(out);
+  }
+  const perCellStates = [];
+  for (const r of av.rotations) for (const f of av.flips) for (const s of av.scales) perCellStates.push(stateFrom(r, f.h, f.v, s));
+  let combos = [[]];
+  for (let i = 0; i < cellCount; i++) {
+    const next = [];
+    for (const combo of combos) for (const s of perCellStates) next.push(combo.concat([s]));
+    combos = next;
+  }
+  return dedupeComponents(combos.map(cells => ({ id: `exhaustive-${idx++}`, ruleSource: 'exhaustive', cells })));
+}
+
+function readManualCells() {
+  const cells = [];
+  for (let i = 0; i < activeCellCount(); i++) {
+    cells.push({
+      rotation: parseInt(ctrl(`sel-manual-rot-${i}`).value, 10),
+      flipH: ctrl(`sel-manual-flip-${i}`).value === 'h' || ctrl(`sel-manual-flip-${i}`).value === 'hv',
+      flipV: ctrl(`sel-manual-flip-${i}`).value === 'v' || ctrl(`sel-manual-flip-${i}`).value === 'hv',
+      scale: parseFloat(ctrl(`sel-manual-scale-${i}`).value),
+    });
+  }
+  return cells;
+}
+
+// ── Item resolution + draw/export (shared by canvas + SVG) ──
+function buildComponentItems(component, grid) {
+  const centers = resolveGridCells(grid);
+  return component.cells.map((t, i) => ({
+    cx: centers[i].cx, cy: centers[i].cy,
+    rotation: t.rotation, flipH: t.flipH, flipV: t.flipV, scale: t.scale,
+    cellSize: centers[i].cellSize, color: colorAt(i),
+  }));
+}
+
+function drawComponentCanvas(ctx, items, element, size) {
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = state.paperColor;
+  ctx.fillRect(0, 0, size, size);
+
+  const half = size / 2;
+  const geo = ELEMENT_TYPES[element.type].geometry(element);
+  const path = new Path2D(geo.d);
+  for (const it of items) {
+    ctx.save();
+    ctx.translate(half + it.cx, half + it.cy);
+    ctx.rotate(it.rotation * Math.PI / 180);
+    const fit = it.cellSize / 100;
+    ctx.scale((it.flipH ? -1 : 1) * it.scale * fit, (it.flipV ? -1 : 1) * it.scale * fit);
+    ctx.translate(-50, -50);
+    // Element-local normalize transform (identity for hand-authored
+    // shapes, a real bbox-fit for uploaded ones) — nested inside the
+    // per-cell transform above, never baked into `d` itself.
+    ctx.translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale);
+    ctx.scale(geo.normScale, geo.normScale);
+    ctx.fillStyle = it.color;
+    ctx.fill(path);
+    ctx.restore();
+  }
+}
+
+function buildComponentSVG(items, element, size) {
+  const half = size / 2;
+  const geo = ELEMENT_TYPES[element.type].geometry(element);
+  let body = `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>`;
+  for (const it of items) {
+    const fit = it.cellSize / 100;
+    const sx = (it.flipH ? -1 : 1) * it.scale * fit;
+    const sy = (it.flipV ? -1 : 1) * it.scale * fit;
+    body += `<g transform="translate(${(half + it.cx).toFixed(2)},${(half + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
+      + `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
+      + `<path d="${geo.d}" fill="${it.color}"/></g></g>`;
+  }
+  const meta = { tool: 'FVS', ruleSource: state.selectedRuleSource || '', cells: items.length, exportedAt: new Date().toISOString() };
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
+    + `<metadata>${JSON.stringify(meta)}</metadata>` + body + `</svg>`;
+}
+
+// ── Element preview strip — the current Element on its own, at 0/90/
+// 180/270° and each flip, so an asymmetric or uploaded shape's behaviour
+// under a transform is visible before committing to a full grid
+// generation. Shares the same geometry/transform discipline as
+// buildComponentSVG, for exactly one item instead of a 4-cell grid. ──
+function buildElementPreviewSVG(element, rotation, flipH, flipV, size) {
+  const geo = ELEMENT_TYPES[element.type].geometry(element);
+  const half = size / 2;
+  const sx = (flipH ? -1 : 1) * (size / 100), sy = (flipV ? -1 : 1) * (size / 100);
+  const body = `<g transform="translate(${half},${half}) rotate(${rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
+    + `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
+    + `<path d="${geo.d}" fill="${colorAt(0)}"/></g></g>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
+    + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${body}</svg>`;
+}
+
+const ELEMENT_PREVIEW_STATES = [
+  [0, false, false], [90, false, false], [180, false, false], [270, false, false],
+  [0, true, false], [0, false, true], [0, true, true],
+];
+function renderElementPreview() {
+  const element = getElement();
+  ctrl('element-preview').innerHTML = ELEMENT_PREVIEW_STATES
+    .map(([r, fh, fv]) => buildElementPreviewSVG(element, r, fh, fv, 48)).join('');
+}
+
+// ── Gallery ──
+function renderGallery() {
+  const gallery = ctrl('gallery');
+  const empty = ctrl('gallery-empty');
+  const grid = getGrid();
+  const element = getElement();
+  const size = frameSize(grid);
+
+  gallery.innerHTML = '';
+  if (state.components.length === 0) {
+    gallery.classList.remove('visible');
+    empty.style.display = 'flex';
+    ctrl('gallery-status').textContent = '';
+    setStatus('', 'No components yet');
+    return;
+  }
+  empty.style.display = 'none';
+  gallery.classList.add('visible');
+  ctrl('gallery-status').textContent = `${state.components.length} component${state.components.length === 1 ? '' : 's'}`;
+  setStatus('active', `${state.components.length} component${state.components.length === 1 ? '' : 's'}`);
+
+  for (const comp of state.components) {
+    const items = buildComponentItems(comp, grid);
+    const svgStr = buildComponentSVG(items, element, size);
+    const btn = document.createElement('button');
+    btn.className = 'fvs-thumb' + (comp.id === state.selectedId ? ' selected' : '');
+    btn.setAttribute('aria-label', `Component ${comp.ruleSource} ${comp.id}`);
+    btn.innerHTML = svgStr;
+    btn.addEventListener('click', () => { state.selectedId = comp.id; renderGallery(); });
+    gallery.appendChild(btn);
+  }
+}
+
+function getSelectedComponent() {
+  return state.components.find(c => c.id === state.selectedId) || null;
+}
+
+// ── Grid-driven rule availability — the 4-cell-specific named rules
+// only mean anything at exactly 4 cells (see the comment above
+// ruleRandom). Grey them out otherwise and bounce off a now-invalid
+// selection rather than leaving it silently selected but unusable. ──
+const FOUR_CELL_ONLY_RULES = ['pinwheel', 'mirror', 'diagonal', 'checkerboard', 'rowmirror', 'columnmirror', 'radial'];
+function syncRuleAvailability() {
+  const count = activeCellCount();
+  const sel = ctrl('sel-rule');
+  let currentInvalid = false;
+  FOUR_CELL_ONLY_RULES.forEach(v => {
+    const opt = sel.querySelector(`option[value="${v}"]`);
+    const eligible = count === 4;
+    opt.disabled = !eligible;
+    if (!eligible && sel.value === v) currentInvalid = true;
+  });
+  if (currentInvalid) { sel.value = 'identity'; syncRuleUI(); }
+  ctrl('grid-cellcount-hint').textContent = count + ' cell' + (count === 1 ? '' : 's');
+  buildManualEditor();
+  if (sel.value === 'exhaustive') syncExhaustiveHint();
+}
+
+// ── Rule UI wiring ──
+function syncRuleUI() {
+  const mode = ctrl('sel-rule').value;
+  ctrl('rule-random-block').style.display = mode === 'random' ? '' : 'none';
+  ctrl('rule-exhaustive-block').style.display = mode === 'exhaustive' ? '' : 'none';
+  ctrl('rule-manual-block').style.display = mode === 'manual' ? '' : 'none';
+  ctrl('btn-generate').textContent = mode === 'manual' ? 'Add to gallery' : 'Generate';
+  // Exhaustive-over-cap disables Generate; leaving that mode for any
+  // other rule must re-enable it — previously only re-checked when
+  // switching BACK INTO exhaustive, so Generate could stay permanently
+  // stuck disabled after leaving an over-cap Exhaustive for any other rule.
+  if (mode === 'exhaustive') syncExhaustiveHint();
+  else ctrl('btn-generate').disabled = false;
+}
+
+function syncExhaustiveHint() {
+  const total = exhaustiveTotal();
+  const hint = ctrl('rule-total-hint');
+  if (total > EXHAUSTIVE_CAP) {
+    hint.textContent = `${total.toLocaleString()} possible — exceeds the ${EXHAUSTIVE_CAP} cap. Narrow active axes or use Random instead.`;
+    hint.classList.add('over-cap');
+    ctrl('btn-generate').disabled = ctrl('sel-rule').value === 'exhaustive';
+  } else {
+    hint.textContent = `${total.toLocaleString()} possible component${total === 1 ? '' : 's'}.`;
+    hint.classList.remove('over-cap');
+    if (ctrl('sel-rule').value === 'exhaustive') ctrl('btn-generate').disabled = false;
+  }
+}
+
+function buildManualEditor() {
+  const wrap = ctrl('rule-manual-block');
+  const count = activeCellCount();
+  const square4Labels = ['Cell 1 (top-left)', 'Cell 2 (top-right)', 'Cell 3 (bottom-left)', 'Cell 4 (bottom-right)'];
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    const label = (count === 4 && ctrl('sel-grid-type').value === 'square2x2') ? square4Labels[i] : `Cell ${i + 1}`;
+    html += `<div class="fvs-cell-group">
+      <div class="sub-label">${label}</div>
+      <div class="ctrl-row"><div class="ctrl-label">Rotation</div>
+        <select class="panel-select" id="sel-manual-rot-${i}">
+          <option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option>
+        </select></div>
+      <div class="ctrl-row"><div class="ctrl-label">Flip</div>
+        <select class="panel-select" id="sel-manual-flip-${i}">
+          <option value="none">None</option><option value="h">Horizontal</option><option value="v">Vertical</option><option value="hv">Both</option>
+        </select></div>
+      <div class="ctrl-row"><div class="ctrl-label">Scale</div>
+        <select class="panel-select" id="sel-manual-scale-${i}">
+          <option value="0.75">Small (75%)</option><option value="1" selected>Medium (100%)</option><option value="1.25">Large (125%)</option>
+        </select></div>
+    </div>`;
+  }
+  wrap.innerHTML = html;
+  // This rebuilds on every grid/cell-count change (via
+  // syncRuleAvailability), not just once at init — autoLabelPanel only
+  // ran once at page load, so any rebuild after that left its fresh
+  // rows unlabeled. Safe to call again: it skips rows that already have
+  // a name and only fills the real gaps.
+  Organica.autoLabelPanel(wrap);
+}
+
+function generate() {
+  const mode = ctrl('sel-rule').value;
+  let produced;
+  switch (mode) {
+    case 'identity': produced = ruleIdentity(); break;
+    case 'pinwheel': produced = rulePinwheel(); break;
+    case 'mirror': produced = ruleMirror(); break;
+    case 'diagonal': produced = ruleDiagonal(); break;
+    case 'checkerboard': produced = ruleCheckerboard(); break;
+    case 'rowmirror': produced = ruleRowMirror(); break;
+    case 'columnmirror': produced = ruleColumnMirror(); break;
+    case 'radial': produced = ruleRadial(); break;
+    case 'random': produced = ruleRandom(); break;
+    case 'exhaustive':
+      if (exhaustiveTotal() > EXHAUSTIVE_CAP) return;
+      produced = ruleExhaustive();
+      break;
+    case 'manual': {
+      const comp = { id: `manual-${Date.now()}`, ruleSource: 'manual', cells: readManualCells() };
+      state.components.push(comp);
+      state.selectedId = comp.id;
+      renderGallery();
+      return;
+    }
+  }
+  state.components = produced;
+  state.selectedId = produced.length ? produced[0].id : null;
+  renderGallery();
+}
+
+function clearGallery() {
+  state.components = [];
+  state.selectedId = null;
+  renderGallery();
+}
+
+// ── Export ──
+function exportSelected(format) {
+  const comp = getSelectedComponent();
+  if (!comp) return;
+  state.selectedRuleSource = comp.ruleSource;
+  const grid = getGrid();
+  const element = getElement();
+  const items = buildComponentItems(comp, grid);
+  const baseSize = frameSize(grid);
+
+  if (format === 'svg') {
+    const svg = buildComponentSVG(items, element, baseSize);
+    Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('fvs', 'svg'));
+    return;
+  }
+
+  const scale = parseInt(ctrl('sel-export-scale').value, 10);
+  const size = baseSize * scale;
+  const off = document.createElement('canvas');
+  off.width = size; off.height = size;
+  const ctx = off.getContext('2d');
+  ctx.save();
+  ctx.scale(scale, scale);
+  drawComponentCanvas(ctx, items, element, baseSize);
+  ctx.restore();
+  off.toBlob(blob => {
+    Organica.download(blob, Organica.stamp('fvs', 'png'));
+  });
+}
+
+// ── Element UI — Base/Height only mean anything for the triangle,
+// Thickness only for the arc; an upload has no adjustable params. ──
+function syncElementUI() {
+  const type = ctrl('sel-element-type').value;
+  ctrl('element-triangle-block').style.display = type === 'triangle' ? '' : 'none';
+  ctrl('element-arc-block').style.display = type === 'arc' ? '' : 'none';
+}
+
+// ── Component Library — save/reload full snapshots (Element incl. an
+// upload's own geometry, Grid, Palette, and the exact generated
+// arrangement), not just current control state. Organica.presetStore is
+// a generic JSON-blob store (confirmed against Loom's own "Save grid",
+// which persists its whole Universal JSON Model the same way) — one
+// entry here is a complete, self-contained snapshot so loading it later
+// is unambiguous regardless of whatever else is on screen at the time. ──
+const LIBRARY = Organica.presetStore('fvs');
+
+function buildLibraryEntry() {
+  const comp = getSelectedComponent();
+  if (!comp) return null;
+  return {
+    element: { type: ctrl('sel-element-type').value, base: val('rg-base'), height: val('rg-height'), thickness: val('rg-thickness'), customElement: state.customElement },
+    grid: getGrid(),
+    colors: state.colors.slice(),
+    paperColor: state.paperColor,
+    component: { ruleSource: comp.ruleSource, cells: comp.cells },
+    savedAt: new Date().toISOString(),
+  };
+}
+
+// A native prompt() is a real, silent failure point: it throws (rather
+// than returning null) in several embedding contexts an Organica tool
+// can legitimately run inside — the same pattern (Camo Turing, Komorebi,
+// Halide, Warping, Pollen all call prompt() for "save preset") likely
+// has the identical latent bug, flagged separately rather than fixed
+// blind here since it's out of this tool's own scope. FVS's own naming
+// step is now a plain inline row instead, which works everywhere.
+function saveToLibrary() {
+  const comp = getSelectedComponent();
+  if (!comp) return;
+  ctrl('txt-library-name').value = comp.ruleSource + ' ' + new Date().toLocaleTimeString();
+  ctrl('library-save-row').style.display = '';
+  ctrl('library-save-actions').style.display = '';
+  ctrl('txt-library-name').focus();
+  ctrl('txt-library-name').select();
+}
+
+function confirmSaveToLibrary() {
+  const name = ctrl('txt-library-name').value.trim();
+  if (!name) return;
+  const entry = buildLibraryEntry();
+  if (!entry) return;
+  const all = LIBRARY.read();
+  all[name] = entry;
+  LIBRARY.write(all);
+  cancelSaveToLibrary();
+  renderLibrary();
+}
+
+function cancelSaveToLibrary() {
+  ctrl('library-save-row').style.display = 'none';
+  ctrl('library-save-actions').style.display = 'none';
+  ctrl('txt-library-name').value = '';
+}
+
+function removeLibraryEntry(name) {
+  const all = LIBRARY.read();
+  delete all[name];
+  LIBRARY.write(all);
+  renderLibrary();
+}
+
+function applyLibraryEntryToUI(entry) {
+  ctrl('sel-element-type').value = entry.element.type;
+  if (entry.element.type === 'custom' && !ctrl('sel-element-type').querySelector('option[value="custom"]')) {
+    const opt = document.createElement('option');
+    opt.value = 'custom'; opt.textContent = 'Custom (uploaded)';
+    ctrl('sel-element-type').appendChild(opt);
+    ctrl('sel-element-type').value = 'custom';
+  }
+  state.customElement = entry.element.customElement || null;
+  ctrl('rg-base').value = entry.element.base; ctrl('v-base').textContent = entry.element.base;
+  ctrl('rg-height').value = entry.element.height; ctrl('v-height').textContent = entry.element.height;
+  ctrl('rg-thickness').value = entry.element.thickness; ctrl('v-thickness').textContent = entry.element.thickness;
+  syncElementUI();
+
+  if (entry.grid.kind === 'loom') {
+    state.loomGrid = { cellShape: entry.grid.cellShape, cells: entry.grid.cells, inner: { width: entry.grid.width, height: entry.grid.height } };
+    ctrl('sel-grid-type').value = 'loom';
+    ctrl('grid-square-block').style.display = 'none';
+    ctrl('grid-loom-block').style.display = '';
+  } else {
+    ctrl('sel-grid-type').value = entry.grid.cols === 3 ? 'square3x3' : entry.grid.cols === 4 ? 'square4x4' : 'square2x2';
+    ctrl('grid-square-block').style.display = '';
+    ctrl('grid-loom-block').style.display = 'none';
+    ctrl('rg-cellsize').value = entry.grid.cellSize; ctrl('v-cellsize').textContent = entry.grid.cellSize;
+    ctrl('rg-gap').value = entry.grid.gap; ctrl('v-gap').textContent = entry.grid.gap;
+  }
+  syncRuleAvailability();
+
+  state.colors = entry.colors.slice();
+  buildPalette();
+  state.paperColor = entry.paperColor;
+  paperSwatch.set(entry.paperColor);
+
+  const comp = { id: `library-${Date.now()}`, ruleSource: entry.component.ruleSource, cells: entry.component.cells };
+  state.components = [comp];
+  state.selectedId = comp.id;
+  renderGallery();
+  renderElementPreview();
+}
+
+function renderLibrary() {
+  const all = LIBRARY.read();
+  const names = Object.keys(all);
+  ctrl('library-empty').style.display = names.length ? 'none' : '';
+  const wrap = ctrl('fvs-library');
+  wrap.innerHTML = '';
+  for (const name of names) {
+    const entry = all[name];
+    const items = buildComponentItems({ cells: entry.component.cells }, entry.grid);
+    const size = frameSize(entry.grid);
+    // Render with the ENTRY's own saved colours/paper, not the live
+    // Palette state — a library thumbnail must never drift just because
+    // the panel keeps getting edited after saving.
+    const savedColorAt = (i) => entry.colors[i % entry.colors.length];
+    const itemsWithSavedColor = items.map((it, i) => ({ ...it, color: savedColorAt(i) }));
+    const svgStr = buildComponentSVGWithPaper(itemsWithSavedColor, entry.element, size, entry.paperColor);
+    const btn = document.createElement('button');
+    btn.className = 'fvs-library-item';
+    btn.setAttribute('aria-label', 'Load saved component ' + name);
+    btn.title = name;
+    btn.innerHTML = svgStr;
+    btn.addEventListener('click', () => applyLibraryEntryToUI(entry));
+    const x = document.createElement('button');
+    x.className = 'rmx-x'; x.textContent = '×'; x.title = 'Remove';
+    x.setAttribute('aria-label', 'Remove saved component ' + name);
+    x.addEventListener('click', e => { e.stopPropagation(); removeLibraryEntry(name); });
+    const holder = document.createElement('div');
+    holder.style.position = 'relative';
+    holder.appendChild(btn); holder.appendChild(x);
+    wrap.appendChild(holder);
+  }
+}
+
+// buildComponentSVG always reads state.paperColor — a saved Library
+// entry needs its OWN saved paper colour instead, so this wraps it with
+// a temporary swap rather than duplicating the whole render function.
+function buildComponentSVGWithPaper(items, element, size, paperColor) {
+  const prev = state.paperColor;
+  state.paperColor = paperColor;
+  const svg = buildComponentSVG(items, element, size);
+  state.paperColor = prev;
+  return svg;
+}
+
+// ── Wiring ──
+ctrl('rg-base').addEventListener('input', e => { ctrl('v-base').textContent = e.target.value; renderGallery(); renderElementPreview(); });
+ctrl('rg-height').addEventListener('input', e => { ctrl('v-height').textContent = e.target.value; renderGallery(); renderElementPreview(); });
+ctrl('rg-thickness').addEventListener('input', e => { ctrl('v-thickness').textContent = e.target.value; renderGallery(); renderElementPreview(); });
+ctrl('rg-cellsize').addEventListener('input', e => { ctrl('v-cellsize').textContent = e.target.value; renderGallery(); });
+ctrl('rg-gap').addEventListener('input', e => { ctrl('v-gap').textContent = e.target.value; renderGallery(); });
+ctrl('rg-random-count').addEventListener('input', e => { ctrl('v-random-count').textContent = e.target.value; });
+
+ctrl('sel-element-type').addEventListener('change', () => { syncElementUI(); renderGallery(); renderElementPreview(); });
+ctrl('btn-upload-element').addEventListener('click', () => ctrl('file-element').click());
+ctrl('file-element').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) handleElementUpload(file);
+  e.target.value = '';
+});
+ctrl('btn-browse-creator').addEventListener('click', toggleCreatorLibraryPicker);
+
+ctrl('sel-grid-type').addEventListener('change', () => {
+  const isLoom = ctrl('sel-grid-type').value === 'loom';
+  ctrl('grid-square-block').style.display = isLoom ? 'none' : '';
+  ctrl('grid-loom-block').style.display = isLoom ? '' : 'none';
+  syncRuleAvailability();
+  renderGallery();
+});
+ctrl('btn-upload-loom').addEventListener('click', () => ctrl('file-loom-grid').click());
+ctrl('file-loom-grid').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) handleLoomGridUpload(file);
+  e.target.value = '';
+});
+
+const paperSwatch = Organica.createColorSwatch('paper', {
+  initial: '#ffffff',
+  onChange: (hex) => { state.paperColor = hex; renderGallery(); renderElementPreview(); },
+});
+
+ctrl('chk-axis-rotation').addEventListener('change', syncExhaustiveHint);
+ctrl('chk-axis-flip').addEventListener('change', syncExhaustiveHint);
+ctrl('chk-axis-scale').addEventListener('change', e => {
+  ctrl('scale-values-block').style.display = e.target.checked ? '' : 'none';
+  syncExhaustiveHint();
+});
+[['rg-scale-small', 'v-scale-small'], ['rg-scale-medium', 'v-scale-medium'], ['rg-scale-large', 'v-scale-large']].forEach(([rangeId, valId]) => {
+  ctrl(rangeId).addEventListener('input', e => { ctrl(valId).textContent = e.target.value; syncExhaustiveHint(); });
+});
+
+ctrl('sel-rule').addEventListener('change', syncRuleUI);
+ctrl('btn-generate').addEventListener('click', generate);
+ctrl('btn-clear-gallery').addEventListener('click', clearGallery);
+ctrl('btn-seed-random').addEventListener('click', () => { ctrl('num-seed').value = Math.floor(Math.random() * 1e6); });
+
+Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+ctrl('btn-export-png').addEventListener('click', () => exportSelected('png'));
+ctrl('btn-export-svg').addEventListener('click', () => exportSelected('svg'));
+
+ctrl('btn-save-library').addEventListener('click', saveToLibrary);
+ctrl('btn-library-confirm').addEventListener('click', confirmSaveToLibrary);
+ctrl('btn-library-cancel').addEventListener('click', cancelSaveToLibrary);
+ctrl('txt-library-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmSaveToLibrary();
+  if (e.key === 'Escape') cancelSaveToLibrary();
+});
+
+// ── Init ──
+buildPalette();
+syncElementUI();
+syncRuleAvailability();
+syncRuleUI();
+renderGallery();
+renderElementPreview();
+renderLibrary();
+Organica.autoLabelPanel(document);
+Organica.enhanceSliders(document);
+</script>
+</body>
+</html>

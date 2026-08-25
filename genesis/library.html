@@ -405,6 +405,21 @@
   // ── Library data ───────────────────────────────────────
   function saveLibrary() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.library)); }
 
+  // Kept in sync with genesis/creator.html's own identical seeding —
+  // whichever of the two pages a user opens first performs the one-time
+  // seed and persists it, but a user could visit either page first.
+  const BASIC_SHAPES_SET_ID = 'basic-shapes';
+  function basicShapeForms() {
+    const ink = 'fill="var(--ink)"';
+    return [
+      { id: 'basic-square', name: 'Square', svg: `<svg viewBox="0 0 200 200"><rect x="10" y="10" width="180" height="180" ${ink}/></svg>` },
+      { id: 'basic-circle', name: 'Circle', svg: `<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="90" ${ink}/></svg>` },
+      { id: 'basic-triangle', name: 'Triangle', svg: `<svg viewBox="0 0 200 200"><path d="M 100,10 L 10,190 L 190,190 Z" ${ink}/></svg>` },
+      { id: 'basic-arc', name: 'Arc (quarter)', svg: `<svg viewBox="0 0 200 200"><path d="M 0,0 L 200,0 A 200,200 0 0,1 0,200 Z" ${ink}/></svg>` },
+      { id: 'basic-hexagon', name: 'Hexagon', svg: `<svg viewBox="0 0 200 200"><polygon points="100,10 182,55 182,145 100,190 18,145 18,55" ${ink}/></svg>` },
+      { id: 'basic-star', name: 'Star', svg: `<svg viewBox="0 0 200 200"><polygon points="100,10 122,78 194,78 136,120 158,188 100,146 42,188 64,120 6,78 78,78" ${ink}/></svg>` },
+    ];
+  }
   function loadLibrary() {
     let lib = null;
     try { const s = readLibraryRaw(); if (s) lib = JSON.parse(s); } catch (e) { lib = null; }
@@ -414,6 +429,12 @@
     if (!state.library.forms) state.library.forms = [];
     if (!state.library.sets.find(s => s.id === BUILT_IN_SET_ID)) {
       state.library.sets.unshift(defaultLibrary().sets[0]);
+    }
+    if (!state.library.sets.find(s => s.id === BASIC_SHAPES_SET_ID)) {
+      const shapes = basicShapeForms();
+      state.library.forms.push(...shapes);
+      state.library.sets.splice(1, 0, { id: BASIC_SHAPES_SET_ID, name: 'Basic Shapes', builtIn: false, forms: shapes.map(s => s.id), gridConfig: { columns: 4, colGap: 16, rowGap: 16, padding: 24 }, formLayout: [] });
+      saveLibrary();
     }
   }
 

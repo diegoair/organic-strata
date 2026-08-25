@@ -60,6 +60,10 @@
       "destination": "/vortex/$1"
     },
     {
+      "source": "/fvs/(.*)",
+      "destination": "/fvs/$1"
+    },
+    {
       "source": "/shared/(.*)",
       "destination": "/shared/$1"
     },
