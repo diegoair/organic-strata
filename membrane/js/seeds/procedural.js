@@ -1,12 +1,38 @@
 /* ─────────────────────────────────────────────────────────────
    Membrane — Procedural seed: Circle (a ring of formResolution points,
-   evenly spaced), Line (formResolution points interpolated between two
-   random endpoints), or Point (exactly one agent). Ported from the
-   original P_2_2_3_02 sketch's own setup()/mousePressed() branching —
-   this is the one seed source with no external raster/outline to read,
-   so it writes directly into state.xs/ys in canvas-relative space.
+   evenly spaced — or, per state.proceduralShape, a Noise-perturbed or
+   Cluster variant of that same ring), Line (formResolution points
+   interpolated between two random endpoints), or Point (exactly one
+   agent). Ported from the original P_2_2_3_02 sketch's own setup()/
+   mousePressed() branching — this is the one seed source with no
+   external raster/outline to read, so it writes directly into
+   state.xs/ys in canvas-relative space.
+
+   Seed shape (Circle mode only — Line/Point have no "ring" to reshape):
+     'ring'    — the original perfect circle, byte-for-byte unchanged.
+     'noise'   — radius modulated by Organica.noise.fbm, sampled on a
+                 circle in NOISE space (cos/sin of the point's own angle)
+                 so angle=0 and angle=2π land on the exact same noise
+                 value — no seam where the loop closes. An organic blob,
+                 not a lumpy one — the same "drop mark" language Komorebi's
+                 own Cellular/Broadleaf masks already use this technique for.
+     'cluster' — heavy per-vertex radius jitter (0.3x–1.7x) plus small
+                 angular jitter, for a lumpy, uneven silhouette. NOT
+                 Komorebi's own clusterField (a raster union of many
+                 independent discs) — Membrane's shape is always ONE
+                 ordered point list feeding a single curveVertex loop,
+                 so "cluster" here is the closest honest equivalent: an
+                 irregular outline instead of a raster blob union. Angle
+                 stays monotonically increasing (jitter capped at under
+                 half the angular step) so the closed curve can't
+                 self-cross into a chaotic knot.
    ───────────────────────────────────────────────────────────── */
 import { state } from '../state.js';
+
+function ringPoint(i, n, radius) {
+  const a = (Math.PI * 2 * i) / n;
+  return [Math.cos(a) * radius, Math.sin(a) * radius, a];
+}
 
 export function initShape(cx, cy, radius) {
   const p = state.p;
@@ -25,7 +51,24 @@ export function initShape(cx, cy, radius) {
     return;
   }
 
-  if (state.drawMode === 'circle') {
+  if (state.drawMode === 'circle' && state.proceduralShape === 'noise') {
+    const freq = 1.6, seed = p.random(1000);   // a fresh noise offset per spawn, same "vary every time" feel Rainbow/Cluster already have
+    for (let i = 0; i < state.formResolution; i++) {
+      const [ux, uy, a] = ringPoint(i, state.formResolution, 1);
+      const n = Organica.noise.fbm(ux * freq + seed, uy * freq + seed);   // 0..1, seamless around the loop since (ux,uy) is itself periodic
+      const r = radius * (0.55 + n * 0.9);
+      state.xs.push(Math.cos(a) * r);
+      state.ys.push(Math.sin(a) * r);
+    }
+  } else if (state.drawMode === 'circle' && state.proceduralShape === 'cluster') {
+    const step = (Math.PI * 2) / state.formResolution;
+    for (let i = 0; i < state.formResolution; i++) {
+      const a = i * step + p.random(-step * 0.35, step * 0.35);   // angular jitter capped under half a step — never reorders past a neighbour
+      const r = radius * p.random(0.3, 1.7);
+      state.xs.push(Math.cos(a) * r);
+      state.ys.push(Math.sin(a) * r);
+    }
+  } else if (state.drawMode === 'circle') {
     const angle = p.radians(360 / state.formResolution);
     for (let i = 0; i < state.formResolution; i++) {
       state.xs.push(Math.cos(angle * i) * radius);

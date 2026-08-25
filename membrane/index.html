@@ -229,7 +229,15 @@
           <option value="point">Point</option>
         </select>
       </div>
-      <p class="org-panel__hint">Resolution is how many points make up the form; Init radius sets a freshly spawned one's size. Circle closes the curve into a loop; Line leaves it open; Point collapses the form to a single dot — no curve, driven by any Movement pattern below. Fill (Ink section) has no effect in Point mode.</p>
+      <div class="ctrl-row" id="row-seedshape" style="display:none">
+        <div class="ctrl-label">Seed shape</div>
+        <select class="panel-select" id="sel-seedshape">
+          <option value="ring">Ring</option>
+          <option value="noise">Noise blob</option>
+          <option value="cluster">Cluster</option>
+        </select>
+      </div>
+      <p class="org-panel__hint">Resolution is how many points make up the form; Init radius sets a freshly spawned one's size. Circle closes the curve into a loop; Line leaves it open; Point collapses the form to a single dot — no curve, driven by any Movement pattern below. Fill (Ink section) has no effect in Point mode. Seed shape (Circle only, Procedural seed) reshapes that ring — Noise blob perturbs the radius with organic noise, Cluster gives each point its own heavy random radius for a lumpy silhouette.</p>
     </div>
 
     <div class="panel-section">
@@ -420,6 +428,7 @@
 <input type="file" id="file-loompath" accept=".json,application/json" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;">
 
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-noise.js"></script>
 <script src="/shared/opentype.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
 <script type="module" src="./js/main.js"></script>

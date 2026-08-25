@@ -192,6 +192,13 @@ loadMembraneFont((err) => {
 });
 
 // ── Seed source tabs ──
+// Seed shape (Ring/Noise blob/Cluster) only means something for the
+// Procedural source's own Circle mode — Image/Text supply their own
+// outline, Line/Point have no ring to reshape. Dead-control rule
+// (Komorebi §18): hide, don't leave it visibly doing nothing.
+function syncSeedShapeRow() {
+  ctrl('row-seedshape').style.display = (state.seedSource === 'procedural' && state.drawMode === 'circle') ? '' : 'none';
+}
 function syncSeedSourceUI() {
   ['procedural', 'image', 'text'].forEach(v => {
     const block = ctrl('seedsrc-' + v);
@@ -199,6 +206,7 @@ function syncSeedSourceUI() {
   });
   ctrl('row-imgscale').style.display = state.seedSource === 'procedural' ? 'none' : '';
   ctrl('seg-seedsource').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === state.seedSource));
+  syncSeedShapeRow();
 }
 ctrl('seg-seedsource').querySelectorAll('.seg-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -227,8 +235,10 @@ ctrl('sel-mode').addEventListener('change', e => {
   ctrl('row-resolution').style.display = isPoint ? 'none' : '';
   ctrl('row-initradius').style.display = isPoint ? 'none' : '';
   ctrl('row-pointsize').style.display = isPoint ? '' : 'none';
+  syncSeedShapeRow();
   reseedCurrent();
 });
+ctrl('sel-seedshape').addEventListener('change', e => { state.proceduralShape = e.target.value; reseedCurrent(); });
 
 // ── Seed: Image ──
 ctrl('btn-upload-image').addEventListener('click', () => ctrl('file-image').click());

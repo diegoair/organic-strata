@@ -26,6 +26,7 @@ export const state = {
   pointSizeSetting: 8,
   pointSize: 8,             // the LIVE point's own drawn radius, set by initShape() from whatever radius it was spawned with
   drawMode: 'line',         // 'circle' | 'line' | 'point'
+  proceduralShape: 'ring',  // 'ring' | 'noise' | 'cluster' — Circle draw mode only, see seeds/procedural.js's own header
   stepSize: 2,
 
   // ── Seed source ──
