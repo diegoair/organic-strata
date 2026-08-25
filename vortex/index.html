@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vortex — Organica</title>
+
+<!-- Tokens → header → floatbar → panel, in this order (load-bearing —
+     UI-SHELL.md §2/§4b/§4c). organica-core.js is a plain script (not a
+     module) so Organica.* exists before js/main.js (the ES module entry)
+     parses. -->
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-panel.css">
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #0a0a0a;
+    --paper: #f5f2ec;
+    --mid: #696256;
+    --accent: #2a2a2a;
+    --panel: #eceae4;
+    --border: #d0c8b8;
+    --tool: #6d4bd8;   /* identity colour — deep indigo, unclaimed hue region, reads as the vortex's own depth axis */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: var(--fs-base); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+  #app { display: flex; flex: 1; overflow: hidden; height: calc(100vh - var(--header-h, 40px)); }
+
+  /* No Organica.createZoomPan here (see main.js's own header) — Vortex's
+     own 3D camera (drag-orbit / Shift-drag-roll / Camera distance) is
+     the ONLY zoom/pan mechanism, so there is deliberately no zoom-hud
+     block and no .zoomed/.panning cursor classes the way Membrane has.
+     grab/grabbing instead communicate "this canvas is drag-orbitable". */
+  #canvas-wrap { flex: 1; display: flex; align-items: center; justify-content: center; background: var(--panel); position: relative; overflow: hidden; }
+  #canvas-wrap canvas { display: block; cursor: grab; }
+  #canvas-wrap canvas.orbiting { cursor: grabbing; }
+  #tool-label { position: absolute; left: var(--space-4); bottom: var(--space-4); font-size: var(--fs-micro); color: #f6e8c3; opacity: 0.6; pointer-events: none; }
+
+  #panel { width: var(--panel-w, 248px); flex-shrink: 0; background: var(--panel); border-left: 1px solid var(--border); overflow-y: auto; }
+
+  /* Not part of organica-panel.css — copied verbatim from Membrane's own
+     local styles (Camo Turing's own icon-btn/RMX-palette convention). */
+  .icon-btn {
+    background: none; border: 1px solid var(--border); color: var(--accent);
+    width: 22px; height: 20px; flex-shrink: 0; padding: 0; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .icon-btn:hover { border-color: var(--accent); color: var(--ink); }
+
+  .rmx-palette { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .rmx-color { position: relative; width: 36px; height: 28px; border: 1px solid var(--border); cursor: pointer; overflow: hidden; }
+  .rmx-color input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; cursor: pointer; }
+  .rmx-x {
+    position: absolute; top: 0; right: 0; width: 13px; height: 13px;
+    line-height: 11px; font-size: var(--fs-base); padding: 0; cursor: pointer;
+    background: rgba(255,255,255,0.82); color: #000; border: none;
+  }
+  .rmx-add {
+    width: 36px; height: 28px; border: 1px dashed var(--border); background: none;
+    color: var(--mid); font-size: var(--fs-large); cursor: pointer; line-height: 1;
+  }
+  .rmx-add:hover { border-color: var(--accent); color: var(--accent); }
+
+  .color-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .color-name { flex: 1; font-size: var(--fs-small); color: var(--mid); }
+  .color-swatch-wrap { position: relative; width: 26px; height: 22px; }
+  .color-swatch { position: absolute; inset: 0; width: 100%; height: 100%; border: 1px solid var(--border); padding: 0; cursor: pointer; background: var(--bg-swatch, #060606); }
+  .color-swatch-wrap input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; cursor: pointer; }
+  .color-hex { width: 70px; font-family: monospace; font-size: var(--fs-micro); background: var(--paper); border: 1px solid var(--border); color: var(--ink); padding: var(--space-1) var(--space-2); }
+</style>
+</head>
+<body>
+
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Vortex</span></a>
+  <div class="org-header__spacer"></div>
+</header>
+
+<!-- Floating toolbar — same shared component every other tool's own
+     transport/export lives in. Play/Pause + Reset (→ resting, camera
+     zeroed) + Reseed (→ randomise seed) + Export. -->
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <button class="org-floatbar__btn" id="btn-playpause" aria-label="Play">
+    <svg class="ico" id="ico-playpause" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 3.5v9l7-4.5-7-4.5z" fill="currentColor"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <button class="org-floatbar__btn" id="btn-reset" aria-label="Reset to rest">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 5h10M6.5 5V3.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1V5M4.5 5l.6 8a1 1 0 0 0 1 .9h3.8a1 1 0 0 0 1-.9l.6-8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <button class="org-floatbar__btn" id="btn-reseed" aria-label="Reseed">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M13 2.3V6h-3.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-export-png">PNG</button>
+        <button class="org-btn" id="btn-export-svg">SVG</button>
+      </div>
+      <p class="org-popover__hint">PNG ×2/×4 is a genuine re-render at that resolution, not an upsampled bitmap — Vortex redraws from scratch every frame regardless. SVG is real vector geometry: one line per currently-visible segment, depth-correct stroke width and paint order. Both read whatever is on screen right now — pausing first is the natural way to frame a shot (camera drag still works while paused), but isn't required.</p>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__title">Motion</div>
+      <button class="org-btn org-btn--block" id="btn-record">Start recording</button>
+      <p class="org-popover__hint" id="record-hint">Records the live canvas as MP4 (WebM if MP4 isn't supported in this browser). Starts (or resumes) playback automatically.</p>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-export-scale">Scale</label>
+        <select class="org-select" id="sel-export-scale">
+          <option value="1">&times;1</option>
+          <option value="2" selected>&times;2</option>
+          <option value="4">&times;4</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <div id="canvas-wrap">
+    <div id="tool-label">Vortex</div>
+  </div>
+
+  <div id="panel">
+
+    <div class="panel-section">
+      <h3>Canvas <span class="hint">the physical space</span></h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-canvas-preset" aria-label="Canvas preset">
+          <option value="">Custom…</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Width</div>
+        <input type="number" class="panel-select" id="num-canvas-width" value="700" min="200" max="4000" step="10" style="width:100%">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Height</div>
+        <input type="number" class="panel-select" id="num-canvas-height" value="700" min="200" max="4000" step="10" style="width:100%">
+      </div>
+      <p class="org-panel__hint">Resizing does NOT reset the animation — unlike a tool that accumulates a trail, Vortex redraws every frame from its own current state, so nothing is lost by resizing while running.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Vortex geometry</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">R small</div>
+        <input type="range" id="rg-rsmall" min="0" max="100" step="1" value="15">
+        <span class="ctrl-val" id="v-rsmall">15</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">R large</div>
+        <input type="range" id="rg-rlarge" min="40" max="400" step="1" value="180">
+        <span class="ctrl-val" id="v-rlarge">180</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Axis length</div>
+        <input type="range" id="rg-axislen" min="60" max="700" step="1" value="320">
+        <span class="ctrl-val" id="v-axislen">320</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Turns</div>
+        <input type="range" id="rg-turns" min="0.5" max="10" step="0.1" value="3">
+        <span class="ctrl-val" id="v-turns">3.0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Radius easing</div>
+        <input type="range" id="rg-easing" min="0.3" max="4" step="0.1" value="1">
+        <span class="ctrl-val" id="v-easing">1.0</span>
+      </div>
+      <p class="org-panel__hint">R small/large set the cone's own two ends; Axis length is its depth. Radius easing bends how the radius grows along the axis — 1 is linear, above 1 stays tight near the small end then flares, below 1 flares early.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Segment</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Segment length</div>
+        <input type="range" id="rg-seglen" min="4" max="60" step="1" value="16">
+        <span class="ctrl-val" id="v-seglen">16</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Thickness</div>
+        <input type="range" id="rg-thick" min="1" max="20" step="0.5" value="5">
+        <span class="ctrl-val" id="v-thick">5</span>
+      </div>
+      <label class="check-row"><input type="checkbox" id="chk-depthcue" checked><span>Depth fade (dim toward camera-far)</span></label>
+    </div>
+
+    <div class="panel-section">
+      <h3>Coverage</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Segments</div>
+        <input type="range" id="rg-copies" min="5" max="800" step="1" value="260">
+        <span class="ctrl-val" id="v-copies">260</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Coverage</div>
+        <input type="range" id="rg-phase" min="0" max="3" step="0.01" value="1">
+        <span class="ctrl-val" id="v-phase">1.00</span>
+      </div>
+      <p class="org-panel__hint">Segments is how many independent lines trace the spiral at once; Coverage spreads their starting phase — 1 fills the spiral evenly, higher values bunch multiple passes together.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Independence</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Noise amount</div>
+        <input type="range" id="rg-noiseamt" min="0" max="80" step="1" value="18">
+        <span class="ctrl-val" id="v-noiseamt">18</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Noise speed</div>
+        <input type="range" id="rg-noisespeed" min="0" max="2" step="0.01" value="0.35">
+        <span class="ctrl-val" id="v-noisespeed">0.35</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Spin speed</div>
+        <input type="range" id="rg-spinspeed" min="0" max="6" step="0.1" value="0">
+        <span class="ctrl-val" id="v-spinspeed">0.0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Orbit radius</div>
+        <input type="range" id="rg-orbitr" min="0" max="60" step="1" value="0">
+        <span class="ctrl-val" id="v-orbitr">0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Orbit speed</div>
+        <input type="range" id="rg-orbitspeed" min="0" max="6" step="0.1" value="1.5">
+        <span class="ctrl-val" id="v-orbitspeed">1.5</span>
+      </div>
+      <p class="org-panel__hint">Coherent 3D noise wobbles each segment off the pure spiral, scaled by seed so it's reproducible. Spin/Orbit give each segment its own independent rotation on top.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Camera</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Camera tilt</div>
+        <input type="range" id="rg-tilt" min="0" max="90" step="1" value="55">
+        <span class="ctrl-val" id="v-tilt">55</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Camera distance</div>
+        <input type="range" id="rg-camdist" min="200" max="2000" step="10" value="700">
+        <span class="ctrl-val" id="v-camdist">700</span>
+      </div>
+      <button class="org-btn org-btn--block" id="btn-camera-reset">Reset camera angle</button>
+      <p class="org-panel__hint">Drag the canvas to orbit (once the spiral has finished generating); Shift+drag rolls instead. Camera distance is the zoom — Vortex's own real 3D camera, not a 2D pan/zoom overlay. Drag works while paused too, for framing an export.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Temporal</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Angular speed</div>
+        <input type="range" id="rg-angspeed" min="0" max="4" step="0.01" value="1.2">
+        <span class="ctrl-val" id="v-angspeed">1.20</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Traverse speed</div>
+        <input type="range" id="rg-travspeed" min="0" max="1" step="0.005" value="0.15">
+        <span class="ctrl-val" id="v-travspeed">0.150</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Start ramp</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Ramp duration</div>
+        <input type="range" id="rg-rampdur" min="0.5" max="20" step="0.1" value="8">
+        <span class="ctrl-val" id="v-rampdur">8.0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Ramp exponent</div>
+        <input type="range" id="rg-rampexp" min="0.5" max="6" step="0.1" value="3">
+        <span class="ctrl-val" id="v-rampexp">3.0</span>
+      </div>
+      <p class="org-panel__hint">On hover/Play, the spiral grows from a single seed line — speed and segment count climb together over Ramp duration, on an ease-in curve set by Ramp exponent.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Palette</h3>
+      <div id="rmx-palette" class="rmx-palette"></div>
+
+      <div class="color-row">
+        <span class="color-name">Background</span>
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-bg"></button>
+          <input type="color" id="cp-bg" value="#060606">
+        </span>
+        <input class="color-hex" id="hex-bg" value="#060606" maxlength="7">
+        <button class="icon-btn" id="btn-random-bg" title="Random colour" aria-label="Random background colour">
+          <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
+        </button>
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Seed</div>
+        <input type="number" class="panel-select" id="num-seed" value="1" min="0" max="999999" step="1" style="width:70%">
+        <button class="icon-btn" id="btn-seed-random" title="Random seed" aria-label="Random seed">
+          <svg viewBox="0 0 16 16" width="11" height="11"><path d="M13 8a5 5 0 1 1-1.6-3.65" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M13 2.3V6h-3.7" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <p class="org-panel__hint">The palette itself is Vortex's ink — segments cycle through it by index, there's no separate single Ink colour to pair with Background. Seed reproducibly drives the noise/spin/orbit randomness — the same seed always gives the same vortex.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Debug</h3>
+      <label class="check-row"><input type="checkbox" id="chk-debug"><span>Show helix guide</span></label>
+    </div>
+
+  </div>
+</div>
+
+<script src="/shared/organica-core.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>
