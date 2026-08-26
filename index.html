@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Organica</title>
   <link rel="stylesheet" href="/shared/organica-tokens.css">
+  <link rel="stylesheet" href="/genesis/organic-animations.css">
   <style>
     *, *::before, *::after {
       margin: 0;
@@ -77,9 +78,20 @@
       width: clamp(14rem, 20vw, 18rem);
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      /* plain "center" overflows equally top AND bottom once the nav's
+         own content (now 8 groups) is taller than the viewport — on
+         shorter screens that pushes it up behind the fixed header
+         instead of just scrolling past the bottom. "safe center" (CSS
+         Box Alignment 3) falls back to start-alignment exactly when
+         centering would overflow the start edge, fixing that while still
+         centering on tall viewports where everything fits. */
+      justify-content: safe center;
       gap: 0.85rem;
-      padding: 1.5rem clamp(1.25rem, 3vw, 2.5rem);
+      /* top padding clears .header's own height (~90px, wordmark +
+         payoff) — needed now that "safe center" can pin content flush
+         to the top padding on short viewports instead of overflowing
+         above it silently */
+      padding: 6.5rem clamp(1.25rem, 3vw, 2.5rem) 1.5rem;
       overflow-y: auto;
       opacity: 0;
       animation: fadeUp 0.8s ease forwards 0.2s;
@@ -199,13 +211,107 @@
     .nav__link--soul:hover { color: #a83e6b; }
     .nav__link--soul::after { background: #a83e6b; }
 
-    /* ── centre — reserved for future displays ── */
+    /* ── centre — bento showcase of the Genesis motion library.
+       Reuses the 55 forms verbatim (organic-animations.css + the
+       ORGANIC_FORMS data loaded below) — no new assets, --ink varied
+       per cell via inline custom property so one shared stylesheet still
+       drives every colour, exactly the mechanism CLAUDE.md documents for
+       Spore/Pollen's own retinting. ── */
     .display-area {
       position: relative;
       z-index: 1;
       height: 100vh;
       margin-left: clamp(14rem, 20vw, 18rem);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow-y: auto;
+      padding: 3rem 2rem;
     }
+
+    .bento-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      opacity: 0;
+      animation: fadeUp 0.9s ease forwards 0.35s;
+    }
+
+    .bento {
+      display: grid;
+      grid-template-columns: repeat(8, 100px);
+      grid-auto-rows: 100px;
+      grid-auto-flow: dense;
+      gap: 11px;
+    }
+
+    .bento-cell {
+      --bg-cell: #f2efe7;
+      position: relative;
+      background: var(--bg-cell);
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .bento-cell:hover { transform: scale(1.045); }
+    .bento-cell svg { width: 68%; height: 68%; }
+
+    .bento-cell.size-lg   { grid-column: span 2; grid-row: span 2; }
+    .bento-cell.size-wide { grid-column: span 2; grid-row: span 1; }
+    .bento-cell.size-tall { grid-column: span 1; grid-row: span 2; }
+
+    /* tool-name tag, revealed on hover — every cell is a real link now,
+       Genesis forms to /genesis/, tool-preview cells to their own tool */
+    .bento-cell__tag {
+      position: absolute;
+      left: 6px;
+      bottom: 5px;
+      font-size: 0.56rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      color: var(--ink);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+    }
+    .bento-cell:hover .bento-cell__tag { opacity: 0.7; }
+
+    .bento-link {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--ink-dim);
+      text-decoration: none;
+    }
+    .bento-link:hover { color: var(--accent); }
+
+    /* ── tool-preview motifs — small hand-built SVGs standing in for each
+       tool's own visual signature (not the live engines: cheap, safe,
+       zero risk of running 10 simultaneous WebGL/canvas loops in tiny
+       cells). Same one-ink-variable mechanism as the Genesis forms. ── */
+    .tp-loom rect      { fill: none; stroke: var(--ink); stroke-width: 3; }
+    .tp-komorebi circle { fill: var(--ink); }
+    .tp-komorebi circle:nth-child(2) { opacity: .55; }
+    .tp-komorebi circle:nth-child(3) { opacity: .8; }
+    .tp-komorebi circle:nth-child(4) { opacity: .5; }
+    .tp-komorebi circle:nth-child(5) { opacity: .65; }
+    .tp-turing path   { fill: var(--ink); }
+    .tp-warping path  { fill: none; stroke: var(--ink); stroke-width: 4; stroke-linecap: round; }
+    .tp-halide circle { fill: var(--ink); }
+    .tp-pollen circle { fill: var(--ink); }
+    .tp-fvs polygon   { fill: var(--ink); }
+    .tp-vortex path   { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; }
+    .tp-soul circle {
+      fill: none; stroke: var(--ink); stroke-width: 3;
+      transform-origin: 100px 100px; animation: breathe 3s ease-in-out infinite;
+    }
+    .tp-soul circle:nth-child(2) { animation-delay: -0.5s; }
+    .tp-soul circle:nth-child(3) { animation-delay: -1s; }
 
     /* ── footer — Design System reference, replaces the old
        "System v0.1" placeholder. z-index above .display-area so its
@@ -312,12 +418,151 @@
     </div>
   </nav>
 
-  <!-- Reserved for future displays — deliberately empty for now. -->
-  <main class="display-area"></main>
+  <main class="display-area">
+    <div class="bento-wrap">
+      <div class="bento" id="bento"></div>
+      <a class="bento-link" href="/genesis/">Genesis &mdash; 55 organic forms, the motion library every tool draws from</a>
+    </div>
+  </main>
+
+  <!-- shared SVG defs (goo filter) — same inline block genesis/indicators.html
+       uses, required by organic-animations.css for forms 3/4/5/8/9/25/27/28/
+       31/41/55's metaball merge effect. -->
+  <svg class="defs" aria-hidden="true">
+    <defs>
+      <filter id="goo">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+        <feColorMatrix in="blur" mode="matrix"
+          values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10" result="goo"/>
+        <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+      </filter>
+      <filter id="goosoft">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+        <feColorMatrix in="blur" mode="matrix"
+          values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8" result="goo"/>
+        <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+      </filter>
+    </defs>
+  </svg>
 
   <div class="meta">
     <a class="meta__link" href="/design-system/">Design System</a>
   </div>
+
+  <script src="/genesis/organic-forms.js"></script>
+  <script>
+    // ── bento showcase — Genesis forms + hand-built preview motifs for
+    // other tools, so the hub reads as one gallery instead of a Genesis-
+    // only demo. Every cell links out to its own tool.
+    const BENTO_FORMS = [
+      { id: 1,  size: 'lg',   ink: '#6a9c2e' },  // breath
+      { id: 3,  size: 'sm',   ink: '#c04a1e' },  // two metaballs merge
+      { id: 7,  size: 'sm',   ink: '#c04a1e' },  // drop fall
+      { id: 13, size: 'tall', ink: '#a4842a' },  // flower bloom
+      { id: 17, size: 'wide', ink: '#4f7ba8' },  // jellyfish
+      { id: 23, size: 'sm',   ink: '#5c6f2e' },  // rain
+      { id: 27, size: 'sm',   ink: '#8256cc' },  // cell divide
+      { id: 30, size: 'sm',   ink: '#4f7ba8' },  // iris pulse
+      { id: 35, size: 'lg',   ink: '#2f9c86' },  // phyllotaxis spiral
+      { id: 39, size: 'wide', ink: '#8a5330' },  // mycelium network
+      { id: 42, size: 'sm',   ink: '#305f9c' },  // pollen drift
+      { id: 45, size: 'sm',   ink: '#5c6f2e' },  // mushroom inflate
+      { id: 48, size: 'tall', ink: '#4d6d86' },  // tree rings
+      { id: 52, size: 'sm',   ink: '#5936c4' },  // shard rotation
+      { id: 53, size: 'wide', ink: '#8256cc' },  // scatter & gather
+      { id: 55, size: 'sm',   ink: '#a52fb0' },  // lichen patches
+    ];
+
+    // Hand-built motifs standing in for each tool's own visual language —
+    // deliberately not the live engines (10 simultaneous WebGL/canvas
+    // loops in postage-stamp cells is real risk for no real benefit at
+    // this size; a future "live" iteration can revisit per-tool).
+    const TOOL_PREVIEWS = [
+      { tool: 'Loom', href: '/loom/', size: 'wide', ink: '#305f9c', cls: 'tp-loom', svg:
+        '<svg viewBox="0 0 200 200"><rect x="24" y="24" width="68" height="68" rx="2"/><rect x="108" y="24" width="68" height="32" rx="2"/><rect x="108" y="72" width="68" height="20" rx="2"/><rect x="24" y="108" width="42" height="68" rx="2"/><rect x="82" y="108" width="94" height="68" rx="2"/></svg>' },
+      { tool: 'Komorebi', href: '/komorebi/', size: 'lg', ink: '#5c6f2e', cls: 'tp-komorebi', svg:
+        '<svg viewBox="0 0 200 200"><circle cx="55" cy="60" r="20"/><circle cx="120" cy="45" r="11"/><circle cx="145" cy="115" r="24"/><circle cx="70" cy="140" r="13"/><circle cx="105" cy="95" r="9"/></svg>' },
+      { tool: 'Camo Turing', href: '/camo-turing/', size: 'sm', ink: '#21707f', cls: 'tp-turing', svg:
+        '<svg viewBox="0 0 200 200"><path d="M55,90 Q35,65 58,42 Q85,20 108,45 Q128,62 112,88 Q92,110 55,90Z"/><path d="M122,122 Q110,107 124,92 Q142,80 154,97 Q162,114 147,126 Q132,136 122,122Z"/></svg>' },
+      { tool: 'Warping', href: '/warping/', size: 'tall', ink: '#8a5330', cls: 'tp-warping', svg:
+        '<svg viewBox="0 0 200 200"><path d="M10,45 Q60,15 100,45 T190,45"/><path d="M10,85 Q60,60 100,85 T190,85"/><path d="M10,125 Q60,100 100,125 T190,125"/><path d="M10,165 Q60,145 100,165 T190,165"/></svg>' },
+      { tool: 'Halide', href: '/halide/', size: 'sm', ink: '#4d6d86', cls: 'tp-halide', svg:
+        '<svg viewBox="0 0 200 200"><circle cx="35" cy="35" r="14"/><circle cx="85" cy="35" r="7"/><circle cx="135" cy="35" r="16"/><circle cx="175" cy="35" r="5"/><circle cx="35" cy="85" r="6"/><circle cx="85" cy="85" r="15"/><circle cx="135" cy="85" r="9"/><circle cx="175" cy="85" r="13"/><circle cx="35" cy="135" r="16"/><circle cx="85" cy="135" r="5"/><circle cx="135" cy="135" r="13"/><circle cx="175" cy="135" r="8"/><circle cx="35" cy="175" r="8"/><circle cx="85" cy="175" r="12"/><circle cx="135" cy="175" r="6"/><circle cx="175" cy="175" r="15"/></svg>' },
+      { tool: 'Pollen', href: '/pollen/', size: 'wide', ink: '#a4842a', cls: 'tp-pollen', svg:
+        '<svg viewBox="0 0 200 200"><circle cx="30" cy="60" r="4"/><circle cx="52" cy="40" r="3"/><circle cx="70" cy="75" r="5"/><circle cx="95" cy="35" r="3"/><circle cx="110" cy="65" r="4"/><circle cx="130" cy="45" r="3"/><circle cx="150" cy="80" r="5"/><circle cx="170" cy="50" r="3"/><circle cx="45" cy="110" r="4"/><circle cx="80" cy="120" r="3"/><circle cx="115" cy="105" r="5"/><circle cx="145" cy="125" r="3"/><circle cx="165" cy="100" r="4"/><circle cx="60" cy="150" r="3"/><circle cx="95" cy="160" r="4"/><circle cx="130" cy="155" r="3"/><circle cx="160" cy="165" r="5"/></svg>' },
+      { tool: 'TuneSutra', href: '/tunesutra/', size: 'sm', ink: '#a52fb0', cls: 'tp-tunesutra', svg:
+        '<svg viewBox="0 0 200 200"><rect x="10" y="70" width="58" height="60" fill="#c93ed6"/><rect x="71" y="70" width="58" height="60" fill="#3e9bc9"/><rect x="132" y="70" width="58" height="60" fill="#3ec9a8"/></svg>' },
+      { tool: 'Flexible Visual System', href: '/fvs/', size: 'tall', ink: '#2c8c62', cls: 'tp-fvs', svg:
+        '<svg viewBox="0 0 200 200"><g transform="rotate(0 100 100)"><polygon points="100,28 165,100 100,100"/></g><g transform="rotate(90 100 100)"><polygon points="100,28 165,100 100,100"/></g><g transform="rotate(180 100 100)"><polygon points="100,28 165,100 100,100"/></g><g transform="rotate(270 100 100)"><polygon points="100,28 165,100 100,100"/></g></svg>' },
+      { tool: 'Vortex', href: '/vortex/', size: 'lg', ink: '#5936c4', cls: 'tp-vortex', svg:
+        '<svg viewBox="0 0 200 200"><path d="' + spiralPathD(2.6, 60, 100, 100, 4, 88) + '"/></svg>' },
+      { tool: 'Soul', href: '/soul/', size: 'sm', ink: '#a83e6b', cls: 'tp-soul', svg:
+        '<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="70"/><circle cx="100" cy="100" r="48"/><circle cx="100" cy="100" r="26"/></svg>' },
+    ];
+
+    function spiralPathD(turns, steps, cx, cy, rStart, rEnd) {
+      let d = '';
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const angle = t * turns * Math.PI * 2;
+        const r = rStart + (rEnd - rStart) * t;
+        const x = (cx + r * Math.cos(angle)).toFixed(2);
+        const y = (cy + r * Math.sin(angle)).toFixed(2);
+        d += (i === 0 ? 'M' : 'L') + x + ',' + y + ' ';
+      }
+      return d.trim();
+    }
+
+    // Form 35 (phyllotaxis spiral) ships as an empty <svg> shell in
+    // organic-forms.js — its dots are generated at runtime, normally by
+    // genesis-creator.js's own "fix form 35" snippet, ported verbatim
+    // here since the hub doesn't otherwise load that file.
+    function fillPhyllotaxisSpiral() {
+      if (!(window.ORGANIC_FORMS && window.ORGANIC_FORMS[35])) return;
+      const N = 44, GA = Math.PI * (3 - Math.sqrt(5)), C = 12;
+      let s = '';
+      for (let i = 1; i <= N; i++) {
+        const r = C * Math.sqrt(i);
+        const a = i * GA;
+        const x = (100 + r * Math.cos(a)).toFixed(2);
+        const y = (100 + r * Math.sin(a)).toFixed(2);
+        const rad = (1.4 + i * 0.08).toFixed(2);
+        const delay = (-i * 0.05).toFixed(2);
+        s += `<circle cx="${x}" cy="${y}" r="${rad}" style="animation-delay:${delay}s"/>`;
+      }
+      window.ORGANIC_FORMS[35] = window.ORGANIC_FORMS[35].replace('></svg>', '>' + s + '</svg>');
+    }
+
+    // Interleave forms/tools (2 forms : 1 tool, close to their real 16:10
+    // ratio) so the grid reads as one mixed gallery, not two stacked
+    // blocks — matches "examples from other tools too", spread through.
+    function interleave(a, b) {
+      const out = [];
+      let i = 0, j = 0;
+      while (i < a.length || j < b.length) {
+        if (i < a.length) out.push(a[i++]);
+        if (i < a.length) out.push(a[i++]);
+        if (j < b.length) out.push(b[j++]);
+      }
+      return out;
+    }
+
+    (function buildBento() {
+      fillPhyllotaxisSpiral();
+      const wrap = document.getElementById('bento');
+      const showcase = interleave(BENTO_FORMS, TOOL_PREVIEWS);
+      showcase.forEach(item => {
+        const isTool = !!item.svg;
+        const cell = document.createElement('a');
+        cell.className = 'bento-cell size-' + item.size + (isTool ? ' ' + item.cls : '');
+        cell.href = isTool ? item.href : '/genesis/';
+        cell.style.setProperty('--ink', item.ink);
+        cell.innerHTML = (isTool ? item.svg : ((window.ORGANIC_FORMS && window.ORGANIC_FORMS[item.id]) || ''))
+          + '<span class="bento-cell__tag">' + (isTool ? item.tool : 'Genesis') + '</span>';
+        wrap.appendChild(cell);
+      });
+    })();
+  </script>
 
   <script>
     // ── organic noise field on canvas — same mechanic as before, just
