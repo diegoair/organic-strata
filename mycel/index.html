@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mycel — Organica</title>
+
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<style>
+  :root {
+    --ink: #0a0a0a;
+    --paper: #ffffff;
+    --mid: #696256;
+    --accent: #2a2a2a;
+    --panel: #eceae4;
+    --border: #d0c8b8;
+    --tool: #8a7355;   /* identity colour — mushroom taupe, desaturated/earthy rather than another vivid hue */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #app { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── STAGE ── */
+  #stage-wrap {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    overflow: hidden;
+  }
+  #stage {
+    width: min(90%, 90vh);
+    height: min(90%, 90vh);
+    background: var(--paper);
+    box-shadow: 0 4px 40px rgba(0,0,0,0.12);
+    cursor: crosshair;
+  }
+
+  .edge { fill: none; stroke: var(--tool); stroke-width: 1.6; stroke-linecap: round; }
+  .tip { fill: var(--tool); }
+  .tip.orphan { fill: none; stroke: var(--tool); stroke-width: 1; stroke-dasharray: 2 2; }
+  .core { fill: var(--tool); transform-box: fill-box; transform-origin: center; }
+  .pt-dot { fill: var(--mid); opacity: 0.5; cursor: pointer; }
+  .pt-dot.is-root { fill: var(--tool); opacity: 1; }
+  .pt-dot:hover { opacity: 0.9; }
+
+  @keyframes mycelGrow {
+    0%   { stroke-dashoffset: var(--len); opacity: 0; }
+    10%  { opacity: 1; }
+    65%  { stroke-dashoffset: 0; opacity: 1; }
+    100% { stroke-dashoffset: 0; opacity: 1; }
+  }
+  @keyframes mycelGrowLoop {
+    0%        { stroke-dashoffset: var(--len); opacity: 0; }
+    10%       { opacity: 1; }
+    65%       { stroke-dashoffset: 0; opacity: 1; }
+    92%,100%  { stroke-dashoffset: 0; opacity: 0; }
+  }
+  @keyframes mycelTip {
+    0%,10%   { opacity: 0; transform: scale(0.4); }
+    15%      { opacity: 1; transform: scale(1); }
+    92%,100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes mycelTipLoop {
+    0%,10%   { opacity: 0; transform: scale(0.4); }
+    15%      { opacity: 1; transform: scale(1); }
+    92%,100% { opacity: 0; transform: scale(0.4); }
+  }
+  @keyframes mycelPulse { 0%,100% { transform: scale(0.7); } 50% { transform: scale(1.15); } }
+
+  #stage.playing .edge { animation-name: mycelGrow; animation-timing-function: ease-in-out; animation-fill-mode: forwards; }
+  #stage.playing.loop .edge { animation-name: mycelGrowLoop; animation-iteration-count: infinite; }
+  #stage.playing .tip:not(.orphan) { animation-name: mycelTip; animation-timing-function: ease-in-out; animation-fill-mode: forwards; }
+  #stage.playing.loop .tip:not(.orphan) { animation-name: mycelTipLoop; animation-iteration-count: infinite; }
+  #stage.playing .core { animation: mycelPulse var(--dur, 3.8s) ease-in-out infinite; }
+
+  #hud {
+    position: absolute;
+    bottom: 16px; left: 16px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--font);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    padding: 6px 9px;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* ── PANEL extras not covered by organica-panel.css ── */
+  .field-group { display: flex; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .field-mini { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .field-mini__tag { font-size: var(--fs-micro); color: var(--mid); }
+  .field-mini input { width: 100%; }
+
+  .root-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--panel); border: 1px solid var(--border-strong, var(--border)); border-radius: var(--radius-sm);
+    padding: 2px 6px; font-size: var(--fs-micro); margin: 0 4px 4px 0;
+  }
+  .root-chip button { background: none; border: none; cursor: pointer; color: var(--mid); font-size: 10px; padding: 0; }
+  .root-chip button:hover { color: var(--ink); }
+  #root-chips { display: flex; flex-wrap: wrap; margin-bottom: var(--space-2); }
+  #root-chips:empty::after { content: "No root set — right-click a point"; color: var(--mid); font-size: var(--fs-micro); }
+
+  #loom-grid-error { display: none; color: #a03828; font-size: var(--fs-micro); margin-top: var(--space-2); }
+
+  #file-loom-grid { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Mycel</span></a>
+  <div class="org-header__spacer"></div>
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Click the canvas to place points</span>
+  </output>
+</header>
+
+<div id="app">
+  <div id="stage-wrap">
+    <svg id="stage" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"
+         role="application" aria-label="Point placement canvas — click to add a point, click a point to remove it, right-click a point to set it as a root">
+    </svg>
+    <div id="hud">0 points</div>
+  </div>
+
+  <div id="panel" class="org-panel">
+    <div class="panel-section">
+      <h3>Points <span class="hint" id="points-hint">0</span></h3>
+
+      <div class="sub-label">Scatter</div>
+      <div class="field-group">
+        <label class="field-mini"><span class="field-mini__tag">N</span><input type="number" class="panel-input" id="f-n" min="2" max="300" step="1" value="24" aria-label="Number of scattered points, 2 to 300"></label>
+        <label class="field-mini"><span class="field-mini__tag">Seed</span><input type="number" class="panel-input" id="f-scatter-seed" min="0" step="1" value="1" aria-label="Scatter seed"></label>
+      </div>
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-scatter">Scatter</button>
+        <button class="mini-btn" id="btn-reseed">Reseed</button>
+      </div>
+
+      <div class="sub-label">Loom import</div>
+      <button class="mini-btn" id="btn-load-loom" style="width:100%">Load Loom grid…</button>
+      <span id="loom-grid-error" role="alert"></span>
+
+      <div class="sub-label">Roots</div>
+      <div id="root-chips"></div>
+
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-clear-all">Clear all points</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Network</h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-mode">
+          <button class="seg-btn active" data-v="radiate">Radiate</button>
+          <button class="seg-btn" data-v="mst">MST</button>
+          <button class="seg-btn" data-v="spaceColonization">Space col.</button>
+        </div>
+      </div>
+
+      <div id="sc-params">
+        <div class="ctrl-row">
+          <span class="ctrl-label">Growth step</span>
+          <input type="range" id="rg-growth-step" min="2" max="30" step="1" value="8">
+          <span class="ctrl-val" id="v-growth-step">8</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">Influence r.</span>
+          <input type="range" id="rg-influence" min="30" max="500" step="5" value="200">
+          <span class="ctrl-val" id="v-influence">200</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">Kill radius</span>
+          <input type="range" id="rg-kill" min="4" max="60" step="1" value="16">
+          <span class="ctrl-val" id="v-kill">16</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">Max iter.</span>
+          <input type="range" id="rg-max-iter" min="100" max="2000" step="50" value="800">
+          <span class="ctrl-val" id="v-max-iter">800</span>
+        </div>
+      </div>
+
+      <div class="ctrl-row">
+        <span class="ctrl-label">Curve wobble</span>
+        <input type="range" id="rg-wobble" min="0" max="1" step="0.01" value="0.25">
+        <span class="ctrl-val" id="v-wobble">0.25</span>
+      </div>
+
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-generate">Generate</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Playback</h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-play">
+          <button class="seg-btn active" data-v="once">Grow once</button>
+          <button class="seg-btn" data-v="loop">Loop</button>
+        </div>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Duration</span>
+        <input type="range" id="rg-duration" min="1" max="8" step="0.1" value="3.8">
+        <span class="ctrl-val" id="v-duration">3.8</span>
+      </div>
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-replay">Replay</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Save</h3>
+      <select class="panel-select" id="preset-select" aria-label="Preset" onchange="applyPreset(this.value)"></select>
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-preset-save">Save</button>
+        <button class="mini-btn" id="btn-preset-delete">Delete</button>
+      </div>
+      <div id="preset-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-3)">
+        <input type="text" class="panel-select" id="txt-preset-name" placeholder="Name this network" aria-label="Name this network" style="flex:1">
+      </div>
+      <div id="preset-save-actions" class="row-btns" style="display:none">
+        <button class="mini-btn" id="btn-preset-confirm">Save</button>
+        <button class="mini-btn" id="btn-preset-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-loom-grid" accept=".json,application/json" aria-label="Upload Loom grid JSON">
+
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-export-svg">SVG</button>
+        <button class="org-btn" id="btn-export-png">PNG</button>
+      </div>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-export-scale">Scale</label>
+        <select class="org-select" id="sel-export-scale">
+          <option value="1">&times;1</option>
+          <option value="2" selected>&times;2</option>
+          <option value="4">&times;4</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Core → noise, load-bearing order (noise extends Organica itself).
+     organica-motion.js's own staggerDelay was tried and dropped — its
+     'distance' formula scales with primitive count (fine for Soul's
+     typical tens of shapes, badly wrong at Mycel's hundreds of edges —
+     see play()'s own comment) — so Mycel computes its own count-
+     independent stagger instead of loading that file for nothing. No
+     GSAP either: growth reveal is plain CSS (form 39's own technique). -->
+<script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-noise.js"></script>
+<script>
+// ─────────────────────────────────────────────────────────────
+// Mycel — organic branching-network generator.
+//
+// Three point sources (click, seeded scatter, Loom-grid import) feed one
+// canonical point set; three generators (Radiate/MST/Space Colonization)
+// turn it into a graph; one shared edgeToPathD() turns every graph edge
+// into an organic curved SVG path, regardless of which generator produced
+// it — the seam that keeps curve rendering decoupled from topology.
+//
+// WYSIWYG: buildExportSVG()/exportPNG() always render the complete grown
+// network with no animation state — export doesn't care what's mid-loop
+// on screen, same rule as every other Organica tool.
+// ─────────────────────────────────────────────────────────────
+
+function ctrl(id) { return document.getElementById(id); }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function centroidOf(points) {
+  if (!points.length) return { x: VB / 2, y: VB / 2 };
+  const sx = points.reduce((s, p) => s + p.x, 0), sy = points.reduce((s, p) => s + p.y, 0);
+  return { x: sx / points.length, y: sy / points.length };
+}
+
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const VB = 1000;
+const N_MAX = 300;
+
+const state = {
+  points: [],
+  rootIndices: [],
+  mode: 'radiate',
+  seed: 1,
+  curveWobble: 0.25,
+  spaceColonization: { growthStep: 8, influenceRadius: 200, killRadius: 16, maxIterations: 800 },
+  playMode: 'once',
+  duration: 3.8,
+  staggerAmount: 0.15,
+  network: { nodes: [], edges: [], orphans: [] },
+  loomGrid: null,
+  nextId: 0,
+};
+
+// ── POINT SOURCES ──
+function addPoint(x, y, source) {
+  state.points.push({ id: state.nextId++, x, y, source });
+}
+function removePointAt(index) {
+  const removedId = state.points[index].id;
+  state.points.splice(index, 1);
+  state.rootIndices = state.rootIndices.filter(i => i !== index).map(i => i > index ? i - 1 : i);
+}
+function findPointNear(x, y, radiusVb) {
+  let best = -1, bestD = radiusVb;
+  state.points.forEach((p, i) => {
+    const d = Math.hypot(p.x - x, p.y - y);
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  return best;
+}
+function toggleRoot(index) {
+  const at = state.rootIndices.indexOf(index);
+  if (at >= 0) state.rootIndices.splice(at, 1);
+  else state.rootIndices.push(index);
+}
+
+function scatterPoints(n, seed) {
+  const rng = mulberry32(seed);
+  state.points = state.points.filter(p => p.source !== 'scatter');
+  const pad = VB * 0.08;
+  for (let i = 0; i < n; i++) {
+    addPoint(pad + rng() * (VB - 2 * pad), pad + rng() * (VB - 2 * pad), 'scatter');
+  }
+}
+
+function handleLoomGridUpload(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const grid = Organica.loadLoomGrid(reader.result);
+      state.loomGrid = grid;
+      const sx = VB / grid.canvas.width, sy = VB / grid.canvas.height;
+      const pts = grid.cells.map(c => {
+        const center = c.shape === 'rect' ? { x: c.x + c.width / 2, y: c.y + c.height / 2 } : c.centroid;
+        return { x: center.x * sx, y: center.y * sy };
+      });
+      state.points = state.points.filter(p => p.source !== 'loom');
+      pts.forEach(p => addPoint(p.x, p.y, 'loom'));
+      ctrl('loom-grid-error').style.display = 'none';
+      onPointsChanged();
+    } catch (e) {
+      ctrl('loom-grid-error').textContent = e.message || 'Could not read that file.';
+      ctrl('loom-grid-error').style.display = '';
+    }
+  };
+  reader.onerror = () => {
+    ctrl('loom-grid-error').textContent = 'Could not read that file.';
+    ctrl('loom-grid-error').style.display = '';
+  };
+  reader.readAsText(file);
+}
+
+// ── ALGORITHM 1 — RADIATE ──
+function generateRadiate(points, rootIndices) {
+  if (!rootIndices.length || points.length < 2) return { nodes: points, edges: [], orphans: [] };
+  const roots = rootIndices.map(i => points[i]);
+  const edges = [];
+  points.forEach((p, i) => {
+    if (rootIndices.includes(i)) return;
+    let nearest = roots[0], best = Infinity;
+    roots.forEach(r => { const d = Math.hypot(p.x - r.x, p.y - r.y); if (d < best) { best = d; nearest = r; } });
+    edges.push({ from: nearest, to: p });
+  });
+  return { nodes: points, edges, orphans: [] };
+}
+
+// ── ALGORITHM 2 — MST (Prim's) ──
+function generateMST(points, rootIndices) {
+  if (points.length < 2) return { nodes: points, edges: [], orphans: [] };
+  const startIdx = rootIndices.length ? rootIndices[0] : 0;
+  const inTree = new Set([startIdx]);
+  const dist = points.map(() => Infinity);
+  const parent = points.map(() => -1);
+  points.forEach((p, i) => { if (i !== startIdx) { dist[i] = Math.hypot(p.x - points[startIdx].x, p.y - points[startIdx].y); parent[i] = startIdx; } });
+
+  const edges = [];
+  while (inTree.size < points.length) {
+    let best = -1, bestDist = Infinity;
+    for (let i = 0; i < points.length; i++) {
+      if (!inTree.has(i) && dist[i] < bestDist) { bestDist = dist[i]; best = i; }
+    }
+    if (best === -1) break;
+    inTree.add(best);
+    edges.push({ from: points[parent[best]], to: points[best] });
+    for (let i = 0; i < points.length; i++) {
+      if (!inTree.has(i)) {
+        const d = Math.hypot(points[i].x - points[best].x, points[i].y - points[best].y);
+        if (d < dist[i]) { dist[i] = d; parent[i] = best; }
+      }
+    }
+  }
+  return { nodes: points, edges, orphans: [] };
+}
+
+// ── ALGORITHM 3 — SPACE COLONIZATION (Runions et al. 2007) ──
+function generateSpaceColonization(points, rootIndices, params) {
+  if (!rootIndices.length || points.length < 2) return { nodes: points, edges: [], orphans: [] };
+  const rootSet = new Set(rootIndices);
+  const attractors = points.filter((p, i) => !rootSet.has(i)).map(p => ({ x: p.x, y: p.y, alive: true }));
+  let nextId = 0;
+  const growthNodes = rootIndices.map(i => ({ x: points[i].x, y: points[i].y, id: nextId++ }));
+  // Real bug, found by testing (traced iteration-by-iteration, not assumed):
+  // searching "nearest growth node" over the FULL node history let an
+  // attractor keep re-selecting the same already-grown parent forever.
+  // With >=2 attractors pulling one tip toward genuinely different
+  // directions, the newly grown child can end up NOT strictly closer to
+  // either attractor than its own parent was (verified numerically: child
+  // measured 92.50/157.28 vs parent's 92.35/157.27 — the unweighted
+  // average of a close + a far attractor overcorrects toward the far one).
+  // The parent then wins "nearest" again next iteration, spawns an
+  // identical duplicate child at the same coordinates, forever — an
+  // infinite fixed point that silently burned the entire iteration budget
+  // on one frozen point while every other reachable attractor starved.
+  // Fix: only TIP nodes (no child yet) are eligible as attraction targets
+  // — once a node grows a child, later iterations must grow from that
+  // child (or the child's own children), never re-fork the same stale
+  // parent. This can't loop: `tips` only ever shrinks or advances.
+  let tips = new Set(growthNodes.map(n => n.id));
+  const edges = [];
+  let iter = 0;
+
+  while (iter < params.maxIterations) {
+    iter++;
+    const live = attractors.filter(a => a.alive);
+    if (!live.length) break;
+
+    const tipNodes = growthNodes.filter(g => tips.has(g.id));
+    const influence = new Map(); // growthNode.id -> [{x,y} unit dirs]
+    let anyInfluence = false;
+    live.forEach(a => {
+      let nearest = null, nearestDist = params.influenceRadius;
+      tipNodes.forEach(g => {
+        const d = Math.hypot(a.x - g.x, a.y - g.y);
+        if (d < nearestDist) { nearestDist = d; nearest = g; }
+      });
+      if (nearest) {
+        anyInfluence = true;
+        const dx = a.x - nearest.x, dy = a.y - nearest.y, len = Math.hypot(dx, dy) || 1;
+        if (!influence.has(nearest.id)) influence.set(nearest.id, []);
+        // Inverse-distance weight, not a plain unit vector: found by
+        // testing that an unweighted average lets a distant, barely-
+        // relevant attractor (e.g. 157 units away) dilute a much closer
+        // one (92 away) equally, which can produce a stable NON-
+        // converging oscillation — the tip circles between the two
+        // competing pulls indefinitely instead of reaching either.
+        // Weighting by 1/distance makes the nearer attractor dominate the
+        // pull direction, matching which one growth should actually chase
+        // first.
+        influence.get(nearest.id).push({ x: dx / len, y: dy / len, w: 1 / len });
+      }
+    });
+    if (!anyInfluence) break; // structurally unreachable given current params — stop, don't spin
+
+    const newNodes = [];
+    influence.forEach((dirs, gId) => {
+      const g = growthNodes.find(n => n.id === gId);
+      let sx = 0, sy = 0;
+      dirs.forEach(d => { sx += d.x * d.w; sy += d.y * d.w; });
+      let len = Math.hypot(sx, sy);
+      if (len < 1e-6) { sx = dirs[0].x; sy = dirs[0].y; len = 1; }
+      const nx = g.x + (sx / len) * params.growthStep;
+      const ny = g.y + (sy / len) * params.growthStep;
+      const node = { x: nx, y: ny, id: nextId++ };
+      newNodes.push(node);
+      edges.push({ from: { x: g.x, y: g.y }, to: { x: nx, y: ny } });
+      tips.delete(gId); // parent is no longer a frontier — its child takes over
+    });
+    newNodes.forEach(n => tips.add(n.id));
+    growthNodes.push(...newNodes);
+
+    live.forEach(a => {
+      if (!a.alive) return;
+      for (const g of newNodes) {
+        if (Math.hypot(a.x - g.x, a.y - g.y) < params.killRadius) { a.alive = false; break; }
+      }
+    });
+  }
+
+  const orphans = attractors.filter(a => a.alive);
+  return { nodes: growthNodes, edges, orphans };
+}
+
+// ── SHARED EDGE → PATH RENDERING ──
+function edgeToPathD(edge, seedOffset) {
+  const mx = (edge.from.x + edge.to.x) / 2, my = (edge.from.y + edge.to.y) / 2;
+  const dx = edge.to.x - edge.from.x, dy = edge.to.y - edge.from.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const px = -dy / len, py = dx / len;
+  const n = Organica.noise.simplex2(mx * 0.01 + seedOffset, my * 0.01 + seedOffset);
+  const bow = n * len * state.curveWobble * 0.5;
+  const cx = mx + px * bow, cy = my + py * bow;
+  return `M${edge.from.x.toFixed(2)},${edge.from.y.toFixed(2)} Q${cx.toFixed(2)},${cy.toFixed(2)} ${edge.to.x.toFixed(2)},${edge.to.y.toFixed(2)}`;
+}
+
+// Catmull-Rom → cubic-Bezier, ported verbatim from membrane/js/svgexport.js
+// (catmullSegD/curvePathD) — the same technique Membrane uses to turn an
+// arbitrary ordered point list into one smooth continuous curve, applied
+// here per CHAIN (a run of degree-2 nodes between two real junctions —
+// the root, a fork, or a leaf) instead of per raw graph edge. A 2-point
+// chain (Radiate's own star topology reduces to this automatically, see
+// buildChains()) has no curvature to fit, so it falls back to the
+// existing noise-bowed quadratic bezier instead.
+function catmullSegD(p0, p1, p2, p3) {
+  const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
+  const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+  return `C ${c1x.toFixed(2)},${c1y.toFixed(2)} ${c2x.toFixed(2)},${c2y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
+}
+function chainToPathD(pts, seedOffset) {
+  if (pts.length < 3) return edgeToPathD({ from: pts[0], to: pts[1] }, seedOffset);
+  let d = `M ${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)} `;
+  const n = pts.length;
+  for (let i = 0; i < n - 1; i++) {
+    d += catmullSegD(pts[Math.max(i - 1, 0)], pts[i], pts[i + 1], pts[Math.min(i + 2, n - 1)]) + ' ';
+  }
+  return d.trim();
+}
+
+// Walks the (always acyclic — MST and Space Colonization only ever add a
+// node with one parent edge, Radiate is a plain star) edge set from the
+// root(s) outward, splitting it into maximal chains between real
+// junctions. Root points are forced to count as junctions regardless of
+// their own degree — a root with exactly 2 attached points would
+// otherwise look like an ordinary degree-2 pass-through node and get
+// merged straight through, producing one curve that wrongly runs THROUGH
+// the root instead of two separate branches starting AT it.
+function buildChains(rootIndices, points, edges) {
+  const key = p => p.x.toFixed(2) + ',' + p.y.toFixed(2);
+  const rootKeys = new Set(rootIndices.map(i => key(points[i])));
+  const adj = new Map();
+  function addAdj(k, entry) { if (!adj.has(k)) adj.set(k, []); adj.get(k).push(entry); }
+  edges.forEach((e, i) => {
+    addAdj(key(e.from), { point: e.to, edgeIdx: i });
+    addAdj(key(e.to), { point: e.from, edgeIdx: i });
+  });
+  const isJunction = k => rootKeys.has(k) || (adj.get(k) || []).length !== 2;
+
+  const visited = new Set();
+  const chains = [];
+  function walk(startPoint, startKey) {
+    (adj.get(startKey) || []).forEach(({ point: next, edgeIdx }) => {
+      if (visited.has(edgeIdx)) return;
+      visited.add(edgeIdx);
+      const pts = [startPoint, next];
+      let curKey = key(next), curPoint = next;
+      while (!isJunction(curKey)) {
+        const options = adj.get(curKey) || [];
+        const step = options.find(o => !visited.has(o.edgeIdx));
+        if (!step) break; // dead end guard — shouldn't happen in a proper tree, kept defensive
+        visited.add(step.edgeIdx);
+        pts.push(step.point);
+        curPoint = step.point; curKey = key(step.point);
+      }
+      chains.push({ pts, isLeaf: (adj.get(curKey) || []).length === 1 });
+      if (isJunction(curKey)) walk(curPoint, curKey);
+    });
+  }
+  rootIndices.forEach(i => walk(points[i], key(points[i])));
+  return chains;
+}
+
+// ── NETWORK GENERATION ──
+function regenerateNetwork() {
+  const params = state.spaceColonization;
+  let net;
+  if (state.mode === 'radiate') net = generateRadiate(state.points, state.rootIndices);
+  else if (state.mode === 'mst') net = generateMST(state.points, state.rootIndices);
+  else net = generateSpaceColonization(state.points, state.rootIndices, params);
+
+  const seedOffset = state.seed * 0.137;
+  net.chains = buildChains(state.rootIndices, state.points, net.edges);
+  net.chains.forEach(c => { c.d = chainToPathD(c.pts, seedOffset); });
+  net.tips = net.chains.filter(c => c.isLeaf);
+
+  state.network = net;
+
+  const n = state.points.length, m = net.edges.length;
+  let msg = n + ' points · ' + m + ' edges';
+  if (net.orphans && net.orphans.length) msg += ' · ' + net.orphans.length + ' unreached (try a larger influence radius)';
+  setStatus('', msg);
+  ctrl('hud').textContent = n + ' points';
+  ctrl('points-hint').textContent = String(n);
+}
+
+function onPointsChanged() {
+  regenerateNetwork();
+  renderStage();
+  renderRootChips();
+  play();
+}
+
+// ── STAGE RENDER ──
+function renderStage() {
+  const svg = ctrl('stage');
+  svg.classList.remove('playing');
+  let parts = [];
+
+  state.network.chains.forEach((c, i) => {
+    parts.push(`<path class="edge" data-i="${i}" d="${c.d}"/>`);
+  });
+  state.network.tips.forEach((c, i) => {
+    const tipPt = c.pts[c.pts.length - 1];
+    parts.push(`<circle class="tip" data-i="${i}" cx="${tipPt.x.toFixed(2)}" cy="${tipPt.y.toFixed(2)}" r="6"/>`);
+  });
+  (state.network.orphans || []).forEach(o => {
+    parts.push(`<circle class="tip orphan" cx="${o.x.toFixed(2)}" cy="${o.y.toFixed(2)}" r="6"/>`);
+  });
+  state.rootIndices.forEach(i => {
+    const p = state.points[i];
+    if (p) parts.push(`<circle class="core" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="10"/>`);
+  });
+  // point handles — always on top, for click-to-remove / right-click-to-root
+  state.points.forEach((p, i) => {
+    const isRoot = state.rootIndices.includes(i);
+    parts.push(`<circle class="pt-dot${isRoot ? ' is-root' : ''}" data-i="${i}" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="7"><title>Point ${i + 1}${isRoot ? ' (root)' : ''}</title></circle>`);
+  });
+
+  svg.innerHTML = parts.join('');
+
+  svg.querySelectorAll('.pt-dot').forEach(el => {
+    el.addEventListener('click', e => { e.stopPropagation(); removePointAt(+el.dataset.i); onPointsChanged(); });
+    el.addEventListener('contextmenu', e => { e.preventDefault(); e.stopPropagation(); toggleRoot(+el.dataset.i); regenerateNetwork(); renderStage(); renderRootChips(); });
+  });
+}
+
+function renderRootChips() {
+  const wrap = ctrl('root-chips');
+  wrap.innerHTML = '';
+  state.rootIndices.forEach(i => {
+    const chip = document.createElement('span');
+    chip.className = 'root-chip';
+    chip.innerHTML = `Point ${i + 1} <button aria-label="Root: point ${i + 1} — remove">&times;</button>`;
+    chip.querySelector('button').addEventListener('click', () => { toggleRoot(i); regenerateNetwork(); renderStage(); renderRootChips(); });
+    wrap.appendChild(chip);
+  });
+}
+
+// ── PLAYBACK ──
+function play() {
+  const svg = ctrl('stage');
+  svg.style.setProperty('--dur', state.duration + 's');
+  svg.classList.toggle('loop', state.playMode === 'loop');
+
+  svg.querySelectorAll('.edge').forEach((el, i) => {
+    const len = el.getTotalLength();
+    el.style.setProperty('--len', len);
+    el.style.strokeDasharray = len;
+    el.style.strokeDashoffset = len;
+    el.style.animationDuration = state.duration + 's';
+  });
+
+  // Real bug, found by testing at a realistic edge count (365, a dense
+  // Space Colonization result): Organica.motion.staggerDelay's own
+  // 'distance' formula multiplies by `all.length` (tuned for Soul's
+  // typical primitive counts — tens of shapes parsed from an SVG), so at
+  // Mycel's scale the max delay reached 16+ real seconds before a 3.8s
+  // growth animation had even started — the network looked completely
+  // blank/broken for the first ~15s. Fixed with a local, edge-count-
+  // independent formula: delay scales only with normalized distance and
+  // the animation's own duration, capped to a fraction of it so the
+  // whole network finishes growing in one comprehensible pass regardless
+  // of how many edges it has.
+  const originPt = state.rootIndices.length ? state.points[state.rootIndices[0]] : null;
+  const origin = originPt || centroidOf(state.points);
+  const dists = state.network.chains.map(c => {
+    const tipPt = c.pts[c.pts.length - 1];
+    return Math.hypot(tipPt.x - origin.x, tipPt.y - origin.y);
+  });
+  const maxDist = Math.max(1, ...dists);
+  const staggerSpread = 0.6; // fraction of duration spent staggering starts, leaving the rest for each chain's own growth
+  svg.querySelectorAll('.edge').forEach((el, i) => {
+    const delay = (dists[i] / maxDist) * state.duration * staggerSpread;
+    el.style.animationDelay = delay.toFixed(3) + 's';
+  });
+  svg.querySelectorAll('.tip:not(.orphan)').forEach((el, i) => {
+    const chain = state.network.tips[i];
+    const idx = state.network.chains.indexOf(chain);
+    const delay = idx >= 0 ? ctrl('stage').querySelectorAll('.edge')[idx].style.animationDelay : '0s';
+    el.style.animationDelay = delay;
+    el.style.animationDuration = state.duration + 's';
+  });
+
+  // restart animation cleanly (reflow trick)
+  svg.classList.remove('playing'); void svg.offsetWidth; svg.classList.add('playing');
+}
+
+// ── EXPORT — always the complete grown network, no animation state ──
+function inkHex() { return getComputedStyle(document.documentElement).getPropertyValue('--tool').trim() || '#8a7355'; }
+
+function buildExportSVG() {
+  const ink = inkHex();
+  let parts = [`<rect x="0" y="0" width="${VB}" height="${VB}" fill="#ffffff"/>`];
+  state.network.chains.forEach(c => parts.push(`<path d="${c.d}" fill="none" stroke="${ink}" stroke-width="1.6" stroke-linecap="round"/>`));
+  state.network.tips.forEach(c => { const p = c.pts[c.pts.length - 1]; parts.push(`<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="6" fill="${ink}"/>`); });
+  state.rootIndices.forEach(i => {
+    const p = state.points[i];
+    if (p) parts.push(`<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="10" fill="${ink}"/>`);
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VB} ${VB}" width="${VB}" height="${VB}">${parts.join('')}</svg>`;
+}
+function exportSVG() {
+  Organica.downloadText(buildExportSVG(), Organica.stamp('mycel', 'svg'), 'image/svg+xml');
+}
+function exportPNG() {
+  const scale = +ctrl('sel-export-scale').value;
+  const canvas = document.createElement('canvas');
+  canvas.width = VB * scale;
+  canvas.height = VB * scale;
+  const c = canvas.getContext('2d');
+  c.scale(scale, scale);
+  c.fillStyle = '#ffffff';
+  c.fillRect(0, 0, VB, VB);
+  c.strokeStyle = inkHex();
+  c.fillStyle = inkHex();
+  c.lineWidth = 1.6;
+  c.lineCap = 'round';
+  state.network.chains.forEach(ch => c.stroke(new Path2D(ch.d)));
+  state.network.tips.forEach(ch => { const p = ch.pts[ch.pts.length - 1]; c.beginPath(); c.arc(p.x, p.y, 6, 0, Math.PI * 2); c.fill(); });
+  state.rootIndices.forEach(i => {
+    const p = state.points[i];
+    if (p) { c.beginPath(); c.arc(p.x, p.y, 10, 0, Math.PI * 2); c.fill(); }
+  });
+  const url = canvas.toDataURL('image/png');
+  const bin = atob(url.split(',')[1]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('mycel', 'png'));
+}
+
+// ── PRESETS ──
+const PRESETS = Organica.presetStore('mycel');
+function userPresets() { return PRESETS.read(); }
+function populatePresets(select) {
+  const sel = ctrl('preset-select');
+  const all = userPresets();
+  sel.innerHTML = '<option value="">Presets…</option>' + Object.keys(all).map(name =>
+    `<option value="${name}"${name === select ? ' selected' : ''}>${name}</option>`).join('');
+}
+function applyPreset(name) {
+  if (!name) return;
+  const all = userPresets();
+  const p = all[name];
+  if (!p) return;
+  state.points = p.points.map(pt => ({ ...pt }));
+  state.nextId = state.points.length ? Math.max(...state.points.map(pt => pt.id)) + 1 : 0;
+  state.rootIndices = p.rootIndices.slice();
+  state.mode = p.mode;
+  state.seed = p.seed;
+  state.curveWobble = p.curveWobble;
+  state.spaceColonization = { ...p.spaceColonization };
+  state.duration = p.duration;
+  state.playMode = p.playMode;
+  syncPanelFromState();
+  onPointsChanged();
+}
+function beginSavePreset() {
+  ctrl('preset-save-row').style.display = 'flex';
+  ctrl('preset-save-actions').style.display = 'flex';
+  ctrl('txt-preset-name').value = '';
+  ctrl('txt-preset-name').focus();
+}
+function cancelSavePreset() {
+  ctrl('preset-save-row').style.display = 'none';
+  ctrl('preset-save-actions').style.display = 'none';
+}
+function confirmSavePreset() {
+  const name = ctrl('txt-preset-name').value.trim();
+  if (!name) return;
+  const all = userPresets();
+  all[name] = {
+    points: state.points, rootIndices: state.rootIndices, mode: state.mode, seed: state.seed,
+    curveWobble: state.curveWobble, spaceColonization: state.spaceColonization,
+    duration: state.duration, playMode: state.playMode, savedAt: new Date().toISOString(),
+  };
+  PRESETS.write(all);
+  populatePresets(name);
+  cancelSavePreset();
+}
+function deletePreset() {
+  const name = ctrl('preset-select').value;
+  if (!name) return;
+  const all = userPresets();
+  delete all[name];
+  PRESETS.write(all);
+  populatePresets();
+}
+
+// ── PANEL SYNC ──
+function syncPanelFromState() {
+  ctrl('seg-mode').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === state.mode));
+  ctrl('sc-params').style.display = state.mode === 'spaceColonization' ? 'block' : 'none';
+  ctrl('seg-play').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === state.playMode));
+  ctrl('rg-growth-step').value = state.spaceColonization.growthStep; ctrl('v-growth-step').textContent = state.spaceColonization.growthStep;
+  ctrl('rg-influence').value = state.spaceColonization.influenceRadius; ctrl('v-influence').textContent = state.spaceColonization.influenceRadius;
+  ctrl('rg-kill').value = state.spaceColonization.killRadius; ctrl('v-kill').textContent = state.spaceColonization.killRadius;
+  ctrl('rg-max-iter').value = state.spaceColonization.maxIterations; ctrl('v-max-iter').textContent = state.spaceColonization.maxIterations;
+  ctrl('rg-wobble').value = state.curveWobble; ctrl('v-wobble').textContent = state.curveWobble;
+  ctrl('rg-duration').value = state.duration; ctrl('v-duration').textContent = state.duration;
+}
+
+// ── INIT / WIRING ──
+const setStatus = Organica.status();
+Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+
+ctrl('stage').addEventListener('click', e => {
+  const svg = ctrl('stage');
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  const loc = pt.matrixTransform(svg.getScreenCTM().inverse());
+  const hit = findPointNear(loc.x, loc.y, 14);
+  if (hit >= 0) return; // handled by the point's own click listener (stopPropagation)
+  addPoint(clamp(loc.x, 0, VB), clamp(loc.y, 0, VB), 'click');
+  onPointsChanged();
+});
+
+ctrl('seg-mode').querySelectorAll('.seg-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.mode = btn.dataset.v;
+    syncPanelFromState();
+    regenerateNetwork();
+    renderStage();
+    play();
+  });
+});
+ctrl('seg-play').querySelectorAll('.seg-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.playMode = btn.dataset.v;
+    ctrl('seg-play').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+  });
+});
+
+function bindSlider(id, valId, key, isFloat) {
+  ctrl(id).addEventListener('input', () => {
+    const v = isFloat ? parseFloat(ctrl(id).value) : parseInt(ctrl(id).value, 10);
+    ctrl(valId).textContent = String(v);
+    if (key === 'curveWobble') { state.curveWobble = v; regenerateNetwork(); renderStage(); }
+    else if (key === 'duration') { state.duration = v; }
+    else { state.spaceColonization[key] = v; }
+  });
+}
+bindSlider('rg-growth-step', 'v-growth-step', 'growthStep', false);
+bindSlider('rg-influence', 'v-influence', 'influenceRadius', false);
+bindSlider('rg-kill', 'v-kill', 'killRadius', false);
+bindSlider('rg-max-iter', 'v-max-iter', 'maxIterations', false);
+bindSlider('rg-wobble', 'v-wobble', 'curveWobble', true);
+bindSlider('rg-duration', 'v-duration', 'duration', true);
+
+ctrl('btn-scatter').addEventListener('click', () => {
+  const n = clamp(parseInt(ctrl('f-n').value, 10) || 2, 2, N_MAX);
+  const seed = parseInt(ctrl('f-scatter-seed').value, 10) || 0;
+  ctrl('f-n').value = n;
+  scatterPoints(n, seed);
+  onPointsChanged();
+});
+ctrl('btn-reseed').addEventListener('click', () => {
+  const seed = (parseInt(ctrl('f-scatter-seed').value, 10) || 0) + 1;
+  ctrl('f-scatter-seed').value = seed;
+  const n = clamp(parseInt(ctrl('f-n').value, 10) || 2, 2, N_MAX);
+  scatterPoints(n, seed);
+  onPointsChanged();
+});
+ctrl('btn-load-loom').addEventListener('click', () => ctrl('file-loom-grid').click());
+ctrl('file-loom-grid').addEventListener('change', e => { if (e.target.files[0]) handleLoomGridUpload(e.target.files[0]); });
+ctrl('btn-clear-all').addEventListener('click', () => {
+  state.points = []; state.rootIndices = [];
+  onPointsChanged();
+});
+
+ctrl('btn-generate').addEventListener('click', () => { regenerateNetwork(); renderStage(); play(); });
+ctrl('btn-replay').addEventListener('click', play);
+
+ctrl('btn-export-svg').addEventListener('click', exportSVG);
+ctrl('btn-export-png').addEventListener('click', exportPNG);
+
+ctrl('btn-preset-save').addEventListener('click', beginSavePreset);
+ctrl('btn-preset-delete').addEventListener('click', deletePreset);
+ctrl('btn-preset-confirm').addEventListener('click', confirmSavePreset);
+ctrl('btn-preset-cancel').addEventListener('click', cancelSavePreset);
+ctrl('txt-preset-name').addEventListener('keydown', e => { if (e.key === 'Enter') confirmSavePreset(); if (e.key === 'Escape') cancelSavePreset(); });
+
+// ── seed a default network so the tool isn't blank on first load ──
+scatterPoints(16, 1);
+state.rootIndices = [0];
+syncPanelFromState();
+onPointsChanged();
+populatePresets();
+Organica.autoLabelPanel(document);
+</script>
+</body>
+</html>

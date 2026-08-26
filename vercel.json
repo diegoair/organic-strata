@@ -68,6 +68,10 @@
       "destination": "/tunesutra/$1"
     },
     {
+      "source": "/mycel/(.*)",
+      "destination": "/mycel/$1"
+    },
+    {
       "source": "/shared/(.*)",
       "destination": "/shared/$1"
     },
