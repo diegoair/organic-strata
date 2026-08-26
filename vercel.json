@@ -64,6 +64,10 @@
       "destination": "/fvs/$1"
     },
     {
+      "source": "/tunesutra/(.*)",
+      "destination": "/tunesutra/$1"
+    },
+    {
       "source": "/shared/(.*)",
       "destination": "/shared/$1"
     },
