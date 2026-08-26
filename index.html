@@ -13,13 +13,12 @@
     }
 
     :root {
-      --bg:       #0a0a08;
-      --surface:  #111110;
-      --ink:      #f0ede6;
-      --ink-dim:  #6b6860;
-      --accent:   #c8f060;   /* acid green — organic vitality */
-      --accent2:  #f06030;   /* warm ember */
-      --line:     rgba(240,237,230,0.08);
+      --bg:       #ffffff;
+      --ink:      #0a0a0a;
+      --ink-dim:  #8a887f;
+      --accent:   #6a9c2e;   /* acid green, darkened for contrast on white */
+      --accent2:  #c04a1e;   /* warm ember, darkened for contrast on white */
+      --line:     rgba(10,10,10,0.08);
     }
 
     html, body {
@@ -36,89 +35,55 @@
       position: fixed;
       inset: 0;
       z-index: 0;
-      opacity: 0.18;
+      opacity: 0.35;
     }
 
-    /* ── layout ── */
-    .shell {
-      position: relative;
+    /* ── header — Organica's only appearance on the page ── */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 2;
+      padding: 1.5rem clamp(1.25rem, 3vw, 2.5rem);
+    }
+
+    .header__wordmark {
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: var(--ink);
+      opacity: 0;
+      animation: fadeUp 0.7s ease forwards 0.05s;
+    }
+
+    /* ── left column of tool links ── */
+    .side-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
       z-index: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
       height: 100vh;
-      gap: 0;
-    }
-
-    /* ── wordmark ── */
-    .wordmark {
+      width: clamp(11rem, 16vw, 14rem);
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 0.15em;
-    }
-
-    .wordmark__title {
-      font-size: clamp(1.5rem, 9vw, 13rem);
-      font-weight: 800;
-      line-height: 0.88;
-      letter-spacing: -0.03em;
-      text-transform: uppercase;
-      text-align: center;
-      background: linear-gradient(
-        135deg,
-        var(--ink) 0%,
-        var(--accent) 45%,
-        var(--ink) 80%
-      );
-      background-size: 200% 200%;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      animation:
-        fadeUp 0.9s ease forwards 0.05s,
-        shimmer 6s ease-in-out infinite 1.5s;
-      opacity: 0;
-    }
-
-    .wordmark__sub {
-      font-family: var(--font);
-      font-size: clamp(0.55rem, 0.9vw, 0.7rem);
-      letter-spacing: 0.22em;
-      color: var(--ink-dim);
-      text-transform: uppercase;
-      margin-top: 0.6em;
-      opacity: 0;
-      animation: fadeUp 0.8s ease forwards 0.4s;
-    }
-
-    /* ── nav links ──
-       Wraps: body is overflow:hidden, so a nav wider than the viewport would
-       push the outer links off-screen with no way to scroll to them. */
-    .nav {
-      display: flex;
-      flex-wrap: wrap;
       justify-content: center;
-      gap: clamp(1rem, 3vw, 2.25rem) clamp(1.5rem, 5vw, 4rem);
-      margin-top: clamp(2.5rem, 5vh, 4.5rem);
-      padding: 0 clamp(1.25rem, 5vw, 3rem);
-      max-width: 100%;
+      gap: 0.55rem;
+      padding: 0 clamp(1.25rem, 3vw, 2.5rem);
       opacity: 0;
-      animation: fadeUp 0.9s ease forwards 0.65s;
+      animation: fadeUp 0.8s ease forwards 0.2s;
     }
 
     .nav__link {
       position: relative;
+      display: inline-block;
+      width: fit-content;
       text-decoration: none;
-      font-size: clamp(0.9rem, 1.6vw, 1.1rem);
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      white-space: nowrap;   /* wrap between links, never inside one */
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
       color: var(--ink-dim);
-      transition: color 0.25s ease;
-      padding-bottom: 0.35em;
+      transition: color 0.2s ease;
+      padding-bottom: 0.2em;
     }
 
     /* animated underline */
@@ -130,7 +95,7 @@
       width: 0;
       height: 1.5px;
       background: var(--accent);
-      transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .nav__link:hover {
@@ -142,150 +107,91 @@
     }
 
     /* creator gets a teal — the one gap left in the palette */
-    .nav__link--creator:hover {
-      color: #5fc9b4;
-    }
-    .nav__link--creator::after {
-      background: #5fc9b4;
-    }
+    .nav__link--creator:hover { color: #2f9c86; }
+    .nav__link--creator::after { background: #2f9c86; }
 
     /* Loom gets a blueprint blue — grid/mathematical precision */
-    .nav__link--loom:hover {
-      color: #4a7fc9;
-    }
-    .nav__link--loom::after {
-      background: #4a7fc9;
-    }
+    .nav__link--loom:hover { color: #305f9c; }
+    .nav__link--loom::after { background: #305f9c; }
 
     /* membrane gets a warm coral/tissue-red — the breathing gesture */
-    .nav__link--membrane:hover {
-      color: #c15b4a;
-    }
-    .nav__link--membrane::after {
-      background: #c15b4a;
-    }
+    .nav__link--membrane:hover { color: #a3402f; }
+    .nav__link--membrane::after { background: #a3402f; }
 
     /* vortex gets a deep indigo — the spiral's own depth axis */
-    .nav__link--vortex:hover {
-      color: #6d4bd8;
-    }
-    .nav__link--vortex::after {
-      background: #6d4bd8;
-    }
+    .nav__link--vortex:hover { color: #5936c4; }
+    .nav__link--vortex::after { background: #5936c4; }
 
     /* fvs gets emerald — the structured/systematic gap in the accent registry */
-    .nav__link--fvs:hover {
-      color: #3fa876;
-    }
-    .nav__link--fvs::after {
-      background: #3fa876;
-    }
+    .nav__link--fvs:hover { color: #2c8c62; }
+    .nav__link--fvs::after { background: #2c8c62; }
 
     /* genesis gets a subtle accent tint on hover */
-    .nav__link--genesis:hover {
-      color: var(--accent);
-    }
-    .nav__link--genesis::after {
-      background: var(--accent);
-    }
+    .nav__link--genesis:hover { color: var(--accent); }
+    .nav__link--genesis::after { background: var(--accent); }
 
     /* strata gets ember */
-    .nav__link--strata:hover {
-      color: var(--accent2);
-    }
-    .nav__link--strata::after {
-      background: var(--accent2);
-    }
+    .nav__link--strata:hover { color: var(--accent2); }
+    .nav__link--strata::after { background: var(--accent2); }
 
     /* spore gets a cool blue-grey */
-    .nav__link--spore:hover {
-      color: #a0c8f0;
-    }
-    .nav__link--spore::after {
-      background: #a0c8f0;
-    }
+    .nav__link--spore:hover { color: #4f7ba8; }
+    .nav__link--spore::after { background: #4f7ba8; }
 
     /* pollen gets a warm pollen-yellow */
-    .nav__link--pollen:hover {
-      color: #e8c84a;
-    }
-    .nav__link--pollen::after {
-      background: #e8c84a;
-    }
+    .nav__link--pollen:hover { color: #a4842a; }
+    .nav__link--pollen::after { background: #a4842a; }
 
     /* living path gets a vital violet */
-    .nav__link--living:hover {
-      color: #b48cf0;
-    }
-    .nav__link--living::after {
-      background: #b48cf0;
-    }
+    .nav__link--living:hover { color: #8256cc; }
+    .nav__link--living::after { background: #8256cc; }
 
     /* halide gets a darkroom steel-blue */
-    .nav__link--halide:hover {
-      color: #7a9cb8;
-    }
-    .nav__link--halide::after {
-      background: #7a9cb8;
-    }
+    .nav__link--halide:hover { color: #4d6d86; }
+    .nav__link--halide::after { background: #4d6d86; }
 
     /* komorebi gets a dappled forest-green */
-    .nav__link--komorebi:hover {
-      color: #8aa054;
-    }
-    .nav__link--komorebi::after {
-      background: #8aa054;
-    }
+    .nav__link--komorebi:hover { color: #5c6f2e; }
+    .nav__link--komorebi::after { background: #5c6f2e; }
 
     /* camo turing gets a GPU-shader cyan */
-    .nav__link--turing:hover {
-      color: #3f8fa0;
-    }
-    .nav__link--turing::after {
-      background: #3f8fa0;
-    }
+    .nav__link--turing:hover { color: #21707f; }
+    .nav__link--turing::after { background: #21707f; }
 
     /* warping gets a warm wood terracotta */
-    .nav__link--warping:hover {
-      color: #a9683e;
-    }
-    .nav__link--warping::after {
-      background: #a9683e;
-    }
+    .nav__link--warping:hover { color: #8a5330; }
+    .nav__link--warping::after { background: #8a5330; }
 
     /* soul gets a living rose/pulse — the animation engine, "what gives
        it life", deliberately distinct from Strata's warmer ember */
-    .nav__link--soul:hover {
-      color: #c85a8c;
-    }
-    .nav__link--soul::after {
-      background: #c85a8c;
-    }
+    .nav__link--soul:hover { color: #a83e6b; }
+    .nav__link--soul::after { background: #a83e6b; }
 
     /* design system is documentation, not a tool — a quiet neutral, not a
        new hue in the palette */
-    .nav__link--ds:hover {
-      color: #b8b0a0;
-    }
-    .nav__link--ds::after {
-      background: #b8b0a0;
+    .nav__link--ds:hover { color: #7a7368; }
+    .nav__link--ds::after { background: #7a7368; }
+
+    /* ── centre — reserved for future displays ── */
+    .display-area {
+      position: relative;
+      z-index: 1;
+      height: 100vh;
+      margin-left: clamp(11rem, 16vw, 14rem);
     }
 
     /* ── corner metadata ── */
     .meta {
       position: fixed;
-      bottom: 2rem;
+      bottom: 1.5rem;
       left: 0;
       right: 0;
       text-align: center;
-      transform: none;
-      font-family: var(--font);
       font-size: 0.6rem;
-      letter-spacing: 0.25em;
+      letter-spacing: 0.15em;
       color: var(--ink-dim);
-      text-transform: uppercase;
       opacity: 0;
-      animation: fadeUp 1s ease forwards 1s;
+      animation: fadeUp 1s ease forwards 0.9s;
     }
 
     /* ── Loom concept-test pages — small, bottom-centre, below the meta
@@ -293,7 +199,7 @@
        per-link accent colour, lower opacity at rest. ── */
     .experiments {
       position: fixed;
-      bottom: 0.85rem;
+      bottom: 0.7rem;
       left: 0;
       right: 0;
       z-index: 1;
@@ -303,17 +209,16 @@
       gap: 0.4rem 1.1rem;
       padding: 0 1rem;
       opacity: 0;
-      animation: fadeUp 1s ease forwards 1.15s;
+      animation: fadeUp 1s ease forwards 1.05s;
     }
 
     .experiments__link {
       font-family: var(--font);
       font-size: 0.55rem;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
+      letter-spacing: 0.08em;
       color: var(--ink-dim);
       text-decoration: none;
-      opacity: 0.5;
+      opacity: 0.6;
       transition: opacity 0.25s ease, color 0.25s ease;
     }
 
@@ -324,13 +229,8 @@
 
     /* ── keyframes ── */
     @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(18px); }
+      from { opacity: 0; transform: translateY(10px); }
       to   { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes shimmer {
-      0%,100% { background-position: 0% 50%; }
-      50%      { background-position: 100% 50%; }
     }
   </style>
 </head>
@@ -338,33 +238,33 @@
 
   <canvas id="canvas-bg"></canvas>
 
-  <main class="shell">
-    <div class="wordmark">
-      <h1 class="wordmark__title">Organica</h1>
-      <span class="wordmark__sub">Tools for Organic Visual Language</span>
-    </div>
+  <header class="header">
+    <span class="header__wordmark">Organica</span>
+  </header>
 
-    <nav class="nav">
-      <a class="nav__link nav__link--creator" href="/genesis/creator.html">Creator</a>
-      <a class="nav__link nav__link--loom" href="/loom/">Loom</a>
-      <a class="nav__link nav__link--membrane" href="/membrane/">Membrane</a>
-      <a class="nav__link nav__link--vortex" href="/vortex/">Vortex</a>
-      <a class="nav__link nav__link--fvs" href="/fvs/">FVS</a>
-      <a class="nav__link nav__link--genesis" href="/genesis/">Genesis</a>
-      <a class="nav__link nav__link--strata" href="/strata/">Strata</a>
-      <a class="nav__link nav__link--spore" href="/spore/">Spore</a>
-      <a class="nav__link nav__link--pollen" href="/pollen/">Pollen</a>
-      <a class="nav__link nav__link--living" href="/livingpath/">Living Path</a>
-      <a class="nav__link nav__link--halide" href="/halide/">Halide</a>
-      <a class="nav__link nav__link--komorebi" href="/komorebi/">Komorebi</a>
-      <a class="nav__link nav__link--turing" href="/camo-turing/">Camo Turing</a>
-      <a class="nav__link nav__link--warping" href="/warping/">Warping</a>
-      <a class="nav__link nav__link--soul" href="/soul/">Soul</a>
-      <a class="nav__link nav__link--ds" href="/design-system/">Design System</a>
-    </nav>
-  </main>
+  <nav class="side-nav">
+    <a class="nav__link nav__link--creator" href="/genesis/creator.html">Creator</a>
+    <a class="nav__link nav__link--loom" href="/loom/">Loom</a>
+    <a class="nav__link nav__link--membrane" href="/membrane/">Membrane</a>
+    <a class="nav__link nav__link--vortex" href="/vortex/">Vortex</a>
+    <a class="nav__link nav__link--fvs" href="/fvs/">Fvs</a>
+    <a class="nav__link nav__link--genesis" href="/genesis/">Genesis</a>
+    <a class="nav__link nav__link--strata" href="/strata/">Strata</a>
+    <a class="nav__link nav__link--spore" href="/spore/">Spore</a>
+    <a class="nav__link nav__link--pollen" href="/pollen/">Pollen</a>
+    <a class="nav__link nav__link--living" href="/livingpath/">Living path</a>
+    <a class="nav__link nav__link--halide" href="/halide/">Halide</a>
+    <a class="nav__link nav__link--komorebi" href="/komorebi/">Komorebi</a>
+    <a class="nav__link nav__link--turing" href="/camo-turing/">Camo turing</a>
+    <a class="nav__link nav__link--warping" href="/warping/">Warping</a>
+    <a class="nav__link nav__link--soul" href="/soul/">Soul</a>
+    <a class="nav__link nav__link--ds" href="/design-system/">Design system</a>
+  </nav>
 
-  <p class="meta">Organica — System v0.1</p>
+  <!-- Reserved for future displays — deliberately empty for now. -->
+  <main class="display-area"></main>
+
+  <p class="meta">System v0.1</p>
 
   <nav class="experiments">
     <a class="experiments__link" href="/loom/_test-camo-cells.html">Camo Cells</a>
@@ -376,7 +276,9 @@
   </nav>
 
   <script>
-    // ── organic noise field on canvas ──
+    // ── organic noise field on canvas — same mechanic as before, just
+    // recoloured (darker, higher-opacity strokes) so it still reads
+    // clearly against a white page instead of a near-black one.
     const canvas = document.getElementById('canvas-bg');
     const ctx    = canvas.getContext('2d');
 
@@ -413,7 +315,7 @@
       const scale  = 0.0035;     // noise zoom
       const speed  = 0.0004;     // animation pace
 
-      ctx.lineWidth = 0.8;
+      ctx.lineWidth = 0.9;
 
       for (let x = 0; x <= W; x += step) {
         for (let y = 0; y <= H; y += step) {
@@ -424,13 +326,15 @@
           const x2 = x + Math.cos(ang) * len;
           const y2 = y + Math.sin(ang) * len;
 
-          // gradient: acid green → ember, based on position
+          // gradient: acid green → ember, based on position — darker,
+          // more saturated values than the dark-theme original so the
+          // lines still read on white at a moderate opacity.
           const mix = x / W;
-          const r   = Math.round(200 + mix * 56);   // 200→255 range
-          const g   = Math.round(240 - mix * 160);   // 240→80
-          const b   = Math.round(96  - mix * 48);    // 96→48
+          const r   = Math.round(70  + mix * 130);
+          const g   = Math.round(110 - mix * 70);
+          const b   = Math.round(50  - mix * 20);
 
-          ctx.strokeStyle = `rgba(${r},${g},${b},0.55)`;
+          ctx.strokeStyle = `rgba(${r},${g},${b},0.4)`;
           ctx.beginPath();
           ctx.moveTo(x, y);
           ctx.lineTo(x2, y2);
