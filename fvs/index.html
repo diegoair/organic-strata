@@ -115,6 +115,11 @@
   #symbol-content-overlay__title { font-size: var(--fs-base); font-weight: 600; }
   #symbol-content-overlay__elements .fvs-library-item, #symbol-content-overlay__components .fvs-library-item { width: 76px; height: 76px; }
 
+  #underlying-component-overlay { position: fixed; inset: 0; background: rgba(10,10,10,0.45); display: flex; align-items: center; justify-content: center; z-index: 200; }
+  #underlying-component-overlay__panel { background: var(--paper); border: 1px solid var(--border); width: 420px; max-height: 80vh; overflow-y: auto; padding: var(--space-5); }
+  #underlying-component-overlay__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3); }
+  #underlying-component-overlay-tiles .fvs-library-item { width: 76px; height: 76px; }
+
   #symbol-frame svg .symbol-marquee { fill: rgba(51,153,255,0.12); stroke: #3399ff; stroke-width: 1; stroke-dasharray: 4 3; }
 </style>
 </head>
@@ -356,6 +361,27 @@
     </div>
 
     <div class="panel-section">
+      <h3>Role</h3>
+      <div class="ctrl-row"><div class="ctrl-label">Role</div>
+        <select class="panel-select" id="sel-component-role" aria-label="Component role">
+          <option value="normal">Normal</option>
+          <option value="container">Container</option>
+          <option value="mask">Mask</option>
+        </select>
+      </div>
+      <div id="underlying-component-block" style="display:none;margin-top:var(--space-2)">
+        <div id="underlying-component-empty">
+          <button class="mini-btn" id="btn-pick-underlying-component" style="width:100%">Pick underlying component…</button>
+        </div>
+        <div id="underlying-component-set" class="ctrl-row" style="display:none">
+          <span class="ctrl-val" id="underlying-component-name" style="flex:1;text-align:left"></span>
+          <button class="mini-btn" id="btn-remove-underlying-component">Remove</button>
+        </div>
+      </div>
+      <p class="org-panel__hint">Container shows a picked Component only inside this one's own silhouette; Mask shows it everywhere except inside — a real hole. Applies to every generated candidate below and bakes into Save/export.</p>
+    </div>
+
+    <div class="panel-section">
       <h3>Library <span class="hint">saved for reuse</span></h3>
       <div id="library-empty" class="fvs-library-empty">Nothing saved yet.</div>
       <div id="fvs-library" class="fvs-library"></div>
@@ -475,6 +501,19 @@
   </div>
 </div>
 
+<div id="underlying-component-overlay" role="dialog" aria-modal="true" aria-label="Pick underlying component" style="display:none">
+  <div id="underlying-component-overlay__panel">
+    <div id="underlying-component-overlay__header">
+      <span>Pick underlying component</span>
+      <button class="icon-btn" id="btn-underlying-overlay-close" aria-label="Close">
+        <svg viewBox="0 0 16 16" width="11" height="11"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div id="underlying-component-overlay-empty" class="fvs-library-empty">No saved Components yet — build one first.</div>
+    <div id="underlying-component-overlay-tiles" class="fvs-library"></div>
+  </div>
+</div>
+
 <script src="/shared/organica-core.js"></script>
 <script>
 /* ─────────────────────────────────────────────────────────────
@@ -500,6 +539,8 @@ const state = {
   colors: ['#000000'],   // the centralised Palette (Ink) — see buildPalette()/colorAt() below
   paperColor: '#ffffff',   // the ground every render/export paints against
   customElement: null,   // {d, normTx, normTy, normScale} from an uploaded SVG, or null
+  componentRole: 'normal',           // 'normal' | 'container' | 'mask' — this Component's own silhouette used as a clip/knockout boundary for underlyingComponentName
+  underlyingComponentName: null,     // another saved Component Library entry's name, or null
   loomGrid: null,   // {cellShape, cells, inner:{width,height}} from Organica.loadLoomGrid, or null until a file is imported
   activeTier: 'components',   // 'components' | 'symbols'
   symbolGrid: null,   // same shape as loomGrid — a SECOND, independent Loom grid for the Symbols tier
@@ -1302,24 +1343,65 @@ function buildComponentItems(component, grid) {
   }));
 }
 
-function drawComponentCanvas(ctx, items, element, size) {
-  ctx.clearRect(0, 0, size, size);
-  ctx.fillStyle = state.paperColor;
-  ctx.fillRect(0, 0, size, size);
+// Resolves state.underlyingComponentName into a self-contained snapshot —
+// items with the ENTRY's own saved colours baked in (savedColorAt, same
+// fix renderLibrary()'s own thumbnails already need), not the live
+// palette. Deliberately does NOT recurse into the underlying entry's own
+// role/underlyingComponentName (even a literal self-reference just renders
+// that entry's plain cells once) — a disclosed simplification that also
+// makes runaway recursion structurally impossible, not just guarded.
+function resolveUnderlyingComponent(name) {
+  if (!name) return null;
+  const entry = LIBRARY.read()[name];
+  if (!entry) return null;
+  const savedColorAt = j => entry.colors[j % entry.colors.length];
+  const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
+  return { items, element: entry.element, size: frameSize(entry.grid), paperColor: entry.paperColor };
+}
 
-  const half = size / 2;
-  const geo = ELEMENT_TYPES[element.type].geometry(element);
-  const path = new Path2D(geo.d);
-  for (const it of items) {
+// Real, empirically-verified browser bug (found building the equivalent
+// Creator feature): a <g> nested ANYWHERE inside a <clipPath> renders the
+// whole clip as empty, even with no transform at all — <mask> has no such
+// problem. A Component's own cells are always <g>-wrapped (rotation/scale
+// per cell), so Container's boundary can't just reuse the normal per-item
+// markup — each cell's TWO transform levels are consolidated into ONE
+// `transform` attribute on a bare <path> (no <g> anywhere), which a
+// <clipPath> can hold as one of several direct children (their combined
+// areas union automatically, per spec).
+function componentBoundaryClipContent(items, geo, half) {
+  return items.map(it => {
+    const fit = it.cellSize / 100;
+    const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
+    const tf = `translate(${(half + it.cx).toFixed(2)},${(half + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50) translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})`;
+    return `<path transform="${tf}" d="${geo.d}"/>`;
+  }).join('');
+}
+
+// Mask's own content tolerates <g> wrapping fine (confirmed directly,
+// unlike <clipPath>) — reuses the normal two-level per-item transform,
+// just forcing fill="#000" (mask luminance: black = hidden = "not part of
+// the boundary" is backwards from what we want here — see below, the
+// KNOCKOUT reads black-on-white as the erased region, so the boundary
+// shapes ARE painted black on a white base, exactly the hole we want).
+function componentBoundaryMaskContent(items, geo, half) {
+  return items.map(it => {
+    const fit = it.cellSize / 100;
+    const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
+    return `<g transform="translate(${(half + it.cx).toFixed(2)},${(half + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
+      + `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
+      + `<path d="${geo.d}" fill="#000"/></g></g>`;
+  }).join('');
+}
+
+function drawItemsPlain(ctx, itemsToDraw, geo, path, boxSize) {
+  const half = boxSize / 2;
+  for (const it of itemsToDraw) {
     ctx.save();
     ctx.translate(half + it.cx, half + it.cy);
     ctx.rotate(it.rotation * Math.PI / 180);
     const fit = it.cellSize / 100;
     ctx.scale((it.flipH ? -1 : 1) * it.scale * fit, (it.flipV ? -1 : 1) * it.scale * fit);
     ctx.translate(-50, -50);
-    // Element-local normalize transform (identity for hand-authored
-    // shapes, a real bbox-fit for uploaded ones) — nested inside the
-    // per-cell transform above, never baked into `d` itself.
     ctx.translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale);
     ctx.scale(geo.normScale, geo.normScale);
     ctx.fillStyle = it.color;
@@ -1328,19 +1410,118 @@ function drawComponentCanvas(ctx, items, element, size) {
   }
 }
 
+function drawComponentCanvas(ctx, items, element, size) {
+  ctx.clearRect(0, 0, size, size);
+  const geo = ELEMENT_TYPES[element.type].geometry(element);
+  const path = new Path2D(geo.d);
+  const under = (state.componentRole === 'container' || state.componentRole === 'mask') ? resolveUnderlyingComponent(state.underlyingComponentName) : null;
+
+  if (!under) {
+    ctx.fillStyle = state.paperColor;
+    ctx.fillRect(0, 0, size, size);
+    drawItemsPlain(ctx, items, geo, path, size);
+    return;
+  }
+
+  // ONE combined Path2D unioning every cell's own transformed outline —
+  // Canvas2D has no <clipPath>-style bug (it never parses markup), so this
+  // is the direct, simple equivalent of the SVG boundary-flatten above.
+  const half = size / 2;
+  const boundaryPath = new Path2D();
+  for (const it of items) {
+    const fit = it.cellSize / 100;
+    const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
+    const m = new DOMMatrix()
+      .translate(half + it.cx, half + it.cy).rotate(it.rotation).scale(sx, sy).translate(-50, -50)
+      .translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale).scale(geo.normScale, geo.normScale);
+    boundaryPath.addPath(path, m);
+  }
+
+  const underGeo = ELEMENT_TYPES[under.element.type].geometry(under.element);
+  const underPath = new Path2D(underGeo.d);
+  const fitScale = size / under.size;
+
+  if (state.componentRole === 'container') {
+    ctx.save();
+    ctx.clip(boundaryPath);
+    ctx.fillStyle = under.paperColor;
+    ctx.fillRect(0, 0, size, size);
+    ctx.save();
+    ctx.scale(fitScale, fitScale);
+    drawItemsPlain(ctx, under.items, underGeo, underPath, under.size);
+    ctx.restore();
+    ctx.restore();
+  } else {
+    // Mask: paint this Component's own paper + the underlying Component
+    // normally, then erase the boundary's own silhouette to REAL alpha
+    // transparency (destination-out) — the same unifying mechanism
+    // confirmed for Creator: "empty" wherever nothing else is beneath,
+    // a genuine hole wherever there is.
+    ctx.fillStyle = state.paperColor;
+    ctx.fillRect(0, 0, size, size);
+    ctx.save();
+    ctx.scale(fitScale, fitScale);
+    ctx.fillStyle = under.paperColor;
+    ctx.fillRect(0, 0, under.size, under.size);
+    drawItemsPlain(ctx, under.items, underGeo, underPath, under.size);
+    ctx.restore();
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = '#000';
+    ctx.fill(boundaryPath);
+    ctx.restore();
+  }
+}
+
 function buildComponentSVG(items, element, size) {
   const half = size / 2;
   const geo = ELEMENT_TYPES[element.type].geometry(element);
-  let body = `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>`;
-  for (const it of items) {
-    const fit = it.cellSize / 100;
-    const sx = (it.flipH ? -1 : 1) * it.scale * fit;
-    const sy = (it.flipV ? -1 : 1) * it.scale * fit;
-    body += `<g transform="translate(${(half + it.cx).toFixed(2)},${(half + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
-      + `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
-      + `<path d="${geo.d}" fill="${it.color}"/></g></g>`;
-  }
   const meta = { tool: 'FVS', ruleSource: state.selectedRuleSource || '', cells: items.length, exportedAt: new Date().toISOString() };
+  const under = (state.componentRole === 'container' || state.componentRole === 'mask') ? resolveUnderlyingComponent(state.underlyingComponentName) : null;
+  // Container keeps the usual unconditional paper rect (the boundary only
+  // ever occupies its own small item area — everywhere else stays plain
+  // paper, same as any other item). Mask does NOT paint one here: a real
+  // alpha-transparent knockout has to erase THROUGH the paper too, so for
+  // mask the paper rect moves inside the masked group below instead —
+  // otherwise the "hole" would only remove the underlying layer and still
+  // show opaque paper underneath, not a genuine hole.
+  let body = (under && state.componentRole === 'mask') ? '' : `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>`;
+
+  if (under) {
+    const underGeo = ELEMENT_TYPES[under.element.type].geometry(under.element);
+    const fitScale = size / under.size;
+    let underBody = `<rect width="${under.size}" height="${under.size}" fill="${under.paperColor}"/>`;
+    for (const it of under.items) {
+      const fit = it.cellSize / 100;
+      const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
+      underBody += `<g transform="translate(${(under.size / 2 + it.cx).toFixed(2)},${(under.size / 2 + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
+        + `<g transform="translate(${(underGeo.normTx * underGeo.normScale).toFixed(4)},${(underGeo.normTy * underGeo.normScale).toFixed(4)}) scale(${underGeo.normScale.toFixed(4)})">`
+        + `<path d="${underGeo.d}" fill="${it.color}"/></g></g>`;
+    }
+    // fitScale maps the underlying Component's own frame exactly onto this
+    // one's (size = under.size * fitScale by construction) — a plain
+    // scale from the origin already covers corner-to-corner, no centring
+    // offset needed since both frames are square.
+    const underWrapped = `<g transform="scale(${fitScale.toFixed(4)})">${underBody}</g>`;
+    const uid = 'compfx-' + String(state.underlyingComponentName).replace(/[^a-zA-Z0-9_-]/g, '_');
+    if (state.componentRole === 'container') {
+      body += `<clipPath id="${uid}">${componentBoundaryClipContent(items, geo, half)}</clipPath>`
+        + `<g clip-path="url(#${uid})">${underWrapped}</g>`;
+    } else {
+      body += `<mask id="${uid}" maskUnits="userSpaceOnUse" x="0" y="0" width="${size}" height="${size}">`
+        + `<rect width="${size}" height="${size}" fill="white"/>${componentBoundaryMaskContent(items, geo, half)}</mask>`
+        + `<g mask="url(#${uid})"><rect width="${size}" height="${size}" fill="${state.paperColor}"/>${underWrapped}</g>`;
+    }
+  } else {
+    for (const it of items) {
+      const fit = it.cellSize / 100;
+      const sx = (it.flipH ? -1 : 1) * it.scale * fit;
+      const sy = (it.flipV ? -1 : 1) * it.scale * fit;
+      body += `<g transform="translate(${(half + it.cx).toFixed(2)},${(half + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
+        + `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
+        + `<path d="${geo.d}" fill="${it.color}"/></g></g>`;
+    }
+  }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
     + `<metadata>${JSON.stringify(meta)}</metadata>` + body + `</svg>`;
 }
@@ -1582,6 +1763,8 @@ function buildLibraryEntry() {
     colors: state.colors.slice(),
     paperColor: state.paperColor,
     component: { ruleSource: comp.ruleSource, cells: comp.cells },
+    role: state.componentRole,
+    underlyingComponentName: state.underlyingComponentName,
     savedAt: new Date().toISOString(),
   };
 }
@@ -1664,8 +1847,66 @@ function applyLibraryEntryToUI(entry) {
   const comp = { id: `library-${Date.now()}`, ruleSource: entry.component.ruleSource, cells: entry.component.cells };
   state.components = [comp];
   state.selectedId = comp.id;
+
+  // Old saved Components (pre-Role) have neither field — backfilled to
+  // the pre-feature-equivalent no-op (Normal, no underlying component).
+  state.componentRole = entry.role || 'normal';
+  state.underlyingComponentName = entry.underlyingComponentName || null;
+  ctrl('sel-component-role').value = state.componentRole;
+  syncComponentRoleUI();
+
   renderGallery();
   renderElementPreview();
+}
+
+// Underlying-component picker only matters once a role actually reads it
+// (Normal never does) — dead-control rule already applied elsewhere in
+// this project (Symbols' Fit/Padding hidden for polygon grids, etc.).
+function syncComponentRoleUI() {
+  const relevant = state.componentRole === 'container' || state.componentRole === 'mask';
+  ctrl('underlying-component-block').style.display = relevant ? '' : 'none';
+  ctrl('underlying-component-empty').style.display = state.underlyingComponentName ? 'none' : '';
+  ctrl('underlying-component-set').style.display = state.underlyingComponentName ? 'flex' : 'none';
+  if (state.underlyingComponentName) ctrl('underlying-component-name').textContent = state.underlyingComponentName;
+}
+
+function removeUnderlyingComponent() {
+  state.underlyingComponentName = null;
+  syncComponentRoleUI();
+  renderGallery();
+}
+
+function openUnderlyingComponentPicker() {
+  const all = LIBRARY.read();
+  const names = Object.keys(all);
+  ctrl('underlying-component-overlay-empty').style.display = names.length ? 'none' : '';
+  const wrap = ctrl('underlying-component-overlay-tiles');
+  wrap.innerHTML = '';
+  for (const name of names) {
+    const entry = all[name];
+    const size = frameSize(entry.grid);
+    const savedColorAt = j => entry.colors[j % entry.colors.length];
+    const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
+    const svgStr = buildComponentSVGWithPaper(items, entry.element, size, entry.paperColor, entry.role, entry.underlyingComponentName);
+    const btn = document.createElement('button');
+    btn.className = 'fvs-library-item';
+    btn.title = name;
+    btn.setAttribute('aria-label', 'Use ' + name + ' as underlying component');
+    btn.innerHTML = svgStr;
+    btn.addEventListener('click', () => {
+      state.underlyingComponentName = name;
+      syncComponentRoleUI();
+      renderGallery();
+      closeUnderlyingComponentPicker();
+    });
+    wrap.appendChild(btn);
+  }
+  ctrl('underlying-component-overlay').style.display = 'flex';
+  Organica.autoLabelPanel(ctrl('underlying-component-overlay'));
+}
+
+function closeUnderlyingComponentPicker() {
+  ctrl('underlying-component-overlay').style.display = 'none';
 }
 
 function renderLibrary() {
@@ -1683,7 +1924,7 @@ function renderLibrary() {
     // the panel keeps getting edited after saving.
     const savedColorAt = (i) => entry.colors[i % entry.colors.length];
     const itemsWithSavedColor = items.map((it, i) => ({ ...it, color: savedColorAt(i) }));
-    const svgStr = buildComponentSVGWithPaper(itemsWithSavedColor, entry.element, size, entry.paperColor);
+    const svgStr = buildComponentSVGWithPaper(itemsWithSavedColor, entry.element, size, entry.paperColor, entry.role, entry.underlyingComponentName);
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
     btn.setAttribute('aria-label', 'Load saved component ' + name);
@@ -1701,14 +1942,18 @@ function renderLibrary() {
   }
 }
 
-// buildComponentSVG always reads state.paperColor — a saved Library
-// entry needs its OWN saved paper colour instead, so this wraps it with
-// a temporary swap rather than duplicating the whole render function.
-function buildComponentSVGWithPaper(items, element, size, paperColor) {
-  const prev = state.paperColor;
+// buildComponentSVG always reads state.paperColor/componentRole/
+// underlyingComponentName — a saved Library entry needs its OWN saved
+// values instead, so this wraps it with a temporary swap rather than
+// duplicating the whole render function. role/underlyingComponentName
+// default to 'normal'/null for entries saved before this feature existed.
+function buildComponentSVGWithPaper(items, element, size, paperColor, role, underlyingComponentName) {
+  const prev = { paper: state.paperColor, role: state.componentRole, under: state.underlyingComponentName };
   state.paperColor = paperColor;
+  state.componentRole = role || 'normal';
+  state.underlyingComponentName = underlyingComponentName || null;
   const svg = buildComponentSVG(items, element, size);
-  state.paperColor = prev;
+  state.paperColor = prev.paper; state.componentRole = prev.role; state.underlyingComponentName = prev.under;
   return svg;
 }
 
@@ -2454,7 +2699,7 @@ function renderCellContentOverlayTiles() {
     const savedColorAt = j => entry.colors[j % entry.colors.length];
     const items = buildComponentItems({ cells: entry.component.cells }, entry.grid)
       .map((it, j) => ({ ...it, color: savedColorAt(j) }));
-    const svgStr = buildComponentSVGWithPaper(items, entry.element, size, entry.paperColor);
+    const svgStr = buildComponentSVGWithPaper(items, entry.element, size, entry.paperColor, entry.role, entry.underlyingComponentName);
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
     btn.title = name;
@@ -2734,6 +2979,17 @@ Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 ctrl('btn-export-png').addEventListener('click', () => state.activeTier === 'symbols' ? exportSymbol('png') : exportSelected('png'));
 ctrl('btn-export-svg').addEventListener('click', () => state.activeTier === 'symbols' ? exportSymbol('svg') : exportSelected('svg'));
 
+ctrl('sel-component-role').addEventListener('change', e => {
+  state.componentRole = e.target.value;
+  syncComponentRoleUI();
+  renderGallery();
+});
+ctrl('btn-pick-underlying-component').addEventListener('click', openUnderlyingComponentPicker);
+ctrl('btn-remove-underlying-component').addEventListener('click', removeUnderlyingComponent);
+ctrl('btn-underlying-overlay-close').addEventListener('click', closeUnderlyingComponentPicker);
+ctrl('underlying-component-overlay').addEventListener('click', e => { if (e.target === ctrl('underlying-component-overlay')) closeUnderlyingComponentPicker(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && ctrl('underlying-component-overlay').style.display !== 'none') closeUnderlyingComponentPicker(); });
+
 ctrl('btn-save-library').addEventListener('click', saveToLibrary);
 ctrl('btn-library-confirm').addEventListener('click', confirmSaveToLibrary);
 ctrl('btn-library-cancel').addEventListener('click', cancelSaveToLibrary);
@@ -2745,6 +3001,7 @@ ctrl('txt-library-name').addEventListener('keydown', e => {
 // ── Init ──
 buildPalette();
 syncElementUI();
+syncComponentRoleUI();
 syncRuleAvailability();
 syncRuleUI();
 renderSymbol();

@@ -139,6 +139,22 @@
     .upload-btn { width: 100%; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.1em; border: 1px dashed var(--border); background: none; color: var(--ink-muted); padding: 8px; cursor: pointer; font-family: var(--font); margin-bottom: 8px; }
     .upload-btn:hover { border-color: var(--border-strong); color: var(--ink); }
 
+    .panel-hint { font-size: var(--fs-xs); color: var(--ink-muted); line-height: 1.5; }
+
+    /* Underlying-layer picker overlay — same tile-preview pattern as FVS's
+       Choose-content overlay (fvs/index.html), ported to Creator's own tokens. */
+    #layer-picker-overlay { position: fixed; inset: 0; background: rgba(10,10,10,0.45); display: flex; align-items: center; justify-content: center; z-index: 200; }
+    #layer-picker-panel { background: var(--bg); border: 1px solid var(--border); width: 420px; max-height: 80vh; overflow-y: auto; padding: 16px; }
+    #layer-picker-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    #layer-picker-header span { font-size: var(--fs-md); font-weight: 600; color: var(--ink); }
+    #layer-picker-close { background: none; border: none; color: var(--ink-muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 6px; }
+    #layer-picker-close:hover { color: var(--ink); }
+    #layer-picker-tiles { display: flex; flex-wrap: wrap; gap: 8px; }
+    .layer-picker-item { width: 72px; height: 72px; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; padding: 0; background: none; }
+    .layer-picker-item:hover { border-color: var(--border-strong); }
+    .layer-picker-item svg { width: 100%; height: 100%; display: block; }
+    #layer-picker-empty { font-size: var(--fs-xs); color: var(--ink-muted); }
+
     .mode-block { display: none; }
     .mode-block.active { display: block; }
 
@@ -305,6 +321,19 @@
             <button class="type-pill" data-type="container">Container</button>
           </div>
         </div>
+        <div id="underlying-layer-block" style="display:none">
+          <p class="panel-hint" style="margin:2px 0 6px">Container shows the picked layer only inside this shape's outline; Mask shows it everywhere except inside — a real hole.</p>
+          <div id="underlying-layer-empty">
+            <button class="upload-btn" id="btn-pick-layer" style="margin-bottom:0">Pick layer…</button>
+          </div>
+          <div id="underlying-layer-set" class="panel-row" style="display:none">
+            <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+              <span id="underlying-layer-thumb" style="width:28px;height:28px;flex-shrink:0;border:1px solid var(--border)"></span>
+              <span id="underlying-layer-name" style="font-size:var(--fs-sm);color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+            </div>
+            <button class="upload-btn" id="btn-remove-layer" style="width:auto;margin-bottom:0;padding:4px 8px">Remove</button>
+          </div>
+        </div>
         <div class="panel-row">
           <label class="panel-label">Save to</label>
           <select class="panel-select" id="ctrl-set"></select>
@@ -313,6 +342,17 @@
       </section>
 
     </aside>
+  </div>
+
+  <div id="layer-picker-overlay" role="dialog" aria-modal="true" aria-label="Pick underlying layer" style="display:none">
+    <div id="layer-picker-panel">
+      <div id="layer-picker-header">
+        <span>Pick underlying layer</span>
+        <button id="layer-picker-close" aria-label="Close">&times;</button>
+      </div>
+      <div id="layer-picker-empty" style="display:none">No saved forms yet — save one from this page or library.html first.</div>
+      <div id="layer-picker-tiles"></div>
+    </div>
   </div>
 
   <script src="/shared/organica-core.js"></script>
@@ -364,6 +404,7 @@
     moveX: 0,
     moveY: 0,
     type: 'asset',
+    underlyingLayer: null,   // {id, name, innerMarkup} — a picked library form shown clipped inside (Container) or knocked out (Mask) by the current shape
   };
 
   const $ = id => document.getElementById(id);
@@ -376,6 +417,7 @@
     bindArtboard();
     bindControls();
     populateSets();
+    syncUnderlyingLayerUI();
     render();
   }
 
@@ -522,9 +564,80 @@
     $('type-pills').querySelectorAll('.type-pill').forEach(p => p.addEventListener('click', () => {
       $('type-pills').querySelectorAll('.type-pill').forEach(x => x.classList.remove('active'));
       p.classList.add('active'); S.type = p.dataset.type;
+      syncUnderlyingLayerUI();
+      render();
     }));
 
+    $('btn-pick-layer').addEventListener('click', openLayerPicker);
+    $('btn-remove-layer').addEventListener('click', removeUnderlyingLayer);
+    $('layer-picker-close').addEventListener('click', closeLayerPicker);
+    $('layer-picker-overlay').addEventListener('click', e => { if (e.target === $('layer-picker-overlay')) closeLayerPicker(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('layer-picker-overlay').style.display !== 'none') closeLayerPicker(); });
+
     $('btn-save').addEventListener('click', saveForm);
+  }
+
+  // Container/Mask are the only roles where an attached layer does
+  // anything — Asset/Variant hide the section entirely rather than
+  // showing a control with no effect (same "a dead control is a bug"
+  // rule this project already applies elsewhere).
+  function syncUnderlyingLayerUI() {
+    const relevant = S.type === 'mask' || S.type === 'container';
+    $('underlying-layer-block').style.display = relevant ? '' : 'none';
+    $('underlying-layer-empty').style.display = S.underlyingLayer ? 'none' : '';
+    $('underlying-layer-set').style.display = S.underlyingLayer ? 'flex' : 'none';
+    if (S.underlyingLayer) {
+      $('underlying-layer-name').textContent = S.underlyingLayer.name;
+      $('underlying-layer-thumb').innerHTML = `<svg viewBox="0 0 200 200" style="width:100%;height:100%">${S.underlyingLayer.innerMarkup}</svg>`;
+    }
+  }
+
+  function removeUnderlyingLayer() {
+    S.underlyingLayer = null;
+    syncUnderlyingLayerUI();
+    render();
+  }
+
+  // ── Underlying-layer picker — same source/tile pattern as FVS's own
+  // Creator-library picker (fvs/index.html's getCreatorLibraryForms()),
+  // read directly here since Creator already owns this exact store.
+  function openLayerPicker() {
+    const lib = JSON.parse(readLibraryRaw() || '{}');
+    const byId = {};
+    for (const f of lib.forms || []) byId[f.id] = f;
+    const forms = [];
+    const seen = new Set();
+    for (const set of lib.sets || []) {
+      for (const fid of set.forms || []) {
+        const f = byId[fid];
+        if (f && !seen.has(f.id)) { seen.add(f.id); forms.push(f); }
+      }
+    }
+    $('layer-picker-empty').style.display = forms.length ? 'none' : '';
+    const wrap = $('layer-picker-tiles');
+    wrap.innerHTML = '';
+    for (const f of forms) {
+      const btn = document.createElement('button');
+      btn.className = 'layer-picker-item';
+      btn.title = f.name;
+      btn.setAttribute('aria-label', 'Use ' + f.name + ' as underlying layer');
+      btn.innerHTML = f.svg;
+      btn.addEventListener('click', () => { pickUnderlyingLayer(f); closeLayerPicker(); });
+      wrap.appendChild(btn);
+    }
+    $('layer-picker-overlay').style.display = 'flex';
+    Organica.autoLabelPanel($('layer-picker-overlay'));
+  }
+
+  function closeLayerPicker() { $('layer-picker-overlay').style.display = 'none'; }
+
+  function pickUnderlyingLayer(form) {
+    const div = document.createElement('div');
+    div.innerHTML = form.svg;
+    const svgRoot = div.querySelector('svg');
+    S.underlyingLayer = { id: form.id, name: form.name, innerMarkup: svgRoot ? svgRoot.innerHTML : '' };
+    syncUnderlyingLayerUI();
+    render();
   }
 
   function syncGenerator() {
@@ -625,12 +738,53 @@
     return `fill="var(--ink)"`;
   }
 
-  // ── Shared markup (used by both the live render and Save) ──
-  function formMarkup() {
+  // Container/Mask compositing — a shape with an attached underlying layer
+  // (S.underlyingLayer, picked from the shared library) no longer renders
+  // its own flat fill; it purely defines a boundary. Container shows the
+  // layer ONLY inside that boundary (a plain <clipPath>); Mask shows it
+  // EVERYWHERE EXCEPT inside (a real <mask> — not fill-rule, so it composes
+  // correctly regardless of what the layer's own markup contains). Both
+  // reuse the exact same transform `tf` for the boundary shape and the
+  // layer, so they move/scale/rotate together as one rigid unit (the layer
+  // has no Appearance controls of its own in this pass).
+  // Known simplification: the Mask case forces fill="#000" on the boundary
+  // so Draw/Generate geometry (which carries no fill of its own) inherits
+  // cleanly — an Import-mode boundary shape carries its own explicit
+  // fill="var(--ink)" (set by importSVG()), which as a more specific
+  // attribute wins over this override; --ink's own dark value still reads
+  // as a near-clean hole in the normal case, just not a guaranteed pure
+  // binary cutout for an unusually light/multi-coloured import.
+  //
+  // Real, empirically-verified browser quirk: a <g> nested ANYWHERE inside
+  // a <clipPath> renders the whole clip as empty (confirmed with a minimal
+  // isolated repro — even a bare, transform-less <g> wrapping a single
+  // <path> breaks it; <mask> has no such problem). So the Container branch
+  // puts `transform` on the <clipPath> element itself instead of wrapping
+  // `geo` in a <g> — geometrically identical, but only Draw/Generate mode
+  // geo (a bare <path>/<circle>, no <g>) is safe as a clip boundary this
+  // way; Import mode's geo is itself a <g> and would still break clipPath
+  // if picked as a Container's boundary — not fixed this pass (the
+  // Underlying-layer section could later warn/disable for Import mode).
+  function compositeMarkup(tf, idSuffix) {
     const geo = geometry();
     if (!geo) return '';
-    const tf = formTransform();
+    if (S.underlyingLayer && (S.type === 'mask' || S.type === 'container')) {
+      const uid = 'shapefx-' + (S.underlyingLayer.id || 'x') + (idSuffix || '');
+      if (S.type === 'container') {
+        return `<clipPath id="${uid}" transform="${tf}">${geo}</clipPath>`
+          + `<g clip-path="url(#${uid})"><g transform="${tf}">${S.underlyingLayer.innerMarkup}</g></g>`;
+      }
+      return `<mask id="${uid}" maskUnits="userSpaceOnUse" x="0" y="0" width="200" height="200">`
+        + `<rect width="200" height="200" fill="white"/>`
+        + `<g transform="${tf}" fill="#000" stroke="none">${geo}</g></mask>`
+        + `<g mask="url(#${uid})"><g transform="${tf}">${S.underlyingLayer.innerMarkup}</g></g>`;
+    }
     return `<g transform="${tf}" ${styleAttrs()}>${geo}</g>`;
+  }
+
+  // ── Shared markup (used by both the live render and Save) ──
+  function formMarkup() {
+    return compositeMarkup(formTransform());
   }
 
   // Push S.* appearance values back into the sliders + readouts.
@@ -712,10 +866,16 @@
     const geo = geometry();
     if (!geo) { el.innerHTML = ''; return; }
     const cx = 100, cy = 100;
-    const style = styleAttrs();
-    el.innerHTML = TRANSFORM_PREVIEW_STATES.map(([rot, sx, sy]) => {
+    el.innerHTML = TRANSFORM_PREVIEW_STATES.map(([rot, sx, sy], i) => {
       const tf = `translate(${cx} ${cy}) rotate(${rot}) scale(${sx},${sy}) translate(${-cx} ${-cy})`;
-      return `<svg viewBox="0 0 200 200"><g transform="${tf}" ${style}>${geo}</g></svg>`;
+      // Distinct clip/mask ids per tile — compositeMarkup()'s own id is
+      // derived from the layer id alone, which would collide across the
+      // 7 simultaneously-rendered tiles otherwise (each tile is its own
+      // standalone <svg>, but duplicate ids across sibling SVGs in the
+      // same document can still cross-reference the wrong <mask>/<clipPath>
+      // in some browsers) — suffix with the tile index to keep them unique.
+      const markup = compositeMarkup(tf, '-t' + i);
+      return `<svg viewBox="0 0 200 200">${markup}</svg>`;
     }).join('');
   }
 
