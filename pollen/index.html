@@ -370,6 +370,13 @@
         <button class="mini-btn" onclick="savePreset()">Save</button>
         <button class="mini-btn" onclick="deletePreset()">Delete</button>
       </div>
+      <div id="preset-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
+        <input type="text" class="panel-select" id="txt-preset-name" placeholder="Name this preset" aria-label="Name this preset" style="flex:1">
+      </div>
+      <div id="preset-save-actions" class="row-btns" style="display:none">
+        <button class="mini-btn" id="btn-preset-confirm">Save</button>
+        <button class="mini-btn" id="btn-preset-cancel">Cancel</button>
+      </div>
     </div>
 
     <!-- SYMBOLS (appearance — live) -->
@@ -986,11 +993,24 @@ function applyPreset(v) {
   if (s) setState(s);
 }
 function savePreset() {
-  const name = (prompt('Preset name:') || '').trim();
+  ctrl('txt-preset-name').value = 'Preset ' + new Date().toLocaleTimeString();
+  ctrl('preset-save-row').style.display = '';
+  ctrl('preset-save-actions').style.display = '';
+  ctrl('txt-preset-name').focus();
+  ctrl('txt-preset-name').select();
+}
+function confirmSavePreset() {
+  const name = ctrl('txt-preset-name').value.trim();
   if (!name) return;
   const u = userPresets(); u[name] = getState();
   PRESETS.write(u);
   populatePresets('u:' + name);
+  cancelSavePreset();
+}
+function cancelSavePreset() {
+  ctrl('preset-save-row').style.display = 'none';
+  ctrl('preset-save-actions').style.display = 'none';
+  ctrl('txt-preset-name').value = '';
 }
 function deletePreset() {
   const v = ctrl('preset-select').value;
@@ -1810,6 +1830,12 @@ updatePtPreview();   // show the point shape preview before any image is loaded
 Organica.popover(document.getElementById('btn-export'), document.getElementById('export-popover'));
 Organica.autoLabelPanel(document);   // accessible names for row controls
 Organica.enhanceSliders(document);   // filled track + click-to-edit value
+ctrl('btn-preset-confirm').addEventListener('click', confirmSavePreset);
+ctrl('btn-preset-cancel').addEventListener('click', cancelSavePreset);
+ctrl('txt-preset-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmSavePreset();
+  if (e.key === 'Escape') cancelSavePreset();
+});
 </script>
 </body>
 </html>
