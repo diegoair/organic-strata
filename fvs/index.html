@@ -89,12 +89,45 @@
   .fvs-library-item svg { width: 100%; height: 100%; display: block; }
   .fvs-library-item .rmx-x { position: absolute; top: 0; right: 0; }
   .fvs-library-empty { font-size: var(--fs-micro); color: var(--mid); margin-bottom: var(--space-2); }
+
+  /* Components ↔ Symbols tier switch — same show/hide-by-data-attribute
+     convention Genesis Creator's own Draw/Import/Generate mode-blocks use. */
+  .tier-block { display: none; }
+  .tier-block.active { display: block; }
+  #canvas-wrap .tier-view { display: none; height: 100%; }
+  #canvas-wrap .tier-view.active { display: flex; align-items: center; justify-content: center; }
+  #symbol-frame svg { max-width: 100%; max-height: 100%; display: block; }
+  #symbol-frame svg [data-cell-index] { cursor: pointer; }
+
+  .symbol-anchor-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; width: 84px; }
+  .symbol-anchor-btn { width: 26px; height: 26px; padding: 0; border: 1px solid var(--border); background: var(--paper); cursor: pointer; position: relative; }
+  .symbol-anchor-btn:hover { border-color: var(--mid); }
+  .symbol-anchor-btn.active { border-color: var(--tool); background: var(--tool); }
+  .symbol-anchor-btn span { position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; border-radius: 50%; background: var(--ink); transform: translate(-50%, -50%); }
+  .symbol-anchor-btn.active span { background: #fff; }
+
+  /* Choose-content overlay — no existing modal component in this codebase
+     (Organica.popover is anchored-to-a-button, not a fit for a click
+     anywhere on the canvas), so this is a plain fixed-position dialog. */
+  #symbol-content-overlay { position: fixed; inset: 0; background: rgba(10,10,10,0.45); display: flex; align-items: center; justify-content: center; z-index: 200; }
+  #symbol-content-overlay__panel { background: var(--paper); border: 1px solid var(--border); width: 420px; max-height: 80vh; overflow-y: auto; padding: var(--space-5); }
+  #symbol-content-overlay__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3); }
+  #symbol-content-overlay__title { font-size: var(--fs-base); font-weight: 600; }
+  #symbol-content-overlay__elements .fvs-library-item, #symbol-content-overlay__components .fvs-library-item { width: 76px; height: 76px; }
+
+  #symbol-frame svg .symbol-marquee { fill: rgba(51,153,255,0.12); stroke: #3399ff; stroke-width: 1; stroke-dasharray: 4 3; }
 </style>
 </head>
 <body>
 
-<header class="org-header org-header--tool" role="banner">
+<header class="org-header org-header--editor" role="banner">
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ FVS</span></a>
+  <div class="org-header__context">
+    <div class="org-tabs" id="tier-tabs" role="group" aria-label="Tier">
+      <button class="org-btn" data-tier="components" aria-pressed="true">Components</button>
+      <button class="org-btn" data-tier="symbols" aria-pressed="false">Symbols</button>
+    </div>
+  </div>
   <div class="org-header__spacer"></div>
   <output class="org-header__status" aria-live="polite" aria-atomic="true">
     <span class="org-header__dot" id="status-dot"></span>
@@ -114,7 +147,7 @@
         <button class="org-btn" id="btn-export-png">PNG</button>
         <button class="org-btn" id="btn-export-svg">SVG</button>
       </div>
-      <p class="org-popover__hint">Exports the selected component only — click one in the gallery first. Paper background (Palette section), real vector geometry (one path per cell).</p>
+      <p class="org-popover__hint" id="export-hint">Exports the selected component only — click one in the gallery first. Paper background (Palette section), real vector geometry (one path per cell).</p>
       <div class="org-popover__divider"></div>
       <div class="org-popover__row">
         <label class="org-popover__label" for="sel-export-scale">Scale</label>
@@ -130,15 +163,21 @@
 
 <div id="app">
   <div id="canvas-wrap">
-    <div id="gallery-empty">
-      <p>No components generated yet.<br>Pick a rule below and hit Generate.</p>
+    <div class="tier-view active" data-tier="components">
+      <div id="gallery-empty">
+        <p>No components generated yet.<br>Pick a rule below and hit Generate.</p>
+      </div>
+      <div id="gallery-status"></div>
+      <div id="gallery"></div>
     </div>
-    <div id="gallery-status"></div>
-    <div id="gallery"></div>
+    <div class="tier-view" data-tier="symbols">
+      <div id="symbol-frame"></div>
+    </div>
   </div>
 
   <div id="panel">
 
+    <div class="tier-block active" data-tier="components">
     <div class="panel-section">
       <h3>Element</h3>
       <div class="ctrl-row">
@@ -179,6 +218,22 @@
       <div id="element-preview" class="fvs-element-preview" aria-label="Element transform preview"></div>
       <p class="org-panel__hint">Base/Height (triangle) and Thickness (arc) default to 100 — the Element fills its cell exactly, corner to corner, edge to edge. Upload an SVG or pick a Seed saved in Creator (first drawable shape, fitted to the cell). The strip above shows this exact Element at 0/90/180/270° and each flip, on its own — check it looks right before generating a full grid of it. Colour lives in Palette below.</p>
     </div>
+    </div>
+
+    <div class="tier-block" data-tier="symbols">
+    <div class="panel-section">
+      <h3>Symbol grid <span class="hint" id="symbol-cellcount-hint">0 cells</span></h3>
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-symbol-grid-bento">Bento (Loom)</button>
+        <button class="mini-btn" id="btn-symbol-grid-hex">Hexagonal (Loom)</button>
+      </div>
+      <button class="mini-btn" id="btn-symbol-grid-upload" style="width:100%;margin-top:var(--space-2)">Upload Loom grid JSON…</button>
+      <div id="symbol-grid-error" class="org-panel__hint" style="display:none;color:#a03828"></div>
+      <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-symbol-grid-outline"><span>Show loaded grid</span></label>
+      <label class="check-row"><input type="checkbox" id="chk-symbol-clip" checked><span>Clip to cell</span></label>
+      <p class="org-panel__hint">Two ready-made Loom exports for this evaluation — a small Bento (merged rect cells) and a Hexagonal (polygon cells, the "more complex" case) — or upload any other Loom grid JSON export. "Show loaded grid" overlays the grid's own cell outlines on the preview (not baked into PNG/SVG export) — useful to confirm a grid loaded correctly before filling it in. "Clip to cell" (on by default) crops each cell's content to its own boundary — turn it off to allow a deliberate bleed across cells; while off, a selected cell whose content exceeds its bounds is flagged in Cell properties below.</p>
+    </div>
+    </div>
 
     <div class="panel-section">
       <h3>Palette</h3>
@@ -198,6 +253,7 @@
     <input type="file" id="file-element" accept=".svg,image/svg+xml" aria-label="Upload SVG element" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;">
     <input type="file" id="file-loom-grid" accept=".json,application/json" aria-label="Upload Loom grid JSON" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;">
 
+    <div class="tier-block active" data-tier="components">
     <div class="panel-section">
       <h3>Grid <span class="hint" id="grid-cellcount-hint">4 cells</span></h3>
       <div class="ctrl-row">
@@ -313,7 +369,109 @@
       </div>
       <p class="org-panel__hint">A saved entry is a full snapshot — Element (incl. an upload's own shape), Grid, Palette, and the exact generated arrangement — not just a link back to the current controls. Click a tile to load it back exactly as saved.</p>
     </div>
+    </div>
 
+    <div class="tier-block" data-tier="symbols">
+    <div class="panel-section">
+      <h3>Fill</h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-symbol-fill" aria-label="Fill mode">
+          <option value="manual">Manual</option>
+          <option value="generate" selected>Generate (seeded)</option>
+        </select>
+      </div>
+      <div id="symbol-generate-block">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="number" class="panel-select" id="num-symbol-seed" value="1" min="0" max="999999" step="1" style="width:70%">
+          <button class="icon-btn" id="btn-symbol-seed-random" title="Random seed" aria-label="Random seed">
+            <svg viewBox="0 0 16 16" width="11" height="11"><path d="M13 8a5 5 0 1 1-1.6-3.65" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M13 2.3V6h-3.7" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <button class="mini-btn" id="btn-symbol-regenerate" style="width:100%">Regenerate</button>
+        <p class="org-panel__hint">Each cell gets a seeded random source — an Element (random type/rotation/flip/scale) or, if the Component Library has saved entries, sometimes a nested Component instead.</p>
+      </div>
+      <div id="symbol-manual-block" style="display:none">
+        <p class="org-panel__hint">Click a cell on the canvas to select it and choose its content. Shift-click, or click-and-drag, to select more than one cell.</p>
+        <div id="symbol-cell-empty" class="fvs-library-empty">No cell selected.</div>
+        <div id="symbol-cell-props" style="display:none">
+          <div class="ctrl-row"><div class="ctrl-label">Content</div>
+            <span class="ctrl-val" id="symbol-cellprop-content-label" style="flex:1;text-align:left">—</span>
+            <button class="mini-btn" id="btn-cellprop-choose">Choose…</button>
+          </div>
+          <div class="ctrl-row" id="row-cellprop-rotation"><div class="ctrl-label">Rotation</div>
+            <select class="panel-select" id="sel-cellprop-rot">
+              <option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option>
+            </select>
+          </div>
+          <div class="ctrl-row" id="row-cellprop-flip"><div class="ctrl-label">Flip</div>
+            <select class="panel-select" id="sel-cellprop-flip">
+              <option value="none">None</option><option value="h">Horizontal</option><option value="v">Vertical</option><option value="hv">Both</option>
+            </select>
+          </div>
+          <div class="ctrl-row"><div class="ctrl-label">Fit</div>
+            <select class="panel-select" id="sel-cellprop-fit">
+              <option value="contain">Contain</option>
+              <option value="fill">Fill</option>
+              <option value="fixed">Fixed size</option>
+            </select>
+          </div>
+          <div class="ctrl-row" id="row-cellprop-overflow" style="display:none">
+            <span class="ctrl-val" style="color:#c0392b;text-align:left;flex:1">⚠ Extends beyond cell bounds</span>
+          </div>
+          <div class="ctrl-row" id="row-cellprop-scale">
+            <div class="ctrl-label">Scale</div>
+            <input type="range" id="rg-cellprop-scale" min="10" max="400" step="1" value="100">
+            <span class="ctrl-val" id="v-cellprop-scale">100</span>
+          </div>
+          <div class="ctrl-row" id="row-cellprop-fixedsize" style="display:none">
+            <div class="ctrl-label">Size</div>
+            <input type="range" id="rg-cellprop-fixedsize" min="5" max="300" step="1" value="100">
+            <span class="ctrl-val" id="v-cellprop-fixedsize">100</span>
+          </div>
+          <div class="ctrl-row">
+            <div class="ctrl-label">Padding</div>
+            <input type="range" id="rg-cellprop-padding" min="0" max="40" step="1" value="0">
+            <span class="ctrl-val" id="v-cellprop-padding">0</span>
+          </div>
+          <div class="sub-label" style="margin-top:var(--space-2)">Anchor</div>
+          <div id="symbol-anchor-grid" class="symbol-anchor-grid" role="group" aria-label="Anchor position"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Symbol library <span class="hint">saved for reuse</span></h3>
+      <div id="symbol-library-empty" class="fvs-library-empty">Nothing saved yet.</div>
+      <div id="fvs-symbol-library" class="fvs-library"></div>
+      <button class="mini-btn" id="btn-save-symbol-library" style="width:100%">Save symbol to library</button>
+      <div id="symbol-library-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
+        <input type="text" class="panel-select" id="txt-symbol-library-name" placeholder="Name this symbol" aria-label="Name this symbol" style="flex:1">
+      </div>
+      <div id="symbol-library-save-actions" class="row-btns" style="display:none">
+        <button class="mini-btn" id="btn-symbol-library-confirm">Save</button>
+        <button class="mini-btn" id="btn-symbol-library-cancel">Cancel</button>
+      </div>
+      <p class="org-panel__hint">Saved separately from the Component Library above — a Symbol snapshot is its own grid + per-cell fill (Elements and/or nested Components), not one Element repeated.</p>
+    </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="symbol-content-overlay" role="dialog" aria-modal="true" aria-label="Choose cell content" style="display:none">
+  <div id="symbol-content-overlay__panel">
+    <div id="symbol-content-overlay__header">
+      <span id="symbol-content-overlay__title">Choose content</span>
+      <button class="icon-btn" id="btn-content-overlay-close" aria-label="Close">
+        <svg viewBox="0 0 16 16" width="11" height="11"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="sub-label">Elements</div>
+    <div id="symbol-content-overlay__elements" class="fvs-library"></div>
+    <div class="sub-label" style="margin-top:var(--space-3)">Components</div>
+    <div id="symbol-content-overlay__components-empty" class="fvs-library-empty">No saved Components yet — build one in the Components tab first.</div>
+    <div id="symbol-content-overlay__components" class="fvs-library"></div>
   </div>
 </div>
 
@@ -343,6 +501,15 @@ const state = {
   paperColor: '#ffffff',   // the ground every render/export paints against
   customElement: null,   // {d, normTx, normTy, normScale} from an uploaded SVG, or null
   loomGrid: null,   // {cellShape, cells, inner:{width,height}} from Organica.loadLoomGrid, or null until a file is imported
+  activeTier: 'components',   // 'components' | 'symbols'
+  symbolGrid: null,   // same shape as loomGrid — a SECOND, independent Loom grid for the Symbols tier
+  symbolCells: [],    // one per resolveGridCells(symbolGrid) index:
+                       //   {source:'element', elementType, rotation, flipH, flipV, scale, color,
+                       //    fitMode:'contain'|'fill'|'fixed', fixedSize, anchorX, anchorY, padding}
+                       //   {source:'component', componentName, rotation, flipH, flipV, scale, fitMode, fixedSize, anchorX, anchorY, padding}
+  symbolSelection: new Set(),   // cell indices, Manual mode's click-to-select — never persisted (editing-session-only)
+  symbolMarqueeRect: null,      // {x,y,w,h} in the canvas's own 0..size space, live during a drag-select — preview-only, never persisted or exported
+  symbolClipEnabled: true,      // Symbol-level: clip each cell's content to its own bounds (rect/polygon). OFF allows deliberate bleed; persisted per saved Symbol.
 };
 
 // ── Palette — centralised colour assignment (moved out of Element, which
@@ -391,6 +558,7 @@ function setColor(i, hex) {
   if (chip) chip.style.background = hex;
   renderGallery();
   renderElementPreview();
+  if (state.symbolGrid) renderSymbolCanvasOnly();
 }
 
 function addColor() {
@@ -399,6 +567,7 @@ function addColor() {
   buildPalette();
   renderGallery();
   renderElementPreview();
+  if (state.symbolGrid) renderSymbolCanvasOnly();
 }
 
 function removeColor(i) {
@@ -407,6 +576,7 @@ function removeColor(i) {
   buildPalette();
   renderGallery();
   renderElementPreview();
+  if (state.symbolGrid) renderSymbolCanvasOnly();
 }
 
 // ── Element ──
@@ -681,6 +851,11 @@ function getGrid() {
 // a Loom import's own variable cell sizes (Bento's merged spans, a
 // Voronoi diagram's differently-sized regions) scale the Element
 // correctly per cell instead of assuming uniformity.
+// cellW/cellH (alongside the pre-existing cellSize = min(w,h), kept for
+// Components which only ever want a single uniform value) expose the
+// real, possibly-asymmetric box a cell occupies — needed by Symbols'
+// own Fill/Anchor placement math, which has to know the LONG side too,
+// not just the short one a uniform Contain-style fit already used.
 function resolveGridCells(grid) {
   if (grid.kind === 'loom') {
     const originX = grid.width / 2, originY = grid.height / 2;
@@ -688,9 +863,9 @@ function resolveGridCells(grid) {
       if (grid.cellShape === 'polygon') {
         const xs = c.points.map(p => p[0]), ys = c.points.map(p => p[1]);
         const w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
-        return { cx: c.centroid[0] - originX, cy: c.centroid[1] - originY, cellSize: Math.min(w, h) };
+        return { cx: c.centroid[0] - originX, cy: c.centroid[1] - originY, cellSize: Math.min(w, h), cellW: w, cellH: h };
       }
-      return { cx: c.x + c.width / 2 - originX, cy: c.y + c.height / 2 - originY, cellSize: Math.min(c.width, c.height) };
+      return { cx: c.x + c.width / 2 - originX, cy: c.y + c.height / 2 - originY, cellSize: Math.min(c.width, c.height), cellW: c.width, cellH: c.height };
     });
   }
   const totalW = grid.cols * grid.cellSize + (grid.cols - 1) * grid.gap;
@@ -702,7 +877,7 @@ function resolveGridCells(grid) {
       centers.push({
         cx: originX + c * (grid.cellSize + grid.gap) + grid.cellSize / 2,
         cy: originY + r * (grid.cellSize + grid.gap) + grid.cellSize / 2,
-        cellSize: grid.cellSize,
+        cellSize: grid.cellSize, cellW: grid.cellSize, cellH: grid.cellSize,
       });
     }
   }
@@ -1537,6 +1712,906 @@ function buildComponentSVGWithPaper(items, element, size, paperColor) {
   return svg;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// SYMBOLS — a second tier: a Loom grid whose cells each hold either a
+// raw Element (the same transform vocabulary Components already use)
+// or a whole saved Component, nested and scaled into that one cell.
+// Deliberately NOT built on top of Components' own state (state.loomGrid
+// /state.components) — a Symbol has its own independent grid and its
+// own heterogeneous per-cell fill, so it gets its own state fields
+// (state.symbolGrid/state.symbolCells) and its own small set of
+// functions below, reusing resolveGridCells/frameSize/ELEMENT_TYPES/
+// buildComponentItems/mulberry32/colorAt exactly as-is.
+// ═══════════════════════════════════════════════════════════════
+
+// Two real Loom exports (captured live from /loom/, not hand-built) —
+// a small Bento (7 merged rect cells) and a Hexagonal (17 polygon
+// cells, the "more complex" case), both well under Loom's own
+// defaults so the evaluation stays small per Diego's own instruction.
+const SYMBOL_GRID_PRESETS = {
+  bento: {
+    "version": "1.0", "canvas": { "width": 1080, "height": 1080, "displayWidth": 1080, "displayHeight": 1080, "unit": "px", "orientation": "landscape", "marginTop": 0, "marginRight": 0, "marginBottom": 0, "marginLeft": 0, "margin": 0, "safeArea": 0, "bleed": 0 },
+    "grid": { "type": "bento", "solver": "kiwi", "params": { "cols": 3, "rows": 3, "variety": 0.35, "seed": 7 }, "gap": 0, "tracks": { "cols": [360, 360, 360], "rows": [360, 360, 360] }, "padding": 0 },
+    "cells": [
+      { "id": "c0", "col": 0, "row": 0, "colSpan": 2, "rowSpan": 1, "number": 1 },
+      { "id": "c1", "col": 2, "row": 0, "colSpan": 1, "rowSpan": 1, "number": 2 },
+      { "id": "c2", "col": 0, "row": 1, "colSpan": 1, "rowSpan": 1, "number": 3 },
+      { "id": "c3", "col": 1, "row": 1, "colSpan": 1, "rowSpan": 1, "number": 4 },
+      { "id": "c4", "col": 2, "row": 1, "colSpan": 1, "rowSpan": 1, "number": 5 },
+      { "id": "c5", "col": 0, "row": 2, "colSpan": 2, "rowSpan": 1, "number": 6 },
+      { "id": "c6", "col": 2, "row": 2, "colSpan": 1, "rowSpan": 1, "number": 7 }
+    ]
+  },
+  hexagonal: {
+    "version": "1.0", "canvas": { "width": 1080, "height": 1080, "displayWidth": 1080, "displayHeight": 1080, "unit": "px", "orientation": "landscape", "marginTop": 0, "marginRight": 0, "marginBottom": 0, "marginLeft": 0, "margin": 0, "safeArea": 0, "bleed": 0 },
+    "grid": { "type": "hexagonal", "solver": "geometric", "cellShape": "polygon", "params": { "cols": 3, "rotation": 0, "spinMode": "off", "spinAmount": 20, "noiseScale": 3, "gap": 0, "jitter": 0, "seed": 7 }, "gap": 0, "padding": 0 },
+    "cells": [
+      { "id": "c0", "points": [[371.7691453623979, 0], [300, 124.3078061834695], [60.00000000000006, 124.30780618346952], [0, 20.384757729336854], [-6.968733952797104e-16, 0]], "centroid": [146.35382907247958, 53.80007401925518], "number": 1 },
+      { "id": "c1", "points": [[1080, 0], [1080, 20.38475772933687], [1020, 124.3078061834695], [780, 124.30780618346952], [708.2308546376021, 0]], "centroid": [933.6461709275205, 53.80007401925518], "number": 2 },
+      { "id": "c2", "points": [[0, 20.38475772933684], [60, 124.3078061834695], [0, 228.23085463760214]], "centroid": [20, 124.3078061834695], "number": 3 },
+      { "id": "c3", "points": [[420, 332.1539030917347], [300, 540], [60.00000000000006, 540], [0, 436.07695154586736], [-7.105427357601002e-15, 228.23085463760205], [59.999999999999886, 124.3078061834695], [300, 124.30780618346947]], "centroid": [162.85714285714286, 332.1539030917347], "number": 4 },
+      { "id": "c4", "points": [[708.2308546376021, 0], [780, 124.3078061834695], [660, 332.1539030917347], [420.00000000000006, 332.1539030917348], [300, 124.30780618346952], [371.7691453623979, 0]], "centroid": [540, 152.15390309173475], "number": 5 },
+      { "id": "c5", "points": [[1080, 228.23085463760208], [1080, 436.07695154586736], [1020, 540], [780, 540], [660, 332.1539030917348], [779.9999999999999, 124.3078061834695], [1020, 124.30780618346947]], "centroid": [917.1428571428571, 332.1539030917347], "number": 6 },
+      { "id": "c6", "points": [[1080, 228.23085463760214], [1020, 124.30780618346952], [1080, 20.384757729336897]], "centroid": [1060, 124.30780618346951], "number": 7 },
+      { "id": "c7", "points": [[0, 436.07695154586736], [60, 540], [0, 643.9230484541326]], "centroid": [20, 540], "number": 8 },
+      { "id": "c8", "points": [[420, 747.8460969082653], [300, 955.6921938165306], [60.00000000000006, 955.6921938165306], [0, 851.7691453623979], [-7.105427357601002e-15, 643.9230484541325], [59.999999999999886, 540], [300, 540]], "centroid": [162.85714285714286, 747.8460969082653], "number": 9 },
+      { "id": "c9", "points": [[780, 540], [660, 747.8460969082653], [420.00000000000006, 747.8460969082653], [300, 540], [419.9999999999999, 332.1539030917348], [660, 332.1539030917347]], "centroid": [540, 540], "number": 10 },
+      { "id": "c10", "points": [[1080, 643.9230484541326], [1080, 851.7691453623979], [1020, 955.6921938165306], [780, 955.6921938165306], [660, 747.8460969082653], [779.9999999999999, 540], [1020, 540]], "centroid": [917.1428571428571, 747.8460969082653], "number": 11 },
+      { "id": "c11", "points": [[1080, 643.9230484541326], [1020, 540], [1080, 436.07695154586736]], "centroid": [1060, 540], "number": 12 },
+      { "id": "c12", "points": [[0, 851.7691453623979], [60, 955.6921938165306], [0, 1059.6152422706632]], "centroid": [20, 955.6921938165306], "number": 13 },
+      { "id": "c13", "points": [[371.7691453623979, 1080], [-6.408553962321293e-15, 1080], [-7.105427357601002e-15, 1059.6152422706632], [59.999999999999886, 955.6921938165306], [300, 955.6921938165306]], "centroid": [146.35382907247956, 1026.1999259807449], "number": 14 },
+      { "id": "c14", "points": [[780, 955.6921938165306], [708.2308546376021, 1080], [371.7691453623979, 1080], [300, 955.6921938165306], [419.9999999999999, 747.8460969082653], [660, 747.8460969082653]], "centroid": [540, 927.8460969082653], "number": 15 },
+      { "id": "c15", "points": [[1080, 1059.6152422706632], [1080, 1080], [708.2308546376021, 1080], [779.9999999999999, 955.6921938165306], [1020, 955.6921938165306]], "centroid": [933.6461709275205, 1026.1999259807449], "number": 16 },
+      { "id": "c16", "points": [[1080, 1059.6152422706632], [1020, 955.6921938165306], [1080, 851.7691453623979]], "centroid": [1060, 955.6921938165306], "number": 17 }
+    ]
+  },
+};
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+// state.symbolGrid is the RAW Organica.loadLoomGrid() return value
+// ({canvas, grid, inner, cellShape, cells}) — kept raw (not pre-wrapped
+// like getGrid() does for Components) specifically so it can be fed
+// straight back into Organica.loadLoomGrid() again when reloading a
+// saved Symbol, with zero reconstruction. getSymbolGrid() does the same
+// {kind:'loom', cellShape, cells, width, height} wrapping getGrid()
+// does for Components, on demand, for resolveGridCells()/frameSize().
+function getSymbolGrid() {
+  if (!state.symbolGrid) return null;
+  return { kind: 'loom', cellShape: state.symbolGrid.cellShape, cells: state.symbolGrid.cells, width: state.symbolGrid.inner.width, height: state.symbolGrid.inner.height };
+}
+
+function defaultSymbolCells(grid) {
+  return resolveGridCells(grid).map((c, i) => ({
+    source: 'element', elementType: 'triangle', rotation: 0, flipH: false, flipV: false, scale: 1, color: colorAt(i),
+    fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0,
+  }));
+}
+
+// Old saved Symbols (fvs-symbols store) predate fitMode/fixedSize/anchor/
+// padding — backfilled here so they render exactly as they did before
+// this feature shipped (contain/center/0 is the old, only behaviour).
+function withPlacementDefaults(cell) {
+  return {
+    fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0,
+    ...cell,
+  };
+}
+
+function loadSymbolGrid(model) {
+  state.symbolGrid = Organica.loadLoomGrid(model);
+  state.symbolCells = defaultSymbolCells(getSymbolGrid());
+  state.symbolSelection.clear();
+  state.symbolClipEnabled = true;
+  ctrl('chk-symbol-clip').checked = true;
+  ctrl('symbol-grid-error').style.display = 'none';
+  renderSymbol();
+}
+
+function handleSymbolGridUpload(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try { loadSymbolGrid(reader.result); }
+    catch (e) { ctrl('symbol-grid-error').textContent = e.message; ctrl('symbol-grid-error').style.display = ''; }
+  };
+  reader.onerror = () => { ctrl('symbol-grid-error').textContent = 'Could not read that file.'; ctrl('symbol-grid-error').style.display = ''; };
+  reader.readAsText(file);
+}
+
+// Shared by both source types and both render paths (SVG string, Canvas2D)
+// — turns fit mode + anchor + padding + scale/fixedSize into a concrete
+// {scaleX, scaleY, offsetX, offsetY} for one cell. `natural` is the
+// shape's own untransformed box size (square: 100 for an Element, the
+// nested Component's own frameSize for a nested Component). Reduces to
+// EXACTLY the old single-cellSize/100-fit, always-centered behaviour at
+// the defaults (fitMode:'contain', anchorX/Y:0, padding:0) — verified no
+// regression for Symbols saved before this feature shipped.
+function resolveCellPlacement(cellW, cellH, natural, cell) {
+  const pad = 1 - (cell.padding || 0);
+  const effW = cellW * pad, effH = cellH * pad;
+  const scale = cell.scale == null ? 1 : cell.scale;
+  let scaleX, scaleY;
+  if (cell.fitMode === 'fill') {
+    scaleX = (effW / natural) * scale;
+    scaleY = (effH / natural) * scale;
+  } else if (cell.fitMode === 'fixed') {
+    scaleX = scaleY = (cell.fixedSize || 100) / natural;
+  } else {
+    scaleX = scaleY = (Math.min(effW, effH) / natural) * scale;
+  }
+  const itemW = natural * scaleX, itemH = natural * scaleY;
+  const ax = cell.anchorX || 0, ay = cell.anchorY || 0;
+  return {
+    scaleX, scaleY,
+    offsetX: ax * (effW - itemW) / 2,
+    offsetY: ay * (effH - itemH) / 2,
+  };
+}
+
+// One draw-op per cell: 'element' carries its own geometry directly;
+// 'component' carries the referenced Component's own resolved items
+// (via the EXISTING, unmodified buildComponentItems) plus its natural
+// frame size, so the render functions can nest a second nearly-
+// identical transform layer around them — real vector, two levels deep.
+// scaleX/scaleY already carry the flip sign, so render only ever consumes
+// them directly — no separate flip check downstream.
+function buildSymbolItems() {
+  const grid = getSymbolGrid();
+  if (!grid) return [];
+  const centers = resolveGridCells(grid);
+  const half = frameSize(grid) / 2;
+  const library = LIBRARY.read();
+  return state.symbolCells.map((cell, i) => {
+    const c = centers[i];
+    if (!c) return null;
+    const baseCx = half + c.cx, baseCy = half + c.cy;
+    if (cell.source === 'component') {
+      const entry = library[cell.componentName];
+      // A cell can end up pointing at a Component that no longer exists
+      // (deleted from the Library after being referenced) — this used to
+      // silently drop the cell (filtered out below, zero visual trace, no
+      // console error), which reads as data loss rather than a fixable
+      // problem. A visible placeholder — same size/position as the real
+      // content would have had — makes the gap discoverable instead,
+      // including in exported files, where silently missing content is
+      // worse than a visible "this needs fixing" marker.
+      if (!entry) return { type: 'missing', index: i, cx: baseCx, cy: baseCy, cellW: c.cellW, cellH: c.cellH };
+      const nestedSize = frameSize(entry.grid);
+      // Colours from the ENTRY's own saved palette, not the live one —
+      // same fix renderLibrary()'s own thumbnails already need, since
+      // buildComponentItems()'s color field always reads the live
+      // colorAt(), not any particular saved snapshot's colours.
+      const savedColorAt = j => entry.colors[j % entry.colors.length];
+      const nestedItems = buildComponentItems({ cells: entry.component.cells }, entry.grid)
+        .map((it, j) => ({ ...it, color: savedColorAt(j) }));
+      const place = resolveCellPlacement(c.cellW, c.cellH, nestedSize, cell);
+      return {
+        type: 'component', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
+        scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
+        nestedItems, nestedElement: entry.element, nestedSize, nestedPaper: entry.paperColor,
+      };
+    }
+    const geo = ELEMENT_TYPES[cell.elementType].geometry({ base: 100, height: 100, thickness: 100 });
+    const place = resolveCellPlacement(c.cellW, c.cellH, 100, cell);
+    return {
+      type: 'element', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
+      scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
+      color: cell.color, geo,
+    };
+  }).filter(Boolean);
+}
+
+// Only meaningful while "Clip to cell" is off (clipping already makes the
+// question moot). Reuses the exact resolveCellPlacement() output already
+// computed for real placement — an axis-aligned-footprint check, same
+// disclosed approximation symbolCellBounds() already uses for hex/polygon
+// cells elsewhere in this feature (rotation isn't accounted for precisely).
+function cellOverflowInfo(index) {
+  const grid = getSymbolGrid();
+  const cell = state.symbolCells[index];
+  if (!grid || !cell) return false;
+  const c = resolveGridCells(grid)[index];
+  if (!c) return false;
+  let natural = 100;
+  if (cell.source === 'component') {
+    const entry = LIBRARY.read()[cell.componentName];
+    if (!entry) return false; // missing-reference placeholder — no fit math to check
+    natural = frameSize(entry.grid);
+  }
+  const place = resolveCellPlacement(c.cellW, c.cellH, natural, cell);
+  const itemW = natural * place.scaleX, itemH = natural * place.scaleY;
+  return itemW > c.cellW + 0.01 || itemH > c.cellH + 0.01;
+}
+
+function elementMarkupSVG(cx, cy, rotation, sx, sy, geo, color) {
+  return `<g transform="translate(${cx.toFixed(2)},${cy.toFixed(2)}) rotate(${rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
+    + `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
+    + `<path d="${geo.d}" fill="${color}"/></g></g>`;
+}
+
+const MISSING_COMPONENT_COLOR = '#c0392b';
+function missingComponentMarkupSVG(cx, cy, cellW, cellH) {
+  const x = cx - cellW / 2, y = cy - cellH / 2;
+  return `<g fill="none" stroke="${MISSING_COMPONENT_COLOR}" stroke-width="2">`
+    + `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${cellW.toFixed(2)}" height="${cellH.toFixed(2)}" stroke-dasharray="6 4"/>`
+    + `<line x1="${x.toFixed(2)}" y1="${y.toFixed(2)}" x2="${(x + cellW).toFixed(2)}" y2="${(y + cellH).toFixed(2)}"/>`
+    + `<line x1="${(x + cellW).toFixed(2)}" y1="${y.toFixed(2)}" x2="${x.toFixed(2)}" y2="${(y + cellH).toFixed(2)}"/>`
+    + `</g>`;
+}
+
+// data-cell-index on each cell's own wrapping <g> is a preview-only hook
+// for click-to-select (see bindSymbolCanvasSelection) — harmless in the
+// exported file (an unknown data attribute, no click handlers attached
+// to a downloaded SVG), never stripped, since export calls this exact
+// function directly with nothing else layered on top.
+function buildSymbolSVG() {
+  const grid = getSymbolGrid();
+  if (!grid) return '';
+  const size = frameSize(grid);
+  const items = buildSymbolItems();
+  const half = size / 2;
+  const originX = grid.width / 2, originY = grid.height / 2;
+  let defs = '';
+  let body = `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>`;
+  for (const it of items) {
+    let cellMarkup;
+    if (it.type === 'missing') {
+      cellMarkup = missingComponentMarkupSVG(it.cx, it.cy, it.cellW, it.cellH);
+    } else if (it.type === 'element') {
+      cellMarkup = elementMarkupSVG(it.cx, it.cy, it.rotation, it.scaleX, it.scaleY, it.geo, it.color);
+    } else {
+      const geo = ELEMENT_TYPES[it.nestedElement.type].geometry(it.nestedElement);
+      const nHalf = it.nestedSize / 2;
+      let inner = `<rect width="${it.nestedSize}" height="${it.nestedSize}" fill="${it.nestedPaper}"/>`;
+      for (const ni of it.nestedItems) {
+        const nfit = ni.cellSize / 100;
+        const nsx = (ni.flipH ? -1 : 1) * ni.scale * nfit, nsy = (ni.flipV ? -1 : 1) * ni.scale * nfit;
+        inner += elementMarkupSVG(nHalf + ni.cx, nHalf + ni.cy, ni.rotation, nsx, nsy, geo, ni.color);
+      }
+      cellMarkup = `<g transform="translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(${(-nHalf).toFixed(2)},${(-nHalf).toFixed(2)})">${inner}</g>`;
+    }
+    // An invisible hit-shape covering the cell's FULL boundary (not just
+    // whatever the content happens to draw) — without this, clicking the
+    // empty margin a Contain-fit shape leaves inside a non-square cell
+    // hit nothing at all, since a plain <g> has no hit-test area of its
+    // own in SVG. fill="transparent" (not "none") is what gives it one.
+    const rawCell = grid.cells[it.index];
+    let hit = '', cellPts = '';
+    if (rawCell) {
+      if (grid.cellShape === 'polygon') {
+        const pts = rawCell.points.map(p => `${(half + p[0] - originX).toFixed(2)},${(half + p[1] - originY).toFixed(2)}`).join(' ');
+        hit = `<polygon points="${pts}" fill="transparent"/>`;
+        cellPts = `<polygon points="${pts}"/>`;
+      } else {
+        const x = half + rawCell.x - originX, y = half + rawCell.y - originY;
+        hit = `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${rawCell.width.toFixed(2)}" height="${rawCell.height.toFixed(2)}" fill="transparent"/>`;
+        cellPts = `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${rawCell.width.toFixed(2)}" height="${rawCell.height.toFixed(2)}"/>`;
+      }
+    }
+    // "Clip to cell" (state.symbolClipEnabled, default on): each cell's
+    // content can't bleed past its own real boundary — reuses the exact
+    // same rect/polygon geometry as the invisible hit-shape above, just
+    // referenced as a clipPath instead. Off restores the pre-feature
+    // free-overflow behaviour (a deliberate bleed effect stays possible).
+    let clipAttr = '';
+    if (state.symbolClipEnabled && cellPts) {
+      defs += `<clipPath id="clip-cell-${it.index}">${cellPts}</clipPath>`;
+      clipAttr = ` clip-path="url(#clip-cell-${it.index})"`;
+    }
+    body += `<g data-cell-index="${it.index}"${clipAttr}>${hit}${cellMarkup}</g>`;
+  }
+  const meta = { tool: 'FVS-Symbol', cells: items.length, exportedAt: new Date().toISOString() };
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
+    + `<metadata>${JSON.stringify(meta)}</metadata>` + (defs ? `<defs>${defs}</defs>` : '') + body + `</svg>`;
+}
+
+function drawSymbolCanvas(ctx, size) {
+  const grid = getSymbolGrid();
+  const half = size / 2;
+  const originX = grid ? grid.width / 2 : 0, originY = grid ? grid.height / 2 : 0;
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = state.paperColor;
+  ctx.fillRect(0, 0, size, size);
+  for (const it of buildSymbolItems()) {
+    // "Clip to cell" mirror of buildSymbolSVG()'s <clipPath> — same rect/
+    // polygon source data, applied as a Canvas2D clip path around whatever
+    // this cell draws below, so preview/PNG and SVG export can't disagree.
+    const rawCell = grid ? grid.cells[it.index] : null;
+    const clipping = state.symbolClipEnabled && rawCell;
+    if (clipping) {
+      ctx.save();
+      ctx.beginPath();
+      if (grid.cellShape === 'polygon') {
+        rawCell.points.forEach((p, i) => {
+          const x = half + p[0] - originX, y = half + p[1] - originY;
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.closePath();
+      } else {
+        ctx.rect(half + rawCell.x - originX, half + rawCell.y - originY, rawCell.width, rawCell.height);
+      }
+      ctx.clip();
+    }
+    if (it.type === 'missing') {
+      const x = it.cx - it.cellW / 2, y = it.cy - it.cellH / 2;
+      ctx.save();
+      ctx.strokeStyle = MISSING_COMPONENT_COLOR;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(x, y, it.cellW, it.cellH);
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(x, y); ctx.lineTo(x + it.cellW, y + it.cellH);
+      ctx.moveTo(x + it.cellW, y); ctx.lineTo(x, y + it.cellH);
+      ctx.stroke();
+      ctx.restore();
+    } else if (it.type === 'element') {
+      ctx.save();
+      ctx.translate(it.cx, it.cy);
+      ctx.rotate(it.rotation * Math.PI / 180);
+      ctx.scale(it.scaleX, it.scaleY);
+      ctx.translate(-50, -50);
+      ctx.translate(it.geo.normTx * it.geo.normScale, it.geo.normTy * it.geo.normScale);
+      ctx.scale(it.geo.normScale, it.geo.normScale);
+      ctx.fillStyle = it.color;
+      ctx.fill(new Path2D(it.geo.d));
+      ctx.restore();
+    } else {
+      const geo = ELEMENT_TYPES[it.nestedElement.type].geometry(it.nestedElement);
+      const path = new Path2D(geo.d);
+      const nHalf = it.nestedSize / 2;
+      ctx.save();
+      ctx.translate(it.cx, it.cy);
+      ctx.rotate(it.rotation * Math.PI / 180);
+      ctx.scale(it.scaleX, it.scaleY);
+      ctx.translate(-nHalf, -nHalf);
+      ctx.fillStyle = it.nestedPaper;
+      ctx.fillRect(0, 0, it.nestedSize, it.nestedSize);
+      for (const ni of it.nestedItems) {
+        ctx.save();
+        ctx.translate(nHalf + ni.cx, nHalf + ni.cy);
+        ctx.rotate(ni.rotation * Math.PI / 180);
+        const nfit = ni.cellSize / 100;
+        ctx.scale((ni.flipH ? -1 : 1) * ni.scale * nfit, (ni.flipV ? -1 : 1) * ni.scale * nfit);
+        ctx.translate(-50, -50);
+        ctx.translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale);
+        ctx.scale(geo.normScale, geo.normScale);
+        ctx.fillStyle = ni.color;
+        ctx.fill(path);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+    if (clipping) ctx.restore();
+  }
+}
+
+// Seeded — a fresh mulberry32(seed) stream each call, so the same seed
+// always reproduces the exact same per-cell choices (same discipline
+// as ruleRandom() above), never accumulating across repeated clicks.
+function generateSymbolCells() {
+  const grid = getSymbolGrid();
+  if (!grid) return;
+  const seed = parseInt(ctrl('num-symbol-seed').value, 10) || 0;
+  const rng = mulberry32(seed);
+  const libNames = Object.keys(LIBRARY.read());
+  const elementTypes = ['triangle', 'arc'];
+  const scaleChoices = [0.75, 1, 1.25];
+  state.symbolSelection.clear();
+  // Fit mode/anchor/padding are deliberately NOT randomized — a chaotic
+  // per-cell mix of fit modes reads as broken rather than as intentional
+  // variety (unlike rotation/flip, which read as deliberate). They stay
+  // at the plain defaults; Generate's own visual output is exactly what
+  // it was before this feature, unless a cell is hand-adjusted afterward.
+  state.symbolCells = resolveGridCells(grid).map((c, i) => {
+    const rotation = [0, 90, 180, 270][Math.floor(rng() * 4)];
+    const flipH = rng() < 0.5, flipV = rng() < 0.5;
+    const scale = scaleChoices[Math.floor(rng() * scaleChoices.length)];
+    const placement = { fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0 };
+    if (libNames.length > 0 && rng() < 0.5) {
+      const componentName = libNames[Math.floor(rng() * libNames.length)];
+      return { source: 'component', componentName, rotation, flipH, flipV, scale, ...placement };
+    }
+    const elementType = elementTypes[Math.floor(rng() * elementTypes.length)];
+    return { source: 'element', elementType, rotation, flipH, flipV, scale, color: colorAt(i), ...placement };
+  });
+  renderSymbol();
+}
+
+// Preview-only wireframe of the loaded grid's own cell boundaries — never
+// baked into buildSymbolSVG()/drawSymbolCanvas() (export stays pure
+// content, same rule Loom's own "Background grid" toggle already
+// follows). Reuses the EXACT same origin/half offset resolveGridCells()
+// and buildSymbolItems() already use, so the outline lines up exactly
+// with whatever is actually rendered in each cell, rect or polygon.
+function buildGridOutlineSVG() {
+  const grid = getSymbolGrid();
+  if (!grid) return '';
+  const half = frameSize(grid) / 2;
+  const originX = grid.width / 2, originY = grid.height / 2;
+  let s = '<g fill="none" stroke="#3399ff" stroke-width="1.5">';
+  if (grid.cellShape === 'polygon') {
+    for (const c of grid.cells) {
+      const pts = c.points.map(p => `${(half + p[0] - originX).toFixed(2)},${(half + p[1] - originY).toFixed(2)}`).join(' ');
+      s += `<polygon points="${pts}"/>`;
+    }
+  } else {
+    for (const c of grid.cells) {
+      const x = half + c.x - originX, y = half + c.y - originY;
+      s += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${c.width.toFixed(2)}" height="${c.height.toFixed(2)}"/>`;
+    }
+  }
+  return s + '</g>';
+}
+
+// Same technique as buildGridOutlineSVG (preview-only, never inside
+// buildSymbolSVG), a second colour, only the currently-selected cells —
+// Manual mode's own visual feedback for what a Cell properties edit is
+// about to apply to.
+function buildSelectionOutlineSVG() {
+  const grid = getSymbolGrid();
+  if (!grid || state.symbolSelection.size === 0) return '';
+  const half = frameSize(grid) / 2;
+  const originX = grid.width / 2, originY = grid.height / 2;
+  let s = '<g fill="none" stroke="#ff3d7f" stroke-width="2.5">';
+  grid.cells.forEach((c, i) => {
+    if (!state.symbolSelection.has(i)) return;
+    if (grid.cellShape === 'polygon') {
+      const pts = c.points.map(p => `${(half + p[0] - originX).toFixed(2)},${(half + p[1] - originY).toFixed(2)}`).join(' ');
+      s += `<polygon points="${pts}"/>`;
+    } else {
+      const x = half + c.x - originX, y = half + c.y - originY;
+      s += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${c.width.toFixed(2)}" height="${c.height.toFixed(2)}"/>`;
+    }
+  });
+  return s + '</g>';
+}
+
+function renderSymbolCanvasOnly() {
+  const frame = ctrl('symbol-frame');
+  const grid = getSymbolGrid();
+  if (!grid) {
+    frame.innerHTML = '<p style="color:var(--mid);font-size:var(--fs-small)">Pick a grid to begin.</p>';
+    ctrl('symbol-cellcount-hint').textContent = '0 cells';
+    setStatus('', 'No symbol grid loaded');
+    return;
+  }
+  const count = resolveGridCells(grid).length;
+  ctrl('symbol-cellcount-hint').textContent = count + (count === 1 ? ' cell' : ' cells');
+  let svg = buildSymbolSVG();
+  let overlay = '';
+  if (ctrl('chk-symbol-grid-outline').checked) overlay += buildGridOutlineSVG();
+  overlay += buildSelectionOutlineSVG();
+  if (state.symbolMarqueeRect) {
+    const r = state.symbolMarqueeRect;
+    overlay += `<rect class="symbol-marquee" x="${r.x.toFixed(2)}" y="${r.y.toFixed(2)}" width="${r.w.toFixed(2)}" height="${r.h.toFixed(2)}"/>`;
+  }
+  if (overlay) svg = svg.replace('</svg>', overlay + '</svg>');
+  frame.innerHTML = svg;
+  setStatus('active', `Symbol · ${count} cells`);
+}
+
+function renderSymbol() {
+  renderSymbolCanvasOnly();
+  if (ctrl('sel-symbol-fill').value === 'manual') renderCellPropertiesPanel();
+}
+
+// Click-to-select on the rendered Symbol itself (Strata's Refine editor
+// uses the same click-a-shape-on-canvas convention) — delegated on
+// #symbol-frame, which survives every re-render (only its innerHTML is
+// replaced), so this binds exactly once rather than being re-attached
+// per render. Plain click replaces the selection with just this cell;
+// Shift-click toggles this cell into/out of a multi-cell selection.
+// Mouse position → the SVG's own internal 0..size coordinate space (same
+// technique Creator's old draw-mode artLoc() used) — needed both for a
+// plain click (was it inside a cell?) and for the marquee rectangle,
+// which is defined in that same space so it lines up with the cells it's
+// meant to be selecting.
+function svgPointFromEvent(e) {
+  const svg = ctrl('symbol-frame').querySelector('svg');
+  if (!svg) return null;
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  const loc = pt.matrixTransform(svg.getScreenCTM().inverse());
+  return { x: loc.x, y: loc.y };
+}
+
+// One axis-aligned box per cell, in the same space — reuses the already-
+// resolved cellW/cellH (Fill mode's own addition to resolveGridCells)
+// rather than any new grid math. An approximation for hexagon/polygon
+// cells (their bounding box, not their exact outline), same notion of
+// "cell size" this feature already uses elsewhere.
+function symbolCellBounds() {
+  const grid = getSymbolGrid();
+  if (!grid) return [];
+  const half = frameSize(grid) / 2;
+  return resolveGridCells(grid).map((c, i) => ({
+    index: i, x: half + c.cx - c.cellW / 2, y: half + c.cy - c.cellH / 2, w: c.cellW, h: c.cellH,
+  }));
+}
+
+function rectsIntersect(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+// Plain click (no movement) keeps the original select-and-open-overlay
+// behaviour; movement past a small threshold switches to a live marquee
+// instead — same moved-past-a-few-pixels-means-a-drag distinction
+// Creator's own old draw-mode click handler used (downPt/moved). mouseup
+// is bound on window, not the frame, so releasing outside the canvas
+// while dragging still ends the drag cleanly rather than leaving it stuck.
+function bindSymbolCanvasSelection() {
+  const frame = ctrl('symbol-frame');
+  const THRESHOLD = 5;
+  let dragStart = null, dragMoved = false, dragBase = [];
+
+  frame.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    const pt = svgPointFromEvent(e);
+    if (!pt) return;
+    e.preventDefault(); // no native text/element drag while marquee-selecting
+    dragStart = pt;
+    dragMoved = false;
+    dragBase = e.shiftKey ? Array.from(state.symbolSelection) : [];
+  });
+
+  frame.addEventListener('mousemove', e => {
+    if (!dragStart) return;
+    const pt = svgPointFromEvent(e);
+    if (!pt) return;
+    if (!dragMoved && Math.hypot(pt.x - dragStart.x, pt.y - dragStart.y) > THRESHOLD) dragMoved = true;
+    if (!dragMoved) return;
+    const rect = {
+      x: Math.min(dragStart.x, pt.x), y: Math.min(dragStart.y, pt.y),
+      w: Math.abs(pt.x - dragStart.x), h: Math.abs(pt.y - dragStart.y),
+    };
+    state.symbolMarqueeRect = rect;
+    const hits = symbolCellBounds().filter(c => rectsIntersect(rect, c)).map(c => c.index);
+    state.symbolSelection = new Set([...dragBase, ...hits]);
+    renderSymbolCanvasOnly();
+    renderCellPropertiesPanel();
+  });
+
+  window.addEventListener('mouseup', e => {
+    if (!dragStart) return;
+    const wasDrag = dragMoved;
+    dragStart = null; dragMoved = false;
+    if (wasDrag) {
+      // A drag is for building a multi-selection to batch-edit — it
+      // deliberately never opens the content overlay on its own.
+      state.symbolMarqueeRect = null;
+      renderSymbolCanvasOnly();
+      return;
+    }
+    const el = e.target.closest && e.target.closest('[data-cell-index]');
+    if (!el) {
+      // Click outside any cell (the canvas's own paper background) clears
+      // the selection — same convention as Strata's Refine editor, which
+      // this feature was explicitly modelled on. A plain click missing
+      // this was a real gap, not just an unhandled case: with a selection
+      // already active, clicking empty canvas silently left it in place.
+      if (!e.shiftKey && state.symbolSelection.size > 0) {
+        state.symbolSelection.clear();
+        renderSymbolCanvasOnly();
+        renderCellPropertiesPanel();
+      }
+      return;
+    }
+    const i = parseInt(el.getAttribute('data-cell-index'), 10);
+    if (e.shiftKey) {
+      state.symbolSelection.has(i) ? state.symbolSelection.delete(i) : state.symbolSelection.add(i);
+      renderSymbolCanvasOnly();
+      renderCellPropertiesPanel();
+    } else {
+      state.symbolSelection.clear();
+      state.symbolSelection.add(i);
+      renderSymbolCanvasOnly();
+      renderCellPropertiesPanel();
+      openCellContentOverlay();
+    }
+  });
+}
+
+// Batch-edit: writes `patch` (or the result of calling `patch` with the
+// existing cell, for edits that depend on the cell's current value) into
+// every currently-selected cell, then re-renders the canvas only — the
+// panel's own controls don't need to rebuild themselves on every edit,
+// only the rendered result changes.
+function applyToSelection(patch) {
+  state.symbolSelection.forEach(i => {
+    const cell = state.symbolCells[i];
+    if (!cell) return;
+    Object.assign(cell, typeof patch === 'function' ? patch(cell) : patch);
+  });
+  renderSymbolCanvasOnly();
+}
+
+const ANCHOR_POSITIONS = [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+function buildAnchorGrid() {
+  const wrap = ctrl('symbol-anchor-grid');
+  wrap.innerHTML = ANCHOR_POSITIONS.map(([ax, ay], i) =>
+    `<button type="button" class="symbol-anchor-btn" data-ax="${ax}" data-ay="${ay}" aria-label="Anchor ${ax < 0 ? 'left' : ax > 0 ? 'right' : 'center'} ${ay < 0 ? 'top' : ay > 0 ? 'bottom' : 'middle'}"><span></span></button>`
+  ).join('');
+  wrap.querySelectorAll('.symbol-anchor-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const ax = parseInt(btn.dataset.ax, 10), ay = parseInt(btn.dataset.ay, 10);
+      applyToSelection({ anchorX: ax, anchorY: ay });
+      syncAnchorGridUI(ax, ay);
+    });
+  });
+}
+function syncAnchorGridUI(ax, ay) {
+  ctrl('symbol-anchor-grid').querySelectorAll('.symbol-anchor-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.ax, 10) === ax && parseInt(btn.dataset.ay, 10) === ay);
+  });
+}
+
+// Replaces the old one-row-per-cell list entirely: ONE shared panel that
+// reflects/edits whatever is currently selected (state.symbolSelection).
+// The panel markup itself is static HTML (see index.html) — no rebuild
+// per selection change, only values get synced, so a control never loses
+// focus mid-edit the way rebuilding used to risk.
+// Content (Source/Type/Component) is picked entirely through the overlay
+// now — no docked <select> trio to keep in sync with it, which is exactly
+// what used to risk drifting (a dropdown AND an overlay both able to set
+// the same fields). The docked panel just reflects the result: a plain
+// text readout plus the Choose… button that reopens the overlay.
+function renderCellPropertiesPanel() {
+  const hasSelection = state.symbolSelection.size > 0 && state.symbolGrid;
+  ctrl('symbol-cell-empty').style.display = hasSelection ? 'none' : '';
+  ctrl('symbol-cell-props').style.display = hasSelection ? '' : 'none';
+  if (!hasSelection) return;
+
+  const first = state.symbolCells[Math.min(...state.symbolSelection)];
+  const isComponent = first.source === 'component';
+
+  let label = '—';
+  if (isComponent) {
+    const exists = first.componentName && LIBRARY.read()[first.componentName];
+    label = first.componentName ? (exists ? first.componentName : `⚠ ${first.componentName} (missing)`) : '—';
+  } else if (first.elementType && ELEMENT_TYPES[first.elementType]) {
+    label = ELEMENT_TYPES[first.elementType].label;
+  }
+  ctrl('symbol-cellprop-content-label').textContent = label;
+
+  // Rotation/Flip are hidden entirely for Component cells — a saved
+  // Component is already an internally-composed (often symmetric)
+  // arrangement, so rotating/flipping the whole nested block as one more
+  // knob adds little real value against the extra control surface.
+  ctrl('row-cellprop-rotation').style.display = isComponent ? 'none' : '';
+  ctrl('row-cellprop-flip').style.display = isComponent ? 'none' : '';
+  ctrl('sel-cellprop-rot').value = String(first.rotation);
+  ctrl('sel-cellprop-flip').value = first.flipH && first.flipV ? 'hv' : first.flipH ? 'h' : first.flipV ? 'v' : 'none';
+  ctrl('sel-cellprop-fit').value = first.fitMode || 'contain';
+  ctrl('row-cellprop-scale').style.display = first.fitMode === 'fixed' ? 'none' : '';
+  ctrl('row-cellprop-fixedsize').style.display = first.fitMode === 'fixed' ? '' : 'none';
+  ctrl('rg-cellprop-scale').value = Math.round((first.scale == null ? 1 : first.scale) * 100);
+  ctrl('v-cellprop-scale').textContent = ctrl('rg-cellprop-scale').value;
+  ctrl('rg-cellprop-fixedsize').value = first.fixedSize || 100;
+  ctrl('v-cellprop-fixedsize').textContent = ctrl('rg-cellprop-fixedsize').value;
+  ctrl('rg-cellprop-padding').value = Math.round((first.padding || 0) * 100);
+  ctrl('v-cellprop-padding').textContent = ctrl('rg-cellprop-padding').value;
+  syncAnchorGridUI(first.anchorX || 0, first.anchorY || 0);
+
+  const firstIndex = Math.min(...state.symbolSelection);
+  const overflowing = !state.symbolClipEnabled && cellOverflowInfo(firstIndex);
+  ctrl('row-cellprop-overflow').style.display = overflowing ? '' : 'none';
+}
+
+// ── Choose-content overlay — opened by a plain click on a cell (or the
+// docked panel's own Choose… button for a Shift-click/drag-built multi-
+// selection). Picking a tile applies the same fresh defaults regardless
+// of source type (scale 100%, Fill, no padding, centred anchor) — a
+// predictable clean slate every time content is assigned, not whatever
+// the previously-selected cell happened to have. ──
+function openCellContentOverlay() {
+  if (state.symbolSelection.size === 0) return;
+  renderCellContentOverlayTiles();
+  ctrl('symbol-content-overlay').style.display = 'flex';
+  const first = ctrl('symbol-content-overlay').querySelector('button.fvs-library-item, button#btn-content-overlay-close');
+  if (first) first.focus();
+}
+
+function closeCellContentOverlay() {
+  ctrl('symbol-content-overlay').style.display = 'none';
+}
+
+function renderCellContentOverlayTiles() {
+  const count = state.symbolSelection.size;
+  ctrl('symbol-content-overlay__title').textContent = count > 1 ? `Choose content for ${count} cells` : 'Choose content';
+
+  const elWrap = ctrl('symbol-content-overlay__elements');
+  elWrap.innerHTML = '';
+  ['triangle', 'arc'].forEach(type => {
+    const svgStr = buildElementPreviewSVG({ type, base: 100, height: 100, thickness: 100 }, 0, false, false, 72);
+    const btn = document.createElement('button');
+    btn.className = 'fvs-library-item';
+    btn.title = ELEMENT_TYPES[type].label;
+    btn.setAttribute('aria-label', 'Use Element ' + ELEMENT_TYPES[type].label);
+    btn.innerHTML = svgStr;
+    btn.addEventListener('click', () => {
+      applyToSelection(cell => ({
+        source: 'element', elementType: type, color: cell.color || colorAt(0),
+        rotation: 0, flipH: false, flipV: false,
+        fitMode: 'fill', scale: 1, padding: 0, anchorX: 0, anchorY: 0,
+      }));
+      closeCellContentOverlay();
+      renderCellPropertiesPanel();
+    });
+    elWrap.appendChild(btn);
+  });
+
+  const library = LIBRARY.read();
+  const libNames = Object.keys(library);
+  ctrl('symbol-content-overlay__components-empty').style.display = libNames.length ? 'none' : '';
+  const compWrap = ctrl('symbol-content-overlay__components');
+  compWrap.innerHTML = '';
+  for (const name of libNames) {
+    const entry = library[name];
+    const size = frameSize(entry.grid);
+    // Entry's own saved colours/paper, not the live Palette — same rule
+    // renderLibrary()'s own thumbnails already follow.
+    const savedColorAt = j => entry.colors[j % entry.colors.length];
+    const items = buildComponentItems({ cells: entry.component.cells }, entry.grid)
+      .map((it, j) => ({ ...it, color: savedColorAt(j) }));
+    const svgStr = buildComponentSVGWithPaper(items, entry.element, size, entry.paperColor);
+    const btn = document.createElement('button');
+    btn.className = 'fvs-library-item';
+    btn.title = name;
+    btn.setAttribute('aria-label', 'Use Component ' + name);
+    btn.innerHTML = svgStr;
+    btn.addEventListener('click', () => {
+      applyToSelection({
+        source: 'component', componentName: name,
+        rotation: 0, flipH: false, flipV: false,
+        fitMode: 'fill', scale: 1, padding: 0, anchorX: 0, anchorY: 0,
+      });
+      closeCellContentOverlay();
+      renderCellPropertiesPanel();
+    });
+    compWrap.appendChild(btn);
+  }
+  Organica.autoLabelPanel(ctrl('symbol-content-overlay'));
+}
+
+// ── Symbol library — a SEPARATE store from Components' own LIBRARY
+// ('fvs' key): a Symbol snapshot is a grid + heterogeneous per-cell
+// fill, not one Element repeated, so it doesn't belong in the same
+// list. state.symbolGrid is stored verbatim as gridModel (see
+// getSymbolGrid()'s own comment — it's already re-import-able as-is). ──
+const SYMBOL_LIBRARY = Organica.presetStore('fvs-symbols');
+
+function buildSymbolLibraryEntry() {
+  if (!state.symbolGrid) return null;
+  return {
+    gridModel: state.symbolGrid,
+    cells: state.symbolCells.map(c => ({ ...c })),
+    colors: state.colors.slice(),
+    paperColor: state.paperColor,
+    clipEnabled: state.symbolClipEnabled,
+    savedAt: new Date().toISOString(),
+  };
+}
+
+function saveSymbolToLibrary() {
+  if (!state.symbolGrid) return;
+  ctrl('txt-symbol-library-name').value = 'Symbol ' + new Date().toLocaleTimeString();
+  ctrl('symbol-library-save-row').style.display = '';
+  ctrl('symbol-library-save-actions').style.display = '';
+  ctrl('txt-symbol-library-name').focus();
+  ctrl('txt-symbol-library-name').select();
+}
+
+function confirmSaveSymbolToLibrary() {
+  const name = ctrl('txt-symbol-library-name').value.trim();
+  if (!name) return;
+  const entry = buildSymbolLibraryEntry();
+  if (!entry) return;
+  const all = SYMBOL_LIBRARY.read();
+  all[name] = entry;
+  SYMBOL_LIBRARY.write(all);
+  cancelSaveSymbolToLibrary();
+  renderSymbolLibrary();
+}
+
+function cancelSaveSymbolToLibrary() {
+  ctrl('symbol-library-save-row').style.display = 'none';
+  ctrl('symbol-library-save-actions').style.display = 'none';
+  ctrl('txt-symbol-library-name').value = '';
+}
+
+function removeSymbolLibraryEntry(name) {
+  const all = SYMBOL_LIBRARY.read();
+  delete all[name];
+  SYMBOL_LIBRARY.write(all);
+  renderSymbolLibrary();
+}
+
+function applySymbolLibraryEntryToUI(entry) {
+  state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
+  state.symbolCells = entry.cells.map(c => withPlacementDefaults({ ...c }));
+  state.symbolSelection.clear();
+  state.colors = entry.colors.slice();
+  buildPalette();
+  state.paperColor = entry.paperColor;
+  paperSwatch.set(entry.paperColor);
+  // Old saved Symbols (pre-Clip-to-cell) have no clipEnabled field — back-
+  // filled to true, matching withPlacementDefaults' own convention of
+  // restoring exactly the pre-feature behaviour for anything not saved.
+  state.symbolClipEnabled = entry.clipEnabled !== false;
+  ctrl('chk-symbol-clip').checked = state.symbolClipEnabled;
+  renderSymbol();
+}
+
+function renderSymbolLibrary() {
+  const all = SYMBOL_LIBRARY.read();
+  const names = Object.keys(all);
+  ctrl('symbol-library-empty').style.display = names.length ? 'none' : '';
+  const wrap = ctrl('fvs-symbol-library');
+  wrap.innerHTML = '';
+  for (const name of names) {
+    const entry = all[name];
+    // Render each thumbnail against the ENTRY's own saved state, not
+    // the live one — same rule as Components' own library thumbnails.
+    const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, paper: state.paperColor, clip: state.symbolClipEnabled };
+    state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
+    state.symbolCells = entry.cells;
+    state.colors = entry.colors;
+    state.paperColor = entry.paperColor;
+    state.symbolClipEnabled = entry.clipEnabled !== false;
+    const svgStr = buildSymbolSVG();
+    state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip;
+
+    const btn = document.createElement('button');
+    btn.className = 'fvs-library-item';
+    btn.setAttribute('aria-label', 'Load saved symbol ' + name);
+    btn.title = name;
+    btn.innerHTML = svgStr;
+    btn.addEventListener('click', () => applySymbolLibraryEntryToUI(entry));
+    const x = document.createElement('button');
+    x.className = 'rmx-x'; x.textContent = '×'; x.title = 'Remove';
+    x.setAttribute('aria-label', 'Remove saved symbol ' + name);
+    x.addEventListener('click', e => { e.stopPropagation(); removeSymbolLibraryEntry(name); });
+    const holder = document.createElement('div');
+    holder.style.position = 'relative';
+    holder.appendChild(btn); holder.appendChild(x);
+    wrap.appendChild(holder);
+  }
+}
+
+function exportSymbol(format) {
+  const grid = getSymbolGrid();
+  if (!grid) return;
+  const size = frameSize(grid);
+  if (format === 'svg') {
+    Organica.download(new Blob([buildSymbolSVG()], { type: 'image/svg+xml' }), Organica.stamp('fvs-symbol', 'svg'));
+    return;
+  }
+  const scale = parseInt(ctrl('sel-export-scale').value, 10);
+  const outSize = size * scale;
+  const off = document.createElement('canvas');
+  off.width = outSize; off.height = outSize;
+  const ctx = off.getContext('2d');
+  ctx.save();
+  ctx.scale(scale, scale);
+  drawSymbolCanvas(ctx, size);
+  ctx.restore();
+  off.toBlob(blob => { Organica.download(blob, Organica.stamp('fvs-symbol', 'png')); });
+}
+
+// ── Components ↔ Symbols tab switch ──
+function setTier(tier) {
+  state.activeTier = tier;
+  ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(t => t.setAttribute('aria-pressed', String(t.dataset.tier === tier)));
+  document.querySelectorAll('.tier-block').forEach(b => b.classList.toggle('active', b.dataset.tier === tier));
+  document.querySelectorAll('#canvas-wrap .tier-view').forEach(v => v.classList.toggle('active', v.dataset.tier === tier));
+  ctrl('export-hint').textContent = tier === 'symbols'
+    ? 'Exports the current Symbol. Paper background (Palette section), real nested vector geometry.'
+    : 'Exports the selected component only — click one in the gallery first. Paper background (Palette section), real vector geometry (one path per cell).';
+  if (tier === 'symbols') { renderSymbol(); renderSymbolLibrary(); }
+  else { renderGallery(); }
+}
+
 // ── Wiring ──
 ctrl('rg-base').addEventListener('input', e => { ctrl('v-base').textContent = e.target.value; renderGallery(); renderElementPreview(); });
 ctrl('rg-height').addEventListener('input', e => { ctrl('v-height').textContent = e.target.value; renderGallery(); renderElementPreview(); });
@@ -1561,16 +2636,83 @@ ctrl('sel-grid-type').addEventListener('change', () => {
   syncRuleAvailability();
   renderGallery();
 });
-ctrl('btn-upload-loom').addEventListener('click', () => ctrl('file-loom-grid').click());
+// Shared hidden file input between Components' own Grid section and
+// Symbols' Grid section — a flag set right before .click() tells the
+// one 'change' handler which state field to populate.
+let loomUploadTarget = 'components';
+ctrl('btn-upload-loom').addEventListener('click', () => { loomUploadTarget = 'components'; ctrl('file-loom-grid').click(); });
+ctrl('btn-symbol-grid-upload').addEventListener('click', () => { loomUploadTarget = 'symbols'; ctrl('file-loom-grid').click(); });
 ctrl('file-loom-grid').addEventListener('change', e => {
   const file = e.target.files[0];
-  if (file) handleLoomGridUpload(file);
+  if (file) { loomUploadTarget === 'symbols' ? handleSymbolGridUpload(file) : handleLoomGridUpload(file); }
   e.target.value = '';
+});
+ctrl('btn-symbol-grid-bento').addEventListener('click', () => loadSymbolGrid(SYMBOL_GRID_PRESETS.bento));
+ctrl('btn-symbol-grid-hex').addEventListener('click', () => loadSymbolGrid(SYMBOL_GRID_PRESETS.hexagonal));
+ctrl('chk-symbol-grid-outline').addEventListener('change', renderSymbolCanvasOnly);
+ctrl('chk-symbol-clip').addEventListener('change', e => {
+  state.symbolClipEnabled = e.target.checked;
+  renderSymbolCanvasOnly();
+  renderCellPropertiesPanel();
+});
+
+ctrl('sel-symbol-fill').addEventListener('change', e => {
+  ctrl('symbol-generate-block').style.display = e.target.value === 'generate' ? '' : 'none';
+  ctrl('symbol-manual-block').style.display = e.target.value === 'manual' ? '' : 'none';
+  if (e.target.value === 'manual') renderCellPropertiesPanel();
+});
+ctrl('btn-symbol-regenerate').addEventListener('click', generateSymbolCells);
+ctrl('btn-symbol-seed-random').addEventListener('click', () => { ctrl('num-symbol-seed').value = Math.floor(Math.random() * 1e6); });
+
+// ── Cell properties panel — one shared editor for whatever is currently
+// selected (state.symbolSelection), written via applyToSelection(). ──
+bindSymbolCanvasSelection();
+buildAnchorGrid();
+ctrl('btn-cellprop-choose').addEventListener('click', openCellContentOverlay);
+ctrl('btn-content-overlay-close').addEventListener('click', closeCellContentOverlay);
+ctrl('symbol-content-overlay').addEventListener('click', e => {
+  if (e.target === ctrl('symbol-content-overlay')) closeCellContentOverlay(); // click on the backdrop itself
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && ctrl('symbol-content-overlay').style.display !== 'none') closeCellContentOverlay();
+});
+ctrl('sel-cellprop-rot').addEventListener('change', e => applyToSelection({ rotation: parseInt(e.target.value, 10) }));
+ctrl('sel-cellprop-flip').addEventListener('change', e => {
+  const v = e.target.value;
+  applyToSelection({ flipH: v === 'h' || v === 'hv', flipV: v === 'v' || v === 'hv' });
+});
+ctrl('sel-cellprop-fit').addEventListener('change', e => {
+  applyToSelection({ fitMode: e.target.value });
+  renderCellPropertiesPanel();
+});
+ctrl('rg-cellprop-scale').addEventListener('input', e => {
+  ctrl('v-cellprop-scale').textContent = e.target.value;
+  applyToSelection({ scale: parseInt(e.target.value, 10) / 100 });
+});
+ctrl('rg-cellprop-fixedsize').addEventListener('input', e => {
+  ctrl('v-cellprop-fixedsize').textContent = e.target.value;
+  applyToSelection({ fixedSize: parseInt(e.target.value, 10) });
+});
+ctrl('rg-cellprop-padding').addEventListener('input', e => {
+  ctrl('v-cellprop-padding').textContent = e.target.value;
+  applyToSelection({ padding: parseInt(e.target.value, 10) / 100 });
+});
+
+ctrl('btn-save-symbol-library').addEventListener('click', saveSymbolToLibrary);
+ctrl('btn-symbol-library-confirm').addEventListener('click', confirmSaveSymbolToLibrary);
+ctrl('btn-symbol-library-cancel').addEventListener('click', cancelSaveSymbolToLibrary);
+ctrl('txt-symbol-library-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmSaveSymbolToLibrary();
+  if (e.key === 'Escape') cancelSaveSymbolToLibrary();
+});
+
+ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(btn => {
+  btn.addEventListener('click', () => setTier(btn.dataset.tier));
 });
 
 const paperSwatch = Organica.createColorSwatch('paper', {
   initial: '#ffffff',
-  onChange: (hex) => { state.paperColor = hex; renderGallery(); renderElementPreview(); },
+  onChange: (hex) => { state.paperColor = hex; renderGallery(); renderElementPreview(); if (state.symbolGrid) renderSymbolCanvasOnly(); },
 });
 
 ctrl('chk-axis-rotation').addEventListener('change', syncExhaustiveHint);
@@ -1589,8 +2731,8 @@ ctrl('btn-clear-gallery').addEventListener('click', clearGallery);
 ctrl('btn-seed-random').addEventListener('click', () => { ctrl('num-seed').value = Math.floor(Math.random() * 1e6); });
 
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
-ctrl('btn-export-png').addEventListener('click', () => exportSelected('png'));
-ctrl('btn-export-svg').addEventListener('click', () => exportSelected('svg'));
+ctrl('btn-export-png').addEventListener('click', () => state.activeTier === 'symbols' ? exportSymbol('png') : exportSelected('png'));
+ctrl('btn-export-svg').addEventListener('click', () => state.activeTier === 'symbols' ? exportSymbol('svg') : exportSelected('svg'));
 
 ctrl('btn-save-library').addEventListener('click', saveToLibrary);
 ctrl('btn-library-confirm').addEventListener('click', confirmSaveToLibrary);
@@ -1605,6 +2747,8 @@ buildPalette();
 syncElementUI();
 syncRuleAvailability();
 syncRuleUI();
+renderSymbol();
+renderSymbolLibrary();
 renderGallery();
 renderElementPreview();
 renderLibrary();
