@@ -56,6 +56,17 @@
       animation: fadeUp 0.7s ease forwards 0.05s;
     }
 
+    .header__payoff {
+      display: block;
+      margin-top: 0.3rem;
+      font-size: 0.68rem;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      color: var(--ink-dim);
+      opacity: 0;
+      animation: fadeUp 0.7s ease forwards 0.15s;
+    }
+
     /* ── left column of tool links ── */
     .side-nav {
       position: fixed;
@@ -63,14 +74,29 @@
       left: 0;
       z-index: 1;
       height: 100vh;
-      width: clamp(11rem, 16vw, 14rem);
+      width: clamp(14rem, 20vw, 18rem);
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 0.55rem;
-      padding: 0 clamp(1.25rem, 3vw, 2.5rem);
+      gap: 0.85rem;
+      padding: 1.5rem clamp(1.25rem, 3vw, 2.5rem);
+      overflow-y: auto;
       opacity: 0;
       animation: fadeUp 0.8s ease forwards 0.2s;
+    }
+
+    .nav__group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .group-label {
+      font-size: 0.62rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      color: var(--ink-dim);
+      opacity: 0.65;
     }
 
     .nav__link {
@@ -167,65 +193,48 @@
     .nav__link--soul:hover { color: #a83e6b; }
     .nav__link--soul::after { background: #a83e6b; }
 
-    /* design system is documentation, not a tool — a quiet neutral, not a
-       new hue in the palette */
-    .nav__link--ds:hover { color: #7a7368; }
-    .nav__link--ds::after { background: #7a7368; }
-
     /* ── centre — reserved for future displays ── */
     .display-area {
       position: relative;
       z-index: 1;
       height: 100vh;
-      margin-left: clamp(11rem, 16vw, 14rem);
+      margin-left: clamp(14rem, 20vw, 18rem);
     }
 
-    /* ── corner metadata ── */
+    /* ── footer — Design System reference, replaces the old
+       "System v0.1" placeholder. z-index above .display-area so its
+       link stays clickable through the (currently empty) centre area ── */
     .meta {
       position: fixed;
+      z-index: 2;
       bottom: 1.5rem;
       left: 0;
       right: 0;
-      text-align: center;
-      font-size: 0.6rem;
-      letter-spacing: 0.15em;
-      color: var(--ink-dim);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
       opacity: 0;
       animation: fadeUp 1s ease forwards 0.9s;
     }
 
-    /* ── Loom concept-test pages — small, bottom-centre, below the meta
-       line. Not tools, so deliberately quieter than .nav__link: no
-       per-link accent colour, lower opacity at rest. ── */
-    .experiments {
-      position: fixed;
-      bottom: 0.7rem;
-      left: 0;
-      right: 0;
-      z-index: 1;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 0.4rem 1.1rem;
-      padding: 0 1rem;
-      opacity: 0;
-      animation: fadeUp 1s ease forwards 1.05s;
-    }
-
-    .experiments__link {
-      font-family: var(--font);
-      font-size: 0.55rem;
+    .meta__link {
+      font-size: 0.6rem;
+      font-weight: 600;
       letter-spacing: 0.08em;
       color: var(--ink-dim);
       text-decoration: none;
-      opacity: 0.6;
-      transition: opacity 0.25s ease, color 0.25s ease;
+      transition: color 0.2s ease;
     }
 
-    .experiments__link:hover {
-      opacity: 1;
-      color: var(--accent);
+    .meta__link:hover {
+      color: #7a7368;
     }
+
+    /* explorations get a quiet neutral, same size as every other
+       nav__link — prototypes, not a lesser tier, just an unbranded hue */
+    .nav__link--exp:hover { color: #7a7368; }
+    .nav__link--exp::after { background: #7a7368; }
 
     /* ── keyframes ── */
     @keyframes fadeUp {
@@ -240,40 +249,64 @@
 
   <header class="header">
     <span class="header__wordmark">Organica</span>
+    <span class="header__payoff">Visual Design Language System</span>
   </header>
 
   <nav class="side-nav">
-    <a class="nav__link nav__link--creator" href="/genesis/creator.html">Creator</a>
-    <a class="nav__link nav__link--loom" href="/loom/">Loom</a>
-    <a class="nav__link nav__link--membrane" href="/membrane/">Membrane</a>
-    <a class="nav__link nav__link--vortex" href="/vortex/">Vortex</a>
-    <a class="nav__link nav__link--fvs" href="/fvs/">Fvs</a>
-    <a class="nav__link nav__link--genesis" href="/genesis/">Genesis</a>
-    <a class="nav__link nav__link--strata" href="/strata/">Strata</a>
-    <a class="nav__link nav__link--spore" href="/spore/">Spore</a>
-    <a class="nav__link nav__link--pollen" href="/pollen/">Pollen</a>
-    <a class="nav__link nav__link--living" href="/livingpath/">Living path</a>
-    <a class="nav__link nav__link--halide" href="/halide/">Halide</a>
-    <a class="nav__link nav__link--komorebi" href="/komorebi/">Komorebi</a>
-    <a class="nav__link nav__link--turing" href="/camo-turing/">Camo turing</a>
-    <a class="nav__link nav__link--warping" href="/warping/">Warping</a>
-    <a class="nav__link nav__link--soul" href="/soul/">Soul</a>
-    <a class="nav__link nav__link--ds" href="/design-system/">Design system</a>
+    <div class="nav__group">
+      <span class="group-label">Seed / Form</span>
+      <a class="nav__link nav__link--genesis" href="/genesis/">Genesis</a>
+      <a class="nav__link nav__link--creator" href="/genesis/creator.html">Creator</a>
+    </div>
+
+    <div class="nav__group">
+      <span class="group-label">Grid &amp; composition</span>
+      <a class="nav__link nav__link--loom" href="/loom/">Loom</a>
+      <a class="nav__link nav__link--fvs" href="/fvs/">Flexible Visual System</a>
+    </div>
+
+    <div class="nav__group">
+      <span class="group-label">Tracing &amp; vectorization</span>
+      <a class="nav__link nav__link--strata" href="/strata/">Strata</a>
+      <a class="nav__link nav__link--halide" href="/halide/">Halide</a>
+    </div>
+
+    <div class="nav__group">
+      <span class="group-label">Generative patterns</span>
+      <a class="nav__link nav__link--komorebi" href="/komorebi/">Komorebi</a>
+      <a class="nav__link nav__link--turing" href="/camo-turing/">Camo Turing</a>
+      <a class="nav__link nav__link--warping" href="/warping/">Warping</a>
+    </div>
+
+    <div class="nav__group">
+      <span class="group-label">Stippling &amp; marks</span>
+      <a class="nav__link nav__link--spore" href="/spore/">Spore</a>
+      <a class="nav__link nav__link--pollen" href="/pollen/">Pollen</a>
+    </div>
+
+    <div class="nav__group">
+      <span class="group-label">Motion &amp; growth</span>
+      <a class="nav__link nav__link--soul" href="/soul/">Soul</a>
+      <a class="nav__link nav__link--living" href="/livingpath/">Living path</a>
+      <a class="nav__link nav__link--membrane" href="/membrane/">Membrane</a>
+      <a class="nav__link nav__link--vortex" href="/vortex/">Vortex</a>
+    </div>
+
+    <div class="nav__group">
+      <span class="group-label">Explorations</span>
+      <a class="nav__link nav__link--exp" href="/loom/_test-camo-cells.html">Camo Cells</a>
+      <a class="nav__link nav__link--exp" href="/loom/_test-slice-reposition.html">Slice Reposition</a>
+      <a class="nav__link nav__link--exp" href="/loom/_test-mix-restructure.html">Mix Restructure</a>
+      <a class="nav__link nav__link--exp" href="/explorations/flow-field/">Flow Field</a>
+    </div>
   </nav>
 
   <!-- Reserved for future displays — deliberately empty for now. -->
   <main class="display-area"></main>
 
-  <p class="meta">System v0.1</p>
-
-  <nav class="experiments">
-    <a class="experiments__link" href="/loom/_test-camo-cells.html">Camo Cells</a>
-    <a class="experiments__link" href="/loom/_test-slice-reposition.html">Slice Reposition</a>
-    <a class="experiments__link" href="/loom/_test-mix-restructure.html">Mix Restructure</a>
-    <a class="experiments__link" href="/explorations/flow-field/">Flow Field</a>
-    <a class="experiments__link" href="/explorations/vortex/">Vortex</a>
-    <a class="experiments__link" href="/explorations/membrane/">Membrane</a>
-  </nav>
+  <div class="meta">
+    <a class="meta__link" href="/design-system/">Design System</a>
+  </div>
 
   <script>
     // ── organic noise field on canvas — same mechanic as before, just
