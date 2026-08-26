@@ -533,7 +533,7 @@
           <input type="color" id="cp-ink" value="#0a0a0a" oninput="setColorAll('ink',this.value);render()">
         </span>
         <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7"
-          oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){setColorAll('ink',this.value);render()}">
+          onchange="setColorAll('ink',this.value);render()">
         <button class="icon-btn" onclick="randomColor('ink')" title="Random colour">
           <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
         </button>
@@ -546,7 +546,7 @@
           <input type="color" id="cp-bg" value="#f5f2ec" oninput="setColorAll('bg',this.value);render()">
         </span>
         <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7"
-          oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){setColorAll('bg',this.value);render()}">
+          onchange="setColorAll('bg',this.value);render()">
         <button class="icon-btn" onclick="randomColor('bg')" title="Random colour">
           <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
         </button>
@@ -653,6 +653,7 @@
 
 <!-- Centralized Organica shape library (window.ORGANIC_FORMS) shared with Genesis -->
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-palette-chip.js"></script>
 <script src="/shared/organica-palette.js"></script>
 <script src="/genesis/organic-forms.js"></script>
 <script>
@@ -865,29 +866,14 @@ function setColorMode(m) {
 
 // ── RMX COLORS palette UI ──
 function buildRmxPalette() {
-  const wrap = document.getElementById('rmx-palette'); wrap.innerHTML = '';
-  rmxColors.forEach((col, i) => {
-    const sw = document.createElement('label');
-    sw.className = 'rmx-color'; sw.style.background = col;
-    sw.innerHTML = `<input type="color" value="${col}" oninput="rmxSetColor(${i}, this.value)">`
-      + (rmxColors.length > 2 ? `<button class="rmx-x" title="Remove" onclick="event.preventDefault();rmxRemoveColor(${i})">×</button>` : '');
-    wrap.appendChild(sw);
+  Organica.createPaletteChips({
+    wrap: document.getElementById('rmx-palette'),
+    colors: rmxColors,
+    min: 2,
+    max: RMX_COLORS_MAX,
+    onChange: (colors) => { rmxColors = colors; render(); },
   });
-  if (rmxColors.length < RMX_COLORS_MAX) {
-    const add = document.createElement('button');
-    add.className = 'rmx-add'; add.textContent = '+'; add.title = 'Add colour';
-    add.onclick = rmxAddColor;
-    wrap.appendChild(add);
-  }
 }
-function rmxSetColor(i, hex) {
-  rmxColors[i] = hex;
-  const sw = document.getElementById('rmx-palette').children[i];
-  if (sw) sw.style.background = hex;
-  render();
-}
-function rmxAddColor() { if (rmxColors.length < RMX_COLORS_MAX) { rmxColors.push('#888888'); buildRmxPalette(); render(); } }
-function rmxRemoveColor(i) { if (rmxColors.length > 2) { rmxColors.splice(i, 1); buildRmxPalette(); render(); } }
 
 // ── COLOUR (hex ↔ native picker swatch, kept in sync) ──
 const COLOR_IDS = {
@@ -898,9 +884,8 @@ function clamp255(v) { v = parseInt(v, 10); return isNaN(v) ? 0 : Math.max(0, Ma
 function toHex(r, g, b) { return '#' + [r, g, b].map(n => clamp255(n).toString(16).padStart(2, '0')).join(''); }
 // Set a colour everywhere from a hex value (hex field, picker, swatch).
 function setColorAll(which, hex) {
-  if (!/^#?[0-9a-fA-F]{6}$/.test(hex)) return;
-  if (hex[0] !== '#') hex = '#' + hex;
   const id = COLOR_IDS[which];
+  hex = Organica.normalizeHex(hex, ctrl(id.cp).value);
   ctrl(id.hex).value = hex; ctrl(id.cp).value = hex; ctrl(id.sw).style.background = hex;
 }
 function randomColor(which) {

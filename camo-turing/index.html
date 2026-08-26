@@ -780,7 +780,7 @@
           <input type="color" id="cp-ink" value="#0a0a0a" oninput="syncColor('ink', this.value)">
         </span>
         <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7"
-          oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){syncColor('ink', this.value)}">
+          onchange="syncColor('ink', this.value)">
         <button class="icon-btn" onclick="randomColor('ink')" title="Random colour" aria-label="Random ink colour">
           <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
         </button>
@@ -792,7 +792,7 @@
           <input type="color" id="cp-paper" value="#f5f2ec" oninput="syncColor('paper', this.value)">
         </span>
         <input class="color-hex" id="hex-paper" value="#f5f2ec" maxlength="7"
-          oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){syncColor('paper', this.value)}">
+          onchange="syncColor('paper', this.value)">
         <button class="icon-btn" onclick="randomColor('paper')" title="Random colour" aria-label="Random paper colour">
           <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
         </button>
@@ -810,6 +810,7 @@
 <input type="file" id="font-input" accept=".ttf,.otf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;border:0;padding:0">
 
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-palette-chip.js"></script>
 <!-- Transformer — centralized raster effect-stack module (see the file's
      own header): field algorithms ported from Living Path's RFX, canvas
      adapters, and the thumbnail-picker UI. -->
@@ -1715,15 +1716,7 @@ function onAnisoChange() {
   ctrl('row-aniso-angle').style.display = val('rg-aniso') > 0 ? 'flex' : 'none';
 }
 
-function mulberry32(seed) {
-  let t = seed >>> 0;
-  return function () {
-    t |= 0; t = (t + 0x6D2B79F5) | 0;
-    let r = Math.imul(t ^ (t >>> 15), 1 | t);
-    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
+function mulberry32(seed) { return Organica.mulberry32(seed); }
 function currentSeed() { return 1; }
 
 function stepSim() {
@@ -2130,23 +2123,20 @@ function setColorMode(mode) {
   dispMat.uniforms.uColorMode.value = mode === 'solid' ? 0.0 : mode === 'adaptive' ? 1.0 : 2.0;
   scheduleRender();
 }
+// Promoted to shared/organica-palette-chip.js (TuneSutra's own extraction,
+// 2026-08-26) — this was one of the 6 independent copies found duplicating
+// it (Camo Turing was the original). rmxColors stays a live module-scoped
+// array (SVG export at buildRandomGridSVG/rmxLerpColor reads it directly),
+// kept in sync via the chip factory's onChange.
+let rmxChips = null;
 function buildRmxPalette() {
-  const wrap = ctrl('rmx-palette'); wrap.innerHTML = '';
-  rmxColors.forEach((col, i) => {
-    const sw = document.createElement('label');
-    sw.className = 'rmx-color'; sw.style.background = col;
-    sw.setAttribute('aria-label', 'RMX colour ' + (i + 1));
-    sw.innerHTML = '<input type="color" value="' + col + '" oninput="rmxSetColor(' + i + ', this.value)" aria-label="RMX colour ' + (i + 1) + '">'
-      + (rmxColors.length > 2 ? '<button class="rmx-x" title="Remove" aria-label="Remove colour ' + (i + 1) + '" onclick="event.preventDefault();rmxRemoveColor(' + i + ')">×</button>' : '');
-    wrap.appendChild(sw);
+  rmxChips = Organica.createPaletteChips({
+    wrap: ctrl('rmx-palette'),
+    colors: rmxColors,
+    min: 2,
+    max: RMX_COLORS_MAX,
+    onChange: (colors) => { rmxColors = colors; syncRmxUniforms(); },
   });
-  if (rmxColors.length < RMX_COLORS_MAX) {
-    const add = document.createElement('button');
-    add.className = 'rmx-add'; add.textContent = '+'; add.title = 'Add colour'; add.setAttribute('aria-label', 'Add RMX colour');
-    add.onclick = rmxAddColor;
-    wrap.appendChild(add);
-  }
-  syncRmxUniforms();
 }
 function syncRmxUniforms() {
   const arr = dispMat.uniforms.uPalette.value;
@@ -2165,20 +2155,6 @@ function syncRmxUniforms() {
 // Routing the write through an exported function keeps the assignment
 // inside the module, where it actually reaches this variable.
 function setRmxMapping(v) { rmxColorMap = v; syncRmxUniforms(); }
-function rmxSetColor(i, hex) {
-  rmxColors[i] = hex;
-  // Real bug, found by testing: picking a new colour updated the
-  // simulation render correctly but the swatch chip itself (its visible
-  // colour is the wrapping <label>'s background — the <input type=color>
-  // underneath is opacity:0) was only ever painted once, in
-  // buildRmxPalette(). Every colour pick after that looked like it had no
-  // effect, even though it had. Keep the chip's own background in sync.
-  const sw = ctrl('rmx-palette').children[i];
-  if (sw) sw.style.background = hex;
-  syncRmxUniforms();
-}
-function rmxAddColor() { if (rmxColors.length < RMX_COLORS_MAX) { rmxColors.push('#888888'); buildRmxPalette(); } }
-function rmxRemoveColor(i) { if (rmxColors.length > 2) { rmxColors.splice(i, 1); buildRmxPalette(); } }
 
 // ── CANVAS CLICK: re-seed at a point, matching the CPU engine's "click to
 // re-seed" affordance nowhere yet — placeholder until the full Seeds
@@ -2191,46 +2167,29 @@ ctrl('gl-canvas').addEventListener('click', (e) => {
   draw();
 });
 
-// ── ZOOM — mouse wheel over the canvas ──
-// A pure CSS transform on the canvas ELEMENT, not a simulation-resolution
-// change — doesn't touch gridW/gridH, doesn't affect export (PNG/SVG both
-// read the underlying data, not the zoomed screen box). transform-origin
-// tracks the cursor so it zooms toward whatever you're pointing at, same
-// feel as a map/image viewer; #canvas-wrap's own overflow:hidden clips
-// the zoomed-in overflow instead of it spilling into the panel. The
+// ── ZOOM/PAN — shared Organica.createZoomPan (2026-08-26 retrofit; was a
+// private scale-only copy). Wheel zooms toward the cursor, drag pans once
+// zoomed, dblclick/Cmd-Ctrl-0 resets to 100%. A pure CSS transform on the
+// canvas ELEMENT, not a simulation-resolution change — doesn't touch
+// gridW/gridH, doesn't affect export (PNG/SVG both read the underlying
+// data, not the zoomed screen box). #canvas-wrap's own overflow:hidden
+// clips the zoomed-in overflow instead of it spilling into the panel. The
 // existing click-to-seed handler above needs no change — getBoundingClientRect()
-// already reflects the transformed (zoomed) box, so cx/cy stay correct.
-let zoomLevel = 1;
+// already reflects the transformed (zoomed/panned) box, so cx/cy stay correct.
 let zoomBadgeTimer = null;
-function showZoomBadge() {
+function showZoomBadge(zoom) {
   const badge = ctrl('zoom-badge');
-  badge.textContent = Math.round(zoomLevel * 100) + '%';
+  badge.textContent = Math.round(zoom * 100) + '%';
   badge.classList.add('visible');
   clearTimeout(zoomBadgeTimer);
   zoomBadgeTimer = setTimeout(() => badge.classList.remove('visible'), 1000);
 }
-ctrl('gl-canvas').addEventListener('wheel', (e) => {
-  e.preventDefault();
-  const canvas = e.currentTarget;
-  const rect = canvas.getBoundingClientRect();
-  const originX = ((e.clientX - rect.left) / rect.width) * 100;
-  const originY = ((e.clientY - rect.top) / rect.height) * 100;
-  canvas.style.transformOrigin = originX + '% ' + originY + '%';
-  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-  zoomLevel = Math.min(6, Math.max(1, zoomLevel * factor));
-  canvas.style.transform = zoomLevel === 1 ? 'none' : `scale(${zoomLevel})`;
-  showZoomBadge();
-}, { passive: false });
-ctrl('gl-canvas').addEventListener('dblclick', (e) => {
-  // dblclick already can't seed-stamp meaningfully (two overlapping
-  // stamps), so repurposing it as "reset zoom" doesn't take anything away.
-  if (zoomLevel === 1) return;
-  e.stopPropagation();
-  zoomLevel = 1;
-  const canvas = e.currentTarget;
-  canvas.style.transform = 'none';
-  canvas.style.transformOrigin = '';
-  showZoomBadge();
+Organica.createZoomPan({
+  canvas: ctrl('gl-canvas'),
+  wrap: ctrl('canvas-wrap'),
+  min: 1,
+  max: 6,
+  onChange: ({ zoom, zoomed }) => { if (zoomed) showZoomBadge(zoom); },
 });
 
 // ── SEEDS COMPONENT ──
@@ -3903,9 +3862,6 @@ window.syncVal = syncVal;
 window.syncColor = syncColor;
 window.randomColor = randomColor;
 window.setColorMode = setColorMode;
-window.rmxSetColor = rmxSetColor;
-window.rmxAddColor = rmxAddColor;
-window.rmxRemoveColor = rmxRemoveColor;
 window.scheduleRender = scheduleRender;
 window.syncRmxUniforms = syncRmxUniforms;
 window.setRmxMapping = setRmxMapping;

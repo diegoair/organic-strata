@@ -24,13 +24,7 @@ function mapRange(v, a, b, c, d) { return c + (d - c) * ((v - a) / (b - a)); }
 // generation from a numeric seed. Used here only to derive
 // state.seedOffset once (see applySeed() below), not as an ongoing
 // per-frame generator.
-function mulberry32(a) {
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+function mulberry32(a) { return Organica.mulberry32(a);
 }
 
 // Called from main.js's p.setup() and on every Seed change. Two things,

@@ -7,12 +7,6 @@
       "runtimeArgs": ["-c", "python3 .claude/nocache_server.py \"$PORT\""],
       "port": 8000,
       "autoPort": true
-    },
-    {
-      "name": "strata-backend",
-      "runtimeExecutable": "backend/venv/bin/python",
-      "runtimeArgs": ["backend/server.py"],
-      "port": 5050
     }
   ]
 }

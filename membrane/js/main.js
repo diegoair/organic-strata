@@ -346,69 +346,20 @@ ctrl('rg-weight').addEventListener('input', e => { state.strokeW = parseFloat(e.
 ctrl('rg-alpha').addEventListener('input', e => { state.strokeAlpha = parseInt(e.target.value, 10); ctrl('v-alpha').textContent = state.strokeAlpha; });
 ctrl('chk-fill').addEventListener('change', e => { state.fillEachFrame = e.target.checked; });
 
-// ── RMX — Camo Turing's own up-to-5-colour palette (state.rmxColors/
-// rmxColorMap, mapped by color.js's own rmxColorAt — see its header for
-// why the mapping math is a JS port of Camo Turing's GLSL rmxColor()
-// rather than a shader). Chips are built dynamically (add/remove), so
-// they're wired with addEventListener at creation time rather than
-// through Organica.createColorSwatch — that factory assumes fixed,
-// static DOM ids per colour, which doesn't fit a variable-length list;
-// this is deliberately its own small, separate abstraction, the same
-// call Camo Turing's own buildRmxPalette/rmxSetColor/rmxAddColor/
-// rmxRemoveColor make (kept apart from Ink/Background's own pair).
+// ── RMX — promoted to shared/organica-palette-chip.js (TuneSutra's own
+// extraction, 2026-08-26); this was one of the 6 independent copies found
+// duplicating it (ported here from Camo Turing's own original). state
+// stays the live source of truth (render.js/svgexport.js read
+// state.rmxColors directly each frame), kept in sync via onChange.
 const RMX_COLORS_MAX = 5;
-function buildRmxPalette() {
-  const wrap = ctrl('rmx-palette');
-  wrap.innerHTML = '';
-  state.rmxColors.forEach((col, i) => {
-    const chip = document.createElement('label');
-    chip.className = 'rmx-color';
-    chip.style.background = col;
-    chip.setAttribute('aria-label', 'RMX colour ' + (i + 1));
-    const input = document.createElement('input');
-    input.type = 'color'; input.value = col;
-    input.setAttribute('aria-label', 'RMX colour ' + (i + 1));
-    input.addEventListener('input', e => rmxSetColor(i, e.target.value));
-    chip.appendChild(input);
-    if (state.rmxColors.length > 2) {
-      const x = document.createElement('button');
-      x.className = 'rmx-x'; x.textContent = '×'; x.title = 'Remove';
-      x.setAttribute('aria-label', 'Remove colour ' + (i + 1));
-      x.addEventListener('click', e => { e.preventDefault(); rmxRemoveColor(i); });
-      chip.appendChild(x);
-    }
-    wrap.appendChild(chip);
-  });
-  if (state.rmxColors.length < RMX_COLORS_MAX) {
-    const add = document.createElement('button');
-    add.className = 'rmx-add'; add.textContent = '+'; add.title = 'Add colour';
-    add.setAttribute('aria-label', 'Add RMX colour');
-    add.addEventListener('click', rmxAddColor);
-    wrap.appendChild(add);
-  }
-}
-function rmxSetColor(i, hex) {
-  state.rmxColors[i] = hex;
-  // Real bug Camo Turing's own rmxSetColor already documents and fixes:
-  // the chip's own visible background (the wrapping <label>, since the
-  // <input type=color> underneath is opacity:0) is only painted once in
-  // buildRmxPalette() — without repainting it here, every colour pick
-  // after the first would visually look like it had no effect.
-  const chip = ctrl('rmx-palette').children[i];
-  if (chip) chip.style.background = hex;
-}
-function rmxAddColor() {
-  if (state.rmxColors.length >= RMX_COLORS_MAX) return;
-  state.rmxColors.push('#888888');
-  buildRmxPalette();
-}
-function rmxRemoveColor(i) {
-  if (state.rmxColors.length <= 2) return;
-  state.rmxColors.splice(i, 1);
-  buildRmxPalette();
-}
+Organica.createPaletteChips({
+  wrap: ctrl('rmx-palette'),
+  colors: state.rmxColors,
+  min: 2,
+  max: RMX_COLORS_MAX,
+  onChange: (colors) => { state.rmxColors = colors; },
+});
 ctrl('sel-rmx-map').addEventListener('change', e => { state.rmxColorMap = e.target.value; });
-buildRmxPalette();
 
 // ── Floatbar: Play/Pause, Clear, Reseed, Export ──
 function togglePlayPause() {

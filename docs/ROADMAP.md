@@ -9,7 +9,6 @@
 
 ### Live & Working
 - [x] Organica hub — `theorganicalanguage.vercel.app`
-- [x] Strata — sketch → SVG pipeline with Smart+ algorithm
 - [x] Genesis — 55 animated organic forms + grid composer
 - [x] Genesis Indicators — full form catalog
 - [x] Spore — generative stippling from images (`/spore/`) — mark library, zoom/pan preview, PNG + hi-def JPG + SVG export, Send to Figma
@@ -244,7 +243,7 @@ blur would be ~9M ops/frame). Shipped July 25, 2026. Manual: `docs/KOMOREBI.md`.
 - [x] **Light cookie / gobo** — canopy mask projected onto a ground plane in perspective.
   Procedural: two fBm layers combined with `max()` (gaps only where both open) + a second
   layer at a settable frequency ratio. Or an **uploaded silhouette** (drag-drop / Open) —
-  a Halide 1-bit export, a Strata trace, or a photo becomes the canopy.
+  a Halide 1-bit export or a photo becomes the canopy.
 - [x] **Penumbra + pinhole physics** — sun subtends ~0.53°, so a gap at height h blurs by
   ≈ h/108; below that it becomes a pinhole and projects a disc of the sun. One "Height"
   control = a disc-kernel sample radius (golden-angle taps + per-sample rotation) over the
@@ -320,7 +319,6 @@ Deepen the Genesis composer into a real production tool.
 Direct push from Organica tools into Figma.
 
 - [ ] **Genesis → Figma** — place composed grid directly into a Figma file as components
-- [ ] **Strata → Figma** — push traced SVGs directly (current: manual download + import)
 - [ ] **Component library** — Organica forms as a Figma component library
 - [ ] **Variable system** — color and scale tokens synced between Organica and Figma
 
@@ -337,14 +335,10 @@ Systematic tiling and repetition — a core module of Flexible Visual Systems.
 
 ---
 
-## Phase 5 — Strata AI
+## Phase 5 — (retired)
 
-Make the shape grammar extraction smarter.
-
-- [ ] **Auto-element detection** — identify discrete forms in a sketch automatically
-- [ ] **Form matching** — match extracted shapes to Genesis library forms
-- [ ] **Style consistency** — ensure extracted forms follow Organica grammar rules
-- [ ] **Batch processing** — multiple images → unified form library
+Was "Strata AI" — smarter shape-grammar extraction from sketches. Moot: Strata itself
+was removed from the product (see CLAUDE.md session notes).
 
 ---
 

@@ -526,6 +526,7 @@
     populateSets();
     syncUnderlyingLayerUI();
     render();
+    Organica.autoLabelPanel(document);
   }
 
   // ── Artboard grid ──────────────────────────────────────
@@ -926,15 +927,7 @@
   // Reproducible PRNG — same discipline already used for seeded randomness
   // elsewhere in Organica (FVS/Vortex/Camo Turing): a fresh stream per call,
   // so the same seed always regenerates the exact same irregularity.
-  function mulberry32(seed) {
-    let t = seed >>> 0;
-    return function () {
-      t += 0x6D2B79F5;
-      let x = Math.imul(t ^ (t >>> 15), t | 1);
-      x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
-      return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-    };
-  }
+  function mulberry32(seed) { return Organica.mulberry32(seed); }
 
   // irregularity/seed only matter for a plain polygon (star's own two-radii
   // shape already reads as irregular by construction, and wiring irregular

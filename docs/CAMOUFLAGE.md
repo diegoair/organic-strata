@@ -434,7 +434,7 @@ the few seed points and blank canvas everywhere else, because suppressed perpend
 diffusion means information can no longer spread sideways to reach unseeded regions.
 
 **Seed from shape.** A third Seed shape option, **Shape…**, opens a file picker (any image —
-a Halide 1-bit export or Strata trace drops straight in) and seeds B only inside the dark
+a Halide 1-bit export drops straight in) and seeds B only inside the dark
 region, via the same **masked reaction-diffusion** technique Living Path already uses to carve
 cellular holes into a glyph instead of dissolving it into floating dots. Two parts: nucleation
 points are rejection-sampled so they only land inside the shape, and — the part that actually
@@ -664,7 +664,7 @@ after   27 → 27 → 27 → 37 → 67 → 82 → 88 → 90 → 94 → 100
   structural path would trade a little contour fidelity for a much smaller file.
 - [ ] **Countershade applied to a shape, not the frame** — the brief's actual use cases
   ("self-shading logotypes", "fake dimension on packaging") want the countershade mapped onto
-  an arbitrary silhouette (an uploaded SVG/Strata trace), not filling the whole canvas. The
+  an arbitrary silhouette (an uploaded SVG), not filling the whole canvas. The
   shading curve is now physically right (§11b.5); confining it to a shape is the next step.
 - [ ] **Physical-output export presets** — Phase 3 of the brief (not started): export variants
   tuned for Ink/Stitch (grayscale density-map PNG), screen print (Lab-quantised flat SVG), and

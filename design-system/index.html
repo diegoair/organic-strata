@@ -370,7 +370,7 @@
     <section class="ds-entry" id="panel-shell">
       <h2>Panel shell</h2>
       <p class="ds-desc">The control sidebar. One width (248px), always on the right (Genesis Library is the one deliberate exception — it lists <em>sets</em>, which is navigation, not controls).</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-panel.css</span><strong>Used in</strong><span>Strata</span><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Living Path</span></div>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-panel.css</span><strong>Used in</strong><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Living Path</span><span>Camo Turing</span><span>Warping</span><span>Loom</span><span>Soul</span><span>Membrane</span><span>Vortex</span><span>FVS</span><span>TuneSutra</span><span>Mycel</span></div>
       <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"panel"</span>&gt;
   &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"panel-section"</span>&gt;…&lt;/<span class="tag">div</span>&gt;
 &lt;/<span class="tag">div</span>&gt;</pre>
@@ -510,7 +510,7 @@ Organica.enhanceSliders(document);</pre>
       <table>
         <tr><th>Variant</th><th>Context slot</th><th>Used by</th></tr>
         <tr><td><code>.org-header--tool</code></td><td><code>display: none</code> — hidden outright</td><td>Spore, Pollen, Halide, Komorebi</td></tr>
-        <tr><td><code>.org-header--editor</code></td><td>Visible — mode tabs / breadcrumb</td><td>Genesis Creator, Strata</td></tr>
+        <tr><td><code>.org-header--editor</code></td><td>Visible — mode tabs / breadcrumb</td><td>Genesis Creator, FVS</td></tr>
         <tr><td><code>.org-header--catalog</code></td><td>Visible, with a leading divider</td><td>Genesis Library, Indicators</td></tr>
       </table>
       <p>Living Path's Vector/Raster engine switcher used to live in <code>.org-header__context</code> under <code>--tool</code> — markup that rendered, wired to real click handlers, and was <strong>permanently invisible</strong>, because the variant's own CSS hides that slot unconditionally. Nobody saw an error; the controls just weren't there. It's now in the panel instead, as its own "Engine" section above "Input" — reclassing to <code>--editor</code> would have made it visible, but engine choice is input-adjacent, not header chrome, so it moved rather than the header changed. Before adding anything to <code>.org-header__context</code>: confirm the header's variant class actually shows that slot, and confirm the content belongs in the header at all rather than the panel.</p>
@@ -519,7 +519,7 @@ Organica.enhanceSliders(document);</pre>
     <section class="ds-entry" id="floatbar">
       <h2>Floating toolbar</h2>
       <p class="ds-desc">Fixed bottom-centre <em>over the canvas</em>, not the browser viewport — offset by half the panel's width so it centres on the visible working area. Content is per-tool (icon buttons in whatever combination that tool needs); the shell, icon sizing and states are shared.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-floatbar.css</span><strong>Used in</strong><span>Strata</span><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Living Path</span><span>Genesis Creator</span></div>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-floatbar.css</span><strong>Used in</strong><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Living Path</span><span>Genesis Creator</span><span>Camo Turing</span><span>Warping</span><span>Loom</span><span>Soul</span><span>Membrane</span><span>Vortex</span><span>FVS</span><span>TuneSutra</span><span>Mycel</span></div>
       <div class="ds-example" style="justify-content:center">
         <div class="org-floatbar" style="position:static;transform:none">
           <button class="org-floatbar__btn" aria-label="Open">

@@ -21,7 +21,7 @@
 import { state } from './state.js';
 import { applySeed } from './geometry.js';
 import { renderFrame, seedLineBounds } from './render.js';
-import { buildPalette, setColor, addColor, removeColor } from './palette.js';
+import { buildPalette } from './palette.js';
 import { CANVAS_PRESETS, clampCanvasSize } from './canvas.js';
 import { buildExportSVGString } from './svgexport.js';
 

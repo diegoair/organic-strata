@@ -104,8 +104,8 @@ than a landscape picture — see §15.
   - **Seed** — reshuffles the whole canopy.
 - **Image** — upload any silhouette to use as the canopy: **Open image…**, or **drag and
   drop** a file anywhere on the canvas. Its luminance becomes the mask (bright = gap). This
-  is the loop-closer: a **Halide** 1-bit export, a **Strata** trace, or a plain photo of a
-  real canopy all drop straight in. Scale / Density / Edge still apply.
+  is the loop-closer: a **Halide** 1-bit export, or a plain photo of a
+  real canopy, all drop straight in. Scale / Density / Edge still apply.
 
 ---
 

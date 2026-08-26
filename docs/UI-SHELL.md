@@ -48,8 +48,17 @@ In `<head>`, **in this order**:
 
 ```html
 <link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
 <style> /* the tool's own palette + shell + controls */ </style>
 ```
+
+`organica-floatbar.css` is the shared bottom-centre floating action bar
+(`.org-floatbar`, `.org-popover`) that Export (and any playback controls)
+lives in — see §5's WYSIWYG rule and the many tools' own "Export moved
+here, not the header" notes. Linked by every tool except the Genesis
+catalog pages, which use the `--catalog` header variant instead.
 
 Before the tool's own `<script>`:
 
@@ -64,6 +73,17 @@ If the tool places Genesis forms, also:
 
 ```html
 <script src="/genesis/organic-forms.js"></script>
+```
+
+If the tool has a multi-colour RMX/palette control (`.rmx-palette` chips —
+add/remove/recolour, `min`/`max` count), load `organica-palette-chip.js`
+after core and call `Organica.createPaletteChips({ wrap, colors, min, max,
+onChange })` instead of hand-rolling the chip markup again — six tools
+(Camo Turing, Membrane, Vortex, FVS, Pollen, Spore) carried independent
+copies of this before the 2026-08-26 consolidation:
+
+```html
+<script src="/shared/organica-palette-chip.js"></script>
 ```
 
 ---
@@ -175,11 +195,11 @@ Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 |---|---|---|
 | `--tool` | hidden (or engine tabs) | Spore, Pollen, Halide, Komorebi, Living Path, template |
 | `--catalog` | title + count | Genesis, Genesis Library, Indicators |
-| `--editor` | mode tabs / breadcrumb | Creator, Strata |
+| `--editor` | mode tabs / breadcrumb | Creator |
 
-**All 11 pages migrated** (6 tool / 3 catalog / 2 editor). The stale
-`#organica-banner` migration notice was removed from Genesis, Indicators and
-Strata; Strata's `v0.1 — phase 1` tag went with it.
+**All 11 pages migrated** (6 tool / 3 catalog / 2 editor, historical count —
+Strata was among them and was later removed from the product). The stale
+`#organica-banner` migration notice was removed from Genesis and Indicators.
 
 Only the Context slot differs — identity, status and actions are identical.
 
@@ -295,7 +315,7 @@ uppercase elements**, and two markup vocabularies (`.ctrl-row` vs `.row`).
 
 Class names match what the tools already used, so adoption is *link the file,
 delete the local copy*. `.sec h3`, `.row` and `.group-label` are aliased for
-Strata and Living Path, so their JS is untouched.
+Living Path, so its JS is untouched.
 
 **Order matters:** the tool's own `<style>` comes after the linked sheet, so
 any leftover local rule silently overrides the component. When migrating,
@@ -312,14 +332,6 @@ apply → what you inspect*.
 Genesis Library keeps a left column, deliberately — it lists **sets**, which is
 navigation, not controls. The rule is about where controls live, not about
 banning left columns.
-
-### Deliberate variant
-
-Strata keeps its full-width slider with min/max captions ("Clean → Raw",
-"Thin → Thick") instead of the label-left/value-right row. The slider's own
-visual style is unified; the layout stays because those captions do real work
-for a tool aimed at less technical decisions. A variant, not drift.
-
 
 ---
 
@@ -375,8 +387,8 @@ Honest list of where the tools still disagree:
 - **Genesis pages** use a different shell entirely (left sets panel + centre
   grid + right design panel). They predate this template; converging them is a
   bigger job than a rename.
-- **Strata** and **Living Path** have their own layouts and were not
-  retro-fitted.
+- **Living Path** is fully retrofitted onto the shared panel component via
+  its own documented aliases (`.sec`/`.row`/`.group-label`).
 - **`syncColor()`** still lives per-tool because each has different side
   effects (Halide repaints, Komorebi doesn't). Only the hex *validation* is
   shared, via `Organica.normalizeHex`.

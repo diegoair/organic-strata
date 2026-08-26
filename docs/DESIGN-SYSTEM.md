@@ -1,7 +1,7 @@
 # Organica — Design System
 
 > Studio Rann · Organica · Typography, tokens, and the Figma mapping
-> Last updated: July 25, 2026
+> Last updated: August 26, 2026
 >
 > **Single source of truth: `shared/organica-tokens.json`.**
 > `shared/organica-tokens.css` mirrors it for the browser; this document
@@ -240,15 +240,44 @@ hub nav and as the tool's identity colour.
 |---|---|---|
 | Creator | `#5fc9b4` | teal |
 | Genesis | `#c8f060` | acid green — organic vitality |
-| Strata | `#f06030` | warm ember |
 | Spore | `#a0c8f0` | cool blue-grey |
 | Pollen | `#e8c84a` | pollen yellow |
 | Living Path | `#b48cf0` | vital violet |
 | Halide | `#7a9cb8` | darkroom steel-blue |
 | Komorebi | `#8aa054` | dappled forest-green |
+| Camo Turing | `#3f8fa0` | teal-blue |
+| Warping | `#a9683e` | wood / warm terracotta |
+| Loom | `#4a7fc9` | blueprint blue |
+| Soul | `#c85a8c` | living rose / pulse |
+| Membrane | `#c15b4a` | warm coral / tissue-red |
+| Vortex | `#6d4bd8` | deep indigo |
+| FVS | `#3fa876` | emerald |
+| TuneSutra | `#c93ed6` | vivid orchid / magenta |
+| Mycel | `#8a7355` | mushroom taupe |
 
 The palette spans green → yellow → orange → blue → violet → teal. When adding a
-tool, pick a hue that isn't already taken and note it here.
+tool, pick a hue that isn't already taken and note it here. (Strata's own row
+was retired along with the tool — see the removal note in `CLAUDE.md`'s
+session log.)
+
+### Hub nav categories
+
+The hub (`index.html`) groups tools by function, not alphabetically or by
+ship date — each `.nav__group` carries a `group-label`:
+
+| Category | Tools |
+|---|---|
+| Seed / Form | Genesis, Creator |
+| Coloring & palette | TuneSutra |
+| Grid & composition | Loom, FVS |
+| Tracing & vectorization | Halide |
+| Generative patterns | Komorebi, Camo Turing, Warping |
+| Stippling & marks | Spore, Pollen |
+| Motion & growth | Soul, Living Path, Membrane, Vortex, Mycel |
+| Explorations | (prototype pages, not full tools) |
+
+When adding a tool, pick the category it actually belongs to functionally —
+not the newest/emptiest one — or propose a new category if none fits.
 
 ### `--mid` — the one colour that IS systematic
 
@@ -274,14 +303,17 @@ failures, not close calls:
 
 ## 6. Accessible names
 
-**Every interactive control needs a name a screen reader can announce.** An
-audit of all six panels found 121 of ~210 form controls with no accessible
-name at all — a slider sat next to a `.ctrl-label` reading "Grid width", but
-nothing tied them together programmatically, so the control announced as
-"slider" with no name. The label was there for sighted users and invisible
-to everyone else. That is a WCAG 4.1.2 failure, and it was the same markup
-pattern (row → label + control, no `for`/`aria-labelledby`) repeated in
-every tool.
+**Every interactive control needs a name a screen reader can announce.** A
+July 26, 2026 audit of the six tools that existed at the time found 121 of
+~210 form controls with no accessible name at all — a slider sat next to a
+`.ctrl-label` reading "Grid width", but nothing tied them together
+programmatically, so the control announced as "slider" with no name. The
+label was there for sighted users and invisible to everyone else. That is a
+WCAG 4.1.2 failure, and it was the same markup pattern (row → label +
+control, no `for`/`aria-labelledby`) repeated in every tool. Every tool
+shipped since has been verified at 0 unlabeled controls before shipping —
+`Organica.autoLabelPanel` below is why that's a one-line check, not a
+per-tool audit.
 
 **Fix once, not 121 times:** `Organica.autoLabelPanel(document)` in
 `shared/organica-core.js` walks every row (`.ctrl-row`, `.param-row`,
@@ -309,10 +341,11 @@ Organica.autoLabelPanel(document);
 - Content injected via `innerHTML` after the initial call → either re-call
   `autoLabelPanel`, or set `aria-label` directly in the template string.
 
-Verified across all six tools: **0 of ~210 controls unnamed**, segmented
-buttons keep their own visible text as their name (the function skips a
-button that already has text — `aria-labelledby` would replace it, not add
-to it), zero runtime errors.
+Verified at the time across all six tools then shipped: **0 of ~210 controls
+unnamed**, segmented buttons keep their own visible text as their name (the
+function skips a button that already has text — `aria-labelledby` would
+replace it, not add to it), zero runtime errors. Every tool shipped since
+carries its own equivalent 0-unnamed check in its own session notes.
 
 ---
 
@@ -347,4 +380,4 @@ to it), zero runtime errors.
 
 ---
 
-*Studio Rann · Organica System v0.1 · July 25, 2026*
+*Studio Rann · Organica System v0.1 · August 26, 2026*

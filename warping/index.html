@@ -6,6 +6,7 @@
 <title>Warping — Organica</title>
 <link rel="stylesheet" href="/shared/organica-tokens.css">
 <link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
 <style>
 :root {
@@ -51,7 +52,6 @@ body {
   display: block;
 }
 
-.panel-section { border-bottom: 1px solid var(--border); padding: var(--space-5) var(--space-6); }
 input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 </style>
 </head>
@@ -66,43 +66,50 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
     <span class="org-header__dot" id="status-dot"></span>
     <span class="org-header__state" id="status-text">Ready</span>
   </output>
+</header>
 
-  <div class="org-header__actions">
-    <div class="org-popover-wrap">
-      <button class="org-btn" id="btn-export">Export &#9662;</button>
-      <div class="org-popover" id="export-popover" aria-label="Export options">
-        <div class="org-popover__title">Format</div>
-        <div class="org-formats">
-          <button class="org-btn" onclick="exportPNG()">PNG</button>
-          <button class="org-btn" onclick="exportJPG()">JPG</button>
-          <button class="org-btn" onclick="exportSVG()">SVG</button>
-        </div>
-        <p class="org-popover__hint">
-          SVG is a posterised tone-band separation — one flat path per
-          band, the same real vector export every Organica noise tool shares.
-        </p>
+<!-- Export moved from the header into the shared bottom-centre floating
+     toolbar (shared/organica-floatbar.css), matching every other Organica
+     tool (FVS/Loom/Camo Turing/…). No Figma button — removed product-wide;
+     direct Figma export is coming back as a tab inside the Export popover
+     instead. sendToFigma() stays defined as a plain function, ready to
+     reuse once that lands. -->
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" onclick="exportPNG()">PNG</button>
+        <button class="org-btn" onclick="exportJPG()">JPG</button>
+        <button class="org-btn" onclick="exportSVG()">SVG</button>
+      </div>
+      <p class="org-popover__hint">
+        SVG is a posterised tone-band separation — one flat path per
+        band, the same real vector export every Organica noise tool shares.
+      </p>
 
-        <div class="org-popover__divider"></div>
+      <div class="org-popover__divider"></div>
 
-        <div class="org-popover__row">
-          <label class="org-popover__label" for="sel-scale">Scale</label>
-          <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
-            <option value="1">&times;1</option>
-            <option value="2" selected>&times;2</option>
-            <option value="3">&times;3</option>
-            <option value="4">&times;4</option>
-          </select>
-        </div>
-        <div class="org-popover__row">
-          <span class="org-popover__label">Output</span>
-          <span class="org-out" id="out-size">&mdash;</span>
-        </div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-scale">Scale</label>
+        <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
+          <option value="1">&times;1</option>
+          <option value="2" selected>&times;2</option>
+          <option value="3">&times;3</option>
+          <option value="4">&times;4</option>
+        </select>
+      </div>
+      <div class="org-popover__row">
+        <span class="org-popover__label">Output</span>
+        <span class="org-out" id="out-size">&mdash;</span>
       </div>
     </div>
-
-    <button class="org-btn org-btn--primary" onclick="sendToFigma()">&rarr; Figma</button>
   </div>
-</header>
+</div>
 
 <div id="app">
 

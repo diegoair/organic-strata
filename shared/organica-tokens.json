@@ -332,10 +332,6 @@
         "$type": "color",
         "$value": "#c8f060"
       },
-      "strata": {
-        "$type": "color",
-        "$value": "#f06030"
-      },
       "spore": {
         "$type": "color",
         "$value": "#a0c8f0"
@@ -355,12 +351,48 @@
       "komorebi": {
         "$type": "color",
         "$value": "#8aa054"
+      },
+      "camoTuring": {
+        "$type": "color",
+        "$value": "#3f8fa0"
+      },
+      "warping": {
+        "$type": "color",
+        "$value": "#a9683e"
+      },
+      "loom": {
+        "$type": "color",
+        "$value": "#4a7fc9"
+      },
+      "soul": {
+        "$type": "color",
+        "$value": "#c85a8c"
+      },
+      "membrane": {
+        "$type": "color",
+        "$value": "#c15b4a"
+      },
+      "vortex": {
+        "$type": "color",
+        "$value": "#6d4bd8"
+      },
+      "fvs": {
+        "$type": "color",
+        "$value": "#3fa876"
+      },
+      "tunesutra": {
+        "$type": "color",
+        "$value": "#c93ed6"
+      },
+      "mycel": {
+        "$type": "color",
+        "$value": "#8a7355"
       }
     },
     "mid": {
       "$type": "color",
       "$value": "#696256",
-      "$description": "The one text colour that IS systematic across tools (labels, values, sub-labels). Computed like borderStrong: 5.4:1 on paper, >=5.0:1 on panel -- real headroom above the 4.5:1 AA floor. Audit found three different values doing this job before unification: Strata's own --muted #888 (3.17:1, fails), Spore's --mid #c8c0b0 (1.62:1, fails badly), everyone else's #726a5e (4.43:1 on panel, fails). Every tool's --mid / --muted / --ink-muted must resolve to this value."
+      "$description": "The one text colour that IS systematic across tools (labels, values, sub-labels). Computed like borderStrong: 5.4:1 on paper, >=5.0:1 on panel -- real headroom above the 4.5:1 AA floor. A July 26, 2026 audit found three different values doing this job before unification: the then-shipped Strata's own --muted #888 (3.17:1, fails), Spore's --mid #c8c0b0 (1.62:1, fails badly), everyone else's #726a5e (4.43:1 on panel, fails). Every tool's --mid / --muted / --ink-muted must resolve to this value."
     }
   }
 }

@@ -515,6 +515,7 @@
 </div>
 
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-palette-chip.js"></script>
 <script>
 /* ─────────────────────────────────────────────────────────────
    FVS — Flexible Visual System. First pass: Seeds → Components only
@@ -554,70 +555,29 @@ const state = {
 };
 
 // ── Palette — centralised colour assignment (moved out of Seed, which
-// is now pure shape geometry). Same RMX chip UI Membrane/Vortex already
-// use, min 1 (a single colour IS a plain flat fill, the old Fill
-// default) rather than their own min-2, since a one-Seed single-cell-
-// colour grid is a legitimate baseline here, not a degenerate case. Max 8,
-// matching Vortex's own ceiling (no shader array-size bound applies).
+// is now pure shape geometry). Promoted to shared/organica-palette-chip.js
+// (TuneSutra's own extraction, 2026-08-26) — this was one of the 6
+// independent copies found duplicating it. min 1 (a single colour IS a
+// plain flat fill, the old Fill default) rather than the RMX-standard
+// min-2, since a one-Seed single-cell-colour grid is a legitimate
+// baseline here, not a degenerate case. Max 8, matching Vortex's own
+// ceiling (no shader array-size bound applies).
 const PALETTE_MAX = 8;
 function colorAt(i) { return state.colors[i % state.colors.length]; }
 
 function buildPalette() {
-  const wrap = ctrl('fvs-palette');
-  wrap.innerHTML = '';
-  state.colors.forEach((col, i) => {
-    const chip = document.createElement('label');
-    chip.className = 'rmx-color';
-    chip.style.background = col;
-    chip.setAttribute('aria-label', 'Palette colour ' + (i + 1));
-    const input = document.createElement('input');
-    input.type = 'color'; input.value = col;
-    input.setAttribute('aria-label', 'Palette colour ' + (i + 1));
-    input.addEventListener('input', e => setColor(i, e.target.value));
-    chip.appendChild(input);
-    if (state.colors.length > 1) {
-      const x = document.createElement('button');
-      x.className = 'rmx-x'; x.textContent = '×'; x.title = 'Remove';
-      x.setAttribute('aria-label', 'Remove colour ' + (i + 1));
-      x.addEventListener('click', e => { e.preventDefault(); removeColor(i); });
-      chip.appendChild(x);
-    }
-    wrap.appendChild(chip);
+  Organica.createPaletteChips({
+    wrap: ctrl('fvs-palette'),
+    colors: state.colors,
+    min: 1,
+    max: PALETTE_MAX,
+    onChange: (colors) => {
+      state.colors = colors;
+      renderGallery();
+      renderSeedPreview();
+      if (state.symbolGrid) renderSymbolCanvasOnly();
+    },
   });
-  if (state.colors.length < PALETTE_MAX) {
-    const add = document.createElement('button');
-    add.className = 'rmx-add'; add.textContent = '+'; add.title = 'Add colour';
-    add.setAttribute('aria-label', 'Add palette colour');
-    add.addEventListener('click', addColor);
-    wrap.appendChild(add);
-  }
-}
-
-function setColor(i, hex) {
-  state.colors[i] = hex;
-  const chip = ctrl('fvs-palette').children[i];
-  if (chip) chip.style.background = hex;
-  renderGallery();
-  renderSeedPreview();
-  if (state.symbolGrid) renderSymbolCanvasOnly();
-}
-
-function addColor() {
-  if (state.colors.length >= PALETTE_MAX) return;
-  state.colors.push('#888888');
-  buildPalette();
-  renderGallery();
-  renderSeedPreview();
-  if (state.symbolGrid) renderSymbolCanvasOnly();
-}
-
-function removeColor(i) {
-  if (state.colors.length <= 1) return;
-  state.colors.splice(i, 1);
-  buildPalette();
-  renderGallery();
-  renderSeedPreview();
-  if (state.symbolGrid) renderSymbolCanvasOnly();
 }
 
 // ── Seed ──
@@ -955,13 +915,7 @@ function axisValues() {
   };
 }
 
-function mulberry32(a) {
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+function mulberry32(a) { return Organica.mulberry32(a);
 }
 
 // Drops components whose 4-cell transform set is identical to one

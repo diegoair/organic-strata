@@ -390,7 +390,7 @@
         <button class="color-swatch" id="swatch-bgfill" style="background:#cccccc" onclick="document.getElementById('cp-bgfill').click()" title="Background colour"></button>
         <input type="color" id="cp-bgfill" value="#cccccc" oninput="syncColor('bgfill',this.value)">
         <input class="color-hex" id="hex-bgfill" value="#cccccc" maxlength="7"
-          oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){syncColor('bgfill',this.value)}">
+          onchange="syncColor('bgfill',this.value)">
       </div>
     </div>
 
@@ -401,14 +401,14 @@
         <button class="color-swatch" id="swatch-ink" style="background:#0a0a0a" onclick="document.getElementById('cp-ink').click()" title="Ink colour"></button>
         <input type="color" id="cp-ink" value="#0a0a0a" oninput="syncColor('ink',this.value)">
         <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7"
-          oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){syncColor('ink',this.value)}">
+          onchange="syncColor('ink',this.value)">
       </div>
       <div class="color-row">
         <span class="ctrl-label">Paper</span>
         <button class="color-swatch" id="swatch-paper" style="background:#f5f2ec" onclick="document.getElementById('cp-paper').click()" title="Paper colour"></button>
         <input type="color" id="cp-paper" value="#f5f2ec" oninput="syncColor('paper',this.value)">
         <input class="color-hex" id="hex-paper" value="#f5f2ec" maxlength="7"
-          oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){syncColor('paper',this.value)}">
+          onchange="syncColor('paper',this.value)">
       </div>
       <div class="row-btns">
         <button class="mini-btn" onclick="swapColors()">Swap colors</button>
@@ -599,6 +599,7 @@ function setAlg(a) {
 }
 
 function syncColor(which, hex) {
+  hex = Organica.normalizeHex(hex, ctrl('cp-' + which).value);
   ctrl('cp-' + which).value = hex;
   ctrl('hex-' + which).value = hex;
   document.getElementById('swatch-' + which).style.background = hex;

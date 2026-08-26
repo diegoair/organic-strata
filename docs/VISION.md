@@ -35,7 +35,7 @@ These two gestures (drop + stroke) are the atoms of the visual language. Everyth
 
 In the digital system, these gestures are encoded as:
 - Animated SVG forms (Genesis library — forms 07, 10, 44, 49 directly simulate drop physics)
-- Traced vector shapes from hand-drawn originals (Strata — sketch → SVG pipeline)
+- Traced vector shapes from hand-drawn originals (contour tracing, shared across Halide/Komorebi/Warping's own SVG export)
 
 ---
 
@@ -90,7 +90,7 @@ Hand drawing / Photo / Figma sketch
 
 ### Where It Breaks Today
 
-- Figma integration is manual — no direct push yet (Phase 3 in Strata roadmap)
+- Figma integration is manual — no direct push yet (Phase 3 in the roadmap)
 - No scale management system — large format (mural) output not systematized
 - No color system tool — palettes exist in Genesis but not as a standalone design tool
 - No typography module — undefined in the system
@@ -141,11 +141,6 @@ Any input (photo, sketch, Figma, raster)
 ### Hub
 `theorganicalanguage.vercel.app` — entry point, navigation to all tools.
 
-### Strata
-`theorganicalanguage.vercel.app/strata/`  
-Sketch → SVG pipeline. Photo or hand drawing in, vector shapes out.  
-Core feature: Smart+ algorithm with shape style modes (Organic / Balanced / Geometric).
-
 ### Genesis
 `theorganicalanguage.vercel.app/genesis/`  
 Organic form library + grid composer.  
@@ -165,7 +160,6 @@ Full catalog of all 55 animated forms — reference and exploration tool.
 | **Studio Rann** | The design studio / creative practice |
 | **Organica** | The visual language system AND the toolset |
 | **Genesis** | The animated organic form library + composer tool |
-| **Strata** | The sketch-to-SVG tracing and shape grammar tool |
 
 ---
 

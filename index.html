@@ -179,10 +179,6 @@
     .nav__link--genesis:hover { color: var(--accent); }
     .nav__link--genesis::after { background: var(--accent); }
 
-    /* strata gets ember */
-    .nav__link--strata:hover { color: var(--accent2); }
-    .nav__link--strata::after { background: var(--accent2); }
-
     /* spore gets a cool blue-grey */
     .nav__link--spore:hover { color: #4f7ba8; }
     .nav__link--spore::after { background: #4f7ba8; }
@@ -389,7 +385,6 @@
 
     <div class="nav__group">
       <span class="group-label">Tracing &amp; vectorization</span>
-      <a class="nav__link nav__link--strata" href="/strata/">Strata</a>
       <a class="nav__link nav__link--halide" href="/halide/">Halide</a>
     </div>
 
@@ -433,7 +428,11 @@
 
   <!-- shared SVG defs (goo filter) — same inline block genesis/indicators.html
        uses, required by organic-animations.css for forms 3/4/5/8/9/25/27/28/
-       31/41/55's metaball merge effect. -->
+       31/41/55's metaball merge effect. The 7 terrazzo chip shapes below
+       (also copied from genesis/indicators.html) are required by forms
+       52/53, which reference them via <use href="#cA">-style links — found
+       missing here (both forms rendered with a zero-size bounding box,
+       empty bento cells) when the bento grid was expanded to include them. -->
   <svg class="defs" aria-hidden="true">
     <defs>
       <filter id="goo">
@@ -448,6 +447,13 @@
           values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8" result="goo"/>
         <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
       </filter>
+      <path id="cA" d="M-12 -6 L-2 -14 L10 -10 L14 2 L8 12 L-8 12 L-14 2 Z"/>
+      <path id="cB" d="M-16 -4 L4 -10 L18 -2 L12 8 L-8 12 L-18 4 Z"/>
+      <path id="cC" d="M-10 -12 Q4 -14 12 -6 Q16 6 6 12 Q-8 14 -14 4 Q-16 -6 -10 -12 Z"/>
+      <path id="cD" d="M-12 8 L-4 -12 L14 -4 L8 10 Z"/>
+      <path id="cE" d="M-5 -3 L2 -5 L6 2 L-2 6 L-6 0 Z"/>
+      <path id="cF" d="M-10 -8 Q0 -10 8 -4 Q10 6 0 10 Q-12 6 -10 -8 Z"/>
+      <path id="cG" d="M-14 -2 L-6 -10 L10 -8 L14 4 L4 12 L-12 6 Z"/>
     </defs>
   </svg>
 

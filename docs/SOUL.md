@@ -218,7 +218,7 @@ it's a small, self-contained addition.
 `shared/_template.html` and every image-loading tool already use — drag a
 file, or click the "+" to open a picker), plus `Organica.createZoomPan`
 (wheel-zoom toward the cursor, drag-to-pan once zoomed, Reset) — the same
-shared zoom/pan mechanics Loom/Halide/Spore/Pollen/Strata already use,
+shared zoom/pan mechanics Loom/Halide/Spore/Pollen already use,
 wired identically. Verified drag-pan specifically needed raw dispatched
 `mousedown`/`mousemove`/`mouseup` events to test reliably — the browser
 automation tool's own synthetic drag gesture doesn't reliably trigger real
@@ -699,7 +699,7 @@ combination tested.
 - **MorphSVG shape-to-shape** — now used by the `morph` pattern (circle →
   noise-perturbed blob → circle, on a single primitive). Morphing BETWEEN
   two different primitive SETS (e.g. two different Loom grids, or a Pollen
-  dot cloud reshaping into a Strata trace) is still open — that needs a
+  dot cloud reshaping into a Halide dither export) is still open — that needs a
   point-correspondence strategy across two independently-parsed primitive
   lists, a bigger feature than one primitive morphing against its own
   generated variant.

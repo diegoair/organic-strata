@@ -79,6 +79,28 @@
     return '#' + c(r) + c(g) + c(b);
   };
 
+  // Standard mulberry32 — a small, fast, seeded PRNG. Found independently
+  // reimplemented byte-for-byte identically (down to the exact magic
+  // constants) in ~9 places (FVS, Living Path, Mycel, Camo Turing, Vortex,
+  // Genesis Creator, every loom/js/generators/*.js file) — the project's
+  // own established reproducible-seed convention (Camouflage, Vortex,
+  // FVS, TuneSutra, Mycel all reset one of these per generation from a
+  // numeric Seed control). Genesis Creator's own copy used `t += 0x...`
+  // without the `|0` re-mask other copies have — same result per call
+  // (Math.imul coerces internally regardless) but lets the stored `t`
+  // drift outside safe 32-bit float precision over a long sequence;
+  // consolidating onto this version is a small correctness fix there,
+  // not just deduplication.
+  Organica.mulberry32 = function (seed) {
+    let t = seed >>> 0;
+    return function () {
+      t |= 0; t = (t + 0x6D2B79F5) | 0;
+      let r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  };
+
   // Wires the shared swatch+hex+random-button+native-picker component
   // (organica-panel.css's own .color-row/.color-swatch/.color-hex) —
   // #cp-<prefix> (native input[type=color]), #hex-<prefix> (text field),

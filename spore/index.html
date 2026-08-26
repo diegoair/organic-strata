@@ -501,6 +501,7 @@
 
 <!-- Centralized Organica shape library (window.ORGANIC_FORMS), shared with Genesis/Pollen -->
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-palette-chip.js"></script>
 <script src="/shared/organica-palette.js"></script>
 <script src="/genesis/organic-forms.js"></script>
 <script>
@@ -528,23 +529,14 @@ const RMX_COLORS_MAX = 5;
 // Colour math now lives in shared/organica-palette.js (Organica.Palette.colorAt) —
 // see the 'rmx'/'adaptive' branch in drawBatch().
 function buildRmxPalette() {
-  const wrap = document.getElementById('rmx-palette'); wrap.innerHTML = '';
-  rmxColors.forEach((col, i) => {
-    const sw = document.createElement('label');
-    sw.className = 'rmx-color'; sw.style.background = col;
-    sw.innerHTML = `<input type="color" value="${col}" oninput="rmxSetColor(${i}, this.value)">`
-      + (rmxColors.length > 2 ? `<button class="rmx-x" title="Remove" onclick="event.preventDefault();rmxRemoveColor(${i})">×</button>` : '');
-    wrap.appendChild(sw);
+  Organica.createPaletteChips({
+    wrap: document.getElementById('rmx-palette'),
+    colors: rmxColors,
+    min: 2,
+    max: RMX_COLORS_MAX,
+    onChange: (colors) => { rmxColors = colors; liveUpdate(); },
   });
-  if (rmxColors.length < RMX_COLORS_MAX) {
-    const add = document.createElement('button');
-    add.className = 'rmx-add'; add.textContent = '+'; add.title = 'Add colour'; add.onclick = rmxAddColor;
-    wrap.appendChild(add);
-  }
 }
-function rmxSetColor(i, hex) { rmxColors[i] = hex; const sw = document.getElementById('rmx-palette').children[i]; if (sw) sw.style.background = hex; liveUpdate(); }
-function rmxAddColor() { if (rmxColors.length < RMX_COLORS_MAX) { rmxColors.push('#888888'); buildRmxPalette(); liveUpdate(); } }
-function rmxRemoveColor(i) { if (rmxColors.length > 2) { rmxColors.splice(i, 1); buildRmxPalette(); liveUpdate(); } }
 
 // Rendering state
 let sourceImage = null;
@@ -719,11 +711,10 @@ function syncColor(cpId, swatchId, hexId) {
 }
 
 function syncHex(hexId, cpId, swatchId) {
-  let v = document.getElementById(hexId).value;
-  if (/^#[0-9a-fA-F]{6}$/.test(v)) {
-    document.getElementById(cpId).value = v;
-    document.getElementById(swatchId).style.background = v;
-  }
+  const cp = document.getElementById(cpId);
+  const v = Organica.normalizeHex(document.getElementById(hexId).value, cp.value);
+  cp.value = v;
+  document.getElementById(swatchId).style.background = v;
 }
 
 // ─────────────────────────────────────────────
