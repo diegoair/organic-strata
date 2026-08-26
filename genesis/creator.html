@@ -1174,7 +1174,10 @@
     // Math.max(width,height) below already handles a single zero
     // dimension correctly (fits to whichever side is real).
     if (!bb || (bb.width < 0.01 && bb.height < 0.01)) { Object.assign(S, { scale: keep.scale, w: keep.w, l: keep.l, rot: keep.rot, moveX: keep.mx, moveY: keep.my }); render(); return; }
-    const s = 170 / Math.max(bb.width, bb.height);
+    // Fill the whole 200-unit box edge to edge, not an inset — Diego's own
+    // call after checking the old 170 (85%) target left a visible margin
+    // on every kind, not just Circle.
+    const s = 200 / Math.max(bb.width, bb.height);
     const bcx = bb.x + bb.width / 2, bcy = bb.y + bb.height / 2;
     S.scale = Math.round(s * 100) / 100; S.w = 1; S.l = 1;
     S.moveX = Math.round((100 - bcx) * s); S.moveY = Math.round((100 - bcy) * s);
