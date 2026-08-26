@@ -80,8 +80,8 @@
   #rule-total-hint { font-size: var(--fs-micro); color: var(--mid); margin-top: var(--space-2); line-height: 1.5; }
   #rule-total-hint.over-cap { color: #a03828; }
 
-  .fvs-element-preview { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
-  .fvs-element-preview svg { width: 48px; height: 48px; flex-shrink: 0; border: 1px solid var(--border); display: block; }
+  .fvs-seed-preview { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
+  .fvs-seed-preview svg { width: 48px; height: 48px; flex-shrink: 0; border: 1px solid var(--border); display: block; }
 
   .fvs-library { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
   .fvs-library-item { position: relative; width: 64px; height: 64px; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; padding: 0; background: none; }
@@ -113,7 +113,7 @@
   #symbol-content-overlay__panel { background: var(--paper); border: 1px solid var(--border); width: 420px; max-height: 80vh; overflow-y: auto; padding: var(--space-5); }
   #symbol-content-overlay__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3); }
   #symbol-content-overlay__title { font-size: var(--fs-base); font-weight: 600; }
-  #symbol-content-overlay__elements .fvs-library-item, #symbol-content-overlay__components .fvs-library-item { width: 76px; height: 76px; }
+  #symbol-content-overlay__seeds .fvs-library-item, #symbol-content-overlay__components .fvs-library-item { width: 76px; height: 76px; }
 
   #underlying-component-overlay { position: fixed; inset: 0; background: rgba(10,10,10,0.45); display: flex; align-items: center; justify-content: center; z-index: 200; }
   #underlying-component-overlay__panel { background: var(--paper); border: 1px solid var(--border); width: 420px; max-height: 80vh; overflow-y: auto; padding: var(--space-5); }
@@ -184,14 +184,14 @@
 
     <div class="tier-block active" data-tier="components">
     <div class="panel-section">
-      <h3>Element</h3>
+      <h3>Seed</h3>
       <div class="ctrl-row">
-        <select class="panel-select" id="sel-element-type" aria-label="Element type">
+        <select class="panel-select" id="sel-seed-type" aria-label="Seed type">
           <option value="triangle">Isosceles triangle</option>
           <option value="arc">Arc</option>
         </select>
       </div>
-      <div id="element-triangle-block">
+      <div id="seed-triangle-block">
         <div class="ctrl-row">
           <div class="ctrl-label">Base</div>
           <input type="range" id="rg-base" min="20" max="100" step="1" value="100">
@@ -203,7 +203,7 @@
           <span class="ctrl-val" id="v-height">100</span>
         </div>
       </div>
-      <div id="element-arc-block" style="display:none">
+      <div id="seed-arc-block" style="display:none">
         <div class="ctrl-row">
           <div class="ctrl-label">Thickness</div>
           <input type="range" id="rg-thickness" min="1" max="100" step="1" value="100">
@@ -211,17 +211,17 @@
         </div>
       </div>
       <div class="row-btns">
-        <button class="mini-btn" id="btn-upload-element">Upload SVG…</button>
+        <button class="mini-btn" id="btn-upload-seed">Upload SVG…</button>
         <button class="mini-btn" id="btn-browse-creator">Creator library…</button>
       </div>
-      <div id="element-upload-error" class="org-panel__hint" style="display:none;color:#a03828"></div>
+      <div id="seed-upload-error" class="org-panel__hint" style="display:none;color:#a03828"></div>
       <div id="creator-library-picker" style="display:none">
         <div id="creator-library-empty" class="fvs-library-empty">No saved Seeds found — save one in Creator first.</div>
         <div id="creator-library-tiles" class="fvs-library"></div>
       </div>
       <div class="sub-label" style="margin-top:var(--space-3)">Preview — rotation &amp; flip</div>
-      <div id="element-preview" class="fvs-element-preview" aria-label="Element transform preview"></div>
-      <p class="org-panel__hint">Base/Height (triangle) and Thickness (arc) default to 100 — the Element fills its cell exactly, corner to corner, edge to edge. Upload an SVG or pick a Seed saved in Creator (first drawable shape, fitted to the cell). The strip above shows this exact Element at 0/90/180/270° and each flip, on its own — check it looks right before generating a full grid of it. Colour lives in Palette below.</p>
+      <div id="seed-preview" class="fvs-seed-preview" aria-label="Seed transform preview"></div>
+      <p class="org-panel__hint">Base/Height (triangle) and Thickness (arc) default to 100 — the Seed fills its cell exactly, corner to corner, edge to edge. Upload an SVG or pick a Seed saved in Creator (first drawable shape, fitted to the cell). The strip above shows this exact Seed at 0/90/180/270° and each flip, on its own — check it looks right before generating a full grid of it. Colour lives in Palette below.</p>
     </div>
     </div>
 
@@ -255,7 +255,7 @@
       <p class="org-panel__hint">Paper is the ground every Component renders and exports against — the gallery thumbnail, PNG, and SVG all read this same colour, not a fixed white.</p>
     </div>
 
-    <input type="file" id="file-element" accept=".svg,image/svg+xml" aria-label="Upload SVG element" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;">
+    <input type="file" id="file-seed" accept=".svg,image/svg+xml" aria-label="Upload SVG seed" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;">
     <input type="file" id="file-loom-grid" accept=".json,application/json" aria-label="Upload Loom grid JSON" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;">
 
     <div class="tier-block active" data-tier="components">
@@ -393,7 +393,7 @@
         <button class="mini-btn" id="btn-library-confirm">Save</button>
         <button class="mini-btn" id="btn-library-cancel">Cancel</button>
       </div>
-      <p class="org-panel__hint">A saved entry is a full snapshot — Element (incl. an upload's own shape), Grid, Palette, and the exact generated arrangement — not just a link back to the current controls. Click a tile to load it back exactly as saved.</p>
+      <p class="org-panel__hint">A saved entry is a full snapshot — Seed (incl. an upload's own shape), Grid, Palette, and the exact generated arrangement — not just a link back to the current controls. Click a tile to load it back exactly as saved.</p>
     </div>
     </div>
 
@@ -415,7 +415,7 @@
           </button>
         </div>
         <button class="mini-btn" id="btn-symbol-regenerate" style="width:100%">Regenerate</button>
-        <p class="org-panel__hint">Each cell gets a seeded random source — an Element (random type/rotation/flip/scale) or, if the Component Library has saved entries, sometimes a nested Component instead.</p>
+        <p class="org-panel__hint">Each cell gets a seeded random source — an Seed (random type/rotation/flip/scale) or, if the Component Library has saved entries, sometimes a nested Component instead.</p>
       </div>
       <div id="symbol-manual-block" style="display:none">
         <p class="org-panel__hint">Click a cell on the canvas to select it and choose its content. Shift-click, or click-and-drag, to select more than one cell.</p>
@@ -478,7 +478,7 @@
         <button class="mini-btn" id="btn-symbol-library-confirm">Save</button>
         <button class="mini-btn" id="btn-symbol-library-cancel">Cancel</button>
       </div>
-      <p class="org-panel__hint">Saved separately from the Component Library above — a Symbol snapshot is its own grid + per-cell fill (Elements and/or nested Components), not one Element repeated.</p>
+      <p class="org-panel__hint">Saved separately from the Component Library above — a Symbol snapshot is its own grid + per-cell fill (Seeds and/or nested Components), not one Seed repeated.</p>
     </div>
     </div>
 
@@ -493,8 +493,8 @@
         <svg viewBox="0 0 16 16" width="11" height="11"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
       </button>
     </div>
-    <div class="sub-label">Elements</div>
-    <div id="symbol-content-overlay__elements" class="fvs-library"></div>
+    <div class="sub-label">Seeds</div>
+    <div id="symbol-content-overlay__seeds" class="fvs-library"></div>
     <div class="sub-label" style="margin-top:var(--space-3)">Components</div>
     <div id="symbol-content-overlay__components-empty" class="fvs-library-empty">No saved Components yet — build one in the Components tab first.</div>
     <div id="symbol-content-overlay__components" class="fvs-library"></div>
@@ -517,7 +517,7 @@
 <script src="/shared/organica-core.js"></script>
 <script>
 /* ─────────────────────────────────────────────────────────────
-   FVS — Flexible Visual System. First pass: Elements → Components only
+   FVS — Flexible Visual System. First pass: Seeds → Components only
    (the Symbols/Pattern/Applications tiers from the reference brief are
    later phases, not built here).
 
@@ -538,14 +538,14 @@ const state = {
   selectedId: null,
   colors: ['#000000'],   // the centralised Palette (Ink) — see buildPalette()/colorAt() below
   paperColor: '#ffffff',   // the ground every render/export paints against
-  customElement: null,   // {d, normTx, normTy, normScale} from an uploaded SVG, or null
+  customSeed: null,   // {d, normTx, normTy, normScale} from an uploaded SVG, or null
   componentRole: 'normal',           // 'normal' | 'container' | 'mask' — this Component's own silhouette used as a clip/knockout boundary for underlyingComponentName
   underlyingComponentName: null,     // another saved Component Library entry's name, or null
   loomGrid: null,   // {cellShape, cells, inner:{width,height}} from Organica.loadLoomGrid, or null until a file is imported
   activeTier: 'components',   // 'components' | 'symbols'
   symbolGrid: null,   // same shape as loomGrid — a SECOND, independent Loom grid for the Symbols tier
   symbolCells: [],    // one per resolveGridCells(symbolGrid) index:
-                       //   {source:'element', elementType, rotation, flipH, flipV, scale, color,
+                       //   {source:'seed', seedType, rotation, flipH, flipV, scale, color,
                        //    fitMode:'contain'|'fill'|'fixed', fixedSize, anchorX, anchorY, padding}
                        //   {source:'component', componentName, rotation, flipH, flipV, scale, fitMode, fixedSize, anchorX, anchorY, padding}
   symbolSelection: new Set(),   // cell indices, Manual mode's click-to-select — never persisted (editing-session-only)
@@ -553,10 +553,10 @@ const state = {
   symbolClipEnabled: true,      // Symbol-level: clip each cell's content to its own bounds (rect/polygon). OFF allows deliberate bleed; persisted per saved Symbol.
 };
 
-// ── Palette — centralised colour assignment (moved out of Element, which
+// ── Palette — centralised colour assignment (moved out of Seed, which
 // is now pure shape geometry). Same RMX chip UI Membrane/Vortex already
 // use, min 1 (a single colour IS a plain flat fill, the old Fill
-// default) rather than their own min-2, since a one-Element single-cell-
+// default) rather than their own min-2, since a one-Seed single-cell-
 // colour grid is a legitimate baseline here, not a degenerate case. Max 8,
 // matching Vortex's own ceiling (no shader array-size bound applies).
 const PALETTE_MAX = 8;
@@ -598,7 +598,7 @@ function setColor(i, hex) {
   const chip = ctrl('fvs-palette').children[i];
   if (chip) chip.style.background = hex;
   renderGallery();
-  renderElementPreview();
+  renderSeedPreview();
   if (state.symbolGrid) renderSymbolCanvasOnly();
 }
 
@@ -607,7 +607,7 @@ function addColor() {
   state.colors.push('#888888');
   buildPalette();
   renderGallery();
-  renderElementPreview();
+  renderSeedPreview();
   if (state.symbolGrid) renderSymbolCanvasOnly();
 }
 
@@ -616,16 +616,16 @@ function removeColor(i) {
   state.colors.splice(i, 1);
   buildPalette();
   renderGallery();
-  renderElementPreview();
+  renderSeedPreview();
   if (state.symbolGrid) renderSymbolCanvasOnly();
 }
 
-// ── Element ──
+// ── Seed ──
 // Each type exposes geometry(params) → { d, normTx, normTy, normScale }.
 // d is an SVG path in a normalized 0..100 box; normTx/normTy/normScale
 // default to identity (0,0,1) for hand-authored shapes (triangle, the 4
 // arcs) already drawn directly in that box. They exist for uploaded
-// custom shapes (see extractElementFromSVG below), whose own bbox-fit
+// custom shapes (see extractSeedFromSVG below), whose own bbox-fit
 // transform lives here as a SEPARATE nested transform layer rather than
 // being baked into `d` — baking it in would mean parsing and rewriting
 // every coordinate token in arbitrary path data (arcs/beziers/etc, too
@@ -657,34 +657,34 @@ function arcGeometry(thicknessPct) {
   return { d: arcPathD(thicknessPct), normTx: 0, normTy: 0, normScale: 1 };
 }
 
-const ELEMENT_TYPES = {
+const SEED_TYPES = {
   triangle: { label: 'Isosceles triangle', geometry: (p) => triangleGeometry(p.base, p.height) },
   arc: { label: 'Arc', geometry: (p) => arcGeometry(p.thickness) },
   custom: {
     label: 'Custom (uploaded)',
-    geometry: () => state.customElement || { d: '', normTx: 0, normTy: 0, normScale: 1 },
+    geometry: () => state.customSeed || { d: '', normTx: 0, normTy: 0, normScale: 1 },
   },
 };
 
-function getElement() {
+function getSeed() {
   return {
-    type: ctrl('sel-element-type').value,
+    type: ctrl('sel-seed-type').value,
     base: val('rg-base'),
     height: val('rg-height'),
     thickness: val('rg-thickness'),
   };
 }
 
-// ── SVG upload → one custom Element. Finds the FIRST drawable shape in
+// ── SVG upload → one custom Seed. Finds the FIRST drawable shape in
 // the file (multi-shape SVGs only use that one — no shape-merging in
 // v1, same scoping this project uses elsewhere: Loom's own polygon
 // generators, Soul's Seeds panel), measures its untransformed local
 // bbox via a real off-DOM <svg> host (Pollen's own `getBBox()`
 // technique), and stores the fit as normTx/normTy/normScale (see
-// ELEMENT_TYPES's own header for why that's a separate transform layer
+// SEED_TYPES's own header for why that's a separate transform layer
 // rather than baked into `d`). No existing helper in the repo already
 // does this (checked shared/organica-core.js, Soul's parsePrimitives,
-// Pollen's own element-replay) — genuinely new code.
+// Pollen's own seed-replay) — genuinely new code.
 const SHAPE_SELECTOR = 'path, circle, rect, ellipse, polygon, polyline';
 
 function shapeToPathD(el) {
@@ -729,7 +729,7 @@ function ensureSvgNamespace(svgString) {
   return svgString.replace(/<svg\b/, '<svg xmlns="http://www.w3.org/2000/svg"');
 }
 
-function extractElementFromSVG(svgString) {
+function extractSeedFromSVG(svgString) {
   const doc = new DOMParser().parseFromString(ensureSvgNamespace(svgString), 'image/svg+xml');
   if (doc.querySelector('parsererror')) throw new Error('Invalid SVG file.');
   const svgRoot = doc.querySelector('svg');
@@ -757,34 +757,34 @@ function extractElementFromSVG(svgString) {
   return { d, normScale, normTx: -bbox.x + offX / normScale, normTy: -bbox.y + offY / normScale };
 }
 
-function useSvgAsElement(svgString) {
-  state.customElement = extractElementFromSVG(svgString);
-  let opt = ctrl('sel-element-type').querySelector('option[value="custom"]');
+function useSvgAsSeed(svgString) {
+  state.customSeed = extractSeedFromSVG(svgString);
+  let opt = ctrl('sel-seed-type').querySelector('option[value="custom"]');
   if (!opt) {
     opt = document.createElement('option');
     opt.value = 'custom'; opt.textContent = 'Custom (uploaded)';
-    ctrl('sel-element-type').appendChild(opt);
+    ctrl('sel-seed-type').appendChild(opt);
   }
-  ctrl('sel-element-type').value = 'custom';
-  syncElementUI();
-  ctrl('element-upload-error').style.display = 'none';
+  ctrl('sel-seed-type').value = 'custom';
+  syncSeedUI();
+  ctrl('seed-upload-error').style.display = 'none';
   renderGallery();
-  renderElementPreview();
+  renderSeedPreview();
 }
 
-function handleElementUpload(file) {
+function handleSeedUpload(file) {
   const reader = new FileReader();
   reader.onload = () => {
     try {
-      useSvgAsElement(reader.result);
+      useSvgAsSeed(reader.result);
     } catch (e) {
-      ctrl('element-upload-error').textContent = e.message;
-      ctrl('element-upload-error').style.display = '';
+      ctrl('seed-upload-error').textContent = e.message;
+      ctrl('seed-upload-error').style.display = '';
     }
   };
   reader.onerror = () => {
-    ctrl('element-upload-error').textContent = 'Could not read that file.';
-    ctrl('element-upload-error').style.display = '';
+    ctrl('seed-upload-error').textContent = 'Could not read that file.';
+    ctrl('seed-upload-error').style.display = '';
   };
   reader.readAsText(file);
 }
@@ -794,7 +794,7 @@ function handleElementUpload(file) {
 // needed (this is the same cross-page localStorage read every Organica
 // preset already relies on — reload FVS after saving in Creator to see
 // it here). A saved form's own .svg string is a complete
-// <svg viewBox="0 0 200 200">…</svg> — feeding it to extractElementFromSVG
+// <svg viewBox="0 0 200 200">…</svg> — feeding it to extractSeedFromSVG
 // (already built for file-upload) is the exact same code path, just a
 // different source; builtIn sets (the "Organic Forms"/"Basic Shapes"
 // catalogues) are included too, not just user-drawn ones.
@@ -841,11 +841,11 @@ function renderCreatorLibraryPicker() {
     btn.innerHTML = form.svg;
     btn.addEventListener('click', () => {
       try {
-        useSvgAsElement(form.svg);
+        useSvgAsSeed(form.svg);
         ctrl('creator-library-picker').style.display = 'none';
       } catch (e) {
-        ctrl('element-upload-error').textContent = e.message;
-        ctrl('element-upload-error').style.display = '';
+        ctrl('seed-upload-error').textContent = e.message;
+        ctrl('seed-upload-error').style.display = '';
       }
     });
     wrap.appendChild(btn);
@@ -890,7 +890,7 @@ function getGrid() {
 // Returns [{cx, cy, cellSize}], one per cell, relative to the grid's own
 // centre. cellSize per cell (not a single grid-wide value) is what lets
 // a Loom import's own variable cell sizes (Bento's merged spans, a
-// Voronoi diagram's differently-sized regions) scale the Element
+// Voronoi diagram's differently-sized regions) scale the Seed
 // correctly per cell instead of assuming uniformity.
 // cellW/cellH (alongside the pre-existing cellSize = min(w,h), kept for
 // Components which only ever want a single uniform value) expose the
@@ -1356,7 +1356,7 @@ function resolveUnderlyingComponent(name) {
   if (!entry) return null;
   const savedColorAt = j => entry.colors[j % entry.colors.length];
   const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
-  return { items, element: entry.element, size: frameSize(entry.grid), paperColor: entry.paperColor };
+  return { items, seed: entry.seed, size: frameSize(entry.grid), paperColor: entry.paperColor };
 }
 
 // Real, empirically-verified browser bug (found building the equivalent
@@ -1410,9 +1410,9 @@ function drawItemsPlain(ctx, itemsToDraw, geo, path, boxSize) {
   }
 }
 
-function drawComponentCanvas(ctx, items, element, size) {
+function drawComponentCanvas(ctx, items, seed, size) {
   ctx.clearRect(0, 0, size, size);
-  const geo = ELEMENT_TYPES[element.type].geometry(element);
+  const geo = SEED_TYPES[seed.type].geometry(seed);
   const path = new Path2D(geo.d);
   const under = (state.componentRole === 'container' || state.componentRole === 'mask') ? resolveUnderlyingComponent(state.underlyingComponentName) : null;
 
@@ -1437,7 +1437,7 @@ function drawComponentCanvas(ctx, items, element, size) {
     boundaryPath.addPath(path, m);
   }
 
-  const underGeo = ELEMENT_TYPES[under.element.type].geometry(under.element);
+  const underGeo = SEED_TYPES[under.seed.type].geometry(under.seed);
   const underPath = new Path2D(underGeo.d);
   const fitScale = size / under.size;
 
@@ -1473,9 +1473,9 @@ function drawComponentCanvas(ctx, items, element, size) {
   }
 }
 
-function buildComponentSVG(items, element, size) {
+function buildComponentSVG(items, seed, size) {
   const half = size / 2;
-  const geo = ELEMENT_TYPES[element.type].geometry(element);
+  const geo = SEED_TYPES[seed.type].geometry(seed);
   const meta = { tool: 'FVS', ruleSource: state.selectedRuleSource || '', cells: items.length, exportedAt: new Date().toISOString() };
   const under = (state.componentRole === 'container' || state.componentRole === 'mask') ? resolveUnderlyingComponent(state.underlyingComponentName) : null;
   // Container keeps the usual unconditional paper rect (the boundary only
@@ -1488,7 +1488,7 @@ function buildComponentSVG(items, element, size) {
   let body = (under && state.componentRole === 'mask') ? '' : `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>`;
 
   if (under) {
-    const underGeo = ELEMENT_TYPES[under.element.type].geometry(under.element);
+    const underGeo = SEED_TYPES[under.seed.type].geometry(under.seed);
     const fitScale = size / under.size;
     let underBody = `<rect width="${under.size}" height="${under.size}" fill="${under.paperColor}"/>`;
     for (const it of under.items) {
@@ -1526,13 +1526,13 @@ function buildComponentSVG(items, element, size) {
     + `<metadata>${JSON.stringify(meta)}</metadata>` + body + `</svg>`;
 }
 
-// ── Element preview strip — the current Element on its own, at 0/90/
+// ── Seed preview strip — the current Seed on its own, at 0/90/
 // 180/270° and each flip, so an asymmetric or uploaded shape's behaviour
 // under a transform is visible before committing to a full grid
 // generation. Shares the same geometry/transform discipline as
 // buildComponentSVG, for exactly one item instead of a 4-cell grid. ──
-function buildElementPreviewSVG(element, rotation, flipH, flipV, size) {
-  const geo = ELEMENT_TYPES[element.type].geometry(element);
+function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size) {
+  const geo = SEED_TYPES[seed.type].geometry(seed);
   const half = size / 2;
   const sx = (flipH ? -1 : 1) * (size / 100), sy = (flipV ? -1 : 1) * (size / 100);
   const body = `<g transform="translate(${half},${half}) rotate(${rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
@@ -1542,14 +1542,14 @@ function buildElementPreviewSVG(element, rotation, flipH, flipV, size) {
     + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${body}</svg>`;
 }
 
-const ELEMENT_PREVIEW_STATES = [
+const SEED_PREVIEW_STATES = [
   [0, false, false], [90, false, false], [180, false, false], [270, false, false],
   [0, true, false], [0, false, true], [0, true, true],
 ];
-function renderElementPreview() {
-  const element = getElement();
-  ctrl('element-preview').innerHTML = ELEMENT_PREVIEW_STATES
-    .map(([r, fh, fv]) => buildElementPreviewSVG(element, r, fh, fv, 48)).join('');
+function renderSeedPreview() {
+  const seed = getSeed();
+  ctrl('seed-preview').innerHTML = SEED_PREVIEW_STATES
+    .map(([r, fh, fv]) => buildSeedPreviewSVG(seed, r, fh, fv, 48)).join('');
 }
 
 // ── Gallery ──
@@ -1557,7 +1557,7 @@ function renderGallery() {
   const gallery = ctrl('gallery');
   const empty = ctrl('gallery-empty');
   const grid = getGrid();
-  const element = getElement();
+  const seed = getSeed();
   const size = frameSize(grid);
 
   gallery.innerHTML = '';
@@ -1575,7 +1575,7 @@ function renderGallery() {
 
   for (const comp of state.components) {
     const items = buildComponentItems(comp, grid);
-    const svgStr = buildComponentSVG(items, element, size);
+    const svgStr = buildComponentSVG(items, seed, size);
     const btn = document.createElement('button');
     btn.className = 'fvs-thumb' + (comp.id === state.selectedId ? ' selected' : '');
     btn.setAttribute('aria-label', `Component ${comp.ruleSource} ${comp.id}`);
@@ -1713,12 +1713,12 @@ function exportSelected(format) {
   if (!comp) return;
   state.selectedRuleSource = comp.ruleSource;
   const grid = getGrid();
-  const element = getElement();
+  const seed = getSeed();
   const items = buildComponentItems(comp, grid);
   const baseSize = frameSize(grid);
 
   if (format === 'svg') {
-    const svg = buildComponentSVG(items, element, baseSize);
+    const svg = buildComponentSVG(items, seed, baseSize);
     Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('fvs', 'svg'));
     return;
   }
@@ -1730,22 +1730,22 @@ function exportSelected(format) {
   const ctx = off.getContext('2d');
   ctx.save();
   ctx.scale(scale, scale);
-  drawComponentCanvas(ctx, items, element, baseSize);
+  drawComponentCanvas(ctx, items, seed, baseSize);
   ctx.restore();
   off.toBlob(blob => {
     Organica.download(blob, Organica.stamp('fvs', 'png'));
   });
 }
 
-// ── Element UI — Base/Height only mean anything for the triangle,
+// ── Seed UI — Base/Height only mean anything for the triangle,
 // Thickness only for the arc; an upload has no adjustable params. ──
-function syncElementUI() {
-  const type = ctrl('sel-element-type').value;
-  ctrl('element-triangle-block').style.display = type === 'triangle' ? '' : 'none';
-  ctrl('element-arc-block').style.display = type === 'arc' ? '' : 'none';
+function syncSeedUI() {
+  const type = ctrl('sel-seed-type').value;
+  ctrl('seed-triangle-block').style.display = type === 'triangle' ? '' : 'none';
+  ctrl('seed-arc-block').style.display = type === 'arc' ? '' : 'none';
 }
 
-// ── Component Library — save/reload full snapshots (Element incl. an
+// ── Component Library — save/reload full snapshots (Seed incl. an
 // upload's own geometry, Grid, Palette, and the exact generated
 // arrangement), not just current control state. Organica.presetStore is
 // a generic JSON-blob store (confirmed against Loom's own "Save grid",
@@ -1758,7 +1758,7 @@ function buildLibraryEntry() {
   const comp = getSelectedComponent();
   if (!comp) return null;
   return {
-    element: { type: ctrl('sel-element-type').value, base: val('rg-base'), height: val('rg-height'), thickness: val('rg-thickness'), customElement: state.customElement },
+    seed: { type: ctrl('sel-seed-type').value, base: val('rg-base'), height: val('rg-height'), thickness: val('rg-thickness'), customSeed: state.customSeed },
     grid: getGrid(),
     colors: state.colors.slice(),
     paperColor: state.paperColor,
@@ -1812,18 +1812,18 @@ function removeLibraryEntry(name) {
 }
 
 function applyLibraryEntryToUI(entry) {
-  ctrl('sel-element-type').value = entry.element.type;
-  if (entry.element.type === 'custom' && !ctrl('sel-element-type').querySelector('option[value="custom"]')) {
+  ctrl('sel-seed-type').value = entry.seed.type;
+  if (entry.seed.type === 'custom' && !ctrl('sel-seed-type').querySelector('option[value="custom"]')) {
     const opt = document.createElement('option');
     opt.value = 'custom'; opt.textContent = 'Custom (uploaded)';
-    ctrl('sel-element-type').appendChild(opt);
-    ctrl('sel-element-type').value = 'custom';
+    ctrl('sel-seed-type').appendChild(opt);
+    ctrl('sel-seed-type').value = 'custom';
   }
-  state.customElement = entry.element.customElement || null;
-  ctrl('rg-base').value = entry.element.base; ctrl('v-base').textContent = entry.element.base;
-  ctrl('rg-height').value = entry.element.height; ctrl('v-height').textContent = entry.element.height;
-  ctrl('rg-thickness').value = entry.element.thickness; ctrl('v-thickness').textContent = entry.element.thickness;
-  syncElementUI();
+  state.customSeed = entry.seed.customSeed || null;
+  ctrl('rg-base').value = entry.seed.base; ctrl('v-base').textContent = entry.seed.base;
+  ctrl('rg-height').value = entry.seed.height; ctrl('v-height').textContent = entry.seed.height;
+  ctrl('rg-thickness').value = entry.seed.thickness; ctrl('v-thickness').textContent = entry.seed.thickness;
+  syncSeedUI();
 
   if (entry.grid.kind === 'loom') {
     state.loomGrid = { cellShape: entry.grid.cellShape, cells: entry.grid.cells, inner: { width: entry.grid.width, height: entry.grid.height } };
@@ -1856,7 +1856,7 @@ function applyLibraryEntryToUI(entry) {
   syncComponentRoleUI();
 
   renderGallery();
-  renderElementPreview();
+  renderSeedPreview();
 }
 
 // Underlying-component picker only matters once a role actually reads it
@@ -1887,7 +1887,7 @@ function openUnderlyingComponentPicker() {
     const size = frameSize(entry.grid);
     const savedColorAt = j => entry.colors[j % entry.colors.length];
     const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
-    const svgStr = buildComponentSVGWithPaper(items, entry.element, size, entry.paperColor, entry.role, entry.underlyingComponentName);
+    const svgStr = buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName);
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
     btn.title = name;
@@ -1924,7 +1924,7 @@ function renderLibrary() {
     // the panel keeps getting edited after saving.
     const savedColorAt = (i) => entry.colors[i % entry.colors.length];
     const itemsWithSavedColor = items.map((it, i) => ({ ...it, color: savedColorAt(i) }));
-    const svgStr = buildComponentSVGWithPaper(itemsWithSavedColor, entry.element, size, entry.paperColor, entry.role, entry.underlyingComponentName);
+    const svgStr = buildComponentSVGWithPaper(itemsWithSavedColor, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName);
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
     btn.setAttribute('aria-label', 'Load saved component ' + name);
@@ -1947,25 +1947,25 @@ function renderLibrary() {
 // values instead, so this wraps it with a temporary swap rather than
 // duplicating the whole render function. role/underlyingComponentName
 // default to 'normal'/null for entries saved before this feature existed.
-function buildComponentSVGWithPaper(items, element, size, paperColor, role, underlyingComponentName) {
+function buildComponentSVGWithPaper(items, seed, size, paperColor, role, underlyingComponentName) {
   const prev = { paper: state.paperColor, role: state.componentRole, under: state.underlyingComponentName };
   state.paperColor = paperColor;
   state.componentRole = role || 'normal';
   state.underlyingComponentName = underlyingComponentName || null;
-  const svg = buildComponentSVG(items, element, size);
+  const svg = buildComponentSVG(items, seed, size);
   state.paperColor = prev.paper; state.componentRole = prev.role; state.underlyingComponentName = prev.under;
   return svg;
 }
 
 // ═══════════════════════════════════════════════════════════════
 // SYMBOLS — a second tier: a Loom grid whose cells each hold either a
-// raw Element (the same transform vocabulary Components already use)
+// raw Seed (the same transform vocabulary Components already use)
 // or a whole saved Component, nested and scaled into that one cell.
 // Deliberately NOT built on top of Components' own state (state.loomGrid
 // /state.components) — a Symbol has its own independent grid and its
 // own heterogeneous per-cell fill, so it gets its own state fields
 // (state.symbolGrid/state.symbolCells) and its own small set of
-// functions below, reusing resolveGridCells/frameSize/ELEMENT_TYPES/
+// functions below, reusing resolveGridCells/frameSize/SEED_TYPES/
 // buildComponentItems/mulberry32/colorAt exactly as-is.
 // ═══════════════════════════════════════════════════════════════
 
@@ -2028,7 +2028,7 @@ function getSymbolGrid() {
 
 function defaultSymbolCells(grid) {
   return resolveGridCells(grid).map((c, i) => ({
-    source: 'element', elementType: 'triangle', rotation: 0, flipH: false, flipV: false, scale: 1, color: colorAt(i),
+    source: 'seed', seedType: 'triangle', rotation: 0, flipH: false, flipV: false, scale: 1, color: colorAt(i),
     fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0,
   }));
 }
@@ -2066,7 +2066,7 @@ function handleSymbolGridUpload(file) {
 // Shared by both source types and both render paths (SVG string, Canvas2D)
 // — turns fit mode + anchor + padding + scale/fixedSize into a concrete
 // {scaleX, scaleY, offsetX, offsetY} for one cell. `natural` is the
-// shape's own untransformed box size (square: 100 for an Element, the
+// shape's own untransformed box size (square: 100 for an Seed, the
 // nested Component's own frameSize for a nested Component). Reduces to
 // EXACTLY the old single-cellSize/100-fit, always-centered behaviour at
 // the defaults (fitMode:'contain', anchorX/Y:0, padding:0) — verified no
@@ -2093,7 +2093,7 @@ function resolveCellPlacement(cellW, cellH, natural, cell) {
   };
 }
 
-// One draw-op per cell: 'element' carries its own geometry directly;
+// One draw-op per cell: 'seed' carries its own geometry directly;
 // 'component' carries the referenced Component's own resolved items
 // (via the EXISTING, unmodified buildComponentItems) plus its natural
 // frame size, so the render functions can nest a second nearly-
@@ -2133,13 +2133,13 @@ function buildSymbolItems() {
       return {
         type: 'component', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
         scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
-        nestedItems, nestedElement: entry.element, nestedSize, nestedPaper: entry.paperColor,
+        nestedItems, nestedSeed: entry.seed, nestedSize, nestedPaper: entry.paperColor,
       };
     }
-    const geo = ELEMENT_TYPES[cell.elementType].geometry({ base: 100, height: 100, thickness: 100 });
+    const geo = SEED_TYPES[cell.seedType].geometry({ base: 100, height: 100, thickness: 100 });
     const place = resolveCellPlacement(c.cellW, c.cellH, 100, cell);
     return {
-      type: 'element', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
+      type: 'seed', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
       scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
       color: cell.color, geo,
     };
@@ -2168,7 +2168,7 @@ function cellOverflowInfo(index) {
   return itemW > c.cellW + 0.01 || itemH > c.cellH + 0.01;
 }
 
-function elementMarkupSVG(cx, cy, rotation, sx, sy, geo, color) {
+function seedMarkupSVG(cx, cy, rotation, sx, sy, geo, color) {
   return `<g transform="translate(${cx.toFixed(2)},${cy.toFixed(2)}) rotate(${rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
     + `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
     + `<path d="${geo.d}" fill="${color}"/></g></g>`;
@@ -2202,16 +2202,16 @@ function buildSymbolSVG() {
     let cellMarkup;
     if (it.type === 'missing') {
       cellMarkup = missingComponentMarkupSVG(it.cx, it.cy, it.cellW, it.cellH);
-    } else if (it.type === 'element') {
-      cellMarkup = elementMarkupSVG(it.cx, it.cy, it.rotation, it.scaleX, it.scaleY, it.geo, it.color);
+    } else if (it.type === 'seed') {
+      cellMarkup = seedMarkupSVG(it.cx, it.cy, it.rotation, it.scaleX, it.scaleY, it.geo, it.color);
     } else {
-      const geo = ELEMENT_TYPES[it.nestedElement.type].geometry(it.nestedElement);
+      const geo = SEED_TYPES[it.nestedSeed.type].geometry(it.nestedSeed);
       const nHalf = it.nestedSize / 2;
       let inner = `<rect width="${it.nestedSize}" height="${it.nestedSize}" fill="${it.nestedPaper}"/>`;
       for (const ni of it.nestedItems) {
         const nfit = ni.cellSize / 100;
         const nsx = (ni.flipH ? -1 : 1) * ni.scale * nfit, nsy = (ni.flipV ? -1 : 1) * ni.scale * nfit;
-        inner += elementMarkupSVG(nHalf + ni.cx, nHalf + ni.cy, ni.rotation, nsx, nsy, geo, ni.color);
+        inner += seedMarkupSVG(nHalf + ni.cx, nHalf + ni.cy, ni.rotation, nsx, nsy, geo, ni.color);
       }
       cellMarkup = `<g transform="translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(${(-nHalf).toFixed(2)},${(-nHalf).toFixed(2)})">${inner}</g>`;
     }
@@ -2290,7 +2290,7 @@ function drawSymbolCanvas(ctx, size) {
       ctx.moveTo(x + it.cellW, y); ctx.lineTo(x, y + it.cellH);
       ctx.stroke();
       ctx.restore();
-    } else if (it.type === 'element') {
+    } else if (it.type === 'seed') {
       ctx.save();
       ctx.translate(it.cx, it.cy);
       ctx.rotate(it.rotation * Math.PI / 180);
@@ -2302,7 +2302,7 @@ function drawSymbolCanvas(ctx, size) {
       ctx.fill(new Path2D(it.geo.d));
       ctx.restore();
     } else {
-      const geo = ELEMENT_TYPES[it.nestedElement.type].geometry(it.nestedElement);
+      const geo = SEED_TYPES[it.nestedSeed.type].geometry(it.nestedSeed);
       const path = new Path2D(geo.d);
       const nHalf = it.nestedSize / 2;
       ctx.save();
@@ -2340,7 +2340,7 @@ function generateSymbolCells() {
   const seed = parseInt(ctrl('num-symbol-seed').value, 10) || 0;
   const rng = mulberry32(seed);
   const libNames = Object.keys(LIBRARY.read());
-  const elementTypes = ['triangle', 'arc'];
+  const seedTypes = ['triangle', 'arc'];
   const scaleChoices = [0.75, 1, 1.25];
   state.symbolSelection.clear();
   // Fit mode/anchor/padding are deliberately NOT randomized — a chaotic
@@ -2357,8 +2357,8 @@ function generateSymbolCells() {
       const componentName = libNames[Math.floor(rng() * libNames.length)];
       return { source: 'component', componentName, rotation, flipH, flipV, scale, ...placement };
     }
-    const elementType = elementTypes[Math.floor(rng() * elementTypes.length)];
-    return { source: 'element', elementType, rotation, flipH, flipV, scale, color: colorAt(i), ...placement };
+    const seedType = seedTypes[Math.floor(rng() * seedTypes.length)];
+    return { source: 'seed', seedType, rotation, flipH, flipV, scale, color: colorAt(i), ...placement };
   });
   renderSymbol();
 }
@@ -2494,7 +2494,7 @@ function bindSymbolCanvasSelection() {
     if (e.button !== 0) return;
     const pt = svgPointFromEvent(e);
     if (!pt) return;
-    e.preventDefault(); // no native text/element drag while marquee-selecting
+    e.preventDefault(); // no native text/seed drag while marquee-selecting
     dragStart = pt;
     dragMoved = false;
     dragBase = e.shiftKey ? Array.from(state.symbolSelection) : [];
@@ -2614,8 +2614,8 @@ function renderCellPropertiesPanel() {
   if (isComponent) {
     const exists = first.componentName && LIBRARY.read()[first.componentName];
     label = first.componentName ? (exists ? first.componentName : `⚠ ${first.componentName} (missing)`) : '—';
-  } else if (first.elementType && ELEMENT_TYPES[first.elementType]) {
-    label = ELEMENT_TYPES[first.elementType].label;
+  } else if (first.seedType && SEED_TYPES[first.seedType]) {
+    label = SEED_TYPES[first.seedType].label;
   }
   ctrl('symbol-cellprop-content-label').textContent = label;
 
@@ -2665,18 +2665,18 @@ function renderCellContentOverlayTiles() {
   const count = state.symbolSelection.size;
   ctrl('symbol-content-overlay__title').textContent = count > 1 ? `Choose content for ${count} cells` : 'Choose content';
 
-  const elWrap = ctrl('symbol-content-overlay__elements');
+  const elWrap = ctrl('symbol-content-overlay__seeds');
   elWrap.innerHTML = '';
   ['triangle', 'arc'].forEach(type => {
-    const svgStr = buildElementPreviewSVG({ type, base: 100, height: 100, thickness: 100 }, 0, false, false, 72);
+    const svgStr = buildSeedPreviewSVG({ type, base: 100, height: 100, thickness: 100 }, 0, false, false, 72);
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
-    btn.title = ELEMENT_TYPES[type].label;
-    btn.setAttribute('aria-label', 'Use Element ' + ELEMENT_TYPES[type].label);
+    btn.title = SEED_TYPES[type].label;
+    btn.setAttribute('aria-label', 'Use Seed ' + SEED_TYPES[type].label);
     btn.innerHTML = svgStr;
     btn.addEventListener('click', () => {
       applyToSelection(cell => ({
-        source: 'element', elementType: type, color: cell.color || colorAt(0),
+        source: 'seed', seedType: type, color: cell.color || colorAt(0),
         rotation: 0, flipH: false, flipV: false,
         fitMode: 'fill', scale: 1, padding: 0, anchorX: 0, anchorY: 0,
       }));
@@ -2699,7 +2699,7 @@ function renderCellContentOverlayTiles() {
     const savedColorAt = j => entry.colors[j % entry.colors.length];
     const items = buildComponentItems({ cells: entry.component.cells }, entry.grid)
       .map((it, j) => ({ ...it, color: savedColorAt(j) }));
-    const svgStr = buildComponentSVGWithPaper(items, entry.element, size, entry.paperColor, entry.role, entry.underlyingComponentName);
+    const svgStr = buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName);
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
     btn.title = name;
@@ -2721,7 +2721,7 @@ function renderCellContentOverlayTiles() {
 
 // ── Symbol library — a SEPARATE store from Components' own LIBRARY
 // ('fvs' key): a Symbol snapshot is a grid + heterogeneous per-cell
-// fill, not one Element repeated, so it doesn't belong in the same
+// fill, not one Seed repeated, so it doesn't belong in the same
 // list. state.symbolGrid is stored verbatim as gridModel (see
 // getSymbolGrid()'s own comment — it's already re-import-able as-is). ──
 const SYMBOL_LIBRARY = Organica.presetStore('fvs-symbols');
@@ -2858,18 +2858,18 @@ function setTier(tier) {
 }
 
 // ── Wiring ──
-ctrl('rg-base').addEventListener('input', e => { ctrl('v-base').textContent = e.target.value; renderGallery(); renderElementPreview(); });
-ctrl('rg-height').addEventListener('input', e => { ctrl('v-height').textContent = e.target.value; renderGallery(); renderElementPreview(); });
-ctrl('rg-thickness').addEventListener('input', e => { ctrl('v-thickness').textContent = e.target.value; renderGallery(); renderElementPreview(); });
+ctrl('rg-base').addEventListener('input', e => { ctrl('v-base').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-height').addEventListener('input', e => { ctrl('v-height').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-thickness').addEventListener('input', e => { ctrl('v-thickness').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-cellsize').addEventListener('input', e => { ctrl('v-cellsize').textContent = e.target.value; renderGallery(); });
 ctrl('rg-gap').addEventListener('input', e => { ctrl('v-gap').textContent = e.target.value; renderGallery(); });
 ctrl('rg-random-count').addEventListener('input', e => { ctrl('v-random-count').textContent = e.target.value; });
 
-ctrl('sel-element-type').addEventListener('change', () => { syncElementUI(); renderGallery(); renderElementPreview(); });
-ctrl('btn-upload-element').addEventListener('click', () => ctrl('file-element').click());
-ctrl('file-element').addEventListener('change', e => {
+ctrl('sel-seed-type').addEventListener('change', () => { syncSeedUI(); renderGallery(); renderSeedPreview(); });
+ctrl('btn-upload-seed').addEventListener('click', () => ctrl('file-seed').click());
+ctrl('file-seed').addEventListener('change', e => {
   const file = e.target.files[0];
-  if (file) handleElementUpload(file);
+  if (file) handleSeedUpload(file);
   e.target.value = '';
 });
 ctrl('btn-browse-creator').addEventListener('click', toggleCreatorLibraryPicker);
@@ -2957,7 +2957,7 @@ ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(btn => {
 
 const paperSwatch = Organica.createColorSwatch('paper', {
   initial: '#ffffff',
-  onChange: (hex) => { state.paperColor = hex; renderGallery(); renderElementPreview(); if (state.symbolGrid) renderSymbolCanvasOnly(); },
+  onChange: (hex) => { state.paperColor = hex; renderGallery(); renderSeedPreview(); if (state.symbolGrid) renderSymbolCanvasOnly(); },
 });
 
 ctrl('chk-axis-rotation').addEventListener('change', syncExhaustiveHint);
@@ -3000,14 +3000,14 @@ ctrl('txt-library-name').addEventListener('keydown', e => {
 
 // ── Init ──
 buildPalette();
-syncElementUI();
+syncSeedUI();
 syncComponentRoleUI();
 syncRuleAvailability();
 syncRuleUI();
 renderSymbol();
 renderSymbolLibrary();
 renderGallery();
-renderElementPreview();
+renderSeedPreview();
 renderLibrary();
 Organica.autoLabelPanel(document);
 Organica.enhanceSliders(document);

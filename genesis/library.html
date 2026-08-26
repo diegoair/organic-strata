@@ -161,6 +161,24 @@
     .panel-input--full { width: 100%; text-align: left; }
     .panel-input:disabled { opacity: 0.5; cursor: not-allowed; }
     .panel-unit { font-size: var(--font-size-xs); color: var(--ink-muted); width: 16px; }
+    .panel-hint { font-size: var(--font-size-xs); color: var(--ink-muted); line-height: 1.5; }
+    .panel-range { flex: 1; }
+    input[type=range] { -webkit-appearance: none; appearance: none; height: 11px; background: transparent; outline: none; min-width: 0; cursor: pointer; }
+    input[type=range]::-webkit-slider-runnable-track {
+      height: 9px; border-radius: var(--radius-md);
+      background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--fill, 0%), var(--border) var(--fill, 0%), var(--border) 100%);
+    }
+    input[type=range]::-moz-range-track { height: 9px; border-radius: var(--radius-md); background: var(--border); }
+    input[type=range]::-moz-range-progress { height: 9px; border-radius: var(--radius-md) 0 0 var(--radius-md); background: var(--accent); }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 11px; height: 11px; margin-top: -1px;
+      border-radius: 50%; background: #fff; border: 0; cursor: pointer;
+      box-shadow: 0 1px 2px rgba(0,0,0,.3), 0 0 0 1px rgba(0,0,0,.08);
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 11px; height: 11px; border-radius: 50%; background: #fff; border: 0; cursor: pointer;
+      box-shadow: 0 1px 2px rgba(0,0,0,.3), 0 0 0 1px rgba(0,0,0,.08);
+    }
     .panel-divider { height: 1px; background: var(--border); margin: 4px 0; }
 
     /* ─── Type pills ─────────────────────────────────────────── */
@@ -213,7 +231,7 @@
 
     <div class="org-header__context">
       <span class="org-header__title" id="toolbar-set-name">Organic Forms</span>
-      <span class="org-header__sub" id="toolbar-count">— forms</span>
+      <span class="org-header__sub" id="toolbar-count">— seeds</span>
     </div>
 
     <div class="org-header__spacer"></div>
@@ -224,7 +242,7 @@
     </output>
 
     <div class="org-header__actions">
-      <button class="org-btn" id="btn-add-form">+ Add Form</button>
+      <button class="org-btn" id="btn-add-form">+ Add Seed</button>
       <button class="org-btn org-btn--primary" id="btn-export-set">Export .js</button>
     </div>
   </header>
@@ -278,13 +296,13 @@
 
       <div class="panel-divider"></div>
 
-      <!-- FORM PROPERTIES — visible when a tile is selected -->
+      <!-- SEED PROPERTIES — visible when a tile is selected -->
       <section class="panel-section" id="form-props-section">
-        <div class="panel-section__header"><span class="panel-section__title">Form</span></div>
+        <div class="panel-section__header"><span class="panel-section__title">Seed</span></div>
 
         <div class="panel-row">
           <label class="panel-label">Name</label>
-          <input type="text" class="panel-input panel-input--full" id="ctrl-form-name" placeholder="form name">
+          <input type="text" class="panel-input panel-input--full" id="ctrl-form-name" placeholder="seed name">
         </div>
 
         <div class="panel-row">
@@ -297,7 +315,15 @@
           </div>
         </div>
 
-        <div id="read-only-note" class="read-only-note" style="display:none">Built-in form — name &amp; type are read-only</div>
+        <div id="seed-params-block" style="display:none">
+          <div class="panel-row" id="row-seed-thickness" style="display:none">
+            <label class="panel-label">Thickness</label>
+            <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-seed-thickness" min="1" max="100" value="100"><span class="panel-unit" id="seed-thickness-val" style="width:24px">100</span></div>
+          </div>
+          <p class="panel-hint" id="seed-params-hint" style="display:none">Built-in — adjusting previews live but won't be saved. Duplicate it into your own set to keep a custom version.</p>
+        </div>
+
+        <div id="read-only-note" class="read-only-note" style="display:none">Built-in seed — name &amp; type are read-only</div>
 
         <div class="panel-divider"></div>
 
@@ -332,7 +358,7 @@
 
   </div>
 
-  <!-- Load form data (shared, read-only) -->
+  <!-- Load seed data (shared, read-only) -->
   <script src="/shared/organica-core.js"></script>
   <script src="organic-defs.js"></script>
   <script src="organic-forms.js"></script>
@@ -408,14 +434,21 @@
   // Kept in sync with genesis/creator.html's own identical seeding —
   // whichever of the two pages a user opens first performs the one-time
   // seed and persists it, but a user could visit either page first.
-  const BASIC_SHAPES_SET_ID = 'basic-shapes';
-  function basicShapeForms() {
+  const BASIC_SEEDS_SET_ID = 'basic-seeds';
+  // arcPathD() ported verbatim from genesis/creator.html's own copy (itself
+  // from fvs/index.html's arcPathD, 2x-scaled for this 200-unit box).
+  function arcPathD(thicknessPct) {
+    const ir = 200 * (1 - thicknessPct / 100);
+    if (ir <= 1) return 'M 0,0 L 200,0 A 200,200 0 0,1 0,200 Z';
+    return `M 200,0 A 200,200 0 0,1 0,200 L 0,${ir.toFixed(2)} A ${ir.toFixed(2)},${ir.toFixed(2)} 0 0,0 ${ir.toFixed(2)},0 Z`;
+  }
+  function basicSeedForms() {
     const ink = 'fill="var(--ink)"';
     return [
       { id: 'basic-square', name: 'Square', svg: `<svg viewBox="0 0 200 200"><rect x="10" y="10" width="180" height="180" ${ink}/></svg>` },
       { id: 'basic-circle', name: 'Circle', svg: `<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="90" ${ink}/></svg>` },
       { id: 'basic-triangle', name: 'Triangle', svg: `<svg viewBox="0 0 200 200"><path d="M 100,10 L 10,190 L 190,190 Z" ${ink}/></svg>` },
-      { id: 'basic-arc', name: 'Arc (quarter)', svg: `<svg viewBox="0 0 200 200"><path d="M 0,0 L 200,0 A 200,200 0 0,1 0,200 Z" ${ink}/></svg>` },
+      { id: 'basic-arc', name: 'Arc', svg: `<svg viewBox="0 0 200 200"><path d="${arcPathD(100)}" ${ink}/></svg>`, genType: 'arc', genParams: { thickness: 100 } },
       { id: 'basic-hexagon', name: 'Hexagon', svg: `<svg viewBox="0 0 200 200"><polygon points="100,10 182,55 182,145 100,190 18,145 18,55" ${ink}/></svg>` },
       { id: 'basic-star', name: 'Star', svg: `<svg viewBox="0 0 200 200"><polygon points="100,10 122,78 194,78 136,120 158,188 100,146 42,188 64,120 6,78 78,78" ${ink}/></svg>` },
     ];
@@ -430,10 +463,10 @@
     if (!state.library.sets.find(s => s.id === BUILT_IN_SET_ID)) {
       state.library.sets.unshift(defaultLibrary().sets[0]);
     }
-    if (!state.library.sets.find(s => s.id === BASIC_SHAPES_SET_ID)) {
-      const shapes = basicShapeForms();
-      state.library.forms.push(...shapes);
-      state.library.sets.splice(1, 0, { id: BASIC_SHAPES_SET_ID, name: 'Basic Shapes', builtIn: false, forms: shapes.map(s => s.id), gridConfig: { columns: 4, colGap: 16, rowGap: 16, padding: 24 }, formLayout: [] });
+    if (!state.library.sets.find(s => s.id === BASIC_SEEDS_SET_ID)) {
+      const seeds = basicSeedForms();
+      state.library.forms.push(...seeds);
+      state.library.sets.splice(1, 0, { id: BASIC_SEEDS_SET_ID, name: 'Basic Seeds', builtIn: false, forms: seeds.map(s => s.id), gridConfig: { columns: 4, colGap: 16, rowGap: 16, padding: 24 }, formLayout: [] });
       saveLibrary();
     }
   }
@@ -499,7 +532,7 @@
 
     document.getElementById('toolbar-set-name').textContent = set.name;
     const forms = getFormsForSet(setId);
-    document.getElementById('toolbar-count').textContent = forms.length + ' forms';
+    document.getElementById('toolbar-count').textContent = forms.length + ' seeds';
 
     // Sync grid panel inputs to this set's config
     document.getElementById('ctrl-columns').value = set.gridConfig.columns;
@@ -534,7 +567,7 @@
     if (!forms.length) {
       const empty = document.createElement('div');
       empty.className = 'grid-empty';
-      empty.textContent = 'No forms yet — use “+ Add Form” to create one.';
+      empty.textContent = 'No seeds yet — use “+ Add Seed” to create one.';
       grid.appendChild(empty);
       return;
     }
@@ -625,12 +658,42 @@
 
     document.getElementById('read-only-note').style.display = form.builtIn ? 'block' : 'none';
     document.getElementById('form-props-section').classList.add('visible');
+    syncSeedParamsUI(form);
   }
 
   function deselectForm() {
     state.selectedFormIndex = null;
     document.querySelectorAll('.form-tile.selected').forEach(t => t.classList.remove('selected'));
     document.getElementById('form-props-section').classList.remove('visible');
+  }
+
+  // A seed carrying genType/genParams (see genesis/creator.html's own
+  // Generate mode) stays live-adjustable here too, not frozen into a
+  // picture the moment it's saved. Built-in entries (Basic Seeds) are
+  // still explorable — the slider works and the preview updates live —
+  // but changes aren't persisted, so a fresh reload resets them to the
+  // shipped default; a non-built-in (owned) entry's edits save in place.
+  function syncSeedParamsUI(form) {
+    const relevant = !!form.genType;
+    document.getElementById('seed-params-block').style.display = relevant ? 'block' : 'none';
+    document.getElementById('row-seed-thickness').style.display = (relevant && form.genType === 'arc') ? 'flex' : 'none';
+    document.getElementById('seed-params-hint').style.display = (relevant && form.builtIn) ? 'block' : 'none';
+    if (relevant && form.genType === 'arc') {
+      const t = (form.genParams && form.genParams.thickness) || 100;
+      document.getElementById('ctrl-seed-thickness').value = t;
+      document.getElementById('seed-thickness-val').textContent = t;
+    }
+  }
+
+  function updateSeedThickness(formId, thickness) {
+    const f = state.library.forms.find(f => f.id === formId);
+    if (!f || f.genType !== 'arc') return;
+    f.genParams = { thickness };
+    f.svg = `<svg viewBox="0 0 200 200"><path d="${arcPathD(thickness)}" fill="var(--ink)"/></svg>`;
+    if (!f.builtIn) saveLibrary();   // built-in: live preview only, not persisted — resets to default on reload
+    const keepIndex = state.selectedFormIndex;
+    renderGrid(state.activeSetId);
+    selectForm(keepIndex);
   }
 
   // ── Controls ───────────────────────────────────────────
@@ -666,6 +729,13 @@
         pill.classList.add('active');
         updateFormType(form.id, pill.dataset.type);
       });
+    });
+
+    document.getElementById('ctrl-seed-thickness').addEventListener('input', e => {
+      const form = getFormsForSet(state.activeSetId)[state.selectedFormIndex];
+      if (!form) return;
+      document.getElementById('seed-thickness-val').textContent = e.target.value;
+      updateSeedThickness(form.id, parseInt(e.target.value, 10));
     });
 
     document.getElementById('ctrl-form-name').addEventListener('change', e => {

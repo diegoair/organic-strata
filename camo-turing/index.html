@@ -520,7 +520,7 @@
       <div class="presets" id="tx-presets"></div>
 
       <div id="tx-particles-controls" style="display:none">
-        <p class="org-panel__hint">Scatters disks of varying size onto the seed shape's own ink, unioned together — ported from Living Path's Bubbles preset.</p>
+        <p class="org-panel__hint">Scatters disks of varying size onto the Seed's own ink, unioned together — ported from Living Path's Bubbles preset.</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="How many disks to scatter.">Count</div>
           <input type="range" id="tx-particles-count" min="10" max="400" step="1" value="150" oninput="syncVal(this,'v-tx-particles-count')">
@@ -544,7 +544,7 @@
       </div>
 
       <div id="tx-dilate-controls" style="display:none">
-        <p class="org-panel__hint">Grows (positive) or shrinks (negative) the seed shape's own boundary, one pixel-neighbour pass per unit of Amount — ported from Living Path's morph().</p>
+        <p class="org-panel__hint">Grows (positive) or shrinks (negative) the Seed's own boundary, one pixel-neighbour pass per unit of Amount — ported from Living Path's morph().</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Positive grows the shape (dilate), negative shrinks it (erode). Each unit is one more neighbour-scan pass, so larger amounts cost more to compute.">Amount</div>
           <input type="range" id="tx-dilate-amount" min="-8" max="8" step="1" value="3" oninput="syncVal(this,'v-tx-dilate-amount')">
@@ -553,7 +553,7 @@
       </div>
 
       <div id="tx-blur-controls" style="display:none">
-        <p class="org-panel__hint">Softens the seed shape's edge into a graduated ramp instead of a hard boundary — ported from Living Path's boxBlur().</p>
+        <p class="org-panel__hint">Softens the Seed's edge into a graduated ramp instead of a hard boundary — ported from Living Path's boxBlur().</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Blur radius in cells.">Radius</div>
           <input type="range" id="tx-blur-radius" min="0" max="14" step="1" value="4" oninput="syncVal(this,'v-tx-blur-radius')">
@@ -624,7 +624,7 @@
       </div>
 
       <div id="tx-reaction-controls" style="display:none">
-        <p class="org-panel__hint">Runs a real Gray-Scott pass CONFINED to the seed shape's own ink, then carves the settled pattern as holes into it — the shape becomes coral/cellular instead of solid. A genuine second reaction-diffusion, independent of the tool's own live simulation. Ported from Living Path's grayScott().</p>
+        <p class="org-panel__hint">Runs a real Gray-Scott pass CONFINED to the Seed's own ink, then carves the settled pattern as holes into it — the shape becomes coral/cellular instead of solid. A genuine second reaction-diffusion, independent of the tool's own live simulation. Ported from Living Path's grayScott().</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Feed rate.">Feed</div>
           <input type="range" id="tx-reaction-feed" min="12" max="80" step="1" value="55" oninput="syncVal(this,'v-tx-reaction-feed')">
@@ -2266,7 +2266,7 @@ function populateGenesisGrid() {
     thumb.className = 'shape-thumb' + (id === seedGenesisForm ? ' active' : '');
     thumb.innerHTML = svg + '<span class="thumb-num">' + id + '</span>';
     thumb.setAttribute('role', 'button');
-    thumb.setAttribute('aria-label', 'Genesis form ' + id);
+    thumb.setAttribute('aria-label', 'Genesis Seed ' + id);
     thumb.onclick = () => {
       seedGenesisForm = id;
       grid.querySelectorAll('.shape-thumb').forEach(t => t.classList.remove('active'));
@@ -2301,7 +2301,7 @@ function populateGenesisGridA() {
     thumb.className = 'shape-thumb' + (id === seedGenesisFormA ? ' active' : '');
     thumb.innerHTML = svg + '<span class="thumb-num">' + id + '</span>';
     thumb.setAttribute('role', 'button');
-    thumb.setAttribute('aria-label', 'Genesis form ' + id + ' (shape A)');
+    thumb.setAttribute('aria-label', 'Genesis Seed ' + id + ' (shape A)');
     thumb.onclick = () => {
       seedGenesisFormA = id;
       grid.querySelectorAll('.shape-thumb').forEach(t => t.classList.remove('active'));

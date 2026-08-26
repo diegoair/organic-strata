@@ -305,7 +305,7 @@
     function updateTrigger() { icoEl.innerHTML = icon(active); nameEl.textContent = label(active); }
     function populateMenu() {
       menu.innerHTML = '';
-      ['', ...Object.keys(registry)].forEach(key => {
+      (opts.noNone ? Object.keys(registry) : ['', ...Object.keys(registry)]).forEach(key => {
         const row = document.createElement('button');
         row.className = 'preset-item' + (key === active ? ' on' : '');
         row.innerHTML = `<span class="pi-ico">${icon(key)}</span><span class="pi-name">${label(key)}</span>`;
