@@ -508,13 +508,29 @@ const SW_W = 76, SW_GAP = 6, SW_H = 40;
 const SCALE_START_Y_BAR = BAR_Y + BAR_H + 60;
 const ROW_H = 90;
 
-// Garment geometry — local 0..200 x 0..280 box, matching the photographed
-// reference (a rectangle with a downward triangular notch cut into the
-// top-centre, and a trapezoid hem below that flares wider): body M40,20
-// L83,20 L100,55 L117,20 L160,20 L160,170 L40,170 Z; notch/accent triangle
-// M83,20 L117,20 L100,55 Z; hem trapezoid M40,170 L160,170 L180,250
-// L20,250 Z. Scaled 1.3x and centred at the top of the stage.
-const GARMENT_LOCAL_W = 200, GARMENT_LOCAL_H = 280, GARMENT_SCALE = 1.3;
+// Garment geometry — local 0..326 x 0..670 box, replacing the earlier
+// photographed-reference shape with a vector Diego supplied directly
+// ("Group 34.svg"): a tall rectangular body, a trapezoid hem that flares
+// wider below it, and a V-neck collar triangle — plus two new bottom-
+// corner accent triangles the earlier shape didn't have. The source file
+// itself only uses 3 fills across its 5 shapes (body / hem / everything
+// else in black) — the collar triangle and both bottom corners share
+// that one black fill, which is the direct signal that all three belong
+// to the SAME role (Accent) rather than inventing a 4th zone; the
+// garment view is deliberately capped at N=3 (see isGarmentView()).
+// Scaled 0.75x and centred at the top of the stage.
+const GARMENT_LOCAL_W = 326, GARMENT_LOCAL_H = 670, GARMENT_SCALE = 0.75;
+// role order in the garment: 0 Base (body), 1 Secondary (hem),
+// 2 Accent (collar notch + both bottom-corner triangles) — shared by
+// garmentMarkup() (SVG/on-screen) and exportPNG() (Canvas Path2D) so the
+// two render paths can't drift apart from each other.
+const GARMENT_ZONES = [
+  { role: 0, d: 'M48,61 L278,61 L278,467 L48,467 Z' },
+  { role: 1, d: 'M48.15,428 L277.85,428 L326,584 L0,584 Z' },
+  { role: 2, d: 'M162.5,241 L81.53,60.25 L243.47,60.25 Z' },
+  { role: 2, d: 'M82,670 L43.89,584.5 L120.11,584.5 Z' },
+  { role: 2, d: 'M243,670 L204.90,584.5 L281.11,584.5 Z' },
+];
 const GARMENT_W = GARMENT_LOCAL_W * GARMENT_SCALE, GARMENT_H = GARMENT_LOCAL_H * GARMENT_SCALE;
 const GARMENT_X = (VB_W - GARMENT_W) / 2, GARMENT_Y = BAR_Y;
 const SCALE_START_Y_GARMENT = GARMENT_Y + GARMENT_H + 60;
@@ -540,15 +556,9 @@ function barMarkup() {
   return parts.join('');
 }
 
-// role order in the garment: 0 Base (body), 1 Secondary (hem), 2 Accent (notch)
 function garmentMarkup() {
-  const zones = [
-    { role: 0, d: 'M40,20 L83,20 L100,55 L117,20 L160,20 L160,170 L40,170 Z' },
-    { role: 2, d: 'M83,20 L117,20 L100,55 Z' },
-    { role: 1, d: 'M40,170 L160,170 L180,250 L20,250 Z' },
-  ];
   const weights = roleWeights(3);
-  const parts = zones.map(z => {
+  const parts = GARMENT_ZONES.map(z => {
     const hex = state.colors[z.role];
     return `<path class="bar-seg${z.role === state.activeIndex ? ' role-active' : ''}" data-i="${z.role}" d="${z.d}" fill="${hex}" tabindex="0" role="button" aria-pressed="${z.role === state.activeIndex}"><title>${roleName(z.role)} colour, ${weights[z.role].toFixed(0)}%, ${hex}</title></path>`;
   });
@@ -659,17 +669,12 @@ function exportPNG() {
   c.fillRect(0, 0, VB_W, h);
 
   if (isGarmentView()) {
-    // Same three paths garmentMarkup() draws in the SVG/on-screen stage —
+    // Same GARMENT_ZONES garmentMarkup() draws in the SVG/on-screen stage —
     // Path2D from the identical `d` strings, scaled/translated identically.
-    const zones = [
-      { role: 0, d: 'M40,20 L83,20 L100,55 L117,20 L160,20 L160,170 L40,170 Z' },
-      { role: 2, d: 'M83,20 L117,20 L100,55 Z' },
-      { role: 1, d: 'M40,170 L160,170 L180,250 L20,250 Z' },
-    ];
     c.save();
     c.translate(GARMENT_X, GARMENT_Y);
     c.scale(GARMENT_SCALE, GARMENT_SCALE);
-    zones.forEach(z => {
+    GARMENT_ZONES.forEach(z => {
       c.fillStyle = state.colors[z.role];
       c.fill(new Path2D(z.d));
     });
