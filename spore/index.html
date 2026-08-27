@@ -1250,6 +1250,54 @@ applyZoom();
 Organica.popover(document.getElementById('btn-export'), document.getElementById('export-popover'));
 Organica.autoLabelPanel(document);   // accessible names for row controls
 Organica.enhanceSliders(document);   // filled track + click-to-edit value
+
+// ── Rhizome bridge (Tier 2 node graph) ──
+// Spore is fully image-gated — doRender()'s own callers all bail with
+// no output if sourceImage is unset (confirmed by reading every call
+// site before writing this, not assumed), and there's no window-scoped
+// access to `sourceImage` itself (a plain top-level `let`, not a
+// window property, in this classic-but-not-window-exported sense —
+// only FUNCTION declarations land on window automatically). So the
+// bridge fakes a real file upload via DataTransfer into the existing
+// #file-input, the same path a real drag-drop would take, rather than
+// trying to reach into the tool's private state directly.
+window.addEventListener('message', (e) => {
+  const msg = e.data;
+  if (!msg || msg.type !== 'rhizome-set-input') return;
+  (async () => {
+    try {
+      const payload = msg.payload || {};
+      if (!payload.dataURL) { e.source.postMessage({ type: 'rhizome-output-ready', payload: null, nodeId: msg.nodeId }, '*'); return; }
+      const blob = await (await fetch(payload.dataURL)).blob();
+      const file = new File([blob], 'rhizome-input.png', { type: blob.type || 'image/png' });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      const input = document.getElementById('file-input');
+      input.files = dt.files;
+      loadImage(input);
+      // Real bug, found by testing: loadImage()'s own img.onload is
+      // ASYNC (even for a data: URL, image decode isn't synchronous) —
+      // #btn-save-svg starts un-disabled in the HTML (only doRender()
+      // itself sets disabled=true, once decoding has already finished),
+      // so polling "while disabled" immediately after calling loadImage()
+      // exits on the FIRST check, before the image has even decoded,
+      // let alone before doRender() started. Fixed with a two-phase
+      // wait: first for the image to actually finish loading (#drop-hint
+      // gains .hidden inside loadImage()'s own onload, a reliable
+      // load-complete signal), then for the render itself to finish.
+      const dropHint = document.getElementById('drop-hint');
+      let start = Date.now();
+      while (!dropHint.classList.contains('hidden') && Date.now() - start < 5000) await new Promise(r => setTimeout(r, 30));
+      const btn = document.getElementById('btn-save-svg');
+      start = Date.now();
+      while (btn.disabled && Date.now() - start < 8000) await new Promise(r => setTimeout(r, 60));
+      const svg = buildSporeSVG();
+      e.source.postMessage({ type: 'rhizome-output-ready', payload: svg, nodeId: msg.nodeId }, '*');
+    } catch (err) {
+      console.error('Rhizome bridge:', err);
+    }
+  })();
+});
 </script>
 </body>
 </html>

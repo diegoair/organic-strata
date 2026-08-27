@@ -16,12 +16,14 @@
    nothing in the bridged tools was built expecting to be driven headless.
    ───────────────────────────────────────────────────────────── */
 
-// 15s, not the original 8s: Camo Turing's bridge (Phase 2) runs up to a
-// few thousand synchronous WebGL steps before responding — measured
-// comfortably under this, but 8s cut it too close for a slow machine or
-// a high step count. Every other bridge responds in well under a second,
-// so this only widens the window for the one genuinely slow case.
-const TIMEOUT_MS = 15000;
+// 20s, not the original 8s: Camo Turing's bridge (Phase 2) runs up to a
+// few thousand synchronous WebGL steps before responding, and Membrane's
+// bridge (Phase 3) has a real wall-clock wait up to 10s (its own
+// `seconds` param) since its trail genuinely depends on elapsed time,
+// not step count — neither can be sped up, only budgeted for. Every
+// other bridge responds in well under a second, so this only widens the
+// window for the two genuinely slow cases.
+const TIMEOUT_MS = 20000;
 const pending = new Map();   // nodeId -> {resolve, reject, timer}
 
 let listenerBound = false;

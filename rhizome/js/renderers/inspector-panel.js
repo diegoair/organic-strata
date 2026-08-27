@@ -6,9 +6,16 @@
    frequency rebuild site than Genesis Creator's own single-page rebuild,
    where exactly this omission (22 unlabeled controls) was found and
    fixed earlier this session — so it is not being skipped again here.
+
+   `onChange()` fires on every live edit (slider `input`, select/file
+   `change`) — recompute-on-every-tick, same as before. `onCommit()`
+   fires only once per interaction (slider `change`, i.e. on release;
+   select/file already only fire once) — this is the history-push signal
+   (history.js), so dragging a slider doesn't flood the undo stack with
+   one entry per pixel.
    ───────────────────────────────────────────────────────────── */
 
-export function renderInspector(panelEl, node, nodeType, onChange, exportActions) {
+export function renderInspector(panelEl, node, nodeType, { onChange, onCommit, exportActions }) {
   panelEl.innerHTML = '';
   if (!node) {
     panelEl.innerHTML = '<div class="panel-section"><p class="hint">Select a node to edit its parameters.</p></div>';
@@ -40,7 +47,7 @@ export function renderInspector(panelEl, node, nodeType, onChange, exportActions
         control.appendChild(o);
       }
       control.value = node.params[p.name];
-      control.addEventListener('change', () => { node.params[p.name] = control.value; onChange(); });
+      control.addEventListener('change', () => { node.params[p.name] = control.value; onChange(); onCommit(); });
     } else if (p.type === 'file') {
       control = document.createElement('button');
       control.className = 'mini-btn';
@@ -53,8 +60,13 @@ export function renderInspector(panelEl, node, nodeType, onChange, exportActions
           const file = input.files[0];
           if (!file) return;
           const reader = new FileReader();
-          reader.onload = () => { node.params[p.name] = reader.result; onChange(); };
-          reader.readAsText(file);
+          reader.onload = () => {
+            node.params[p.name] = reader.result;
+            control.textContent = 'Replace…';   // stays "Upload…" otherwise — onChange only
+                                                  // triggers a recompute, not a panel rebuild
+            onChange(); onCommit();
+          };
+          if (p.asDataURL) reader.readAsDataURL(file); else reader.readAsText(file);
         });
         input.click();
       });
@@ -71,6 +83,7 @@ export function renderInspector(panelEl, node, nodeType, onChange, exportActions
         val.textContent = control.value;
         onChange();
       });
+      control.addEventListener('change', () => onCommit());   // fires once, on release
       row.appendChild(control);
       row.appendChild(val);
       section.appendChild(row);

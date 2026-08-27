@@ -1801,6 +1801,36 @@ addEffect('roughen'); GROUPS.vector[0].layers[0].open=false; renderStack();
 Organica.autoLabelPanel(document);   // accessible names for row controls
 Organica.enhanceSliders(document);   // filled track + click-to-edit value
 Organica.popover(document.getElementById('btn-export'), document.getElementById('export-popover'));
+
+// ── Rhizome bridge (Tier 2 node graph) ──
+// Needs a source loaded first (SRC is null otherwise) — uses the same
+// Genesis-forms gallery path the tool's own UI offers (window.ORGANIC_FORMS,
+// populated by genesis/organic-forms.js's onload, already loaded by the
+// time any postMessage can arrive). Raster tech's own render() defers
+// through a real 110ms setTimeout (not rAF) before CACHE reflects a new
+// preset — confirmed by reading render()/doit() directly — so this
+// always waits 150ms regardless of tech rather than branching on it,
+// a few ms of slack costs nothing and vector tech's own render is
+// already done by then anyway.
+window.addEventListener('message', (e) => {
+  const msg = e.data;
+  if (!msg || msg.type !== 'rhizome-set-input') return;
+  (async () => {
+    try {
+      const payload = msg.payload || {};
+      const tech = payload.tech === 'raster' ? 'raster' : 'vector';
+      if (typeof window.switchTech === 'function') switchTech(tech);
+      const formId = payload.formId || 38;
+      setSource(fromSVGString(window.ORGANIC_FORMS[formId]), false, 'genesis', 'genesis · form ' + formId);
+      if (payload.preset) applyPreset(payload.preset);
+      await new Promise(r => setTimeout(r, 150));
+      const svg = currentSVGString(1);
+      e.source.postMessage({ type: 'rhizome-output-ready', payload: svg, nodeId: msg.nodeId }, '*');
+    } catch (err) {
+      console.error('Rhizome bridge:', err);
+    }
+  })();
+});
 </script>
 <script src="/genesis/organic-forms.js" onload="buildGenesis()"></script>
 </body>

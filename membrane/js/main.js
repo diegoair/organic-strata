@@ -530,3 +530,40 @@ ctrl('btn-record').addEventListener('click', toggleRecording);
 // ── Accessibility + slider polish (organica-core.js) ──
 Organica.autoLabelPanel(document);
 Organica.enhanceSliders(document);
+
+// ── Rhizome bridge (Tier 2 node graph) ──
+// Membrane's own `main.js` is a `<script type="module">` — nothing here
+// lands on `window` by accident the way a classic script's functions do,
+// so this listener lives inside the module itself, using the already-
+// imported `state`/`buildExportSVGString` directly rather than reaching
+// for globals that don't exist. The default `state.seedSource ===
+// 'procedural'` needs no upstream setup (confirmed by reading
+// seeds/procedural.js's own initShape() call in p.setup()), so only a
+// Movement pattern is exposed as a param. Unlike every other bridge in
+// this project, position genuinely depends on WALL-CLOCK time, not
+// frame count (confirmed directly — no scheduleRender()/stepSim()-style
+// synchronous batch entry point exists; render.js's own pushHistory()
+// throttles by performance.now(), and movement itself reads p.deltaTime)
+// — so this is the one bridge that has to actually wait real seconds
+// with the p5 loop running, not fast-forward it. 'textpath' is excluded
+// from the exposed options since it needs a text seed used at least
+// once first (this bridge's own 0-input path can't satisfy that).
+window.addEventListener('message', (e) => {
+  const msg = e.data;
+  if (!msg || msg.type !== 'rhizome-set-input') return;
+  (async () => {
+    try {
+      const payload = msg.payload || {};
+      const pattern = payload.pattern || 'orbit';
+      state.movementPattern = pattern;
+      state.moveClock = 0;
+      if (pattern === 'linear') reseedLinear();
+      state.frozen = false;   // must be running for the trail to accumulate at all
+      await new Promise(r => setTimeout(r, payload.seconds ? payload.seconds * 1000 : 2500));
+      const svg = buildExportSVGString();
+      e.source.postMessage({ type: 'rhizome-output-ready', payload: svg, nodeId: msg.nodeId }, '*');
+    } catch (err) {
+      console.error('Rhizome bridge:', err);
+    }
+  })();
+});

@@ -1821,6 +1821,54 @@ ctrl('txt-preset-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') confirmSavePreset();
   if (e.key === 'Escape') cancelSavePreset();
 });
+
+// ── Rhizome bridge (Tier 2 node graph) ──
+// Same fake-upload technique as Spore's own bridge (both are image-
+// gated with no window-scoped state access) — see that file's comment
+// for the full rationale. Pollen additionally has a real preset
+// dropdown (BUILTIN_PRESETS, 'b:'+name convention), applied after the
+// image loads and its own generate() has already run once.
+window.addEventListener('message', (e) => {
+  const msg = e.data;
+  if (!msg || msg.type !== 'rhizome-set-input') return;
+  (async () => {
+    try {
+      const payload = msg.payload || {};
+      if (!payload.dataURL) { e.source.postMessage({ type: 'rhizome-output-ready', payload: null, nodeId: msg.nodeId }, '*'); return; }
+      const blob = await (await fetch(payload.dataURL)).blob();
+      const file = new File([blob], 'rhizome-input.png', { type: blob.type || 'image/png' });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      const input = document.getElementById('file-input');
+      input.files = dt.files;
+      loadImage(input);   // auto-calls generate()
+      // Real bug, found by testing (same class as Spore's own bridge):
+      // loadImage()'s img.onload is ASYNC, and #btn-stop starts disabled
+      // in the HTML — polling "while NOT disabled" right after calling
+      // loadImage() sees the still-initial disabled=true state and exits
+      // instantly, before generate() has even been called. Fixed with a
+      // two-phase wait: first for the image to actually finish decoding
+      // (#drop-hint gains .hidden inside the same onload that calls
+      // generate()), then for computation itself to finish.
+      const dropHint = document.getElementById('drop-hint');
+      let start = Date.now();
+      while (!dropHint.classList.contains('hidden') && Date.now() - start < 5000) await new Promise(r => setTimeout(r, 30));
+      const stopBtn = document.getElementById('btn-stop');
+      start = Date.now();
+      while (!stopBtn.disabled && Date.now() - start < 8000) await new Promise(r => setTimeout(r, 60));
+      if (payload.preset) {
+        applyPreset('b:' + payload.preset);
+        start = Date.now();
+        while (!stopBtn.disabled && Date.now() - start < 8000) await new Promise(r => setTimeout(r, 60));
+      }
+      exportSVG();   // itself setTimeout(30)-deferred, stores window._lastSVG
+      await new Promise(r => setTimeout(r, 120));
+      e.source.postMessage({ type: 'rhizome-output-ready', payload: window._lastSVG, nodeId: msg.nodeId }, '*');
+    } catch (err) {
+      console.error('Rhizome bridge:', err);
+    }
+  })();
+});
 </script>
 </body>
 </html>

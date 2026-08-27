@@ -1,29 +1,43 @@
 /* ─────────────────────────────────────────────────────────────
-   Rhizome node — Merge (Tier 1, native).
+   Rhizome node — Merge (Tier 1, native, variadic input).
 
-   Composites two SVG inputs into one document, B translated by
-   (offsetX, offsetY) relative to A. Fixed 2-input for the MVP —
-   a variadic-input port is real UI work (ports.js has no concept of a
-   dynamic port count yet) deferred past Phase 1; two inputs is already
-   enough to prove a real multi-input node in the graph.
+   Composites N SVG inputs into one document. Input 0 sits at its own
+   origin; input i (i>0) is offset by (offsetXStep*i, offsetYStep*i) —
+   a cascading step rather than N independent offset pairs, so the node
+   doesn't need N dynamic param rows in the inspector (a real UI cost)
+   to stay useful — a uniform step still produces genuinely different,
+   controllable layouts (a diagonal stagger, a stacked grid) and input 0
+   at zero offset is still the common "just merge" case.
+
+   Input count is per-node-instance state (`params.inputCount`), not a
+   fixed meta.inputs array — the first node in the graph whose own port
+   list isn't static. See `getInputs()` below and node-registry.js's
+   `getNodeInputs(node)` dispatcher, which every port-aware caller
+   (node-card.js, execution-engine.js, ports.js's callbacks in main.js)
+   goes through instead of reading `meta.inputs` directly.
    ───────────────────────────────────────────────────────────── */
 
 import { PortType } from '../port-types.js';
+
+export const MIN_INPUTS = 1, MAX_INPUTS = 6;
 
 export const meta = {
   id: 'merge',
   label: 'Merge',
   category: 'transform',
-  inputs: [
-    { name: 'a', type: PortType.SVG },
-    { name: 'b', type: PortType.SVG },
-  ],
+  inputs: [],   // dynamic — see getInputs()
   outputs: [{ name: 'svg', type: PortType.SVG }],
   params: [
-    { name: 'offsetX', type: 'number', min: -400, max: 400, default: 0 },
-    { name: 'offsetY', type: 'number', min: -400, max: 400, default: 0 },
+    { name: 'inputCount', type: 'number', min: MIN_INPUTS, max: MAX_INPUTS, default: 2 },
+    { name: 'offsetXStep', type: 'number', min: -400, max: 400, default: 40 },
+    { name: 'offsetYStep', type: 'number', min: -400, max: 400, default: 0 },
   ],
 };
+
+export function getInputs(node) {
+  const n = Math.max(MIN_INPUTS, Math.min(MAX_INPUTS, node.params.inputCount || 2));
+  return Array.from({ length: n }, (_, i) => ({ name: 'in' + i, type: PortType.SVG }));
+}
 
 function innerMarkup(svgString) {
   const doc = new DOMParser().parseFromString(svgString, 'image/svg+xml');
@@ -37,10 +51,18 @@ function viewBoxOf(svgString) {
 }
 
 export function compute(inputs, params) {
-  const { a, b } = inputs;
-  if (!a && !b) throw new Error('Merge has no SVG inputs connected.');
-  const [, , w, h] = viewBoxOf(a || b);
-  const partA = a ? innerMarkup(a) : '';
-  const partB = b ? `<g transform="translate(${params.offsetX || 0},${params.offsetY || 0})">${innerMarkup(b)}</g>` : '';
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">${partA}${partB}</svg>`;
+  const n = Math.max(MIN_INPUTS, Math.min(MAX_INPUTS, params.inputCount || 2));
+  const values = [];
+  for (let i = 0; i < n; i++) values.push(inputs['in' + i]);
+  const first = values.find(v => v);
+  if (!first) throw new Error('Merge has no SVG inputs connected.');
+  const [, , w, h] = viewBoxOf(first);
+  const ox = params.offsetXStep || 0, oy = params.offsetYStep || 0;
+  let body = '';
+  values.forEach((v, i) => {
+    if (!v) return;
+    const inner = innerMarkup(v);
+    body += i === 0 ? inner : `<g transform="translate(${ox * i},${oy * i})">${inner}</g>`;
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">${body}</svg>`;
 }

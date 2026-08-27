@@ -13,7 +13,7 @@
    ───────────────────────────────────────────────────────────── */
 
 import { edgesInto, findNode } from './graph-model.js';
-import { getNodeType } from './node-registry.js';
+import { getNodeType, getNodeInputs } from './node-registry.js';
 import { canAdapt, adapt } from './adapters.js';
 
 export class CycleError extends Error {}
@@ -55,7 +55,7 @@ export function createEngine() {
   async function runNode(model, node) {
     const type = getNodeType(node.type);
     const inputs = {};
-    for (const portDef of type.meta.inputs) {
+    for (const portDef of getNodeInputs(node)) {
       const edge = edgesInto(model, node.id).find(e => e.to.port === portDef.name);
       if (!edge) { inputs[portDef.name] = null; continue; }
       const upstream = cache.get(edge.from.nodeId);

@@ -1349,6 +1349,50 @@ ctrl('txt-preset-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') confirmSavePreset();
   if (e.key === 'Escape') cancelSavePreset();
 });
+
+// ── Rhizome bridge (Tier 2 node graph) ──
+// Halide genuinely cannot produce ANY output without a real photo —
+// confirmed directly by reading both scheduleRender()'s own guard and
+// exportSVG()'s own `if (!rects) return` guard, and there is no bundled
+// demo image anywhere in this file. So this bridge, like Spore/Pollen's,
+// requires a real IMAGE input (Image Upload node) — there is no 0-input
+// variant for Halide. scheduleRender() is single-rAF-coalesced (not
+// double like Komorebi/Warping), confirmed by reading it directly.
+window.addEventListener('message', (e) => {
+  const msg = e.data;
+  if (!msg || msg.type !== 'rhizome-set-input') return;
+  (async () => {
+    try {
+      const payload = msg.payload || {};
+      if (!payload.dataURL) { e.source.postMessage({ type: 'rhizome-output-ready', payload: null, nodeId: msg.nodeId }, '*'); return; }
+      const blob = await (await fetch(payload.dataURL)).blob();
+      const file = new File([blob], 'rhizome-input.png', { type: blob.type || 'image/png' });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      const input = document.getElementById('file-input');
+      input.files = dt.files;
+      loadImage(input);
+      // Real bug, found by testing (same class as Spore/Pollen's own
+      // bridges): loadImage()'s img.onload is ASYNC — the rAF waits
+      // below run before the image has even decoded, let alone before
+      // computeAndPaint() has been scheduled. Wait for the image to
+      // actually finish loading first (#drop-hint gains .hidden inside
+      // the same onload that enables the export buttons).
+      const dropHint = document.getElementById('drop-hint');
+      const start = Date.now();
+      while (!dropHint.classList.contains('hidden') && Date.now() - start < 5000) await new Promise(r => setTimeout(r, 30));
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      if (payload.preset) {
+        applyPreset(payload.preset);
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      }
+      exportSVG();
+      e.source.postMessage({ type: 'rhizome-output-ready', payload: window._lastSVG || null, nodeId: msg.nodeId }, '*');
+    } catch (err) {
+      console.error('Rhizome bridge:', err);
+    }
+  })();
+});
 </script>
 </body>
 </html>

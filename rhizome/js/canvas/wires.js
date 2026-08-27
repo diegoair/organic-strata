@@ -7,6 +7,10 @@
    curves), the INTERACTIVE recompute loop is new: Mycel computes this
    once per algorithm run, Rhizome recomputes it on every node drag /
    pending-connection mousemove.
+
+   Wires are click-selectable (onWireClick) so Delete can remove a
+   connection without deleting either node — the natural pairing once
+   node multi-select + Delete existed, so an edge needed the same.
    ───────────────────────────────────────────────────────────── */
 
 export function wirePathD(x1, y1, x2, y2) {
@@ -26,10 +30,12 @@ export function portCenter(portEl, graphEl, zoom) {
 // One <path> per edge, keyed by edge.id, plus one extra "pending" path
 // for a wire currently being dragged from a port.
 export class WireLayer {
-  constructor(svgEl) {
+  constructor(svgEl, onWireClick) {
     this.svgEl = svgEl;
     this.paths = new Map();
     this.pendingPath = null;
+    this.onWireClick = onWireClick || null;
+    this.selectedEdgeId = null;
   }
 
   updateAll(model, portEls, graphEl, zoom) {
@@ -43,15 +49,23 @@ export class WireLayer {
       if (!path) {
         path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('class', 'rz-wire');
+        path.style.pointerEvents = 'stroke';   // clickable along the stroke, not just its bbox
+        if (this.onWireClick) path.addEventListener('click', (e) => { e.stopPropagation(); this.onWireClick(edge.id); });
         this.svgEl.appendChild(path);
         this.paths.set(edge.id, path);
       }
+      path.classList.toggle('is-selected', edge.id === this.selectedEdgeId);
       const a = portCenter(fromEl, graphEl, zoom), b = portCenter(toEl, graphEl, zoom);
       path.setAttribute('d', wirePathD(a.x, a.y, b.x, b.y));
     }
     for (const [id, path] of this.paths) {
       if (!seen.has(id)) { path.remove(); this.paths.delete(id); }
     }
+  }
+
+  setSelectedEdge(edgeId) {
+    this.selectedEdgeId = edgeId;
+    for (const [id, path] of this.paths) path.classList.toggle('is-selected', id === edgeId);
   }
 
   setPending(x1, y1, x2, y2) {
