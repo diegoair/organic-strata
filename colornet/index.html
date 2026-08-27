@@ -100,7 +100,7 @@ body {
 #zoom-hud .zoom-reset { cursor: pointer; opacity: 0.6; }
 #zoom-hud .zoom-reset:hover { opacity: 1; }
 
-#file-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+#file-input, #batch-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
 /* ── CHANNEL LIST ──
    New component. Organica.createPaletteChips can't serve this: an RMX chip
@@ -115,6 +115,7 @@ body {
   margin-bottom: var(--space-2);
 }
 .chan-card.active { border-color: var(--tool); }
+.chan-card--armed { border-color: var(--accent-warm); border-style: dashed; }
 .chan-card__head { display: flex; align-items: center; gap: var(--space-2); }
 .chan-thumb {
   width: 26px; height: 26px; flex: 0 0 26px;
@@ -145,6 +146,8 @@ body {
 .chan-val { font-size: var(--fs-micro); color: var(--mid); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
 .chan-cmyk { font-size: var(--fs-micro); color: var(--mid); font-variant-numeric: tabular-nums; margin-left: auto; }
 .chan-empty { font-size: var(--fs-micro); color: var(--mid); line-height: var(--lh-snug); }
+.chan-am-row { padding-left: var(--space-2); }
+.chan-am-label { font-size: var(--fs-micro); color: var(--mid); flex: 0 0 52px; }
 
 input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 </style>
@@ -163,6 +166,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 
   <div class="org-header__actions">
     <button class="org-btn" id="btn-open">Open…</button>
+    <button class="org-btn" id="btn-batch">Batch…</button>
   </div>
 </header>
 
@@ -257,6 +261,16 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 
     <div class="panel-section">
       <h3>Channels <span class="hint">bottom → top</span></h3>
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-shuffle">Shuffle</button>
+        <button class="mini-btn" id="btn-random-colors">Random Colors</button>
+      </div>
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-auto-angles">Auto angles (AM Screening)</button>
+      </div>
+      <p class="panel-note">
+        One-click classic offset-print setup: every channel to AM Screening at its own angle (15/75/0/45° per plate), avoiding moiré the same way real 4-colour print does.
+      </p>
       <div id="chan-stack"><p class="chan-empty">No image loaded yet.</p></div>
     </div>
 
@@ -331,6 +345,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 </div>
 
 <input type="file" id="file-input" accept="image/*">
+<input type="file" id="batch-input" accept="image/*" multiple>
 
 <script src="/shared/organica-core.js"></script>
 <script>
@@ -367,6 +382,7 @@ const S = {
   channels: [],
   selId: null,
   nextId: 1,
+  swapArmedId: null,   // Channel Swapping gesture: id of the channel armed to swap, or null.
 };
 
 const BLENDS = ['normal', 'multiply'];
@@ -381,22 +397,23 @@ const BLENDS = ['normal', 'multiply'];
 // away from the others and leave a real hole behind it.
 // ═══════════════════════════════════════════
 
-function separate(keepSettings) {
-  if (!S.img) return;
-  const detail = S.detail;
-  const ar = S.img.naturalWidth / S.img.naturalHeight;
+// Pure band-computation core — takes an arbitrary image + band/detail
+// settings, returns fresh {W,H,channels} with no cosmetics applied beyond
+// each band's own measured mean colour. Extracted so Batch processing (below)
+// can run the EXACT same separation math against a different image without
+// touching S.img/S.channels of the live interactive session while it runs.
+function computeBands(img, bands, detail) {
+  const ar = img.naturalWidth / img.naturalHeight;
   const W = ar >= 1 ? detail : Math.max(2, Math.round(detail * ar));
   const H = ar >= 1 ? Math.max(2, Math.round(detail / ar)) : detail;
-  S.W = W; S.H = H;
 
   const off = document.createElement('canvas');
   off.width = W; off.height = H;
   const octx = off.getContext('2d', { willReadFrequently: true });
-  octx.drawImage(S.img, 0, 0, W, H);
+  octx.drawImage(img, 0, 0, W, H);
   const px = octx.getImageData(0, 0, W, H).data;
 
   const n = W * H;
-  const bands = S.bands;
   const bandOf = new Uint8Array(n);
   const sums = new Float64Array(bands * 4);
   for (let i = 0; i < n; i++) {
@@ -407,8 +424,7 @@ function separate(keepSettings) {
     sums[band * 4] += r; sums[band * 4 + 1] += g; sums[band * 4 + 2] += b; sums[band * 4 + 3]++;
   }
 
-  const old = keepSettings ? S.channels.slice() : [];
-  S.channels = [];
+  const channels = [];
   for (let b = 0; b < bands; b++) {
     const mask = new Uint8Array(n);
     let count = 0;
@@ -416,27 +432,43 @@ function separate(keepSettings) {
     const c = sums[b * 4 + 3]
       ? Organica.rgbToHex(sums[b * 4] / sums[b * 4 + 3], sums[b * 4 + 1] / sums[b * 4 + 3], sums[b * 4 + 2] / sums[b * 4 + 3])
       : '#808080';
-    const prev = old[b];
-    const ch = {
+    channels.push({
       id: S.nextId++,
       name: 'Channel ' + (b + 1),
-      on: prev ? prev.on : true,
-      color: prev ? prev.color : c,
-      opacity: prev ? prev.opacity : 100,
-      blend: prev ? prev.blend : 'normal',
-      tx: prev ? prev.tx : 0, ty: prev ? prev.ty : 0,
-      scale: prev ? prev.scale : 100, rot: prev ? prev.rot : 0,
-      flipH: prev ? prev.flipH : false, flipV: prev ? prev.flipV : false,
+      on: true, color: c, opacity: 100, blend: 'normal',
+      tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false,
+      // AM Screening — a per-channel render mode, alongside the default
+      // 'flat' traced region. Angle defaults per the classic 4-colour
+      // offset-print convention (15/75/0/45°, one per plate) the moment a
+      // channel is switched to 'am', so "Auto angles" below has something
+      // real to restate; freeform after that.
+      screenMode: 'flat', screenAngle: [15, 75, 0, 45][b % 4], screenFreq: 24, dotShape: 'circle',
       mask, count,
-      tint: null, pathD: null,
-    };
-    S.channels.push(ch);
+      tint: null, pathD: null, amDots: null, _amKey: null,
+    });
   }
+  return { W, H, channels };
+}
+
+function separate(keepSettings) {
+  if (!S.img) return;
+  const old = keepSettings ? S.channels.slice() : [];
+  const result = computeBands(S.img, S.bands, S.detail);
+  S.W = result.W; S.H = result.H;
+  S.channels = result.channels.map((ch, b) => {
+    const prev = old[b];
+    if (prev) Object.assign(ch, {
+      on: prev.on, color: prev.color, opacity: prev.opacity, blend: prev.blend,
+      tx: prev.tx, ty: prev.ty, scale: prev.scale, rot: prev.rot, flipH: prev.flipH, flipV: prev.flipV,
+      screenMode: prev.screenMode, screenAngle: prev.screenAngle, screenFreq: prev.screenFreq, dotShape: prev.dotShape,
+    });
+    return ch;
+  });
   S.selId = S.channels.length ? S.channels[0].id : null;
   buildChannelUI();
   syncTransformPanel();
   render();
-  setStatus('active', S.channels.length + ' channels · ' + W + '×' + H);
+  setStatus('active', S.channels.length + ' channels · ' + S.W + '×' + S.H);
 }
 
 // A mask painted in its channel's colour, alpha 0 elsewhere. This is what
@@ -464,6 +496,68 @@ function tintOf(ch) {
 function pathOf(ch) {
   if (ch.pathD == null) ch.pathD = Organica.contoursToPathD(ch.mask, S.W, S.H, 1);
   return ch.pathD;
+}
+
+// ═══════════════════════════════════════════
+// AM SCREENING — a second per-channel render mode, alongside the flat
+// traced region above. Real 4-colour offset printing avoids moiré by
+// giving each ink plate its own screen ANGLE; Colornet is already
+// multi-channel, so a per-channel angle+lineature control is a direct,
+// differentiated extension rather than a copy of any one reference tool.
+//
+// One ink colour per channel (exactly like a real plate) — dot SIZE alone
+// encodes local tone, sampled as the band mask's own coverage fraction
+// inside each grid cell (a plain box average over a binary mask). Circle
+// area grows proportional to coverage (radius ∝ √coverage), the same
+// physics a real halftone dot uses.
+//
+// The dot LIST is the one shared data source for canvas preview, plate
+// export and SVG export — cached on the channel like tintOf/pathOf, keyed
+// on angle+frequency+shape so a param change regenerates it exactly once.
+// ═══════════════════════════════════════════
+
+function amDotsOf(ch) {
+  const key = ch.screenAngle + '|' + ch.screenFreq + '|' + ch.dotShape + '|' + S.W + '|' + S.H;
+  if (ch.amDots && ch._amKey === key) return ch.amDots;
+
+  const W = S.W, H = S.H;
+  const cell = Math.max(2, W / ch.screenFreq);
+  const th = ch.screenAngle * Math.PI / 180;
+  const ux = Math.cos(th), uy = Math.sin(th);   // grid basis, rotated by the screen angle
+  const vx = -Math.sin(th), vy = Math.cos(th);
+  const cx = W / 2, cy = H / 2;
+
+  // A rotated lattice needs to cover every corner of the fixed, unrotated
+  // canonical rect — same oversized-lattice-then-clip technique Loom's own
+  // rotated generators (Diamond/Hexagonal) use. Half-diagonal in cell units.
+  const half = Math.ceil(Math.sqrt(W * W + H * H) / 2 / cell) + 1;
+
+  const dots = [];
+  const half_i = Math.floor(cell / 2);
+  for (let i = -half; i <= half; i++) {
+    for (let j = -half; j <= half; j++) {
+      const px = cx + (i * ux + j * vx) * cell;
+      const py = cy + (i * uy + j * vy) * cell;
+      if (px < -cell || py < -cell || px > W + cell || py > H + cell) continue;
+
+      // Coverage = fraction of mask pixels "on" inside this cell's own
+      // footprint — a plain box average over the binary mask.
+      const x0 = Math.max(0, Math.round(px - half_i)), x1 = Math.min(W, Math.round(px + half_i));
+      const y0 = Math.max(0, Math.round(py - half_i)), y1 = Math.min(H, Math.round(py + half_i));
+      if (x1 <= x0 || y1 <= y0) continue;
+      let on = 0, total = 0;
+      for (let y = y0; y < y1; y++) {
+        const row = y * W;
+        for (let x = x0; x < x1; x++) { total++; if (ch.mask[row + x]) on++; }
+      }
+      const tone = total ? on / total : 0;
+      if (tone < 0.02) continue;
+      const r = (cell / 2) * Math.sqrt(tone);
+      dots.push({ x: px, y: py, r });
+    }
+  }
+  ch.amDots = dots; ch._amKey = key;
+  return dots;
 }
 
 // ═══════════════════════════════════════════
@@ -501,6 +595,22 @@ function buildPlan(scale) {
   };
 }
 
+function drawAmDots(ctx, ch, fill) {
+  const dots = amDotsOf(ch);
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  for (const d of dots) {
+    if (ch.dotShape === 'square') {
+      const s = d.r * 2;
+      ctx.rect(d.x - d.r, d.y - d.r, s, s);
+    } else {
+      ctx.moveTo(d.x + d.r, d.y);
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+    }
+  }
+  ctx.fill();
+}
+
 function drawPlan(ctx, plan, opts) {
   opts = opts || {};
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -513,7 +623,11 @@ function drawPlan(ctx, plan, opts) {
     ctx.setTransform(it.m[0], it.m[1], it.m[2], it.m[3], it.m[4], it.m[5]);
     ctx.globalAlpha = opts.plate ? 1 : it.opacity;
     ctx.globalCompositeOperation = (!opts.plate && it.blend === 'multiply') ? 'multiply' : 'source-over';
-    ctx.drawImage(opts.plate ? plateOf(it.ch) : tintOf(it.ch), 0, 0);
+    if (it.ch.screenMode === 'am') {
+      drawAmDots(ctx, it.ch, opts.plate ? '#000000' : it.color);
+    } else {
+      ctx.drawImage(opts.plate ? plateOf(it.ch) : tintOf(it.ch), 0, 0);
+    }
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
@@ -540,13 +654,28 @@ function svgFromPlan(plan) {
   s += `<rect width="100%" height="100%" fill="${plan.bg}"/>`;
   let paths = 0;
   for (const it of plan.items) {
-    const d = pathOf(it.ch);
-    if (!d) continue;
     const style = it.blend === 'multiply' ? ' style="mix-blend-mode:multiply"' : '';
     const op = it.opacity < 1 ? ` opacity="${num(it.opacity)}"` : '';
-    s += `<g transform="matrix(${it.m.map(num).join(' ')})"${op}${style}>`;
-    s += `<path fill="${it.color}" fill-rule="evenodd" d="${d}"/></g>`;
-    paths++;
+    if (it.ch.screenMode === 'am') {
+      // Real vector dots — the SAME dot list amDotsOf() feeds the canvas
+      // preview, so this is genuine WYSIWYG, not a re-derivation.
+      const dots = amDotsOf(it.ch);
+      if (!dots.length) continue;
+      s += `<g transform="matrix(${it.m.map(num).join(' ')})" fill="${it.color}"${op}${style}>`;
+      for (const d of dots) {
+        s += it.ch.dotShape === 'square'
+          ? `<rect x="${num(d.x - d.r)}" y="${num(d.y - d.r)}" width="${num(d.r * 2)}" height="${num(d.r * 2)}"/>`
+          : `<circle cx="${num(d.x)}" cy="${num(d.y)}" r="${num(d.r)}"/>`;
+      }
+      s += '</g>';
+      paths += dots.length;
+    } else {
+      const d = pathOf(it.ch);
+      if (!d) continue;
+      s += `<g transform="matrix(${it.m.map(num).join(' ')})"${op}${style}>`;
+      s += `<path fill="${it.color}" fill-rule="evenodd" d="${d}"/></g>`;
+      paths++;
+    }
   }
   s += '</svg>';
   return { svg: s, paths };
@@ -574,7 +703,13 @@ function drawThumb(cv, ch) {
   const s = Math.min(26 / S.W, 26 / S.H);
   const w = S.W * s, h = S.H * s;
   g.globalAlpha = ch.opacity / 100;
-  g.drawImage(tintOf(ch), (26 - w) / 2, (26 - h) / 2, w, h);
+  if (ch.screenMode === 'am') {
+    g.setTransform(s, 0, 0, s, (26 - w) / 2, (26 - h) / 2);
+    drawAmDots(g, ch, ch.color);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+  } else {
+    g.drawImage(tintOf(ch), (26 - w) / 2, (26 - h) / 2, w, h);
+  }
   g.globalAlpha = 1;
 }
 
@@ -588,12 +723,13 @@ function buildChannelUI() {
   S.channels.forEach((ch, idx) => {
     const cmyk = Organica.rgbToCmyk(...Organica.hexToRGB255(ch.color));
     const card = document.createElement('div');
-    card.className = 'chan-card' + (ch.id === S.selId ? ' active' : '');
+    card.className = 'chan-card' + (ch.id === S.selId ? ' active' : '') + (ch.id === S.swapArmedId ? ' chan-card--armed' : '');
+    const swapLabel = ch.id === S.swapArmedId ? `${ch.name} — click another channel to swap, or click again to cancel` : `Swap ${ch.name} (click, then click another channel)`;
     card.innerHTML = `
       <div class="chan-card__head">
         <button class="chan-dot${ch.on ? ' on' : ''}" aria-label="${ch.name} visible"></button>
-        <canvas class="chan-thumb" aria-label="${ch.name} preview"></canvas>
-        <button class="chan-name" aria-label="Select ${ch.name}">${ch.name}</button>
+        <canvas class="chan-thumb" aria-label="Select ${ch.name}"></canvas>
+        <button class="chan-name" aria-label="${swapLabel}">${ch.name}</button>
         <button class="icon-btn" data-act="up" aria-label="Move ${ch.name} up">↑</button>
         <button class="icon-btn" data-act="down" aria-label="Move ${ch.name} down">↓</button>
         <button class="icon-btn" data-act="del" aria-label="Remove ${ch.name}">×</button>
@@ -611,12 +747,36 @@ function buildChannelUI() {
         </select>
         <input type="range" class="chan-opacity" min="0" max="100" step="1" value="${ch.opacity}" aria-label="${ch.name} coverage">
         <span class="chan-val">${ch.opacity}%</span>
-      </div>`;
+      </div>
+      <div class="chan-card__body">
+        <select class="panel-select chan-screen-mode" style="flex:1" aria-label="${ch.name} render mode">
+          <option value="flat"${ch.screenMode === 'flat' ? ' selected' : ''}>Flat</option>
+          <option value="am"${ch.screenMode === 'am' ? ' selected' : ''}>AM Screening</option>
+        </select>
+      </div>
+      ${ch.screenMode === 'am' ? `
+      <div class="chan-card__body chan-am-row">
+        <span class="chan-am-label">Angle</span>
+        <input type="range" class="chan-am-angle" min="0" max="179" step="1" value="${ch.screenAngle}" aria-label="${ch.name} screen angle">
+        <span class="chan-val">${ch.screenAngle}°</span>
+      </div>
+      <div class="chan-card__body chan-am-row">
+        <span class="chan-am-label">Lineature</span>
+        <input type="range" class="chan-am-freq" min="6" max="80" step="1" value="${ch.screenFreq}" aria-label="${ch.name} screen lineature">
+        <span class="chan-val">${ch.screenFreq}</span>
+      </div>
+      <div class="chan-card__body chan-am-row">
+        <span class="chan-am-label">Dot shape</span>
+        <select class="panel-select chan-am-shape" style="flex:1" aria-label="${ch.name} dot shape">
+          <option value="circle"${ch.dotShape === 'circle' ? ' selected' : ''}>Circle</option>
+          <option value="square"${ch.dotShape === 'square' ? ' selected' : ''}>Square</option>
+        </select>
+      </div>` : ''}`;
 
     drawThumb(card.querySelector('.chan-thumb'), ch);
 
     card.querySelector('.chan-dot').addEventListener('click', () => { ch.on = !ch.on; buildChannelUI(); render(); });
-    card.querySelector('.chan-name').addEventListener('click', () => selectChannel(ch.id));
+    card.querySelector('.chan-name').addEventListener('click', () => armOrSwapChannel(ch.id));
     card.querySelector('.chan-thumb').addEventListener('click', () => selectChannel(ch.id));
     card.querySelector('[data-act=up]').addEventListener('click', () => moveChannel(idx, -1));
     card.querySelector('[data-act=down]').addEventListener('click', () => moveChannel(idx, 1));
@@ -634,6 +794,31 @@ function buildChannelUI() {
     op.addEventListener('input', e => {
       ch.opacity = parseInt(e.target.value, 10);
       card.querySelector('.chan-val').textContent = ch.opacity + '%';
+      drawThumb(card.querySelector('.chan-thumb'), ch);
+      render();
+    });
+
+    card.querySelector('.chan-screen-mode').addEventListener('change', e => {
+      ch.screenMode = e.target.value;
+      buildChannelUI(); render();   // rebuild — the AM controls block itself appears/disappears
+    });
+    const angleInput = card.querySelector('.chan-am-angle');
+    if (angleInput) angleInput.addEventListener('input', e => {
+      ch.screenAngle = parseInt(e.target.value, 10);
+      angleInput.nextElementSibling.textContent = ch.screenAngle + '°';
+      drawThumb(card.querySelector('.chan-thumb'), ch);
+      render();
+    });
+    const freqInput = card.querySelector('.chan-am-freq');
+    if (freqInput) freqInput.addEventListener('input', e => {
+      ch.screenFreq = parseInt(e.target.value, 10);
+      freqInput.nextElementSibling.textContent = ch.screenFreq;
+      drawThumb(card.querySelector('.chan-thumb'), ch);
+      render();
+    });
+    const shapeSel = card.querySelector('.chan-am-shape');
+    if (shapeSel) shapeSel.addEventListener('change', e => {
+      ch.dotShape = e.target.value;
       drawThumb(card.querySelector('.chan-thumb'), ch);
       render();
     });
@@ -659,6 +844,66 @@ function removeChannel(id) {
   if (S.selId === id) S.selId = S.channels.length ? S.channels[0].id : null;
   buildChannelUI(); syncTransformPanel(); render();
 }
+
+// True Fisher–Yates (unbiased) — same discipline Loom's own "Shuffle
+// numbers" feature established, deliberately not the biased
+// sort(() => Math.random()-0.5) trick.
+function shuffleChannels() {
+  if (S.channels.length < 2) return;
+  for (let i = S.channels.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [S.channels[i], S.channels[j]] = [S.channels[j], S.channels[i]];
+  }
+  buildChannelUI(); render();
+  setStatus('active', 'Shuffled channel order');
+}
+
+function randomizeColors() {
+  if (!S.channels.length) return;
+  S.channels.forEach(ch => { ch.color = Organica.randomHex(); ch._tintColor = null; });
+  buildChannelUI(); render();
+  setStatus('active', 'Randomised channel colours');
+}
+
+// Channel Swapping gesture — a faster alternative to ↑/↓ (which already
+// exists via moveChannel). Click a channel name to arm it, click a DIFFERENT
+// channel to swap their two positions directly (not a shift), click the
+// same channel again (or anywhere outside the channel list) to disarm.
+function armOrSwapChannel(id) {
+  if (S.swapArmedId === id) {
+    S.swapArmedId = null;
+    buildChannelUI();
+    setStatus('active', S.channels.length + ' channels · ' + S.W + '×' + S.H);
+    return;
+  }
+  if (S.swapArmedId == null) {
+    S.swapArmedId = id;
+    buildChannelUI();
+    setStatus('active', 'Click another channel to swap');
+    return;
+  }
+  const i = S.channels.findIndex(c => c.id === S.swapArmedId);
+  const j = S.channels.findIndex(c => c.id === id);
+  S.swapArmedId = null;
+  if (i === -1 || j === -1) { buildChannelUI(); return; }
+  [S.channels[i], S.channels[j]] = [S.channels[j], S.channels[i]];
+  buildChannelUI(); render();
+  setStatus('active', 'Swapped channel order');
+}
+
+// Capture phase, deliberately: armOrSwapChannel's own click handler rebuilds
+// #chan-stack's DOM synchronously (buildChannelUI), which detaches the
+// clicked element from the tree before a bubble-phase listener here would
+// ever run — closest() on a detached node always fails, so a plain bubble
+// listener disarmed on EVERY click, including the arming click itself.
+// Capture runs first, against the still-live pre-mutation DOM.
+document.addEventListener('click', e => {
+  if (S.swapArmedId != null && !e.target.closest('#chan-stack')) {
+    S.swapArmedId = null;
+    buildChannelUI();
+    setStatus('active', S.channels.length + ' channels · ' + S.W + '×' + S.H);
+  }
+}, true);
 
 // ═══════════════════════════════════════════
 // PER-CHANNEL TRANSFORM
@@ -730,6 +975,17 @@ ctrl('sel-detail').addEventListener('change', e => {
   if (S.img) separate(true);
 });
 ctrl('btn-separate').addEventListener('click', () => separate(false));
+ctrl('btn-shuffle').addEventListener('click', shuffleChannels);
+ctrl('btn-random-colors').addEventListener('click', randomizeColors);
+ctrl('btn-auto-angles').addEventListener('click', () => {
+  if (!S.channels.length) return;
+  S.channels.forEach((ch, i) => {
+    ch.screenMode = 'am';
+    ch.screenAngle = [15, 75, 0, 45][i % 4];
+  });
+  buildChannelUI(); render();
+  setStatus('active', 'AM Screening — classic offset angles applied');
+});
 
 Organica.createColorSwatch('bg', {
   initial: '#ffffff',
@@ -767,12 +1023,21 @@ canvasWrap.addEventListener('dragleave', () => canvasWrap.classList.remove('drag
 canvasWrap.addEventListener('drop', e => {
   e.preventDefault();
   canvasWrap.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file && file.type.startsWith('image/')) {
+  const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+  if (files.length > 1) { runBatch(files); return; }
+  const file = files[0];
+  if (file) {
     const dt = new DataTransfer(); dt.items.add(file);
     ctrl('file-input').files = dt.files;
     loadImage(ctrl('file-input'));
   }
+});
+
+ctrl('btn-batch').addEventListener('click', () => ctrl('batch-input').click());
+ctrl('batch-input').addEventListener('change', e => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  if (files.length) runBatch(files);
 });
 
 // ═══════════════════════════════════════════
@@ -818,7 +1083,7 @@ function exportSVG() {
   setTimeout(() => {
     const r = svgFromPlan(buildPlan(exportScale()));
     Organica.downloadText(r.svg, Organica.stamp('colornet', 'svg'), 'image/svg+xml');
-    setStatus('active', 'SVG · ' + r.paths + ' channel path' + (r.paths === 1 ? '' : 's'));
+    setStatus('active', 'SVG · ' + r.paths + ' shape' + (r.paths === 1 ? '' : 's'));
   }, 20);
 }
 
@@ -840,6 +1105,75 @@ function exportSeparations() {
 
 function sendToFigma() { Organica.sendToFigma(svgFromPlan(buildPlan(exportScale())).svg, 'Colornet'); }
 
+// ═══════════════════════════════════════════
+// BATCH PROCESSING — re-run separation across many images, keeping the
+// CURRENTLY configured per-channel cosmetics (colour/opacity/blend/
+// transform, by channel index — masks stay per-image, everything else is
+// applied fresh). No zip library is vendored in this repo, so v1 ships
+// sequential individual downloads (spaced out — bursts of simultaneous
+// downloads get dropped by the browser) rather than one archive; a status
+// readout shows progress. The live interactive session's own S.img/
+// S.channels are snapshotted before the batch runs and restored exactly
+// once it finishes, so batch never leaves a visible trace on the session
+// the user was already working in.
+// ═══════════════════════════════════════════
+
+function loadImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { resolve(img); URL.revokeObjectURL(url); };
+    img.onerror = () => { reject(new Error('Could not read ' + file.name)); URL.revokeObjectURL(url); };
+    img.src = url;
+  });
+}
+
+async function runBatch(files) {
+  if (!files || !files.length) return;
+  const cosmeticByIdx = S.channels.map(ch => ({
+    on: ch.on, color: ch.color, opacity: ch.opacity, blend: ch.blend,
+    tx: ch.tx, ty: ch.ty, scale: ch.scale, rot: ch.rot, flipH: ch.flipH, flipV: ch.flipV,
+    screenMode: ch.screenMode, screenAngle: ch.screenAngle, screenFreq: ch.screenFreq, dotShape: ch.dotShape,
+  }));
+  if (!cosmeticByIdx.length) { setStatus('', 'Separate an image first, then batch'); return; }
+
+  // Snapshot the live session so it can be restored byte-for-byte — batch
+  // reuses S/buildPlan/render() (the exact same WYSIWYG pipeline as every
+  // other export) rather than a second copy, which means it has to borrow
+  // S itself for the duration of the run.
+  const saved = { img: S.img, W: S.W, H: S.H, channels: S.channels, selId: S.selId };
+  const scale = exportScale();
+  let ok = 0, failed = 0;
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    setStatus('active', 'Batch: ' + (i + 1) + ' of ' + files.length + ' — ' + file.name);
+    try {
+      const img = await loadImageFile(file);
+      const result = computeBands(img, S.bands, S.detail);
+      S.img = img; S.W = result.W; S.H = result.H;
+      S.channels = result.channels.map((ch, idx) => {
+        const cfg = cosmeticByIdx[idx];
+        if (cfg) Object.assign(ch, cfg);
+        return ch;
+      });
+      const plan = buildPlan(scale);
+      const c = renderToCanvas(plan);
+      const base = file.name.replace(/\.[^.]+$/, '');
+      Organica.download(canvasToBlob(c, 'image/png', 0.92), 'colornet-batch-' + base + '.png');
+      ok++;
+    } catch (err) {
+      console.error('Batch: failed on', file.name, err);
+      failed++;
+    }
+    await new Promise(r => setTimeout(r, 350)); // same anti-burst spacing as exportSeparations
+  }
+
+  S.img = saved.img; S.W = saved.W; S.H = saved.H; S.channels = saved.channels; S.selId = saved.selId;
+  buildChannelUI(); syncTransformPanel(); render();
+  setStatus('active', 'Batch done — ' + ok + ' of ' + files.length + ' exported' + (failed ? ' · ' + failed + ' failed' : ''));
+}
+
 ctrl('btn-png').addEventListener('click', () => exportRaster('image/png', 'png'));
 ctrl('btn-jpg').addEventListener('click', () => exportRaster('image/jpeg', 'jpg'));
 ctrl('btn-svg').addEventListener('click', exportSVG);
@@ -860,6 +1194,7 @@ function readState() {
     channels: S.channels.map(c => ({
       name: c.name, on: c.on, color: c.color, opacity: c.opacity, blend: c.blend,
       tx: c.tx, ty: c.ty, scale: c.scale, rot: c.rot, flipH: c.flipH, flipV: c.flipV,
+      screenMode: c.screenMode, screenAngle: c.screenAngle, screenFreq: c.screenFreq, dotShape: c.dotShape,
     })),
   };
 }
@@ -880,8 +1215,14 @@ function applyPreset(name) {
       Object.assign(ch, {
         name: sc.name, on: sc.on, color: sc.color, opacity: sc.opacity, blend: sc.blend,
         tx: sc.tx, ty: sc.ty, scale: sc.scale, rot: sc.rot, flipH: sc.flipH, flipV: sc.flipV,
+        // Backfilled for presets saved before AM Screening existed — 'flat'
+        // reproduces exactly what those presets always rendered.
+        screenMode: sc.screenMode || 'flat',
+        screenAngle: sc.screenAngle != null ? sc.screenAngle : ch.screenAngle,
+        screenFreq: sc.screenFreq != null ? sc.screenFreq : ch.screenFreq,
+        dotShape: sc.dotShape || 'circle',
       });
-      ch.tint = null;
+      ch.tint = null; ch._amKey = null;
     });
     buildChannelUI(); syncTransformPanel(); render();
     setStatus('active', 'Preset "' + name + '" applied');

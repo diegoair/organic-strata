@@ -79,6 +79,13 @@
     return '#' + c(r) + c(g) + c(b);
   };
 
+  // Promoted from an inline expression in createColorSwatch's own random
+  // button (the only place this existed before) — Colornet is the second
+  // consumer (Shuffle + Random Colors), so it lives here now.
+  Organica.randomHex = function () {
+    return '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
+  };
+
   // CMYK ↔ RGB. Written first inside tunesutra/index.html, where its own
   // comment flagged them as "PROMOTION CANDIDATE once a second tool needs
   // them" — Colornet (a print-separation tool) is that second tool, so they
@@ -164,7 +171,7 @@
 
     cp.addEventListener('input', e => set(e.target.value));
     hexEl.addEventListener('input', e => { if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) set(e.target.value); });
-    if (randomBtn) randomBtn.addEventListener('click', () => set('#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')));
+    if (randomBtn) randomBtn.addEventListener('click', () => set(Organica.randomHex()));
     if (sw) sw.addEventListener('click', () => cp.click());
 
     if (opts.initial) set(opts.initial);
