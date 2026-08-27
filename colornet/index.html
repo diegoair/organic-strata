@@ -348,6 +348,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 <input type="file" id="batch-input" accept="image/*" multiple>
 
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-noise.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────
 // COLORNET — channel separation and recomposition.
@@ -443,8 +444,11 @@ function computeBands(img, bands, detail) {
       // channel is switched to 'am', so "Auto angles" below has something
       // real to restate; freeform after that.
       screenMode: 'flat', screenAngle: [15, 75, 0, 45][b % 4], screenFreq: 24, dotShape: 'circle',
+      // Noise halftone — a second, organic screen mode (Dotraster's own
+      // Simplex/Worley presets), independent of the AM lattice above.
+      noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend',
       mask, count,
-      tint: null, pathD: null, amDots: null, _amKey: null,
+      tint: null, pathD: null, amDots: null, _amKey: null, noiseDotsCache: null, _noiseKey: null,
     });
   }
   return { W, H, channels };
@@ -461,6 +465,7 @@ function separate(keepSettings) {
       on: prev.on, color: prev.color, opacity: prev.opacity, blend: prev.blend,
       tx: prev.tx, ty: prev.ty, scale: prev.scale, rot: prev.rot, flipH: prev.flipH, flipV: prev.flipV,
       screenMode: prev.screenMode, screenAngle: prev.screenAngle, screenFreq: prev.screenFreq, dotShape: prev.dotShape,
+      noiseType: prev.noiseType, noiseSize: prev.noiseSize, noiseDots: prev.noiseDots,
     });
     return ch;
   });
@@ -557,7 +562,95 @@ function amDotsOf(ch) {
     }
   }
   ch.amDots = dots; ch._amKey = key;
+  ch._amCell = cell; ch._amBasis = { ux, uy, vx, vy };   // Line dot shape needs the grid's own rotated axes
   return dots;
+}
+
+// The 3 true AM Screening presets catalogued from Dotraster's own
+// "Presets" tutorial video (youtube.com/watch?v=9MbrDvSMqpk) — Default and
+// AM Circle 2 45's exact angle/lineature/shape were read directly off the
+// app's own on-screen Halftone panel; AM Screening Line 45's lineature
+// wasn't legible in the recording, so it reuses Default's 8 (disclosed,
+// not silently guessed at a different number). "Lineature" here is
+// Colornet's own "cells across the canonical width" unit, not true lpi —
+// Colornet has no DPI model — but the SAME numeric values from the video
+// are kept for continuity with what was actually seen.
+const AM_PRESETS = {
+  'Default': { angle: 0, freq: 8, shape: 'circle' },
+  'AM Circle 2 45': { angle: 45, freq: 2, shape: 'circle' },
+  'AM Screening Line 45': { angle: 45, freq: 8, shape: 'line' },
+};
+
+// ═══════════════════════════════════════════
+// NOISE HALFTONE — Dotraster's own Simplex/Worley presets, a second,
+// organic screen mode alongside AM's precise rotated lattice. Points sit
+// on a JITTERED grid (irregular placement, not a lattice) and the noise
+// field decides which side of it gets ink ('Dots: Black/White/Blend') —
+// the same "dot size driven by local darkness" idea already flagged in
+// this project's own backlog notes as Pollen's technique, adapted here
+// without Pollen's full blue-noise machinery. Reverse-engineered from the
+// tutorial video's on-screen parameter NAMES (Halftone Mode: Noise, Type:
+// Simplex/Worley, Size, Dots), not from Dotraster's own source — an honest
+// reinterpretation of the same idea, same as every other "inspired by"
+// tool in this repo, not a byte-for-byte port.
+// ═══════════════════════════════════════════
+
+function computeNoiseDots(ch) {
+  const key = ch.noiseType + '|' + ch.noiseSize + '|' + ch.noiseDots + '|' + S.W + '|' + S.H;
+  if (ch.noiseDotsCache && ch._noiseKey === key) return ch.noiseDotsCache;
+
+  const W = S.W, H = S.H;
+  const cell = Math.max(2, W / ch.noiseSize);
+  const half_i = Math.floor(cell / 2);
+  const nf = 6 / ch.noiseSize;   // noise-field frequency, scaled so feature size tracks Size the same way cell does
+  const cols = Math.ceil(W / cell) + 1, rows = Math.ceil(H / cell) + 1;
+  // Seeded per-channel (not globally random each render) so the scatter is
+  // reproducible until Size/Type/Dots actually change — same discipline as
+  // every other seeded generator in this codebase.
+  const rng = Organica.mulberry32(ch.id * 7919 + 13);
+
+  const dots = [];
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      const px = i * cell + cell / 2 + (rng() - 0.5) * cell * 0.7;
+      const py = j * cell + cell / 2 + (rng() - 0.5) * cell * 0.7;
+      if (px < 0 || py < 0 || px >= W || py >= H) continue;
+
+      const x0 = Math.max(0, Math.round(px - half_i)), x1 = Math.min(W, Math.round(px + half_i));
+      const y0 = Math.max(0, Math.round(py - half_i)), y1 = Math.min(H, Math.round(py + half_i));
+      if (x1 <= x0 || y1 <= y0) continue;
+      let on = 0, total = 0;
+      for (let y = y0; y < y1; y++) {
+        const row = y * W;
+        for (let x = x0; x < x1; x++) { total++; if (ch.mask[row + x]) on++; }
+      }
+      const coverage = total ? on / total : 0;
+      if (coverage < 0.02) continue;
+
+      const nx = px * nf, ny = py * nf;
+      const nv = ch.noiseType === 'worley'
+        ? 1 - Math.min(1, Organica.noise.voronoiF1F2(nx, ny, 1)[0])
+        : (Organica.noise.simplex2(nx, ny) + 1) / 2;
+
+      let tone;
+      if (ch.noiseDots === 'black') tone = coverage * nv;
+      else if (ch.noiseDots === 'white') tone = coverage * (1 - nv);
+      else tone = coverage * (0.5 + 0.5 * nv);   // 'blend' — soft modulation, never fully zeroed by the field
+
+      if (tone < 0.03) continue;
+      const r = (cell / 2) * Math.sqrt(Math.min(1, tone));
+      dots.push({ x: px, y: py, r });
+    }
+  }
+  ch.noiseDotsCache = dots; ch._noiseKey = key;
+  return dots;
+}
+
+function drawCircleDots(ctx, dots, fill) {
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  for (const d of dots) { ctx.moveTo(d.x + d.r, d.y); ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2); }
+  ctx.fill();
 }
 
 // ═══════════════════════════════════════════
@@ -595,6 +688,21 @@ function buildPlan(scale) {
   };
 }
 
+// Line dot shape's 4 corners in the grid's OWN rotated frame — a ruled
+// line screen (classic engraving-reproduction alternative to round dots):
+// full cell length along the screen's row axis, thickness ∝ tone, so at
+// full coverage adjacent lines merge into a solid ruled stripe.
+function lineCorners(d, cell, basis) {
+  const { ux, uy, vx, vy } = basis;
+  const L = cell / 2, T = d.r;   // d.r already = (cell/2)·√tone from amDotsOf
+  return [
+    [d.x - L * ux - T * vx, d.y - L * uy - T * vy],
+    [d.x + L * ux - T * vx, d.y + L * uy - T * vy],
+    [d.x + L * ux + T * vx, d.y + L * uy + T * vy],
+    [d.x - L * ux + T * vx, d.y - L * uy + T * vy],
+  ];
+}
+
 function drawAmDots(ctx, ch, fill) {
   const dots = amDotsOf(ch);
   ctx.fillStyle = fill;
@@ -603,6 +711,11 @@ function drawAmDots(ctx, ch, fill) {
     if (ch.dotShape === 'square') {
       const s = d.r * 2;
       ctx.rect(d.x - d.r, d.y - d.r, s, s);
+    } else if (ch.dotShape === 'line') {
+      const c = lineCorners(d, ch._amCell, ch._amBasis);
+      ctx.moveTo(c[0][0], c[0][1]);
+      for (let k = 1; k < 4; k++) ctx.lineTo(c[k][0], c[k][1]);
+      ctx.closePath();
     } else {
       ctx.moveTo(d.x + d.r, d.y);
       ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
@@ -625,6 +738,8 @@ function drawPlan(ctx, plan, opts) {
     ctx.globalCompositeOperation = (!opts.plate && it.blend === 'multiply') ? 'multiply' : 'source-over';
     if (it.ch.screenMode === 'am') {
       drawAmDots(ctx, it.ch, opts.plate ? '#000000' : it.color);
+    } else if (it.ch.screenMode === 'noise') {
+      drawCircleDots(ctx, computeNoiseDots(it.ch), opts.plate ? '#000000' : it.color);
     } else {
       ctx.drawImage(opts.plate ? plateOf(it.ch) : tintOf(it.ch), 0, 0);
     }
@@ -663,10 +778,22 @@ function svgFromPlan(plan) {
       if (!dots.length) continue;
       s += `<g transform="matrix(${it.m.map(num).join(' ')})" fill="${it.color}"${op}${style}>`;
       for (const d of dots) {
-        s += it.ch.dotShape === 'square'
-          ? `<rect x="${num(d.x - d.r)}" y="${num(d.y - d.r)}" width="${num(d.r * 2)}" height="${num(d.r * 2)}"/>`
-          : `<circle cx="${num(d.x)}" cy="${num(d.y)}" r="${num(d.r)}"/>`;
+        if (it.ch.dotShape === 'square') {
+          s += `<rect x="${num(d.x - d.r)}" y="${num(d.y - d.r)}" width="${num(d.r * 2)}" height="${num(d.r * 2)}"/>`;
+        } else if (it.ch.dotShape === 'line') {
+          const c = lineCorners(d, it.ch._amCell, it.ch._amBasis);
+          s += `<polygon points="${c.map(p => num(p[0]) + ',' + num(p[1])).join(' ')}"/>`;
+        } else {
+          s += `<circle cx="${num(d.x)}" cy="${num(d.y)}" r="${num(d.r)}"/>`;
+        }
       }
+      s += '</g>';
+      paths += dots.length;
+    } else if (it.ch.screenMode === 'noise') {
+      const dots = computeNoiseDots(it.ch);
+      if (!dots.length) continue;
+      s += `<g transform="matrix(${it.m.map(num).join(' ')})" fill="${it.color}"${op}${style}>`;
+      for (const d of dots) s += `<circle cx="${num(d.x)}" cy="${num(d.y)}" r="${num(d.r)}"/>`;
       s += '</g>';
       paths += dots.length;
     } else {
@@ -703,9 +830,10 @@ function drawThumb(cv, ch) {
   const s = Math.min(26 / S.W, 26 / S.H);
   const w = S.W * s, h = S.H * s;
   g.globalAlpha = ch.opacity / 100;
-  if (ch.screenMode === 'am') {
+  if (ch.screenMode === 'am' || ch.screenMode === 'noise') {
     g.setTransform(s, 0, 0, s, (26 - w) / 2, (26 - h) / 2);
-    drawAmDots(g, ch, ch.color);
+    if (ch.screenMode === 'am') drawAmDots(g, ch, ch.color);
+    else drawCircleDots(g, computeNoiseDots(ch), ch.color);
     g.setTransform(1, 0, 0, 1, 0, 0);
   } else {
     g.drawImage(tintOf(ch), (26 - w) / 2, (26 - h) / 2, w, h);
@@ -752,9 +880,17 @@ function buildChannelUI() {
         <select class="panel-select chan-screen-mode" style="flex:1" aria-label="${ch.name} render mode">
           <option value="flat"${ch.screenMode === 'flat' ? ' selected' : ''}>Flat</option>
           <option value="am"${ch.screenMode === 'am' ? ' selected' : ''}>AM Screening</option>
+          <option value="noise"${ch.screenMode === 'noise' ? ' selected' : ''}>Noise halftone</option>
         </select>
       </div>
       ${ch.screenMode === 'am' ? `
+      <div class="chan-card__body chan-am-row">
+        <span class="chan-am-label">Preset</span>
+        <select class="panel-select chan-am-preset" style="flex:1" aria-label="${ch.name} AM Screening preset">
+          <option value="">Custom</option>
+          ${Object.keys(AM_PRESETS).map(n => `<option value="${n}">${n}</option>`).join('')}
+        </select>
+      </div>
       <div class="chan-card__body chan-am-row">
         <span class="chan-am-label">Angle</span>
         <input type="range" class="chan-am-angle" min="0" max="179" step="1" value="${ch.screenAngle}" aria-label="${ch.name} screen angle">
@@ -762,7 +898,7 @@ function buildChannelUI() {
       </div>
       <div class="chan-card__body chan-am-row">
         <span class="chan-am-label">Lineature</span>
-        <input type="range" class="chan-am-freq" min="6" max="80" step="1" value="${ch.screenFreq}" aria-label="${ch.name} screen lineature">
+        <input type="range" class="chan-am-freq" min="2" max="80" step="1" value="${ch.screenFreq}" aria-label="${ch.name} screen lineature">
         <span class="chan-val">${ch.screenFreq}</span>
       </div>
       <div class="chan-card__body chan-am-row">
@@ -770,6 +906,28 @@ function buildChannelUI() {
         <select class="panel-select chan-am-shape" style="flex:1" aria-label="${ch.name} dot shape">
           <option value="circle"${ch.dotShape === 'circle' ? ' selected' : ''}>Circle</option>
           <option value="square"${ch.dotShape === 'square' ? ' selected' : ''}>Square</option>
+          <option value="line"${ch.dotShape === 'line' ? ' selected' : ''}>Line</option>
+        </select>
+      </div>` : ''}
+      ${ch.screenMode === 'noise' ? `
+      <div class="chan-card__body chan-am-row">
+        <span class="chan-am-label">Noise</span>
+        <select class="panel-select chan-noise-type" style="flex:1" aria-label="${ch.name} noise type">
+          <option value="simplex"${ch.noiseType === 'simplex' ? ' selected' : ''}>Simplex</option>
+          <option value="worley"${ch.noiseType === 'worley' ? ' selected' : ''}>Worley</option>
+        </select>
+      </div>
+      <div class="chan-card__body chan-am-row">
+        <span class="chan-am-label">Size</span>
+        <input type="range" class="chan-noise-size" min="5" max="60" step="1" value="${ch.noiseSize}" aria-label="${ch.name} noise size">
+        <span class="chan-val">${ch.noiseSize}</span>
+      </div>
+      <div class="chan-card__body chan-am-row">
+        <span class="chan-am-label">Dots</span>
+        <select class="panel-select chan-noise-dots" style="flex:1" aria-label="${ch.name} noise dots">
+          <option value="black"${ch.noiseDots === 'black' ? ' selected' : ''}>Black</option>
+          <option value="white"${ch.noiseDots === 'white' ? ' selected' : ''}>White</option>
+          <option value="blend"${ch.noiseDots === 'blend' ? ' selected' : ''}>Blend</option>
         </select>
       </div>` : ''}`;
 
@@ -819,6 +977,32 @@ function buildChannelUI() {
     const shapeSel = card.querySelector('.chan-am-shape');
     if (shapeSel) shapeSel.addEventListener('change', e => {
       ch.dotShape = e.target.value;
+      drawThumb(card.querySelector('.chan-thumb'), ch);
+      render();
+    });
+    const presetSel = card.querySelector('.chan-am-preset');
+    if (presetSel) presetSel.addEventListener('change', e => {
+      const p = AM_PRESETS[e.target.value];
+      if (!p) return;
+      ch.screenAngle = p.angle; ch.screenFreq = p.freq; ch.dotShape = p.shape;
+      buildChannelUI(); render();   // rebuild — angle/lineature/shape rows all need to reflect the new values
+    });
+    const noiseTypeSel = card.querySelector('.chan-noise-type');
+    if (noiseTypeSel) noiseTypeSel.addEventListener('change', e => {
+      ch.noiseType = e.target.value;
+      drawThumb(card.querySelector('.chan-thumb'), ch);
+      render();
+    });
+    const noiseSizeInput = card.querySelector('.chan-noise-size');
+    if (noiseSizeInput) noiseSizeInput.addEventListener('input', e => {
+      ch.noiseSize = parseInt(e.target.value, 10);
+      noiseSizeInput.nextElementSibling.textContent = ch.noiseSize;
+      drawThumb(card.querySelector('.chan-thumb'), ch);
+      render();
+    });
+    const noiseDotsSel = card.querySelector('.chan-noise-dots');
+    if (noiseDotsSel) noiseDotsSel.addEventListener('change', e => {
+      ch.noiseDots = e.target.value;
       drawThumb(card.querySelector('.chan-thumb'), ch);
       render();
     });
@@ -1134,6 +1318,7 @@ async function runBatch(files) {
     on: ch.on, color: ch.color, opacity: ch.opacity, blend: ch.blend,
     tx: ch.tx, ty: ch.ty, scale: ch.scale, rot: ch.rot, flipH: ch.flipH, flipV: ch.flipV,
     screenMode: ch.screenMode, screenAngle: ch.screenAngle, screenFreq: ch.screenFreq, dotShape: ch.dotShape,
+    noiseType: ch.noiseType, noiseSize: ch.noiseSize, noiseDots: ch.noiseDots,
   }));
   if (!cosmeticByIdx.length) { setStatus('', 'Separate an image first, then batch'); return; }
 
@@ -1195,6 +1380,7 @@ function readState() {
       name: c.name, on: c.on, color: c.color, opacity: c.opacity, blend: c.blend,
       tx: c.tx, ty: c.ty, scale: c.scale, rot: c.rot, flipH: c.flipH, flipV: c.flipV,
       screenMode: c.screenMode, screenAngle: c.screenAngle, screenFreq: c.screenFreq, dotShape: c.dotShape,
+      noiseType: c.noiseType, noiseSize: c.noiseSize, noiseDots: c.noiseDots,
     })),
   };
 }
@@ -1221,8 +1407,11 @@ function applyPreset(name) {
         screenAngle: sc.screenAngle != null ? sc.screenAngle : ch.screenAngle,
         screenFreq: sc.screenFreq != null ? sc.screenFreq : ch.screenFreq,
         dotShape: sc.dotShape || 'circle',
+        noiseType: sc.noiseType || ch.noiseType,
+        noiseSize: sc.noiseSize != null ? sc.noiseSize : ch.noiseSize,
+        noiseDots: sc.noiseDots || ch.noiseDots,
       });
-      ch.tint = null; ch._amKey = null;
+      ch.tint = null; ch._amKey = null; ch._noiseKey = null;
     });
     buildChannelUI(); syncTransformPanel(); render();
     setStatus('active', 'Preset "' + name + '" applied');
