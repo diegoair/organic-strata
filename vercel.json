@@ -61,6 +61,10 @@
       "destination": "/mycel/$1"
     },
     {
+      "source": "/rhizome/(.*)",
+      "destination": "/rhizome/$1"
+    },
+    {
       "source": "/shared/(.*)",
       "destination": "/shared/$1"
     },

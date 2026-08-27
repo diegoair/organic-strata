@@ -1159,6 +1159,28 @@ syncGrowthHint();
 syncLoop(ctrl('rg-loop-seconds'));
 Organica.autoLabelPanel(document);
 Organica.enhanceSliders(document);
+
+// ── Rhizome bridge (Tier 2 node graph) ──
+// Deliberately minimal for Phase 2: loads the incoming SVG and reports
+// back the at-rest primitive snapshot (loadSVG() never starts a motion
+// pattern on its own — that's a separate Play action in the real UI) —
+// no animation timing/pattern selection wired through the bridge yet,
+// disclosed as a follow-up rather than guessed at. Still a real, useful
+// round trip: it proves any upstream node's SVG survives Soul's own
+// parsePrimitives() re-encoding, which is what a downstream consumer
+// actually needs to know.
+window.addEventListener('message', (e) => {
+  const msg = e.data;
+  if (!msg || msg.type !== 'rhizome-set-input') return;
+  try {
+    const payload = msg.payload || {};
+    if (!payload.svg) { e.source.postMessage({ type: 'rhizome-output-ready', payload: null, nodeId: msg.nodeId }, '*'); return; }
+    loadSVG(payload.svg);
+    e.source.postMessage({ type: 'rhizome-output-ready', payload: serialiseStage(), nodeId: msg.nodeId }, '*');
+  } catch (err) {
+    console.error('Rhizome bridge:', err);
+  }
+});
 </script>
 </body>
 </html>

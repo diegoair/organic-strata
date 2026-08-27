@@ -19,7 +19,13 @@ figma.ui.onmessage = async (msg) => {
     return;
   }
 
-  if (msg.type === 'import-svg') {
+  // Organica.sendToFigma() (shared/organica-core.js) posts
+  // {type:'organica-svg', svg, name} — the payload shape is identical to
+  // 'import-svg', it was just never wired to a listener here, silently
+  // breaking "→ Figma" on every tool that calls it (Spore/Pollen/Halide/
+  // Komorebi/Loom/Camo Turing/Warping, and now Rhizome's Export node).
+  // Confirmed dead since at least two dated CLAUDE.md session notes.
+  if (msg.type === 'import-svg' || msg.type === 'organica-svg') {
     const svg = msg.svg;
     if (!svg) {
       figma.ui.postMessage({ type: 'error', message: 'No SVG data received' });

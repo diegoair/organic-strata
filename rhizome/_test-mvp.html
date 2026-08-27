@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rhizome — MVP test</title>
+
+<!-- Prototype page, not a shipped tool — same convention as Loom's own
+     _test-*.html pages (_test-slice-reposition.html etc.): standalone,
+     not linked from the hub nav, everything inline in one file rather
+     than the real rhizome/js/{graph-model,execution-engine,...} structure
+     from docs/plans — this validates ONLY the interaction mechanics
+     (node drag, live wire, a 2-node sync pipeline) before committing to
+     that structure. See the approved plan, Parte 5a. -->
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+<script src="/shared/organica-core.js"></script>
+<script src="/shared/kiwi.min.js"></script>
+
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; height: 100vh; overflow: hidden;
+    background: #ece8e0; color: var(--ink, #0a0a0a);
+    font-family: var(--font); font-size: var(--fs-base);
+  }
+  #topbar {
+    height: 40px; flex-shrink: 0; display: flex; align-items: center;
+    gap: var(--space-4); padding: 0 var(--space-5);
+    border-bottom: 1px solid #d0c8b8; background: #fff;
+    position: relative; z-index: 5;
+  }
+  #topbar b { font-weight: var(--w-medium); }
+  #topbar .hint { color: #696256; font-size: var(--fs-small); }
+  #topbar .spacer { flex: 1; }
+  #btn-export {
+    font-family: var(--font); font-size: var(--fs-small);
+    padding: 6px 12px; border: 1px solid #0a0a0a; background: #0a0a0a;
+    color: #fff; border-radius: var(--radius-md); cursor: pointer;
+  }
+  #btn-export:hover { opacity: .85; }
+
+  #canvas-wrap {
+    position: absolute; top: 40px; left: 0; right: 0; bottom: 0;
+    overflow: hidden; cursor: grab;
+    background-image: radial-gradient(#d0c8b8 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  #graph {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    transform-origin: 0 0;
+  }
+  #wire-layer { position: absolute; top: 0; left: 0; width: 3000px; height: 3000px; overflow: visible; pointer-events: none; }
+  #wire-layer path { fill: none; stroke: #3fa876; stroke-width: 2; }
+
+  .node-card {
+    position: absolute; width: 280px;
+    background: #fff; border: 1px solid #d0c8b8; border-radius: var(--radius-lg);
+    box-shadow: 0 4px 16px rgba(0,0,0,.08);
+    user-select: none;
+  }
+  .node-card__header {
+    padding: var(--space-3) var(--space-4); cursor: grab;
+    border-bottom: 1px solid #eee2ce; font-weight: var(--w-medium);
+    display: flex; align-items: center; gap: var(--space-2);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  .node-card--a .node-card__header { background: #eaf5f0; }
+  .node-card--b .node-card__header { background: #f0eafa; }
+  .node-card__body { padding: var(--space-4); }
+  .node-row { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); }
+  .node-row label { flex: 0 0 60px; font-size: var(--fs-small); color: #696256; }
+  .node-row input[type=range] { flex: 1; }
+  .node-row .val { flex: 0 0 30px; text-align: right; font-size: var(--fs-small); font-variant-numeric: tabular-nums; }
+  .node-preview {
+    margin-top: var(--space-3); border: 1px solid #eee2ce; border-radius: var(--radius-md);
+    background: #faf8f3; overflow: hidden;
+  }
+  .node-preview svg { display: block; width: 100%; height: 140px; }
+
+  .port {
+    position: absolute; width: 12px; height: 12px; border-radius: 50%;
+    background: #fff; border: 2px solid #3fa876; top: 50%; margin-top: -6px;
+  }
+  .port--out { right: -7px; }
+  .port--in { left: -7px; }
+
+  #status {
+    position: fixed; bottom: 12px; left: 12px; font-size: var(--fs-small);
+    color: #696256; background: #fff; border: 1px solid #d0c8b8;
+    border-radius: var(--radius-md); padding: 4px 10px; z-index: 5;
+  }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <b>Rhizome</b>
+  <span class="hint">MVP test — Loom Grid → Contour Trace</span>
+  <div class="spacer"></div>
+  <button id="btn-export">Export SVG</button>
+</div>
+
+<div id="canvas-wrap">
+  <div id="graph">
+    <svg id="wire-layer"><path id="wire-path"></path></svg>
+
+    <div class="node-card node-card--a" id="node-a" style="left:80px; top:80px;">
+      <div class="node-card__header" id="node-a-drag">Loom Grid — Bento</div>
+      <div class="node-card__body">
+        <div class="node-row"><label>Cols</label><input type="range" id="a-cols" min="2" max="6" step="1" value="4"><span class="val" id="a-cols-val">4</span></div>
+        <div class="node-row"><label>Rows</label><input type="range" id="a-rows" min="2" max="6" step="1" value="4"><span class="val" id="a-rows-val">4</span></div>
+        <div class="node-row"><label>Variety</label><input type="range" id="a-variety" min="0" max="1" step="0.05" value="0.5"><span class="val" id="a-variety-val">0.5</span></div>
+        <div class="node-row"><label>Gap</label><input type="range" id="a-gap" min="0" max="30" step="1" value="10"><span class="val" id="a-gap-val">10</span></div>
+        <div class="node-row"><label>Seed</label><input type="range" id="a-seed" min="0" max="999" step="1" value="7"><span class="val" id="a-seed-val">7</span></div>
+        <div class="node-preview"><svg id="a-preview" viewBox="0 0 400 300"></svg></div>
+      </div>
+      <div class="port port--out" id="port-a-out" title="cells (grid)"></div>
+    </div>
+
+    <div class="node-card node-card--b" id="node-b" style="left:460px; top:120px;">
+      <div class="node-card__header" id="node-b-drag">Contour Trace</div>
+      <div class="node-card__body">
+        <div class="node-row"><label>Padding</label><input type="range" id="b-padding" min="0" max="30" step="1" value="0"><span class="val" id="b-padding-val">0</span></div>
+        <div class="node-preview"><svg id="b-preview" viewBox="0 0 400 300"></svg></div>
+      </div>
+      <div class="port port--in" id="port-b-in" title="mask (image)"></div>
+    </div>
+  </div>
+</div>
+
+<div id="status">Ready</div>
+
+<script type="module">
+import { generateBento } from '/loom/js/generators/bento.js';
+import { resolveCellRects } from '/loom/js/json-model.js';
+
+const WORK_W = 400, WORK_H = 300;
+const graphEl = document.getElementById('graph');
+const wrapEl = document.getElementById('canvas-wrap');
+const wireLayer = document.getElementById('wire-layer');
+const wirePath = document.getElementById('wire-path');
+const nodeA = document.getElementById('node-a');
+const nodeB = document.getElementById('node-b');
+const portAOut = document.getElementById('port-a-out');
+const portBIn = document.getElementById('port-b-in');
+const statusEl = document.getElementById('status');
+
+let lastCells = null;   // Node A's current resolved output (feeds Node B)
+let lastPathD = '';     // Node B's current output (feeds Export)
+const zoomRef = { current: null };   // set once createZoomPan is constructed below;
+                                      // a plain mutable ref (not a `let` binding
+                                      // read from a closure) since createZoomPan's
+                                      // own apply() fires onChange synchronously
+                                      // during construction, before any assignment
+                                      // to a `let zp` would be considered initialized
+                                      // by the functions capturing it as a closure.
+
+// ── Node A: Loom Grid (Bento) ──────────────────────────────
+function computeNodeA() {
+  const cols = +document.getElementById('a-cols').value;
+  const rows = +document.getElementById('a-rows').value;
+  const variety = +document.getElementById('a-variety').value;
+  const gap = +document.getElementById('a-gap').value;
+  const seed = +document.getElementById('a-seed').value;
+
+  const { grid, cells } = generateBento({ cols, rows, variety, gap, seed }, { width: WORK_W, height: WORK_H });
+  lastCells = resolveCellRects({ grid, cells }, { x: 0, y: 0, width: WORK_W, height: WORK_H });
+
+  const svg = document.getElementById('a-preview');
+  svg.innerHTML = lastCells.map(c =>
+    `<rect x="${c.x}" y="${c.y}" width="${c.width}" height="${c.height}" fill="#3fa876" fill-opacity="0.85"/>`
+  ).join('');
+}
+
+// ── Node B: Contour Trace (wraps Organica.traceContours) ──
+function computeNodeB() {
+  if (!lastCells) return;
+  const padding = +document.getElementById('b-padding').value;
+
+  const mask = new Uint8Array(WORK_W * WORK_H);
+  for (const c of lastCells) {
+    const x0 = Math.max(0, Math.round(c.x + padding));
+    const y0 = Math.max(0, Math.round(c.y + padding));
+    const x1 = Math.min(WORK_W, Math.round(c.x + c.width - padding));
+    const y1 = Math.min(WORK_H, Math.round(c.y + c.height - padding));
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) mask[y * WORK_W + x] = 1;
+  }
+
+  lastPathD = Organica.contoursToPathD(mask, WORK_W, WORK_H, 1);
+  const pathCount = (lastPathD.match(/M/g) || []).length;
+
+  const svg = document.getElementById('b-preview');
+  svg.innerHTML = `<path d="${lastPathD}" fill="#0a0a0a" fill-rule="evenodd"/>`;
+
+  statusEl.textContent = `${lastCells.length} cells → ${pathCount} traced path${pathCount === 1 ? '' : 's'}`;
+}
+
+function recompute() {
+  computeNodeA();
+  computeNodeB();
+}
+
+// ── Slider readouts + recompute wiring ──────────────────────
+function wireSlider(id) {
+  const input = document.getElementById(id);
+  const out = document.getElementById(id + '-val');
+  input.addEventListener('input', () => { out.textContent = input.value; recompute(); });
+}
+['a-cols', 'a-rows', 'a-variety', 'a-gap', 'a-seed', 'b-padding'].forEach(wireSlider);
+
+// ── Live wire between the two ports (Mycel-style quadratic curve,
+//    recomputed synchronously on any node move — no rAF loop needed
+//    at this node count) ──
+function updateWire() {
+  const g = graphEl.getBoundingClientRect();
+  const a = portAOut.getBoundingClientRect();
+  const b = portBIn.getBoundingClientRect();
+  const zoom = zoomRef.current ? zoomRef.current.zoom : 1;
+  const x1 = (a.left + a.width / 2 - g.left) / zoom;
+  const y1 = (a.top + a.height / 2 - g.top) / zoom;
+  const x2 = (b.left + b.width / 2 - g.left) / zoom;
+  const y2 = (b.top + b.height / 2 - g.top) / zoom;
+  const mx = (x1 + x2) / 2;
+  wirePath.setAttribute('d', `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`);
+}
+
+// ── Node drag (threshold-free — the header IS the drag handle, so no
+//    click/drag ambiguity to resolve, unlike FVS's cell-select case) ──
+function bindNodeDrag(handleEl, cardEl) {
+  let dragging = false, startX = 0, startY = 0, originLeft = 0, originTop = 0;
+  handleEl.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    e.stopPropagation();   // don't also trigger createZoomPan's canvas pan
+    dragging = true;
+    startX = e.clientX; startY = e.clientY;
+    originLeft = parseFloat(cardEl.style.left);
+    originTop = parseFloat(cardEl.style.top);
+  });
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const zoom = zoomRef.current ? zoomRef.current.zoom : 1;
+    cardEl.style.left = (originLeft + (e.clientX - startX) / zoom) + 'px';
+    cardEl.style.top = (originTop + (e.clientY - startY) / zoom) + 'px';
+    updateWire();
+  });
+  window.addEventListener('mouseup', () => { dragging = false; });
+}
+bindNodeDrag(document.getElementById('node-a-drag'), nodeA);
+bindNodeDrag(document.getElementById('node-b-drag'), nodeB);
+
+// ── Pan/zoom — shared Organica.createZoomPan on the #graph wrapper.
+//    min:0.1 per the plan (Parte 3.4d); the panAlways fix to
+//    organica-core.js itself is deferred to the real Phase 1, so at
+//    zoom=100% pan needs a wheel-zoom-in first, same as every other
+//    tool today. ──
+zoomRef.current = Organica.createZoomPan({
+  canvas: graphEl,
+  wrap: wrapEl,
+  min: 0.1,
+  onChange: () => updateWire(),
+});
+
+// ── Export SVG ──
+document.getElementById('btn-export').addEventListener('click', () => {
+  if (!lastPathD) return;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WORK_W} ${WORK_H}"><path d="${lastPathD}" fill="#0a0a0a" fill-rule="evenodd"/></svg>`;
+  Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('rhizome', 'svg'));
+});
+
+// ── Init ──
+recompute();
+updateWire();
+</script>
+</body>
+</html>

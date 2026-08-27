@@ -1540,6 +1540,32 @@ ctrl('txt-preset-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') confirmSavePreset();
   if (e.key === 'Escape') cancelSavePreset();
 });
+
+// ── Rhizome bridge (Tier 2 node graph, rhizome/js/nodes/bridge-iframe.js) ──
+// Only relevant when embedded in Rhizome's hidden iframe; inert otherwise.
+// Drives just the pattern select (Phase 2 scope — per-pattern slider
+// params deliberately not wired yet, same "small deliberate slice, not
+// everything at once" call as Phase 1's own MVP node set). scheduleRender()
+// is rAF-coalesced (this file's own §17 rewrite), so the SVG build has to
+// wait a frame before reading the canvas, or it captures the pattern that
+// was showing BEFORE the change — caught by testing, not assumed.
+window.addEventListener('message', (e) => {
+  const msg = e.data;
+  if (!msg || msg.type !== 'rhizome-set-input') return;
+  try {
+    const payload = msg.payload || {};
+    if (payload.pattern) {
+      ctrl('sel-pattern').value = payload.pattern;
+      ctrl('sel-pattern').dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const r = buildSVG();
+      e.source.postMessage({ type: 'rhizome-output-ready', payload: r.svg, nodeId: msg.nodeId }, '*');
+    }));
+  } catch (err) {
+    console.error('Rhizome bridge:', err);
+  }
+});
 </script>
 </body>
 </html>

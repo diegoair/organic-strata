@@ -3947,6 +3947,47 @@ Organica.autoLabelPanel(document);
     if (tip) clamp(tip);
   });
 })();
+
+// ── Rhizome bridge (Tier 2 node graph) ──
+// Camo Turing is the one bridge target flagged as real risk in the
+// approved plan: unlike Komorebi/Warping's static procedural render,
+// Gray-Scott needs to evolve over many steps, and — checked directly
+// before writing this, not assumed — this file has NO convergence/
+// auto-pause detection at all (see this file's own comment above
+// toggleRecording: "no auto-stop — Camo Turing has no convergence/
+// auto-pause detection to race against, unlike Camouflage", its
+// predecessor tool, which did have one and was removed from the repo).
+// So there is no "wait until settled" signal to hook into. The bridge
+// instead runs a caller-supplied fixed step count synchronously
+// (stepSim() directly, bypassing the rAF loop entirely — a tight
+// synchronous for-loop can't be interleaved by rAF callbacks, so this
+// is deterministic regardless of `running`'s state) — a disclosed
+// simplification, not a hidden one: "fixed steps" instead of "true
+// settle", exposed as the node's own `steps` param so it's tunable
+// rather than a silent guess.
+window.addEventListener('message', (e) => {
+  const msg = e.data;
+  if (!msg || msg.type !== 'rhizome-set-input') return;
+  try {
+    const payload = msg.payload || {};
+    if (payload.preset) applyPreset(payload.preset);
+    resetSim();   // guarantees the named preset's own pattern, not a
+                   // leftover morph from whatever was on screen before —
+                   // deliberate, since applyPreset() itself only resets
+                   // seed for the 3 anisotropic presets (its own comment)
+    const steps = payload.steps || 1500;
+    for (let i = 0; i < steps; i++) stepSim();
+    if (running) togglePlay();   // must be paused — exportSVG() itself
+                                  // refuses to run otherwise (checked
+                                  // directly: reads the play/pause
+                                  // button's own aria-label)
+    draw();
+    const svg = buildExportSVGString();
+    e.source.postMessage({ type: 'rhizome-output-ready', payload: svg, nodeId: msg.nodeId }, '*');
+  } catch (err) {
+    console.error('Rhizome bridge:', err);
+  }
+});
 </script>
 </body>
 </html>

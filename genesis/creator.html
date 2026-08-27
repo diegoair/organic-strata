@@ -1341,6 +1341,35 @@
     init();
     Organica.enhanceSliders(document);   // filled track + click-to-edit value
   });
+
+  // ── Rhizome bridge (Tier 2 node graph, rhizome/js/nodes/bridge-iframe.js) ──
+  // Only relevant when this page is embedded in Rhizome's hidden iframe;
+  // inert otherwise (nothing sends this message from a normal page load).
+  // Reuses loadSeedIntoWorkingShape() verbatim — the exact function the
+  // "Load seed…" picker already uses to drive Generate-mode state from a
+  // {genType, genParams} payload — rather than a second state-setting path.
+  window.addEventListener('message', (e) => {
+    const msg = e.data;
+    if (!msg || msg.type !== 'rhizome-set-input') return;
+    try {
+      loadSeedIntoWorkingShape(msg.payload || { genType: 'circle', genParams: {} });
+      // formMarkup() alone is a fragment meant for the artboard's own
+      // already-open <svg id="art">, not a standalone document — the
+      // same wrap saveForm() already applies before persisting a form
+      // (creator.html:1242) is needed here too. Found by testing: the
+      // first version sent the bare fragment and Rhizome's own preview
+      // silently rendered it as escaped text instead of a shape, since
+      // it isn't valid to set as innerHTML of a plain <svg> and doesn't
+      // match the "starts with <svg" sniff every node preview uses.
+      const svgDoc = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">${formMarkup()}</svg>`;
+      e.source.postMessage({ type: 'rhizome-output-ready', payload: svgDoc, nodeId: msg.nodeId }, '*');
+    } catch (err) {
+      // No error channel defined in the v1 bridge protocol (Piano Parte
+      // 3.1) — the graph's own 8s timeout is the fallback if this throws
+      // instead of posting back, rather than inventing a second path here.
+      console.error('Rhizome bridge:', err);
+    }
+  });
   </script>
 
 </body>

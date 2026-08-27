@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rhizome — Organica</title>
+
+<!-- Tokens → header → floatbar → panel, in this order (load-bearing —
+     UI-SHELL.md §2/§4b/§4c). organica-core.js + kiwi.min.js are plain
+     scripts, loaded before this tool's own <script type="module">, so
+     Organica.* and the global `kiwi` (needed by loom/js/constraint-
+     engine.js's solveTracksKiwi) both exist at import time. -->
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-panel.css">
+<script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-motion.js"></script>
+<script src="/shared/kiwi.min.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #0a0a0a;
+    --paper: #ffffff;
+    --mid: #696256;
+    --accent: #2a2a2a;
+    --panel: #eceae4;
+    --border: #d0c8b8;
+    --tool: #7a9c5e;   /* identity colour — rhizome green, unclaimed hue
+                          between FVS's emerald and Komorebi's olive */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: var(--fs-base); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+  #app { display: flex; flex: 1; overflow: hidden; height: calc(100vh - var(--header-h, 40px)); }
+
+  #canvas-wrap {
+    flex: 1; position: relative; overflow: hidden; cursor: grab;
+    background-image: radial-gradient(#e5e0d4 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  #graph { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform-origin: 0 0; }
+  #wire-layer { position: absolute; top: 0; left: 0; width: 4000px; height: 4000px; overflow: visible; pointer-events: none; }
+  .rz-wire { fill: none; stroke: var(--tool); stroke-width: 2; }
+  .rz-wire--pending { stroke-dasharray: 4 4; opacity: .7; }
+
+  .rz-node {
+    position: absolute; width: 240px;
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg);
+    box-shadow: 0 4px 16px rgba(0,0,0,.08); user-select: none; z-index: 2;
+  }
+  .rz-node.is-selected { outline: 2px solid var(--tool); outline-offset: 1px; }
+  .rz-node__header {
+    padding: var(--space-3) var(--space-4); cursor: grab; font-weight: var(--w-medium);
+    background: #f2f6ee; border-bottom: 1px solid var(--border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0; font-size: var(--fs-small);
+  }
+  .rz-node__ports { padding: var(--space-2) 0; }
+  .rz-port-row { display: flex; align-items: center; gap: var(--space-2); padding: 2px var(--space-4); font-size: var(--fs-small); color: var(--mid); position: relative; }
+  .rz-port-row--in { justify-content: flex-start; }
+  .rz-port-row--out { justify-content: flex-end; }
+  .rz-port-dot { width: 10px; height: 10px; border-radius: 50%; background: #fff; border: 2px solid #999; flex-shrink: 0; cursor: crosshair; }
+  .rz-node__preview {
+    margin: var(--space-2) var(--space-4); min-height: 60px; max-height: 100px;
+    border: 1px solid #eee2ce; border-radius: var(--radius-md); background: #faf8f3;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    font-size: var(--fs-small); color: var(--mid);
+  }
+  .rz-node__preview svg { width: 100%; height: 100%; }
+  .rz-node__empty { opacity: .4; }
+  .rz-node__status { padding: 0 var(--space-4) var(--space-2); font-size: var(--fs-small); color: #b3403a; }
+  .rz-node__status:empty { display: none; }
+
+  #add-node-menu .org-popover { min-width: 180px; }
+  #add-node-menu .org-formats { flex-direction: column; }
+  #add-node-menu .org-btn { text-align: left; }
+</style>
+</head>
+<body>
+
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Rhizome</span></a>
+  <div class="org-header__spacer"></div>
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Ready</span>
+  </output>
+</header>
+
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <div class="org-popover-wrap" id="add-node-menu">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-add-node" aria-label="Add node">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="add-node-popover" aria-label="Node types">
+      <div class="org-popover__title">Add node</div>
+      <div class="org-formats" id="add-node-list"></div>
+    </div>
+  </div>
+  <div class="org-floatbar__sep"></div>
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-graph-menu" aria-label="Graph">
+      <span style="font-size:var(--fs-small)">Graph</span>
+    </button>
+    <div class="org-popover" id="graph-popover" aria-label="Graph options">
+      <div class="org-popover__title">Preset</div>
+      <select class="panel-select" id="sel-preset" aria-label="Preset"></select>
+      <!-- Inline name field, not window.prompt() — a bare prompt() throws
+           "prompt() is not supported" in some embedding contexts (found
+           and fixed the same way in FVS, Aug 25 session), and every
+           Organica tool with a preset-name field already uses this
+           inline-row pattern rather than a native dialog. -->
+      <div class="ctrl-row" style="margin-top:var(--space-2)">
+        <input type="text" class="panel-select" id="txt-preset-name" placeholder="Name this graph" aria-label="Name this graph" style="flex:1">
+      </div>
+      <div class="row-btns" style="margin-top:var(--space-2)">
+        <button class="mini-btn" id="btn-save-preset">Save</button>
+        <button class="mini-btn" id="btn-delete-preset">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <div id="canvas-wrap">
+    <div id="graph">
+      <svg id="wire-layer"></svg>
+      <div id="nodes-layer"></div>
+    </div>
+  </div>
+  <div id="panel"></div>
+</div>
+
+<script type="module" src="/rhizome/js/main.js"></script>
+</body>
+</html>

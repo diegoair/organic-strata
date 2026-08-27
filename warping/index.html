@@ -736,6 +736,28 @@ ctrl('txt-preset-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') confirmSavePreset();
   if (e.key === 'Escape') cancelSavePreset();
 });
+
+// ── Rhizome bridge (Tier 2 node graph) — see komorebi/index.html's own
+// identical listener for the full rationale; both tools share the exact
+// same scheduleRender()/buildSVG() shape, so the bridge is byte-for-byte
+// the same pattern. ──
+window.addEventListener('message', (e) => {
+  const msg = e.data;
+  if (!msg || msg.type !== 'rhizome-set-input') return;
+  try {
+    const payload = msg.payload || {};
+    if (payload.pattern) {
+      ctrl('sel-pattern').value = payload.pattern;
+      ctrl('sel-pattern').dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const r = buildSVG();
+      e.source.postMessage({ type: 'rhizome-output-ready', payload: r.svg, nodeId: msg.nodeId }, '*');
+    }));
+  } catch (err) {
+    console.error('Rhizome bridge:', err);
+  }
+});
 </script>
 </body>
 </html>

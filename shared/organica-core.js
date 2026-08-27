@@ -421,6 +421,13 @@
     const MAX = opts.max == null ? 12 : opts.max;
     const onChange = opts.onChange || function () {};
     const isReady = opts.isReady || function () { return true; };
+    // Every existing caller (image/canvas tools) wants panning gated on
+    // "already zoomed in" — panning a 1:1 image at 100% has nothing to
+    // reveal. A node-graph canvas is the opposite: empty canvas space at
+    // 100% is exactly where you pan to see more of the graph. Opt-in only,
+    // so no existing caller's behaviour changes — see docs/ plan for
+    // Rhizome (aggiungi-le-axploration-come-shimmying-koala.md, Parte 3.4d).
+    const panAlways = !!opts.panAlways;
 
     let zoom = 1, panX = 0, panY = 0;
     let panning = false, startX = 0, startY = 0;
@@ -466,7 +473,7 @@
     }, { passive: false });
 
     canvas.addEventListener('mousedown', e => {
-      if (zoom <= 1.001) return;
+      if (!panAlways && zoom <= 1.001) return;
       panning = true; startX = e.clientX - panX; startY = e.clientY - panY;
       canvas.classList.add('panning');
       e.preventDefault();
