@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blob Boundary — Organica</title>
+
+<!-- Tokens FIRST so the tool can override without !important, then
+     header/floatbar/panel — load-bearing order, docs/UI-SHELL.md §2/§4b/§4c. -->
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-panel.css">
+<script src="/shared/gsap.min.js"></script>
+<script src="/shared/gsap-morphsvg.min.js"></script>
+<style>
+  :root {
+    --ink: #0a0a0a;
+    --paper: #ffffff;
+    --mid: #726a5e;
+    --accent: #2a2a2a;
+    --panel: #eceae4;
+    --border: #d0c8b8;
+    --tool: #8a8a28;   /* identity colour — a genuine open hue gap (60°),
+                          between Pollen's ochre (40°) and Komorebi's olive
+                          (80°) on the nav accent registry — checked against
+                          the full --tool:/nav registry before picking, the
+                          exact step the Vortex migration skipped and later
+                          had to redo (see docs/UI-SHELL.md §6b) */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 11px;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #app { display: flex; flex: 1; overflow: hidden; }
+
+  #canvas-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    position: relative;
+    overflow: hidden;
+    padding: var(--space-7);
+  }
+
+  svg#art {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    box-shadow: 0 4px 40px rgba(0,0,0,0.18);
+  }
+
+  #panel {
+    width: 248px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--paper);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER — identity · context · status · max 3 actions ══ -->
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Blob Boundary</span></a>
+  <div class="org-header__spacer"></div>
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Cycling</span>
+  </output>
+</header>
+
+<!-- ══ FLOATBAR — the one transport control this tool has ══ -->
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <button class="org-floatbar__btn" id="btn-playpause" aria-label="Pause">
+    <svg class="ico" id="ico-playpause" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 3.5v9M11 3.5v9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+</div>
+
+<div id="app">
+
+  <!-- ══ CANVAS ══ -->
+  <div id="canvas-wrap">
+    <svg id="art" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+      <rect id="bg" x="0" y="0" width="400" height="400" fill="#7a5c3a"/>
+      <path id="boundary" fill="#d8d4cc" d=""/>
+      <g id="dots"></g>
+    </svg>
+  </div>
+
+  <!-- ══ PANEL — one .panel-section per control group ══ -->
+  <div id="panel" class="org-panel">
+
+    <div class="panel-section">
+      <h3>Preset</h3>
+      <select class="panel-select" id="sel-preset" aria-label="Preset"></select>
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-preset-save">Save</button>
+        <button class="mini-btn" id="btn-preset-delete">Delete</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>About</h3>
+      <p class="hint">A mask shape morphs between presets (GSAP MorphSVGPlugin); a fixed dot lattice is classified live every frame against the mask's own current geometry (<code>SVGGeometryElement.isPointInFill</code>) — dots deep inside stay small and separate, dots straddling the boundary enlarge and overlap into a gooey fringe, dots outside are hidden. No blur/goo filter — the lumpy edge is just plain same-colour circles overlapping. Reference: giuseppelaezza.com/playground.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Mask shapes <span class="hint">cycled in order</span></h3>
+      <div class="ctrl-row"><div class="ctrl-label">Shape 1</div><select class="panel-select" id="shape1" aria-label="Shape 1"></select></div>
+      <div class="ctrl-row"><div class="ctrl-label">Shape 2</div><select class="panel-select" id="shape2" aria-label="Shape 2"></select></div>
+      <div class="ctrl-row"><div class="ctrl-label">Shape 3</div><select class="panel-select" id="shape3" aria-label="Shape 3"></select></div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Cycle duration</div>
+        <input type="range" id="rg-duration" min="0.8" max="6" step="0.1" value="2.4">
+        <span class="ctrl-val" id="v-duration">2.4s</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Dot lattice</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Spacing</div>
+        <input type="range" id="rg-spacing" min="12" max="40" step="1" value="22">
+        <span class="ctrl-val" id="v-spacing">22</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Base radius</div>
+        <input type="range" id="rg-radius" min="2" max="9" step="0.5" value="4">
+        <span class="ctrl-val" id="v-radius">4</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Jitter</div>
+        <input type="range" id="rg-jitter" min="0" max="1" step="0.05" value="0.3">
+        <span class="ctrl-val" id="v-jitter">0.3</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Edge fringe</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Band width</div>
+        <input type="range" id="rg-band" min="2" max="24" step="1" value="10">
+        <span class="ctrl-val" id="v-band">10</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Edge scale</div>
+        <input type="range" id="rg-scale" min="1.2" max="3.5" step="0.1" value="2.4">
+        <span class="ctrl-val" id="v-scale">2.4</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Sample points</div>
+        <input type="range" id="rg-samples" min="4" max="16" step="1" value="8">
+        <span class="ctrl-val" id="v-samples">8</span>
+      </div>
+      <p class="hint">Sample points = how many directions each dot probes around its own radius to decide "straddling the edge." More samples read curved boundaries more accurately, at a proportional per-frame cost — the classification pass is what's actually expensive here, not the mask's own tween.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Colour <span class="hint">tool content, not UI chrome</span></h3>
+      <div class="color-row">
+        <span class="color-name">Background</span>
+        <button class="color-swatch" id="sw-bg" aria-label="Open background colour picker"></button>
+        <input type="color" id="cp-bg" value="#7a5c3a">
+        <input class="color-hex" id="hex-bg" value="#7a5c3a" aria-label="Background hex value">
+      </div>
+      <div class="color-row">
+        <span class="color-name">Mask</span>
+        <button class="color-swatch" id="sw-mask" aria-label="Open mask colour picker"></button>
+        <input type="color" id="cp-mask" value="#d8d4cc">
+        <input class="color-hex" id="hex-mask" value="#d8d4cc" aria-label="Mask hex value">
+      </div>
+      <div class="color-row">
+        <span class="color-name">Dots</span>
+        <button class="color-swatch" id="sw-dot" aria-label="Open dot colour picker"></button>
+        <input type="color" id="cp-dot" value="#f2c94c">
+        <input class="color-hex" id="hex-dot" value="#f2c94c" aria-label="Dot hex value">
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <p class="stat" id="stat">—</p>
+    </div>
+
+  </div><!-- /panel -->
+</div>
+
+<!-- Core BEFORE the tool script so Organica.* exists at parse time. -->
+<script src="/shared/organica-core.js"></script>
+<script>
+(function () {
+  'use strict';
+  gsap.registerPlugin(MorphSVGPlugin);
+
+  function ctrl(id) { return document.getElementById(id); }
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = ctrl('art');
+  const boundary = ctrl('boundary');
+  const dotsLayer = ctrl('dots');
+  const bgRect = ctrl('bg');
+  const stat = ctrl('stat');
+  const W = 400, H = 400, CX = 200, CY = 200;
+
+  const setStatus = Organica.status();
+
+  // ── mask shape presets — closed polygons (M...L...Z), sampled at a
+  // shared point density (72) so MorphSVGPlugin has plenty of matching
+  // material regardless of which two presets are cycling. ──
+  function polyD(points) {
+    return 'M' + points.map(p => p[0].toFixed(2) + ',' + p[1].toFixed(2)).join('L') + 'Z';
+  }
+  function circleShape(r) {
+    const pts = [];
+    const n = 72;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      pts.push([CX + Math.cos(a) * r, CY + Math.sin(a) * r]);
+    }
+    return polyD(pts);
+  }
+  function blobShape(r, amt) {
+    const pts = [];
+    const n = 72;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      // deterministic multi-harmonic wobble — a fixed preset, not a seeded
+      // random field (this tool doesn't need reproducible-seed machinery,
+      // just one pleasant static blob)
+      const wob = 1 + amt * (Math.sin(a * 3.1) * 0.5 + Math.sin(a * 5.7 + 1.3) * 0.3 + Math.sin(a * 2.1 + 2.6) * 0.2);
+      pts.push([CX + Math.cos(a) * r * wob, CY + Math.sin(a) * r * wob]);
+    }
+    return polyD(pts);
+  }
+  function bandShape(angleDeg, thickness) {
+    // an infinite-looking diagonal band, built as a long rotated rectangle
+    // sampled at the same 72-point density (extra points along the long
+    // edges) so it morphs against circle/blob without a visible point-
+    // count mismatch snapping oddly mid-tween.
+    const a = angleDeg * Math.PI / 180;
+    const len = 900;
+    const half = thickness / 2;
+    const dx = Math.cos(a), dy = Math.sin(a);
+    const nx = -dy, ny = dx;
+    const cx = CX, cy = CY;
+    const edgePts = 34;
+    const pts = [];
+    for (let i = 0; i <= edgePts; i++) {
+      const t = (i / edgePts - 0.5) * len;
+      pts.push([cx + dx * t + nx * half, cy + dy * t + ny * half]);
+    }
+    for (let i = 0; i <= edgePts; i++) {
+      const t = (0.5 - i / edgePts) * len;
+      pts.push([cx + dx * t - nx * half, cy + dy * t - ny * half]);
+    }
+    return polyD(pts);
+  }
+
+  const SHAPES = {
+    circle:      { label: 'Circle',            d: () => circleShape(150) },
+    band:        { label: 'Diagonal band',     d: () => bandShape(40, 210) },
+    bandSteep:   { label: 'Steep band',        d: () => bandShape(75, 180) },
+    blob:        { label: 'Organic blob',      d: () => blobShape(150, 0.35) },
+    starburst:   { label: 'Starburst',         d: () => blobShape(150, 0.7) },
+  };
+
+  const shape1 = ctrl('shape1'), shape2 = ctrl('shape2'), shape3 = ctrl('shape3');
+  [shape1, shape2, shape3].forEach(sel => {
+    Object.keys(SHAPES).forEach(key => {
+      const o = document.createElement('option');
+      o.value = key; o.textContent = SHAPES[key].label;
+      sel.appendChild(o);
+    });
+  });
+
+  // ── dot lattice ──
+  let dots = [];
+  function buildLattice() {
+    dotsLayer.innerHTML = '';
+    dots = [];
+    const spacing = +ctrl('rg-spacing').value;
+    const baseR = +ctrl('rg-radius').value;
+    const jitter = +ctrl('rg-jitter').value;
+    let seed = 7;
+    const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return (seed / 0x7fffffff); };
+    for (let y = spacing / 2; y < H; y += spacing) {
+      for (let x = spacing / 2; x < W; x += spacing) {
+        const jx = (rand() - 0.5) * spacing * jitter;
+        const jy = (rand() - 0.5) * spacing * jitter;
+        const el = document.createElementNS(NS, 'circle');
+        el.setAttribute('r', baseR);
+        dotsLayer.appendChild(el);
+        dots.push({ x: x + jx, y: y + jy, el });
+      }
+    }
+  }
+
+  // ── per-frame classification — sample the boundary path's CURRENT live
+  // geometry (post-morph) via isPointInFill, correct for any interpolated
+  // in-between shape. A dot straddling the edge enlarges; fully outside
+  // hides; fully inside stays small. ──
+  const svgPoint = svg.createSVGPoint();
+  function classify() {
+    const baseR = +ctrl('rg-radius').value;
+    const band = +ctrl('rg-band').value;
+    const edgeScale = +ctrl('rg-scale').value;
+    const samples = +ctrl('rg-samples').value;
+    const dotColor = ctrl('hex-dot').value;
+    let visible = 0, edgeCount = 0;
+    for (const d of dots) {
+      svgPoint.x = d.x; svgPoint.y = d.y;
+      const centreIn = boundary.isPointInFill(svgPoint);
+      let straddles = false;
+      for (let i = 0; i < samples; i++) {
+        const a = (i / samples) * Math.PI * 2;
+        svgPoint.x = d.x + Math.cos(a) * band;
+        svgPoint.y = d.y + Math.sin(a) * band;
+        if (boundary.isPointInFill(svgPoint) !== centreIn) { straddles = true; break; }
+      }
+      if (!centreIn && !straddles) { d.el.style.display = 'none'; continue; }
+      d.el.style.display = '';
+      d.el.setAttribute('r', straddles ? baseR * edgeScale : baseR);
+      d.el.setAttribute('cx', d.x);
+      d.el.setAttribute('cy', d.y);
+      d.el.setAttribute('fill', dotColor);
+      visible++;
+      if (straddles) edgeCount++;
+    }
+    stat.textContent = visible + ' / ' + dots.length + ' dots visible · ' + edgeCount + ' on the fringe';
+  }
+
+  // classification is the expensive pass — throttled to ~20fps independent
+  // of the boundary's own smooth 60fps GSAP tween.
+  let lastClassify = 0;
+  function tick(now) {
+    if (now - lastClassify > 50) { classify(); lastClassify = now; }
+    requestAnimationFrame(tick);
+  }
+
+  // ── morph timeline ──
+  let tl = null;
+  let playing = true;
+  function buildTimeline() {
+    if (tl) tl.kill();
+    const order = [shape1.value, shape2.value, shape3.value].filter(Boolean);
+    const dur = +ctrl('rg-duration').value;
+    boundary.setAttribute('d', SHAPES[order[0]].d());
+    tl = gsap.timeline({ repeat: -1 });
+    for (let i = 1; i <= order.length; i++) {
+      const key = order[i % order.length];
+      tl.to(boundary, { morphSVG: { shape: SHAPES[key].d(), type: 'rotational' }, duration: dur, ease: 'sine.inOut' });
+    }
+    if (!playing) tl.pause();
+  }
+
+  ctrl('btn-playpause').addEventListener('click', () => {
+    playing = !playing;
+    if (tl) playing ? tl.play() : tl.pause();
+    ctrl('btn-playpause').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    ctrl('ico-playpause').innerHTML = playing
+      ? '<path d="M5 3.5v9M11 3.5v9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'
+      : '<path d="M4.5 3v10l9-5-9-5Z" fill="currentColor"/>';
+    setStatus('', playing ? 'Cycling' : 'Paused');
+  });
+
+  [shape1, shape2, shape3, ctrl('rg-duration')].forEach(el => el.addEventListener('change', buildTimeline));
+
+  ctrl('rg-duration').addEventListener('input', e => { ctrl('v-duration').textContent = (+e.target.value).toFixed(1) + 's'; });
+  ['spacing', 'radius', 'jitter'].forEach(id => {
+    ctrl('rg-' + id).addEventListener('input', e => { ctrl('v-' + id).textContent = e.target.value; buildLattice(); });
+  });
+  ['band', 'scale', 'samples'].forEach(id => {
+    ctrl('rg-' + id).addEventListener('input', e => { ctrl('v-' + id).textContent = e.target.value; });
+  });
+
+  // ── colour — shared hex validation, this tool's own repaint side effect ──
+  function syncColor(which, hex) {
+    hex = Organica.normalizeHex(hex, ctrl('cp-' + which).value);
+    ctrl('cp-' + which).value = hex;
+    ctrl('hex-' + which).value = hex;
+    ctrl('sw-' + which).style.background = hex;
+    if (which === 'bg') bgRect.setAttribute('fill', hex);
+    if (which === 'mask') boundary.setAttribute('fill', hex);
+    // 'dot' is read live by classify() from ctrl('hex-dot').value — no
+    // separate repaint needed, next classification pass picks it up.
+  }
+  ['bg', 'mask', 'dot'].forEach(which => {
+    ctrl('cp-' + which).addEventListener('input', e => syncColor(which, e.target.value));
+    ctrl('hex-' + which).addEventListener('change', e => syncColor(which, e.target.value));
+    ctrl('sw-' + which).addEventListener('click', () => ctrl('cp-' + which).click());
+  });
+
+  // ── presets — storage + legacy migration are shared; this tool owns
+  // what a saved configuration actually contains ──
+  const PRESETS = Organica.presetStore('blob-boundary');
+  function readState() {
+    return {
+      shape1: shape1.value, shape2: shape2.value, shape3: shape3.value,
+      duration: ctrl('rg-duration').value,
+      spacing: ctrl('rg-spacing').value, radius: ctrl('rg-radius').value, jitter: ctrl('rg-jitter').value,
+      band: ctrl('rg-band').value, scale: ctrl('rg-scale').value, samples: ctrl('rg-samples').value,
+      bg: ctrl('hex-bg').value, mask: ctrl('hex-mask').value, dot: ctrl('hex-dot').value,
+    };
+  }
+  function applyState(s) {
+    shape1.value = s.shape1; shape2.value = s.shape2; shape3.value = s.shape3;
+    ['duration', 'spacing', 'radius', 'jitter', 'band', 'scale', 'samples'].forEach(k => {
+      const el = ctrl('rg-' + k);
+      el.value = s[k];
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    syncColor('bg', s.bg); syncColor('mask', s.mask); syncColor('dot', s.dot);
+    buildLattice();
+    buildTimeline();
+  }
+  function populatePresets(selectName) {
+    const sel = ctrl('sel-preset');
+    const all = PRESETS.read();
+    sel.innerHTML = '<option value="">Custom…</option>';
+    Object.keys(all).forEach(name => {
+      const o = document.createElement('option');
+      o.value = name; o.textContent = name;
+      sel.appendChild(o);
+    });
+    if (selectName) sel.value = selectName;
+  }
+  ctrl('btn-preset-save').addEventListener('click', () => {
+    const name = prompt('Preset name');
+    if (!name) return;
+    const all = PRESETS.read();
+    all[name] = readState();
+    PRESETS.write(all);
+    populatePresets(name);
+  });
+  ctrl('btn-preset-delete').addEventListener('click', () => {
+    const name = ctrl('sel-preset').value;
+    if (!name) return;
+    const all = PRESETS.read();
+    delete all[name];
+    PRESETS.write(all);
+    populatePresets();
+  });
+  ctrl('sel-preset').addEventListener('change', e => {
+    const name = e.target.value;
+    if (!name) return;
+    const all = PRESETS.read();
+    if (all[name]) applyState(all[name]);
+  });
+
+  // ── init ──
+  shape1.value = 'circle'; shape2.value = 'band'; shape3.value = 'blob';
+  syncColor('bg', ctrl('hex-bg').value);
+  syncColor('mask', ctrl('hex-mask').value);
+  syncColor('dot', ctrl('hex-dot').value);
+  populatePresets();
+  buildLattice();
+  buildTimeline();
+  setStatus('', 'Cycling');
+  requestAnimationFrame(tick);
+
+  Organica.autoLabelPanel(document);
+})();
+</script>
+</body>
+</html>

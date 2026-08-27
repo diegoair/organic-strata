@@ -69,6 +69,10 @@
       "destination": "/colornet/$1"
     },
     {
+      "source": "/blob-boundary/(.*)",
+      "destination": "/blob-boundary/$1"
+    },
+    {
       "source": "/shared/(.*)",
       "destination": "/shared/$1"
     },

@@ -63,16 +63,22 @@ organic-strata/
 
 ## Architecture
 
+<!-- This list has drifted well behind CLAUDE.md's own Tools table (still
+     listing the removed /strata/ and /backend, missing most tools shipped
+     since — Komorebi onward) — a known, larger gap outside this note's own
+     scope. New entries are still added here per docs/UI-SHELL.md §6/§6b so
+     it doesn't fall further behind; a full resync is a separate task. -->
 ```
 Hub (index.html)
-├── /genesis/     → Genesis Creator + Indicators (static, Vercel)
-├── /strata/      → Strata tracing app (static, Vercel)
-├── /spore/       → Spore stippling app (static, Vercel)
-├── /pollen/      → Pollen advanced stippling app (static, Vercel)
-├── /livingpath/  → Living Path font/path tool (static, Vercel)
-├── /halide/      → Halide dither-portrait tool (static, Vercel)
-├── /komorebi/    → Komorebi volumetric-light tool (static, Vercel)
-└── /backend      → Python server (local only, not deployed)
+├── /genesis/         → Genesis (unified Library/Compose/Draw/Import/Generate tool, static, Vercel)
+├── /spore/           → Spore stippling app (static, Vercel)
+├── /pollen/          → Pollen advanced stippling app (static, Vercel)
+├── /livingpath/      → Living Path font/path tool (static, Vercel)
+├── /halide/          → Halide dither-portrait tool (static, Vercel)
+├── /komorebi/        → Komorebi volumetric-light tool (static, Vercel)
+├── /colornet/        → Colornet channel-separation + recolour tool (static, Vercel)
+├── /blob-boundary/   → Blob Boundary mask-morph + edge-scatter tool (static, Vercel)
+└── /backend          → Python server (local only, not deployed) — historical, no longer present (removed with Strata)
 ```
 
 **Deployment:** Vercel — auto-deploys on push to `main`  

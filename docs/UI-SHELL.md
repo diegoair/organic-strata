@@ -409,6 +409,77 @@ blank or preview-sized file. Komorebi hit this; the fix is in its export path.
 
 ---
 
+## 6b. Promoting an exploration to a production tool
+
+An `explorations/<name>/` prototype and a production tool are deliberately
+different shapes — the exploration convention (documented at the top of
+`explorations/flow-field/index.html` and every sibling) is a standalone
+file with **no** shared CSS, no `<header>`, bespoke local `:root` tokens,
+raw px everywhere, and zero `Organica.*` beyond whatever vendored library
+the prototype itself needed. That's correct for a prototype — cheap to
+throw away, no product commitments. Promoting one to a real tool means
+closing every one of those gaps, not just moving the file.
+
+This checklist exists because it was skipped, partially, twice: Membrane's
+own migration shipped without ever getting a CLAUDE.md Tools-table row or
+Repo Structure entry, and Vortex's migration (which copied Membrane's
+pattern) had to retroactively backfill that missing documentation *and*
+discovered its own accent hex collided with Strata/Membrane's only after
+shipping. Follow every line here in the same session as the migration —
+"do it later" is exactly how the first two gaps happened.
+
+- [ ] **Shell**: link the 4 shared CSS files in the load-bearing order
+  (`organica-tokens.css` → `organica-header.css` → `organica-floatbar.css`
+  → `organica-panel.css`), add a real `<header class="org-header
+  org-header--tool">` with the logo linking to `/`, migrate panel markup
+  onto the shared `.panel-section`/`.ctrl-row`/`.panel-select`/`.color-row`
+  classes instead of the exploration's own bespoke `.row`/`.sec-title`.
+- [ ] **Tokens**: replace the bespoke local `:root` block with the shared
+  token set; keep a local `:root` only for genuine tool-content colours
+  (what the tool draws — the two-exception rule already in `CLAUDE.md`'s
+  Critical Rules), never for spacing/type/UI chrome.
+- [ ] **Accent — check the collision BEFORE picking, not after.** Grep the
+  full registry in one shot:
+  `grep -rhoP "^\s*--tool:\s*#[0-9a-fA-F]{6}" */index.html` plus
+  `grep -oP "nav__link--\w+:hover \{ color: #[0-9a-fA-F]{6}" index.html`
+  — plot the hues, find a real open gap, and say so in a comment next to
+  the chosen hex (see `blob-boundary/index.html`'s own `--tool` comment
+  for the pattern). An exploration's own placeholder accent is not a
+  hint — it was picked with zero collision-checking and often does
+  collide (`#e94f37`, Blob Boundary's own original placeholder, collided
+  with both Strata's and Membrane's warm-red band).
+- [ ] **Hub nav**: add the real link in the correct thematic
+  `.nav__group` (not "Explorations") with its own accent hover rule, AND
+  **remove the link from the "Explorations" group** — a promoted tool
+  does not stay listed twice. (An earlier session note said to leave the
+  exploration link in place "for now"; the current repo state shows both
+  Membrane's and Vortex's were in fact removed, just never documented
+  as a deliberate step — this bullet makes that the documented rule.)
+- [ ] **`vercel.json`**: add the tool's own rewrite entry, matching every
+  other production tool. `explorations/` itself never needed one (Vercel's
+  default static serving covers it), which is exactly why this step is
+  easy to forget when promoting out of it — verified missing at least
+  once already (Camouflage shipped without one).
+- [ ] **`.gitignore`**: if the `explorations/<name>/` folder is being kept
+  on disk as a local-only reference (not deleted outright), add it to the
+  "Superseded exploration prototypes" block with a comment explaining why
+  — same pattern as the existing Membrane/Vortex/Blob Boundary lines. If
+  it's being deleted outright instead, just delete it; nothing to ignore.
+- [ ] **Docs**: add the line to `README.md`'s Architecture list, register
+  the accent in `docs/DESIGN-SYSTEM.md` §5's accent table AND its "Hub nav
+  categories" table.
+- [ ] **`CLAUDE.md`** — all three, in the same session, not deferred:
+  the Tools table row, the Repo Structure tree entry, and a dated session
+  note describing what changed structurally versus the original
+  exploration (which shared components it adopted, what accent it picked
+  and why, what if anything was deliberately NOT carried over).
+- [ ] **Verify**: fresh tab, 0 controls without an accessible name
+  (`Organica.autoLabelPanel` wired in), console clean, the tool renders
+  and behaves identically to the exploration it came from unless a
+  difference was a deliberate, disclosed decision.
+
+---
+
 ## 7. Known drift (not yet reconciled)
 
 Honest list of where the tools still disagree:

@@ -238,8 +238,7 @@ hub nav and as the tool's identity colour.
 
 | Tool | Accent | Reading |
 |---|---|---|
-| Creator | `#5fc9b4` | teal |
-| Genesis | `#c8f060` | acid green — organic vitality |
+| Genesis | `#c8f060` | acid green — organic vitality (Creator's own `#5fc9b4` teal retired Aug 27, 2026 — merged into Genesis, see CLAUDE.md) |
 | Spore | `#a0c8f0` | cool blue-grey |
 | Pollen | `#e8c84a` | pollen yellow |
 | Living Path | `#b48cf0` | vital violet |
@@ -255,6 +254,7 @@ hub nav and as the tool's identity colour.
 | TuneSutra | `#c93ed6` | vivid orchid / magenta |
 | Mycel | `#8a7355` | mushroom taupe |
 | Colornet | `#4a5fc7` | cornflower blue-violet |
+| Blob Boundary | `#8a8a28` | mustard gold |
 
 The palette spans green → yellow → orange → blue → violet → teal. When adding a
 tool, pick a hue that isn't already taken and note it here. (Strata's own row
@@ -268,13 +268,13 @@ ship date — each `.nav__group` carries a `group-label`:
 
 | Category | Tools |
 |---|---|
-| Seed / Form | Genesis, Creator |
+| Seed / Form | Genesis |
 | Coloring & palette | TuneSutra, Colornet |
 | Grid & composition | Loom, FVS |
 | Tracing & vectorization | Halide |
 | Generative patterns | Komorebi, Camo Turing, Warping |
 | Stippling & marks | Spore, Pollen |
-| Motion & growth | Soul, Living Path, Membrane, Vortex, Mycel |
+| Motion & growth | Soul, Living Path, Membrane, Vortex, Mycel, Blob Boundary |
 | Workflow & pipelines | Rhizome |
 | Explorations | (prototype pages, not full tools) |
 

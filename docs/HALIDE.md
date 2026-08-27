@@ -351,10 +351,10 @@ built yet.
 - **Files deliberately kept out of git:** `halide/test-photos/` — Diego's real
   test photo, used as the fixed reference for every feature verified after it
   was added (background removal, outline, background fill, Simplify shapes).
-  Same convention as `backend/fitCurves.py` / `backend/output/` /
-  `design_handoff_genesis_creator/` (see `docs/LIVINGPATH.md` §12) — documented
-  as excluded, not `.gitignore`d, so `git status` always shows it explicitly
-  and a stray `git add -A` doesn't silently sweep it in.
+  Same convention `backend/fitCurves.py` / `backend/output/` used before
+  `backend/` was removed with Strata (see `docs/LIVINGPATH.md` §12) —
+  documented as excluded, not `.gitignore`d, so `git status` always shows it
+  explicitly and a stray `git add -A` doesn't silently sweep it in.
 - **Browser-session state can go stale mid-investigation.** More than once
   during development, a sequence of separate automated script calls against
   the *same* long-lived tab produced inconsistent readings (global state that

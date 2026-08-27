@@ -252,8 +252,10 @@ Things that aren't obvious from the code but matter when working on this tool:
 - **Reaction-diffusion is the slow effect.** ~90 ms/glyph vs ~1–2 ms for the others; it's
   why the worker matters for full-charset export. It's confined to the glyph mask and
   seeded with random spots, so it fills the letter with cells (Feed ≈ 55 / Kill ≈ 62).
-- **Files deliberately kept out of git:** `backend/fitCurves.py`, `backend/output/`
-  (debug images), `design_handoff_genesis_creator/` (has a `.DS_Store`).
+- **Files deliberately kept out of git (historical note):** `backend/fitCurves.py` and
+  `backend/output/` no longer exist (`backend/` was removed with Strata, Aug 26, 2026);
+  `design_handoff_genesis_creator/` was deleted Aug 27, 2026 as an obsolete local scratch
+  directory (never tracked in git, so nothing to remove from history).
 - **Open across the wider project (not Living Path):** the **Genesis Creator Bézier
   tangent-handle drag/edit** is still to verify/fix — flagged since the start and never
   closed. See the Genesis backlog in `docs/ROADMAP.md`.

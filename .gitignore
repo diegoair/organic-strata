@@ -33,9 +33,11 @@ camouflage/previews/
 # Local backend scratch output
 backend/output/
 
-# Superseded exploration prototypes — kept locally for reference (Vortex
-# and Membrane were both migrated to real product tools, /vortex/ and
-# /membrane/), untracked from the repo to free up space. flow-field is
-# still a live linked exploration (hub nav), so it stays tracked.
+# Superseded exploration prototypes — kept locally for reference (Vortex,
+# Membrane, and Blob Boundary were all migrated to real product tools,
+# /vortex/, /membrane/, /blob-boundary/), untracked from the repo to free
+# up space. flow-field is still a live linked exploration (hub nav), so
+# it stays tracked.
 explorations/membrane/
 explorations/vortex/
+explorations/blob-boundary/
