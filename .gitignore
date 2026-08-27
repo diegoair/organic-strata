@@ -22,6 +22,7 @@ dist/
 komorebi/reference-photos/
 halide/test-photos/
 strata/test-photos/
+colornet/test-photos/
 
 # Generated preset previews — one PNG per built-in preset, regenerated on
 # demand from the tool itself. Kept local rather than shipped: they are

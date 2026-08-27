@@ -194,8 +194,8 @@ Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 | Variant | Context slot | Used by |
 |---|---|---|
 | `--tool` | hidden (or engine tabs) | Spore, Pollen, Halide, Komorebi, Living Path, template |
-| `--catalog` | title + count | Genesis, Genesis Library, Indicators |
-| `--editor` | mode tabs / breadcrumb | Creator |
+| `--catalog` | title + count | Indicators |
+| `--editor` | mode tabs / breadcrumb | Genesis (unified Library/Compose/Draw/Import/Generate tool, Aug 27, 2026 — see below) |
 
 **All 11 pages migrated** (6 tool / 3 catalog / 2 editor, historical count —
 Strata was among them and was later removed from the product). The stale
@@ -329,9 +329,40 @@ Presets + Effect stack on the right). Both were consolidated: the stage gets
 the full width, and the panel reads top-to-bottom as *what you load → what you
 apply → what you inspect*.
 
-Genesis Library keeps a left column, deliberately — it lists **sets**, which is
+Genesis keeps a left column, deliberately — it lists **sets**, which is
 navigation, not controls. The rule is about where controls live, not about
 banning left columns.
+
+---
+
+### Genesis: three pages merged into one (Aug 27, 2026)
+
+`genesis/index.html`, `genesis/creator.html`, and `genesis/library.html` used
+to be three separate, mutually-unlinked pages sharing one localStorage store
+(`organica.library.forms`, read/written by creator+library only — the old
+index.html was a read-only consumer of the static 55-form catalog and never
+touched the store at all). They're now one tool, living at `genesis/index.html`
+— `creator.html` and `library.html` are thin `location.replace('/genesis/')`
+redirects, kept so old bookmarks/links still resolve.
+
+The merged tool is `--editor` variant with 5 mode tabs: **Library** (the old
+library.html's own 3-panel shell — sets left, tile grid centre, Figma-style
+inspector right — unchanged behaviour), **Compose** (the old plain
+index.html's own drag-select-then-fill gesture, ported to operate on the
+SAME set/gridConfig/formLayout model Library already uses, not a second
+data model), **Draw / Import / Generate** (ported verbatim from the old
+creator.html, same logic, same Appearance/Seed panels).
+
+**Deliberately not carried over**: the old plain index.html's own decorative
+layer — Palette swatches, Background pattern (dots/waves/hatch/solid),
+per-shape Fill colour override, Randomize/Clear-canvas. None of that had an
+equivalent in the library data model (a `set`'s forms/gridConfig has no
+palette/background concept), and the approved plan only scoped porting the
+selection+fill *gesture*, not that decorative control surface. If any of it
+is still wanted, it needs its own design pass — it doesn't fit today's
+`set` shape as-is. `genesis/genesis-creator.js` (the old composer's own
+logic file) is kept on disk, loaded by nothing, as the record of exactly
+what wasn't ported.
 
 ---
 
@@ -382,11 +413,12 @@ blank or preview-sized file. Komorebi hit this; the fix is in its export path.
 
 Honest list of where the tools still disagree:
 
-- **Panel width** — 240px (Halide) vs 244px (Komorebi) vs 260px (Genesis
-  Library/Creator). Should be one token.
-- **Genesis pages** use a different shell entirely (left sets panel + centre
-  grid + right design panel). They predate this template; converging them is a
-  bigger job than a rename.
+- **Panel width** — 240px (Halide) vs 244px (Komorebi) vs 260px (Genesis).
+  Should be one token.
+- **Genesis** uses a different shell entirely (left sets panel + centre grid +
+  right design panel). It predates this template; converging it is a bigger
+  job than a rename. (No longer 3 separate pages using 2 different shells,
+  as of the Aug 27, 2026 merge — just this one still-divergent shell.)
 - **Living Path** is fully retrofitted onto the shared panel component via
   its own documented aliases (`.sec`/`.row`/`.group-label`).
 - **`syncColor()`** still lives per-tool because each has different side

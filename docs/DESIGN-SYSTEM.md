@@ -254,6 +254,7 @@ hub nav and as the tool's identity colour.
 | FVS | `#3fa876` | emerald |
 | TuneSutra | `#c93ed6` | vivid orchid / magenta |
 | Mycel | `#8a7355` | mushroom taupe |
+| Colornet | `#4a5fc7` | cornflower blue-violet |
 
 The palette spans green → yellow → orange → blue → violet → teal. When adding a
 tool, pick a hue that isn't already taken and note it here. (Strata's own row
@@ -268,12 +269,13 @@ ship date — each `.nav__group` carries a `group-label`:
 | Category | Tools |
 |---|---|
 | Seed / Form | Genesis, Creator |
-| Coloring & palette | TuneSutra |
+| Coloring & palette | TuneSutra, Colornet |
 | Grid & composition | Loom, FVS |
 | Tracing & vectorization | Halide |
 | Generative patterns | Komorebi, Camo Turing, Warping |
 | Stippling & marks | Spore, Pollen |
 | Motion & growth | Soul, Living Path, Membrane, Vortex, Mycel |
+| Workflow & pipelines | Rhizome |
 | Explorations | (prototype pages, not full tools) |
 
 When adding a tool, pick the category it actually belongs to functionally —

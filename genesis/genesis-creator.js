@@ -1,3 +1,17 @@
+/* ─────────────────────────────────────────────────────────────────
+   RETIRED — Aug 27, 2026. Loaded by no page.
+
+   This was the standalone Genesis composer that used to drive the old
+   genesis/index.html. Its select-then-fill gesture (drag a rectangle of
+   cells, click a form, fill them) and its "fix form 35" phyllotaxis
+   snippet were ported into the merged tool at genesis/index.html, which
+   applies them to the real set/gridConfig/formLayout library model.
+
+   Kept on disk, deliberately unreferenced, as the record of the parts
+   that were NOT ported — the palettes, background patterns, per-shape
+   colours and Randomize, all of which belonged to this file's own
+   parallel shapes[] model and have no home in the library model.
+   ───────────────────────────────────────────────────────────────── */
 /* Genesis Creator — select-then-fill organic composer */
 (function(){
   'use strict';

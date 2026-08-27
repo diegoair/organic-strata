@@ -79,6 +79,35 @@
     return '#' + c(r) + c(g) + c(b);
   };
 
+  // CMYK ↔ RGB. Written first inside tunesutra/index.html, where its own
+  // comment flagged them as "PROMOTION CANDIDATE once a second tool needs
+  // them" — Colornet (a print-separation tool) is that second tool, so they
+  // live here now. Naive/uncalibrated conversion (no ICC profile, no ink
+  // model): correct for a UI readout and for round-tripping a screen colour,
+  // NOT a substitute for a real press profile. TuneSutra's own two functions
+  // now delegate to these rather than keeping a second copy.
+  //   rgbToCmyk: r,g,b in 0–255 → {c,m,y,k} in 0–100 (integers)
+  //   cmykToRgb: c,m,y,k in 0–100 → {r,g,b} in 0–255 (integers)
+  Organica.rgbToCmyk = function (r, g, b) {
+    const round = Math.round;
+    r /= 255; g /= 255; b /= 255;
+    const k = 1 - Math.max(r, g, b);
+    const c = k === 1 ? 0 : (1 - r - k) / (1 - k);
+    const m = k === 1 ? 0 : (1 - g - k) / (1 - k);
+    const y = k === 1 ? 0 : (1 - b - k) / (1 - k);
+    return { c: round(c * 100), m: round(m * 100), y: round(y * 100), k: round(k * 100) };
+  };
+
+  Organica.cmykToRgb = function (c, m, y, k) {
+    const round = Math.round;
+    c /= 100; m /= 100; y /= 100; k /= 100;
+    return {
+      r: round(255 * (1 - c) * (1 - k)),
+      g: round(255 * (1 - m) * (1 - k)),
+      b: round(255 * (1 - y) * (1 - k)),
+    };
+  };
+
   // Standard mulberry32 — a small, fast, seeded PRNG. Found independently
   // reimplemented byte-for-byte identically (down to the exact magic
   // constants) in ~9 places (FVS, Living Path, Mycel, Camo Turing, Vortex,

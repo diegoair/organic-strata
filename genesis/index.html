@@ -1,282 +1,2330 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>Genesis Creator — Organica</title>
-<link rel="stylesheet" href="organic-library.css">
-<link rel="stylesheet" href="/shared/organica-tokens.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Genesis — Organica</title>
+  <!-- animations only: this is an app shell, not a catalog page.
+       The chrome half (body padding, header, .grid) would fight the grid layout.
+       organic-animations.css REQUIRES --ink and --bg-cell to be defined by the
+       consumer (forms 29/36 punch holes with --bg-cell) — see :root below and
+       docs/SHARED-LIBRARY.md. -->
+  <link rel="stylesheet" href="organic-animations.css">
+  <link rel="stylesheet" href="/shared/organica-tokens.css">
   <link rel="stylesheet" href="/shared/organica-header.css">
+  <link rel="stylesheet" href="/shared/organica-floatbar.css">
+  <link rel="stylesheet" href="/shared/organica-panel.css">
   <style>
-  :root{
-    --paper:#ffffff; --mid:#6b6860; --panel:#e8e8e4; --tool:#c8f060;
-    --border-strong:#958462;
-    --bg:#ffffff;
-    --ink:#15140f;
-    --ink-soft:#15140f99;
-    --cell:#eaeaea;
-    --line:#15140f1a;
-    --canvas:#ffffff;
-    --canvas-ink:#15140f;
-    --sel:#15140f;
-  }
-  html,body{margin:0;background:var(--bg);color:var(--ink);
-    font-family: var(--font);
-    -webkit-font-smoothing:antialiased}
-  body{padding:32px 48px 64px;min-height:100vh}
+    /* ══════════════════════════════════════════════════════════════
+       Genesis — the unified Genesis tool.
+       Merged (Aug 27, 2026) from three pages that used to be separate:
+         genesis/index.html   (composer: drag-select cells, click a form)
+         genesis/creator.html (authoring: Draw / Import / Generate)
+         genesis/library.html (the data hub: sets, tiles, inspector)
+       Library's 3-panel shell won — it already had the right data
+       architecture — and the other two became modes inside it.
+       creator.html / library.html are now thin redirects to /genesis/.
 
-  /* Organica banner */
+       The CSS below is Creator's block (already reconciled against
+       shared/organica-panel.css, including its two documented traps:
+       .panel-unit's min-width and the local-rules-win cascade order)
+       plus Library's own unique components and Compose's grid.
+       ══════════════════════════════════════════════════════════════ */
 
-  header{max-width:1480px;margin:0 auto 28px;
-    display:flex;align-items:baseline;justify-content:space-between;gap:24px}
-  header h1{font-family: var(--font);font-weight:400;font-size:34px;letter-spacing:-.01em;margin:0}
-  header .breadcrumb{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.55;margin-top:6px}
-  header .breadcrumb a{color:inherit;text-decoration:none;border-bottom:1px solid currentColor;padding-bottom:1px}
-  header .breadcrumb a:hover{opacity:.7}
-  header .meta{font-size:11px;opacity:.5;letter-spacing:.04em;text-transform:uppercase}
+    :root {
+      --bg: #ffffff;
+      --surface: #eceae4;
+      --surface-raised: #e3dfd6;
+      --border: #d0c8b8;
+      --border-strong: #a89e88;
+      --ink: #0a0a0a;
+      --bg-cell: #eceae4;   /* required by organic-animations.css — forms 29/36 punch holes with it */
+      --ink-muted: #696256; /* the unified AA-passing value (see the July 26 contrast pass) */
+      --ink-faint: #a89e8c;
+      --accent: #0a0a0a;
 
-  .layout{max-width:1480px;margin:0 auto;display:grid;
-    grid-template-columns:240px 1fr 300px;gap:32px;align-items:start}
+      /* Palette contract for shared/organica-header.css — this page names
+         the same roles differently (--bg/--surface/--ink-muted), so alias
+         rather than rename. Without --paper the primary button painted its
+         label in nothing and rendered as a solid black box. */
+      --paper: var(--bg);
+      --mid: var(--ink-muted);
+      --panel: var(--surface);
+      /* Genesis's own identity colour. shared/organica-tokens.json records
+         #c8f060, but that lime is unreadable as a 2px focus ring on white —
+         this is the same darkened green the hub itself already uses for the
+         Genesis nav accent (index.html's --accent). */
+      --tool: #6a9c2e;
 
-  /* ===== panels ===== */
-  .panel h3{margin:0 0 12px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
-    opacity:.55;font-weight:600}
-  .panel section{margin-bottom:22px}
+      --panel-width-left: 200px;
+      --panel-width-right: 260px;
+      --toolbar-height: 40px;
+      --tile-min-size: 100px;
+      --fs-xs: 10px; --fs-sm: 11px; --fs-md: 12px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: var(--fs-md); }
 
-  /* ===== tools panel (LEFT) ===== */
-  .tools-panel{position:sticky;top:24px}
+    .app {
+      display: grid;
+      grid-template-columns: var(--panel-width-left) 1fr var(--panel-width-right);
+      grid-template-rows: calc(100vh - var(--header-h));
+      height: calc(100vh - var(--header-h));
+      overflow: hidden;
+    }
 
-  /* palettes */
-  .palettes{display:flex;flex-direction:column;gap:6px}
-  .pal{display:flex;border:1px solid transparent;border-radius:5px;cursor:pointer;
-    overflow:hidden;height:32px;background:transparent;padding:0}
-  .pal .sw{flex:1}
-  .pal:hover{border-color:var(--line)}
-  .pal.active{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink) inset}
+    /* ─── Left: Sets panel ──────────────────────────────────── */
+    .sets-panel { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+    .sets-panel__header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .sets-panel__title { font-size: var(--fs-sm); font-weight: 500; color: var(--ink-muted); }
+    .sets-list { list-style: none; overflow-y: auto; flex: 1; padding: 8px 0; }
+    .set-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; cursor: pointer; transition: background 0.1s; font-size: var(--fs-sm); }
+    .set-item:hover { background: var(--surface-raised); }
+    .set-item.active { background: var(--surface-raised); border-left: 2px solid var(--accent); padding-left: 14px; }
+    .set-item__name { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .set-item__count { font-size: var(--fs-xs); color: var(--ink-muted); background: var(--border); padding: 1px 6px; border-radius: 10px; flex-shrink: 0; margin-left: 8px; }
+    .set-item--new-input { padding: 6px 12px; }
+    .set-name-input { width: 100%; background: var(--bg); border: 1px solid var(--ink); color: var(--ink); font-size: var(--fs-sm); font-family: var(--font); padding: 4px 8px; outline: none; }
+    .sets-panel__foot { border-top: 1px solid var(--border); padding: 10px 16px; }
 
-  /* background options */
-  .bg-row{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
-  .bg-opt{aspect-ratio:1/1;border-radius:5px;cursor:pointer;border:1px solid var(--line);
-    position:relative;overflow:hidden;background:#fff}
-  .bg-opt:hover{border-color:var(--ink)}
-  .bg-opt.active{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink) inset}
-  .bg-opt .lbl{position:absolute;left:3px;bottom:2px;font-size:7px;opacity:.45;
-    letter-spacing:.04em;text-transform:lowercase}
-  .bg-opt.empty{background:repeating-linear-gradient(45deg,transparent 0 3px,#15140f10 3px 4px),#fff}
+    /* ─── Main: canvas area ─────────────────────────────────── */
+    .canvas-area { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); min-width: 0; }
+    .set-bar { height: var(--toolbar-height); display: flex; align-items: baseline; gap: 10px; padding: 0 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .set-bar__name { font-size: var(--fs-md); font-weight: 500; color: var(--ink); align-self: center; }
+    .set-bar__count { font-size: var(--fs-xs); color: var(--ink-muted); align-self: center; }
+    .set-bar__spacer { flex: 1; }
+    .set-bar__hint { font-size: var(--fs-xs); color: var(--ink-muted); align-self: center; }
 
-  .bg-color-row{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:8px}
-  .bg-color{aspect-ratio:1/1;border-radius:50%;cursor:pointer;
-    box-shadow:0 0 0 1px var(--line) inset}
-  .bg-color:hover{transform:scale(1.08)}
-  .bg-color.active{box-shadow:0 0 0 2px var(--ink) inset}
-  .bg-color-row.hidden{display:none}
+    /* ─── Form grid (Library mode) ──────────────────────────── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(var(--grid-cols, 4), 1fr);
+      column-gap: var(--col-gap, 16px);
+      row-gap: var(--row-gap, 16px);
+      padding: var(--grid-padding, 24px);
+      overflow-y: auto; align-content: start; flex: 1;
+      grid-auto-rows: minmax(var(--tile-min-size), auto);
+    }
+    .form-tile {
+      grid-column: span var(--col-span, 1);
+      grid-row: span var(--row-span, 1);
+      background: var(--surface); border: 1px solid var(--border);
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      display: flex; flex-direction: column;
+      min-height: var(--tile-min-size); overflow: hidden; user-select: none;
+    }
+    .form-tile:hover { border-color: var(--border-strong); background: var(--surface-raised); }
+    .form-tile.selected { border-color: var(--accent); background: var(--surface-raised); }
+    .form-tile__preview { flex: 1; display: flex; align-items: center; justify-content: center; padding: 16px; min-height: 0; }
+    .form-tile__svg { width: 100%; height: 100%; max-width: 120px; max-height: 120px; display: flex; align-items: center; justify-content: center; color: var(--ink); }
+    .form-tile__svg svg { width: 100%; height: 100%; }
+    /* Static: suppress the animations organic-animations.css gives these forms */
+    .form-tile__svg * { animation: none !important; }
+    .form-tile__meta { padding: 6px 10px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .form-tile__name { font-size: var(--fs-xs); color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .form-tile__type { font-size: var(--fs-xs); color: var(--ink-faint); flex-shrink: 0; }
+    .grid-empty { color: var(--ink-muted); font-size: var(--fs-sm); padding: 40px; grid-column: 1 / -1; text-align: center; }
 
-  /* slider */
-  .slider-row{display:flex;align-items:center;gap:10px}
-  .slider-row input{flex:1;accent-color:var(--accent-warm)}
-  .slider-row .val{font-size:11px;opacity:.7;min-width:36px;text-align:right}
+    /* ─── Compose mode grid ─────────────────────────────────── */
+    /* Same CSS custom properties as .form-grid (one set's gridConfig drives
+       both), but every item is placed EXPLICITLY from the flow simulation in
+       JS rather than left to CSS auto-flow, so the lattice the drag-select
+       hit-tests against and the tiles you see can never disagree. */
+    #compose-grid { position: relative; }
+    .gcell { cursor: crosshair; background: transparent; transition: background .1s; position: relative; z-index: 1; outline: 1px dashed var(--border); outline-offset: -1px; min-height: var(--tile-min-size); }
+    .gcell:hover:not(.in-sel) { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+    .gcell.in-sel { background: color-mix(in srgb, var(--ink) 14%, transparent); }
+    .ctile { position: relative; pointer-events: none; z-index: 2; display: flex; align-items: center; justify-content: center; padding: 10px; color: var(--ink); }
+    .ctile svg { width: 100%; height: 100%; display: block; }
+    .ctile * { animation: none !important; }
+    .sel-overlay { pointer-events: none; outline: 2px solid var(--ink); outline-offset: -2px; z-index: 5; }
+    .compose-locked { color: var(--ink-muted); font-size: var(--fs-sm); padding: 40px; text-align: center; }
 
-  /* fill color swatches */
-  .brush-colors{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
-  .bc{aspect-ratio:1/1;border-radius:50%;cursor:pointer;border:1px solid transparent;
-    box-shadow:0 0 0 1px var(--line) inset}
-  .bc:hover{transform:scale(1.08)}
-  .bc.active{border-color:var(--ink);box-shadow:0 0 0 1.5px var(--ink) inset}
-  .bc.auto{background:repeating-conic-gradient(from 0deg,var(--ink) 0% 25%,transparent 25% 50%) 50% 50%/8px 8px,var(--cell);
-    box-shadow:0 0 0 1px var(--line) inset}
+    /* repeat/span popover (Compose) — ported from the old composer's own
+       non-square fork ("repeat or crop"), re-aimed at the Library model. */
+    .popover { position: absolute; z-index: 50; background: var(--bg); border: 1px solid var(--ink); box-shadow: 0 8px 24px -8px rgba(10,10,10,.4); padding: 8px; display: flex; gap: 6px; align-items: center; }
+    .popover .pophead { padding: 0 6px; font-size: var(--fs-xs); color: var(--ink-muted); }
+    .popover button { font: inherit; font-size: var(--fs-xs); border: 1px solid var(--ink); background: var(--bg); color: var(--ink); padding: 6px 10px; cursor: pointer; }
+    .popover button:hover { background: var(--ink); color: var(--bg); }
+    .popover .x { border: none; background: transparent; color: var(--ink-muted); font-size: 14px; padding: 0 6px; }
+    .popover .x:hover { background: transparent; color: var(--ink); }
 
-  /* toggle row */
-  .toggle{display:flex;align-items:center;gap:10px;font-size:11px;
-    letter-spacing:.04em;cursor:pointer}
-  .toggle input{accent-color:var(--ink)}
+    /* ─── Compose seeds picker (right panel) ────────────────── */
+    .forms-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .form-thumb { aspect-ratio: 1/1; background: var(--surface); cursor: pointer; position: relative; border: 1px solid transparent; transition: border-color .15s; color: var(--ink); }
+    .form-thumb svg { width: 100%; height: 100%; display: block; pointer-events: none; }
+    .form-thumb * { animation: none !important; }
+    .form-thumb .n { position: absolute; left: 3px; top: 2px; font-size: var(--fs-micro, 9px); color: var(--ink-faint); }
+    .form-thumb:hover { border-color: var(--ink); }
+    .form-thumb.disabled { opacity: .45; cursor: not-allowed; }
+    .form-thumb.disabled:hover { border-color: transparent; }
+    .erase-card { aspect-ratio: 1/1; background: var(--surface); cursor: pointer; border: 1px dashed var(--ink); transition: background .15s; display: flex; align-items: center; justify-content: center; font-size: var(--fs-xs); color: var(--ink); }
+    .erase-card:hover { background: var(--ink); color: var(--bg); }
+    .erase-card.disabled { opacity: .4; cursor: not-allowed; border-style: dotted; }
+    .erase-card.disabled:hover { background: var(--surface); color: var(--ink); }
 
-  /* actions */
-  .actions{display:flex;flex-direction:column;gap:8px;margin-top:8px}
-  .btn{font:inherit;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
-    padding:11px 14px;border-radius:5px;cursor:pointer;border:1px solid var(--ink);
-    background:var(--ink);color:#fff;font-weight:600}
-  .btn:hover{opacity:.85}
-  .btn.ghost{background:transparent;color:var(--ink);border-color:var(--ink)}
-  .btn.ghost:hover{background:var(--ink);color:#fff}
-  .btn.tiny{font-size:9px;padding:7px 10px;font-weight:400;letter-spacing:.06em}
+    /* ─── Artboard (Draw / Import / Generate) ───────────────── */
+    .stage { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .artwrap { position: relative; }
+    #art { display: block; width: 460px; height: 460px; background: var(--surface); border: 1px solid var(--border); cursor: crosshair; }
+    #art.notdraw { cursor: default; }
+    /* Paper.js's own input surface for Draw mode — sits exactly over #art
+       (same 460x460 box) so its project coordinates share the artboard's
+       0-200 space. opacity, not just pointer-events: none — the canvas keeps
+       rendering its last-drawn path + selection overlay regardless of
+       pointer-events, so leaving Draw mode left that overlay visibly stacked
+       on top of Generate/Import's own content. */
+    #draw-canvas { position: absolute; top: 0; left: 0; width: 460px; height: 460px; border: 1px solid transparent; pointer-events: none; opacity: 0; cursor: crosshair; }
+    #draw-canvas.active { pointer-events: auto; opacity: 1; }
+    .art-hint { position: absolute; bottom: -22px; left: 0; right: 0; text-align: center; font-size: var(--fs-xs); color: var(--ink-faint); }
+    .grid-line { stroke: var(--border); stroke-width: 0.5; }
+    #seed-layer { color: var(--ink); }
 
-  .hint{font-size:10px;opacity:.5;line-height:1.6;margin-top:4px}
+    /* ─── Right panel ───────────────────────────────────────── */
+    .design-panel { background: var(--paper); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+    .panel-section { padding: 12px 16px; }
+    .panel-section__title { font-size: var(--fs-sm); font-weight: 500; color: var(--ink-muted); margin-bottom: 10px; display: block; }
+    .panel-row { display: flex; align-items: center; justify-content: space-between; min-height: 28px; margin-bottom: 4px; gap: 8px; }
+    .panel-row--center { justify-content: center; }
+    .panel-label { font-size: var(--fs-sm); color: var(--ink-muted); flex-shrink: 0; width: 78px; }
+    /* min-width:0 on both this and .panel-range below: a flex item's default
+       min-width:auto uses its CONTENT's natural size as a shrink floor, and a
+       bare <input type=range> has a real browser intrinsic minimum (~129px),
+       which is what made these rows overflow the panel. */
+    .panel-input-group { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; justify-content: flex-end; }
+    .panel-input { background: var(--bg); border: 1px solid var(--border); color: var(--ink); font-size: var(--fs-sm); font-family: var(--font); padding: 4px 8px; width: 64px; text-align: right; outline: none; -moz-appearance: textfield; }
+    .panel-input::-webkit-inner-spin-button, .panel-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .panel-input:focus { border-color: var(--ink); }
+    .panel-input--full { width: 100%; text-align: left; }
+    .panel-input:disabled { opacity: 0.45; }
+    /* organica-panel.css's own .panel-unit sets min-width:34px — wider than
+       this file's per-element inline widths (14-30px), and min-width always
+       wins over a smaller width, which silently clipped several rows'
+       value text off-screen. Reset it here. */
+    .panel-unit { font-size: var(--fs-xs); color: var(--ink-muted); width: 14px; min-width: 0; cursor: text; border-radius: var(--radius-sm); }
+    .panel-unit:hover { color: var(--ink); }
+    .panel-unit.editing { background: var(--bg); color: var(--ink); outline: 1px solid var(--border-strong); outline-offset: -1px; }
+    .panel-divider { height: 1px; background: var(--border); margin: var(--space-1) 0; }
+    .panel-range { flex: 1; min-width: 0; }
+    .panel-hint { font-size: var(--fs-xs); color: var(--ink-muted); line-height: 1.5; }
+    input[type=range] { -webkit-appearance: none; appearance: none; height: 11px; background: transparent; outline: none; min-width: 0; cursor: pointer; }
+    input[type=range]::-webkit-slider-runnable-track {
+      height: 9px; border-radius: var(--radius-md);
+      background: linear-gradient(to right,
+        var(--accent-warm) 0%, var(--accent-warm) var(--fill, 0%),
+        var(--track-bg) var(--fill, 0%), var(--track-bg) 100%);
+    }
+    input[type=range]::-moz-range-track { height: 9px; border-radius: var(--radius-md); background: var(--track-bg); }
+    input[type=range]::-moz-range-progress { height: 9px; border-radius: var(--radius-md) 0 0 var(--radius-md); background: var(--accent-warm); }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 11px; height: 11px; margin-top: -1px;
+      border-radius: 50%; background: #fff; border: 0; cursor: pointer;
+      box-shadow: 0 1px 2px rgba(0,0,0,.3), 0 0 0 1px rgba(0,0,0,.08);
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 11px; height: 11px; border-radius: 50%; background: #fff; border: 0; cursor: pointer;
+      box-shadow: 0 1px 2px rgba(0,0,0,.3), 0 0 0 1px rgba(0,0,0,.08);
+    }
+    select.panel-select { background: var(--bg); border: 1px solid var(--border); color: var(--ink); font-size: var(--fs-sm); font-family: var(--font); padding: 4px 6px; outline: none; accent-color: var(--ink); flex: 1; }
+    textarea.paste { width: 100%; height: 90px; resize: vertical; background: var(--bg); border: 1px solid var(--border); color: var(--ink); font-family: var(--font); font-size: var(--fs-xs); padding: 6px; outline: none; }
+    textarea.paste:focus { border-color: var(--ink); }
 
-  /* ===== canvas (CENTER) ===== */
-  .canvas-panel{display:flex;flex-direction:column;align-items:center;gap:14px}
-  .status{font-size:10px;letter-spacing:.1em;text-transform:uppercase;opacity:.6;
-    min-height:14px;text-align:center}
-  .status strong{color:var(--ink);opacity:.95;font-weight:600}
-  .composer-frame{background:var(--canvas);padding:24px;border-radius:8px;
-    box-shadow:0 1px 0 var(--line), 0 24px 60px -24px #15140f22;
-    width:100%;max-width:760px;aspect-ratio:1/1;position:relative}
-  .composer{width:100%;height:100%;display:grid;gap:0;position:relative;
-    background:var(--canvas);background-size:cover;background-repeat:repeat;
-    user-select:none}
-  .composer.show-grid{outline:1px solid var(--line);outline-offset:0}
-  .composer.show-grid .gcell{outline:1px dashed var(--line);outline-offset:-1px}
-  .gcell{cursor:crosshair;background:transparent;transition:background .1s;
-    position:relative;z-index:1}
-  .gcell:hover:not(.in-sel){background:color-mix(in srgb, var(--ink) 4%, transparent)}
-  .gcell.in-sel{background:color-mix(in srgb, var(--sel) 14%, transparent)}
+    .seg { display: flex; gap: 0; }
+    .seg-btn { flex: 1; font-size: var(--fs-xs); padding: 5px 0; background: none; border: 1px solid var(--border); color: var(--ink-muted); cursor: pointer; font-family: var(--font); margin-left: -1px; }
+    .seg-btn:first-child { margin-left: 0; }
+    .seg-btn:hover { color: var(--ink); }
+    .seg-btn.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
-  .shape{position:relative;pointer-events:none;z-index:2}
-  .shape svg{width:100%;height:100%;display:block}
+    .check-row { display: flex; align-items: center; gap: 7px; min-height: 26px; cursor: pointer; }
+    .check-row input { accent-color: var(--ink); }
+    .check-row span { font-size: var(--fs-sm); color: var(--ink-muted); }
 
-  .sel-overlay{pointer-events:none;outline:2px solid var(--sel);outline-offset:-2px;
-    z-index:5;border-radius:1px}
+    .type-pills { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+    .type-pill { font-size: var(--fs-xs); padding: 2px 7px; border: 1px solid var(--border); background: transparent; color: var(--ink-muted); cursor: pointer; font-family: var(--font); }
+    .type-pill:hover { border-color: var(--border-strong); color: var(--ink); }
+    .type-pill.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
-  .canvas-meta{display:flex;gap:24px;font-size:10px;letter-spacing:.08em;
-    text-transform:uppercase;opacity:.55}
-  .canvas-meta strong{font-weight:600;opacity:.9;color:var(--ink)}
+    .btn-primary { width: 100%; font-size: var(--fs-sm); padding: 9px; background: var(--ink); color: var(--bg); border: 1px solid var(--ink); cursor: pointer; font-family: var(--font); }
+    .btn-primary:hover { background: #000; }
+    .btn-primary:disabled { opacity: 0.4; cursor: default; }
+    .upload-btn { width: 100%; font-size: var(--fs-xs); border: 1px dashed var(--border); background: none; color: var(--ink-muted); padding: 8px; cursor: pointer; font-family: var(--font); margin-bottom: 8px; }
+    .upload-btn:hover { border-color: var(--border-strong); color: var(--ink); }
+    .btn-icon { width: 24px; height: 24px; background: transparent; border: 1px solid var(--border); color: var(--ink-muted); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; line-height: 1; transition: all 0.1s; }
+    .btn-icon:hover { border-color: var(--border-strong); color: var(--ink); }
 
-  /* fill mode popover */
-  .popover{position:absolute;z-index:50;background:#fff;border:1px solid var(--ink);
-    border-radius:6px;box-shadow:0 8px 24px -8px #15140f55;
-    padding:8px;display:flex;gap:6px;font-size:10px;letter-spacing:.08em;
-    text-transform:uppercase}
-  .popover .pophead{align-self:center;padding:0 6px;opacity:.6}
-  .popover button{font:inherit;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
-    border:1px solid var(--ink);background:#fff;color:var(--ink);
-    padding:7px 12px;border-radius:4px;cursor:pointer;font-weight:600}
-  .popover button:hover{background:var(--ink);color:#fff}
-  .popover .x{border:none;background:transparent;color:var(--ink);opacity:.5;font-size:14px;
-    padding:0 6px}
-  .popover .x:hover{opacity:1;background:transparent;color:var(--ink)}
+    .transform-preview { display: flex; flex-wrap: wrap; gap: 6px; }
+    .transform-preview svg { width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--border); display: block; }
 
-  /* ===== forms picker (RIGHT) ===== */
-  .forms-panel{position:sticky;top:24px;max-height:calc(100vh - 48px);overflow:auto;padding-left:8px}
-  .forms-panel::-webkit-scrollbar{width:6px}
-  .forms-panel::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
-  .forms-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-  .form-thumb{aspect-ratio:1/1;background:var(--cell);border-radius:4px;cursor:pointer;
-    position:relative;border:1px solid transparent;transition:border-color .15s, transform .1s}
-  .form-thumb svg{width:100%;height:100%;display:block;pointer-events:none}
-  .form-thumb .n{position:absolute;left:3px;top:2px;font-size:7px;opacity:.45;letter-spacing:.06em}
-  .form-thumb:hover{border-color:var(--ink);transform:translateY(-1px)}
-  .form-thumb.armed{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink) inset;
-    background:color-mix(in srgb, var(--ink) 8%, var(--cell))}
-  .form-thumb.disabled{opacity:.45;cursor:not-allowed}
-  .form-thumb.disabled:hover{transform:none;border-color:transparent}
+    /* ─── Alignment grid (3×3, Library inspector) ───────────── */
+    .align-grid { display: grid; grid-template-columns: repeat(3, 22px); grid-template-rows: repeat(3, 22px); gap: 2px; }
+    .align-btn { width: 22px; height: 22px; background: var(--bg); border: 1px solid var(--border); cursor: pointer; transition: all 0.1s; position: relative; }
+    .align-btn::after { content: ''; position: absolute; width: 5px; height: 5px; background: var(--ink-faint); top: 50%; left: 50%; transform: translate(-50%, -50%); }
+    .align-btn:hover { border-color: var(--border-strong); background: var(--surface-raised); }
+    .align-btn.active { background: var(--accent); border-color: var(--accent); }
+    .align-btn.active::after { background: var(--bg); }
 
-  /* erase button (in forms panel) */
-  .erase-card{aspect-ratio:1/1;background:var(--cell);border-radius:4px;cursor:pointer;
-    position:relative;border:1px dashed var(--ink);transition:background .15s;
-    display:flex;align-items:center;justify-content:center;font-size:10px;
-    letter-spacing:.1em;text-transform:uppercase}
-  .erase-card:hover{background:var(--ink);color:#fff}
-  .erase-card.disabled{opacity:.4;cursor:not-allowed;border-style:dotted}
-  .erase-card.disabled:hover{background:var(--cell);color:inherit}
+    .read-only-note { font-size: var(--fs-xs); color: var(--ink-faint); font-style: italic; }
 
-  /* defs hidden */
-  svg.defs{position:absolute;width:0;height:0;overflow:hidden}
+    /* ─── Pickers (overlay dialogs) ─────────────────────────── */
+    #layer-picker-overlay, #seed-picker-overlay { position: fixed; inset: 0; background: rgba(10,10,10,0.45); display: flex; align-items: center; justify-content: center; z-index: 200; }
+    .picker-panel { background: var(--bg); border: 1px solid var(--border); width: 420px; max-height: 80vh; overflow-y: auto; padding: 16px; }
+    .picker-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .picker-header span { font-size: var(--fs-md); font-weight: 600; color: var(--ink); }
+    .picker-close { background: none; border: none; color: var(--ink-muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 6px; }
+    .picker-close:hover { color: var(--ink); }
+    .picker-tiles { display: flex; flex-wrap: wrap; gap: 8px; }
+    .picker-item { width: 72px; height: 72px; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; padding: 0; background: none; color: var(--ink); }
+    .picker-item:hover { border-color: var(--border-strong); }
+    .picker-item svg { width: 100%; height: 100%; display: block; }
+    .picker-item * { animation: none !important; }
+    #layer-picker-empty, #seed-picker-empty { font-size: var(--fs-xs); color: var(--ink-muted); }
 
-  /* The catalog page chrome pads the body for the form grid; the banner is not
-     part of that column, so it escapes the padding and stays edge-to-edge —
-     consistent with the app-shell pages. */
-  .org-header {
-    margin: -48px -48px 32px;
-    position: sticky;
-    top: 0;
-  }
-</style>
+    /* ─── Mode-driven visibility ────────────────────────────── */
+    .mode-block { display: none; }
+    .mode-block.active { display: block; }
+    [data-modes] { display: none; }
+    [data-modes].on { display: block; }
+    .form-grid[data-modes].on { display: grid; }
+    .set-bar[data-modes].on { display: flex; }
+    .stage[data-modes].on { display: flex; }
+    .org-floatbar[data-modes].on { display: flex; }
+  </style>
 </head>
 <body>
 
-<header class="org-header org-header--catalog" role="banner">
-  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Genesis</span></a>
+  <header class="org-header org-header--editor" role="banner">
+    <a class="org-header__logo" href="/"><b>Organica</b><span>/ Genesis</span></a>
 
-  <div class="org-header__context">
-    <span class="org-header__title">Genesis Creator</span>
-    <span class="org-header__sub">55 forms &middot; 3 palettes</span>
+    <div class="org-header__context">
+      <div class="org-tabs" id="mode-tabs" role="group" aria-label="Mode">
+        <button class="org-btn" data-mode="library" aria-pressed="true">Library</button>
+        <button class="org-btn" data-mode="compose" aria-pressed="false">Compose</button>
+        <button class="org-btn" data-mode="draw" aria-pressed="false">Draw</button>
+        <button class="org-btn" data-mode="import" aria-pressed="false">Import</button>
+        <button class="org-btn" data-mode="generate" aria-pressed="false">Generate</button>
+      </div>
+    </div>
+
+    <div class="org-header__spacer"></div>
+
+    <output class="org-header__status" aria-live="polite" aria-atomic="true">
+      <span class="org-header__dot" id="status-dot"></span>
+      <span class="org-header__state" id="status-text">Ready</span>
+    </output>
+
+    <div class="org-header__actions">
+      <button class="org-btn" id="btn-export-set">Export .js</button>
+      <a class="org-btn" href="./indicators.html">Indicators &rarr;</a>
+    </div>
+  </header>
+
+  <!-- FLOATING TOOLBAR — Undo / Clear, Draw + Import only -->
+  <div class="org-floatbar" id="floatbar" data-modes="draw import" role="toolbar" aria-label="Actions">
+    <button class="org-floatbar__btn" id="btn-undo" aria-label="Undo">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 3.5 2 6l2.5 2.5M2 6h7.5a4 4 0 1 1 0 8H8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-floatbar__sep"></div>
+    <button class="org-floatbar__btn" id="btn-clear" aria-label="Clear">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4.5h11M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M4.3 4.5 5 13.1a1 1 0 0 0 1 .9h4a1 1 0 0 0 1-.9l.7-8.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
   </div>
 
-  <div class="org-header__spacer"></div>
+  <div class="app">
 
-  <div class="org-header__actions">
-    <a class="org-btn" href="./library.html">Library</a>
-    <a class="org-btn" href="./indicators.html">Indicators &rarr;</a>
+    <!-- LEFT: Sets sidebar — navigation, not controls, so it stays on the
+         left in every mode (docs/UI-SHELL.md §4c's documented exception). -->
+    <aside class="sets-panel">
+      <div class="sets-panel__header">
+        <span class="sets-panel__title">Sets</span>
+        <button class="btn-icon" id="btn-new-set" aria-label="New set">+</button>
+      </div>
+      <ul class="sets-list" id="sets-list"></ul>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="canvas-area">
+
+      <!-- Hidden SVG defs container — organic-defs.js content injected here -->
+      <div id="svg-defs-container" style="position:absolute;width:0;height:0;overflow:hidden;"></div>
+
+      <div class="set-bar" data-modes="library compose">
+        <span class="set-bar__name" id="set-bar-name">Organic Forms</span>
+        <span class="set-bar__count" id="set-bar-count">— seeds</span>
+        <span class="set-bar__spacer"></span>
+        <span class="set-bar__hint" id="set-bar-hint"></span>
+      </div>
+
+      <!-- LIBRARY: the tile grid. CSS custom properties drive layout; the
+           defaults live once in the var() fallbacks (4 cols / 16px / 24px). -->
+      <div class="form-grid" id="form-grid" data-modes="library"></div>
+
+      <!-- COMPOSE: the same set, same gridConfig, explicit placement. -->
+      <div class="form-grid" id="compose-grid" data-modes="compose"></div>
+
+      <!-- DRAW / IMPORT / GENERATE: the artboard -->
+      <div class="stage" data-modes="draw import generate">
+        <div class="artwrap">
+          <svg id="art" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <g id="grid-layer"></g>
+            <g id="seed-layer"></g>
+            <g id="handles-layer"></g>
+          </svg>
+          <canvas id="draw-canvas" class="active" width="460" height="460"></canvas>
+          <div class="art-hint" id="art-hint">Click on the artboard to add points</div>
+        </div>
+      </div>
+    </main>
+
+    <!-- RIGHT: mode-dependent inspector -->
+    <aside class="design-panel" id="design-panel">
+
+      <!-- ══ GRID (Library + Compose) ══ -->
+      <div data-modes="library compose">
+        <section class="panel-section">
+          <span class="panel-section__title">Grid</span>
+          <div class="panel-row">
+            <label class="panel-label">Columns</label>
+            <div class="panel-input-group"><input type="number" class="panel-input" id="ctrl-columns" value="4" min="1" max="24"></div>
+          </div>
+          <div class="panel-row">
+            <label class="panel-label">Column gap</label>
+            <div class="panel-input-group"><input type="number" class="panel-input" id="ctrl-col-gap" value="16" min="0"><span class="panel-unit">px</span></div>
+          </div>
+          <div class="panel-row">
+            <label class="panel-label">Row gap</label>
+            <div class="panel-input-group"><input type="number" class="panel-input" id="ctrl-row-gap" value="16" min="0"><span class="panel-unit">px</span></div>
+          </div>
+          <div class="panel-row">
+            <label class="panel-label">Padding</label>
+            <div class="panel-input-group"><input type="number" class="panel-input" id="ctrl-padding" value="24" min="0"><span class="panel-unit">px</span></div>
+          </div>
+        </section>
+        <div class="panel-divider"></div>
+      </div>
+
+      <!-- ══ LIBRARY: seed inspector ══ -->
+      <div data-modes="library">
+        <section class="panel-section" id="form-props-section">
+          <span class="panel-section__title">Seed</span>
+
+          <div class="panel-row">
+            <label class="panel-label">Name</label>
+            <input type="text" class="panel-input panel-input--full" id="ctrl-form-name" placeholder="seed name">
+          </div>
+
+          <div class="panel-row">
+            <label class="panel-label">Type</label>
+            <div class="type-pills" id="lib-type-pills">
+              <button class="type-pill active" data-type="asset">Asset</button>
+              <button class="type-pill" data-type="variant">Variant</button>
+              <button class="type-pill" data-type="mask">Mask</button>
+              <button class="type-pill" data-type="container">Container</button>
+            </div>
+          </div>
+
+          <div id="seed-params-block" style="display:none">
+            <div class="panel-row" id="row-seed-thickness" style="display:none">
+              <label class="panel-label">Thickness</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-seed-thickness" min="1" max="100" value="100"><span class="panel-unit" id="seed-thickness-val" style="width:24px">100</span></div>
+            </div>
+            <p class="panel-hint" id="seed-params-hint" style="display:none">Built-in — adjusting previews live but won't be saved. Duplicate it into your own set to keep a custom version.</p>
+          </div>
+
+          <div id="read-only-note" class="read-only-note" style="display:none">Built-in seed — name &amp; type are read-only</div>
+
+          <div class="panel-divider"></div>
+
+          <span class="panel-section__title">Span</span>
+          <div class="panel-row">
+            <label class="panel-label">Columns</label>
+            <div class="panel-input-group"><input type="number" class="panel-input" id="ctrl-col-span" value="1" min="1"></div>
+          </div>
+          <div class="panel-row">
+            <label class="panel-label">Rows</label>
+            <div class="panel-input-group"><input type="number" class="panel-input" id="ctrl-row-span" value="1" min="1"></div>
+          </div>
+
+          <div class="panel-divider"></div>
+
+          <span class="panel-section__title">Alignment</span>
+          <div class="panel-row panel-row--center">
+            <div class="align-grid" id="ctrl-align">
+              <button class="align-btn" data-align="top-left" aria-label="Align top left"></button>
+              <button class="align-btn" data-align="top-center" aria-label="Align top center"></button>
+              <button class="align-btn" data-align="top-right" aria-label="Align top right"></button>
+              <button class="align-btn" data-align="mid-left" aria-label="Align middle left"></button>
+              <button class="align-btn active" data-align="mid-center" aria-label="Align middle center"></button>
+              <button class="align-btn" data-align="mid-right" aria-label="Align middle right"></button>
+              <button class="align-btn" data-align="bot-left" aria-label="Align bottom left"></button>
+              <button class="align-btn" data-align="bot-center" aria-label="Align bottom center"></button>
+              <button class="align-btn" data-align="bot-right" aria-label="Align bottom right"></button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ══ COMPOSE: seeds picker ══ -->
+      <div data-modes="compose">
+        <section class="panel-section">
+          <span class="panel-section__title">Seeds</span>
+          <p class="panel-hint" style="margin-bottom:8px">Drag on the canvas to select cells, then click a seed to fill them.</p>
+          <div class="forms-grid" id="compose-forms"></div>
+        </section>
+      </div>
+
+      <!-- ══ DRAW / IMPORT / GENERATE: authoring ══ -->
+      <div data-modes="draw import generate">
+        <!-- SOURCE — mode-specific -->
+        <section class="panel-section">
+          <span class="panel-section__title">Source</span>
+          <button class="upload-btn" id="btn-load-seed" style="margin-bottom:10px">Load seed…</button>
+
+          <!-- DRAW -->
+          <div class="mode-block active" data-mode="draw">
+            <label class="check-row"><input type="checkbox" id="ck-close" checked><span>Close path</span></label>
+            <label class="check-row"><input type="checkbox" id="ck-smooth" checked><span>Smooth (curve)</span></label>
+          </div>
+
+          <!-- IMPORT -->
+          <div class="mode-block" data-mode="import">
+            <input type="file" id="file-svg" accept=".svg,image/svg+xml" style="display:none" aria-label="Upload an SVG file">
+            <button class="upload-btn" id="btn-upload">+ Upload .svg</button>
+            <textarea class="paste" id="paste-svg" placeholder="…or paste SVG markup here" aria-label="Paste SVG markup"></textarea>
+          </div>
+
+          <!-- GENERATE -->
+          <div class="mode-block" data-mode="generate">
+            <div class="panel-row">
+              <label class="panel-label">Kind</label>
+              <div class="presets u-flex1" id="gen-seg"></div>
+            </div>
+            <div class="panel-row" id="row-gen-n">
+              <label class="panel-label">Sides</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-n" min="3" max="20" value="5"><span class="panel-unit" id="gen-n-val" style="width:24px">5</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-r">
+              <label class="panel-label">Radius</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-r" min="10" max="95" value="60"><span class="panel-unit" id="gen-r-val" style="width:24px">60</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-thickness" style="display:none">
+              <label class="panel-label">Thickness</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-thickness" min="1" max="100" value="100"><span class="panel-unit" id="gen-thickness-val" style="width:24px">100</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-w" style="display:none">
+              <label class="panel-label" id="gen-w-label">Width</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-w" min="10" max="100" value="60"><span class="panel-unit" id="gen-w-val" style="width:24px">60</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-h" style="display:none">
+              <label class="panel-label">Height</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-h" min="10" max="100" value="60"><span class="panel-unit" id="gen-h-val" style="width:24px">60</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-corner" style="display:none">
+              <label class="panel-label">Corner rounding</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-corner" min="0" max="50" value="0"><span class="panel-unit" id="gen-corner-val" style="width:24px">0</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-irregularity" style="display:none">
+              <label class="panel-label">Irregularity</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-irregularity" min="0" max="100" value="0"><span class="panel-unit" id="gen-irregularity-val" style="width:24px">0</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-seed" style="display:none">
+              <label class="panel-label">Seed</label>
+              <div class="panel-input-group"><input type="number" class="panel-input" id="gen-seed" value="1" min="0" max="9999"></div>
+            </div>
+            <div class="panel-row" id="row-gen-inner" style="display:none">
+              <label class="panel-label">Inner radius</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-inner" min="10" max="90" value="45"><span class="panel-unit" id="gen-inner-val" style="width:24px">45</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-pivot" style="display:none">
+              <label class="panel-label">Pivot</label>
+              <div class="seg u-flex1" id="gen-pivot-seg">
+                <button class="seg-btn active" data-pivot="corner">Corner</button>
+                <button class="seg-btn" data-pivot="center">Center</button>
+              </div>
+            </div>
+            <div class="panel-row" id="row-gen-sweep" style="display:none">
+              <label class="panel-label">Sweep</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-sweep" min="10" max="350" value="90"><span class="panel-unit" id="gen-sweep-val" style="width:28px">90°</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-len" style="display:none">
+              <label class="panel-label">Length</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-len" min="10" max="100" value="70"><span class="panel-unit" id="gen-len-val" style="width:24px">70</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-tail" style="display:none">
+              <label class="panel-label">Tail length</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-tail" min="0" max="100" value="50"><span class="panel-unit" id="gen-tail-val" style="width:24px">50</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-amount" style="display:none">
+              <label class="panel-label">Amount</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-amount" min="0" max="100" value="40"><span class="panel-unit" id="gen-amount-val" style="width:24px">40</span></div>
+            </div>
+          </div>
+        </section>
+
+        <div class="panel-divider"></div>
+
+        <!-- APPEARANCE -->
+        <section class="panel-section">
+          <span class="panel-section__title">Appearance</span>
+          <div class="panel-row">
+            <label class="panel-label">Style</label>
+            <div class="seg u-flex1" id="fill-seg">
+              <button class="seg-btn active" data-fill="fill">Fill</button>
+              <button class="seg-btn" data-fill="stroke">Stroke</button>
+            </div>
+          </div>
+          <div class="panel-row" id="row-strokew">
+            <label class="panel-label">Stroke W</label>
+            <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-strokew" min="1" max="40" value="6"><span class="panel-unit" id="strokew-val" style="width:24px">6</span></div>
+          </div>
+          <label class="check-row" id="row-rounded"><input type="checkbox" id="ck-rounded" checked><span>Rounded caps</span></label>
+          <div class="panel-row">
+            <label class="panel-label">Scale</label>
+            <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-scale" min="0.2" max="2" step="0.05" value="1"><span class="panel-unit" id="scale-val" style="width:30px">1.00</span></div>
+          </div>
+          <div class="panel-row">
+            <label class="panel-label">Width</label>
+            <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-w" min="0.25" max="2" step="0.05" value="1"><span class="panel-unit" id="w-val" style="width:30px">×1.0</span></div>
+          </div>
+          <div class="panel-row">
+            <label class="panel-label">Length</label>
+            <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-l" min="0.25" max="2" step="0.05" value="1"><span class="panel-unit" id="l-val" style="width:30px">×1.0</span></div>
+          </div>
+          <div class="panel-row">
+            <label class="panel-label">Rotation</label>
+            <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-rot" min="0" max="360" value="0"><span class="panel-unit" id="rot-val" style="width:28px">0°</span></div>
+          </div>
+          <div class="panel-row">
+            <label class="panel-label">Move X</label>
+            <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-mx" min="-100" max="100" value="0"><span class="panel-unit" id="mx-val" style="width:28px">0</span></div>
+          </div>
+          <div class="panel-row">
+            <label class="panel-label">Move Y</label>
+            <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-my" min="-100" max="100" value="0"><span class="panel-unit" id="my-val" style="width:28px">0</span></div>
+          </div>
+          <div class="mt-2"><button class="upload-btn" id="btn-fit" style="border-style:solid;margin-bottom:0">⤢ Fit to grid</button></div>
+          <div class="panel-row" style="margin-top:12px;margin-bottom:6px"><label class="panel-label">Preview — rotation &amp; flip</label></div>
+          <div id="transform-preview" class="transform-preview" aria-label="Seed transform preview"></div>
+        </section>
+
+        <div class="panel-divider"></div>
+
+        <!-- SEED META + SAVE -->
+        <section class="panel-section">
+          <span class="panel-section__title">Seed</span>
+          <div class="panel-row">
+            <label class="panel-label">Name</label>
+            <input type="text" class="panel-input panel-input--full" id="ctrl-name" placeholder="seed name">
+          </div>
+          <div class="panel-row">
+            <label class="panel-label">Type</label>
+            <div class="type-pills" id="type-pills">
+              <button class="type-pill active" data-type="asset">Asset</button>
+              <button class="type-pill" data-type="variant">Variant</button>
+              <button class="type-pill" data-type="mask">Mask</button>
+              <button class="type-pill" data-type="container">Container</button>
+            </div>
+          </div>
+          <div id="underlying-layer-block" style="display:none">
+            <p class="panel-hint" style="margin:2px 0 6px">Container shows the picked layer only inside this seed's outline; Mask shows it everywhere except inside — a real hole.</p>
+            <div id="underlying-layer-empty">
+              <button class="upload-btn" id="btn-pick-layer" style="margin-bottom:0">Pick layer…</button>
+            </div>
+            <div id="underlying-layer-set" class="panel-row" style="display:none">
+              <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+                <span id="underlying-layer-thumb" style="width:28px;height:28px;flex-shrink:0;border:1px solid var(--border)"></span>
+                <span id="underlying-layer-name" style="font-size:var(--fs-sm);color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+              </div>
+              <button class="upload-btn" id="btn-remove-layer" style="width:auto;margin-bottom:0;padding:4px 8px">Remove</button>
+            </div>
+          </div>
+          <div class="panel-row">
+            <label class="panel-label">Save to</label>
+            <select class="panel-select" id="ctrl-set"></select>
+          </div>
+          <!-- Inline new-set name field. The old creator.html used window.prompt()
+               here, which THROWS outright (not just returns null) in some embedded
+               contexts — the exact failure FVS hit and fixed the same way in
+               August. A plain DOM row depends on nothing but the DOM. -->
+          <div class="panel-row" id="row-new-set" style="display:none">
+            <input type="text" class="panel-input panel-input--full" id="ctrl-new-set-name" placeholder="new set name" aria-label="New set name">
+          </div>
+          <div class="mt-4"><button class="btn-primary" id="btn-save">Save to Library</button></div>
+        </section>
+      </div>
+
+    </aside>
   </div>
-</header>
 
-<div class="layout">
-
-  <!-- ====== tools (LEFT) ====== -->
-  <aside class="panel tools-panel">
-    <section>
-      <h3>Palette</h3>
-      <div class="palettes" id="palettes"></div>
-    </section>
-
-    <section>
-      <h3>Background</h3>
-      <div class="bg-row" id="bgRow">
-        <div class="bg-opt empty active" data-bg="empty" title="empty"><span class="lbl">empty</span></div>
-        <div class="bg-opt" data-bg="dots" title="dots"><span class="lbl">dots</span></div>
-        <div class="bg-opt" data-bg="waves" title="waves"><span class="lbl">waves</span></div>
-        <div class="bg-opt" data-bg="hatch" title="hatch"><span class="lbl">hatch</span></div>
-        <div class="bg-opt" data-bg="color" title="solid color"><span class="lbl">color</span></div>
+  <div id="layer-picker-overlay" role="dialog" aria-modal="true" aria-label="Pick underlying layer" style="display:none">
+    <div class="picker-panel">
+      <div class="picker-header">
+        <span>Pick underlying layer</span>
+        <button class="picker-close" id="layer-picker-close" aria-label="Close">&times;</button>
       </div>
-      <div class="bg-color-row hidden" id="bgColorRow"></div>
-    </section>
+      <div id="layer-picker-empty" style="display:none">No saved seeds yet — save one first.</div>
+      <div id="layer-picker-tiles" class="picker-tiles"></div>
+    </div>
+  </div>
 
-    <section>
-      <h3>Fill color</h3>
-      <div class="brush-colors" id="brushColors"></div>
-      <div class="hint">checkered = random from palette</div>
-    </section>
-
-    <section>
-      <h3>Grid size</h3>
-      <div class="slider-row">
-        <input type="range" min="4" max="20" value="10" id="gridSize">
-        <span class="val" id="gridVal">10</span>
+  <div id="seed-picker-overlay" role="dialog" aria-modal="true" aria-label="Load seed" style="display:none">
+    <div class="picker-panel">
+      <div class="picker-header">
+        <span>Load seed</span>
+        <button class="picker-close" id="seed-picker-close" aria-label="Close">&times;</button>
       </div>
-    </section>
-
-    <section>
-      <h3>Cell guides</h3>
-      <label class="toggle">
-        <input type="checkbox" id="gridToggle" checked>
-        <span>show grid lines</span>
-      </label>
-    </section>
-
-    <section class="actions">
-      <button class="btn" id="randomize">Randomize</button>
-      <button class="btn ghost" id="clear">Clear canvas</button>
-    </section>
-
-    <div class="hint">
-      <strong>1.</strong> Drag on the canvas to select cells.<br>
-      <strong>2.</strong> Click a form on the right to fill the selection.<br>
-      Non-square selection → choose <em>repeat</em> or <em>crop</em>.
+      <div id="seed-picker-empty" style="display:none">No saved seeds yet.</div>
+      <div id="seed-picker-tiles" class="picker-tiles"></div>
     </div>
-  </aside>
+  </div>
 
-  <!-- ====== canvas (CENTER) ====== -->
-  <main class="canvas-panel">
-    <div class="status" id="status">drag on the canvas to select cells</div>
-    <div class="composer-frame" id="composerFrame">
-      <div class="composer show-grid" id="composer"></div>
-    </div>
-    <div class="canvas-meta">
-      <span>grid <strong id="gridLabel">10 × 10</strong></span>
-      <span>placed <strong id="placedLabel">0</strong></span>
-      <span>selection <strong id="selLabel">—</strong></span>
-    </div>
-  </main>
+  <script src="/shared/organica-core.js"></script>
+  <script src="/shared/organica-noise.js"></script>
+  <script src="/shared/organica-transformer.js"></script>
+  <script src="/shared/paper-full.min.js"></script>
+  <script src="/shared/organica-paper.js"></script>
+  <script src="organic-defs.js"></script>
+  <script src="organic-forms.js"></script>
+  <script>
+  // ═══════════════════════════════════════════════════════════════
+  // Genesis — one tool, five modes.
+  //
+  //   Library  — the set/tile browser + per-seed inspector (was library.html)
+  //   Compose  — drag-select cells, click a seed to fill them (was index.html)
+  //   Draw / Import / Generate — seed authoring (was creator.html)
+  //
+  // All five read and write ONE model: `state.library`, persisted under
+  // organica.library.forms. Compose deliberately does NOT carry a second
+  // parallel model — the old composer's palettes / backgrounds / per-shape
+  // colours / randomize were tied to its own shapes[] array with no home in
+  // the set/gridConfig/formLayout model, so they are not ported. What IS
+  // ported is the gesture: drag-select a rectangle, click a form, fill.
+  //
+  // Data shapes (verified against the real shared files):
+  //   window.ORGANIC_FORMS  → OBJECT keyed "1".."56" (not an array)
+  //   window.ORGANIC_LABELS → OBJECT { "1":"breath", ... }
+  //   window.ORGANIC_DEFS   → a full <svg class="defs">…</svg> STRING
+  // ═══════════════════════════════════════════════════════════════
 
-  <!-- ====== forms picker (RIGHT) ====== -->
-  <aside class="panel forms-panel">
-    <h3>Forms <span style="opacity:.4;font-weight:400">— click to fill</span></h3>
-    <div class="forms-grid" id="formsGrid"></div>
-  </aside>
+  // Storage key follows the Organica convention: organica.<tool>.<thing>.
+  // The pre-July-2026 key is read once as a fallback and copied forward, then
+  // left in place rather than deleted: these are the user's own saved seeds.
+  // See docs/SHARED-LIBRARY.md §Storage.
+  // (This used to be duplicated verbatim in creator.html and library.html,
+  // with a comment on each copy telling the next reader to keep them in
+  // sync — the merge removes the need for that.)
+  const STORAGE_KEY = 'organica.library.forms';
+  const LEGACY_STORAGE_KEY = 'organica_library';
 
-</div>
+  function readLibraryRaw() {
+    const cur = localStorage.getItem(STORAGE_KEY);
+    if (cur !== null) return cur;
+    const old = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (old === null) return null;
+    localStorage.setItem(STORAGE_KEY, old);      // migrate forward, keep the original
+    return old;
+  }
 
-<script src="organic-forms.js"></script>
-<script src="organic-defs.js"></script>
-<script src="genesis-creator.js"></script>
+  const BUILT_IN_SET_ID = 'organic-forms';
+  const BASIC_SEEDS_SET_ID = 'basic-seeds';
+  const ORGANIC_PREFIX = 'organic-';
+  const CREATOR_MODES = ['draw', 'import', 'generate'];
+  const $ = id => document.getElementById(id);
+  const setStatus = Organica.status();
+
+  // ── Library state ──────────────────────────────────────
+  let state = {
+    activeSetId: BUILT_IN_SET_ID,
+    selectedFormIndex: null,
+    library: null,
+    // Compose-mode transient state — never persisted
+    compose: { selection: null, dragging: false, dragAnchor: null, placements: [], rows: 0 },
+  };
+
+  // ── Authoring (Draw/Import/Generate) state ─────────────
+  const DEFAULT_GEN = {
+    type: 'circle', n: 5, r: 60, thickness: 100,
+    w: 60, h: 60, corner: 0, irregularity: 0, seed: 1,
+    innerRatio: 45, pivot: 'corner', sweep: 90, len: 70, tail: 50, amount: 40,
+  };
+
+  let S = {
+    mode: 'library',
+    gen: Object.assign({}, DEFAULT_GEN),
+    importInner: null,     // normalised <g>…</g> string
+    fillMode: 'fill',
+    strokeW: 6,
+    rounded: true,
+    scale: 1, w: 1, l: 1, rot: 0, moveX: 0, moveY: 0,
+    type: 'asset',
+    underlyingLayer: null,
+  };
+  const isCreatorMode = () => CREATOR_MODES.indexOf(S.mode) !== -1;
+
+  // ═══ Boot ═══════════════════════════════════════════════
+  function init() {
+    injectDefs();
+    fixForm35();
+    loadLibrary();
+    renderSetsList();
+    buildArtGrid();
+    bindTabs();
+    initDrawEditor();
+    bindArtboard();
+    bindLibraryControls();
+    bindComposeControls();
+    bindCreatorControls();
+    populateSets();
+    syncUnderlyingLayerUI();
+    activateSet(state.activeSetId);
+    setMode('library');
+    renderArt();
+    Organica.autoLabelPanel(document);
+  }
+
+  // organic-defs.js exposes window.ORGANIC_DEFS as a complete <svg> string.
+  function injectDefs() {
+    const c = $('svg-defs-container');
+    if (c && typeof window.ORGANIC_DEFS === 'string') c.innerHTML = window.ORGANIC_DEFS;
+  }
+
+  // Form 35 (phyllotaxis) ships as an empty <svg> — its 44 circles are
+  // generated. Ported verbatim from genesis-creator.js, which was the ONLY
+  // page that ran it: library.html never did, so form 35 rendered blank in
+  // the library grid. The merge fixes that for free.
+  function fixForm35() {
+    const N = 44, GA = Math.PI * (3 - Math.sqrt(5)), C = 12;
+    let s = '';
+    for (let i = 1; i <= N; i++) {
+      const r = C * Math.sqrt(i), a = i * GA;
+      s += `<circle cx="${(100 + r * Math.cos(a)).toFixed(2)}" cy="${(100 + r * Math.sin(a)).toFixed(2)}" r="${(1.4 + i * 0.08).toFixed(2)}" style="animation-delay:${(-i * 0.05).toFixed(2)}s"/>`;
+    }
+    if (window.ORGANIC_FORMS && window.ORGANIC_FORMS[35]) {
+      window.ORGANIC_FORMS[35] = window.ORGANIC_FORMS[35].replace('></svg>', '>' + s + '</svg>');
+    }
+  }
+
+  // ═══ Library data ═══════════════════════════════════════
+  function saveLibrary() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.library)); }
+
+  function defaultLibrary() {
+    return {
+      sets: [{
+        id: BUILT_IN_SET_ID, name: 'Organic Forms', builtIn: true,
+        gridConfig: { columns: 4, colGap: 16, rowGap: 16, padding: 24 },
+        formLayout: [],
+      }],
+      forms: [],
+    };
+  }
+
+  // Clean, tileable geometric primitives — FVS's grid-composition engine
+  // needs shapes that meet edge-to-edge, which the 55 organic forms were
+  // never designed for. Seeded once as a real user-style set.
+  function basicSeedForms() {
+    const ink = 'fill="var(--ink)"';
+    return [
+      { id: 'basic-square', name: 'Square', svg: `<svg viewBox="0 0 200 200"><rect x="10" y="10" width="180" height="180" ${ink}/></svg>` },
+      { id: 'basic-circle', name: 'Circle', svg: `<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="90" ${ink}/></svg>` },
+      { id: 'basic-triangle', name: 'Triangle', svg: `<svg viewBox="0 0 200 200"><path d="M 100,10 L 10,190 L 190,190 Z" ${ink}/></svg>` },
+      // Parametric — genType/genParams let Generate mode restore this as a
+      // live-adjustable Arc rather than a frozen picture.
+      { id: 'basic-arc', name: 'Arc', svg: `<svg viewBox="0 0 200 200"><path d="${arcPathD(100)}" ${ink}/></svg>`, genType: 'arc', genParams: { thickness: 100 } },
+      { id: 'basic-hexagon', name: 'Hexagon', svg: `<svg viewBox="0 0 200 200"><polygon points="100,10 182,55 182,145 100,190 18,145 18,55" ${ink}/></svg>` },
+      { id: 'basic-star', name: 'Star', svg: `<svg viewBox="0 0 200 200"><polygon points="100,10 122,78 194,78 136,120 158,188 100,146 42,188 64,120 6,78 78,78" ${ink}/></svg>` },
+    ];
+  }
+
+  function loadLibrary() {
+    let lib = null;
+    try { const s = readLibraryRaw(); if (s) lib = JSON.parse(s); } catch (e) { lib = null; }
+    state.library = lib || defaultLibrary();
+    if (!state.library.sets) state.library.sets = [];
+    if (!state.library.forms) state.library.forms = [];
+    if (!state.library.sets.find(s => s.id === BUILT_IN_SET_ID)) {
+      state.library.sets.unshift(defaultLibrary().sets[0]);
+    }
+    if (!state.library.sets.find(s => s.id === BASIC_SEEDS_SET_ID)) {
+      const seeds = basicSeedForms();
+      state.library.forms.push(...seeds);
+      state.library.sets.splice(1, 0, { id: BASIC_SEEDS_SET_ID, name: 'Basic Seeds', builtIn: false, forms: seeds.map(s => s.id), gridConfig: { columns: 4, colGap: 16, rowGap: 16, padding: 24 }, formLayout: [] });
+      saveLibrary();
+    }
+  }
+
+  function getSet(setId) { return state.library.sets.find(s => s.id === setId); }
+
+  // One organic form, wrapped as a form object. Built-in and read-only.
+  function organicForm(n) {
+    const F = window.ORGANIC_FORMS || {}, L = window.ORGANIC_LABELS || {};
+    if (!F[n]) return null;
+    return { id: ORGANIC_PREFIX + n, num: n, name: L[n] || ('form ' + n), svg: F[n], type: 'asset', builtIn: true };
+  }
+
+  // Resolve any form id. `organic-N` ids are synthesised from the shared
+  // ORGANIC_FORMS object rather than looked up in library.forms — this is
+  // what lets Compose fill a user set with one of the 55 built-in forms
+  // (before the merge, a user set could only ever hold saved seeds).
+  function resolveFormById(id) {
+    if (typeof id === 'string' && id.indexOf(ORGANIC_PREFIX) === 0) {
+      return organicForm(parseInt(id.slice(ORGANIC_PREFIX.length), 10));
+    }
+    return state.library.forms.find(f => f.id === id) || null;
+  }
+
+  function getFormsForSet(setId) {
+    if (setId === BUILT_IN_SET_ID) {
+      const F = window.ORGANIC_FORMS || {};
+      return Object.keys(F).map(Number).filter(n => F[n]).sort((a, b) => a - b).map(organicForm).filter(Boolean);
+    }
+    const set = getSet(setId);
+    if (!set) return [];
+    return (set.forms || []).map(resolveFormById).filter(Boolean);
+  }
+
+  function getLayoutMap(setId) {
+    const set = getSet(setId);
+    const map = new Map();
+    (set && set.formLayout ? set.formLayout : []).forEach(l =>
+      map.set(l.formId, { colSpan: l.colSpan || 1, rowSpan: l.rowSpan || 1, align: l.align || 'mid-center' }));
+    return map;
+  }
+
+  function layoutFor(layoutMap, form) {
+    return layoutMap.get(form.id) || { colSpan: 1, rowSpan: 1, align: 'mid-center' };
+  }
+
+  // ═══ Sets list ══════════════════════════════════════════
+  function renderSetsList() {
+    const list = $('sets-list');
+    list.innerHTML = '';
+    state.library.sets.forEach(set => {
+      const count = getFormsForSet(set.id).length;
+      const li = document.createElement('li');
+      li.className = 'set-item' + (set.id === state.activeSetId ? ' active' : '');
+      li.dataset.setId = set.id;
+      li.innerHTML = '<span class="set-item__name">' + escapeHtml(set.name) + '</span>' +
+                     '<span class="set-item__count">' + count + '</span>';
+      li.addEventListener('click', () => activateSet(set.id));
+      list.appendChild(li);
+    });
+  }
+
+  function activateSet(setId) {
+    const set = getSet(setId);
+    if (!set) return;
+    state.activeSetId = setId;
+    state.selectedFormIndex = null;
+    state.compose.selection = null;
+    closePopover();
+
+    $('ctrl-columns').value = set.gridConfig.columns;
+    $('ctrl-col-gap').value = set.gridConfig.colGap;
+    $('ctrl-row-gap').value = set.gridConfig.rowGap;
+    $('ctrl-padding').value = set.gridConfig.padding;
+
+    document.querySelectorAll('.set-item').forEach(li => li.classList.toggle('active', li.dataset.setId === setId));
+
+    deselectForm();
+    renderGrid(setId);
+    renderCompose();
+    syncSetBar();
+    if (!isCreatorMode()) updateModeStatus();
+  }
+
+  function syncSetBar() {
+    const set = getSet(state.activeSetId);
+    if (!set) return;
+    const n = getFormsForSet(state.activeSetId).length;
+    $('set-bar-name').textContent = set.name;
+    $('set-bar-count').textContent = n + (n === 1 ? ' seed' : ' seeds');
+    $('set-bar-hint').textContent = (S.mode === 'compose' && set.id === BUILT_IN_SET_ID)
+      ? 'Built-in set — read-only' : '';
+  }
+
+  // ═══ Library grid ═══════════════════════════════════════
+  function applyGridVars(el, set) {
+    el.style.setProperty('--grid-cols', set.gridConfig.columns);
+    el.style.setProperty('--col-gap', set.gridConfig.colGap + 'px');
+    el.style.setProperty('--row-gap', set.gridConfig.rowGap + 'px');
+    el.style.setProperty('--grid-padding', set.gridConfig.padding + 'px');
+  }
+
+  function renderGrid(setId) {
+    const grid = $('form-grid');
+    const set = getSet(setId);
+    if (!set) return;
+    const forms = getFormsForSet(setId);
+    const layout = getLayoutMap(setId);
+    applyGridVars(grid, set);
+    grid.innerHTML = '';
+
+    if (!forms.length) {
+      const empty = document.createElement('div');
+      empty.className = 'grid-empty';
+      empty.textContent = 'No seeds yet — use the Draw, Import or Generate modes to create one.';
+      grid.appendChild(empty);
+      return;
+    }
+    forms.forEach((form, i) => grid.appendChild(createTile(form, i, layoutFor(layout, form))));
+  }
+
+  function createTile(form, index, layoutItem) {
+    const tile = document.createElement('div');
+    tile.className = 'form-tile' + (index === state.selectedFormIndex ? ' selected' : '');
+    tile.dataset.formId = form.id;
+    tile.dataset.index = index;
+    tile.style.setProperty('--col-span', layoutItem.colSpan);
+    tile.style.setProperty('--row-span', layoutItem.rowSpan);
+    tile.innerHTML =
+      '<div class="form-tile__preview" style="' + alignToCSS(layoutItem.align) + '">' +
+        '<div class="form-tile__svg">' + cleanSVG(form.svg) + '</div>' +
+      '</div>' +
+      '<div class="form-tile__meta">' +
+        '<span class="form-tile__name">' + escapeHtml(form.name) + '</span>' +
+        '<span class="form-tile__type">' + escapeHtml(form.type || 'asset') + '</span>' +
+      '</div>';
+    tile.addEventListener('click', () => selectForm(index));
+    return tile;
+  }
+
+  // Strip width/height, ensure viewBox, keep all internal geometry intact.
+  function cleanSVG(svgString) {
+    const div = document.createElement('div');
+    div.innerHTML = svgString;
+    const svg = div.querySelector('svg');
+    if (!svg) return svgString;
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    if (!svg.getAttribute('viewBox')) svg.setAttribute('viewBox', '0 0 200 200');
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+    return div.innerHTML;
+  }
+
+  function alignToCSS(align) {
+    const map = {
+      'top-left': 'align-items:flex-start;justify-content:flex-start',
+      'top-center': 'align-items:flex-start;justify-content:center',
+      'top-right': 'align-items:flex-start;justify-content:flex-end',
+      'mid-left': 'align-items:center;justify-content:flex-start',
+      'mid-center': 'align-items:center;justify-content:center',
+      'mid-right': 'align-items:center;justify-content:flex-end',
+      'bot-left': 'align-items:flex-end;justify-content:flex-start',
+      'bot-center': 'align-items:flex-end;justify-content:center',
+      'bot-right': 'align-items:flex-end;justify-content:flex-end',
+    };
+    return map[align] || map['mid-center'];
+  }
+
+  // ═══ Library selection / inspector ══════════════════════
+  function selectForm(index) {
+    document.querySelectorAll('.form-tile.selected').forEach(t => t.classList.remove('selected'));
+    state.selectedFormIndex = index;
+    const tile = document.querySelector('.form-tile[data-index="' + index + '"]');
+    if (tile) tile.classList.add('selected');
+
+    const form = getFormsForSet(state.activeSetId)[index];
+    if (!form) return;
+    const layoutItem = layoutFor(getLayoutMap(state.activeSetId), form);
+
+    const nameInput = $('ctrl-form-name');
+    nameInput.value = form.name;
+    nameInput.disabled = !!form.builtIn;
+    $('ctrl-col-span').value = layoutItem.colSpan;
+    $('ctrl-row-span').value = layoutItem.rowSpan;
+
+    $('lib-type-pills').querySelectorAll('.type-pill').forEach(pill => {
+      pill.classList.toggle('active', pill.dataset.type === (form.type || 'asset'));
+      pill.disabled = !!form.builtIn;
+      pill.style.opacity = form.builtIn ? '0.5' : '1';
+    });
+
+    document.querySelectorAll('.align-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.align === layoutItem.align));
+
+    $('read-only-note').style.display = form.builtIn ? 'block' : 'none';
+    $('form-props-section').style.display = 'block';
+    syncSeedParamsUI(form);
+  }
+
+  function deselectForm() {
+    state.selectedFormIndex = null;
+    document.querySelectorAll('.form-tile.selected').forEach(t => t.classList.remove('selected'));
+    $('form-props-section').style.display = 'none';
+  }
+
+  // A seed carrying genType/genParams stays live-adjustable here too, not
+  // frozen into a picture the moment it's saved. Built-in entries are still
+  // explorable — the slider works and the preview updates live — but changes
+  // aren't persisted.
+  function syncSeedParamsUI(form) {
+    const relevant = !!form.genType;
+    $('seed-params-block').style.display = relevant ? 'block' : 'none';
+    $('row-seed-thickness').style.display = (relevant && form.genType === 'arc') ? 'flex' : 'none';
+    $('seed-params-hint').style.display = (relevant && form.builtIn) ? 'block' : 'none';
+    if (relevant && form.genType === 'arc') {
+      const t = (form.genParams && form.genParams.thickness) || 100;
+      $('ctrl-seed-thickness').value = t;
+      $('seed-thickness-val').textContent = t;
+    }
+  }
+
+  function updateSeedThickness(formId, thickness) {
+    const f = state.library.forms.find(x => x.id === formId);
+    if (!f || f.genType !== 'arc') return;
+    f.genParams = { thickness };
+    f.svg = `<svg viewBox="0 0 200 200"><path d="${arcPathD(thickness)}" fill="var(--ink)"/></svg>`;
+    if (!f.builtIn) saveLibrary();
+    const keepIndex = state.selectedFormIndex;
+    renderGrid(state.activeSetId);
+    selectForm(keepIndex);
+  }
+
+  function clampInt(v, min, max) {
+    let n = parseInt(v, 10);
+    if (isNaN(n)) n = min || 0;
+    if (min != null) n = Math.max(min, n);
+    if (max != null) n = Math.min(max, n);
+    return n;
+  }
+
+  function bindLibraryControls() {
+    const gridInputs = {
+      'ctrl-columns': v => updateGridConfig('columns', clampInt(v, 1, 24)),
+      'ctrl-col-gap': v => updateGridConfig('colGap', clampInt(v, 0)),
+      'ctrl-row-gap': v => updateGridConfig('rowGap', clampInt(v, 0)),
+      'ctrl-padding': v => updateGridConfig('padding', clampInt(v, 0)),
+    };
+    Object.entries(gridInputs).forEach(([id, handler]) => {
+      $(id).addEventListener('input', e => handler(e.target.value));
+    });
+
+    $('ctrl-col-span').addEventListener('input', e => updateFormLayout({ colSpan: clampInt(e.target.value, 1) }));
+    $('ctrl-row-span').addEventListener('input', e => updateFormLayout({ rowSpan: clampInt(e.target.value, 1) }));
+
+    document.querySelectorAll('.align-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.align-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        updateFormLayout({ align: btn.dataset.align });
+      });
+    });
+
+    // Scoped to #lib-type-pills — the authoring panel has its own .type-pill
+    // set with the same class, and an unscoped document-wide query would
+    // wire both to the wrong handler.
+    $('lib-type-pills').querySelectorAll('.type-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        const form = getFormsForSet(state.activeSetId)[state.selectedFormIndex];
+        if (!form || form.builtIn) return;
+        $('lib-type-pills').querySelectorAll('.type-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        updateFormType(form.id, pill.dataset.type);
+      });
+    });
+
+    $('ctrl-seed-thickness').addEventListener('input', e => {
+      const form = getFormsForSet(state.activeSetId)[state.selectedFormIndex];
+      if (!form) return;
+      $('seed-thickness-val').textContent = e.target.value;
+      updateSeedThickness(form.id, parseInt(e.target.value, 10));
+    });
+
+    $('ctrl-form-name').addEventListener('change', e => {
+      const form = getFormsForSet(state.activeSetId)[state.selectedFormIndex];
+      if (!form || form.builtIn) return;
+      updateFormName(form.id, e.target.value);
+    });
+
+    $('btn-new-set').addEventListener('click', showNewSetInput);
+    $('btn-export-set').addEventListener('click', exportActiveSet);
+
+    $('form-grid').addEventListener('click', e => { if (e.target === e.currentTarget) deselectForm(); });
+  }
+
+  function updateGridConfig(key, value) {
+    const set = getSet(state.activeSetId);
+    if (!set) return;
+    set.gridConfig[key] = value;
+    const propMap = { columns: '--grid-cols', colGap: '--col-gap', rowGap: '--row-gap', padding: '--grid-padding' };
+    const suffix = key === 'columns' ? '' : 'px';
+    $('form-grid').style.setProperty(propMap[key], value + suffix);
+    const inputMap = { columns: 'ctrl-columns', colGap: 'ctrl-col-gap', rowGap: 'ctrl-row-gap', padding: 'ctrl-padding' };
+    $(inputMap[key]).value = value;
+    // Columns changes the lattice Compose hit-tests against, so it must
+    // re-run the flow simulation, not just repaint.
+    renderCompose();
+    saveLibrary();
+  }
+
+  function updateFormLayout(patch) {
+    if (state.selectedFormIndex === null) return;
+    const form = getFormsForSet(state.activeSetId)[state.selectedFormIndex];
+    if (!form) return;
+    setLayoutFor(state.activeSetId, form.id, patch);
+    const keepIndex = state.selectedFormIndex;
+    renderGrid(state.activeSetId);
+    selectForm(keepIndex);
+    renderCompose();
+    saveLibrary();
+  }
+
+  function setLayoutFor(setId, formId, patch) {
+    const set = getSet(setId);
+    if (!set) return;
+    if (!set.formLayout) set.formLayout = [];
+    let item = set.formLayout.find(l => l.formId === formId);
+    if (!item) { item = { formId, colSpan: 1, rowSpan: 1, align: 'mid-center' }; set.formLayout.push(item); }
+    Object.assign(item, patch);
+  }
+
+  function updateFormType(formId, type) {
+    const f = state.library.forms.find(x => x.id === formId);
+    if (!f) return;
+    f.type = type;
+    saveLibrary();
+    const keepIndex = state.selectedFormIndex;
+    renderGrid(state.activeSetId);
+    selectForm(keepIndex);
+  }
+
+  function updateFormName(formId, name) {
+    const f = state.library.forms.find(x => x.id === formId);
+    if (!f) return;
+    f.name = name;
+    saveLibrary();
+    const keepIndex = state.selectedFormIndex;
+    renderGrid(state.activeSetId);
+    selectForm(keepIndex);
+    renderSetsList();
+  }
+
+  function showNewSetInput() {
+    const list = $('sets-list');
+    const li = document.createElement('li');
+    li.className = 'set-item set-item--new-input';
+    const input = document.createElement('input');
+    input.className = 'set-name-input';
+    input.placeholder = 'Set name…';
+    input.type = 'text';
+    input.setAttribute('aria-label', 'New set name');
+    li.appendChild(input);
+    list.appendChild(li);
+    input.focus();
+
+    let done = false;
+    const commit = () => {
+      if (done) return; done = true;
+      const name = input.value.trim();
+      li.remove();
+      if (name) createNewSet(name);
+    };
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') commit();
+      if (e.key === 'Escape') { done = true; li.remove(); }
+      e.stopPropagation();   // don't let Escape/Backspace reach the global handlers
+    });
+    input.addEventListener('blur', commit);
+  }
+
+  function createNewSet(name) {
+    const id = newSetId(name);
+    state.library.sets.push({
+      id, name, builtIn: false, forms: [],
+      gridConfig: { columns: 4, colGap: 16, rowGap: 16, padding: 24 },
+      formLayout: [],
+    });
+    saveLibrary();
+    renderSetsList();
+    populateSets();
+    activateSet(id);
+    return id;
+  }
+
+  function newSetId(name) { return 'set_' + name.toLowerCase().replace(/[^a-z0-9]/g, '-') + '_' + Date.now(); }
+
+  // ── Export set as .js ──────────────────────────────────
+  function exportActiveSet() {
+    const setId = state.activeSetId;
+    if (setId === BUILT_IN_SET_ID) {
+      setStatus('', 'Organic Forms is built-in — nothing to export');
+      return;
+    }
+    const set = getSet(setId);
+    const forms = getFormsForSet(setId);
+    const setVarName = 'SET_' + set.name.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+
+    let out = '// ' + set.name + ' — Organica Seed Set\n';
+    out += '// Generated by Genesis — ' + new Date().toISOString() + '\n';
+    out += '// Studio Rann\n\n';
+    out += 'window.' + setVarName + ' = {};\n';
+    out += 'window.' + setVarName + '.FORMS = [\n';
+    forms.forEach((form, i) => {
+      const escaped = String(form.svg).replace(/\\/g, '\\\\').replace(/`/g, '\\`');
+      out += '  /* ' + i + ': ' + form.name + ' */\n  `' + escaped + '`,\n';
+    });
+    out += '];\n\n';
+    out += 'window.' + setVarName + '.LABELS = [\n';
+    forms.forEach(form => { out += "  '" + String(form.name).replace(/'/g, "\\'") + "',\n"; });
+    out += '];\n';
+
+    Organica.download(new Blob([out], { type: 'text/javascript' }), set.id + '.js');
+    setStatus('active', 'Exported ' + set.id + '.js');
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // COMPOSE
+  // ═══════════════════════════════════════════════════════
+  // The old Genesis composer's gesture — drag a rectangle of cells, click a
+  // form, fill — re-aimed at the Library model. There is no second data
+  // model: the lattice IS the active set's own gridConfig, the tiles ARE
+  // set.forms, and a multi-cell fill writes set.formLayout's colSpan/rowSpan,
+  // which the Library inspector reads back on the very same seed.
+  //
+  // Placement is explicit (grid-column/grid-row set per item from the flow
+  // simulation below) rather than left to CSS auto-flow, so what the mouse
+  // hit-tests and what the eye sees are computed from one source.
+
+  // Sparse row auto-flow, the CSS Grid default: a cursor that never moves
+  // backwards, first position where the item's span fits.
+  // `entries` are {form, src} — src is the index into set.forms, NOT into the
+  // rendered list. They differ whenever a set holds an id that no longer
+  // resolves (a deleted seed), and splicing by the wrong one would silently
+  // remove the wrong tile.
+  function simulateFlow(entries, layoutMap, cols) {
+    const occ = [];              // occ[r][c] = truthy once taken
+    const placements = [];
+    const free = (r, c, w, h) => {
+      for (let dr = 0; dr < h; dr++) for (let dc = 0; dc < w; dc++) {
+        if (occ[r + dr] && occ[r + dr][c + dc] !== undefined) return false;
+      }
+      return true;
+    };
+    let cr = 0, cc = 0;
+    entries.forEach((entry, i) => {
+      const L = layoutFor(layoutMap, entry.form);
+      const w = Math.min(L.colSpan, cols), h = L.rowSpan;
+      for (;;) {
+        if (cc + w > cols) { cr++; cc = 0; continue; }
+        if (free(cr, cc, w, h)) break;
+        cc++;
+      }
+      for (let dr = 0; dr < h; dr++) {
+        if (!occ[cr + dr]) occ[cr + dr] = [];
+        for (let dc = 0; dc < w; dc++) occ[cr + dr][cc + dc] = i;
+      }
+      placements.push({ index: i, src: entry.src, form: entry.form, r: cr, c: cc, w, h, align: L.align });
+      cc += w;
+    });
+    let rows = 0;
+    placements.forEach(p => { rows = Math.max(rows, p.r + p.h); });
+    return { placements, rows };
+  }
+
+  function getSetEntries(setId) {
+    if (setId === BUILT_IN_SET_ID) return getFormsForSet(setId).map((form, i) => ({ form, src: i }));
+    const set = getSet(setId);
+    if (!set) return [];
+    return (set.forms || []).map((fid, i) => ({ form: resolveFormById(fid), src: i })).filter(e => e.form);
+  }
+
+  function renderCompose() {
+    const grid = $('compose-grid');
+    const set = getSet(state.activeSetId);
+    if (!set) return;
+    applyGridVars(grid, set);
+    grid.innerHTML = '';
+
+    const cols = set.gridConfig.columns;
+    const flow = simulateFlow(getSetEntries(state.activeSetId), getLayoutMap(state.activeSetId), cols);
+    state.compose.placements = flow.placements;
+
+    // Two spare rows past the flow so there is always somewhere to drag.
+    const rows = Math.max(flow.rows + 2, 4);
+    state.compose.rows = rows;
+    grid.style.gridTemplateRows = `repeat(${rows}, minmax(var(--tile-min-size), auto))`;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const cell = document.createElement('div');
+        cell.className = 'gcell';
+        cell.dataset.r = r; cell.dataset.c = c;
+        cell.style.gridColumn = (c + 1) + ' / span 1';
+        cell.style.gridRow = (r + 1) + ' / span 1';
+        grid.appendChild(cell);
+      }
+    }
+    flow.placements.forEach(p => {
+      const el = document.createElement('div');
+      el.className = 'ctile';
+      el.dataset.index = p.index;
+      el.style.gridColumn = (p.c + 1) + ' / span ' + p.w;
+      el.style.gridRow = (p.r + 1) + ' / span ' + p.h;
+      el.style.cssText += ';' + alignToCSS(p.align);
+      el.innerHTML = cleanSVG(p.form.svg);
+      grid.appendChild(el);
+    });
+    renderComposeSelection();
+    refreshComposePicker();
+  }
+
+  function renderComposeSelection() {
+    const grid = $('compose-grid');
+    const old = grid.querySelector('.sel-overlay');
+    if (old) old.remove();
+    grid.querySelectorAll('.gcell.in-sel').forEach(c => c.classList.remove('in-sel'));
+    const sel = state.compose.selection;
+    if (!sel) return;
+    grid.querySelectorAll('.gcell').forEach(c => {
+      const r = +c.dataset.r, cc = +c.dataset.c;
+      if (r >= sel.r1 && r <= sel.r2 && cc >= sel.c1 && cc <= sel.c2) c.classList.add('in-sel');
+    });
+    const ov = document.createElement('div');
+    ov.className = 'sel-overlay';
+    ov.style.gridColumn = (sel.c1 + 1) + ' / ' + (sel.c2 + 2);
+    ov.style.gridRow = (sel.r1 + 1) + ' / ' + (sel.r2 + 2);
+    grid.appendChild(ov);
+  }
+
+  function composeEditable() { return state.activeSetId !== BUILT_IN_SET_ID; }
+
+  function cellFromPoint(x, y) {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+    const cell = el.closest('.gcell');
+    if (!cell || !$('compose-grid').contains(cell)) return null;
+    return { r: +cell.dataset.r, c: +cell.dataset.c };
+  }
+
+  function bindComposeControls() {
+    const grid = $('compose-grid');
+    grid.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      const cell = e.target.closest('.gcell');
+      if (!cell) return;
+      e.preventDefault();
+      closePopover();
+      state.compose.dragging = true;
+      const c = { r: +cell.dataset.r, c: +cell.dataset.c };
+      state.compose.dragAnchor = c;
+      state.compose.selection = { r1: c.r, c1: c.c, r2: c.r, c2: c.c };
+      renderComposeSelection();
+      refreshComposePicker();
+      updateModeStatus();
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (!state.compose.dragging) return;
+      const c = cellFromPoint(e.clientX, e.clientY);
+      if (!c) return;
+      const a = state.compose.dragAnchor;
+      state.compose.selection = {
+        r1: Math.min(a.r, c.r), c1: Math.min(a.c, c.c),
+        r2: Math.max(a.r, c.r), c2: Math.max(a.c, c.c),
+      };
+      renderComposeSelection();
+      updateModeStatus();
+    });
+
+    window.addEventListener('mouseup', () => { state.compose.dragging = false; });
+
+    // A click well outside the grid clears the selection — but never one
+    // inside a panel, the popover, or the grid itself.
+    document.addEventListener('mousedown', e => {
+      if (S.mode !== 'compose' || e.button !== 0) return;
+      if (!state.compose.selection) return;
+      if ($('compose-grid').contains(e.target)) return;
+      if (e.target.closest('.popover') || e.target.closest('.design-panel') || e.target.closest('.sets-panel') || e.target.closest('.org-header')) return;
+      clearComposeSelection();
+    });
+  }
+
+  function clearComposeSelection() {
+    state.compose.selection = null;
+    renderComposeSelection();
+    refreshComposePicker();
+    closePopover();
+    updateModeStatus();
+  }
+
+  // ── Compose seeds picker ───────────────────────────────
+  // Everything you can fill WITH: the 55 built-in organic forms plus every
+  // saved seed in the library, deduplicated.
+  function composeSourceForms() {
+    const out = [];
+    const F = window.ORGANIC_FORMS || {};
+    Object.keys(F).map(Number).filter(n => F[n]).sort((a, b) => a - b).forEach(n => {
+      const f = organicForm(n); if (f) out.push(f);
+    });
+    (state.library.forms || []).forEach(f => out.push(f));
+    return out;
+  }
+
+  function renderComposePicker() {
+    const wrap = $('compose-forms');
+    wrap.innerHTML = '';
+    const armed = !!state.compose.selection && composeEditable();
+
+    const erase = document.createElement('button');
+    erase.type = 'button';
+    erase.className = 'erase-card' + (armed ? '' : ' disabled');
+    erase.textContent = 'Erase';
+    erase.setAttribute('aria-label', 'Erase seeds in selection');
+    erase.addEventListener('click', () => { if (state.compose.selection && composeEditable()) eraseSelection(); });
+    wrap.appendChild(erase);
+
+    composeSourceForms().forEach(form => {
+      const t = document.createElement('button');
+      t.type = 'button';
+      t.className = 'form-thumb' + (armed ? '' : ' disabled');
+      t.dataset.formId = form.id;
+      t.setAttribute('aria-label', 'Fill selection with ' + form.name);
+      t.title = form.name;
+      t.innerHTML = (form.num ? '<span class="n">' + String(form.num).padStart(2, '0') + '</span>' : '') + cleanSVG(form.svg);
+      t.addEventListener('click', () => {
+        if (!composeEditable()) { setStatus('', 'Organic Forms is built-in — pick or create your own set'); return; }
+        if (!state.compose.selection) { setStatus('', 'Select cells on the canvas first'); return; }
+        fillSelection(form.id);
+      });
+      wrap.appendChild(t);
+    });
+    Organica.autoLabelPanel(wrap);
+  }
+
+  function refreshComposePicker() {
+    const armed = !!state.compose.selection && composeEditable();
+    $('compose-forms').querySelectorAll('.form-thumb, .erase-card').forEach(el => el.classList.toggle('disabled', !armed));
+  }
+
+  // ── Fill / erase ───────────────────────────────────────
+  function rectsIntersect(p, sel) {
+    return !(p.c + p.w <= sel.c1 || p.c > sel.c2 || p.r + p.h <= sel.r1 || p.r > sel.r2);
+  }
+
+  function fillSelection(formId) {
+    const sel = state.compose.selection;
+    if (!sel) return;
+    const w = sel.c2 - sel.c1 + 1, h = sel.r2 - sel.r1 + 1;
+    if (w === 1 && h === 1) { applyFill(formId, 'repeat'); return; }
+    // A multi-cell selection is genuinely ambiguous — one seed per cell, or
+    // one seed spanning the whole rectangle? The old composer asked the same
+    // question ("repeat or crop"); here the second option is a real
+    // formLayout span, which the Library inspector then shows as Span.
+    openPopover(sel, mode => applyFill(formId, mode));
+  }
+
+  function applyFill(formId, mode) {
+    const sel = state.compose.selection;
+    const set = getSet(state.activeSetId);
+    if (!sel || !set) return;
+    const w = sel.c2 - sel.c1 + 1, h = sel.r2 - sel.r1 + 1;
+    if (!set.forms) set.forms = [];
+
+    // Which existing tiles does the selection cover? They are replaced.
+    // Indices are set.forms indices (p.src), never rendered-list indices.
+    const hit = state.compose.placements.filter(p => rectsIntersect(p, sel));
+    let insertAt;
+    if (hit.length) {
+      insertAt = Math.min.apply(null, hit.map(p => p.src));
+      hit.map(p => p.src).sort((a, b) => b - a).forEach(i => set.forms.splice(i, 1));
+    } else {
+      // No tile covered: insert at the flow position of the selection start.
+      // Seeds flow in order, so this lands at the first tile that sits at or
+      // after the selection — or at the end when the selection is past them.
+      const after = state.compose.placements.find(p => (p.r > sel.r1) || (p.r === sel.r1 && p.c >= sel.c1));
+      insertAt = after ? after.src : set.forms.length;
+    }
+
+    const added = (mode === 'span') ? [formId] : new Array(w * h).fill(formId);
+    set.forms.splice(insertAt, 0, ...added);
+    // formLayout is keyed by formId (a property of the existing model, not
+    // of this feature): a span therefore applies to every tile of that seed
+    // in this set, and 'repeat' resets it to 1×1 for the same reason.
+    setLayoutFor(state.activeSetId, formId, (mode === 'span')
+      ? { colSpan: w, rowSpan: h }
+      : { colSpan: 1, rowSpan: 1 });
+
+    saveLibrary();
+    closePopover();
+    state.compose.selection = null;
+    renderCompose();
+    renderGrid(state.activeSetId);
+    deselectForm();
+    renderSetsList();
+    syncSetBar();
+    setStatus('active', (mode === 'span')
+      ? `Filled ${w}×${h} with one spanning seed`
+      : `Filled ${w * h} cell${w * h === 1 ? '' : 's'}`);
+  }
+
+  function eraseSelection() {
+    const sel = state.compose.selection;
+    const set = getSet(state.activeSetId);
+    if (!sel || !set || !set.forms) return;
+    const hit = state.compose.placements.filter(p => rectsIntersect(p, sel));
+    if (!hit.length) { clearComposeSelection(); return; }
+    hit.map(p => p.src).sort((a, b) => b - a).forEach(i => set.forms.splice(i, 1));
+    saveLibrary();
+    state.compose.selection = null;
+    renderCompose();
+    renderGrid(state.activeSetId);
+    deselectForm();
+    renderSetsList();
+    syncSetBar();
+    setStatus('active', `Removed ${hit.length} seed${hit.length === 1 ? '' : 's'}`);
+  }
+
+  // ── Repeat / span popover ──────────────────────────────
+  let popoverEl = null;
+  function openPopover(sel, onPick) {
+    closePopover();
+    const grid = $('compose-grid');
+    const ov = grid.querySelector('.sel-overlay');
+    const ovRect = (ov || grid).getBoundingClientRect();
+    const gridRect = grid.getBoundingClientRect();
+    popoverEl = document.createElement('div');
+    popoverEl.className = 'popover';
+    popoverEl.innerHTML =
+      '<span class="pophead">Multi-cell</span>' +
+      '<button data-m="repeat">One per cell</button>' +
+      '<button data-m="span">One spanning</button>' +
+      '<button class="x" data-m="cancel" aria-label="Cancel">×</button>';
+    grid.appendChild(popoverEl);
+    const pop = popoverEl;
+    pop.style.visibility = 'hidden';
+    requestAnimationFrame(() => {
+      if (!popoverEl) return;
+      const popRect = pop.getBoundingClientRect();
+      let left = ovRect.left - gridRect.left + grid.scrollLeft + (ovRect.width - popRect.width) / 2;
+      let top = ovRect.top - gridRect.top + grid.scrollTop - popRect.height - 10;
+      if (top < 4) top = ovRect.bottom - gridRect.top + grid.scrollTop + 10;
+      left = Math.max(4, Math.min(left, gridRect.width - popRect.width - 4));
+      pop.style.left = left + 'px';
+      pop.style.top = top + 'px';
+      pop.style.visibility = 'visible';
+    });
+    pop.addEventListener('click', e => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      if (b.dataset.m === 'cancel') { closePopover(); return; }
+      onPick(b.dataset.m);
+    });
+  }
+
+  function closePopover() { if (popoverEl) { popoverEl.remove(); popoverEl = null; } }
+
+  // ═══════════════════════════════════════════════════════
+  // MODES
+  // ═══════════════════════════════════════════════════════
+  function bindTabs() {
+    $('mode-tabs').querySelectorAll('[data-mode]').forEach(t => {
+      t.addEventListener('click', () => setMode(t.dataset.mode));
+    });
+  }
+
+  function setMode(mode) {
+    S.mode = mode;
+    // aria-pressed is the state, not a class — the component styles from it,
+    // so assistive tech and the visuals can never disagree.
+    $('mode-tabs').querySelectorAll('[data-mode]')
+      .forEach(t => t.setAttribute('aria-pressed', String(t.dataset.mode === mode)));
+
+    document.querySelectorAll('[data-modes]').forEach(el => {
+      el.classList.toggle('on', el.dataset.modes.split(' ').indexOf(mode) !== -1);
+    });
+    document.querySelectorAll('.mode-block').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+
+    $('art').classList.toggle('notdraw', mode !== 'draw');
+    $('draw-canvas').classList.toggle('active', mode === 'draw');
+    $('art-hint').style.display = mode === 'draw' ? 'block' : 'none';
+    const isImport = mode === 'import';
+    $('fill-seg').style.opacity = isImport ? '0.4' : '1';
+    $('fill-seg').style.pointerEvents = isImport ? 'none' : 'auto';
+
+    if (mode === 'generate') syncGenerator();
+    if (mode === 'compose') { renderCompose(); syncSetBar(); }
+    if (mode === 'library') { renderGrid(state.activeSetId); syncSetBar(); }
+    if (mode !== 'compose') { state.compose.selection = null; closePopover(); }
+
+    if (isCreatorMode()) renderArt(); else updateModeStatus();
+  }
+
+  function updateModeStatus() {
+    if (S.mode === 'library') {
+      const n = getFormsForSet(state.activeSetId).length;
+      setStatus(n ? 'active' : '', n + (n === 1 ? ' seed' : ' seeds') + ' in ' + getSet(state.activeSetId).name);
+    } else if (S.mode === 'compose') {
+      if (!composeEditable()) { setStatus('', 'Built-in set is read-only — pick another set'); return; }
+      const sel = state.compose.selection;
+      if (sel) {
+        const w = sel.c2 - sel.c1 + 1, h = sel.r2 - sel.r1 + 1;
+        setStatus('active', w + ' × ' + h + ' selected — click a seed to fill');
+      } else {
+        setStatus('', 'Drag on the canvas to select cells');
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // AUTHORING (Draw / Import / Generate) — ported from creator.html
+  // ═══════════════════════════════════════════════════════
+
+  // Small representative icons for the Generate-mode Kind picker.
+  const GEN_KIND_REGISTRY = {
+    circle: { name: 'Circle', icon: '<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="9" fill="currentColor"/></svg>' },
+    polygon: { name: 'Poly', icon: '<svg viewBox="0 0 26 26"><polygon points="13,4 21,10 18,20 8,20 5,10" fill="currentColor"/></svg>' },
+    star: { name: 'Star', icon: '<svg viewBox="0 0 26 26"><polygon points="13,3 15.8,10.2 23,10.8 17.5,15.5 19.2,22.5 13,18.7 6.8,22.5 8.5,15.5 3,10.8 10.2,10.2" fill="currentColor"/></svg>' },
+    arc: { name: 'Arc', icon: '<svg viewBox="0 0 26 26"><path d="M4,4 L22,4 A18,18 0 0,1 4,22 Z" fill="currentColor"/></svg>' },
+    triangle: { name: 'Triangle', icon: '<svg viewBox="0 0 26 26"><polygon points="13,4 23,22 3,22" fill="currentColor"/></svg>' },
+    square: { name: 'Square', icon: '<svg viewBox="0 0 26 26"><rect x="4" y="4" width="18" height="18" fill="currentColor"/></svg>' },
+    segment: { name: 'Segment', icon: '<svg viewBox="0 0 26 26"><line x1="4" y1="13" x2="22" y2="13" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>' },
+    drop: { name: 'Drop', icon: '<svg viewBox="0 0 26 26"><path d="M13,3 C9,10 5,13 5,17 A8,8 0 0,0 21,17 C21,13 17,10 13,3 Z" fill="currentColor"/></svg>' },
+    blob: { name: 'Blob', icon: '<svg viewBox="0 0 26 26"><path d="M13,4 C18,3 22,7 21,12 C23,17 19,22 13,21 C7,23 3,18 5,13 C3,8 8,3 13,4 Z" fill="currentColor"/></svg>' },
+  };
+  let genKindPicker = null;
+
+  function buildArtGrid() {
+    let s = '';
+    for (let i = 1; i < 4; i++) {
+      const p = i * 50;
+      s += `<line class="grid-line" x1="${p}" y1="0" x2="${p}" y2="200"/>`;
+      s += `<line class="grid-line" x1="0" y1="${p}" x2="200" y2="${p}"/>`;
+    }
+    $('grid-layer').innerHTML = s;
+  }
+
+  // Draw mode's anchor placement/drag/tangent-editing runs on
+  // Organica.createPaperDrawEditor (shared/organica-paper.js). #draw-canvas
+  // sits exactly over #art with fitBox mapping its project space 1:1 onto the
+  // artboard's own 0–200 box, so getPathData() is usable directly.
+  //
+  // One disclosed simplification, carried over from creator.html: clicks land
+  // in raw 0–200 space regardless of the live Appearance transform.
+  let drawEditor = null;
+  function initDrawEditor() {
+    drawEditor = Organica.createPaperDrawEditor($('draw-canvas'), {
+      strokeColor: 'transparent',
+      fitBox: { x: 0, y: 0, width: 200, height: 200 },
+      onChange: renderArt,
+    });
+    drawEditor.setClosed(true);   // matches #ck-close's own default checked state
+  }
+
+  function bindArtboard() {
+    document.addEventListener('keydown', e => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
+        if (S.mode === 'draw' && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') {
+          e.preventDefault(); drawEditor.undo();
+        }
+      }
+    });
+  }
+
+  function bindCreatorControls() {
+    $('ck-close').addEventListener('change', e => drawEditor.setClosed(e.target.checked));
+    $('ck-smooth').addEventListener('change', e => drawEditor.setSmooth(e.target.checked));
+
+    $('btn-undo').addEventListener('click', () => { if (S.mode === 'draw') drawEditor.undo(); });
+    $('btn-clear').addEventListener('click', () => {
+      if (S.mode === 'draw') drawEditor.clear();
+      S.importInner = null; $('paste-svg').value = ''; renderArt();
+    });
+
+    // Import
+    $('btn-upload').addEventListener('click', () => $('file-svg').click());
+    $('file-svg').addEventListener('change', e => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => importSVG(ev.target.result);
+      r.readAsText(f); e.target.value = '';
+    });
+    $('paste-svg').addEventListener('input', e => importSVG(e.target.value));
+
+    // Generate — the shared thumbnail picker component.
+    genKindPicker = Organica.Transformer.buildPicker($('gen-seg'), GEN_KIND_REGISTRY, {
+      initial: S.gen.type,
+      noNone: true,
+      ariaLabel: 'Generate kind',
+      onChange: key => {
+        S.gen.type = key;
+        if (key === 'segment' && S.fillMode !== 'stroke') setFillMode('stroke');
+        syncGenerator(); renderArt();
+      },
+    });
+    $('gen-n').addEventListener('input', e => { S.gen.n = parseInt(e.target.value, 10); $('gen-n-val').textContent = S.gen.n; renderArt(); });
+    $('gen-r').addEventListener('input', e => { S.gen.r = parseInt(e.target.value); $('gen-r-val').textContent = S.gen.r; renderArt(); });
+    $('gen-thickness').addEventListener('input', e => { S.gen.thickness = parseInt(e.target.value); $('gen-thickness-val').textContent = S.gen.thickness; renderArt(); });
+    $('gen-w').addEventListener('input', e => { S.gen.w = parseInt(e.target.value, 10); $('gen-w-val').textContent = S.gen.w; renderArt(); });
+    $('gen-h').addEventListener('input', e => { S.gen.h = parseInt(e.target.value, 10); $('gen-h-val').textContent = S.gen.h; renderArt(); });
+    $('gen-corner').addEventListener('input', e => { S.gen.corner = parseInt(e.target.value, 10); $('gen-corner-val').textContent = S.gen.corner; renderArt(); });
+    $('gen-irregularity').addEventListener('input', e => { S.gen.irregularity = parseInt(e.target.value, 10); $('gen-irregularity-val').textContent = S.gen.irregularity; renderArt(); });
+    $('gen-seed').addEventListener('input', e => { S.gen.seed = parseInt(e.target.value, 10) || 0; renderArt(); });
+    $('gen-inner').addEventListener('input', e => { S.gen.innerRatio = parseInt(e.target.value, 10); $('gen-inner-val').textContent = S.gen.innerRatio; renderArt(); });
+    $('gen-sweep').addEventListener('input', e => { S.gen.sweep = parseInt(e.target.value, 10); $('gen-sweep-val').textContent = S.gen.sweep + '°'; renderArt(); });
+    $('gen-len').addEventListener('input', e => { S.gen.len = parseInt(e.target.value, 10); $('gen-len-val').textContent = S.gen.len; renderArt(); });
+    $('gen-tail').addEventListener('input', e => { S.gen.tail = parseInt(e.target.value, 10); $('gen-tail-val').textContent = S.gen.tail; renderArt(); });
+    $('gen-amount').addEventListener('input', e => { S.gen.amount = parseInt(e.target.value, 10); $('gen-amount-val').textContent = S.gen.amount; renderArt(); });
+    $('gen-pivot-seg').querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => {
+      $('gen-pivot-seg').querySelectorAll('.seg-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active'); S.gen.pivot = b.dataset.pivot; renderArt();
+    }));
+
+    // Appearance
+    $('fill-seg').querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => setFillMode(b.dataset.fill)));
+    $('ctrl-strokew').addEventListener('input', e => { S.strokeW = parseInt(e.target.value); $('strokew-val').textContent = S.strokeW; renderArt(); });
+    $('ck-rounded').addEventListener('change', e => { S.rounded = e.target.checked; renderArt(); });
+    $('ctrl-scale').addEventListener('input', e => { S.scale = parseFloat(e.target.value); $('scale-val').textContent = S.scale.toFixed(2); renderArt(); });
+    $('ctrl-w').addEventListener('input', e => { S.w = parseFloat(e.target.value); $('w-val').textContent = '×' + S.w.toFixed(1); renderArt(); });
+    $('ctrl-l').addEventListener('input', e => { S.l = parseFloat(e.target.value); $('l-val').textContent = '×' + S.l.toFixed(1); renderArt(); });
+    $('ctrl-rot').addEventListener('input', e => { S.rot = parseInt(e.target.value); $('rot-val').textContent = S.rot + '°'; renderArt(); });
+    $('ctrl-mx').addEventListener('input', e => { S.moveX = parseInt(e.target.value); $('mx-val').textContent = S.moveX; renderArt(); });
+    $('ctrl-my').addEventListener('input', e => { S.moveY = parseInt(e.target.value); $('my-val').textContent = S.moveY; renderArt(); });
+    $('btn-fit').addEventListener('click', fitToGrid);
+    $('row-strokew').style.opacity = '0.4';
+    $('row-rounded').style.opacity = '0.4';
+
+    // Meta
+    $('type-pills').querySelectorAll('.type-pill').forEach(p => p.addEventListener('click', () => {
+      $('type-pills').querySelectorAll('.type-pill').forEach(x => x.classList.remove('active'));
+      p.classList.add('active'); S.type = p.dataset.type;
+      syncUnderlyingLayerUI();
+      renderArt();
+    }));
+
+    $('ctrl-set').addEventListener('change', syncNewSetRow);
+
+    $('btn-pick-layer').addEventListener('click', openLayerPicker);
+    $('btn-remove-layer').addEventListener('click', removeUnderlyingLayer);
+    $('layer-picker-close').addEventListener('click', closeLayerPicker);
+    $('layer-picker-overlay').addEventListener('click', e => { if (e.target === $('layer-picker-overlay')) closeLayerPicker(); });
+
+    $('btn-load-seed').addEventListener('click', openSeedPicker);
+    $('seed-picker-close').addEventListener('click', closeSeedPicker);
+    $('seed-picker-overlay').addEventListener('click', e => { if (e.target === $('seed-picker-overlay')) closeSeedPicker(); });
+
+    // One global key handler, dispatched by mode — Escape means "close the
+    // open picker" in the authoring modes and "clear the selection" in
+    // Compose, and the two must not fight.
+    document.addEventListener('keydown', e => {
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+      if (e.key === 'Escape') {
+        let closed = false;
+        if ($('layer-picker-overlay').style.display !== 'none') { closeLayerPicker(); closed = true; }
+        if ($('seed-picker-overlay').style.display !== 'none') { closeSeedPicker(); closed = true; }
+        if (!closed && S.mode === 'compose') clearComposeSelection();
+      } else if ((e.key === 'Backspace' || e.key === 'Delete') && S.mode === 'compose' && !typing && state.compose.selection) {
+        e.preventDefault();
+        if (composeEditable()) eraseSelection();
+      }
+    });
+
+    $('btn-save').addEventListener('click', saveForm);
+  }
+
+  function syncUnderlyingLayerUI() {
+    const relevant = S.type === 'mask' || S.type === 'container';
+    $('underlying-layer-block').style.display = relevant ? '' : 'none';
+    $('underlying-layer-empty').style.display = S.underlyingLayer ? 'none' : '';
+    $('underlying-layer-set').style.display = S.underlyingLayer ? 'flex' : 'none';
+    if (S.underlyingLayer) {
+      $('underlying-layer-name').textContent = S.underlyingLayer.name;
+      $('underlying-layer-thumb').innerHTML = `<svg viewBox="0 0 200 200" style="width:100%;height:100%">${S.underlyingLayer.innerMarkup}</svg>`;
+    }
+  }
+
+  function removeUnderlyingLayer() {
+    S.underlyingLayer = null;
+    syncUnderlyingLayerUI();
+    renderArt();
+  }
+
+  // Every saved seed across every set, de-duplicated by id — shared by the
+  // Underlying-layer picker and the Load-seed picker. Reads state.library
+  // directly now (creator.html used to re-parse localStorage on each call).
+  function listAllLibrarySeeds() {
+    const seen = new Set(), forms = [];
+    for (const set of state.library.sets || []) {
+      for (const fid of set.forms || []) {
+        const f = resolveFormById(fid);
+        if (f && !f.builtIn && !seen.has(f.id)) { seen.add(f.id); forms.push(f); }
+      }
+    }
+    return forms;
+  }
+
+  function buildPickerTiles(wrapId, emptyId, labelPrefix, onPick) {
+    const forms = listAllLibrarySeeds();
+    $(emptyId).style.display = forms.length ? 'none' : '';
+    const wrap = $(wrapId);
+    wrap.innerHTML = '';
+    for (const f of forms) {
+      const btn = document.createElement('button');
+      btn.className = 'picker-item';
+      btn.title = f.name;
+      btn.setAttribute('aria-label', labelPrefix + f.name);
+      btn.innerHTML = cleanSVG(f.svg);
+      btn.addEventListener('click', () => onPick(f));
+      wrap.appendChild(btn);
+    }
+  }
+
+  function openLayerPicker() {
+    buildPickerTiles('layer-picker-tiles', 'layer-picker-empty', 'Use as underlying layer: ', f => { pickUnderlyingLayer(f); closeLayerPicker(); });
+    $('layer-picker-overlay').style.display = 'flex';
+    Organica.autoLabelPanel($('layer-picker-overlay'));
+  }
+  function closeLayerPicker() { $('layer-picker-overlay').style.display = 'none'; }
+
+  function pickUnderlyingLayer(form) {
+    const div = document.createElement('div');
+    div.innerHTML = form.svg;
+    const svgRoot = div.querySelector('svg');
+    S.underlyingLayer = { id: form.id, name: form.name, innerMarkup: svgRoot ? svgRoot.innerHTML : '' };
+    syncUnderlyingLayerUI();
+    renderArt();
+  }
+
+  function openSeedPicker() {
+    buildPickerTiles('seed-picker-tiles', 'seed-picker-empty', 'Load seed ', f => { loadSeedIntoWorkingShape(f); closeSeedPicker(); });
+    $('seed-picker-overlay').style.display = 'flex';
+    Organica.autoLabelPanel($('seed-picker-overlay'));
+  }
+  function closeSeedPicker() { $('seed-picker-overlay').style.display = 'none'; }
+
+  // Writes every Generate-mode input's value + readout from S.gen — one place,
+  // rather than a hand-picked field list that silently misses new params.
+  function syncGenInputsUI() {
+    const g = S.gen;
+    $('gen-n').value = g.n; $('gen-n-val').textContent = g.n;
+    $('gen-r').value = g.r; $('gen-r-val').textContent = g.r;
+    $('gen-thickness').value = g.thickness; $('gen-thickness-val').textContent = g.thickness;
+    $('gen-w').value = g.w; $('gen-w-val').textContent = g.w;
+    $('gen-h').value = g.h; $('gen-h-val').textContent = g.h;
+    $('gen-corner').value = g.corner; $('gen-corner-val').textContent = g.corner;
+    $('gen-irregularity').value = g.irregularity; $('gen-irregularity-val').textContent = g.irregularity;
+    $('gen-seed').value = g.seed;
+    $('gen-inner').value = g.innerRatio; $('gen-inner-val').textContent = g.innerRatio;
+    $('gen-sweep').value = g.sweep; $('gen-sweep-val').textContent = g.sweep + '°';
+    $('gen-len').value = g.len; $('gen-len-val').textContent = g.len;
+    $('gen-tail').value = g.tail; $('gen-tail-val').textContent = g.tail;
+    $('gen-amount').value = g.amount; $('gen-amount-val').textContent = g.amount;
+    $('gen-pivot-seg').querySelectorAll('.seg-btn').forEach(x => x.classList.toggle('active', x.dataset.pivot === g.pivot));
+  }
+
+  function loadSeedIntoWorkingShape(form) {
+    if (form.genType) {
+      // Reset to defaults first, THEN merge the saved recipe on top —
+      // otherwise a field the saved seed never set would silently keep
+      // whatever the previous kind left behind in S.gen.
+      S.gen = Object.assign({}, DEFAULT_GEN, form.genParams || {}, { type: form.genType });
+      genKindPicker.setActive(form.genType);
+      syncGenInputsUI();
+      syncGenerator();
+      setMode('generate');
+    } else {
+      const div = document.createElement('div');
+      div.innerHTML = form.svg;
+      const svgRoot = div.querySelector('svg');
+      importSVG(svgRoot ? svgRoot.outerHTML : form.svg);
+      setMode('import');
+    }
+    renderArt();
+  }
+
+  function setFillMode(mode) {
+    S.fillMode = mode;
+    $('fill-seg').querySelectorAll('.seg-btn').forEach(x => x.classList.toggle('active', x.dataset.fill === mode));
+    const isStroke = mode === 'stroke';
+    $('row-strokew').style.opacity = isStroke ? '1' : '0.4';
+    $('row-rounded').style.opacity = isStroke ? '1' : '0.4';
+    renderArt();
+  }
+
+  function syncGenerator() {
+    const t = S.gen.type;
+    const show = (id, on) => { $(id).style.display = on ? 'flex' : 'none'; };
+    show('row-gen-n', t === 'polygon' || t === 'star');
+    show('row-gen-r', t === 'circle' || t === 'polygon' || t === 'star' || t === 'drop' || t === 'blob');
+    show('row-gen-thickness', t === 'arc');
+    show('row-gen-w', t === 'triangle' || t === 'square');
+    show('row-gen-h', t === 'triangle' || t === 'square');
+    show('row-gen-corner', t === 'polygon' || t === 'square');
+    show('row-gen-irregularity', t === 'polygon');
+    show('row-gen-seed', t === 'polygon' || t === 'blob');
+    show('row-gen-inner', t === 'star');
+    show('row-gen-pivot', t === 'arc');
+    show('row-gen-sweep', t === 'arc');
+    show('row-gen-len', t === 'segment');
+    show('row-gen-tail', t === 'drop');
+    show('row-gen-amount', t === 'blob');
+    $('gen-w-label').textContent = t === 'triangle' ? 'Base' : 'Width';
+  }
+
+  // ── Import normalisation ───────────────────────────────
+  function importSVG(text) {
+    if (!text || !text.trim()) { S.importInner = null; renderArt(); return; }
+    try {
+      const div = document.createElement('div'); div.innerHTML = text;
+      const svg = div.querySelector('svg');
+      if (!svg) { S.importInner = null; renderArt(); return; }
+      let x = 0, y = 0, w = 200, h = 200;
+      const vb = svg.getAttribute('viewBox');
+      if (vb) { const p = vb.split(/[\s,]+/).map(Number); x = p[0]; y = p[1]; w = p[2]; h = p[3]; }
+      else { w = parseFloat(svg.getAttribute('width')) || 200; h = parseFloat(svg.getAttribute('height')) || 200; }
+
+      const recolor = v => (v && v !== 'none' && !/^url\(/.test(v)) ? 'var(--ink)' : v;
+      const rootAttrs = [];
+      ['fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-dasharray', 'fill-rule', 'fill-opacity', 'stroke-opacity', 'opacity'].forEach(a => {
+        let v = svg.getAttribute(a); if (v == null) return;
+        if (a === 'fill' || a === 'stroke') v = recolor(v);
+        rootAttrs.push(`${a}="${v}"`);
+      });
+      if (!svg.getAttribute('fill') && !svg.getAttribute('stroke')) rootAttrs.push('fill="var(--ink)"');
+
+      const inner = svg.innerHTML
+        .replace(/(fill|stroke)="(?!none|url\()[^"]*"/g, '$1="var(--ink)"')
+        .replace(/(fill|stroke):\s*(?!none|url\()[^;"'}]+/g, '$1:var(--ink)');
+
+      const k = 200 / Math.max(w, h);
+      const tx = (200 - w * k) / 2 - x * k, ty = (200 - h * k) / 2 - y * k;
+      S.importInner = `<g transform="translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${k.toFixed(4)})" ${rootAttrs.join(' ')}>${inner}</g>`;
+    } catch (e) { S.importInner = null; }
+    renderArt();
+  }
+
+  // ── Geometry builders ──────────────────────────────────
+  const f = v => (+v).toFixed(2);
+
+  function linePathD(pts, close) {
+    const n = pts.length; if (n < 2) return '';
+    let d = `M ${f(pts[0][0])} ${f(pts[0][1])}`;
+    for (let i = 1; i < n; i++) d += ` L ${f(pts[i][0])} ${f(pts[i][1])}`;
+    return d + (close ? ' Z' : '');
+  }
+
+  function mulberry32(seed) { return Organica.mulberry32(seed); }
+
+  function polyPoints(n, r, star, irregularity, seed) {
+    const pts = [], cx = 100, cy = 100;
+    const count = star ? n * 2 : n;
+    const rng = (!star && irregularity > 0) ? mulberry32(seed || 1) : null;
+    for (let i = 0; i < count; i++) {
+      const ang = -Math.PI / 2 + (i / count) * Math.PI * 2;
+      let rr = star ? (i % 2 === 0 ? r : r * (S.gen.innerRatio / 100)) : r;
+      if (rng) rr *= 1 + (rng() * 2 - 1) * 0.5 * (irregularity / 100);
+      pts.push([cx + Math.cos(ang) * rr, cy + Math.sin(ang) * rr]);
+    }
+    return pts;
+  }
+
+  // Corner-rounding via "cut corner, bridge with a quadratic curve through
+  // the original vertex" — cornerPct=0 falls back to sharp linePathD exactly.
+  function roundedPolyPathD(pts, cornerPct) {
+    if (!cornerPct) return linePathD(pts, true);
+    const n = pts.length;
+    let d = '';
+    for (let i = 0; i < n; i++) {
+      const prev = pts[(i - 1 + n) % n], cur = pts[i], next = pts[(i + 1) % n];
+      const toPrev = [prev[0] - cur[0], prev[1] - cur[1]], toNext = [next[0] - cur[0], next[1] - cur[1]];
+      const lenPrev = Math.hypot(toPrev[0], toPrev[1]), lenNext = Math.hypot(toNext[0], toNext[1]);
+      const cut = Math.min(lenPrev, lenNext) * 0.5 * (cornerPct / 100);
+      const p1 = [cur[0] + (toPrev[0] / lenPrev) * cut, cur[1] + (toPrev[1] / lenPrev) * cut];
+      const p2 = [cur[0] + (toNext[0] / lenNext) * cut, cur[1] + (toNext[1] / lenNext) * cut];
+      d += (i === 0 ? `M ${f(p1[0])} ${f(p1[1])} ` : `L ${f(p1[0])} ${f(p1[1])} `);
+      d += `Q ${f(cur[0])} ${f(cur[1])} ${f(p2[0])} ${f(p2[1])} `;
+    }
+    return d + 'Z';
+  }
+
+  function wedgePathD(cx, cy, outerR, startDeg, sweepDeg, innerR) {
+    const a0 = (startDeg * Math.PI) / 180, a1 = ((startDeg + sweepDeg) * Math.PI) / 180;
+    const p = (r, a) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+    const [ox0, oy0] = p(outerR, a0), [ox1, oy1] = p(outerR, a1);
+    const largeArc = sweepDeg > 180 ? 1 : 0;
+    if (innerR <= 1) {
+      return `M ${f(cx)},${f(cy)} L ${f(ox0)},${f(oy0)} A ${f(outerR)},${f(outerR)} 0 ${largeArc},1 ${f(ox1)},${f(oy1)} Z`;
+    }
+    const [ix1, iy1] = p(innerR, a1), [ix0, iy0] = p(innerR, a0);
+    return `M ${f(ox0)},${f(oy0)} A ${f(outerR)},${f(outerR)} 0 ${largeArc},1 ${f(ox1)},${f(oy1)} L ${f(ix1)},${f(iy1)} A ${f(innerR)},${f(innerR)} 0 ${largeArc},0 ${f(ix0)},${f(iy0)} Z`;
+  }
+  function arcGenPathD() {
+    const corner = S.gen.pivot !== 'center';
+    const cx = corner ? 0 : 100, cy = corner ? 0 : 100, outerR = corner ? 200 : 90;
+    const startDeg = corner ? 0 : -90;
+    const innerR = outerR * (1 - S.gen.thickness / 100);
+    return wedgePathD(cx, cy, outerR, startDeg, S.gen.sweep, innerR);
+  }
+  // Thin wrapper (corner pivot, 90° sweep — the exact old shape) since Basic
+  // Seeds' own static Arc snapshot calls it by name.
+  function arcPathD(thicknessPct) { return wedgePathD(0, 0, 200, 0, 90, 200 * (1 - thicknessPct / 100)); }
+
+  function trianglePathD(basePct, heightPct) {
+    const w = 200 * (basePct / 100), h = 200 * (heightPct / 100);
+    const apexY = 100 - h / 2, baseY = 100 + h / 2;
+    return `M 100,${f(apexY)} L ${f(100 - w / 2)},${f(baseY)} L ${f(100 + w / 2)},${f(baseY)} Z`;
+  }
+
+  function rectPathD(wPct, hPct, cornerPct) {
+    const w = 200 * (wPct / 100), h = 200 * (hPct / 100);
+    const x0 = 100 - w / 2, x1 = 100 + w / 2, y0 = 100 - h / 2, y1 = 100 + h / 2;
+    return roundedPolyPathD([[x0, y0], [x1, y0], [x1, y1], [x0, y1]], cornerPct);
+  }
+
+  function segmentPathD(lenPct) {
+    const len = 200 * (lenPct / 100);
+    return `M ${f(100 - len / 2)},100 L ${f(100 + len / 2)},100`;
+  }
+
+  // Analytic teardrop (2 cubic Béziers + a semicircle arc) — a faithful
+  // VISUAL port of Komorebi's shapeDrop, which is a per-pixel raster SDF.
+  function dropPathD(radiusPct, tailPct) {
+    const r = 100 * (radiusPct / 100), tail = 200 * (tailPct / 100);
+    const cx = 100, cy = 100 + r * 0.3, tipY = cy - r - tail;
+    return `M ${f(cx)},${f(tipY)} `
+      + `C ${f(cx - r * 0.6)},${f(tipY + tail * 0.5)} ${f(cx - r)},${f(cy - r * 0.6)} ${f(cx - r)},${f(cy)} `
+      + `A ${f(r)},${f(r)} 0 1,0 ${f(cx + r)},${f(cy)} `
+      + `C ${f(cx + r)},${f(cy - r * 0.6)} ${f(cx + r * 0.6)},${f(tipY + tail * 0.5)} ${f(cx)},${f(tipY)} Z`;
+  }
+
+  // Adapted from shared/organica-motion.js's organicBlobPath — 32 points
+  // around a circle, each nudged by simplex noise sampled on a unit circle
+  // around (seed), which avoids a polar-coordinate pole artifact.
+  function blobPathD(radiusPct, amount, seed) {
+    const r = 100 * (radiusPct / 100);
+    const n = 32, pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const nv = Organica.noise.simplex2(Math.cos(a) * 0.7 + seed, Math.sin(a) * 0.7 + seed);
+      const rr = r * (1 + nv * 0.4 * (amount / 100));
+      pts.push([100 + Math.cos(a) * rr, 100 + Math.sin(a) * rr]);
+    }
+    return linePathD(pts, true);
+  }
+
+  // Inner geometry (before the appearance transform), as an SVG string.
+  function geometry() {
+    if (S.mode === 'import') return S.importInner || '';
+    if (S.mode === 'generate') {
+      const g = S.gen;
+      if (g.type === 'circle') return `<circle cx="100" cy="100" r="${g.r}"/>`;
+      if (g.type === 'arc') return `<path d="${arcGenPathD()}"/>`;
+      if (g.type === 'triangle') return `<path d="${trianglePathD(g.w, g.h)}"/>`;
+      if (g.type === 'square') return `<path d="${rectPathD(g.w, g.h, g.corner)}"/>`;
+      if (g.type === 'segment') return `<path d="${segmentPathD(g.len)}"/>`;
+      if (g.type === 'drop') return `<path d="${dropPathD(g.r, g.tail)}"/>`;
+      if (g.type === 'blob') return `<path d="${blobPathD(g.r, g.amount, g.seed)}"/>`;
+      const pts = polyPoints(g.n, g.r, g.type === 'star', g.type === 'polygon' ? g.irregularity : 0, g.seed);
+      return `<path d="${g.type === 'polygon' ? roundedPolyPathD(pts, g.corner) : linePathD(pts, true)}"/>`;
+    }
+    // draw (also the fall-through for library/compose, where the artboard is
+    // simply not visible — harmless, and keeps the in-progress shape alive)
+    if (!drawEditor || drawEditor.getSegmentCount() < 2) return '';
+    return `<path d="${drawEditor.getPathData()}"/>`;
+  }
+
+  function formTransform() {
+    const cx = 100, cy = 100;
+    const sx = (S.scale * S.w).toFixed(3), sy = (S.scale * S.l).toFixed(3);
+    return `translate(${(+S.moveX).toFixed(2)} ${(+S.moveY).toFixed(2)}) translate(${cx} ${cy}) rotate(${S.rot}) scale(${sx} ${sy}) translate(${-cx} ${-cy})`;
+  }
+
+  // Shared by formMarkup() (artboard + Save) and renderTransformPreview() —
+  // one function means the two can't drift apart (they did once, when the
+  // preview strip hardcoded fill="var(--ink)" and ignored the Style toggle).
+  function styleAttrs() {
+    if (S.mode === 'import') return '';                 // import keeps its own re-coloured fills
+    if (S.fillMode === 'stroke') return `fill="none" stroke="var(--ink)" stroke-width="${S.strokeW}" stroke-linecap="${S.rounded ? 'round' : 'butt'}" stroke-linejoin="round"`;
+    return `fill="var(--ink)"`;
+  }
+
+  // Container/Mask compositing — see the long note this was ported with:
+  // Container clips the underlying layer to this shape (<clipPath>), Mask
+  // knocks a real hole in it (<mask>). Real, empirically-verified browser
+  // quirk: a <g> nested anywhere inside a <clipPath> renders the whole clip
+  // empty, so the Container branch puts `transform` on the <clipPath> element
+  // itself. Import-mode geometry is itself a <g> and would still hit that
+  // quirk as a Container boundary — a known, disclosed gap.
+  function compositeMarkup(tf, idSuffix) {
+    const geo = geometry();
+    if (!geo) return '';
+    if (S.underlyingLayer && (S.type === 'mask' || S.type === 'container')) {
+      const uid = 'shapefx-' + (S.underlyingLayer.id || 'x') + (idSuffix || '');
+      if (S.type === 'container') {
+        return `<clipPath id="${uid}" transform="${tf}">${geo}</clipPath>`
+          + `<g clip-path="url(#${uid})"><g transform="${tf}">${S.underlyingLayer.innerMarkup}</g></g>`;
+      }
+      return `<mask id="${uid}" maskUnits="userSpaceOnUse" x="0" y="0" width="200" height="200">`
+        + `<rect width="200" height="200" fill="white"/>`
+        + `<g transform="${tf}" fill="#000" stroke="none">${geo}</g></mask>`
+        + `<g mask="url(#${uid})"><g transform="${tf}">${S.underlyingLayer.innerMarkup}</g></g>`;
+    }
+    return `<g transform="${tf}" ${styleAttrs()}>${geo}</g>`;
+  }
+
+  function formMarkup() { return compositeMarkup(formTransform()); }
+
+  function syncAppearanceInputs() {
+    $('ctrl-scale').value = S.scale; $('scale-val').textContent = S.scale.toFixed(2);
+    $('ctrl-w').value = S.w; $('w-val').textContent = '×' + S.w.toFixed(1);
+    $('ctrl-l').value = S.l; $('l-val').textContent = '×' + S.l.toFixed(1);
+    $('ctrl-rot').value = S.rot; $('rot-val').textContent = S.rot + '°';
+    $('ctrl-mx').value = Math.round(S.moveX); $('mx-val').textContent = Math.round(S.moveX);
+    $('ctrl-my').value = Math.round(S.moveY); $('my-val').textContent = Math.round(S.moveY);
+  }
+
+  function fitToGrid() {
+    if (!geometry()) return;
+    const keep = { scale: S.scale, w: S.w, l: S.l, rot: S.rot, mx: S.moveX, my: S.moveY };
+    S.scale = 1; S.w = 1; S.l = 1; S.rot = 0; S.moveX = 0; S.moveY = 0;
+    renderArt();
+    let bb = null; try { bb = $('seed-layer').getBBox(); } catch (e) {}
+    // Bail only when BOTH dimensions are ~0 — Segment's bbox is always
+    // exactly zero-height (a perfectly horizontal line by construction).
+    if (!bb || (bb.width < 0.01 && bb.height < 0.01)) {
+      Object.assign(S, { scale: keep.scale, w: keep.w, l: keep.l, rot: keep.rot, moveX: keep.mx, moveY: keep.my });
+      renderArt(); return;
+    }
+    const s = 200 / Math.max(bb.width, bb.height);
+    const bcx = bb.x + bb.width / 2, bcy = bb.y + bb.height / 2;
+    S.scale = Math.round(s * 100) / 100; S.w = 1; S.l = 1;
+    S.moveX = Math.round((100 - bcx) * s); S.moveY = Math.round((100 - bcy) * s);
+    syncAppearanceInputs();
+    renderArt();
+  }
+
+  // ── Artboard render ────────────────────────────────────
+  function renderArt() {
+    const markup = formMarkup();
+    $('seed-layer').innerHTML = markup;
+    $('handles-layer').innerHTML = '';
+    $('btn-save').disabled = !markup;
+    renderTransformPreview();
+    // Only speak for the artboard while an authoring mode is showing —
+    // Library/Compose own the status line otherwise.
+    if (isCreatorMode()) updateArtStatus(!!markup);
+  }
+
+  function updateArtStatus(hasShape) {
+    if (S.mode === 'import') {
+      setStatus(hasShape ? 'active' : '', hasShape ? 'SVG imported' : 'Paste or upload an SVG to begin');
+    } else if (S.mode === 'generate') {
+      const n = (S.gen.type === 'polygon' || S.gen.type === 'star') ? ` (${S.gen.n}-sided)` : '';
+      setStatus('active', `${S.gen.type}${n} seed generated`);
+    } else {
+      const n = drawEditor ? drawEditor.getSegmentCount() : 0;
+      setStatus(hasShape ? 'active' : '', hasShape ? `${n} points · seed ready` : 'Draw a seed to begin');
+    }
+  }
+
+  // The current shape at 7 fixed reference states: 0/90/180/270° and each
+  // flip. Complementary to the Appearance sliders (those TUNE one live state,
+  // this COMPARES all of them at once).
+  const TRANSFORM_PREVIEW_STATES = [
+    [0, 1, 1], [90, 1, 1], [180, 1, 1], [270, 1, 1],
+    [0, -1, 1], [0, 1, -1], [0, -1, -1],
+  ];
+  function renderTransformPreview() {
+    const el = $('transform-preview');
+    const geo = geometry();
+    if (!geo) { el.innerHTML = ''; return; }
+    const cx = 100, cy = 100;
+    el.innerHTML = TRANSFORM_PREVIEW_STATES.map(([rot, sx, sy], i) => {
+      const tf = `translate(${cx} ${cy}) rotate(${rot}) scale(${sx},${sy}) translate(${-cx} ${-cy})`;
+      // Distinct clip/mask ids per tile — compositeMarkup()'s id is derived
+      // from the layer id alone, which would collide across the 7 tiles.
+      return `<svg viewBox="0 0 200 200">${compositeMarkup(tf, '-t' + i)}</svg>`;
+    }).join('');
+  }
+
+  // ── Save-to set ────────────────────────────────────────
+  function populateSets() {
+    const sel = $('ctrl-set');
+    const prev = sel.value;
+    const userSets = state.library.sets.filter(s => !s.builtIn);
+    sel.innerHTML = userSets.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join('')
+      + '<option value="__new__">+ New set…</option>';
+    if (prev && Array.prototype.some.call(sel.options, o => o.value === prev)) sel.value = prev;
+    else if (!userSets.length) sel.value = '__new__';
+    syncNewSetRow();
+  }
+
+  function syncNewSetRow() {
+    $('row-new-set').style.display = $('ctrl-set').value === '__new__' ? 'flex' : 'none';
+  }
+
+  // ── Save ───────────────────────────────────────────────
+  function saveForm() {
+    const markup = formMarkup();
+    if (!markup) return;
+    const svg = `<svg viewBox="0 0 200 200">${markup}</svg>`;
+
+    let setId = $('ctrl-set').value;
+    if (setId === '__new__') {
+      const name = ($('ctrl-new-set-name').value || '').trim();
+      if (!name) { $('ctrl-new-set-name').focus(); setStatus('', 'Name the new set first'); return; }
+      setId = createNewSet(name);
+      $('ctrl-new-set-name').value = '';
+      $('ctrl-set').value = setId;
+      syncNewSetRow();
+    }
+    const set = getSet(setId);
+    if (!set) return;
+
+    const form = { id: 'user-' + Date.now(), name: ($('ctrl-name').value.trim() || 'untitled'), svg, type: S.type, builtIn: false };
+    // Generate mode's recipe travels with the saved picture — every consumer
+    // that only reads .svg (FVS, Soul, thumbnails) is unaffected.
+    if (S.mode === 'generate') {
+      form.genType = S.gen.type;
+      form.genParams = Object.assign({}, S.gen);
+      delete form.genParams.type;
+    }
+    state.library.forms.push(form);
+    if (!set.forms) set.forms = [];
+    set.forms.push(form.id);
+    saveLibrary();
+
+    // Used to be `location.href = '/genesis/library.html'` — now it is just a
+    // mode switch, with no page load and no lost artboard state.
+    renderSetsList();
+    populateSets();
+    activateSet(setId);
+    setMode('library');
+    const idx = getFormsForSet(setId).findIndex(x => x.id === form.id);
+    if (idx >= 0) selectForm(idx);
+    setStatus('active', `Saved “${form.name}” to ${set.name}`);
+  }
+
+  // ── Util ───────────────────────────────────────────────
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    init();
+    renderComposePicker();
+    Organica.enhanceSliders(document);   // filled track + click-to-edit value
+    Organica.autoLabelPanel(document);
+  });
+
+  // ── Rhizome bridge (Tier 2 node graph, rhizome/js/nodes/bridge-iframe.js) ──
+  // Only relevant when this page is embedded in Rhizome's hidden iframe;
+  // inert otherwise. rhizome/js/nodes/genesis-bridge.js points at /genesis/
+  // (it used to point at /genesis/creator.html, which is now a redirect).
+  window.addEventListener('message', (e) => {
+    const msg = e.data;
+    if (!msg || msg.type !== 'rhizome-set-input') return;
+    try {
+      loadSeedIntoWorkingShape(msg.payload || { genType: 'circle', genParams: {} });
+      // formMarkup() alone is a fragment meant for the artboard's already-open
+      // <svg id="art">, not a standalone document — the same wrap saveForm()
+      // applies is needed here too, or Rhizome's preview renders it as
+      // escaped text instead of a shape.
+      const svgDoc = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">${formMarkup()}</svg>`;
+      e.source.postMessage({ type: 'rhizome-output-ready', payload: svgDoc, nodeId: msg.nodeId }, '*');
+    } catch (err) {
+      console.error('Rhizome bridge:', err);
+    }
+  });
+  </script>
 
 </body>
 </html>

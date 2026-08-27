@@ -65,6 +65,10 @@
       "destination": "/rhizome/$1"
     },
     {
+      "source": "/colornet/(.*)",
+      "destination": "/colornet/$1"
+    },
+    {
       "source": "/shared/(.*)",
       "destination": "/shared/$1"
     },

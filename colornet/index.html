@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colornet — Organica</title>
+
+<!-- Order is load-bearing (docs/UI-SHELL.md §2): tokens first so this file
+     can override without !important, core before the tool script. -->
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-panel.css">
+<style>
+:root {
+  --ink: #0a0a0a;
+  --paper: #ffffff;
+  --mid: #696256;
+  --accent: #2a2a2a;
+  --panel: #eceae4;
+  --border: #d0c8b8;
+  --tool: #4a5fc7;   /* identity colour — matches the hub nav accent */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs-base);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#app { display: flex; flex: 1; overflow: hidden; }
+
+#canvas-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-7);
+}
+#canvas-wrap.drag-over { outline: 2px dashed var(--tool); outline-offset: calc(var(--space-3) * -1); }
+
+#view-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  box-shadow: 0 4px 40px rgba(0,0,0,0.18);
+  display: none;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+#view-canvas.visible { display: block; }
+#view-canvas.zoomed { cursor: grab; }
+
+#drop-hint {
+  position: absolute;
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--space-5);
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+#drop-hint.hidden { opacity: 0; }
+.drop-icon {
+  width: 48px; height: 48px;
+  border: 1.5px solid var(--mid);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--mid);
+  font-size: var(--fs-xl);
+  pointer-events: auto; cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.drop-icon:hover { border-color: var(--ink); color: var(--ink); }
+#drop-hint p {
+  font-size: var(--fs-small);
+  color: var(--mid);
+  text-align: center;
+  line-height: var(--lh-normal);
+}
+
+#zoom-hud {
+  position: absolute;
+  bottom: var(--space-6); left: var(--space-6);
+  background: var(--ink); color: var(--paper);
+  font-size: var(--fs-micro);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  display: none; align-items: center; gap: var(--space-3);
+  user-select: none;
+}
+#zoom-hud.visible { display: flex; }
+#zoom-hud .zoom-reset { cursor: pointer; opacity: 0.6; }
+#zoom-hud .zoom-reset:hover { opacity: 1; }
+
+#file-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+/* ── CHANNEL LIST ──
+   New component. Organica.createPaletteChips can't serve this: an RMX chip
+   list is an array of bare hex strings with no room for a name, an on/off,
+   an opacity, a stacking index or a per-item transform. DOM shape follows
+   Camo Turing's .layer-card (head row + body rows) so the two read as the
+   same family, but the state model and every control below the head differ. */
+.chan-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.chan-card.active { border-color: var(--tool); }
+.chan-card__head { display: flex; align-items: center; gap: var(--space-2); }
+.chan-thumb {
+  width: 26px; height: 26px; flex: 0 0 26px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: block; padding: 0; background: var(--paper); cursor: pointer;
+}
+.chan-name {
+  flex: 1; text-align: left; background: none; border: none;
+  font-family: var(--font); font-size: var(--fs-small); color: var(--ink);
+  cursor: pointer; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.chan-card.active .chan-name { font-weight: var(--w-medium); }
+.chan-dot {
+  width: 10px; height: 10px; border-radius: 50%; padding: 0; flex-shrink: 0;
+  border: 1px solid var(--border-strong, var(--border)); background: none; cursor: pointer;
+}
+.chan-dot.on { background: var(--tool); }
+.icon-btn {
+  width: 18px; height: 18px; flex-shrink: 0; padding: 0; line-height: 1;
+  border: 1px solid transparent; background: none; color: var(--mid);
+  font-family: var(--font); font-size: var(--fs-small); cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.icon-btn:hover { border-color: var(--border-strong, var(--border)); color: var(--ink); }
+.chan-card__body { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+.chan-opacity { flex: 1; min-width: 0; }
+.chan-val { font-size: var(--fs-micro); color: var(--mid); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+.chan-cmyk { font-size: var(--fs-micro); color: var(--mid); font-variant-numeric: tabular-nums; margin-left: auto; }
+.chan-empty { font-size: var(--fs-micro); color: var(--mid); line-height: var(--lh-snug); }
+
+input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Colornet</span></a>
+
+  <div class="org-header__spacer"></div>
+
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Drop an image to begin</span>
+  </output>
+
+  <div class="org-header__actions">
+    <button class="org-btn" id="btn-open">Open…</button>
+  </div>
+</header>
+
+<!-- Export lives in the shared bottom-centre floatbar, not the header —
+     the product-wide convention (Warping/FVS/Loom/Camo Turing). No → Figma
+     button; sendToFigma() stays defined for when it returns as a popover tab. -->
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-png">PNG</button>
+        <button class="org-btn" id="btn-jpg">JPG</button>
+        <button class="org-btn" id="btn-svg">SVG</button>
+      </div>
+      <p class="org-popover__hint">
+        SVG traces every channel's own mask into one real path, coloured and
+        transformed exactly as previewed — not a re-rasterised image.
+      </p>
+
+      <div class="org-popover__divider"></div>
+
+      <div class="org-popover__title">Separations</div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-separate-png">Each channel · PNG</button>
+      </div>
+      <p class="org-popover__hint">
+        One grayscale plate per visible channel — ink black on white, the
+        transform applied, ready as a screen/riso separation.
+      </p>
+
+      <div class="org-popover__divider"></div>
+
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-scale">Scale</label>
+        <select class="org-select" id="sel-scale">
+          <option value="1">&times;1</option>
+          <option value="2" selected>&times;2</option>
+          <option value="3">&times;3</option>
+          <option value="4">&times;4</option>
+        </select>
+      </div>
+      <div class="org-popover__row">
+        <span class="org-popover__label">Output</span>
+        <span class="org-out" id="out-size">&mdash;</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+
+  <div id="canvas-wrap">
+    <div id="drop-hint">
+      <div class="drop-icon" id="drop-icon" role="button" tabindex="0" aria-label="Open an image">+</div>
+      <p>Drop an image<br>or click to open</p>
+    </div>
+    <canvas id="view-canvas"></canvas>
+    <div id="zoom-hud"><span id="zoom-level">100%</span><span class="zoom-reset" id="zoom-reset">reset</span></div>
+  </div>
+
+  <div id="panel">
+
+    <div class="panel-section">
+      <h3>Separation <span class="hint">luminance bands</span></h3>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Channels</div>
+        <input type="range" id="rg-bands" min="2" max="8" step="1" value="4" aria-label="Channels">
+        <span class="ctrl-val" id="v-bands">4</span>
+      </div>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Detail</div>
+        <select class="panel-select" id="sel-detail" aria-label="Separation detail">
+          <option value="320">Low · 320px</option>
+          <option value="560" selected>Medium · 560px</option>
+          <option value="800">High · 800px</option>
+        </select>
+      </div>
+      <p class="panel-note">
+        Mask resolution. Preview and every export read the same masks, so
+        this changes the traced detail everywhere at once.
+      </p>
+
+      <button class="panel-btn" id="btn-separate" disabled>Separate</button>
+    </div>
+
+    <div class="panel-section">
+      <h3>Channels <span class="hint">bottom → top</span></h3>
+      <div id="chan-stack"><p class="chan-empty">No image loaded yet.</p></div>
+    </div>
+
+    <div class="panel-section" id="sec-transform" style="display:none">
+      <h3>Transform <span class="hint" id="tf-target">—</span></h3>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Position X</div>
+        <input type="range" id="rg-tx" min="-100" max="100" step="0.5" value="0" aria-label="Position X">
+        <span class="ctrl-val" id="v-tx">0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Position Y</div>
+        <input type="range" id="rg-ty" min="-100" max="100" step="0.5" value="0" aria-label="Position Y">
+        <span class="ctrl-val" id="v-ty">0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Scale</div>
+        <input type="range" id="rg-scale" min="10" max="300" step="1" value="100" aria-label="Scale">
+        <span class="ctrl-val" id="v-scale">100</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Rotation</div>
+        <input type="range" id="rg-rot" min="-180" max="180" step="1" value="0" aria-label="Rotation">
+        <span class="ctrl-val" id="v-rot">0</span>
+      </div>
+
+      <label class="check-row"><input type="checkbox" id="ck-fliph"><span>Flip horizontal</span></label>
+      <label class="check-row"><input type="checkbox" id="ck-flipv"><span>Flip vertical</span></label>
+
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-tf-random">Randomise</button>
+        <button class="mini-btn" id="btn-tf-reset">Reset</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Background</h3>
+      <div class="color-row">
+        <span class="color-name">Paper</span>
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-bg" aria-label="Background colour"></button>
+          <input type="color" id="cp-bg" value="#ffffff" aria-label="Background colour value">
+        </span>
+        <input class="color-hex" id="hex-bg" value="#ffffff" aria-label="Background colour hex">
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Preset <span class="hint">settings only</span></h3>
+      <select class="panel-select" id="sel-preset" aria-label="Preset"></select>
+      <div id="preset-name-row" style="display:none;margin-top:var(--space-3)">
+        <input class="panel-input panel-input--full" id="preset-name" placeholder="Preset name" aria-label="Preset name">
+        <div class="row-btns">
+          <button class="mini-btn" id="btn-preset-confirm">Save</button>
+          <button class="mini-btn" id="btn-preset-cancel">Cancel</button>
+        </div>
+      </div>
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-preset-save">Save</button>
+        <button class="mini-btn" id="btn-preset-delete">Delete</button>
+      </div>
+      <p class="panel-note">
+        A preset stores the configuration — channel count, detail, colours,
+        opacities, blends and transforms — never the uploaded image itself
+        (megabytes of pixels do not belong in localStorage). Re-open a
+        preset by loading an image first, then applying it.
+      </p>
+    </div>
+
+  </div><!-- /panel -->
+</div>
+
+<input type="file" id="file-input" accept="image/*">
+
+<script src="/shared/organica-core.js"></script>
+<script>
+// ─────────────────────────────────────────────────────────────
+// COLORNET — channel separation and recomposition.
+//
+// THE ONE RULE (docs/UI-SHELL.md §5, and asked for explicitly here):
+// preview and every export are built from ONE description of the artwork.
+// buildPlan(scale) resolves the visible channels, their colours, their
+// opacity/blend and — critically — their 2×3 transform MATRIX once. Both
+// drawPlan() (canvas: preview, PNG, JPG, plates) and svgFromPlan() (vector)
+// consume that same plan and neither recomputes anything. A transform can
+// therefore never mean one thing on screen and another in the file.
+//
+// The masks themselves are the second half of that contract: one Uint8Array
+// per channel feeds the tint canvas the preview draws AND the contour trace
+// the SVG path comes from, so the two are the same shape by construction.
+// ─────────────────────────────────────────────────────────────
+
+function ctrl(id) { return document.getElementById(id); }
+function val(id) { return parseFloat(ctrl(id).value); }
+
+const setStatus = Organica.status();
+const view = ctrl('view-canvas');
+const vctx = view.getContext('2d');
+const canvasWrap = ctrl('canvas-wrap');
+
+const S = {
+  img: null,
+  W: 0, H: 0,          // mask / canonical space
+  bands: 4,
+  detail: 560,
+  bg: '#ffffff',
+  channels: [],
+  selId: null,
+  nextId: 1,
+};
+
+const BLENDS = ['normal', 'multiply'];
+
+// ═══════════════════════════════════════════
+// SEPARATION — luminance → band → mask
+//
+// Same "luminance per pixel → band → mask → coloured path" pipeline
+// Komorebi's own buildSVG() uses, with one deliberate difference: Komorebi
+// stacks cumulative "≥ level" masks (it is posterising ONE image); here each
+// band is its own exclusive slice, because a channel has to be able to move
+// away from the others and leave a real hole behind it.
+// ═══════════════════════════════════════════
+
+function separate(keepSettings) {
+  if (!S.img) return;
+  const detail = S.detail;
+  const ar = S.img.naturalWidth / S.img.naturalHeight;
+  const W = ar >= 1 ? detail : Math.max(2, Math.round(detail * ar));
+  const H = ar >= 1 ? Math.max(2, Math.round(detail / ar)) : detail;
+  S.W = W; S.H = H;
+
+  const off = document.createElement('canvas');
+  off.width = W; off.height = H;
+  const octx = off.getContext('2d', { willReadFrequently: true });
+  octx.drawImage(S.img, 0, 0, W, H);
+  const px = octx.getImageData(0, 0, W, H).data;
+
+  const n = W * H;
+  const bands = S.bands;
+  const bandOf = new Uint8Array(n);
+  const sums = new Float64Array(bands * 4);
+  for (let i = 0; i < n; i++) {
+    const r = px[i * 4], g = px[i * 4 + 1], b = px[i * 4 + 2];
+    const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    const band = Math.min(bands - 1, Math.floor(lum * bands));
+    bandOf[i] = band;
+    sums[band * 4] += r; sums[band * 4 + 1] += g; sums[band * 4 + 2] += b; sums[band * 4 + 3]++;
+  }
+
+  const old = keepSettings ? S.channels.slice() : [];
+  S.channels = [];
+  for (let b = 0; b < bands; b++) {
+    const mask = new Uint8Array(n);
+    let count = 0;
+    for (let i = 0; i < n; i++) if (bandOf[i] === b) { mask[i] = 1; count++; }
+    const c = sums[b * 4 + 3]
+      ? Organica.rgbToHex(sums[b * 4] / sums[b * 4 + 3], sums[b * 4 + 1] / sums[b * 4 + 3], sums[b * 4 + 2] / sums[b * 4 + 3])
+      : '#808080';
+    const prev = old[b];
+    const ch = {
+      id: S.nextId++,
+      name: 'Channel ' + (b + 1),
+      on: prev ? prev.on : true,
+      color: prev ? prev.color : c,
+      opacity: prev ? prev.opacity : 100,
+      blend: prev ? prev.blend : 'normal',
+      tx: prev ? prev.tx : 0, ty: prev ? prev.ty : 0,
+      scale: prev ? prev.scale : 100, rot: prev ? prev.rot : 0,
+      flipH: prev ? prev.flipH : false, flipV: prev ? prev.flipV : false,
+      mask, count,
+      tint: null, pathD: null,
+    };
+    S.channels.push(ch);
+  }
+  S.selId = S.channels.length ? S.channels[0].id : null;
+  buildChannelUI();
+  syncTransformPanel();
+  render();
+  setStatus('active', S.channels.length + ' channels · ' + W + '×' + H);
+}
+
+// A mask painted in its channel's colour, alpha 0 elsewhere. This is what
+// the canvas renderers draw; the SVG renderer traces the SAME mask.
+function tintOf(ch) {
+  if (ch.tint && ch._tintColor === ch.color) return ch.tint;
+  const c = document.createElement('canvas');
+  c.width = S.W; c.height = S.H;
+  const g = c.getContext('2d');
+  const img = g.createImageData(S.W, S.H);
+  const [r, gg, b] = Organica.hexToRGB255(ch.color);
+  const d = img.data;
+  for (let i = 0; i < ch.mask.length; i++) {
+    if (!ch.mask[i]) continue;
+    d[i * 4] = r; d[i * 4 + 1] = gg; d[i * 4 + 2] = b; d[i * 4 + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  ch.tint = c; ch._tintColor = ch.color;
+  return c;
+}
+
+// Traced once per mask (masks only change on a re-separation), in mask
+// space — block = 1. The plan's matrix maps it to output space, exactly as
+// it maps the tint canvas, so the vector and the raster can't drift.
+function pathOf(ch) {
+  if (ch.pathD == null) ch.pathD = Organica.contoursToPathD(ch.mask, S.W, S.H, 1);
+  return ch.pathD;
+}
+
+// ═══════════════════════════════════════════
+// THE PLAN — the single description both renderers consume
+// ═══════════════════════════════════════════
+
+function channelMatrix(ch, s) {
+  const cx = S.W / 2, cy = S.H / 2;
+  const th = ch.rot * Math.PI / 180;
+  const sx = (ch.scale / 100) * (ch.flipH ? -1 : 1);
+  const sy = (ch.scale / 100) * (ch.flipV ? -1 : 1);
+  const cos = Math.cos(th), sin = Math.sin(th);
+  // R·S, then re-centred, then the output scale — one composition, one place.
+  const a = cos * sx, b = sin * sx, c = -sin * sy, d = cos * sy;
+  const ox = cx + (ch.tx / 100) * S.W;
+  const oy = cy + (ch.ty / 100) * S.H;
+  const e = ox - (a * cx + c * cy);
+  const f = oy - (b * cx + d * cy);
+  return [a * s, b * s, c * s, d * s, e * s, f * s];
+}
+
+function buildPlan(scale) {
+  const s = scale || 1;
+  return {
+    outW: Math.round(S.W * s),
+    outH: Math.round(S.H * s),
+    bg: S.bg,
+    items: S.channels.filter(ch => ch.on && ch.count > 0).map(ch => ({
+      ch,
+      m: channelMatrix(ch, s),
+      color: ch.color,
+      opacity: ch.opacity / 100,
+      blend: ch.blend,
+    })),
+  };
+}
+
+function drawPlan(ctx, plan, opts) {
+  opts = opts || {};
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = opts.plate ? '#ffffff' : plan.bg;
+  ctx.fillRect(0, 0, plan.outW, plan.outH);
+  for (const it of plan.items) {
+    if (opts.onlyId != null && it.ch.id !== opts.onlyId) continue;
+    ctx.setTransform(it.m[0], it.m[1], it.m[2], it.m[3], it.m[4], it.m[5]);
+    ctx.globalAlpha = opts.plate ? 1 : it.opacity;
+    ctx.globalCompositeOperation = (!opts.plate && it.blend === 'multiply') ? 'multiply' : 'source-over';
+    ctx.drawImage(opts.plate ? plateOf(it.ch) : tintOf(it.ch), 0, 0);
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+// Black-on-transparent version of a mask, for the grayscale plate export.
+function plateOf(ch) {
+  if (ch._plate) return ch._plate;
+  const c = document.createElement('canvas');
+  c.width = S.W; c.height = S.H;
+  const g = c.getContext('2d');
+  const img = g.createImageData(S.W, S.H);
+  const d = img.data;
+  for (let i = 0; i < ch.mask.length; i++) if (ch.mask[i]) d[i * 4 + 3] = 255;
+  g.putImageData(img, 0, 0);
+  ch._plate = c;
+  return c;
+}
+
+function svgFromPlan(plan) {
+  const num = v => String(Math.round(v * 1000) / 1000);
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${plan.outW}" height="${plan.outH}" viewBox="0 0 ${plan.outW} ${plan.outH}">`;
+  s += `<rect width="100%" height="100%" fill="${plan.bg}"/>`;
+  let paths = 0;
+  for (const it of plan.items) {
+    const d = pathOf(it.ch);
+    if (!d) continue;
+    const style = it.blend === 'multiply' ? ' style="mix-blend-mode:multiply"' : '';
+    const op = it.opacity < 1 ? ` opacity="${num(it.opacity)}"` : '';
+    s += `<g transform="matrix(${it.m.map(num).join(' ')})"${op}${style}>`;
+    s += `<path fill="${it.color}" fill-rule="evenodd" d="${d}"/></g>`;
+    paths++;
+  }
+  s += '</svg>';
+  return { svg: s, paths };
+}
+
+function render() {
+  if (!S.W) return;
+  const plan = buildPlan(1);
+  view.width = plan.outW; view.height = plan.outH;
+  drawPlan(vctx, plan);
+  view.classList.add('visible');
+  updateSizeReadout();
+}
+
+// ═══════════════════════════════════════════
+// CHANNEL LIST UI
+// ═══════════════════════════════════════════
+
+function chanById(id) { return S.channels.find(c => c.id === id) || null; }
+
+function drawThumb(cv, ch) {
+  const g = cv.getContext('2d');
+  cv.width = 26; cv.height = 26;
+  g.fillStyle = S.bg; g.fillRect(0, 0, 26, 26);
+  const s = Math.min(26 / S.W, 26 / S.H);
+  const w = S.W * s, h = S.H * s;
+  g.globalAlpha = ch.opacity / 100;
+  g.drawImage(tintOf(ch), (26 - w) / 2, (26 - h) / 2, w, h);
+  g.globalAlpha = 1;
+}
+
+function buildChannelUI() {
+  const host = ctrl('chan-stack');
+  host.innerHTML = '';
+  if (!S.channels.length) {
+    host.innerHTML = '<p class="chan-empty">No image loaded yet.</p>';
+    return;
+  }
+  S.channels.forEach((ch, idx) => {
+    const cmyk = Organica.rgbToCmyk(...Organica.hexToRGB255(ch.color));
+    const card = document.createElement('div');
+    card.className = 'chan-card' + (ch.id === S.selId ? ' active' : '');
+    card.innerHTML = `
+      <div class="chan-card__head">
+        <button class="chan-dot${ch.on ? ' on' : ''}" aria-label="${ch.name} visible"></button>
+        <canvas class="chan-thumb" aria-label="${ch.name} preview"></canvas>
+        <button class="chan-name" aria-label="Select ${ch.name}">${ch.name}</button>
+        <button class="icon-btn" data-act="up" aria-label="Move ${ch.name} up">↑</button>
+        <button class="icon-btn" data-act="down" aria-label="Move ${ch.name} down">↓</button>
+        <button class="icon-btn" data-act="del" aria-label="Remove ${ch.name}">×</button>
+      </div>
+      <div class="chan-card__body">
+        <span class="color-swatch-wrap" style="width:18px;height:18px">
+          <button class="color-swatch" style="background:${ch.color}" aria-label="${ch.name} colour"></button>
+          <input type="color" value="${ch.color}" aria-label="${ch.name} colour value">
+        </span>
+        <span class="chan-cmyk">C${cmyk.c} M${cmyk.m} Y${cmyk.y} K${cmyk.k}</span>
+      </div>
+      <div class="chan-card__body">
+        <select class="panel-select" style="flex:0 0 74px" aria-label="${ch.name} blend mode">
+          ${BLENDS.map(b => `<option value="${b}"${b === ch.blend ? ' selected' : ''}>${b[0].toUpperCase() + b.slice(1)}</option>`).join('')}
+        </select>
+        <input type="range" class="chan-opacity" min="0" max="100" step="1" value="${ch.opacity}" aria-label="${ch.name} coverage">
+        <span class="chan-val">${ch.opacity}%</span>
+      </div>`;
+
+    drawThumb(card.querySelector('.chan-thumb'), ch);
+
+    card.querySelector('.chan-dot').addEventListener('click', () => { ch.on = !ch.on; buildChannelUI(); render(); });
+    card.querySelector('.chan-name').addEventListener('click', () => selectChannel(ch.id));
+    card.querySelector('.chan-thumb').addEventListener('click', () => selectChannel(ch.id));
+    card.querySelector('[data-act=up]').addEventListener('click', () => moveChannel(idx, -1));
+    card.querySelector('[data-act=down]').addEventListener('click', () => moveChannel(idx, 1));
+    card.querySelector('[data-act=del]').addEventListener('click', () => removeChannel(ch.id));
+
+    const cp = card.querySelector('input[type=color]');
+    card.querySelector('.color-swatch').addEventListener('click', () => cp.click());
+    cp.addEventListener('input', e => {
+      ch.color = Organica.normalizeHex(e.target.value, ch.color);
+      buildChannelUI(); render();
+    });
+
+    card.querySelector('select').addEventListener('change', e => { ch.blend = e.target.value; render(); });
+    const op = card.querySelector('.chan-opacity');
+    op.addEventListener('input', e => {
+      ch.opacity = parseInt(e.target.value, 10);
+      card.querySelector('.chan-val').textContent = ch.opacity + '%';
+      drawThumb(card.querySelector('.chan-thumb'), ch);
+      render();
+    });
+
+    host.appendChild(card);
+  });
+  Organica.enhanceSliders(host);
+  Organica.autoLabelPanel(host);
+}
+
+function selectChannel(id) { S.selId = id; buildChannelUI(); syncTransformPanel(); }
+
+function moveChannel(idx, dir) {
+  const j = idx + dir;
+  if (j < 0 || j >= S.channels.length) return;
+  const [ch] = S.channels.splice(idx, 1);
+  S.channels.splice(j, 0, ch);
+  buildChannelUI(); render();
+}
+
+function removeChannel(id) {
+  S.channels = S.channels.filter(c => c.id !== id);
+  if (S.selId === id) S.selId = S.channels.length ? S.channels[0].id : null;
+  buildChannelUI(); syncTransformPanel(); render();
+}
+
+// ═══════════════════════════════════════════
+// PER-CHANNEL TRANSFORM
+// ═══════════════════════════════════════════
+
+const TF_FIELDS = [
+  ['rg-tx', 'v-tx', 'tx'], ['rg-ty', 'v-ty', 'ty'],
+  ['rg-scale', 'v-scale', 'scale'], ['rg-rot', 'v-rot', 'rot'],
+];
+
+function syncTransformPanel() {
+  const ch = chanById(S.selId);
+  ctrl('sec-transform').style.display = ch ? '' : 'none';
+  if (!ch) return;
+  ctrl('tf-target').textContent = ch.name;
+  TF_FIELDS.forEach(([rg, v, key]) => {
+    ctrl(rg).value = ch[key];
+    ctrl(v).textContent = ch[key];
+  });
+  ctrl('ck-fliph').checked = ch.flipH;
+  ctrl('ck-flipv').checked = ch.flipV;
+  Organica.enhanceSliders(ctrl('sec-transform'));
+}
+
+TF_FIELDS.forEach(([rg, v, key]) => {
+  ctrl(rg).addEventListener('input', e => {
+    const ch = chanById(S.selId); if (!ch) return;
+    ch[key] = parseFloat(e.target.value);
+    ctrl(v).textContent = e.target.value;
+    render();
+  });
+});
+['fliph', 'flipv'].forEach(f => {
+  ctrl('ck-' + f).addEventListener('change', e => {
+    const ch = chanById(S.selId); if (!ch) return;
+    ch[f === 'fliph' ? 'flipH' : 'flipV'] = e.target.checked;
+    render();
+  });
+});
+
+ctrl('btn-tf-reset').addEventListener('click', () => {
+  const ch = chanById(S.selId); if (!ch) return;
+  ch.tx = 0; ch.ty = 0; ch.scale = 100; ch.rot = 0; ch.flipH = false; ch.flipV = false;
+  syncTransformPanel(); render();
+});
+ctrl('btn-tf-random').addEventListener('click', () => {
+  const ch = chanById(S.selId); if (!ch) return;
+  const r = (a, b) => a + Math.random() * (b - a);
+  ch.tx = Math.round(r(-14, 14) * 2) / 2;
+  ch.ty = Math.round(r(-14, 14) * 2) / 2;
+  ch.scale = Math.round(r(85, 120));
+  ch.rot = Math.round(r(-12, 12));
+  ch.flipH = Math.random() < 0.25;
+  ch.flipV = Math.random() < 0.25;
+  syncTransformPanel(); render();
+});
+
+// ═══════════════════════════════════════════
+// SEPARATION CONTROLS
+// ═══════════════════════════════════════════
+
+ctrl('rg-bands').addEventListener('input', e => {
+  S.bands = parseInt(e.target.value, 10);
+  ctrl('v-bands').textContent = e.target.value;
+});
+ctrl('rg-bands').addEventListener('change', () => { if (S.img) separate(false); });
+ctrl('sel-detail').addEventListener('change', e => {
+  S.detail = parseInt(e.target.value, 10);
+  if (S.img) separate(true);
+});
+ctrl('btn-separate').addEventListener('click', () => separate(false));
+
+Organica.createColorSwatch('bg', {
+  initial: '#ffffff',
+  onChange: hex => { S.bg = hex; if (S.W) { buildChannelUI(); render(); } },
+});
+
+// ═══════════════════════════════════════════
+// IMAGE INPUT — the Halide/Spore/Pollen drop-zone pattern, verbatim in shape
+// ═══════════════════════════════════════════
+
+function loadImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    S.img = img;
+    ctrl('drop-hint').classList.add('hidden');
+    ctrl('btn-separate').disabled = false;
+    separate(false);
+    URL.revokeObjectURL(url);
+  };
+  img.onerror = () => { setStatus('', 'Could not read that image'); URL.revokeObjectURL(url); };
+  img.src = url;
+  input.value = '';
+}
+ctrl('file-input').addEventListener('change', e => loadImage(e.target));
+ctrl('btn-open').addEventListener('click', () => ctrl('file-input').click());
+ctrl('drop-icon').addEventListener('click', () => ctrl('file-input').click());
+ctrl('drop-icon').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ctrl('file-input').click(); }
+});
+canvasWrap.addEventListener('dragover', e => { e.preventDefault(); canvasWrap.classList.add('drag-over'); });
+canvasWrap.addEventListener('dragleave', () => canvasWrap.classList.remove('drag-over'));
+canvasWrap.addEventListener('drop', e => {
+  e.preventDefault();
+  canvasWrap.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const dt = new DataTransfer(); dt.items.add(file);
+    ctrl('file-input').files = dt.files;
+    loadImage(ctrl('file-input'));
+  }
+});
+
+// ═══════════════════════════════════════════
+// EXPORT — every path below goes through buildPlan()
+// ═══════════════════════════════════════════
+
+function exportScale() { return parseInt(ctrl('sel-scale').value, 10) || 1; }
+
+function updateSizeReadout() {
+  if (!S.W) { ctrl('out-size').textContent = '—'; return; }
+  const s = exportScale();
+  ctrl('out-size').textContent = Math.round(S.W * s) + ' × ' + Math.round(S.H * s);
+}
+ctrl('sel-scale').addEventListener('change', updateSizeReadout);
+
+function renderToCanvas(plan, opts) {
+  const c = document.createElement('canvas');
+  c.width = plan.outW; c.height = plan.outH;
+  drawPlan(c.getContext('2d'), plan, opts);
+  return c;
+}
+
+function canvasToBlob(c, mime, quality) {
+  // toDataURL, not toBlob — toBlob is async and races anything that resizes
+  // a canvas back afterwards (docs/UI-SHELL.md §5).
+  const url = c.toDataURL(mime, quality);
+  const bin = atob(url.split(',')[1]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
+function exportRaster(mime, ext) {
+  if (!S.W) return;
+  const c = renderToCanvas(buildPlan(exportScale()));
+  Organica.download(canvasToBlob(c, mime, 0.92), Organica.stamp('colornet', ext));
+  setStatus('active', ext.toUpperCase() + ' exported');
+}
+
+function exportSVG() {
+  if (!S.W) return;
+  setStatus('active', 'Tracing channels…');
+  setTimeout(() => {
+    const r = svgFromPlan(buildPlan(exportScale()));
+    Organica.downloadText(r.svg, Organica.stamp('colornet', 'svg'), 'image/svg+xml');
+    setStatus('active', 'SVG · ' + r.paths + ' channel path' + (r.paths === 1 ? '' : 's'));
+  }, 20);
+}
+
+function exportSeparations() {
+  if (!S.W) return;
+  const plan = buildPlan(exportScale());
+  if (!plan.items.length) { setStatus('', 'No visible channels'); return; }
+  // One timestamp for the whole set, so a run's plates sort together —
+  // Date.now() per file would give each plate its own stamp.
+  const t = Date.now();
+  plan.items.forEach((it, i) => {
+    setTimeout(() => {
+      const c = renderToCanvas(plan, { plate: true, onlyId: it.ch.id });
+      Organica.download(canvasToBlob(c, 'image/png'), 'colornet-' + t + '-plate' + (i + 1) + '.png');
+    }, i * 220);   // browsers drop bursts of simultaneous downloads
+  });
+  setStatus('active', plan.items.length + ' plates exported');
+}
+
+function sendToFigma() { Organica.sendToFigma(svgFromPlan(buildPlan(exportScale())).svg, 'Colornet'); }
+
+ctrl('btn-png').addEventListener('click', () => exportRaster('image/png', 'png'));
+ctrl('btn-jpg').addEventListener('click', () => exportRaster('image/jpeg', 'jpg'));
+ctrl('btn-svg').addEventListener('click', exportSVG);
+ctrl('btn-separate-png').addEventListener('click', exportSeparations);
+
+// ═══════════════════════════════════════════
+// PRESETS — configuration only, never the image
+// ═══════════════════════════════════════════
+
+const PRESETS = Organica.presetStore('colornet');
+function userPresets() { return PRESETS.read(); }
+
+function readState() {
+  return {
+    bands: S.bands,
+    detail: S.detail,
+    bg: S.bg,
+    channels: S.channels.map(c => ({
+      name: c.name, on: c.on, color: c.color, opacity: c.opacity, blend: c.blend,
+      tx: c.tx, ty: c.ty, scale: c.scale, rot: c.rot, flipH: c.flipH, flipV: c.flipV,
+    })),
+  };
+}
+
+function applyPreset(name) {
+  const p = userPresets()[name];
+  if (!p) return;
+  S.bands = p.bands; ctrl('rg-bands').value = p.bands; ctrl('v-bands').textContent = p.bands;
+  S.detail = p.detail; ctrl('sel-detail').value = String(p.detail);
+  ctrl('hex-bg').value = p.bg; ctrl('cp-bg').value = p.bg;
+  S.bg = p.bg; ctrl('sw-bg').style.background = p.bg;
+  if (S.img) {
+    separate(false);
+    // The masks come from whatever image is loaded now; only the settings
+    // come from the preset — that is the whole point of storing config only.
+    p.channels.forEach((sc, i) => {
+      const ch = S.channels[i]; if (!ch) return;
+      Object.assign(ch, {
+        name: sc.name, on: sc.on, color: sc.color, opacity: sc.opacity, blend: sc.blend,
+        tx: sc.tx, ty: sc.ty, scale: sc.scale, rot: sc.rot, flipH: sc.flipH, flipV: sc.flipV,
+      });
+      ch.tint = null;
+    });
+    buildChannelUI(); syncTransformPanel(); render();
+    setStatus('active', 'Preset "' + name + '" applied');
+  } else {
+    setStatus('', 'Preset loaded — open an image to apply it');
+  }
+  Organica.enhanceSliders(ctrl('panel'));
+}
+
+function populatePresets(select) {
+  const sel = ctrl('sel-preset');
+  const names = Object.keys(userPresets());
+  sel.innerHTML = '<option value="">— none —</option>' +
+    names.map(n => `<option value="${n}">${n}</option>`).join('');
+  if (select) sel.value = select;
+}
+ctrl('sel-preset').addEventListener('change', e => { if (e.target.value) applyPreset(e.target.value); });
+
+// Inline name field, not prompt() — prompt() throws outright in some
+// embedding contexts (found live in FVS, August 2026).
+ctrl('btn-preset-save').addEventListener('click', () => {
+  ctrl('preset-name-row').style.display = '';
+  ctrl('preset-name').value = 'Separation ' + (Object.keys(userPresets()).length + 1);
+  ctrl('preset-name').select();
+});
+ctrl('btn-preset-cancel').addEventListener('click', () => { ctrl('preset-name-row').style.display = 'none'; });
+ctrl('btn-preset-confirm').addEventListener('click', savePresetConfirm);
+ctrl('preset-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); savePresetConfirm(); }
+  if (e.key === 'Escape') { e.preventDefault(); ctrl('preset-name-row').style.display = 'none'; }
+});
+function savePresetConfirm() {
+  const name = ctrl('preset-name').value.trim();
+  if (!name) return;
+  const all = userPresets(); all[name] = readState();
+  PRESETS.write(all);
+  ctrl('preset-name-row').style.display = 'none';
+  populatePresets(name);
+  setStatus('active', 'Preset "' + name + '" saved');
+}
+ctrl('btn-preset-delete').addEventListener('click', () => {
+  const name = ctrl('sel-preset').value;
+  if (!name) return;
+  const all = userPresets(); delete all[name];
+  PRESETS.write(all); populatePresets();
+  setStatus('', 'Preset "' + name + '" deleted');
+});
+
+// ═══════════════════════════════════════════
+// ZOOM & PAN — shared maths, this tool owns the HUD
+// ═══════════════════════════════════════════
+
+const zoomPan = Organica.createZoomPan({
+  canvas: view,
+  wrap: canvasWrap,
+  isReady: () => view.classList.contains('visible'),
+  onChange: ({ zoom, zoomed }) => {
+    ctrl('zoom-level').textContent = Math.round(zoom * 100) + '%';
+    ctrl('zoom-hud').classList.toggle('visible', zoomed);
+    view.classList.toggle('zoomed', zoomed);
+  },
+});
+ctrl('zoom-reset').addEventListener('click', () => zoomPan.reset());
+
+// ── INIT ──
+Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+Organica.enhanceSliders(document);
+Organica.autoLabelPanel(document);
+populatePresets();
+setStatus('', 'Drop an image to begin');
+</script>
+</body>
+</html>

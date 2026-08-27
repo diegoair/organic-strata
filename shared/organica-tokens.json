@@ -387,6 +387,10 @@
       "mycel": {
         "$type": "color",
         "$value": "#8a7355"
+      },
+      "colornet": {
+        "$type": "color",
+        "$value": "#4a5fc7"
       }
     },
     "mid": {
