@@ -6,6 +6,7 @@
   <title>Organica</title>
   <link rel="stylesheet" href="/shared/organica-tokens.css">
   <link rel="stylesheet" href="/genesis/organic-animations.css">
+  <link rel="stylesheet" href="/shared/organica-mobile-gate.css">
   <style>
     *, *::before, *::after {
       margin: 0;
@@ -440,6 +441,8 @@
 </head>
 <body>
 
+  <div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
+
   <canvas id="canvas-bg"></canvas>
 
   <header class="header">
@@ -805,5 +808,21 @@
     window.addEventListener('resize', resize);
     draw();
   </script>
+
+  <!-- Vercel Web Analytics — plain-HTML form (no npm/build step, matches
+       this repo's convention; the "npm i @vercel/analytics" + React
+       <Analytics/> snippet Vercel's own dashboard shows by default is for
+       Next.js/React projects and doesn't apply here). window.va is the
+       documented queue shim for non-framework sites — without it, any
+       analytics call made before script.js finishes loading is silently
+       dropped instead of queued. The script alone does nothing until Web
+       Analytics is switched on for this project in the Vercel dashboard
+       (Project → Analytics → Enable, or `vercel project web-analytics`
+       via the CLI) — an account-level toggle, not something this repo's
+       code can do on its own. -->
+  <script>
+    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+  </script>
+  <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

@@ -1,0 +1,52 @@
+/* ─────────────────────────────────────────────────────────────
+   Organica — desktop-only gate. Every tool's canvas+panel layout
+   assumes real screen width and a mouse (drag-to-connect, wheel-zoom,
+   hover states) — none of it has a mobile story yet (flagged in the
+   Aug 27, 2026 CLAUDE.md session note on opening the product to test
+   users). Rather than let a phone visitor hit a half-broken layout,
+   this shows one clear message instead and hides everything else.
+
+   Pure CSS, no JS — works even if a page's own script never runs.
+   A page opts in with exactly two additions: this stylesheet linked,
+   and `<div class="mobile-gate"><p>This experience is designed for
+   desktop. Please open this link on a laptop or desktop browser.</p>
+   </div>` as the very first child of <body>.
+
+   768px matches the same mobile/tablet boundary already used
+   elsewhere in this project (e.g. resize_window's own "mobile" preset
+   is 375px, "tablet" 768px) — this gate fires at the tablet boundary
+   and below, since the tools need real desktop width, not just
+   "not a phone".
+   ───────────────────────────────────────────────────────────── */
+
+.mobile-gate {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-gate {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-7, 24px);
+    background: var(--paper, #ffffff);
+    color: var(--ink, #0a0a0a);
+    font-family: var(--font, 'Manrope', ui-sans-serif, system-ui, sans-serif);
+    text-align: center;
+  }
+  .mobile-gate p {
+    max-width: 26em;
+    font-size: var(--fs-large, 14px);
+    line-height: 1.6;
+  }
+  /* everything else on the page is hidden while the gate is showing —
+     targets the two real top-level shells this repo's tools use
+     (a bare <body> child, or the .side-nav/.display-area hub shell)
+     rather than guessing every tool's own root class name. */
+  body > *:not(.mobile-gate) {
+    display: none !important;
+  }
+}
