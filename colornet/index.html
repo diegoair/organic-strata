@@ -150,6 +150,24 @@ body {
 .chan-am-label { font-size: var(--fs-micro); color: var(--mid); flex: 0 0 52px; }
 
 input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
+
+#pattern-editor-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+}
+#pattern-editor-panel {
+  background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: var(--space-5); width: 340px;
+}
+#pattern-editor-grid {
+  display: grid; gap: 2px; margin: var(--space-3) 0;
+  border: 1px solid var(--border);
+}
+.pe-cell {
+  aspect-ratio: 1; border: 1px solid var(--border); cursor: pointer; background: #fff;
+}
+.pe-cell:hover { outline: 2px solid var(--tool); outline-offset: -2px; }
 </style>
 </head>
 <body>
@@ -211,8 +229,14 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
           <option value="2" selected>&times;2</option>
           <option value="3">&times;3</option>
           <option value="4">&times;4</option>
+          <option value="custom">Custom…</option>
         </select>
       </div>
+      <div class="org-popover__row" id="row-scale-custom" style="display:none">
+        <label class="org-popover__label" for="in-scale-custom">&times;</label>
+        <input class="panel-input" id="in-scale-custom" type="number" min="0.1" max="20" step="0.1" value="2" aria-label="Custom export scale">
+      </div>
+      <label class="check-row"><input type="checkbox" id="ck-no-smooth"><span>No smoothing (pixelated upscale)</span></label>
       <div class="org-popover__row">
         <span class="org-popover__label">Output</span>
         <span class="org-out" id="out-size">&mdash;</span>
@@ -282,6 +306,45 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
     </div>
 
     <div class="panel-section">
+      <h3>Image <span class="hint">applies before separation</span></h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Grayscale</div>
+        <select class="panel-select" id="sel-img-gray" aria-label="Grayscale method">
+          <option value="luminanceHD" selected>Luminance HD (Rec.709)</option>
+          <option value="luminanceSD">Luminance SD (Rec.601)</option>
+          <option value="average">Average</option>
+          <option value="red">Red channel</option>
+          <option value="green">Green channel</option>
+          <option value="blue">Blue channel</option>
+          <option value="color">Color Filter</option>
+        </select>
+      </div>
+      <div class="ctrl-row" id="row-img-filterhue" style="display:none">
+        <div class="ctrl-label">Filter hue</div>
+        <input type="range" id="rg-img-filterhue" min="0" max="360" step="1" value="0" aria-label="Color filter hue">
+        <span class="ctrl-val" id="v-img-filterhue">0°</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Brightness</div>
+        <input type="range" id="rg-img-brightness" min="-125" max="125" step="1" value="0" aria-label="Brightness">
+        <span class="ctrl-val" id="v-img-brightness">0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Contrast</div>
+        <input type="range" id="rg-img-contrast" min="-125" max="125" step="1" value="0" aria-label="Contrast">
+        <span class="ctrl-val" id="v-img-contrast">0</span>
+      </div>
+      <label class="check-row"><input type="checkbox" id="ck-img-denoise"><span>Denoise</span></label>
+      <label class="check-row"><input type="checkbox" id="ck-img-sharpen"><span>Sharpen</span></label>
+      <div class="ctrl-row" id="row-img-sharpen-amt" style="display:none">
+        <div class="ctrl-label">Intensity</div>
+        <input type="range" id="rg-img-sharpen-amt" min="0" max="300" step="1" value="100" aria-label="Sharpen intensity">
+        <span class="ctrl-val" id="v-img-sharpen-amt">100%</span>
+      </div>
+      <label class="check-row"><input type="checkbox" id="ck-img-gamma"><span>Perception (gamma)</span></label>
+    </div>
+
+    <div class="panel-section">
       <h3>Channels <span class="hint">bottom → top</span></h3>
       <div class="row-btns">
         <button class="mini-btn" id="btn-shuffle">Shuffle</button>
@@ -347,6 +410,28 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 <input type="file" id="file-input" accept="image/*">
 <input type="file" id="batch-input" accept="image/*" multiple>
 
+<div id="pattern-editor-overlay" role="dialog" aria-modal="true" aria-label="Pattern editor" style="display:none">
+  <div id="pattern-editor-panel">
+    <h3>Custom pattern</h3>
+    <p class="panel-note">
+      Left-click a cell to fill it black→white in order; right-click fills
+      white→black from the other end. Save unlocks once every cell is set.
+    </p>
+    <div id="pattern-editor-grid"></div>
+    <div class="row-btns">
+      <span class="chan-val" id="pe-status">0 / 64 cells filled</span>
+    </div>
+    <div class="row-btns">
+      <button class="mini-btn" id="pe-undo">Undo</button>
+      <button class="mini-btn" id="pe-init">Init</button>
+    </div>
+    <div class="row-btns">
+      <button class="mini-btn" id="pe-save" disabled>Save</button>
+      <button class="mini-btn" id="pe-close">Close</button>
+    </div>
+  </div>
+</div>
+
 <script src="/shared/organica-core.js"></script>
 <script src="/shared/organica-noise.js"></script>
 <script>
@@ -384,6 +469,10 @@ const S = {
   selId: null,
   nextId: 1,
   swapArmedId: null,   // Channel Swapping gesture: id of the channel armed to swap, or null.
+  // Image filters — global, applied once before separation. See
+  // applyImageFilters(). imgGray:'color' uses imgFilterHue (0-360°).
+  imgGray: 'luminanceHD', imgBrightness: 0, imgContrast: 0, imgDenoise: false,
+  imgSharpen: false, imgSharpenAmt: 100, imgGamma: false, imgFilterHue: 0,
 };
 
 const BLENDS = ['normal', 'multiply'];
@@ -403,6 +492,126 @@ const BLENDS = ['normal', 'multiply'];
 // each band's own measured mean colour. Extracted so Batch processing (below)
 // can run the EXACT same separation math against a different image without
 // touching S.img/S.channels of the live interactive session while it runs.
+// ═══════════════════════════════════════════
+// IMAGE FILTERS — global, applied once to the resampled working buffer
+// BEFORE computeBands()'s own luminance/band sampling ever runs, so every
+// channel's mask and mean colour already see the filtered pixels. Lives on
+// S (S.imgGray/imgBrightness/...), not per-channel — these apply to the
+// whole source image, once, the same way S.bands/S.detail already do.
+// Pipeline order: Grayscale method → Brightness → Contrast → Denoise →
+// Sharpen → Perception (gamma). Denoise/Sharpen need a second buffer (they
+// read neighbour pixels while writing), the 4 point-wise steps run in place.
+// ═══════════════════════════════════════════
+
+function hueToRGB(hue) {
+  // HSL→RGB at S=100%, L=50% — a plain saturated colour for the given hue,
+  // used as the Color Filter's own reference direction.
+  const c = 1, x = 1 - Math.abs((hue / 60) % 2 - 1);
+  let r, g, b;
+  if (hue < 60) [r, g, b] = [c, x, 0];
+  else if (hue < 120) [r, g, b] = [x, c, 0];
+  else if (hue < 180) [r, g, b] = [0, c, x];
+  else if (hue < 240) [r, g, b] = [0, x, c];
+  else if (hue < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  return [r * 255, g * 255, b * 255];
+}
+
+function boxBlur3(src, W, H) {
+  const out = new Float32Array(src.length);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      for (let c = 0; c < 3; c++) {
+        let sum = 0, n = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          const ny = y + dy; if (ny < 0 || ny >= H) continue;
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx; if (nx < 0 || nx >= W) continue;
+            sum += src[(ny * W + nx) * 4 + c]; n++;
+          }
+        }
+        out[(y * W + x) * 4 + c] = sum / n;
+      }
+    }
+  }
+  return out;
+}
+
+function applyImageFilters(octx, W, H) {
+  const noop = S.imgGray === 'luminanceHD' && !S.imgBrightness && !S.imgContrast &&
+    !S.imgDenoise && !S.imgSharpen && !S.imgGamma;
+  if (noop) return;   // fast no-op path — old presets with no filter fields render byte-identical to before this feature
+
+  const imgData = octx.getImageData(0, 0, W, H);
+  let d = imgData.data;
+
+  // Grayscale method + Brightness + Contrast — point-wise, in place.
+  const bAdd = (S.imgBrightness || 0) * 2.55;
+  const c = S.imgContrast || 0;
+  const cf = c ? (259 * (c * 2.55 + 255)) / (255 * (259 - c * 2.55)) : 1;   // same formula halide/index.html:798 uses
+  const filterRGB = S.imgGray === 'color' ? hueToRGB(S.imgFilterHue || 0) : null;
+  const filterSum = filterRGB ? filterRGB[0] + filterRGB[1] + filterRGB[2] : 1;
+  for (let i = 0; i < d.length; i += 4) {
+    let r = d[i], g = d[i + 1], b = d[i + 2];
+    switch (S.imgGray) {
+      case 'average': { const v = (r + g + b) / 3; r = g = b = v; break; }
+      case 'luminanceSD': { const v = 0.299 * r + 0.587 * g + 0.114 * b; r = g = b = v; break; }
+      case 'red': g = b = r; break;
+      case 'green': r = b = g; break;
+      case 'blue': r = g = b; break;
+      case 'color': {
+        // Simulated gel filter: project the source colour onto the
+        // filter's own hue direction — colours near the filter hue read
+        // brighter, complementary colours read darker, the real technique
+        // behind coloured filters in black-and-white photography.
+        const v = 255 * (r * filterRGB[0] + g * filterRGB[1] + b * filterRGB[2]) / (filterSum * 255);
+        r = g = b = v;
+        break;
+      }
+      // 'luminanceHD' (default): leave as-is — computeBands' own line 422
+      // Rec.709 formula runs on it next, same as always.
+    }
+    if (bAdd) { r += bAdd; g += bAdd; b += bAdd; }
+    if (c) { r = cf * (r - 128) + 128; g = cf * (g - 128) + 128; b = cf * (b - 128) + 128; }
+    d[i] = r; d[i + 1] = g; d[i + 2] = b;
+  }
+
+  // Denoise (box blur) / Sharpen (unsharp mask) — need neighbour reads, so
+  // they work off a second buffer rather than in place.
+  if (S.imgDenoise || S.imgSharpen) {
+    const blurred = boxBlur3(d, W, H);
+    if (S.imgDenoise) {
+      for (let i = 0; i < d.length; i += 4) for (let c2 = 0; c2 < 3; c2++) d[i + c2] = blurred[i + c2];
+    }
+    if (S.imgSharpen) {
+      const amt = (S.imgSharpenAmt || 100) / 100;
+      const base = S.imgDenoise ? blurred : d;   // if already denoised, sharpen relative to the blur we just applied
+      const blur2 = S.imgDenoise ? boxBlur3(base, W, H) : blurred;
+      for (let i = 0; i < d.length; i += 4) {
+        for (let c2 = 0; c2 < 3; c2++) {
+          const v = base[i + c2] + amt * (base[i + c2] - blur2[i + c2]);
+          d[i + c2] = Math.max(0, Math.min(255, v));
+        }
+      }
+    }
+  }
+
+  // Perception — fixed gamma, a plain checkbox per the spec (not a slider).
+  if (S.imgGamma) {
+    const gm = 1 / 1.8;
+    for (let i = 0; i < d.length; i += 4) {
+      d[i] = 255 * Math.pow(Math.max(0, d[i]) / 255, gm);
+      d[i + 1] = 255 * Math.pow(Math.max(0, d[i + 1]) / 255, gm);
+      d[i + 2] = 255 * Math.pow(Math.max(0, d[i + 2]) / 255, gm);
+    }
+  }
+
+  for (let i = 0; i < d.length; i += 4) {
+    d[i] = Math.max(0, Math.min(255, d[i])); d[i + 1] = Math.max(0, Math.min(255, d[i + 1])); d[i + 2] = Math.max(0, Math.min(255, d[i + 2]));
+  }
+  octx.putImageData(imgData, 0, 0);
+}
+
 function computeBands(img, bands, detail) {
   const ar = img.naturalWidth / img.naturalHeight;
   const W = ar >= 1 ? detail : Math.max(2, Math.round(detail * ar));
@@ -412,6 +621,7 @@ function computeBands(img, bands, detail) {
   off.width = W; off.height = H;
   const octx = off.getContext('2d', { willReadFrequently: true });
   octx.drawImage(img, 0, 0, W, H);
+  applyImageFilters(octx, W, H);
   const px = octx.getImageData(0, 0, W, H).data;
 
   const n = W * H;
@@ -446,10 +656,10 @@ function computeBands(img, bands, detail) {
       screenMode: 'flat', screenAngle: [15, 75, 0, 45][b % 4], screenFreq: 24, dotShape: 'circle',
       // Noise halftone — a second, organic screen mode (Dotraster's own
       // Simplex/Worley presets), independent of the AM lattice above.
-      noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend',
+      noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', noiseStdDev: 0.3,
       // Dither — a third screen mode, real Floyd–Steinberg/Atkinson/Bayer
       // (promoted from Halide) run over a coarse coverage grid.
-      ditherAlgo: 'floyd', ditherSize: 20,
+      ditherAlgo: 'floyd', ditherSize: 20, ditherLevel: 128, bayerLevel: 2, patternFormId: null,
       // Edge roughening — Flat mode only, ink-bleed simulation via a
       // Simplex-noise vertex displacement on the traced boundary.
       edgeRoughen: 0, edgeScale: 20,
@@ -472,8 +682,8 @@ function separate(keepSettings) {
       on: prev.on, color: prev.color, opacity: prev.opacity, blend: prev.blend,
       tx: prev.tx, ty: prev.ty, scale: prev.scale, rot: prev.rot, flipH: prev.flipH, flipV: prev.flipV,
       screenMode: prev.screenMode, screenAngle: prev.screenAngle, screenFreq: prev.screenFreq, dotShape: prev.dotShape,
-      noiseType: prev.noiseType, noiseSize: prev.noiseSize, noiseDots: prev.noiseDots,
-      ditherAlgo: prev.ditherAlgo, ditherSize: prev.ditherSize,
+      noiseType: prev.noiseType, noiseSize: prev.noiseSize, noiseDots: prev.noiseDots, noiseStdDev: prev.noiseStdDev,
+      ditherAlgo: prev.ditherAlgo, ditherSize: prev.ditherSize, ditherLevel: prev.ditherLevel, bayerLevel: prev.bayerLevel, patternFormId: prev.patternFormId,
       edgeRoughen: prev.edgeRoughen, edgeScale: prev.edgeScale,
     });
     return ch;
@@ -628,8 +838,18 @@ function amDotsOf(ch) {
 
       const tone = cellCoverage(ch, px, py, half_i, W, H);
       if (tone < 0.02) continue;
-      const r = (cell / 2) * Math.sqrt(tone);
-      dots.push({ x: px, y: py, r });
+      if (ch.dotShape === 'euclidean') {
+        // Real PostScript Euclidean spot function: growing circle in
+        // highlights, a hole punched in a fully-inked cell in shadows —
+        // continuous at tone=0.5 (r=L in both branches).
+        const L = cell / 2;
+        const hole = tone >= 0.5;
+        const r = hole ? L * Math.sqrt((1 - tone) / 0.5) : L * Math.sqrt(tone / 0.5);
+        dots.push({ x: px, y: py, r, hole, cellHalf: L });
+      } else {
+        const r = (cell / 2) * Math.sqrt(tone);
+        dots.push({ x: px, y: py, r });
+      }
     }
   }
   ch.amDots = dots; ch._amKey = key;
@@ -667,7 +887,7 @@ const AM_PRESETS = {
 // ═══════════════════════════════════════════
 
 function computeNoiseDots(ch) {
-  const key = ch.noiseType + '|' + ch.noiseSize + '|' + ch.noiseDots + '|' + S.W + '|' + S.H;
+  const key = ch.noiseType + '|' + ch.noiseSize + '|' + ch.noiseDots + '|' + ch.noiseStdDev + '|' + S.W + '|' + S.H;
   if (ch.noiseDotsCache && ch._noiseKey === key) return ch.noiseDotsCache;
 
   const W = S.W, H = S.H;
@@ -691,9 +911,17 @@ function computeNoiseDots(ch) {
       if (coverage < 0.02) continue;
 
       const nx = px * nf, ny = py * nf;
-      const nv = ch.noiseType === 'worley'
-        ? 1 - Math.min(1, Organica.noise.voronoiF1F2(nx, ny, 1)[0])
-        : (Organica.noise.simplex2(nx, ny) + 1) / 2;
+      let nv;
+      if (ch.noiseType === 'worley') nv = 1 - Math.min(1, Organica.noise.voronoiF1F2(nx, ny, 1)[0]);
+      else if (ch.noiseType === 'random') nv = rng();
+      else if (ch.noiseType === 'gaussian') {
+        // Box-Muller, drawn from the SAME per-channel rng stream as the
+        // scatter jitter above — deterministic/reproducible, no second RNG
+        // needed. Mean 0.5, std ch.noiseStdDev, clamped to [0,1].
+        const u1 = Math.max(1e-6, rng()), u2 = rng();
+        const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+        nv = Math.max(0, Math.min(1, 0.5 + z * ch.noiseStdDev));
+      } else nv = (Organica.noise.simplex2(nx, ny) + 1) / 2;
 
       let tone;
       if (ch.noiseDots === 'black') tone = coverage * nv;
@@ -721,8 +949,176 @@ function computeNoiseDots(ch) {
 // density" knob.
 // ═══════════════════════════════════════════
 
+// ═══════════════════════════════════════════
+// PATTERN MODE — custom dither threshold matrices, stored as real SVG in
+// Genesis's own shared library (organica.library.forms) rather than a new
+// Colornet-only store — same principle FVS already follows for its own
+// Seeds. Each pattern is saved as an N×N grid of <rect>, one per cell,
+// fill-opacity = that cell's own gray level (0=black..1=white) — a literal,
+// inspectable rendering of the threshold matrix itself, not an abstract
+// blob, consistent with every other library entry being a real SVG shape.
+// Colornet reads a pattern back by re-parsing those fill-opacity values in
+// row-major order into a Float32Array — the exact same shape
+// Organica.dither.bayerThresholds(n) already returns.
+// ═══════════════════════════════════════════
+
+const GENESIS_LIBRARY_KEY = 'organica.library.forms';
+
+function readGenesisLibrary() {
+  try {
+    const raw = localStorage.getItem(GENESIS_LIBRARY_KEY);
+    const lib = raw ? JSON.parse(raw) : null;
+    if (lib && Array.isArray(lib.forms)) return lib;
+  } catch (e) { /* fall through */ }
+  return { sets: [], forms: [] };
+}
+function writeGenesisLibrary(lib) {
+  localStorage.setItem(GENESIS_LIBRARY_KEY, JSON.stringify(lib));
+}
+
+function patternSVG(size, thresholds) {
+  const cell = 200 / size;
+  let s = `<svg viewBox="0 0 200 200">`;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const level = thresholds[y * size + x];
+      s += `<rect x="${(x * cell).toFixed(2)}" y="${(y * cell).toFixed(2)}" width="${cell.toFixed(2)}" height="${cell.toFixed(2)}" fill="#000" fill-opacity="${level.toFixed(4)}"/>`;
+    }
+  }
+  s += '</svg>';
+  return s;
+}
+
+function listPatterns() {
+  const lib = readGenesisLibrary();
+  return lib.forms.filter(f => f.isPattern).map(f => ({ id: f.id, name: f.name, size: f.patternSize }));
+}
+
+// Parses a pattern form's own SVG back into a Float32Array of thresholds —
+// the SAME shape Organica.dither.bayerThresholds(n) returns, so it drops
+// straight into orderedCustom() with no adaptation.
+function resolvePatternThresholds(patternFormId) {
+  if (!patternFormId) return null;
+  const lib = readGenesisLibrary();
+  const form = lib.forms.find(f => f.id === patternFormId && f.isPattern);
+  if (!form) return null;   // deleted/missing — caller falls back to Bayer cleanly
+  const n = form.patternSize;
+  const doc = new DOMParser().parseFromString(form.svg, 'image/svg+xml');
+  const rects = [...doc.querySelectorAll('rect')];
+  if (rects.length !== n * n) return null;
+  const thresholds = new Float32Array(n * n);
+  for (let i = 0; i < rects.length; i++) thresholds[i] = parseFloat(rects[i].getAttribute('fill-opacity')) || 0;
+  return { size: n, thresholds };
+}
+
+function savePatternToLibrary(name, size, thresholds) {
+  const lib = readGenesisLibrary();
+  const id = 'colornet-pattern-' + Date.now();
+  lib.forms.push({ id, name, svg: patternSVG(size, thresholds), isPattern: true, patternSize: size });
+  writeGenesisLibrary(lib);
+  return id;
+}
+function deletePatternFromLibrary(id) {
+  const lib = readGenesisLibrary();
+  lib.forms = lib.forms.filter(f => f.id !== id);
+  writeGenesisLibrary(lib);
+}
+
+// ── Editor UI — a plain fixed overlay (no existing dialog component in
+// this file fits an NxN clickable grid), left-click fills the next cell
+// from black, right-click fills the next cell from white — the exact
+// interaction Dotraster's own manual describes. Two pointers close in from
+// opposite ends of the fill sequence so mixing left/right clicks is well-
+// defined; final level = fill position / (N²-1).
+// ──
+
+let PE = null;   // pattern-editor working state, alive only while the overlay is open
+
+function openPatternEditor(ch) {
+  const size = 8;
+  PE = { size, order: new Array(size * size).fill(null), front: 0, back: size * size - 1, history: [], targetCh: ch };
+  buildPatternEditorDOM();
+  ctrl('pattern-editor-overlay').style.display = 'flex';
+}
+
+function closePatternEditor() {
+  ctrl('pattern-editor-overlay').style.display = 'none';
+  PE = null;
+}
+
+function peLevelOf(cellIdx) {
+  const pos = PE.order[cellIdx];
+  if (pos == null) return null;
+  const total = PE.size * PE.size;
+  return total > 1 ? pos / (total - 1) : 1;
+}
+
+function buildPatternEditorDOM() {
+  const grid = ctrl('pattern-editor-grid');
+  grid.innerHTML = '';
+  grid.style.gridTemplateColumns = `repeat(${PE.size}, 1fr)`;
+  for (let i = 0; i < PE.size * PE.size; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'pe-cell';
+    const lvl = peLevelOf(i);
+    cell.style.background = lvl == null ? 'transparent' : `rgb(${lvl*255},${lvl*255},${lvl*255})`;
+    cell.addEventListener('click', () => peClick(i, false));
+    cell.addEventListener('contextmenu', e => { e.preventDefault(); peClick(i, true); });
+    grid.appendChild(cell);
+  }
+  const filled = PE.order.filter(v => v != null).length;
+  const total = PE.size * PE.size;
+  ctrl('pe-status').textContent = filled + ' / ' + total + ' cells filled';
+  ctrl('pe-save').disabled = filled !== total;
+  ctrl('pe-undo').disabled = PE.history.length === 0;
+}
+
+function peClick(cellIdx, fromEnd) {
+  if (PE.order[cellIdx] != null) return;   // already filled
+  if (PE.front > PE.back) return;          // matrix already full
+  const pos = fromEnd ? PE.back-- : PE.front++;
+  PE.order[cellIdx] = pos;
+  PE.history.push({ cellIdx, fromEnd });
+  buildPatternEditorDOM();
+}
+
+function peUndo() {
+  const last = PE.history.pop();
+  if (!last) return;
+  PE.order[last.cellIdx] = null;
+  if (last.fromEnd) PE.back++; else PE.front--;
+  buildPatternEditorDOM();
+}
+
+function peInit() {
+  PE.order = new Array(PE.size * PE.size).fill(null);
+  PE.front = 0; PE.back = PE.size * PE.size - 1; PE.history = [];
+  buildPatternEditorDOM();
+}
+
+function peSave() {
+  const filled = PE.order.filter(v => v != null).length;
+  if (filled !== PE.size * PE.size) return;   // matches Dotraster: Save only enabled once the matrix is fully filled
+  const name = 'Pattern ' + new Date().toLocaleTimeString();
+  const thresholds = PE.order.map((pos) => pos / (PE.size * PE.size - 1));
+  const id = savePatternToLibrary(name, PE.size, thresholds);
+  if (PE.targetCh) { PE.targetCh.patternFormId = id; PE.targetCh._ditherKey = null; }
+  closePatternEditor();
+  buildChannelUI(); render();
+  setStatus('active', 'Pattern "' + name + '" saved');
+}
+
+// Kernel lookup — Floyd-Steinberg/Atkinson (original 2) plus 7 more classic
+// error-diffusion kernels matching Dotraster's own named list.
+const DITHER_KERNELS = {
+  floyd: 'FS_KERNEL', atkinson: 'ATKINSON_KERNEL', jjn: 'JJN_KERNEL', stucki: 'STUCKI_KERNEL',
+  burkes: 'BURKES_KERNEL', sierra: 'SIERRA_KERNEL', sierra2row: 'SIERRA_TWO_ROW_KERNEL',
+  sierraLite: 'SIERRA_LITE_KERNEL', simple2d: 'SIMPLE2D_KERNEL',
+};
+const BAYER_N = [2, 4, 8, 16];
+
 function computeDitherDots(ch) {
-  const key = ch.ditherAlgo + '|' + ch.ditherSize + '|' + S.W + '|' + S.H;
+  const key = ch.ditherAlgo + '|' + ch.ditherSize + '|' + ch.ditherLevel + '|' + ch.bayerLevel + '|' + (ch.patternFormId || '') + '|' + S.W + '|' + S.H;
   if (ch.ditherDots && ch._ditherKey === key) return ch.ditherDots;
 
   const W = S.W, H = S.H;
@@ -741,9 +1137,21 @@ function computeDitherDots(ch) {
   }
 
   let cells;
-  if (ch.ditherAlgo === 'atkinson') cells = Organica.dither.errorDiffusion(gray, cols, rows, Organica.dither.ATKINSON_KERNEL, true);
-  else if (ch.ditherAlgo === 'bayer') cells = Organica.dither.ordered(gray, cols, rows, 8);
-  else cells = Organica.dither.errorDiffusion(gray, cols, rows, Organica.dither.FS_KERNEL, true);
+  if (ch.ditherAlgo === 'threshold') {
+    cells = Organica.dither.threshold(gray, cols, rows, ch.ditherLevel / 255);
+  } else if (ch.ditherAlgo === 'bayer') {
+    cells = Organica.dither.ordered(gray, cols, rows, BAYER_N[ch.bayerLevel]);
+  } else if (ch.ditherAlgo === 'pattern') {
+    // Pattern mode (Phase F) — a user-authored custom threshold matrix,
+    // stored in Genesis's own shared library. Falls back to Bayer cleanly
+    // if the referenced pattern is missing/deleted.
+    const pat = resolvePatternThresholds(ch.patternFormId);
+    cells = pat ? Organica.dither.orderedCustom(gray, cols, rows, pat.thresholds, pat.size)
+                : Organica.dither.ordered(gray, cols, rows, BAYER_N[ch.bayerLevel]);
+  } else {
+    const kernelName = DITHER_KERNELS[ch.ditherAlgo] || 'FS_KERNEL';
+    cells = Organica.dither.errorDiffusion(gray, cols, rows, Organica.dither[kernelName], true);
+  }
 
   // Fixed-size square per "on" cell, at that cell's own centre in
   // canonical mask space — half the cell as the side, leaving visible
@@ -827,6 +1235,27 @@ function lineCorners(d, cell, basis) {
 function drawAmDots(ctx, ch, fill) {
   const dots = amDotsOf(ch);
   ctx.fillStyle = fill;
+  if (ch.dotShape === 'euclidean') {
+    // A hole-punched dot needs its OWN evenodd fill() per point — sharing
+    // one big nonzero-rule path (like circle/square/line below) would
+    // corrupt every hole into a solid disc the moment another dot's path
+    // gets appended to the same fill call.
+    for (const d of dots) {
+      const L = d.cellHalf;
+      ctx.beginPath();
+      if (d.hole) {
+        ctx.rect(d.x - L, d.y - L, L * 2, L * 2);
+        ctx.moveTo(d.x + d.r, d.y);
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+        ctx.fill('evenodd');
+      } else {
+        ctx.moveTo(d.x + d.r, d.y);
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    return;
+  }
   ctx.beginPath();
   for (const d of dots) {
     if (ch.dotShape === 'square') {
@@ -913,6 +1342,17 @@ function svgFromPlan(plan) {
         } else if (it.ch.dotShape === 'line') {
           const c = lineCorners(d, it.ch._amCell, it.ch._amBasis);
           s += `<polygon points="${c.map(p => num(p[0]) + ',' + num(p[1])).join(' ')}"/>`;
+        } else if (it.ch.dotShape === 'euclidean') {
+          if (d.hole) {
+            // Cell square minus the inner circle hole — evenodd, two
+            // sub-paths in one <path>, same "outer + inner" technique
+            // roughPathOf's own flat-mode fills already use for real holes.
+            const L = d.cellHalf;
+            s += `<path fill-rule="evenodd" d="M${num(d.x - L)},${num(d.y - L)}h${num(L * 2)}v${num(L * 2)}h${num(-L * 2)}Z` +
+                 `M${num(d.x + d.r)},${num(d.y)}a${num(d.r)},${num(d.r)} 0 1,0 ${num(-d.r * 2)},0a${num(d.r)},${num(d.r)} 0 1,0 ${num(d.r * 2)},0Z"/>`;
+          } else {
+            s += `<circle cx="${num(d.x)}" cy="${num(d.y)}" r="${num(d.r)}"/>`;
+          }
         } else {
           s += `<circle cx="${num(d.x)}" cy="${num(d.y)}" r="${num(d.r)}"/>`;
         }
@@ -1057,6 +1497,7 @@ function buildChannelUI() {
           <option value="circle"${ch.dotShape === 'circle' ? ' selected' : ''}>Circle</option>
           <option value="square"${ch.dotShape === 'square' ? ' selected' : ''}>Square</option>
           <option value="line"${ch.dotShape === 'line' ? ' selected' : ''}>Line</option>
+          <option value="euclidean"${ch.dotShape === 'euclidean' ? ' selected' : ''}>Euclidean</option>
         </select>
       </div>` : ''}
       ${ch.screenMode === 'noise' ? `
@@ -1065,6 +1506,8 @@ function buildChannelUI() {
         <select class="panel-select chan-noise-type" style="flex:1" aria-label="${ch.name} noise type">
           <option value="simplex"${ch.noiseType === 'simplex' ? ' selected' : ''}>Simplex</option>
           <option value="worley"${ch.noiseType === 'worley' ? ' selected' : ''}>Worley</option>
+          <option value="random"${ch.noiseType === 'random' ? ' selected' : ''}>Random</option>
+          <option value="gaussian"${ch.noiseType === 'gaussian' ? ' selected' : ''}>Gaussian</option>
         </select>
       </div>
       <div class="chan-card__body chan-am-row">
@@ -1072,6 +1515,12 @@ function buildChannelUI() {
         <input type="range" class="chan-noise-size" min="5" max="300" step="1" value="${ch.noiseSize}" aria-label="${ch.name} noise size">
         <span class="chan-val">${ch.noiseSize}</span>
       </div>
+      ${ch.noiseType === 'gaussian' ? `
+      <div class="chan-card__body chan-am-row">
+        <span class="chan-am-label">Std dev</span>
+        <input type="range" class="chan-noise-stddev" min="0" max="1" step="0.01" value="${ch.noiseStdDev}" aria-label="${ch.name} noise standard deviation">
+        <span class="chan-val">${ch.noiseStdDev.toFixed(2)}</span>
+      </div>` : ''}
       <div class="chan-card__body chan-am-row">
         <span class="chan-am-label">Dots</span>
         <select class="panel-select chan-noise-dots" style="flex:1" aria-label="${ch.name} noise dots">
@@ -1086,14 +1535,47 @@ function buildChannelUI() {
         <select class="panel-select chan-dither-algo" style="flex:1" aria-label="${ch.name} dither algorithm">
           <option value="floyd"${ch.ditherAlgo === 'floyd' ? ' selected' : ''}>Floyd–Steinberg</option>
           <option value="atkinson"${ch.ditherAlgo === 'atkinson' ? ' selected' : ''}>Atkinson</option>
+          <option value="jjn"${ch.ditherAlgo === 'jjn' ? ' selected' : ''}>Jarvis-Judice-Ninke</option>
+          <option value="stucki"${ch.ditherAlgo === 'stucki' ? ' selected' : ''}>Stucki</option>
+          <option value="burkes"${ch.ditherAlgo === 'burkes' ? ' selected' : ''}>Burkes</option>
+          <option value="sierra"${ch.ditherAlgo === 'sierra' ? ' selected' : ''}>Sierra</option>
+          <option value="sierra2row"${ch.ditherAlgo === 'sierra2row' ? ' selected' : ''}>Two-Row Sierra</option>
+          <option value="sierraLite"${ch.ditherAlgo === 'sierraLite' ? ' selected' : ''}>Sierra Lite</option>
+          <option value="simple2d"${ch.ditherAlgo === 'simple2d' ? ' selected' : ''}>Simple 2D</option>
           <option value="bayer"${ch.ditherAlgo === 'bayer' ? ' selected' : ''}>Bayer</option>
+          <option value="pattern"${ch.ditherAlgo === 'pattern' ? ' selected' : ''}>Pattern…</option>
+          <option value="threshold"${ch.ditherAlgo === 'threshold' ? ' selected' : ''}>Threshold</option>
         </select>
       </div>
+      ${ch.ditherAlgo !== 'threshold' && ch.ditherAlgo !== 'bayer' && ch.ditherAlgo !== 'pattern' ? `
       <div class="chan-card__body chan-am-row">
         <span class="chan-am-label">Size</span>
         <input type="range" class="chan-dither-size" min="5" max="300" step="1" value="${ch.ditherSize}" aria-label="${ch.name} dither size">
         <span class="chan-val">${ch.ditherSize}</span>
       </div>` : ''}
+      ${ch.ditherAlgo === 'threshold' ? `
+      <div class="chan-card__body chan-am-row">
+        <span class="chan-am-label">Level</span>
+        <input type="range" class="chan-dither-level" min="0" max="255" step="1" value="${ch.ditherLevel}" aria-label="${ch.name} threshold level">
+        <span class="chan-val">${ch.ditherLevel}</span>
+      </div>` : ''}
+      ${ch.ditherAlgo === 'bayer' ? `
+      <div class="chan-card__body chan-am-row">
+        <span class="chan-am-label">Matrix</span>
+        <input type="range" class="chan-bayer-level" min="0" max="3" step="1" value="${ch.bayerLevel}" aria-label="${ch.name} Bayer matrix level">
+        <span class="chan-val">${['2×2','4×4','8×8','16×16'][ch.bayerLevel]}</span>
+      </div>` : ''}
+      ${ch.ditherAlgo === 'pattern' ? `
+      <div class="chan-card__body chan-am-row">
+        <span class="chan-am-label">Pattern</span>
+        <select class="panel-select chan-pattern-id" style="flex:1" aria-label="${ch.name} custom pattern">
+          <option value="">— none, using Bayer —</option>
+          ${listPatterns().map(p => `<option value="${p.id}"${ch.patternFormId === p.id ? ' selected' : ''}>${p.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="chan-card__body chan-am-row">
+        <button class="mini-btn chan-pattern-edit" style="flex:1">Edit patterns…</button>
+      </div>` : ''}` : ''}
       ${ch.screenMode === 'flat' ? `
       <div class="chan-card__body chan-am-row">
         <span class="chan-am-label">Edge bleed</span>
@@ -1165,6 +1647,12 @@ function buildChannelUI() {
     const noiseTypeSel = card.querySelector('.chan-noise-type');
     if (noiseTypeSel) noiseTypeSel.addEventListener('change', e => {
       ch.noiseType = e.target.value;
+      buildChannelUI(); render();   // rebuild — Std dev row is conditional on noiseType === 'gaussian'
+    });
+    const noiseStdDevInput = card.querySelector('.chan-noise-stddev');
+    if (noiseStdDevInput) noiseStdDevInput.addEventListener('input', e => {
+      ch.noiseStdDev = parseFloat(e.target.value);
+      noiseStdDevInput.nextElementSibling.textContent = ch.noiseStdDev.toFixed(2);
       drawThumb(card.querySelector('.chan-thumb'), ch);
       render();
     });
@@ -1184,8 +1672,7 @@ function buildChannelUI() {
     const ditherAlgoSel = card.querySelector('.chan-dither-algo');
     if (ditherAlgoSel) ditherAlgoSel.addEventListener('change', e => {
       ch.ditherAlgo = e.target.value;
-      drawThumb(card.querySelector('.chan-thumb'), ch);
-      render();
+      buildChannelUI(); render();   // rebuild — Size/Level/Matrix/Pattern rows are conditional on the algo
     });
     const ditherSizeInput = card.querySelector('.chan-dither-size');
     if (ditherSizeInput) ditherSizeInput.addEventListener('input', e => {
@@ -1194,6 +1681,28 @@ function buildChannelUI() {
       drawThumb(card.querySelector('.chan-thumb'), ch);
       render();
     });
+    const ditherLevelInput = card.querySelector('.chan-dither-level');
+    if (ditherLevelInput) ditherLevelInput.addEventListener('input', e => {
+      ch.ditherLevel = parseInt(e.target.value, 10);
+      ditherLevelInput.nextElementSibling.textContent = ch.ditherLevel;
+      drawThumb(card.querySelector('.chan-thumb'), ch);
+      render();
+    });
+    const bayerLevelInput = card.querySelector('.chan-bayer-level');
+    if (bayerLevelInput) bayerLevelInput.addEventListener('input', e => {
+      ch.bayerLevel = parseInt(e.target.value, 10);
+      bayerLevelInput.nextElementSibling.textContent = ['2×2','4×4','8×8','16×16'][ch.bayerLevel];
+      drawThumb(card.querySelector('.chan-thumb'), ch);
+      render();
+    });
+    const patternIdSel = card.querySelector('.chan-pattern-id');
+    if (patternIdSel) patternIdSel.addEventListener('change', e => {
+      ch.patternFormId = e.target.value || null;
+      drawThumb(card.querySelector('.chan-thumb'), ch);
+      render();
+    });
+    const patternEditBtn = card.querySelector('.chan-pattern-edit');
+    if (patternEditBtn) patternEditBtn.addEventListener('click', () => openPatternEditor(ch));
     const edgeRoughenInput = card.querySelector('.chan-edge-roughen');
     if (edgeRoughenInput) edgeRoughenInput.addEventListener('input', e => {
       ch.edgeRoughen = parseFloat(e.target.value);
@@ -1366,6 +1875,61 @@ ctrl('sel-detail').addEventListener('change', e => {
   if (S.img) separate(true);
 });
 ctrl('btn-separate').addEventListener('click', () => separate(false));
+
+// ═══════════════════════════════════════════
+// IMAGE FILTER CONTROLS — same keepSettings:true discipline as Detail
+// above: tweaking a filter re-separates without wiping cosmetics.
+// ═══════════════════════════════════════════
+
+ctrl('sel-img-gray').addEventListener('change', e => {
+  S.imgGray = e.target.value;
+  ctrl('row-img-filterhue').style.display = e.target.value === 'color' ? '' : 'none';
+  if (S.img) separate(true);
+});
+ctrl('rg-img-filterhue').addEventListener('input', e => {
+  S.imgFilterHue = parseInt(e.target.value, 10);
+  ctrl('v-img-filterhue').textContent = S.imgFilterHue + '°';
+});
+ctrl('rg-img-filterhue').addEventListener('change', () => { if (S.img) separate(true); });
+ctrl('rg-img-brightness').addEventListener('input', e => {
+  S.imgBrightness = parseInt(e.target.value, 10);
+  ctrl('v-img-brightness').textContent = S.imgBrightness;
+});
+ctrl('rg-img-brightness').addEventListener('change', () => { if (S.img) separate(true); });
+ctrl('rg-img-contrast').addEventListener('input', e => {
+  S.imgContrast = parseInt(e.target.value, 10);
+  ctrl('v-img-contrast').textContent = S.imgContrast;
+});
+ctrl('rg-img-contrast').addEventListener('change', () => { if (S.img) separate(true); });
+ctrl('ck-img-denoise').addEventListener('change', e => {
+  S.imgDenoise = e.target.checked;
+  if (S.img) separate(true);
+});
+ctrl('ck-img-sharpen').addEventListener('change', e => {
+  S.imgSharpen = e.target.checked;
+  ctrl('row-img-sharpen-amt').style.display = e.target.checked ? '' : 'none';
+  if (S.img) separate(true);
+});
+ctrl('rg-img-sharpen-amt').addEventListener('input', e => {
+  S.imgSharpenAmt = parseInt(e.target.value, 10);
+  ctrl('v-img-sharpen-amt').textContent = S.imgSharpenAmt + '%';
+});
+ctrl('rg-img-sharpen-amt').addEventListener('change', () => { if (S.img) separate(true); });
+ctrl('ck-img-gamma').addEventListener('change', e => {
+  S.imgGamma = e.target.checked;
+  if (S.img) separate(true);
+});
+
+// ═══════════════════════════════════════════
+// PATTERN EDITOR WIRING
+// ═══════════════════════════════════════════
+
+ctrl('pe-undo').addEventListener('click', peUndo);
+ctrl('pe-init').addEventListener('click', peInit);
+ctrl('pe-save').addEventListener('click', peSave);
+ctrl('pe-close').addEventListener('click', closePatternEditor);
+ctrl('pattern-editor-overlay').addEventListener('click', e => { if (e.target.id === 'pattern-editor-overlay') closePatternEditor(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && PE) closePatternEditor(); });
 ctrl('btn-shuffle').addEventListener('click', shuffleChannels);
 ctrl('btn-random-colors').addEventListener('click', randomizeColors);
 ctrl('btn-auto-angles').addEventListener('click', () => {
@@ -1435,19 +1999,32 @@ ctrl('batch-input').addEventListener('change', e => {
 // EXPORT — every path below goes through buildPlan()
 // ═══════════════════════════════════════════
 
-function exportScale() { return parseInt(ctrl('sel-scale').value, 10) || 1; }
+function exportScale() {
+  if (ctrl('sel-scale').value === 'custom') return Math.max(0.1, parseFloat(ctrl('in-scale-custom').value) || 1);
+  return parseInt(ctrl('sel-scale').value, 10) || 1;
+}
 
 function updateSizeReadout() {
   if (!S.W) { ctrl('out-size').textContent = '—'; return; }
   const s = exportScale();
   ctrl('out-size').textContent = Math.round(S.W * s) + ' × ' + Math.round(S.H * s);
 }
-ctrl('sel-scale').addEventListener('change', updateSizeReadout);
+ctrl('sel-scale').addEventListener('change', () => {
+  ctrl('row-scale-custom').style.display = ctrl('sel-scale').value === 'custom' ? '' : 'none';
+  updateSizeReadout();
+});
+ctrl('in-scale-custom').addEventListener('input', updateSizeReadout);
 
 function renderToCanvas(plan, opts) {
   const c = document.createElement('canvas');
   c.width = plan.outW; c.height = plan.outH;
-  drawPlan(c.getContext('2d'), plan, opts);
+  const g = c.getContext('2d');
+  // "No smoothing" mainly matters for Flat mode's raster fallback
+  // (tintOf(ch), scaled up by drawPlan's own transform) — AM/Noise/
+  // Dither/edge-roughened Flat already draw vector shapes directly at
+  // output scale and have nothing to smooth either way.
+  g.imageSmoothingEnabled = !ctrl('ck-no-smooth').checked;
+  drawPlan(g, plan, opts);
   return c;
 }
 
@@ -1525,8 +2102,8 @@ async function runBatch(files) {
     on: ch.on, color: ch.color, opacity: ch.opacity, blend: ch.blend,
     tx: ch.tx, ty: ch.ty, scale: ch.scale, rot: ch.rot, flipH: ch.flipH, flipV: ch.flipV,
     screenMode: ch.screenMode, screenAngle: ch.screenAngle, screenFreq: ch.screenFreq, dotShape: ch.dotShape,
-    noiseType: ch.noiseType, noiseSize: ch.noiseSize, noiseDots: ch.noiseDots,
-    ditherAlgo: ch.ditherAlgo, ditherSize: ch.ditherSize,
+    noiseType: ch.noiseType, noiseSize: ch.noiseSize, noiseDots: ch.noiseDots, noiseStdDev: ch.noiseStdDev,
+    ditherAlgo: ch.ditherAlgo, ditherSize: ch.ditherSize, ditherLevel: ch.ditherLevel, bayerLevel: ch.bayerLevel, patternFormId: ch.patternFormId,
     edgeRoughen: ch.edgeRoughen, edgeScale: ch.edgeScale,
   }));
   if (!cosmeticByIdx.length) { setStatus('', 'Separate an image first, then batch'); return; }
@@ -1594,28 +2171,28 @@ const BUILTIN_PRESETS = {
   // the characteristic slight misregistration between passes that makes a
   // riso print read as riso rather than as a clean flat poster.
   'Riso paper': {
-    bands: 3, detail: 560, bg: '#f3e6c8',
+    bands: 3, detail: 560, bg: '#f3e6c8', imgGray: 'luminanceHD', imgBrightness: 0, imgContrast: 0, imgDenoise: false, imgSharpen: false, imgSharpenAmt: 100, imgGamma: false, imgFilterHue: 0,
     channels: [
       // Lineature/size pushed to the fine end of the (now-widened) range —
       // verified against a real RetroSupply Riso-texture reference photo:
       // the authentic look is a fine sandy GRAIN across otherwise-flat
       // regions, not big visible halftone dots. 16-18 (the original tuning)
       // reads as classic coarse newsprint, not riso paper grain.
-      { name: 'Marine', on: true, color: '#0b3c5d', opacity: 100, blend: 'multiply', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 15, screenFreq: 250, dotShape: 'circle', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20 },
-      { name: 'Flame', on: true, color: '#ff6b57', opacity: 88, blend: 'multiply', tx: 0.8, ty: -0.5, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 75, screenFreq: 220, dotShape: 'circle', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20 },
-      { name: 'Sun', on: true, color: '#f4c000', opacity: 65, blend: 'multiply', tx: -0.6, ty: 0.7, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'dither', screenAngle: 0, screenFreq: 24, dotShape: 'circle', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 200, edgeRoughen: 0, edgeScale: 20 },
+      { name: 'Marine', on: true, color: '#0b3c5d', opacity: 100, blend: 'multiply', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 15, screenFreq: 250, dotShape: 'circle', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20, ditherLevel: 128, bayerLevel: 2, patternFormId: null, noiseStdDev: 0.3 },
+      { name: 'Flame', on: true, color: '#ff6b57', opacity: 88, blend: 'multiply', tx: 0.8, ty: -0.5, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 75, screenFreq: 220, dotShape: 'circle', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20, ditherLevel: 128, bayerLevel: 2, patternFormId: null, noiseStdDev: 0.3 },
+      { name: 'Sun', on: true, color: '#f4c000', opacity: 65, blend: 'multiply', tx: -0.6, ty: 0.7, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'dither', screenAngle: 0, screenFreq: 24, dotShape: 'circle', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 200, edgeRoughen: 0, edgeScale: 20, ditherLevel: 128, bayerLevel: 2, patternFormId: null, noiseStdDev: 0.3 },
     ],
   },
   // A direct showcase of AM Screening's own differentiated value — 4 bold
   // poster inks at 4 distinct classic offset angles, so overlapping dot
   // fields read as a real rosette instead of a moiré clash.
   'Pop Halftone': {
-    bands: 4, detail: 560, bg: '#ffffff',
+    bands: 4, detail: 560, bg: '#ffffff', imgGray: 'luminanceHD', imgBrightness: 0, imgContrast: 0, imgDenoise: false, imgSharpen: false, imgSharpenAmt: 100, imgGamma: false, imgFilterHue: 0,
     channels: [
-      { name: 'Ink', on: true, color: '#141414', opacity: 100, blend: 'normal', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 15, screenFreq: 22, dotShape: 'circle', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20 },
-      { name: 'Magenta', on: true, color: '#e8177a', opacity: 85, blend: 'multiply', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 75, screenFreq: 20, dotShape: 'circle', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20 },
-      { name: 'Cyan', on: true, color: '#00aeef', opacity: 85, blend: 'multiply', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 0, screenFreq: 24, dotShape: 'circle', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20 },
-      { name: 'Yellow', on: true, color: '#ffe000', opacity: 80, blend: 'multiply', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 45, screenFreq: 18, dotShape: 'circle', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20 },
+      { name: 'Ink', on: true, color: '#141414', opacity: 100, blend: 'normal', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 15, screenFreq: 22, dotShape: 'circle', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20, ditherLevel: 128, bayerLevel: 2, patternFormId: null, noiseStdDev: 0.3 },
+      { name: 'Magenta', on: true, color: '#e8177a', opacity: 85, blend: 'multiply', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 75, screenFreq: 20, dotShape: 'circle', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20, ditherLevel: 128, bayerLevel: 2, patternFormId: null, noiseStdDev: 0.3 },
+      { name: 'Cyan', on: true, color: '#00aeef', opacity: 85, blend: 'multiply', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 0, screenFreq: 24, dotShape: 'circle', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20, ditherLevel: 128, bayerLevel: 2, patternFormId: null, noiseStdDev: 0.3 },
+      { name: 'Yellow', on: true, color: '#ffe000', opacity: 80, blend: 'multiply', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 45, screenFreq: 18, dotShape: 'circle', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20, ditherLevel: 128, bayerLevel: 2, patternFormId: null, noiseStdDev: 0.3 },
     ],
   },
   // Real engraving technique, not a crosshatch: ONE consistent line
@@ -1626,23 +2203,23 @@ const BUILTIN_PRESETS = {
   // at it: with only 2 discrete bands it read as an abstract weave, not a
   // graduated portrait — this reads correctly.
   'Engraved Line': {
-    bands: 4, detail: 560, bg: '#f7f4ee',
+    bands: 4, detail: 560, bg: '#f7f4ee', imgGray: 'luminanceHD', imgBrightness: 0, imgContrast: 0, imgDenoise: false, imgSharpen: false, imgSharpenAmt: 100, imgGamma: false, imgFilterHue: 0,
     channels: [
-      { name: 'Deep', on: true, color: '#161616', opacity: 100, blend: 'normal', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 45, screenFreq: 28, dotShape: 'line', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20 },
-      { name: 'Mid', on: true, color: '#161616', opacity: 88, blend: 'multiply', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 45, screenFreq: 18, dotShape: 'line', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20 },
-      { name: 'Light', on: true, color: '#161616', opacity: 70, blend: 'multiply', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 45, screenFreq: 11, dotShape: 'line', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20 },
-      { name: 'Paper', on: false, color: '#161616', opacity: 40, blend: 'multiply', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 45, screenFreq: 6, dotShape: 'line', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20 },
+      { name: 'Deep', on: true, color: '#161616', opacity: 100, blend: 'normal', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 45, screenFreq: 28, dotShape: 'line', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20, ditherLevel: 128, bayerLevel: 2, patternFormId: null, noiseStdDev: 0.3 },
+      { name: 'Mid', on: true, color: '#161616', opacity: 88, blend: 'multiply', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 45, screenFreq: 18, dotShape: 'line', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20, ditherLevel: 128, bayerLevel: 2, patternFormId: null, noiseStdDev: 0.3 },
+      { name: 'Light', on: true, color: '#161616', opacity: 70, blend: 'multiply', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 45, screenFreq: 11, dotShape: 'line', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20, ditherLevel: 128, bayerLevel: 2, patternFormId: null, noiseStdDev: 0.3 },
+      { name: 'Paper', on: false, color: '#161616', opacity: 40, blend: 'multiply', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'am', screenAngle: 45, screenFreq: 6, dotShape: 'line', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20, ditherLevel: 128, bayerLevel: 2, patternFormId: null, noiseStdDev: 0.3 },
     ],
   },
   // Noise halftone's own showcase — Worley's cellular clusters for the
   // dark plate, Simplex's softer drift for the mid-tone, both organic and
   // non-gridded (the opposite character from AM's precise lattice above).
   'Concrete Noise': {
-    bands: 3, detail: 560, bg: '#e5e1d8',
+    bands: 3, detail: 560, bg: '#e5e1d8', imgGray: 'luminanceHD', imgBrightness: 0, imgContrast: 0, imgDenoise: false, imgSharpen: false, imgSharpenAmt: 100, imgGamma: false, imgFilterHue: 0,
     channels: [
-      { name: 'Shadow', on: true, color: '#2b2b28', opacity: 100, blend: 'normal', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'noise', screenAngle: 0, screenFreq: 24, dotShape: 'circle', noiseType: 'worley', noiseSize: 26, noiseDots: 'black', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20 },
-      { name: 'Mid', on: true, color: '#6f6b62', opacity: 70, blend: 'multiply', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'noise', screenAngle: 0, screenFreq: 24, dotShape: 'circle', noiseType: 'simplex', noiseSize: 18, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20 },
-      { name: 'Paper', on: true, color: '#d8d3c6', opacity: 30, blend: 'normal', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'flat', screenAngle: 0, screenFreq: 24, dotShape: 'circle', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20 },
+      { name: 'Shadow', on: true, color: '#2b2b28', opacity: 100, blend: 'normal', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'noise', screenAngle: 0, screenFreq: 24, dotShape: 'circle', noiseType: 'worley', noiseSize: 26, noiseDots: 'black', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20, ditherLevel: 128, bayerLevel: 2, patternFormId: null, noiseStdDev: 0.3 },
+      { name: 'Mid', on: true, color: '#6f6b62', opacity: 70, blend: 'multiply', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'noise', screenAngle: 0, screenFreq: 24, dotShape: 'circle', noiseType: 'simplex', noiseSize: 18, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20, ditherLevel: 128, bayerLevel: 2, patternFormId: null, noiseStdDev: 0.3 },
+      { name: 'Paper', on: true, color: '#d8d3c6', opacity: 30, blend: 'normal', tx: 0, ty: 0, scale: 100, rot: 0, flipH: false, flipV: false, screenMode: 'flat', screenAngle: 0, screenFreq: 24, dotShape: 'circle', noiseType: 'simplex', noiseSize: 20, noiseDots: 'blend', ditherAlgo: 'floyd', ditherSize: 20, edgeRoughen: 0, edgeScale: 20, ditherLevel: 128, bayerLevel: 2, patternFormId: null, noiseStdDev: 0.3 },
     ],
   },
 };
@@ -1654,12 +2231,15 @@ function readState() {
     bands: S.bands,
     detail: S.detail,
     bg: S.bg,
+    imgGray: S.imgGray, imgBrightness: S.imgBrightness, imgContrast: S.imgContrast,
+    imgDenoise: S.imgDenoise, imgSharpen: S.imgSharpen, imgSharpenAmt: S.imgSharpenAmt,
+    imgGamma: S.imgGamma, imgFilterHue: S.imgFilterHue,
     channels: S.channels.map(c => ({
       name: c.name, on: c.on, color: c.color, opacity: c.opacity, blend: c.blend,
       tx: c.tx, ty: c.ty, scale: c.scale, rot: c.rot, flipH: c.flipH, flipV: c.flipV,
       screenMode: c.screenMode, screenAngle: c.screenAngle, screenFreq: c.screenFreq, dotShape: c.dotShape,
-      noiseType: c.noiseType, noiseSize: c.noiseSize, noiseDots: c.noiseDots,
-      ditherAlgo: c.ditherAlgo, ditherSize: c.ditherSize,
+      noiseType: c.noiseType, noiseSize: c.noiseSize, noiseDots: c.noiseDots, noiseStdDev: c.noiseStdDev,
+      ditherAlgo: c.ditherAlgo, ditherSize: c.ditherSize, ditherLevel: c.ditherLevel, bayerLevel: c.bayerLevel, patternFormId: c.patternFormId,
       edgeRoughen: c.edgeRoughen, edgeScale: c.edgeScale,
     })),
   };
@@ -1672,6 +2252,25 @@ function applyPreset(name) {
   S.detail = p.detail; ctrl('sel-detail').value = String(p.detail);
   ctrl('hex-bg').value = p.bg; ctrl('cp-bg').value = p.bg;
   S.bg = p.bg; ctrl('sw-bg').style.background = p.bg;
+
+  // Image filters — backfilled for presets saved before this feature
+  // existed, defaulting to the exact values that made applyImageFilters()
+  // take its no-op fast path, so an old preset renders byte-identical.
+  S.imgGray = p.imgGray || 'luminanceHD'; ctrl('sel-img-gray').value = S.imgGray;
+  ctrl('row-img-filterhue').style.display = S.imgGray === 'color' ? '' : 'none';
+  S.imgFilterHue = p.imgFilterHue != null ? p.imgFilterHue : 0;
+  ctrl('rg-img-filterhue').value = S.imgFilterHue; ctrl('v-img-filterhue').textContent = S.imgFilterHue + '°';
+  S.imgBrightness = p.imgBrightness != null ? p.imgBrightness : 0;
+  ctrl('rg-img-brightness').value = S.imgBrightness; ctrl('v-img-brightness').textContent = S.imgBrightness;
+  S.imgContrast = p.imgContrast != null ? p.imgContrast : 0;
+  ctrl('rg-img-contrast').value = S.imgContrast; ctrl('v-img-contrast').textContent = S.imgContrast;
+  S.imgDenoise = !!p.imgDenoise; ctrl('ck-img-denoise').checked = S.imgDenoise;
+  S.imgSharpen = !!p.imgSharpen; ctrl('ck-img-sharpen').checked = S.imgSharpen;
+  ctrl('row-img-sharpen-amt').style.display = S.imgSharpen ? '' : 'none';
+  S.imgSharpenAmt = p.imgSharpenAmt != null ? p.imgSharpenAmt : 100;
+  ctrl('rg-img-sharpen-amt').value = S.imgSharpenAmt; ctrl('v-img-sharpen-amt').textContent = S.imgSharpenAmt + '%';
+  S.imgGamma = !!p.imgGamma; ctrl('ck-img-gamma').checked = S.imgGamma;
+
   if (S.img) {
     separate(false);
     // The masks come from whatever image is loaded now; only the settings
@@ -1690,8 +2289,12 @@ function applyPreset(name) {
         noiseType: sc.noiseType || ch.noiseType,
         noiseSize: sc.noiseSize != null ? sc.noiseSize : ch.noiseSize,
         noiseDots: sc.noiseDots || ch.noiseDots,
+        noiseStdDev: sc.noiseStdDev != null ? sc.noiseStdDev : ch.noiseStdDev,
         ditherAlgo: sc.ditherAlgo || ch.ditherAlgo,
         ditherSize: sc.ditherSize != null ? sc.ditherSize : ch.ditherSize,
+        ditherLevel: sc.ditherLevel != null ? sc.ditherLevel : ch.ditherLevel,
+        bayerLevel: sc.bayerLevel != null ? sc.bayerLevel : ch.bayerLevel,
+        patternFormId: sc.patternFormId !== undefined ? sc.patternFormId : ch.patternFormId,
         edgeRoughen: sc.edgeRoughen != null ? sc.edgeRoughen : ch.edgeRoughen,
         edgeScale: sc.edgeScale != null ? sc.edgeScale : ch.edgeScale,
       });

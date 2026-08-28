@@ -436,6 +436,35 @@
   // discarding the rest — punchier, higher-contrast than Floyd–Steinberg.
   Organica.dither.ATKINSON_KERNEL = [[1, 0, 1 / 8], [2, 0, 1 / 8], [-1, 1, 1 / 8], [0, 1, 1 / 8], [1, 1, 1 / 8], [0, 2, 1 / 8]];
 
+  // 7 more classic error-diffusion kernels (Colornet's own "match Dotraster's
+  // named list" pass) — each verified summing to 1.0, same [dx,dy,weight]
+  // triple convention as FS/Atkinson above.
+  Organica.dither.JJN_KERNEL = [
+    [1, 0, 7 / 48], [2, 0, 5 / 48],
+    [-2, 1, 3 / 48], [-1, 1, 5 / 48], [0, 1, 7 / 48], [1, 1, 5 / 48], [2, 1, 3 / 48],
+    [-2, 2, 1 / 48], [-1, 2, 3 / 48], [0, 2, 5 / 48], [1, 2, 3 / 48], [2, 2, 1 / 48],
+  ];
+  Organica.dither.STUCKI_KERNEL = [
+    [1, 0, 8 / 42], [2, 0, 4 / 42],
+    [-2, 1, 2 / 42], [-1, 1, 4 / 42], [0, 1, 8 / 42], [1, 1, 4 / 42], [2, 1, 2 / 42],
+    [-2, 2, 1 / 42], [-1, 2, 2 / 42], [0, 2, 4 / 42], [1, 2, 2 / 42], [2, 2, 1 / 42],
+  ];
+  Organica.dither.BURKES_KERNEL = [
+    [1, 0, 8 / 32], [2, 0, 4 / 32],
+    [-2, 1, 2 / 32], [-1, 1, 4 / 32], [0, 1, 8 / 32], [1, 1, 4 / 32], [2, 1, 2 / 32],
+  ];
+  Organica.dither.SIERRA_KERNEL = [
+    [1, 0, 5 / 32], [2, 0, 3 / 32],
+    [-2, 1, 2 / 32], [-1, 1, 4 / 32], [0, 1, 5 / 32], [1, 1, 4 / 32], [2, 1, 2 / 32],
+    [-1, 2, 2 / 32], [0, 2, 3 / 32], [1, 2, 2 / 32],
+  ];
+  Organica.dither.SIERRA_TWO_ROW_KERNEL = [
+    [1, 0, 4 / 16], [2, 0, 3 / 16],
+    [-2, 1, 1 / 16], [-1, 1, 2 / 16], [0, 1, 3 / 16], [1, 1, 2 / 16], [2, 1, 1 / 16],
+  ];
+  Organica.dither.SIERRA_LITE_KERNEL = [[1, 0, 2 / 4], [-1, 1, 1 / 4], [0, 1, 1 / 4]];
+  Organica.dither.SIMPLE2D_KERNEL = [[1, 0, 1 / 2], [0, 1, 1 / 2]];
+
   Organica.dither.errorDiffusion = function errorDiffusion(gray, W, H, kernel, serpentine) {
     const buf = Float32Array.from(gray);
     const cells = new Uint8Array(W * H);
@@ -483,18 +512,28 @@
     }
     return _bayerCache[n];
   };
-  Organica.dither.ordered = function ordered(gray, W, H, n) {
-    const th = Organica.dither.bayerThresholds(n);
+  // Shared tiling loop — Bayer's own recursive matrix and a user-authored
+  // custom Pattern (Colornet's Pattern mode) both end up as a plain
+  // Float32Array of n*n thresholds in [0,1]; this is the one loop that
+  // tiles either across a field. `ordered` below is the Bayer-specific
+  // convenience wrapper.
+  Organica.dither.orderedCustom = function orderedCustom(gray, W, H, thresholds, n) {
     const cells = new Uint8Array(W * H);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      cells[y * W + x] = gray[y * W + x] < th[(y % n) * n + (x % n)] ? 1 : 0;
+      cells[y * W + x] = gray[y * W + x] < thresholds[(y % n) * n + (x % n)] ? 1 : 0;
     }
     return cells;
   };
+  Organica.dither.ordered = function ordered(gray, W, H, n) {
+    return Organica.dither.orderedCustom(gray, W, H, Organica.dither.bayerThresholds(n), n);
+  };
 
-  Organica.dither.threshold = function threshold(gray, W, H) {
+  // `level` optional, default 0.5 — Halide's own only call site (still 3
+  // args) is unaffected; Colornet is the second consumer, passing a level.
+  Organica.dither.threshold = function threshold(gray, W, H, level) {
+    if (level == null) level = 0.5;
     const cells = new Uint8Array(W * H);
-    for (let i = 0; i < W * H; i++) cells[i] = gray[i] < 0.5 ? 1 : 0;
+    for (let i = 0; i < W * H; i++) cells[i] = gray[i] < level ? 1 : 0;
     return cells;
   };
 
