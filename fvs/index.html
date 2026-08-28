@@ -228,6 +228,11 @@
     <div class="tier-block" data-tier="symbols">
     <div class="panel-section">
       <h3>Symbol grid <span class="hint" id="symbol-cellcount-hint">0 cells</span></h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-symbol-loom-preset" aria-label="Load a grid saved in Loom" style="flex:1">
+          <option value="">Load a grid…</option>
+        </select>
+      </div>
       <div class="row-btns">
         <button class="mini-btn" id="btn-symbol-grid-bento">Bento (Loom)</button>
         <button class="mini-btn" id="btn-symbol-grid-hex">Hexagonal (Loom)</button>
@@ -404,8 +409,107 @@
         <select class="panel-select" id="sel-symbol-fill" aria-label="Fill mode">
           <option value="manual">Manual</option>
           <option value="generate" selected>Generate (seeded)</option>
+          <option value="rule">Rule</option>
         </select>
       </div>
+
+      <div id="symbol-rule-block" style="display:none">
+        <div class="ctrl-row">
+          <select class="panel-select" id="sel-symbol-rule" aria-label="Rule">
+            <option value="oscillator" selected>Oscillator (Truchet)</option>
+            <option value="checkerboard">Checkerboard</option>
+            <option value="rows">Rows</option>
+            <option value="columns">Columns</option>
+            <option value="radial">Radial</option>
+            <option value="wave">Wave</option>
+            <option value="random">Random (transforms only)</option>
+          </select>
+        </div>
+
+        <div id="rp-oscillator" class="rule-params">
+          <div class="ctrl-row"><div class="ctrl-label">Angle step</div>
+            <select class="panel-select" id="sel-rule-osc-angle"><option value="90">90°</option><option value="180">180°</option></select>
+          </div>
+          <div class="ctrl-row"><div class="ctrl-label">Row shift</div>
+            <input type="range" id="rg-rule-osc-shift" min="0" max="2" step="0.05" value="1"><span class="ctrl-val" id="v-rule-osc-shift">1</span>
+          </div>
+          <div class="ctrl-row"><div class="ctrl-label">Period</div>
+            <input type="range" id="rg-rule-osc-period" min="2" max="6" step="1" value="3"><span class="ctrl-val" id="v-rule-osc-period">3</span>
+          </div>
+          <div class="ctrl-row"><div class="ctrl-label">Phase</div>
+            <input type="range" id="rg-rule-osc-phase" min="0" max="5" step="1" value="1"><span class="ctrl-val" id="v-rule-osc-phase">1</span>
+          </div>
+        </div>
+
+        <div id="rp-checkerboard" class="rule-params" style="display:none">
+          <div class="ctrl-row"><div class="ctrl-label">Rotate B</div>
+            <select class="panel-select" id="sel-rule-chk-rot"><option value="0">0°</option><option value="90" selected>90°</option><option value="180">180°</option><option value="270">270°</option></select>
+          </div>
+          <label class="check-row"><input type="checkbox" id="chk-rule-chk-flip"><span>Flip B instead of rotate</span></label>
+        </div>
+
+        <div id="rp-rows" class="rule-params" style="display:none">
+          <div class="ctrl-row"><div class="ctrl-label">Step</div>
+            <input type="range" id="rg-rule-rows-step" min="0" max="270" step="90" value="90"><span class="ctrl-val" id="v-rule-rows-step">90</span>
+          </div>
+          <div class="ctrl-row"><div class="ctrl-label">Mode</div>
+            <select class="panel-select" id="sel-rule-rows-mode"><option value="alternate" selected>Alternate</option><option value="ramp">Ramp</option></select>
+          </div>
+        </div>
+
+        <div id="rp-columns" class="rule-params" style="display:none">
+          <div class="ctrl-row"><div class="ctrl-label">Step</div>
+            <input type="range" id="rg-rule-cols-step" min="0" max="270" step="90" value="90"><span class="ctrl-val" id="v-rule-cols-step">90</span>
+          </div>
+          <div class="ctrl-row"><div class="ctrl-label">Mode</div>
+            <select class="panel-select" id="sel-rule-cols-mode"><option value="alternate" selected>Alternate</option><option value="ramp">Ramp</option></select>
+          </div>
+        </div>
+
+        <div id="rp-radial" class="rule-params" style="display:none">
+          <label class="check-row"><input type="checkbox" id="chk-rule-radial-snap" checked><span>Snap to 90°</span></label>
+          <div class="ctrl-row"><div class="ctrl-label">Direction</div>
+            <select class="panel-select" id="sel-rule-radial-chir"><option value="1" selected>Clockwise</option><option value="-1">Counter-clockwise</option></select>
+          </div>
+        </div>
+
+        <div id="rp-wave" class="rule-params" style="display:none">
+          <div class="ctrl-row"><div class="ctrl-label">Amplitude</div>
+            <input type="range" id="rg-rule-wave-amp" min="0" max="180" step="5" value="90"><span class="ctrl-val" id="v-rule-wave-amp">90</span>
+          </div>
+          <div class="ctrl-row"><div class="ctrl-label">Frequency</div>
+            <input type="range" id="rg-rule-wave-freq" min="0.2" max="3" step="0.1" value="1"><span class="ctrl-val" id="v-rule-wave-freq">1</span>
+          </div>
+          <div class="ctrl-row"><div class="ctrl-label">Phase</div>
+            <input type="range" id="rg-rule-wave-phase" min="0" max="360" step="10" value="0"><span class="ctrl-val" id="v-rule-wave-phase">0</span>
+          </div>
+          <label class="check-row"><input type="checkbox" id="chk-rule-wave-snap" checked><span>Snap to 90°</span></label>
+        </div>
+
+        <div class="sub-label" style="margin-top:var(--space-2)">Vary</div>
+        <div class="ctrl-row" style="gap:var(--space-3)">
+          <label class="check-row" style="margin:0"><input type="checkbox" id="chk-rule-rotation" checked><span>Rotation</span></label>
+          <label class="check-row" style="margin:0"><input type="checkbox" id="chk-rule-flip"><span>Flip</span></label>
+          <label class="check-row" style="margin:0"><input type="checkbox" id="chk-rule-scale"><span>Scale</span></label>
+        </div>
+        <div class="ctrl-row" id="row-rule-scalerange" style="display:none">
+          <div class="ctrl-label">Scale range</div>
+          <input type="range" id="rg-rule-scale-min" min="20" max="100" step="5" value="75"><span class="ctrl-val" id="v-rule-scale-min">75</span>
+          <input type="range" id="rg-rule-scale-max" min="100" max="300" step="5" value="125"><span class="ctrl-val" id="v-rule-scale-max">125</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="number" class="panel-select" id="num-rule-seed" value="1" min="0" max="999999" step="1" style="width:70%">
+          <button class="icon-btn" id="btn-rule-seed-random" title="Random seed" aria-label="Random seed">
+            <svg viewBox="0 0 16 16" width="11" height="11"><path d="M13 8a5 5 0 1 1-1.6-3.65" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M13 2.3V6h-3.7" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <button class="mini-btn" id="btn-rule-choose-content" style="width:100%">Set content for all cells…</button>
+        <button class="mini-btn" id="btn-symbol-apply-rule" style="width:100%;margin-top:var(--space-1)">Apply rule</button>
+        <button class="mini-btn" id="btn-symbol-reset-rule" style="width:100%;margin-top:var(--space-1)">Reset &amp; apply to all</button>
+        <p class="org-panel__hint">The rule fills every cell's transform from its column/row (Oscillator / Checkerboard / Rows / Columns) or its position (Radial / Wave / Random). Content is never changed — set it once with Choose content → "Apply to all". Edit individual cells afterward in Manual; lock a cell there so <em>Apply rule</em> skips it. <em>Reset &amp; apply to all</em> ignores locks.</p>
+      </div>
+
       <div id="symbol-generate-block">
         <div class="ctrl-row">
           <div class="ctrl-label">Seed</div>
@@ -462,6 +566,7 @@
           </div>
           <div class="sub-label" style="margin-top:var(--space-2)">Anchor</div>
           <div id="symbol-anchor-grid" class="symbol-anchor-grid" role="group" aria-label="Anchor position"></div>
+          <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-cellprop-lock"><span>Lock cell (rule skips it)</span></label>
         </div>
       </div>
     </div>
@@ -489,6 +594,7 @@
   <div id="symbol-content-overlay__panel">
     <div id="symbol-content-overlay__header">
       <span id="symbol-content-overlay__title">Choose content</span>
+      <label class="check-row" style="margin:0 auto 0 var(--space-3)"><input type="checkbox" id="chk-content-overlay-all"><span>Apply to all cells</span></label>
       <button class="icon-btn" id="btn-content-overlay-close" aria-label="Close">
         <svg viewBox="0 0 16 16" width="11" height="11"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
       </button>
@@ -1983,7 +2089,7 @@ function getSymbolGrid() {
 function defaultSymbolCells(grid) {
   return resolveGridCells(grid).map((c, i) => ({
     source: 'seed', seedType: 'triangle', rotation: 0, flipH: false, flipV: false, scale: 1, color: colorAt(i),
-    fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0,
+    fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false,
   }));
 }
 
@@ -1992,7 +2098,7 @@ function defaultSymbolCells(grid) {
 // this feature shipped (contain/center/0 is the old, only behaviour).
 function withPlacementDefaults(cell) {
   return {
-    fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0,
+    fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false,
     ...cell,
   };
 }
@@ -2317,6 +2423,154 @@ function generateSymbolCells() {
   renderSymbol();
 }
 
+// ─────────────────────────────────────────────────────────────
+// GENERATIVE RULE LAYER — fill every cell's transform from a rule + a
+// few params, N×M-general (Components' own FAMILIES are 2×2-only). The
+// Truchet reference (bookofshapes concentric_arc_truchet_3) is the
+// "oscillator" rule: rotation 0/90 from (col + rowShift·row) parity.
+// Content (source/seedType/componentName/fit/anchor/padding) is never
+// touched — only rotation/flipH/flipV/scale, and only the axes ticked
+// in "Vary". Locked cells are skipped unless resetAll.
+// ─────────────────────────────────────────────────────────────
+
+// Per-cell {col,row,cols,rows,cx,cy,nx,ny,angle,index,count} parallel to
+// state.symbolCells. Rect Loom cells carry col/row in their JSON; polygon
+// cells don't, so their centroids are binned into row/column bands.
+function cellColRow(grid) {
+  const centers = resolveGridCells(grid);   // {cx,cy,cellSize,cellW,cellH} grid-centred
+  const n = centers.length;
+  const halfW = grid.width / 2, halfH = grid.height / 2;
+  let colRow;
+  if (grid.cellShape === 'rect' && state.symbolGrid && state.symbolGrid.cells.every(c => c.col != null)) {
+    const g = state.symbolGrid.grid || {};
+    const cols = g.params && g.params.cols || (g.tracks && g.tracks.cols && g.tracks.cols.length) ||
+      (Math.max(...state.symbolGrid.cells.map(c => c.col + (c.colSpan || 1))));
+    const rows = g.params && g.params.rows || (g.tracks && g.tracks.rows && g.tracks.rows.length) ||
+      (Math.max(...state.symbolGrid.cells.map(c => c.row + (c.rowSpan || 1))));
+    colRow = state.symbolGrid.cells.map(c => ({ col: c.col, row: c.row, cols, rows }));
+  } else {
+    // Bin centroids: sorted unique y → rows, sorted unique x → cols.
+    const medH = median(centers.map(c => c.cellH)) || 1;
+    const medW = median(centers.map(c => c.cellW)) || 1;
+    const bands = (vals, tol) => {
+      const sorted = [...new Set(vals)].sort((a, b) => a - b);
+      const reps = [];
+      sorted.forEach(v => { if (!reps.length || v - reps[reps.length - 1] > tol) reps.push(v); });
+      return reps;
+    };
+    const rowReps = bands(centers.map(c => c.cy), medH * 0.5);
+    const colReps = bands(centers.map(c => c.cx), medW * 0.5);
+    const nearest = (v, reps) => { let bi = 0, bd = Infinity; reps.forEach((r, i) => { const d = Math.abs(r - v); if (d < bd) { bd = d; bi = i; } }); return bi; };
+    colRow = centers.map(c => ({ col: nearest(c.cx, colReps), row: nearest(c.cy, rowReps), cols: colReps.length, rows: rowReps.length }));
+  }
+  return centers.map((c, i) => ({
+    ...colRow[i], cx: c.cx, cy: c.cy,
+    nx: c.cx / (halfW || 1), ny: c.cy / (halfH || 1),
+    angle: Math.atan2(c.cy, c.cx), index: i, count: n,
+  }));
+}
+function median(arr) { const s = [...arr].sort((a, b) => a - b); return s.length ? s[s.length >> 1] : 0; }
+
+function ruleScaleChoices() {
+  const lo = parseInt(ctrl('rg-rule-scale-min').value, 10) / 100;
+  const hi = parseInt(ctrl('rg-rule-scale-max').value, 10) / 100;
+  return [lo, 1, hi];
+}
+const snap90 = deg => ((Math.round(deg / 90) * 90) % 360 + 360) % 360;
+
+const SYMBOL_RULES = {
+  oscillator: {
+    read: () => ({
+      angle: parseInt(ctrl('sel-rule-osc-angle').value, 10),
+      shift: parseFloat(ctrl('rg-rule-osc-shift').value),
+      period: parseInt(ctrl('rg-rule-osc-period').value, 10),
+      phase: parseInt(ctrl('rg-rule-osc-phase').value, 10),
+    }),
+    fn: (ctx, p) => ({
+      rotation: (((ctx.col + Math.floor(p.shift * ctx.row)) % p.period + p.period) % p.period === p.phase % p.period) ? p.angle : 0,
+    }),
+  },
+  checkerboard: {
+    read: () => ({ rotB: parseInt(ctrl('sel-rule-chk-rot').value, 10), flip: ctrl('chk-rule-chk-flip').checked }),
+    fn: (ctx, p) => {
+      const odd = ((ctx.col + ctx.row) % 2) === 1;
+      if (!odd) return { rotation: 0, flipH: false, flipV: false };
+      return p.flip ? { rotation: 0, flipH: true, flipV: false } : { rotation: p.rotB, flipH: false, flipV: false };
+    },
+  },
+  rows: {
+    read: () => ({ step: parseInt(ctrl('rg-rule-rows-step').value, 10), mode: ctrl('sel-rule-rows-mode').value }),
+    fn: (ctx, p) => ({ rotation: p.mode === 'ramp' ? snap90(p.step * ctx.row) : p.step * (ctx.row % 2) }),
+  },
+  columns: {
+    read: () => ({ step: parseInt(ctrl('rg-rule-cols-step').value, 10), mode: ctrl('sel-rule-cols-mode').value }),
+    fn: (ctx, p) => ({ rotation: p.mode === 'ramp' ? snap90(p.step * ctx.col) : p.step * (ctx.col % 2) }),
+  },
+  radial: {
+    read: () => ({ snap: ctrl('chk-rule-radial-snap').checked, chir: parseInt(ctrl('sel-rule-radial-chir').value, 10) }),
+    fn: (ctx, p) => {
+      const deg = (ctx.angle * 180 / Math.PI) * p.chir;
+      return { rotation: p.snap ? snap90(deg) : deg };
+    },
+  },
+  wave: {
+    read: () => ({
+      amp: parseInt(ctrl('rg-rule-wave-amp').value, 10),
+      freq: parseFloat(ctrl('rg-rule-wave-freq').value),
+      phase: parseInt(ctrl('rg-rule-wave-phase').value, 10),
+      snap: ctrl('chk-rule-wave-snap').checked,
+    }),
+    fn: (ctx, p) => {
+      const v = p.amp * Math.sin(p.freq * (ctx.nx + ctx.ny) * Math.PI + p.phase * Math.PI / 180);
+      return { rotation: p.snap ? snap90(v) : v };
+    },
+  },
+  random: {
+    read: () => ({}),
+    fn: (ctx, p, rng) => ({
+      rotation: [0, 90, 180, 270][Math.floor(rng() * 4)],
+      flipH: rng() < 0.5, flipV: rng() < 0.5,
+      scale: ruleScaleChoices()[Math.floor(rng() * 3)],
+    }),
+  },
+};
+
+function applySymbolRule(opts) {
+  opts = opts || {};
+  const grid = getSymbolGrid();
+  if (!grid || !state.symbolCells.length) return;
+  const name = ctrl('sel-symbol-rule').value;
+  const rule = SYMBOL_RULES[name];
+  if (!rule) return;
+  const ctxs = cellColRow(grid);
+  const rng = mulberry32(parseInt(ctrl('num-rule-seed').value, 10) || 0);
+  const params = rule.read();
+  const vary = {
+    rotation: ctrl('chk-rule-rotation').checked,
+    flip: ctrl('chk-rule-flip').checked,
+    scale: ctrl('chk-rule-scale').checked,
+  };
+  state.symbolCells.forEach((cell, i) => {
+    if (!opts.resetAll && cell.locked) return;
+    const t = rule.fn(ctxs[i], params, rng);
+    if (vary.rotation && t.rotation != null) cell.rotation = snap90(t.rotation);
+    if (vary.flip) {
+      if (t.flipH != null) cell.flipH = t.flipH;
+      if (t.flipV != null) cell.flipV = t.flipV;
+    }
+    if (vary.scale && t.scale != null) cell.scale = t.scale;
+  });
+  renderSymbol();
+}
+
+function syncSymbolRuleUI() {
+  const name = ctrl('sel-symbol-rule').value;
+  document.querySelectorAll('#symbol-rule-block .rule-params').forEach(el => {
+    el.style.display = el.id === 'rp-' + name ? '' : 'none';
+  });
+  ctrl('row-rule-scalerange').style.display = ctrl('chk-rule-scale').checked ? '' : 'none';
+}
+
 // Preview-only wireframe of the loaded grid's own cell boundaries — never
 // baked into buildSymbolSVG()/drawSymbolCanvas() (export stays pure
 // content, same rule Loom's own "Background grid" toggle already
@@ -2591,6 +2845,7 @@ function renderCellPropertiesPanel() {
   ctrl('rg-cellprop-padding').value = Math.round((first.padding || 0) * 100);
   ctrl('v-cellprop-padding').textContent = ctrl('rg-cellprop-padding').value;
   syncAnchorGridUI(first.anchorX || 0, first.anchorY || 0);
+  ctrl('chk-cellprop-lock').checked = !!first.locked;
 
   const firstIndex = Math.min(...state.symbolSelection);
   const overflowing = !state.symbolClipEnabled && cellOverflowInfo(firstIndex);
@@ -2604,20 +2859,38 @@ function renderCellPropertiesPanel() {
 // predictable clean slate every time content is assigned, not whatever
 // the previously-selected cell happened to have. ──
 function openCellContentOverlay() {
-  if (state.symbolSelection.size === 0) return;
+  if (state.symbolSelection.size === 0 && !ctrl('chk-content-overlay-all').checked) return;
   renderCellContentOverlayTiles();
   ctrl('symbol-content-overlay').style.display = 'flex';
   const first = ctrl('symbol-content-overlay').querySelector('button.fvs-library-item, button#btn-content-overlay-close');
   if (first) first.focus();
 }
+function openCellContentOverlayForAll() {
+  if (!state.symbolGrid) return;
+  ctrl('chk-content-overlay-all').checked = true;
+  openCellContentOverlay();
+}
+// Write a content patch to every cell (used when "Apply to all cells" is
+// armed) — the sibling of applyToSelection().
+function applyToAllCells(patch) {
+  state.symbolCells.forEach(cell => {
+    if (!cell) return;
+    Object.assign(cell, typeof patch === 'function' ? patch(cell) : patch);
+  });
+  renderSymbolCanvasOnly();
+}
+function contentTarget() { return ctrl('chk-content-overlay-all').checked ? applyToAllCells : applyToSelection; }
 
 function closeCellContentOverlay() {
   ctrl('symbol-content-overlay').style.display = 'none';
+  ctrl('chk-content-overlay-all').checked = false;   // disarm so a later single-cell edit isn't hijacked
 }
 
 function renderCellContentOverlayTiles() {
+  const toAll = ctrl('chk-content-overlay-all').checked;
   const count = state.symbolSelection.size;
-  ctrl('symbol-content-overlay__title').textContent = count > 1 ? `Choose content for ${count} cells` : 'Choose content';
+  ctrl('symbol-content-overlay__title').textContent = toAll ? 'Choose content for all cells'
+    : count > 1 ? `Choose content for ${count} cells` : 'Choose content';
 
   const elWrap = ctrl('symbol-content-overlay__seeds');
   elWrap.innerHTML = '';
@@ -2629,7 +2902,7 @@ function renderCellContentOverlayTiles() {
     btn.setAttribute('aria-label', 'Use Seed ' + SEED_TYPES[type].label);
     btn.innerHTML = svgStr;
     btn.addEventListener('click', () => {
-      applyToSelection(cell => ({
+      contentTarget()(cell => ({
         source: 'seed', seedType: type, color: cell.color || colorAt(0),
         rotation: 0, flipH: false, flipV: false,
         fitMode: 'fill', scale: 1, padding: 0, anchorX: 0, anchorY: 0,
@@ -2660,7 +2933,7 @@ function renderCellContentOverlayTiles() {
     btn.setAttribute('aria-label', 'Use Component ' + name);
     btn.innerHTML = svgStr;
     btn.addEventListener('click', () => {
-      applyToSelection({
+      contentTarget()({
         source: 'component', componentName: name,
         rotation: 0, flipH: false, flipV: false,
         fitMode: 'fill', scale: 1, padding: 0, anchorX: 0, anchorY: 0,
@@ -2680,6 +2953,35 @@ function renderCellContentOverlayTiles() {
 // getSymbolGrid()'s own comment — it's already re-import-able as-is). ──
 const SYMBOL_LIBRARY = Organica.presetStore('fvs-symbols');
 
+// The whole rule block's control values, so a saved Symbol re-opens with
+// its generator intact and re-tunable (cells are also stored resolved, so
+// this is purely additive — an old entry without `rule` still loads).
+const RULE_CONTROL_IDS = ['sel-symbol-fill', 'sel-symbol-rule',
+  'sel-rule-osc-angle', 'rg-rule-osc-shift', 'rg-rule-osc-period', 'rg-rule-osc-phase',
+  'sel-rule-chk-rot', 'chk-rule-chk-flip', 'rg-rule-rows-step', 'sel-rule-rows-mode',
+  'rg-rule-cols-step', 'sel-rule-cols-mode', 'chk-rule-radial-snap', 'sel-rule-radial-chir',
+  'rg-rule-wave-amp', 'rg-rule-wave-freq', 'rg-rule-wave-phase', 'chk-rule-wave-snap',
+  'chk-rule-rotation', 'chk-rule-flip', 'chk-rule-scale', 'rg-rule-scale-min', 'rg-rule-scale-max',
+  'num-rule-seed'];
+function readRuleState() {
+  const s = {};
+  RULE_CONTROL_IDS.forEach(id => { const el = ctrl(id); s[id] = el.type === 'checkbox' ? el.checked : el.value; });
+  return s;
+}
+function applyRuleState(s) {
+  if (!s) return;
+  RULE_CONTROL_IDS.forEach(id => {
+    if (s[id] == null) return;
+    const el = ctrl(id);
+    if (el.type === 'checkbox') el.checked = !!s[id]; else el.value = s[id];
+    const v = ctrl(id.replace(/^rg-/, 'v-')); if (v && el.type === 'range') v.textContent = el.value;
+  });
+  ctrl('symbol-rule-block').style.display = ctrl('sel-symbol-fill').value === 'rule' ? '' : 'none';
+  ctrl('symbol-generate-block').style.display = ctrl('sel-symbol-fill').value === 'generate' ? '' : 'none';
+  ctrl('symbol-manual-block').style.display = ctrl('sel-symbol-fill').value === 'manual' ? '' : 'none';
+  syncSymbolRuleUI();
+}
+
 function buildSymbolLibraryEntry() {
   if (!state.symbolGrid) return null;
   return {
@@ -2688,6 +2990,7 @@ function buildSymbolLibraryEntry() {
     colors: state.colors.slice(),
     paperColor: state.paperColor,
     clipEnabled: state.symbolClipEnabled,
+    rule: readRuleState(),
     savedAt: new Date().toISOString(),
   };
 }
@@ -2739,6 +3042,7 @@ function applySymbolLibraryEntryToUI(entry) {
   // restoring exactly the pre-feature behaviour for anything not saved.
   state.symbolClipEnabled = entry.clipEnabled !== false;
   ctrl('chk-symbol-clip').checked = state.symbolClipEnabled;
+  applyRuleState(entry.rule);
   renderSymbol();
 }
 
@@ -2807,8 +3111,31 @@ function setTier(tier) {
   ctrl('export-hint').textContent = tier === 'symbols'
     ? 'Exports the current Symbol. Paper background (Palette section), real nested vector geometry.'
     : 'Exports the selected component only — click one in the gallery first. Paper background (Palette section), real vector geometry (one path per cell).';
-  if (tier === 'symbols') { renderSymbol(); renderSymbolLibrary(); }
+  if (tier === 'symbols') { populateSymbolLoomPresets(); renderSymbol(); renderSymbolLibrary(); }
   else { renderGallery(); }
+}
+
+// Loom publishes every saved grid to localStorage 'organica.loom.presets'
+// as a full buildModel() object — directly Organica.loadLoomGrid-able. Read
+// it straight so a grid designed in /loom/ is one click away here, no JSON
+// upload. Merged with the two inlined built-in exports.
+const LOOM_GRID_STORE = Organica.presetStore('loom');
+function populateSymbolLoomPresets() {
+  const sel = ctrl('sel-symbol-loom-preset');
+  const prev = sel.value;
+  let saved = {};
+  try { saved = LOOM_GRID_STORE.read() || {}; } catch (e) { saved = {}; }
+  sel.innerHTML = '<option value="">Load a grid…</option>';
+  const add = (label, key) => { const o = document.createElement('option'); o.value = key; o.textContent = label; sel.appendChild(o); };
+  add('Bento (built-in)', '__bento');
+  add('Hexagonal (built-in)', '__hex');
+  const names = Object.keys(saved);
+  if (names.length) {
+    const og = document.createElement('optgroup'); og.label = 'Saved in Loom';
+    names.forEach(n => { const o = document.createElement('option'); o.value = 'saved:' + n; o.textContent = n; og.appendChild(o); });
+    sel.appendChild(og);
+  }
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
 }
 
 // ── Wiring ──
@@ -2848,6 +3175,18 @@ ctrl('file-loom-grid').addEventListener('change', e => {
 });
 ctrl('btn-symbol-grid-bento').addEventListener('click', () => loadSymbolGrid(SYMBOL_GRID_PRESETS.bento));
 ctrl('btn-symbol-grid-hex').addEventListener('click', () => loadSymbolGrid(SYMBOL_GRID_PRESETS.hexagonal));
+ctrl('sel-symbol-loom-preset').addEventListener('change', e => {
+  const v = e.target.value;
+  if (!v) return;
+  try {
+    if (v === '__bento') loadSymbolGrid(SYMBOL_GRID_PRESETS.bento);
+    else if (v === '__hex') loadSymbolGrid(SYMBOL_GRID_PRESETS.hexagonal);
+    else if (v.startsWith('saved:')) loadSymbolGrid(LOOM_GRID_STORE.read()[v.slice(6)]);
+  } catch (err) {
+    ctrl('symbol-grid-error').textContent = err.message || 'Could not load that grid.';
+    ctrl('symbol-grid-error').style.display = '';
+  }
+});
 ctrl('chk-symbol-grid-outline').addEventListener('change', renderSymbolCanvasOnly);
 ctrl('chk-symbol-clip').addEventListener('change', e => {
   state.symbolClipEnabled = e.target.checked;
@@ -2858,16 +3197,41 @@ ctrl('chk-symbol-clip').addEventListener('change', e => {
 ctrl('sel-symbol-fill').addEventListener('change', e => {
   ctrl('symbol-generate-block').style.display = e.target.value === 'generate' ? '' : 'none';
   ctrl('symbol-manual-block').style.display = e.target.value === 'manual' ? '' : 'none';
+  ctrl('symbol-rule-block').style.display = e.target.value === 'rule' ? '' : 'none';
   if (e.target.value === 'manual') renderCellPropertiesPanel();
+  if (e.target.value === 'rule') syncSymbolRuleUI();
 });
 ctrl('btn-symbol-regenerate').addEventListener('click', generateSymbolCells);
 ctrl('btn-symbol-seed-random').addEventListener('click', () => { ctrl('num-symbol-seed').value = Math.floor(Math.random() * 1e6); });
+
+// ── Rule layer wiring — one delegated listener on the rule block re-applies
+// live (debounced, lock-aware) on any control change; buttons are explicit. ──
+ctrl('sel-symbol-rule').addEventListener('change', syncSymbolRuleUI);
+ctrl('chk-rule-scale').addEventListener('change', syncSymbolRuleUI);
+ctrl('btn-symbol-apply-rule').addEventListener('click', () => applySymbolRule());
+ctrl('btn-symbol-reset-rule').addEventListener('click', () => applySymbolRule({ resetAll: true }));
+ctrl('btn-rule-seed-random').addEventListener('click', () => { ctrl('num-rule-seed').value = Math.floor(Math.random() * 1e6); applySymbolRule(); });
+let ruleApplyQueued = false;
+function scheduleRuleApply() {
+  if (ruleApplyQueued) return;
+  ruleApplyQueued = true;
+  requestAnimationFrame(() => { ruleApplyQueued = false; applySymbolRule(); });
+}
+ctrl('symbol-rule-block').addEventListener('input', e => {
+  if (e.target.type === 'range') {
+    const v = ctrl(e.target.id.replace(/^rg-/, 'v-'));
+    if (v) v.textContent = e.target.value;
+  }
+  scheduleRuleApply();
+});
+ctrl('symbol-rule-block').addEventListener('change', scheduleRuleApply);
 
 // ── Cell properties panel — one shared editor for whatever is currently
 // selected (state.symbolSelection), written via applyToSelection(). ──
 bindSymbolCanvasSelection();
 buildAnchorGrid();
 ctrl('btn-cellprop-choose').addEventListener('click', openCellContentOverlay);
+ctrl('btn-rule-choose-content').addEventListener('click', openCellContentOverlayForAll);
 ctrl('btn-content-overlay-close').addEventListener('click', closeCellContentOverlay);
 ctrl('symbol-content-overlay').addEventListener('click', e => {
   if (e.target === ctrl('symbol-content-overlay')) closeCellContentOverlay(); // click on the backdrop itself
@@ -2896,6 +3260,7 @@ ctrl('rg-cellprop-padding').addEventListener('input', e => {
   ctrl('v-cellprop-padding').textContent = e.target.value;
   applyToSelection({ padding: parseInt(e.target.value, 10) / 100 });
 });
+ctrl('chk-cellprop-lock').addEventListener('change', e => applyToSelection({ locked: e.target.checked }));
 
 ctrl('btn-save-symbol-library').addEventListener('click', saveSymbolToLibrary);
 ctrl('btn-symbol-library-confirm').addEventListener('click', confirmSaveSymbolToLibrary);
