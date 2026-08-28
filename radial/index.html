@@ -258,6 +258,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
           <option value="fill" selected>Filled cells</option>
           <option value="marks">Marks</option>
           <option value="arcs">Arc bands</option>
+          <option value="loops">Chaos circles</option>
         </select>
       </div>
 
@@ -284,6 +285,12 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
             <option value="dot">Dot</option>
             <option value="circle">Circle</option>
             <option value="line">Line</option>
+          </select>
+        </div>
+        <div class="ctrl-row" id="row-linedir" style="display:none">
+          <select class="panel-select" id="sel-linedir" aria-label="Line direction">
+            <option value="radial">Line: radial</option>
+            <option value="tangent">Line: tangent</option>
           </select>
         </div>
         <div class="ctrl-row">
@@ -340,6 +347,25 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
           <div class="ctrl-label" title="How tightly the arcs cluster toward one direction.">Bias</div>
           <input type="range" id="rg-arcbias" min="0" max="1" step="0.01" value="0.7">
           <span class="ctrl-val" id="v-arcbias">0.7</span>
+        </div>
+      </div>
+
+      <div id="render-loops" style="display:none">
+        <p class="org-panel__hint">Many near-concentric circle outlines, each independently perturbed by its own noise phase — the "deconstructed", piled-up tangle.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Circle count</div>
+          <input type="range" id="rg-loopcount" min="10" max="300" step="1" value="83">
+          <span class="ctrl-val" id="v-loopcount">83</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Radius of each circle as a fraction of the canvas half-width.">Circle radius</div>
+          <input type="range" id="rg-loopradius" min="0.2" max="1" step="0.01" value="0.85">
+          <span class="ctrl-val" id="v-loopradius">0.85</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How strongly each circle's edge is perturbed by noise.">Noise</div>
+          <input type="range" id="rg-loopnoise" min="0" max="0.6" step="0.01" value="0.2">
+          <span class="ctrl-val" id="v-loopnoise">0.2</span>
         </div>
       </div>
     </div>
@@ -414,8 +440,9 @@ const RANGE_IDS = ['rg-sides', 'rg-rings', 'rg-inner', 'rg-radius', 'rg-ringcurv
   'rg-petals', 'rg-petaldepth', 'rg-shear', 'rg-warpamt', 'rg-warpscale',
   'rg-fillscale', 'rg-threshold', 'rg-marksize', 'rg-sizeamt',
   'rg-arccount', 'rg-arcmin', 'rg-arcmax', 'rg-arcgrowth', 'rg-arcgap', 'rg-arcspan', 'rg-arcbias',
+  'rg-loopcount', 'rg-loopradius', 'rg-loopnoise',
   'rg-jitter', 'rg-seed'];
-const SELECT_IDS = ['sel-placement', 'sel-modulation', 'sel-render', 'sel-markshape', 'sel-sizemode'];
+const SELECT_IDS = ['sel-placement', 'sel-modulation', 'sel-render', 'sel-markshape', 'sel-linedir', 'sel-sizemode'];
 
 function syncVal(slider, valId) { ctrl(valId).textContent = slider.value; }
 RANGE_IDS.forEach(id => {
@@ -446,6 +473,8 @@ function syncPanelRows() {
   ctrl('render-fill').style.display = rn === 'fill' ? '' : 'none';
   ctrl('render-marks').style.display = rn === 'marks' ? '' : 'none';
   ctrl('render-arcs').style.display = rn === 'arcs' ? '' : 'none';
+  ctrl('render-loops').style.display = rn === 'loops' ? '' : 'none';
+  ctrl('row-linedir').style.display = rn === 'marks' && ctrl('sel-markshape').value === 'line' ? '' : 'none';
 }
 
 const SIZE = 760;
@@ -457,6 +486,7 @@ function buildParams() {
     modulation: ctrl('sel-modulation').value,
     render: ctrl('sel-render').value,
     markShape: ctrl('sel-markshape').value,
+    lineDir: ctrl('sel-linedir').value,
     sizeMode: ctrl('sel-sizemode').value,
     diagonals: ctrl('ck-diagonals').checked,
     sides: Math.round(val('rg-sides')),
@@ -485,6 +515,9 @@ function buildParams() {
     arcGap: val('rg-arcgap'),
     arcSpan: val('rg-arcspan'),
     arcBias: val('rg-arcbias'),
+    loopCount: Math.round(val('rg-loopcount')),
+    loopRadius: val('rg-loopradius'),
+    loopNoise: val('rg-loopnoise'),
     jitter: val('rg-jitter'),
     seed: Math.round(val('rg-seed')),
     ink: ctrl('hex-ink').value,
@@ -634,8 +667,31 @@ function buildScene(P, W, H) {
         // sphere shading; phyllotaxis lines lengthening outward).
         r = P.markSize * (0.12 + P.sizeAmt * (1 - Math.sqrt(Math.max(0, 1 - t * t))));
       }
-      prim.marks.push({ x: p[0], y: p[1], r: Math.max(0.2, r), shape: P.markShape });
+      prim.marks.push({ x: p[0], y: p[1], r: Math.max(0.2, r), shape: P.markShape, dir: P.lineDir });
     });
+  } else if (rn === 'loops') {
+    // Many near-concentric circle outlines, each with its OWN independent
+    // noise phase + small drift/rotation so they don't nest — the "chaos
+    // circles" tangle. blobPathD-style: N points per loop, radius wobbled
+    // by simplex noise.
+    const lrng = Organica.mulberry32((P.seed * 40503) >>> 0);
+    const SEG = 72;
+    for (let i = 0; i < P.loopCount; i++) {
+      const phase = lrng() * 1000;
+      const rot = lrng() * TAU;                                 // random start angle per loop
+      const rScale = 0.82 + lrng() * 0.24;                      // near-uniform big circles, slight spread
+      const baseR = R * P.loopRadius * rScale;
+      const drift = R * 0.30 * P.loopNoise * (lrng() - 0.5);    // gentle centre wander, keeps the hole
+      const ox = drift, oy = R * 0.30 * P.loopNoise * (lrng() - 0.5);
+      const loop = [];
+      for (let s = 0; s < SEG; s++) {
+        const a = rot + (s / SEG) * TAU;
+        const nz = N.simplex2(Math.cos(a) * 1.3 + phase, Math.sin(a) * 1.3 + phase);   // low-freq, ~[-1,1]
+        const rr = baseR * (1 + nz * P.loopNoise);
+        loop.push([cx + ox + Math.cos(a) * rr, cy + oy + Math.sin(a) * rr]);
+      }
+      prim.polygonsStroke.push(loop);
+    }
   } else if (rn === 'arcs') {
     const rng = Organica.mulberry32((P.seed * 2654435761) >>> 0);
     const n = Math.max(1, P.arcCount);
@@ -660,7 +716,8 @@ function ptsStr(arr) {
 function n2(v) { return Math.round(v * 100) / 100; }
 function markSVG(m, ink) {
   if (m.shape === 'line') {
-    const a = Math.atan2(m.y - SIZE / 2, m.x - SIZE / 2);
+    let a = Math.atan2(m.y - SIZE / 2, m.x - SIZE / 2);
+    if (m.dir === 'tangent') a += Math.PI / 2;   // follow the ring instead of pointing at the centre
     const dx = Math.cos(a) * m.r, dy = Math.sin(a) * m.r;
     return `<line x1="${n2(m.x - dx)}" y1="${n2(m.y - dy)}" x2="${n2(m.x + dx)}" y2="${n2(m.y + dy)}"/>`;
   }
@@ -721,7 +778,8 @@ function drawSceneCanvas(ctx, prim, P, scale) {
   ctx.lineWidth = 1;
   marks.forEach(m => {
     if (m.shape === 'line') {
-      const ang = Math.atan2(m.y - H / 2, m.x - W / 2);
+      let ang = Math.atan2(m.y - H / 2, m.x - W / 2);
+      if (m.dir === 'tangent') ang += Math.PI / 2;
       const dx = Math.cos(ang) * m.r, dy = Math.sin(ang) * m.r;
       ctx.beginPath(); ctx.moveTo(m.x - dx, m.y - dy); ctx.lineTo(m.x + dx, m.y + dy); ctx.stroke();
     } else if (m.shape === 'circle') {
@@ -808,12 +866,13 @@ function applyState(s) {
 // One snapshot per covered Book of Shapes radial pattern. Each keyed by
 // its BoS display name; each eyeballed against the live site.
 const BP = (o) => Object.assign({
-  placement: 'grid', modulation: 'none', render: 'rings', markshape: 'dot', sizemode: 'uniform',
+  placement: 'grid', modulation: 'none', render: 'rings', markshape: 'dot', linedir: 'radial', sizemode: 'uniform',
   diagonals: false, sides: 48, rings: 12, inner: 0.15, radius: 1, ringcurve: 1,
   count: 800, spread: 0.95, arms: 3, perarm: 220, twist: 3.5,
   petals: 8, petaldepth: 0.5, shear: 1.2, warpamt: 0, warpscale: 0.6,
   fillscale: 6, threshold: 0.42, marksize: 3, sizeamt: 1,
   arccount: 7, arcmin: 1, arcmax: 90, arcgrowth: 2, arcgap: 0.02, arcspan: 0.42, arcbias: 0.7,
+  loopcount: 83, loopradius: 0.85, loopnoise: 0.16,
   jitter: 0, seed: 3, ink: '#1c1c1c', paper: '#f2efe6',
 }, o);
 
@@ -825,14 +884,15 @@ const BUILTIN_PRESETS = {
   'Modular Circle':         BP({ render: 'rings', sides: 60, rings: 10, inner: 0.15, ringcurve: 2, warpamt: 0, seed: 1 }),
   'Radial Harmony':         BP({ render: 'mesh', sides: 24, rings: 8, inner: 0.12, warpamt: 0, seed: 1, ink: '#241b14', paper: '#ffffff' }),
   'Radial Spokes':          BP({ render: 'spokes', sides: 34, rings: 2, inner: 0.3, radius: 0.95, warpamt: 0, jitter: 0.14, seed: 4, ink: '#241b14', paper: '#ffffff' }),
-  'Line-Based Circles':     BP({ render: 'rings', sides: 40, rings: 8, inner: 0.1, jitter: 0.05, warpamt: 0, seed: 3 }),
+  'Line-Based Circles':     BP({ render: 'marks', markshape: 'line', linedir: 'tangent', sizemode: 'uniform', sides: 48, rings: 8, inner: 0.12, radius: 0.95, marksize: 4, jitter: 0.06, warpamt: 0, seed: 3, ink: '#241b14', paper: '#ffffff' }),
+  'Jittered Rings':         BP({ render: 'rings', sides: 40, rings: 8, inner: 0.1, jitter: 0.05, warpamt: 0, seed: 3 }),
   'Polar Mesh':             BP({ render: 'mesh', diagonals: true, sides: 30, rings: 9, inner: 0.1, warpamt: 0.1, warpscale: 0.5, seed: 5 }),
   'Rose Mesh':              BP({ render: 'mesh', modulation: 'rose', petals: 8, petaldepth: 0.5, sides: 46, rings: 9, inner: 0.1, warpamt: 0.12, warpscale: 0.7, seed: 2 }),
   'Spiral Mesh':            BP({ render: 'mesh', modulation: 'shear', shear: 1.2, sides: 40, rings: 12, inner: 0.08, warpamt: 0.08, seed: 3 }),
   'Phyllotaxis Bloom':      BP({ placement: 'phyllo', render: 'marks', markshape: 'line', sizemode: 'gradient', count: 800, spread: 0.95, marksize: 6, sizeamt: 1.2, warpamt: 0, seed: 1, ink: '#241b14', paper: '#ffffff' }),
   'Spiral Dot Field':       BP({ placement: 'spiral', render: 'marks', markshape: 'dot', sizemode: 'uniform', arms: 3, perarm: 220, twist: 3.5, marksize: 3, warpamt: 0, seed: 7, ink: '#241b14', paper: '#ffffff' }),
   'Halftone Sphere':        BP({ render: 'marks', markshape: 'dot', sizemode: 'gradient', sides: 48, rings: 26, inner: 0.02, marksize: 2.5, sizeamt: 2, warpamt: 0, seed: 1, ink: '#241b14', paper: '#ffffff' }),
-  'Chaos Circles':          BP({ render: 'marks', markshape: 'circle', sizemode: 'uniform', sides: 30, rings: 4, inner: 0.2, radius: 0.95, marksize: 10, jitter: 0.5, warpamt: 0, seed: 9, ink: '#241b14', paper: '#ffffff' }),
+  'Chaos Circles':          BP({ render: 'loops', loopcount: 83, loopradius: 0.85, loopnoise: 0.16, seed: 9, ink: '#241b14', paper: '#ffffff' }),
   'Brockmann Arcs':         BP({ render: 'arcs', arccount: 7, arcmin: 1, arcmax: 90, arcgrowth: 2, arcgap: 0.02, arcspan: 0.42, arcbias: 0.7, inner: 0.12, seed: 4, ink: '#1c1c1c', paper: '#efe9dd' }),
 };
 
