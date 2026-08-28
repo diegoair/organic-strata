@@ -73,6 +73,10 @@
       "destination": "/blob-boundary/$1"
     },
     {
+      "source": "/radial/(.*)",
+      "destination": "/radial/$1"
+    },
+    {
       "source": "/shared/(.*)",
       "destination": "/shared/$1"
     },

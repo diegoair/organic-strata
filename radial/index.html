@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Radial — Organica</title>
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-panel.css">
+<style>
+:root {
+  --ink: #241b14;
+  --paper: #ffffff;
+  --mid: #696256;
+  --accent: #2a2a2a;
+  --panel: #eceae4;
+  --border: #d0c8b8;
+  --tool: #6b6f8c;   /* header focus ring — slate blue-grey, this tool's identity colour */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs-base);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#app { display: flex; flex: 1; overflow: hidden; }
+
+#stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-7);
+}
+
+/* CSS-transformed by Organica.createZoomPan — never touches the SVG geometry,
+   so it can't affect the export. */
+#preview-frame {
+  width: min(100%, calc(100vh - 12rem));
+  aspect-ratio: 1 / 1;
+  box-shadow: 0 4px 40px rgba(0,0,0,0.18);
+  background: var(--paper);
+}
+#preview-frame svg { display: block; width: 100%; height: 100%; }
+
+input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Radial</span></a>
+
+  <div class="org-header__spacer"></div>
+
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Ready</span>
+  </output>
+</header>
+
+<!-- Export lives in the shared bottom-centre floating toolbar
+     (shared/organica-floatbar.css), matching every other Organica tool.
+     "Figma" is Organica.sendToFigma (organica-core.js) — the plugin listens
+     for the 'organica-svg' message since the Rhizome Phase-0 fix. -->
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" onclick="exportSVG()">SVG</button>
+        <button class="org-btn" onclick="exportPNG()">PNG</button>
+        <button class="org-btn" onclick="sendToFigma()">Figma</button>
+      </div>
+      <p class="org-popover__hint">
+        SVG is the exact preview — real <code>&lt;polygon&gt;</code> /
+        <code>&lt;line&gt;</code> / <code>&lt;path&gt;</code>, no tracing.
+        Figma copies the same SVG to the Organica plugin.
+      </p>
+
+      <div class="org-popover__divider"></div>
+
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-scale">PNG scale</label>
+        <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
+          <option value="1">&times;1</option>
+          <option value="2" selected>&times;2</option>
+          <option value="3">&times;3</option>
+          <option value="4">&times;4</option>
+        </select>
+      </div>
+      <div class="org-popover__row">
+        <span class="org-popover__label">Output</span>
+        <span class="org-out" id="out-size">&mdash;</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+
+  <div id="stage">
+    <div id="preview-frame"></div>
+  </div>
+
+  <div id="panel">
+
+    <div class="panel-section">
+      <h3>Preset</h3>
+      <select class="panel-select" id="sel-preset" aria-label="Preset" onchange="applyPreset(this.value)"></select>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="savePreset()">Save</button>
+        <button class="mini-btn" onclick="deletePreset()">Delete</button>
+      </div>
+      <div id="preset-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
+        <input type="text" class="panel-select" id="txt-preset-name" placeholder="Name this preset" aria-label="Name this preset" style="flex:1">
+      </div>
+      <div id="preset-save-actions" class="row-btns" style="display:none">
+        <button class="mini-btn" id="btn-preset-confirm">Save</button>
+        <button class="mini-btn" id="btn-preset-cancel">Cancel</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Placement <span class="hint">where the points sit</span></h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-placement" aria-label="Placement">
+          <option value="grid" selected>Grid — rings × spokes</option>
+          <option value="phyllo">Phyllotaxis — golden angle</option>
+          <option value="spiral">Spiral arms</option>
+        </select>
+      </div>
+
+      <div id="block-grid">
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Angular divisions / polygon vertices per ring. 6 = nested hexagons, 72 ≈ circles.">Sides</div>
+          <input type="range" id="rg-sides" min="3" max="72" step="1" value="72">
+          <span class="ctrl-val" id="v-sides">72</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Rings</div>
+          <input type="range" id="rg-rings" min="1" max="50" step="1" value="21">
+          <span class="ctrl-val" id="v-rings">21</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Empty hole at the centre, as a fraction of the outer radius.">Inner radius</div>
+          <input type="range" id="rg-inner" min="0" max="0.85" step="0.01" value="0.35">
+          <span class="ctrl-val" id="v-inner">0.35</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Outer radius as a fraction of the canvas half-width.">Radius</div>
+          <input type="range" id="rg-radius" min="0.4" max="1" step="0.01" value="1">
+          <span class="ctrl-val" id="v-radius">1</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Bunches ring spacing toward the centre (>1) or the edge (<1).">Ring curve</div>
+          <input type="range" id="rg-ringcurve" min="0.3" max="3" step="0.05" value="1">
+          <span class="ctrl-val" id="v-ringcurve">1</span>
+        </div>
+      </div>
+
+      <div id="block-phyllo" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Count</div>
+          <input type="range" id="rg-count" min="2" max="2000" step="1" value="800">
+          <span class="ctrl-val" id="v-count">800</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Spread</div>
+          <input type="range" id="rg-spread" min="0.2" max="1.2" step="0.01" value="0.95">
+          <span class="ctrl-val" id="v-spread">0.95</span>
+        </div>
+      </div>
+
+      <div id="block-spiral" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Arms</div>
+          <input type="range" id="rg-arms" min="1" max="12" step="1" value="3">
+          <span class="ctrl-val" id="v-arms">3</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Points / arm</div>
+          <input type="range" id="rg-perarm" min="10" max="400" step="1" value="220">
+          <span class="ctrl-val" id="v-perarm">220</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Twist</div>
+          <input type="range" id="rg-twist" min="0.2" max="6" step="0.1" value="3.5">
+          <span class="ctrl-val" id="v-twist">3.5</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section" id="sec-shape">
+      <h3>Shape <span class="hint">bends the lattice</span></h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-modulation" aria-label="Modulation">
+          <option value="none" selected>No modulation</option>
+          <option value="rose">Rose curve</option>
+          <option value="shear">Spiral shear</option>
+        </select>
+      </div>
+      <div id="mod-rose" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Petals</div>
+          <input type="range" id="rg-petals" min="2" max="12" step="1" value="8">
+          <span class="ctrl-val" id="v-petals">8</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Petal depth</div>
+          <input type="range" id="rg-petaldepth" min="0" max="1" step="0.01" value="0.5">
+          <span class="ctrl-val" id="v-petaldepth">0.5</span>
+        </div>
+      </div>
+      <div id="mod-shear" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Angular offset that grows with ring index — twists the whole lattice.">Twist / ring</div>
+          <input type="range" id="rg-shear" min="0" max="2" step="0.02" value="1.2">
+          <span class="ctrl-val" id="v-shear">1.2</span>
+        </div>
+      </div>
+      <p class="org-panel__hint" style="margin-top:var(--space-2)">Domain-warp — displaces every point with a low-frequency noise field. Amount 0 is an exact no-op.</p>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Warp amount</div>
+        <input type="range" id="rg-warpamt" min="0" max="1" step="0.01" value="0.12">
+        <span class="ctrl-val" id="v-warpamt">0.12</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Cycles of distortion across the pattern's half-width.">Warp scale</div>
+        <input type="range" id="rg-warpscale" min="0.1" max="4" step="0.05" value="0.6">
+        <span class="ctrl-val" id="v-warpscale">0.6</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Render <span class="hint">what gets drawn</span></h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-render" aria-label="Render mode">
+          <option value="rings">Ring outlines</option>
+          <option value="spokes">Spokes</option>
+          <option value="mesh">Mesh</option>
+          <option value="fill" selected>Filled cells</option>
+          <option value="marks">Marks</option>
+          <option value="arcs">Arc bands</option>
+        </select>
+      </div>
+
+      <div id="mesh-opts" style="display:none">
+        <label class="check-row"><input type="checkbox" id="ck-diagonals"><span>Cell diagonals</span></label>
+      </div>
+
+      <div id="render-fill">
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Cycles of the fill noise — small = big blobs, large = fine speckle.">Fill scale</div>
+          <input type="range" id="rg-fillscale" min="0.2" max="12" step="0.1" value="6">
+          <span class="ctrl-val" id="v-fillscale">6</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="0 fills every cell, 1 fills none — higher is more 'broken'.">Threshold</div>
+          <input type="range" id="rg-threshold" min="0" max="1" step="0.01" value="0.42">
+          <span class="ctrl-val" id="v-threshold">0.42</span>
+        </div>
+      </div>
+
+      <div id="render-marks" style="display:none">
+        <div class="ctrl-row">
+          <select class="panel-select" id="sel-markshape" aria-label="Mark shape">
+            <option value="dot">Dot</option>
+            <option value="circle">Circle</option>
+            <option value="line">Line</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <select class="panel-select" id="sel-sizemode" aria-label="Mark size mode">
+            <option value="uniform">Uniform size</option>
+            <option value="noise">Size by noise</option>
+            <option value="gradient">Size by radial gradient</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Base size</div>
+          <input type="range" id="rg-marksize" min="0.5" max="20" step="0.5" value="3">
+          <span class="ctrl-val" id="v-marksize">3</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How strongly the size mode varies each mark.">Size amount</div>
+          <input type="range" id="rg-sizeamt" min="0" max="2" step="0.05" value="1">
+          <span class="ctrl-val" id="v-sizeamt">1</span>
+        </div>
+      </div>
+
+      <div id="render-arcs" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Arc count</div>
+          <input type="range" id="rg-arccount" min="2" max="30" step="1" value="7">
+          <span class="ctrl-val" id="v-arccount">7</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Min thickness</div>
+          <input type="range" id="rg-arcmin" min="0.5" max="20" step="0.5" value="1">
+          <span class="ctrl-val" id="v-arcmin">1</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Max thickness</div>
+          <input type="range" id="rg-arcmax" min="5" max="140" step="1" value="90">
+          <span class="ctrl-val" id="v-arcmax">90</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How fast thickness grows from inner to outer arc.">Growth exponent</div>
+          <input type="range" id="rg-arcgrowth" min="1" max="5" step="0.1" value="2">
+          <span class="ctrl-val" id="v-arcgrowth">2</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Gap</div>
+          <input type="range" id="rg-arcgap" min="0" max="0.3" step="0.005" value="0.02">
+          <span class="ctrl-val" id="v-arcgap">0.02</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Angular length of each arc, as a fraction of a full turn.">Angle span</div>
+          <input type="range" id="rg-arcspan" min="0.1" max="1" step="0.01" value="0.42">
+          <span class="ctrl-val" id="v-arcspan">0.42</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How tightly the arcs cluster toward one direction.">Bias</div>
+          <input type="range" id="rg-arcbias" min="0" max="1" step="0.01" value="0.7">
+          <span class="ctrl-val" id="v-arcbias">0.7</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Colour &amp; seed</h3>
+      <div class="color-row">
+        <span class="color-name">Ink</span>
+        <button class="color-swatch" id="sw-ink" onclick="ctrl('cp-ink').click()"></button>
+        <input type="color" id="cp-ink" value="#1c1c1c" oninput="syncColor('ink', this.value)">
+        <input class="color-hex" id="hex-ink" value="#1c1c1c" onchange="syncColor('ink', this.value)" aria-label="Ink colour hex">
+      </div>
+      <div class="color-row">
+        <span class="color-name">Paper</span>
+        <button class="color-swatch" id="sw-paper" onclick="ctrl('cp-paper').click()"></button>
+        <input type="color" id="cp-paper" value="#f2efe6" oninput="syncColor('paper', this.value)">
+        <input class="color-hex" id="hex-paper" value="#f2efe6" onchange="syncColor('paper', this.value)" aria-label="Paper colour hex">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Random offset applied to every point — organic, hand-drawn jitter.">Jitter</div>
+        <input type="range" id="rg-jitter" min="0" max="1" step="0.01" value="0">
+        <span class="ctrl-val" id="v-jitter">0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Seed</div>
+        <input type="range" id="rg-seed" min="1" max="9999" step="1" value="3">
+        <span class="ctrl-val" id="v-seed">3</span>
+      </div>
+    </div>
+
+  </div><!-- /panel -->
+</div>
+
+<!-- Core BEFORE noise, noise BEFORE the tool's own script — see
+     organica-noise.js's own header for why the order matters. -->
+<script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-noise.js"></script>
+<script>
+// ─────────────────────────────────────────────
+// RADIAL — one tool for the Book of Shapes "radial" family. A polar
+// coordinate field (Placement: grid / phyllotaxis / spiral) with an
+// optional Shape modulation (rose curve / spiral shear / domain warp),
+// drawn by one of six Render modes (ring outlines / spokes / mesh /
+// filled cells / marks / arc bands). ~16 of the 18 radial patterns are
+// presets over this.
+//
+// Pure vector: one buildScene() produces a tagged primitive set in
+// absolute canvas coords, and the inline-SVG preview IS the exact export
+// string (no tracing). PNG rasterises the same primitives.
+//
+// Reuse:
+//   - Organica.noise.fbm            — warp field, fill field, mark-size noise
+//   - warpPoint()/NORM              — Warping's domain-warp idiom
+//   - wedgePathD-style arc path     — ported from genesis
+//   - Organica.mulberry32           — three decorrelated streams: fill / jitter / arc-bias
+//   - Organica.download/stamp/sendToFigma/createZoomPan/presetStore/
+//     enhanceSliders/autoLabelPanel/popover/status
+// ─────────────────────────────────────────────
+
+function ctrl(id) { return document.getElementById(id); }
+function val(id)  { return parseFloat(ctrl(id).value); }
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+const setStatus = Organica.status();
+const N = Organica.noise;
+const frame = ctrl('preview-frame');
+const TAU = Math.PI * 2;
+const GOLDEN = Math.PI * (3 - Math.sqrt(5));   // ≈ 2.39996 rad
+
+const RANGE_IDS = ['rg-sides', 'rg-rings', 'rg-inner', 'rg-radius', 'rg-ringcurve',
+  'rg-count', 'rg-spread', 'rg-arms', 'rg-perarm', 'rg-twist',
+  'rg-petals', 'rg-petaldepth', 'rg-shear', 'rg-warpamt', 'rg-warpscale',
+  'rg-fillscale', 'rg-threshold', 'rg-marksize', 'rg-sizeamt',
+  'rg-arccount', 'rg-arcmin', 'rg-arcmax', 'rg-arcgrowth', 'rg-arcgap', 'rg-arcspan', 'rg-arcbias',
+  'rg-jitter', 'rg-seed'];
+const SELECT_IDS = ['sel-placement', 'sel-modulation', 'sel-render', 'sel-markshape', 'sel-sizemode'];
+
+function syncVal(slider, valId) { ctrl(valId).textContent = slider.value; }
+RANGE_IDS.forEach(id => {
+  ctrl(id).addEventListener('input', function () { syncVal(this, 'v-' + id.slice(3)); });
+});
+
+function syncColor(which, hex) {
+  hex = Organica.normalizeHex(hex, ctrl('cp-' + which).value);
+  ctrl('cp-' + which).value = hex;
+  ctrl('hex-' + which).value = hex;
+  ctrl('sw-' + which).style.background = hex;
+  // Live repaint is handled by the delegated #panel input/change listener.
+}
+['ink', 'paper'].forEach(c => syncColor(c, ctrl('hex-' + c).value));
+
+// Which panel blocks are visible for the current selects.
+function syncPanelRows() {
+  const pl = ctrl('sel-placement').value;
+  const mod = ctrl('sel-modulation').value;
+  const rn = ctrl('sel-render').value;
+  ctrl('block-grid').style.display = pl === 'grid' ? '' : 'none';
+  ctrl('block-phyllo').style.display = pl === 'phyllo' ? '' : 'none';
+  ctrl('block-spiral').style.display = pl === 'spiral' ? '' : 'none';
+  ctrl('sec-shape').style.display = pl === 'grid' ? '' : 'none';
+  ctrl('mod-rose').style.display = pl === 'grid' && mod === 'rose' ? '' : 'none';
+  ctrl('mod-shear').style.display = pl === 'grid' && mod === 'shear' ? '' : 'none';
+  ctrl('mesh-opts').style.display = rn === 'mesh' ? '' : 'none';
+  ctrl('render-fill').style.display = rn === 'fill' ? '' : 'none';
+  ctrl('render-marks').style.display = rn === 'marks' ? '' : 'none';
+  ctrl('render-arcs').style.display = rn === 'arcs' ? '' : 'none';
+}
+
+const SIZE = 760;
+
+// ── PARAMS ──
+function buildParams() {
+  return {
+    placement: ctrl('sel-placement').value,
+    modulation: ctrl('sel-modulation').value,
+    render: ctrl('sel-render').value,
+    markShape: ctrl('sel-markshape').value,
+    sizeMode: ctrl('sel-sizemode').value,
+    diagonals: ctrl('ck-diagonals').checked,
+    sides: Math.round(val('rg-sides')),
+    rings: Math.round(val('rg-rings')),
+    innerFrac: val('rg-inner'),
+    radiusFrac: val('rg-radius'),
+    ringCurve: val('rg-ringcurve'),
+    count: Math.round(val('rg-count')),
+    spread: val('rg-spread'),
+    arms: Math.round(val('rg-arms')),
+    perArm: Math.round(val('rg-perarm')),
+    twist: val('rg-twist'),
+    petals: Math.round(val('rg-petals')),
+    petalDepth: val('rg-petaldepth'),
+    shear: val('rg-shear'),
+    warpAmt: val('rg-warpamt'),
+    warpScale: val('rg-warpscale'),
+    fillScale: val('rg-fillscale'),
+    threshold: val('rg-threshold'),
+    markSize: val('rg-marksize'),
+    sizeAmt: val('rg-sizeamt'),
+    arcCount: Math.round(val('rg-arccount')),
+    arcMin: val('rg-arcmin'),
+    arcMax: val('rg-arcmax'),
+    arcGrowth: val('rg-arcgrowth'),
+    arcGap: val('rg-arcgap'),
+    arcSpan: val('rg-arcspan'),
+    arcBias: val('rg-arcbias'),
+    jitter: val('rg-jitter'),
+    seed: Math.round(val('rg-seed')),
+    ink: ctrl('hex-ink').value,
+    paper: ctrl('hex-paper').value,
+  };
+}
+
+// ─────────────────────────────────────────────
+// DOMAIN WARP — Warping's exact idiom: two decorrelated fbm taps offset
+// by (5.2, 1.3), Amount 0 an exact no-op. Coordinates normalised by the
+// pattern radius R so warpScale reads as "cycles across the half-width".
+// ─────────────────────────────────────────────
+function warpPoint(px, py, cx, cy, R, P) {
+  if (P.warpAmt <= 0) return [px, py];
+  const nx = (px - cx) / R, ny = (py - cy) / R;
+  const so = P.seed * 1.7;
+  const f = P.warpScale * 3;
+  const n1 = N.fbm(nx * f + so, ny * f + so) - 0.5;
+  const n2 = N.fbm(nx * f + so + 5.2, ny * f + so + 1.3) - 0.5;
+  return [px + n1 * P.warpAmt * R * 0.35, py + n2 * P.warpAmt * R * 0.35];
+}
+
+// ── POINT FIELD — grid lattice OR a flat point list, per Placement. ──
+function buildPoints(P, cx, cy, R) {
+  const jrng = P.jitter > 0 ? Organica.mulberry32((P.seed ^ 0x85EBCA6B) >>> 0) : null;
+  const jit = p => {
+    let q = warpPoint(p[0], p[1], cx, cy, R, P);
+    if (jrng) q = [q[0] + (jrng() * 2 - 1) * P.jitter * R * 0.05,
+                   q[1] + (jrng() * 2 - 1) * P.jitter * R * 0.05];
+    return q;
+  };
+
+  if (P.placement === 'grid') {
+    const sides = P.sides, rings = Math.max(1, P.rings);
+    const inR = R * P.innerFrac, outR = R * P.radiusFrac;
+    const V = [];
+    for (let i = 0; i <= rings; i++) {
+      const frac = Math.pow(i / rings, P.ringCurve);
+      let baseR = inR + frac * (outR - inR);
+      const row = [];
+      for (let j = 0; j < sides; j++) {
+        let a = -Math.PI / 2 + (j / sides) * TAU;
+        let rr = baseR;
+        if (P.modulation === 'rose') rr *= 1 + P.petalDepth * 0.6 * Math.cos(P.petals * a);
+        if (P.modulation === 'shear') a += P.shear * (i / rings);
+        row.push(jit([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr]));
+      }
+      V.push(row);
+    }
+    const ringPolys = V.map(r => r.slice());
+    const spokes = [];
+    for (let j = 0; j < sides; j++) {
+      const line = [];
+      for (let i = 0; i <= rings; i++) line.push(V[i][j]);
+      spokes.push(line);
+    }
+    const cells = [];
+    for (let i = 0; i < rings; i++) {
+      for (let j = 0; j < sides; j++) {
+        const jn = (j + 1) % sides;
+        cells.push({ pts: [V[i][j], V[i][jn], V[i + 1][jn], V[i + 1][j]], t: (i + 0.5) / rings });
+      }
+    }
+    const points = [];
+    for (let i = 0; i <= rings; i++) for (let j = 0; j < sides; j++) points.push({ p: V[i][j], t: i / rings });
+    return { V, ringPolys, spokes, cells, points };
+  }
+
+  if (P.placement === 'phyllo') {
+    const n = P.count, points = [];
+    for (let k = 0; k < n; k++) {
+      const a = k * GOLDEN;
+      const t = Math.sqrt((k + 0.5) / n);
+      const rr = R * P.spread * t;
+      points.push({ p: jit([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr]), t });
+    }
+    return { points };
+  }
+
+  // spiral arms
+  const inR = R * 0.05, outR = R * (P.radiusFrac || 1), points = [];
+  for (let m = 0; m < P.arms; m++) {
+    const base = m * (TAU / P.arms);
+    for (let k = 0; k < P.perArm; k++) {
+      const frac = k / Math.max(1, P.perArm - 1);
+      const a = base + P.twist * TAU * frac;
+      const rr = inR + frac * (outR - inR);
+      points.push({ p: jit([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr]), t: frac });
+    }
+  }
+  return { points };
+}
+
+// Annular open-arc path (stroked) — the wedgePathD idiom from genesis,
+// reduced to a single arc segment.
+function arcPathD(cx, cy, radius, a0, a1) {
+  const x0 = cx + Math.cos(a0) * radius, y0 = cy + Math.sin(a0) * radius;
+  const x1 = cx + Math.cos(a1) * radius, y1 = cy + Math.sin(a1) * radius;
+  const large = Math.abs(a1 - a0) > Math.PI ? 1 : 0;
+  const r2 = v => Math.round(v * 100) / 100;
+  return `M ${r2(x0)} ${r2(y0)} A ${r2(radius)} ${r2(radius)} 0 ${large} 1 ${r2(x1)} ${r2(y1)}`;
+}
+
+// ── SCENE — the single source of truth for preview + every export. ──
+function buildScene(P, W, H) {
+  const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 * 0.92;
+  const geo = buildPoints(P, cx, cy, R);
+  const prim = { polygonsStroke: [], polylines: [], lines: [], polygonsFill: [], arcs: [], marks: [], W, H };
+  const rn = P.render;
+
+  if (rn === 'rings' && geo.ringPolys) {
+    geo.ringPolys.forEach(poly => prim.polygonsStroke.push(poly));
+  } else if (rn === 'spokes' && geo.spokes) {
+    geo.spokes.forEach(l => prim.polylines.push(l));
+  } else if (rn === 'mesh' && geo.V) {
+    geo.ringPolys.forEach(poly => prim.polygonsStroke.push(poly));
+    geo.spokes.forEach(l => prim.polylines.push(l));
+    if (P.diagonals) {
+      geo.cells.forEach(c => {
+        prim.lines.push([c.pts[0], c.pts[2]]);
+        prim.lines.push([c.pts[1], c.pts[3]]);
+      });
+    }
+  } else if (rn === 'fill' && geo.cells) {
+    geo.ringPolys.forEach(poly => prim.polygonsStroke.push(poly));
+    geo.spokes.forEach(l => prim.polylines.push(l));
+    const frng = Organica.mulberry32((P.seed ^ 0x9E3779B9) >>> 0);
+    const fox = frng() * 1000, foy = frng() * 1000;
+    geo.cells.forEach(c => {
+      let sx = 0, sy = 0;
+      for (const p of c.pts) { sx += p[0]; sy += p[1]; }
+      const nx = (sx / 4 - cx) / R, ny = (sy / 4 - cy) / R;
+      const f = N.fbm(nx * P.fillScale + fox, ny * P.fillScale + foy);
+      const filled = P.threshold <= 0 ? true : P.threshold >= 1 ? false : f > P.threshold;
+      if (filled) prim.polygonsFill.push(c.pts);
+    });
+  } else if (rn === 'marks') {
+    const so = P.seed * 1.7;
+    geo.points.forEach(({ p, t }) => {
+      let r = P.markSize;
+      if (P.sizeMode === 'noise') {
+        const nx = (p[0] - cx) / R, ny = (p[1] - cy) / R;
+        r = P.markSize * (0.25 + P.sizeAmt * N.fbm(nx * 3 + so, ny * 3 + so));
+      } else if (P.sizeMode === 'gradient') {
+        // Limb-darkening curve — flat near the centre, steep toward the rim:
+        // small marks in the middle growing large at the edge (halftone
+        // sphere shading; phyllotaxis lines lengthening outward).
+        r = P.markSize * (0.12 + P.sizeAmt * (1 - Math.sqrt(Math.max(0, 1 - t * t))));
+      }
+      prim.marks.push({ x: p[0], y: p[1], r: Math.max(0.2, r), shape: P.markShape });
+    });
+  } else if (rn === 'arcs') {
+    const rng = Organica.mulberry32((P.seed * 2654435761) >>> 0);
+    const n = Math.max(1, P.arcCount);
+    let rr = R * P.innerFrac + P.arcMin;
+    const span = P.arcSpan * TAU;
+    for (let i = 0; i < n; i++) {
+      const tt = n === 1 ? 1 : i / (n - 1);
+      const sw = P.arcMin + Math.pow(tt, P.arcGrowth) * (P.arcMax - P.arcMin);
+      const jitter = (rng() - 0.5) * (1 - P.arcBias) * TAU;
+      const a0 = -Math.PI / 2 + jitter - span / 2;
+      prim.arcs.push({ d: arcPathD(cx, cy, rr + sw / 2, a0, a0 + span), sw: Math.round(sw * 100) / 100 });
+      rr += sw + R * P.arcGap;
+    }
+  }
+  return prim;
+}
+
+// ── SVG (preview === export) ──
+function ptsStr(arr) {
+  return arr.map(p => (Math.round(p[0] * 100) / 100) + ',' + (Math.round(p[1] * 100) / 100)).join(' ');
+}
+function n2(v) { return Math.round(v * 100) / 100; }
+function markSVG(m, ink) {
+  if (m.shape === 'line') {
+    const a = Math.atan2(m.y - SIZE / 2, m.x - SIZE / 2);
+    const dx = Math.cos(a) * m.r, dy = Math.sin(a) * m.r;
+    return `<line x1="${n2(m.x - dx)}" y1="${n2(m.y - dy)}" x2="${n2(m.x + dx)}" y2="${n2(m.y + dy)}"/>`;
+  }
+  if (m.shape === 'circle') return `<circle cx="${n2(m.x)}" cy="${n2(m.y)}" r="${n2(m.r)}" fill="none"/>`;
+  return `<circle cx="${n2(m.x)}" cy="${n2(m.y)}" r="${n2(m.r)}"/>`;   // dot
+}
+function sceneSVG(prim, P) {
+  const { polygonsStroke, polylines, lines, polygonsFill, arcs, marks, W, H } = prim;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  s += `<rect width="100%" height="100%" fill="${P.paper}"/>`;
+  if (polygonsStroke.length || polylines.length || lines.length) {
+    s += `<g fill="none" stroke="${P.ink}" stroke-width="1" stroke-linejoin="round">`;
+    polygonsStroke.forEach(poly => { s += `<polygon points="${ptsStr(poly)}"/>`; });
+    polylines.forEach(l => { s += `<polyline points="${ptsStr(l)}"/>`; });
+    lines.forEach(l => { s += `<line x1="${n2(l[0][0])}" y1="${n2(l[0][1])}" x2="${n2(l[1][0])}" y2="${n2(l[1][1])}"/>`; });
+    s += '</g>';
+  }
+  if (polygonsFill.length) {
+    s += `<g fill="${P.ink}" stroke="none">`;
+    polygonsFill.forEach(poly => { s += `<polygon points="${ptsStr(poly)}"/>`; });
+    s += '</g>';
+  }
+  arcs.forEach(a => {
+    s += `<path d="${a.d}" fill="none" stroke="${P.ink}" stroke-width="${a.sw}" stroke-linecap="butt"/>`;
+  });
+  if (marks.length) {
+    const stroked = marks[0] && marks[0].shape !== 'dot';
+    s += `<g fill="${stroked ? 'none' : P.ink}" stroke="${stroked ? P.ink : 'none'}" stroke-width="1">`;
+    marks.forEach(m => { s += markSVG(m, P.ink); });
+    s += '</g>';
+  }
+  s += '</svg>';
+  return s;
+}
+
+// ── Canvas (PNG only) — same primitives. ──
+function drawSceneCanvas(ctx, prim, P, scale) {
+  const { polygonsStroke, polylines, lines, polygonsFill, arcs, marks, W, H } = prim;
+  ctx.save();
+  ctx.scale(scale, scale);
+  ctx.fillStyle = P.paper;
+  ctx.fillRect(0, 0, W, H);
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = P.ink;
+  const trace = (arr, close) => {
+    ctx.beginPath();
+    ctx.moveTo(arr[0][0], arr[0][1]);
+    for (let i = 1; i < arr.length; i++) ctx.lineTo(arr[i][0], arr[i][1]);
+    if (close) ctx.closePath();
+  };
+  polygonsStroke.forEach(poly => { trace(poly, true); ctx.stroke(); });
+  polylines.forEach(l => { trace(l, false); ctx.stroke(); });
+  lines.forEach(l => { trace(l, false); ctx.stroke(); });
+  ctx.fillStyle = P.ink;
+  polygonsFill.forEach(poly => { trace(poly, true); ctx.fill(); });
+  arcs.forEach(a => { ctx.lineWidth = a.sw; ctx.stroke(new Path2D(a.d)); });
+  ctx.lineWidth = 1;
+  marks.forEach(m => {
+    if (m.shape === 'line') {
+      const ang = Math.atan2(m.y - H / 2, m.x - W / 2);
+      const dx = Math.cos(ang) * m.r, dy = Math.sin(ang) * m.r;
+      ctx.beginPath(); ctx.moveTo(m.x - dx, m.y - dy); ctx.lineTo(m.x + dx, m.y + dy); ctx.stroke();
+    } else if (m.shape === 'circle') {
+      ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, TAU); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, TAU); ctx.fill();
+    }
+  });
+  ctx.restore();
+}
+
+// ── RENDER ──
+function renderPreview() {
+  const P = buildParams();
+  const prim = buildScene(P, SIZE, SIZE);
+  frame.innerHTML = sceneSVG(prim, P);
+  const n = prim.polygonsFill.length || prim.marks.length || prim.arcs.length ||
+            (prim.polygonsStroke.length + prim.polylines.length + prim.lines.length);
+  setStatus('active', `${P.placement} · ${P.render} · ${n} elements`);
+}
+let renderQueued = false;
+function scheduleRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; renderPreview(); });
+}
+
+// ── EXPORT ──
+function updateSizeReadout() {
+  const scale = parseInt(ctrl('sel-scale').value, 10) || 2;
+  ctrl('out-size').textContent = (SIZE * scale) + ' × ' + (SIZE * scale);
+}
+function currentSVG() {
+  const P = buildParams();
+  return sceneSVG(buildScene(P, SIZE, SIZE), P);
+}
+function exportSVG() {
+  const svg = currentSVG();
+  window._lastSVG = svg;
+  Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('radial', 'svg'));
+  setStatus('active', Math.round(svg.length / 1024) + ' KB · SVG saved');
+}
+function exportPNG() {
+  const scale = parseInt(ctrl('sel-scale').value, 10) || 2;
+  const P = buildParams();
+  const prim = buildScene(P, SIZE, SIZE);
+  const c = document.createElement('canvas');
+  c.width = SIZE * scale; c.height = SIZE * scale;
+  drawSceneCanvas(c.getContext('2d'), prim, P, scale);
+  const url = c.toDataURL('image/png');
+  const bin = atob(url.split(',')[1]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('radial', 'png'));
+  setStatus('active', c.width + '×' + c.height + ' · PNG saved');
+}
+function sendToFigma() {
+  const svg = currentSVG();
+  window._lastSVG = svg;
+  Organica.sendToFigma(svg, 'Radial');
+  setStatus('active', 'Sent to Figma plugin ↗');
+}
+
+// ── PRESETS ──
+function readState() {
+  const s = {};
+  SELECT_IDS.forEach(id => { s[id.slice(4)] = ctrl(id).value; });
+  RANGE_IDS.forEach(id => { s[id.slice(3)] = val(id); });
+  s.diagonals = ctrl('ck-diagonals').checked;
+  s.ink = ctrl('hex-ink').value;
+  s.paper = ctrl('hex-paper').value;
+  return s;
+}
+function applyState(s) {
+  SELECT_IDS.forEach(id => { const k = id.slice(4); if (s[k] != null) ctrl(id).value = s[k]; });
+  RANGE_IDS.forEach(id => { const k = id.slice(3); if (s[k] != null) ctrl(id).value = s[k]; });
+  ctrl('ck-diagonals').checked = !!s.diagonals;
+  RANGE_IDS.forEach(id => syncVal(ctrl(id), 'v-' + id.slice(3)));
+  syncColor('ink', s.ink || '#1c1c1c');
+  syncColor('paper', s.paper || '#f2efe6');
+  syncPanelRows();
+}
+
+// One snapshot per covered Book of Shapes radial pattern. Each keyed by
+// its BoS display name; each eyeballed against the live site.
+const BP = (o) => Object.assign({
+  placement: 'grid', modulation: 'none', render: 'rings', markshape: 'dot', sizemode: 'uniform',
+  diagonals: false, sides: 48, rings: 12, inner: 0.15, radius: 1, ringcurve: 1,
+  count: 800, spread: 0.95, arms: 3, perarm: 220, twist: 3.5,
+  petals: 8, petaldepth: 0.5, shear: 1.2, warpamt: 0, warpscale: 0.6,
+  fillscale: 6, threshold: 0.42, marksize: 3, sizeamt: 1,
+  arccount: 7, arcmin: 1, arcmax: 90, arcgrowth: 2, arcgap: 0.02, arcspan: 0.42, arcbias: 0.7,
+  jitter: 0, seed: 3, ink: '#1c1c1c', paper: '#f2efe6',
+}, o);
+
+const BUILTIN_PRESETS = {
+  'Broken Ring':            BP({ render: 'fill', sides: 72, rings: 21, inner: 0.35, warpamt: 0.12, fillscale: 6, threshold: 0.42, seed: 3 }),
+  'Nested Polygons':        BP({ render: 'rings', sides: 6, rings: 12, inner: 0.05, warpamt: 0, seed: 1, ink: '#241b14', paper: '#ffffff' }),
+  'Concentric Noise Rings': BP({ render: 'rings', sides: 64, rings: 22, inner: 0.08, warpamt: 0.35, warpscale: 0.5, seed: 6 }),
+  'Noise Circle':           BP({ render: 'rings', sides: 72, rings: 1, inner: 0, radius: 0.9, warpamt: 0.5, warpscale: 0.8, seed: 2 }),
+  'Modular Circle':         BP({ render: 'rings', sides: 60, rings: 10, inner: 0.15, ringcurve: 2, warpamt: 0, seed: 1 }),
+  'Radial Harmony':         BP({ render: 'mesh', sides: 24, rings: 8, inner: 0.12, warpamt: 0, seed: 1, ink: '#241b14', paper: '#ffffff' }),
+  'Radial Spokes':          BP({ render: 'spokes', sides: 34, rings: 2, inner: 0.3, radius: 0.95, warpamt: 0, jitter: 0.14, seed: 4, ink: '#241b14', paper: '#ffffff' }),
+  'Line-Based Circles':     BP({ render: 'rings', sides: 40, rings: 8, inner: 0.1, jitter: 0.05, warpamt: 0, seed: 3 }),
+  'Polar Mesh':             BP({ render: 'mesh', diagonals: true, sides: 30, rings: 9, inner: 0.1, warpamt: 0.1, warpscale: 0.5, seed: 5 }),
+  'Rose Mesh':              BP({ render: 'mesh', modulation: 'rose', petals: 8, petaldepth: 0.5, sides: 46, rings: 9, inner: 0.1, warpamt: 0.12, warpscale: 0.7, seed: 2 }),
+  'Spiral Mesh':            BP({ render: 'mesh', modulation: 'shear', shear: 1.2, sides: 40, rings: 12, inner: 0.08, warpamt: 0.08, seed: 3 }),
+  'Phyllotaxis Bloom':      BP({ placement: 'phyllo', render: 'marks', markshape: 'line', sizemode: 'gradient', count: 800, spread: 0.95, marksize: 6, sizeamt: 1.2, warpamt: 0, seed: 1, ink: '#241b14', paper: '#ffffff' }),
+  'Spiral Dot Field':       BP({ placement: 'spiral', render: 'marks', markshape: 'dot', sizemode: 'uniform', arms: 3, perarm: 220, twist: 3.5, marksize: 3, warpamt: 0, seed: 7, ink: '#241b14', paper: '#ffffff' }),
+  'Halftone Sphere':        BP({ render: 'marks', markshape: 'dot', sizemode: 'gradient', sides: 48, rings: 26, inner: 0.02, marksize: 2.5, sizeamt: 2, warpamt: 0, seed: 1, ink: '#241b14', paper: '#ffffff' }),
+  'Chaos Circles':          BP({ render: 'marks', markshape: 'circle', sizemode: 'uniform', sides: 30, rings: 4, inner: 0.2, radius: 0.95, marksize: 10, jitter: 0.5, warpamt: 0, seed: 9, ink: '#241b14', paper: '#ffffff' }),
+  'Brockmann Arcs':         BP({ render: 'arcs', arccount: 7, arcmin: 1, arcmax: 90, arcgrowth: 2, arcgap: 0.02, arcspan: 0.42, arcbias: 0.7, inner: 0.12, seed: 4, ink: '#1c1c1c', paper: '#efe9dd' }),
+};
+
+function presetStoreObj() { return Organica.presetStore('radial'); }
+function userPresets() { return presetStoreObj().read(); }
+function allPresets() { return Object.assign({}, BUILTIN_PRESETS, userPresets()); }
+let currentPresetName = null;
+
+function populatePresets(select) {
+  const sel = ctrl('sel-preset');
+  sel.innerHTML = '';
+  Object.keys(allPresets()).forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  if (select) sel.value = select;
+}
+function applyPreset(name) {
+  const p = allPresets()[name];
+  if (!p) return;
+  applyState(p);
+  currentPresetName = name;
+  scheduleRender();
+}
+function savePreset() {
+  ctrl('txt-preset-name').value = 'Preset ' + new Date().toLocaleTimeString();
+  ctrl('preset-save-row').style.display = '';
+  ctrl('preset-save-actions').style.display = '';
+  ctrl('txt-preset-name').focus();
+  ctrl('txt-preset-name').select();
+}
+function confirmSavePreset() {
+  const name = ctrl('txt-preset-name').value.trim();
+  if (!name) return;
+  if (BUILTIN_PRESETS[name]) { setStatus('', 'That name is a built-in preset — pick another'); return; }
+  const all = userPresets();
+  all[name] = readState();
+  presetStoreObj().write(all);
+  currentPresetName = name;
+  populatePresets(name);
+  setStatus('active', 'Saved preset · ' + name);
+  cancelSavePreset();
+}
+function cancelSavePreset() {
+  ctrl('preset-save-row').style.display = 'none';
+  ctrl('preset-save-actions').style.display = 'none';
+  ctrl('txt-preset-name').value = '';
+}
+function deletePreset() {
+  if (!currentPresetName) return;
+  if (BUILTIN_PRESETS[currentPresetName]) { setStatus('', 'Built-in presets cannot be deleted'); return; }
+  const all = userPresets();
+  if (!all[currentPresetName]) return;
+  delete all[currentPresetName];
+  presetStoreObj().write(all);
+  currentPresetName = null;
+  populatePresets();
+  setStatus('active', 'Deleted preset');
+}
+
+// ── INIT ──
+Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+applyState(BUILTIN_PRESETS['Broken Ring']);   // panel's raw HTML values are placeholders only
+populatePresets('Broken Ring');
+updateSizeReadout();
+renderPreview();
+setStatus('active', 'Ready');
+Organica.autoLabelPanel(document);
+Organica.enhanceSliders(document);
+ctrl('panel').addEventListener('input', scheduleRender);
+ctrl('panel').addEventListener('change', () => { syncPanelRows(); scheduleRender(); });
+ctrl('btn-preset-confirm').addEventListener('click', confirmSavePreset);
+ctrl('btn-preset-cancel').addEventListener('click', cancelSavePreset);
+ctrl('txt-preset-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmSavePreset();
+  if (e.key === 'Escape') cancelSavePreset();
+});
+
+Organica.createZoomPan({ canvas: frame, wrap: ctrl('stage'), min: 0.3, max: 6 });
+
+// ── Rhizome bridge (Tier 2 node graph) — same shape as warping/komorebi. ──
+window.addEventListener('message', (e) => {
+  const msg = e.data;
+  if (!msg || msg.type !== 'rhizome-set-input') return;
+  try {
+    const payload = msg.payload || {};
+    SELECT_IDS.forEach(id => { const k = id.slice(4); if (payload[k] != null) ctrl(id).value = payload[k]; });
+    RANGE_IDS.forEach(id => { const k = id.slice(3); if (payload[k] != null) ctrl(id).value = payload[k]; });
+    RANGE_IDS.forEach(id => syncVal(ctrl(id), 'v-' + id.slice(3)));
+    syncPanelRows();
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const svg = currentSVG();
+      e.source.postMessage({ type: 'rhizome-output-ready', payload: svg, nodeId: msg.nodeId }, '*');
+    }));
+  } catch (err) {
+    console.error('Rhizome bridge:', err);
+  }
+});
+</script>
+</body>
+</html>
