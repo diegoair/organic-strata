@@ -750,7 +750,7 @@
   let S = {
     mode: 'library',
     gen: Object.assign({}, DEFAULT_GEN),
-    importInner: null,     // normalised <g>…</g> string
+    importInner: null,     // normalised {tf, attrs, inner} — see importSVG()
     fillMode: 'fill',
     strokeW: 6,
     rounded: true,
@@ -881,15 +881,30 @@
     return (set.forms || []).map(resolveFormById).filter(Boolean);
   }
 
+  // Keyed by "formId#instanceIndex" when the caller knows which occurrence
+  // it means (instanceIndex = that tile's own index into set.forms), so
+  // editing one occurrence of a seed placed more than once in the same set
+  // no longer silently changes every other occurrence of the same seed.
+  // Legacy entries (saved before this existed, or written with no known
+  // instance) stay keyed by bare formId and are used as a fallback for any
+  // occurrence that has no instance-specific entry of its own.
+  function instanceKeyStr(formId, idx) { return formId + '#' + idx; }
+
   function getLayoutMap(setId) {
     const set = getSet(setId);
     const map = new Map();
-    (set && set.formLayout ? set.formLayout : []).forEach(l =>
-      map.set(l.formId, { colSpan: l.colSpan || 1, rowSpan: l.rowSpan || 1, align: l.align || 'mid-center' }));
+    (set && set.formLayout ? set.formLayout : []).forEach(l => {
+      const key = (l.instanceKey != null) ? instanceKeyStr(l.formId, l.instanceKey) : l.formId;
+      map.set(key, { colSpan: l.colSpan || 1, rowSpan: l.rowSpan || 1, align: l.align || 'mid-center' });
+    });
     return map;
   }
 
-  function layoutFor(layoutMap, form) {
+  function layoutFor(layoutMap, form, instanceIndex) {
+    if (instanceIndex != null) {
+      const byInstance = layoutMap.get(instanceKeyStr(form.id, instanceIndex));
+      if (byInstance) return byInstance;
+    }
     return layoutMap.get(form.id) || { colSpan: 1, rowSpan: 1, align: 'mid-center' };
   }
 
@@ -965,7 +980,7 @@
       grid.appendChild(empty);
       return;
     }
-    forms.forEach((form, i) => grid.appendChild(createTile(form, i, layoutFor(layout, form))));
+    forms.forEach((form, i) => grid.appendChild(createTile(form, i, layoutFor(layout, form, i))));
   }
 
   function createTile(form, index, layoutItem) {
@@ -1025,7 +1040,7 @@
 
     const form = getFormsForSet(state.activeSetId)[index];
     if (!form) return;
-    const layoutItem = layoutFor(getLayoutMap(state.activeSetId), form);
+    const layoutItem = layoutFor(getLayoutMap(state.activeSetId), form, index);
 
     const nameInput = $('ctrl-form-name');
     nameInput.value = form.name;
@@ -1160,7 +1175,7 @@
     if (state.selectedFormIndex === null) return;
     const form = getFormsForSet(state.activeSetId)[state.selectedFormIndex];
     if (!form) return;
-    setLayoutFor(state.activeSetId, form.id, patch);
+    setLayoutFor(state.activeSetId, form.id, patch, state.selectedFormIndex);
     const keepIndex = state.selectedFormIndex;
     renderGrid(state.activeSetId);
     selectForm(keepIndex);
@@ -1168,12 +1183,18 @@
     saveLibrary();
   }
 
-  function setLayoutFor(setId, formId, patch) {
+  // instanceKey identifies one specific occurrence of formId in this set
+  // (its index into set.forms at the time of the edit) — pass it whenever
+  // the caller knows which tile it means, so the write can't blanket-affect
+  // every other tile using the same seed. Omit it only for a deliberate
+  // blanket edit (there is currently no UI path that does this on purpose).
+  function setLayoutFor(setId, formId, patch, instanceKey) {
     const set = getSet(setId);
     if (!set) return;
     if (!set.formLayout) set.formLayout = [];
-    let item = set.formLayout.find(l => l.formId === formId);
-    if (!item) { item = { formId, colSpan: 1, rowSpan: 1, align: 'mid-center' }; set.formLayout.push(item); }
+    const key = (instanceKey != null) ? instanceKeyStr(formId, instanceKey) : formId;
+    let item = set.formLayout.find(l => ((l.instanceKey != null) ? instanceKeyStr(l.formId, l.instanceKey) : l.formId) === key);
+    if (!item) { item = { formId, instanceKey, colSpan: 1, rowSpan: 1, align: 'mid-center' }; set.formLayout.push(item); }
     Object.assign(item, patch);
   }
 
@@ -1301,7 +1322,7 @@
     };
     let cr = 0, cc = 0;
     entries.forEach((entry, i) => {
-      const L = layoutFor(layoutMap, entry.form);
+      const L = layoutFor(layoutMap, entry.form, entry.src);
       const w = Math.min(L.colSpan, cols), h = L.rowSpan;
       for (;;) {
         if (cc + w > cols) { cr++; cc = 0; continue; }
@@ -1364,7 +1385,7 @@
       grid.appendChild(el);
     });
     renderComposeSelection();
-    refreshComposePicker();
+    renderComposePicker();
   }
 
   function renderComposeSelection() {
@@ -1536,12 +1557,15 @@
 
     const added = (mode === 'span') ? [formId] : new Array(w * h).fill(formId);
     set.forms.splice(insertAt, 0, ...added);
-    // formLayout is keyed by formId (a property of the existing model, not
-    // of this feature): a span therefore applies to every tile of that seed
-    // in this set, and 'repeat' resets it to 1×1 for the same reason.
-    setLayoutFor(state.activeSetId, formId, (mode === 'span')
-      ? { colSpan: w, rowSpan: h }
-      : { colSpan: 1, rowSpan: 1 });
+    // Written per newly-placed occurrence (its own index into set.forms),
+    // not once for formId as a whole — a seed placed elsewhere in this set
+    // keeps whatever span/align it already had instead of being dragged
+    // along by this fill.
+    for (let i = 0; i < added.length; i++) {
+      setLayoutFor(state.activeSetId, formId, (mode === 'span')
+        ? { colSpan: w, rowSpan: h }
+        : { colSpan: 1, rowSpan: 1 }, insertAt + i);
+    }
 
     saveLibrary();
     closePopover();
@@ -1986,9 +2010,18 @@
 
       const k = 200 / Math.max(w, h);
       const tx = (200 - w * k) / 2 - x * k, ty = (200 - h * k) / 2 - y * k;
-      S.importInner = `<g transform="translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${k.toFixed(4)})" ${rootAttrs.join(' ')}>${inner}</g>`;
+      // Kept as {tf, attrs, inner} rather than one pre-joined <g> string so a
+      // Container-mode clip (see compositeMarkup) can hoist tf onto the
+      // <clipPath> itself and drop the inner content in unwrapped — a plain
+      // <g> nested inside <clipPath> renders the whole clip empty in Chromium.
+      S.importInner = { tf: `translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${k.toFixed(4)})`, attrs: rootAttrs.join(' '), inner };
     } catch (e) { S.importInner = null; }
     renderArt();
+  }
+
+  function importMarkup() {
+    const g = S.importInner;
+    return g ? `<g transform="${g.tf}" ${g.attrs}>${g.inner}</g>` : '';
   }
 
   // ── Geometry builders ──────────────────────────────────
@@ -2102,7 +2135,7 @@
 
   // Inner geometry (before the appearance transform), as an SVG string.
   function geometry() {
-    if (S.mode === 'import') return S.importInner || '';
+    if (S.mode === 'import') return importMarkup();
     if (S.mode === 'generate') {
       const g = S.gen;
       if (g.type === 'circle') return `<circle cx="100" cy="100" r="${g.r}"/>`;
@@ -2141,15 +2174,27 @@
   // knocks a real hole in it (<mask>). Real, empirically-verified browser
   // quirk: a <g> nested anywhere inside a <clipPath> renders the whole clip
   // empty, so the Container branch puts `transform` on the <clipPath> element
-  // itself. Import-mode geometry is itself a <g> and would still hit that
-  // quirk as a Container boundary — a known, disclosed gap.
+  // itself — and, for Import-mode geometry (itself a <g>, see importMarkup),
+  // also hoists that <g>'s own transform onto the <clipPath> and drops its
+  // content in unwrapped, via clipSafeGeometry(). A <g> nested further inside
+  // the imported SVG's own content (not just the one outer wrapper) would
+  // still hit the same quirk — a narrower, disclosed remaining gap.
+  function clipSafeGeometry() {
+    if (S.mode === 'import' && S.importInner) {
+      return { extraTF: S.importInner.tf, content: S.importInner.inner };
+    }
+    return { extraTF: '', content: geometry() };
+  }
+
   function compositeMarkup(tf, idSuffix) {
     const geo = geometry();
     if (!geo) return '';
     if (S.underlyingLayer && (S.type === 'mask' || S.type === 'container')) {
       const uid = 'shapefx-' + (S.underlyingLayer.id || 'x') + (idSuffix || '');
       if (S.type === 'container') {
-        return `<clipPath id="${uid}" transform="${tf}">${geo}</clipPath>`
+        const { extraTF, content } = clipSafeGeometry();
+        const clipTF = extraTF ? `${tf} ${extraTF}` : tf;
+        return `<clipPath id="${uid}" transform="${clipTF}">${content}</clipPath>`
           + `<g clip-path="url(#${uid})"><g transform="${tf}">${S.underlyingLayer.innerMarkup}</g></g>`;
       }
       return `<mask id="${uid}" maskUnits="userSpaceOnUse" x="0" y="0" width="200" height="200">`
@@ -2171,12 +2216,31 @@
     $('ctrl-my').value = Math.round(S.moveY); $('my-val').textContent = Math.round(S.moveY);
   }
 
+  // getBBox() ignores clip-path/mask by spec, so measuring #seed-layer
+  // directly (as the non-composited branches below still do) would read the
+  // underlying layer's own raw, unclipped extent for a Mask/Container seed,
+  // not the visible shape's own boundary — fit off a scratch element holding
+  // just the boundary geometry instead.
+  function geometryBBox() {
+    const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svgEl.style.cssText = 'position:absolute; width:0; height:0; overflow:hidden;';
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.innerHTML = geometry();
+    svgEl.appendChild(g);
+    document.body.appendChild(svgEl);
+    let bb = null;
+    try { bb = g.getBBox(); } catch (e) {}
+    document.body.removeChild(svgEl);
+    return bb;
+  }
+
   function fitToGrid() {
     if (!geometry()) return;
     const keep = { scale: S.scale, w: S.w, l: S.l, rot: S.rot, mx: S.moveX, my: S.moveY };
     S.scale = 1; S.w = 1; S.l = 1; S.rot = 0; S.moveX = 0; S.moveY = 0;
     renderArt();
-    let bb = null; try { bb = $('seed-layer').getBBox(); } catch (e) {}
+    const isComposited = S.underlyingLayer && (S.type === 'mask' || S.type === 'container');
+    let bb = null; try { bb = isComposited ? geometryBBox() : $('seed-layer').getBBox(); } catch (e) {}
     // Bail only when BOTH dimensions are ~0 — Segment's bbox is always
     // exactly zero-height (a perfectly horizontal line by construction).
     if (!bb || (bb.width < 0.01 && bb.height < 0.01)) {
