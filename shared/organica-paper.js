@@ -858,6 +858,31 @@
       return path.segments.length >= 2 ? path.pathData : '';
     }
 
+    // Serialize / restore the whole editable path so a host page can save a
+    // drawn shape and re-open it fully editable later (Genesis's "Create /
+    // Freehand" seeds). path.exportJSON()/importJSON() are the same Paper API
+    // simplify()'s baselineJSON already relies on. Additive: nothing else
+    // changes.
+    function serialize() {
+      return {
+        json: path.exportJSON(),
+        closed: path.closed,
+        smooth: smooth,
+        manual: Array.from(manualSegments),
+      };
+    }
+    function load(data) {
+      if (!data || !data.json) return;
+      path.importJSON(data.json);
+      path.fullySelected = true;
+      smooth = data.smooth !== false;
+      path.closed = !!data.closed;
+      manualSegments.clear();
+      (data.manual || []).forEach(i => manualSegments.add(i));
+      snapshotBaseline();
+      notify();
+    }
+
     function getSegmentCount() {
       return path.segments.length;
     }
@@ -875,6 +900,8 @@
       simplify,
       getPathData,
       getSegmentCount,
+      serialize,
+      load,
       destroy,
     };
   };

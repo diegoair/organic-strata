@@ -195,7 +195,7 @@ Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 |---|---|---|
 | `--tool` | hidden (or engine tabs) | Spore, Pollen, Halide, Komorebi, Living Path, template |
 | `--catalog` | title + count | Indicators |
-| `--editor` | mode tabs / breadcrumb | Genesis (unified Library/Compose/Draw/Import/Generate tool, Aug 27, 2026 — see below) |
+| `--editor` | mode tabs / breadcrumb | Genesis (unified Library/Compose/Create/Import tool, Aug 27, 2026 — see below) |
 
 **All 11 pages migrated** (6 tool / 3 catalog / 2 editor, historical count —
 Strata was among them and was later removed from the product). The stale
@@ -345,13 +345,25 @@ touched the store at all). They're now one tool, living at `genesis/index.html`
 — `creator.html` and `library.html` are thin `location.replace('/genesis/')`
 redirects, kept so old bookmarks/links still resolve.
 
-The merged tool is `--editor` variant with 5 mode tabs: **Library** (the old
+The merged tool is `--editor` variant with 4 mode tabs: **Library** (the old
 library.html's own 3-panel shell — sets left, tile grid centre, Figma-style
 inspector right — unchanged behaviour), **Compose** (the old plain
 index.html's own drag-select-then-fill gesture, ported to operate on the
 SAME set/gridConfig/formLayout model Library already uses, not a second
-data model), **Draw / Import / Generate** (ported verbatim from the old
-creator.html, same logic, same Appearance/Seed panels).
+data model), **Create / Import** (ported from the old creator.html, same
+Appearance/Seed panels).
+
+**Create = Draw + Generate merged** (later pass): the old Draw and Generate
+tabs are one **Create** mode whose Kind picker's first entry is **Freehand**
+(the Paper.js drawing canvas + Close/Smooth), and every other entry is a
+parametric generator (Circle/Poly/Star/Arc/Triangle/Square/Segment/Drop/Blob).
+`S.gen.type === 'freehand'` is the single selector; `geometry()` already
+converged both to one path string. Freehand seeds now serialize the Paper.js
+path (`createPaperDrawEditor().serialize()`/`.load()` in
+`shared/organica-paper.js`) into `form.genParams`, so a saved freehand seed
+re-opens fully editable via `Load seed…` — the same recipe round-trip the
+parametric kinds already had. Seeds saved from the old Draw tab (no
+`genType`) still load as static Import.
 
 **Deliberately not carried over**: the old plain index.html's own decorative
 layer — Palette swatches, Background pattern (dots/waves/hatch/solid),

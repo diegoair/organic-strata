@@ -299,9 +299,8 @@
       <div class="org-tabs" id="mode-tabs" role="group" aria-label="Mode">
         <button class="org-btn" data-mode="library" aria-pressed="true">Library</button>
         <button class="org-btn" data-mode="compose" aria-pressed="false">Compose</button>
-        <button class="org-btn" data-mode="draw" aria-pressed="false">Draw</button>
+        <button class="org-btn" data-mode="create" aria-pressed="false">Create</button>
         <button class="org-btn" data-mode="import" aria-pressed="false">Import</button>
-        <button class="org-btn" data-mode="generate" aria-pressed="false">Generate</button>
       </div>
     </div>
 
@@ -319,7 +318,7 @@
   </header>
 
   <!-- FLOATING TOOLBAR — Undo / Clear, Draw + Import only -->
-  <div class="org-floatbar" id="floatbar" data-modes="draw import" role="toolbar" aria-label="Actions">
+  <div class="org-floatbar" id="floatbar" data-modes="create import" role="toolbar" aria-label="Actions">
     <button class="org-floatbar__btn" id="btn-undo" aria-label="Undo">
       <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 3.5 2 6l2.5 2.5M2 6h7.5a4 4 0 1 1 0 8H8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
@@ -362,7 +361,7 @@
       <div class="form-grid" id="compose-grid" data-modes="compose"></div>
 
       <!-- DRAW / IMPORT / GENERATE: the artboard -->
-      <div class="stage" data-modes="draw import generate">
+      <div class="stage" data-modes="create import">
         <div class="artwrap">
           <svg id="art" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
             <g id="grid-layer"></g>
@@ -473,17 +472,11 @@
       </div>
 
       <!-- ══ DRAW / IMPORT / GENERATE: authoring ══ -->
-      <div data-modes="draw import generate">
+      <div data-modes="create import">
         <!-- SOURCE — mode-specific -->
         <section class="panel-section">
           <span class="panel-section__title">Source</span>
           <button class="upload-btn" id="btn-load-seed" style="margin-bottom:10px">Load seed…</button>
-
-          <!-- DRAW -->
-          <div class="mode-block active" data-mode="draw">
-            <label class="check-row"><input type="checkbox" id="ck-close" checked><span>Close path</span></label>
-            <label class="check-row"><input type="checkbox" id="ck-smooth" checked><span>Smooth (curve)</span></label>
-          </div>
 
           <!-- IMPORT -->
           <div class="mode-block" data-mode="import">
@@ -492,11 +485,15 @@
             <textarea class="paste" id="paste-svg" placeholder="…or paste SVG markup here" aria-label="Paste SVG markup"></textarea>
           </div>
 
-          <!-- GENERATE -->
-          <div class="mode-block" data-mode="generate">
+          <!-- CREATE (Freehand + parametric generators) -->
+          <div class="mode-block active" data-mode="create">
             <div class="panel-row">
               <label class="panel-label">Kind</label>
               <div class="presets u-flex1" id="gen-seg"></div>
+            </div>
+            <div id="row-gen-freehand" style="display:none">
+              <label class="check-row"><input type="checkbox" id="ck-close" checked><span>Close path</span></label>
+              <label class="check-row"><input type="checkbox" id="ck-smooth" checked><span>Smooth (curve)</span></label>
             </div>
             <div class="panel-row" id="row-gen-n">
               <label class="panel-label">Sides</label>
@@ -727,7 +724,7 @@
   const BUILT_IN_SET_ID = 'organic-forms';
   const BASIC_SEEDS_SET_ID = 'basic-seeds';
   const ORGANIC_PREFIX = 'organic-';
-  const CREATOR_MODES = ['draw', 'import', 'generate'];
+  const CREATOR_MODES = ['create', 'import'];
   const $ = id => document.getElementById(id);
   const setStatus = Organica.status();
 
@@ -759,6 +756,8 @@
     underlyingLayer: null,
   };
   const isCreatorMode = () => CREATOR_MODES.indexOf(S.mode) !== -1;
+  // "Freehand" is Kind #1 of the Create-mode generator picker — the old Draw mode.
+  const isFreehand = () => S.mode === 'create' && S.gen.type === 'freehand';
 
   // ═══ Boot ═══════════════════════════════════════════════
   function init() {
@@ -1657,14 +1656,17 @@
     });
     document.querySelectorAll('.mode-block').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
 
-    $('art').classList.toggle('notdraw', mode !== 'draw');
-    $('draw-canvas').classList.toggle('active', mode === 'draw');
-    $('art-hint').style.display = mode === 'draw' ? 'block' : 'none';
+    $('art').classList.toggle('notdraw', !isFreehand());
+    $('draw-canvas').classList.toggle('active', isFreehand());
+    $('art-hint').style.display = isFreehand() ? 'block' : 'none';
     const isImport = mode === 'import';
     $('fill-seg').style.opacity = isImport ? '0.4' : '1';
     $('fill-seg').style.pointerEvents = isImport ? 'none' : 'auto';
+    // Undo only acts on the Paper.js path — hide it outside Freehand (Clear
+    // stays, it also wipes the Import buffer).
+    $('btn-undo').style.display = isFreehand() ? '' : 'none';
 
-    if (mode === 'generate') syncGenerator();
+    if (mode === 'create') syncGenerator();
     if (mode === 'compose') { renderCompose(); syncSetBar(); }
     if (mode === 'library') { renderGrid(state.activeSetId); syncSetBar(); }
     if (mode !== 'compose') { state.compose.selection = null; closePopover(); }
@@ -1694,6 +1696,7 @@
 
   // Small representative icons for the Generate-mode Kind picker.
   const GEN_KIND_REGISTRY = {
+    freehand: { name: 'Freehand', icon: '<svg viewBox="0 0 26 26"><path d="M4 20 C7 8 11 8 13 14 C15 20 19 20 22 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>' },
     circle: { name: 'Circle', icon: '<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="9" fill="currentColor"/></svg>' },
     polygon: { name: 'Poly', icon: '<svg viewBox="0 0 26 26"><polygon points="13,4 21,10 18,20 8,20 5,10" fill="currentColor"/></svg>' },
     star: { name: 'Star', icon: '<svg viewBox="0 0 26 26"><polygon points="13,3 15.8,10.2 23,10.8 17.5,15.5 19.2,22.5 13,18.7 6.8,22.5 8.5,15.5 3,10.8 10.2,10.2" fill="currentColor"/></svg>' },
@@ -1736,7 +1739,7 @@
   function bindArtboard() {
     document.addEventListener('keydown', e => {
       if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
-        if (S.mode === 'draw' && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') {
+        if (isFreehand() && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') {
           e.preventDefault(); drawEditor.undo();
         }
       }
@@ -1747,9 +1750,9 @@
     $('ck-close').addEventListener('change', e => drawEditor.setClosed(e.target.checked));
     $('ck-smooth').addEventListener('change', e => drawEditor.setSmooth(e.target.checked));
 
-    $('btn-undo').addEventListener('click', () => { if (S.mode === 'draw') drawEditor.undo(); });
+    $('btn-undo').addEventListener('click', () => { if (isFreehand()) drawEditor.undo(); });
     $('btn-clear').addEventListener('click', () => {
-      if (S.mode === 'draw') drawEditor.clear();
+      if (isFreehand()) drawEditor.clear();
       S.importInner = null; $('paste-svg').value = ''; renderArt();
     });
 
@@ -1935,7 +1938,17 @@
   }
 
   function loadSeedIntoWorkingShape(form) {
-    if (form.genType) {
+    if (form.genType === 'freehand') {
+      // Restore the serialized Paper.js path — a freehand seed re-opens fully
+      // editable (drag anchors, retune tangents), not as a frozen import.
+      S.gen.type = 'freehand';
+      genKindPicker.setActive('freehand');
+      drawEditor.load(form.genParams || {});
+      $('ck-close').checked = (form.genParams || {}).closed !== false;
+      $('ck-smooth').checked = (form.genParams || {}).smooth !== false;
+      syncGenerator();
+      setMode('create');
+    } else if (form.genType) {
       // Reset to defaults first, THEN merge the saved recipe on top —
       // otherwise a field the saved seed never set would silently keep
       // whatever the previous kind left behind in S.gen.
@@ -1943,7 +1956,7 @@
       genKindPicker.setActive(form.genType);
       syncGenInputsUI();
       syncGenerator();
-      setMode('generate');
+      setMode('create');
     } else {
       const div = document.createElement('div');
       div.innerHTML = form.svg;
@@ -1965,7 +1978,16 @@
 
   function syncGenerator() {
     const t = S.gen.type;
+    const fh = t === 'freehand';
     const show = (id, on) => { $(id).style.display = on ? 'flex' : 'none'; };
+    // Freehand (the old Draw mode) — its own options block, and the Paper.js
+    // drawing chrome over the artboard. Every parametric row below evaluates
+    // false for 'freehand', so they all hide on their own.
+    $('row-gen-freehand').style.display = fh ? 'block' : 'none';
+    $('art').classList.toggle('notdraw', !fh);
+    $('draw-canvas').classList.toggle('active', fh);
+    $('art-hint').style.display = fh ? 'block' : 'none';
+    $('btn-undo').style.display = fh ? '' : 'none';   // Undo only acts on the Paper.js path
     show('row-gen-n', t === 'polygon' || t === 'star');
     show('row-gen-r', t === 'circle' || t === 'polygon' || t === 'star' || t === 'drop' || t === 'blob');
     show('row-gen-thickness', t === 'arc');
@@ -2136,7 +2158,7 @@
   // Inner geometry (before the appearance transform), as an SVG string.
   function geometry() {
     if (S.mode === 'import') return importMarkup();
-    if (S.mode === 'generate') {
+    if (S.mode === 'create' && S.gen.type !== 'freehand') {
       const g = S.gen;
       if (g.type === 'circle') return `<circle cx="100" cy="100" r="${g.r}"/>`;
       if (g.type === 'arc') return `<path d="${arcGenPathD()}"/>`;
@@ -2148,8 +2170,8 @@
       const pts = polyPoints(g.n, g.r, g.type === 'star', g.type === 'polygon' ? g.irregularity : 0, g.seed);
       return `<path d="${g.type === 'polygon' ? roundedPolyPathD(pts, g.corner) : linePathD(pts, true)}"/>`;
     }
-    // draw (also the fall-through for library/compose, where the artboard is
-    // simply not visible — harmless, and keeps the in-progress shape alive)
+    // freehand (also the fall-through for library/compose, where the artboard
+    // is simply not visible — harmless, and keeps the in-progress shape alive)
     if (!drawEditor || drawEditor.getSegmentCount() < 2) return '';
     return `<path d="${drawEditor.getPathData()}"/>`;
   }
@@ -2270,12 +2292,12 @@
   function updateArtStatus(hasShape) {
     if (S.mode === 'import') {
       setStatus(hasShape ? 'active' : '', hasShape ? 'SVG imported' : 'Paste or upload an SVG to begin');
-    } else if (S.mode === 'generate') {
-      const n = (S.gen.type === 'polygon' || S.gen.type === 'star') ? ` (${S.gen.n}-sided)` : '';
-      setStatus('active', `${S.gen.type}${n} seed generated`);
-    } else {
+    } else if (isFreehand()) {
       const n = drawEditor ? drawEditor.getSegmentCount() : 0;
       setStatus(hasShape ? 'active' : '', hasShape ? `${n} points · seed ready` : 'Draw a seed to begin');
+    } else {
+      const n = (S.gen.type === 'polygon' || S.gen.type === 'star') ? ` (${S.gen.n}-sided)` : '';
+      setStatus('active', `${S.gen.type}${n} seed generated`);
     }
   }
 
@@ -2334,12 +2356,18 @@
     if (!set) return;
 
     const form = { id: 'user-' + Date.now(), name: ($('ctrl-name').value.trim() || 'untitled'), svg, type: S.type, builtIn: false };
-    // Generate mode's recipe travels with the saved picture — every consumer
-    // that only reads .svg (FVS, Soul, thumbnails) is unaffected.
-    if (S.mode === 'generate') {
+    // Create mode's recipe travels with the saved picture — every consumer
+    // that only reads .svg (FVS, Soul, thumbnails) is unaffected. Freehand
+    // stores the serialized Paper.js path so it re-opens editable; the
+    // parametric kinds store their S.gen params.
+    if (S.mode === 'create') {
       form.genType = S.gen.type;
-      form.genParams = Object.assign({}, S.gen);
-      delete form.genParams.type;
+      if (S.gen.type === 'freehand') {
+        form.genParams = drawEditor.serialize();
+      } else {
+        form.genParams = Object.assign({}, S.gen);
+        delete form.genParams.type;
+      }
     }
     state.library.forms.push(form);
     if (!set.forms) set.forms = [];
