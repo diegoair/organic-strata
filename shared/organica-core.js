@@ -421,6 +421,84 @@
   };
 
   // ═══════════════════════════════════════════════════════════
+  // DITHER — promoted from Halide (halide/index.html), which had the only
+  // copy. Colornet is the second consumer (its own 'dither' screen mode).
+  // Takes a 0..1 "gray" field, returns a Uint8Array of 0/1 ink flags
+  // (1 = dark = ink). Halide's own local copies now alias these.
+  // ═══════════════════════════════════════════════════════════
+
+  Organica.dither = {};
+
+  // Floyd–Steinberg (1976): classic 4-neighbour error diffusion.
+  Organica.dither.FS_KERNEL = [[1, 0, 7 / 16], [-1, 1, 3 / 16], [0, 1, 5 / 16], [1, 1, 1 / 16]];
+
+  // Atkinson (Bill Atkinson, Apple, 1984): only diffuses 6/8 of the error,
+  // discarding the rest — punchier, higher-contrast than Floyd–Steinberg.
+  Organica.dither.ATKINSON_KERNEL = [[1, 0, 1 / 8], [2, 0, 1 / 8], [-1, 1, 1 / 8], [0, 1, 1 / 8], [1, 1, 1 / 8], [0, 2, 1 / 8]];
+
+  Organica.dither.errorDiffusion = function errorDiffusion(gray, W, H, kernel, serpentine) {
+    const buf = Float32Array.from(gray);
+    const cells = new Uint8Array(W * H);
+    for (let y = 0; y < H; y++) {
+      const ltr = !serpentine || (y % 2 === 0);
+      for (let xi = 0; xi < W; xi++) {
+        const x = ltr ? xi : W - 1 - xi;
+        const i = y * W + x;
+        const old = buf[i];
+        const ink = old < 0.5 ? 1 : 0;
+        cells[i] = ink;
+        const err = old - (ink ? 0 : 1);
+        for (let k = 0; k < kernel.length; k++) {
+          const dx = ltr ? kernel[k][0] : -kernel[k][0];
+          const nx = x + dx, ny = y + kernel[k][1];
+          if (nx < 0 || nx >= W || ny >= H) continue;
+          buf[ny * W + nx] += err * kernel[k][2];
+        }
+      }
+    }
+    return cells;
+  };
+
+  // Bayer ordered dithering: recursive matrix construction, normalised to
+  // a 0..1 threshold and tiled across the field. No error diffusion, so
+  // it's stable/repeatable — the halftone-screen look, no directional
+  // streaking.
+  const _bayerCache = {};
+  Organica.dither.bayerMatrix = function bayerMatrix(n) {
+    if (n === 1) return [[0]];
+    const half = Organica.dither.bayerMatrix(n / 2), s = half.length;
+    const m = Array.from({ length: n }, () => new Array(n));
+    for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
+      const v = half[y][x] * 4;
+      m[y][x] = v; m[y][x + s] = v + 2; m[y + s][x] = v + 3; m[y + s][x + s] = v + 1;
+    }
+    return m;
+  };
+  Organica.dither.bayerThresholds = function bayerThresholds(n) {
+    if (!_bayerCache[n]) {
+      const m = Organica.dither.bayerMatrix(n);
+      const t = new Float32Array(n * n);
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) t[y * n + x] = (m[y][x] + 0.5) / (n * n);
+      _bayerCache[n] = t;
+    }
+    return _bayerCache[n];
+  };
+  Organica.dither.ordered = function ordered(gray, W, H, n) {
+    const th = Organica.dither.bayerThresholds(n);
+    const cells = new Uint8Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      cells[y * W + x] = gray[y * W + x] < th[(y % n) * n + (x % n)] ? 1 : 0;
+    }
+    return cells;
+  };
+
+  Organica.dither.threshold = function threshold(gray, W, H) {
+    const cells = new Uint8Array(W * H);
+    for (let i = 0; i < W * H; i++) cells[i] = gray[i] < 0.5 ? 1 : 0;
+    return cells;
+  };
+
+  // ═══════════════════════════════════════════════════════════
   // FORMAT — aspect-ratio select
   //
   // Komorebi and Camouflage each carried their own copy of this exact
