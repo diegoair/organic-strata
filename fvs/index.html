@@ -189,6 +189,7 @@
         <select class="panel-select" id="sel-seed-type" aria-label="Seed type">
           <option value="triangle">Isosceles triangle</option>
           <option value="arc">Arc</option>
+          <option value="arctruchet">Arc truchet</option>
         </select>
       </div>
       <div id="seed-triangle-block">
@@ -210,6 +211,18 @@
           <span class="ctrl-val" id="v-thickness">100</span>
         </div>
       </div>
+      <div id="seed-arctruchet-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Arc count</div>
+          <input type="range" id="rg-arc-count" min="3" max="12" step="1" value="5">
+          <span class="ctrl-val" id="v-arc-count">5</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Band thickness ÷ gap.">Arc ratio</div>
+          <input type="range" id="rg-arc-ratio" min="10" max="95" step="1" value="70">
+          <span class="ctrl-val" id="v-arc-ratio">70</span>
+        </div>
+      </div>
       <div class="row-btns">
         <button class="mini-btn" id="btn-upload-seed">Upload SVG…</button>
         <button class="mini-btn" id="btn-browse-creator">Creator library…</button>
@@ -221,7 +234,7 @@
       </div>
       <div class="sub-label" style="margin-top:var(--space-3)">Preview — rotation &amp; flip</div>
       <div id="seed-preview" class="fvs-seed-preview" aria-label="Seed transform preview"></div>
-      <p class="org-panel__hint">Base/Height (triangle) and Thickness (arc) default to 100 — the Seed fills its cell exactly, corner to corner, edge to edge. Upload an SVG or pick a Seed saved in Creator (first drawable shape, fitted to the cell). The strip above shows this exact Seed at 0/90/180/270° and each flip, on its own — check it looks right before generating a full grid of it. Colour lives in Palette below.</p>
+      <p class="org-panel__hint">Base/Height (triangle) and Thickness (arc) default to 100 — the Seed fills its cell exactly, corner to corner, edge to edge. Arc truchet is concentric semicircle bands from the top &amp; bottom edges (the bookofshapes "Arc Truchet" tile) — pair it with a Symbol grid + the Oscillator rule. Upload an SVG or pick a Seed saved in Creator (first drawable shape, fitted to the cell). The strip above shows this exact Seed at 0/90/180/270° and each flip, on its own — check it looks right before generating a full grid of it. Colour lives in Palette below.</p>
     </div>
     </div>
 
@@ -723,14 +736,52 @@ function arcGeometry(thicknessPct) {
   return { d: arcPathD(thicknessPct), normTx: 0, normTy: 0, normScale: 1 };
 }
 
+// Concentric semicircular arc bands from the top AND bottom edge midpoints,
+// mirrored into a butterfly — a faithful interpretation of bookofshapes
+// concentric_arc_truchet_3. One compound `d` (each band is its own closed
+// annular half-ring, non-overlapping → no fill-rule needed), so it drops
+// into FVS's one-path-per-cell model unchanged. Inscribed in the 0–100 box
+// (max radius 50, the two fans meet at the centre) — no per-cell clip
+// needed anywhere. `count` = bands per fan; `ratio` = band-thickness ÷ gap.
+function arcTruchetPathD(count, ratio) {
+  count = Math.max(1, Math.round(count == null ? 5 : count));
+  ratio = Math.min(0.95, Math.max(0.1, ratio == null ? 0.7 : ratio));
+  const cx = 50, step = 50 / count, t = step * ratio;
+  const r2 = v => Math.round(v * 1000) / 1000;
+  let d = '';
+  // side −1 = bottom pivot (py=100, opens up); side +1 = top pivot (py=0, opens down).
+  // sweep=1 from left→right bulges UP in SVG's y-down space; the inner arc
+  // travels right→left so it takes the opposite flag to bulge the same way.
+  const fan = (py, side) => {
+    const swOut = side < 0 ? 1 : 0, swIn = side < 0 ? 0 : 1;
+    for (let i = 1; i <= count; i++) {
+      const R = i * step, r = R - t;
+      if (r <= 0.5) {
+        d += `M ${r2(cx - R)},${py} A ${r2(R)},${r2(R)} 0 0 ${swOut} ${r2(cx + R)},${py} Z`;
+      } else {
+        d += `M ${r2(cx - R)},${py} A ${r2(R)},${r2(R)} 0 0 ${swOut} ${r2(cx + R)},${py}`
+          + ` L ${r2(cx + r)},${py} A ${r2(r)},${r2(r)} 0 0 ${swIn} ${r2(cx - r)},${py} Z`;
+      }
+    }
+  };
+  fan(100, -1);
+  fan(0, 1);
+  return d;
+}
+function arcTruchetGeometry(count, ratio) {
+  return { d: arcTruchetPathD(count, ratio), normTx: 0, normTy: 0, normScale: 1 };
+}
+
 const SEED_TYPES = {
   triangle: { label: 'Isosceles triangle', geometry: (p) => triangleGeometry(p.base, p.height) },
   arc: { label: 'Arc', geometry: (p) => arcGeometry(p.thickness) },
+  arctruchet: { label: 'Arc truchet', geometry: (p) => arcTruchetGeometry(p.arcCount, p.arcRatio) },
   custom: {
     label: 'Custom (uploaded)',
     geometry: () => state.customSeed || { d: '', normTx: 0, normTy: 0, normScale: 1 },
   },
 };
+const SYMBOL_ARC_TRUCHET = { arcCount: 5, arcRatio: 0.7 };   // fixed defaults for the Symbols tier
 
 function getSeed() {
   return {
@@ -738,6 +789,8 @@ function getSeed() {
     base: val('rg-base'),
     height: val('rg-height'),
     thickness: val('rg-thickness'),
+    arcCount: val('rg-arc-count'),
+    arcRatio: val('rg-arc-ratio') / 100,
   };
 }
 
@@ -1803,6 +1856,7 @@ function syncSeedUI() {
   const type = ctrl('sel-seed-type').value;
   ctrl('seed-triangle-block').style.display = type === 'triangle' ? '' : 'none';
   ctrl('seed-arc-block').style.display = type === 'arc' ? '' : 'none';
+  ctrl('seed-arctruchet-block').style.display = type === 'arctruchet' ? '' : 'none';
 }
 
 // ── Component Library — save/reload full snapshots (Seed incl. an
@@ -1818,7 +1872,7 @@ function buildLibraryEntry() {
   const comp = getSelectedComponent();
   if (!comp) return null;
   return {
-    seed: { type: ctrl('sel-seed-type').value, base: val('rg-base'), height: val('rg-height'), thickness: val('rg-thickness'), customSeed: state.customSeed },
+    seed: { type: ctrl('sel-seed-type').value, base: val('rg-base'), height: val('rg-height'), thickness: val('rg-thickness'), arcCount: val('rg-arc-count'), arcRatio: val('rg-arc-ratio') / 100, customSeed: state.customSeed },
     grid: getGrid(),
     colors: state.colors.slice(),
     paperColor: state.paperColor,
@@ -1883,6 +1937,8 @@ function applyLibraryEntryToUI(entry) {
   ctrl('rg-base').value = entry.seed.base; ctrl('v-base').textContent = entry.seed.base;
   ctrl('rg-height').value = entry.seed.height; ctrl('v-height').textContent = entry.seed.height;
   ctrl('rg-thickness').value = entry.seed.thickness; ctrl('v-thickness').textContent = entry.seed.thickness;
+  if (entry.seed.arcCount != null) { ctrl('rg-arc-count').value = entry.seed.arcCount; ctrl('v-arc-count').textContent = entry.seed.arcCount; }
+  if (entry.seed.arcRatio != null) { const pct = Math.round(entry.seed.arcRatio * 100); ctrl('rg-arc-ratio').value = pct; ctrl('v-arc-ratio').textContent = pct; }
   syncSeedUI();
 
   if (entry.grid.kind === 'loom') {
@@ -2196,7 +2252,7 @@ function buildSymbolItems() {
         nestedItems, nestedSeed: entry.seed, nestedSize, nestedPaper: entry.paperColor,
       };
     }
-    const geo = SEED_TYPES[cell.seedType].geometry({ base: 100, height: 100, thickness: 100 });
+    const geo = SEED_TYPES[cell.seedType].geometry({ base: 100, height: 100, thickness: 100, ...SYMBOL_ARC_TRUCHET });
     const place = resolveCellPlacement(c.cellW, c.cellH, 100, cell);
     return {
       type: 'seed', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
@@ -2400,7 +2456,7 @@ function generateSymbolCells() {
   const seed = parseInt(ctrl('num-symbol-seed').value, 10) || 0;
   const rng = mulberry32(seed);
   const libNames = Object.keys(LIBRARY.read());
-  const seedTypes = ['triangle', 'arc'];
+  const seedTypes = ['triangle', 'arc', 'arctruchet'];
   const scaleChoices = [0.75, 1, 1.25];
   state.symbolSelection.clear();
   // Fit mode/anchor/padding are deliberately NOT randomized — a chaotic
@@ -2894,8 +2950,8 @@ function renderCellContentOverlayTiles() {
 
   const elWrap = ctrl('symbol-content-overlay__seeds');
   elWrap.innerHTML = '';
-  ['triangle', 'arc'].forEach(type => {
-    const svgStr = buildSeedPreviewSVG({ type, base: 100, height: 100, thickness: 100 }, 0, false, false, 72);
+  ['triangle', 'arc', 'arctruchet'].forEach(type => {
+    const svgStr = buildSeedPreviewSVG({ type, base: 100, height: 100, thickness: 100, ...SYMBOL_ARC_TRUCHET }, 0, false, false, 72);
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
     btn.title = SEED_TYPES[type].label;
@@ -3142,6 +3198,8 @@ function populateSymbolLoomPresets() {
 ctrl('rg-base').addEventListener('input', e => { ctrl('v-base').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-height').addEventListener('input', e => { ctrl('v-height').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-thickness').addEventListener('input', e => { ctrl('v-thickness').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-arc-count').addEventListener('input', e => { ctrl('v-arc-count').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-arc-ratio').addEventListener('input', e => { ctrl('v-arc-ratio').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-cellsize').addEventListener('input', e => { ctrl('v-cellsize').textContent = e.target.value; renderGallery(); });
 ctrl('rg-gap').addEventListener('input', e => { ctrl('v-gap').textContent = e.target.value; renderGallery(); });
 ctrl('rg-random-count').addEventListener('input', e => { ctrl('v-random-count').textContent = e.target.value; });
