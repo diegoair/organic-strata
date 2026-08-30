@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/shared/organica-floatbar.css">
 <link rel="stylesheet" href="/shared/organica-shell.css">
 <link rel="stylesheet" href="/shared/organica-palette.css">
+<link rel="stylesheet" href="/shared/organica-seedspanel.css">
 <style>
   :root {
     --ink: #0a0a0a;
@@ -267,6 +268,7 @@
       <a href="#panel-controls">Select, input &amp; color row</a>
       <a href="#palette-chips">Palette — RMX chip strip</a>
       <a href="#seg-ctrl">Segmented control</a>
+      <a href="#seeds-panel">Seeds panel</a>
     </div>
     <div class="ds-nav__group">
       <div class="ds-nav__title">Actions</div>
@@ -571,6 +573,41 @@ Organica.palette.swatch(<span class="attr">wrapEl</span>, {
   &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"seg-btn active"</span>&gt;A&lt;/<span class="tag">button</span>&gt;
   &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"seg-btn"</span>&gt;B&lt;/<span class="tag">button</span>&gt;
 &lt;/<span class="tag">div</span>&gt;</pre>
+    </section>
+
+    <section class="ds-entry" id="seeds-panel">
+      <h2>Seeds panel</h2>
+      <p class="ds-desc">The tabbed <strong>Genesis / SVG / Text</strong> (optionally <strong>Image</strong>) source picker + Genesis thumbnail grid. Built by <code>Organica.seedsPanel({ target, tabs, genesis, text, applyMode, onSeed, … })</code> — polymorphic on <code>typeof target</code> (element = generate the markup, string = attach to existing). <code>onSeed(result)</code> hands back <strong>both</strong> <code>result.svgString</code> (the canonical vector) and <code>result.descriptor</code> (raw <code>{kind, formId, text, font, imageEl, …}</code>) so each tool adapts whichever it needs. Custom tabs via <code>slots</code>, tool rows via <code>subControls</code> / <code>extraControls</code>, <code>genesis.bakeGeometry</code> for CSS-driven form geometry, <code>applyMode: 'manual'</code> when the tool has its own Apply step, two panels per page via distinct <code>idPrefix</code>. <code>.seg-ctrl</code> / <code>.upload-btn</code> come from <code>organica-panel.css</code>; this component's sheet carries only the grid.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-seedspanel.css</span><span>shared/organica-seedspanel.js</span><strong>Used in</strong><span>Soul, Membrane, Camo Turing</span><span>Living Path (<code>.PRIMORDIAL</code> only)</span></div>
+      <div class="ds-example" style="max-width:280px">
+        <div class="seeds-panel">
+          <div class="ctrl-row">
+            <div class="seg-ctrl">
+              <button class="seg-btn active">Genesis</button>
+              <button class="seg-btn">SVG</button>
+              <button class="seg-btn">Text</button>
+            </div>
+          </div>
+          <div class="shape-grid">
+            <div class="shape-thumb active"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13"/></svg><span class="thumb-num">7</span></div>
+            <div class="shape-thumb"><svg viewBox="0 0 40 40"><rect x="8" y="8" width="24" height="24"/></svg><span class="thumb-num">1</span></div>
+            <div class="shape-thumb"><svg viewBox="0 0 40 40"><path d="M20 6 L34 34 L6 34 Z"/></svg><span class="thumb-num">2</span></div>
+            <div class="shape-thumb"><svg viewBox="0 0 40 40"><circle cx="14" cy="20" r="7"/><circle cx="26" cy="20" r="7"/></svg><span class="thumb-num">14</span></div>
+          </div>
+          <button class="upload-btn">+ Upload SVG</button>
+        </div>
+      </div>
+      <pre class="ds-code"><span class="attr">/* markup is generated — you supply the host element */</span>
+&lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"seeds-host"</span>&gt;&lt;/<span class="tag">div</span>&gt;
+
+Organica.seedsPanel({
+  target: ctrl(<span class="str">'seeds-host'</span>),
+  tabs: [<span class="str">'genesis'</span>, <span class="str">'svg'</span>, <span class="str">'text'</span>],
+  genesis: { forms: Organica.seedsPanel.PRIMORDIAL },
+  text: { perGlyph: <span class="attr">true</span> },
+  applyMode: <span class="str">'immediate'</span>,
+  onSeed: r =&gt; { <span class="attr">if</span> (r.svgString) loadSVG(r.svgString); }
+});</pre>
     </section>
 
     <!-- ═══════════════════ ACTIONS ═══════════════════ -->
