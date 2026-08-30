@@ -521,12 +521,13 @@ Honest list of where the tools still disagree:
   as of the Aug 27, 2026 merge — just this one still-divergent shell.)
 - **Living Path** is fully retrofitted onto the shared panel component via
   its own documented aliases (`.sec`/`.row`/`.group-label`).
-- **`syncColor()`** — resolved 2026-08-30. All 14 colour-picker tools now use the
-  shared Palette component (`Organica.palette.swatch`, `shared/organica-palette.js` +
-  `organica-palette.css`); the `createColorSwatch` / `createPaletteChips` /
-  `Organica.Palette.colorAt` back-compat aliases were removed. Remaining Palette
-  Phase-3 items (Membrane/Camo-Turing colour math, Vortex `.color-*` sizes,
-  livingpath's bare `<input>`) are tracked in `SHARED-COMPONENTS.md` §3.
+- **`syncColor()`** — resolved 2026-08-30. Every production colour-picker tool now
+  uses the shared Palette component (`Organica.palette.swatch`,
+  `shared/organica-palette.js` + `organica-palette.css`); the `createColorSwatch` /
+  `createPaletteChips` / `Organica.Palette.colorAt` aliases were removed. Membrane's
+  `rmxColorAt` and Camo Turing's export `rmxLerpColor` deliberately stay separate
+  (different colour lineage — see `SHARED-COMPONENTS.md` §3). Only `shared/_template.html`
+  still carries the old hand-rolled `syncColor`.
 - **Zoom/pan** is available in `organica-core.js` but Spore, Pollen and Halide
   still run their own inline copies — migrating them is safe but untested, so
   it is left as a follow-up rather than done blind.

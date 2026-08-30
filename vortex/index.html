@@ -43,16 +43,8 @@
 
   #panel { width: var(--panel-w, 248px); flex-shrink: 0; background: var(--panel); border-left: 1px solid var(--border); overflow-y: auto; }
 
-  /* .icon-btn + .rmx-* chip CSS now in shared/organica-palette.css.
-     The .color-* overrides below stay tool-local for now (26×22 swatch,
-     70px mono hex) — a Phase 2 cleanup will reconcile them with the shared
-     18×18 .color-* in organica-panel.css. */
-  .color-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
-  .color-name { flex: 1; font-size: var(--fs-small); color: var(--mid); }
-  .color-swatch-wrap { position: relative; width: 26px; height: 22px; }
-  .color-swatch { position: absolute; inset: 0; width: 100%; height: 100%; border: 1px solid var(--border); padding: 0; cursor: pointer; background: var(--bg-swatch, #060606); }
-  .color-swatch-wrap input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; cursor: pointer; }
-  .color-hex { width: 70px; font-family: monospace; font-size: var(--fs-micro); background: var(--paper); border: 1px solid var(--border); color: var(--ink); padding: var(--space-1) var(--space-2); }
+  /* .icon-btn + .rmx-* chip CSS and the .color-* row are all shared now
+     (organica-palette.css / organica-panel.css). No local overrides. */
 </style>
 </head>
 <body>

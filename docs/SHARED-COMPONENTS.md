@@ -94,13 +94,14 @@ cell; Spore/Pollen set `--rmx-palette-mb: 0`).
 | spore | ✅ | ✅ | ✅ `mark/bg` | ✅ | ✅ |
 | pollen | ✅ | ✅ | ✅ `ink/bg` | ✅ | ✅ |
 | membrane | ✅ | ✅ | ✅ `ink/bg` | ✅ | — (`js/color.js rmxColorAt` — Phase 3) |
-| vortex | ✅ | ✅ | ✅ `bg` | ✅ | n/a (index cycle) |
+| vortex | ✅ | ✅ | ✅ `bg` (shared `.color-*`, no local overrides) | ✅ | n/a (index cycle) |
+| livingpath | ✅ | — | ✅ `ink`,`bg` | — | — |
 | fvs | ✅ | ✅ | ✅ `paper` | ✅ (min 1) | n/a (index cycle) |
 | tunesutra | ✅ | ✅ | — (bespoke RGB/HSB role editor) | ✅ (min 3 / max 7, `(colors,index,kind)` onChange, `setActive` for the active chip) | n/a |
 | colornet | ✅ | — | ✅ `bg` | — (bespoke `.chan-card` channel list) | ✅ |
 | pulsar | ✅ | — | ✅ `ink/paper` | — | — |
 | design-system | — | ✅ (demo) | — | — | — |
-| genesis, loom, soul, mycel, rhizome, livingpath, hub | — | — | (livingpath: bare `<input>` — Phase 3) | — | — |
+| genesis, loom, soul, mycel, rhizome, hub | — | — | no colour UI | — | — |
 
 The back-compat aliases (`Organica.createColorSwatch` / `createPaletteChips` /
 `Organica.Palette.colorAt`) were **removed 2026-08-30** once every call site migrated.
@@ -111,13 +112,14 @@ The back-compat aliases (`Organica.createColorSwatch` / `createPaletteChips` /
 
 | Concern | State today | Canonical target |
 |---|---|---|
-| **Palette Phase 3** | Membrane `js/color.js rmxColorAt` keeps private tone/posterize/random/tonernd math (its `tonernd` is a smooth lerp, `colorAt`'s is a discrete stop — output would shift); Camo Turing's JS SVG-export `rmxLerpColor` lerps in THREE.Color space (linear when `ColorManagement` is on) vs `palette.mix`'s sRGB lerp — intermediate band colours could shift; Vortex re-declares `.color-*` at 26×22 (a real visual change to adopt the shared 18×18); livingpath uses a bare `<input type=color>` + read-only `.val` span (adopting `palette.swatch` adds a swatch button + editable hex it never had). Each needs a screenshot/output sign-off. *(TuneSutra's `setActive` migration — done 2026-08-30.)* | `Organica.palette.colorAt` / `.swatch` |
+| **Palette** | Done 2026-08-30: all 14 colour-picker tools on `Organica.palette.swatch`, aliases removed, TuneSutra `setActive`, Vortex `.color-*` overrides dropped (adopts shared 18×18), livingpath's bare `<input>` → `.color-row` + `palette.swatch`. | — |
+| ~~Membrane `rmxColorAt` / Camo Turing `rmxLerpColor`~~ | **Not drift — a different colour lineage, kept separate on purpose.** Both port Camo Turing's *GLSL* `rmxColor()` (posterize = `floor`; tonernd = smooth lerp, ±1.5; Camo's lerp is in the renderer's linear working space to match `DISPLAY_FRAG`). `Organica.palette.colorAt` is the *Pollen* lineage (posterize = `round`; tonernd = discrete stop, ±1.2; sRGB lerp). Merging them would shift Membrane's RMX output and break Camo's SVG-vs-canvas match. Comments in both files now say so. | — |
 | zoom/pan | Spore, Pollen, Halide run inline copies (`UI-SHELL` §7) | `Organica.createZoomPan` (already in core) |
-| `mulberry32` | core (canonical) + `organica-transformer.js` + ~9 inline tool copies | depend on `Organica.mulberry32` |
+| `mulberry32` | core (canonical) + ~9 inline tool copies. (`organica-transformer.js`'s copy is a deliberate guarded fallback — `Organica.mulberry32 ? … : mulberry32Fallback` — so it works standalone; leave it.) | depend on `Organica.mulberry32` |
 | Seeds panel (tabbed Genesis/SVG/Text source picker) | Camo Turing + Soul + Pulsar-adjacent all hand-roll the tab strip + shape grid | new `Organica.seedsPanel` |
 | file drop-zone / `.upload-btn` | ~5 tools, each with a "not in organica-panel.css" comment | shared `.upload-zone` in `organica-panel.css` |
 | floatbar video/PNG export (`canvas.captureStream` + `MediaRecorder`) | Soul, Camo Turing, Membrane, Vortex, Pulsar repeat the recorder + MIME-fallback dance | new `Organica.recorder` |
-| `syncColor` single-swatch | **done** (2026-08-30) — folded into `Organica.palette.swatch` attach mode | — |
+| `syncColor` single-swatch | **done** (2026-08-30) — every production tool folded into `Organica.palette.swatch` attach mode. `shared/_template.html` still ships the old hand-rolled `syncColor` + a bare `input[type=color]` rule — update the scaffold when a new tool is next started from it. | scaffold only |
 
 ---
 

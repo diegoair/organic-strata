@@ -3145,6 +3145,11 @@ function hash1JS(x, y) {
 }
 // JS mirror of paletteAt()+the Tone mix — continuous position p in
 // [0, colors.length-1] across an arbitrary-length palette.
+// Deliberately NOT Organica.palette.mix / palette.colorAt: THREE.Color.lerp
+// interpolates in the renderer's working (linear) colour space — same as
+// DISPLAY_FRAG's own mix() — so the SVG export's band colours match the
+// WebGL canvas. palette.mix lerps raw sRGB components, which would drift
+// the mid-band colours away from what the shader shows.
 function rmxLerpColor(colors, p) {
   const count = colors.length;
   if (count <= 1) return colors[0];

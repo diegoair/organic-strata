@@ -175,8 +175,8 @@
   /* Shared text-field style — was duplicated verbatim (font/size/padding/
      border/radius/background/color) on every .row input in this panel. */
   .field{flex:1; font-family:var(--font); font-size:var(--fs-medium); padding:var(--space-2) var(--space-3); border:1px solid var(--line); border-radius:var(--radius-lg); background:var(--card); color:var(--ink)}
-  .swatch{display:flex; align-items:center; gap:var(--space-3)}
-  .swatch input[type=color]{width:30px; height:24px; border:1px solid var(--line); border-radius:var(--radius-md); background:none; cursor:pointer; padding:0}
+  /* Ink/Paper colour rows use the shared .color-* component (organica-panel.css)
+     + Organica.palette.swatch. */
   ::-webkit-scrollbar{width:9px;height:9px}
   ::-webkit-scrollbar-thumb{background:rgba(10,10,10,.14); border-radius:var(--radius-md)}
 </style>
@@ -324,15 +324,21 @@
     </div>
     <div class="sec">
       <h3>Source view</h3>
-      <div class="swatch row mb-4">
-        <label style="flex:0 0 86px">Ink</label>
-        <input type="color" id="cInk" value="#0a0a0a">
-        <span class="val u-flex1" id="cInkV" style="text-align:left">#0a0a0a</span>
+      <div class="color-row">
+        <span class="color-name">Ink</span>
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-ink"></button>
+          <input type="color" id="cp-ink" value="#0a0a0a">
+        </span>
+        <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7">
       </div>
-      <div class="swatch row">
-        <label style="flex:0 0 86px">Paper</label>
-        <input type="color" id="cBg" value="#f5f2ec">
-        <span class="val u-flex1" id="cBgV" style="text-align:left">#f5f2ec</span>
+      <div class="color-row">
+        <span class="color-name">Paper</span>
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-bg"></button>
+          <input type="color" id="cp-bg" value="#f5f2ec">
+        </span>
+        <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7">
       </div>
     </div>
   </aside>
@@ -340,6 +346,7 @@
 
 <!-- core BEFORE the tool script, per docs/UI-SHELL.md -->
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-palette.js"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -1188,7 +1195,7 @@ let CACHE=null, rasterTimer=null;
 function repaint(){
   if(!SRC){ board.classList.remove('show'); empty.hidden=false; return; }
   empty.hidden=true; board.classList.add('show');
-  const ink=$('#cInk').value, bg=$('#cBg').value;
+  const ink=$('#cp-ink').value, bg=$('#cp-bg').value;
   board.style.background=bg;
   const out=CACHE; if(!out) return;
   const ghost = (SRC_KIND==='font' && TYPED_GHOST) ? TYPED_GHOST : SRC.subs;
@@ -1270,7 +1277,7 @@ async function fetchWikiText(lang){
 function renderSpecimen(){
   const subs=buildSpecimenSubs();
   CACHE=subs;
-  const ink=$('#cInk').value, bg=$('#cBg').value;
+  const ink=$('#cp-ink').value, bg=$('#cp-bg').value;
   board.style.background=bg; board.classList.add('show'); empty.hidden=true;
   board.innerHTML = (subs&&subs.length)
     ? (showOutline
@@ -1425,7 +1432,7 @@ function buildGenesis(){
 //  EXPORT
 // ============================================================
 function currentSVGString(scale=1){
-  const ink=$('#cInk').value, bg=$('#cBg').value;
+  const ink=$('#cp-ink').value, bg=$('#cp-bg').value;
   const out=CACHE||computed();
   const W=1000*scale;
   const shape=showOutline
@@ -1691,14 +1698,14 @@ h1{font-size:12vw;margin:0 0 .2em;line-height:.9}p{font-size:4vw;line-height:1.3
 }
 // project save/load (.lvp = JSON of the whole setup)
 function projectJSON(){
-  return JSON.stringify({v:1, tech:TECH, groups:GROUPS, chain:CHAIN, ink:$('#cInk').value, bg:$('#cBg').value, text:$('#fontText').value, name:$('#exName').value});
+  return JSON.stringify({v:1, tech:TECH, groups:GROUPS, chain:CHAIN, ink:$('#cp-ink').value, bg:$('#cp-bg').value, text:$('#fontText').value, name:$('#exName').value});
 }
 function loadProject(txt){
   const p=JSON.parse(txt); if(!p.groups) throw new Error('not a .lvp');
   GROUPS.vector=p.groups.vector||[newGroup()]; GROUPS.raster=p.groups.raster||[newGroup()];
   TECH=p.tech==='raster'?'raster':'vector';
-  if(p.ink){ $('#cInk').value=p.ink; $('#cInkV').textContent=p.ink; }
-  if(p.bg){ $('#cBg').value=p.bg; $('#cBgV').textContent=p.bg; }
+  if(p.ink) swatches.ink.set(p.ink);
+  if(p.bg) swatches.bg.set(p.bg);
   if(p.name) $('#exName').value=p.name;
   $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.tech===TECH));
   CHAIN=!!p.chain;
@@ -1778,7 +1785,9 @@ $('#specNew').addEventListener('click',async function(){
 $('#tgOrig').addEventListener('click',function(){ showOrig=!showOrig; this.classList.toggle('on',showOrig); repaint(); });
 $('#tgOutline').addEventListener('click',function(){ showOutline=!showOutline; this.classList.toggle('on',showOutline); repaint(); });
 $('#tgNodes').addEventListener('click',function(){ showNodes=!showNodes; this.classList.toggle('on',showNodes); repaint(); });
-['cInk','cBg'].forEach(id=>$('#'+id).addEventListener('input',e=>{ $('#'+id+'V').textContent=e.target.value; repaint(); }));
+// Ink/Paper — the shared Palette component (attach mode).
+const swatches = {};
+['ink','bg'].forEach(k=>{ swatches[k]=Organica.palette.swatch(k,{ initial:$('#hex-'+k).value, onChange: repaint }); });
 
 // close the preset menu on outside click, scroll (fixed menu) or resize.
 // The scroll listener is on .panel.right with capture:true so it also

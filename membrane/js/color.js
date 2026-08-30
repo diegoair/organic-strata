@@ -66,6 +66,12 @@ function hash1(n) {
 // curve/path (i/n, 0..1 — exactly what Rainbow already uses for its hue
 // cycle); `seedIndex` drives the Random/Tone+Random hash so the jitter
 // is index-stable rather than re-rolled every frame.
+//
+// NOT the same as Organica.palette.colorAt: this is the Camo-Turing-GLSL
+// colour lineage (posterize = floor(scaled); tonernd = smooth lerp,
+// ±1.5 jitter), where palette.colorAt is the Pollen lineage (posterize =
+// round; tonernd = discrete stop, ±1.2). Kept separate on purpose so
+// Membrane's RMX output matches Camo Turing's, not Pollen's.
 export function rmxColorAt(t, colors, mapping, seedIndex) {
   const count = colors.length;
   if (count <= 1) return hexToRgb(colors[0] || '#888888');
