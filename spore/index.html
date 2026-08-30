@@ -82,20 +82,8 @@
     border: 1px solid rgba(10,10,10,0.2); background: var(--panel); display: block;
   }
 
-  .upload-mark-btn {
-    width: 100%;
-    font-family: var(--font);
-    font-size: var(--fs-micro);
-    letter-spacing: 0.1em;
-    border: 1px dashed var(--border);
-    background: none;
-    color: var(--mid);
-    padding: var(--space-3);
-    cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
-  }
-
-  .upload-mark-btn:hover { border-color: var(--accent); color: var(--accent); }
+  /* .upload-btn base is in organica-panel.css; Spore's delta (same as Pollen's): */
+  .upload-btn { font-size: var(--fs-micro); letter-spacing: 0.1em; }
 
   /* Color mode */
   .color-mode-grid {
@@ -244,7 +232,7 @@
       <h3>Symbols</h3>
       <div class="preview-wrap"><canvas id="symbol-preview" width="200" height="200"></canvas></div>
       <div id="mark-grid"></div>
-      <button class="upload-mark-btn" onclick="document.getElementById('mark-upload-input').click()">+ Upload SVG mark</button>
+      <button class="upload-btn" onclick="document.getElementById('mark-upload-input').click()">+ Upload SVG mark</button>
     </div>
 
     <!-- STIPPLING -->

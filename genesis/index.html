@@ -247,7 +247,10 @@
     .btn-primary { width: 100%; font-size: var(--fs-sm); padding: 9px; background: var(--ink); color: var(--bg); border: 1px solid var(--ink); cursor: pointer; font-family: var(--font); }
     .btn-primary:hover { background: #000; }
     .btn-primary:disabled { opacity: 0.4; cursor: default; }
-    .upload-btn { width: 100%; font-size: var(--fs-xs); border: 1px dashed var(--border); background: none; color: var(--ink-muted); padding: 8px; cursor: pointer; font-family: var(--font); margin-bottom: 8px; }
+    /* .upload-btn base is in organica-panel.css (byte-identical to Genesis's old
+       values: --fs-xs==--fs-small, --ink-muted==--mid, 8px==--space-3). Genesis
+       keeps its softer hover + a bottom margin. */
+    .upload-btn { margin-bottom: var(--space-3); }
     .upload-btn:hover { border-color: var(--border-strong); color: var(--ink); }
     .btn-icon { width: 24px; height: 24px; background: transparent; border: 1px solid var(--border); color: var(--ink-muted); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; line-height: 1; transition: all 0.1s; }
     .btn-icon:hover { border-color: var(--border-strong); color: var(--ink); }
