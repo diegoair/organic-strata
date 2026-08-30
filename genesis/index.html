@@ -69,33 +69,21 @@
 
     .app {
       display: grid;
-      grid-template-columns: var(--panel-width-left) 1fr;
+      grid-template-columns: 1fr;
       grid-template-rows: calc(100vh - var(--header-h));
       height: calc(100vh - var(--header-h));
       overflow: hidden;
     }
-    .app.app--create { grid-template-columns: var(--panel-width-left) 1fr var(--panel-width-right); }
+    .app.app--create { grid-template-columns: 1fr var(--panel-width-right); }
 
-    /* ─── Left: Sets panel ──────────────────────────────────── */
-    .sets-panel { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
-    .sets-panel__header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); }
-    .sets-panel__title { font-size: var(--fs-sm); font-weight: 500; color: var(--ink-muted); }
-    .sets-list { list-style: none; overflow-y: auto; flex: 1; padding: 8px 0; }
-    .set-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; cursor: pointer; transition: background 0.1s; font-size: var(--fs-sm); }
-    .set-item:hover { background: var(--surface-raised); }
-    .set-item.active { background: var(--surface-raised); border-left: 2px solid var(--accent); padding-left: 14px; }
-    .set-item__name { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .set-item__count { font-size: var(--fs-xs); color: var(--ink-muted); background: var(--border); padding: 1px 6px; border-radius: 10px; flex-shrink: 0; margin-left: 8px; }
-    .set-item--new-input { padding: 6px 12px; }
-    .set-name-input { width: 100%; background: var(--bg); border: 1px solid var(--ink); color: var(--ink); font-size: var(--fs-sm); font-family: var(--font); padding: 4px 8px; outline: none; }
-    .sets-panel__foot { border-top: 1px solid var(--border); padding: 10px 16px; }
+    /* Sets picker — lives inline in the Library filter bar */
+    .lib-filters .seg--sets .seg-btn .n { opacity: .45; margin-left: 5px; font-variant-numeric: tabular-nums; }
+    .lib-filters #btn-new-set { width: 24px; height: 24px; background: transparent; border: 1px solid var(--border); color: var(--ink-muted); cursor: pointer; font-size: 15px; line-height: 1; display: flex; align-items: center; justify-content: center; border-radius: 5px; }
+    .lib-filters #btn-new-set:hover { border-color: var(--border-strong); color: var(--ink); }
+    .set-name-input { width: 120px; background: var(--bg); border: 1px solid var(--ink); color: var(--ink); font-size: var(--fs-xs); font-family: var(--font); padding: 4px 8px; outline: none; }
 
     /* ─── Main: canvas area ─────────────────────────────────── */
     .canvas-area { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); min-width: 0; }
-    .set-bar { height: var(--toolbar-height); display: flex; align-items: baseline; gap: 10px; padding: 0 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-    .set-bar__name { font-size: var(--fs-md); font-weight: 500; color: var(--ink); align-self: center; }
-    .set-bar__count { font-size: var(--fs-xs); color: var(--ink-muted); align-self: center; }
-    .set-bar__spacer { flex: 1; }
 
     /* ─── Filter bar (Library) ──────────────────────────────── */
     .lib-filters { display: flex; flex-wrap: wrap; gap: 18px; align-items: center;
@@ -274,7 +262,6 @@
     [data-modes] { display: none; }
     [data-modes].on { display: block; }
     .form-grid[data-modes].on { display: grid; }
-    .set-bar[data-modes].on { display: flex; }
     .lib-filters[data-modes].on { display: flex; }
     .stage[data-modes].on { display: flex; }
     .design-panel[data-modes].on { display: flex; }
@@ -318,30 +305,19 @@
 
   <div class="app">
 
-    <!-- LEFT: Sets sidebar — navigation, not controls, so it stays on the
-         left in every mode (docs/UI-SHELL.md §4c's documented exception). -->
-    <aside class="sets-panel">
-      <div class="sets-panel__header">
-        <span class="sets-panel__title">Sets</span>
-        <button class="btn-icon" id="btn-new-set" aria-label="New set">+</button>
-      </div>
-      <ul class="sets-list" id="sets-list"></ul>
-    </aside>
-
     <!-- MAIN -->
     <main class="canvas-area">
 
       <!-- Hidden SVG defs container — defs.js content injected here -->
       <div id="svg-defs-container" style="position:absolute;width:0;height:0;overflow:hidden;"></div>
 
-      <div class="set-bar" data-modes="library">
-        <span class="set-bar__name" id="set-bar-name">Base Seeds</span>
-        <span class="set-bar__count" id="set-bar-count">— seeds</span>
-        <span class="set-bar__spacer"></span>
-      </div>
-
       <!-- LIBRARY: filter bar + responsive tile grid -->
       <div class="lib-filters" data-modes="library">
+        <div class="lib-filters__group">
+          <span class="lib-filters__key">Sets</span>
+          <div class="seg seg--sets" data-filter="set" id="sets-seg"></div>
+          <button id="btn-new-set" aria-label="New set">+</button>
+        </div>
         <div class="lib-filters__group">
           <span class="lib-filters__key">Source</span>
           <div class="seg" data-filter="source">
@@ -817,17 +793,16 @@
 
   // ═══ Sets list ══════════════════════════════════════════
   function renderSetsList() {
-    const list = $('sets-list');
-    list.innerHTML = '';
+    const seg = $('sets-seg');
+    seg.innerHTML = '';
     state.library.sets.forEach(set => {
       const count = getFormsForSet(set.id).length;
-      const li = document.createElement('li');
-      li.className = 'set-item' + (set.id === state.activeSetId ? ' active' : '');
-      li.dataset.setId = set.id;
-      li.innerHTML = '<span class="set-item__name">' + escapeHtml(set.name) + '</span>' +
-                     '<span class="set-item__count">' + count + '</span>';
-      li.addEventListener('click', () => activateSet(set.id));
-      list.appendChild(li);
+      const btn = document.createElement('button');
+      btn.className = 'seg-btn' + (set.id === state.activeSetId ? ' active' : '');
+      btn.dataset.setId = set.id;
+      btn.innerHTML = escapeHtml(set.name) + '<span class="n">' + count + '</span>';
+      btn.addEventListener('click', () => activateSet(set.id));
+      seg.appendChild(btn);
     });
   }
 
@@ -838,18 +813,9 @@
     state.openDetailFormId = null;
     state.filter = { source: 'all', type: 'all' };
     syncFilterUI();
-    document.querySelectorAll('.set-item').forEach(li => li.classList.toggle('active', li.dataset.setId === setId));
+    renderSetsList();
     renderGrid();
-    syncSetBar();
     if (!isCreatorMode()) updateModeStatus();
-  }
-
-  function syncSetBar() {
-    const set = getSet(state.activeSetId);
-    if (!set) return;
-    const n = getFormsForSet(state.activeSetId).length;
-    $('set-bar-name').textContent = set.name;
-    $('set-bar-count').textContent = n + (n === 1 ? ' seed' : ' seeds');
   }
 
   // ═══ Library grid ═══════════════════════════════════════
@@ -1053,6 +1019,7 @@
     $('form-grid'); // noop guard
     document.querySelectorAll('.lib-filters .seg').forEach(seg => {
       const key = seg.dataset.filter;
+      if (key === 'set') return;   // set picker manages its own active state
       const cur = key === 'density' ? state.density : state.filter[key];
       seg.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === cur));
     });
@@ -1063,6 +1030,7 @@
       seg.addEventListener('click', e => {
         const btn = e.target.closest('.seg-btn'); if (!btn) return;
         const key = seg.dataset.filter, v = btn.dataset.v;
+        if (key === 'set') return;   // per-button listener calls activateSet
         if (key === 'density') {
           state.density = v;
           localStorage.setItem('organica.library.density', v);
@@ -1091,28 +1059,28 @@
   }
 
   function showNewSetInput() {
-    const list = $('sets-list');
-    const li = document.createElement('li');
-    li.className = 'set-item set-item--new-input';
+    const btn = $('btn-new-set');
+    if (btn.previousElementSibling && btn.previousElementSibling.classList.contains('set-name-input')) {
+      btn.previousElementSibling.focus(); return;
+    }
     const input = document.createElement('input');
     input.className = 'set-name-input';
     input.placeholder = 'Set name…';
     input.type = 'text';
     input.setAttribute('aria-label', 'New set name');
-    li.appendChild(input);
-    list.appendChild(li);
+    btn.before(input);
     input.focus();
 
     let done = false;
     const commit = () => {
       if (done) return; done = true;
       const name = input.value.trim();
-      li.remove();
+      input.remove();
       if (name) createNewSet(name);
     };
     input.addEventListener('keydown', e => {
       if (e.key === 'Enter') commit();
-      if (e.key === 'Escape') { done = true; li.remove(); }
+      if (e.key === 'Escape') { done = true; input.remove(); }
       e.stopPropagation();   // don't let Escape/Backspace reach the global handlers
     });
     input.addEventListener('blur', commit);
@@ -1186,7 +1154,7 @@
     $('btn-undo').style.display = isFreehand() ? '' : 'none';
 
     if (mode === 'create') { syncGenerator(); syncImportUI(); }
-    if (mode === 'library') { renderGrid(); syncSetBar(); }
+    if (mode === 'library') { renderGrid(); renderSetsList(); }
 
     if (isCreatorMode()) renderArt(); else updateModeStatus();
   }

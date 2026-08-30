@@ -404,9 +404,9 @@ Presets + Effect stack on the right). Both were consolidated: the stage gets
 the full width, and the panel reads top-to-bottom as *what you load → what you
 apply → what you inspect*.
 
-Genesis keeps a left column, deliberately — it lists **sets**, which is
-navigation, not controls. The rule is about where controls live, not about
-banning left columns.
+Genesis has no left column — Library is a single scrolling grid under one
+filter bar (the set picker included). *(It kept a left "Sets" sidebar until
+Aug 30, 2026, when the picker + "new set" moved inline into the filter bar.)*
 
 ---
 
@@ -418,17 +418,19 @@ to be three separate pages; they merged into `genesis/index.html` on Aug 27,
 **Aug 30, 2026** Genesis dropped its role as a motion catalog and became the
 **seed library, plainly** — a 2-mode tool:
 
-- **Library** (the home) — `.app` is `[sets sidebar | grid]`, two columns, no
-  right panel. Left column lists **sets**; centre is a **filter bar** (Source:
-  All/Organic/Primitives/My seeds · Type: All/Asset/Variant/Mask/Container ·
-  Density: Cozy/Comfortable/Airy) over a responsive auto-fill tile grid. The
-  built-in **Base Seeds** set = 13 organic forms + 6 procedural primitives,
-  both synthesized (never stored). **Single-click** a tile → a full-row inline
-  **detail card** (preview, name, facts `<dl>`, Edit/Duplicate/Delete). **Double-
-  click** → opens the seed in Create (forks built-ins). Density persists in
-  `localStorage['organica.library.density']`.
-- **Create** — `.app` gains a third column (`.app--create` →
-  `[sets | stage | panel]`); the right panel is Create-only. One authoring door:
+- **Library** (the home) — `.app` is a single column (`1fr`), no side panels.
+  One **filter bar** across the top: a **Sets** picker (segmented buttons per
+  set + count, `+` to make a new one) then Source (All/Organic/Primitives/My
+  seeds) · Type (All/Asset/Variant/Mask/Container) · Density
+  (Cozy/Comfortable/Airy), over a responsive auto-fill tile grid. The active
+  set + its count also show in the shared header status line. The built-in
+  **Base Seeds** set = 13 organic forms + 6 procedural primitives, both
+  synthesized (never stored). **Single-click** a tile → a full-row inline
+  **detail card** (preview, name, facts `<dl>`, Edit/Duplicate/Delete).
+  **Double-click** → opens the seed in Create (forks built-ins). Density
+  persists in `localStorage['organica.library.density']`.
+- **Create** — `.app` becomes `[stage | panel]` (`.app--create` →
+  `1fr var(--panel-width-right)`); the right panel is Create-only. One authoring door:
   Draw (Paper.js freehand) / Generate (parametric kinds) / **Import** (an
   always-visible "Import SVG" section — upload or paste — folded in from the
   old separate Import mode). Save mints a `user-…` seed; forking a built-in
@@ -583,10 +585,10 @@ Honest list of where the tools still disagree:
   "Panel width — 240 vs 244 vs 260" item (one `--panel-w: 248px` token in
   `panel.css`) and the "Zoom/pan CSS still inline in Spore /
   Pollen / Halide" item.
-- **Genesis** uses a different shell entirely (left sets panel + centre grid,
-  + right design panel in Create mode only — `.app` / `.app--create` swap the
-  column count). It predates this template; converging it is a bigger job than
-  a rename.
+- **Genesis** uses a different shell entirely (Library = one full-width grid
+  under a filter bar; Create adds a right design panel — `.app` / `.app--create`
+  swap the column count). It predates this template; converging it is a bigger
+  job than a rename.
 - **Living Path** is fully retrofitted onto the shared panel component via
   its own documented aliases (`.sec`/`.row`/`.group-label`).
 - **`syncColor()`** — resolved 2026-08-30. Every production colour-picker tool now
