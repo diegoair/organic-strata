@@ -457,6 +457,7 @@
 <!-- Core BEFORE noise, noise BEFORE radial, radial BEFORE the tool script. -->
 <script src="/shared/organica-core.js"></script>
 <script src="/shared/organica-palette.js"></script>
+<script src="/shared/organica-recorder.js"></script>
 <script src="/shared/organica-noise.js"></script>
 <script src="/shared/organica-radial.js"></script>
 <script>
@@ -1106,42 +1107,12 @@ function exportPNG() {
   setStatus('active', c.width + '×' + c.height + ' · PNG saved');
 }
 
-let recording = false, rec = null, recChunks = [], recTimer = 0;
-function toggleRecording() {
-  if (recording) { stopRecording(); return; }
-  const secs = loopSec > 0 ? loopSec : 6;
-  const stream = pcanvas.captureStream(30);
-  const mime = ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9', 'video/webm'].find(m => {
-    try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; }
-  });
-  recChunks = [];
-  try {
-    rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
-  } catch (e) {
-    setStatus('', 'Video export not supported in this browser');
-    return;
-  }
-  rec.ondataavailable = e => { if (e.data && e.data.size) recChunks.push(e.data); };
-  rec.onstop = () => {
-    const type = rec.mimeType || 'video/webm';
-    const ext = type.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
-    Organica.download(new Blob(recChunks, { type }), Organica.stamp('pulsar', ext));
-    recording = false;
-    ctrl('btn-video').textContent = 'Video';
-    setStatus('active', 'Video saved · ' + ext);
-  };
-  // start playback from t=0 BEFORE recorder.start() — Soul's 0-byte-file fix
-  play(true);
-  rec.start();
-  recording = true;
-  ctrl('btn-video').textContent = 'Stop rec';
-  setStatus('busy', 'Recording ' + secs + 's…');
-  recTimer = setTimeout(() => { if (recording) stopRecording(); }, secs * 1000 + 90);
-}
-function stopRecording() {
-  clearTimeout(recTimer);
-  if (rec && rec.state !== 'inactive') rec.stop();
-}
+// Video recording is the shared Organica.recorder (organica-recorder.js).
+// Auto-stops one loop after Start (loopSec, or 6s if Loop is Off) + 90ms tail
+// so the closing frame lands in the file; play(true) restarts from t=0 first
+// (Soul's 0-byte-file fix). Constructed in INIT — see pulsarRecorder below.
+let pulsarRecorder = null;
+function toggleRecording() { if (pulsarRecorder) pulsarRecorder.toggle(); }
 
 // ─────────────────────────────────────────────
 // INIT
@@ -1151,6 +1122,19 @@ inkSwatch = Organica.palette.swatch('ink', { initial: '#1c1c1c', onChange: () =>
 paperSwatch = Organica.palette.swatch('paper', { initial: '#f2efe6', onChange: () => scheduleStill() });
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 Organica.popover(ctrl('btn-loop'), ctrl('loop-popover'));
+
+pulsarRecorder = Organica.recorder({
+  canvas: pcanvas,
+  tool: 'pulsar',
+  duration: () => (loopSec > 0 ? loopSec : 6),
+  durationPadMs: 90,
+  onStart: () => play(true),
+  onStatus: (phase, msg) => {
+    if (phase === 'recording') setStatus('busy', 'Recording ' + (loopSec > 0 ? loopSec : 6) + 's…');
+    else setStatus(phase === 'error' ? '' : 'active', msg);
+  },
+  onStateChange: (isRec) => { ctrl('btn-video').textContent = isRec ? 'Stop rec' : 'Video'; },
+});
 populateScenes('Phyllo Bloom');
 loadScene('Phyllo Bloom');
 updateSizeReadout();

@@ -186,8 +186,9 @@ new p5(sketch);
 
 // ── Font load ──
 loadMembraneFont((err) => {
-  ctrl('font-status-hint').textContent = err ? 'Font failed to load.' : 'Font ready.';
-  ctrl('font-status-hint').style.display = err ? '' : 'none';
+  const hint = ctrl('font-status-hint');
+  hint.textContent = err ? 'Font failed to load.' : 'Font ready.';
+  hint.hidden = !err;
   if (!err && state.seedSource === 'text') seedFromText();
 });
 
@@ -199,23 +200,50 @@ loadMembraneFont((err) => {
 function syncSeedShapeRow() {
   ctrl('row-seedshape').style.display = (state.seedSource === 'procedural' && state.drawMode === 'circle') ? '' : 'none';
 }
-function syncSeedSourceUI() {
-  ['procedural', 'image', 'text'].forEach(v => {
-    const block = ctrl('seedsrc-' + v);
-    if (block) block.style.display = v === state.seedSource ? '' : 'none';
-  });
+// row-imgscale + Seed-shape row aren't scoped to one tab, so they stay in
+// the markup and this keeps them in sync with the active seed source
+// (Organica.seedsPanel now owns the tab strip + pane show/hide + .active).
+function syncMembraneSeedRows() {
   ctrl('row-imgscale').style.display = state.seedSource === 'procedural' ? 'none' : '';
-  ctrl('seg-seedsource').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === state.seedSource));
   syncSeedShapeRow();
 }
-ctrl('seg-seedsource').querySelectorAll('.seg-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    state.seedSource = btn.dataset.v;
-    syncSeedSourceUI();
+
+// ── Seed source picker — Organica.seedsPanel (organica-seedspanel.js).
+// Procedural + Image are custom slots (Membrane keeps 100% of its own
+// image DOM + listeners, reparented into the slot pane); Text is the
+// built-in tab with preloadFont:false — Membrane keeps its own
+// loadMembraneFont / seeds/text.js glyph pipeline, the component only
+// supplies the word field.
+const imgHolder = ctrl('seedsrc-image');
+const fontHint = ctrl('font-status-hint');
+const seeds = Organica.seedsPanel({
+  target: ctrl('seeds-host'),
+  order: ['procedural', 'image', 'text'],
+  initial: 'procedural',
+  tabs: ['text'],
+  slots: [
+    { id: 'procedural', label: 'Procedural', render() {} },
+    { id: 'image', label: 'Image', render(pane) { pane.appendChild(imgHolder); imgHolder.hidden = false; } },
+  ],
+  subControls: { text(pane) { pane.appendChild(fontHint); } },
+  text: {
+    perGlyph: true, initial: state.seedText, maxLength: 24, preloadFont: false, applyButton: false,
+    hint: 'Real glyph outline points (opentype.js reading the same vendored Manrope every Organica tool uses) — not a raster guess. Each letter’s own outer ring and any inner hole (A, O) are separate contours; the curve never connects one to the next.',
+  },
+  applyMode: 'immediate',
+  onTabChange: (id) => {
+    state.seedSource = id;
+    syncMembraneSeedRows();
     reseedCurrent();
-  });
+  },
+  onSeed: (r) => {
+    if (r.kind === 'text') {
+      state.seedText = r.descriptor.text;
+      if (isFontReady()) seedFromText();
+    }
+  },
 });
-syncSeedSourceUI();
+syncMembraneSeedRows();
 
 // ── Form ──
 ctrl('rg-res').addEventListener('input', e => {
@@ -271,11 +299,8 @@ ctrl('rg-imgscale').addEventListener('input', e => {
   reseedCurrent();
 });
 
-// ── Seed: Text ──
-ctrl('txt-seedtext').addEventListener('input', e => {
-  state.seedText = e.target.value;
-  if (state.seedSource === 'text' && isFontReady()) seedFromText();
-});
+// ── Seed: Text — the word field is Organica.seedsPanel's (immediate mode,
+// applyButton:false), routed through onSeed above. ──
 
 // ── Motion ──
 ctrl('rg-step').addEventListener('input', e => { state.stepSize = parseFloat(e.target.value); ctrl('v-step').textContent = state.stepSize.toFixed(1); });
@@ -472,59 +497,23 @@ ctrl('btn-export-svg').addEventListener('click', () => {
   Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('membrane', 'svg'));
 });
 
-// ── Export: Video — canvas.captureStream() + MediaRecorder, MP4 first
-// then WebM, the exact technique Camo Turing's own toggleRecording()
-// uses (ported, not reinvented — same candidate list, same onstop
-// download). Unlike Camo Turing's evolving simulation, Membrane's canvas
-// is already always "live" (never auto-pauses), so Start never needs to
-// force anything running first.
-let mediaRecorder = null, recordedChunks = [], recordingExt = 'mp4', recordingMime = 'video/mp4';
-function toggleRecording() {
-  const btn = ctrl('btn-record');
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
-    mediaRecorder.stop();
-    return;
-  }
-  const canvas = state.p.canvas;
-  if (typeof canvas.captureStream !== 'function' || typeof window.MediaRecorder === 'undefined') {
-    ctrl('record-hint').textContent = 'Video recording isn\'t supported in this browser.';
-    return;
-  }
-  const stream = canvas.captureStream(30);
-  recordedChunks = [];
-  const candidates = [
-    ['video/mp4;codecs=avc1', 'mp4'],
-    ['video/mp4', 'mp4'],
-    ['video/webm;codecs=vp9', 'webm'],
-    ['video/webm;codecs=vp8', 'webm'],
-    ['video/webm', 'webm'],
-  ];
-  const picked = candidates.find(([mime]) => MediaRecorder.isTypeSupported(mime));
-  if (!picked) {
-    ctrl('record-hint').textContent = 'No supported video format found in this browser.';
-    return;
-  }
-  [recordingMime, recordingExt] = picked;
-  try {
-    mediaRecorder = new MediaRecorder(stream, { mimeType: recordingMime });
-  } catch (err) {
-    ctrl('record-hint').textContent = 'Could not start recording: ' + err.message;
-    return;
-  }
-  mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
-  mediaRecorder.onstop = () => {
-    const blob = new Blob(recordedChunks, { type: recordingMime });
-    Organica.download(blob, Organica.stamp('membrane', recordingExt));
-    btn.textContent = 'Start recording';
-    btn.classList.remove('org-btn--primary');
-    ctrl('record-hint').textContent = 'Recording saved.';
-  };
-  if (state.frozen) ctrl('btn-playpause').click();   // recording a frozen canvas isn't useful
-  mediaRecorder.start();
-  btn.textContent = 'Stop recording';
-  btn.classList.add('org-btn--primary');
-  ctrl('record-hint').textContent = 'Recording…';
-}
+// ── Export: Video — the shared Organica.recorder (organica-recorder.js).
+// Manual stop only (Membrane's canvas is always live, no fixed loop).
+// Start un-freezes first — recording a frozen canvas isn't useful.
+const membraneRecorder = Organica.recorder({
+  canvas: () => state.p.canvas,
+  tool: 'membrane',
+  onStart: () => { if (state.frozen) ctrl('btn-playpause').click(); },
+  onStatus: (phase, msg) => {
+    ctrl('record-hint').textContent = (msg.endsWith('.') || msg.endsWith('…')) ? msg : msg + '.';
+  },
+  onStateChange: (isRec) => {
+    const btn = ctrl('btn-record');
+    btn.textContent = isRec ? 'Stop recording' : 'Start recording';
+    btn.classList.toggle('org-btn--primary', isRec);
+  },
+});
+function toggleRecording() { membraneRecorder.toggle(); }
 ctrl('btn-record').addEventListener('click', toggleRecording);
 
 // ── Accessibility + slider polish (organica-core.js) ──

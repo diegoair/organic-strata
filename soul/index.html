@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="/shared/organica-panel.css">
 <link rel="stylesheet" href="/shared/organica-floatbar.css">
 <link rel="stylesheet" href="/shared/organica-shell.css">
+<link rel="stylesheet" href="/shared/organica-seedspanel.css">
 <style>
   :root {
     --tool: #c85a8c;   /* identity colour — a living rose/pulse, distinct from Strata's warmer ember */
@@ -57,25 +58,10 @@
   .drop-icon { font-size: 20px; }
   #drop-hint p { font-size: 10px; text-transform: uppercase; }
 
-  /* Seeds panel — the same tabbed source-picker component Camo Turing's
-     own Seeds panel uses (.seg-ctrl/.seg-btn come from the shared
-     organica-panel.css already linked; .shape-grid/.shape-thumb/
-     .upload-btn are Camo Turing's own local additions, not yet promoted
-     to the shared file, replicated verbatim here for the same reason
-     Camo Turing itself carries them locally). Genesis/SVG/Text only —
-     no Image tab, since Soul's whole contract is vector primitives, and
-     an uploaded raster image has no vector form without a decomposition
-     step (that's Pollen/Halide's job, not Soul's). */
-  .shape-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin-bottom: var(--space-3); }
-  .shape-thumb {
-    aspect-ratio: 1; border: 1px solid var(--border); background: var(--panel);
-    display: flex; align-items: center; justify-content: center; cursor: pointer;
-    padding: var(--space-2); position: relative;
-  }
-  .shape-thumb.active { border-color: var(--ink); border-width: 2px; }
-  .shape-thumb svg { width: 100%; height: 100%; display: block; fill: var(--ink); }
-  .shape-thumb .thumb-num { position: absolute; top: 2px; right: 3px; font-size: var(--fs-micro); color: var(--mid); }
-  /* .upload-btn is in organica-panel.css now (Soul used the exact base). */
+  /* Seeds panel — Organica.seedsPanel (organica-seedspanel.js +
+     organica-seedspanel.css). Genesis/SVG/Text only, no Image tab
+     (Soul's whole contract is vector primitives; a raster image has no
+     vector form without a decomposition step — Pollen/Halide's job). */
 
   /* .mini-btn, .panel-select, .ctrl-row/.ctrl-label/.ctrl-val, input[type=range] —
      deliberately NOT redefined here. A first version duplicated all of
@@ -128,30 +114,7 @@
 
     <div class="panel-section">
       <h3>Seeds</h3>
-      <div class="ctrl-row">
-        <div class="seg-ctrl" id="seg-seedsource">
-          <button class="seg-btn active" data-v="genesis" onclick="setSeedSource(this)">Genesis</button>
-          <button class="seg-btn" data-v="svg" onclick="setSeedSource(this)">SVG</button>
-          <button class="seg-btn" data-v="text" onclick="setSeedSource(this)">Text</button>
-        </div>
-      </div>
-
-      <div id="seedsrc-genesis">
-        <div class="shape-grid" id="genesis-grid"></div>
-      </div>
-
-      <div id="seedsrc-svg" style="display:none">
-        <button class="upload-btn" onclick="ctrl('file-input').click()">+ Upload SVG</button>
-        <p class="org-panel__hint">Or drop an SVG anywhere on the canvas — any Organica tool's own export (Pollen's dots, Strata's traces, Loom's grids, Halide/Komorebi/Warping's vectorised output).</p>
-      </div>
-
-      <div id="seedsrc-text" style="display:none">
-        <div class="ctrl-row">
-          <input type="text" id="seed-text" value="Soul" maxlength="24" placeholder="Type text…" aria-label="Seed text" class="panel-select" style="cursor:text">
-        </div>
-        <button class="mini-btn" style="width:100%" onclick="applyTextSeed()">Apply text</button>
-        <p class="org-panel__hint">Manrope, converted to real vector letterforms (opentype.js reading the same vendored font every Organica tool uses) — one primitive per glyph, so Motion can stagger letter by letter.</p>
-      </div>
+      <div id="seeds-host"></div>
     </div>
 
     <div class="panel-section">
@@ -346,6 +309,7 @@
 <script src="/shared/gsap-morphsvg.min.js"></script>
 <script src="/shared/gsap-drawsvg.min.js"></script>
 <script src="/shared/opentype.min.js"></script>
+<script src="/shared/organica-seedspanel.js"></script>
 <script src="/genesis/organic-forms.js"></script>
 <!-- p5.js, CDN — the Flow field pattern's own engine, ported from
      explorations/flow-field/. Loaded in INSTANCE mode (not global mode)
@@ -443,72 +407,14 @@ canvasWrap.addEventListener('drop', e => {
   }
 });
 
-// ── SEEDS — Genesis / SVG / Text, the same tabbed source-picker Camo
-// Turing's own Seeds panel uses, adapted down to what Soul actually
-// needs: no Image tab (a raster image has no vector form without a
-// decomposition step — that's Pollen/Halide's job, not this engine's),
-// no Mode/Size/Two-seeds (those are Gray-Scott simulation parameters
-// with nothing analogous here). Genesis and SVG both just call the same
-// loadSVG() every other path already goes through — one load function,
-// three ways to reach it.
-const PRIMORDIAL = [7, 56, 1, 2, 14, 33, 38, 31];   // same curated subset Camo Turing's own Seeds panel uses
-function populateGenesisGrid() {
-  const grid = ctrl('genesis-grid');
-  PRIMORDIAL.forEach(id => {
-    const svg = (window.ORGANIC_FORMS && window.ORGANIC_FORMS[id]) || '';
-    const thumb = document.createElement('div');
-    thumb.className = 'shape-thumb';
-    thumb.innerHTML = svg + '<span class="thumb-num">' + id + '</span>';
-    thumb.setAttribute('role', 'button');
-    thumb.setAttribute('aria-label', 'Genesis form ' + id);
-    thumb.onclick = () => {
-      grid.querySelectorAll('.shape-thumb').forEach(t => t.classList.remove('active'));
-      thumb.classList.add('active');
-      loadSVG(svg);
-    };
-    grid.appendChild(thumb);
-  });
-}
-
-function setSeedSource(btn) {
-  ctrl('seg-seedsource').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
-  const type = btn.dataset.v;
-  ['genesis', 'svg', 'text'].forEach(t => { ctrl('seedsrc-' + t).style.display = t === type ? 'block' : 'none'; });
-}
-
-// Text → real vector letterforms, not a raster mask (Camo Turing's own
-// Text seed rasterises, which is right for feeding a reaction-diffusion
-// field but wrong here — Soul's whole contract is vector primitives).
-// opentype.js reads the same vendored Manrope file every Organica tool's
-// own typography already commits to (docs/DESIGN-SYSTEM.md), and
-// getPaths() (plural) returns one Path per GLYPH rather than one fused
-// path for the whole string — deliberately, so Motion's own stagger can
-// address individual letters, not just the word as a single blob.
-let manropeFont = null;
-opentype.load('/shared/manrope-variable.ttf', (err, font) => {
-  if (!err) manropeFont = font;
-});
-function applyTextSeed() {
-  const text = ctrl('seed-text').value.trim();
-  if (!text) { setStatus('', 'Type some text first'); return; }
-  if (!manropeFont) { setStatus('', 'Font still loading — try again in a moment'); return; }
-  const fontSize = 150;
-  const paths = manropeFont.getPaths(text, 0, fontSize, fontSize);
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  const dList = paths.map(p => {
-    const bb = p.getBoundingBox();
-    minX = Math.min(minX, bb.x1); minY = Math.min(minY, bb.y1);
-    maxX = Math.max(maxX, bb.x2); maxY = Math.max(maxY, bb.y2);
-    return p.toPathData(2);
-  });
-  const pad = 20;
-  const w = (maxX - minX) + pad * 2, h = (maxY - minY) + pad * 2;
-  let svg = '<svg xmlns="' + SVG_NS + '" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">';
-  svg += '<g fill="#0a0a0a" transform="translate(' + (pad - minX) + ' ' + (pad - minY) + ')">';
-  dList.forEach(d => { svg += '<path d="' + d + '"/>'; });
-  svg += '</g></svg>';
-  loadSVG(svg);
-}
+// ── SEEDS — Genesis / SVG / Text via the shared Organica.seedsPanel
+// (organica-seedspanel.js). No Image tab (a raster image has no vector
+// form without a decomposition step — Pollen/Halide's job), no
+// Mode/Size/Two-seeds (Gray-Scott parameters with nothing analogous
+// here). Every source hands back an SVG string → the same loadSVG()
+// every other path already goes through. Text uses perGlyph:true so
+// Motion's own stagger can address individual letters. Constructed in
+// INIT (below) — see `seeds`.
 
 function validColor(c) { return c && c !== 'none' ? c : null; }
 
@@ -1063,7 +969,19 @@ function stopRecording() {
   if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
 }
 
-populateGenesisGrid();
+const seeds = Organica.seedsPanel({
+  target: ctrl('seeds-host'),
+  tabs: ['genesis', 'svg', 'text'],
+  genesis: { forms: Organica.seedsPanel.PRIMORDIAL, initialForm: null },
+  text: {
+    perGlyph: true, initial: 'Soul', maxLength: 24, applyButton: true,
+    hint: 'Manrope, converted to real vector letterforms (opentype.js reading the same vendored font every Organica tool uses) — one primitive per glyph, so Motion can stagger letter by letter.',
+  },
+  svg: { hint: "Or drop an SVG anywhere on the canvas — any Organica tool's own export (Pollen's dots, Strata's traces, Loom's grids, Halide/Komorebi/Warping's vectorised output)." },
+  applyMode: 'immediate',
+  onSeed: r => { if (r.svgString) loadSVG(r.svgString); },
+  onError: msg => setStatus('', msg),
+});
 Organica.popover(ctrl('btn-loop'), ctrl('loop-popover'));
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 setStatus('', 'Load an SVG to begin');

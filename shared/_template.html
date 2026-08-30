@@ -147,9 +147,14 @@
 <input type="file" id="file-input" class="org-file-input" accept="image/*" onchange="loadImage(this)">
 
 <!-- Core BEFORE the tool script so Organica.* exists at parse time.
-     organica-palette.js only if this tool has a colour picker. -->
+     organica-palette.js only if this tool has a colour picker.
+     organica-recorder.js only if this tool records the canvas to video
+     (Organica.recorder — see pulsar/vortex/membrane/camo-turing). -->
 <script src="/shared/organica-core.js"></script>
 <script src="/shared/organica-palette.js"></script>
+<!-- <script src="/shared/organica-recorder.js"></script> -->
+<!-- <script src="/shared/organica-seedspanel.js"></script>  (+ its CSS above) -->
+
 <script>
 // ─────────────────────────────────────────────
 // NEW TOOL — see docs/UI-SHELL.md §5 for the behaviour contract.

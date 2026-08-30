@@ -347,6 +347,13 @@
 <!-- core BEFORE the tool script, per docs/UI-SHELL.md -->
 <script src="/shared/organica-core.js"></script>
 <script src="/shared/organica-palette.js"></script>
+<!-- Only for Organica.seedsPanel.PRIMORDIAL (the shared curated Genesis
+     form list). Living Path's own Font/SVG/Genesis picker stays bespoke —
+     its .seg/.drop/.forms markup, visible drop-zones and the OTF-export
+     "Font" workbench don't map onto the shared component, and it links
+     none of the shared panel CSS. A full adoption waits on Living Path
+     moving to the shared shell (its own pass). -->
+<script src="/shared/organica-seedspanel.js"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -1410,7 +1417,9 @@ window.addEventListener('drop',e=>{
 });
 
 // --- Genesis forms ---
-const PRIMORDIAL=[7,56,1,2,14,33,38,31];
+// Shared curated list (Organica.seedsPanel owns it — was byte-identical
+// in soul/camo-turing/pollen/spore/here).
+const PRIMORDIAL = Organica.seedsPanel.PRIMORDIAL;
 function buildGenesis(){
   const host=$('#genForms');
   const F=window.ORGANIC_FORMS;

@@ -115,6 +115,42 @@ Phase 2 migration). `organica-palette-chip.js` was folded into
 `organica-palette.js` on 2026-08-29; `createColorSwatch` moved out of
 `organica-core.js` at the same time.
 
+**Video recording — `Organica.recorder`** (`shared/organica-recorder.js`,
+added 2026-08-30, no paired CSS). `Organica.recorder({ canvas, tool, fps,
+duration, durationPadMs, onStart, onStatus, onStateChange }) → { toggle, start,
+stop, isRecording }`. `canvas` may be a function (p5 tools). `duration` omitted
+= manual stop; number|fn = auto-stop after N seconds (`durationPadMs` tail).
+The tool keeps its own floatbar button and wires `toggleRecording` to
+`rec.toggle()`. Load after core. Used by Pulsar / Camo Turing / Vortex /
+Membrane; Soul keeps its own (SVG-DOM, no live canvas).
+
+**Seed source picker — `Organica.seedsPanel`** (`shared/organica-seedspanel.js`
++ paired `organica-seedspanel.css`, added 2026-08-30). The tabbed
+Genesis/SVG/Text(/Image) picker + Genesis thumbnail grid.
+`Organica.seedsPanel({ target, idPrefix, tabs, slots, subControls,
+extraControls, genesis, text, svg, image, applyMode, onSeed, onTabChange,
+onFontReady, onError })`. Polymorphic on `typeof target` (element = generate /
+string = attach). `onSeed(result)` carries **both** `result.svgString` (the
+canonical vector intermediate) and `result.descriptor` (raw
+`{kind,formId,svgText,text,font,glyphPaths,fusedPath,imageEl}`) — each tool
+adapts whichever it needs. `applyMode:'manual'` = the picker never fires; the
+tool calls `panel.getDescriptor()` / `panel.getSVGString()` at its own Apply
+step. `genesis.bakeGeometry:true` resolves CSS-driven form geometry (needs
+`/genesis/organic-animations.css`). `.PRIMORDIAL` = the shared curated form
+list. A page with two panels passes distinct `idPrefix`es (Camo Turing).
+Load after core; link the CSS. Used by Soul / Membrane / Camo Turing. Living
+Path takes only `Organica.seedsPanel.PRIMORDIAL` (the shared curated form
+list) — its Font/SVG/Genesis picker is bespoke (`.seg`/`.drop`/`.forms`, an
+OTF-export "Font" workbench, no shared panel CSS); a full adoption waits on
+Living Path moving to the shared shell.
+
+```html
+<link rel="stylesheet" href="/shared/organica-seedspanel.css">
+...
+<script src="/shared/organica-recorder.js"></script>      <!-- if it records video -->
+<script src="/shared/organica-seedspanel.js"></script>    <!-- if it has a seed picker -->
+```
+
 ---
 
 ## 3. Palette contract

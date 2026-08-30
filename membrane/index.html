@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="/shared/organica-floatbar.css">
 <link rel="stylesheet" href="/shared/organica-shell.css">
 <link rel="stylesheet" href="/shared/organica-palette.css">
+<link rel="stylesheet" href="/shared/organica-seedspanel.css">
 <style>
   :root {
     /* color-scheme:light, the surface palette, and .upload-btn / .org-file-input
@@ -175,41 +176,10 @@
 
     <div class="panel-section">
       <h3>Seed</h3>
-      <div class="ctrl-row">
-        <div class="seg-ctrl" id="seg-seedsource">
-          <button class="seg-btn active" data-v="procedural">Procedural</button>
-          <button class="seg-btn" data-v="image">Image</button>
-          <button class="seg-btn" data-v="text">Text</button>
-        </div>
-      </div>
-
-      <div id="seedsrc-image" style="display:none">
-        <button class="upload-btn" id="btn-upload-image">+ Upload image</button>
-        <div class="org-panel__readout" id="image-readout">No image loaded</div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Seed style</div>
-          <select class="panel-select" id="sel-seedstyle">
-            <option value="contour">Contour (silhouette)</option>
-            <option value="scatter">Luminance scatter</option>
-          </select>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Threshold</div>
-          <input type="range" id="rg-threshold" min="0" max="255" step="1" value="128">
-          <span class="ctrl-val" id="v-threshold">128</span>
-        </div>
-        <label class="check-row"><input type="checkbox" id="chk-invert"><span>Invert (light = subject)</span></label>
-        <p class="org-panel__hint">Contour rays out from the image's own weighted centroid, tracing the subject's silhouette. Luminance scatter samples points weighted toward dark areas, angle-sorted into one coherent loop.</p>
-      </div>
-
-      <div id="seedsrc-text" style="display:none">
-        <div class="ctrl-row">
-          <div class="ctrl-label">Word</div>
-          <input type="text" class="panel-select" id="txt-seedtext" value="AMO" maxlength="24" style="cursor:text">
-        </div>
-        <p class="org-panel__hint" id="font-status-hint">Loading font…</p>
-        <p class="org-panel__hint">Real glyph outline points (opentype.js reading the same vendored Manrope every Organica tool uses) — not a raster guess. Each letter's own outer ring and any inner hole (A, O) are separate contours; the curve never connects one to the next.</p>
-      </div>
+      <!-- Organica.seedsPanel builds the tab strip + Text pane here; the
+           Procedural/Image tabs are custom slots — js/main.js reparents
+           #seedsrc-image and #font-status-hint (below) into them. -->
+      <div id="seeds-host"></div>
 
       <div class="ctrl-row" id="row-imgscale">
         <div class="ctrl-label">Image scale</div>
@@ -217,6 +187,28 @@
         <span class="ctrl-val" id="v-imgscale">0.85</span>
       </div>
     </div>
+
+    <!-- Reparented into the seeds panel's custom Image slot / built-in Text
+         pane by Organica.seedsPanel (js/main.js). -->
+    <div id="seedsrc-image" hidden>
+      <button class="upload-btn" id="btn-upload-image">+ Upload image</button>
+      <div class="org-panel__readout" id="image-readout">No image loaded</div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Seed style</div>
+        <select class="panel-select" id="sel-seedstyle">
+          <option value="contour">Contour (silhouette)</option>
+          <option value="scatter">Luminance scatter</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Threshold</div>
+        <input type="range" id="rg-threshold" min="0" max="255" step="1" value="128">
+        <span class="ctrl-val" id="v-threshold">128</span>
+      </div>
+      <label class="check-row"><input type="checkbox" id="chk-invert"><span>Invert (light = subject)</span></label>
+      <p class="org-panel__hint">Contour rays out from the image's own weighted centroid, tracing the subject's silhouette. Luminance scatter samples points weighted toward dark areas, angle-sorted into one coherent loop.</p>
+    </div>
+    <p class="org-panel__hint" id="font-status-hint" hidden>Loading font…</p>
 
     <div class="panel-section">
       <h3>Motion</h3>
@@ -362,6 +354,8 @@
 
 <script src="/shared/organica-core.js"></script>
 <script src="/shared/organica-palette.js"></script>
+<script src="/shared/organica-recorder.js"></script>
+<script src="/shared/organica-seedspanel.js"></script>
 <script src="/shared/organica-noise.js"></script>
 <script src="/shared/opentype.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>

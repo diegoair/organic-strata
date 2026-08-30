@@ -11,8 +11,10 @@
 <link rel="stylesheet" href="/shared/organica-floatbar.css">
 <link rel="stylesheet" href="/shared/organica-shell.css">
 <link rel="stylesheet" href="/shared/organica-palette.css">
+<link rel="stylesheet" href="/shared/organica-seedspanel.css">
 <!-- Needed only to resolve Genesis forms' CSS-driven geometry when
-     rasterizing them as seed shapes — see rasterizeGenesisSource(). -->
+     rasterizing them as seed shapes — see Organica.seedsPanel bakeGeometry
+     + the local rasterizeGenesisSource() probe helper. -->
 <link rel="stylesheet" href="/genesis/organic-animations.css">
 <style>
   :root {
@@ -360,33 +362,12 @@
     <div class="panel-section">
       <h3>Seeds</h3>
       <div class="ctrl-label" id="seedb-label" style="display:none; margin-bottom: var(--space-1)">Seed B</div>
-      <div class="ctrl-row">
-        <div class="seg-ctrl" id="seg-seedsource">
-          <button class="seg-btn active" data-v="genesis" onclick="setSeedSource(this)">Genesis</button>
-          <button class="seg-btn" data-v="svg" onclick="setSeedSource(this)">SVG</button>
-          <button class="seg-btn" data-v="text" onclick="setSeedSource(this)">Text</button>
-          <button class="seg-btn" data-v="image" onclick="setSeedSource(this)">Image</button>
-        </div>
-      </div>
 
-      <div id="seedsrc-genesis">
-        <div class="shape-grid" id="genesis-grid"></div>
-      </div>
-
-      <div id="seedsrc-svg" style="display:none">
-        <button class="upload-btn" onclick="ctrl('svg-input').click()" id="svg-upload-btn">+ Upload SVG</button>
-      </div>
-
-      <div id="seedsrc-text" style="display:none">
-        <div class="ctrl-row">
-          <input type="text" id="seed-text" value="A" maxlength="24" placeholder="Type text…" aria-label="Seed text" class="panel-select" oninput="onTextChange()" style="cursor:text">
-        </div>
-        <button class="upload-btn" onclick="ctrl('font-input').click()" id="font-upload-btn">Font: Manrope (upload to change)</button>
-      </div>
-
-      <div id="seedsrc-image" style="display:none">
-        <button class="upload-btn" onclick="ctrl('image-input').click()" id="image-upload-btn">+ Upload image</button>
-      </div>
+      <!-- Organica.seedsPanel builds Seed B's tab strip + panes here
+           (genesis/svg/text/image, applyMode:'manual', bakeGeometry). The
+           Mode/Size/Two-seeds/Apply rows below stay in the markup — they
+           aren't scoped to one tab. -->
+      <div id="seeds-host-b"></div>
 
       <div class="ctrl-row" style="margin-top: var(--space-4)">
         <div class="ctrl-label" title="Fill: the coverage mask stamps the reaction directly, once — same as Genesis-form seeding in Camouflage. Confine: the mask permanently pins every cell outside it to the resting state, every step — the pattern grows freely but never escapes the shape. Trace outline: nucleation points are sampled along the shape's edge only, not its interior — growth radiates from the contour. Regime boundary: two different f/k values meet at the shape's edge, and the WHOLE canvas keeps evolving on both sides — the shape becomes a border between two regimes, not a container. Background image: doesn't seed the simulation at all — the current Image/SVG source becomes Paper's background, in full colour, wherever the pattern isn't Ink. Stencil: same source image, but visible only THROUGH the Ink shapes instead — Paper stays flat.">Mode</div>
@@ -419,28 +400,8 @@
       </div>
       <div id="seedsrc-a-block" style="display:none">
         <div class="ctrl-label" style="margin-bottom: var(--space-1)">Seed A</div>
-        <div class="ctrl-row">
-          <div class="seg-ctrl" id="seg-seedsource-a">
-            <button class="seg-btn active" data-v="genesis" onclick="setSeedSourceA(this)">Genesis</button>
-            <button class="seg-btn" data-v="svg" onclick="setSeedSourceA(this)">SVG</button>
-            <button class="seg-btn" data-v="text" onclick="setSeedSourceA(this)">Text</button>
-            <button class="seg-btn" data-v="image" onclick="setSeedSourceA(this)">Image</button>
-          </div>
-        </div>
-        <div id="seedsrc-a-genesis">
-          <div class="shape-grid" id="genesis-grid-a"></div>
-        </div>
-        <div id="seedsrc-a-svg" style="display:none">
-          <button class="upload-btn" onclick="ctrl('svg-input-a').click()" id="svg-upload-btn-a">+ Upload SVG</button>
-        </div>
-        <div id="seedsrc-a-text" style="display:none">
-          <div class="ctrl-row">
-            <input type="text" id="seed-text-a" value="A" maxlength="24" placeholder="Type text…" aria-label="Seed A text" class="panel-select" style="cursor:text">
-          </div>
-        </div>
-        <div id="seedsrc-a-image" style="display:none">
-          <button class="upload-btn" onclick="ctrl('image-input-a').click()" id="image-upload-btn-a">+ Upload image</button>
-        </div>
+        <!-- Organica.seedsPanel builds Seed A's tab strip + panes here. -->
+        <div id="seeds-host-a"></div>
         <div class="ctrl-row">
           <div class="ctrl-label" title="How starved Shape A's region starts (how far chemical A is depleted from its resting value of 1.0). Deeper = takes longer to recover, so Shape B's growth has a longer window where reaching this zone actually matters.">Famine depth</div>
           <input type="range" id="rg-famine-depth" min="0" max="0.95" step="0.01" value="0.7" oninput="syncVal(this,'v-famine-depth')">
@@ -751,14 +712,12 @@
   </div><!-- /panel -->
 </div>
 
-<input type="file" id="svg-input" accept=".svg,image/svg+xml" class="org-file-input">
-<input type="file" id="svg-input-a" accept=".svg,image/svg+xml" class="org-file-input">
-<input type="file" id="image-input" accept="image/*" class="org-file-input">
-<input type="file" id="image-input-a" accept="image/*" class="org-file-input">
-<input type="file" id="font-input" accept=".ttf,.otf" class="org-file-input">
+<!-- Seed file inputs are now owned by Organica.seedsPanel (organica-seedspanel.js). -->
 
 <script src="/shared/organica-core.js"></script>
 <script src="/shared/organica-palette.js"></script>
+<script src="/shared/organica-recorder.js"></script>
+<script src="/shared/organica-seedspanel.js"></script>
 <!-- Transformer — centralized raster effect-stack module (see the file's
      own header): field algorithms ported from Living Path's RFX, canvas
      adapters, and the thumbnail-picker UI. -->
@@ -2151,104 +2110,36 @@ Organica.createZoomPan({
 // Confine, Trace outline, Regime boundary) — the source and the mode are
 // fully independent, any combination is valid.
 //
-// Designed to be lifted into shared/ later (per Diego's own framing —
-// "questo è un componente che sarà successivamente centralizzato"): the
-// rasterizer functions take explicit inputs and return a canvas, no
-// camo-turing globals baked into the rasterization logic itself.
-let seedSourceType = 'genesis';
-let seedGenesisForm = 1;
-let seedSvgText = null;
-let seedFont = null;      // opentype.js Font — null means "use bundled Manrope"
-let seedFontBuf = null;   // cached ArrayBuffer of the bundled Manrope, fetched once
-let seedImageEl = null;
+// Now Organica.seedsPanel (organica-seedspanel.js) — one instance per
+// shape (seedsB / seedsA, constructed in INIT). applyMode:'manual': the
+// picker never fires on its own, the rasterizers below pull the current
+// selection via seedsB/seedsA.getDescriptor() / .getSVGString() at Apply
+// time. genesis.bakeGeometry resolves the forms' CSS-driven geometry
+// (organic-animations.css) into literal attributes before serialising —
+// exactly what the old rasterizeGenesisSource() did inline.
 let paperTexture = null;   // Background image / Stencil mode — see applyPaperImageMode()
+let seedsB = null, seedsA = null;
 
-const PRIMORDIAL = [7, 56, 1, 2, 14, 33, 38, 31];   // curated subset — same list as Pollen's shape library
 const maskCanvas = document.createElement('canvas');
 const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true });
 
-function populateGenesisGrid() {
-  const grid = ctrl('genesis-grid');
-  PRIMORDIAL.forEach(id => {
-    const svg = (window.ORGANIC_FORMS && window.ORGANIC_FORMS[id]) || '';
-    const thumb = document.createElement('div');
-    thumb.className = 'shape-thumb' + (id === seedGenesisForm ? ' active' : '');
-    thumb.innerHTML = svg + '<span class="thumb-num">' + id + '</span>';
-    thumb.setAttribute('role', 'button');
-    thumb.setAttribute('aria-label', 'Genesis Seed ' + id);
-    thumb.onclick = () => {
-      seedGenesisForm = id;
-      grid.querySelectorAll('.shape-thumb').forEach(t => t.classList.remove('active'));
-      thumb.classList.add('active');
-    };
-    grid.appendChild(thumb);
-  });
-}
-
-function setSeedSource(btn) {
-  ctrl('seg-seedsource').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
-  seedSourceType = btn.dataset.v;
-  ['genesis', 'svg', 'text', 'image'].forEach(t => { ctrl('seedsrc-' + t).style.display = t === seedSourceType ? 'block' : 'none'; });
-}
-function onTextChange() { /* read at Apply time — nothing to precompute */ }
-
-// ── SHAPE A (famine) — the "two shapes" extension. ──
-// Scoped to Genesis + SVG only, not the full four sources Shape B gets:
-// a starvation zone is a simple silhouette need, and duplicating the
-// Text/Image machinery for a secondary, less-common picker wasn't worth
-// the panel space this round — an easy follow-up if it turns out wanted.
-let seedSourceTypeA = 'genesis';
-let seedGenesisFormA = 2;
-let seedSvgTextA = null;
-let seedImageElA = null;   // Seed A's own Image element — independent of the main Seed B's seedImageEl
-
-function populateGenesisGridA() {
-  const grid = ctrl('genesis-grid-a');
-  PRIMORDIAL.forEach(id => {
-    const svg = (window.ORGANIC_FORMS && window.ORGANIC_FORMS[id]) || '';
-    const thumb = document.createElement('div');
-    thumb.className = 'shape-thumb' + (id === seedGenesisFormA ? ' active' : '');
-    thumb.innerHTML = svg + '<span class="thumb-num">' + id + '</span>';
-    thumb.setAttribute('role', 'button');
-    thumb.setAttribute('aria-label', 'Genesis Seed ' + id + ' (shape A)');
-    thumb.onclick = () => {
-      seedGenesisFormA = id;
-      grid.querySelectorAll('.shape-thumb').forEach(t => t.classList.remove('active'));
-      thumb.classList.add('active');
-    };
-    grid.appendChild(thumb);
-  });
-}
-function setSeedSourceA(btn) {
-  ctrl('seg-seedsource-a').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
-  seedSourceTypeA = btn.dataset.v;
-  ['genesis', 'svg', 'text', 'image'].forEach(t => { ctrl('seedsrc-a-' + t).style.display = t === seedSourceTypeA ? 'block' : 'none'; });
-}
 function syncTwoShapeRows() {
   const on = ctrl('ck-twoshape').checked;
   ctrl('seedsrc-a-block').style.display = on ? 'block' : 'none';
   ctrl('seedb-label').style.display = on ? 'block' : 'none';
 }
+// Shape A (famine) — same four sources Shape B gets. Draws into its OWN
+// canvas (maskCanvasA), not the shared `maskCanvas`, so two textures can
+// be alive at once — see the note above rasterizeSvgTextInto.
 function rasterizeShapeA(w, h, done) {
-  if (seedSourceTypeA === 'genesis') {
-    const svgText = window.ORGANIC_FORMS && window.ORGANIC_FORMS[seedGenesisFormA];
-    if (!svgText) { done(null); return; }
-    const host = ensureGenesisRasterHost();
-    host.innerHTML = svgText;
-    const svgEl = host.querySelector('svg');
-    if (!svgEl) { done(null); return; }
-    bakeComputedGeometry(svgEl);
-    svgEl.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    const serialized = svgEl.outerHTML;
-    host.innerHTML = '';
-    rasterizeSvgTextInto(serialized, w, h, maskCanvasA, maskCtxA, done);
-  } else if (seedSourceTypeA === 'svg') {
-    if (!seedSvgTextA) { done(null); return; }
-    rasterizeSvgTextInto(seedSvgTextA, w, h, maskCanvasA, maskCtxA, done);
-  } else if (seedSourceTypeA === 'text') {
-    rasterizeTextSource(w, h, done, maskCanvasA, maskCtxA, ctrl('seed-text-a').value);
+  const d = seedsA.getDescriptor();
+  if (d.kind === 'genesis' || d.kind === 'svg') {
+    const s = seedsA.getSVGString();
+    if (s) rasterizeSvgTextInto(s, w, h, maskCanvasA, maskCtxA, done); else done(null);
+  } else if (d.kind === 'text') {
+    rasterizeTextSource(w, h, done, maskCanvasA, maskCtxA, d.text, d.font);
   } else {
-    rasterizeImageSource(w, h, done, maskCanvasA, maskCtxA, seedImageElA);
+    rasterizeImageSource(w, h, done, maskCanvasA, maskCtxA, d.imageEl);
   }
 }
 // Same rasterizeSvgText logic Shape B uses, parametrized on which
@@ -2282,13 +2173,6 @@ function rasterizeSvgTextInto(svgText, w, h, canvas, ctx2d, done) {
   if (!/xmlns=/.test(text)) text = text.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
   img.src = URL.createObjectURL(new Blob([text], { type: 'image/svg+xml' }));
 }
-ctrl('svg-input-a').addEventListener('change', (e) => {
-  const file = e.target.files && e.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => { seedSvgTextA = reader.result; ctrl('svg-upload-btn-a').textContent = '✓ ' + file.name; };
-  reader.readAsText(file);
-  e.target.value = '';
-});
 
 // ── GENESIS FORM → mask (ported from Camouflage's rasterizeGenesisForm) ──
 // Genesis forms aren't self-contained SVGs — several encode geometry
@@ -2327,8 +2211,13 @@ function bakeComputedGeometry(svgEl) {
     el.removeAttribute('class');
   });
 }
-function rasterizeGenesisSource(cw, ch, done) {
-  const svgText = window.ORGANIC_FORMS && window.ORGANIC_FORMS[seedGenesisForm];
+// The main seed path now gets its baked Genesis SVG from
+// Organica.seedsPanel (genesis.bakeGeometry:true — same ensureRasterHost +
+// bakeComputedGeometry, ported into the component). This local copy is
+// kept only for the experimental two-shape probes (window.test*), which
+// want a fixed form id regardless of the panel's current tab.
+function rasterizeGenesisSource(formId, cw, ch, done) {
+  const svgText = window.ORGANIC_FORMS && window.ORGANIC_FORMS[formId];
   if (!svgText) { done(null); return; }
   const host = ensureGenesisRasterHost();
   host.innerHTML = svgText;
@@ -2363,59 +2252,49 @@ function rasterizeSvgText(svgText, cw, ch, done) {
 }
 
 // ── TEXT → mask, via opentype.js real glyph outlines ──
-// Bundled Manrope loads once and is cached; an uploaded font (Living
-// Path's own input model) replaces it. Either way the output is the same:
-// draw the glyph path onto the mask canvas and let fill() rasterize it —
-// the vector precision is what keeps the mask's edge crisp at whatever
-// resolution it's rasterized at, not because the mask itself stays vector.
-function withFont(done) {
-  if (seedFont) { done(seedFont); return; }
-  if (seedFontBuf) { seedFont = opentype.parse(seedFontBuf); done(seedFont); return; }
-  fetch('/shared/manrope-variable.ttf').then(r => r.arrayBuffer()).then(buf => {
-    seedFontBuf = buf;
-    seedFont = opentype.parse(buf);
-    done(seedFont);
-  }).catch(() => done(null));
-}
-function rasterizeTextSource(cw, ch, done, canvas, ctx2d, textVal) {
+// The font (bundled Manrope, or an upload) comes from Organica.seedsPanel
+// — seedsB/seedsA.getDescriptor().font, passed in as `fontArg`. Draw the
+// glyph path onto the mask canvas and let fill() rasterize it — the
+// vector precision keeps the mask's edge crisp at whatever resolution
+// it's rasterized at.
+function rasterizeTextSource(cw, ch, done, canvas, ctx2d, textVal, fontArg) {
   canvas = canvas || maskCanvas; ctx2d = ctx2d || maskCtx;
-  withFont(font => {
-    if (!font) { done(null); return; }
-    const text = (textVal !== undefined ? textVal : ctrl('seed-text').value) || 'A';
-    canvas.width = cw; canvas.height = ch;
-    ctx2d.clearRect(0, 0, cw, ch);
-    // getPath's own (x,y,fontSize) args don't compose into a clean
-    // centred fit — get the UNPOSITIONED path's bounding box first, then
-    // fit it to the canvas via an explicit ctx transform instead. Fit
-    // against the SMALLER side (fit = min(cw,ch)) so the glyph keeps its
-    // own proportions on a non-square grid instead of stretching.
-    const fit = Math.min(cw, ch);
-    const fontSize = fit * 0.6;
-    const rawPath = font.getPath(text, 0, 0, fontSize);
-    const bbox = rawPath.getBoundingBox();
-    const bw = bbox.x2 - bbox.x1, bh = bbox.y2 - bbox.y1;
-    const scale = Math.min((fit * 0.8) / bw, (fit * 0.8) / bh);
-    ctx2d.save();
-    ctx2d.setTransform(scale, 0, 0, scale, cw / 2 - (bbox.x1 + bw / 2) * scale, ch / 2 - (bbox.y1 + bh / 2) * scale);
-    ctx2d.fillStyle = '#000';
-    ctx2d.beginPath();
-    rawPath.commands.forEach(c => {
-      if (c.type === 'M') ctx2d.moveTo(c.x, c.y);
-      else if (c.type === 'L') ctx2d.lineTo(c.x, c.y);
-      else if (c.type === 'C') ctx2d.bezierCurveTo(c.x1, c.y1, c.x2, c.y2, c.x, c.y);
-      else if (c.type === 'Q') ctx2d.quadraticCurveTo(c.x1, c.y1, c.x, c.y);
-      else if (c.type === 'Z') ctx2d.closePath();
-    });
-    ctx2d.fill();
-    ctx2d.restore();
-    done(canvas);
+  const font = fontArg || null;
+  if (!font) { done(null); return; }
+  const text = (textVal !== undefined && textVal !== '' ? textVal : 'A');
+  canvas.width = cw; canvas.height = ch;
+  ctx2d.clearRect(0, 0, cw, ch);
+  // getPath's own (x,y,fontSize) args don't compose into a clean centred
+  // fit — get the UNPOSITIONED path's bounding box first, then fit it to
+  // the canvas via an explicit ctx transform instead. Fit against the
+  // SMALLER side (fit = min(cw,ch)) so the glyph keeps its own
+  // proportions on a non-square grid instead of stretching.
+  const fit = Math.min(cw, ch);
+  const fontSize = fit * 0.6;
+  const rawPath = font.getPath(text, 0, 0, fontSize);
+  const bbox = rawPath.getBoundingBox();
+  const bw = bbox.x2 - bbox.x1, bh = bbox.y2 - bbox.y1;
+  const scale = Math.min((fit * 0.8) / bw, (fit * 0.8) / bh);
+  ctx2d.save();
+  ctx2d.setTransform(scale, 0, 0, scale, cw / 2 - (bbox.x1 + bw / 2) * scale, ch / 2 - (bbox.y1 + bh / 2) * scale);
+  ctx2d.fillStyle = '#000';
+  ctx2d.beginPath();
+  rawPath.commands.forEach(c => {
+    if (c.type === 'M') ctx2d.moveTo(c.x, c.y);
+    else if (c.type === 'L') ctx2d.lineTo(c.x, c.y);
+    else if (c.type === 'C') ctx2d.bezierCurveTo(c.x1, c.y1, c.x2, c.y2, c.x, c.y);
+    else if (c.type === 'Q') ctx2d.quadraticCurveTo(c.x1, c.y1, c.x, c.y);
+    else if (c.type === 'Z') ctx2d.closePath();
   });
+  ctx2d.fill();
+  ctx2d.restore();
+  done(canvas);
 }
 
 // ── IMAGE → mask, luminance threshold (dark = inside, same convention as
 // Camouflage's Seed from Shape). ──
 function rasterizeImageSource(cw, ch, done, canvas, ctx2d, imgEl) {
-  canvas = canvas || maskCanvas; ctx2d = ctx2d || maskCtx; imgEl = imgEl || seedImageEl;
+  canvas = canvas || maskCanvas; ctx2d = ctx2d || maskCtx;
   if (!imgEl) { done(null); return; }
   canvas.width = cw; canvas.height = ch;
   ctx2d.clearRect(0, 0, cw, ch);
@@ -2435,10 +2314,15 @@ function rasterizeImageSource(cw, ch, done, canvas, ctx2d, imgEl) {
 }
 
 function rasterizeCurrentSeed(cw, ch, done) {
-  if (seedSourceType === 'genesis') rasterizeGenesisSource(cw, ch, done);
-  else if (seedSourceType === 'svg') { if (seedSvgText) rasterizeSvgText(seedSvgText, cw, ch, done); else done(null); }
-  else if (seedSourceType === 'text') rasterizeTextSource(cw, ch, done);
-  else rasterizeImageSource(cw, ch, done);
+  const d = seedsB.getDescriptor();
+  if (d.kind === 'genesis' || d.kind === 'svg') {
+    const s = seedsB.getSVGString();   // genesis: baked + serialised; svg: uploaded text
+    if (s) rasterizeSvgText(s, cw, ch, done); else done(null);
+  } else if (d.kind === 'text') {
+    rasterizeTextSource(cw, ch, done, maskCanvas, maskCtx, d.text, d.font);
+  } else {
+    rasterizeImageSource(cw, ch, done, maskCanvas, maskCtx, d.imageEl);
+  }
 }
 
 // ── TRANSFORMERS — a registry-driven RASTER stack. Started as a Camo-
@@ -2580,7 +2464,7 @@ const maskCtxB = maskCanvasB.getContext('2d');
 // Not wired to any panel control yet — a direct test of the "two
 // independent shapes" question before building real UI for it.
 function testTwoShapeSeed() {
-  rasterizeGenesisSource(MASK_N, MASK_N, (circleCanvas) => {
+  rasterizeGenesisSource(1, MASK_N, MASK_N, (circleCanvas) => {
     if (!circleCanvas) { setStatus('', 'Circle rasterize failed'); return; }
     maskCanvasB.width = MASK_N; maskCanvasB.height = MASK_N;
     maskCtxB.clearRect(0, 0, MASK_N, MASK_N);
@@ -2772,7 +2656,7 @@ function setPaperImage(source, mode) {
   dispMat.uniforms.uPaperImgInvert.value = mode === 'stencil' ? 1.0 : 0.0;
   updatePaperImgFit(source.naturalWidth || source.width, source.naturalHeight || source.height);
   draw();
-  setStatus('active', (mode === 'stencil' ? 'Stencil' : 'Background image') + ' set · ' + seedSourceType);
+  setStatus('active', (mode === 'stencil' ? 'Stencil' : 'Background image') + ' set · ' + seedsB.getDescriptor().kind);
 }
 // Deliberately bypasses rasterizeCurrentSeed() — that pipeline threshold s
 // Image sources to a binary luminance mask (see rasterizeImageSource),
@@ -2783,10 +2667,11 @@ function setPaperImage(source, mode) {
 // (just the tool's Ink/Paper on a glyph shape), so they're not supported —
 // same message as paper-img-hint's own static copy.
 function applyPaperImageMode(mode) {
-  if (seedSourceType === 'image' && seedImageEl) { setPaperImage(seedImageEl, mode); return; }
-  if (seedSourceType === 'svg' && seedSvgText) {
+  const d = seedsB.getDescriptor();
+  if (d.kind === 'image' && d.imageEl) { setPaperImage(d.imageEl, mode); return; }
+  if (d.kind === 'svg' && d.svgText) {
     const svgCanvas = document.createElement('canvas');
-    rasterizeSvgTextInto(seedSvgText, 1024, 1024, svgCanvas, svgCanvas.getContext('2d'), (canvas) => {
+    rasterizeSvgTextInto(d.svgText, 1024, 1024, svgCanvas, svgCanvas.getContext('2d'), (canvas) => {
       if (!canvas) { ctrl('seed-status-hint').textContent = 'Could not load this SVG.'; return; }
       setPaperImage(canvas, mode);
     });
@@ -2877,11 +2762,11 @@ function applySeed() {
           [rtA, rtB] = [rtB, rtA];
         }
         draw();
-        setStatus('active', 'Seeded · ' + seedSourceType + ' · ' + mode + ' + famine zone');
+        setStatus('active', 'Seeded · ' + seedsB.getDescriptor().kind + ' · ' + mode + ' + famine zone');
       });
     } else {
       draw();
-      setStatus('active', 'Seeded · ' + seedSourceType + ' · ' + mode);
+      setStatus('active', 'Seeded · ' + seedsB.getDescriptor().kind + ' · ' + mode);
     }
     });
   });
@@ -2894,104 +2779,18 @@ function syncSeedModeRows() {
   ctrl('paper-img-hint').style.display = isPaperImg ? 'block' : 'none';
 }
 
-// ── FILE INPUTS ──
-ctrl('svg-input').addEventListener('change', (e) => {
-  const file = e.target.files && e.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => { seedSvgText = reader.result; ctrl('svg-upload-btn').textContent = '✓ ' + file.name; };
-  reader.readAsText(file);
-  e.target.value = '';
-});
-ctrl('image-input').addEventListener('change', (e) => {
-  const file = e.target.files && e.target.files[0]; if (!file) return;
-  const img = new Image();
-  img.onload = () => { seedImageEl = img; ctrl('image-upload-btn').textContent = '✓ ' + file.name; URL.revokeObjectURL(img.src); };
-  img.src = URL.createObjectURL(file);
-  e.target.value = '';
-});
-ctrl('image-input-a').addEventListener('change', (e) => {
-  const file = e.target.files && e.target.files[0]; if (!file) return;
-  const img = new Image();
-  img.onload = () => { seedImageElA = img; ctrl('image-upload-btn-a').textContent = '✓ ' + file.name; URL.revokeObjectURL(img.src); };
-  img.src = URL.createObjectURL(file);
-  e.target.value = '';
-});
-ctrl('font-input').addEventListener('change', (e) => {
-  const file = e.target.files && e.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      seedFont = opentype.parse(reader.result);
-      ctrl('font-upload-btn').textContent = 'Font: ' + file.name + ' (upload to change)';
-    } catch (err) {
-      // opentype.js can't read WOFF2 — a clear message beats a cryptic throw (same lesson Living Path's own upload handler learned).
-      ctrl('seed-status-hint').textContent = 'Could not read that font — try a .ttf or .otf (not .woff2).';
-    }
-  };
-  reader.readAsArrayBuffer(file);
-  e.target.value = '';
-});
+// Seed file inputs (SVG / image / font, ×2 for Seed A) are owned by
+// Organica.seedsPanel now — see seedsB / seedsA in INIT.
 
 // ── EXPORT ──
-// ── VIDEO RECORDING — canvas.captureStream() + MediaRecorder. MP4/H.264
-// (avc1) is tried FIRST, not WebM — found by testing MediaRecorder.
-// isTypeSupported directly: this is no longer the Safari-only exception
-// it used to be, current Chrome supports MP4 output natively, and MP4 is
-// the one that opens everywhere (QuickTime, Windows, iOS Photos,
-// PowerPoint/Keynote, every editor and social upload) without friction —
-// unlike WebM, which is what Komorebi's own older export used and is
-// still the fallback here for browsers that don't support MP4 output.
-// Recording a frozen frame isn't useful, so Start forces the sim running
-// if it was paused; Stop is the only other trigger (no auto-stop — Camo
-// Turing has no convergence/auto-pause detection to race against, unlike
-// Camouflage).
-let mediaRecorder = null, recordedChunks = [], recordingExt = 'mp4', recordingMime = 'video/mp4';
-function toggleRecording() {
-  const btn = ctrl('btn-record');
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
-    mediaRecorder.stop();
-    return;
-  }
-  const canvas = ctrl('gl-canvas');
-  if (typeof canvas.captureStream !== 'function' || typeof window.MediaRecorder === 'undefined') {
-    setStatus('', 'Video recording isn\'t supported in this browser');
-    return;
-  }
-  const stream = canvas.captureStream(30);
-  recordedChunks = [];
-  const candidates = [
-    ['video/mp4;codecs=avc1', 'mp4'],
-    ['video/mp4', 'mp4'],
-    ['video/webm;codecs=vp9', 'webm'],
-    ['video/webm;codecs=vp8', 'webm'],
-    ['video/webm', 'webm'],
-  ];
-  const picked = candidates.find(([mime]) => MediaRecorder.isTypeSupported(mime));
-  if (!picked) {
-    setStatus('', 'No supported video format found in this browser');
-    return;
-  }
-  [recordingMime, recordingExt] = picked;
-  try {
-    mediaRecorder = new MediaRecorder(stream, { mimeType: recordingMime });
-  } catch (err) {
-    setStatus('', 'Could not start recording: ' + err.message);
-    return;
-  }
-  mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
-  mediaRecorder.onstop = () => {
-    const blob = new Blob(recordedChunks, { type: recordingMime });
-    Organica.download(blob, Organica.stamp('camo-turing', recordingExt));
-    btn.textContent = 'Start recording';
-    btn.classList.remove('org-btn--primary');
-    setStatus('active', 'Recording saved');
-  };
-  if (!running) togglePlay();
-  mediaRecorder.start();
-  btn.textContent = 'Stop recording';
-  btn.classList.add('org-btn--primary');
-  setStatus('busy', 'Recording…');
-}
+// ── VIDEO RECORDING — the shared Organica.recorder (organica-recorder.js).
+// MP4/H.264 (avc1) is tried first, WebM is the fallback — MP4 opens
+// everywhere without friction. Recording a frozen frame isn't useful, so
+// Start forces the sim running if it was paused; Stop is the only other
+// trigger (no auto-stop — Camo Turing has no convergence/auto-pause
+// detection to race against). Constructed in INIT — see camoRecorder.
+let camoRecorder = null;
+function toggleRecording() { if (camoRecorder) camoRecorder.toggle(); }
 
 function exportPNG() {
   // Real bug, found by testing: the Scale selector (×1/×2/×4) sits in the
@@ -3803,6 +3602,17 @@ function deletePreset() {
 
 // ── INIT ──
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+camoRecorder = Organica.recorder({
+  canvas: ctrl('gl-canvas'),
+  tool: 'camo-turing',
+  onStart: () => { if (!running) togglePlay(); },
+  onStatus: (phase, msg) => setStatus(phase === 'error' ? '' : phase === 'saved' ? 'active' : 'busy', msg),
+  onStateChange: (isRec) => {
+    const btn = ctrl('btn-record');
+    btn.textContent = isRec ? 'Stop recording' : 'Start recording';
+    btn.classList.toggle('org-btn--primary', isRec);
+  },
+});
 window.ctrl = ctrl;
 window.togglePlay = togglePlay;
 window.resetSim = resetSim;
@@ -3834,8 +3644,6 @@ ctrl('txt-preset-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') confirmSavePreset();
   if (e.key === 'Escape') cancelSavePreset();
 });
-window.setSeedSource = setSeedSource;
-window.onTextChange = onTextChange;
 window.applySeed = applySeed;
 window.testTwoShapeSeed = testTwoShapeSeed;   // experimental probe, see the function's own comment
 window.testFamineZoneVisible = testFamineZoneVisible;   // experimental probe, see the function's own comment
@@ -3849,13 +3657,29 @@ window.__read = () => {   // temporary — read back the raw A/B field for the f
   return { N: gridW, gridW, gridH, buf };
 };
 window.syncSeedModeRows = syncSeedModeRows;
-window.setSeedSourceA = setSeedSourceA;
 window.syncTwoShapeRows = syncTwoShapeRows;
 window.toggleLayersOn = toggleLayersOn;
 window.addLayer = addLayer;
 
-populateGenesisGrid();
-populateGenesisGridA();
+// Seed B / Seed A pickers — Organica.seedsPanel, one per shape.
+// applyMode:'manual' — the rasterizers pull getDescriptor()/getSVGString()
+// at Apply time. genesis.bakeGeometry:true resolves the forms' CSS-driven
+// geometry (organic-animations.css) the way rasterizeGenesisSource() did.
+seedsB = Organica.seedsPanel({
+  target: ctrl('seeds-host-b'), idPrefix: 'seedsB',
+  tabs: ['genesis', 'svg', 'text', 'image'],
+  genesis: { forms: Organica.seedsPanel.PRIMORDIAL, initialForm: 1, bakeGeometry: true },
+  text: { initial: 'A', maxLength: 24, perGlyph: false, preloadFont: true, allowFontUpload: true, applyButton: false },
+  applyMode: 'manual',
+  onError: (msg) => { ctrl('seed-status-hint').textContent = msg; },
+});
+seedsA = Organica.seedsPanel({
+  target: ctrl('seeds-host-a'), idPrefix: 'seedsA',
+  tabs: ['genesis', 'svg', 'text', 'image'],
+  genesis: { forms: Organica.seedsPanel.PRIMORDIAL, initialForm: 2, bakeGeometry: true },
+  text: { initial: 'A', maxLength: 24, perGlyph: false, preloadFont: true, applyButton: false },
+  applyMode: 'manual',
+});
 syncSeedModeRows();
 syncTwoShapeRows();
 buildTransformerUI();   // no renderer dependency, unlike buildPresetsUI's live thumbnails — safe before initGL()

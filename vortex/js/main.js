@@ -266,59 +266,27 @@ ctrl('btn-export-svg').addEventListener('click', () => {
   Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('vortex', 'svg'));
 });
 
-// Video — canvas.captureStream() + MediaRecorder, ported verbatim from
-// Membrane's own toggleRecording() (MP4-first-then-WebM candidate list,
-// same onstop download). "Force it running first": resting has nothing
-// moving to record, so Start triggers the same growth-ramp hover would;
-// paused resumes, since the point of Video is the motion.
-let mediaRecorder = null, recordedChunks = [], recordingExt = 'mp4', recordingMime = 'video/mp4';
-function toggleRecording() {
-  const btn = ctrl('btn-record');
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
-    mediaRecorder.stop();
-    return;
-  }
-  const canvas = state.p.canvas;
-  if (typeof canvas.captureStream !== 'function' || typeof window.MediaRecorder === 'undefined') {
-    ctrl('record-hint').textContent = 'Video recording isn\'t supported in this browser.';
-    return;
-  }
-  const stream = canvas.captureStream(30);
-  recordedChunks = [];
-  const candidates = [
-    ['video/mp4;codecs=avc1', 'mp4'],
-    ['video/mp4', 'mp4'],
-    ['video/webm;codecs=vp9', 'webm'],
-    ['video/webm;codecs=vp8', 'webm'],
-    ['video/webm', 'webm'],
-  ];
-  const picked = candidates.find(([mime]) => MediaRecorder.isTypeSupported(mime));
-  if (!picked) {
-    ctrl('record-hint').textContent = 'No supported video format found in this browser.';
-    return;
-  }
-  [recordingMime, recordingExt] = picked;
-  try {
-    mediaRecorder = new MediaRecorder(stream, { mimeType: recordingMime });
-  } catch (err) {
-    ctrl('record-hint').textContent = 'Could not start recording: ' + err.message;
-    return;
-  }
-  mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
-  mediaRecorder.onstop = () => {
-    const blob = new Blob(recordedChunks, { type: recordingMime });
-    Organica.download(blob, Organica.stamp('vortex', recordingExt));
-    btn.textContent = 'Start recording';
-    btn.classList.remove('org-btn--primary');
-    ctrl('record-hint').textContent = 'Recording saved.';
-  };
-  if (state.phase === 'resting') { enterTransitioning(); updatePlayPauseIcon(); }
-  else if (state.paused) { state.paused = false; state.lastFrameMs = state.p.millis(); updatePlayPauseIcon(); }
-  mediaRecorder.start();
-  btn.textContent = 'Stop recording';
-  btn.classList.add('org-btn--primary');
-  ctrl('record-hint').textContent = 'Recording…';
-}
+// Video — the shared Organica.recorder (organica-recorder.js). Manual stop
+// only (Vortex is a continuous sim, no fixed loop). "Force it running first":
+// resting has nothing moving to record, so Start triggers the same growth-ramp
+// hover would; paused resumes, since the point of Video is the motion.
+const vortexRecorder = Organica.recorder({
+  canvas: () => state.p.canvas,
+  tool: 'vortex',
+  onStart: () => {
+    if (state.phase === 'resting') { enterTransitioning(); updatePlayPauseIcon(); }
+    else if (state.paused) { state.paused = false; state.lastFrameMs = state.p.millis(); updatePlayPauseIcon(); }
+  },
+  onStatus: (phase, msg) => {
+    ctrl('record-hint').textContent = (msg.endsWith('.') || msg.endsWith('…')) ? msg : msg + '.';
+  },
+  onStateChange: (isRec) => {
+    const btn = ctrl('btn-record');
+    btn.textContent = isRec ? 'Stop recording' : 'Start recording';
+    btn.classList.toggle('org-btn--primary', isRec);
+  },
+});
+function toggleRecording() { vortexRecorder.toggle(); }
 ctrl('btn-record').addEventListener('click', toggleRecording);
 
 // ── Accessibility + slider polish (organica-core.js) ──
