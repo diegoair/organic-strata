@@ -127,20 +127,7 @@
   /* hidden file inputs use the shared .org-file-input class now */
 
   /* ── ON-CANVAS COMPUTE CONTROLS ── */
-  #compute-bar {
-    position: absolute; top: 16px; left: 16px;
-    display: flex; gap: var(--space-2); z-index: 20;
-  }
-  .hud-btn {
-    font-family: var(--font); font-size: var(--fs-small); letter-spacing: 0.08em;
-    background: rgba(10,10,10,0.82); color: #f5f2ec;
-    border: 1px solid rgba(245,242,236,0.24); border-radius: var(--radius-sm);
-    min-height: 26px; padding: 0 9px; cursor: pointer;
-    transition: border-color .15s, background .15s;
-  }
-  .hud-btn:hover:not(:disabled) { border-color: #f5f2ec; background: rgba(10,10,10,0.95); }
-  .hud-btn:disabled { opacity: 0.42; cursor: not-allowed; }
-  .hud-btn:focus-visible { outline: 2px solid var(--tool); outline-offset: 2px; }
+  /* #compute-bar + .hud-btn are in organica-shell.css now. */
 </style>
 </head>
 <body>
