@@ -14,19 +14,23 @@
   <link rel="stylesheet" href="/shared/panel.css">
   <style>
     /* ══════════════════════════════════════════════════════════════
-       Genesis — the unified Genesis tool.
-       Merged (Aug 27, 2026) from three pages that used to be separate:
-         genesis/index.html   (composer: drag-select cells, click a form)
-         genesis/creator.html (authoring: Draw / Import / Generate)
-         genesis/library.html (the data hub: sets, tiles, inspector)
-       Library's 3-panel shell won — it already had the right data
-       architecture — and the other two became modes inside it.
-       creator.html / library.html are now thin redirects to /genesis/.
+       Genesis — the seed library. Two modes:
+         Library — the home. Browse the Base Seeds set (13 organic +
+                   6 procedural primitives) and any user sets; a filter
+                   bar (source / type / density); single-click a seed
+                   for an inline detail card, double-click to fork it
+                   into Create.
+         Create  — the one authoring door: Draw / Import / Generate a
+                   shape, then Save it as a user seed.
+       History: merged Aug 27, 2026 from three pages (composer / creator
+       / library); Compose and Import-as-a-mode were folded away
+       Aug 30, 2026 when Genesis dropped its 55-form motion catalog.
+       creator.html / library.html / indicators.html are thin redirects.
 
-       The CSS below is Creator's block (already reconciled against
+       The CSS below is Creator's block (reconciled against
        shared/panel.css, including its two documented traps:
        .panel-unit's min-width and the local-rules-win cascade order)
-       plus Library's own unique components and Compose's grid.
+       plus Library's own unique components.
        ══════════════════════════════════════════════════════════════ */
 
     :root {
@@ -36,7 +40,7 @@
       --border: #d0c8b8;
       --border-strong: #a89e88;
       --ink: #0a0a0a;
-      --bg-cell: #eceae4;   /* required by animations.css — forms 29/36 punch holes with it */
+      --bg-cell: #eceae4;   /* seed-tile background */
       --ink-muted: #696256; /* the unified AA-passing value (see the July 26 contrast pass) */
       --ink-faint: #a89e8c;
       --accent: #0a0a0a;
@@ -1688,7 +1692,7 @@
       const pts = polyPoints(g.n, g.r, g.type === 'star', g.type === 'polygon' ? g.irregularity : 0, g.seed);
       return `<path d="${g.type === 'polygon' ? roundedPolyPathD(pts, g.corner) : linePathD(pts, true)}"/>`;
     }
-    // freehand (also the fall-through for library/compose, where the artboard
+    // freehand (also the fall-through for library mode, where the artboard
     // is simply not visible — harmless, and keeps the in-progress shape alive)
     if (!drawEditor || drawEditor.getSegmentCount() < 2) return '';
     return `<path d="${drawEditor.getPathData()}"/>`;
@@ -1802,8 +1806,8 @@
     $('handles-layer').innerHTML = '';
     $('btn-save').disabled = !markup;
     renderTransformPreview();
-    // Only speak for the artboard while an authoring mode is showing —
-    // Library/Compose own the status line otherwise.
+    // Only speak for the artboard while Create is showing —
+    // Library owns the status line otherwise.
     if (isCreatorMode()) updateArtStatus(!!markup);
   }
 

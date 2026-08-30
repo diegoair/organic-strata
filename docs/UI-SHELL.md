@@ -136,8 +136,9 @@ canonical vector intermediate) and `result.descriptor` (raw
 adapts whichever it needs. `applyMode:'manual'` = the picker never fires; the
 tool calls `panel.getDescriptor()` / `panel.getSVGString()` at its own Apply
 step. `genesis.bakeGeometry:true` resolves CSS-driven form geometry (needs
-`/genesis/animations.css`). `.PRIMORDIAL` = the shared curated form
-list. A page with two panels passes distinct `idPrefix`es (Camo Turing).
+`/genesis/animations.css`). `.PRIMORDIAL` = the shared curated form list —
+**the 13 Genesis Base Seeds** since 2026-08-30 (`[1,2,3,7,9,13,14,21,26,28,37,41,56]`),
+the whole of `ORGANIC_FORMS`, not a subset. A page with two panels passes distinct `idPrefix`es (Camo Turing).
 Load after core; link the CSS. Used by Soul / Membrane / Camo Turing. Living
 Path takes only `Organica.seedsPanel.PRIMORDIAL` (the shared curated form
 list) — its Font/SVG/Genesis picker is bespoke (`.seg`/`.drop`/`.forms`, an
@@ -268,8 +269,8 @@ Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 | Variant | Context slot | Used by |
 |---|---|---|
 | `--tool` | hidden (or engine tabs) | Spore, Pollen, Halide, Komorebi, Living Path, template |
-| `--catalog` | title + count | Indicators |
-| `--editor` | mode tabs / breadcrumb | Genesis (unified Library/Compose/Create/Import tool, Aug 27, 2026 — see below) |
+| `--catalog` | title + count | Indicators (archived — `genesis/archive/indicators-55.html`) |
+| `--editor` | mode tabs / breadcrumb | Genesis (Library / Create — the seed library, Aug 30, 2026 — see below) |
 
 **All 11 pages migrated** (6 tool / 3 catalog / 2 editor, historical count —
 Strata was among them and was later removed from the product). The stale
@@ -409,46 +410,47 @@ banning left columns.
 
 ---
 
-### Genesis: three pages merged into one (Aug 27, 2026)
+### Genesis: the seed library — two modes (Aug 30, 2026)
 
 `genesis/index.html`, `genesis/creator.html`, and `genesis/library.html` used
-to be three separate, mutually-unlinked pages sharing one localStorage store
-(`organica.library.forms`, read/written by creator+library only — the old
-index.html was a read-only consumer of the static 55-form catalog and never
-touched the store at all). They're now one tool, living at `genesis/index.html`
-— `creator.html` and `library.html` are thin `location.replace('/genesis/')`
-redirects, kept so old bookmarks/links still resolve.
+to be three separate pages; they merged into `genesis/index.html` on Aug 27,
+2026 (creator/library became `location.replace('/genesis/')` redirects). On
+**Aug 30, 2026** Genesis dropped its role as a motion catalog and became the
+**seed library, plainly** — a 2-mode tool:
 
-The merged tool is `--editor` variant with 4 mode tabs: **Library** (the old
-library.html's own 3-panel shell — sets left, tile grid centre, Figma-style
-inspector right — unchanged behaviour), **Compose** (the old plain
-index.html's own drag-select-then-fill gesture, ported to operate on the
-SAME set/gridConfig/formLayout model Library already uses, not a second
-data model), **Create / Import** (ported from the old creator.html, same
-Appearance/Seed panels).
+- **Library** (the home) — `.app` is `[sets sidebar | grid]`, two columns, no
+  right panel. Left column lists **sets**; centre is a **filter bar** (Source:
+  All/Organic/Primitives/My seeds · Type: All/Asset/Variant/Mask/Container ·
+  Density: Cozy/Comfortable/Airy) over a responsive auto-fill tile grid. The
+  built-in **Base Seeds** set = 13 organic forms + 6 procedural primitives,
+  both synthesized (never stored). **Single-click** a tile → a full-row inline
+  **detail card** (preview, name, facts `<dl>`, Edit/Duplicate/Delete). **Double-
+  click** → opens the seed in Create (forks built-ins). Density persists in
+  `localStorage['organica.library.density']`.
+- **Create** — `.app` gains a third column (`.app--create` →
+  `[sets | stage | panel]`); the right panel is Create-only. One authoring door:
+  Draw (Paper.js freehand) / Generate (parametric kinds) / **Import** (an
+  always-visible "Import SVG" section — upload or paste — folded in from the
+  old separate Import mode). Save mints a `user-…` seed; forking a built-in
+  never mutates it.
 
-**Create = Draw + Generate merged** (later pass): the old Draw and Generate
-tabs are one **Create** mode whose Kind picker's first entry is **Freehand**
-(the Paper.js drawing canvas + Close/Smooth), and every other entry is a
-parametric generator (Circle/Poly/Star/Arc/Triangle/Square/Segment/Drop/Blob).
-`S.gen.type === 'freehand'` is the single selector; `geometry()` already
-converged both to one path string. Freehand seeds now serialize the Paper.js
-path (`createPaperDrawEditor().serialize()`/`.load()` in
-`shared/paper.js`) into `form.genParams`, so a saved freehand seed
-re-opens fully editable via `Load seed…` — the same recipe round-trip the
-parametric kinds already had. Seeds saved from the old Draw tab (no
-`genType`) still load as static Import.
+**Compose** (the drag-select-then-fill grid gesture) and **Import as its own
+mode** were removed. The `set` data model shrank with them — a set is now a
+**plain ordered list of seed ids**, no `gridConfig`/`formLayout`/spans/
+alignment. `migrateLibrary()` strips those on load and merges the old separate
+`basic-seeds` set into Base Seeds (see `docs/SHARED-LIBRARY.md` §4).
 
-**Deliberately not carried over**: the old plain index.html's own decorative
-layer — Palette swatches, Background pattern (dots/waves/hatch/solid),
-per-shape Fill colour override, Randomize/Clear-canvas. None of that had an
-equivalent in the library data model (a `set`'s forms/gridConfig has no
-palette/background concept), and the approved plan only scoped porting the
-selection+fill *gesture*, not that decorative control surface. If any of it
-is still wanted, it needs its own design pass — it doesn't fit today's
-`set` shape as-is. `genesis/genesis-creator.js` (the old composer's own
-logic file) is kept on disk, loaded by nothing, as the record of exactly
-what wasn't ported.
+`S.gen.type === 'freehand'` is still the single Draw-vs-generator selector;
+`geometry()` converges both to one path string, and freehand seeds round-trip
+via `createPaperDrawEditor().serialize()`/`.load()` in `shared/paper.js`.
+An imported seed (`S.importInner` set) is gated out of the `genType` recipe so
+it saves as static markup.
+
+**Never carried over** (from the original plain composer): Palette swatches,
+Background pattern, per-shape Fill override, Randomize — no equivalent in the
+`set` model. `genesis/genesis-creator.js` stays on disk, loaded by nothing, as
+the record. The 55-form animated catalog lives at
+`genesis/archive/indicators-55.html`; `genesis/indicators.html` is a redirect.
 
 ---
 
@@ -581,10 +583,10 @@ Honest list of where the tools still disagree:
   "Panel width — 240 vs 244 vs 260" item (one `--panel-w: 248px` token in
   `panel.css`) and the "Zoom/pan CSS still inline in Spore /
   Pollen / Halide" item.
-- **Genesis** uses a different shell entirely (left sets panel + centre grid +
-  right design panel). It predates this template; converging it is a bigger
-  job than a rename. (No longer 3 separate pages using 2 different shells,
-  as of the Aug 27, 2026 merge — just this one still-divergent shell.)
+- **Genesis** uses a different shell entirely (left sets panel + centre grid,
+  + right design panel in Create mode only — `.app` / `.app--create` swap the
+  column count). It predates this template; converging it is a bigger job than
+  a rename.
 - **Living Path** is fully retrofitted onto the shared panel component via
   its own documented aliases (`.sec`/`.row`/`.group-label`).
 - **`syncColor()`** — resolved 2026-08-30. Every production colour-picker tool now

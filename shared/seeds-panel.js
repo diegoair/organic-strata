@@ -43,7 +43,7 @@
   'use strict';
   const Organica = global.Organica || (global.Organica = {});
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  const PRIMORDIAL = [7, 56, 1, 2, 14, 33, 38, 31];
+  const PRIMORDIAL = [1, 2, 3, 7, 9, 13, 14, 21, 26, 28, 37, 41, 56];
 
   const LABELS = { genesis: 'Genesis', svg: 'SVG', text: 'Text', image: 'Image' };
 

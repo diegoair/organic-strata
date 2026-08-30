@@ -1,7 +1,7 @@
 # Organica — Shared Library & Storage Conventions
 
-> Studio Rann · Organica
-> Last updated: July 25, 2026
+> Organica
+> Last updated: August 30, 2026
 
 The shared library is the one piece of Organica that more than one tool depends on.
 This document is the contract: what the files are, what a consumer must provide, and
@@ -11,12 +11,12 @@ how user data is keyed.
 
 ## 1. The files
 
-All three live in `genesis/` and are served static — no build step, no bundler.
+All live in `genesis/` and are served static — no build step, no bundler.
 
 | File | Contents | Link it when… |
 |---|---|---|
-| **`animations.css`** | 77 `@keyframes` + the 55 `.aNN` rules that bind them + `.defs` | you want the forms **animated inside your own UI** |
-| **`page.css`** | `:root` palette + `body` / `header` / `.grid` / `.cell` / `.num` | you are building a **Genesis catalog-style page** |
+| **`animations.css`** | 77 `@keyframes` + the 55 `.aNN` rules that bind them + `.defs` | you want the forms **animated inside your own UI**. **Genesis itself no longer links this** — its 13 Base Seeds render static. Live consumers now: the hub bento and the archived 55-form gallery (`genesis/archive/indicators-55.html`) |
+| **`page.css`** | `:root` palette + `body` / `header` / `.grid` / `.cell` / `.num` | you are building a **Genesis catalog-style page** (the archived gallery) |
 
 (The old `organic-library.css` `@import` shim that pulled both — "you want everything" — was **retired 2026-08-30**: nothing linked it. Link `page.css` then `animations.css` directly for the historic behaviour.)
 
@@ -24,7 +24,7 @@ Plus the two data files:
 
 | File | Global | Shape |
 |---|---|---|
-| `forms.js` | `window.ORGANIC_FORMS` | object keyed `1`…`55` (**not** an array) of SVG strings |
+| `forms.js` | `window.ORGANIC_FORMS` | object keyed by numeric id (**not** an array) of SVG strings. **Reduced 2026-08-30 from 55 to 13** — the curated Base Seeds set: ids `1,2,3,7,9,13,14,21,26,28,37,41,56` (breath, heartbeat, metaballs, drop fall, lava detach, flower bloom, petal turn, caterpillar, amoeba, mitosis, sun, bubble cluster, line). Ids are unchanged — downstream tools reference forms by number. `window.ORGANIC_LABELS` carries the 13 names. The other 43 SVG strings live only in `genesis/archive/indicators-55.html`. A deeper restructure (slug keys, per-form metadata, dropping the `class="aNN"` hooks) is a tracked follow-up — see `docs/ROADMAP.md` |
 | `defs.js` | `window.ORGANIC_DEFS` | one `<svg class="defs">` string — goo filters + `#cA`…`#cG` chips |
 
 `ORGANIC_DEFS` must be injected into the DOM **once per page**; forms reference its
@@ -48,9 +48,9 @@ that links it without `page.css` **must define two custom properties**:
 hardcode a hex, which is exactly why Spore and Pollen can retint them freely.
 
 `--bg-cell` is easy to forget and fails quietly: only **form 29** (eye iris) and
-**form 36** (moon mask) use it, to cut a hole out of the shape. Without it those two
-render as solid black blobs instead of reading as an iris and a crescent. Everything
-else still looks fine — which is what makes it a nasty bug to notice.
+**form 36** (moon mask) use it, to cut a hole out of the shape. Both are among the 43
+archived forms, so this only bites the archived gallery now — but the rule stands for
+any page that links `animations.css`.
 
 Forms also use per-instance locals (`--c`, `--tx`, `--ty`, `--x`) but those are set
 inline in the SVG markup itself, so a consumer never supplies them.
@@ -88,8 +88,10 @@ expressed in code:
 
 | Mode | Tools | How |
 |---|---|---|
-| **Live DOM** | Genesis (index, library, creator) | `innerHTML` the SVG string, inject `ORGANIC_DEFS` once, link the CSS → animated in the page |
+| **Static DOM** | Genesis | `innerHTML` the SVG string, inject `ORGANIC_DEFS` once. Genesis renders these **static** now (`animation:none` on every preview) — it does not link `animations.css` |
+| **Animated DOM** | Hub bento, archived gallery | as above, plus link `animations.css` → animated in the page |
 | **Path2D** | Spore, Pollen | parse the SVG string, pull the `d` attributes, build `Path2D` → drawn as canvas marks. Animations deliberately ignored (they don't link the CSS) |
+| **Seeds panel** | Soul, Camo Turing, Living Path (via `shared/seeds-panel.js`) | the panel's `PRIMORDIAL` list **is** the 13 ids now — one curated set, no separate subset |
 | **Contours** | Living Path | parse → contours → the form becomes a glyph in the font pipeline |
 
 Halide and Komorebi don't use the library at all — Halide makes pixels, Komorebi makes
@@ -139,9 +141,38 @@ migration has been in production long enough.
 | `organica_komorebi_presets` | `organica.komorebi.presets` |
 | `organica_library` | `organica.library.forms` |
 
-`organica.library.forms` is read and written by **two** files — `genesis/library.html`
-and `genesis/creator.html`. Both carry an identical `readLibraryRaw()`; **keep them in
-sync**, or one page will migrate and the other will silently start from a blank library.
+`organica.library.forms` is read and written by **one** file now — `genesis/index.html`
+(the unified tool). `genesis/library.html` / `creator.html` / `indicators.html` are thin
+redirect stubs.
+
+### The blob shape
+
+```js
+{
+  sets:  [ { id, name, builtIn, forms: string[] }, … ],   // forms = an ordered list of seed ids
+  forms: [ { id: 'user-…', name, svg, type, genType?, genParams? }, … ]  // user-authored seeds only
+}
+```
+
+- **Set = a plain ordered list of ids.** No `gridConfig`, no `formLayout`, no spans,
+  no alignment — the drag-fill compose lattice was removed 2026-08-30.
+- One **built-in "Base Seeds" set** (id `organic-forms`, `builtIn:true`, no `forms`
+  array): 13 organic forms (synthesized from `ORGANIC_FORMS`) + 6 procedural primitives
+  (`basic-square/circle/triangle/arc/hexagon/star`, synthesized in code). **Neither is
+  stored** — both are generated live on load.
+- User sets carry a real `forms: []` of ids. A duplicated seed lands in the active user
+  set, or in an auto-created **"My Seeds"** set (id `set_my-seeds`) if Base Seeds is
+  active.
+
+### `migrateLibrary()`
+
+Runs on every load, idempotent, **never drops `forms[]`**. It:
+1. ensures the `organic-forms` set exists, renames it to "Base Seeds", strips any
+   `gridConfig`/`formLayout`;
+2. removes the old separate `basic-seeds` set (its primitives are synthesized now);
+3. drops plain canonical primitive entries from `forms[]` (safe — re-synthesized), but
+   **keeps** any primitive a user renamed or that a user set still references;
+4. strips `gridConfig`/`formLayout` from every set.
 
 ---
 
@@ -154,4 +185,4 @@ the storage migration, where the migration looked broken and was simply a stale 
 
 ---
 
-*Studio Rann · Organica System v0.1 · July 25, 2026*
+*Organica System v0.1 · updated August 30, 2026*

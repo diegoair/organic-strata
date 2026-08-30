@@ -9,8 +9,7 @@
 
 ### Live & Working
 - [x] Organica hub — `theorganicalanguage.vercel.app`
-- [x] Genesis — 55 animated organic forms + grid composer
-- [x] Genesis Indicators — full form catalog
+- [x] Genesis — the seed library (`/genesis/`): Library + Create modes, 13 static base seeds + 6 procedural primitives, Sets as ordered id lists. *(Was a 55-form animated composer; restructured Aug 30, 2026 — catalog archived at `genesis/archive/indicators-55.html`.)*
 - [x] Spore — generative stippling from images (`/spore/`) — mark library, zoom/pan preview, PNG + hi-def JPG + SVG export, Send to Figma
 - [x] Pollen — advanced stippling from images (`/pollen/`) — variable-radius blue-noise engine, Circle/Polygon/Line points, Adaptive duotone, presets, PNG/JPG/SVG export, Send to Figma
 - [x] Living Path — generative font/path modification (`/livingpath/`) — Vector + Raster engines, layer groups + blend modes, 9 raster algorithms, 24 presets, live text specimen, installable OTF export via Web Worker, `.lvp` projects. Manual: `docs/LIVINGPATH.md`
@@ -55,7 +54,7 @@ preview points (SVG is resolution-independent, PNG/JPG scale the same points up)
 
 ### Done
 - [x] Engine (variable-radius Poisson blue-noise), 400% preview
-- [x] Symbols from the centralized Genesis library (primordial subset of 8) + Upload SVG;
+- [x] Symbols from the centralized Genesis library (the `PRIMORDIAL` set — now the 13 Base Seeds) + Upload SVG;
   bbox-based sizing + stroke-min floor so every form renders
 - [x] Sizing: Size + Range, **Scale** (global ×), **Width/Length** (non-uniform stretch)
 - [x] Stippling: Gamma, Contrast, Overpaint, Hide Zone, Phases, **Spacing ×** (master)
@@ -302,15 +301,21 @@ against jasonwebb/reaction-diffusion-playground. Noted 2026-08-08, to pick up ne
 
 ## Phase 2 — Genesis Depth
 
-Deepen the Genesis composer into a real production tool.
+*Aug 30, 2026: Genesis was restructured into **the seed library** — two modes (Library +
+Create), 13 static base seeds + 6 procedural primitives, Sets as plain ordered id lists.
+The composer / grid-config / 55-form animated catalog were removed (catalog archived at
+`genesis/archive/indicators-55.html`). Motion is Soul + Pulsar's job. Most of the items
+below are now out of scope or superseded.*
 
-- [ ] **Export compositions** — download as SVG, PNG, or animated GIF
-- [ ] **Save/load** — persist compositions to localStorage or file
-- [ ] **More forms** — extend library beyond 55 (forms 56+)
-- [ ] **Form scale** — allow forms to break outside their grid cell
-- [ ] **Rotation** — per-form rotation control in composer
-- [ ] **Opacity** — per-form opacity control
-- [ ] **Drop mark forms** — new forms derived from the drop marking gesture specifically
+- [ ] **`forms.js` deep restructure** *(named follow-up from the Aug 30 restructure)* —
+  slug keys instead of numeric ids, a per-form metadata block (name / type / tags /
+  bbox), strip the `class="aNN"` / `class="b"` presentation classes, and update every
+  consumer (`shared/seeds-panel.js` `PRIMORDIAL`, pollen/spore local literals, livingpath,
+  hub bento, fvs/colornet) to slugs.
+- [x] **Export compositions** — Create exports seeds as SVG/PNG (per-seed, not compositions)
+- [x] **Save/load** — `organica.library.forms`; user sets persist
+- [ ] **Form scale / rotation / opacity** — Create's transform vocabulary covers this for
+  authored seeds; a grid-level composer no longer exists to apply it per cell
 
 ---
 

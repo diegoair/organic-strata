@@ -366,7 +366,7 @@
 const GFORMS = window.ORGANIC_FORMS || {};
 const GLABELS = window.ORGANIC_LABELS || {};
 //          drop, line, circle, teardrop, ring, leaf, petal, seed, spiral, crescent, dew, iris, mushroom
-const PRIMORDIAL = [7, 56, 1, 2, 14, 33, 38, 31];
+const PRIMORDIAL = [1, 2, 3, 7, 9, 13, 14, 21, 26, 28, 37, 41, 56];  // Genesis Base Seeds — keep in sync with shared/seeds-panel.js
 const BUILT_IN_MARKS = PRIMORDIAL.filter(n => GFORMS[n]).map(n => ({
   id: 'g' + n, num: n, name: GLABELS[n] || ('#' + n), svg: GFORMS[n]
 }));

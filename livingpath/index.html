@@ -1039,7 +1039,7 @@ function sampleSRC(){
   if(_sampleSRC[ch]) return _sampleSRC[ch];
   let subs=null;
   if(window.__FONT){ try{ subs=fromOTCommands(window.__FONT.charToGlyph(ch).path.commands); }catch(e){} }
-  if((!subs||!subs.length) && window.ORGANIC_FORMS){ try{ subs=fromSVGString(window.ORGANIC_FORMS[38]); }catch(e){} }
+  if((!subs||!subs.length) && window.ORGANIC_FORMS){ try{ subs=fromSVGString(window.ORGANIC_FORMS[13]); }catch(e){} }
   _sampleSRC[ch] = (subs&&subs.length) ? normalise(subs,false) : null;
   return _sampleSRC[ch];
 }
@@ -1838,7 +1838,7 @@ window.addEventListener('message', (e) => {
       const payload = msg.payload || {};
       const tech = payload.tech === 'raster' ? 'raster' : 'vector';
       if (typeof window.switchTech === 'function') switchTech(tech);
-      const formId = payload.formId || 38;
+      const formId = payload.formId || 13;
       setSource(fromSVGString(window.ORGANIC_FORMS[formId]), false, 'genesis', 'genesis · form ' + formId);
       if (payload.preset) applyPreset(payload.preset);
       await new Promise(r => setTimeout(r, 150));

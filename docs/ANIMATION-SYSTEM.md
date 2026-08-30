@@ -1,7 +1,14 @@
 # Organica — Animation System Documentation
 
-> Reference for the 55 organic form animations in `genesis/animations.css`.  
+> Reference for the 55 organic form animations in `genesis/animations.css`.
 > Use this when extending the library, debugging existing forms, or building new tools on top of Genesis.
+>
+> **Status (Aug 30, 2026):** Genesis is now a *static* seed library — it ships 13 base
+> forms and no longer links `animations.css`. Motion is Soul + Pulsar's job. The full
+> 55-form animated catalog is preserved at `genesis/archive/indicators-55.html`;
+> `genesis/animations.css` + `genesis/page.css` + all 55 SVG strings still live on disk
+> for that page and the hub bento. This taxonomy is still the reference — the 6 patterns
+> below are what Soul rebuilt on GSAP.
 
 ---
 
@@ -199,17 +206,23 @@ Each of 44 circles sits at golden-angle intervals on an Archimedean spiral — t
 
 ## How to Add a New Form
 
+> Genesis no longer authors animated forms — this section applies to the **archived
+> gallery** (`genesis/archive/indicators-55.html`) and to any new tool that links
+> `animations.css`. For new *motion*, work in Soul (parametric GSAP) or Pulsar.
+> `forms.js` itself now holds only the 13 static Base Seeds; adding a new base seed
+> means an SVG string in `forms.js` + a label — no animation CSS.
+
 1. **Identify the real physics.** What force or process governs this subject? Choose the closest pattern from the 6 above.
 
-2. **Pick the next available ID** (`56`, `57`, etc.) and add a class `.a56` block to `genesis/animations.css`.
+2. **Pick the next available ID** and add a class `.aNN` block to `genesis/animations.css` (append-only).
 
-3. **Add the SVG markup** to `forms.js` as `window.ORGANIC_FORMS[56]` — a self-contained `<svg viewBox="0 0 200 200" class="a56">`. Use `fill: var(--ink)` / `stroke: var(--ink)` for all color — never hardcode hex values.
+3. **Add the SVG markup** — a self-contained `<svg viewBox="0 0 200 200" class="aNN">`. Use `fill: var(--ink)` / `stroke: var(--ink)` for all color — never hardcode hex values.
 
-4. **Add the label** to `window.ORGANIC_LABELS[56]` in `forms.js`.
+4. **If the form uses the goo filter or terrazzo chips**, they're already in `defs.js` — reference `filter: url(#goo)` or `<use href="#cA"/>` directly. No changes needed to defs.
 
-5. **If the form uses the goo filter or terrazzo chips**, they're already in `defs.js` — reference `filter: url(#goo)` or `<use href="#cA"/>` directly. No changes needed to defs.
+5. **Test in `genesis/archive/indicators-55.html`** — reload and confirm the form animates correctly in the catalog grid.
 
-6. **Test in `genesis/indicators.html`** — reload and confirm the form animates correctly in the catalog grid before integrating into the composer.
+Note: the runtime `fixForm35()` phyllotaxis-spiral fill (form 35 injected its dots at load) was **retired 2026-08-30** with the catalog — the archived page keeps its own copy if needed.
 
 ---
 
@@ -217,11 +230,11 @@ Each of 44 circles sits at golden-angle intervals on an Archimedean spiral — t
 
 | File | Role | Modify? |
 |---|---|---|
-| `genesis/animations.css` | All 55 `@keyframes` + `.aNN` rules | Yes — add new form rules here |
-| `forms.js` | SVG markup for all 55 forms + labels | Yes — add `ORGANIC_FORMS[N]` and `ORGANIC_LABELS[N]` |
+| `genesis/animations.css` | All 55 `@keyframes` + `.aNN` rules — archive-support only | Append-only, rarely |
+| `forms.js` | SVG markup for the **13** static Base Seeds + labels | Yes — add `ORGANIC_FORMS[N]` and `ORGANIC_LABELS[N]` |
 | `defs.js` | Shared SVG `<defs>`: goo filters + 7 terrazzo chip paths | Rarely — only if adding new shared filters |
-| `genesis-creator.js` | Composer interaction logic | Yes — update form count if adding forms |
+| `genesis/archive/indicators-55.html` | The full 55-form animated gallery, self-contained | Only to restore an archived form |
 
 ---
 
-*Last updated: June 2026 — Organica System v0.1*
+*Last updated: August 30, 2026 — Organica System v0.1*

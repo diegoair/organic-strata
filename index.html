@@ -527,7 +527,7 @@
   <main class="display-area">
     <div class="bento-wrap">
       <div class="bento" id="bento"></div>
-      <a class="bento-link" href="/genesis/">Genesis &mdash; 55 organic forms, the motion library every tool draws from</a>
+      <a class="bento-link" href="/genesis/">Genesis &mdash; the seed library every tool draws from</a>
     </div>
   </main>
 
@@ -571,23 +571,21 @@
     // ── bento showcase — Genesis forms + hand-built preview motifs for
     // other tools, so the hub reads as one gallery instead of a Genesis-
     // only demo. Every cell links out to its own tool.
+    // Genesis's 13 Base Seeds (forms.js) — the only ids that still exist.
     const BENTO_FORMS = [
       { id: 1,  size: 'lg',   ink: '#6a9c2e' },  // breath
-      { id: 3,  size: 'sm',   ink: '#c04a1e' },  // two metaballs merge
+      { id: 3,  size: 'sm',   ink: '#c04a1e' },  // metaballs
       { id: 7,  size: 'sm',   ink: '#c04a1e' },  // drop fall
       { id: 13, size: 'tall', ink: '#a4842a' },  // flower bloom
-      { id: 17, size: 'wide', ink: '#4f7ba8' },  // jellyfish
-      { id: 23, size: 'sm',   ink: '#5c6f2e' },  // rain
-      { id: 27, size: 'sm',   ink: '#8256cc' },  // cell divide
-      { id: 30, size: 'sm',   ink: '#4f7ba8' },  // iris pulse
-      { id: 35, size: 'lg',   ink: '#2f9c86' },  // phyllotaxis spiral
-      { id: 39, size: 'wide', ink: '#8a5330' },  // mycelium network
-      { id: 42, size: 'sm',   ink: '#305f9c' },  // pollen drift
-      { id: 45, size: 'sm',   ink: '#5c6f2e' },  // mushroom inflate
-      { id: 48, size: 'tall', ink: '#4d6d86' },  // tree rings
-      { id: 52, size: 'sm',   ink: '#5936c4' },  // shard rotation
-      { id: 53, size: 'wide', ink: '#8256cc' },  // scatter & gather
-      { id: 55, size: 'sm',   ink: '#a52fb0' },  // lichen patches
+      { id: 9,  size: 'wide', ink: '#4f7ba8' },  // lava detach
+      { id: 21, size: 'sm',   ink: '#5c6f2e' },  // caterpillar
+      { id: 28, size: 'sm',   ink: '#8256cc' },  // mitosis
+      { id: 2,  size: 'sm',   ink: '#4f7ba8' },  // heartbeat
+      { id: 37, size: 'lg',   ink: '#2f9c86' },  // sun
+      { id: 26, size: 'wide', ink: '#8a5330' },  // amoeba
+      { id: 41, size: 'sm',   ink: '#305f9c' },  // bubble cluster
+      { id: 14, size: 'sm',   ink: '#5c6f2e' },  // petal turn
+      { id: 56, size: 'tall', ink: '#4d6d86' },  // line
     ];
 
     // Hand-built motifs standing in for each tool's own visual language —
@@ -632,26 +630,6 @@
       return d.trim();
     }
 
-    // Form 35 (phyllotaxis spiral) ships as an empty <svg> shell in
-    // forms.js — its dots are generated at runtime, normally by
-    // genesis-creator.js's own "fix form 35" snippet, ported verbatim
-    // here since the hub doesn't otherwise load that file.
-    function fillPhyllotaxisSpiral() {
-      if (!(window.ORGANIC_FORMS && window.ORGANIC_FORMS[35])) return;
-      const N = 44, GA = Math.PI * (3 - Math.sqrt(5)), C = 12;
-      let s = '';
-      for (let i = 1; i <= N; i++) {
-        const r = C * Math.sqrt(i);
-        const a = i * GA;
-        const x = (100 + r * Math.cos(a)).toFixed(2);
-        const y = (100 + r * Math.sin(a)).toFixed(2);
-        const rad = (1.4 + i * 0.08).toFixed(2);
-        const delay = (-i * 0.05).toFixed(2);
-        s += `<circle cx="${x}" cy="${y}" r="${rad}" style="animation-delay:${delay}s"/>`;
-      }
-      window.ORGANIC_FORMS[35] = window.ORGANIC_FORMS[35].replace('></svg>', '>' + s + '</svg>');
-    }
-
     // Interleave forms/tools (2 forms : 1 tool, close to their real 16:10
     // ratio) so the grid reads as one mixed gallery, not two stacked
     // blocks — matches "examples from other tools too", spread through.
@@ -694,7 +672,6 @@
     }
 
     (function buildBento() {
-      fillPhyllotaxisSpiral();
       const wrap = document.getElementById('bento');
       const showcase = interleave(BENTO_FORMS, TOOL_PREVIEWS);
       showcase.forEach((item, i) => {

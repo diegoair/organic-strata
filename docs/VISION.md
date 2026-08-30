@@ -80,8 +80,7 @@ Hand drawing / Photo / Figma sketch
     SVG assets / Shape library
         ↓
     [ GENESIS ]
-    Organic form library (55 animated forms)
-    Grid composer — arrange forms into compositions
+    The seed library — 13 base seeds + 6 primitives, user Sets, Draw/Generate/Import
         ↓
     Figma (manual export, integration in progress)
         ↓
@@ -143,13 +142,11 @@ Any input (photo, sketch, Figma, raster)
 
 ### Genesis
 `theorganicalanguage.vercel.app/genesis/`  
-Organic form library + grid composer.  
-55 animated SVG forms, each physically simulated.  
-Compose by selecting grid cells and filling with forms.
-
-### Genesis Indicators
-`theorganicalanguage.vercel.app/genesis/indicators.html`  
-Full catalog of all 55 animated forms — reference and exploration tool.
+The seed library. Two modes: **Library** (browse the built-in Base Seeds — 13 static
+organic forms + 6 procedural primitives — and any user-made Sets; a Set is an ordered
+list of seeds) and **Create** (Draw / Generate / Import an SVG, save it as a seed).  
+*Restructured Aug 30, 2026 from a 55-form animated grid composer. Motion moved to Soul
++ Pulsar; the animated catalog is archived at `genesis/archive/indicators-55.html`.*
 
 ---
 
