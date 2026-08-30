@@ -140,7 +140,7 @@ const sketch = (p) => {
     // bug, found by tracing the two assignments — this used to write
     // state.inkRGB straight from the CSS var, bypassing the swatch
     // entirely, so the Palette's own Ink swatch/hex fields (set by the
-    // OTHER, module-load-time createColorSwatch call from state.js's own
+    // OTHER, module-load-time Organica.palette.swatch call from state.js's own
     // default) could silently disagree with the colour actually being
     // drawn if --mark-ink and state.js's default array ever drifted
     // apart. One call, one source of truth, UI and state can't disagree.
@@ -346,14 +346,14 @@ ctrl('rg-weight').addEventListener('input', e => { state.strokeW = parseFloat(e.
 ctrl('rg-alpha').addEventListener('input', e => { state.strokeAlpha = parseInt(e.target.value, 10); ctrl('v-alpha').textContent = state.strokeAlpha; });
 ctrl('chk-fill').addEventListener('change', e => { state.fillEachFrame = e.target.checked; });
 
-// ── RMX — promoted to shared/organica-palette-chip.js (TuneSutra's own
-// extraction, 2026-08-26); this was one of the 6 independent copies found
-// duplicating it (ported here from Camo Turing's own original). state
+// ── RMX — promoted to shared/organica-palette.js (Organica.palette.swatch;
+// folded in from organica-palette-chip.js, 2026-08-29); this was one of the
+// 6 independent copies found duplicating it (ported here from Camo Turing's
+// own original). state
 // stays the live source of truth (render.js/svgexport.js read
 // state.rmxColors directly each frame), kept in sync via onChange.
 const RMX_COLORS_MAX = 5;
-Organica.createPaletteChips({
-  wrap: ctrl('rmx-palette'),
+Organica.palette.swatch(ctrl('rmx-palette'), {
   colors: state.rmxColors,
   min: 2,
   max: RMX_COLORS_MAX,
@@ -448,18 +448,18 @@ ctrl('num-canvas-height').addEventListener('change', e => {
 // ── Palette — Ink + Background, Camo Turing's own Ink/Paper pairing
 // (see index.html's own Palette section comment for why Background isn't
 // literally called "Paper" here). Wired via the shared
-// Organica.createColorSwatch (shared/organica-core.js) — extracted from
+// Organica.palette.swatch attach mode (shared/organica-palette.js) — extracted from
 // this exact pair (which started as a hand-copy of Camo Turing's own
 // syncColor) once a repo-wide survey found the same swatch+hex+random+
 // native-picker-forward wiring reimplemented independently in 7 tools.
 // `initial` syncs the visible swatch/hex fields to state.js's own
 // defaults immediately; `onChange` is this tool's own side effect
 // (state.*RGB, plus a full repaint for Background).
-const inkSwatch = Organica.createColorSwatch('ink', {
+const inkSwatch = Organica.palette.swatch('ink', {
   initial: Organica.rgbToHex(...state.inkRGB),
   onChange: (hex, rgb) => { state.inkRGB = rgb; },
 });
-const bgSwatch = Organica.createColorSwatch('bg', {
+const bgSwatch = Organica.palette.swatch('bg', {
   initial: Organica.rgbToHex(...state.canvasBgRGB),
   onChange: (hex, rgb) => { state.canvasBgRGB = rgb; paintBackground(); },
 });

@@ -152,7 +152,7 @@
   /* ── RIGHT PANEL ── */
 
   .panel-section { border-bottom: 1px solid var(--border); padding: var(--space-5) var(--space-6); }
-  input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
+  /* input[type=color] hider now in shared/organica-panel.css */
 
   #file-input {
     position: absolute; width: 1px; height: 1px;
@@ -386,29 +386,32 @@
         <span>Background fill</span>
       </label>
       <div class="color-row" id="row-bgfill-color" style="display:none">
-        <span class="ctrl-label">Color</span>
-        <button class="color-swatch" id="swatch-bgfill" style="background:#cccccc" onclick="document.getElementById('cp-bgfill').click()" title="Background colour"></button>
-        <input type="color" id="cp-bgfill" value="#cccccc" oninput="syncColor('bgfill',this.value)">
-        <input class="color-hex" id="hex-bgfill" value="#cccccc" maxlength="7"
-          onchange="syncColor('bgfill',this.value)">
+        <span class="color-name">Color</span>
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-bgfill" style="background:#cccccc" title="Background colour"></button>
+          <input type="color" id="cp-bgfill" value="#cccccc">
+        </span>
+        <input class="color-hex" id="hex-bgfill" value="#cccccc" maxlength="7">
       </div>
     </div>
 
     <div class="panel-section">
       <h3>Color</h3>
       <div class="color-row">
-        <span class="ctrl-label">Ink</span>
-        <button class="color-swatch" id="swatch-ink" style="background:#0a0a0a" onclick="document.getElementById('cp-ink').click()" title="Ink colour"></button>
-        <input type="color" id="cp-ink" value="#0a0a0a" oninput="syncColor('ink',this.value)">
-        <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7"
-          onchange="syncColor('ink',this.value)">
+        <span class="color-name">Ink</span>
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-ink" style="background:#0a0a0a" title="Ink colour"></button>
+          <input type="color" id="cp-ink" value="#0a0a0a">
+        </span>
+        <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7">
       </div>
       <div class="color-row">
-        <span class="ctrl-label">Paper</span>
-        <button class="color-swatch" id="swatch-paper" style="background:#f5f2ec" onclick="document.getElementById('cp-paper').click()" title="Paper colour"></button>
-        <input type="color" id="cp-paper" value="#f5f2ec" oninput="syncColor('paper',this.value)">
-        <input class="color-hex" id="hex-paper" value="#f5f2ec" maxlength="7"
-          onchange="syncColor('paper',this.value)">
+        <span class="color-name">Paper</span>
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-paper" style="background:#f5f2ec" title="Paper colour"></button>
+          <input type="color" id="cp-paper" value="#f5f2ec">
+        </span>
+        <input class="color-hex" id="hex-paper" value="#f5f2ec" maxlength="7">
       </div>
       <div class="row-btns">
         <button class="mini-btn" onclick="swapColors()">Swap colors</button>
@@ -423,6 +426,7 @@
 </div><!-- /app -->
 
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-palette.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // HALIDE — photo → true 1-bit dithered portrait
@@ -598,14 +602,10 @@ function setAlg(a) {
   scheduleRender();
 }
 
-function syncColor(which, hex) {
-  hex = Organica.normalizeHex(hex, ctrl('cp-' + which).value);
-  ctrl('cp-' + which).value = hex;
-  ctrl('hex-' + which).value = hex;
-  document.getElementById('swatch-' + which).style.background = hex;
-  paintPreview();   // colour is paint-only — no recompute needed
-  updateSizeReadout();
-}
+// Ink / Paper / Background-fill — the shared Palette component (attach mode).
+// Populated in INIT (after paintPreview / updateSizeReadout are defined).
+const swatches = {};
+function onSwatchChange() { paintPreview(); updateSizeReadout(); }   // colour is paint-only
 // A true swap: the ink/paper CELLS (which pixels are which) don't change at
 // all — only which of the two colours paints which role. Same shapes, same
 // dither pattern, colours traded. (Toggling Invert instead would recompute
@@ -613,8 +613,8 @@ function syncColor(which, hex) {
 // not just its palette. Use the Invert checkbox directly if that's what's
 // wanted.)
 function swapColors() {
-  const ink = ctrl('hex-ink').value, paper = ctrl('hex-paper').value;
-  syncColor('ink', paper); syncColor('paper', ink);
+  const ink = swatches.ink.get(), paper = swatches.paper.get();
+  swatches.ink.set(paper); swatches.paper.set(ink);
 }
 
 // ── PRESETS ──
@@ -669,9 +669,9 @@ function applyPreset(name) {
   ctrl('sl-outline-width').value = p.outlineWidth != null ? p.outlineWidth : 1; syncVal(ctrl('sl-outline-width'), 'vl-outline-width');
   ctrl('ck-bgfill').checked = !!p.bgfill;
   toggleRow('row-bgfill-color', !!p.bgfill);
-  syncColor('bgfill', p.bgfillColor || '#cccccc');
+  swatches.bgfill.set(p.bgfillColor || '#cccccc');
   ctrl('ck-transparent').checked = !!p.transparent;
-  syncColor('ink', p.ink); syncColor('paper', p.paper);
+  swatches.ink.set(p.ink); swatches.paper.set(p.paper);
   scheduleRender();
 }
 function savePreset() {
@@ -1273,6 +1273,10 @@ window.addEventListener('keydown', e => {
 // The Export popover owns the accessibility contract (aria-expanded, Escape,
 // click-outside, focus return) — see shared/organica-core.js.
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+
+['ink', 'paper', 'bgfill'].forEach(c => {
+  swatches[c] = Organica.palette.swatch(c, { initial: ctrl('hex-' + c).value, onChange: onSwatchChange });
+});
 
 setStatus('', 'Drop a photo to begin');
 applyZoom();

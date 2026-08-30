@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/shared/organica-header.css">
 <link rel="stylesheet" href="/shared/organica-floatbar.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-palette.css">
 <!-- Needed only to resolve Genesis forms' CSS-driven geometry when
      rasterizing them as seed shapes — see rasterizeGenesisSource(). -->
 <link rel="stylesheet" href="/genesis/organic-animations.css">
@@ -38,26 +39,7 @@
     color: var(--mid); font-family: var(--font); font-size: var(--fs-small); cursor: pointer;
   }
   .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .icon-btn {
-    background: none; border: 1px solid var(--border); color: var(--accent);
-    width: 22px; height: 20px; flex-shrink: 0; padding: 0; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .icon-btn:hover { border-color: var(--accent); color: var(--ink); }
-  .rmx-palette { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
-  .rmx-color { position: relative; width: 36px; height: 28px; border: 1px solid var(--border); cursor: pointer; overflow: hidden; }
-  .rmx-color input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; cursor: pointer; }
-  .rmx-x {
-    position: absolute; top: 0; right: 0; width: 13px; height: 13px;
-    line-height: 11px; font-size: var(--fs-base); padding: 0; cursor: pointer;
-    background: rgba(255,255,255,0.82); color: #000; border: none;
-  }
-  .rmx-add {
-    width: 36px; height: 28px; border: 1px dashed var(--border); background: none;
-    color: var(--mid); font-size: var(--fs-large); cursor: pointer; line-height: 1;
-  }
-  .rmx-add:hover { border-color: var(--accent); color: var(--accent); }
+  /* .icon-btn + .rmx-* chip CSS now in shared/organica-palette.css */
   .layer-card { border: 1px solid var(--border); padding: var(--space-2); margin-bottom: var(--space-2); }
   .layer-card.active { border-color: var(--tool, var(--ink)); }
   .layer-card__head { display: flex; align-items: center; gap: var(--space-2); }
@@ -776,24 +758,22 @@
       <div class="color-row" id="row-point">
         <span class="color-name">Ink</span>
         <span class="color-swatch-wrap">
-          <button class="color-swatch" id="sw-ink" onclick="ctrl('cp-ink').click()"></button>
-          <input type="color" id="cp-ink" value="#0a0a0a" oninput="syncColor('ink', this.value)">
+          <button class="color-swatch" id="sw-ink"></button>
+          <input type="color" id="cp-ink" value="#0a0a0a">
         </span>
-        <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7"
-          onchange="syncColor('ink', this.value)">
-        <button class="icon-btn" onclick="randomColor('ink')" title="Random colour" aria-label="Random ink colour">
+        <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7">
+        <button class="icon-btn" id="btn-random-ink" title="Random colour" aria-label="Random ink colour">
           <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
         </button>
       </div>
       <div class="color-row" id="row-paper">
         <span class="color-name">Paper</span>
         <span class="color-swatch-wrap">
-          <button class="color-swatch" id="sw-paper" onclick="ctrl('cp-paper').click()"></button>
-          <input type="color" id="cp-paper" value="#f5f2ec" oninput="syncColor('paper', this.value)">
+          <button class="color-swatch" id="sw-paper"></button>
+          <input type="color" id="cp-paper" value="#f5f2ec">
         </span>
-        <input class="color-hex" id="hex-paper" value="#f5f2ec" maxlength="7"
-          onchange="syncColor('paper', this.value)">
-        <button class="icon-btn" onclick="randomColor('paper')" title="Random colour" aria-label="Random paper colour">
+        <input class="color-hex" id="hex-paper" value="#f5f2ec" maxlength="7">
+        <button class="icon-btn" id="btn-random-paper" title="Random colour" aria-label="Random paper colour">
           <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
         </button>
       </div>
@@ -810,7 +790,7 @@
 <input type="file" id="font-input" accept=".ttf,.otf" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;border:0;padding:0">
 
 <script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette-chip.js"></script>
+<script src="/shared/organica-palette.js"></script>
 <!-- Transformer — centralized raster effect-stack module (see the file's
      own header): field algorithms ported from Living Path's RFX, canvas
      adapters, and the thumbnail-picker UI. -->
@@ -2097,18 +2077,20 @@ function toggleDiffOverlay() {
   scheduleRender();
 }
 
-function syncColor(which, hex) {
-  hex = Organica.normalizeHex(hex, ctrl('cp-' + which).value);
-  ctrl('cp-' + which).value = hex;
-  ctrl('hex-' + which).value = hex;
-  ctrl('sw-' + which).style.background = hex;
-  if (dispMat) dispMat.uniforms[which === 'ink' ? 'uInk' : 'uPaper'].value = new THREE.Color(hex);
-  scheduleRender();
-}
-function randomColor(which) {
-  const hex = '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
-  syncColor(which, hex);
-}
+// Ink/Paper — the shared Palette component (attach mode). The #btn-random-<x>
+// buttons are wired by the component itself. onChange pushes the THREE.Color
+// uniform + re-renders (dispMat may not exist yet on first paint — guarded,
+// and initGL seeds uInk/uPaper from the hex fields anyway).
+const swatches = {};
+['ink', 'paper'].forEach(c => {
+  swatches[c] = Organica.palette.swatch(c, {
+    initial: ctrl('hex-' + c).value,
+    onChange: (hex) => {
+      if (dispMat) dispMat.uniforms[c === 'ink' ? 'uInk' : 'uPaper'].value = new THREE.Color(hex);
+      scheduleRender();
+    },
+  });
+});
 
 // ── COLOR MODE — Solid / Adaptive / RMX, Pollen's own three modes. ──
 let rmxColors = ['#1a1a2e', '#e94f37', '#f6e8c3'];
@@ -2123,15 +2105,15 @@ function setColorMode(mode) {
   dispMat.uniforms.uColorMode.value = mode === 'solid' ? 0.0 : mode === 'adaptive' ? 1.0 : 2.0;
   scheduleRender();
 }
-// Promoted to shared/organica-palette-chip.js (TuneSutra's own extraction,
-// 2026-08-26) — this was one of the 6 independent copies found duplicating
+// Promoted to shared/organica-palette.js (Organica.palette.swatch; folded
+// in from organica-palette-chip.js, 2026-08-29) — this was one of the 6
+// independent copies found duplicating
 // it (Camo Turing was the original). rmxColors stays a live module-scoped
 // array (SVG export at buildRandomGridSVG/rmxLerpColor reads it directly),
 // kept in sync via the chip factory's onChange.
 let rmxChips = null;
 function buildRmxPalette() {
-  rmxChips = Organica.createPaletteChips({
-    wrap: ctrl('rmx-palette'),
+  rmxChips = Organica.palette.swatch(ctrl('rmx-palette'), {
     colors: rmxColors,
     min: 2,
     max: RMX_COLORS_MAX,
@@ -3859,8 +3841,6 @@ window.toggleExportDiff = toggleExportDiff;
 window.toggleDiffOverlay = toggleDiffOverlay;
 window.toggleRecording = toggleRecording;
 window.syncVal = syncVal;
-window.syncColor = syncColor;
-window.randomColor = randomColor;
 window.setColorMode = setColorMode;
 window.scheduleRender = scheduleRender;
 window.syncRmxUniforms = syncRmxUniforms;

@@ -1,6 +1,7 @@
 /* ─────────────────────────────────────────────────────────────
-   Vortex — Palette. Promoted to shared/organica-palette-chip.js
-   (TuneSutra's own extraction, 2026-08-26) — this was one of the 6
+   Vortex — Palette. Promoted to shared/organica-palette.js
+   (Organica.palette.swatch; folded in from organica-palette-chip.js,
+   2026-08-29) — this was one of the 6
    independent copies found duplicating the RMX chip pattern (itself
    ported from Membrane's own, which ported Camo Turing's original).
 
@@ -20,8 +21,7 @@ export function colorAt(i) {
 function ctrl(id) { return document.getElementById(id); }
 
 export function buildPalette() {
-  Organica.createPaletteChips({
-    wrap: ctrl('rmx-palette'),
+  Organica.palette.swatch(ctrl('rmx-palette'), {
     colors: state.colors,
     min: 2,
     max: COLORS_MAX,

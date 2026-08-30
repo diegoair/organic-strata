@@ -55,7 +55,7 @@ export const state = {
   // there is no one "ink" colour. Max 8 (raised from Membrane's 5 —
   // see palette.js's own header for why that ceiling doesn't apply
   // here), min 2. bgRGB is the canvas's own ground, same Background-
-  // swatch convention as Membrane via Organica.createColorSwatch.
+  // swatch convention as Membrane via Organica.palette.swatch (attach mode).
   colors: ['#e94f37', '#f6e8c3', '#3a86ff', '#06d6a0', '#8a4fff'],
   bgRGB: [6, 6, 6],
 

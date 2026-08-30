@@ -225,7 +225,7 @@ ctrl('num-canvas-height').addEventListener('change', e => {
 // ── Palette + Seed ──
 ctrl('rmx-palette').addEventListener('dragstart', e => e.preventDefault());   // no-op guard, keeps the chip grid inert to accidental drag
 buildPalette();
-const bgSwatch = Organica.createColorSwatch('bg', {
+const bgSwatch = Organica.palette.swatch('bg', {
   initial: Organica.rgbToHex(...state.bgRGB),
   onChange: (hex, rgb) => { state.bgRGB = rgb; },
 });

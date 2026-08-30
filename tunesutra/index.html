@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/shared/organica-tokens.css">
 <link rel="stylesheet" href="/shared/organica-header.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-palette.css">
 <link rel="stylesheet" href="/shared/organica-floatbar.css">
 <style>
   :root {
@@ -66,9 +67,12 @@
   .field-mini__tag { font-size: var(--fs-micro); color: var(--mid); text-align: center; }
   .field-mini input { width: 100%; text-align: center; padding: 0 2px; }
 
-  .rmx-color { position: relative; width: 30px; height: 26px; border: 1px solid var(--border-strong, var(--border)); border-radius: var(--radius-sm); cursor: pointer; overflow: hidden; flex-shrink: 0; }
-  .rmx-color.chip-active { outline: 2px solid var(--tool); outline-offset: 1px; }
-  .rmx-color input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; cursor: pointer; }
+  /* RMX chip CSS is shared/organica-palette.css. TuneSutra tunes the cell
+     (30×26, rounded, strong border) via the custom props; its rounded
+     flex-centred +/× buttons stay local. */
+  .rmx-color { --rmx-cell-w: 30px; --rmx-cell-h: 26px;
+    --rmx-cell-radius: var(--radius-sm);
+    --rmx-cell-border: var(--border-strong, var(--border)); }
   .rmx-x {
     position: absolute; top: 1px; right: 1px; width: 13px; height: 13px;
     display: flex; align-items: center; justify-content: center;
@@ -82,7 +86,6 @@
     border: 1px dashed var(--border-strong, var(--border)); border-radius: var(--radius-sm); cursor: pointer;
   }
   .rmx-add:hover { border-color: var(--accent); color: var(--accent); }
-  .rmx-palette { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
 
   .role-name { font-size: var(--fs-small); color: var(--mid); margin-bottom: var(--space-2); }
   .seg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -229,7 +232,7 @@
 </div>
 
 <script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette-chip.js"></script>
+<script src="/shared/organica-palette.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────
 // TuneSutra — colour-harmony palette generator.
@@ -407,8 +410,7 @@ function tokenScale(hex) {
 // ── PALETTE CHIPS (shared component) ──
 let chips = null;
 function initChips() {
-  chips = Organica.createPaletteChips({
-    wrap: ctrl('rmx-palette'),
+  chips = Organica.palette.swatch(ctrl('rmx-palette'), {
     colors: state.colors,
     min: 3,
     max: 7,
@@ -431,12 +433,10 @@ function initChips() {
     },
   });
 }
-function highlightActiveChip() {
-  Array.from(ctrl('rmx-palette').children).forEach((el, i) => {
-    if (!el.classList.contains('rmx-color')) return;
-    el.classList.toggle('chip-active', i === state.activeIndex);
-  });
-}
+// The shared Palette component (Organica.palette.swatch generate mode) owns
+// the .chip-active class — setActive(i) toggles it and re-applies it after
+// any rebuild(), so this no longer reaches into rmx-palette.children.
+function highlightActiveChip() { chips.setActive(state.activeIndex); }
 
 // ── ACTIVE-ROLE FIELD EDITOR ──
 let writing = false; // re-entrancy guard against the .value= triggering our own listeners

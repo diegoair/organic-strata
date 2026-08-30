@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/shared/organica-header.css">
 <link rel="stylesheet" href="/shared/organica-floatbar.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-palette.css">
 <style>
   :root {
     /* Not declared ANYWHERE in Organica (checked before adding it) — a
@@ -89,31 +90,7 @@
   .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
   .org-panel__readout { font-family: monospace; font-size: var(--fs-micro); color: var(--tool); background: var(--paper); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); margin-bottom: var(--space-3); word-break: break-word; }
 
-  /* Also not in organica-panel.css — Camo Turing's own Palette random-
-     colour button, copied verbatim rather than inventing a variant. */
-  .icon-btn {
-    background: none; border: 1px solid var(--border); color: var(--accent);
-    width: 22px; height: 20px; flex-shrink: 0; padding: 0; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .icon-btn:hover { border-color: var(--accent); color: var(--ink); }
-
-  /* RMX palette — Camo Turing's own up-to-5-colour swatch grid, copied
-     verbatim (also not in organica-panel.css, same as .icon-btn above). */
-  .rmx-palette { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
-  .rmx-color { position: relative; width: 36px; height: 28px; border: 1px solid var(--border); cursor: pointer; overflow: hidden; }
-  .rmx-color input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; cursor: pointer; }
-  .rmx-x {
-    position: absolute; top: 0; right: 0; width: 13px; height: 13px;
-    line-height: 11px; font-size: var(--fs-base); padding: 0; cursor: pointer;
-    background: rgba(255,255,255,0.82); color: #000; border: none;
-  }
-  .rmx-add {
-    width: 36px; height: 28px; border: 1px dashed var(--border); background: none;
-    color: var(--mid); font-size: var(--fs-large); cursor: pointer; line-height: 1;
-  }
-  .rmx-add:hover { border-color: var(--accent); color: var(--accent); }
+  /* .icon-btn + .rmx-* chip CSS now in shared/organica-palette.css */
 </style>
 </head>
 <body>
@@ -428,7 +405,7 @@
 <input type="file" id="file-loompath" accept=".json,application/json" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;">
 
 <script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette-chip.js"></script>
+<script src="/shared/organica-palette.js"></script>
 <script src="/shared/organica-noise.js"></script>
 <script src="/shared/opentype.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>

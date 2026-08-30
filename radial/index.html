@@ -55,7 +55,7 @@ body {
 }
 #preview-frame svg { display: block; width: 100%; height: 100%; }
 
-input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
+/* input[type=color] hider now in shared/organica-panel.css */
 </style>
 </head>
 <body>
@@ -374,15 +374,19 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
       <h3>Colour &amp; seed</h3>
       <div class="color-row">
         <span class="color-name">Ink</span>
-        <button class="color-swatch" id="sw-ink" onclick="ctrl('cp-ink').click()"></button>
-        <input type="color" id="cp-ink" value="#1c1c1c" oninput="syncColor('ink', this.value)">
-        <input class="color-hex" id="hex-ink" value="#1c1c1c" onchange="syncColor('ink', this.value)" aria-label="Ink colour hex">
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-ink"></button>
+          <input type="color" id="cp-ink" value="#1c1c1c">
+        </span>
+        <input class="color-hex" id="hex-ink" value="#1c1c1c" aria-label="Ink colour hex">
       </div>
       <div class="color-row">
         <span class="color-name">Paper</span>
-        <button class="color-swatch" id="sw-paper" onclick="ctrl('cp-paper').click()"></button>
-        <input type="color" id="cp-paper" value="#f2efe6" oninput="syncColor('paper', this.value)">
-        <input class="color-hex" id="hex-paper" value="#f2efe6" onchange="syncColor('paper', this.value)" aria-label="Paper colour hex">
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-paper"></button>
+          <input type="color" id="cp-paper" value="#f2efe6">
+        </span>
+        <input class="color-hex" id="hex-paper" value="#f2efe6" aria-label="Paper colour hex">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label" title="Random offset applied to every point — organic, hand-drawn jitter.">Jitter</div>
@@ -402,6 +406,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 <!-- Core BEFORE noise, noise BEFORE the tool's own script — see
      organica-noise.js's own header for why the order matters. -->
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-palette.js"></script>
 <script src="/shared/organica-noise.js"></script>
 <script src="/shared/organica-radial.js"></script>
 <script>
@@ -456,14 +461,10 @@ RANGE_IDS.forEach(id => {
   ctrl(id).addEventListener('input', function () { syncVal(this, 'v-' + id.slice(3)); });
 });
 
-function syncColor(which, hex) {
-  hex = Organica.normalizeHex(hex, ctrl('cp-' + which).value);
-  ctrl('cp-' + which).value = hex;
-  ctrl('hex-' + which).value = hex;
-  ctrl('sw-' + which).style.background = hex;
-  // Live repaint is handled by the delegated #panel input/change listener.
-}
-['ink', 'paper'].forEach(c => syncColor(c, ctrl('hex-' + c).value));
+// Ink/Paper — the shared Palette component (attach mode). Populated in INIT
+// (after scheduleRender is defined); live repaint also rides the delegated
+// #panel input/change listener.
+const swatches = {};
 
 // Which panel blocks are visible for the current selects.
 function syncPanelRows() {
@@ -599,8 +600,8 @@ function applyState(s) {
   RANGE_IDS.forEach(id => { const k = id.slice(3); if (s[k] != null) ctrl(id).value = s[k]; });
   ctrl('ck-diagonals').checked = !!s.diagonals;
   RANGE_IDS.forEach(id => syncVal(ctrl(id), 'v-' + id.slice(3)));
-  syncColor('ink', s.ink || '#1c1c1c');
-  syncColor('paper', s.paper || '#f2efe6');
+  swatches.ink.set(s.ink || '#1c1c1c');
+  swatches.paper.set(s.paper || '#f2efe6');
   syncPanelRows();
 }
 
@@ -667,6 +668,7 @@ function deletePreset() {
 
 // ── INIT ──
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+['ink', 'paper'].forEach(c => { swatches[c] = Organica.palette.swatch(c, { initial: ctrl('hex-' + c).value, onChange: scheduleRender }); });
 applyState(BUILTIN_PRESETS['Broken Ring']);   // panel's raw HTML values are placeholders only
 populatePresets('Broken Ring');
 updateSizeReadout();

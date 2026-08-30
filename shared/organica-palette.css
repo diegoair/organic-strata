@@ -1,0 +1,88 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+ * organica-palette.css — the Organica Palette component (CSS half).
+ * Paired with shared/organica-palette.js. Link AFTER organica-panel.css,
+ * BEFORE the tool's own <style>. Only the tools that use generate/RMX mode
+ * (Organica.palette.swatch(<element>, …)) need this sheet; the single-swatch
+ * .color-* rules stay in organica-panel.css.
+ *
+ * Consolidated from 5+ byte-parallel tool-local copies. Tune per tool with
+ * the custom properties (e.g. TuneSutra: --rmx-cell-w/h + --rmx-cell-radius).
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+.rmx-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--rmx-palette-mb, var(--space-3));
+}
+
+.rmx-color {
+  position: relative;
+  width: var(--rmx-cell-w, 36px);
+  height: var(--rmx-cell-h, 28px);
+  border: 1px solid var(--rmx-cell-border, var(--border));
+  border-radius: var(--rmx-cell-radius, 0);
+  cursor: pointer;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.rmx-color input[type=color] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+/* Active-chip marker — Organica.palette.swatch(...).setActive(i) toggles this. */
+.rmx-color.chip-active {
+  outline: 2px solid var(--tool, var(--ink));
+  outline-offset: 1px;
+}
+
+.rmx-x {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 13px;
+  height: 13px;
+  line-height: 11px;
+  font-size: var(--fs-base);
+  padding: 0;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.82);
+  color: #000;
+  border: none;
+}
+
+.rmx-add {
+  width: var(--rmx-cell-w, 36px);
+  height: var(--rmx-cell-h, 28px);
+  border: 1px dashed var(--border);
+  background: none;
+  color: var(--mid);
+  font-size: var(--fs-large);
+  cursor: pointer;
+  line-height: 1;
+}
+.rmx-add:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Small square icon button (random-seed / close / reorder) that sits next to
+   a colour control. */
+.icon-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  width: var(--icon-btn-w, 22px);
+  height: var(--icon-btn-h, 20px);
+  flex-shrink: 0;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, color 0.15s;
+}
+.icon-btn:hover { border-color: var(--accent); color: var(--ink); }

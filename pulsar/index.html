@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pulsar — Organica</title>
+<link rel="stylesheet" href="/shared/organica-tokens.css">
+<link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-panel.css">
+<style>
+:root {
+  --ink: #241b14;
+  --paper: #ffffff;
+  --mid: #696256;
+  --accent: #2a2a2a;
+  --panel: #eceae4;
+  --border: #d0c8b8;
+  --tool: #dd5140;   /* header focus ring — warm vermilion, this tool's identity colour
+                        (Radial's cool slate #6b6f8c, in motion) */
+  --pulsar: #dd5140;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs-base);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#app { display: flex; flex: 1; overflow: hidden; }
+
+#stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-7);
+}
+
+/* CSS-transformed by Organica.createZoomPan — never touches the canvas bitmap,
+   so it can't affect PNG or video export. */
+#preview {
+  width: min(100%, calc(100vh - 12rem));
+  aspect-ratio: 1 / 1;
+  box-shadow: 0 4px 40px rgba(0,0,0,0.18);
+  background: var(--paper);
+  display: block;
+}
+
+/* Track slots — a compact repeated block */
+.trk {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.trk .panel-select { margin-bottom: var(--space-1); }
+.mode-row { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.mode-row .mini-btn { flex: 1 1 40%; }
+.one-shot { color: var(--pulsar); }
+</style>
+</head>
+<body>
+
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Pulsar</span></a>
+
+  <div class="org-header__spacer"></div>
+
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Ready</span>
+  </output>
+</header>
+
+<!-- Playback + Export in the shared bottom-centre floating toolbar. -->
+<div class="org-floatbar" role="toolbar" aria-label="Playback">
+  <button class="org-floatbar__btn" id="btn-playpause" aria-label="Play">
+    <svg class="ico" id="ico-playpause" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor"/></svg>
+  </button>
+  <button class="org-floatbar__btn" id="btn-stop" aria-label="Stop">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1" fill="currentColor"/></svg>
+  </button>
+
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-loop" aria-label="Loop length">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8a5 5 0 0 1 8.5-3.5M13 8a5 5 0 0 1-8.5 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M11 2.5v2.5H8.5M5 13.5V11h2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="loop-popover" aria-label="Loop options">
+      <div class="org-popover__title">Loop</div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="rg-loop-seconds">Length</label>
+        <input type="range" id="rg-loop-seconds" min="0" max="30" step="1" value="6" style="flex:1">
+        <span class="org-out" id="loop-label">6s</span>
+      </div>
+      <p class="org-popover__hint">Seconds per loop. 0 = play indefinitely. Video export uses this as its length (falls back to 6s).</p>
+      <p class="org-popover__hint one-shot" id="one-shot-note" style="display:none">This scene has a one-shot track — it will not loop seamlessly.</p>
+    </div>
+  </div>
+
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" onclick="exportPNG()">PNG frame</button>
+        <button class="org-btn" id="btn-video" onclick="toggleRecording()">Video</button>
+      </div>
+      <p class="org-popover__hint">
+        PNG is the current frame, re-rendered at scale. Video records one loop from
+        the live canvas (MP4 / WebM, browser-dependent).
+      </p>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-scale">PNG scale</label>
+        <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
+          <option value="1">&times;1</option>
+          <option value="2" selected>&times;2</option>
+          <option value="3">&times;3</option>
+          <option value="4">&times;4</option>
+        </select>
+      </div>
+      <div class="org-popover__row">
+        <span class="org-popover__label">Output</span>
+        <span class="org-out" id="out-size">&mdash;</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+
+  <div id="stage">
+    <canvas id="preview" width="760" height="760"></canvas>
+  </div>
+
+  <div id="panel">
+
+    <div class="panel-section">
+      <h3>Scene</h3>
+      <select class="panel-select" id="sel-scene" aria-label="Scene" onchange="loadScene(this.value)"></select>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="saveScene()">Save</button>
+        <button class="mini-btn" onclick="deleteScene()">Delete</button>
+      </div>
+      <div id="scene-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
+        <input type="text" class="panel-select" id="txt-scene-name" placeholder="Name this scene" aria-label="Name this scene" style="flex:1">
+      </div>
+      <div id="scene-save-actions" class="row-btns" style="display:none">
+        <button class="mini-btn" id="btn-scene-confirm">Save</button>
+        <button class="mini-btn" id="btn-scene-cancel">Cancel</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Motion mode <span class="hint">fills the tracks below</span></h3>
+      <div class="mode-row">
+        <button class="mini-btn" onclick="applyMode('pulse')">Pulse</button>
+        <button class="mini-btn" onclick="applyMode('bloom')">Bloom</button>
+        <button class="mini-btn" onclick="applyMode('drift')">Drift</button>
+        <button class="mini-btn" onclick="applyMode('orbit')">Orbit</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Tracks <span class="hint">a wave per parameter</span></h3>
+      <div id="tracks"></div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Whole field</h3>
+      <label class="check-row"><input type="checkbox" id="ck-rotate" onchange="onFieldToggle()"><span>Rotate</span></label>
+      <div class="ctrl-row" id="row-rotate-turns" style="display:none">
+        <div class="ctrl-label" title="Whole turns per loop — an integer keeps the loop seamless.">Turns / loop</div>
+        <input type="range" id="rg-rotate-turns" min="1" max="6" step="1" value="1">
+        <span class="ctrl-val" id="v-rotate-turns">1</span>
+      </div>
+      <label class="check-row"><input type="checkbox" id="ck-zoom" onchange="onFieldToggle()"><span>Zoom</span></label>
+      <div id="rows-zoom" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Zoom amount</div>
+          <input type="range" id="rg-zoom-amt" min="0" max="0.6" step="0.01" value="0.15">
+          <span class="ctrl-val" id="v-zoom-amt">0.15</span>
+        </div>
+        <div class="ctrl-row">
+          <select class="panel-select" id="sel-zoom-wave" aria-label="Zoom wave">
+            <option value="sine">Sine</option>
+            <option value="triangle">Triangle</option>
+            <option value="noise">Noise</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Base — placement <span class="hint">where the points sit</span></h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-placement" aria-label="Placement">
+          <option value="grid" selected>Grid — rings × spokes</option>
+          <option value="phyllo">Phyllotaxis — golden angle</option>
+          <option value="spiral">Spiral arms</option>
+        </select>
+      </div>
+
+      <div id="block-grid">
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Angular divisions / polygon vertices per ring.">Sides</div>
+          <input type="range" id="rg-sides" min="3" max="72" step="1" value="72">
+          <span class="ctrl-val" id="v-sides">72</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Rings</div>
+          <input type="range" id="rg-rings" min="1" max="50" step="1" value="21">
+          <span class="ctrl-val" id="v-rings">21</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Empty hole at the centre, as a fraction of the outer radius.">Inner radius</div>
+          <input type="range" id="rg-inner" min="0" max="0.85" step="0.01" value="0.35">
+          <span class="ctrl-val" id="v-inner">0.35</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Outer radius as a fraction of the canvas half-width.">Radius</div>
+          <input type="range" id="rg-radius" min="0.4" max="1" step="0.01" value="1">
+          <span class="ctrl-val" id="v-radius">1</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Bunches ring spacing toward the centre (&gt;1) or the edge (&lt;1).">Ring curve</div>
+          <input type="range" id="rg-ringcurve" min="0.3" max="3" step="0.05" value="1">
+          <span class="ctrl-val" id="v-ringcurve">1</span>
+        </div>
+      </div>
+
+      <div id="block-phyllo" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Count</div>
+          <input type="range" id="rg-count" min="2" max="2000" step="1" value="800">
+          <span class="ctrl-val" id="v-count">800</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Spread</div>
+          <input type="range" id="rg-spread" min="0.2" max="1.2" step="0.01" value="0.95">
+          <span class="ctrl-val" id="v-spread">0.95</span>
+        </div>
+      </div>
+
+      <div id="block-spiral" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Arms</div>
+          <input type="range" id="rg-arms" min="1" max="12" step="1" value="3">
+          <span class="ctrl-val" id="v-arms">3</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Points / arm</div>
+          <input type="range" id="rg-perarm" min="10" max="400" step="1" value="220">
+          <span class="ctrl-val" id="v-perarm">220</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Twist</div>
+          <input type="range" id="rg-twist" min="0.2" max="6" step="0.1" value="3.5">
+          <span class="ctrl-val" id="v-twist">3.5</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section" id="sec-shape">
+      <h3>Base — shape <span class="hint">bends the lattice</span></h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-modulation" aria-label="Modulation">
+          <option value="none" selected>No modulation</option>
+          <option value="rose">Rose curve</option>
+          <option value="shear">Spiral shear</option>
+        </select>
+      </div>
+      <div id="mod-rose" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Petals</div>
+          <input type="range" id="rg-petals" min="2" max="12" step="1" value="8">
+          <span class="ctrl-val" id="v-petals">8</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Petal depth</div>
+          <input type="range" id="rg-petaldepth" min="0" max="1" step="0.01" value="0.5">
+          <span class="ctrl-val" id="v-petaldepth">0.5</span>
+        </div>
+      </div>
+      <div id="mod-shear" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Angular offset that grows with ring index.">Twist / ring</div>
+          <input type="range" id="rg-shear" min="0" max="2" step="0.02" value="1.2">
+          <span class="ctrl-val" id="v-shear">1.2</span>
+        </div>
+      </div>
+      <p class="org-panel__hint" style="margin-top:var(--space-2)">Domain-warp — displaces every point with a low-frequency noise field. Amount 0 is an exact no-op.</p>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Warp amount</div>
+        <input type="range" id="rg-warpamt" min="0" max="1" step="0.01" value="0.12">
+        <span class="ctrl-val" id="v-warpamt">0.12</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Cycles of distortion across the pattern's half-width.">Warp scale</div>
+        <input type="range" id="rg-warpscale" min="0.1" max="4" step="0.05" value="0.6">
+        <span class="ctrl-val" id="v-warpscale">0.6</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Base — render <span class="hint">what gets drawn</span></h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-render" aria-label="Render mode">
+          <option value="rings">Ring outlines</option>
+          <option value="spokes">Spokes</option>
+          <option value="mesh">Mesh</option>
+          <option value="fill" selected>Filled cells</option>
+          <option value="marks">Marks</option>
+          <option value="arcs">Arc bands</option>
+          <option value="loops">Chaos circles</option>
+        </select>
+      </div>
+
+      <div id="mesh-opts" style="display:none">
+        <label class="check-row"><input type="checkbox" id="ck-diagonals"><span>Cell diagonals</span></label>
+      </div>
+
+      <div id="render-fill">
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Cycles of the fill noise — small = big blobs, large = fine speckle.">Fill scale</div>
+          <input type="range" id="rg-fillscale" min="0.2" max="12" step="0.1" value="6">
+          <span class="ctrl-val" id="v-fillscale">6</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="0 fills every cell, 1 fills none.">Threshold</div>
+          <input type="range" id="rg-threshold" min="0" max="1" step="0.01" value="0.42">
+          <span class="ctrl-val" id="v-threshold">0.42</span>
+        </div>
+      </div>
+
+      <div id="render-marks" style="display:none">
+        <div class="ctrl-row">
+          <select class="panel-select" id="sel-markshape" aria-label="Mark shape">
+            <option value="dot">Dot</option>
+            <option value="circle">Circle</option>
+            <option value="line">Line</option>
+          </select>
+        </div>
+        <div class="ctrl-row" id="row-linedir" style="display:none">
+          <select class="panel-select" id="sel-linedir" aria-label="Line direction">
+            <option value="radial">Line: radial</option>
+            <option value="tangent">Line: tangent</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <select class="panel-select" id="sel-sizemode" aria-label="Mark size mode">
+            <option value="uniform">Uniform size</option>
+            <option value="noise">Size by noise</option>
+            <option value="gradient">Size by radial gradient</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Base size</div>
+          <input type="range" id="rg-marksize" min="0.5" max="20" step="0.5" value="3">
+          <span class="ctrl-val" id="v-marksize">3</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How strongly the size mode varies each mark.">Size amount</div>
+          <input type="range" id="rg-sizeamt" min="0" max="2" step="0.05" value="1">
+          <span class="ctrl-val" id="v-sizeamt">1</span>
+        </div>
+      </div>
+
+      <div id="render-arcs" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Arc count</div>
+          <input type="range" id="rg-arccount" min="2" max="30" step="1" value="7">
+          <span class="ctrl-val" id="v-arccount">7</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Min thickness</div>
+          <input type="range" id="rg-arcmin" min="0.5" max="20" step="0.5" value="1">
+          <span class="ctrl-val" id="v-arcmin">1</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Max thickness</div>
+          <input type="range" id="rg-arcmax" min="5" max="140" step="1" value="90">
+          <span class="ctrl-val" id="v-arcmax">90</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How fast thickness grows from inner to outer arc.">Growth exponent</div>
+          <input type="range" id="rg-arcgrowth" min="1" max="5" step="0.1" value="2">
+          <span class="ctrl-val" id="v-arcgrowth">2</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Gap</div>
+          <input type="range" id="rg-arcgap" min="0" max="0.3" step="0.005" value="0.02">
+          <span class="ctrl-val" id="v-arcgap">0.02</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Angular length of each arc, as a fraction of a full turn.">Angle span</div>
+          <input type="range" id="rg-arcspan" min="0.1" max="1" step="0.01" value="0.42">
+          <span class="ctrl-val" id="v-arcspan">0.42</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How tightly the arcs cluster toward one direction.">Bias</div>
+          <input type="range" id="rg-arcbias" min="0" max="1" step="0.01" value="0.7">
+          <span class="ctrl-val" id="v-arcbias">0.7</span>
+        </div>
+      </div>
+
+      <div id="render-loops" style="display:none">
+        <p class="org-panel__hint">Many near-concentric circle outlines, each independently perturbed by its own noise phase.</p>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Circle count</div>
+          <input type="range" id="rg-loopcount" min="10" max="300" step="1" value="83">
+          <span class="ctrl-val" id="v-loopcount">83</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Radius of each circle as a fraction of the canvas half-width.">Circle radius</div>
+          <input type="range" id="rg-loopradius" min="0.2" max="1" step="0.01" value="0.85">
+          <span class="ctrl-val" id="v-loopradius">0.85</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How strongly each circle's edge is perturbed by noise.">Noise</div>
+          <input type="range" id="rg-loopnoise" min="0" max="0.6" step="0.01" value="0.2">
+          <span class="ctrl-val" id="v-loopnoise">0.2</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Palette</h3>
+      <div class="color-row">
+        <span class="color-name">Ink</span>
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-ink" aria-label="Pick ink colour"></button>
+          <input type="color" id="cp-ink" value="#1c1c1c">
+        </span>
+        <input class="color-hex" id="hex-ink" value="#1c1c1c" maxlength="7" aria-label="Ink colour hex">
+      </div>
+      <div class="color-row">
+        <span class="color-name">Paper</span>
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-paper" aria-label="Pick paper colour"></button>
+          <input type="color" id="cp-paper" value="#f2efe6">
+        </span>
+        <input class="color-hex" id="hex-paper" value="#f2efe6" maxlength="7" aria-label="Paper colour hex">
+      </div>
+      <p class="org-panel__hint">Ink and Paper are the artwork's own colours — a radial field draws in one ink; every frame, PNG, and video reads these.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Base — seed &amp; jitter</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Seed</div>
+        <input type="range" id="rg-seed" min="1" max="9999" step="1" value="3">
+        <span class="ctrl-val" id="v-seed">3</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Random offset applied to every point.">Jitter</div>
+        <input type="range" id="rg-jitter" min="0" max="1" step="0.01" value="0">
+        <span class="ctrl-val" id="v-jitter">0</span>
+      </div>
+    </div>
+
+  </div><!-- /panel -->
+</div>
+
+<!-- Core BEFORE noise, noise BEFORE radial, radial BEFORE the tool script. -->
+<script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-palette.js"></script>
+<script src="/shared/organica-noise.js"></script>
+<script src="/shared/organica-radial.js"></script>
+<script>
+// ─────────────────────────────────────────────
+// PULSAR — a generative Motion tool over Radial. It drives Radial's parameter
+// object P with time-varying "tracks" and redraws Organica.radial.buildScene
+// from scratch every frame (the Vortex model — deterministic, never
+// accumulates). Output is a seamless looping WebM plus PNG frames.
+//
+// The polar-field geometry/render core is shared/organica-radial.js. The base
+// panel here mirrors Radial's controls (same ids) so the DOM glue —
+// buildParams / readState / applyState / syncPanelRows — is the
+// same as Radial's; the Motion-mode / Tracks / Whole-field sections are new.
+// ─────────────────────────────────────────────
+
+function ctrl(id) { return document.getElementById(id); }
+function val(id)  { return parseFloat(ctrl(id).value); }
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+const setStatus = Organica.status();
+const N = Organica.noise;
+const { SIZE, buildScene, drawSceneCanvas, sceneSVG, BUILTIN_PRESETS, PARAM_RANGES } = Organica.radial;
+const TAU = Math.PI * 2;
+
+const stage = ctrl('stage');
+const pcanvas = ctrl('preview');
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+pcanvas.width = SIZE * DPR;
+pcanvas.height = SIZE * DPR;
+const pctx = pcanvas.getContext('2d');
+
+const CEIL = 6500;   // element-count guard (Soul's wobble-3000 precedent) —
+                     // ~mesh 72×50 + diagonals is the heaviest the sliders reach
+
+
+// ── the base-panel glue, mirroring radial/index.html ──
+const RANGE_IDS = ['rg-sides', 'rg-rings', 'rg-inner', 'rg-radius', 'rg-ringcurve',
+  'rg-count', 'rg-spread', 'rg-arms', 'rg-perarm', 'rg-twist',
+  'rg-petals', 'rg-petaldepth', 'rg-shear', 'rg-warpamt', 'rg-warpscale',
+  'rg-fillscale', 'rg-threshold', 'rg-marksize', 'rg-sizeamt',
+  'rg-arccount', 'rg-arcmin', 'rg-arcmax', 'rg-arcgrowth', 'rg-arcgap', 'rg-arcspan', 'rg-arcbias',
+  'rg-loopcount', 'rg-loopradius', 'rg-loopnoise',
+  'rg-jitter', 'rg-seed'];
+const SELECT_IDS = ['sel-placement', 'sel-modulation', 'sel-render', 'sel-markshape', 'sel-linedir', 'sel-sizemode'];
+
+function syncVal(slider, valId) { const v = ctrl(valId); if (v) v.textContent = slider.value; }
+
+// Ink / Paper use the shared single-swatch component (Organica.palette.swatch attach mode,
+// same as FVS / Vortex / Colornet) — wired in the init block below.
+let inkSwatch = null, paperSwatch = null;
+function setColor(which, hex) { (which === 'ink' ? inkSwatch : paperSwatch).set(hex); }
+
+function syncPanelRows() {
+  const pl = ctrl('sel-placement').value;
+  const mod = ctrl('sel-modulation').value;
+  const rn = ctrl('sel-render').value;
+  ctrl('block-grid').style.display = pl === 'grid' ? '' : 'none';
+  ctrl('block-phyllo').style.display = pl === 'phyllo' ? '' : 'none';
+  ctrl('block-spiral').style.display = pl === 'spiral' ? '' : 'none';
+  ctrl('sec-shape').style.display = pl === 'grid' ? '' : 'none';
+  ctrl('mod-rose').style.display = pl === 'grid' && mod === 'rose' ? '' : 'none';
+  ctrl('mod-shear').style.display = pl === 'grid' && mod === 'shear' ? '' : 'none';
+  ctrl('mesh-opts').style.display = rn === 'mesh' ? '' : 'none';
+  ctrl('render-fill').style.display = rn === 'fill' ? '' : 'none';
+  ctrl('render-marks').style.display = rn === 'marks' ? '' : 'none';
+  ctrl('render-arcs').style.display = rn === 'arcs' ? '' : 'none';
+  ctrl('render-loops').style.display = rn === 'loops' ? '' : 'none';
+  ctrl('row-linedir').style.display = rn === 'marks' && ctrl('sel-markshape').value === 'line' ? '' : 'none';
+}
+
+// camelCase P for Organica.radial.buildScene — identical to radial's buildParams()
+function buildParams() {
+  return {
+    placement: ctrl('sel-placement').value,
+    modulation: ctrl('sel-modulation').value,
+    render: ctrl('sel-render').value,
+    markShape: ctrl('sel-markshape').value,
+    lineDir: ctrl('sel-linedir').value,
+    sizeMode: ctrl('sel-sizemode').value,
+    diagonals: ctrl('ck-diagonals').checked,
+    sides: Math.round(val('rg-sides')),
+    rings: Math.round(val('rg-rings')),
+    innerFrac: val('rg-inner'),
+    radiusFrac: val('rg-radius'),
+    ringCurve: val('rg-ringcurve'),
+    count: Math.round(val('rg-count')),
+    spread: val('rg-spread'),
+    arms: Math.round(val('rg-arms')),
+    perArm: Math.round(val('rg-perarm')),
+    twist: val('rg-twist'),
+    petals: Math.round(val('rg-petals')),
+    petalDepth: val('rg-petaldepth'),
+    shear: val('rg-shear'),
+    warpAmt: val('rg-warpamt'),
+    warpScale: val('rg-warpscale'),
+    fillScale: val('rg-fillscale'),
+    threshold: val('rg-threshold'),
+    markSize: val('rg-marksize'),
+    sizeAmt: val('rg-sizeamt'),
+    arcCount: Math.round(val('rg-arccount')),
+    arcMin: val('rg-arcmin'),
+    arcMax: val('rg-arcmax'),
+    arcGrowth: val('rg-arcgrowth'),
+    arcGap: val('rg-arcgap'),
+    arcSpan: val('rg-arcspan'),
+    arcBias: val('rg-arcbias'),
+    loopCount: Math.round(val('rg-loopcount')),
+    loopRadius: val('rg-loopradius'),
+    loopNoise: val('rg-loopnoise'),
+    jitter: val('rg-jitter'),
+    seed: Math.round(val('rg-seed')),
+    ink: ctrl('hex-ink').value,
+    paper: ctrl('hex-paper').value,
+  };
+}
+
+// lowercase applyState() shape — for the shared BUILTIN_PRESETS + saved scenes
+function readState() {
+  const s = {};
+  SELECT_IDS.forEach(id => { s[id.slice(4)] = ctrl(id).value; });
+  RANGE_IDS.forEach(id => { s[id.slice(3)] = val(id); });
+  s.diagonals = ctrl('ck-diagonals').checked;
+  s.ink = ctrl('hex-ink').value;
+  s.paper = ctrl('hex-paper').value;
+  return s;
+}
+function applyState(s) {
+  SELECT_IDS.forEach(id => { const k = id.slice(4); if (s[k] != null) ctrl(id).value = s[k]; });
+  RANGE_IDS.forEach(id => { const k = id.slice(3); if (s[k] != null) ctrl(id).value = s[k]; });
+  ctrl('ck-diagonals').checked = !!s.diagonals;
+  RANGE_IDS.forEach(id => syncVal(ctrl(id), 'v-' + id.slice(3)));
+  setColor('ink', s.ink || '#1c1c1c');
+  setColor('paper', s.paper || '#f2efe6');
+  syncPanelRows();
+}
+
+// ─────────────────────────────────────────────
+// TRACK MODEL — a wave per parameter, evaluated at tNorm ∈ [0,1)
+// ─────────────────────────────────────────────
+const NTRACKS = 4;
+const PHASE_PARAMS = ['warpPhase', 'fillPhase', 'loopPhase'];
+
+function ease01(f, mode) {
+  f = f < 0 ? 0 : f > 1 ? 1 : f;
+  if (mode === 'in') return f * f;
+  if (mode === 'out') return 1 - (1 - f) * (1 - f);
+  if (mode === 'inOut') return f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+  return f;
+}
+function tri(p) {
+  p = p - Math.floor(p);
+  if (p < 0.25) return p * 4;
+  if (p < 0.75) return 2 - p * 4;
+  return p * 4 - 4;
+}
+function easedCyc(cyc, mode) {
+  const w = Math.floor(cyc);
+  return w + ease01(cyc - w, mode);
+}
+function trackValue(t, tNorm) {
+  // period = whole CYCLES per master loop; an integer keeps the loop seamless.
+  const per = t.period > 0 ? t.period : 1;
+  if (t.wave === 'ramp-once') return t.amount * ease01(tNorm * per + t.phase, t.ease);
+  if (t.wave === 'spin') return t.amount * TAU * tNorm;   // continuous — phase params only
+  let cyc = tNorm * per + t.phase;
+  if (t.ease && t.ease !== 'linear') cyc = easedCyc(cyc, t.ease);
+  let v;
+  if (t.wave === 'triangle') v = t.amount * tri(cyc);
+  else if (t.wave === 'noise') {
+    const th = TAU * cyc, so = 13.37 * ((t.idx || 0) + 1);
+    v = t.amount * (N.fbm(Math.cos(th) + so, Math.sin(th) + so) - 0.5) * 2;
+  } else {
+    v = t.amount * Math.sin(TAU * cyc);   // sine — snap fp dust so cycle ends land exactly on 0
+  }
+  return Math.abs(v) < 1e-9 ? 0 : v;
+}
+
+function readTracks() {
+  const out = [];
+  for (let i = 0; i < NTRACKS; i++) {
+    out.push({
+      param: ctrl('trk' + i + '-param').value,
+      wave: ctrl('trk' + i + '-wave').value,
+      amount: parseFloat(ctrl('trk' + i + '-amount').value),
+      period: parseFloat(ctrl('trk' + i + '-period').value),
+      phase: parseFloat(ctrl('trk' + i + '-phase').value),
+      ease: ctrl('trk' + i + '-ease').value,
+      idx: i,
+    });
+  }
+  if (ctrl('ck-rotate').checked)
+    out.push({ param: 'rotate', wave: 'spin', amount: Math.round(val('rg-rotate-turns')), period: 1, phase: 0, ease: 'linear', idx: 90 });
+  if (ctrl('ck-zoom').checked)
+    out.push({ param: 'zoom', wave: ctrl('sel-zoom-wave').value, amount: val('rg-zoom-amt'), period: 1, phase: 0, ease: 'inOut', idx: 91 });
+  return out;
+}
+
+function composeP(base, tracks, tNorm) {
+  const P = Object.assign({}, base);
+  let rotate = 0, zoom = 1;
+  for (const t of tracks) {
+    if (!t.param) continue;
+    if (t.param === 'rotate') {
+      rotate += (t.wave === 'spin') ? Math.round(t.amount) * 360 * tNorm : trackValue(t, tNorm);
+      continue;
+    }
+    if (t.param === 'zoom') { zoom *= 1 + trackValue(t, tNorm); continue; }
+    P[t.param] = (P[t.param] == null ? 0 : P[t.param]) + trackValue(t, tNorm);
+  }
+  for (const k in PARAM_RANGES) {
+    if (P[k] == null) continue;
+    const r = PARAM_RANGES[k];
+    let v = P[k];
+    if (v < r.min) v = r.min;
+    if (v > r.max) v = r.max;
+    if (r.int) v = Math.round(v);
+    P[k] = v;
+  }
+  P.rotate = rotate;
+  P.zoom = zoom;
+  return P;
+}
+
+function sceneIsOneShot() {
+  return readTracks().some(t => t.param && (t.wave === 'ramp-once' || (t.wave === 'spin' && t.param !== 'rotate')));
+}
+function updateOneShotNote() {
+  ctrl('one-shot-note').style.display = sceneIsOneShot() ? '' : 'none';
+}
+
+// ── track param options, filtered by the current base ──
+function trackParamGroups() {
+  const pl = ctrl('sel-placement').value;
+  const rn = ctrl('sel-render').value;
+  const mod = ctrl('sel-modulation').value;
+  const g = [['Whole field', [['rotate', 'Rotate (whole field)'], ['zoom', 'Zoom (whole field)']]]];
+  if (pl === 'grid') {
+    const grid = [['sides', 'Sides'], ['rings', 'Rings'], ['innerFrac', 'Inner radius'], ['radiusFrac', 'Radius'], ['ringCurve', 'Ring curve']];
+    if (mod === 'rose') grid.push(['petals', 'Petals'], ['petalDepth', 'Petal depth']);
+    if (mod === 'shear') grid.push(['shear', 'Twist / ring']);
+    g.push(['Grid', grid]);
+  } else if (pl === 'phyllo') {
+    g.push(['Phyllotaxis', [['count', 'Count (bloom)'], ['spread', 'Spread']]]);
+  } else {
+    g.push(['Spiral', [['arms', 'Arms'], ['perArm', 'Points / arm'], ['twist', 'Twist (coil)']]]);
+  }
+  g.push(['Warp', [['warpAmt', 'Warp amount'], ['warpScale', 'Warp scale'], ['warpPhase', 'Warp flow (phase)']]]);
+  if (rn === 'fill') g.push(['Fill', [['threshold', 'Threshold (dissolve)'], ['fillScale', 'Fill scale'], ['fillPhase', 'Fill flow (phase)']]]);
+  else if (rn === 'marks') g.push(['Marks', [['markSize', 'Base size'], ['sizeAmt', 'Size amount']]]);
+  else if (rn === 'arcs') g.push(['Arc bands', [['arcSpan', 'Angle span (fan)'], ['arcCount', 'Arc count'], ['arcGap', 'Gap'], ['arcBias', 'Bias'], ['arcGrowth', 'Growth exponent']]]);
+  else if (rn === 'loops') g.push(['Chaos circles', [['loopNoise', 'Noise (writhe amount)'], ['loopPhase', 'Writhe (phase)'], ['loopRadius', 'Circle radius'], ['loopCount', 'Circle count (bloom)']]]);
+  g.push(['Common', [['jitter', 'Jitter'], ['seed', 'Seed']]]);
+  return g;
+}
+function waveOptionsFor(param) {
+  if (param === 'rotate') return [['spin', 'Spin'], ['sine', 'Sine'], ['triangle', 'Triangle'], ['noise', 'Noise']];
+  if (PHASE_PARAMS.indexOf(param) >= 0) return [['sine', 'Sine'], ['triangle', 'Triangle'], ['noise', 'Noise'], ['spin', 'Spin (drift)']];
+  if (param === 'zoom') return [['sine', 'Sine'], ['triangle', 'Triangle'], ['noise', 'Noise']];
+  return [['sine', 'Sine'], ['triangle', 'Triangle'], ['noise', 'Noise'], ['ramp-once', 'Ramp once']];
+}
+// Amount is in the parameter's OWN units — added to the base value — so the
+// slider range has to follow the parameter (count needs ~760, a fraction ~1).
+function amountRangeFor(param) {
+  if (param === 'rotate') return { min: 0, max: 180, step: 1, def: 30 };
+  if (param === 'zoom') return { min: 0, max: 0.6, step: 0.01, def: 0.15 };
+  if (PHASE_PARAMS.indexOf(param) >= 0) return { min: 0, max: 8, step: 0.05, def: 2 };
+  const r = PARAM_RANGES[param];
+  if (!r) return { min: 0, max: 2, step: 0.01, def: 0.3 };
+  const span = r.max - r.min;
+  const def = r.int ? Math.max(1, Math.round(span * 0.4)) : Math.round(span * 0.3 * 100) / 100;
+  return { min: 0, max: span, step: r.step, def: Math.min(def, span) };
+}
+
+function buildTrackSlots() {
+  const host = ctrl('tracks');
+  host.innerHTML = '';
+  for (let i = 0; i < NTRACKS; i++) {
+    const d = document.createElement('div');
+    d.className = 'trk';
+    d.innerHTML =
+      '<select class="panel-select" id="trk' + i + '-param" aria-label="Track ' + (i + 1) + ' parameter"></select>' +
+      '<div class="trk-body" id="trk' + i + '-body">' +
+      '<select class="panel-select" id="trk' + i + '-wave" aria-label="Track ' + (i + 1) + ' wave"></select>' +
+      '<div class="ctrl-row"><div class="ctrl-label">Amount</div><input type="range" id="trk' + i + '-amount" min="0" max="2" step="0.01" value="0.3"><span class="ctrl-val" id="v-trk' + i + '-amount">0.3</span></div>' +
+      '<div class="ctrl-row"><div class="ctrl-label" title="Whole cycles per loop — an integer keeps the loop seamless.">Cycles / loop</div><input type="range" id="trk' + i + '-period" min="1" max="4" step="1" value="1"><span class="ctrl-val" id="v-trk' + i + '-period">1</span></div>' +
+      '<div class="ctrl-row"><div class="ctrl-label">Phase</div><input type="range" id="trk' + i + '-phase" min="0" max="1" step="0.01" value="0"><span class="ctrl-val" id="v-trk' + i + '-phase">0</span></div>' +
+      '<select class="panel-select" id="trk' + i + '-ease" aria-label="Track ' + (i + 1) + ' easing">' +
+        '<option value="linear">Linear</option><option value="inOut">Ease in-out</option><option value="in">Ease in</option><option value="out">Ease out</option>' +
+      '</select>' +
+      '</div>';
+    host.appendChild(d);
+  }
+  for (let i = 0; i < NTRACKS; i++) {
+    ctrl('trk' + i + '-param').addEventListener('change', () => { syncTrackParam(i, true); scheduleStill(); updateOneShotNote(); });
+    ctrl('trk' + i + '-wave').addEventListener('change', () => { scheduleStill(); updateOneShotNote(); });
+  }
+}
+
+function fillSelect(sel, groups, keep) {
+  const cur = keep != null ? keep : sel.value;
+  sel.innerHTML = '<option value="">—</option>';
+  let has = false;
+  groups.forEach(([label, opts]) => {
+    const og = document.createElement('optgroup');
+    og.label = label;
+    opts.forEach(([v, txt]) => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = txt;
+      if (v === cur) { o.selected = true; has = true; }
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  });
+  if (!has) sel.value = '';
+}
+function syncTrackParamSelects() {
+  const groups = trackParamGroups();
+  for (let i = 0; i < NTRACKS; i++) {
+    fillSelect(ctrl('trk' + i + '-param'), groups);
+    syncTrackParam(i, false);
+  }
+}
+// Rebuild a slot's wave options + amount slider range for its current param.
+// resetAmount=true snaps the amount to the new param's default (a user pick);
+// false keeps the current value, clamped (a programmatic writeTracks/scene load).
+function syncTrackParam(i, resetAmount) {
+  const param = ctrl('trk' + i + '-param').value;
+  const sel = ctrl('trk' + i + '-wave');
+  const cur = sel.value;
+  sel.innerHTML = '';
+  waveOptionsFor(param).forEach(([v, txt]) => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = txt;
+    sel.appendChild(o);
+  });
+  sel.value = Array.from(sel.options).some(o => o.value === cur) ? cur : (sel.options[0] && sel.options[0].value);
+
+  ctrl('trk' + i + '-body').style.display = param ? '' : 'none';
+
+  const ar = amountRangeFor(param);
+  const amt = ctrl('trk' + i + '-amount');
+  amt.min = ar.min; amt.max = ar.max; amt.step = ar.step;
+  if (resetAmount) amt.value = ar.def;
+  else amt.value = clamp(parseFloat(amt.value), ar.min, ar.max);
+  syncVal(amt, 'v-trk' + i + '-amount');
+  amt.dispatchEvent(new Event('input', { bubbles: true }));   // repaint enhanceSliders fill
+}
+function syncTrackWave(i) { syncTrackParam(i, false); }
+
+function snapPeriod(v) { return clamp(Math.round(v), 1, 4); }
+
+function writeTracks(list) {
+  for (let i = 0; i < NTRACKS; i++) {
+    const t = list[i] || { param: '' };
+    const psel = ctrl('trk' + i + '-param');
+    psel.value = t.param || '';
+    if (psel.value !== (t.param || '')) psel.value = '';   // option absent for the current base
+    syncTrackParam(i, false);                              // wave opts + amount slider range for this param
+    if (t.wave && Array.from(ctrl('trk' + i + '-wave').options).some(o => o.value === t.wave))
+      ctrl('trk' + i + '-wave').value = t.wave;
+    if (t.amount != null) ctrl('trk' + i + '-amount').value = t.amount;   // browser clamps to the new range
+    ctrl('trk' + i + '-period').value = t.period != null ? t.period : 1;
+    ctrl('trk' + i + '-phase').value = t.phase != null ? t.phase : 0;
+    ctrl('trk' + i + '-ease').value = t.ease || 'linear';
+    ['amount', 'period', 'phase'].forEach(k => syncVal(ctrl('trk' + i + '-' + k), 'v-trk' + i + '-' + k));
+  }
+}
+
+// ─────────────────────────────────────────────
+// MOTION MODES — each fills the 4 tracks + whole-field + loop length,
+// re-mapped by the current base placement / render.
+// ─────────────────────────────────────────────
+function setBase(id, v) { ctrl(id).value = v; syncVal(ctrl(id), 'v-' + id.slice(3)); }
+function setBaseMin(id, v) { setBase(id, Math.max(val(id), v)); }
+
+function applyMode(name) {
+  const pl = ctrl('sel-placement').value;
+  const rn = ctrl('sel-render').value;
+  const mod = ctrl('sel-modulation').value;
+  let T = [], rot = { on: false, turns: 1 }, loop = 6;
+
+  // arcs and loops renders never touch the warp/point pipeline — give them
+  // their own tracks so no mode leaves a dead (no-effect) control.
+  if (name === 'pulse') {
+    loop = 6;
+    if (rn === 'loops') T = [{ param: 'loopRadius', wave: 'sine', amount: 0.1, period: 1, phase: 0, ease: 'inOut' }];
+    else if (rn === 'arcs') T = [
+      { param: 'arcGap', wave: 'sine', amount: 0.03, period: 1, phase: 0, ease: 'inOut' },
+      { param: 'innerFrac', wave: 'sine', amount: 0.06, period: 1, phase: 0.5, ease: 'inOut' },
+    ];
+    else if (pl === 'phyllo') T = [{ param: 'spread', wave: 'sine', amount: 0.12, period: 1, phase: 0, ease: 'inOut' }];
+    else if (pl === 'spiral') T = [{ param: 'radiusFrac', wave: 'sine', amount: 0.1, period: 1, phase: 0, ease: 'inOut' }];
+    else T = [
+      { param: 'radiusFrac', wave: 'sine', amount: 0.1, period: 1, phase: 0, ease: 'inOut' },
+      { param: 'innerFrac', wave: 'sine', amount: 0.06, period: 1, phase: 0.5, ease: 'inOut' },
+    ];
+    if (rn === 'marks') T.push({ param: 'markSize', wave: 'sine', amount: 1.5, period: 1, phase: 0.5, ease: 'inOut' });
+  } else if (name === 'bloom') {
+    loop = 5;
+    if (rn === 'loops') { setBase('rg-loopcount', 8); T = [{ param: 'loopCount', wave: 'ramp-once', amount: 120, period: 1, phase: 0, ease: 'out' }]; }
+    else if (rn === 'arcs') { setBase('rg-arccount', 2); T = [{ param: 'arcCount', wave: 'ramp-once', amount: 16, period: 1, phase: 0, ease: 'out' }]; }
+    else if (pl === 'phyllo') { setBase('rg-count', 40); T = [{ param: 'count', wave: 'ramp-once', amount: 760, period: 1, phase: 0, ease: 'out' }]; }
+    else if (pl === 'spiral') { setBase('rg-perarm', 14); T = [{ param: 'perArm', wave: 'ramp-once', amount: 240, period: 1, phase: 0, ease: 'out' }]; }
+    else { setBase('rg-rings', 1); T = [{ param: 'rings', wave: 'ramp-once', amount: 24, period: 1, phase: 0, ease: 'out' }]; }
+  } else if (name === 'drift') {
+    loop = 8;
+    if (rn === 'loops') T = [
+      { param: 'loopPhase', wave: 'sine', amount: 2, period: 1, phase: 0, ease: 'linear' },
+      { param: 'loopNoise', wave: 'sine', amount: 0.05, period: 2, phase: 0, ease: 'inOut' },
+    ];
+    else if (rn === 'arcs') T = [
+      { param: 'arcSpan', wave: 'sine', amount: 0.2, period: 1, phase: 0, ease: 'inOut' },
+      { param: 'arcGrowth', wave: 'sine', amount: 0.6, period: 2, phase: 0, ease: 'inOut' },
+    ];
+    else {
+      setBaseMin('rg-warpamt', 0.25);
+      T = [
+        { param: 'warpPhase', wave: 'sine', amount: 3, period: 1, phase: 0, ease: 'linear' },
+        { param: 'warpAmt', wave: 'sine', amount: 0.08, period: 2, phase: 0, ease: 'inOut' },
+      ];
+      if (pl === 'grid' && mod === 'shear') T.push({ param: 'shear', wave: 'sine', amount: 0.2, period: 3, phase: 0, ease: 'inOut' });
+    }
+  } else if (name === 'orbit') {
+    loop = 6;
+    rot = { on: true, turns: 1 };
+    if (rn === 'arcs') T = [{ param: 'arcSpan', wave: 'sine', amount: 0.15, period: 1, phase: 0, ease: 'inOut' }];
+    else if (rn === 'loops') T = [{ param: 'loopNoise', wave: 'sine', amount: 0.05, period: 1, phase: 0, ease: 'inOut' }];
+    else if (pl === 'spiral') T = [{ param: 'twist', wave: 'sine', amount: 0.5, period: 1, phase: 0, ease: 'inOut' }];
+    else if (pl === 'grid' && mod === 'shear') T = [{ param: 'shear', wave: 'sine', amount: 0.3, period: 1, phase: 0, ease: 'inOut' }];
+    else { setBaseMin('rg-warpamt', 0.12); T = [{ param: 'warpAmt', wave: 'sine', amount: 0.06, period: 2, phase: 0, ease: 'inOut' }]; }
+  }
+
+  syncPanelRows();
+  syncTrackParamSelects();
+  writeTracks(T);
+  ctrl('ck-rotate').checked = rot.on;
+  setBase('rg-rotate-turns', rot.turns || 1);
+  ctrl('ck-zoom').checked = false;
+  ctrl('rg-loop-seconds').value = loop;
+  loopSec = loop;
+  syncLoopLabel();
+  syncWholeFieldRows();
+  updateOneShotNote();
+  currentSceneName = null;
+  populateScenes('');
+  restartClock();
+  renderFrameAt(0);
+  setStatus('active', 'Mode · ' + name);
+}
+
+// ─────────────────────────────────────────────
+// SCENES — full animated presets
+// ─────────────────────────────────────────────
+const PULSAR_SCENES = {
+  'Phyllo Bloom':   { preset: 'Phyllotaxis Bloom', base: { 'rg-count': 40 }, tracks: [{ param: 'count', wave: 'ramp-once', amount: 760, period: 1, phase: 0, ease: 'out' }], loop: 6 },
+  'Chaos Writhe':   { preset: 'Chaos Circles', tracks: [{ param: 'loopPhase', wave: 'sine', amount: 2.2, period: 1, phase: 0, ease: 'linear' }, { param: 'loopNoise', wave: 'sine', amount: 0.05, period: 2, phase: 0, ease: 'inOut' }], loop: 6 },
+  'Ring Dissolve':  { preset: 'Broken Ring', tracks: [{ param: 'threshold', wave: 'sine', amount: 0.18, period: 1, phase: 0, ease: 'inOut' }, { param: 'fillPhase', wave: 'sine', amount: 1.5, period: 2, phase: 0, ease: 'linear' }], loop: 7 },
+  'Arc Fan':        { preset: 'Brockmann Arcs', tracks: [{ param: 'arcSpan', wave: 'sine', amount: 0.22, period: 1, phase: 0, ease: 'inOut' }], rotate: { on: true, turns: 1 }, loop: 8 },
+  'Rose Breath':    { preset: 'Rose Mesh', tracks: [{ param: 'petalDepth', wave: 'sine', amount: 0.28, period: 1, phase: 0, ease: 'inOut' }, { param: 'petals', wave: 'triangle', amount: 2, period: 3, phase: 0, ease: 'linear' }], loop: 6 },
+  'Halftone Spin':  { preset: 'Halftone Sphere', tracks: [{ param: 'sizeAmt', wave: 'sine', amount: 0.5, period: 1, phase: 0, ease: 'inOut' }], rotate: { on: true, turns: 1 }, loop: 6 },
+  'Spiral Coil':    { preset: 'Spiral Dot Field', tracks: [{ param: 'twist', wave: 'sine', amount: 1.2, period: 1, phase: 0, ease: 'inOut' }], loop: 6 },
+  'Warp Turn':      { preset: 'Nested Polygons', base: { 'rg-warpamt': 0.3 }, tracks: [{ param: 'warpPhase', wave: 'sine', amount: 2.5, period: 1, phase: 0, ease: 'linear' }, { param: 'warpAmt', wave: 'sine', amount: 0.1, period: 2, phase: 0, ease: 'inOut' }], rotate: { on: true, turns: 1 }, loop: 8 },
+};
+let currentSceneName = null;
+function sceneStore() { return Organica.presetStore('pulsar'); }
+function userScenes() { return sceneStore().read(); }
+function allScenes() { return Object.assign({}, PULSAR_SCENES, userScenes()); }
+
+function populateScenes(select) {
+  const sel = ctrl('sel-scene');
+  sel.innerHTML = '';
+  const blank = document.createElement('option');
+  blank.value = ''; blank.textContent = '— (custom)';
+  sel.appendChild(blank);
+  Object.keys(allScenes()).forEach(name => {
+    const o = document.createElement('option');
+    o.value = name; o.textContent = name;
+    sel.appendChild(o);
+  });
+  sel.value = select || '';
+}
+function padTracks(list) { const o = (list || []).slice(0, NTRACKS); while (o.length < NTRACKS) o.push({ param: '' }); return o; }
+
+function loadScene(name) {
+  if (!name) return;
+  const sc = allScenes()[name];
+  if (!sc) return;
+  if (sc.preset) applyState(BUILTIN_PRESETS[sc.preset]);
+  else if (sc.state) applyState(sc.state);
+  if (sc.base) for (const k in sc.base) setBase(k, sc.base[k]);
+  RANGE_IDS.forEach(id => syncVal(ctrl(id), 'v-' + id.slice(3)));
+  syncPanelRows();
+  syncTrackParamSelects();
+  writeTracks(padTracks(sc.tracks));
+  ctrl('ck-rotate').checked = !!(sc.rotate && sc.rotate.on);
+  setBase('rg-rotate-turns', (sc.rotate && sc.rotate.turns) || 1);
+  ctrl('ck-zoom').checked = !!(sc.zoom && sc.zoom.on);
+  if (sc.zoom) { ctrl('rg-zoom-amt').value = sc.zoom.amt != null ? sc.zoom.amt : 0.15; ctrl('sel-zoom-wave').value = sc.zoom.wave || 'sine'; syncVal(ctrl('rg-zoom-amt'), 'v-zoom-amt'); }
+  ctrl('rg-loop-seconds').value = sc.loop || 6;
+  loopSec = sc.loop || 6;
+  syncLoopLabel();
+  syncWholeFieldRows();
+  updateOneShotNote();
+  currentSceneName = name;
+  populateScenes(name);
+  restartClock();
+  renderFrameAt(0);
+  setStatus('active', 'Scene · ' + name);
+}
+
+function saveScene() {
+  ctrl('txt-scene-name').value = 'Scene ' + new Date().toLocaleTimeString();
+  ctrl('scene-save-row').style.display = '';
+  ctrl('scene-save-actions').style.display = '';
+  ctrl('txt-scene-name').focus();
+  ctrl('txt-scene-name').select();
+}
+function confirmSaveScene() {
+  const name = ctrl('txt-scene-name').value.trim();
+  if (!name) return;
+  if (PULSAR_SCENES[name]) { setStatus('', 'That name is a built-in scene — pick another'); return; }
+  const all = userScenes();
+  all[name] = {
+    state: readState(),
+    tracks: readTracks().filter(t => t.idx < NTRACKS).map(t => ({ param: t.param, wave: t.wave, amount: t.amount, period: t.period, phase: t.phase, ease: t.ease })),
+    rotate: { on: ctrl('ck-rotate').checked, turns: Math.round(val('rg-rotate-turns')) },
+    zoom: { on: ctrl('ck-zoom').checked, amt: val('rg-zoom-amt'), wave: ctrl('sel-zoom-wave').value },
+    loop: Math.round(val('rg-loop-seconds')),
+  };
+  sceneStore().write(all);
+  currentSceneName = name;
+  populateScenes(name);
+  setStatus('active', 'Saved scene · ' + name);
+  cancelSaveScene();
+}
+function cancelSaveScene() {
+  ctrl('scene-save-row').style.display = 'none';
+  ctrl('scene-save-actions').style.display = 'none';
+  ctrl('txt-scene-name').value = '';
+}
+function deleteScene() {
+  if (!currentSceneName) return;
+  if (PULSAR_SCENES[currentSceneName]) { setStatus('', 'Built-in scenes cannot be deleted'); return; }
+  const all = userScenes();
+  if (!all[currentSceneName]) return;
+  delete all[currentSceneName];
+  sceneStore().write(all);
+  currentSceneName = null;
+  populateScenes('');
+  setStatus('active', 'Deleted scene');
+}
+
+// ─────────────────────────────────────────────
+// ENGINE — redraw Organica.radial.buildScene every frame
+// ─────────────────────────────────────────────
+let playing = false, raf = 0, t0 = 0, curT = 0, loopSec = 6;
+let stillQueued = false;
+
+function elCount(prim) {
+  return prim.polygonsStroke.length + prim.polylines.length + prim.lines.length +
+         prim.polygonsFill.length + prim.arcs.length + prim.marks.length;
+}
+function renderFrameAt(tNorm) {
+  curT = tNorm;
+  const P = composeP(buildParams(), readTracks(), tNorm);
+  const prim = buildScene(P, SIZE, SIZE);
+  const n = elCount(prim);
+  if (n > CEIL) {
+    playing = false; cancelAnimationFrame(raf); setPlayIcon(false);
+    setStatus('', n + ' elements — too many to animate smoothly; reduce count / rings');
+    return;
+  }
+  pctx.setTransform(1, 0, 0, 1, 0, 0);
+  drawSceneCanvas(pctx, prim, P, DPR);
+  if (!playing) setStatus('active', P.placement + ' · ' + P.render + ' · ' + n + ' el · t=' + tNorm.toFixed(2));
+}
+function scheduleStill() {
+  if (playing || stillQueued) return;
+  stillQueued = true;
+  requestAnimationFrame(() => { stillQueued = false; renderFrameAt(curT); });
+}
+
+function loopDur() { return loopSec > 0 ? loopSec : 6; }
+function loopFrame(now) {
+  if (!playing) return;
+  const el = (now - t0) / 1000;
+  renderFrameAt((el / loopDur()) % 1);
+  raf = requestAnimationFrame(loopFrame);
+}
+function play(fromStart) {
+  if (fromStart) curT = 0;
+  t0 = performance.now() - curT * loopDur() * 1000;
+  playing = true; setPlayIcon(true);
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(loopFrame);
+  setStatus('active', 'Playing');
+}
+function pausePlayback() {
+  playing = false; cancelAnimationFrame(raf); setPlayIcon(false);
+  setStatus('active', 'Paused · t=' + curT.toFixed(2));
+}
+function stopPlayback() {
+  playing = false; cancelAnimationFrame(raf); setPlayIcon(false);
+  curT = 0; renderFrameAt(0);
+  setStatus('active', 'Stopped');
+}
+function togglePlayPause() { playing ? pausePlayback() : play(false); }
+function restartClock() { curT = 0; t0 = performance.now(); }
+
+const ICO_PLAY = '<path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor"/>';
+const ICO_PAUSE = '<path d="M5 3.5h2.2v9H5zM8.8 3.5H11v9H8.8z" fill="currentColor"/>';
+function setPlayIcon(isPlaying) {
+  ctrl('ico-playpause').innerHTML = isPlaying ? ICO_PAUSE : ICO_PLAY;
+  ctrl('btn-playpause').setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
+}
+
+// ── whole-field + loop UI ──
+function syncWholeFieldRows() {
+  ctrl('row-rotate-turns').style.display = ctrl('ck-rotate').checked ? '' : 'none';
+  ctrl('rows-zoom').style.display = ctrl('ck-zoom').checked ? '' : 'none';
+}
+function onFieldToggle() { syncWholeFieldRows(); updateOneShotNote(); scheduleStill(); }
+function syncLoopLabel() {
+  const v = Math.round(val('rg-loop-seconds'));
+  ctrl('loop-label').textContent = v > 0 ? v + 's' : 'Off';
+}
+
+// ─────────────────────────────────────────────
+// EXPORT
+// ─────────────────────────────────────────────
+function updateSizeReadout() {
+  const scale = parseInt(ctrl('sel-scale').value, 10) || 2;
+  ctrl('out-size').textContent = (SIZE * scale) + ' × ' + (SIZE * scale);
+}
+function exportPNG() {
+  const scale = parseInt(ctrl('sel-scale').value, 10) || 2;
+  const P = composeP(buildParams(), readTracks(), curT);
+  const prim = buildScene(P, SIZE, SIZE);
+  const c = document.createElement('canvas');
+  c.width = SIZE * scale; c.height = SIZE * scale;
+  drawSceneCanvas(c.getContext('2d'), prim, P, scale);
+  const url = c.toDataURL('image/png');
+  const bin = atob(url.split(',')[1]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('pulsar', 'png'));
+  setStatus('active', c.width + '×' + c.height + ' · PNG saved');
+}
+
+let recording = false, rec = null, recChunks = [], recTimer = 0;
+function toggleRecording() {
+  if (recording) { stopRecording(); return; }
+  const secs = loopSec > 0 ? loopSec : 6;
+  const stream = pcanvas.captureStream(30);
+  const mime = ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9', 'video/webm'].find(m => {
+    try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; }
+  });
+  recChunks = [];
+  try {
+    rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  } catch (e) {
+    setStatus('', 'Video export not supported in this browser');
+    return;
+  }
+  rec.ondataavailable = e => { if (e.data && e.data.size) recChunks.push(e.data); };
+  rec.onstop = () => {
+    const type = rec.mimeType || 'video/webm';
+    const ext = type.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
+    Organica.download(new Blob(recChunks, { type }), Organica.stamp('pulsar', ext));
+    recording = false;
+    ctrl('btn-video').textContent = 'Video';
+    setStatus('active', 'Video saved · ' + ext);
+  };
+  // start playback from t=0 BEFORE recorder.start() — Soul's 0-byte-file fix
+  play(true);
+  rec.start();
+  recording = true;
+  ctrl('btn-video').textContent = 'Stop rec';
+  setStatus('busy', 'Recording ' + secs + 's…');
+  recTimer = setTimeout(() => { if (recording) stopRecording(); }, secs * 1000 + 90);
+}
+function stopRecording() {
+  clearTimeout(recTimer);
+  if (rec && rec.state !== 'inactive') rec.stop();
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+buildTrackSlots();
+inkSwatch = Organica.palette.swatch('ink', { initial: '#1c1c1c', onChange: () => scheduleStill() });
+paperSwatch = Organica.palette.swatch('paper', { initial: '#f2efe6', onChange: () => scheduleStill() });
+Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+Organica.popover(ctrl('btn-loop'), ctrl('loop-popover'));
+populateScenes('Phyllo Bloom');
+loadScene('Phyllo Bloom');
+updateSizeReadout();
+setStatus('active', 'Ready');
+Organica.autoLabelPanel(document);
+Organica.enhanceSliders(document);
+
+ctrl('btn-playpause').addEventListener('click', togglePlayPause);
+ctrl('btn-stop').addEventListener('click', stopPlayback);
+ctrl('btn-scene-confirm').addEventListener('click', confirmSaveScene);
+ctrl('btn-scene-cancel').addEventListener('click', cancelSaveScene);
+ctrl('txt-scene-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmSaveScene();
+  if (e.key === 'Escape') cancelSaveScene();
+});
+
+// base placement/render/modulation changes re-filter the track param menus
+['sel-placement', 'sel-render', 'sel-modulation', 'sel-markshape'].forEach(id => {
+  ctrl(id).addEventListener('change', () => {
+    syncPanelRows();
+    const keep = [];
+    for (let i = 0; i < NTRACKS; i++) keep.push(ctrl('trk' + i + '-param').value);
+    syncTrackParamSelects();
+    for (let i = 0; i < NTRACKS; i++) { if (keep[i]) ctrl('trk' + i + '-param').value = keep[i]; syncTrackWave(i); }
+    updateOneShotNote();
+    scheduleStill();
+  });
+});
+
+// loop length
+ctrl('rg-loop-seconds').addEventListener('input', () => {
+  syncLoopLabel();
+  loopSec = Math.round(val('rg-loop-seconds'));
+  if (playing) t0 = performance.now() - curT * loopDur() * 1000;
+});
+
+// period snap on release
+for (let i = 0; i < NTRACKS; i++) {
+  ctrl('trk' + i + '-period').addEventListener('change', function () {
+    this.value = snapPeriod(parseFloat(this.value));
+    syncVal(this, 'v-trk' + i + '-period');
+    scheduleStill();
+  });
+}
+
+// any live control edit → sync value labels + redraw the still (when paused)
+ctrl('panel').addEventListener('input', e => {
+  const el = e.target;
+  if (el && el.matches && el.matches('input[type=range]')) {
+    const row = el.closest('.ctrl-row');
+    const v = row && row.querySelector('.ctrl-val');
+    if (v) v.textContent = el.value;
+  }
+  scheduleStill();
+});
+ctrl('panel').addEventListener('change', () => { scheduleStill(); updateOneShotNote(); });
+
+Organica.createZoomPan({ canvas: pcanvas, wrap: stage, min: 0.3, max: 6 });
+</script>
+</body>
+</html>

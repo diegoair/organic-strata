@@ -75,16 +75,33 @@ If the tool places Genesis forms, also:
 <script src="/genesis/organic-forms.js"></script>
 ```
 
-If the tool has a multi-colour RMX/palette control (`.rmx-palette` chips —
-add/remove/recolour, `min`/`max` count), load `organica-palette-chip.js`
-after core and call `Organica.createPaletteChips({ wrap, colors, min, max,
-onChange })` instead of hand-rolling the chip markup again — six tools
-(Camo Turing, Membrane, Vortex, FVS, Pollen, Spore) carried independent
-copies of this before the 2026-08-26 consolidation:
+**Colour controls — the Palette component.** `shared/organica-palette.js`
+(paired sheet `shared/organica-palette.css`) is the one home for both the
+single Ink/Paper swatch and the multi-colour RMX chip strip. One polymorphic
+entry point:
+
+- `Organica.palette.swatch('<prefix>', { initial, onChange })` — **attach
+  mode**: wires pre-existing `#cp-`/`#hex-`/`#sw-`/`#btn-random-<prefix>`
+  markup inside a labelled `.color-row` (CSS in `organica-panel.css`, which
+  every tool already links — no extra `<link>` needed).
+- `Organica.palette.swatch(<wrapEl>, { colors, min, max, onChange })` —
+  **generate mode**: builds `.rmx-color` chips into the element. Needs
+  `organica-palette.css`.
+- `Organica.palette.colorAt(score, opts)` — score→colour (Solid/Adaptive/RMX).
+
+Load after core; add the `<link>` only if you use generate mode:
 
 ```html
-<script src="/shared/organica-palette-chip.js"></script>
+<link rel="stylesheet" href="/shared/organica-palette.css">   <!-- generate mode only -->
+...
+<script src="/shared/organica-palette.js"></script>
 ```
+
+The old names `Organica.createColorSwatch` / `createPaletteChips` /
+`Organica.Palette.colorAt` still work as thin aliases (removal tracked in the
+Phase 2 migration). `organica-palette-chip.js` was folded into
+`organica-palette.js` on 2026-08-29; `createColorSwatch` moved out of
+`organica-core.js` at the same time.
 
 ---
 
@@ -504,9 +521,12 @@ Honest list of where the tools still disagree:
   as of the Aug 27, 2026 merge — just this one still-divergent shell.)
 - **Living Path** is fully retrofitted onto the shared panel component via
   its own documented aliases (`.sec`/`.row`/`.group-label`).
-- **`syncColor()`** still lives per-tool because each has different side
-  effects (Halide repaints, Komorebi doesn't). Only the hex *validation* is
-  shared, via `Organica.normalizeHex`.
+- **`syncColor()`** — resolved 2026-08-30. All 14 colour-picker tools now use the
+  shared Palette component (`Organica.palette.swatch`, `shared/organica-palette.js` +
+  `organica-palette.css`); the `createColorSwatch` / `createPaletteChips` /
+  `Organica.Palette.colorAt` back-compat aliases were removed. Remaining Palette
+  Phase-3 items (Membrane/Camo-Turing colour math, Vortex `.color-*` sizes,
+  livingpath's bare `<input>`) are tracked in `SHARED-COMPONENTS.md` §3.
 - **Zoom/pan** is available in `organica-core.js` but Spore, Pollen and Halide
   still run their own inline copies — migrating them is safe but untested, so
   it is left as a follow-up rather than done blind.

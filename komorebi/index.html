@@ -58,7 +58,7 @@
   /* ── RIGHT PANEL ── */
 
   .panel-section { border-bottom: 1px solid var(--border); padding: var(--space-5) var(--space-6); }
-  input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
+  /* input[type=color] hider now in shared/organica-panel.css */
 
   #file-input {
     position: absolute; width: 1px; height: 1px;
@@ -294,27 +294,35 @@
       <h3>Colour</h3>
       <div class="color-row">
         <span class="color-name">Sun</span>
-        <button class="color-swatch" id="sw-sun" onclick="ctrl('cp-sun').click()"></button>
-        <input type="color" id="cp-sun" value="#ffe9b0" oninput="syncColor('sun',this.value)">
-        <input class="color-hex" id="hex-sun" value="#ffe9b0" onchange="syncColor('sun',this.value)">
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-sun"></button>
+          <input type="color" id="cp-sun" value="#ffe9b0">
+        </span>
+        <input class="color-hex" id="hex-sun" value="#ffe9b0">
       </div>
       <div class="color-row">
         <span class="color-name">Sky</span>
-        <button class="color-swatch" id="sw-sky" onclick="ctrl('cp-sky').click()"></button>
-        <input type="color" id="cp-sky" value="#cfe0c0" oninput="syncColor('sky',this.value)">
-        <input class="color-hex" id="hex-sky" value="#cfe0c0" onchange="syncColor('sky',this.value)">
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-sky"></button>
+          <input type="color" id="cp-sky" value="#cfe0c0">
+        </span>
+        <input class="color-hex" id="hex-sky" value="#cfe0c0">
       </div>
       <div class="color-row">
         <span class="color-name">Ground</span>
-        <button class="color-swatch" id="sw-ground" onclick="ctrl('cp-ground').click()"></button>
-        <input type="color" id="cp-ground" value="#b99a63" oninput="syncColor('ground',this.value)">
-        <input class="color-hex" id="hex-ground" value="#b99a63" onchange="syncColor('ground',this.value)">
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-ground"></button>
+          <input type="color" id="cp-ground" value="#b99a63">
+        </span>
+        <input class="color-hex" id="hex-ground" value="#b99a63">
       </div>
       <div class="color-row">
         <span class="color-name">Shadow</span>
-        <button class="color-swatch" id="sw-shadow" onclick="ctrl('cp-shadow').click()"></button>
-        <input type="color" id="cp-shadow" value="#2b2718" oninput="syncColor('shadow',this.value)">
-        <input class="color-hex" id="hex-shadow" value="#2b2718" onchange="syncColor('shadow',this.value)">
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-shadow"></button>
+          <input type="color" id="cp-shadow" value="#2b2718">
+        </span>
+        <input class="color-hex" id="hex-shadow" value="#2b2718">
       </div>
     </div>
 
@@ -363,6 +371,7 @@
 <input type="file" id="file-input" accept="image/*" onchange="loadCookie(this)">
 
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-palette.js"></script>
 <script src="/shared/organica-noise.js"></script>
 <script>
 // ─────────────────────────────────────────────
@@ -501,12 +510,9 @@ function applyPatternLabels() {
   syncConditionalRows();   // Size range / Merge only apply to scatter patterns
 }
 
-function syncColor(which, hex) {
-  hex = Organica.normalizeHex(hex, ctrl('cp-' + which).value);
-  ctrl('cp-' + which).value = hex;
-  ctrl('hex-' + which).value = hex;
-  ctrl('sw-' + which).style.background = hex;
-}
+// Ink/Paper/scene swatches — the shared Palette component (attach mode).
+// Populated in INIT; applyState() sets via swatches[c].set(hex).
+const swatches = {};
 
 // ─────────────────────────────────────────────
 // NOISE — hash/value-noise/fbm/Worley, now shared with Camo Turing and
@@ -1290,7 +1296,7 @@ function readState() {
 function applyState(s) {
   RANGES.forEach(id => { if (s[id] !== undefined) { ctrl(id).value = s[id]; syncVal(ctrl(id), id.replace('rg-', 'v-')); } });
   SEGS.forEach(id => { if (s[id] !== undefined) setSegValue(id, s[id]); });
-  COLORS.forEach(c => { if (s['c-' + c] !== undefined) syncColor(c, s['c-' + c]); });
+  COLORS.forEach(c => { if (s['c-' + c] !== undefined) swatches[c].set(s['c-' + c]); });
   SELECTS.forEach(id => { if (s[id] !== undefined) ctrl(id).value = s[id]; });
   syncConditionalRows();
   applyPatternLabels();
@@ -1523,7 +1529,7 @@ function deletePreset() {
 // INIT
 // ─────────────────────────────────────────────
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
-COLORS.forEach(c => syncColor(c, ctrl('hex-' + c).value));
+COLORS.forEach(c => { swatches[c] = Organica.palette.swatch(c, { initial: ctrl('hex-' + c).value, onChange: scheduleRender }); });
 syncConditionalRows();
 applyPatternLabels();
 resizeCanvas();

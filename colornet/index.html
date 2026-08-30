@@ -103,7 +103,7 @@ body {
 #file-input, #batch-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
 /* ── CHANNEL LIST ──
-   New component. Organica.createPaletteChips can't serve this: an RMX chip
+   New component. Organica.palette.swatch (RMX mode) can't serve this: an RMX chip
    list is an array of bare hex strings with no room for a name, an on/off,
    an opacity, a stacking index or a per-item transform. DOM shape follows
    Camo Turing's .layer-card (head row + body rows) so the two read as the
@@ -433,6 +433,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 </div>
 
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-palette.js"></script>
 <script src="/shared/organica-noise.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────
@@ -1942,7 +1943,7 @@ ctrl('btn-auto-angles').addEventListener('click', () => {
   setStatus('active', 'AM Screening — classic offset angles applied');
 });
 
-Organica.createColorSwatch('bg', {
+Organica.palette.swatch('bg', {
   initial: '#ffffff',
   onChange: hex => { S.bg = hex; if (S.W) { buildChannelUI(); render(); } },
 });

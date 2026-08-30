@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/shared/organica-tokens.css">
 <link rel="stylesheet" href="/shared/organica-header.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-palette.css">
 <link rel="stylesheet" href="/shared/organica-floatbar.css">
 <style>
   :root {
@@ -256,6 +257,7 @@
       <a href="#panel-row">Row, label &amp; value</a>
       <a href="#slider">Slider</a>
       <a href="#panel-controls">Select, input &amp; color row</a>
+      <a href="#palette-chips">Palette — RMX chip strip</a>
       <a href="#seg-ctrl">Segmented control</a>
     </div>
     <div class="ds-nav__group">
@@ -450,6 +452,27 @@ Organica.enhanceSliders(document);</pre>
   &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"color-swatch"</span>&gt;&lt;/<span class="tag">button</span>&gt;
   &lt;<span class="tag">input</span> <span class="attr">class</span>=<span class="str">"color-hex"</span>&gt;
 &lt;/<span class="tag">div</span>&gt;</pre>
+    </section>
+
+    <section class="ds-entry" id="palette-chips">
+      <h2>Palette — RMX chip strip</h2>
+      <p class="ds-desc">A variable-length list of colours — add, remove, recolour. The other half of the Palette component (the <code>.color-row</code> above is the single-swatch half). Built by <code>Organica.palette.swatch(&lt;element&gt;, { colors, min, max, onChange })</code>; the single swatch is the same call with a string prefix.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-palette.css</span><span>shared/organica-palette.js</span><strong>Used in</strong><span>Camo Turing, Membrane, Vortex, FVS, TuneSutra, Pollen, Spore</span></div>
+      <div class="ds-example" style="max-width:280px">
+        <div class="rmx-palette">
+          <label class="rmx-color" style="background:#1a1a2e"></label>
+          <label class="rmx-color" style="background:#e94f37"></label>
+          <label class="rmx-color" style="background:#f6e8c3"><button class="rmx-x" type="button">&times;</button></label>
+          <button class="rmx-add" type="button">+</button>
+        </div>
+      </div>
+      <pre class="ds-code"><span class="attr">/* markup is generated — you supply the container */</span>
+&lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"rmx-palette"</span>&gt;&lt;/<span class="tag">div</span>&gt;
+
+Organica.palette.swatch(<span class="attr">wrapEl</span>, {
+  colors: state.colors, min: 2, max: 8,
+  onChange: (colors) =&gt; { state.colors = colors; render(); }
+});</pre>
     </section>
 
     <section class="ds-entry" id="seg-ctrl">

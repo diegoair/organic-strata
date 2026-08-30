@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/shared/organica-header.css">
   <link rel="stylesheet" href="/shared/organica-floatbar.css">
   <link rel="stylesheet" href="/shared/organica-panel.css">
+  <link rel="stylesheet" href="/shared/organica-palette.css">
   <style>
   :root {
     --tool: #c8a83a;   /* header focus ring */
@@ -183,21 +184,8 @@
   .rmx-slot svg { width: 100%; height: 100%; display: block; }
   .rmx-plus { font-size: var(--fs-large); color: var(--mid); line-height: 1; }
 
-  /* RMX colours palette */
-  .rmx-palette { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-  .rmx-color { position: relative; width: 36px; height: 28px; border: 1px solid var(--border); cursor: pointer; overflow: hidden; }
-  .rmx-color input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; cursor: pointer; }
-  .rmx-x {
-    position: absolute; top: 0; right: 0; width: 13px; height: 13px;
-    line-height: 11px; font-size: var(--fs-base); padding: 0; cursor: pointer;
-    background: rgba(255,255,255,0.82); color: #000; border: none;
-  }
-  .rmx-add {
-    width: 36px; height: 28px; border: 1px dashed var(--border); background: none;
-    color: var(--mid); font-size: var(--fs-large); cursor: pointer; line-height: 1;
-  }
-  .rmx-add:hover { border-color: var(--accent); color: var(--accent); }
-  input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
+  /* RMX chip CSS now in shared/organica-palette.css. Pollen's strip has no bottom gap. */
+  #rmx-palette { --rmx-palette-mb: 0; }
   .panel-select:focus, .panel-select:focus-visible { border-color: var(--ink); outline: none; box-shadow: none; }
 
   .upload-btn {
@@ -209,13 +197,7 @@
   }
   .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-  .icon-btn {
-    background: none; border: 1px solid var(--border); color: var(--accent);
-    width: 22px; height: 20px; flex-shrink: 0; padding: 0; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .icon-btn:hover { border-color: var(--accent); color: var(--ink); }
+  /* .icon-btn now in shared/organica-palette.css */
 
   /* RGBA colour controls */
   .rgba-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); margin-bottom: var(--space-3); }
@@ -527,27 +509,25 @@
 
       <!-- POINT colour: label (left) + swatch (picker) + hex + Random icon -->
       <div class="color-row" id="row-point">
-        <span class="ctrl-label">Point</span>
+        <span class="color-name">Point</span>
         <span class="color-swatch-wrap">
-          <button class="color-swatch" id="swatch-ink" style="background:#0a0a0a" onclick="document.getElementById('cp-ink').click()" title="Point colour"></button>
-          <input type="color" id="cp-ink" value="#0a0a0a" oninput="setColorAll('ink',this.value);render()">
+          <button class="color-swatch" id="sw-ink" style="background:#0a0a0a" title="Point colour"></button>
+          <input type="color" id="cp-ink" value="#0a0a0a">
         </span>
-        <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7"
-          onchange="setColorAll('ink',this.value);render()">
-        <button class="icon-btn" onclick="randomColor('ink')" title="Random colour">
+        <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7">
+        <button class="icon-btn" id="btn-random-ink" title="Random colour">
           <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
         </button>
       </div>
       <!-- BACKGROUND colour -->
       <div class="color-row">
-        <span class="ctrl-label">BG</span>
+        <span class="color-name">BG</span>
         <span class="color-swatch-wrap">
-          <button class="color-swatch" id="swatch-bg" style="background:#f5f2ec" onclick="document.getElementById('cp-bg').click()" title="Background colour"></button>
-          <input type="color" id="cp-bg" value="#f5f2ec" oninput="setColorAll('bg',this.value);render()">
+          <button class="color-swatch" id="sw-bg" style="background:#f5f2ec" title="Background colour"></button>
+          <input type="color" id="cp-bg" value="#f5f2ec">
         </span>
-        <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7"
-          onchange="setColorAll('bg',this.value);render()">
-        <button class="icon-btn" onclick="randomColor('bg')" title="Random colour">
+        <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7">
+        <button class="icon-btn" id="btn-random-bg" title="Random colour">
           <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
         </button>
       </div>
@@ -653,7 +633,6 @@
 
 <!-- Centralized Organica shape library (window.ORGANIC_FORMS) shared with Genesis -->
 <script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette-chip.js"></script>
 <script src="/shared/organica-palette.js"></script>
 <script src="/genesis/organic-forms.js"></script>
 <script>
@@ -866,8 +845,7 @@ function setColorMode(m) {
 
 // ── RMX COLORS palette UI ──
 function buildRmxPalette() {
-  Organica.createPaletteChips({
-    wrap: document.getElementById('rmx-palette'),
+  Organica.palette.swatch(document.getElementById('rmx-palette'), {
     colors: rmxColors,
     min: 2,
     max: RMX_COLORS_MAX,
@@ -875,26 +853,15 @@ function buildRmxPalette() {
   });
 }
 
-// ── COLOUR (hex ↔ native picker swatch, kept in sync) ──
-const COLOR_IDS = {
-  ink: { hex:'hex-ink', cp:'cp-ink', sw:'swatch-ink' },
-  bg:  { hex:'hex-bg',  cp:'cp-bg',  sw:'swatch-bg' }
-};
+// ── COLOUR — Point / BG via the shared Palette component (attach mode).
+// #btn-random-ink / #btn-random-bg are wired by the component. Populated in
+// INIT (after render is defined).
 function clamp255(v) { v = parseInt(v, 10); return isNaN(v) ? 0 : Math.max(0, Math.min(255, v)); }
 function toHex(r, g, b) { return '#' + [r, g, b].map(n => clamp255(n).toString(16).padStart(2, '0')).join(''); }
-// Set a colour everywhere from a hex value (hex field, picker, swatch).
-function setColorAll(which, hex) {
-  const id = COLOR_IDS[which];
-  hex = Organica.normalizeHex(hex, ctrl(id.cp).value);
-  ctrl(id.hex).value = hex; ctrl(id.cp).value = hex; ctrl(id.sw).style.background = hex;
-}
-function randomColor(which) {
-  setColorAll(which, toHex(Math.random() * 255, Math.random() * 255, Math.random() * 255));
-  render();
-}
+const swatches = {};
 function swapColors() {
-  const a = ctrl('hex-ink').value, b = ctrl('hex-bg').value;   // alpha stays with Point
-  setColorAll('ink', b); setColorAll('bg', a);
+  const a = swatches.ink.get(), b = swatches.bg.get();   // alpha stays with Point
+  swatches.ink.set(b); swatches.bg.set(a);
   render();
 }
 
@@ -936,8 +903,8 @@ function getState() {
   return s;
 }
 function setState(s) {
-  if (s.ink) setColorAll('ink', s.ink);
-  if (s.bg)  setColorAll('bg', s.bg);
+  if (s.ink) swatches.ink.set(s.ink);
+  if (s.bg)  swatches.bg.set(s.bg);
   if (s.alpha255 !== undefined) ctrl('a-ink').value = s.alpha255;
   if (s.rotation !== undefined) ctrl('sel-rotation').value = s.rotation;
   if (s.scale !== undefined) ctrl('sel-scale').value = s.scale;
@@ -1072,11 +1039,11 @@ function hexToRgb(hex) {
 }
 // Per-point colour: Solid → Point; Adaptive → lerp(Point, BG) by brightness;
 // RMX → a palette of up to 5 colours assigned by the chosen mapping.
-// Delegates the actual colour math to the shared Organica.Palette module
+// Delegates the colour math to the shared Organica.palette module
 // (see shared/organica-palette.js) — Spore and Camo Turing call the same
 // colorAt() so a fix here reaches all three instead of drifting again.
 function pointRGBA(P, b, rnd) {
-  const hex = Organica.Palette.colorAt(b, {
+  const hex = Organica.palette.colorAt(b, {
     mode: P.colorMode, ink: P.ink, paper: P.bg,
     colors: P.palette, submode: P.rmxMap, rnd: rnd || 0,
   });
@@ -1811,6 +1778,10 @@ applyZoom();
 populatePresets();
 buildShapeGrid();
 updatePtPreview();   // show the point shape preview before any image is loaded
+
+['ink', 'bg'].forEach(c => {
+  swatches[c] = Organica.palette.swatch(c, { initial: document.getElementById('hex-' + c).value, onChange: render });
+});
 
 Organica.popover(document.getElementById('btn-export'), document.getElementById('export-popover'));
 Organica.autoLabelPanel(document);   // accessible names for row controls

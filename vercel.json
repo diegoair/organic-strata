@@ -77,6 +77,10 @@
       "destination": "/radial/$1"
     },
     {
+      "source": "/pulsar/(.*)",
+      "destination": "/pulsar/$1"
+    },
+    {
       "source": "/shared/(.*)",
       "destination": "/shared/$1"
     },

@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/shared/organica-header.css">
   <link rel="stylesheet" href="/shared/organica-floatbar.css">
   <link rel="stylesheet" href="/shared/organica-panel.css">
+  <link rel="stylesheet" href="/shared/organica-palette.css">
   <style>
   :root {
     --tool: #5a7a96;   /* header focus ring */
@@ -135,11 +136,7 @@
 
   /* Color inputs */
 
-  input[type=color] {
-    opacity: 0;
-    position: absolute;
-    pointer-events: none;
-  }
+  /* input[type=color] hider now in shared/organica-panel.css */
 
   /* Mark library */
   #mark-grid {
@@ -218,13 +215,8 @@
     gap: var(--space-1);
   }
 
-  /* RMX colours palette */
-  .rmx-palette { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-  .rmx-color { position: relative; width: 36px; height: 28px; border: 1px solid var(--border); cursor: pointer; overflow: hidden; }
-  .rmx-color input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; cursor: pointer; }
-  .rmx-x { position: absolute; top: 0; right: 0; width: 13px; height: 13px; line-height: 11px; font-size: var(--fs-base); padding: 0; cursor: pointer; background: rgba(255,255,255,0.82); color: #000; border: none; }
-  .rmx-add { width: 36px; height: 28px; border: 1px dashed var(--border); background: none; color: var(--mid); font-size: var(--fs-large); cursor: pointer; line-height: 1; }
-  .rmx-add:hover { border-color: var(--accent); color: var(--accent); }
+  /* RMX chip CSS now in shared/organica-palette.css. Spore's strip has no bottom gap. */
+  #rmx-palette { --rmx-palette-mb: 0; }
   #sel-rmx-map { font-family: var(--font); font-size: var(--fs-small); background: var(--panel); border: 1px solid var(--border); color: var(--ink); padding: var(--space-1) var(--space-2); accent-color: var(--ink); }
 
   .cm-btn {
@@ -473,19 +465,19 @@
 
       <div class="color-row" id="row-mark">
         <span class="color-swatch-wrap">
-          <button class="color-swatch" id="swatch-mark" style="background:#0a0a0a" onclick="openColorPicker('cp-mark','swatch-mark','hex-mark')"></button>
-          <input type="color" id="cp-mark" value="#0a0a0a" oninput="syncColor('cp-mark','swatch-mark','hex-mark');liveUpdate()">
+          <button class="color-swatch" id="sw-mark" style="background:#0a0a0a"></button>
+          <input type="color" id="cp-mark" value="#0a0a0a">
         </span>
-        <input class="color-hex" id="hex-mark" value="#0a0a0a" maxlength="7" oninput="syncHex('hex-mark','cp-mark','swatch-mark');liveUpdate()">
+        <input class="color-hex" id="hex-mark" value="#0a0a0a" maxlength="7">
         <span class="ctrl-label" style="min-width:auto">Mark</span>
       </div>
 
       <div class="color-row">
         <span class="color-swatch-wrap">
-          <button class="color-swatch" id="swatch-bg" style="background:#f5f2ec" onclick="openColorPicker('cp-bg','swatch-bg','hex-bg')"></button>
-          <input type="color" id="cp-bg" value="#f5f2ec" oninput="syncColor('cp-bg','swatch-bg','hex-bg');liveUpdate()">
+          <button class="color-swatch" id="sw-bg" style="background:#f5f2ec"></button>
+          <input type="color" id="cp-bg" value="#f5f2ec">
         </span>
-        <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7" oninput="syncHex('hex-bg','cp-bg','swatch-bg');liveUpdate()">
+        <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7">
         <span class="ctrl-label" style="min-width:auto">BG</span>
       </div>
 
@@ -501,7 +493,6 @@
 
 <!-- Centralized Organica shape library (window.ORGANIC_FORMS), shared with Genesis/Pollen -->
 <script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette-chip.js"></script>
 <script src="/shared/organica-palette.js"></script>
 <script src="/genesis/organic-forms.js"></script>
 <script>
@@ -526,11 +517,10 @@ let selectedMarkId = 'g1';
 let rmxColors = ['#1a1a2e', '#e94f37', '#f6e8c3'];   // default palette (dark→bright)
 let rmxColorMap = 'tone';            // 'tone' | 'posterize' | 'random' | 'tonernd'
 const RMX_COLORS_MAX = 5;
-// Colour math now lives in shared/organica-palette.js (Organica.Palette.colorAt) —
+// Colour math now lives in shared/organica-palette.js (Organica.palette.colorAt) —
 // see the 'rmx'/'adaptive' branch in drawBatch().
 function buildRmxPalette() {
-  Organica.createPaletteChips({
-    wrap: document.getElementById('rmx-palette'),
+  Organica.palette.swatch(document.getElementById('rmx-palette'), {
     colors: rmxColors,
     min: 2,
     max: RMX_COLORS_MAX,
@@ -700,22 +690,9 @@ function setColorMode(mode, btn) {
   liveUpdate();
 }
 
-function openColorPicker(cpId, swatchId, hexId) {
-  document.getElementById(cpId).click();
-}
-
-function syncColor(cpId, swatchId, hexId) {
-  const v = document.getElementById(cpId).value;
-  document.getElementById(swatchId).style.background = v;
-  document.getElementById(hexId).value = v;
-}
-
-function syncHex(hexId, cpId, swatchId) {
-  const cp = document.getElementById(cpId);
-  const v = Organica.normalizeHex(document.getElementById(hexId).value, cp.value);
-  cp.value = v;
-  document.getElementById(swatchId).style.background = v;
-}
+// Mark / BG — the shared Palette component (attach mode). Populated in INIT
+// (after liveUpdate is defined).
+const swatches = {};
 
 // ─────────────────────────────────────────────
 // RENDER ENGINE
@@ -864,7 +841,7 @@ async function doRender() {
       let fillColor;
       if (colorMode === 'image') fillColor = getColor(x, y);
       else if (colorMode === 'rmx' || colorMode === 'adaptive') {
-        fillColor = Organica.Palette.colorAt(luma, {
+        fillColor = Organica.palette.colorAt(luma, {
           mode: colorMode, ink: markColor, paper: bgColor,
           colors: rmxColors, submode: rmxColorMap, rnd,
         });
@@ -1246,6 +1223,10 @@ buildMarkGrid();
 updateSymbolPreview();
 setStatus('', '—');
 applyZoom();
+
+['mark', 'bg'].forEach(c => {
+  swatches[c] = Organica.palette.swatch(c, { initial: document.getElementById('hex-' + c).value, onChange: liveUpdate });
+});
 
 Organica.popover(document.getElementById('btn-export'), document.getElementById('export-popover'));
 Organica.autoLabelPanel(document);   // accessible names for row controls

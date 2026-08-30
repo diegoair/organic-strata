@@ -52,7 +52,7 @@ body {
   display: block;
 }
 
-input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
+/* input[type=color] hider now in shared/organica-panel.css */
 </style>
 </head>
 <body>
@@ -258,15 +258,19 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
       </div>
       <div class="color-row">
         <span class="color-name">Ink</span>
-        <button class="color-swatch" id="sw-ink" onclick="ctrl('cp-ink').click()"></button>
-        <input type="color" id="cp-ink" value="#241b14" oninput="syncColor('ink', this.value)">
-        <input class="color-hex" id="hex-ink" value="#241b14" onchange="syncColor('ink', this.value)">
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-ink"></button>
+          <input type="color" id="cp-ink" value="#241b14">
+        </span>
+        <input class="color-hex" id="hex-ink" value="#241b14">
       </div>
       <div class="color-row">
         <span class="color-name">Paper</span>
-        <button class="color-swatch" id="sw-paper" onclick="ctrl('cp-paper').click()"></button>
-        <input type="color" id="cp-paper" value="#f5f2ec" oninput="syncColor('paper', this.value)">
-        <input class="color-hex" id="hex-paper" value="#f5f2ec" onchange="syncColor('paper', this.value)">
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-paper"></button>
+          <input type="color" id="cp-paper" value="#f5f2ec">
+        </span>
+        <input class="color-hex" id="hex-paper" value="#f5f2ec">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label">Seed</div>
@@ -281,6 +285,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 <!-- Core BEFORE noise, noise BEFORE the tool's own script — see
      organica-noise.js's own header for why the order matters. -->
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-palette.js"></script>
 <script src="/shared/organica-noise.js"></script>
 <script>
 // ─────────────────────────────────────────────
@@ -329,13 +334,9 @@ function syncConditionalRows() {
   scheduleRender();
 }
 
-function syncColor(which, hex) {
-  hex = Organica.normalizeHex(hex, ctrl('cp-' + which).value);
-  ctrl('cp-' + which).value = hex;
-  ctrl('hex-' + which).value = hex;
-  ctrl('sw-' + which).style.background = hex;
-}
-['ink', 'paper'].forEach(c => syncColor(c, ctrl('hex-' + c).value));
+// Ink/Paper — the shared Palette component (attach mode). Populated in INIT
+// (after scheduleRender / renderQueued are defined).
+const swatches = {};
 
 // ─────────────────────────────────────────────
 // DOMAIN WARP — bends the SAMPLED COORDINATES with a low-frequency noise
@@ -643,8 +644,8 @@ function applyState(s) {
    'rg-wallwidth', 'rg-contourscale', 'rg-levels', 'rg-linewidth', 'rg-sharp', 'rg-warpamt',
    'rg-warpscale', 'rg-seed'].forEach(id => syncVal(ctrl(id), 'v-' + id.slice(3)));
   ctrl('v-bands').textContent = ctrl('rg-bands').value === '0' ? 'Smooth' : ctrl('rg-bands').value;
-  syncColor('ink', s.ink || '#241b14');
-  syncColor('paper', s.paper || '#f5f2ec');
+  swatches.ink.set(s.ink || '#241b14');
+  swatches.paper.set(s.paper || '#f5f2ec');
   syncConditionalRows();
 }
 
@@ -722,6 +723,7 @@ function deletePreset() {
 
 // ── INIT ──
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+['ink', 'paper'].forEach(c => { swatches[c] = Organica.palette.swatch(c, { initial: ctrl('hex-' + c).value, onChange: scheduleRender }); });
 applyState(BUILTIN_PRESETS['Oak plank']);   // panel's raw HTML values are placeholders only — this is the real default
 resizeCanvas();
 populatePresets('Oak plank');

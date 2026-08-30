@@ -271,10 +271,10 @@ ship date — each `.nav__group` carries a `group-label`:
 | Seed / Form | Genesis |
 | Coloring & palette | TuneSutra, Colornet |
 | Grid & composition | Loom, FVS |
-| Tracing & vectorization | Halide |
-| Generative patterns | Komorebi, Camo Turing, Warping |
+| Tracing & vectorization | Halide, Living Path |
+| Generative patterns | Komorebi, Camo Turing, Warping, Radial |
 | Stippling & marks | Spore, Pollen |
-| Motion & growth | Soul, Living Path, Membrane, Vortex, Mycel, Blob Boundary |
+| Motion & growth | Soul, Membrane, Vortex, Pulsar, Mycel, Blob Boundary |
 | Workflow & pipelines | Rhizome |
 | Explorations | (prototype pages, not full tools) |
 

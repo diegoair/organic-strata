@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="/shared/organica-header.css">
 <link rel="stylesheet" href="/shared/organica-floatbar.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-palette.css">
 <style>
   :root {
     color-scheme: light;
@@ -47,30 +48,9 @@
   .fvs-thumb.selected { border-color: var(--tool); box-shadow: 0 0 0 1px var(--tool); }
   .fvs-thumb svg { width: 100%; height: 100%; display: block; }
 
-  /* Not in organica-panel.css — copied verbatim from Membrane/Vortex's
-     own local convention (Camo Turing's original Palette random-colour
-     button + RMX chip grid). */
-  .icon-btn {
-    background: none; border: 1px solid var(--border); color: var(--accent);
-    width: 22px; height: 20px; flex-shrink: 0; padding: 0; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .icon-btn:hover { border-color: var(--accent); color: var(--ink); }
-
-  .rmx-palette { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
-  .rmx-color { position: relative; width: 36px; height: 28px; border: 1px solid var(--border); cursor: pointer; overflow: hidden; }
-  .rmx-color input[type=color] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; padding: 0; cursor: pointer; }
-  .rmx-x {
-    position: absolute; top: 0; right: 0; width: 13px; height: 13px;
-    line-height: 11px; font-size: var(--fs-base); padding: 0; cursor: pointer;
-    background: rgba(255,255,255,0.82); color: #000; border: none;
-  }
-  .rmx-add {
-    width: 36px; height: 28px; border: 1px dashed var(--border); background: none;
-    color: var(--mid); font-size: var(--fs-large); cursor: pointer; line-height: 1;
-  }
-  .rmx-add:hover { border-color: var(--accent); color: var(--accent); }
+  /* .icon-btn + .rmx-* chip CSS now in shared/organica-palette.css.
+     .fvs-library-item .rmx-x below reuses the shared .rmx-x for the
+     thumbnail delete button — kept local. */
 
   /* Manual per-cell mini-editor — 4 compact groups, one per grid cell. */
   .fvs-cell-group { border: 1px solid var(--border); padding: var(--space-3); margin-bottom: var(--space-3); }
@@ -634,7 +614,7 @@
 </div>
 
 <script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette-chip.js"></script>
+<script src="/shared/organica-palette.js"></script>
 <script>
 /* ─────────────────────────────────────────────────────────────
    FVS — Flexible Visual System. First pass: Seeds → Components only
@@ -674,8 +654,9 @@ const state = {
 };
 
 // ── Palette — centralised colour assignment (moved out of Seed, which
-// is now pure shape geometry). Promoted to shared/organica-palette-chip.js
-// (TuneSutra's own extraction, 2026-08-26) — this was one of the 6
+// is now pure shape geometry). Promoted to shared/organica-palette.js
+// (Organica.palette.swatch; folded in from organica-palette-chip.js,
+// 2026-08-29) — this was one of the 6
 // independent copies found duplicating it. min 1 (a single colour IS a
 // plain flat fill, the old Fill default) rather than the RMX-standard
 // min-2, since a one-Seed single-cell-colour grid is a legitimate
@@ -685,8 +666,7 @@ const PALETTE_MAX = 8;
 function colorAt(i) { return state.colors[i % state.colors.length]; }
 
 function buildPalette() {
-  Organica.createPaletteChips({
-    wrap: ctrl('fvs-palette'),
+  Organica.palette.swatch(ctrl('fvs-palette'), {
     colors: state.colors,
     min: 1,
     max: PALETTE_MAX,
@@ -3332,7 +3312,7 @@ ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(btn => {
   btn.addEventListener('click', () => setTier(btn.dataset.tier));
 });
 
-const paperSwatch = Organica.createColorSwatch('paper', {
+const paperSwatch = Organica.palette.swatch('paper', {
   initial: '#ffffff',
   onChange: (hex) => { state.paperColor = hex; renderGallery(); renderSeedPreview(); if (state.symbolGrid) renderSymbolCanvasOnly(); },
 });

@@ -176,20 +176,26 @@
       <h3>Colour <span class="hint">tool content, not UI chrome</span></h3>
       <div class="color-row">
         <span class="color-name">Background</span>
-        <button class="color-swatch" id="sw-bg" aria-label="Open background colour picker"></button>
-        <input type="color" id="cp-bg" value="#7a5c3a">
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-bg" aria-label="Open background colour picker"></button>
+          <input type="color" id="cp-bg" value="#7a5c3a">
+        </span>
         <input class="color-hex" id="hex-bg" value="#7a5c3a" aria-label="Background hex value">
       </div>
       <div class="color-row">
         <span class="color-name">Mask</span>
-        <button class="color-swatch" id="sw-mask" aria-label="Open mask colour picker"></button>
-        <input type="color" id="cp-mask" value="#d8d4cc">
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-mask" aria-label="Open mask colour picker"></button>
+          <input type="color" id="cp-mask" value="#d8d4cc">
+        </span>
         <input class="color-hex" id="hex-mask" value="#d8d4cc" aria-label="Mask hex value">
       </div>
       <div class="color-row">
         <span class="color-name">Dots</span>
-        <button class="color-swatch" id="sw-dot" aria-label="Open dot colour picker"></button>
-        <input type="color" id="cp-dot" value="#f2c94c">
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-dot" aria-label="Open dot colour picker"></button>
+          <input type="color" id="cp-dot" value="#f2c94c">
+        </span>
         <input class="color-hex" id="hex-dot" value="#f2c94c" aria-label="Dot hex value">
       </div>
     </div>
@@ -203,6 +209,7 @@
 
 <!-- Core BEFORE the tool script so Organica.* exists at parse time. -->
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-palette.js"></script>
 <script>
 (function () {
   'use strict';
@@ -389,21 +396,18 @@
     ctrl('rg-' + id).addEventListener('input', e => { ctrl('v-' + id).textContent = e.target.value; });
   });
 
-  // ── colour — shared hex validation, this tool's own repaint side effect ──
-  function syncColor(which, hex) {
-    hex = Organica.normalizeHex(hex, ctrl('cp-' + which).value);
-    ctrl('cp-' + which).value = hex;
-    ctrl('hex-' + which).value = hex;
-    ctrl('sw-' + which).style.background = hex;
-    if (which === 'bg') bgRect.setAttribute('fill', hex);
-    if (which === 'mask') boundary.setAttribute('fill', hex);
-    // 'dot' is read live by classify() from ctrl('hex-dot').value — no
-    // separate repaint needed, next classification pass picks it up.
-  }
+  // ── colour — shared Palette component (attach mode); this tool's own
+  //    repaint side effect rides each swatch's onChange. 'dot' has no repaint
+  //    (classify() reads ctrl('hex-dot').value live next pass). ──
+  const swatches = {};
   ['bg', 'mask', 'dot'].forEach(which => {
-    ctrl('cp-' + which).addEventListener('input', e => syncColor(which, e.target.value));
-    ctrl('hex-' + which).addEventListener('change', e => syncColor(which, e.target.value));
-    ctrl('sw-' + which).addEventListener('click', () => ctrl('cp-' + which).click());
+    swatches[which] = Organica.palette.swatch(which, {
+      initial: ctrl('hex-' + which).value,
+      onChange: (hex) => {
+        if (which === 'bg') bgRect.setAttribute('fill', hex);
+        if (which === 'mask') boundary.setAttribute('fill', hex);
+      },
+    });
   });
 
   // ── presets — storage + legacy migration are shared; this tool owns
@@ -425,7 +429,7 @@
       el.value = s[k];
       el.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    syncColor('bg', s.bg); syncColor('mask', s.mask); syncColor('dot', s.dot);
+    swatches.bg.set(s.bg); swatches.mask.set(s.mask); swatches.dot.set(s.dot);
     buildLattice();
     buildTimeline();
   }
@@ -465,9 +469,7 @@
 
   // ── init ──
   shape1.value = 'circle'; shape2.value = 'band'; shape3.value = 'blob';
-  syncColor('bg', ctrl('hex-bg').value);
-  syncColor('mask', ctrl('hex-mask').value);
-  syncColor('dot', ctrl('hex-dot').value);
+  // swatches paint + apply their fills from `initial` at creation (above).
   populatePresets();
   buildLattice();
   buildTimeline();

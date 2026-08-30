@@ -78,6 +78,8 @@ Hub (index.html)
 ├── /komorebi/        → Komorebi volumetric-light tool (static, Vercel)
 ├── /colornet/        → Colornet channel-separation + recolour tool (static, Vercel)
 ├── /blob-boundary/   → Blob Boundary mask-morph + edge-scatter tool (static, Vercel)
+├── /radial/          → Radial — Book of Shapes "radial" polar-field generator (static, Vercel)
+├── /pulsar/          → Pulsar — generative Motion tool over Radial's parameters (static, Vercel)
 └── /backend          → Python server (local only, not deployed) — historical, no longer present (removed with Strata)
 ```
 
