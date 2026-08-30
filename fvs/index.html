@@ -15,13 +15,8 @@
 <link rel="stylesheet" href="/shared/organica-palette.css">
 <style>
   :root {
-    color-scheme: light;
-    --ink: #0a0a0a;
-    --paper: #ffffff;
-    --mid: #696256;
-    --accent: #2a2a2a;
-    --panel: #eceae4;
-    --border: #d0c8b8;
+    /* color-scheme:light + the surface palette are shared defaults in
+       organica-tokens.css now. FVS keeps its own scrollable-gallery shell. */
     --tool: #3fa876;   /* identity colour — emerald, unclaimed hue gap between Komorebi's olive and Camo Turing's teal */
   }
 
@@ -58,7 +53,7 @@
   .fvs-cell-group .ctrl-row:last-child { margin-bottom: 0; }
 
   #rule-total-hint { font-size: var(--fs-micro); color: var(--mid); margin-top: var(--space-2); line-height: 1.5; }
-  #rule-total-hint.over-cap { color: #a03828; }
+  #rule-total-hint.over-cap { color: var(--danger); }
 
   .fvs-seed-preview { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
   .fvs-seed-preview svg { width: 48px; height: 48px; flex-shrink: 0; border: 1px solid var(--border); display: block; }
@@ -89,15 +84,9 @@
   /* Choose-content overlay — no existing modal component in this codebase
      (Organica.popover is anchored-to-a-button, not a fit for a click
      anywhere on the canvas), so this is a plain fixed-position dialog. */
-  #symbol-content-overlay { position: fixed; inset: 0; background: rgba(10,10,10,0.45); display: flex; align-items: center; justify-content: center; z-index: 200; }
-  #symbol-content-overlay__panel { background: var(--paper); border: 1px solid var(--border); width: 420px; max-height: 80vh; overflow-y: auto; padding: var(--space-5); }
-  #symbol-content-overlay__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3); }
-  #symbol-content-overlay__title { font-size: var(--fs-base); font-weight: 600; }
+  /* Backdrop + panel skeleton come from .org-modal / .org-modal__* in
+     organica-panel.css. Local: the tile size inside these two dialogs. */
   #symbol-content-overlay__seeds .fvs-library-item, #symbol-content-overlay__components .fvs-library-item { width: 76px; height: 76px; }
-
-  #underlying-component-overlay { position: fixed; inset: 0; background: rgba(10,10,10,0.45); display: flex; align-items: center; justify-content: center; z-index: 200; }
-  #underlying-component-overlay__panel { background: var(--paper); border: 1px solid var(--border); width: 420px; max-height: 80vh; overflow-y: auto; padding: var(--space-5); }
-  #underlying-component-overlay__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-3); }
   #underlying-component-overlay-tiles .fvs-library-item { width: 76px; height: 76px; }
 
   #symbol-frame svg .symbol-marquee { fill: rgba(51,153,255,0.12); stroke: #3399ff; stroke-width: 1; stroke-dasharray: 4 3; }
@@ -207,7 +196,7 @@
         <button class="mini-btn" id="btn-upload-seed">Upload SVG…</button>
         <button class="mini-btn" id="btn-browse-creator">Creator library…</button>
       </div>
-      <div id="seed-upload-error" class="org-panel__hint" style="display:none;color:#a03828"></div>
+      <div id="seed-upload-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       <div id="creator-library-picker" style="display:none">
         <div id="creator-library-empty" class="fvs-library-empty">No saved Seeds found — save one in Creator first.</div>
         <div id="creator-library-tiles" class="fvs-library"></div>
@@ -231,7 +220,7 @@
         <button class="mini-btn" id="btn-symbol-grid-hex">Hexagonal (Loom)</button>
       </div>
       <button class="mini-btn" id="btn-symbol-grid-upload" style="width:100%;margin-top:var(--space-2)">Upload Loom grid JSON…</button>
-      <div id="symbol-grid-error" class="org-panel__hint" style="display:none;color:#a03828"></div>
+      <div id="symbol-grid-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-symbol-grid-outline"><span>Show loaded grid</span></label>
       <label class="check-row"><input type="checkbox" id="chk-symbol-clip" checked><span>Clip to cell</span></label>
       <p class="org-panel__hint">Two ready-made Loom exports for this evaluation — a small Bento (merged rect cells) and a Hexagonal (polygon cells, the "more complex" case) — or upload any other Loom grid JSON export. "Show loaded grid" overlays the grid's own cell outlines on the preview (not baked into PNG/SVG export) — useful to confirm a grid loaded correctly before filling it in. "Clip to cell" (on by default) crops each cell's content to its own boundary — turn it off to allow a deliberate bleed across cells; while off, a selected cell whose content exceeds its bounds is flagged in Cell properties below.</p>
@@ -281,7 +270,7 @@
       </div>
       <div id="grid-loom-block" style="display:none">
         <button class="mini-btn" id="btn-upload-loom" style="width:100%">Upload Loom grid JSON…</button>
-        <div id="loom-grid-error" class="org-panel__hint" style="display:none;color:#a03828"></div>
+        <div id="loom-grid-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       </div>
       <p class="org-panel__hint">Square grids use Cell size/Gap directly. A Loom import uses that grid's own saved cell geometry (rect or polygon) exactly as exported — Cell size/Gap don't apply to it. Named symmetry rules (Pinwheel/Mirror/Diagonal/Checkerboard/Row/Column/Radial) only make sense for a 4-cell grid and grey out otherwise — Identity/Random/Exhaustive/Manual work at any cell count.</p>
     </div>
@@ -540,7 +529,7 @@
             </select>
           </div>
           <div class="ctrl-row" id="row-cellprop-overflow" style="display:none">
-            <span class="ctrl-val" style="color:#c0392b;text-align:left;flex:1">⚠ Extends beyond cell bounds</span>
+            <span class="ctrl-val" style="color:var(--danger);text-align:left;flex:1">⚠ Extends beyond cell bounds</span>
           </div>
           <div class="ctrl-row" id="row-cellprop-scale">
             <div class="ctrl-label">Scale</div>
@@ -583,10 +572,10 @@
   </div>
 </div>
 
-<div id="symbol-content-overlay" role="dialog" aria-modal="true" aria-label="Choose cell content" style="display:none">
-  <div id="symbol-content-overlay__panel">
-    <div id="symbol-content-overlay__header">
-      <span id="symbol-content-overlay__title">Choose content</span>
+<div id="symbol-content-overlay" class="org-modal" role="dialog" aria-modal="true" aria-label="Choose cell content" style="display:none">
+  <div id="symbol-content-overlay__panel" class="org-modal__panel">
+    <div id="symbol-content-overlay__header" class="org-modal__header">
+      <span id="symbol-content-overlay__title" class="org-modal__title">Choose content</span>
       <label class="check-row" style="margin:0 auto 0 var(--space-3)"><input type="checkbox" id="chk-content-overlay-all"><span>Apply to all cells</span></label>
       <button class="icon-btn" id="btn-content-overlay-close" aria-label="Close">
         <svg viewBox="0 0 16 16" width="11" height="11"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
@@ -600,10 +589,10 @@
   </div>
 </div>
 
-<div id="underlying-component-overlay" role="dialog" aria-modal="true" aria-label="Pick underlying component" style="display:none">
-  <div id="underlying-component-overlay__panel">
-    <div id="underlying-component-overlay__header">
-      <span>Pick underlying component</span>
+<div id="underlying-component-overlay" class="org-modal" role="dialog" aria-modal="true" aria-label="Pick underlying component" style="display:none">
+  <div id="underlying-component-overlay__panel" class="org-modal__panel">
+    <div id="underlying-component-overlay__header" class="org-modal__header">
+      <span class="org-modal__title">Pick underlying component</span>
       <button class="icon-btn" id="btn-underlying-overlay-close" aria-label="Close">
         <svg viewBox="0 0 16 16" width="11" height="11"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
       </button>
@@ -2270,7 +2259,9 @@ function seedMarkupSVG(cx, cy, rotation, sx, sy, geo, color) {
     + `<path d="${geo.d}" fill="${color}"/></g></g>`;
 }
 
-const MISSING_COMPONENT_COLOR = '#c0392b';
+// Matches the --danger token (organica-tokens.css); a literal because it's
+// baked into standalone SVG export strings + canvas strokeStyle.
+const MISSING_COMPONENT_COLOR = '#a03828';
 function missingComponentMarkupSVG(cx, cy, cellW, cellH) {
   const x = cx - cellW / 2, y = cy - cellH / 2;
   return `<g fill="none" stroke="${MISSING_COMPONENT_COLOR}" stroke-width="2">`

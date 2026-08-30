@@ -51,8 +51,20 @@ In `<head>`, **in this order**:
 <link rel="stylesheet" href="/shared/organica-header.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
 <link rel="stylesheet" href="/shared/organica-floatbar.css">
-<style> /* the tool's own palette + shell + controls */ </style>
+<link rel="stylesheet" href="/shared/organica-shell.css">
+<style> /* only the tool's own content — its --tool accent + one-off components */ </style>
 ```
+
+`organica-shell.css` (added 2026-08-30) is the app-shell skeleton — the
+box-sizing reset, the flex-column `<body>`, `#app`, the centred
+`#canvas-wrap` stage area, `.org-stage` (the canvas element's shadow +
+`.zoomed`/`.panning`/`.picking` cursor states — add `class="org-stage"` to
+the canvas, its id varies per tool), `#zoom-hud` and `#drop-hint`. Before
+it, all 17 tools carried their own ~30-line copy. A tool keeps only its
+genuine deltas locally (`#canvas-wrap { padding: 0 }` for edge-to-edge
+canvases, a lighter `box-shadow`, a bespoke `#stage-frame`). Genesis
+(3-column shell), Rhizome and FVS (own canvas surfaces) don't link it;
+they still get the reset + surface palette from tokens.
 
 `organica-floatbar.css` is the shared bottom-centre floating action bar
 (`.org-floatbar`, `.org-popover`) that Export (and any playback controls)
@@ -107,20 +119,29 @@ Phase 2 migration). `organica-palette-chip.js` was folded into
 
 ## 3. Palette contract
 
-Every tool defines the same six names, whatever the values. This is what lets
-the shell CSS be copied without edits.
+The six surface names (`--ink` `--paper` `--mid` `--accent` `--panel`
+`--border`) are **defaults in `organica-tokens.css`** as of 2026-08-30.
+This section used to say each tool sets its own hex, on the theory tools
+would diverge; 15 of 17 shipped byte-identical values, so they moved to
+one place. A tool now declares only:
 
-| Variable | Role | Halide (light) | Komorebi (light) |
-|---|---|---|---|
-| `--ink` | text, primary marks | `#0a0a0a` | `#0a0a0a` |
-| `--paper` | page background | `#f5f2ec` | `#f5f2ec` |
-| `--mid` | secondary text, dividers | `#726a5e` | `#726a5e` |
-| `--accent` | emphasis text | `#2a2a2a` | `#2a2a2a` |
-| `--panel` | canvas surround, inputs | `#eceae4` | `#eceae4` |
-| `--border` | all 1px rules | `#d0c8b8` | `#d0c8b8` |
+- **`--tool`** — its identity hue, matching the hub nav accent (drives the
+  header focus ring). See `docs/DESIGN-SYSTEM.md` §5.
+- the rare genuine override — `--ink: #241b14` for the warm-black trio
+  (Warping / Radial / Pulsar), `--mid: #726a5e` for Blob Boundary.
 
-Plus **one identity colour** named after the tool (`--halide`, `--komorebi`, …)
-matching the hub nav accent — see `docs/DESIGN-SYSTEM.md` §5.
+| Variable | Role | Default |
+|---|---|---|
+| `--ink` | text, primary marks | `#0a0a0a` |
+| `--paper` | page background | `#ffffff` |
+| `--mid` | secondary text, dividers | `#696256` |
+| `--accent` | emphasis text | `#2a2a2a` |
+| `--panel` | canvas surround, inputs | `#eceae4` |
+| `--border` | all 1px rules | `#d0c8b8` |
+
+A tool's own **content** colour (Halide's ink/paper for the dithered
+image, Pollen's dots) is still set locally — that's user data, not a role.
+`--danger` (`#a03828`, validation / destructive text) is also in tokens.
 
 ---
 
@@ -457,12 +478,16 @@ discovered its own accent hex collided with Strata/Membrane's only after
 shipping. Follow every line here in the same session as the migration —
 "do it later" is exactly how the first two gaps happened.
 
-- [ ] **Shell**: link the 4 shared CSS files in the load-bearing order
-  (`organica-tokens.css` → `organica-header.css` → `organica-floatbar.css`
-  → `organica-panel.css`), add a real `<header class="org-header
-  org-header--tool">` with the logo linking to `/`, migrate panel markup
-  onto the shared `.panel-section`/`.ctrl-row`/`.panel-select`/`.color-row`
-  classes instead of the exploration's own bespoke `.row`/`.sec-title`.
+- [ ] **Shell**: link the 5 shared CSS files in the load-bearing order
+  (`organica-tokens.css` → `organica-header.css` → `organica-panel.css`
+  → `organica-floatbar.css` → `organica-shell.css`), add a real
+  `<header class="org-header org-header--tool">` with the logo linking to
+  `/`, put `class="org-stage"` on the canvas element, and migrate panel
+  markup onto the shared `.panel-section`/`.ctrl-row`/`.panel-select`/
+  `.color-row` classes instead of the exploration's own bespoke
+  `.row`/`.sec-title`. Delete the exploration's own copy of the reset /
+  `body` / `#app` / `#canvas-wrap` / `#zoom-hud` / `#drop-hint` rules —
+  `organica-shell.css` owns them. Start from `shared/_template.html`.
 - [ ] **Tokens**: replace the bespoke local `:root` block with the shared
   token set; keep a local `:root` only for genuine tool-content colours
   (what the tool draws — the two-exception rule already in `CLAUDE.md`'s
@@ -513,8 +538,13 @@ shipping. Follow every line here in the same session as the migration —
 
 Honest list of where the tools still disagree:
 
-- **Panel width** — 240px (Halide) vs 244px (Komorebi) vs 260px (Genesis).
-  Should be one token.
+- **App shell** — resolved 2026-08-30. `organica-shell.css` owns the reset,
+  `body`, `#app`, `#canvas-wrap`, `.org-stage`, `#zoom-hud`, `#drop-hint`;
+  14 tools link it (all but Genesis / Rhizome / FVS, which keep their own
+  canvas surface but still get the surface palette). This also retired the
+  "Panel width — 240 vs 244 vs 260" item (one `--panel-w: 248px` token in
+  `organica-panel.css`) and the "Zoom/pan CSS still inline in Spore /
+  Pollen / Halide" item.
 - **Genesis** uses a different shell entirely (left sets panel + centre grid +
   right design panel). It predates this template; converging it is a bigger
   job than a rename. (No longer 3 separate pages using 2 different shells,
@@ -526,12 +556,18 @@ Honest list of where the tools still disagree:
   `shared/organica-palette.js` + `organica-palette.css`); the `createColorSwatch` /
   `createPaletteChips` / `Organica.Palette.colorAt` aliases were removed. Membrane's
   `rmxColorAt` and Camo Turing's export `rmxLerpColor` deliberately stay separate
-  (different colour lineage — see `SHARED-COMPONENTS.md` §3). Only `shared/_template.html`
-  still carries the old hand-rolled `syncColor`.
-- **Zoom/pan** is available in `organica-core.js` but Spore, Pollen and Halide
-  still run their own inline copies — migrating them is safe but untested, so
-  it is left as a follow-up rather than done blind.
+  (different colour lineage — see `SHARED-COMPONENTS.md` §3). `shared/_template.html`
+  was refreshed to the current conventions on 2026-08-30 (links all 5 sheets,
+  uses `Organica.palette.swatch`, no more `syncColor`).
+- **Layer card** — resolved 2026-08-30. Camo Turing's `.layer-card` and
+  Colornet's `.chan-card` were first aliased onto `.org-layer-card`, then
+  renamed to it outright the same day (Colornet's `.chan-card--armed` →
+  `.chan-armed`); the aliases are gone. `organica-panel.css` carries only
+  `.org-layer-card` / `__head` / `__body` / `.active`; each tool keeps its
+  own dot / name / opacity / thumbnail controls local.
+- **Zoom/pan JS** — resolved 2026-08-30. Spore, Pollen and Halide's inline
+  copies are gone; all three call `Organica.createZoomPan` now.
 
 ---
 
-*Studio Rann · Organica System v0.1 · July 25, 2026*
+*Organica System v0.1 · July 25, 2026*

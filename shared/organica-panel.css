@@ -478,6 +478,116 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
   margin: calc(var(--space-1) * -1) 0 var(--space-3);
 }
 
+/* ═══════════════════════════════════════════════════════════
+   FILE INPUT — the "+ Upload …" dashed trigger and the real
+   <input type=file> it fronts.
+
+   Six tools (Camo Turing, Soul, Pollen, Membrane, Genesis, Spore) each
+   carried a near-identical .upload-btn with a "copied verbatim rather
+   than inventing a fourth variant" comment. This is the common core;
+   a caller keeps only its own margin / font-size delta locally.
+
+   The hidden input keeps a 1px on-screen footprint rather than
+   display:none — Safari refuses to open the picker for an input that
+   isn't rendered.
+   ═══════════════════════════════════════════════════════════ */
+
+.upload-btn {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px dashed var(--border);
+  border-radius: 0;
+  background: none;
+  color: var(--mid);
+  font-family: var(--font);
+  font-size: var(--fs-small);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.org-file-input {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border: 0;
+  padding: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MODAL — a full-screen backdrop that centres one panel.
+
+   Hand-rolled with byte-identical CSS in Genesis (×2), FVS (×2) and
+   Colornet (×1) — FVS's own comment: "no existing modal component in
+   this codebase". This is the shared skeleton; a dialog keeps its own
+   inner-content CSS local, and toggles visibility however it already
+   does (`style="display:none"` + a JS `.style.display` flip is the
+   common pattern — `display` is deliberately NOT set here so that
+   keeps working). Panel width overridable via --org-modal-w.
+   ═══════════════════════════════════════════════════════════ */
+
+.org-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(10, 10, 10, 0.45);
+  align-items: center;
+  justify-content: center;
+}
+
+.org-modal__panel {
+  background: var(--paper);
+  border: 1px solid var(--border-strong, var(--border));
+  width: var(--org-modal-w, 420px);
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+.org-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+.org-modal__title { font-size: var(--fs-base); font-weight: var(--w-medium); }
+
+/* ═══════════════════════════════════════════════════════════
+   LAYER CARD — a bordered list row: a head (dot toggle + editable
+   name + icon buttons) over one or more body rows (a slider + a
+   tabular value, a select…).
+
+   Camo Turing's `.layer-card` and Colornet's `.chan-card` were the same
+   skeleton kept in visual sync by hand (Colornet's own comment: "DOM
+   shape follows Camo Turing's .layer-card so the two read as the same
+   family"). Both were first aliased onto this class, then renamed to it
+   outright on 2026-08-30 — the aliases are gone. Each tool's own dot /
+   name / opacity / thumbnail controls stay local; so do real per-tool
+   deltas (Colornet's rounded corner and its `.chan-armed` swap state).
+   ═══════════════════════════════════════════════════════════ */
+
+.org-layer-card {
+  border: 1px solid var(--border);
+  padding: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.org-layer-card.active {
+  border-color: var(--tool, var(--ink));
+}
+.org-layer-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.org-layer-card__body {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
 /* Divider inside a section */
 .panel-divider {
   height: 1px;

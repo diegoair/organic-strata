@@ -7,20 +7,15 @@
 
 <link rel="stylesheet" href="/shared/organica-tokens.css">
 <link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-shell.css">
 <link rel="stylesheet" href="/shared/organica-palette.css">
 <!-- Needed only to resolve Genesis forms' CSS-driven geometry when
      rasterizing them as seed shapes — see rasterizeGenesisSource(). -->
 <link rel="stylesheet" href="/genesis/organic-animations.css">
 <style>
   :root {
-    --ink: #0a0a0a;
-    --paper: #ffffff;
-    --mid: #696256;
-    --accent: #2a2a2a;
-    --panel: #eceae4;
-    --border: #d0c8b8;
     --tool: #3f8fa0;   /* header focus ring — see organica-header.css */
     --bg-cell: #f5f2ec;   /* required by organic-animations.css — see rasterizeGenesisSource() */
   }
@@ -34,20 +29,13 @@
   .shape-thumb.active { border-color: var(--ink); border-width: 2px; }
   .shape-thumb svg { width: 100%; height: 100%; display: block; fill: var(--ink); }
   .shape-thumb .thumb-num { position: absolute; top: 2px; right: 3px; font-size: var(--fs-micro); color: var(--mid); }
-  .upload-btn {
-    width: 100%; padding: var(--space-3); border: 1px dashed var(--border); background: none;
-    color: var(--mid); font-family: var(--font); font-size: var(--fs-small); cursor: pointer;
-  }
-  .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
-  /* .icon-btn + .rmx-* chip CSS now in shared/organica-palette.css */
-  .layer-card { border: 1px solid var(--border); padding: var(--space-2); margin-bottom: var(--space-2); }
-  .layer-card.active { border-color: var(--tool, var(--ink)); }
-  .layer-card__head { display: flex; align-items: center; gap: var(--space-2); }
+  /* .upload-btn, .icon-btn, the .rmx-* chips are all in the shared sheets now. */
+  /* .org-layer-card / __head / __body skeleton is in organica-panel.css
+     (aliased alongside .org-layer-card). Camo Turing's own inner controls: */
   .layer-dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--border-strong, var(--border)); background: none; flex-shrink: 0; padding: 0; cursor: pointer; }
   .layer-dot.on { background: var(--tool, var(--ink)); }
   .layer-name { flex: 1; text-align: left; background: none; border: none; font-family: var(--font); font-size: var(--fs-small); color: var(--ink); cursor: pointer; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .layer-name.active { font-weight: 600; }
-  .layer-card__body { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
   .layer-blend-select { flex-shrink: 0; }
   .layer-opacity { flex: 1; }
   .layer-opacity-val { font-size: var(--fs-micro); color: var(--mid); min-width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
@@ -64,30 +52,10 @@
      centralized once it was proven useful for both Pattern's own picker
      and the new Transformer one. */
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--paper);
-    color: var(--ink);
-    font-family: var(--font);
-    font-size: var(--fs-base);
-    height: 100vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  #app { display: flex; flex: 1; overflow: hidden; }
-
-  #canvas-wrap {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--panel);
-    position: relative;
-    overflow: hidden;
-  }
+  /* Reset, body, #app, #canvas-wrap and the surface palette come from the
+     shared sheets. Delta: the GL canvas provides its own 90%-fit + shadow,
+     so the wrap carries no padding. */
+  #canvas-wrap { padding: 0; }
 
   #gl-canvas {
     /* Caught by visual debugging, not assumed: an earlier version of
@@ -1877,23 +1845,23 @@ function buildLayersUI() {
   host.appendChild(baseRow);
   extraLayers.forEach(layer => {
     const card = document.createElement('div');
-    card.className = 'layer-card' + (layer.id === activeLayerId ? ' active' : '');
+    card.className = 'org-layer-card' + (layer.id === activeLayerId ? ' active' : '');
     card.innerHTML = `
-      <div class="layer-card__head">
+      <div class="org-layer-card__head">
         <button class="layer-dot${layer.on ? ' on' : ''}" title="On/off" aria-label="${layer.name} on/off"></button>
         <button class="layer-name${layer.id === activeLayerId ? ' active' : ''}" title="Edit this layer's Feed/Kill/dA/dB above">${layer.name}</button>
         <button class="icon-btn" title="Move up" aria-label="Move ${layer.name} up">↑</button>
         <button class="icon-btn" title="Move down" aria-label="Move ${layer.name} down">↓</button>
         <button class="icon-btn" title="Remove" aria-label="Remove ${layer.name}">×</button>
       </div>
-      <div class="layer-card__body">
+      <div class="org-layer-card__body">
         <select class="panel-select layer-blend-select" title="Blend mode" aria-label="${layer.name} blend mode">
           ${LAYER_BLENDS.map(b => `<option value="${b}"${b === layer.blend ? ' selected' : ''}>${b[0].toUpperCase()}${b.slice(1)}</option>`).join('')}
         </select>
         <input type="range" class="layer-opacity" min="0" max="100" step="1" value="${Math.round(layer.opacity * 100)}" aria-label="${layer.name} opacity">
         <span class="layer-opacity-val">${Math.round(layer.opacity * 100)}%</span>
       </div>
-      <div class="layer-card__body">
+      <div class="org-layer-card__body">
         <select class="panel-select layer-preset-select" title="Preset (sets this layer's own Feed/Kill)" aria-label="${layer.name} preset">
           <option value=""${layer.presetName ? '' : ' selected'}>Custom (f ${layer.f.toFixed(4)} / k ${layer.k.toFixed(4)})</option>
           <optgroup label="Built-in">
@@ -1902,7 +1870,7 @@ function buildLayersUI() {
           ${Object.keys(userPresets()).length ? `<optgroup label="Saved">${Object.keys(userPresets()).map(n => `<option value="${n}"${n === layer.presetName ? ' selected' : ''}>${n}</option>`).join('')}</optgroup>` : ''}
         </select>
       </div>
-      <div class="layer-card__body">
+      <div class="org-layer-card__body">
         <button class="layer-dot${layer.colorOn ? ' on' : ''}" title="Colour on/off" aria-label="${layer.name} colour on/off"></button>
         <span class="color-swatch-wrap" style="width:18px;height:18px">
           <button class="color-swatch" style="background:${layer.color}" title="Layer colour" aria-label="${layer.name} colour"></button>
@@ -1912,13 +1880,13 @@ function buildLayersUI() {
       </div>`;
     card.querySelector('.layer-dot').addEventListener('click', e => { e.stopPropagation(); toggleLayerOn(layer.id); });
     card.querySelector('.layer-name').addEventListener('click', () => setActiveLayer(layer.id));
-    const [upBtn, downBtn, removeBtn] = card.querySelectorAll('.layer-card__head .icon-btn');
+    const [upBtn, downBtn, removeBtn] = card.querySelectorAll('.org-layer-card__head .icon-btn');
     upBtn.addEventListener('click', e => { e.stopPropagation(); moveLayer(layer.id, -1); });
     downBtn.addEventListener('click', e => { e.stopPropagation(); moveLayer(layer.id, 1); });
     removeBtn.addEventListener('click', e => { e.stopPropagation(); removeLayer(layer.id); });
     card.querySelector('.layer-blend-select').addEventListener('change', e => setLayerBlend(layer.id, e.target.value));
     card.querySelector('.layer-preset-select').addEventListener('change', e => { if (e.target.value) applyPresetToLayer(layer.id, e.target.value); });
-    card.querySelectorAll('.layer-card__body .layer-dot')[0].addEventListener('click', e => { e.stopPropagation(); toggleLayerColor(layer.id); });
+    card.querySelectorAll('.org-layer-card__body .layer-dot')[0].addEventListener('click', e => { e.stopPropagation(); toggleLayerColor(layer.id); });
     const colorInput = card.querySelector('.color-swatch-wrap input[type=color]');
     colorInput.addEventListener('input', e => {
       setLayerColor(layer.id, e.target.value);

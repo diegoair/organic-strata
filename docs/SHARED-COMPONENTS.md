@@ -1,6 +1,6 @@
 # Organica — Shared Components & the centralization pattern
 
-> Studio Rann · Organica
+> Organica
 > The contract + playbook for the `Organica.*` JS/CSS component system.
 > (Sibling doc: `SHARED-LIBRARY.md`, which covers only the Genesis `organic-*` forms.)
 
@@ -98,7 +98,7 @@ cell; Spore/Pollen set `--rmx-palette-mb: 0`).
 | livingpath | ✅ | — | ✅ `ink`,`bg` | — | — |
 | fvs | ✅ | ✅ | ✅ `paper` | ✅ (min 1) | n/a (index cycle) |
 | tunesutra | ✅ | ✅ | — (bespoke RGB/HSB role editor) | ✅ (min 3 / max 7, `(colors,index,kind)` onChange, `setActive` for the active chip) | n/a |
-| colornet | ✅ | — | ✅ `bg` | — (bespoke `.chan-card` channel list) | ✅ |
+| colornet | ✅ | — | ✅ `bg` | — (channel list is `.org-layer-card` + its own inner controls) | ✅ |
 | pulsar | ✅ | — | ✅ `ink/paper` | — | — |
 | design-system | — | ✅ (demo) | — | — | — |
 | genesis, loom, soul, mycel, rhizome, hub | — | — | no colour UI | — | — |
@@ -113,14 +113,19 @@ The back-compat aliases (`Organica.createColorSwatch` / `createPaletteChips` /
 | Concern | State today | Canonical target |
 |---|---|---|
 | **Palette** | Done 2026-08-30: all 14 colour-picker tools on `Organica.palette.swatch`, aliases removed, TuneSutra `setActive`, Vortex `.color-*` overrides dropped (adopts shared 18×18), livingpath's bare `<input>` → `.color-row` + `palette.swatch`. | — |
+| **App shell** | Done 2026-08-30: new `shared/organica-shell.css` owns the reset / `body` / `#app` / `#canvas-wrap` / `.org-stage` / `#zoom-hud` / `#drop-hint`. 14 tools link it and deleted their local copies (Genesis / Rhizome / FVS keep their own canvas surface; still get the surface palette). Surface palette (`--ink`…`--border`) + `--danger` moved to `organica-tokens.css` as defaults. `shared/_template.html` refreshed. | — |
+| **Modal** | Done 2026-08-30: `.org-modal` / `__panel` / `__header` / `__title` in `organica-panel.css`; Genesis (×2), FVS (×2), Colornet (×1) retrofitted (backdrop + panel skeleton shared, `display` toggle + inner content stay local, width via `--org-modal-w`). | — |
+| **`.upload-btn` / `.org-file-input`** | Done 2026-08-30: both in `organica-panel.css`; Camo Turing / Soul / Membrane / Pollen adopted `.upload-btn` (Pollen + Membrane keep a 1-line delta), 8 tools' hidden file inputs → `.org-file-input`. Spore's `.upload-mark-btn` + Genesis's own `--fs-xs`-scale `.upload-btn` left local. | — |
+| **`.org-layer-card`** | Done 2026-08-30: skeleton (border/head/body) in `organica-panel.css`. First aliased `.layer-card` / `.chan-card` onto it, then (same day) **renamed both outright** — Colornet's `.chan-card*` → `.org-layer-card*` (incl. `.chan-card--armed` → `.chan-armed`), Camo Turing's `.layer-card*` → `.org-layer-card*` (incl. its 2 card-builder `querySelectorAll`s). Aliases deleted; only `.org-layer-card` remains. Each tool keeps its own inner controls + real deltas (Colornet's rounded corner + `.chan-armed`). | — |
 | ~~Membrane `rmxColorAt` / Camo Turing `rmxLerpColor`~~ | **Not drift — a different colour lineage, kept separate on purpose.** Both port Camo Turing's *GLSL* `rmxColor()` (posterize = `floor`; tonernd = smooth lerp, ±1.5; Camo's lerp is in the renderer's linear working space to match `DISPLAY_FRAG`). `Organica.palette.colorAt` is the *Pollen* lineage (posterize = `round`; tonernd = discrete stop, ±1.2; sRGB lerp). Merging them would shift Membrane's RMX output and break Camo's SVG-vs-canvas match. Comments in both files now say so. | — |
-| zoom/pan | Spore, Pollen, Halide run inline copies (`UI-SHELL` §7) | `Organica.createZoomPan` (already in core) |
+| ~~zoom/pan~~ | **Done 2026-08-30.** CSS in `organica-shell.css`; the JS — Spore, Pollen, Halide's ~55-line inline `applyZoom`/`zoomBy`/wheel/pan/⌘± copy — replaced by one `Organica.createZoomPan({canvas, wrap, isReady, onChange})` call + a 1-line `resetZoom()` wrapper (kept global — the HUD `onclick` + image-load path call it). Spore *gained* the ⌘± shortcuts + pre-wheel slider-blur. | — |
 | `mulberry32` | core (canonical) + ~9 inline tool copies. (`organica-transformer.js`'s copy is a deliberate guarded fallback — `Organica.mulberry32 ? … : mulberry32Fallback` — so it works standalone; leave it.) | depend on `Organica.mulberry32` |
 | Seeds panel (tabbed Genesis/SVG/Text source picker) | Camo Turing + Soul + Pulsar-adjacent all hand-roll the tab strip + shape grid | new `Organica.seedsPanel` |
-| file drop-zone / `.upload-btn` | ~5 tools, each with a "not in organica-panel.css" comment | shared `.upload-zone` in `organica-panel.css` |
+| ~~file drop-zone / `.upload-btn`~~ | **done 2026-08-30** — `.upload-btn` + `.org-file-input` in `organica-panel.css`, `#drop-hint` / `.drop-icon` in `organica-shell.css`. | — |
 | floatbar video/PNG export (`canvas.captureStream` + `MediaRecorder`) | Soul, Camo Turing, Membrane, Vortex, Pulsar repeat the recorder + MIME-fallback dance | new `Organica.recorder` |
-| `syncColor` single-swatch | **done** (2026-08-30) — every production tool folded into `Organica.palette.swatch` attach mode. `shared/_template.html` still ships the old hand-rolled `syncColor` + a bare `input[type=color]` rule — update the scaffold when a new tool is next started from it. | scaffold only |
+| ~~`syncColor` single-swatch~~ | **done** (2026-08-30) — every production tool on `Organica.palette.swatch` attach mode; `shared/_template.html` refreshed the same day. | — |
+| inline `style="display:none"` toggles | ~190 static inline toggles; a cross-ref (`node xref.js`) confirmed **all of them are JS-toggled** — via `el.style.display = '' / 'none'`, `forEach(id => …)`, `'prefix-' + t` id concatenation, or `show()`/`toggleRow()` helpers — so a plain `hidden` + `[hidden]{display:none!important}` swap would break every one. The honest version is a shared `Organica.show(el, bool)` (maps `'' ↔ 'none'` → `el.hidden`) + the safety rule, changing the *mechanism* not just the markup. Not started. | `Organica.show()` + `hidden` |
 
 ---
 
-*Studio Rann · Updated August 2026*
+*Organica · Updated August 2026*

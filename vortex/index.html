@@ -11,24 +11,17 @@
      parses. -->
 <link rel="stylesheet" href="/shared/organica-tokens.css">
 <link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-shell.css">
 <link rel="stylesheet" href="/shared/organica-palette.css">
 <style>
   :root {
-    color-scheme: light;
-    --ink: #0a0a0a;
-    --paper: #ffffff;
-    --mid: #696256;
-    --accent: #2a2a2a;
-    --panel: #eceae4;
-    --border: #d0c8b8;
     --tool: #6d4bd8;   /* identity colour — deep indigo, unclaimed hue region, reads as the vortex's own depth axis */
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: var(--fs-base); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-
+  /* Reset + body + surface-palette tokens come from the shared sheets.
+     Vortex keeps its own canvas region below. */
   #app { display: flex; flex: 1; overflow: hidden; height: calc(100vh - var(--header-h, 40px)); }
 
   /* No Organica.createZoomPan here (see main.js's own header) — Vortex's
@@ -41,10 +34,10 @@
   #canvas-wrap canvas.orbiting { cursor: grabbing; }
   #tool-label { position: absolute; left: var(--space-4); bottom: var(--space-4); font-size: var(--fs-micro); color: #f6e8c3; opacity: 0.6; pointer-events: none; }
 
-  #panel { width: var(--panel-w, 248px); flex-shrink: 0; background: var(--panel); border-left: 1px solid var(--border); overflow-y: auto; }
+  #panel { background: var(--panel); }   /* override — Vortex's panel sits on the grey, not paper */
 
-  /* .icon-btn + .rmx-* chip CSS and the .color-* row are all shared now
-     (organica-palette.css / organica-panel.css). No local overrides. */
+  /* Panel shell, .icon-btn, .rmx-* chips and the .color-* row are all shared
+     (organica-panel.css / organica-palette.css). */
 </style>
 </head>
 <body>

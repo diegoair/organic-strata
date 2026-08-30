@@ -6,46 +6,18 @@
 <title>Halide — Organica</title>
 <link rel="stylesheet" href="/shared/organica-tokens.css">
   <link rel="stylesheet" href="/shared/organica-header.css">
-  <link rel="stylesheet" href="/shared/organica-floatbar.css">
   <link rel="stylesheet" href="/shared/organica-panel.css">
+  <link rel="stylesheet" href="/shared/organica-floatbar.css">
+  <link rel="stylesheet" href="/shared/organica-shell.css">
   <style>
   :root {
-    --ink: #0a0a0a;
-    --paper: #ffffff;
-    --mid: #696256;
-    --accent: #2a2a2a;
-    --panel: #eceae4;
-    --border: #d0c8b8;
     --halide: #5a7a96;
     --tool: #5a7a96;   /* drives the header focus ring — see organica-header.css */
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--paper);
-    color: var(--ink);
-    font-family: var(--font);
-    font-size: var(--fs-base);
-    height: 100vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* ── LAYOUT ── */
-  #app { display: flex; flex: 1; overflow: hidden; }
-
-  #canvas-wrap {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--panel);
-    position: relative;
-    overflow: hidden;
-  }
-  #canvas-wrap.drag-over { outline: 2px dashed var(--ink); outline-offset: -8px; }
+  /* Reset, body, #app, #canvas-wrap, #drop-hint, .drop-icon, #zoom-hud and
+     the .org-stage base come from the shared sheets. Halide's own deltas: */
+  #canvas-wrap { padding: 0; }        /* photo reaches the letterbox edge */
 
   /* Transparent-mode indicator, same idea as Photoshop/Figma's alpha checker */
   #canvas-wrap.checker {
@@ -58,71 +30,11 @@
     background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
   }
 
-  #drop-hint {
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-5);
-    pointer-events: none;
-    opacity: 1;
-    transition: opacity 0.3s;
-  }
-  #drop-hint.hidden { opacity: 0; }
-
-  .drop-icon {
-    width: 48px; height: 48px;
-    border: 1.5px solid var(--mid);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--mid);
-    font-size: var(--fs-xl);
-    pointer-events: auto;
-    cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .drop-icon:hover { border-color: var(--ink); color: var(--ink); }
-
-  #drop-hint p {
-    font-size: var(--fs-small);
-    letter-spacing: 0.1em;
-    color: var(--mid);
-    text-align: center;
-    line-height: 1.8;
-  }
-
+  #main-canvas:not(.visible) { display: none; }
   #main-canvas {
-    display: none;
-    max-width: 100%;
-    max-height: 100%;
-    box-shadow: 0 4px 40px rgba(0,0,0,0.12);
-    transform-origin: 0 0;
-    will-change: transform;
+    box-shadow: 0 4px 40px rgba(0,0,0,0.12);   /* lighter than the shared stage */
     image-rendering: pixelated;
   }
-  #main-canvas.visible { display: block; }
-  #main-canvas.zoomed { cursor: grab; }
-  #main-canvas.panning { cursor: grabbing; }
-  #main-canvas.picking { cursor: crosshair; }
-
-  #zoom-hud {
-    position: absolute;
-    bottom: 16px; left: 16px;
-    background: var(--ink);
-    color: var(--paper);
-    font-family: var(--font);
-    font-size: var(--fs-micro);
-    letter-spacing: 0.1em;
-    padding: var(--space-2) var(--space-4);
-    display: none;
-    align-items: center;
-    gap: var(--space-3);
-    pointer-events: none;
-    user-select: none;
-  }
-  #zoom-hud.visible { display: flex; }
-  #zoom-hud .zoom-reset { pointer-events: auto; cursor: pointer; opacity: 0.6; transition: opacity 0.15s; }
-  #zoom-hud .zoom-reset:hover { opacity: 1; }
 
   /* ── CROP OVERLAY (drag-to-position the square crop window) ── */
   #crop-overlay {
@@ -149,15 +61,8 @@
     padding: var(--space-3) var(--space-5); pointer-events: none; white-space: nowrap;
   }
 
-  /* ── RIGHT PANEL ── */
-
-  .panel-section { border-bottom: 1px solid var(--border); padding: var(--space-5) var(--space-6); }
-  /* input[type=color] hider now in shared/organica-panel.css */
-
-  #file-input {
-    position: absolute; width: 1px; height: 1px;
-    opacity: 0; overflow: hidden; pointer-events: none; border: 0; padding: 0;
-  }
+  /* .panel-section, the input[type=color] hider and the hidden file input
+     (.org-file-input) are all in the shared sheets now. */
 </style>
 </head>
 <body>
@@ -176,7 +81,7 @@
 
 <p id="export-why" hidden>Open a photo before exporting.</p>
 
-<input type="file" id="file-input" accept="image/*" onchange="loadImage(this)">
+<input type="file" id="file-input" class="org-file-input" accept="image/*" onchange="loadImage(this)">
 
 <!-- FLOATING TOOLBAR — Open / Export / Figma, fixed bottom-centre over the canvas -->
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
@@ -238,7 +143,7 @@
       <div class="drop-icon">+</div>
       <p>Drop a photo here<br>or click Open…</p>
     </div>
-    <canvas id="main-canvas"></canvas>
+    <canvas id="main-canvas" class="org-stage"></canvas>
     <div id="zoom-hud">
       <span id="zoom-level">100%</span>
       <span class="zoom-reset" onclick="resetZoom()">Reset</span>
@@ -1223,51 +1128,23 @@ function sendToFigma() {
   setStatus('active', 'Sent to Figma plugin ↗');
 }
 
-// ── ZOOM & PAN (same approach as Pollen/Spore) ──
-let zoom = 1, panX = 0, panY = 0;
-const ZOOM_MIN = 1, ZOOM_MAX = 12;
-let isPanning = false, panStartX = 0, panStartY = 0;
-
-function applyZoom() {
-  canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-  document.getElementById('zoom-level').textContent = Math.round(zoom * 100) + '%';
-  const hud = document.getElementById('zoom-hud');
-  const zoomed = zoom > 1.001;
-  hud.classList.toggle('visible', zoomed && canvas.classList.contains('visible'));
-  canvas.classList.toggle('zoomed', zoomed);
-}
-function resetZoom() { zoom = 1; panX = 0; panY = 0; applyZoom(); }
-function zoomBy(factor, fx, fy) {
-  if (!canvas.classList.contains('visible')) return;
-  const rect = canvas.getBoundingClientRect();
-  if (fx == null) { fx = rect.left + rect.width / 2; fy = rect.top + rect.height / 2; }
-  const cx = fx - rect.left, cy = fy - rect.top;
-  const prev = zoom;
-  zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom * factor));
-  const ratio = zoom / prev;
-  panX -= cx * (ratio - 1); panY -= cy * (ratio - 1);
-  if (zoom === ZOOM_MIN) { panX = 0; panY = 0; }
-  applyZoom();
-}
-canvasWrap.addEventListener('wheel', e => {
-  if (!canvas.classList.contains('visible')) return;
-  e.preventDefault();
-  zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX, e.clientY);
-}, { passive: false });
-canvas.addEventListener('mousedown', e => {
-  if (zoom <= 1.001) return;
-  isPanning = true; panStartX = e.clientX - panX; panStartY = e.clientY - panY;
-  canvas.classList.add('panning'); e.preventDefault();
+// ── ZOOM & PAN ──
+// Shared maths: Organica.createZoomPan (organica-core.js) — cursor-focal
+// zoom, ⌘±/⌘0 shortcuts and the pre-wheel slider-blur live there. Inline
+// copy until 2026-08-30. The tool still owns its own HUD.
+const zoomPan = Organica.createZoomPan({
+  canvas,
+  wrap: canvasWrap,
+  isReady: () => canvas.classList.contains('visible'),
+  onChange: ({ zoom, zoomed }) => {
+    document.getElementById('zoom-level').textContent = Math.round(zoom * 100) + '%';
+    document.getElementById('zoom-hud')
+      .classList.toggle('visible', zoomed && canvas.classList.contains('visible'));
+    canvas.classList.toggle('zoomed', zoomed);
+  },
 });
-window.addEventListener('mousemove', e => { if (isPanning) { panX = e.clientX - panStartX; panY = e.clientY - panStartY; applyZoom(); } });
-window.addEventListener('mouseup', () => { if (isPanning) { isPanning = false; canvas.classList.remove('panning'); } });
-canvas.addEventListener('dblclick', resetZoom);
-window.addEventListener('keydown', e => {
-  if (!(e.metaKey || e.ctrlKey)) return;
-  if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomBy(1.2); }
-  else if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomBy(1 / 1.2); }
-  else if (e.key === '0') { e.preventDefault(); resetZoom(); }
-});
+// Global fn — the HUD's `onclick="resetZoom()"` and the image-load path call it.
+function resetZoom() { zoomPan.reset(); }
 
 // ── INIT ──
 // The Export popover owns the accessibility contract (aria-expanded, Escape,
@@ -1279,7 +1156,6 @@ Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 });
 
 setStatus('', 'Drop a photo to begin');
-applyZoom();
 populatePresets();
 Organica.autoLabelPanel(document);   // accessible names for row controls
 Organica.enhanceSliders(document);   // filled track + click-to-edit value

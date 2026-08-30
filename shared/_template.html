@@ -5,338 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>New Tool — Organica</title>
 
-<!-- Tokens FIRST so the tool can override without !important.
-     Typeface, type scale, spacing: shared/organica-tokens.css
-     Full reference: docs/DESIGN-SYSTEM.md + docs/UI-SHELL.md -->
+<!-- Shared sheets, in load-bearing order (docs/UI-SHELL.md §2):
+     tokens → header → panel → floatbar → shell → palette.
+     Each later sheet can override the one before without !important.
+     Drop organica-palette.css if this tool has no colour picker. -->
 <link rel="stylesheet" href="/shared/organica-tokens.css">
 <link rel="stylesheet" href="/shared/organica-header.css">
+<link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-shell.css">
+<link rel="stylesheet" href="/shared/organica-palette.css">
 <style>
   :root {
-    --ink: #0a0a0a;
-    --paper: #ffffff;
-    --mid: #726a5e;
-    --accent: #2a2a2a;
-    --panel: #eceae4;
-    --border: #d0c8b8;
-    --tool: #8aa054;   /* identity colour — drives the header focus ring */
+    /* The surface palette (--ink/--paper/--mid/--accent/--panel/--border)
+       and color-scheme are defaults in organica-tokens.css. Declare only
+       --tool — this tool's identity hue, which drives the header focus
+       ring. Pick an unclaimed hue: check the --tool registry in the hub
+       nav + docs/UI-SHELL.md §6b before choosing. Override --ink here only
+       for a genuine reason (the warm-black trio uses #241b14). */
+    --tool: #8aa054;
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* The shell (reset, body, #app, #canvas-wrap, .org-stage + zoom-cursor
+     states, #zoom-hud, #drop-hint), the panel and the floatbar all come
+     from the shared sheets. Put ONLY this tool's own visual content here.
 
-  body {
-    background: var(--paper);
-    color: var(--ink);
-    font-family: var(--font);
-    font-size: 11px;
-    height: 100vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* ── TOP BAR ── */
-  #topbar {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    padding: 0 16px;
-    height: 40px;
-    border-bottom: 1px solid var(--border);
-    background: var(--paper);
-    flex-shrink: 0;
-    z-index: 100;
-  }
-
-  #topbar .logo {
-    font-size: 10px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--mid);
-    text-decoration: none;
-    margin-right: 24px;
-  }
-  #topbar .logo span { color: var(--ink); }
-
-  .tb-btn {
-    font-family: var(--font);
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    background: none;
-    border: 1px solid transparent;
-    color: var(--ink);
-    padding: 4px 10px;
-    cursor: pointer;
-    height: 26px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    transition: border-color 0.15s, background 0.15s;
-  }
-  .tb-btn:hover { border-color: var(--border); background: var(--panel); }
-  .tb-btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-  .tb-btn.primary:hover { background: #333; border-color: #333; }
-  .tb-btn.rec { color: #a03828; }
-  .tb-btn.rec.recording { background: #a03828; color: var(--paper); border-color: #a03828; }
-  .tb-btn:disabled { opacity: 0.35; cursor: default; }
-
-  .tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 8px; }
-  .tb-spacer { flex: 1; }
-
-  .tb-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mid); margin-right: 7px; }
-  .tb-select {
-    font-family: var(--font); font-size: 10px; letter-spacing: 0.06em;
-    background: none; border: 1px solid var(--border); color: var(--ink);
-    height: 26px; padding: 0 6px; cursor: pointer; outline: none;
-  }
-  .tb-select:hover { border-color: var(--mid); }
-  .tb-out { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); margin-left: 8px; min-width: 64px; }
-
-  #status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mid); flex-shrink: 0; }
-  #status-dot.active { background: #5a8a5a; }
-  #status-text { color: var(--mid); font-size: 10px; letter-spacing: 0.05em; }
-
-  /* ── LAYOUT ── */
-  #app { display: flex; flex: 1; overflow: hidden; }
-
-  #canvas-wrap {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--panel);
-    position: relative;
-    overflow: hidden;
-    padding: 24px;
-  }
-  #canvas-wrap.drag-over { outline: 2px dashed var(--ink); outline-offset: -8px; }
-
-  #gl-canvas {
-    max-width: 100%;
-    max-height: 100%;
-    box-shadow: 0 4px 40px rgba(0,0,0,0.18);
-    cursor: crosshair;
-    display: block;
-  }
-  #gl-canvas.dragging-sun { cursor: none; }
-
-  #hud {
-    position: absolute;
-    bottom: 16px; left: 16px;
-    background: var(--ink);
-    color: var(--paper);
-    font-family: var(--font);
-    font-size: 9px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 6px 9px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    pointer-events: none;
-    user-select: none;
-  }
-  #hud .hud-hint { opacity: 0.55; }
-
-  #gl-error {
-    display: none;
-    max-width: 460px;
-    text-align: center;
-    line-height: 1.9;
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    color: var(--mid);
-    text-transform: uppercase;
-  }
-  #gl-error.visible { display: block; }
-
-  /* ── RIGHT PANEL ── */
-  #panel {
-    width: 244px;
-    flex-shrink: 0;
-    border-left: 1px solid var(--border);
-    background: var(--paper);
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .panel-section { border-bottom: 1px solid var(--border); padding: 14px 16px; }
-  .panel-section h3 {
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink);
-    margin-bottom: 14px;
-    font-weight: 600;
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-  }
-  .panel-section h3 .hint { font-size: 8px; color: var(--mid); letter-spacing: 0.05em; text-transform: none; font-weight: 400; }
-
-  .sub-label {
-    font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--accent); margin: 14px 0 8px; font-weight: 500;
-  }
-
-  .ctrl-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
-  .ctrl-label { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); white-space: nowrap; flex-shrink: 0; min-width: 62px; }
-  .ctrl-val { font-size: 10px; color: var(--accent); min-width: 32px; text-align: right; flex-shrink: 0; }
-
-  .check-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; }
-  .check-row span { font-size: 10px; letter-spacing: 0.05em; color: var(--accent); }
-  .check-row input[type=checkbox] { accent-color: var(--ink); cursor: pointer; flex-shrink: 0; }
-
-  input[type=range] {
-    -webkit-appearance: none;
-    flex: 1; min-width: 0;
-    height: 2px;
-    background: var(--border);
-    border-radius: 1px;
-    outline: none;
-    cursor: pointer;
-  }
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 10px; height: 10px; border-radius: 50%; background: var(--ink); cursor: pointer;
-  }
-  input[type=range]::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); border: none; cursor: pointer; }
-
-  .seg-ctrl { display: flex; gap: 0; flex: 1; }
-  .seg-btn {
-    font-family: var(--font);
-    font-size: 9px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    flex: 1;
-    padding: 5px 0;
-    border: 1px solid var(--border);
-    background: none;
-    color: var(--accent);
-    cursor: pointer;
-    transition: background 0.12s, color 0.12s;
-    margin-left: -1px;
-  }
-  .seg-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); z-index: 1; position: relative; }
-
-  .color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-  .color-swatch { width: 20px; height: 20px; border: 1px solid var(--border); border-radius: 2px; cursor: pointer; flex-shrink: 0; padding: 0; background: none; }
-  .color-hex {
-    font-family: var(--font); font-size: 10px;
-    background: var(--panel); border: 1px solid var(--border); color: var(--ink);
-    padding: 3px 6px; width: 70px; letter-spacing: 0.05em; outline: none; flex: 1;
-  }
-  .color-name { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mid); min-width: 52px; }
-  input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
-
-  .panel-select {
-    font-family: var(--font);
-    font-size: 10px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    color: var(--ink);
-    padding: 4px 6px;
-    width: 100%;
-    outline: none;
-    cursor: pointer;
-  }
-  .panel-select:hover { border-color: var(--mid); }
-
-  .row-btns { display: flex; gap: 6px; margin-top: 8px; }
-  .mini-btn {
-    flex: 1;
-    font-family: var(--font);
-    font-size: 9px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    border: 1px solid var(--border);
-    background: none;
-    color: var(--accent);
-    padding: 6px 0;
-    cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .mini-btn:hover { border-color: var(--accent); color: var(--ink); }
-
-  #panel::-webkit-scrollbar { width: 3px; }
-  #panel::-webkit-scrollbar-track { background: transparent; }
-  #panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 1px; }
-
-  #file-input {
-    position: absolute; width: 1px; height: 1px;
-    opacity: 0; overflow: hidden; pointer-events: none; border: 0; padding: 0;
-  }
-
-  /* ── CANVAS + DROP HINT ── */
-  #drop-hint {
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    pointer-events: none;
-    opacity: 1;
-    transition: opacity 0.3s;
-  }
-  #drop-hint.hidden { opacity: 0; }
-
-  .drop-icon {
-    width: 48px; height: 48px;
-    border: 1.5px solid var(--mid);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--mid);
-    font-size: 20px;
-    pointer-events: auto;
-    cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .drop-icon:hover { border-color: var(--ink); color: var(--ink); }
-
-  #drop-hint p {
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--mid);
-    text-align: center;
-    line-height: 1.8;
-  }
-
-  #main-canvas {
-    display: none;
-    max-width: 100%;
-    max-height: 100%;
-    box-shadow: 0 4px 40px rgba(0,0,0,0.12);
-    transform-origin: 0 0;
-    will-change: transform;
-    image-rendering: pixelated;
-  }
-  #main-canvas.visible { display: block; }
-  #main-canvas.zoomed { cursor: grab; }
-  #main-canvas.panning { cursor: grabbing; }
-  #main-canvas.picking { cursor: crosshair; }
-
-  #zoom-hud {
-    position: absolute;
-    bottom: 16px; left: 16px;
-    background: var(--ink);
-    color: var(--paper);
-    font-family: var(--sans);
-    font-size: 9px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 6px 9px;
-    display: none;
-    align-items: center;
-    gap: 8px;
-    pointer-events: none;
-    user-select: none;
-  }
-  #zoom-hud.visible { display: flex; }
-  #zoom-hud .zoom-reset { pointer-events: auto; cursor: pointer; opacity: 0.6; transition: opacity 0.15s; }
-  #zoom-hud .zoom-reset:hover { opacity: 1; }
-
+     Common deltas a tool keeps local:
+       #canvas-wrap { padding: 0; }              canvas reaches the edge
+       #main-canvas { box-shadow: … 0.12); }     a lighter stage shadow
+       #main-canvas:not(.visible) { display: none; }   starts hidden */
+  #main-canvas:not(.visible) { display: none; }
 </style>
 </head>
 <body>
@@ -395,8 +93,8 @@
       <div class="drop-icon">+</div>
       <p>Drop an image<br>or click to open</p>
     </div>
-    <canvas id="main-canvas"></canvas>
-    <div id="hud"><span id="hud-state">ready</span></div>
+    <canvas id="main-canvas" class="org-stage"></canvas>
+    <div id="zoom-hud"><span id="zoom-level">100%</span><span class="zoom-reset" onclick="resetZoom()">reset</span></div>
   </div>
 
   <!-- ══ PANEL — one .panel-section per control group ══ -->
@@ -430,21 +128,28 @@
 
       <label class="check-row"><input type="checkbox" id="ck-flag" checked><span>A toggle</span></label>
 
+      <!-- Colour row — wired by Organica.palette.swatch (organica-palette.js).
+           The component keeps #sw-ink / #cp-ink / #hex-ink in sync; the tool
+           only supplies the repaint side effect via onChange. -->
       <div class="color-row">
         <span class="color-name">Ink</span>
-        <button class="color-swatch" id="sw-ink" onclick="ctrl('cp-ink').click()"></button>
-        <input type="color" id="cp-ink" value="#0a0a0a" oninput="syncColor('ink', this.value)">
-        <input class="color-hex" id="hex-ink" value="#0a0a0a" onchange="syncColor('ink', this.value)">
+        <div class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-ink" aria-label="Ink colour"></button>
+          <input type="color" id="cp-ink" value="#0a0a0a">
+        </div>
+        <input class="color-hex" id="hex-ink" value="#0a0a0a">
       </div>
     </div>
 
   </div><!-- /panel -->
 </div>
 
-<input type="file" id="file-input" accept="image/*" onchange="loadImage(this)">
+<input type="file" id="file-input" class="org-file-input" accept="image/*" onchange="loadImage(this)">
 
-<!-- Core BEFORE the tool script so Organica.* exists at parse time. -->
+<!-- Core BEFORE the tool script so Organica.* exists at parse time.
+     organica-palette.js only if this tool has a colour picker. -->
 <script src="/shared/organica-core.js"></script>
+<script src="/shared/organica-palette.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // NEW TOOL — see docs/UI-SHELL.md §5 for the behaviour contract.
@@ -460,6 +165,12 @@ function val(id)  { return parseFloat(ctrl(id).value); }
 // Announced via the header's <output> live region.
 const setStatus = Organica.status();
 
+// ── RENDER — the single source of truth (declared early: the Palette
+//    swatch below fires onChange during init, and it calls render()). ──
+const canvas = ctrl('main-canvas');
+function renderFrame(w, h) { /* draw at w×h — resolution-independent */ }
+function render() { renderFrame(canvas.width, canvas.height); }
+
 function syncVal(slider, valId) { ctrl(valId).textContent = slider.value; }
 function setSeg(group, btn) {
   ctrl(group).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
@@ -467,14 +178,11 @@ function setSeg(group, btn) {
 }
 function seg(group) { return ctrl(group).querySelector('.seg-btn.active').dataset.v; }
 
-// Hex validation is shared; the repaint side effect is this tool's own.
-function syncColor(which, hex) {
-  hex = Organica.normalizeHex(hex, ctrl('cp-' + which).value);
-  ctrl('cp-' + which).value = hex;
-  ctrl('hex-' + which).value = hex;
-  ctrl('sw-' + which).style.background = hex;
-  render();
-}
+// ── COLOUR — the shared Palette component owns the swatch/hex/picker trio ──
+const swInk = Organica.palette.swatch('ink', {
+  initial: '#0a0a0a',
+  onChange: () => render(),
+});
 
 // ── PRESETS — storage + legacy migration are shared ──
 const PRESETS = Organica.presetStore('newtool');
@@ -489,11 +197,6 @@ function populatePresets(select) { /* … */ }
 function applyPreset(name) { /* … */ }
 function readState() { return {}; }
 
-// ── RENDER — the single source of truth ──
-const canvas = ctrl('main-canvas');
-function renderFrame(w, h) { /* draw at w×h — resolution-independent */ }
-function render() { renderFrame(canvas.width, canvas.height); }
-
 // ── EXPORT ──
 function updateSizeReadout() { /* … */ }
 function exportPNG() {
@@ -504,27 +207,29 @@ function exportPNG() {
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('newtool', 'png'));
 }
+function exportSVG() { /* … */ }
 function sendToFigma() { Organica.sendToFigma(buildSVG(), 'New Tool'); }
 function buildSVG() { return '<svg xmlns="http://www.w3.org/2000/svg"></svg>'; }
 
 function loadImage(input) { /* … */ }
 
 // ── ZOOM & PAN — shared maths, this tool owns the HUD ──
-Organica.createZoomPan({
+const zoomPan = Organica.createZoomPan({
   canvas,
   wrap: ctrl('canvas-wrap'),
   isReady: () => canvas.classList.contains('visible'),
   onChange: ({ zoom, zoomed }) => {
-    ctrl('hud-state').textContent = Math.round(zoom * 100) + '%';
+    ctrl('zoom-level').textContent = Math.round(zoom * 100) + '%';
+    ctrl('zoom-hud').classList.toggle('visible', zoomed);
     canvas.classList.toggle('zoomed', zoomed);
   },
 });
+function resetZoom() { zoomPan.reset(); }
 
 // ── INIT ──
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 setStatus('', 'Drop an image to begin');
 populatePresets();
-syncColor('ink', ctrl('hex-ink').value);   // paint the swatch from its initial value
 </script>
 </body>
 </html>

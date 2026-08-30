@@ -8,39 +8,34 @@
 
 ## Who
 
-**Diego** — solo designer/artist, Studio Rann.  
-This is his primary creative and production tool. Not a side project.
+**Diego** — designer/artist, founder of a design and art studio.
 
 ---
 
 ## What
 
 **Organica** is two things simultaneously:
-1. Studio Rann's visual language system
-2. The AI-powered toolset to develop, generate, and deploy that language
+1. Diego's visual language system
+2. A series of tools to develop, generate, automate and deploy multiple languages.
 
-The visual language is built on three references tuned together:
-- **Biomimicry** — perfect organic geometries (nautilus, phyllotaxis, cellular growth)
-- **Raw organic nature** — imperfect, living forms (drop marks, erosion, growth patterns)
-- **Street art language** — bold marks, scale, presence, immediacy — the calibration mechanism that makes the other two feel grounded, not academic
-
-The fundamental gesture is the **drop mark**: pigment dropped onto a surface, governed by gravity, viscosity, surface tension. Not drawn — allowed to happen. Two atoms: **drop + brushstroke**. Everything else derives from these.
+This is a creative tool, made for designers and artists to experiment with and compose new visual languages.
+It is designed to reduce the gap between the raster world and the vector world — which is why most outputs are a vector format that can find their way into the physical world through screenprint and traditional printing, across media and formats.
 
 ---
 
 ## The Methodology
 
-Based on **"Flexible Visual Systems"** by Martin Lorenz.  
 Core principle: a visual system is a **grammar** — rules that generate infinite variations while remaining coherent.
 
 Modules in Organica:
-- **Form** — drop marks, brushstrokes, traced hand-drawn shapes
-- **Pattern** — tiling/repetition (manual now, automated in roadmap)
-- **Grid** — Genesis composer N×N cells
-- **Color** — 3 base palettes (sky & sun / earth / deep sea), expandable
-- **Typography** — undefined, TBD
-- **Motion** — 55 organic CSS animations (Genesis library)
+- **Form** — seeds, elements, components, patterns and symbols. Vector shapes that enable and define the mark.
+- **Canvas** — the space where the language is created
+- **Grid** — composer of grids used to constrain the canvas
+- **Color** — a series of tools to handle different palette methodologies and colour combinations
+- **Typography** — a tool to define and create typography
+- **Motion** — a series of animation engines
 - **Scale** — vector-first, screen to mural
+- **Rhizome** — a node-based canvas that chains the other tools into a pipeline, composing a full flexible visual system end to end
 
 ---
 
@@ -67,6 +62,9 @@ Modules in Organica:
 | **Blob Boundary** | `theorganicalanguage.vercel.app/blob-boundary/` | Mask-shape morph (circle/diagonal band/steep band/organic blob/starburst, GSAP MorphSVGPlugin cycling through 3 chosen presets) with a fixed dot lattice classified live every frame against the mask's own current geometry (`SVGGeometryElement.isPointInFill`) — dots deep inside stay small and separate, dots straddling the boundary enlarge and overlap into a gooey fringe with no blur/goo filter, dots outside hide. Migrated from `explorations/blob-boundary/`, Aug 27, 2026 — the third exploration→production migration (after Membrane, Vortex), the first to follow the new `docs/UI-SHELL.md` §6b checklist written specifically because the first two skipped steps. |
 | **Radial** | `theorganicalanguage.vercel.app/radial/` | One tool for the Book of Shapes "radial" pattern family (~16 of 18 patterns). A polar coordinate field — Placement (grid rings×spokes / phyllotaxis golden-angle / spiral arms) with an optional Shape modulation (rose curve / spiral shear / domain warp) — drawn by one of seven Render modes (ring outlines / spokes / mesh / filled cells / marks / arc bands / chaos circles). Pure vector: `buildScene(P,W,H)` → tagged primitive set, and the inline-SVG preview IS the exact export string (no tracing); PNG rasterises the same primitives. The geometry/render core (`buildScene`/`sceneSVG`/`drawSceneCanvas` + `BP`/`BUILTIN_PRESETS`) was extracted to `shared/organica-radial.js` at Pulsar's arrival (Aug 29). 17 built-in presets, `Organica.presetStore('radial')`. |
 | **Pulsar** | `theorganicalanguage.vercel.app/pulsar/` | The generative **Motion** tool over Radial. Drives Radial's parameter object `P` with time-varying **tracks** (a wave — sine / triangle / looping-noise / ramp-once / spin — per parameter, added to the base value, clamped to the parameter's real range) and redraws `Organica.radial.buildScene` from scratch every frame (the Vortex model — deterministic, never accumulates). 4 track slots + a Whole-field section (`rotate` as a group transform, the one track later expressible as animated SVG; `zoom`). 4 one-click **Motion modes** mapped to `docs/ANIMATION-SYSTEM.md`'s physics patterns — **Pulse** (Internal Pressure), **Bloom** (Growth by Tracing, one-shot), **Drift** (Environmental Forces), **Orbit** (Differential Rotation) — each re-mapped per placement/render so no mode leaves a dead control; Gravity deliberately excluded (a directional pull breaks radial symmetry). Seamless-loop WebM: every periodic track's Cycles/loop is a whole integer and noise is circular-sampled (Komorebi's single-phase-angle trick), so frame 0 ≡ frame N; a scene with any `ramp-once`/phase-`spin` track is flagged "one-shot — will not loop". Floatbar Play/Pause/Stop + Loop popover (`#rg-loop-seconds`, 0 = indefinite / doubles as video length); Export = PNG frame + Video (`captureStream(30)` + `MediaRecorder`, MP4/WebM). One `renderFrameAt(tNorm)` serves preview, PNG and every video frame. 8 built-in animated scenes, `Organica.presetStore('pulsar')`. Element-count guard (~6500) refuses to animate a too-heavy scene. SVG-frame export + a Soul-style per-primitive stagger/reveal layer are deferred. |
+| **Mycel** | `theorganicalanguage.vercel.app/mycel/` | Generative mycelial-network growth. A point set (procedural **Scatter** or an imported **Loom** grid) grows branching chains outward from a chosen set of **Roots** via a space-colonisation algorithm — Growth step / Influence radius / Kill radius / Max iterations — with per-segment **Curve wobble**. Playback ramp (Duration). Real vector **SVG** export (`buildExportSVG` over the accumulated `buildChains` segment list) + PNG (×1/×2/×4), `Organica.presetStore`. Its wire-curve maths was later reused, made interactive, by Rhizome. Hub group "Motion & growth". |
+| **TuneSutra** | `theorganicalanguage.vercel.app/tunesutra/` | Colour-harmony palette tool. Builds a palette from a **Harmony** rule (Monochromatic / Analogous / Complementary / Split-complementary / Triadic / Tetradic), each colour editable in **RGB / HSB / CMYK**, shown as an RMX chip strip (min 3 / max 7) and previewed applied to a **garment pictogram** — zones mapped to at most 3 roles (body / hem / accent), one shared `GARMENT_ZONES` constant feeding both the SVG view and the Canvas2D PNG export. PNG (×1/×2/×4) + `svgString()` SVG, `Organica.presetStore`. Hub group "Coloring & palette". |
+| **Rhizome** | `theorganicalanguage.vercel.app/rhizome/` | Node-based visual workflow canvas — chains the other Organica tools as pipeline stages. Two-tier node model: **Tier 1 native** (zero-porting wrappers on already-pure functions — Loom's generators as real ES modules, `Organica.loadLoomGrid`, `Organica.traceContours`) + **Tier 2 bridge** (a hidden sandboxed iframe loading the real tool page + a `rhizome-set-input` / `rhizome-output-ready` postMessage protocol, ~20–30 lines added to each bridged tool). Typed ports (`svg`/`image`/`grid`/`color`/`number`/`points`) with 3 disclosed auto-adapters (`svg→points`, `grid→points`, `grid→svg`). Execution: Kahn topological sort (throws a readable error on a cycle), per-node dirty-flag cache, **serialized `recompute()`** (a call while one is in flight re-runs once after, never concurrently — fixed a real iframe-`pending`-map race). Canvas: per-node drag (writes position back to state), live wire-follow (Mycel's curve maths, made interactive), `panAlways` pan at any zoom. Undo/redo (JSON-snapshot stack, checkpoints only), Shift-drag marquee multi-select, variadic **Merge** inputs (1–6). 17 node types incl. bridges for Genesis / Komorebi / Warping / Soul / Camo Turing / Membrane / Living Path / Spore / Pollen / Halide + Export (PNG/SVG/→Figma). **Phase 0 fixed the product-wide dead Figma bridge** (`figma-plugin/code.js` never listened for `'organica-svg'`). Native ES modules, like Loom. Manual: `docs/RHIZOME.md`. Deferred: Vortex / TuneSutra / Mycel bridges, a thumbnail graph-preset picker. |
 
 ---
 
@@ -80,10 +78,10 @@ organic-strata/          ← GitHub repo name (diegoair/organic-strata)
 │   ├── creator.html     ← thin redirect to /genesis/ (kept so old links resolve — the real Draw/Import/Generate logic lives in index.html now)
 │   ├── library.html     ← thin redirect to /genesis/ (same — the real Library-mode logic lives in index.html now)
 │   ├── indicators.html  ← 55-form catalog
-│   ├── organic-animations.css ← 77 @keyframes + 55 .aNN rules — the REUSABLE half (append-only)
+│   ├── organic-animations.css ← 78 @keyframes + 55 .aNN rules — the REUSABLE half (append-only)
 │   ├── organic-page.css      ← :root palette + Genesis catalog page chrome
 │   ├── organic-library.css   ← @import shim: page + animations (historic entry point)
-│   ├── organic-forms.js      ← SVG markup for 55 forms — PORT AS DATA
+│   ├── organic-forms.js      ← SVG markup for 56 forms (55 animated) — PORT AS DATA
 │   ├── organic-defs.js       ← Shared SVG defs (goo filters + chips) — INJECT ONCE
 │   └── genesis-creator.js    ← RETIRED, loaded by no page — kept on disk as the record of what the old plain-composer's own decorative layer (palettes/backgrounds/per-shape colour/Randomize) was NOT ported into the merge, since it had no equivalent in the library's set/form data model
 ├── colornet/
@@ -124,6 +122,12 @@ organic-strata/          ← GitHub repo name (diegoair/organic-strata)
 │   └── index.html       ← DOM glue only; geometry/render core is shared/organica-radial.js
 ├── pulsar/               ← Motion tool over Radial — parameter tracks + rAF redraw → seamless-loop WebM (single-file)
 │   └── index.html
+├── mycel/                ← Mycelial-network growth — space-colonisation branching from Roots, SVG/PNG (single-file, vanilla)
+│   └── index.html
+├── tunesutra/            ← Colour-harmony palette on a garment pictogram — RGB/HSB/CMYK, RMX strip (single-file, vanilla)
+│   └── index.html
+├── livingpath/           ← Generative font/path modification — Vector + Raster engines, OTF export (single-file, web port)
+│   └── index.html
 ├── rhizome/              ← Node-based workflow canvas — chains other tools as pipeline stages (native ES modules, like Loom)
 │   ├── index.html        ← shell — canvas/panel/floatbar, loads js/main.js as a module
 │   ├── _test-mvp.html    ← the original isolated prototype (2-node drag/wire/connect test) — kept as record
@@ -137,7 +141,8 @@ organic-strata/          ← GitHub repo name (diegoair/organic-strata)
 │       ├── canvas/               ← pan-zoom.js (wraps Organica.createZoomPan), node-drag.js, wires.js, ports.js
 │       └── renderers/            ← node-card.js, inspector-panel.js (populates the shared right panel)
 ├── shared/              ← Cross-tool system assets
-│   ├── organica-tokens.css ← Manrope + type scale + spacing (load FIRST)
+│   ├── organica-tokens.css ← Manrope + type scale + spacing + the surface palette (--ink/--paper/--mid/--accent/--panel/--border defaults) + --danger (load FIRST)
+│   ├── organica-shell.css  ← the app-shell skeleton: reset, body, #app, #canvas-wrap, .org-stage (+ zoom-cursor states), #zoom-hud, #drop-hint. Load AFTER floatbar, BEFORE the tool <style>. Linked by 14 tools (not Genesis/Rhizome/FVS — own canvas surface)
 │   ├── organica-core.js    ← download, presets, Figma, tracer, zoom/pan, hex/CMYK utils, mulberry32
 │   ├── organica-palette.js ← the Palette component: Organica.palette.swatch(target, opts) — string target = attach a #cp-/#hex-/#sw- colour row, element target = build an RMX chip strip — plus .colorAt (score→colour) / .mix. Paired CSS: organica-palette.css. Folded in organica-palette-chip.js + core's createColorSwatch (Aug 29). Load AFTER core
 │   ├── organica-palette.css ← paired sheet for organica-palette.js — .rmx-* chip CSS (custom-prop tunable) + .icon-btn. Link only for generate/RMX mode; .color-* stays in organica-panel.css
@@ -160,7 +165,10 @@ organic-strata/          ← GitHub repo name (diegoair/organic-strata)
 │   ├── CAMO-TURING.md   ← Camo Turing manual
 │   ├── WARPING.md       ← Warping manual
 │   ├── LOOM.md          ← Loom (Universal Grid Generator) manual
-│   └── SOUL.md          ← Soul (animation engine) manual
+│   ├── SOUL.md          ← Soul (animation engine) manual
+│   ├── RHIZOME.md       ← Rhizome (node workflow canvas) manual
+│   ├── HALIDE.md        ← Halide manual
+│   ├── SPORE.md · POLLEN.md · LIVINGPATH.md ← per-tool manuals
 ├── vercel.json          ← Routing: / → hub, /genesis/ → genesis, per-tool rewrites
 ├── LICENSE              ← All-rights-reserved proprietary notice (repo is private on GitHub — see Aug 27 session note)
 ├── THIRD-PARTY-NOTICES.md ← Every vendored library's real license, audited against its own file header
@@ -173,18 +181,20 @@ organic-strata/          ← GitHub repo name (diegoair/organic-strata)
 
 | Layer | Technology |
 |---|---|
-| Frontend | Vanilla HTML/CSS/JS — no framework |
-| Animations | Pure CSS `@keyframes` — no JS animation libraries |
-| SVG processing | Python + OpenCV + vtracer (local backend only) |
-| Deployment | Vercel — Studio Rann account (team slug: studiorann) |
-| Repository | GitHub — `diegoair/organic-strata` |
+| Frontend | Vanilla HTML/CSS/JS — no framework, no build step |
+| Modules | Mostly single-file per tool; Loom and Rhizome are native ES modules |
+| Animation | Genesis forms: pure CSS `@keyframes`. Soul + Blob Boundary: vendored **GSAP** (+ MorphSVG / DrawSVG). Radial/Pulsar/Warping/Komorebi/Camo Turing/Membrane/Vortex: own `requestAnimationFrame` redraw loops |
+| SVG processing | All client-side now — `Organica.traceContours` (rectilinear contour tracer in `shared/organica-core.js`), used by Komorebi/Warping/Halide/Colornet. The old Python/OpenCV/vtracer backend went with Strata (Aug 26, 2026) |
+| Vendored libs | GSAP + plugins, Kiwi.js (Loom), Three.js (Camo Turing), Paper.js (Genesis draw), opentype.js + Manrope (Soul text), p5.js (Membrane, CDN) — see `THIRD-PARTY-NOTICES.md` |
+| Deployment | Vercel (team slug `studiorann`), no build step |
+| Repository | GitHub — `diegoair/organic-strata` (private) |
 | Design integration | Figma (manual now, direct push in roadmap) |
 
 ---
 
 ## Critical Rules — Never Break These
 
-- **Design tokens — mandatory, every new development.** Never hardcode a font-size, spacing (padding/margin/gap), radius, or UI-chrome colour — use the matching token from `shared/organica-tokens.css` (`--fs-*`, `--space-*`, `--radius-*`, `--ink`/`--paper`/`--panel`/`--mid`/`--border`/`--border-strong`/`--tool`/`--accent-warm`/`--track-bg`). If the value you need doesn't exist on any existing scale, **stop and ask before adding a new token** — don't invent one silently and don't fall back to a raw px/hex "just this once." Live reference with every token and component, rendered from the real CSS: `/design-system/` (linked from the hub). Full narrative + Figma mapping: `docs/DESIGN-SYSTEM.md`. Two real exceptions, not loopholes: (1) a tool's own **content** colour (Halide's ink/paper for the dithered image, Pollen's point colour) is user data, not design-system chrome — don't tokenise it just because it happens to default near `--ink`/`--paper`; (2) a genuine pill/stadium shape (`border-radius` = half the element's height, e.g. a toggle switch) isn't a corner radius — forcing it onto `--radius-sm/md/lg` flattens the capsule. Typography specifically: **Manrope only**, via `--font`, never a second typeface.
+- **Design tokens — mandatory, every new development.** Never hardcode a font-size, spacing (padding/margin/gap), radius, or UI-chrome colour — use the matching token from `shared/organica-tokens.css` (`--fs-*`, `--space-*`, `--radius-*`, `--ink`/`--paper`/`--panel`/`--mid`/`--accent`/`--border`/`--border-strong`/`--tool`/`--accent-warm`/`--danger`/`--track-bg`). The surface palette (`--ink` … `--border`) has defaults in the token file now — a tool declares only `--tool` plus the rare override. If the value you need doesn't exist on any existing scale, **stop and ask before adding a new token** — don't invent one silently and don't fall back to a raw px/hex "just this once." Live reference with every token and component, rendered from the real CSS: `/design-system/` (linked from the hub). Full narrative + Figma mapping: `docs/DESIGN-SYSTEM.md`. Two real exceptions, not loopholes: (1) a tool's own **content** colour (Halide's ink/paper for the dithered image, Pollen's point colour) is user data, not design-system chrome — don't tokenise it just because it happens to default near `--ink`/`--paper`; (2) a genuine pill/stadium shape (`border-radius` = half the element's height, e.g. a toggle switch) isn't a corner radius — forcing it onto `--radius-sm/md/lg` flattens the capsule. Typography specifically: **Manrope only**, via `--font`, never a second typeface.
 - **Shared code** — `shared/organica-core.js` owns download, preset storage + legacy migration, Figma postMessage, colour hex validation, the rectilinear contour tracer and zoom/pan. Don't re-implement these in a tool; if one needs different behaviour, extend the core
 - **New tool** — start from `shared/_template.html`, not by copying a neighbour. Contract: `docs/UI-SHELL.md`
 - **`organic-animations.css`** — never modify existing rules, only append new ones (the 55 forms depend on the exact timings/selectors). This is the split-out pure half of the old `organic-library.css`; the append-only rule now lives here. Any consumer linking it **must** define `--ink` and `--bg-cell` — see `docs/SHARED-LIBRARY.md`
@@ -210,6 +220,8 @@ organic-strata/          ← GitHub repo name (diegoair/organic-strata)
 
 Duration range `1.4s–14s` maps to real-world time scales. See `docs/ANIMATION-SYSTEM.md` for full detail.
 
+These 6 originated as Genesis's hand-typed CSS `@keyframes`. **Soul** rebuilt them parametric on GSAP (+ 2 new: Organic wobble, Morph) and applies them to primitives parsed from any tool's SVG; **Pulsar** maps 4 of them (Pulse / Bloom / Drift / Orbit) onto Radial's parameter tracks. The taxonomy is still the reference; the delivery is no longer CSS-only.
+
 ---
 
 ## Output Formats Diego Produces
@@ -223,22 +235,23 @@ Duration range `1.4s–14s` maps to real-world time scales. See `docs/ANIMATION-
 
 ---
 
-## Roadmap Priorities (in order)
+## Roadmap Priorities
 
-1. **Phase 2** — Genesis depth: export SVG/PNG/GIF, save/load, more forms, rotation/opacity controls
-2. **Phase 3** — Figma direct push: Genesis → Figma (the shared `Organica.sendToFigma` channel is currently broken product-wide — see Loom's own August 14 session note)
-3. **Phase 4** — Pattern engine: tiling, grid variants, density control
-4. **Phase 5** — (retired — was Strata AI, moot since Strata's removal on August 26, 2026)
-5. **Phase 6** — Output pipeline: print PDF, mural schema, installation loop
+*The original numbered phases (mid-2026) have largely landed and are folded into shipped tools; this is the current picture. Priorities themselves are Diego's call — see `docs/ROADMAP.md` for the full narrative.*
+
+- **Done / shipped** — Genesis depth (unified library + save/load + SVG/PNG export); the pattern family (Warping, Camo Turing, Radial, FVS Symbols) covering what "Phase 4 — pattern engine" pointed at; the Motion engines (Soul, Pulsar); the workflow layer (Rhizome).
+- **Figma push** — the shared `Organica.sendToFigma` channel was **fixed** by Rhizome's Phase 0 (`figma-plugin/code.js` now listens for `'organica-svg'`), so it works for the 7 tools that call it (Spore/Pollen/Halide/Komorebi/Loom/Camo Turing/Warping). Still to do: wire an Export→Figma tab into the tools that only have `sendToFigma()` defined but not surfaced (FVS, Radial, …).
+- **Output pipeline** — print PDF, mural schema, installation loop. Still open.
+- **Opening to test users** — desktop-only gate + Vercel Analytics shipped; still open: access control for external testers, error monitoring, a feedback channel, and the cross-browser pass (see Backlog).
 
 ---
 
 ## Open Questions (Decisions Pending)
 
-- Typography module — what role does type play? System font or custom?
-- Color system — how are colors managed beyond the 3 Genesis palettes?
-- Client workflow — what does the Organica handoff look like for client branding?
-- Mural scale — largest format needed? DPI requirements?
+- **Typography** — Living Path (font/path modification, OTF export) is the type module in practice. Still open: is there a role for type *inside* the visual language beyond specimen/lettering — a Genesis-style generative type system?
+- **Colour** — TuneSutra (harmony rules + garment preview), Colornet (channel separation), and the shared Palette component now cover this. The old "3 Genesis palettes" framing is retired; still open: how the tools' palettes stay coherent with each other across a whole system.
+- **Client workflow** — what does the Organica handoff look like for a client branding project? Still open.
+- **Mural scale** — largest format needed? DPI requirements? Still open.
 
 ---
 
@@ -263,6 +276,9 @@ Duration range `1.4s–14s` maps to real-world time scales. See `docs/ANIMATION-
   - **Reuse evaluated, as asked**: Dotraster's own "Noise" mode (organic, non-gridded stipple) is close enough to **Pollen's** existing blue-noise variable-radius scatter engine that an eventual "organic halftone" Colornet/Halide mode should study Pollen's own code as the starting point rather than building tone-mapped scatter from scratch — the underlying technique (dot size driven by local darkness) is the same idea Pollen already has proven and shipped. Dotraster's "Pattern" mode (a library of tileable dither textures) is disclosed as **more naturally a Halide extension** than a Colornet one, since Halide already owns "photo → dither" territory in this product — flagged here rather than silently folded into Colornet's own scope.
   - Not yet run through Plan Mode — this is raw analysis from the videos, next step is a proper planning pass (likely per-item, given the AM Screening piece alone is a real architecture decision) before any of it gets built.
 
+- **Inline `style="display:none"` → `hidden` attribute sweep** — ~180 static inline visibility toggles across the suite (loom ~40, fvs ~30, genesis 25, camo-turing 21, pulsar 13, radial/membrane 10 each, …). A future pass to the HTML `hidden` attribute + a `[hidden]{display:none!important}` safety rule (needed because flex/grid containers override bare `hidden`). Deliberately left out of the 2026-08-30 shell/style-centralization pass. Watch for the ones that are JS-toggled via `el.style.display` — those must keep an inline `style` so clearing it works (see the `.u-hidden` note in `design-system` §utilities). Also queued in `docs/SHARED-COMPONENTS.md` §3.
+- **Follow-ups from the 2026-08-30 shell pass** (all in `docs/SHARED-COMPONENTS.md` §3): ~~Spore/Pollen/Halide inline zoom/pan JS~~ and ~~`.chan-card` → `.org-layer-card` rename~~ both **done** (see the later 2026-08-30 note). Still open: Spore's `.upload-mark-btn` → `.upload-btn`; Genesis's own `--fs-xs`-scale `.upload-btn` + its 3 remaining inline raw-px spacings.
+
 ---
 
 ## Session Notes
@@ -285,6 +301,10 @@ Duration range `1.4s–14s` maps to real-world time scales. See `docs/ANIMATION-
 
 - **August 30, 2026 (still later same day) — Palette Phase 3 finished.** Diego: "andiamo avanti con la phase 3". **Vortex** — deleted its local `.color-row`/`.color-name`/`.color-swatch-wrap`(26×22)/`.color-hex`(70px mono) overrides; the Background row now uses the shared 18×18 `.color-*` + Manrope hex field, consistent with every other tool (before/after screenshots; bg swatch edit + `#btn-random-bg` still work, canvas bg tracks). **livingpath** — the bare `<input type=color id="cInk">` + read-only `.val` span became a real `.color-row` (`sw-ink`/`cp-ink`/`hex-ink` editable) driven by `Organica.palette.swatch('ink'|'bg', {initial, onChange: repaint})`; `id` renames `cInk`→`cp-ink`/`cBg`→`cp-bg` (the 4 `$('#cp-*').value` reads still work since the component keeps `#cp-*` synced), `loadProject()`'s colour apply → `swatches.*.set()`, the `.swatch`+`.val` CSS + the `['cInk','cBg']` listener loop deleted; added `<script organica-palette.js>` (it loads bare core). Verified: 2 `.color-row`, swatches paint from `initial`, both edit paths work, `.lvp` project round-trip intact, `repaint()` early-returns safely (no font yet). **Membrane `rmxColorAt` + Camo Turing export `rmxLerpColor`** — analysed, **left as intentional separate variants** (not TODO): both are the Camo-Turing-GLSL colour lineage (posterize `floor`; tonernd smooth-lerp ±1.5; Camo's `THREE.Color.lerp` is in the renderer's linear working space, r160 `ColorManagement` on, to match `DISPLAY_FRAG`), where `Organica.palette.colorAt` is the Pollen lineage (posterize `round`; tonernd discrete ±1.2; sRGB lerp). Merging would shift Membrane's RMX output + break Camo's SVG-vs-canvas match. Comments added in both files; `SHARED-COMPONENTS.md` §3 reclassified. Palette consolidation is now **complete** — the only remaining `syncColor` is in `shared/_template.html` (the scaffold). **Not committed** — same branch, pending "porta in prod".
 
+- **August 30, 2026 (still later same day) — Inline / page-style cleanup: new `shared/organica-shell.css`, surface palette + `--danger` into tokens, `.org-modal` + `.org-layer-card` + `.upload-btn`/`.org-file-input` into `organica-panel.css`.** Diego: "verifica se ci sono stili in linea o definiti nelle pagine e trova una strategia per centralizzarli." 3 Explore agents mapped it: header/panel/floatbar/palette were already centralized, but the **app-shell skeleton** (reset, `body`, `#app`, `#canvas-wrap`, the canvas element's shadow + zoom-cursor states, `#zoom-hud`, `#drop-hint`, `.upload-btn`, `#file-input`) was copied near-verbatim in ~17 tools; 15/17 also repeated byte-identical `--ink/--paper/--mid/--accent/--panel/--border` in their own `:root`. Approved scope (AskUserQuestion): **shell + modal + layer-card**; **centralize the palette `:root` defaults**; **include the inline token fixes** + add **`--danger: #a03828`**. Out: converging Genesis's ~140-line local panel re-impl, and a repo-wide `display:none` → `hidden` sweep (→ Backlog). **Done:** (1) `shared/organica-shell.css` — the shell skeleton; the canvas element gets `class="org-stage"` (its id varies per tool) for the shadow + `.zoomed`/`.panning`/`.picking` cursor states. Linked by 14 tools (komorebi, warping, radial, pulsar, blob-boundary, vortex, membrane, halide, spore, pollen, soul, camo-turing, colornet, loom), each keeping only genuine deltas (`#canvas-wrap { padding: 0 }` for edge-to-edge canvases, a lighter `box-shadow: …0.12)` on the photo tools, bespoke `#stage-frame`/`#preview` frames). Genesis / Rhizome / FVS keep their own canvas surface (just dropped their `:root` palette lines). (2) `organica-tokens.css` — surface palette + `color-scheme:light` as `:root` defaults + `--danger`; also fixed a **pre-existing bug**: a premature `*/` at line 178 was closing the SPACING-UTILITIES comment early (comment count was 40 `/*` / 41 `*/`), which would break `.mt-*`/`.u-hidden`/`.u-flex1` parsing. (3) `organica-panel.css` — `.upload-btn` + `.org-file-input` (six tools' near-identical copies), `.org-modal` / `__panel` / `__header` / `__title` (backdrop skeleton; `display` deliberately not set so each dialog keeps its own `style.display` toggle; width via `--org-modal-w`), `.org-layer-card` / `__head` / `__body` with `.layer-card` / `.chan-card` **aliased** onto it (mapping not renaming, same as the Strata/Living Path aliases). (4) Retrofits: FVS ×2 + Genesis ×2 + Colornet ×1 modals → `.org-modal*`; Camo Turing + Colornet layer/channel cards trimmed to inner controls; 8 tools' hidden file inputs → `.org-file-input`; FVS's 4 hardcoded error reds (`#a03828` ×3 / `#c0392b` ×1) + Rhizome's `#b3403a` → `var(--danger)`; a couple of Genesis inline raw-px spacings → `var(--space-*)`. (5) `shared/_template.html` rewritten to current conventions (links all 5 sheets, `class="org-stage"`, `Organica.palette.swatch`, no `syncColor`, `#zoom-hud`). (6) Docs: `docs/UI-SHELL.md` §2/§3/§6b/§7, `docs/SHARED-COMPONENTS.md` §3 backlog, `design-system/index.html` (links shell.css, `--danger` swatch, new "Shell" nav group + `#shell`/`#modal`/`#upload`/`#layer-card` sections, 5-file architecture table), this note. **Verified** on the no-store server: all 14 adopted tools + rhizome/fvs + genesis + design-system render — canvas centred, stage shadow, panel unchanged, floatbar present, console clean (only the pre-existing env 404); `.org-modal` computed styles byte-match the old FVS/Genesis values (fixed / rgba(10,10,10,.45) / centred / z-index 200 / 420px panel / 14px pad); `.org-layer-card` computed border/padding/gap match Camo Turing's old locals; tokens.css comment count balanced (42/42). Genesis's own `--fs-sm` (11px, locally defined) confirmed NOT a broken token — left alone. **Not committed** — same still-uncommitted branch as Pulsar + Palette, pending "porta in prod".
+
+- **August 30, 2026 (still later same day) — Shell-pass follow-ups: zoom/pan JS + `.chan-card` rename done; CLAUDE.md modernised.** Diego picked "sezione 1" of the backlog. **`.chan-card` → `.org-layer-card`** — full rename in Colornet (element class, `__head`/`__body`, `.chan-card--armed` → `.chan-armed`) + `.layer-card` → `.org-layer-card` in Camo Turing (incl. the 2 `querySelectorAll('.…__head/.…__body …')` in its card-builder JS); the aliases were then **deleted** from `organica-panel.css` — only `.org-layer-card` remains. No `querySelector`/`closest`/`classList` touched `.chan-card`, so it was a clean sweep. Verified live: Colornet 4 channels — border/padding/gap/radius computed-identical to the old values, active border = `--tool`, armed border = `--accent-warm` dashed (on a non-active card), a real 0↔2 swap works; Camo Turing add/reorder(↑)/dot-toggle/remove all work through the renamed selectors. **Zoom/pan JS** — Spore, Pollen, Halide's ~55-line inline `applyZoom`/`zoomBy`/wheel/pan/dblclick/⌘± copy each replaced by one `Organica.createZoomPan({canvas, wrap, isReady, onChange})` call + a 1-line `resetZoom()` wrapper (kept as a global because the HUD's `onclick` and the image-load path call it). Spore *gains* the ⌘+/⌘-/⌘0 shortcuts and the pre-wheel slider-blur it never had. Verified live in all three: wheel→115 %, HUD `.visible`, `.zoomed` class, `zoom-level` text, dblclick + `resetZoom()` → `scale(1)`, ⌘= → `scale(1.2)`; console clean on fresh tabs. **CLAUDE.md** — Diego rewrote *Who* / *What* / *Methodology* to the current scope; verified + fixed refuses (`seriesof`, `enaabling`, `teh`, `troughout`, `constraind`, `methodolg`, `Ryzhome`→`Rhizome`); **Technical Stack** rebuilt (the "no JS animation libraries" line was false — GSAP; the "Python + OpenCV + vtracer" line was dead — went with Strata); **Tools table + Repo Structure** gained the 3 missing live tools (**Mycel**, **TuneSutra**, **Rhizome**) + livingpath/ + the missing manuals; **Studio Rann** branding removed (footer → "Organica", Deployment → team slug only); **Roadmap** + **Open Questions** de-staled (Figma bridge is fixed for 7 tools via Rhizome Phase 0; typography = Living Path; colour = TuneSutra/Colornet/Palette). **Not committed** — same branch.
+
 ---
 
-*Studio Rann · Updated August 2026*
+*Organica · Updated August 2026*

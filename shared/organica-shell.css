@@ -1,0 +1,170 @@
+/* ─────────────────────────────────────────────────────────────
+   ORGANICA — organica-shell.css
+   The app-shell skeleton, as one sheet.
+
+   Audited before writing: 17 tools, each carrying its own ~25–40 line
+   copy of the same frame — the box-sizing reset, a flex-column <body>
+   pinned to the viewport, an #app row, a centred #canvas-wrap stage
+   area, the canvas element's shadow + zoom-cursor states, the
+   bottom-left #zoom-hud chip, and the #drop-hint overlay. Every copy
+   annotated "same shared pattern as Loom/Halide/Spore/Pollen". The
+   light tools (Komorebi, Warping, Radial, Pulsar, Vortex, Blob
+   Boundary) were 70–100 % this and nothing else.
+
+   UI-SHELL.md §1 originally kept the shell as "a documented template,
+   not a shared stylesheet", expecting each tool to tune its own canvas
+   chrome. That divergence didn't happen; the template also never
+   back-propagated fixes and went stale. This sheet is that template
+   spent as CSS.
+
+   The canvas/stage element's id varies per tool (#main-canvas,
+   #view-canvas, #stage-frame, #canvas-frame, #preview, #gl-canvas…),
+   so the shared rules hang off a class — add class="org-stage" to it.
+   Everything else keys off ids the tools already share (#app,
+   #canvas-wrap, #zoom-hud, #drop-hint).
+
+   Load order: tokens → header → panel → floatbar → THIS → (palette) →
+   tool <style>. Depends on organica-tokens.css only
+   (--panel, --space-*, --ink, --paper, --mid, --font, --fs-*).
+
+   A tool keeps its own deltas locally: #canvas-wrap padding overrides,
+   .checker alpha grid, image-rendering: pixelated, a bespoke canvas
+   background. It does NOT keep the rules below.
+   ───────────────────────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════
+   RESET + APP FRAME
+   ═══════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; padding: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs-base);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The row under the header: canvas on the left, #panel on the right.
+   Tools without an #app wrapper put class="org-app" on whatever element
+   holds that row. */
+#app, .org-app {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CANVAS REGION
+   ═══════════════════════════════════════════════════════════ */
+
+#canvas-wrap, .org-canvas-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-7);
+}
+#canvas-wrap.drag-over, .org-canvas-wrap.drag-over {
+  outline: 2px dashed var(--ink);
+  outline-offset: -8px;
+}
+
+/* The canvas / <svg> / stage element itself. Add class="org-stage".
+   Hidden-until-ready tools also toggle .visible; zoom/pan (the JS half
+   is Organica.createZoomPan) toggles .zoomed / .panning; pixel-pickers
+   toggle .picking. */
+.org-stage {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  box-shadow: 0 4px 40px rgba(0, 0, 0, 0.18);
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.org-stage.visible { display: block; }
+.org-stage.zoomed  { cursor: grab; }
+.org-stage.panning { cursor: grabbing; }
+.org-stage.picking { cursor: crosshair; }
+
+/* ═══════════════════════════════════════════════════════════
+   DROP HINT — the "drop a photo / SVG to begin" overlay centred on
+   the empty canvas. Fades out (opacity, not display) so it can sit
+   under the loaded canvas without a reflow. Both toggle conventions
+   in the wild are honoured: .hidden (fade out) is the common one.
+   ═══════════════════════════════════════════════════════════ */
+
+#drop-hint, .org-drop-hint {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.3s;
+}
+#drop-hint.hidden, .org-drop-hint.hidden { opacity: 0; }
+
+.drop-icon {
+  width: 48px; height: 48px;
+  border: 1.5px solid var(--mid);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mid);
+  font-size: var(--fs-xl);
+  pointer-events: auto;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.drop-icon:hover { border-color: var(--ink); color: var(--ink); }
+
+#drop-hint p, .org-drop-hint p {
+  font-size: var(--fs-small);
+  letter-spacing: 0.1em;
+  color: var(--mid);
+  text-align: center;
+  line-height: 1.8;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ZOOM HUD — the "142 % · reset" chip, bottom-left of the canvas.
+   .visible flips it on. The JS half (wheel/drag zoom, the % readout,
+   the reset click) is Organica.createZoomPan in organica-core.js.
+   ═══════════════════════════════════════════════════════════ */
+
+#zoom-hud, .org-zoom-hud {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.1em;
+  padding: var(--space-2) var(--space-4);
+  display: none;
+  align-items: center;
+  gap: var(--space-3);
+  pointer-events: none;
+  user-select: none;
+}
+#zoom-hud.visible, .org-zoom-hud.visible { display: flex; }
+
+#zoom-hud .zoom-reset, .org-zoom-hud .zoom-reset {
+  pointer-events: auto;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+#zoom-hud .zoom-reset:hover, .org-zoom-hud .zoom-reset:hover { opacity: 1; }

@@ -6,46 +6,19 @@
 <title>Pulsar — Organica</title>
 <link rel="stylesheet" href="/shared/organica-tokens.css">
 <link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-shell.css">
 <style>
 :root {
-  --ink: #241b14;
-  --paper: #ffffff;
-  --mid: #696256;
-  --accent: #2a2a2a;
-  --panel: #eceae4;
-  --border: #d0c8b8;
+  --ink: #241b14;   /* warm-black override — this tool's ink */
   --tool: #dd5140;   /* header focus ring — warm vermilion, this tool's identity colour
                         (Radial's cool slate #6b6f8c, in motion) */
   --pulsar: #dd5140;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--font);
-  font-size: var(--fs-base);
-  height: 100vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-#app { display: flex; flex: 1; overflow: hidden; }
-
-#stage {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--panel);
-  position: relative;
-  overflow: hidden;
-  padding: var(--space-7);
-}
+/* Reset, body, #app and the centred canvas region (#stage → .org-canvas-wrap)
+   come from organica-shell.css. #preview below is genuinely bespoke. */
 
 /* CSS-transformed by Organica.createZoomPan — never touches the canvas bitmap,
    so it can't affect PNG or video export. */
@@ -148,7 +121,7 @@ body {
 
 <div id="app">
 
-  <div id="stage">
+  <div id="stage" class="org-canvas-wrap">
     <canvas id="preview" width="760" height="760"></canvas>
   </div>
 

@@ -12,45 +12,28 @@
      parses. -->
 <link rel="stylesheet" href="/shared/organica-tokens.css">
 <link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-shell.css">
 <link rel="stylesheet" href="/shared/organica-palette.css">
 <style>
   :root {
-    /* Not declared ANYWHERE in Organica (checked before adding it) — a
-       real, product-wide gap, not a Membrane-only one. Without it, native
-       form-control chrome (a <select>'s own dropdown popup, checkboxes,
-       date pickers) follows the OS/browser's OWN dark-mode preference
-       independently of this page's fixed light UI, and the popup can
-       render dark-background text on top of the --ink (#0a0a0a) colour
-       this stylesheet explicitly sets — dark-on-dark, unreadable. Fixed
-       here since it's this session's own dropdown-contrast finding;
-       worth promoting to shared/organica-tokens.css in its own pass so
-       every tool gets it, not just Membrane. */
-    color-scheme: light;
-    --ink: #0a0a0a;
-    --paper: #ffffff;
-    --mid: #696256;
-    --accent: #2a2a2a;
-    --panel: #eceae4;
-    --border: #d0c8b8;
+    /* color-scheme:light, the surface palette, and .upload-btn / .org-file-input
+       are shared defaults now (organica-tokens.css / organica-panel.css). */
     --tool: #c15b4a;   /* identity colour — warm coral/tissue-red, header focus ring */
 
     /* Content colours (the canvas's own ink/accent — see CLAUDE.md's own
        Halide/Pollen exception: these are what gets DRAWN, not UI chrome,
-       so they aren't the --ink/--paper pair above). Cream mark, same
-       pairing the exploration this migrates from used. #canvas-wrap
-       itself uses --panel (Camo Turing's own convention: the letterbox
-       around a canvas smaller than the wrap is UI chrome, not the
-       artwork's own ground) — the canvas's actual fill is Palette's own
-       Background colour (state.canvasBgRGB), painted directly by p5. */
+       so they aren't the --ink/--paper pair). Cream mark, same pairing the
+       exploration this migrates from used. */
     --mark-ink: #f6e8c3;
     --mark-accent: #0a0a0a;
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: var(--fs-base); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-
+  /* Reset, body, surface palette, the base #zoom-hud and .upload-btn come
+     from the shared sheets. Membrane keeps its own canvas region: the p5
+     canvas fills the wrap (no padding), with its own cursor states, and
+     the HUD is stacked above #tool-label rather than sharing its corner. */
   #app { display: flex; flex: 1; overflow: hidden; height: calc(100vh - var(--header-h, 40px)); }
 
   #canvas-wrap { flex: 1; display: flex; align-items: center; justify-content: center; background: var(--panel); position: relative; overflow: hidden; }
@@ -59,38 +42,11 @@
   #canvas-wrap canvas.panning { cursor: grabbing; }
   #tool-label { position: absolute; left: var(--space-4); bottom: var(--space-4); font-size: var(--fs-micro); color: var(--mark-ink); opacity: 0.6; pointer-events: none; }
 
-  /* Zoom HUD — same shared pattern as Loom/Halide/Spore/Pollen/Strata's
-     own zoom/pan (Organica.createZoomPan, shared/organica-core.js).
-     Stacked above #tool-label (bottom:16px there) rather than sharing
-     its corner, so the two never overlap when both are visible. */
-  #zoom-hud {
-    position: absolute;
-    bottom: calc(var(--space-4) + 20px); left: var(--space-4);
-    background: var(--ink); color: var(--paper);
-    font-family: var(--font); font-size: var(--fs-micro, 9px);
-    letter-spacing: 0.1em;
-    padding: var(--space-2) var(--space-4);
-    display: none; align-items: center; gap: var(--space-3);
-    pointer-events: none; user-select: none; z-index: 10;
-  }
-  #zoom-hud.visible { display: flex; }
-  #zoom-hud .zoom-reset { pointer-events: auto; cursor: pointer; opacity: 0.6; transition: opacity 0.15s; }
-  #zoom-hud .zoom-reset:hover { opacity: 1; }
+  #zoom-hud { bottom: calc(var(--space-4) + 20px); left: var(--space-4); z-index: 10; }
 
-  #panel { width: var(--panel-w, 248px); flex-shrink: 0; background: var(--panel); border-left: 1px solid var(--border); overflow-y: auto; }
-
-  /* Not part of organica-panel.css — every tool that needs a file-upload
-     trigger defines this locally (Camo Turing, Halide, Komorebi); copied
-     verbatim rather than inventing a fourth variant. .org-panel__readout
-     doesn't exist as a shared class either (organica-panel.css has no
-     status-line component) — modelled on the same visual language as
-     other tools' own ad-hoc readouts (monospace, --accent text on a
-     sunken field). */
-  .upload-btn { width: 100%; padding: var(--space-3); border: 1px dashed var(--border); background: none; color: var(--mid); font-family: var(--font); font-size: var(--fs-small); cursor: pointer; margin-bottom: var(--space-2); }
-  .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+  #panel { background: var(--panel); }   /* override — panel on grey, not paper */
+  .upload-btn { margin-bottom: var(--space-2); }
   .org-panel__readout { font-family: monospace; font-size: var(--fs-micro); color: var(--tool); background: var(--paper); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); margin-bottom: var(--space-3); word-break: break-word; }
-
-  /* .icon-btn + .rmx-* chip CSS now in shared/organica-palette.css */
 </style>
 </head>
 <body>
@@ -401,8 +357,8 @@
   </div>
 </div>
 
-<input type="file" id="file-image" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;">
-<input type="file" id="file-loompath" accept=".json,application/json" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;">
+<input type="file" id="file-image" class="org-file-input" accept="image/*">
+<input type="file" id="file-loompath" class="org-file-input" accept=".json,application/json">
 
 <script src="/shared/organica-core.js"></script>
 <script src="/shared/organica-palette.js"></script>

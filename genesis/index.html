@@ -266,7 +266,8 @@
     .read-only-note { font-size: var(--fs-xs); color: var(--ink-faint); font-style: italic; }
 
     /* ─── Pickers (overlay dialogs) ─────────────────────────── */
-    #layer-picker-overlay, #seed-picker-overlay { position: fixed; inset: 0; background: rgba(10,10,10,0.45); display: flex; align-items: center; justify-content: center; z-index: 200; }
+    /* Backdrop is the shared .org-modal (organica-panel.css). The panel
+       keeps Genesis's own 16px padding / --bg scale. */
     .picker-panel { background: var(--bg); border: 1px solid var(--border); width: 420px; max-height: 80vh; overflow-y: auto; padding: 16px; }
     .picker-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
     .picker-header span { font-size: var(--fs-md); font-weight: 600; color: var(--ink); }
@@ -627,11 +628,11 @@
               <button class="upload-btn" id="btn-pick-layer" style="margin-bottom:0">Pick layer…</button>
             </div>
             <div id="underlying-layer-set" class="panel-row" style="display:none">
-              <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:var(--space-3);flex:1;min-width:0">
                 <span id="underlying-layer-thumb" style="width:28px;height:28px;flex-shrink:0;border:1px solid var(--border)"></span>
                 <span id="underlying-layer-name" style="font-size:var(--fs-sm);color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
               </div>
-              <button class="upload-btn" id="btn-remove-layer" style="width:auto;margin-bottom:0;padding:4px 8px">Remove</button>
+              <button class="upload-btn" id="btn-remove-layer" style="width:auto;margin-bottom:0;padding:var(--space-1) var(--space-3)">Remove</button>
             </div>
           </div>
           <div class="panel-row">
@@ -652,7 +653,7 @@
     </aside>
   </div>
 
-  <div id="layer-picker-overlay" role="dialog" aria-modal="true" aria-label="Pick underlying layer" style="display:none">
+  <div id="layer-picker-overlay" class="org-modal" role="dialog" aria-modal="true" aria-label="Pick underlying layer" style="display:none">
     <div class="picker-panel">
       <div class="picker-header">
         <span>Pick underlying layer</span>
@@ -663,7 +664,7 @@
     </div>
   </div>
 
-  <div id="seed-picker-overlay" role="dialog" aria-modal="true" aria-label="Load seed" style="display:none">
+  <div id="seed-picker-overlay" class="org-modal" role="dialog" aria-modal="true" aria-label="Load seed" style="display:none">
     <div class="picker-panel">
       <div class="picker-header">
         <span>Load seed</span>

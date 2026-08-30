@@ -12,45 +12,15 @@
 <link rel="stylesheet" href="/shared/organica-header.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
 <link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-shell.css">
 <style>
   :root {
-    --ink: #0a0a0a;
-    --paper: #ffffff;
-    --mid: #696256;
-    --accent: #2a2a2a;
-    --panel: #eceae4;
-    --border: #d0c8b8;
     --tool: #c85a8c;   /* identity colour — a living rose/pulse, distinct from Strata's warmer ember */
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--paper);
-    color: var(--ink);
-    font-family: var(--font);
-    font-size: 11px;
-    height: 100vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  #app { display: flex; flex: 1; overflow: hidden; }
-
-  #canvas-wrap {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--panel);
-    position: relative;
-    overflow: hidden;
-    padding: var(--space-7);
-  }
-
-  #canvas-wrap.drag-over { outline: 2px dashed var(--ink); outline-offset: -8px; }
-
+  /* Reset, body, #app, #canvas-wrap, the #zoom-hud base, #drop-hint,
+     .upload-btn and the .org-file-input helper come from the shared sheets.
+     Soul's own deltas below. */
   #stage-frame {
     position: relative;
     background: #ffffff;
@@ -64,27 +34,7 @@
   #stage-frame.panning { cursor: grabbing; }
   #stage-svg { display: block; }
 
-  /* Zoom HUD — same shared pattern as Loom/Halide/Spore/Pollen/Strata's
-     own zoom/pan (Organica.createZoomPan, shared/organica-core.js). */
-  #zoom-hud {
-    position: absolute;
-    bottom: 16px; left: 16px;
-    background: var(--ink);
-    color: var(--paper);
-    font-family: var(--font);
-    font-size: var(--fs-micro, 9px);
-    letter-spacing: 0.1em;
-    padding: var(--space-2) var(--space-4);
-    display: none;
-    align-items: center;
-    gap: var(--space-3);
-    pointer-events: none;
-    user-select: none;
-    z-index: 10;
-  }
-  #zoom-hud.visible { display: flex; }
-  #zoom-hud .zoom-reset { pointer-events: auto; cursor: pointer; opacity: 0.6; transition: opacity 0.15s; }
-  #zoom-hud .zoom-reset:hover { opacity: 1; }
+  #zoom-hud { z-index: 10; }   /* above #stage-frame */
 
   /* Status text is visually removed from the floatbar (Diego's own call —
      Camo Turing's floatbar carries no status message either, only an
@@ -99,47 +49,13 @@
     clip: rect(0,0,0,0); white-space: nowrap; border: 0; padding: 0; margin: -1px;
   }
 
-  /* Drop zone — same centralised pattern every other Organica tool uses
-     (shared/_template.html's own #drop-hint/.drop-icon), replacing Soul's
-     own bespoke paste-textarea "Source" panel block. Sits on the CANVAS,
-     not the side panel, and doubles as the empty-state message. */
-  #drop-hint {
-    position: absolute;
-    inset: 0;
-    z-index: 2;   /* above #stage-frame — same-stacking-context siblings paint in DOM order otherwise, and stage-frame comes second */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    pointer-events: none;
-    transition: opacity 0.3s;
-  }
-  #drop-hint.hidden { opacity: 0; }
-  .drop-icon {
-    width: 48px; height: 48px;
-    border: 1.5px solid var(--mid);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--mid);
-    font-size: 20px;
-    pointer-events: auto;
-    cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .drop-icon:hover { border-color: var(--ink); color: var(--ink); }
-  #drop-hint p {
-    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--mid); text-align: center; line-height: 1.8;
-  }
-
-  /* #panel — deliberately NOT redefined here. Same cascade bug as
-     .mini-btn/input[type=range] above: the shared organica-panel.css
-     already declares #panel at the unified --panel-w (248px, "was 240 /
-     244 / 280 — one width"), and this local copy was silently winning
-     at a stale 260px with --border instead of --border-strong. */
-
-  #file-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; border: 0; padding: 0; }
+  /* Drop zone — the shared #drop-hint / .drop-icon (organica-shell.css)
+     replaces Soul's old bespoke paste-textarea "Source" panel. Soul's
+     deltas: a full-canvas overlay (inset:0) that paints above #stage-frame,
+     with a larger icon and an uppercase label. */
+  #drop-hint { inset: 0; z-index: 2; justify-content: center; gap: 12px; }
+  .drop-icon { font-size: 20px; }
+  #drop-hint p { font-size: 10px; text-transform: uppercase; }
 
   /* Seeds panel — the same tabbed source-picker component Camo Turing's
      own Seeds panel uses (.seg-ctrl/.seg-btn come from the shared
@@ -159,11 +75,7 @@
   .shape-thumb.active { border-color: var(--ink); border-width: 2px; }
   .shape-thumb svg { width: 100%; height: 100%; display: block; fill: var(--ink); }
   .shape-thumb .thumb-num { position: absolute; top: 2px; right: 3px; font-size: var(--fs-micro); color: var(--mid); }
-  .upload-btn {
-    width: 100%; padding: var(--space-3); border: 1px dashed var(--border); background: none;
-    color: var(--mid); font-family: var(--font); font-size: var(--fs-small); cursor: pointer;
-  }
-  .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+  /* .upload-btn is in organica-panel.css now (Soul used the exact base). */
 
   /* .mini-btn, .panel-select, .ctrl-row/.ctrl-label/.ctrl-val, input[type=range] —
      deliberately NOT redefined here. A first version duplicated all of
@@ -347,7 +259,7 @@
   </div><!-- /panel -->
 </div>
 
-<input type="file" id="file-input" accept=".svg,image/svg+xml" onchange="loadFromFile(this)">
+<input type="file" id="file-input" class="org-file-input" accept=".svg,image/svg+xml" onchange="loadFromFile(this)">
 
 <!-- ══ FLOATING TOOLBAR — Open / Play / Stop / Loop, fixed bottom-centre
      over the canvas. The same centralised component every other Organica

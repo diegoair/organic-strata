@@ -9,83 +9,22 @@
      can override without !important, core before the tool script. -->
 <link rel="stylesheet" href="/shared/organica-tokens.css">
 <link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-shell.css">
 <style>
 :root {
-  --ink: #0a0a0a;
-  --paper: #ffffff;
-  --mid: #696256;
-  --accent: #2a2a2a;
-  --panel: #eceae4;
-  --border: #d0c8b8;
   --tool: #4a5fc7;   /* identity colour — matches the hub nav accent */
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--font);
-  font-size: var(--fs-base);
-  height: 100vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-#app { display: flex; flex: 1; overflow: hidden; }
-
-#canvas-wrap {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--panel);
-  position: relative;
-  overflow: hidden;
-  padding: var(--space-7);
-}
+/* Reset, body, #app, #canvas-wrap, #drop-hint, .drop-icon, the .org-stage
+   base and the .org-file-input helper come from the shared sheets.
+   Colornet's own deltas: */
 #canvas-wrap.drag-over { outline: 2px dashed var(--tool); outline-offset: calc(var(--space-3) * -1); }
+#view-canvas:not(.visible) { display: none; }
+#drop-hint p { letter-spacing: normal; line-height: var(--lh-normal); }
 
-#view-canvas {
-  max-width: 100%;
-  max-height: 100%;
-  box-shadow: 0 4px 40px rgba(0,0,0,0.18);
-  display: none;
-  transform-origin: 0 0;
-  will-change: transform;
-}
-#view-canvas.visible { display: block; }
-#view-canvas.zoomed { cursor: grab; }
-
-#drop-hint {
-  position: absolute;
-  display: flex; flex-direction: column; align-items: center;
-  gap: var(--space-5);
-  pointer-events: none;
-  transition: opacity 0.3s;
-}
-#drop-hint.hidden { opacity: 0; }
-.drop-icon {
-  width: 48px; height: 48px;
-  border: 1.5px solid var(--mid);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--mid);
-  font-size: var(--fs-xl);
-  pointer-events: auto; cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-}
-.drop-icon:hover { border-color: var(--ink); color: var(--ink); }
-#drop-hint p {
-  font-size: var(--fs-small);
-  color: var(--mid);
-  text-align: center;
-  line-height: var(--lh-normal);
-}
-
+/* Colornet's zoom HUD is a tighter, rounded chip — kept local. */
 #zoom-hud {
   position: absolute;
   bottom: var(--space-6); left: var(--space-6);
@@ -100,23 +39,17 @@ body {
 #zoom-hud .zoom-reset { cursor: pointer; opacity: 0.6; }
 #zoom-hud .zoom-reset:hover { opacity: 1; }
 
-#file-input, #batch-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-
 /* ── CHANNEL LIST ──
    New component. Organica.palette.swatch (RMX mode) can't serve this: an RMX chip
    list is an array of bare hex strings with no room for a name, an on/off,
    an opacity, a stacking index or a per-item transform. DOM shape follows
-   Camo Turing's .layer-card (head row + body rows) so the two read as the
+   Camo Turing's own layer list (head row + body rows) so the two read as the
    same family, but the state model and every control below the head differ. */
-.chan-card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2);
-  margin-bottom: var(--space-2);
-}
-.chan-card.active { border-color: var(--tool); }
-.chan-card--armed { border-color: var(--accent-warm); border-style: dashed; }
-.chan-card__head { display: flex; align-items: center; gap: var(--space-2); }
+/* .org-layer-card / .active / __head / __body skeleton is in organica-panel.css
+   (aliased alongside .org-layer-card). Colornet's local additions: a
+   rounded corner, the armed-for-swap state, and every control below. */
+.org-layer-card { border-radius: var(--radius-sm); }
+.chan-armed { border-color: var(--accent-warm); border-style: dashed; }
 .chan-thumb {
   width: 26px; height: 26px; flex: 0 0 26px;
   border: 1px solid var(--border);
@@ -128,7 +61,7 @@ body {
   font-family: var(--font); font-size: var(--fs-small); color: var(--ink);
   cursor: pointer; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.chan-card.active .chan-name { font-weight: var(--w-medium); }
+.org-layer-card.active .chan-name { font-weight: var(--w-medium); }  /* stays local — depends on .chan-name */
 .chan-dot {
   width: 10px; height: 10px; border-radius: 50%; padding: 0; flex-shrink: 0;
   border: 1px solid var(--border-strong, var(--border)); background: none; cursor: pointer;
@@ -141,7 +74,6 @@ body {
   border-radius: var(--radius-sm);
 }
 .icon-btn:hover { border-color: var(--border-strong, var(--border)); color: var(--ink); }
-.chan-card__body { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
 .chan-opacity { flex: 1; min-width: 0; }
 .chan-val { font-size: var(--fs-micro); color: var(--mid); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
 .chan-cmyk { font-size: var(--fs-micro); color: var(--mid); font-variant-numeric: tabular-nums; margin-left: auto; }
@@ -149,17 +81,11 @@ body {
 .chan-am-row { padding-left: var(--space-2); }
 .chan-am-label { font-size: var(--fs-micro); color: var(--mid); flex: 0 0 52px; }
 
-input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
+/* input[type=color] hider is in shared/organica-panel.css now. */
 
-#pattern-editor-overlay {
-  position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,0.4);
-  display: flex; align-items: center; justify-content: center;
-}
-#pattern-editor-panel {
-  background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: var(--space-5); width: 340px;
-}
+/* Backdrop + panel skeleton are the shared .org-modal / .org-modal__panel
+   (organica-panel.css). Local: a rounded corner + a narrower 340px width. */
+#pattern-editor-panel { border-radius: var(--radius-md); --org-modal-w: 340px; }
 #pattern-editor-grid {
   display: grid; gap: 2px; margin: var(--space-3) 0;
   border: 1px solid var(--border);
@@ -252,7 +178,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
       <div class="drop-icon" id="drop-icon" role="button" tabindex="0" aria-label="Open an image">+</div>
       <p>Drop an image<br>or click to open</p>
     </div>
-    <canvas id="view-canvas"></canvas>
+    <canvas id="view-canvas" class="org-stage"></canvas>
     <div id="zoom-hud"><span id="zoom-level">100%</span><span class="zoom-reset" id="zoom-reset">reset</span></div>
   </div>
 
@@ -407,11 +333,11 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
   </div><!-- /panel -->
 </div>
 
-<input type="file" id="file-input" accept="image/*">
-<input type="file" id="batch-input" accept="image/*" multiple>
+<input type="file" id="file-input" class="org-file-input" accept="image/*">
+<input type="file" id="batch-input" class="org-file-input" accept="image/*" multiple>
 
-<div id="pattern-editor-overlay" role="dialog" aria-modal="true" aria-label="Pattern editor" style="display:none">
-  <div id="pattern-editor-panel">
+<div id="pattern-editor-overlay" class="org-modal" role="dialog" aria-modal="true" aria-label="Pattern editor" style="display:none">
+  <div id="pattern-editor-panel" class="org-modal__panel">
     <h3>Custom pattern</h3>
     <p class="panel-note">
       Left-click a cell to fill it black→white in order; right-click fills
@@ -1441,10 +1367,10 @@ function buildChannelUI() {
   S.channels.forEach((ch, idx) => {
     const cmyk = Organica.rgbToCmyk(...Organica.hexToRGB255(ch.color));
     const card = document.createElement('div');
-    card.className = 'chan-card' + (ch.id === S.selId ? ' active' : '') + (ch.id === S.swapArmedId ? ' chan-card--armed' : '');
+    card.className = 'org-layer-card' + (ch.id === S.selId ? ' active' : '') + (ch.id === S.swapArmedId ? ' chan-armed' : '');
     const swapLabel = ch.id === S.swapArmedId ? `${ch.name} — click another channel to swap, or click again to cancel` : `Swap ${ch.name} (click, then click another channel)`;
     card.innerHTML = `
-      <div class="chan-card__head">
+      <div class="org-layer-card__head">
         <button class="chan-dot${ch.on ? ' on' : ''}" aria-label="${ch.name} visible"></button>
         <canvas class="chan-thumb" aria-label="Select ${ch.name}"></canvas>
         <button class="chan-name" aria-label="${swapLabel}">${ch.name}</button>
@@ -1452,21 +1378,21 @@ function buildChannelUI() {
         <button class="icon-btn" data-act="down" aria-label="Move ${ch.name} down">↓</button>
         <button class="icon-btn" data-act="del" aria-label="Remove ${ch.name}">×</button>
       </div>
-      <div class="chan-card__body">
+      <div class="org-layer-card__body">
         <span class="color-swatch-wrap" style="width:18px;height:18px">
           <button class="color-swatch" style="background:${ch.color}" aria-label="${ch.name} colour"></button>
           <input type="color" value="${ch.color}" aria-label="${ch.name} colour value">
         </span>
         <span class="chan-cmyk">C${cmyk.c} M${cmyk.m} Y${cmyk.y} K${cmyk.k}</span>
       </div>
-      <div class="chan-card__body">
+      <div class="org-layer-card__body">
         <select class="panel-select" style="flex:0 0 74px" aria-label="${ch.name} blend mode">
           ${BLENDS.map(b => `<option value="${b}"${b === ch.blend ? ' selected' : ''}>${b[0].toUpperCase() + b.slice(1)}</option>`).join('')}
         </select>
         <input type="range" class="chan-opacity" min="0" max="100" step="1" value="${ch.opacity}" aria-label="${ch.name} coverage">
         <span class="chan-val">${ch.opacity}%</span>
       </div>
-      <div class="chan-card__body">
+      <div class="org-layer-card__body">
         <select class="panel-select chan-screen-mode" style="flex:1" aria-label="${ch.name} render mode">
           <option value="flat"${ch.screenMode === 'flat' ? ' selected' : ''}>Flat</option>
           <option value="am"${ch.screenMode === 'am' ? ' selected' : ''}>AM Screening</option>
@@ -1475,24 +1401,24 @@ function buildChannelUI() {
         </select>
       </div>
       ${ch.screenMode === 'am' ? `
-      <div class="chan-card__body chan-am-row">
+      <div class="org-layer-card__body chan-am-row">
         <span class="chan-am-label">Preset</span>
         <select class="panel-select chan-am-preset" style="flex:1" aria-label="${ch.name} AM Screening preset">
           <option value="">Custom</option>
           ${Object.keys(AM_PRESETS).map(n => `<option value="${n}">${n}</option>`).join('')}
         </select>
       </div>
-      <div class="chan-card__body chan-am-row">
+      <div class="org-layer-card__body chan-am-row">
         <span class="chan-am-label">Angle</span>
         <input type="range" class="chan-am-angle" min="0" max="179" step="1" value="${ch.screenAngle}" aria-label="${ch.name} screen angle">
         <span class="chan-val">${ch.screenAngle}°</span>
       </div>
-      <div class="chan-card__body chan-am-row">
+      <div class="org-layer-card__body chan-am-row">
         <span class="chan-am-label">Lineature</span>
         <input type="range" class="chan-am-freq" min="2" max="300" step="1" value="${ch.screenFreq}" aria-label="${ch.name} screen lineature">
         <span class="chan-val">${ch.screenFreq}</span>
       </div>
-      <div class="chan-card__body chan-am-row">
+      <div class="org-layer-card__body chan-am-row">
         <span class="chan-am-label">Dot shape</span>
         <select class="panel-select chan-am-shape" style="flex:1" aria-label="${ch.name} dot shape">
           <option value="circle"${ch.dotShape === 'circle' ? ' selected' : ''}>Circle</option>
@@ -1502,7 +1428,7 @@ function buildChannelUI() {
         </select>
       </div>` : ''}
       ${ch.screenMode === 'noise' ? `
-      <div class="chan-card__body chan-am-row">
+      <div class="org-layer-card__body chan-am-row">
         <span class="chan-am-label">Noise</span>
         <select class="panel-select chan-noise-type" style="flex:1" aria-label="${ch.name} noise type">
           <option value="simplex"${ch.noiseType === 'simplex' ? ' selected' : ''}>Simplex</option>
@@ -1511,18 +1437,18 @@ function buildChannelUI() {
           <option value="gaussian"${ch.noiseType === 'gaussian' ? ' selected' : ''}>Gaussian</option>
         </select>
       </div>
-      <div class="chan-card__body chan-am-row">
+      <div class="org-layer-card__body chan-am-row">
         <span class="chan-am-label">Size</span>
         <input type="range" class="chan-noise-size" min="5" max="300" step="1" value="${ch.noiseSize}" aria-label="${ch.name} noise size">
         <span class="chan-val">${ch.noiseSize}</span>
       </div>
       ${ch.noiseType === 'gaussian' ? `
-      <div class="chan-card__body chan-am-row">
+      <div class="org-layer-card__body chan-am-row">
         <span class="chan-am-label">Std dev</span>
         <input type="range" class="chan-noise-stddev" min="0" max="1" step="0.01" value="${ch.noiseStdDev}" aria-label="${ch.name} noise standard deviation">
         <span class="chan-val">${ch.noiseStdDev.toFixed(2)}</span>
       </div>` : ''}
-      <div class="chan-card__body chan-am-row">
+      <div class="org-layer-card__body chan-am-row">
         <span class="chan-am-label">Dots</span>
         <select class="panel-select chan-noise-dots" style="flex:1" aria-label="${ch.name} noise dots">
           <option value="black"${ch.noiseDots === 'black' ? ' selected' : ''}>Black</option>
@@ -1531,7 +1457,7 @@ function buildChannelUI() {
         </select>
       </div>` : ''}
       ${ch.screenMode === 'dither' ? `
-      <div class="chan-card__body chan-am-row">
+      <div class="org-layer-card__body chan-am-row">
         <span class="chan-am-label">Algorithm</span>
         <select class="panel-select chan-dither-algo" style="flex:1" aria-label="${ch.name} dither algorithm">
           <option value="floyd"${ch.ditherAlgo === 'floyd' ? ' selected' : ''}>Floyd–Steinberg</option>
@@ -1549,41 +1475,41 @@ function buildChannelUI() {
         </select>
       </div>
       ${ch.ditherAlgo !== 'threshold' && ch.ditherAlgo !== 'bayer' && ch.ditherAlgo !== 'pattern' ? `
-      <div class="chan-card__body chan-am-row">
+      <div class="org-layer-card__body chan-am-row">
         <span class="chan-am-label">Size</span>
         <input type="range" class="chan-dither-size" min="5" max="300" step="1" value="${ch.ditherSize}" aria-label="${ch.name} dither size">
         <span class="chan-val">${ch.ditherSize}</span>
       </div>` : ''}
       ${ch.ditherAlgo === 'threshold' ? `
-      <div class="chan-card__body chan-am-row">
+      <div class="org-layer-card__body chan-am-row">
         <span class="chan-am-label">Level</span>
         <input type="range" class="chan-dither-level" min="0" max="255" step="1" value="${ch.ditherLevel}" aria-label="${ch.name} threshold level">
         <span class="chan-val">${ch.ditherLevel}</span>
       </div>` : ''}
       ${ch.ditherAlgo === 'bayer' ? `
-      <div class="chan-card__body chan-am-row">
+      <div class="org-layer-card__body chan-am-row">
         <span class="chan-am-label">Matrix</span>
         <input type="range" class="chan-bayer-level" min="0" max="3" step="1" value="${ch.bayerLevel}" aria-label="${ch.name} Bayer matrix level">
         <span class="chan-val">${['2×2','4×4','8×8','16×16'][ch.bayerLevel]}</span>
       </div>` : ''}
       ${ch.ditherAlgo === 'pattern' ? `
-      <div class="chan-card__body chan-am-row">
+      <div class="org-layer-card__body chan-am-row">
         <span class="chan-am-label">Pattern</span>
         <select class="panel-select chan-pattern-id" style="flex:1" aria-label="${ch.name} custom pattern">
           <option value="">— none, using Bayer —</option>
           ${listPatterns().map(p => `<option value="${p.id}"${ch.patternFormId === p.id ? ' selected' : ''}>${p.name}</option>`).join('')}
         </select>
       </div>
-      <div class="chan-card__body chan-am-row">
+      <div class="org-layer-card__body chan-am-row">
         <button class="mini-btn chan-pattern-edit" style="flex:1">Edit patterns…</button>
       </div>` : ''}` : ''}
       ${ch.screenMode === 'flat' ? `
-      <div class="chan-card__body chan-am-row">
+      <div class="org-layer-card__body chan-am-row">
         <span class="chan-am-label">Edge bleed</span>
         <input type="range" class="chan-edge-roughen" min="0" max="8" step="0.2" value="${ch.edgeRoughen}" aria-label="${ch.name} edge roughening">
         <span class="chan-val">${ch.edgeRoughen}</span>
       </div>
-      <div class="chan-card__body chan-am-row">
+      <div class="org-layer-card__body chan-am-row">
         <span class="chan-am-label">Wobble size</span>
         <input type="range" class="chan-edge-scale" min="3" max="60" step="1" value="${ch.edgeScale}" aria-label="${ch.name} edge wobble size">
         <span class="chan-val">${ch.edgeScale}</span>

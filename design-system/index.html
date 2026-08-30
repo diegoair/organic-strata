@@ -11,8 +11,9 @@
 <link rel="stylesheet" href="/shared/organica-tokens.css">
 <link rel="stylesheet" href="/shared/organica-header.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
-<link rel="stylesheet" href="/shared/organica-palette.css">
 <link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-shell.css">
+<link rel="stylesheet" href="/shared/organica-palette.css">
 <style>
   :root {
     --ink: #0a0a0a;
@@ -251,6 +252,13 @@
       <a href="#radius">Radius</a>
     </div>
     <div class="ds-nav__group">
+      <div class="ds-nav__title">Shell</div>
+      <a href="#shell">App shell</a>
+      <a href="#modal">Modal</a>
+      <a href="#upload">File input</a>
+      <a href="#layer-card">Layer card</a>
+    </div>
+    <div class="ds-nav__group">
       <div class="ds-nav__title">Panel</div>
       <a href="#panel-shell">Panel shell</a>
       <a href="#panel-section">Section &amp; sub-label</a>
@@ -286,7 +294,8 @@
       Every token and component Organica is built from, rendered with the
       exact CSS every tool loads (<code>shared/organica-tokens.css</code>,
       <code>organica-header.css</code>, <code>organica-panel.css</code>,
-      <code>organica-floatbar.css</code>). Nothing on this page is a copy —
+      <code>organica-floatbar.css</code>, <code>organica-shell.css</code>).
+      Nothing on this page is a copy —
       change a value in <code>shared/</code> and this page changes with it,
       same as every tool.
     </p>
@@ -317,8 +326,8 @@
 
     <section class="ds-entry" id="color">
       <h2>Color tokens</h2>
-      <p class="ds-desc"><code>--ink</code>/<code>--paper</code>/<code>--panel</code>/<code>--mid</code>/<code>--border</code> are per-tool (each tool sets its own hex in a local <code>:root</code>) — everything downstream reads the role, not a hex. <code>--accent-warm</code> and <code>--track-bg</code> are the two exceptions: one fixed accent, the same in every tool, so a slider or a floating toolbar reads identically regardless of which tool it's in.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-tokens.css</span><span>each tool's own :root</span></div>
+      <p class="ds-desc"><code>--ink</code>/<code>--paper</code>/<code>--panel</code>/<code>--mid</code>/<code>--border</code>/<code>--accent</code> are the surface palette. They're <strong>defaults in <code>organica-tokens.css</code></strong> now — 15 of 17 tools shipped byte-identical values, so a tool declares only <code>--tool</code> (its identity hue) plus the rare real override (<code>--ink #241b14</code> for the warm-black trio, <code>--mid #726a5e</code> for Blob Boundary). <code>--accent-warm</code>, <code>--track-bg</code> and <code>--danger</code> are fixed, the same in every tool. A tool's own <em>content</em> colour (Halide's ink/paper, Pollen's dots) is still local — that's user data, not a role.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-tokens.css</span></div>
       <div class="ds-example">
         <div class="ds-swatches">
           <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--ink)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--ink</div><div class="ds-swatch__val">text, thumbs, primary fills</div></div></div>
@@ -327,6 +336,7 @@
           <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--mid)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--mid</div><div class="ds-swatch__val">≥4.5:1 — sub-labels, values</div></div></div>
           <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--border-strong)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--border-strong</div><div class="ds-swatch__val">≥3:1 — rules, outlines</div></div></div>
           <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--accent-warm)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--accent-warm</div><div class="ds-swatch__val">one accent, every tool</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--danger)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--danger</div><div class="ds-swatch__val">validation / destructive text</div></div></div>
           <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--track-bg)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--track-bg</div><div class="ds-swatch__val">ink mixed into panel</div></div></div>
         </div>
       </div>
@@ -364,6 +374,77 @@
       <pre class="ds-code"><span class="attr">border-radius</span>: var(--radius-sm);   <span class="attr">/* inputs, swatches, chips */</span>
 <span class="attr">border-radius</span>: var(--radius-md);   <span class="attr">/* popovers, dividers, slider track */</span>
 <span class="attr">border-radius</span>: var(--radius-lg);   <span class="attr">/* the floating toolbar only */</span></pre>
+    </section>
+
+    <!-- ═══════════════════ SHELL ═══════════════════ -->
+    <h1 class="ds-group-title">Shell</h1>
+
+    <section class="ds-entry ds-prose" id="shell">
+      <h2>App shell</h2>
+      <p class="ds-desc">The frame every tool sits in — the box-sizing reset, a flex-column <code>&lt;body&gt;</code> pinned to the viewport, an <code>#app</code> row, and a centred <code>#canvas-wrap</code> stage area. Before this sheet, all 17 tools carried their own ~30-line copy of it, each annotated "same shared pattern as Loom/Halide/Spore/Pollen".</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-shell.css</span><strong>Used in</strong><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Camo Turing</span><span>Warping</span><span>Loom</span><span>Soul</span><span>Membrane</span><span>Vortex</span><span>Radial</span><span>Pulsar</span><span>Colornet</span><span>Blob Boundary</span></div>
+      <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"app"</span>&gt;
+  &lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"canvas-wrap"</span>&gt;
+    &lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"drop-hint"</span>&gt;…&lt;/<span class="tag">div</span>&gt;
+    &lt;<span class="tag">canvas</span> <span class="attr">id</span>=<span class="str">"main-canvas"</span> <span class="attr">class</span>=<span class="str">"org-stage"</span>&gt;&lt;/<span class="tag">canvas</span>&gt;
+    &lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"zoom-hud"</span>&gt;…&lt;/<span class="tag">div</span>&gt;
+  &lt;/<span class="tag">div</span>&gt;
+  &lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"panel"</span>&gt;…&lt;/<span class="tag">div</span>&gt;
+&lt;/<span class="tag">div</span>&gt;</pre>
+      <p class="ds-desc"><code>.org-stage</code> carries the canvas's shadow, <code>transform-origin</code> and the <code>.zoomed</code>/<code>.panning</code>/<code>.picking</code> cursor states — its id varies per tool (<code>#main-canvas</code>, <code>#view-canvas</code>, <code>#stage-frame</code>…) so the shared rules hang off the class. Genesis (3-column shell), Rhizome and FVS (their own canvas surfaces) keep their own; they still pick up the reset + surface palette.</p>
+    </section>
+
+    <section class="ds-entry" id="modal">
+      <h2>Modal</h2>
+      <p class="ds-desc">A full-screen backdrop that centres one panel. Hand-rolled with byte-identical CSS in Genesis (×2), FVS (×2) and Colornet (×1) before this. A dialog keeps its own inner-content CSS local and toggles visibility however it already does — <code>display</code> is deliberately not set on <code>.org-modal</code>. Panel width via <code>--org-modal-w</code>.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-panel.css</span><strong>Used in</strong><span>Genesis</span><span>FVS</span><span>Colornet</span></div>
+      <div class="ds-example">
+        <div class="org-modal" style="position:relative;inset:auto;min-height:180px;border:1px solid var(--border-strong)">
+          <div class="org-modal__panel" style="--org-modal-w:280px;max-height:none">
+            <div class="org-modal__header">
+              <span class="org-modal__title">Choose content</span>
+              <button class="icon-btn" aria-label="Close">&times;</button>
+            </div>
+            <div class="sub-label">A dialog body goes here.</div>
+          </div>
+        </div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-modal"</span> <span class="attr">role</span>=<span class="str">"dialog"</span> <span class="attr">aria-modal</span>=<span class="str">"true"</span> <span class="attr">style</span>=<span class="str">"display:none"</span>&gt;
+  &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-modal__panel"</span>&gt;
+    &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-modal__header"</span>&gt;
+      &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"org-modal__title"</span>&gt;Title&lt;/<span class="tag">span</span>&gt;
+    &lt;/<span class="tag">div</span>&gt;
+  &lt;/<span class="tag">div</span>&gt;
+&lt;/<span class="tag">div</span>&gt;</pre>
+    </section>
+
+    <section class="ds-entry" id="upload">
+      <h2>File input</h2>
+      <p class="ds-desc">The dashed "+ Upload…" trigger and the real <code>&lt;input type=file&gt;</code> it fronts. Six tools each carried a near-identical <code>.upload-btn</code> with a "copied verbatim rather than inventing a fourth variant" comment. The hidden input keeps a 1px on-screen footprint (<code>.org-file-input</code>) — Safari won't open the picker for an input that isn't rendered.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-panel.css</span><strong>Used in</strong><span>Camo Turing</span><span>Soul</span><span>Pollen</span><span>Membrane</span><span>Komorebi</span><span>Halide</span><span>Spore</span><span>Colornet</span></div>
+      <div class="ds-example" style="max-width:240px">
+        <button class="upload-btn">+ Upload SVG</button>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"upload-btn"</span> <span class="attr">onclick</span>=<span class="str">"fileInput.click()"</span>&gt;+ Upload&lt;/<span class="tag">button</span>&gt;
+&lt;<span class="tag">input</span> <span class="attr">type</span>=<span class="str">"file"</span> <span class="attr">id</span>=<span class="str">"file-input"</span> <span class="attr">class</span>=<span class="str">"org-file-input"</span>&gt;</pre>
+    </section>
+
+    <section class="ds-entry" id="layer-card">
+      <h2>Layer card</h2>
+      <p class="ds-desc">A bordered list row: a head (dot toggle + editable name + icon buttons) over one or more body rows. Camo Turing's <code>.layer-card</code> and Colornet's <code>.chan-card</code> are the same skeleton kept in sync by hand; both names are aliased onto <code>.org-layer-card</code> here (mapping, not renaming) so no tool markup changed. Each tool's own dot/name/opacity controls stay local.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/organica-panel.css</span><strong>Used in</strong><span>Camo Turing</span><span>Colornet</span></div>
+      <div class="ds-example" style="max-width:240px">
+        <div class="org-layer-card active">
+          <div class="org-layer-card__head">
+            <span style="width:10px;height:10px;border-radius:50%;background:var(--tool,var(--ink))"></span>
+            <span style="flex:1;font-size:var(--fs-small)">Layer 1</span>
+          </div>
+          <div class="org-layer-card__body">
+            <input type="range" value="70" aria-label="opacity">
+            <span class="ctrl-val">70%</span>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- ═══════════════════ PANEL ═══════════════════ -->
@@ -608,15 +689,16 @@ Organica.popover(document.getElementById(<span class="str">'btn-export'</span>),
 
     <section class="ds-entry ds-prose" id="file-architecture">
       <h2>File architecture</h2>
-      <p class="ds-desc">Four shared files, each owning one concern. A tool links all four, in this order — order matters, later files may reference tokens the earlier ones define, and <code>organica-panel.css</code>/<code>organica-floatbar.css</code> both style <code>.org-popover</code> and rely on <code>organica-header.css</code> having defined it first.</p>
+      <p class="ds-desc">Five shared files, each owning one concern. A tool links all five, in this order — order matters, later files may reference tokens the earlier ones define, and <code>organica-panel.css</code>/<code>organica-floatbar.css</code> both style <code>.org-popover</code> and rely on <code>organica-header.css</code> having defined it first.</p>
       <table>
         <tr><th>File</th><th>Owns</th><th>Depends on</th></tr>
-        <tr><td><code>organica-tokens.css</code></td><td>Typeface, weights, type scale, spacing scale, radius scale, <code>--accent-warm</code>, <code>--track-bg</code>, the <code>.mt-*</code>/<code>.mb-*</code>/<code>.u-flex1</code>/<code>.u-hidden</code> utilities</td><td>nothing — load first, always</td></tr>
+        <tr><td><code>organica-tokens.css</code></td><td>Typeface, weights, type scale, spacing scale, radius scale, the surface palette (<code>--ink</code>/<code>--paper</code>/<code>--mid</code>/<code>--accent</code>/<code>--panel</code>/<code>--border</code>), <code>--accent-warm</code>, <code>--danger</code>, <code>--track-bg</code>, the <code>.mt-*</code>/<code>.mb-*</code>/<code>.u-flex1</code>/<code>.u-hidden</code> utilities</td><td>nothing — load first, always</td></tr>
         <tr><td><code>organica-header.css</code></td><td>The header shell (identity/context/status/actions), <code>.org-btn</code> and its modifiers, <code>.org-popover</code></td><td>organica-tokens.css</td></tr>
-        <tr><td><code>organica-panel.css</code></td><td>The right-hand control sidebar — section/sub-label/row, slider, select/input/color-row, segmented control</td><td>organica-tokens.css</td></tr>
+        <tr><td><code>organica-panel.css</code></td><td>The right-hand control sidebar — section/sub-label/row, slider, select/input/color-row, segmented control, <code>.upload-btn</code>/<code>.org-file-input</code>, <code>.org-modal</code>, <code>.org-layer-card</code></td><td>organica-tokens.css</td></tr>
         <tr><td><code>organica-floatbar.css</code></td><td>The bottom-centre floating action bar and its popover-anchoring override</td><td>organica-tokens.css, organica-header.css (reuses <code>.org-popover</code>/<code>.org-btn</code>)</td></tr>
+        <tr><td><code>organica-shell.css</code></td><td>The app-shell skeleton — reset, <code>&lt;body&gt;</code>, <code>#app</code>, <code>#canvas-wrap</code>, <code>.org-stage</code> + zoom-cursor states, <code>#zoom-hud</code>, <code>#drop-hint</code></td><td>organica-tokens.css</td></tr>
       </table>
-      <p>A tool's own <code>&lt;style&gt;</code> block comes <strong>after</strong> all four — that's what lets a tool override a token locally (its own <code>--ink</code>, <code>--tool</code> accent, etc.) without <code>!important</code>. It should contain only that tool's own layout and one-off components (its canvas, its HUD, its drop zone) — never a redefinition of something the shared files already own. <code>shared/organica-core.js</code> is the JS half: <code>Organica.popover()</code>, <code>Organica.status()</code>, <code>Organica.enhanceSliders()</code>, <code>Organica.autoLabelPanel()</code> — load it before a tool's own script.</p>
+      <p>A tool's own <code>&lt;style&gt;</code> block comes <strong>after</strong> all five — that's what lets a tool override a token locally (its own <code>--ink</code>, <code>--tool</code> accent, etc.) without <code>!important</code>. It should contain only that tool's own layout and one-off components (its canvas, its HUD, its drop zone) — never a redefinition of something the shared files already own. <code>shared/organica-core.js</code> is the JS half: <code>Organica.popover()</code>, <code>Organica.status()</code>, <code>Organica.enhanceSliders()</code>, <code>Organica.autoLabelPanel()</code> — load it before a tool's own script.</p>
     </section>
 
     <section class="ds-entry ds-prose" id="tool-palette">

@@ -6,53 +6,17 @@
 <title>Warping — Organica</title>
 <link rel="stylesheet" href="/shared/organica-tokens.css">
 <link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-shell.css">
 <style>
 :root {
-  --ink: #241b14;
-  --paper: #ffffff;
-  --mid: #696256;
-  --accent: #2a2a2a;
-  --panel: #eceae4;
-  --border: #d0c8b8;
+  --ink: #241b14;   /* warm-black override — this tool's ink */
   --tool: #a9683e;   /* header focus ring — wood/warm terracotta, this tool's identity colour */
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--font);
-  font-size: var(--fs-base);
-  height: 100vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-#app { display: flex; flex: 1; overflow: hidden; }
-
-#canvas-wrap {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--panel);
-  position: relative;
-  overflow: hidden;
-  padding: var(--space-7);
-}
-
-#view-canvas {
-  max-width: 100%;
-  max-height: 100%;
-  box-shadow: 0 4px 40px rgba(0,0,0,0.18);
-  display: block;
-}
-
-/* input[type=color] hider now in shared/organica-panel.css */
+/* Reset, body, #app, #canvas-wrap and .org-stage all come from
+   organica-shell.css + the shared surface-palette tokens. */
 </style>
 </head>
 <body>
@@ -114,7 +78,7 @@ body {
 <div id="app">
 
   <div id="canvas-wrap">
-    <canvas id="view-canvas"></canvas>
+    <canvas id="view-canvas" class="org-stage"></canvas>
   </div>
 
   <div id="panel">

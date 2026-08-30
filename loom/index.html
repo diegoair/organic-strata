@@ -8,14 +8,9 @@
 <link rel="stylesheet" href="/shared/organica-header.css">
 <link rel="stylesheet" href="/shared/organica-panel.css">
 <link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/organica-shell.css">
 <style>
 :root {
-  --ink: #0a0a0a;
-  --paper: #ffffff;
-  --mid: #696256;
-  --accent: #2a2a2a;
-  --panel: #eceae4;
-  --border: #d0c8b8;
   --tool: #4a7fc9;   /* header focus ring — blueprint blue, this tool's identity colour */
   /* Grid cell border colour — Photoshop's own default guide-line blue, per
      Diego's own ask. This is the grid's CONTENT colour (the line itself,
@@ -33,32 +28,8 @@
   --overlay-orange: #ff6b35;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--font);
-  font-size: var(--fs-base);
-  height: 100vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-#app { display: flex; flex: 1; overflow: hidden; }
-
-#canvas-wrap {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--panel);
-  position: relative;
-  overflow: hidden;
-  padding: var(--space-7);
-}
-
+/* Reset, body, #app, #canvas-wrap and the #zoom-hud base come from the
+   shared sheets (organica-shell.css). Loom's own deltas: */
 #canvas-frame {
   position: relative;
   background: #ffffff;
@@ -71,27 +42,7 @@ body {
 #canvas-frame.zoomed { cursor: grab; }
 #canvas-frame.panning { cursor: grabbing; }
 
-/* Zoom HUD — same shared pattern as Halide/Spore/Pollen/Strata's own
-   zoom/pan (Organica.createZoomPan, shared/organica-core.js). */
-#zoom-hud {
-  position: absolute;
-  bottom: 16px; left: 16px;
-  background: var(--ink);
-  color: var(--paper);
-  font-family: var(--font);
-  font-size: var(--fs-micro, 9px);
-  letter-spacing: 0.1em;
-  padding: var(--space-2) var(--space-4);
-  display: none;
-  align-items: center;
-  gap: var(--space-3);
-  pointer-events: none;
-  user-select: none;
-  z-index: 10;
-}
-#zoom-hud.visible { display: flex; }
-#zoom-hud .zoom-reset { pointer-events: auto; cursor: pointer; opacity: 0.6; transition: opacity 0.15s; }
-#zoom-hud .zoom-reset:hover { opacity: 1; }
+#zoom-hud { z-index: 10; }   /* above #canvas-frame */
 
 #grid-preview {
   position: relative;

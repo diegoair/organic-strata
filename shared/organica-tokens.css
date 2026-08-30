@@ -157,11 +157,37 @@ html {
      over the 3:1 non-text-contrast floor. */
   --accent-warm: #c2551b;
 
+  /* Error / destructive text. One earthy red, chosen to sit next to
+     --accent-warm without clashing (both are warm, desaturated). Used for
+     validation messages and destructive-action labels — NOT for a tool's
+     own content. Before this, FVS carried two different hardcoded reds
+     (#a03828 ×3, #c0392b ×1) for the same job. */
+  --danger: #a03828;
+
   /* Slider track housing — a quiet grey chip, mixed from each tool's own
      --ink into its own --panel so it stays visible-but-subordinate no
      matter which tool's palette it sits in, instead of one hardcoded hex
      that would read differently against every panel colour. */
   --track-bg: color-mix(in srgb, var(--ink) 10%, var(--panel));
+
+  /* ── SURFACE PALETTE (defaults) ────────────────────────────
+     Every tool used to redeclare these six, byte-identical, in its own
+     <style>. UI-SHELL.md §3 originally kept the palette per-tool on the
+     theory each tool would tune its own light/dark surfaces — that
+     divergence never happened (15 of 17 tools shipped exactly these
+     values). They live here now as defaults; a tool declares only --tool
+     (its identity hue) plus the rare genuine override: --ink #241b14 for
+     the warm-black trio (Warping / Radial / Pulsar), --mid #726a5e for
+     Blob Boundary. Genesis keeps its own separate --bg/--ink-muted scale.
+     A tool's own CONTENT colour (Halide's ink/paper, Pollen's dots) is
+     user data, still set locally — see DESIGN-SYSTEM.md §5. */
+  --ink:    #0a0a0a;
+  --paper:  #ffffff;
+  --mid:    #696256;
+  --accent: #2a2a2a;
+  --panel:  #eceae4;
+  --border: #d0c8b8;
+  color-scheme: light;
 }
 
 /* ── SPACING UTILITIES ────────────────────────────────────────
@@ -175,7 +201,8 @@ html {
    so there's no second numbering scheme to memorise on top of the
    token scale that already exists. Use these instead of a new inline
    style; if the spacing you need isn't a --space-* step, that's a sign
-   to add the step, not to reach for a raw px value. */
+   to add the step, not to reach for a raw px value.
+
    A utility only does its job if it always wins — the alternative is
    remembering the specificity of every component class it might land
    on (a slider row's own rule is a compound selector, .row .val, which
