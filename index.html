@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Organica</title>
-  <link rel="stylesheet" href="/shared/organica-tokens.css">
-  <link rel="stylesheet" href="/genesis/organic-animations.css">
-  <link rel="stylesheet" href="/shared/organica-mobile-gate.css">
+  <link rel="stylesheet" href="/shared/tokens.css">
+  <link rel="stylesheet" href="/genesis/animations.css">
+  <link rel="stylesheet" href="/shared/mobile-gate.css">
   <style>
     *, *::before, *::after {
       margin: 0;
@@ -232,7 +232,7 @@
     .nav__link--soul::after { background: #a83e6b; }
 
     /* ── centre — bento showcase of the Genesis motion library.
-       Reuses the 55 forms verbatim (organic-animations.css + the
+       Reuses the 55 forms verbatim (animations.css + the
        ORGANIC_FORMS data loaded below) — no new assets, --ink varied
        per cell via inline custom property so one shared stylesheet still
        drives every colour, exactly the mechanism CLAUDE.md documents for
@@ -277,7 +277,7 @@
     .bento-cell {
       /* --tool-color is the per-item accent set inline by buildBento() —
          drives the card background; --ink is then overridden to white
-         for this subtree ONLY, so organic-animations.css's own
+         for this subtree ONLY, so animations.css's own
          `fill:var(--ink)` rules (append-only, never edited directly) and
          this file's .tp-* preview-motif rules render their shapes in
          white on the saturated card automatically, with no per-rule
@@ -358,7 +358,7 @@
        · spin    — Differential Rotation. Membrane's own export metadata
          literally reads movementPattern:"orbit" — a slow continuous
          rotation is the one true motion for THIS specific file.
-       Defined locally (not in organic-animations.css) since these apply
+       Defined locally (not in animations.css) since these apply
        to real exports, not the reusable 55-form library. ── */
     .tp-anim-breathe svg { animation: cellBreathe 6.5s ease-in-out infinite; }
     @keyframes cellBreathe {
@@ -532,7 +532,7 @@
   </main>
 
   <!-- shared SVG defs (goo filter) — same inline block genesis/indicators.html
-       uses, required by organic-animations.css for forms 3/4/5/8/9/25/27/28/
+       uses, required by animations.css for forms 3/4/5/8/9/25/27/28/
        31/41/55's metaball merge effect. The 7 terrazzo chip shapes below
        (also copied from genesis/indicators.html) are required by forms
        52/53, which reference them via <use href="#cA">-style links — found
@@ -566,7 +566,7 @@
     <a class="meta__link" href="/design-system/">Design System</a>
   </div>
 
-  <script src="/genesis/organic-forms.js"></script>
+  <script src="/genesis/forms.js"></script>
   <script>
     // ── bento showcase — Genesis forms + hand-built preview motifs for
     // other tools, so the hub reads as one gallery instead of a Genesis-
@@ -633,7 +633,7 @@
     }
 
     // Form 35 (phyllotaxis spiral) ships as an empty <svg> shell in
-    // organic-forms.js — its dots are generated at runtime, normally by
+    // forms.js — its dots are generated at runtime, normally by
     // genesis-creator.js's own "fix form 35" snippet, ported verbatim
     // here since the hub doesn't otherwise load that file.
     function fillPhyllotaxisSpiral() {

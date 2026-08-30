@@ -1,7 +1,7 @@
 /* ─────────────────────────────────────────────────────────────
    Constraint Engine — two solvers, chosen PER GENERATOR, not globally.
 
-   solveTracksKiwi: real Cassowary constraint solving (shared/kiwi.min.js,
+   solveTracksKiwi: real Cassowary constraint solving (shared/vendor/kiwi.min.js,
    vendored — MIT/BSD, no CDN, same convention as Paper.js in Strata).
    Used where a generator genuinely benefits from "equal by default,
    overridable under priority" — modular/column/row/Bento-family grids,
@@ -19,7 +19,7 @@
    simultaneous, priority-weighted sizing is the actual behaviour wanted.
    ───────────────────────────────────────────────────────────── */
 
-// `kiwi` is a classic global (shared/kiwi.min.js loads before this module,
+// `kiwi` is a classic global (shared/vendor/kiwi.min.js loads before this module,
 // same load-order convention as Organica on every other tool that mixes a
 // vendored global with an ES module — see camo-turing/index.html).
 

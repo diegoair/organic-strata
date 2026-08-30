@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   ORGANICA — organica-motion.js
+   ORGANICA — motion.js
    The animation engine's own primitive contract: every source tool
    (Genesis, Strata, Pollen, Spore, Halide, Loom, Komorebi/Camo Turing/
    Warping's own posterised vector exports) already produces real SVG —
@@ -7,7 +7,7 @@
    the engine's own scoping call, EVERYTHING becomes vectors before it
    reaches this module, raster included (Halide/Komorebi/Camo Turing/
    Warping already vectorise via the shared contour tracer in
-   organica-core.js). So the primitive contract's input format is just
+   core.js). So the primitive contract's input format is just
    "an SVG string" — no per-tool adapter needed, one parser covers every
    source.
 
@@ -27,7 +27,7 @@
    path-curve-extrema math — reusing a real, already-correct engine
    capability instead of reimplementing it.
 
-   Requires organica-core.js loaded first (extends window.Organica).
+   Requires core.js loaded first (extends window.Organica).
    ───────────────────────────────────────────────────────────── */
 
 (function (global) {
@@ -228,7 +228,7 @@
   // ═══════════════════════════════════════════════════════════
 
   function requireGSAP() {
-    if (typeof gsap === 'undefined') throw new Error('GSAP not loaded — include shared/gsap.min.js before calling Organica.motion pattern functions.');
+    if (typeof gsap === 'undefined') throw new Error('GSAP not loaded — include shared/vendor/gsap.min.js before calling Organica.motion pattern functions.');
     return gsap;
   }
 
@@ -337,7 +337,7 @@
     // The real difference in kind: every pattern above is a fixed,
     // repeating GSAP timeline — this one is CONTINUOUS, procedural motion
     // driven by simplex3(x, y, t)'s own genuinely non-repeating time axis
-    // (organica-noise.js, verified continuous to 0.004 max delta per
+    // (noise.js, verified continuous to 0.004 max delta per
     // 0.001s of t when it was built). Because each primitive samples the
     // noise field at ITS OWN (cx, cy) as the spatial seed, neighbouring
     // elements drift in a correlated but never-identical way — the same
@@ -455,7 +455,7 @@
     if (by === 'noise') {
       const scale = cfg.noiseScale || 0.006;
       // Organica.noise, not a bare `noise` — this file has no local noise
-      // object of its own (that's organica-noise.js's own closure); a
+      // object of its own (that's noise.js's own closure); a
       // first version referenced the bare name assuming it was in scope,
       // which it never was — caught only when the 'noise' stagger option
       // was actually exercised for the first time, not by any earlier
@@ -475,7 +475,7 @@
   // rather than going through `gsap.set()` per element (GSAP's own
   // per-call property-parsing/plugin-dispatch overhead, multiplied by
   // thousands of calls a frame, was the actual cost — not the DOM size).
-  // Verified fix: 5748 elements, 1fps → see organica-motion.js's own
+  // Verified fix: 5748 elements, 1fps → see motion.js's own
   // wobble() header for the measured before/after.
   function animateWobbleBatch(targets, primitives, p, staggerCfg) {
     const amt = p.amount != null ? p.amount : 0.4;

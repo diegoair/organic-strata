@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   ORGANICA — organica-core.js
+   ORGANICA — core.js
    The utilities every Organica tool needs, in one place.
 
    Why this file exists: these routines used to be copy-pasted between
@@ -14,8 +14,8 @@
    upgrade rather than a lateral move. Notes on the merges are inline.
 
    Everything hangs off window.Organica. No build step, no modules —
-   a plain <script src="/shared/organica-core.js"> before the tool's own
-   script, matching how /genesis/organic-forms.js is already loaded.
+   a plain <script src="/shared/core.js"> before the tool's own
+   script, matching how /genesis/forms.js is already loaded.
 
    See docs/SHARED-LIBRARY.md.
    ───────────────────────────────────────────────────────────── */
@@ -137,8 +137,8 @@
     };
   };
 
-  // Colour-swatch + RMX-chip UI moved to shared/organica-palette.js
-  // (Organica.palette.swatch, JS + paired organica-palette.css).
+  // Colour-swatch + RMX-chip UI moved to shared/palette.js
+  // (Organica.palette.swatch, JS + paired palette.css).
 
   // ═══════════════════════════════════════════════════════════
   // PRESET STORAGE
@@ -621,7 +621,7 @@
   // ═══════════════════════════════════════════════════════════
   // HEADER
   //
-  // The bar is markup (see shared/organica-header.css); this owns the two
+  // The bar is markup (see shared/header.css); this owns the two
   // behaviours that were missing everywhere and are easy to get wrong.
   // ═══════════════════════════════════════════════════════════
 
@@ -758,7 +758,7 @@
   // reaching content added later (Living Path rebuilds its effect rows on
   // every layer toggle):
   //   1. A live --fill custom property (0%–100%), read by the gradient in
-  //      organica-panel.css. User drags update it via the bubbling 'input'
+  //      panel.css. User drags update it via the bubbling 'input'
   //      event; script-driven changes (a preset doing `slider.value = x`)
   //      update it via a wrapped .value accessor, since presets never
   //      dispatch a synthetic input event.

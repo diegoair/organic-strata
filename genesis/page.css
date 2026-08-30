@@ -1,15 +1,16 @@
 /* ─────────────────────────────────────────────────────────────
-   ORGANICA — organic-page.css
+   ORGANICA — page.css
    Page chrome for the Genesis catalog-style pages: the :root palette
    plus body / header / .grid / .cell / .num layout.
 
-   This is the PAGE half of the old organic-library.css. It is NOT
-   required to render the forms — link organic-animations.css for that.
-   Split out on July 25, 2026 — see docs/SHARED-LIBRARY.md.
+   This is the PAGE half of the old organic-library.css bundle. It is NOT
+   required to render the forms — link animations.css for that.
+   Split out July 25 2026; the organic-library.css @import shim was
+   retired 2026-08-30 — see docs/SHARED-LIBRARY.md.
 
    NOTE: this file owns the default --ink / --bg-cell values. Pages that
-   link organic-animations.css WITHOUT this file must define both
-   themselves (see the contract at the top of organic-animations.css).
+   link animations.css WITHOUT this file must define both
+   themselves (see the contract at the top of animations.css).
    ───────────────────────────────────────────────────────────── */
 
 

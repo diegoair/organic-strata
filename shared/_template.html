@@ -8,17 +8,17 @@
 <!-- Shared sheets, in load-bearing order (docs/UI-SHELL.md §2):
      tokens → header → panel → floatbar → shell → palette.
      Each later sheet can override the one before without !important.
-     Drop organica-palette.css if this tool has no colour picker. -->
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-<link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-panel.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
-<link rel="stylesheet" href="/shared/organica-shell.css">
-<link rel="stylesheet" href="/shared/organica-palette.css">
+     Drop palette.css if this tool has no colour picker. -->
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/palette.css">
 <style>
   :root {
     /* The surface palette (--ink/--paper/--mid/--accent/--panel/--border)
-       and color-scheme are defaults in organica-tokens.css. Declare only
+       and color-scheme are defaults in tokens.css. Declare only
        --tool — this tool's identity hue, which drives the header focus
        ring. Pick an unclaimed hue: check the --tool registry in the hub
        nav + docs/UI-SHELL.md §6b before choosing. Override --ink here only
@@ -128,7 +128,7 @@
 
       <label class="check-row"><input type="checkbox" id="ck-flag" checked><span>A toggle</span></label>
 
-      <!-- Colour row — wired by Organica.palette.swatch (organica-palette.js).
+      <!-- Colour row — wired by Organica.palette.swatch (palette.js).
            The component keeps #sw-ink / #cp-ink / #hex-ink in sync; the tool
            only supplies the repaint side effect via onChange. -->
       <div class="color-row">
@@ -147,13 +147,13 @@
 <input type="file" id="file-input" class="org-file-input" accept="image/*" onchange="loadImage(this)">
 
 <!-- Core BEFORE the tool script so Organica.* exists at parse time.
-     organica-palette.js only if this tool has a colour picker.
-     organica-recorder.js only if this tool records the canvas to video
+     palette.js only if this tool has a colour picker.
+     recorder.js only if this tool records the canvas to video
      (Organica.recorder — see pulsar/vortex/membrane/camo-turing). -->
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette.js"></script>
-<!-- <script src="/shared/organica-recorder.js"></script> -->
-<!-- <script src="/shared/organica-seedspanel.js"></script>  (+ its CSS above) -->
+<script src="/shared/core.js"></script>
+<script src="/shared/palette.js"></script>
+<!-- <script src="/shared/recorder.js"></script> -->
+<!-- <script src="/shared/seeds-panel.js"></script>  (+ its CSS above) -->
 
 <script>
 // ─────────────────────────────────────────────

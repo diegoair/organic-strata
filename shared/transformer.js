@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   ORGANICA — organica-transformer.js
+   ORGANICA — transformer.js
    "Transformer" — a small registry-driven raster effect stack, first
    built inside Camo Turing (see camo-turing/index.html's own TRANSFORMERS
    registry) and centralized here once proven useful there. Ported from
@@ -18,7 +18,7 @@
      black) — this is the seam between "generic field algorithm" and
      "how Organica tools represent a shape".
    - buildPicker() is the thumbnail-dropdown UI (same visual contract as
-     Pattern's own preset-trigger/preset-menu — see organica-panel.css)
+     Pattern's own preset-trigger/preset-menu — see panel.css)
      wired to a registry of {name, icon, apply(canvas, ctx, params)}
      entries, for tools that want a static-icon picker rather than
      Pattern's own live-simulated-thumbnail one (a Transformer's
@@ -26,7 +26,7 @@
      a Gray-Scott f/k preset's is, so a live preview has no equivalent
      here — small SVG icons instead).
 
-   Requires organica-core.js loaded first (extends window.Organica).
+   Requires core.js loaded first (extends window.Organica).
    ───────────────────────────────────────────────────────────── */
 
 (function (global) {
@@ -247,7 +247,7 @@
   };
 
   // Fallback PRNG if Organica.mulberry32 isn't exposed by the host tool
-  // (organica-core.js doesn't currently export one — most tools keep
+  // (core.js doesn't currently export one — most tools keep
   // their own local copy) — same algorithm, so seeded results match.
   function mulberry32Fallback(seed) {
     let t = seed >>> 0;
@@ -282,7 +282,7 @@
 
   // ═══════════════════════════════════════════════════════════
   // PICKER UI — thumbnail dropdown, same visual contract (CSS classes)
-  // as Pattern's own preset-trigger/preset-menu in organica-panel.css.
+  // as Pattern's own preset-trigger/preset-menu in panel.css.
   // Static SVG icons, not live-simulated thumbnails — see file header.
   // ═══════════════════════════════════════════════════════════
   let pickerSeq = 0;

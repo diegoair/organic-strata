@@ -5,7 +5,7 @@
    listed here are the only auto-adapters, and each one is a direct,
    disclosed port of something an existing tool already does by hand:
 
-   - svg  -> points  : Organica.motion.parsePrimitives (shared/organica-motion.js)
+   - svg  -> points  : Organica.motion.parsePrimitives (shared/motion.js)
    - grid -> points  : cell-centre scatter, what Mycel already does by
                         hand for its own point-source (mycel/index.html:363)
    - grid -> svg     : one rect/polygon per cell, what FVS/the Loom
@@ -70,7 +70,7 @@ function gridToImage(grid) {
 
 // Scanline polygon fill — only needed for the grid->image adapter's
 // polygon cellShape branch (hexagonal/etc. grids), so it's kept private
-// here rather than promoted to organica-core.js until a second consumer
+// here rather than promoted to core.js until a second consumer
 // needs it (same "extract at the second real consumer, not speculatively"
 // rule this project applies to every other shared-code decision).
 function fillPolygon(mask, w, h, points) {

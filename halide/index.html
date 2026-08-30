@@ -4,15 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Halide — Organica</title>
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-  <link rel="stylesheet" href="/shared/organica-header.css">
-  <link rel="stylesheet" href="/shared/organica-panel.css">
-  <link rel="stylesheet" href="/shared/organica-floatbar.css">
-  <link rel="stylesheet" href="/shared/organica-shell.css">
+<link rel="stylesheet" href="/shared/tokens.css">
+  <link rel="stylesheet" href="/shared/header.css">
+  <link rel="stylesheet" href="/shared/panel.css">
+  <link rel="stylesheet" href="/shared/floatbar.css">
+  <link rel="stylesheet" href="/shared/shell.css">
   <style>
   :root {
     --halide: #5a7a96;
-    --tool: #5a7a96;   /* drives the header focus ring — see organica-header.css */
+    --tool: #5a7a96;   /* drives the header focus ring — see header.css */
   }
 
   /* Reset, body, #app, #canvas-wrap, #drop-hint, .drop-icon, #zoom-hud and
@@ -330,8 +330,8 @@
   </div><!-- /panel -->
 </div><!-- /app -->
 
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/palette.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // HALIDE — photo → true 1-bit dithered portrait
@@ -370,7 +370,7 @@ function val(id)  { return parseFloat(ctrl(id).value); }
 // ── STATUS ──
 // Writes into the header component's <output>, which is a polite live region —
 // so progress is announced to assistive tech, not only painted. Before, this
-// mutated a bare <span> and was silent. See shared/organica-core.js.
+// mutated a bare <span> and was silent. See shared/core.js.
 const setStatus = Organica.status();
 
 // ── CONTROLS ──
@@ -533,7 +533,7 @@ const BUILTIN_PRESETS = {
   'Threshold (no dither)':       { alg:'threshold',bayer:4, serp:true,  res:128, gamma:1,    contrast:0,  bias:0,  square:false, ink:'#0a0a0a', paper:'#f5f2ec' },
   'Ditherface':                  { alg:'atkinson', bayer:4, serp:true,  res:260, gamma:1,    contrast:0,  bias:0,  square:true,  ink:'#0a0a0a', paper:'#f5f2ec', bgremove:true, bgtol:24, outline:true, outlineWidth:1, bgfill:true, bgfillColor:'#000000', transparent:false },
 };
-// Preset storage + legacy-key migration live in /shared/organica-core.js.
+// Preset storage + legacy-key migration live in /shared/core.js.
 const PRESETS = Organica.presetStore('halide', 'halide-presets');
 const PRESET_KEY = PRESETS.key;
 function userPresets() { return PRESETS.read(); }
@@ -755,7 +755,7 @@ function brightnessField(rgba, W, H, bgMask) {
 }
 
 // ─────────────────────────────────────────────
-// DITHER ALGORITHMS — promoted to shared/organica-core.js (Organica.dither)
+// DITHER ALGORITHMS — promoted to shared/core.js (Organica.dither)
 // once Colornet became a second consumer; these are thin aliases so every
 // call site below is untouched.
 // ─────────────────────────────────────────────
@@ -902,7 +902,7 @@ function fillEnclosedHoles(mask, W, H) {
   return out;
 }
 
-// ── CONTOUR TRACING — see /shared/organica-core.js ──
+// ── CONTOUR TRACING — see /shared/core.js ──
 // Rectilinear boundary walk: turns a binary cell mask into one <path> per
 // region (evenodd fill handles holes) instead of a <rect> per cell. Lived
 // here first, now shared with Komorebi — the two copies had already drifted
@@ -1054,7 +1054,7 @@ function updateSizeReadout() {
   const d = outputDims(parseInt(ctrl('sel-scale').value, 10) || 4);
   ctrl('vl-out-size').textContent = d.outW + ' × ' + d.outH;
 }
-const download = Organica.download;   // shared — delayed revoke, see /shared/organica-core.js
+const download = Organica.download;   // shared — delayed revoke, see /shared/core.js
 function exportRaster(mime, ext, quality) {
   if (!rects) return;
   setStatus('active', 'Exporting ' + ext.toUpperCase() + '…');
@@ -1129,7 +1129,7 @@ function sendToFigma() {
 }
 
 // ── ZOOM & PAN ──
-// Shared maths: Organica.createZoomPan (organica-core.js) — cursor-focal
+// Shared maths: Organica.createZoomPan (core.js) — cursor-focal
 // zoom, ⌘±/⌘0 shortcuts and the pre-wheel slider-blur live there. Inline
 // copy until 2026-08-30. The tool still owns its own HUD.
 const zoomPan = Organica.createZoomPan({
@@ -1148,7 +1148,7 @@ function resetZoom() { zoomPan.reset(); }
 
 // ── INIT ──
 // The Export popover owns the accessibility contract (aria-expanded, Escape,
-// click-outside, focus return) — see shared/organica-core.js.
+// click-outside, focus return) — see shared/core.js.
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 
 ['ink', 'paper', 'bgfill'].forEach(c => {

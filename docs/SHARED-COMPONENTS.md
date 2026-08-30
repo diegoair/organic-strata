@@ -14,10 +14,10 @@ eight steps apply to every entry in the backlog (§3).
 
 1. **Inventory** — Explore agents, not guesswork. Find every copy, the divergence
    (params, side effects, CSS sizes), the consumers, and where the CSS lives.
-2. **Canonical home** — reuse an existing `shared/organica-*.js` if the concern fits its
-   identity; otherwise a new `shared/organica-<name>.js`. If the concern ships UI, pair a
-   `shared/organica-<name>.css` — **unless** the CSS is already universal in
-   `organica-panel.css` (like `.color-*`), which stays there.
+2. **Canonical home** — reuse an existing `shared/<name>.js` if the concern fits its
+   identity; otherwise a new `shared/<name>.js`. If the concern ships UI, pair a
+   `shared/<name>.css` — **unless** the CSS is already universal in
+   `panel.css` (like `.color-*`), which stays there.
 3. **One entry point** — if the concern has two shapes of the same idea (single vs list;
    attach-to-existing-markup vs generate-markup), write **one polymorphic function** that
    branches on argument type and returns **one unified object shape**. Do not ship two
@@ -51,18 +51,18 @@ eight steps apply to every entry in the backlog (§3).
 
 ---
 
-## 2. Palette component — `shared/organica-palette.js` (+ `organica-palette.css`)
+## 2. Palette component — `shared/palette.js` (+ `palette.css`)
 
 One polymorphic entry point for every colour control:
 
 ```js
 // ATTACH — target is a string prefix. Wires #cp-/#hex-/#sw-/#btn-random-<prefix>
-//   inside a labelled .color-row (CSS in organica-panel.css — universally linked).
+//   inside a labelled .color-row (CSS in panel.css — universally linked).
 const ink = Organica.palette.swatch('ink', { initial: '#1c1c1c', onChange: repaint });
 //   onChange(hex, rgb255) — the legacy 2-arg signature.
 
 // GENERATE — target is an HTMLElement. Builds .rmx-color chips into it.
-//   Needs organica-palette.css. opts.max > 1 ⇒ RMX strip with + / × .
+//   Needs palette.css. opts.max > 1 ⇒ RMX strip with + / × .
 const rmx = Organica.palette.swatch(wrapEl, {
   colors: state.colors, min: 2, max: 8,
   onChange: (colors, index, action) => { state.colors = colors; },   // action: edit|add|remove|set
@@ -76,7 +76,7 @@ Both shapes return the **same** object: `{ get, set, getColors, setColors(arr, {
 setActive(i), rebuild }`. Attach mode's chip-only methods are no-ops. Serialization stays
 the tool's job (`getColors()[0]` for `ink`/`paper`, `getColors()` for `colors[]`).
 
-**Load:** after `organica-core.js`. Link `organica-palette.css` only in generate-mode
+**Load:** after `core.js`. Link `palette.css` only in generate-mode
 tools. **CSS custom props:** `--rmx-cell-w/h`, `--rmx-cell-radius`, `--rmx-cell-border`,
 `--rmx-palette-mb`, `--icon-btn-w/h` (TuneSutra sets the first four for its 30×26 rounded
 cell; Spore/Pollen set `--rmx-palette-mb: 0`).
@@ -113,16 +113,16 @@ The back-compat aliases (`Organica.createColorSwatch` / `createPaletteChips` /
 | Concern | State today | Canonical target |
 |---|---|---|
 | **Palette** | Done 2026-08-30: all 14 colour-picker tools on `Organica.palette.swatch`, aliases removed, TuneSutra `setActive`, Vortex `.color-*` overrides dropped (adopts shared 18×18), livingpath's bare `<input>` → `.color-row` + `palette.swatch`. | — |
-| **App shell** | Done 2026-08-30: new `shared/organica-shell.css` owns the reset / `body` / `#app` / `#canvas-wrap` / `.org-stage` / `#zoom-hud` / `#drop-hint`. 14 tools link it and deleted their local copies (Genesis / Rhizome / FVS keep their own canvas surface; still get the surface palette). Surface palette (`--ink`…`--border`) + `--danger` moved to `organica-tokens.css` as defaults. `shared/_template.html` refreshed. | — |
-| **Modal** | Done 2026-08-30: `.org-modal` / `__panel` / `__header` / `__title` in `organica-panel.css`; Genesis (×2), FVS (×2), Colornet (×1) retrofitted (backdrop + panel skeleton shared, `display` toggle + inner content stay local, width via `--org-modal-w`). | — |
-| ~~`.upload-btn` / `.org-file-input`~~ | **Done 2026-08-30.** `.upload-btn` in `organica-panel.css` (Camo Turing / Soul exact; Pollen / Membrane / Spore keep a 1-line delta; Genesis keeps a softer hover + bottom margin). `.org-file-input` on all inline sr-only `<input type=file>` blocks (komorebi / halide / spore / pollen / soul / colornet / membrane / camo-turing / fvs / genesis). | — |
-| **`.org-layer-card`** | Done 2026-08-30: skeleton (border/head/body) in `organica-panel.css`. First aliased `.layer-card` / `.chan-card` onto it, then (same day) **renamed both outright** — Colornet's `.chan-card*` → `.org-layer-card*` (incl. `.chan-card--armed` → `.chan-armed`), Camo Turing's `.layer-card*` → `.org-layer-card*` (incl. its 2 card-builder `querySelectorAll`s). Aliases deleted; only `.org-layer-card` remains. Each tool keeps its own inner controls + real deltas (Colornet's rounded corner + `.chan-armed`). | — |
+| **App shell** | Done 2026-08-30: new `shared/shell.css` owns the reset / `body` / `#app` / `#canvas-wrap` / `.org-stage` / `#zoom-hud` / `#drop-hint`. 14 tools link it and deleted their local copies (Genesis / Rhizome / FVS keep their own canvas surface; still get the surface palette). Surface palette (`--ink`…`--border`) + `--danger` moved to `tokens.css` as defaults. `shared/_template.html` refreshed. | — |
+| **Modal** | Done 2026-08-30: `.org-modal` / `__panel` / `__header` / `__title` in `panel.css`; Genesis (×2), FVS (×2), Colornet (×1) retrofitted (backdrop + panel skeleton shared, `display` toggle + inner content stay local, width via `--org-modal-w`). | — |
+| ~~`.upload-btn` / `.org-file-input`~~ | **Done 2026-08-30.** `.upload-btn` in `panel.css` (Camo Turing / Soul exact; Pollen / Membrane / Spore keep a 1-line delta; Genesis keeps a softer hover + bottom margin). `.org-file-input` on all inline sr-only `<input type=file>` blocks (komorebi / halide / spore / pollen / soul / colornet / membrane / camo-turing / fvs / genesis). | — |
+| **`.org-layer-card`** | Done 2026-08-30: skeleton (border/head/body) in `panel.css`. First aliased `.layer-card` / `.chan-card` onto it, then (same day) **renamed both outright** — Colornet's `.chan-card*` → `.org-layer-card*` (incl. `.chan-card--armed` → `.chan-armed`), Camo Turing's `.layer-card*` → `.org-layer-card*` (incl. its 2 card-builder `querySelectorAll`s). Aliases deleted; only `.org-layer-card` remains. Each tool keeps its own inner controls + real deltas (Colornet's rounded corner + `.chan-armed`). | — |
 | ~~Membrane `rmxColorAt` / Camo Turing `rmxLerpColor`~~ | **Not drift — a different colour lineage, kept separate on purpose.** Both port Camo Turing's *GLSL* `rmxColor()` (posterize = `floor`; tonernd = smooth lerp, ±1.5; Camo's lerp is in the renderer's linear working space to match `DISPLAY_FRAG`). `Organica.palette.colorAt` is the *Pollen* lineage (posterize = `round`; tonernd = discrete stop, ±1.2; sRGB lerp). Merging them would shift Membrane's RMX output and break Camo's SVG-vs-canvas match. Comments in both files now say so. | — |
-| ~~zoom/pan~~ | **Done 2026-08-30.** CSS in `organica-shell.css`; the JS — Spore, Pollen, Halide's ~55-line inline `applyZoom`/`zoomBy`/wheel/pan/⌘± copy — replaced by one `Organica.createZoomPan({canvas, wrap, isReady, onChange})` call + a 1-line `resetZoom()` wrapper (kept global — the HUD `onclick` + image-load path call it). Spore *gained* the ⌘± shortcuts + pre-wheel slider-blur. | — |
-| `mulberry32` | core (canonical) + ~9 inline tool copies. (`organica-transformer.js`'s copy is a deliberate guarded fallback — `Organica.mulberry32 ? … : mulberry32Fallback` — so it works standalone; leave it.) | depend on `Organica.mulberry32` |
-| Seeds panel (tabbed Genesis/SVG/Text source picker) | **Component shipped** `2026-08-30` — `shared/organica-seedspanel.js` + `organica-seedspanel.css`. `Organica.seedsPanel({target,tabs,slots,subControls,extraControls,genesis,text,svg,image,applyMode,onSeed,onTabChange,onFontReady,onError})` → `{el,getTab,setTab,getDescriptor,getSVGString,apply,emit,slot,refreshGenesisGrid,setFont,setText,destroy}`. Polymorphic on `typeof target` (element = generate / string = attach). Emits BOTH `svgString` (canonical vector) **and** a raw `descriptor` — each tool keeps its own model step. `.PRIMORDIAL` is the shared curated form list. **Adopted:** Soul (generate, immediate, `perGlyph`, text Apply button), Membrane (Procedural + Image as custom slots, Text built-in with `preloadFont:false`, `onTabChange` = reseed dispatch), **Camo Turing** (2 instances `seedsB`/`seedsA`, `idPrefix`, `applyMode:'manual'`, `genesis.bakeGeometry:true`, `allowFontUpload`; Mode/Size/Two-seeds/famine + Apply stay as plain markup siblings; `rasterizeCurrentSeed`/`rasterizeShapeA`/`applyPaperImageMode`/`rasterizeTextSource` rewired to `getDescriptor()`/`getSVGString()`; the local `rasterizeGenesisSource` kept — parameterised by `formId` — only for the `window.test*` probes). **Living Path** takes only `Organica.seedsPanel.PRIMORDIAL` (the last byte-identical copy of the curated list, was in 5 files) — its own Font/SVG/Genesis picker stays bespoke: `.seg`/`.drop`/`.forms` markup, visible drop-zones, an OTF-export "Font" workbench, and it links none of the shared panel CSS. A full adoption is gated on Living Path moving to the shared shell (its own pass). | done |
-| ~~file drop-zone / `.upload-btn`~~ | **done 2026-08-30** — `.upload-btn` + `.org-file-input` in `organica-panel.css`, `#drop-hint` / `.drop-icon` in `organica-shell.css`. | — |
-| floatbar video/PNG export (`canvas.captureStream` + `MediaRecorder`) | **Done `2026-08-30`** — `shared/organica-recorder.js` (no paired CSS, ships no UI). `Organica.recorder({canvas,tool,fps,duration,durationPadMs,onStart,onStatus,onStateChange})` → `{toggle,start,stop,isRecording}`. `canvas` may be a function (p5 tools whose canvas isn't up at construct time). Merged best version: superset 5-entry MIME list (`mp4;avc1`→`mp4`→`webm;vp9`→`webm;vp8`→`webm`), extension **sniffed from the negotiated `mediaRecorder.mimeType`**, `duration` omitted = manual-stop / number|fn = auto-stop (Pulsar `loopSec`+`90ms`). **Adopted:** Pulsar, Camo Turing, Vortex, Membrane (each keeps its own floatbar button + wiring). **Out:** Soul (SVG-DOM + GSAP, no live canvas — keeps its per-frame rasteriser + local recorder). | — |
+| ~~zoom/pan~~ | **Done 2026-08-30.** CSS in `shell.css`; the JS — Spore, Pollen, Halide's ~55-line inline `applyZoom`/`zoomBy`/wheel/pan/⌘± copy — replaced by one `Organica.createZoomPan({canvas, wrap, isReady, onChange})` call + a 1-line `resetZoom()` wrapper (kept global — the HUD `onclick` + image-load path call it). Spore *gained* the ⌘± shortcuts + pre-wheel slider-blur. | — |
+| `mulberry32` | core (canonical) + ~9 inline tool copies. (`transformer.js`'s copy is a deliberate guarded fallback — `Organica.mulberry32 ? … : mulberry32Fallback` — so it works standalone; leave it.) | depend on `Organica.mulberry32` |
+| Seeds panel (tabbed Genesis/SVG/Text source picker) | **Component shipped** `2026-08-30` — `shared/seeds-panel.js` + `seeds-panel.css`. `Organica.seedsPanel({target,tabs,slots,subControls,extraControls,genesis,text,svg,image,applyMode,onSeed,onTabChange,onFontReady,onError})` → `{el,getTab,setTab,getDescriptor,getSVGString,apply,emit,slot,refreshGenesisGrid,setFont,setText,destroy}`. Polymorphic on `typeof target` (element = generate / string = attach). Emits BOTH `svgString` (canonical vector) **and** a raw `descriptor` — each tool keeps its own model step. `.PRIMORDIAL` is the shared curated form list. **Adopted:** Soul (generate, immediate, `perGlyph`, text Apply button), Membrane (Procedural + Image as custom slots, Text built-in with `preloadFont:false`, `onTabChange` = reseed dispatch), **Camo Turing** (2 instances `seedsB`/`seedsA`, `idPrefix`, `applyMode:'manual'`, `genesis.bakeGeometry:true`, `allowFontUpload`; Mode/Size/Two-seeds/famine + Apply stay as plain markup siblings; `rasterizeCurrentSeed`/`rasterizeShapeA`/`applyPaperImageMode`/`rasterizeTextSource` rewired to `getDescriptor()`/`getSVGString()`; the local `rasterizeGenesisSource` kept — parameterised by `formId` — only for the `window.test*` probes). **Living Path** takes only `Organica.seedsPanel.PRIMORDIAL` (the last byte-identical copy of the curated list, was in 5 files) — its own Font/SVG/Genesis picker stays bespoke: `.seg`/`.drop`/`.forms` markup, visible drop-zones, an OTF-export "Font" workbench, and it links none of the shared panel CSS. A full adoption is gated on Living Path moving to the shared shell (its own pass). | done |
+| ~~file drop-zone / `.upload-btn`~~ | **done 2026-08-30** — `.upload-btn` + `.org-file-input` in `panel.css`, `#drop-hint` / `.drop-icon` in `shell.css`. | — |
+| floatbar video/PNG export (`canvas.captureStream` + `MediaRecorder`) | **Done `2026-08-30`** — `shared/recorder.js` (no paired CSS, ships no UI). `Organica.recorder({canvas,tool,fps,duration,durationPadMs,onStart,onStatus,onStateChange})` → `{toggle,start,stop,isRecording}`. `canvas` may be a function (p5 tools whose canvas isn't up at construct time). Merged best version: superset 5-entry MIME list (`mp4;avc1`→`mp4`→`webm;vp9`→`webm;vp8`→`webm`), extension **sniffed from the negotiated `mediaRecorder.mimeType`**, `duration` omitted = manual-stop / number|fn = auto-stop (Pulsar `loopSec`+`90ms`). **Adopted:** Pulsar, Camo Turing, Vortex, Membrane (each keeps its own floatbar button + wiring). **Out:** Soul (SVG-DOM + GSAP, no live canvas — keeps its per-frame rasteriser + local recorder). | — |
 | ~~`syncColor` single-swatch~~ | **done** (2026-08-30) — every production tool on `Organica.palette.swatch` attach mode; `shared/_template.html` refreshed the same day. | — |
 | inline `style="display:none"` toggles | ~190 static inline toggles; a cross-ref (`node xref.js`) confirmed **all of them are JS-toggled** — via `el.style.display = '' / 'none'`, `forEach(id => …)`, `'prefix-' + t` id concatenation, or `show()`/`toggleRow()` helpers — so a plain `hidden` + `[hidden]{display:none!important}` swap would break every one. The honest version is a shared `Organica.show(el, bool)` (maps `'' ↔ 'none'` → `el.hidden`) + the safety rule, changing the *mechanism* not just the markup. Not started. | `Organica.show()` + `hidden` |
 

@@ -266,7 +266,7 @@ ctrl('btn-export-svg').addEventListener('click', () => {
   Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('vortex', 'svg'));
 });
 
-// Video — the shared Organica.recorder (organica-recorder.js). Manual stop
+// Video — the shared Organica.recorder (recorder.js). Manual stop
 // only (Vortex is a continuous sim, no fixed loop). "Force it running first":
 // resting has nothing moving to record, so Start triggers the same growth-ramp
 // hover would; paused resumes, since the point of Video is the motion.
@@ -289,6 +289,6 @@ const vortexRecorder = Organica.recorder({
 function toggleRecording() { vortexRecorder.toggle(); }
 ctrl('btn-record').addEventListener('click', toggleRecording);
 
-// ── Accessibility + slider polish (organica-core.js) ──
+// ── Accessibility + slider polish (core.js) ──
 Organica.autoLabelPanel(document);
 Organica.enhanceSliders(document);

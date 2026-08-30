@@ -19,7 +19,7 @@ figma.ui.onmessage = async (msg) => {
     return;
   }
 
-  // Organica.sendToFigma() (shared/organica-core.js) posts
+  // Organica.sendToFigma() (shared/core.js) posts
   // {type:'organica-svg', svg, name} — the payload shape is identical to
   // 'import-svg', it was just never wired to a listener here, silently
   // breaking "→ Figma" on every tool that calls it (Spore/Pollen/Halide/

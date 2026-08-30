@@ -69,7 +69,7 @@ Shared, identical picker with Pollen.
 ## 3. Symbols & rendering notes
 
 - Symbols come from the centralized Genesis library
-  (`/genesis/organic-forms.js` → `window.ORGANIC_FORMS`), same primordial subset
+  (`/genesis/forms.js` → `window.ORGANIC_FORMS`), same primordial subset
   `[7, 56, 1, 2, 14, 33, 38, 31]` as Pollen.
 - Marks are sized/centred on their **content bounding box** with a minimum stroke
   width, so thin/outline forms (line) render correctly — in canvas *and* SVG

@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   ORGANICA — organica-noise.js
+   ORGANICA — noise.js
    Scalar value-noise / Worley primitives, shared across tools.
 
    These started as private copies inside komorebi/index.html (itself a
@@ -7,19 +7,18 @@
    header note). Camo Turing's anisotropic-diffusion work needed the same
    hash/fbm construction again, and Warping is a third consumer built
    entirely on top of these — three independent copies is exactly the
-   condition organica-core.js's own header warns about (routines drifting
+   condition core.js's own header warns about (routines drifting
    apart until a fix in one never reaches the others), so this is the
    point where they get pulled out for real.
 
    Scalar (x,y) in, scalar (or [x,y] pair) out — no vec2 allocations in a
    per-pixel hot loop, same reasoning as the original private copies.
 
-   Load order: AFTER organica-core.js. organica-core.js's own last line is
+   Load order: AFTER core.js. core.js's own last line is
    `global.Organica = Organica`, which would overwrite (not merge with)
-   anything attached here if this file loaded first — see docs/SHARED-LIBRARY.md
-   for the same load-order contract on organic-library.css. This file
-   guards against that by reusing window.Organica if it already exists,
-   but the safe, intended order is core → noise → the tool's own script.
+   anything attached here if this file loaded first. This file guards
+   against that by reusing window.Organica if it already exists, but the
+   safe, intended order is core → noise → the tool's own script.
 
    Everything hangs off window.Organica.noise.*
    ───────────────────────────────────────────────────────────── */

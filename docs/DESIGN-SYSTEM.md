@@ -3,8 +3,8 @@
 > Studio Rann · Organica · Typography, tokens, and the Figma mapping
 > Last updated: August 26, 2026
 >
-> **Single source of truth: `shared/organica-tokens.json`.**
-> `shared/organica-tokens.css` mirrors it for the browser; this document
+> **Single source of truth: `shared/tokens.json`.**
+> `shared/tokens.css` mirrors it for the browser; this document
 > explains it; Figma variables and text styles are named to match. A value
 > changes **here first**, then in the CSS, then in Figma. Anything that
 > disagrees with the JSON is a bug, not a variant.
@@ -16,7 +16,7 @@
 **Manrope**, everywhere. Nothing else.
 
 Manrope is a **variable font** with a single weight axis running 200–800, so
-the entire weight range costs one file. Loaded once, from `organica-tokens.css`:
+the entire weight range costs one file. Loaded once, from `tokens.css`:
 
 ```css
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
@@ -174,7 +174,7 @@ Font: **Manrope** from Google Fonts. Pick the style by its Manrope name
 shows, and it is why the tokens record the font's own names rather than
 inventing their own.
 
-Every role in `shared/organica-tokens.json` carries a `$figma` block with the
+Every role in `shared/tokens.json` carries a `$figma` block with the
 values already converted, so they can be copied across without arithmetic.
 
 Two conversions that catch people out:
@@ -209,7 +209,7 @@ are written down now so the next tool doesn't invent its own.
 Organica's surfaces are flat and near-square — **radius is a whisper, not a
 feature**. `--radius-lg` (8px) is already the loudest the system gets.
 
-**Spacing utility classes** (`shared/organica-tokens.css`): `.mt-1`…`.mt-8` /
+**Spacing utility classes** (`shared/tokens.css`): `.mt-1`…`.mt-8` /
 `.mb-1`…`.mb-8` (`margin-top`/`margin-bottom: var(--space-N)`), `.u-flex1`
 (`flex: 1 1 auto`), `.u-hidden` (`display: none`). All carry `!important` —
 a utility only does its job if it always wins the cascade; a component's own
@@ -318,7 +318,7 @@ shipped since has been verified at 0 unlabeled controls before shipping —
 per-tool audit.
 
 **Fix once, not 121 times:** `Organica.autoLabelPanel(document)` in
-`shared/organica-core.js` walks every row (`.ctrl-row`, `.param-row`,
+`shared/core.js` walks every row (`.ctrl-row`, `.param-row`,
 `.color-row`, `.toggle-row`, …), finds the row's label, and wires it to the
 row's control(s) via `aria-labelledby` — generating an id on the label if it
 doesn't have one. It's idempotent (controls that already have a name are
@@ -372,7 +372,7 @@ carries its own equivalent 0-unnamed check in its own session notes.
    it onto `--radius-sm/md/lg` flattens the capsule.
 4. **`--font` only** in new code. `--sans` / `--mono` / `--display` are legacy
    aliases kept so old rules render; they all resolve to Manrope.
-5. **Load order matters.** `organica-tokens.css` must come *before* the tool's
+5. **Load order matters.** `tokens.css` must come *before* the tool's
    own `<style>`, so a tool can override a token without `!important`.
 6. **Weights are the four defined stops.** 200, 600 and 800 exist in the font
    but aren't in the system — add them here before using them.

@@ -2,7 +2,7 @@
    Rhizome node — Contour Trace (Tier 1, zero-porting).
 
    Thin wrapper on Organica.traceContours/contoursToPathD
-   (shared/organica-core.js:296-385) — pure, JSON-safe raster→vector,
+   (shared/core.js:296-385) — pure, JSON-safe raster→vector,
    the exact function the Rhizome MVP test already validated inline.
    Accepts an IMAGE input (a binary mask), typically fed by a
    Loom-Grid-Generator/Geometry node through the grid->image adapter

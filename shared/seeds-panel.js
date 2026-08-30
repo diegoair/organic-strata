@@ -1,13 +1,13 @@
 /* ─────────────────────────────────────────────────────────────────────────────
- * organica-seedspanel.js — the Organica tabbed seed-source picker.
+ * seeds-panel.js — the Organica tabbed seed-source picker.
  *
  * Consolidates the Genesis / SVG / Text (/ Image) source picker + Genesis
  * thumbnail grid that Soul, Camo Turing and Membrane each hand-rolled. Living
  * Path is a deliberate hold-out (bespoke .seg / .drop markup, no shared CSS,
  * CDN opentype — see docs/SHARED-COMPONENTS.md).
  *
- * LOAD ORDER: organica-core.js → (organica-palette.js) → organica-seedspanel.js
- * → tool script. Pairs with shared/organica-seedspanel.css. The `opentype`
+ * LOAD ORDER: core.js → (palette.js) → seeds-panel.js
+ * → tool script. Pairs with shared/seeds-panel.css. The `opentype`
  * global is required only when a `text` tab is configured.
  *
  * ── Organica.seedsPanel(config) → panel ─────────────────────────────────────
@@ -58,7 +58,7 @@
   }
 
   // ── Genesis form geometry baking (ported verbatim from Camo Turing) ─────────
-  // Several Genesis forms encode geometry through organic-animations.css only,
+  // Several Genesis forms encode geometry through animations.css only,
   // so the form must be mounted live in the page (with that stylesheet linked)
   // and its computed cx/cy/r/… baked into literal attributes before it can be
   // serialised to a standalone SVG string an <img> can load.
@@ -100,11 +100,11 @@
   function ensureAnimationsCss(href) {
     const links = document.querySelectorAll('link[rel="stylesheet"]');
     for (let i = 0; i < links.length; i++) {
-      if ((links[i].getAttribute('href') || '').indexOf('organic-animations.css') >= 0) return;
+      if ((links[i].getAttribute('href') || '').indexOf('animations.css') >= 0) return;
     }
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = href || '/genesis/organic-animations.css';
+    link.href = href || '/genesis/animations.css';
     document.head.appendChild(link);
   }
 
@@ -149,7 +149,7 @@
       }
     }
     if (hasText && txtOpt.preloadFont !== false && !font && typeof opentype !== 'undefined') {
-      fetch('/shared/manrope-variable.ttf')
+      fetch('/shared/vendor/manrope-variable.ttf')
         .then(r => r.arrayBuffer())
         .then(buf => { font = opentype.parse(buf); onFontReady(font); })
         .catch(() => onError('Font failed to load'));

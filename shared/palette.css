@@ -1,9 +1,9 @@
 /* ─────────────────────────────────────────────────────────────────────────────
- * organica-palette.css — the Organica Palette component (CSS half).
- * Paired with shared/organica-palette.js. Link AFTER organica-panel.css,
+ * palette.css — the Organica Palette component (CSS half).
+ * Paired with shared/palette.js. Link AFTER panel.css,
  * BEFORE the tool's own <style>. Only the tools that use generate/RMX mode
  * (Organica.palette.swatch(<element>, …)) need this sheet; the single-swatch
- * .color-* rules stay in organica-panel.css.
+ * .color-* rules stay in panel.css.
  *
  * Consolidated from 5+ byte-parallel tool-local copies. Tune per tool with
  * the custom properties (e.g. TuneSutra: --rmx-cell-w/h + --rmx-cell-radius).

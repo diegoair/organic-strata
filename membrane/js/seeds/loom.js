@@ -7,11 +7,11 @@
    the path walks the grid's real line-work instead of just visiting
    cell centres).
 
-   Reuses Organica.loadLoomGrid verbatim (organica-core.js) for parsing
+   Reuses Organica.loadLoomGrid verbatim (core.js) for parsing
    AND geometry resolution — the exploration this migrates from had its
    own private reimplementation of the margin/track-offset maths (written
    before this module existed as a production tool worth linking
-   organica-core.js from), which is exactly the kind of drift the shared
+   core.js from), which is exactly the kind of drift the shared
    core exists to prevent. Only centroids/corners are derived here; point-
    in-polygon resolution (which loadLoomGrid also does, for Flow Field's
    own field-lookup use) isn't needed for a plain waypoint sequence.

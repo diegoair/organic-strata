@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   ORGANICA — organica-panel.css
+   ORGANICA — panel.css
    The control sidebar, as one component.
 
    Audited before writing: six panels, no two alike —
@@ -23,7 +23,7 @@
    "link the file, delete the local copy" rather than a markup rewrite.
    Aliases at the bottom cover Strata's and Living Path's vocabularies.
 
-   Requires shared/organica-tokens.css and the tool palette
+   Requires shared/tokens.css and the tool palette
    (--ink --paper --mid --accent --panel --border --tool).
    ───────────────────────────────────────────────────────────── */
 
@@ -142,7 +142,7 @@ aside h3, .panel h3 {       /* Strata / any panel that just uses h3 */
 
 /* Values are numbers in a column — tabular figures stop them jittering
    as they change under a dragging slider. Click one to type an exact
-   value: Organica.enhanceSliders() (organica-core.js) makes every value
+   value: Organica.enhanceSliders() (core.js) makes every value
    next to a range input editable in place, no markup change needed —
    it's a delegated click handler, so it also reaches values rendered
    later (Living Path's per-layer effect rows). Idle it reads as plain
@@ -190,7 +190,7 @@ aside h3, .panel h3 {       /* Strata / any panel that just uses h3 */
    reads its own value (--accent-warm up to the thumb, --panel after),
    and a white floating thumb with its own shadow separates it from the
    track under it. --fill is written by Organica.enhanceSliders() in
-   organica-core.js, both on drag (bubbled 'input') and on any script
+   core.js, both on drag (bubbled 'input') and on any script
    assignment to .value (a wrapped property setter) — so presets and
    hand-dragging both keep the fill honest.
    ═══════════════════════════════════════════════════════════ */
@@ -610,7 +610,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
    --ink-soft/--ink-muted→--mid, --line→--border), then centralized here
    once it proved useful for BOTH a live-simulated-thumbnail picker
    (Camo Turing's Pattern presets, hand-wired JS) and a static-icon one
-   (organica-transformer.js's buildPicker) — a plain <select> can't show
+   (transformer.js's buildPicker) — a plain <select> can't show
    a preview either way. .pt-ico/.pi-ico accept either an <img> (a real
    rendered thumbnail) or inline <svg> (a static icon) as their content.
    ═══════════════════════════════════════════════════════════ */

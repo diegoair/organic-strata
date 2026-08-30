@@ -4,15 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Komorebi — Organica</title>
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-  <link rel="stylesheet" href="/shared/organica-header.css">
-  <link rel="stylesheet" href="/shared/organica-panel.css">
-  <link rel="stylesheet" href="/shared/organica-floatbar.css">
-  <link rel="stylesheet" href="/shared/organica-shell.css">
+<link rel="stylesheet" href="/shared/tokens.css">
+  <link rel="stylesheet" href="/shared/header.css">
+  <link rel="stylesheet" href="/shared/panel.css">
+  <link rel="stylesheet" href="/shared/floatbar.css">
+  <link rel="stylesheet" href="/shared/shell.css">
   <style>
   :root {
     --komorebi: #8aa054;
-    --tool: #8aa054;   /* header focus ring — see organica-header.css */
+    --tool: #8aa054;   /* header focus ring — see header.css */
   }
 
   /* Shell (reset, body, #app, #canvas-wrap, .org-stage, #zoom-hud, #drop-hint)
@@ -325,9 +325,9 @@
 
 <input type="file" id="file-input" class="org-file-input" accept="image/*" onchange="loadCookie(this)">
 
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette.js"></script>
-<script src="/shared/organica-noise.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/palette.js"></script>
+<script src="/shared/noise.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // KOMOREBI — 木漏れ日, "sunlight leaking through trees"
@@ -471,9 +471,9 @@ const swatches = {};
 
 // ─────────────────────────────────────────────
 // NOISE — hash/value-noise/fbm/Worley, now shared with Camo Turing and
-// Warping via /shared/organica-noise.js (see that file's own header for
+// Warping via /shared/noise.js (see that file's own header for
 // why: three independent copies is the exact drift condition
-// organica-core.js was created to stop). Aliased to the original bare
+// core.js was created to stop). Aliased to the original bare
 // names so every call site below is untouched — this is a storage move,
 // not a retune; verified byte-identical against every existing preset.
 // ─────────────────────────────────────────────
@@ -1112,7 +1112,7 @@ function updateSizeReadout() {
   const d = outputDims(parseInt(ctrl('sel-scale').value, 10) || 2);
   ctrl('out-size').textContent = d.w + ' × ' + d.h;
 }
-const download = Organica.download;   // shared — delayed revoke, see /shared/organica-core.js
+const download = Organica.download;   // shared — delayed revoke, see /shared/core.js
 
 // Render one frame at export size, hand the canvas to the caller, then put
 // the preview size back. There is no time dimension any more, so the export
@@ -1148,7 +1148,7 @@ function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
 // there can be no hairline gaps between them however coarse the trace.
 //
 // The tracer is Halide's rectilinear boundary walk, now shared via
-// /shared/organica-core.js. Reading pixels off a real <canvas> 2D context
+// /shared/core.js. Reading pixels off a real <canvas> 2D context
 // is top-down already — the old WebGL readPixels y-flip is gone entirely.
 // ─────────────────────────────────────────────
 const contoursToPathD = Organica.contoursToPathD;
@@ -1421,7 +1421,7 @@ const BUILTIN_PRESETS = {
   }
 };
 
-// Preset storage + legacy-key migration live in /shared/organica-core.js.
+// Preset storage + legacy-key migration live in /shared/core.js.
 const PRESETS = Organica.presetStore('komorebi', 'organica_komorebi_presets');
 const PRESET_KEY = PRESETS.key;
 function userPresets() { return PRESETS.read(); }

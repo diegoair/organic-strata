@@ -6,10 +6,10 @@
 <title>Living Path · Organica</title>
 <!-- opentype.js — read OTF/TTF glyph outlines in the browser -->
 <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-<link rel="stylesheet" href="/shared/organica-header.css">
-  <link rel="stylesheet" href="/shared/organica-floatbar.css">
-  <link rel="stylesheet" href="/shared/organica-panel.css">
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+  <link rel="stylesheet" href="/shared/floatbar.css">
+  <link rel="stylesheet" href="/shared/panel.css">
   <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
   :root{
@@ -69,7 +69,7 @@
   }
   /* ── panel sections ── */
   .sec{border-bottom:1px solid var(--line-soft); padding:var(--space-5) var(--space-6)}
-  /* section heading comes from shared/organica-panel.css — only the margin
+  /* section heading comes from shared/panel.css — only the margin
      is local, because Living Path's sections are more tightly packed */
   .sec h3{margin:0 0 8px}
   .row{display:flex; align-items:center; gap:var(--space-4); margin-bottom:var(--space-4)}
@@ -175,7 +175,7 @@
   /* Shared text-field style — was duplicated verbatim (font/size/padding/
      border/radius/background/color) on every .row input in this panel. */
   .field{flex:1; font-family:var(--font); font-size:var(--fs-medium); padding:var(--space-2) var(--space-3); border:1px solid var(--line); border-radius:var(--radius-lg); background:var(--card); color:var(--ink)}
-  /* Ink/Paper colour rows use the shared .color-* component (organica-panel.css)
+  /* Ink/Paper colour rows use the shared .color-* component (panel.css)
      + Organica.palette.swatch. */
   ::-webkit-scrollbar{width:9px;height:9px}
   ::-webkit-scrollbar-thumb{background:rgba(10,10,10,.14); border-radius:var(--radius-md)}
@@ -345,15 +345,15 @@
 </div>
 
 <!-- core BEFORE the tool script, per docs/UI-SHELL.md -->
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/palette.js"></script>
 <!-- Only for Organica.seedsPanel.PRIMORDIAL (the shared curated Genesis
      form list). Living Path's own Font/SVG/Genesis picker stays bespoke —
      its .seg/.drop/.forms markup, visible drop-zones and the OTF-export
      "Font" workbench don't map onto the shared component, and it links
      none of the shared panel CSS. A full adoption waits on Living Path
      moving to the shared shell (its own pass). -->
-<script src="/shared/organica-seedspanel.js"></script>
+<script src="/shared/seeds-panel.js"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -1823,7 +1823,7 @@ Organica.popover(document.getElementById('btn-export'), document.getElementById(
 // ── Rhizome bridge (Tier 2 node graph) ──
 // Needs a source loaded first (SRC is null otherwise) — uses the same
 // Genesis-forms gallery path the tool's own UI offers (window.ORGANIC_FORMS,
-// populated by genesis/organic-forms.js's onload, already loaded by the
+// populated by genesis/forms.js's onload, already loaded by the
 // time any postMessage can arrive). Raster tech's own render() defers
 // through a real 110ms setTimeout (not rAF) before CACHE reflects a new
 // preset — confirmed by reading render()/doit() directly — so this
@@ -1850,6 +1850,6 @@ window.addEventListener('message', (e) => {
   })();
 });
 </script>
-<script src="/genesis/organic-forms.js" onload="buildGenesis()"></script>
+<script src="/genesis/forms.js" onload="buildGenesis()"></script>
 </body>
 </html>

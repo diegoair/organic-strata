@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   Vortex — Palette. Promoted to shared/organica-palette.js
+   Vortex — Palette. Promoted to shared/palette.js
    (Organica.palette.swatch; folded in from organica-palette-chip.js,
    2026-08-29) — this was one of the 6
    independent copies found duplicating the RMX chip pattern (itself

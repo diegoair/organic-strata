@@ -6,15 +6,15 @@
 <title>Vortex — Organica</title>
 
 <!-- Tokens → header → floatbar → panel, in this order (load-bearing —
-     UI-SHELL.md §2/§4b/§4c). organica-core.js is a plain script (not a
+     UI-SHELL.md §2/§4b/§4c). core.js is a plain script (not a
      module) so Organica.* exists before js/main.js (the ES module entry)
      parses. -->
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-<link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-panel.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
-<link rel="stylesheet" href="/shared/organica-shell.css">
-<link rel="stylesheet" href="/shared/organica-palette.css">
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/palette.css">
 <style>
   :root {
     --tool: #6d4bd8;   /* identity colour — deep indigo, unclaimed hue region, reads as the vortex's own depth axis */
@@ -37,7 +37,7 @@
   #panel { background: var(--panel); }   /* override — Vortex's panel sits on the grey, not paper */
 
   /* Panel shell, .icon-btn, .rmx-* chips and the .color-* row are all shared
-     (organica-panel.css / organica-palette.css). */
+     (panel.css / palette.css). */
 </style>
 </head>
 <body>
@@ -292,9 +292,9 @@
   </div>
 </div>
 
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette.js"></script>
-<script src="/shared/organica-recorder.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/palette.js"></script>
+<script src="/shared/recorder.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
 <script type="module" src="./js/main.js"></script>
 </body>

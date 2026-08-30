@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pulsar — Organica</title>
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-<link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-panel.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
-<link rel="stylesheet" href="/shared/organica-shell.css">
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
 <style>
 :root {
   --ink: #241b14;   /* warm-black override — this tool's ink */
@@ -18,7 +18,7 @@
 }
 
 /* Reset, body, #app and the centred canvas region (#stage → .org-canvas-wrap)
-   come from organica-shell.css. #preview below is genuinely bespoke. */
+   come from shell.css. #preview below is genuinely bespoke. */
 
 /* CSS-transformed by Organica.createZoomPan — never touches the canvas bitmap,
    so it can't affect PNG or video export. */
@@ -455,11 +455,11 @@
 </div>
 
 <!-- Core BEFORE noise, noise BEFORE radial, radial BEFORE the tool script. -->
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette.js"></script>
-<script src="/shared/organica-recorder.js"></script>
-<script src="/shared/organica-noise.js"></script>
-<script src="/shared/organica-radial.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/palette.js"></script>
+<script src="/shared/recorder.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/radial.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // PULSAR — a generative Motion tool over Radial. It drives Radial's parameter
@@ -467,7 +467,7 @@
 // from scratch every frame (the Vortex model — deterministic, never
 // accumulates). Output is a seamless looping WebM plus PNG frames.
 //
-// The polar-field geometry/render core is shared/organica-radial.js. The base
+// The polar-field geometry/render core is shared/radial.js. The base
 // panel here mirrors Radial's controls (same ids) so the DOM glue —
 // buildParams / readState / applyState / syncPanelRows — is the
 // same as Radial's; the Motion-mode / Tracks / Whole-field sections are new.
@@ -1107,7 +1107,7 @@ function exportPNG() {
   setStatus('active', c.width + '×' + c.height + ' · PNG saved');
 }
 
-// Video recording is the shared Organica.recorder (organica-recorder.js).
+// Video recording is the shared Organica.recorder (recorder.js).
 // Auto-stops one loop after Start (loopSec, or 6s if Loop is Off) + 90ms tail
 // so the closing frame lands in the file; play(true) restarts from t=0 first
 // (Soul's 0-byte-file fix). Constructed in INIT — see pulsarRecorder below.

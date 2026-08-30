@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────────
- * organica-recorder.js — the Organica canvas video recorder.
+ * recorder.js — the Organica canvas video recorder.
  *
  * Consolidates the canvas.captureStream() + MediaRecorder + MIME-fallback dance
  * that Pulsar, Camo Turing, Vortex and Membrane each hand-rolled (Vortex's and
@@ -8,7 +8,7 @@
  * live canvas, and rasterises each frame onto a throwaway canvas with its own
  * requestAnimationFrame pump; its recorder stays local.
  *
- * LOAD ORDER: organica-core.js → organica-recorder.js → tool script.
+ * LOAD ORDER: core.js → recorder.js → tool script.
  * Needs Organica.download / Organica.stamp from core. Ships no UI and no paired
  * CSS — each tool keeps its own floatbar button and wires the toggle to it.
  *

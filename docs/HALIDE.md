@@ -17,7 +17,7 @@ Halide reaches for the same aesthetic algorithmically: real dithering, backgroun
 removal, a sticker outline, and a background-fill layer, all live and exportable.
 
 Single-file vanilla HTML/CSS/JS, no build step, no external dependencies (unlike
-Pollen/Spore it doesn't even load `organic-forms.js` — there's no Genesis shape
+Pollen/Spore it doesn't even load `forms.js` — there's no Genesis shape
 placement here, every mark is a plain grid cell; see §14 for why that's a
 deliberate, evaluated choice, not an oversight).
 

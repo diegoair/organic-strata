@@ -1,12 +1,12 @@
 /* ─────────────────────────────────────────────────────────────
-   ORGANICA — organica-paper.js
+   ORGANICA — paper.js
    Paper.js helpers for post-trace vector refinement.
 
    Contract: import is always a raster sketch → backend trace → SVG.
    This module never loads user SVG files; it only ingests trace output
    and optionally shows the same crop as a dim underlay.
 
-   Requires paper-full.min.js before this file.
+   Requires shared/vendor/paper-full.min.js before this file.
    ───────────────────────────────────────────────────────────── */
 
 (function (global) {

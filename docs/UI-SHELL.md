@@ -29,14 +29,14 @@ Until now this was **coherence by copy-paste**: Spore introduced it, Pollen
 refined it, Halide and Komorebi cloned Pollen's `<style>` block almost verbatim
 (~300 near-identical lines each). That produced a consistent look and a
 maintenance problem — a fix to the shell in one tool never reached the others,
-exactly as happened with the JS utilities before `organica-core.js`.
+exactly as happened with the JS utilities before `core.js`.
 
 This document is the shell's definition. `shared/_template.html` is a working
 copy to start a new tool from.
 
 **Why a template and not a shared stylesheet:** each tool tunes its own palette
 (Halide is a darkroom, Komorebi a forest floor) and adds tool-specific controls.
-A shared `organica-shell.css` would need an override for nearly every rule.
+A shared `shell.css` would need an override for nearly every rule.
 Copying a *documented* template is honest about that; copying an undocumented
 neighbour is what caused the drift.
 
@@ -47,15 +47,15 @@ neighbour is what caused the drift.
 In `<head>`, **in this order**:
 
 ```html
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-<link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-panel.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
-<link rel="stylesheet" href="/shared/organica-shell.css">
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
 <style> /* only the tool's own content — its --tool accent + one-off components */ </style>
 ```
 
-`organica-shell.css` (added 2026-08-30) is the app-shell skeleton — the
+`shell.css` (added 2026-08-30) is the app-shell skeleton — the
 box-sizing reset, the flex-column `<body>`, `#app`, the centred
 `#canvas-wrap` stage area, `.org-stage` (the canvas element's shadow +
 `.zoomed`/`.panning`/`.picking` cursor states — add `class="org-stage"` to
@@ -66,7 +66,7 @@ canvases, a lighter `box-shadow`, a bespoke `#stage-frame`). Genesis
 (3-column shell), Rhizome and FVS (own canvas surfaces) don't link it;
 they still get the reset + surface palette from tokens.
 
-`organica-floatbar.css` is the shared bottom-centre floating action bar
+`floatbar.css` is the shared bottom-centre floating action bar
 (`.org-floatbar`, `.org-popover`) that Export (and any playback controls)
 lives in — see §5's WYSIWYG rule and the many tools' own "Export moved
 here, not the header" notes. Linked by every tool except the Genesis
@@ -75,7 +75,7 @@ catalog pages, which use the `--catalog` header variant instead.
 Before the tool's own `<script>`:
 
 ```html
-<script src="/shared/organica-core.js"></script>
+<script src="/shared/core.js"></script>
 ```
 
 Order is load-bearing: tokens first so the tool can override without
@@ -84,38 +84,38 @@ Order is load-bearing: tokens first so the tool can override without
 If the tool places Genesis forms, also:
 
 ```html
-<script src="/genesis/organic-forms.js"></script>
+<script src="/genesis/forms.js"></script>
 ```
 
-**Colour controls — the Palette component.** `shared/organica-palette.js`
-(paired sheet `shared/organica-palette.css`) is the one home for both the
+**Colour controls — the Palette component.** `shared/palette.js`
+(paired sheet `shared/palette.css`) is the one home for both the
 single Ink/Paper swatch and the multi-colour RMX chip strip. One polymorphic
 entry point:
 
 - `Organica.palette.swatch('<prefix>', { initial, onChange })` — **attach
   mode**: wires pre-existing `#cp-`/`#hex-`/`#sw-`/`#btn-random-<prefix>`
-  markup inside a labelled `.color-row` (CSS in `organica-panel.css`, which
+  markup inside a labelled `.color-row` (CSS in `panel.css`, which
   every tool already links — no extra `<link>` needed).
 - `Organica.palette.swatch(<wrapEl>, { colors, min, max, onChange })` —
   **generate mode**: builds `.rmx-color` chips into the element. Needs
-  `organica-palette.css`.
+  `palette.css`.
 - `Organica.palette.colorAt(score, opts)` — score→colour (Solid/Adaptive/RMX).
 
 Load after core; add the `<link>` only if you use generate mode:
 
 ```html
-<link rel="stylesheet" href="/shared/organica-palette.css">   <!-- generate mode only -->
+<link rel="stylesheet" href="/shared/palette.css">   <!-- generate mode only -->
 ...
-<script src="/shared/organica-palette.js"></script>
+<script src="/shared/palette.js"></script>
 ```
 
 The old names `Organica.createColorSwatch` / `createPaletteChips` /
 `Organica.Palette.colorAt` still work as thin aliases (removal tracked in the
 Phase 2 migration). `organica-palette-chip.js` was folded into
-`organica-palette.js` on 2026-08-29; `createColorSwatch` moved out of
-`organica-core.js` at the same time.
+`palette.js` on 2026-08-29; `createColorSwatch` moved out of
+`core.js` at the same time.
 
-**Video recording — `Organica.recorder`** (`shared/organica-recorder.js`,
+**Video recording — `Organica.recorder`** (`shared/recorder.js`,
 added 2026-08-30, no paired CSS). `Organica.recorder({ canvas, tool, fps,
 duration, durationPadMs, onStart, onStatus, onStateChange }) → { toggle, start,
 stop, isRecording }`. `canvas` may be a function (p5 tools). `duration` omitted
@@ -124,8 +124,8 @@ The tool keeps its own floatbar button and wires `toggleRecording` to
 `rec.toggle()`. Load after core. Used by Pulsar / Camo Turing / Vortex /
 Membrane; Soul keeps its own (SVG-DOM, no live canvas).
 
-**Seed source picker — `Organica.seedsPanel`** (`shared/organica-seedspanel.js`
-+ paired `organica-seedspanel.css`, added 2026-08-30). The tabbed
+**Seed source picker — `Organica.seedsPanel`** (`shared/seeds-panel.js`
++ paired `seeds-panel.css`, added 2026-08-30). The tabbed
 Genesis/SVG/Text(/Image) picker + Genesis thumbnail grid.
 `Organica.seedsPanel({ target, idPrefix, tabs, slots, subControls,
 extraControls, genesis, text, svg, image, applyMode, onSeed, onTabChange,
@@ -136,7 +136,7 @@ canonical vector intermediate) and `result.descriptor` (raw
 adapts whichever it needs. `applyMode:'manual'` = the picker never fires; the
 tool calls `panel.getDescriptor()` / `panel.getSVGString()` at its own Apply
 step. `genesis.bakeGeometry:true` resolves CSS-driven form geometry (needs
-`/genesis/organic-animations.css`). `.PRIMORDIAL` = the shared curated form
+`/genesis/animations.css`). `.PRIMORDIAL` = the shared curated form
 list. A page with two panels passes distinct `idPrefix`es (Camo Turing).
 Load after core; link the CSS. Used by Soul / Membrane / Camo Turing. Living
 Path takes only `Organica.seedsPanel.PRIMORDIAL` (the shared curated form
@@ -145,10 +145,10 @@ OTF-export "Font" workbench, no shared panel CSS); a full adoption waits on
 Living Path moving to the shared shell.
 
 ```html
-<link rel="stylesheet" href="/shared/organica-seedspanel.css">
+<link rel="stylesheet" href="/shared/seeds-panel.css">
 ...
-<script src="/shared/organica-recorder.js"></script>      <!-- if it records video -->
-<script src="/shared/organica-seedspanel.js"></script>    <!-- if it has a seed picker -->
+<script src="/shared/recorder.js"></script>      <!-- if it records video -->
+<script src="/shared/seeds-panel.js"></script>    <!-- if it has a seed picker -->
 ```
 
 ---
@@ -156,7 +156,7 @@ Living Path moving to the shared shell.
 ## 3. Palette contract
 
 The six surface names (`--ink` `--paper` `--mid` `--accent` `--panel`
-`--border`) are **defaults in `organica-tokens.css`** as of 2026-08-30.
+`--border`) are **defaults in `tokens.css`** as of 2026-08-30.
 This section used to say each tool sets its own hex, on the theory tools
 would diverge; 15 of 17 shipped byte-identical values, so they moved to
 one place. A tool now declares only:
@@ -232,7 +232,7 @@ before the first separator of the export group.
 
 ## 4b. The header component
 
-`shared/organica-header.css` + `Organica.status()` / `Organica.popover()`.
+`shared/header.css` + `Organica.status()` / `Organica.popover()`.
 Replaces five divergent bars. Full audit and rationale in this section.
 
 ### The rule
@@ -327,7 +327,7 @@ not inside a column. Library originally had it inside `.canvas-area`, which
 squeezed it into the middle column; the grid now uses
 `height: calc(100vh - var(--header-h))` and the header is its sibling.
 
-Catalog pages inherit `body{padding:48px}` from `organic-page.css` for the form
+Catalog pages inherit `body{padding:48px}` from `page.css` for the form
 grid; there the header escapes with `margin: -48px -48px 32px` plus
 `position: sticky` rather than dropping the padding the grid needs.
 
@@ -344,7 +344,7 @@ Verified at 700px — no wrapping, no clipping, height stable.
 
 ## 4c. The panel component
 
-`shared/organica-panel.css`. Modelled on Figma's Design panel, which is the
+`shared/panel.css`. Modelled on Figma's Design panel, which is the
 reference for a dense inspector that stays readable.
 
 ### What it replaced
@@ -434,7 +434,7 @@ parametric generator (Circle/Poly/Star/Arc/Triangle/Square/Segment/Drop/Blob).
 `S.gen.type === 'freehand'` is the single selector; `geometry()` already
 converged both to one path string. Freehand seeds now serialize the Paper.js
 path (`createPaperDrawEditor().serialize()`/`.load()` in
-`shared/organica-paper.js`) into `form.genParams`, so a saved freehand seed
+`shared/paper.js`) into `form.genParams`, so a saved freehand seed
 re-opens fully editable via `Load seed…` — the same recipe round-trip the
 parametric kinds already had. Seeds saved from the old Draw tab (no
 `genType`) still load as static Import.
@@ -454,7 +454,7 @@ what wasn't ported.
 
 ## 5. Behaviour contract
 
-Every tool wires these the same way, using `organica-core.js`:
+Every tool wires these the same way, using `core.js`:
 
 | Behaviour | Call |
 |---|---|
@@ -515,15 +515,15 @@ shipping. Follow every line here in the same session as the migration —
 "do it later" is exactly how the first two gaps happened.
 
 - [ ] **Shell**: link the 5 shared CSS files in the load-bearing order
-  (`organica-tokens.css` → `organica-header.css` → `organica-panel.css`
-  → `organica-floatbar.css` → `organica-shell.css`), add a real
+  (`tokens.css` → `header.css` → `panel.css`
+  → `floatbar.css` → `shell.css`), add a real
   `<header class="org-header org-header--tool">` with the logo linking to
   `/`, put `class="org-stage"` on the canvas element, and migrate panel
   markup onto the shared `.panel-section`/`.ctrl-row`/`.panel-select`/
   `.color-row` classes instead of the exploration's own bespoke
   `.row`/`.sec-title`. Delete the exploration's own copy of the reset /
   `body` / `#app` / `#canvas-wrap` / `#zoom-hud` / `#drop-hint` rules —
-  `organica-shell.css` owns them. Start from `shared/_template.html`.
+  `shell.css` owns them. Start from `shared/_template.html`.
 - [ ] **Tokens**: replace the bespoke local `:root` block with the shared
   token set; keep a local `:root` only for genuine tool-content colours
   (what the tool draws — the two-exception rule already in `CLAUDE.md`'s
@@ -574,12 +574,12 @@ shipping. Follow every line here in the same session as the migration —
 
 Honest list of where the tools still disagree:
 
-- **App shell** — resolved 2026-08-30. `organica-shell.css` owns the reset,
+- **App shell** — resolved 2026-08-30. `shell.css` owns the reset,
   `body`, `#app`, `#canvas-wrap`, `.org-stage`, `#zoom-hud`, `#drop-hint`;
   14 tools link it (all but Genesis / Rhizome / FVS, which keep their own
   canvas surface but still get the surface palette). This also retired the
   "Panel width — 240 vs 244 vs 260" item (one `--panel-w: 248px` token in
-  `organica-panel.css`) and the "Zoom/pan CSS still inline in Spore /
+  `panel.css`) and the "Zoom/pan CSS still inline in Spore /
   Pollen / Halide" item.
 - **Genesis** uses a different shell entirely (left sets panel + centre grid +
   right design panel). It predates this template; converging it is a bigger
@@ -589,7 +589,7 @@ Honest list of where the tools still disagree:
   its own documented aliases (`.sec`/`.row`/`.group-label`).
 - **`syncColor()`** — resolved 2026-08-30. Every production colour-picker tool now
   uses the shared Palette component (`Organica.palette.swatch`,
-  `shared/organica-palette.js` + `organica-palette.css`); the `createColorSwatch` /
+  `shared/palette.js` + `palette.css`); the `createColorSwatch` /
   `createPaletteChips` / `Organica.Palette.colorAt` aliases were removed. Membrane's
   `rmxColorAt` and Camo Turing's export `rmxLerpColor` deliberately stay separate
   (different colour lineage — see `SHARED-COMPONENTS.md` §3). `shared/_template.html`
@@ -598,7 +598,7 @@ Honest list of where the tools still disagree:
 - **Layer card** — resolved 2026-08-30. Camo Turing's `.layer-card` and
   Colornet's `.chan-card` were first aliased onto `.org-layer-card`, then
   renamed to it outright the same day (Colornet's `.chan-card--armed` →
-  `.chan-armed`); the aliases are gone. `organica-panel.css` carries only
+  `.chan-armed`); the aliases are gone. `panel.css` carries only
   `.org-layer-card` / `__head` / `__body` / `.active`; each tool keeps its
   own dot / name / opacity / thumbnail controls local.
 - **Zoom/pan JS** — resolved 2026-08-30. Spore, Pollen and Halide's inline

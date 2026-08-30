@@ -1,11 +1,13 @@
 /* ─────────────────────────────────────────────────────────────
-   ORGANICA — organic-animations.css
+   ORGANICA — animations.css
    The 55 organic form animations: 77 @keyframes + the .aNN rules
    that bind them, plus .defs (hides the injected ORGANIC_DEFS svg).
 
-   This is the PURE, reusable half of the old organic-library.css —
-   no page chrome, no layout, nothing tied to a particular page.
-   Link this alone when you want the forms animated inside your own UI.
+   This is the PURE, reusable half of the old organic-library.css bundle
+   (split July 25 2026; the organic-library.css @import shim that used to
+   pull page.css + this file was retired 2026-08-30 — link the two
+   directly). No page chrome, no layout, nothing tied to a particular
+   page. Link this alone when you want the forms animated inside your own UI.
 
    ── CONTRACT — the consumer MUST define these two custom properties ──
      --ink       the form colour   (used by 79 rules)

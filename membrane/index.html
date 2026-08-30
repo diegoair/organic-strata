@@ -7,20 +7,20 @@
 
 <!-- Tokens → header → floatbar → panel, in this order (load-bearing —
      UI-SHELL.md §2/§4b/§4c: each later sheet can override the one before
-     without !important). organica-core.js is a plain script (not a
+     without !important). core.js is a plain script (not a
      module) so Organica.* exists before js/main.js (the ES module entry)
      parses. -->
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-<link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-panel.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
-<link rel="stylesheet" href="/shared/organica-shell.css">
-<link rel="stylesheet" href="/shared/organica-palette.css">
-<link rel="stylesheet" href="/shared/organica-seedspanel.css">
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/palette.css">
+<link rel="stylesheet" href="/shared/seeds-panel.css">
 <style>
   :root {
     /* color-scheme:light, the surface palette, and .upload-btn / .org-file-input
-       are shared defaults now (organica-tokens.css / organica-panel.css). */
+       are shared defaults now (tokens.css / panel.css). */
     --tool: #c15b4a;   /* identity colour — warm coral/tissue-red, header focus ring */
 
     /* Content colours (the canvas's own ink/accent — see CLAUDE.md's own
@@ -352,12 +352,12 @@
 <input type="file" id="file-image" class="org-file-input" accept="image/*">
 <input type="file" id="file-loompath" class="org-file-input" accept=".json,application/json">
 
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette.js"></script>
-<script src="/shared/organica-recorder.js"></script>
-<script src="/shared/organica-seedspanel.js"></script>
-<script src="/shared/organica-noise.js"></script>
-<script src="/shared/opentype.min.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/palette.js"></script>
+<script src="/shared/recorder.js"></script>
+<script src="/shared/seeds-panel.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/vendor/opentype.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
 <script type="module" src="./js/main.js"></script>
 </body>

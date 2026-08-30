@@ -44,7 +44,7 @@ function paintBackground() {
 }
 
 // ── Zoom/pan — the same shared component every other Organica tool's
-// own canvas/frame uses (Organica.createZoomPan, shared/organica-core.js:
+// own canvas/frame uses (Organica.createZoomPan, shared/core.js:
 // wheel zooms toward the cursor, drag pans once zoomed, dblclick/Reset
 // returns to 100%, Cmd/Ctrl +/-/0 as keyboard shortcuts). Wired once,
 // right after createCanvas() creates the real canvas element setup()
@@ -208,7 +208,7 @@ function syncMembraneSeedRows() {
   syncSeedShapeRow();
 }
 
-// ── Seed source picker — Organica.seedsPanel (organica-seedspanel.js).
+// ── Seed source picker — Organica.seedsPanel (seeds-panel.js).
 // Procedural + Image are custom slots (Membrane keeps 100% of its own
 // image DOM + listeners, reparented into the slot pane); Text is the
 // built-in tab with preloadFont:false — Membrane keeps its own
@@ -371,7 +371,7 @@ ctrl('rg-weight').addEventListener('input', e => { state.strokeW = parseFloat(e.
 ctrl('rg-alpha').addEventListener('input', e => { state.strokeAlpha = parseInt(e.target.value, 10); ctrl('v-alpha').textContent = state.strokeAlpha; });
 ctrl('chk-fill').addEventListener('change', e => { state.fillEachFrame = e.target.checked; });
 
-// ── RMX — promoted to shared/organica-palette.js (Organica.palette.swatch;
+// ── RMX — promoted to shared/palette.js (Organica.palette.swatch;
 // folded in from organica-palette-chip.js, 2026-08-29); this was one of the
 // 6 independent copies found duplicating it (ported here from Camo Turing's
 // own original). state
@@ -473,7 +473,7 @@ ctrl('num-canvas-height').addEventListener('change', e => {
 // ── Palette — Ink + Background, Camo Turing's own Ink/Paper pairing
 // (see index.html's own Palette section comment for why Background isn't
 // literally called "Paper" here). Wired via the shared
-// Organica.palette.swatch attach mode (shared/organica-palette.js) — extracted from
+// Organica.palette.swatch attach mode (shared/palette.js) — extracted from
 // this exact pair (which started as a hand-copy of Camo Turing's own
 // syncColor) once a repo-wide survey found the same swatch+hex+random+
 // native-picker-forward wiring reimplemented independently in 7 tools.
@@ -497,7 +497,7 @@ ctrl('btn-export-svg').addEventListener('click', () => {
   Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('membrane', 'svg'));
 });
 
-// ── Export: Video — the shared Organica.recorder (organica-recorder.js).
+// ── Export: Video — the shared Organica.recorder (recorder.js).
 // Manual stop only (Membrane's canvas is always live, no fixed loop).
 // Start un-freezes first — recording a frozen canvas isn't useful.
 const membraneRecorder = Organica.recorder({
@@ -516,7 +516,7 @@ const membraneRecorder = Organica.recorder({
 function toggleRecording() { membraneRecorder.toggle(); }
 ctrl('btn-record').addEventListener('click', toggleRecording);
 
-// ── Accessibility + slider polish (organica-core.js) ──
+// ── Accessibility + slider polish (core.js) ──
 Organica.autoLabelPanel(document);
 Organica.enhanceSliders(document);
 

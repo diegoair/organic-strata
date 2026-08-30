@@ -1,9 +1,9 @@
 /* ─────────────────────────────────────────────────────────────
-   ORGANICA — organica-seedspanel.css
-   Pairs with organica-seedspanel.js (Organica.seedsPanel).
+   ORGANICA — seeds-panel.css
+   Pairs with seeds-panel.js (Organica.seedsPanel).
 
    .seg-ctrl / .seg-btn and .upload-btn are NOT here — they are already
-   universal in organica-panel.css. This file carries only the Genesis
+   universal in panel.css. This file carries only the Genesis
    thumbnail grid, lifted byte-for-byte from the identical local copies
    Soul (soul/index.html) and Camo Turing (camo-turing/index.html)
    each carried before promotion.

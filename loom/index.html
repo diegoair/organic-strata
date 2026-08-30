@@ -4,18 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Loom — Organica</title>
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-<link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-panel.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
-<link rel="stylesheet" href="/shared/organica-shell.css">
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
 <style>
 :root {
   --tool: #4a7fc9;   /* header focus ring — blueprint blue, this tool's identity colour */
   /* Grid cell border colour — Photoshop's own default guide-line blue, per
      Diego's own ask. This is the grid's CONTENT colour (the line itself,
      what the tool draws), not UI chrome, so it lives here rather than in
-     shared/organica-tokens.css — same exception CLAUDE.md already carves
+     shared/tokens.css — same exception CLAUDE.md already carves
      out for Halide's ink/paper and Pollen's point colour. main.js reads
      this same variable via getComputedStyle before drawing the SVG/PNG
      renderers' own strokes, so the preview and every export can't drift
@@ -29,7 +29,7 @@
 }
 
 /* Reset, body, #app, #canvas-wrap and the #zoom-hud base come from the
-   shared sheets (organica-shell.css). Loom's own deltas: */
+   shared sheets (shell.css). Loom's own deltas: */
 #canvas-frame {
   position: relative;
   background: #ffffff;
@@ -223,7 +223,7 @@
 
 <!-- FLOATING TOOLBAR — Export, fixed bottom-centre over the canvas, same
      shared component as Strata/Spore/Pollen/Halide/Komorebi/Camo Turing
-     (shared/organica-floatbar.css). No Figma button — removed product-wide
+     (shared/floatbar.css). No Figma button — removed product-wide
      (see camo-turing/index.html's own note); sendToFigma() stays defined
      as a plain function, ready to reuse once Figma becomes a tab inside
      this same Export popover instead of its own button. -->
@@ -370,7 +370,7 @@
         <option value="spiral">Spiral</option>
       </select>
       <!-- Thumbnail dropdown — the shared design-system component
-           (shared/organica-panel.css's own "PRESET/TRANSFORMER PICKER":
+           (shared/panel.css's own "PRESET/TRANSFORMER PICKER":
            .presets/.preset-trigger/.preset-menu/.pt-ico/.pi-ico), the
            same one Camo Turing's Pattern picker and Living Path's
            Transformer picker already use, applied here to Grid type
@@ -1080,13 +1080,13 @@
   </div><!-- /panel -->
 </div>
 
-<!-- Load order: core → noise (organica-noise.js's own header: must load
+<!-- Load order: core → noise (noise.js's own header: must load
      AFTER core, or core's closing `global.Organica = Organica` clobbers
-     it) → kiwi (classic global, shared/kiwi.min.js's own header) → this
+     it) → kiwi (classic global, shared/vendor/kiwi.min.js's own header) → this
      tool's own ES modules, which read `kiwi`/`Organica` unqualified. -->
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-noise.js"></script>
-<script src="/shared/kiwi.min.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/vendor/kiwi.min.js"></script>
 <script type="module" src="./js/main.js"></script>
 </body>
 </html>

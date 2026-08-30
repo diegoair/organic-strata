@@ -1084,7 +1084,7 @@ function fitToViewIfNeeded(canvas) {
 }
 
 // ── Grid-type thumbnail picker — the shared design-system component
-// (organica-panel.css's own "PRESET/TRANSFORMER PICKER":
+// (panel.css's own "PRESET/TRANSFORMER PICKER":
 // .presets/.preset-trigger/.preset-menu/.pt-ico/.pi-ico, the same one
 // Camo Turing's Pattern picker and Living Path's Transformer picker
 // already use) applied to Grid type instead of a plain <select>. Static
@@ -1092,7 +1092,7 @@ function fitToViewIfNeeded(canvas) {
 // Gray-Scott f/k preset) isn't a function of one scalar the icon could
 // render live, so a small representative pictogram per generator is
 // the honest equivalent Camo Turing's own Transformer picker already
-// uses for the same reason (see organica-transformer.js's own header).
+// uses for the same reason (see transformer.js's own header).
 // 26×26 viewBox to match .pt-ico/.pi-ico's own fixed box; stroke=
 // currentColor so it inherits --ink from the CSS component, never a
 // hardcoded colour.

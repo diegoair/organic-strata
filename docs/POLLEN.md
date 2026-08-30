@@ -219,7 +219,7 @@ smooth arc. Everything stays WYSIWYG (the SVG export integrates the same field).
 ## 8. Architecture notes
 
 - **Symbols** come from the centralized Genesis library
-  (`/genesis/organic-forms.js` → `window.ORGANIC_FORMS`), filtered to the
+  (`/genesis/forms.js` → `window.ORGANIC_FORMS`), filtered to the
   primordial subset `[7, 56, 1, 2, 14, 33, 38, 31]`. The same picker component is
   used in **Spore**.
 - `pointType` is `g:<n>` (Genesis form), `u:<id>` (uploaded SVG), or `stroke`.

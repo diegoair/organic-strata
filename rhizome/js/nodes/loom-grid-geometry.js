@@ -1,7 +1,7 @@
 /* ─────────────────────────────────────────────────────────────
    Rhizome node — Loom Grid → Geometry (Tier 1, zero-porting).
 
-   Thin wrapper on Organica.loadLoomGrid (shared/organica-core.js:234),
+   Thin wrapper on Organica.loadLoomGrid (shared/core.js:234),
    the one genuine cross-tool JSON contract already in the repo (Piano
    Parte 1). Lets an externally-exported Loom grid (from the real /loom/
    tool, not just the in-graph Loom Grid Generator node) become a source

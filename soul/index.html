@@ -6,14 +6,14 @@
 <title>Soul — Organica</title>
 
 <!-- Tokens FIRST so the tool can override without !important.
-     Typeface, type scale, spacing: shared/organica-tokens.css
+     Typeface, type scale, spacing: shared/tokens.css
      Full reference: docs/DESIGN-SYSTEM.md + docs/UI-SHELL.md -->
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-<link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-panel.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
-<link rel="stylesheet" href="/shared/organica-shell.css">
-<link rel="stylesheet" href="/shared/organica-seedspanel.css">
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/seeds-panel.css">
 <style>
   :root {
     --tool: #c85a8c;   /* identity colour — a living rose/pulse, distinct from Strata's warmer ember */
@@ -50,7 +50,7 @@
     clip: rect(0,0,0,0); white-space: nowrap; border: 0; padding: 0; margin: -1px;
   }
 
-  /* Drop zone — the shared #drop-hint / .drop-icon (organica-shell.css)
+  /* Drop zone — the shared #drop-hint / .drop-icon (shell.css)
      replaces Soul's old bespoke paste-textarea "Source" panel. Soul's
      deltas: a full-canvas overlay (inset:0) that paints above #stage-frame,
      with a larger icon and an uppercase label. */
@@ -58,15 +58,15 @@
   .drop-icon { font-size: 20px; }
   #drop-hint p { font-size: 10px; text-transform: uppercase; }
 
-  /* Seeds panel — Organica.seedsPanel (organica-seedspanel.js +
-     organica-seedspanel.css). Genesis/SVG/Text only, no Image tab
+  /* Seeds panel — Organica.seedsPanel (seeds-panel.js +
+     seeds-panel.css). Genesis/SVG/Text only, no Image tab
      (Soul's whole contract is vector primitives; a raster image has no
      vector form without a decomposition step — Pollen/Halide's job). */
 
   /* .mini-btn, .panel-select, .ctrl-row/.ctrl-label/.ctrl-val, input[type=range] —
      deliberately NOT redefined here. A first version duplicated all of
      these locally; since this <style> block loads AFTER
-     organica-panel.css, the local (plainer) rules silently WON the
+     panel.css, the local (plainer) rules silently WON the
      cascade, overriding the shared component's own richer behaviour —
      concretely, its filled-track custom-property system and thumb
      hover-scale never applied, and .mini-btn's local copy reintroduced
@@ -300,17 +300,17 @@
      after core (core's own closing `global.Organica = Organica` would
      clobber them otherwise). GSAP plugins attach as their own globals
      and need `gsap.registerPlugin(...)` before first use — done in this
-     tool's own init, not inside organica-motion.js, since registration
+     tool's own init, not inside motion.js, since registration
      is a one-time page-level concern, not a per-call one. -->
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-noise.js"></script>
-<script src="/shared/organica-motion.js"></script>
-<script src="/shared/gsap.min.js"></script>
-<script src="/shared/gsap-morphsvg.min.js"></script>
-<script src="/shared/gsap-drawsvg.min.js"></script>
-<script src="/shared/opentype.min.js"></script>
-<script src="/shared/organica-seedspanel.js"></script>
-<script src="/genesis/organic-forms.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/motion.js"></script>
+<script src="/shared/vendor/gsap.min.js"></script>
+<script src="/shared/vendor/gsap-morphsvg.min.js"></script>
+<script src="/shared/vendor/gsap-drawsvg.min.js"></script>
+<script src="/shared/vendor/opentype.min.js"></script>
+<script src="/shared/seeds-panel.js"></script>
+<script src="/genesis/forms.js"></script>
 <!-- p5.js, CDN — the Flow field pattern's own engine, ported from
      explorations/flow-field/. Loaded in INSTANCE mode (not global mode)
      specifically so it can't leak p5's globals (random/map/constrain/PI/
@@ -322,7 +322,7 @@
 <script>
 function ctrl(id) { return document.getElementById(id); }
 // Wraps Organica.status() only to also sync the `title` attribute — the
-// floatbar's own status readout truncates long messages (organica-header.css's
+// floatbar's own status readout truncates long messages (header.css's
 // existing ellipsis rule, reused as-is), so the full text needs to be
 // reachable on hover; Organica.status() itself only ever set textContent.
 const _rawSetStatus = Organica.status();
@@ -408,7 +408,7 @@ canvasWrap.addEventListener('drop', e => {
 });
 
 // ── SEEDS — Genesis / SVG / Text via the shared Organica.seedsPanel
-// (organica-seedspanel.js). No Image tab (a raster image has no vector
+// (seeds-panel.js). No Image tab (a raster image has no vector
 // form without a decomposition step — Pollen/Halide's job), no
 // Mode/Size/Two-seeds (Gray-Scott parameters with nothing analogous
 // here). Every source hands back an SVG string → the same loadSVG()
@@ -446,7 +446,7 @@ function buildElement(p) {
     el.setAttribute('x1', a.x1 || 0); el.setAttribute('y1', a.y1 || 0);
     el.setAttribute('x2', a.x2 || 0); el.setAttribute('y2', a.y2 || 0);
   } else {
-    el = document.createElementNS(SVG_NS, 'circle');   // unreachable given SUPPORTED in organica-motion.js, kept as a safe fallback rather than throwing
+    el = document.createElementNS(SVG_NS, 'circle');   // unreachable given SUPPORTED in motion.js, kept as a safe fallback rather than throwing
   }
   const hasFill = validColor(p.fill), hasStroke = validColor(p.stroke);
   el.setAttribute('fill', hasFill || (p.type === 'point' ? '#c85a8c' : 'none'));
@@ -487,7 +487,7 @@ function syncGrowthHint() {
   ctrl('morph-hint').style.display = pattern === 'morph' ? '' : 'none';
   ctrl('flow-hint').style.display = pattern === 'flow' ? '' : 'none';
   ctrl('flow-params').style.display = pattern === 'flow' ? '' : 'none';
-  // Amount/Duration are read by every OTHER pattern (organica-motion.js's
+  // Amount/Duration are read by every OTHER pattern (motion.js's
   // own PATTERNS registry) — Flow field has its own 4 params instead, so
   // hiding these two rows for it follows the same "don't show controls
   // this pattern doesn't read" rule flow-hint itself states.
@@ -501,7 +501,7 @@ ctrl('chk-flow-particles').addEventListener('change', e => {
 
 // Which primitive TYPE a pattern is scoped to, if any — Growth (DrawSVG)
 // needs a path to draw, Morph needs a circle to morph FROM. Both filtered
-// here (not left for GSAP/organica-motion.js to silently no-op on) so the
+// here (not left for GSAP/motion.js to silently no-op on) so the
 // status readout reports an accurate count and the UI can't claim
 // "playing on 40 primitives" when only 12 of them actually moved.
 const PATTERN_TYPE_SCOPE = { growth: 'path', morph: 'point' };
@@ -518,7 +518,7 @@ const PATTERN_TYPE_SCOPE = { growth: 'path', morph: 'point' };
 // cached angles from p5's noise()) is the only piece ported unchanged.
 //
 // Architecture matches `wobble`'s own batched-ticker pattern in
-// organica-motion.js (one shared gsap.ticker callback for every primitive
+// motion.js (one shared gsap.ticker callback for every primitive
 // instead of N independent tweens) rather than a real GSAP tween, since
 // this is continuous/non-repeating like wobble, not a fixed-duration
 // animation — and for the same reason returns {kill,pause,resume,delay}
@@ -684,7 +684,7 @@ function animateFlowBatch(targets, primitives, params) {
     freeEls.forEach(el => el.remove());
   };
   // Pause/resume need no elapsed-time compensation (unlike wobble's own
-  // pause/resume in organica-motion.js): dx/dy accumulate incrementally
+  // pause/resume in motion.js): dx/dy accumulate incrementally
   // per tick, not from an absolute time coordinate, so simply not ticking
   // while paused already freezes position exactly — resuming just
   // continues accumulating from wherever it stopped, no jump possible.
@@ -749,8 +749,8 @@ function playMotion() {
   }
 
   // Flow field is Soul-local (needs p5noise), not part of the shared
-  // organica-motion.js registry every other pattern reads from — every
-  // other Organica tool loads organica-motion.js without needing p5.js,
+  // motion.js registry every other pattern reads from — every
+  // other Organica tool loads motion.js without needing p5.js,
   // and this pattern is the one place that's not true.
   if (pattern === 'flow') {
     const flowParams = {
@@ -789,7 +789,7 @@ function stopMotion() {
       if (!p.el) return;
       gsap.set(p.el, { clearProps: 'all' });
       // Morph writes the `d` attribute directly (an SVG attribute, not a
-      // CSS property clearProps can restore) — organica-motion.js's own
+      // CSS property clearProps can restore) — motion.js's own
       // morph() stashes the pre-morph circle-as-path `d` on the
       // primitive for exactly this reset.
       if (p._morphRestD) p.el.setAttribute('d', p._morphRestD);
@@ -802,7 +802,7 @@ function stopMotion() {
 // icon swaps between a play-triangle and pause-bars glyph, aria-label
 // tracking the state it'll switch TO. Pause freezes every tween/timeline
 // in place via GSAP's own .pause()/.resume() (the wobble batch handle
-// gets the same two methods wired in organica-motion.js, since it isn't
+// gets the same two methods wired in motion.js, since it isn't
 // a real GSAP tween) — Stop stays the separate hard reset (Camo Turing's
 // own analogue there is Reset, a different action from Pause).
 const ICO_PAUSE = '<path d="M5 3.5v9M11 3.5v9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>';

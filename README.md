@@ -31,9 +31,10 @@ organic-strata/
 ├── genesis/
 │   ├── index.html       ← Genesis Creator composer
 │   ├── indicators.html  ← 55-form animated catalog
-│   ├── organic-library.css   ← 55 CSS @keyframes animations
-│   ├── organic-forms.js      ← SVG markup for all 55 forms
-│   ├── organic-defs.js       ← Shared SVG defs (goo filters + shapes)
+│   ├── animations.css   ← 55 CSS @keyframes animations (append-only)
+│   ├── page.css         ← Genesis catalog page chrome
+│   ├── forms.js      ← SVG markup for all 55 forms
+│   ├── defs.js       ← Shared SVG defs (goo filters + shapes)
 │   └── genesis-creator.js    ← Composer interaction logic
 ├── strata/
 │   └── index.html       ← Strata app with Smart+ tracing algorithm

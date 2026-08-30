@@ -1,6 +1,6 @@
 /* ─────────────────────────────────────────────────────────────
    Rhizome — node inspector, rendered into the shared #panel
-   (shared/organica-panel.css) when a node is selected (Piano Parte
+   (shared/panel.css) when a node is selected (Piano Parte
    3.4e). Organica.autoLabelPanel(document) is called after every
    rebuild — a panel that rebuilds on every selection is a much higher-
    frequency rebuild site than Genesis Creator's own single-page rebuild,

@@ -1,16 +1,16 @@
 /* ─────────────────────────────────────────────────────────────────────────────
- * organica-palette.js — the Organica Palette component (JS half).
- * Paired stylesheet: shared/organica-palette.css  (RMX chip CSS lives there,
- * not in organica-panel.css). The single-swatch `.color-*` CSS stays in
- * organica-panel.css — it is universal and unduplicated.
+ * palette.js — the Organica Palette component (JS half).
+ * Paired stylesheet: shared/palette.css  (RMX chip CSS lives there,
+ * not in panel.css). The single-swatch `.color-*` CSS stays in
+ * panel.css — it is universal and unduplicated.
  *
  * Consolidates three previously-separate shared pieces (old names retired
  * 2026-08-30 after every call site migrated):
- *   - Organica.createColorSwatch  (was in organica-core.js)      → palette.swatch(<id>, …)
+ *   - Organica.createColorSwatch  (was in core.js)      → palette.swatch(<id>, …)
  *   - Organica.createPaletteChips (was organica-palette-chip.js) → palette.swatch(<el>, …)
  *   - Organica.Palette.colorAt    (score → colour math)          → palette.colorAt
  *
- * LOAD ORDER (load-bearing): organica-core.js → organica-palette.js → tool script.
+ * LOAD ORDER (load-bearing): core.js → palette.js → tool script.
  * Needs Organica.normalizeHex / hexToRGB255 / rgbToHex / randomHex from core.
  *
  * ── palette.swatch(target, opts) — one component, two shapes ──────────────────

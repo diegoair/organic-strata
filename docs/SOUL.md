@@ -11,7 +11,7 @@
 ## 1. Why Soul exists
 
 Genesis's 55 forms are animated, but the animation is CSS hand-typed per
-form — `organic-animations.css` has one `@keyframes` rule per form, coupled
+form — `animations.css` has one `@keyframes` rule per form, coupled
 1:1 to that form's own markup. There's no way to take "Internal pressure"
 (breath/heartbeat) and apply it to a shape that isn't one of the 55 without
 writing new CSS by hand.
@@ -32,8 +32,8 @@ here:
    (`col/row/points`) is exactly the "many elements with a real position"
    shape a stagger formula needs.
 3. **GSAP is the timing/morph engine**, not hand-rolled — evaluated
-   against p5.js (declined: duplicates `organica-noise.js`/
-   `organica-palette.js`, wants to own its own canvas/loop) and against
+   against p5.js (declined: duplicates `noise.js`/
+   `palette.js`, wants to own its own canvas/loop) and against
    building a timeline system by hand (GSAP's free "Standard, No Charge"
    license — confirmed live from gsap.com/standard-license, not assumed
    — covers this use case: no fee charged to end users to access
@@ -50,14 +50,14 @@ here:
 Any Organica tool's SVG export
         │
         ▼
-organica-motion.js: parsePrimitives(svgString)
+motion.js: parsePrimitives(svgString)
         │  → flat list of {id, type: point|path, x, y, r, bbox, fill, stroke, sourceTag, sourceAttrs}
         ▼
 soul/index.html: buildElement(primitive) → real <circle>/<path>/<polygon>/… DOM node
         │  (GSAP needs a real element to animate — DrawSVG/MorphSVG specifically
         │   operate on SVG attributes, not canvas draw calls)
         ▼
-organica-motion.js: animate(targets, primitives, pattern, params, staggerCfg)
+motion.js: animate(targets, primitives, pattern, params, staggerCfg)
         │  → one GSAP tween/timeline per element, delayed per staggerDelay()
         ▼
 Live playback in #stage-svg
@@ -73,7 +73,7 @@ from the parser's preserved `sourceTag`/`sourceAttrs`, the same "redraw
 from the original markup, not a normalised approximation" idea Pollen's own
 `drawSvgEl()` already uses for its canvas replay.
 
-## 3. `organica-motion.js` — the shared contract
+## 3. `motion.js` — the shared contract
 
 ### `parsePrimitives(svgString)` → `{ primitives, canvas }`
 
@@ -175,7 +175,7 @@ Three formulas:
 
 ## 4. Simplex noise (`simplex2`/`simplex3`/`simplexFbm2`/`simplexFbm3`)
 
-Added to `organica-noise.js` ahead of the primitive/motion work, evaluated
+Added to `noise.js` ahead of the primitive/motion work, evaluated
 directly against p5.js's own `noise()` rather than assumed better because
 it's newer. The finding, not just the conclusion: **p5's `noise()` is NOT
 gradient/Perlin noise** despite the name (a well-documented historical
@@ -275,7 +275,7 @@ manual Stop always leaves the tool in a fully idle state.
 ### 5a. Seeds — Genesis / SVG / Text
 
 The same tabbed source-picker component Camo Turing's own Seeds panel
-uses (`.seg-ctrl`/`.seg-btn` from the shared `organica-panel.css`;
+uses (`.seg-ctrl`/`.seg-btn` from the shared `panel.css`;
 `.shape-grid`/`.shape-thumb`/`.upload-btn` are Camo Turing's own local
 additions, not yet promoted to a shared file, replicated verbatim here —
 same situation Camo Turing itself is in), scoped down to what Soul
@@ -286,7 +286,7 @@ parameters specific to Camo Turing, nothing here is analogous.
 
 - **Genesis** — the same curated 8-form subset (`PRIMORDIAL = [7, 56, 1,
   2, 14, 33, 38, 31]`) Camo Turing's own Seeds panel shows, thumbnails
-  read straight from `window.ORGANIC_FORMS` (`/genesis/organic-forms.js`).
+  read straight from `window.ORGANIC_FORMS` (`/genesis/forms.js`).
   Clicking a thumbnail calls `loadSVG()` directly — the exact same load
   path every other source uses, so a Genesis form goes through the same
   `parsePrimitives()` → render pipeline as everything else, not a special
@@ -296,9 +296,9 @@ parameters specific to Camo Turing, nothing here is analogous.
 - **Text** — real vector letterforms, not a raster mask (Camo Turing's own
   Text seed rasterises text into a simulation mask, correct for THAT tool,
   wrong here — Soul's whole contract is vector primitives).
-  `opentype.js` (vendored, `shared/opentype.min.js`) reads the same
+  `opentype.js` (vendored, `shared/vendor/opentype.min.js`) reads the same
   vendored Manrope file every Organica tool's own typography already
-  commits to (`shared/manrope-variable.ttf`, `docs/DESIGN-SYSTEM.md`).
+  commits to (`shared/vendor/manrope-variable.ttf`, `docs/DESIGN-SYSTEM.md`).
   `font.getPaths(text, ...)` — plural — returns one `Path` per GLYPH
   rather than one fused path for the whole string, deliberately: it means
   Motion's own stagger addresses individual LETTERS, not the word as one
@@ -364,8 +364,8 @@ and injects a `<parsererror>` as a CHILD, so genuinely malformed markup
 was silently read as "valid SVG, zero shapes found" instead of a real parse
 error; fixed by explicitly checking for an injected `<parsererror>` node.
 (2) The `noise` stagger formula referenced a bare `noise.simplexFbm2(...)`
-that was never in scope in `organica-motion.js`'s own closure (that name
-only exists inside `organica-noise.js`'s own IIFE) — every earlier
+that was never in scope in `motion.js`'s own closure (that name
+only exists inside `noise.js`'s own IIFE) — every earlier
 verification pass happened to test `index`/`distance` stagger and
 generalised "stagger works" from that, without ever actually selecting
 `noise` and pressing Play; fixed to `Organica.noise.simplexFbm2`, the same
@@ -423,8 +423,8 @@ and export tested.
 Requested explicitly, separate from the UI overhaul itself: "verify everything
 is centralized and reuses the right components." Rather than eyeball it,
 diffed Soul's local `<style>` block's own selector list against every shared
-file it links (`organica-panel.css`/`organica-header.css`/
-`organica-floatbar.css`/`organica-tokens.css`) and grepped for hardcoded hex/px
+file it links (`panel.css`/`header.css`/
+`floatbar.css`/`tokens.css`) and grepped for hardcoded hex/px
 values that should be tokens. Found four real defects, all the same root
 mistake in different clothes — Soul's own local `<style>` block loads AFTER
 the shared `<link>`s, so any selector it redefines silently WINS the cascade,
@@ -491,7 +491,7 @@ toggle, the exact id/icon-swap/aria-label technique Camo Turing's own
 tweens (every pattern except wobble) already support `.pause()`/`.resume()`
 natively — no core change needed there. `wobble`'s batched ticker handle
 didn't have those methods, so they were added to `animateWobbleBatch`'s
-return value in `organica-motion.js`.
+return value in `motion.js`.
 
 The first version of that addition had a real bug, caught by a controlled
 test rather than assumed correct from the visual state changing: it shifted
@@ -611,10 +611,10 @@ ever created — verified live (`document.querySelectorAll('canvas').length
 exploration's own grid-cache technique verbatim (noise sampled once per
 cell, not per pixel — see the exploration's own header comment for why).
 `animateFlowBatch()` follows `wobble`'s own architecture in
-organica-motion.js — one shared `gsap.ticker` callback for every primitive
+motion.js — one shared `gsap.ticker` callback for every primitive
 rather than N independent tweens, since this is continuous/non-repeating,
 not a fixed-duration animation — kept Soul-local (not added to the shared
-organica-motion.js registry) since it's the one pattern that needs p5.js,
+motion.js registry) since it's the one pattern that needs p5.js,
 which no other Organica tool loads. Each primitive tracks a `(dx,dy)` drift
 offset from its own real position (`prim.cx`/`prim.cy`, already set by
 `parsePrimitives`), written as `translate()` each tick. Own params (Cell

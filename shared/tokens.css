@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   ORGANICA — organica-tokens.css
+   ORGANICA — tokens.css
    The design system: one typeface, one type scale, one set of names.
 
    Before this file, Organica ran on four typefaces (Syne, Syne Mono,
@@ -16,7 +16,7 @@
    token locally without !important.
 
    ── SOURCE OF TRUTH ──
-   This file is the BROWSER MIRROR of shared/organica-tokens.json, which is
+   This file is the BROWSER MIRROR of shared/tokens.json, which is
    the single source the design system is defined in. Change a value there
    first, then here, then in Figma. If this file and the JSON disagree, the
    JSON wins and this is the bug.

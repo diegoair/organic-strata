@@ -12,9 +12,9 @@
      from docs/plans — this validates ONLY the interaction mechanics
      (node drag, live wire, a 2-node sync pipeline) before committing to
      that structure. See the approved plan, Parte 5a. -->
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/kiwi.min.js"></script>
+<link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/core.js"></script>
+<script src="/shared/vendor/kiwi.min.js"></script>
 
 <style>
   * { box-sizing: border-box; }
@@ -250,7 +250,7 @@ bindNodeDrag(document.getElementById('node-b-drag'), nodeB);
 
 // ── Pan/zoom — shared Organica.createZoomPan on the #graph wrapper.
 //    min:0.1 per the plan (Parte 3.4d); the panAlways fix to
-//    organica-core.js itself is deferred to the real Phase 1, so at
+//    core.js itself is deferred to the real Phase 1, so at
 //    zoom=100% pan needs a wheel-zoom-in first, same as every other
 //    tool today. ──
 zoomRef.current = Organica.createZoomPan({

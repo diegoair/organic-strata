@@ -6,21 +6,21 @@
 <title>Rhizome — Organica</title>
 
 <!-- Tokens → header → floatbar → panel, in this order (load-bearing —
-     UI-SHELL.md §2/§4b/§4c). organica-core.js + kiwi.min.js are plain
+     UI-SHELL.md §2/§4b/§4c). core.js + kiwi.min.js are plain
      scripts, loaded before this tool's own <script type="module">, so
      Organica.* and the global `kiwi` (needed by loom/js/constraint-
      engine.js's solveTracksKiwi) both exist at import time. -->
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-<link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
-<link rel="stylesheet" href="/shared/organica-panel.css">
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-motion.js"></script>
-<script src="/shared/kiwi.min.js"></script>
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<script src="/shared/core.js"></script>
+<script src="/shared/motion.js"></script>
+<script src="/shared/vendor/kiwi.min.js"></script>
 <style>
   :root {
     /* color-scheme:light + the surface palette are shared defaults in
-       organica-tokens.css now. Rhizome keeps its own node-graph shell. */
+       tokens.css now. Rhizome keeps its own node-graph shell. */
     --tool: #7a9c5e;   /* identity colour — rhizome green, unclaimed hue
                           between FVS's emerald and Komorebi's olive */
   }

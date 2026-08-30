@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mycel — Organica</title>
 
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-<link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-panel.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
 <style>
   :root {
     --ink: #0a0a0a;
@@ -103,7 +103,7 @@
     user-select: none;
   }
 
-  /* ── PANEL extras not covered by organica-panel.css ── */
+  /* ── PANEL extras not covered by panel.css ── */
   .field-group { display: flex; gap: var(--space-2); margin-bottom: var(--space-3); }
   .field-mini { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .field-mini__tag { font-size: var(--fs-micro); color: var(--mid); }
@@ -277,14 +277,14 @@
 </div>
 
 <!-- Core → noise, load-bearing order (noise extends Organica itself).
-     organica-motion.js's own staggerDelay was tried and dropped — its
+     motion.js's own staggerDelay was tried and dropped — its
      'distance' formula scales with primitive count (fine for Soul's
      typical tens of shapes, badly wrong at Mycel's hundreds of edges —
      see play()'s own comment) — so Mycel computes its own count-
      independent stagger instead of loading that file for nothing. No
      GSAP either: growth reveal is plain CSS (form 39's own technique). -->
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-noise.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/noise.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────
 // Mycel — organic branching-network generator.

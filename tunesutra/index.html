@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TuneSutra — Organica</title>
 
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-<link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-panel.css">
-<link rel="stylesheet" href="/shared/organica-palette.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/palette.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
 <style>
   :root {
     --ink: #0a0a0a;
@@ -61,13 +61,13 @@
   .scale-hex  { font-family: var(--font); font-size: 9px;  fill: var(--mid); text-anchor: middle; }
   .scale-anchor { stroke: var(--ink); stroke-width: 2; }
 
-  /* ── PANEL — colour field groups not covered by organica-panel.css ── */
+  /* ── PANEL — colour field groups not covered by panel.css ── */
   .field-group { display: flex; gap: var(--space-2); margin-bottom: var(--space-3); }
   .field-mini { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .field-mini__tag { font-size: var(--fs-micro); color: var(--mid); text-align: center; }
   .field-mini input { width: 100%; text-align: center; padding: 0 2px; }
 
-  /* RMX chip CSS is shared/organica-palette.css. TuneSutra tunes the cell
+  /* RMX chip CSS is shared/palette.css. TuneSutra tunes the cell
      (30×26, rounded, strong border) via the custom props; its rounded
      flex-centred +/× buttons stay local. */
   .rmx-color { --rmx-cell-w: 30px; --rmx-cell-h: 26px;
@@ -231,8 +231,8 @@
   </div>
 </div>
 
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/palette.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────
 // TuneSutra — colour-harmony palette generator.
@@ -245,7 +245,7 @@
 // Colour-space conversions below (rgbToHsb/hsbToRgb/rgbToCmyk/cmykToRgb/
 // rgbToHsl/hslToRgb) were all written locally at first: the repo had
 // hex<->RGB shared already, but no RGB->HSB, no HSL either direction, no
-// CMYK anywhere. CMYK has since been PROMOTED to organica-core.js (2026-08-27,
+// CMYK anywhere. CMYK has since been PROMOTED to core.js (2026-08-27,
 // Colornet became the second consumer) and the two functions below are now
 // thin aliases onto it. HSB/HSL stay local — still single-consumer, same
 // "promote at the second real consumer, never speculatively" rule.
@@ -281,7 +281,7 @@ function hsbToRgb(h, s, v) {
   else [r1, g1, b1] = [c, 0, x];
   return { r: round((r1 + m) * 255), g: round((g1 + m) * 255), b: round((b1 + m) * 255) };
 }
-// CMYK promoted to shared/organica-core.js on 2026-08-27, when Colornet
+// CMYK promoted to shared/core.js on 2026-08-27, when Colornet
 // (print separation) became the second consumer these comments were waiting
 // for. Kept as thin local aliases so every existing call site here is
 // untouched — the implementation is now shared, not duplicated.

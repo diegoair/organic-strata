@@ -12,9 +12,9 @@ Every pattern here is a **pure function of `(x, y)`** — no iterative convergen
 
 ## Architecture note — shared noise module
 
-`hash2`, `vnoise`, `fbm`, `ridgedFbm`, `voronoiF1F2` live in `shared/organica-noise.js`, not as a private copy in this file. They started as private copies inside `komorebi/index.html` (itself a plain-JS port of an even older GLSL version); Camo Turing's anisotropic-diffusion work needed the same hash/fbm construction again, and this tool is a third independent consumer — the exact condition `organica-core.js`'s own header warns about (a routine copied three times drifts, and a fix in one copy never reaches the others). Komorebi was switched to consume the shared module in the same session this tool shipped, verified regression-clean (identical Cellular-pattern render, identical `buildSVG()` output on the Canvas Bloom preset).
+`hash2`, `vnoise`, `fbm`, `ridgedFbm`, `voronoiF1F2` live in `shared/noise.js`, not as a private copy in this file. They started as private copies inside `komorebi/index.html` (itself a plain-JS port of an even older GLSL version); Camo Turing's anisotropic-diffusion work needed the same hash/fbm construction again, and this tool is a third independent consumer — the exact condition `core.js`'s own header warns about (a routine copied three times drifts, and a fix in one copy never reaches the others). Komorebi was switched to consume the shared module in the same session this tool shipped, verified regression-clean (identical Cellular-pattern render, identical `buildSVG()` output on the Canvas Bloom preset).
 
-**Load order matters**: `organica-core.js` → `organica-noise.js` → the tool's own script. `organica-core.js`'s own last line is `global.Organica = Organica`, which would silently overwrite (not merge with) a `.noise` namespace attached before it loaded.
+**Load order matters**: `core.js` → `noise.js` → the tool's own script. `core.js`'s own last line is `global.Organica = Organica`, which would silently overwrite (not merge with) a `.noise` namespace attached before it loaded.
 
 ## 1. Pattern
 

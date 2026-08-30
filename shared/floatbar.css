@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   ORGANICA — organica-floatbar.css
+   ORGANICA — floatbar.css
    The floating action bar. One component, fixed at the bottom-centre of
    the canvas, replacing the header's action slot (Open / Export / Figma
    / per-tool extras) across every tool.
@@ -12,7 +12,7 @@
 
    Centred on the CANVAS, not the browser viewport: the panel sits fixed
    at --panel-w (or --panel-width-right in Genesis Creator, which never
-   linked organica-panel.css) on the right, so centring on 50vw would
+   linked panel.css) on the right, so centring on 50vw would
    drift the bar visibly toward the panel. The offset below shifts the
    centre point left by half the panel's width, which is a static value
    in every tool (the panel doesn't resize), so a fixed calc() is enough
@@ -22,11 +22,11 @@
    tool needs — Open+Export+Figma, or just Undo+Clear for Creator, or
    Export+Record for Komorebi); the shell, spacing, icon sizing, popover
    anchoring and states are shared. Reuses .org-popover / Organica.popover
-   from organica-header.css / organica-core.js verbatim for any button
+   from header.css / core.js verbatim for any button
    that opens a panel — only the anchor direction flips (the trigger is
    now at the BOTTOM of the screen, so the popover opens upward).
 
-   Requires organica-tokens.css and organica-header.css (for --border-strong,
+   Requires tokens.css and header.css (for --border-strong,
    .org-popover, .org-btn's disabled contract) loaded first.
    ───────────────────────────────────────────────────────────── */
 

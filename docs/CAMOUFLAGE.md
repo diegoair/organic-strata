@@ -247,14 +247,14 @@ to gate, only a single `renderFrame()` call per control change.
   stay interactive.
 - **Toroidal (wrap-around) boundary** everywhere — chosen from the start, not retrofitted,
   because it makes Zoom and seamless export free instead of two separate features to build.
-- Shares `shared/organica-core.js` (`download`, `stamp`, `presetStore`, `hexToRGB255`,
+- Shares `shared/core.js` (`download`, `stamp`, `presetStore`, `hexToRGB255`,
   `normalizeHex`, `contoursToPathD`, `status`, `popover`, `autoLabelPanel`, `enhanceSliders`)
-  and `shared/organica-tokens.css` / `organica-header.css` / `organica-panel.css` verbatim —
+  and `shared/tokens.css` / `header.css` / `panel.css` verbatim —
   no new shared code was needed; every building block already existed from Komorebi/Halide.
   Verified: 0 of 38 panel controls unnamed (`autoLabelPanel`), sliders show the filled-track
   + click-to-edit affordance (`enhanceSliders`), same as every other tool.
 - **Mode tabs** (`.org-header--editor` + `.org-tabs`) — a component defined in
-  `shared/organica-header.css` since before Camouflage existed but never adopted by any tool
+  `shared/header.css` since before Camouflage existed but never adopted by any tool
   (confirmed by grepping every `index.html` for the class before using it). Camouflage is the
   first tool to actually use it, rather than inventing another one-off tab pattern the way
   Strata's `.output-view-btn` did.
@@ -673,7 +673,7 @@ after   27 → 27 → 27 → 37 → 67 → 82 → 88 → 90 → 94 → 100
   §Recommendations, Fase 4.
 - [ ] **"Concealed Motion" (7th animation category)** — motion camouflage / CBDR as a new
   Genesis animation principle ("moving without appearing to move"). A *separate* initiative on
-  `docs/ANIMATION-SYSTEM.md` + `organic-animations.css` (append-only), not part of Camouflage
+  `docs/ANIMATION-SYSTEM.md` + `animations.css` (append-only), not part of Camouflage
   itself — likely CSS-only (very slow, linear, sub-perceptual transforms), not a simulation, so
   probably doesn't conflict with the animation system's CSS-only rule, but that needs its own
   scoping pass before touching a file the other 55 forms depend on.

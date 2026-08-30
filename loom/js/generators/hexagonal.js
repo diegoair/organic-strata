@@ -74,7 +74,7 @@
        where it starts; smoothing it (e.g. `sin(theta)`) would read as a
        wave, not a vortex, a different mode entirely.
      - `noise` — Amount scaled by a seeded 4-octave value-noise field
-       (`Organica.noise.fbm`, `shared/organica-noise.js` — Loom's first
+       (`Organica.noise.fbm`, `shared/noise.js` — Loom's first
        consumer, ported from Komorebi/Camo Turing/Warping rather than a
        fourth private copy) sampled at each hex's own centre, an organic
        "wind-blown" texture instead of geometric symmetry. `Noise scale`

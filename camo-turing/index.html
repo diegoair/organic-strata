@@ -5,21 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Camo Turing — Organica</title>
 
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-<link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-panel.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
-<link rel="stylesheet" href="/shared/organica-shell.css">
-<link rel="stylesheet" href="/shared/organica-palette.css">
-<link rel="stylesheet" href="/shared/organica-seedspanel.css">
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/palette.css">
+<link rel="stylesheet" href="/shared/seeds-panel.css">
 <!-- Needed only to resolve Genesis forms' CSS-driven geometry when
      rasterizing them as seed shapes — see Organica.seedsPanel bakeGeometry
      + the local rasterizeGenesisSource() probe helper. -->
-<link rel="stylesheet" href="/genesis/organic-animations.css">
+<link rel="stylesheet" href="/genesis/animations.css">
 <style>
   :root {
-    --tool: #3f8fa0;   /* header focus ring — see organica-header.css */
-    --bg-cell: #f5f2ec;   /* required by organic-animations.css — see rasterizeGenesisSource() */
+    --tool: #3f8fa0;   /* header focus ring — see header.css */
+    --bg-cell: #f5f2ec;   /* required by animations.css — see rasterizeGenesisSource() */
   }
 
   .shape-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin-bottom: var(--space-3); }
@@ -32,7 +32,7 @@
   .shape-thumb svg { width: 100%; height: 100%; display: block; fill: var(--ink); }
   .shape-thumb .thumb-num { position: absolute; top: 2px; right: 3px; font-size: var(--fs-micro); color: var(--mid); }
   /* .upload-btn, .icon-btn, the .rmx-* chips are all in the shared sheets now. */
-  /* .org-layer-card / __head / __body skeleton is in organica-panel.css
+  /* .org-layer-card / __head / __body skeleton is in panel.css
      (aliased alongside .org-layer-card). Camo Turing's own inner controls: */
   .layer-dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--border-strong, var(--border)); background: none; flex-shrink: 0; padding: 0; cursor: pointer; }
   .layer-dot.on { background: var(--tool, var(--ink)); }
@@ -49,7 +49,7 @@
   }
   .layer-base-row.active { border-color: var(--tool, var(--ink)); color: var(--ink); font-weight: 600; }
 
-  /* Preset/Transformer picker CSS now lives in shared/organica-panel.css
+  /* Preset/Transformer picker CSS now lives in shared/panel.css
      (.presets/.preset-trigger/.preset-menu/.pi-ico/.pi-name/...) —
      centralized once it was proven useful for both Pattern's own picker
      and the new Transformer one. */
@@ -712,20 +712,20 @@
   </div><!-- /panel -->
 </div>
 
-<!-- Seed file inputs are now owned by Organica.seedsPanel (organica-seedspanel.js). -->
+<!-- Seed file inputs are now owned by Organica.seedsPanel (seeds-panel.js). -->
 
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette.js"></script>
-<script src="/shared/organica-recorder.js"></script>
-<script src="/shared/organica-seedspanel.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/palette.js"></script>
+<script src="/shared/recorder.js"></script>
+<script src="/shared/seeds-panel.js"></script>
 <!-- Transformer — centralized raster effect-stack module (see the file's
      own header): field algorithms ported from Living Path's RFX, canvas
      adapters, and the thumbnail-picker UI. -->
-<script src="/shared/organica-transformer.js"></script>
+<script src="/shared/transformer.js"></script>
 <!-- Genesis forms — "port as data" per CLAUDE.md; shared verbatim with Genesis/Pollen/Camouflage. -->
-<script src="/genesis/organic-forms.js"></script>
+<script src="/genesis/forms.js"></script>
 <!-- opentype.js v1.3.4, MIT, sha256 c0f9c7ca85e18075a8819e5fe2dee6e1d535f9a2269f5314f36cce94a183adba — reads real glyph outlines for the Text seed source. -->
-<script src="/shared/opentype.min.js"></script>
+<script src="/shared/vendor/opentype.min.js"></script>
 <script type="module">
 // ─────────────────────────────────────────────
 // CAMO TOURING — GPU-live Gray-Scott reaction-diffusion.
@@ -733,7 +733,7 @@
 // The one deliberate architectural exception in Organica: every other tool
 // is vanilla Canvas2D/JS with no runtime dependency beyond Paper.js
 // (Strata). This tool runs the simulation on the GPU via hand-written GLSL
-// shaders, orchestrated by a vendored Three.js (shared/three.module.js,
+// shaders, orchestrated by a vendored Three.js (shared/vendor/three.module.js,
 // r160, MIT, sha256 76dea8151bc9352aef3528b4262e249b2604f62543828328db978d060d61a495)
 // — chosen because live, interactive parameter dragging and brush painting
 // at real resolution is a capability a CPU double-for-loop cannot give,
@@ -748,7 +748,7 @@
 // Export popover, Organica.download/stamp) — only the compute substrate
 // changes, not the shell.
 // ─────────────────────────────────────────────
-import * as THREE from '/shared/three.module.js';
+import * as THREE from '/shared/vendor/three.module.js';
 
 function ctrl(id) { return document.getElementById(id); }
 function val(id) { return parseFloat(ctrl(id).value); }
@@ -2032,7 +2032,7 @@ function setColorMode(mode) {
   dispMat.uniforms.uColorMode.value = mode === 'solid' ? 0.0 : mode === 'adaptive' ? 1.0 : 2.0;
   scheduleRender();
 }
-// Promoted to shared/organica-palette.js (Organica.palette.swatch; folded
+// Promoted to shared/palette.js (Organica.palette.swatch; folded
 // in from organica-palette-chip.js, 2026-08-29) — this was one of the 6
 // independent copies found duplicating
 // it (Camo Turing was the original). rmxColors stays a live module-scoped
@@ -2110,12 +2110,12 @@ Organica.createZoomPan({
 // Confine, Trace outline, Regime boundary) — the source and the mode are
 // fully independent, any combination is valid.
 //
-// Now Organica.seedsPanel (organica-seedspanel.js) — one instance per
+// Now Organica.seedsPanel (seeds-panel.js) — one instance per
 // shape (seedsB / seedsA, constructed in INIT). applyMode:'manual': the
 // picker never fires on its own, the rasterizers below pull the current
 // selection via seedsB/seedsA.getDescriptor() / .getSVGString() at Apply
 // time. genesis.bakeGeometry resolves the forms' CSS-driven geometry
-// (organic-animations.css) into literal attributes before serialising —
+// (animations.css) into literal attributes before serialising —
 // exactly what the old rasterizeGenesisSource() did inline.
 let paperTexture = null;   // Background image / Stencil mode — see applyPaperImageMode()
 let seedsB = null, seedsA = null;
@@ -2176,7 +2176,7 @@ function rasterizeSvgTextInto(svgText, w, h, canvas, ctx2d, done) {
 
 // ── GENESIS FORM → mask (ported from Camouflage's rasterizeGenesisForm) ──
 // Genesis forms aren't self-contained SVGs — several encode geometry
-// entirely through organic-animations.css (e.g. form 7's second circle has
+// entirely through animations.css (e.g. form 7's second circle has
 // no cx/cy in its own markup). Mounting the form LIVE in this page's DOM
 // (the stylesheet is linked in <head>) resolves that; computed geometry is
 // then baked into literal attributes before serializing out to a
@@ -2327,7 +2327,7 @@ function rasterizeCurrentSeed(cw, ch, done) {
 
 // ── TRANSFORMERS — a registry-driven RASTER stack. Started as a Camo-
 // Turing-only first test (see the project's own history for that pass);
-// centralized into shared/organica-transformer.js once it proved useful
+// centralized into shared/transformer.js once it proved useful
 // — the field ALGORITHMS and the picker UI now live there, ported
 // verbatim from Living Path's RFX raster family (the vector-NODE family,
 // jitter/wobble/twist, needs a different pipeline entirely — path
@@ -2783,7 +2783,7 @@ function syncSeedModeRows() {
 // Organica.seedsPanel now — see seedsB / seedsA in INIT.
 
 // ── EXPORT ──
-// ── VIDEO RECORDING — the shared Organica.recorder (organica-recorder.js).
+// ── VIDEO RECORDING — the shared Organica.recorder (recorder.js).
 // MP4/H.264 (avc1) is tried first, WebM is the fallback — MP4 opens
 // everywhere without friction. Recording a frozen frame isn't useful, so
 // Start forces the sim running if it was paused; Stop is the only other
@@ -3664,7 +3664,7 @@ window.addLayer = addLayer;
 // Seed B / Seed A pickers — Organica.seedsPanel, one per shape.
 // applyMode:'manual' — the rasterizers pull getDescriptor()/getSVGString()
 // at Apply time. genesis.bakeGeometry:true resolves the forms' CSS-driven
-// geometry (organic-animations.css) the way rasterizeGenesisSource() did.
+// geometry (animations.css) the way rasterizeGenesisSource() did.
 seedsB = Organica.seedsPanel({
   target: ctrl('seeds-host-b'), idPrefix: 'seedsB',
   tabs: ['genesis', 'svg', 'text', 'image'],

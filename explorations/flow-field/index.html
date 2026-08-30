@@ -256,9 +256,9 @@ function pointInPolygon(x, y, points) {
 
 // Resolves a rect-shaped Loom grid's tracks+spans into absolute pixel
 // rects — same math as loom/js/json-model.js's own resolveCellRects and
-// shared/organica-core.js's loadLoomGrid, ported rather than imported
+// shared/core.js's loadLoomGrid, ported rather than imported
 // since this exploration is a zero-dependency standalone page (no
-// organica-core.js / design-token CSS pulled in just for this one path).
+// core.js / design-token CSS pulled in just for this one path).
 function resolveLoomRectCells(model) {
   const canvas = model.canvas;
   const shortSide = Math.min(canvas.width, canvas.height);
@@ -385,7 +385,7 @@ let svgFieldEvolves = false;
 let svgPointsPerShape = 80;
 
 // Detached host SVG for geometry queries — same technique Soul's own
-// organica-motion.js uses for getBBox(): Chromium returns an empty/
+// motion.js uses for getBBox(): Chromium returns an empty/
 // wrong bbox (and unreliable getPointAtLength) for an SVG that was
 // never actually attached to the document, even if never painted.
 //

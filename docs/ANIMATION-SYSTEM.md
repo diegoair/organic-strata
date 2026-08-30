@@ -1,6 +1,6 @@
 # Organica — Animation System Documentation
 
-> Reference for the 55 organic form animations in `genesis/organic-library.css`.  
+> Reference for the 55 organic form animations in `genesis/animations.css`.  
 > Use this when extending the library, debugging existing forms, or building new tools on top of Genesis.
 
 ---
@@ -100,7 +100,7 @@ This is why the animations feel convincing: the timing, easing, and transform ty
 **Forms using this pattern:**
 `03 metaballs merge` · `04 orbit` · `05 swarm` · `27 cell divide` · `28 mitosis` · `41 bubble cluster` · `50 forest chord` · `55 lichen patches`
 
-**The goo filter (from `organic-defs.js`):**
+**The goo filter (from `defs.js`):**
 ```svg
 <filter id="goo">
   <feGaussianBlur stdDeviation="6" result="blur"/>
@@ -201,13 +201,13 @@ Each of 44 circles sits at golden-angle intervals on an Archimedean spiral — t
 
 1. **Identify the real physics.** What force or process governs this subject? Choose the closest pattern from the 6 above.
 
-2. **Pick the next available ID** (`56`, `57`, etc.) and add a class `.a56` block to `organic-library.css`.
+2. **Pick the next available ID** (`56`, `57`, etc.) and add a class `.a56` block to `genesis/animations.css`.
 
-3. **Add the SVG markup** to `organic-forms.js` as `window.ORGANIC_FORMS[56]` — a self-contained `<svg viewBox="0 0 200 200" class="a56">`. Use `fill: var(--ink)` / `stroke: var(--ink)` for all color — never hardcode hex values.
+3. **Add the SVG markup** to `forms.js` as `window.ORGANIC_FORMS[56]` — a self-contained `<svg viewBox="0 0 200 200" class="a56">`. Use `fill: var(--ink)` / `stroke: var(--ink)` for all color — never hardcode hex values.
 
-4. **Add the label** to `window.ORGANIC_LABELS[56]` in `organic-forms.js`.
+4. **Add the label** to `window.ORGANIC_LABELS[56]` in `forms.js`.
 
-5. **If the form uses the goo filter or terrazzo chips**, they're already in `organic-defs.js` — reference `filter: url(#goo)` or `<use href="#cA"/>` directly. No changes needed to defs.
+5. **If the form uses the goo filter or terrazzo chips**, they're already in `defs.js` — reference `filter: url(#goo)` or `<use href="#cA"/>` directly. No changes needed to defs.
 
 6. **Test in `genesis/indicators.html`** — reload and confirm the form animates correctly in the catalog grid before integrating into the composer.
 
@@ -217,9 +217,9 @@ Each of 44 circles sits at golden-angle intervals on an Archimedean spiral — t
 
 | File | Role | Modify? |
 |---|---|---|
-| `organic-library.css` | All 55 `@keyframes` + `.aNN` rules | Yes — add new form rules here |
-| `organic-forms.js` | SVG markup for all 55 forms + labels | Yes — add `ORGANIC_FORMS[N]` and `ORGANIC_LABELS[N]` |
-| `organic-defs.js` | Shared SVG `<defs>`: goo filters + 7 terrazzo chip paths | Rarely — only if adding new shared filters |
+| `genesis/animations.css` | All 55 `@keyframes` + `.aNN` rules | Yes — add new form rules here |
+| `forms.js` | SVG markup for all 55 forms + labels | Yes — add `ORGANIC_FORMS[N]` and `ORGANIC_LABELS[N]` |
+| `defs.js` | Shared SVG `<defs>`: goo filters + 7 terrazzo chip paths | Rarely — only if adding new shared filters |
 | `genesis-creator.js` | Composer interaction logic | Yes — update form count if adding forms |
 
 ---

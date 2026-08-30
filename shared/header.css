@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   ORGANICA — organica-header.css
+   ORGANICA — header.css
    One header component, three variants.
 
    Replaces five divergent bars (#topbar in Spore/Pollen/Halide/Komorebi,
@@ -24,7 +24,7 @@
    · contrast      — --border #d0c8b8 on paper = 1.49:1, failing even the
                      3:1 UI minimum. --border-strong below is 3.27:1.
 
-   Requires shared/organica-tokens.css (loaded first) and the tool's own
+   Requires shared/tokens.css (loaded first) and the tool's own
    palette: --ink --paper --mid --accent --panel --border.
    ───────────────────────────────────────────────────────────── */
 

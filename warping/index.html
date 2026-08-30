@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Warping — Organica</title>
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-<link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-panel.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
-<link rel="stylesheet" href="/shared/organica-shell.css">
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
 <style>
 :root {
   --ink: #241b14;   /* warm-black override — this tool's ink */
@@ -16,7 +16,7 @@
 }
 
 /* Reset, body, #app, #canvas-wrap and .org-stage all come from
-   organica-shell.css + the shared surface-palette tokens. */
+   shell.css + the shared surface-palette tokens. */
 </style>
 </head>
 <body>
@@ -33,7 +33,7 @@
 </header>
 
 <!-- Export moved from the header into the shared bottom-centre floating
-     toolbar (shared/organica-floatbar.css), matching every other Organica
+     toolbar (shared/floatbar.css), matching every other Organica
      tool (FVS/Loom/Camo Turing/…). No Figma button — removed product-wide;
      direct Figma export is coming back as a tab inside the Export popover
      instead. sendToFigma() stays defined as a plain function, ready to
@@ -247,10 +247,10 @@
 </div>
 
 <!-- Core BEFORE noise, noise BEFORE the tool's own script — see
-     organica-noise.js's own header for why the order matters. -->
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette.js"></script>
-<script src="/shared/organica-noise.js"></script>
+     noise.js's own header for why the order matters. -->
+<script src="/shared/core.js"></script>
+<script src="/shared/palette.js"></script>
+<script src="/shared/noise.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // WARPING — domain-warped value-noise / Worley pattern generator.
@@ -263,7 +263,7 @@
 // same reasoning Komorebi's own move off WebGL already established for
 // this exact category of pattern (docs/KOMOREBI.md §17).
 //
-// hash2/vnoise/fbm/voronoiF1F2 are /shared/organica-noise.js — the same
+// hash2/vnoise/fbm/voronoiF1F2 are /shared/noise.js — the same
 // primitives Komorebi's canopy patterns and Camo Turing's anisotropic
 // warp already use, pulled into one place with this tool as the third
 // consumer (see that file's own header).

@@ -64,7 +64,7 @@ Lesson for any future bridge on an image-gated tool: check for this same two-pha
 
 ## 5. Canvas interaction
 
-- **Pan/zoom** — `Organica.createZoomPan` with a new opt-in `panAlways` option (added to `organica-core.js`, no effect on any existing caller that doesn't pass it) so the empty canvas pans without needing to zoom past 100% first.
+- **Pan/zoom** — `Organica.createZoomPan` with a new opt-in `panAlways` option (added to `core.js`, no effect on any existing caller that doesn't pass it) so the empty canvas pans without needing to zoom past 100% first.
 - **Node drag** — `bindNodeDrag(handleEl, node, zoomPan, onMove, onDragEnd, getDragGroup)`. `getDragGroup(node)` returns either `[node]` or the full current multi-selection, so dragging one selected node moves the whole group together.
 - **Multi-select / marquee** — `canvas/selection.js`, gated on **Shift+drag** specifically (plain drag is the canvas pan gesture). A capture-phase `mousedown` listener with `stopImmediatePropagation()` intercepts Shift+drag before the pan handler sees it. Plain click on empty canvas clears the selection.
 - **Wires** — `WireLayer` draws Catmull-Rom-style curves (same curve technique as Mycel's own `catmullSegD`), recalculated on every `mousemove` during a drag (not a separate rAF loop — sufficient at this node count). Clicking a wire selects it (`setSelectedEdge`) for Delete.

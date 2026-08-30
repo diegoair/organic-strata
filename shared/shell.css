@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   ORGANICA — organica-shell.css
+   ORGANICA — shell.css
    The app-shell skeleton, as one sheet.
 
    Audited before writing: 17 tools, each carrying its own ~25–40 line
@@ -24,7 +24,7 @@
    #canvas-wrap, #zoom-hud, #drop-hint).
 
    Load order: tokens → header → panel → floatbar → THIS → (palette) →
-   tool <style>. Depends on organica-tokens.css only
+   tool <style>. Depends on tokens.css only
    (--panel, --space-*, --ink, --paper, --mid, --font, --fs-*).
 
    A tool keeps its own deltas locally: #canvas-wrap padding overrides,
@@ -140,7 +140,7 @@ body {
 /* ═══════════════════════════════════════════════════════════
    ZOOM HUD — the "142 % · reset" chip, bottom-left of the canvas.
    .visible flips it on. The JS half (wheel/drag zoom, the % readout,
-   the reset click) is Organica.createZoomPan in organica-core.js.
+   the reset click) is Organica.createZoomPan in core.js.
    ═══════════════════════════════════════════════════════════ */
 
 #zoom-hud, .org-zoom-hud {

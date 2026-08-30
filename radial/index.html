@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Radial — Organica</title>
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-<link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-panel.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
-<link rel="stylesheet" href="/shared/organica-shell.css">
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
 <style>
 :root {
   --ink: #241b14;   /* warm-black override — this tool's ink */
@@ -16,7 +16,7 @@
 }
 
 /* Reset, body, #app and the centred canvas region (#stage → .org-canvas-wrap)
-   come from organica-shell.css. #preview-frame below is genuinely bespoke
+   come from shell.css. #preview-frame below is genuinely bespoke
    (fixed square, not a max-fit stage). */
 
 /* CSS-transformed by Organica.createZoomPan — never touches the SVG geometry,
@@ -29,7 +29,7 @@
 }
 #preview-frame svg { display: block; width: 100%; height: 100%; }
 
-/* input[type=color] hider now in shared/organica-panel.css */
+/* input[type=color] hider now in shared/panel.css */
 </style>
 </head>
 <body>
@@ -46,8 +46,8 @@
 </header>
 
 <!-- Export lives in the shared bottom-centre floating toolbar
-     (shared/organica-floatbar.css), matching every other Organica tool.
-     "Figma" is Organica.sendToFigma (organica-core.js) — the plugin listens
+     (shared/floatbar.css), matching every other Organica tool.
+     "Figma" is Organica.sendToFigma (core.js) — the plugin listens
      for the 'organica-svg' message since the Rhizome Phase-0 fix. -->
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
   <div class="org-popover-wrap">
@@ -378,11 +378,11 @@
 </div>
 
 <!-- Core BEFORE noise, noise BEFORE the tool's own script — see
-     organica-noise.js's own header for why the order matters. -->
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette.js"></script>
-<script src="/shared/organica-noise.js"></script>
-<script src="/shared/organica-radial.js"></script>
+     noise.js's own header for why the order matters. -->
+<script src="/shared/core.js"></script>
+<script src="/shared/palette.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/radial.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // RADIAL — one tool for the Book of Shapes "radial" family. A polar
@@ -397,15 +397,15 @@
 // string (no tracing). PNG rasterises the same primitives.
 //
 // The polar-field geometry + render core (buildScene / sceneSVG /
-// drawSceneCanvas + BP / BUILTIN_PRESETS) lives in shared/organica-radial.js,
+// drawSceneCanvas + BP / BUILTIN_PRESETS) lives in shared/radial.js,
 // extracted at the second consumer (Pulsar, the Motion tool). This file keeps
 // all the DOM glue: buildParams / readState / applyState / syncPanelRows /
 // preset UI / exports / renderPreview / the Rhizome bridge.
 //
 // Reuse:
 //   - Organica.radial.*            — buildScene / sceneSVG / drawSceneCanvas / BUILTIN_PRESETS
-//   - Organica.noise.fbm           — (via organica-radial.js) warp / fill / mark-size noise
-//   - Organica.mulberry32          — (via organica-radial.js) fill / jitter / arc-bias streams
+//   - Organica.noise.fbm           — (via radial.js) warp / fill / mark-size noise
+//   - Organica.mulberry32          — (via radial.js) fill / jitter / arc-bias streams
 //   - Organica.download/stamp/sendToFigma/createZoomPan/presetStore/
 //     enhanceSliders/autoLabelPanel/popover/status
 // ─────────────────────────────────────────────
@@ -580,7 +580,7 @@ function applyState(s) {
 }
 
 // BP + BUILTIN_PRESETS (the 17 Book of Shapes radial snapshots) now live in
-// shared/organica-radial.js, aliased at the top of this script.
+// shared/radial.js, aliased at the top of this script.
 
 function presetStoreObj() { return Organica.presetStore('radial'); }
 function userPresets() { return presetStoreObj().read(); }

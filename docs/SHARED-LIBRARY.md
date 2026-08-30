@@ -15,16 +15,17 @@ All three live in `genesis/` and are served static — no build step, no bundler
 
 | File | Contents | Link it when… |
 |---|---|---|
-| **`organic-animations.css`** | 77 `@keyframes` + the 55 `.aNN` rules that bind them + `.defs` | you want the forms **animated inside your own UI** |
-| **`organic-page.css`** | `:root` palette + `body` / `header` / `.grid` / `.cell` / `.num` | you are building a **Genesis catalog-style page** |
-| **`organic-library.css`** | `@import`s both, page chrome first | you want **everything** (the historic behaviour) |
+| **`animations.css`** | 77 `@keyframes` + the 55 `.aNN` rules that bind them + `.defs` | you want the forms **animated inside your own UI** |
+| **`page.css`** | `:root` palette + `body` / `header` / `.grid` / `.cell` / `.num` | you are building a **Genesis catalog-style page** |
+
+(The old `organic-library.css` `@import` shim that pulled both — "you want everything" — was **retired 2026-08-30**: nothing linked it. Link `page.css` then `animations.css` directly for the historic behaviour.)
 
 Plus the two data files:
 
 | File | Global | Shape |
 |---|---|---|
-| `organic-forms.js` | `window.ORGANIC_FORMS` | object keyed `1`…`55` (**not** an array) of SVG strings |
-| `organic-defs.js` | `window.ORGANIC_DEFS` | one `<svg class="defs">` string — goo filters + `#cA`…`#cG` chips |
+| `forms.js` | `window.ORGANIC_FORMS` | object keyed `1`…`55` (**not** an array) of SVG strings |
+| `defs.js` | `window.ORGANIC_DEFS` | one `<svg class="defs">` string — goo filters + `#cA`…`#cG` chips |
 
 `ORGANIC_DEFS` must be injected into the DOM **once per page**; forms reference its
 filters and chips by `id`.
@@ -33,8 +34,8 @@ filters and chips by `id`.
 
 ## 2. The CSS contract
 
-`organic-animations.css` is deliberately **not** self-sufficient on colour. A consumer
-that links it without `organic-page.css` **must define two custom properties**:
+`animations.css` is deliberately **not** self-sufficient on colour. A consumer
+that links it without `page.css` **must define two custom properties**:
 
 ```css
 :root {
@@ -56,7 +57,7 @@ inline in the SVG markup itself, so a consumer never supplies them.
 
 ### Append-only
 
-`organic-animations.css` inherits the rule that used to apply to `organic-library.css`:
+`animations.css` carries the rule that used to apply to the old bundle:
 **never modify an existing rule — only append new ones.** Fifty-five forms depend on the
 exact timings and selectors already in there.
 
@@ -67,11 +68,11 @@ with the layout of the Genesis catalog page (`body{padding:48px 48px 96px}`, `he
 `.grid`, `.cell`). Any tool that wanted the animations inherited that page chrome too.
 The split makes the reusable half linkable on its own.
 
-`organic-library.css` was kept as an `@import` shim rather than deleted, so every
-existing link keeps working unchanged. Order is load-bearing: page chrome imports
-first, animations second, matching the original file so the cascade is identical. An
-`@import` resolves at the shim's own position in the document, so a page's inline
-`<style>` still overrides both — as it always did.
+`organic-library.css` was first kept as an `@import` shim (page chrome first, animations
+second — load-bearing order) so existing links stayed unchanged. On 2026-08-30 the shim
+was **retired** — the rename pass confirmed nothing `<link>`ed it. Pages that want both
+now link `page.css` then `animations.css` directly, which reproduces the original
+cascade.
 
 The split was verified rule-for-rule against `genesis/index.html`, `library.html` and
 `creator.html`: same computed variables, same `body` box metrics, same 77 reachable
@@ -94,7 +95,7 @@ expressed in code:
 Halide and Komorebi don't use the library at all — Halide makes pixels, Komorebi makes
 procedural light on the GPU. They do share *code* with each other (Komorebi reuses
 Halide's rectilinear contour tracer verbatim), but by copy, not by import: there is no
-shared JS runtime beyond `organic-forms.js`. That duplication is a known cost — see
+shared JS runtime beyond `forms.js`. That duplication is a known cost — see
 the "shared core" item in `docs/ROADMAP.md`.
 
 ---

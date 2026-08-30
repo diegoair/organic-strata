@@ -8,31 +8,31 @@ directly against the license banner in each vendored file, August 27, 2026.
 ---
 
 ### GSAP core + MorphSVGPlugin + DrawSVGPlugin
-- **Files**: `shared/gsap.min.js`, `shared/gsap-morphsvg.min.js`, `shared/gsap-drawsvg.min.js`
+- **Files**: `shared/vendor/gsap.min.js`, `shared/vendor/gsap-morphsvg.min.js`, `shared/vendor/gsap-drawsvg.min.js`
 - **License**: GreenSock "No Charge" Standard License — https://gsap.com/standard-license
-- **Used by**: Soul (`soul/index.html`, `shared/organica-motion.js`)
+- **Used by**: Soul (`soul/index.html`, `shared/motion.js`)
 - **Note**: GSAP's paid "Club GreenSock" plugins (including MorphSVG/DrawSVG) became free under the Standard license after Webflow's acquisition of GreenSock. Confirmed live from gsap.com before vendoring.
 
 ### Kiwi.js
-- **File**: `shared/kiwi.min.js`
+- **File**: `shared/vendor/kiwi.min.js`
 - **License**: Modified BSD License (BSD-3-Clause) — Copyright (c) 2014-2019, Nucleic Development Team & H. Rutjes
 - **Source**: npm registry tarball (`kiwi.js`)
 - **Used by**: Loom's Bento generator (Cassowary constraint solver)
 
 ### Paper.js
-- **File**: `shared/paper-full.min.js`
+- **File**: `shared/vendor/paper-full.min.js`
 - **Version**: 0.12.17
 - **License**: MIT — Copyright (c) 2011-2020, Jürg Lehni & Jonathan Puckey
-- **Used by**: Genesis Creator's Draw mode (`Organica.createPaperDrawEditor`, `shared/organica-paper.js`)
+- **Used by**: Genesis Creator's Draw mode (`Organica.createPaperDrawEditor`, `shared/paper.js`)
 
 ### Three.js
-- **File**: `shared/three.module.js`
+- **File**: `shared/vendor/three.module.js`
 - **Version**: r160
 - **License**: MIT — Copyright 2010-2023 Three.js Authors
 - **Used by**: Camo Turing (WebGL2 Gray-Scott reaction-diffusion rendering)
 
 ### opentype.js
-- **File**: `shared/opentype.min.js`
+- **File**: `shared/vendor/opentype.min.js`
 - **License**: MIT
 - **Source**: https://github.com/opentypejs/opentype.js
 - **Used by**: Soul, Membrane, Camo Turing (text-seed glyph-to-path extraction)
@@ -46,9 +46,9 @@ directly against the license banner in each vendored file, August 27, 2026.
 - **Used by**: Soul's Flow field pattern, `explorations/flow-field/`
 
 ### Manrope (typeface)
-- **Loaded via**: Google Fonts (`shared/organica-tokens.css`'s `@import`) for on-screen display; a local copy at `shared/manrope-variable.ttf` for glyph-outline extraction (opentype.js) in Soul/Membrane/Camo Turing's text-seed features
+- **Loaded via**: Google Fonts (`shared/tokens.css`'s `@import`) for on-screen display; a local copy at `shared/vendor/manrope-variable.ttf` for glyph-outline extraction (opentype.js) in Soul/Membrane/Camo Turing's text-seed features
 - **License**: SIL Open Font License 1.1 — permits bundling/embedding in software, including commercial use; the only real restriction is not selling the font file standalone and preserving its Reserved Font Name if modified (it isn't, here)
 
 ---
 
-No other third-party code is vendored in this repository. `shared/organica-*.js`/`.css` and every tool's own code are original work.
+No other third-party code is vendored in this repository. `shared/*.js` / `.css` and every tool's own code are original work.

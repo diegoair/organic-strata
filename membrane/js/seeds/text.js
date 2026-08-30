@@ -20,7 +20,7 @@ import { initShape } from './procedural.js';
 let manropeFont = null;
 
 export function loadMembraneFont(onDone) {
-  opentype.load('/shared/manrope-variable.ttf', (err, font) => {
+  opentype.load('/shared/vendor/manrope-variable.ttf', (err, font) => {
     if (!err) manropeFont = font;
     onDone && onDone(err);
   });

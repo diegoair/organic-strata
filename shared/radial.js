@@ -1,13 +1,13 @@
 /* ─────────────────────────────────────────────────────────────────────────────
- * organica-radial.js — Radial's polar-field geometry + render core.
+ * radial.js — Radial's polar-field geometry + render core.
  *
  * Extracted from radial/index.html at the second consumer (Pulsar, the Motion
  * tool that animates these parameters over time). Same "extract at the second
- * consumer" pattern as organica-noise.js / organica-motion.js.
+ * consumer" pattern as noise.js / motion.js.
  *
  * LOAD ORDER (load-bearing):
- *   organica-core.js  →  organica-noise.js  →  organica-radial.js  →  tool script
- * organica-core.js's last line reassigns global.Organica, so anything that
+ *   core.js  →  noise.js  →  radial.js  →  tool script
+ * core.js's last line reassigns global.Organica, so anything that
  * extends the namespace must load after it; this module needs Organica.noise.
  *
  * Surface:
@@ -36,7 +36,7 @@
   'use strict';
   const Organica = global.Organica || (global.Organica = {});
   const N = Organica.noise;
-  if (!N) throw new Error('organica-radial.js: load organica-noise.js first');
+  if (!N) throw new Error('radial.js: load noise.js first');
 
   const TAU = Math.PI * 2;
   const GOLDEN = Math.PI * (3 - Math.sqrt(5));   // ≈ 2.39996 rad

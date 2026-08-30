@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Spore — Organica</title>
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-  <link rel="stylesheet" href="/shared/organica-header.css">
-  <link rel="stylesheet" href="/shared/organica-panel.css">
-  <link rel="stylesheet" href="/shared/organica-floatbar.css">
-  <link rel="stylesheet" href="/shared/organica-shell.css">
-  <link rel="stylesheet" href="/shared/organica-palette.css">
+<link rel="stylesheet" href="/shared/tokens.css">
+  <link rel="stylesheet" href="/shared/header.css">
+  <link rel="stylesheet" href="/shared/panel.css">
+  <link rel="stylesheet" href="/shared/floatbar.css">
+  <link rel="stylesheet" href="/shared/shell.css">
+  <link rel="stylesheet" href="/shared/palette.css">
   <style>
   :root {
     --tool: #5a7a96;   /* header focus ring */
@@ -25,7 +25,7 @@
 
   /* Color inputs */
 
-  /* input[type=color] hider now in shared/organica-panel.css */
+  /* input[type=color] hider now in shared/panel.css */
 
   /* Mark library */
   #mark-grid {
@@ -82,7 +82,7 @@
     border: 1px solid rgba(10,10,10,0.2); background: var(--panel); display: block;
   }
 
-  /* .upload-btn base is in organica-panel.css; Spore's delta (same as Pollen's): */
+  /* .upload-btn base is in panel.css; Spore's delta (same as Pollen's): */
   .upload-btn { font-size: var(--fs-micro); letter-spacing: 0.1em; }
 
   /* Color mode */
@@ -92,7 +92,7 @@
     gap: var(--space-1);
   }
 
-  /* RMX chip CSS now in shared/organica-palette.css. Spore's strip has no bottom gap. */
+  /* RMX chip CSS now in shared/palette.css. Spore's strip has no bottom gap. */
   #rmx-palette { --rmx-palette-mb: 0; }
   #sel-rmx-map { font-family: var(--font); font-size: var(--fs-small); background: var(--panel); border: 1px solid var(--border); color: var(--ink); padding: var(--space-1) var(--space-2); accent-color: var(--ink); }
 
@@ -127,7 +127,7 @@
   /* hidden file inputs use the shared .org-file-input class now */
 
   /* ── ON-CANVAS COMPUTE CONTROLS ── */
-  /* #compute-bar + .hud-btn are in organica-shell.css now. */
+  /* #compute-bar + .hud-btn are in shell.css now. */
 </style>
 </head>
 <body>
@@ -355,9 +355,9 @@
 </div><!-- /app -->
 
 <!-- Centralized Organica shape library (window.ORGANIC_FORMS), shared with Genesis/Pollen -->
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette.js"></script>
-<script src="/genesis/organic-forms.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/palette.js"></script>
+<script src="/genesis/forms.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // MARK LIBRARY — primordial subset of the centralized Genesis forms
@@ -380,7 +380,7 @@ let selectedMarkId = 'g1';
 let rmxColors = ['#1a1a2e', '#e94f37', '#f6e8c3'];   // default palette (dark→bright)
 let rmxColorMap = 'tone';            // 'tone' | 'posterize' | 'random' | 'tonernd'
 const RMX_COLORS_MAX = 5;
-// Colour math now lives in shared/organica-palette.js (Organica.palette.colorAt) —
+// Colour math now lives in shared/palette.js (Organica.palette.colorAt) —
 // see the 'rmx'/'adaptive' branch in drawBatch().
 function buildRmxPalette() {
   Organica.palette.swatch(document.getElementById('rmx-palette'), {
@@ -854,7 +854,7 @@ function finishRender(stopped) {
 // ─────────────────────────────────────────────
 // STATUS
 // ─────────────────────────────────────────────
-// Announced via the header's <output> live region — see organica-core.js.
+// Announced via the header's <output> live region — see core.js.
 const setStatus = Organica.status();
 
 // ─────────────────────────────────────────────
@@ -1017,7 +1017,7 @@ function exportSVGString() {
 // ─────────────────────────────────────────────
 // ZOOM & PAN (preview only — does not affect render/export)
 //
-// Shared maths: Organica.createZoomPan (organica-core.js). This was an
+// Shared maths: Organica.createZoomPan (core.js). This was an
 // inline copy until 2026-08-30; adopting the shared one also picks up two
 // behaviours the copy never had — the ⌘+/⌘-/⌘0 shortcuts, and the blur of
 // a still-focused panel slider before wheel-zooming (without it, scrolling

@@ -7,11 +7,11 @@
 
 <!-- Order is load-bearing (docs/UI-SHELL.md §2): tokens first so this file
      can override without !important, core before the tool script. -->
-<link rel="stylesheet" href="/shared/organica-tokens.css">
-<link rel="stylesheet" href="/shared/organica-header.css">
-<link rel="stylesheet" href="/shared/organica-panel.css">
-<link rel="stylesheet" href="/shared/organica-floatbar.css">
-<link rel="stylesheet" href="/shared/organica-shell.css">
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
 <style>
 :root {
   --tool: #4a5fc7;   /* identity colour — matches the hub nav accent */
@@ -45,7 +45,7 @@
    an opacity, a stacking index or a per-item transform. DOM shape follows
    Camo Turing's own layer list (head row + body rows) so the two read as the
    same family, but the state model and every control below the head differ. */
-/* .org-layer-card / .active / __head / __body skeleton is in organica-panel.css
+/* .org-layer-card / .active / __head / __body skeleton is in panel.css
    (aliased alongside .org-layer-card). Colornet's local additions: a
    rounded corner, the armed-for-swap state, and every control below. */
 .org-layer-card { border-radius: var(--radius-sm); }
@@ -81,10 +81,10 @@
 .chan-am-row { padding-left: var(--space-2); }
 .chan-am-label { font-size: var(--fs-micro); color: var(--mid); flex: 0 0 52px; }
 
-/* input[type=color] hider is in shared/organica-panel.css now. */
+/* input[type=color] hider is in shared/panel.css now. */
 
 /* Backdrop + panel skeleton are the shared .org-modal / .org-modal__panel
-   (organica-panel.css). Local: a rounded corner + a narrower 340px width. */
+   (panel.css). Local: a rounded corner + a narrower 340px width. */
 #pattern-editor-panel { border-radius: var(--radius-md); --org-modal-w: 340px; }
 #pattern-editor-grid {
   display: grid; gap: 2px; margin: var(--space-3) 0;
@@ -358,9 +358,9 @@
   </div>
 </div>
 
-<script src="/shared/organica-core.js"></script>
-<script src="/shared/organica-palette.js"></script>
-<script src="/shared/organica-noise.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/palette.js"></script>
+<script src="/shared/noise.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────
 // COLORNET — channel separation and recomposition.
@@ -866,7 +866,7 @@ function computeNoiseDots(ch) {
 
 // ═══════════════════════════════════════════
 // DITHER — a third screen mode, promoted from Halide's own real dithering
-// (Organica.dither, shared/organica-core.js — Colornet is the second
+// (Organica.dither, shared/core.js — Colornet is the second
 // consumer). Unlike AM/Noise (dot SIZE ∝ tone), dithering's own visual
 // signature is DENSITY: fixed-size ink cells, more or fewer of them. A
 // Colornet channel's mask is already binary, so dithering runs on a small
