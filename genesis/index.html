@@ -206,7 +206,7 @@
     .panel-unit.editing { background: var(--bg); color: var(--ink); outline: 1px solid var(--border-strong); outline-offset: -1px; }
     .panel-divider { height: 1px; background: var(--border); margin: var(--space-1) 0; }
     .panel-range { flex: 1; min-width: 0; }
-    .panel-hint { font-size: var(--fs-xs); color: var(--ink-muted); line-height: 1.5; }
+    .panel-hint { font-size: var(--fs-xs); color: var(--ink-muted); line-height: 1.5; margin: 0 0 var(--space-2); }
     input[type=range] { -webkit-appearance: none; appearance: none; height: 11px; background: transparent; outline: none; min-width: 0; cursor: pointer; }
     input[type=range]::-webkit-slider-runnable-track {
       height: 9px; border-radius: var(--radius-md);
@@ -470,7 +470,7 @@
       <div data-modes="compose">
         <section class="panel-section">
           <span class="panel-section__title">Seeds</span>
-          <p class="panel-hint" style="margin-bottom:8px">Drag on the canvas to select cells, then click a seed to fill them.</p>
+          <p class="panel-hint">Drag on the canvas to select cells, then click a seed to fill them.</p>
           <div class="forms-grid" id="compose-forms"></div>
         </section>
       </div>
@@ -626,7 +626,7 @@
             </div>
           </div>
           <div id="underlying-layer-block" style="display:none">
-            <p class="panel-hint" style="margin:2px 0 6px">Container shows the picked layer only inside this seed's outline; Mask shows it everywhere except inside — a real hole.</p>
+            <p class="panel-hint">Container shows the picked layer only inside this seed's outline; Mask shows it everywhere except inside — a real hole.</p>
             <div id="underlying-layer-empty">
               <button class="upload-btn" id="btn-pick-layer" style="margin-bottom:0">Pick layer…</button>
             </div>
