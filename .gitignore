@@ -11,6 +11,13 @@ node_modules/
 dist/
 .DS_Store
 
+# scratchpad video test assets — local footage used to tune the Mote
+# prototype; the .html tools in scratchpad/ are tracked, the clips are not.
+scratchpad/*.mp4
+scratchpad/*.mov
+scratchpad/*.webm
+scratchpad/*.m4v
+
 # Vercel
 .vercel/
 .vercel

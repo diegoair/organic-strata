@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mote — video → Pollen stipple (prototype)</title>
+<!-- ─────────────────────────────────────────────────────────────
+     THROWAWAY PROTOTYPE. Not a real Organica tool — not in the hub,
+     not routed. Its only job: let Diego SEE the three temporal-
+     coherence strategies (A/B/C) for feeding a video through Pollen's
+     stippling engine, and MEASURE per-frame cost (real-time vs offline).
+
+     The stipple core (computePoints / paintPoints / spacingAt) is
+     COPIED from pollen/index.html and trimmed to plain dots — point
+     SHAPE doesn't affect the A/B/C or perf comparison. Two hooks were
+     added to the copy: an injectable `rng` (mode C determinism) and a
+     `field` source that's a video frame, not a still image.
+
+     If this graduates: extract shared/pollen-engine.js (radial.js
+     discipline), build mote/index.html properly. See the plan.
+     ───────────────────────────────────────────────────────────── -->
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: var(--font); font-size: var(--fs-sm); color: var(--ink); background: var(--paper); }
+  body { display: flex; }
+
+  /* minimal header just so Organica.status() has its hooks */
+  #hdr { position: fixed; top: 0; left: 0; right: 0; height: 40px; z-index: 40;
+    display: flex; align-items: center; gap: var(--space-3); padding: 0 var(--space-4);
+    border-bottom: 1px solid var(--border); background: var(--paper); }
+  #hdr b { letter-spacing: .06em; }
+  #hdr .sub { color: var(--mid); }
+  .org-header__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); margin-left: auto; }
+  .org-header__dot.active { background: #4a9c4a; }
+  .org-header__dot.rendering, .org-header__dot.busy { background: var(--accent-warm); }
+  .org-header__state { color: var(--mid); font-size: var(--fs-xs); min-width: 220px; text-align: right; }
+
+  .stage-wrap { position: relative; flex: 1; display: flex; align-items: center; justify-content: center;
+    background: #14140f; overflow: hidden; margin-top: 40px; }
+  #stage { max-width: 100%; max-height: 100%; box-shadow: 0 4px 30px rgba(0,0,0,.4); display: none; }
+  #stage.visible { display: block; }
+  #drop-hint { position: absolute; color: #6b6b5e; font-size: var(--fs-md); letter-spacing: .04em; pointer-events: none; }
+  #drop-hint.hidden { display: none; }
+
+  #perf-hud { position: absolute; left: 12px; bottom: 12px; font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px; color: #cfcfc2; background: rgba(0,0,0,.45); padding: 4px 8px; border-radius: 5px;
+    pointer-events: none; }
+  #perf-hud b { color: #fff; font-weight: 600; }
+  #progress-bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 0; background: var(--accent-warm); transition: width .12s; }
+  #note { position: absolute; left: 12px; top: 12px; font-size: 11px; color: #d8c98a; background: rgba(0,0,0,.4);
+    padding: 3px 7px; border-radius: 5px; display: none; }
+
+  #panel { width: 244px; flex-shrink: 0; margin-top: 40px; border-left: 1px solid var(--border);
+    background: var(--panel); overflow-y: auto; padding-bottom: 80px; }
+  .sec { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .sec h3 { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .1em; color: var(--mid); margin-bottom: 9px; }
+  .row { display: flex; align-items: center; gap: 8px; min-height: 26px; }
+  .row + .row { margin-top: 2px; }
+  .row label { flex-shrink: 0; width: 72px; color: var(--mid); font-size: var(--fs-xs); }
+  .row input[type=range] { flex: 1; min-width: 0; }
+  .row .val { width: 34px; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); font-size: var(--fs-xs); }
+  .row input[type=color] { width: 26px; height: 22px; border: 1px solid var(--border); background: none; padding: 0; }
+  .row input[type=text] { flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--paper);
+    font: inherit; font-size: var(--fs-xs); padding: 3px 6px; }
+  .seg { display: flex; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+  .seg button { flex: 1; border: 0; border-left: 1px solid var(--border); background: transparent; color: var(--mid);
+    font: inherit; font-size: var(--fs-xs); padding: 5px 0; cursor: pointer; }
+  .seg button:first-child { border-left: 0; }
+  .seg button.on { background: var(--ink); color: var(--paper); }
+  .mini { border: 1px solid var(--border); background: var(--paper); font: inherit; font-size: var(--fs-xs);
+    padding: 5px 9px; cursor: pointer; border-radius: 4px; }
+  .mini:hover { border-color: var(--border-strong); }
+  select { border: 1px solid var(--border); background: var(--paper); font: inherit; font-size: var(--fs-xs); padding: 3px 6px; }
+  .hint { color: var(--mid); font-size: 10px; line-height: 1.5; margin-top: 6px; }
+  [hidden] { display: none !important; }
+
+  .org-floatbar__btn { font: inherit; }
+  #btn-render { width: auto; padding: 0 var(--space-3); }
+</style>
+</head>
+<body>
+
+<header id="hdr">
+  <b>MOTE</b><span class="sub">/ video stipple · prototype</span>
+  <span class="org-header__dot"></span>
+  <span class="org-header__state">no clip</span>
+</header>
+
+<div class="stage-wrap" id="stage-wrap">
+  <div id="drop-hint">Drop a video here, or click the ▸ icon below to pick one &nbsp;·&nbsp; (<code>?demo</code> / <code>?stream</code> = synthetic sources)</div>
+  <canvas id="stage" class="org-stage"></canvas>
+  <div id="note"></div>
+  <div id="perf-hud"><b id="pf-ms">–</b> ms &nbsp;·&nbsp; <b id="pf-fps">–</b> fps &nbsp;·&nbsp; <b id="pf-n">–</b> pts</div>
+  <div id="progress-bar"></div>
+</div>
+
+<div id="panel">
+  <div class="sec">
+    <h3>Preset</h3>
+    <select id="sel-preset" style="width:100%">
+      <option value="">— pick a preset —</option>
+      <optgroup label="Sharp — legible (Hatch-Flow, mode A)">
+        <option value="flow-video">Flow · video colour ★</option>
+        <option value="flow-etch">Flow · etching (ink)</option>
+        <option value="flow-duo">Flow · duotone ramp</option>
+      </optgroup>
+      <optgroup label="Fluid — points migrate (mode B)">
+        <option value="drift-video">Drift · video colour</option>
+        <option value="drift-tonal">Drift · tonal ink</option>
+        <option value="drift-warm">Drift · warm ramp</option>
+      </optgroup>
+      <optgroup label="Pollen built-ins (faithful — mode A)">
+        <option value="pollen-fine-dots">Fine Dots</option>
+        <option value="pollen-felt-tip">Felt-tip</option>
+        <option value="pollen-lines-flow">Lines Flow</option>
+        <option value="pollen-duotone">Duotone</option>
+        <option value="pollen-hatch-flow">Hatch Flow</option>
+        <option value="pollen-hatch-swirl">Hatch Swirl</option>
+      </optgroup>
+      <optgroup label="Baselines">
+        <option value="video-color">Video colours · dots</option>
+        <option value="fine-dots">Fine Dots (custom)</option>
+        <option value="duotone">Duotone (custom)</option>
+        <option value="lines-flow">Lines Flow · RMX</option>
+        <option value="hatch-flow">Hatch Flow · RMX</option>
+        <option value="rmx-bands">RMX bands (abstract)</option>
+      </optgroup>
+    </select>
+    <p class="hint">Sharp = footage readable (Hatch-Flow, mode A). Fluid = points visibly migrate (mode B). ★ = start here. Preview ~20–25 fps on HD sources (per-frame stipple, no GPU) — <b>Offline render exports smooth</b>. Press Relattice after picking.</p>
+  </div>
+  <div class="sec">
+    <h3>Coherence</h3>
+    <div class="seg" id="seg-mode">
+      <button data-v="A" class="on">A · lattice</button>
+      <button data-v="B">B · flow</button>
+      <button data-v="C">C · re-seed</button>
+    </div>
+    <p class="hint" id="mode-hint">A — points fixed, only tone/size follow the video.</p>
+    <div class="row" style="margin-top:8px"><button class="mini" id="btn-relattice">Relattice from current frame</button></div>
+  </div>
+
+  <div class="sec">
+    <h3>Render</h3>
+    <div class="seg" id="seg-render">
+      <button data-v="realtime" class="on">Real-time</button>
+      <button data-v="offline">Offline</button>
+    </div>
+    <div class="row" style="margin-top:8px"><label>FPS</label>
+      <select id="sel-fps"><option>24</option><option selected>30</option><option>60</option></select>
+    </div>
+  </div>
+
+  <div class="sec" id="sec-b" hidden>
+    <h3>Mode B — advection</h3>
+    <div class="row"><label>Step</label><input type="range" id="b-step" min="0" max="1" step="0.01" value="0.30"><span class="val" data-for="b-step">0.30</span></div>
+    <div class="row"><label>Damping</label><input type="range" id="b-damp" min="0" max="1" step="0.01" value="0.60"><span class="val" data-for="b-damp">0.60</span></div>
+    <div class="row"><label>Neighbour×</label><input type="range" id="b-nbr" min="1" max="3" step="0.05" value="1.50"><span class="val" data-for="b-nbr">1.50</span></div>
+    <div class="row"><label>Cull k</label><input type="range" id="b-cull" min="0.3" max="1" step="0.01" value="0.70"><span class="val" data-for="b-cull">0.70</span></div>
+    <div class="row"><label>Rate</label><input type="range" id="b-rate" min="0" max="0.1" step="0.005" value="0.02"><span class="val" data-for="b-rate">0.02</span></div>
+  </div>
+
+  <div class="sec">
+    <h3>Stipple</h3>
+    <div class="row"><label>Spacing min</label><input type="range" id="sl-sp-min" min="1.5" max="14" step="0.5" value="3"><span class="val" data-for="sl-sp-min">3</span></div>
+    <div class="row"><label>Spacing max</label><input type="range" id="sl-sp-max" min="3" max="40" step="0.5" value="13"><span class="val" data-for="sl-sp-max">13</span></div>
+    <div class="row"><label>Spacing ×</label><input type="range" id="sl-sp-scale" min="0.4" max="2.5" step="0.05" value="1"><span class="val" data-for="sl-sp-scale">1.00</span></div>
+    <div class="row"><label>Phases</label><input type="range" id="sl-phases" min="1" max="24" step="1" value="10"><span class="val" data-for="sl-phases">10</span></div>
+    <div class="row"><label>Detail</label><input type="range" id="sl-detail" min="600" max="1500" step="50" value="950"><span class="val" data-for="sl-detail">950</span></div>
+    <p class="hint" id="pts-hint">– points</p>
+    <p class="hint">Detail = working-res long side. Higher = finer grain + more points + slower. Re-inits on change.</p>
+  </div>
+
+  <div class="sec">
+    <h3>Marks</h3>
+    <div class="seg" id="seg-shape">
+      <button data-v="dot" class="on">Dot</button>
+      <button data-v="line">Line</button>
+    </div>
+    <div class="row" style="margin-top:8px"><label id="sz-label">Size min</label><input type="range" id="sl-size" min="0.3" max="8" step="0.1" value="1.4"><span class="val" data-for="sl-size">1.4</span></div>
+    <div class="row"><label id="szmax-label">Size max</label><input type="range" id="sl-size-max" min="0.5" max="16" step="0.1" value="4.5"><span class="val" data-for="sl-size-max">4.5</span></div>
+    <label class="row" style="cursor:pointer"><input type="checkbox" id="ck-size-range" checked> <span style="color:var(--mid);font-size:var(--fs-xs)">Size by tone</span></label>
+    <div id="line-block" hidden>
+      <div class="row"><label>Length</label><input type="range" id="sl-stroke-len" min="3" max="60" step="1" value="16"><span class="val" data-for="sl-stroke-len">16</span></div>
+      <div class="row"><label>Segments</label><input type="range" id="sl-stroke-seg" min="2" max="24" step="1" value="8"><span class="val" data-for="sl-stroke-seg">8</span></div>
+      <div class="row"><label>Warp</label><input type="range" id="sl-stroke-warp" min="0" max="3" step="0.05" value="0.2"><span class="val" data-for="sl-stroke-warp">0.20</span></div>
+      <label class="row" style="cursor:pointer"><input type="checkbox" id="ck-stroke-round" checked> <span style="color:var(--mid);font-size:var(--fs-xs)">Rounded caps</span></label>
+      <label class="row" style="cursor:pointer"><input type="checkbox" id="ck-angle-flow"> <span style="color:var(--mid);font-size:var(--fs-xs)">Flow (follow the frame's field)</span></label>
+      <label class="row" style="cursor:pointer"><input type="checkbox" id="ck-angle-random" checked> <span style="color:var(--mid);font-size:var(--fs-xs)">Random angle</span></label>
+      <label class="row" style="cursor:pointer"><input type="checkbox" id="ck-angle-range"> <span style="color:var(--mid);font-size:var(--fs-xs)">Angle by tone (swirl)</span></label>
+    </div>
+    <div class="row" style="margin-top:6px"><label>Light dropout</label><input type="range" id="sl-dropout" min="0" max="100" step="1" value="0"><span class="val" data-for="sl-dropout">0</span></div>
+    <label class="row" style="cursor:pointer"><input type="checkbox" id="ck-overpaint"> <span style="color:var(--mid);font-size:var(--fs-xs)">Overpaint (multiply)</span></label>
+  </div>
+
+  <div class="sec">
+    <h3>Colour</h3>
+    <div class="seg" id="seg-color">
+      <button data-v="solid" class="on">Solid</button>
+      <button data-v="adaptive">Adapt.</button>
+      <button data-v="rmx">RMX</button>
+      <button data-v="video">Video</button>
+    </div>
+    <div id="rmx-block" hidden>
+      <div class="row" style="margin-top:8px"><label>Mapping</label>
+        <select id="sel-rmx-map">
+          <option value="tone">tone (lerp)</option>
+          <option value="posterize">posterize (bands)</option>
+          <option value="random">random</option>
+          <option value="tonernd">tone + jitter</option>
+        </select>
+      </div>
+      <div class="row" style="margin-top:6px;gap:4px" id="rmx-swatches">
+        <input type="color" value="#2a1a12"><input type="color" value="#8c3b1e"><input type="color" value="#d9822b"><input type="color" value="#f2c14e"><input type="color" value="#f6e8c3">
+      </div>
+    </div>
+    <p class="hint" id="video-hint" hidden>Each dot takes the RGB pixel under it, straight from the current video frame.</p>
+    <div class="row" style="margin-top:8px"><label>Point</label><input type="color" id="hex-ink" value="#1c1c1c"><input type="text" id="hex-ink-t" value="#1c1c1c"></div>
+    <div class="row"><label>Paper</label><input type="color" id="hex-bg" value="#f4f1e8"><input type="text" id="hex-bg-t" value="#f4f1e8"></div>
+    <div class="row"><label>Alpha</label><input type="range" id="a-ink" min="10" max="100" step="1" value="100"><span class="val" data-for="a-ink">100</span></div>
+  </div>
+
+  <div class="sec">
+    <h3>Tone</h3>
+    <label class="row" style="cursor:pointer"><input type="checkbox" id="ck-invert" checked> <span style="color:var(--mid);font-size:var(--fs-xs)">Dark = dense (invert luma)</span></label>
+    <div class="row"><label>Contrast</label><input type="range" id="sl-contrast" min="-60" max="80" step="1" value="0"><span class="val" data-for="sl-contrast">0</span></div>
+    <div class="row"><label>Gamma</label><input type="range" id="sl-gamma" min="0.4" max="2.5" step="0.05" value="1"><span class="val" data-for="sl-gamma">1.00</span></div>
+    <p class="hint">Contrast steepens dark→dense / bright→sparse — the #1 lever for reading the video in the stipple.</p>
+  </div>
+</div>
+
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <button class="org-floatbar__btn" id="btn-open" aria-label="Open video">
+    <svg class="ico" viewBox="0 0 16 16" fill="none"><path d="M2.5 4.5h11v8h-11z" stroke="currentColor" stroke-width="1.3"/><path d="M6.5 6.7 10 8.5 6.5 10.3z" fill="currentColor"/></svg>
+  </button>
+  <div class="org-floatbar__sep"></div>
+  <button class="org-floatbar__btn" id="btn-play" aria-label="Play / Pause" disabled>
+    <svg class="ico" viewBox="0 0 16 16" fill="none"><path id="pp-icon" d="M5 3.5 12 8l-7 4.5z" fill="currentColor"/></svg>
+  </button>
+  <button class="org-floatbar__btn" id="btn-stop" aria-label="Stop" disabled>
+    <svg class="ico" viewBox="0 0 16 16" fill="none"><rect x="4" y="4" width="8" height="8" fill="currentColor"/></svg>
+  </button>
+  <div class="org-floatbar__sep"></div>
+  <button class="org-floatbar__btn" id="btn-render" aria-label="Offline render" disabled>Render</button>
+  <button class="org-floatbar__btn" id="btn-export-video" aria-label="Export video" disabled style="width:auto;padding:0 var(--space-3)">Export video</button>
+</div>
+
+<input type="file" id="file-input" accept="video/*,.mov,.m4v,.mp4,.webm,.mkv" style="display:none">
+<video id="src" muted playsinline style="display:none"></video>
+
+<script src="/shared/core.js"></script>
+<script src="/shared/recorder.js"></script>
+<script src="/shared/palette.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// Mote prototype — all logic. See the file header.
+// ═══════════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const setStatus = Organica.status();
+const SEED = 0x5eed;
+const Q = new URLSearchParams(location.search);
+const DEMO = Q.has('demo');       // synthetic greyscale, bypasses <video>
+const STREAM = Q.has('stream');   // synthetic COLOUR scene routed through a real <video srcObject>
+const DEMO_DURATION = 6;
+let rmxColors = ['#2a1a12', '#8c3b1e', '#d9822b', '#f2c14e', '#f6e8c3'];
+
+const video = $('src');
+const stage = $('stage'), sctx = stage.getContext('2d');
+const frameCanvas = document.createElement('canvas');
+const fctx = frameCanvas.getContext('2d', { willReadFrequently: true });
+// Hi-res canvas the recorder captures — the visible stage is only ~800px
+// (working res); recording that + MediaRecorder's default ~2.5 Mbps is what
+// made the export mush. The stipple is geometry, so painting it at a bigger
+// unit is a genuine re-render, not an upscale.
+const EXPORT_LONG = 1920;   // export long side, capped at source native
+const exportCanvas = document.createElement('canvas');
+const exctx = exportCanvas.getContext('2d');
+
+let workW = 0, workH = 0;
+let mode = 'A', renderMode = 'realtime', colorMode = 'solid', pointShape = 'dot';
+let basePoints = null, points = [], targetCount = 0, lastC = [], lastPaintedPts = [];
+let running = false, loopId = 0, computing = false, cToken = 0;
+let demoT = 0;
+const perf = [];
+
+// ── helpers copied from pollen/index.html ──────────────────────
+const val = id => parseFloat($(id).value);
+const lerp = (a, b, t) => a + (b - a) * Math.max(0, Math.min(1, t));
+
+// HOOK #2: field source is `frameCanvas` (a video frame), not a still image.
+// Returns the luma field for stippling AND the raw RGBA (for the "Video" colour
+// mode — sample the frame's own pixels under each point).
+// Gamma then Contrast on a 0..1 value (already Invert-applied). Ported from
+// pollen/index.html:954 — the 259/(259-c) contrast curve.
+function processLuma(l) {
+  const gamma = val('sl-gamma');
+  if (gamma !== 1) l = Math.pow(Math.max(0, l), gamma);
+  const c = val('sl-contrast');
+  if (c) { const cc = c * 2.55, f = (259 * (cc + 255)) / (255 * (259 - cc)); l = f * (l - 0.5) + 0.5; }
+  return Math.max(0, Math.min(1, l));
+}
+let curField = null;
+function buildField(W, H) {
+  const px = fctx.getImageData(0, 0, W, H).data;
+  const invert = $('ck-invert').checked;
+  const b = new Float32Array(W * H);
+  for (let i = 0, p = 0; i < b.length; i++, p += 4) {
+    let l = (0.299 * px[p] + 0.587 * px[p + 1] + 0.114 * px[p + 2]) / 255;
+    if (invert) l = 1 - l;
+    b[i] = processLuma(l);
+  }
+  curField = { data: b, rgba: px, W, H };
+  return curField;
+}
+
+function workDims(sw, sh, maxSide) {
+  const s = Math.min(1, maxSide / Math.max(sw, sh));
+  return { W: Math.max(1, Math.round(sw * s)), H: Math.max(1, Math.round(sh * s)) };
+}
+
+function spacings() {
+  const m = val('sl-sp-scale') || 1;
+  const minSp = val('sl-sp-min') * m;
+  const maxSp = Math.max(minSp, val('sl-sp-max') * m);
+  return { minSp, maxSp };
+}
+function spacingAt(f, minSp, maxSp, x, y) {
+  const ix = Math.min(f.W - 1, Math.max(0, x | 0));
+  const iy = Math.min(f.H - 1, Math.max(0, y | 0));
+  return minSp + (maxSp - minSp) * f.data[iy * f.W + ix];
+}
+function gradAngle(f, x, y) {
+  const { data: d, W, H } = f;
+  const ix = Math.min(W - 1, x | 0), iy = Math.min(H - 1, y | 0);
+  const xm = Math.max(0, ix - 1), xp = Math.min(W - 1, ix + 1);
+  const ym = Math.max(0, iy - 1), yp = Math.min(H - 1, iy + 1);
+  const gx = d[iy * W + xp] - d[iy * W + xm];
+  const gy = d[yp * W + ix] - d[ym * W + ix];
+  return (gx === 0 && gy === 0) ? null : Math.atan2(gy, gx);
+}
+
+// HOOK #1: injectable rng (default Math.random). Mode C passes a seeded stream.
+async function computePoints(o) {
+  const { field, minSp, maxSp, phases, rng = Math.random, maxPoints = 70000,
+          isCancelled = () => false, onProgress = () => {} } = o;
+  const { data: bright, W, H } = field;
+  const cell = Math.max(0.5, minSp / Math.SQRT2);
+  const gw = Math.ceil(W / cell), gh = Math.ceil(H / cell);
+  const grid = new Int32Array(gw * gh).fill(-1);
+  const px = [], py = [], pb = [], prnd = [];
+  const spAt = (x, y) => {
+    const ix = Math.min(W - 1, Math.max(0, x | 0)), iy = Math.min(H - 1, Math.max(0, y | 0));
+    return minSp + (maxSp - minSp) * bright[iy * W + ix];
+  };
+  const accept = (x, y, r) => {
+    const cx = (x / cell) | 0, cy = (y / cell) | 0, rad = Math.ceil(r / cell);
+    for (let gy = Math.max(0, cy - rad); gy <= Math.min(gh - 1, cy + rad); gy++)
+      for (let gx = Math.max(0, cx - rad); gx <= Math.min(gw - 1, cx + rad); gx++) {
+        const idx = grid[gy * gw + gx];
+        if (idx === -1) continue;
+        const dx = px[idx] - x, dy = py[idx] - y;
+        if (dx * dx + dy * dy < r * r) return false;
+      }
+    return true;
+  };
+  const attemptsPerPhase = Math.min(180000, Math.ceil((W * H) / (minSp * minSp)));
+  for (let phase = 0; phase < phases; phase++) {
+    for (let a = 0; a < attemptsPerPhase; a++) {
+      if (px.length >= maxPoints) break;
+      const x = rng() * W, y = rng() * H;
+      const r = spAt(x, y);
+      if (!accept(x, y, r)) continue;
+      const i = px.length;
+      px.push(x); py.push(y);
+      pb.push(bright[Math.min(H - 1, y | 0) * W + Math.min(W - 1, x | 0)]);
+      prnd.push(rng());
+      grid[((y / cell) | 0) * gw + ((x / cell) | 0)] = i;
+    }
+    onProgress((phase + 1) / phases, px.length);
+    await new Promise(r => setTimeout(r, 0));
+    if (isCancelled()) return [];
+    if (px.length >= maxPoints) break;
+  }
+  return px.map((x, i) => {
+    const ix = Math.min(W - 1, x | 0), iy = Math.min(H - 1, py[i] | 0);
+    const xm = Math.max(0, ix - 1), xp = Math.min(W - 1, ix + 1);
+    const ym = Math.max(0, iy - 1), yp = Math.min(H - 1, iy + 1);
+    const gx = bright[iy * W + xp] - bright[iy * W + xm];
+    const gy = bright[yp * W + ix] - bright[ym * W + ix];
+    const ga = (gx === 0 && gy === 0) ? null : Math.atan2(gy, gx);
+    return { x, y: py[i], b: pb[i], rnd: prnd[i], ga };
+  });
+}
+
+// multi-bucket grid for mode B (advected points can share a cell)
+function makeGridMulti(W, H, minSp) {
+  const cell = Math.max(0.5, minSp / Math.SQRT2);
+  const gw = Math.ceil(W / cell), gh = Math.ceil(H / cell);
+  const buckets = Array.from({ length: gw * gh }, () => []);
+  return {
+    insert(x, y, idx) { buckets[Math.min(gh - 1, (y / cell) | 0) * gw + Math.min(gw - 1, (x / cell) | 0)].push(idx); },
+    forEachNeighbour(x, y, radius, cb) {
+      const cx = (x / cell) | 0, cy = (y / cell) | 0, rad = Math.ceil(radius / cell);
+      for (let gy = Math.max(0, cy - rad); gy <= Math.min(gh - 1, cy + rad); gy++)
+        for (let gx = Math.max(0, cx - rad); gx <= Math.min(gw - 1, cx + rad); gx++) {
+          const b = buckets[gy * gw + gx];
+          for (let m = 0; m < b.length; m++) cb(b[m]);
+        }
+    },
+  };
+}
+
+// ── appearance (trimmed to dots) ──────────────────────────────
+function pointParams() {
+  return {
+    shape: pointShape,   // 'dot' | 'line'
+    sizeMin: val('sl-size'), sizeMax: val('sl-size-max'), sizeRange: $('ck-size-range').checked,
+    lightDropout: (val('sl-dropout') || 0) / 100,
+    colorMode, ink: $('hex-ink').value, bg: $('hex-bg').value,
+    alpha: (parseFloat($('a-ink').value) || 100) / 100,
+    rmxColors: rmxColors.slice(), rmxMap: $('sel-rmx-map').value,
+    strokeLen: val('sl-stroke-len'), strokeSeg: Math.round(val('sl-stroke-seg')),
+    strokeWarp: val('sl-stroke-warp'), strokeRound: $('ck-stroke-round').checked,
+    angleFlow: $('ck-angle-flow').checked, angleRandom: $('ck-angle-random').checked,
+    angleRange: $('ck-angle-range').checked, angleMin: 0, angleMax: 360,
+  };
+}
+function ranged(min, max, range, random, b, rnd) {
+  if (random) return lerp(min, max, rnd);
+  if (range) return lerp(min, max, b);
+  return min;
+}
+function dropoutSkip(P, b, rnd) {
+  if (!P.lightDropout) return false;
+  let d = Math.sin((rnd + 0.123) * 99.13) * 43758.5453; d = d - Math.floor(d);
+  return d < P.lightDropout * Math.pow(b, 1.5);
+}
+function sampleRGB(x, y) {
+  const f = curField; if (!f) return [0, 0, 0];
+  const ix = Math.min(f.W - 1, Math.max(0, x | 0)), iy = Math.min(f.H - 1, Math.max(0, y | 0));
+  const o = (iy * f.W + ix) * 4;
+  return [f.rgba[o], f.rgba[o + 1], f.rgba[o + 2]];
+}
+function pointRGBA(P, b, rnd, p) {
+  if (P.colorMode === 'video' && p) {          // dot takes the frame's own pixel
+    const c = sampleRGB(p.x, p.y);
+    return { r: c[0], g: c[1], b: c[2], a: P.alpha };
+  }
+  const hex = Organica.palette.colorAt(b, {
+    mode: P.colorMode === 'video' ? 'solid' : P.colorMode,
+    ink: P.ink, paper: P.bg, colors: P.rmxColors, submode: P.rmxMap, rnd: rnd || 0,
+  });
+  const [r, g, bl] = Organica.hexToRGB255(hex);
+  return { r, g, b: bl, a: P.alpha };
+}
+// ── LINE / STROKE geometry — ported from pollen/index.html ─────
+function strokeCenterline(len, segs, warp, rnd) {
+  const n = Math.max(2, segs | 0), step = len / n;
+  const bend = (rnd - 0.5) * warp * 2.4;
+  const dA = bend / n;
+  let ang = -bend / 2, x = 0, y = 0;
+  const pts = [[0, 0]];
+  for (let i = 0; i < n; i++) { ang += dA; x += Math.cos(ang) * step; y += Math.sin(ang) * step; pts.push([x, y]); }
+  const mx = (pts[0][0] + pts[n][0]) / 2, my = (pts[0][1] + pts[n][1]) / 2;
+  return pts.map(p => [p[0] - mx, p[1] - my]);
+}
+function smoothOpenPath(g, pts) {
+  const n = pts.length;
+  g.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < n - 1; i++)
+    g.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2);
+  g.lineTo(pts[n - 1][0], pts[n - 1][1]);
+}
+function sampleLuma(x, y) {
+  const f = curField; if (!f) return 0.5;
+  const ix = Math.max(0, Math.min(f.W - 1, x | 0)), iy = Math.max(0, Math.min(f.H - 1, y | 0));
+  return f.data[iy * f.W + ix];
+}
+// isophote of the frame's luma gradient + the Angle value; per-point rnd for Random.
+function makeFieldAngle(P) {
+  return (x, y, rnd) => {
+    let deg = ranged(P.angleMin, P.angleMax, P.angleRange, P.angleRandom, sampleLuma(x, y), rnd);
+    if (P.angleFlow) {
+      const e = 1.5;
+      const gx = sampleLuma(x + e, y) - sampleLuma(x - e, y);
+      const gy = sampleLuma(x, y + e) - sampleLuma(x, y - e);
+      if (gx || gy) deg += Math.atan2(gy, gx) * 180 / Math.PI + 90;
+    }
+    return deg * Math.PI / 180;
+  };
+}
+function fieldStrokePts(x0, y0, P, rnd, angleAt) {
+  const len = P.strokeLen, n = Math.max(2, P.strokeSeg | 0), step = len / n, half = Math.ceil(n / 2);
+  let s = (rnd || 0) * 9999 + 1;
+  const nz = () => { s = Math.sin(s * 12.9898) * 43758.5453; return s - Math.floor(s); };
+  const fwd = [[x0, y0]]; let x = x0, y = y0;
+  for (let i = 0; i < half; i++) { const a = angleAt(x, y, rnd) + (nz() - 0.5) * P.strokeWarp; x += Math.cos(a) * step; y += Math.sin(a) * step; fwd.push([x, y]); }
+  const back = []; x = x0; y = y0;
+  for (let i = 0; i < n - half; i++) { const a = angleAt(x, y, rnd) + Math.PI + (nz() - 0.5) * P.strokeWarp; x += Math.cos(a) * step; y += Math.sin(a) * step; back.push([x, y]); }
+  return back.reverse().concat(fwd);
+}
+function pointAngle(P, p) {
+  let deg = ranged(P.angleMin, P.angleMax, P.angleRange, P.angleRandom, p.b, p.rnd);
+  if (P.angleFlow && p.ga != null) deg += (p.ga * 180 / Math.PI) + 90;
+  return deg * Math.PI / 180;
+}
+
+function paintPoints(g, pts, P, W, H, opt) {
+  const unit = opt.unit || 1;
+  g.imageSmoothingEnabled = true;
+  g.globalCompositeOperation = 'source-over';
+  g.fillStyle = opt.bg; g.fillRect(0, 0, W, H);
+  if (opt.overpaint) g.globalCompositeOperation = 'multiply';
+  g.lineJoin = 'round';
+  const line = P.shape === 'line';
+  const perPoint = P.colorMode !== 'solid';
+  const angleAt = (line && P.angleFlow) ? makeFieldAngle(P) : null;
+  if (!perPoint) { const c = pointRGBA(P, 0, 0); g.fillStyle = g.strokeStyle = `rgba(${c.r},${c.g},${c.b},${c.a})`; }
+  for (let k = 0; k < pts.length; k++) {
+    const p = pts[k];
+    if (dropoutSkip(P, p.b, p.rnd)) continue;
+    if (perPoint) {
+      const c = pointRGBA(P, p.b, p.rnd, p);
+      g.fillStyle = g.strokeStyle = `rgba(${c.r},${c.g},${c.b},${c.a})`;
+    }
+    const sz = ranged(P.sizeMin, P.sizeMax, P.sizeRange, false, p.b, p.rnd) * unit;
+    if (!line) {
+      g.beginPath();
+      g.arc(p.x * unit, p.y * unit, Math.max(0.1, sz / 2), 0, Math.PI * 2);
+      g.fill();
+      continue;
+    }
+    g.lineWidth = Math.max(0.5, sz);
+    g.lineCap = P.strokeRound ? 'round' : 'butt';
+    if (angleAt) {                                   // flow: integrate through the frame's field
+      const sp = fieldStrokePts(p.x, p.y, P, p.rnd, angleAt);
+      g.beginPath(); smoothOpenPath(g, unit === 1 ? sp : sp.map(q => [q[0] * unit, q[1] * unit])); g.stroke();
+    } else {                                         // straight-ish arc at the point's angle
+      const cl = strokeCenterline(P.strokeLen * unit, P.strokeSeg, P.strokeWarp, p.rnd);
+      g.save();
+      g.translate(p.x * unit, p.y * unit);
+      g.rotate(pointAngle(P, p));
+      g.beginPath(); smoothOpenPath(g, cl); g.stroke();
+      g.restore();
+    }
+  }
+}
+
+// ── frame source ──────────────────────────────────────────────
+function grabFrame() {
+  if (DEMO) { drawDemo(fctx, workW, workH, demoT); return; }
+  fctx.drawImage(video, 0, 0, workW, workH);   // real <video> (file upload OR ?stream srcObject)
+}
+// ?stream — a colourful moving scene, so RMX / Video-colour modes have something to bite on.
+function drawColorScene(g, W, H, t) {
+  const g1 = g.createLinearGradient(0, 0, W, H);
+  g1.addColorStop(0, `hsl(${(t * 40) % 360} 62% 52%)`);
+  g1.addColorStop(1, `hsl(${(t * 40 + 130) % 360} 55% 32%)`);
+  g.fillStyle = g1; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 4; i++) {
+    const a = t * 0.6 + i * 1.7;
+    const x = W * (0.5 + 0.32 * Math.cos(a + i)), y = H * (0.5 + 0.30 * Math.sin(a * 0.8 + i * 1.3));
+    g.fillStyle = `hsl(${(i * 70 + t * 30) % 360} 82% ${50 + 12 * Math.sin(a)}%)`;
+    g.beginPath(); g.arc(x, y, Math.min(W, H) * (0.10 + 0.03 * Math.sin(a * 2)), 0, 7); g.fill();
+  }
+  const bx = (0.5 + 0.42 * Math.sin(t * 0.9)) * W;
+  g.fillStyle = 'rgba(0,0,0,0.42)';
+  g.fillRect(bx - W * 0.06, 0, W * 0.12, H);
+}
+function drawDemo(g, W, H, t) {
+  const rg = g.createRadialGradient(W * 0.5, H * 0.42, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.62);
+  rg.addColorStop(0, '#8f8f88'); rg.addColorStop(1, '#111');
+  g.fillStyle = rg; g.fillRect(0, 0, W, H);
+  const bx = (0.5 + 0.4 * Math.sin(t * 1.6)) * W, bw = W * 0.14;
+  const lg = g.createLinearGradient(bx - bw, 0, bx + bw, 0);
+  lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.5, 'rgba(255,255,255,0.95)'); lg.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = lg; g.fillRect(0, 0, W, H);
+  g.fillStyle = 'rgba(0,0,0,0.6)';
+  g.beginPath();
+  g.arc((0.5 - 0.3 * Math.cos(t * 1.1)) * W, (0.5 + 0.24 * Math.sin(t * 0.9)) * H, Math.min(W, H) * 0.17, 0, Math.PI * 2);
+  g.fill();
+}
+function clipDuration() { return (DEMO || !isFinite(video.duration)) ? DEMO_DURATION : video.duration; }
+const streamy = () => DEMO || STREAM || !isFinite(video.duration);   // no seekable timeline
+
+// ── coherence modes ───────────────────────────────────────────
+function cpOpts(f) {
+  const { minSp, maxSp } = spacings();
+  return { field: f, minSp, maxSp, phases: Math.round(val('sl-phases')),
+           rng: Organica.mulberry32(SEED), isCancelled: () => false,
+           onProgress: (_, n) => { $('pts-hint').textContent = n.toLocaleString() + ' points'; } };
+}
+
+async function relattice() {
+  grabFrame();
+  const f = buildField(workW, workH);
+  const pts = await computePoints(cpOpts(f));
+  basePoints = pts.map(p => ({ x: p.x, y: p.y, rnd: p.rnd }));
+  targetCount = basePoints.length;
+  $('pts-hint').textContent = targetCount.toLocaleString() + ' points';
+}
+
+function stepA(f) {
+  const { data: d, W, H } = f;
+  const out = new Array(basePoints.length);
+  for (let i = 0; i < basePoints.length; i++) {
+    const bp = basePoints[i];
+    const b = d[Math.min(H - 1, bp.y | 0) * W + Math.min(W - 1, bp.x | 0)];
+    out[i] = { x: bp.x, y: bp.y, b, rnd: bp.rnd, ga: gradAngle(f, bp.x, bp.y) };
+  }
+  return out;
+}
+
+function stepB(f) {
+  const { data: d, W, H } = f;
+  const { minSp, maxSp } = spacings();
+  const stepFrac = val('b-step'), damp = val('b-damp'), nbrK = val('b-nbr'),
+        cullK = val('b-cull'), budget = Math.max(1, (targetCount * val('b-rate')) | 0);
+  if (!points.length) return points;
+
+  // 1. one repulsion/attraction relaxation step (double-buffered)
+  let grid = makeGridMulti(W, H, minSp);
+  points.forEach((p, i) => grid.insert(p.x, p.y, i));
+  const nx = new Float32Array(points.length), ny = new Float32Array(points.length);
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i], ds = spacingAt(f, minSp, maxSp, p.x, p.y);
+    let vx = 0, vy = 0, w = 0;
+    grid.forEachNeighbour(p.x, p.y, ds * nbrK, j => {
+      if (j === i) return;
+      const q = points[j];
+      let dx = p.x - q.x, dy = p.y - q.y, dist = Math.hypot(dx, dy) || 1e-4;
+      const want = 0.5 * (ds + spacingAt(f, minSp, maxSp, q.x, q.y));
+      const push = (want - dist) / want;
+      vx += (dx / dist) * push; vy += (dy / dist) * push; w++;
+    });
+    if (w) { vx /= w; vy /= w; }
+    const mag = Math.hypot(vx, vy) || 1e-6;
+    const k = Math.min(1, (ds * stepFrac) / mag) * damp;
+    nx[i] = Math.max(0, Math.min(W - 1, p.x + vx * k));
+    ny[i] = Math.max(0, Math.min(H - 1, p.y + vy * k));
+  }
+  for (let i = 0; i < points.length; i++) { points[i].x = nx[i]; points[i].y = ny[i]; }
+
+  // 2. resample tone + angle
+  for (const p of points) {
+    p.b = d[Math.min(H - 1, p.y | 0) * W + Math.min(W - 1, p.x | 0)];
+    p.ga = gradAngle(f, p.x, p.y);
+  }
+
+  // 3. cull over-dense — up to `budget` closest offenders
+  grid = makeGridMulti(W, H, minSp);
+  points.forEach((p, i) => grid.insert(p.x, p.y, i));
+  const kill = [];
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i], ds = spacingAt(f, minSp, maxSp, p.x, p.y);
+    let near = Infinity;
+    grid.forEachNeighbour(p.x, p.y, ds, j => {
+      if (j === i) return;
+      const q = points[j], dx = q.x - p.x, dy = q.y - p.y, dd = dx * dx + dy * dy;
+      if (dd < near) near = dd;
+    });
+    if (near < (ds * cullK) * (ds * cullK)) kill.push([near, i]);
+  }
+  kill.sort((a, b) => a[0] - b[0]);
+  const killSet = new Set(kill.slice(0, budget).map(k => k[1]));
+  if (killSet.size) points = points.filter((_, i) => !killSet.has(i));
+
+  // 4. spawn under-dense — budget darts, accept()-gated
+  grid = makeGridMulti(W, H, minSp);
+  points.forEach((p, i) => grid.insert(p.x, p.y, i));
+  let added = 0, tries = 0;
+  while (added < budget && tries < budget * 40) {
+    tries++;
+    const x = Math.random() * W, y = Math.random() * H;
+    const r = spacingAt(f, minSp, maxSp, x, y);
+    let ok = true;
+    grid.forEachNeighbour(x, y, r, j => {
+      const q = points[j], dx = q.x - x, dy = q.y - y;
+      if (dx * dx + dy * dy < r * r) ok = false;
+    });
+    if (!ok) continue;
+    const b = d[Math.min(H - 1, y | 0) * W + Math.min(W - 1, x | 0)];
+    const p = { x, y, b, rnd: Math.random(), ga: gradAngle(f, x, y) };
+    points.push(p);
+    grid.insert(x, y, points.length - 1);
+    added++;
+  }
+
+  // 5. nudge count toward target ±5%
+  const lo = targetCount * 0.95, hi = targetCount * 1.05;
+  if (points.length > hi) points.length = Math.round(hi);
+  return points;
+}
+
+let cBusy = false;
+function kickC(f) {
+  if (cBusy) return;
+  cBusy = true;
+  computePoints({ ...cpOpts(f), rng: Organica.mulberry32(SEED) }).then(pts => {
+    if (pts.length) { points = pts; lastC = pts; }
+    cBusy = false;
+  });
+}
+async function stepC(f) {
+  points = await computePoints({ ...cpOpts(f), rng: Organica.mulberry32(SEED) });
+  lastC = points;
+  return points;
+}
+
+function stepFrame(f) {
+  if (mode === 'A') return stepA(f);
+  if (mode === 'B') return stepB(f);
+  return lastC.length ? lastC : points;  // C real-time: use last resolved
+}
+async function stepFrameAsync(f) {
+  if (mode === 'A') return stepA(f);
+  if (mode === 'B') return stepB(f);
+  return await stepC(f);
+}
+
+// ── loops ─────────────────────────────────────────────────────
+function paintOpts() {
+  const P = pointParams();
+  return { unit: stage.width / workW, bg: P.bg, overpaint: $('ck-overpaint').checked };
+}
+function pushPerf(ms, count) {
+  if (ms) { perf.push(ms); if (perf.length > 30) perf.shift(); }
+  const avg = perf.reduce((a, b) => a + b, 0) / (perf.length || 1);
+  $('pf-ms').textContent = avg ? avg.toFixed(1) : '–';
+  $('pf-fps').textContent = avg ? (1000 / avg).toFixed(0) : '–';
+  $('pf-n').textContent = count.toLocaleString();
+}
+
+function tick() {
+  if (!running) return;
+  const t0 = performance.now();
+  if (DEMO) demoT += 1 / 60;
+  grabFrame();
+  const f = buildField(workW, workH);
+  const pts = stepFrame(f);
+  if (mode === 'C') kickC(f);
+  lastPaintedPts = pts;
+  paintPoints(sctx, pts, pointParams(), stage.width, stage.height, paintOpts());
+  if (exporting) paintExport();
+  pushPerf(performance.now() - t0, pts.length);
+  scheduleTick();
+}
+function scheduleTick() {
+  if (!DEMO && 'requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+    loopId = video.requestVideoFrameCallback(tick);
+  } else {
+    loopId = requestAnimationFrame(tick);
+  }
+}
+function startRealtime() {
+  running = true;
+  if (!DEMO) { video.loop = true; video.play(); }
+  scheduleTick();
+  setPPIcon(true);
+}
+function pauseRealtime() {
+  running = false;
+  if (!DEMO) video.pause();
+  if (!DEMO && video.cancelVideoFrameCallback) video.cancelVideoFrameCallback(loopId);
+  else cancelAnimationFrame(loopId);
+  setPPIcon(false);
+}
+function stopAll() {
+  pauseRealtime();
+  demoT = 0;
+  if (!DEMO && isFinite(video.duration)) video.currentTime = 0;
+  grabFrame();
+  const f = buildField(workW, workH);
+  const pts = (mode === 'A' && basePoints) ? stepA(f) : points;
+  paintPoints(sctx, pts, pointParams(), stage.width, stage.height, paintOpts());
+}
+function setPPIcon(playing) {
+  $('pp-icon').setAttribute('d', playing ? 'M4.5 3.5h3v9h-3zM8.5 3.5h3v9h-3z' : 'M5 3.5 12 8l-7 4.5z');
+}
+
+async function renderOffline() {
+  const fps = +$('sel-fps').value, dur = clipDuration(), n = Math.ceil(dur * fps);
+  const live = streamy();   // demo or a MediaStream — no seekable timeline, frames come as they come
+  pauseRealtime();
+  if (!DEMO && !live) video.loop = false;
+  if (live && !DEMO) video.play();
+  setStatus('rendering', 'Offline render — 0/' + n);
+  if (!exportStart(fps)) return;
+  for (let i = 0; i < n; i++) {
+    if (DEMO) demoT = i / fps;
+    else if (!live) {
+      video.currentTime = Math.min(dur - 1e-3, i / fps);
+      await new Promise(r => video.addEventListener('seeked', r, { once: true }));
+    }
+    // live non-demo: just use whatever frame the stream is showing now
+    const t0 = performance.now();
+    grabFrame();
+    const f = buildField(workW, workH);
+    const pts = await stepFrameAsync(f);
+    lastPaintedPts = pts;
+    paintPoints(sctx, pts, pointParams(), stage.width, stage.height, paintOpts());
+    paintExport();
+    pushPerf(performance.now() - t0, pts.length);
+    $('progress-bar').style.width = Math.round((i + 1) / n * 100) + '%';
+    setStatus('rendering', 'Offline render — ' + (i + 1) + '/' + n + ' · ' + exportCanvas.width + 'px');
+    await new Promise(r => setTimeout(r, 1000 / fps));   // pace so captureStream(fps) samples ~right
+  }
+  exportStop();
+  $('progress-bar').style.width = '0%';
+}
+
+// ── High-quality export recorder (LOCAL — not Organica.recorder). ──
+// Captures a hi-res exportCanvas at an explicit high bitrate. The visible
+// stage stays at working res for perf; tick() / renderOffline() also paint
+// exportCanvas while `exporting`. Recording ~800px @ MediaRecorder's default
+// ~2.5 Mbps was what made the export mush.
+let exportMR = null, exportChunks = [], exporting = false, exportTimer = 0;
+const EXPORT_MIMES = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+function sizeExportCanvas() {
+  const sw = video.videoWidth || workW || 960, sh = video.videoHeight || workH || 720;
+  const s = Math.min(1, EXPORT_LONG / Math.max(sw, sh));
+  exportCanvas.width = Math.max(2, Math.round(sw * s));
+  exportCanvas.height = Math.max(2, Math.round(sh * s));
+}
+function paintExport() {
+  const P = pointParams();
+  paintPoints(exctx, lastPaintedPts, P, exportCanvas.width, exportCanvas.height,
+    { unit: exportCanvas.width / workW, bg: P.bg, overpaint: $('ck-overpaint').checked });
+}
+function exportStart(fps) {
+  sizeExportCanvas();
+  const mime = EXPORT_MIMES.find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } });
+  // stipple = lots of high-freq detail → a fat bitrate. ~0.25 bits/px/frame.
+  const bitrate = Math.min(60e6, Math.round(exportCanvas.width * exportCanvas.height * fps * 0.25));
+  try {
+    const stream = exportCanvas.captureStream(fps);
+    exportMR = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: bitrate } : { videoBitsPerSecond: bitrate });
+  } catch (e) { setStatus('', 'Recorder init failed: ' + e.message); return false; }
+  exportChunks = [];
+  exportMR.ondataavailable = e => { if (e.data && e.data.size) exportChunks.push(e.data); };
+  exportMR.onstop = () => {
+    const type = (exportMR && exportMR.mimeType) || mime || 'video/webm';
+    const ext = type.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
+    Organica.download(new Blob(exportChunks, { type }), Organica.stamp('mote', ext));
+    exportMR = null; exporting = false;
+    $('btn-export-video').textContent = 'Export video';
+    setStatus('active', 'Video saved — ' + exportCanvas.width + '×' + exportCanvas.height + ' · ' + Math.round(bitrate / 1e6) + ' Mbps');
+  };
+  exporting = true;
+  exportMR.start(1000);
+  return true;
+}
+function exportStop() { clearTimeout(exportTimer); if (exportMR && exportMR.state !== 'inactive') exportMR.stop(); }
+function exportActive() { return !!exportMR && exportMR.state === 'recording'; }
+function toggleExport() {
+  if (exportActive() || exporting) { exportStop(); pauseRealtime(); return; }
+  const fps = +$('sel-fps').value;
+  demoT = 0;
+  if (!DEMO && isFinite(video.duration)) video.currentTime = 0;
+  if (!exportStart(fps)) return;
+  $('btn-export-video').textContent = 'Stop rec';
+  setStatus('rendering', 'Recording ' + exportCanvas.width + 'px @ real time — Render (Offline) gives a smoother pass');
+  startRealtime();
+  exportTimer = setTimeout(() => { exportStop(); pauseRealtime(); }, clipDuration() * 1000 + 250);
+}
+
+// ── ingestion ─────────────────────────────────────────────────
+async function onReady() {
+  const src = DEMO ? { w: 960, h: 720 } : { w: video.videoWidth || 960, h: video.videoHeight || 720 };
+  const d = workDims(src.w, src.h, val('sl-detail') || 950);
+  workW = d.W; workH = d.H;
+  frameCanvas.width = workW; frameCanvas.height = workH;
+  stage.width = workW; stage.height = workH;
+  stage.classList.add('visible');
+  $('drop-hint').classList.add('hidden');
+  ['btn-play', 'btn-stop', 'btn-render', 'btn-export-video'].forEach(id => $(id).disabled = false);
+
+  demoT = 0;
+  await relattice();                       // mode A lattice from frame 0
+  grabFrame();
+  const f = buildField(workW, workH);
+  points = await computePoints(cpOpts(f)); // seed B/C carry-set
+  lastC = points;
+  targetCount = points.length;
+  paintPoints(sctx, stepA(f), pointParams(), stage.width, stage.height, paintOpts());
+  pushPerf(0, points.length);
+  const dur = isFinite(video.duration) ? ' · ' + video.duration.toFixed(1) + 's' : ' · live stream';
+  setStatus('active', (DEMO ? 'demo' : STREAM ? 'stream' : (video.videoWidth + '×' + video.videoHeight))
+    + ' · work ' + workW + '×' + workH + dur);
+}
+// Detail slider changed → re-size, re-place, re-seed at the new working res.
+let reinitT = 0;
+function reinit() {
+  if (!workW) return;
+  clearTimeout(reinitT);
+  reinitT = setTimeout(async () => {
+    const wasRunning = running;
+    if (running) pauseRealtime();
+    await onReady();
+    if (wasRunning) startRealtime();
+  }, 250);
+}
+
+let ready = false, loadWatch = 0;
+function loadVideo(file) {
+  // .mov / .m4v often arrive with an empty or odd MIME — fall back to the extension.
+  const okType = (file && file.type && file.type.startsWith('video/'))
+    || (file && /\.(mov|mp4|m4v|webm|mkv|avi|ogv)$/i.test(file.name));
+  if (!okType) { setStatus('', 'Not a video file — pick an .mp4 / .mov / .webm'); return; }
+  ready = false;
+  setStatus('rendering', 'Loading ' + file.name + '…');
+  video.srcObject = null;
+  video.src = URL.createObjectURL(file);   // local File → object URL, nothing is uploaded anywhere
+  video.load();
+  clearTimeout(loadWatch);
+  loadWatch = setTimeout(() => {
+    if (ready || DEMO || STREAM) return;
+    const rs = video.readyState;
+    setStatus('', rs === 0
+      ? 'Still loading — that codec is probably not browser-decodable (ProRes / HEVC). Convert to .mp4 H.264.'
+      : 'Metadata read but no frame yet — big file or partial codec support. Give it a moment or try .mp4 H.264.');
+  }, 12000);
+}
+function markReady() {
+  if (DEMO || STREAM || ready || !video.src) return;
+  ready = true;
+  clearTimeout(loadWatch);
+  onReady();
+}
+// A dropped/picked file is ready once its first frame decodes. `loadeddata`
+// is reliable (a `currentTime=0` seek often fires no `seeked` since it's
+// already 0); `canplay` is the fallback. DEMO/STREAM skip this.
+video.addEventListener('loadeddata', markReady);
+video.addEventListener('canplay', markReady);
+video.addEventListener('loadedmetadata', () => {
+  if (DEMO || STREAM || ready) return;
+  setStatus('rendering', 'Decoding ' + video.videoWidth + '×' + video.videoHeight + '…');
+});
+video.addEventListener('error', () => {
+  if (DEMO || STREAM) return;
+  clearTimeout(loadWatch);
+  const m = (video.error && video.error.message) ? ' (' + video.error.message + ')' : '';
+  setStatus('', 'Could not decode that video' + m + ' — convert to .mp4 (H.264).');
+});
+
+// ── wiring ────────────────────────────────────────────────────
+$('btn-open').onclick = () => $('file-input').click();
+$('file-input').onchange = e => { loadVideo(e.target.files[0]); e.target.value = ''; };
+$('stage-wrap').addEventListener('dragover', e => e.preventDefault());
+$('stage-wrap').addEventListener('drop', e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (f) loadVideo(f);
+});
+
+$('btn-play').onclick = () => { running ? pauseRealtime() : startRealtime(); };
+$('btn-stop').onclick = stopAll;
+$('btn-render').onclick = () => { if (renderMode === 'offline') renderOffline(); else setStatus('', 'Switch Render → Offline first'); };
+$('btn-export-video').onclick = toggleExport;
+
+$('seg-mode').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  mode = b.dataset.v;
+  [...$('seg-mode').children].forEach(x => x.classList.toggle('on', x === b));
+  $('sec-b').hidden = mode !== 'B';
+  $('note').style.display = (mode === 'C' && renderMode === 'realtime') ? 'block' : 'none';
+  $('note').textContent = 'Mode C lags in real-time — updates in bursts. Use Offline for a clean pass.';
+  $('mode-hint').textContent = mode === 'A' ? 'A — points fixed, only tone/size follow the video.'
+    : mode === 'B' ? 'B — points migrate toward the moving content (relaxation per frame).'
+    : 'C — full re-stipple every frame, fixed seed. Static regions hold, edges boil.';
+  $('btn-relattice').style.display = mode === 'A' ? '' : 'none';
+});
+$('seg-render').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  renderMode = b.dataset.v;
+  [...$('seg-render').children].forEach(x => x.classList.toggle('on', x === b));
+  $('note').style.display = (mode === 'C' && renderMode === 'realtime') ? 'block' : 'none';
+});
+function syncColorUI() {
+  [...$('seg-color').children].forEach(x => x.classList.toggle('on', x.dataset.v === colorMode));
+  $('rmx-block').hidden = colorMode !== 'rmx';
+  $('video-hint').hidden = colorMode !== 'video';
+}
+function syncShapeUI() {
+  [...$('seg-shape').children].forEach(x => x.classList.toggle('on', x.dataset.v === pointShape));
+  $('line-block').hidden = pointShape !== 'line';
+  const t = pointShape === 'line' ? 'Thickness' : 'Size';
+  $('sz-label').textContent = t + ' min'; $('szmax-label').textContent = t + ' max';
+}
+$('seg-color').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  colorMode = b.dataset.v;
+  syncColorUI();
+  repaintStill();
+});
+$('seg-shape').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  pointShape = b.dataset.v;
+  syncShapeUI();
+  repaintStill();
+});
+[...$('rmx-swatches').children].forEach((inp, i) => {
+  inp.addEventListener('input', () => { rmxColors[i] = inp.value; repaintStill(); });
+});
+$('sel-rmx-map').addEventListener('change', repaintStill);
+$('btn-relattice').onclick = async () => { await relattice(); repaintStill(); };
+
+// ── Presets ──────────────────────────────────────────────────
+// Two families tuned for "legible + dynamic":
+//   Sharp  — mode A, line marks, flow:true. Strokes trace the frame's field and
+//            reorient every frame but stay put → the image holds, motion reads.
+//   Fluid  — mode B, fine dots. Points physically migrate with the content.
+// Numbers dialed against scratchpad/testclip.mp4.
+const RAMP_WARM = ['#170d06', '#5a2c14', '#a8632a', '#e0a955', '#f7ecd6'];
+const RAMP_COOL = ['#0e1622', '#274157', '#5f8aa0', '#a9cdd6', '#eef4f2'];
+const PRESETS = {
+  // ── Sharp — legible (Hatch-Flow, mode A). ~8–12k strokes → 30–50 fps. ──
+  'flow-video': { mode: 'A', shape: 'line', flow: true, rndAngle: false, round: true,
+                  strokeLen: 10, strokeSeg: 6, strokeWarp: 0.16, detail: 760,
+                  spMin: 2.8, spMax: 11, spX: 1, size: 1.0, sizeMax: 1.0, range: false,
+                  cm: 'video', contrast: 18, gamma: 1, dropout: 0, bg: '#161616' },
+  'flow-etch':  { mode: 'A', shape: 'line', flow: true, rndAngle: false, round: true,
+                  strokeLen: 11, strokeSeg: 7, strokeWarp: 0.14, detail: 800,
+                  spMin: 2.6, spMax: 10, spX: 1, size: 0.9, sizeMax: 0.9, range: false,
+                  cm: 'adaptive', ink: '#0d0d0d', bg: '#efe9dc', contrast: 26, gamma: 1, dropout: 0 },
+  'flow-duo':   { mode: 'A', shape: 'line', flow: true, rndAngle: false, round: true,
+                  strokeLen: 10, strokeSeg: 6, strokeWarp: 0.18, detail: 760,
+                  spMin: 2.8, spMax: 11, spX: 1, size: 1.1, sizeMax: 1.1, range: false,
+                  cm: 'rmx', map: 'tone', rmx: RAMP_WARM, contrast: 18, gamma: 1, dropout: 0, bg: '#120b05' },
+  // ── Fluid — points migrate (mode B). B is O(n·nbrs)/frame → sparser + smaller field. ──
+  'drift-video':{ mode: 'B', shape: 'dot', detail: 720, spMin: 3.4, spMax: 13, spX: 1,
+                  size: 1.0, sizeMax: 3.6, range: true, cm: 'video', contrast: 12, gamma: 1, dropout: 0, bg: '#0d0d0d' },
+  'drift-tonal':{ mode: 'B', shape: 'dot', detail: 720, spMin: 3.4, spMax: 13, spX: 1,
+                  size: 0.9, sizeMax: 4.0, range: true, cm: 'adaptive', ink: '#0f0f0f', bg: '#f2efe6', contrast: 24, gamma: 1, dropout: 0 },
+  'drift-warm': { mode: 'B', shape: 'dot', detail: 720, spMin: 3.4, spMax: 13, spX: 1,
+                  size: 1.0, sizeMax: 3.8, range: true, cm: 'rmx', map: 'tone', rmx: RAMP_WARM, contrast: 16, gamma: 1, dropout: 0, bg: '#140d06' },
+  // ── Pollen built-ins — faithful port of pollen/index.html:750. g:1 = <circle> → dot;
+  //    g:56 = <line rounded> → straight line; stroke → line+flow. All mode A (Pollen renders once).
+  //    detail 850 (Pollen's own preview is 1000px one-shot; Mote runs per-frame). ──
+  'pollen-fine-dots':  { mode: 'A', shape: 'dot', detail: 850, spMin: 1.5, spMax: 8, spX: 1, phases: 16,
+                         size: 1.5, sizeMax: 1.5, range: false, cm: 'solid', ink: '#0a0a0a', bg: '#f5f2ec', contrast: 0, gamma: 1, dropout: 0 },
+  'pollen-felt-tip':   { mode: 'A', shape: 'dot', detail: 850, spMin: 3, spMax: 14, spX: 1, phases: 12,
+                         size: 4, sizeMax: 1, range: true, cm: 'solid', ink: '#0a0a0a', bg: '#f5f2ec', contrast: 0, gamma: 1, dropout: 0 },
+  'pollen-lines-flow': { mode: 'A', shape: 'line', detail: 850, flow: false, rndAngle: true, angleRange: false, round: true,
+                         strokeLen: 10, strokeSeg: 2, strokeWarp: 0, spMin: 2, spMax: 10, spX: 1, phases: 10,
+                         size: 1.4, sizeMax: 1.4, range: false, cm: 'solid', ink: '#0a0a0a', bg: '#f5f2ec', contrast: 0, gamma: 1, dropout: 0 },
+  'pollen-duotone':    { mode: 'A', shape: 'dot', detail: 850, spMin: 1.5, spMax: 9, spX: 1, phases: 14,
+                         size: 3, sizeMax: 3, range: false, cm: 'adaptive', ink: '#1a3a2a', bg: '#dfe6f0', contrast: 0, gamma: 1, dropout: 0 },
+  'pollen-hatch-flow': { mode: 'A', shape: 'line', detail: 850, flow: true, rndAngle: false, angleRange: false, round: true,
+                         strokeLen: 12, strokeSeg: 10, strokeWarp: 0.3, spMin: 1.5, spMax: 9, spX: 1, phases: 16,
+                         size: 1, sizeMax: 1, range: false, cm: 'solid', ink: '#0a0a0a', bg: '#f5f2ec', contrast: 0, gamma: 1, dropout: 50 },
+  'pollen-hatch-swirl':{ mode: 'A', shape: 'line', detail: 850, flow: false, rndAngle: false, angleRange: true, round: true,
+                         strokeLen: 14, strokeSeg: 10, strokeWarp: 0, spMin: 2, spMax: 12, spX: 1, phases: 16,
+                         size: 1.2, sizeMax: 1.2, range: false, cm: 'solid', ink: '#0a0a0a', bg: '#f5f2ec', contrast: 0, gamma: 1, dropout: 0 },
+  // ── Baselines (reference) ──
+  'video-color':{ shape: 'dot', spMin: 2.5, spMax: 11, spX: 1, size: 1.2, sizeMax: 4.2, range: true, cm: 'video', contrast: 0, gamma: 1, bg: '#0a0a0a' },
+  'fine-dots':  { shape: 'dot', spMin: 2.5, spMax: 8, spX: 1, size: 1.0, sizeMax: 2.6, range: true, cm: 'solid', ink: '#1c1c1c', bg: '#f4f1e8', contrast: 0, gamma: 1 },
+  'duotone':    { shape: 'dot', spMin: 3, spMax: 14, spX: 1, size: 1.4, sizeMax: 5.0, range: true, cm: 'adaptive', ink: '#1f4a3a', bg: '#e9edf0', contrast: 0, gamma: 1 },
+  'lines-flow': { shape: 'line', flow: false, rndAngle: true, round: true, strokeLen: 18, strokeSeg: 6, strokeWarp: 0.15,
+                  spMin: 2, spMax: 10, spX: 1, size: 2.4, sizeMax: 2.4, range: false, cm: 'rmx', map: 'tone', rmx: RAMP_WARM, contrast: 0, gamma: 1, bg: '#161009' },
+  'hatch-flow': { shape: 'line', flow: true, rndAngle: false, round: true, strokeLen: 16, strokeSeg: 10, strokeWarp: 0.3, dropout: 45,
+                  spMin: 2, spMax: 9, spX: 1, size: 1.6, sizeMax: 1.6, range: false, cm: 'rmx', map: 'tonernd', rmx: RAMP_COOL, contrast: 0, gamma: 1, bg: '#0c1116' },
+  'rmx-bands':  { shape: 'dot', spMin: 3, spMax: 13, spX: 1, size: 1.6, sizeMax: 5.5, range: true, cm: 'rmx', map: 'posterize',
+                  rmx: ['#241109', '#7a2d16', '#d9822b', '#f2c14e', '#f6e8c3'], contrast: 0, gamma: 1, bg: '#1a1408' },
+};
+function applyPreset(key) {
+  const P = PRESETS[key]; if (!P) return;
+  const detBefore = $('sl-detail').value;
+  $('sl-sp-min').value = P.spMin; $('sl-sp-max').value = P.spMax; $('sl-sp-scale').value = P.spX;
+  if (P.phases != null) $('sl-phases').value = P.phases;
+  $('sl-size').value = P.size; $('sl-size-max').value = P.sizeMax; $('ck-size-range').checked = !!P.range;
+  $('sl-contrast').value = P.contrast != null ? P.contrast : 0;
+  $('sl-gamma').value = P.gamma != null ? P.gamma : 1;
+  if (P.detail != null) $('sl-detail').value = P.detail;
+  if (P.ink) { $('hex-ink').value = P.ink; $('hex-ink-t').value = P.ink; }
+  if (P.bg)  { $('hex-bg').value = P.bg;  $('hex-bg-t').value = P.bg; }
+  if (P.rmx) {
+    rmxColors = P.rmx.slice();
+    [...$('rmx-swatches').children].forEach((inp, i) => { if (rmxColors[i]) inp.value = rmxColors[i]; });
+  }
+  if (P.map) $('sel-rmx-map').value = P.map;
+  pointShape = P.shape || 'dot';
+  if (pointShape === 'line') {
+    $('sl-stroke-len').value = P.strokeLen; $('sl-stroke-seg').value = P.strokeSeg; $('sl-stroke-warp').value = P.strokeWarp;
+    $('ck-stroke-round').checked = !!P.round; $('ck-angle-flow').checked = !!P.flow;
+    $('ck-angle-random').checked = !!P.rndAngle; $('ck-angle-range').checked = !!P.angleRange;
+  }
+  $('sl-dropout').value = P.dropout || 0;
+  syncShapeUI();
+  colorMode = P.cm; syncColorUI();
+  if (P.mode && P.mode !== mode) {
+    const mb = [...$('seg-mode').children].find(x => x.dataset.v === P.mode);
+    if (mb) mb.click();
+  }
+  document.querySelectorAll('#panel input[type=range]').forEach(r => {
+    const v = document.querySelector('.val[data-for="' + r.id + '"]');
+    if (v) v.textContent = (r.step && +r.step < 1) ? (+r.value).toFixed(2) : r.value;
+  });
+  if ($('sl-detail').value !== detBefore) reinit();
+  setStatus('active', 'Preset: ' + key + (P.mode ? ' · mode ' + P.mode : '') + ' — Relattice to re-place');
+}
+$('sel-preset').addEventListener('change', e => { applyPreset(e.target.value); repaintStill(); });
+
+// live value readouts + still repaint on appearance change
+document.querySelectorAll('input[type=range]').forEach(r => {
+  r.addEventListener('input', () => {
+    const v = document.querySelector('.val[data-for="' + r.id + '"]');
+    if (v) v.textContent = (r.step && +r.step < 1) ? (+r.value).toFixed(2) : r.value;
+    if (r.id === 'sl-detail') { reinit(); return; }
+    if (r.id.startsWith('sl-size') || r.id.startsWith('sl-stroke')
+        || r.id === 'sl-dropout' || r.id === 'a-ink'
+        || r.id === 'sl-contrast' || r.id === 'sl-gamma') repaintStill();
+  });
+});
+['hex-ink', 'hex-bg'].forEach(id => {
+  $(id).addEventListener('input', () => { $(id + '-t').value = $(id).value; repaintStill(); });
+  $(id + '-t').addEventListener('change', () => { $(id).value = $(id + '-t').value; repaintStill(); });
+});
+['ck-size-range', 'ck-overpaint', 'ck-invert', 'ck-stroke-round', 'ck-angle-flow', 'ck-angle-random', 'ck-angle-range'].forEach(id => $(id).addEventListener('change', repaintStill));
+
+function repaintStill() {
+  if (!workW || running) return;
+  grabFrame();
+  const f = buildField(workW, workH);
+  const pts = (mode === 'A' && basePoints) ? stepA(f) : (points.length ? points : []);
+  if (pts.length) paintPoints(sctx, pts, pointParams(), stage.width, stage.height, paintOpts());
+}
+
+// zoom/pan — preview only
+Organica.createZoomPan({ canvas: stage, wrap: $('stage-wrap'), isReady: () => stage.classList.contains('visible') });
+if (Organica.enhanceSliders) Organica.enhanceSliders(document);
+
+syncColorUI();
+syncShapeUI();
+
+// boot
+if (DEMO) {
+  onReady();
+} else if (STREAM) {
+  // colourful synthetic scene → real MediaStream → real <video srcObject> path
+  const sc = document.createElement('canvas'); sc.width = 960; sc.height = 720;
+  const sg = sc.getContext('2d');
+  let st = 0;
+  (function anim() { st += 1 / 60; drawColorScene(sg, 960, 720, st); requestAnimationFrame(anim); })();
+  video.srcObject = sc.captureStream(30);
+  video.addEventListener('loadeddata', function once() {
+    video.removeEventListener('loadeddata', once);
+    onReady();
+  });
+  video.play();
+} else if (Q.get('src')) {
+  // ?src=<same-origin url> — load a video served by the dev server (not tainted,
+  // getImageData works). Used for automated testing with a real clip.
+  ready = false;
+  setStatus('rendering', 'Loading ' + Q.get('src') + '…');
+  video.src = Q.get('src');
+  video.load();
+  loadWatch = setTimeout(() => { if (!ready) setStatus('', 'Still loading — check the URL / codec.'); }, 12000);
+}
+// else: waiting for a dropped / picked video file (loadeddata → onReady)
+</script>
+</body>
+</html>
