@@ -270,7 +270,7 @@ Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 |---|---|---|
 | `--tool` | hidden (or engine tabs) | Spore, Pollen, Halide, Komorebi, Living Path, template |
 | `--catalog` | title + count | Indicators (archived — `genesis/archive/indicators-55.html`) |
-| `--editor` | mode tabs / breadcrumb | Genesis (Library / Create — the seed library, Aug 30, 2026 — see below) |
+| `--editor` | mode tabs / breadcrumb | Genesis (context slot now empty — the Library/Create mode nav moved above the filter bar Aug 31, 2026; see below) |
 
 **All 11 pages migrated** (6 tool / 3 catalog / 2 editor, historical count —
 Strata was among them and was later removed from the product). The stale
@@ -420,33 +420,72 @@ to be three separate pages; they merged into `genesis/index.html` on Aug 27,
 Three modes now:
 
 - **Library** (the home) — `.app` is a single column (`1fr`), no side panels.
-  One **filter bar** across the top: a **Sets** picker (segmented buttons per
-  set + count, `+` to make a new one) then Source (All/Organic/Primitives/My
-  seeds) · Type (All/Asset/Variant/Mask/Container), over a responsive auto-fill
-  tile grid at a fixed "cozy" density (`--tile-min: 130px` / `--tile-gap:
-  12px`; the density toggle was removed). Each tile carries a **parametric /
-  vector** kind badge. The active set + its count also show in the shared
-  header status line. The built-in **Base Seeds** set = 13 organic forms + 6
-  procedural primitives, both synthesized (never stored). **Click a tile →
-  Edit** (no detail card — that was removed Aug 31).
+  Three stacked rows over a responsive auto-fill tile grid at a fixed "cozy"
+  density (`--tile-min: 130px` / `--tile-gap: 12px`; the density toggle was
+  removed):
+  1. `.lib-modenav` — the **mode nav** (`#mode-tabs`, shared `.org-tabs`
+     segmented control, **Library / Create** only); Create/Edit navigation is
+     in the floatbar.
+  2. `.lib-sets` — the **Sets** row: label · `#sets-seg` chips (name + count,
+     click to activate) · `#btn-new-set` (`+`) · `#btn-manage-sets` (`⚙`, a
+     toggle). `⚙` reveals `#sets-manage-list` **inline below the chips** (no
+     popover): one row per set — the built-in "Base Seeds" row is label-only;
+     each user row has inline rename (click the name → transient input, same
+     commit/Esc/blur as `showNewSetInput`), `↑`/`↓` reorder (`disabled` at the
+     first/last *user* row — the built-in is pinned at `sets[0]`), and `×`
+     (two-click armed, `.is-armed`). `renameSet` rejects empty / case-insensitive
+     duplicate names; `deleteSet` also deletes any `user-*` member now in **no
+     other set** (Diego's call — the `×` is already armed) and falls back to
+     Base Seeds if the active set went.
+  3. `.lib-filters` — now just the **Type** seg (All/Asset/Variant/Mask/
+     Container). The old **Source** seg (All/Organic/Primitives/My seeds) was
+     removed Aug 31 — it was dead on every user set, and the `parametric /
+     vector` tile badge already carries the one useful split.
+  The built-in **Base Seeds** set = 13 organic forms + 6 procedural primitives,
+  both synthesized (never stored). **Click a tile → Edit** (no detail card —
+  removed Aug 31). Genesis's header is just the logo. The active set + the Type
+  filter are remembered across reloads in `localStorage['organica.library.view']`
+  (`{activeSetId, filter}`; a brand-new key, value-whitelisted on read, kept
+  separate from `organica.library.forms` so a corrupt view blob can't hurt
+  library data). Switching sets **no longer wipes the filter**.
 - **Create** — `.app` becomes `[stage | panel]` (`.app--create` →
-  `1fr var(--panel-width-right)`). New shapes only: Draw (Paper.js freehand) /
-  Generate (parametric kinds) / a single **`+`** icon in Source that imports an
-  SVG **file** (the old note + paste box are gone). Save mints a `user-…` seed.
+  `1fr var(--panel-width-right)`). Entering Create from any other mode runs
+  `resetCreate()` → a **blank Freehand canvas** (nothing drawn, Save disabled).
+  New shapes only: Draw (Paper.js freehand) / Generate (parametric kinds) / an
+  Import icon in the **floatbar** that opens a file picker for an SVG.
 - **Edit** — same `[stage | panel]` layout, reached by clicking a Library seed
-  (the Edit tab is `disabled` until then). Adapts to the seed:
+  (the floatbar **Edit** icon is `disabled` until then). Adapts to the seed:
   - **parametric** (non-freehand `genType`) → its generator sliders, no canvas;
   - **vector** (freehand or raw SVG) → the seed's every contour becomes
     editable bezier anchors on the Paper canvas (`drawEditor.importSVG()` runs
     a raw seed through `paper.project.importSVG({expandShapes:true})` into a
     `CompoundPath`; a `<line>`-based seed opens in Stroke style).
-  The right panel = an **Edit header** (kind badge · facts `<dl>` · built-in
-  notice · "filter will be flattened" warning · Delete) + Appearance transforms
-  + Name/Type. **No panel Save.** The **floatbar** carries the Edit verbs:
-  Undo (vector only) · **Duplicate** (forks the on-screen edits into a new
-  seed) · **Save** (disabled until dirty; a user seed → armed 2-click confirm →
-  overwrite in place; a built-in → auto-fork a copy to "My Seeds"). Dirty is
-  tracked from `drawEditor` `onChange` + any `input`/`change` in the panel.
+  The right panel = an **Edit header** (kind badge · facts `<dl>` · an
+  interactive **"In sets"** block · built-in notice · "filter will be
+  flattened" warning) + Appearance transforms. The "In sets" block, for a
+  `user-*` seed, is a checkbox per user set — toggling `push`es/`splice`s the
+  seed id in `set.forms` directly (no copy minted), guarded so a seed can never
+  fall out of *every* set (use the floatbar Delete for a real global removal).
+  For a built-in it's just the count + a "Save a copy" hint.
+  The **floatbar** (Create/Edit only) is the sole home of both mode navigation
+  and the verbs, in one canonical order:
+  **Create · Edit · Save · Back · Delete · Library · Export**, with the
+  context extras slotted by their owner — **Import** (Create) after Create,
+  **Duplicate** (Edit) after Edit, **Clear** (Create) after Back. `Back` is the
+  Undo icon (shown for a live Paper canvas only). `Delete` is an icon button
+  with a two-click armed confirm (`.is-armed` tint + aria-label swap), shown
+  for a non-built-in seed in Edit; it replaces the old panel Delete button.
+  `Export` downloads the current seed as a standalone `.svg` (viewBox
+  `0 0 200 200`, `--ink` pinned), disabled when there's no shape. `Save` is
+  the floatbar icon that opens the **Save popover** — `#btn-save-open` →
+  `#save-popover`, upward from the bar. The popover holds Name / Type /
+  underlying-layer / (Create only) a
+  **Save-to** `<select>` (every set in Library-bar order, built-in "Base Seeds"
+  `disabled`; defaults to the Library's active set) + new-set row, and one Save
+  button. Create → `saveForm()` mints a `user-…` seed. Edit → disabled until dirty; the popover-open + Save click is
+  the confirm — a user seed is overwritten in place, a built-in auto-forks a
+  copy to "My Seeds". Dirty is tracked from `drawEditor` `onChange` + any
+  `input`/`change` in `#design-panel` or `#save-popover`.
 
 **Compose** (the drag-select-then-fill grid gesture) and **Import as its own
 mode** were removed Aug 30. The `set` data model shrank with them — a set is now

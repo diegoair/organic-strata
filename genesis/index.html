@@ -77,14 +77,44 @@
     }
     .app.app--create { grid-template-columns: 1fr var(--panel-width-right); }
 
-    /* Sets picker — lives inline in the Library filter bar */
-    .lib-filters .seg--sets .seg-btn .n { opacity: .45; margin-left: 5px; font-variant-numeric: tabular-nums; }
-    .lib-filters #btn-new-set { width: 24px; height: 24px; background: transparent; border: 1px solid var(--border); color: var(--ink-muted); cursor: pointer; font-size: 15px; line-height: 1; display: flex; align-items: center; justify-content: center; border-radius: 5px; }
-    .lib-filters #btn-new-set:hover { border-color: var(--border-strong); color: var(--ink); }
+    /* ─── Sets row (Library) — chip bar + inline manage panel ─── */
+    .lib-sets { padding: 12px 20px 0; flex-shrink: 0; }
+    .lib-sets__bar { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+    .lib-sets .seg--sets { display: flex; flex: 0 0 auto; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+    .lib-sets .seg--sets .seg-btn { flex: none; border: none; border-left: 1px solid var(--border); margin: 0;
+      padding: 5px 9px; font-size: var(--fs-xs); font-family: var(--font); background: transparent; color: var(--ink-muted); cursor: pointer; }
+    .lib-sets .seg--sets .seg-btn:first-child { border-left: none; }
+    .lib-sets .seg--sets .seg-btn:hover { color: var(--ink); }
+    .lib-sets .seg--sets .seg-btn.active { background: var(--ink); color: var(--bg); border-color: transparent; }
+    .lib-sets .seg--sets .seg-btn .n { opacity: .45; margin-left: 5px; font-variant-numeric: tabular-nums; }
+    .lib-sets #btn-new-set, .lib-sets #btn-manage-sets {
+      width: 24px; height: 24px; background: transparent; border: 1px solid var(--border);
+      color: var(--ink-muted); cursor: pointer; line-height: 1; display: flex;
+      align-items: center; justify-content: center; border-radius: 5px; }
+    .lib-sets #btn-new-set { font-size: 15px; }
+    .lib-sets #btn-manage-sets { font-size: 12px; }
+    .lib-sets #btn-new-set:hover, .lib-sets #btn-manage-sets:hover { border-color: var(--border-strong); color: var(--ink); }
+    .lib-sets #btn-manage-sets[aria-pressed="true"] { border-color: var(--border-strong); color: var(--ink); background: var(--surface); }
     .set-name-input { width: 120px; background: var(--bg); border: 1px solid var(--ink); color: var(--ink); font-size: var(--fs-xs); font-family: var(--font); padding: 4px 8px; outline: none; }
+
+    #sets-manage-list { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) 0 0; max-width: 340px; }
+    #sets-manage-list[hidden] { display: none; }
+    .sm-row { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-xs); min-height: 24px; }
+    .sm-row .sm-name { flex: 1; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: text; }
+    .sm-row .sm-name .set-name-input { width: 100%; }
+    .sm-row--builtin .sm-name { color: var(--ink-muted); cursor: default; }
+    .sm-row .sm-tag { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+    .sm-row button { width: 20px; height: 20px; line-height: 1; background: transparent; border: 1px solid var(--border);
+      color: var(--ink-muted); border-radius: var(--radius-sm); cursor: pointer; font-size: 11px; flex-shrink: 0; }
+    .sm-row button:hover:not(:disabled) { border-color: var(--border-strong); color: var(--ink); }
+    .sm-row button:disabled { opacity: .35; cursor: default; }
+    .sm-row .sm-del.is-armed { border-color: var(--danger); color: var(--danger); }
 
     /* ─── Main: canvas area ─────────────────────────────────── */
     .canvas-area { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); min-width: 0; }
+
+    /* ─── Mode nav (Library only — Create/Edit nav is in the floatbar) ─── */
+    .lib-modenav { padding: 14px 20px 0; flex-shrink: 0; }
 
     /* ─── Filter bar (Library) ──────────────────────────────── */
     .lib-filters { display: flex; flex-wrap: wrap; gap: 18px; align-items: center;
@@ -127,14 +157,31 @@
     .form-tile__kind[data-k="parametric"]::before { background: var(--accent); }
     .grid-empty { color: var(--ink-muted); font-size: var(--fs-sm); padding: 40px; grid-column: 1 / -1; text-align: center; }
 
+    /* ─── Save popover (floatbar) ──────────────────────────── */
+    #save-popover { width: 264px; }
+    #save-popover .panel-row { margin: 0 0 var(--space-3); flex-wrap: wrap; }
+    #save-popover .panel-label { min-width: 46px; }
+    #save-popover .type-pills { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; flex: 1; }
+    #save-popover .type-pill { text-align: center; }
+    #save-popover #underlying-layer-block { margin-bottom: var(--space-3); }
+    #save-popover .mt-4 { margin-top: var(--space-3); }
+
     /* ─── Edit mode ─────────────────────────────────────────── */
     .org-floatbar__btn.is-armed { color: var(--danger); }
     .org-floatbar__btn[disabled] { opacity: .3; pointer-events: none; }
+    /* Current-mode icon reads as active — matches the Library nav tabs. */
+    .org-floatbar__btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+    .org-floatbar__btn[aria-pressed="true"]:hover { background: #000; }
     .edit-kind-badge { display: inline-block; font-size: 9px; letter-spacing: .08em; text-transform: uppercase;
       color: var(--ink-muted); border: 1px solid var(--border-strong); padding: 3px 7px; margin-bottom: 12px; }
     #edit-facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: var(--fs-sm); margin: 0 0 12px; }
     #edit-facts div { display: contents; }
     #edit-facts dt { color: var(--ink-muted); }
+    #edit-sets { margin: 0 0 12px; display: flex; flex-direction: column; gap: var(--space-1); }
+    #edit-sets .panel-section__title { margin-bottom: var(--space-1); }
+    #edit-sets .panel-hint { margin: 0; }
+    .es-row { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-sm); color: var(--ink); cursor: pointer; }
+    .es-row input { accent-color: var(--tool); }
     #edit-facts dd { color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
 
     /* ─── Artboard (Draw / Import / Generate) ───────────────── */
@@ -229,8 +276,6 @@
     .btn-icon { width: 24px; height: 24px; background: transparent; border: 1px solid var(--border); color: var(--ink-muted); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; line-height: 1; transition: all 0.1s; }
     .btn-icon:hover { border-color: var(--border-strong); color: var(--ink); }
 
-    .transform-preview { display: flex; flex-wrap: wrap; gap: 6px; }
-    .transform-preview svg { width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--border); display: block; }
 
 
     .read-only-note { font-size: var(--fs-xs); color: var(--ink-faint); font-style: italic; }
@@ -264,46 +309,91 @@
 
   <header class="org-header org-header--editor" role="banner">
     <a class="org-header__logo" href="/"><b>Organica</b><span>/ Genesis</span></a>
-
-    <div class="org-header__context">
-      <div class="org-tabs" id="mode-tabs" role="group" aria-label="Mode">
-        <button class="org-btn" data-mode="library" aria-pressed="true">Library</button>
-        <button class="org-btn" data-mode="create" aria-pressed="false">Create</button>
-        <button class="org-btn" data-mode="edit" aria-pressed="false" disabled>Edit</button>
-      </div>
-    </div>
-
     <div class="org-header__spacer"></div>
-
-    <output class="org-header__status" aria-live="polite" aria-atomic="true">
-      <span class="org-header__dot" id="status-dot"></span>
-      <span class="org-header__state" id="status-text">Ready</span>
-    </output>
-
-    <div class="org-header__actions">
-      <button class="org-btn" id="btn-export-set">Export .js</button>
-    </div>
   </header>
 
-  <!-- FLOATING TOOLBAR — Create: Import / Undo / Clear · Edit: Undo / Duplicate / Save -->
+  <!-- FLOATING TOOLBAR — Create/Edit only. Canonical order:
+       Create · Edit · Save · Back(=Undo) · Delete · Library · Export,
+       with the context extras (Import, Duplicate, Clear) slotted next to
+       their owners. Library-mode nav lives above the filter bar instead. -->
   <div class="org-floatbar" id="floatbar" data-modes="create edit" role="toolbar" aria-label="Actions">
+    <button class="org-floatbar__btn" id="fb-mode-create" data-mode="create" aria-label="Create" aria-pressed="false">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+    </button>
     <button class="org-floatbar__btn" id="btn-import-svg" aria-label="Import SVG file">
       <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 10.5V2.5M8 2.5 5 5.5M8 2.5l3 3M2.5 9.5v3a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
-    <div class="org-floatbar__sep" id="fb-sep-import"></div>
-    <button class="org-floatbar__btn" id="btn-undo" aria-label="Undo">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 3.5 2 6l2.5 2.5M2 6h7.5a4 4 0 1 1 0 8H8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div class="org-floatbar__sep" id="fb-sep-1"></div>
+    <button class="org-floatbar__btn" id="fb-mode-edit" data-mode="edit" aria-label="Edit" aria-pressed="false" disabled>
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10.5 2.5 13.5 5.5 6 13H3v-3l7.5-7.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
     </button>
-    <div class="org-floatbar__sep" id="fb-sep-clear"></div>
-    <button class="org-floatbar__btn" id="btn-clear" aria-label="Clear canvas">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4.5h11M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M4.3 4.5 5 13.1a1 1 0 0 0 1 .9h4a1 1 0 0 0 1-.9l.7-8.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <div class="org-floatbar__sep" id="fb-sep-edit"></div>
     <button class="org-floatbar__btn" id="btn-duplicate" aria-label="Duplicate seed">
       <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
     </button>
-    <button class="org-floatbar__btn" id="btn-save-edit" aria-label="Save changes" disabled>
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div class="org-floatbar__sep" id="fb-sep-2"></div>
+    <div class="org-popover-wrap" id="save-wrap">
+      <button class="org-floatbar__btn" id="btn-save-open" aria-label="Save to library" disabled>
+        <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 2.5h8.5L13.5 4.5V13a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M5 2.5V6h5V2.5M5.5 10.5h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      </button>
+      <div class="org-popover" id="save-popover" aria-label="Save options">
+        <div class="org-popover__title" id="save-popover-title">Save to library</div>
+        <div class="panel-row">
+          <label class="panel-label" for="ctrl-name">Name</label>
+          <input type="text" class="panel-input panel-input--full" id="ctrl-name" placeholder="seed name">
+        </div>
+        <div class="panel-row">
+          <label class="panel-label">Type</label>
+          <div class="type-pills" id="type-pills">
+            <button class="type-pill active" data-type="asset">Asset</button>
+            <button class="type-pill" data-type="variant">Variant</button>
+            <button class="type-pill" data-type="mask">Mask</button>
+            <button class="type-pill" data-type="container">Container</button>
+          </div>
+        </div>
+        <div id="underlying-layer-block" style="display:none">
+          <p class="panel-hint">Container shows the picked layer only inside this seed's outline; Mask shows it everywhere except inside — a real hole.</p>
+          <div id="underlying-layer-empty">
+            <button class="upload-btn" id="btn-pick-layer" style="margin-bottom:0">Pick layer…</button>
+          </div>
+          <div id="underlying-layer-set" class="panel-row" style="display:none">
+            <div style="display:flex;align-items:center;gap:var(--space-3);flex:1;min-width:0">
+              <span id="underlying-layer-thumb" style="width:28px;height:28px;flex-shrink:0;border:1px solid var(--border)"></span>
+              <span id="underlying-layer-name" style="font-size:var(--fs-sm);color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+            </div>
+            <button class="upload-btn" id="btn-remove-layer" style="width:auto;margin-bottom:0;padding:var(--space-1) var(--space-3)">Remove</button>
+          </div>
+        </div>
+        <div data-modes="create" id="save-to-block">
+          <div class="panel-row">
+            <label class="panel-label" for="ctrl-set">Save to</label>
+            <select class="panel-select" id="ctrl-set"></select>
+          </div>
+          <!-- Inline new-set name field. The old creator.html used window.prompt()
+               here, which THROWS outright (not just returns null) in some embedded
+               contexts. A plain DOM row depends on nothing but the DOM. -->
+          <div class="panel-row" id="row-new-set" style="display:none">
+            <input type="text" class="panel-input panel-input--full" id="ctrl-new-set-name" placeholder="new set name" aria-label="New set name">
+          </div>
+        </div>
+        <div class="mt-4"><button class="btn-primary" id="btn-save" style="width:100%">Save to Library</button></div>
+      </div>
+    </div>
+    <button class="org-floatbar__btn" id="btn-undo" aria-label="Back">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 3.5 2 6l2.5 2.5M2 6h7.5a4 4 0 1 1 0 8H8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="org-floatbar__btn" id="btn-clear" aria-label="Clear canvas">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4.5h11M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M4.3 4.5 5 13.1a1 1 0 0 0 1 .9h4a1 1 0 0 0 1-.9l.7-8.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-floatbar__sep" id="fb-sep-3"></div>
+    <button class="org-floatbar__btn" id="btn-delete-fb" aria-label="Delete seed">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4.5h11M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M4.3 4.5 5 13.1a1 1 0 0 0 1 .9h4a1 1 0 0 0 1-.9l.7-8.6M6.7 7v4M9.3 7v4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-floatbar__sep" id="fb-sep-4"></div>
+    <button class="org-floatbar__btn" id="fb-mode-library" data-mode="library" aria-label="Library">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+    </button>
+    <button class="org-floatbar__btn" id="btn-export-svg" aria-label="Export SVG">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2.5v8M8 10.5 5 7.5M8 10.5l3-3M2.5 9.5v3a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
   </div>
 
@@ -315,22 +405,26 @@
       <!-- Hidden SVG defs container — defs.js content injected here -->
       <div id="svg-defs-container" style="position:absolute;width:0;height:0;overflow:hidden;"></div>
 
-      <!-- LIBRARY: filter bar + responsive tile grid -->
-      <div class="lib-filters" data-modes="library">
-        <div class="lib-filters__group">
+      <!-- LIBRARY: mode nav + filter bar + responsive tile grid.
+           Create/Edit mode nav lives in the floatbar instead. -->
+      <div class="lib-modenav" data-modes="library">
+        <div class="org-tabs" id="mode-tabs" role="group" aria-label="Mode">
+          <button class="org-btn" data-mode="library" aria-pressed="true">Library</button>
+          <button class="org-btn" data-mode="create" aria-pressed="false">Create</button>
+        </div>
+      </div>
+      <!-- SETS — own row above the filter bar. ⚙ expands the inline
+           rename / reorder / delete panel (#sets-manage-list). -->
+      <div class="lib-sets" data-modes="library">
+        <div class="lib-sets__bar">
           <span class="lib-filters__key">Sets</span>
           <div class="seg seg--sets" data-filter="set" id="sets-seg"></div>
           <button id="btn-new-set" aria-label="New set">+</button>
+          <button id="btn-manage-sets" aria-label="Manage sets" aria-pressed="false">⚙</button>
         </div>
-        <div class="lib-filters__group">
-          <span class="lib-filters__key">Source</span>
-          <div class="seg" data-filter="source">
-            <button class="seg-btn active" data-v="all">All</button>
-            <button class="seg-btn" data-v="organic">Organic</button>
-            <button class="seg-btn" data-v="primitives">Primitives</button>
-            <button class="seg-btn" data-v="my">My seeds</button>
-          </div>
-        </div>
+        <div id="sets-manage-list" hidden></div>
+      </div>
+      <div class="lib-filters" data-modes="library">
         <div class="lib-filters__group">
           <span class="lib-filters__key">Type</span>
           <div class="seg" data-filter="type">
@@ -366,9 +460,9 @@
         <section class="panel-section">
           <span class="edit-kind-badge" id="edit-kind-badge"></span>
           <dl class="seed-detail__facts" id="edit-facts"></dl>
+          <div id="edit-sets"></div>
           <p class="panel-hint" id="edit-builtin-note" style="display:none">Built-in — Save forks a copy to My Seeds.</p>
           <p class="panel-hint" id="edit-filter-note" style="display:none">This seed uses an SVG filter — it will be flattened on Save.</p>
-          <div class="mt-2"><button class="upload-btn" id="edit-delete" style="border-style:solid;margin-bottom:0">Delete seed</button></div>
         </section>
         <div class="panel-divider"></div>
       </div>
@@ -496,56 +590,8 @@
             <div class="panel-input-group"><input type="range" class="panel-range" id="ctrl-my" min="-100" max="100" value="0"><span class="panel-unit" id="my-val" style="width:28px">0</span></div>
           </div>
           <div class="mt-2"><button class="upload-btn" id="btn-fit" style="border-style:solid;margin-bottom:0">⤢ Fit to grid</button></div>
-          <div class="panel-row" style="margin-top:12px;margin-bottom:6px"><label class="panel-label">Preview — rotation &amp; flip</label></div>
-          <div id="transform-preview" class="transform-preview" aria-label="Seed transform preview"></div>
         </section>
 
-        <div class="panel-divider"></div>
-
-        <!-- SEED META + SAVE -->
-        <section class="panel-section">
-          <span class="panel-section__title">Seed</span>
-          <div class="panel-row">
-            <label class="panel-label">Name</label>
-            <input type="text" class="panel-input panel-input--full" id="ctrl-name" placeholder="seed name">
-          </div>
-          <div class="panel-row">
-            <label class="panel-label">Type</label>
-            <div class="type-pills" id="type-pills">
-              <button class="type-pill active" data-type="asset">Asset</button>
-              <button class="type-pill" data-type="variant">Variant</button>
-              <button class="type-pill" data-type="mask">Mask</button>
-              <button class="type-pill" data-type="container">Container</button>
-            </div>
-          </div>
-          <div id="underlying-layer-block" style="display:none">
-            <p class="panel-hint">Container shows the picked layer only inside this seed's outline; Mask shows it everywhere except inside — a real hole.</p>
-            <div id="underlying-layer-empty">
-              <button class="upload-btn" id="btn-pick-layer" style="margin-bottom:0">Pick layer…</button>
-            </div>
-            <div id="underlying-layer-set" class="panel-row" style="display:none">
-              <div style="display:flex;align-items:center;gap:var(--space-3);flex:1;min-width:0">
-                <span id="underlying-layer-thumb" style="width:28px;height:28px;flex-shrink:0;border:1px solid var(--border)"></span>
-                <span id="underlying-layer-name" style="font-size:var(--fs-sm);color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-              </div>
-              <button class="upload-btn" id="btn-remove-layer" style="width:auto;margin-bottom:0;padding:var(--space-1) var(--space-3)">Remove</button>
-            </div>
-          </div>
-          <div data-modes="create">
-            <div class="panel-row">
-              <label class="panel-label">Save to</label>
-              <select class="panel-select" id="ctrl-set"></select>
-            </div>
-            <!-- Inline new-set name field. The old creator.html used window.prompt()
-                 here, which THROWS outright (not just returns null) in some embedded
-                 contexts — the exact failure FVS hit and fixed the same way in
-                 August. A plain DOM row depends on nothing but the DOM. -->
-            <div class="panel-row" id="row-new-set" style="display:none">
-              <input type="text" class="panel-input panel-input--full" id="ctrl-new-set-name" placeholder="new set name" aria-label="New set name">
-            </div>
-            <div class="mt-4"><button class="btn-primary" id="btn-save">Save to Library</button></div>
-          </div>
-        </section>
       </div>
 
     </aside>
@@ -624,10 +670,16 @@
   const $ = id => document.getElementById(id);
   const setStatus = Organica.status();
 
+  // The active set + grid filters are remembered across reloads under a
+  // brand-new key, kept fully separate from STORAGE_KEY so a corrupt view
+  // blob can never endanger the library itself. No migration — always optional.
+  const VIEW_KEY = 'organica.library.view';
+  const TYPE_VALUES = ['all', 'asset', 'variant', 'mask', 'container'];
+
   // ── Library state ──────────────────────────────────────
   let state = {
     activeSetId: BUILT_IN_SET_ID,
-    filter: { source: 'all', type: 'all' },
+    filter: { type: 'all' },   // Source filter removed 2026-08-31 — parametric/vector is a tile badge
     library: null,
   };
 
@@ -665,6 +717,7 @@
   function init() {
     injectDefs();
     loadLibrary();
+    loadView();
     renderSetsList();
     buildArtGrid();
     bindTabs();
@@ -688,6 +741,30 @@
 
   // ═══ Library data ═══════════════════════════════════════
   function saveLibrary() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.library)); }
+
+  // Remember which set + filter the Library was showing. Best-effort — a
+  // quota/private-mode failure just means the view isn't restored next time.
+  function saveView() {
+    try {
+      localStorage.setItem(VIEW_KEY, JSON.stringify({
+        activeSetId: state.activeSetId, filter: state.filter,
+      }));
+    } catch (e) {}
+  }
+  // Applied after loadLibrary (so the set list exists to validate against).
+  // Every field is whitelisted: a since-deleted set id or an unknown filter
+  // value silently falls back to the defaults already in `state`.
+  function loadView() {
+    let v = null;
+    try { v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null'); } catch (e) { v = null; }
+    if (!v || typeof v !== 'object') return;
+    if (v.filter && typeof v.filter === 'object') {
+      if (TYPE_VALUES.indexOf(v.filter.type) !== -1) state.filter.type = v.filter.type;
+    }
+    if (v.activeSetId && state.library.sets.some(s => s.id === v.activeSetId)) {
+      state.activeSetId = v.activeSetId;
+    }
+  }
 
   function defaultLibrary() {
     return { sets: [{ id: BUILT_IN_SET_ID, name: 'Base Seeds', builtIn: true }], forms: [] };
@@ -726,6 +803,11 @@
 
     const bs = lib.sets.findIndex(s => s.id === BASIC_SEEDS_SET_ID);
     if (bs !== -1) lib.sets.splice(bs, 1);
+
+    // Set order == array order (reorder writes it directly). Keep the built-in
+    // pinned at index 0 for older blobs that have it later.
+    const bi = lib.sets.findIndex(s => s.id === BUILT_IN_SET_ID);
+    if (bi > 0) lib.sets.unshift(lib.sets.splice(bi, 1)[0]);
 
     const used = new Set();
     lib.sets.forEach(s => (s.forms || []).forEach(id => used.add(id)));
@@ -794,17 +876,145 @@
       btn.addEventListener('click', () => activateSet(set.id));
       seg.appendChild(btn);
     });
+    renderSetsManager();   // keep the manage panel in lockstep with the chip bar
+  }
+
+  // ── Sets management (the ⚙ panel below the chip bar) ────
+  // Rebuilt from scratch every renderSetsList. Built-in row = name only;
+  // user rows get inline rename + ↑/↓ reorder + armed × delete.
+  function renderSetsManager() {
+    const wrap = $('sets-manage-list');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    const userIdx = state.library.sets.map((s, i) => s.builtIn ? -1 : i).filter(i => i !== -1);
+    const firstUser = userIdx[0], lastUser = userIdx[userIdx.length - 1];
+    state.library.sets.forEach((set, i) => {
+      const row = document.createElement('div');
+      row.className = 'sm-row' + (set.builtIn ? ' sm-row--builtin' : '');
+      row.dataset.setId = set.id;
+      if (set.builtIn) {
+        row.innerHTML = '<span class="sm-name">' + escapeHtml(set.name) + '</span>'
+          + '<span class="sm-tag">built-in</span>';
+      } else {
+        row.innerHTML =
+          '<span class="sm-name" title="Rename">' + escapeHtml(set.name) + '</span>'
+          + '<button class="sm-up" data-act="up" aria-label="Move set up"' + (i === firstUser ? ' disabled' : '') + '>↑</button>'
+          + '<button class="sm-down" data-act="down" aria-label="Move set down"' + (i === lastUser ? ' disabled' : '') + '>↓</button>'
+          + '<button class="sm-del" data-act="del" aria-label="Delete set">×</button>';
+      }
+      wrap.appendChild(row);
+    });
   }
 
   function activateSet(setId) {
     const set = getSet(setId);
     if (!set) return;
     state.activeSetId = setId;
-    state.filter = { source: 'all', type: 'all' };
     syncFilterUI();
     renderSetsList();
     renderGrid();
+    saveView();
     if (!isCreatorMode()) updateModeStatus();
+  }
+
+  // Rename a user set. Rejects empty names and case-insensitive duplicates;
+  // the built-in set is never renamable.
+  function renameSet(id, name) {
+    name = (name || '').trim();
+    const set = getSet(id);
+    if (!set || set.builtIn || !name) { renderSetsList(); return; }
+    if (state.library.sets.some(s => s.id !== id && s.name.toLowerCase() === name.toLowerCase())) {
+      setStatus('', 'A set with that name already exists'); renderSetsList(); return;
+    }
+    set.name = name;
+    saveLibrary();
+    renderSetsList();
+    populateSets();
+  }
+
+  // Swap two sets in state.library.sets. Index never drops below 1 — the
+  // built-in stays pinned at 0.
+  function reorderSet(id, dir) {
+    const a = state.library.sets;
+    const i = a.findIndex(s => s.id === id);
+    const j = i + dir;
+    if (i < 1 || j < 1 || j >= a.length) return;
+    [a[i], a[j]] = [a[j], a[i]];
+    saveLibrary();
+    renderSetsList();
+    populateSets();
+  }
+
+  // Delete a user set. Its user seeds that are now in NO other set are
+  // deleted too (Diego's call — the × is already an armed 2-click). Seeds
+  // still in another set are kept.
+  function deleteSet(id) {
+    const set = getSet(id);
+    if (!set || set.builtIn) return;
+    const members = set.forms || [];
+    state.library.sets = state.library.sets.filter(s => s.id !== id);
+    state.library.forms = state.library.forms.filter(f =>
+      !(members.indexOf(f.id) !== -1 &&
+        !state.library.sets.some(s => (s.forms || []).indexOf(f.id) !== -1)));
+    if (state.activeSetId === id) state.activeSetId = BUILT_IN_SET_ID;
+    saveLibrary();
+    renderSetsList();
+    populateSets();
+    activateSet(state.activeSetId);
+    setStatus('active', 'Deleted set “' + set.name + '”');
+  }
+
+  // ↑ / ↓ / × delegate for #sets-manage-list. Rename is handled by the
+  // inline-input path attached in onSetsManagerNameClick.
+  function onSetsManagerRowClick(e) {
+    const btn = e.target.closest('button[data-act]');
+    if (btn) {
+      const id = btn.closest('.sm-row').dataset.setId;
+      const act = btn.dataset.act;
+      if (act === 'up') reorderSet(id, -1);
+      else if (act === 'down') reorderSet(id, 1);
+      else if (act === 'del') armDeleteSet(btn, id);
+      return;
+    }
+    const name = e.target.closest('.sm-row:not(.sm-row--builtin) .sm-name');
+    if (name) startRenameSet(name, name.closest('.sm-row').dataset.setId);
+  }
+
+  // Armed 2-click delete — same mechanics as the floatbar #btn-delete-fb.
+  function armDeleteSet(btn, id) {
+    if (btn.dataset.armed) { deleteSet(id); return; }
+    btn.dataset.armed = '1';
+    btn.classList.add('is-armed');
+    btn.setAttribute('aria-label', 'Delete set — click again to confirm');
+    clearTimeout(btn._armTimer);
+    btn._armTimer = setTimeout(() => {
+      btn.dataset.armed = ''; btn.classList.remove('is-armed');
+      btn.setAttribute('aria-label', 'Delete set');
+    }, 3000);
+  }
+
+  // Swap the .sm-name span for a transient text input — same commit/Esc/blur
+  // pattern as showNewSetInput.
+  function startRenameSet(nameEl, id) {
+    if (nameEl.querySelector('input')) return;
+    const set = getSet(id);
+    const input = document.createElement('input');
+    input.className = 'set-name-input';
+    input.type = 'text';
+    input.value = set ? set.name : '';
+    input.setAttribute('aria-label', 'Rename set');
+    nameEl.textContent = '';
+    nameEl.appendChild(input);
+    input.focus();
+    input.select();
+    let done = false;
+    const commit = () => { if (done) return; done = true; renameSet(id, input.value); };
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') commit();
+      if (e.key === 'Escape') { done = true; renderSetsList(); }
+      e.stopPropagation();
+    });
+    input.addEventListener('blur', commit);
   }
 
   // ═══ Library grid ═══════════════════════════════════════
@@ -812,14 +1022,9 @@
   const TILE_MIN = '130px', TILE_GAP = '12px';
 
   function filteredForms() {
-    const src = state.filter.source, type = state.filter.type;
-    return getFormsForSet(state.activeSetId).filter(f => {
-      if (src === 'organic' && !/^organic-/.test(f.id)) return false;
-      if (src === 'primitives' && PROCEDURAL_IDS.indexOf(f.id) === -1) return false;
-      if (src === 'my' && (f.builtIn || /^organic-/.test(f.id))) return false;
-      if (type !== 'all' && (f.type || 'asset') !== type) return false;
-      return true;
-    });
+    const type = state.filter.type;
+    return getFormsForSet(state.activeSetId)
+      .filter(f => type === 'all' || (f.type || 'asset') === type);
   }
 
   function renderGrid() {
@@ -958,11 +1163,20 @@
         state.filter[key] = v;
         syncFilterUI();
         renderGrid();
+        saveView();
       });
     });
 
     $('btn-new-set').addEventListener('click', showNewSetInput);
-    $('btn-export-set').addEventListener('click', exportActiveSet);
+
+    // ⚙ toggles the inline sets-management panel below the chip bar.
+    $('btn-manage-sets').addEventListener('click', () => {
+      const showing = $('sets-manage-list').hidden;
+      $('sets-manage-list').hidden = !showing;
+      $('btn-manage-sets').setAttribute('aria-pressed', String(showing));
+      if (showing) renderSetsManager();
+    });
+    $('sets-manage-list').addEventListener('click', onSetsManagerRowClick);
   }
 
   function updateFormName(formId, name) {
@@ -1014,41 +1228,18 @@
 
   function newSetId(name) { return 'set_' + name.toLowerCase().replace(/[^a-z0-9]/g, '-') + '_' + Date.now(); }
 
-  // ── Export set as .js ──────────────────────────────────
-  function exportActiveSet() {
-    const setId = state.activeSetId;
-    if (setId === BUILT_IN_SET_ID) {
-      setStatus('', 'Base Seeds is built-in — nothing to export');
-      return;
-    }
-    const set = getSet(setId);
-    const forms = getFormsForSet(setId);
-    const setVarName = 'SET_' + set.name.toUpperCase().replace(/[^A-Z0-9]/g, '_');
-
-    let out = '// ' + set.name + ' — Organica Seed Set\n';
-    out += '// Generated by Genesis — ' + new Date().toISOString() + '\n\n';
-    out += 'window.' + setVarName + ' = {};\n';
-    out += 'window.' + setVarName + '.FORMS = [\n';
-    forms.forEach((form, i) => {
-      const escaped = String(form.svg).replace(/\\/g, '\\\\').replace(/`/g, '\\`');
-      out += '  /* ' + i + ': ' + form.name + ' */\n  `' + escaped + '`,\n';
-    });
-    out += '];\n\n';
-    out += 'window.' + setVarName + '.LABELS = [\n';
-    forms.forEach(form => { out += "  '" + String(form.name).replace(/'/g, "\\'") + "',\n"; });
-    out += '];\n';
-
-    Organica.download(new Blob([out], { type: 'text/javascript' }), set.id + '.js');
-    setStatus('active', 'Exported ' + set.id + '.js');
-  }
-
 
   // ═══════════════════════════════════════════════════════
   // MODES
   // ═══════════════════════════════════════════════════════
+  // Mode-switch controls live in TWO places now: the Library page's own
+  // nav bar (#mode-tabs, above the filters — Library / Create) and the
+  // floatbar (#fb-mode-create / #fb-mode-edit / #fb-mode-library, shown
+  // only in Create/Edit). Every one carries data-mode, so bind them all.
   function bindTabs() {
-    $('mode-tabs').querySelectorAll('[data-mode]').forEach(t => {
+    document.querySelectorAll('[data-mode]').forEach(t => {
       t.addEventListener('click', () => {
+        if (t.disabled) return;
         const m = t.dataset.mode;
         // Entering Create from elsewhere = "start a new shape" — clear any
         // leftover Edit/import state so the artboard shows a fresh default.
@@ -1070,6 +1261,7 @@
     S.rounded = true;
     S.scale = 1; S.w = 1; S.l = 1; S.rot = 0; S.moveX = 0; S.moveY = 0;
     S.type = 'asset';
+    syncTypePills();
     S.underlyingLayer = null;
     if (drawEditor) drawEditor.clear();
     if (genKindPicker) genKindPicker.setActive('freehand');
@@ -1081,13 +1273,16 @@
     syncAppearanceInputs();
     setFillMode('fill');
     syncUnderlyingLayerUI();
+    $('ctrl-set').value = '';   // drop the stale selection so populateSets re-picks the active set
+    populateSets();
   }
 
   function setMode(mode) {
     S.mode = mode;
     // aria-pressed is the state, not a class — the component styles from it,
-    // so assistive tech and the visuals can never disagree.
-    $('mode-tabs').querySelectorAll('[data-mode]')
+    // so assistive tech and the visuals can never disagree. Covers both the
+    // Library nav bar and the floatbar mode icons.
+    document.querySelectorAll('[data-mode]')
       .forEach(t => t.setAttribute('aria-pressed', String(t.dataset.mode === mode)));
 
     document.querySelectorAll('[data-modes]').forEach(el => {
@@ -1116,20 +1311,39 @@
     }
   }
 
-  // Floatbar buttons by mode: Create → Import + Undo (freehand) + Clear ·
-  // Edit → Undo (vector seed) + Duplicate + Save (dirty-gated).
+  // Floatbar (Create/Edit only). Canonical order:
+  //   Create · [Import] · | · Edit · [Duplicate] · | · Save · [Back] · [Clear]
+  //   · | · [Delete] · | · Library · Export
+  // Bracketed buttons are context-gated; the mode icons (Create/Edit/Library)
+  // and Save/Export are always present. The Save popover holds
+  // Name / Type / underlying-layer / (Create) Save-to.
   function syncFloatbar() {
     const creating = S.mode === 'create';
     const editing = S.mode === 'edit';
+    const draw = isDrawMode();
+    const canDelete = editing && S.editForm && !S.editForm.builtIn;
+
+    $('fb-mode-edit').disabled = !S.editForm;
     $('btn-import-svg').style.display = creating ? '' : 'none';
-    $('fb-sep-import').style.display = creating ? '' : 'none';
-    $('btn-undo').style.display = isDrawMode() ? '' : 'none';
-    $('btn-clear').style.display = creating ? '' : 'none';
-    $('fb-sep-clear').style.display = (creating && isDrawMode()) ? '' : 'none';
     $('btn-duplicate').style.display = editing ? '' : 'none';
-    $('btn-save-edit').style.display = editing ? '' : 'none';
-    $('fb-sep-edit').style.display = (editing && isDrawMode()) ? '' : 'none';
-    $('btn-save-edit').disabled = !S.dirty;
+    $('btn-undo').style.display = draw ? '' : 'none';       // "Back"
+    $('btn-clear').style.display = creating ? '' : 'none';
+    $('btn-delete-fb').style.display = canDelete ? '' : 'none';
+    $('fb-sep-3').style.display = canDelete ? '' : 'none';
+
+    const hasShape = !!formMarkup();
+    $('btn-export-svg').disabled = !hasShape;
+    $('btn-save-open').disabled = editing ? !S.dirty : !hasShape;
+    $('btn-save').disabled = !hasShape;
+    // popover copy adapts to the mode
+    const builtIn = editing && S.editForm && S.editForm.builtIn;
+    $('save-popover-title').textContent = editing
+      ? (builtIn ? 'Save a copy' : 'Save changes')
+      : 'Save to library';
+    $('btn-save').textContent = editing
+      ? (builtIn ? 'Save a copy to My Seeds' : 'Save changes')
+      : 'Save to Library';
+    $('btn-save-open').setAttribute('aria-label', editing ? 'Save changes' : 'Save to library');
   }
 
   // ═══════════════════════════════════════════════════════
@@ -1138,7 +1352,7 @@
   function enterEdit(form) {
     const live = resolveFormById(form.id) || form;
     loadSeedIntoEdit(live);
-    const tab = $('mode-tabs').querySelector('[data-mode="edit"]');
+    const tab = $('fb-mode-edit');
     if (tab) tab.disabled = false;
   }
 
@@ -1149,6 +1363,7 @@
     S.importInner = null;
     S.scale = 1; S.w = 1; S.l = 1; S.rot = 0; S.moveX = 0; S.moveY = 0;
     S.type = form.type || 'asset';
+    syncTypePills();
 
     if (form.genType && form.genType !== 'freehand') {
       // PARAMETRIC — a generator recipe drives it; edit via its sliders.
@@ -1195,12 +1410,60 @@
       '<div><dt>Type</dt><dd>' + escapeHtml(f.type || 'asset') + (f.builtIn ? ' · built-in' : '') + '</dd></div>' +
       '<div><dt>ID</dt><dd>' + escapeHtml(f.id) + '</dd></div>' +
       '<div><dt>viewBox</dt><dd>' + facts.w + ' × ' + facts.h + '</dd></div>' +
-      '<div><dt>Elements</dt><dd>' + facts.n + '</dd></div>' +
-      '<div><dt>In sets</dt><dd>' + setsContaining(f.id) + '</dd></div>';
+      '<div><dt>Elements</dt><dd>' + facts.n + '</dd></div>';
+    renderEditSets();
     $('edit-builtin-note').style.display = f.builtIn ? 'block' : 'none';
     $('edit-filter-note').style.display = /filter\s*=|url\(#/.test(f.svg || '') ? 'block' : 'none';
-    $('edit-delete').style.display = f.builtIn ? 'none' : '';
+    // The Delete button (floatbar #btn-delete-fb) is gated in syncFloatbar.
     $('ctrl-name').readOnly = !!f.builtIn;
+  }
+
+  // Interactive "In sets" — a checkbox per user set for a user seed (toggle
+  // membership without minting a copy); for a built-in, just the count + the
+  // "Save a copy" hint (the canonical way to make a built-in yours).
+  function renderEditSets() {
+    const wrap = $('edit-sets'), f = S.editForm;
+    if (!f) { wrap.innerHTML = ''; return; }
+    if (f.builtIn) {
+      wrap.innerHTML = '<p class="panel-hint">In ' + setsContaining(f.id)
+        + ' set' + (setsContaining(f.id) === 1 ? '' : 's') + '. Save a copy to add it to your sets.</p>';
+      return;
+    }
+    const userSets = state.library.sets.filter(s => !s.builtIn);
+    wrap.innerHTML = '<span class="panel-section__title">In sets</span>' + (
+      userSets.length
+        ? userSets.map(s => {
+            const on = (s.forms || []).indexOf(f.id) !== -1;
+            return '<label class="es-row"><input type="checkbox" data-set-id="'
+              + escapeHtml(s.id) + '"' + (on ? ' checked' : '') + '>' + escapeHtml(s.name) + '</label>';
+          }).join('')
+        : '<p class="panel-hint">No user sets yet.</p>');
+  }
+
+  // Add/remove a seed id from a set's ordered list. A seed can never fall out
+  // of every set — use the floatbar Delete for a real global removal.
+  function toggleMembership(setId, formId, on) {
+    const set = getSet(setId);
+    if (!set || set.builtIn) return;
+    if (!set.forms) set.forms = [];
+    const i = set.forms.indexOf(formId);
+    if (!on && i !== -1) {
+      const elsewhere = state.library.sets.some(s =>
+        s.id !== setId && (s.forms || []).indexOf(formId) !== -1);
+      if (!elsewhere) {
+        setStatus('', 'A seed must stay in at least one set — use Delete to remove it entirely.');
+        renderEditSets();
+        return;
+      }
+      set.forms.splice(i, 1);
+    } else if (on && i === -1) {
+      set.forms.push(formId);
+    }
+    saveLibrary();
+    renderSetsList();
+    populateSets();
+    if (state.activeSetId === setId) renderGrid();
+    renderEditSets();
   }
 
   function markDirty() {
@@ -1221,15 +1484,15 @@
     return target;
   }
 
-  // Floatbar Save — overwrite this seed with the current edits.
-  function confirmAndSave(btn) {
-    if (!S.editForm) return;
+  // Save popover, Edit mode — overwrite this seed with the current edits
+  // (a built-in forks a copy). The popover open + Save click is the confirm.
+  function confirmAndSave() {
+    if (!S.editForm) return false;
     const markup = formMarkup();
-    if (!markup) return;
+    if (!markup) return false;
     const svg = '<svg viewBox="0 0 200 200">' + markup + '</svg>';
 
     if (S.editForm.builtIn) {
-      // A built-in can't be rewritten — fork a copy (non-destructive, no confirm).
       const my = ensureMySeedsSet();
       const copy = editRecipe({
         id: 'user-' + Date.now(),
@@ -1242,18 +1505,8 @@
       setStatus('active', 'Built-in — copia salvata in My Seeds');
       activateSet(MY_SEEDS_SET_ID);
       enterEdit(copy);
-      return;
+      return true;
     }
-
-    // A user seed → armed two-click confirm, then overwrite in place.
-    if (btn && !btn.dataset.armed) {
-      btn.dataset.armed = '1';
-      btn.classList.add('is-armed');
-      setStatus('', 'Ancora un click per riscrivere la forma');
-      setTimeout(() => { btn.dataset.armed = ''; btn.classList.remove('is-armed'); }, 3000);
-      return;
-    }
-    if (btn) { btn.dataset.armed = ''; btn.classList.remove('is-armed'); }
 
     const target = S.editForm;
     target.svg = svg;
@@ -1268,6 +1521,7 @@
     syncEditPanel();
     syncFloatbar();
     setStatus('active', 'Forma aggiornata');
+    return true;
   }
 
   // Floatbar Duplicate — fork what's on screen (edits included) into a new seed.
@@ -1360,12 +1614,41 @@
 
     // Edit-mode floatbar
     $('btn-duplicate').addEventListener('click', duplicateFromEdit);
-    $('btn-save-edit').addEventListener('click', e => confirmAndSave(e.currentTarget));
-    $('edit-delete').addEventListener('click', e => {
+    // Delete — icon button, two-click armed confirm (the label + tint carry
+    // the "are you sure"; there's no text to swap on an icon).
+    $('btn-delete-fb').addEventListener('click', e => {
       const b = e.currentTarget;
-      if (b.dataset.armed) { const id = S.editForm && S.editForm.id; if (id) deleteSeed(id); setMode('library'); return; }
-      b.dataset.armed = '1'; b.textContent = 'Confirm?';
-      setTimeout(() => { b.dataset.armed = ''; b.textContent = 'Delete seed'; }, 3000);
+      if (b.dataset.armed) {
+        const id = S.editForm && S.editForm.id;
+        if (id) deleteSeed(id);
+        disarmDelete(b);
+        setMode('library');
+        return;
+      }
+      b.dataset.armed = '1';
+      b.classList.add('is-armed');
+      b.setAttribute('aria-label', 'Delete seed — click again to confirm');
+      clearTimeout(b._armTimer);
+      b._armTimer = setTimeout(() => disarmDelete(b), 3000);
+    });
+    function disarmDelete(b) {
+      b.dataset.armed = '';
+      b.classList.remove('is-armed');
+      b.setAttribute('aria-label', 'Delete seed');
+      clearTimeout(b._armTimer);
+    }
+
+    // Export — download the current seed as a standalone .svg (viewBox
+    // 0 0 200 200). --ink is pinned so the file renders on its own.
+    $('btn-export-svg').addEventListener('click', () => {
+      const markup = formMarkup();
+      if (!markup) return;
+      const base = (S.mode === 'edit' && S.editForm ? S.editForm.name : $('ctrl-name').value.trim()) || 'seed';
+      const file = base.replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'seed';
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">'
+        + '<style>svg{--ink:#0a0a0a}</style>' + markup + '</svg>';
+      Organica.downloadText(svg, file + '.svg', 'image/svg+xml');
+      setStatus('active', 'Exported ' + file + '.svg');
     });
 
     // Import SVG — Create only, a single "+" that opens a file picker.
@@ -1435,6 +1718,13 @@
       renderArt();
     }));
 
+    // Edit panel — seed↔set membership checkboxes.
+    $('edit-sets').addEventListener('change', e => {
+      const cb = e.target.closest('input[type=checkbox][data-set-id]');
+      if (!cb || !S.editForm) return;
+      toggleMembership(cb.dataset.setId, S.editForm.id, cb.checked);
+    });
+
     $('ctrl-set').addEventListener('change', syncNewSetRow);
 
     $('btn-pick-layer').addEventListener('click', openLayerPicker);
@@ -1448,8 +1738,19 @@
       if ($('layer-picker-overlay').style.display !== 'none') closeLayerPicker();
     });
 
-    $('btn-save').addEventListener('click', saveForm);
+    // Save lives in a floatbar popover (#btn-save-open → #save-popover).
+    savePopover = Organica.popover($('btn-save-open'), $('save-popover'));
+    $('btn-save').addEventListener('click', () => {
+      let ok;
+      if (S.mode === 'edit') ok = confirmAndSave();   // no armed arg — the popover IS the deliberate step
+      else ok = saveForm();
+      if (ok !== false) savePopover.close();
+    });
+    // Editing Name / Type / underlying-layer in the popover dirties an Edit session.
+    $('save-popover').addEventListener('input', markDirty);
+    $('save-popover').addEventListener('change', markDirty);
   }
+  let savePopover = null;
 
   // A frozen imported SVG (Create's "+" button) drives its own recoloured
   // fills — lock the Appearance Style toggle while one is loaded.
@@ -1457,6 +1758,15 @@
     const on = !!S.importInner;
     $('fill-seg').style.opacity = on ? '0.4' : '1';
     $('fill-seg').style.pointerEvents = on ? 'none' : 'auto';
+  }
+
+  // Write the Save-popover Type pills from S.type. The pills' own click
+  // handler mutates S.type but nothing pushed the reverse until now, so
+  // loadSeedIntoEdit / resetCreate left a stale highlight.
+  function syncTypePills() {
+    const t = S.type || 'asset';
+    $('type-pills').querySelectorAll('.type-pill')
+      .forEach(p => p.classList.toggle('active', p.dataset.type === t));
   }
 
   function syncUnderlyingLayerUI() {
@@ -1796,9 +2106,8 @@
     return `translate(${(+S.moveX).toFixed(2)} ${(+S.moveY).toFixed(2)}) translate(${cx} ${cy}) rotate(${S.rot}) scale(${sx} ${sy}) translate(${-cx} ${-cy})`;
   }
 
-  // Shared by formMarkup() (artboard + Save) and renderTransformPreview() —
-  // one function means the two can't drift apart (they did once, when the
-  // preview strip hardcoded fill="var(--ink)" and ignored the Style toggle).
+  // The fill/stroke attributes for the seed's outer <g> — used by
+  // formMarkup() (the artboard + what Save serializes).
   function styleAttrs() {
     if (S.importInner) return '';                 // import keeps its own re-coloured fills
     if (S.fillMode === 'stroke') return `fill="none" stroke="var(--ink)" stroke-width="${S.strokeW}" stroke-linecap="${S.rounded ? 'round' : 'butt'}" stroke-linejoin="round"`;
@@ -1897,9 +2206,7 @@
     const markup = formMarkup();
     $('seed-layer').innerHTML = markup;
     $('handles-layer').innerHTML = '';
-    $('btn-save').disabled = !markup;
-    renderTransformPreview();
-    if (S.mode === 'edit') syncFloatbar();
+    if (isCreatorMode()) syncFloatbar();   // keeps #btn-save-open / #btn-save disabled state in sync
     // Only speak for the artboard while Create / Edit is showing —
     // Library owns the status line otherwise.
     if (isCreatorMode()) updateArtStatus(!!markup);
@@ -1924,35 +2231,26 @@
     }
   }
 
-  // The current shape at 7 fixed reference states: 0/90/180/270° and each
-  // flip. Complementary to the Appearance sliders (those TUNE one live state,
-  // this COMPARES all of them at once).
-  const TRANSFORM_PREVIEW_STATES = [
-    [0, 1, 1], [90, 1, 1], [180, 1, 1], [270, 1, 1],
-    [0, -1, 1], [0, 1, -1], [0, -1, -1],
-  ];
-  function renderTransformPreview() {
-    const el = $('transform-preview');
-    const geo = geometry();
-    if (!geo) { el.innerHTML = ''; return; }
-    const cx = 100, cy = 100;
-    el.innerHTML = TRANSFORM_PREVIEW_STATES.map(([rot, sx, sy], i) => {
-      const tf = `translate(${cx} ${cy}) rotate(${rot}) scale(${sx},${sy}) translate(${-cx} ${-cy})`;
-      // Distinct clip/mask ids per tile — compositeMarkup()'s id is derived
-      // from the layer id alone, which would collide across the 7 tiles.
-      return `<svg viewBox="0 0 200 200">${compositeMarkup(tf, '-t' + i)}</svg>`;
-    }).join('');
-  }
-
   // ── Save-to set ────────────────────────────────────────
+  // Lists every set in the same order as the Library Sets bar; built-in
+  // sets (Base Seeds) show but are disabled — they're synthesized, you
+  // can't save into them. Defaults to whichever set is active in the
+  // Library (or the first user set / "+ New set" if that one isn't
+  // selectable).
   function populateSets() {
     const sel = $('ctrl-set');
     const prev = sel.value;
-    const userSets = state.library.sets.filter(s => !s.builtIn);
-    sel.innerHTML = userSets.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join('')
-      + '<option value="__new__">+ New set…</option>';
-    if (prev && Array.prototype.some.call(sel.options, o => o.value === prev)) sel.value = prev;
-    else if (!userSets.length) sel.value = '__new__';
+    sel.innerHTML = state.library.sets.map(s =>
+      `<option value="${escapeHtml(s.id)}"${s.builtIn ? ' disabled' : ''}>${escapeHtml(s.name)}</option>`
+    ).join('') + '<option value="__new__">+ New set…</option>';
+
+    const selectable = id => id === '__new__' ||
+      state.library.sets.some(s => s.id === id && !s.builtIn);
+    const firstUser = (state.library.sets.find(s => !s.builtIn) || {}).id;
+    sel.value =
+      (prev && selectable(prev)) ? prev :
+      selectable(state.activeSetId) ? state.activeSetId :
+      firstUser || '__new__';
     syncNewSetRow();
   }
 
@@ -1960,23 +2258,25 @@
     $('row-new-set').style.display = $('ctrl-set').value === '__new__' ? 'flex' : 'none';
   }
 
-  // ── Save ───────────────────────────────────────────────
+  // ── Save (Create — new user seed) ──────────────────────
+  // Returns false on a validation bail so the popover stays open.
   function saveForm() {
     const markup = formMarkup();
-    if (!markup) return;
+    if (!markup) return false;
     const svg = `<svg viewBox="0 0 200 200">${markup}</svg>`;
 
     let setId = $('ctrl-set').value;
     if (setId === '__new__') {
       const name = ($('ctrl-new-set-name').value || '').trim();
-      if (!name) { $('ctrl-new-set-name').focus(); setStatus('', 'Name the new set first'); return; }
+      if (!name) { $('ctrl-new-set-name').focus(); setStatus('', 'Name the new set first'); return false; }
       setId = createNewSet(name);
       $('ctrl-new-set-name').value = '';
       $('ctrl-set').value = setId;
       syncNewSetRow();
     }
     const set = getSet(setId);
-    if (!set) return;
+    if (!set) return false;
+    if (set.builtIn) { setStatus('', 'Base Seeds is built-in — pick or make a set'); return false; }
 
     const form = { id: 'user-' + Date.now(), name: ($('ctrl-name').value.trim() || 'untitled'), svg, type: S.type, builtIn: false };
     // The parametric/freehand recipe travels with the saved picture so it
@@ -2002,6 +2302,7 @@
     setMode('library');
     renderGrid();
     setStatus('active', `Saved “${form.name}” to ${set.name}`);
+    return true;
   }
 
   // ── Util ───────────────────────────────────────────────

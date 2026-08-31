@@ -116,6 +116,7 @@ organica.<tool>.<thing>
 | `organica.halide.presets` | Halide | user-saved presets |
 | `organica.komorebi.presets` | Komorebi | user-saved presets |
 | `organica.library.forms` | Genesis Library **+** Creator (shared) | user-created form sets |
+| `organica.library.view` | Genesis Library | last `{ activeSetId, filter }` — restores which set + Type filter was showing. Optional, value-whitelisted on read, no migration; deliberately separate from `organica.library.forms` so a corrupt view blob can't endanger library data |
 
 ### Legacy keys and migration
 
@@ -178,9 +179,11 @@ Runs on every load, idempotent, **never drops `forms[]`**. It:
 1. ensures the `organic-forms` set exists, renames it to "Base Seeds", strips any
    `gridConfig`/`formLayout`;
 2. removes the old separate `basic-seeds` set (its primitives are synthesized now);
-3. drops plain canonical primitive entries from `forms[]` (safe — re-synthesized), but
+3. pins the `organic-forms` (Base Seeds) set to `sets[0]` — set order is now array
+   order (the Library's `↑`/`↓` reorder writes it), and the built-in is always first;
+4. drops plain canonical primitive entries from `forms[]` (safe — re-synthesized), but
    **keeps** any primitive a user renamed or that a user set still references;
-4. strips `gridConfig`/`formLayout` from every set.
+5. strips `gridConfig`/`formLayout` from every set.
 
 ---
 
