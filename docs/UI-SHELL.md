@@ -410,43 +410,58 @@ Aug 30, 2026, when the picker + "new set" moved inline into the filter bar.)*
 
 ---
 
-### Genesis: the seed library — two modes (Aug 30, 2026)
+### Genesis: the seed library — three modes (Aug 30 – 31, 2026)
 
 `genesis/index.html`, `genesis/creator.html`, and `genesis/library.html` used
 to be three separate pages; they merged into `genesis/index.html` on Aug 27,
 2026 (creator/library became `location.replace('/genesis/')` redirects). On
 **Aug 30, 2026** Genesis dropped its role as a motion catalog and became the
-**seed library, plainly** — a 2-mode tool:
+**seed library, plainly**; on **Aug 31** it gained a dedicated **Edit** mode.
+Three modes now:
 
 - **Library** (the home) — `.app` is a single column (`1fr`), no side panels.
   One **filter bar** across the top: a **Sets** picker (segmented buttons per
   set + count, `+` to make a new one) then Source (All/Organic/Primitives/My
   seeds) · Type (All/Asset/Variant/Mask/Container) · Density
-  (Cozy/Comfortable/Airy), over a responsive auto-fill tile grid. The active
-  set + its count also show in the shared header status line. The built-in
-  **Base Seeds** set = 13 organic forms + 6 procedural primitives, both
-  synthesized (never stored). **Single-click** a tile → a full-row inline
-  **detail card** (preview, name, facts `<dl>`, Edit/Duplicate/Delete).
-  **Double-click** → opens the seed in Create (forks built-ins). Density
+  (Cozy/Comfortable/Airy), over a responsive auto-fill tile grid. Each tile
+  carries a **parametric / vector** kind badge. The active set + its count also
+  show in the shared header status line. The built-in **Base Seeds** set = 13
+  organic forms + 6 procedural primitives, both synthesized (never stored).
+  **Click a tile → Edit** (no detail card — that was removed Aug 31). Density
   persists in `localStorage['organica.library.density']`.
 - **Create** — `.app` becomes `[stage | panel]` (`.app--create` →
-  `1fr var(--panel-width-right)`); the right panel is Create-only. One authoring door:
-  Draw (Paper.js freehand) / Generate (parametric kinds) / **Import** (an
-  always-visible "Import SVG" section — upload or paste — folded in from the
-  old separate Import mode). Save mints a `user-…` seed; forking a built-in
-  never mutates it.
+  `1fr var(--panel-width-right)`). New shapes only: Draw (Paper.js freehand) /
+  Generate (parametric kinds) / a single **`+`** icon in Source that imports an
+  SVG **file** (the old note + paste box are gone). Save mints a `user-…` seed.
+- **Edit** — same `[stage | panel]` layout, reached by clicking a Library seed
+  (the Edit tab is `disabled` until then). Adapts to the seed:
+  - **parametric** (non-freehand `genType`) → its generator sliders, no canvas;
+  - **vector** (freehand or raw SVG) → the seed's every contour becomes
+    editable bezier anchors on the Paper canvas (`drawEditor.importSVG()` runs
+    a raw seed through `paper.project.importSVG({expandShapes:true})` into a
+    `CompoundPath`; a `<line>`-based seed opens in Stroke style).
+  The right panel = an **Edit header** (kind badge · facts `<dl>` · built-in
+  notice · "filter will be flattened" warning · Delete) + Appearance transforms
+  + Name/Type. **No panel Save.** The **floatbar** carries the Edit verbs:
+  Undo (vector only) · **Duplicate** (forks the on-screen edits into a new
+  seed) · **Save** (disabled until dirty; a user seed → armed 2-click confirm →
+  overwrite in place; a built-in → auto-fork a copy to "My Seeds"). Dirty is
+  tracked from `drawEditor` `onChange` + any `input`/`change` in the panel.
 
 **Compose** (the drag-select-then-fill grid gesture) and **Import as its own
-mode** were removed. The `set` data model shrank with them — a set is now a
-**plain ordered list of seed ids**, no `gridConfig`/`formLayout`/spans/
+mode** were removed Aug 30. The `set` data model shrank with them — a set is now
+a **plain ordered list of seed ids**, no `gridConfig`/`formLayout`/spans/
 alignment. `migrateLibrary()` strips those on load and merges the old separate
 `basic-seeds` set into Base Seeds (see `docs/SHARED-LIBRARY.md` §4).
 
-`S.gen.type === 'freehand'` is still the single Draw-vs-generator selector;
-`geometry()` converges both to one path string, and freehand seeds round-trip
-via `createPaperDrawEditor().serialize()`/`.load()` in `shared/paper.js`.
-An imported seed (`S.importInner` set) is gated out of the `genType` recipe so
-it saves as static markup.
+`isCreatorMode()` = Create **or** Edit (both draw on the artboard, own the
+status line). `isDrawMode()` = the Paper canvas is live (Create-Freehand, or a
+vector seed in Edit). `S.gen.type === 'freehand'` still selects Draw vs a
+generator; `geometry()` converges both to one path string
+(`fill-rule="evenodd"` when `drawEditor.isMulti()`). Freehand/compound seeds
+round-trip via `createPaperDrawEditor().serialize()`/`.load()` in
+`shared/paper.js`. Create's `+`-imported SVG (`S.importInner` set) is still a
+frozen markup import, gated out of the `genType` recipe.
 
 **Never carried over** (from the original plain composer): Palette swatches,
 Background pattern, per-shape Fill override, Randomize — no equivalent in the
@@ -586,9 +601,9 @@ Honest list of where the tools still disagree:
   `panel.css`) and the "Zoom/pan CSS still inline in Spore /
   Pollen / Halide" item.
 - **Genesis** uses a different shell entirely (Library = one full-width grid
-  under a filter bar; Create adds a right design panel — `.app` / `.app--create`
-  swap the column count). It predates this template; converging it is a bigger
-  job than a rename.
+  under a filter bar; Create and Edit add a right design panel — `.app` /
+  `.app--create` swap the column count). It predates this template; converging
+  it is a bigger job than a rename.
 - **Living Path** is fully retrofitted onto the shared panel component via
   its own documented aliases (`.sec`/`.row`/`.group-label`).
 - **`syncColor()`** — resolved 2026-08-30. Every production colour-picker tool now

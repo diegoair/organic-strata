@@ -163,6 +163,14 @@ redirect stubs.
 - User sets carry a real `forms: []` of ids. A duplicated seed lands in the active user
   set, or in an auto-created **"My Seeds"** set (id `set_my-seeds`) if Base Seeds is
   active.
+- **`genType` also drives Genesis's Edit mode** (Aug 31, 2026): a seed with a non-freehand
+  `genType` (`circle`/`arc`/`blob`/…) is **parametric** — Edit shows its generator sliders.
+  A seed with `genType: 'freehand'` or none (raw SVG) is **vector** — Edit runs it through
+  Paper.js `importSVG({expandShapes:true})` into a `CompoundPath` and every contour becomes
+  editable bezier anchors. A **vector, `genType`-less** seed saved from Edit stays
+  `genType`-less (only its `svg` is rewritten); a freehand seed's `genParams` is the Paper
+  `serialize()` blob (single-path `{json,closed,smooth,manual}`, or `{kind:'compound',json,smooth}`).
+  The Library tile shows a matching `parametric` / `vector` badge.
 
 ### `migrateLibrary()`
 

@@ -630,15 +630,20 @@
   };
 
   // ─────────────────────────────────────────────────────────────
-  // createPaperDrawEditor — click-to-place freehand drawing on a single
-  // paper.Path, built for Genesis Creator's own Draw mode (Phase B).
+  // createPaperDrawEditor — a bezier editor with two modes:
+  //   'draw'  (default) — click-to-place freehand drawing on a single
+  //                       paper.Path (Genesis "Create / Freehand").
+  //   'multi' — every contour of an imported SVG as an editable
+  //             paper.CompoundPath (Genesis "Edit" of a raw-SVG seed),
+  //             reached via importSVG() or load({kind:'compound'}).
+  // Draw-mode behaviour and its serialize() shape are unchanged, so
+  // existing freehand seeds keep loading.
   //
-  // Distinct from createTraceEditor above on purpose: that factory is
-  // Strata-shaped (loads an existing multi-shape trace, sketch underlay,
-  // cross-shape boolean unite). This one draws ONE path from nothing —
-  // anchors added by click, dragged by their point, with mirrored tangent
-  // handles for manual smoothing. Additive: createTraceEditor is untouched,
-  // Strata is unaffected.
+  // Distinct from createTraceEditor above: that factory is Strata-shaped
+  // (sketch underlay, cross-shape boolean unite). This one either draws one
+  // path from nothing or turns an SVG into per-contour editable anchors —
+  // anchors dragged by their point, mirrored tangent handles for smoothing.
+  // Additive: createTraceEditor is untouched.
   //
   // Smooth is "live" the way Creator's own hand-rolled tangentOf() was:
   // every add/drag re-derives ALL auto segments' handles via the real
@@ -661,149 +666,199 @@
 
     // Map project-space coordinates onto the canvas's own declared box —
     // needed when the host page draws the actual shape somewhere else (e.g.
-    // Creator's own SVG form-layer) and wants clicks/segments to land in
-    // that same coordinate space (e.g. Creator's 0–200 artboard box) rather
-    // than raw canvas pixels. No-op when omitted (project space = canvas
-    // pixels 1:1, the prototype test page's own default).
+    // Genesis's own SVG form-layer) and wants clicks/segments to land in
+    // that same coordinate space (Genesis's 0–200 artboard box) rather than
+    // raw canvas pixels. No-op when omitted (project space = canvas pixels
+    // 1:1, the prototype test page's own default).
     if (opts.fitBox) {
       const b = opts.fitBox;
       paper.view.zoom = paper.view.viewSize.width / b.width;
       paper.view.center = new paper.Point(b.x + b.width / 2, b.y + b.height / 2);
     }
+    const FIT = opts.fitBox || { x: 0, y: 0, width: paper.view.viewSize.width, height: paper.view.viewSize.height };
 
     const tool = new paper.Tool();
-    let path = new paper.Path({
-      strokeColor: opts.strokeColor || '#0a0a0a',
-      strokeWidth: opts.strokeWidth || 2,
-      // Paper.js's own selection overlay (hollow anchor squares + handle
-      // circles/lines) is the prototype's ONLY visual affordance for handles
-      // — there is no hand-rolled marker layer here. Fine for verifying the
-      // interaction model in isolation; Creator's own real integration will
-      // want its own handle rendering to match its existing thandle/handle
-      // visual style instead of Paper's default blue.
-      fullySelected: true,
-    });
-    let smooth = true;
-    const manualSegments = new Set(); // segment indices with a hand-set tangent
-    let draggingSegment = null;
-    let draggingHandle = null; // { index, which: 'handleIn' | 'handleOut' }
-    let dragMoved = false;
 
-    // The geometry simplify() should re-derive from every time it runs — same
-    // rule as Strata's own simplifyLive (see above): without this, dragging
-    // the tolerance slider back down could never recover detail an earlier,
-    // higher tolerance had already discarded, since simplify() would just be
-    // sharpening its own already-lossy output instead of the real drawing.
-    let baselineJSON = path.exportJSON();
-    function snapshotBaseline() { baselineJSON = path.exportJSON(); }
+    // ── editor mode ───────────────────────────────────────────
+    //  'draw'  — one hand-drawn paper.Path, anchors added by click
+    //            (Genesis "Create / Freehand"). Unchanged from before.
+    //  'multi' — a paper.CompoundPath whose .children are the contours of
+    //            an imported seed, every anchor + handle independently
+    //            editable (Genesis "Edit" of a raw-SVG seed). Reached only
+    //            via importSVG() / load({kind:'compound'}).
+    // Paper.js's own selection overlay (hollow anchor squares + handle
+    // circles/lines) is the ONLY visual affordance for handles here — the
+    // host page renders no marker layer of its own.
+    let mode = 'draw';
+    let path = null;               // the draw-mode path
+    let root = null;               // the multi-mode CompoundPath
+    let smooth = true;
+    let preserveImported = false;  // multi: keep the imported curve handles until Smooth is toggled off
+    let dragCtx = null;            // { kind:'segment'|'handleIn'|'handleOut', contour, index }
+    let dragMoved = false;
+    let lastImportedSVG = '';
+    let baselineJSON = '';         // fallback undo target / simplify source
+    const undoStack = [];          // multi-mode per-gesture snapshots (root.exportJSON)
+    const UNDO_CAP = 20;
+
+    function newDrawPath() {
+      return new paper.Path({
+        strokeColor: opts.strokeColor || '#0a0a0a',
+        strokeWidth: opts.strokeWidth || 2,
+        fullySelected: true,
+      });
+    }
+    // Per-contour manual-tangent set (replaces the old single module-level
+    // Set) — stored on the contour so a multi seed tracks each ring's
+    // hand-tuned anchors independently.
+    function manualOf(contour) {
+      if (!contour.data._manual) contour.data._manual = new Set();
+      return contour.data._manual;
+    }
+    function contourList() {
+      return mode === 'multi' ? (root ? root.children : []) : (path ? [path] : []);
+    }
+    function snapshotBaseline() {
+      baselineJSON = mode === 'multi'
+        ? (root ? root.exportJSON() : '')
+        : (path ? path.exportJSON() : '');
+    }
+    function pushUndo() {
+      if (mode !== 'multi' || !root) return;
+      undoStack.push(root.exportJSON());
+      if (undoStack.length > UNDO_CAP) undoStack.shift();
+    }
+    // Full teardown so the (never-destroyed) editor can be re-seeded — a
+    // fresh freehand draw, a raw-SVG import, then a freehand seed again —
+    // without leaking mode / root / per-contour state / undo history.
+    function resetInternal() {
+      if (root) { root.remove(); root = null; }
+      if (path) { path.remove(); path = null; }
+      dragCtx = null;
+      dragMoved = false;
+      undoStack.length = 0;
+      preserveImported = false;
+      mode = 'draw';
+      path = newDrawPath();
+      snapshotBaseline();
+    }
+
+    path = newDrawPath();
+    snapshotBaseline();
 
     function notify() { onChange(); }
 
-    // Recompute every AUTO segment's handles from current point positions,
-    // then restore whichever segments were manually tangent-edited — the
-    // one deliberate divergence from a plain path.smooth() call, needed so
-    // dragging one anchor doesn't silently erase a hand-tuned tangent on
-    // another.
-    function resmooth() {
+    // Recompute one contour's AUTO segment handles from current point
+    // positions, then restore whichever were manually tangent-edited — the
+    // one deliberate divergence from a plain path.smooth(), so dragging one
+    // anchor doesn't silently erase a hand-tuned tangent elsewhere.
+    function resmoothContour(c) {
       if (!smooth) {
-        path.segments.forEach(s => {
+        c.segments.forEach(s => {
           s.handleIn = new paper.Point(0, 0);
           s.handleOut = new paper.Point(0, 0);
         });
         return;
       }
-      // path.smooth() throws on a path with under 2 segments (nothing to
-      // smooth yet) — reachable in practice, since a host page can toggle
-      // Closed/Smooth before the user has clicked a single anchor (Creator
-      // does exactly this, syncing its Close checkbox's default at init).
-      if (path.segments.length < 2) return;
+      // path.smooth() throws on under 2 segments (nothing to smooth yet) —
+      // reachable, since a host page can toggle Closed/Smooth before the
+      // user has clicked a single anchor.
+      if (c.segments.length < 2) return;
+      const man = manualOf(c);
       const saved = [];
-      manualSegments.forEach(i => {
-        const s = path.segments[i];
+      man.forEach(i => {
+        const s = c.segments[i];
         if (s) saved.push({ i, hIn: s.handleIn.clone(), hOut: s.handleOut.clone() });
       });
-      path.smooth({ type: 'continuous' });
+      c.smooth({ type: 'continuous' });
       saved.forEach(({ i, hIn, hOut }) => {
-        const s = path.segments[i];
+        const s = c.segments[i];
         if (s) { s.handleIn = hIn; s.handleOut = hOut; }
       });
     }
+    function resmooth() {
+      // An imported seed's <circle>/<ellipse> contours are curved 4-segment
+      // paths — re-smoothing them from scratch would diamond them. Keep
+      // their handles until the user explicitly toggles Smooth off.
+      if (mode === 'multi' && preserveImported) return;
+      contourList().forEach(resmoothContour);
+    }
 
     function addPoint(point) {
+      if (mode !== 'draw') return;   // clicking empty canvas is inert in multi mode
       path.add(point);
       resmooth();
       snapshotBaseline();
       notify();
     }
 
-    // Double-click a segment → release its manual tangent back to auto,
-    // matching Creator's own dblclick-resets-tangent convention. paper.js's
-    // Tool has no native dblclick event, so it's detected here as two
-    // same-segment mousedowns within 350ms.
-    let lastClickTime = 0, lastClickIndex = null;
+    // Double-click a segment → release its manual tangent back to auto.
+    // paper.js's Tool has no native dblclick, so it's two same-segment
+    // mousedowns within 350ms.
+    let lastClickTime = 0, lastClickCtx = null;
     tool.onMouseDown = function (event) {
-      const hit = path.hitTest(event.point, {
-        segments: true,
-        handles: true,
-        tolerance: 8 / paper.view.zoom,
-      });
+      const list = contourList();
+      let hit = null, hitContour = null;
+      for (let i = 0; i < list.length; i++) {
+        const h = list[i].hitTest(event.point, {
+          segments: true, handles: true, tolerance: 8 / paper.view.zoom,
+        });
+        if (h) { hit = h; hitContour = list[i]; break; }
+      }
       if (hit && hit.type === 'segment') {
-        const idx = path.segments.indexOf(hit.segment);
+        const idx = hitContour.segments.indexOf(hit.segment);
         const now = Date.now();
-        if (idx === lastClickIndex && now - lastClickTime < 350) {
-          manualSegments.delete(idx);
-          resmooth();
+        if (lastClickCtx && lastClickCtx.contour === hitContour && lastClickCtx.index === idx
+            && now - lastClickTime < 350) {
+          manualOf(hitContour).delete(idx);
+          resmoothContour(hitContour);
           notify();
           lastClickTime = 0;
-          lastClickIndex = null;
+          lastClickCtx = null;
           return;
         }
         lastClickTime = now;
-        lastClickIndex = idx;
-        draggingSegment = idx;
+        lastClickCtx = { contour: hitContour, index: idx };
+        dragCtx = { kind: 'segment', contour: hitContour, index: idx };
         return;
       }
-      lastClickIndex = null;
+      lastClickCtx = null;
       if (hit && (hit.type === 'handle-in' || hit.type === 'handle-out')) {
-        draggingHandle = {
-          index: path.segments.indexOf(hit.segment),
-          which: hit.type === 'handle-in' ? 'handleIn' : 'handleOut',
-        };
-        manualSegments.add(draggingHandle.index);
+        const idx = hitContour.segments.indexOf(hit.segment);
+        dragCtx = { kind: hit.type === 'handle-in' ? 'handleIn' : 'handleOut', contour: hitContour, index: idx };
+        manualOf(hitContour).add(idx);
         return;
       }
       addPoint(event.point);
     };
 
     tool.onMouseDrag = function (event) {
+      if (!dragCtx) return;
+      if (!dragMoved && mode === 'multi') pushUndo();   // snapshot the pre-drag state, once per gesture
       dragMoved = true;
-      if (draggingSegment != null) {
-        const seg = path.segments[draggingSegment];
-        if (seg) seg.point = seg.point.add(event.delta);
-        if (smooth) resmooth();
+      const c = dragCtx.contour;
+      const seg = c.segments[dragCtx.index];
+      if (!seg) return;
+      if (dragCtx.kind === 'segment') {
+        seg.point = seg.point.add(event.delta);
+        if (smooth && !(mode === 'multi' && preserveImported)) resmoothContour(c);
         notify();
-      } else if (draggingHandle) {
-        const seg = path.segments[draggingHandle.index];
-        if (!seg) return;
+      } else if (dragCtx.kind === 'handleOut') {
         // Mirror the dragged handle onto its opposite so the anchor stays
-        // smooth (a continuous tangent through the point) rather than
-        // creating a hard corner — same "mirrored = smooth" rule Creator's
-        // own tdrag handling used.
-        if (draggingHandle.which === 'handleOut') {
-          seg.handleOut = seg.handleOut.add(event.delta);
-          seg.handleIn = seg.handleOut.multiply(-1);
-        } else {
-          seg.handleIn = seg.handleIn.add(event.delta);
-          seg.handleOut = seg.handleIn.multiply(-1);
-        }
+        // smooth (a continuous tangent) rather than a hard corner.
+        seg.handleOut = seg.handleOut.add(event.delta);
+        seg.handleIn = seg.handleOut.multiply(-1);
+        notify();
+      } else {
+        seg.handleIn = seg.handleIn.add(event.delta);
+        seg.handleOut = seg.handleIn.multiply(-1);
         notify();
       }
     };
 
     tool.onMouseUp = function () {
-      if (dragMoved && (draggingSegment != null || draggingHandle)) snapshotBaseline();
-      draggingSegment = null;
-      draggingHandle = null;
+      if (dragMoved && dragCtx && mode !== 'multi') snapshotBaseline();
+      dragCtx = null;
       dragMoved = false;
     };
 
@@ -811,27 +866,34 @@
 
     function setSmooth(value) {
       smooth = !!value;
+      if (!smooth) preserveImported = false;   // an explicit un-smooth straightens the imported curves
       resmooth();
       snapshotBaseline();
       notify();
     }
 
     function setClosed(value) {
-      path.closed = !!value;
       // Closing/opening changes which segments are adjacent (the wraparound
-      // segment only exists once closed), so the smoothed handles have to be
-      // recomputed here too — without this the new closing edge rendered as
-      // a straight line even with Smooth checked, since it never existed as
-      // a segment pair for path.smooth() to curve when it last ran.
+      // segment only exists once closed), so smoothed handles are recomputed
+      // here too. Applied to every contour in multi mode.
+      contourList().forEach(c => { c.closed = !!value; });
       resmooth();
       snapshotBaseline();
       notify();
     }
 
     function undo() {
+      if (mode === 'multi') {
+        if (!root) return;
+        let json = undoStack.pop();
+        if (json == null) json = baselineJSON;
+        if (json) restoreMulti(json);
+        notify();
+        return;
+      }
       if (!path.segments.length) return;
       const lastIndex = path.segments.length - 1;
-      manualSegments.delete(lastIndex);
+      manualOf(path).delete(lastIndex);
       path.removeSegments(lastIndex);
       resmooth();
       snapshotBaseline();
@@ -839,57 +901,175 @@
     }
 
     function clear() {
+      if (mode === 'multi') { resetInternal(); notify(); return; }
       path.removeSegments();
-      manualSegments.clear();
+      manualOf(path).clear();
       snapshotBaseline();
       notify();
     }
 
     // Re-derives from baselineJSON every call rather than compounding on the
-    // previous simplify() output — see the comment on baselineJSON above.
+    // previous simplify() output.
     function simplify(tolerance) {
+      const tol = tolerance == null ? 2.5 : tolerance;
+      if (mode === 'multi') {
+        if (baselineJSON) restoreMulti(baselineJSON);
+        contourList().forEach(c => { c.simplify(tol); manualOf(c).clear(); });
+        notify();
+        return;
+      }
       path.importJSON(baselineJSON);
-      path.simplify(tolerance == null ? 2.5 : tolerance);
-      manualSegments.clear(); // simplify rebuilds segments; old indices no longer mean anything
+      path.simplify(tol);
+      manualOf(path).clear();
       notify();
     }
 
     function getPathData() {
+      if (mode === 'multi') return root ? root.pathData : '';   // one compound "M…C…Z M…C…Z" string
       return path.segments.length >= 2 ? path.pathData : '';
     }
 
-    // Serialize / restore the whole editable path so a host page can save a
-    // drawn shape and re-open it fully editable later (Genesis's "Create /
-    // Freehand" seeds). path.exportJSON()/importJSON() are the same Paper API
-    // simplify()'s baselineJSON already relies on. Additive: nothing else
-    // changes.
+    function getSegmentCount() {
+      return contourList().reduce((n, c) => n + c.segments.length, 0);
+    }
+
+    // Serialize / restore so a host page can save a shape and re-open it
+    // fully editable. Draw mode keeps the historic {json,closed,smooth,
+    // manual} shape (legacy freehand seeds keep loading); multi mode is
+    // tagged {kind:'compound'}.
     function serialize() {
+      if (mode === 'multi') {
+        return { kind: 'compound', json: root ? root.exportJSON() : '', smooth: smooth };
+      }
       return {
         json: path.exportJSON(),
         closed: path.closed,
         smooth: smooth,
-        manual: Array.from(manualSegments),
+        manual: Array.from(manualOf(path)),
       };
+    }
+    function restoreMulti(json) {
+      if (root) { root.remove(); root = null; }
+      root = paper.project.activeLayer.importJSON(json);
+      root.fillColor = null;
+      root.strokeColor = opts.strokeColor || null;
+      root.fullySelected = true;
+      mode = 'multi';
     }
     function load(data) {
       if (!data || !data.json) return;
+      if (data.kind === 'compound') {
+        resetInternal();
+        if (path) { path.remove(); path = null; }
+        restoreMulti(data.json);
+        smooth = data.smooth !== false;
+        preserveImported = true;
+        undoStack.length = 0;
+        snapshotBaseline();
+        notify();
+        return;
+      }
+      resetInternal();
       path.importJSON(data.json);
       path.fullySelected = true;
       smooth = data.smooth !== false;
       path.closed = !!data.closed;
-      manualSegments.clear();
-      (data.manual || []).forEach(i => manualSegments.add(i));
+      const man = manualOf(path);
+      man.clear();
+      (data.manual || []).forEach(i => man.add(i));
       snapshotBaseline();
       notify();
     }
 
-    function getSegmentCount() {
-      return path.segments.length;
+    // Turn an arbitrary SVG string into a CompoundPath of independently
+    // editable contours. expandShapes converts <circle>/<ellipse>/<rect>/
+    // <line>/<polygon> to real paths; applyMatrix bakes nested <g>
+    // transforms into segment coordinates.
+    function importSVG(svgString) {
+      resetInternal();
+      if (path) { path.remove(); path = null; }
+      lastImportedSVG = svgString || '';
+
+      let imported = null;
+      try {
+        imported = paper.project.importSVG(svgString, { expandShapes: true, insert: true, applyMatrix: true });
+      } catch (e) { imported = null; }
+      if (!imported) { path = newDrawPath(); mode = 'draw'; snapshotBaseline(); notify(); return; }
+
+      const leaves = [];
+      (function walk(item) {
+        if (!item) return;
+        if (item.className === 'Path') { leaves.push(item); return; }
+        if (item.className === 'CompoundPath') { (item.children || []).slice().forEach(c => leaves.push(c)); return; }
+        if (item.children) item.children.slice().forEach(walk);
+      })(imported);
+
+      // viewBox → fitBox (defensive; Genesis seeds are already "0 0 200 200")
+      const vb = Organica.parseSvgViewBox(svgString);
+      const needFit = vb && (vb.x !== FIT.x || vb.y !== FIT.y || vb.width !== FIT.width || vb.height !== FIT.height);
+      const m = needFit
+        ? new paper.Matrix().translate(FIT.x, FIT.y).scale(FIT.width / vb.width, FIT.height / vb.height).translate(-vb.x, -vb.y)
+        : null;
+
+      const cloned = leaves.map(function (p) {
+        const c = p.clone({ insert: false });
+        if (m) c.transform(m);
+        c.fillColor = null;
+        c.strokeColor = opts.strokeColor || null;
+        return c;
+      });
+      imported.remove();
+
+      root = new paper.CompoundPath({ children: cloned, insert: true });
+      root.fillColor = null;
+      root.strokeColor = opts.strokeColor || null;
+      root.fullySelected = true;
+
+      mode = 'multi';
+      preserveImported = true;
+      smooth = true;
+      undoStack.length = 0;
+      snapshotBaseline();
+      notify();
     }
+
+    // Which of fill / stroke the source SVG actually used, so the host can
+    // pick the right render style (a stroke-authored seed like a sunburst
+    // has open contours that only read as strokes).
+    function getImportedStyleHint() {
+      const res = { fill: false, stroke: false, strokeWidth: 0 };
+      try {
+        const doc = new DOMParser().parseFromString(lastImportedSVG || '', 'image/svg+xml');
+        const svg = doc.querySelector('svg');
+        if (!svg) { res.fill = true; return res; }
+        const els = [svg].concat(Array.prototype.slice.call(
+          svg.querySelectorAll('path,circle,ellipse,rect,line,polygon,polyline,g')));
+        els.forEach(function (el) {
+          const style = el.getAttribute('style') || '';
+          const f = (el.getAttribute('fill') || '').trim();
+          const s = (el.getAttribute('stroke') || '').trim();
+          if ((f && f !== 'none') || /fill\s*:\s*(?!none)[^;]+/i.test(style)) res.fill = true;
+          if ((s && s !== 'none') || /stroke\s*:\s*(?!none)[^;]+/i.test(style)) res.stroke = true;
+          const wAttr = parseFloat(el.getAttribute('stroke-width'));
+          const wStyle = parseFloat((style.match(/stroke-width\s*:\s*([\d.]+)/i) || [])[1]);
+          if (!isNaN(wAttr)) res.strokeWidth = wAttr;
+          else if (!isNaN(wStyle)) res.strokeWidth = wStyle;
+        });
+        // <line>/<polyline> have no fill area — a seed built from them (a
+        // sunburst, a hatch) only reads as strokes, even when the source left
+        // styling to CSS classes and set no attributes at all.
+        if (svg.querySelector('line,polyline')) res.stroke = true;
+        if (!res.fill && !res.stroke) res.fill = true;   // SVG default is fill:black
+      } catch (e) { res.fill = true; }
+      return res;
+    }
+
+    function isMulti() { return mode === 'multi'; }
 
     function destroy() {
       tool.remove();
-      path.remove();
+      if (root) root.remove();
+      if (path) path.remove();
     }
 
     return {
@@ -902,6 +1082,9 @@
       getSegmentCount,
       serialize,
       load,
+      importSVG,
+      getImportedStyleHint,
+      isMulti,
       destroy,
     };
   };
