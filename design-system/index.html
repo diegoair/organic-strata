@@ -384,7 +384,7 @@
     <section class="ds-entry ds-prose" id="shell">
       <h2>App shell</h2>
       <p class="ds-desc">The frame every tool sits in — the box-sizing reset, a flex-column <code>&lt;body&gt;</code> pinned to the viewport, an <code>#app</code> row, and a centred <code>#canvas-wrap</code> stage area. Before this sheet, all 17 tools carried their own ~30-line copy of it, each annotated "same shared pattern as Loom/Halide/Spore/Pollen".</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/shell.css</span><strong>Used in</strong><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Camo Turing</span><span>Warping</span><span>Loom</span><span>Soul</span><span>Membrane</span><span>Vortex</span><span>Radial</span><span>Pulsar</span><span>Colornet</span><span>Blob Boundary</span></div>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/shell.css</span><strong>Used in</strong><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Camo Turing</span><span>Warping</span><span>Loom</span><span>Membrane</span><span>Vortex</span><span>Radial</span><span>Pulsar</span><span>Colornet</span><span>Blob Boundary</span></div>
       <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"app"</span>&gt;
   &lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"canvas-wrap"</span>&gt;
     &lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"drop-hint"</span>&gt;…&lt;/<span class="tag">div</span>&gt;
@@ -423,7 +423,7 @@
     <section class="ds-entry" id="upload">
       <h2>File input</h2>
       <p class="ds-desc">The dashed "+ Upload…" trigger and the real <code>&lt;input type=file&gt;</code> it fronts. Six tools each carried a near-identical <code>.upload-btn</code> with a "copied verbatim rather than inventing a fourth variant" comment. The hidden input keeps a 1px on-screen footprint (<code>.org-file-input</code>) — Safari won't open the picker for an input that isn't rendered.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>Used in</strong><span>Camo Turing</span><span>Soul</span><span>Pollen</span><span>Membrane</span><span>Komorebi</span><span>Halide</span><span>Spore</span><span>Colornet</span></div>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>Used in</strong><span>Camo Turing</span><span>Pollen</span><span>Membrane</span><span>Komorebi</span><span>Halide</span><span>Spore</span><span>Colornet</span></div>
       <div class="ds-example" style="max-width:240px">
         <button class="upload-btn">+ Upload SVG</button>
       </div>
@@ -455,7 +455,7 @@
     <section class="ds-entry" id="panel-shell">
       <h2>Panel shell</h2>
       <p class="ds-desc">The control sidebar. One width (248px), always on the right (Genesis Library is the one deliberate exception — it lists <em>sets</em>, which is navigation, not controls).</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>Used in</strong><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Living Path</span><span>Camo Turing</span><span>Warping</span><span>Loom</span><span>Soul</span><span>Membrane</span><span>Vortex</span><span>FVS</span><span>TuneSutra</span><span>Mycel</span></div>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>Used in</strong><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Living Path</span><span>Camo Turing</span><span>Warping</span><span>Loom</span><span>Membrane</span><span>Vortex</span><span>FVS</span><span>TuneSutra</span><span>Mycel</span></div>
       <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"panel"</span>&gt;
   &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"panel-section"</span>&gt;…&lt;/<span class="tag">div</span>&gt;
 &lt;/<span class="tag">div</span>&gt;</pre>
@@ -578,7 +578,7 @@ Organica.palette.swatch(<span class="attr">wrapEl</span>, {
     <section class="ds-entry" id="seeds-panel">
       <h2>Seeds panel</h2>
       <p class="ds-desc">The tabbed <strong>Genesis / SVG / Text</strong> (optionally <strong>Image</strong>) source picker + Genesis thumbnail grid. Built by <code>Organica.seedsPanel({ target, tabs, genesis, text, applyMode, onSeed, … })</code> — polymorphic on <code>typeof target</code> (element = generate the markup, string = attach to existing). <code>onSeed(result)</code> hands back <strong>both</strong> <code>result.svgString</code> (the canonical vector) and <code>result.descriptor</code> (raw <code>{kind, formId, text, font, imageEl, …}</code>) so each tool adapts whichever it needs. Custom tabs via <code>slots</code>, tool rows via <code>subControls</code> / <code>extraControls</code>, <code>genesis.bakeGeometry</code> for CSS-driven form geometry, <code>applyMode: 'manual'</code> when the tool has its own Apply step, two panels per page via distinct <code>idPrefix</code>. <code>.seg-ctrl</code> / <code>.upload-btn</code> come from <code>panel.css</code>; this component's sheet carries only the grid.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/seeds-panel.css</span><span>shared/seeds-panel.js</span><strong>Used in</strong><span>Soul, Membrane, Camo Turing</span><span>Living Path (<code>.PRIMORDIAL</code> only)</span></div>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/seeds-panel.css</span><span>shared/seeds-panel.js</span><strong>Used in</strong><span>Membrane, Camo Turing</span><span>Living Path (<code>.PRIMORDIAL</code> only)</span></div>
       <div class="ds-example" style="max-width:280px">
         <div class="seeds-panel">
           <div class="ctrl-row">
@@ -660,7 +660,7 @@ Organica.seedsPanel({
     <section class="ds-entry" id="floatbar">
       <h2>Floating toolbar</h2>
       <p class="ds-desc">Fixed bottom-centre <em>over the canvas</em>, not the browser viewport — offset by half the panel's width so it centres on the visible working area. Content is per-tool (icon buttons in whatever combination that tool needs); the shell, icon sizing and states are shared.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/floatbar.css</span><strong>Used in</strong><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Living Path</span><span>Genesis Creator</span><span>Camo Turing</span><span>Warping</span><span>Loom</span><span>Soul</span><span>Membrane</span><span>Vortex</span><span>FVS</span><span>TuneSutra</span><span>Mycel</span></div>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/floatbar.css</span><strong>Used in</strong><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Living Path</span><span>Genesis Creator</span><span>Camo Turing</span><span>Warping</span><span>Loom</span><span>Membrane</span><span>Vortex</span><span>FVS</span><span>TuneSutra</span><span>Mycel</span></div>
       <div class="ds-example" style="justify-content:center">
         <div class="org-floatbar" style="position:static;transform:none">
           <button class="org-floatbar__btn" aria-label="Open">

@@ -1,9 +1,9 @@
 /* ─────────────────────────────────────────────────────────────
    Rhizome node — SVG → Points (Tier 1, zero-porting).
 
-   Thin wrapper on Organica.motion.parsePrimitives (shared/organica-
-   motion.js:177) — the most general "ingest arbitrary SVG into typed
-   JS objects" mechanism in the repo, ported unmodified from Soul.
+   Thin wrapper on Organica.motion.parsePrimitives (shared/motion.js) —
+   the most general "ingest arbitrary SVG into typed JS objects"
+   mechanism in the repo.
    Silently drops any unsupported tag (text/image/defs/gradient/
    clipPath/use — see the shared function's own header) rather than
    erroring, matching its existing documented behaviour.

@@ -91,7 +91,7 @@ expressed in code:
 | **Static DOM** | Genesis | `innerHTML` the SVG string, inject `ORGANIC_DEFS` once. Genesis renders these **static** now (`animation:none` on every preview) — it does not link `animations.css` |
 | **Animated DOM** | Hub bento, archived gallery | as above, plus link `animations.css` → animated in the page |
 | **Path2D** | Spore, Pollen | parse the SVG string, pull the `d` attributes, build `Path2D` → drawn as canvas marks. Animations deliberately ignored (they don't link the CSS) |
-| **Seeds panel** | Soul, Camo Turing, Living Path (via `shared/seeds-panel.js`) | the panel's `PRIMORDIAL` list **is** the 13 ids now — one curated set, no separate subset |
+| **Seeds panel** | Membrane, Camo Turing, Living Path (via `shared/seeds-panel.js`) | the panel's `PRIMORDIAL` list **is** the 13 ids now — one curated set, no separate subset |
 | **Contours** | Living Path | parse → contours → the form becomes a glyph in the font pipeline |
 
 Halide and Komorebi don't use the library at all — Halide makes pixels, Komorebi makes

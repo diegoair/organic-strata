@@ -12,7 +12,6 @@ import * as exportNode from './nodes/export.js';
 import * as genesisBridge from './nodes/genesis-bridge.js';
 import * as komorebiBridge from './nodes/komorebi-bridge.js';
 import * as warpingBridge from './nodes/warping-bridge.js';
-import * as soulBridge from './nodes/soul-bridge.js';
 import * as camoTuringBridge from './nodes/camo-turing-bridge.js';
 import * as membraneBridge from './nodes/membrane-bridge.js';
 import * as livingpathBridge from './nodes/livingpath-bridge.js';
@@ -31,7 +30,6 @@ const NODE_TYPES = [
   genesisBridge,
   komorebiBridge,
   warpingBridge,
-  soulBridge,
   camoTuringBridge,
   membraneBridge,
   livingpathBridge,

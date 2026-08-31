@@ -247,7 +247,6 @@ hub nav and as the tool's identity colour.
 | Camo Turing | `#3f8fa0` | teal-blue |
 | Warping | `#a9683e` | wood / warm terracotta |
 | Loom | `#4a7fc9` | blueprint blue |
-| Soul | `#c85a8c` | living rose / pulse |
 | Membrane | `#c15b4a` | warm coral / tissue-red |
 | Vortex | `#6d4bd8` | deep indigo |
 | FVS | `#3fa876` | emerald |
@@ -274,7 +273,7 @@ ship date — each `.nav__group` carries a `group-label`:
 | Tracing & vectorization | Halide, Living Path |
 | Generative patterns | Komorebi, Camo Turing, Warping, Radial |
 | Stippling & marks | Spore, Pollen |
-| Motion & growth | Soul, Membrane, Vortex, Pulsar, Mycel, Blob Boundary |
+| Motion & growth | Membrane, Vortex, Pulsar, Mycel, Blob Boundary |
 | Workflow & pipelines | Rhizome |
 | Explorations | (prototype pages, not full tools) |
 

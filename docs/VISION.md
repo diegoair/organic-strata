@@ -142,11 +142,14 @@ Any input (photo, sketch, Figma, raster)
 
 ### Genesis
 `theorganicalanguage.vercel.app/genesis/`  
-The seed library. Two modes: **Library** (browse the built-in Base Seeds — 13 static
+The seed library. Three modes: **Library** (browse the built-in Base Seeds — 13 static
 organic forms + 6 procedural primitives — and any user-made Sets; a Set is an ordered
-list of seeds) and **Create** (Draw / Generate / Import an SVG, save it as a seed).  
-*Restructured Aug 30, 2026 from a 55-form animated grid composer. Motion moved to Soul
-+ Pulsar; the animated catalog is archived at `genesis/archive/indicators-55.html`.*
+list of seeds), **Create** (Draw / Generate / import an SVG — new shapes only), and
+**Edit** (open a Library seed; parametric seeds edit via sliders, vector seeds via
+bezier anchors).  
+*Restructured Aug 30–31, 2026 from a 55-form animated grid composer. Motion is now
+Pulsar (over Radial) plus each generative tool's own engine; the animated catalog is
+archived at `genesis/archive/indicators-55.html`.*
 
 ---
 

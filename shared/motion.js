@@ -1,15 +1,20 @@
 /* ─────────────────────────────────────────────────────────────
    ORGANICA — motion.js
-   The animation engine's own primitive contract: every source tool
-   (Genesis, Strata, Pollen, Spore, Halide, Loom, Komorebi/Camo Turing/
-   Warping's own posterised vector exports) already produces real SVG —
-   that's the one thing every tool in this repo has in common, and per
-   the engine's own scoping call, EVERYTHING becomes vectors before it
-   reaches this module, raster included (Halide/Komorebi/Camo Turing/
-   Warping already vectorise via the shared contour tracer in
-   core.js). So the primitive contract's input format is just
-   "an SVG string" — no per-tool adapter needed, one parser covers every
-   source.
+
+   STATUS (August 31, 2026): the Soul tool was removed. Of this module's
+   exports, only `parsePrimitives` is still live — Rhizome's `svg-to-points`
+   node and its `svg→points` auto-adapter (`rhizome/js/adapters.js`) use it as
+   the repo's general "SVG string → typed JS primitive list" mechanism.
+   `PATTERNS` / `staggerDelay` / `animate` / `morph` / `organicBlobPath` are
+   retained-but-unused (they degrade gracefully without GSAP, which Rhizome
+   doesn't load) — kept as the seed for a future motion tool; safe to prune if
+   none lands.
+
+   Original design note: every Organica source tool already produces real SVG
+   (Genesis, Pollen, Spore, Halide, Loom, and Komorebi/Camo Turing/Warping's
+   posterised vector exports — raster is vectorised via the shared contour
+   tracer in core.js first). So the input format is just "an SVG string" — no
+   per-tool adapter, one parser.
 
    `parsePrimitives(svgString)` walks the SAME tag set Pollen's own
    `drawSvgEl()` canvas-replay function already handles (circle/ellipse/

@@ -3,12 +3,14 @@
 > Reference for the 55 organic form animations in `genesis/animations.css`.
 > Use this when extending the library, debugging existing forms, or building new tools on top of Genesis.
 >
-> **Status (Aug 30, 2026):** Genesis is now a *static* seed library — it ships 13 base
-> forms and no longer links `animations.css`. Motion is Soul + Pulsar's job. The full
-> 55-form animated catalog is preserved at `genesis/archive/indicators-55.html`;
-> `genesis/animations.css` + `genesis/page.css` + all 55 SVG strings still live on disk
-> for that page and the hub bento. This taxonomy is still the reference — the 6 patterns
-> below are what Soul rebuilt on GSAP.
+> **Status (Aug 31, 2026):** Genesis is now a *static* seed library — it ships 13 base
+> forms and no longer links `animations.css`. Motion is **Pulsar**'s job (over Radial),
+> plus each generative tool's own built-in engine (Membrane / Vortex / Blob Boundary /
+> Mycel). *(The Soul tool, which rebuilt these 6 patterns parametric on GSAP, was removed
+> Aug 31, 2026 — see `docs/archive/SOUL.md`.)* The full 55-form animated catalog is
+> preserved at `genesis/archive/indicators-55.html`; `genesis/animations.css` +
+> `genesis/page.css` + all 55 SVG strings still live on disk for that page and the hub
+> bento. This taxonomy remains the reference.
 
 ---
 
@@ -208,9 +210,10 @@ Each of 44 circles sits at golden-angle intervals on an Archimedean spiral — t
 
 > Genesis no longer authors animated forms — this section applies to the **archived
 > gallery** (`genesis/archive/indicators-55.html`) and to any new tool that links
-> `animations.css`. For new *motion*, work in Soul (parametric GSAP) or Pulsar.
-> `forms.js` itself now holds only the 13 static Base Seeds; adding a new base seed
-> means an SVG string in `forms.js` + a label — no animation CSS.
+> `animations.css`. For new *motion*, work in Pulsar (over Radial) or the relevant
+> generative tool's own engine. `forms.js` itself now holds only the 13 static Base
+> Seeds; adding a new base seed means an SVG string in `forms.js` + a label — no
+> animation CSS.
 
 1. **Identify the real physics.** What force or process governs this subject? Choose the closest pattern from the 6 above.
 

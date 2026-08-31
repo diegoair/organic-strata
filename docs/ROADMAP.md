@@ -301,11 +301,12 @@ against jasonwebb/reaction-diffusion-playground. Noted 2026-08-08, to pick up ne
 
 ## Phase 2 — Genesis Depth
 
-*Aug 30, 2026: Genesis was restructured into **the seed library** — two modes (Library +
-Create), 13 static base seeds + 6 procedural primitives, Sets as plain ordered id lists.
-The composer / grid-config / 55-form animated catalog were removed (catalog archived at
-`genesis/archive/indicators-55.html`). Motion is Soul + Pulsar's job. Most of the items
-below are now out of scope or superseded.*
+*Aug 30–31, 2026: Genesis was restructured into **the seed library** — three modes
+(Library / Create / Edit), 13 static base seeds + 6 procedural primitives, Sets as plain
+ordered id lists. The composer / grid-config / 55-form animated catalog were removed
+(catalog archived at `genesis/archive/indicators-55.html`). Motion is Pulsar's job (over
+Radial) plus each generative tool's own engine. Most of the items below are now out of
+scope or superseded.*
 
 - [ ] **`forms.js` deep restructure** *(named follow-up from the Aug 30 restructure)* —
   slug keys instead of numeric ids, a per-form metadata block (name / type / tags /

@@ -1,5 +1,12 @@
 # Soul — Organica's animation engine
 
+> **ARCHIVED — August 31, 2026.** The Soul tool was removed from the suite
+> (`soul/index.html` deleted, hub entry and `/soul/` route dropped). Its premise
+> — "animate any tool's SVG export" — was only half-delivered by the 7-tag
+> `parsePrimitives` parser, and Pulsar plus each generative tool's own engine
+> cover the practical motion need. `shared/motion.js` stays for Rhizome's
+> `svg-to-points` node. This manual is kept as a record only.
+
 > The tool at `/soul/`. Read this alongside `docs/ANIMATION-SYSTEM.md` (the 6
 > physics patterns Soul rebuilds parametric) and `docs/LOOM.md` (Loom is
 > Soul's most natural upstream source — its cell/grid model produces exactly

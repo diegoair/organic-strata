@@ -32,13 +32,12 @@ Everything else (resolved values, dirty flags, topological order) is recomputed 
 | Image Upload | file→dataURL source node (not a bridge; no tool page needed) |
 | Export | PNG / SVG / → Figma, terminal node |
 
-**Tier 2 (bridge, 10):**
+**Tier 2 (bridge, 9):**
 | Node | Tool | Params |
 |---|---|---|
-| Genesis Seed | `/genesis/creator.html` | seed picker |
+| Genesis Seed | `/genesis/` | seed picker |
 | Komorebi Pattern | `/komorebi/` | preset |
 | Warping Pattern | `/warping/` | preset |
-| Soul (pass-through) | `/soul/` | — |
 | Camo Turing Pattern | `/camo-turing/` | preset |
 | Membrane Trail | `/membrane/` | pattern (mouse/linear/orbit/zigzag/figure8/sine), seconds |
 | Living Path Preset | `/livingpath/` | 29 presets (`tech:name`, 5 vector + 24 raster) |

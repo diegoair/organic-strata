@@ -37,10 +37,6 @@
       "destination": "/loom/$1"
     },
     {
-      "source": "/soul/(.*)",
-      "destination": "/soul/$1"
-    },
-    {
       "source": "/membrane/(.*)",
       "destination": "/membrane/$1"
     },

@@ -122,7 +122,7 @@ stop, isRecording }`. `canvas` may be a function (p5 tools). `duration` omitted
 = manual stop; number|fn = auto-stop after N seconds (`durationPadMs` tail).
 The tool keeps its own floatbar button and wires `toggleRecording` to
 `rec.toggle()`. Load after core. Used by Pulsar / Camo Turing / Vortex /
-Membrane; Soul keeps its own (SVG-DOM, no live canvas).
+Membrane.
 
 **Seed source picker — `Organica.seedsPanel`** (`shared/seeds-panel.js`
 + paired `seeds-panel.css`, added 2026-08-30). The tabbed
@@ -139,11 +139,11 @@ step. `genesis.bakeGeometry:true` resolves CSS-driven form geometry (needs
 `/genesis/animations.css`). `.PRIMORDIAL` = the shared curated form list —
 **the 13 Genesis Base Seeds** since 2026-08-30 (`[1,2,3,7,9,13,14,21,26,28,37,41,56]`),
 the whole of `ORGANIC_FORMS`, not a subset. A page with two panels passes distinct `idPrefix`es (Camo Turing).
-Load after core; link the CSS. Used by Soul / Membrane / Camo Turing. Living
-Path takes only `Organica.seedsPanel.PRIMORDIAL` (the shared curated form
-list) — its Font/SVG/Genesis picker is bespoke (`.seg`/`.drop`/`.forms`, an
-OTF-export "Font" workbench, no shared panel CSS); a full adoption waits on
-Living Path moving to the shared shell.
+Load after core; link the CSS. Used by Membrane / Camo Turing. Living Path
+takes only `Organica.seedsPanel.PRIMORDIAL` (the shared curated form list) —
+its Font/SVG/Genesis picker is bespoke (`.seg`/`.drop`/`.forms`, an OTF-export
+"Font" workbench, no shared panel CSS); a full adoption waits on Living Path
+moving to the shared shell.
 
 ```html
 <link rel="stylesheet" href="/shared/seeds-panel.css">
