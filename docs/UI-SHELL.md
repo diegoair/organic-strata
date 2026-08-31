@@ -422,13 +422,13 @@ Three modes now:
 - **Library** (the home) — `.app` is a single column (`1fr`), no side panels.
   One **filter bar** across the top: a **Sets** picker (segmented buttons per
   set + count, `+` to make a new one) then Source (All/Organic/Primitives/My
-  seeds) · Type (All/Asset/Variant/Mask/Container) · Density
-  (Cozy/Comfortable/Airy), over a responsive auto-fill tile grid. Each tile
-  carries a **parametric / vector** kind badge. The active set + its count also
-  show in the shared header status line. The built-in **Base Seeds** set = 13
-  organic forms + 6 procedural primitives, both synthesized (never stored).
-  **Click a tile → Edit** (no detail card — that was removed Aug 31). Density
-  persists in `localStorage['organica.library.density']`.
+  seeds) · Type (All/Asset/Variant/Mask/Container), over a responsive auto-fill
+  tile grid at a fixed "cozy" density (`--tile-min: 130px` / `--tile-gap:
+  12px`; the density toggle was removed). Each tile carries a **parametric /
+  vector** kind badge. The active set + its count also show in the shared
+  header status line. The built-in **Base Seeds** set = 13 organic forms + 6
+  procedural primitives, both synthesized (never stored). **Click a tile →
+  Edit** (no detail card — that was removed Aug 31).
 - **Create** — `.app` becomes `[stage | panel]` (`.app--create` →
   `1fr var(--panel-width-right)`). New shapes only: Draw (Paper.js freehand) /
   Generate (parametric kinds) / a single **`+`** icon in Source that imports an

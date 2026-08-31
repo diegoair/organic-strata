@@ -14,14 +14,15 @@
   <link rel="stylesheet" href="/shared/panel.css">
   <style>
     /* ══════════════════════════════════════════════════════════════
-       Genesis — the seed library. Two modes:
+       Genesis — the seed library. Three modes:
          Library — the home. Browse the Base Seeds set (13 organic +
                    6 procedural primitives) and any user sets; a filter
-                   bar (source / type / density); single-click a seed
-                   for an inline detail card, double-click to fork it
-                   into Create.
-         Create  — the one authoring door: Draw / Import / Generate a
-                   shape, then Save it as a user seed.
+                   bar (sets / source / type); click a seed to open it
+                   in Edit.
+         Create  — new shapes only: Draw / Generate / import an SVG,
+                   then Save it as a user seed.
+         Edit    — opened from a Library tile; parametric seeds edit via
+                   generator sliders, vector seeds via bezier anchors.
        History: merged Aug 27, 2026 from three pages (composer / creator
        / library); Compose and Import-as-a-mode were folded away
        Aug 30, 2026 when Genesis dropped its 55-form motion catalog.
@@ -99,8 +100,8 @@
     /* ─── Form grid (Library) — responsive auto-fill ───────── */
     .form-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(var(--tile-min, 160px), 1fr));
-      gap: var(--tile-gap, 16px);
+      grid-template-columns: repeat(auto-fill, minmax(var(--tile-min, 130px), 1fr));
+      gap: var(--tile-gap, 12px);
       padding: 24px;
       overflow-y: auto; align-content: start; flex: 1;
     }
@@ -338,14 +339,6 @@
             <button class="seg-btn" data-v="variant">Variant</button>
             <button class="seg-btn" data-v="mask">Mask</button>
             <button class="seg-btn" data-v="container">Container</button>
-          </div>
-        </div>
-        <div class="lib-filters__group">
-          <span class="lib-filters__key">Density</span>
-          <div class="seg" data-filter="density">
-            <button class="seg-btn" data-v="cozy">Cozy</button>
-            <button class="seg-btn active" data-v="comfortable">Comfortable</button>
-            <button class="seg-btn" data-v="airy">Airy</button>
           </div>
         </div>
       </div>
@@ -635,7 +628,6 @@
   let state = {
     activeSetId: BUILT_IN_SET_ID,
     filter: { source: 'all', type: 'all' },
-    density: 'comfortable',
     library: null,
   };
 
@@ -673,7 +665,6 @@
   function init() {
     injectDefs();
     loadLibrary();
-    loadDensity();
     renderSetsList();
     buildArtGrid();
     bindTabs();
@@ -756,11 +747,6 @@
     saveLibrary();
   }
 
-  function loadDensity() {
-    const d = localStorage.getItem('organica.library.density');
-    if (d === 'cozy' || d === 'comfortable' || d === 'airy') state.density = d;
-  }
-
   function getSet(setId) { return state.library.sets.find(s => s.id === setId); }
 
   // One organic form, wrapped as a form object. Built-in and read-only.
@@ -822,11 +808,8 @@
   }
 
   // ═══ Library grid ═══════════════════════════════════════
-  function densityVars() {
-    return ({
-      cozy: ['130px', '12px'], comfortable: ['160px', '16px'], airy: ['220px', '28px'],
-    })[state.density] || ['160px', '16px'];
-  }
+  // Fixed "cozy" tile density (the density toggle was removed).
+  const TILE_MIN = '130px', TILE_GAP = '12px';
 
   function filteredForms() {
     const src = state.filter.source, type = state.filter.type;
@@ -841,9 +824,8 @@
 
   function renderGrid() {
     const grid = $('form-grid');
-    const [min, gap] = densityVars();
-    grid.style.setProperty('--tile-min', min);
-    grid.style.setProperty('--tile-gap', gap);
+    grid.style.setProperty('--tile-min', TILE_MIN);
+    grid.style.setProperty('--tile-gap', TILE_GAP);
     grid.innerHTML = '';
 
     const forms = filteredForms();
@@ -959,11 +941,10 @@
   }
 
   function syncFilterUI() {
-    $('form-grid'); // noop guard
     document.querySelectorAll('.lib-filters .seg').forEach(seg => {
       const key = seg.dataset.filter;
       if (key === 'set') return;   // set picker manages its own active state
-      const cur = key === 'density' ? state.density : state.filter[key];
+      const cur = state.filter[key];
       seg.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === cur));
     });
   }
@@ -974,12 +955,7 @@
         const btn = e.target.closest('.seg-btn'); if (!btn) return;
         const key = seg.dataset.filter, v = btn.dataset.v;
         if (key === 'set') return;   // per-button listener calls activateSet
-        if (key === 'density') {
-          state.density = v;
-          localStorage.setItem('organica.library.density', v);
-        } else {
-          state.filter[key] = v;
-        }
+        state.filter[key] = v;
         syncFilterUI();
         renderGrid();
       });
