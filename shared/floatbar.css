@@ -48,6 +48,7 @@
 }
 
 .org-floatbar__btn {
+  position: relative;   /* tooltip anchor — see the :hover::after rule below */
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -66,6 +67,33 @@
 .org-floatbar__btn svg { display: block; flex-shrink: 0; }
 .org-floatbar__btn .ico { width: 16px; height: 16px; }
 .org-floatbar__btn .chev { width: 7px; height: 7px; margin-left: 1px; }
+
+/* Instant styled tooltip for the icon-only buttons — reads the button's
+   own aria-label, so there's one label to maintain and it doubles as the
+   a11y name. Skipped while a button's popover is open (aria-expanded).
+   Native `title` is intentionally NOT used on floatbar buttons — it would
+   collide with this as a slow, unstyled double tip.
+   font-size is pinned to --fs-small (10px, the shared scale) — a bare
+   var() without a token that every tool defines would inherit an
+   inconsistent size per tool. */
+.org-floatbar__btn[aria-label]:not([aria-expanded="true"]):hover::after {
+  content: attr(aria-label);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: var(--fs-small, 10px);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+  z-index: 200;
+}
 
 /* Hover/active read against --track-bg, not --panel — the bar's own
    background IS --panel now, so a --panel hover state would be invisible. */

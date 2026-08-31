@@ -659,8 +659,8 @@ Organica.seedsPanel({
 
     <section class="ds-entry" id="floatbar">
       <h2>Floating toolbar</h2>
-      <p class="ds-desc">Fixed bottom-centre <em>over the canvas</em>, not the browser viewport — offset by half the panel's width so it centres on the visible working area. Content is per-tool (icon buttons in whatever combination that tool needs); the shell, icon sizing and states are shared.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/floatbar.css</span><strong>Used in</strong><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Living Path</span><span>Genesis Creator</span><span>Camo Turing</span><span>Warping</span><span>Loom</span><span>Membrane</span><span>Vortex</span><span>FVS</span><span>TuneSutra</span><span>Mycel</span></div>
+      <p class="ds-desc">Fixed bottom-centre <em>over the canvas</em>, not the browser viewport — offset by half the panel's width so it centres on the visible working area. Content is per-tool (icon buttons in whatever combination that tool needs); the shell, icon sizing, states and hover tooltip are shared.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/floatbar.css</span><strong>Used in</strong><span>Genesis</span><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Living Path</span><span>Camo Turing</span><span>Warping</span><span>Loom</span><span>Radial</span><span>Pulsar</span><span>Membrane</span><span>Vortex</span><span>Mycel</span><span>FVS</span><span>TuneSutra</span><span>Colornet</span><span>Blob Boundary</span><span>Rhizome</span></div>
       <div class="ds-example" style="justify-content:center">
         <div class="org-floatbar" style="position:static;transform:none">
           <button class="org-floatbar__btn" aria-label="Open">
@@ -673,12 +673,14 @@ Organica.seedsPanel({
           </button>
         </div>
       </div>
+      <p class="ds-note" style="text-align:center">hover a button — the tooltip reads its <code>aria-label</code></p>
       <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-floatbar"</span> <span class="attr">role</span>=<span class="str">"toolbar"</span> <span class="attr">aria-label</span>=<span class="str">"Actions"</span>&gt;
   &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-floatbar__btn"</span> <span class="attr">aria-label</span>=<span class="str">"Open"</span>&gt;…svg…&lt;/<span class="tag">button</span>&gt;
   &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-floatbar__sep"</span>&gt;&lt;/<span class="tag">div</span>&gt;
   &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-floatbar__btn org-floatbar__btn--wide"</span> <span class="attr">aria-label</span>=<span class="str">"Export"</span>&gt;…svg…&lt;/<span class="tag">button</span>&gt;
 &lt;/<span class="tag">div</span>&gt;</pre>
-      <p class="ds-note">Centring formula: <code>left: calc(50% - var(--panel-w, var(--panel-width-right, 248px)) / 2)</code> — the nested fallback covers Genesis Creator, which names its panel width variable differently.</p>
+      <p class="ds-note"><strong>Tooltip</strong> — every <code>.org-floatbar__btn</code> shows an instant styled tooltip on hover via <code>::after { content: attr(aria-label) }</code>. One source of truth: the <code>aria-label</code> is both the a11y name and the visible tip. <strong>Do not add a native <code>title</code></strong> — it stacks a second, slow, unstyled tooltip on top. Font is pinned to <code>--fs-small</code> (10px) so it can't inherit a per-tool size; it's suppressed while the button's popover is open (<code>[aria-expanded="true"]</code>).</p>
+      <p class="ds-note">Centring formula: <code>left: calc(50% - var(--panel-w, var(--panel-width-right, 248px)) / 2)</code> — the nested fallback covers Genesis, which names its panel width variable differently.</p>
     </section>
 
     <section class="ds-entry" id="popover">
