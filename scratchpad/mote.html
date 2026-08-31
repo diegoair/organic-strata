@@ -150,6 +150,14 @@
     <div class="row" style="margin-top:8px"><label>FPS</label>
       <select id="sel-fps"><option>24</option><option selected>30</option><option>60</option></select>
     </div>
+    <div class="row"><label>Format</label>
+      <select id="sel-format">
+        <option value="mp4" selected>MP4 · H.264 High (compatible)</option>
+        <option value="webm-vp9">WebM · VP9</option>
+        <option value="av1">WebM · AV1 (smallest, slow)</option>
+      </select>
+    </div>
+    <p class="hint">MP4 = H.264 <b>High</b> profile (not Chrome's weak Baseline default). <b>Use Offline</b> for the real export — it encodes timestamped frames so a 12 s clip is 12 s (real-time capture can't be paced right from a non-realtime loop).</p>
   </div>
 
   <div class="sec" id="sec-b" hidden>
@@ -527,11 +535,11 @@ function paintPoints(g, pts, P, W, H, opt) {
     const sz = ranged(P.sizeMin, P.sizeMax, P.sizeRange, false, p.b, p.rnd) * unit;
     if (!line) {
       g.beginPath();
-      g.arc(p.x * unit, p.y * unit, Math.max(0.1, sz / 2), 0, Math.PI * 2);
+      g.arc(p.x * unit, p.y * unit, Math.max(0.1 * unit, sz / 2), 0, Math.PI * 2);
       g.fill();
       continue;
     }
-    g.lineWidth = Math.max(0.5, sz);
+    g.lineWidth = Math.max(0.5 * unit, sz);   // scale the floor too, or thin marks render relatively thinner in the hi-res export
     g.lineCap = P.strokeRound ? 'round' : 'butt';
     if (angleAt) {                                   // flow: integrate through the frame's field
       const sp = fieldStrokePts(p.x, p.y, P, p.rnd, angleAt);
@@ -779,21 +787,44 @@ function setPPIcon(playing) {
   $('pp-icon').setAttribute('d', playing ? 'M4.5 3.5h3v9h-3zM8.5 3.5h3v9h-3z' : 'M5 3.5 12 8l-7 4.5z');
 }
 
+// Deterministic OFFLINE encode. The old bug: a 12 s clip exported as a
+// ~0.5 s file — canvas.captureStream() can't be sampled correctly from a
+// render loop that isn't running at wall-clock, so every frame got a
+// near-identical timestamp. Fix: feed timestamped VideoFrames through a
+// MediaStreamTrackGenerator → MediaRecorder. The explicit per-frame
+// timestamp is authoritative, so the loop can run at any speed.
 async function renderOffline() {
   const fps = +$('sel-fps').value, dur = clipDuration(), n = Math.ceil(dur * fps);
-  const live = streamy();   // demo or a MediaStream — no seekable timeline, frames come as they come
+  const live = streamy();
   pauseRealtime();
   if (!DEMO && !live) video.loop = false;
   if (live && !DEMO) video.play();
-  setStatus('rendering', 'Offline render — 0/' + n);
-  if (!exportStart(fps)) return;
+  sizeExportCanvas();
+  const mime = fmtCandidates().find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || '';
+  const bitrate = Math.min(90e6, Math.round(exportCanvas.width * exportCanvas.height * fps * bppFor(mime)));
+  const fdUs = Math.round(1e6 / fps);
+  if (typeof MediaStreamTrackGenerator === 'undefined' || typeof VideoFrame === 'undefined') {
+    setStatus('', 'Offline needs MediaStreamTrackGenerator + VideoFrame (Chromium). Use real-time Export.');
+    return;
+  }
+  let gen, writer, mr;
+  try {
+    gen = new MediaStreamTrackGenerator({ kind: 'video' });
+    writer = gen.writable.getWriter();
+    mr = new MediaRecorder(new MediaStream([gen]), mime ? { mimeType: mime, videoBitsPerSecond: bitrate } : { videoBitsPerSecond: bitrate });
+  } catch (e) { setStatus('', 'Offline encoder init failed: ' + e.message); return; }
+  const chunks = [];
+  mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  const stopped = new Promise(res => mr.onstop = res);
+  exporting = true;
+  $('btn-export-video').disabled = true; $('btn-render').disabled = true;
+  mr.start();
   for (let i = 0; i < n; i++) {
     if (DEMO) demoT = i / fps;
     else if (!live) {
       video.currentTime = Math.min(dur - 1e-3, i / fps);
       await new Promise(r => video.addEventListener('seeked', r, { once: true }));
     }
-    // live non-demo: just use whatever frame the stream is showing now
     const t0 = performance.now();
     grabFrame();
     const f = buildField(workW, workH);
@@ -801,22 +832,48 @@ async function renderOffline() {
     lastPaintedPts = pts;
     paintPoints(sctx, pts, pointParams(), stage.width, stage.height, paintOpts());
     paintExport();
+    await writer.write(new VideoFrame(exportCanvas, { timestamp: i * fdUs, duration: fdUs }));
     pushPerf(performance.now() - t0, pts.length);
     $('progress-bar').style.width = Math.round((i + 1) / n * 100) + '%';
-    setStatus('rendering', 'Offline render — ' + (i + 1) + '/' + n + ' · ' + exportCanvas.width + 'px');
-    await new Promise(r => setTimeout(r, 1000 / fps));   // pace so captureStream(fps) samples ~right
+    setStatus('rendering', 'Offline encode — ' + (i + 1) + '/' + n + ' · ' + exportCanvas.width + 'px');
   }
-  exportStop();
+  await writer.close();
+  mr.stop();
+  await stopped;
+  exporting = false;
+  $('btn-export-video').disabled = false; $('btn-render').disabled = false;
   $('progress-bar').style.width = '0%';
+  const total = chunks.reduce((a, b) => a + b.size, 0);
+  if (!total) {
+    setStatus('', 'Encoder produced 0 bytes — this browser has no working MP4/WebM encoder for offline. Try Chrome/Edge, or the real-time Export.');
+    return;
+  }
+  const type = mr.mimeType || mime || 'video/webm';
+  const ext = type.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
+  Organica.download(new Blob(chunks, { type }), Organica.stamp('mote', ext));
+  setStatus('active', 'Saved (offline) — ' + exportCanvas.width + '×' + exportCanvas.height + ' · ' + type.replace('video/', '') + ' · ' + Math.round(bitrate / 1e6) + ' Mbps · ' + (n / fps).toFixed(1) + 's/' + n + 'f · ' + (total / 1e6).toFixed(1) + 'MB');
 }
 
-// ── High-quality export recorder (LOCAL — not Organica.recorder). ──
-// Captures a hi-res exportCanvas at an explicit high bitrate. The visible
-// stage stays at working res for perf; tick() / renderOffline() also paint
-// exportCanvas while `exporting`. Recording ~800px @ MediaRecorder's default
-// ~2.5 Mbps was what made the export mush.
+// ── Real-time export recorder (the "quick" path — captures at wall-clock). ──
+// Codec fix: prefer H.264 *High* profile (avc1.640028) / VP9 / AV1 — Chrome's
+// bare `video/mp4;codecs=avc1` is the weak *Baseline* profile. Plus a hi-res
+// exportCanvas + explicit bitrate (default ~2.5 Mbps at the ~800px stage was
+// the other mush cause). For a deterministic result use Offline (above).
 let exportMR = null, exportChunks = [], exporting = false, exportTimer = 0;
-const EXPORT_MIMES = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+function fmtCandidates() {
+  const f = ($('sel-format') && $('sel-format').value) || 'mp4';
+  if (f === 'webm-vp9') return ['video/webm;codecs=vp9', 'video/webm;codecs=vp09.00.40.08', 'video/webm;codecs=vp8', 'video/webm'];
+  if (f === 'av1') return ['video/webm;codecs=av01.0.08M.08', 'video/webm;codecs=av01', 'video/webm;codecs=vp9', 'video/webm'];
+  return ['video/mp4;codecs=avc1.640028', 'video/mp4;codecs=avc1.4d0028', 'video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9'];
+}
+// bits per pixel per frame. Empirically: MP4/H.264 hits the hint; VP9
+// undershoots ~40% so aim higher; AV1 is very efficient. Stipple is
+// codec-hostile → fat targets.
+function bppFor(mime) {
+  if (mime.indexOf('av01') >= 0) return 0.16;
+  if (mime.indexOf('mp4') >= 0) return 0.38;
+  return 0.45;   // VP9 — hint high to net ~0.25 effective
+}
 function sizeExportCanvas() {
   const sw = video.videoWidth || workW || 960, sh = video.videoHeight || workH || 720;
   const s = Math.min(1, EXPORT_LONG / Math.max(sw, sh));
@@ -828,24 +885,25 @@ function paintExport() {
   paintPoints(exctx, lastPaintedPts, P, exportCanvas.width, exportCanvas.height,
     { unit: exportCanvas.width / workW, bg: P.bg, overpaint: $('ck-overpaint').checked });
 }
+let exportBitrate = 0, exportMime = '';
 function exportStart(fps) {
   sizeExportCanvas();
-  const mime = EXPORT_MIMES.find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } });
-  // stipple = lots of high-freq detail → a fat bitrate. ~0.25 bits/px/frame.
-  const bitrate = Math.min(60e6, Math.round(exportCanvas.width * exportCanvas.height * fps * 0.25));
+  exportMime = fmtCandidates().find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || '';
+  exportBitrate = Math.min(90e6, Math.round(exportCanvas.width * exportCanvas.height * fps * bppFor(exportMime)));
   try {
     const stream = exportCanvas.captureStream(fps);
-    exportMR = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: bitrate } : { videoBitsPerSecond: bitrate });
+    exportMR = new MediaRecorder(stream, exportMime ? { mimeType: exportMime, videoBitsPerSecond: exportBitrate } : { videoBitsPerSecond: exportBitrate });
   } catch (e) { setStatus('', 'Recorder init failed: ' + e.message); return false; }
   exportChunks = [];
   exportMR.ondataavailable = e => { if (e.data && e.data.size) exportChunks.push(e.data); };
   exportMR.onstop = () => {
-    const type = (exportMR && exportMR.mimeType) || mime || 'video/webm';
+    const type = (exportMR && exportMR.mimeType) || exportMime || 'video/webm';
     const ext = type.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
     Organica.download(new Blob(exportChunks, { type }), Organica.stamp('mote', ext));
     exportMR = null; exporting = false;
     $('btn-export-video').textContent = 'Export video';
-    setStatus('active', 'Video saved — ' + exportCanvas.width + '×' + exportCanvas.height + ' · ' + Math.round(bitrate / 1e6) + ' Mbps');
+    setStatus('active', 'Saved — ' + exportCanvas.width + '×' + exportCanvas.height + ' · '
+      + (type.replace('video/', '')) + ' · ' + Math.round(exportBitrate / 1e6) + ' Mbps');
   };
   exporting = true;
   exportMR.start(1000);
