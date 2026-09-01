@@ -23,24 +23,23 @@
     --tool: #2f9e8f;
   }
 
-  /* Shell / panel / floatbar come from the shared sheets. Local = only Mote's
-     own visual content: the dark video stage + the three canvas overlays. */
-  #canvas-wrap { background: #14140f; }              /* video reads right on near-black — tool content, not UI chrome */
-  .org-stage { box-shadow: 0 4px 30px rgba(0,0,0,.4); }
+  /* Shell / panel / floatbar (incl. #canvas-wrap background: var(--panel) and
+     the .org-stage shadow) come from the shared sheets. Local = only the
+     hide-until-a-source-loads rule + Mote's three canvas overlays. */
   .org-stage:not(.visible) { display: none; }
 
   #perf-hud { position: absolute; left: var(--space-3); bottom: var(--space-3);
     font-family: ui-monospace, Menlo, monospace; font-size: var(--fs-small);
-    color: #cfcfc2; background: rgba(0,0,0,.45); padding: 4px 8px;
+    color: var(--paper); background: rgba(10, 10, 10, 0.82); padding: 4px 8px;
     border-radius: var(--radius-md); pointer-events: none; }
-  #perf-hud b { color: #fff; font-weight: var(--w-semibold); }
+  #perf-hud b { color: var(--paper); font-weight: var(--w-semibold); }
   #perf-hud.off { display: none; }
   #progress-bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 0;
     background: var(--accent-warm); transition: width .12s; }
   #note { position: absolute; left: var(--space-3); top: var(--space-3);
-    max-width: 260px; font-size: var(--fs-small); color: #d8c98a;
-    background: rgba(0,0,0,.42); padding: 3px 7px; border-radius: var(--radius-md);
-    display: none; }
+    max-width: 260px; font-size: var(--fs-small); color: var(--accent-warm);
+    background: rgba(10, 10, 10, 0.82); padding: 3px 7px;
+    border-radius: var(--radius-md); display: none; }
 
   details.flow-adv { margin-top: var(--space-2); }
   details.flow-adv > summary { cursor: pointer; color: var(--mid);
