@@ -651,9 +651,10 @@ Honest list of where the tools still disagree:
   (the prototype's near-black stage was dropped Sep 1 as off-system). Source
   (open-file `＋`, webcam, mirror) lives in the floatbar, which also carries a
   small `#perf` readout (`ms / fps / pts`, `var(--font)` tabular). The Export
-  popover has three sub-heads (`.org-popover__title` + divider, the
-  Vortex/Komorebi pattern) — **Still** (PNG / SVG), **Video** (Record / Render),
-  **Sequence** (SVG sequence → `.zip`) — plus FPS / Format / **Size** (HD→8K) /
+  popover has sub-heads (`.org-popover__title` + divider, the Vortex/Komorebi
+  pattern) — **Still** (PNG / SVG), **Video — single** (Record / Render),
+  **Video — batch** (Master + 5 by-ratio social `sz-*` checkboxes + Crop/Fit seg
+  → Export batch, one `.mp4` per size) — plus FPS / Format / **Size** (HD→8K) /
   Length / Output rows. Header carries a **Fullscreen** action → `body.kiosk`
   (hides header/panel/floatbar, canvas on `#000`, Fullscreen API, `k` toggles).
   Local rules: the hide-until-a-source rule, `#perf`, `#progress-bar` / `#note`,

@@ -354,15 +354,19 @@ Production-ready exports for every medium.
 
 - [ ] **Print** — high-res PDF, CMYK-ready
 - [ ] **Mural schema** — tiled large-format output with registration marks
-- [~] **Web / vector sequence** — Mote (Sep 1, 2026) ships the first cut: a
-  single resolution-independent SVG *and* an SVG **frame sequence**
-  (`.svgz`-per-frame in a `.zip` via `shared/zip.js`, + a `sequence.json`
-  manifest) for compositor ingest at any panel/mural size. Still open: a single
+- [~] **Web / vector** — Mote (Sep 1, 2026) exports a single
+  resolution-independent **SVG** frame (poster / print). An SVG *frame sequence*
+  was tried and removed same-day — 17 MB per frame at real stipple density, a
+  382 MB zip for 3 s, hangs renderers; SVG-per-frame doesn't scale. Still open:
   animated `.svg` (SMIL) for sparse scenes; CSS-keyframe exports; other tools.
 - [~] **Installation** — Mote has a **kiosk / fullscreen** mode (chrome hidden,
   canvas on black, auto-play) for live interactive installs, plus 4K/8K raster
   Render. Still open: a systematic loop-output story across the generative tools.
-- [ ] **Social** — sized presets (Instagram, poster formats)
+- [~] **Social** — sized presets: Mote (Sep 1, 2026) has a **batch multi-size
+  video** export — Master (source aspect · up to 8K) + 5 by-ratio presets
+  (Square 1:1, Vertical 9:16, Portrait 4:5, Landscape 16:9, Widescreen 3:2),
+  Crop or Fit, one finished `.mp4` per ticked size. Still open: the same for the
+  still tools; poster/print format presets.
 
 ---
 

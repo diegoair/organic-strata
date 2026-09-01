@@ -293,18 +293,29 @@
       </div>
       <p class="org-popover__hint">SVG is pure vector — the stipple is circles &amp; paths, so it rasterises crisp at any mural / display size.</p>
       <div class="org-popover__divider"></div>
-      <div class="org-popover__title">Video</div>
+      <div class="org-popover__title">Video — single</div>
       <div class="org-formats">
         <button class="org-btn" id="btn-rec" onclick="toggleRecord()">Record</button>
-        <button class="org-btn" onclick="renderSequence('video')">Render</button>
+        <button class="org-btn" onclick="renderSmooth()">Render</button>
       </div>
-      <p class="org-popover__hint">Record = wall-clock capture, quickest. Render = frame-accurate encode (a 12&nbsp;s clip is a 12&nbsp;s file). 4K+ is heavy &amp; codec-lossy on stipple — for masters use the SVG sequence.</p>
+      <p class="org-popover__hint">Record = wall-clock capture, quickest. Render = frame-accurate (a 12&nbsp;s clip is a 12&nbsp;s file), at the source aspect &amp; the <b>Size</b> below.</p>
       <div class="org-popover__divider"></div>
-      <div class="org-popover__title">Sequence</div>
-      <div class="org-formats">
-        <button class="org-btn" onclick="renderSequence('svg')">SVG sequence &rarr; .zip</button>
+      <div class="org-popover__title">Video — batch</div>
+      <label class="check-row"><input type="checkbox" id="sz-master" checked><span>Master · source aspect · Size</span></label>
+      <label class="check-row"><input type="checkbox" id="sz-1x1"><span>Square 1:1 · 1080</span></label>
+      <label class="check-row"><input type="checkbox" id="sz-9x16"><span>Vertical 9:16 · 1080×1920</span></label>
+      <label class="check-row"><input type="checkbox" id="sz-4x5"><span>Portrait 4:5 · 1080×1350</span></label>
+      <label class="check-row"><input type="checkbox" id="sz-16x9"><span>Landscape 16:9 · 1920×1080</span></label>
+      <label class="check-row"><input type="checkbox" id="sz-3x2"><span>Widescreen 3:2 · 1620×1080</span></label>
+      <div class="org-popover__row">
+        <span class="org-popover__label">Frame</span>
+        <div class="seg-ctrl" id="seg-fit">
+          <button class="seg-btn active" data-v="crop" onclick="setFit('crop')">Crop</button>
+          <button class="seg-btn" data-v="fit" onclick="setFit('fit')">Fit</button>
+        </div>
       </div>
-      <p class="org-popover__hint">One <code>.svgz</code> per frame in a <code>.zip</code> — import as an image sequence in After Effects / Resolve / Nuke and render at the exact panel size. Fixed grid / Flowing give the most coherent, smallest sequences.</p>
+      <div class="org-formats"><button class="org-btn" onclick="renderBatch()">Export batch</button></div>
+      <p class="org-popover__hint">One finished <code>.mp4</code> per ticked size — each is its own render (centre-crop of the source, re-stippled for that frame). Crop fills; Fit letterboxes on the Paper colour.</p>
       <div class="org-popover__divider"></div>
       <div class="org-popover__row">
         <label class="org-popover__label" for="sel-fps">FPS</label>
@@ -351,7 +362,6 @@
 <script src="/shared/palette.js"></script>
 <script src="/shared/recorder.js"></script>
 <script src="/shared/pollen-engine.js"></script>
-<script src="/shared/zip.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════
 // MOTE — video / webcam → stipple. Promoted from scratchpad/mote.html
@@ -452,6 +462,8 @@ function paintPoints(g, pts, P, W, H, opt) {
   g.imageSmoothingEnabled = true;
   g.globalCompositeOperation = 'source-over';
   g.fillStyle = opt.bg; g.fillRect(0, 0, W, H);
+  g.save();
+  if (opt.offX || opt.offY) g.translate(opt.offX || 0, opt.offY || 0);   // Fit letterbox offset
   if (opt.overpaint) g.globalCompositeOperation = 'multiply';
   g.lineJoin = 'round';
   const line = P.shape === 'line';
@@ -486,18 +498,28 @@ function paintPoints(g, pts, P, W, H, opt) {
       g.restore();
     }
   }
+  g.restore();
 }
 
 // ── FRAME SOURCE ──────────────────────────────────────────────
-function grabFrame() {
-  if (mirrorOn) {   // flip horizontally so the webcam behaves like a real mirror
-    fctx.save();
-    fctx.translate(workW, 0); fctx.scale(-1, 1);
-    fctx.drawImage(video, 0, 0, workW, workH);
-    fctx.restore();
-    return;
-  }
-  fctx.drawImage(video, 0, 0, workW, workH);
+// crop = { sx, sy, sw, sh } source-rect (default = whole video). mirror flips
+// the destination. Draws into frameCanvas at the current workW×workH.
+function grabFrame(crop) {
+  const c = crop || { sx: 0, sy: 0, sw: video.videoWidth || workW, sh: video.videoHeight || workH };
+  fctx.save();
+  if (mirrorOn) { fctx.translate(workW, 0); fctx.scale(-1, 1); }
+  fctx.drawImage(video, c.sx, c.sy, c.sw, c.sh, 0, 0, workW, workH);
+  fctx.restore();
+}
+// Centre-crop rect of the source video for a target aspect (or the whole frame
+// when `fit`, letterboxed at paint time).
+function cropFor(outW, outH, fit) {
+  const sw = video.videoWidth || 960, sh = video.videoHeight || 720;
+  if (fit) return { sx: 0, sy: 0, sw, sh };
+  const ta = outW / outH, sa = sw / sh;
+  if (sa > ta) { const cw = Math.round(sh * ta); return { sx: Math.round((sw - cw) / 2), sy: 0, sw: cw, sh }; }
+  const ch = Math.round(sw / ta);
+  return { sx: 0, sy: Math.round((sh - ch) / 2), sw, sh: ch };
 }
 function liveSource() { return source === 'webcam' || !isFinite(video.duration); }
 function clipDuration() {
@@ -785,11 +807,6 @@ function exportFrameSVG() {
   Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('mote', 'svg'));
   setStatus('active', 'SVG frame — ' + workW + '×' + workH + ' · ' + Math.round(svg.length / 1024) + ' KB');
 }
-async function gzipBytes(str) {
-  const cs = new CompressionStream('gzip');
-  const w = cs.writable.getWriter(); w.write(new TextEncoder().encode(str)); w.close();
-  return new Uint8Array(await new Response(cs.readable).arrayBuffer());
-}
 
 // Real-time recorder — the shared Organica.recorder, captured off the hi-res
 // exportCanvas with an explicit H.264-High bitrate (stipple is codec-hostile).
@@ -820,93 +837,127 @@ function toggleRecord() {
   moteRecorder.start();
 }
 
-// Frame-accurate OFFLINE encode — MediaStreamTrackGenerator + timestamped
-// VideoFrames. The only non-realtime encoder in the repo; would only become a
-// shared helper if a second video tool ever needs one.
-// Offline, frame-accurate. kind 'video' = MediaStreamTrackGenerator + timestamped
-// VideoFrames (the only non-realtime encoder in the repo). kind 'svg' = one
-// gzipped SVG per frame in a store-only .zip (resolution-independent master).
+// ── COMPOSITED VIDEO EXPORT — master + social sizes ──────────────
+// Frame-accurate offline encode (MediaStreamTrackGenerator + timestamped
+// VideoFrame — the only non-realtime encoder in the repo). Each requested size
+// is a full independent pass: its own centre-crop of the source, its own stipple
+// layout, its own MediaRecorder → one finished .mp4/.webm. No assembly step.
+const MOTE_SOCIAL = { '1x1': [1080, 1080], '9x16': [1080, 1920], '4x5': [1080, 1350], '16x9': [1920, 1080], '3x2': [1620, 1080] };
+function fitMode() { return $('seg-fit').querySelector('.seg-btn.active').dataset.v === 'fit'; }
+function setFit(v) { $('seg-fit').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v)); }
+function masterJob() {
+  const sw = video.videoWidth || workW || 960, sh = video.videoHeight || workH || 720;
+  const long = Math.min(EXPORT_HARD, +$('sel-size').value || EXPORT_BASE);
+  const s = long / Math.max(sw, sh);
+  return { label: 'master', outW: Math.max(2, Math.round(sw * s)), outH: Math.max(2, Math.round(sh * s)), fit: fitMode() };
+}
+function collectJobs() {
+  const jobs = [];
+  if ($('sz-master').checked) jobs.push(masterJob());
+  for (const k of Object.keys(MOTE_SOCIAL)) {
+    if ($('sz-' + k).checked) jobs.push({ label: k, outW: MOTE_SOCIAL[k][0], outH: MOTE_SOCIAL[k][1], fit: fitMode() });
+  }
+  return jobs;
+}
+function renderSmooth() { return renderJobs([masterJob()]); }   // the "Render" button
+function renderBatch() { return renderJobs(collectJobs()); }    // the "Export batch" button
+
 let seqBusy = false;
-async function renderSequence(kind) {
-  if (!workW || seqBusy) return;
-  const svgMode = kind === 'svg';
-  if (!svgMode && (typeof MediaStreamTrackGenerator === 'undefined' || typeof VideoFrame === 'undefined')) {
+async function renderJobs(jobs) {
+  if (!workW || seqBusy || !jobs.length) { if (!jobs.length) setStatus('', 'Tick at least one size'); return; }
+  if (typeof MediaStreamTrackGenerator === 'undefined' || typeof VideoFrame === 'undefined') {
     setStatus('', 'Render needs MediaStreamTrackGenerator + VideoFrame (Chromium). Use Record instead.'); return;
   }
-  if (svgMode && typeof CompressionStream === 'undefined') {
-    setStatus('', 'SVG sequence needs CompressionStream (Chrome / Firefox / Safari 16.4+).'); return;
-  }
   seqBusy = true;
-  const fps = +$('sel-fps').value, dur = clipDuration(), n = Math.ceil(dur * fps);
-  const live = liveSource();
+  const fps = +$('sel-fps').value, dur = clipDuration(), n = Math.ceil(dur * fps), fdUs = Math.round(1e6 / fps);
+  const live = liveSource(), detail = val('sl-detail') || 950;
+  const mime = fmtCandidates().find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || '';
   pauseRealtime();
   if (source === 'file' && !live) video.loop = false;
   if (live) { const p = video.play(); if (p && p.catch) p.catch(() => {}); }
 
-  let mime, bitrate, fdUs, gen, writer, mr, chunks, stopped, zip;
-  if (svgMode) {
-    zip = Organica.zip();
-  } else {
-    sizeExportCanvas();
-    mime = fmtCandidates().find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || '';
-    bitrate = Math.min(240e6, Math.round(exportCanvas.width * exportCanvas.height * fps * bppFor(mime)));
-    fdUs = Math.round(1e6 / fps);
+  // jobs hijack the module render globals; snapshot to restore afterwards
+  const snap = { workW, workH, fcW: frameCanvas.width, fcH: frameCanvas.height,
+                 basePoints, points, targetCount, curField, lastPaintedPts };
+  const P0 = pointParams();
+  let ok = 0;
+
+  for (let j = 0; j < jobs.length; j++) {
+    const job = jobs[j];
+    const srcA = (video.videoWidth || 960) / (video.videoHeight || 720);
+    const jobA = job.outW / job.outH;
+    const fieldA = job.fit ? srcA : jobA;                 // fit shows the whole frame; crop centre-crops
+    let wrkW, wrkH;
+    if (fieldA >= 1) { wrkW = Math.min(job.outW, detail) | 0; wrkH = Math.max(1, Math.round(wrkW / fieldA)); }
+    else { wrkH = Math.min(job.outH, detail) | 0; wrkW = Math.max(1, Math.round(wrkH * fieldA)); }
+    let unit, offX = 0, offY = 0;
+    if (job.fit) {
+      const fs = Math.min(job.outW / wrkW, job.outH / wrkH);
+      unit = fs; offX = Math.round((job.outW - wrkW * fs) / 2); offY = Math.round((job.outH - wrkH * fs) / 2);
+    } else { unit = job.outW / wrkW; }
+    const crop = job.fit ? cropFor(0, 0, true) : cropFor(job.outW, job.outH, false);
+
+    workW = wrkW; workH = wrkH;
+    frameCanvas.width = wrkW; frameCanvas.height = wrkH;
+    const jo = document.createElement('canvas'); jo.width = job.outW; jo.height = job.outH;
+    const joc = jo.getContext('2d');
+    const bitrate = Math.min(240e6, Math.round(job.outW * job.outH * fps * bppFor(mime)));
+
+    let gen, writer, mr;
     try {
       gen = new MediaStreamTrackGenerator({ kind: 'video' });
       writer = gen.writable.getWriter();
       mr = new MediaRecorder(new MediaStream([gen]), mime ? { mimeType: mime, videoBitsPerSecond: bitrate } : { videoBitsPerSecond: bitrate });
-    } catch (e) { setStatus('', 'Encoder init failed: ' + e.message); seqBusy = false; return; }
-    chunks = [];
+    } catch (e) { setStatus('', 'Encoder init failed (' + job.label + '): ' + e.message); break; }
+    const chunks = [];
     mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
-    stopped = new Promise(res => mr.onstop = res);
+    const stopped = new Promise(res => mr.onstop = res);
     mr.start();
-  }
 
-  let seqBytes = 0;
-  for (let i = 0; i < n; i++) {
-    if (!live) {
-      video.currentTime = Math.min(dur - 1e-3, i / fps);
-      await new Promise(r => video.addEventListener('seeked', r, { once: true }));
+    // seed the coherence state for this job from frame 0
+    if (!live) { video.currentTime = 0; await new Promise(r => video.addEventListener('seeked', r, { once: true })); }
+    grabFrame(crop);
+    let f = buildField(wrkW, wrkH);
+    const seed = await E.computePoints(cpOpts(f));
+    basePoints = seed.map(p => ({ x: p.x, y: p.y, rnd: p.rnd }));
+    points = seed; lastC = seed; targetCount = seed.length;
+
+    for (let i = 0; i < n; i++) {
+      if (!live) {
+        video.currentTime = Math.min(dur - 1e-3, i / fps);
+        await new Promise(r => video.addEventListener('seeked', r, { once: true }));
+      }
+      grabFrame(crop);
+      f = buildField(wrkW, wrkH);
+      const pts = await stepFrameAsync(f);
+      lastPaintedPts = pts;
+      paintPoints(joc, pts, P0, job.outW, job.outH, { unit, bg: P0.bg, overpaint: $('ck-overpaint').checked, offX, offY });
+      await writer.write(new VideoFrame(jo, { timestamp: i * fdUs, duration: fdUs }));
+      $('progress-bar').style.width = Math.round((i + 1) / n * 100) + '%';
+      setStatus('rendering', 'Batch ' + (j + 1) + '/' + jobs.length + ' — ' + job.label + ' · ' + (i + 1) + '/' + n + ' · ' + job.outW + '×' + job.outH);
     }
-    grabFrame();
-    const f = buildField(workW, workH);
-    const pts = await stepFrameAsync(f);
-    lastPaintedPts = pts;
-    paintPoints(sctx, pts, pointParams(), stage.width, stage.height, paintOpts());
-    if (svgMode) {
-      const gz = await gzipBytes(buildMoteSVG(pts, pointParams(), workW, workH));
-      zip.add('frames/frame-' + String(i + 1).padStart(5, '0') + '.svgz', gz);
-      seqBytes += gz.length;
-      setStatus('rendering', 'SVG frame ' + (i + 1) + '/' + n + ' · ' + (seqBytes / 1e6).toFixed(1) + ' MB');
+    await writer.close(); mr.stop(); await stopped;
+    const total = chunks.reduce((a, b) => a + b.size, 0);
+    if (total) {
+      const type = mr.mimeType || mime || 'video/webm';
+      const ext = type.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
+      Organica.download(new Blob(chunks, { type }), Organica.stamp('mote-' + job.label, ext));
+      ok++;
     } else {
-      paintExport();
-      await writer.write(new VideoFrame(exportCanvas, { timestamp: i * fdUs, duration: fdUs }));
-      setStatus('rendering', 'Render — ' + (i + 1) + '/' + n + ' · ' + exportCanvas.width + 'px');
+      setStatus('', 'Job "' + job.label + '" produced 0 bytes — no working offline encoder in this browser.');
     }
-    $('progress-bar').style.width = Math.round((i + 1) / n * 100) + '%';
   }
-  $('progress-bar').style.width = '0%';
-  seqBusy = false;
 
-  if (svgMode) {
-    zip.add('sequence.json', new TextEncoder().encode(JSON.stringify({
-      tool: 'Mote', frames: n, fps, w: workW, h: workH, coherence: mode, source,
-      exportedAt: new Date().toISOString(),
-    }, null, 2)));
-    const blob = zip.blob();
-    Organica.download(blob, Organica.stamp('mote-seq', 'zip'));
-    setStatus('active', 'SVG sequence — ' + n + ' frames · ' + workW + '×' + workH + ' · ' + (blob.size / 1e6).toFixed(1) + ' MB zip');
-    return;
-  }
-  await writer.close();
-  mr.stop();
-  await stopped;
-  const total = chunks.reduce((a, b) => a + b.size, 0);
-  if (!total) { setStatus('', 'Encoder produced 0 bytes — this browser has no working offline encoder. Try Record.'); return; }
-  const type = mr.mimeType || mime || 'video/webm';
-  const ext = type.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
-  Organica.download(new Blob(chunks, { type }), Organica.stamp('mote', ext));
-  setStatus('active', 'Saved — ' + exportCanvas.width + '×' + exportCanvas.height + ' · ' + type.replace('video/', '') + ' · ' + (n / fps).toFixed(1) + 's/' + n + 'f · ' + (total / 1e6).toFixed(1) + 'MB');
+  // restore the live render state + repaint
+  $('progress-bar').style.width = '0%';
+  workW = snap.workW; workH = snap.workH;
+  frameCanvas.width = snap.fcW; frameCanvas.height = snap.fcH;
+  basePoints = snap.basePoints; points = snap.points; targetCount = snap.targetCount;
+  curField = snap.curField; lastPaintedPts = snap.lastPaintedPts;
+  if (workW) { grabFrame(); const f2 = buildField(workW, workH);
+    paintPoints(sctx, (mode === 'A' && basePoints) ? stepA(f2) : (points.length ? points : []), pointParams(), stage.width, stage.height, paintOpts()); }
+  seqBusy = false;
+  setStatus('active', ok + ' / ' + jobs.length + ' size' + (jobs.length > 1 ? 's' : '') + ' exported');
 }
 
 // ── SOURCE PIPELINE ───────────────────────────────────────────
