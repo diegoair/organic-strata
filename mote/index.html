@@ -66,8 +66,8 @@
 <div id="app">
   <div id="canvas-wrap">
     <div id="drop-hint">
-      <div class="drop-icon">+</div>
-      <p>Drop a video here<br>or pick a source in the panel</p>
+      <div class="drop-icon" role="button" tabindex="0" aria-label="Choose a video file">+</div>
+      <p>Drop a video here, or click +<br>Webcam &amp; Demo are in the panel</p>
     </div>
     <canvas id="stage" class="org-stage"></canvas>
     <div id="note"></div>
@@ -1066,6 +1066,8 @@ rmxChips = Organica.palette.swatch($('rmx-palette'), {
 // ── GENERAL WIRING ────────────────────────────────────────────
 $('btn-play').onclick = () => { running ? pauseRealtime() : startRealtime(); };
 $('btn-stop').onclick = stopAll;
+document.querySelector('.drop-icon').addEventListener('click', e => { e.stopPropagation(); $('file-input').click(); });
+document.querySelector('.drop-icon').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file-input').click(); } });
 $('canvas-wrap').addEventListener('dragover', e => e.preventDefault());
 $('canvas-wrap').addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) loadVideo(f); });
 
