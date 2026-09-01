@@ -71,6 +71,17 @@
   .preset-opt img { width: 60px; height: 40px; flex-shrink: 0; border-radius: var(--radius-sm);
     border: 1px solid var(--border); background: var(--panel); object-fit: cover; }
 
+  /* Kiosk / fullscreen — for live interactive installs. */
+  body.kiosk .org-header, body.kiosk #panel, body.kiosk .org-floatbar,
+  body.kiosk #zoom-hud, body.kiosk #note, body.kiosk #progress-bar { display: none; }
+  body.kiosk #canvas-wrap { padding: 0; background: #000; }
+  body.kiosk .org-stage { max-width: 100vw; max-height: 100vh; box-shadow: none; }
+  #kiosk-hint { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%);
+    font-size: var(--fs-small); color: var(--paper); background: rgba(10,10,10,0.7);
+    padding: 4px 12px; border-radius: var(--radius-md); pointer-events: none;
+    opacity: 0; transition: opacity .4s; z-index: 60; }
+  body.kiosk #kiosk-hint.show { opacity: 1; }
+
   [hidden] { display: none !important; }   /* flex/grid rows override bare `hidden` */
 </style>
 </head>
@@ -83,10 +94,14 @@
     <span class="org-header__dot" id="status-dot"></span>
     <span class="org-header__state" id="status-text">Open a video or start the webcam</span>
   </output>
+  <div class="org-header__actions">
+    <button class="org-btn" id="btn-kiosk" onclick="toggleKiosk()">Fullscreen</button>
+  </div>
 </header>
 
 <div id="app">
   <div id="canvas-wrap">
+    <div id="kiosk-hint">k or Esc to exit</div>
     <div id="drop-hint">
       <div class="drop-icon" role="button" tabindex="0" aria-label="Open a video file">+</div>
       <p>Drop a video here, click&nbsp;+,<br>or start the webcam below</p>
@@ -271,13 +286,25 @@
       <svg class="chev" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
     <div class="org-popover" id="export-popover" aria-label="Export options">
-      <div class="org-popover__title">Export</div>
+      <div class="org-popover__title">Still</div>
       <div class="org-formats">
-        <button class="org-btn" onclick="exportFrame()">PNG frame</button>
-        <button class="org-btn" id="btn-rec" onclick="toggleRecord()">Record</button>
-        <button class="org-btn" onclick="renderSmooth()">Render</button>
+        <button class="org-btn" onclick="exportFrame()">PNG</button>
+        <button class="org-btn" onclick="exportFrameSVG()">SVG</button>
       </div>
-      <p class="org-popover__hint">Record = wall-clock capture, quickest. Render = frame-accurate encode, smooth (a 12&nbsp;s clip is a 12&nbsp;s file). Both write to a 1920&nbsp;px canvas.</p>
+      <p class="org-popover__hint">SVG is pure vector — the stipple is circles &amp; paths, so it rasterises crisp at any mural / display size.</p>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__title">Video</div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-rec" onclick="toggleRecord()">Record</button>
+        <button class="org-btn" onclick="renderSequence('video')">Render</button>
+      </div>
+      <p class="org-popover__hint">Record = wall-clock capture, quickest. Render = frame-accurate encode (a 12&nbsp;s clip is a 12&nbsp;s file). 4K+ is heavy &amp; codec-lossy on stipple — for masters use the SVG sequence.</p>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__title">Sequence</div>
+      <div class="org-formats">
+        <button class="org-btn" onclick="renderSequence('svg')">SVG sequence &rarr; .zip</button>
+      </div>
+      <p class="org-popover__hint">One <code>.svgz</code> per frame in a <code>.zip</code> — import as an image sequence in After Effects / Resolve / Nuke and render at the exact panel size. Fixed grid / Flowing give the most coherent, smallest sequences.</p>
       <div class="org-popover__divider"></div>
       <div class="org-popover__row">
         <label class="org-popover__label" for="sel-fps">FPS</label>
@@ -289,6 +316,16 @@
           <option value="mp4" selected>MP4 · H.264</option>
           <option value="webm-vp9">WebM · VP9</option>
           <option value="av1">WebM · AV1</option>
+        </select>
+      </div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-size">Size</label>
+        <select class="org-select" id="sel-size">
+          <option value="1920" selected>1920 · HD</option>
+          <option value="2560">2560 · QHD</option>
+          <option value="3840">3840 · 4K</option>
+          <option value="5120">5120 · 5K</option>
+          <option value="7680">7680 · 8K</option>
         </select>
       </div>
       <div class="org-popover__row" id="row-length" hidden>
@@ -314,6 +351,7 @@
 <script src="/shared/palette.js"></script>
 <script src="/shared/recorder.js"></script>
 <script src="/shared/pollen-engine.js"></script>
+<script src="/shared/zip.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════
 // MOTE — video / webcam → stipple. Promoted from scratchpad/mote.html
@@ -333,7 +371,7 @@ const video = $('src');
 const stage = $('stage'), sctx = stage.getContext('2d');
 const frameCanvas = document.createElement('canvas');
 const fctx = frameCanvas.getContext('2d', { willReadFrequently: true });
-const EXPORT_LONG = 1920;
+const EXPORT_BASE = 1920, EXPORT_HARD = 7680;   // raster long-side: default / 8K ceiling
 const exportCanvas = document.createElement('canvas');
 const exctx = exportCanvas.getContext('2d');
 
@@ -626,7 +664,9 @@ function scheduleTick() {
 function startRealtime() {
   if (!workW) return;
   running = true;
-  video.loop = true; video.play();
+  video.loop = true;
+  const p = video.play();
+  if (p && p.catch) p.catch(() => {});   // benign "interrupted / autoplay" rejection
   scheduleTick();
   setPPIcon(true);
 }
@@ -673,7 +713,8 @@ function bppFor(mime) {
 }
 function sizeExportCanvas() {
   const sw = video.videoWidth || workW || 960, sh = video.videoHeight || workH || 720;
-  const s = Math.min(1, EXPORT_LONG / Math.max(sw, sh));
+  const target = Math.min(EXPORT_HARD, +$('sel-size').value || EXPORT_BASE);
+  const s = target / Math.max(sw, sh);   // upscale allowed — the stipple geometry re-renders crisp
   exportCanvas.width = Math.max(2, Math.round(sw * s));
   exportCanvas.height = Math.max(2, Math.round(sh * s));
 }
@@ -697,6 +738,59 @@ function exportFrame() {
   }, 'image/png');
 }
 
+// ── VECTOR SVG ────────────────────────────────────────────────
+// Byte-faithful mirror of paintPoints() so the SVG is WYSIWYG. viewBox is the
+// working res at unit 1 (like Pollen's buildSVG); the consumer scales freely.
+function buildMoteSVG(pts, P, W, H) {
+  const line = P.shape === 'line';
+  const perPoint = P.colorMode !== 'solid';
+  const angleAt = (line && P.angleFlow) ? E.makeFieldAngle(P, sampleLuma) : null;
+  const cap = P.strokeRound ? 'round' : 'butt';
+  let solidCol = null, solidA = P.alpha;
+  if (!perPoint) { const c = E.pointRGBA(P, 0, 0, null, curField); solidCol = `rgb(${c.r},${c.g},${c.b})`; }
+  let body = '', marks = 0;
+  for (const p of pts) {
+    if (E.dropoutSkip(P, p.b, p.rnd)) continue;
+    let col = solidCol, a = solidA;
+    if (perPoint) { const c = E.pointRGBA(P, p.b, p.rnd, p, curField); col = `rgb(${c.r},${c.g},${c.b})`; a = c.a; }
+    const sz = E.ranged(P.sizeMin, P.sizeMax, P.sizeRange, false, p.b, p.rnd);
+    if (!line) {
+      const o = a < 1 ? ` fill-opacity="${a.toFixed(3)}"` : '';
+      body += `<circle cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${Math.max(0.1, sz / 2).toFixed(2)}" fill="${col}"${o}/>`;
+    } else {
+      const so = a < 1 ? ` stroke-opacity="${a.toFixed(3)}"` : '';
+      const sw = Math.max(0.5, sz).toFixed(2);
+      if (angleAt) {
+        const d = E.smoothOpenPathD(E.fieldStrokePts(p.x, p.y, P, p.rnd, angleAt));
+        body += `<path d="${d}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="${cap}" stroke-linejoin="round"${so}/>`;
+      } else {
+        const d = E.smoothOpenPathD(E.strokeCenterline(P.strokeLen, P.strokeSeg, P.strokeWarp, p.rnd));
+        const deg = (E.pointAngle(P, p) * 180 / Math.PI).toFixed(2);
+        body += `<g transform="translate(${p.x.toFixed(2)} ${p.y.toFixed(2)}) rotate(${deg})"><path d="${d}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="${cap}" stroke-linejoin="round"${so}/></g>`;
+      }
+    }
+    marks++;
+  }
+  const over = $('ck-overpaint').checked;
+  const meta = JSON.stringify({ tool: 'Mote', coherence: mode, marks, w: W, h: H, exportedAt: new Date().toISOString() });
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`
+    + `<metadata>${meta}</metadata>`
+    + `<rect width="${W}" height="${H}" fill="${P.bg}"/>`
+    + (over ? '<g style="mix-blend-mode:multiply">' : '') + body + (over ? '</g>' : '')
+    + `</svg>`;
+}
+function exportFrameSVG() {
+  if (!workW || !lastPaintedPts.length) { setStatus('', 'Nothing to export yet'); return; }
+  const svg = buildMoteSVG(lastPaintedPts, pointParams(), workW, workH);
+  Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('mote', 'svg'));
+  setStatus('active', 'SVG frame — ' + workW + '×' + workH + ' · ' + Math.round(svg.length / 1024) + ' KB');
+}
+async function gzipBytes(str) {
+  const cs = new CompressionStream('gzip');
+  const w = cs.writable.getWriter(); w.write(new TextEncoder().encode(str)); w.close();
+  return new Uint8Array(await new Response(cs.readable).arrayBuffer());
+}
+
 // Real-time recorder — the shared Organica.recorder, captured off the hi-res
 // exportCanvas with an explicit H.264-High bitrate (stipple is codec-hostile).
 const moteRecorder = Organica.recorder({
@@ -708,7 +802,7 @@ const moteRecorder = Organica.recorder({
   mimeCandidates: fmtCandidates(),
   bitrate: () => {
     const mime = fmtCandidates().find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || 'video/mp4';
-    return Math.min(90e6, Math.round(exportCanvas.width * exportCanvas.height * (+$('sel-fps').value) * bppFor(mime)));
+    return Math.min(240e6, Math.round(exportCanvas.width * exportCanvas.height * (+$('sel-fps').value) * bppFor(mime)));
   },
   onStart: () => { recording = true; if (source === 'file' && isFinite(video.duration)) video.currentTime = 0; startRealtime(); },
   onStateChange: isRec => {
@@ -729,33 +823,46 @@ function toggleRecord() {
 // Frame-accurate OFFLINE encode — MediaStreamTrackGenerator + timestamped
 // VideoFrames. The only non-realtime encoder in the repo; would only become a
 // shared helper if a second video tool ever needs one.
-let smoothBusy = false;
-async function renderSmooth() {
-  if (!workW || smoothBusy) return;
-  if (typeof MediaStreamTrackGenerator === 'undefined' || typeof VideoFrame === 'undefined') {
-    setStatus('', 'Render needs MediaStreamTrackGenerator + VideoFrame (Chromium). Use Record instead.');
-    return;
+// Offline, frame-accurate. kind 'video' = MediaStreamTrackGenerator + timestamped
+// VideoFrames (the only non-realtime encoder in the repo). kind 'svg' = one
+// gzipped SVG per frame in a store-only .zip (resolution-independent master).
+let seqBusy = false;
+async function renderSequence(kind) {
+  if (!workW || seqBusy) return;
+  const svgMode = kind === 'svg';
+  if (!svgMode && (typeof MediaStreamTrackGenerator === 'undefined' || typeof VideoFrame === 'undefined')) {
+    setStatus('', 'Render needs MediaStreamTrackGenerator + VideoFrame (Chromium). Use Record instead.'); return;
   }
-  smoothBusy = true;
+  if (svgMode && typeof CompressionStream === 'undefined') {
+    setStatus('', 'SVG sequence needs CompressionStream (Chrome / Firefox / Safari 16.4+).'); return;
+  }
+  seqBusy = true;
   const fps = +$('sel-fps').value, dur = clipDuration(), n = Math.ceil(dur * fps);
   const live = liveSource();
   pauseRealtime();
   if (source === 'file' && !live) video.loop = false;
-  if (live) video.play();
-  sizeExportCanvas();
-  const mime = fmtCandidates().find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || '';
-  const bitrate = Math.min(90e6, Math.round(exportCanvas.width * exportCanvas.height * fps * bppFor(mime)));
-  const fdUs = Math.round(1e6 / fps);
-  let gen, writer, mr;
-  try {
-    gen = new MediaStreamTrackGenerator({ kind: 'video' });
-    writer = gen.writable.getWriter();
-    mr = new MediaRecorder(new MediaStream([gen]), mime ? { mimeType: mime, videoBitsPerSecond: bitrate } : { videoBitsPerSecond: bitrate });
-  } catch (e) { setStatus('', 'Encoder init failed: ' + e.message); smoothBusy = false; return; }
-  const chunks = [];
-  mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
-  const stopped = new Promise(res => mr.onstop = res);
-  mr.start();
+  if (live) { const p = video.play(); if (p && p.catch) p.catch(() => {}); }
+
+  let mime, bitrate, fdUs, gen, writer, mr, chunks, stopped, zip;
+  if (svgMode) {
+    zip = Organica.zip();
+  } else {
+    sizeExportCanvas();
+    mime = fmtCandidates().find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || '';
+    bitrate = Math.min(240e6, Math.round(exportCanvas.width * exportCanvas.height * fps * bppFor(mime)));
+    fdUs = Math.round(1e6 / fps);
+    try {
+      gen = new MediaStreamTrackGenerator({ kind: 'video' });
+      writer = gen.writable.getWriter();
+      mr = new MediaRecorder(new MediaStream([gen]), mime ? { mimeType: mime, videoBitsPerSecond: bitrate } : { videoBitsPerSecond: bitrate });
+    } catch (e) { setStatus('', 'Encoder init failed: ' + e.message); seqBusy = false; return; }
+    chunks = [];
+    mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    stopped = new Promise(res => mr.onstop = res);
+    mr.start();
+  }
+
+  let seqBytes = 0;
   for (let i = 0; i < n; i++) {
     if (!live) {
       video.currentTime = Math.min(dur - 1e-3, i / fps);
@@ -766,16 +873,34 @@ async function renderSmooth() {
     const pts = await stepFrameAsync(f);
     lastPaintedPts = pts;
     paintPoints(sctx, pts, pointParams(), stage.width, stage.height, paintOpts());
-    paintExport();
-    await writer.write(new VideoFrame(exportCanvas, { timestamp: i * fdUs, duration: fdUs }));
+    if (svgMode) {
+      const gz = await gzipBytes(buildMoteSVG(pts, pointParams(), workW, workH));
+      zip.add('frames/frame-' + String(i + 1).padStart(5, '0') + '.svgz', gz);
+      seqBytes += gz.length;
+      setStatus('rendering', 'SVG frame ' + (i + 1) + '/' + n + ' · ' + (seqBytes / 1e6).toFixed(1) + ' MB');
+    } else {
+      paintExport();
+      await writer.write(new VideoFrame(exportCanvas, { timestamp: i * fdUs, duration: fdUs }));
+      setStatus('rendering', 'Render — ' + (i + 1) + '/' + n + ' · ' + exportCanvas.width + 'px');
+    }
     $('progress-bar').style.width = Math.round((i + 1) / n * 100) + '%';
-    setStatus('rendering', 'Render — ' + (i + 1) + '/' + n + ' · ' + exportCanvas.width + 'px');
+  }
+  $('progress-bar').style.width = '0%';
+  seqBusy = false;
+
+  if (svgMode) {
+    zip.add('sequence.json', new TextEncoder().encode(JSON.stringify({
+      tool: 'Mote', frames: n, fps, w: workW, h: workH, coherence: mode, source,
+      exportedAt: new Date().toISOString(),
+    }, null, 2)));
+    const blob = zip.blob();
+    Organica.download(blob, Organica.stamp('mote-seq', 'zip'));
+    setStatus('active', 'SVG sequence — ' + n + ' frames · ' + workW + '×' + workH + ' · ' + (blob.size / 1e6).toFixed(1) + ' MB zip');
+    return;
   }
   await writer.close();
   mr.stop();
   await stopped;
-  $('progress-bar').style.width = '0%';
-  smoothBusy = false;
   const total = chunks.reduce((a, b) => a + b.size, 0);
   if (!total) { setStatus('', 'Encoder produced 0 bytes — this browser has no working offline encoder. Try Record.'); return; }
   const type = mr.mimeType || mime || 'video/webm';
@@ -883,7 +1008,7 @@ async function startCamera() {
     setMirrorEnabled(true);
     setStatus('active', 'Camera live · ' + video.videoWidth + '×' + video.videoHeight);
   });
-  video.play();
+  const p = video.play(); if (p && p.catch) p.catch(() => {});
 }
 window.addEventListener('pagehide', releaseCamera);
 
@@ -1141,9 +1266,32 @@ $('sl-length').addEventListener('input', () => { syncSliderOut($('sl-length')); 
  'ck-angle-random', 'ck-angle-range'].forEach(id => $(id).addEventListener('change', repaintStill));
 $('sel-rmx-map').addEventListener('change', repaintStill);
 $('sel-format').addEventListener('change', updateSizeReadout);
+$('sel-size').addEventListener('change', updateSizeReadout);
 $('preset-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') commitPreset();
   if (e.key === 'Escape') $('preset-save-row').hidden = true;
+});
+
+// ── KIOSK / FULLSCREEN — for live interactive installs ──
+let kioskHintT = 0;
+function toggleKiosk() {
+  const on = !document.body.classList.contains('kiosk');
+  document.body.classList.toggle('kiosk', on);
+  if (on) {
+    if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+    if (workW && !running) startRealtime();
+    $('kiosk-hint').classList.add('show');
+    clearTimeout(kioskHintT);
+    kioskHintT = setTimeout(() => $('kiosk-hint').classList.remove('show'), 2600);
+  } else if (document.fullscreenElement && document.exitFullscreen) {
+    document.exitFullscreen().catch(() => {});
+  }
+}
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement) document.body.classList.remove('kiosk');
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'k' && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) { e.preventDefault(); toggleKiosk(); }
 });
 
 // ── INIT ──────────────────────────────────────────────────────

@@ -650,9 +650,14 @@ Honest list of where the tools still disagree:
   classes with the shared `#canvas-wrap { background: var(--panel) }` surround
   (the prototype's near-black stage was dropped Sep 1 as off-system). Source
   (open-file `＋`, webcam, mirror) lives in the floatbar, which also carries a
-  small `#perf` mono readout (`ms · fps · pts`). The only local rules are the
-  hide-until-a-source-loads canvas rule, `#perf`, and `#progress-bar` /
-  `#note` (two canvas overlays).
+  small `#perf` readout (`ms / fps / pts`, `var(--font)` tabular). The Export
+  popover has three sub-heads (`.org-popover__title` + divider, the
+  Vortex/Komorebi pattern) — **Still** (PNG / SVG), **Video** (Record / Render),
+  **Sequence** (SVG sequence → `.zip`) — plus FPS / Format / **Size** (HD→8K) /
+  Length / Output rows. Header carries a **Fullscreen** action → `body.kiosk`
+  (hides header/panel/floatbar, canvas on `#000`, Fullscreen API, `k` toggles).
+  Local rules: the hide-until-a-source rule, `#perf`, `#progress-bar` / `#note`,
+  and the `body.kiosk` block.
 - **`syncColor()`** — resolved 2026-08-30. Every production colour-picker tool now
   uses the shared Palette component (`Organica.palette.swatch`,
   `shared/palette.js` + `palette.css`); the `createColorSwatch` /
