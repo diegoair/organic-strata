@@ -29,10 +29,15 @@
      canvas overlays. */
   .org-stage:not(.visible) { display: none; }
 
-  #perf { font-family: ui-monospace, Menlo, monospace; font-size: var(--fs-small);
-    color: var(--mid); white-space: nowrap; padding: 0 var(--space-2);
-    align-self: center; }
-  #perf b { color: var(--ink); font-weight: var(--w-semibold); }
+  /* live stat trio in the floatbar — number over unit. Manrope (the only
+     typeface), tabular figures so the digits don't jitter frame to frame. */
+  #perf { display: flex; gap: var(--space-3); align-self: center;
+    padding: 0 var(--space-2); font-family: var(--font); }
+  #perf > span { display: flex; flex-direction: column; align-items: center; line-height: 1.05; }
+  #perf b { font-size: var(--fs-base); font-weight: var(--w-semibold);
+    color: var(--ink); font-variant-numeric: tabular-nums; }
+  #perf i { font-size: var(--fs-micro); font-weight: var(--w-regular); font-style: normal;
+    color: var(--mid); letter-spacing: 0.04em; }
   #progress-bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 0;
     background: var(--accent-warm); transition: width .12s; }
   #note { position: absolute; left: var(--space-3); top: var(--space-3);
@@ -46,6 +51,25 @@
   details.flow-adv > summary::-webkit-details-marker { display: none; }
   details.flow-adv > summary::before { content: '▸ '; }
   details.flow-adv[open] > summary::before { content: '▾ '; }
+
+  /* Preset picker — a .panel-select-styled button that opens a thumbnail list.
+     Native <select> can't carry per-option previews. */
+  .preset-picker { position: relative; }
+  .preset-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-2); cursor: pointer; text-align: left; }
+  .preset-trigger .chev { width: 9px; height: 6px; flex-shrink: 0; color: var(--mid); }
+  .preset-menu { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0;
+    max-height: 320px; overflow-y: auto; padding: var(--space-1);
+    background: var(--paper); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md); box-shadow: 0 8px 28px rgba(0,0,0,.16); }
+  .preset-menu__head { font-size: var(--fs-micro); text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--mid); padding: var(--space-2) var(--space-2) 4px; }
+  .preset-opt { width: 100%; display: flex; align-items: center; gap: var(--space-3);
+    padding: 4px; border: 0; background: none; cursor: pointer; border-radius: var(--radius-sm);
+    font: inherit; font-size: var(--fs-small); color: var(--ink); text-align: left; }
+  .preset-opt:hover, .preset-opt.is-active { background: color-mix(in srgb, var(--tool) 12%, transparent); }
+  .preset-opt img { width: 60px; height: 40px; flex-shrink: 0; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--panel); object-fit: cover; }
 
   [hidden] { display: none !important; }   /* flex/grid rows override bare `hidden` */
 </style>
@@ -81,7 +105,13 @@
     <!-- ══ PRESET ══ -->
     <div class="panel-section">
       <h3>Preset</h3>
-      <select class="panel-select" id="sel-preset" aria-label="Preset" onchange="applyPreset(this.value)"></select>
+      <div class="preset-picker">
+        <button class="panel-select preset-trigger" id="preset-trigger" aria-haspopup="listbox" aria-expanded="false">
+          <span id="preset-label">— preset —</span>
+          <svg class="chev" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="preset-menu" id="preset-menu" role="listbox" aria-label="Preset" hidden></div>
+      </div>
       <div class="row-btns">
         <button class="mini-btn" onclick="savePreset()">Save</button>
         <button class="mini-btn" onclick="deletePreset()">Delete</button>
@@ -270,7 +300,11 @@
     </div>
   </div>
   <span class="org-floatbar__sep" aria-hidden="true"></span>
-  <span id="perf" aria-hidden="true"><b id="pf-ms">–</b> ms&nbsp;·&nbsp;<b id="pf-fps">–</b> fps&nbsp;·&nbsp;<b id="pf-n">–</b> pts</span>
+  <span id="perf" aria-hidden="true">
+    <span><b id="pf-ms">–</b><i>ms</i></span>
+    <span><b id="pf-fps">–</b><i>fps</i></span>
+    <span><b id="pf-n">–</b><i>pts</i></span>
+  </span>
 </div>
 
 <input type="file" id="file-input" class="org-file-input" accept="video/*,.mov,.m4v,.mp4,.webm,.mkv" onchange="onFilePick(this)">
@@ -927,16 +961,81 @@ const BUILTIN_PRESETS = {
 const STORE = Organica.presetStore('mote');
 function userPresets() { return STORE.read(); }
 function allPresets() { return Object.assign({}, BUILTIN_PRESETS, userPresets()); }
-function populatePresets(select) {
-  const all = allPresets(), user = userPresets();
-  let html = '<option value="">— preset —</option><optgroup label="Built-in">';
-  Object.keys(BUILTIN_PRESETS).forEach(n => html += `<option value="${n}">${n}</option>`);
-  html += '</optgroup>';
-  const un = Object.keys(user);
-  if (un.length) { html += '<optgroup label="Yours">'; un.forEach(n => html += `<option value="${n}">${n}</option>`); html += '</optgroup>'; }
-  $('sel-preset').innerHTML = html;
-  if (select && all[select]) $('sel-preset').value = select;
+let currentPresetKey = '';
+
+// ── preset thumbnails — each effect rendered on a fixed synthetic tone field,
+//    so the list shows dot/line, colour ramp and density before you pick. ──
+const thumbCache = {};
+function presetToParams(P) {
+  return {
+    shape: P.shape || 'dot',
+    sizeMin: P.size, sizeMax: P.sizeMax, sizeRange: !!P.range,
+    lightDropout: (P.dropout || 0) / 100,
+    colorMode: P.cm || 'solid', ink: P.ink || '#0a0a0a', bg: P.bg || '#f4f1e8', alpha: 1,
+    rmxColors: (P.rmx || rmxColors).slice(), rmxMap: P.map || 'tone',
+    strokeLen: P.strokeLen || 12, strokeSeg: P.strokeSeg || 8, strokeWarp: P.strokeWarp || 0.2,
+    strokeRound: P.round !== false,
+    angleFlow: !!P.flow, angleRandom: !!P.rndAngle, angleRange: !!P.angleRange,
+    angleMin: 0, angleMax: 360,
+  };
 }
+async function renderThumb(P, W, H) {
+  const rgba = new Uint8ClampedArray(W * H * 4);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = (y * W + x) * 4;
+    let v = 255 * (0.12 + 0.82 * (x / W));                 // horizontal light→dark ramp
+    const dx = (x - W * 0.66) / (W * 0.34), dy = (y - H * 0.5) / (H * 0.42);
+    v *= 1 - 0.55 * Math.exp(-(dx * dx + dy * dy));        // one darker blob
+    rgba[i] = rgba[i + 1] = rgba[i + 2] = v; rgba[i + 3] = 255;
+  }
+  const field = E.buildField(rgba, W, H, { invert: true, gamma: P.gamma || 1, contrast: P.contrast || 0, keepRGBA: true });
+  const spX = P.spX || 1, minSp = (P.spMin || 3) * spX;
+  const pts = await E.computePoints({
+    field, minSp: minSp * 0.55, maxSp: Math.max(minSp, (P.spMax || 13) * spX) * 0.55,
+    phases: Math.min(6, P.phases || 8), maxPoints: 1400, rng: Organica.mulberry32(SEED),
+  });
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const saved = curField; curField = field;
+  paintPoints(c.getContext('2d'), pts, presetToParams(P), W, H, { unit: 1, bg: P.bg || '#f4f1e8' });
+  curField = saved;
+  return c.toDataURL('image/png');
+}
+async function buildThumbs() {
+  const all = allPresets();
+  for (const key of Object.keys(all)) {
+    if (thumbCache[key]) continue;
+    try { thumbCache[key] = await renderThumb(all[key], 120, 80); } catch (e) { thumbCache[key] = ''; }
+    const img = $('preset-menu').querySelector(`img[data-key="${CSS.escape(key)}"]`);
+    if (img) img.src = thumbCache[key];
+  }
+}
+function populatePresets(select) {
+  const user = userPresets();
+  const menu = $('preset-menu');
+  const row = (key) => `<button class="preset-opt" role="option" data-key="${key}"${key === currentPresetKey ? ' aria-selected="true"' : ''}>` +
+    `<img data-key="${key}" alt="" src="${thumbCache[key] || ''}"><span>${key}</span></button>`;
+  let html = '<div class="preset-menu__head">Built-in</div>';
+  Object.keys(BUILTIN_PRESETS).forEach(n => html += row(n));
+  const un = Object.keys(user);
+  if (un.length) { html += '<div class="preset-menu__head">Yours</div>'; un.forEach(n => html += row(n)); }
+  menu.innerHTML = html;
+  menu.querySelectorAll('.preset-opt').forEach(b => b.onclick = () => { closePresetMenu(); applyPreset(b.dataset.key); });
+  if (select) { currentPresetKey = select; $('preset-label').textContent = select; }
+}
+function openPresetMenu() {
+  $('preset-menu').hidden = false;
+  $('preset-trigger').setAttribute('aria-expanded', 'true');
+  buildThumbs();
+}
+function closePresetMenu() {
+  $('preset-menu').hidden = true;
+  $('preset-trigger').setAttribute('aria-expanded', 'false');
+}
+$('preset-trigger').onclick = () => { $('preset-menu').hidden ? openPresetMenu() : closePresetMenu(); };
+document.addEventListener('click', e => {
+  if (!$('preset-menu').hidden && !e.target.closest('.preset-picker')) closePresetMenu();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePresetMenu(); });
 function applyPreset(key) {
   const P = allPresets()[key]; if (!P) return;
   const detBefore = $('sl-detail').value;
@@ -962,6 +1061,8 @@ function applyPreset(key) {
   document.querySelectorAll('#panel input[type=range]').forEach(syncSliderOut);
   if ($('sl-detail').value !== detBefore) reinit();
   else repaintStill();
+  currentPresetKey = key;
+  $('preset-label').textContent = key;
   setStatus('active', 'Preset: ' + key);
 }
 function savePreset() { $('preset-save-row').hidden = false; $('preset-name').value = ''; $('preset-name').focus(); }
@@ -986,10 +1087,12 @@ function commitPreset() {
   setStatus('active', 'Saved preset: ' + name);
 }
 function deletePreset() {
-  const key = $('sel-preset').value;
+  const key = currentPresetKey;
   if (!key || BUILTIN_PRESETS[key]) { setStatus('', 'Pick one of your own presets to delete'); return; }
   const all = userPresets(); delete all[key];
   STORE.write(all);
+  delete thumbCache[key];
+  currentPresetKey = ''; $('preset-label').textContent = '— preset —';
   populatePresets();
   setStatus('active', 'Deleted preset: ' + key);
 }
