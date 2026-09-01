@@ -99,7 +99,7 @@
       <div class="ctrl-row" id="row-capture" hidden>
         <div class="ctrl-label">Capture</div>
         <input type="range" id="sl-capture" min="2" max="60" step="1" value="6">
-        <span class="ctrl-val" id="v-capture">6s</span>
+        <span class="ctrl-val" data-for="sl-capture">6s</span>
       </div>
       <p class="org-panel__hint" id="src-hint">A local file never leaves your machine. Webcam &amp; Demo have no fixed length — Capture sets the recording duration.</p>
     </div>
@@ -872,7 +872,11 @@ async function startCamera() {
   const constraints = { video: devId ? { deviceId: { exact: devId } } : { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
   try {
     camStream = await navigator.mediaDevices.getUserMedia(constraints);
-  } catch (e) { setStatus('', 'Camera unavailable: ' + (e && e.message || e)); return; }
+  } catch (e) {
+    setStatus('', 'Camera unavailable: ' + (e && e.message || e));
+    setSourceSeg(source);   // snap the Source seg back to the still-active source
+    return;
+  }
   source = 'webcam';
   ready = false; video.src = '';
   video.srcObject = camStream;
@@ -898,7 +902,12 @@ function setSourceSeg(v) {
                       : 'Synthetic scene for testing. Capture sets the recording length.');
 }
 function pickSource(v) {
-  if (v === source && workW) return;
+  if (v === source && workW) {   // already live on this source — just clear any stale error
+    setSourceSeg(v);
+    setStatus('active', (source === 'demo' ? 'demo' : (video.videoWidth + '×' + video.videoHeight))
+      + ' · work ' + workW + '×' + workH + (source === 'file' && isFinite(video.duration) ? ' · ' + video.duration.toFixed(1) + 's' : ' · live'));
+    return;
+  }
   setSourceSeg(v);
   if (v === 'file') { source = 'file'; if (!video.src) $('file-input').click(); }
   else if (v === 'webcam') { startCamera(); }
@@ -918,8 +927,8 @@ function setCoherence(v) {
   $('note').textContent = 'Re-stipple is heavy per frame — the live preview lags and updates in bursts. Render gives a smooth result.';
   repaintStill();
 }
-const FLOW_PRESETS = {
-  gentle:    { 'b-step': 0.18, 'b-damp': 0.75, 'b-nbr': 1.30, 'b-cull': 0.78, 'b-rate': 0.012 },
+const FLOW_PRESETS = {   // values kept on each slider's own step grid
+  gentle:    { 'b-step': 0.18, 'b-damp': 0.75, 'b-nbr': 1.30, 'b-cull': 0.78, 'b-rate': 0.015 },
   medium:    { 'b-step': 0.30, 'b-damp': 0.60, 'b-nbr': 1.50, 'b-cull': 0.70, 'b-rate': 0.020 },
   turbulent: { 'b-step': 0.45, 'b-damp': 0.50, 'b-nbr': 1.70, 'b-cull': 0.60, 'b-rate': 0.030 },
 };
@@ -957,7 +966,7 @@ const BUILTIN_PRESETS = {
   'Fine dots':      { mode: 'A', shape: 'dot', detail: 950, spMin: 1.5, spMax: 8, spX: 1, phases: 16, size: 1.5, sizeMax: 1.5, range: false, cm: 'solid', ink: '#0a0a0a', bg: '#f5f2ec', contrast: 0, gamma: 1, dropout: 0 },
   'Felt-tip':       { mode: 'A', shape: 'dot', detail: 900, spMin: 3, spMax: 14, spX: 1, phases: 12, size: 4, sizeMax: 1, range: true, cm: 'solid', ink: '#0a0a0a', bg: '#f5f2ec', contrast: 0, gamma: 1, dropout: 0 },
   'Duotone':        { mode: 'A', shape: 'dot', detail: 900, spMin: 1.5, spMax: 9, spX: 1, phases: 14, size: 3, sizeMax: 3, range: false, cm: 'adaptive', ink: '#1a3a2a', bg: '#dfe6f0', contrast: 0, gamma: 1, dropout: 0 },
-  'Video colour':   { mode: 'A', shape: 'dot', detail: 820, spMin: 2.5, spMax: 11, spX: 1, phases: 12, size: 1.2, sizeMax: 4.2, range: true, cm: 'video', contrast: 8, gamma: 1, dropout: 0, bg: '#0a0a0a' },
+  'Video colour':   { mode: 'A', shape: 'dot', detail: 820, spMin: 2.5, spMax: 11, spX: 1, phases: 12, size: 1.2, sizeMax: 4.2, range: true, cm: 'video', contrast: 8, gamma: 1, dropout: 0, ink: '#0a0a0a', bg: '#0a0a0a' },
   'Etching lines':  { mode: 'A', shape: 'line', flow: true, rndAngle: false, round: true, strokeLen: 11, strokeSeg: 7, strokeWarp: 0.14, detail: 800, spMin: 2.6, spMax: 10, spX: 1, phases: 12, size: 0.9, sizeMax: 0.9, range: false, cm: 'adaptive', ink: '#0d0d0d', bg: '#efe9dc', contrast: 26, gamma: 1, dropout: 0 },
   'Warm ink lines': { mode: 'A', shape: 'line', flow: true, rndAngle: false, round: true, strokeLen: 10, strokeSeg: 6, strokeWarp: 0.18, detail: 780, spMin: 2.8, spMax: 11, spX: 1, phases: 12, size: 1.1, sizeMax: 1.1, range: false, cm: 'rmx', map: 'tone', rmx: RAMP_WARM, contrast: 18, gamma: 1, dropout: 0, bg: '#120b05' },
   'Hatch flow':     { mode: 'A', shape: 'line', flow: true, rndAngle: false, angleRange: false, round: true, strokeLen: 12, strokeSeg: 10, strokeWarp: 0.3, detail: 900, spMin: 1.5, spMax: 9, spX: 1, phases: 16, size: 1, sizeMax: 1, range: false, cm: 'solid', ink: '#0a0a0a', bg: '#f5f2ec', contrast: 0, gamma: 1, dropout: 50 },
