@@ -648,10 +648,11 @@ Honest list of where the tools still disagree:
 - **Mote** (promoted from `scratchpad/mote.html` Sep 1, 2026) links all 5
   shared sheets and uses the standard header / panel / floatbar / `.org-stage`
   classes with the shared `#canvas-wrap { background: var(--panel) }` surround
-  (the prototype's near-black stage was dropped Sep 1 as off-system). Its only
-  locals are the hide-until-a-source-loads rule and the three canvas overlays
-  `#perf-hud` / `#progress-bar` / `#note` (dark chips over the stipple output,
-  same `rgba(10,10,10,0.82)` as shell.css's own HUD).
+  (the prototype's near-black stage was dropped Sep 1 as off-system). Source
+  (open-file `＋`, webcam, mirror) lives in the floatbar, which also carries a
+  small `#perf` mono readout (`ms · fps · pts`). The only local rules are the
+  hide-until-a-source-loads canvas rule, `#perf`, and `#progress-bar` /
+  `#note` (two canvas overlays).
 - **`syncColor()`** — resolved 2026-08-30. Every production colour-picker tool now
   uses the shared Palette component (`Organica.palette.swatch`,
   `shared/palette.js` + `palette.css`); the `createColorSwatch` /

@@ -25,15 +25,14 @@
 
   /* Shell / panel / floatbar (incl. #canvas-wrap background: var(--panel) and
      the .org-stage shadow) come from the shared sheets. Local = only the
-     hide-until-a-source-loads rule + Mote's three canvas overlays. */
+     hide-until-a-source-loads rule, the floatbar perf readout, and the two
+     canvas overlays. */
   .org-stage:not(.visible) { display: none; }
 
-  #perf-hud { position: absolute; left: var(--space-3); bottom: var(--space-3);
-    font-family: ui-monospace, Menlo, monospace; font-size: var(--fs-small);
-    color: var(--paper); background: rgba(10, 10, 10, 0.82); padding: 4px 8px;
-    border-radius: var(--radius-md); pointer-events: none; }
-  #perf-hud b { color: var(--paper); font-weight: var(--w-semibold); }
-  #perf-hud.off { display: none; }
+  #perf { font-family: ui-monospace, Menlo, monospace; font-size: var(--fs-small);
+    color: var(--mid); white-space: nowrap; padding: 0 var(--space-2);
+    align-self: center; }
+  #perf b { color: var(--ink); font-weight: var(--w-semibold); }
   #progress-bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 0;
     background: var(--accent-warm); transition: width .12s; }
   #note { position: absolute; left: var(--space-3); top: var(--space-3);
@@ -58,50 +57,26 @@
   <div class="org-header__spacer"></div>
   <output class="org-header__status" aria-live="polite" aria-atomic="true">
     <span class="org-header__dot" id="status-dot"></span>
-    <span class="org-header__state" id="status-text">Choose a source to begin</span>
+    <span class="org-header__state" id="status-text">Open a video or start the webcam</span>
   </output>
 </header>
 
 <div id="app">
   <div id="canvas-wrap">
     <div id="drop-hint">
-      <div class="drop-icon" role="button" tabindex="0" aria-label="Choose a video file">+</div>
-      <p>Drop a video here, or click +<br>Webcam &amp; Demo are in the panel</p>
+      <div class="drop-icon" role="button" tabindex="0" aria-label="Open a video file">+</div>
+      <p>Drop a video here, click&nbsp;+,<br>or start the webcam below</p>
     </div>
     <canvas id="stage" class="org-stage"></canvas>
     <div id="note"></div>
-    <div id="perf-hud"><b id="pf-ms">–</b> ms &nbsp;·&nbsp; <b id="pf-fps">–</b> fps &nbsp;·&nbsp; <b id="pf-n">–</b> pts</div>
     <div id="progress-bar"></div>
     <div id="zoom-hud"><span id="zoom-level">100%</span><span class="zoom-reset" onclick="resetZoom()">reset</span></div>
   </div>
 
   <div id="panel">
 
-    <!-- ══ SOURCE ══ -->
-    <div class="panel-section">
-      <h3>Source</h3>
-      <div class="ctrl-row">
-        <div class="seg-ctrl" id="seg-source">
-          <button class="seg-btn active" data-v="file" onclick="pickSource('file')">File</button>
-          <button class="seg-btn" data-v="webcam" onclick="pickSource('webcam')">Webcam</button>
-          <button class="seg-btn" data-v="demo" onclick="pickSource('demo')">Demo</button>
-        </div>
-      </div>
-      <div class="row-btns" id="row-file">
-        <button class="mini-btn" onclick="document.getElementById('file-input').click()">Choose video…</button>
-      </div>
-      <div class="ctrl-row" id="row-camera" hidden>
-        <div class="ctrl-label">Camera</div>
-        <select class="panel-select" id="sel-camera" onchange="startCamera()"></select>
-      </div>
-      <label class="check-row"><input type="checkbox" id="ck-mirror"><span>Mirror (selfie view)</span></label>
-      <div class="ctrl-row" id="row-capture" hidden>
-        <div class="ctrl-label">Capture</div>
-        <input type="range" id="sl-capture" min="2" max="60" step="1" value="6">
-        <span class="ctrl-val" data-for="sl-capture">6s</span>
-      </div>
-      <p class="org-panel__hint" id="src-hint">A local file never leaves your machine. Webcam &amp; Demo have no fixed length — Capture sets the recording duration.</p>
-    </div>
+    <!-- Source lives in the floatbar: ＋ = open file, camera icon = webcam,
+         mirror icon = flip the webcam. -->
 
     <!-- ══ PRESET ══ -->
     <div class="panel-section">
@@ -242,7 +217,17 @@
   </div><!-- /panel -->
 </div>
 
-<div class="org-floatbar" role="toolbar" aria-label="Playback">
+<div class="org-floatbar" role="toolbar" aria-label="Source and playback">
+  <button class="org-floatbar__btn" id="btn-open" aria-label="Open a video file">
+    <svg class="ico" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+  <button class="org-floatbar__btn" id="btn-cam" aria-label="Start the webcam">
+    <svg class="ico" viewBox="0 0 16 16" fill="none"><rect x="2" y="4.5" width="8" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="m10 7 4-2v6l-4-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="org-floatbar__btn" id="btn-mirror" aria-label="Mirror the webcam" aria-pressed="false" disabled>
+    <svg class="ico" viewBox="0 0 16 16" fill="none"><path d="M8 2v12" stroke="currentColor" stroke-width="1.3" stroke-dasharray="1.5 1.6"/><path d="M6.5 4.5 3 8l3.5 3.5zM9.5 4.5 13 8l-3.5 3.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+  </button>
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
   <button class="org-floatbar__btn" id="btn-play" aria-label="Play / Pause" disabled>
     <svg class="ico" viewBox="0 0 16 16" fill="none"><path id="pp-icon" d="M5 3.5 12 8l-7 4.5z" fill="currentColor"/></svg>
   </button>
@@ -276,9 +261,16 @@
           <option value="av1">WebM · AV1</option>
         </select>
       </div>
+      <div class="org-popover__row" id="row-length" hidden>
+        <label class="org-popover__label" for="sl-length">Length</label>
+        <input type="range" id="sl-length" min="2" max="60" step="1" value="8">
+        <span class="org-out" data-for="sl-length">8s</span>
+      </div>
       <div class="org-popover__row"><span class="org-popover__label">Output</span><span class="org-out" id="out-size">—</span></div>
     </div>
   </div>
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
+  <span id="perf" aria-hidden="true"><b id="pf-ms">–</b> ms&nbsp;·&nbsp;<b id="pf-fps">–</b> fps&nbsp;·&nbsp;<b id="pf-n">–</b> pts</span>
 </div>
 
 <input type="file" id="file-input" class="org-file-input" accept="video/*,.mov,.m4v,.mp4,.webm,.mkv" onchange="onFilePick(this)">
@@ -300,9 +292,8 @@ const E = Organica.pollenEngine;
 const setStatus = Organica.status();
 const SEED = 0x5eed;
 const Q = new URLSearchParams(location.search);
-const DEMO_BOOT = Q.has('demo');
 const CAM_BOOT = Q.has('cam');
-const DEMO_DURATION = 6;
+const DEFAULT_LEN = 8;   // webcam recording length fallback (s)
 
 const video = $('src');
 const stage = $('stage'), sctx = stage.getContext('2d');
@@ -312,14 +303,14 @@ const EXPORT_LONG = 1920;
 const exportCanvas = document.createElement('canvas');
 const exctx = exportCanvas.getContext('2d');
 
-let source = 'file';          // 'file' | 'webcam' | 'demo'
-let camStream = null;
+let source = 'file';          // 'file' | 'webcam'
+let camStream = null, mirrorOn = false;
 let workW = 0, workH = 0;
 let mode = 'A', colorMode = 'solid', pointShape = 'dot';
 let rmxColors = ['#2a1a12', '#8c3b1e', '#d9822b', '#f2c14e', '#f6e8c3'];
 let rmxChips = null;
 let basePoints = null, points = [], targetCount = 0, lastC = [], lastPaintedPts = [];
-let running = false, loopId = 0, demoT = 0, curField = null, recording = false;
+let running = false, loopId = 0, curField = null, recording = false;
 const perf = [];
 
 const val = id => parseFloat($(id).value);
@@ -427,8 +418,7 @@ function paintPoints(g, pts, P, W, H, opt) {
 
 // ── FRAME SOURCE ──────────────────────────────────────────────
 function grabFrame() {
-  if (source === 'demo') { drawDemo(fctx, workW, workH, demoT); return; }
-  if ($('ck-mirror').checked) {
+  if (mirrorOn) {   // flip horizontally so the webcam behaves like a real mirror
     fctx.save();
     fctx.translate(workW, 0); fctx.scale(-1, 1);
     fctx.drawImage(video, 0, 0, workW, workH);
@@ -437,23 +427,10 @@ function grabFrame() {
   }
   fctx.drawImage(video, 0, 0, workW, workH);
 }
-function drawDemo(g, W, H, t) {
-  const rg = g.createRadialGradient(W * 0.5, H * 0.42, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.62);
-  rg.addColorStop(0, '#8f8f88'); rg.addColorStop(1, '#111');
-  g.fillStyle = rg; g.fillRect(0, 0, W, H);
-  const bx = (0.5 + 0.4 * Math.sin(t * 1.6)) * W, bw = W * 0.14;
-  const lg = g.createLinearGradient(bx - bw, 0, bx + bw, 0);
-  lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.5, 'rgba(255,255,255,0.95)'); lg.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = lg; g.fillRect(0, 0, W, H);
-  g.fillStyle = 'rgba(0,0,0,0.6)';
-  g.beginPath();
-  g.arc((0.5 - 0.3 * Math.cos(t * 1.1)) * W, (0.5 + 0.24 * Math.sin(t * 0.9)) * H, Math.min(W, H) * 0.17, 0, Math.PI * 2);
-  g.fill();
-}
-function liveSource() { return source !== 'file' || !isFinite(video.duration); }
+function liveSource() { return source === 'webcam' || !isFinite(video.duration); }
 function clipDuration() {
   if (source === 'file' && isFinite(video.duration)) return video.duration;
-  return val('sl-capture') || DEMO_DURATION;
+  return val('sl-length') || DEFAULT_LEN;   // webcam → the Export popover's Length slider
 }
 
 // ── COHERENCE ─────────────────────────────────────────────────
@@ -595,7 +572,6 @@ function pushPerf(ms, count) {
 function tick() {
   if (!running) return;
   const t0 = performance.now();
-  if (source === 'demo') demoT += 1 / 60;
   grabFrame();
   const f = buildField(workW, workH);
   const pts = stepFrame(f);
@@ -607,7 +583,7 @@ function tick() {
   scheduleTick();
 }
 function scheduleTick() {
-  if (source !== 'demo' && 'requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+  if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
     loopId = video.requestVideoFrameCallback(tick);
   } else {
     loopId = requestAnimationFrame(tick);
@@ -616,20 +592,19 @@ function scheduleTick() {
 function startRealtime() {
   if (!workW) return;
   running = true;
-  if (source !== 'demo') { video.loop = true; video.play(); }
+  video.loop = true; video.play();
   scheduleTick();
   setPPIcon(true);
 }
 function pauseRealtime() {
   running = false;
-  if (source !== 'demo') video.pause();
-  if (source !== 'demo' && video.cancelVideoFrameCallback) video.cancelVideoFrameCallback(loopId);
+  video.pause();
+  if (video.cancelVideoFrameCallback) video.cancelVideoFrameCallback(loopId);
   else cancelAnimationFrame(loopId);
   setPPIcon(false);
 }
 function stopAll() {
   pauseRealtime();
-  demoT = 0;
   if (source === 'file' && isFinite(video.duration)) video.currentTime = 0;
   if (workW) {
     grabFrame();
@@ -637,7 +612,7 @@ function stopAll() {
     const pts = (mode === 'A' && basePoints) ? stepA(f) : points;
     paintPoints(sctx, pts, pointParams(), stage.width, stage.height, paintOpts());
   }
-  if (camStream) { releaseCamera(); setStatus('active', 'Camera stopped — pick Webcam again to resume'); }
+  if (camStream) { releaseCamera(); setMirrorEnabled(false); setStatus('active', 'Camera stopped — press the camera icon to resume'); }
 }
 function setPPIcon(playing) {
   $('pp-icon').setAttribute('d', playing ? 'M4.5 3.5h3v9h-3zM8.5 3.5h3v9h-3z' : 'M5 3.5 12 8l-7 4.5z');
@@ -701,7 +676,7 @@ const moteRecorder = Organica.recorder({
     const mime = fmtCandidates().find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || 'video/mp4';
     return Math.min(90e6, Math.round(exportCanvas.width * exportCanvas.height * (+$('sel-fps').value) * bppFor(mime)));
   },
-  onStart: () => { recording = true; if (source === 'file' && isFinite(video.duration)) video.currentTime = 0; demoT = 0; startRealtime(); },
+  onStart: () => { recording = true; if (source === 'file' && isFinite(video.duration)) video.currentTime = 0; startRealtime(); },
   onStateChange: isRec => {
     recording = isRec;
     $('btn-rec').textContent = isRec ? 'Stop' : 'Record';
@@ -732,7 +707,7 @@ async function renderSmooth() {
   const live = liveSource();
   pauseRealtime();
   if (source === 'file' && !live) video.loop = false;
-  if (live && source !== 'demo') video.play();
+  if (live) video.play();
   sizeExportCanvas();
   const mime = fmtCandidates().find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || '';
   const bitrate = Math.min(90e6, Math.round(exportCanvas.width * exportCanvas.height * fps * bppFor(mime)));
@@ -748,8 +723,7 @@ async function renderSmooth() {
   const stopped = new Promise(res => mr.onstop = res);
   mr.start();
   for (let i = 0; i < n; i++) {
-    if (source === 'demo') demoT = i / fps;
-    else if (!live) {
+    if (!live) {
       video.currentTime = Math.min(dur - 1e-3, i / fps);
       await new Promise(r => video.addEventListener('seeked', r, { once: true }));
     }
@@ -778,15 +752,14 @@ async function renderSmooth() {
 
 // ── SOURCE PIPELINE ───────────────────────────────────────────
 async function onReady() {
-  const src = source === 'demo' ? { w: 960, h: 720 } : { w: video.videoWidth || 960, h: video.videoHeight || 720 };
-  const d = workDims(src.w, src.h, val('sl-detail') || 950);
+  const d = workDims(video.videoWidth || 960, video.videoHeight || 720, val('sl-detail') || 950);
   workW = d.W; workH = d.H;
   frameCanvas.width = workW; frameCanvas.height = workH;
   stage.width = workW; stage.height = workH;
   stage.classList.add('visible');
   $('drop-hint').classList.add('hidden');
   ['btn-play', 'btn-stop', 'btn-export'].forEach(id => $(id).disabled = false);
-  demoT = 0;
+  $('row-length').hidden = source !== 'webcam';   // fixed-duration file → no Length slider
   await replacePoints();
   grabFrame();
   const f = buildField(workW, workH);
@@ -796,7 +769,7 @@ async function onReady() {
   pushPerf(0, points.length);
   updateSizeReadout();
   const dur = (source === 'file' && isFinite(video.duration)) ? ' · ' + video.duration.toFixed(1) + 's' : ' · live';
-  setStatus('active', (source === 'demo' ? 'demo' : (video.videoWidth + '×' + video.videoHeight)) + ' · work ' + workW + '×' + workH + dur);
+  setStatus('active', video.videoWidth + '×' + video.videoHeight + ' · work ' + workW + '×' + workH + dur);
 }
 let reinitT = 0;
 function reinit() {
@@ -818,7 +791,8 @@ function loadVideo(file) {
     || (file && /\.(mov|mp4|m4v|webm|mkv|avi|ogv)$/i.test(file.name));
   if (!ok) { setStatus('', 'Not a video — pick an .mp4 / .mov / .webm'); return; }
   releaseCamera();
-  setSourceSeg('file'); source = 'file';
+  setMirrorEnabled(false);
+  source = 'file';
   ready = false;
   setStatus('rendering', 'Loading ' + file.name + '…');
   video.srcObject = null;
@@ -852,28 +826,18 @@ function releaseCamera() {
   if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
   if (video.srcObject) { try { video.srcObject = null; } catch (e) {} }
 }
-async function listCameras() {
-  const sel = $('sel-camera');
-  try {
-    const devs = await navigator.mediaDevices.enumerateDevices();
-    const cams = devs.filter(d => d.kind === 'videoinput');
-    sel.innerHTML = cams.map((c, i) => `<option value="${c.deviceId}">${c.label || 'Camera ' + (i + 1)}</option>`).join('');
-    $('row-camera').hidden = cams.length < 2;
-  } catch (e) { $('row-camera').hidden = true; }
-}
 async function startCamera() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     setStatus('', 'This browser has no getUserMedia (needs localhost or https).'); return;
   }
   setStatus('rendering', 'Requesting camera…');
   releaseCamera();
-  const devId = $('sel-camera').value;
-  const constraints = { video: devId ? { deviceId: { exact: devId } } : { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
   try {
-    camStream = await navigator.mediaDevices.getUserMedia(constraints);
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false,
+    });
   } catch (e) {
     setStatus('', 'Camera unavailable: ' + (e && e.message || e));
-    setSourceSeg(source);   // snap the Source seg back to the still-active source
     return;
   }
   source = 'webcam';
@@ -881,36 +845,24 @@ async function startCamera() {
   video.srcObject = camStream;
   video.addEventListener('loadeddata', function once() {
     video.removeEventListener('loadeddata', once);
-    onReady();
-    listCameras();
+    onReady().then(startRealtime);
+    setMirrorEnabled(true);
     setStatus('active', 'Camera live · ' + video.videoWidth + '×' + video.videoHeight);
   });
   video.play();
 }
 window.addEventListener('pagehide', releaseCamera);
 
-// source seg ---------------------------------------------------
-function setSourceSeg(v) {
-  $('seg-source').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
-  $('row-file').hidden = v !== 'file';
-  $('row-camera').hidden = !(v === 'webcam' && $('sel-camera').options.length > 1);
-  $('row-capture').hidden = v === 'file';
-  $('src-hint').textContent = v === 'file'
-    ? 'A local file never leaves your machine.'
-    : (v === 'webcam' ? 'Webcam needs localhost or https. Capture sets the recording length.'
-                      : 'Synthetic scene for testing. Capture sets the recording length.');
+// mirror (floatbar toggle, webcam only) -----------------------
+function setMirrorEnabled(on) {
+  $('btn-mirror').disabled = !on;
+  if (!on) { mirrorOn = false; $('btn-mirror').setAttribute('aria-pressed', 'false'); }
 }
-function pickSource(v) {
-  if (v === source && workW) {   // already live on this source — just clear any stale error
-    setSourceSeg(v);
-    setStatus('active', (source === 'demo' ? 'demo' : (video.videoWidth + '×' + video.videoHeight))
-      + ' · work ' + workW + '×' + workH + (source === 'file' && isFinite(video.duration) ? ' · ' + video.duration.toFixed(1) + 's' : ' · live'));
-    return;
-  }
-  setSourceSeg(v);
-  if (v === 'file') { source = 'file'; if (!video.src) $('file-input').click(); }
-  else if (v === 'webcam') { startCamera(); }
-  else { releaseCamera(); source = 'demo'; onReady().then(startRealtime); }
+function toggleMirror() {
+  if ($('btn-mirror').disabled) return;
+  mirrorOn = !mirrorOn;
+  $('btn-mirror').setAttribute('aria-pressed', mirrorOn ? 'true' : 'false');
+  repaintStill();
 }
 
 // ── PANEL WIRING ──────────────────────────────────────────────
@@ -952,9 +904,9 @@ function setColor(v) {
   repaintStill();
 }
 function syncSliderOut(r) {
-  const v = document.querySelector('.ctrl-val[data-for="' + r.id + '"]');
+  const v = document.querySelector('[data-for="' + r.id + '"]');   // .ctrl-val (panel) or .org-out (popover)
   if (!v) return;
-  if (r.id === 'sl-capture') { v.textContent = r.value + 's'; return; }
+  if (r.id === 'sl-length') { v.textContent = r.value + 's'; return; }
   v.textContent = (r.step && +r.step < 1) ? (+r.value).toFixed(2) : r.value;
 }
 
@@ -1063,6 +1015,9 @@ rmxChips = Organica.palette.swatch($('rmx-palette'), {
 });
 
 // ── GENERAL WIRING ────────────────────────────────────────────
+$('btn-open').onclick = () => $('file-input').click();
+$('btn-cam').onclick = startCamera;
+$('btn-mirror').onclick = toggleMirror;
 $('btn-play').onclick = () => { running ? pauseRealtime() : startRealtime(); };
 $('btn-stop').onclick = stopAll;
 document.querySelector('.drop-icon').addEventListener('click', e => { e.stopPropagation(); $('file-input').click(); });
@@ -1074,13 +1029,13 @@ document.querySelectorAll('#panel input[type=range]').forEach(r => {
   r.addEventListener('input', () => {
     syncSliderOut(r);
     if (r.id === 'sl-detail') { reinit(); return; }
-    if (r.id === 'sl-capture') { updateSizeReadout(); return; }
     if (r.id.startsWith('sl-size') || r.id.startsWith('sl-stroke') || r.id === 'sl-dropout'
         || r.id === 'a-ink' || r.id === 'sl-contrast' || r.id === 'sl-gamma') repaintStill();
   });
 });
+$('sl-length').addEventListener('input', () => { syncSliderOut($('sl-length')); updateSizeReadout(); });
 ['ck-size-range', 'ck-overpaint', 'ck-invert', 'ck-stroke-round', 'ck-angle-flow',
- 'ck-angle-random', 'ck-angle-range', 'ck-mirror'].forEach(id => $(id).addEventListener('change', repaintStill));
+ 'ck-angle-random', 'ck-angle-range'].forEach(id => $(id).addEventListener('change', repaintStill));
 $('sel-rmx-map').addEventListener('change', repaintStill);
 $('sel-format').addEventListener('change', updateSizeReadout);
 $('preset-name').addEventListener('keydown', e => {
@@ -1093,12 +1048,11 @@ Organica.popover($('btn-export'), $('export-popover'));
 if (Organica.enhanceSliders) Organica.enhanceSliders(document);
 if (Organica.autoLabelPanel) Organica.autoLabelPanel(document);
 document.querySelectorAll('#panel input[type=range]').forEach(syncSliderOut);
+syncSliderOut($('sl-length'));
 populatePresets();
-if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) listCameras();
 
-if (DEMO_BOOT) { setSourceSeg('demo'); source = 'demo'; onReady().then(() => startRealtime()); }
-else if (CAM_BOOT) { setSourceSeg('webcam'); startCamera(); }
-else { setStatus('', 'Choose a source to begin'); }
+if (CAM_BOOT) startCamera();
+else setStatus('', 'Open a video (＋) or start the webcam');
 </script>
 </body>
 </html>
