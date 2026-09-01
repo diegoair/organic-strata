@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mote — Organica</title>
+
+<!-- tokens → header → panel → floatbar → shell → palette (docs/UI-SHELL.md §2) -->
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/palette.css">
+<style>
+  :root {
+    /* Motion & growth band is otherwise all warm — red #a3402f (Membrane),
+       red-orange #c4402f (Pulsar), taupe #6e5c44 (Mycel), mustard #8a8a28
+       (Blob) — plus Vortex's indigo #5936c4. Mote (video / light / screen)
+       takes the cool gap: a sea-green teal at hue ~172, clear of FVS's
+       yellower green #2c8c62 and Camo Turing's cyan #21707f. §6b registry
+       checked. */
+    --tool: #2f9e8f;
+  }
+
+  /* Shell / panel / floatbar come from the shared sheets. Local = only Mote's
+     own visual content: the dark video stage + the three canvas overlays. */
+  #canvas-wrap { background: #14140f; }              /* video reads right on near-black — tool content, not UI chrome */
+  .org-stage { box-shadow: 0 4px 30px rgba(0,0,0,.4); }
+  .org-stage:not(.visible) { display: none; }
+
+  #perf-hud { position: absolute; left: var(--space-3); bottom: var(--space-3);
+    font-family: ui-monospace, Menlo, monospace; font-size: var(--fs-small);
+    color: #cfcfc2; background: rgba(0,0,0,.45); padding: 4px 8px;
+    border-radius: var(--radius-md); pointer-events: none; }
+  #perf-hud b { color: #fff; font-weight: var(--w-semibold); }
+  #perf-hud.off { display: none; }
+  #progress-bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 0;
+    background: var(--accent-warm); transition: width .12s; }
+  #note { position: absolute; left: var(--space-3); top: var(--space-3);
+    max-width: 260px; font-size: var(--fs-small); color: #d8c98a;
+    background: rgba(0,0,0,.42); padding: 3px 7px; border-radius: var(--radius-md);
+    display: none; }
+
+  details.flow-adv { margin-top: var(--space-2); }
+  details.flow-adv > summary { cursor: pointer; color: var(--mid);
+    font-size: var(--fs-small); list-style: none; padding: 3px 0; }
+  details.flow-adv > summary::-webkit-details-marker { display: none; }
+  details.flow-adv > summary::before { content: '▸ '; }
+  details.flow-adv[open] > summary::before { content: '▾ '; }
+
+  [hidden] { display: none !important; }   /* flex/grid rows override bare `hidden` */
+</style>
+</head>
+<body>
+
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Mote</span></a>
+  <div class="org-header__spacer"></div>
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Choose a source to begin</span>
+  </output>
+</header>
+
+<div id="app">
+  <div id="canvas-wrap">
+    <div id="drop-hint">
+      <div class="drop-icon">+</div>
+      <p>Drop a video here<br>or pick a source in the panel</p>
+    </div>
+    <canvas id="stage" class="org-stage"></canvas>
+    <div id="note"></div>
+    <div id="perf-hud"><b id="pf-ms">–</b> ms &nbsp;·&nbsp; <b id="pf-fps">–</b> fps &nbsp;·&nbsp; <b id="pf-n">–</b> pts</div>
+    <div id="progress-bar"></div>
+    <div id="zoom-hud"><span id="zoom-level">100%</span><span class="zoom-reset" onclick="resetZoom()">reset</span></div>
+  </div>
+
+  <div id="panel">
+
+    <!-- ══ SOURCE ══ -->
+    <div class="panel-section">
+      <h3>Source</h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-source">
+          <button class="seg-btn active" data-v="file" onclick="pickSource('file')">File</button>
+          <button class="seg-btn" data-v="webcam" onclick="pickSource('webcam')">Webcam</button>
+          <button class="seg-btn" data-v="demo" onclick="pickSource('demo')">Demo</button>
+        </div>
+      </div>
+      <div class="row-btns" id="row-file">
+        <button class="mini-btn" onclick="document.getElementById('file-input').click()">Choose video…</button>
+      </div>
+      <div class="ctrl-row" id="row-camera" hidden>
+        <div class="ctrl-label">Camera</div>
+        <select class="panel-select" id="sel-camera" onchange="startCamera()"></select>
+      </div>
+      <label class="check-row"><input type="checkbox" id="ck-mirror"><span>Mirror (selfie view)</span></label>
+      <div class="ctrl-row" id="row-capture" hidden>
+        <div class="ctrl-label">Capture</div>
+        <input type="range" id="sl-capture" min="2" max="60" step="1" value="6">
+        <span class="ctrl-val" id="v-capture">6s</span>
+      </div>
+      <p class="org-panel__hint" id="src-hint">A local file never leaves your machine. Webcam &amp; Demo have no fixed length — Capture sets the recording duration.</p>
+    </div>
+
+    <!-- ══ PRESET ══ -->
+    <div class="panel-section">
+      <h3>Preset</h3>
+      <select class="panel-select" id="sel-preset" aria-label="Preset" onchange="applyPreset(this.value)"></select>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="savePreset()">Save</button>
+        <button class="mini-btn" onclick="deletePreset()">Delete</button>
+      </div>
+      <div class="ctrl-row" id="preset-save-row" hidden>
+        <input class="panel-select" type="text" id="preset-name" placeholder="Preset name" aria-label="New preset name" style="flex:1">
+        <button class="mini-btn" onclick="commitPreset()">OK</button>
+      </div>
+    </div>
+
+    <!-- ══ COHERENCE ══ -->
+    <div class="panel-section">
+      <h3>Coherence</h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-coherence">
+          <button class="seg-btn active" data-v="A" onclick="setCoherence('A')">Fixed grid</button>
+          <button class="seg-btn" data-v="B" onclick="setCoherence('B')">Flowing</button>
+          <button class="seg-btn" data-v="C" onclick="setCoherence('C')">Re-stipple</button>
+        </div>
+      </div>
+      <p class="org-panel__hint" id="coh-hint">Points are placed once; only their tone &amp; size follow the video.</p>
+      <div class="row-btns" id="row-replace"><button class="mini-btn" id="btn-replace-points" onclick="replacePoints()">Re-place points from current frame</button></div>
+    </div>
+
+    <!-- ══ FLOW TUNING (mode B) ══ -->
+    <div class="panel-section" id="sec-flow" hidden>
+      <h3>Flow tuning</h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-flow">
+          <button class="seg-btn" data-v="gentle" onclick="setFlow('gentle')">Gentle</button>
+          <button class="seg-btn active" data-v="medium" onclick="setFlow('medium')">Medium</button>
+          <button class="seg-btn" data-v="turbulent" onclick="setFlow('turbulent')">Turbulent</button>
+        </div>
+      </div>
+      <details class="flow-adv">
+        <summary>Advanced</summary>
+        <div class="ctrl-row"><div class="ctrl-label">Step</div><input type="range" id="b-step" min="0" max="1" step="0.01" value="0.30"><span class="ctrl-val" data-for="b-step">0.30</span></div>
+        <div class="ctrl-row"><div class="ctrl-label">Damping</div><input type="range" id="b-damp" min="0" max="1" step="0.01" value="0.60"><span class="ctrl-val" data-for="b-damp">0.60</span></div>
+        <div class="ctrl-row"><div class="ctrl-label">Neighbour×</div><input type="range" id="b-nbr" min="1" max="3" step="0.05" value="1.50"><span class="ctrl-val" data-for="b-nbr">1.50</span></div>
+        <div class="ctrl-row"><div class="ctrl-label">Cull k</div><input type="range" id="b-cull" min="0.3" max="1" step="0.01" value="0.70"><span class="ctrl-val" data-for="b-cull">0.70</span></div>
+        <div class="ctrl-row"><div class="ctrl-label">Rate</div><input type="range" id="b-rate" min="0" max="0.1" step="0.005" value="0.02"><span class="ctrl-val" data-for="b-rate">0.02</span></div>
+      </details>
+    </div>
+
+    <!-- ══ STIPPLE ══ -->
+    <div class="panel-section">
+      <h3>Stipple</h3>
+      <div class="ctrl-row"><div class="ctrl-label">Spacing min</div><input type="range" id="sl-sp-min" min="1.5" max="14" step="0.5" value="3"><span class="ctrl-val" data-for="sl-sp-min">3</span></div>
+      <div class="ctrl-row"><div class="ctrl-label">Spacing max</div><input type="range" id="sl-sp-max" min="3" max="40" step="0.5" value="13"><span class="ctrl-val" data-for="sl-sp-max">13</span></div>
+      <div class="ctrl-row"><div class="ctrl-label">Spacing ×</div><input type="range" id="sl-sp-scale" min="0.4" max="2.5" step="0.05" value="1"><span class="ctrl-val" data-for="sl-sp-scale">1.00</span></div>
+      <div class="ctrl-row"><div class="ctrl-label">Phases</div><input type="range" id="sl-phases" min="1" max="24" step="1" value="10"><span class="ctrl-val" data-for="sl-phases">10</span></div>
+      <div class="ctrl-row"><div class="ctrl-label">Detail</div><input type="range" id="sl-detail" min="600" max="1500" step="50" value="950"><span class="ctrl-val" data-for="sl-detail">950</span></div>
+      <p class="org-panel__hint" id="pts-hint">– points</p>
+      <p class="org-panel__hint">Detail = working-resolution long side. Higher = finer grain, more points, slower. Re-places on change.</p>
+    </div>
+
+    <!-- ══ MARKS ══ -->
+    <div class="panel-section">
+      <h3>Marks</h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-shape">
+          <button class="seg-btn active" data-v="dot" onclick="setShape('dot')">Dot</button>
+          <button class="seg-btn" data-v="line" onclick="setShape('line')">Line</button>
+        </div>
+      </div>
+      <div class="ctrl-row"><div class="ctrl-label" id="sz-label">Size min</div><input type="range" id="sl-size" min="0.3" max="8" step="0.1" value="1.4"><span class="ctrl-val" data-for="sl-size">1.4</span></div>
+      <div class="ctrl-row"><div class="ctrl-label" id="szmax-label">Size max</div><input type="range" id="sl-size-max" min="0.5" max="16" step="0.1" value="4.5"><span class="ctrl-val" data-for="sl-size-max">4.5</span></div>
+      <label class="check-row"><input type="checkbox" id="ck-size-range" checked><span>Size by tone</span></label>
+      <div id="line-block" hidden>
+        <div class="ctrl-row"><div class="ctrl-label">Length</div><input type="range" id="sl-stroke-len" min="3" max="60" step="1" value="16"><span class="ctrl-val" data-for="sl-stroke-len">16</span></div>
+        <div class="ctrl-row"><div class="ctrl-label">Segments</div><input type="range" id="sl-stroke-seg" min="2" max="24" step="1" value="8"><span class="ctrl-val" data-for="sl-stroke-seg">8</span></div>
+        <div class="ctrl-row"><div class="ctrl-label">Warp</div><input type="range" id="sl-stroke-warp" min="0" max="3" step="0.05" value="0.2"><span class="ctrl-val" data-for="sl-stroke-warp">0.20</span></div>
+        <label class="check-row"><input type="checkbox" id="ck-stroke-round" checked><span>Rounded caps</span></label>
+        <label class="check-row"><input type="checkbox" id="ck-angle-flow"><span>Flow — follow the frame's field</span></label>
+        <label class="check-row"><input type="checkbox" id="ck-angle-random" checked><span>Random angle</span></label>
+        <label class="check-row"><input type="checkbox" id="ck-angle-range"><span>Angle by tone (swirl)</span></label>
+      </div>
+      <div class="ctrl-row"><div class="ctrl-label">Light dropout</div><input type="range" id="sl-dropout" min="0" max="100" step="1" value="0"><span class="ctrl-val" data-for="sl-dropout">0</span></div>
+      <label class="check-row"><input type="checkbox" id="ck-overpaint"><span>Overpaint (multiply)</span></label>
+    </div>
+
+    <!-- ══ COLOUR ══ -->
+    <div class="panel-section">
+      <h3>Colour</h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-color">
+          <button class="seg-btn active" data-v="solid" onclick="setColor('solid')">Solid</button>
+          <button class="seg-btn" data-v="adaptive" onclick="setColor('adaptive')">Adapt</button>
+          <button class="seg-btn" data-v="rmx" onclick="setColor('rmx')">RMX</button>
+          <button class="seg-btn" data-v="video" onclick="setColor('video')">Video</button>
+        </div>
+      </div>
+      <p class="org-panel__hint" id="video-hint" hidden>Every mark takes the RGB pixel under it, straight from the current video frame.</p>
+      <div id="rmx-block" hidden>
+        <div class="ctrl-row"><div class="ctrl-label">Mapping</div>
+          <select class="panel-select" id="sel-rmx-map">
+            <option value="tone">tone (lerp)</option>
+            <option value="posterize">posterize (bands)</option>
+            <option value="random">random</option>
+            <option value="tonernd">tone + jitter</option>
+          </select>
+        </div>
+        <div id="rmx-palette" class="rmx-palette"></div>
+      </div>
+      <div class="color-row">
+        <span class="color-name">Point</span>
+        <div class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-ink" aria-label="Point colour"></button>
+          <input type="color" id="cp-ink" value="#1c1c1c">
+        </div>
+        <input class="color-hex" id="hex-ink" value="#1c1c1c">
+      </div>
+      <div class="color-row">
+        <span class="color-name">Paper</span>
+        <div class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-paper" aria-label="Paper colour"></button>
+          <input type="color" id="cp-paper" value="#f4f1e8">
+        </div>
+        <input class="color-hex" id="hex-paper" value="#f4f1e8">
+      </div>
+      <div class="ctrl-row"><div class="ctrl-label">Alpha</div><input type="range" id="a-ink" min="10" max="100" step="1" value="100"><span class="ctrl-val" data-for="a-ink">100</span></div>
+    </div>
+
+    <!-- ══ TONE ══ -->
+    <div class="panel-section">
+      <h3>Tone</h3>
+      <label class="check-row"><input type="checkbox" id="ck-invert" checked><span>Dark = dense (invert luma)</span></label>
+      <div class="ctrl-row"><div class="ctrl-label">Contrast</div><input type="range" id="sl-contrast" min="-60" max="80" step="1" value="0"><span class="ctrl-val" data-for="sl-contrast">0</span></div>
+      <div class="ctrl-row"><div class="ctrl-label">Gamma</div><input type="range" id="sl-gamma" min="0.4" max="2.5" step="0.05" value="1"><span class="ctrl-val" data-for="sl-gamma">1.00</span></div>
+      <p class="org-panel__hint">Contrast steepens dark→dense / bright→sparse — the strongest lever for reading the footage in the stipple.</p>
+    </div>
+
+  </div><!-- /panel -->
+</div>
+
+<div class="org-floatbar" role="toolbar" aria-label="Playback">
+  <button class="org-floatbar__btn" id="btn-play" aria-label="Play / Pause" disabled>
+    <svg class="ico" viewBox="0 0 16 16" fill="none"><path id="pp-icon" d="M5 3.5 12 8l-7 4.5z" fill="currentColor"/></svg>
+  </button>
+  <button class="org-floatbar__btn" id="btn-stop" aria-label="Stop" disabled>
+    <svg class="ico" viewBox="0 0 16 16" fill="none"><rect x="4" y="4" width="8" height="8" fill="currentColor"/></svg>
+  </button>
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export" disabled>
+      <svg class="ico" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3M3 13h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="chev" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Export</div>
+      <div class="org-formats">
+        <button class="org-btn" onclick="exportFrame()">PNG frame</button>
+        <button class="org-btn" id="btn-rec" onclick="toggleRecord()">Record</button>
+        <button class="org-btn" onclick="renderSmooth()">Render</button>
+      </div>
+      <p class="org-popover__hint">Record = wall-clock capture, quickest. Render = frame-accurate encode, smooth (a 12&nbsp;s clip is a 12&nbsp;s file). Both write to a 1920&nbsp;px canvas.</p>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-fps">FPS</label>
+        <select class="org-select" id="sel-fps"><option>24</option><option selected>30</option><option>60</option></select>
+      </div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-format">Format</label>
+        <select class="org-select" id="sel-format">
+          <option value="mp4" selected>MP4 · H.264</option>
+          <option value="webm-vp9">WebM · VP9</option>
+          <option value="av1">WebM · AV1</option>
+        </select>
+      </div>
+      <div class="org-popover__row"><span class="org-popover__label">Output</span><span class="org-out" id="out-size">—</span></div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" class="org-file-input" accept="video/*,.mov,.m4v,.mp4,.webm,.mkv" onchange="onFilePick(this)">
+<video id="src" muted playsinline style="display:none"></video>
+
+<script src="/shared/core.js"></script>
+<script src="/shared/palette.js"></script>
+<script src="/shared/recorder.js"></script>
+<script src="/shared/pollen-engine.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// MOTE — video / webcam → stipple. Promoted from scratchpad/mote.html
+// (Aug 31 2026 prototype). The stipple core is shared/pollen-engine.js;
+// this file owns the source pipeline, the three temporal-coherence
+// strategies, the offline frame-accurate encoder, and the panel.
+// ═══════════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const E = Organica.pollenEngine;
+const setStatus = Organica.status();
+const SEED = 0x5eed;
+const Q = new URLSearchParams(location.search);
+const DEMO_BOOT = Q.has('demo');
+const CAM_BOOT = Q.has('cam');
+const DEMO_DURATION = 6;
+
+const video = $('src');
+const stage = $('stage'), sctx = stage.getContext('2d');
+const frameCanvas = document.createElement('canvas');
+const fctx = frameCanvas.getContext('2d', { willReadFrequently: true });
+const EXPORT_LONG = 1920;
+const exportCanvas = document.createElement('canvas');
+const exctx = exportCanvas.getContext('2d');
+
+let source = 'file';          // 'file' | 'webcam' | 'demo'
+let camStream = null;
+let workW = 0, workH = 0;
+let mode = 'A', colorMode = 'solid', pointShape = 'dot';
+let rmxColors = ['#2a1a12', '#8c3b1e', '#d9822b', '#f2c14e', '#f6e8c3'];
+let rmxChips = null;
+let basePoints = null, points = [], targetCount = 0, lastC = [], lastPaintedPts = [];
+let running = false, loopId = 0, demoT = 0, curField = null, recording = false;
+const perf = [];
+
+const val = id => parseFloat($(id).value);
+
+// ── FIELD ─────────────────────────────────────────────────────
+function buildField(W, H) {
+  const px = fctx.getImageData(0, 0, W, H).data;
+  curField = E.buildField(px, W, H, {
+    invert: $('ck-invert').checked, gamma: val('sl-gamma'),
+    contrast: val('sl-contrast'), keepRGBA: true,
+  });
+  return curField;
+}
+function workDims(sw, sh, maxSide) {
+  const s = Math.min(1, maxSide / Math.max(sw, sh));
+  return { W: Math.max(1, Math.round(sw * s)), H: Math.max(1, Math.round(sh * s)) };
+}
+function spacings() {
+  const m = val('sl-sp-scale') || 1;
+  const minSp = val('sl-sp-min') * m;
+  return { minSp, maxSp: Math.max(minSp, val('sl-sp-max') * m) };
+}
+function sampleLuma(x, y) {
+  const f = curField; if (!f) return 0.5;
+  const ix = Math.max(0, Math.min(f.W - 1, x | 0)), iy = Math.max(0, Math.min(f.H - 1, y | 0));
+  return f.data[iy * f.W + ix];
+}
+
+// multi-bucket grid for mode B (advected points can share a cell)
+function makeGridMulti(W, H, minSp) {
+  const cell = Math.max(0.5, minSp / Math.SQRT2);
+  const gw = Math.ceil(W / cell), gh = Math.ceil(H / cell);
+  const buckets = Array.from({ length: gw * gh }, () => []);
+  return {
+    insert(x, y, idx) { buckets[Math.min(gh - 1, (y / cell) | 0) * gw + Math.min(gw - 1, (x / cell) | 0)].push(idx); },
+    forEachNeighbour(x, y, radius, cb) {
+      const cx = (x / cell) | 0, cy = (y / cell) | 0, rad = Math.ceil(radius / cell);
+      for (let gy = Math.max(0, cy - rad); gy <= Math.min(gh - 1, cy + rad); gy++)
+        for (let gx = Math.max(0, cx - rad); gx <= Math.min(gw - 1, cx + rad); gx++) {
+          const b = buckets[gy * gw + gx];
+          for (let m = 0; m < b.length; m++) cb(b[m]);
+        }
+    },
+  };
+}
+
+// ── APPEARANCE ────────────────────────────────────────────────
+function pointParams() {
+  return {
+    shape: pointShape,
+    sizeMin: val('sl-size'), sizeMax: val('sl-size-max'), sizeRange: $('ck-size-range').checked,
+    lightDropout: (val('sl-dropout') || 0) / 100,
+    colorMode, ink: $('hex-ink').value, bg: $('hex-paper').value,
+    alpha: (parseFloat($('a-ink').value) || 100) / 100,
+    rmxColors: rmxColors.slice(), rmxMap: $('sel-rmx-map').value,
+    strokeLen: val('sl-stroke-len'), strokeSeg: Math.round(val('sl-stroke-seg')),
+    strokeWarp: val('sl-stroke-warp'), strokeRound: $('ck-stroke-round').checked,
+    angleFlow: $('ck-angle-flow').checked, angleRandom: $('ck-angle-random').checked,
+    angleRange: $('ck-angle-range').checked, angleMin: 0, angleMax: 360,
+  };
+}
+
+// Mote's own paintPoints — literal dots + curved lines. Calls the shared
+// value-resolution + geometry primitives; Pollen keeps its own for SVG-form marks.
+function paintPoints(g, pts, P, W, H, opt) {
+  const unit = opt.unit || 1;
+  g.imageSmoothingEnabled = true;
+  g.globalCompositeOperation = 'source-over';
+  g.fillStyle = opt.bg; g.fillRect(0, 0, W, H);
+  if (opt.overpaint) g.globalCompositeOperation = 'multiply';
+  g.lineJoin = 'round';
+  const line = P.shape === 'line';
+  const perPoint = P.colorMode !== 'solid';
+  const angleAt = (line && P.angleFlow) ? E.makeFieldAngle(P, sampleLuma) : null;
+  if (!perPoint) { const c = E.pointRGBA(P, 0, 0, null, curField); g.fillStyle = g.strokeStyle = `rgba(${c.r},${c.g},${c.b},${c.a})`; }
+  for (let k = 0; k < pts.length; k++) {
+    const p = pts[k];
+    if (E.dropoutSkip(P, p.b, p.rnd)) continue;
+    if (perPoint) {
+      const c = E.pointRGBA(P, p.b, p.rnd, p, curField);
+      g.fillStyle = g.strokeStyle = `rgba(${c.r},${c.g},${c.b},${c.a})`;
+    }
+    const sz = E.ranged(P.sizeMin, P.sizeMax, P.sizeRange, false, p.b, p.rnd) * unit;
+    if (!line) {
+      g.beginPath();
+      g.arc(p.x * unit, p.y * unit, Math.max(0.1 * unit, sz / 2), 0, Math.PI * 2);
+      g.fill();
+      continue;
+    }
+    g.lineWidth = Math.max(0.5 * unit, sz);
+    g.lineCap = P.strokeRound ? 'round' : 'butt';
+    if (angleAt) {
+      const sp = E.fieldStrokePts(p.x, p.y, P, p.rnd, angleAt);
+      g.beginPath(); E.smoothOpenPath(g, unit === 1 ? sp : sp.map(q => [q[0] * unit, q[1] * unit])); g.stroke();
+    } else {
+      const cl = E.strokeCenterline(P.strokeLen * unit, P.strokeSeg, P.strokeWarp, p.rnd);
+      g.save();
+      g.translate(p.x * unit, p.y * unit);
+      g.rotate(E.pointAngle(P, p));
+      g.beginPath(); E.smoothOpenPath(g, cl); g.stroke();
+      g.restore();
+    }
+  }
+}
+
+// ── FRAME SOURCE ──────────────────────────────────────────────
+function grabFrame() {
+  if (source === 'demo') { drawDemo(fctx, workW, workH, demoT); return; }
+  if ($('ck-mirror').checked) {
+    fctx.save();
+    fctx.translate(workW, 0); fctx.scale(-1, 1);
+    fctx.drawImage(video, 0, 0, workW, workH);
+    fctx.restore();
+    return;
+  }
+  fctx.drawImage(video, 0, 0, workW, workH);
+}
+function drawDemo(g, W, H, t) {
+  const rg = g.createRadialGradient(W * 0.5, H * 0.42, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.62);
+  rg.addColorStop(0, '#8f8f88'); rg.addColorStop(1, '#111');
+  g.fillStyle = rg; g.fillRect(0, 0, W, H);
+  const bx = (0.5 + 0.4 * Math.sin(t * 1.6)) * W, bw = W * 0.14;
+  const lg = g.createLinearGradient(bx - bw, 0, bx + bw, 0);
+  lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.5, 'rgba(255,255,255,0.95)'); lg.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = lg; g.fillRect(0, 0, W, H);
+  g.fillStyle = 'rgba(0,0,0,0.6)';
+  g.beginPath();
+  g.arc((0.5 - 0.3 * Math.cos(t * 1.1)) * W, (0.5 + 0.24 * Math.sin(t * 0.9)) * H, Math.min(W, H) * 0.17, 0, Math.PI * 2);
+  g.fill();
+}
+function liveSource() { return source !== 'file' || !isFinite(video.duration); }
+function clipDuration() {
+  if (source === 'file' && isFinite(video.duration)) return video.duration;
+  return val('sl-capture') || DEMO_DURATION;
+}
+
+// ── COHERENCE ─────────────────────────────────────────────────
+function cpOpts(f) {
+  const { minSp, maxSp } = spacings();
+  return { field: f, minSp, maxSp, phases: Math.round(val('sl-phases')),
+           rng: Organica.mulberry32(SEED), isCancelled: () => false,
+           onProgress: (_, n) => { $('pts-hint').textContent = n.toLocaleString() + ' points'; } };
+}
+async function replacePoints() {
+  grabFrame();
+  const f = buildField(workW, workH);
+  const pts = await E.computePoints(cpOpts(f));
+  basePoints = pts.map(p => ({ x: p.x, y: p.y, rnd: p.rnd }));
+  targetCount = basePoints.length;
+  $('pts-hint').textContent = targetCount.toLocaleString() + ' points';
+  repaintStill();
+}
+function stepA(f) {
+  const { data: d, W, H } = f;
+  const out = new Array(basePoints.length);
+  for (let i = 0; i < basePoints.length; i++) {
+    const bp = basePoints[i];
+    const b = d[Math.min(H - 1, bp.y | 0) * W + Math.min(W - 1, bp.x | 0)];
+    out[i] = { x: bp.x, y: bp.y, b, rnd: bp.rnd, ga: E.gradAngle(f, bp.x, bp.y) };
+  }
+  return out;
+}
+function stepB(f) {
+  const { data: d, W, H } = f;
+  const { minSp, maxSp } = spacings();
+  const stepFrac = val('b-step'), damp = val('b-damp'), nbrK = val('b-nbr'),
+        cullK = val('b-cull'), budget = Math.max(1, (targetCount * val('b-rate')) | 0);
+  if (!points.length) return points;
+
+  let grid = makeGridMulti(W, H, minSp);
+  points.forEach((p, i) => grid.insert(p.x, p.y, i));
+  const nx = new Float32Array(points.length), ny = new Float32Array(points.length);
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i], ds = E.spacingAt(f, minSp, maxSp, p.x, p.y);
+    let vx = 0, vy = 0, w = 0;
+    grid.forEachNeighbour(p.x, p.y, ds * nbrK, j => {
+      if (j === i) return;
+      const q = points[j];
+      let dx = p.x - q.x, dy = p.y - q.y, dist = Math.hypot(dx, dy) || 1e-4;
+      const want = 0.5 * (ds + E.spacingAt(f, minSp, maxSp, q.x, q.y));
+      const push = (want - dist) / want;
+      vx += (dx / dist) * push; vy += (dy / dist) * push; w++;
+    });
+    if (w) { vx /= w; vy /= w; }
+    const mag = Math.hypot(vx, vy) || 1e-6;
+    const k = Math.min(1, (ds * stepFrac) / mag) * damp;
+    nx[i] = Math.max(0, Math.min(W - 1, p.x + vx * k));
+    ny[i] = Math.max(0, Math.min(H - 1, p.y + vy * k));
+  }
+  for (let i = 0; i < points.length; i++) { points[i].x = nx[i]; points[i].y = ny[i]; }
+
+  for (const p of points) {
+    p.b = d[Math.min(H - 1, p.y | 0) * W + Math.min(W - 1, p.x | 0)];
+    p.ga = E.gradAngle(f, p.x, p.y);
+  }
+
+  grid = makeGridMulti(W, H, minSp);
+  points.forEach((p, i) => grid.insert(p.x, p.y, i));
+  const kill = [];
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i], ds = E.spacingAt(f, minSp, maxSp, p.x, p.y);
+    let near = Infinity;
+    grid.forEachNeighbour(p.x, p.y, ds, j => {
+      if (j === i) return;
+      const q = points[j], dx = q.x - p.x, dy = q.y - p.y, dd = dx * dx + dy * dy;
+      if (dd < near) near = dd;
+    });
+    if (near < (ds * cullK) * (ds * cullK)) kill.push([near, i]);
+  }
+  kill.sort((a, b) => a[0] - b[0]);
+  const killSet = new Set(kill.slice(0, budget).map(k => k[1]));
+  if (killSet.size) points = points.filter((_, i) => !killSet.has(i));
+
+  grid = makeGridMulti(W, H, minSp);
+  points.forEach((p, i) => grid.insert(p.x, p.y, i));
+  let added = 0, tries = 0;
+  while (added < budget && tries < budget * 40) {
+    tries++;
+    const x = Math.random() * W, y = Math.random() * H;
+    const r = E.spacingAt(f, minSp, maxSp, x, y);
+    let ok = true;
+    grid.forEachNeighbour(x, y, r, j => {
+      const q = points[j], dx = q.x - x, dy = q.y - y;
+      if (dx * dx + dy * dy < r * r) ok = false;
+    });
+    if (!ok) continue;
+    const b = d[Math.min(H - 1, y | 0) * W + Math.min(W - 1, x | 0)];
+    points.push({ x, y, b, rnd: Math.random(), ga: E.gradAngle(f, x, y) });
+    grid.insert(x, y, points.length - 1);
+    added++;
+  }
+  const hi = targetCount * 1.05;
+  if (points.length > hi) points.length = Math.round(hi);
+  return points;
+}
+let cBusy = false;
+function kickC(f) {
+  if (cBusy) return;
+  cBusy = true;
+  E.computePoints({ ...cpOpts(f), rng: Organica.mulberry32(SEED) }).then(pts => {
+    if (pts.length) { points = pts; lastC = pts; }
+    cBusy = false;
+  });
+}
+async function stepC(f) {
+  points = await E.computePoints({ ...cpOpts(f), rng: Organica.mulberry32(SEED) });
+  lastC = points;
+  return points;
+}
+function stepFrame(f) {
+  if (mode === 'A') return stepA(f);
+  if (mode === 'B') return stepB(f);
+  return lastC.length ? lastC : points;
+}
+async function stepFrameAsync(f) {
+  if (mode === 'A') return stepA(f);
+  if (mode === 'B') return stepB(f);
+  return await stepC(f);
+}
+
+// ── LOOP ──────────────────────────────────────────────────────
+function paintOpts() {
+  const P = pointParams();
+  return { unit: stage.width / workW, bg: P.bg, overpaint: $('ck-overpaint').checked };
+}
+function pushPerf(ms, count) {
+  if (ms) { perf.push(ms); if (perf.length > 30) perf.shift(); }
+  const avg = perf.reduce((a, b) => a + b, 0) / (perf.length || 1);
+  $('pf-ms').textContent = avg ? avg.toFixed(1) : '–';
+  $('pf-fps').textContent = avg ? (1000 / avg).toFixed(0) : '–';
+  $('pf-n').textContent = count.toLocaleString();
+}
+function tick() {
+  if (!running) return;
+  const t0 = performance.now();
+  if (source === 'demo') demoT += 1 / 60;
+  grabFrame();
+  const f = buildField(workW, workH);
+  const pts = stepFrame(f);
+  if (mode === 'C') kickC(f);
+  lastPaintedPts = pts;
+  paintPoints(sctx, pts, pointParams(), stage.width, stage.height, paintOpts());
+  if (recording) paintExport();
+  pushPerf(performance.now() - t0, pts.length);
+  scheduleTick();
+}
+function scheduleTick() {
+  if (source !== 'demo' && 'requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+    loopId = video.requestVideoFrameCallback(tick);
+  } else {
+    loopId = requestAnimationFrame(tick);
+  }
+}
+function startRealtime() {
+  if (!workW) return;
+  running = true;
+  if (source !== 'demo') { video.loop = true; video.play(); }
+  scheduleTick();
+  setPPIcon(true);
+}
+function pauseRealtime() {
+  running = false;
+  if (source !== 'demo') video.pause();
+  if (source !== 'demo' && video.cancelVideoFrameCallback) video.cancelVideoFrameCallback(loopId);
+  else cancelAnimationFrame(loopId);
+  setPPIcon(false);
+}
+function stopAll() {
+  pauseRealtime();
+  demoT = 0;
+  if (source === 'file' && isFinite(video.duration)) video.currentTime = 0;
+  if (workW) {
+    grabFrame();
+    const f = buildField(workW, workH);
+    const pts = (mode === 'A' && basePoints) ? stepA(f) : points;
+    paintPoints(sctx, pts, pointParams(), stage.width, stage.height, paintOpts());
+  }
+  if (camStream) { releaseCamera(); setStatus('active', 'Camera stopped — pick Webcam again to resume'); }
+}
+function setPPIcon(playing) {
+  $('pp-icon').setAttribute('d', playing ? 'M4.5 3.5h3v9h-3zM8.5 3.5h3v9h-3z' : 'M5 3.5 12 8l-7 4.5z');
+}
+function repaintStill() {
+  if (!workW || running) return;
+  grabFrame();
+  const f = buildField(workW, workH);
+  const pts = (mode === 'A' && basePoints) ? stepA(f) : (points.length ? points : []);
+  if (pts.length) paintPoints(sctx, pts, pointParams(), stage.width, stage.height, paintOpts());
+}
+
+// ── EXPORT ────────────────────────────────────────────────────
+function fmtCandidates() {
+  const f = $('sel-format').value || 'mp4';
+  if (f === 'webm-vp9') return ['video/webm;codecs=vp9', 'video/webm;codecs=vp09.00.40.08', 'video/webm;codecs=vp8', 'video/webm'];
+  if (f === 'av1') return ['video/webm;codecs=av01.0.08M.08', 'video/webm;codecs=av01', 'video/webm;codecs=vp9', 'video/webm'];
+  return ['video/mp4;codecs=avc1.640028', 'video/mp4;codecs=avc1.4d0028', 'video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9'];
+}
+function bppFor(mime) {
+  if (mime.indexOf('av01') >= 0) return 0.16;
+  if (mime.indexOf('mp4') >= 0) return 0.38;
+  return 0.45;
+}
+function sizeExportCanvas() {
+  const sw = video.videoWidth || workW || 960, sh = video.videoHeight || workH || 720;
+  const s = Math.min(1, EXPORT_LONG / Math.max(sw, sh));
+  exportCanvas.width = Math.max(2, Math.round(sw * s));
+  exportCanvas.height = Math.max(2, Math.round(sh * s));
+}
+function paintExport() {
+  const P = pointParams();
+  paintPoints(exctx, lastPaintedPts, P, exportCanvas.width, exportCanvas.height,
+    { unit: exportCanvas.width / workW, bg: P.bg, overpaint: $('ck-overpaint').checked });
+}
+function updateSizeReadout() {
+  if (!workW) { $('out-size').textContent = '—'; return; }
+  sizeExportCanvas();
+  $('out-size').textContent = exportCanvas.width + ' × ' + exportCanvas.height;
+}
+function exportFrame() {
+  if (!workW || !lastPaintedPts.length) { setStatus('', 'Nothing to export yet'); return; }
+  sizeExportCanvas();
+  paintExport();
+  exportCanvas.toBlob(b => {
+    Organica.download(b, Organica.stamp('mote', 'png'));
+    setStatus('active', 'PNG frame — ' + exportCanvas.width + '×' + exportCanvas.height);
+  }, 'image/png');
+}
+
+// Real-time recorder — the shared Organica.recorder, captured off the hi-res
+// exportCanvas with an explicit H.264-High bitrate (stipple is codec-hostile).
+const moteRecorder = Organica.recorder({
+  canvas: () => exportCanvas,
+  tool: 'mote',
+  fps: 30,
+  duration: () => clipDuration(),
+  durationPadMs: 90,
+  mimeCandidates: fmtCandidates(),
+  bitrate: () => {
+    const mime = fmtCandidates().find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || 'video/mp4';
+    return Math.min(90e6, Math.round(exportCanvas.width * exportCanvas.height * (+$('sel-fps').value) * bppFor(mime)));
+  },
+  onStart: () => { recording = true; if (source === 'file' && isFinite(video.duration)) video.currentTime = 0; demoT = 0; startRealtime(); },
+  onStateChange: isRec => {
+    recording = isRec;
+    $('btn-rec').textContent = isRec ? 'Stop' : 'Record';
+    if (!isRec) pauseRealtime();
+  },
+  onStatus: (phase, msg) => setStatus(phase === 'error' ? '' : (phase === 'saved' ? 'active' : 'rendering'),
+    phase === 'recording' ? ('Recording ' + exportCanvas.width + 'px @ real time') : msg),
+});
+function toggleRecord() {
+  if (moteRecorder.isRecording()) { moteRecorder.stop(); return; }
+  if (!workW) { setStatus('', 'Load a source first'); return; }
+  sizeExportCanvas();
+  moteRecorder.start();
+}
+
+// Frame-accurate OFFLINE encode — MediaStreamTrackGenerator + timestamped
+// VideoFrames. The only non-realtime encoder in the repo; would only become a
+// shared helper if a second video tool ever needs one.
+let smoothBusy = false;
+async function renderSmooth() {
+  if (!workW || smoothBusy) return;
+  if (typeof MediaStreamTrackGenerator === 'undefined' || typeof VideoFrame === 'undefined') {
+    setStatus('', 'Render needs MediaStreamTrackGenerator + VideoFrame (Chromium). Use Record instead.');
+    return;
+  }
+  smoothBusy = true;
+  const fps = +$('sel-fps').value, dur = clipDuration(), n = Math.ceil(dur * fps);
+  const live = liveSource();
+  pauseRealtime();
+  if (source === 'file' && !live) video.loop = false;
+  if (live && source !== 'demo') video.play();
+  sizeExportCanvas();
+  const mime = fmtCandidates().find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || '';
+  const bitrate = Math.min(90e6, Math.round(exportCanvas.width * exportCanvas.height * fps * bppFor(mime)));
+  const fdUs = Math.round(1e6 / fps);
+  let gen, writer, mr;
+  try {
+    gen = new MediaStreamTrackGenerator({ kind: 'video' });
+    writer = gen.writable.getWriter();
+    mr = new MediaRecorder(new MediaStream([gen]), mime ? { mimeType: mime, videoBitsPerSecond: bitrate } : { videoBitsPerSecond: bitrate });
+  } catch (e) { setStatus('', 'Encoder init failed: ' + e.message); smoothBusy = false; return; }
+  const chunks = [];
+  mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  const stopped = new Promise(res => mr.onstop = res);
+  mr.start();
+  for (let i = 0; i < n; i++) {
+    if (source === 'demo') demoT = i / fps;
+    else if (!live) {
+      video.currentTime = Math.min(dur - 1e-3, i / fps);
+      await new Promise(r => video.addEventListener('seeked', r, { once: true }));
+    }
+    grabFrame();
+    const f = buildField(workW, workH);
+    const pts = await stepFrameAsync(f);
+    lastPaintedPts = pts;
+    paintPoints(sctx, pts, pointParams(), stage.width, stage.height, paintOpts());
+    paintExport();
+    await writer.write(new VideoFrame(exportCanvas, { timestamp: i * fdUs, duration: fdUs }));
+    $('progress-bar').style.width = Math.round((i + 1) / n * 100) + '%';
+    setStatus('rendering', 'Render — ' + (i + 1) + '/' + n + ' · ' + exportCanvas.width + 'px');
+  }
+  await writer.close();
+  mr.stop();
+  await stopped;
+  $('progress-bar').style.width = '0%';
+  smoothBusy = false;
+  const total = chunks.reduce((a, b) => a + b.size, 0);
+  if (!total) { setStatus('', 'Encoder produced 0 bytes — this browser has no working offline encoder. Try Record.'); return; }
+  const type = mr.mimeType || mime || 'video/webm';
+  const ext = type.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
+  Organica.download(new Blob(chunks, { type }), Organica.stamp('mote', ext));
+  setStatus('active', 'Saved — ' + exportCanvas.width + '×' + exportCanvas.height + ' · ' + type.replace('video/', '') + ' · ' + (n / fps).toFixed(1) + 's/' + n + 'f · ' + (total / 1e6).toFixed(1) + 'MB');
+}
+
+// ── SOURCE PIPELINE ───────────────────────────────────────────
+async function onReady() {
+  const src = source === 'demo' ? { w: 960, h: 720 } : { w: video.videoWidth || 960, h: video.videoHeight || 720 };
+  const d = workDims(src.w, src.h, val('sl-detail') || 950);
+  workW = d.W; workH = d.H;
+  frameCanvas.width = workW; frameCanvas.height = workH;
+  stage.width = workW; stage.height = workH;
+  stage.classList.add('visible');
+  $('drop-hint').classList.add('hidden');
+  ['btn-play', 'btn-stop', 'btn-export'].forEach(id => $(id).disabled = false);
+  demoT = 0;
+  await replacePoints();
+  grabFrame();
+  const f = buildField(workW, workH);
+  points = await E.computePoints(cpOpts(f));
+  lastC = points; targetCount = points.length;
+  paintPoints(sctx, stepA(f), pointParams(), stage.width, stage.height, paintOpts());
+  pushPerf(0, points.length);
+  updateSizeReadout();
+  const dur = (source === 'file' && isFinite(video.duration)) ? ' · ' + video.duration.toFixed(1) + 's' : ' · live';
+  setStatus('active', (source === 'demo' ? 'demo' : (video.videoWidth + '×' + video.videoHeight)) + ' · work ' + workW + '×' + workH + dur);
+}
+let reinitT = 0;
+function reinit() {
+  if (!workW) return;
+  clearTimeout(reinitT);
+  reinitT = setTimeout(async () => {
+    const was = running;
+    if (running) pauseRealtime();
+    await onReady();
+    if (was) startRealtime();
+  }, 250);
+}
+
+// files ------------------------------------------------------------
+let ready = false, loadWatch = 0;
+function onFilePick(input) { const f = input.files[0]; if (f) loadVideo(f); input.value = ''; }
+function loadVideo(file) {
+  const ok = (file && file.type && file.type.startsWith('video/'))
+    || (file && /\.(mov|mp4|m4v|webm|mkv|avi|ogv)$/i.test(file.name));
+  if (!ok) { setStatus('', 'Not a video — pick an .mp4 / .mov / .webm'); return; }
+  releaseCamera();
+  setSourceSeg('file'); source = 'file';
+  ready = false;
+  setStatus('rendering', 'Loading ' + file.name + '…');
+  video.srcObject = null;
+  video.src = URL.createObjectURL(file);
+  video.load();
+  clearTimeout(loadWatch);
+  loadWatch = setTimeout(() => {
+    if (ready) return;
+    setStatus('', video.readyState === 0
+      ? 'Still loading — that codec is probably not browser-decodable (ProRes / HEVC). Convert to .mp4 H.264.'
+      : 'Metadata read but no frame yet — give it a moment or try .mp4 H.264.');
+  }, 12000);
+}
+function markReady() {
+  if (source !== 'file' || ready || !video.src) return;
+  ready = true;
+  clearTimeout(loadWatch);
+  onReady();
+}
+video.addEventListener('loadeddata', markReady);
+video.addEventListener('canplay', markReady);
+video.addEventListener('error', () => {
+  if (source !== 'file') return;
+  clearTimeout(loadWatch);
+  const m = (video.error && video.error.message) ? ' (' + video.error.message + ')' : '';
+  setStatus('', 'Could not decode that video' + m + ' — convert to .mp4 (H.264).');
+});
+
+// webcam ---------------------------------------------------------
+function releaseCamera() {
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  if (video.srcObject) { try { video.srcObject = null; } catch (e) {} }
+}
+async function listCameras() {
+  const sel = $('sel-camera');
+  try {
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    const cams = devs.filter(d => d.kind === 'videoinput');
+    sel.innerHTML = cams.map((c, i) => `<option value="${c.deviceId}">${c.label || 'Camera ' + (i + 1)}</option>`).join('');
+    $('row-camera').hidden = cams.length < 2;
+  } catch (e) { $('row-camera').hidden = true; }
+}
+async function startCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setStatus('', 'This browser has no getUserMedia (needs localhost or https).'); return;
+  }
+  setStatus('rendering', 'Requesting camera…');
+  releaseCamera();
+  const devId = $('sel-camera').value;
+  const constraints = { video: devId ? { deviceId: { exact: devId } } : { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia(constraints);
+  } catch (e) { setStatus('', 'Camera unavailable: ' + (e && e.message || e)); return; }
+  source = 'webcam';
+  ready = false; video.src = '';
+  video.srcObject = camStream;
+  video.addEventListener('loadeddata', function once() {
+    video.removeEventListener('loadeddata', once);
+    onReady();
+    listCameras();
+    setStatus('active', 'Camera live · ' + video.videoWidth + '×' + video.videoHeight);
+  });
+  video.play();
+}
+window.addEventListener('pagehide', releaseCamera);
+
+// source seg ---------------------------------------------------
+function setSourceSeg(v) {
+  $('seg-source').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
+  $('row-file').hidden = v !== 'file';
+  $('row-camera').hidden = !(v === 'webcam' && $('sel-camera').options.length > 1);
+  $('row-capture').hidden = v === 'file';
+  $('src-hint').textContent = v === 'file'
+    ? 'A local file never leaves your machine.'
+    : (v === 'webcam' ? 'Webcam needs localhost or https. Capture sets the recording length.'
+                      : 'Synthetic scene for testing. Capture sets the recording length.');
+}
+function pickSource(v) {
+  if (v === source && workW) return;
+  setSourceSeg(v);
+  if (v === 'file') { source = 'file'; if (!video.src) $('file-input').click(); }
+  else if (v === 'webcam') { startCamera(); }
+  else { releaseCamera(); source = 'demo'; onReady().then(startRealtime); }
+}
+
+// ── PANEL WIRING ──────────────────────────────────────────────
+function setCoherence(v) {
+  mode = v;
+  $('seg-coherence').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
+  $('sec-flow').hidden = v !== 'B';
+  $('row-replace').hidden = v !== 'A';
+  $('coh-hint').textContent = v === 'A' ? "Points are placed once; only their tone & size follow the video."
+    : v === 'B' ? 'Points migrate toward the moving content — one relaxation step per frame.'
+    : 'Full re-stipple every frame. Live preview updates in bursts; use Render for a clean pass.';
+  $('note').style.display = (v === 'C' && !recording) ? 'block' : 'none';
+  $('note').textContent = 'Re-stipple is heavy per frame — the live preview lags and updates in bursts. Render gives a smooth result.';
+  repaintStill();
+}
+const FLOW_PRESETS = {
+  gentle:    { 'b-step': 0.18, 'b-damp': 0.75, 'b-nbr': 1.30, 'b-cull': 0.78, 'b-rate': 0.012 },
+  medium:    { 'b-step': 0.30, 'b-damp': 0.60, 'b-nbr': 1.50, 'b-cull': 0.70, 'b-rate': 0.020 },
+  turbulent: { 'b-step': 0.45, 'b-damp': 0.50, 'b-nbr': 1.70, 'b-cull': 0.60, 'b-rate': 0.030 },
+};
+function setFlow(v) {
+  $('seg-flow').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
+  const p = FLOW_PRESETS[v]; if (!p) return;
+  Object.keys(p).forEach(id => { $(id).value = p[id]; syncSliderOut($(id)); });
+}
+function setShape(v) {
+  pointShape = v;
+  $('seg-shape').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
+  $('line-block').hidden = v !== 'line';
+  const t = v === 'line' ? 'Thickness' : 'Size';
+  $('sz-label').textContent = t + ' min'; $('szmax-label').textContent = t + ' max';
+  repaintStill();
+}
+function setColor(v) {
+  colorMode = v;
+  $('seg-color').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
+  $('rmx-block').hidden = v !== 'rmx';
+  $('video-hint').hidden = v !== 'video';
+  repaintStill();
+}
+function syncSliderOut(r) {
+  const v = document.querySelector('.ctrl-val[data-for="' + r.id + '"]');
+  if (!v) return;
+  if (r.id === 'sl-capture') { v.textContent = r.value + 's'; return; }
+  v.textContent = (r.step && +r.step < 1) ? (+r.value).toFixed(2) : r.value;
+}
+
+// ── PRESETS ───────────────────────────────────────────────────
+const RAMP_WARM = ['#170d06', '#5a2c14', '#a8632a', '#e0a955', '#f7ecd6'];
+const RAMP_COOL = ['#0e1622', '#274157', '#5f8aa0', '#a9cdd6', '#eef4f2'];
+const BUILTIN_PRESETS = {
+  'Fine dots':      { mode: 'A', shape: 'dot', detail: 950, spMin: 1.5, spMax: 8, spX: 1, phases: 16, size: 1.5, sizeMax: 1.5, range: false, cm: 'solid', ink: '#0a0a0a', bg: '#f5f2ec', contrast: 0, gamma: 1, dropout: 0 },
+  'Felt-tip':       { mode: 'A', shape: 'dot', detail: 900, spMin: 3, spMax: 14, spX: 1, phases: 12, size: 4, sizeMax: 1, range: true, cm: 'solid', ink: '#0a0a0a', bg: '#f5f2ec', contrast: 0, gamma: 1, dropout: 0 },
+  'Duotone':        { mode: 'A', shape: 'dot', detail: 900, spMin: 1.5, spMax: 9, spX: 1, phases: 14, size: 3, sizeMax: 3, range: false, cm: 'adaptive', ink: '#1a3a2a', bg: '#dfe6f0', contrast: 0, gamma: 1, dropout: 0 },
+  'Video colour':   { mode: 'A', shape: 'dot', detail: 820, spMin: 2.5, spMax: 11, spX: 1, phases: 12, size: 1.2, sizeMax: 4.2, range: true, cm: 'video', contrast: 8, gamma: 1, dropout: 0, bg: '#0a0a0a' },
+  'Etching lines':  { mode: 'A', shape: 'line', flow: true, rndAngle: false, round: true, strokeLen: 11, strokeSeg: 7, strokeWarp: 0.14, detail: 800, spMin: 2.6, spMax: 10, spX: 1, phases: 12, size: 0.9, sizeMax: 0.9, range: false, cm: 'adaptive', ink: '#0d0d0d', bg: '#efe9dc', contrast: 26, gamma: 1, dropout: 0 },
+  'Warm ink lines': { mode: 'A', shape: 'line', flow: true, rndAngle: false, round: true, strokeLen: 10, strokeSeg: 6, strokeWarp: 0.18, detail: 780, spMin: 2.8, spMax: 11, spX: 1, phases: 12, size: 1.1, sizeMax: 1.1, range: false, cm: 'rmx', map: 'tone', rmx: RAMP_WARM, contrast: 18, gamma: 1, dropout: 0, bg: '#120b05' },
+  'Hatch flow':     { mode: 'A', shape: 'line', flow: true, rndAngle: false, angleRange: false, round: true, strokeLen: 12, strokeSeg: 10, strokeWarp: 0.3, detail: 900, spMin: 1.5, spMax: 9, spX: 1, phases: 16, size: 1, sizeMax: 1, range: false, cm: 'solid', ink: '#0a0a0a', bg: '#f5f2ec', contrast: 0, gamma: 1, dropout: 50 },
+  'Warm drift':     { mode: 'B', shape: 'dot', detail: 720, spMin: 3.4, spMax: 13, spX: 1, size: 1.0, sizeMax: 3.8, range: true, cm: 'rmx', map: 'tone', rmx: RAMP_WARM, contrast: 16, gamma: 1, dropout: 0, bg: '#140d06' },
+  'Tonal drift':    { mode: 'B', shape: 'dot', detail: 720, spMin: 3.4, spMax: 13, spX: 1, size: 0.9, sizeMax: 4.0, range: true, cm: 'adaptive', ink: '#0f0f0f', bg: '#f2efe6', contrast: 24, gamma: 1, dropout: 0 },
+};
+const STORE = Organica.presetStore('mote');
+function userPresets() { return STORE.read(); }
+function allPresets() { return Object.assign({}, BUILTIN_PRESETS, userPresets()); }
+function populatePresets(select) {
+  const all = allPresets(), user = userPresets();
+  let html = '<option value="">— preset —</option><optgroup label="Built-in">';
+  Object.keys(BUILTIN_PRESETS).forEach(n => html += `<option value="${n}">${n}</option>`);
+  html += '</optgroup>';
+  const un = Object.keys(user);
+  if (un.length) { html += '<optgroup label="Yours">'; un.forEach(n => html += `<option value="${n}">${n}</option>`); html += '</optgroup>'; }
+  $('sel-preset').innerHTML = html;
+  if (select && all[select]) $('sel-preset').value = select;
+}
+function applyPreset(key) {
+  const P = allPresets()[key]; if (!P) return;
+  const detBefore = $('sl-detail').value;
+  $('sl-sp-min').value = P.spMin; $('sl-sp-max').value = P.spMax; $('sl-sp-scale').value = P.spX != null ? P.spX : 1;
+  if (P.phases != null) $('sl-phases').value = P.phases;
+  $('sl-size').value = P.size; $('sl-size-max').value = P.sizeMax; $('ck-size-range').checked = !!P.range;
+  $('sl-contrast').value = P.contrast != null ? P.contrast : 0;
+  $('sl-gamma').value = P.gamma != null ? P.gamma : 1;
+  if (P.detail != null) $('sl-detail').value = P.detail;
+  if (P.ink) { $('cp-ink').value = P.ink; $('hex-ink').value = P.ink; swInk.set(P.ink); }
+  if (P.bg)  { $('cp-paper').value = P.bg; $('hex-paper').value = P.bg; swPaper.set(P.bg); }
+  if (P.rmx) { rmxColors = P.rmx.slice(); if (rmxChips) rmxChips.setColors(rmxColors); }
+  if (P.map) $('sel-rmx-map').value = P.map;
+  setShape(P.shape || 'dot');
+  if (pointShape === 'line') {
+    $('sl-stroke-len').value = P.strokeLen; $('sl-stroke-seg').value = P.strokeSeg; $('sl-stroke-warp').value = P.strokeWarp;
+    $('ck-stroke-round').checked = !!P.round; $('ck-angle-flow').checked = !!P.flow;
+    $('ck-angle-random').checked = !!P.rndAngle; $('ck-angle-range').checked = !!P.angleRange;
+  }
+  $('sl-dropout').value = P.dropout || 0;
+  setColor(P.cm || 'solid');
+  if (P.mode) setCoherence(P.mode);
+  document.querySelectorAll('#panel input[type=range]').forEach(syncSliderOut);
+  if ($('sl-detail').value !== detBefore) reinit();
+  else repaintStill();
+  setStatus('active', 'Preset: ' + key);
+}
+function savePreset() { $('preset-save-row').hidden = false; $('preset-name').value = ''; $('preset-name').focus(); }
+function commitPreset() {
+  const name = $('preset-name').value.trim();
+  if (!name) return;
+  if (BUILTIN_PRESETS[name]) { setStatus('', 'That name is a built-in — pick another'); return; }
+  const all = userPresets();
+  all[name] = {
+    mode, shape: pointShape, detail: +$('sl-detail').value,
+    spMin: +$('sl-sp-min').value, spMax: +$('sl-sp-max').value, spX: +$('sl-sp-scale').value, phases: +$('sl-phases').value,
+    size: +$('sl-size').value, sizeMax: +$('sl-size-max').value, range: $('ck-size-range').checked,
+    strokeLen: +$('sl-stroke-len').value, strokeSeg: +$('sl-stroke-seg').value, strokeWarp: +$('sl-stroke-warp').value,
+    round: $('ck-stroke-round').checked, flow: $('ck-angle-flow').checked, rndAngle: $('ck-angle-random').checked, angleRange: $('ck-angle-range').checked,
+    dropout: +$('sl-dropout').value, cm: colorMode, map: $('sel-rmx-map').value,
+    ink: $('hex-ink').value, bg: $('hex-paper').value, rmx: rmxColors.slice(),
+    contrast: +$('sl-contrast').value, gamma: +$('sl-gamma').value,
+  };
+  STORE.write(all);
+  $('preset-save-row').hidden = true;
+  populatePresets(name);
+  setStatus('active', 'Saved preset: ' + name);
+}
+function deletePreset() {
+  const key = $('sel-preset').value;
+  if (!key || BUILTIN_PRESETS[key]) { setStatus('', 'Pick one of your own presets to delete'); return; }
+  const all = userPresets(); delete all[key];
+  STORE.write(all);
+  populatePresets();
+  setStatus('active', 'Deleted preset: ' + key);
+}
+
+// ── ZOOM / PAN ────────────────────────────────────────────────
+const zoomPan = Organica.createZoomPan({
+  canvas: stage, wrap: $('canvas-wrap'),
+  isReady: () => stage.classList.contains('visible'),
+  onChange: ({ zoom, zoomed }) => {
+    $('zoom-level').textContent = Math.round(zoom * 100) + '%';
+    $('zoom-hud').classList.toggle('visible', zoomed);
+    stage.classList.toggle('zoomed', zoomed);
+  },
+});
+function resetZoom() { zoomPan.reset(); }
+
+// ── SWATCHES ──────────────────────────────────────────────────
+const swInk = Organica.palette.swatch('ink', { initial: '#1c1c1c', onChange: repaintStill });
+const swPaper = Organica.palette.swatch('paper', { initial: '#f4f1e8', onChange: repaintStill });
+rmxChips = Organica.palette.swatch($('rmx-palette'), {
+  colors: rmxColors, min: 2, max: 8,
+  onChange: c => { rmxColors = c; repaintStill(); },
+});
+
+// ── GENERAL WIRING ────────────────────────────────────────────
+$('btn-play').onclick = () => { running ? pauseRealtime() : startRealtime(); };
+$('btn-stop').onclick = stopAll;
+$('canvas-wrap').addEventListener('dragover', e => e.preventDefault());
+$('canvas-wrap').addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) loadVideo(f); });
+
+document.querySelectorAll('#panel input[type=range]').forEach(r => {
+  r.addEventListener('input', () => {
+    syncSliderOut(r);
+    if (r.id === 'sl-detail') { reinit(); return; }
+    if (r.id === 'sl-capture') { updateSizeReadout(); return; }
+    if (r.id.startsWith('sl-size') || r.id.startsWith('sl-stroke') || r.id === 'sl-dropout'
+        || r.id === 'a-ink' || r.id === 'sl-contrast' || r.id === 'sl-gamma') repaintStill();
+  });
+});
+['ck-size-range', 'ck-overpaint', 'ck-invert', 'ck-stroke-round', 'ck-angle-flow',
+ 'ck-angle-random', 'ck-angle-range', 'ck-mirror'].forEach(id => $(id).addEventListener('change', repaintStill));
+$('sel-rmx-map').addEventListener('change', repaintStill);
+$('sel-format').addEventListener('change', updateSizeReadout);
+$('preset-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') commitPreset();
+  if (e.key === 'Escape') $('preset-save-row').hidden = true;
+});
+
+// ── INIT ──────────────────────────────────────────────────────
+Organica.popover($('btn-export'), $('export-popover'));
+if (Organica.enhanceSliders) Organica.enhanceSliders(document);
+if (Organica.autoLabelPanel) Organica.autoLabelPanel(document);
+document.querySelectorAll('#panel input[type=range]').forEach(syncSliderOut);
+populatePresets();
+if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) listCameras();
+
+if (DEMO_BOOT) { setSourceSeg('demo'); source = 'demo'; onReady().then(() => startRealtime()); }
+else if (CAM_BOOT) { setSourceSeg('webcam'); startCamera(); }
+else { setStatus('', 'Choose a source to begin'); }
+</script>
+</body>
+</html>

@@ -81,6 +81,7 @@ Hub (index.html)
 ├── /blob-boundary/   → Blob Boundary mask-morph + edge-scatter tool (static, Vercel)
 ├── /radial/          → Radial — Book of Shapes "radial" polar-field generator (static, Vercel)
 ├── /pulsar/          → Pulsar — generative Motion tool over Radial's parameters (static, Vercel)
+├── /mote/            → Mote — video / webcam → stipple, 3 temporal-coherence modes (static, Vercel)
 └── /backend          → Python server (local only, not deployed) — historical, no longer present (removed with Strata)
 ```
 

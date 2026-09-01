@@ -254,6 +254,7 @@ hub nav and as the tool's identity colour.
 | Mycel | `#8a7355` | mushroom taupe |
 | Colornet | `#4a5fc7` | cornflower blue-violet |
 | Blob Boundary | `#8a8a28` | mustard gold |
+| Mote | `#2f9e8f` | sea-green teal — the Motion band's cool accent (hue ~172, between FVS's green and Camo Turing's cyan) |
 
 The palette spans green → yellow → orange → blue → violet → teal. When adding a
 tool, pick a hue that isn't already taken and note it here. (Strata's own row
@@ -273,7 +274,7 @@ ship date — each `.nav__group` carries a `group-label`:
 | Tracing & vectorization | Halide, Living Path |
 | Generative patterns | Komorebi, Camo Turing, Warping, Radial |
 | Stippling & marks | Spore, Pollen |
-| Motion & growth | Membrane, Vortex, Pulsar, Mycel, Blob Boundary |
+| Motion & growth | Membrane, Vortex, Pulsar, Mycel, Mote, Blob Boundary |
 | Workflow & pipelines | Rhizome |
 | Explorations | (prototype pages, not full tools) |
 

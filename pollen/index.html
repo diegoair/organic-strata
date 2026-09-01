@@ -507,6 +507,7 @@
 <!-- Centralized Organica shape library (window.ORGANIC_FORMS) shared with Genesis -->
 <script src="/shared/core.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/pollen-engine.js"></script>
 <script src="/genesis/forms.js"></script>
 <script>
 // ─────────────────────────────────────────────
@@ -906,6 +907,14 @@ function ctrl(id) { return document.getElementById(id); }
 function val(id)  { return parseFloat(ctrl(id).value); }
 function lerp(a, b, t) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
 function srand(s) { const v = Math.sin(s * 12.9898) * 43758.5453; return v - Math.floor(v); }
+
+// Stipple core — the tone pipeline, the dart-thrower, and the line/streamline
+// geometry — is shared/pollen-engine.js (extracted at Mote's arrival). Pollen
+// keeps its own paintPoints (SVG-form marks), the SVG serializer, and all DOM.
+// `pointAngle` stays local: Pollen's returns degrees, the engine's returns radians.
+const PE = Organica.pollenEngine;
+const { ranged, dropoutSkip, strokeCenterline, smoothOpenPath, smoothOpenPathD,
+        makeFieldAngle, fieldStrokePts } = PE;
 function hexToRgb(hex) {
   const [r, g, b] = Organica.hexToRGB255(hex);
   return { r, g, b };
@@ -915,14 +924,7 @@ function hexToRgb(hex) {
 // Delegates the colour math to the shared Organica.palette module
 // (see shared/palette.js) — Spore and Camo Turing call the same
 // colorAt() so a fix here reaches all three instead of drifting again.
-function pointRGBA(P, b, rnd) {
-  const hex = Organica.palette.colorAt(b, {
-    mode: P.colorMode, ink: P.ink, paper: P.bg,
-    colors: P.palette, submode: P.rmxMap, rnd: rnd || 0,
-  });
-  const [r, g, bl] = Organica.hexToRGB255(hex);
-  return { r, g, b: bl, a: P.alpha };
-}
+function pointRGBA(P, b, rnd) { return PE.pointRGBA(P, b, rnd); }
 
 // ── IMAGE ORIENTATION + TONE PIPELINE ──
 function getRotation() { return parseInt(ctrl('sel-rotation').value, 10) || 0; }
@@ -951,29 +953,20 @@ function drawOriented(g, W, H) {
 }
 
 // Tone shaping on a 0..1 luma value (already Invert-applied): Gamma then Contrast.
-function processLuma(l) {
-  const gamma = val('sl-gamma');
-  if (gamma !== 1) l = Math.pow(Math.max(0, l), gamma);
-  const c = val('sl-contrast');
-  if (c) { const cc = c * 2.55, f = (259 * (cc + 255)) / (255 * (259 - cc)); l = f * (l - 0.5) + 0.5; }
-  return Math.max(0, Math.min(1, l));
-}
+// The curve lives in shared/pollen-engine.js now.
+function processLuma(l) { return PE.processLuma(l, val('sl-gamma'), val('sl-contrast')); }
 
 // Brightness map at W×H: oriented draw → luma → Invert → Gamma/Contrast.
+// The luma → tone loop is PE.buildField; the orientation draw stays here.
 function brightnessMap(W, H) {
   const oc = document.createElement('canvas');
   oc.width = W; oc.height = H;
   const g = oc.getContext('2d');
   drawOriented(g, W, H);
   const data = g.getImageData(0, 0, W, H).data;
-  const invert = ctrl('ck-invert').checked;
-  const b = new Float32Array(W * H);
-  for (let i = 0, p = 0; i < b.length; i++, p += 4) {
-    let l = (0.299 * data[p] + 0.587 * data[p+1] + 0.114 * data[p+2]) / 255;
-    if (invert) l = 1 - l;
-    b[i] = processLuma(l);
-  }
-  return b;
+  return PE.buildField(data, W, H, {
+    invert: ctrl('ck-invert').checked, gamma: val('sl-gamma'), contrast: val('sl-contrast'),
+  }).data;
 }
 
 // Preview brightness (sets working dims)
@@ -1017,66 +1010,22 @@ async function computePoints() {
   canvas.width = W; canvas.height = H;
   canvas.classList.add('visible');
 
-  // spatial grid (cell ≤ minSp/√2 → at most one point per cell)
-  const cell = Math.max(0.5, minSp / Math.SQRT2);
-  const gw = Math.ceil(W / cell), gh = Math.ceil(H / cell);
-  const grid = new Int32Array(gw * gh).fill(-1);
-  const px = [], py = [], pr = [], pb = [], prnd = [];
-
-  function spacingAt(x, y) {
-    const ix = Math.min(W - 1, Math.max(0, x | 0));
-    const iy = Math.min(H - 1, Math.max(0, y | 0));
-    return minSp + (maxSp - minSp) * bright[iy * W + ix];
-  }
-  function accept(x, y, r) {
-    const cx = (x / cell) | 0, cy = (y / cell) | 0;
-    const rad = Math.ceil(r / cell);
-    for (let gy = Math.max(0, cy - rad); gy <= Math.min(gh - 1, cy + rad); gy++) {
-      for (let gx = Math.max(0, cx - rad); gx <= Math.min(gw - 1, cx + rad); gx++) {
-        const idx = grid[gy * gw + gx];
-        if (idx === -1) continue;
-        const dx = px[idx] - x, dy = py[idx] - y;
-        if (dx * dx + dy * dy < r * r) return false;
-      }
-    }
-    return true;
-  }
-
-  // dart-throwing across phases; each phase fires a batch of candidates
-  const hide = hideBand();
-  const attemptsPerPhase = Math.min(180000, Math.ceil((W * H) / (minSp * minSp)));
-  for (let phase = 0; phase < phases; phase++) {
-    for (let a = 0; a < attemptsPerPhase; a++) {
-      if (px.length >= MAX_POINTS) break;
-      const x = Math.random() * W, y = Math.random() * H;
-      const bb = bright[(Math.min(H-1, y|0)) * W + Math.min(W-1, x|0)];
-      if (hide && bb >= hide[0] && bb <= hide[1]) continue;   // Hide Zone
-      const r = spacingAt(x, y);
-      if (!accept(x, y, r)) continue;
-      const i = px.length;
-      px.push(x); py.push(y); pr.push(r);
-      pb.push(bb);
-      prnd.push(Math.random());   // stable per-point random (for Random / warp)
-      grid[((y / cell) | 0) * gw + ((x / cell) | 0)] = i;
-    }
-    // yield to keep the UI responsive + allow Stop
-    ctrl('progress-bar').style.width = Math.round((phase + 1) / phases * 100) + '%';
-    ctrl('vl-total').textContent = px.length.toLocaleString();
-    await new Promise(r => setTimeout(r, 0));
-    if (token !== computeToken) return;   // cancelled / superseded
-    if (px.length >= MAX_POINTS) break;
-  }
-
-  // Per-point image-gradient angle (Sobel-lite) for flow-field orientation.
-  points = px.map((x, i) => {
-    const ix = Math.min(W - 1, x | 0), iy = Math.min(H - 1, py[i] | 0);
-    const xm = Math.max(0, ix - 1), xp = Math.min(W - 1, ix + 1);
-    const ym = Math.max(0, iy - 1), yp = Math.min(H - 1, iy + 1);
-    const gx = bright[iy * W + xp] - bright[iy * W + xm];
-    const gy = bright[yp * W + ix] - bright[ym * W + ix];
-    const ga = (gx === 0 && gy === 0) ? null : Math.atan2(gy, gx);
-    return { x, y: py[i], b: pb[i], rnd: prnd[i], ga };
+  // The variable-radius Poisson-disk dart-thrower + the per-point Sobel-lite
+  // gradient pass are shared/pollen-engine.js now (extracted at Mote's arrival).
+  // The DOM plumbing — progress bar, point count, Stop / cancel token — stays here.
+  const placed = await PE.computePoints({
+    field: { data: bright, W, H },
+    minSp, maxSp, phases,
+    maxPoints: MAX_POINTS,
+    hideBand: hideBand(),
+    isCancelled: () => token !== computeToken,
+    onProgress: (frac, n) => {
+      ctrl('progress-bar').style.width = Math.round(frac * 100) + '%';
+      ctrl('vl-total').textContent = n.toLocaleString();
+    },
   });
+  if (token !== computeToken) return;   // cancelled / superseded — leave `points` as-is
+  points = placed;
   computing = false;
   ctrl('btn-stop').disabled = true;
   ctrl('progress-bar').style.width = '100%';
@@ -1111,21 +1060,7 @@ function pointParams() {
   };
 }
 
-// Resolve a ranged value for a point: Random → by stored rnd; Range → by
-// brightness (Min dark … Max bright); otherwise the base (Min) value.
-function ranged(min, max, range, random, b, rnd) {
-  if (random) return lerp(min, max, rnd);
-  if (range)  return lerp(min, max, b);
-  return min;
-}
-
-// Light dropout: drop marks at random in the bright areas (probability rises
-// toward white). Decorrelated from rnd so it doesn't bias size/angle/colour.
-function dropoutSkip(P, b, rnd) {
-  if (!P.lightDropout) return false;
-  let d = Math.sin((rnd + 0.123) * 99.13) * 43758.5453; d = d - Math.floor(d);
-  return d < P.lightDropout * Math.pow(b, 1.5);
-}
+// `ranged` and `dropoutSkip` are PE.* (aliased at the top of this script).
 
 // One point's rotation in degrees. Flow = align to the image (isophote: 90° off the
 // local gradient) so strokes follow contours; the Angle value adds as an offset.
@@ -1235,36 +1170,7 @@ function pickShape(P, b, rnd) {
 // ── STROKE (Pointillist-style Line) ──
 // A constant-width curved line: Size = thickness, Length = px length,
 // Segments = smoothness, Warping = how much it bends, Rounded = round caps.
-// Smooth arc centreline: a constant per-stroke curvature (from rnd × Warping) so
-// each stroke is a clean curve, not a jagged walk. Centred on origin.
-function strokeCenterline(len, segs, warp, rnd) {
-  const n = Math.max(2, segs | 0), step = len / n;
-  const bend = (rnd - 0.5) * warp * 2.4;     // total turn over the stroke (radians)
-  const dA = bend / n;
-  let ang = -bend / 2, x = 0, y = 0;
-  const pts = [[0, 0]];
-  for (let i = 0; i < n; i++) { ang += dA; x += Math.cos(ang) * step; y += Math.sin(ang) * step; pts.push([x, y]); }
-  // centre the arc on its midpoint
-  const mx = (pts[0][0] + pts[n][0]) / 2, my = (pts[0][1] + pts[n][1]) / 2;
-  return pts.map(p => [p[0] - mx, p[1] - my]);
-}
-// Smooth open path through the centreline (quadratic midpoint smoothing).
-function smoothOpenPath(g, pts) {
-  const n = pts.length;
-  g.moveTo(pts[0][0], pts[0][1]);
-  for (let i = 1; i < n - 1; i++) {
-    g.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2);
-  }
-  g.lineTo(pts[n - 1][0], pts[n - 1][1]);
-}
-function smoothOpenPathD(pts) {
-  const n = pts.length;
-  let d = `M ${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
-  for (let i = 1; i < n - 1; i++) {
-    d += ` Q ${pts[i][0].toFixed(2)} ${pts[i][1].toFixed(2)} ${((pts[i][0] + pts[i + 1][0]) / 2).toFixed(2)} ${((pts[i][1] + pts[i + 1][1]) / 2).toFixed(2)}`;
-  }
-  return d + ` L ${pts[n - 1][0].toFixed(2)} ${pts[n - 1][1].toFixed(2)}`;
-}
+// strokeCenterline / smoothOpenPath / smoothOpenPathD are PE.* (aliased above).
 function drawStroke(g, P, sz, rnd, unit) {
   const pts = strokeCenterline(P.strokeLen * (unit || 1), P.strokeSeg, P.strokeWarp, rnd);
   g.lineWidth = Math.max(0.5, sz);           // Size = line thickness (Pointillist)
@@ -1288,44 +1194,7 @@ function sampleWorkB(x, y) {
   const iy = Math.max(0, Math.min(fieldH - 1, y | 0));
   return fieldB[iy * fieldW + ix];
 }
-// Angle (radians) of the field at (x,y): Angle/Range/Random by local tone,
-// plus Flow = isophote of the local gradient. `sampleB` makes it reusable
-// (work image / synthetic preview blob).
-function makeFieldAngle(P, sampleB) {
-  return (x, y, rnd) => {
-    const b = sampleB(x, y);
-    let deg = ranged(P.angleMin, P.angleMax, P.angleRange, P.angleRandom, b, rnd);
-    if (P.angleFlow) {
-      const e = 1.5;
-      const gx = sampleB(x + e, y) - sampleB(x - e, y);
-      const gy = sampleB(x, y + e) - sampleB(x, y - e);
-      if (gx || gy) deg += Math.atan2(gy, gx) * 180 / Math.PI + 90;
-    }
-    return deg * Math.PI / 180;
-  };
-}
-// Integrate a centred streamline from (x0,y0): half the segments forward along
-// the field, half backward. Warping adds per-segment hand jitter on top.
-function fieldStrokePts(x0, y0, P, rnd, angleAt, scale) {
-  const len = P.strokeLen * (scale || 1);
-  const n = Math.max(2, P.strokeSeg | 0), step = len / n;
-  const half = Math.ceil(n / 2);
-  let s = (rnd || 0) * 9999 + 1;
-  const nz = () => { s = Math.sin(s * 12.9898) * 43758.5453; return s - Math.floor(s); };
-  const fwd = [[x0, y0]];
-  let x = x0, y = y0;
-  for (let i = 0; i < half; i++) {
-    const a = angleAt(x, y, rnd) + (nz() - 0.5) * P.strokeWarp;
-    x += Math.cos(a) * step; y += Math.sin(a) * step; fwd.push([x, y]);
-  }
-  const back = [];
-  x = x0; y = y0;
-  for (let i = 0; i < n - half; i++) {
-    const a = angleAt(x, y, rnd) + Math.PI + (nz() - 0.5) * P.strokeWarp;
-    x += Math.cos(a) * step; y += Math.sin(a) * step; back.push([x, y]);
-  }
-  return back.reverse().concat(fwd);
-}
+// makeFieldAngle / fieldStrokePts are PE.* (aliased above).
 function drawFieldStroke(g, x0, y0, P, thick, rnd, unit, angleAt) {
   const pts = fieldStrokePts(x0, y0, P, rnd, angleAt, 1);
   g.beginPath();

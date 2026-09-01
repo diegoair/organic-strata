@@ -645,6 +645,12 @@ Honest list of where the tools still disagree:
   it is a bigger job than a rename.
 - **Living Path** is fully retrofitted onto the shared panel component via
   its own documented aliases (`.sec`/`.row`/`.group-label`).
+- **Mote** (promoted from `scratchpad/mote.html` Sep 1, 2026) links all 5
+  shared sheets and uses the standard header / panel / floatbar / `.org-stage`
+  classes. Its one deliberate delta is a near-black canvas background
+  (`#canvas-wrap { background: #14140f }`) — video reads correctly on dark, so
+  it's tool *content*, not UI chrome (the two-exception rule). The three canvas
+  overlays `#perf-hud` / `#progress-bar` / `#note` are also Mote-local.
 - **`syncColor()`** — resolved 2026-08-30. Every production colour-picker tool now
   uses the shared Palette component (`Organica.palette.swatch`,
   `shared/palette.js` + `palette.css`); the `createColorSwatch` /

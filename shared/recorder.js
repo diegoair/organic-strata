@@ -27,6 +27,12 @@
  *   onStatus(phase, msg)   phase ∈ 'recording' | 'saved' | 'error'. Optional —
  *                  the tool routes it to its status pill or a hint <p>.
  *   onStateChange(isRecording)   for the tool to relabel its button. Optional.
+ *   bitrate        number | () => number — passed as videoBitsPerSecond. Omit
+ *                  and the browser picks its own (~2.5 Mbps default). Mote sets an
+ *                  explicit ~0.25 bit/px/frame target — stipple is codec-hostile.
+ *                  A function is resolved at start(), after mimeCandidates picks.
+ *   mimeCandidates string[] — overrides the built-in 5-entry list. Mote passes
+ *                  H.264 *High* (avc1.640028), not the default bare Baseline avc1.
  *
  * The merged best version of the four copies:
  *   - MIME list is the superset 5-entry order (Camo Turing / Vortex / Membrane):
@@ -84,14 +90,20 @@
         onStatus('error', "Video recording isn't supported in this browser");
         return;
       }
-      const mime = MIME_CANDIDATES.find(supported);
+      const candidates = Array.isArray(config.mimeCandidates) && config.mimeCandidates.length
+        ? config.mimeCandidates : MIME_CANDIDATES;
+      const mime = candidates.find(supported);
       if (!mime) {
         onStatus('error', 'No supported video format found in this browser');
         return;
       }
+      let bits = config.bitrate;
+      if (typeof bits === 'function') bits = bits();
+      const opts = { mimeType: mime };
+      if (typeof bits === 'number' && bits > 0) opts.videoBitsPerSecond = Math.round(bits);
       try {
         const stream = canvas.captureStream(fps);
-        mediaRecorder = new MediaRecorder(stream, { mimeType: mime });
+        mediaRecorder = new MediaRecorder(stream, opts);
       } catch (err) {
         mediaRecorder = null;
         onStatus('error', 'Could not start recording: ' + err.message);
