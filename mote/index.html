@@ -884,18 +884,17 @@ async function renderJobs(jobs) {
 
   for (let j = 0; j < jobs.length; j++) {
     const job = jobs[j];
-    const srcA = (video.videoWidth || 960) / (video.videoHeight || 720);
-    const jobA = job.outW / job.outH;
-    const fieldA = job.fit ? srcA : jobA;                 // fit shows the whole frame; crop centre-crops
-    let wrkW, wrkH;
-    if (fieldA >= 1) { wrkW = Math.min(job.outW, detail) | 0; wrkH = Math.max(1, Math.round(wrkW / fieldA)); }
-    else { wrkH = Math.min(job.outH, detail) | 0; wrkW = Math.max(1, Math.round(wrkH * fieldA)); }
+    const crop = job.fit ? cropFor(0, 0, true) : cropFor(job.outW, job.outH, false);
+    // working res EXACTLY as onReady() derives it — workDims of the (cropped)
+    // source, never upscaled past its own pixels. Anything else changes the
+    // dart-thrower's point layout vs the live preview → not WYSIWYG.
+    const wd = workDims(crop.sw, crop.sh, detail);
+    const wrkW = wd.W, wrkH = wd.H;
     let unit, offX = 0, offY = 0;
     if (job.fit) {
       const fs = Math.min(job.outW / wrkW, job.outH / wrkH);
       unit = fs; offX = Math.round((job.outW - wrkW * fs) / 2); offY = Math.round((job.outH - wrkH * fs) / 2);
     } else { unit = job.outW / wrkW; }
-    const crop = job.fit ? cropFor(0, 0, true) : cropFor(job.outW, job.outH, false);
 
     workW = wrkW; workH = wrkH;
     frameCanvas.width = wrkW; frameCanvas.height = wrkH;
@@ -914,13 +913,23 @@ async function renderJobs(jobs) {
     const stopped = new Promise(res => mr.onstop = res);
     mr.start();
 
-    // seed the coherence state for this job from frame 0
-    if (!live) { video.currentTime = 0; await new Promise(r => video.addEventListener('seeked', r, { once: true })); }
-    grabFrame(crop);
-    let f = buildField(wrkW, wrkH);
-    const seed = await E.computePoints(cpOpts(f));
-    basePoints = seed.map(p => ({ x: p.x, y: p.y, rnd: p.rnd }));
-    points = seed; lastC = seed; targetCount = seed.length;
+    // Seed the coherence state. For a Fixed-grid (mode A) master whose framing
+    // matches the live preview (Crop, dims equal), reuse the live basePoints
+    // verbatim → the export is the exact stipple on screen (stepA maps to a new
+    // array each frame, so sharing the ref is safe). Otherwise lattice afresh —
+    // and modes B/C mutate `points`, so they must always re-lattice.
+    let f;
+    if (mode === 'A' && !job.fit && wrkW === snap.workW && wrkH === snap.workH && snap.basePoints && snap.basePoints.length) {
+      basePoints = snap.basePoints; targetCount = snap.targetCount;
+      grabFrame(crop); f = buildField(wrkW, wrkH);
+    } else {
+      if (!live) { video.currentTime = 0; await new Promise(r => video.addEventListener('seeked', r, { once: true })); }
+      grabFrame(crop);
+      f = buildField(wrkW, wrkH);
+      const seed = await E.computePoints(cpOpts(f));
+      basePoints = seed.map(p => ({ x: p.x, y: p.y, rnd: p.rnd }));
+      points = seed; lastC = seed; targetCount = seed.length;
+    }
 
     for (let i = 0; i < n; i++) {
       if (!live) {
@@ -1214,7 +1223,6 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePresetMenu(); });
 function applyPreset(key) {
   const P = allPresets()[key]; if (!P) return;
-  const detBefore = $('sl-detail').value;
   $('sl-sp-min').value = P.spMin; $('sl-sp-max').value = P.spMax; $('sl-sp-scale').value = P.spX != null ? P.spX : 1;
   if (P.phases != null) $('sl-phases').value = P.phases;
   $('sl-size').value = P.size; $('sl-size-max').value = P.sizeMax; $('ck-size-range').checked = !!P.range;
@@ -1235,7 +1243,10 @@ function applyPreset(key) {
   setColor(P.cm || 'solid');
   if (P.mode) setCoherence(P.mode);
   document.querySelectorAll('#panel input[type=range]').forEach(syncSliderOut);
-  if ($('sl-detail').value !== detBefore) reinit();
+  // A preset can shift spacing / phases / detail — all of which change the
+  // dart-thrower's point layout. Re-lattice (reinit rebuilds workW/H + points)
+  // so the preview matches what an export would render. Not just a repaint.
+  if (workW) reinit();
   else repaintStill();
   currentPresetKey = key;
   $('preset-label').textContent = key;
