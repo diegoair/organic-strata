@@ -1,0 +1,26 @@
+name: Supabase keep-alive
+
+# Free-tier Supabase projects pause after 7 days with no API activity.
+# This pings the project once a day so it never sleeps. The key below is the
+# public anon key (already shipped in shared/supabase.js) — safe to inline;
+# row-level security is the real guard.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"   # daily, 06:17 UTC
+  workflow_dispatch: {}      # manual "Run workflow" button
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping REST + Auth
+        run: |
+          BASE="https://dgzxsqdrktqgpnewxtwf.supabase.co"
+          KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnenhzcWRya3RxZ3BuZXd4dHdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzMzU1MjcsImV4cCI6MjEwMzkxMTUyN30.zdLNQFzdh28PmjCAeUkS9jqcjGX8B2txkJ5nL-MvRTs"
+          rest=$(curl -sS -o /dev/null -w "%{http_code}" "$BASE/rest/v1/?apikey=$KEY" -H "Authorization: Bearer $KEY")
+          auth=$(curl -sS -o /dev/null -w "%{http_code}" "$BASE/auth/v1/health" -H "apikey: $KEY")
+          echo "rest=$rest auth=$auth"
+          # any HTTP response from the project counts as activity; only a network
+          # failure (000) is a problem
+          [ "$rest" != "000" ] && [ "$auth" != "000" ]

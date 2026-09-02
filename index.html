@@ -434,6 +434,16 @@
       color: #7a7368;
     }
 
+    .meta__legal {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .meta__sep {
+      font-size: 0.6rem;
+      color: var(--ink-dim);
+    }
+
     /* explorations get a quiet neutral, same size as every other
        nav__link — prototypes, not a lesser tier, just an unbranded hue */
     .nav__link--exp:hover { color: #7a7368; }
@@ -559,6 +569,11 @@
 
   <div class="meta">
     <a class="meta__link" href="/design-system/">Design System</a>
+    <div class="meta__legal">
+      <a class="meta__link" href="/privacy">Privacy</a>
+      <span class="meta__sep">·</span>
+      <a class="meta__link" href="/terms">Terms</a>
+    </div>
   </div>
 
   <script src="/shared/vendor/supabase-js.min.js"></script>
