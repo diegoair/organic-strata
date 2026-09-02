@@ -527,7 +527,7 @@ const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvas-wrap');
 
 let sourceImage = null;
-let pointType = 'g:1';      // 'g:<n>' — a Genesis form id from window.ORGANIC_FORMS
+let pointType = 'g:seed-breath';   // 'g:<seed-id>' — a Genesis Base Seed from window.ORGANIC_FORMS
 let colorMode = 'solid';
 let isDirty = false;
 
@@ -550,7 +550,13 @@ const RMX_COLORS_MAX = 5;
 // the base primitives for the Organica visual system. Plus user-uploaded SVG shapes.
 const FORMS = window.ORGANIC_FORMS || {};
 //          drop, line, circle, teardrop, ring, leaf, petal, seed, spiral, crescent, dew, iris, mushroom
-const PRIMORDIAL = [1, 2, 3, 7, 9, 13, 14, 21, 26, 28, 37, 41, 56];  // Genesis Base Seeds — keep in sync with shared/seeds-panel.js
+const PRIMORDIAL = ['seed-breath','seed-heartbeat','seed-metaballs','seed-drop-fall','seed-lava-detach','seed-flower-bloom','seed-petal-turn','seed-caterpillar','seed-amoeba','seed-mitosis','seed-sun','seed-bubble-cluster','seed-line'];  // Genesis Base Seeds — keep in sync with shared/seeds-panel.js
+// Remap a pre-uniform-id pointType ('g:1' … 'g:56') saved in an old localStorage preset.
+const OLD_G = { '1':'seed-breath','2':'seed-heartbeat','3':'seed-metaballs','7':'seed-drop-fall','9':'seed-lava-detach','13':'seed-flower-bloom','14':'seed-petal-turn','21':'seed-caterpillar','26':'seed-amoeba','28':'seed-mitosis','37':'seed-sun','41':'seed-bubble-cluster','56':'seed-line' };
+function remapPointType(t) {
+  if (typeof t === 'string' && t.indexOf('g:') === 0 && OLD_G[t.slice(2)]) return 'g:' + OLD_G[t.slice(2)];
+  return t;
+}
 let customForms = {};            // { 'u1': svgString, … } from uploads
 let _customSeq = 0;
 
@@ -589,9 +595,9 @@ function buildShapeGrid() {
     const t = document.createElement('div');
     const key = 'g:' + n;
     t.className = 'shape-thumb' + (thumbSelected(key) ? ' selected' : '');
-    t.title = '#' + n + (window.ORGANIC_LABELS && window.ORGANIC_LABELS[n] ? ' · ' + window.ORGANIC_LABELS[n] : '');
+    t.title = (window.ORGANIC_LABELS && window.ORGANIC_LABELS[n]) || n;
     t.onclick = () => onPickShape(key);
-    t.innerHTML = '<span class="thumb-num">' + n + '</span>' + FORMS[n];
+    t.innerHTML = '<span class="thumb-num">' + ((window.ORGANIC_LABELS && window.ORGANIC_LABELS[n]) || String(n).replace(/^seed-/,'')) + '</span>' + FORMS[n];
     grid.appendChild(t);
   });
   // user-uploaded custom shapes
@@ -755,13 +761,13 @@ const PRESET_CHECKS = ['ck-size-range','ck-angle-range','ck-angle-random','ck-an
 const RANGE_ROWS = { 'ck-size-range':'row-size-max', 'ck-angle-range':'row-angle-max' };
 
 const BUILTIN_PRESETS = {
-  'Fine Dots':  { pointType:'g:1', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
+  'Fine Dots':  { pointType:'g:seed-breath', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
                   'sl-size':'1.5','ck-size-range':false,'sl-sp-min':'1.5','sl-sp-max':'8','sl-phases':'16' },
-  'Felt-tip':   { pointType:'g:1', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
+  'Felt-tip':   { pointType:'g:seed-breath', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
                   'sl-size':'4','ck-size-range':true,'sl-size-max':'1','sl-sp-min':'3','sl-sp-max':'14','sl-phases':'12' },
-  'Lines Flow': { pointType:'g:56', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
+  'Lines Flow': { pointType:'g:seed-line', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
                   'sl-size':'4','ck-angle-random':true,'sl-angle':'0','sl-angle-max':'360','sl-sp-min':'2','sl-sp-max':'10' },
-  'Duotone':    { pointType:'g:1', colorMode:'adaptive', ink:'#1a3a2a', bg:'#dfe6f0',
+  'Duotone':    { pointType:'g:seed-breath', colorMode:'adaptive', ink:'#1a3a2a', bg:'#dfe6f0',
                   'sl-size':'3','ck-size-range':false,'sl-sp-min':'1.5','sl-sp-max':'9','sl-phases':'14' },
   // Stroke streamlines (the strokes curve through the image's angle field).
   'Hatch Flow': { pointType:'stroke', strokeStyle:'line', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
@@ -802,7 +808,7 @@ function setState(s) {
   }
   if (s.strokeStyle) { strokeStyle = s.strokeStyle; segActive('strokestyle-seg', s.strokeStyle); }
   if (s.colorMode) setColorMode(s.colorMode);   // toggles RMX palette UI + renders
-  if (s.pointType) setPointType(s.pointType);
+  if (s.pointType) setPointType(remapPointType(s.pointType));
   if (sourceImage) generate(); else render();      // placement may have changed → recompute
 }
 

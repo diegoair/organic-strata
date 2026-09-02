@@ -43,7 +43,11 @@
   'use strict';
   const Organica = global.Organica || (global.Organica = {});
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  const PRIMORDIAL = [1, 2, 3, 7, 9, 13, 14, 21, 26, 28, 37, 41, 56];
+  const PRIMORDIAL = [
+    'seed-breath', 'seed-heartbeat', 'seed-metaballs', 'seed-drop-fall', 'seed-lava-detach',
+    'seed-flower-bloom', 'seed-petal-turn', 'seed-caterpillar', 'seed-amoeba', 'seed-mitosis',
+    'seed-sun', 'seed-bubble-cluster', 'seed-line',
+  ];
 
   const LABELS = { genesis: 'Genesis', svg: 'SVG', text: 'Text', image: 'Image' };
 
@@ -383,9 +387,9 @@
       forms.forEach(fid => {
         const svg = (global.ORGANIC_FORMS && global.ORGANIC_FORMS[fid]) || '';
         const thumb = el('div', 'shape-thumb' + (fid === genesisForm ? ' active' : ''),
-          svg + '<span class="thumb-num">' + fid + '</span>');
+          svg + '<span class="thumb-num">' + ((global.ORGANIC_LABELS && global.ORGANIC_LABELS[fid]) || String(fid).replace(/^seed-/, '')) + '</span>');
         thumb.setAttribute('role', 'button');
-        thumb.setAttribute('aria-label', 'Genesis form ' + fid);
+        thumb.setAttribute('aria-label', (global.ORGANIC_LABELS && global.ORGANIC_LABELS[fid]) || fid);
         thumb.addEventListener('click', () => {
           genesisForm = fid;
           grid.querySelectorAll('.shape-thumb').forEach(t => t.classList.remove('active'));
@@ -414,7 +418,7 @@
         forms.forEach(fid => {
           const svg = (global.ORGANIC_FORMS && global.ORGANIC_FORMS[fid]) || '';
           const thumb = el('div', 'shape-thumb' + (fid === genesisForm ? ' active' : ''),
-            svg + '<span class="thumb-num">' + fid + '</span>');
+            svg + '<span class="thumb-num">' + ((global.ORGANIC_LABELS && global.ORGANIC_LABELS[fid]) || String(fid).replace(/^seed-/, '')) + '</span>');
           thumb.addEventListener('click', () => {
             genesisForm = fid;
             grid.querySelectorAll('.shape-thumb').forEach(t => t.classList.remove('active'));

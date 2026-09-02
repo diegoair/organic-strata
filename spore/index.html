@@ -366,15 +366,15 @@
 const GFORMS = window.ORGANIC_FORMS || {};
 const GLABELS = window.ORGANIC_LABELS || {};
 //          drop, line, circle, teardrop, ring, leaf, petal, seed, spiral, crescent, dew, iris, mushroom
-const PRIMORDIAL = [1, 2, 3, 7, 9, 13, 14, 21, 26, 28, 37, 41, 56];  // Genesis Base Seeds — keep in sync with shared/seeds-panel.js
-const BUILT_IN_MARKS = PRIMORDIAL.filter(n => GFORMS[n]).map(n => ({
-  id: 'g' + n, num: n, name: GLABELS[n] || ('#' + n), svg: GFORMS[n]
+const PRIMORDIAL = ['seed-breath','seed-heartbeat','seed-metaballs','seed-drop-fall','seed-lava-detach','seed-flower-bloom','seed-petal-turn','seed-caterpillar','seed-amoeba','seed-mitosis','seed-sun','seed-bubble-cluster','seed-line'];  // Genesis Base Seeds — keep in sync with shared/seeds-panel.js
+const BUILT_IN_MARKS = PRIMORDIAL.filter(id => GFORMS[id]).map(id => ({
+  id, name: GLABELS[id] || id, svg: GFORMS[id]
 }));
 
 // Custom uploaded marks
 let customMarks = [];
 let allMarks = [...BUILT_IN_MARKS];
-let selectedMarkId = 'g1';
+let selectedMarkId = 'seed-breath';
 
 // ── RMX COLORS: palette of up to 5 colours, assigned by a chosen mapping ──
 let rmxColors = ['#1a1a2e', '#e94f37', '#f6e8c3'];   // default palette (dark→bright)
@@ -416,7 +416,7 @@ function buildMarkGrid() {
     thumb.title = mark.name || '';
     thumb.onclick = () => selectMark(mark.id);
     // Render SVG in thumb + small reference number (Genesis form id)
-    thumb.innerHTML = '<span class="thumb-num">' + (mark.num || '') + '</span>' + mark.svg.replace(/currentColor/g, '#0a0a0a');
+    thumb.innerHTML = '<span class="thumb-num">' + (mark.name || '') + '</span>' + mark.svg.replace(/currentColor/g, '#0a0a0a');
     grid.appendChild(thumb);
   });
 }

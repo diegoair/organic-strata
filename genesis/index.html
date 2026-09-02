@@ -667,17 +667,49 @@
     return old;
   }
 
-  const BUILT_IN_SET_ID = 'organic-forms';   // set-id kept for blob compatibility; display name is "Base Seeds"
-  const BASIC_SEEDS_SET_ID = 'basic-seeds';  // migration detector only
-  const MY_SEEDS_SET_ID = 'set_my-seeds';
-  const ORGANIC_PREFIX = 'organic-';
+  // Uniform id scheme: every seed id is `seed-<handle>` (slug for base seeds,
+  // a short token for user seeds), every set id is `set-<handle>`.
+  const BUILT_IN_SET_ID = 'set-base';
+  const BASIC_SEEDS_SET_ID = 'basic-seeds';  // legacy set id — migration detector only
+  const MY_SEEDS_SET_ID = 'set-my-seeds';
+  const SEED_PREFIX = 'seed-';
 
-  // The 13 curated organic base forms, in authored order (ids are stable —
-  // downstream tools reference forms by number). Plus the 6 procedural
-  // primitives, synthesised here (not stored in library.forms).
-  const ORGANIC_KEEP = [1, 2, 3, 7, 9, 13, 14, 21, 26, 28, 37, 41, 56];
-  const PROCEDURAL_IDS = ['basic-square', 'basic-circle', 'basic-triangle', 'basic-arc', 'basic-hexagon', 'basic-star'];
-  const PROCEDURAL_CANON = { 'basic-square': 'square', 'basic-circle': 'circle', 'basic-triangle': 'triangle', 'basic-arc': 'arc', 'basic-hexagon': 'hexagon', 'basic-star': 'star' };   // lowercase — matches base_seeds.name (all 19 lowercase for consistency)
+  // A fresh, opaque, stable id for a user seed. (Sets get their own slug-based
+  // id from newSetId(name), defined further down.)
+  const newSeedId = () => 'seed-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+  // The 13 organic base forms come from forms.js (window.ORGANIC_FORMS, keyed by
+  // the same `seed-<slug>` id as the base_seeds table). The 6 procedural
+  // primitives are synthesised below.
+  const ORGANIC_KEEP = () => Object.keys(window.ORGANIC_FORMS || {});
+  const PROCEDURAL_IDS = ['seed-square', 'seed-circle', 'seed-triangle', 'seed-arc', 'seed-hexagon', 'seed-star'];
+  const PROCEDURAL_CANON = { 'seed-square': 'square', 'seed-circle': 'circle', 'seed-triangle': 'triangle', 'seed-arc': 'arc', 'seed-hexagon': 'hexagon', 'seed-star': 'star' };
+
+  // Legacy → new id map, for migrating any stale localStorage blob.
+  const LEGACY_ID_MAP = {
+    'organic-1': 'seed-breath', 'organic-2': 'seed-heartbeat', 'organic-3': 'seed-metaballs',
+    'organic-7': 'seed-drop-fall', 'organic-9': 'seed-lava-detach', 'organic-13': 'seed-flower-bloom',
+    'organic-14': 'seed-petal-turn', 'organic-21': 'seed-caterpillar', 'organic-26': 'seed-amoeba',
+    'organic-28': 'seed-mitosis', 'organic-37': 'seed-sun', 'organic-41': 'seed-bubble-cluster',
+    'organic-56': 'seed-line',
+    'basic-square': 'seed-square', 'basic-circle': 'seed-circle', 'basic-triangle': 'seed-triangle',
+    'basic-arc': 'seed-arc', 'basic-hexagon': 'seed-hexagon', 'basic-star': 'seed-star',
+  };
+  const remapId = id => {
+    if (LEGACY_ID_MAP[id]) return LEGACY_ID_MAP[id];
+    if (typeof id === 'string' && id.indexOf('user-') === 0) {
+      const n = parseInt(id.slice(5), 10);
+      return isNaN(n) ? id : 'seed-' + n.toString(36);
+    }
+    return id;
+  };
+  const remapSetId = id => {
+    if (id === 'organic-forms') return BUILT_IN_SET_ID;
+    if (typeof id === 'string' && (id.indexOf('set_') === 0 || id === 'basic-seeds')) {
+      return id === 'basic-seeds' ? id : id.replace(/_/g, '-');
+    }
+    return id;
+  };
 
   const $ = id => document.getElementById(id);
   const setStatus = Organica.status();
@@ -796,16 +828,16 @@
   function proceduralForm(id) {
     const ink = 'fill="var(--ink)"';
     const G = {
-      'basic-square': `<svg viewBox="0 0 200 200"><rect x="10" y="10" width="180" height="180" ${ink}/></svg>`,
-      'basic-circle': `<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="90" ${ink}/></svg>`,
-      'basic-triangle': `<svg viewBox="0 0 200 200"><path d="M 100,10 L 10,190 L 190,190 Z" ${ink}/></svg>`,
-      'basic-arc': `<svg viewBox="0 0 200 200"><path d="${arcPathD(100)}" ${ink}/></svg>`,
-      'basic-hexagon': `<svg viewBox="0 0 200 200"><polygon points="100,10 182,55 182,145 100,190 18,145 18,55" ${ink}/></svg>`,
-      'basic-star': `<svg viewBox="0 0 200 200"><polygon points="100,10 122,78 194,78 136,120 158,188 100,146 42,188 64,120 6,78 78,78" ${ink}/></svg>`,
+      'seed-square': `<svg viewBox="0 0 200 200"><rect x="10" y="10" width="180" height="180" ${ink}/></svg>`,
+      'seed-circle': `<svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="90" ${ink}/></svg>`,
+      'seed-triangle': `<svg viewBox="0 0 200 200"><path d="M 100,10 L 10,190 L 190,190 Z" ${ink}/></svg>`,
+      'seed-arc': `<svg viewBox="0 0 200 200"><path d="${arcPathD(100)}" ${ink}/></svg>`,
+      'seed-hexagon': `<svg viewBox="0 0 200 200"><polygon points="100,10 182,55 182,145 100,190 18,145 18,55" ${ink}/></svg>`,
+      'seed-star': `<svg viewBox="0 0 200 200"><polygon points="100,10 122,78 194,78 136,120 158,188 100,146 42,188 64,120 6,78 78,78" ${ink}/></svg>`,
     };
     if (!G[id]) return null;
     const f = { id, name: PROCEDURAL_CANON[id], svg: G[id], type: 'asset', builtIn: true };
-    if (id === 'basic-arc') { f.genType = 'arc'; f.genParams = { thickness: 100 }; }
+    if (id === 'seed-arc') { f.genType = 'arc'; f.genParams = { thickness: 100 }; }
     return f;
   }
 
@@ -816,6 +848,14 @@
   function migrateLibrary(lib) {
     lib.sets = Array.isArray(lib.sets) ? lib.sets : [];
     lib.forms = Array.isArray(lib.forms) ? lib.forms : [];
+
+    // Uniform-id migration: rewrite any legacy organic-N / basic-X / user-<ts>
+    // seed id and organic-forms / set_<x> set id found in an older blob.
+    lib.sets.forEach(s => {
+      s.id = remapSetId(s.id);
+      if (Array.isArray(s.forms)) s.forms = s.forms.map(remapId);
+    });
+    lib.forms.forEach(f => { if (f && f.id) f.id = remapId(f.id); });
 
     let base = lib.sets.find(s => s.id === BUILT_IN_SET_ID);
     if (!base) { base = { id: BUILT_IN_SET_ID, name: 'Base Seeds', builtIn: true }; lib.sets.unshift(base); }
@@ -852,41 +892,37 @@
 
   function getSet(setId) { return state.library.sets.find(s => s.id === setId); }
 
-  // One organic form, wrapped as a form object. Built-in and read-only.
-  function organicForm(n) {
+  // One organic base form, wrapped as a form object. Built-in and read-only.
+  // `id` is the `seed-<slug>` key of window.ORGANIC_FORMS.
+  function organicForm(id) {
     const F = window.ORGANIC_FORMS || {}, L = window.ORGANIC_LABELS || {};
-    if (!F[n]) return null;
-    return { id: ORGANIC_PREFIX + n, num: n, name: L[n] || ('form ' + n), svg: F[n], type: 'asset', builtIn: true };
+    if (!F[id]) return null;
+    return { id, name: L[id] || id, svg: F[id], type: 'asset', builtIn: true };
   }
 
-  // The Base Seeds set now lives in the `base_seeds` DB table (one shared,
-  // read-only set for everyone — only the project owner can change it). Use the
-  // DB list when it's arrived; fall back to the code-synthesised 13 + 6 for
-  // first paint / offline. forms.js + proceduralForm() stay as that fallback.
+  // The Base Seeds set lives in the `base_seeds` DB table (one shared,
+  // read-only set for everyone). Use the DB list when it's arrived; fall back
+  // to the code-synthesised 13 + 6 (forms.js + proceduralForm) for first paint
+  // / offline.
   function baseSeedList() {
     const db = (window.Organica && Organica.store && Organica.store.library)
       ? Organica.store.library.baseForms() : [];
     if (db && db.length) return db;
-    const F = window.ORGANIC_FORMS || {};
-    return ORGANIC_KEEP.filter(n => F[n]).map(organicForm).filter(Boolean)
+    return ORGANIC_KEEP().map(organicForm).filter(Boolean)
       .concat(PROCEDURAL_IDS.map(proceduralForm).filter(Boolean));
   }
 
-  // Resolve any form id. Base Seeds (`organic-N` / `basic-*`) come from the
-  // shared list; a stored entry in library.forms wins for user seeds.
+  // Resolve any seed id. A base seed (id starts `seed-` and is known to the
+  // base list / synthesisers) resolves from there; anything else is a user
+  // seed in state.library.forms.
   function resolveFormById(id) {
-    if (typeof id === 'string' &&
-        (id.indexOf(ORGANIC_PREFIX) === 0 || PROCEDURAL_IDS.indexOf(id) !== -1)) {
-      const b = baseSeedList().find(f => f && f.id === id);
-      if (b) return b;
-      if (id.indexOf(ORGANIC_PREFIX) === 0) {
-        return organicForm(parseInt(id.slice(ORGANIC_PREFIX.length), 10));
-      }
-      return proceduralForm(id);
+    const b = baseSeedList().find(f => f && f.id === id);
+    if (b) return b;
+    if (typeof id === 'string' && id.indexOf(SEED_PREFIX) === 0) {
+      return organicForm(id) || proceduralForm(id) ||
+             state.library.forms.find(f => f.id === id) || null;
     }
-    const stored = state.library.forms.find(f => f.id === id);
-    if (stored) return stored;
-    return null;
+    return state.library.forms.find(f => f.id === id) || null;
   }
 
   function getFormsForSet(setId) {
@@ -1129,8 +1165,7 @@
 
   function setsContaining(id) {
     let n = state.library.sets.filter(s => (s.forms || []).indexOf(id) !== -1).length;
-    if (ORGANIC_KEEP.indexOf(parseInt(String(id).replace(ORGANIC_PREFIX, ''), 10)) !== -1
-        || PROCEDURAL_IDS.indexOf(id) !== -1) n += 1;   // the synthesized Base Seeds set has no forms[]
+    if (baseSeedList().some(f => f && f.id === id)) n += 1;   // the synthesized Base Seeds set has no forms[]
     return n;
   }
 
@@ -1146,7 +1181,7 @@
   }
 
   function duplicateSeed(form) {
-    const dup = { id: 'user-' + Date.now(), name: form.name + ' copy', svg: form.svg, type: form.type || 'asset', builtIn: false };
+    const dup = { id: newSeedId(), name: form.name + ' copy', svg: form.svg, type: form.type || 'asset', builtIn: false };
     if (form.genType) { dup.genType = form.genType; if (form.genParams) dup.genParams = Object.assign({}, form.genParams); }
     state.library.forms.push(dup);
     const active = getSet(state.activeSetId);
@@ -1259,7 +1294,10 @@
     return id;
   }
 
-  function newSetId(name) { return 'set_' + name.toLowerCase().replace(/[^a-z0-9]/g, '-') + '_' + Date.now(); }
+  function newSetId(name) {
+    const slug = String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    return 'set-' + (slug ? slug + '-' : '') + Date.now().toString(36);
+  }
 
 
   // ═══════════════════════════════════════════════════════
@@ -1528,7 +1566,7 @@
     if (S.editForm.builtIn) {
       const my = ensureMySeedsSet();
       const copy = editRecipe({
-        id: 'user-' + Date.now(),
+        id: newSeedId(),
         name: ($('ctrl-name').value.trim() || S.editForm.name),
         svg, type: S.type, builtIn: false,
       });
@@ -1563,7 +1601,7 @@
     const markup = formMarkup();
     const svg = markup ? '<svg viewBox="0 0 200 200">' + markup + '</svg>' : S.editForm.svg;
     const dup = editRecipe({
-      id: 'user-' + Date.now(),
+      id: newSeedId(),
       name: S.editForm.name + ' copy',
       svg, type: S.type, builtIn: false,
     });
@@ -2311,7 +2349,7 @@
     if (!set) return false;
     if (set.builtIn) { setStatus('', 'Base Seeds is built-in — pick or make a set'); return false; }
 
-    const form = { id: 'user-' + Date.now(), name: ($('ctrl-name').value.trim() || 'untitled'), svg, type: S.type, builtIn: false };
+    const form = { id: newSeedId(), name: ($('ctrl-name').value.trim() || 'untitled'), svg, type: S.type, builtIn: false };
     // The parametric/freehand recipe travels with the saved picture so it
     // re-opens live-adjustable — but ONLY when the shape actually came from a
     // Kind, not from an imported SVG (which has no recipe).

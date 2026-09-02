@@ -2470,7 +2470,7 @@ const maskCtxB = maskCanvasB.getContext('2d');
 // Not wired to any panel control yet — a direct test of the "two
 // independent shapes" question before building real UI for it.
 function testTwoShapeSeed() {
-  rasterizeGenesisSource(1, MASK_N, MASK_N, (circleCanvas) => {
+  rasterizeGenesisSource('seed-breath', MASK_N, MASK_N, (circleCanvas) => {
     if (!circleCanvas) { setStatus('', 'Circle rasterize failed'); return; }
     maskCanvasB.width = MASK_N; maskCanvasB.height = MASK_N;
     maskCtxB.clearRect(0, 0, MASK_N, MASK_N);
@@ -3674,7 +3674,7 @@ window.addLayer = addLayer;
 seedsB = Organica.seedsPanel({
   target: ctrl('seeds-host-b'), idPrefix: 'seedsB',
   tabs: ['genesis', 'svg', 'text', 'image'],
-  genesis: { forms: Organica.seedsPanel.PRIMORDIAL, initialForm: 1, bakeGeometry: true },
+  genesis: { forms: Organica.seedsPanel.PRIMORDIAL, initialForm: 'seed-breath', bakeGeometry: true },
   text: { initial: 'A', maxLength: 24, perGlyph: false, preloadFont: true, allowFontUpload: true, applyButton: false },
   applyMode: 'manual',
   onError: (msg) => { ctrl('seed-status-hint').textContent = msg; },
@@ -3682,7 +3682,7 @@ seedsB = Organica.seedsPanel({
 seedsA = Organica.seedsPanel({
   target: ctrl('seeds-host-a'), idPrefix: 'seedsA',
   tabs: ['genesis', 'svg', 'text', 'image'],
-  genesis: { forms: Organica.seedsPanel.PRIMORDIAL, initialForm: 2, bakeGeometry: true },
+  genesis: { forms: Organica.seedsPanel.PRIMORDIAL, initialForm: 'seed-heartbeat', bakeGeometry: true },
   text: { initial: 'A', maxLength: 24, perGlyph: false, preloadFont: true, applyButton: false },
   applyMode: 'manual',
 });

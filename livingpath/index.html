@@ -1039,7 +1039,7 @@ function sampleSRC(){
   if(_sampleSRC[ch]) return _sampleSRC[ch];
   let subs=null;
   if(window.__FONT){ try{ subs=fromOTCommands(window.__FONT.charToGlyph(ch).path.commands); }catch(e){} }
-  if((!subs||!subs.length) && window.ORGANIC_FORMS){ try{ subs=fromSVGString(window.ORGANIC_FORMS[13]); }catch(e){} }
+  if((!subs||!subs.length) && window.ORGANIC_FORMS){ try{ subs=fromSVGString(window.ORGANIC_FORMS['seed-flower-bloom']); }catch(e){} }
   _sampleSRC[ch] = (subs&&subs.length) ? normalise(subs,false) : null;
   return _sampleSRC[ch];
 }
@@ -1425,12 +1425,12 @@ function buildGenesis(){
   const F=window.ORGANIC_FORMS;
   host.innerHTML='';
   if(!F){ host.innerHTML='<div class="hint">forms loading…</div>'; return; }
-  PRIMORDIAL.forEach(num=>{
-    if(!F[num]) return;
+  PRIMORDIAL.forEach(id=>{
+    if(!F[id]) return;
     const div=document.createElement('div'); div.className='f'; div.title='form '+num;
-    div.innerHTML=F[num];
+    div.innerHTML=F[id];
     div.addEventListener('click',()=>{
-      try{ setSource(fromSVGString(F[num]), false, 'genesis', `genesis · form ${num}`); }
+      try{ setSource(fromSVGString(F[id]), false, 'genesis', 'genesis · ' + ((window.ORGANIC_LABELS && window.ORGANIC_LABELS[id]) || id)); }
       catch(e){ statusEl.textContent='✗ '+e.message; }
     });
     host.appendChild(div);
@@ -1838,8 +1838,8 @@ window.addEventListener('message', (e) => {
       const payload = msg.payload || {};
       const tech = payload.tech === 'raster' ? 'raster' : 'vector';
       if (typeof window.switchTech === 'function') switchTech(tech);
-      const formId = payload.formId || 13;
-      setSource(fromSVGString(window.ORGANIC_FORMS[formId]), false, 'genesis', 'genesis · form ' + formId);
+      const formId = payload.formId || 'seed-flower-bloom';
+      setSource(fromSVGString(window.ORGANIC_FORMS[formId]), false, 'genesis', 'genesis · ' + formId);
       if (payload.preset) applyPreset(payload.preset);
       await new Promise(r => setTimeout(r, 150));
       const svg = currentSVGString(1);
