@@ -339,15 +339,21 @@
 
         return Promise.all([
           sb.from('seeds').select('seed_id,data'),
-          sb.from('presets').select('data').eq('tool', 'library').eq('name', 'meta').maybeSingle(),
-          sb.from('presets').select('data').eq('tool', 'library').eq('name', '__blob__').maybeSingle(),
+          // a plain select (not .maybeSingle) so 0 rows is an HTTP-200 empty
+          // array, not a 406 the browser console flags.
+          sb.from('presets').select('name,data').eq('tool', 'library').in('name', ['meta', '__blob__']),
           baseJob,
         ]).then(function (res) {
           if (res[0].error) return read();
           remote = true;
           var rows = res[0].data || [];
-          var meta = (res[1] && res[1].data && res[1].data.data) || null;
-          var blob = (res[2] && res[2].data && res[2].data.data) || null;
+          var libRows = (res[1] && res[1].data) || [];
+          var libRow = function (nm) {
+            var hit = libRows.find(function (r) { return r.name === nm; });
+            return hit ? hit.data : null;
+          };
+          var meta = libRow('meta');
+          var blob = libRow('__blob__');
 
           // Local source of truth for anything the server doesn't have yet:
           // the localStorage cache, falling back to the old single-blob row.
