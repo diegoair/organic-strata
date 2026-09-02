@@ -47,6 +47,7 @@
     var cacheKey = 'organica.' + tool + '.presets';
     var lastSynced = null;      // { [name]: data } snapshot of the server state
     var flushTimer = null;
+    var flushing = false;      // one flush in flight
     var pending = false;        // a diff is waiting to go up
     var remote = false;         // signed in + a pull has succeeded
     var syncSubs = [];
@@ -94,6 +95,7 @@
     function flush() {
       flushTimer = null;
       if (!remote || !sb) return;
+      if (flushing) { pending = true; return; }         // one flush in flight — coalesce
       if (!(auth && auth.userIdSync())) { pending = true; flushTimer = setTimeout(flush, 1500); return; }   // session not ready — retry
       var next = readCache();
       var d = computeDiff(next);
@@ -108,13 +110,16 @@
         jobs.push(sb.from('presets').delete()
           .eq('tool', tool).in('name', d.deletes));
       }
+      flushing = true;
       Promise.all(jobs).then(function (results) {
+        flushing = false;
         var err = results.find(function (r) { return r && r.error; });
-        if (err) { pending = true; return; }        // keep the diff, retry later
+        if (err) { pending = true; flushTimer = setTimeout(flush, 2000); return; }   // retry later
         lastSynced = next;
         pending = false;
         fireSync(next);
-      }).catch(function () { pending = true; });
+        if (pending) queueFlush();
+      }).catch(function () { flushing = false; pending = true; flushTimer = setTimeout(flush, 2000); });
     }
 
     function queueFlush() {
@@ -306,21 +311,32 @@
       };
     }
 
+    var flushing = false;
+    // Base-seed ids live in base_seeds, never in a user's `seeds` rows.
+    function baseIdSet() {
+      var s = {};
+      baseForms().forEach(function (f) { if (f && f.id) s[f.id] = 1; });
+      return s;
+    }
+
     function flush() {
       flushTimer = null;
       if (!remote || !sb) return;
+      if (flushing) { pending = true; return; }         // one flush in flight — coalesce
       var uid = auth && auth.userIdSync();
       if (!uid) { pending = true; flushTimer = setTimeout(flush, 1500); return; }   // session not ready — retry
       var lib = read();
+      var isBase = baseIdSet();
 
       var nextSeeds = {};
       (lib.forms || []).forEach(function (f) {
-        if (f && f.id) nextSeeds[f.id] = JSON.stringify(f);
+        if (f && f.id && !isBase[f.id]) nextSeeds[f.id] = JSON.stringify(f);
       });
       var base = lastSeeds || {};
       var upserts = [], deletes = [];
-      (lib.forms || []).forEach(function (f) {
-        if (f && f.id && nextSeeds[f.id] !== base[f.id]) upserts.push(seedRow(uid, f));
+      Object.keys(nextSeeds).forEach(function (id) {
+        var f = (lib.forms || []).find(function (x) { return x && x.id === id; });
+        if (f && nextSeeds[id] !== base[id]) upserts.push(seedRow(uid, f));
       });
       Object.keys(base).forEach(function (id) {
         if (!(id in nextSeeds)) deletes.push(id);
@@ -339,10 +355,13 @@
         { onConflict: 'user_id,tool,name' }));
 
       if (!jobs.length) { pending = false; return; }
+      flushing = true;
       Promise.all(jobs).then(function (rs) {
-        if (rs.some(function (r) { return r && r.error; })) { pending = true; return; }
+        flushing = false;
+        if (rs.some(function (r) { return r && r.error; })) { pending = true; flushTimer = setTimeout(flush, 2000); return; }
         lastSeeds = nextSeeds; lastMeta = metaStr; pending = false; fire(lib);
-      }).catch(function () { pending = true; });
+        if (pending) queueFlush();
+      }).catch(function () { flushing = false; pending = true; flushTimer = setTimeout(flush, 2000); });
     }
     function queueFlush() {
       pending = true;
