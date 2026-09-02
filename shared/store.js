@@ -330,7 +330,11 @@
 
       var nextSeeds = {};
       (lib.forms || []).forEach(function (f) {
-        if (f && f.id && !isBase[f.id]) nextSeeds[f.id] = JSON.stringify(f);
+        // only real user seeds (seed-<token>) go to the `seeds` table — never a
+        // base-seed id, never a stale legacy id (organic-N / user-<ts>).
+        if (f && f.id && f.id.indexOf('seed-') === 0 && !isBase[f.id]) {
+          nextSeeds[f.id] = JSON.stringify(f);
+        }
       });
       var base = lastSeeds || {};
       var upserts = [], deletes = [];
