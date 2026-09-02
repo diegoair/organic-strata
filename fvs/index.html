@@ -3370,7 +3370,7 @@ SYMBOL_LIBRARY.pull().then(() => renderSymbolLibrary()); SYMBOL_LIBRARY.onSync((
 LOOM_GRID_STORE.pull();
 // Genesis library (seed picker) — hydrate the cache from Supabase; the picker
 // reads it live each time it opens, so no re-render needed here.
-Organica.store.blob('library', { cacheKey: 'organica.library.forms' }).pull();
+Organica.store.library.pull();
 
 Organica.enhanceSliders(document);
 </script>

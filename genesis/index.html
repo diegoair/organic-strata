@@ -652,10 +652,11 @@
   const STORAGE_KEY = 'organica.library.forms';
   const LEGACY_STORAGE_KEY = 'organica_library';
 
-  // Cloud sync (shared/store.js): the whole { sets, forms } library blob syncs
-  // to Supabase (one row) under the SAME organica.library.forms cache key, so
-  // FVS / Colornet keep reading that key unchanged. read()/write() stay sync.
-  const LIB = Organica.store.blob('library', { cacheKey: STORAGE_KEY, legacyKey: LEGACY_STORAGE_KEY });
+  // Cloud sync (shared/store.js): one row per user seed in the `seeds` table +
+  // a small `presets` row for the set structure, behind the SAME
+  // organica.library.forms cache key + { sets, forms } shape — so this file,
+  // FVS and Colornet keep reading it unchanged. read()/write() stay sync.
+  const LIB = Organica.store.library;
 
   function readLibraryRaw() {
     const cur = localStorage.getItem(STORAGE_KEY);

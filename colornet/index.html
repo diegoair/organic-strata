@@ -897,9 +897,10 @@ function computeNoiseDots(ch) {
 
 const GENESIS_LIBRARY_KEY = 'organica.library.forms';
 
-// Cloud sync (shared/store.js): the Genesis library blob syncs to Supabase
-// under the same cache key. .pull() runs at init (below); read()/write() sync.
-const GENESIS_LIB = Organica.store.blob('library', { cacheKey: GENESIS_LIBRARY_KEY });
+// Cloud sync (shared/store.js): the Genesis library — one row per seed in the
+// `seeds` table + a set-structure row — behind the same organica.library.forms
+// cache key. .pull() runs at init (below); read()/write() stay synchronous.
+const GENESIS_LIB = Organica.store.library;
 
 function readGenesisLibrary() {
   const lib = GENESIS_LIB.read();
