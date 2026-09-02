@@ -227,6 +227,44 @@
     var remote = false, pending = false, flushTimer = null;
     var subs = [];
 
+    // Pre-uniform-id (organic-N / basic-X / user-<ts> / organic-forms / set_<x>)
+    // → seed-/set- ids. A stale client cache still holds the old ids; remap it
+    // before the additive reconcile so a migrated seed isn't re-uploaded as a
+    // "local-only" duplicate under its dead id.
+    var LEG_SEED = {
+      'organic-1': 'seed-breath', 'organic-2': 'seed-heartbeat', 'organic-3': 'seed-metaballs',
+      'organic-7': 'seed-drop-fall', 'organic-9': 'seed-lava-detach', 'organic-13': 'seed-flower-bloom',
+      'organic-14': 'seed-petal-turn', 'organic-21': 'seed-caterpillar', 'organic-26': 'seed-amoeba',
+      'organic-28': 'seed-mitosis', 'organic-37': 'seed-sun', 'organic-41': 'seed-bubble-cluster',
+      'organic-56': 'seed-line', 'basic-square': 'seed-square', 'basic-circle': 'seed-circle',
+      'basic-triangle': 'seed-triangle', 'basic-arc': 'seed-arc', 'basic-hexagon': 'seed-hexagon',
+      'basic-star': 'seed-star',
+    };
+    function legSeed(id) {
+      if (LEG_SEED[id]) return LEG_SEED[id];
+      if (typeof id === 'string' && id.indexOf('user-') === 0) {
+        var n = parseInt(id.slice(5), 10);
+        return isNaN(n) ? id : 'seed-' + n.toString(36);
+      }
+      return id;
+    }
+    function legSet(id) {
+      if (id === 'organic-forms') return 'set-base';
+      if (typeof id === 'string' && id.indexOf('set_') === 0) return id.replace(/_/g, '-');
+      return id;
+    }
+    function remapLib(lib) {
+      if (!lib) return lib;
+      (lib.forms || []).forEach(function (f) { if (f && f.id) f.id = legSeed(f.id); });
+      (lib.sets || []).forEach(function (s) {
+        if (s) {
+          s.id = legSet(s.id);
+          if (Array.isArray(s.forms)) s.forms = s.forms.map(legSeed);
+        }
+      });
+      return lib;
+    }
+
     // Base Seeds live in the `base_seeds` table — one shared, read-only set for
     // every user, only the project owner can change them (no write policy).
     // Cached separately; consumers merge them in as the built-in set's members.
@@ -357,10 +395,11 @@
 
           // Local source of truth for anything the server doesn't have yet:
           // the localStorage cache, falling back to the old single-blob row.
-          var local = read();
+          // Remap legacy ids first so a migrated seed isn't seen as local-only.
+          var local = remapLib(read());
           if ((!local.forms || !local.forms.length) &&
               blob && Array.isArray(blob.forms) && blob.forms.length) {
-            local = { sets: blob.sets || local.sets || [], forms: blob.forms };
+            local = remapLib({ sets: blob.sets || local.sets || [], forms: blob.forms });
           }
 
           // ADDITIVE reconcile — never drop a local seed just because the
@@ -374,8 +413,12 @@
           });
 
           var forms = serverForms.concat(localOnly);
-          var sets = (meta && Array.isArray(meta.sets) && meta.sets.length) ? meta.sets
-                   : (local.sets && local.sets.length ? local.sets : []);
+          var rawSets = (meta && Array.isArray(meta.sets) && meta.sets.length) ? meta.sets
+                      : (local.sets && local.sets.length ? local.sets : []);
+          var seenSet = {}, sets = [];
+          rawSets.forEach(function (s) {
+            if (s && s.id) { s.id = legSet(s.id); if (!seenSet[s.id]) { seenSet[s.id] = 1; sets.push(s); } }
+          });
           var lib = { sets: sets, forms: forms };
 
           lastSeeds = {};
