@@ -219,11 +219,23 @@
   // those readers are unchanged.
   function makeLibrary() {
     var CACHE = 'organica.library.forms';
+    var BASE_CACHE = 'organica.library.base';   // global read-only Base Seeds
     var LEGACY = 'organica_library';
     var lastSeeds = null;   // { seed_id: JSON.stringify(seed) } — last server state
     var lastMeta = null;    // JSON.stringify({ sets })
     var remote = false, pending = false, flushTimer = null;
     var subs = [];
+
+    // Base Seeds live in the `base_seeds` table — one shared, read-only set for
+    // every user, only the project owner can change them (no write policy).
+    // Cached separately; consumers merge them in as the built-in set's members.
+    function baseForms() {
+      try {
+        var raw = localStorage.getItem(BASE_CACHE);
+        var arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch (e) { return []; }
+    }
 
     function read() {
       try {
@@ -305,13 +317,29 @@
         if (remote) queueFlush();
         return ok;
       },
+      baseForms: baseForms,
+
       pull: function () {
+        // Base Seeds are world-readable — refresh their cache even signed out.
+        var baseJob = sb
+          ? sb.from('base_seeds').select('data').order('position').then(function (r) {
+              if (!r.error && Array.isArray(r.data)) {
+                try {
+                  localStorage.setItem(BASE_CACHE,
+                    JSON.stringify(r.data.map(function (x) { return x.data; })));
+                } catch (e) {}
+              }
+            }).catch(function () {})
+          : Promise.resolve();
+
         var uid = auth && auth.userIdSync();
-        if (!sb || !uid) return Promise.resolve(read());
+        if (!sb || !uid) return baseJob.then(function () { return read(); });
+
         return Promise.all([
           sb.from('seeds').select('seed_id,data'),
           sb.from('presets').select('data').eq('tool', 'library').eq('name', 'meta').maybeSingle(),
           sb.from('presets').select('data').eq('tool', 'library').eq('name', '__blob__').maybeSingle(),
+          baseJob,
         ]).then(function (res) {
           if (res[0].error) return read();
           remote = true;

@@ -859,26 +859,38 @@
     return { id: ORGANIC_PREFIX + n, num: n, name: L[n] || ('form ' + n), svg: F[n], type: 'asset', builtIn: true };
   }
 
-  // Resolve any form id. `organic-N` is synthesised from ORGANIC_FORMS; a
-  // stored entry in library.forms wins next (so a user's renamed/edited
-  // primitive survives); a bare `basic-*` reference falls back to the
-  // synthesised primitive.
+  // The Base Seeds set now lives in the `base_seeds` DB table (one shared,
+  // read-only set for everyone — only the project owner can change it). Use the
+  // DB list when it's arrived; fall back to the code-synthesised 13 + 6 for
+  // first paint / offline. forms.js + proceduralForm() stay as that fallback.
+  function baseSeedList() {
+    const db = (window.Organica && Organica.store && Organica.store.library)
+      ? Organica.store.library.baseForms() : [];
+    if (db && db.length) return db;
+    const F = window.ORGANIC_FORMS || {};
+    return ORGANIC_KEEP.filter(n => F[n]).map(organicForm).filter(Boolean)
+      .concat(PROCEDURAL_IDS.map(proceduralForm).filter(Boolean));
+  }
+
+  // Resolve any form id. Base Seeds (`organic-N` / `basic-*`) come from the
+  // shared list; a stored entry in library.forms wins for user seeds.
   function resolveFormById(id) {
-    if (typeof id === 'string' && id.indexOf(ORGANIC_PREFIX) === 0) {
-      return organicForm(parseInt(id.slice(ORGANIC_PREFIX.length), 10));
+    if (typeof id === 'string' &&
+        (id.indexOf(ORGANIC_PREFIX) === 0 || PROCEDURAL_IDS.indexOf(id) !== -1)) {
+      const b = baseSeedList().find(f => f && f.id === id);
+      if (b) return b;
+      if (id.indexOf(ORGANIC_PREFIX) === 0) {
+        return organicForm(parseInt(id.slice(ORGANIC_PREFIX.length), 10));
+      }
+      return proceduralForm(id);
     }
     const stored = state.library.forms.find(f => f.id === id);
     if (stored) return stored;
-    if (PROCEDURAL_IDS.indexOf(id) !== -1) return proceduralForm(id);
     return null;
   }
 
   function getFormsForSet(setId) {
-    if (setId === BUILT_IN_SET_ID) {
-      const F = window.ORGANIC_FORMS || {};
-      return ORGANIC_KEEP.filter(n => F[n]).map(organicForm).filter(Boolean)
-        .concat(PROCEDURAL_IDS.map(proceduralForm).filter(Boolean));   // 13 + 6, authored order
-    }
+    if (setId === BUILT_IN_SET_ID) return baseSeedList();
     const set = getSet(setId);
     if (!set) return [];
     return (set.forms || []).map(resolveFormById).filter(Boolean);
