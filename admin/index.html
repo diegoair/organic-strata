@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin — Organica</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/shell.css">
+<style>
+  body { background: var(--panel); color: var(--ink); font-family: var(--font); overflow: auto; height: auto; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: var(--space-8) var(--space-6) var(--space-8); }
+  h1 { font-size: var(--fs-xl); margin: 0 0 var(--space-2); }
+  .sub { color: var(--mid); font-size: var(--fs-base); margin: 0 0 var(--space-7); }
+  section { margin: 0 0 var(--space-8); }
+  section > h2 {
+    font-size: var(--fs-large); font-weight: var(--w-medium);
+    margin: 0 0 var(--space-4); padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border);
+  }
+  table { border-collapse: collapse; width: 100%; font-size: var(--fs-small); }
+  th, td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); vertical-align: middle; }
+  th { color: var(--mid); font-weight: var(--w-medium); white-space: nowrap; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .avatar { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; background: var(--panel); vertical-align: middle; }
+  .tag { display: inline-block; font-size: var(--fs-micro); letter-spacing: var(--ls-wide); color: var(--mid); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1px var(--space-2); }
+  .tag--yes { color: #4a7a4a; border-color: #4a7a4a; }
+  .tag--no  { color: var(--danger); border-color: var(--danger); }
+  .btn {
+    font-family: var(--font); font-size: var(--fs-small); font-weight: var(--w-medium);
+    background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--ink); padding: 2px var(--space-3); min-height: 24px; cursor: pointer;
+  }
+  .btn:hover { background: var(--panel); }
+  .btn--danger { color: var(--danger); border-color: var(--danger); }
+  .btn--danger.armed { background: var(--danger); color: var(--paper); }
+  input[type=email], input[type=text] {
+    font-family: var(--font); font-size: var(--fs-medium); padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); color: var(--ink);
+  }
+  .row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; margin: 0 0 var(--space-4); }
+  .detail { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4) var(--space-5); margin: var(--space-3) 0; }
+  .detail h3 { font-size: var(--fs-base); margin: 0 0 var(--space-3); color: var(--mid); }
+  .muted { color: var(--mid); }
+  #status { font-size: var(--fs-base); color: var(--mid); min-height: 1.2em; margin: 0 0 var(--space-5); }
+  #status.err { color: var(--danger); }
+  a.back { font-size: var(--fs-base); color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+<header class="org-header" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Admin</span></a>
+  <div class="org-header__spacer"></div>
+</header>
+
+<div class="wrap">
+  <h1>Admin</h1>
+  <p class="sub">User management for the private beta. Owner-only.</p>
+  <p id="status">Checking access…</p>
+
+  <div id="panels" hidden>
+    <section>
+      <h2>Users <span class="muted" id="user-totals"></span></h2>
+      <div style="overflow-x:auto">
+        <table id="users-table">
+          <thead><tr>
+            <th></th><th>Name</th><th>Email</th><th>Provider</th>
+            <th>Joined</th><th>Last seen</th><th class="num">Seeds</th>
+            <th class="num">Presets</th><th>Allowed</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="user-detail"></div>
+    </section>
+
+    <section>
+      <h2>Allowlist <span class="muted" id="allow-totals"></span></h2>
+      <p class="sub" style="margin-bottom:var(--space-3)">Emails allowed to sign up while public sign-up is off. The owner is always allowed.</p>
+      <div class="row">
+        <input type="email" id="allow-email" placeholder="tester@example.com" autocomplete="off">
+        <input type="text" id="allow-note" placeholder="note (optional)" autocomplete="off">
+        <button class="btn" id="allow-add">Add</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table id="allow-table">
+          <thead><tr><th>Email</th><th>Note</th><th>Added</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="/shared/vendor/supabase-js.min.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/store.js"></script>
+<script>
+(function () {
+  var OWNER = '997a1f53-23b2-40bb-8a4a-90b0aacb7921';
+  var $ = function (id) { return document.getElementById(id); };
+  var sb = Organica.sb;
+  var status = $('status');
+
+  function setStatus(t, err) { status.textContent = t || ''; status.className = err ? 'err' : ''; }
+  function fmtDate(s) { if (!s) return '—'; var d = new Date(s); return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+
+  Organica.auth.user().then(function (u) {
+    if (!u || u.id !== OWNER) { location.replace('/'); return; }
+    $('panels').hidden = false;
+    setStatus('');
+    loadUsers();
+    loadAllow();
+  });
+
+  // ── Users ──
+  function loadUsers() {
+    sb.rpc('admin_overview').then(function (r) {
+      if (r.error) { setStatus('admin_overview: ' + r.error.message, true); return; }
+      var d = r.data || {};
+      var t = d.totals || {};
+      $('user-totals').textContent = '· ' + (t.users || 0) + ' users, ' + (t.seeds || 0) + ' seeds, ' + (t.presets || 0) + ' presets';
+      var tb = document.querySelector('#users-table tbody');
+      tb.innerHTML = (d.users || []).map(function (u) {
+        return '<tr data-uid="' + esc(u.id) + '">' +
+          '<td>' + (u.avatar ? '<img class="avatar" referrerpolicy="no-referrer" src="' + esc(u.avatar) + '" alt="">' : '<span class="avatar"></span>') + '</td>' +
+          '<td>' + esc(u.name || '—') + '</td>' +
+          '<td>' + esc(u.email) + '</td>' +
+          '<td><span class="tag">' + esc(u.provider || '—') + '</span></td>' +
+          '<td>' + fmtDate(u.created_at) + '</td>' +
+          '<td>' + fmtDate(u.last_sign_in_at) + '</td>' +
+          '<td class="num">' + (u.seed_count || 0) + '</td>' +
+          '<td class="num">' + (u.preset_count || 0) + '</td>' +
+          '<td><span class="tag ' + (u.allowed ? 'tag--yes' : 'tag--no') + '">' + (u.allowed ? 'yes' : 'no') + '</span></td>' +
+          '<td style="white-space:nowrap">' +
+            '<button class="btn" data-act="detail">Detail</button> ' +
+            (u.id === OWNER ? '' : '<button class="btn btn--danger" data-act="del">Delete</button>') +
+          '</td></tr>';
+      }).join('');
+    });
+  }
+
+  document.querySelector('#users-table tbody').addEventListener('click', function (e) {
+    var btn = e.target.closest('button'); if (!btn) return;
+    var tr = e.target.closest('tr'); var uid = tr.dataset.uid;
+    if (btn.dataset.act === 'detail') showDetail(uid);
+    if (btn.dataset.act === 'del') armDelete(btn, uid);
+  });
+
+  function showDetail(uid) {
+    var host = $('user-detail');
+    host.innerHTML = '<div class="detail muted">Loading…</div>';
+    sb.rpc('admin_user_detail', { target: uid }).then(function (r) {
+      if (r.error) { host.innerHTML = '<div class="detail err">' + esc(r.error.message) + '</div>'; return; }
+      var d = r.data || {};
+      var seeds = (d.seeds || []).map(function (s) { return '<tr><td>' + esc(s.seed_id) + '</td><td>' + esc(s.name || '—') + '</td><td>' + fmtDate(s.updated_at) + '</td></tr>'; }).join('') || '<tr><td colspan="3" class="muted">none</td></tr>';
+      var presets = (d.presets || []).map(function (p) { return '<tr><td>' + esc(p.tool) + '</td><td>' + esc(p.name) + '</td><td class="num">' + (p.bytes || 0) + '</td><td>' + fmtDate(p.updated_at) + '</td></tr>'; }).join('') || '<tr><td colspan="4" class="muted">none</td></tr>';
+      host.innerHTML =
+        '<div class="detail"><h3>Seeds (' + (d.seeds || []).length + ')</h3>' +
+          '<table><thead><tr><th>seed_id</th><th>name</th><th>updated</th></tr></thead><tbody>' + seeds + '</tbody></table></div>' +
+        '<div class="detail"><h3>Presets (' + (d.presets || []).length + ')</h3>' +
+          '<table><thead><tr><th>tool</th><th>name</th><th class="num">bytes</th><th>updated</th></tr></thead><tbody>' + presets + '</tbody></table></div>';
+    });
+  }
+
+  var armed = null;
+  function armDelete(btn, uid) {
+    if (armed && armed !== btn) { armed.classList.remove('armed'); armed.textContent = 'Delete'; }
+    if (armed === btn) {
+      btn.disabled = true; btn.textContent = 'Deleting…';
+      sb.rpc('admin_delete_user', { target: uid }).then(function (r) {
+        armed = null;
+        if (r.error) { setStatus('delete: ' + r.error.message, true); btn.disabled = false; btn.textContent = 'Delete'; return; }
+        setStatus('Deleted user + all their data.');
+        loadUsers(); $('user-detail').innerHTML = '';
+      });
+      return;
+    }
+    armed = btn; btn.classList.add('armed'); btn.textContent = 'Confirm delete';
+    setTimeout(function () { if (armed === btn) { btn.classList.remove('armed'); btn.textContent = 'Delete'; armed = null; } }, 4000);
+  }
+
+  // ── Allowlist ──
+  function loadAllow() {
+    sb.rpc('admin_list_allowed').then(function (r) {
+      if (r.error) { setStatus('admin_list_allowed: ' + r.error.message, true); return; }
+      var rows = r.data || [];
+      $('allow-totals').textContent = '· ' + rows.length;
+      var tb = document.querySelector('#allow-table tbody');
+      tb.innerHTML = rows.map(function (a) {
+        return '<tr><td>' + esc(a.email) + '</td><td class="muted">' + esc(a.note || '') + '</td><td>' + fmtDate(a.added_at) + '</td>' +
+          '<td><button class="btn" data-email="' + esc(a.email) + '">Revoke</button></td></tr>';
+      }).join('') || '<tr><td colspan="4" class="muted">empty — nobody can sign up except the owner</td></tr>';
+    });
+  }
+
+  $('allow-add').addEventListener('click', function () {
+    var email = $('allow-email').value.trim();
+    if (!email) return;
+    sb.rpc('admin_allow_email', { p_email: email, p_note: $('allow-note').value.trim() || null }).then(function (r) {
+      if (r.error) { setStatus('add: ' + r.error.message, true); return; }
+      $('allow-email').value = ''; $('allow-note').value = '';
+      setStatus('Added ' + email + '.'); loadAllow(); loadUsers();
+    });
+  });
+
+  document.querySelector('#allow-table tbody').addEventListener('click', function (e) {
+    var btn = e.target.closest('button'); if (!btn) return;
+    sb.rpc('admin_revoke_email', { p_email: btn.dataset.email }).then(function (r) {
+      if (r.error) { setStatus('revoke: ' + r.error.message, true); return; }
+      setStatus('Revoked ' + btn.dataset.email + '.'); loadAllow(); loadUsers();
+    });
+  });
+})();
+</script>
+</body>
+</html>

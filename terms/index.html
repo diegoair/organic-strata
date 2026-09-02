@@ -12,8 +12,16 @@
   .doc {
     max-width: 660px;
     margin: 0 auto;
-    padding: var(--space-8) var(--space-6) var(--space-8);
+    padding: var(--space-8) var(--space-6) var(--space-6);
   }
+  .doc__foot {
+    max-width: 660px;
+    margin: var(--space-5) auto 0;
+    padding: 0 var(--space-7);
+    font-size: var(--fs-small);
+    color: var(--mid);
+  }
+  .doc__foot a { color: var(--mid); }
   .doc__card {
     background: var(--paper);
     border: 1px solid var(--border);
@@ -46,13 +54,15 @@
     <p class="doc__meta">Last updated 2 September 2026 · Private beta</p>
 
     <p>Organica is a set of creative tools offered for a private, invite-only
-    beta. By signing in you agree to these terms.</p>
+    beta by <strong>[controller name / entity]</strong>. By signing in you
+    agree to these terms and to the <a href="/privacy">Privacy Policy</a>.</p>
 
     <h2>The service</h2>
-    <p>Organica is provided <strong>as is</strong> and <strong>as
-    available</strong>, without warranties of any kind. Because it is in beta,
-    features may change, data structures may change, and the service may be
-    interrupted or discontinued. We will try to give notice of anything
+    <p>Organica is provided <strong>free of charge during the beta</strong>,
+    <strong>as is</strong> and <strong>as available</strong>, without warranties
+    of any kind. This is not a sale of goods or a consumer service. Because it
+    is in beta, features may change, data structures may change, and the service
+    may be interrupted or discontinued. We will try to give notice of anything
     disruptive, but cannot guarantee it.</p>
 
     <h2>Your content</h2>
@@ -82,13 +92,20 @@
     liable for any loss of data or other damages arising from use of this beta.
     Keep your own copies of work that matters to you.</p>
 
+    <h2>Governing law</h2>
+    <p>These terms are governed by the laws of Italy. Any dispute is subject to
+    the exclusive jurisdiction of the courts of <strong>[city]</strong>, Italy,
+    without prejudice to any mandatory consumer-protection rules that may apply
+    where you live.</p>
+
     <h2>Changes</h2>
     <p>We may update these terms as the beta develops. The date above reflects
     the most recent change.</p>
 
     <h2>Contact</h2>
-    <p>Questions about these terms: <strong>[contact]</strong></p>
+    <p>Questions about these terms: <strong>[contact email]</strong>.</p>
   </article>
 </div>
+<p class="doc__foot">© Organica · <a href="/privacy">Privacy</a> · <a href="/">Home</a></p>
 </body>
 </html>

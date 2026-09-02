@@ -152,38 +152,88 @@
   flex-shrink: 0;
 }
 
-/* ── Account badge — self-mounted by shared/auth-badge.js ── */
+/* ── Account control — self-mounted by shared/auth-badge.js ── */
 .org-account {
+  position: relative;
+  flex-shrink: 0;
+}
+.org-account__trigger {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex-shrink: 0;
+  font-family: var(--font);
   font-size: var(--fs-small);
-  color: var(--mid);
+  color: var(--ink);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2) 2px 2px;
+  min-height: 24px;
+  cursor: pointer;
   white-space: nowrap;
 }
-.org-account__email {
-  max-width: 22ch;
+.org-account__trigger:hover { border-color: var(--border); }
+.org-account__avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  font-size: var(--fs-micro);
+  font-weight: var(--w-medium);
+  color: var(--mid);
+}
+.org-account__avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.org-account__name {
+  max-width: 20ch;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.org-account__btn {
+.org-account__menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  min-width: 180px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  padding: var(--space-2);
+  z-index: 200;
+  display: none;
+}
+.org-account__menu[data-open="true"] { display: block; }
+.org-account__menu .org-account__email {
+  font-size: var(--fs-small);
+  color: var(--mid);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.org-account__item {
+  display: block;
+  width: 100%;
+  text-align: left;
   font-family: var(--font);
   font-size: var(--fs-small);
-  font-weight: var(--w-medium);
-  letter-spacing: var(--ls-wider);
-  text-transform: uppercase;
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
   color: var(--ink);
-  padding: 2px var(--space-3);
-  min-height: 24px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
   cursor: pointer;
+  text-decoration: none;
 }
-.org-account__btn:hover { background: var(--panel); }
-.org-account__btn:disabled { opacity: 0.5; cursor: default; }
-@media (max-width: 640px) { .org-account__email { display: none; } }
+.org-account__item:hover { background: var(--panel); }
+.org-account__item--danger { color: var(--danger); }
+.org-account__item:disabled { opacity: 0.5; cursor: default; }
+@media (max-width: 640px) { .org-account__name { display: none; } }
 
 /* ═══════════════════════════════════════════════════════════
    CONTROLS

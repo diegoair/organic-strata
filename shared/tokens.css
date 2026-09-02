@@ -24,7 +24,19 @@
    docs/DESIGN-SYSTEM.md explains the system and carries the Figma mapping.
    ───────────────────────────────────────────────────────────── */
 
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
+/* Manrope, self-hosted. Was an @import from fonts.googleapis.com — which sent
+   every visitor's IP to Google on every page (incl. the public /privacy,
+   /terms, /sign-in), before any consent. The variable .ttf is already vendored
+   for opentype.js glyph extraction; this @font-face reuses it so nothing
+   leaves the origin. weight 200–800 on one axis, same as the old query. */
+@font-face {
+  font-family: 'Manrope';
+  src: url('/shared/vendor/manrope-variable.ttf') format('truetype-variations'),
+       url('/shared/vendor/manrope-variable.ttf') format('truetype');
+  font-weight: 200 800;
+  font-display: swap;
+  font-style: normal;
+}
 
 /* Form controls and <code>/<pre> never inherit font-family by default in any
    browser — that's the UA stylesheet, not a bug in any one tool. Without this

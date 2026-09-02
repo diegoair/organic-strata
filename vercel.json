@@ -89,6 +89,10 @@
       "destination": "/sign-in/index.html"
     },
     {
+      "source": "/admin",
+      "destination": "/admin/index.html"
+    },
+    {
       "source": "/privacy",
       "destination": "/privacy/index.html"
     },

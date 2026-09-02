@@ -414,34 +414,26 @@
       left: 0;
       right: 0;
       display: flex;
-      flex-direction: column;
+      flex-wrap: wrap;
+      justify-content: center;
       align-items: center;
-      gap: 0.35rem;
+      gap: 0.5rem;
       opacity: 0;
       animation: fadeUp 1s ease forwards 0.9s;
     }
 
-    .meta__link {
+    .meta__link, .meta__c, .meta__sep {
       font-size: 0.6rem;
       font-weight: 600;
       letter-spacing: 0.08em;
       color: var(--ink-dim);
+    }
+    .meta__link {
       text-decoration: none;
       transition: color 0.2s ease;
     }
-
     .meta__link:hover {
       color: #7a7368;
-    }
-
-    .meta__legal {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .meta__sep {
-      font-size: 0.6rem;
-      color: var(--ink-dim);
     }
 
     /* explorations get a quiet neutral, same size as every other
@@ -568,12 +560,13 @@
   </svg>
 
   <div class="meta">
+    <span class="meta__c">© Organica</span>
+    <span class="meta__sep">·</span>
+    <a class="meta__link" href="/privacy">Privacy</a>
+    <span class="meta__sep">·</span>
+    <a class="meta__link" href="/terms">Terms</a>
+    <span class="meta__sep">·</span>
     <a class="meta__link" href="/design-system/">Design System</a>
-    <div class="meta__legal">
-      <a class="meta__link" href="/privacy">Privacy</a>
-      <span class="meta__sep">·</span>
-      <a class="meta__link" href="/terms">Terms</a>
-    </div>
   </div>
 
   <script src="/shared/vendor/supabase-js.min.js"></script>

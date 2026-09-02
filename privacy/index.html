@@ -12,7 +12,7 @@
   .doc {
     max-width: 660px;
     margin: 0 auto;
-    padding: var(--space-8) var(--space-6) var(--space-8);
+    padding: var(--space-8) var(--space-6) var(--space-6);
   }
   .doc__card {
     background: var(--paper);
@@ -32,6 +32,17 @@
   .doc li { margin: var(--space-1) 0; }
   .doc strong { font-weight: var(--w-bold); }
   .doc a { color: var(--accent); }
+  .doc table { border-collapse: collapse; width: 100%; margin: var(--space-3) 0; }
+  .doc th, .doc td { text-align: left; font-size: var(--fs-small); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); vertical-align: top; }
+  .doc th { color: var(--mid); font-weight: var(--w-medium); }
+  .doc__foot {
+    max-width: 660px;
+    margin: var(--space-5) auto 0;
+    padding: 0 var(--space-7);
+    font-size: var(--fs-small);
+    color: var(--mid);
+  }
+  .doc__foot a { color: var(--mid); }
 </style>
 </head>
 <body>
@@ -46,54 +57,105 @@
     <p class="doc__meta">Last updated 2 September 2026 · Private beta</p>
 
     <p>Organica is a set of creative tools for designers and artists, currently
-    in a private, invite-only beta. This policy explains what data the service
-    handles and why.</p>
+    in a private, invite-only beta. This policy explains what personal data the
+    service processes, why, on what legal basis, and the rights you have.</p>
 
-    <h2>What we collect</h2>
+    <h2>Who is responsible (data controller)</h2>
+    <p><strong>[controller name / entity]</strong>, <strong>[registered
+    address]</strong> — <strong>[VAT / REA number, if a registered
+    business]</strong>. Contact for any privacy matter:
+    <strong>[contact email]</strong>. There is no Data Protection Officer; the
+    contact above handles all requests.</p>
+
+    <h2>What we collect and why</h2>
     <ul>
-      <li><strong>Account details.</strong> When you sign in with Google, we
-      receive your email address, name, and profile picture from Google, through
-      our authentication provider (Supabase Auth). We use these only to identify
-      your account and keep you signed in.</li>
+      <li><strong>Account details.</strong> When you sign in with Google we
+      receive your email address, name, and profile picture, via our
+      authentication provider Supabase Auth. Used only to identify your account
+      and keep you signed in. Your Google profile picture is loaded directly
+      from Google's servers when it is displayed.</li>
       <li><strong>Your saved work.</strong> The seeds, palettes, presets, grids,
-      and tool settings you choose to save. We store these so they are available
-      on any device where you sign in.</li>
+      and tool settings you choose to save. Stored so they are available on any
+      device where you sign in.</li>
       <li><strong>Local browser storage.</strong> Your browser keeps a local
-      copy of your saved work and your sign-in session, so the tools load fast
-      and keep working offline. This never leaves your device except to sync
-      with your account.</li>
-      <li><strong>Aggregate analytics.</strong> Anonymous, cookie-less
-      page-view counts via Vercel Web Analytics. This does not build a profile
-      of you and is not linked to your account.</li>
+      copy of your saved work and a sign-in token so the tools load fast and
+      work offline. Specifically: a session token under
+      <code>organica.auth.token</code>, and per-tool settings under
+      <code>organica.&lt;tool&gt;.*</code> keys. This is browser
+      <em>localStorage</em>, not cookies, and stays on your device except when
+      syncing your saved work to your account.</li>
+      <li><strong>Aggregate analytics.</strong> Anonymous, cookieless page-view
+      counts via Vercel Web Analytics, on the homepage only. No profile is
+      built and nothing is linked to your account.</li>
     </ul>
 
-    <h2>Where it is stored</h2>
-    <p>Account data and saved work are stored in a Postgres database hosted by
-    Supabase. The site itself is hosted by Vercel. Sign-in is handled by Google
-    and Supabase Auth.</p>
+    <h2>Legal basis (GDPR Art. 6)</h2>
+    <ul>
+      <li><strong>Performance of a contract</strong> (Art. 6(1)(b)) — providing
+      the tools to you as a signed-up user: your account and your saved work.</li>
+      <li><strong>Legitimate interests</strong> (Art. 6(1)(f)) — keeping the
+      service secure and understanding aggregate usage; balanced against your
+      rights, and limited to cookieless, non-identifying analytics.</li>
+    </ul>
 
-    <h2>How it is used and shared</h2>
-    <p>We do not sell your personal data and do not share it for advertising.
-    Your data is processed only by the infrastructure providers needed to run
-    the service — Google (sign-in), Supabase (database and auth), and Vercel
-    (hosting) — and only for that purpose. Every account's saved work is
-    isolated by row-level security so no other user can read it.</p>
+    <h2>Where it is stored and who processes it</h2>
+    <p>Account data and saved work sit in a Postgres database provided by
+    Supabase, hosted in the EU (<code>eu-west-1</code>, Ireland). Every
+    account's saved work is isolated at the database level so no other user can
+    read it. Sub-processors:</p>
+    <table>
+      <thead><tr><th>Provider</th><th>Role</th><th>Location</th></tr></thead>
+      <tbody>
+        <tr><td>Supabase</td><td>Database &amp; authentication</td><td>EU (Ireland)</td></tr>
+        <tr><td>Vercel</td><td>Website hosting &amp; homepage analytics</td><td>Global edge; company in the US</td></tr>
+        <tr><td>Google</td><td>Sign-in (OAuth) &amp; profile picture</td><td>US</td></tr>
+      </tbody>
+    </table>
+    <p>We do not sell your personal data and do not share it for advertising.</p>
+
+    <h2>International transfers</h2>
+    <p>Sign-in with Google and the Google profile picture involve a transfer of
+    data to the United States, carried out under Google's Standard Contractual
+    Clauses and its certification under the EU–US Data Privacy Framework. Vercel
+    likewise relies on Standard Contractual Clauses. Supabase processing stays
+    within the EU.</p>
+
+    <h2>Retention</h2>
+    <p>Account data and saved work are kept while your account exists. If you
+    delete your account (see below) everything associated with it is removed
+    immediately and permanently. Aggregate analytics are not tied to you and
+    are retained by Vercel per their own policy.</p>
+
+    <h2>Your rights</h2>
+    <p>Under the GDPR you may request access to your data, correction, erasure,
+    restriction of processing, portability, and you may object to processing
+    based on legitimate interests. To exercise any of these, email the contact
+    above; we respond within 30 days. You can delete your account and all
+    associated data yourself at any time from the account menu in the app
+    header ("Delete my account"). You also have the right to lodge a complaint
+    with your supervisory authority — in Italy, the
+    <a href="https://www.garanteprivacy.it/">Garante per la protezione dei dati
+    personali</a>.</p>
 
     <h2>Cookies</h2>
-    <p>We use a single first-party token in your browser to keep you signed in.
-    There are no third-party advertising or tracking cookies.</p>
+    <p>This site sets <strong>no cookies</strong>. The sign-in token and your
+    tool settings live in your browser's localStorage and are strictly
+    necessary to run the service. Analytics on the homepage are cookieless.</p>
 
-    <h2>Retention and deletion</h2>
-    <p>Your data is kept while your account is active. To delete your account
-    and everything associated with it, contact us and we will remove it.</p>
+    <h2>Automated decision-making</h2>
+    <p>None. Nothing about you is decided automatically.</p>
+
+    <h2>Children</h2>
+    <p>Organica is a professional tool and is not directed at anyone under 18.</p>
 
     <h2>Changes</h2>
-    <p>We may update this policy as the beta develops. The date above reflects
+    <p>We may update this policy as the beta develops; the date above reflects
     the most recent change.</p>
 
     <h2>Contact</h2>
-    <p>Questions about this policy or your data: <strong>[contact]</strong></p>
+    <p>Questions about this policy or your data: <strong>[contact email]</strong>.</p>
   </article>
 </div>
+<p class="doc__foot">© Organica · <a href="/terms">Terms</a> · <a href="/">Home</a></p>
 </body>
 </html>

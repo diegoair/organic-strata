@@ -106,6 +106,14 @@
   }
   .msg.err { color: var(--danger); }
   .msg.ok  { color: var(--accent); }
+  .legal {
+    font-size: var(--fs-small);
+    color: var(--mid);
+    text-align: center;
+    margin: var(--space-5) 0 0;
+    line-height: 1.5;
+  }
+  .legal a { color: var(--mid); }
 </style>
 </head>
 <body>
@@ -128,6 +136,9 @@
     </form>
 
     <p class="msg" id="msg" role="status"></p>
+
+    <p class="legal">By continuing you agree to the
+      <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>
   </div>
 
 <script src="/shared/vendor/supabase-js.min.js"></script>
