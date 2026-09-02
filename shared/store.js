@@ -94,6 +94,7 @@
     function flush() {
       flushTimer = null;
       if (!remote || !sb) return;
+      if (!(auth && auth.userIdSync())) { pending = true; flushTimer = setTimeout(flush, 1500); return; }   // session not ready — retry
       var next = readCache();
       var d = computeDiff(next);
       if (!d.upserts.length && !d.deletes.length) { pending = false; return; }
@@ -270,8 +271,9 @@
     function flush() {
       flushTimer = null;
       if (!remote || !sb) return;
-      var lib = read();
       var uid = auth && auth.userIdSync();
+      if (!uid) { pending = true; flushTimer = setTimeout(flush, 1500); return; }   // session not ready — retry
+      var lib = read();
 
       var nextSeeds = {};
       (lib.forms || []).forEach(function (f) {
