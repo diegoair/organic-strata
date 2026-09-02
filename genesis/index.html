@@ -857,6 +857,12 @@
     });
     lib.forms.forEach(f => { if (f && f.id) f.id = remapId(f.id); });
 
+    // De-dup sets by id (a remap can collide organic-forms with an existing
+    // set-base) and de-dup each set's member list.
+    const seenSet = new Set();
+    lib.sets = lib.sets.filter(s => (s && !seenSet.has(s.id)) && seenSet.add(s.id));
+    lib.sets.forEach(s => { if (Array.isArray(s.forms)) s.forms = [...new Set(s.forms)]; });
+
     let base = lib.sets.find(s => s.id === BUILT_IN_SET_ID);
     if (!base) { base = { id: BUILT_IN_SET_ID, name: 'Base Seeds', builtIn: true }; lib.sets.unshift(base); }
     base.name = 'Base Seeds'; base.builtIn = true;
