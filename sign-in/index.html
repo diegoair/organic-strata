@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in — Organica</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: var(--font);
+    background: var(--panel);
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-6);
+  }
+  .card {
+    width: 100%;
+    max-width: 320px;
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-8) var(--space-7);
+  }
+  .brand {
+    font-size: var(--fs-large);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin: 0 0 var(--space-2);
+  }
+  .sub {
+    font-size: var(--fs-base);
+    color: var(--accent);
+    margin: 0 0 var(--space-7);
+  }
+  button {
+    width: 100%;
+    font-family: var(--font);
+    font-size: var(--fs-medium);
+    font-weight: 600;
+    padding: var(--space-3);
+    border: 0;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .g-btn {
+    background: var(--ink);
+    color: var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+  }
+  .g-btn svg { width: 16px; height: 16px; }
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin: var(--space-6) 0;
+    color: var(--accent);
+    font-size: var(--fs-small);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .divider::before, .divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  label {
+    display: block;
+    font-size: var(--fs-small);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    margin: 0 0 var(--space-1);
+  }
+  input {
+    width: 100%;
+    font-family: var(--font);
+    font-size: var(--fs-medium);
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--paper);
+    color: var(--ink);
+    margin: 0 0 var(--space-3);
+  }
+  input:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
+  .link-btn {
+    background: none;
+    color: var(--accent);
+    font-weight: 500;
+    border: 1px solid var(--border);
+  }
+  .msg {
+    font-size: var(--fs-base);
+    margin: var(--space-4) 0 0;
+    min-height: 1.2em;
+    text-align: center;
+  }
+  .msg.err { color: var(--danger); }
+  .msg.ok  { color: var(--accent); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <p class="brand">Organica</p>
+    <p class="sub">Private beta — sign in to continue.</p>
+
+    <button type="button" class="g-btn" id="google">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.4 5.4 2.5 13.3l7.9 6.1C12.2 13.2 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.5 3-2.2 5.5-4.7 7.2l7.3 5.7c4.3-4 6.2-9.8 6.2-17.4z"/><path fill="#FBBC05" d="M10.4 28.6c-.5-1.5-.8-3-.8-4.6s.3-3.1.8-4.6l-7.9-6.1C.9 16.5 0 20.1 0 24s.9 7.5 2.5 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.3-5.7c-2 1.4-4.7 2.3-8.6 2.3-6.4 0-11.8-3.7-13.6-9.9l-7.9 6.1C6.4 42.6 14.6 48 24 48z"/></svg>
+      Continue with Google
+    </button>
+
+    <div class="divider">or</div>
+
+    <form id="form" autocomplete="on">
+      <label for="email">Email a magic link</label>
+      <input type="email" id="email" name="email" required autocomplete="username"
+             placeholder="you@example.com">
+      <button type="submit" class="link-btn" id="submit">Send link</button>
+    </form>
+
+    <p class="msg" id="msg" role="status"></p>
+  </div>
+
+<script src="/shared/vendor/supabase-js.min.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var form = $('form'), email = $('email'), submit = $('submit'),
+      google = $('google'), msg = $('msg');
+
+  function nextUrl() {
+    var m = /[?&]next=([^&]+)/.exec(location.search);
+    var n = m ? decodeURIComponent(m[1]) : '/';
+    return (n.charAt(0) === '/' && n.charAt(1) !== '/') ? n : '/';
+  }
+  function setMsg(text, kind) {
+    msg.textContent = text || '';
+    msg.className = 'msg' + (kind ? ' ' + kind : '');
+  }
+
+  // Returning from Google (or already signed in)? detectSessionInUrl has run —
+  // just forward to the tool.
+  Organica.auth.session().then(function (s) { if (s) location.replace(nextUrl()); });
+
+  google.addEventListener('click', function () {
+    google.disabled = true;
+    setMsg('Redirecting to Google…');
+    Organica.auth.signInWithGoogle(nextUrl()).then(function (r) {
+      if (r && r.error) { google.disabled = false; setMsg(r.error.message, 'err'); }
+    });
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    submit.disabled = true;
+    setMsg('…');
+    Organica.auth.signInOtp(email.value.trim()).then(function (r) {
+      submit.disabled = false;
+      if (r && r.error) { setMsg(r.error.message || 'Failed.', 'err'); return; }
+      setMsg('Check your email for the link.', 'ok');
+    });
+  });
+})();
+</script>
+</body>
+</html>

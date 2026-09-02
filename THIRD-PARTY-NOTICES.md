@@ -45,6 +45,13 @@ directly against the license banner in each vendored file, August 27, 2026.
 - **License**: LGPL-2.1
 - **Used by**: `explorations/flow-field/`, and Membrane's p5 canvas
 
+### @supabase/supabase-js
+- **File**: `shared/vendor/supabase-js.min.js`
+- **Version**: 2.113.0 (UMD build, `dist/umd/supabase.js`)
+- **License**: MIT — Copyright (c) 2020 Supabase
+- **Source**: npm registry tarball (`@supabase/supabase-js`)
+- **Used by**: the cloud sync layer (`shared/supabase.js` → `Organica.sb`), consumed by `shared/auth.js` and `shared/store.js` on every tool page — per-user auth (Google OAuth / magic link) and preset/seed persistence in Postgres with row-level security.
+
 ### Manrope (typeface)
 - **Loaded via**: Google Fonts (`shared/tokens.css`'s `@import`) for on-screen display; a local copy at `shared/vendor/manrope-variable.ttf` for glyph-outline extraction (opentype.js) in Membrane / Camo Turing's text-seed features and the shared seeds panel
 - **License**: SIL Open Font License 1.1 — permits bundling/embedding in software, including commercial use; the only real restriction is not selling the font file standalone and preserving its Reserved Font Name if modified (it isn't, here)

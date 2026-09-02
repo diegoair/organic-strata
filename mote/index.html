@@ -358,7 +358,13 @@
 <input type="file" id="file-input" class="org-file-input" accept="video/*,.mov,.m4v,.mp4,.webm,.mkv" onchange="onFilePick(this)">
 <video id="src" muted playsinline style="display:none"></video>
 
+<script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/auth-badge.js"></script>
+<script src="/shared/store.js"></script>
+
 <script src="/shared/palette.js"></script>
 <script src="/shared/recorder.js"></script>
 <script src="/shared/pollen-engine.js"></script>
@@ -1363,6 +1369,9 @@ if (Organica.autoLabelPanel) Organica.autoLabelPanel(document);
 document.querySelectorAll('#panel input[type=range]').forEach(syncSliderOut);
 syncSliderOut($('sl-length'));
 populatePresets();
+// Cloud sync (shared/store.js): hydrate from Supabase, re-render on pull/flush.
+STORE.pull().then(() => populatePresets());
+STORE.onSync(() => populatePresets());
 
 if (CAM_BOOT) startCamera();
 else setStatus('', 'Open a video (＋) or start the webcam');

@@ -85,6 +85,18 @@
       "destination": "/shared/$1"
     },
     {
+      "source": "/sign-in",
+      "destination": "/sign-in/index.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy/index.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/terms/index.html"
+    },
+    {
       "source": "/",
       "destination": "/index.html"
     }

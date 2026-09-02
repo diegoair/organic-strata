@@ -248,7 +248,13 @@
 
 <!-- Core BEFORE noise, noise BEFORE the tool's own script — see
      noise.js's own header for why the order matters. -->
+<script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/auth-badge.js"></script>
+<script src="/shared/store.js"></script>
+
 <script src="/shared/palette.js"></script>
 <script src="/shared/noise.js"></script>
 <script>
@@ -691,6 +697,10 @@ Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 applyState(BUILTIN_PRESETS['Oak plank']);   // panel's raw HTML values are placeholders only — this is the real default
 resizeCanvas();
 populatePresets('Oak plank');
+
+// Cloud sync (shared/store.js): hydrate from Supabase, re-render on pull/flush.
+presetStoreObj().pull().then(() => populatePresets());
+presetStoreObj().onSync(() => populatePresets());
 setStatus('active', 'Ready');
 Organica.autoLabelPanel(document);
 Organica.enhanceSliders(document);

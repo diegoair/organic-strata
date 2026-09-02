@@ -714,7 +714,13 @@
 
 <!-- Seed file inputs are now owned by Organica.seedsPanel (seeds-panel.js). -->
 
+<script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/auth-badge.js"></script>
+<script src="/shared/store.js"></script>
+
 <script src="/shared/palette.js"></script>
 <script src="/shared/recorder.js"></script>
 <script src="/shared/seeds-panel.js"></script>
@@ -3688,6 +3694,9 @@ if (initGL()) {
   resetSim();
   buildRmxPalette();   // needs dispMat, so only after initGL() succeeds
   buildPresetsUI();    // needs simMat/seedMat/renderer for thumbnails, so only after initGL() succeeds
+  // Cloud sync (shared/store.js): hydrate saved presets from Supabase, refresh the trigger on pull/flush.
+  presetStore().pull().then(() => updatePresetTrigger());
+  presetStore().onSync(() => updatePresetTrigger());
   applyPreset('Turing patterns');   // first-load default — a named, verified pattern instead of an anonymous f/k starting point
   setStatus('busy', 'Simmering…');
   loop();

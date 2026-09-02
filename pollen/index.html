@@ -505,7 +505,13 @@
 </div><!-- /app -->
 
 <!-- Centralized Organica shape library (window.ORGANIC_FORMS) shared with Genesis -->
+<script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/auth-badge.js"></script>
+<script src="/shared/store.js"></script>
+
 <script src="/shared/palette.js"></script>
 <script src="/shared/pollen-engine.js"></script>
 <script src="/genesis/forms.js"></script>
@@ -1478,6 +1484,9 @@ function resetZoom() { zoomPan.reset(); }
 // ── INIT ──
 setStatus('', '—');
 populatePresets();
+// Cloud sync (shared/store.js): hydrate from Supabase, re-render on pull/flush.
+PRESETS.pull().then(() => populatePresets());
+PRESETS.onSync(() => populatePresets());
 buildShapeGrid();
 updatePtPreview();   // show the point shape preview before any image is loaded
 

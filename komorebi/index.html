@@ -325,7 +325,13 @@
 
 <input type="file" id="file-input" class="org-file-input" accept="image/*" onchange="loadCookie(this)">
 
+<script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/auth-badge.js"></script>
+<script src="/shared/store.js"></script>
+
 <script src="/shared/palette.js"></script>
 <script src="/shared/noise.js"></script>
 <script>
@@ -1490,6 +1496,10 @@ applyPatternLabels();
 resizeCanvas();
 BUILTIN_PRESETS['Forest Floor'] = readState();   // the document's own defaults
 populatePresets('Forest Floor');
+
+// Cloud sync (shared/store.js): hydrate from Supabase, re-render on pull/flush.
+PRESETS.pull().then(() => populatePresets());
+PRESETS.onSync(() => populatePresets());
 setStatus('active', 'Ready');
 Organica.autoLabelPanel(document);   // accessible names for row controls
 Organica.enhanceSliders(document);   // filled track + click-to-edit value

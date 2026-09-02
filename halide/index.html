@@ -330,7 +330,13 @@
   </div><!-- /panel -->
 </div><!-- /app -->
 
+<script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/auth-badge.js"></script>
+<script src="/shared/store.js"></script>
+
 <script src="/shared/palette.js"></script>
 <script>
 // ─────────────────────────────────────────────
@@ -1158,6 +1164,10 @@ Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 setStatus('', 'Drop a photo to begin');
 populatePresets();
 Organica.autoLabelPanel(document);   // accessible names for row controls
+
+// Cloud sync (shared/store.js): hydrate from Supabase, re-render on pull/flush.
+PRESETS.pull().then(() => populatePresets());
+PRESETS.onSync(() => populatePresets());
 Organica.enhanceSliders(document);   // filled track + click-to-edit value
 ctrl('btn-preset-confirm').addEventListener('click', confirmSavePreset);
 ctrl('btn-preset-cancel').addEventListener('click', cancelSavePreset);

@@ -152,6 +152,39 @@
   flex-shrink: 0;
 }
 
+/* ── Account badge — self-mounted by shared/auth-badge.js ── */
+.org-account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  font-size: var(--fs-small);
+  color: var(--mid);
+  white-space: nowrap;
+}
+.org-account__email {
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.org-account__btn {
+  font-family: var(--font);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  padding: 2px var(--space-3);
+  min-height: 24px;
+  cursor: pointer;
+}
+.org-account__btn:hover { background: var(--panel); }
+.org-account__btn:disabled { opacity: 0.5; cursor: default; }
+@media (max-width: 640px) { .org-account__email { display: none; } }
+
 /* ═══════════════════════════════════════════════════════════
    CONTROLS
    ═══════════════════════════════════════════════════════════ */

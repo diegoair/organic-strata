@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Organica</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/shell.css">
+<style>
+  body { background: var(--panel); color: var(--ink); font-family: var(--font); }
+  .doc {
+    max-width: 660px;
+    margin: 0 auto;
+    padding: var(--space-8) var(--space-6) var(--space-8);
+  }
+  .doc__card {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-8) var(--space-7);
+  }
+  .doc h1 { font-size: var(--fs-xl); margin: 0 0 var(--space-2); }
+  .doc__meta { color: var(--mid); font-size: var(--fs-base); margin: 0 0 var(--space-7); }
+  .doc h2 {
+    font-size: var(--fs-large);
+    color: var(--ink);
+    margin: var(--space-7) 0 var(--space-2);
+  }
+  .doc p, .doc li { font-size: var(--fs-medium); line-height: 1.65; }
+  .doc ul { padding-left: var(--space-6); margin: var(--space-3) 0; }
+  .doc li { margin: var(--space-1) 0; }
+  .doc strong { font-weight: var(--w-bold); }
+  .doc a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header class="org-header" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Privacy</span></a>
+  <div class="org-header__spacer"></div>
+</header>
+
+<div class="doc">
+  <article class="doc__card">
+    <h1>Privacy Policy</h1>
+    <p class="doc__meta">Last updated 2 September 2026 · Private beta</p>
+
+    <p>Organica is a set of creative tools for designers and artists, currently
+    in a private, invite-only beta. This policy explains what data the service
+    handles and why.</p>
+
+    <h2>What we collect</h2>
+    <ul>
+      <li><strong>Account details.</strong> When you sign in with Google, we
+      receive your email address, name, and profile picture from Google, through
+      our authentication provider (Supabase Auth). We use these only to identify
+      your account and keep you signed in.</li>
+      <li><strong>Your saved work.</strong> The seeds, palettes, presets, grids,
+      and tool settings you choose to save. We store these so they are available
+      on any device where you sign in.</li>
+      <li><strong>Local browser storage.</strong> Your browser keeps a local
+      copy of your saved work and your sign-in session, so the tools load fast
+      and keep working offline. This never leaves your device except to sync
+      with your account.</li>
+      <li><strong>Aggregate analytics.</strong> Anonymous, cookie-less
+      page-view counts via Vercel Web Analytics. This does not build a profile
+      of you and is not linked to your account.</li>
+    </ul>
+
+    <h2>Where it is stored</h2>
+    <p>Account data and saved work are stored in a Postgres database hosted by
+    Supabase. The site itself is hosted by Vercel. Sign-in is handled by Google
+    and Supabase Auth.</p>
+
+    <h2>How it is used and shared</h2>
+    <p>We do not sell your personal data and do not share it for advertising.
+    Your data is processed only by the infrastructure providers needed to run
+    the service — Google (sign-in), Supabase (database and auth), and Vercel
+    (hosting) — and only for that purpose. Every account's saved work is
+    isolated by row-level security so no other user can read it.</p>
+
+    <h2>Cookies</h2>
+    <p>We use a single first-party token in your browser to keep you signed in.
+    There are no third-party advertising or tracking cookies.</p>
+
+    <h2>Retention and deletion</h2>
+    <p>Your data is kept while your account is active. To delete your account
+    and everything associated with it, contact us and we will remove it.</p>
+
+    <h2>Changes</h2>
+    <p>We may update this policy as the beta develops. The date above reflects
+    the most recent change.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about this policy or your data: <strong>[contact]</strong></p>
+  </article>
+</div>
+</body>
+</html>

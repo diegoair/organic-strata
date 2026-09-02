@@ -358,7 +358,13 @@
   </div>
 </div>
 
+<script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/auth-badge.js"></script>
+<script src="/shared/store.js"></script>
+
 <script src="/shared/palette.js"></script>
 <script src="/shared/noise.js"></script>
 <script>
@@ -891,16 +897,17 @@ function computeNoiseDots(ch) {
 
 const GENESIS_LIBRARY_KEY = 'organica.library.forms';
 
+// Cloud sync (shared/store.js): the Genesis library blob syncs to Supabase
+// under the same cache key. .pull() runs at init (below); read()/write() sync.
+const GENESIS_LIB = Organica.store.blob('library', { cacheKey: GENESIS_LIBRARY_KEY });
+
 function readGenesisLibrary() {
-  try {
-    const raw = localStorage.getItem(GENESIS_LIBRARY_KEY);
-    const lib = raw ? JSON.parse(raw) : null;
-    if (lib && Array.isArray(lib.forms)) return lib;
-  } catch (e) { /* fall through */ }
+  const lib = GENESIS_LIB.read();
+  if (lib && Array.isArray(lib.forms)) return lib;
   return { sets: [], forms: [] };
 }
 function writeGenesisLibrary(lib) {
-  localStorage.setItem(GENESIS_LIBRARY_KEY, JSON.stringify(lib));
+  GENESIS_LIB.write(lib);   // cache + queued Supabase upsert
 }
 
 function patternSVG(size, thresholds) {
@@ -2299,6 +2306,13 @@ Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 Organica.enhanceSliders(document);
 Organica.autoLabelPanel(document);
 populatePresets();
+// Cloud sync (shared/store.js): hydrate from Supabase, re-render on pull/flush.
+PRESETS.pull().then(() => populatePresets());
+PRESETS.onSync(() => populatePresets());
+// Genesis library (Pattern-mode threshold matrices) — hydrate, then rebuild the
+// channel cards so their pattern <select> shows any server-saved patterns.
+GENESIS_LIB.pull().then(() => buildChannelUI());
+GENESIS_LIB.onSync(() => buildChannelUI());
 setStatus('', 'Drop an image to begin');
 </script>
 </body>

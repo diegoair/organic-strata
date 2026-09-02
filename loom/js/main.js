@@ -1178,6 +1178,9 @@ const gridtypePicker = buildGeneratorPicker();   // before syncGeneratorRows() â
 syncGeneratorRows();
 populateSavedGrids();
 populateOverlayGrids();
+// Cloud sync (shared/store.js): hydrate saved grids from Supabase.
+gridPresetStore.pull().then(() => { populateSavedGrids(); populateOverlayGrids(); });
+gridPresetStore.onSync(() => { populateSavedGrids(); populateOverlayGrids(); });
 window.saveGridPreset = saveGridPreset;
 window.deleteGridPreset = deleteGridPreset;
 window.loadGridPreset = loadGridPreset;

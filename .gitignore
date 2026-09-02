@@ -48,3 +48,4 @@ backend/output/
 explorations/membrane/
 explorations/vortex/
 explorations/blob-boundary/
+.env*

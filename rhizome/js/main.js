@@ -381,6 +381,9 @@ document.getElementById('sel-preset').addEventListener('change', (e) => {
 });
 Organica.popover(document.getElementById('btn-graph-menu'), document.getElementById('graph-popover'));
 refreshPresetList();
+// Cloud sync (shared/store.js): hydrate graph presets from Supabase.
+PRESETS.pull().then(() => refreshPresetList());
+PRESETS.onSync(() => refreshPresetList());
 
 // ── Init ──
 Organica.autoLabelPanel(document);

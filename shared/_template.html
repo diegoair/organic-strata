@@ -150,7 +150,12 @@
      palette.js only if this tool has a colour picker.
      recorder.js only if this tool records the canvas to video
      (Organica.recorder — see pulsar/vortex/membrane/camo-turing). -->
+<script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/auth-badge.js"></script>
+<script src="/shared/store.js"></script>
 <script src="/shared/palette.js"></script>
 <!-- <script src="/shared/recorder.js"></script> -->
 <!-- <script src="/shared/seeds-panel.js"></script>  (+ its CSS above) -->
@@ -189,8 +194,9 @@ const swInk = Organica.palette.swatch('ink', {
   onChange: () => render(),
 });
 
-// ── PRESETS — storage + legacy migration are shared ──
-const PRESETS = Organica.presetStore('newtool');
+// ── PRESETS — per-user cloud storage (shared/store.js), localStorage cache,
+//    legacy-key migration, first-login upsert. read()/write() stay sync. ──
+const PRESETS = Organica.store('newtool');
 function userPresets() { return PRESETS.read(); }
 function savePreset() {
   const name = prompt('Preset name'); if (!name) return;
@@ -201,6 +207,11 @@ function deletePreset() { /* … */ }
 function populatePresets(select) { /* … */ }
 function applyPreset(name) { /* … */ }
 function readState() { return {}; }
+
+// After init: hydrate from Supabase and re-render the list on pull / background flush.
+// (auth.js auto-gates the page — no requireAuth() call needed here.)
+PRESETS.pull().then(() => populatePresets());
+PRESETS.onSync(() => populatePresets());
 
 // ── EXPORT ──
 function updateSizeReadout() { /* … */ }

@@ -1084,7 +1084,13 @@
      AFTER core, or core's closing `global.Organica = Organica` clobbers
      it) → kiwi (classic global, shared/vendor/kiwi.min.js's own header) → this
      tool's own ES modules, which read `kiwi`/`Organica` unqualified. -->
+<script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/auth-badge.js"></script>
+<script src="/shared/store.js"></script>
+
 <script src="/shared/noise.js"></script>
 <script src="/shared/vendor/kiwi.min.js"></script>
 <script type="module" src="./js/main.js"></script>

@@ -608,7 +608,13 @@
     </div>
   </div>
 
+<script src="/shared/vendor/supabase-js.min.js"></script>
   <script src="/shared/core.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/auth-badge.js"></script>
+<script src="/shared/store.js"></script>
+
   <script src="/shared/noise.js"></script>
   <script src="/shared/transformer.js"></script>
   <script src="/shared/vendor/paper-full.min.js"></script>
@@ -645,6 +651,11 @@
   // sync — the merge removes the need for that.)
   const STORAGE_KEY = 'organica.library.forms';
   const LEGACY_STORAGE_KEY = 'organica_library';
+
+  // Cloud sync (shared/store.js): the whole { sets, forms } library blob syncs
+  // to Supabase (one row) under the SAME organica.library.forms cache key, so
+  // FVS / Colornet keep reading that key unchanged. read()/write() stay sync.
+  const LIB = Organica.store.blob('library', { cacheKey: STORAGE_KEY, legacyKey: LEGACY_STORAGE_KEY });
 
   function readLibraryRaw() {
     const cur = localStorage.getItem(STORAGE_KEY);
@@ -731,6 +742,15 @@
     setMode('library');
     renderArt();
     Organica.autoLabelPanel(document);
+
+    // Hydrate the library from Supabase, then re-render once it lands. onSync
+    // covers a change made in another tab; skip it mid-edit so work isn't lost.
+    const reload = () => {
+      loadLibrary(); renderSetsList(); populateSets();
+      activateSet(state.activeSetId); renderArt();
+    };
+    LIB.pull().then(() => { loadView(); reload(); });
+    LIB.onSync(() => { if (S.mode === 'library') reload(); });
   }
 
   // defs.js exposes window.ORGANIC_DEFS as a complete <svg> string.
@@ -740,7 +760,7 @@
   }
 
   // ═══ Library data ═══════════════════════════════════════
-  function saveLibrary() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.library)); }
+  function saveLibrary() { LIB.write(state.library); }   // writes the cache (organica.library.forms) + queues a Supabase upsert
 
   // Remember which set + filter the Library was showing. Best-effort — a
   // quota/private-mode failure just means the view isn't restored next time.
