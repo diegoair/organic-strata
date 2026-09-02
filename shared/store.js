@@ -319,28 +319,38 @@
           var meta = (res[1] && res[1].data && res[1].data.data) || null;
           var blob = (res[2] && res[2].data && res[2].data.data) || null;
 
-          // First-login migration: nothing in seeds/meta yet, but the old
-          // single-blob row (or a purely-local library) exists — adopt it once.
-          if (!rows.length && !meta) {
-            var src = (blob && Array.isArray(blob.forms)) ? blob : read();
-            if ((src.forms || []).length || (src.sets || []).length) {
-              var seed = { sets: src.sets || [], forms: src.forms || [] };
-              lastSeeds = {}; lastMeta = null;   // force a full upload
-              writeCache(seed);
-              queueFlush();
-              fire(seed);
-              return seed;
-            }
+          // Local source of truth for anything the server doesn't have yet:
+          // the localStorage cache, falling back to the old single-blob row.
+          var local = read();
+          if ((!local.forms || !local.forms.length) &&
+              blob && Array.isArray(blob.forms) && blob.forms.length) {
+            local = { sets: blob.sets || local.sets || [], forms: blob.forms };
           }
 
-          var forms = rows.map(function (r) { return r.data; }).filter(Boolean);
-          var sets = (meta && Array.isArray(meta.sets)) ? meta.sets : [];
+          // ADDITIVE reconcile — never drop a local seed just because the
+          // server lacks it (pre-cloud seeds, or a half-finished migration).
+          // Server rows win where ids overlap; local-only seeds get pushed up.
+          var serverForms = rows.map(function (r) { return r.data; }).filter(Boolean);
+          var haveId = {};
+          serverForms.forEach(function (f) { if (f && f.id) haveId[f.id] = 1; });
+          var localOnly = (local.forms || []).filter(function (f) {
+            return f && f.id && !haveId[f.id];
+          });
+
+          var forms = serverForms.concat(localOnly);
+          var sets = (meta && Array.isArray(meta.sets) && meta.sets.length) ? meta.sets
+                   : (local.sets && local.sets.length ? local.sets : []);
           var lib = { sets: sets, forms: forms };
+
           lastSeeds = {};
           rows.forEach(function (r) { lastSeeds[r.seed_id] = JSON.stringify(r.data); });
-          lastMeta = JSON.stringify({ sets: sets });
+          lastMeta = meta ? JSON.stringify({ sets: meta.sets || [] }) : null;
+
           writeCache(lib);
-          if (pending) queueFlush();
+          // push local-only seeds (+ the meta row if it's missing / stale)
+          if (localOnly.length || lastMeta !== JSON.stringify({ sets: sets }) || pending) {
+            queueFlush();
+          }
           fire(lib);
           return lib;
         }).catch(function () { return read(); });
