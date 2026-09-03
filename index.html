@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Organica</title>
   <link rel="stylesheet" href="/shared/tokens.css">
-  <link rel="stylesheet" href="/genesis/animations.css">
   <link rel="stylesheet" href="/shared/mobile-gate.css">
   <style>
     *, *::before, *::after {
@@ -232,12 +231,12 @@
     .nav__link--radial:hover { color: #5a5e82; }
     .nav__link--radial::after { background: #5a5e82; }
 
-    /* ── centre — bento showcase of the Genesis motion library.
-       Reuses the 55 forms verbatim (animations.css + the
-       ORGANIC_FORMS data loaded below) — no new assets, --ink varied
-       per cell via inline custom property so one shared stylesheet still
-       drives every colour, exactly the mechanism CLAUDE.md documents for
-       Spore/Pollen's own retinting.
+    /* ── centre — bento showcase of the Genesis seed library.
+       Reuses the 13 Base Seeds verbatim (ORGANIC_FORMS, loaded below) —
+       no new assets. They render static; --ink is varied per cell via an
+       inline custom property, which the seeds' own `fill="var(--ink)"`
+       markup picks up — the mechanism CLAUDE.md documents for Spore/Pollen's
+       own retinting. The tool-preview cells keep their local .tp-* motion.
 
        Layout is a CSS multi-column masonry (giuseppelaezza.com/playground
        reference, inspected live: `columns`, break-inside:avoid cards,
@@ -278,11 +277,10 @@
     .bento-cell {
       /* --tool-color is the per-item accent set inline by buildBento() —
          drives the card background; --ink is then overridden to white
-         for this subtree ONLY, so animations.css's own
-         `fill:var(--ink)` rules (append-only, never edited directly) and
-         this file's .tp-* preview-motif rules render their shapes in
-         white on the saturated card automatically, with no per-rule
-         override needed. */
+         for this subtree ONLY, so the Genesis seeds' own
+         `fill="var(--ink)"` / `stroke="var(--ink)"` markup and this file's
+         .tp-* preview-motif rules render their shapes in white on the
+         saturated card automatically, with no per-rule override needed. */
       --bg-cell: var(--tool-color);
       --ink: #fff;
       display: block;
@@ -359,8 +357,8 @@
        · spin    — Differential Rotation. Membrane's own export metadata
          literally reads movementPattern:"orbit" — a slow continuous
          rotation is the one true motion for THIS specific file.
-       Defined locally (not in animations.css) since these apply
-       to real exports, not the reusable 55-form library. ── */
+       Defined locally in this file — they apply to the hand-built tool
+       previews, not to the static Genesis seed cells. ── */
     .tp-anim-breathe svg { animation: cellBreathe 6.5s ease-in-out infinite; }
     @keyframes cellBreathe {
       0%, 100% { transform: scale(var(--bleed, 1)); }
@@ -527,37 +525,6 @@
       <a class="bento-link" href="/genesis/">Genesis &mdash; the seed library every tool draws from</a>
     </div>
   </main>
-
-  <!-- shared SVG defs (goo filter) — same inline block genesis/indicators.html
-       uses, required by animations.css for forms 3/4/5/8/9/25/27/28/
-       31/41/55's metaball merge effect. The 7 terrazzo chip shapes below
-       (also copied from genesis/indicators.html) are required by forms
-       52/53, which reference them via <use href="#cA">-style links — found
-       missing here (both forms rendered with a zero-size bounding box,
-       empty bento cells) when the bento grid was expanded to include them. -->
-  <svg class="defs" aria-hidden="true">
-    <defs>
-      <filter id="goo">
-        <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
-        <feColorMatrix in="blur" mode="matrix"
-          values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10" result="goo"/>
-        <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
-      </filter>
-      <filter id="goosoft">
-        <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
-        <feColorMatrix in="blur" mode="matrix"
-          values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8" result="goo"/>
-        <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
-      </filter>
-      <path id="cA" d="M-12 -6 L-2 -14 L10 -10 L14 2 L8 12 L-8 12 L-14 2 Z"/>
-      <path id="cB" d="M-16 -4 L4 -10 L18 -2 L12 8 L-8 12 L-18 4 Z"/>
-      <path id="cC" d="M-10 -12 Q4 -14 12 -6 Q16 6 6 12 Q-8 14 -14 4 Q-16 -6 -10 -12 Z"/>
-      <path id="cD" d="M-12 8 L-4 -12 L14 -4 L8 10 Z"/>
-      <path id="cE" d="M-5 -3 L2 -5 L6 2 L-2 6 L-6 0 Z"/>
-      <path id="cF" d="M-10 -8 Q0 -10 8 -4 Q10 6 0 10 Q-12 6 -10 -8 Z"/>
-      <path id="cG" d="M-14 -2 L-6 -10 L10 -8 L14 4 L4 12 L-12 6 Z"/>
-    </defs>
-  </svg>
 
   <div class="meta">
     <span class="meta__c">© Organica</span>

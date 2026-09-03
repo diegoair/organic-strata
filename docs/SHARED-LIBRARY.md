@@ -15,7 +15,7 @@ All live in `genesis/` and are served static — no build step, no bundler.
 
 | File | Contents | Link it when… |
 |---|---|---|
-| **`animations.css`** | 77 `@keyframes` + the 55 `.aNN` rules that bind them + `.defs` | you want the forms **animated inside your own UI**. **Genesis itself no longer links this** — its 13 Base Seeds render static. Live consumers now: the hub bento and the archived 55-form gallery (`genesis/archive/indicators-55.html`) |
+| **`animations.css`** | 77 `@keyframes` + the 55 `.aNN` rules that bind them + `.defs` | you want the forms **animated inside your own UI**. Neither Genesis nor the hub bento links it any more — both render the 13 Base Seeds static (since 2026-09-03). The only live consumer is the archived 55-form gallery (`genesis/archive/indicators-55.html`) |
 | **`page.css`** | `:root` palette + `body` / `header` / `.grid` / `.cell` / `.num` | you are building a **Genesis catalog-style page** (the archived gallery) |
 
 (The old `organic-library.css` `@import` shim that pulled both — "you want everything" — was **retired 2026-08-30**: nothing linked it. Link `page.css` then `animations.css` directly for the historic behaviour.)
@@ -24,7 +24,7 @@ Plus the two data files:
 
 | File | Global | Shape |
 |---|---|---|
-| `forms.js` | `window.ORGANIC_FORMS` | object keyed by numeric id (**not** an array) of SVG strings. **Reduced 2026-08-30 from 55 to 13** — the curated Base Seeds set: ids `1,2,3,7,9,13,14,21,26,28,37,41,56` (breath, heartbeat, metaballs, drop fall, lava detach, flower bloom, petal turn, caterpillar, amoeba, mitosis, sun, bubble cluster, line). Ids are unchanged — downstream tools reference forms by number. `window.ORGANIC_LABELS` carries the 13 names. The other 43 SVG strings live only in `genesis/archive/indicators-55.html`. A deeper restructure (slug keys, per-form metadata, dropping the `class="aNN"` hooks) is a tracked follow-up — see `docs/ROADMAP.md` |
+| `forms.js` | `window.ORGANIC_SEEDS` | object keyed by `seed-<slug>` id (**not** an array) — one entry per seed: `{ label, type, tags:[…], bbox:[x,y,w,h], svg }`. The curated Base Seeds set, **13** organic forms: `seed-breath`, `seed-heartbeat`, `seed-metaballs`, `seed-drop-fall`, `seed-lava-detach`, `seed-flower-bloom`, `seed-petal-turn`, `seed-caterpillar`, `seed-amoeba`, `seed-mitosis`, `seed-sun`, `seed-bubble-cluster`, `seed-line`. Each `svg` is class-free and paints `fill="var(--ink)"` / `stroke="var(--ink)"`. `window.ORGANIC_FORMS` (id→svg) and `window.ORGANIC_LABELS` (id→label) are **derived** from `ORGANIC_SEEDS` at the bottom of the file for back-compat — every downstream consumer reads those two. The other 43 forms + all `class="aNN"` animation hooks live only in `genesis/archive/indicators-55.html` |
 | `defs.js` | `window.ORGANIC_DEFS` | one `<svg class="defs">` string — goo filters + `#cA`…`#cG` chips |
 
 `ORGANIC_DEFS` must be injected into the DOM **once per page**; forms reference its
@@ -88,8 +88,8 @@ expressed in code:
 
 | Mode | Tools | How |
 |---|---|---|
-| **Static DOM** | Genesis | `innerHTML` the SVG string, inject `ORGANIC_DEFS` once. Genesis renders these **static** now (`animation:none` on every preview) — it does not link `animations.css` |
-| **Animated DOM** | Hub bento, archived gallery | as above, plus link `animations.css` → animated in the page |
+| **Static DOM** | Genesis, hub bento | `innerHTML` the SVG string, inject `ORGANIC_DEFS` once. Both render these **static** — neither links `animations.css`. The seed's own `fill="var(--ink)"` markup picks up the host's `--ink` (the hub varies it per bento cell) |
+| **Animated DOM** | archived gallery only | as above, plus link `animations.css` → animated in the page (its markup carries the `class="aNN"` hooks inline) |
 | **Path2D** | Spore, Pollen | parse the SVG string, pull the `d` attributes, build `Path2D` → drawn as canvas marks. Animations deliberately ignored (they don't link the CSS) |
 | **Seeds panel** | Membrane, Camo Turing, Living Path (via `shared/seeds-panel.js`) | the panel's `PRIMORDIAL` list **is** the 13 ids now — one curated set, no separate subset |
 | **Contours** | Living Path | parse → contours → the form becomes a glyph in the font pipeline |

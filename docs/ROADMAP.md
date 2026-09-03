@@ -308,11 +308,14 @@ ordered id lists. The composer / grid-config / 55-form animated catalog were rem
 Radial) plus each generative tool's own engine. Most of the items below are now out of
 scope or superseded.*
 
-- [ ] **`forms.js` deep restructure** *(named follow-up from the Aug 30 restructure)* —
-  slug keys instead of numeric ids, a per-form metadata block (name / type / tags /
-  bbox), strip the `class="aNN"` / `class="b"` presentation classes, and update every
-  consumer (`shared/seeds-panel.js` `PRIMORDIAL`, pollen/spore local literals, livingpath,
-  hub bento, fvs/colornet) to slugs.
+- [x] **`forms.js` deep restructure** *(named follow-up from the Aug 30 restructure)* —
+  done in two passes. Pass 1 (2 Sep): slug keys (`seed-<slug>`) across `forms.js` +
+  every consumer + the `base_seeds` / `seeds` / `meta` DB rows. Pass 2 (3 Sep):
+  `window.ORGANIC_SEEDS` per-form metadata block (`label / type / tags / bbox / svg`),
+  `class="aNN"` / presentation classes stripped, SVG now paints `fill="var(--ink)"`
+  inline. `ORGANIC_FORMS` / `ORGANIC_LABELS` kept as derived back-compat maps so no
+  consumer needed a code change; the hub bento dropped its `animations.css` link and
+  the dead `<svg class="defs">` block and now renders the Genesis cells static.
 - [x] **Export compositions** — Create exports seeds as SVG/PNG (per-seed, not compositions)
 - [x] **Save/load** — `organica.library.forms`; user sets persist
 - [ ] **Form scale / rotation / opacity** — Create's transform vocabulary covers this for

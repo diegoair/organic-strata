@@ -9,8 +9,10 @@
 > Mycel). *(The Soul tool, which rebuilt these 6 patterns parametric on GSAP, was removed
 > Aug 31, 2026 — see `docs/archive/SOUL.md`.)* The full 55-form animated catalog is
 > preserved at `genesis/archive/indicators-55.html`; `genesis/animations.css` +
-> `genesis/page.css` + all 55 SVG strings still live on disk for that page and the hub
-> bento. This taxonomy remains the reference.
+> `genesis/page.css` + all 55 SVG strings still live on disk for that page only.
+> **Since 2026-09-03 the hub bento no longer links `animations.css` either** — its
+> Genesis cells render static, and `forms.js` dropped the `class="aNN"` hooks. This
+> taxonomy remains the reference.
 
 ---
 
@@ -212,8 +214,9 @@ Each of 44 circles sits at golden-angle intervals on an Archimedean spiral — t
 > gallery** (`genesis/archive/indicators-55.html`) and to any new tool that links
 > `animations.css`. For new *motion*, work in Pulsar (over Radial) or the relevant
 > generative tool's own engine. `forms.js` itself now holds only the 13 static Base
-> Seeds; adding a new base seed means an SVG string in `forms.js` + a label — no
-> animation CSS.
+> Seeds as `window.ORGANIC_SEEDS` (`{ label, type, tags, bbox, svg }` per id); adding a
+> new base seed means one `ORGANIC_SEEDS` entry with a class-free `fill="var(--ink)"`
+> SVG + the matching `base_seeds` DB row — no animation CSS.
 
 1. **Identify the real physics.** What force or process governs this subject? Choose the closest pattern from the 6 above.
 
@@ -234,7 +237,7 @@ Note: the runtime `fixForm35()` phyllotaxis-spiral fill (form 35 injected its do
 | File | Role | Modify? |
 |---|---|---|
 | `genesis/animations.css` | All 55 `@keyframes` + `.aNN` rules — archive-support only | Append-only, rarely |
-| `forms.js` | SVG markup for the **13** static Base Seeds + labels | Yes — add `ORGANIC_FORMS[N]` and `ORGANIC_LABELS[N]` |
+| `forms.js` | `window.ORGANIC_SEEDS` — the **13** static Base Seeds (`{ label, type, tags, bbox, svg }` per `seed-<slug>` id); `ORGANIC_FORMS` / `ORGANIC_LABELS` derived from it | Yes — add an `ORGANIC_SEEDS['seed-…']` entry + the `base_seeds` DB row |
 | `defs.js` | Shared SVG `<defs>`: goo filters + 7 terrazzo chip paths | Rarely — only if adding new shared filters |
 | `genesis/archive/indicators-55.html` | The full 55-form animated gallery, self-contained | Only to restore an archived form |
 
