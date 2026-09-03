@@ -123,9 +123,17 @@
   // Any page that loads auth.js requires a session. The sign-in / privacy /
   // terms pages are public; a page can also opt out with
   //   <script>window.ORGANICA_PUBLIC = true;</script>  BEFORE auth.js.
-  // Data is safe regardless (RLS) — this just spares a signed-out visitor the
-  // broken-looking empty tool.
+  // Local dev (localhost / 127.0.0.1 / *.local) is never gated — the no-cache
+  // dev server is used signed-out; store.js already falls back to the
+  // localStorage cache with no session. Data is safe regardless (RLS) — the
+  // gate just spares a signed-out visitor the broken-looking empty tool.
+  var DEV_HOSTS = { 'localhost': 1, '127.0.0.1': 1, '::1': 1, '0.0.0.0': 1 };
+  auth.isLocalDev = function () {
+    var h = location.hostname;
+    return !!DEV_HOSTS[h] || h.slice(-6) === '.local';
+  };
   (function () {
+    if (auth.isLocalDev()) return;
     var PUBLIC = ['/sign-in', '/privacy', '/terms'];
     var p = location.pathname.replace(/\/index\.html$/, '').replace(/\/+$/, '') || '/';
     if (PUBLIC.indexOf(p) !== -1) return;
