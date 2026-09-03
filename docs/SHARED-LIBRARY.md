@@ -151,18 +151,27 @@ redirect stubs.
 ```js
 {
   sets:  [ { id, name, builtIn, forms: string[] }, … ],   // forms = an ordered list of seed ids
-  forms: [ { id: 'user-…', name, svg, type, genType?, genParams? }, … ]  // user-authored seeds only
+  forms: [ { id: 'seed-…', name, svg, type, genType?, genParams? }, … ]  // user-authored seeds only
 }
 ```
 
+- **Uniform id scheme (2 Sep 2026).** Every seed id is **`seed-<handle>`** — the kebab
+  slug for the 19 Base Seeds (`seed-breath`, `seed-square`, `seed-arc`, …), a short
+  base36 token for user seeds (`seed-mf3k9a2x` — `newSeedId()` in `genesis/index.html`).
+  Every set id is **`set-<handle>`** — `set-base` for the built-in, `set-<slug>-<t36>`
+  for user sets (`set-my-seeds` for the auto "My Seeds"). No more `organic-N` / `basic-*`
+  / `user-<ts>` / `set_*`; `migrateLibrary()` rewrites any legacy blob on load (step 0
+  below). The `seeds` / `base_seeds` DB tables carry the same ids (CHECK `seed_id ~ '^seed-'`).
 - **Set = a plain ordered list of ids.** No `gridConfig`, no `formLayout`, no spans,
   no alignment — the drag-fill compose lattice was removed 2026-08-30.
-- One **built-in "Base Seeds" set** (id `organic-forms`, `builtIn:true`, no `forms`
-  array): 13 organic forms (synthesized from `ORGANIC_FORMS`) + 6 procedural primitives
-  (`basic-square/circle/triangle/arc/hexagon/star`, synthesized in code). **Neither is
-  stored** — both are generated live on load.
+- One **built-in "Base Seeds" set** (id `set-base`, `builtIn:true`, no `forms`
+  array): 13 organic forms + 6 procedural primitives (`seed-square` / `seed-circle` /
+  `seed-triangle` / `seed-arc` / `seed-hexagon` / `seed-star`, synthesized in code).
+  **Neither is stored** in the library blob — the 19 come from the `base_seeds` DB table
+  (with `forms.js` `ORGANIC_SEEDS` + `PROCEDURAL_CANON` as the first-paint / offline
+  fallback).
 - User sets carry a real `forms: []` of ids. A duplicated seed lands in the active user
-  set, or in an auto-created **"My Seeds"** set (id `set_my-seeds`) if Base Seeds is
+  set, or in an auto-created **"My Seeds"** set (id `set-my-seeds`) if Base Seeds is
   active.
 - **`genType` also drives Genesis's Edit mode** (Aug 31, 2026): a seed with a non-freehand
   `genType` (`circle`/`arc`/`blob`/…) is **parametric** — Edit shows its generator sliders.
@@ -176,10 +185,14 @@ redirect stubs.
 ### `migrateLibrary()`
 
 Runs on every load, idempotent, **never drops `forms[]`**. It:
-1. ensures the `organic-forms` set exists, renames it to "Base Seeds", strips any
+0. **remaps legacy ids** — `LEGACY_ID_MAP` + `remapId()` / `remapSetId()` rewrite any
+   `organic-N` / `basic-*` / `user-<ts>` seed id and any `organic-forms` / `set_*` set id
+   in a stale localStorage blob to the `seed-<handle>` / `set-<handle>` scheme, then
+   de-dupes the resulting `sets[]`;
+1. ensures the `set-base` set exists, renames it to "Base Seeds", strips any
    `gridConfig`/`formLayout`;
 2. removes the old separate `basic-seeds` set (its primitives are synthesized now);
-3. pins the `organic-forms` (Base Seeds) set to `sets[0]` — set order is now array
+3. pins the `set-base` (Base Seeds) set to `sets[0]` — set order is now array
    order (the Library's `↑`/`↓` reorder writes it), and the built-in is always first;
 4. drops plain canonical primitive entries from `forms[]` (safe — re-synthesized), but
    **keeps** any primitive a user renamed or that a user set still references;

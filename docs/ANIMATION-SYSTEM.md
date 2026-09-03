@@ -214,9 +214,11 @@ Each of 44 circles sits at golden-angle intervals on an Archimedean spiral — t
 > gallery** (`genesis/archive/indicators-55.html`) and to any new tool that links
 > `animations.css`. For new *motion*, work in Pulsar (over Radial) or the relevant
 > generative tool's own engine. `forms.js` itself now holds only the 13 static Base
-> Seeds as `window.ORGANIC_SEEDS` (`{ label, type, tags, bbox, svg }` per id); adding a
-> new base seed means one `ORGANIC_SEEDS` entry with a class-free `fill="var(--ink)"`
-> SVG + the matching `base_seeds` DB row — no animation CSS.
+> Seeds as `window.ORGANIC_SEEDS`, keyed by `seed-<slug>` id
+> (`{ label, type, tags, bbox, svg }` per entry); adding a new base seed means one
+> `ORGANIC_SEEDS['seed-…']` entry with a class-free `fill="var(--ink)"` SVG + the
+> matching `base_seeds` DB row — no animation CSS. The archived catalog below still
+> uses its own numeric `.aNN` indexing, unrelated to the seed ids.
 
 1. **Identify the real physics.** What force or process governs this subject? Choose the closest pattern from the 6 above.
 
