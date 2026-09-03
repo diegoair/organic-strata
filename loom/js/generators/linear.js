@@ -73,6 +73,19 @@ function polygonCentroid(poly) {
   return [x / poly.length, y / poly.length];
 }
 
+// Shoelace area (unsigned). Used only to reject the zero-area sliver a
+// boundary strip produces when gap:0 lands its edge exactly on the inner
+// rect — clipToRect returns a degenerate ≥3-point polygon there, which
+// would otherwise be counted (and numbered) as a real cell.
+function polygonArea(poly) {
+  let a = 0;
+  for (let i = 0, n = poly.length; i < n; i++) {
+    const p = poly[i], q = poly[(i + 1) % n];
+    a += p[0] * q[1] - q[0] * p[1];
+  }
+  return Math.abs(a) / 2;
+}
+
 // Lateral displacement of a division line at physical position `pos`
 // along its own length — Sine: a plain `sin`, one shared Amount/
 // Frequency/Phase. Noise: `Organica.noise.fbm` sampled along a line
@@ -173,9 +186,14 @@ export function generateLinear(params, inner) {
   // exact pre-Distortion export, no smoothing applied to something that
   // was never meant to be a curve in the first place.
   const smoothCells = stripSubdiv > 1 || cellSubdiv > 1;
+  // A real cell is at least a small fraction of one nominal track cell;
+  // a boundary sliver (gap:0, strip edge on the inner rect) clips to
+  // ~0 area. This drops the sliver without touching any genuine cell.
+  const minArea = 1e-4 * sx * sy;
   const pushPoly = (rawPoly) => {
     const poly = clipToRect(rawPoly, inner);
     if (poly.length < 3) return;
+    if (polygonArea(poly) < minArea) return;
     cells.push({ id: 'c' + cells.length, points: poly, centroid: polygonCentroid(poly), smooth: smoothCells });
   };
 
