@@ -15,7 +15,7 @@ import { GENERATORS } from './generators/registry.js';
 import { renderSVG, cellsMarkup } from './renderers/svg-renderer.js';
 import { paintGridDOM, buildHTMLSnippet } from './renderers/html-renderer.js';
 import { renderRaster, drawCells } from './renderers/raster-renderer.js';
-import { solveTracksKiwiWithEdit } from './constraint-engine.js';
+import { solveTracksKiwi, solveTracksKiwiWithEdit } from './constraint-engine.js';
 
 function ctrl(id) { return document.getElementById(id); }
 function val(id) { return parseFloat(ctrl(id).value); }
@@ -193,6 +193,19 @@ function syncGeneratorRows() {
   if (['linear', 'diagonal', 'angular', 'masonry', 'radial'].includes(type)) {
     syncDistortRow(type === 'linear' ? 'lin' : type === 'diagonal' ? 'diag' : type === 'angular' ? 'ang' : type === 'masonry' ? 'mas' : 'radial');
   }
+  // bento/fractal/circular have no other conditional-row sync to piggyback
+  // on (no spin mode, no distortion) — cover them directly. Harmless no-op
+  // for every other type (SEED_ROW has no entry for them).
+  syncSeedRow(type);
+  syncEqualizeRow();
+}
+// "Equalize columns/rows" only means something on a generator with a real
+// shared column/row track (grid.tracks) to flatten — the same cellShape
+// flag renderTrackHandles() already gates the WYSIWYG drag handles on.
+// Hidden on every polygon-cell generator, which has no track to equalize.
+function syncEqualizeRow() {
+  const type = ctrl('sel-gridtype').value;
+  ctrl('row-equalize').style.display = GENERATORS[type].cellShape === 'rect' ? '' : 'none';
 }
 // Columns only means something under Axis Columns/Both, Rows only under
 // Axis Rows/Both — hidden rather than left as a dead control the other
@@ -218,6 +231,42 @@ function syncDistortRow(prefix) {
   // meet the frame) — shown whenever a distortion is active.
   const cropRow = ctrl('row-' + prefix + '-crop');
   if (cropRow) cropRow.style.display = mode === 'off' ? 'none' : '';
+  syncSeedRow(DISTORT_PREFIX_TYPE[prefix] || prefix);
+}
+// syncDistortRow's own prefixes (lin/diag/ang/mas) don't match their type name.
+const DISTORT_PREFIX_TYPE = { lin: 'linear', diag: 'diagonal', ang: 'angular', mas: 'masonry' };
+
+// Seed only re-rolls something when the generator's OWN random element is
+// active — hidden rather than left as a dead control otherwise, same rule as
+// row-padding / Spin-amount / Distortion's own rows above ("Komorebi's own
+// control audit"). masonry/organic/sinusoidal aren't in SEED_ROW (masonry +
+// organic are always random; sinusoidal already gates itself in
+// syncWaveFnRow) — syncSeedRow no-ops for them.
+const SEED_ROW = {
+  bento: 'row-bento-seed', fractal: 'row-frac-seed', circular: 'row-cir-seed',
+  hexagonal: 'row-hex-seed', triangular: 'row-tri-seed', diamond: 'row-dia-seed',
+  linear: 'row-lin-seed', diagonal: 'row-diag-seed', radial: 'row-radial-seed', angular: 'row-ang-seed',
+};
+function seedMatters(type) {
+  switch (type) {
+    case 'bento':      return val('rg-bento-variety') > 0;
+    case 'fractal':    return val('rg-frac-variance') > 0;
+    case 'circular':   return val('rg-cir-jitter') > 0;
+    case 'hexagonal':  return val('rg-hex-jitter') > 0 || ['random', 'noise'].includes(ctrl('sel-hex-spinmode').value);
+    case 'triangular': return val('rg-tri-jitter') > 0 || ['random', 'noise'].includes(ctrl('sel-tri-spinmode').value);
+    case 'diamond':    return val('rg-dia-jitter') > 0 || ['random', 'noise'].includes(ctrl('sel-dia-spinmode').value);
+    case 'linear':     return val('rg-lin-jitter') > 0 || seg('seg-lin-distort') !== 'off';
+    case 'diagonal':   return val('rg-diag-jitter') > 0 || seg('seg-diag-distort') !== 'off';
+    case 'radial':     return seg('seg-radial-distort') !== 'off';
+    case 'angular':    return seg('seg-ang-distort') !== 'off';
+    default:           return true;   // masonry / organic (always random), and anything not in SEED_ROW
+  }
+}
+function syncSeedRow(type) {
+  const id = SEED_ROW[type];
+  if (!id) return;
+  const row = ctrl(id);
+  if (row) row.style.display = seedMatters(type) ? '' : 'none';
 }
 
 // ── Phase 6 — Randomisation UI. Scoped to the CURRENT generator's own
@@ -265,6 +314,7 @@ function randomizeParams() {
     t.value = Array.from({ length: n }, () => 1 + Math.floor(Math.random() * 4)).join(',');
   });
 
+  syncSeedRow(type);   // Variety/Jitter/Variance may have just been rolled non-zero (or back to 0)
   build();
   setStatus('active', `${GENERATORS[type].label} randomized`);
 }
@@ -275,6 +325,7 @@ function syncHexSpinRow() {
   const mode = ctrl('sel-hex-spinmode').value;
   ctrl('row-hex-spinamount').style.display = mode === 'off' ? 'none' : '';
   ctrl('row-hex-noisescale').style.display = mode === 'noise' ? '' : 'none';
+  syncSeedRow('hexagonal');
 }
 // Same idea, Triangular's own Spin block — kept as its own function rather
 // than parameterising syncHexSpinRow, matching this file's existing
@@ -283,12 +334,14 @@ function syncTriSpinRow() {
   const mode = ctrl('sel-tri-spinmode').value;
   ctrl('row-tri-spinamount').style.display = mode === 'off' ? 'none' : '';
   ctrl('row-tri-noisescale').style.display = mode === 'noise' ? '' : 'none';
+  syncSeedRow('triangular');
 }
 // Same idea, Diamond's own Spin block.
 function syncDiaSpinRow() {
   const mode = ctrl('sel-dia-spinmode').value;
   ctrl('row-dia-spinamount').style.display = mode === 'off' ? 'none' : '';
   ctrl('row-dia-noisescale').style.display = mode === 'noise' ? '' : 'none';
+  syncSeedRow('diamond');
 }
 // Wave's Function toggle (Sine/Noise) — Frequency/Phase only mean
 // something for Sine, Scale/Seed only for Noise, same conditional-row
@@ -452,6 +505,22 @@ function build() {
     return;
   }
   grid.padding = unitVal('rg-padding');   // visual inset per cell, applied post-resolution by every renderer that reads it
+  // Equalize columns/rows — a standing option (checkbox), not a one-off
+  // action: baked into every build() while checked, so it survives any
+  // later Amount/Frequency/ratio tweak or Randomize, unlike a plain
+  // click-once "flatten the current tracks" button would. Only means
+  // anything on a generator with a real shared column/row track
+  // (cellShape:'rect' — Bento/Wave/Rectangular); harmless no-op field on
+  // every polygon-cell generator, where the checkboxes are hidden anyway.
+  // solveTracksKiwi is reused verbatim — the same equal-by-default solve
+  // Bento's own default already relies on, no separate "divide evenly"
+  // math needed.
+  if (generator.cellShape === 'rect') {
+    grid.equalizeCols = ctrl('ck-equalize-cols').checked;
+    grid.equalizeRows = ctrl('ck-equalize-rows').checked;
+    if (grid.equalizeCols) grid.tracks.cols = solveTracksKiwi(grid.tracks.cols.length, inner.width, grid.gap);
+    if (grid.equalizeRows) grid.tracks.rows = solveTracksKiwi(grid.tracks.rows.length, inner.height, grid.gap);
+  }
   cells.forEach((c, i) => { c.number = i + 1; });   // sequential by default — Shuffle numbers randomises on top of this
   currentModel = buildModel({ canvas, grid, cells });
   currentInner = inner;
@@ -1002,6 +1071,8 @@ function loadGridPreset() {
   applyGridParamsToUI(model.grid.type, paramsWithGap(model.grid));
   syncGeneratorRows();
   if (model.grid.padding != null) ctrl('rg-padding').value = model.grid.padding;
+  ctrl('ck-equalize-cols').checked = !!model.grid.equalizeCols;
+  ctrl('ck-equalize-rows').checked = !!model.grid.equalizeRows;
   build();
   // build() just regenerated fresh tracks from params/seed alone — correct
   // for every OTHER control, but it silently threw away a WYSIWYG drag
@@ -1225,6 +1296,13 @@ ctrl('panel').addEventListener('input', e => {
   if (!e.target.matches('input[type=range]')) return;
   const valEl = e.target.closest('.ctrl-row')?.querySelector('.ctrl-val');
   if (valEl) valEl.textContent = e.target.value;
+});
+// Dragging Variety/Jitter/Split-variance can flip Seed from dead to live (or
+// back) without going through any of the dedicated sync*Row() functions above
+// — keep the Seed row honest on every slider drag, for the current generator.
+ctrl('panel').addEventListener('input', e => {
+  if (!e.target.matches('input[type=range]')) return;
+  syncSeedRow(ctrl('sel-gridtype').value);
 });
 // Link margin sides — editing any one of the four Margin fields while
 // linked copies its value to the other three (checked by default, since

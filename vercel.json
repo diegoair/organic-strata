@@ -61,6 +61,10 @@
       "destination": "/mote/$1"
     },
     {
+      "source": "/trellis/(.*)",
+      "destination": "/trellis/$1"
+    },
+    {
       "source": "/rhizome/(.*)",
       "destination": "/rhizome/$1"
     },

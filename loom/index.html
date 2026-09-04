@@ -380,6 +380,14 @@
       <div class="row-btns" style="margin-top:0">
         <button class="mini-btn" onclick="randomizeParams()" title="Randomizes every control belonging to the CURRENT generator only — Canvas, Padding and generator type itself are untouched.">Randomize</button>
       </div>
+      <div id="row-equalize">
+        <label class="check-row" title="Keeps every column the same width, overriding whatever the current generator computes — stays on through any later Amount/Frequency/ratio/Randomize change, not a one-off action. Bento/Wave/Rectangular only (the only generators with a shared column/row track).">
+          <input type="checkbox" id="ck-equalize-cols"><span>Equalize columns</span>
+        </label>
+        <label class="check-row" title="Keeps every row the same height — same mechanism as Equalize columns.">
+          <input type="checkbox" id="ck-equalize-rows"><span>Equalize rows</span>
+        </label>
+      </div>
       <div class="ctrl-row" id="row-padding">
         <div class="ctrl-label" title="Insets each cell's own visible box inward from its track allocation — breathing room inside a cell, independent of Gap (which changes the track spacing the solver/math actually resolves). Rect grids only — Voronoi's polygon cells don't have a defined inset yet.">Padding</div>
         <input type="range" id="rg-padding" min="0" max="30" step="1" value="0">
@@ -407,8 +415,8 @@
           <input type="range" id="rg-bento-gap" min="0" max="40" step="1" value="12">
           <span class="ctrl-val" id="v-bento-gap">12</span>
         </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
+        <div class="ctrl-row" id="row-bento-seed">
+          <div class="ctrl-label" title="Reproducible starting value — same seed = same grid. Only affects the random part (Variety).">Seed</div>
           <input type="range" id="rg-bento-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-bento-seed">7</span>
         </div>
@@ -462,7 +470,7 @@
           <span class="ctrl-val" id="v-sin-scale">2</span>
         </div>
         <div class="ctrl-row" id="row-sin-seed" style="display:none">
-          <div class="ctrl-label">Seed</div>
+          <div class="ctrl-label" title="Reproducible starting value — same seed = same grid. Only affects the random part (Function = Noise).">Seed</div>
           <input type="range" id="rg-sin-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-sin-seed">7</span>
         </div>
@@ -516,8 +524,8 @@
           <input type="range" id="rg-hex-jitter" min="0" max="1" step="0.05" value="0">
           <span class="ctrl-val" id="v-hex-jitter">0</span>
         </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
+        <div class="ctrl-row" id="row-hex-seed">
+          <div class="ctrl-label" title="Reproducible starting value — same seed = same grid. Only affects the random part (Jitter, or Spin mode Random/Noise).">Seed</div>
           <input type="range" id="rg-hex-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-hex-seed">7</span>
         </div>
@@ -558,8 +566,8 @@
           <input type="range" id="rg-radial-startangle" min="0" max="360" step="5" value="0">
           <span class="ctrl-val" id="v-radial-startangle">0</span>
         </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
+        <div class="ctrl-row" id="row-radial-seed">
+          <div class="ctrl-label" title="Reproducible starting value — same seed = same grid. Only affects the random part (Distortion Sine/Noise).">Seed</div>
           <input type="range" id="rg-radial-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-radial-seed">7</span>
         </div>
@@ -631,8 +639,8 @@
           <input type="range" id="rg-tri-jitter" min="0" max="1" step="0.05" value="0">
           <span class="ctrl-val" id="v-tri-jitter">0</span>
         </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
+        <div class="ctrl-row" id="row-tri-seed">
+          <div class="ctrl-label" title="Reproducible starting value — same seed = same grid. Only affects the random part (Jitter, or Spin mode Random/Noise).">Seed</div>
           <input type="range" id="rg-tri-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-tri-seed">7</span>
         </div>
@@ -681,8 +689,8 @@
           <input type="range" id="rg-dia-jitter" min="0" max="1" step="0.05" value="0">
           <span class="ctrl-val" id="v-dia-jitter">0</span>
         </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
+        <div class="ctrl-row" id="row-dia-seed">
+          <div class="ctrl-label" title="Reproducible starting value — same seed = same grid. Only affects the random part (Jitter, or Spin mode Random/Noise).">Seed</div>
           <input type="range" id="rg-dia-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-dia-seed">7</span>
         </div>
@@ -710,8 +718,8 @@
           <input type="range" id="rg-cir-jitter" min="0" max="1" step="0.05" value="0">
           <span class="ctrl-val" id="v-cir-jitter">0</span>
         </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
+        <div class="ctrl-row" id="row-cir-seed">
+          <div class="ctrl-label" title="Reproducible starting value — same seed = same grid. Only affects the random part (Jitter).">Seed</div>
           <input type="range" id="rg-cir-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-cir-seed">7</span>
         </div>
@@ -753,8 +761,8 @@
           <input type="range" id="rg-lin-gap" min="0" max="0.4" step="0.02" value="0.05">
           <span class="ctrl-val" id="v-lin-gap">0.05</span>
         </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
+        <div class="ctrl-row" id="row-lin-seed">
+          <div class="ctrl-label" title="Reproducible starting value — same seed = same grid. Only affects the random part (Jitter, or Distortion Sine/Noise).">Seed</div>
           <input type="range" id="rg-lin-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-lin-seed">7</span>
         </div>
@@ -836,8 +844,8 @@
           <input type="range" id="rg-diag-jitter" min="0" max="1" step="0.05" value="0">
           <span class="ctrl-val" id="v-diag-jitter">0</span>
         </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
+        <div class="ctrl-row" id="row-diag-seed">
+          <div class="ctrl-label" title="Reproducible starting value — same seed = same grid. Only affects the random part (Jitter, or Distortion Sine/Noise).">Seed</div>
           <input type="range" id="rg-diag-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-diag-seed">7</span>
         </div>
@@ -893,8 +901,8 @@
           <input type="range" id="rg-ang-gap" min="0" max="0.4" step="0.02" value="0.06">
           <span class="ctrl-val" id="v-ang-gap">0.06</span>
         </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
+        <div class="ctrl-row" id="row-ang-seed">
+          <div class="ctrl-label" title="Reproducible starting value — same seed = same grid. Only affects the random part (Distortion Sine/Noise).">Seed</div>
           <input type="range" id="rg-ang-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-ang-seed">7</span>
         </div>
@@ -946,7 +954,7 @@
           <span class="ctrl-val" id="v-mas-gap">12</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
+          <div class="ctrl-label" title="Reproducible starting value — same seed = same grid. Always active here (drives the column heights).">Seed</div>
           <input type="range" id="rg-mas-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-mas-seed">7</span>
         </div>
@@ -999,8 +1007,8 @@
           <input type="range" id="rg-frac-gap" min="0" max="30" step="1" value="8">
           <span class="ctrl-val" id="v-frac-gap">8</span>
         </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
+        <div class="ctrl-row" id="row-frac-seed">
+          <div class="ctrl-label" title="Reproducible starting value — same seed = same grid. Only affects the random part (Split variance).">Seed</div>
           <input type="range" id="rg-frac-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-frac-seed">7</span>
         </div>
@@ -1019,7 +1027,7 @@
           <span class="ctrl-val" id="v-org-iterations">4</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
+          <div class="ctrl-label" title="Reproducible starting value — same seed = same grid. Always active here (drives the initial Voronoi points).">Seed</div>
           <input type="range" id="rg-org-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-org-seed">7</span>
         </div>

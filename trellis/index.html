@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trellis — Organica</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/palette.css">
+<style>
+:root {
+  --tool: #c9587a;   /* header focus ring — dusty rose, an open hue gap (a "trellis" of roses);
+                        distinct from Membrane's coral #c15b4a and TuneSutra's magenta #c93ed6 */
+}
+
+/* CSS-transformed by Organica.createZoomPan — never touches the canvas bitmap,
+   so it can't affect PNG or video export. Same square-preview shape Pulsar uses. */
+#preview {
+  width: min(100%, calc(100vh - 12rem));
+  aspect-ratio: 1 / 1;
+  box-shadow: 0 4px 40px rgba(0,0,0,0.18);
+  background: var(--paper);
+  display: block;
+}
+
+/* Track slots — a compact repeated block, same shape as Pulsar's own .trk. */
+.trk {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.trk .panel-select { margin-bottom: var(--space-1); }
+.one-shot { color: var(--tool); }
+#grid-hint { color: var(--mid); font-size: var(--fs-small); margin: 0; }
+</style>
+</head>
+<body>
+
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Trellis</span></a>
+
+  <div class="org-header__spacer"></div>
+
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Pick a grid to begin</span>
+  </output>
+</header>
+
+<!-- Playback + Export in the shared bottom-centre floating toolbar (Pulsar's own shape). -->
+<div class="org-floatbar" role="toolbar" aria-label="Playback">
+  <button class="org-floatbar__btn" id="btn-playpause" aria-label="Play" disabled>
+    <svg class="ico" id="ico-playpause" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor"/></svg>
+  </button>
+  <button class="org-floatbar__btn" id="btn-stop" aria-label="Stop" disabled>
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1" fill="currentColor"/></svg>
+  </button>
+
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-loop" aria-label="Loop length">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8a5 5 0 0 1 8.5-3.5M13 8a5 5 0 0 1-8.5 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M11 2.5v2.5H8.5M5 13.5V11h2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="loop-popover" aria-label="Loop options">
+      <div class="org-popover__title">Loop</div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="rg-loop-seconds">Length</label>
+        <input type="range" id="rg-loop-seconds" min="0" max="30" step="1" value="6" style="flex:1">
+        <span class="org-out" id="loop-label">6s</span>
+      </div>
+      <p class="org-popover__hint">Seconds per loop. 0 = play indefinitely. Video export uses this as its length (falls back to 6s).</p>
+      <p class="org-popover__hint one-shot" id="one-shot-note" style="display:none">This scene has a one-shot track — it will not loop seamlessly.</p>
+    </div>
+  </div>
+
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export" disabled>
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" onclick="exportPNG()">PNG frame</button>
+        <button class="org-btn" onclick="exportSVG()">SVG frame</button>
+        <button class="org-btn" id="btn-video" onclick="toggleRecording()">Video</button>
+      </div>
+      <p class="org-popover__hint">PNG/SVG are the current frame. Video records one loop from the live canvas.</p>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-scale">PNG scale</label>
+        <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
+          <option value="1">&times;1</option>
+          <option value="2" selected>&times;2</option>
+          <option value="3">&times;3</option>
+          <option value="4">&times;4</option>
+        </select>
+      </div>
+      <div class="org-popover__row">
+        <span class="org-popover__label">Output</span>
+        <span class="org-out" id="out-size">&mdash;</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+
+  <div id="stage" class="org-canvas-wrap">
+    <canvas id="preview" width="900" height="900"></canvas>
+  </div>
+
+  <div id="panel">
+
+    <div class="panel-section">
+      <h3>Grid <span class="hint">fill &amp; animate a saved Loom grid</span></h3>
+      <select class="panel-select" id="sel-grid" aria-label="Load a Loom grid" onchange="onGridPresetChange(this.value)">
+        <option value="">Load a grid…</option>
+      </select>
+      <div class="row-btns" style="margin-top:var(--space-2)">
+        <button class="mini-btn" id="btn-grid-upload" style="width:100%">Upload Loom grid JSON…</button>
+      </div>
+      <p id="grid-hint">No grid loaded — design one in Loom and save it, or upload a Loom grid export.</p>
+      <label class="check-row"><input type="checkbox" id="ck-show-grid" onchange="scheduleStill()"><span>Show grid outline</span></label>
+    </div>
+
+    <div class="panel-section">
+      <h3>Content</h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-shape">
+          <button class="seg-btn active" data-v="triangle" onclick="setShape(this)">Triangle</button>
+          <button class="seg-btn" data-v="arc" onclick="setShape(this)">Arc</button>
+          <button class="seg-btn" data-v="arctruchet" onclick="setShape(this)">Arc truchet</button>
+        </div>
+      </div>
+
+      <div class="ctrl-row" id="row-tri-base">
+        <div class="ctrl-label">Base</div>
+        <input type="range" id="rg-tri-base" min="20" max="100" step="1" value="70">
+        <span class="ctrl-val" id="v-tri-base">70</span>
+      </div>
+      <div class="ctrl-row" id="row-tri-height">
+        <div class="ctrl-label">Height</div>
+        <input type="range" id="rg-tri-height" min="20" max="100" step="1" value="80">
+        <span class="ctrl-val" id="v-tri-height">80</span>
+      </div>
+      <div class="ctrl-row" id="row-arc-thickness" style="display:none">
+        <div class="ctrl-label">Thickness</div>
+        <input type="range" id="rg-arc-thickness" min="10" max="100" step="1" value="60">
+        <span class="ctrl-val" id="v-arc-thickness">60</span>
+      </div>
+      <div class="ctrl-row" id="row-truchet-count" style="display:none">
+        <div class="ctrl-label">Band count</div>
+        <input type="range" id="rg-truchet-count" min="1" max="10" step="1" value="5">
+        <span class="ctrl-val" id="v-truchet-count">5</span>
+      </div>
+      <div class="ctrl-row" id="row-truchet-ratio" style="display:none">
+        <div class="ctrl-label">Band ratio</div>
+        <input type="range" id="rg-truchet-ratio" min="10" max="95" step="1" value="70">
+        <span class="ctrl-val" id="v-truchet-ratio">70</span>
+      </div>
+
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-fit">
+          <button class="seg-btn active" data-v="fixed" onclick="setFit(this)">Uniform size</button>
+          <button class="seg-btn" data-v="contain" onclick="setFit(this)">Fit to cell</button>
+        </div>
+      </div>
+      <p class="org-panel__hint">Uniform size — every shape the same size, ignoring cell size differences (a wavy/sinusoidal grid's own columns can vary). Fit to cell — each shape scales to its own cell.</p>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Scale</div>
+        <input type="range" id="rg-cell-scale" min="30" max="130" step="1" value="90">
+        <span class="ctrl-val" id="v-cell-scale">90</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Padding</div>
+        <input type="range" id="rg-cell-padding" min="0" max="60" step="1" value="8">
+        <span class="ctrl-val" id="v-cell-padding">8</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Palette</h3>
+      <div id="rmx-ink" class="rmx-palette"></div>
+      <p class="org-panel__hint">Ink cycles across the grid's own cells by index (cell 1 → colour 1, cell 2 → colour 2, wrapping if there are more cells than colours).</p>
+      <div class="color-row">
+        <span class="color-name">Paper</span>
+        <div class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-paper" aria-label="Paper colour"></button>
+          <input type="color" id="cp-paper" value="#f2efe6">
+        </div>
+        <input class="color-hex" id="hex-paper" value="#f2efe6">
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Motion <span class="hint">up to 2 tracks, per-cell phase</span></h3>
+      <p class="org-panel__hint">A track set to <b>Off</b> does nothing — pick Colour cycle or Scale pulse to animate the grid; press Play in the floatbar to see it.</p>
+      <div id="tracks"></div>
+    </div>
+
+  </div><!-- /panel -->
+</div>
+
+<input type="file" id="file-grid" class="org-file-input" accept=".json,application/json" aria-label="Upload Loom grid JSON">
+
+<script src="/shared/vendor/supabase-js.min.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/auth-badge.js"></script>
+<script src="/shared/store.js"></script>
+<script src="/shared/palette.js"></script>
+<script src="/shared/recorder.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/shapes.js"></script>
+<script>
+// ─────────────────────────────────────────────────────────────────────────
+// TRELLIS — fills an imported Loom grid with content (shape + colour) and
+// animates it: per-cell time-varying tracks (colour cycle, scale pulse),
+// each with an independent per-cell phase offset (stagger by index / row /
+// col / distance-from-centre / noise). Phase 1 of a new tool — see the
+// planning note in CLAUDE.md for the roadmap (rotation, drift, grid-geometry
+// animation, deferred).
+//
+// THE ONE RULE (same as every other Organica tool): one function builds the
+// per-cell draw list for a given tNorm; canvas preview, PNG, SVG and video
+// all read that SAME list. Ported from Pulsar's renderFrameAt(tNorm) shape,
+// per-cell instead of per-field.
+// ─────────────────────────────────────────────────────────────────────────
+
+function ctrl(id) { return document.getElementById(id); }
+function val(id) { return parseFloat(ctrl(id).value); }
+function seg(id) { return ctrl(id).querySelector('.seg-btn.active').dataset.v; }
+const setStatus = Organica.status();
+const S = Organica.shapes, N = Organica.noise, TAU = Math.PI * 2;
+
+const canvas = ctrl('preview');
+const pctx = canvas.getContext('2d');
+const SIZE = canvas.width;
+
+// ── GRID IMPORT ─────────────────────────────────────────────────────────
+// gridRaw = the exact Organica.loadLoomGrid() return: {canvas, grid, inner,
+// cellShape, cells}. gridWrap wraps it FVS-style ({kind:'loom', cellShape,
+// cells, width, height}) for shared/shapes.js's resolveGridCells/cellColRow.
+let gridRaw = null, gridWrap = null;
+let centers = [], ctxs = [], cellCount = 0;
+
+function buildGridWrap(raw) {
+  return { kind: 'loom', cellShape: raw.cellShape, cells: raw.cells, width: raw.inner.width, height: raw.inner.height };
+}
+function loadGrid(model) {
+  try {
+    gridRaw = Organica.loadLoomGrid(model);
+  } catch (e) {
+    setStatus('', 'Could not read that grid: ' + e.message);
+    return;
+  }
+  gridWrap = buildGridWrap(gridRaw);
+  centers = S.resolveGridCells(gridWrap);
+  ctxs = S.cellColRow(gridWrap, gridRaw.cells, gridRaw.grid);
+  cellCount = centers.length;
+  ctrl('grid-hint').textContent = cellCount + ' cells · ' + gridRaw.cellShape;
+  ['btn-playpause', 'btn-stop', 'btn-export'].forEach(id => ctrl(id).disabled = false);
+  buildInkChips();
+  updateOneShotNote();
+  stopPlayback();
+  setStatus('active', cellCount + ' cells loaded');
+}
+
+const LOOM_GRID_STORE = Organica.presetStore('loom');
+function populateGridPresets() {
+  const sel = ctrl('sel-grid');
+  const prev = sel.value;
+  let saved = {};
+  try { saved = LOOM_GRID_STORE.read() || {}; } catch (e) { saved = {}; }
+  sel.innerHTML = '<option value="">Load a grid…</option>';
+  const names = Object.keys(saved);
+  if (names.length) {
+    const og = document.createElement('optgroup'); og.label = 'Saved in Loom';
+    names.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; og.appendChild(o); });
+    sel.appendChild(og);
+  } else {
+    const o = document.createElement('option'); o.value = ''; o.disabled = true;
+    o.textContent = 'No saved grids yet — design one in /loom/';
+    sel.appendChild(o);
+  }
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+}
+function onGridPresetChange(name) {
+  if (!name) return;
+  const saved = LOOM_GRID_STORE.read() || {};
+  if (saved[name]) loadGrid(saved[name]);
+}
+ctrl('btn-grid-upload').addEventListener('click', () => ctrl('file-grid').click());
+ctrl('file-grid').addEventListener('change', e => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { try { loadGrid(JSON.parse(reader.result)); } catch (err) { setStatus('', 'Invalid JSON: ' + err.message); } };
+  reader.readAsText(file);
+});
+
+// ── CONTENT — shape + placement ────────────────────────────────────────
+function setShape(btn) {
+  ctrl('seg-shape').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+  syncShapeRows();
+  scheduleStill();
+}
+function setFit(btn) {
+  ctrl('seg-fit').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+  scheduleStill();
+}
+// The grid's own reference cell size (median across all cells) — the
+// constant every shape is sized against in 'fixed' fit mode, so "Uniform
+// size" means every shape ignores its own cell's dimensions but still scales
+// sensibly with the grid as a whole (and with the Scale slider).
+function refCellSize() {
+  if (!cellCount) return 100;
+  return S.median(centers.map(c => Math.min(c.cellW, c.cellH)));
+}
+function syncShapeRows() {
+  const t = seg('seg-shape');
+  ctrl('row-tri-base').style.display = t === 'triangle' ? '' : 'none';
+  ctrl('row-tri-height').style.display = t === 'triangle' ? '' : 'none';
+  ctrl('row-arc-thickness').style.display = t === 'arc' ? '' : 'none';
+  ctrl('row-truchet-count').style.display = t === 'arctruchet' ? '' : 'none';
+  ctrl('row-truchet-ratio').style.display = t === 'arctruchet' ? '' : 'none';
+}
+function shapeGeometry() {
+  const t = seg('seg-shape');
+  if (t === 'arc') return S.arcGeometry(val('rg-arc-thickness'));
+  if (t === 'arctruchet') return S.arcTruchetGeometry(val('rg-truchet-count'), val('rg-truchet-ratio') / 100);
+  return S.triangleGeometry(val('rg-tri-base'), val('rg-tri-height'));
+}
+
+// ── PALETTE — Ink cycles by cell index (colorAt), Paper is the ground ──
+let inkColors = ['#1c1c1c'], inkChips = null, paperSwatch = null;
+function buildInkChips() {
+  if (inkChips) return;
+  inkChips = Organica.palette.swatch(ctrl('rmx-ink'), {
+    colors: inkColors, min: 1, max: 8,
+    onChange: c => { inkColors = c; scheduleStill(); },
+  });
+}
+function colorAt(i) { return inkColors[i % inkColors.length]; }
+
+// ── MOTION — track model, ported from Pulsar's trackValue/composeP ──────
+// Two track types for Phase 1: 'colour' (lerps between two stops) and
+// 'scale' (pulses the cell's own placement scale). Each evaluated per cell
+// at tNorm with an added per-cell phase offset (the stagger axis) — the
+// wave math itself is untouched Pulsar code.
+const NTRACKS = 2;
+function ease01(f, mode) {
+  f = f < 0 ? 0 : f > 1 ? 1 : f;
+  if (mode === 'in') return f * f;
+  if (mode === 'out') return 1 - (1 - f) * (1 - f);
+  if (mode === 'inOut') return f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+  return f;
+}
+function tri(p) { p = p - Math.floor(p); if (p < 0.25) return p * 4; if (p < 0.75) return 2 - p * 4; return p * 4 - 4; }
+function easedCyc(cyc, mode) { const w = Math.floor(cyc); return w + ease01(cyc - w, mode); }
+// trackValue(t, tNorm) — verbatim from Pulsar (pulsar/index.html), amount is
+// in the track's own units (a 0..1 fraction for both Colour and Scale here).
+function trackValue(t, tNorm) {
+  const per = t.period > 0 ? t.period : 1;
+  if (t.wave === 'ramp-once') return t.amount * ease01(tNorm * per + t.phase, t.ease);
+  let cyc = tNorm * per + t.phase;
+  if (t.ease && t.ease !== 'linear') cyc = easedCyc(cyc, t.ease);
+  let v;
+  if (t.wave === 'triangle') v = t.amount * tri(cyc);
+  else if (t.wave === 'noise') {
+    const th = TAU * cyc, so = 13.37 * ((t.idx || 0) + 1);
+    v = t.amount * (N.fbm(Math.cos(th) + so, Math.sin(th) + so) - 0.5) * 2;
+  } else v = t.amount * Math.sin(TAU * cyc);
+  return Math.abs(v) < 1e-9 ? 0 : v;
+}
+// Per-cell phase offset — the by:index/distance/noise formula from
+// shared/motion.js's staggerDelay, ported as pure phase math (not the GSAP
+// wrapper) + row/col added (natural for a grid, absent from the original).
+function staggerPhase(c, by, amount) {
+  if (!amount || by === 'none') return 0;
+  if (by === 'index') return (c.count > 1 ? c.index / (c.count - 1) : 0) * amount;
+  if (by === 'row') return (c.rows > 1 ? c.row / (c.rows - 1) : 0) * amount;
+  if (by === 'col') return (c.cols > 1 ? c.col / (c.cols - 1) : 0) * amount;
+  if (by === 'distance') return Math.min(1, Math.hypot(c.nx, c.ny)) * amount;
+  if (by === 'noise') return N.fbm(c.cx * 0.004, c.cy * 0.004) * amount;
+  return 0;
+}
+
+function buildTrackRow(i) {
+  const div = document.createElement('div');
+  div.className = 'trk';
+  div.innerHTML = `
+    <select class="panel-select" id="trk${i}-type" aria-label="Track ${i + 1} type">
+      <option value="none"${i === 0 ? '' : ' selected'}>Off</option>
+      <option value="colour">Colour cycle</option>
+      <option value="scale"${i === 0 ? ' selected' : ''}>Scale pulse</option>
+    </select>
+    <div class="ctrl-row" id="trk${i}-row-colours" style="display:none">
+      <div class="ctrl-label">Colours</div>
+      <div class="color-swatch-wrap"><button class="color-swatch" id="sw-trk${i}a" aria-label="Track ${i + 1} colour A"></button><input type="color" id="cp-trk${i}a" value="#1c1c1c"></div>
+      <input type="hidden" id="hex-trk${i}a" value="#1c1c1c">
+      <div class="color-swatch-wrap"><button class="color-swatch" id="sw-trk${i}b" aria-label="Track ${i + 1} colour B"></button><input type="color" id="cp-trk${i}b" value="#f2efe6"></div>
+      <input type="hidden" id="hex-trk${i}b" value="#f2efe6">
+    </div>
+    <div class="ctrl-row" id="trk${i}-row-amount" style="display:none">
+      <div class="ctrl-label">Amount</div>
+      <input type="range" id="trk${i}-amount" min="0" max="1" step="0.01" value="0.3">
+      <span class="ctrl-val" id="v-trk${i}-amount">0.3</span>
+    </div>
+    <div class="ctrl-row" id="trk${i}-row-rest" style="display:none">
+      <div class="ctrl-label">Wave</div>
+      <select class="panel-select" id="trk${i}-wave">
+        <option value="sine">Sine</option>
+        <option value="triangle">Triangle</option>
+        <option value="noise">Noise</option>
+      </select>
+    </div>
+    <div class="ctrl-row" id="trk${i}-row-period" style="display:none">
+      <div class="ctrl-label">Period</div>
+      <input type="range" id="trk${i}-period" min="1" max="4" step="1" value="1">
+      <span class="ctrl-val" id="v-trk${i}-period">1</span>
+    </div>
+    <div class="ctrl-row" id="trk${i}-row-phase" style="display:none">
+      <div class="ctrl-label">Phase</div>
+      <input type="range" id="trk${i}-phase" min="0" max="1" step="0.01" value="0">
+      <span class="ctrl-val" id="v-trk${i}-phase">0</span>
+    </div>
+    <div class="ctrl-row" id="trk${i}-row-ease" style="display:none">
+      <div class="ctrl-label">Ease</div>
+      <select class="panel-select" id="trk${i}-ease">
+        <option value="linear">Linear</option>
+        <option value="inOut">Ease in-out</option>
+        <option value="in">Ease in</option>
+        <option value="out">Ease out</option>
+      </select>
+    </div>
+    <div class="ctrl-row" id="trk${i}-row-staggerby" style="display:none">
+      <div class="ctrl-label">Stagger by</div>
+      <select class="panel-select" id="trk${i}-staggerby">
+        <option value="none">None (all together)</option>
+        <option value="index" selected>Index</option>
+        <option value="row">Row</option>
+        <option value="col">Column</option>
+        <option value="distance">Distance from centre</option>
+        <option value="noise">Noise</option>
+      </select>
+    </div>
+    <div class="ctrl-row" id="trk${i}-row-staggeramt" style="display:none">
+      <div class="ctrl-label">Stagger amount</div>
+      <input type="range" id="trk${i}-staggeramt" min="0" max="2" step="0.05" value="0">
+      <span class="ctrl-val" id="v-trk${i}-staggeramt">0</span>
+    </div>`;
+  return div;
+}
+function syncTrackRows(i) {
+  const t = ctrl('trk' + i + '-type').value;
+  const show = t !== 'none';
+  ctrl('trk' + i + '-row-colours').style.display = t === 'colour' ? '' : 'none';
+  ctrl('trk' + i + '-row-amount').style.display = t === 'scale' ? '' : 'none';
+  ['rest', 'period', 'phase', 'ease', 'staggerby', 'staggeramt'].forEach(k => {
+    ctrl('trk' + i + '-row-' + k).style.display = show ? '' : 'none';
+  });
+}
+function readTracks() {
+  const out = [];
+  for (let i = 0; i < NTRACKS; i++) {
+    const type = ctrl('trk' + i + '-type').value;
+    if (type === 'none') continue;
+    out.push({
+      idx: i, type,
+      colourA: ctrl('hex-trk' + i + 'a').value,
+      colourB: ctrl('hex-trk' + i + 'b').value,
+      amount: type === 'colour' ? 1 : val('trk' + i + '-amount'),
+      wave: ctrl('trk' + i + '-wave').value,
+      period: val('trk' + i + '-period'),
+      phase: val('trk' + i + '-phase'),
+      ease: ctrl('trk' + i + '-ease').value,
+      staggerBy: ctrl('trk' + i + '-staggerby').value,
+      staggerAmount: val('trk' + i + '-staggeramt'),
+    });
+  }
+  return out;
+}
+function sceneIsOneShot() { return readTracks().some(t => t.wave === 'ramp-once'); }
+function updateOneShotNote() { ctrl('one-shot-note').style.display = sceneIsOneShot() ? '' : 'none'; }
+
+// ── RENDER — build the per-cell draw list once, canvas + SVG both read it ──
+const CEIL = 2000;   // element-count guard (Pulsar's own CEIL precedent)
+let curT = 0;
+function buildDrawList(tNorm) {
+  const geo = shapeGeometry();
+  const baseScale = val('rg-cell-scale') / 100;
+  const padding = val('rg-cell-padding') / 100;
+  const fit = seg('seg-fit');   // 'fixed' (uniform, default) | 'contain' (per-cell)
+  const fixedSize = refCellSize() * (1 - padding);
+  const tracks = readTracks();
+  const list = new Array(cellCount);
+  for (let i = 0; i < cellCount; i++) {
+    const c = centers[i], ctx = ctxs[i];
+    let colour = colorAt(i), animScale = 1;
+    for (const t of tracks) {
+      const phase = t.phase + staggerPhase(ctx, t.staggerBy, t.staggerAmount);
+      const v = trackValue({ ...t, phase }, tNorm);
+      if (t.type === 'colour') {
+        const score = 0.5 + 0.5 * v;   // amount fixed at 1 for colour tracks — full A..B swing
+        colour = Organica.palette.mix(t.colourA, t.colourB, score);
+      } else if (t.type === 'scale') {
+        animScale *= Math.max(0.02, 1 + v);
+      }
+    }
+    // baseScale (the Scale slider) is applied here, uniformly across both fit
+    // modes — resolveCellPlacement's own `scale` param only affects 'contain',
+    // so it's deliberately left unset and multiplied in ourselves instead.
+    const place = S.resolveCellPlacement(c.cellW, c.cellH, 100, { fitMode: fit, fixedSize, anchorX: 0, anchorY: 0, padding });
+    list[i] = { d: geo.d, cx: c.cx, cy: c.cy, offsetX: place.offsetX, offsetY: place.offsetY,
+      scaleX: place.scaleX * baseScale * animScale, scaleY: place.scaleY * baseScale * animScale, colour };
+  }
+  return list;
+}
+function drawList(gctx, list, originX, originY, unit) {
+  gctx.fillStyle = ctrl('hex-paper').value;
+  gctx.fillRect(0, 0, SIZE, SIZE);
+  for (const it of list) {
+    gctx.save();
+    gctx.translate(originX + (it.cx + it.offsetX) * unit, originY + (it.cy + it.offsetY) * unit);
+    gctx.scale(it.scaleX * unit, it.scaleY * unit);
+    gctx.translate(-50, -50);
+    gctx.fillStyle = it.colour;
+    gctx.fill(new Path2D(it.d));
+    gctx.restore();
+  }
+}
+// Debug/preview overlay — strokes every cell's own bounding box (from
+// `centers`, the same grid-centred coordinates content is placed against),
+// so a grid import can be visually checked for correct centring/mapping
+// independent of whatever shape/scale/motion is currently applied.
+function drawGridOverlay(gctx, originX, originY, unit) {
+  gctx.save();
+  gctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--tool').trim() || '#c9587a';
+  gctx.lineWidth = 1;
+  gctx.globalAlpha = 0.8;
+  for (let i = 0; i < cellCount; i++) {
+    const c = centers[i];
+    const x = originX + (c.cx - c.cellW / 2) * unit;
+    const y = originY + (c.cy - c.cellH / 2) * unit;
+    gctx.strokeRect(x, y, c.cellW * unit, c.cellH * unit);
+  }
+  gctx.restore();
+}
+function renderFrameAt(tNorm) {
+  curT = tNorm;
+  if (!cellCount) return;
+  if (cellCount > CEIL) {
+    pausePlayback();
+    setStatus('', cellCount + ' cells — too many to animate smoothly');
+    return;
+  }
+  const list = buildDrawList(tNorm);
+  const originX = SIZE / 2, originY = SIZE / 2, unit = SIZE / (S.frameSize(gridWrap) || SIZE);
+  pctx.setTransform(1, 0, 0, 1, 0, 0);
+  drawList(pctx, list, originX, originY, unit);
+  if (ctrl('ck-show-grid').checked) drawGridOverlay(pctx, originX, originY, unit);
+  if (!playing) setStatus('active', cellCount + ' cells · t=' + tNorm.toFixed(2));
+}
+let stillQueued = false;
+function scheduleStill() {
+  if (!cellCount || playing || stillQueued) return;
+  stillQueued = true;
+  requestAnimationFrame(() => { stillQueued = false; renderFrameAt(curT); });
+}
+
+// ── LOOP ──────────────────────────────────────────────────────────────
+let playing = false, raf = 0, t0 = 0, loopSec = 6;
+function loopDur() { return loopSec > 0 ? loopSec : 6; }
+function loopFrame(now) {
+  if (!playing) return;
+  const el = (now - t0) / 1000;
+  renderFrameAt((el / loopDur()) % 1);
+  raf = requestAnimationFrame(loopFrame);
+}
+function play(fromStart) {
+  if (!cellCount) return;
+  if (fromStart) curT = 0;
+  t0 = performance.now() - curT * loopDur() * 1000;
+  playing = true; setPlayIcon(true);
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(loopFrame);
+  setStatus('active', 'Playing');
+}
+function pausePlayback() { playing = false; cancelAnimationFrame(raf); setPlayIcon(false); setStatus('active', 'Paused · t=' + curT.toFixed(2)); }
+function stopPlayback() { playing = false; cancelAnimationFrame(raf); setPlayIcon(false); curT = 0; if (cellCount) renderFrameAt(0); setStatus('active', 'Stopped'); }
+function togglePlayPause() { playing ? pausePlayback() : play(false); }
+const ICO_PLAY = '<path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor"/>';
+const ICO_PAUSE = '<path d="M5 3.5h2.2v9H5zM8.8 3.5H11v9H8.8z" fill="currentColor"/>';
+function setPlayIcon(isPlaying) {
+  ctrl('ico-playpause').innerHTML = isPlaying ? ICO_PAUSE : ICO_PLAY;
+  ctrl('btn-playpause').setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
+}
+function syncLoopLabel() { const v = Math.round(val('rg-loop-seconds')); ctrl('loop-label').textContent = v > 0 ? v + 's' : 'Off'; }
+
+// ── EXPORT ────────────────────────────────────────────────────────────
+function updateSizeReadout() {
+  const scale = parseInt(ctrl('sel-scale').value, 10) || 2;
+  ctrl('out-size').textContent = (SIZE * scale) + ' × ' + (SIZE * scale);
+}
+function exportPNG() {
+  if (!cellCount) return;
+  const scale = parseInt(ctrl('sel-scale').value, 10) || 2;
+  const list = buildDrawList(curT);
+  const c = document.createElement('canvas'); c.width = SIZE * scale; c.height = SIZE * scale;
+  const unit = (SIZE * scale) / (S.frameSize(gridWrap) || SIZE);
+  drawList(c.getContext('2d'), list, (SIZE * scale) / 2, (SIZE * scale) / 2, unit);
+  const url = c.toDataURL('image/png');
+  const bin = atob(url.split(',')[1]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('trellis', 'png'));
+  setStatus('active', c.width + '×' + c.height + ' · PNG saved');
+}
+// Byte-faithful mirror of drawList() at unit 1 (Pollen/Mote/Loom's own SVG
+// convention) — the square F×F frame (F = the grid's own long side, same
+// reference renderFrameAt's `unit` scales against) so the SVG is proportionally
+// IDENTICAL to the canvas preview, not just the same content at a different crop.
+function buildSVG() {
+  const list = cellCount ? buildDrawList(curT) : [];
+  const F = gridWrap ? (S.frameSize(gridWrap) || SIZE) : SIZE;
+  const originX = F / 2, originY = F / 2;
+  let body = '';
+  for (const it of list) {
+    const x = (originX + it.cx + it.offsetX).toFixed(2), y = (originY + it.cy + it.offsetY).toFixed(2);
+    body += `<g transform="translate(${x} ${y}) scale(${it.scaleX.toFixed(4)} ${it.scaleY.toFixed(4)}) translate(-50 -50)"><path d="${it.d}" fill="${it.colour}"/></g>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${F} ${F}"><rect width="${F}" height="${F}" fill="${ctrl('hex-paper').value}"/>${body}</svg>`;
+}
+function exportSVG() {
+  if (!cellCount) return;
+  Organica.download(new Blob([buildSVG()], { type: 'image/svg+xml' }), Organica.stamp('trellis', 'svg'));
+  setStatus('active', 'SVG saved');
+}
+let trellisRecorder = null;
+function toggleRecording() { if (trellisRecorder) trellisRecorder.toggle(); }
+
+// ── ZOOM & PAN ────────────────────────────────────────────────────────
+const zoomPan = Organica.createZoomPan({
+  canvas, wrap: ctrl('stage'), isReady: () => cellCount > 0,
+  onChange: () => {},
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────
+for (let i = 0; i < NTRACKS; i++) ctrl('tracks').appendChild(buildTrackRow(i));
+for (let i = 0; i < NTRACKS; i++) {
+  ctrl('trk' + i + '-type').addEventListener('change', () => { syncTrackRows(i); updateOneShotNote(); scheduleStill(); });
+  Organica.palette.swatch('trk' + i + 'a', { initial: '#1c1c1c', onChange: scheduleStill });
+  Organica.palette.swatch('trk' + i + 'b', { initial: '#f2efe6', onChange: scheduleStill });
+  syncTrackRows(i);
+}
+paperSwatch = Organica.palette.swatch('paper', { initial: '#f2efe6', onChange: scheduleStill });
+buildInkChips();
+syncShapeRows();
+Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+Organica.popover(ctrl('btn-loop'), ctrl('loop-popover'));
+
+trellisRecorder = Organica.recorder({
+  canvas,
+  tool: 'trellis',
+  duration: () => (loopSec > 0 ? loopSec : 6),
+  durationPadMs: 90,
+  onStart: () => play(true),
+  onStatus: (phase, msg) => {
+    if (phase === 'recording') setStatus('busy', 'Recording ' + (loopSec > 0 ? loopSec : 6) + 's…');
+    else setStatus(phase === 'error' ? '' : 'active', msg);
+  },
+  onStateChange: isRec => { ctrl('btn-video').textContent = isRec ? 'Stop rec' : 'Video'; },
+});
+
+populateGridPresets();
+LOOM_GRID_STORE.pull().then(populateGridPresets);
+LOOM_GRID_STORE.onSync(populateGridPresets);
+
+ctrl('btn-playpause').addEventListener('click', togglePlayPause);
+ctrl('btn-stop').addEventListener('click', stopPlayback);
+ctrl('rg-loop-seconds').addEventListener('input', () => {
+  const v = Math.round(val('rg-loop-seconds'));
+  if (playing) { const dur = loopDur(); loopSec = v; t0 += (dur - loopDur()) * curT * 1000; }
+  else loopSec = v;
+  syncLoopLabel();
+});
+syncLoopLabel();
+updateSizeReadout();
+
+// Generic live numeric readout for every slider (Loom/FVS's own pattern) —
+// each slider's own .ctrl-row carries its .ctrl-val, no per-slider id math.
+document.querySelectorAll('#panel input[type=range]').forEach(r => {
+  r.addEventListener('input', () => {
+    const valEl = r.closest('.ctrl-row')?.querySelector('.ctrl-val');
+    if (valEl) valEl.textContent = r.value;
+    if (r.id === 'rg-loop-seconds') return;   // own handler above (feeds the live loop clock)
+    scheduleStill();
+  });
+});
+document.querySelectorAll('#panel select, #panel .seg-ctrl').forEach(el => {
+  if (el.id === 'sel-grid') return;
+  el.addEventListener('change', scheduleStill);
+});
+
+Organica.autoLabelPanel(document);
+Organica.enhanceSliders(document);
+setStatus('', 'Pick a grid to begin');
+</script>
+</body>
+</html>

@@ -610,6 +610,7 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/palette.js"></script>
+<script src="/shared/shapes.js"></script>
 <script>
 /* ─────────────────────────────────────────────────────────────
    FVS — Flexible Visual System. First pass: Seeds → Components only
@@ -686,66 +687,15 @@ function buildPalette() {
 // many shapes to safely regex-transform); one more <g transform> /
 // ctx.translate+scale nesting is trivial and handles any path losslessly.
 //
-// Real curves (the arcs) are why this moved off a plain polygon
-// point-list: SVG renders `d` directly via <path>, Canvas2D via
-// `ctx.fill(new Path2D(d))` — both support arc (A) commands natively.
-function triangleGeometry(base, height) {
-  const halfBase = base / 2;
-  const apexY = 50 - height / 2;
-  const baseY = 50 + height / 2;
-  const d = `M 50,${apexY} L ${50 - halfBase},${baseY} L ${50 + halfBase},${baseY} Z`;
-  return { d, normTx: 0, normTy: 0, normScale: 1 };
-}
-
-// Apex/pivot anchored at the box's own (0,0) corner, sweeping the
-// quadrant toward (100,0) and (0,100) — outer radius fixed at 100 so the
-// outer curve always reaches the cell's own far edges. thicknessPct sets
-// how much of that radius is filled, from the outer edge inward; 100 =
-// solid quarter-disc (Diego's own "fills the grid" description).
-function arcPathD(thicknessPct) {
-  const ir = 100 * (1 - thicknessPct / 100);
-  if (ir <= 0.5) return 'M 0,0 L 100,0 A 100,100 0 0,1 0,100 Z';
-  return `M 100,0 A 100,100 0 0,1 0,100 L 0,${ir} A ${ir},${ir} 0 0,0 ${ir},0 Z`;
-}
-function arcGeometry(thicknessPct) {
-  return { d: arcPathD(thicknessPct), normTx: 0, normTy: 0, normScale: 1 };
-}
-
-// Concentric semicircular arc bands from the top AND bottom edge midpoints,
-// mirrored into a butterfly — a faithful interpretation of bookofshapes
-// concentric_arc_truchet_3. One compound `d` (each band is its own closed
-// annular half-ring, non-overlapping → no fill-rule needed), so it drops
-// into FVS's one-path-per-cell model unchanged. Inscribed in the 0–100 box
-// (max radius 50, the two fans meet at the centre) — no per-cell clip
-// needed anywhere. `count` = bands per fan; `ratio` = band-thickness ÷ gap.
-function arcTruchetPathD(count, ratio) {
-  count = Math.max(1, Math.round(count == null ? 5 : count));
-  ratio = Math.min(0.95, Math.max(0.1, ratio == null ? 0.7 : ratio));
-  const cx = 50, step = 50 / count, t = step * ratio;
-  const r2 = v => Math.round(v * 1000) / 1000;
-  let d = '';
-  // side −1 = bottom pivot (py=100, opens up); side +1 = top pivot (py=0, opens down).
-  // sweep=1 from left→right bulges UP in SVG's y-down space; the inner arc
-  // travels right→left so it takes the opposite flag to bulge the same way.
-  const fan = (py, side) => {
-    const swOut = side < 0 ? 1 : 0, swIn = side < 0 ? 0 : 1;
-    for (let i = 1; i <= count; i++) {
-      const R = i * step, r = R - t;
-      if (r <= 0.5) {
-        d += `M ${r2(cx - R)},${py} A ${r2(R)},${r2(R)} 0 0 ${swOut} ${r2(cx + R)},${py} Z`;
-      } else {
-        d += `M ${r2(cx - R)},${py} A ${r2(R)},${r2(R)} 0 0 ${swOut} ${r2(cx + R)},${py}`
-          + ` L ${r2(cx + r)},${py} A ${r2(r)},${r2(r)} 0 0 ${swIn} ${r2(cx - r)},${py} Z`;
-      }
-    }
-  };
-  fan(100, -1);
-  fan(0, 1);
-  return d;
-}
-function arcTruchetGeometry(count, ratio) {
-  return { d: arcTruchetPathD(count, ratio), normTx: 0, normTy: 0, normScale: 1 };
-}
+// Geometry + grid cell-placement math (triangle/arc/arc-truchet,
+// resolveGridCells/resolveCellPlacement/frameSize/median) moved to
+// shared/shapes.js at Trellis's arrival (2nd consumer) — aliased here so
+// every call site below is unchanged. cellColRow (below, near SYMBOL_RULES)
+// keeps a thin local wrapper instead of a bare alias, since its shared
+// version takes an explicit rawCells arg where the old inline copy reached
+// into state.symbolGrid directly.
+const { triangleGeometry, arcGeometry, arcPathD, arcTruchetGeometry, arcTruchetPathD,
+  resolveGridCells, resolveCellPlacement, frameSize, median } = Organica.shapes;
 
 const SEED_TYPES = {
   triangle: { label: 'Isosceles triangle', geometry: (p) => triangleGeometry(p.base, p.height) },
@@ -981,48 +931,9 @@ function getGrid() {
   return { kind: 'square', cols: n, rows: n, cellSize: val('rg-cellsize'), gap: val('rg-gap') };
 }
 
-// Returns [{cx, cy, cellSize}], one per cell, relative to the grid's own
-// centre. cellSize per cell (not a single grid-wide value) is what lets
-// a Loom import's own variable cell sizes (Bento's merged spans, a
-// Voronoi diagram's differently-sized regions) scale the Seed
-// correctly per cell instead of assuming uniformity.
-// cellW/cellH (alongside the pre-existing cellSize = min(w,h), kept for
-// Components which only ever want a single uniform value) expose the
-// real, possibly-asymmetric box a cell occupies — needed by Symbols'
-// own Fill/Anchor placement math, which has to know the LONG side too,
-// not just the short one a uniform Contain-style fit already used.
-function resolveGridCells(grid) {
-  if (grid.kind === 'loom') {
-    const originX = grid.width / 2, originY = grid.height / 2;
-    return grid.cells.map(c => {
-      if (grid.cellShape === 'polygon') {
-        const xs = c.points.map(p => p[0]), ys = c.points.map(p => p[1]);
-        const w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
-        return { cx: c.centroid[0] - originX, cy: c.centroid[1] - originY, cellSize: Math.min(w, h), cellW: w, cellH: h };
-      }
-      return { cx: c.x + c.width / 2 - originX, cy: c.y + c.height / 2 - originY, cellSize: Math.min(c.width, c.height), cellW: c.width, cellH: c.height };
-    });
-  }
-  const totalW = grid.cols * grid.cellSize + (grid.cols - 1) * grid.gap;
-  const totalH = grid.rows * grid.cellSize + (grid.rows - 1) * grid.gap;
-  const originX = -totalW / 2, originY = -totalH / 2;
-  const centers = [];
-  for (let r = 0; r < grid.rows; r++) {
-    for (let c = 0; c < grid.cols; c++) {
-      centers.push({
-        cx: originX + c * (grid.cellSize + grid.gap) + grid.cellSize / 2,
-        cy: originY + r * (grid.cellSize + grid.gap) + grid.cellSize / 2,
-        cellSize: grid.cellSize, cellW: grid.cellSize, cellH: grid.cellSize,
-      });
-    }
-  }
-  return centers;   // square grids: row-major, e.g. 2×2 = [TL, TR, BL, BR]
-}
-
-function frameSize(grid) {
-  if (grid.kind === 'loom') return Math.max(grid.width, grid.height);
-  return grid.cols * grid.cellSize + (grid.cols - 1) * grid.gap;
-}
+// resolveGridCells(grid) / frameSize(grid) — moved to shared/shapes.js,
+// aliased at the top of this script. Returns [{cx, cy, cellSize, cellW,
+// cellH}], one per cell, relative to the grid's own centre.
 
 // ── Transform axes — the full vocabulary. ──
 const ROTATIONS = [0, 90, 180, 270];
@@ -2154,35 +2065,11 @@ function handleSymbolGridUpload(file) {
   reader.readAsText(file);
 }
 
-// Shared by both source types and both render paths (SVG string, Canvas2D)
-// — turns fit mode + anchor + padding + scale/fixedSize into a concrete
-// {scaleX, scaleY, offsetX, offsetY} for one cell. `natural` is the
-// shape's own untransformed box size (square: 100 for an Seed, the
-// nested Component's own frameSize for a nested Component). Reduces to
-// EXACTLY the old single-cellSize/100-fit, always-centered behaviour at
-// the defaults (fitMode:'contain', anchorX/Y:0, padding:0) — verified no
-// regression for Symbols saved before this feature shipped.
-function resolveCellPlacement(cellW, cellH, natural, cell) {
-  const pad = 1 - (cell.padding || 0);
-  const effW = cellW * pad, effH = cellH * pad;
-  const scale = cell.scale == null ? 1 : cell.scale;
-  let scaleX, scaleY;
-  if (cell.fitMode === 'fill') {
-    scaleX = (effW / natural) * scale;
-    scaleY = (effH / natural) * scale;
-  } else if (cell.fitMode === 'fixed') {
-    scaleX = scaleY = (cell.fixedSize || 100) / natural;
-  } else {
-    scaleX = scaleY = (Math.min(effW, effH) / natural) * scale;
-  }
-  const itemW = natural * scaleX, itemH = natural * scaleY;
-  const ax = cell.anchorX || 0, ay = cell.anchorY || 0;
-  return {
-    scaleX, scaleY,
-    offsetX: ax * (effW - itemW) / 2,
-    offsetY: ay * (effH - itemH) / 2,
-  };
-}
+// resolveCellPlacement(cellW, cellH, natural, cell) — moved to
+// shared/shapes.js, aliased at the top of this script. Shared by both
+// source types and both render paths (SVG string, Canvas2D) — turns fit
+// mode + anchor + padding + scale/fixedSize into a concrete {scaleX,
+// scaleY, offsetX, offsetY} for one cell.
 
 // One draw-op per cell: 'seed' carries its own geometry directly;
 // 'component' carries the referenced Component's own resolved items
@@ -2468,41 +2355,13 @@ function generateSymbolCells() {
 
 // Per-cell {col,row,cols,rows,cx,cy,nx,ny,angle,index,count} parallel to
 // state.symbolCells. Rect Loom cells carry col/row in their JSON; polygon
-// cells don't, so their centroids are binned into row/column bands.
+// cells don't, so their centroids are binned into row/column bands. Thin
+// wrapper over shared/shapes.js's version (moved there for Trellis) — feeds
+// it the FVS-specific state (symbolGrid's own raw cells + grid meta) its
+// generic signature takes as explicit args instead of reaching for directly.
 function cellColRow(grid) {
-  const centers = resolveGridCells(grid);   // {cx,cy,cellSize,cellW,cellH} grid-centred
-  const n = centers.length;
-  const halfW = grid.width / 2, halfH = grid.height / 2;
-  let colRow;
-  if (grid.cellShape === 'rect' && state.symbolGrid && state.symbolGrid.cells.every(c => c.col != null)) {
-    const g = state.symbolGrid.grid || {};
-    const cols = g.params && g.params.cols || (g.tracks && g.tracks.cols && g.tracks.cols.length) ||
-      (Math.max(...state.symbolGrid.cells.map(c => c.col + (c.colSpan || 1))));
-    const rows = g.params && g.params.rows || (g.tracks && g.tracks.rows && g.tracks.rows.length) ||
-      (Math.max(...state.symbolGrid.cells.map(c => c.row + (c.rowSpan || 1))));
-    colRow = state.symbolGrid.cells.map(c => ({ col: c.col, row: c.row, cols, rows }));
-  } else {
-    // Bin centroids: sorted unique y → rows, sorted unique x → cols.
-    const medH = median(centers.map(c => c.cellH)) || 1;
-    const medW = median(centers.map(c => c.cellW)) || 1;
-    const bands = (vals, tol) => {
-      const sorted = [...new Set(vals)].sort((a, b) => a - b);
-      const reps = [];
-      sorted.forEach(v => { if (!reps.length || v - reps[reps.length - 1] > tol) reps.push(v); });
-      return reps;
-    };
-    const rowReps = bands(centers.map(c => c.cy), medH * 0.5);
-    const colReps = bands(centers.map(c => c.cx), medW * 0.5);
-    const nearest = (v, reps) => { let bi = 0, bd = Infinity; reps.forEach((r, i) => { const d = Math.abs(r - v); if (d < bd) { bd = d; bi = i; } }); return bi; };
-    colRow = centers.map(c => ({ col: nearest(c.cx, colReps), row: nearest(c.cy, rowReps), cols: colReps.length, rows: rowReps.length }));
-  }
-  return centers.map((c, i) => ({
-    ...colRow[i], cx: c.cx, cy: c.cy,
-    nx: c.cx / (halfW || 1), ny: c.cy / (halfH || 1),
-    angle: Math.atan2(c.cy, c.cx), index: i, count: n,
-  }));
+  return Organica.shapes.cellColRow(grid, state.symbolGrid && state.symbolGrid.cells, state.symbolGrid && state.symbolGrid.grid);
 }
-function median(arr) { const s = [...arr].sort((a, b) => a - b); return s.length ? s[s.length >> 1] : 0; }
 
 function ruleScaleChoices() {
   const lo = parseInt(ctrl('rg-rule-scale-min').value, 10) / 100;
