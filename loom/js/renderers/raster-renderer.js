@@ -27,7 +27,7 @@ export function drawCells(ctx, model, inner, lineColor) {
         // Path2D, a real browser primitive) rather than re-deriving the
         // Catmull-Rom curve math a second way for canvas — the two
         // exports can't drift from each other this way.
-        ctx.stroke(new Path2D(catmullRomPathD(cell.points)));
+        ctx.stroke(new Path2D(catmullRomPathD(cell.points, null, cell.smooth === 'sharp')));
         return;
       }
       const pts = cell.points;

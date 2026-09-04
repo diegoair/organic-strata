@@ -214,6 +214,10 @@ function syncDistortRow(prefix) {
   ctrl('row-' + prefix + '-distort-amount').style.display = mode === 'off' ? 'none' : '';
   ctrl('row-' + prefix + '-distort-freq').style.display = mode === 'off' ? 'none' : '';
   ctrl('row-' + prefix + '-distort-phase').style.display = mode === 'sine' ? '' : 'none';
+  // Linear alone carries a Crop toggle (how its two outer division lines
+  // meet the frame) — shown whenever a distortion is active.
+  const cropRow = ctrl('row-' + prefix + '-crop');
+  if (cropRow) cropRow.style.display = mode === 'off' ? 'none' : '';
 }
 
 // ── Phase 6 — Randomisation UI. Scoped to the CURRENT generator's own
@@ -349,6 +353,7 @@ function readGridParams() {
       gap: val('rg-lin-gap'), seed: Math.round(val('rg-lin-seed')),
       distortMode: seg('seg-lin-distort'), distortAmount: val('rg-lin-distort-amount'),
       distortFrequency: val('rg-lin-distort-freq'), distortPhase: val('rg-lin-distort-phase'),
+      distortCrop: seg('seg-lin-crop'),
     };
   }
   if (type === 'rectangular') {
@@ -918,6 +923,7 @@ function applyGridParamsToUI(type, params) {
     setR('rg-lin-distort-phase', params.distortPhase);
     if (params.axis) setSegValue('seg-lin-axis', params.axis);
     if (params.distortMode) setSegValue('seg-lin-distort', params.distortMode);
+    if (params.distortCrop) setSegValue('seg-lin-crop', params.distortCrop);
     syncLinearAxisRow();
     syncDistortRow('lin');
   } else if (type === 'rectangular') {

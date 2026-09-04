@@ -781,6 +781,14 @@
           <input type="range" id="rg-lin-distort-phase" min="0" max="6.283" step="0.05" value="0">
           <span class="ctrl-val" id="v-lin-distort-phase">0</span>
         </div>
+        <div class="ctrl-row" id="row-lin-crop" style="display:none">
+          <div class="ctrl-label" title="How the two OUTER division lines meet the canvas edge. None: edge cells fill solid to a rectangular frame. Low: the outer lines wave and clip, leaving open crescents. Full: each clipped-off crescent lobe becomes its own cell (Columns/Rows axes).">Crop</div>
+          <div class="seg-ctrl" id="seg-lin-crop">
+            <button class="seg-btn" data-v="none" onclick="setSeg('seg-lin-crop', this)">None</button>
+            <button class="seg-btn" data-v="low" onclick="setSeg('seg-lin-crop', this)">Low</button>
+            <button class="seg-btn active" data-v="full" onclick="setSeg('seg-lin-crop', this)">Full</button>
+          </div>
+        </div>
       </div>
 
 

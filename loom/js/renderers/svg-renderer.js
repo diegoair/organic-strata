@@ -37,7 +37,7 @@ export function cellsMarkup(model, inner, lineColor) {
   if (grid.cellShape === 'polygon') {
     model.cells.forEach(cell => {
       if (cell.smooth) {
-        s += `<path d="${catmullRomPathD(cell.points, r2)}"/>`;
+        s += `<path d="${catmullRomPathD(cell.points, r2, cell.smooth === 'sharp')}"/>`;
       } else {
         const pts = cell.points.map(p => `${r2(p[0])},${r2(p[1])}`).join(' ');
         s += `<polygon points="${pts}"/>`;
