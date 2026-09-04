@@ -176,6 +176,8 @@
   // Per-point colour → { r, g, b, a } 0..255 / 0..1.
   //   Solid → Point; Adaptive → lerp(Point, Paper) by tone; RMX → palette by map.
   //   'video' (Mote) → the pixel under the point, from field.rgba.
+  //   P.minInk (0..1, Adapt only) floors the blend toward Paper — bright-field
+  //   marks stay visible instead of vanishing into the background.
   // Delegates the palette maths to Organica.palette.colorAt so Pollen / Spore /
   // Mote can't drift.
   function pointRGBA(P, b, rnd, p, field) {
@@ -185,7 +187,12 @@
       const o = (iy * field.W + ix) * 4;
       return { r: field.rgba[o], g: field.rgba[o + 1], b: field.rgba[o + 2], a: P.alpha };
     }
-    const hex = Organica.palette.colorAt(b, {
+    // Min ink (Adapt only): stop a mark blending closer than (1 − minInk) to the
+    // Paper colour, so a saturated bright-field region keeps visible marks
+    // instead of vanishing into the background. Absent/0 ⇒ untouched (Pollen).
+    let score = b;
+    if (P.colorMode === 'adaptive' && P.minInk) score = b * (1 - P.minInk);
+    const hex = Organica.palette.colorAt(score, {
       mode: P.colorMode === 'video' ? 'solid' : P.colorMode,
       ink: P.ink, paper: P.bg, colors: P.palette || P.rmxColors,
       submode: P.rmxMap, rnd: rnd || 0,

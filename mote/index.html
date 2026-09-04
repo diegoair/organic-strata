@@ -249,6 +249,7 @@
         <input class="color-hex" id="hex-paper" value="#f4f1e8">
       </div>
       <div class="ctrl-row"><div class="ctrl-label">Alpha</div><input type="range" id="a-ink" min="10" max="100" step="1" value="100"><span class="ctrl-val" data-for="a-ink">100</span></div>
+      <div class="ctrl-row" id="row-minink" hidden><div class="ctrl-label" title="Adapt only: stops a mark blending all the way to the Paper colour, so saturated bright areas keep visible marks.">Min ink</div><input type="range" id="sl-minink" min="0" max="80" step="1" value="0"><span class="ctrl-val" data-for="sl-minink">0</span></div>
     </div>
 
     <!-- ══ TONE ══ -->
@@ -380,6 +381,7 @@ const $ = id => document.getElementById(id);
 const E = Organica.pollenEngine;
 const setStatus = Organica.status();
 const SEED = 0x5eed;
+let flowRng = Organica.mulberry32(SEED ^ 0x9e37);   // mode-B cull/spawn stream — seeded so recycling is coherent + reproducible
 const Q = new URLSearchParams(location.search);
 const CAM_BOOT = Q.has('cam');
 const DEFAULT_LEN = 8;   // webcam recording length fallback (s)
@@ -401,6 +403,8 @@ let rmxChips = null;
 let basePoints = null, points = [], targetCount = 0, lastC = [], lastPaintedPts = [];
 let running = false, loopId = 0, curField = null, recording = false;
 let stippleFrozen = false, stipplePending = false, stippleEditId = '', stippleT = 0;
+let playBeforeFreeze = false, applyingPreset = false, startingUp = false;
+let _rebuild = null, _rebuildQ = false, _rebuildQFull = false;
 const perf = [];
 
 const val = id => parseFloat($(id).value);
@@ -455,6 +459,7 @@ function pointParams() {
     lightDropout: (val('sl-dropout') || 0) / 100,
     colorMode, ink: $('hex-ink').value, bg: $('hex-paper').value,
     alpha: (parseFloat($('a-ink').value) || 100) / 100,
+    minInk: (val('sl-minink') || 0) / 100,
     rmxColors: rmxColors.slice(), rmxMap: $('sel-rmx-map').value,
     strokeLen: val('sl-stroke-len'), strokeSeg: Math.round(val('sl-stroke-seg')),
     strokeWarp: val('sl-stroke-warp'), strokeRound: $('ck-stroke-round').checked,
@@ -562,15 +567,32 @@ async function recomputeStipple() {
   const f = buildField(workW, workH);
   points = await E.computePoints(cpOpts(f));
   lastC = points; targetCount = points.length;
+  flowRng = Organica.mulberry32(SEED ^ 0x9e37);   // reset the mode-B recycle stream with the lattice
   repaintStill();
 }
 function showResumeHint() {
   $('stipple-resume-hint').hidden = !(stippleFrozen && !running);
 }
+// The single gate for every re-lattice. At most one rebuild runs at a time; any
+// callers that arrive during it collapse into ONE trailing rerun (full if any
+// of them asked for full). Prevents the concurrent-recompute pile-up that wedged
+// the tool on a preset switch during a stipple-edit freeze.
+function rebuildStipple(full) {
+  if (_rebuild) { _rebuildQ = true; if (full) _rebuildQFull = true; return _rebuild; }
+  _rebuild = (async () => {
+    let wantFull = !!full;
+    do {
+      _rebuildQ = false;
+      const f = wantFull || _rebuildQFull; _rebuildQFull = false;
+      if (f) await onReady(); else await recomputeStipple();   // onReady = resize + reseed; recomputeStipple = reseed only
+      wantFull = false;
+    } while (_rebuildQ);
+  })().finally(() => { _rebuild = null; });
+  return _rebuild;
+}
 async function flushStippleEdit() {
   clearTimeout(stippleT); stippleT = 0;
-  if (stippleEditId === 'sl-detail') await onReady();   // Detail = working res → full rebuild
-  else await recomputeStipple();
+  await rebuildStipple(stippleEditId === 'sl-detail');   // Detail changes the working res → full rebuild
   stipplePending = false; stippleEditId = '';
 }
 // A Stipple density slider moved: freeze on the current frame and live-preview
@@ -578,7 +600,7 @@ async function flushStippleEdit() {
 // tick. Pressing Play (startRealtime) flushes any pending pass and resumes.
 function onStippleEdit(id) {
   if (!workW) return;
-  if (running) pauseRealtime();
+  if (running) { pauseRealtime(); playBeforeFreeze = true; }
   stippleFrozen = true;
   stipplePending = true;
   if (stippleEditId !== 'sl-detail') stippleEditId = id;   // 'sl-detail' stays sticky
@@ -619,6 +641,7 @@ function stepB(f) {
     });
     if (w) { vx /= w; vy /= w; }
     const mag = Math.hypot(vx, vy) || 1e-6;
+    if (mag < 0.02 * ds) { nx[i] = p.x; ny[i] = p.y; continue; }   // deadband — a settled point doesn't micro-jitter
     const k = Math.min(1, (ds * stepFrac) / mag) * damp;
     nx[i] = Math.max(0, Math.min(W - 1, p.x + vx * k));
     ny[i] = Math.max(0, Math.min(H - 1, p.y + vy * k));
@@ -652,7 +675,17 @@ function stepB(f) {
   let added = 0, tries = 0;
   while (added < budget && tries < budget * 40) {
     tries++;
-    const x = Math.random() * W, y = Math.random() * H;
+    // Recycle LOCALLY: jitter around a live point (tone-appropriate spot, no
+    // cross-frame teleport). Fall back to global random only if the cloud is empty.
+    let x, y;
+    if (points.length) {
+      const q = points[(flowRng() * points.length) | 0];
+      const jd = E.spacingAt(f, minSp, maxSp, q.x, q.y) * 2.5;
+      x = Math.max(0, Math.min(W - 1, q.x + (flowRng() * 2 - 1) * jd));
+      y = Math.max(0, Math.min(H - 1, q.y + (flowRng() * 2 - 1) * jd));
+    } else {
+      x = flowRng() * W; y = flowRng() * H;
+    }
     const r = E.spacingAt(f, minSp, maxSp, x, y);
     let ok = true;
     grid.forEachNeighbour(x, y, r, j => {
@@ -661,7 +694,7 @@ function stepB(f) {
     });
     if (!ok) continue;
     const b = d[Math.min(H - 1, y | 0) * W + Math.min(W - 1, x | 0)];
-    points.push({ x, y, b, rnd: Math.random(), ga: E.gradAngle(f, x, y) });
+    points.push({ x, y, b, rnd: flowRng(), ga: E.gradAngle(f, x, y) });
     grid.insert(x, y, points.length - 1);
     added++;
   }
@@ -726,16 +759,19 @@ function scheduleTick() {
     loopId = requestAnimationFrame(tick);
   }
 }
-function startRealtime() {
-  if (!workW) return;
-  if (stipplePending) { flushStippleEdit().then(startRealtime); return; }
-  running = true;
-  stippleFrozen = false; showResumeHint();
-  video.loop = true;
-  const p = video.play();
-  if (p && p.catch) p.catch(() => {});   // benign "interrupted / autoplay" rejection
-  scheduleTick();
-  setPPIcon(true);
+async function startRealtime() {
+  if (!workW || startingUp) return;
+  startingUp = true;
+  try {
+    if (stipplePending || _rebuild) await flushStippleEdit().catch(() => {});   // one wait, not a self-loop
+    running = true;
+    stippleFrozen = false; playBeforeFreeze = false; showResumeHint();
+    video.loop = true;
+    const p = video.play();
+    if (p && p.catch) p.catch(() => {});   // benign "interrupted / autoplay" rejection
+    scheduleTick();
+    setPPIcon(true);
+  } finally { startingUp = false; }
 }
 function pauseRealtime() {
   running = false;
@@ -747,7 +783,7 @@ function pauseRealtime() {
 }
 function stopAll() {
   pauseRealtime();
-  stippleFrozen = false; stipplePending = false; clearTimeout(stippleT); showResumeHint();
+  stippleFrozen = false; stipplePending = false; playBeforeFreeze = false; clearTimeout(stippleT); showResumeHint();
   if (source === 'file' && isFinite(video.duration)) video.currentTime = 0;
   if (workW) {
     grabFrame();
@@ -1034,17 +1070,6 @@ async function onReady() {
   const dur = (source === 'file' && isFinite(video.duration)) ? ' · ' + video.duration.toFixed(1) + 's' : ' · live';
   setStatus('active', video.videoWidth + '×' + video.videoHeight + ' · work ' + workW + '×' + workH + dur);
 }
-let reinitT = 0;
-function reinit() {
-  if (!workW) return;
-  clearTimeout(reinitT);
-  reinitT = setTimeout(async () => {
-    const was = running;
-    if (running) pauseRealtime();
-    await onReady();
-    if (was) startRealtime();
-  }, 250);
-}
 
 // files ------------------------------------------------------------
 let ready = false, loadWatch = 0;
@@ -1073,7 +1098,7 @@ function markReady() {
   if (source !== 'file' || ready || !video.src) return;
   ready = true;
   clearTimeout(loadWatch);
-  onReady();
+  rebuildStipple(true);
 }
 video.addEventListener('loadeddata', markReady);
 video.addEventListener('canplay', markReady);
@@ -1108,7 +1133,7 @@ async function startCamera() {
   video.srcObject = camStream;
   video.addEventListener('loadeddata', function once() {
     video.removeEventListener('loadeddata', once);
-    onReady().then(startRealtime);
+    rebuildStipple(true).then(startRealtime);
     setMirrorEnabled(true);
     setStatus('active', 'Camera live · ' + video.videoWidth + '×' + video.videoHeight);
   });
@@ -1139,13 +1164,17 @@ function setCoherence(v) {
     : 'Full re-stipple every frame. Live preview updates in bursts; use Render for a clean pass.';
   $('note').style.display = (v === 'C' && !recording) ? 'block' : 'none';
   $('note').textContent = 'Re-stipple is heavy per frame — the live preview lags and updates in bursts. Render gives a smooth result.';
-  if (stippleFrozen && !running && workW) recomputeStipple();   // keep the frozen preview matched to the new mode
+  if (!applyingPreset && stippleFrozen && !running && workW) rebuildStipple(false);   // keep the frozen preview matched to the new mode
   else repaintStill();
 }
 const FLOW_PRESETS = {   // values kept on each slider's own step grid
-  gentle:    { 'b-step': 0.18, 'b-damp': 0.75, 'b-nbr': 1.30, 'b-cull': 0.78, 'b-rate': 0.015 },
-  medium:    { 'b-step': 0.30, 'b-damp': 0.60, 'b-nbr': 1.50, 'b-cull': 0.70, 'b-rate': 0.020 },
-  turbulent: { 'b-step': 0.45, 'b-damp': 0.50, 'b-nbr': 1.70, 'b-cull': 0.60, 'b-rate': 0.030 },
+  // The Gentle→Turbulent axis is TRACKING SPEED (step/damp/nbr). b-rate (the
+  // per-frame recycle fraction) stays low + nearly flat — recycling only
+  // unsticks trapped points + refills where content leaves frame; it is not a
+  // liveliness dial. See the mode-B scatter analysis (Sep 4 session note).
+  gentle:    { 'b-step': 0.16, 'b-damp': 0.78, 'b-nbr': 1.30, 'b-cull': 0.80, 'b-rate': 0.005 },
+  medium:    { 'b-step': 0.30, 'b-damp': 0.62, 'b-nbr': 1.50, 'b-cull': 0.74, 'b-rate': 0.010 },
+  turbulent: { 'b-step': 0.50, 'b-damp': 0.48, 'b-nbr': 1.75, 'b-cull': 0.70, 'b-rate': 0.015 },
 };
 function setFlow(v) {
   $('seg-flow').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
@@ -1165,6 +1194,7 @@ function setColor(v) {
   $('seg-color').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
   $('rmx-block').hidden = v !== 'rmx';
   $('video-hint').hidden = v !== 'video';
+  $('row-minink').hidden = v !== 'adaptive';
   repaintStill();
 }
 function syncSliderOut(r) {
@@ -1180,13 +1210,13 @@ const RAMP_COOL = ['#0e1622', '#274157', '#5f8aa0', '#a9cdd6', '#eef4f2'];
 const BUILTIN_PRESETS = {
   'Fine dots':      { mode: 'A', shape: 'dot', detail: 950, spMin: 1.5, spMax: 8, spX: 1, phases: 16, size: 1.5, sizeMax: 1.5, range: false, cm: 'solid', ink: '#0a0a0a', bg: '#f5f2ec', contrast: 0, gamma: 1, dropout: 0 },
   'Felt-tip':       { mode: 'A', shape: 'dot', detail: 900, spMin: 3, spMax: 14, spX: 1, phases: 12, size: 4, sizeMax: 1, range: true, cm: 'solid', ink: '#0a0a0a', bg: '#f5f2ec', contrast: 0, gamma: 1, dropout: 0 },
-  'Duotone':        { mode: 'A', shape: 'dot', detail: 900, spMin: 1.5, spMax: 9, spX: 1, phases: 14, size: 3, sizeMax: 3, range: false, cm: 'adaptive', ink: '#1a3a2a', bg: '#dfe6f0', contrast: 0, gamma: 1, dropout: 0 },
+  'Duotone':        { mode: 'A', shape: 'dot', detail: 900, spMin: 1.5, spMax: 9, spX: 1, phases: 14, size: 3, sizeMax: 3, range: false, cm: 'adaptive', ink: '#1a3a2a', bg: '#dfe6f0', contrast: 0, gamma: 1, dropout: 0, minInk: 12 },
   'Video colour':   { mode: 'A', shape: 'dot', detail: 820, spMin: 2.5, spMax: 11, spX: 1, phases: 12, size: 1.2, sizeMax: 4.2, range: true, cm: 'video', contrast: 8, gamma: 1, dropout: 0, ink: '#0a0a0a', bg: '#0a0a0a' },
-  'Etching lines':  { mode: 'A', shape: 'line', flow: true, rndAngle: false, round: true, strokeLen: 11, strokeSeg: 7, strokeWarp: 0.14, detail: 800, spMin: 2.6, spMax: 10, spX: 1, phases: 12, size: 0.9, sizeMax: 0.9, range: false, cm: 'adaptive', ink: '#0d0d0d', bg: '#efe9dc', contrast: 26, gamma: 1, dropout: 0 },
+  'Etching lines':  { mode: 'A', shape: 'line', flow: true, rndAngle: false, round: true, strokeLen: 11, strokeSeg: 7, strokeWarp: 0.14, detail: 800, spMin: 2.6, spMax: 10, spX: 1, phases: 12, size: 0.9, sizeMax: 0.9, range: false, cm: 'adaptive', ink: '#0d0d0d', bg: '#efe9dc', contrast: 26, gamma: 1, dropout: 0, minInk: 12 },
   'Warm ink lines': { mode: 'A', shape: 'line', flow: true, rndAngle: false, round: true, strokeLen: 10, strokeSeg: 6, strokeWarp: 0.18, detail: 780, spMin: 2.8, spMax: 11, spX: 1, phases: 12, size: 1.1, sizeMax: 1.1, range: false, cm: 'rmx', map: 'tone', rmx: RAMP_WARM, contrast: 18, gamma: 1, dropout: 0, bg: '#120b05' },
   'Hatch flow':     { mode: 'A', shape: 'line', flow: true, rndAngle: false, angleRange: false, round: true, strokeLen: 12, strokeSeg: 10, strokeWarp: 0.3, detail: 900, spMin: 1.5, spMax: 9, spX: 1, phases: 16, size: 1, sizeMax: 1, range: false, cm: 'solid', ink: '#0a0a0a', bg: '#f5f2ec', contrast: 0, gamma: 1, dropout: 50 },
   'Warm drift':     { mode: 'B', shape: 'dot', detail: 720, spMin: 3.4, spMax: 13, spX: 1, size: 1.0, sizeMax: 3.8, range: true, cm: 'rmx', map: 'tone', rmx: RAMP_WARM, contrast: 16, gamma: 1, dropout: 0, bg: '#140d06' },
-  'Tonal drift':    { mode: 'B', shape: 'dot', detail: 720, spMin: 3.4, spMax: 13, spX: 1, size: 0.9, sizeMax: 4.0, range: true, cm: 'adaptive', ink: '#0f0f0f', bg: '#f2efe6', contrast: 24, gamma: 1, dropout: 0 },
+  'Tonal drift':    { mode: 'B', shape: 'dot', detail: 720, spMin: 3.4, spMax: 13, spX: 1, size: 0.9, sizeMax: 4.0, range: true, cm: 'adaptive', ink: '#0f0f0f', bg: '#f2efe6', contrast: 24, gamma: 1, dropout: 0, minInk: 12 },
 };
 const STORE = Organica.presetStore('mote');
 function userPresets() { return STORE.read(); }
@@ -1202,6 +1232,7 @@ function presetToParams(P) {
     sizeMin: P.size, sizeMax: P.sizeMax, sizeRange: !!P.range,
     lightDropout: (P.dropout || 0) / 100,
     colorMode: P.cm || 'solid', ink: P.ink || '#0a0a0a', bg: P.bg || '#f4f1e8', alpha: 1,
+    minInk: (P.minInk || 0) / 100,
     rmxColors: (P.rmx || rmxColors).slice(), rmxMap: P.map || 'tone',
     strokeLen: P.strokeLen || 12, strokeSeg: P.strokeSeg || 8, strokeWarp: P.strokeWarp || 0.2,
     strokeRound: P.round !== false,
@@ -1268,6 +1299,12 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePresetMenu(); });
 function applyPreset(key) {
   const P = allPresets()[key]; if (!P) return;
+  applyingPreset = true;
+  // A preset switch is itself a full re-lattice — supersede any pending
+  // stipple-edit freeze, and decide the resume once, here.
+  clearTimeout(stippleT); stippleT = 0;
+  const resume = running || playBeforeFreeze;
+  stipplePending = false; stippleEditId = ''; stippleFrozen = false; playBeforeFreeze = false;
   $('sl-sp-min').value = P.spMin; $('sl-sp-max').value = P.spMax; $('sl-sp-scale').value = P.spX != null ? P.spX : 1;
   if (P.phases != null) $('sl-phases').value = P.phases;
   $('sl-size').value = P.size; $('sl-size-max').value = P.sizeMax; $('ck-size-range').checked = !!P.range;
@@ -1285,14 +1322,18 @@ function applyPreset(key) {
     $('ck-angle-random').checked = !!P.rndAngle; $('ck-angle-range').checked = !!P.angleRange;
   }
   $('sl-dropout').value = P.dropout || 0;
+  $('sl-minink').value = P.minInk || 0;
   setColor(P.cm || 'solid');
   if (P.mode) setCoherence(P.mode);
   document.querySelectorAll('#panel input[type=range]').forEach(syncSliderOut);
-  // A preset can shift spacing / phases / detail — all of which change the
-  // dart-thrower's point layout. Re-lattice (reinit rebuilds workW/H + points)
-  // so the preview matches what an export would render. Not just a repaint.
-  if (workW) reinit();
-  else repaintStill();
+  applyingPreset = false;
+  // One coalesced re-lattice (spacing / phases / detail all changed the dart
+  // layout), then resume iff we were playing (or frozen from a play).
+  if (workW) {
+    if (running) pauseRealtime();
+    showResumeHint();
+    rebuildStipple(true).then(() => { if (resume) startRealtime(); });
+  } else repaintStill();
   currentPresetKey = key;
   $('preset-label').textContent = key;
   setStatus('active', 'Preset: ' + key);
@@ -1309,7 +1350,7 @@ function commitPreset() {
     size: +$('sl-size').value, sizeMax: +$('sl-size-max').value, range: $('ck-size-range').checked,
     strokeLen: +$('sl-stroke-len').value, strokeSeg: +$('sl-stroke-seg').value, strokeWarp: +$('sl-stroke-warp').value,
     round: $('ck-stroke-round').checked, flow: $('ck-angle-flow').checked, rndAngle: $('ck-angle-random').checked, angleRange: $('ck-angle-range').checked,
-    dropout: +$('sl-dropout').value, cm: colorMode, map: $('sel-rmx-map').value,
+    dropout: +$('sl-dropout').value, minInk: +$('sl-minink').value, cm: colorMode, map: $('sel-rmx-map').value,
     ink: $('hex-ink').value, bg: $('hex-paper').value, rmx: rmxColors.slice(),
     contrast: +$('sl-contrast').value, gamma: +$('sl-gamma').value,
   };
@@ -1365,7 +1406,7 @@ document.querySelectorAll('#panel input[type=range]').forEach(r => {
     syncSliderOut(r);
     if (r.id === 'sl-detail' || r.id.startsWith('sl-sp-') || r.id === 'sl-phases') { onStippleEdit(r.id); return; }
     if (r.id.startsWith('sl-size') || r.id.startsWith('sl-stroke') || r.id === 'sl-dropout'
-        || r.id === 'a-ink' || r.id === 'sl-contrast' || r.id === 'sl-gamma') repaintStill();
+        || r.id === 'a-ink' || r.id === 'sl-minink' || r.id === 'sl-contrast' || r.id === 'sl-gamma') repaintStill();
   });
 });
 $('sl-length').addEventListener('input', () => { syncSliderOut($('sl-length')); updateSizeReadout(); });
