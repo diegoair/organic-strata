@@ -180,6 +180,7 @@
       <div class="ctrl-row"><div class="ctrl-label">Phases</div><input type="range" id="sl-phases" min="1" max="24" step="1" value="10"><span class="ctrl-val" data-for="sl-phases">10</span></div>
       <div class="ctrl-row"><div class="ctrl-label">Detail</div><input type="range" id="sl-detail" min="600" max="1500" step="50" value="950"><span class="ctrl-val" data-for="sl-detail">950</span></div>
       <p class="org-panel__hint" id="pts-hint">– points</p>
+      <p class="org-panel__hint" id="stipple-resume-hint" style="color:var(--tool)" hidden>▸ Frame congelato — premi Play per riprendere</p>
       <p class="org-panel__hint">Detail = working-resolution long side. Higher = finer grain, more points, slower. Re-places on change.</p>
     </div>
 
@@ -399,6 +400,7 @@ let rmxColors = ['#2a1a12', '#8c3b1e', '#d9822b', '#f2c14e', '#f6e8c3'];
 let rmxChips = null;
 let basePoints = null, points = [], targetCount = 0, lastC = [], lastPaintedPts = [];
 let running = false, loopId = 0, curField = null, recording = false;
+let stippleFrozen = false, stipplePending = false, stippleEditId = '', stippleT = 0;
 const perf = [];
 
 const val = id => parseFloat($(id).value);
@@ -549,6 +551,41 @@ async function replacePoints() {
   $('pts-hint').textContent = targetCount.toLocaleString() + ' points';
   repaintStill();
 }
+// Re-seed every stipple set on the CURRENT working resolution (no canvas
+// resize) — the same seed block onReady() runs, so a Spacing/Phases change is
+// reflected in mode A's basePoints AND modes B/C's flow set. Then repaint the
+// frozen frame.
+async function recomputeStipple() {
+  if (!workW) return;
+  await replacePoints();
+  grabFrame();
+  const f = buildField(workW, workH);
+  points = await E.computePoints(cpOpts(f));
+  lastC = points; targetCount = points.length;
+  repaintStill();
+}
+function showResumeHint() {
+  $('stipple-resume-hint').hidden = !(stippleFrozen && !running);
+}
+async function flushStippleEdit() {
+  clearTimeout(stippleT); stippleT = 0;
+  if (stippleEditId === 'sl-detail') await onReady();   // Detail = working res → full rebuild
+  else await recomputeStipple();
+  stipplePending = false; stippleEditId = '';
+}
+// A Stipple density slider moved: freeze on the current frame and live-preview
+// the new density there; the debounced recompute lands ~200 ms after the last
+// tick. Pressing Play (startRealtime) flushes any pending pass and resumes.
+function onStippleEdit(id) {
+  if (!workW) return;
+  if (running) pauseRealtime();
+  stippleFrozen = true;
+  stipplePending = true;
+  if (stippleEditId !== 'sl-detail') stippleEditId = id;   // 'sl-detail' stays sticky
+  showResumeHint();
+  clearTimeout(stippleT);
+  stippleT = setTimeout(flushStippleEdit, 200);
+}
 function stepA(f) {
   const { data: d, W, H } = f;
   const out = new Array(basePoints.length);
@@ -691,7 +728,9 @@ function scheduleTick() {
 }
 function startRealtime() {
   if (!workW) return;
+  if (stipplePending) { flushStippleEdit().then(startRealtime); return; }
   running = true;
+  stippleFrozen = false; showResumeHint();
   video.loop = true;
   const p = video.play();
   if (p && p.catch) p.catch(() => {});   // benign "interrupted / autoplay" rejection
@@ -704,9 +743,11 @@ function pauseRealtime() {
   if (video.cancelVideoFrameCallback) video.cancelVideoFrameCallback(loopId);
   else cancelAnimationFrame(loopId);
   setPPIcon(false);
+  showResumeHint();
 }
 function stopAll() {
   pauseRealtime();
+  stippleFrozen = false; stipplePending = false; clearTimeout(stippleT); showResumeHint();
   if (source === 'file' && isFinite(video.duration)) video.currentTime = 0;
   if (workW) {
     grabFrame();
@@ -985,11 +1026,8 @@ async function onReady() {
   $('drop-hint').classList.add('hidden');
   ['btn-play', 'btn-stop', 'btn-export'].forEach(id => $(id).disabled = false);
   $('row-length').hidden = source !== 'webcam';   // fixed-duration file → no Length slider
-  await replacePoints();
-  grabFrame();
+  await recomputeStipple();
   const f = buildField(workW, workH);
-  points = await E.computePoints(cpOpts(f));
-  lastC = points; targetCount = points.length;
   paintPoints(sctx, stepA(f), pointParams(), stage.width, stage.height, paintOpts());
   pushPerf(0, points.length);
   updateSizeReadout();
@@ -1101,7 +1139,8 @@ function setCoherence(v) {
     : 'Full re-stipple every frame. Live preview updates in bursts; use Render for a clean pass.';
   $('note').style.display = (v === 'C' && !recording) ? 'block' : 'none';
   $('note').textContent = 'Re-stipple is heavy per frame — the live preview lags and updates in bursts. Render gives a smooth result.';
-  repaintStill();
+  if (stippleFrozen && !running && workW) recomputeStipple();   // keep the frozen preview matched to the new mode
+  else repaintStill();
 }
 const FLOW_PRESETS = {   // values kept on each slider's own step grid
   gentle:    { 'b-step': 0.18, 'b-damp': 0.75, 'b-nbr': 1.30, 'b-cull': 0.78, 'b-rate': 0.015 },
@@ -1324,7 +1363,7 @@ $('canvas-wrap').addEventListener('drop', e => { e.preventDefault(); const f = e
 document.querySelectorAll('#panel input[type=range]').forEach(r => {
   r.addEventListener('input', () => {
     syncSliderOut(r);
-    if (r.id === 'sl-detail') { reinit(); return; }
+    if (r.id === 'sl-detail' || r.id.startsWith('sl-sp-') || r.id === 'sl-phases') { onStippleEdit(r.id); return; }
     if (r.id.startsWith('sl-size') || r.id.startsWith('sl-stroke') || r.id === 'sl-dropout'
         || r.id === 'a-ink' || r.id === 'sl-contrast' || r.id === 'sl-gamma') repaintStill();
   });
