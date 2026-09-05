@@ -37,7 +37,7 @@
    SHELL
    ═══════════════════════════════════════════════════════════ */
 
-#panel, .org-panel, .panel {
+#panel, .org-panel {
   width: var(--panel-w);
   flex-shrink: 0;
   border-left: 1px solid var(--border-strong, var(--border));
@@ -48,9 +48,9 @@
   flex-direction: column;
 }
 
-#panel::-webkit-scrollbar, .org-panel::-webkit-scrollbar, .panel::-webkit-scrollbar { width: 3px; }
-#panel::-webkit-scrollbar-track, .org-panel::-webkit-scrollbar-track, .panel::-webkit-scrollbar-track { background: transparent; }
-#panel::-webkit-scrollbar-thumb, .org-panel::-webkit-scrollbar-thumb, .panel::-webkit-scrollbar-thumb {
+#panel::-webkit-scrollbar, .org-panel::-webkit-scrollbar { width: 3px; }
+#panel::-webkit-scrollbar-track, .org-panel::-webkit-scrollbar-track { background: transparent; }
+#panel::-webkit-scrollbar-thumb, .org-panel::-webkit-scrollbar-thumb {
   background: var(--border-strong, var(--border));
   border-radius: 1px;
 }
@@ -63,11 +63,11 @@
    3. ROW       label + control + value
    ═══════════════════════════════════════════════════════════ */
 
-.panel-section, .sec {   /* Living Path/Sinew name their sections .sec */
+.panel-section {
   border-bottom: 1px solid var(--border);
   padding: var(--panel-pad) var(--space-6);
 }
-.panel-section:last-child, .sec:last-child { border-bottom: 0; }
+.panel-section:last-child { border-bottom: 0; }
 
 /* 1 — SECTION TITLE
    Sentence case, no tracking. Was 12px/600 uppercase with 0.1em tracking,
