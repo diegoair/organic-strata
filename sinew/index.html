@@ -25,11 +25,6 @@ body{
   font-size:var(--fs-base); display:flex; flex-direction:column; overflow:hidden;
 }
 .shell{flex:1; display:flex; min-height:0}
-.panel{
-  width:var(--panel-w); flex:0 0 var(--panel-w); background:var(--paper); border-right:1px solid var(--border);
-  overflow-y:auto; padding:0 0 40px;
-}
-.panel.right{border-right:none; border-left:1px solid var(--border)}
 .stage{
   flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
   background:
@@ -43,9 +38,8 @@ body{
   border:2px dashed var(--tool); border-radius:var(--radius-sm); background:color-mix(in srgb, var(--tool) 8%, transparent);
   font-size:var(--fs-large); letter-spacing:.1em; color:var(--ink);
 }
-/* .sec/.row/.row .val are aliased to .panel-section/.ctrl-row/.ctrl-val by
-   shared/panel.css — only genuine local deltas stay here. */
-.sec h3{margin:0 0 8px}
+/* .row/.row .val are aliased to .ctrl-row/.ctrl-val by shared/panel.css —
+   only genuine local deltas stay here. */
 .row .ctrl-label{flex:0 0 76px; min-width:0; overflow:hidden; text-overflow:ellipsis}
 /* ── effect layers ── */
 .layer{
@@ -163,8 +157,8 @@ body{
   </main>
 
   <!-- RIGHT : effect stack -->
-  <aside class="panel right">
-    <div class="sec">
+  <div id="panel">
+    <div class="panel-section">
       <h3>Engine</h3>
       <div class="seg" id="techSeg" role="group" aria-label="Engine">
         <button data-tech="vector" class="seg-btn active">Vector</button>
@@ -173,13 +167,13 @@ body{
       <button class="mini" id="tgChain" hidden style="width:100%">&#8646; vector &rarr; raster</button>
     </div>
 
-    <div class="sec">
+    <div class="panel-section">
       <h3>Input</h3>
       <div id="seeds-host"></div>
       <div class="hint">SVG paths are parsed to Bézier nodes and transformed directly (no rasterisation). Genesis forms come from the shared seed library.</div>
     </div>
 
-    <div class="sec">
+    <div class="panel-section">
       <h3>Presets</h3>
       <div class="presets" id="presets"></div>
       <div class="row-btns" style="margin-top:var(--space-3)">
@@ -188,12 +182,12 @@ body{
       </div>
     </div>
 
-    <div class="sec">
+    <div class="panel-section">
       <h3>Effect stack</h3>
       <div id="stack"></div>
       <div class="hint">Layers run top→bottom. In <b>Raster</b>, add <b>groups</b> that each process the shape, then composite with a <b>blend mode</b> (union/subtract/xor…) — overlap an outline group with a texture group for the frog-eggs look.</div>
     </div>
-    <div class="sec">
+    <div class="panel-section">
       <h3>Source view</h3>
       <div class="color-row">
         <span class="color-name">Ink</span>
@@ -212,7 +206,7 @@ body{
         <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7">
       </div>
     </div>
-  </aside>
+  </div>
 </div>
 
 <!-- core BEFORE the tool script, per docs/UI-SHELL.md -->
@@ -624,7 +618,7 @@ const swatches = {};
 const closeMenu=()=>{ const m=$('#presetMenu'); if(m && !m.hidden) m.hidden=true; };
 document.addEventListener('click',e=>{ const m=$('#presetMenu'); if(m && !m.hidden && !e.target.closest('.presets') && !e.target.closest('#presetMenu')) m.hidden=true; });
 window.addEventListener('resize',closeMenu);
-document.querySelector('.panel.right').addEventListener('scroll',e=>{ if(!e.target.closest('#presetMenu')) closeMenu(); },true);
+document.getElementById('panel').addEventListener('scroll',e=>{ if(!e.target.closest('#presetMenu')) closeMenu(); },true);
 
 // boot
 buildPresets();
