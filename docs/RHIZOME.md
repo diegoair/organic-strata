@@ -40,7 +40,7 @@ Everything else (resolved values, dirty flags, topological order) is recomputed 
 | Warping Pattern | `/warping/` | preset |
 | Camo Turing Pattern | `/camo-turing/` | preset |
 | Membrane Trail | `/membrane/` | pattern (mouse/linear/orbit/zigzag/figure8/sine), seconds |
-| Living Path Preset | `/livingpath/` | 29 presets (`tech:name`, 5 vector + 24 raster) |
+| Sinew Preset | `/sinew/` | 29 presets (`tech:name`, 5 vector + 24 raster) — repointed 2026-09-05 from Living Path, which split into a font-only tool; the shared engine (shared/pathfx.js) is unchanged |
 | Spore Stipple | `/spore/` | — (Spore has no preset dropdown) |
 | Pollen Stipple | `/pollen/` | 6 presets (Fine Dots/Felt-tip/Lines Flow/Duotone/Hatch Flow/Hatch Swirl) |
 | Halide Dither | `/halide/` | 8 presets (Ditherface, Atkinson, Bayer, etc.) |

@@ -3,7 +3,7 @@
    Node set (Piano Parte 5 + Fase 2/3): 6 Tier-1 natives (Loom Grid,
    Loom Grid→Geometry, Contour Trace, SVG→Points, Merge — variadic —,
    Image Upload, Export) + 9 Tier-2 bridges (Genesis, Komorebi, Warping,
-   Camo Turing, Membrane, Living Path, Spore, Pollen, Halide).
+   Camo Turing, Membrane, Sinew, Spore, Pollen, Halide).
    ───────────────────────────────────────────────────────────── */
 
 import { buildModel, addNode, removeNode, removeEdge, addEdge, findNode } from './graph-model.js';

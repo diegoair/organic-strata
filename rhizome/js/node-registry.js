@@ -14,7 +14,7 @@ import * as komorebiBridge from './nodes/komorebi-bridge.js';
 import * as warpingBridge from './nodes/warping-bridge.js';
 import * as camoTuringBridge from './nodes/camo-turing-bridge.js';
 import * as membraneBridge from './nodes/membrane-bridge.js';
-import * as livingpathBridge from './nodes/livingpath-bridge.js';
+import * as sinewBridge from './nodes/sinew-bridge.js';
 import * as sporeBridge from './nodes/spore-bridge.js';
 import * as pollenBridge from './nodes/pollen-bridge.js';
 import * as halideBridge from './nodes/halide-bridge.js';
@@ -32,7 +32,7 @@ const NODE_TYPES = [
   warpingBridge,
   camoTuringBridge,
   membraneBridge,
-  livingpathBridge,
+  sinewBridge,
   sporeBridge,
   pollenBridge,
   halideBridge,

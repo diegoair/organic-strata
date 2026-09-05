@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sinew · Organica</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/palette.css">
+<link rel="stylesheet" href="/shared/seeds-panel.css">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --paper:#ffffff; --mid:#726a5e; --panel:#eceae4; --tool:#b8467a;
+  --border-strong:#958462;
+  --bg:#ffffff; --card:#faf8f3;
+  --ink:#0a0a0a; --ink-soft:#3a352e; --ink-muted:#696256;
+  --line:rgba(10,10,10,.10); --line-soft:rgba(10,10,10,.06);
+  --pollen:#c8a83a; --pollen-bright:#e8c84a; --accent:#b0532a;
+}
+html,body{height:100%}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--font);
+  font-size:var(--fs-large); display:flex; flex-direction:column; overflow:hidden;
+}
+.shell{flex:1; display:flex; min-height:0}
+.panel{
+  width:var(--panel-w); flex:0 0 var(--panel-w); background:var(--paper); border-right:1px solid var(--line);
+  overflow-y:auto; padding:0 0 40px;
+}
+.panel.right{border-right:none; border-left:1px solid var(--line)}
+.stage{
+  flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(184,70,122,.05), transparent 60%),
+    var(--bg);
+  position:relative; overflow:hidden;
+}
+.stage.drag::after{
+  content:'drop an SVG'; position:absolute; inset:14px; z-index:5;
+  display:flex; align-items:center; justify-content:center;
+  border:2px dashed var(--pollen); border-radius:var(--radius-lg); background:rgba(200,168,58,.08);
+  font-size:var(--fs-large); letter-spacing:.1em; color:var(--ink-soft);
+}
+.sec{border-bottom:1px solid var(--line-soft); padding:var(--space-5) var(--space-6)}
+.sec h3{margin:0 0 8px}
+.row{display:flex; align-items:center; gap:var(--space-4); margin-bottom:var(--space-4)}
+.row:last-child{margin-bottom:0}
+.row label{flex:0 0 76px; font-size:var(--t-label-size); font-weight:var(--t-label-weight); color:var(--ink-soft); letter-spacing:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.row .val{flex:0 0 34px; text-align:right; font-size:var(--t-value-size); font-weight:var(--t-value-weight); color:var(--ink-muted); font-variant-numeric:tabular-nums}
+.seg{display:flex; gap:0; border:1px solid var(--line); border-radius:var(--radius-lg); overflow:hidden; margin-bottom:var(--space-4)}
+.seg button{
+  flex:1; font-family:var(--font); font-size:var(--fs-base); padding:var(--space-2) var(--space-1); cursor:pointer;
+  background:var(--card); color:var(--ink-soft); border:none; border-right:1px solid var(--line); transition:.14s;
+}
+.seg button:last-child{border-right:none}
+.seg button.on{background:var(--ink); color:var(--bg)}
+/* ── effect layers ── */
+.layer{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg);
+  margin-bottom:var(--space-3); overflow:hidden;
+}
+.layer.off{opacity:.5}
+.layer-head{display:flex; align-items:center; gap:var(--space-3); padding:var(--space-3) var(--space-4); cursor:pointer; user-select:none}
+.layer-head .tog{
+  width:15px; height:15px; flex:0 0 15px; border:1.5px solid var(--ink-muted); border-radius:var(--radius-md);
+  display:flex; align-items:center; justify-content:center; font-size:var(--fs-small); color:var(--bg);
+}
+.layer.on .layer-head .tog{background:var(--pollen); border-color:var(--pollen); color:var(--ink)}
+.layer-head b{flex:1; font-size:var(--fs-base); font-weight:500; letter-spacing:.04em}
+.layer-head .chev{font-size:var(--fs-micro); color:var(--ink-muted); transition:.16s}
+.layer.open .layer-head .chev{transform:rotate(90deg)}
+.layer-body{padding:var(--space-1) var(--space-4) 11px; display:none}
+.layer.open .layer-body{display:block}
+.presets{position:relative}
+.preset-trigger{display:flex; align-items:center; gap:var(--space-3); width:100%; font-family:var(--font); font-size:var(--fs-medium); padding:var(--space-2) var(--space-4); cursor:pointer; background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:var(--radius-lg); transition:.14s}
+.preset-trigger:hover{border-color:var(--pollen)}
+.pt-ico{width:22px; height:22px; flex:0 0 22px; border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; background:#fff}
+.pt-ico svg, .pi-ico svg{width:100%; height:100%; display:block}
+.pt-name{flex:1; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.pt-chev{color:var(--ink-muted); font-size:var(--fs-small)}
+.preset-menu{position:fixed; z-index:40; background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg); box-shadow:0 10px 28px rgba(10,10,10,.18); padding:var(--space-2); overflow-y:auto; display:flex; flex-direction:column; gap:var(--space-1)}
+.preset-menu[hidden]{display:none}
+.preset-item{display:flex; flex-direction:row; align-items:center; gap:var(--space-4); padding:var(--space-2) var(--space-3); cursor:pointer; background:transparent; border:1px solid transparent; border-radius:var(--radius-lg); font-family:var(--font); font-size:var(--fs-medium); color:var(--ink-soft); transition:.12s; text-align:left}
+.preset-item:hover{background:var(--panel); border-color:var(--line)}
+.preset-item.on{border-color:var(--pollen); color:var(--ink)}
+.pi-ico{width:26px; height:26px; flex:0 0 26px; border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; background:#fff}
+.pi-name{flex:1; line-height:1.2}
+/* groups */
+.group{ border:1px solid var(--line); border-radius:var(--radius-lg); padding:var(--space-3); margin-bottom:var(--space-4); background:rgba(184,70,122,.04); }
+.group.goff{ opacity:.5 }
+.group-head{ display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-3) }
+.group-head .gtog{ width:15px; height:15px; flex:0 0 15px; border:1.5px solid var(--ink-muted); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; font-size:var(--fs-small); color:var(--bg); cursor:pointer }
+.group:not(.goff) .group-head .gtog{ background:var(--pollen); border-color:var(--pollen); color:var(--ink) }
+.group-head .gbase{ font-size:var(--fs-small); letter-spacing:.14em; color:var(--ink-muted) }
+.group-head .gsp{ flex:1 }
+.blendsel{ font-family:var(--font); font-size:var(--fs-base); padding:var(--space-1) var(--space-2); border:1px solid var(--line); border-radius:var(--radius-lg); background:var(--card); color:var(--ink); cursor:pointer }
+.gdel{ color:var(--accent) }
+.newgroup{ font-size:var(--fs-base); width:100%; margin-top:var(--space-1); border-style:dashed }
+.addfx{position:relative; margin-top:var(--space-1)}
+.chk{display:flex; align-items:center; gap:var(--space-3); font-size:var(--fs-base); color:var(--ink-soft); margin-top:var(--space-4); cursor:pointer}
+.chk input{accent-color:var(--pollen)}
+.addfx select{
+  width:100%; font-family:var(--font); font-size:var(--fs-base); padding:var(--space-3) var(--space-4); cursor:pointer;
+  background:var(--card); color:var(--ink); border:1px dashed var(--line); border-radius:var(--radius-lg);
+}
+/* ── canvas/preview ── */
+/* NB: `hidden` does NOT work on an <svg> (SVGElement has no hidden IDL prop
+   and the attribute doesn't hide it) — toggle .show instead, or the board
+   keeps occupying a flex box and shoves the empty state off-centre. */
+#board{max-width:92%; max-height:92%; display:none}
+#board.show{display:block}
+.empty{text-align:center; color:var(--ink-muted)}
+.empty .big{font-family:var(--display); font-weight:700; font-size:30px; color:var(--ink-soft); margin-bottom:var(--space-3)}
+.empty p{font-size:var(--fs-medium); line-height:1.7}
+.gridtoggle{position:absolute; top:14px; right:16px; display:flex; gap:var(--space-2)}
+.mini{font-size:var(--fs-small); padding:var(--space-2) var(--space-4); background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg); cursor:pointer; color:var(--ink-soft)}
+.mini.on{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.hint{font-size:var(--fs-small); color:var(--ink-muted); line-height:1.6; margin-top:var(--space-3)}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:rgba(10,10,10,.14); border-radius:var(--radius-md)}
+</style>
+</head>
+<body>
+
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Sinew</span></a>
+
+  <div class="org-header__spacer"></div>
+
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status">no input</span>
+  </output>
+</header>
+
+<!-- FLOATING TOOLBAR — Reset / Export, fixed bottom-centre over the canvas -->
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <button class="org-floatbar__btn" id="reset" aria-label="Reset effects">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13 4.8A5.5 5.5 0 1 0 14 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M13.3 1.5v3.5H9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" id="exSvg" disabled>SVG</button>
+        <button class="org-btn" id="exPng" disabled>PNG</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="shell">
+  <!-- CENTER : stage -->
+  <main class="stage">
+    <div class="gridtoggle">
+      <button class="mini on" id="tgOrig">overlay original</button>
+      <button class="mini" id="tgOutline">outline</button>
+      <button class="mini" id="tgNodes">nodes</button>
+    </div>
+    <svg id="board" viewBox="0 0 1000 1000"></svg>
+    <div class="empty" id="empty">
+      <div class="big">Sinew</div>
+      <p>Load an <b>SVG</b> or a <b>Genesis form</b><br>then stack organic effects on the curve.</p>
+    </div>
+  </main>
+
+  <!-- RIGHT : effect stack -->
+  <aside class="panel right">
+    <div class="sec">
+      <h3>Engine</h3>
+      <div class="seg" id="techSeg" role="group" aria-label="Engine">
+        <button data-tech="vector" class="on">Vector</button>
+        <button data-tech="raster">Raster</button>
+      </div>
+      <button class="mini" id="tgChain" hidden style="width:100%">&#8646; vector &rarr; raster</button>
+    </div>
+
+    <div class="sec">
+      <h3>Input</h3>
+      <div id="seeds-host"></div>
+      <div class="hint">SVG paths are parsed to Bézier nodes and transformed directly (no rasterisation). Genesis forms come from the shared seed library.</div>
+    </div>
+
+    <div class="sec">
+      <h3>Presets</h3>
+      <div class="presets" id="presets"></div>
+      <div class="row" style="margin-top:var(--space-3); gap:var(--space-2)">
+        <button class="btn u-flex1" id="btnSavePreset">Save preset</button>
+        <select class="panel-select u-flex1" id="selUserPreset"><option value="">Your presets…</option></select>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3>Effect stack</h3>
+      <div id="stack"></div>
+      <div class="hint">Layers run top→bottom. In <b>Raster</b>, add <b>groups</b> that each process the shape, then composite with a <b>blend mode</b> (union/subtract/xor…) — overlap an outline group with a texture group for the frog-eggs look.</div>
+    </div>
+    <div class="sec">
+      <h3>Source view</h3>
+      <div class="color-row">
+        <span class="color-name">Ink</span>
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-ink"></button>
+          <input type="color" id="cp-ink" value="#0a0a0a">
+        </span>
+        <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7">
+      </div>
+      <div class="color-row">
+        <span class="color-name">Paper</span>
+        <span class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-bg"></button>
+          <input type="color" id="cp-bg" value="#f5f2ec">
+        </span>
+        <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7">
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- core BEFORE the tool script, per docs/UI-SHELL.md -->
+<script src="/shared/core.js"></script>
+<script src="/shared/palette.js"></script>
+<!-- The font-agnostic Vector/Raster effect engine (24 presets, groups/blend,
+     raster pipeline) shared with Living Path — see shared/pathfx.js header. -->
+<script src="/shared/pathfx.js"></script>
+<script src="/shared/seeds-panel.js"></script>
+<script src="/genesis/forms.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   Sinew — the generic vector/SVG half of Living Path's effect engine,
+   split into its own tool (2026-09-05). Input: SVG upload | Genesis form
+   (via Organica.seedsPanel). Font input, the live text specimen and OTF
+   export stayed in Living Path — see shared/pathfx.js's header comment
+   for the exact engine/orchestration boundary and CLAUDE.md's session
+   note for the split rationale.
+   ============================================================ */
+
+const $ = s => document.querySelector(s);
+const board = $('#board'), empty = $('#empty'), statusEl = $('#status');
+
+const {
+  fromSVGString, bboxOf, normalise, dFromSubs,
+  FX, RFX, PRESETS,
+  RES, rasterize, rasterFieldToSubs,
+  blendField, rasterFieldFromGroups, applyVectorGroups,
+} = Organica.pathfx;
+
+// ============================================================
+//  PATH MODEL — subpaths: [{ closed, pts:[{x,y}] }]
+// ============================================================
+let SRC = null;           // {subs:[{closed,pts}], bbox}
+let SRC_KIND = 'none';
+
+// CHAIN: feed the Vector stack's output into the Raster engine, so node-level
+// moves (precise) happen BEFORE the shape is rasterised and re-drawn.
+let CHAIN=false;
+const vectorActive=()=>GROUPS.vector.some(g=>g.on && g.layers.some(l=>l.on));
+function chainedSubs(subs){
+  if(!CHAIN || !vectorActive()) return subs;
+  return applyVectorGroups(subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>({x:p.x,y:p.y}))})), GROUPS.vector);
+}
+function rasterCompute(){
+  const base=rasterize(chainedSubs(SRC.subs));
+  const g=rasterFieldFromGroups(base, GROUPS.raster);
+  return rasterFieldToSubs(g, 1000/RES);
+}
+
+// ============================================================
+//  EFFECT STACK STATE  (technique-aware, GROUPS of layers)
+// ============================================================
+let TECH='vector';
+let uid=0;
+const newGroup=(blend='union')=>({id:++uid, on:true, open:true, blend, layers:[]});
+const GROUPS={vector:[newGroup()], raster:[newGroup()]};
+const curGroups=()=>GROUPS[TECH];
+const aFX=()=>TECH==='vector'?FX:RFX;
+const BLENDS=['union','multiply','subtract','xor','add','screen'];
+
+function addEffectToGroup(grp, type){
+  const reg=aFX(), def=reg[type]; if(!def) return;
+  grp.layers.push({id:++uid, type, on:true, open:true, params:{...def.defaults}});
+  markCustom(); renderStack(); render();
+}
+function addEffect(type){ const g=curGroups(); addEffectToGroup(g[g.length-1], type); }
+
+function presetToGroups(p){
+  const reg=aFX();
+  const src = p.groups ? p.groups : [{blend:'union', layers:p.fx}];
+  return src.map(g=>({ id:++uid, on:true, open:false, blend:g.blend||'union',
+    layers:g.layers.map(([type,ov])=>({id:++uid, type, on:true, open:false,
+      params:{...reg[type].defaults, ...ov}})) }));
+}
+let CURRENT_PRESET=null;
+function applyPreset(name){
+  const p=PRESETS[TECH][name]; if(!p) return;
+  GROUPS[TECH]=presetToGroups(p);
+  Organica.pathfx.setContourSmooth((p.smooth!==undefined) ? p.smooth : 2);   // faceted presets set 0
+  const wantOutline=!!p.outline;
+  if(wantOutline!==showOutline){ showOutline=wantOutline; $('#tgOutline').classList.toggle('on',showOutline); }
+  CURRENT_PRESET=name; updatePresetTrigger();
+  renderStack(); render();
+}
+
+// ── preset preview icons: apply the preset to the current source (or a
+//    fixed sample when nothing is loaded yet), black-on-white ──
+const ICON_CACHE={};
+let _sample=null, _sampleTried=false;
+function sampleSRC(){
+  if(_sampleTried) return _sample;
+  _sampleTried=true;
+  try{ _sample = window.ORGANIC_FORMS ? normalise(fromSVGString(window.ORGANIC_FORMS['seed-flower-bloom']), false) : null; }
+  catch(e){ _sample=null; }
+  return _sample;
+}
+function presetIcon(name){
+  const key=TECH+':'+name;
+  if(ICON_CACHE[key]) return ICON_CACHE[key];
+  const smp=SRC||sampleSRC();
+  let shape='';
+  if(smp){
+    const sG=GROUPS[TECH], sS=Organica.pathfx.getContourSmooth(), sSRC=SRC, p=PRESETS[TECH][name];
+    GROUPS[TECH]=presetToGroups(p); Organica.pathfx.setContourSmooth((p.smooth!==undefined)?p.smooth:2); SRC=smp;
+    let out=null; try{ out=computed(); }catch(e){}
+    GROUPS[TECH]=sG; Organica.pathfx.setContourSmooth(sS); SRC=sSRC;
+    const d=out?dFromSubs(out):'';
+    shape = p.outline
+      ? `<path d="${d}" fill="none" stroke="#000" stroke-width="11" stroke-linejoin="round" stroke-linecap="round"/>`
+      : `<path d="${d}" fill="#000" fill-rule="evenodd"/>`;
+  }
+  const svg=`<svg viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"><rect width="1000" height="1000" fill="#fff"/>${shape}</svg>`;
+  if(smp) ICON_CACHE[key]=svg;
+  return svg;
+}
+function updatePresetTrigger(){
+  const ico=$('#ptIco'), nm=$('#ptName'); if(!ico) return;
+  const name=(CURRENT_PRESET && PRESETS[TECH][CURRENT_PRESET])?CURRENT_PRESET:null;
+  nm.textContent=name||'Choose a preset…';
+  ico.innerHTML=name?presetIcon(name):'';
+}
+function markCustom(){ if(CURRENT_PRESET!==null){ CURRENT_PRESET=null; updatePresetTrigger(); } }
+function populatePresetMenu(){
+  const m=$('#presetMenu'); m.innerHTML='';
+  Object.keys(PRESETS[TECH]).forEach(name=>{
+    const row=document.createElement('button'); row.className='preset-item'+(name===CURRENT_PRESET?' on':'');
+    row.innerHTML=`<span class="pi-ico">${presetIcon(name)}</span><span class="pi-name">${name}</span>`;
+    row.addEventListener('click',()=>{ applyPreset(name); $('#presetMenu').hidden=true; populatePresetMenu(); });
+    m.appendChild(row);
+  });
+}
+function positionPresetMenu(){
+  const t=$('#presetTrigger').getBoundingClientRect(), m=$('#presetMenu'), gap=5, margin=12;
+  const below=window.innerHeight-t.bottom-margin, above=t.top-margin;
+  m.style.left=t.left+'px'; m.style.width=t.width+'px';
+  if(below>=200 || below>=above){ m.style.top=(t.bottom+gap)+'px'; m.style.bottom='auto'; m.style.maxHeight=Math.max(160,below)+'px'; }
+  else { m.style.bottom=(window.innerHeight-t.top+gap)+'px'; m.style.top='auto'; m.style.maxHeight=Math.max(160,above)+'px'; }
+}
+function buildPresets(){
+  const host=$('#presets');
+  host.innerHTML=`<button class="preset-trigger" id="presetTrigger">
+      <span class="pt-ico" id="ptIco"></span><span class="pt-name" id="ptName">Choose a preset…</span><span class="pt-chev">▾</span>
+    </button><div class="preset-menu" id="presetMenu" hidden></div>`;
+  $('#presetTrigger').addEventListener('click',e=>{ e.stopPropagation();
+    const m=$('#presetMenu'); if(m.hidden){ populatePresetMenu(); positionPresetMenu(); m.hidden=false; } else m.hidden=true; });
+  updatePresetTrigger();
+}
+function switchTech(tech){
+  if(tech===TECH) return;
+  TECH=tech; CURRENT_PRESET=null;
+  $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.tech===tech));
+  $('#tgChain').hidden=(tech!=='raster');          // chaining only makes sense feeding raster
+  buildPresets(); renderStack(); render();
+}
+// build one layer row inside a group
+function buildLayerEl(grp, layer, idx, reg){
+  const def=reg[layer.type];
+  const el=document.createElement('div');
+  el.className='layer'+(layer.on?' on':' off')+(layer.open?' open':'');
+  let body='';
+  def.controls.forEach(([key,label,min,max,step])=>{
+    body+=`<div class="row"><label>${label}</label>
+      <input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${layer.params[key]}">
+      <span class="val">${layer.params[key]}</span></div>`;
+  });
+  body+=`<div class="row" style="margin-top:var(--space-2); gap:var(--space-2)">
+    <button class="mini" data-act="up" ${idx===0?'disabled':''}>↑</button>
+    <button class="mini" data-act="down" ${idx===grp.layers.length-1?'disabled':''}>↓</button>
+    <button class="mini" data-act="del" style="margin-left:auto; color:var(--accent)">remove</button></div>`;
+  el.innerHTML=`<div class="layer-head">
+      <div class="tog">✓</div><b>${def.name}</b><span class="chev">▶</span>
+    </div><div class="layer-body">${body}</div>`;
+  el.querySelector('.tog').addEventListener('click',e=>{ e.stopPropagation(); layer.on=!layer.on; markCustom(); renderStack(); render(); });
+  el.querySelector('.layer-head').addEventListener('click',()=>{ layer.open=!layer.open; renderStack(); });
+  el.querySelectorAll('input[type=range]').forEach(inp=>{
+    inp.addEventListener('input',()=>{ layer.params[inp.dataset.k]=+inp.value; inp.nextElementSibling.textContent=inp.value; markCustom(); render(); });
+  });
+  el.querySelectorAll('[data-act]').forEach(b=>b.addEventListener('click',e=>{
+    e.stopPropagation(); const act=b.dataset.act, L=grp.layers;
+    if(act==='del') L.splice(idx,1);
+    else if(act==='up'&&idx>0){ [L[idx-1],L[idx]]=[L[idx],L[idx-1]]; }
+    else if(act==='down'&&idx<L.length-1){ [L[idx+1],L[idx]]=[L[idx],L[idx+1]]; }
+    markCustom(); renderStack(); render();
+  }));
+  return el;
+}
+function renderStack(){
+  const host=$('#stack'); host.innerHTML='';
+  const groups=curGroups(), reg=aFX(), grouped=(TECH==='raster');
+  groups.forEach((grp,gi)=>{
+    const gEl=document.createElement('div'); gEl.className='group'+(grp.on?'':' goff');
+    if(grouped){
+      const blend = gi===0
+        ? '<span class="gbase">base group</span>'
+        : `<select class="blendsel">${BLENDS.map(m=>`<option ${grp.blend===m?'selected':''}>${m}</option>`).join('')}</select>`;
+      const del = groups.length>1 ? '<button class="mini gdel">×</button>' : '';
+      const gh=document.createElement('div'); gh.className='group-head';
+      gh.innerHTML=`<div class="tog gtog">✓</div>${blend}<span class="gsp"></span>${del}`;
+      gh.querySelector('.gtog').addEventListener('click',()=>{ grp.on=!grp.on; markCustom(); renderStack(); render(); });
+      const bs=gh.querySelector('.blendsel'); if(bs) bs.addEventListener('change',e=>{ grp.blend=e.target.value; markCustom(); render(); });
+      const gd=gh.querySelector('.gdel'); if(gd) gd.addEventListener('click',()=>{ groups.splice(groups.indexOf(grp),1); markCustom(); renderStack(); render(); });
+      gEl.appendChild(gh);
+    }
+    grp.layers.forEach((layer,idx)=> gEl.appendChild(buildLayerEl(grp, layer, idx, reg)));
+    const add=document.createElement('div'); add.className='addfx';
+    add.innerHTML=`<select aria-label="Add effect"><option value="">+ add effect…</option>${Object.keys(reg).map(k=>`<option value="${k}">${reg[k].name}</option>`).join('')}</select>`;
+    add.querySelector('select').addEventListener('change',e=>{ if(e.target.value){ addEffectToGroup(grp, e.target.value); e.target.value=''; }});
+    gEl.appendChild(add);
+    host.appendChild(gEl);
+  });
+  if(grouped){
+    const ng=document.createElement('button'); ng.className='btn newgroup'; ng.textContent='+ new group (overlap)';
+    ng.addEventListener('click',()=>{ groups.push(newGroup('union')); markCustom(); renderStack(); render(); });
+    host.appendChild(ng);
+  }
+}
+
+// ============================================================
+//  RENDER
+// ============================================================
+let showOrig=true, showNodes=false, showOutline=false, SRC_LABEL='';
+
+function computed(){
+  if(!SRC) return null;
+  if(TECH==='raster') return rasterCompute();
+  let subs=SRC.subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>({x:p.x,y:p.y}))}));
+  return applyVectorGroups(subs, GROUPS.vector);
+}
+
+let CACHE=null, rasterTimer=null;
+
+// repaint = cheap; just re-draws CACHE with current colours/outline/nodes
+function repaint(){
+  if(!SRC){ board.classList.remove('show'); empty.hidden=false; return; }
+  empty.hidden=true; board.classList.add('show');
+  const ink=$('#cp-ink').value, bg=$('#cp-bg').value;
+  board.style.background=bg;
+  const out=CACHE; if(!out) return;
+  let svg='';
+  if(showOrig)
+    svg+=`<path d="${dFromSubs(SRC.subs)}" fill="none" stroke="${ink}" stroke-opacity=".16" stroke-width="2"/>`;
+  if(showOutline)
+    svg+=`<path d="${dFromSubs(out)}" fill="none" stroke="${ink}" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>`;
+  else
+    svg+=`<path d="${dFromSubs(out)}" fill="${ink}" fill-rule="evenodd" stroke="none"/>`;
+  if(showNodes && TECH==='vector')
+    for(const s of out) for(const p of s.pts)
+      svg+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.4" fill="${bg}" stroke="${ink}" stroke-width="1"/>`;
+  board.innerHTML=svg;
+  $('#exSvg').disabled=$('#exPng').disabled=false;
+}
+
+// render = recompute geometry (raster is heavy → debounced) then repaint
+function render(){
+  if(!SRC){ repaint(); return; }
+  if(TECH==='raster'){
+    statusEl.textContent='raster…';
+    clearTimeout(rasterTimer);
+    rasterTimer=setTimeout(()=>{ CACHE=computed(); repaint(); statusEl.textContent=SRC_LABEL; }, 110);
+  } else { CACHE=computed(); repaint(); }
+}
+
+// ============================================================
+//  INPUT — Organica.seedsPanel (svg + genesis tabs)
+// ============================================================
+function setSource(subs, flipY, kind, label){
+  SRC=normalise(subs, flipY); SRC_KIND=kind;
+  SRC_LABEL=label; statusEl.textContent=label;
+  render();
+}
+
+const seedsPanel = Organica.seedsPanel({
+  target: document.getElementById('seeds-host'),
+  idPrefix: 'seeds',
+  tabs: ['svg', 'genesis'],
+  svg: { hint: 'Any &lt;path&gt; / shapes.' },
+  genesis: { hint: 'Pick an Organica primordial form to transform.' },
+  applyMode: 'immediate',
+  onSeed(result){
+    if(!result.svgString) return;
+    try{
+      setSource(fromSVGString(result.svgString), false, result.kind, result.kind + ' · ' + (result.descriptor && result.descriptor.formId || 'upload'));
+    }catch(e){ statusEl.textContent='✗ '+e.message; }
+  },
+  onError(msg){ statusEl.textContent='✗ '+msg; },
+});
+
+// --- global drop: accept an SVG dropped ANYWHERE on the page ---
+function readSVGFile(file){
+  const fr=new FileReader();
+  fr.onload=()=>{ try{ setSource(fromSVGString(fr.result), false, 'svg', `svg · ${file.name}`); }
+    catch(e){ statusEl.textContent='✗ '+e.message; } };
+  fr.readAsText(file);
+}
+function routeFile(file){
+  if(!file) return;
+  const n=(file.name||'').toLowerCase(), t=file.type||'';
+  if(/\.svg$/.test(n) || t.includes('svg')) readSVGFile(file);
+  else statusEl.textContent='✗ drop an SVG';
+}
+const stage=document.querySelector('.stage');
+['dragenter','dragover'].forEach(ev=>window.addEventListener(ev,e=>{
+  if(e.dataTransfer && [...e.dataTransfer.types].includes('Files')){ e.preventDefault(); stage.classList.add('drag'); }
+}));
+['dragleave','dragend'].forEach(ev=>window.addEventListener(ev,e=>{
+  if(e.relatedTarget===null) stage.classList.remove('drag');
+}));
+window.addEventListener('drop',e=>{
+  if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length){
+    e.preventDefault(); stage.classList.remove('drag'); routeFile(e.dataTransfer.files[0]);
+  }
+});
+
+// ============================================================
+//  EXPORT
+// ============================================================
+function currentSVGString(scale=1){
+  const ink=$('#cp-ink').value, bg=$('#cp-bg').value;
+  const out=CACHE||computed();
+  const W=1000*scale;
+  const shape=showOutline
+    ? `<path d="${dFromSubs(out)}" fill="none" stroke="${ink}" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>`
+    : `<path d="${dFromSubs(out)}" fill="${ink}" fill-rule="evenodd"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="${W}" height="${W}">`
+    +`<rect width="1000" height="1000" fill="${bg}"/>`+shape+`</svg>`;
+}
+$('#exSvg').addEventListener('click',()=>{
+  Organica.download(new Blob([currentSVGString()],{type:'image/svg+xml'}), Organica.stamp('sinew','svg'));
+});
+$('#exPng').addEventListener('click',()=>{
+  const svg=currentSVGString(2);
+  const img=new Image();
+  const url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
+  img.onload=()=>{
+    const c=document.createElement('canvas'); c.width=c.height=2000;
+    c.getContext('2d').drawImage(img,0,0);
+    c.toBlob(b=>{ Organica.download(b, Organica.stamp('sinew','png')); URL.revokeObjectURL(url); },'image/png');
+  };
+  img.src=url;
+});
+
+// ============================================================
+//  PRESET STORAGE — Organica.presetStore (localStorage, same convention
+//  as Loom/Pulsar/Trellis/Mote). Saves the whole effect-stack state,
+//  the same fields Living Path's .lvp captures minus the two font-only
+//  string fields (text/name).
+// ============================================================
+const USER_PRESETS = Organica.presetStore('sinew');
+function stateSnapshot(){
+  return { v:1, tech:TECH, groups:GROUPS, chain:CHAIN, ink:$('#cp-ink').value, bg:$('#cp-bg').value };
+}
+function applyStateSnapshot(p){
+  if(!p || !p.groups) return;
+  GROUPS.vector=p.groups.vector||[newGroup()]; GROUPS.raster=p.groups.raster||[newGroup()];
+  TECH=p.tech==='raster'?'raster':'vector';
+  if(p.ink) swatches.ink.set(p.ink);
+  if(p.bg) swatches.bg.set(p.bg);
+  $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.tech===TECH));
+  CHAIN=!!p.chain;
+  $('#tgChain').hidden=(TECH!=='raster'); $('#tgChain').classList.toggle('on',CHAIN);
+  CURRENT_PRESET=null;
+  buildPresets(); renderStack(); render();
+}
+function populateUserPresets(){
+  const sel=$('#selUserPreset'), all=USER_PRESETS.read();
+  sel.innerHTML='<option value="">Your presets…</option>'
+    + Object.keys(all).map(n=>`<option value="${n}">${n}</option>`).join('');
+}
+$('#btnSavePreset').addEventListener('click',()=>{
+  const name=prompt('Preset name'); if(!name) return;
+  const all=USER_PRESETS.read(); all[name]=stateSnapshot();
+  USER_PRESETS.write(all); populateUserPresets();
+  $('#selUserPreset').value=name;
+});
+$('#selUserPreset').addEventListener('change',e=>{
+  const name=e.target.value; if(!name) return;
+  const all=USER_PRESETS.read(); applyStateSnapshot(all[name]);
+});
+
+// ============================================================
+//  UI WIRING
+// ============================================================
+$('#techSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) switchTech(b.dataset.tech); });
+$('#tgChain').addEventListener('click',function(){
+  CHAIN=!CHAIN; this.classList.toggle('on',CHAIN);
+  statusEl.textContent = CHAIN ? (vectorActive()?'vector → raster chained':'chain on (vector stack is empty)') : SRC_LABEL;
+  render();
+});
+$('#reset').addEventListener('click',()=>{ GROUPS[TECH]=[newGroup('union')]; CURRENT_PRESET=null; updatePresetTrigger(); renderStack(); render(); });
+$('#tgOrig').addEventListener('click',function(){ showOrig=!showOrig; this.classList.toggle('on',showOrig); repaint(); });
+$('#tgOutline').addEventListener('click',function(){ showOutline=!showOutline; this.classList.toggle('on',showOutline); repaint(); });
+$('#tgNodes').addEventListener('click',function(){ showNodes=!showNodes; this.classList.toggle('on',showNodes); repaint(); });
+
+// Ink/Paper — the shared Palette component (attach mode).
+const swatches = {};
+['ink','bg'].forEach(k=>{ swatches[k]=Organica.palette.swatch(k,{ initial:$('#hex-'+k).value, onChange: repaint }); });
+
+// close the preset menu on outside click, scroll (fixed menu) or resize.
+const closeMenu=()=>{ const m=$('#presetMenu'); if(m && !m.hidden) m.hidden=true; };
+document.addEventListener('click',e=>{ const m=$('#presetMenu'); if(m && !m.hidden && !e.target.closest('.presets') && !e.target.closest('#presetMenu')) m.hidden=true; });
+window.addEventListener('resize',closeMenu);
+document.querySelector('.panel.right').addEventListener('scroll',e=>{ if(!e.target.closest('#presetMenu')) closeMenu(); },true);
+
+// boot
+buildPresets();
+// start with a gentle default vector stack so loading anything shows the idea
+addEffect('roughen'); GROUPS.vector[0].layers[0].open=false; renderStack();
+populateUserPresets();
+Organica.autoLabelPanel(document);   // accessible names for row controls
+Organica.enhanceSliders(document);   // filled track + click-to-edit value
+Organica.popover(document.getElementById('btn-export'), document.getElementById('export-popover'));
+
+// ── Rhizome bridge (Tier 2 node graph) — same protocol Living Path used
+// to carry before the split; see rhizome/js/nodes/sinew-bridge.js. ──
+window.addEventListener('message', (e) => {
+  const msg = e.data;
+  if (!msg || msg.type !== 'rhizome-set-input') return;
+  (async () => {
+    try {
+      const payload = msg.payload || {};
+      const tech = payload.tech === 'raster' ? 'raster' : 'vector';
+      switchTech(tech);
+      const formId = payload.formId || 'seed-flower-bloom';
+      setSource(fromSVGString(window.ORGANIC_FORMS[formId]), false, 'genesis', 'genesis · ' + formId);
+      if (payload.preset) applyPreset(payload.preset);
+      await new Promise(r => setTimeout(r, 150));
+      const svg = currentSVGString(1);
+      e.source.postMessage({ type: 'rhizome-output-ready', payload: svg, nodeId: msg.nodeId }, '*');
+    } catch (err) {
+      console.error('Rhizome bridge:', err);
+    }
+  })();
+});
+</script>
+</body>
+</html>
