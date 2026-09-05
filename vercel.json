@@ -17,6 +17,10 @@
       "destination": "/livingpath/$1"
     },
     {
+      "source": "/sinew/(.*)",
+      "destination": "/sinew/$1"
+    },
+    {
       "source": "/halide/(.*)",
       "destination": "/halide/$1"
     },
