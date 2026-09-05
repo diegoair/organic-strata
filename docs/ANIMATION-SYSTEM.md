@@ -1,236 +1,169 @@
 # Organica — Animation System Documentation
 
-> Reference for the 55 organic form animations in `genesis/animations.css`.
-> Use this when extending the library, debugging existing forms, or building new tools on top of Genesis.
+> A vocabulary of **6 physical animation patterns** — not tied to any one tool
+> or shape library. Use this when choosing how something should move: what
+> real force or process governs the subject, and which pattern below already
+> encodes that force's timing/easing/transform shape.
 >
-> **Status (Aug 31, 2026):** Genesis is now a *static* seed library — it ships 13 base
-> forms and no longer links `animations.css`. Motion is **Pulsar**'s job (over Radial),
-> plus each generative tool's own built-in engine (Membrane / Vortex / Blob Boundary /
-> Mycel). *(The Soul tool, which rebuilt these 6 patterns parametric on GSAP, was removed
-> Aug 31, 2026 — see `docs/archive/SOUL.md`.)* The full 55-form animated catalog is
-> preserved at `genesis/archive/indicators-55.html`; `genesis/animations.css` +
-> `genesis/page.css` + all 55 SVG strings still live on disk for that page only.
-> **Since 2026-09-03 the hub bento no longer links `animations.css` either** — its
-> Genesis cells render static, and `forms.js` dropped the `class="aNN"` hooks. This
-> taxonomy remains the reference.
+> **Origin, for context:** these 6 patterns were first written as hand-typed
+> CSS `@keyframes` for Genesis's 55 animated forms. Genesis itself has been a
+> *static* seed library since August 30, 2026 (13 base forms, no animation);
+> the 55-form catalog is preserved read-only at
+> `genesis/archive/indicators-55.html`. The taxonomy **outlived** that origin —
+> it's the live reference for **Pulsar**'s 4 Motion modes (Pulse/Bloom/Drift/
+> Orbit, over Radial) and for the hand-picked motion on the hub's own tool-
+> preview cards (`index.html`) — see §"Who uses this today" per pattern below.
+> Treat it as a general physics-of-motion vocabulary, usable by any future
+> track-driven tool via `shared/tracks.js` (see §Bridge to code).
 
 ---
 
 ## Core Principle
 
-Each form animates according to its **real physical or biological mechanics** — not generic motion presets applied to arbitrary shapes. The question behind every animation is: *what force or process actually governs this thing in nature?*
+Motion should follow the subject's **real physical or biological mechanics** —
+not a generic motion preset applied to an arbitrary shape. The question behind
+every animation is: *what force or process actually governs this thing in
+nature?*
 
-This is why the animations feel convincing: the timing, easing, and transform type all correspond to the real phenomenon.
+This is why the animations feel convincing: the timing, easing, and transform
+type all correspond to the real phenomenon, not to what's easiest to keyframe.
 
 ---
 
 ## The 6 Animation Patterns
 
-### 1. Internal Pressure — `scale` with asymmetric easing
+### 1. Internal Pressure — cyclic scale, asymmetric easing
 
-**What it simulates:** biological pressure systems — lungs, hearts, cells, fungi.  
-**CSS mechanism:** `transform: scale()` cycling between a compressed and expanded state, using `cubic-bezier` with a fast expand / slow contract curve.  
-**Key insight:** pressure builds slowly and releases fast (or vice versa) — a linear scale looks mechanical, not organic.
+**What it simulates:** biological pressure systems — lungs, hearts, cells, fungi, chemical reactions still "alive".
+**Mechanism:** a scale factor cycling between a compressed and expanded state, with a fast-expand/slow-contract (or reverse) easing curve — a `cubic-bezier` in CSS, an `ease` name on a track's `ease` field in code.
+**Key insight:** pressure builds slowly and releases fast (or vice versa) — a linear scale reads as mechanical, not organic.
 
-**Forms using this pattern:**
-`01 breath` · `02 heartbeat` · `13 flower bloom` · `31 lung` · `45 mushroom inflate`
+**Who uses this today:** Pulsar's **Pulse** Motion mode (drives a radial field's fill/size params with a sine track). The hub's own Camo Turing/Komorebi bento cards (`.tp-anim-breathe`, `index.html`) — both are filled reaction-diffusion/canopy regions, so a slow scale pulse reads as "still alive" under a frozen export.
 
-**Example — breath:**
+**Minimal shape (CSS):**
 ```css
-@keyframes breathe {
-  0%, 100% { transform: scale(.78) }
-  50%       { transform: scale(1.02) }
-}
-.a01 .b {
-  transform-origin: 100px 100px;
-  animation: breathe 3.4s cubic-bezier(.5,0,.5,1) infinite;
-}
+@keyframes breathe { 0%,100% { transform: scale(.95) } 50% { transform: scale(1.05) } }
 ```
-
-**Heartbeat variation:** multiple keyframe stops simulate the double-pump — `scale(1.02)` at 20%, drops to `.92`, spikes to `1.06`, then long rest.
+**Minimal shape (track, `shared/tracks.js`):** `{ wave: 'sine', amount: 0.05, period: 1, ease: 'inOut' }` added to a `scale` parameter.
 
 ---
 
-### 2. Gravity + Viscosity — `translateY` + `scaleY` combined
+### 2. Gravity + Viscosity — translate + scale combined
 
-**What it simulates:** fluid dynamics — drops, honey, lava, dew.  
-**CSS mechanism:** vertical translation paired with Y-axis scaling. Stretches on acceleration, compresses on impact. Duration and easing encode viscosity.  
-**Key insight:** a falling drop elongates (`scaleY > 1`), flattens on impact (`scaleY < 1`). Honey is slow to start (`cubic-bezier(.6,0,.5,1)`), water is fast.
+**What it simulates:** fluid dynamics — drops, honey, lava, dew, anything falling and deforming under gravity and drag.
+**Mechanism:** vertical translation paired with a scale change along the same axis. Stretches on acceleration, compresses on impact. Duration and easing encode viscosity.
+**Key insight:** a falling drop elongates (`scaleY > 1`) as it accelerates, flattens (`scaleY < 1`) on impact. Honey is slow to start, water is fast — the easing curve IS the viscosity.
 
-**Forms using this pattern:**
-`07 drop fall` · `08 lava lamp` · `09 lava detach` · `10 honey drip` · `44 dew form` · `49 pebble splash`
+**Who uses this today:** no live tool maps to this one directly yet — the closest reference is the archived catalog (`archive/indicators-55.html`'s honey-drip/pebble-splash forms). A candidate for a future "Drift"-adjacent track type once a tool needs falling/impact motion (see §Bridge to code).
 
-**Example — honey drip:**
+**Minimal shape (CSS):**
 ```css
-@keyframes honey {
-  0%    { transform: scaleY(1) translateY(0) }
-  40%   { transform: scaleY(2.6) translateY(8px) }   /* stretching under gravity */
-  55%   { transform: scaleY(2.2) translateY(20px) }  /* still elongated, falling */
-  70%   { transform: scaleY(.9) translateY(40px); opacity:.9 }  /* impact squash */
-  100%  { transform: scaleY(.9) translateY(60px); opacity:0 }
-}
-```
-
-**Splash forms** add a secondary `circle` element expanding from `r:0` to `r:60px` with `opacity:0` — the ripple from impact, triggered at the same moment the drop disappears.
-
----
-
-### 3. Growth by Tracing — `stroke-dashoffset`
-
-**What it simulates:** biological growth — vines, roots, shells, tree rings, mycelium.  
-**CSS mechanism:** `stroke-dasharray` sets the total stroke length; animating `stroke-dashoffset` from that value to `0` "draws" the path progressively.  
-**Key insight:** the path shape encodes the growth direction. The timing encodes growth speed. For tree rings, each ring uses a CSS variable `--c` set to its actual circumference — so drawing speed is proportional to ring size, exactly like real growth.
-
-**Forms using this pattern:**
-`11 vine` · `15 sprout` · `16 roots` · `38 spiral shell` · `48 tree rings` · `51 vermicular`
-
-**Example — tree rings (most sophisticated):**
-```css
-@keyframes ringDraw {
-  0%,8%   { stroke-dashoffset: var(--c); opacity: 0 }
-  16%     { opacity: 1 }
-  68%     { stroke-dashoffset: 0; opacity: 1 }
-  94%,100%{ stroke-dashoffset: 0; opacity: 0 }
-}
-.a48 .r1 { --c: 90  }
-.a48 .r2 { --c: 140; animation-delay: .16s }
-.a48 .r3 { --c: 200; animation-delay: .32s }
-/* etc — each ring draws outward with staggered delay */
-```
-
-**Vermicular variation:** paths are ordered bottom-to-top with increasing `animation-delay`, simulating a worm or mycelium traveling upward.
-
----
-
-### 4. Collective Behaviour — staggered delays + goo filter
-
-**What it simulates:** swarms, colonies, fluid clusters — where individual elements form a collective.  
-**CSS mechanism:** identical keyframes on multiple elements, each offset by a small `animation-delay` increment (typically `0.15–0.25s`). The SVG `filter: url(#goo)` (Gaussian blur + threshold matrix) merges nearby shapes into a single fluid body.  
-**Key insight:** collective behaviour is NOT a complex animation — it's the same simple animation on many elements, phase-shifted. The goo filter does the rest optically.
-
-**Forms using this pattern:**
-`03 metaballs merge` · `04 orbit` · `05 swarm` · `27 cell divide` · `28 mitosis` · `41 bubble cluster` · `50 forest chord` · `55 lichen patches`
-
-**The goo filter (from `defs.js`):**
-```svg
-<filter id="goo">
-  <feGaussianBlur stdDeviation="6" result="blur"/>
-  <feColorMatrix mode="matrix"
-    values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10"/>
-  <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
-</filter>
-```
-The `22 -10` values in the alpha channel are the threshold — increase `22` for harder edges, decrease for softer merging. `#goosoft` uses `18 -8` for gentler fusion.
-
-**Example — forest chord (7 circles, wave-like breathing):**
-```css
-.a50 .c1 { animation: b1 2.8s ease-in-out infinite }
-.a50 .c2 { animation: b1 2.8s ease-in-out infinite; animation-delay: .18s }
-.a50 .c3 { animation: b1 2.8s ease-in-out infinite; animation-delay: .36s }
-/* same keyframe, 0.18s apart — produces a travelling wave */
+@keyframes drip { 0% { transform: scaleY(1) translateY(0) } 40% { transform: scaleY(2.2) translateY(10px) } 70% { transform: scaleY(.9) translateY(30px) } }
 ```
 
 ---
 
-### 5. Environmental Forces — continuous translate
+### 3. Growth by Tracing — progressive stroke reveal
 
-**What it simulates:** external forces acting on passive objects — wind, current, gravity fields.  
-**CSS mechanism:** `translateX` or `translateY` cycling continuously, or linear travel from off-screen to off-screen.  
-**Key insight:** unlike biological motion, environmental forces are constant and uniform. Use `linear` easing (not `ease-in-out`) for drift, current, and fall. Use `ease-in-out` for tidal oscillation.
+**What it simulates:** biological growth — vines, roots, shells, tree rings, mycelium, anything that grows outward from a point.
+**Mechanism:** a stroke's dash-offset animated from its full length to `0`, "drawing" the path progressively. In track terms: a one-shot progress value (0→1) driving how much of a path is visible.
+**Key insight:** the path shape encodes the growth direction; the timing encodes growth speed. A ring's own circumference can drive its own draw duration, so bigger rings draw proportionally slower — real growth, not a fixed timer.
 
-**Forms using this pattern:**
-`12 leaf sway` · `24 grass wind` · `42 pollen drift` · `43 tide` · `46 branch sway` · `54 sedimentation`
+**Who uses this today:** Pulsar's **Bloom** Motion mode (a `ramp-once` track on a radial field's element count — a literal count-up "growth"). The hub's Membrane bento card (`traceIn`/`animateTrailReveal()`, `index.html`) replays its own 220-path trail once on load via `stroke-dashoffset` — a direct, still-live use of this exact mechanism.
 
-**Example — sedimentation (most complex):**
-```css
-@keyframes sink {
-  0%   { transform: translate(var(--x), -30px); opacity: 0 }
-  10%  { opacity: 1 }
-  90%  { opacity: 1 }
-  100% { transform: translate(var(--x), 230px); opacity: 0 }
-}
-.a54 .s1 { animation-duration: 7s }
-.a54 .s2 { animation-duration: 8.6s; animation-delay: 1s }
-.a54 .s3 { animation-duration: 6s;   animation-delay: .4s }
-```
-Each chip has a unique `--x` offset (horizontal position) and a different duration — simulating varying mass/drag through fluid. Heavier chips sink faster; lighter ones drift more.
+**Minimal shape (track):** `{ wave: 'ramp-once', amount: 1, ease: 'out' }` driving a progress/reveal parameter — this is genuinely one-shot (doesn't loop cleanly on its own; see the loop-safety note in §Bridge to code).
+
+---
+
+### 4. Collective Behaviour — staggered delay + goo merge
+
+**What it simulates:** swarms, colonies, fluid clusters — many simple individuals reading as one collective body.
+**Mechanism:** the identical animation on many elements, each offset by a small per-element delay; an optional goo filter (blur + threshold) fuses nearby shapes into one fluid silhouette.
+**Key insight:** collective behaviour is NOT a complex animation — it's one simple animation, phase-shifted per instance. The stagger does the storytelling; the goo filter (where used) does the rest optically.
+
+**Who uses this today:** no live tool uses the goo-filter half today (it was Genesis/Soul-specific SVG plumbing, not carried into Pulsar or the hub). The **stagger half**, though, is exactly what `shared/tracks.js`'s `staggerDelay(ctx, by, amount)` generalizes — any track-driven tool with N instances (grid cells, points, primitives) gets per-instance phase-shifting for free, independent of any goo filter.
+
+**Minimal shape (per-instance delay, in cycle units):** `phase: baseline + staggerDelay(ctx, 'index', 0.3)` — see §Bridge to code for the full contract.
+
+---
+
+### 5. Environmental Forces — continuous, linear-eased translate
+
+**What it simulates:** external forces acting on a passive object — wind, current, gravity fields, drift.
+**Mechanism:** continuous translation, cycling or one-directional. Linear easing (not ease-in-out) for wind/current/fall; `ease-in-out` only for a genuinely oscillating force like a tide.
+**Key insight:** unlike biological motion, an environmental force is constant and uniform — the object doesn't "choose" to speed up or slow down.
+
+**Who uses this today:** Pulsar's **Drift** Motion mode (a sine/noise track on a radial field's warp/fill offset — Environmental Forces is the one pattern that survives even after Radial's own symmetry constraints rule out a directional Gravity pull). The hub's Halide bento card (`.tp-anim-drift`) — a slow Ken-Burns creep on the dithered photograph, same continuous/linear pacing.
+
+**Minimal shape (track):** `{ wave: 'sine', amount: <small>, period: 1, ease: 'linear' }`, or `{ wave: 'noise', ... }` for a non-repeating-looking drift that still closes the loop (circular-sampled, see `trackValue`'s own `noise` branch).
 
 ---
 
 ### 6. Differential Rotation — counter-spinning layers
 
-**What it simulates:** orbital mechanics, crystal growth, geological strata.  
-**CSS mechanism:** two or more elements with `spin` and `spinR` (`rotate(360deg)` and `rotate(-360deg)`) at different speeds.  
-**Key insight:** a single rotating element looks mechanical. Two layers rotating in opposite directions at different speeds create emergent visual complexity — the eye perceives a system with its own physics.
+**What it simulates:** orbital mechanics, crystal growth, geological strata — two or more layers rotating at different speeds/directions.
+**Mechanism:** two-plus elements rotating continuously, at different speeds and/or opposite directions.
+**Key insight:** a single rotating element reads as mechanical. Two layers, counter-rotating at different speeds, read as a system with its own physics — the eye infers depth and cause from the speed difference alone.
 
-**Forms using this pattern:**
-`04 orbit` · `14 petal turn` · `30 iris` · `36 moon phase` · `52 shard rotation`
+**Who uses this today:** Pulsar's **Orbit** Motion mode (a `spin` wave — continuous rotation — on a radial field's whole-group `rotate`). The hub's Membrane bento card (`.tp-anim-spin`) — a slow continuous rotation, because Membrane's own export metadata literally records `movementPattern:"orbit"`.
 
-**Example — shard rotation:**
-```css
-.a52 .big   { animation: spinSlow52 9s linear infinite }   /* outer layer, slow */
-.a52 .small { animation: spinRev52  14s linear infinite }  /* inner layer, reverse, slower */
-```
+**Minimal shape (track):** `{ wave: 'spin', amount: <turns> }` — continuous, ignores `period`/`ease`/`phase` (see `trackValue`'s own `spin` branch in `shared/tracks.js`).
 
 ---
 
 ## Timing Philosophy
 
-The animation duration range (`1.4s – 14s`) is not arbitrary — it maps to the **real-world time scale** of the phenomenon:
+Duration isn't arbitrary — it should map to the **real-world time scale** of the phenomenon:
 
 | Range | Phenomena |
 |---|---|
 | `1.4 – 2s` | Heartbeat, ripple, water drop |
 | `2 – 3.5s` | Breathing, leaf sway, vine growth |
-| `3.5 – 5s` | Flower bloom, jellyfish pulse, tree ring reveal |
+| `3.5 – 5s` | Flower bloom, jellyfish pulse, a growth-reveal completing |
 | `5 – 9s` | Sedimentation, spiral shell, smoke |
-| `9 – 14s` | Shard rotation, geological / tectonic forms |
+| `9 – 14s` | Shard rotation, geological / tectonic motion |
 
-Forms that feel slow feel slow because their real counterparts are slow. This is the single biggest contributor to perceived authenticity.
-
----
-
-## Special Case — Form 35 (Phyllotaxis)
-
-The only form generated programmatically at boot, not defined in SVG markup.
-
-```js
-// genesis-creator.js — fillSpiral() IIFE
-const N=44, GA=Math.PI*(3-Math.sqrt(5)), C=12;
-for(let i=1; i<=N; i++){
-  const r = C * Math.sqrt(i);          // radius grows as √i
-  const a = i * GA;                    // golden angle ≈ 137.5°
-  // places circle at (x,y), radius and animation-delay increment with i
-}
-```
-
-Each of 44 circles sits at golden-angle intervals on an Archimedean spiral — the same algorithm that governs sunflower seed packing, pinecone scales, and nautilus chambers. The CSS `animation-delay` increments by `0.05s` per circle, producing an outward ripple from center.
+In track terms this is the loop length (Pulsar's own loop-seconds control, or any future tool's equivalent) combined with a track's `period` (whole cycles within that loop) — a "9-14s" phenomenon is a `period: 1` track on a long loop, not a fast track on a short one. Motion that feels slow should feel slow because its real counterpart is slow — this is the single biggest contributor to perceived authenticity, independent of which tool or shape is animating.
 
 ---
 
-## How to Add a New Form
+## Bridge to code — `shared/tracks.js`
 
-> Genesis no longer authors animated forms — this section applies to the **archived
-> gallery** (`genesis/archive/indicators-55.html`) and to any new tool that links
-> `animations.css`. For new *motion*, work in Pulsar (over Radial) or the relevant
-> generative tool's own engine. `forms.js` itself now holds only the 13 static Base
-> Seeds as `window.ORGANIC_SEEDS`, keyed by `seed-<slug>` id
-> (`{ label, type, tags, bbox, svg }` per entry); adding a new base seed means one
-> `ORGANIC_SEEDS['seed-…']` entry with a class-free `fill="var(--ink)"` SVG + the
-> matching `base_seeds` DB row — no animation CSS. The archived catalog below still
-> uses its own numeric `.aNN` indexing, unrelated to the seed ids.
+The 6 patterns above are physics; **`shared/tracks.js`** is where they become
+parameters. It's a small, pure module (no DOM, no per-tool state) with:
 
-1. **Identify the real physics.** What force or process governs this subject? Choose the closest pattern from the 6 above.
+- **`trackValue(t, tNorm)`** — the value of one track at a normalized loop
+  position `tNorm` (0..1). `t = {wave, amount, period, phase, ease, idx}`;
+  `wave` is `sine | triangle | noise | ramp-once | spin`. `period` is a whole
+  number of cycles per loop (keeps a periodic wave seamless); `ramp-once` is
+  the one genuinely one-shot wave (pattern 3, Growth by Tracing) — a scene
+  using it won't loop cleanly on its own, flag it as such in the UI (Pulsar's
+  own "one-shot — will not loop" note is the precedent).
+- **`staggerDelay(ctx, by, amount)`** — a per-instance phase offset (pattern
+  4's stagger half), in the SAME cycle units as `trackValue`'s own `phase` —
+  composes by addition, never breaks loop closure for any `by`/`amount`. `ctx`
+  is the same per-instance shape `shared/shapes.js`'s `cellColRow()` already
+  produces for a Loom grid (rect or polygon/hex) — `{index, count, row, col,
+  rows, cols, cx, cy, nx, ny, angle}` — so a grid tool needs no adapter.
+- **`ease01`/`tri`/`easedCyc`** — the easing/wave-shape primitives `trackValue`
+  itself is built on, exposed for a tool that needs the raw shape (e.g. a
+  one-shot reveal with a custom overshoot curve on top of `ease01`).
 
-2. **Pick the next available ID** and add a class `.aNN` block to `genesis/animations.css` (append-only).
+**What stays local to each tool** (never moves into `shared/tracks.js`): which
+parameter a track drives, how multiple tracks on the same parameter combine
+(sum for an angle, product for a scale, ...), and the track-editing UI itself.
+Pulsar's own `composeP()` is the reference example of this per-tool
+composition layer sitting on top of the shared primitives.
 
-3. **Add the SVG markup** — a self-contained `<svg viewBox="0 0 200 200" class="aNN">`. Use `fill: var(--ink)` / `stroke: var(--ink)` for all color — never hardcode hex values.
-
-4. **If the form uses the goo filter or terrazzo chips**, they're already in `defs.js` — reference `filter: url(#goo)` or `<use href="#cA"/>` directly. No changes needed to defs.
-
-5. **Test in `genesis/archive/indicators-55.html`** — reload and confirm the form animates correctly in the catalog grid.
-
-Note: the runtime `fixForm35()` phyllotaxis-spiral fill (form 35 injected its dots at load) was **retired 2026-08-30** with the catalog — the archived page keeps its own copy if needed.
+**Adding a new pattern to a tool, today:**
+1. Identify the real physics — pick the closest of the 6 patterns above.
+2. Express it as a track: which `wave`/`ease`/`period` combination produces
+   that pattern's motion shape (see each pattern's "Minimal shape" above).
+3. Wire it into the tool's own composition function (its `readTracks()`/
+   `composeP()`-equivalent) — `shared/tracks.js` supplies the math, the tool
+   decides what it drives.
+4. If the motion needs to vary per-instance (pattern 4, many cells/points),
+   use `staggerDelay()` rather than inventing a new per-instance formula.
 
 ---
 
@@ -238,11 +171,11 @@ Note: the runtime `fixForm35()` phyllotaxis-spiral fill (form 35 injected its do
 
 | File | Role | Modify? |
 |---|---|---|
-| `genesis/animations.css` | All 55 `@keyframes` + `.aNN` rules — archive-support only | Append-only, rarely |
-| `forms.js` | `window.ORGANIC_SEEDS` — the **13** static Base Seeds (`{ label, type, tags, bbox, svg }` per `seed-<slug>` id); `ORGANIC_FORMS` / `ORGANIC_LABELS` derived from it | Yes — add an `ORGANIC_SEEDS['seed-…']` entry + the `base_seeds` DB row |
-| `defs.js` | Shared SVG `<defs>`: goo filters + 7 terrazzo chip paths | Rarely — only if adding new shared filters |
-| `genesis/archive/indicators-55.html` | The full 55-form animated gallery, self-contained | Only to restore an archived form |
+| `shared/tracks.js` | Pure track math — `trackValue`/`staggerDelay`/`ease01`/`tri`/`easedCyc` | Yes — this is where a genuinely new *wave* or stagger *by*-type belongs |
+| `pulsar/index.html` | First consumer of `shared/tracks.js`; its own `composeP()`/Motion-mode mapping is the reference per-tool composition layer | Yes — Pulsar's own params/Motion modes |
+| `shared/shapes.js` | `cellColRow()` — the per-instance context shape `staggerDelay()` expects, for any Loom-grid-driven tool | Rarely — only if the context shape itself needs a new field |
+| `genesis/archive/indicators-55.html` | The original 55-form animated gallery (CSS `@keyframes`, self-contained) — historical reference only, not an active workflow | Only to look up a form's original CSS for a track port |
 
 ---
 
-*Last updated: August 30, 2026 — Organica System v0.1*
+*Last updated: September 2026 — generalized from the Genesis-specific v0.1 (see git history for the original)*
