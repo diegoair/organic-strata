@@ -297,18 +297,53 @@
   // ============================================================
   const RES = 170;   // working grid resolution (speed vs. detail)
 
-  function rasterize(subs) {
-    const c = document.createElement('canvas'); c.width = c.height = RES;
+  function rasterize(subs, res) {
+    res = res || RES;
+    const c = document.createElement('canvas'); c.width = c.height = res;
     const ctx = c.getContext('2d');
-    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, RES, RES);
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, res, res);
     ctx.fillStyle = '#fff';
-    ctx.save(); ctx.scale(RES / 1000, RES / 1000);
+    ctx.save(); ctx.scale(res / 1000, res / 1000);
     try { ctx.fill(new Path2D(dFromSubs(subs)), 'evenodd'); } catch (e) {}
     ctx.restore();
-    const img = ctx.getImageData(0, 0, RES, RES).data;
-    const f = new Float32Array(RES * RES);
+    const img = ctx.getImageData(0, 0, res, res).data;
+    const f = new Float32Array(res * res);
     for (let i = 0; i < f.length; i++) f[i] = img[i * 4] / 255;   // red channel = density
-    return { w: RES, h: RES, f };
+    return { w: res, h: res, f };
+  }
+
+  // ── adaptive resolution — a thin counter (e.g. the bowl of a light-weight
+  //    'g'/'R'/'a') can be as little as 1px wide at the default RES, so any
+  //    positive dilate/morph step seals it into a solid blob regardless of
+  //    preset intent. measureMinGap finds the narrowest bounded gap (a proxy
+  //    for the thinnest counter) in a rasterized field; pickAdaptiveRes
+  //    re-rasterizes ONLY the glyphs that need it at a higher resolution,
+  //    which makes the SAME preset amount act more gently on that one glyph
+  //    (dilate grows by a fixed pixel count, so more pixels per em = a
+  //    smaller relative dilation) — no preset re-tuning required, and a
+  //    glyph whose counter is already wide enough is untouched (still RES).
+  function measureMinGap(g) {
+    const { w, h, f } = g;
+    let minGap = Infinity;
+    for (let y = 0; y < h; y++) {
+      let x = 0;
+      while (x < w) {
+        if (f[y * w + x] < 0.5) {
+          const x0 = x;
+          while (x < w && f[y * w + x] < 0.5) x++;
+          const runLen = x - x0;
+          if (x0 > 0 && x < w && runLen < minGap) minGap = runLen;
+        } else x++;
+      }
+    }
+    return minGap;
+  }
+  function pickAdaptiveRes(subs, opts) {
+    opts = opts || {};
+    const targetGap = opts.targetGap || 4, maxRes = opts.maxRes || 600;
+    const minGap = measureMinGap(rasterize(subs, RES));
+    if (!isFinite(minGap) || minGap >= targetGap) return RES;
+    return Math.min(maxRes, Math.round(RES * targetGap / Math.max(1, minGap)));
   }
 
   function morph(g, amt) {                     // dilate (>0) / erode (<0)
@@ -649,7 +684,12 @@
       'Type-safe': { safe: true, fx: [['roughen', { detail: 2, amount: 4, seed: 7 }], ['wobble', { amp: 6, freq: 5, phase: 0 }]] },
       'Eroded': { fx: [['roughen', { detail: 4, amount: 14, seed: 13 }], ['wobble', { amp: 12, freq: 7, phase: 20 }]] },
       'Liquid': { fx: [['smooth', { iter: 3, strength: 60 }], ['inflate', { dist: 10 }], ['wobble', { amp: 16, freq: 4, phase: 0 }]] },
-      'Vortex': { fx: [['twist', { angle: 90, falloff: 70 }], ['roughen', { detail: 3, amount: 8, seed: 5 }]] },
+      // angle/falloff softened from 90/70 (2026-09-05) — at full strength every
+      // glyph spins around its own centre independently (processGlyphEm runs
+      // per-glyph), which reads fine on one big display letter but turns a
+      // multi-letter word illegible. 45/50 keeps a visible swirl without
+      // losing the word; the stronger look is still one slider-drag away.
+      'Vortex': { fx: [['twist', { angle: 45, falloff: 50 }], ['roughen', { detail: 3, amount: 8, seed: 5 }]] },
       'Shatter': { fx: [['scatter', { dist: 50, seed: 5 }], ['jitter', { amount: 10, seed: 21 }]] },
     },
     raster: {
@@ -749,6 +789,7 @@
     // raster pipeline
     RES, rasterize, morph, boxBlur, addNoise, grayScott, particles, skeleton,
     seamCarve, polygonize, contours, smoothPoly, rasterFieldToSubs,
+    measureMinGap, pickAdaptiveRes,
     // groups/blend appliers
     blendField, rasterFieldFromGroups, applyVectorGroups,
     // presets

@@ -13,99 +13,86 @@
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --paper:#ffffff; --mid:#726a5e; --panel:#eceae4; --tool:#b8467a;
+  /* Design-system audit, 2026-09-05: see Living Path's identical note
+     (livingpath/index.html) — down to --tool + the one legitimate optional
+     override panel.css supports (--border-strong). */
+  --tool:#b8467a;
   --border-strong:#958462;
-  --bg:#ffffff; --card:#faf8f3;
-  --ink:#0a0a0a; --ink-soft:#3a352e; --ink-muted:#696256;
-  --line:rgba(10,10,10,.10); --line-soft:rgba(10,10,10,.06);
-  --pollen:#c8a83a; --pollen-bright:#e8c84a; --accent:#b0532a;
 }
 html,body{height:100%}
 body{
-  background:var(--bg); color:var(--ink); font-family:var(--font);
+  background:var(--paper); color:var(--ink); font-family:var(--font);
   font-size:var(--fs-large); display:flex; flex-direction:column; overflow:hidden;
 }
 .shell{flex:1; display:flex; min-height:0}
 .panel{
-  width:var(--panel-w); flex:0 0 var(--panel-w); background:var(--paper); border-right:1px solid var(--line);
+  width:var(--panel-w); flex:0 0 var(--panel-w); background:var(--paper); border-right:1px solid var(--border);
   overflow-y:auto; padding:0 0 40px;
 }
-.panel.right{border-right:none; border-left:1px solid var(--line)}
+.panel.right{border-right:none; border-left:1px solid var(--border)}
 .stage{
   flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
   background:
-    radial-gradient(circle at 30% 25%, rgba(184,70,122,.05), transparent 60%),
-    var(--bg);
+    radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--tool) 8%, transparent), transparent 60%),
+    var(--paper);
   position:relative; overflow:hidden;
 }
 .stage.drag::after{
   content:'drop an SVG'; position:absolute; inset:14px; z-index:5;
   display:flex; align-items:center; justify-content:center;
-  border:2px dashed var(--pollen); border-radius:var(--radius-lg); background:rgba(200,168,58,.08);
-  font-size:var(--fs-large); letter-spacing:.1em; color:var(--ink-soft);
+  border:2px dashed var(--tool); border-radius:var(--radius-lg); background:color-mix(in srgb, var(--tool) 8%, transparent);
+  font-size:var(--fs-large); letter-spacing:.1em; color:var(--ink);
 }
-.sec{border-bottom:1px solid var(--line-soft); padding:var(--space-5) var(--space-6)}
+/* .sec/.row/.row .val are aliased to .panel-section/.ctrl-row/.ctrl-val by
+   shared/panel.css — only genuine local deltas stay here. */
 .sec h3{margin:0 0 8px}
-.row{display:flex; align-items:center; gap:var(--space-4); margin-bottom:var(--space-4)}
-.row:last-child{margin-bottom:0}
-.row label{flex:0 0 76px; font-size:var(--t-label-size); font-weight:var(--t-label-weight); color:var(--ink-soft); letter-spacing:0;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.row .val{flex:0 0 34px; text-align:right; font-size:var(--t-value-size); font-weight:var(--t-value-weight); color:var(--ink-muted); font-variant-numeric:tabular-nums}
-.seg{display:flex; gap:0; border:1px solid var(--line); border-radius:var(--radius-lg); overflow:hidden; margin-bottom:var(--space-4)}
-.seg button{
-  flex:1; font-family:var(--font); font-size:var(--fs-base); padding:var(--space-2) var(--space-1); cursor:pointer;
-  background:var(--card); color:var(--ink-soft); border:none; border-right:1px solid var(--line); transition:.14s;
-}
-.seg button:last-child{border-right:none}
-.seg button.on{background:var(--ink); color:var(--bg)}
+.row .ctrl-label{flex:0 0 76px; min-width:0; overflow:hidden; text-overflow:ellipsis}
 /* ── effect layers ── */
 .layer{
-  background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg);
+  background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg);
   margin-bottom:var(--space-3); overflow:hidden;
 }
 .layer.off{opacity:.5}
 .layer-head{display:flex; align-items:center; gap:var(--space-3); padding:var(--space-3) var(--space-4); cursor:pointer; user-select:none}
 .layer-head .tog{
-  width:15px; height:15px; flex:0 0 15px; border:1.5px solid var(--ink-muted); border-radius:var(--radius-md);
-  display:flex; align-items:center; justify-content:center; font-size:var(--fs-small); color:var(--bg);
+  width:15px; height:15px; flex:0 0 15px; border:1.5px solid var(--mid); border-radius:var(--radius-md);
+  display:flex; align-items:center; justify-content:center; font-size:var(--fs-small); color:var(--paper);
 }
-.layer.on .layer-head .tog{background:var(--pollen); border-color:var(--pollen); color:var(--ink)}
+.layer.on .layer-head .tog{background:var(--tool); border-color:var(--tool); color:var(--ink)}
 .layer-head b{flex:1; font-size:var(--fs-base); font-weight:500; letter-spacing:.04em}
-.layer-head .chev{font-size:var(--fs-micro); color:var(--ink-muted); transition:.16s}
+.layer-head .chev{font-size:var(--fs-micro); color:var(--mid); transition:.16s}
 .layer.open .layer-head .chev{transform:rotate(90deg)}
 .layer-body{padding:var(--space-1) var(--space-4) 11px; display:none}
 .layer.open .layer-body{display:block}
 .presets{position:relative}
-.preset-trigger{display:flex; align-items:center; gap:var(--space-3); width:100%; font-family:var(--font); font-size:var(--fs-medium); padding:var(--space-2) var(--space-4); cursor:pointer; background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:var(--radius-lg); transition:.14s}
-.preset-trigger:hover{border-color:var(--pollen)}
-.pt-ico{width:22px; height:22px; flex:0 0 22px; border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; background:#fff}
+.preset-trigger{display:flex; align-items:center; gap:var(--space-3); width:100%; font-family:var(--font); font-size:var(--fs-medium); padding:var(--space-2) var(--space-4); cursor:pointer; background:var(--panel); color:var(--ink); border:1px solid var(--border); border-radius:var(--radius-lg); transition:.14s}
+.preset-trigger:hover{border-color:var(--tool)}
+.pt-ico{width:22px; height:22px; flex:0 0 22px; border:1px solid var(--border); border-radius:var(--radius-md); overflow:hidden; background:var(--paper)}
 .pt-ico svg, .pi-ico svg{width:100%; height:100%; display:block}
 .pt-name{flex:1; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.pt-chev{color:var(--ink-muted); font-size:var(--fs-small)}
-.preset-menu{position:fixed; z-index:40; background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg); box-shadow:0 10px 28px rgba(10,10,10,.18); padding:var(--space-2); overflow-y:auto; display:flex; flex-direction:column; gap:var(--space-1)}
+.pt-chev{color:var(--mid); font-size:var(--fs-small)}
+.preset-menu{position:fixed; z-index:40; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:0 10px 28px rgba(10,10,10,.18); padding:var(--space-2); overflow-y:auto; display:flex; flex-direction:column; gap:var(--space-1)}
 .preset-menu[hidden]{display:none}
-.preset-item{display:flex; flex-direction:row; align-items:center; gap:var(--space-4); padding:var(--space-2) var(--space-3); cursor:pointer; background:transparent; border:1px solid transparent; border-radius:var(--radius-lg); font-family:var(--font); font-size:var(--fs-medium); color:var(--ink-soft); transition:.12s; text-align:left}
-.preset-item:hover{background:var(--panel); border-color:var(--line)}
-.preset-item.on{border-color:var(--pollen); color:var(--ink)}
-.pi-ico{width:26px; height:26px; flex:0 0 26px; border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; background:#fff}
+.preset-item{display:flex; flex-direction:row; align-items:center; gap:var(--space-4); padding:var(--space-2) var(--space-3); cursor:pointer; background:transparent; border:1px solid transparent; border-radius:var(--radius-lg); font-family:var(--font); font-size:var(--fs-medium); color:var(--ink); transition:.12s; text-align:left}
+.preset-item:hover{background:var(--panel); border-color:var(--border)}
+.preset-item.on{border-color:var(--tool); color:var(--ink)}
+.pi-ico{width:26px; height:26px; flex:0 0 26px; border:1px solid var(--border); border-radius:var(--radius-md); overflow:hidden; background:var(--paper)}
 .pi-name{flex:1; line-height:1.2}
 /* groups */
-.group{ border:1px solid var(--line); border-radius:var(--radius-lg); padding:var(--space-3); margin-bottom:var(--space-4); background:rgba(184,70,122,.04); }
+.group{ border:1px solid var(--border); border-radius:var(--radius-lg); padding:var(--space-3); margin-bottom:var(--space-4); background:color-mix(in srgb, var(--tool) 5%, transparent); }
 .group.goff{ opacity:.5 }
 .group-head{ display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-3) }
-.group-head .gtog{ width:15px; height:15px; flex:0 0 15px; border:1.5px solid var(--ink-muted); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; font-size:var(--fs-small); color:var(--bg); cursor:pointer }
-.group:not(.goff) .group-head .gtog{ background:var(--pollen); border-color:var(--pollen); color:var(--ink) }
-.group-head .gbase{ font-size:var(--fs-small); letter-spacing:.14em; color:var(--ink-muted) }
+.group-head .gtog{ width:15px; height:15px; flex:0 0 15px; border:1.5px solid var(--mid); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; font-size:var(--fs-small); color:var(--paper); cursor:pointer }
+.group:not(.goff) .group-head .gtog{ background:var(--tool); border-color:var(--tool); color:var(--ink) }
+.group-head .gbase{ font-size:var(--fs-small); letter-spacing:.14em; color:var(--mid) }
 .group-head .gsp{ flex:1 }
-.blendsel{ font-family:var(--font); font-size:var(--fs-base); padding:var(--space-1) var(--space-2); border:1px solid var(--line); border-radius:var(--radius-lg); background:var(--card); color:var(--ink); cursor:pointer }
-.gdel{ color:var(--accent) }
+.blendsel{ font-family:var(--font); font-size:var(--fs-base); padding:var(--space-1) var(--space-2); border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--panel); color:var(--ink); cursor:pointer }
+.mini.gdel{ color:var(--danger) }   /* .mini's own color would otherwise win on source order */
 .newgroup{ font-size:var(--fs-base); width:100%; margin-top:var(--space-1); border-style:dashed }
 .addfx{position:relative; margin-top:var(--space-1)}
-.chk{display:flex; align-items:center; gap:var(--space-3); font-size:var(--fs-base); color:var(--ink-soft); margin-top:var(--space-4); cursor:pointer}
-.chk input{accent-color:var(--pollen)}
 .addfx select{
   width:100%; font-family:var(--font); font-size:var(--fs-base); padding:var(--space-3) var(--space-4); cursor:pointer;
-  background:var(--card); color:var(--ink); border:1px dashed var(--line); border-radius:var(--radius-lg);
+  background:var(--panel); color:var(--ink); border:1px dashed var(--border); border-radius:var(--radius-lg);
 }
 /* ── canvas/preview ── */
 /* NB: `hidden` does NOT work on an <svg> (SVGElement has no hidden IDL prop
@@ -113,13 +100,13 @@ body{
    keeps occupying a flex box and shoves the empty state off-centre. */
 #board{max-width:92%; max-height:92%; display:none}
 #board.show{display:block}
-.empty{text-align:center; color:var(--ink-muted)}
-.empty .big{font-family:var(--display); font-weight:700; font-size:30px; color:var(--ink-soft); margin-bottom:var(--space-3)}
+.empty{text-align:center; color:var(--mid)}
+.empty .big{font-family:var(--display); font-weight:700; font-size:30px; color:var(--ink); margin-bottom:var(--space-3)}
 .empty p{font-size:var(--fs-medium); line-height:1.7}
 .gridtoggle{position:absolute; top:14px; right:16px; display:flex; gap:var(--space-2)}
-.mini{font-size:var(--fs-small); padding:var(--space-2) var(--space-4); background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg); cursor:pointer; color:var(--ink-soft)}
-.mini.on{background:var(--ink); color:var(--bg); border-color:var(--ink)}
-.hint{font-size:var(--fs-small); color:var(--ink-muted); line-height:1.6; margin-top:var(--space-3)}
+.mini{font-size:var(--fs-small); padding:var(--space-2) var(--space-4); background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg); cursor:pointer; color:var(--ink)}
+.mini.on{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+.hint{font-size:var(--fs-small); color:var(--mid); line-height:1.6; margin-top:var(--space-3)}
 ::-webkit-scrollbar{width:9px;height:9px}
 ::-webkit-scrollbar-thumb{background:rgba(10,10,10,.14); border-radius:var(--radius-md)}
 </style>
@@ -180,8 +167,8 @@ body{
     <div class="sec">
       <h3>Engine</h3>
       <div class="seg" id="techSeg" role="group" aria-label="Engine">
-        <button data-tech="vector" class="on">Vector</button>
-        <button data-tech="raster">Raster</button>
+        <button data-tech="vector" class="seg-btn active">Vector</button>
+        <button data-tech="raster" class="seg-btn">Raster</button>
       </div>
       <button class="mini" id="tgChain" hidden style="width:100%">&#8646; vector &rarr; raster</button>
     </div>
@@ -195,8 +182,8 @@ body{
     <div class="sec">
       <h3>Presets</h3>
       <div class="presets" id="presets"></div>
-      <div class="row" style="margin-top:var(--space-3); gap:var(--space-2)">
-        <button class="btn u-flex1" id="btnSavePreset">Save preset</button>
+      <div class="row-btns" style="margin-top:var(--space-3)">
+        <button class="mini-btn" id="btnSavePreset">Save preset</button>
         <select class="panel-select u-flex1" id="selUserPreset"><option value="">Your presets…</option></select>
       </div>
     </div>
@@ -272,9 +259,11 @@ function chainedSubs(subs){
   return applyVectorGroups(subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>({x:p.x,y:p.y}))})), GROUPS.vector);
 }
 function rasterCompute(){
-  const base=rasterize(chainedSubs(SRC.subs));
+  const chained=chainedSubs(SRC.subs);
+  const res=Organica.pathfx.pickAdaptiveRes(chained);
+  const base=rasterize(chained, res);
   const g=rasterFieldFromGroups(base, GROUPS.raster);
-  return rasterFieldToSubs(g, 1000/RES);
+  return rasterFieldToSubs(g, 1000/res);
 }
 
 // ============================================================
@@ -378,7 +367,7 @@ function buildPresets(){
 function switchTech(tech){
   if(tech===TECH) return;
   TECH=tech; CURRENT_PRESET=null;
-  $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.tech===tech));
+  $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.tech===tech));
   $('#tgChain').hidden=(tech!=='raster');          // chaining only makes sense feeding raster
   buildPresets(); renderStack(); render();
 }
@@ -389,14 +378,14 @@ function buildLayerEl(grp, layer, idx, reg){
   el.className='layer'+(layer.on?' on':' off')+(layer.open?' open':'');
   let body='';
   def.controls.forEach(([key,label,min,max,step])=>{
-    body+=`<div class="row"><label>${label}</label>
+    body+=`<div class="row"><div class="ctrl-label">${label}</div>
       <input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${layer.params[key]}">
       <span class="val">${layer.params[key]}</span></div>`;
   });
   body+=`<div class="row" style="margin-top:var(--space-2); gap:var(--space-2)">
     <button class="mini" data-act="up" ${idx===0?'disabled':''}>↑</button>
     <button class="mini" data-act="down" ${idx===grp.layers.length-1?'disabled':''}>↓</button>
-    <button class="mini" data-act="del" style="margin-left:auto; color:var(--accent)">remove</button></div>`;
+    <button class="mini" data-act="del" style="margin-left:auto; color:var(--danger)">remove</button></div>`;
   el.innerHTML=`<div class="layer-head">
       <div class="tog">✓</div><b>${def.name}</b><span class="chev">▶</span>
     </div><div class="layer-body">${body}</div>`;
@@ -439,10 +428,16 @@ function renderStack(){
     host.appendChild(gEl);
   });
   if(grouped){
-    const ng=document.createElement('button'); ng.className='btn newgroup'; ng.textContent='+ new group (overlap)';
+    const ng=document.createElement('button'); ng.className='mini-btn newgroup'; ng.textContent='+ new group (overlap)';
     ng.addEventListener('click',()=>{ groups.push(newGroup('union')); markCustom(); renderStack(); render(); });
     host.appendChild(ng);
   }
+  // renderStack() rebuilds every layer/group row from scratch on any edit —
+  // Organica.autoLabelPanel(document) only runs once at boot, so without
+  // this every freshly-built .row (each layer's Amount/Seed/… sliders) has
+  // no accessible name at all (the row's label is a plain sibling, not a
+  // wrapping <label> or a for="" association).
+  Organica.autoLabelPanel(host);
 }
 
 // ============================================================
@@ -585,7 +580,7 @@ function applyStateSnapshot(p){
   TECH=p.tech==='raster'?'raster':'vector';
   if(p.ink) swatches.ink.set(p.ink);
   if(p.bg) swatches.bg.set(p.bg);
-  $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.tech===TECH));
+  $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.tech===TECH));
   CHAIN=!!p.chain;
   $('#tgChain').hidden=(TECH!=='raster'); $('#tgChain').classList.toggle('on',CHAIN);
   CURRENT_PRESET=null;
