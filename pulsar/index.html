@@ -465,6 +465,7 @@
 <script src="/shared/palette.js"></script>
 <script src="/shared/recorder.js"></script>
 <script src="/shared/noise.js"></script>
+<script src="/shared/tracks.js"></script>
 <script src="/shared/radial.js"></script>
 <script>
 // ─────────────────────────────────────────────
@@ -606,40 +607,11 @@ function applyState(s) {
 const NTRACKS = 4;
 const PHASE_PARAMS = ['warpPhase', 'fillPhase', 'loopPhase'];
 
-function ease01(f, mode) {
-  f = f < 0 ? 0 : f > 1 ? 1 : f;
-  if (mode === 'in') return f * f;
-  if (mode === 'out') return 1 - (1 - f) * (1 - f);
-  if (mode === 'inOut') return f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
-  return f;
-}
-function tri(p) {
-  p = p - Math.floor(p);
-  if (p < 0.25) return p * 4;
-  if (p < 0.75) return 2 - p * 4;
-  return p * 4 - 4;
-}
-function easedCyc(cyc, mode) {
-  const w = Math.floor(cyc);
-  return w + ease01(cyc - w, mode);
-}
-function trackValue(t, tNorm) {
-  // period = whole CYCLES per master loop; an integer keeps the loop seamless.
-  const per = t.period > 0 ? t.period : 1;
-  if (t.wave === 'ramp-once') return t.amount * ease01(tNorm * per + t.phase, t.ease);
-  if (t.wave === 'spin') return t.amount * TAU * tNorm;   // continuous — phase params only
-  let cyc = tNorm * per + t.phase;
-  if (t.ease && t.ease !== 'linear') cyc = easedCyc(cyc, t.ease);
-  let v;
-  if (t.wave === 'triangle') v = t.amount * tri(cyc);
-  else if (t.wave === 'noise') {
-    const th = TAU * cyc, so = 13.37 * ((t.idx || 0) + 1);
-    v = t.amount * (N.fbm(Math.cos(th) + so, Math.sin(th) + so) - 0.5) * 2;
-  } else {
-    v = t.amount * Math.sin(TAU * cyc);   // sine — snap fp dust so cycle ends land exactly on 0
-  }
-  return Math.abs(v) < 1e-9 ? 0 : v;
-}
+// ease01/tri/easedCyc/trackValue now live in shared/tracks.js (extracted from
+// this exact code — Pulsar was the source, not a port) so any other tool can
+// reuse the same wave math without copying it by hand. Aliased here, zero
+// behaviour change — verified byte-identical against every built-in scene.
+const { ease01, tri, easedCyc, trackValue } = Organica.tracks;
 
 function readTracks() {
   const out = [];
