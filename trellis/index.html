@@ -36,6 +36,12 @@
 .trk .panel-select { margin-bottom: var(--space-1); }
 .one-shot { color: var(--tool); }
 #grid-hint { color: var(--mid); font-size: var(--fs-small); margin: 0; }
+
+/* Track Breathe — a multi-select chip row (which cols/rows breathe), unlike
+   .seg-ctrl's exclusive-select flex:1 buttons — chips wrap and keep their
+   own width so a grid with many columns doesn't squash every chip flat. */
+.chip-row { display: flex; flex-wrap: wrap; gap: 2px; }
+.chip-row .seg-btn { flex: none; min-width: 1.8em; }
 </style>
 </head>
 <body>
@@ -208,6 +214,13 @@
       <div id="tracks"></div>
     </div>
 
+    <div class="panel-section" id="section-breathe" style="display:none">
+      <h3>Track Breathe <span class="hint">animates column/row sizes — rect grids only</span></h3>
+      <p class="org-panel__hint" id="breathe-fit-hint" style="display:none">Content only follows breathing tracks in <b>Fit to cell</b> — switch Content's fit mode above to see the effect.</p>
+      <div id="breathe-cols"></div>
+      <div id="breathe-rows"></div>
+    </div>
+
   </div><!-- /panel -->
 </div>
 
@@ -222,6 +235,7 @@
 <script src="/shared/palette.js"></script>
 <script src="/shared/recorder.js"></script>
 <script src="/shared/noise.js"></script>
+<script src="/shared/tracks.js"></script>
 <script src="/shared/shapes.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────────────────
@@ -242,7 +256,7 @@ function ctrl(id) { return document.getElementById(id); }
 function val(id) { return parseFloat(ctrl(id).value); }
 function seg(id) { return ctrl(id).querySelector('.seg-btn.active').dataset.v; }
 const setStatus = Organica.status();
-const S = Organica.shapes, N = Organica.noise, TAU = Math.PI * 2;
+const S = Organica.shapes;
 
 const canvas = ctrl('preview');
 const pctx = canvas.getContext('2d');
@@ -252,7 +266,7 @@ const SIZE = canvas.width;
 // gridRaw = the exact Organica.loadLoomGrid() return: {canvas, grid, inner,
 // cellShape, cells}. gridWrap wraps it FVS-style ({kind:'loom', cellShape,
 // cells, width, height}) for shared/shapes.js's resolveGridCells/cellColRow.
-let gridRaw = null, gridWrap = null;
+let gridRaw = null, gridWrap = null, rawModel = null;
 let centers = [], ctxs = [], cellCount = 0;
 
 function buildGridWrap(raw) {
@@ -265,6 +279,7 @@ function loadGrid(model) {
     setStatus('', 'Could not read that grid: ' + e.message);
     return;
   }
+  rawModel = model;   // kept for Track Breathe — re-fed to Organica.loadLoomGrid() each frame with animated tracks.cols/rows
   gridWrap = buildGridWrap(gridRaw);
   centers = S.resolveGridCells(gridWrap);
   ctxs = S.cellColRow(gridWrap, gridRaw.cells, gridRaw.grid);
@@ -273,6 +288,7 @@ function loadGrid(model) {
   ['btn-playpause', 'btn-stop', 'btn-export'].forEach(id => ctrl(id).disabled = false);
   buildInkChips();
   updateOneShotNote();
+  syncBreatheUI();
   stopPlayback();
   setStatus('active', cellCount + ' cells loaded');
 }
@@ -318,6 +334,7 @@ function setShape(btn) {
 }
 function setFit(btn) {
   ctrl('seg-fit').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+  updateBreatheFitHint();
   scheduleStill();
 }
 // The grid's own reference cell size (median across all cells) — the
@@ -354,48 +371,15 @@ function buildInkChips() {
 }
 function colorAt(i) { return inkColors[i % inkColors.length]; }
 
-// ── MOTION — track model, ported from Pulsar's trackValue/composeP ──────
-// Two track types for Phase 1: 'colour' (lerps between two stops) and
-// 'scale' (pulses the cell's own placement scale). Each evaluated per cell
-// at tNorm with an added per-cell phase offset (the stagger axis) — the
-// wave math itself is untouched Pulsar code.
+// ── MOTION — track model, built on shared/tracks.js ──────────────────────
+// Two track types for now: 'colour' (lerps between two stops) and 'scale'
+// (pulses the cell's own placement scale). Both are registered kinds in
+// Organica.tracks.types — this file only decides WHAT the returned value
+// drives (colour vs. animScale) and how several tracks of the same kind
+// combine (overwrite vs. product), same shared/tool split the module's own
+// header documents. A future kind (Rotation/Drift/Reveal) is added once in
+// shared/tracks.js and this file just gains one more `else if` branch.
 const NTRACKS = 2;
-function ease01(f, mode) {
-  f = f < 0 ? 0 : f > 1 ? 1 : f;
-  if (mode === 'in') return f * f;
-  if (mode === 'out') return 1 - (1 - f) * (1 - f);
-  if (mode === 'inOut') return f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
-  return f;
-}
-function tri(p) { p = p - Math.floor(p); if (p < 0.25) return p * 4; if (p < 0.75) return 2 - p * 4; return p * 4 - 4; }
-function easedCyc(cyc, mode) { const w = Math.floor(cyc); return w + ease01(cyc - w, mode); }
-// trackValue(t, tNorm) — verbatim from Pulsar (pulsar/index.html), amount is
-// in the track's own units (a 0..1 fraction for both Colour and Scale here).
-function trackValue(t, tNorm) {
-  const per = t.period > 0 ? t.period : 1;
-  if (t.wave === 'ramp-once') return t.amount * ease01(tNorm * per + t.phase, t.ease);
-  let cyc = tNorm * per + t.phase;
-  if (t.ease && t.ease !== 'linear') cyc = easedCyc(cyc, t.ease);
-  let v;
-  if (t.wave === 'triangle') v = t.amount * tri(cyc);
-  else if (t.wave === 'noise') {
-    const th = TAU * cyc, so = 13.37 * ((t.idx || 0) + 1);
-    v = t.amount * (N.fbm(Math.cos(th) + so, Math.sin(th) + so) - 0.5) * 2;
-  } else v = t.amount * Math.sin(TAU * cyc);
-  return Math.abs(v) < 1e-9 ? 0 : v;
-}
-// Per-cell phase offset — the by:index/distance/noise formula from
-// shared/motion.js's staggerDelay, ported as pure phase math (not the GSAP
-// wrapper) + row/col added (natural for a grid, absent from the original).
-function staggerPhase(c, by, amount) {
-  if (!amount || by === 'none') return 0;
-  if (by === 'index') return (c.count > 1 ? c.index / (c.count - 1) : 0) * amount;
-  if (by === 'row') return (c.rows > 1 ? c.row / (c.rows - 1) : 0) * amount;
-  if (by === 'col') return (c.cols > 1 ? c.col / (c.cols - 1) : 0) * amount;
-  if (by === 'distance') return Math.min(1, Math.hypot(c.nx, c.ny)) * amount;
-  if (by === 'noise') return N.fbm(c.cx * 0.004, c.cy * 0.004) * amount;
-  return 0;
-}
 
 function buildTrackRow(i) {
   const div = document.createElement('div');
@@ -495,9 +479,210 @@ function readTracks() {
 function sceneIsOneShot() { return readTracks().some(t => t.wave === 'ramp-once'); }
 function updateOneShotNote() { ctrl('one-shot-note').style.display = sceneIsOneShot() ? '' : 'none'; }
 
+// ── GRID MOTION — Track Breathe: animates the grid's own column/row track
+// sizes (Loom's grid.tracks.cols/rows), not a per-cell visual output. A
+// different pipeline stage from the Motion tracks above — those modify an
+// already-placed cell's colour/scale; this changes the INPUT geometry a
+// cell is placed against, before resolveCellPlacement ever runs. Rect grids
+// only (Bento/Sinusoidal/Rectangular) — polygon/hex grids have no track-size
+// concept to animate. Reuses Organica.tracks.trackValue/staggerDelay as-is;
+// not a registered track TYPE because its output (a whole array of sizes)
+// isn't the scalar/colour shape the registry models — this stays a small
+// local composition function, same shared/local split as everywhere else.
+function buildBreathePanel(axis, label) {
+  const div = document.createElement('div');
+  div.className = 'trk';
+  const p = 'br-' + axis + '-';
+  div.innerHTML = `
+    <div class="ctrl-row">
+      <div class="ctrl-label">${label}</div>
+      <input type="checkbox" id="${p}enabled" onchange="updateBreatheFitHint(); scheduleStill();">
+    </div>
+    ${axis === 'rows' ? `<div class="ctrl-row">
+      <div class="ctrl-label">Link to Columns</div>
+      <input type="checkbox" id="br-rows-link" onchange="syncRowsLinkUI(); scheduleStill();">
+    </div>` : ''}
+    <div class="ctrl-row" id="${p}row-indices">
+      <div class="ctrl-label">Indices</div>
+      <div class="chip-row" id="${p}indices"></div>
+    </div>
+    <div class="ctrl-row" id="${p}row-wave">
+      <div class="ctrl-label">Wave</div>
+      <select class="panel-select" id="${p}wave">
+        <option value="sine">Sine</option>
+        <option value="triangle">Triangle</option>
+        <option value="noise">Noise</option>
+      </select>
+    </div>
+    <div class="ctrl-row" id="${p}row-amount">
+      <div class="ctrl-label">Amount</div>
+      <input type="range" id="${p}amount" min="0" max="1" step="0.01" value="0.2">
+      <span class="ctrl-val" id="v-${p}amount">0.2</span>
+    </div>
+    <div class="ctrl-row" id="${p}row-period">
+      <div class="ctrl-label">Period</div>
+      <input type="range" id="${p}period" min="1" max="4" step="1" value="1">
+      <span class="ctrl-val" id="v-${p}period">1</span>
+    </div>
+    <div class="ctrl-row" id="${p}row-phase">
+      <div class="ctrl-label">Phase</div>
+      <input type="range" id="${p}phase" min="0" max="1" step="0.01" value="0">
+      <span class="ctrl-val" id="v-${p}phase">0</span>
+    </div>
+    <div class="ctrl-row" id="${p}row-ease">
+      <div class="ctrl-label">Ease</div>
+      <select class="panel-select" id="${p}ease">
+        <option value="linear">Linear</option>
+        <option value="inOut">Ease in-out</option>
+        <option value="in">Ease in</option>
+        <option value="out">Ease out</option>
+      </select>
+    </div>
+    <div class="ctrl-row" id="${p}row-staggerby">
+      <div class="ctrl-label">Stagger by</div>
+      <select class="panel-select" id="${p}staggerby">
+        <option value="none">None (all together)</option>
+        <option value="index" selected>Index (travelling wave)</option>
+      </select>
+    </div>
+    <div class="ctrl-row" id="${p}row-staggeramt">
+      <div class="ctrl-label">Stagger amount</div>
+      <input type="range" id="${p}staggeramt" min="0" max="2" step="0.05" value="1">
+      <span class="ctrl-val" id="v-${p}staggeramt">1</span>
+    </div>`;
+  return div;
+}
+// Index chips — a multi-select toggle row (not .seg-ctrl's exclusive
+// select): "All" toggles every chip together, an individual chip toggles
+// just itself and re-syncs "All"'s own state to whether everything is on.
+function renderIndexChips(axis, count) {
+  const wrap = ctrl('br-' + axis + '-indices');
+  wrap.innerHTML = '<button class="seg-btn active" data-all="1">All</button>' +
+    Array.from({ length: count }, (_, i) => `<button class="seg-btn active" data-idx="${i}">${i}</button>`).join('');
+}
+function bindIndexChipClicks(axis) {
+  ctrl('br-' + axis + '-indices').addEventListener('click', e => {
+    const btn = e.target.closest('.seg-btn');
+    if (!btn) return;
+    const wrap = btn.parentElement;
+    if (btn.dataset.all) {
+      const turnOn = !btn.classList.contains('active');
+      wrap.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', turnOn));
+    } else {
+      btn.classList.toggle('active');
+      const idxBtns = wrap.querySelectorAll('.seg-btn:not([data-all])');
+      const allOn = Array.from(idxBtns).every(b => b.classList.contains('active'));
+      wrap.querySelector('[data-all]').classList.toggle('active', allOn);
+    }
+    scheduleStill();
+  });
+}
+// Shows/hides the whole section (rect grids only) and rebuilds the index
+// chips for the grid's own current column/row counts — called on every
+// loadGrid().
+function syncBreatheUI() {
+  const isRect = gridRaw && gridRaw.cellShape === 'rect';
+  ctrl('section-breathe').style.display = isRect ? '' : 'none';
+  if (!isRect) return;
+  renderIndexChips('cols', rawModel.grid.tracks.cols.length);
+  renderIndexChips('rows', rawModel.grid.tracks.rows.length);
+}
+function readBreatheSpec(axis) {
+  const p = 'br-' + axis + '-';
+  const idxBtns = Array.from(ctrl(p + 'indices').querySelectorAll('.seg-btn:not([data-all])'));
+  const selected = idxBtns.filter(b => b.classList.contains('active')).map(b => parseInt(b.dataset.idx, 10));
+  const allSelected = selected.length === idxBtns.length;
+  return {
+    enabled: ctrl(p + 'enabled').checked,
+    indices: allSelected ? null : new Set(selected),   // null = every index (the "whole axis" case)
+    wave: ctrl(p + 'wave').value,
+    amount: val(p + 'amount'),
+    period: val(p + 'period'),
+    phase: val(p + 'phase'),
+    ease: ctrl(p + 'ease').value,
+    staggerBy: ctrl(p + 'staggerby').value,
+    staggerAmount: val(p + 'staggeramt'),
+  };
+}
+// Disables Rows' own controls while linked (its spec is read from Columns
+// instead — see rowsBreatheSpec()) so it's visually clear which panel is
+// actually driving the animation.
+function syncRowsLinkUI() {
+  const linked = ctrl('br-rows-link').checked;
+  ['enabled', 'indices', 'wave', 'amount', 'period', 'phase', 'ease', 'staggerby', 'staggeramt'].forEach(k => {
+    ctrl('br-rows-' + k).style.pointerEvents = linked ? 'none' : '';
+    ctrl('br-rows-' + k).style.opacity = linked ? 0.4 : '';
+  });
+}
+function colsBreatheSpec() { return readBreatheSpec('cols'); }
+function rowsBreatheSpec() { return ctrl('br-rows-link').checked ? colsBreatheSpec() : readBreatheSpec('rows'); }
+function trackBreatheActive() {
+  return gridRaw && gridRaw.cellShape === 'rect' && (colsBreatheSpec().enabled || rowsBreatheSpec().enabled);
+}
+// computeAxisSizes(spec, baseSizes, tNorm) — one track-size array (cols OR
+// rows), animated. Unselected indices pass through untouched at their base
+// size; selected ones get staggerDelay's 'index' formula computed over their
+// OWN position within the selection (0..selCount-1), not the axis's raw
+// index — so "stagger by index" still produces a clean travelling wave
+// across just the cells the user actually picked, not gaps for the ones
+// left out.
+function computeAxisSizes(spec, baseSizes, tNorm) {
+  if (!spec.enabled) return baseSizes;
+  const selMask = spec.indices ? baseSizes.map((_, i) => spec.indices.has(i)) : baseSizes.map(() => true);
+  const selCount = selMask.filter(Boolean).length;
+  if (!selCount) return baseSizes;
+  let seen = 0;
+  const raw = baseSizes.map((size, i) => {
+    if (!selMask[i]) return size;
+    const ctx = { index: seen, count: selCount };
+    seen++;
+    const phase = spec.phase + Organica.tracks.staggerDelay(ctx, spec.staggerBy, spec.staggerAmount);
+    const v = Organica.tracks.trackValue({ ...spec, phase }, tNorm);
+    return Math.max(1, size * (1 + v));
+  });
+  // Renormalize the SELECTED subset only, so its combined size always
+  // equals its own original combined size — growing one column/row borrows
+  // space from the others in the same selection, it never inflates the
+  // grid's own total. Untouched (unselected) tracks and the grid's overall
+  // frame size stay exactly fixed; only the internal distribution moves.
+  let selBase = 0, selRaw = 0;
+  for (let i = 0; i < baseSizes.length; i++) if (selMask[i]) { selBase += baseSizes[i]; selRaw += raw[i]; }
+  const norm = selRaw > 0 ? selBase / selRaw : 1;
+  return raw.map((size, i) => selMask[i] ? Math.max(1, size * norm) : size);
+}
+// buildAnimatedGridRaw(tNorm) — re-derives the grid's cell rects for animated
+// track sizes by re-feeding Organica.loadLoomGrid() (the public API) a model
+// with modified grid.tracks.cols/rows — same cascade-of-offsets math Loom's
+// own private loomResolveCellRects() already does, no need to duplicate it.
+function buildAnimatedGridRaw(tNorm) {
+  if (!trackBreatheActive()) return gridRaw;
+  const cSpec = colsBreatheSpec(), rSpec = rowsBreatheSpec();
+  const newCols = computeAxisSizes(cSpec, rawModel.grid.tracks.cols, tNorm);
+  const newRows = computeAxisSizes(rSpec, rawModel.grid.tracks.rows, tNorm);
+  const animModel = { canvas: rawModel.canvas, cells: rawModel.cells,
+    grid: { ...rawModel.grid, tracks: { cols: newCols, rows: newRows } } };
+  return Organica.loadLoomGrid(animModel);
+}
+function updateBreatheFitHint() {
+  ctrl('breathe-fit-hint').style.display = (trackBreatheActive() && seg('seg-fit') === 'fixed') ? '' : 'none';
+}
+
 // ── RENDER — build the per-cell draw list once, canvas + SVG both read it ──
 const CEIL = 2000;   // element-count guard (Pulsar's own CEIL precedent)
 let curT = 0;
+// Track Breathe changes the grid's own geometry (column/row sizes), so
+// centers/ctxs are no longer frame-stable while it's active — recomputed
+// fresh only when needed, the cached (loadGrid-time) versions otherwise so
+// every other track pays zero extra cost. Shared by buildDrawList (the
+// shapes) AND drawGridOverlay (the debug outline) — both must read the same
+// geometry, or the outline silently drifts from what's actually drawn.
+function getLiveGeometry(tNorm) {
+  const breathing = trackBreatheActive();
+  if (!breathing) return { centers, ctxs };
+  const liveGridRaw = buildAnimatedGridRaw(tNorm);
+  const liveWrap = buildGridWrap(liveGridRaw);
+  return { centers: S.resolveGridCells(liveWrap), ctxs: S.cellColRow(liveWrap, liveGridRaw.cells, liveGridRaw.grid) };
+}
 function buildDrawList(tNorm) {
   const geo = shapeGeometry();
   const baseScale = val('rg-cell-scale') / 100;
@@ -505,18 +690,16 @@ function buildDrawList(tNorm) {
   const fit = seg('seg-fit');   // 'fixed' (uniform, default) | 'contain' (per-cell)
   const fixedSize = refCellSize() * (1 - padding);
   const tracks = readTracks();
+  const { centers: liveCenters, ctxs: liveCtxs } = getLiveGeometry(tNorm);
   const list = new Array(cellCount);
   for (let i = 0; i < cellCount; i++) {
-    const c = centers[i], ctx = ctxs[i];
+    const c = liveCenters[i], ctx = liveCtxs[i];
     let colour = colorAt(i), animScale = 1;
     for (const t of tracks) {
-      const phase = t.phase + staggerPhase(ctx, t.staggerBy, t.staggerAmount);
-      const v = trackValue({ ...t, phase }, tNorm);
       if (t.type === 'colour') {
-        const score = 0.5 + 0.5 * v;   // amount fixed at 1 for colour tracks — full A..B swing
-        colour = Organica.palette.mix(t.colourA, t.colourB, score);
+        colour = Organica.tracks.compute('colour', t, tNorm, ctx);
       } else if (t.type === 'scale') {
-        animScale *= Math.max(0.02, 1 + v);
+        animScale *= Organica.tracks.compute('scale', t, tNorm, ctx);
       }
     }
     // baseScale (the Scale slider) is applied here, uniformly across both fit
@@ -542,16 +725,20 @@ function drawList(gctx, list, originX, originY, unit) {
   }
 }
 // Debug/preview overlay — strokes every cell's own bounding box (from
-// `centers`, the same grid-centred coordinates content is placed against),
-// so a grid import can be visually checked for correct centring/mapping
-// independent of whatever shape/scale/motion is currently applied.
-function drawGridOverlay(gctx, originX, originY, unit) {
+// `centers` (or, with Track Breathe active, the SAME live geometry
+// buildDrawList used for this frame via getLiveGeometry — otherwise the
+// outline would silently show the static base grid while the shapes move),
+// so a grid import — or a breathing grid — can be visually checked for
+// correct centring/mapping independent of whatever shape/scale/motion is
+// currently applied.
+function drawGridOverlay(gctx, originX, originY, unit, tNorm) {
   gctx.save();
   gctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--tool').trim() || '#c9587a';
   gctx.lineWidth = 1;
   gctx.globalAlpha = 0.8;
+  const { centers: liveCenters } = getLiveGeometry(tNorm);
   for (let i = 0; i < cellCount; i++) {
-    const c = centers[i];
+    const c = liveCenters[i];
     const x = originX + (c.cx - c.cellW / 2) * unit;
     const y = originY + (c.cy - c.cellH / 2) * unit;
     gctx.strokeRect(x, y, c.cellW * unit, c.cellH * unit);
@@ -570,7 +757,7 @@ function renderFrameAt(tNorm) {
   const originX = SIZE / 2, originY = SIZE / 2, unit = SIZE / (S.frameSize(gridWrap) || SIZE);
   pctx.setTransform(1, 0, 0, 1, 0, 0);
   drawList(pctx, list, originX, originY, unit);
-  if (ctrl('ck-show-grid').checked) drawGridOverlay(pctx, originX, originY, unit);
+  if (ctrl('ck-show-grid').checked) drawGridOverlay(pctx, originX, originY, unit, tNorm);
   if (!playing) setStatus('active', cellCount + ' cells · t=' + tNorm.toFixed(2));
 }
 let stillQueued = false;
@@ -668,6 +855,10 @@ for (let i = 0; i < NTRACKS; i++) {
 paperSwatch = Organica.palette.swatch('paper', { initial: '#f2efe6', onChange: scheduleStill });
 buildInkChips();
 syncShapeRows();
+ctrl('breathe-cols').appendChild(buildBreathePanel('cols', 'Columns'));
+ctrl('breathe-rows').appendChild(buildBreathePanel('rows', 'Rows'));
+bindIndexChipClicks('cols');
+bindIndexChipClicks('rows');
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 Organica.popover(ctrl('btn-loop'), ctrl('loop-popover'));
 

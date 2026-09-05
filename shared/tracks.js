@@ -20,7 +20,8 @@
    geometry and each tool's own placement logic.
 
    Load order: AFTER noise.js (trackValue's 'noise' wave and staggerDelay's
-   'noise' by both call Organica.noise.fbm), BEFORE the tool's own script.
+   'noise' by both call Organica.noise.fbm) AND palette.js (the 'colour' track
+   type's compute() calls Organica.palette.mix), BEFORE the tool's own script.
 
    Everything hangs off window.Organica.tracks.*
    ───────────────────────────────────────────────────────────── */
@@ -111,5 +112,59 @@
     return 0;
   }
 
-  Organica.tracks = { ease01, tri, easedCyc, trackValue, staggerDelay };
+  // ── TRACK-TYPE REGISTRY ────────────────────────────────────────────────
+  // What a *kind* of track (Colour cycle, Scale pulse, and future kinds like
+  // Rotation/Drift/Reveal) computes for one instance at one tNorm — so a new
+  // kind is added once here and any track-driven tool gets it, instead of
+  // every tool re-deriving the same "phase = t.phase + staggerDelay(...);
+  // trackValue({...t, phase}, tNorm)" composition by hand.
+  //
+  // A registry entry owns ONLY `compute(t, tNorm, ctx) → value` — the pure
+  // math for that kind, already folding in staggerDelay(). It does NOT own
+  // what the returned value MEANS to a caller (a hex colour string here, a
+  // multiplier there, a radian angle for a future Rotation) or how several
+  // tracks of the same kind combine (overwrite for colour, product for
+  // scale, sum for a future Rotation) — that composition is still the
+  // tool's own job (Trellis's buildDrawList, Pulsar's composeP), the same
+  // boundary this file's header already draws between shared math and
+  // per-tool composition. Registering a kind only saves a tool from
+  // re-writing ITS math; it never decides for the tool what to do with it.
+  //
+  // To add a new kind: `Organica.tracks.types.myKind = { compute(t, tNorm,
+  // ctx) { ... return value; } }` — no other file needs to change for the
+  // kind to exist; a tool opts in by calling `Organica.tracks.compute
+  // ('myKind', t, tNorm, ctx)` from its own track loop and deciding what the
+  // returned value drives.
+  const types = {
+    // Colour cycle — lerps between two colour stops. `amount` is fixed at 1
+    // by convention (every caller so far reads a full A..B swing; a partial
+    // swing is just two closer stops, not a smaller amount) — compute()
+    // doesn't enforce that, a caller's `readTracks()` does.
+    colour: {
+      compute(t, tNorm, ctx) {
+        const phase = t.phase + staggerDelay(ctx, t.staggerBy, t.staggerAmount);
+        const v = trackValue({ ...t, phase }, tNorm);
+        const score = 0.5 + 0.5 * v;
+        return Organica.palette.mix(t.colourA, t.colourB, score);
+      },
+    },
+    // Scale pulse — a multiplier around 1, clamped so it never reaches/
+    // crosses 0 (a negative or zero scale is degenerate, not just "small").
+    scale: {
+      compute(t, tNorm, ctx) {
+        const phase = t.phase + staggerDelay(ctx, t.staggerBy, t.staggerAmount);
+        const v = trackValue({ ...t, phase }, tNorm);
+        return Math.max(0.02, 1 + v);
+      },
+    },
+  };
+  // compute(type, t, tNorm, ctx) — the dispatcher a tool's own track loop
+  // calls; undefined for an unregistered type (a tool falls back to its own
+  // handling, e.g. a kind it hasn't migrated into the registry yet).
+  function compute(type, t, tNorm, ctx) {
+    const entry = types[type];
+    return entry ? entry.compute(t, tNorm, ctx) : undefined;
+  }
+
+  Organica.tracks = { ease01, tri, easedCyc, trackValue, staggerDelay, types, compute };
 })(window);
