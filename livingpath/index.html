@@ -13,141 +13,107 @@
   <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
   :root{
-  --paper:#ffffff; --mid:#726a5e; --panel:#eceae4; --tool:#b48cf0;
-  --border-strong:#958462;
-    --bg:#ffffff; --card:#faf8f3;
-    --ink:#0a0a0a; --ink-soft:#3a352e; --ink-muted:#696256;
-    --line:rgba(10,10,10,.10); --line-soft:rgba(10,10,10,.06);
-    --pollen:#c8a83a; --pollen-bright:#e8c84a; --accent:#b0532a;
-
+    /* Design-system audit, 2026-09-05: this used to redeclare the entire
+       surface palette (--paper/--mid/--panel/--ink all here, some at
+       different values than the shared defaults — --mid was #726a5e vs the
+       system's audited-for-contrast #696256) plus a set of Living-Path-only
+       names (--card/--bg/--ink-soft/--ink-muted/--line/--line-soft/--pollen)
+       that duplicated existing tokens under different names and fought the
+       shared shared/panel.css alias rules instead of feeding them. Down to
+       --tool + the one legitimate optional override panel.css itself
+       supports (--border-strong). See CLAUDE.md's session note for the
+       token→token mapping used throughout this file. */
+    --tool:#b48cf0;
+    --border-strong:#958462;
   }
   html,body{height:100%}
   body{
-    background:var(--bg); color:var(--ink); font-family:var(--font);
+    background:var(--paper); color:var(--ink); font-family:var(--font);
     font-size:var(--fs-large); display:flex; flex-direction:column; overflow:hidden;
   }
-  /* ── top bar ── */
-  .top{
-    display:flex; align-items:center; gap:var(--space-6); padding:var(--space-4) var(--space-6);
-    border-bottom:1px solid var(--line); background:var(--panel); flex:0 0 auto;
-  }
-  .brand{display:flex; align-items:baseline; gap:var(--space-4); text-decoration:none}
-  .brand b{font-family:var(--display); font-weight:800; font-size:var(--fs-xl); letter-spacing:-.01em; color:var(--ink)}
-  .brand span{font-size:var(--fs-small); letter-spacing:.22em; color:var(--ink-muted)}
-  .home{font-size:var(--fs-base); color:var(--ink-muted); text-decoration:none; letter-spacing:.1em}
-  .home:hover{color:var(--ink)}
-  .top .sp{flex:1}
-  .status{font-size:var(--fs-base); color:var(--ink-muted); letter-spacing:.04em; min-width:120px; text-align:right}
-  .btn{
-    font-family:var(--font); font-size:var(--fs-medium); padding:var(--space-3) var(--space-5); cursor:pointer;
-    background:var(--card); color:var(--ink); border:1px solid var(--line);
-    border-radius:var(--radius-lg); transition:.16s; letter-spacing:.03em;
-  }
-  .btn:hover{background:var(--ink); color:var(--bg); border-color:var(--ink)}
-  .btn.pri{background:var(--ink); color:var(--bg); border-color:var(--ink)}
-  .btn.pri:hover{background:var(--pollen); border-color:var(--pollen); color:var(--ink)}
-  .btn:disabled{opacity:.4; cursor:not-allowed}
   /* ── layout ── */
   .shell{flex:1; display:flex; min-height:0}
   .panel{
-    width:var(--panel-w); flex:0 0 var(--panel-w); background:var(--paper); border-right:1px solid var(--line);
+    width:var(--panel-w); flex:0 0 var(--panel-w); background:var(--paper); border-right:1px solid var(--border);
     overflow-y:auto; padding:0 0 40px;
   }
-  .panel.right{border-right:none; border-left:1px solid var(--line)}
+  .panel.right{border-right:none; border-left:1px solid var(--border)}
   .stage{
     flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
     background:
-      radial-gradient(circle at 30% 25%, rgba(200,168,58,.05), transparent 60%),
-      var(--bg);
+      radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--tool) 8%, transparent), transparent 60%),
+      var(--paper);
     position:relative; overflow:hidden;
   }
   .stage.drag::after{
     content:'drop a font'; position:absolute; inset:14px; z-index:5;
     display:flex; align-items:center; justify-content:center;
-    border:2px dashed var(--pollen); border-radius:var(--radius-lg); background:rgba(200,168,58,.08);
-    font-size:var(--fs-large); letter-spacing:.1em; color:var(--ink-soft);
+    border:2px dashed var(--tool); border-radius:var(--radius-lg); background:color-mix(in srgb, var(--tool) 8%, transparent);
+    font-size:var(--fs-large); letter-spacing:.1em; color:var(--ink);
   }
   /* ── panel sections ── */
-  .sec{border-bottom:1px solid var(--line-soft); padding:var(--space-5) var(--space-6)}
-  /* section heading comes from shared/panel.css — only the margin
-     is local, because Living Path's sections are more tightly packed */
+  /* .sec/.row/.row .val are aliased to .panel-section/.ctrl-row/.ctrl-val by
+     shared/panel.css — only genuine local deltas stay here (a wider label
+     column for this panel's longer words, tighter section padding). */
   .sec h3{margin:0 0 8px}
-  .row{display:flex; align-items:center; gap:var(--space-4); margin-bottom:var(--space-4)}
-  .row:last-child{margin-bottom:0}
-  /* type comes from the panel/label role — only the column width is local */
-  .row label{flex:0 0 76px; font-size:var(--t-label-size); font-weight:var(--t-label-weight); color:var(--ink-soft); letter-spacing:0;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  /* min-width:0 is required: a range input has a ~129px intrinsic width and
-     flex items default to min-width:auto, so it refuses to shrink and pushes
-     the value read-out outside the panel. */
-  /* type from the panel/value role — only the column width is local */
-  .row .val{flex:0 0 34px; text-align:right; font-size:var(--t-value-size); font-weight:var(--t-value-weight); color:var(--ink-muted); font-variant-numeric:tabular-nums}
+  .row .ctrl-label{flex:0 0 76px; min-width:0; overflow:hidden; text-overflow:ellipsis}
   .drop{
-    border:1.5px dashed var(--line); border-radius:var(--radius-lg); padding:var(--space-6) var(--space-5); text-align:center;
-    cursor:pointer; transition:.16s; background:var(--card);
+    border:1.5px dashed var(--border); border-radius:var(--radius-lg); padding:var(--space-6) var(--space-5); text-align:center;
+    cursor:pointer; transition:.16s; background:var(--panel);
   }
-  .drop:hover,.drop.over{border-color:var(--pollen); background:#fff}
+  .drop:hover,.drop.over{border-color:var(--tool); background:var(--paper)}
   .drop b{display:block; font-size:var(--fs-medium); margin-bottom:var(--space-1)}
-  .drop small{font-size:var(--fs-small); color:var(--ink-muted); line-height:1.5}
-  .seg{display:flex; gap:0; border:1px solid var(--line); border-radius:var(--radius-lg); overflow:hidden; margin-bottom:var(--space-4)}
-  .seg button{
-    flex:1; font-family:var(--font); font-size:var(--fs-base); padding:var(--space-2) var(--space-1); cursor:pointer;
-    background:var(--card); color:var(--ink-soft); border:none; border-right:1px solid var(--line); transition:.14s;
-  }
-  .seg button:last-child{border-right:none}
-  .seg button.on{background:var(--ink); color:var(--bg)}
+  .drop small{font-size:var(--fs-small); color:var(--mid); line-height:1.5}
   /* ── effect layers ── */
   .layer{
-    background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg);
+    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg);
     margin-bottom:var(--space-3); overflow:hidden;
   }
   .layer.off{opacity:.5}
   .layer-head{display:flex; align-items:center; gap:var(--space-3); padding:var(--space-3) var(--space-4); cursor:pointer; user-select:none}
   .layer-head .tog{
-    width:15px; height:15px; flex:0 0 15px; border:1.5px solid var(--ink-muted); border-radius:var(--radius-md);
-    display:flex; align-items:center; justify-content:center; font-size:var(--fs-small); color:var(--bg);
+    width:15px; height:15px; flex:0 0 15px; border:1.5px solid var(--mid); border-radius:var(--radius-md);
+    display:flex; align-items:center; justify-content:center; font-size:var(--fs-small); color:var(--paper);
   }
-  .layer.on .layer-head .tog{background:var(--pollen); border-color:var(--pollen); color:var(--ink)}
+  .layer.on .layer-head .tog{background:var(--tool); border-color:var(--tool); color:var(--ink)}
   .layer-head b{flex:1; font-size:var(--fs-base); font-weight:500; letter-spacing:.04em}
-  .layer-head .chev{font-size:var(--fs-micro); color:var(--ink-muted); transition:.16s}
+  .layer-head .chev{font-size:var(--fs-micro); color:var(--mid); transition:.16s}
   .layer.open .layer-head .chev{transform:rotate(90deg)}
   .layer-body{padding:var(--space-1) var(--space-4) 11px; display:none}
   .layer.open .layer-body{display:block}
   .presets{position:relative}
-  .preset-trigger{display:flex; align-items:center; gap:var(--space-3); width:100%; font-family:var(--font); font-size:var(--fs-medium); padding:var(--space-2) var(--space-4); cursor:pointer; background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:var(--radius-lg); transition:.14s}
-  .preset-trigger:hover{border-color:var(--pollen)}
-  .pt-ico{width:22px; height:22px; flex:0 0 22px; border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; background:#fff}
+  .preset-trigger{display:flex; align-items:center; gap:var(--space-3); width:100%; font-family:var(--font); font-size:var(--fs-medium); padding:var(--space-2) var(--space-4); cursor:pointer; background:var(--panel); color:var(--ink); border:1px solid var(--border); border-radius:var(--radius-lg); transition:.14s}
+  .preset-trigger:hover{border-color:var(--tool)}
+  .pt-ico{width:22px; height:22px; flex:0 0 22px; border:1px solid var(--border); border-radius:var(--radius-md); overflow:hidden; background:var(--paper)}
   .pt-ico svg, .pi-ico svg{width:100%; height:100%; display:block}
   .pt-name{flex:1; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .pt-chev{color:var(--ink-muted); font-size:var(--fs-small)}
-  .preset-menu{position:fixed; z-index:40; background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg); box-shadow:0 10px 28px rgba(10,10,10,.18); padding:var(--space-2); overflow-y:auto; display:flex; flex-direction:column; gap:var(--space-1)}
+  .pt-chev{color:var(--mid); font-size:var(--fs-small)}
+  .preset-menu{position:fixed; z-index:40; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:0 10px 28px rgba(10,10,10,.18); padding:var(--space-2); overflow-y:auto; display:flex; flex-direction:column; gap:var(--space-1)}
   .preset-menu[hidden]{display:none}   /* [hidden] must beat display:flex */
-  .preset-item{display:flex; flex-direction:row; align-items:center; gap:var(--space-4); padding:var(--space-2) var(--space-3); cursor:pointer; background:transparent; border:1px solid transparent; border-radius:var(--radius-lg); font-family:var(--font); font-size:var(--fs-medium); color:var(--ink-soft); transition:.12s; text-align:left}
-  .preset-item:hover{background:var(--panel); border-color:var(--line)}
-  .preset-item.on{border-color:var(--pollen); color:var(--ink)}
-  .pi-ico{width:26px; height:26px; flex:0 0 26px; border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; background:#fff}
+  .preset-item{display:flex; flex-direction:row; align-items:center; gap:var(--space-4); padding:var(--space-2) var(--space-3); cursor:pointer; background:transparent; border:1px solid transparent; border-radius:var(--radius-lg); font-family:var(--font); font-size:var(--fs-medium); color:var(--ink); transition:.12s; text-align:left}
+  .preset-item:hover{background:var(--panel); border-color:var(--border)}
+  .preset-item.on{border-color:var(--tool); color:var(--ink)}
+  .pi-ico{width:26px; height:26px; flex:0 0 26px; border:1px solid var(--border); border-radius:var(--radius-md); overflow:hidden; background:var(--paper)}
   .pi-name{flex:1; line-height:1.2}
   /* groups */
-  .group{ border:1px solid var(--line); border-radius:var(--radius-lg); padding:var(--space-3); margin-bottom:var(--space-4); background:rgba(200,168,58,.04); }
+  .group{ border:1px solid var(--border); border-radius:var(--radius-lg); padding:var(--space-3); margin-bottom:var(--space-4); background:color-mix(in srgb, var(--tool) 5%, transparent); }
   .group.goff{ opacity:.5 }
   .group-head{ display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-3) }
-  .group-head .gtog{ width:15px; height:15px; flex:0 0 15px; border:1.5px solid var(--ink-muted); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; font-size:var(--fs-small); color:var(--bg); cursor:pointer }
-  .group:not(.goff) .group-head .gtog{ background:var(--pollen); border-color:var(--pollen); color:var(--ink) }
-  .group-head .gbase{ font-size:var(--fs-small); letter-spacing:.14em; color:var(--ink-muted) }
+  .group-head .gtog{ width:15px; height:15px; flex:0 0 15px; border:1.5px solid var(--mid); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; font-size:var(--fs-small); color:var(--paper); cursor:pointer }
+  .group:not(.goff) .group-head .gtog{ background:var(--tool); border-color:var(--tool); color:var(--ink) }
+  .group-head .gbase{ font-size:var(--fs-small); letter-spacing:.14em; color:var(--mid) }
   .group-head .gsp{ flex:1 }
-  .blendsel{ font-family:var(--font); font-size:var(--fs-base); padding:var(--space-1) var(--space-2); border:1px solid var(--line); border-radius:var(--radius-lg); background:var(--card); color:var(--ink); cursor:pointer }
-  .gdel{ color:var(--accent) }
+  .blendsel{ font-family:var(--font); font-size:var(--fs-base); padding:var(--space-1) var(--space-2); border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--panel); color:var(--ink); cursor:pointer }
+  .mini.gdel{ color:var(--danger) }   /* .mini's own color would otherwise win on source order */
   .newgroup{ font-size:var(--fs-base); width:100%; margin-top:var(--space-1); border-style:dashed }
   .addfx{position:relative; margin-top:var(--space-1)}
-  .exgrid{margin-top:var(--space-4); padding-top:11px; border-top:1px solid var(--line-soft)}
+  .exgrid{margin-top:var(--space-4); padding-top:11px; border-top:1px solid var(--border)}
   .chips{display:flex; flex-wrap:wrap; gap:var(--space-1); flex:1}
-  .chips button{font-family:var(--font); font-size:var(--fs-small); padding:var(--space-1) var(--space-3); cursor:pointer; background:var(--card); color:var(--ink-muted); border:1px solid var(--line); border-radius:14px}
-  .chips button.on{background:var(--pollen); color:var(--ink); border-color:var(--pollen)}
-  .chk{display:flex; align-items:center; gap:var(--space-3); font-size:var(--fs-base); color:var(--ink-soft); margin-top:var(--space-4); cursor:pointer}
-  .chk input{accent-color:var(--pollen)}
+  .chips button{font-family:var(--font); font-size:var(--fs-small); padding:var(--space-1) var(--space-3); cursor:pointer; background:var(--panel); color:var(--mid); border:1px solid var(--border); border-radius:14px}
+  .chips button.on{background:var(--tool); color:var(--ink); border-color:var(--tool)}
   .addfx select{
     width:100%; font-family:var(--font); font-size:var(--fs-base); padding:var(--space-3) var(--space-4); cursor:pointer;
-    background:var(--card); color:var(--ink); border:1px dashed var(--line); border-radius:var(--radius-lg);
+    background:var(--panel); color:var(--ink); border:1px dashed var(--border); border-radius:var(--radius-lg);
   }
   /* ── canvas/preview ── */
   /* NB: `hidden` does NOT work on an <svg> (SVGElement has no hidden IDL prop
@@ -155,18 +121,15 @@
      keeps occupying a flex box and shoves the empty state off-centre. */
   #board{max-width:92%; max-height:92%; display:none}
   #board.show{display:block}
-  .empty{text-align:center; color:var(--ink-muted)}
-  .empty .big{font-family:var(--display); font-weight:700; font-size:30px; color:var(--ink-soft); margin-bottom:var(--space-3)}
+  .empty{text-align:center; color:var(--mid)}
+  .empty .big{font-family:var(--display); font-weight:700; font-size:30px; color:var(--ink); margin-bottom:var(--space-3)}
   .empty p{font-size:var(--fs-medium); line-height:1.7}
   .gridtoggle{position:absolute; top:14px; right:16px; display:flex; gap:var(--space-2)}
   .specctl{position:absolute; top:14px; left:16px; display:flex; gap:var(--space-2); z-index:6}
-  .specctl select{font-family:var(--font); font-size:var(--fs-base); padding:var(--space-2) var(--space-3); border:1px solid var(--line); border-radius:var(--radius-lg); background:var(--card); color:var(--ink); cursor:pointer}
-  .mini{font-size:var(--fs-small); padding:var(--space-2) var(--space-4); background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg); cursor:pointer; color:var(--ink-soft)}
-  .mini.on{background:var(--ink); color:var(--bg); border-color:var(--ink)}
-  .hint{font-size:var(--fs-small); color:var(--ink-muted); line-height:1.6; margin-top:var(--space-3)}
-  /* Shared text-field style — was duplicated verbatim (font/size/padding/
-     border/radius/background/color) on every .row input in this panel. */
-  .field{flex:1; font-family:var(--font); font-size:var(--fs-medium); padding:var(--space-2) var(--space-3); border:1px solid var(--line); border-radius:var(--radius-lg); background:var(--card); color:var(--ink)}
+  .specctl select{font-family:var(--font); font-size:var(--fs-base); padding:var(--space-2) var(--space-3); border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--panel); color:var(--ink); cursor:pointer}
+  .mini{font-size:var(--fs-small); padding:var(--space-2) var(--space-4); background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg); cursor:pointer; color:var(--ink)}
+  .mini.on{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+  .hint{font-size:var(--fs-small); color:var(--mid); line-height:1.6; margin-top:var(--space-3)}
   /* Ink/Paper colour rows use the shared .color-* component (panel.css)
      + Organica.palette.swatch. */
   ::-webkit-scrollbar{width:9px;height:9px}
@@ -246,8 +209,8 @@
     <div class="sec">
       <h3>Engine</h3>
       <div class="seg" id="techSeg" role="group" aria-label="Engine">
-        <button data-tech="vector" class="on">Vector</button>
-        <button data-tech="raster">Raster</button>
+        <button data-tech="vector" class="seg-btn active">Vector</button>
+        <button data-tech="raster" class="seg-btn">Raster</button>
       </div>
       <button class="mini" id="tgChain" hidden style="width:100%">&#8646; vector &rarr; raster</button>
     </div>
@@ -262,27 +225,27 @@
         <small>OTF / TTF · or click to browse</small>
       </div>
       <div class="row" style="margin-top:var(--space-4)">
-        <label>Text</label>
-        <input id="fontText" class="field" value="A" maxlength="12" style="font-size:var(--fs-large)">
+        <div class="ctrl-label">Text</div>
+        <input id="fontText" class="panel-input panel-input--full" value="A" maxlength="12" style="font-size:var(--fs-large)">
       </div>
       <div class="hint">Type 1–12 glyphs. Each is outlined and run through the effect stack.</div>
 
       <div class="exgrid">
-        <div class="row"><label>Font name</label>
-          <input id="exName" class="field" value="LivingPath"></div>
-        <div class="row"><label>Include</label>
+        <div class="row"><div class="ctrl-label">Font name</div>
+          <input id="exName" class="panel-input panel-input--full" value="LivingPath"></div>
+        <div class="row"><div class="ctrl-label">Include</div>
           <div class="chips" id="exChips">
             <button data-r="upper" class="on">A–Z</button><button data-r="lower" class="on">a–z</button>
             <button data-r="digits" class="on">0–9</button><button data-r="punct" class="on">!?.</button>
             <button data-r="other" class="on">accents</button>
           </div></div>
-        <label class="chk"><input type="checkbox" id="exAlt"> randomised alternates (rand) — human variation in the font</label>
-        <label class="chk"><input type="checkbox" id="exSpec"> also save an HTML specimen</label>
+        <label class="check-row"><input type="checkbox" id="exAlt"><span>randomised alternates (rand) — human variation in the font</span></label>
+        <label class="check-row"><input type="checkbox" id="exSpec"><span>also save an HTML specimen</span></label>
       </div>
-      <button class="btn pri" id="exFont" disabled style="width:100%; margin-top:var(--space-4)">⬇ Export modified font (OTF)</button>
-      <div class="row" style="margin-top:var(--space-3); gap:var(--space-2)">
-        <button class="btn u-flex1" id="saveProj">Save .lvp</button>
-        <button class="btn u-flex1" id="loadProj">Load .lvp</button>
+      <button class="panel-btn" id="exFont" disabled style="margin-top:var(--space-4)">⬇ Export modified font (OTF)</button>
+      <div class="row-btns" style="margin-top:var(--space-3)">
+        <button class="mini-btn" id="saveProj">Save .lvp</button>
+        <button class="mini-btn" id="loadProj">Load .lvp</button>
       </div>
       <div class="hint" id="exFontHint">Rebuilds an installable OTF from the current stack — "let it flood your work." .lvp saves/reloads your whole setup.</div>
     </div>
@@ -389,9 +352,11 @@ function chainedSubs(subs){
   return applyVectorGroups(subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>({x:p.x,y:p.y}))})), GROUPS.vector);
 }
 function rasterCompute(){
-  const base=rasterize(chainedSubs(SRC.subs));
+  const chained=chainedSubs(SRC.subs);
+  const res=Organica.pathfx.pickAdaptiveRes(chained);
+  const base=rasterize(chained, res);
   const g=rasterFieldFromGroups(base, GROUPS.raster);
-  return rasterFieldToSubs(g, 1000/RES);
+  return rasterFieldToSubs(g, 1000/res);
 }
 
 
@@ -505,7 +470,7 @@ function buildPresets(){
 function switchTech(tech){
   if(tech===TECH) return;
   TECH=tech; CURRENT_PRESET=null;
-  $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.tech===tech));
+  $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.tech===tech));
   $('#tgChain').hidden=(tech!=='raster');          // chaining only makes sense feeding raster
   buildPresets(); renderStack(); render();
 }
@@ -516,14 +481,14 @@ function buildLayerEl(grp, layer, idx, reg){
   el.className='layer'+(layer.on?' on':' off')+(layer.open?' open':'');
   let body='';
   def.controls.forEach(([key,label,min,max,step])=>{
-    body+=`<div class="row"><label>${label}</label>
+    body+=`<div class="row"><div class="ctrl-label">${label}</div>
       <input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${layer.params[key]}">
       <span class="val">${layer.params[key]}</span></div>`;
   });
   body+=`<div class="row" style="margin-top:var(--space-2); gap:var(--space-2)">
     <button class="mini" data-act="up" ${idx===0?'disabled':''}>↑</button>
     <button class="mini" data-act="down" ${idx===grp.layers.length-1?'disabled':''}>↓</button>
-    <button class="mini" data-act="del" style="margin-left:auto; color:var(--accent)">remove</button></div>`;
+    <button class="mini" data-act="del" style="margin-left:auto; color:var(--danger)">remove</button></div>`;
   el.innerHTML=`<div class="layer-head">
       <div class="tog">✓</div><b>${def.name}</b><span class="chev">▶</span>
     </div><div class="layer-body">${body}</div>`;
@@ -566,10 +531,16 @@ function renderStack(){
     host.appendChild(gEl);
   });
   if(grouped){
-    const ng=document.createElement('button'); ng.className='btn newgroup'; ng.textContent='+ new group (overlap)';
+    const ng=document.createElement('button'); ng.className='mini-btn newgroup'; ng.textContent='+ new group (overlap)';
     ng.addEventListener('click',()=>{ groups.push(newGroup('union')); markCustom(); renderStack(); render(); });
     host.appendChild(ng);
   }
+  // renderStack() rebuilds every layer/group row from scratch on any edit —
+  // Organica.autoLabelPanel(document) only runs once at boot, so without
+  // this every freshly-built .row (each layer's Amount/Seed/… sliders) has
+  // no accessible name at all (the row's <label> is a plain sibling, not a
+  // wrapping <label> or a for="" association).
+  Organica.autoLabelPanel(host);
 }
 
 // ============================================================
@@ -871,8 +842,10 @@ function processGlyphEm(glyph, upm){
   if(TECH==='vector'){
     out=applyVectorGroups(norm, GROUPS.vector);
   } else {
-    const g=rasterFieldFromGroups(rasterize(chainedSubs(norm)), GROUPS.raster);
-    out=rasterFieldToSubs(g, 1000/RES);
+    const chained=chainedSubs(norm);
+    const res=Organica.pathfx.pickAdaptiveRes(chained);
+    const g=rasterFieldFromGroups(rasterize(chained, res), GROUPS.raster);
+    out=rasterFieldToSubs(g, 1000/res);
   }
   if(!out||!out.length) return null;
   return denormGlyph(out,k,ox,oy);
@@ -962,6 +935,25 @@ function rasterGlyphW(d,RES){
   for(let i=0;i<f.length;i++)f[i]=img[i*4]/255;
   return {w:RES,h:RES,f:f};
 }
+// adaptive resolution, ported from Organica.pathfx.measureMinGap/pickAdaptiveRes
+// (shared/pathfx.js) — duplicated by hand like rasterGlyphW itself, since a
+// Worker has no DOM canvas to share the main-thread rasterize() with.
+function measureMinGapW(g){
+  const {w,h,f}=g; let minGap=Infinity;
+  for(let y=0;y<h;y++){ let x=0;
+    while(x<w){
+      if(f[y*w+x]<0.5){ const x0=x; while(x<w && f[y*w+x]<0.5) x++;
+        const runLen=x-x0; if(x0>0 && x<w && runLen<minGap) minGap=runLen;
+      } else x++;
+    }
+  }
+  return minGap;
+}
+function pickAdaptiveResW(d, baseRes, targetGap, maxRes){
+  const minGap=measureMinGapW(rasterGlyphW(d, baseRes));
+  if(!isFinite(minGap) || minGap>=targetGap) return baseRes;
+  return Math.min(maxRes, Math.round(baseRes*targetGap/Math.max(1,minGap)));
+}
 var SEEDOFF=0;
 function applyLayerW(g,t,p){
   if(t==='dilate')morph(g,p.amount);
@@ -975,14 +967,15 @@ function applyLayerW(g,t,p){
   else if(t==='reaction')grayScott(g,p.feed/1000,p.kill/1000,p.iters*36,p.seed+SEEDOFF,p.depth);
 }
 function processGlyphW(d,groups,RES,smooth){
-  const base=rasterGlyphW(d,RES);
+  const res=pickAdaptiveResW(d, RES, 4, 600);
+  const base=rasterGlyphW(d,res);
   let acc=null;
   for(const grp of groups){ if(!grp.on)continue;
     const g={w:base.w,h:base.h,f:new Float32Array(base.f)};
     for(const L of grp.layers){ if(L.on) applyLayerW(g,L.type,L.params); }
     acc=acc===null?g:{w:g.w,h:g.h,f:blendField(acc.f,g.f,grp.blend)};
   }
-  const gf=acc||base, sc=1000/RES;
+  const gf=acc||base, sc=1000/res;
   return contours(gf,0.5).map(function(p){return {closed:true,pts:smoothPoly(p.pts,smooth)};})
     .filter(function(p){return p.pts.length>2;})
     .map(function(p){return {closed:true,pts:p.pts.map(function(q){return {x:q.x*sc,y:q.y*sc};})};});
@@ -1072,7 +1065,7 @@ function loadProject(txt){
   if(p.ink) swatches.ink.set(p.ink);
   if(p.bg) swatches.bg.set(p.bg);
   if(p.name) $('#exName').value=p.name;
-  $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.tech===TECH));
+  $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.tech===TECH));
   CHAIN=!!p.chain;
   $('#tgChain').hidden=(TECH!=='raster'); $('#tgChain').classList.toggle('on',CHAIN);
   buildPresets(); renderStack(); render();
