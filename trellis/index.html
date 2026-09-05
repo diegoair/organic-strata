@@ -80,7 +80,12 @@
         <input type="range" id="rg-loop-seconds" min="0" max="30" step="1" value="6" style="flex:1">
         <span class="org-out" id="loop-label">6s</span>
       </div>
-      <p class="org-popover__hint">Seconds per loop. 0 = play indefinitely. Video export uses this as its length (falls back to 6s).</p>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="rg-speed">Speed</label>
+        <input type="range" id="rg-speed" min="0.25" max="4" step="0.25" value="1" style="flex:1">
+        <span class="org-out" id="speed-label">1×</span>
+      </div>
+      <p class="org-popover__hint">Seconds per loop. 0 = play indefinitely. Speed scales how fast the whole motion plays — 1× is real time. Video export uses Length ÷ Speed as its recorded duration (falls back to 6s ÷ Speed).</p>
       <p class="org-popover__hint one-shot" id="one-shot-note" style="display:none">This scene has a one-shot track — it will not loop seamlessly.</p>
     </div>
   </div>
@@ -768,18 +773,22 @@ function scheduleStill() {
 }
 
 // ── LOOP ──────────────────────────────────────────────────────────────
-let playing = false, raf = 0, t0 = 0, loopSec = 6;
+let playing = false, raf = 0, t0 = 0, loopSec = 6, speedMult = 1;
 function loopDur() { return loopSec > 0 ? loopSec : 6; }
+// The effective wall-clock period at the current Speed — Speed>1 shrinks it
+// (motion plays faster), Speed<1 stretches it. loopDur() itself (and the
+// Length control) always stays in real, un-scaled seconds.
+function effLoopDur() { return loopDur() / speedMult; }
 function loopFrame(now) {
   if (!playing) return;
   const el = (now - t0) / 1000;
-  renderFrameAt((el / loopDur()) % 1);
+  renderFrameAt((el / effLoopDur()) % 1);
   raf = requestAnimationFrame(loopFrame);
 }
 function play(fromStart) {
   if (!cellCount) return;
   if (fromStart) curT = 0;
-  t0 = performance.now() - curT * loopDur() * 1000;
+  t0 = performance.now() - curT * effLoopDur() * 1000;
   playing = true; setPlayIcon(true);
   cancelAnimationFrame(raf);
   raf = requestAnimationFrame(loopFrame);
@@ -795,6 +804,7 @@ function setPlayIcon(isPlaying) {
   ctrl('btn-playpause').setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
 }
 function syncLoopLabel() { const v = Math.round(val('rg-loop-seconds')); ctrl('loop-label').textContent = v > 0 ? v + 's' : 'Off'; }
+function syncSpeedLabel() { ctrl('speed-label').textContent = speedMult.toFixed(2).replace(/\.?0+$/, '') + '×'; }
 
 // ── EXPORT ────────────────────────────────────────────────────────────
 function updateSizeReadout() {
@@ -865,11 +875,11 @@ Organica.popover(ctrl('btn-loop'), ctrl('loop-popover'));
 trellisRecorder = Organica.recorder({
   canvas,
   tool: 'trellis',
-  duration: () => (loopSec > 0 ? loopSec : 6),
+  duration: () => effLoopDur(),
   durationPadMs: 90,
   onStart: () => play(true),
   onStatus: (phase, msg) => {
-    if (phase === 'recording') setStatus('busy', 'Recording ' + (loopSec > 0 ? loopSec : 6) + 's…');
+    if (phase === 'recording') setStatus('busy', 'Recording ' + effLoopDur().toFixed(1) + 's…');
     else setStatus(phase === 'error' ? '' : 'active', msg);
   },
   onStateChange: isRec => { ctrl('btn-video').textContent = isRec ? 'Stop rec' : 'Video'; },
@@ -883,11 +893,18 @@ ctrl('btn-playpause').addEventListener('click', togglePlayPause);
 ctrl('btn-stop').addEventListener('click', stopPlayback);
 ctrl('rg-loop-seconds').addEventListener('input', () => {
   const v = Math.round(val('rg-loop-seconds'));
-  if (playing) { const dur = loopDur(); loopSec = v; t0 += (dur - loopDur()) * curT * 1000; }
+  if (playing) { const dur = effLoopDur(); loopSec = v; t0 += (dur - effLoopDur()) * curT * 1000; }
   else loopSec = v;
   syncLoopLabel();
 });
+ctrl('rg-speed').addEventListener('input', () => {
+  const v = val('rg-speed');
+  if (playing) { const dur = effLoopDur(); speedMult = v; t0 += (dur - effLoopDur()) * curT * 1000; }
+  else speedMult = v;
+  syncSpeedLabel();
+});
 syncLoopLabel();
+syncSpeedLabel();
 updateSizeReadout();
 
 // Generic live numeric readout for every slider (Loom/FVS's own pattern) —
