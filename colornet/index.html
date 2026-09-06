@@ -24,20 +24,10 @@
 #view-canvas:not(.visible) { display: none; }
 #drop-hint p { letter-spacing: normal; line-height: var(--lh-normal); }
 
-/* Colornet's zoom HUD is a tighter, rounded chip — kept local. */
-#zoom-hud {
-  position: absolute;
-  bottom: var(--space-6); left: var(--space-6);
-  background: var(--ink); color: var(--paper);
-  font-size: var(--fs-micro);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  display: none; align-items: center; gap: var(--space-3);
-  user-select: none;
-}
-#zoom-hud.visible { display: flex; }
-#zoom-hud .zoom-reset { cursor: pointer; opacity: 0.6; }
-#zoom-hud .zoom-reset:hover { opacity: 1; }
+/* Colornet's zoom HUD is a tighter, rounded chip. Everything else about it
+   — position, colours, size, the .visible / .zoom-reset states — is shell.css;
+   these are the only two declarations that actually differ. */
+#zoom-hud { padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); }
 
 /* ── CHANNEL LIST ──
    New component. Organica.palette.swatch (RMX mode) can't serve this: an RMX chip

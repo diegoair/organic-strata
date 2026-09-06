@@ -20,16 +20,15 @@
     --tool: #6d4bd8;   /* identity colour — deep indigo, unclaimed hue region, reads as the vortex's own depth axis */
   }
 
-  /* Reset + body + surface-palette tokens come from the shared sheets.
-     Vortex keeps its own canvas region below. */
-  #app { display: flex; flex: 1; overflow: hidden; height: calc(100vh - var(--header-h, 40px)); }
+  /* Reset, body, surface-palette tokens, #app and #canvas-wrap all come from
+     the shared sheets — only real deltas below. */
+  #app { height: calc(100vh - var(--header-h, 40px)); }
 
   /* No Organica.createZoomPan here (see main.js's own header) — Vortex's
      own 3D camera (drag-orbit / Shift-drag-roll / Camera distance) is
      the ONLY zoom/pan mechanism, so there is deliberately no zoom-hud
      block and no .zoomed/.panning cursor classes the way Membrane has.
      grab/grabbing instead communicate "this canvas is drag-orbitable". */
-  #canvas-wrap { flex: 1; display: flex; align-items: center; justify-content: center; background: var(--panel); position: relative; overflow: hidden; }
   #canvas-wrap canvas { display: block; cursor: grab; }
   #canvas-wrap canvas.orbiting { cursor: grabbing; }
   #tool-label { position: absolute; left: var(--space-4); bottom: var(--space-4); font-size: var(--fs-micro); color: #f6e8c3; opacity: 0.6; pointer-events: none; }

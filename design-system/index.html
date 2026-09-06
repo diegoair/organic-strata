@@ -22,14 +22,10 @@
        byte-identical to tokens.css / header.css. See docs/CSS-RULES.md (a). */
     --tool: #726a5e;
   }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  body {
-    background: var(--paper);
-    color: var(--ink);
-    font-family: var(--font);
-    font-size: var(--fs-base);
-  }
+  /* The reset and the body rule come from shell.css, which this page links.
+     The four declarations that used to sit here were byte-identical to it —
+     the page was breaking its own "delete the local copy, don't just add the
+     link" rule. See docs/CSS-RULES.md (b). */
 
   /* ── LAYOUT — header on top, left nav + content below ── */
   .ds-shell { display: flex; height: calc(100vh - var(--header-h)); }
