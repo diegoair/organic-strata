@@ -220,10 +220,19 @@ for f in glob.glob('shared/*.css'):
     for cls in re.findall(r'^\.([a-z][a-z0-9_-]*)', strip_comments(open(f).read()), re.M):
         OWNER.setdefault(cls, sheet)
 OPTIONAL = {'palette', 'seeds-panel', 'mobile-gate'}
+def markup_only(src):
+    """Drop <code>/<pre> content and <style>/<script> blocks. A docs page
+    quotes markup as content — design-system's file-architecture table shows
+    `class="mobile-gate"` inside <code>, which is documentation, not usage."""
+    for pat in (r'<code[^>]*>.*?</code>', r'<pre[^>]*>.*?</pre>',
+                r'<style[^>]*>.*?</style>', r'<script[^>]*>.*?</script>'):
+        src = re.sub(pat, '', src, flags=re.S)
+    return src
+
 for page in all_pages():
     src = open(page, errors='ignore').read()
     linked = set(re.findall(r'/shared/([a-z-]+)\.css', src))
-    used = set(re.findall(r'class="([^"]+)"', src))
+    used = set(re.findall(r'class="([^"]+)"', markup_only(src)))
     flat = set()
     for u in used: flat |= set(u.split())
     for cls in sorted(flat):
