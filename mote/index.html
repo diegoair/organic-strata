@@ -54,21 +54,21 @@
 
   /* Preset picker — a .panel-select-styled button that opens a thumbnail list.
      Native <select> can't carry per-option previews. */
-  .preset-picker { position: relative; }
-  .preset-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between;
+  .mote-preset-picker { position: relative; }
+  .mote-preset-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between;
     gap: var(--space-2); cursor: pointer; text-align: left; }
-  .preset-trigger .chev { width: 9px; height: 6px; flex-shrink: 0; color: var(--mid); }
-  .preset-menu { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0;
+  .mote-preset-trigger .chev { width: 9px; height: 6px; flex-shrink: 0; color: var(--mid); }
+  .mote-preset-menu { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0;
     max-height: 320px; overflow-y: auto; padding: var(--space-1);
     background: var(--paper); border: 1px solid var(--border-strong);
     border-radius: var(--radius-md); box-shadow: 0 8px 28px rgba(0,0,0,.16); }
-  .preset-menu__head { font-size: var(--fs-micro); text-transform: uppercase; letter-spacing: 0.08em;
+  .mote-preset-menu__head { font-size: var(--fs-micro); text-transform: uppercase; letter-spacing: 0.08em;
     color: var(--mid); padding: var(--space-2) var(--space-2) 4px; }
-  .preset-opt { width: 100%; display: flex; align-items: center; gap: var(--space-3);
+  .mote-preset-opt { width: 100%; display: flex; align-items: center; gap: var(--space-3);
     padding: 4px; border: 0; background: none; cursor: pointer; border-radius: var(--radius-sm);
     font: inherit; font-size: var(--fs-small); color: var(--ink); text-align: left; }
-  .preset-opt:hover, .preset-opt.is-active { background: color-mix(in srgb, var(--tool) 12%, transparent); }
-  .preset-opt img { width: 60px; height: 40px; flex-shrink: 0; border-radius: var(--radius-sm);
+  .mote-preset-opt:hover, .mote-preset-opt.is-active { background: color-mix(in srgb, var(--tool) 12%, transparent); }
+  .mote-preset-opt img { width: 60px; height: 40px; flex-shrink: 0; border-radius: var(--radius-sm);
     border: 1px solid var(--border); background: var(--panel); object-fit: cover; }
 
   /* Kiosk / fullscreen — for live interactive installs. */
@@ -120,12 +120,12 @@
     <!-- ══ PRESET ══ -->
     <div class="panel-section">
       <h3>Preset</h3>
-      <div class="preset-picker">
-        <button class="panel-select preset-trigger" id="preset-trigger" aria-haspopup="listbox" aria-expanded="false">
+      <div class="mote-preset-picker">
+        <button class="panel-select mote-preset-trigger" id="preset-trigger" aria-haspopup="listbox" aria-expanded="false">
           <span id="preset-label">— preset —</span>
           <svg class="chev" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <div class="preset-menu" id="preset-menu" role="listbox" aria-label="Preset" hidden></div>
+        <div class="mote-preset-menu" id="preset-menu" role="listbox" aria-label="Preset" hidden></div>
       </div>
       <div class="row-btns">
         <button class="mini-btn" onclick="savePreset()">Save</button>
@@ -1273,14 +1273,14 @@ async function buildThumbs() {
 function populatePresets(select) {
   const user = userPresets();
   const menu = $('preset-menu');
-  const row = (key) => `<button class="preset-opt" role="option" data-key="${key}"${key === currentPresetKey ? ' aria-selected="true"' : ''}>` +
+  const row = (key) => `<button class="mote-preset-opt" role="option" data-key="${key}"${key === currentPresetKey ? ' aria-selected="true"' : ''}>` +
     `<img data-key="${key}" alt="" src="${thumbCache[key] || ''}"><span>${key}</span></button>`;
-  let html = '<div class="preset-menu__head">Built-in</div>';
+  let html = '<div class="mote-preset-menu__head">Built-in</div>';
   Object.keys(BUILTIN_PRESETS).forEach(n => html += row(n));
   const un = Object.keys(user);
-  if (un.length) { html += '<div class="preset-menu__head">Yours</div>'; un.forEach(n => html += row(n)); }
+  if (un.length) { html += '<div class="mote-preset-menu__head">Yours</div>'; un.forEach(n => html += row(n)); }
   menu.innerHTML = html;
-  menu.querySelectorAll('.preset-opt').forEach(b => b.onclick = () => { closePresetMenu(); applyPreset(b.dataset.key); });
+  menu.querySelectorAll('.mote-preset-opt').forEach(b => b.onclick = () => { closePresetMenu(); applyPreset(b.dataset.key); });
   if (select) { currentPresetKey = select; $('preset-label').textContent = select; }
 }
 function openPresetMenu() {
@@ -1294,7 +1294,7 @@ function closePresetMenu() {
 }
 $('preset-trigger').onclick = () => { $('preset-menu').hidden ? openPresetMenu() : closePresetMenu(); };
 document.addEventListener('click', e => {
-  if (!$('preset-menu').hidden && !e.target.closest('.preset-picker')) closePresetMenu();
+  if (!$('preset-menu').hidden && !e.target.closest('.mote-preset-picker')) closePresetMenu();
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePresetMenu(); });
 function applyPreset(key) {
