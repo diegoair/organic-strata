@@ -67,10 +67,14 @@
   border: 1px solid var(--border-strong, var(--border)); background: none; cursor: pointer;
 }
 .chan-dot.on { background: var(--tool); }
+/* .icon-btn: structure + sizing come from shared/panel.css. These are the
+   genuine local deltas — a borderless "ghost" variant (the channel
+   reorder/delete glyphs sit inside an already-bordered card, so a second
+   border would double up), sized via the component's own tuning vars. */
 .icon-btn {
-  width: 18px; height: 18px; flex-shrink: 0; padding: 0; line-height: 1;
-  border: 1px solid transparent; background: none; color: var(--mid);
-  font-family: var(--font); font-size: var(--fs-small); cursor: pointer;
+  --icon-btn-w: 18px; --icon-btn-h: 18px;
+  border-color: transparent; color: var(--mid);
+  font-family: var(--font); font-size: var(--fs-small); line-height: 1;
   border-radius: var(--radius-sm);
 }
 .icon-btn:hover { border-color: var(--border-strong, var(--border)); color: var(--ink); }

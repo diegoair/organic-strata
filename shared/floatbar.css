@@ -11,12 +11,18 @@
    same family at a bigger size.
 
    Centred on the CANVAS, not the browser viewport: the panel sits fixed
-   at --panel-w (or --panel-width-right in Genesis Creator, which never
-   linked panel.css) on the right, so centring on 50vw would
-   drift the bar visibly toward the panel. The offset below shifts the
-   centre point left by half the panel's width, which is a static value
-   in every tool (the panel doesn't resize), so a fixed calc() is enough
-   — no ResizeObserver needed.
+   on the right, so centring on 50vw would drift the bar visibly toward it.
+   The offset below shifts the centre point left by half the panel's width,
+   which is a static value in every tool (the panel doesn't resize), so a
+   fixed calc() is enough — no ResizeObserver needed.
+
+   A tool whose panel is NOT --panel-w wide sets --floatbar-offset to its
+   own width. That opt-in exists because the previous form of this rule,
+   `var(--panel-w, var(--panel-width-right, 248px))`, could never reach its
+   own fallback: panel.css sets --panel-w on :root unconditionally, so the
+   inner fallback was dead and Genesis (a 260px panel) sat 6px off-centre.
+   Fixed 2026-09-06 — a fallback chain can't detect "this tool is different",
+   only an explicit variable can.
 
    Content is per-tool (icon-only buttons, in whatever combination that
    tool needs — Open+Export+Figma, or just Undo+Clear for Creator, or
@@ -32,7 +38,7 @@
 
 .org-floatbar {
   position: fixed;
-  left: calc(50% - var(--panel-w, var(--panel-width-right, 248px)) / 2);
+  left: calc(50% - var(--floatbar-offset, var(--panel-w, 248px)) / 2);
   bottom: var(--space-6);
   transform: translateX(-50%);
   z-index: 150;

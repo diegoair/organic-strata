@@ -60,6 +60,9 @@
 
       --panel-width-left: 200px;
       --panel-width-right: 260px;
+      /* Genesis's panel is 260px, not panel.css's 248px, so the shared
+         floatbar has to be told or it centres 6px off. See floatbar.css. */
+      --floatbar-offset: var(--panel-width-right);
       --toolbar-height: 40px;
       --tile-min-size: 100px;
       --fs-xs: 10px; --fs-sm: 11px; --fs-md: 12px;

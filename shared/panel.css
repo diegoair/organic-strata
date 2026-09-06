@@ -287,8 +287,13 @@ input[type=range]:focus-visible { outline: none; }
   text-transform: none;
   color: var(--accent);
 }
-.check-row input[type=checkbox],
-.org-check input[type=checkbox] {
+/* 13px is a control BOX size, not type — it is not a --fs-* violation.
+   .org-check deliberately does NOT appear here: it is a header/popover
+   component owned by header.css at that family's 15px density. It used to be
+   in this selector, which won on specificity (0,2,1 vs header's 0,1,1) and
+   silently shrank the only popover checkbox in the suite to panel density.
+   Two components, two densities, two owners. Split 2026-09-06. */
+.check-row input[type=checkbox] {
   accent-color: var(--tool, var(--ink));
   width: 13px; height: 13px;
   cursor: pointer;
@@ -450,6 +455,29 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
   transition: border-color 0.15s, color 0.15s;
 }
 .mini-btn:hover { border-color: var(--ink); color: var(--ink); }
+
+/* Small square icon button (random-seed / close / reorder) that sits next to
+   a control — usually a colour row, but not only. Deliberately shorter than
+   --row-h: it is an accessory inside a row, flex-centred against it, not a
+   row-height control of its own.
+   Lived in palette.css until 2026-09-06; moved here because it has 7
+   consumers and only one of them is palette-related — colornet used it
+   without linking palette.css and got an unstyled button. */
+.icon-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  width: var(--icon-btn-w, 22px);
+  height: var(--icon-btn-h, 20px);
+  flex-shrink: 0;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, color 0.15s;
+}
+.icon-btn:hover { border-color: var(--accent); color: var(--ink); }
 
 /* Full-width primary action inside a section */
 .panel-btn {
