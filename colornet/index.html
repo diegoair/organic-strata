@@ -7,11 +7,13 @@
 
 <!-- Order is load-bearing (docs/UI-SHELL.md §2): tokens first so this file
      can override without !important, core before the tool script. -->
+<link rel="preload" href="/shared/vendor/manrope-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/mobile-gate.css">
 <style>
 :root {
   --tool: #4a5fc7;   /* identity colour — matches the hub nav accent */
@@ -24,20 +26,10 @@
 #view-canvas:not(.visible) { display: none; }
 #drop-hint p { letter-spacing: normal; line-height: var(--lh-normal); }
 
-/* Colornet's zoom HUD is a tighter, rounded chip — kept local. */
-#zoom-hud {
-  position: absolute;
-  bottom: var(--space-6); left: var(--space-6);
-  background: var(--ink); color: var(--paper);
-  font-size: var(--fs-micro);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  display: none; align-items: center; gap: var(--space-3);
-  user-select: none;
-}
-#zoom-hud.visible { display: flex; }
-#zoom-hud .zoom-reset { cursor: pointer; opacity: 0.6; }
-#zoom-hud .zoom-reset:hover { opacity: 1; }
+/* Colornet's zoom HUD is a tighter, rounded chip. Everything else about it
+   — position, colours, size, the .visible / .zoom-reset states — is shell.css;
+   these are the only two declarations that actually differ. */
+#zoom-hud { padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); }
 
 /* ── CHANNEL LIST ──
    New component. Organica.palette.swatch (RMX mode) can't serve this: an RMX chip
@@ -67,10 +59,14 @@
   border: 1px solid var(--border-strong, var(--border)); background: none; cursor: pointer;
 }
 .chan-dot.on { background: var(--tool); }
+/* .icon-btn: structure + sizing come from shared/panel.css. These are the
+   genuine local deltas — a borderless "ghost" variant (the channel
+   reorder/delete glyphs sit inside an already-bordered card, so a second
+   border would double up), sized via the component's own tuning vars. */
 .icon-btn {
-  width: 18px; height: 18px; flex-shrink: 0; padding: 0; line-height: 1;
-  border: 1px solid transparent; background: none; color: var(--mid);
-  font-family: var(--font); font-size: var(--fs-small); cursor: pointer;
+  --icon-btn-w: 18px; --icon-btn-h: 18px;
+  border-color: transparent; color: var(--mid);
+  font-family: var(--font); font-size: var(--fs-small); line-height: 1;
   border-radius: var(--radius-sm);
 }
 .icon-btn:hover { border-color: var(--border-strong, var(--border)); color: var(--ink); }
@@ -97,6 +93,7 @@
 </style>
 </head>
 <body>
+<div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
 
 <header class="org-header org-header--tool" role="banner">
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ Colornet</span></a>

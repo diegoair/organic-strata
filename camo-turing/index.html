@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Camo Turing — Organica</title>
 
+<link rel="preload" href="/shared/vendor/manrope-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
@@ -12,6 +13,7 @@
 <link rel="stylesheet" href="/shared/shell.css">
 <link rel="stylesheet" href="/shared/palette.css">
 <link rel="stylesheet" href="/shared/seeds-panel.css">
+<link rel="stylesheet" href="/shared/mobile-gate.css">
 <!-- Needed only to resolve Genesis forms' CSS-driven geometry when
      rasterizing them as seed shapes — see Organica.seedsPanel bakeGeometry
      + the local rasterizeGenesisSource() probe helper. -->
@@ -22,16 +24,10 @@
     --bg-cell: #f5f2ec;   /* required by animations.css — see rasterizeGenesisSource() */
   }
 
-  .shape-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin-bottom: var(--space-3); }
-  .shape-thumb {
-    aspect-ratio: 1; border: 1px solid var(--border); background: var(--panel);
-    display: flex; align-items: center; justify-content: center; cursor: pointer;
-    padding: var(--space-2); position: relative;
-  }
-  .shape-thumb.active { border-color: var(--ink); border-width: 2px; }
-  .shape-thumb svg { width: 100%; height: 100%; display: block; fill: var(--ink); }
-  .shape-thumb .thumb-num { position: absolute; top: 2px; right: 3px; font-size: var(--fs-micro); color: var(--mid); }
-  /* .upload-btn, .icon-btn, the .rmx-* chips are all in the shared sheets now. */
+  /* .shape-grid / .shape-thumb / .thumb-num come from seeds-panel.css, which
+     this tool links — the local copy here was byte-identical to it (its
+     repeat(4, 1fr) is exactly what --seeds-grid-cols already defaults to).
+     .upload-btn, .icon-btn and the .rmx-* chips are shared too. */
   /* .org-layer-card / __head / __body skeleton is in panel.css
      (aliased alongside .org-layer-card). Camo Turing's own inner controls: */
   .layer-dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--border-strong, var(--border)); background: none; flex-shrink: 0; padding: 0; cursor: pointer; }
@@ -251,6 +247,7 @@
 </style>
 </head>
 <body>
+<div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
 
 <header class="org-header org-header--tool" role="banner">
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ Camo Turing</span></a>

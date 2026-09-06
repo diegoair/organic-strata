@@ -69,20 +69,8 @@
 }
 .rmx-add:hover { border-color: var(--accent); color: var(--accent); }
 
-/* Small square icon button (random-seed / close / reorder) that sits next to
-   a colour control. */
-.icon-btn {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--accent);
-  width: var(--icon-btn-w, 22px);
-  height: var(--icon-btn-h, 20px);
-  flex-shrink: 0;
-  padding: 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color 0.15s, color 0.15s;
-}
-.icon-btn:hover { border-color: var(--accent); color: var(--ink); }
+/* NOTE: .icon-btn moved to panel.css (2026-09-06). It is a generic panel
+   control, not a palette one — 7 consumers, and colornet used it without
+   linking this sheet at all (it uses no .rmx-* class), so the button was
+   unstyled there. panel.css is linked by every tool, which is the only
+   place a control with that reach can live. See docs/CSS-RULES.md (d). */

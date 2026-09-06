@@ -378,8 +378,23 @@ carries its own equivalent 0-unnamed check in its own session notes.
    but aren't in the system — add them here before using them.
 7. **Live reference:** `/design-system/` (linked from the hub) renders every
    token and shared component from the real CSS — not a screenshot. Check
-   there before assuming something doesn't exist yet.
+   there before assuming something doesn't exist yet. It now also
+   **checks itself** on load: token tables are generated from the CSSOM,
+   any `:root` token it fails to document is listed, and a set of component
+   contracts is asserted against the live demos. A red banner there means the
+   documentation and the stylesheets have drifted apart.
+8. **The rules are enforceable, not just written.** `docs/CSS-RULES.md` sets
+   them out with the bug each one came from; `scripts/css-lint.py` checks
+   them. Run it before committing anything under `shared/`:
+   ```bash
+   python3 scripts/css-lint.py
+   ```
+9. **Retired September 6, 2026:** `--sans`, `--mono`, `--display` (the
+   typeface aliases — `--font` is the only name now), plus `--fs-display`,
+   `--lh-tight` and `--ls-tight`, which had no consumers. New since:
+   `--accent-hover`, the fill under an ink-filled button, previously a raw
+   `#333` written twice for the same role.
 
 ---
 
-*Studio Rann · Organica System v0.1 · August 26, 2026*
+*Studio Rann · Organica System v0.1 · August 26, 2026 · rules + lint added September 6, 2026*

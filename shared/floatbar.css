@@ -11,12 +11,18 @@
    same family at a bigger size.
 
    Centred on the CANVAS, not the browser viewport: the panel sits fixed
-   at --panel-w (or --panel-width-right in Genesis Creator, which never
-   linked panel.css) on the right, so centring on 50vw would
-   drift the bar visibly toward the panel. The offset below shifts the
-   centre point left by half the panel's width, which is a static value
-   in every tool (the panel doesn't resize), so a fixed calc() is enough
-   — no ResizeObserver needed.
+   on the right, so centring on 50vw would drift the bar visibly toward it.
+   The offset below shifts the centre point left by half the panel's width,
+   which is a static value in every tool (the panel doesn't resize), so a
+   fixed calc() is enough — no ResizeObserver needed.
+
+   A tool whose panel is NOT --panel-w wide sets --floatbar-offset to its
+   own width. That opt-in exists because the previous form of this rule,
+   `var(--panel-w, var(--panel-width-right, 248px))`, could never reach its
+   own fallback: panel.css sets --panel-w on :root unconditionally, so the
+   inner fallback was dead and Genesis (a 260px panel) sat 6px off-centre.
+   Fixed 2026-09-06 — a fallback chain can't detect "this tool is different",
+   only an explicit variable can.
 
    Content is per-tool (icon-only buttons, in whatever combination that
    tool needs — Open+Export+Figma, or just Undo+Clear for Creator, or
@@ -32,7 +38,7 @@
 
 .org-floatbar {
   position: fixed;
-  left: calc(50% - var(--panel-w, var(--panel-width-right, 248px)) / 2);
+  left: calc(50% - var(--floatbar-offset, var(--panel-w, 248px)) / 2);
   bottom: var(--space-6);
   transform: translateX(-50%);
   z-index: 150;
@@ -108,27 +114,14 @@
 /* Wider hit area for a two-glyph button (icon + dropdown chevron) */
 .org-floatbar__btn--wide { width: auto; padding: 0 var(--space-3); }
 
-/* Primary action — send to Figma. Warm accent, not the header's plain
-   ink-fill --org-btn--primary, so it reads as the one "ship it" action
-   in a row of otherwise neutral icon buttons. */
-.org-floatbar__btn--primary {
-  background: var(--accent-warm);
-  color: #fff;
-}
-.org-floatbar__btn--primary:hover {
-  background: color-mix(in srgb, var(--accent-warm) 85%, black);
-}
-
-/* Recording state — Komorebi. A filled red dot reads as "live" the same
-   way it does in every capture UI; the icon swaps to a stop-square while
-   armed, same convention as the old text toggle ("Record" → "STOP"). */
-.org-floatbar__btn--rec[aria-pressed="true"] {
-  background: #c23b2a;
-  color: #fff;
-}
-.org-floatbar__btn--rec[aria-pressed="true"]:hover {
-  background: #a83323;
-}
+/* Retired 2026-09-06, both grep-verified at 0 consumers:
+     .org-floatbar__btn--primary  described as the "send to Figma" accent,
+       but every tool's Figma button ships as a plain .org-floatbar__btn
+     .org-floatbar__btn--rec      described as Komorebi's recording state,
+       which Komorebi does not use
+   Neither was ever adopted. If a filled/accent floatbar state is wanted
+   later it should be designed against a real consumer, not restored from
+   here — that is how these two came to describe a UI that never existed. */
 
 .org-floatbar__sep {
   width: 1px;

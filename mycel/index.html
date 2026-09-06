@@ -5,34 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mycel — Organica</title>
 
+<link rel="preload" href="/shared/vendor/manrope-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/mobile-gate.css">
 <style>
   :root {
-    --ink: #0a0a0a;
-    --paper: #ffffff;
-    --mid: #696256;
-    --accent: #2a2a2a;
-    --panel: #eceae4;
-    --border: #d0c8b8;
+    /* Only --tool. The surface palette comes from tokens.css; redeclaring it
+       here at its own default values was pure noise. See docs/CSS-RULES.md (a). */
     --tool: #8a7355;   /* identity colour — mushroom taupe, desaturated/earthy rather than another vivid hue */
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-  body {
-    background: var(--paper);
-    color: var(--ink);
-    font-family: var(--font);
-    height: 100vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
+  /* Reset, body and #app come from shell.css. This tool's canvas region is
+     #stage-wrap, not shell's #canvas-wrap, so that part stays local. */
 
-  #app { display: flex; flex: 1; overflow: hidden; }
 
   /* ── STAGE ── */
   #stage-wrap {
@@ -119,12 +109,13 @@
   #root-chips { display: flex; flex-wrap: wrap; margin-bottom: var(--space-2); }
   #root-chips:empty::after { content: "No root set — right-click a point"; color: var(--mid); font-size: var(--fs-micro); }
 
-  #loom-grid-error { display: none; color: #a03828; font-size: var(--fs-micro); margin-top: var(--space-2); }
+  #loom-grid-error { display: none; color: var(--danger); font-size: var(--fs-micro); margin-top: var(--space-2); }
 
   #file-loom-grid { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
 </style>
 </head>
 <body>
+<div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
 
 <header class="org-header org-header--tool" role="banner">
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ Mycel</span></a>

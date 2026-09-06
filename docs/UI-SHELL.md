@@ -34,11 +34,14 @@ exactly as happened with the JS utilities before `core.js`.
 This document is the shell's definition. `shared/_template.html` is a working
 copy to start a new tool from.
 
-**Why a template and not a shared stylesheet:** each tool tunes its own palette
-(Halide is a darkroom, Komorebi a forest floor) and adds tool-specific controls.
-A shared `shell.css` would need an override for nearly every rule.
-Copying a *documented* template is honest about that; copying an undocumented
-neighbour is what caused the drift.
+**Superseded.** This section used to argue *"why a template and not a shared
+stylesheet"* — that each tool tunes its own palette so a shared `shell.css`
+would need an override for nearly every rule. That prediction was wrong and
+the decision went the other way: `shared/shell.css` shipped, 19 pages link it,
+and the per-tool overrides amount to a handful of real deltas each. The
+paragraph sat here contradicting §2 for a month. Kept as a note rather than
+deleted because "the template will diverge" is a live risk in the *other*
+direction now — see `docs/CSS-RULES.md` (b).
 
 ---
 
@@ -52,8 +55,17 @@ In `<head>`, **in this order**:
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/shell.css">
+<!-- opt-in, in this order after shell: palette.css, seeds-panel.css -->
+<link rel="stylesheet" href="/shared/mobile-gate.css">
 <style> /* only the tool's own content — its --tool accent + one-off components */ </style>
 ```
+
+**The authoritative list of shared files, what each owns and who must link
+it, lives in one place:** [`/design-system/` § File architecture](/design-system/#file-architecture).
+It used to be restated here, in `SHARED-COMPONENTS.md`, and on the
+design-system page itself — which is how the repo ended up with four
+different answers to "what is the shared CSS system", none of which mentioned
+`mobile-gate.css`. Don't copy the list back into this file.
 
 `shell.css` (added 2026-08-30) is the app-shell skeleton — the
 box-sizing reset, the flex-column `<body>`, `#app`, the centred
@@ -186,21 +198,15 @@ image, Pollen's dots) is still set locally — that's user data, not a role.
 
 Class names are part of the contract — keep them.
 
-### Topbar (40px, `flex-shrink: 0`)
+### Topbar — **removed**
 
-| Class | What |
-|---|---|
-| `.logo` | `<a href="/">` — `<span>Organica</span> / ToolName` |
-| `.tb-btn` | action button; `.primary` for the filled one (→ Figma) |
-| `.tb-sep` | 1px × 20px vertical divider |
-| `.tb-spacer` | `flex: 1` — pushes the right group over |
-| `.tb-label` | uppercase micro-label before a control |
-| `.tb-select` | `<select>` in the bar |
-| `.tb-out` | numeric readout (output size) |
-| `#status-dot` / `#status-text` | state; `.active` turns the dot green |
-
-Left group = input actions. Right group = export. Status sits between them,
-before the first separator of the export group.
+This section used to table a `.logo` / `.tb-btn` / `.tb-sep` / `.tb-spacer` /
+`.tb-label` / `.tb-select` / `.tb-out` vocabulary, under a heading that reads
+*"Class names are part of the contract — keep them."* None of those classes
+has existed since the header became a shared component; the replacement is
+`.org-header__*` in §4b below, and the actions moved to the floatbar. A dead
+table under a "keep these" heading is worse than no table, so it is gone
+rather than annotated.
 
 ### Canvas (`#canvas-wrap`, `flex: 1`)
 
@@ -378,13 +384,13 @@ uppercase elements**, and two markup vocabularies (`.ctrl-row` vs `.row`).
 
 ### Type
 
-| Element | Token | Was |
-|---|---|---|
-| Section title | 11px / 500, sentence | 12px / 600 uppercase + tracking |
-| Sub-label | 9px / 500, sentence | 9px / 500 uppercase + 0.12em |
-| Row label | 10px / 400 | 10–11px |
-| Value | 10px, tabular | 10px |
-| Note | 9px | `title=` tooltip |
+**The table that used to sit here was wrong** — it said Section 11/500,
+Sub-label 9/500, Row label 10/400, and only one of those four rows matched
+`tokens.css`. It was typed by hand and never re-checked. The live values are
+generated from the stylesheet on
+[`/design-system/` § Typography → Role tokens](/design-system/#typography),
+which is now the only place they are written down. Components reference a
+role token (`--t-section-size`), never a raw step.
 
 ### Adopting it
 

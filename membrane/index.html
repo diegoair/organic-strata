@@ -10,6 +10,7 @@
      without !important). core.js is a plain script (not a
      module) so Organica.* exists before js/main.js (the ES module entry)
      parses. -->
+<link rel="preload" href="/shared/vendor/manrope-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
@@ -17,6 +18,7 @@
 <link rel="stylesheet" href="/shared/shell.css">
 <link rel="stylesheet" href="/shared/palette.css">
 <link rel="stylesheet" href="/shared/seeds-panel.css">
+<link rel="stylesheet" href="/shared/mobile-gate.css">
 <style>
   :root {
     /* color-scheme:light, the surface palette, and .upload-btn / .org-file-input
@@ -31,13 +33,15 @@
     --mark-accent: #0a0a0a;
   }
 
-  /* Reset, body, surface palette, the base #zoom-hud and .upload-btn come
-     from the shared sheets. Membrane keeps its own canvas region: the p5
-     canvas fills the wrap (no padding), with its own cursor states, and
-     the HUD is stacked above #tool-label rather than sharing its corner. */
-  #app { display: flex; flex: 1; overflow: hidden; height: calc(100vh - var(--header-h, 40px)); }
+  /* Reset, body, surface palette, #app, #canvas-wrap, the base #zoom-hud and
+     .upload-btn all come from the shared sheets. Only real deltas below.
+     NB the old local #canvas-wrap rule here restated shell.css verbatim and
+     its comment claimed "the p5 canvas fills the wrap (no padding)" — it
+     never did: omitting padding does not override shell's var(--space-7),
+     it inherits it, so this canvas has always had 24px. Deleted rather than
+     "fixed", since edge-to-edge would be a deliberate layout change. */
+  #app { height: calc(100vh - var(--header-h, 40px)); }
 
-  #canvas-wrap { flex: 1; display: flex; align-items: center; justify-content: center; background: var(--panel); position: relative; overflow: hidden; }
   #canvas-wrap canvas { display: block; cursor: default; transform-origin: 0 0; will-change: transform; }
   #canvas-wrap canvas.zoomed { cursor: grab; }
   #canvas-wrap canvas.panning { cursor: grabbing; }
@@ -51,6 +55,7 @@
 </style>
 </head>
 <body>
+<div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
 
 <header class="org-header org-header--tool" role="banner">
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ Membrane</span></a>

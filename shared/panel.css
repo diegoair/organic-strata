@@ -76,13 +76,10 @@
    whole point of the Figma model. Sizes and weights come from the
    --t-* role tokens so this file never hardcodes type. */
 .panel-section h3,
-.panel-section__title,
-.org-panel__title,
-.sec h3,                    /* Living Path names its sections .sec */
-aside h3, .panel h3 {       /* Strata / any panel that just uses h3 */
+.panel-section__title {
   font-size: var(--t-section-size);
   font-weight: var(--t-section-weight);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   color: var(--ink);
   margin: 0 0 var(--space-4);
@@ -99,7 +96,7 @@ aside h3, .panel h3 {       /* Strata / any panel that just uses h3 */
 .org-panel__hint {
   font-size: var(--fs-micro);
   font-weight: var(--w-regular);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   color: var(--mid);
   flex-shrink: 0;
@@ -109,7 +106,7 @@ aside h3, .panel h3 {       /* Strata / any panel that just uses h3 */
 .sub-label {
   font-size: var(--t-sublabel-size);
   font-weight: var(--t-sublabel-weight);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   color: var(--mid);
   margin: var(--space-5) 0 var(--space-3);
@@ -132,7 +129,7 @@ aside h3, .panel h3 {       /* Strata / any panel that just uses h3 */
 .panel-label {
   font-size: var(--t-label-size);
   font-weight: var(--t-label-weight);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   color: var(--accent);
   white-space: nowrap;
@@ -283,12 +280,17 @@ input[type=range]:focus-visible { outline: none; }
 .check-row span {
   font-size: var(--t-label-size);
   font-weight: var(--t-label-weight);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   color: var(--accent);
 }
-.check-row input[type=checkbox],
-.org-check input[type=checkbox] {
+/* 13px is a control BOX size, not type — it is not a --fs-* violation.
+   .org-check deliberately does NOT appear here: it is a header/popover
+   component owned by header.css at that family's 15px density. It used to be
+   in this selector, which won on specificity (0,2,1 vs header's 0,1,1) and
+   silently shrank the only popover checkbox in the suite to panel density.
+   Two components, two densities, two owners. Split 2026-09-06. */
+.check-row input[type=checkbox] {
   accent-color: var(--tool, var(--ink));
   width: 13px; height: 13px;
   cursor: pointer;
@@ -302,7 +304,7 @@ input[type=range]:focus-visible { outline: none; }
   font-family: var(--font);
   font-size: var(--t-control-size);
   font-weight: var(--t-control-weight);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   flex: 1;
   min-width: 0;
@@ -336,7 +338,7 @@ input[type=range]:focus-visible { outline: none; }
   font-family: var(--font);
   font-size: var(--t-control-size);
   font-weight: var(--t-control-weight);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   background: var(--panel);
   border: 1px solid var(--border-strong, var(--border));
   border-radius: var(--radius-sm);
@@ -381,7 +383,7 @@ input[type=range]:focus-visible { outline: none; }
 }
 .color-name {
   font-size: var(--fs-small);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   color: var(--accent);
   min-width: 52px;
@@ -423,7 +425,7 @@ input[type=range]:focus-visible { outline: none; }
   color: var(--ink);
   min-height: var(--row-h);
   padding: 0 var(--space-2);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   outline: none;
   flex: 1;
   min-width: 0;
@@ -439,7 +441,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
   font-family: var(--font);
   font-size: var(--t-control-size);
   font-weight: var(--t-control-weight);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   min-height: var(--row-h);
   border: 1px solid var(--border-strong, var(--border));
@@ -451,13 +453,36 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 }
 .mini-btn:hover { border-color: var(--ink); color: var(--ink); }
 
+/* Small square icon button (random-seed / close / reorder) that sits next to
+   a control — usually a colour row, but not only. Deliberately shorter than
+   --row-h: it is an accessory inside a row, flex-centred against it, not a
+   row-height control of its own.
+   Lived in palette.css until 2026-09-06; moved here because it has 7
+   consumers and only one of them is palette-related — colornet used it
+   without linking palette.css and got an unstyled button. */
+.icon-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  width: var(--icon-btn-w, 22px);
+  height: var(--icon-btn-h, 20px);
+  flex-shrink: 0;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, color 0.15s;
+}
+.icon-btn:hover { border-color: var(--accent); color: var(--ink); }
+
 /* Full-width primary action inside a section */
 .panel-btn {
   width: 100%;
   font-family: var(--font);
   font-size: var(--fs-small);
   font-weight: var(--w-medium);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   min-height: 30px;
   background: var(--ink);
@@ -466,7 +491,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
-.panel-btn:hover { background: #333; border-color: #333; }
+.panel-btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .panel-btn:disabled { opacity: 0.42; cursor: not-allowed; }
 
 /* Explanatory note under a control — replaces title= tooltips, which are
@@ -615,53 +640,74 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
    rendered thumbnail) or inline <svg> (a static icon) as their content.
    ═══════════════════════════════════════════════════════════ */
 .presets { position: relative; }
+/* Living Path and Sinew each carried a full local copy of this component
+   with values that had drifted. Reconciled 2026-09-06 per property, not per
+   file — three of their deltas were right and are promoted here, three were
+   not and the shared value stood:
+     .pt-ico 26px -> 22px      brings the trigger from 40px to 36px, closer
+                               to the panel's rhythm. (It does NOT reach
+                               --row-h's 26px — with 6px padding and a 1px
+                               border no icon above 12px could — so this is
+                               "less out of step", not "in step".) .pi-ico
+                               stays 26: the menu is a browsing surface, the
+                               trigger is a control.
+     border-radius added       every other shared panel control carries
+                               --radius-sm; the picker was the outlier.
+                               --radius-sm, not the local --radius-md, to
+                               match .color-swatch, the closest analog.
+     .preset-item:hover        gains the panel tint: a hover that only moves
+                               a 1px border is a weak affordance.
+   Rejected: their wider trigger/item padding (--space-3 matches
+   .panel-select's own), and their near-black menu shadow (invisibly
+   different from this one, which Loom and Camo Turing already ship). */
 .preset-trigger {
   display: flex; align-items: center; gap: var(--space-3); width: 100%;
   font-family: var(--font); font-size: var(--fs-small); padding: var(--space-2) var(--space-3);
   cursor: pointer; background: var(--panel); color: var(--ink);
-  border: 1px solid var(--border); transition: border-color .14s;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  transition: border-color .14s;
 }
 .preset-trigger:hover { border-color: var(--tool, var(--ink)); }
 .pt-ico, .pi-ico {
-  width: 26px; height: 26px; flex: 0 0 26px; border: 1px solid var(--border);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
   overflow: hidden; background: var(--paper);
 }
+.pt-ico { width: 22px; height: 22px; flex: 0 0 22px; }   /* fits --row-h */
+.pi-ico { width: 26px; height: 26px; flex: 0 0 26px; }
 .pt-ico img, .pi-ico img { width: 100%; height: 100%; display: block; object-fit: cover; image-rendering: pixelated; }
 .pt-ico svg, .pi-ico svg { width: 100%; height: 100%; display: block; color: var(--ink); }
 .pt-name { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pt-chev { color: var(--mid); font-size: var(--fs-small); }
 .preset-menu {
   position: fixed; z-index: 40; background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   box-shadow: 0 10px 28px rgba(0,0,0,0.22); padding: var(--space-2); overflow-y: auto;
   display: flex; flex-direction: column; gap: var(--space-1);
 }
-.preset-menu[hidden] { display: none; }
+.preset-menu[hidden] { display: none; }   /* [hidden] must beat display:flex */
 .preset-item {
   display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-2);
-  cursor: pointer; background: none; border: 1px solid transparent; text-align: left;
+  cursor: pointer; background: none; border: 1px solid transparent;
+  border-radius: var(--radius-sm); text-align: left;
   font-family: var(--font); font-size: var(--fs-small); color: var(--ink);
 }
-.preset-item:hover { border-color: var(--border); }
+.preset-item:hover { background: var(--panel); border-color: var(--border); }
 .preset-item.on { border-color: var(--tool, var(--ink)); }
 .pi-name { flex: 1; line-height: 1.2; }
 .pi-group { font-size: var(--fs-micro); color: var(--mid); padding: var(--space-2) var(--space-2) 0; }
 
 /* ═══════════════════════════════════════════════════════════
-   ALIASES — Strata and Living Path name their parts differently.
+   ALIASES — Living Path and Sinew name their rows .row / .val.
    Mapping beats renaming: their JS keeps working untouched.
-   ═══════════════════════════════════════════════════════════ */
+   Those two live aliases are declared inline with the rules they map to
+   (.ctrl-row, .ctrl-val), not here.
 
-.group-label, .section-label, .panel-label--group {
-  font-size: var(--t-sublabel-size);
-  font-weight: var(--t-sublabel-weight);
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--mid);
-}
-.row .lbl, .row > span:first-child {
-  font-size: var(--t-label-size);
-  font-weight: var(--t-label-weight);
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--accent);
-}
+   Retired 2026-09-06, all grep-verified at 0 consumers:
+     .group-label / .section-label / .panel-label--group  (the hub is the
+       only .group-label user and it does not link this sheet)
+     .row .lbl / .row > span:first-child
+   The .sec h3 / aside h3 / .panel h3 aliases went with them — their last
+   consumers were removed by the Living Path/Sinew markup rewrite the day
+   before, which should have taken the aliases with it. See docs/CSS-RULES.md
+   (e): the commit that removes an alias's last consumer removes the alias.
+   ═══════════════════════════════════════════════════════════ */
