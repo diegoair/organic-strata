@@ -202,6 +202,11 @@ html {
   --accent: #2a2a2a;
   --panel:  #eceae4;
   --border: #d0c8b8;
+  /* The hover fill under an ink-filled button (.org-btn--primary,
+     .panel-btn). Lifted off --ink rather than darkened, so the button
+     visibly responds on a surface that is already near-black. Was a raw
+     #333 written twice, in header.css and panel.css, for the same role. */
+  --accent-hover: #333333;
   color-scheme: light;
 }
 
@@ -244,11 +249,9 @@ html {
    rules rendering while the codebase converges on --font. They all
    resolve to the same family now, which is the point: the "sans vs mono
    vs display" distinction described three fonts that no longer exist.
-   Do not use these in new code.
-   --sans retired 2026-09-06 (0 consumers). The remaining two are down to
-   three call sites total — --mono in pollen, --display in livingpath and
-   sinew — and the whole block goes as soon as those are repointed. */
-:root {
-  --mono:    var(--font);
-  --display: var(--font);
-}
+   RETIRED IN FULL 2026-09-06. --sans and --mono had no consumers left;
+   --display's last two (livingpath and sinew's .empty .big) were repointed
+   to --font in the same commit. The block is gone: --font is the only name.
+   If an old rule turns up still asking for one of them it will fall back to
+   the browser default and be visible, which is the intended failure mode —
+   a silent alias is what kept this alive for a month. */

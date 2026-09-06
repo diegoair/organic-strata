@@ -79,7 +79,7 @@
 .panel-section__title {
   font-size: var(--t-section-size);
   font-weight: var(--t-section-weight);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   color: var(--ink);
   margin: 0 0 var(--space-4);
@@ -96,7 +96,7 @@
 .org-panel__hint {
   font-size: var(--fs-micro);
   font-weight: var(--w-regular);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   color: var(--mid);
   flex-shrink: 0;
@@ -106,7 +106,7 @@
 .sub-label {
   font-size: var(--t-sublabel-size);
   font-weight: var(--t-sublabel-weight);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   color: var(--mid);
   margin: var(--space-5) 0 var(--space-3);
@@ -129,7 +129,7 @@
 .panel-label {
   font-size: var(--t-label-size);
   font-weight: var(--t-label-weight);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   color: var(--accent);
   white-space: nowrap;
@@ -280,7 +280,7 @@ input[type=range]:focus-visible { outline: none; }
 .check-row span {
   font-size: var(--t-label-size);
   font-weight: var(--t-label-weight);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   color: var(--accent);
 }
@@ -304,7 +304,7 @@ input[type=range]:focus-visible { outline: none; }
   font-family: var(--font);
   font-size: var(--t-control-size);
   font-weight: var(--t-control-weight);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   flex: 1;
   min-width: 0;
@@ -338,7 +338,7 @@ input[type=range]:focus-visible { outline: none; }
   font-family: var(--font);
   font-size: var(--t-control-size);
   font-weight: var(--t-control-weight);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   background: var(--panel);
   border: 1px solid var(--border-strong, var(--border));
   border-radius: var(--radius-sm);
@@ -383,7 +383,7 @@ input[type=range]:focus-visible { outline: none; }
 }
 .color-name {
   font-size: var(--fs-small);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   color: var(--accent);
   min-width: 52px;
@@ -425,7 +425,7 @@ input[type=range]:focus-visible { outline: none; }
   color: var(--ink);
   min-height: var(--row-h);
   padding: 0 var(--space-2);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   outline: none;
   flex: 1;
   min-width: 0;
@@ -441,7 +441,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
   font-family: var(--font);
   font-size: var(--t-control-size);
   font-weight: var(--t-control-weight);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   min-height: var(--row-h);
   border: 1px solid var(--border-strong, var(--border));
@@ -482,7 +482,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
   font-family: var(--font);
   font-size: var(--fs-small);
   font-weight: var(--w-medium);
-  letter-spacing: 0;
+  letter-spacing: var(--ls-normal);
   text-transform: none;
   min-height: 30px;
   background: var(--ink);
@@ -491,7 +491,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
-.panel-btn:hover { background: #333; border-color: #333; }
+.panel-btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .panel-btn:disabled { opacity: 0.42; cursor: not-allowed; }
 
 /* Explanatory note under a control — replaces title= tooltips, which are

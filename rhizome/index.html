@@ -12,8 +12,8 @@
      engine.js's solveTracksKiwi) both exist at import time. -->
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/header.css">
-<link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
 <script src="/shared/supabase.js"></script>
@@ -46,12 +46,15 @@
 
   .rz-node {
     position: absolute; width: 240px;
-    background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg);
+    background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-lg);
     box-shadow: 0 4px 16px rgba(0,0,0,.08); user-select: none; z-index: 2;
   }
   .rz-node.is-selected { outline: 2px solid var(--tool); outline-offset: 1px; }
   .rz-node.is-multi-selected { outline: 2px dashed var(--tool); outline-offset: 1px; }
-  .rz-wire.is-selected { stroke: #c93ed6; stroke-width: 3; }
+  /* Selected wire must contrast with an unselected one, which is --tool.
+     --accent-warm is the system's "this one is highlighted" colour (it is
+     also the slider fill). Was #c93ed6 — TuneSutra's identity hue, copy-pasted. */
+  .rz-wire.is-selected { stroke: var(--accent-warm); stroke-width: 3; }
   #marquee-rect { fill: rgba(122,156,94,.12); stroke: var(--tool); stroke-width: 1; stroke-dasharray: 3 3; display: none; }
   .rz-node__header {
     padding: var(--space-3) var(--space-4); cursor: grab; font-weight: var(--w-medium);
@@ -62,7 +65,7 @@
   .rz-port-row { display: flex; align-items: center; gap: var(--space-2); padding: 2px var(--space-4); font-size: var(--fs-small); color: var(--mid); position: relative; }
   .rz-port-row--in { justify-content: flex-start; }
   .rz-port-row--out { justify-content: flex-end; }
-  .rz-port-dot { width: 10px; height: 10px; border-radius: 50%; background: #fff; border: 2px solid #999; flex-shrink: 0; cursor: crosshair; }
+  .rz-port-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--paper); border: 2px solid var(--mid); flex-shrink: 0; cursor: crosshair; }
   .rz-node__preview {
     margin: var(--space-2) var(--space-4); min-height: 60px; max-height: 100px;
     border: 1px solid #eee2ce; border-radius: var(--radius-md); background: #faf8f3;
