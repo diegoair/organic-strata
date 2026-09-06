@@ -94,6 +94,10 @@
   gap: var(--space-3);
   min-width: 0;                  /* lets the title ellipsis instead of pushing */
 }
+/* .org-header__title / __sub: the only live consumer is
+   genesis/archive/indicators-55.html, a deliberately preserved artifact.
+   Kept for it — deleting the CSS would silently rot the archive rather than
+   break it visibly. Not for use in new work. */
 .org-header__title {
   font-size: var(--fs-medium);
   font-weight: var(--w-medium);
@@ -280,12 +284,8 @@
 .org-btn[aria-disabled="true"] { opacity: 0.42; cursor: not-allowed; }
 .org-btn:disabled:hover { border-color: transparent; background: none; }
 
-.org-sep {
-  width: 1px;
-  height: 18px;
-  background: var(--border-strong);
-  flex-shrink: 0;
-}
+/* .org-sep retired 2026-09-06 — 0 consumers, superseded by
+   .org-floatbar__sep when the actions moved out of the header. */
 
 /* ── FOCUS — visible on every interactive element in the header ──
    :focus-visible only, so a mouse click doesn't leave a ring, but every

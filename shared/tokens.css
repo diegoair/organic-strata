@@ -114,28 +114,31 @@ html {
        12 ← medium   header context title
        14 ← large    page-level headings inside a tool
        17 ← xl       tool title
-       34 ← display  hub wordmark (fluid, see --fs-display) */
+     (--fs-display, a clamp(1.5rem, 9vw, 13rem) hero size, was retired
+      2026-09-06: it described a giant hub wordmark that no longer exists —
+      the hub's .header__wordmark is a 0.95rem corner logo. The scale line
+      documenting it was the real liability, so it went too.) */
   --fs-micro:   9px;
   --fs-small:   10px;
   --fs-base:    11px;
   --fs-medium:  12px;
   --fs-large:   14px;
   --fs-xl:      17px;
-  --fs-display: clamp(1.5rem, 9vw, 13rem);   /* hub wordmark only */
 
   /* ── LINE HEIGHT ─────────────────────────────────────────
      Unitless, so it scales with the element's own font-size.
      Dense UI wants tight; reading text wants loose. */
-  --lh-tight:   1.2;    /* headings, single-line controls */
   --lh-snug:    1.45;   /* multi-line labels in panels */
   --lh-normal:  1.7;    /* body copy, docs, help text */
+  /* --lh-tight (1.2) retired 2026-09-06 — 0 consumers. */
 
   /* ── LETTER SPACING ──────────────────────────────────────
      Organica's UI voice is uppercase-and-tracked. The rule of thumb the
      tools already followed: the smaller and more uppercase the text,
      the more tracking it needs to stay legible. */
-  --ls-tight:   -0.02em;   /* display / wordmark — big type needs negative */
-  --ls-normal:  0;         /* body copy */
+  /* --ls-tight (-0.02em) retired 2026-09-06 — 0 consumers; it paired with
+     the display size that went with it. */
+  --ls-normal:  0;         /* body copy — panel.css uses it 14x */
   --ls-wide:    0.05em;    /* values, hex fields, readouts */
   --ls-wider:   0.08em;    /* buttons, control labels */
   --ls-widest:  0.15em;    /* uppercase micro-labels, the tool logo */
@@ -241,9 +244,11 @@ html {
    rules rendering while the codebase converges on --font. They all
    resolve to the same family now, which is the point: the "sans vs mono
    vs display" distinction described three fonts that no longer exist.
-   Do not use these in new code. */
+   Do not use these in new code.
+   --sans retired 2026-09-06 (0 consumers). The remaining two are down to
+   three call sites total — --mono in pollen, --display in livingpath and
+   sinew — and the whole block goes as soon as those are repointed. */
 :root {
-  --sans:    var(--font);
   --mono:    var(--font);
   --display: var(--font);
 }

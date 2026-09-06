@@ -76,10 +76,7 @@
    whole point of the Figma model. Sizes and weights come from the
    --t-* role tokens so this file never hardcodes type. */
 .panel-section h3,
-.panel-section__title,
-.org-panel__title,
-.sec h3,                    /* Living Path names its sections .sec */
-aside h3, .panel h3 {       /* Strata / any panel that just uses h3 */
+.panel-section__title {
   font-size: var(--t-section-size);
   font-weight: var(--t-section-weight);
   letter-spacing: 0;
@@ -675,21 +672,17 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 .pi-group { font-size: var(--fs-micro); color: var(--mid); padding: var(--space-2) var(--space-2) 0; }
 
 /* ═══════════════════════════════════════════════════════════
-   ALIASES — Strata and Living Path name their parts differently.
+   ALIASES — Living Path and Sinew name their rows .row / .val.
    Mapping beats renaming: their JS keeps working untouched.
-   ═══════════════════════════════════════════════════════════ */
+   Those two live aliases are declared inline with the rules they map to
+   (.ctrl-row, .ctrl-val), not here.
 
-.group-label, .section-label, .panel-label--group {
-  font-size: var(--t-sublabel-size);
-  font-weight: var(--t-sublabel-weight);
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--mid);
-}
-.row .lbl, .row > span:first-child {
-  font-size: var(--t-label-size);
-  font-weight: var(--t-label-weight);
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--accent);
-}
+   Retired 2026-09-06, all grep-verified at 0 consumers:
+     .group-label / .section-label / .panel-label--group  (the hub is the
+       only .group-label user and it does not link this sheet)
+     .row .lbl / .row > span:first-child
+   The .sec h3 / aside h3 / .panel h3 aliases went with them — their last
+   consumers were removed by the Living Path/Sinew markup rewrite the day
+   before, which should have taken the aliases with it. See docs/CSS-RULES.md
+   (e): the commit that removes an alias's last consumer removes the alias.
+   ═══════════════════════════════════════════════════════════ */

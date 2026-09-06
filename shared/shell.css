@@ -51,9 +51,9 @@ body {
 }
 
 /* The row under the header: canvas on the left, #panel on the right.
-   Tools without an #app wrapper put class="org-app" on whatever element
-   holds that row. */
-#app, .org-app {
+   The .org-app / .org-drop-hint / .org-zoom-hud class aliases were retired
+   2026-09-06 — grep-verified at 0 consumers; every tool uses the id form. */
+#app {
   display: flex;
   flex: 1;
   overflow: hidden;
@@ -102,7 +102,7 @@ body {
    in the wild are honoured: .hidden (fade out) is the common one.
    ═══════════════════════════════════════════════════════════ */
 
-#drop-hint, .org-drop-hint {
+#drop-hint {
   position: absolute;
   display: flex;
   flex-direction: column;
@@ -112,7 +112,7 @@ body {
   opacity: 1;
   transition: opacity 0.3s;
 }
-#drop-hint.hidden, .org-drop-hint.hidden { opacity: 0; }
+#drop-hint.hidden { opacity: 0; }
 
 .drop-icon {
   width: 48px; height: 48px;
@@ -129,7 +129,7 @@ body {
 }
 .drop-icon:hover { border-color: var(--ink); color: var(--ink); }
 
-#drop-hint p, .org-drop-hint p {
+#drop-hint p {
   font-size: var(--fs-small);
   letter-spacing: 0.1em;
   color: var(--mid);
@@ -143,7 +143,7 @@ body {
    the reset click) is Organica.createZoomPan in core.js.
    ═══════════════════════════════════════════════════════════ */
 
-#zoom-hud, .org-zoom-hud {
+#zoom-hud {
   position: absolute;
   bottom: 16px;
   left: 16px;
@@ -159,15 +159,15 @@ body {
   pointer-events: none;
   user-select: none;
 }
-#zoom-hud.visible, .org-zoom-hud.visible { display: flex; }
+#zoom-hud.visible { display: flex; }
 
-#zoom-hud .zoom-reset, .org-zoom-hud .zoom-reset {
+#zoom-hud .zoom-reset {
   pointer-events: auto;
   cursor: pointer;
   opacity: 0.6;
   transition: opacity 0.15s;
 }
-#zoom-hud .zoom-reset:hover, .org-zoom-hud .zoom-reset:hover { opacity: 1; }
+#zoom-hud .zoom-reset:hover { opacity: 1; }
 
 /* ═══════════════════════════════════════════════════════════
    ON-CANVAS CONTROL BAR — Spore + Pollen's identical top-left
