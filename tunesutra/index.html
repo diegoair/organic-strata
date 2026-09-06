@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
 <link rel="stylesheet" href="/shared/palette.css">
 <style>
   :root {
@@ -17,19 +18,10 @@
     --tool: #c93ed6;   /* identity colour — vivid orchid/magenta, see index.html's own hue-gap note */
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-  body {
-    background: var(--paper);
-    color: var(--ink);
-    font-family: var(--font);
-    height: 100vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
+  /* Reset, body and #app come from shell.css. This tool's canvas region is
+     #stage-wrap, not shell's #canvas-wrap, so that part stays local. */
 
-  #app { display: flex; flex: 1; overflow: hidden; }
 
   /* ── STAGE ── */
   #stage-wrap {
