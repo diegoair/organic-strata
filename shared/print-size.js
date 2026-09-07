@@ -22,15 +22,14 @@
    script (classic tools), or → js/main.js (Loom, type="module", must
    still load AFTER this script tag in document order).
 
+   lpiToPx (real lines-per-inch screen ruling) and registration marks
+   (crosshair-in-circle multi-plate alignment marks, alongside crop marks
+   above) were added in the Colornet print-production phase (2026-09-07,
+   later same week) — Colornet's own per-channel AM screening consumes
+   lpiToPx, and its per-plate exports draw registration marks.
+
    Deliberately NOT built here (see docs/CSS-RULES.md's "known debt"
    discipline — named, not silently skipped):
-     - lpiToPx / screen-frequency helpers — Colornet's real per-channel
-       angle/frequency shape isn't known yet; guessing it now risks the
-       wrong abstraction. The natural spot for it is right next to
-       mmToPx below, once that phase starts.
-     - Registration marks (multi-plate alignment) — meaningless for a
-       single-plate export; belongs with the future Colornet separations
-       phase. Crop marks (this file) are a different, simpler primitive.
      - JPG DPI — JPEG carries density in a JFIF APP0 field, not a PNG
        pHYs chunk. A different, similarly-simple writer. Not built until
        actually asked for (Pollen/Spore's exportJPG still export without
@@ -54,6 +53,17 @@
 
   function mmToPx(mm, dpi) { return (mm / 25.4) * dpi; }
   function pxToMm(px, dpi) { return (px / dpi) * 25.4; }
+
+  // A screen ruling of `lpi` lines-per-inch means each halftone cell is
+  // 1/lpi inch wide; a raster canvas has `dpi` pixels/inch — so a cell's
+  // pixel width is (1/lpi)·dpi = dpi/lpi. Note this has NO dependency on
+  // trim size: doubling the trim at the same dpi/lpi produces more cells,
+  // not bigger ones — lpi is a property of the paper, not of an arbitrary
+  // internal working resolution (which is exactly the bug this fixes in
+  // Colornet's own "Lineature" control). Corollary: a cell's size in mm is
+  // pxToMm(lpiToPx(lpi,dpi),dpi) === 25.4/lpi, independent of dpi — dpi
+  // only controls how many raster samples exist per cell, not the count.
+  function lpiToPx(lpi, dpi) { return dpi / lpi; }
 
   // ── PNG pHYs chunk writer ──────────────────────────────────────────
   // Standard, well-documented technique — every PNG encoder does the same
@@ -176,16 +186,94 @@
     ctx.restore();
   }
 
+  // ── Registration marks — multi-plate alignment ──────────────────────
+  // A crosshair-in-circle, the print-industry standard register mark:
+  // an unfilled circle (radius r) with 4 short arm ticks starting at the
+  // circle's own edge and extending outward armLen past it — the arms
+  // deliberately do NOT cross into the circle's interior (a solid "+"
+  // reads as a blob at small render sizes; a ring with 4 ticks is what a
+  // real register mark looks like).
+  //
+  // Placed at the MIDPOINT of each trim edge (top/bottom/left/right
+  // centre), not the corners — crop marks (above) already occupy the
+  // corners, so this placement guarantees zero collision by construction,
+  // and an edge-midpoint pair on each axis gives a print operator both an
+  // X-shift and a Y-shift reference, which corner-only marks can't
+  // cleanly separate.
+  //
+  // opts.bleed is the caller's REAL bleed (not necessarily gap +
+  // 2·(r+armLen)) — if there isn't enough room for a mark to fit inside
+  // it without being clipped or colliding with the trim line, this
+  // returns an empty array rather than drawing a broken mark. Same
+  // "no space, don't crash" posture as the rest of this file.
+  function registrationMarks(trimW, trimH, opts) {
+    opts = opts || {};
+    const r = opts.r != null ? opts.r : 1.5;
+    const armLen = opts.armLen != null ? opts.armLen : 0.75;
+    const gap = opts.gap != null ? opts.gap : 2;
+    const half = r + armLen;
+    const bleed = opts.bleed != null ? opts.bleed : (gap + 2 * half);
+    if (bleed < gap + 2 * half) return [];
+    const midX = trimW / 2, midY = trimH / 2;
+    return [
+      { cx: midX, cy: -(gap + half), r: r, armLen: armLen },          // top
+      { cx: midX, cy: trimH + gap + half, r: r, armLen: armLen },     // bottom
+      { cx: -(gap + half), cy: midY, r: r, armLen: armLen },          // left
+      { cx: trimW + gap + half, cy: midY, r: r, armLen: armLen },     // right
+    ];
+  }
+
+  function registrationMarksSVG(trimW, trimH, opts, strokeColor, strokeWidth) {
+    strokeColor = strokeColor || '#000';
+    strokeWidth = strokeWidth != null ? strokeWidth : 0.25;
+    const marks = registrationMarks(trimW, trimH, opts);
+    let s = '<g stroke="' + strokeColor + '" stroke-width="' + strokeWidth + '" fill="none">';
+    marks.forEach(function (m) {
+      s += '<circle cx="' + m.cx + '" cy="' + m.cy + '" r="' + m.r + '"/>';
+      s += '<line x1="' + m.cx + '" y1="' + (m.cy - m.r) + '" x2="' + m.cx + '" y2="' + (m.cy - m.r - m.armLen) + '"/>';
+      s += '<line x1="' + m.cx + '" y1="' + (m.cy + m.r) + '" x2="' + m.cx + '" y2="' + (m.cy + m.r + m.armLen) + '"/>';
+      s += '<line x1="' + (m.cx - m.r) + '" y1="' + m.cy + '" x2="' + (m.cx - m.r - m.armLen) + '" y2="' + m.cy + '"/>';
+      s += '<line x1="' + (m.cx + m.r) + '" y1="' + m.cy + '" x2="' + (m.cx + m.r + m.armLen) + '" y2="' + m.cy + '"/>';
+    });
+    s += '</g>';
+    return s;
+  }
+
+  // Same coordinate-space contract as drawCropMarksCanvas: caller has
+  // already translated ctx so (0,0) = the trim origin.
+  function drawRegistrationMarksCanvas(ctx, trimW, trimH, opts, strokeColor, strokeWidth) {
+    const marks = registrationMarks(trimW, trimH, opts);
+    ctx.save();
+    ctx.strokeStyle = strokeColor || '#000';
+    ctx.lineWidth = strokeWidth != null ? strokeWidth : 0.25;
+    marks.forEach(function (m) {
+      ctx.beginPath();
+      ctx.arc(m.cx, m.cy, m.r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(m.cx, m.cy - m.r); ctx.lineTo(m.cx, m.cy - m.r - m.armLen);
+      ctx.moveTo(m.cx, m.cy + m.r); ctx.lineTo(m.cx, m.cy + m.r + m.armLen);
+      ctx.moveTo(m.cx - m.r, m.cy); ctx.lineTo(m.cx - m.r - m.armLen, m.cy);
+      ctx.moveTo(m.cx + m.r, m.cy); ctx.lineTo(m.cx + m.r + m.armLen, m.cy);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
   const api = {
     UNIT_TO_MM: UNIT_TO_MM,
     toMM: toMM,
     mmToPx: mmToPx,
     pxToMm: pxToMm,
+    lpiToPx: lpiToPx,
     embedPngDpi: embedPngDpi,
     bleedBox: bleedBox,
     cropMarks: cropMarks,
     cropMarksSVG: cropMarksSVG,
     drawCropMarksCanvas: drawCropMarksCanvas,
+    registrationMarks: registrationMarks,
+    registrationMarksSVG: registrationMarksSVG,
+    drawRegistrationMarksCanvas: drawRegistrationMarksCanvas,
   };
 
   // Both Loom's ES modules and the four classic-script tools read this

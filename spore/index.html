@@ -190,6 +190,16 @@
           <span class="org-out" id="vl-out-size">&mdash;</span>
         </div>
       </div>
+
+      <div class="org-popover__divider" id="plates-divider" style="display:none"></div>
+      <div id="plates-section" style="display:none">
+        <div class="org-popover__title">Plates</div>
+        <div class="org-formats">
+          <button class="org-btn" id="btn-plates-png" onclick="exportPlatesRaster()">PNG</button>
+          <button class="org-btn" id="btn-plates-svg" onclick="exportPlatesSVG()">SVG</button>
+        </div>
+        <p class="org-popover__hint" id="plates-hint">One file per ink colour, ink black on transparent — ready as a screen/riso separation.</p>
+      </div>
     </div>
   </div>
 </div>
@@ -324,7 +334,7 @@
         <div id="rmx-palette" class="rmx-palette"></div>
         <div class="ctrl-row mt-3">
           <span class="ctrl-label">Mapping</span>
-          <select class="panel-select u-flex1" id="sel-rmx-map" onchange="rmxColorMap=this.value;liveUpdate()">
+          <select class="panel-select u-flex1" id="sel-rmx-map" onchange="rmxColorMap=this.value;syncPlatesUI();liveUpdate()">
             <option value="tone">Tone (gradient)</option>
             <option value="posterize">Posterize</option>
             <option value="random">Random</option>
@@ -366,6 +376,7 @@
 <script src="/shared/palette.js"></script>
 <script src="/shared/print-size.js"></script>
 <script src="/shared/print-size-panel.js"></script>
+<script src="/shared/plate-export.js"></script>
 <script src="/genesis/forms.js"></script>
 <script>
 // ─────────────────────────────────────────────
@@ -396,8 +407,22 @@ function buildRmxPalette() {
     colors: rmxColors,
     min: 2,
     max: RMX_COLORS_MAX,
-    onChange: (colors) => { rmxColors = colors; liveUpdate(); },
+    onChange: (colors) => { rmxColors = colors; syncPlatesUI(); liveUpdate(); },
   });
+}
+
+// Shows/hides the Plates section — only meaningful for RMX mode with a
+// discrete submode (posterize/random/tonernd); 'tone' is a continuous
+// blend with no single ink per mark, so it can't be split into plates.
+function syncPlatesUI() {
+  const on = Organica.palette.isSplittable(colorMode, rmxColorMap);
+  document.getElementById('plates-divider').style.display = on ? '' : 'none';
+  document.getElementById('plates-section').style.display = on ? '' : 'none';
+  if (on) {
+    const n = rmxColors.length;
+    document.getElementById('btn-plates-png').textContent = 'PNG (' + n + ')';
+    document.getElementById('btn-plates-svg').textContent = 'SVG (' + n + ')';
+  }
 }
 
 // Rendering state
@@ -569,6 +594,7 @@ function setColorMode(mode, btn) {
   document.getElementById('rmx-color-block').style.display = rmx ? '' : 'none';
   document.getElementById('row-mark').style.display = rmx ? 'none' : '';
   if (rmx) buildRmxPalette();
+  syncPlatesUI();
   liveUpdate();
 }
 
@@ -880,13 +906,16 @@ const setStatus = Organica.status();
 // (offX,offY) px — the same loop exportJPG always used, factored out so
 // Print mode's bleed-inclusive raster export (both PNG and JPG) can reuse
 // it instead of re-deriving the replay math a second way.
-function paintSporeMarksScaled(octx, marks, svgEl, vbW, vbH, scale, offX, offY) {
+// forceColor (optional, last arg): plate-export override — every mark
+// paints as one flat, fully-opaque colour instead of its real resolved
+// colour, matching Colornet's own plate convention.
+function paintSporeMarksScaled(octx, marks, svgEl, vbW, vbH, scale, offX, offY, forceColor) {
   marks.forEach(m => {
     octx.save();
     octx.translate(m.x * scale + offX, m.y * scale + offY);
     octx.rotate(m.angle);
-    octx.globalAlpha = m.opacity;
-    drawMark(octx, svgEl, m.sz * scale, vbW, vbH, m.color);
+    octx.globalAlpha = forceColor ? 1 : m.opacity;
+    drawMark(octx, svgEl, m.sz * scale, vbW, vbH, forceColor || m.color);
     octx.restore();
   });
 }
@@ -1037,7 +1066,10 @@ function exportJPG() {
 // Just the per-mark <g> markup, no outer <svg>/background — the piece
 // both buildSporeSVG() (Screen mode + Figma) and buildPrintSporeSVG()
 // (Print mode) wrap.
-function buildSporeMarksMarkup(marks, innerSVG, bb, bbMax) {
+// opts.forceColor (plate export): every mark's fill is the forced colour,
+// full opacity, instead of its real resolved colour/opacity.
+function buildSporeMarksMarkup(marks, innerSVG, bb, bbMax, opts) {
+  opts = opts || {};
   let s = '';
   marks.forEach(m => {
     const deg = (m.angle * 180 / Math.PI).toFixed(2);
@@ -1047,11 +1079,13 @@ function buildSporeMarksMarkup(marks, innerSVG, bb, bbMax) {
     // translate(center) → rotate → scale → translate(-bboxCenter)
     const tf = `translate(${m.x.toFixed(2)} ${m.y.toFixed(2)}) rotate(${deg}) `
              + `scale(${scale.toFixed(4)}) translate(${(-(bb.x + bb.w/2)).toFixed(2)} ${(-(bb.y + bb.h/2)).toFixed(2)})`;
+    const fill = opts.forceColor || m.color;
+    const op = opts.forceColor ? 1 : m.opacity;
     // Genesis forms colour via CSS classes (no inline fill) → set fill on the
     // group; the Line's inline stroke="currentColor" is resolved here too.
-    let shapes = innerSVG.replace(/currentColor/g, m.color).replace(/ xmlns="[^"]*"/g, '');
+    let shapes = innerSVG.replace(/currentColor/g, fill).replace(/ xmlns="[^"]*"/g, '');
     shapes = shapes.replace(/stroke-width="([\d.]+)"/g, (mm, w) => `stroke-width="${Math.max(parseFloat(w), minSW).toFixed(2)}"`);
-    s += `<g transform="${tf}" fill="${m.color}" opacity="${m.opacity.toFixed(2)}">${shapes}</g>`;
+    s += `<g transform="${tf}" fill="${fill}" opacity="${op.toFixed(2)}">${shapes}</g>`;
   });
   return s;
 }
@@ -1074,15 +1108,21 @@ function sporeMarksContext(d) {
 // pixel-for-pixel and imports correctly into Figma. No <symbol>/<use>,
 // no currentColor (which importers fail to resolve).
 // ─────────────────────────────────────────────
-function buildSporeSVG() {
+// overrides (plate export): {marks, forceColor} — marks substitutes for
+// d.marks (a filtered subset), forceColor forces every mark's fill and
+// omits the background rect (transparent), matching Colornet's own
+// "ink black on transparent" plate convention.
+function buildSporeSVG(overrides) {
+  overrides = overrides || {};
   const d = window._lastRenderData;
   if (!d) return null;
-  const { W, H, bgColor, marks } = d;
+  const { W, H, bgColor } = d;
+  const marks = overrides.marks || d.marks;
   const { innerSVG, bb, bbMax } = sporeMarksContext(d);
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
-  svg += `<rect width="${W}" height="${H}" fill="${bgColor}"/>`;
-  svg += buildSporeMarksMarkup(marks, innerSVG, bb, bbMax);
+  if (!overrides.forceColor) svg += `<rect width="${W}" height="${H}" fill="${bgColor}"/>`;
+  svg += buildSporeMarksMarkup(marks, innerSVG, bb, bbMax, overrides);
   svg += '</svg>';
   return svg;
 }
@@ -1092,10 +1132,16 @@ function r2(n) { return Math.round(n * 100) / 100; }
 // scale(trimWmm/W) group wrapping the SAME per-mark markup buildSporeSVG
 // uses, plus crop marks at the trim corners when bleed > 0. Same
 // "always-wrap" discipline as Loom/Pollen's own print SVG builders.
-function buildPrintSporeSVG() {
+// overrides: {marks, forceColor, registrationMarks} — see buildSporeSVG's
+// own comment for marks/forceColor; registrationMarks (plate export only
+// — meaningless on a single non-separated image) adds registration marks
+// alongside the existing crop marks.
+function buildPrintSporeSVG(overrides) {
+  overrides = overrides || {};
   const d = window._lastRenderData;
   if (!d) return null;
-  const { W, bgColor, marks } = d;
+  const { W, bgColor } = d;
+  const marks = overrides.marks || d.marks;
   const { innerSVG, bb, bbMax } = sporeMarksContext(d);
 
   const unit = printSizePanel.getUnit();
@@ -1107,11 +1153,14 @@ function buildPrintSporeSVG() {
   const sc = W ? trimWmm / W : 1;
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(bw)}mm" height="${r2(bh)}mm" viewBox="0 0 ${r2(bw)} ${r2(bh)}">`;
-  svg += `<rect width="100%" height="100%" fill="${bgColor}"/>`;
+  if (!overrides.forceColor) svg += `<rect width="100%" height="100%" fill="${bgColor}"/>`;
   svg += `<g transform="translate(${r2(bleedMm)},${r2(bleedMm)})">`;
-  svg += `<rect width="${r2(trimWmm)}" height="${r2(trimHmm)}" fill="${bgColor}"/>`;
-  svg += `<g transform="scale(${sc})">${buildSporeMarksMarkup(marks, innerSVG, bb, bbMax)}</g>`;
-  if (bleedMm > 0) svg += Organica.printSize.cropMarksSVG(trimWmm, trimHmm, {}, '#000');
+  if (!overrides.forceColor) svg += `<rect width="${r2(trimWmm)}" height="${r2(trimHmm)}" fill="${bgColor}"/>`;
+  svg += `<g transform="scale(${sc})">${buildSporeMarksMarkup(marks, innerSVG, bb, bbMax, overrides)}</g>`;
+  if (bleedMm > 0) {
+    svg += Organica.printSize.cropMarksSVG(trimWmm, trimHmm, {}, '#000');
+    if (overrides.registrationMarks) svg += Organica.printSize.registrationMarksSVG(trimWmm, trimHmm, { bleed: bleedMm }, '#000');
+  }
   svg += '</g></svg>';
   return svg;
 }
@@ -1132,6 +1181,68 @@ function exportSVG() {
   a.href = URL.createObjectURL(blob);
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+// ── PLATES — one file per RMX ink colour, for screen/riso separation.
+// Only meaningful for colorMode 'rmx' with a discrete submode (see
+// Organica.palette.isSplittable/syncPlatesUI). Classification is a plain
+// colour-equality filter — posterize/random/tonernd always store one of
+// the literal rmxColors[] strings unchanged into m.color at mark-creation
+// time, so no re-derivation via rmxIndex is needed (unlike Pollen, which
+// never stores a resolved colour per point).
+function exportPlatesSVG() {
+  const d = window._lastRenderData;
+  if (!d || !Organica.palette.isSplittable(colorMode, rmxColorMap)) return;
+  const t = Date.now();
+  Organica.plateExport.run(rmxColors.length, {
+    build: (i) => {
+      const plateMarks = d.marks.filter(m => m.color === rmxColors[i]);
+      if (!plateMarks.length) return null;
+      const svg = printSizePanel.getMode() === 'print'
+        ? buildPrintSporeSVG({ marks: plateMarks, forceColor: '#000000', registrationMarks: true })
+        : buildSporeSVG({ marks: plateMarks, forceColor: '#000000' });
+      return { blob: new Blob([svg], { type: 'image/svg+xml' }), filename: 'spore-' + t + '-plate' + (i + 1) + '.svg' };
+    },
+    onDone: () => setStatus('active', rmxColors.length + ' plate SVGs exported'),
+  });
+}
+
+function exportPlatesRaster() {
+  const d = window._lastRenderData;
+  if (!d || !Organica.palette.isSplittable(colorMode, rmxColorMap)) return;
+  const { W, markSvg } = d;
+  const parser = new DOMParser();
+  const svgEl = parser.parseFromString(markSvg, 'image/svg+xml').querySelector('svg');
+  const vb = svgEl.getAttribute('viewBox')?.split(' ').map(Number) || [0, 0, 20, 20];
+  const t = Date.now();
+  Organica.plateExport.run(rmxColors.length, {
+    build: (i) => {
+      const plateMarks = d.marks.filter(m => m.color === rmxColors[i]);
+      if (!plateMarks.length) return null;
+      const isPrint = printSizePanel.getMode() === 'print';
+      const p = isPrint ? printRasterDims(W) : null;
+      const outW = isPrint ? p.outW : W, outH = isPrint ? p.outH : d.H;
+      const scale = isPrint ? p.scale : 1;
+      const offX = isPrint ? p.bleedPx : 0, offY = isPrint ? p.bleedPx : 0;
+      const oc = document.createElement('canvas'); oc.width = outW; oc.height = outH;
+      const octx = oc.getContext('2d');
+      paintSporeMarksScaled(octx, plateMarks, svgEl, vb[2], vb[3], scale, offX, offY, '#000000');
+      if (isPrint && p.bleedPx > 0) {
+        octx.save(); octx.translate(p.bleedPx, p.bleedPx);
+        Organica.printSize.drawCropMarksCanvas(octx, p.trimWpx, p.trimHpx, {}, '#000');
+        Organica.printSize.drawRegistrationMarksCanvas(octx, p.trimWpx, p.trimHpx, { bleed: p.bleedPx }, '#000');
+        octx.restore();
+      }
+      return new Promise(res => oc.toBlob(async b => {
+        if (isPrint) {
+          const bytes = Organica.printSize.embedPngDpi(await b.arrayBuffer(), p.dpi);
+          b = new Blob([bytes], { type: 'image/png' });
+        }
+        res({ blob: b, filename: 'spore-' + t + '-plate' + (i + 1) + '.png' });
+      }, 'image/png'));
+    },
+    onDone: () => setStatus('active', rmxColors.length + ' plates exported'),
+  });
 }
 
 // ─────────────────────────────────────────────

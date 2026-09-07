@@ -137,6 +137,7 @@
       <div class="org-popover__title">Separations</div>
       <div class="org-formats">
         <button class="org-btn" id="btn-separate-png">Each channel · PNG</button>
+        <button class="org-btn" id="btn-separate-svg">Each channel · SVG</button>
       </div>
       <p class="org-popover__hint">
         One grayscale plate per visible channel — ink black on white, the
@@ -145,24 +146,28 @@
 
       <div class="org-popover__divider"></div>
 
-      <div class="org-popover__row">
-        <label class="org-popover__label" for="sel-scale">Scale</label>
-        <select class="org-select" id="sel-scale">
-          <option value="1">&times;1</option>
-          <option value="2" selected>&times;2</option>
-          <option value="3">&times;3</option>
-          <option value="4">&times;4</option>
-          <option value="custom">Custom…</option>
-        </select>
-      </div>
-      <div class="org-popover__row" id="row-scale-custom" style="display:none">
-        <label class="org-popover__label" for="in-scale-custom">&times;</label>
-        <input class="panel-input" id="in-scale-custom" type="number" min="0.1" max="20" step="0.1" value="2" aria-label="Custom export scale">
-      </div>
-      <label class="check-row"><input type="checkbox" id="ck-no-smooth"><span>No smoothing (pixelated upscale)</span></label>
-      <div class="org-popover__row">
-        <span class="org-popover__label">Output</span>
-        <span class="org-out" id="out-size">&mdash;</span>
+      <div id="print-size-host"></div>
+
+      <div id="screen-scale-rows">
+        <div class="org-popover__row">
+          <label class="org-popover__label" for="sel-scale">Scale</label>
+          <select class="org-select" id="sel-scale">
+            <option value="1">&times;1</option>
+            <option value="2" selected>&times;2</option>
+            <option value="3">&times;3</option>
+            <option value="4">&times;4</option>
+            <option value="custom">Custom…</option>
+          </select>
+        </div>
+        <div class="org-popover__row" id="row-scale-custom" style="display:none">
+          <label class="org-popover__label" for="in-scale-custom">&times;</label>
+          <input class="panel-input" id="in-scale-custom" type="number" min="0.1" max="20" step="0.1" value="2" aria-label="Custom export scale">
+        </div>
+        <label class="check-row"><input type="checkbox" id="ck-no-smooth"><span>No smoothing (pixelated upscale)</span></label>
+        <div class="org-popover__row">
+          <span class="org-popover__label">Output</span>
+          <span class="org-out" id="out-size">&mdash;</span>
+        </div>
       </div>
     </div>
   </div>
@@ -363,6 +368,9 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/palette.js"></script>
+<script src="/shared/print-size.js"></script>
+<script src="/shared/print-size-panel.js"></script>
+<script src="/shared/plate-export.js"></script>
 <script src="/shared/noise.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────
@@ -388,6 +396,17 @@ const setStatus = Organica.status();
 const view = ctrl('view-canvas');
 const vctx = view.getContext('2d');
 const canvasWrap = ctrl('canvas-wrap');
+
+// Screen/Print output mode — shared/print-size-panel.js. Screen (default)
+// is today's Scale-multiplier export, untouched; Print reveals a real
+// physical size + DPI + bleed and hides the Scale/Output rows below it.
+const printSizePanel = Organica.printSizePanel(document.getElementById('print-size-host'), {
+  idPrefix: 'ps',
+  onChange: (s) => {
+    document.getElementById('screen-scale-rows').style.display = s.mode === 'print' ? 'none' : '';
+    updateSizeReadout();
+  },
+});
 
 const S = {
   img: null,
@@ -787,6 +806,62 @@ function amDotsOf(ch) {
   return dots;
 }
 
+// Print mode's AM dots — the SAME formulas as amDotsOf above (verified
+// line-for-line, no hidden resolution-dependent constant besides the
+// Math.max(2,…) cell floor, preserved), except the cell size comes from a
+// REAL physical lpi (Organica.printSize.lpiToPx) at the trim's own pixel
+// dimensions, instead of an abstract "mask width / screenFreq" ratio.
+// Coverage sampling still reads the EXISTING mask (S.W×S.H, unchanged —
+// regenerating computeBands at full print resolution would cost far more
+// for no real gain, since the source image isn't higher-res than what the
+// Detail dropdown already extracted): maskScale maps a trim-px lattice
+// coordinate back into the mask's own pixel space. Only AM's screenFreq
+// ("Lineature") becomes true lpi this phase — Noise/Dither keep their
+// existing abstract "N across" units in both Screen and Print mode,
+// scaled uniformly via channelMatrix's own outScale factor, the same
+// mechanism the existing ×2/×3/×4 export already used for them.
+// Cached separately from Screen mode's ch.amDots/_amKey so switching
+// Screen↔Print never invalidates the other mode's cache.
+function amDotsOfPrint(ch, trimWpx, trimHpx, dpi) {
+  const key = 'p|' + ch.screenAngle + '|' + ch.screenFreq + '|' + ch.dotShape + '|' + trimWpx + '|' + trimHpx + '|' + dpi;
+  if (ch._amDotsPrint && ch._amKeyPrint === key) return ch._amDotsPrint;
+
+  const cell = Math.max(2, Organica.printSize.lpiToPx(ch.screenFreq, dpi));
+  const th = ch.screenAngle * Math.PI / 180;
+  const ux = Math.cos(th), uy = Math.sin(th);
+  const vx = -Math.sin(th), vy = Math.cos(th);
+  const cx = trimWpx / 2, cy = trimHpx / 2;
+  const half = Math.ceil(Math.sqrt(trimWpx * trimWpx + trimHpx * trimHpx) / 2 / cell) + 1;
+  const half_i = Math.floor(cell / 2);
+
+  const maskScale = trimWpx ? S.W / trimWpx : 1;
+  const half_i_mask = Math.max(1, Math.round(half_i * maskScale));
+
+  const dots = [];
+  for (let i = -half; i <= half; i++) {
+    for (let j = -half; j <= half; j++) {
+      const px = cx + (i * ux + j * vx) * cell;
+      const py = cy + (i * uy + j * vy) * cell;
+      if (px < -cell || py < -cell || px > trimWpx + cell || py > trimHpx + cell) continue;
+
+      const tone = cellCoverage(ch, px * maskScale, py * maskScale, half_i_mask, S.W, S.H);
+      if (tone < 0.02) continue;
+      if (ch.dotShape === 'euclidean') {
+        const L = cell / 2;
+        const hole = tone >= 0.5;
+        const r = hole ? L * Math.sqrt((1 - tone) / 0.5) : L * Math.sqrt(tone / 0.5);
+        dots.push({ x: px, y: py, r, hole, cellHalf: L });
+      } else {
+        const r = (cell / 2) * Math.sqrt(tone);
+        dots.push({ x: px, y: py, r });
+      }
+    }
+  }
+  ch._amDotsPrint = dots; ch._amKeyPrint = key;
+  ch._amCellPrint = cell; ch._amBasisPrint = { ux, uy, vx, vy };
+  return dots;
+}
+
 // The 3 true AM Screening presets catalogued from Dotraster's own
 // "Presets" tutorial video (youtube.com/watch?v=9MbrDvSMqpk) — Default and
 // AM Circle 2 45's exact angle/lineature/shape were read directly off the
@@ -1118,34 +1193,91 @@ function drawSquareDots(ctx, dots, fill) {
 // THE PLAN — the single description both renderers consume
 // ═══════════════════════════════════════════
 
-function channelMatrix(ch, s) {
-  const cx = S.W / 2, cy = S.H / 2;
+// W/H default to S.W/S.H (the mask/working resolution) when omitted —
+// Screen mode's own call shape, unchanged. The function computes cx/cy
+// (rotation centre) and ox/oy (translation target, via ch.tx/ty
+// percentages) in whatever W/H is given, THEN multiplies the entire
+// affine matrix — including translation — by s at the very end; this is
+// only self-consistent when outW === W×s. Two call shapes follow:
+//   - non-AM channels (content still generated at S.W×S.H, scaled up
+//     like Screen mode's ×N already does): channelMatrix(ch, outScale)
+//     — no W/H args, defaults to S.W/S.H, outScale standing in for the
+//     old integer Scale value. Passing trim px here would DOUBLE-apply
+//     the scale — a real bug, not a style choice.
+//   - AM channels (dots generated directly in trim-px space by
+//     amDotsOfPrint — already correctly sized): channelMatrix(ch, 1,
+//     trimWpx, trimHpx) — scale 1, explicit trim-space W/H.
+function channelMatrix(ch, s, W, H) {
+  if (W == null) W = S.W;
+  if (H == null) H = S.H;
+  const cx = W / 2, cy = H / 2;
   const th = ch.rot * Math.PI / 180;
   const sx = (ch.scale / 100) * (ch.flipH ? -1 : 1);
   const sy = (ch.scale / 100) * (ch.flipV ? -1 : 1);
   const cos = Math.cos(th), sin = Math.sin(th);
   // R·S, then re-centred, then the output scale — one composition, one place.
   const a = cos * sx, b = sin * sx, c = -sin * sy, d = cos * sy;
-  const ox = cx + (ch.tx / 100) * S.W;
-  const oy = cy + (ch.ty / 100) * S.H;
+  const ox = cx + (ch.tx / 100) * W;
+  const oy = cy + (ch.ty / 100) * H;
   const e = ox - (a * cx + c * cy);
   const f = oy - (b * cx + d * cy);
   return [a * s, b * s, c * s, d * s, e * s, f * s];
 }
 
-function buildPlan(scale) {
+// Attaches each item's own dot list at build time (am/noise/dither — Flat
+// mode has none, drawPlan/svgPlanItemsMarkup read roughPathOf/plateOf/
+// tintOf directly) — removes the prior duplication where drawPlan and
+// svgFromPlan each independently re-called the same memoized getter, and
+// becomes necessary once there are two different AM dot sources (Screen's
+// amDotsOf vs Print's amDotsOfPrint, see buildPlanPrint below).
+function dotsForChannel(ch) {
+  if (ch.screenMode === 'am') return amDotsOf(ch);
+  if (ch.screenMode === 'noise') return computeNoiseDots(ch);
+  if (ch.screenMode === 'dither') return computeDitherDots(ch);
+  return null;
+}
+
+function buildPlan(scale, onlyId) {
   const s = scale || 1;
   return {
     outW: Math.round(S.W * s),
     outH: Math.round(S.H * s),
     bg: S.bg,
-    items: S.channels.filter(ch => ch.on && ch.count > 0).map(ch => ({
+    items: S.channels.filter(ch => ch.on && ch.count > 0 && (onlyId == null || ch.id === onlyId)).map(ch => ({
       ch,
+      dots: dotsForChannel(ch),
       m: channelMatrix(ch, s),
       color: ch.color,
       opacity: ch.opacity / 100,
       blend: ch.blend,
     })),
+  };
+}
+
+// Print mode's plan — trimWpx/trimHpx/dpi come from printRasterDims().
+// outScale maps the mask's own S.W to the trim width (the same "single
+// scalar via width" convention Pollen/Spore's own Print-mode export
+// already accepts). AM channels' dots are generated directly in trim-px
+// space by amDotsOfPrint and need no further scaling (channelMatrix
+// s=1, explicit trim W/H); non-AM channels' content is still mask-space,
+// scaled up via channelMatrix(ch, outScale) exactly like Screen mode.
+// onlyId, when given, additionally filters to one channel (plate export).
+function buildPlanPrint(trimWpx, trimHpx, dpi, onlyId) {
+  const outScale = S.W ? trimWpx / S.W : 1;
+  return {
+    outW: trimWpx, outH: trimHpx, bg: S.bg,
+    items: S.channels.filter(ch => ch.on && ch.count > 0 && (onlyId == null || ch.id === onlyId)).map(ch => {
+      const isAm = ch.screenMode === 'am';
+      const dots = isAm ? amDotsOfPrint(ch, trimWpx, trimHpx, dpi)
+                 : ch.screenMode === 'noise' ? computeNoiseDots(ch)
+                 : ch.screenMode === 'dither' ? computeDitherDots(ch)
+                 : null;
+      return {
+        ch, dots, isAmPrint: isAm,
+        m: isAm ? channelMatrix(ch, 1, trimWpx, trimHpx) : channelMatrix(ch, outScale),
+        color: ch.color, opacity: ch.opacity / 100, blend: ch.blend,
+      };
+    }),
   };
 }
 
@@ -1164,8 +1296,11 @@ function lineCorners(d, cell, basis) {
   ];
 }
 
-function drawAmDots(ctx, ch, fill) {
-  const dots = amDotsOf(ch);
+// dots/isPrint are supplied by the caller (buildPlan/buildPlanPrint's own
+// item.dots, item.isAmPrint) rather than re-derived here — Screen and
+// Print mode have distinct dot sources/caches (amDotsOf vs amDotsOfPrint),
+// and isPrint picks the matching cell/basis cache for the Line dot shape.
+function drawAmDots(ctx, ch, fill, dots, isPrint) {
   ctx.fillStyle = fill;
   if (ch.dotShape === 'euclidean') {
     // A hole-punched dot needs its OWN evenodd fill() per point — sharing
@@ -1194,7 +1329,9 @@ function drawAmDots(ctx, ch, fill) {
       const s = d.r * 2;
       ctx.rect(d.x - d.r, d.y - d.r, s, s);
     } else if (ch.dotShape === 'line') {
-      const c = lineCorners(d, ch._amCell, ch._amBasis);
+      const cell = isPrint ? ch._amCellPrint : ch._amCell;
+      const basis = isPrint ? ch._amBasisPrint : ch._amBasis;
+      const c = lineCorners(d, cell, basis);
       ctx.moveTo(c[0][0], c[0][1]);
       for (let k = 1; k < 4; k++) ctx.lineTo(c[k][0], c[k][1]);
       ctx.closePath();
@@ -1219,11 +1356,11 @@ function drawPlan(ctx, plan, opts) {
     ctx.globalAlpha = opts.plate ? 1 : it.opacity;
     ctx.globalCompositeOperation = (!opts.plate && it.blend === 'multiply') ? 'multiply' : 'source-over';
     if (it.ch.screenMode === 'am') {
-      drawAmDots(ctx, it.ch, opts.plate ? '#000000' : it.color);
+      drawAmDots(ctx, it.ch, opts.plate ? '#000000' : it.color, it.dots, !!it.isAmPrint);
     } else if (it.ch.screenMode === 'noise') {
-      drawCircleDots(ctx, computeNoiseDots(it.ch), opts.plate ? '#000000' : it.color);
+      drawCircleDots(ctx, it.dots, opts.plate ? '#000000' : it.color);
     } else if (it.ch.screenMode === 'dither') {
-      drawSquareDots(ctx, computeDitherDots(it.ch), opts.plate ? '#000000' : it.color);
+      drawSquareDots(ctx, it.dots, opts.plate ? '#000000' : it.color);
     } else if (it.ch.edgeRoughen) {
       // Roughened Flat edge — filled from the SAME path string the SVG
       // export reads (roughPathOf), via Path2D, so the live preview can't
@@ -1254,25 +1391,32 @@ function plateOf(ch) {
   return c;
 }
 
-function svgFromPlan(plan) {
+// Just the per-item markup (dots/paths, each wrapped in its own
+// transformed+coloured <g>), no outer <svg>/background — the piece both
+// svgFromPlan() (the composite Screen/Print export) and the per-plate SVG
+// builder (buildPrintPlateSVG) share. Reads it.dots (attached at build
+// time by buildPlan/buildPlanPrint) instead of re-deriving via
+// amDotsOf(it.ch)/computeNoiseDots(it.ch)/computeDitherDots(it.ch) — the
+// SAME dot list the canvas preview/export draws, genuine WYSIWYG, now
+// with a single source (no duplicated getter calls between this and
+// drawPlan).
+function svgPlanItemsMarkup(items) {
   const num = v => String(Math.round(v * 1000) / 1000);
-  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${plan.outW}" height="${plan.outH}" viewBox="0 0 ${plan.outW} ${plan.outH}">`;
-  s += `<rect width="100%" height="100%" fill="${plan.bg}"/>`;
-  let paths = 0;
-  for (const it of plan.items) {
+  let s = '', paths = 0;
+  for (const it of items) {
     const style = it.blend === 'multiply' ? ' style="mix-blend-mode:multiply"' : '';
     const op = it.opacity < 1 ? ` opacity="${num(it.opacity)}"` : '';
     if (it.ch.screenMode === 'am') {
-      // Real vector dots — the SAME dot list amDotsOf() feeds the canvas
-      // preview, so this is genuine WYSIWYG, not a re-derivation.
-      const dots = amDotsOf(it.ch);
+      const dots = it.dots;
       if (!dots.length) continue;
       s += `<g transform="matrix(${it.m.map(num).join(' ')})" fill="${it.color}"${op}${style}>`;
       for (const d of dots) {
         if (it.ch.dotShape === 'square') {
           s += `<rect x="${num(d.x - d.r)}" y="${num(d.y - d.r)}" width="${num(d.r * 2)}" height="${num(d.r * 2)}"/>`;
         } else if (it.ch.dotShape === 'line') {
-          const c = lineCorners(d, it.ch._amCell, it.ch._amBasis);
+          const cell = it.isAmPrint ? it.ch._amCellPrint : it.ch._amCell;
+          const basis = it.isAmPrint ? it.ch._amBasisPrint : it.ch._amBasis;
+          const c = lineCorners(d, cell, basis);
           s += `<polygon points="${c.map(p => num(p[0]) + ',' + num(p[1])).join(' ')}"/>`;
         } else if (it.ch.dotShape === 'euclidean') {
           if (d.hole) {
@@ -1292,7 +1436,7 @@ function svgFromPlan(plan) {
       s += '</g>';
       paths += dots.length;
     } else if (it.ch.screenMode === 'noise') {
-      const dots = computeNoiseDots(it.ch);
+      const dots = it.dots;
       if (!dots.length) continue;
       s += `<g transform="matrix(${it.m.map(num).join(' ')})" fill="${it.color}"${op}${style}>`;
       for (const d of dots) s += `<circle cx="${num(d.x)}" cy="${num(d.y)}" r="${num(d.r)}"/>`;
@@ -1300,9 +1444,8 @@ function svgFromPlan(plan) {
       paths += dots.length;
     } else if (it.ch.screenMode === 'dither') {
       // Real vector rects — same square-tile export the AM 'square' dot
-      // shape already emits, sourced from computeDitherDots() (the SAME
-      // list the canvas preview reads).
-      const dots = computeDitherDots(it.ch);
+      // shape already emits.
+      const dots = it.dots;
       if (!dots.length) continue;
       s += `<g transform="matrix(${it.m.map(num).join(' ')})" fill="${it.color}"${op}${style}>`;
       for (const d of dots) s += `<rect x="${num(d.x - d.r)}" y="${num(d.y - d.r)}" width="${num(d.r * 2)}" height="${num(d.r * 2)}"/>`;
@@ -1319,8 +1462,15 @@ function svgFromPlan(plan) {
       paths++;
     }
   }
+  return { markup: s, paths };
+}
+function svgFromPlan(plan) {
+  const r = svgPlanItemsMarkup(plan.items);
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${plan.outW}" height="${plan.outH}" viewBox="0 0 ${plan.outW} ${plan.outH}">`;
+  s += `<rect width="100%" height="100%" fill="${plan.bg}"/>`;
+  s += r.markup;
   s += '</svg>';
-  return { svg: s, paths };
+  return { svg: s, paths: r.paths };
 }
 
 function render() {
@@ -1936,8 +2086,31 @@ function exportScale() {
   return parseInt(ctrl('sel-scale').value, 10) || 1;
 }
 
+// Print mode's trim/bleed/DPI, in both px (raster) and mm (vector) form —
+// mirrors Pollen/Spore/Halide's own printRasterDims() from the Sep 7 phase.
+function printRasterDims() {
+  const unit = printSizePanel.getUnit();
+  const size = printSizePanel.getSize();
+  const dpi = printSizePanel.getDpi() || 300;
+  const bleedMm = printSizePanel.getBleed();
+  const trimWmm = Organica.printSize.toMM(size.width, unit) || 0;
+  const trimHmm = Organica.printSize.toMM(size.height, unit) || 0;
+  const trimWpx = Math.round(Organica.printSize.mmToPx(trimWmm, dpi));
+  const trimHpx = Math.round(Organica.printSize.mmToPx(trimHmm, dpi));
+  const bleedPx = Math.round(Organica.printSize.mmToPx(bleedMm, dpi));
+  return {
+    dpi, trimWmm, trimHmm, bleedMm, trimWpx, trimHpx, bleedPx,
+    outW: trimWpx + 2 * bleedPx, outH: trimHpx + 2 * bleedPx,
+  };
+}
+
 function updateSizeReadout() {
   if (!S.W) { ctrl('out-size').textContent = '—'; return; }
+  if (printSizePanel.getMode() === 'print') {
+    const d = printRasterDims();
+    printSizePanel.setPixelPreview(d.outW, d.outH);
+    return;
+  }
   const s = exportScale();
   ctrl('out-size').textContent = Math.round(S.W * s) + ' × ' + Math.round(S.H * s);
 }
@@ -1962,7 +2135,8 @@ function renderToCanvas(plan, opts) {
 
 function canvasToBlob(c, mime, quality) {
   // toDataURL, not toBlob — toBlob is async and races anything that resizes
-  // a canvas back afterwards (docs/UI-SHELL.md §5).
+  // a canvas back afterwards (docs/UI-SHELL.md §5). Reused unchanged for
+  // Print-mode raster/plate export below.
   const url = c.toDataURL(mime, quality);
   const bin = atob(url.split(',')[1]);
   const bytes = new Uint8Array(bin.length);
@@ -1977,6 +2151,39 @@ function exportRaster(mime, ext) {
   setStatus('active', ext.toUpperCase() + ' exported');
 }
 
+// Bleed-inclusive Print-mode canvas for one render — the composite
+// (onlyId null) or a single plate (onlyId set), same v1 discipline as
+// Loom/Pollen/Spore/Halide: flat-fill background extension + crop marks,
+// PLUS registration marks (only when isPlate — meaningless on a composite
+// image with nothing else to align against).
+function renderPrintCanvas(d, onlyId, isPlate) {
+  const plan = buildPlanPrint(d.trimWpx, d.trimHpx, d.dpi, onlyId);
+  const c = document.createElement('canvas');
+  c.width = d.outW; c.height = d.outH;
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = !ctrl('ck-no-smooth').checked;
+  g.fillStyle = isPlate ? '#ffffff' : S.bg;
+  g.fillRect(0, 0, d.outW, d.outH);
+  g.translate(d.bleedPx, d.bleedPx);
+  drawPlan(g, plan, { plate: isPlate, onlyId });
+  if (d.bleedPx > 0) {
+    Organica.printSize.drawCropMarksCanvas(g, d.trimWpx, d.trimHpx, {}, '#000');
+    if (isPlate) Organica.printSize.drawRegistrationMarksCanvas(g, d.trimWpx, d.trimHpx, { bleed: d.bleedPx }, '#000');
+  }
+  return c;
+}
+
+function exportRasterPrint(mime, ext) {
+  if (!S.W) return;
+  const d = printRasterDims();
+  const c = renderPrintCanvas(d, null, false);
+  canvasToBlob(c, mime, 0.92).arrayBuffer().then(buf => {
+    const bytes = mime === 'image/png' ? Organica.printSize.embedPngDpi(buf, d.dpi) : new Uint8Array(buf);
+    Organica.download(new Blob([bytes], { type: mime }), Organica.stamp('colornet', ext));
+    setStatus('active', ext.toUpperCase() + ' exported — ' + d.outW + '×' + d.outH);
+  });
+}
+
 function exportSVG() {
   if (!S.W) return;
   setStatus('active', 'Tracing channels…');
@@ -1987,20 +2194,87 @@ function exportSVG() {
   }, 20);
 }
 
+function r2(n) { return Math.round(n * 100) / 100; }
+
+// Forces the existing plate convention (verified against drawPlan's own
+// opts.plate branch: white bg, black ink, full opacity, normal blend
+// regardless of the channel's real display settings) onto a set of plan
+// items, for the SVG plate path — the raster path already gets this via
+// drawPlan's opts.plate.
+function buildPlateItems(items) {
+  return items.map(it => Object.assign({}, it, { color: '#000000', opacity: 1, blend: 'normal' }));
+}
+
+// Print mode's per-plate SVG — a real physical-mm document. Content is
+// generated in trim-px space (amDotsOfPrint/channelMatrix, see above),
+// wrapped in an outer scale(mm-per-px) group — the same "outer-scale-
+// group" convention Pollen/Spore/FVS's own print SVG builders use (Halide
+// instead builds coordinates directly in mm; Colornet's dot math is
+// inherently px-based via cellCoverage's mask indexing, so the outer-
+// scale-group approach is the natural fit here).
+function buildPrintPlateSVG(chId) {
+  const d = printRasterDims();
+  const plan = buildPlanPrint(d.trimWpx, d.trimHpx, d.dpi, chId);
+  const items = buildPlateItems(plan.items);
+  const sc = d.trimWpx ? d.trimWmm / d.trimWpx : 1;
+  const bw = d.trimWmm + 2 * d.bleedMm, bh = d.trimHmm + 2 * d.bleedMm;
+  const { markup } = svgPlanItemsMarkup(items);
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(bw)}mm" height="${r2(bh)}mm" viewBox="0 0 ${r2(bw)} ${r2(bh)}">`;
+  s += `<rect width="100%" height="100%" fill="#fff"/>`;
+  s += `<g transform="translate(${r2(d.bleedMm)},${r2(d.bleedMm)})">`;
+  s += `<rect width="${r2(d.trimWmm)}" height="${r2(d.trimHmm)}" fill="#fff"/>`;
+  s += `<g transform="scale(${sc})">${markup}</g>`;
+  if (d.bleedMm > 0) {
+    s += Organica.printSize.cropMarksSVG(d.trimWmm, d.trimHmm, {}, '#000');
+    s += Organica.printSize.registrationMarksSVG(d.trimWmm, d.trimHmm, { bleed: d.bleedMm }, '#000');
+  }
+  s += '</g></svg>';
+  return s;
+}
+
 function exportSeparations() {
   if (!S.W) return;
-  const plan = buildPlan(exportScale());
+  const isPrint = printSizePanel.getMode() === 'print';
+  const d = isPrint ? printRasterDims() : null;
+  const plan = isPrint ? buildPlanPrint(d.trimWpx, d.trimHpx, d.dpi) : buildPlan(exportScale());
   if (!plan.items.length) { setStatus('', 'No visible channels'); return; }
   // One timestamp for the whole set, so a run's plates sort together —
   // Date.now() per file would give each plate its own stamp.
   const t = Date.now();
-  plan.items.forEach((it, i) => {
-    setTimeout(() => {
-      const c = renderToCanvas(plan, { plate: true, onlyId: it.ch.id });
-      Organica.download(canvasToBlob(c, 'image/png'), 'colornet-' + t + '-plate' + (i + 1) + '.png');
-    }, i * 220);   // browsers drop bursts of simultaneous downloads
+  Organica.plateExport.run(plan.items.length, {
+    build: (i) => {
+      const it = plan.items[i];
+      if (!isPrint) {
+        const c = renderToCanvas(plan, { plate: true, onlyId: it.ch.id });
+        return { blob: canvasToBlob(c, 'image/png'), filename: 'colornet-' + t + '-plate' + (i + 1) + '.png' };
+      }
+      const c = renderPrintCanvas(d, it.ch.id, true);
+      return canvasToBlob(c, 'image/png').arrayBuffer().then(buf => ({
+        blob: new Blob([Organica.printSize.embedPngDpi(buf, d.dpi)], { type: 'image/png' }),
+        filename: 'colornet-' + t + '-plate' + (i + 1) + '.png',
+      }));
+    },
+    onDone: () => setStatus('active', plan.items.length + ' plates exported'),
   });
-  setStatus('active', plan.items.length + ' plates exported');
+}
+
+function exportSeparationsSVG() {
+  if (!S.W) return;
+  const isPrint = printSizePanel.getMode() === 'print';
+  const d = isPrint ? printRasterDims() : null;
+  const plan = isPrint ? buildPlanPrint(d.trimWpx, d.trimHpx, d.dpi) : buildPlan(exportScale());
+  if (!plan.items.length) { setStatus('', 'No visible channels'); return; }
+  const t = Date.now();
+  Organica.plateExport.run(plan.items.length, {
+    build: (i) => {
+      const it = plan.items[i];
+      const svg = isPrint
+        ? buildPrintPlateSVG(it.ch.id)
+        : svgFromPlan({ ...plan, items: buildPlateItems(plan.items.filter(x => x.ch.id === it.ch.id)) }).svg;
+      return { blob: new Blob([svg], { type: 'image/svg+xml' }), filename: 'colornet-' + t + '-plate' + (i + 1) + '.svg' };
+    },
+    onDone: () => setStatus('active', plan.items.length + ' plate SVGs exported'),
+  });
 }
 
 function sendToFigma() { Organica.sendToFigma(svgFromPlan(buildPlan(exportScale())).svg, 'Colornet'); }
@@ -2077,10 +2351,11 @@ async function runBatch(files) {
   setStatus('active', 'Batch done — ' + ok + ' of ' + files.length + ' exported' + (failed ? ' · ' + failed + ' failed' : ''));
 }
 
-ctrl('btn-png').addEventListener('click', () => exportRaster('image/png', 'png'));
-ctrl('btn-jpg').addEventListener('click', () => exportRaster('image/jpeg', 'jpg'));
+ctrl('btn-png').addEventListener('click', () => printSizePanel.getMode() === 'print' ? exportRasterPrint('image/png', 'png') : exportRaster('image/png', 'png'));
+ctrl('btn-jpg').addEventListener('click', () => printSizePanel.getMode() === 'print' ? exportRasterPrint('image/jpeg', 'jpg') : exportRaster('image/jpeg', 'jpg'));
 ctrl('btn-svg').addEventListener('click', exportSVG);
 ctrl('btn-separate-png').addEventListener('click', exportSeparations);
+ctrl('btn-separate-svg').addEventListener('click', exportSeparationsSVG);
 
 // ═══════════════════════════════════════════
 // PRESETS — configuration only, never the image
