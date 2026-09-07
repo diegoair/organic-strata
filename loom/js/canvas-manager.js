@@ -24,7 +24,12 @@
    the user back their own numbers and for export labelling.
    ───────────────────────────────────────────────────────────── */
 
-export const UNIT_TO_MM = { mm: 1, cm: 10, m: 1000 };
+// 'in' added for the Screen/Print output-mode split (main.js) — kept in
+// sync by hand with shared/print-size.js's own UNIT_TO_MM (a classic
+// script's global can't be imported into an ES module's own exported
+// const without a build step; see print-size.js's header for why that
+// file stays a plain global rather than exporting).
+export const UNIT_TO_MM = { mm: 1, cm: 10, m: 1000, in: 25.4 };
 
 // px has no canonical physical size — pass through. mm/cm/m canonicalise
 // to mm-equivalents so canvas.width/height, Gap and Padding (main.js's

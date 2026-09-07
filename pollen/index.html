@@ -174,17 +174,21 @@
 
       <div class="org-popover__divider"></div>
 
-      <div class="org-popover__row">
-        <label class="org-popover__label" for="sel-scale">Scale</label>
-        <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
-          <option value="1" selected>&times;1</option>
-          <option value="2">&times;2</option>
-          <option value="3">&times;3</option>
-        </select>
-      </div>
-      <div class="org-popover__row">
-        <span class="org-popover__label">Output</span>
-        <span class="org-out" id="vl-out-size">&mdash;</span>
+      <div id="print-size-host"></div>
+
+      <div id="screen-scale-rows">
+        <div class="org-popover__row">
+          <label class="org-popover__label" for="sel-scale">Scale</label>
+          <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
+            <option value="1" selected>&times;1</option>
+            <option value="2">&times;2</option>
+            <option value="3">&times;3</option>
+          </select>
+        </div>
+        <div class="org-popover__row">
+          <span class="org-popover__label">Output</span>
+          <span class="org-out" id="vl-out-size">&mdash;</span>
+        </div>
       </div>
     </div>
   </div>
@@ -516,6 +520,8 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/palette.js"></script>
+<script src="/shared/print-size.js"></script>
+<script src="/shared/print-size-panel.js"></script>
 <script src="/shared/pollen-engine.js"></script>
 <script src="/genesis/forms.js"></script>
 <script>
@@ -528,6 +534,19 @@
 const canvas = document.getElementById('main-canvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvas-wrap');
+
+// Screen/Print output mode — shared/print-size-panel.js. Screen (default)
+// is today's Scale-multiplier export, untouched; Print reveals a real
+// physical size + DPI + bleed and hides the Scale/Output rows below it
+// (mutually exclusive — Print derives its own output size from
+// unit/size/dpi, not the multiplier).
+const printSizePanel = Organica.printSizePanel(document.getElementById('print-size-host'), {
+  idPrefix: 'ps',
+  onChange: (s) => {
+    document.getElementById('screen-scale-rows').style.display = s.mode === 'print' ? 'none' : '';
+    updateSizeReadout();
+  },
+});
 
 let sourceImage = null;
 let pointType = 'g:seed-breath';   // 'g:<seed-id>' — a Genesis Base Seed from window.ORGANIC_FORMS
@@ -1349,20 +1368,47 @@ function updatePtPreview() {
 const EXPORT_MAX_SIDE = 4000;     // ×1 (native) baseline longest side (raster)
 const EXPORT_HARD_SIDE = 8000;    // absolute longest-side cap at high Scale (raster)
 
-// Raster output dimensions + scale factor (preview → output). SVG ignores this.
+// Raster output dimensions + scale factor (preview → output). SVG ignores
+// this for Screen mode (resolution-independent) but Print mode's SVG
+// export (buildPrintSVG) reads the same panel fields this does.
+//
+// Print mode: outW/outH are the full BLEED-inclusive raster size, derived
+// straight from the panel's physical size + DPI (mmToPx) — no relation to
+// the Scale multiplier below, which Print mode hides. bleedPx/trimWpx/
+// trimHpx are exposed so exportRaster can translate + crop-mark the same
+// way Loom's raster-renderer.js does (flat background extension + crop
+// marks at the trim corners — the same v1 bleed discipline, not
+// re-invented per tool).
 function outputDims() {
-  if (!workW) return { outW: 0, outH: 0, outScale: 1 };
+  if (!workW) return { outW: 0, outH: 0, outScale: 1, isPrint: false };
+  if (printSizePanel.getMode() === 'print') {
+    const unit = printSizePanel.getUnit();
+    const size = printSizePanel.getSize();
+    const dpi = printSizePanel.getDpi() || 300;
+    const bleedMm = printSizePanel.getBleed();
+    const trimWmm = Organica.printSize.toMM(size.width, unit) || 0;
+    const trimHmm = Organica.printSize.toMM(size.height, unit) || 0;
+    const trimWpx = Math.round(Organica.printSize.mmToPx(trimWmm, dpi));
+    const trimHpx = Math.round(Organica.printSize.mmToPx(trimHmm, dpi));
+    const bleedPx = Math.round(Organica.printSize.mmToPx(bleedMm, dpi));
+    return {
+      isPrint: true, dpi, trimWpx, trimHpx, bleedPx,
+      outW: trimWpx + 2 * bleedPx, outH: trimHpx + 2 * bleedPx,
+      outScale: trimWpx / workW,
+    };
+  }
   const scale = parseFloat(ctrl('sel-scale').value) || 1;
   const base = workDims(EXPORT_MAX_SIDE);            // native (clamped) = ×1 baseline
   let outW = Math.round(base.W * scale), outH = Math.round(base.H * scale);
   const m = Math.max(outW, outH);
   if (m > EXPORT_HARD_SIDE) { const k = EXPORT_HARD_SIDE / m; outW = Math.round(outW * k); outH = Math.round(outH * k); }
-  return { outW, outH, outScale: outW / workW };
+  return { isPrint: false, outW, outH, outScale: outW / workW };
 }
 function updateSizeReadout() {
   if (!sourceImage || !points.length) { ctrl('vl-out-size').textContent = '—'; return; }
   const d = outputDims();
   ctrl('vl-out-size').textContent = d.outW + ' × ' + d.outH;
+  printSizePanel.setPixelPreview(d.outW, d.outH);
 }
 
 // Current Hide Zone band as [min,max] in 0..1, or null when disabled.
@@ -1373,18 +1419,35 @@ function hideBand() {
 
 const download = Organica.download;   // shared — delayed revoke, see /shared/core.js
 
-// Raster the preview points to the chosen Scale resolution (high-dpi copy).
+// Raster the preview points to the chosen Scale resolution (high-dpi copy)
+// — or, in Print mode, to the panel's physical size at its DPI, with a
+// flat-fill bleed extension + crop marks (Loom's raster-renderer.js v1
+// discipline: background extension + crop marks only, no per-generator
+// edge extrapolation) and a real embedded pHYs chunk on the PNG.
 function exportRaster(mime, ext, quality) {
   if (!points.length) return;
   setStatus('rendering', 'Exporting ' + ext.toUpperCase() + '…');
   setTimeout(() => {
-    const { outW, outH, outScale } = outputDims();
-    const oc = document.createElement('canvas'); oc.width = outW; oc.height = outH;
-    paintPoints(oc.getContext('2d'), points, pointParams(), outW, outH,
-                ctrl('ck-aa').checked, ctrl('hex-ink').value, ctrl('hex-bg').value, outScale);
-    oc.toBlob(b => {
+    const d = outputDims();
+    const oc = document.createElement('canvas'); oc.width = d.outW; oc.height = d.outH;
+    const octx = oc.getContext('2d');
+    if (d.isPrint) {
+      octx.fillStyle = ctrl('hex-bg').value; octx.fillRect(0, 0, d.outW, d.outH);
+      octx.translate(d.bleedPx, d.bleedPx);   // no restore needed — oc is a throwaway canvas
+      paintPoints(octx, points, pointParams(), d.trimWpx, d.trimHpx,
+                  ctrl('ck-aa').checked, ctrl('hex-ink').value, ctrl('hex-bg').value, d.outScale);
+      if (d.bleedPx > 0) Organica.printSize.drawCropMarksCanvas(octx, d.trimWpx, d.trimHpx, {}, '#000');
+    } else {
+      paintPoints(octx, points, pointParams(), d.outW, d.outH,
+                  ctrl('ck-aa').checked, ctrl('hex-ink').value, ctrl('hex-bg').value, d.outScale);
+    }
+    oc.toBlob(async b => {
+      if (d.isPrint && mime === 'image/png') {
+        const bytes = Organica.printSize.embedPngDpi(await b.arrayBuffer(), d.dpi);
+        b = new Blob([bytes], { type: mime });
+      }
       download(b, 'pollen-' + Date.now() + '.' + ext);
-      setStatus('active', points.length.toLocaleString() + ' pts · ' + ext.toUpperCase() + ' ' + outW + '×' + outH);
+      setStatus('active', points.length.toLocaleString() + ' pts · ' + ext.toUpperCase() + ' ' + d.outW + '×' + d.outH);
     }, mime, quality);
   }, 30);
 }
@@ -1425,11 +1488,11 @@ function shapeToSVG(P, x, y, sz, deg, b, rnd, fill, op) {
   return `<g transform="${t}" fill="${fill}"${o}>${inner}</g>`;
 }
 
-function buildSVG(pts, W, H, unit) {
+// Just the per-point marks, no outer <svg>/background — the piece both
+// buildSVG() (Screen mode + Figma) and buildPrintSVG() (Print mode) wrap.
+function buildPointsMarkup(pts, unit) {
   const P = pointParams();
-  const bg = ctrl('hex-bg').value;
-  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
-  s += `<rect width="${W}" height="${H}" fill="${bg}"/>`;
+  let s = '';
   for (let k = 0; k < pts.length; k++) {
     const p = pts[k];
     if (dropoutSkip(P, p.b, p.rnd)) continue;       // thin the lights at random
@@ -1438,16 +1501,52 @@ function buildSVG(pts, W, H, unit) {
     const c = pointRGBA(P, p.b, p.rnd);
     s += shapeToSVG(P, p.x, p.y, sz, deg, p.b, p.rnd, `rgb(${c.r},${c.g},${c.b})`, c.a);
   }
-  return s + '</svg>';
+  return s;
 }
 
-// Vector SVG = the exact preview points (preview coords, unit 1). Resolution-
-// independent, so it scales to any size while staying identical to the preview.
+function buildSVG(pts, W, H, unit) {
+  const bg = ctrl('hex-bg').value;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  s += `<rect width="${W}" height="${H}" fill="${bg}"/>`;
+  s += buildPointsMarkup(pts, unit);
+  return s + '</svg>';
+}
+function r2(n) { return Math.round(n * 100) / 100; }
+
+// Print mode's SVG: a real physical-mm document — bleed box + a uniform
+// scale(trimWmm/workW) group wrapping the SAME per-point markup buildSVG
+// uses at unit=1 (preview coords), so positions AND sizes scale together
+// in one step, plus crop marks at the trim corners when bleed > 0. Same
+// "always-wrap, identity when bleed=0" discipline as Loom's svg-renderer.js
+// — not load-bearing here (no second splice point to protect), kept for
+// consistency with the rest of this phase's tools.
+function buildPrintSVG(pts) {
+  const unit = printSizePanel.getUnit();
+  const size = printSizePanel.getSize();
+  const bleedMm = printSizePanel.getBleed();
+  const trimWmm = Organica.printSize.toMM(size.width, unit) || 0;
+  const trimHmm = Organica.printSize.toMM(size.height, unit) || 0;
+  const bw = trimWmm + 2 * bleedMm, bh = trimHmm + 2 * bleedMm;
+  const bg = ctrl('hex-bg').value;
+  const sc = workW ? trimWmm / workW : 1;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(bw)}mm" height="${r2(bh)}mm" viewBox="0 0 ${r2(bw)} ${r2(bh)}">`;
+  s += `<rect width="100%" height="100%" fill="${bg}"/>`;
+  s += `<g transform="translate(${r2(bleedMm)},${r2(bleedMm)})">`;
+  s += `<rect width="${r2(trimWmm)}" height="${r2(trimHmm)}" fill="${bg}"/>`;
+  s += `<g transform="scale(${sc})">${buildPointsMarkup(pts, 1)}</g>`;
+  if (bleedMm > 0) s += Organica.printSize.cropMarksSVG(trimWmm, trimHmm, {}, '#000');
+  s += '</g></svg>';
+  return s;
+}
+
+// Vector SVG = the exact preview points. Screen mode is resolution-
+// independent (preview coords, unit 1); Print mode wraps the same marks
+// in a real physical-mm document with bleed + crop marks (buildPrintSVG).
 function exportSVG() {
   if (!points.length) return;
   setStatus('rendering', 'Exporting SVG…');
   setTimeout(() => {
-    const svg = buildSVG(points, workW, workH, 1);
+    const svg = printSizePanel.getMode() === 'print' ? buildPrintSVG(points) : buildSVG(points, workW, workH, 1);
     window._lastSVG = svg;
     download(new Blob([svg], { type: 'image/svg+xml' }), 'pollen-' + Date.now() + '.svg');
     setStatus('active', points.length.toLocaleString() + ' pts · SVG ' + Math.round(svg.length / 1024) + ' KB');

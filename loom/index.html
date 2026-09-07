@@ -280,6 +280,13 @@
     <div class="panel-section">
       <h3>Canvas <span class="hint">the physical space</span></h3>
       <div class="ctrl-row">
+        <div class="ctrl-label">Mode</div>
+        <div class="seg-ctrl" id="seg-canvas-mode" role="group" aria-label="Output mode">
+          <button type="button" class="seg-btn active" aria-pressed="true" data-v="screen" onclick="setCanvasMode('screen')">Screen</button>
+          <button type="button" class="seg-btn" aria-pressed="false" data-v="print" onclick="setCanvasMode('print')">Print</button>
+        </div>
+      </div>
+      <div class="ctrl-row">
         <select class="panel-select" id="sel-canvas-preset" aria-label="Canvas preset" onchange="applyCanvasPreset()">
           <option value="">Custom…</option>
         </select>
@@ -292,14 +299,18 @@
         <div class="ctrl-label">Height</div>
         <input type="number" class="panel-select" id="num-height" value="1080" min="10" step="1" style="width:100%">
       </div>
-      <div class="ctrl-row">
+      <div class="ctrl-row" id="row-print-unit" style="display:none">
         <div class="ctrl-label">Unit</div>
         <select class="panel-select" id="sel-unit" aria-label="Unit" onchange="onUnitChange()">
-          <option value="px" selected>px</option>
-          <option value="mm">mm</option>
+          <option value="mm" selected>mm</option>
           <option value="cm">cm</option>
           <option value="m">m</option>
+          <option value="in">in</option>
         </select>
+      </div>
+      <div class="ctrl-row" id="row-print-dpi" style="display:none">
+        <div class="ctrl-label">DPI</div>
+        <input type="number" class="panel-select" id="num-dpi" value="300" min="72" step="1" style="width:100%">
       </div>
       <label class="check-row">
         <input type="checkbox" id="ck-margin-link" checked><span>Link margin sides</span>
@@ -1111,6 +1122,7 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/noise.js"></script>
+<script src="/shared/print-size.js"></script>
 <script src="/shared/vendor/kiwi.min.js"></script>
 <script type="module" src="./js/main.js"></script>
 </body>

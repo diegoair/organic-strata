@@ -110,19 +110,23 @@
 
       <div class="org-popover__divider"></div>
 
-      <div class="org-popover__row">
-        <label class="org-popover__label" for="sel-scale">Scale</label>
-        <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
-          <option value="2">×2</option>
-          <option value="4" selected>×4</option>
-          <option value="6">×6</option>
-          <option value="8">×8</option>
-          <option value="12">×12</option>
-        </select>
-      </div>
-      <div class="org-popover__row">
-        <span class="org-popover__label">Output</span>
-        <span class="org-out" id="vl-out-size">—</span>
+      <div id="print-size-host"></div>
+
+      <div id="screen-scale-rows">
+        <div class="org-popover__row">
+          <label class="org-popover__label" for="sel-scale">Scale</label>
+          <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
+            <option value="2">×2</option>
+            <option value="4" selected>×4</option>
+            <option value="6">×6</option>
+            <option value="8">×8</option>
+            <option value="12">×12</option>
+          </select>
+        </div>
+        <div class="org-popover__row">
+          <span class="org-popover__label">Output</span>
+          <span class="org-out" id="vl-out-size">—</span>
+        </div>
       </div>
 
       <div class="org-popover__divider"></div>
@@ -341,6 +345,8 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/palette.js"></script>
+<script src="/shared/print-size.js"></script>
+<script src="/shared/print-size-panel.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // HALIDE — photo → true 1-bit dithered portrait
@@ -354,6 +360,17 @@
 
 const canvas = document.getElementById('main-canvas');
 const canvasWrap = document.getElementById('canvas-wrap');
+
+// Screen/Print output mode — shared/print-size-panel.js. Screen (default)
+// is today's Scale-multiplier export, untouched; Print reveals a real
+// physical size + DPI + bleed and hides the Scale/Output rows below it.
+const printSizePanel = Organica.printSizePanel(document.getElementById('print-size-host'), {
+  idPrefix: 'ps',
+  onChange: () => {
+    document.getElementById('screen-scale-rows').style.display = printSizePanel.getMode() === 'print' ? 'none' : '';
+    updateSizeReadout();
+  },
+});
 
 let sourceImage = null;
 let ditherAlg = 'fs';           // 'fs' | 'atkinson' | 'bayer' | 'threshold'
@@ -1058,19 +1075,76 @@ function outputDims(block) {
   if (m > EXPORT_HARD_SIDE) { const k = EXPORT_HARD_SIDE / m; block = Math.max(1, Math.floor(block * k)); outW = workW * block; outH = workH * block; }
   return { block, outW, outH };
 }
+// Print mode's trim size in mm (panel unit → mm), and — for the raster
+// path only — the bleed-inclusive pixel dimensions at the panel's DPI.
+// "block" (the existing screen-mode scale-per-work-unit concept) turns
+// out to generalise directly: a raster block is px-per-work-unit, a
+// print SVG's own "block" is simply mm-per-work-unit — same multiplier,
+// same svgRects()/contoursToPathD() call sites, no separate code path.
+function printTrimMM() {
+  const unit = printSizePanel.getUnit();
+  const size = printSizePanel.getSize();
+  const bleedMm = printSizePanel.getBleed();
+  return {
+    trimWmm: Organica.printSize.toMM(size.width, unit) || 0,
+    trimHmm: Organica.printSize.toMM(size.height, unit) || 0,
+    bleedMm,
+  };
+}
+function printRasterDims() {
+  const { trimWmm, trimHmm, bleedMm } = printTrimMM();
+  const dpi = printSizePanel.getDpi() || 300;
+  const trimWpx = Math.round(Organica.printSize.mmToPx(trimWmm, dpi));
+  const trimHpx = Math.round(Organica.printSize.mmToPx(trimHmm, dpi));
+  const bleedPx = Math.round(Organica.printSize.mmToPx(bleedMm, dpi));
+  return {
+    dpi, trimWpx, trimHpx, bleedPx,
+    outW: trimWpx + 2 * bleedPx, outH: trimHpx + 2 * bleedPx,
+    block: workW ? trimWpx / workW : 1,
+  };
+}
 function updateSizeReadout() {
   if (!rects) { ctrl('vl-out-size').textContent = '—'; return; }
+  if (printSizePanel.getMode() === 'print') {
+    const p = printRasterDims();
+    printSizePanel.setPixelPreview(p.outW, p.outH);
+    return;
+  }
   const d = outputDims(parseInt(ctrl('sel-scale').value, 10) || 4);
   ctrl('vl-out-size').textContent = d.outW + ' × ' + d.outH;
 }
 const download = Organica.download;   // shared — delayed revoke, see /shared/core.js
+
+// Screen mode: today's behaviour, unchanged. Print mode re-renders onto a
+// bleed-inclusive canvas at the panel's own physical size/DPI (Loom's v1
+// discipline: flat background extension + crop marks, no per-region edge
+// extrapolation) and embeds a real PNG pHYs chunk.
 function exportRaster(mime, ext, quality) {
   if (!rects) return;
   setStatus('active', 'Exporting ' + ext.toUpperCase() + '…');
   setTimeout(() => {
+    const isPrint = printSizePanel.getMode() === 'print';
+    const transparent = ext !== 'jpg' && ctrl('ck-transparent').checked;   // JPG has no alpha channel
+    if (isPrint) {
+      const p = printRasterDims();
+      const oc = document.createElement('canvas'); oc.width = p.outW; oc.height = p.outH;
+      const octx = oc.getContext('2d');
+      if (!transparent) { octx.fillStyle = ctrl('hex-paper').value; octx.fillRect(0, 0, p.outW, p.outH); }
+      octx.translate(p.bleedPx, p.bleedPx);
+      paintCanvas(octx, workW, workH, p.block, ctrl('hex-ink').value, ctrl('hex-paper').value, ctrl('ck-structure').checked, transparent);
+      if (p.bleedPx > 0) Organica.printSize.drawCropMarksCanvas(octx, workW * p.block, workH * p.block, {}, '#000');
+      oc.toBlob(async b => {
+        if (mime === 'image/png') {
+          const bytes = Organica.printSize.embedPngDpi(await b.arrayBuffer(), p.dpi);
+          b = new Blob([bytes], { type: mime });
+        }
+        download(b, 'halide-' + Date.now() + '.' + ext);
+        setStatus('active', p.outW + '×' + p.outH + ' · ' + ext.toUpperCase() + ' saved');
+      }, mime, quality);
+      return;
+    }
     const { block, outW, outH } = outputDims(parseInt(ctrl('sel-scale').value, 10) || 4);
     const oc = document.createElement('canvas'); oc.width = outW; oc.height = outH;
-    const transparent = ext !== 'jpg' && ctrl('ck-transparent').checked;   // JPG has no alpha channel
     paintCanvas(oc.getContext('2d'), workW, workH, block, ctrl('hex-ink').value, ctrl('hex-paper').value, ctrl('ck-structure').checked, transparent);
     oc.toBlob(b => {
       download(b, 'halide-' + Date.now() + '.' + ext);
@@ -1099,8 +1173,15 @@ function svgRects(list, block) {
 // downstream workflows (e.g. per-cell editing after → Figma) want the
 // individual rects; wireframe mode always keeps rects (that view exists
 // specifically to show the individual blocks).
-function buildSVG(block) {
-  const { outW, outH } = outputDims(block);
+//
+// Just the region markup, no outer <svg> — the piece both buildSVG()
+// (Screen mode + Figma) and the Print-mode bleed wrapper share. The
+// paper-background rect is sized explicitly (workW*block × workH*block)
+// rather than "100%" — a pure refactor for Screen mode (the two were
+// always numerically equal there) that becomes load-bearing once this
+// markup can sit inside a bleed wrapper whose own <svg> is bigger than
+// the trim content.
+function buildSVGInner(block) {
   const ink = ctrl('hex-ink').value, paper = ctrl('hex-paper').value;
   const wireframe = ctrl('ck-structure').checked;
   const transparent = ctrl('ck-transparent').checked;
@@ -1109,22 +1190,46 @@ function buildSVG(block) {
     ? `<path fill="${color}" fill-rule="evenodd" d="${contoursToPathD(mask, workW, workH, block)}"/>`
     : `<g fill="${color}">${svgRects(rectList, block)}</g>`;
 
-  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${outW} ${outH}">`;
+  let s = '';
   if (bgFillRects) {
     s += region(outsideCellsMask, bgFillRects, ctrl('hex-bgfill').value);
     if (!transparent) s += region(keptNonInkCellsMask, keptPaperRects, paper);
   } else if (!transparent) {
-    s += `<rect width="100%" height="100%" fill="${paper}"/>`;
+    s += `<rect width="${workW * block}" height="${workH * block}" fill="${paper}"/>`;
   }
   if (outlineRects) s += region(ringCellsMask, outlineRects, '#ffffff');
   s += wireframe
     ? `<g fill="none" stroke="${ink}" stroke-width="1">${svgRects(rects, block)}</g>`
     : region(inkCellsMask, rects, ink);
-  return s + '</svg>';
+  return s;
+}
+function buildSVG(block) {
+  const { outW, outH } = outputDims(block);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${outW} ${outH}">`
+       + buildSVGInner(block) + '</svg>';
+}
+function r2(n) { return Math.round(n * 100) / 100; }
+
+// Print mode's SVG: same buildSVGInner(), but "block" is mm-per-work-unit
+// (trimWmm/workW) instead of px-per-work-unit — the inner markup lands
+// directly in a real physical-mm coordinate space, no separate scale
+// group needed. Wrapped in a bleed box + crop marks, matching Loom/
+// Pollen/Spore's own print SVG builders.
+function buildPrintSVG() {
+  const { trimWmm, trimHmm, bleedMm } = printTrimMM();
+  const block = workW ? trimWmm / workW : 1;
+  const bw = trimWmm + 2 * bleedMm, bh = trimHmm + 2 * bleedMm;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(bw)}mm" height="${r2(bh)}mm" viewBox="0 0 ${r2(bw)} ${r2(bh)}">`;
+  if (!ctrl('ck-transparent').checked) s += `<rect width="100%" height="100%" fill="${ctrl('hex-paper').value}"/>`;
+  s += `<g transform="translate(${r2(bleedMm)},${r2(bleedMm)})">`;
+  s += buildSVGInner(block);
+  if (bleedMm > 0) s += Organica.printSize.cropMarksSVG(trimWmm, trimHmm, {}, '#000');
+  s += '</g></svg>';
+  return s;
 }
 function exportSVG() {
   if (!rects) return;
-  const svg = buildSVG(parseInt(ctrl('sel-scale').value, 10) || 4);
+  const svg = printSizePanel.getMode() === 'print' ? buildPrintSVG() : buildSVG(parseInt(ctrl('sel-scale').value, 10) || 4);
   window._lastSVG = svg;
   download(new Blob([svg], { type: 'image/svg+xml' }), 'halide-' + Date.now() + '.svg');
   setStatus('active', 'SVG ' + Math.round(svg.length / 1024) + ' KB saved');

@@ -41,6 +41,51 @@ function populateCanvasPresets() {
     sel.appendChild(opt);
   });
 }
+// ── Output mode: Screen (px, today's behaviour) vs Print (a real
+// physical unit + DPI + bleed) — an explicit, always-visible choice
+// (.seg-ctrl), not a unit dropdown that silently grows extra fields.
+// Screen is the default; #sel-unit's own options are mm/cm/m/in only —
+// Screen mode owns px implicitly, never as a dropdown entry, so
+// readCanvas() below resolves 'px' from canvasMode, not from the select.
+let canvasMode = 'screen';
+let lastPrintUnit = 'mm';
+
+function deriveCanvasMode(unit) { return unit === 'px' ? 'screen' : 'print'; }
+
+function syncCanvasModeRows() {
+  const isPrint = canvasMode === 'print';
+  ctrl('row-print-unit').style.display = isPrint ? '' : 'none';
+  ctrl('row-print-dpi').style.display = isPrint ? '' : 'none';
+  ctrl('row-bleed').style.display = isPrint ? '' : 'none';
+  document.querySelectorAll('#seg-canvas-mode .seg-btn').forEach(b => {
+    const active = b.dataset.v === canvasMode;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+}
+
+function setCanvasMode(mode) {
+  if (mode === canvasMode) return;
+  const oldUnit = canvasMode === 'screen' ? 'px' : ctrl('sel-unit').value;
+  canvasMode = mode;
+  const newUnit = mode === 'screen' ? 'px' : lastPrintUnit;
+  if (mode === 'print') ctrl('sel-unit').value = newUnit;
+  // Same rescale discipline as onUnitChange() below — preserve the real
+  // physical size across the switch rather than leaving the raw number
+  // meaning something else. px has no fixed physical size (canvas-
+  // manager.js's own header), so any transition to/from it leaves
+  // Width/Height untouched, same as onUnitChange() already does.
+  rescaleGapPadding(oldUnit, newUnit);
+  if (oldUnit !== 'px' && newUnit !== 'px') {
+    const oldFactor = UNIT_TO_MM[oldUnit], newFactor = UNIT_TO_MM[newUnit];
+    ctrl('num-width').value = round4(val('num-width') * oldFactor / newFactor);
+    ctrl('num-height').value = round4(val('num-height') * oldFactor / newFactor);
+  }
+  lastUnit = newUnit;
+  syncCanvasModeRows();
+  build();
+}
+
 function applyCanvasPreset() {
   const name = ctrl('sel-canvas-preset').value;
   const p = CANVAS_PRESETS[name];
@@ -59,19 +104,17 @@ function applyCanvasPreset() {
   rescaleGapPadding(lastUnit, p.unit);
   ctrl('num-width').value = p.width;
   ctrl('num-height').value = p.height;
-  ctrl('sel-unit').value = p.unit;
+  canvasMode = deriveCanvasMode(p.unit);
+  if (canvasMode === 'print') { ctrl('sel-unit').value = p.unit; lastPrintUnit = p.unit; }
   lastUnit = p.unit;
-  syncUnitRows();
+  syncCanvasModeRows();
   build();
-}
-function syncUnitRows() {
-  ctrl('row-bleed').style.display = ctrl('sel-unit').value !== 'px' ? '' : 'none';
 }
 function readCanvas() {
   return createCanvas({
     width: val('num-width'),
     height: val('num-height'),
-    unit: ctrl('sel-unit').value,
+    unit: canvasMode === 'screen' ? 'px' : ctrl('sel-unit').value,
     marginTop: val('rg-margin-top'), marginRight: val('rg-margin-right'),
     marginBottom: val('rg-margin-bottom'), marginLeft: val('rg-margin-left'),
     safeAreaPct: val('rg-safearea'),
@@ -85,7 +128,7 @@ function readCanvas() {
 // canvas unit is mm and 12m when it's m, not the same raw number treated
 // identically regardless of scale.
 function unitVal(id) {
-  return toCanonical(val(id), ctrl('sel-unit').value);
+  return toCanonical(val(id), canvasMode === 'screen' ? 'px' : ctrl('sel-unit').value);
 }
 
 // Physical-unit ranges for the two absolute-number sliders (Gap, Padding)
@@ -127,6 +170,7 @@ function rescaleGapPadding(oldUnit, newUnit) {
 
 function onUnitChange() {
   const newUnit = ctrl('sel-unit').value;
+  lastPrintUnit = newUnit;   // #sel-unit only ever holds mm/cm/m/in now
   if (newUnit !== lastUnit) {
     rescaleGapPadding(lastUnit, newUnit);
     // Width/Height too — but ONLY between two physical units (mm/cm/m),
@@ -143,7 +187,7 @@ function onUnitChange() {
     }
   }
   lastUnit = newUnit;
-  syncUnitRows();
+  syncCanvasModeRows();
   build();
 }
 function round4(n) { return Math.round(n * 10000) / 10000; }
@@ -722,7 +766,15 @@ function sequentialNumbers() {
 // CSS-Grid path has no absolute-overlay slot the way #canvas-frame does)
 // — not attempted this round, scoped down on request to SVG/PNG only.
 function exportPNG() {
-  const c = renderRaster(currentModel, currentInner, parseInt(ctrl('sel-scale').value, 10) || 2, GUIDE_COLOR);
+  // Screen mode: today's unitless scale multiplier, unchanged. Print mode:
+  // scale is derived straight from DPI — canvas.width/height are already
+  // the canonical mm-equivalent number (canvas-manager.js's own header),
+  // so dpi/25.4 IS the px-per-canonical-unit raster scale, regardless of
+  // which physical unit (mm/cm/m/in) the user is actually working in.
+  const isPrint = canvasMode === 'print';
+  const dpi = isPrint ? (val('num-dpi') || 300) : null;
+  const scale = isPrint ? dpi / 25.4 : (parseInt(ctrl('sel-scale').value, 10) || 2);
+  const c = renderRaster(currentModel, currentInner, scale, GUIDE_COLOR);
   const overlayModel = buildOverlayModel();
   if (overlayModel) {
     const ctx = c.getContext('2d');   // same context renderRaster scaled — the transform persists, so overlay draws at the same physical scale for free
@@ -732,8 +784,9 @@ function exportPNG() {
   }
   const url = c.toDataURL('image/png');
   const bin = atob(url.split(',')[1]);
-  const bytes = new Uint8Array(bin.length);
+  let bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  if (isPrint) bytes = Organica.printSize.embedPngDpi(bytes.buffer, dpi);
   Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('loom', 'png'));
   setStatus('active', 'PNG saved');
 }
@@ -744,7 +797,11 @@ function overlaySVGGroup() {
   return `<g opacity="${opacity}">${cellsMarkup(model, currentInner, OVERLAY_COLOR)}</g>`;
 }
 function buildSVGString() {
-  return renderSVG(currentModel, currentInner, GUIDE_COLOR).replace('</svg>', overlaySVGGroup() + '</svg>');
+  // renderSVG() always wraps trim content in a translate(bleed,bleed) <g>
+  // (identity translate when bleed is 0) so this splice point — right
+  // before that group closes, not before </svg> itself — stays correct
+  // whether or not bleed is active; see svg-renderer.js's own header.
+  return renderSVG(currentModel, currentInner, GUIDE_COLOR).replace('</g></svg>', overlaySVGGroup() + '</g></svg>');
 }
 function exportSVG() {
   Organica.download(new Blob([buildSVGString()], { type: 'image/svg+xml' }), Organica.stamp('loom', 'svg'));
@@ -1049,7 +1106,8 @@ function loadGridPreset() {
   if (!model) return;
   ctrl('num-width').value = model.canvas.displayWidth;
   ctrl('num-height').value = model.canvas.displayHeight;
-  ctrl('sel-unit').value = model.canvas.unit;
+  canvasMode = deriveCanvasMode(model.canvas.unit);
+  if (canvasMode === 'print') { ctrl('sel-unit').value = model.canvas.unit; lastPrintUnit = model.canvas.unit; }
   lastUnit = model.canvas.unit;
   // Per-side fields fall back to the old single `margin` for any grid
   // saved before Phase 4 (including the built-in presets above, none of
@@ -1067,7 +1125,7 @@ function loadGridPreset() {
     (mc.marginTop ?? mc.margin) === (mc.marginLeft ?? mc.margin);
   ctrl('rg-safearea').value = model.canvas.safeArea;
   if (model.canvas.bleed) ctrl('num-bleed').value = model.canvas.bleed;
-  syncUnitRows();
+  syncCanvasModeRows();
   applyGridParamsToUI(model.grid.type, paramsWithGap(model.grid));
   syncGeneratorRows();
   if (model.grid.padding != null) ctrl('rg-padding').value = model.grid.padding;
@@ -1250,7 +1308,7 @@ function buildGeneratorPicker() {
 
 // ── INIT ──
 populateCanvasPresets();
-syncUnitRows();
+syncCanvasModeRows();
 const gridtypePicker = buildGeneratorPicker();   // before syncGeneratorRows() — it refreshes the picker's own trigger on every call
 syncGeneratorRows();
 populateSavedGrids();
@@ -1263,7 +1321,8 @@ window.deleteGridPreset = deleteGridPreset;
 window.loadGridPreset = loadGridPreset;
 window.build = build;
 window.applyCanvasPreset = applyCanvasPreset;
-window.syncUnitRows = syncUnitRows;
+window.syncCanvasModeRows = syncCanvasModeRows;
+window.setCanvasMode = setCanvasMode;
 window.onUnitChange = onUnitChange;
 window.syncGeneratorRows = syncGeneratorRows;
 window.setSeg = setSeg;

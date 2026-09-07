@@ -174,17 +174,21 @@
 
       <div class="org-popover__divider"></div>
 
-      <div class="org-popover__row">
-        <label class="org-popover__label" for="sel-scale">Scale</label>
-        <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
-          <option value="1">&times;1</option>
-          <option value="2" selected>&times;2</option>
-          <option value="3">&times;3</option>
-        </select>
-      </div>
-      <div class="org-popover__row">
-        <span class="org-popover__label">Output</span>
-        <span class="org-out" id="vl-out-size">&mdash;</span>
+      <div id="print-size-host"></div>
+
+      <div id="screen-scale-rows">
+        <div class="org-popover__row">
+          <label class="org-popover__label" for="sel-scale">Scale</label>
+          <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
+            <option value="1">&times;1</option>
+            <option value="2" selected>&times;2</option>
+            <option value="3">&times;3</option>
+          </select>
+        </div>
+        <div class="org-popover__row">
+          <span class="org-popover__label">Output</span>
+          <span class="org-out" id="vl-out-size">&mdash;</span>
+        </div>
       </div>
     </div>
   </div>
@@ -360,6 +364,8 @@
 <!-- Centralized Organica shape library (window.ORGANIC_FORMS), shared with Genesis/Pollen -->
 <script src="/shared/core.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/print-size.js"></script>
+<script src="/shared/print-size-panel.js"></script>
 <script src="/genesis/forms.js"></script>
 <script>
 // ─────────────────────────────────────────────
@@ -406,6 +412,16 @@ const densityMap = { light: 1.6, medium: 1.0, dense: 0.6 };
 // Canvas
 const canvas = document.getElementById('main-canvas');
 const ctx = canvas.getContext('2d');
+
+// Screen/Print output mode — shared/print-size-panel.js. Screen (default)
+// is today's behaviour, untouched; Print reveals a real physical size +
+// DPI + bleed and hides the Scale/Output rows below it.
+const printSizePanel = Organica.printSizePanel(document.getElementById('print-size-host'), {
+  idPrefix: 'ps',
+  onChange: () => {
+    document.getElementById('screen-scale-rows').style.display = printSizePanel.getMode() === 'print' ? 'none' : '';
+  },
+});
 
 // ─────────────────────────────────────────────
 // MARK GRID
@@ -860,37 +876,124 @@ function finishRender(stopped) {
 // Announced via the header's <output> live region — see core.js.
 const setStatus = Organica.status();
 
+// Replays every stored mark onto octx at the given scale, offset by
+// (offX,offY) px — the same loop exportJPG always used, factored out so
+// Print mode's bleed-inclusive raster export (both PNG and JPG) can reuse
+// it instead of re-deriving the replay math a second way.
+function paintSporeMarksScaled(octx, marks, svgEl, vbW, vbH, scale, offX, offY) {
+  marks.forEach(m => {
+    octx.save();
+    octx.translate(m.x * scale + offX, m.y * scale + offY);
+    octx.rotate(m.angle);
+    octx.globalAlpha = m.opacity;
+    drawMark(octx, svgEl, m.sz * scale, vbW, vbH, m.color);
+    octx.restore();
+  });
+}
+
+// Print mode's raster dimensions: the panel's physical size + DPI
+// (mmToPx), bleed-inclusive — same v1 discipline as Loom/Pollen (flat
+// background extension + crop marks, no per-mark edge extrapolation).
+function printRasterDims(W) {
+  const unit = printSizePanel.getUnit();
+  const size = printSizePanel.getSize();
+  const dpi = printSizePanel.getDpi() || 300;
+  const bleedMm = printSizePanel.getBleed();
+  const trimWmm = Organica.printSize.toMM(size.width, unit) || 0;
+  const trimHmm = Organica.printSize.toMM(size.height, unit) || 0;
+  const trimWpx = Math.round(Organica.printSize.mmToPx(trimWmm, dpi));
+  const trimHpx = Math.round(Organica.printSize.mmToPx(trimHmm, dpi));
+  const bleedPx = Math.round(Organica.printSize.mmToPx(bleedMm, dpi));
+  return {
+    dpi, trimWpx, trimHpx, bleedPx,
+    outW: trimWpx + 2 * bleedPx, outH: trimHpx + 2 * bleedPx,
+    scale: W ? trimWpx / W : 1,
+  };
+}
+
 // ─────────────────────────────────────────────
 // EXPORT PNG
+// Screen mode: today's behaviour, byte-for-byte unchanged (a direct dump
+// of the on-screen canvas). Print mode re-renders the stored marks at the
+// panel's physical size/DPI, same as exportJPG's own re-render path, with
+// a flat-fill bleed extension + crop marks + a real embedded pHYs chunk.
 // ─────────────────────────────────────────────
 function exportPNG() {
-  const a = document.createElement('a');
-  a.download = 'spore-' + Date.now() + '.png';
-  a.href = canvas.toDataURL('image/png');
-  a.click();
+  if (printSizePanel.getMode() !== 'print') {
+    const a = document.createElement('a');
+    a.download = 'spore-' + Date.now() + '.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+    return;
+  }
+  const d = window._lastRenderData;
+  if (!d) { alert('Render first.'); return; }
+  const { W, H, bgColor, marks, markSvg } = d;
+  const p = printRasterDims(W);
+
+  const oc = document.createElement('canvas');
+  oc.width = p.outW; oc.height = p.outH;
+  const octx = oc.getContext('2d');
+  octx.imageSmoothingEnabled = true;
+  octx.imageSmoothingQuality = 'high';
+  octx.fillStyle = bgColor;
+  octx.fillRect(0, 0, p.outW, p.outH);
+
+  const parser = new DOMParser();
+  const svgDoc = parser.parseFromString(markSvg, 'image/svg+xml');
+  const svgEl = svgDoc.querySelector('svg');
+  const vb = svgEl.getAttribute('viewBox')?.split(' ').map(Number) || [0,0,20,20];
+  paintSporeMarksScaled(octx, marks, svgEl, vb[2], vb[3], p.scale, p.bleedPx, p.bleedPx);
+  if (p.bleedPx > 0) {
+    octx.save(); octx.translate(p.bleedPx, p.bleedPx);
+    Organica.printSize.drawCropMarksCanvas(octx, p.trimWpx, p.trimHpx, {}, '#000');
+    octx.restore();
+  }
+
+  oc.toBlob(async blob => {
+    const bytes = Organica.printSize.embedPngDpi(await blob.arrayBuffer(), p.dpi);
+    const a = document.createElement('a');
+    a.download = 'spore-' + Date.now() + '.png';
+    a.href = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }));
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus('active', 'PNG exported — ' + p.outW + '×' + p.outH);
+  }, 'image/png');
 }
 
 // ─────────────────────────────────────────────
 // EXPORT JPG — high definition
 // Re-renders the stored marks onto an upscaled offscreen canvas
-// (the preview canvas is capped at 1200px; this restores full quality)
+// (the preview canvas is capped at 1200px; this restores full quality).
+// Print mode uses the panel's own physical size/DPI instead of the native-
+// source heuristic, with the same bleed + crop marks as PNG — but no
+// embedded density (JPEG's JFIF APP0 field is a different, similarly
+// simple writer, not built this phase — see shared/print-size.js header).
 // ─────────────────────────────────────────────
 function exportJPG() {
   const d = window._lastRenderData;
   if (!d) { alert('Render first.'); return; }
   const { W, H, bgColor, marks, markSvg } = d;
+  const isPrint = printSizePanel.getMode() === 'print';
 
-  // Target: native source resolution, then push further for print.
-  // Cap the longest side to avoid browser canvas limits.
-  const MAX_SIDE = 8000;
-  const nativeScale = sourceImage ? Math.max(1, sourceImage.width / W) : 1;
-  let scale = nativeScale * 2;            // 2× over native for crisp print
-  const longest = Math.max(W, H) * scale;
-  if (longest > MAX_SIDE) scale = MAX_SIDE / Math.max(W, H);
+  let outW, outH, scale, bleedPx = 0, trimWpx, trimHpx;
+  if (isPrint) {
+    const p = printRasterDims(W);
+    ({ outW, outH, scale, bleedPx, trimWpx, trimHpx } = p);
+  } else {
+    // Target: native source resolution, then push further for print.
+    // Cap the longest side to avoid browser canvas limits.
+    const MAX_SIDE = 8000;
+    const nativeScale = sourceImage ? Math.max(1, sourceImage.width / W) : 1;
+    scale = nativeScale * 2;            // 2× over native for crisp print
+    const longest = Math.max(W, H) * scale;
+    if (longest > MAX_SIDE) scale = MAX_SIDE / Math.max(W, H);
+    outW = Math.round(W * scale); outH = Math.round(H * scale);
+  }
 
   const oc = document.createElement('canvas');
-  oc.width = Math.round(W * scale);
-  oc.height = Math.round(H * scale);
+  oc.width = outW;
+  oc.height = outH;
   const octx = oc.getContext('2d');
   octx.imageSmoothingEnabled = true;
   octx.imageSmoothingQuality = 'high';
@@ -906,15 +1009,12 @@ function exportJPG() {
   const vb = svgEl.getAttribute('viewBox')?.split(' ').map(Number) || [0,0,20,20];
   const vbW = vb[2], vbH = vb[3];
 
-  // Replay every stored mark at the upscaled coordinates
-  marks.forEach(m => {
-    octx.save();
-    octx.translate(m.x * scale, m.y * scale);
-    octx.rotate(m.angle);
-    octx.globalAlpha = m.opacity;
-    drawMark(octx, svgEl, m.sz * scale, vbW, vbH, m.color);
+  paintSporeMarksScaled(octx, marks, svgEl, vbW, vbH, scale, bleedPx, bleedPx);
+  if (isPrint && bleedPx > 0) {
+    octx.save(); octx.translate(bleedPx, bleedPx);
+    Organica.printSize.drawCropMarksCanvas(octx, trimWpx, trimHpx, {}, '#000');
     octx.restore();
-  });
+  }
 
   setStatus('active', 'JPG exported — ' + oc.width + '×' + oc.height);
 
@@ -934,39 +1034,85 @@ function exportJPG() {
 // pixel-for-pixel and imports correctly into Figma. No <symbol>/<use>,
 // no currentColor (which importers fail to resolve).
 // ─────────────────────────────────────────────
-function buildSporeSVG() {
-  const d = window._lastRenderData;
-  if (!d) return null;
-  const { W, H, bgColor, marks, markSvg, markSvgVb } = d;
-  const vbW = markSvgVb[0], vbH = markSvgVb[1];
-
-  const parser = new DOMParser();
-  const parsed = parser.parseFromString(markSvg, 'image/svg+xml');
-  const parsedSvg = parsed.querySelector('svg');
-  const innerSVG = parsedSvg.innerHTML;
-  // Size/centre on the real content bbox (matches the canvas renderer).
-  const bb = markBBox(parsedSvg) || { x: 0, y: 0, w: vbW, h: vbH };
-  const bbMax = Math.max(bb.w, bb.h);
-
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
-  svg += `<rect width="${W}" height="${H}" fill="${bgColor}"/>`;
-
+// Just the per-mark <g> markup, no outer <svg>/background — the piece
+// both buildSporeSVG() (Screen mode + Figma) and buildPrintSporeSVG()
+// (Print mode) wrap.
+function buildSporeMarksMarkup(marks, innerSVG, bb, bbMax) {
+  let s = '';
   marks.forEach(m => {
     const deg = (m.angle * 180 / Math.PI).toFixed(2);
-    const s = m.sz / bbMax;
-    const minSW = 1.1 / s;   // mirror the canvas stroke-width floor
+    const scale = m.sz / bbMax;
+    const minSW = 1.1 / scale;   // mirror the canvas stroke-width floor
     // Same composition the canvas applies in drawMark():
     // translate(center) → rotate → scale → translate(-bboxCenter)
     const tf = `translate(${m.x.toFixed(2)} ${m.y.toFixed(2)}) rotate(${deg}) `
-             + `scale(${s.toFixed(4)}) translate(${(-(bb.x + bb.w/2)).toFixed(2)} ${(-(bb.y + bb.h/2)).toFixed(2)})`;
+             + `scale(${scale.toFixed(4)}) translate(${(-(bb.x + bb.w/2)).toFixed(2)} ${(-(bb.y + bb.h/2)).toFixed(2)})`;
     // Genesis forms colour via CSS classes (no inline fill) → set fill on the
     // group; the Line's inline stroke="currentColor" is resolved here too.
     let shapes = innerSVG.replace(/currentColor/g, m.color).replace(/ xmlns="[^"]*"/g, '');
     shapes = shapes.replace(/stroke-width="([\d.]+)"/g, (mm, w) => `stroke-width="${Math.max(parseFloat(w), minSW).toFixed(2)}"`);
-    svg += `<g transform="${tf}" fill="${m.color}" opacity="${m.opacity.toFixed(2)}">${shapes}</g>`;
+    s += `<g transform="${tf}" fill="${m.color}" opacity="${m.opacity.toFixed(2)}">${shapes}</g>`;
   });
+  return s;
+}
 
+// Parses window._lastRenderData's stored markSvg + measures its real
+// content bbox — shared setup both SVG builders below need.
+function sporeMarksContext(d) {
+  const vbW = d.markSvgVb[0], vbH = d.markSvgVb[1];
+  const parser = new DOMParser();
+  const parsedSvg = parser.parseFromString(d.markSvg, 'image/svg+xml').querySelector('svg');
+  const innerSVG = parsedSvg.innerHTML;
+  const bb = markBBox(parsedSvg) || { x: 0, y: 0, w: vbW, h: vbH };
+  return { innerSVG, bb, bbMax: Math.max(bb.w, bb.h) };
+}
+
+// ─────────────────────────────────────────────
+// BUILD SVG (shared)
+// Inlines each mark's real geometry with an explicit transform that
+// mirrors the canvas draw exactly — so the vector matches the raster
+// pixel-for-pixel and imports correctly into Figma. No <symbol>/<use>,
+// no currentColor (which importers fail to resolve).
+// ─────────────────────────────────────────────
+function buildSporeSVG() {
+  const d = window._lastRenderData;
+  if (!d) return null;
+  const { W, H, bgColor, marks } = d;
+  const { innerSVG, bb, bbMax } = sporeMarksContext(d);
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  svg += `<rect width="${W}" height="${H}" fill="${bgColor}"/>`;
+  svg += buildSporeMarksMarkup(marks, innerSVG, bb, bbMax);
   svg += '</svg>';
+  return svg;
+}
+function r2(n) { return Math.round(n * 100) / 100; }
+
+// Print mode's SVG: a real physical-mm document — bleed box + a uniform
+// scale(trimWmm/W) group wrapping the SAME per-mark markup buildSporeSVG
+// uses, plus crop marks at the trim corners when bleed > 0. Same
+// "always-wrap" discipline as Loom/Pollen's own print SVG builders.
+function buildPrintSporeSVG() {
+  const d = window._lastRenderData;
+  if (!d) return null;
+  const { W, bgColor, marks } = d;
+  const { innerSVG, bb, bbMax } = sporeMarksContext(d);
+
+  const unit = printSizePanel.getUnit();
+  const size = printSizePanel.getSize();
+  const bleedMm = printSizePanel.getBleed();
+  const trimWmm = Organica.printSize.toMM(size.width, unit) || 0;
+  const trimHmm = Organica.printSize.toMM(size.height, unit) || 0;
+  const bw = trimWmm + 2 * bleedMm, bh = trimHmm + 2 * bleedMm;
+  const sc = W ? trimWmm / W : 1;
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(bw)}mm" height="${r2(bh)}mm" viewBox="0 0 ${r2(bw)} ${r2(bh)}">`;
+  svg += `<rect width="100%" height="100%" fill="${bgColor}"/>`;
+  svg += `<g transform="translate(${r2(bleedMm)},${r2(bleedMm)})">`;
+  svg += `<rect width="${r2(trimWmm)}" height="${r2(trimHmm)}" fill="${bgColor}"/>`;
+  svg += `<g transform="scale(${sc})">${buildSporeMarksMarkup(marks, innerSVG, bb, bbMax)}</g>`;
+  if (bleedMm > 0) svg += Organica.printSize.cropMarksSVG(trimWmm, trimHmm, {}, '#000');
+  svg += '</g></svg>';
   return svg;
 }
 
@@ -974,7 +1120,7 @@ function buildSporeSVG() {
 // EXPORT SVG
 // ─────────────────────────────────────────────
 function exportSVG() {
-  const svg = buildSporeSVG();
+  const svg = printSizePanel.getMode() === 'print' ? buildPrintSporeSVG() : buildSporeSVG();
   if (!svg) return;
 
   // Store for Figma
