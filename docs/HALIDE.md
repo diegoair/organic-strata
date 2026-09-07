@@ -1,8 +1,8 @@
 # Halide — User Manual
 
-> Studio Rann · Organica · Photo → True 1-bit Dithered Portrait
+> Organica · Photo → True 1-bit Dithered Portrait
 > Live: [theorganicalanguage.vercel.app/halide/](https://theorganicalanguage.vercel.app/halide/)
-> Last updated: July 24, 2026
+> Last updated: September 7, 2026
 
 ---
 
@@ -205,9 +205,22 @@ protected.
 ## 11. Export
 
 Top bar: **PNG · JPG · SVG**, plus **→ Figma** (same `organica-svg` postMessage
-protocol as Spore/Pollen/Living Path). **Export Scale** (×2 to ×12) sets pixels
-per dithered cell in the raster/SVG output — independent of the live preview's
-own display scale.
+protocol as Spore/Pollen/Living Path). The Export popover carries an explicit
+**Screen | Print** mode switch (`shared/print-size-panel.js`, shared with
+Loom/Pollen/Spore/FVS):
+
+- **Screen** (default) — today's behaviour exactly. **Export Scale** (×2 to
+  ×12) sets pixels per dithered cell in the raster/SVG output, independent of
+  the live preview's own display scale.
+- **Print** — a real physical size (mm/in) + DPI replace the Scale multiplier.
+  PNG/JPG export the bleed-inclusive canvas (flat-fill background extension +
+  crop marks at the real trim corners, no per-region edge extrapolation) with
+  a real embedded `pHYs` DPI chunk (`Organica.printSize.embedPngDpi`); SVG
+  export wraps the same inner region markup — including a **Simplify shapes**
+  path, verified working in either mode — in a physical-mm document with the
+  same bleed + crop marks. Halide's own `block` concept (px-per-work-unit)
+  generalised directly to the SVG path: a Print-mode block is simply
+  mm-per-work-unit, no separate vector-vs-raster code path needed.
 
 **Show block structure** (Preview, in the Dither section) — a wireframe view:
 strokes the merged block boundaries instead of filling them, on canvas *and* in
@@ -372,4 +385,4 @@ built yet.
 
 ---
 
-*Studio Rann · Organica System v0.1*
+*Organica*
