@@ -1,8 +1,8 @@
 # Spore — User Manual
 
-> Studio Rann · Organica · Generative Stippling
+> Organica · Generative Stippling
 > Live: [theorganicalanguage.vercel.app/spore/](https://theorganicalanguage.vercel.app/spore/)
-> Last updated: June 11, 2026
+> Last updated: September 7, 2026
 
 ---
 
@@ -26,15 +26,14 @@ Single-file vanilla HTML/CSS/JS.
 - **Open** — load an image (drag-drop or click the ⊕ circle).
 - **↻ Render** — (re)generate the stipple.
 - **Stop** — interrupt a long render.
-- **PNG · JPG · SVG · → Figma** — exports.
+- **PNG · JPG · SVG · → Figma** — exports, in the Export popover (see §2a).
 - The preview supports **zoom/pan** (wheel + drag) with **⌘ +/−** shortcuts.
 
 ### Symbols  *(400 %)*
 Shared, identical picker with Pollen.
 - **400 % preview** of the selected symbol.
-- **Shape · primordial forms** — 8 curated Genesis forms with reference numbers:
-  `7 drop · 56 line · 1 circle · 2 teardrop · 14 petal · 33 seed · 38 spiral ·
-  31 lung`.
+- **Shape · primordial forms** — 13 curated Genesis Base Seeds (the same set
+  every seed-picker in Organica shares).
 - **+ Upload SVG mark** — add your own SVG.
 
 ### Stippling
@@ -66,11 +65,38 @@ Shared, identical picker with Pollen.
 
 ---
 
+## 2a. Export — Screen/Print & Plates (September 2026)
+
+The Export popover carries an explicit **Screen | Print** mode switch
+(`shared/print-size-panel.js`, shared with Loom/Pollen/Halide/FVS):
+
+- **Screen** (default) — today's behaviour exactly.
+- **Print** — a real physical size (mm/in) + DPI. PNG/JPG export a
+  bleed-inclusive canvas (flat-fill background extension + crop marks) with a
+  real embedded `pHYs` DPI chunk; SVG wraps the same per-mark markup the
+  Screen-mode export already builds in a physical-mm document with the same
+  bleed + crop marks.
+
+### Plates — one file per RMX ink colour
+
+A **Plates** section appears whenever **Color mode is RMX** with a discrete
+Mapping (**Posterize**, **Random**, or **Tone + Random** — not plain **Tone**,
+a continuous blend with no single ink per mark). Exports **PNG** and **SVG**,
+one file per palette colour, ink black on a transparent background (a real
+screen-print/riso separation, not a colour preview). Classification is a
+plain colour-equality check — Spore already stores each mark's own resolved
+colour, and the three discrete mappings always store one of the palette's
+literal hex values unchanged, so no re-derivation is needed. In Print mode,
+plates also carry registration marks alongside the usual crop marks. Built on
+the same shared `Organica.plateExport` driver Colornet and Pollen use.
+
+---
+
 ## 3. Symbols & rendering notes
 
 - Symbols come from the centralized Genesis library
-  (`/genesis/forms.js` → `window.ORGANIC_FORMS`), same primordial subset
-  `[7, 56, 1, 2, 14, 33, 38, 31]` as Pollen.
+  (`/genesis/forms.js` → `window.ORGANIC_FORMS`), same 13-form primordial
+  subset (`shared/seeds-panel.js`'s `PRIMORDIAL`) as Pollen.
 - Marks are sized/centred on their **content bounding box** with a minimum stroke
   width, so thin/outline forms (line) render correctly — in canvas *and* SVG
   export.
@@ -91,7 +117,7 @@ Shared, identical picker with Pollen.
 | Hatching | — | **Stroke** (Pointillist Line) + **field streamlines** (Flow) |
 | Density | Spacing / Density | Spacing / Spacing × + **Light dropout** |
 | Tone tools | Invert | Invert / Gamma / Contrast / Hide Zone / Rotation / Flip |
-| Export | PNG / JPG / SVG / Figma | PNG / JPG / SVG / Figma (Export Scale) + WYSIWYG |
+| Export | PNG / JPG / SVG / Figma, Screen/Print + Plates | PNG / JPG / SVG / Figma, Screen/Print + Plates, WYSIWYG |
 
 Reach for **Spore** for a fast, expressive pass; **Pollen** when you need precise
 density, tonal control, stretch, hatching/engraving lines, and full WYSIWYG vector
@@ -99,4 +125,4 @@ output.
 
 ---
 
-*Studio Rann · Organica System v0.1*
+*Organica*

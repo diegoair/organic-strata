@@ -1,8 +1,8 @@
 # Pollen — User Manual
 
-> Studio Rann · Organica · Advanced Stippling
+> Organica · Advanced Stippling
 > Live: [theorganicalanguage.vercel.app/pollen/](https://theorganicalanguage.vercel.app/pollen/)
-> Last updated: June 12, 2026
+> Last updated: September 7, 2026
 
 ---
 
@@ -63,9 +63,7 @@ Two kinds of controls:
 - **↻ Refresh** — recompute placement manually (bold = pending changes).
 - **Stop** — interrupt a long computation.
 - **Status** — "1,475 points placed", "Recomputing…", etc.
-- **Export Scale** — ×1 / ×2 / ×3 raster multiplier, with the output pixel size
-  next to it.
-- **PNG · JPG · SVG · → Figma** — exports.
+- **PNG · JPG · SVG · → Figma** — exports, in the Export popover (§7).
 
 ### Presets
 A saved snapshot of *the whole look* — including symbol(s), sizing, colour mode,
@@ -187,7 +185,38 @@ smooth arc. Everything stays WYSIWYG (the SVG export integrates the same field).
 
 ---
 
-## 6. A typical workflow
+## 6. Export — Screen/Print & Plates (September 2026)
+
+The Export popover carries an explicit **Screen | Print** mode switch
+(`shared/print-size-panel.js`, shared with Loom/Spore/Halide/FVS):
+
+- **Screen** (default) — today's behaviour exactly: the Scale multiplier
+  (×1/×2/×3) drives raster output, SVG stays resolution-independent.
+- **Print** — a real physical size (mm/in) + DPI replace the Scale
+  multiplier. PNG/JPG export a bleed-inclusive canvas (flat-fill background
+  extension + crop marks at the real trim corners) with a real embedded
+  `pHYs` DPI chunk; SVG wraps the same per-point markup the Screen-mode
+  export already builds in a physical-mm document with the same bleed +
+  crop marks.
+
+### Plates — one file per RMX ink colour
+
+A **Plates** section appears in the popover whenever **Color mode is RMX**
+with a discrete mapping (**Posterize**, **Random**, or **Tone + Random** —
+not plain **Tone**, which blends continuously between stops and has no
+single ink per point to split on). It exports **PNG** and **SVG**, one file
+per palette colour — every point classified by the exact same tone/random
+pair the live render already uses, so a point's plate assignment can never
+drift from its real on-screen colour. Each plate renders **ink black on a
+transparent background**, matching how a real screen-print/riso separation
+is thought of (a stencil — "where does ink land," not a colour preview),
+not the point's own real RMX colour. In Print mode, plates also carry
+registration marks (crosshair-in-circle alignment marks at each trim
+edge's midpoint) alongside the usual crop marks, so multiple plates line up
+under a press. Built on the shared `Organica.plateExport` driver — the same
+one Colornet and Spore use.
+
+## 7. A typical workflow
 
 1. **Open** an image.
 2. Tune **Image** (Invert / Gamma / Contrast) and the **Stippling field**
@@ -198,36 +227,47 @@ smooth arc. Everything stays WYSIWYG (the SVG export integrates the same field).
 4. Choose **Colour** — Solid, Adaptive, or **RMX** palette + mapping.
 5. Tune **Light dropout** (Render) to thin the lights organically.
 6. (Optional) **Save** a preset — it captures everything (RMX, Stroke, dropout…).
-7. **Export** — set **Export Scale**, then SVG (vector/mural) or PNG/JPG.
+7. **Export** — pick **Screen** (Scale ×1/×2/×3) or **Print** (physical size +
+   DPI), then SVG (vector/mural) or PNG/JPG. If Colour mode is RMX with a
+   discrete mapping, **Plates** exports one file per ink instead.
 
 ---
 
-## 7. Tips & gotchas
+## 8. Tips & gotchas
 
 - **Canvas flickers "Recomputing…"** — normal: a placement control changed and the
   blue-noise is rebuilding (debounced). On huge images this can take a moment.
 - **A symbol looks empty?** Increase **Size / Scale**; thin forms (line) read
-  better a little larger. All 8 primordials render (bbox + stroke-min fix).
+  better a little larger. All 13 Base Seed primordials render (bbox + stroke-min
+  fix).
 - **Too dense / muddy?** Raise **Spacing ×**, lower Phases, or reduce Size /
   Overpaint.
 - **Highlights too busy?** Use **Hide Zone** to clear the brightest band.
 - **Export = preview.** It's WYSIWYG (exact points; SVG is resolution-independent,
-  raster honours Export Scale).
+  raster honours Scale in Screen mode / DPI in Print mode).
+- **No Plates button?** Colour mode must be RMX, and the RMX Mapping must be
+  Posterize, Random, or Tone + Random — plain Tone blends continuously between
+  stops, so there's no single ink per point to split a plate on.
 
 ---
 
-## 8. Architecture notes
+## 9. Architecture notes
 
 - **Symbols** come from the centralized Genesis library
-  (`/genesis/forms.js` → `window.ORGANIC_FORMS`), filtered to the
-  primordial subset `[7, 56, 1, 2, 14, 33, 38, 31]`. The same picker component is
-  used in **Spore**.
-- `pointType` is `g:<n>` (Genesis form), `u:<id>` (uploaded SVG), or `stroke`.
+  (`/genesis/forms.js` → `window.ORGANIC_FORMS`), filtered to the 13-form
+  primordial subset (`shared/seeds-panel.js`'s `PRIMORDIAL`, the same 13 Genesis
+  Base Seeds every seed-picker in Organica now shares). The same picker
+  component is used in **Spore**.
+- `pointType` is `g:<slug>` (Genesis form), `u:<id>` (uploaded SVG), or `stroke`.
 - Forms are measured by content bbox (`formBBox`, hidden-SVG `getBBox`, cached);
   stroke width floored to ~1.1 device px. Non-uniform Width/Length scale the local
   axes; export mirrors both.
 - RMX is a per-point function of `(brightness, stableRandom)` → identical in
   preview and export. `pickShape()` picks the form; `pointRGBA()` the colour.
+  Plate classification reads the identical pair through
+  `Organica.palette.rmxIndex(brightness, stableRandom, colours, mapping)` — the
+  discrete-index core `pointRGBA`'s own colour resolution already uses, so a
+  point's plate can never disagree with its rendered colour.
 - The **Stroke streamline** uses the brightness field kept from the last compute
   (`fieldB`); `makeFieldAngle()` gives the per-position angle and `fieldStrokePts()`
   integrates the line through it (forward + backward from the point). **Light
@@ -237,4 +277,4 @@ smooth arc. Everything stays WYSIWYG (the SVG export integrates the same field).
 
 ---
 
-*Studio Rann · Organica System v0.1*
+*Organica*
