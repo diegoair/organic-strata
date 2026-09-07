@@ -44,20 +44,38 @@ export function drawCells(ctx, model, inner, lineColor) {
   }
 }
 
+// Bleed (canvas.bleed, always a canonical mm-equivalent — 0 for px
+// canvases per canvas-manager.js's own gate) extends the exported bitmap
+// past the trim rect: the canvas grows to trim+2*bleed on each axis, trim
+// content shifts by (bleed,bleed), the background fill covers the FULL
+// bleed box, and crop marks land at the real trim corners. v1 is flat-fill
+// + crop marks only — no attempt to smart-extend generator-specific edge
+// geometry (a Voronoi cell has no natural "continue past the edge" rule;
+// that's a per-generator design question, not a DPI/bleed one). The
+// ctx.scale/translate here are deliberately NOT wrapped in save/restore —
+// exportPNG() (main.js) draws a second, Overlay-grid layer into this same
+// returned canvas's context afterward and relies on the transform still
+// being active, exactly as it already did for ctx.scale alone.
 export function renderRaster(model, inner, scale = 2, lineColor) {
   const { canvas } = model;
+  const bleed = canvas.bleed || 0;
+  const bw = canvas.width + 2 * bleed, bh = canvas.height + 2 * bleed;
   const c = document.createElement('canvas');
-  c.width = Math.round(canvas.width * scale);
-  c.height = Math.round(canvas.height * scale);
+  c.width = Math.round(bw * scale);
+  c.height = Math.round(bh * scale);
   const ctx = c.getContext('2d');
   ctx.scale(scale, scale);
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, bw, bh);
+  ctx.translate(bleed, bleed);
   ctx.strokeStyle = '#c8c0b0';
   ctx.setLineDash([3, 3]);
   ctx.lineWidth = 0.75;
   ctx.strokeRect(inner.x, inner.y, inner.width, inner.height);
   ctx.setLineDash([]);
   drawCells(ctx, model, inner, lineColor);
+  if (bleed > 0 && typeof Organica !== 'undefined' && Organica.printSize) {
+    Organica.printSize.drawCropMarksCanvas(ctx, canvas.width, canvas.height, {}, '#000');
+  }
   return c;
 }
