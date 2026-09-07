@@ -53,23 +53,41 @@
     const a = Organica.hexToRGB255(hexA), b = Organica.hexToRGB255(hexB);
     return rgbToHex([lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)]);
   }
-  // Tone/Posterize/Random/Tone+Random → index (or adjacent pair + fraction) into colors.
+  // Tone/Posterize/Random/Tone+Random → a discrete index into colors[], or
+  // null for 'tone' (a continuous blend with no single index). The one
+  // source of truth for "which discrete swatch does this score+rnd land
+  // on" — shared by rmxColor's own discrete branches below and by any
+  // external classification (e.g. Pollen/Spore's plate-export feature
+  // deciding which ink a point belongs to, without re-deriving this math).
+  function rmxIndex(score, rnd, colors, submode) {
+    const n = colors.length;
+    if (n <= 1) return 0;
+    const s = Math.max(0, Math.min(1, score));
+    if (submode === 'random') return Math.min(n - 1, Math.floor(rnd * n));
+    if (submode === 'posterize') return Math.max(0, Math.min(n - 1, Math.round(s * (n - 1))));
+    if (submode === 'tonernd') {
+      const raw = s * (n - 1) + (rnd - 0.5) * 1.2;
+      return Math.max(0, Math.min(n - 1, Math.round(raw)));
+    }
+    return null;   // 'tone' — no single discrete index
+  }
   function rmxColor(score, rnd, colors, submode) {
     const n = colors.length;
     if (n <= 0) return '#000000';
-    if (n === 1) return colors[0];
-    const s = Math.max(0, Math.min(1, score));
-    if (submode === 'random') return colors[Math.min(n - 1, Math.floor(rnd * n))];
-    if (submode === 'posterize') return colors[Math.max(0, Math.min(n - 1, Math.round(s * (n - 1))))];
-    if (submode === 'tonernd') {
-      const raw = s * (n - 1) + (rnd - 0.5) * 1.2;
-      return colors[Math.max(0, Math.min(n - 1, Math.round(raw)))];
-    }
+    const idx = rmxIndex(score, rnd, colors, submode);
+    if (idx != null) return colors[idx];
     // 'tone' — smooth lerp between the two adjacent stops.
+    const s = Math.max(0, Math.min(1, score));
     const pos = s * (n - 1), i0 = Math.max(0, Math.min(n - 1, Math.floor(pos))),
       i1 = Math.min(n - 1, i0 + 1), frac = pos - i0;
     return mixHex(colors[i0], colors[i1], frac);
   }
+
+  palette.rmxIndex = rmxIndex;
+  // Gate for "can this RMX config be split into N discrete plate outputs"
+  // (Pollen/Spore's plate-export feature). Colornet's own channels are
+  // always splittable (masks, never blended) and don't need this check.
+  palette.isSplittable = function (mode, submode) { return mode === 'rmx' && submode !== 'tone'; };
 
   // score: 0..1 scalar. opts.mode: 'solid' | 'adaptive' | 'rmx'.
   // rmx: opts.colors[] (dark→bright), opts.submode 'tone'|'posterize'|'random'|'tonernd',
