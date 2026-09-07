@@ -126,13 +126,18 @@
       </div>
       <p class="org-popover__hint" id="export-hint">Exports the selected component only — click one in the gallery first. Paper background (Palette section), real vector geometry (one path per cell).</p>
       <div class="org-popover__divider"></div>
-      <div class="org-popover__row">
-        <label class="org-popover__label" for="sel-export-scale">Scale</label>
-        <select class="org-select" id="sel-export-scale">
-          <option value="1">&times;1</option>
-          <option value="2" selected>&times;2</option>
-          <option value="4">&times;4</option>
-        </select>
+
+      <div id="print-size-host"></div>
+
+      <div id="screen-scale-rows">
+        <div class="org-popover__row">
+          <label class="org-popover__label" for="sel-export-scale">Scale</label>
+          <select class="org-select" id="sel-export-scale">
+            <option value="1">&times;1</option>
+            <option value="2" selected>&times;2</option>
+            <option value="4">&times;4</option>
+          </select>
+        </div>
       </div>
     </div>
   </div>
@@ -613,6 +618,8 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/palette.js"></script>
+<script src="/shared/print-size.js"></script>
+<script src="/shared/print-size-panel.js"></script>
 <script src="/shared/shapes.js"></script>
 <script>
 /* ─────────────────────────────────────────────────────────────
@@ -631,6 +638,19 @@ function ctrl(id) { return document.getElementById(id); }
 function val(id) { return parseFloat(ctrl(id).value); }
 
 const setStatus = Organica.status();
+
+// Screen/Print output mode — shared/print-size-panel.js. Screen (default)
+// is today's Scale-multiplier export, untouched; Print reveals a real
+// physical size + DPI + bleed. Title says "(selection)" — FVS's "trim" is
+// the selected component's own square frame, not a whole canvas, so the
+// export is always scoped to whatever's picked in the gallery.
+const printSizePanel = Organica.printSizePanel(document.getElementById('print-size-host'), {
+  idPrefix: 'ps',
+  title: 'Print (selection)',
+  onChange: () => {
+    document.getElementById('screen-scale-rows').style.display = printSizePanel.getMode() === 'print' ? 'none' : '';
+  },
+});
 
 const state = {
   components: [],   // [{id, ruleSource, cells:[{rotation,flipH,flipV,scale} x4]}]
@@ -1475,10 +1495,12 @@ function drawComponentCanvas(ctx, items, seed, size) {
   }
 }
 
-function buildComponentSVG(items, seed, size) {
+// Just the body markup (paper rect + clip/mask + items), no outer <svg> or
+// <metadata> — the piece both buildComponentSVG() (Screen mode + Figma)
+// and buildPrintComponentSVG() (Print mode) wrap.
+function buildComponentSVGBody(items, seed, size) {
   const half = size / 2;
   const geo = SEED_TYPES[seed.type].geometry(seed);
-  const meta = { tool: 'FVS', ruleSource: state.selectedRuleSource || '', cells: items.length, exportedAt: new Date().toISOString() };
   const under = (state.componentRole === 'container' || state.componentRole === 'mask') ? resolveUnderlyingComponent(state.underlyingComponentName) : null;
   // Container keeps the usual unconditional paper rect (the boundary only
   // ever occupies its own small item area — everywhere else stays plain
@@ -1524,8 +1546,49 @@ function buildComponentSVG(items, seed, size) {
         + `<path d="${geo.d}" fill="${it.color}"/></g></g>`;
     }
   }
+  return body;
+}
+function buildComponentSVG(items, seed, size) {
+  const meta = { tool: 'FVS', ruleSource: state.selectedRuleSource || '', cells: items.length, exportedAt: new Date().toISOString() };
+  const body = buildComponentSVGBody(items, seed, size);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
     + `<metadata>${JSON.stringify(meta)}</metadata>` + body + `</svg>`;
+}
+function r2(n) { return Math.round(n * 100) / 100; }
+
+// Print mode's SVG: the panel's physical size/DPI/bleed dims (title says
+// "(selection)" — the trim here is the selected component's own square
+// frame, not a canvas). Same v1 discipline as the other four tools: a
+// bleed box + a uniform scale(trimWmm/size) group wrapping the SAME body
+// buildComponentSVG() uses, plus crop marks when bleed > 0.
+function printComponentDims(baseSize) {
+  const unit = printSizePanel.getUnit();
+  const sz = printSizePanel.getSize();
+  const dpi = printSizePanel.getDpi() || 300;
+  const bleedMm = printSizePanel.getBleed();
+  const trimWmm = Organica.printSize.toMM(sz.width, unit) || 0;
+  const trimHmm = Organica.printSize.toMM(sz.height, unit) || 0;
+  const trimWpx = Math.round(Organica.printSize.mmToPx(trimWmm, dpi));
+  const trimHpx = Math.round(Organica.printSize.mmToPx(trimHmm, dpi));
+  const bleedPx = Math.round(Organica.printSize.mmToPx(bleedMm, dpi));
+  return {
+    dpi, trimWmm, trimHmm, bleedMm, trimWpx, trimHpx, bleedPx,
+    outW: trimWpx + 2 * bleedPx, outH: trimHpx + 2 * bleedPx,
+    scale: baseSize ? trimWpx / baseSize : 1,
+  };
+}
+function buildPrintComponentSVG(items, seed, baseSize) {
+  const p = printComponentDims(baseSize);
+  const bw = p.trimWmm + 2 * p.bleedMm, bh = p.trimHmm + 2 * p.bleedMm;
+  const body = buildComponentSVGBody(items, seed, baseSize);
+  const scaleMm = baseSize ? p.trimWmm / baseSize : 1;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(bw)}mm" height="${r2(bh)}mm" viewBox="0 0 ${r2(bw)} ${r2(bh)}">`;
+  s += `<rect width="100%" height="100%" fill="${state.paperColor}"/>`;
+  s += `<g transform="translate(${r2(p.bleedMm)},${r2(p.bleedMm)})">`;
+  s += `<g transform="scale(${scaleMm})">${body}</g>`;
+  if (p.bleedMm > 0) s += Organica.printSize.cropMarksSVG(p.trimWmm, p.trimHmm, {}, '#000');
+  s += '</g></svg>';
+  return s;
 }
 
 // ── Seed preview strip — the current Seed on its own, at 0/90/
@@ -1718,10 +1781,36 @@ function exportSelected(format) {
   const seed = getSeed();
   const items = buildComponentItems(comp, grid);
   const baseSize = frameSize(grid);
+  const isPrint = printSizePanel.getMode() === 'print';
 
   if (format === 'svg') {
-    const svg = buildComponentSVG(items, seed, baseSize);
+    const svg = isPrint ? buildPrintComponentSVG(items, seed, baseSize) : buildComponentSVG(items, seed, baseSize);
     Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('fvs', 'svg'));
+    return;
+  }
+
+  if (isPrint) {
+    const p = printComponentDims(baseSize);
+    const off = document.createElement('canvas');
+    off.width = p.outW; off.height = p.outH;
+    const ctx = off.getContext('2d');
+    ctx.fillStyle = state.paperColor;
+    ctx.fillRect(0, 0, p.outW, p.outH);
+    ctx.save();
+    ctx.translate(p.bleedPx, p.bleedPx);
+    ctx.scale(p.scale, p.scale);
+    drawComponentCanvas(ctx, items, seed, baseSize);
+    ctx.restore();
+    if (p.bleedPx > 0) {
+      ctx.save();
+      ctx.translate(p.bleedPx, p.bleedPx);
+      Organica.printSize.drawCropMarksCanvas(ctx, p.trimWpx, p.trimHpx, {}, '#000');
+      ctx.restore();
+    }
+    off.toBlob(async blob => {
+      const bytes = Organica.printSize.embedPngDpi(await blob.arrayBuffer(), p.dpi);
+      Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('fvs', 'png'));
+    });
     return;
   }
 
