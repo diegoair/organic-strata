@@ -1,22 +1,4 @@
 {
-  "_comment_headers": [
-    "Added 2026-09-06. There was no headers block at all, so every static",
-    "asset served with Vercel's default max-age=0, must-revalidate — meaning",
-    "every navigation between tools re-validated 8 stylesheets, core.js and a",
-    "165KB font: 10+ conditional round-trips per page load, forever. This is",
-    "by far the largest real performance item in the suite; the CSS cleanup",
-    "beside it is worth ~0.5KB gzipped and was done for correctness, not speed.",
-    "shared/vendor/* is immutable — vendored libraries and the font never",
-    "change in place, they are replaced by a differently-named file.",
-    "shared/*.css|js gets 5 minutes of freshness plus a day of",
-    "stale-while-revalidate: navigation is instant, and a deploy is picked up",
-    "within 5 minutes (immediately on a hard reload)."
-  ],
-  "_comment_order": [
-    "Order matters: Vercel applies EVERY matching rule and the last one to set",
-    "a given header wins. shared/vendor/ also holds .js, so it would match the",
-    "first rule too — it is listed second so immutable wins there."
-  ],
   "headers": [
     {
       "source": "/shared/(.*).(css|js)",
