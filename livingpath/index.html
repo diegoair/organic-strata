@@ -101,6 +101,13 @@
   /* full-family toggle lives in the floatbar — active (view open) reads like the popover-open state */
   .org-floatbar__btn[aria-pressed="true"]{background:var(--ink); color:var(--paper)}
   .hint{font-size:var(--fs-small); color:var(--mid); line-height:1.6; margin-top:var(--space-3)}
+  /* Variable · Masters — compact CRUD rows; the add-axis form wraps its tiny inputs */
+  #var-section .ctrl-row{gap:var(--space-2)}
+  #var-section .ctrl-val{color:var(--mid)}
+  .var-axis-form{flex-wrap:wrap}
+  .var-axis-form .panel-input{flex:1 1 3.5em; min-width:3em; width:auto}
+  #varCompat{color:var(--danger)}
+  #varMasters .check-row b{color:var(--tool)}
   /* ── the type tester — the canvas is one editable specimen (SVG, effect-
        transformed) + a transparent contenteditable overlay for the caret.
        SIZE / TRACK / align / CAPS live in the floatbar (.fb-tester) and only
@@ -326,6 +333,19 @@
       <div id="stack"></div>
       <div class="hint">Effects run top → bottom, by section. An effect at <b>0</b> does nothing — drag a header to reorder within its section.</div>
     </div>
+    <div class="panel-section" id="var-section" hidden>
+      <h3>Variable · Masters</h3>
+      <div id="varAxes"></div>
+      <div class="row-btns"><button class="mini-btn" id="varAddAxis">+ Axis</button></div>
+      <div id="varLoc"></div>
+      <div id="varMasters"></div>
+      <div class="row-btns">
+        <button class="mini-btn" id="varAddMaster">+ Master here</button>
+        <button class="mini-btn" id="varBake" hidden>Bake stack → master</button>
+      </div>
+      <div class="hint" id="varCompat" hidden></div>
+      <div class="hint">Add an axis, then a master at each design-space corner. Edit a glyph at a master's location; the tester interpolates in between. <b>Bake</b> freezes the live effect stack into the selected master.</div>
+    </div>
     <div class="panel-section">
       <h3>Colour</h3>
       <div class="color-row">
@@ -464,7 +484,7 @@ function fromOTCommands(cmds){
 //    still effect-responsive) or `.baked` (effects were active → the current
 //    effect RESULT was frozen as the editable geometry; Edit and Preview then
 //    match, and processGlyphEm skips re-applying the stack for it). ──
-let _gmodel=null, _editRev=0, _pendingEdits=null;
+let _gmodel=null, _editRev=0, _pendingEdits=null, _pendingVar=null;
 function gmodel(){ return window.__FONT ? (_gmodel || (_gmodel = Organica.glyphModel.createModel(window.__FONT))) : null; }
 function editedGlyph(glyph){
   if(!_gmodel || !glyph) return null;
@@ -472,27 +492,64 @@ function editedGlyph(glyph){
   return (c && (c.edited || c.baked)) ? c : null;
 }
 const subsToLoose = subs => (subs||[]).map(s=>({ closed:s.closed!==false, pts:(s.pts||[]).map(p=>({x:p.x, y:p.y, corner:false})) }));
-// a .lvp carries no font, so its `edits` map waits in _pendingEdits until a
-// font is loaded, then seeds the model's base master directly
+// a .lvp carries no font, so its `edits` / `variable` block wait until a font
+// is loaded, then seed the model (base edits + axes + non-base masters)
+const looseContours = arr => (arr||[]).map(c=>({ closed:!!c.closed, pts:(c.pts||[]).map(p=>({x:+p.x, y:+p.y, corner:!!p.corner})) }));
 function applyPendingEdits(){
-  if(!_pendingEdits) return;
+  if(!_pendingEdits && !_pendingVar) return;
   const m = gmodel(); if(!m){ return; }
-  for(const key in _pendingEdits){
-    const e = _pendingEdits[key], base = m.masters[0].glyph(key);   // ensures the cache slot exists
-    if(!base) continue;
-    base.contours = (e.contours||[]).map(c=>({ closed:!!c.closed, pts:(c.pts||[]).map(p=>({x:+p.x, y:+p.y, corner:!!p.corner})) }));
-    if(e.advance!=null) base.advance = Math.round(+e.advance);
-    base.edited = true; base.baked = !!e.baked;
+  if(_pendingEdits){
+    for(const key in _pendingEdits){
+      const e = _pendingEdits[key], base = m.masters[0].glyph(key);   // ensures the cache slot exists
+      if(!base) continue;
+      base.contours = looseContours(e.contours);
+      if(e.advance!=null) base.advance = Math.round(+e.advance);
+      base.edited = true; base.baked = !!e.baked;
+    }
+    _pendingEdits = null;
   }
-  _pendingEdits = null; _editRev++;
+  if(_pendingVar){
+    const V = _pendingVar;
+    (V.axes||[]).forEach(a=>m.addAxis(a));
+    (V.masters||[]).forEach(ms=>{
+      const idx = m.addMaster(ms.name, ms.location||{});
+      const mm = m.masters[idx]; mm.source = ms.source || 'hand';
+      for(const key in (ms.edits||{})){
+        const e = ms.edits[key]; if(!m._byKey[key]) continue;
+        const g = mm.glyph(key);
+        g.contours = looseContours(e.contours);
+        if(e.advance!=null) g.advance = Math.round(+e.advance);
+        g.edited = true;
+      }
+    });
+    if(V.loc) m.loc = { ...V.loc };
+    if(V.editMasterIdx!=null && V.editMasterIdx < m.masters.length) m.editMasterIdx = V.editMasterIdx;
+    _pendingVar = null;
+  }
+  _editRev++;
+}
+// Phase 2 — a glyph's design-space instance at the current model.loc, or null
+// when there's nothing to interpolate (no axes / <2 masters / sitting on base)
+function _varInst(glyph){
+  if(!_gmodel || _gmodel.masters.length < 2 || !_gmodel.axes.length || !glyph) return null;
+  const key = Organica.glyphModel.glyphKey(glyph);
+  if(!_gmodel._byKey[key]) return null;
+  const mi = _gmodel.locIsMaster(_gmodel.loc);
+  if(mi === 0) return null;                                  // at base → normal (raw / base edit)
+  if(mi > 0){ const g = _gmodel.masters[mi].glyph(key); return { contours:g.contours, advance:g.advance }; }
+  return _gmodel.instanceGlyph(key, _gmodel.loc);            // interpolated
 }
 // glyph outline / advance — the edited/baked contours if any, else straight from opentype.js
 function glyphSubs(glyph){
+  const v = _varInst(glyph);
+  if(v) return Organica.glyphModel.toSubs(v.contours);        // design-space instance
   const c = editedGlyph(glyph);
   if(c) return Organica.glyphModel.toSubs(c.contours);        // font-unit, y-up — same shape as fromOTCommands
   return fromOTCommands((glyph && glyph.path && glyph.path.commands) || []);
 }
 function glyphAdvance(glyph){
+  const v = _varInst(glyph);
+  if(v) return Math.round(v.advance);
   const c = editedGlyph(glyph);
   if(c) return Math.round(c.advance);
   return Math.round(glyph.advanceWidth) || Math.round((window.__FONT&&window.__FONT.unitsPerEm||1000)*0.5);
@@ -978,8 +1035,16 @@ function familyGlyphs(){
 // must change whenever the effect stack changes — STACK_REV alone misses
 // applyPreset (which swaps GROUPS.raster without bumping it), so serialize the
 // layers directly, same shape as the OTF-export worker cache key (~line 1244)
+// design-space signature — axes + master locations + current loc; folded into
+// famSig so the Full Family grid rebuilds when the instance changes
+function varSig(){
+  if(!_gmodel || !_gmodel.axes.length || _gmodel.masters.length < 2) return '';
+  return _gmodel.axes.map(a=>a.tag+':'+a.min+','+a.default+','+a.max).join('|')
+    + '#' + _gmodel.masters.map(m=>m.name+'@'+JSON.stringify(m.location)).join('|')
+    + '#' + JSON.stringify(_gmodel.loc);
+}
 function famSig(){
-  return JSON.stringify(GROUPS.raster[0].layers.map(l=>[l.type,l.params]))+'|'+getContourSmooth()+'|'+fontSig()+'|e'+_editRev;
+  return JSON.stringify(GROUPS.raster[0].layers.map(l=>[l.type,l.params]))+'|'+getContourSmooth()+'|'+fontSig()+'|e'+_editRev+'|v'+varSig();
 }
 // incrementally run every charset glyph through processGlyphEm, caching the
 // em-unit result so a resize/re-open is a pure relayout. Yields to the event
@@ -995,7 +1060,7 @@ async function ensureFamilyGlyphCache(){
     const gl=gls[i];
     let subs=null; try{ subs=processGlyphEm(gl,upm); }catch(e){}
     list.push({ name: gl.name || ('uni'+gl.unicode.toString(16)),
-                uni: gl.unicode, adv: gl.advanceWidth||upm*0.5,
+                uni: gl.unicode, adv: glyphAdvance(gl),
                 subsEm: (subs&&subs.length)?subs:null });
     if(i%12===0){
       if(performance.now()-t0 > PROC_GRACE) busy('building family… '+(i+1)+'/'+gls.length);   // only once it's actually slow
@@ -1122,27 +1187,43 @@ function sizeGlyphCanvas(){
 function mountGlyphEditor(){
   const m = gmodel(), key = curGlyphKey();
   if(!m || !key){ return null; }
-  // Bake the CURRENT effect result into the model on entry, so the editor
-  // operates on the shape *with effects* (frozen). Changing the stack later
-  // won't re-flow into a baked glyph — "Reset glyph" un-bakes and re-bakes
-  // through the live stack. An identity stack → no bake (edit the raw outline).
-  const g = m.masters[0].glyph(key);
-  if(g && !g.baked && !stackIsIdentity()){
-    const gl = window.__FONT && window.__FONT.charToGlyph((glyphOneStr||'A')[0] || 'A');
-    const upm = (window.__FONT && window.__FONT.unitsPerEm) || 1000;
-    let em=null; try{ em = gl && processGlyphEm(gl, upm); }catch(e){}
-    if(em && em.length){
-      g.contours = subsToLoose(em);
-      g.advance  = gl ? glyphAdvance(gl) : g.advance;
-      g.baked = true; g.edited = true;
-      _editRev++; _familyCache.sig='';
+  const single = m.masters.length === 1;
+  // Bake the CURRENT effect result into base on entry, so the editor operates
+  // on the shape *with effects* (frozen). ONLY in plain single-master editing —
+  // with masters present you use "Bake stack → master" instead. "Reset glyph"
+  // un-bakes + re-bakes through the live stack. Identity stack → no bake.
+  if(single){
+    const g = m.masters[0].glyph(key);
+    if(g && !g.baked && !stackIsIdentity()){
+      const gl = window.__FONT && window.__FONT.charToGlyph((glyphOneStr||'A')[0] || 'A');
+      const upm = (window.__FONT && window.__FONT.unitsPerEm) || 1000;
+      let em=null; try{ em = gl && processGlyphEm(gl, upm); }catch(e){}
+      if(em && em.length){
+        g.contours = subsToLoose(em);
+        g.advance  = gl ? glyphAdvance(gl) : g.advance;
+        g.baked = true; g.edited = true;
+        _editRev++; _familyCache.sig='';
+      }
     }
   }
   board.classList.remove('show'); board.style.background='';
   glyphCanvas.hidden = false; glyphCanvas.classList.add('show'); empty.hidden = true;
   sizeGlyphCanvas();
-  glyphEd().setGlyph(m, 0, key);
+  const ed = glyphEd();
+  if(single){
+    ed.setGlyph(m, 0, key);
+  }else{
+    const mi = m.locIsMaster(m.loc);
+    if(mi >= 0){                                   // sitting on a master → edit it directly
+      m.editMasterIdx = mi;
+      ed.setGlyph(m, mi, key);
+    }else{                                         // between masters → show the interpolated instance, read-only
+      ed.setGlyph(m, m.editMasterIdx, key);
+      ed.previewInstance(m.instanceGlyph(key, m.loc));
+    }
+  }
   syncGlyphTools();
+  renderVar();                                     // refresh the compat strip / master radios
   $('#exSvg').disabled=$('#exPng').disabled=false;   // Preview/export still driven by the last preview render
   return null;
 }
@@ -1312,12 +1393,13 @@ function seedFontSource(name){
   const font=window.__FONT; if(!font) return;
   _familyCache={sig:'', glyphs:null};            // new font → drop the per-glyph geometry cache
   _gmodel=null; _editRev++;                       // …and the glyph model (rebuilt lazily for the new font)
-  applyPendingEdits();                            // rehydrate outline edits from a just-loaded .lvp
+  applyPendingEdits();                            // rehydrate outline edits + variable model from a just-loaded .lvp
   const p=font.getPath('Agr', 0, 0, 700);          // y-down em units — only a fallback when CACHE is null
   const subs=fromOTCommands(p.commands);
   setSource(subs.length?subs:[{closed:true,pts:[{x:0,y:0},{x:1,y:0},{x:1,y:1}]}], false, 'font',
             'font · ' + (name ? name.replace(/\.(otf|ttf|woff2?)$/i,'') : 'loaded'));
   $('#exFont').disabled=false;
+  renderVar();                                    // SRC_KIND is 'font' now → the panel can show
   updatePresetTrigger();     // sample glyph changed → refresh preview icon
 }
 
@@ -1784,9 +1866,9 @@ h1{font-size:12vw;margin:0 0 .2em;line-height:.9}p{font-size:4vw;line-height:1.3
 <p>ABCDEFGHIJKLMNOPQRSTUVWXYZ</p><p>abcdefghijklmnopqrstuvwxyz</p><p>0123456789 &amp; ?!.,;:</p>`;
 }
 // .lvp — plain JSON of the whole Living Path setup on top of a font you
-// reload separately. v5 adds `edits` (per-glyph outline edits, keyed by
-// Organica.glyphModel.glyphKey; font-unit y-up corner-flagged contours). v4 =
-// raster-only + the type-tester state. Still loads v1/v2/v3.
+// reload separately. v5 adds `edits` (per-glyph base outline edits) and
+// `variable` (design-space axes + non-base masters, each with its own edits).
+// v4 = raster-only + the type-tester state. Still loads v1/v2/v3.
 function serializeEdits(){
   if(!_gmodel) return undefined;
   const c=_gmodel.masters[0]._cache, out={};
@@ -1794,13 +1876,27 @@ function serializeEdits(){
     if(g && (g.edited || g.baked)) out[key]={ advance:Math.round(g.advance), contours:g.contours, baked:!!g.baked }; }
   return Object.keys(out).length ? out : undefined;
 }
+function serializeVar(){
+  if(!_gmodel || !_gmodel.axes.length) return undefined;
+  return {
+    axes: _gmodel.axes.map(a=>({ tag:a.tag, name:a.name, min:a.min, default:a.default, max:a.max })),
+    loc: { ..._gmodel.loc },
+    editMasterIdx: _gmodel.editMasterIdx,
+    masters: _gmodel.masters.slice(1).map(m=>{
+      const edits={};
+      for(const k in m._cache){ const g=m._cache[k];
+        if(g && g.edited) edits[k]={ advance:Math.round(g.advance), contours:g.contours }; }
+      return { name:m.name, location:{ ...m.location }, source:m.source, edits };
+    }),
+  };
+}
 function projectJSON(){
   return JSON.stringify({ v:5, groups:GROUPS.raster,
     smooth:getContourSmooth(), outline:outlineWidth, outlineRings, outlineGap,
     ink:$('#cp-ink').value, bg:$('#cp-bg').value, name:$('#exName').value,
     specimen:specimenString,
     tester:{ size:tester.size, track:tester.track, align:tester.align, caps:tester.caps },
-    edits:serializeEdits() });
+    edits:serializeEdits(), variable:serializeVar() });
 }
 function loadProject(txt){
   const p=JSON.parse(txt); if(!p.groups) throw new Error('not a .lvp');
@@ -1817,10 +1913,14 @@ function loadProject(txt){
   $('#specEdit').textContent = specimenString;
   markPhrase(SPECIMEN_PHRASES.indexOf(specimenString));
   syncTestbar();
-  // outline edits: a .lvp carries no font, so stash + apply on the next font load
-  // (or now, if a font is already loaded)
+  // outline edits + the variable model: a .lvp carries no font, so stash +
+  // apply on the next font load (or now, if a font is already loaded). The
+  // model is discarded first so a prior session's edits / masters don't linger.
+  _gmodel = null; _editRev++; _familyCache.sig='';
   _pendingEdits = (p.edits && Object.keys(p.edits).length) ? p.edits : null;
-  if(_pendingEdits && window.__FONT) applyPendingEdits();
+  _pendingVar   = (p.variable && (p.variable.axes||[]).length) ? p.variable : null;
+  if((_pendingEdits || _pendingVar) && window.__FONT) applyPendingEdits();
+  renderVar();
   CURRENT_PRESET=null;
   buildPresets(); renderStack(); render();
 }
@@ -1894,6 +1994,126 @@ document.addEventListener('keydown', e=>{
   showGlyph=false; specEdit.blur(); render();
 });
 buildGlyphTools();
+
+// ── Variable · Masters panel (Phase 2 of the variable-font arc) ───────────
+//  Axes + non-base masters live on _gmodel; the location sliders drive
+//  _gmodel.loc, which glyphSubs/glyphAdvance read via _varInst → the tester,
+//  Full Family and both OTF exports all render the current design-space
+//  instance. "Bake stack → master" freezes the live effect stack into the
+//  selected master via model.bakePresetMaster.
+let _varRenderT=null;
+function scheduleVarRender(){
+  clearTimeout(_varRenderT);
+  _varRenderT=setTimeout(()=>{ _familyCache.sig=''; renderVar(); render(); }, 90);
+}
+function locVal(a){ return _gmodel.loc[a.tag]!=null ? _gmodel.loc[a.tag] : a.default; }
+function masterLabel(loc){
+  const m=_gmodel; if(!m.axes.length) return 'M'+m.masters.length;
+  return m.axes.map(a=>a.tag.toLowerCase()+' '+Math.round(loc[a.tag]!=null?loc[a.tag]:a.default)).join(' · ');
+}
+function renderVar(){
+  const sec=$('#var-section'); if(!sec) return;
+  const m=_gmodel;
+  sec.hidden = !(SRC_KIND==='font' && window.__FONT);
+  if(sec.hidden) return;
+
+  // axes
+  const ax=$('#varAxes'); ax.innerHTML='';
+  (m?m.axes:[]).forEach(a=>{
+    const row=document.createElement('div'); row.className='ctrl-row';
+    row.innerHTML=`<span class="ctrl-label">${a.name} <span style="color:var(--mid)">${a.tag}</span></span>`
+      +`<span class="ctrl-val">${a.min} · ${a.default} · ${a.max}</span>`
+      +`<button class="mini-btn" data-rmax="${a.tag}" aria-label="Remove axis ${a.name}">×</button>`;
+    ax.appendChild(row);
+  });
+  ax.querySelectorAll('[data-rmax]').forEach(b=>b.addEventListener('click',()=>{
+    m.removeAxis(b.dataset.rmax); _familyCache.sig=''; renderVar(); render();
+  }));
+
+  // location sliders (one per axis)
+  const lc=$('#varLoc'); lc.innerHTML='';
+  (m?m.axes:[]).forEach(a=>{
+    const v=locVal(a), id='vloc-'+a.tag;
+    const row=document.createElement('div'); row.className='ctrl-row';
+    row.innerHTML=`<label class="ctrl-label" for="${id}">${a.name}</label>`
+      +`<input type="range" id="${id}" min="${a.min}" max="${a.max}" step="${(a.max-a.min)<=400 ? 1 : Math.max(1,Math.round((a.max-a.min)/300))}" value="${v}">`
+      +`<span class="ctrl-val" id="${id}-v">${Math.round(v)}</span>`;
+    lc.appendChild(row);
+    const r=row.querySelector('input');
+    r.addEventListener('input',()=>{ m.loc[a.tag]=+r.value; $('#'+id+'-v').textContent=Math.round(+r.value); scheduleVarRender(); });
+  });
+  if(m && m.axes.length) Organica.enhanceSliders(lc);
+
+  // masters
+  const ms=$('#varMasters'); ms.innerHTML='';
+  (m?m.masters:[]).forEach((mm,i)=>{
+    const here = m.axes.length && m.locIsMaster(m.loc)===i;
+    const row=document.createElement('div'); row.className='check-row';
+    row.innerHTML=`<label><input type="radio" name="editmaster" ${i===m.editMasterIdx?'checked':''}> ${mm.name}${here?' <b>◂ here</b>':''}</label>`
+      +(i>0 ? `<button class="mini-btn" data-rmm="${i}" aria-label="Remove master ${mm.name}">×</button>`
+            : `<span class="ctrl-val">base</span>`);
+    ms.appendChild(row);
+    row.querySelector('input').addEventListener('change',()=>{ m.editMasterIdx=i; if(showGlyph) render(); renderVar(); });
+    const rm=row.querySelector('[data-rmm]');
+    if(rm) rm.addEventListener('click',()=>{ m.removeMaster(+rm.dataset.rmm); _familyCache.sig=''; renderVar(); render(); });
+  });
+
+  // compat strip (only meaningful in the glyph editor with masters)
+  const cp=$('#varCompat');
+  if(m && m.axes.length && m.masters.length>1 && showGlyph){
+    const c=m.checkCompat(curGlyphKey());
+    cp.hidden=!!c.ok; cp.textContent=c.ok?'':('⚠ '+c.reason+' — this glyph falls back to the nearest master.');
+  } else cp.hidden=true;
+
+  // bake — only when a non-base master is the edit target
+  $('#varBake').hidden = !(m && m.masters.length>1 && m.editMasterIdx>0);
+}
+$('#varAddAxis').addEventListener('click',()=>{
+  const m=gmodel(); if(!m) return;
+  const old=$('#varAxisForm'); if(old){ old.remove(); return; }
+  const f=document.createElement('div'); f.id='varAxisForm'; f.className='ctrl-row var-axis-form';
+  f.innerHTML=`<input class="panel-input" id="axf-tag" placeholder="TAG" maxlength="4">`
+    +`<input class="panel-input" id="axf-name" placeholder="name">`
+    +`<input class="panel-input" id="axf-min" type="number" value="0" aria-label="min">`
+    +`<input class="panel-input" id="axf-def" type="number" value="0" aria-label="default">`
+    +`<input class="panel-input" id="axf-max" type="number" value="100" aria-label="max">`
+    +`<button class="mini-btn" id="axf-add">Add</button>`;
+  $('#varAxes').appendChild(f); $('#axf-tag').focus();
+  $('#axf-add').addEventListener('click',()=>{
+    const tag=($('#axf-tag').value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4) || 'AXIS';
+    const mn=+$('#axf-min').value, df=+$('#axf-def').value, mx=+$('#axf-max').value;
+    if(!(mx>mn)){ toast('✗ max must be greater than min'); return; }
+    m.addAxis({ tag, name:($('#axf-name').value||'').trim()||tag,
+      min:mn, default:Math.max(mn,Math.min(mx,df)), max:mx });
+    f.remove(); _familyCache.sig=''; renderVar(); render();
+  });
+});
+$('#varAddMaster').addEventListener('click',()=>{
+  const m=gmodel(); if(!m) return;
+  if(!m.axes.length){ toast('✗ add an axis first'); return; }
+  if(m.locIsMaster(m.loc)>=0){ toast('✗ a master already sits at this location'); return; }
+  const idx=m.addMaster(masterLabel(m.loc), { ...m.loc });
+  m.editMasterIdx=idx;
+  _familyCache.sig=''; renderVar(); render();
+});
+$('#varBake').addEventListener('click', async function(){
+  const m=gmodel(); if(!m || m.editMasterIdx<=0) return;
+  if(stackIsIdentity()){ toast('✗ the effect stack is empty'); return; }
+  this.disabled=true; const lbl=this.textContent; this.textContent='baking…';
+  const t0=performance.now();
+  try{
+    const r=await m.bakePresetMaster(m.editMasterIdx, {
+      normGlyph, denormGlyph, apply: applyStackNorm,
+      glyphKeys: m.glyphOrder, presetRef: CURRENT_PRESET || null,
+      onProgress:(i,n)=>{ if(performance.now()-t0>PROC_GRACE) busy(`baking master ${i}/${n}…`); },
+    });
+    idle(); _editRev++; _familyCache.sig='';
+    toast(`✓ ${r.direct} direct · ${r.reprojected} reprojected · ${r.staticOnly} skipped`);
+    renderVar(); render();
+  }catch(e){ idle(); toast('✗ '+e.message); }
+  this.textContent=lbl; this.disabled=false;
+});
+
 // Ink/Paper — the shared Palette component (attach mode).
 const swatches = {};
 ['ink','bg'].forEach(k=>{ swatches[k]=Organica.palette.swatch(k,{ initial:$('#hex-'+k).value, onChange: repaint }); });
