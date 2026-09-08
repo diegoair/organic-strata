@@ -391,8 +391,12 @@
       const i = y * w + x; g.f[i] = Math.min(1, Math.max(0, g.f[i] + (n - 0.5) * 2 * amt));
     }
   }
-  function grayScott(g, F, K, steps, seedn, depth) {     // reaction-diffusion (coral/cellular)
+  function grayScott(g, F, K, steps, seedn, depth, aniso) {     // reaction-diffusion (coral/cellular)
     const { w, h } = g, N = w * h, Du = 0.16, Dv = 0.08;
+    // anisotropic diffusion (aniso -0.9..0.9) → parallel stripes instead of
+    // isotropic blobs; 0 keeps the original symmetric laplacian exactly
+    const an = Math.max(-0.9, Math.min(0.9, aniso || 0));
+    const DuX = Du * (1 + an), DuY = Du * (1 - an), DvX = Dv * (1 + an), DvY = Dv * (1 - an);
     const M = new Uint8Array(N); for (let i = 0; i < N; i++) M[i] = g.f[i] > 0.5 ? 1 : 0;  // glyph mask
     const U = new Float32Array(N).fill(1), V = new Float32Array(N);
     // seed random spots INSIDE the glyph — Gray-Scott grows a coral/labyrinth
@@ -413,10 +417,11 @@
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
         const i = y * w + x;
         const l = x > 0 ? i - 1 : i, r = x < w - 1 ? i + 1 : i, u = y > 0 ? i - w : i, d = y < h - 1 ? i + w : i;
-        const lapU = U[l] + U[r] + U[u] + U[d] - 4 * U[i], lapV = V[l] + V[r] + V[u] + V[d] - 4 * V[i];
+        const lapUx = U[l] + U[r] - 2 * U[i], lapUy = U[u] + U[d] - 2 * U[i];
+        const lapVx = V[l] + V[r] - 2 * V[i], lapVy = V[u] + V[d] - 2 * V[i];
         const uvv = U[i] * V[i] * V[i];
-        U2[i] = U[i] + (Du * lapU - uvv + F * (1 - U[i]));
-        V2[i] = V[i] + (Dv * lapV + uvv - (F + K) * V[i]);
+        U2[i] = U[i] + (DuX * lapUx + DuY * lapUy - uvv + F * (1 - U[i]));
+        V2[i] = V[i] + (DvX * lapVx + DvY * lapVy + uvv - (F + K) * V[i]);
         if (!M[i]) { V2[i] = 0; U2[i] = 1; }                  // confine the reaction to the glyph
       }
       U.set(U2); V.set(V2);
@@ -427,22 +432,37 @@
     for (let i = 0; i < N; i++) g.f[i] = M[i] ? Math.max(0, 1 - dp * V[i] * inv) : 0;
   }
 
-  // particles — scatter disks seeded on the ink; they accrete into bubbly
-  // nodules along the form (union into the field).
-  function particles(g, count, size, spread, seed, keepBody) {
+  // particles — scatter disks seeded on the ink. Default: they accrete into
+  // bubbly nodules along the form (union). `carve` truthy: the disks are
+  // punched OUT of the field instead (cellular holes — replaces the old
+  // subtract-group presets). `keepBody` is ignored when carving.
+  function particles(g, count, size, spread, seed, keepBody, carve, bias) {
     const { w, h, f } = g, rnd = mulberry32((seed * 2654435761) >>> 0);
     const ink = []; for (let i = 0; i < f.length; i++) if (f[i] > 0.5) ink.push(i);
     if (!ink.length) return;
-    // keepBody=1 → nodules on the glyph; 0 → ONLY the disks (for subtract groups)
-    const out = new Float32Array(f.length); if (keepBody) out.set(f);
+    // bias>0 → seed disks on the edge; bias<0 → seed on the interior only
+    let pool = ink;
+    if (bias) {
+      const es = new Set();
+      for (const i of ink) {
+        const x = i % w, y = (i / w) | 0;
+        if ((x > 0 && f[i - 1] <= 0.5) || (x < w - 1 && f[i + 1] <= 0.5)
+          || (y > 0 && f[i - w] <= 0.5) || (y < h - 1 && f[i + w] <= 0.5)) es.add(i);
+      }
+      if (es.size) pool = bias > 0 ? [...es] : ink.filter(i => !es.has(i));
+      if (!pool.length) pool = ink;
+    }
+    const out = new Float32Array(f.length);
+    if (carve || keepBody) out.set(f);          // carve starts from the body; keepBody keeps it
+    const disk = carve ? 0 : 1;
     for (let k = 0; k < count; k++) {
-      const i = ink[(rnd() * ink.length) | 0];
+      const i = pool[(rnd() * pool.length) | 0];
       let cx = (i % w) + (rnd() * 2 - 1) * spread, cy = ((i / w) | 0) + (rnd() * 2 - 1) * spread;
       const r = size * (0.5 + rnd());
       const x0 = Math.max(0, (cx - r) | 0), x1 = Math.min(w - 1, (cx + r) | 0),
         y0 = Math.max(0, (cy - r) | 0), y1 = Math.min(h - 1, (cy + r) | 0);
       for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++)
-        if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r) out[y * w + x] = 1;
+        if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r) out[y * w + x] = disk;
     }
     g.f = out;
   }
@@ -528,6 +548,207 @@
       for (let y = by; y < y1; y++) for (let x = bx; x < x1; x++) { sum += f[y * w + x]; c++; }
       const v = sum / c > 0.5 ? 1 : 0;
       for (let y = by; y < y1; y++) for (let x = bx; x < x1; x++) o[y * w + x] = v;
+    }
+    g.f = o;
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  EXTRA FIELD EFFECTS (2026-09) — same contract as the block
+  //  above: mutate g.f in place (values 0..1), no external deps
+  //  beyond mulberry32 + morph, so the OTF-export Web Worker can
+  //  embed each one verbatim via .toString().
+  // ══════════════════════════════════════════════════════════════
+
+  // directional (motion) blur — 1-D box kernel along `angleDeg`
+  function dirBlur(g, len, angleDeg) {
+    len = Math.round(len); if (len <= 0) return;
+    const { w, h, f } = g, a = angleDeg * Math.PI / 180, dx = Math.cos(a), dy = Math.sin(a);
+    const o = new Float32Array(f.length);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let s = 0, c = 0;
+      for (let t = -len; t <= len; t++) {
+        const xx = Math.round(x + dx * t), yy = Math.round(y + dy * t);
+        if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+        s += f[yy * w + xx]; c++;
+      }
+      o[y * w + x] = c ? s / c : f[y * w + x];
+    }
+    g.f = o;
+  }
+
+  // morphological smoothing — open then close at `radius` → rounds
+  // convex corners; `bevel` swaps the order → fills concave notches
+  function chamfer(g, radius, bevel) {
+    const r = Math.max(0, radius | 0); if (!r) return;
+    if (bevel) { morph(g, r); morph(g, -r); morph(g, -r); morph(g, r); }
+    else { morph(g, -r); morph(g, r); morph(g, r); morph(g, -r); }
+  }
+
+  // domain warp — displace sample coords by a low-freq value-noise
+  // vector field (the melty "Living Path" distortion)
+  function warpField(g, strength, scale, seed) {
+    if (strength <= 0) return;
+    const { w, h, f } = g, gs = Math.max(3, scale);
+    const gw = Math.ceil(w / gs) + 3, gh = Math.ceil(h / gs) + 3;
+    const rnd = mulberry32((seed * 374761393) >>> 0);
+    const lx = new Float32Array(gw * gh), ly = new Float32Array(gw * gh);
+    for (let i = 0; i < lx.length; i++) { lx[i] = rnd(); ly[i] = rnd(); }
+    const sample = (lat, px, py) => {
+      const fx = px / gs, fy = py / gs, ix = Math.floor(fx), iy = Math.floor(fy);
+      const tx = fx - ix, ty = fy - iy, ux = tx * tx * (3 - 2 * tx), uy = ty * ty * (3 - 2 * ty);
+      const at = (gx, gy) => lat[(gy < 0 ? 0 : gy) * gw + (gx < 0 ? 0 : gx)];
+      return at(ix, iy) * (1 - ux) * (1 - uy) + at(ix + 1, iy) * ux * (1 - uy)
+        + at(ix, iy + 1) * (1 - ux) * uy + at(ix + 1, iy + 1) * ux * uy;
+    };
+    const o = new Float32Array(f.length);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let sx = x + (sample(lx, x, y) - 0.5) * 2 * strength;
+      let sy = y + (sample(ly, x, y) - 0.5) * 2 * strength;
+      sx = sx < 0 ? 0 : sx > w - 1 ? w - 1 : sx;
+      sy = sy < 0 ? 0 : sy > h - 1 ? h - 1 : sy;
+      const ix = sx | 0, iy = sy | 0, tx = sx - ix, ty = sy - iy;
+      const ix1 = Math.min(w - 1, ix + 1), iy1 = Math.min(h - 1, iy + 1);
+      o[y * w + x] = f[iy * w + ix] * (1 - tx) * (1 - ty) + f[iy * w + ix1] * tx * (1 - ty)
+        + f[iy1 * w + ix] * (1 - tx) * ty + f[iy1 * w + ix1] * tx * ty;
+    }
+    g.f = o;
+  }
+
+  // halftone screen — amplitude-modulated dots/lines/squares on a
+  // rotated grid; dot size tracks local ink coverage. Output is binary.
+  function halftone(g, freq, angleDeg, shape) {
+    if (freq < 2) return;
+    const { w, h, f } = g, c = Math.max(3, w / freq);
+    const a = angleDeg * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+    const o = new Float32Array(f.length);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const cov = f[y * w + x]; if (cov <= 0.02) { o[y * w + x] = 0; continue; }
+      const rx = x * ca - y * sa, ry = x * sa + y * ca;
+      const u = ((rx % c) + c) % c - c / 2, v = ((ry % c) + c) % c - c / 2;
+      const R = c * 0.6 * Math.sqrt(Math.min(1, cov));
+      let inside;
+      if (shape === 2) inside = Math.max(Math.abs(u), Math.abs(v)) < R;
+      else if (shape === 1) inside = Math.abs(v) < R;
+      else inside = (u * u + v * v) < R * R;
+      o[y * w + x] = inside ? 1 : 0;
+    }
+    g.f = o;
+  }
+
+  // voronoi shatter — scatter seeds, drop the ridge between the two
+  // nearest cells → cracked-ceramic glyph
+  function shatter(g, cells, gap, seed) {
+    const n = Math.max(0, cells | 0); if (n < 2) return;
+    const { w, h, f } = g, rnd = mulberry32((seed * 2246822519) >>> 0);
+    const px = new Float32Array(n), py = new Float32Array(n);
+    for (let i = 0; i < n; i++) { px[i] = rnd() * w; py[i] = rnd() * h; }
+    const gg = Math.max(0.5, gap), o = new Float32Array(f.length);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (f[y * w + x] <= 0.02) { o[y * w + x] = 0; continue; }
+      let d1 = 1e18, d2 = 1e18;
+      for (let i = 0; i < n; i++) {
+        const dx = x - px[i], dy = y - py[i], d = dx * dx + dy * dy;
+        if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d;
+      }
+      o[y * w + x] = (Math.sqrt(d2) - Math.sqrt(d1) < gg) ? 0 : f[y * w + x];
+    }
+    g.f = o;
+  }
+
+  // iso-bands — chamfer distance transform from the edge, then keep
+  // concentric rings inside the glyph (topographic look)
+  function isoBands(g, spacing, thickness) {
+    if (spacing < 2) return;
+    const { w, h, f } = g, N = w * h, D = new Float32Array(N), R2 = 1.41421356;
+    for (let i = 0; i < N; i++) D[i] = f[i] > 0.5 ? 1e9 : 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x; if (D[i] === 0) continue; let m = D[i];
+      if (x > 0) m = Math.min(m, D[i - 1] + 1);
+      if (y > 0) m = Math.min(m, D[i - w] + 1);
+      if (x > 0 && y > 0) m = Math.min(m, D[i - w - 1] + R2);
+      if (x < w - 1 && y > 0) m = Math.min(m, D[i - w + 1] + R2);
+      D[i] = m;
+    }
+    for (let y = h - 1; y >= 0; y--) for (let x = w - 1; x >= 0; x--) {
+      const i = y * w + x; if (D[i] === 0) continue; let m = D[i];
+      if (x < w - 1) m = Math.min(m, D[i + 1] + 1);
+      if (y < h - 1) m = Math.min(m, D[i + w] + 1);
+      if (x < w - 1 && y < h - 1) m = Math.min(m, D[i + w + 1] + R2);
+      if (x > 0 && y < h - 1) m = Math.min(m, D[i + w - 1] + R2);
+      D[i] = m;
+    }
+    const sp = Math.max(2, spacing), th = Math.max(1, Math.min(thickness, sp - 1));
+    for (let i = 0; i < N; i++) g.f[i] = (f[i] > 0.5 && (D[i] % sp) < th) ? 1 : 0;
+  }
+
+  // ripple — sinusoidal row (axis 0) or column (axis 1) shear
+  function ripple(g, amp, freq, axis) {
+    if (amp <= 0) return;
+    const { w, h, f } = g, k = 2 * Math.PI * Math.max(0.25, freq), o = new Float32Array(f.length);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let sx = x, sy = y;
+      if (axis) sy = y + amp * Math.sin(k * x / w);
+      else sx = x + amp * Math.sin(k * y / h);
+      sx = sx < 0 ? 0 : sx > w - 1 ? w - 1 : sx;
+      sy = sy < 0 ? 0 : sy > h - 1 ? h - 1 : sy;
+      const ix = sx | 0, iy = sy | 0, tx = sx - ix, ty = sy - iy;
+      const ix1 = Math.min(w - 1, ix + 1), iy1 = Math.min(h - 1, iy + 1);
+      o[y * w + x] = f[iy * w + ix] * (1 - tx) * (1 - ty) + f[iy * w + ix1] * tx * (1 - ty)
+        + f[iy1 * w + ix] * (1 - tx) * ty + f[iy1 * w + ix1] * tx * ty;
+    }
+    g.f = o;
+  }
+
+  // glitch — split into horizontal bands, offset each by a random x
+  function glitch(g, bands, shift, seed) {
+    if (shift <= 0) return;
+    const { w, h, f } = g, nb = Math.max(1, bands | 0), rnd = mulberry32((seed * 3266489917) >>> 0);
+    const bh = h / nb, offs = new Int32Array(nb), o = new Float32Array(f.length);
+    for (let b = 0; b < nb; b++) offs[b] = Math.round((rnd() * 2 - 1) * shift);
+    for (let y = 0; y < h; y++) {
+      const dx = offs[Math.min(nb - 1, (y / bh) | 0)];
+      for (let x = 0; x < w; x++) { const sx = x - dx; o[y * w + x] = (sx >= 0 && sx < w) ? f[y * w + sx] : 0; }
+    }
+    g.f = o;
+  }
+
+  // mosaic — nearest-sample pixelation on a cell grid (kept greyscale,
+  // so the 0.5 contour traces true blocky steps — distinct from
+  // polygonize's average-then-threshold)
+  function mosaic(g, cell) {
+    const c = Math.max(0, cell | 0); if (c < 2) return;
+    const { w, h, f } = g, o = new Float32Array(f.length);
+    for (let by = 0; by < h; by += c) for (let bx = 0; bx < w; bx += c) {
+      const v = f[Math.min(h - 1, by + (c >> 1)) * w + Math.min(w - 1, bx + (c >> 1))];
+      const x1 = Math.min(w, bx + c), y1 = Math.min(h, by + c);
+      for (let y = by; y < y1; y++) for (let x = bx; x < x1; x++) o[y * w + x] = v;
+    }
+    g.f = o;
+  }
+
+  // spikes — short thick hairs shot outward along the field gradient
+  // from a fraction of the edge pixels
+  function spikes(g, density, length, seed) {
+    if (density <= 0 || length <= 0) return;
+    const { w, h, f } = g, rnd = mulberry32((seed * 2891336453) >>> 0), edge = [];
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      if (f[i] > 0.5 && (f[i - 1] <= 0.5 || f[i + 1] <= 0.5 || f[i - w] <= 0.5 || f[i + w] <= 0.5)) edge.push(i);
+    }
+    if (!edge.length) return;
+    const o = new Float32Array(f.length); o.set(f);
+    const cnt = Math.max(1, Math.round(edge.length * density / 100));
+    for (let k = 0; k < cnt; k++) {
+      const i = edge[(rnd() * edge.length) | 0], x = i % w, y = (i / w) | 0;
+      let gx = f[y * w + Math.min(w - 1, x + 1)] - f[y * w + Math.max(0, x - 1)];
+      let gy = f[Math.min(h - 1, y + 1) * w + x] - f[Math.max(0, y - 1) * w + x];
+      const gl = Math.hypot(gx, gy) || 1; gx = -gx / gl; gy = -gy / gl;
+      const len = length * (0.5 + rnd());
+      for (let t = 0; t < len; t++) {
+        const px = Math.round(x + gx * t), py = Math.round(y + gy * t);
+        if (px < 0 || py < 0 || px >= w || py >= h) break;
+        o[py * w + px] = 1; if (px + 1 < w) o[py * w + px + 1] = 1;
+      }
     }
     g.f = o;
   }
@@ -620,9 +841,9 @@
       apply(g, p) { addNoise(g, p.amount / 100, p.scale, p.seed + SEED_OFFSET); }
     },
     particles: {
-      name: 'Particles', defaults: { count: 260, size: 5, spread: 6, seed: 5, body: 1 },
-      controls: [['count', 'Count', 20, 800, 10], ['size', 'Size', 2, 14, 1], ['spread', 'Spread', 0, 30, 1], ['seed', 'Seed', 1, 99, 1], ['body', 'Keep body', 0, 1, 1]],
-      apply(g, p) { particles(g, p.count, p.size, p.spread, p.seed + SEED_OFFSET, p.body); }
+      name: 'Particles', defaults: { count: 260, size: 5, spread: 6, seed: 5, body: 1, carve: 0, bias: 0 },
+      controls: [['count', 'Count', 20, 800, 10], ['size', 'Size', 2, 14, 1], ['spread', 'Spread', 0, 30, 1], ['seed', 'Seed', 1, 99, 1], ['body', 'Keep body', 0, 1, 1], ['carve', 'Carve holes', 0, 1, 1], ['bias', 'Edge bias', -1, 1, 1]],
+      apply(g, p) { particles(g, p.count, p.size, p.spread, p.seed + SEED_OFFSET, p.body, p.carve, p.bias); }
     },
     skeleton: {
       name: 'Center-line (skeleton)', defaults: { width: 2 },
@@ -636,13 +857,66 @@
     },
     seam: {
       name: 'Seam carve', defaults: { count: 16, dir: 0 },
-      controls: [['count', 'Seams', 0, 50, 1], ['dir', 'Vertical', 0, 1, 1]],
-      apply(g, p) { seamCarve(g, p.count, p.dir); }
+      controls: [['count', 'Seams', 0, 50, 1], ['dir', 'Axis (0 H · 1 V · 2 both)', 0, 2, 1]],
+      apply(g, p) {
+        if (p.dir === 2) { seamCarve(g, p.count, 0); seamCarve(g, p.count, 1); }
+        else seamCarve(g, p.count, p.dir);
+      }
     },
     reaction: {
-      name: 'Reaction-diffusion', defaults: { feed: 55, kill: 62, iters: 18, depth: 90, seed: 5 },
-      controls: [['feed', 'Feed', 12, 80, 1], ['kill', 'Kill', 45, 75, 1], ['iters', 'Steps', 1, 40, 1], ['depth', 'Depth', 20, 100, 1], ['seed', 'Seed', 1, 99, 1]],
-      apply(g, p) { grayScott(g, p.feed / 1000, p.kill / 1000, p.iters * 36, p.seed + SEED_OFFSET, p.depth); }
+      name: 'Reaction-diffusion', defaults: { feed: 55, kill: 62, iters: 18, depth: 90, seed: 5, aniso: 0 },
+      controls: [['feed', 'Feed', 12, 80, 1], ['kill', 'Kill', 45, 75, 1], ['iters', 'Steps', 1, 40, 1], ['depth', 'Depth', 20, 100, 1], ['seed', 'Seed', 1, 99, 1], ['aniso', 'Stripes', -90, 90, 1]],
+      apply(g, p) { grayScott(g, p.feed / 1000, p.kill / 1000, p.iters * 36, p.seed + SEED_OFFSET, p.depth, (p.aniso || 0) / 100); }
+    },
+    smear: {
+      name: 'Smear (motion)', defaults: { len: 0, angle: 0 },
+      controls: [['len', 'Length', 0, 30, 1], ['angle', 'Angle', 0, 180, 1]],
+      apply(g, p) { dirBlur(g, p.len, p.angle); }
+    },
+    chamfer: {
+      name: 'Chamfer (corners)', defaults: { radius: 0, bevel: 0 },
+      controls: [['radius', 'Radius', 0, 6, 1], ['bevel', 'Bevel', 0, 1, 1]],
+      apply(g, p) { chamfer(g, p.radius, p.bevel); }
+    },
+    warp: {
+      name: 'Domain warp', defaults: { strength: 0, scale: 14, seed: 7 },
+      controls: [['strength', 'Strength', 0, 60, 1], ['scale', 'Scale', 4, 40, 1], ['seed', 'Seed', 1, 99, 1]],
+      apply(g, p) { warpField(g, p.strength, p.scale, p.seed + SEED_OFFSET); }
+    },
+    halftone: {
+      name: 'Halftone', defaults: { freq: 0, angle: 45, shape: 0 },
+      controls: [['freq', 'Frequency', 0, 60, 1], ['angle', 'Angle', 0, 90, 1], ['shape', 'Shape (0 dot · 1 line · 2 square)', 0, 2, 1]],
+      apply(g, p) { halftone(g, p.freq, p.angle, p.shape); }
+    },
+    shatter: {
+      name: 'Voronoi shatter', defaults: { cells: 0, gap: 2, seed: 5 },
+      controls: [['cells', 'Cells', 0, 120, 1], ['gap', 'Crack', 1, 6, 1], ['seed', 'Seed', 1, 99, 1]],
+      apply(g, p) { shatter(g, p.cells, p.gap, p.seed + SEED_OFFSET); }
+    },
+    isobands: {
+      name: 'Iso-bands', defaults: { spacing: 0, thickness: 3 },
+      controls: [['spacing', 'Spacing', 0, 40, 1], ['thickness', 'Thickness', 1, 20, 1]],
+      apply(g, p) { isoBands(g, p.spacing, p.thickness); }
+    },
+    ripple: {
+      name: 'Ripple', defaults: { amp: 0, freq: 4, axis: 0 },
+      controls: [['amp', 'Amplitude', 0, 40, 1], ['freq', 'Frequency', 1, 20, 1], ['axis', 'Vertical', 0, 1, 1]],
+      apply(g, p) { ripple(g, p.amp, p.freq, p.axis); }
+    },
+    glitch: {
+      name: 'Glitch slice', defaults: { shift: 0, bands: 10, seed: 7 },
+      controls: [['shift', 'Shift', 0, 60, 1], ['bands', 'Bands', 1, 40, 1], ['seed', 'Seed', 1, 99, 1]],
+      apply(g, p) { glitch(g, p.bands, p.shift, p.seed + SEED_OFFSET); }
+    },
+    mosaic: {
+      name: 'Mosaic', defaults: { cell: 0 },
+      controls: [['cell', 'Cell', 0, 40, 1]],
+      apply(g, p) { mosaic(g, p.cell); }
+    },
+    spikes: {
+      name: 'Spikes', defaults: { density: 0, length: 12, seed: 5 },
+      controls: [['density', 'Density', 0, 100, 1], ['length', 'Length', 2, 40, 1], ['seed', 'Seed', 1, 99, 1]],
+      apply(g, p) { spikes(g, p.density, p.length, p.seed + SEED_OFFSET); }
     },
   };
 
@@ -699,76 +973,37 @@
       'Grain': { fx: [['noise', { amount: 45, scale: 6, seed: 11 }], ['threshold', { level: 52 }]] },
       'Bubbles': { fx: [['particles', { count: 320, size: 6, spread: 5, seed: 5 }], ['blur', { radius: 2 }], ['threshold', { level: 45 }]] },
       'Stream': { fx: [['skeleton', { width: 3 }], ['blur', { radius: 2 }], ['threshold', { level: 42 }]] },
-      // multi-group: solid letter body MINUS a sparse bubble field → cellular
-      // holes ("roe"). Keep particles few/small so the glyph stays readable.
-      'Frog-eggs': {
-        safe: false, groups: [
-          { blend: 'union', layers: [['dilate', { amount: 2 }], ['blur', { radius: 2 }], ['threshold', { level: 45 }]] },
-          { blend: 'subtract', layers: [['particles', { count: 90, size: 3, spread: 7, seed: 5, body: 0 }]] },
-        ]
-      },
+      // solid letter body with a sparse bubble field punched out → cellular
+      // holes ("roe"). `particles carve` replaces the old subtract group.
+      'Frog-eggs': { safe: false, fx: [['dilate', { amount: 2 }], ['blur', { radius: 2 }], ['threshold', { level: 45 }], ['particles', { count: 90, size: 3, spread: 7, seed: 5, body: 0, carve: 1 }]] },
       'Coral': { fx: [['dilate', { amount: 3 }], ['reaction', { feed: 55, kill: 62, iters: 18, depth: 90, seed: 5 }]] },
 
       // ── styles echoing Ivan Murit's production examples ──
       // cahn hiliard: thin outline with a cellular texture inside
-      'Cahn cells': {
-        outline: true, groups: [
-          { blend: 'union', layers: [['dilate', { amount: 1 }], ['blur', { radius: 1 }], ['threshold', { level: 50 }]] },
-          { blend: 'subtract', layers: [['particles', { count: 150, size: 2, spread: 6, seed: 9, body: 0 }]] },
-        ]
-      },
+      'Cahn cells': { outline: true, fx: [['dilate', { amount: 1 }], ['blur', { radius: 1 }], ['threshold', { level: 50 }], ['particles', { count: 150, size: 2, spread: 6, seed: 9, body: 0, carve: 1 }]] },
       // Clear_LivingPath cahn: bolder outline, coarser cells
-      'Cahn bold': {
-        outline: true, groups: [
-          { blend: 'union', layers: [['dilate', { amount: 3 }], ['blur', { radius: 2 }], ['threshold', { level: 46 }]] },
-          { blend: 'subtract', layers: [['particles', { count: 110, size: 3, spread: 8, seed: 4, body: 0 }]] },
-        ]
-      },
+      'Cahn bold': { outline: true, fx: [['dilate', { amount: 3 }], ['blur', { radius: 2 }], ['threshold', { level: 46 }], ['particles', { count: 110, size: 3, spread: 8, seed: 4, body: 0, carve: 1 }]] },
       // LivingPath-com: beaded / dotted outline (frog-eggs, stroked)
-      'Beaded': {
-        outline: true, groups: [
-          { blend: 'union', layers: [['dilate', { amount: 2 }], ['blur', { radius: 2 }], ['threshold', { level: 45 }]] },
-          { blend: 'subtract', layers: [['particles', { count: 70, size: 3, spread: 8, seed: 5, body: 0 }]] },
-        ]
-      },
+      'Beaded': { outline: true, fx: [['dilate', { amount: 2 }], ['blur', { radius: 2 }], ['threshold', { level: 45 }], ['particles', { count: 70, size: 3, spread: 8, seed: 5, body: 0, carve: 1 }]] },
       // LivingPath-dilated-line: clean bold outline, minimal texture
       'Dilated': { outline: true, fx: [['dilate', { amount: 3 }], ['blur', { radius: 2 }], ['threshold', { level: 44 }]] },
       // hillard bold: solid bold letters, rough speckled edge
       'Rough bold': { fx: [['dilate', { amount: 2 }], ['noise', { amount: 38, scale: 5, seed: 11 }], ['threshold', { level: 55 }]] },
-      // random1: low-res dotted / pixel-dust texture
-      'Pixel dust': {
-        groups: [
-          { blend: 'union', layers: [['dilate', { amount: 1 }]] },
-          { blend: 'multiply', layers: [['particles', { count: 520, size: 2, spread: 2, seed: 7, body: 0 }], ['blur', { radius: 1 }]] },
-        ]
-      },
+      // random1: low-res dotted / pixel-dust texture (was a `multiply` group —
+      // carve approximates it: dense small holes bitten out of a light body)
+      'Pixel dust': { fx: [['dilate', { amount: 1 }], ['particles', { count: 520, size: 2, spread: 2, seed: 7, body: 0, carve: 1 }], ['blur', { radius: 1 }]] },
       // LivingPath-test: exploded particle fragments
       'Exploded': { fx: [['particles', { count: 220, size: 5, spread: 16, seed: 5, body: 1 }], ['blur', { radius: 1 }], ['threshold', { level: 44 }]] },
 
       // ── styles from production sheet (2) ──
       // Dotty_lineal-Bold: bold outline packed with dense small dots
-      'Dotty bold': {
-        outline: true, groups: [
-          { blend: 'union', layers: [['dilate', { amount: 3 }], ['blur', { radius: 1 }], ['threshold', { level: 48 }]] },
-          { blend: 'subtract', layers: [['particles', { count: 300, size: 2, spread: 3, seed: 6, body: 0 }]] },
-        ]
-      },
+      'Dotty bold': { outline: true, fx: [['dilate', { amount: 3 }], ['blur', { radius: 1 }], ['threshold', { level: 48 }], ['particles', { count: 300, size: 2, spread: 3, seed: 6, body: 0, carve: 1 }]] },
       // Dotty_lineal-Light: thin outline, sparse dots
-      'Dotty light': {
-        outline: true, groups: [
-          { blend: 'union', layers: [['blur', { radius: 1 }], ['threshold', { level: 56 }]] },
-          { blend: 'subtract', layers: [['particles', { count: 130, size: 2, spread: 6, seed: 3, body: 0 }]] },
-        ]
-      },
+      'Dotty light': { outline: true, fx: [['blur', { radius: 1 }], ['threshold', { level: 56 }], ['particles', { count: 130, size: 2, spread: 6, seed: 3, body: 0, carve: 1 }]] },
       // LivingPath-light: thin clean outline (eroded body)
       'Thin line': { outline: true, fx: [['dilate', { amount: -1 }], ['blur', { radius: 1 }], ['threshold', { level: 55 }]] },
       // Sin-out: solid bold letters with big chunks bitten out
-      'Sliced': {
-        groups: [
-          { blend: 'union', layers: [['dilate', { amount: 2 }], ['blur', { radius: 2 }], ['threshold', { level: 44 }]] },
-          { blend: 'subtract', layers: [['particles', { count: 14, size: 13, spread: 11, seed: 8, body: 0 }]] },
-        ]
-      },
+      'Sliced': { fx: [['dilate', { amount: 2 }], ['blur', { radius: 2 }], ['threshold', { level: 44 }], ['particles', { count: 14, size: 13, spread: 11, seed: 8, body: 0, carve: 1 }]] },
       // gridouille: dense rough speckle over a bold body
       'Gridouille': { fx: [['dilate', { amount: 2 }], ['noise', { amount: 55, scale: 4, seed: 9 }], ['threshold', { level: 52 }]] },
       // 34567: faceted / low-poly outline (polygonize + no contour smoothing)
@@ -790,6 +1025,8 @@
     RES, rasterize, morph, boxBlur, addNoise, grayScott, particles, skeleton,
     seamCarve, polygonize, contours, smoothPoly, rasterFieldToSubs,
     measureMinGap, pickAdaptiveRes,
+    // extra field effects (2026-09)
+    dirBlur, chamfer, warpField, halftone, shatter, isoBands, ripple, glitch, mosaic, spikes,
     // groups/blend appliers
     blendField, rasterFieldFromGroups, applyVectorGroups,
     // presets
