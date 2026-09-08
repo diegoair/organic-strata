@@ -136,7 +136,7 @@ and set the contour smoothing (faceted presets go angular).
 ## 7. The type tester (the canvas)
 
 The stage **is** a type tester, modelled on a foundry specimen page. On boot it
-auto-loads **Arial Black** (`shared/vendor/arial-black.ttf`) so it's never empty; the
+auto-loads **Archivo Black** (`shared/vendor/archivo-black.ttf`, SIL OFL) so it's never empty; the
 floatbar **+** or a drop swaps in any OTF/TTF/WOFF. The specimen is one **editable**
 paragraph rendered through the effect stack — click it and type (a transparent
 `contenteditable` overlay sits on the SVG for the caret; the transformed SVG is what
@@ -192,7 +192,7 @@ thread if Worker/OffscreenCanvas isn't available.
 
 ## 9. A typical workflow
 
-1. It opens on **Arial Black** — or **drop a font** anywhere to swap it.
+1. It opens on **Archivo Black** — or **drop a font** anywhere to swap it.
 2. Pick a preset (e.g. `Frog-eggs`, `Coral`, `Stream`) and tune the effect stack.
 3. Type on the tester and dial in **SIZE / TRACK / align / CAPS**; ◐ for a dark specimen.
 4. Name it, tick **HTML specimen** if you want one, and **Export OTF**.
