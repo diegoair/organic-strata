@@ -722,8 +722,9 @@ function repaint(){
 //    export stay identical in effect strength (LIVINGPATH.md §11). Placement
 //    units are the LANDSCAPE stage box below (#board viewBox 0 0 BOX_W BOX_H).
 const BOX_W = 1400, BOX_H = 900;           // stage / specimen coordinate box (landscape)
-const DEFAULT_SPECIMEN =
-  "Stream, delta and flow — living typographic forms that follow their own path. Hamburgefonts 0123456789";
+// kept short on purpose — every glyph runs the per-glyph raster pipeline when
+// an effect is active, so a paragraph is slow with the heavy presets.
+const DEFAULT_SPECIMEN = "Hamburgefonts 123";
 const TESTER_DEFAULTS = { size:96, track:0, align:'center', caps:false };
 const TB_LINE_H = 1.36;                     // leading multiplier; the overlay uses the same
 let tester = { ...TESTER_DEFAULTS, baseline0:0, trackEm:0 };
