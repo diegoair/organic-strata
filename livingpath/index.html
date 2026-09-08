@@ -89,7 +89,7 @@
   /* NB: `hidden` does NOT work on an <svg> (SVGElement has no hidden IDL prop
      and the attribute doesn't hide it) — toggle .show instead, or the board
      keeps occupying a flex box and shoves the empty state off-centre. */
-  #board{max-width:92%; max-height:92%; display:none}
+  #board{max-width:96%; max-height:88%; display:none}   /* landscape stage (viewBox 1400×900) */
   #board.show{display:block}
   .empty{text-align:center; color:var(--mid)}
   .empty p{font-size:var(--fs-medium); line-height:1.7}
@@ -195,7 +195,7 @@
     <div class="gridtoggle">
       <button class="mini" id="tgFamily">full family</button>
     </div>
-    <svg id="board" class="org-stage" viewBox="0 0 1000 1000"></svg>
+    <svg id="board" class="org-stage" viewBox="0 0 1400 900"></svg>
     <!-- editable specimen overlay: transparent text, real caret, drives the SVG -->
     <div id="specEdit" contenteditable="plaintext-only" spellcheck="false"
          autocapitalize="off" autocorrect="off" aria-label="Specimen text — type to edit" hidden></div>
@@ -712,9 +712,11 @@ function repaint(){
 
 // ── the type tester — one editable specimen laid out with the MODIFIED font,
 //    parametrised by SIZE / TRACK / ALIGN / CAPS from the on-canvas bar.
-//    size/track/align/caps only PLACE glyph subs already 1000-box-normalised
-//    by processGlyphEm, so preview and OTF export stay identical in effect
-//    strength (LIVINGPATH.md §11). All units are 1000-box (viewBox 0 0 1000 1000).
+//    size/track/align/caps only PLACE glyph subs already per-glyph-normalised
+//    by processGlyphEm (into ITS own 1000-box, untouched), so preview and OTF
+//    export stay identical in effect strength (LIVINGPATH.md §11). Placement
+//    units are the LANDSCAPE stage box below (#board viewBox 0 0 BOX_W BOX_H).
+const BOX_W = 1400, BOX_H = 900;           // stage / specimen coordinate box (landscape)
 const DEFAULT_SPECIMEN =
   "Stream, delta and flow — living typographic forms that follow their own path. Hamburgefonts 0123456789";
 const TESTER_DEFAULTS = { size:96, track:0, align:'left', caps:false };
@@ -726,8 +728,8 @@ function buildSpecimenSubs(opts){
   const { size, track, align, caps } = opts;
   const font=window.__FONT; if(!font) return null;
   const upm=font.unitsPerEm||1000, scale=size/upm;
-  const trackEm = size * (track/1000);     // 1000-box units added after each glyph / gap
-  const lh = size * TB_LINE_H, x0 = 45, maxX = 955;
+  const trackEm = size * (track/1000);     // per-mille of size, added after each glyph / gap
+  const lh = size * TB_LINE_H, x0 = 45, maxX = BOX_W - 45;
   const y0 = Math.max(size, size * 1.05);  // first baseline scales with size
   tester.baseline0 = y0; tester.trackEm = trackEm;
   const spaceAdv = ((font.charToGlyph(' ')&&font.charToGlyph(' ').advanceWidth)||upm*0.3)*scale;
@@ -771,7 +773,7 @@ function buildSpecimenSubs(opts){
       }
     }
     y += lh;
-    if(y>985){ setSeedOffset(0); break; }               // clip to the board (no scroll)
+    if(y>BOX_H-15){ setSeedOffset(0); break; }           // clip to the board (no scroll)
   }
   return all;
 }
@@ -791,10 +793,10 @@ function familyGlyphs(){
 function buildFamilySubs(){
   const font=window.__FONT; if(!font) return null;
   const upm=font.unitsPerEm||1000, gls=familyGlyphs(); if(!gls.length) return null;
-  const cols=Math.max(8, Math.min(16, Math.ceil(Math.sqrt(gls.length*1.35))));
+  const cols=Math.max(10, Math.min(20, Math.ceil(Math.sqrt(gls.length*(BOX_W/BOX_H)*1.35))));
   const rows=Math.ceil(gls.length/cols);
-  const cell=Math.min(1000/cols, 1000/rows), fit=cell*0.68;
-  const ox=(1000-cols*cell)/2, oy=(1000-rows*cell)/2;
+  const cell=Math.min(BOX_W/cols, BOX_H/rows), fit=cell*0.68;
+  const ox=(BOX_W-cols*cell)/2, oy=(BOX_H-rows*cell)/2;
   const all=[];
   gls.forEach((gl,i)=>{
     let subs=null; try{ subs=processGlyphEm(gl,upm); }catch(e){}
@@ -927,12 +929,12 @@ window.addEventListener('drop',e=>{
 function currentSVGString(scale=1){
   const ink=$('#cp-ink').value, bg=$('#cp-bg').value;
   const out=CACHE||computed();
-  const W=1000*scale;
+  const W=BOX_W*scale, H=BOX_H*scale;
   const shape=outlineWidth>0
     ? strokeRingsSVG(dFromSubs(out), ink, bg, outlineWidth, outlineRings, outlineGap)
     : `<path d="${dFromSubs(out)}" fill="${ink}" fill-rule="evenodd"/>`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="${W}" height="${W}">`
-    +`<rect width="1000" height="1000" fill="${bg}"/>`+shape+`</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX_W} ${BOX_H}" width="${W}" height="${H}">`
+    +`<rect width="${BOX_W}" height="${BOX_H}" fill="${bg}"/>`+shape+`</svg>`;
 }
 $('#exSvg').addEventListener('click',()=>{
   const blob=new Blob([currentSVGString()],{type:'image/svg+xml'});
@@ -1419,12 +1421,12 @@ function syncSpecEditBox(){
   if(specEdit.hidden) return;
   const b = board.getBoundingClientRect(), w = canvasWrap.getBoundingClientRect();
   if(!b.width) return;
-  const px = b.width / 1000;                       // 1000-box unit → screen px
+  const px = b.width / BOX_W;                      // stage-box unit → screen px
   const s = tester.size, lh = s * TB_LINE_H, top0 = (tester.baseline0 || s) - s;
   Object.assign(specEdit.style, {
     left:  (b.left - w.left + 45 * px) + 'px',
     top:   (b.top  - w.top  + top0 * px) + 'px',
-    width: ((955 - 45) * px) + 'px',
+    width: ((BOX_W - 90) * px) + 'px',
     height:(b.height - top0 * px - 8) + 'px',
     fontSize:(s * px) + 'px', lineHeight:(lh * px) + 'px',
     letterSpacing:((tester.trackEm || 0) * px) + 'px',
