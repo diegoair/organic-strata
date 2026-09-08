@@ -91,15 +91,19 @@
      keeps occupying a flex box and shoves the empty state off-centre. */
   #board{max-width:96%; max-height:88%; display:none}   /* landscape stage (viewBox 1400×900) */
   #board.show{display:block}
+  /* ── full-family overview: the stage becomes a scrollable Fontra-style
+       font sheet — one boxed cell per glyph, name + Unicode caption ── */
+  #canvas-wrap.family{overflow-y:auto; overflow-x:hidden; align-items:flex-start}
+  #canvas-wrap.family #board{max-width:none; max-height:none; box-shadow:none}
   .empty{text-align:center; color:var(--mid)}
   .empty p{font-size:var(--fs-medium); line-height:1.7}
-  .gridtoggle{position:absolute; top:14px; right:16px; display:flex; gap:var(--space-2); z-index:8}
   .mini{font-size:var(--fs-small); padding:var(--space-2) var(--space-4); background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; color:var(--ink)}
-  .mini.on{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+  /* full-family toggle lives in the floatbar — active (view open) reads like the popover-open state */
+  .org-floatbar__btn[aria-pressed="true"]{background:var(--ink); color:var(--paper)}
   .hint{font-size:var(--fs-small); color:var(--mid); line-height:1.6; margin-top:var(--space-3)}
   /* ── the type tester — the canvas is one editable specimen (SVG, effect-
-       transformed) + a transparent contenteditable overlay for the caret,
-       + a control bar pinned above the floatbar. Size/track/align/caps only
+       transformed) + a transparent contenteditable overlay for the caret.
+       SIZE / TRACK / align / CAPS live in the floatbar (.fb-tester) and only
        PLACE glyph subs already 1000-box-normalised by processGlyphEm, so
        preview and OTF export stay identical in effect strength. ── */
   #specEdit{
@@ -109,32 +113,62 @@
     font-family:'lp-specimen', var(--font); -webkit-user-modify:read-write-plaintext-only;
   }
   #specEdit::selection{background:color-mix(in srgb, var(--tool) 30%, transparent)}
-  .lp-testbar{
-    position:absolute; left:16px; right:16px; bottom:76px; z-index:8;
-    display:flex; align-items:center; gap:var(--space-4); flex-wrap:wrap;
-    padding:var(--space-2) var(--space-3);
-    background:color-mix(in srgb, var(--panel) 92%, transparent);
-    border:1px solid var(--border); border-radius:var(--radius-md);
-    backdrop-filter:blur(6px);
-  }
-  .lp-testbar .ctrl-row{flex:0 0 auto; width:auto; display:flex; align-items:center; gap:var(--space-2); margin:0}
-  .lp-testbar .ctrl-row label{font-size:var(--fs-small); color:var(--mid); letter-spacing:.06em}
-  .lp-testbar .ctrl-row input[type=range]{width:104px}
-  .lp-testbar .ctrl-val{min-width:2.5ch; font-size:var(--fs-small); color:var(--ink); text-align:right}
-  .lp-testbar .seg-ctrl{flex:0 0 auto}
-  .lp-testbar .seg-btn{min-width:30px; padding:0 var(--space-2)}
-  .lp-testbar .seg-btn svg{width:15px; height:11px; display:block; margin:0 auto}
-  .lp-testbar .lp-tb-night{margin-left:auto; font-size:var(--fs-medium); line-height:1}
-  #specEdit[hidden],.lp-testbar[hidden]{display:none}
-  .lp-phrases{position:absolute; top:14px; left:50%; transform:translateX(-50%); display:flex; gap:var(--space-3); z-index:8}
+  #specEdit[hidden]{display:none}
+  /* type-tester controls inside the floatbar */
+  .fb-tester{display:flex; align-items:center; gap:var(--space-3)}
+  .fb-tester[hidden]{display:none}
+  .fb-field{display:flex; align-items:center; gap:var(--space-2); margin:0; font-size:var(--fs-micro); letter-spacing:.06em; color:var(--mid); cursor:default}
+  .fb-field input[type=range]{width:82px}
+  .fb-val{min-width:2.5ch; font-size:var(--fs-small); font-weight:400; color:var(--ink); text-align:right}
+  .fb-tester .seg-ctrl{flex:0 0 auto}
+  .fb-tester .seg-btn{min-width:28px; padding:0 var(--space-2); font-size:var(--fs-micro)}
+  .fb-tester .seg-btn svg{width:14px; height:10px; display:block; margin:0 auto}
+  /* 4 XS rounded-square icon buttons — one per project-themed phrase, near the stage */
+  .lp-phrases{position:absolute; bottom:96px; left:50%; transform:translateX(-50%); display:flex; gap:var(--space-2); z-index:8}
   .lp-phrases[hidden]{display:none}
   .lp-phrase-btn{
-    width:12px; height:12px; padding:0; border-radius:50%;
-    border:1px solid var(--border-strong, var(--border)); background:var(--panel);
-    cursor:pointer; transition:background .12s, border-color .12s, transform .12s;
+    width:22px; height:22px; padding:0; border-radius:var(--radius-sm);
+    display:flex; align-items:center; justify-content:center;
+    border:1px solid var(--border-strong, var(--border)); background:var(--panel); color:var(--mid);
+    cursor:pointer; transition:background .12s, border-color .12s, color .12s, transform .12s;
   }
-  .lp-phrase-btn:hover{border-color:var(--ink); transform:scale(1.15)}
-  .lp-phrase-btn.is-active{background:var(--ink); border-color:var(--ink)}
+  .lp-phrase-btn svg{width:13px; height:13px; display:block}
+  .lp-phrase-btn:hover{border-color:var(--ink); color:var(--ink); transform:translateY(-1px)}
+  .lp-phrase-btn.is-active{background:var(--ink); border-color:var(--ink); color:var(--paper)}
+  /* processing state — a grey-out scrim + a centred message pill, plus an
+     indeterminate loading line riding the TOP & BOTTOM EDGE OF THE CANVAS
+     (#board), positioned by syncProcLine() via --line-top / --line-bot. */
+  #procOverlay{
+    position:absolute; inset:0; z-index:9; pointer-events:none;
+    display:flex; align-items:center; justify-content:center;
+    background:color-mix(in srgb, var(--panel) 58%, transparent);
+  }
+  #procOverlay[hidden]{display:none}
+  #procMsg{
+    font-size:var(--fs-small); letter-spacing:.08em; color:var(--ink);
+    background:var(--paper); border:1px solid var(--border);
+    border-radius:var(--radius-md); padding:var(--space-3) var(--space-5);
+    box-shadow:0 4px 20px rgba(0,0,0,.12); animation:procPulse 1.1s ease-in-out infinite;
+  }
+  @keyframes procPulse{0%,100%{opacity:.72}50%{opacity:1}}
+  #procOverlay::before, #procOverlay::after{
+    content:''; position:absolute; left:0; right:0; height:2px;
+    background:linear-gradient(90deg, transparent, var(--ink) 45%, var(--ink) 55%, transparent);
+    background-size:38% 100%; background-repeat:no-repeat;
+    animation:procSlide 1.05s linear infinite;
+  }
+  #procOverlay::before{top:calc(var(--line-top, 0px) - 1px)}
+  #procOverlay::after{top:calc(var(--line-bot, 100%) - 1px)}
+  @keyframes procSlide{0%{background-position:-38% 0}100%{background-position:138% 0}}
+  /* transient message pill (errors / results), top-centre of the stage */
+  #toast{
+    position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:11;
+    font-size:var(--fs-small); letter-spacing:.06em; color:var(--ink);
+    background:var(--paper); border:1px solid var(--border); border-radius:var(--radius-md);
+    padding:var(--space-2) var(--space-4); box-shadow:0 4px 20px rgba(0,0,0,.12);
+    pointer-events:none; max-width:80%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  #toast[hidden]{display:none}
   /* Ink/Paper colour rows use the shared .color-* component (panel.css)
      + Organica.palette.swatch. */
   ::-webkit-scrollbar{width:9px;height:9px}
@@ -148,12 +182,6 @@
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ Living Path</span></a>
 
   <div class="org-header__spacer"></div>
-
-  <output class="org-header__status" aria-live="polite" aria-atomic="true">
-    <span class="org-header__dot" id="status-dot"></span>
-    <span class="org-header__state" id="status">no input</span>
-  </output>
-
 </header>
 
 <!-- FLOATING TOOLBAR — Load font / Reset / Export, fixed bottom-centre -->
@@ -164,8 +192,38 @@
 
   <div class="org-floatbar__sep"></div>
 
+  <!-- type-tester controls (specimen only — hidden in family view / no font) -->
+  <div class="fb-tester" id="fb-tester" role="group" aria-label="Type tester controls" hidden>
+    <label class="fb-field"><span>SIZE</span>
+      <input type="range" id="tbSize" min="24" max="240" step="1" value="96">
+      <b class="fb-val" id="tbSizeVal">96</b>
+    </label>
+    <label class="fb-field"><span>TRACK</span>
+      <input type="range" id="tbTrack" min="-40" max="400" step="5" value="0">
+      <b class="fb-val" id="tbTrackVal">0</b>
+    </label>
+    <div class="seg-ctrl" role="group" aria-label="Align">
+      <button class="seg-btn" data-align="left" aria-pressed="false" aria-label="Align left"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M1 5h9M1 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+      <button class="seg-btn" data-align="center" aria-pressed="true" aria-label="Align centre"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M3.5 5h9M2 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+      <button class="seg-btn" data-align="right" aria-pressed="false" aria-label="Align right"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M6 5h9M3 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+    </div>
+    <button class="seg-btn" id="tbCaps" aria-pressed="false">CAPS</button>
+  </div>
+
+  <button class="org-floatbar__btn" id="tbNight" aria-pressed="false" aria-label="Invert — swap Ink / Paper">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
   <button class="org-floatbar__btn" id="reset" aria-label="Reset effects">
     <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13 4.8A5.5 5.5 0 1 0 14 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M13.3 1.5v3.5H9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <button class="org-floatbar__btn" id="tgFamily" aria-label="Full Family View" aria-pressed="false">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 2.5v11M2.5 8h11" stroke="currentColor" stroke-width="1.3"/></svg>
   </button>
 
   <div class="org-floatbar__sep"></div>
@@ -201,37 +259,16 @@
 <div id="app">
   <!-- CENTER : stage -->
   <main id="canvas-wrap">
-    <div class="gridtoggle">
-      <button class="mini" id="tgFamily">full family</button>
-    </div>
-    <!-- 4 quick specimen phrases (pangrams, project-themed), top-centre -->
-    <div class="lp-phrases" id="phrases" role="group" aria-label="Specimen phrases" hidden></div>
     <svg id="board" class="org-stage" viewBox="0 0 1400 900"></svg>
     <!-- editable specimen overlay: transparent text, real caret, drives the SVG -->
     <div id="specEdit" contenteditable="plaintext-only" spellcheck="false"
          autocapitalize="off" autocorrect="off" aria-label="Specimen text — type to edit" hidden></div>
-    <!-- type-tester control bar, pinned inside the bottom of the stage -->
-    <div class="lp-testbar" id="testbar" role="group" aria-label="Type tester controls" hidden>
-      <div class="ctrl-row lp-tb-field">
-        <label for="tbSize">SIZE</label>
-        <input type="range" id="tbSize" min="24" max="240" step="1" value="96">
-        <span class="ctrl-val" id="tbSizeVal">96</span>
-      </div>
-      <div class="ctrl-row lp-tb-field">
-        <label for="tbTrack">TRACK</label>
-        <input type="range" id="tbTrack" min="-40" max="400" step="5" value="0">
-        <span class="ctrl-val" id="tbTrackVal">0</span>
-      </div>
-      <div class="seg-ctrl" role="group" aria-label="Align">
-        <button class="seg-btn" data-align="left" aria-pressed="false" aria-label="Align left"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M1 5h9M1 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
-        <button class="seg-btn" data-align="center" aria-pressed="true" aria-label="Align centre"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M3.5 5h9M2 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
-        <button class="seg-btn" data-align="right" aria-pressed="false" aria-label="Align right"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M6 5h9M3 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
-      </div>
-      <button class="seg-btn lp-tb-caps" id="tbCaps" aria-pressed="false">CAPS</button>
-      <button class="mini-btn" id="tbReset">RESET</button>
-      <button class="mini-btn lp-tb-night" id="tbNight" aria-pressed="false"
-              aria-label="Night mode (swap Ink / Paper)">◐</button>
-    </div>
+    <!-- 4 quick specimen phrases (project-themed), near the canvas -->
+    <div class="lp-phrases" id="phrases" role="group" aria-label="Specimen phrases" hidden></div>
+    <!-- transient message pill (errors / results) — replaces the header status line -->
+    <div id="toast" role="status" aria-live="polite" hidden></div>
+    <!-- processing: grey-out + centred message pill + a loading line on the canvas' top & bottom edge -->
+    <div id="procOverlay" hidden><span id="procMsg"></span></div>
     <div class="empty" id="empty">
       <p>Click <b>+</b> in the toolbar, or drop a font anywhere.</p>
     </div>
@@ -298,7 +335,33 @@
    ============================================================ */
 
 const $ = s => document.querySelector(s);
-const board = $('#board'), empty = $('#empty'), statusEl = $('#status');
+const board = $('#board'), empty = $('#empty');
+
+// The header no longer carries a status line. `busy(msg)` puts the stage into
+// the processing state: a grey-out scrim + a centred message pill (#procMsg) +
+// an indeterminate loading line on the CANVAS' (#board's) top & bottom edge.
+// Errors / results show as a separate transient pill (#toast), top of the stage.
+const procOverlay = $('#procOverlay'), procMsg = $('#procMsg'), toastEl = $('#toast');
+let _toastTimer = null, _statusMsg = '';
+function toast(msg){
+  clearTimeout(_toastTimer);
+  _statusMsg = msg || '';
+  if(!msg){ toastEl.hidden = true; return; }
+  toastEl.textContent = msg; toastEl.hidden = false;
+  _toastTimer = setTimeout(()=>{ toastEl.hidden = true; _statusMsg=''; }, /^✗/.test(msg) ? 4200 : 2400);
+}
+// keep every `statusEl.textContent = …` call site working, routed to the toast
+const statusEl = { get textContent(){ return _statusMsg; }, set textContent(v){ toast(v); } };
+// the loading line rides #board's edges, not the stage's — offsets in px from
+// the stage's top, consumed by #procOverlay::before / ::after via CSS vars
+function syncProcLine(){
+  const b = board.getBoundingClientRect(), w = board.parentElement.getBoundingClientRect();
+  if(!b.width) return;
+  procOverlay.style.setProperty('--line-top', (b.top - w.top) + 'px');
+  procOverlay.style.setProperty('--line-bot', (b.bottom - w.top) + 'px');
+}
+function busy(msg){ procMsg.textContent = msg || 'applying effects…'; syncProcLine(); procOverlay.hidden = false; }
+function idle(){ procOverlay.hidden = true; }
 
 // The raster engine, groups appliers and presets live in shared/pathfx.js —
 // see its header for the boundary. Living Path is raster-only: it uses RFX +
@@ -708,11 +771,12 @@ function computed(){
   return rasterCompute();
 }
 
-let CACHE=null, rasterTimer=null;
+let CACHE=null, rasterTimer=null, _renderSeq=0;
 
 // repaint = cheap; just re-draws CACHE with current colours/outline/nodes
 function repaint(){
   if(!SRC){ board.classList.remove('show'); empty.hidden=false; return; }
+  if(showFamily && SRC_KIND==='font' && window.__FONT){ renderFamily(); return; }   // family CACHE is a layout, not subs
   empty.hidden=true; board.classList.add('show');
   const ink=$('#cp-ink').value, bg=$('#cp-bg').value;
   board.style.background=bg;
@@ -736,7 +800,7 @@ const BOX_W = 1400, BOX_H = 900;           // stage / specimen coordinate box (l
 // 4 short project-themed specimen phrases; together they cover the whole
 // a–z alphabet. Kept short on purpose — every glyph runs the per-glyph
 // raster pipeline when an effect is active, so a paragraph is slow with the
-// heavy presets. The 4 round buttons above the canvas switch between them.
+// heavy presets. 4 XS icon buttons near the stage switch between them.
 const SPECIMEN_PHRASES = [
   "Living forms flux, melt, grow, dissolve",
   "Every glyph finds its own quiet path",
@@ -748,7 +812,6 @@ const TESTER_DEFAULTS = { size:96, track:0, align:'center', caps:false };
 const TB_LINE_H = 1.36;                     // leading multiplier; the overlay uses the same
 let tester = { ...TESTER_DEFAULTS, baseline0:0, trackEm:0 };
 let specimenString = DEFAULT_SPECIMEN;
-let nightOn = false;
 // when no effect is active, buildSpecimenSubs also emits the specimen as the
 // font's OWN Bézier outlines (opentype getPath) — the polyline→Catmull-Rom
 // path dFromSubs() builds rounds the corners, so "no effect" still looked
@@ -817,50 +880,119 @@ function buildSpecimenSubs(opts){
   _specimenRawD = raw ? rawParts.join(' ') : '';
   return all;
 }
-// ── full family: every glyph in the charset, run through the stack, in a grid ──
-let showFamily=false; let _familyCache=null, _familySig='';
+// ── full family: a scrollable Fontra-style font overview — one boxed cell per
+//    glyph (run through the effect stack), glyph name + Unicode caption ──
+let showFamily=false;
+const FAM_U=180, MAX_FAMILY=1000;               // cell size (board units); hard cap
+let _familyCache={sig:'', glyphs:null};         // {name,uni,adv,subsEm}[]  — em-unit geometry, reused across relayouts
+let _familyToken=0;                             // supersedes an in-flight incremental cache build
+let _familyRenderTok=0;                         // supersedes an in-flight renderFamily()
+
 function familyGlyphs(){
   const font=window.__FONT; if(!font) return [];
   const seen=new Set(), out=[];
   for(let i=0;i<font.glyphs.length;i++){ const g=font.glyphs.get(i);
-    if(g.unicode==null||g.unicode<=0||g.unicode===32||seen.has(g.unicode)) continue;
-    if(!inCharset(g.unicode, CHARSET)) continue;
+    const u=g.unicode;
+    if(u==null||u<=0||seen.has(u)) continue;
+    if(u!==32 && (u<0x20 || (u>=0x7f && u<=0xa0))) continue;   // drop C0/C1 controls; keep space (U+0020)
+    if(!inCharset(u, CHARSET)) continue;
     seen.add(g.unicode); out.push(g);
   }
-  out.sort((a,b)=>a.unicode-b.unicode);        // legible order, not glyph-index
-  return out.slice(0,120);                     // cap — raster is heavy per glyph
+  out.sort((a,b)=>a.unicode-b.unicode);         // legible order, not glyph-index
+  return out.slice(0, MAX_FAMILY);
 }
-function buildFamilySubs(){
-  const font=window.__FONT; if(!font) return null;
-  const upm=font.unitsPerEm||1000, gls=familyGlyphs(); if(!gls.length) return null;
-  const cols=Math.max(10, Math.min(20, Math.ceil(Math.sqrt(gls.length*(BOX_W/BOX_H)*1.35))));
-  const rows=Math.ceil(gls.length/cols);
-  const cell=Math.min(BOX_W/cols, BOX_H/rows), fit=cell*0.68;
-  const ox=(BOX_W-cols*cell)/2, oy=(BOX_H-rows*cell)/2;
-  const all=[];
-  gls.forEach((gl,i)=>{
+// must change whenever the effect stack changes — STACK_REV alone misses
+// applyPreset (which swaps GROUPS.raster without bumping it), so serialize the
+// layers directly, same shape as the OTF-export worker cache key (~line 1244)
+function famSig(){
+  return JSON.stringify(GROUPS.raster[0].layers.map(l=>[l.type,l.params]))+'|'+getContourSmooth()+'|'+fontSig();
+}
+// incrementally run every charset glyph through processGlyphEm, caching the
+// em-unit result so a resize/re-open is a pure relayout. Yields to the event
+// loop every 12 glyphs (same shape as buildModifiedFont). Returns false if a
+// newer build superseded this one.
+async function ensureFamilyGlyphCache(){
+  const sig=famSig();
+  if(_familyCache.sig===sig && _familyCache.glyphs) return true;
+  const font=window.__FONT; if(!font) return false;
+  const upm=font.unitsPerEm||1000, gls=familyGlyphs();
+  const tok=++_familyToken, list=[];
+  for(let i=0;i<gls.length;i++){
+    const gl=gls[i];
     let subs=null; try{ subs=processGlyphEm(gl,upm); }catch(e){}
-    if(!subs||!subs.length) return;
-    const bb=bboxOf(subs), k=fit/Math.max(bb.w,bb.h||1);
-    const cx=ox+(i%cols)*cell+cell/2, cy=oy+((i/cols)|0)*cell+cell/2;
-    const mx=cx-(bb.minX+bb.w/2)*k, my=(bb.minY+bb.h/2)*k;
-    for(const s of subs) all.push({closed:s.closed, pts:s.pts.map(p=>({x:p.x*k+mx, y:cy-(p.y*k-my)}))});
-  });
-  return all;
+    list.push({ name: gl.name || ('uni'+gl.unicode.toString(16)),
+                uni: gl.unicode, adv: gl.advanceWidth||upm*0.5,
+                subsEm: (subs&&subs.length)?subs:null });
+    if(i%12===0){
+      busy('building family… '+(i+1)+'/'+gls.length);
+      await new Promise(r=>setTimeout(r,0));
+      if(tok!==_familyToken) return false;      // a newer build started
+    }
+  }
+  if(tok!==_familyToken) return false;
+  _familyCache={ sig, glyphs:list };
+  return true;
 }
-function renderFamily(){
+function wrapW(){ return Math.max(320, canvasWrap.clientWidth - 48); }   // minus 2× --space-7
+function familyCols(){ return Math.max(4, Math.min(12, Math.round(wrapW()/150))); }
+// pure, cheap: lay the cached em-unit glyphs into a `cols`-wide grid on a shared
+// per-row baseline, at true em-relative size (x short, H tall, descenders hang)
+function buildFamilyLayout(cols){
+  const font=window.__FONT, gl=_familyCache.glyphs;
+  if(!font||!gl||!gl.length) return null;
+  const upm=font.unitsPerEm||1000, U=FAM_U;
+  const rows=Math.ceil(gl.length/cols);
+  const GRID_W=cols*U, GRID_H=rows*U;
+  const glyphArea=U*0.74, em=glyphArea*0.62, k=em/upm;
+  const cells=gl.map((g,i)=>{
+    const col=i%cols, row=(i/cols)|0, x0=col*U, y0=row*U;
+    const by=y0+glyphArea*0.72;                          // baseline, constant per row
+    const bx=x0+(U-g.adv*k)/2;                           // centre on the advance width
+    const glyphSubs=g.subsEm
+      ? g.subsEm.map(s=>({closed:s.closed, pts:s.pts.map(p=>({x:bx+p.x*k, y:by-p.y*k}))}))
+      : null;
+    return { name:g.name, uni:g.uni, glyphSubs, x0, y0, cx:x0+U/2, capY:y0+U*0.80 };
+  });
+  return { cols, rows, U, GRID_W, GRID_H, cells };
+}
+function famEsc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// markup shared by renderFamily() and currentSVGString() — resolved hex + fill-opacity,
+// no CSS vars, so an exported standalone .svg renders identically anywhere
+function familySVGMarkup(L, ink, bg){
+  const U=L.U; let lines='';
+  for(let c=1;c<L.cols;c++) lines+=`M${c*U} 0V${L.GRID_H}`;
+  for(let r=1;r<L.rows;r++) lines+=`M0 ${r*U}H${L.GRID_W}`;
+  let out=`<path d="${lines}" fill="none" stroke="${ink}" stroke-opacity="0.14" stroke-width="1"/>`;
+  for(const cell of L.cells){
+    if(cell.glyphSubs) out+=`<path d="${dFromSubs(cell.glyphSubs)}" fill="${ink}" fill-rule="evenodd"/>`;
+    out+=`<text x="${cell.cx}" y="${cell.capY}" text-anchor="middle" font-family="var(--font),sans-serif" font-size="${cell.name.length>13?9:13}" fill="${ink}" fill-opacity="0.62">${famEsc(cell.name)}</text>`;
+    if(cell.uni!=null&&cell.uni>0)
+      out+=`<text x="${cell.cx}" y="${cell.capY+15}" text-anchor="middle" font-family="var(--font),sans-serif" font-size="10" fill="${ink}" fill-opacity="0.4">U+${cell.uni.toString(16).toUpperCase().padStart(4,'0')}</text>`;
+  }
+  return out;
+}
+async function renderFamily(){
   _specimenRawD='';
-  const sig='fam:'+STACK_REV+':'+fontSig()+':'+getContourSmooth()+':'+outlineWidth+':'+outlineRings+':'+outlineGap;
-  const subs = (_familySig===sig && _familyCache) ? _familyCache : (_familyCache=buildFamilySubs(), _familySig=sig, _familyCache);
-  CACHE=subs;
+  const tok=++_familyRenderTok;
+  const ok=await ensureFamilyGlyphCache();
+  if(!ok || tok!==_familyRenderTok || !showFamily) return;   // superseded / left the view
+  const cols=familyCols();
+  const L=buildFamilyLayout(cols);
+  CACHE=L;                                                    // export reads this
   const ink=$('#cp-ink').value, bg=$('#cp-bg').value;
+  if(!L){ board.innerHTML=''; return; }
+  board.setAttribute('viewBox', `0 0 ${L.GRID_W} ${L.GRID_H}`);
+  board.style.width='100%';
+  board.style.height=(L.rows * (wrapW()/cols)) + 'px';        // real px → the wrap scrolls
   board.style.background=bg; board.classList.add('show'); empty.hidden=true;
-  board.innerHTML = (subs&&subs.length)
-    ? (outlineWidth>0
-        ? strokeRingsSVG(dFromSubs(subs), ink, bg, outlineWidth, outlineRings, outlineGap)
-        : `<path d="${dFromSubs(subs)}" fill="${ink}" fill-rule="evenodd"/>`)
-    : '';
+  if(!procOverlay.hidden) syncProcLine();                     // board just grew — re-hug its edges
+  board.innerHTML=familySVGMarkup(L, ink, bg);               // outline rings not applied in family mode — visual noise at this size
   $('#exSvg').disabled=$('#exPng').disabled=false;
+}
+// restore the stage after leaving the family overview
+function exitFamilyView(){
+  board.style.width=''; board.style.height='';
+  board.setAttribute('viewBox', `0 0 ${BOX_W} ${BOX_H}`);
 }
 function renderTester(){
   const subs=buildSpecimenSubs(tester);
@@ -880,15 +1012,31 @@ function renderTester(){
 function render(){
   if(!SRC){ repaint(); return; }
   const isFont = SRC_KIND==='font' && window.__FONT;
-  $('#specEdit').hidden = $('#testbar').hidden = $('#phrases').hidden = !isFont || showFamily;
+  const family = isFont && showFamily;
+  $('#specEdit').hidden = $('#fb-tester').hidden = $('#phrases').hidden = !isFont || showFamily;
+  canvasWrap.classList.toggle('family', family);
+  if(!family) exitFamilyView();
   const doit = ()=>{
-    if(isFont && showFamily) renderFamily();
-    else if(isFont)          renderTester();      // the new default view
-    else { CACHE=computed(); repaint(); }
+    if(family)      return renderFamily();        // async — updates its own "building family… n/total"
+    if(isFont)      return renderTester(), null;  // the default view
+    CACHE=computed(); repaint(); return null;
   };
-  statusEl.textContent = (showFamily && isFont) ? 'building family…' : 'processing…';
+  // processing state for real work only (an active effect stack, or the family
+  // grid). A raw / identity render is instant — no flash. Effects get the
+  // grey-out + centred pill + edge line; the family build also shows n/total.
+  const heavy = family || (isFont && !stackIsIdentity());
   clearTimeout(rasterTimer);
-  rasterTimer=setTimeout(()=>{ doit(); statusEl.textContent=SRC_LABEL; }, 110);
+  rasterTimer=setTimeout(()=>{
+    const tok = ++_renderSeq;
+    const done = ()=>{ if(tok===_renderSeq) idle(); };   // a newer render owns the overlay now
+    if(!heavy){ done(); doit(); return; }                // identity render → make sure any stale scrim is cleared
+    busy(family ? 'building family…' : 'applying effects…');
+    // let the scrim + line paint before the (blocking) synchronous specimen render
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      const r=doit();
+      if(r && r.then) r.then(done); else done();
+    }));
+  }, 110);
 }
 
 // ============================================================
@@ -925,7 +1073,7 @@ function loadFontBuffer(buf, name){
 // a font is loaded → seed SRC (sentinel + fallback geometry) and render the tester
 function seedFontSource(name){
   const font=window.__FONT; if(!font) return;
-  if(showFamily) _familySig='';
+  _familyCache={sig:'', glyphs:null};            // new font → drop the per-glyph geometry cache
   const p=font.getPath('Agr', 0, 0, 700);          // y-down em units — only a fallback when CACHE is null
   const subs=fromOTCommands(p.commands);
   setSource(subs.length?subs:[{closed:true,pts:[{x:0,y:0},{x:1,y:0},{x:1,y:1}]}], false, 'font',
@@ -970,9 +1118,15 @@ window.addEventListener('drop',e=>{
 // ============================================================
 function currentSVGString(scale=1){
   const ink=$('#cp-ink').value, bg=$('#cp-bg').value;
+  // full-family overview: export the boxed grid + names exactly as shown
+  if(showFamily && CACHE && CACHE.cells){
+    const L=CACHE;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${L.GRID_W} ${L.GRID_H}" width="${L.GRID_W*scale}" height="${L.GRID_H*scale}">`
+      +`<rect width="${L.GRID_W}" height="${L.GRID_H}" fill="${bg}"/>`+familySVGMarkup(L, ink, bg)+`</svg>`;
+  }
   const out=CACHE||computed();
   const W=BOX_W*scale, H=BOX_H*scale;
-  const d = (!showFamily && _specimenRawD) ? _specimenRawD : dFromSubs(out);
+  const d = _specimenRawD ? _specimenRawD : dFromSubs(out);
   const shape=outlineWidth>0
     ? strokeRingsSVG(d, ink, bg, outlineWidth, outlineRings, outlineGap)
     : `<path d="${d}" fill="${ink}" fill-rule="evenodd"/>`;
@@ -984,11 +1138,16 @@ $('#exSvg').addEventListener('click',()=>{
   download(blob,'livingpath.svg');
 });
 $('#exPng').addEventListener('click',()=>{
-  const svg=currentSVGString(2);
+  const family = showFamily && CACHE && CACHE.cells;
+  const scale = 2;
+  const svg=currentSVGString(scale);
+  // family sheet keeps its own (tall) aspect; every other view is the square stage
+  const w = family ? CACHE.GRID_W*scale : 2000;
+  const h = family ? CACHE.GRID_H*scale : 2000;
   const img=new Image();
   const url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
   img.onload=()=>{
-    const c=document.createElement('canvas'); c.width=c.height=2000;
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
     c.getContext('2d').drawImage(img,0,0);
     c.toBlob(b=>{ download(b,'livingpath.png'); URL.revokeObjectURL(url); },'image/png');
   };
@@ -1417,9 +1576,10 @@ function fontFileExt(buf){
 $('#exFont').addEventListener('click',async function(){
   if(!window.__FONT){ statusEl.textContent='✗ load a font first'; return; }
   const name=($('#exName').value||'LivingPath').trim();
-  const prev=SRC_LABEL; this.disabled=true; const lbl=this.textContent; this.textContent='building…';
+  this.disabled=true; const lbl=this.textContent; this.textContent='building…';
+  busy('exporting glyphs…');
   try{
-    const prog=(i,n)=>{ statusEl.textContent=`exporting glyphs ${i}/${n}…`; };
+    const prog=(i,n)=>{ busy(`exporting glyphs ${i}/${n}…`); };
     // randomised alternates only help when the stack actually varies by seed
     const variants = ($('#exAlt').checked && stackHasSeed()) ? 3 : 1;
     const oOpts={name, ranges:CHARSET, variants};
@@ -1429,13 +1589,13 @@ $('#exFont').addEventListener('click',async function(){
     let font;
     try{ font = useWorker ? await buildModifiedFontWorker(oOpts, prog)
                           : await buildModifiedFont(prog, oOpts); }
-    catch(werr){ if(useWorker){ statusEl.textContent='worker failed, retrying…'; font=await buildModifiedFont(prog,oOpts); } else throw werr; }
+    catch(werr){ if(useWorker){ busy('worker failed, retrying…'); font=await buildModifiedFont(prog,oOpts); } else throw werr; }
     const buf=font.toArrayBuffer(); const ext=fontFileExt(buf);
     download(new Blob([buf],{type:'font/'+ext}), name.replace(/\s+/g,'-')+'.'+ext);
     if($('#exSpec').checked) download(new Blob([specimenHTML(buf,name)],{type:'text/html'}), name.replace(/\s+/g,'-')+'-specimen.html');
+    idle();   // drop the processing overlay before the result pill
     statusEl.textContent='✓ exported .'+ext+($('#exSpec').checked?' + specimen':'');
-    setTimeout(()=>{ statusEl.textContent=prev; }, 1800);
-  }catch(e){ statusEl.textContent='✗ '+e.message; }
+  }catch(e){ idle(); statusEl.textContent='✗ '+e.message; }
   this.textContent=lbl; this.disabled=false;
 });
 $('#saveProj').addEventListener('click',()=>{
@@ -1449,9 +1609,10 @@ $('#saveProj').addEventListener('click',()=>{
 })();
 $('#reset').addEventListener('click',()=>{ GROUPS.raster=freshStack(); outlineWidth=0; outlineRings=1; outlineGap=4; CURRENT_PRESET=null; STACK_REV++; updatePresetTrigger(); renderStack(); render(); });
 $('#tgFamily').addEventListener('click',function(){
-  showFamily=!showFamily; this.classList.toggle('on',showFamily);
+  showFamily=!showFamily; this.setAttribute('aria-pressed', String(showFamily));
   if(showFamily && SRC_KIND!=='font') statusEl.textContent='full family needs a font input';
-  render();      // render() toggles #specEdit / #testbar visibility
+  if(showFamily){ zoomPan.reset(); $('#zoom-hud').classList.remove('visible'); }
+  render();      // render() toggles #specEdit / #fb-tester / .family + the stage viewBox
 });
 // Ink/Paper — the shared Palette component (attach mode).
 const swatches = {};
@@ -1460,7 +1621,7 @@ const swatches = {};
 // ── type-tester canvas: editable overlay + the bottom control bar ──────────
 const canvasWrap = document.getElementById('canvas-wrap');
 const specEdit   = document.getElementById('specEdit');
-const testbar    = document.getElementById('testbar');
+const testbar    = document.getElementById('fb-tester');
 specEdit.textContent = specimenString;
 
 // glue the transparent contenteditable overlay onto the letterboxed #board so
@@ -1482,7 +1643,14 @@ function syncSpecEditBox(){
     textAlign: tester.align, textTransform: tester.caps ? 'uppercase' : 'none',
   });
 }
-// the 4 project-themed quick-phrase dots above the canvas
+// the 4 project-themed quick-phrase buttons near the stage — XS rounded squares,
+// each with a symbol evoking its phrase (melt · path · rhizome branch · sprout)
+const PHRASE_ICONS = [
+  '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.4c-2.6 3.5-4 5.6-4 7.6a4 4 0 0 0 8 0c0-2-1.4-4.1-4-7.6z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
+  '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 12.5c2-.6 2.4-4 4.5-4s2.4 3.2 4.5 3.2 2-4.2 2-4.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="2.6" cy="12.4" r="1.1" fill="currentColor"/></svg>',
+  '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14V7.5M8 7.5 4.4 4M8 7.5l3.6-3.6M8 10.8 5.4 8.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10M4.6 4.6l6.8 6.8M11.4 4.6l-6.8 6.8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+];
 const phrasesEl = document.getElementById('phrases');
 function markPhrase(i){
   phrasesEl.querySelectorAll('.lp-phrase-btn').forEach((b,j)=>b.classList.toggle('is-active', j===i));
@@ -1490,7 +1658,9 @@ function markPhrase(i){
 SPECIMEN_PHRASES.forEach((txt,i)=>{
   const b=document.createElement('button');
   b.type='button'; b.className='lp-phrase-btn';
+  b.innerHTML=PHRASE_ICONS[i] || '';
   b.setAttribute('aria-label', 'Phrase '+(i+1)+': '+txt);
+  b.setAttribute('title', txt);
   b.addEventListener('click',()=>{ specimenString = txt; specEdit.textContent = txt; markPhrase(i); render(); });
   phrasesEl.appendChild(b);
 });
@@ -1507,14 +1677,22 @@ specEdit.addEventListener('paste',e=>{                // keep newlines from beco
   const t=(e.clipboardData||window.clipboardData).getData('text/plain');
   document.execCommand('insertText', false, t);
 });
-new ResizeObserver(()=>syncSpecEditBox()).observe(canvasWrap);
+let _familyResizeTimer=null;
+new ResizeObserver(()=>{
+  syncSpecEditBox();
+  if(!procOverlay.hidden) syncProcLine();
+  if(showFamily && SRC_KIND==='font' && window.__FONT){
+    clearTimeout(_familyResizeTimer);
+    _familyResizeTimer=setTimeout(renderFamily, 120);   // relayout only — glyph cache hit
+  }
+}).observe(canvasWrap);
 window.addEventListener('resize', syncSpecEditBox);
 
 // ── zoom / pan on the stage — wheel + ⌘/Ctrl +/-/0, drag to pan when zoomed,
 //    double-click to reset (shared Organica.createZoomPan, like every other tool)
 const zoomPan = Organica.createZoomPan({
   canvas: board, wrap: canvasWrap,
-  isReady: () => board.classList.contains('show'),
+  isReady: () => board.classList.contains('show') && !showFamily,   // family mode scrolls, not zooms
   onChange: ({ zoom, zoomed }) => {
     $('#zoom-level').textContent = Math.round(zoom * 100) + '%';
     $('#zoom-hud').classList.toggle('visible', zoomed && board.classList.contains('show'));
@@ -1522,6 +1700,7 @@ const zoomPan = Organica.createZoomPan({
     // when zoomed the overlay must not eat the drag-to-pan; editing resumes at 1×
     specEdit.style.pointerEvents = zoomed ? 'none' : 'auto';
     syncSpecEditBox();
+    if(!procOverlay.hidden) syncProcLine();
   },
 });
 function resetZoom(){ zoomPan.reset(); }
@@ -1540,6 +1719,16 @@ testbar.querySelectorAll('.seg-ctrl [data-align]').forEach(btn=>btn.addEventList
 $('#tbCaps').addEventListener('click',function(){
   tester.caps = !tester.caps; this.setAttribute('aria-pressed', String(tester.caps)); render();
 });
+// night / invert — swap the real Ink ↔ Paper swatches, so it flips the on-canvas
+// preview AND every PNG / SVG / OTF export (and the right-panel Colour rows)
+let nightOn = false;
+$('#tbNight').addEventListener('click',function(){
+  const ink=swatches.ink.get(), paper=swatches.bg.get();
+  swatches.ink.set(paper); swatches.bg.set(ink);      // .set writes #cp-*/#hex-*/#sw-* + fires repaint
+  nightOn = !nightOn; this.setAttribute('aria-pressed', String(nightOn));
+  render();
+});
+// keep the floatbar tester controls in sync with `tester` (used on .lvp load)
 function syncTestbar(){
   const S=document.getElementById('tbSize'), T=document.getElementById('tbTrack');
   S.value = tester.size;  S._apply && S._apply();
@@ -1548,16 +1737,6 @@ function syncTestbar(){
     b.setAttribute('aria-pressed', String(b.dataset.align === tester.align)));
   $('#tbCaps').setAttribute('aria-pressed', String(tester.caps));
 }
-$('#tbReset').addEventListener('click',()=>{
-  tester = { ...TESTER_DEFAULTS, baseline0:tester.baseline0, trackEm:tester.trackEm };
-  syncTestbar();     // _apply re-renders
-});
-$('#tbNight').addEventListener('click',function(){
-  const a=swatches.ink.get(), b=swatches.bg.get();
-  swatches.ink.set(b); swatches.bg.set(a);           // .set writes #cp-*/#hex-*/#sw-* + fires repaint
-  nightOn = !nightOn; this.setAttribute('aria-pressed', String(nightOn));
-  render();
-});
 
 // default face — Archivo Black (SIL OFL, an Arial-Black-alike grotesque), so
 // the tester is never empty on boot

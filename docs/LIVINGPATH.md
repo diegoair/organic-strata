@@ -143,25 +143,44 @@ paragraph rendered through the effect stack — click it and type (a transparent
 you see). Text word-wraps and **clips at the panel's bottom edge** — no scroll.
 With no effect active the stage shows the **untouched font** (its own Béziers,
 crisp corners); any effect switches to the raster pipeline, RESET on the stack
-returns to raw. Four **round dots** above the canvas swap between four short
-project-themed phrases that together spell the whole alphabet; typing your own
-text clears them. Zoom with the **mouse wheel** or **⌘/Ctrl +/−/0**, drag to
-pan when zoomed, double-click to reset.
+returns to raw. Four **XS rounded-square icon buttons** near the stage (droplet /
+path / branch / burst) swap between four short project-themed phrases that
+together spell the whole alphabet; typing your own text clears the selection.
+Zoom with the **mouse wheel** or **⌘/Ctrl +/−/0**, drag to pan when zoomed,
+double-click to reset.
 
-Bottom control bar:
+The header carries **no status line**. While an **active effect stack** recomputes
+the specimen — or the family grid builds — the stage goes into a **processing
+state**: a grey-out over the specimen, a centred **message pill** (`applying
+effects…`, `building family… n/total`, `exporting glyphs i/n…`), and an
+indeterminate **loading line** riding the **top and bottom edge of the canvas**
+(`#board`, positioned by `syncProcLine()`). A raw / identity render is instant (no
+state change). One-shot results / errors (`✓` / `✗`) show as a separate transient
+pill at the top of the stage.
+
+The **floatbar** carries the tester controls (visible only with a font loaded and
+not in Full Family View):
 
 - **SIZE** — the specimen type size (slider + editable readout; click the number to type it).
 - **TRACK** — tracking / letter-spacing, per-mille of size.
 - **align L / C / R** — line alignment.
 - **CAPS** — uppercase the text before layout.
-- **RESET** — SIZE / TRACK / align / CAPS back to defaults (96 / 0 / centre / off). Does
-  **not** touch Ink/Paper or the effect stack (the floatbar ↻ owns the stack).
-- **◐ night mode** — swaps the real **Ink ↔ Paper** swatches, so it flips the on-canvas
-  preview *and* every PNG / SVG / OTF export (and the right-panel Colour rows). Click again
-  to swap back.
 
-**full family** (top-right) is the one secondary view — the whole charset in a grid; it
-hides the tester bar and overlay while active.
+Next to them, the **invert** button (half-circle icon, always visible — works in
+Full Family View too) swaps the real **Ink ↔ Paper** swatches, flipping the
+on-canvas preview *and* every PNG / SVG / OTF export (and the right-panel Colour
+rows). Ink / Paper themselves are set in the right panel (**Colour**); the
+floatbar **↻** resets the effect stack.
+
+**Full Family View** (grid icon in the floatbar) is the one secondary view — a **Fontra-style font overview**:
+the whole font (up to 1000 glyphs, space included) as a **scrollable** grid of boxed
+cells, each glyph drawn on a shared per-row **baseline** at its true em-relative size
+(`x` short, `H` tall, `g`/`p` descenders hang below), captioned with its **glyph name +
+`U+XXXX`**. Every cell runs through the current effect stack — the first build shows a
+`building family… n/total` counter, then a resize or a re-open is instant (per-glyph
+geometry is cached). The tester bar, overlay and phrase dots hide while it's active, and
+the stage **scrolls** instead of zooming. Exporting SVG/PNG in this view produces the
+overview as a **specimen sheet** (boxes + names + glyphs), sized to the grid.
 
 Ink / Paper colours are in the right panel (**Colour**).
 
