@@ -29,9 +29,7 @@ body{
 .shell{flex:1; display:flex; min-height:0}
 .stage{
   flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
-  background:
-    radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--tool) 8%, transparent), transparent 60%),
-    var(--paper);
+  background:var(--panel);   /* flat canvas surface — matches shared/shell.css #canvas-wrap (Pollen, Loom, …); no accent tint */
   position:relative; overflow:hidden;
 }
 .stage.drag::after{
