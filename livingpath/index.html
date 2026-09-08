@@ -495,7 +495,8 @@ function stackIcon(){
 function updatePresetTrigger(){
   const ico=$('#ptIco'), nm=$('#ptName'); if(!ico) return;
   const custom = !(CURRENT_PRESET && presetDef(CURRENT_PRESET));
-  nm.textContent = custom ? (window.__FONT ? 'Custom' : 'Choose a preset…') : CURRENT_PRESET;
+  const idle = custom && (typeof stackIsIdentity==='function') && stackIsIdentity() && outlineWidth<=0;
+  nm.textContent = !window.__FONT ? 'Choose a preset…' : idle ? 'None — original font' : custom ? 'Custom' : CURRENT_PRESET;
   ico.innerHTML = custom ? (window.__FONT ? stackIcon() : '') : presetIcon(CURRENT_PRESET);
   const sr=$('#savePresetRow'); if(sr) sr.hidden = !custom || !window.__FONT;
 }
@@ -728,6 +729,11 @@ const TB_LINE_H = 1.36;                     // leading multiplier; the overlay u
 let tester = { ...TESTER_DEFAULTS, baseline0:0, trackEm:0 };
 let specimenString = DEFAULT_SPECIMEN;
 let nightOn = false;
+// when no effect is active, buildSpecimenSubs also emits the specimen as the
+// font's OWN Bézier outlines (opentype getPath) — the polyline→Catmull-Rom
+// path dFromSubs() builds rounds the corners, so "no effect" still looked
+// transformed. Empty string = an effect is active, use the pipeline path.
+let _specimenRawD = '';
 function buildSpecimenSubs(opts){
   const { size, track, align, caps } = opts;
   const font=window.__FONT; if(!font) return null;
@@ -759,6 +765,7 @@ function buildSpecimenSubs(opts){
   tester.baseline0 = y0;
 
   // pass 2 — place each line with the alignment offset
+  const raw = stackIsIdentity(); const rawParts = [];
   const NVAR=4, cache={}, occ={}, all=[]; let y=y0;
   for(const ln of lines){
     const w = Math.max(0, ln.width - trackEm);          // drop trailing track for exact centring
@@ -771,12 +778,15 @@ function buildSpecimenSubs(opts){
       for(const ch of ln.words[wi]){
         const gl=font.charToGlyph(ch);
         if(!gl){ x += size*0.5 + trackEm; continue; }
+        const cx=x, cy=y;
+        if(raw){
+          try{ const d=gl.getPath(cx, cy, size).toPathData(1); if(d) rawParts.push(d); }catch(e){}
+        }
         const vi=(occ[ch]=(occ[ch]||0)+1)%NVAR, key=ch+'#'+vi;
         let subs=cache[key];
         if(subs===undefined){ setSeedOffset(vi*17);
           try{ subs=processGlyphEm(gl,upm)||[]; }catch(e){ subs=[]; }
           setSeedOffset(0); cache[key]=subs; }
-        const cx=x, cy=y;
         for(const s of subs) all.push({closed:s.closed, pts:s.pts.map(p=>({x:cx+p.x*scale, y:cy-p.y*scale}))});
         x += (gl.advanceWidth||upm*0.5)*scale + trackEm;
       }
@@ -784,6 +794,7 @@ function buildSpecimenSubs(opts){
     y += lh;
     if(y>BOX_H-15){ setSeedOffset(0); break; }           // clip to the board (no scroll)
   }
+  _specimenRawD = raw ? rawParts.join(' ') : '';
   return all;
 }
 // ── full family: every glyph in the charset, run through the stack, in a grid ──
@@ -818,6 +829,7 @@ function buildFamilySubs(){
   return all;
 }
 function renderFamily(){
+  _specimenRawD='';
   const sig='fam:'+STACK_REV+':'+fontSig()+':'+getContourSmooth()+':'+outlineWidth+':'+outlineRings+':'+outlineGap;
   const subs = (_familySig===sig && _familyCache) ? _familyCache : (_familyCache=buildFamilySubs(), _familySig=sig, _familyCache);
   CACHE=subs;
@@ -835,10 +847,11 @@ function renderTester(){
   CACHE=subs;
   const ink=$('#cp-ink').value, bg=$('#cp-bg').value;
   board.style.background=bg; board.classList.add('show'); empty.hidden=true;
-  board.innerHTML = (subs&&subs.length)
+  const d = _specimenRawD || (subs&&subs.length ? dFromSubs(subs) : '');
+  board.innerHTML = d
     ? (outlineWidth>0
-        ? strokeRingsSVG(dFromSubs(subs), ink, bg, outlineWidth, outlineRings, outlineGap)
-        : `<path d="${dFromSubs(subs)}" fill="${ink}" fill-rule="evenodd"/>`)
+        ? strokeRingsSVG(d, ink, bg, outlineWidth, outlineRings, outlineGap)
+        : `<path d="${d}" fill="${ink}" fill-rule="evenodd"/>`)
     : '';
   $('#exSvg').disabled=$('#exPng').disabled=false;
   syncSpecEditBox();
@@ -939,9 +952,10 @@ function currentSVGString(scale=1){
   const ink=$('#cp-ink').value, bg=$('#cp-bg').value;
   const out=CACHE||computed();
   const W=BOX_W*scale, H=BOX_H*scale;
+  const d = (!showFamily && _specimenRawD) ? _specimenRawD : dFromSubs(out);
   const shape=outlineWidth>0
-    ? strokeRingsSVG(dFromSubs(out), ink, bg, outlineWidth, outlineRings, outlineGap)
-    : `<path d="${dFromSubs(out)}" fill="${ink}" fill-rule="evenodd"/>`;
+    ? strokeRingsSVG(d, ink, bg, outlineWidth, outlineRings, outlineGap)
+    : `<path d="${d}" fill="${ink}" fill-rule="evenodd"/>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX_W} ${BOX_H}" width="${W}" height="${H}">`
     +`<rect width="${BOX_W}" height="${BOX_H}" fill="${bg}"/>`+shape+`</svg>`;
 }
