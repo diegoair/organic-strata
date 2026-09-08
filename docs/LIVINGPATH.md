@@ -148,7 +148,7 @@ Bottom control bar:
 - **TRACK** — tracking / letter-spacing, per-mille of size.
 - **align L / C / R** — line alignment.
 - **CAPS** — uppercase the text before layout.
-- **RESET** — SIZE / TRACK / align / CAPS back to defaults (96 / 0 / left / off). Does
+- **RESET** — SIZE / TRACK / align / CAPS back to defaults (96 / 0 / centre / off). Does
   **not** touch Ink/Paper or the effect stack (the floatbar ↻ owns the stack).
 - **◐ night mode** — swaps the real **Ink ↔ Paper** swatches, so it flips the on-canvas
   preview *and* every PNG / SVG / OTF export (and the right-panel Colour rows). Click again
