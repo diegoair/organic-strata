@@ -126,6 +126,15 @@
   .lp-testbar .seg-btn svg{width:15px; height:11px; display:block; margin:0 auto}
   .lp-testbar .lp-tb-night{margin-left:auto; font-size:var(--fs-medium); line-height:1}
   #specEdit[hidden],.lp-testbar[hidden]{display:none}
+  .lp-phrases{position:absolute; top:14px; left:50%; transform:translateX(-50%); display:flex; gap:var(--space-3); z-index:8}
+  .lp-phrases[hidden]{display:none}
+  .lp-phrase-btn{
+    width:12px; height:12px; padding:0; border-radius:50%;
+    border:1px solid var(--border-strong, var(--border)); background:var(--panel);
+    cursor:pointer; transition:background .12s, border-color .12s, transform .12s;
+  }
+  .lp-phrase-btn:hover{border-color:var(--ink); transform:scale(1.15)}
+  .lp-phrase-btn.is-active{background:var(--ink); border-color:var(--ink)}
   /* Ink/Paper colour rows use the shared .color-* component (panel.css)
      + Organica.palette.swatch. */
   ::-webkit-scrollbar{width:9px;height:9px}
@@ -195,6 +204,8 @@
     <div class="gridtoggle">
       <button class="mini" id="tgFamily">full family</button>
     </div>
+    <!-- 4 quick specimen phrases (pangrams, project-themed), top-centre -->
+    <div class="lp-phrases" id="phrases" role="group" aria-label="Specimen phrases" hidden></div>
     <svg id="board" class="org-stage" viewBox="0 0 1400 900"></svg>
     <!-- editable specimen overlay: transparent text, real caret, drives the SVG -->
     <div id="specEdit" contenteditable="plaintext-only" spellcheck="false"
@@ -722,9 +733,17 @@ function repaint(){
 //    export stay identical in effect strength (LIVINGPATH.md §11). Placement
 //    units are the LANDSCAPE stage box below (#board viewBox 0 0 BOX_W BOX_H).
 const BOX_W = 1400, BOX_H = 900;           // stage / specimen coordinate box (landscape)
-// kept short on purpose — every glyph runs the per-glyph raster pipeline when
-// an effect is active, so a paragraph is slow with the heavy presets.
-const DEFAULT_SPECIMEN = "Hamburgefonts 123";
+// 4 short project-themed specimen phrases; together they cover the whole
+// a–z alphabet. Kept short on purpose — every glyph runs the per-glyph
+// raster pipeline when an effect is active, so a paragraph is slow with the
+// heavy presets. The 4 round buttons above the canvas switch between them.
+const SPECIMEN_PHRASES = [
+  "Living forms flux, melt, grow, dissolve",
+  "Every glyph finds its own quiet path",
+  "Delta, stream and coral rhizome branch",
+  "Seeds sprout jagged marks; ink blooms wildly",
+];
+const DEFAULT_SPECIMEN = SPECIMEN_PHRASES[0];
 const TESTER_DEFAULTS = { size:96, track:0, align:'center', caps:false };
 const TB_LINE_H = 1.36;                     // leading multiplier; the overlay uses the same
 let tester = { ...TESTER_DEFAULTS, baseline0:0, trackEm:0 };
@@ -861,7 +880,7 @@ function renderTester(){
 function render(){
   if(!SRC){ repaint(); return; }
   const isFont = SRC_KIND==='font' && window.__FONT;
-  $('#specEdit').hidden = $('#testbar').hidden = !isFont || showFamily;
+  $('#specEdit').hidden = $('#testbar').hidden = $('#phrases').hidden = !isFont || showFamily;
   const doit = ()=>{
     if(isFont && showFamily) renderFamily();
     else if(isFont)          renderTester();      // the new default view
@@ -1379,6 +1398,7 @@ function loadProject(txt){
   tester = { ...TESTER_DEFAULTS, ...(p.tester||{}), baseline0:tester.baseline0, trackEm:tester.trackEm };  // missing → defaults (v3)
   specimenString = (p.specimen!=null) ? p.specimen : (p.text!=null ? p.text : specimenString);  // v3 back-compat
   $('#specEdit').textContent = specimenString;
+  markPhrase(SPECIMEN_PHRASES.indexOf(specimenString));
   syncTestbar();
   CURRENT_PRESET=null;
   buildPresets(); renderStack(); render();
@@ -1462,9 +1482,24 @@ function syncSpecEditBox(){
     textAlign: tester.align, textTransform: tester.caps ? 'uppercase' : 'none',
   });
 }
+// the 4 project-themed quick-phrase dots above the canvas
+const phrasesEl = document.getElementById('phrases');
+function markPhrase(i){
+  phrasesEl.querySelectorAll('.lp-phrase-btn').forEach((b,j)=>b.classList.toggle('is-active', j===i));
+}
+SPECIMEN_PHRASES.forEach((txt,i)=>{
+  const b=document.createElement('button');
+  b.type='button'; b.className='lp-phrase-btn';
+  b.setAttribute('aria-label', 'Phrase '+(i+1)+': '+txt);
+  b.addEventListener('click',()=>{ specimenString = txt; specEdit.textContent = txt; markPhrase(i); render(); });
+  phrasesEl.appendChild(b);
+});
+markPhrase(SPECIMEN_PHRASES.indexOf(specimenString));   // phrase 0 active on boot
+
 let _specTimer=null;
 specEdit.addEventListener('input',()=>{
   specimenString = specEdit.innerText.replace(/ /g,' ');
+  markPhrase(SPECIMEN_PHRASES.indexOf(specimenString));   // -1 → dots clear once you edit
   clearTimeout(_specTimer); _specTimer=setTimeout(render, 110);
 });
 specEdit.addEventListener('paste',e=>{                // keep newlines from becoming <div>/<br> soup
