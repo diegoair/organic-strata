@@ -224,6 +224,10 @@
     <div class="empty" id="empty">
       <p>Click <b>+</b> in the toolbar, or drop a font anywhere.</p>
     </div>
+    <div id="zoom-hud">
+      <span id="zoom-level">100%</span>
+      <span class="zoom-reset" onclick="resetZoom()">Reset</span>
+    </div>
   </main>
 
   <!-- RIGHT : effect stack -->
@@ -1068,8 +1072,13 @@ function denormGlyph(subs,k,ox,oy){
 // The raster effect stack applied to subs ALREADY in the normalised 1000-box.
 // Shared by processGlyphEm (preview/specimen/export) and the preset→master
 // baker, so both get identical effect strength.
+// no active effect anywhere in the stack → the tester shows the RAW loaded
+// font (no preset, no raster round-trip) in the same normalised 1000-box, so
+// switching an effect on/off never makes the specimen jump.
+function stackIsIdentity(){ return GROUPS.raster[0].layers.every(isIdentity); }
 function applyStackNorm(norm){
   syncActive();
+  if(stackIsIdentity()) return norm;
   const res=Organica.pathfx.pickAdaptiveRes(norm);
   const g=rasterFieldFromGroups(rasterize(norm, res), GROUPS.raster);
   return rasterFieldToSubs(g, 1000/res);
@@ -1450,6 +1459,22 @@ specEdit.addEventListener('paste',e=>{                // keep newlines from beco
 });
 new ResizeObserver(()=>syncSpecEditBox()).observe(canvasWrap);
 window.addEventListener('resize', syncSpecEditBox);
+
+// ── zoom / pan on the stage — wheel + ⌘/Ctrl +/-/0, drag to pan when zoomed,
+//    double-click to reset (shared Organica.createZoomPan, like every other tool)
+const zoomPan = Organica.createZoomPan({
+  canvas: board, wrap: canvasWrap,
+  isReady: () => board.classList.contains('show'),
+  onChange: ({ zoom, zoomed }) => {
+    $('#zoom-level').textContent = Math.round(zoom * 100) + '%';
+    $('#zoom-hud').classList.toggle('visible', zoomed && board.classList.contains('show'));
+    board.classList.toggle('zoomed', zoomed);
+    // when zoomed the overlay must not eat the drag-to-pan; editing resumes at 1×
+    specEdit.style.pointerEvents = zoomed ? 'none' : 'auto';
+    syncSpecEditBox();
+  },
+});
+function resetZoom(){ zoomPan.reset(); }
 
 function wireTbSlider(id, valId, key, fmt){
   const r=document.getElementById(id), v=document.getElementById(valId);
