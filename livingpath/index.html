@@ -212,8 +212,8 @@
         <span class="ctrl-val" id="tbTrackVal">0</span>
       </div>
       <div class="seg-ctrl" role="group" aria-label="Align">
-        <button class="seg-btn" data-align="left" aria-pressed="true" aria-label="Align left"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M1 5h9M1 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
-        <button class="seg-btn" data-align="center" aria-pressed="false" aria-label="Align centre"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M3.5 5h9M2 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+        <button class="seg-btn" data-align="left" aria-pressed="false" aria-label="Align left"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M1 5h9M1 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+        <button class="seg-btn" data-align="center" aria-pressed="true" aria-label="Align centre"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M3.5 5h9M2 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
         <button class="seg-btn" data-align="right" aria-pressed="false" aria-label="Align right"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M6 5h9M3 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
       </div>
       <button class="seg-btn lp-tb-caps" id="tbCaps" aria-pressed="false">CAPS</button>
@@ -719,7 +719,7 @@ function repaint(){
 const BOX_W = 1400, BOX_H = 900;           // stage / specimen coordinate box (landscape)
 const DEFAULT_SPECIMEN =
   "Stream, delta and flow — living typographic forms that follow their own path. Hamburgefonts 0123456789";
-const TESTER_DEFAULTS = { size:96, track:0, align:'left', caps:false };
+const TESTER_DEFAULTS = { size:96, track:0, align:'center', caps:false };
 const TB_LINE_H = 1.36;                     // leading multiplier; the overlay uses the same
 let tester = { ...TESTER_DEFAULTS, baseline0:0, trackEm:0 };
 let specimenString = DEFAULT_SPECIMEN;
