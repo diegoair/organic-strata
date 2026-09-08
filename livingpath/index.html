@@ -730,8 +730,7 @@ function buildSpecimenSubs(opts){
   const upm=font.unitsPerEm||1000, scale=size/upm;
   const trackEm = size * (track/1000);     // per-mille of size, added after each glyph / gap
   const lh = size * TB_LINE_H, x0 = 45, maxX = BOX_W - 45;
-  const y0 = Math.max(size, size * 1.05);  // first baseline scales with size
-  tester.baseline0 = y0; tester.trackEm = trackEm;
+  tester.trackEm = trackEm;
   const spaceAdv = ((font.charToGlyph(' ')&&font.charToGlyph(' ').advanceWidth)||upm*0.3)*scale;
   const glyphAdv = ch => { const g=font.charToGlyph(ch); return ((g&&g.advanceWidth)||upm*0.5)*scale; };
   const wordAdv  = w  => { let a=0; for(const ch of w) a += glyphAdv(ch) + trackEm; return a; };
@@ -748,6 +747,12 @@ function buildSpecimenSubs(opts){
     }
     if(cur.length || !words.length) lines.push({words:cur, width:curW});
   }
+
+  // vertical centring — the text block is always centred in the stage box; if it
+  // overflows, it falls back to top-aligned and clips at the bottom (as before).
+  const blockH = Math.max(0, (lines.length - 1)) * lh + size;
+  const y0 = Math.max(size, (BOX_H - blockH) / 2 + size * 0.82);
+  tester.baseline0 = y0;
 
   // pass 2 — place each line with the alignment offset
   const NVAR=4, cache={}, occ={}, all=[]; let y=y0;
