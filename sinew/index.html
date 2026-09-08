@@ -9,11 +9,11 @@
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
 <link rel="stylesheet" href="/shared/palette.css">
 <link rel="stylesheet" href="/shared/seeds-panel.css">
 <link rel="stylesheet" href="/shared/mobile-gate.css">
 <style>
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
   /* Design-system audit, 2026-09-05: see Living Path's identical note
      (livingpath/index.html) — down to --tool + the one legitimate optional
@@ -21,18 +21,9 @@
   --tool:#b8467a;
   --border-strong:#958462;
 }
-html,body{height:100%}
-body{
-  background:var(--paper); color:var(--ink); font-family:var(--font);
-  font-size:var(--fs-base); display:flex; flex-direction:column; overflow:hidden;
-}
-.shell{flex:1; display:flex; min-height:0}
-.stage{
-  flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
-  background:var(--panel);   /* flat canvas surface — matches shared/shell.css #canvas-wrap (Pollen, Loom, …); no accent tint */
-  position:relative; overflow:hidden;
-}
-.stage.drag::after{
+/* the app frame / #app / #canvas-wrap / body / reset all come from
+   shared/shell.css now; only the drag affordance is a local delta. */
+#canvas-wrap.drag::after{
   content:'drop an SVG'; position:absolute; inset:14px; z-index:5;
   display:flex; align-items:center; justify-content:center;
   border:2px dashed var(--tool); border-radius:var(--radius-sm); background:color-mix(in srgb, var(--tool) 8%, transparent);
@@ -134,15 +125,15 @@ body{
   </div>
 </div>
 
-<div class="shell">
+<div id="app">
   <!-- CENTER : stage -->
-  <main class="stage">
+  <main id="canvas-wrap">
     <div class="gridtoggle">
       <button class="mini on" id="tgOrig">overlay original</button>
       <button class="mini" id="tgOutline">outline</button>
       <button class="mini" id="tgNodes">nodes</button>
     </div>
-    <svg id="board" viewBox="0 0 1000 1000"></svg>
+    <svg id="board" class="org-stage" viewBox="0 0 1000 1000"></svg>
     <div class="empty" id="empty">
       <div class="big">Sinew</div>
       <p>Load an <b>SVG</b> or a <b>Genesis form</b><br>then stack organic effects on the curve.</p>
@@ -510,7 +501,7 @@ function routeFile(file){
   if(/\.svg$/.test(n) || t.includes('svg')) readSVGFile(file);
   else statusEl.textContent='✗ drop an SVG';
 }
-const stage=document.querySelector('.stage');
+const stage=document.getElementById('canvas-wrap');
 ['dragenter','dragover'].forEach(ev=>window.addEventListener(ev,e=>{
   if(e.dataTransfer && [...e.dataTransfer.types].includes('Files')){ e.preventDefault(); stage.classList.add('drag'); }
 }));
