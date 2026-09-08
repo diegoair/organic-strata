@@ -114,6 +114,33 @@
   }
   #specEdit::selection{background:color-mix(in srgb, var(--tool) 30%, transparent)}
   #specEdit[hidden]{display:none}
+  /* single-glyph "fit-to-box" view — #specEdit is repurposed as a small visible
+     field, top-centre (the old typedLayout editor), not the transparent overlay */
+  #specEdit.one{
+    top:14px; left:50%; transform:translateX(-50%);
+    width:auto; min-width:2ch; height:auto; overflow:visible;
+    color:var(--ink); caret-color:var(--ink); text-align:center; white-space:nowrap;
+    background:var(--panel); border:1px solid var(--border-strong); border-radius:var(--radius-sm);
+    padding:var(--space-1) var(--space-3); font-family:var(--font); font-size:var(--fs-medium);
+  }
+  /* Full Family View — per-cell hover / click target (accent wash per the design system) */
+  #board .fam-hit{cursor:pointer; fill:transparent}
+  #board .fam-hit:hover{fill:var(--tool); fill-opacity:.12; stroke:var(--tool); stroke-opacity:.85; stroke-width:1.5}
+  /* single-glyph outline editor (Organica.glyphEditor) — a raster canvas, sized in JS */
+  #glyphCanvas{position:absolute; inset:var(--space-7); display:none; touch-action:none; outline:0}
+  #glyphCanvas.show{display:block}
+  #glyphTools{
+    position:absolute; top:46px; left:50%; transform:translateX(-50%); z-index:8;
+    display:flex; align-items:center; gap:var(--space-2);
+    padding:var(--space-1) var(--space-2);
+    background:color-mix(in srgb, var(--panel) 92%, transparent);
+    border:1px solid var(--border); border-radius:var(--radius-md); backdrop-filter:blur(6px);
+  }
+  #glyphTools[hidden]{display:none}
+  #glyphTools .seg-ctrl{flex:0 0 auto}
+  #glyphTools .seg-btn{flex:0 0 auto; overflow:visible; font-size:var(--fs-micro); padding:0 var(--space-3); white-space:nowrap}
+  #glyphTools .mini-btn{white-space:nowrap}
+  #glyphTools .mini-btn.is-armed{background:var(--danger); border-color:var(--danger); color:var(--paper)}
   /* type-tester controls inside the floatbar */
   .fb-tester{display:flex; align-items:center; gap:var(--space-3)}
   .fb-tester[hidden]{display:none}
@@ -262,6 +289,10 @@
   <!-- CENTER : stage -->
   <main id="canvas-wrap">
     <svg id="board" class="org-stage" viewBox="0 0 1400 900"></svg>
+    <!-- single-glyph outline editor (Organica.glyphEditor) — replaces #board in glyph EDIT mode -->
+    <canvas id="glyphCanvas" class="org-stage" hidden></canvas>
+    <!-- glyph-view toolbar: Preview⇄Edit, Undo, Reset glyph, + point -->
+    <div id="glyphTools" role="group" aria-label="Glyph editor" hidden></div>
     <!-- editable specimen overlay: transparent text, real caret, drives the SVG -->
     <div id="specEdit" contenteditable="plaintext-only" spellcheck="false"
          autocapitalize="off" autocorrect="off" aria-label="Specimen text — type to edit" hidden></div>
@@ -322,11 +353,14 @@
 <script src="/shared/palette.js"></script>
 <!-- The raster effect engine + presets. Shared with Sinew (which also keeps
      the vector FX). Living Path keeps only the font-specific parts local:
-     opentype parsing, the live text specimen, OTF export.
-     (The Bézier-true glyph model / outline editor / UFO + designspace
-     writers live in shared/glyph-model.js · glyph-editor.js · ufo-export.js ·
-     zip.js — not loaded here; kept for a future variable-font rebuild.) -->
+     opentype parsing, the live text specimen, OTF export. -->
 <script src="/shared/pathfx.js"></script>
+<!-- Bézier-true glyph model + Canvas2D outline editor (Phase 1 of the
+     variable-font arc — the single-glyph view is a real outline editor;
+     edits flow through glyphSubs → tester / family / OTF export).
+     shared/ufo-export.js · zip.js stay dormant until Phase 3. -->
+<script src="/shared/glyph-model.js"></script>
+<script src="/shared/glyph-editor.js"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -424,11 +458,43 @@ function fromOTCommands(cmds){
   return subs;
 }
 
-// glyph outline / advance — straight from opentype.js
+// ── glyph model (shared/glyph-model.js) — a Bézier-true canonical model built
+//    lazily from window.__FONT. A glyph edited in the outline editor is served
+//    from the model instead of the raw font: `.edited` (no effect stack →
+//    still effect-responsive) or `.baked` (effects were active → the current
+//    effect RESULT was frozen as the editable geometry; Edit and Preview then
+//    match, and processGlyphEm skips re-applying the stack for it). ──
+let _gmodel=null, _editRev=0, _pendingEdits=null;
+function gmodel(){ return window.__FONT ? (_gmodel || (_gmodel = Organica.glyphModel.createModel(window.__FONT))) : null; }
+function editedGlyph(glyph){
+  if(!_gmodel || !glyph) return null;
+  const c = _gmodel.masters[0]._cache[Organica.glyphModel.glyphKey(glyph)];
+  return (c && (c.edited || c.baked)) ? c : null;
+}
+const subsToLoose = subs => (subs||[]).map(s=>({ closed:s.closed!==false, pts:(s.pts||[]).map(p=>({x:p.x, y:p.y, corner:false})) }));
+// a .lvp carries no font, so its `edits` map waits in _pendingEdits until a
+// font is loaded, then seeds the model's base master directly
+function applyPendingEdits(){
+  if(!_pendingEdits) return;
+  const m = gmodel(); if(!m){ return; }
+  for(const key in _pendingEdits){
+    const e = _pendingEdits[key], base = m.masters[0].glyph(key);   // ensures the cache slot exists
+    if(!base) continue;
+    base.contours = (e.contours||[]).map(c=>({ closed:!!c.closed, pts:(c.pts||[]).map(p=>({x:+p.x, y:+p.y, corner:!!p.corner})) }));
+    if(e.advance!=null) base.advance = Math.round(+e.advance);
+    base.edited = true; base.baked = !!e.baked;
+  }
+  _pendingEdits = null; _editRev++;
+}
+// glyph outline / advance — the edited/baked contours if any, else straight from opentype.js
 function glyphSubs(glyph){
+  const c = editedGlyph(glyph);
+  if(c) return Organica.glyphModel.toSubs(c.contours);        // font-unit, y-up — same shape as fromOTCommands
   return fromOTCommands((glyph && glyph.path && glyph.path.commands) || []);
 }
 function glyphAdvance(glyph){
+  const c = editedGlyph(glyph);
+  if(c) return Math.round(c.advance);
   return Math.round(glyph.advanceWidth) || Math.round((window.__FONT&&window.__FONT.unitsPerEm||1000)*0.5);
 }
 
@@ -774,6 +840,12 @@ function computed(){
 }
 
 let CACHE=null, rasterTimer=null, _renderSeq=0;
+// don't flash the processing overlay for quick work — only show it once the
+// job has been running longer than this. Async jobs (family / export) get a
+// real timer; a blocking tester render can't be measured mid-flight, so it's
+// predicted from the previous heavy render's duration.
+const PROC_GRACE = 250;
+let _lastHeavyMs = 0;
 
 // repaint = cheap; just re-draws CACHE with current colours/outline/nodes
 function repaint(){
@@ -907,7 +979,7 @@ function familyGlyphs(){
 // applyPreset (which swaps GROUPS.raster without bumping it), so serialize the
 // layers directly, same shape as the OTF-export worker cache key (~line 1244)
 function famSig(){
-  return JSON.stringify(GROUPS.raster[0].layers.map(l=>[l.type,l.params]))+'|'+getContourSmooth()+'|'+fontSig();
+  return JSON.stringify(GROUPS.raster[0].layers.map(l=>[l.type,l.params]))+'|'+getContourSmooth()+'|'+fontSig()+'|e'+_editRev;
 }
 // incrementally run every charset glyph through processGlyphEm, caching the
 // em-unit result so a resize/re-open is a pure relayout. Yields to the event
@@ -918,7 +990,7 @@ async function ensureFamilyGlyphCache(){
   if(_familyCache.sig===sig && _familyCache.glyphs) return true;
   const font=window.__FONT; if(!font) return false;
   const upm=font.unitsPerEm||1000, gls=familyGlyphs();
-  const tok=++_familyToken, list=[];
+  const tok=++_familyToken, list=[], t0=performance.now();
   for(let i=0;i<gls.length;i++){
     const gl=gls[i];
     let subs=null; try{ subs=processGlyphEm(gl,upm); }catch(e){}
@@ -926,7 +998,7 @@ async function ensureFamilyGlyphCache(){
                 uni: gl.unicode, adv: gl.advanceWidth||upm*0.5,
                 subsEm: (subs&&subs.length)?subs:null });
     if(i%12===0){
-      busy('building family… '+(i+1)+'/'+gls.length);
+      if(performance.now()-t0 > PROC_GRACE) busy('building family… '+(i+1)+'/'+gls.length);   // only once it's actually slow
       await new Promise(r=>setTimeout(r,0));
       if(tok!==_familyToken) return false;      // a newer build started
     }
@@ -960,7 +1032,7 @@ function buildFamilyLayout(cols){
 function famEsc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 // markup shared by renderFamily() and currentSVGString() — resolved hex + fill-opacity,
 // no CSS vars, so an exported standalone .svg renders identically anywhere
-function familySVGMarkup(L, ink, bg){
+function familySVGMarkup(L, ink, bg, interactive){
   const U=L.U; let lines='';
   for(let c=1;c<L.cols;c++) lines+=`M${c*U} 0V${L.GRID_H}`;
   for(let r=1;r<L.rows;r++) lines+=`M0 ${r*U}H${L.GRID_W}`;
@@ -971,30 +1043,174 @@ function familySVGMarkup(L, ink, bg){
     if(cell.uni!=null&&cell.uni>0)
       out+=`<text x="${cell.cx}" y="${cell.capY+15}" text-anchor="middle" font-family="var(--font),sans-serif" font-size="10" fill="${ink}" fill-opacity="0.4">U+${cell.uni.toString(16).toUpperCase().padStart(4,'0')}</text>`;
   }
+  // hover / click targets — on TOP of everything, and only on-screen (never in the
+  // exported SVG, which passes no `interactive` flag)
+  if(interactive)
+    for(const cell of L.cells)
+      out+=`<rect class="fam-hit" data-uni="${cell.uni}" x="${cell.x0}" y="${cell.y0}" width="${U}" height="${U}" fill="transparent" pointer-events="all"/>`;
   return out;
 }
 async function renderFamily(){
   _specimenRawD='';
   const tok=++_familyRenderTok;
   const ok=await ensureFamilyGlyphCache();
-  if(!ok || tok!==_familyRenderTok || !showFamily) return;   // superseded / left the view
+  if(!ok || tok!==_familyRenderTok || !showFamily){ idle(); return; }   // superseded / left the view
   const cols=familyCols();
   const L=buildFamilyLayout(cols);
   CACHE=L;                                                    // export reads this
   const ink=$('#cp-ink').value, bg=$('#cp-bg').value;
-  if(!L){ board.innerHTML=''; return; }
+  if(!L){ board.innerHTML=''; idle(); return; }
   board.setAttribute('viewBox', `0 0 ${L.GRID_W} ${L.GRID_H}`);
   board.style.width='100%';
   board.style.height=(L.rows * (wrapW()/cols)) + 'px';        // real px → the wrap scrolls
   board.style.background=bg; board.classList.add('show'); empty.hidden=true;
   if(!procOverlay.hidden) syncProcLine();                     // board just grew — re-hug its edges
-  board.innerHTML=familySVGMarkup(L, ink, bg);               // outline rings not applied in family mode — visual noise at this size
+  board.innerHTML=familySVGMarkup(L, ink, bg, true);          // `true` → per-cell hover/click rects (never in exports)
   $('#exSvg').disabled=$('#exPng').disabled=false;
+  idle();                                                     // cover direct callers (resize / colour change); render() also idles via .then
 }
 // restore the stage after leaving the family overview
 function exitFamilyView(){
   board.style.width=''; board.style.height='';
   board.setAttribute('viewBox', `0 0 ${BOX_W} ${BOX_H}`);
+}
+// ── single-glyph view — opened by clicking a cell in Full Family View. Two
+//    sub-modes: EDIT (the Organica.glyphEditor outline editor, default) and
+//    PREVIEW (that glyph scaled to fill the stage, through the effect stack —
+//    the old typedLayout). Edits go into the glyph model and flow out via
+//    glyphSubs to the tester / family / OTF export. ──
+let showGlyph=false, glyphOneStr='', glyphEditMode=true, _addPt=false, _ged=null;
+const glyphCanvas = document.getElementById('glyphCanvas');
+function openGlyphOne(str){
+  glyphOneStr = (str || 'A');
+  showGlyph = true; showFamily = false; glyphEditMode = true;
+  $('#tgFamily').setAttribute('aria-pressed','false');
+  zoomPan.reset(); $('#zoom-hud').classList.remove('visible');
+  specEdit.textContent = glyphOneStr;
+  render();
+}
+function exitGlyphView(){
+  glyphCanvas.classList.remove('show'); glyphCanvas.hidden = true;
+}
+function glyphMetrics(){
+  const f=window.__FONT, upm=(f&&f.unitsPerEm)||1000, os2=f&&f.tables&&f.tables.os2;
+  return { baseline:0,
+    ascender:(f&&f.ascender)||Math.round(upm*0.8), descender:(f&&f.descender)||-Math.round(upm*0.2),
+    xHeight:(os2&&os2.sxHeight)||Math.round(upm*0.5), capHeight:(os2&&os2.sCapHeight)||Math.round(upm*0.7) };
+}
+function curGlyphKey(){
+  const gl = window.__FONT && window.__FONT.charToGlyph((glyphOneStr||'A')[0] || 'A');
+  return gl ? Organica.glyphModel.glyphKey(gl) : null;
+}
+function glyphEd(){
+  return _ged || (_ged = Organica.glyphEditor(glyphCanvas, {
+    ink:  ()=>$('#cp-ink').value,
+    paper:()=>$('#cp-bg').value,
+    metrics: glyphMetrics(),
+    addMode: ()=>_addPt,
+    onChange: ()=>{ _editRev++; _familyCache.sig=''; syncGlyphTools(); },
+  }));
+}
+function sizeGlyphCanvas(){
+  const r = canvasWrap.getBoundingClientRect(), pad = 24;   // matches CSS inset:var(--space-7)
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.max(64, r.width  - pad*2), h = Math.max(64, r.height - pad*2);
+  glyphCanvas.style.width = w+'px'; glyphCanvas.style.height = h+'px';
+  glyphCanvas.width = Math.round(w*dpr); glyphCanvas.height = Math.round(h*dpr);
+  if(_ged) _ged.resize();
+}
+function mountGlyphEditor(){
+  const m = gmodel(), key = curGlyphKey();
+  if(!m || !key){ return null; }
+  // Bake the CURRENT effect result into the model on entry, so the editor
+  // operates on the shape *with effects* (frozen). Changing the stack later
+  // won't re-flow into a baked glyph — "Reset glyph" un-bakes and re-bakes
+  // through the live stack. An identity stack → no bake (edit the raw outline).
+  const g = m.masters[0].glyph(key);
+  if(g && !g.baked && !stackIsIdentity()){
+    const gl = window.__FONT && window.__FONT.charToGlyph((glyphOneStr||'A')[0] || 'A');
+    const upm = (window.__FONT && window.__FONT.unitsPerEm) || 1000;
+    let em=null; try{ em = gl && processGlyphEm(gl, upm); }catch(e){}
+    if(em && em.length){
+      g.contours = subsToLoose(em);
+      g.advance  = gl ? glyphAdvance(gl) : g.advance;
+      g.baked = true; g.edited = true;
+      _editRev++; _familyCache.sig='';
+    }
+  }
+  board.classList.remove('show'); board.style.background='';
+  glyphCanvas.hidden = false; glyphCanvas.classList.add('show'); empty.hidden = true;
+  sizeGlyphCanvas();
+  glyphEd().setGlyph(m, 0, key);
+  syncGlyphTools();
+  $('#exSvg').disabled=$('#exPng').disabled=false;   // Preview/export still driven by the last preview render
+  return null;
+}
+function renderGlyphPreview(){
+  exitGlyphView();
+  const font=window.__FONT; if(!font) return;
+  const upm=font.unitsPerEm||1000, text=(glyphOneStr||'A').slice(0,12);
+  const melted=[]; let x=0; const cM={};
+  for(const ch of text){
+    const gl=font.charToGlyph(ch); if(!gl){ x+=upm*0.4; continue; }
+    let m=cM[ch]; if(m===undefined){ try{ m=processGlyphEm(gl,upm)||[]; }catch(e){ m=[]; } cM[ch]=m; }
+    for(const s of m) melted.push({closed:s.closed, pts:s.pts.map(p=>({x:p.x+x, y:p.y}))});
+    x += glyphAdvance(gl);
+  }
+  _specimenRawD='';
+  if(!melted.length){ board.innerHTML=''; CACHE=null; board.style.background=$('#cp-bg').value; board.classList.add('show'); empty.hidden=true; return; }
+  // effect strength is calibrated per glyph in processGlyphEm's own 1000-box;
+  // here we only SCALE the composite result to fill the stage (WYSIWYG holds)
+  const bb=bboxOf(melted), padX=BOX_W*0.12, padY=BOX_H*0.16;
+  const k=Math.min((BOX_W-2*padX)/bb.w, (BOX_H-2*padY)/(bb.h||1));
+  const ox=BOX_W/2-(bb.minX+bb.w/2)*k, oy=BOX_H/2-(bb.minY+bb.h/2)*k;
+  const out=melted.map(s=>({closed:s.closed, pts:s.pts.map(q=>({x:q.x*k+ox, y:BOX_H-(q.y*k+oy)}))}));
+  CACHE=out;
+  const ink=$('#cp-ink').value, bg=$('#cp-bg').value;
+  board.style.background=bg; board.classList.add('show'); empty.hidden=true;
+  const d=dFromSubs(out);
+  board.innerHTML = outlineWidth>0
+    ? strokeRingsSVG(d, ink, bg, outlineWidth, outlineRings, outlineGap)
+    : `<path d="${d}" fill="${ink}" fill-rule="evenodd"/>`;
+  $('#exSvg').disabled=$('#exPng').disabled=false;
+}
+// the in-stage glyph-view toolbar: Preview⇄Edit · Undo · Reset glyph · + point
+let _resetGlyphArmed=null;
+function buildGlyphTools(){
+  const t=document.getElementById('glyphTools');
+  t.innerHTML =
+    '<div class="seg-ctrl" role="group" aria-label="Glyph view">'
+    +'<button class="seg-btn" data-gm="edit" aria-pressed="true">Edit</button>'
+    +'<button class="seg-btn" data-gm="preview" aria-pressed="false">Preview</button>'
+    +'</div>'
+    +'<button class="mini-btn" id="gtUndo">Undo</button>'
+    +'<button class="mini-btn" id="gtReset">Reset glyph</button>'
+    +'<button class="seg-btn" id="gtAddPt" aria-pressed="false" aria-label="Add point mode">+ pt</button>';
+  t.querySelectorAll('[data-gm]').forEach(b=>b.addEventListener('click',()=>{
+    glyphEditMode = b.dataset.gm==='edit';
+    if(_ged && _ged.getSelection) {} // no-op
+    render();
+  }));
+  $('#gtUndo').addEventListener('click',()=>{ if(_ged) _ged.undo(); });
+  $('#gtReset').addEventListener('click',function(){
+    if(_resetGlyphArmed!==this){ _resetGlyphArmed=this; this.classList.add('is-armed');
+      setTimeout(()=>{ this.classList.remove('is-armed'); if(_resetGlyphArmed===this) _resetGlyphArmed=null; }, 2600); return; }
+    this.classList.remove('is-armed'); _resetGlyphArmed=null;
+    if(_ged) _ged.resetGlyph();                       // rebuild raw contours, edited=false
+    const m=gmodel(), key=curGlyphKey();
+    if(m && key){ const g=m.masters[0].glyph(key); g.baked=false; g.edited=false; }
+    _editRev++; _familyCache.sig='';
+    render();                                         // re-mount → re-bakes through the live stack
+  });
+  $('#gtAddPt').addEventListener('click',function(){
+    _addPt=!_addPt; this.setAttribute('aria-pressed', String(_addPt));
+  });
+}
+function syncGlyphTools(){
+  const t=document.getElementById('glyphTools'); if(!t || t.hidden) return;
+  t.querySelectorAll('[data-gm]').forEach(b=>b.setAttribute('aria-pressed', String((b.dataset.gm==='edit')===glyphEditMode)));
+  $('#gtAddPt').setAttribute('aria-pressed', String(_addPt));
+  ['gtUndo','gtReset','gtAddPt'].forEach(id=>{ const el=$('#'+id); if(el) el.hidden = !glyphEditMode; });
 }
 function renderTester(){
   const subs=buildSpecimenSubs(tester);
@@ -1015,28 +1231,47 @@ function render(){
   if(!SRC){ repaint(); return; }
   const isFont = SRC_KIND==='font' && window.__FONT;
   const family = isFont && showFamily;
-  $('#specEdit').hidden = $('#fb-tester').hidden = $('#phrases').hidden = !isFont || showFamily;
+  const glyphMode = isFont && showGlyph && !showFamily;   // single-glyph view (edit / preview)
+  $('#specEdit').hidden = !isFont || family;              // visible in tester AND glyph mode
+  specEdit.classList.toggle('one', glyphMode);
+  if(glyphMode) specEdit.style.cssText='';                // drop tester-mode inline left/top/w/h so the .one CSS wins
+  else if(!family && document.activeElement !== specEdit && specEdit.textContent !== specimenString)
+    specEdit.textContent = specimenString;                // left the glyph field → restore the real specimen in the overlay
+  $('#fb-tester').hidden = $('#phrases').hidden = !isFont || family || glyphMode;
+  $('#glyphTools').hidden = !glyphMode;
+  if(glyphMode) syncGlyphTools();
   canvasWrap.classList.toggle('family', family);
-  if(!family) exitFamilyView();
+  if(!family) exitFamilyView();                            // glyph mode reuses the 1400×900 box
+  if(!glyphMode) exitGlyphView();                          // hide the editor canvas outside glyph mode
   const doit = ()=>{
-    if(family)      return renderFamily();        // async — updates its own "building family… n/total"
-    if(isFont)      return renderTester(), null;  // the default view
+    if(family)                    return renderFamily();          // async — updates its own "building family… n/total"
+    if(glyphMode && glyphEditMode) return mountGlyphEditor();     // the outline editor
+    if(glyphMode)                 return renderGlyphPreview(), null;
+    if(isFont)                    return renderTester(), null;    // the default view
     CACHE=computed(); repaint(); return null;
   };
   // processing state for real work only (an active effect stack, or the family
-  // grid). A raw / identity render is instant — no flash. Effects get the
-  // grey-out + centred pill + edge line; the family build also shows n/total.
-  const heavy = family || (isFont && !stackIsIdentity());
+  // grid). A raw / identity render is instant — no flash. Slow work shows the
+  // grey-out + pill + edge bar, but only after PROC_GRACE ms (see above).
+  const heavy = family || (isFont && !glyphMode && !stackIsIdentity());   // 1 glyph is fast → no scrim
   clearTimeout(rasterTimer);
   rasterTimer=setTimeout(()=>{
     const tok = ++_renderSeq;
     const done = ()=>{ if(tok===_renderSeq) idle(); };   // a newer render owns the overlay now
-    if(!heavy){ done(); doit(); return; }                // identity render → make sure any stale scrim is cleared
-    busy(family ? 'building family…' : 'applying effects…');
-    // let the scrim + line paint before the (blocking) synchronous specimen render
+    if(!heavy){ done(); doit(); return; }                // identity render → clear any stale scrim
+    // a blocking tester render can't be watched mid-flight — predict "slow"
+    // from last time so a repeat of a heavy op still gets feedback
+    if(!family && _lastHeavyMs > PROC_GRACE) busy('applying effects…');
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
-      const r=doit();
-      if(r && r.then) r.then(done); else done();
+      const t0 = performance.now();
+      const r = doit();
+      if(r && r.then){                                   // async (family): wait out the grace, cancel if quick
+        const bt = setTimeout(()=>{ if(tok===_renderSeq) busy(family ? 'building family…' : 'applying effects…'); }, PROC_GRACE);
+        r.then(()=>{ clearTimeout(bt); _lastHeavyMs = performance.now()-t0; done(); });
+      }else{                                             // sync tester render — just record how long it took
+        _lastHeavyMs = performance.now()-t0;
+        done();
+      }
     }));
   }, 110);
 }
@@ -1076,6 +1311,8 @@ function loadFontBuffer(buf, name){
 function seedFontSource(name){
   const font=window.__FONT; if(!font) return;
   _familyCache={sig:'', glyphs:null};            // new font → drop the per-glyph geometry cache
+  _gmodel=null; _editRev++;                       // …and the glyph model (rebuilt lazily for the new font)
+  applyPendingEdits();                            // rehydrate outline edits from a just-loaded .lvp
   const p=font.getPath('Agr', 0, 0, 700);          // y-down em units — only a fallback when CACHE is null
   const subs=fromOTCommands(p.commands);
   setSource(subs.length?subs:[{closed:true,pts:[{x:0,y:0},{x:1,y:0},{x:1,y:1}]}], false, 'font',
@@ -1279,6 +1516,8 @@ function applyStackNorm(norm){
   return rasterFieldToSubs(g, 1000/res);
 }
 function processGlyphEm(glyph, upm){
+  const ed = editedGlyph(glyph);
+  if(ed && ed.baked) return Organica.glyphModel.toSubs(ed.contours);   // effects already frozen in — no re-apply
   const subs=glyphSubs(glyph);
   if(!subs.length) return null;
   const {norm,k,ox,oy}=normGlyph(subs);
@@ -1469,11 +1708,15 @@ function processGlyphW(d,groups,RES,smooth){
 onmessage=function(e){
   const D=e.data,out=[],NV=Math.max(1,D.variants||1);
   for(let i=0;i<D.glyphs.length;i++){ const gd=D.glyphs[i], vars=[];
-    for(var v=0;v<NV;v++){ var subs=null;
-      if(!gd.empty){ SEEDOFF=v*17;
-        var dd=gd.dv[Math.min(v,gd.dv.length-1)];
-        try{ subs=processGlyphW(dd,D.groups,D.RES,D.smooth); }catch(err){ subs=null; } }
-      vars.push((subs&&subs.length)?subs:null); }
+    if(gd.baked && gd.norm){
+      for(var v=0;v<NV;v++) vars.push(v===0 ? gd.norm : null);   // pre-baked — no effects
+    }else{
+      for(var v=0;v<NV;v++){ var subs=null;
+        if(!gd.empty){ SEEDOFF=v*17;
+          var dd=gd.dv[Math.min(v,gd.dv.length-1)];
+          try{ subs=processGlyphW(dd,D.groups,D.RES,D.smooth); }catch(err){ subs=null; } }
+        vars.push((subs&&subs.length)?subs:null); }
+    }
     SEEDOFF=0;
     out.push({unicode:gd.unicode,name:gd.name,adv:gd.adv,vars:vars});
     if(i%10===0) postMessage({progress:i+1,total:D.glyphs.length});
@@ -1492,9 +1735,14 @@ async function buildModifiedFontWorker(opts, onProgress){
     if(gl.unicode==null||gl.unicode<=0||seen.has(gl.unicode)||!inCharset(gl.unicode,ranges))continue; seen.add(gl.unicode);
     const subs=glyphSubs(gl);
     const empty=!subs.length;
+    const bk=editedGlyph(gl);
     const e={unicode:gl.unicode, name:gl.name||('uni'+gl.unicode.toString(16)),
       adv:glyphAdvance(gl), empty};
-    if(!empty){
+    if(bk && bk.baked && !empty){
+      // effects already frozen into this edit → hand the worker the final shape
+      // (normalised into the 1000-box) and let it pass straight through, no re-apply
+      const n=normGlyph(subs); e.k=n.k; e.ox=n.ox; e.oy=n.oy; e.baked=true; e.norm=n.norm;
+    }else if(!empty){
       // normalise into the preview's 1000-box so effect strength matches
       const n=normGlyph(subs); e.k=n.k; e.ox=n.ox; e.oy=n.oy; e.dv=[];
       for(let v=0;v<NV;v++){ e.dv.push(dFromSubs(n.norm)); }
@@ -1536,15 +1784,23 @@ h1{font-size:12vw;margin:0 0 .2em;line-height:.9}p{font-size:4vw;line-height:1.3
 <p>ABCDEFGHIJKLMNOPQRSTUVWXYZ</p><p>abcdefghijklmnopqrstuvwxyz</p><p>0123456789 &amp; ?!.,;:</p>`;
 }
 // .lvp — plain JSON of the whole Living Path setup on top of a font you
-// reload separately. v4 = raster-only + the type-tester state (specimen string
-// + size/track/align/caps). Still loads v1/v2/v3 (a `text` string in place of
-// `specimen`, a {vector,raster} groups object, ± a now-ignored `model`).
+// reload separately. v5 adds `edits` (per-glyph outline edits, keyed by
+// Organica.glyphModel.glyphKey; font-unit y-up corner-flagged contours). v4 =
+// raster-only + the type-tester state. Still loads v1/v2/v3.
+function serializeEdits(){
+  if(!_gmodel) return undefined;
+  const c=_gmodel.masters[0]._cache, out={};
+  for(const key in c){ const g=c[key];
+    if(g && (g.edited || g.baked)) out[key]={ advance:Math.round(g.advance), contours:g.contours, baked:!!g.baked }; }
+  return Object.keys(out).length ? out : undefined;
+}
 function projectJSON(){
-  return JSON.stringify({ v:4, groups:GROUPS.raster,
+  return JSON.stringify({ v:5, groups:GROUPS.raster,
     smooth:getContourSmooth(), outline:outlineWidth, outlineRings, outlineGap,
     ink:$('#cp-ink').value, bg:$('#cp-bg').value, name:$('#exName').value,
     specimen:specimenString,
-    tester:{ size:tester.size, track:tester.track, align:tester.align, caps:tester.caps } });
+    tester:{ size:tester.size, track:tester.track, align:tester.align, caps:tester.caps },
+    edits:serializeEdits() });
 }
 function loadProject(txt){
   const p=JSON.parse(txt); if(!p.groups) throw new Error('not a .lvp');
@@ -1561,6 +1817,10 @@ function loadProject(txt){
   $('#specEdit').textContent = specimenString;
   markPhrase(SPECIMEN_PHRASES.indexOf(specimenString));
   syncTestbar();
+  // outline edits: a .lvp carries no font, so stash + apply on the next font load
+  // (or now, if a font is already loaded)
+  _pendingEdits = (p.edits && Object.keys(p.edits).length) ? p.edits : null;
+  if(_pendingEdits && window.__FONT) applyPendingEdits();
   CURRENT_PRESET=null;
   buildPresets(); renderStack(); render();
 }
@@ -1579,9 +1839,9 @@ $('#exFont').addEventListener('click',async function(){
   if(!window.__FONT){ statusEl.textContent='✗ load a font first'; return; }
   const name=($('#exName').value||'LivingPath').trim();
   this.disabled=true; const lbl=this.textContent; this.textContent='building…';
-  busy('exporting glyphs…');
+  const _t0=performance.now();
   try{
-    const prog=(i,n)=>{ busy(`exporting glyphs ${i}/${n}…`); };
+    const prog=(i,n)=>{ if(performance.now()-_t0 > PROC_GRACE) busy(`exporting glyphs ${i}/${n}…`); };
     // randomised alternates only help when the stack actually varies by seed
     const variants = ($('#exAlt').checked && stackHasSeed()) ? 3 : 1;
     const oOpts={name, ranges:CHARSET, variants};
@@ -1611,11 +1871,29 @@ $('#saveProj').addEventListener('click',()=>{
 })();
 $('#reset').addEventListener('click',()=>{ GROUPS.raster=freshStack(); outlineWidth=0; outlineRings=1; outlineGap=4; CURRENT_PRESET=null; STACK_REV++; updatePresetTrigger(); renderStack(); render(); });
 $('#tgFamily').addEventListener('click',function(){
-  showFamily=!showFamily; this.setAttribute('aria-pressed', String(showFamily));
+  if(showGlyph){ showGlyph=false; showFamily=true; }   // from the single-glyph view → back to the grid
+  else showFamily=!showFamily;
+  this.setAttribute('aria-pressed', String(showFamily));
   if(showFamily && SRC_KIND!=='font') statusEl.textContent='full family needs a font input';
   if(showFamily){ zoomPan.reset(); $('#zoom-hud').classList.remove('visible'); }
-  render();      // render() toggles #specEdit / #fb-tester / .family + the stage viewBox
+  render();      // render() toggles #specEdit / #fb-tester / .family / glyph mode + the stage viewBox
 });
+// click a glyph cell in Full Family View → open it in the single-glyph view
+board.addEventListener('click', e=>{
+  const r=e.target;
+  if(!r || !r.classList || !r.classList.contains('fam-hit')) return;
+  const uni=+r.getAttribute('data-uni');
+  if(Number.isFinite(uni)) openGlyphOne(String.fromCodePoint(uni));
+});
+// Esc leaves the single-glyph view for the normal tester (specimen untouched) —
+// but in the outline editor a first Esc only deselects a node (the editor's own
+// canvas keydown handles that), so defer to it when something is selected
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Escape' || !showGlyph) return;
+  if(glyphEditMode && _ged && _ged.getSelection && _ged.getSelection()) return;
+  showGlyph=false; specEdit.blur(); render();
+});
+buildGlyphTools();
 // Ink/Paper — the shared Palette component (attach mode).
 const swatches = {};
 ['ink','bg'].forEach(k=>{ swatches[k]=Organica.palette.swatch(k,{ initial:$('#hex-'+k).value, onChange: repaint }); });
@@ -1630,7 +1908,7 @@ specEdit.textContent = specimenString;
 // its caret/wrapping sit over the transformed glyphs (approximate — the SVG is
 // authoritative; transformed glyphs aren't font-shaped anyway).
 function syncSpecEditBox(){
-  if(specEdit.hidden) return;
+  if(specEdit.hidden || specEdit.classList.contains('one')) return;   // glyph-mode field is CSS-positioned
   const b = board.getBoundingClientRect(), w = canvasWrap.getBoundingClientRect();
   if(!b.width) return;
   const px = b.width / BOX_W;                      // stage-box unit → screen px
@@ -1670,6 +1948,11 @@ markPhrase(SPECIMEN_PHRASES.indexOf(specimenString));   // phrase 0 active on bo
 
 let _specTimer=null;
 specEdit.addEventListener('input',()=>{
+  if(showGlyph){                                          // single-glyph view — edits `glyphOneStr`
+    glyphOneStr = specEdit.innerText.replace(/\s+/g,'').slice(0, glyphEditMode ? 1 : 12);   // editor = one glyph
+    clearTimeout(_specTimer); _specTimer=setTimeout(render, 110);
+    return;
+  }
   specimenString = specEdit.innerText.replace(/ /g,' ');
   markPhrase(SPECIMEN_PHRASES.indexOf(specimenString));   // -1 → dots clear once you edit
   clearTimeout(_specTimer); _specTimer=setTimeout(render, 110);
@@ -1683,6 +1966,7 @@ let _familyResizeTimer=null;
 new ResizeObserver(()=>{
   syncSpecEditBox();
   if(!procOverlay.hidden) syncProcLine();
+  if(showGlyph && glyphEditMode && !glyphCanvas.hidden) sizeGlyphCanvas();
   if(showFamily && SRC_KIND==='font' && window.__FONT){
     clearTimeout(_familyResizeTimer);
     _familyResizeTimer=setTimeout(renderFamily, 120);   // relayout only — glyph cache hit
@@ -1694,7 +1978,7 @@ window.addEventListener('resize', syncSpecEditBox);
 //    double-click to reset (shared Organica.createZoomPan, like every other tool)
 const zoomPan = Organica.createZoomPan({
   canvas: board, wrap: canvasWrap,
-  isReady: () => board.classList.contains('show') && !showFamily,   // family mode scrolls, not zooms
+  isReady: () => board.classList.contains('show') && !showFamily && !showGlyph,   // family scrolls; glyph view is a focused fit-to-box
   onChange: ({ zoom, zoomed }) => {
     $('#zoom-level').textContent = Math.round(zoom * 100) + '%';
     $('#zoom-hud').classList.toggle('visible', zoomed && board.classList.contains('show'));
