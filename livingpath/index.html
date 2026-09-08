@@ -1477,10 +1477,11 @@ $('#tbNight').addEventListener('click',function(){
   render();
 });
 
-// default face — Arial Black, so the tester is never empty on boot
-fetch('/shared/vendor/arial-black.ttf')
+// default face — Archivo Black (SIL OFL, an Arial-Black-alike grotesque), so
+// the tester is never empty on boot
+fetch('/shared/vendor/archivo-black.ttf')
   .then(r => r.ok ? r.arrayBuffer() : Promise.reject())
-  .then(buf => loadFontBuffer(buf, 'Arial Black'))
+  .then(buf => loadFontBuffer(buf, 'Archivo Black'))
   .catch(()=>{ /* leave the #empty state — user loads a font via + */ });
 
 // close the preset menu on outside click, scroll (fixed menu) or resize.
