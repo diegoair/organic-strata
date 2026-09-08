@@ -56,6 +56,10 @@ directly against the license banner in each vendored file, August 27, 2026.
 - **Loaded via**: Google Fonts (`shared/tokens.css`'s `@import`) for on-screen display; a local copy at `shared/vendor/manrope-variable.ttf` for glyph-outline extraction (opentype.js) in Membrane / Camo Turing's text-seed features and the shared seeds panel
 - **License**: SIL Open Font License 1.1 — permits bundling/embedding in software, including commercial use; the only real restriction is not selling the font file standalone and preserving its Reserved Font Name if modified (it isn't, here)
 
+### Arial Black (typeface)
+- **File**: `shared/vendor/arial-black.ttf` — glyph-outline extraction only (opentype.js), used as Living Path's default type-tester face so the tester is never empty on boot. The file is not `@font-face`'d for page text.
+- **License**: Monotype / Microsoft **proprietary**. Provided and bundled under the project owner's own license. **Not redistributable.** If this repository or its deployment becomes public, replace it with a free substitute (e.g. Archivo Black — SIL OFL 1.1) and point Living Path's boot fetch at that file.
+
 ---
 
 No other third-party code is vendored in this repository. `shared/*.js` / `.css` and every tool's own code are original work.
