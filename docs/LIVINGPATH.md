@@ -152,9 +152,10 @@ double-click to reset.
 The header carries **no status line**. While an **active effect stack** recomputes
 the specimen — or the family grid builds — the stage goes into a **processing
 state**: a grey-out over the specimen, a centred **message pill** (`applying
-effects…`, `building family… n/total`, `exporting glyphs i/n…`), and an
-indeterminate **loading line** riding the **top and bottom edge of the canvas**
-(`#board`, positioned by `syncProcLine()`). A raw / identity render is instant (no
+effects…`, `building family… n/total`, `exporting glyphs i/n…`), and a **5 px
+solid loading bar** on the **top and bottom edge of the canvas** (`#board`,
+positioned by `syncProcLine()`) that sweeps left→right once (~0.55 s) then holds
+solid until the work finishes. A raw / identity render is instant (no
 state change). One-shot results / errors (`✓` / `✗`) show as a separate transient
 pill at the top of the stage.
 
