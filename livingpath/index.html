@@ -135,9 +135,10 @@
   .lp-phrase-btn svg{width:13px; height:13px; display:block}
   .lp-phrase-btn:hover{border-color:var(--ink); color:var(--ink); transform:translateY(-1px)}
   .lp-phrase-btn.is-active{background:var(--ink); border-color:var(--ink); color:var(--paper)}
-  /* processing state — a grey-out scrim + a centred message pill, plus an
-     indeterminate loading line riding the TOP & BOTTOM EDGE OF THE CANVAS
-     (#board), positioned by syncProcLine() via --line-top / --line-bot. */
+  /* processing state — a grey-out scrim + a centred message pill, plus a 5px
+     SOLID loading bar on the CANVAS' (#board's) top & bottom edge that fills
+     left→right on repeat (no gradient); positioned by syncProcLine() via
+     --line-top / --line-bot. */
   #procOverlay{
     position:absolute; inset:0; z-index:9; pointer-events:none;
     display:flex; align-items:center; justify-content:center;
@@ -152,14 +153,15 @@
   }
   @keyframes procPulse{0%,100%{opacity:.72}50%{opacity:1}}
   #procOverlay::before, #procOverlay::after{
-    content:''; position:absolute; left:0; right:0; height:2px;
-    background:linear-gradient(90deg, transparent, var(--ink) 45%, var(--ink) 55%, transparent);
-    background-size:38% 100%; background-repeat:no-repeat;
-    animation:procSlide 1.05s linear infinite;
+    content:''; position:absolute; left:0; width:0; height:5px;
+    background:var(--ink);
+    /* one left→right sweep, then hold solid until idle() hides the overlay
+       (re-triggered each time #procOverlay goes display:none → flex) */
+    animation:procFill .55s ease-out forwards;
   }
-  #procOverlay::before{top:calc(var(--line-top, 0px) - 1px)}
-  #procOverlay::after{top:calc(var(--line-bot, 100%) - 1px)}
-  @keyframes procSlide{0%{background-position:-38% 0}100%{background-position:138% 0}}
+  #procOverlay::before{top:var(--line-top, 0px)}
+  #procOverlay::after{top:calc(var(--line-bot, 100%) - 5px)}
+  @keyframes procFill{from{width:0}to{width:100%}}
   /* transient message pill (errors / results), top-centre of the stage */
   #toast{
     position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:11;
