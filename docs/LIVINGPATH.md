@@ -133,17 +133,31 @@ and set the contour smoothing (faceted presets go angular).
 
 ---
 
-## 7. Preview controls (stage top-right)
+## 7. The type tester (the canvas)
 
-- **text specimen** — lay out a full paragraph rendered with the **modified font**,
-  live (font input only). This is the original's right-hand preview. A **language**
-  selector (10 languages) + **↻ text** button pull a live random Wikipedia extract
-  (offline-safe curated fallback); the text word-wraps to the board.
-- **overlay original** — ghost of the source glyph behind the result.
-- **outline** — stroke the re-vectorised contour instead of filling (beaded / engraved).
-- **nodes** — show the Bézier anchors (vector only).
+The stage **is** a type tester, modelled on a foundry specimen page. On boot it
+auto-loads **Arial Black** (`shared/vendor/arial-black.ttf`) so it's never empty; the
+floatbar **+** or a drop swaps in any OTF/TTF/WOFF. The specimen is one **editable**
+paragraph rendered through the effect stack — click it and type (a transparent
+`contenteditable` overlay sits on the SVG for the caret; the transformed SVG is what
+you see). Text word-wraps and **clips at the panel's bottom edge** — no scroll.
 
-Ink / Paper colours are in the left panel.
+Bottom control bar:
+
+- **SIZE** — the specimen type size (slider + editable readout; click the number to type it).
+- **TRACK** — tracking / letter-spacing, per-mille of size.
+- **align L / C / R** — line alignment.
+- **CAPS** — uppercase the text before layout.
+- **RESET** — SIZE / TRACK / align / CAPS back to defaults (96 / 0 / left / off). Does
+  **not** touch Ink/Paper or the effect stack (the floatbar ↻ owns the stack).
+- **◐ night mode** — swaps the real **Ink ↔ Paper** swatches, so it flips the on-canvas
+  preview *and* every PNG / SVG / OTF export (and the right-panel Colour rows). Click again
+  to swap back.
+
+**full family** (top-right) is the one secondary view — the whole charset in a grid; it
+hides the tester bar and overlay while active.
+
+Ink / Paper colours are in the right panel (**Colour**).
 
 ---
 
@@ -178,12 +192,12 @@ thread if Worker/OffscreenCanvas isn't available.
 
 ## 9. A typical workflow
 
-1. **Drop a font** anywhere on the page.
-2. Switch to **Raster**, pick a preset (e.g. `Frog-eggs`, `Coral`, `Stream`).
-3. Open the groups and tune the sliders — or add a **new group** and blend it in.
-4. Turn on **text specimen** to see a paragraph in the modified font, live.
-5. Name it, choose the **charset**, tick **HTML specimen**, and **Export OTF**.
-6. **Save .lvp** to keep the setup. Install the OTF and "let it flood your work".
+1. It opens on **Arial Black** — or **drop a font** anywhere to swap it.
+2. Pick a preset (e.g. `Frog-eggs`, `Coral`, `Stream`) and tune the effect stack.
+3. Type on the tester and dial in **SIZE / TRACK / align / CAPS**; ◐ for a dark specimen.
+4. Name it, tick **HTML specimen** if you want one, and **Export OTF**.
+5. **Save .lvp** to keep the setup (specimen text + tester settings included). Install the
+   OTF and "let it flood your work".
 
 ---
 
@@ -216,8 +230,10 @@ thread if Worker/OffscreenCanvas isn't available.
   preview, the text specimen and the font export — normalises each glyph into the **same
   1000-box** (`normGlyph` / `denormGlyph`, glyph ≈ 760 tall, y-flipped) and runs the
   identical pipeline, so what you see is what you export. `processGlyphEm` is the single
-  per-glyph entry point (vector or raster + chaining); the board's typed text is laid out
-  **per glyph** via `typedLayout` (not flattened), matching the specimen and the font.
+  per-glyph entry point. The tester's **SIZE / TRACK / align / CAPS** only *place* glyph
+  subs that `buildSpecimenSubs()` has already 1000-box-normalised via `processGlyphEm` (a
+  post-normalisation `scale` multiply + per-line X offset), so effect strength stays
+  identical preview-vs-export.
 - **Font export** builds each glyph via that shared pipeline; the **Web Worker** reuses
   the exact same pure field functions via `Function.toString()` (no code drift) — only
   rasterisation (OffscreenCanvas) and a layer dispatch are worker-specific. The worker
