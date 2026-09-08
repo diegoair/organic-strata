@@ -282,6 +282,8 @@
       <label class="check-row"><input type="checkbox" id="exAlt"><span>randomised alternates (rand)</span></label>
       <label class="check-row"><input type="checkbox" id="exSpec"><span>also save an HTML specimen</span></label>
       <button class="panel-btn" id="exFont" disabled style="margin-top:var(--space-2); width:100%">⬇ Static font (OTF)</button>
+      <button class="panel-btn" id="exUFO" hidden style="margin-top:var(--space-2); width:100%">⬇ UFO + designspace (.zip)</button>
+      <div class="hint" id="exUFOHint" hidden>Compile the variable font with <code>fontmake -m &lt;family&gt;.designspace -o variable</code>.</div>
 
       <div class="org-popover__title" style="margin-top:var(--space-4)">Project</div>
       <div class="row-btns">
@@ -375,12 +377,14 @@
      the vector FX). Living Path keeps only the font-specific parts local:
      opentype parsing, the live text specimen, OTF export. -->
 <script src="/shared/pathfx.js"></script>
-<!-- Bézier-true glyph model + Canvas2D outline editor (Phase 1 of the
-     variable-font arc — the single-glyph view is a real outline editor;
-     edits flow through glyphSubs → tester / family / OTF export).
-     shared/ufo-export.js · zip.js stay dormant until Phase 3. -->
+<!-- The variable-font arc: Bézier-true glyph model + Canvas2D outline editor
+     (Phase 1, edits flow through glyphSubs), axes/masters/interpolation +
+     bake-to-master (Phase 2), UFO + .designspace bundle export (Phase 3 —
+     ufo-export writes the file map, zip packs it). -->
 <script src="/shared/glyph-model.js"></script>
 <script src="/shared/glyph-editor.js"></script>
+<script src="/shared/ufo-export.js"></script>
+<script src="/shared/zip.js"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -1960,6 +1964,24 @@ $('#exFont').addEventListener('click',async function(){
   }catch(e){ idle(); statusEl.textContent='✗ '+e.message; }
   this.textContent=lbl; this.disabled=false;
 });
+// Phase 3 — export the design-space as masters: a .designspace + one UFO v3
+// directory per master, packed with Organica.zip. Compile outside with
+// `fontmake -m <family>.designspace -o variable`.
+$('#exUFO').addEventListener('click', async function(){
+  const m=gmodel();
+  if(!m || !m.axes.length || m.masters.length < 2){ toast('✗ add an axis and a second master first'); return; }
+  const name=($('#exName').value||'LivingPath').trim();
+  this.disabled=true; const lbl=this.textContent; this.textContent='bundling…';
+  try{
+    m.metrics = glyphMetrics();                       // real vertical metrics for fontinfo.plist
+    const files = Organica.ufoExport.bundle(m, { familyName:name });
+    const z = Organica.zip();
+    for(const path in files) z.add(path, files[path]);
+    download(z.blob(), name.replace(/\s+/g,'-')+'-ufo.zip');
+    toast(`✓ ${m.masters.length} masters · ${m.glyphOrder.length} glyphs`);
+  }catch(e){ toast('✗ '+(e.message||e)); }
+  this.textContent=lbl; this.disabled=false;
+});
 $('#saveProj').addEventListener('click',()=>{
   download(new Blob([projectJSON()],{type:'application/json'}), (($('#exName').value||'LivingPath').replace(/\s+/g,'-'))+'.lvp');
 });
@@ -2067,6 +2089,9 @@ function renderVar(){
 
   // bake — only when a non-base master is the edit target
   $('#varBake').hidden = !(m && m.masters.length>1 && m.editMasterIdx>0);
+  // Phase 3 — UFO + designspace export needs an axis + a real second master
+  const canUFO = !!(m && m.axes.length && m.masters.length>1);
+  $('#exUFO').hidden = !canUFO; $('#exUFOHint').hidden = !canUFO;
 }
 $('#varAddAxis').addEventListener('click',()=>{
   const m=gmodel(); if(!m) return;
