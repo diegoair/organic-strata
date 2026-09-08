@@ -206,8 +206,30 @@ glyph is **frozen**: changing the effect stack afterward doesn't re-flow into it
 **Reset glyph** discards the node edits and re-bakes the untouched glyph through the *current*
 stack. An identity stack → the editor opens the raw outline (still effect-responsive).
 
-*(Axes / masters / design-space interpolation / `bakePresetMaster` and the UFO + `.designspace`
-export are Phase 2 / 3.)*
+### Variable · Masters (Phase 2)
+
+The right panel's **Variable · Masters** section (visible once a font is loaded) turns Living Path
+into a small design-space editor:
+
+- **Axes** — `+ Axis` opens a compact tag / name / min / def / max form; each axis lists with a
+  `×` to remove.
+- **Location** — one slider per axis (user units). Moving it sets the model's design-space
+  location; the tester, Full Family and both OTF exports all re-render the **current instance**.
+- **Masters** — `+ Master here` snapshots the current location as a new master (named by its
+  coordinates). A radio picks the **edit target**; `×` removes a non-base master.
+- Open the **glyph editor** while sitting exactly on a master's location → you edit that master's
+  outline. Sitting *between* masters → the editor shows the interpolated instance **read-only**.
+- **Bake stack → master** — runs the live effect stack over every glyph and freezes the result
+  into the selected master (`model.bakePresetMaster`; contour topology is re-projected onto the
+  base point structure so interpolation stays valid — glyphs whose topology the effect changed
+  are skipped, reported in the toast).
+- A **⚠ compatibility** strip appears in the editor when a glyph's masters diverge in point
+  structure — that glyph falls back to the nearest master instead of interpolating.
+
+Everything persists in the `.lvp` (**v5** `variable` block — axes, per-master location + edits,
+the last design-space location). An old v4 file, or a v5 with no `variable`, clears the model.
+
+*(UFO + `.designspace` export — `fontmake`-compilable masters — is Phase 3.)*
 
 Ink / Paper colours are in the right panel (**Colour**).
 
