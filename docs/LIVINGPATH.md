@@ -149,15 +149,18 @@ together spell the whole alphabet; typing your own text clears the selection.
 Zoom with the **mouse wheel** or **⌘/Ctrl +/−/0**, drag to pan when zoomed,
 double-click to reset.
 
-The header carries **no status line**. While an **active effect stack** recomputes
-the specimen — or the family grid builds — the stage goes into a **processing
-state**: a grey-out over the specimen, a centred **message pill** (`applying
-effects…`, `building family… n/total`, `exporting glyphs i/n…`), and a **5 px
-solid loading bar** on the **top and bottom edge of the canvas** (`#board`,
-positioned by `syncProcLine()`) that sweeps left→right once (~0.55 s) then holds
-solid until the work finishes. A raw / identity render is instant (no
-state change). One-shot results / errors (`✓` / `✗`) show as a separate transient
-pill at the top of the stage.
+The header carries **no status line**. When work runs **longer than ~250 ms**
+(`PROC_GRACE`) the stage goes into a **processing state**: a grey-out over the
+specimen, a centred **message pill** (`applying effects…`, `building family…
+n/total`, `exporting glyphs i/n…`), and a **5 px solid loading bar** on the **top
+and bottom edge of the canvas** (`#board`, positioned by `syncProcLine()`) that
+sweeps left→right once (~0.55 s) then holds solid until the work finishes.
+Quicker work shows **nothing** — an identity render is instant; async jobs
+(family build, OTF export) get a real grace timer that's cancelled if they
+finish first; a blocking tester render can't be timed mid-flight, so it's
+predicted "slow" from the previous heavy render's duration (the first slow one
+is silent, repeats get the bar). One-shot results / errors (`✓` / `✗`) show as a
+separate transient pill at the top of the stage.
 
 The **floatbar** carries the tester controls (visible only with a font loaded and
 not in Full Family View):
@@ -182,6 +185,29 @@ cells, each glyph drawn on a shared per-row **baseline** at its true em-relative
 geometry is cached). The tester bar, overlay and phrase dots hide while it's active, and
 the stage **scrolls** instead of zooming. Exporting SVG/PNG in this view produces the
 overview as a **specimen sheet** (boxes + names + glyphs), sized to the grid.
+
+Each cell **hovers** (a `--tool` accent wash) — **click one → the single-glyph view**, which
+opens straight into the **glyph outline editor** (`Organica.glyphEditor` on
+`shared/glyph-model.js`'s canonical contours — Phase 1 of the variable-font arc). Drag nodes
+(gaussian soft-drag, corners held crisp), **Alt-click / `+ pt`** to insert, **Backspace**
+delete, **arrows** nudge (Shift ×10), **Enter** toggle corner, drag the advance line. The
+in-stage bar has **Undo · Reset glyph · + pt** and a **Preview** toggle (that char fit to the
+canvas through the effect stack — the old `typedLayout`). The small top-centre field types
+which glyph to edit. **Edits flow through `glyphSubs`** — the edited outline is what the
+effect stack runs on in the tester, Full Family, and both OTF exports — and persist in the
+`.lvp` (**v5**, an `edits` map keyed by glyph name). The **Full Family** button returns to the
+grid; **Esc** returns to the type-tester.
+
+**Editing with effects — baked.** With an active effect stack, opening the editor **bakes**
+the current effect result (`processGlyphEm`) into the glyph and edits *that* — so **Edit and
+Preview show the same shape**. `processGlyphEm` then skips re-applying the stack for a baked
+glyph (no double effects), and the Worker OTF export passes it straight through. A baked
+glyph is **frozen**: changing the effect stack afterward doesn't re-flow into it —
+**Reset glyph** discards the node edits and re-bakes the untouched glyph through the *current*
+stack. An identity stack → the editor opens the raw outline (still effect-responsive).
+
+*(Axes / masters / design-space interpolation / `bakePresetMaster` and the UFO + `.designspace`
+export are Phase 2 / 3.)*
 
 Ink / Paper colours are in the right panel (**Colour**).
 
