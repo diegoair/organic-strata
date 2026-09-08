@@ -141,6 +141,12 @@ floatbar **+** or a drop swaps in any OTF/TTF/WOFF. The specimen is one **editab
 paragraph rendered through the effect stack — click it and type (a transparent
 `contenteditable` overlay sits on the SVG for the caret; the transformed SVG is what
 you see). Text word-wraps and **clips at the panel's bottom edge** — no scroll.
+With no effect active the stage shows the **untouched font** (its own Béziers,
+crisp corners); any effect switches to the raster pipeline, RESET on the stack
+returns to raw. Four **round dots** above the canvas swap between four short
+project-themed phrases that together spell the whole alphabet; typing your own
+text clears them. Zoom with the **mouse wheel** or **⌘/Ctrl +/−/0**, drag to
+pan when zoomed, double-click to reset.
 
 Bottom control bar:
 
