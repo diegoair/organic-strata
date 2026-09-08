@@ -215,7 +215,7 @@
     <div class="panel-section">
       <h3>Effect stack</h3>
       <div id="stack"></div>
-      <div class="hint">The nine raster effects run top → bottom. An effect at <b>0</b> does nothing — drag to reorder.</div>
+      <div class="hint">Effects run top → bottom, by section. An effect at <b>0</b> does nothing — drag a header to reorder within its section.</div>
     </div>
     <div class="panel-section">
       <h3>Colour</h3>
@@ -279,7 +279,22 @@ const {
 // via .toString() (same trick the pre-extraction code used) — the worker
 // runs in an isolated global scope with no `Organica`, so the raster
 // functions' text has to be embedded verbatim, not called by reference.
-function mulberry32(a){ return Organica.mulberry32(a); }
+// This MUST be the real mulberry32 body (byte-identical to Organica.mulberry32
+// in shared/core.js), NOT a `return Organica.mulberry32(a)` wrapper: the
+// wrapper's .toString() references `Organica` which is undefined inside the
+// Worker, so every seeded effect (noise/particles/reaction/warp/shatter/
+// glitch/spikes) threw ReferenceError there, got swallowed by the per-glyph
+// try/catch, and the export silently fell back to the untransformed source
+// glyph — i.e. the exported font looked nothing like the design.
+function mulberry32(seed){
+  let t = seed >>> 0;
+  return function () {
+    t |= 0; t = (t + 0x6D2B79F5) | 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 // ============================================================
 //  PATH MODEL
@@ -936,8 +951,65 @@ function download(blob,name){
 //  FONT EXPORT  — run every glyph through the active stack in its own
 //  EM space (metrics preserved) and rebuild an installable OTF.
 // ============================================================
-function subsToOTPath(subs){
+// ── Ramer–Douglas–Peucker: the marching-squares retrace emits one point per
+//    grid cell it crosses, so a plain glyph comes back as a 3000+ point
+//    stair-stepped contour and subsToOTPath (one cubic per point) turns that
+//    into a ~1700-command CFF charstring — a ~5 MB font that macOS refuses to
+//    install. RDP collapses the collinear stairsteps in em space before any
+//    curve is emitted; tolerance scales with the em so it behaves the same at
+//    1000 and 2000 upm. Closed contours are split at the point farthest from
+//    pts[0] so the simplification isn't biased by an arbitrary start index.
+function rdpOpen(pts, eps){
+  const n=pts.length; if(n<=3) return pts.slice();
+  const keep=new Uint8Array(n); keep[0]=keep[n-1]=1;
+  const stack=[[0,n-1]];
+  while(stack.length){
+    const seg=stack.pop(), a=seg[0], b=seg[1];
+    const ax=pts[a].x, ay=pts[a].y, dx=pts[b].x-ax, dy=pts[b].y-ay, len=Math.hypot(dx,dy)||1;
+    let maxd=-1, idx=-1;
+    for(let i=a+1;i<b;i++){
+      const d=Math.abs((pts[i].x-ax)*dy-(pts[i].y-ay)*dx)/len;
+      if(d>maxd){ maxd=d; idx=i; }
+    }
+    if(maxd>eps && idx>0){ keep[idx]=1; stack.push([a,idx],[idx,b]); }
+  }
+  const out=[]; for(let i=0;i<n;i++) if(keep[i]) out.push(pts[i]);
+  return out;
+}
+function rdpClosed(pts, eps){
+  const n=pts.length; if(n<=5) return pts.slice();
+  let far=1, fd=-1;
+  for(let i=1;i<n;i++){ const d=(pts[i].x-pts[0].x)**2+(pts[i].y-pts[0].y)**2; if(d>fd){ fd=d; far=i; } }
+  const head=rdpOpen(pts.slice(0,far+1), eps);
+  const tail=rdpOpen(pts.slice(far), eps);              // pts[far] … pts[n-1]
+  return head.concat(tail.slice(1,-1));                 // shared endpoints once
+}
+function polyArea(p){
+  let a=0; for(let i=0,j=p.length-1;i<p.length;j=i++) a+=(p[j].x+p[i].x)*(p[j].y-p[i].y);
+  return Math.abs(a)/2;
+}
+function subsToOTPath(subs, upm){
   const path=new opentype.Path();
+  const U=upm||1000;
+  const minArea=Math.pow(U/320, 2);                     // drop only genuine single-pixel dust
+  const BUDGET=280;                                     // hard per-glyph anchor budget (a
+  //  warp/reaction/spikes glyph can trace 3000+ stairstep points; one cubic per
+  //  point = a multi-MB CFF that won't install). RDP collapses collinear steps;
+  //  if a glyph is still over budget after the base pass, eps is scaled up and
+  //  it is re-simplified until it fits — so no single glyph, and no whole font,
+  //  can blow up. ~280 anchors/glyph keeps even a heavy face near ~600 KB.
+  const simplify=(eps,area)=>subs
+    .map(s=>({ pts: s.closed ? rdpClosed(s.pts, eps) : rdpOpen(s.pts, eps), closed: s.closed!==false }))
+    .filter(o=> o.pts.length>=3 && polyArea(o.pts)>=area);
+  let eps=U/300, area=minArea;                          // eps ~3.3 @1000upm, ~6.7 @2000upm
+  let polys=simplify(eps, area);
+  let count=polys.reduce((a,o)=>a+o.pts.length,0), guard=0;
+  while(count>BUDGET && guard++<10){
+    const k=Math.max(1.5, count/BUDGET);
+    eps*=k; area*=k;                                    // also cull ever-smaller fragments so a
+    polys=simplify(eps, area);                          //  glyph made of many tiny specks still fits
+    count=polys.reduce((a,o)=>a+o.pts.length,0);
+  }
   // Catmull-Rom control points can spike far off a noisy raster-traced
   // contour (a near-coincident pair next to a distant point → a huge
   // (p2-p0)/6). Clamp each control to within ~1.6× the segment length of
@@ -946,10 +1018,10 @@ function subsToOTPath(subs){
     const lim=segLen*1.6+8, dx=cx-ax, dy=cy-ay, dl=Math.hypot(dx,dy);
     return dl>lim ? [ax+dx/dl*lim, ay+dy/dl*lim] : [cx,cy];
   };
-  for(const s of subs){
-    const p=s.pts, n=p.length; if(n<2) continue;
+  for(let si=0; si<polys.length; si++){
+    const p=polys[si].pts, n=p.length, closed=polys[si].closed;
     path.moveTo(p[0].x, p[0].y);
-    const segs=s.closed?n:n-1;
+    const segs=closed?n:n-1;
     for(let i=0;i<segs;i++){
       const p0=p[(i-1+n)%n], p1=p[i], p2=p[(i+1)%n], p3=p[(i+2)%n];
       const L=Math.hypot(p2.x-p1.x, p2.y-p1.y)||1;
@@ -1037,7 +1109,7 @@ function assembleFont(entries, opts, upm, src){
   const advCap=Math.round(upm*1.6);
   const basePath=(e)=>{
     const s=fitGlyphSubs(e.vars[0], upm);
-    if(s&&s.length) return subsToOTPath(s);
+    if(s&&s.length) return subsToOTPath(s, upm);
     const gl=src.glyphs.get(src.charToGlyphIndex(String.fromCharCode(e.unicode))); return gl?gl.path:new opentype.Path();
   };
   entries.forEach(e=>{ baseIdx.push(glyphs.length);
@@ -1048,21 +1120,30 @@ function assembleFont(entries, opts, upm, src){
     for(let v=1;v<e.vars.length;v++){ let s=e.vars[v]; if(!s||!s.length) continue;
       if(dFromSubs(s)===baseD) continue;                 // identical → skip
       alts.push(glyphs.length);
-      glyphs.push(new opentype.Glyph({name:e.name+'.alt'+v, advanceWidth:Math.min(e.adv, advCap), path:subsToOTPath(fitGlyphSubs(s, upm))})); }
+      glyphs.push(new opentype.Glyph({name:e.name+'.alt'+v, advanceWidth:Math.min(e.adv, advCap), path:subsToOTPath(fitGlyphSubs(s, upm), upm)})); }
     if(alts.length) altIdx[i]=alts;
   });
   const base=(opts.name||'LivingPath').trim() || 'LivingPath';
   const tag=(opts.uniquePerExport!==false) ? buildTag(base, src) : '';
-  const family = tag ? `${base} ${tag}` : base;
-  const psName = family.replace(/[^0-9A-Za-z]/g,'') + '-Regular';
+  // The DISPLAY family name (name IDs 1/16) is exactly what the user typed —
+  // Font Book / the CSS font-family must show "MyFont", not "MyFont 22ei".
+  // The per-look uniqueness the OS needs to install two different exports side
+  // by side lives only in the PostScript name (ID 6) + Unique ID (ID 3).
+  const family = base;
+  const psBase = (base.replace(/[^0-9A-Za-z]/g,'') || 'LivingPath');
+  const psName = (tag ? psBase + tag : psBase) + '-Regular';
   const font=new opentype.Font({ familyName:family, styleName:'Regular', unitsPerEm:upm,
     ascender:src.ascender||Math.round(upm*0.8), descender:src.descender||-Math.round(upm*0.2), glyphs,
     fullName:family+' Regular', postScriptName:psName,
     designer:'Organica', designerURL:'https://theorganicalanguage.vercel.app',
     manufacturer:'Organica / Living Path', manufacturerURL:'https://theorganicalanguage.vercel.app',
-    version:'Version 1.0', copyright:'Generated with Living Path',
+    version:tag ? ('Version 1.0 ('+tag+')') : 'Version 1.0', copyright:'Generated with Living Path',
     description:'A raster-transformed typeface made in Living Path.',
     license:'All rights reserved.', licenseURL:'' });
+  // opentype.js derives Unique ID from manufacturer + fullName, which are no
+  // longer per-look → set it explicitly so two different looks don't collide.
+  font.names.uniqueID = { en: 'Organica:'+psName+';'+(tag||'0')+';1.0' };
+  font.names.preferredFamily = { en: family };
   const varied=Object.keys(altIdx);
   if(varied.length){ try{      // features must be added alphabetically: aalt, then rand
     varied.forEach(i=>font.substitution.addAlternate('aalt',{sub:baseIdx[i],by:altIdx[i]},'DFLT','dflt'));
@@ -1154,7 +1235,7 @@ function applyLayerW(g,t,p){
   else if(t==='spikes')spikes(g,p.density,p.length,p.seed+SEEDOFF);
 }
 function processGlyphW(d,groups,RES,smooth){
-  const res=pickAdaptiveResW(d, RES, 4, 600);
+  const res=pickAdaptiveResW(d, RES, 4, 512);   // cap: 600² made a reaction/warp full-charset export take ~10 min
   const base=rasterGlyphW(d,res);
   let acc=null;
   for(const grp of groups){ if(!grp.on)continue;

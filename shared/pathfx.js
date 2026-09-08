@@ -340,7 +340,7 @@
   }
   function pickAdaptiveRes(subs, opts) {
     opts = opts || {};
-    const targetGap = opts.targetGap || 4, maxRes = opts.maxRes || 600;
+    const targetGap = opts.targetGap || 4, maxRes = opts.maxRes || 512;
     const minGap = measureMinGap(rasterize(subs, RES));
     if (!isFinite(minGap) || minGap >= targetGap) return RES;
     return Math.min(maxRes, Math.round(RES * targetGap / Math.max(1, minGap)));
