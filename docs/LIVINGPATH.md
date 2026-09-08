@@ -229,7 +229,20 @@ into a small design-space editor:
 Everything persists in the `.lvp` (**v5** `variable` block — axes, per-master location + edits,
 the last design-space location). An old v4 file, or a v5 with no `variable`, clears the model.
 
-*(UFO + `.designspace` export — `fontmake`-compilable masters — is Phase 3.)*
+### UFO + designspace export (Phase 3)
+
+Once there's an axis and a second master, the **export popover** shows **⬇ UFO + designspace
+(.zip)** — `Organica.ufoExport.bundle(model, {familyName})` writes a `<family>.designspace` + one
+UFO v3 directory per master (canonical contours → cubic `<point>`s via the same Catmull-Rom
+formula as the OTF export, so every master shares point structure), `Organica.zip()` packs it
+STORE-only, and it downloads as `<family>-ufo.zip`. Compile the variable binary outside:
+
+```
+fontmake -m <family>.designspace -o variable
+```
+
+The model's real vertical metrics (`ascender` / `descender` / `xHeight` / `capHeight` from the
+loaded font's `OS/2`) go into each `fontinfo.plist`.
 
 Ink / Paper colours are in the right panel (**Colour**).
 
