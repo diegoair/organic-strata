@@ -152,3 +152,18 @@
 @media (prefers-reduced-motion: reduce) {
   .org-floatbar__btn { transition: none; }
 }
+
+/* Type-tester controls (SIZE / TRACK / align / CAPS) — a labeled-range +
+   segmented-control group that sits inline in the floatbar, shown only
+   while a tool's central view is its editable text specimen. Promoted here
+   2026-09 at the second consumer (Living Path's own tester, then Apostate's)
+   per this repo's "extract at the second consumer" rule — previously a
+   byte-identical local <style> block duplicated in Living Path alone. */
+.fb-tester { display: flex; align-items: center; gap: var(--space-3); }
+.fb-tester[hidden] { display: none; }
+.fb-field { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--fs-micro); letter-spacing: .06em; color: var(--mid); cursor: default; }
+.fb-field input[type=range] { width: 82px; }
+.fb-val { min-width: 2.5ch; font-size: var(--fs-small); font-weight: 400; color: var(--ink); text-align: right; }
+.fb-tester .seg-ctrl { flex: 0 0 auto; }
+.fb-tester .seg-btn { min-width: 28px; padding: 0 var(--space-2); font-size: var(--fs-micro); }
+.fb-tester .seg-btn svg { width: 14px; height: 10px; display: block; margin: 0 auto; }
