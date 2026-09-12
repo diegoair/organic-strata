@@ -161,6 +161,22 @@
   function setContourSmooth(v) { CONTOUR_SMOOTH = v; }
   function getContourSmooth() { return CONTOUR_SMOOTH; }
 
+  // real polygon vertices (a genuine direction change), not just any point on
+  // a densely-sampled curve — used by spikesvec/groviera so they target the
+  // same kind of anchor typoclast's own "spikes"/"groviera" visibly do
+  // (nothing happens on a smooth round glyph, real teeth on a cornered one).
+  function findCorners(pts, angleDeg) {
+    const n = pts.length, cornerCos = Math.cos(angleDeg * Math.PI / 180), out = [];
+    for (let i = 0; i < n; i++) {
+      const a = pts[(i - 1 + n) % n], b = pts[i], c = pts[(i + 1) % n];
+      const d1x = b.x - a.x, d1y = b.y - a.y, L1 = Math.hypot(d1x, d1y) || 1;
+      const d2x = c.x - b.x, d2y = c.y - b.y, L2 = Math.hypot(d2x, d2y) || 1;
+      const dot = (d1x / L1) * (d2x / L2) + (d1y / L1) * (d2y / L2);
+      if (dot < cornerCos) out.push(i);
+    }
+    return out;
+  }
+
   // ============================================================
   //  EFFECTS  — each: (subs, params, rng) => subs (new arrays)
   // ============================================================
@@ -197,16 +213,24 @@
     },
 
     inflate: {
-      name: 'Inflate / Erode', defaults: { dist: 8 },
-      controls: [['dist', 'Distance', -40, 40, 1]],
+      // typoclast's "inflate" is a high-frequency petal ripple on BOTH
+      // contours (outer bulges/inner counter alike), not a uniform push —
+      // the base normal-push stays (dist), Ripple/Lobes add the angular-
+      // harmonic modulation, shared centre so inner+outer petals line up.
+      name: 'Inflate / Erode', defaults: { dist: 8, ripple: 40, lobes: 6 },
+      controls: [['dist', 'Distance', -40, 40, 1], ['ripple', 'Ripple', 0, 100, 1], ['lobes', 'Lobes', 2, 16, 1]],
       apply(subs, p) {
+        const bb = bboxOf(subs), cx = bb.minX + bb.w / 2, cy = bb.minY + bb.h / 2;
+        const rAmt = (p.ripple || 0) / 100, lobes = p.lobes || 6;
         return subs.map(s => {
           const n = s.pts.length;
           const pts = s.pts.map((pt, i) => {
             const a = s.pts[(i - 1 + n) % n], b = s.pts[(i + 1) % n];
             let dx = b.x - a.x, dy = b.y - a.y; const L = Math.hypot(dx, dy) || 1;
+            const theta = Math.atan2(pt.y - cy, pt.x - cx);
+            const amt = p.dist * (1 + rAmt * Math.cos(lobes * theta));
             // outward normal (assume CW-ish); push along it
-            return { x: pt.x + (dy / L) * p.dist, y: pt.y - (dx / L) * p.dist };
+            return { x: pt.x + (dy / L) * amt, y: pt.y - (dx / L) * amt };
           });
           return { closed: s.closed, pts };
         });
@@ -253,19 +277,20 @@
       }
     },
 
+    // typoclast comparison (2026-09, Archivo Black, same-font side-by-side —
+    // see CLAUDE.md): its "twist" is a Y-weighted SHEAR (a circle becomes a
+    // parallelogram), not a radial spiral — what it calls "curl" is the
+    // spiral. Renamed the math to match; `curl` below now carries the old
+    // radial-spiral formula.
     twist: {
-      name: 'Twist · radial', defaults: { angle: 40, falloff: 60 },
+      name: 'Twist · shear', defaults: { angle: 40, falloff: 60 },
       controls: [['angle', 'Angle', -180, 180, 1], ['falloff', 'Falloff', 0, 100, 1]],
       apply(subs, p) {
-        const bb = bboxOf(subs), cx = bb.minX + bb.w / 2, cy = bb.minY + bb.h / 2;
-        const R = Math.max(bb.w, bb.h) / 2 || 1, ff = p.falloff / 100;
+        const bb = bboxOf(subs), y0 = bb.minY, H = bb.h || 1;
+        const a = Math.max(-89, Math.min(89, p.angle));
+        const shear = Math.tan(a * Math.PI / 180) * (0.3 + p.falloff / 100 * 0.7);
         return subs.map(s => ({
-          closed: s.closed, pts: s.pts.map(pt => {
-            const dx = pt.x - cx, dy = pt.y - cy, d = Math.hypot(dx, dy) / R;
-            const a = (p.angle * Math.PI / 180) * (1 - d * ff);
-            const ca = Math.cos(a), sa = Math.sin(a);
-            return { x: cx + dx * ca - dy * sa, y: cy + dx * sa + dy * ca };
-          })
+          closed: s.closed, pts: s.pts.map(pt => ({ x: pt.x + (pt.y - y0) * shear, y: pt.y }))
         }));
       }
     },
@@ -285,6 +310,406 @@
             })
           };
         });
+      }
+    },
+
+    // ── 2026-09 "Distort" batch — typoclast-style analytic point-space
+    //    deformers, added for Living Path's Distort tier. Same contract as
+    //    the 7 above: cheap, synchronous, no raster round-trip. Each takes
+    //    its own primary control down to 0 at rest (Living Path's own
+    //    "0 = identity" convention layered on top in livingpath/index.html —
+    //    this module doesn't care, Sinew consumes these the same as any FX).
+    // pinch/bulge/wave/ripple below are all ANGULAR-HARMONIC radial warps
+    // (r' = r*(1+amp*cos(n·θ))), n set per-effect to match what typoclast's
+    // own controls actually produce on a circle (checked side-by-side, same
+    // font): pinch ≈ a 2-lobe saddle squeeze with the outer silhouette
+    // rounding out, bulge ≈ a high-lobe scalloped flower, wave ≈ a 4-lobe
+    // squarish blob, ripple ≈ a 2-lobe peanut/hourglass — NOT the simple
+    // uniform radial scale this file originally shipped with.
+    pinch: {
+      name: 'Pinch · saddle', defaults: { amount: 0, spread: 60 },
+      controls: [['amount', 'Amount', 0, 90, 1], ['spread', 'Spread', 0, 100, 1]],
+      apply(subs, p) {
+        const bb = bboxOf(subs), cx = bb.minX + bb.w / 2, cy = bb.minY + bb.h / 2;
+        const halfW = (bb.w || 1) / 2, R = Math.max(bb.w, bb.h) / 2 || 1;
+        const amt = p.amount / 100, spread = 0.35 + p.spread / 100 * 0.5;
+        return subs.map(s => ({
+          closed: s.closed, pts: s.pts.map(pt => {
+            const nx = (pt.x - cx) / halfW;
+            const squeeze = Math.exp(-(nx * nx) / (2 * spread * spread));   // peaks at centre-x — a saddle
+            const y2 = cy + (pt.y - cy) * (1 - amt * squeeze);
+            const dx = pt.x - cx, dy = y2 - cy, d = Math.hypot(dx, dy) || 1;
+            const grow = 1 + amt * 0.25 * Math.min(1, d / R);               // outer silhouette rounds/grows
+            return { x: cx + dx * grow, y: cy + dy * grow };
+          })
+        }));
+      }
+    },
+    bulge: {
+      name: 'Bulge · petals', defaults: { amount: 0, lobes: 7 },
+      controls: [['amount', 'Amount', 0, 90, 1], ['lobes', 'Lobes', 3, 14, 1]],
+      apply(subs, p) {
+        const bb = bboxOf(subs), cx = bb.minX + bb.w / 2, cy = bb.minY + bb.h / 2;
+        const amt = p.amount / 100 * 0.35;
+        return subs.map(s => ({
+          closed: s.closed, pts: s.pts.map(pt => {
+            const dx = pt.x - cx, dy = pt.y - cy, th = Math.atan2(dy, dx);
+            const k = 1 + amt * Math.cos(p.lobes * th);
+            return { x: cx + dx * k, y: cy + dy * k };
+          })
+        }));
+      }
+    },
+    pull: {
+      // typoclast's "pull" morphs the whole silhouette toward a rounded
+      // square (same family as `crush`, just a softer superellipse blend) —
+      // not a one-directional drag; the old directional-anchor version left
+      // a roughly-round glyph translating rigidly with no shape change.
+      name: 'Pull · squircle', defaults: { amount: 0 },
+      controls: [['amount', 'Amount', 0, 100, 1]],
+      apply(subs, p) {
+        if (p.amount <= 0) return subs;
+        const bb = bboxOf(subs), cx = bb.minX + bb.w / 2, cy = bb.minY + bb.h / 2, R = Math.max(bb.w, bb.h) / 2 || 1;
+        const amt = p.amount / 100, nExp = 2 + amt * 4;
+        return subs.map(s => ({
+          closed: s.closed, pts: s.pts.map(pt => {
+            const dx = pt.x - cx, dy = pt.y - cy, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d;
+            const rSuper = R / Math.pow(Math.pow(Math.abs(ux), nExp) + Math.pow(Math.abs(uy), nExp), 1 / nExp);
+            const k = (d * (1 - amt) + rSuper * amt) / d;
+            return { x: cx + dx * k, y: cy + dy * k };
+          })
+        }));
+      }
+    },
+    perspective: {
+      name: 'Perspective', defaults: { amount: 0 },
+      controls: [['amount', 'Amount', -100, 100, 1]],
+      apply(subs, p) {
+        const bb = bboxOf(subs), cx = bb.minX + bb.w / 2, cy = bb.minY + bb.h / 2, halfH = (bb.h || 1) / 2;
+        const k = (p.amount / 100) * 0.95;   // near-full convergence to a point at |amount|=100
+        return subs.map(s => ({
+          closed: s.closed, pts: s.pts.map(pt => {
+            const t = Math.max(0.02, 1 + ((pt.y - cy) / halfH) * k);
+            return { x: cx + (pt.x - cx) * t, y: pt.y };
+          })
+        }));
+      }
+    },
+    wave: {
+      name: 'Wave · radial', defaults: { amp: 0, lobes: 4, phase: 0 },
+      controls: [['amp', 'Amplitude', 0, 100, 1], ['lobes', 'Lobes', 2, 8, 1], ['phase', 'Phase', 0, 100, 1]],
+      apply(subs, p) {
+        const bb = bboxOf(subs), cx = bb.minX + bb.w / 2, cy = bb.minY + bb.h / 2;
+        const ph = p.phase / 100 * Math.PI * 2, amt = p.amp / 100 * 0.4;
+        return subs.map(s => ({
+          closed: s.closed, pts: s.pts.map(pt => {
+            const dx = pt.x - cx, dy = pt.y - cy, th = Math.atan2(dy, dx);
+            const k = 1 + amt * Math.cos(p.lobes * th + ph);
+            return { x: cx + dx * k, y: cy + dy * k };
+          })
+        }));
+      }
+    },
+    refraction: {
+      // a continuous sine across the band count (was a hard left/right
+      // alternation) — typoclast's own refraction reads as a smooth organic
+      // wobble, not a mechanical step; the stepped look is closer to `slice`.
+      name: 'Refraction', defaults: { amount: 0, bands: 4 },
+      controls: [['amount', 'Amount', 0, 100, 1], ['bands', 'Bands', 1, 12, 1]],
+      apply(subs, p) {
+        const bb = bboxOf(subs), h = bb.h || 1, amt = p.amount / 100 * bb.w * 0.06;
+        return subs.map(s => ({
+          closed: s.closed, pts: s.pts.map(pt => {
+            const t = (pt.y - bb.minY) / h * p.bands;
+            return { x: pt.x + Math.sin(t * Math.PI * 2) * amt, y: pt.y };
+          })
+        }));
+      }
+    },
+    noisefield: {
+      // a low-frequency, arc-length-coherent displacement — smooth rather
+      // than per-point white noise (that's `jitter`). Range widened to 100
+      // (was 40): the raw hash-interpolated push read as barely-there on a
+      // typical glyph at the old max.
+      name: 'Noise · field', defaults: { amount: 0, scale: 6, seed: 7 },
+      controls: [['amount', 'Amount', 0, 100, 1], ['scale', 'Scale', 1, 20, 1], ['seed', 'Seed', 1, 99, 1]],
+      apply(subs, p) {
+        const s0 = (p.seed + SEED_OFFSET) * 0.7331;
+        const hash = v => { const x = Math.sin(v * 12.9898 + s0 * 78.233) * 43758.5453; return x - Math.floor(x); };
+        return subs.map(s => {
+          const n = s.pts.length;
+          return {
+            closed: s.closed, pts: s.pts.map((pt, i) => {
+              const a = s.pts[(i - 1 + n) % n], b = s.pts[(i + 1) % n];
+              let dx = b.x - a.x, dy = b.y - a.y; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
+              const t = i / n * p.scale, i0 = Math.floor(t), ft = t - i0;
+              const off = (hash(i0) * 2 - 1) * (1 - ft) + (hash(i0 + 1) * 2 - 1) * ft;
+              return { x: pt.x - dy * off * p.amount, y: pt.y + dx * off * p.amount };
+            })
+          };
+        });
+      }
+    },
+    // now a lighter decimate-to-facets pass (reuses polygonizevec's own
+    // corner-clamp trick) instead of amplifying neighbour deviation — on a
+    // typical font's dense, gently-curved polyline that deviation is a
+    // fraction of a unit regardless of `amount` (measured: <2 units on a
+    // ~700-unit glyph), i.e. invisible; typoclast's own "sharpen" reads as a
+    // mild facet/flatten, exactly what polygonize does at a lower density.
+    sharpen: {
+      name: 'Sharpen', defaults: { amount: 0 },
+      controls: [['amount', 'Amount', 0, 100, 1]],
+      apply(subs, p) {
+        if (p.amount <= 0) return subs;
+        const keep = Math.max(6, Math.round(40 - p.amount / 100 * 28));
+        return subs.map(s => {
+          const n = s.pts.length; if (n <= keep) return s;
+          const step = n / keep, out = [];
+          for (let k = 0; k < keep; k++) {
+            const i = Math.round(k * step) % n, pt = s.pts[i], nx = s.pts[(i + 1) % n], px = s.pts[(i - 1 + n) % n];
+            out.push({ x: px.x * 0.04 + pt.x * 0.96, y: px.y * 0.04 + pt.y * 0.96 });
+            out.push(pt);
+            out.push({ x: nx.x * 0.04 + pt.x * 0.96, y: nx.y * 0.04 + pt.y * 0.96 });
+          }
+          return { closed: s.closed, pts: out };
+        });
+      }
+    },
+    ripplev: {
+      name: 'Ripple · radial', defaults: { amp: 0, angle: 0 },
+      controls: [['amp', 'Amplitude', 0, 100, 1], ['angle', 'Angle', 0, 100, 1]],
+      apply(subs, p) {
+        const bb = bboxOf(subs), cx = bb.minX + bb.w / 2, cy = bb.minY + bb.h / 2;
+        const amt = p.amp / 100 * 0.4, ph = p.angle / 100 * Math.PI;
+        return subs.map(s => ({
+          closed: s.closed, pts: s.pts.map(pt => {
+            const dx = pt.x - cx, dy = pt.y - cy, th = Math.atan2(dy, dx);
+            const k = 1 + amt * Math.cos(2 * th + ph);   // 2-lobe peanut/hourglass, matches typoclast's ripple
+            return { x: cx + dx * k, y: cy + dy * k };
+          })
+        }));
+      }
+    },
+    // circularises each contour toward its OWN average radius — typoclast's
+    // "flip" isn't a mirror at all, it regularises the outer silhouette
+    // toward a perfect circle (leaves the counter close to its own shape).
+    flip: {
+      name: 'Flip · circularize', defaults: { amount: 0 },
+      controls: [['amount', 'Amount', 0, 100, 1]],
+      apply(subs, p) {
+        if (p.amount <= 0) return subs;
+        const amt = p.amount / 100;
+        return subs.map(s => {
+          const n = s.pts.length || 1;
+          const cx = s.pts.reduce((a, q) => a + q.x, 0) / n, cy = s.pts.reduce((a, q) => a + q.y, 0) / n;
+          const avgR = s.pts.reduce((a, q) => a + Math.hypot(q.x - cx, q.y - cy), 0) / n;
+          return {
+            closed: s.closed, pts: s.pts.map(pt => {
+              const dx = pt.x - cx, dy = pt.y - cy, d = Math.hypot(dx, dy) || 1;
+              const k = (d * (1 - amt) + avgR * amt) / d;
+              return { x: cx + dx * k, y: cy + dy * k };
+            })
+          };
+        });
+      }
+    },
+    // morphs the silhouette toward a SHARP square (Chebyshev radius) — the
+    // sharper sibling of `pull`'s softer squircle; typoclast's crush and
+    // pull both squareify a round glyph, this reads as the crisper of the two.
+    crush: {
+      name: 'Crush · square', defaults: { amount: 0 },
+      controls: [['amount', 'Amount', 0, 100, 1]],
+      apply(subs, p) {
+        if (p.amount <= 0) return subs;
+        const bb = bboxOf(subs), cx = bb.minX + bb.w / 2, cy = bb.minY + bb.h / 2, R = Math.max(bb.w, bb.h) / 2 || 1;
+        const amt = p.amount / 100;
+        return subs.map(s => ({
+          closed: s.closed, pts: s.pts.map(pt => {
+            const dx = pt.x - cx, dy = pt.y - cy, d = Math.hypot(dx, dy) || 1;
+            const rSquare = R / Math.max(Math.abs(dx) / d, Math.abs(dy) / d, 0.0001);
+            const k = (d * (1 - amt) + rSquare * amt) / d;
+            return { x: cx + dx * k, y: cy + dy * k };
+          })
+        }));
+      }
+    },
+    // a directional high-frequency sine, amplitude growing away from the
+    // wind axis — typoclast's wind reads as a zigzag through the middle with
+    // the edges bulging out, not a single smooth directional push.
+    wind: {
+      name: 'Wind', defaults: { amount: 0, angle: 0 },
+      controls: [['amount', 'Amount', 0, 100, 1], ['angle', 'Direction', 0, 359, 1]],
+      apply(subs, p) {
+        const bb = bboxOf(subs), cx = bb.minX + bb.w / 2, cy = bb.minY + bb.h / 2, half = Math.max(bb.w, bb.h) / 2 || 1;
+        const a = p.angle * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a), px = -uy, py = ux;
+        const amt = p.amount / 100 * half * 0.3;
+        return subs.map(s => ({
+          closed: s.closed, pts: s.pts.map(pt => {
+            const dx = pt.x - cx, dy = pt.y - cy;
+            const cross = dx * px + dy * py, t = Math.min(1, Math.abs(cross) / half);
+            const push = Math.sin(cross / half * Math.PI * 4) * amt * (0.25 + 0.75 * t);
+            return { x: pt.x + ux * push, y: pt.y + uy * push };
+          })
+        }));
+      }
+    },
+    // the radial spiral — typoclast's own "curl" (see `twist` above, which
+    // swapped to a shear to match typoclast's twist instead).
+    curl: {
+      name: 'Curl · spiral', defaults: { angle: 0, falloff: 60 },
+      controls: [['angle', 'Angle', -180, 180, 1], ['falloff', 'Falloff', 0, 100, 1]],
+      apply(subs, p) {
+        const bb = bboxOf(subs), cx = bb.minX + bb.w / 2, cy = bb.minY + bb.h / 2;
+        const R = Math.max(bb.w, bb.h) / 2 || 1, ff = p.falloff / 100;
+        return subs.map(s => ({
+          closed: s.closed, pts: s.pts.map(pt => {
+            const dx = pt.x - cx, dy = pt.y - cy, d = Math.hypot(dx, dy) / R;
+            const a = (p.angle * Math.PI / 180) * (1 - d * ff);
+            const ca = Math.cos(a), sa = Math.sin(a);
+            return { x: cx + dx * ca - dy * sa, y: cy + dx * sa + dy * ca };
+          })
+        }));
+      }
+    },
+    // targets REAL corners (a genuine direction change — findCorners) rather
+    // than every Nth polyline sample, so a smooth round glyph stays smooth
+    // and only actual vertices grow thorns — matches typoclast (its spikes
+    // are a no-op on an O, real teeth on an A).
+    spikesvec: {
+      name: 'Spikes', defaults: { amount: 0, seed: 5 },
+      controls: [['amount', 'Amount', 0, 100, 1], ['seed', 'Seed', 1, 99, 1]],
+      apply(subs, p) {
+        if (p.amount <= 0) return subs;
+        const bb = bboxOf(subs), cx = bb.minX + bb.w / 2, cy = bb.minY + bb.h / 2;
+        const r = mulberry32(((p.seed + SEED_OFFSET) * 374761393) >>> 0);
+        return subs.map(s => {
+          const corners = new Set(findCorners(s.pts, 35));
+          if (!corners.size) return s;
+          return {
+            closed: s.closed, pts: s.pts.map((pt, i) => {
+              if (!corners.has(i)) return { x: pt.x, y: pt.y };
+              const dx = pt.x - cx, dy = pt.y - cy, k = 1 + (p.amount / 100) * (0.8 + r() * 1.2);
+              return { x: cx + dx * k, y: cy + dy * k };
+            })
+          };
+        });
+      }
+    },
+    // a small rounded bite pulled toward the local neighbour-midpoint at
+    // each REAL corner (findCorners) — typoclast's groviera punches holes
+    // specifically at joints/vertices, not scattered across the body.
+    // Deliberately vector (not a raster particle punch): the bite is a
+    // simple point-space pull, no rasterize round-trip needed for it.
+    groviera: {
+      name: 'Groviera · corner bites', defaults: { amount: 0, seed: 7 },
+      controls: [['amount', 'Amount', 0, 100, 1], ['seed', 'Seed', 1, 99, 1]],
+      apply(subs, p) {
+        if (p.amount <= 0) return subs;
+        const bb = bboxOf(subs), R = Math.max(bb.w, bb.h) || 1;
+        const bite = R * 0.16 * (p.amount / 100);      // real visible notch, not a rounding
+        return subs.map(s => {
+          const n = s.pts.length, corners = findCorners(s.pts, 35);
+          if (!corners.length) return s;
+          const cornerSet = new Set(corners);
+          return {
+            closed: s.closed, pts: s.pts.map((pt, i) => {
+              if (!cornerSet.has(i)) return { x: pt.x, y: pt.y };
+              const a = s.pts[(i - 1 + n) % n], b = s.pts[(i + 1) % n];
+              const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+              const dx = mx - pt.x, dy = my - pt.y, L = Math.hypot(dx, dy) || 1;
+              return { x: pt.x + dx / L * bite, y: pt.y + dy / L * bite };
+            })
+          };
+        });
+      }
+    },
+    // decimate to a handful of anchors + inject a tight corner-clamp pair on
+    // each side, so the shared Catmull-Rom re-emission (dFromSubs) draws a
+    // near-straight facet into every kept vertex instead of rounding it.
+    polygonizevec: {
+      name: 'Polygonize', defaults: { amount: 0 },
+      controls: [['amount', 'Facets', 0, 90, 1]],
+      apply(subs, p) {
+        if (p.amount <= 0) return subs;
+        const keep = Math.max(3, Math.round(24 - p.amount / 100 * 20));
+        return subs.map(s => {
+          const n = s.pts.length; if (n <= keep) return s;
+          const step = n / keep, out = [];
+          for (let k = 0; k < keep; k++) {
+            const i = Math.round(k * step) % n, pt = s.pts[i], nx = s.pts[(i + 1) % n], px = s.pts[(i - 1 + n) % n];
+            out.push({ x: px.x * 0.06 + pt.x * 0.94, y: px.y * 0.06 + pt.y * 0.94 });
+            out.push(pt);
+            out.push({ x: nx.x * 0.06 + pt.x * 0.94, y: nx.y * 0.06 + pt.y * 0.94 });
+          }
+          return { closed: s.closed, pts: out };
+        });
+      }
+    },
+    pixelatevec: {
+      name: 'Pixelate', defaults: { cell: 0 },
+      controls: [['cell', 'Cell size', 0, 60, 1]],
+      apply(subs, p) {
+        if (p.cell <= 0) return subs;
+        const c = p.cell;
+        return subs.map(s => ({ closed: s.closed, pts: s.pts.map(pt => ({ x: Math.round(pt.x / c) * c, y: Math.round(pt.y / c) * c })) }));
+      }
+    },
+    // bakes N progressively offset duplicate contours into the same subs
+    // (even-odd fill handles the overlap) — a ghost/echo repeat, not a
+    // separate multi-glyph render.
+    // spread is a % of the glyph's own size (was a small fixed unit range —
+    // invisible on a ~700-1000-unit glyph) AND, more importantly, large
+    // enough that the copies mostly DON'T fully overlap: every shape in
+    // Living Path renders with fill-rule="evenodd" (needed for real counters
+    // like an O's hole), so a heavily-overlapped even-count stack of same-
+    // winding copies cancels to a hollow outline instead of reading as
+    // solid repeats — found by testing the actual render, not by inspection.
+    // pulls points near each of `count` evenly-spaced seam positions around
+    // the contour toward a local midpoint, pinching a waist at each seam —
+    // typoclast's echo decomposes the outline into separated bead-like
+    // segments; this is a point-space approximation of that (a literal
+    // stroke-segment split needs a centerline/skeleton step this pipeline
+    // doesn't have in vector space).
+    echo: {
+      name: 'Echo', defaults: { amount: 0, count: 5 },
+      controls: [['amount', 'Amount', 0, 100, 1], ['count', 'Segments', 2, 16, 1]],
+      apply(subs, p) {
+        if (p.amount <= 0) return subs;
+        const bb = bboxOf(subs), cx = bb.minX + bb.w / 2, cy = bb.minY + bb.h / 2;
+        const amt = p.amount / 100 * 0.7;
+        return subs.map(s => {
+          const n = s.pts.length; if (n < 6) return s;
+          const segN = Math.max(2, Math.min(p.count, Math.floor(n / 3)));
+          const seg = n / segN;
+          return {
+            closed: s.closed, pts: s.pts.map((pt, i) => {
+              const local = (i % seg) / seg, gapT = Math.min(local, 1 - local);
+              const w = Math.max(0, 1 - gapT / 0.22) * amt;                 // strongest right at each seam
+              if (w <= 0) return { x: pt.x, y: pt.y };
+              return { x: pt.x + (cx - pt.x) * w, y: pt.y + (cy - pt.y) * w };   // pull straight toward centroid — a real waist pinch
+            })
+          };
+        });
+      }
+    },
+    // multiple alternating-shift horizontal bands, band count AND shift both
+    // growing with |amount| — typoclast's slice is a multi-band glitch-style
+    // cut (closer to this file's own RFX.glitch than a single shear line),
+    // one signed knob (sign = shift direction) matching its single slider.
+    slice: {
+      name: 'Slice', defaults: { amount: 0 },
+      controls: [['amount', 'Amount', -100, 100, 1]],
+      apply(subs, p) {
+        if (p.amount === 0) return subs;
+        const bb = bboxOf(subs), h = bb.h || 1;
+        const bands = Math.max(2, Math.round(2 + Math.abs(p.amount) / 100 * 10));
+        const shift = Math.sign(p.amount) * bb.w * 0.12 * (0.3 + Math.abs(p.amount) / 100 * 0.7);
+        return subs.map(s => ({
+          closed: s.closed, pts: s.pts.map(pt => {
+            const band = Math.floor((pt.y - bb.minY) / h * bands);
+            return { x: pt.x + (band % 2 === 0 ? 1 : -1) * shift, y: pt.y };
+          })
+        }));
       }
     },
   };
@@ -726,6 +1151,24 @@
     g.f = o;
   }
 
+  // griddler — zeroes the field along an N×N grid of gutter bands, so
+  // marching squares re-traces real, crisp axis-aligned GAPS through the
+  // solid body (a genuine cut, not a point-space warp — typoclast's own
+  // "vector griddler" turned out to be a real grid-clip with visible
+  // gutters, not a mesh warp; this is the cheapest way to a real cut without
+  // a polygon-clipping dependency: raster already round-trips the shape).
+  function griddlerField(g, cells, gutterPx) {
+    const n = Math.max(1, cells | 0); if (n < 1) return;
+    const { w, h, f } = g, cw = w / n, ch = h / n;
+    for (let y = 0; y < h; y++) {
+      const gy = y % ch, dy = Math.min(gy, ch - gy);
+      for (let x = 0; x < w; x++) {
+        const gx = x % cw, dx = Math.min(gx, cw - gx);
+        if (dx < gutterPx || dy < gutterPx) f[y * w + x] = 0;
+      }
+    }
+  }
+
   // spikes — short thick hairs shot outward along the field gradient
   // from a fraction of the edge pixels
   function spikes(g, density, length, seed) {
@@ -918,6 +1361,17 @@
       controls: [['density', 'Density', 0, 100, 1], ['length', 'Length', 2, 40, 1], ['seed', 'Seed', 1, 99, 1]],
       apply(g, p) { spikes(g, p.density, p.length, p.seed + SEED_OFFSET); }
     },
+    // moved here from the vector FX registry (2026-09): typoclast's "vector
+    // griddler" turned out to be a real grid-clip with visible gutter gaps
+    // through the solid body, not a mesh warp — a genuine cut needs either a
+    // polygon-clipping dependency or a raster round-trip; this reuses the
+    // one already in the project. gutter is in RES-relative px so the same
+    // slider value reads the same regardless of the working resolution.
+    griddler: {
+      name: 'Griddler · grid cut', defaults: { cells: 0, gutter: 3 },
+      controls: [['cells', 'Grid', 0, 12, 1], ['gutter', 'Gap', 1, 10, 1]],
+      apply(g, p) { if (p.cells > 0) griddlerField(g, p.cells, p.gutter * (g.w / RES)); }
+    },
   };
 
   // ── shared appliers — used by BOTH the live preview and the font export ──
@@ -963,8 +1417,14 @@
       // per-glyph), which reads fine on one big display letter but turns a
       // multi-letter word illegible. 45/50 keeps a visible swirl without
       // losing the word; the stronger look is still one slider-drag away.
-      'Vortex': { fx: [['twist', { angle: 45, falloff: 50 }], ['roughen', { detail: 3, amount: 8, seed: 5 }]] },
+      // Uses `curl` (the radial spiral) — `twist` swapped to a shear when it
+      // was realigned to typoclast's own "twist" (2026-09, see CLAUDE.md).
+      'Vortex': { fx: [['curl', { angle: 45, falloff: 50 }], ['roughen', { detail: 3, amount: 8, seed: 5 }]] },
       'Shatter': { fx: [['scatter', { dist: 50, seed: 5 }], ['jitter', { amount: 10, seed: 21 }]] },
+      // ── 2026-09 Distort-batch combos (retuned after the typoclast alignment pass) ──
+      'Perspective drift': { fx: [['perspective', { amount: 40 }], ['wave', { amp: 20, lobes: 4, phase: 0 }]] },
+      'Thorned': { fx: [['spikesvec', { amount: 55, seed: 9 }], ['sharpen', { amount: 30 }]] },
+      'Squircle': { fx: [['pull', { amount: 55 }], ['jitter', { amount: 6, seed: 11 }]] },
     },
     raster: {
       'Avulsion': { safe: true, fx: [['dilate', { amount: 1 }], ['blur', { radius: 3 }], ['threshold', { level: 48 }], ['noise', { amount: 22, scale: 11, seed: 7 }]] },
@@ -1026,7 +1486,9 @@
     seamCarve, polygonize, contours, smoothPoly, rasterFieldToSubs,
     measureMinGap, pickAdaptiveRes,
     // extra field effects (2026-09)
-    dirBlur, chamfer, warpField, halftone, shatter, isoBands, ripple, glitch, mosaic, spikes,
+    dirBlur, chamfer, warpField, halftone, shatter, isoBands, ripple, glitch, mosaic, spikes, griddlerField,
+    // corner detection (spikesvec/groviera)
+    findCorners,
     // groups/blend appliers
     blendField, rasterFieldFromGroups, applyVectorGroups,
     // presets

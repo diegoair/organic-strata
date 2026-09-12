@@ -35,6 +35,10 @@
       "destination": "/sinew/$1"
     },
     {
+      "source": "/apostate/(.*)",
+      "destination": "/apostate/$1"
+    },
+    {
       "source": "/halide/(.*)",
       "destination": "/halide/$1"
     },

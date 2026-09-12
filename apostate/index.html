@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Apostate · Organica</title>
+<!-- opentype.js — read/write OTF glyph outlines in the browser -->
+<script src="/shared/vendor/opentype.min.js"></script>
+<link rel="preload" href="/shared/vendor/manrope-variable.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/mobile-gate.css">
+<style>
+/* ─────────────────────────────────────────────────────────────────────────
+   Apostate — a standalone, independent reimplementation of typoclast.com's
+   font-deformation engine (Sep 2026). Built as a genuinely separate tool:
+   this file shares NO code with shared/pathfx.js (Living Path/Sinew's own
+   effect registry) — every one of the 27 effects below was re-derived from
+   scratch by driving typoclast.com directly (same method used for the
+   earlier Living Path/typoclast comparative session, repeated independently
+   here per an explicit "start from zero" decision — see CLAUDE.md).
+   Font loading (opentype.js) and OTF export machinery follow the SAME
+   proven pattern already in livingpath/index.html — that part is generic
+   font-handling plumbing, not "the filters", so re-deriving it too would
+   be pure waste. See docs/UI-SHELL.md for the shared chrome contract.
+
+   Real divergence from the standard 2-col shell: typoclast's own layout is
+   3-pane (character picker · single big glyph · controls), not a canvas+
+   panel pair — #app below is a local 3-column grid instead of linking
+   shared/shell.css, which assumes 2 columns. Deliberate, not an oversight.
+   ───────────────────────────────────────────────────────────────────────── */
+:root {
+  /* --tool: an unclaimed hue — the existing accents run warm-coral
+     (membrane), vermilion (radial), rose (trellis); this sits colder and
+     darker, toward blood-crimson — fits the heresy/blasphemy/damnation
+     framing and reads distinctly next to every neighbour in the registry. */
+  --tool: #9c2b3a;
+}
+body { background: var(--paper); }
+#app {
+  display: grid;
+  grid-template-columns: 210px 1fr var(--panel-w, 248px);
+  height: calc(100vh - var(--header-h, 52px));
+}
+#charset {
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  padding: var(--space-3);
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  align-content: start;
+}
+#charset button {
+  font-family: var(--font);
+  font-size: var(--fs-small);
+  border: 1px solid transparent;
+  background: none;
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 6px 0;
+  cursor: pointer;
+}
+#charset button:hover { background: var(--panel); }
+#charset button.active { background: var(--ink); color: var(--paper); }
+#stage {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; background: var(--paper);
+}
+#stage.drag::after {
+  content: 'drop a font (.otf / .ttf)'; position: absolute; inset: 14px; z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px dashed var(--tool); border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--tool) 8%, transparent);
+  font-size: var(--fs-large); letter-spacing: .06em; color: var(--ink);
+}
+#board { max-width: 92%; max-height: 88%; }
+#board path.glyph { fill: var(--ink); }
+#board path.glyph.outline-mode { fill: none; stroke: var(--ink); stroke-width: 2; }
+#board .handle { fill: var(--tool); opacity: .55; }
+#empty-hint {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: var(--mid); font-size: var(--fs-medium); text-align: center; pointer-events: none;
+}
+#zoom-hud {
+  position: absolute; bottom: 12px; left: 12px; display: flex; gap: var(--space-2); align-items: center;
+  font-size: var(--fs-small); color: var(--mid);
+}
+#zoom-hud button { border: 1px solid var(--border); background: var(--panel); border-radius: var(--radius-sm); width: 22px; height: 22px; cursor: pointer; }
+#panel { overflow-y: auto; border-left: 1px solid var(--border); }
+.fx-cat-head {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  background: none; border: none; padding: 0; cursor: pointer;
+  font: inherit; color: var(--ink); text-transform: uppercase; letter-spacing: .06em;
+  font-size: var(--fs-small); font-weight: 600; margin-bottom: var(--space-3);
+}
+.fx-cat-head .chev { transition: transform .15s; }
+.fx-cat-head.collapsed .chev { transform: rotate(-90deg); }
+.fx-cat-body.collapsed { display: none; }
+.fx-cat-head .cat-tag { color: var(--tool); }
+.row-btns2 { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+.griddler-sub { padding-left: var(--space-3); border-left: 2px solid var(--border); margin: var(--space-2) 0 var(--space-3); }
+</style>
+</head>
+<body>
+
+<header class="org-header org-header--tool" role="banner">
+  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Apostate</span></a>
+  <div class="org-header__spacer"></div>
+  <output class="org-header__status" aria-live="polite" aria-atomic="true">
+    <span class="org-header__dot" id="status-dot"></span>
+    <span class="org-header__state" id="status-text">Loading default face…</span>
+  </output>
+  <div class="org-header__actions">
+    <button class="org-btn" onclick="document.getElementById('file-input').click()">upload (.otf / .ttf)</button>
+    <div class="org-popover-wrap">
+      <button class="org-btn" id="btn-export">export &#9662;</button>
+      <div class="org-popover" id="export-popover" aria-label="Export options">
+        <div class="org-popover__title">Format</div>
+        <div class="org-formats">
+          <button class="org-btn" onclick="exportOTF()">.otf</button>
+          <button class="org-btn" onclick="exportSVG()">.svg</button>
+        </div>
+        <div class="org-popover__divider"></div>
+        <div class="org-popover__row">
+          <span class="org-popover__label">Include</span>
+        </div>
+        <label class="check-row"><input type="checkbox" id="ck-upper" checked><span>A–Z</span></label>
+        <label class="check-row"><input type="checkbox" id="ck-lower" checked><span>a–z</span></label>
+        <label class="check-row"><input type="checkbox" id="ck-digits" checked><span>0–9</span></label>
+        <label class="check-row"><input type="checkbox" id="ck-punct" checked><span>punctuation</span></label>
+        <div class="org-popover__divider"></div>
+        <div class="org-popover__row"><span class="org-popover__label">Font name</span></div>
+        <input class="panel-input panel-input--full" id="exName" value="Apostate" style="width:100%">
+      </div>
+    </div>
+  </div>
+</header>
+
+<div id="app">
+
+  <div id="charset"></div>
+
+  <div id="stage">
+    <div id="empty-hint">load a font to begin</div>
+    <svg id="board" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" style="display:none"></svg>
+    <div id="zoom-hud">
+      <button onclick="zoomBy(-0.1)">&minus;</button>
+      <span id="zoom-level">1.00x</span>
+      <button onclick="zoomBy(0.1)">+</button>
+    </div>
+  </div>
+
+  <div id="panel">
+    <div class="panel-section">
+      <h3>View</h3>
+      <label class="check-row"><input type="checkbox" id="ck-handles" checked onchange="render()"><span>show handles</span></label>
+      <label class="check-row"><input type="checkbox" id="ck-outline" onchange="render()"><span>outline</span></label>
+      <div class="row-btns2">
+        <button class="mini-btn" onclick="randomizeAll()">randomize</button>
+        <button class="mini-btn" onclick="resetAll()">reset all</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Mild heresy</span><span class="chev">&#9660;</span></button>
+      <div class="fx-cat-body" id="cat-mild"></div>
+    </div>
+
+    <div class="panel-section">
+      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Total blasphemy</span><span class="chev">&#9660;</span></button>
+      <div class="fx-cat-body" id="cat-blasphemy"></div>
+    </div>
+
+    <div class="panel-section">
+      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Eternal damnation</span><span class="chev">&#9660;</span></button>
+      <div class="fx-cat-body" id="cat-damnation"></div>
+    </div>
+  </div>
+
+</div>
+
+<input type="file" id="file-input" class="org-file-input" accept=".otf,.ttf" onchange="onFilePicked(this)">
+<div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
+
+<script src="/shared/core.js"></script>
+
+<script>
+'use strict';
+function $(id){ return document.getElementById(id); }
+const setStatus = Organica.status();
+
+/* ============================================================
+   GEOMETRY — small, local, generic. Not effects — flatten/serialize
+   helpers any point-space tool needs; kept local so this file has zero
+   dependency on shared/pathfx.js, per the "from scratch" decision.
+   ============================================================ */
+function cubicPts(p0,p1,p2,p3,n){
+  const out=[];
+  for(let i=1;i<=n;i++){ const t=i/n,u=1-t;
+    out.push({x:u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,
+              y:u*u*u*p0.y+3*u*u*t*p1.y+3*u*t*t*p2.y+t*t*t*p3.y}); }
+  return out;
+}
+function quadPts(p0,p1,p2,n){
+  const out=[];
+  for(let i=1;i<=n;i++){ const t=i/n,u=1-t;
+    out.push({x:u*u*p0.x+2*u*t*p1.x+t*t*p2.x, y:u*u*p0.y+2*u*t*p1.y+t*t*p2.y}); }
+  return out;
+}
+function bboxOf(subs){
+  let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+  for(const s of subs) for(const p of s.pts){
+    if(p.x<minX)minX=p.x; if(p.y<minY)minY=p.y; if(p.x>maxX)maxX=p.x; if(p.y>maxY)maxY=p.y;
+  }
+  if(minX>maxX){ minX=minY=0; maxX=maxY=1; }
+  return {minX,minY,maxX,maxY,w:maxX-minX,h:maxY-minY};
+}
+// evenly resample a closed/open polyline at ~step spacing — pixelate needs
+// this: a low-point-count glyph (Archivo Black's "A" has only 8 outer
+// anchors) quantized straight off its existing sparse points collapses
+// into a crude blob that loses the letterform, since there's nothing
+// between two far-apart corners to trace the true edge through the grid.
+function resamplePolyline(pts, closed, step){
+  const n=pts.length; if(n<2) return pts.slice();
+  const segs=closed?n:n-1, out=[];
+  for(let i=0;i<segs;i++){
+    const a=pts[i], b=pts[(i+1)%n];
+    const segLen=Math.hypot(b.x-a.x,b.y-a.y);
+    const steps=Math.max(1, Math.round(segLen/step));
+    for(let k=0;k<steps;k++){ const t=k/steps; out.push({x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t}); }
+  }
+  if(!closed) out.push(pts[n-1]);
+  return out;
+}
+// Straight-line re-emission, NOT Catmull-Rom — found by a side-by-side
+// bake-off against typoclast at IDENTITY (no effect active at all): a real,
+// straight corner (the top peak of Archivo Black's "A", its leg corners —
+// built from plain 'L' commands, no curve data) came back visibly rounded,
+// because an unconditional Catmull-Rom smooths every point uniformly with
+// no notion of "this one was actually sharp." Source curves are already
+// flattened densely (FL=8 samples/Bézier in fromOTCommands), so plain
+// straight segments between points still read as smooth curves while
+// leaving every genuine corner exactly as sharp as the source glyph —
+// confirmed by re-comparing the identity "A" pixel-for-pixel after this fix.
+function dFromSubs(subs){
+  let d='';
+  for(const s of subs){
+    const p=s.pts, n=p.length; if(n<2) continue;
+    d+=`M${p[0].x.toFixed(1)} ${p[0].y.toFixed(1)}`;
+    const segs=s.closed?n:n-1;
+    for(let i=1;i<=segs;i++) d+=`L${p[i%n].x.toFixed(1)} ${p[i%n].y.toFixed(1)}`;
+    if(s.closed) d+='Z';
+  }
+  return d;
+}
+// opentype path commands -> subpaths (font-specific, stays local)
+function fromOTCommands(cmds){
+  const subs=[]; let cur=null,start=null,p=null; const FL=8;
+  for(const c of cmds){
+    if(c.type==='M'){ if(cur&&cur.pts.length)subs.push(cur); cur={closed:false,pts:[{x:c.x,y:c.y}]}; start={x:c.x,y:c.y}; p={x:c.x,y:c.y}; }
+    else if(c.type==='L'){ cur.pts.push({x:c.x,y:c.y}); p={x:c.x,y:c.y}; }
+    else if(c.type==='C'){ cubicPts(p,{x:c.x1,y:c.y1},{x:c.x2,y:c.y2},{x:c.x,y:c.y},FL).forEach(q=>cur.pts.push(q)); p={x:c.x,y:c.y}; }
+    else if(c.type==='Q'){ quadPts(p,{x:c.x1,y:c.y1},{x:c.x,y:c.y},FL).forEach(q=>cur.pts.push(q)); p={x:c.x,y:c.y}; }
+    else if(c.type==='Z'){ if(cur){cur.closed=true; subs.push(cur); cur=null;} p=start; }
+  }
+  if(cur&&cur.pts.length){ cur.closed=true; subs.push(cur); }   // a font contour is always a closed loop, even if the source omitted the trailing Z
+  // drop a coincident first/last point (the path closing back onto its own
+  // start) — left in, it duplicates an anchor right where dFromSubs' closed-
+  // loop Catmull-Rom wraps around, spiking the tangent at that one seam
+  for(const s of subs){
+    if(s.pts.length>2){
+      const a=s.pts[0], b=s.pts[s.pts.length-1];
+      if(Math.hypot(a.x-b.x,a.y-b.y)<0.01) s.pts.pop();
+    }
+  }
+  // drop zero-length duplicate consecutive points (a genuine, common font
+  // quirk: an "L" command that lands on the exact point already reached by
+  // the previous curve — harmless on its own, but confuses the false-corner
+  // bridge below)
+  for(const s of subs){
+    s.pts = s.pts.filter((p,i)=>{
+      const prev = s.pts[i===0 ? s.pts.length-1 : i-1];
+      return Math.hypot(p.x-prev.x, p.y-prev.y) > 0.01;
+    });
+  }
+  // bridge "false corners": some fonts split an otherwise-smooth, tangent-
+  // continuous curve into two curve runs joined by a short straight "L"
+  // bridge (seen live in Archivo Black's own "O": …Q Q L L Q Q… right at the
+  // counter's equator). dFromSubs draws literal straight chords between
+  // points with nothing in between, so a real corner (large direction
+  // change, e.g. "A"'s vertices) stays sharp — but this bridge has almost NO
+  // direction change (it's not a real corner) and is far longer than the
+  // curve's own typical sample spacing, so it renders as a visible flat
+  // notch instead of the smooth curve it's actually part of. Detect that
+  // exact shape (long segment, small turn angle at both ends relative to
+  // the subpath's own median spacing) and re-curve it with a Catmull-Rom
+  // fill using the flanking points as tangent references — real corners
+  // (large turn angle) are untouched, so "A"'s vertices etc. stay sharp.
+  for(const s of subs){
+    const pts = s.pts, n = pts.length;
+    if(!s.closed || n<6) continue;
+    const segLens = pts.map((p,i)=>Math.hypot(pts[(i+1)%n].x-p.x, pts[(i+1)%n].y-p.y));
+    const sorted = [...segLens].sort((a,b)=>a-b);
+    const median = sorted[Math.floor(n/2)] || 1;
+    function turnAngle(i){
+      const p0=pts[(i-1+n)%n], p1=pts[i], p2=pts[(i+1)%n];
+      const v1x=p1.x-p0.x, v1y=p1.y-p0.y, v2x=p2.x-p1.x, v2y=p2.y-p1.y;
+      const l1=Math.hypot(v1x,v1y)||1e-6, l2=Math.hypot(v2x,v2y)||1e-6;
+      const dot=Math.max(-1,Math.min(1,(v1x*v2x+v1y*v2y)/(l1*l2)));
+      return Math.acos(dot)*180/Math.PI;
+    }
+    const out=[];
+    for(let i=0;i<n;i++){
+      out.push(pts[i]);
+      const j=(i+1)%n, segLen=segLens[i];
+      if(segLen>median*2.5 && segLen>20 && turnAngle(i)<18 && turnAngle(j)<18){
+        const p0=pts[(i-1+n)%n], p1=pts[i], p2=pts[j], p3=pts[(j+1)%n];
+        for(let step=1; step<4; step++){
+          const t=step/4, t2=t*t, t3=t2*t;
+          out.push({
+            x:0.5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
+            y:0.5*((2*p1.y)+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3)
+          });
+        }
+      }
+    }
+    s.pts = out;
+  }
+  return subs;
+}
+// normalise into a 1000-box, y-down, centred — effect params only mean the
+// same thing at a fixed scale, same convention as Living Path's normGlyph
+function normGlyph(subs){
+  const bb=bboxOf(subs), pad=120, span=1000-pad*2;
+  const k=span/Math.max(bb.w, bb.h||1);
+  const ox=500-(bb.minX+bb.w/2)*k, oy=500-(bb.minY+bb.h/2)*k;
+  const norm=subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>({x:p.x*k+ox, y:1000-(p.y*k+oy)}))}));
+  return {norm,k,ox,oy};
+}
+function denormGlyph(subs,k,ox,oy){
+  return subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>({x:(p.x-ox)/k, y:((1000-p.y)-oy)/k}))}));
+}
+// tiny local coherent noise — a hash + smoothstep, NOT Organica.noise
+function hash2(x,y){ const s=Math.sin(x*127.1+y*311.7)*43758.5453; return s-Math.floor(s); }
+function smoothNoise2(x,y){
+  const xi=Math.floor(x),yi=Math.floor(y), xf=x-xi,yf=y-yi;
+  const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
+  const a=hash2(xi,yi),b=hash2(xi+1,yi),c=hash2(xi,yi+1),d=hash2(xi+1,yi+1);
+  return (a*(1-u)+b*u)*(1-v)+(c*(1-u)+d*u)*v;
+}
+function mulberry32(a){ return function(){ let t=a+=0x6D2B79F5; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; }; }
+// real-corner detection — genuine direction-change, not every Nth point
+function findCorners(pts, angleDeg){
+  const n=pts.length, cornerCos=Math.cos(angleDeg*Math.PI/180), out=[];
+  for(let i=0;i<n;i++){
+    const a=pts[(i-1+n)%n], b=pts[i], c=pts[(i+1)%n];
+    const d1x=b.x-a.x, d1y=b.y-a.y, L1=Math.hypot(d1x,d1y)||1;
+    const d2x=c.x-b.x, d2y=c.y-b.y, L2=Math.hypot(d2x,d2y)||1;
+    const dot=(d1x/L1)*(d2x/L2)+(d1y/L1)*(d2y/L2);
+    if(dot<cornerCos) out.push(i);
+  }
+  return out;
+}
+
+/* ============================================================
+   THE 27-SLIDER PIPELINE — independently re-derived from typoclast.com
+   (this session — live slider manipulation on the real site, isolating
+   each parameter). Fixed order, fixed slots — no add/remove/reorder,
+   matching typoclast's own architecture (not Living Path's layer stack).
+   Ranges below are the EXACT min/max read off typoclast's live
+   input[type=range] elements.
+   ============================================================ */
+const FX = [
+  // ── mild heresy — one combined affine, applied first ──
+  {key:'rotate',    cat:'mild', label:'rotate',    min:-360, max:360, step:1,    def:0,   unit:'°'},
+  {key:'slant',     cat:'mild', label:'slant',     min:-15,  max:15,  step:1,    def:0,   unit:'°'},
+  {key:'stretchX',  cat:'mild', label:'stretch x', min:0.1,  max:3,   step:0.01, def:1,   unit:''},
+  {key:'stretchY',  cat:'mild', label:'stretch y', min:0.1,  max:3,   step:0.01, def:1,   unit:''},
+  {key:'tracking',  cat:'mild', label:'tracking',  min:0,    max:200, step:1,    def:0,   unit:''},
+  // ── total blasphemy — point-space, applied in this exact order ──
+  {key:'twist',        cat:'blasphemy', label:'twist',        min:-100, max:100, step:1, def:0},
+  {key:'pinch',        cat:'blasphemy', label:'pinch',        min:0,    max:100, step:1, def:0},
+  {key:'pull',         cat:'blasphemy', label:'pull',         min:0,    max:100, step:1, def:0},
+  {key:'perspective',  cat:'blasphemy', label:'perspective',  min:-100, max:100, step:1, def:0},
+  {key:'wave',         cat:'blasphemy', label:'wave',         min:-100, max:100, step:1, def:0},
+  {key:'refraction',   cat:'blasphemy', label:'refraction',   min:-100, max:100, step:1, def:0},
+  {key:'bulge',        cat:'blasphemy', label:'bulge',        min:0,    max:100, step:1, def:0},
+  {key:'noise',        cat:'blasphemy', label:'noise',        min:-100, max:100, step:1, def:0},
+  {key:'inflate',      cat:'blasphemy', label:'inflate',      min:0,    max:100, step:1, def:0},
+  {key:'sharpen',      cat:'blasphemy', label:'sharpen',      min:0,    max:100, step:1, def:0},
+  {key:'ripple',       cat:'blasphemy', label:'ripple',       min:-100, max:100, step:1, def:0},
+  {key:'flip',         cat:'blasphemy', label:'flip',         min:0,    max:100, step:1, def:0},
+  {key:'crush',        cat:'blasphemy', label:'crush',        min:0,    max:100, step:1, def:0},
+  {key:'wind',         cat:'blasphemy', label:'wind (new)',   min:-100, max:100, step:1, def:0},
+  {key:'curl',         cat:'blasphemy', label:'curl',         min:-90,  max:90,  step:1, def:0, unit:'°'},
+  // ── eternal damnation — most topology-changing, applied last ──
+  {key:'spikes',       cat:'damnation', label:'spikes (new)',            min:0,    max:100, step:1,   def:0},
+  {key:'polygonize',   cat:'damnation', label:'polygonize (new) (beta)', min:0,    max:100, step:1,   def:0},
+  {key:'echo',         cat:'damnation', label:'echo (new) (beta)',       min:0,    max:100, step:1,   def:0},
+  {key:'pixelate',     cat:'damnation', label:'pixelate',                min:0,    max:100, step:1,   def:0},
+  {key:'slice',        cat:'damnation', label:'slice',                   min:-4.9, max:4.9, step:0.1, def:0},
+  {key:'groviera',     cat:'damnation', label:'groviera',                min:0,    max:100, step:1,   def:0},
+  {key:'griddler',     cat:'damnation', label:'vector griddler',         min:0,    max:100, step:1,   def:60}, // typoclast boots with this already on
+];
+const STATE = {}; FX.forEach(f=>STATE[f.key]=f.def);
+// griddler's own sub-parameters — confirmed live on typoclast's default boot
+// state (Amount 60 alone gives a clean grid-cut; rows/cols/tileRotation/
+// tileScale are a SECOND, independent per-tile mosaic layer stacked on top)
+const GRID = {rows:4, cols:4, tileRotation:5, tileScale:0.90, randomize:false};
+// echo's own sub-parameters — confirmed live (Sep 2026 1:1 debug pass): echo
+// is literally NESTED CONCENTRIC COPIES of the whole glyph (rings, via
+// fill-rule=evenodd), with its own "repeats" and "angle" (rotation per
+// copy) controls — not a segment-seam pinch as first implemented.
+const ECHO = {repeats:3, angle:0};
+// polygonize's own sub-parameters — confirmed live: "facets" (1–6) and
+// "chamfer" (0–100%) appear once Amount > 0.
+const POLY = {facets:2, chamfer:50};
+// r' = r*(1 + amp*cos(lobes*theta + phase)) around a shared centre — the
+// angular-harmonic family confirmed live for bulge/wave/ripple/inflate.
+function angularHarmonic(subs, cx, cy, lobes, amp, phaseDeg){
+  const phase=(phaseDeg||0)*Math.PI/180;
+  return subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>{
+    const dx=p.x-cx, dy=p.y-cy, th=Math.atan2(dy,dx);
+    const f=1+amp*Math.cos(lobes*th+phase);
+    return {x:cx+dx*f, y:cy+dy*f};
+  })}));
+}
+// superellipse "squareify" — blends each point's radius (in bbox-normalised
+// space) toward the Chebyshev/superellipse radius for its own angle. Shared
+// family for pull (soft, low exponent) and crush (hard, high exponent) —
+// confirmed live both circularise into a rounded-square/stadium shape, not
+// a directional drag or a simple vertical squash.
+function squareify(subs, cx, cy, amt, nExp){
+  // each subpath squareifies toward ITS OWN bbox-half-extent, sharing only
+  // the glyph's centre — normalising every subpath by the OUTER contour's
+  // extent (the first version) pulled the small inner counter out toward
+  // the same absolute radius as the outer ring, ballooning it until it
+  // nearly swallowed the ring gap. Per-subpath extent keeps outer/inner at
+  // their own relative scale, the way typoclast's own crush/pull visibly
+  // do (a clear black ring survives at max crush, not a near-solid square).
+  return subs.map(s=>{
+    const sb=bboxOf([s]), hx=sb.w/2||1, hy=sb.h/2||1;
+    return {closed:s.closed, pts:s.pts.map(p=>{
+      const u=(p.x-cx)/hx, v=(p.y-cy)/hy;
+      const au=Math.abs(u)||1e-6, av=Math.abs(v)||1e-6;
+      const r=Math.hypot(u,v)||1e-6;
+      const cheb=1/Math.pow(Math.pow(au,nExp)+Math.pow(av,nExp), 1/nExp);
+      const newR=r+(cheb-r)*amt, k=newR/r;
+      return {x:cx+u*hx*k, y:cy+v*hy*k};
+    })};
+  });
+}
+
+function applyTransform(subs){
+  const {rotate,slant,stretchX,stretchY}=STATE;
+  if(!rotate && !slant && stretchX===1 && stretchY===1) return subs;
+  const bb=bboxOf(subs), cx=bb.minX+bb.w/2, cy=bb.minY+bb.h/2;
+  const a=rotate*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a), sh=Math.tan(slant*Math.PI/180);
+  return subs.map(s=>({closed:s.closed, pts:s.pts.map(pt=>{
+    let x=(pt.x-cx)*stretchX, y=(pt.y-cy)*stretchY;
+    x=x+y*sh;
+    return {x:cx+x*ca-y*sa, y:cy+x*sa+y*ca};
+  })}));
+}
+
+function applyEffect(key, subs){
+  const v = STATE[key];
+  if(!v && key!=='griddler') return subs;             // griddler boots non-zero by default
+  const bb=bboxOf(subs), cx=bb.minX+bb.w/2, cy=bb.minY+bb.h/2, R=Math.max(bb.w,bb.h)/2||1;
+  switch(key){
+    case 'twist': {
+      // NOT a radial swirl (that was the first, wrong guess) — confirmed
+      // live: at max value an "R" barely rotates at all, and an "O" comes
+      // back lumpy/asymmetric with its counter visibly offset, not spun
+      // into a pinwheel. Re-tuned (Sep 2026 group re-review): the earlier
+      // 3/5/7-harmonic sum read as a bumpy multi-lobed "flower" next to
+      // typoclast's own single clean asymmetric lean — dropped to one
+      // dominant low harmonic (n=1) plus a much weaker n=2 term, so the
+      // dominant character is one smooth lean/offset, not several lobes.
+      const amt=v/100;
+      return subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>{
+        const dx=p.x-cx, dy=p.y-cy, th=Math.atan2(dy,dx);
+        const f=1+amt*0.28*(Math.cos(th-0.6)+0.35*Math.cos(2*th+1.0));
+        return {x:cx+dx*f, y:cy+dy*f};
+      })}));
+    }
+    case 'pinch': {
+      // a radial power-law, not an angular bump: confirmed live the INNER
+      // counter crushes toward a point while the OUTER contour barely
+      // moves. The power law alone (r/R)^power isn't enough to keep the
+      // outer contour fixed, though: R is a single scalar (half the glyph's
+      // bbox), which only equals a round contour's TRUE per-point radius at
+      // the bbox's own extremes — everywhere else (e.g. 45° on a circle,
+      // r≈0.71R) the same high power exaggerates that gap into a lumpy,
+      // scalloped outer boundary instead of leaving it be (caught live:
+      // typoclast's outer ring stays a clean circle under pinch, Apostate's
+      // was turning into a bumpy octagon). Fixed by only pinching the
+      // smaller subpath(s) — the counter(s)/holes — toward the glyph's own
+      // centre, and leaving the largest-area subpath (the outer contour)
+      // untouched, matching the live reference.
+      const amt=v/100;
+      const areas = subs.map(s=>{ const b=bboxOf([s]); return b.w*b.h; });
+      const maxArea = Math.max(...areas);
+      return subs.map((s,i)=>{
+        if(areas[i]===maxArea) return s;
+        return {closed:s.closed, pts:s.pts.map(p=>{
+          const dx=p.x-cx, dy=p.y-cy, r=Math.hypot(dx,dy)||0.001;
+          const t=Math.pow(Math.min(1,r/R), 1+amt*5);
+          const nr=t*R;
+          return {x:cx+(dx/r)*nr, y:cy+(dy/r)*nr};
+        })};
+      });
+    }
+    case 'pull': {
+      // the superellipse/squareify family (soft end) — confirmed live: a
+      // maxed-out "pull" flattens the O into a wide rounded stadium, not a
+      // directional drag toward one side. Re-checked (Sep 2026 group
+      // re-review): exponent 3.2 only bulges the diagonal ~14% past the
+      // circle radius — nowhere near typoclast's actual near-flat-sided
+      // stadium at max. Raised to 9 (a genuinely hard superellipse) so it
+      // reads as a real stadium, not a barely-perturbed circle.
+      const amt=v/100;
+      return squareify(subs, cx, cy, amt, 9);
+    }
+    case 'perspective': {
+      // a vanishing-point convergence, not a clamped skew. Re-checked (Sep
+      // 2026 group re-review): the original ±(v/100) coefficient reached
+      // literal zero width at the top by v=100, reading as a sharp cone
+      // next to typoclast's own much gentler trapezoid at the same slider
+      // value — softened to a fixed 0.4 max coefficient so the far edge
+      // narrows noticeably but never truly closes to a point.
+      const half=bb.h/2||1;
+      const k=(v/100)*0.4;
+      return subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>{
+        let t=1+((p.y-cy)/half)*k; t=Math.max(0.15,t);
+        return {x:cx+(p.x-cx)*t, y:p.y};
+      })}));
+    }
+    case 'wave': {
+      // angular-harmonic. Re-checked (Sep 2026 group re-review): typoclast's
+      // own wave reads as a soft THREE-lobed bulge (not four), at a much
+      // gentler amplitude than the original 4-lobe/0.5 guess, which was
+      // reading as a sharp 4-pointed cross next to the reference's rounded
+      // triangular swell.
+      const amt=v/100;
+      return angularHarmonic(subs, cx, cy, 3, amt*0.3, 0);
+    }
+    case 'refraction': {
+      // best-effort, still lower-confidence than the others in this pass —
+      // re-checked (Sep 2026 group re-review): the outer contour stays
+      // close to its original round shape in the live reference, while the
+      // INNER counter alone turns into a rounded near-square with a slight
+      // cusp — the two-harmonic wobble was distorting the OUTER contour
+      // into a deep bowtie/hourglass, which the reference never shows.
+      // Reworked on the pinch/pull "leave the largest subpath alone, warp
+      // only the smaller ones" pattern, with a squareify-style pull on the
+      // inner subpath(s) plus a touch of the harmonic wobble for the cusp.
+      const amt=v/100;
+      const areas = subs.map(s=>{ const b=bboxOf([s]); return b.w*b.h; });
+      const maxArea = Math.max(...areas);
+      return subs.map((s,i)=>{
+        if(areas[i]===maxArea){
+          return {closed:s.closed, pts:s.pts.map(p=>{
+            const dx=p.x-cx, dy=p.y-cy, th=Math.atan2(dy,dx);
+            const f=1+amt*0.06*Math.cos(2*th);
+            return {x:cx+dx*f, y:cy+dy*f};
+          })};
+        }
+        const sb=bboxOf([s]), hx=sb.w/2||1, hy=sb.h/2||1;
+        return {closed:s.closed, pts:s.pts.map(p=>{
+          const u=(p.x-cx)/hx, v2=(p.y-cy)/hy;
+          const au=Math.abs(u)||1e-6, av=Math.abs(v2)||1e-6;
+          const r=Math.hypot(u,v2)||1e-6;
+          const th=Math.atan2(p.y-cy, p.x-cx);
+          const cheb=1/Math.pow(Math.pow(au,5)+Math.pow(av,5), 1/5);
+          const cusp=1+amt*0.18*Math.sin(th+1.2);
+          const newR=(r+(cheb-r)*amt*0.85)*cusp, k=newR/r;
+          return {x:cx+u*hx*k, y:cy+v2*hy*k};
+        })};
+      });
+    }
+    case 'bulge': {
+      // angular-harmonic, 8 lobes — confirmed live: a maxed "bulge" reads
+      // as an 8-petal flower on the outer contour, matching the glyph's
+      // own low handle-count only coincidentally; it's a fixed lobe count,
+      // not one bump per anchor point. Re-checked (Sep 2026 group
+      // re-review): amplitude 0.6 turned it into a sharp 8-pointed
+      // throwing-star next to typoclast's own gentle, soft scalloped
+      // ring — dropped to a much milder amplitude.
+      const amt=v/100;
+      return angularHarmonic(subs, cx, cy, 8, amt*0.08, 0);
+    }
+    case 'noise': {
+      // Re-checked (Sep 2026 group re-review), directly against a live
+      // reference on "O": the earlier "barely-recognisable chaotic tearing"
+      // call doesn't hold up — typoclast's own maxed noise is a coherent,
+      // gently wavy cloud-like edge, not torn/self-intersecting chaos. The
+      // old 0.006 noise-coordinate scale was HIGH frequency relative to the
+      // point spacing (adjacent points sampling near-uncorrelated noise,
+      // producing exactly that incoherent zigzag tear); dropped to a much
+      // lower frequency so neighbouring points move together, plus a
+      // gentler magnitude.
+      const amt=v/100, mag=Math.hypot(bb.w,bb.h)*0.07*amt, scale=0.0016;
+      return subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>({
+        x:p.x+(smoothNoise2(p.x*scale,p.y*scale)-0.5)*2*mag,
+        y:p.y+(smoothNoise2(p.x*scale+91,p.y*scale+91)-0.5)*2*mag
+      }))}));
+    }
+    case 'inflate': {
+      // angular-harmonic push magnitude, 8 lobes on BOTH contours in phase
+      // — confirmed live (matches the Living Path/typoclast realignment
+      // finding from the prior session): a real flower, not a uniform push.
+      // Re-checked (Sep 2026 group re-review): the push range was deep
+      // enough to read as a sharp gear/cog next to typoclast's own soft
+      // scallop — softened base amount + harmonic weight.
+      const amt=v/100, lobes=8, base=bb.h*0.028;
+      return subs.map(s=>{
+        const n=s.pts.length;
+        return {closed:s.closed, pts:s.pts.map((p,i)=>{
+          const a=s.pts[(i-1+n)%n], b=s.pts[(i+1)%n];
+          let dx=b.x-a.x, dy=b.y-a.y; const L=Math.hypot(dx,dy)||1;
+          const th=Math.atan2(p.y-cy,p.x-cx);
+          const push=amt*base*(1+0.5*Math.cos(lobes*th));
+          return {x:p.x+(dy/L)*push, y:p.y-(dx/L)*push};
+        })};
+      });
+    }
+    case 'sharpen': {
+      // RE-CHECKED (Sep 2026 group re-review), directly against a live
+      // reference on "O": the earlier "clean decimated polygon" call was
+      // wrong — typoclast's own "sharpen" is a soft 7-petal floral bulge,
+      // very close in character to bulge/inflate, NOT a faceted polygon.
+      // (Real decimation-to-N-facets is already "polygonize", a separate
+      // damnation-tier slider with its own facets/chamfer sub-controls —
+      // it would be redundant for sharpen to duplicate that mechanism.)
+      const amt=v/100;
+      return angularHarmonic(subs, cx, cy, 7, amt*0.22, 0.4);
+    }
+    case 'ripple': {
+      // RE-CHECKED (Sep 2026 group re-review), directly against a live
+      // reference on "O": the earlier "hourglass, top/bottom bulge" call
+      // doesn't match — typoclast's own maxed ripple turns the OUTER
+      // contour into a faceted octagon-ish polygon while the INNER counter
+      // elongates into a vertical stadium/capsule, not a symmetric pinch on
+      // both contours. Outer gets a mild decimation (straight facets read
+      // fine now that dFromSubs draws plain lines, no corner-clamp trick
+      // needed); inner just stretches vertically.
+      const amt=v/100;
+      const areas = subs.map(s=>{ const b=bboxOf([s]); return b.w*b.h; });
+      const maxArea = Math.max(...areas);
+      return subs.map((s,i)=>{
+        if(areas[i]===maxArea){
+          const N=Math.max(8, Math.round(30-amt*22));
+          const n=s.pts.length; if(n<=N) return s;
+          const step=n/N, kept=[];
+          for(let k=0;k<N;k++) kept.push(s.pts[Math.round(k*step)%n]);
+          return {closed:s.closed, pts:kept};
+        }
+        return {closed:s.closed, pts:s.pts.map(p=>({x:p.x, y:cy+(p.y-cy)*(1+amt*0.35)}))};
+      });
+    }
+    case 'flip': {
+      // a circularise blend on the outer contour — confirmed live: a maxed
+      // "flip" turns the outer into a near-perfect circle. Re-checked (Sep
+      // 2026 group re-review): the INNER counter doesn't circularise
+      // though — it facets into a hexagon-ish polygon, not a smoother
+      // circle — so the smaller subpath(s) decimate instead.
+      const amt=v/100;
+      const areas = subs.map(s=>{ const b=bboxOf([s]); return b.w*b.h; });
+      const maxArea = Math.max(...areas);
+      return subs.map((s,i)=>{
+        if(areas[i]===maxArea){
+          let sum=0; s.pts.forEach(p=>sum+=Math.hypot(p.x-cx,p.y-cy));
+          const avgR=sum/(s.pts.length||1);
+          return {closed:s.closed, pts:s.pts.map(p=>{
+            const dx=p.x-cx, dy=p.y-cy, r=Math.hypot(dx,dy)||1;
+            const nr=r+(avgR-r)*amt;
+            return {x:cx+dx/r*nr, y:cy+dy/r*nr};
+          })};
+        }
+        const N=Math.max(6, Math.round(24-amt*18));
+        const n=s.pts.length; if(n<=N) return s;
+        const step=n/N, kept=[];
+        for(let k=0;k<N;k++) kept.push(s.pts[Math.round(k*step)%n]);
+        return {closed:s.closed, pts:kept};
+      });
+    }
+    case 'crush': {
+      // the superellipse/squareify family (hard end) — confirmed live: a
+      // maxed "crush" turns the O into a rounded square on both contours,
+      // not a vertical squash.
+      const amt=v/100;
+      return squareify(subs, cx, cy, amt, 7);
+    }
+    case 'wind': {
+      // a SYMMETRIC horizontal zigzag keyed off y-position — confirmed
+      // live: both sides of the O zigzag with equal amplitude top-to-
+      // bottom, not a "stronger downwind" asymmetric push. Re-checked
+      // (Sep 2026 group re-review): freq 6 / amp 0.12 read as chaotic
+      // torn zigzagging over the whole ring (inner included) next to
+      // typoclast's own contained, mild ripple on a still-recognisable O —
+      // fewer cycles, gentler amplitude.
+      const amt=v/100, freq=3;
+      return subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>{
+        const t=(p.y-bb.minY)/(bb.h||1);
+        return {x:p.x+amt*bb.w*0.05*Math.sin(t*Math.PI*freq), y:p.y};
+      })}));
+    }
+    case 'curl': {
+      // a star/gear burst — confirmed live: a maxed "curl" produces a
+      // many-pointed star, but re-checked (Sep 2026 group re-review) the
+      // two contours don't burst equally: the OUTER stays a soft, barely-
+      // toothed wobble while the INNER counter turns into a sharp, deep
+      // many-pointed star — the old uniform 0.55 amplitude on both was way
+      // overdone on the outer (a thin pinwheel, not a barely-recognisable
+      // O with a toothy hole).
+      const sign=v<0?-1:1, amt=Math.abs(v)/90, lobes=7;
+      const areas = subs.map(s=>{ const b=bboxOf([s]); return b.w*b.h; });
+      const maxArea = Math.max(...areas);
+      return subs.map((s,i)=>angularHarmonic([s], cx, cy, lobes, sign*amt*(areas[i]===maxArea?0.12:0.5), 0)[0]);
+    }
+    case 'spikes': {
+      // Re-checked (Sep 2026 group re-review), directly against a live
+      // reference on "R": typoclast's own "spikes" isn't corner-only — the
+      // reference shows many long thorns distributed all around the
+      // letter, including from partway along the bowl's curve, not just
+      // from its handful of sharp vertices. Switched to a seeded, evenly-
+      // strided subset of ALL points (density rising with amount), each
+      // pushed outward along its own local outward normal — reads as a
+      // genuinely spiky, thorn-covered letter at high amounts, closer to
+      // the reference than a corner-only model ever gave.
+      const amt=v/100, mag=Math.hypot(bb.w,bb.h)*0.16*amt;
+      const rng=mulberry32(7);
+      const spacing=Math.max(16, 100-amt*80); // resample at even ARC LENGTH first — point density along a font contour is very uneven (curves carry far more raw samples than straight runs), so picking spike sites off the original point indices/gaps clusters them on curves and skips straight edges entirely
+      return subs.map(s=>{
+        const rp=resamplePolyline(s.pts, s.closed, spacing);
+        const n=rp.length;
+        return {closed:s.closed, pts:rp.map((p,i)=>{
+          if(rng()<0.5) return {x:p.x,y:p.y};
+          const a=rp[(i-1+n)%n], b=rp[(i+1)%n];
+          const nx=-(b.y-a.y), ny=(b.x-a.x), L=Math.hypot(nx,ny)||1;
+          const outward=((p.x-cx)*nx+(p.y-cy)*ny)>=0 ? 1 : -1;
+          return {x:p.x+nx/L*mag*outward, y:p.y+ny/L*mag*outward};
+        })};
+      });
+    }
+    case 'polygonize': {
+      // confirmed live this reveals its own "facets"/"chamfer" sub-sliders
+      // (POLY) once Amount > 0 — modelled as decimation to POLY.facets-
+      // driven side count. RE-CHECKED (Sep 2026 group re-review), this time
+      // carefully (step-by-step, not a combined reset+select+set batch —
+      // the earlier "genuinely SHATTERED, unrecognizable" finding was a
+      // stale/glitched typoclast render, the same class of false alarm as
+      // pixelate's own first mis-read this pass; a slow, verified re-test
+      // showed Amount 60 alone (facets default 2, chamfer default 50%) is
+      // legitimately near-invisible on both tools — not a bug, just a
+      // gentle default). Driving the real `facets` sub-slider (0–100) DOES
+      // confirm the mechanism is right, and pinned the actual curve down
+      // properly this time: facets=2 (default) reads as barely-decimated
+      // (still round), facets=8 is a clean, clearly-8-sided octagon — so
+      // this ISN'T linear (a straight `N=facets` makes facets=2 a stark
+      // triangle, which the reference does NOT show at its own default).
+      // It's a decay — low facets barely decimates, and N drops off toward
+      // facets' own value as it rises — matching both confirmed data
+      // points (2→~30 (near-smooth), 8→~8 (clean octagon)).
+      const N=Math.max(3, Math.round(60/Math.max(1,POLY.facets)));
+      const inset=(1-POLY.chamfer/100)*1.8;
+      return subs.map(s=>{
+        const n=s.pts.length; if(n<=N) return s;
+        const step=n/N, kept=[];
+        for(let i=0;i<N;i++) kept.push(s.pts[Math.round(i*step)%n]);
+        if(inset<=0.05) return {closed:s.closed, pts:kept};
+        const m=kept.length, out=[];
+        for(let i=0;i<m;i++){
+          const prev=kept[(i-1+m)%m], cur=kept[i];
+          const dx=cur.x-prev.x, dy=cur.y-prev.y, L=Math.hypot(dx,dy)||1;
+          out.push({x:cur.x-dx/L*inset, y:cur.y-dy/L*inset});
+          out.push(cur);
+        }
+        return {closed:s.closed, pts:out};
+      });
+    }
+    case 'echo': {
+      // literal NESTED CONCENTRIC COPIES of the whole glyph, scaled down
+      // and rotated per ring, with its own "repeats"/"angle" sub-sliders
+      // (ECHO) — confirmed live (a completely different mechanism than the
+      // segment-seam pinch first guessed): fill-rule=evenodd turns the
+      // stacked copies into alternating rings automatically.
+      const amt=v/100; if(!amt) return subs;
+      const out=[];
+      for(let k=0;k<ECHO.repeats;k++){
+        const scale=1-(k+1)/(ECHO.repeats+1)*amt*0.85;
+        const rot=(ECHO.angle*Math.PI/180)*(k+1), ca=Math.cos(rot), sa=Math.sin(rot);
+        subs.forEach(s=>out.push({closed:s.closed, pts:s.pts.map(p=>{
+          const dx=(p.x-cx)*scale, dy=(p.y-cy)*scale;
+          return {x:cx+dx*ca-dy*sa, y:cy+dx*sa+dy*ca};
+        })}));
+      }
+      return subs.concat(out);
+    }
+    case 'pixelate': {
+      // densely resample the ORIGINAL contour first — quantizing the
+      // existing sparse anchor points directly (the first version)
+      // collapsed a low-point glyph like "A" (8 outer anchors) into a
+      // crude, unrecognisable blob, since there's nothing between two
+      // far-apart corners to trace the true edge through the grid; typoclast's
+      // own pixelate stays legible as the letter at the same Amount. Then
+      // grid-snap, drop consecutive duplicate points, THEN insert a real
+      // axis-aligned corner between any two consecutive points that still
+      // differ on BOTH axes — a plain snap+dedupe left genuine diagonal
+      // cuts across a cell corner wherever the (now-dense) contour crossed
+      // one diagonally, which read as a clean orthogonal staircase on
+      // Archivo Black's near-rectangular counter (its corners happened to
+      // land axis-aligned already) but a jagged diagonal sawtooth on the
+      // round outer "O" — caught by comparing the two contours side by
+      // side, not obvious from the counter alone.
+      const cell=Math.max(3, 45-v*0.4);
+      return subs.map(s=>{
+        const dense=resamplePolyline(s.pts, s.closed, Math.max(2, cell*0.4));
+        const snapped=dense.map(p=>({x:Math.round(p.x/cell)*cell, y:Math.round(p.y/cell)*cell}));
+        const deduped=[];
+        for(const p of snapped){ const last=deduped[deduped.length-1]; if(!last||Math.hypot(p.x-last.x,p.y-last.y)>0.1) deduped.push(p); }
+        if(deduped.length<3) return {closed:s.closed, pts: deduped.length?deduped:snapped};
+        const n=deduped.length, out=[];
+        for(let i=0;i<n;i++){
+          const a=deduped[i], b=deduped[(i+1)%n];
+          out.push(a);
+          if(Math.abs(a.x-b.x)>0.1 && Math.abs(a.y-b.y)>0.1) out.push({x:b.x, y:a.y});
+        }
+        return {closed:s.closed, pts:out};
+      });
+    }
+    case 'slice': {
+      // re-checked (Sep 2026 group re-review): on a low-point-count glyph
+      // like "A", shifting only the sparse EXISTING points per band was
+      // invisible — most of a band's points sit far from its own boundary,
+      // so the shift just slid an already-straight edge sideways with no
+      // new seam to show it. Densify first (same resamplePolyline used for
+      // pixelate) so a real jagged seam appears at every band line.
+      const bands=Math.round(Math.abs(v)*2)+1, bh=bb.h/bands||1, sign=v<0?-1:1;
+      return subs.map(s=>{
+        const dense=resamplePolyline(s.pts, s.closed, Math.max(4, bb.h*0.015));
+        return {closed:s.closed, pts:dense.map(p=>{
+          const band=Math.floor((p.y-bb.minY)/bh);
+          return {x:p.x+(band%2===0?1:-1)*sign*Math.abs(v)*bb.w*0.03, y:p.y};
+        })};
+      });
+    }
+    case 'groviera': {
+      // a real circular bite AT each corner (confirmed live vs typoclast —
+      // not a point nudge, a genuine round notch), but LOCAL to the corner:
+      // the notch only reaches partway (28%) along each adjacent edge, so
+      // two neighbouring corners' notches never cover the same stretch of
+      // edge twice — the first version arced the corner's FULL neighbour-to
+      // -neighbour span, which on a low-point-count glyph (every vertex is
+      // a real corner on Archivo Black's mostly-straight "A") meant every
+      // edge got redrawn as a zigzag from BOTH its endpoints regardless of
+      // bite depth, shattering the glyph even at a tiny amount.
+      // re-checked twice (Sep 2026 group re-review) against a live "R".
+      // First pass: raising the corner threshold to 55° didn't help — both
+      // 35° and 55° found the same 8 real outer corners, yet the reference
+      // shows MANY more bite sites than that, densely packed around the
+      // bowl's own curve (a real gear-tooth look) and only a couple of
+      // small nicks on the straight leg/stem. That's not a corner-only
+      // effect at all — same finding as `spikes`. Rebuilt the same way:
+      // resample the contour at even ARC LENGTH first (so bite density
+      // follows amount, not the source glyph's own uneven point spacing),
+      // then bite inward at every resampled site, not just at findCorners
+      // hits — a straight run gets a few evenly-spaced nicks, a curve
+      // (more length to cover) gets proportionally more, matching the
+      // reference's own "many bites concentrated on the curve" look
+      // without hand-special-casing curves vs corners.
+      // a second bug on the same rebuild, caught right after: the bite
+      // direction was derived from `midpoint(qa,qb) - p`, which is exactly
+      // ZERO for any point sitting on a dead-straight run — qa and qb sit
+      // symmetrically either side of p when a/p/b are collinear, so their
+      // midpoint IS p, the direction vector is (0,0), and the whole notch
+      // silently degenerates to a straight no-op — exactly why the leg and
+      // stem kept coming back un-bitten while the curved bowl (never
+      // exactly collinear) looked fine. Direction now comes from the
+      // tangent's own perpendicular (well-defined even on a straight run).
+      // A THIRD bug found testing this fix: signing that perpendicular by
+      // "toward the glyph's global centre" bit outward on the counter/hole
+      // contour (R's bowl-hole) — a hole's own material lies AWAY from the
+      // glyph centre, not toward it, so the same global heuristic is
+      // backwards for one of the two subpath roles.
+      //
+      // A THIRD attempt (tangent-perpendicular signed by an even-odd
+      // inside/outside probe) still came back as outward teeth on every
+      // point, even though a hand-traced example showed the probe picking
+      // the geometrically-correct inward direction — the tangent-
+      // perpendicular sign is fragile per-point and clearly wasn't the
+      // reliable signal it looked like in isolation. Replaced with
+      // something structurally simpler and easy to reason about: each
+      // subpath gets its OWN centre (`bboxOf([s])`), and the bite direction
+      // is a plain RADIAL one relative to that centre — toward it for the
+      // largest-area subpath (the outer contour: biting toward your own
+      // centre removes material, a real dent), away from it for any
+      // smaller subpath (a counter/hole: its material lies outside its own
+      // boundary, so biting away from ITS centre is what removes material
+      // there). No winding, no per-point sign flips.
+      // Final pass on the same test: once the direction was actually
+      // correct, amt 60 still read as a dense saw-blade of sharp triangular
+      // teeth rather than typoclast's own sparser, ROUNDED gear-bite look —
+      // two compounding causes, both fixed: (1) a bite depth close to half
+      // the spacing between sites left almost no flat boundary between
+      // notches, so every site's notch touched its neighbours' and read as
+      // one continuous zigzag; (2) only 3 interior samples on a sine profile
+      // reads as a sharp point, not a round scoop. Bite now capped well
+      // under the site spacing (clear boundary survives between notches —
+      // the actual "teeth"), and a seeded skip thins the sites themselves
+      // (not every resampled point bites) with a smoother, more-sampled arc.
+      const amt=v/100;
+      if(!amt) return subs;
+      const spacing=Math.max(26, 150-amt*110), reach=0.4;
+      const bite=Math.min(spacing*0.3, Math.hypot(bb.w,bb.h)*0.035*amt);
+      const areas=subs.map(s=>{ const b=bboxOf([s]); return b.w*b.h; });
+      const maxArea=Math.max(...areas);
+      const rng=mulberry32(11);
+      return subs.map((s,si)=>{
+        const sb=bboxOf([s]), scx=sb.minX+sb.w/2, scy=sb.minY+sb.h/2;
+        const sign=areas[si]===maxArea ? 1 : -1; // 1 = bite toward own centre, -1 = bite away from it
+        const rp=resamplePolyline(s.pts, s.closed, spacing);
+        const n=rp.length; if(n<4) return s;
+        const out=[];
+        for(let i=0;i<n;i++){
+          const p=rp[i];
+          if(rng()<0.35){ out.push({x:p.x,y:p.y}); continue; }
+          const a=rp[(i-1+n)%n], b=rp[(i+1)%n];
+          const qa={x:p.x+(a.x-p.x)*reach, y:p.y+(a.y-p.y)*reach};
+          const qb={x:p.x+(b.x-p.x)*reach, y:p.y+(b.y-p.y)*reach};
+          const dx=p.x-scx, dy=p.y-scy, dl=Math.hypot(dx,dy)||1;
+          const nx=-(dx/dl)*sign, ny=-(dy/dl)*sign;
+          out.push(qa);
+          const steps=8;
+          for(let k=1;k<steps;k++){
+            const t=k/steps, arc=Math.sin(t*Math.PI);
+            out.push({x:qa.x+(qb.x-qa.x)*t+nx*bite*arc, y:qa.y+(qb.y-qa.y)*t+ny*bite*arc});
+          }
+          out.push(qb);
+        }
+        return {closed:s.closed, pts:out};
+      });
+    }
+    case 'griddler': {
+      const amt=v/100;
+      let out=subs;
+      // layer 1 — grid-cut crimp: pull points toward the nearest grid line
+      // (pure point-space "cut" — a cinch at every crossing, not a raster
+      // gutter-zero like Living Path's own griddlerField, since this
+      // engine has no raster round-trip at all)
+      if(amt>0){
+        const cw=bb.w/GRID.cols||1, chh=bb.h/GRID.rows||1;
+        out=out.map(s=>({closed:s.closed, pts:s.pts.map(p=>{
+          const gx=(p.x-bb.minX)%cw, gy=(p.y-bb.minY)%chh;
+          const dx=Math.min(gx,cw-gx), dy=Math.min(gy,chh-gy);
+          const near=Math.min(dx,dy), pull=Math.max(0, 1-near/(Math.min(cw,chh)*0.18))*amt;
+          if(pull<=0) return {x:p.x,y:p.y};
+          // pull toward whichever grid line (vertical or horizontal) is closer
+          if(dx<dy){
+            const lineX = bb.minX + Math.round((p.x-bb.minX)/cw)*cw;
+            return {x:p.x+(lineX-p.x)*pull*0.7, y:p.y};
+          }
+          const lineY = bb.minY + Math.round((p.y-bb.minY)/chh)*chh;
+          return {x:p.x, y:p.y+(lineY-p.y)*pull*0.7};
+        })}));
+      }
+      // layer 2 — per-tile rotate/scale mosaic (the second layer confirmed
+      // live on typoclast's own default boot state — rows/cols/tileRotation/
+      // tileScale). Each point rotates/scales around the CENTRE of its own
+      // grid cell — a genuine per-tile transform without needing a polygon-
+      // clip library (no true gaps, but the same "shattered" read).
+      if(GRID.tileRotation || GRID.tileScale!==1){
+        const cw=bb.w/GRID.cols||1, chh=bb.h/GRID.rows||1;
+        const rng = GRID.randomize ? mulberry32(7) : null;
+        out=out.map(s=>({closed:s.closed, pts:s.pts.map(p=>{
+          const col=Math.min(GRID.cols-1, Math.floor((p.x-bb.minX)/cw));
+          const row=Math.min(GRID.rows-1, Math.floor((p.y-bb.minY)/chh));
+          const ccx=bb.minX+(col+0.5)*cw, ccy=bb.minY+(row+0.5)*chh;
+          let rot=GRID.tileRotation, sc=GRID.tileScale;
+          if(rng){ rot*= (0.4+rng()*1.2); sc = 1-(1-sc)*(0.4+rng()*1.2); }
+          const a=rot*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a);
+          let dx=(p.x-ccx)*sc, dy=(p.y-ccy)*sc;
+          return {x:ccx+dx*ca-dy*sa, y:ccy+dx*sa+dy*ca};
+        })}));
+      }
+      return out;
+    }
+    default: return subs;
+  }
+}
+function applyPipeline(rawSubs){
+  const {norm,k,ox,oy} = normGlyph(rawSubs);
+  let s = applyTransform(norm);
+  for(const f of FX){ if(f.cat==='blasphemy') s = applyEffect(f.key, s); }
+  for(const f of FX){ if(f.cat==='damnation') s = applyEffect(f.key, s); }
+  return {subs:s, k, ox, oy};
+}
+
+/* ============================================================
+   FONT / GLYPH
+   ============================================================ */
+let FONT=null, CHARSET=[], SELECTED='A';
+function loadFontBuffer(buf, name){
+  let font; try{ font=opentype.parse(buf); }catch(e){ setStatus('','✗ could not parse font'); return; }
+  FONT=font;
+  CHARSET=[];
+  for(let i=0;i<font.glyphs.length;i++){
+    const g=font.glyphs.get(i);
+    if(g.unicode && g.unicode>32 && g.unicode<0x250) CHARSET.push(g.unicode);
+  }
+  CHARSET=[...new Set(CHARSET)].sort((a,b)=>a-b);
+  if(!CHARSET.includes(SELECTED.codePointAt(0))) SELECTED=String.fromCodePoint(CHARSET[0]||65);
+  renderCharset();
+  $('board').style.display='';
+  $('empty-hint').style.display='none';
+  setStatus('','font loaded: '+(name||'custom'));
+  render();
+}
+function renderCharset(){
+  const host=$('charset'); host.innerHTML='';
+  CHARSET.forEach(u=>{
+    const ch=String.fromCodePoint(u);
+    const b=document.createElement('button');
+    b.textContent=ch; b.className = ch===SELECTED?'active':'';
+    b.onclick=()=>{ SELECTED=ch; renderCharset(); render(); };
+    host.appendChild(b);
+  });
+}
+
+/* ============================================================
+   RENDER — the single source of truth for preview and export
+   ============================================================ */
+let zoom=1;
+function render(){
+  if(!FONT) return;
+  const gl = FONT.charToGlyph(SELECTED);
+  const raw = fromOTCommands((gl.path&&gl.path.commands)||[]);
+  if(!raw.length){ $('board').innerHTML=''; return; }
+  const {subs} = applyPipeline(raw);
+  const board=$('board');
+  board.setAttribute('viewBox', `0 0 1000 1000`);
+  const outlineOn = $('ck-outline').checked;
+  let markup = `<path class="glyph${outlineOn?' outline-mode':''}" fill-rule="evenodd" d="${dFromSubs(subs)}"/>`;
+  if($('ck-handles').checked){
+    subs.forEach(s=>s.pts.forEach((p,i)=>{
+      if(i% Math.max(1,Math.round(s.pts.length/28)) !== 0) return;
+      markup += `<circle class="handle" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="9"/>`;
+    }));
+  }
+  board.innerHTML = markup;
+  board.style.transform = `scale(${zoom})`;
+}
+function zoomBy(d){ zoom=Math.max(0.2, Math.min(4, +(zoom+d).toFixed(2))); $('zoom-level').textContent=zoom.toFixed(2)+'x'; render(); }
+
+/* ============================================================
+   PANEL — 27 sliders generated from FX, no hand-written boilerplate
+   ============================================================ */
+function toggleCat(btn){
+  btn.classList.toggle('collapsed');
+  btn.nextElementSibling.classList.toggle('collapsed');
+}
+function buildPanel(){
+  ['mild','blasphemy','damnation'].forEach(cat=>{
+    const host=$('cat-'+cat); host.innerHTML='';
+    FX.filter(f=>f.cat===cat).forEach(f=>{
+      const row=document.createElement('div'); row.className='ctrl-row';
+      row.innerHTML = `
+        <div class="ctrl-label">${f.label}</div>
+        <input type="range" id="rg-${f.key}" min="${f.min}" max="${f.max}" step="${f.step}" value="${f.def}">
+        <span class="ctrl-val" id="v-${f.key}">${fmtVal(f,f.def)}</span>`;
+      host.appendChild(row);
+      const input=row.querySelector('input');
+      input.addEventListener('input', ()=>{
+        STATE[f.key] = f.step<1 ? parseFloat(input.value) : Math.round(+input.value);
+        $('v-'+f.key).textContent = fmtVal(f, STATE[f.key]);
+        render();                                     // instant — no debounce, every tick
+      });
+      if(f.key==='griddler'){
+        const sub=document.createElement('div'); sub.className='griddler-sub';
+        sub.innerHTML = `
+          <div class="ctrl-row"><div class="ctrl-label">rows</div>
+            <input type="range" id="rg-g-rows" min="1" max="10" step="1" value="${GRID.rows}"><span class="ctrl-val" id="v-g-rows">${GRID.rows}</span></div>
+          <div class="ctrl-row"><div class="ctrl-label">cols</div>
+            <input type="range" id="rg-g-cols" min="1" max="10" step="1" value="${GRID.cols}"><span class="ctrl-val" id="v-g-cols">${GRID.cols}</span></div>
+          <div class="ctrl-row"><div class="ctrl-label">tile rotation</div>
+            <input type="range" id="rg-g-rot" min="-45" max="45" step="1" value="${GRID.tileRotation}"><span class="ctrl-val" id="v-g-rot">${GRID.tileRotation}&deg;</span></div>
+          <div class="ctrl-row"><div class="ctrl-label">tile scale</div>
+            <input type="range" id="rg-g-scale" min="0.3" max="1.5" step="0.01" value="${GRID.tileScale}"><span class="ctrl-val" id="v-g-scale">${GRID.tileScale}</span></div>
+          <label class="check-row"><input type="checkbox" id="ck-g-rand"><span>randomize tiles</span></label>`;
+        host.appendChild(sub);
+        sub.querySelector('#rg-g-rows').oninput=e=>{ GRID.rows=+e.target.value; $('v-g-rows').textContent=GRID.rows; render(); };
+        sub.querySelector('#rg-g-cols').oninput=e=>{ GRID.cols=+e.target.value; $('v-g-cols').textContent=GRID.cols; render(); };
+        sub.querySelector('#rg-g-rot').oninput=e=>{ GRID.tileRotation=+e.target.value; $('v-g-rot').textContent=GRID.tileRotation+'°'; render(); };
+        sub.querySelector('#rg-g-scale').oninput=e=>{ GRID.tileScale=+e.target.value; $('v-g-scale').textContent=GRID.tileScale; render(); };
+        sub.querySelector('#ck-g-rand').onchange=e=>{ GRID.randomize=e.target.checked; render(); };
+      }
+      if(f.key==='echo'){
+        const sub=document.createElement('div'); sub.className='griddler-sub';
+        sub.innerHTML = `
+          <div class="ctrl-row"><div class="ctrl-label">repeats</div>
+            <input type="range" id="rg-e-repeats" min="1" max="8" step="1" value="${ECHO.repeats}"><span class="ctrl-val" id="v-e-repeats">${ECHO.repeats}</span></div>
+          <div class="ctrl-row"><div class="ctrl-label">angle</div>
+            <input type="range" id="rg-e-angle" min="-45" max="45" step="1" value="${ECHO.angle}"><span class="ctrl-val" id="v-e-angle">${ECHO.angle}&deg;</span></div>`;
+        host.appendChild(sub);
+        sub.querySelector('#rg-e-repeats').oninput=e=>{ ECHO.repeats=+e.target.value; $('v-e-repeats').textContent=ECHO.repeats; render(); };
+        sub.querySelector('#rg-e-angle').oninput=e=>{ ECHO.angle=+e.target.value; $('v-e-angle').textContent=ECHO.angle+'°'; render(); };
+      }
+      if(f.key==='polygonize'){
+        const sub=document.createElement('div'); sub.className='griddler-sub';
+        sub.innerHTML = `
+          <div class="ctrl-row"><div class="ctrl-label">facets</div>
+            <input type="range" id="rg-p-facets" min="1" max="6" step="1" value="${POLY.facets}"><span class="ctrl-val" id="v-p-facets">${POLY.facets}</span></div>
+          <div class="ctrl-row"><div class="ctrl-label">chamfer</div>
+            <input type="range" id="rg-p-chamfer" min="0" max="100" step="1" value="${POLY.chamfer}"><span class="ctrl-val" id="v-p-chamfer">${POLY.chamfer}%</span></div>`;
+        host.appendChild(sub);
+        sub.querySelector('#rg-p-facets').oninput=e=>{ POLY.facets=+e.target.value; $('v-p-facets').textContent=POLY.facets; render(); };
+        sub.querySelector('#rg-p-chamfer').oninput=e=>{ POLY.chamfer=+e.target.value; $('v-p-chamfer').textContent=POLY.chamfer+'%'; render(); };
+      }
+    });
+  });
+}
+function fmtVal(f,v){ return (f.step<1?v.toFixed(2):Math.round(v)) + (f.unit||''); }
+function syncPanelFromState(){
+  FX.forEach(f=>{ const el=$('rg-'+f.key); if(el){ el.value=STATE[f.key]; $('v-'+f.key).textContent=fmtVal(f,STATE[f.key]); } });
+  const g=$('rg-g-rows'); if(g){ $('rg-g-rows').value=GRID.rows; $('v-g-rows').textContent=GRID.rows;
+    $('rg-g-cols').value=GRID.cols; $('v-g-cols').textContent=GRID.cols;
+    $('rg-g-rot').value=GRID.tileRotation; $('v-g-rot').textContent=GRID.tileRotation+'°';
+    $('rg-g-scale').value=GRID.tileScale; $('v-g-scale').textContent=GRID.tileScale;
+    $('ck-g-rand').checked=GRID.randomize; }
+  const e=$('rg-e-repeats'); if(e){ e.value=ECHO.repeats; $('v-e-repeats').textContent=ECHO.repeats;
+    $('rg-e-angle').value=ECHO.angle; $('v-e-angle').textContent=ECHO.angle+'°'; }
+  const p=$('rg-p-facets'); if(p){ p.value=POLY.facets; $('v-p-facets').textContent=POLY.facets;
+    $('rg-p-chamfer').value=POLY.chamfer; $('v-p-chamfer').textContent=POLY.chamfer+'%'; }
+}
+function resetAll(){
+  // each slider's own identity default — NOT a blanket 0 (stretch x/y default
+  // to 1; 0 collapses the glyph to a point). Confirmed live: typoclast's own
+  // "reset all" shows "stretch x 1.00 / stretch y 1.00" afterward, not 0.
+  FX.forEach(f=>STATE[f.key] = (f.key==='griddler') ? 0 : f.def);
+  GRID.rows=4; GRID.cols=4; GRID.tileRotation=0; GRID.tileScale=1; GRID.randomize=false;
+  ECHO.repeats=3; ECHO.angle=0; POLY.facets=2; POLY.chamfer=50;
+  syncPanelFromState(); render();
+}
+function randomizeAll(){
+  const rng=mulberry32(Date.now()&0xffffffff);
+  FX.forEach(f=>{ STATE[f.key] = f.min + rng()*(f.max-f.min); if(f.step>=1) STATE[f.key]=Math.round(STATE[f.key]); });
+  GRID.tileRotation = Math.round((rng()-0.5)*40);
+  GRID.tileScale = +(0.6+rng()*0.5).toFixed(2);
+  syncPanelFromState(); render();
+}
+
+/* ============================================================
+   EXPORT — OTF (a Worker running the SAME point-space pipeline
+   directly — no OffscreenCanvas needed, nothing here is raster) + SVG
+   ============================================================ */
+function rdpOpen(pts,eps){
+  const n=pts.length; if(n<=3) return pts.slice();
+  const keep=new Uint8Array(n); keep[0]=keep[n-1]=1; const stack=[[0,n-1]];
+  while(stack.length){
+    const seg=stack.pop(), a=seg[0], b=seg[1];
+    const ax=pts[a].x, ay=pts[a].y, dx=pts[b].x-ax, dy=pts[b].y-ay, len=Math.hypot(dx,dy)||1;
+    let maxd=-1, idx=-1;
+    for(let i=a+1;i<b;i++){ const d=Math.abs((pts[i].x-ax)*dy-(pts[i].y-ay)*dx)/len; if(d>maxd){maxd=d;idx=i;} }
+    if(maxd>eps && idx>0){ keep[idx]=1; stack.push([a,idx],[idx,b]); }
+  }
+  const out=[]; for(let i=0;i<n;i++) if(keep[i]) out.push(pts[i]);
+  return out;
+}
+function rdpClosed(pts,eps){
+  const n=pts.length; if(n<=5) return pts.slice();
+  let far=1,fd=-1;
+  for(let i=1;i<n;i++){ const d=(pts[i].x-pts[0].x)**2+(pts[i].y-pts[0].y)**2; if(d>fd){fd=d;far=i;} }
+  const head=rdpOpen(pts.slice(0,far+1),eps), tail=rdpOpen(pts.slice(far),eps);
+  return head.concat(tail.slice(1,-1));
+}
+function subsToOTPath(subs){
+  const path=new opentype.Path(); const BUDGET=280;
+  let eps=3.3, polys=subs.map(s=>({pts:s.closed?rdpClosed(s.pts,eps):rdpOpen(s.pts,eps), closed:s.closed!==false}));
+  let count=polys.reduce((a,o)=>a+o.pts.length,0), guard=0;
+  while(count>BUDGET && guard++<10){ const k=Math.max(1.5,count/BUDGET); eps*=k;
+    polys=subs.map(s=>({pts:s.closed?rdpClosed(s.pts,eps):rdpOpen(s.pts,eps), closed:s.closed!==false}));
+    count=polys.reduce((a,o)=>a+o.pts.length,0); }
+  // straight lineTo, matching dFromSubs — the exported font must be
+  // WYSIWYG with the preview (the project's own standing rule); a
+  // Catmull-Rom curveTo here rounded real corners exactly like the preview
+  // bug it was paired with.
+  for(const poly of polys){
+    const p=poly.pts, n=p.length; if(n<3) continue;
+    path.moveTo(p[0].x,p[0].y);
+    const segs=poly.closed?n:n-1;
+    for(let i=1;i<=segs;i++) path.lineTo(p[i%n].x, p[i%n].y);
+    path.close();
+  }
+  return path;
+}
+function inCharset(u){
+  const upper=u>=65&&u<=90, lower=u>=97&&u<=122, digits=u>=48&&u<=57,
+        punct=(u>=33&&u<=47)||(u>=58&&u<=64)||(u>=91&&u<=96)||(u>=123&&u<=126);
+  if(upper) return $('ck-upper').checked; if(lower) return $('ck-lower').checked;
+  if(digits) return $('ck-digits').checked; if(punct) return $('ck-punct').checked;
+  return false;
+}
+async function exportOTF(){
+  if(!FONT){ setStatus('','✗ load a font first'); return; }
+  const upm=FONT.unitsPerEm||1000;
+  const notdef=new opentype.Glyph({name:'.notdef', unicode:0, advanceWidth:Math.round(upm*0.5), path:new opentype.Path()});
+  const glyphs=[notdef];
+  const seen=new Set();
+  for(let i=0;i<FONT.glyphs.length;i++){
+    const gl=FONT.glyphs.get(i);
+    if(gl.unicode==null || gl.unicode<=32 || seen.has(gl.unicode) || !inCharset(gl.unicode)) continue;
+    seen.add(gl.unicode);
+    const raw=fromOTCommands((gl.path&&gl.path.commands)||[]);
+    let path=new opentype.Path();
+    if(raw.length){
+      const {subs,k,ox,oy}=applyPipeline(raw);
+      const em=denormGlyph(subs,k,ox,oy);
+      path=subsToOTPath(em);
+    }
+    glyphs.push(new opentype.Glyph({name:gl.name||('uni'+gl.unicode.toString(16)), unicode:gl.unicode,
+      advanceWidth:Math.round(gl.advanceWidth||upm*0.5), path}));
+  }
+  const name=($('exName').value||'Apostate').trim();
+  const font=new opentype.Font({familyName:name, styleName:'Regular', unitsPerEm:upm,
+    ascender:FONT.ascender||Math.round(upm*0.8), descender:FONT.descender||-Math.round(upm*0.2), glyphs,
+    designer:'Organica', designerURL:'https://theorganicalanguage.vercel.app',
+    manufacturer:'Organica / Apostate', version:'Version 1.0',
+    description:'A vector-deformed typeface made in Apostate — an independent, Organica-native reimplementation of typoclast.com\'s effect list.',
+    license:'All rights reserved.'});
+  const buf=font.toArrayBuffer();
+  Organica.download(new Blob([buf],{type:'font/otf'}), name.replace(/\s+/g,'-')+'.otf');
+  setStatus('','✓ exported .otf');
+}
+function exportSVG(){
+  if(!FONT){ setStatus('','✗ load a font first'); return; }
+  const gl=FONT.charToGlyph(SELECTED);
+  const raw=fromOTCommands((gl.path&&gl.path.commands)||[]);
+  const {subs}=applyPipeline(raw);
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><path fill="#0a0a0a" fill-rule="evenodd" d="${dFromSubs(subs)}"/></svg>`;
+  Organica.download(new Blob([svg],{type:'image/svg+xml'}), 'apostate-'+SELECTED+'.svg');
+}
+
+/* ============================================================
+   INIT — auto-load a default face (Living Path's own convention: never
+   show an empty state), font drag/drop anywhere on the page
+   ============================================================ */
+function onFilePicked(input){
+  const file=input.files&&input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>loadFontBuffer(reader.result, file.name.replace(/\.(otf|ttf)$/i,''));
+  reader.readAsArrayBuffer(file);
+}
+window.addEventListener('dragover', e=>{ e.preventDefault(); $('stage').classList.add('drag'); });
+window.addEventListener('dragleave', ()=>{ $('stage').classList.remove('drag'); });
+window.addEventListener('drop', e=>{
+  e.preventDefault(); $('stage').classList.remove('drag');
+  const file=e.dataTransfer.files&&e.dataTransfer.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>loadFontBuffer(reader.result, file.name.replace(/\.(otf|ttf)$/i,''));
+  reader.readAsArrayBuffer(file);
+});
+
+Organica.popover($('btn-export'), $('export-popover'));
+buildPanel();
+fetch('/shared/vendor/archivo-black.ttf').then(r=>r.arrayBuffer()).then(buf=>loadFontBuffer(buf,'Archivo Black'))
+  .catch(()=>setStatus('','drop a font to begin'));
+</script>
+</body>
+</html>
