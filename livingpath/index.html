@@ -69,6 +69,15 @@
     border-radius:var(--radius-sm);
   }
   .fx-cat-body{padding-top:var(--space-2)}
+  /* engine divider — sits between the Raster (Texture/…/Reaction) and Vector
+     (Distort/Deform/Break) halves of the stack; the first divider (before
+     Raster) has no top margin so it doesn't add a gap under "Effect stack" */
+  .fx-engine-div{
+    font-size:var(--fs-micro); font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--tool); margin:var(--space-4) 0 var(--space-2); padding-top:var(--space-3);
+    border-top:1px solid var(--border);
+  }
+  .fx-engine-div:first-child{margin-top:0; padding-top:0; border-top:none}
   .layer{
     background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-sm);
     margin-bottom:var(--space-2); overflow:hidden; transition:opacity .16s;
@@ -331,6 +340,22 @@
     </div>
 
     <div class="panel-section">
+      <h3>Transform</h3>
+      <div class="row"><div class="ctrl-label">Rotate</div>
+        <input type="range" id="xfRotate" min="-180" max="180" step="1" value="0">
+        <span class="val" id="xfRotateVal">0°</span></div>
+      <div class="row"><div class="ctrl-label">Slant</div>
+        <input type="range" id="xfSlant" min="-60" max="60" step="1" value="0">
+        <span class="val" id="xfSlantVal">0°</span></div>
+      <div class="row"><div class="ctrl-label">Stretch X</div>
+        <input type="range" id="xfStretchX" min="30" max="300" step="1" value="100">
+        <span class="val" id="xfStretchXVal">1.00</span></div>
+      <div class="row"><div class="ctrl-label">Stretch Y</div>
+        <input type="range" id="xfStretchY" min="30" max="300" step="1" value="100">
+        <span class="val" id="xfStretchYVal">1.00</span></div>
+      <div class="hint">Per-glyph affine — flows into the tester, Full Family and every export, same as the effect stack.</div>
+    </div>
+    <div class="panel-section">
       <h3>Effect stack</h3>
       <div id="stack"></div>
       <div class="hint">Effects run top → bottom, by section. An effect at <b>0</b> does nothing — drag a header to reorder within its section.</div>
@@ -423,17 +448,19 @@ function syncProcLine(){
 function busy(msg){ procMsg.textContent = msg || 'applying effects…'; syncProcLine(); procOverlay.hidden = false; }
 function idle(){ procOverlay.hidden = true; }
 
-// The raster engine, groups appliers and presets live in shared/pathfx.js —
-// see its header for the boundary. Living Path is raster-only: it uses RFX +
-// PRESETS.raster and keeps only the font-specific bits local (fromOTCommands,
-// the glyph model bridge, OTF/VF export). The shared FX (vector) registry is
-// left for Sinew, which still offers both engines.
+// The raster + vector engines, groups appliers and presets live in
+// shared/pathfx.js — see its header for the boundary. Living Path runs BOTH
+// engines side by side (2026-09): RFX/PRESETS.raster (Texture/Mass/Fracture/
+// Structure/Reaction, async/debounced) and FX/applyVectorGroups (Distort/
+// Deform/Break, instant point-space math — matching typoclast.com's live-
+// drag feel; see CLAUDE.md), plus the font-specific bits local to this file
+// (fromOTCommands, the glyph model bridge, OTF/VF export).
 const {
   bboxOf, normalise, dFromSubs,
-  RFX, PRESETS,
-  RES, rasterize, rasterFieldToSubs,
+  FX, RFX, PRESETS,
+  RES, rasterize, rasterFieldToSubs, applyVectorGroups,
   morph, boxBlur, addNoise, grayScott, particles, skeleton, seamCarve, polygonize, contours, smoothPoly,
-  dirBlur, chamfer, warpField, halftone, shatter, isoBands, ripple, glitch, mosaic, spikes,
+  dirBlur, chamfer, warpField, halftone, shatter, isoBands, ripple, glitch, mosaic, spikes, griddlerField,
   blendField, rasterFieldFromGroups,
   setSeedOffset, setContourSmooth, getContourSmooth,
 } = Organica.pathfx;
@@ -559,11 +586,14 @@ function glyphAdvance(glyph){
   return Math.round(glyph.advanceWidth) || Math.round((window.__FONT&&window.__FONT.unitsPerEm||1000)*0.5);
 }
 
-// Raster-only engine: the source outline is rasterised, the pixel algorithms
-// run, then marching squares re-traces it back to editable polyline `subs`.
-// (The vector FX engine was removed from Living Path — see CLAUDE.md; the
-// shared shared/pathfx.js FX registry is kept for Sinew.)
-const CHAIN=false, vectorActive=()=>false, chainedSubs=s=>s;
+// Raster engine (Texture tier): the source outline is rasterised, the pixel
+// algorithms run, then marching squares re-traces it back to editable
+// polyline `subs`. Runs in GROUPS.raster[0].
+// Sits alongside the revived Vector engine (Distort tier, GROUPS.vector[0]) —
+// pure point-space deformers from shared/pathfx.js's FX registry (2026-09,
+// matching typoclast.com's instant-drag dynamics; see CLAUDE.md). Both
+// engines apply in sequence per glyph (processGlyphEm) and stack freely —
+// twist a glyph AND erode it.
 function rasterCompute(){
   const res=Organica.pathfx.pickAdaptiveRes(SRC.subs);
   const base=rasterize(SRC.subs, res);
@@ -573,68 +603,105 @@ function rasterCompute(){
 
 
 // ============================================================
-//  EFFECT STACK STATE — raster only. GROUPS of layers; each group
-//  processes the source glyph independently, then composited with a
-//  blend mode (union/subtract/xor…) — overlap an outline group with a
-//  texture group for the "frog-eggs" look.
+//  EFFECT STACK STATE — two engines, one stack UI. GROUPS.raster[0] is the
+//  pixel pipeline (rasterize → RFX → retrace, async/debounced — Texture
+//  tier). GROUPS.vector[0] is the revived point-space FX registry (sync, no
+//  raster round-trip — Distort tier, matching typoclast.com's instant-drag
+//  feel; see CLAUDE.md). Both are plain {id,on,blend,layers} groups so every
+//  existing group/preset/`.lvp` mechanism (originally raster-only) just
+//  gained a second engine to run the same way — see TYPE_ENGINE/defFor below.
 // ============================================================
 const TECH='raster';
 let uid=0;
 const newGroup=(blend='union')=>({id:++uid, on:true, open:true, blend, layers:[]});
-const GROUPS={vector:[], raster:[newGroup()]};   // .vector kept empty for legacy .lvp load only
+const GROUPS={vector:[newGroup()], raster:[newGroup()]};
 
-// The raster effects — a FIXED stack, always all present, grouped into
-// collapsible category sections; drag to reorder WITHIN a section. An effect
-// whose PRIMARY control is 0 is a no-op and is skipped (its `layer.on` is
-// derived, not a checkbox). For dilate/blur/seam/noise/smear/chamfer/warp/
-// ripple/spikes 0 is a genuine identity; for the rest the natural min is >0
-// so we widen it to 0 = "off" and the apply() guards a sub-min value too.
+// The full effect set — raster (Texture/Mass/Fracture/Structure/Reaction) +
+// vector (Distort/Deform/Break) — a FIXED stack per engine, always all
+// present, grouped into collapsible category sections; drag to reorder
+// WITHIN a section (and within its own engine — vector/raster never mix in
+// one drag group). An effect whose PRIMARY control is 0 is a no-op and is
+// skipped (its `layer.on` is derived, not a checkbox); for dilate/blur/seam/
+// noise/smear/chamfer/warp/ripple/spikes 0 is a genuine identity, for the
+// rest the natural min is >0 so we widen it to 0="off" and apply() guards a
+// sub-min value too. Every new vector FX added 2026-09 was designed the same
+// way (primary control defaults to 0 at rest).
 const LP_CATEGORIES=[
-  { id:'mass',      label:'Mass',      types:['dilate','chamfer','blur','smear','threshold'] },
-  { id:'texture',   label:'Texture',   types:['noise','halftone','particles'] },
-  { id:'fracture',  label:'Fracture',  types:['shatter','glitch','seam','mosaic'] },
-  { id:'distort',   label:'Distort',   types:['warp','ripple'] },
-  { id:'structure', label:'Structure', types:['skeleton','polygonize','isobands','spikes'] },
-  { id:'reaction',  label:'Reaction',  types:['reaction'] },
+  { id:'mass',      label:'Mass',      engine:'raster', types:['dilate','chamfer','blur','smear','threshold'] },
+  { id:'texture',   label:'Texture',   engine:'raster', types:['noise','halftone','particles','griddler'] },
+  { id:'fracture',  label:'Fracture',  engine:'raster', types:['shatter','glitch','seam','mosaic'] },
+  { id:'warp-r',    label:'Warp',      engine:'raster', types:['warp','ripple'] },
+  { id:'structure', label:'Structure', engine:'raster', types:['skeleton','polygonize','isobands','spikes'] },
+  { id:'reaction',  label:'Reaction',  engine:'raster', types:['reaction'] },
+  // ── vector · Distort tier (instant, no raster round-trip) ──
+  { id:'distort',   label:'Distort',   engine:'vector', types:['twist','pinch','bulge','wave','ripplev','perspective','wind','curl','flip'] },
+  { id:'deform',    label:'Deform',    engine:'vector', types:['jitter','wobble','inflate','roughen','smooth','sharpen','noisefield','crush','pull'] },
+  { id:'break',     label:'Break',     engine:'vector', types:['scatter','echo','polygonizevec','pixelatevec','slice','spikesvec','groviera'] },
 ];
 const LP_FX_ORDER=LP_CATEGORIES.flatMap(c=>c.types);
 const LP_CAT_OF={}; LP_CATEGORIES.forEach(c=>c.types.forEach(t=>LP_CAT_OF[t]=c.id));
+const TYPE_ENGINE={}; LP_CATEGORIES.forEach(c=>c.types.forEach(t=>TYPE_ENGINE[t]=c.engine));
+function defFor(type){ return (TYPE_ENGINE[type]==='vector' ? FX : RFX)[type]; }
+function groupsFor(engine){ return engine==='vector' ? GROUPS.vector : GROUPS.raster; }
+function layersFor(type){ return groupsFor(TYPE_ENGINE[type])[0].layers; }
+function layersSig(layers){ return JSON.stringify(layers.map(l=>[l.type,l.params])); }
 const LP_PRIMARY={dilate:'amount', chamfer:'radius', blur:'radius', smear:'len', threshold:'level',
-  noise:'amount', halftone:'freq', particles:'count',
+  noise:'amount', halftone:'freq', particles:'count', griddler:'cells',
   shatter:'cells', glitch:'shift', seam:'count', mosaic:'cell',
   warp:'strength', ripple:'amp',
   skeleton:'width', polygonize:'block', isobands:'spacing', spikes:'density',
-  reaction:'iters'};
+  reaction:'iters',
+  // vector (Distort/Deform/Break) — every primary already defaults to 0 at rest
+  twist:'angle', pinch:'amount', bulge:'amount', wave:'amp', ripplev:'amp',
+  perspective:'amount', wind:'amount', curl:'angle', flip:'amount',
+  jitter:'amount', wobble:'amp', inflate:'dist', roughen:'amount', smooth:'strength',
+  sharpen:'amount', noisefield:'amount', crush:'amount', pull:'amount',
+  scatter:'dist', echo:'amount', polygonizevec:'amount', pixelatevec:'cell',
+  slice:'amount', spikesvec:'amount', groviera:'amount'};
 function lpControls(type){
-  return RFX[type].controls.map(c=> c[0]===LP_PRIMARY[type] ? [c[0],c[1],0,c[3],c[4]] : c);
+  return defFor(type).controls.map(c=> c[0]===LP_PRIMARY[type] ? [c[0],c[1],0,c[3],c[4]] : c);
 }
-function identityParams(type){ return {...RFX[type].defaults, [LP_PRIMARY[type]]:0}; }
+function identityParams(type){ return {...defFor(type).defaults, [LP_PRIMARY[type]]:0}; }
 function identityLayer(type){ return {id:++uid, type, params:identityParams(type)}; }
 function isIdentity(layer){ const v=layer.params[LP_PRIMARY[layer.type]]; return v===0 || v==null; }
-function freshStack(){ return [{id:++uid, on:true, blend:'union', layers:LP_FX_ORDER.map(identityLayer)}]; }
-// every effect present, always in canonical LP_FX_ORDER (category-contiguous);
-// a loaded/preset override just supplies params for its type
-function stackFromOverrides(ovByType){
-  const layers=LP_FX_ORDER.map(t=>{
+function freshStack(engine){
+  const types=LP_FX_ORDER.filter(t=>TYPE_ENGINE[t]===engine);
+  return [{id:++uid, on:true, blend:'union', layers:types.map(identityLayer)}];
+}
+// every effect (for its engine) present, always in canonical LP_FX_ORDER
+// (category-contiguous); a loaded/preset override just supplies params
+function stackFromOverrides(ovByType, engine){
+  const types=LP_FX_ORDER.filter(t=>TYPE_ENGINE[t]===engine);
+  const layers=types.map(t=>{
     const ov=ovByType[t];
     return ov ? {id:++uid, type:t, params:{...identityParams(t), ...ov}} : identityLayer(t);
   });
   return [{id:++uid, on:true, blend:'union', layers}];
 }
-function normalizeStack(layers){
+function normalizeStack(layers, engine){
   const ov={};
-  (layers||[]).forEach(l=>{ if(l && RFX[l.type] && !ov[l.type]) ov[l.type]=l.params||{}; });
-  return stackFromOverrides(ov);
+  (layers||[]).forEach(l=>{ if(l && TYPE_ENGINE[l.type]===engine && !ov[l.type]) ov[l.type]=l.params||{}; });
+  return stackFromOverrides(ov, engine);
 }
-// derived active flag — read by rasterFieldFromGroups / the worker (both `if(l.on)`)
-function syncActive(){ GROUPS.raster.forEach(g=>{ g.on=true; g.layers.forEach(l=>{ l.on=!isIdentity(l); }); }); }
+// derived active flag — read by rasterFieldFromGroups/applyVectorGroups and
+// the OTF worker (all `if(l.on)`)
+function syncActive(){
+  [GROUPS.raster, GROUPS.vector].forEach(arr=>arr.forEach(g=>{ g.on=true; g.layers.forEach(l=>{ l.on=!isIdentity(l); }); }));
+}
+function rasterActive(){ return GROUPS.raster[0].layers.some(l=>!isIdentity(l)); }
+function vectorActiveNow(){ return GROUPS.vector[0].layers.some(l=>!isIdentity(l)); }
 
-// preset → the canonical stack (flattens any legacy multi-group preset)
+// preset → {raster,vector} canonical stacks (flattens any legacy multi-group
+// preset; a preset's `fx` list can mix both engines' type names — each
+// override routes to its own engine bucket via TYPE_ENGINE)
 function presetToStack(p){
-  const ov={};
+  const ovR={}, ovV={};
   (p.groups ? p.groups.flatMap(g=>g.layers) : (p.fx||[])).forEach(([t,o])=>{
-    if(RFX[t] && !ov[t]) ov[t]=o||{}; });
-  return stackFromOverrides(ov);
+    const eng=TYPE_ENGINE[t]; if(!eng) return;
+    const ov = eng==='vector' ? ovV : ovR;
+    if(!ov[t]) ov[t]=o||{};
+  });
+  return { raster: stackFromOverrides(ovR,'raster'), vector: stackFromOverrides(ovV,'vector') };
 }
 
 // ── user presets (Organica.presetStore) ──
@@ -645,7 +712,8 @@ function presetDef(name){ return userPresets()[name] || PRESETS.raster[name]; }
 let CURRENT_PRESET=null;
 function applyPreset(name){
   const p=presetDef(name); if(!p) return;
-  GROUPS.raster=presetToStack(p);
+  const {raster,vector}=presetToStack(p);
+  GROUPS.raster=raster; GROUPS.vector=vector;
   setContourSmooth((p.smooth!==undefined) ? p.smooth : 2);   // faceted presets set 0
   outlineWidth = p.outline ? (typeof p.outline==='number' ? p.outline : 7) : 0;
   outlineRings = p.outlineRings || 1; outlineGap = p.outlineGap || 4;
@@ -665,14 +733,20 @@ function sampleSRC(){
   _sampleSRC.g = (subs&&subs.length) ? normalise(subs,false) : null;
   return _sampleSRC.g;
 }
-// render `groups` (+smooth + outline width/rings) on the sample glyph → an <svg> string
-function iconFor(groups, smooth, outlineW, rings, gap){
+// render `rGroups`+`vGroups` (+smooth + outline width/rings) on the sample
+// glyph → an <svg> string. Vector FX apply directly to the sample (each new
+// effect is self-normalising, keyed off its own subs' bboxOf), then the
+// raster half runs through the existing computed()/rasterCompute() path.
+function iconFor(rGroups, vGroups, smooth, outlineW, rings, gap){
   const smp=sampleSRC(); let shape='';
   if(smp){
-    const sG=GROUPS.raster, sS=getContourSmooth(), sSRC=SRC;
-    GROUPS.raster=groups; setContourSmooth(smooth); SRC=smp; syncActive();
+    const sGR=GROUPS.raster, sS=getContourSmooth(), sSRC=SRC;
+    const vActive = vGroups && vGroups[0].layers.some(l=>!isIdentity(l));
+    GROUPS.raster=rGroups; setContourSmooth(smooth);
+    SRC = vActive ? { subs: Organica.pathfx.applyVectorGroups(smp.subs, vGroups) } : smp;
+    syncActive();
     let out=null; try{ out=computed(); }catch(e){}
-    GROUPS.raster=sG; setContourSmooth(sS); SRC=sSRC; syncActive();
+    GROUPS.raster=sGR; setContourSmooth(sS); SRC=sSRC; syncActive();
     const d=out?dFromSubs(out):'';
     shape = outlineW>0
       ? ((rings||1)>1 ? strokeRingsSVG(d,'#000','#fff',outlineW*1.4,rings,gap*1.4)
@@ -686,13 +760,14 @@ function presetIcon(name){
   if(ICON_CACHE[key]) return ICON_CACHE[key];
   const p=presetDef(name)||{};
   const ow = p.outline ? (typeof p.outline==='number'?p.outline:7) : 0;
-  const svg=iconFor(presetToStack(p), (p.smooth!==undefined)?p.smooth:2, ow, p.outlineRings||1, p.outlineGap||4);
+  const {raster,vector}=presetToStack(p);
+  const svg=iconFor(raster, vector, (p.smooth!==undefined)?p.smooth:2, ow, p.outlineRings||1, p.outlineGap||4);
   ICON_CACHE[key]=svg; return svg;
 }
 function stackIcon(){
   const key='live:'+STACK_REV+':'+fontSig();
   if(ICON_CACHE[key]) return ICON_CACHE[key];
-  const svg=iconFor(GROUPS.raster, getContourSmooth(), outlineWidth, outlineRings, outlineGap);
+  const svg=iconFor(GROUPS.raster, GROUPS.vector, getContourSmooth(), outlineWidth, outlineRings, outlineGap);
   ICON_CACHE[key]=svg; return svg;
 }
 function updatePresetTrigger(){
@@ -765,10 +840,10 @@ function buildPresets(){
 // Drag reorders WITHIN its category only (blocks carry data-cat).
 let DRAG_IDX=null, DRAG_CAT=null;
 function buildLayerBlock(layer){
-  const def=RFX[layer.type], el=document.createElement('div');
+  const def=defFor(layer.type), el=document.createElement('div');
   el.className='layer'+(isIdentity(layer)?' layer--idle':'');
   el.dataset.cat=LP_CAT_OF[layer.type];
-  const gidx=()=>GROUPS.raster[0].layers.indexOf(layer);
+  const gidx=()=>layersFor(layer.type).indexOf(layer);
   let body='';
   lpControls(layer.type).forEach(([key,label,min,max,step])=>{
     body+=`<div class="row"><div class="ctrl-label">${label}</div>
@@ -800,7 +875,7 @@ function buildLayerBlock(layer){
   el.addEventListener('drop',e=>{ e.preventDefault();
     const idx=gidx();
     if(DRAG_IDX===null || el.dataset.cat!==DRAG_CAT || DRAG_IDX===idx) return;
-    const L=GROUPS.raster[0].layers, before = e.clientY < el.getBoundingClientRect().top + el.offsetHeight/2;
+    const L=layersFor(layer.type), before = e.clientY < el.getBoundingClientRect().top + el.offsetHeight/2;
     const [moved]=L.splice(DRAG_IDX,1);
     let to = idx + (DRAG_IDX<idx ? -1 : 0) + (before ? 0 : 1);
     to=Math.max(0,Math.min(L.length,to)); L.splice(to,0,moved);
@@ -839,15 +914,21 @@ function buildOutlineBlock(){
 // which categories are expanded — undefined = auto (open iff it has an active effect)
 const LP_CAT_OPEN={};
 function catActiveCount(cat){
-  return GROUPS.raster[0].layers.filter(l=>cat.types.includes(l.type) && !isIdentity(l)).length;
+  return groupsFor(cat.engine)[0].layers.filter(l=>cat.types.includes(l.type) && !isIdentity(l)).length;
 }
 function catIsOpen(cat){
   return (cat.id in LP_CAT_OPEN) ? LP_CAT_OPEN[cat.id] : catActiveCount(cat)>0;
 }
 function renderStack(){
   const host=$('#stack'); if(!host) return; host.innerHTML='';
-  const layers=GROUPS.raster[0].layers;
+  let prevEngine=null;
   LP_CATEGORIES.forEach(cat=>{
+    if(cat.engine!==prevEngine){
+      const div=document.createElement('div'); div.className='fx-engine-div';
+      div.textContent = cat.engine==='vector' ? 'Vector · instant' : 'Raster · texture';
+      host.appendChild(div); prevEngine=cat.engine;
+    }
+    const layers=groupsFor(cat.engine)[0].layers;
     const open=catIsOpen(cat), n=catActiveCount(cat);
     const sec=document.createElement('div');
     sec.className='fx-cat'+(open?' is-open':'');
@@ -1048,7 +1129,7 @@ function varSig(){
     + '#' + JSON.stringify(_gmodel.loc);
 }
 function famSig(){
-  return JSON.stringify(GROUPS.raster[0].layers.map(l=>[l.type,l.params]))+'|'+getContourSmooth()+'|'+fontSig()+'|e'+_editRev+'|v'+varSig();
+  return layersSig(GROUPS.raster[0].layers)+'|'+layersSig(GROUPS.vector[0].layers)+'|'+JSON.stringify(XFORM)+'|'+getContourSmooth()+'|'+fontSig()+'|e'+_editRev+'|v'+varSig();
 }
 // incrementally run every charset glyph through processGlyphEm, caching the
 // em-unit result so a resize/re-open is a pure relayout. Yields to the event
@@ -1335,15 +1416,23 @@ function render(){
     if(isFont)                    return renderTester(), null;    // the default view
     CACHE=computed(); repaint(); return null;
   };
-  // processing state for real work only (an active effect stack, or the family
-  // grid). A raw / identity render is instant — no flash. Slow work shows the
-  // grey-out + pill + edge bar, but only after PROC_GRACE ms (see above).
-  const heavy = family || (isFont && !glyphMode && !stackIsIdentity());   // 1 glyph is fast → no scrim
+  // processing state for real work only (an active RASTER stack, or the
+  // family grid). The Vector engine (Distort/Deform/Break) is cheap point-
+  // space math — a vector-only edit renders SYNCHRONOUSLY, no debounce, no
+  // scrim, on every slider `input` tick (typoclast-style instant drag; see
+  // CLAUDE.md). Raster edits (alone or stacked with vector) keep the
+  // existing async/debounced/Worker-friendly path — that part is still
+  // genuinely expensive. A raw / identity render is instant either way.
+  const heavy = family || (isFont && !glyphMode && rasterActive());
   clearTimeout(rasterTimer);
+  if(!heavy){
+    const tok = ++_renderSeq; if(tok===_renderSeq) idle();   // clear any stale scrim, no wait
+    doit();
+    return;
+  }
   rasterTimer=setTimeout(()=>{
     const tok = ++_renderSeq;
     const done = ()=>{ if(tok===_renderSeq) idle(); };   // a newer render owns the overlay now
-    if(!heavy){ done(); doit(); return; }                // identity render → clear any stale scrim
     // a blocking tester render can't be watched mid-flight — predict "slow"
     // from last time so a repeat of a heavy op still gets feedback
     if(!family && _lastHeavyMs > PROC_GRACE) busy('applying effects…');
@@ -1593,23 +1682,47 @@ function denormGlyph(subs,k,ox,oy){
 // no active effect anywhere in the stack → the tester shows the RAW loaded
 // font (no preset, no raster round-trip) in the same normalised 1000-box, so
 // switching an effect on/off never makes the specimen jump.
-function stackIsIdentity(){ return GROUPS.raster[0].layers.every(isIdentity); }
+function stackIsIdentity(){ return GROUPS.raster[0].layers.every(isIdentity) && GROUPS.vector[0].layers.every(isIdentity); }
+// Vector half — cheap, synchronous, no raster round-trip. Runs FIRST (on the
+// normalised 1000-box subs), so a Distort layer feeds whatever the raster
+// pipeline then textures — twist a glyph, then erode the twisted result.
+function applyVectorStack(norm){
+  syncActive();
+  return vectorActiveNow() ? Organica.pathfx.applyVectorGroups(norm, GROUPS.vector) : norm;
+}
 function applyStackNorm(norm){
   syncActive();
-  if(stackIsIdentity()) return norm;
+  if(!rasterActive()) return norm;
   const res=Organica.pathfx.pickAdaptiveRes(norm);
   const g=rasterFieldFromGroups(rasterize(norm, res), GROUPS.raster);
   return rasterFieldToSubs(g, 1000/res);
 }
+// mild heresy — a per-glyph affine, applied last (em-space, after denorm) so
+// it never distorts the effect stack's own normalised 1000-box math. Cheap
+// enough to run on every glyph, every render — no gating needed.
+const XFORM={rotate:0, slant:0, stretchX:1, stretchY:1};
+function xformIsIdentity(){ return XFORM.rotate===0 && XFORM.slant===0 && XFORM.stretchX===1 && XFORM.stretchY===1; }
+function applyTransform(subs){
+  if(xformIsIdentity() || !subs.length) return subs;
+  const bb=bboxOf(subs), cx=bb.minX+bb.w/2, cy=bb.minY+bb.h/2;
+  const a=XFORM.rotate*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a), sh=Math.tan(XFORM.slant*Math.PI/180);
+  return subs.map(s=>({
+    closed:s.closed, pts:s.pts.map(pt=>{
+      let x=(pt.x-cx)*XFORM.stretchX, y=(pt.y-cy)*XFORM.stretchY;
+      x=x+y*sh;                                     // slant — shear x by y
+      return { x: cx+x*ca-y*sa, y: cy+x*sa+y*ca };  // rotate
+    })
+  }));
+}
 function processGlyphEm(glyph, upm){
   const ed = editedGlyph(glyph);
-  if(ed && ed.baked) return Organica.glyphModel.toSubs(ed.contours);   // effects already frozen in — no re-apply
+  if(ed && ed.baked) return applyTransform(Organica.glyphModel.toSubs(ed.contours));   // effects already frozen in — no re-apply
   const subs=glyphSubs(glyph);
   if(!subs.length) return null;
   const {norm,k,ox,oy}=normGlyph(subs);
-  const out=applyStackNorm(norm);
+  const out=applyStackNorm(applyVectorStack(norm));
   if(!out||!out.length) return null;
-  return denormGlyph(out,k,ox,oy);
+  return applyTransform(denormGlyph(out,k,ox,oy));
 }
 function inCharset(u, r){
   if(u===32) return true;                                   // always keep space
@@ -1619,9 +1732,11 @@ function inCharset(u, r){
   return r.other;                                           // accents / everything else
 }
 // does the active stack use a seeded (randomisable) effect?
-const SEEDED_FX={noise:1,particles:1,reaction:1,warp:1,shatter:1,glitch:1,spikes:1};
+const SEEDED_FX={noise:1,particles:1,reaction:1,warp:1,shatter:1,glitch:1,spikes:1,
+  noisefield:1,spikesvec:1,scatter:1,groviera:1};
 function stackHasSeed(){
-  return GROUPS.raster[0].layers.some(l=>!isIdentity(l) && SEEDED_FX[l.type]);
+  return GROUPS.raster[0].layers.some(l=>!isIdentity(l) && SEEDED_FX[l.type])
+      || GROUPS.vector[0].layers.some(l=>!isIdentity(l) && SEEDED_FX[l.type]);
 }
 // assemble an OTF from per-glyph variants. vars[0] = base; vars[1..] = alternates.
 // When alternates exist they're added as extra glyphs behind a `rand` (auto-
@@ -1641,7 +1756,7 @@ function fitGlyphSubs(subs, upm){
 // overwrites cleanly), a different look ⇒ a new tag (installs alongside)
 function buildTag(name, src){
   const key=name+'|'+(src&&src.names&&src.names.postScriptName&&src.names.postScriptName.en||'')+'|'+
-    JSON.stringify(GROUPS.raster[0].layers.map(l=>[l.type,l.params]))+'|'+getContourSmooth()+'|'+outlineWidth+'|'+outlineRings+'|'+outlineGap;
+    layersSig(GROUPS.raster[0].layers)+'|'+layersSig(GROUPS.vector[0].layers)+'|'+JSON.stringify(XFORM)+'|'+getContourSmooth()+'|'+outlineWidth+'|'+outlineRings+'|'+outlineGap;
   let h=2166136261>>>0;
   for(let i=0;i<key.length;i++){ h^=key.charCodeAt(i); h=Math.imul(h,16777619)>>>0; }
   return h.toString(36).slice(0,4);
@@ -1722,7 +1837,7 @@ let _lpWorkerURL=null;
 function livingPathWorkerURL(){
   if(_lpWorkerURL) return _lpWorkerURL;
   const shared=[mulberry32,morph,boxBlur,addNoise,grayScott,particles,skeleton,polygonize,seamCarve,blendField,contours,smoothPoly,
-    dirBlur,chamfer,warpField,halftone,shatter,isoBands,ripple,glitch,mosaic,spikes].map(f=>f.toString()).join('\n');
+    dirBlur,chamfer,warpField,halftone,shatter,isoBands,ripple,glitch,mosaic,spikes,griddlerField].map(f=>f.toString()).join('\n');
   const wsrc=shared+'\n'+`
 // the glyph arrives already normalised into the 1000-box → rasterise exactly
 // like the live preview so the effect strength matches
@@ -1762,6 +1877,7 @@ function applyLayerW(g,t,p){
   else if(t==='threshold'){const L=p.level/100;for(let i=0;i<g.f.length;i++)g.f[i]=g.f[i]>=L?1:0;}
   else if(t==='noise')addNoise(g,p.amount/100,p.scale,p.seed+SEEDOFF);
   else if(t==='particles')particles(g,p.count,p.size,p.spread,p.seed+SEEDOFF,p.body,p.carve,p.bias);
+  else if(t==='griddler'){ if(p.cells>0) griddlerField(g,p.cells,p.gutter*(g.w/170)); }
   else if(t==='skeleton')skeleton(g,p.width);
   else if(t==='polygonize')polygonize(g,p.block);
   else if(t==='seam'){ if(p.dir===2){ seamCarve(g,p.count,0); seamCarve(g,p.count,1); } else seamCarve(g,p.count,p.dir); }
@@ -1817,6 +1933,8 @@ async function buildModifiedFontWorker(opts, onProgress){
   const src=window.__FONT; if(!src) throw new Error('load a font first');
   const upm=src.unitsPerEm||1000, seen=new Set(), glyphs=[];
   const NV=Math.max(1, opts.variants||1);
+  syncActive();
+  const rActive=rasterActive();   // decided once — same stack for every glyph
   for(let i=0;i<src.glyphs.length;i++){ const gl=src.glyphs.get(i);
     if(gl.unicode==null||gl.unicode<=0||seen.has(gl.unicode)||!inCharset(gl.unicode,ranges))continue; seen.add(gl.unicode);
     const subs=glyphSubs(gl);
@@ -1829,9 +1947,18 @@ async function buildModifiedFontWorker(opts, onProgress){
       // (normalised into the 1000-box) and let it pass straight through, no re-apply
       const n=normGlyph(subs); e.k=n.k; e.ox=n.ox; e.oy=n.oy; e.baked=true; e.norm=n.norm;
     }else if(!empty){
-      // normalise into the preview's 1000-box so effect strength matches
-      const n=normGlyph(subs); e.k=n.k; e.ox=n.ox; e.oy=n.oy; e.dv=[];
-      for(let v=0;v<NV;v++){ e.dv.push(dFromSubs(n.norm)); }
+      // normalise into the preview's 1000-box so effect strength matches, then
+      // the (cheap, synchronous) Vector engine — same order as processGlyphEm
+      const n=normGlyph(subs), vecNorm=applyVectorStack(n.norm);
+      e.k=n.k; e.ox=n.ox; e.oy=n.oy;
+      if(!rActive){
+        // no raster work at all → skip the Worker's rasterize/retrace pass
+        // entirely; export the exact vector-distorted shape (no lossy round-trip)
+        e.baked=true; e.norm=vecNorm;
+      }else{
+        e.dv=[];
+        for(let v=0;v<NV;v++){ e.dv.push(dFromSubs(vecNorm)); }
+      }
       setSeedOffset(0);
     }
     glyphs.push(e);
@@ -1895,7 +2022,7 @@ function serializeVar(){
   };
 }
 function projectJSON(){
-  return JSON.stringify({ v:5, groups:GROUPS.raster,
+  return JSON.stringify({ v:6, groups:GROUPS.raster, vectorGroups:GROUPS.vector, transform:XFORM,
     smooth:getContourSmooth(), outline:outlineWidth, outlineRings, outlineGap,
     ink:$('#cp-ink').value, bg:$('#cp-bg').value, name:$('#exName').value,
     specimen:specimenString,
@@ -1905,10 +2032,14 @@ function projectJSON(){
 function loadProject(txt){
   const p=JSON.parse(txt); if(!p.groups) throw new Error('not a .lvp');
   GROUPS.raster = normalizeStack(
-    Array.isArray(p.groups) ? p.groups.flatMap(g=>g.layers||[]) : ((p.groups.raster||[]).flatMap(g=>g.layers||[])));
-  GROUPS.vector = [];
+    Array.isArray(p.groups) ? p.groups.flatMap(g=>g.layers||[]) : ((p.groups.raster||[]).flatMap(g=>g.layers||[])), 'raster');
+  // v6 adds the Distort/Deform/Break vector stack; older files have none → fresh (all-identity)
+  GROUPS.vector = p.vectorGroups
+    ? normalizeStack((Array.isArray(p.vectorGroups) ? p.vectorGroups : []).flatMap(g=>g.layers||[]), 'vector')
+    : freshStack('vector');
   if(p.smooth!=null) setContourSmooth(p.smooth);
   outlineWidth = p.outline || 0; outlineRings = p.outlineRings || 1; outlineGap = p.outlineGap || 4;
+  Object.assign(XFORM, {rotate:0,slant:0,stretchX:1,stretchY:1}, p.transform||{}); syncXformUI();
   if(p.ink) swatches.ink.set(p.ink);
   if(p.bg) swatches.bg.set(p.bg);
   if(p.name) $('#exName').value=p.name;
@@ -1991,7 +2122,7 @@ $('#saveProj').addEventListener('click',()=>{
     fr.onload=()=>{ try{ loadProject(fr.result); statusEl.textContent='✓ project loaded'; }catch(e){ statusEl.textContent='✗ '+e.message; } };
     fr.readAsText(f); inp.value=''; });
 })();
-$('#reset').addEventListener('click',()=>{ GROUPS.raster=freshStack(); outlineWidth=0; outlineRings=1; outlineGap=4; CURRENT_PRESET=null; STACK_REV++; updatePresetTrigger(); renderStack(); render(); });
+$('#reset').addEventListener('click',()=>{ GROUPS.raster=freshStack('raster'); GROUPS.vector=freshStack('vector'); outlineWidth=0; outlineRings=1; outlineGap=4; Object.assign(XFORM,{rotate:0,slant:0,stretchX:1,stretchY:1}); syncXformUI(); CURRENT_PRESET=null; STACK_REV++; updatePresetTrigger(); renderStack(); render(); });
 $('#tgFamily').addEventListener('click',function(){
   if(showGlyph){ showGlyph=false; showFamily=true; }   // from the single-glyph view → back to the grid
   else showFamily=!showFamily;
@@ -2128,7 +2259,7 @@ $('#varBake').addEventListener('click', async function(){
   const t0=performance.now();
   try{
     const r=await m.bakePresetMaster(m.editMasterIdx, {
-      normGlyph, denormGlyph, apply: applyStackNorm,
+      normGlyph, denormGlyph, apply: n=>applyStackNorm(applyVectorStack(n)),   // vector then raster, same order as processGlyphEm
       glyphKeys: m.glyphOrder, presetRef: CURRENT_PRESET || null,
       onProgress:(i,n)=>{ if(performance.now()-t0>PROC_GRACE) busy(`baking master ${i}/${n}…`); },
     });
@@ -2289,8 +2420,35 @@ document.addEventListener('click',e=>{ const m=$('#presetMenu'); if(m && !m.hidd
 window.addEventListener('resize',closeMenu);
 document.getElementById('panel').addEventListener('scroll',e=>{ if(!e.target.closest('#presetMenu')) closeMenu(); },true);
 
-// boot — all nine effects present, every one at 0 (plain outline) until a preset
-GROUPS.raster=freshStack();
+// ── Transform row (rotate/slant/stretch) — mirrors the effect stack's own
+//    slider wiring; instant (no raster/vector gating touches it) ──
+function wireXform(id, key, fmt){
+  const r=document.getElementById(id), v=document.getElementById(id+'Val');
+  r.addEventListener('input',()=>{
+    XFORM[key]=fmt.parse(+r.value); v.textContent=fmt.show(XFORM[key]);
+    markCustom(); render();
+  });
+}
+wireXform('xfRotate','rotate',{parse:v=>v, show:v=>v+'°'});
+wireXform('xfSlant','slant',{parse:v=>v, show:v=>v+'°'});
+wireXform('xfStretchX','stretchX',{parse:v=>v/100, show:v=>v.toFixed(2)});
+wireXform('xfStretchY','stretchY',{parse:v=>v/100, show:v=>v.toFixed(2)});
+// keep the Transform row in sync with XFORM (used on .lvp load / Reset) — a
+// synthetic 'input' lets the shared enhanceSliders delegate refresh the
+// filled-track visual the same way a real drag does
+function syncXformUI(){
+  $('#xfRotate').value=XFORM.rotate; $('#xfRotateVal').textContent=XFORM.rotate+'°';
+  $('#xfSlant').value=XFORM.slant; $('#xfSlantVal').textContent=XFORM.slant+'°';
+  $('#xfStretchX').value=Math.round(XFORM.stretchX*100); $('#xfStretchXVal').textContent=XFORM.stretchX.toFixed(2);
+  $('#xfStretchY').value=Math.round(XFORM.stretchY*100); $('#xfStretchYVal').textContent=XFORM.stretchY.toFixed(2);
+  ['xfRotate','xfSlant','xfStretchX','xfStretchY'].forEach(id=>{
+    const el=$('#'+id); if(el) el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+}
+
+// boot — every raster + vector effect present, every one at 0 (plain outline) until a preset
+GROUPS.raster=freshStack('raster');
+GROUPS.vector=freshStack('vector');
 buildPresets();
 renderStack();
 Organica.autoLabelPanel(document);

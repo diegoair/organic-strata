@@ -21,6 +21,14 @@ Single-file vanilla HTML/CSS/JS. No build step, no framework. Uses
 
 ## 2. The two engines — Technique toggle (top bar)
 
+> **Staleness note (2026-09):** §2–§6 describe Living Path's pre-font-only architecture
+> (the SVG/Genesis input tabs, the Vector/Raster **toggle**, per-effect groups). Since the
+> Sep 5, 2026 font-only split the generic-vector half lives in **Sinew** (still toggle-based,
+> matching this description) and Living Path itself is font-only, with the raster engine
+> reorganised into the collapsible category stack described in §7 below. §7's "Distort &
+> Deform" subsection is current. A full rewrite of §2–§6 is pending — see `CLAUDE.md` for the
+> up-to-date session-by-session record in the meantime.
+
 | | **Vector** | **Raster · LivingPath** |
 |---|---|---|
 | Works on | the Bézier **nodes** directly | a **rasterised** glyph → re-vectorised |
@@ -244,7 +252,75 @@ fontmake -m <family>.designspace -o variable
 The model's real vertical metrics (`ascender` / `descender` / `xHeight` / `capHeight` from the
 loaded font's `OS/2`) go into each `fontinfo.plist`.
 
+### Distort & Deform — the vector engine (2026-09)
+
+The right panel's **Transform** section and the Effect stack's **Vector** half (below the
+"Vector · instant" divider — **Distort · Deform · Break**) are a second, independent engine
+alongside the raster Texture/Mass/Fracture/Warp/Structure/Reaction categories above the
+divider — built to match [typoclast.com](https://typoclast.com)'s instant point-space
+distortion dynamics.
+
+- **Transform** — Rotate / Slant / Stretch X / Stretch Y, a per-glyph affine applied last (not
+  a stack layer). Always instant.
+- **Distort** — Twist · Pinch · Bulge · Wave · Ripple (radial) · Perspective · Wind · Curl · Flip.
+- **Deform** — Jitter (noise) · Wobble (sine) · Inflate/Erode · Roughen · Organic smooth ·
+  Sharpen · Noise (field) · Crush · Pull.
+- **Break** — Scatter (explode) · Echo · Polygonize · Pixelate · Slice · Spikes · Vector griddler.
+- **Groviera** (a raster effect, in **Texture**) — a one-slider wrapper on the raster engine's
+  existing particle-punch, not a new algorithm.
+
+**Why it's instant, unlike the raster stack above the divider:** every vector effect nudges a
+glyph's own anchor points directly (`shared/pathfx.js`'s `FX` registry — the module Sinew has
+always used) — no rasterize → pixel algorithm → marching-squares retrace round-trip. A stack
+with only Distort/Deform/Break/Transform active renders **synchronously on every slider drag**,
+no debounce, no processing overlay; a raster effect (alone or stacked with vector) still uses
+the existing async/`Worker`-backed path, since that part is genuinely expensive. **The two
+halves stack freely** — twist a glyph, then let a raster preset melt the twisted result — and
+both flow into the tester, Full Family, `.lvp` (**v6** — adds a `vectorGroups` block; a v5/v4
+file loads with the vector stack at rest, identity), and both OTF export paths (Worker and the
+main-thread fallback) identically. A **vector-only** export skips the raster Worker's rasterize
+pass entirely for that glyph — no lossy round-trip on a purely geometric distortion.
+
 Ink / Paper colours are in the right panel (**Colour**).
+
+### Filter-by-filter realignment against typoclast (2026-09)
+
+A follow-up pass drove typoclast.com and Living Path side by side (same font, Archivo Black)
+and tuned every shared-named effect to match typoclast's actual behaviour family, not just its
+name — most of the 19 new effects above needed real math changes, not just exposure:
+
+- **twist → shear**, **pinch → saddle squeeze+grow**, **bulge → angular-harmonic petals**,
+  **pull → squircle** (dropped its `angle` param), **wave/ripple → angular-harmonic** (radial
+  lobes, not spatial sine), **refraction → continuous sine**, **sharpen → decimate-to-facets**,
+  **flip → circularize blend**, **crush → sharp-square blend**, **curl → radial spiral**,
+  **spikesvec/groviera → real-corner targeting** (`findCorners`, a genuine direction-change
+  threshold — not every-Nth-point) — the full list and reasoning is in `CLAUDE.md`'s Sep 2026
+  session notes.
+- **`echo`** was a near-invisible duplicate-copy pinch (max ~25-unit displacement on a
+  700-unit glyph, and a **complete no-op** on low-point-count glyphs like Archivo Black's
+  straight-line `A`, 9 points, below its own `n < count*3` guard). Rewritten as a real
+  centroid-pull pinch at each segment seam, guard lowered to `n<6`, pull strength and window
+  widened — now moves points 200+ units and never silently no-ops.
+- **`groviera`** (moved from raster → vector, a real corner-bite notch via `findCorners`) read
+  as only a faint rounding of each corner at first (`bite = R*0.05*amount`) — strengthened to
+  `R*0.16*amount` so it reads as a genuine cut/notch at each real vertex, not a subtle chamfer.
+- **`griddler`** (moved from vector → raster) is a real grid-clip: `griddlerField` zeroes the
+  raster field along an N×N grid of gutter bands so marching-squares re-traces true axis-aligned
+  gaps through the solid body — typoclast's own "vector griddler" turned out to be exactly this
+  (a real cut with visible gutters), not a mesh warp; doing it as a genuine polygon clip would
+  need a clipping-library dependency this project doesn't have, so it reuses the raster
+  round-trip already in the pipeline instead.
+- **`inflate`** gained **Ripple** + **Lobes** params — typoclast's inflate is a high-frequency
+  petal ripple on both contours (outer bulge and inner counter alike), not a uniform push; the
+  base `Distance` push is now modulated by `1 + ripple·cos(lobes·θ)` around the glyph's own
+  centre, so outer and inner contours ripple in register like real petals. Backward-compatible
+  defaults (`ripple:40, lobes:6`) keep the effect visible without requiring a slider touch.
+- `perspective`/`wind` were retuned earlier in the same pass (see CLAUDE.md) for scale
+  mismatches that either collapsed or barely moved the glyph.
+
+Verified: a combined vector(echo)+raster(griddler) stack round-trips through the Worker OTF
+export path and re-parses as a valid, installable font; Sinew's shared `FX`/`RFX` registries
+regression-checked clean (engine counts, groviera in `FX`, griddler in `RFX`).
 
 ---
 
