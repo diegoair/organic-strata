@@ -179,6 +179,11 @@ body { background: var(--paper); }
       <button class="fx-cat-head" onclick="toggleCat(this)"><span>Eternal damnation</span><span class="chev">&#9660;</span></button>
       <div class="fx-cat-body" id="cat-damnation"></div>
     </div>
+
+    <div class="panel-section">
+      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Texture (extra)</span><span class="chev">&#9660;</span></button>
+      <div class="fx-cat-body" id="cat-texture"></div>
+    </div>
   </div>
 
 </div>
@@ -405,6 +410,14 @@ const FX = [
   {key:'slice',        cat:'damnation', label:'slice',                   min:-4.9, max:4.9, step:0.1, def:0},
   {key:'groviera',     cat:'damnation', label:'groviera',                min:0,    max:100, step:1,   def:0},
   {key:'griddler',     cat:'damnation', label:'vector griddler',         min:0,    max:100, step:1,   def:60}, // typoclast boots with this already on
+  // ── texture (extra) — NOT part of typoclast's own 27-slider pipeline.
+  // Ported concept-only from Living Path/Sinew's shared shared/pathfx.js FX
+  // registry (jitter/wobble/scatter), reimplemented from zero on Apostate's
+  // own point-space model — no shared code, per Apostate's "start from
+  // zero" rule. Applied as a final pass after damnation.
+  {key:'jitter',       cat:'texture',   label:'jitter (new)',            min:0,    max:100, step:1,   def:0},
+  {key:'wobble',       cat:'texture',   label:'wobble (new)',            min:0,    max:100, step:1,   def:0},
+  {key:'scatter',      cat:'texture',   label:'scatter (new)',           min:0,    max:100, step:1,   def:0},
 ];
 const STATE = {}; FX.forEach(f=>STATE[f.key]=f.def);
 // griddler's own sub-parameters — confirmed live on typoclast's default boot
@@ -419,6 +432,10 @@ const ECHO = {repeats:3, angle:0};
 // polygonize's own sub-parameters — confirmed live: "facets" (1–6) and
 // "chamfer" (0–100%) appear once Amount > 0.
 const POLY = {facets:2, chamfer:50};
+// jitter/wobble/scatter's own sub-parameters (Texture · extra group)
+const JITTER = {seed:7};
+const WOBBLE = {freq:6, phase:0};
+const SCATTER = {seed:5};
 // r' = r*(1 + amp*cos(lobes*theta + phase)) around a shared centre — the
 // angular-harmonic family confirmed live for bulge/wave/ripple/inflate.
 function angularHarmonic(subs, cx, cy, lobes, amp, phaseDeg){
@@ -990,6 +1007,81 @@ function applyEffect(key, subs){
       }
       return out;
     }
+    case 'jitter': {
+      // per-point random displacement, fixed seed so the noise pattern
+      // itself stays put as Amount is dragged (no flicker) — same idea as
+      // groviera/spikes' own fixed seeds.
+      // Debug finding (Sep 2026): a flat, glyph-agnostic amount (same bug
+      // class already fixed once in this file for `noise` — see its own
+      // comment) breaks on any dense contour: an "O" has ~32 units between
+      // neighbouring points, so even a modest amount (Living Path's own
+      // safe ceiling of 40) already exceeds local spacing and neighbouring
+      // points cross each other, producing self-intersecting shards instead
+      // of a grain-like texture. Capped per-point to a fraction of that
+      // point's own LOCAL spacing (average distance to its two neighbours)
+      // so it can never leapfrog past a neighbour regardless of density —
+      // dense contours (O) get a safe, contained grain at any Amount; a
+      // sparse contour (e.g. "I"'s 4-point rectangle) has wide local
+      // spacing and keeps the full dramatic corner-jitter unclamped.
+      const amt = v;
+      const r = mulberry32(JITTER.seed);
+      return subs.map(s=>{
+        const n = s.pts.length;
+        return {closed:s.closed, pts: s.pts.map((p,i)=>{
+          const a=s.pts[(i-1+n)%n], b=s.pts[(i+1)%n];
+          const localSpacing = (Math.hypot(p.x-a.x,p.y-a.y) + Math.hypot(b.x-p.x,b.y-p.y)) / 2;
+          const m = Math.min(amt, Math.max(2, localSpacing*0.45));
+          return { x: p.x + (r()*2-1)*m, y: p.y + (r()*2-1)*m };
+        })};
+      });
+    }
+    case 'wobble': {
+      // sine displacement along each point's own LOCAL normal (derived from
+      // its neighbours along the contour) — an organic ripple distinct from
+      // the angular-harmonic family (bulge/wave/ripple), which warps around
+      // the glyph's shared centre instead of following the contour itself.
+      // Debug finding (Sep 2026): using the raw POINT INDEX (i/n) as the
+      // sine's phase aliases badly on any low-point-count subpath — whenever
+      // (2*Frequency) is an exact multiple of the point count n, i*freq/n
+      // lands on a half-integer at every single sample, so sin() is exactly
+      // zero for EVERY point and the whole subpath goes dead. Confirmed
+      // live: a 4-point glyph ("I") is a complete no-op at the DEFAULT
+      // Frequency of 6 (2*6=12 is a multiple of 4), and only starts moving
+      // once Frequency is nudged off that exact ratio. Fixed the same way
+      // `spikes`/`groviera` already fixed an unrelated but same-shaped bug
+      // in this file: parametrise by actual ARC LENGTH along the contour
+      // instead of raw point index, so the phase varies smoothly regardless
+      // of how few/uneven the source points are.
+      const amt = v;
+      const ph = (WOBBLE.phase/100) * Math.PI*2;
+      return subs.map(s=>{
+        const n = s.pts.length;
+        const segLen = s.pts.map((p,i)=>Math.hypot(s.pts[(i+1)%n].x-p.x, s.pts[(i+1)%n].y-p.y));
+        const total = segLen.reduce((a,b)=>a+b,0) || 1;
+        let acc=0;
+        const t = s.pts.map((p,i)=>{ const tt=acc/total; acc+=segLen[i]; return tt; });
+        return {closed:s.closed, pts: s.pts.map((p,i)=>{
+          const a=s.pts[(i-1+n)%n], b=s.pts[(i+1)%n];
+          let dx=b.x-a.x, dy=b.y-a.y; const L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
+          const off = Math.sin(t[i]*WOBBLE.freq*Math.PI*2 + ph) * amt;
+          return {x:p.x - dy*off, y:p.y + dx*off};
+        })};
+      });
+    }
+    case 'scatter': {
+      // per-subpath explode — each contour drifts outward from the glyph's
+      // own centre by its own random amount, fragmenting multi-contour
+      // glyphs (e.g. "R"'s bowl vs stem, "A"'s counter vs outer ring).
+      const amt = v;
+      const r = mulberry32(SCATTER.seed);
+      return subs.map(s=>{
+        const ox=(r()*2-1), oy=(r()*2-1);
+        return {closed:s.closed, pts: s.pts.map(p=>{
+          let dx=p.x-cx, dy=p.y-cy, L=Math.hypot(dx,dy)||1;
+          return {x:p.x + dx/L*amt*Math.abs(ox), y:p.y + dy/L*amt*Math.abs(oy)};
+        })};
+      });
+    }
     default: return subs;
   }
 }
@@ -998,6 +1090,7 @@ function applyPipeline(rawSubs){
   let s = applyTransform(norm);
   for(const f of FX){ if(f.cat==='blasphemy') s = applyEffect(f.key, s); }
   for(const f of FX){ if(f.cat==='damnation') s = applyEffect(f.key, s); }
+  for(const f of FX){ if(f.cat==='texture') s = applyEffect(f.key, s); }
   return {subs:s, k, ox, oy};
 }
 
@@ -1065,7 +1158,7 @@ function toggleCat(btn){
   btn.nextElementSibling.classList.toggle('collapsed');
 }
 function buildPanel(){
-  ['mild','blasphemy','damnation'].forEach(cat=>{
+  ['mild','blasphemy','damnation','texture'].forEach(cat=>{
     const host=$('cat-'+cat); host.innerHTML='';
     FX.filter(f=>f.cat===cat).forEach(f=>{
       const row=document.createElement('div'); row.className='ctrl-row';
@@ -1121,6 +1214,33 @@ function buildPanel(){
         sub.querySelector('#rg-p-facets').oninput=e=>{ POLY.facets=+e.target.value; $('v-p-facets').textContent=POLY.facets; render(); };
         sub.querySelector('#rg-p-chamfer').oninput=e=>{ POLY.chamfer=+e.target.value; $('v-p-chamfer').textContent=POLY.chamfer+'%'; render(); };
       }
+      if(f.key==='jitter'){
+        const sub=document.createElement('div'); sub.className='griddler-sub';
+        sub.innerHTML = `
+          <div class="ctrl-row"><div class="ctrl-label">seed</div>
+            <input type="range" id="rg-j-seed" min="1" max="99" step="1" value="${JITTER.seed}"><span class="ctrl-val" id="v-j-seed">${JITTER.seed}</span></div>`;
+        host.appendChild(sub);
+        sub.querySelector('#rg-j-seed').oninput=e=>{ JITTER.seed=+e.target.value; $('v-j-seed').textContent=JITTER.seed; render(); };
+      }
+      if(f.key==='wobble'){
+        const sub=document.createElement('div'); sub.className='griddler-sub';
+        sub.innerHTML = `
+          <div class="ctrl-row"><div class="ctrl-label">frequency</div>
+            <input type="range" id="rg-w-freq" min="1" max="30" step="1" value="${WOBBLE.freq}"><span class="ctrl-val" id="v-w-freq">${WOBBLE.freq}</span></div>
+          <div class="ctrl-row"><div class="ctrl-label">phase</div>
+            <input type="range" id="rg-w-phase" min="0" max="100" step="1" value="${WOBBLE.phase}"><span class="ctrl-val" id="v-w-phase">${WOBBLE.phase}</span></div>`;
+        host.appendChild(sub);
+        sub.querySelector('#rg-w-freq').oninput=e=>{ WOBBLE.freq=+e.target.value; $('v-w-freq').textContent=WOBBLE.freq; render(); };
+        sub.querySelector('#rg-w-phase').oninput=e=>{ WOBBLE.phase=+e.target.value; $('v-w-phase').textContent=WOBBLE.phase; render(); };
+      }
+      if(f.key==='scatter'){
+        const sub=document.createElement('div'); sub.className='griddler-sub';
+        sub.innerHTML = `
+          <div class="ctrl-row"><div class="ctrl-label">seed</div>
+            <input type="range" id="rg-s-seed" min="1" max="99" step="1" value="${SCATTER.seed}"><span class="ctrl-val" id="v-s-seed">${SCATTER.seed}</span></div>`;
+        host.appendChild(sub);
+        sub.querySelector('#rg-s-seed').oninput=e=>{ SCATTER.seed=+e.target.value; $('v-s-seed').textContent=SCATTER.seed; render(); };
+      }
     });
   });
 }
@@ -1136,6 +1256,10 @@ function syncPanelFromState(){
     $('rg-e-angle').value=ECHO.angle; $('v-e-angle').textContent=ECHO.angle+'°'; }
   const p=$('rg-p-facets'); if(p){ p.value=POLY.facets; $('v-p-facets').textContent=POLY.facets;
     $('rg-p-chamfer').value=POLY.chamfer; $('v-p-chamfer').textContent=POLY.chamfer+'%'; }
+  const j=$('rg-j-seed'); if(j){ j.value=JITTER.seed; $('v-j-seed').textContent=JITTER.seed; }
+  const w=$('rg-w-freq'); if(w){ w.value=WOBBLE.freq; $('v-w-freq').textContent=WOBBLE.freq;
+    $('rg-w-phase').value=WOBBLE.phase; $('v-w-phase').textContent=WOBBLE.phase; }
+  const sc=$('rg-s-seed'); if(sc){ sc.value=SCATTER.seed; $('v-s-seed').textContent=SCATTER.seed; }
 }
 function resetAll(){
   // each slider's own identity default — NOT a blanket 0 (stretch x/y default
@@ -1144,6 +1268,7 @@ function resetAll(){
   FX.forEach(f=>STATE[f.key] = (f.key==='griddler') ? 0 : f.def);
   GRID.rows=4; GRID.cols=4; GRID.tileRotation=0; GRID.tileScale=1; GRID.randomize=false;
   ECHO.repeats=3; ECHO.angle=0; POLY.facets=2; POLY.chamfer=50;
+  JITTER.seed=7; WOBBLE.freq=6; WOBBLE.phase=0; SCATTER.seed=5;
   syncPanelFromState(); render();
 }
 function randomizeAll(){
