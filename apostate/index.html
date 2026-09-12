@@ -71,7 +71,7 @@ body { background: var(--paper); }
 #stage {
   position: relative;
   display: flex; align-items: center; justify-content: center;
-  overflow: hidden; background: var(--paper);
+  overflow: hidden; background: var(--panel); padding: var(--space-7);
 }
 #stage.drag::after {
   content: 'drop a font (.otf / .ttf)'; position: absolute; inset: 14px; z-index: 5;
@@ -80,7 +80,10 @@ body { background: var(--paper); }
   background: color-mix(in srgb, var(--tool) 8%, transparent);
   font-size: var(--fs-large); letter-spacing: .06em; color: var(--ink);
 }
-#board { max-width: 92%; max-height: 88%; }
+#board {
+  max-width: 100%; max-height: 100%; display: block;
+  background: var(--paper); box-shadow: 0 4px 40px rgba(0, 0, 0, 0.18);
+}
 #board.zoomed { cursor: grab; }
 #board.panning { cursor: grabbing; }
 #board path.glyph { fill: var(--ink); }
@@ -109,8 +112,9 @@ body { background: var(--paper); }
   border: 1px solid var(--border); border-radius: var(--radius-md); backdrop-filter: blur(6px);
 }
 #glyphTools[hidden] { display: none; }
+#btn-edit-points[hidden], #btn-show-handles[hidden], #btn-show-outline[hidden] { display: none; }
 #glyphTools .mini-btn.is-armed { background: var(--danger); border-color: var(--danger); color: var(--paper); }
-#btn-edit-points[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.org-floatbar__btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 #empty-hint {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   color: var(--mid); font-size: var(--fs-medium); text-align: center; pointer-events: none;
@@ -133,6 +137,17 @@ body { background: var(--paper); }
 .fx-cat-head .cat-tag { color: var(--tool); }
 .row-btns2 { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
 .griddler-sub { padding-left: var(--space-3); border-left: 2px solid var(--border); margin: var(--space-2) 0 var(--space-3); }
+.lp-phrases{position:absolute; bottom:96px; left:50%; transform:translateX(-50%); display:flex; gap:var(--space-2); z-index:8}
+.lp-phrases[hidden]{display:none}
+.lp-phrase-btn{
+  width:22px; height:22px; padding:0; border-radius:var(--radius-sm);
+  display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--border-strong, var(--border)); background:var(--panel); color:var(--mid);
+  cursor:pointer; transition:background .12s, border-color .12s, color .12s, transform .12s;
+}
+.lp-phrase-btn svg{width:13px; height:13px; display:block}
+.lp-phrase-btn:hover{border-color:var(--ink); color:var(--ink); transform:translateY(-1px)}
+.lp-phrase-btn.is-active{background:var(--ink); border-color:var(--ink); color:var(--paper)}
 </style>
 </head>
 <body>
@@ -175,6 +190,18 @@ body { background: var(--paper); }
 
   <button class="org-floatbar__btn" id="tgFamily" aria-label="Full Family" aria-pressed="false">
     <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 2.5v11M2.5 8h11" stroke="currentColor" stroke-width="1.3"/></svg>
+  </button>
+
+  <button class="org-floatbar__btn" id="btn-edit-points" aria-label="Edit points" aria-pressed="false" hidden>
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 13.5 6 12l6.2-6.2a1.4 1.4 0 0 0 0-2L11.7 3.3a1.4 1.4 0 0 0-2 0L3.5 9.5l-1 4Z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10.5" cy="4.8" r="1" fill="currentColor"/></svg>
+  </button>
+
+  <button class="org-floatbar__btn" id="btn-show-handles" aria-label="Show handles" aria-pressed="true" hidden>
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 12 8 4l5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="12" r="1.4" fill="currentColor"/><circle cx="8" cy="4" r="1.4" fill="currentColor"/><circle cx="13" cy="12" r="1.4" fill="currentColor"/></svg>
+  </button>
+
+  <button class="org-floatbar__btn" id="btn-show-outline" aria-label="Outline" aria-pressed="false" hidden>
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg>
   </button>
 
   <div class="org-floatbar__sep"></div>
@@ -222,19 +249,19 @@ body { background: var(--paper); }
     <div id="glyphTools" role="group" aria-label="Glyph editor" hidden></div>
     <div id="specEdit" contenteditable="plaintext-only" spellcheck="false"
          autocapitalize="off" autocorrect="off" aria-label="Specimen text — type to edit" hidden></div>
+    <div class="lp-phrases" id="phrases" role="group" aria-label="Specimen phrases" hidden></div>
     <div id="zoom-hud">
       <button onclick="zoomPan.zoomBy(1/1.2)">&minus;</button>
       <span id="zoom-level">1.00x</span>
       <button onclick="zoomPan.zoomBy(1.2)">+</button>
     </div>
-    <button class="mini-btn" id="btn-edit-points" aria-pressed="false" style="position:absolute; bottom:12px; right:12px;" hidden>edit points</button>
   </div>
 
   <div id="panel">
+    <div id="canvas-size-host"></div>
+
     <div class="panel-section">
       <h3>View</h3>
-      <label class="check-row"><input type="checkbox" id="ck-handles" checked onchange="render()"><span>show handles</span></label>
-      <label class="check-row"><input type="checkbox" id="ck-outline" onchange="render()"><span>outline</span></label>
       <div class="row-btns2">
         <button class="mini-btn" onclick="randomizeAll()">randomize</button>
         <button class="mini-btn" onclick="resetAll()">reset all</button>
@@ -268,6 +295,7 @@ body { background: var(--paper); }
 <div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
 
 <script src="/shared/core.js"></script>
+<script src="/shared/canvas-size-panel.js"></script>
 <script src="/shared/glyph-model.js"></script>
 <script src="/shared/glyph-editor.js"></script>
 
@@ -532,7 +560,7 @@ const FX = [
   {key:'pixelate',     cat:'damnation', label:'pixelate',                min:0,    max:100, step:1,   def:0},
   {key:'slice',        cat:'damnation', label:'slice',                   min:-4.9, max:4.9, step:0.1, def:0},
   {key:'groviera',     cat:'damnation', label:'groviera',                min:0,    max:100, step:1,   def:0},
-  {key:'griddler',     cat:'damnation', label:'vector griddler',         min:0,    max:100, step:1,   def:60}, // typoclast boots with this already on
+  {key:'griddler',     cat:'damnation', label:'vector griddler',         min:0,    max:100, step:1,   def:0},
   // ── texture (extra) — NOT part of typoclast's own 27-slider pipeline.
   // Ported concept-only from Living Path/Sinew's shared shared/pathfx.js FX
   // registry (jitter/wobble/scatter), reimplemented from zero on Apostate's
@@ -552,10 +580,12 @@ const FX = [
   {key:'bubblesInner', cat:'texture',   label:'bubbles · inner (new)',   min:-100, max:100, step:1,   def:0},
 ];
 const STATE = {}; FX.forEach(f=>STATE[f.key]=f.def);
-// griddler's own sub-parameters — confirmed live on typoclast's default boot
-// state (Amount 60 alone gives a clean grid-cut; rows/cols/tileRotation/
-// tileScale are a SECOND, independent per-tile mosaic layer stacked on top)
-const GRID = {rows:4, cols:4, tileRotation:5, tileScale:0.90, randomize:false};
+// griddler's own sub-parameters — Amount alone gives a clean grid-cut;
+// rows/cols/tileRotation/tileScale are a SECOND, independent per-tile
+// mosaic layer stacked on top (identity here: tileRotation:0, tileScale:1,
+// so the default/reset font has no modifications — see applyEffect's
+// uniform `if(!v) return subs` guard, no more griddler special-case)
+const GRID = {rows:4, cols:4, tileRotation:0, tileScale:1, randomize:false};
 // echo's own sub-parameters — confirmed live (Sep 2026 1:1 debug pass): echo
 // is literally NESTED CONCENTRIC COPIES of the whole glyph (rings, via
 // fill-rule=evenodd), with its own "repeats" and "angle" (rotation per
@@ -736,7 +766,7 @@ function applyTransform(subs){
 
 function applyEffect(key, subs){
   const v = STATE[key];
-  if(!v && key!=='griddler') return subs;             // griddler boots non-zero by default
+  if(!v) return subs;
   const bb=bboxOf(subs), cx=bb.minX+bb.w/2, cy=bb.minY+bb.h/2, R=Math.max(bb.w,bb.h)/2||1;
   switch(key){
     case 'twist': {
@@ -1425,7 +1455,7 @@ function editedGlyph(glyph){
   return (c && (c.edited || c.baked)) ? c : null;
 }
 function stackIsIdentity(){
-  return FX.every(f => STATE[f.key] === (f.key==='griddler' ? 0 : f.def));
+  return FX.every(f => STATE[f.key] === f.def);
 }
 function glyphAdvance(gl){
   const ov = editedGlyph(gl);
@@ -1449,6 +1479,7 @@ function glyphAdvance(gl){
    ============================================================ */
 let VIEW='tester';
 const VIEW_NAMES = ['tester','family','glyph'];
+let showHandles=true, showOutline=false; // Family-view-only preview toggles, floatbar icons
 function setView(v, push){
   VIEW = VIEW_NAMES.includes(v) ? v : 'tester';
   const url = new URL(location.href);
@@ -1479,10 +1510,15 @@ function render(){
   $('tgFamily').setAttribute('aria-pressed', String(VIEW==='family'));
   $('fb-tester').hidden = VIEW!=='tester';
   $('specEdit').hidden = VIEW!=='tester';
+  $('phrases').hidden = VIEW!=='tester';
   $('charset').style.display = VIEW==='tester' ? 'none' : '';
   $('glyphTools').hidden = VIEW!=='glyph';
   $('btn-edit-points').hidden = VIEW==='tester';
   $('btn-edit-points').setAttribute('aria-pressed', String(VIEW==='glyph'));
+  $('btn-show-handles').hidden = VIEW!=='family';
+  $('btn-show-outline').hidden = VIEW!=='family';
+  $('btn-show-handles').setAttribute('aria-pressed', String(showHandles));
+  $('btn-show-outline').setAttribute('aria-pressed', String(showOutline));
   $('zoom-hud').style.display = VIEW==='tester' ? '' : 'none';
   // zoomPan's transform lives on #board, shared by every view — reset it
   // on the way OUT of tester so family/glyph (which don't zoom) always
@@ -1515,9 +1551,8 @@ function renderFamily(){
   }
   const board=$('board');
   board.setAttribute('viewBox', `0 0 1000 1000`);
-  const outlineOn = $('ck-outline').checked;
-  let markup = `<path class="glyph${outlineOn?' outline-mode':''}" fill-rule="${currentFillRule()}" d="${dFromSubs(subs)}"/>`;
-  if($('ck-handles').checked){
+  let markup = `<path class="glyph${showOutline?' outline-mode':''}" fill-rule="${currentFillRule()}" d="${dFromSubs(subs)}"/>`;
+  if(showHandles){
     subs.forEach(s=>s.pts.forEach((p,i)=>{
       if(i% Math.max(1,Math.round(s.pts.length/28)) !== 0) return;
       markup += `<circle class="handle" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="9"/>`;
@@ -1551,6 +1586,12 @@ const zoomPan = Organica.createZoomPan({
 const TESTER_DEFAULTS = { size:96, track:0, align:'center', caps:false };
 let tester = { ...TESTER_DEFAULTS };
 let specimenString = 'Apostate';
+const SPECIMEN_PHRASES = [
+  'Every letterform is heresy waiting to happen',
+  'Twist, pinch, and let the glyph confess',
+  'Blasphemy renders in perfect black vectors',
+  'Damnation is just another word for style',
+];
 const TESTER_BOX_W=1400, TESTER_BOX_H=900, TESTER_LINE_H=1.36;
 function buildSpecimenSubs(opts){
   if(!FONT) return null;
@@ -1856,7 +1897,7 @@ function resetAll(){
   // each slider's own identity default — NOT a blanket 0 (stretch x/y default
   // to 1; 0 collapses the glyph to a point). Confirmed live: typoclast's own
   // "reset all" shows "stretch x 1.00 / stretch y 1.00" afterward, not 0.
-  FX.forEach(f=>STATE[f.key] = (f.key==='griddler') ? 0 : f.def);
+  FX.forEach(f=>STATE[f.key] = f.def);
   GRID.rows=4; GRID.cols=4; GRID.tileRotation=0; GRID.tileScale=1; GRID.randomize=false;
   ECHO.repeats=3; ECHO.angle=0; POLY.facets=2; POLY.chamfer=50;
   JITTER.seed=7; WOBBLE.freq=6; WOBBLE.phase=0; SCATTER.seed=5; BUBBLE.size=24; BUBBLE.sizeInner=24; BUBBLE.faceted=false; BUBBLE.allOuter=false;
@@ -1964,7 +2005,12 @@ function exportSVG(){
   let subs;
   if(ov){ subs = normGlyph(Organica.glyphModel.toSubs(ov.contours)).norm; }
   else { const raw=fromOTCommands((gl.path&&gl.path.commands)||[]); subs=applyPipeline(raw).subs; }
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><path fill="#0a0a0a" fill-rule="${currentFillRule()}" d="${dFromSubs(subs)}"/></svg>`;
+  const body = `<path fill="#0a0a0a" fill-rule="${currentFillRule()}" d="${dFromSubs(subs)}"/>`;
+  const {width:W, height:H} = canvasSizePanel.getSize();
+  const scaleX = W/1000, scaleY = H/1000; // glyph body is normalized to a 0..1000 box
+  const svg = (scaleX===1 && scaleY===1)
+    ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}">${body}</svg>`
+    : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}"><g transform="scale(${scaleX},${scaleY})">${body}</g></svg>`;
   Organica.download(new Blob([svg],{type:'image/svg+xml'}), 'apostate-'+SELECTED+'.svg');
 }
 
@@ -1997,6 +2043,16 @@ $('tgFamily').addEventListener('click', function(){
   setView(VIEW==='tester' ? 'family' : 'tester');   // from 'glyph' this also lands on 'family'
 });
 $('btn-reset-all').addEventListener('click', resetAll);
+$('btn-show-handles').addEventListener('click', function(){
+  showHandles = !showHandles;
+  this.setAttribute('aria-pressed', String(showHandles));
+  render();
+});
+$('btn-show-outline').addEventListener('click', function(){
+  showOutline = !showOutline;
+  this.setAttribute('aria-pressed', String(showOutline));
+  render();
+});
 $('btn-edit-points').addEventListener('click', function(){
   if(VIEW==='glyph'){ setView('family'); }
   else { enterGlyphEdit(); }
@@ -2040,8 +2096,34 @@ specEdit.addEventListener('paste', e=>{
   const text=(e.clipboardData||window.clipboardData).getData('text/plain');
   document.execCommand('insertText', false, text);
 });
+const PHRASE_ICONS = [
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 8c2-3 4 3 6 0s4-3 6 0"/></svg>',
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 13c2-8 6-8 6-2s4 6 6-2"/></svg>',
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2v5M8 7 4 5M8 7l4-2M8 7v3l-3 4M8 10l3 4"/></svg>',
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2c-3 3-3 6 0 9M8 2c3 3 3 6 0 9M4 13h8"/></svg>',
+];
+const phrasesEl = $('phrases');
+function markPhrase(i){ phrasesEl.querySelectorAll('.lp-phrase-btn').forEach((b,j)=>b.classList.toggle('is-active', j===i)); }
+SPECIMEN_PHRASES.forEach((txt,i)=>{
+  const b=document.createElement('button');
+  b.type='button'; b.className='lp-phrase-btn';
+  b.innerHTML = PHRASE_ICONS[i] || '';
+  b.setAttribute('aria-label', 'Phrase '+(i+1)+': '+txt);
+  b.title = txt;
+  b.addEventListener('click', ()=>{ specimenString = txt; specEdit.textContent = txt; markPhrase(i); render(); });
+  phrasesEl.appendChild(b);
+});
+markPhrase(SPECIMEN_PHRASES.indexOf(specimenString));
 window.addEventListener('resize', ()=>{ if(VIEW==='tester') syncSpecEditBox(); else if(VIEW==='glyph') sizeGlyphCanvas(); });
 
+const canvasSizePanel = Organica.canvasSizePanel($('canvas-size-host'), {
+  idPrefix: 'cs',
+  title: 'Canvas',
+  hint: 'export size',
+  defaultWidth: 1000,
+  defaultHeight: 1000,
+  onChange: () => {},
+});
 Organica.popover($('btn-export'), $('export-popover'));
 buildPanel();
 syncBubbleInnerDisabled();
