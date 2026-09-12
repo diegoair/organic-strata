@@ -241,6 +241,37 @@ function resamplePolyline(pts, closed, step){
   if(!closed) out.push(pts[n-1]);
   return out;
 }
+// walks the polyline's TOTAL cumulative arc length and places points evenly
+// at ~step apart, independent of the original point count — unlike
+// resamplePolyline above (which guarantees at least one point per ORIGINAL
+// segment, so it can only ever add density, never merge several original
+// segments into fewer/longer ones). `bubbles` needs the latter: a dense
+// contour like "O" (64 original points, mostly from bezier-flattening) has
+// to be able to consolidate down to just a handful of long segments when
+// bubble size is large, so the slider keeps working past the original point
+// spacing instead of silently capping out.
+function resampleArcLength(pts, closed, step){
+  const n=pts.length; if(n<2) return pts.slice();
+  const segs=closed?n:n-1;
+  const cum=[0];
+  for(let i=0;i<segs;i++){
+    const a=pts[i], b=pts[(i+1)%n];
+    cum.push(cum[i]+Math.hypot(b.x-a.x,b.y-a.y));
+  }
+  const total=cum[segs]; if(total<=0) return pts.slice();
+  const count=Math.max(closed?3:2, Math.round(total/step)+(closed?0:1));
+  const denom=closed?count:count-1;
+  const out=[];
+  for(let k=0;k<count;k++){
+    const dist=(k/denom)*total;
+    let i=0; while(i<segs-1 && cum[i+1]<dist) i++;
+    const a=pts[i], b=pts[(i+1)%n];
+    const segLen=(cum[i+1]-cum[i])||1;
+    const t=(dist-cum[i])/segLen;
+    out.push({x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t});
+  }
+  return out;
+}
 // Straight-line re-emission, NOT Catmull-Rom — found by a side-by-side
 // bake-off against typoclast at IDENTITY (no effect active at all): a real,
 // straight corner (the top peak of Archivo Black's "A", its leg corners —
@@ -251,6 +282,20 @@ function resamplePolyline(pts, closed, step){
 // straight segments between points still read as smooth curves while
 // leaving every genuine corner exactly as sharp as the source glyph —
 // confirmed by re-comparing the identity "A" pixel-for-pixel after this fix.
+// evenodd is the default rule everywhere in this file (needed so a hole/
+// counter subpath punches a real hole — see the header comment above), but
+// it's also exactly what turns a SELF-intersecting single subpath into an
+// alternating hole instead of a solid merge: `bubbles` at a large size can
+// make two neighbouring bumps' circles cross each other, and evenodd reads
+// that crossing as a tiny "leaf" cut into the ink (Diego's own screenshot).
+// `echo` deliberately relies on evenodd's alternating behaviour for its own
+// nested-ring look (see its case comment) — everywhere else, nonzero is the
+// more correct choice: a hole subpath (always wound OPPOSITE to its outer
+// contour, confirmed empirically) still punches a clean hole under nonzero
+// exactly like it does under evenodd, but same-winding overlaps (bubbles
+// crossing themselves) now union into solid black instead of alternating —
+// literally "merge them and fill with black", Diego's own framing.
+function currentFillRule(){ return STATE.echo ? 'evenodd' : 'nonzero'; }
 function dFromSubs(subs){
   let d='';
   for(const s of subs){
@@ -418,6 +463,15 @@ const FX = [
   {key:'jitter',       cat:'texture',   label:'jitter (new)',            min:0,    max:100, step:1,   def:0},
   {key:'wobble',       cat:'texture',   label:'wobble (new)',            min:0,    max:100, step:1,   def:0},
   {key:'scatter',      cat:'texture',   label:'scatter (new)',           min:0,    max:100, step:1,   def:0},
+  // bubbles — perfect semicircular bulges between resampled contour points.
+  // Signed range: sign picks direction (+outward / -inward), magnitude is
+  // strength — same "direction+amount in one slider" convention already
+  // used by twist/wave/noise/curl. Split outer/inner so a closed counter
+  // (the hole of "O", the triangle of "A") can bulge independently of the
+  // outer contour, classified the same way pinch/refraction/flip/crush
+  // already do (largest-bbox-area subpath = outer, everything else = inner).
+  {key:'bubbles',      cat:'texture',   label:'bubbles · outer (new)',   min:-100, max:100, step:1,   def:0},
+  {key:'bubblesInner', cat:'texture',   label:'bubbles · inner (new)',   min:-100, max:100, step:1,   def:0},
 ];
 const STATE = {}; FX.forEach(f=>STATE[f.key]=f.def);
 // griddler's own sub-parameters — confirmed live on typoclast's default boot
@@ -436,6 +490,20 @@ const POLY = {facets:2, chamfer:50};
 const JITTER = {seed:7};
 const WOBBLE = {freq:6, phase:0};
 const SCATTER = {seed:5};
+// bubbles' own sub-parameters — size = the bulge diameter (a resample step
+// fed to resampleArcLength); faceted = false gives a genuine smooth curve
+// (adaptive sample density), true gives a deliberate low-poly/cut-gem look
+// (fixed low sample count) — see bubbleSubpath's own comment.
+// allOuter = true collapses the outer/inner split entirely: every subpath
+// goes through the `bubbles` (outer) treatment and `bubblesInner` becomes
+// inert. Off (default) keeps the current per-subpath area classification —
+// needed for anything with a real counter/hole, but redundant on a
+// single-contour letter like "J"/"L" (which already fall through to
+// 100% outer either way, since the lone subpath is always its own max
+// area) — this option matters once a glyph has more than one subpath for
+// reasons OTHER than a true hole (e.g. a detached serif fragment) and the
+// smaller one should still read as part of the outer silhouette.
+const BUBBLE = {size:24, sizeInner:24, faceted:false, allOuter:false};
 // r' = r*(1 + amp*cos(lobes*theta + phase)) around a shared centre — the
 // angular-harmonic family confirmed live for bulge/wave/ripple/inflate.
 function angularHarmonic(subs, cx, cy, lobes, amp, phaseDeg){
@@ -470,6 +538,110 @@ function squareify(subs, cx, cy, amt, nExp){
       return {x:cx+u*hx*k, y:cy+v*hy*k};
     })};
   });
+}
+
+// bubbles — resample a subpath at ~BUBBLE.size spacing, then replace each
+// resampled segment with a TRUE semicircle (centre = segment midpoint,
+// radius = half the segment length — mathematically exact, sampled at K
+// points, not a bezier approximation). rawAmt's SIGN picks which of the two
+// possible arc sides to sweep (outward reference vs its mirror = inward),
+// its magnitude blends between the untouched chord (0) and the full
+// semicircle (1) so partial values still make sense while ±100 always gives
+// a "perfect" round bulge — exactly what was asked for.
+// circumradius of the triangle a-b-c — the standard discrete estimate of
+// the base path's own local radius of curvature at b. Large (or Infinity,
+// clamped) on a near-straight run; small on a tight curl.
+function circumradius(a,b,c){
+  const ab=Math.hypot(b.x-a.x,b.y-a.y), bc=Math.hypot(c.x-b.x,c.y-b.y), ca=Math.hypot(a.x-c.x,a.y-c.y);
+  const sp=(ab+bc+ca)/2;
+  const area=Math.sqrt(Math.max(0, sp*(sp-ab)*(sp-bc)*(sp-ca)));
+  if(area<1e-6) return 1e6;
+  return (ab*bc*ca)/(4*area);
+}
+function bubbleSubpath(s, rawAmt, amt, size){
+  const n = s.pts.length; if(n<2) return s;
+  const rp = resampleArcLength(s.pts, s.closed, size);
+  const m = rp.length; if(m<2) return s;
+  // outward reference via the subpath's own WINDING (shoelace signed area),
+  // not "away from this subpath's bbox centre" — the bbox-centre heuristic
+  // (used in the first version) breaks down on a tight CONCAVE curve, e.g.
+  // "J"'s hook: a point on that curl can sit close to (or past) the bbox
+  // centre, so "away from centre" stops meaning "away from the glyph" and
+  // flips sign mid-curve, producing a tangled, self-intersecting mess right
+  // at the hook instead of a clean scallop (confirmed live, Diego's own
+  // screenshot). A single winding-derived sign per subpath is correct at
+  // EVERY point along the contour, convex or concave alike, as long as the
+  // subpath itself doesn't self-intersect — confirmed empirically: every
+  // outer contour in this font has positive signed area, every counter/hole
+  // negative, consistently, so this also preserves the already-verified
+  // outer-vs-hole behaviour (pushes a hole into its own open space) without
+  // needing bbox math at all.
+  let area2=0; const rawSegs = s.closed ? n : n-1;
+  for(let i=0;i<rawSegs;i++){ const a=s.pts[i], b=s.pts[(i+1)%n]; area2 += a.x*b.y - b.x*a.y; }
+  const windingSign = area2>=0 ? 1 : -1;
+  const segs = s.closed ? m : m-1;
+
+  // Pass 1 — per segment: base radius, and a raw safety factor comparing
+  // that radius to the base path's own LOCAL curvature radius at each of
+  // the segment's two endpoints (circumradius of the point + its two
+  // neighbours). A fixed turn-ANGLE threshold (the first version of this
+  // fix) ignored bubble size entirely — the same gentle curve that's
+  // harmless at a small bubble size becomes overlap-prone at a large one,
+  // and the angle cutoff either didn't fire (still overlapping) or fired
+  // too hard on curves that never risked overlapping at all, flattening
+  // bumps into sharp horn-like cusps right next to untouched full ones
+  // (Diego's own screenshot). Comparing radius to the ACTUAL local
+  // curvature only kicks in when the bump truly would outrun the curve.
+  const radii=[], rawSafety=[];
+  for(let i=0;i<segs;i++){
+    const A=rp[i], B=rp[(i+1)%m];
+    const r=Math.hypot(B.x-A.x,B.y-A.y)/2;
+    radii.push(r);
+    const prevPt = s.closed ? rp[(i-1+m)%m] : (i>0 ? rp[i-1] : A);
+    const nextPt = s.closed ? rp[(i+2)%m] : (i<segs-1 ? rp[i+2] : B);
+    const localCurv = Math.min(circumradius(prevPt,A,B), circumradius(A,B,nextPt));
+    rawSafety.push(Math.max(0.35, Math.min(1, localCurv/((r||1)*1.3))));
+  }
+  // Pass 2 — smooth the safety factor across immediate neighbours (a light
+  // 3-tap average) so a clamped bump blends gradually into a full one
+  // instead of meeting it at a hard seam — that abrupt jump is exactly
+  // what read as a pointed "horn" where a flattened segment sat right next
+  // to an untouched one.
+  const safety = rawSafety.map((v,i)=>{
+    const p = s.closed ? rawSafety[(i-1+segs)%segs] : rawSafety[Math.max(0,i-1)];
+    const nx = s.closed ? rawSafety[(i+1)%segs] : rawSafety[Math.min(segs-1,i+1)];
+    return (p + v*2 + nx)/4;
+  });
+
+  const out = [];
+  for(let i=0;i<segs;i++){
+    const A=rp[i], B=rp[(i+1)%m];
+    out.push(A);
+    const mx=(A.x+B.x)/2, my=(A.y+B.y)/2;
+    const radius=radii[i];
+    const theta0=Math.atan2(A.y-my, A.x-mx);
+    const dirSign = windingSign * (rawAmt<0 ? -1 : 1);
+    // sample count PER SEGMENT, not a fixed constant: a fixed K faceted
+    // visibly at large bubble sizes (radius grows with BUBBLE.size, so the
+    // same K covers a much longer arc — Diego's own report, "sono segmenti
+    // non curve"). Smooth mode scales K with the arc's own radius so every
+    // straight sub-chord stays short (~8 units) regardless of bubble size —
+    // reads as a genuine curve at any zoom. Faceted mode keeps a small fixed
+    // K instead, for a deliberate low-poly/cut-gem look — both variants use
+    // the exact same underlying true-semicircle geometry, only the sampling
+    // density differs.
+    const K = BUBBLE.faceted ? 5 : Math.max(10, Math.min(48, Math.round(radius*Math.PI/8)));
+    const localAmt = amt*safety[i];
+    for(let k=1;k<K;k++){
+      const t=k/K;
+      const phi=theta0+dirSign*Math.PI*t;
+      const arcX=mx+radius*Math.cos(phi), arcY=my+radius*Math.sin(phi);
+      const chX=A.x+(B.x-A.x)*t, chY=A.y+(B.y-A.y)*t;
+      out.push({x: chX+(arcX-chX)*localAmt, y: chY+(arcY-chY)*localAmt});
+    }
+  }
+  if(!s.closed) out.push(rp[m-1]);
+  return {closed:s.closed, pts: out};
 }
 
 function applyTransform(subs){
@@ -1082,6 +1254,30 @@ function applyEffect(key, subs){
         })};
       });
     }
+    case 'bubbles': {
+      // outer contour only — the subpath with the largest bbox area, same
+      // classification pinch/refraction/flip/crush already use to tell the
+      // outer ring apart from a counter/hole. BUBBLE.allOuter overrides this
+      // to treat EVERY subpath as outer (a single-contour letter like "J"/
+      // "L" already gets this for free, since its lone subpath is always
+      // its own max area — the override matters for a multi-subpath glyph
+      // where the smaller piece isn't a real hole).
+      const areas = subs.map(s=>{ const b=bboxOf([s]); return b.w*b.h; });
+      const maxArea = Math.max(...areas);
+      const rawAmt=v/100, amt=Math.abs(rawAmt);
+      return subs.map((s,i)=> (BUBBLE.allOuter || areas[i]===maxArea) ? bubbleSubpath(s,rawAmt,amt,BUBBLE.size) : s);
+    }
+    case 'bubblesInner': {
+      // every subpath EXCEPT the largest — counters/holes (the triangle of
+      // "A", the ring of "O", both bowls of "8") — bulges independently of
+      // whatever `bubbles` (outer) is doing, with its own size sub-param.
+      // Inert whenever BUBBLE.allOuter is on (outer already claims everything).
+      if(BUBBLE.allOuter) return subs;
+      const areas = subs.map(s=>{ const b=bboxOf([s]); return b.w*b.h; });
+      const maxArea = Math.max(...areas);
+      const rawAmt=v/100, amt=Math.abs(rawAmt);
+      return subs.map((s,i)=> areas[i]!==maxArea ? bubbleSubpath(s,rawAmt,amt,BUBBLE.sizeInner) : s);
+    }
     default: return subs;
   }
 }
@@ -1138,7 +1334,7 @@ function render(){
   const board=$('board');
   board.setAttribute('viewBox', `0 0 1000 1000`);
   const outlineOn = $('ck-outline').checked;
-  let markup = `<path class="glyph${outlineOn?' outline-mode':''}" fill-rule="evenodd" d="${dFromSubs(subs)}"/>`;
+  let markup = `<path class="glyph${outlineOn?' outline-mode':''}" fill-rule="${currentFillRule()}" d="${dFromSubs(subs)}"/>`;
   if($('ck-handles').checked){
     subs.forEach(s=>s.pts.forEach((p,i)=>{
       if(i% Math.max(1,Math.round(s.pts.length/28)) !== 0) return;
@@ -1241,6 +1437,26 @@ function buildPanel(){
         host.appendChild(sub);
         sub.querySelector('#rg-s-seed').oninput=e=>{ SCATTER.seed=+e.target.value; $('v-s-seed').textContent=SCATTER.seed; render(); };
       }
+      if(f.key==='bubbles'){
+        const sub=document.createElement('div'); sub.className='griddler-sub';
+        sub.innerHTML = `
+          <div class="ctrl-row"><div class="ctrl-label">bubble size</div>
+            <input type="range" id="rg-b-size" min="8" max="300" step="1" value="${BUBBLE.size}"><span class="ctrl-val" id="v-b-size">${BUBBLE.size}</span></div>
+          <label class="check-row"><input type="checkbox" id="ck-b-faceted" ${BUBBLE.faceted?'checked':''}><span>faceted (segments, not curves)</span></label>
+          <label class="check-row"><input type="checkbox" id="ck-b-allouter" ${BUBBLE.allOuter?'checked':''}><span>all outer (ignore inner split)</span></label>`;
+        host.appendChild(sub);
+        sub.querySelector('#rg-b-size').oninput=e=>{ BUBBLE.size=+e.target.value; $('v-b-size').textContent=BUBBLE.size; render(); };
+        sub.querySelector('#ck-b-faceted').onchange=e=>{ BUBBLE.faceted=e.target.checked; render(); };
+        sub.querySelector('#ck-b-allouter').onchange=e=>{ BUBBLE.allOuter=e.target.checked; syncBubbleInnerDisabled(); render(); };
+      }
+      if(f.key==='bubblesInner'){
+        const sub=document.createElement('div'); sub.className='griddler-sub';
+        sub.innerHTML = `
+          <div class="ctrl-row"><div class="ctrl-label">bubble size</div>
+            <input type="range" id="rg-bi-size" min="8" max="300" step="1" value="${BUBBLE.sizeInner}"><span class="ctrl-val" id="v-bi-size">${BUBBLE.sizeInner}</span></div>`;
+        host.appendChild(sub);
+        sub.querySelector('#rg-bi-size').oninput=e=>{ BUBBLE.sizeInner=+e.target.value; $('v-bi-size').textContent=BUBBLE.sizeInner; render(); };
+      }
     });
   });
 }
@@ -1260,6 +1476,22 @@ function syncPanelFromState(){
   const w=$('rg-w-freq'); if(w){ w.value=WOBBLE.freq; $('v-w-freq').textContent=WOBBLE.freq;
     $('rg-w-phase').value=WOBBLE.phase; $('v-w-phase').textContent=WOBBLE.phase; }
   const sc=$('rg-s-seed'); if(sc){ sc.value=SCATTER.seed; $('v-s-seed').textContent=SCATTER.seed; }
+  const bs=$('rg-b-size'); if(bs){ bs.value=BUBBLE.size; $('v-b-size').textContent=BUBBLE.size;
+    $('ck-b-faceted').checked=BUBBLE.faceted; $('ck-b-allouter').checked=BUBBLE.allOuter; }
+  const bis=$('rg-bi-size'); if(bis){ bis.value=BUBBLE.sizeInner; $('v-bi-size').textContent=BUBBLE.sizeInner; }
+  syncBubbleInnerDisabled();
+}
+// `bubblesInner` and its own size sub-slider go dead the moment "all outer"
+// is on (the case itself early-returns) — greying them out here makes that
+// explicit instead of letting a previously-set Inner amount silently vanish
+// with zero visual explanation (the real bug: Inner=100 + Outer=0, check
+// "all outer" -> the whole effect disappears, since Outer's own amount is
+// still 0 and nothing carries Inner's value over to it).
+function syncBubbleInnerDisabled(){
+  const dis = BUBBLE.allOuter;
+  const main=$('rg-bubblesInner'), size=$('rg-bi-size');
+  if(main){ main.disabled=dis; const row=main.closest('.ctrl-row'); if(row) row.style.opacity = dis?0.4:1; }
+  if(size){ size.disabled=dis; const row=size.closest('.ctrl-row'); if(row) row.style.opacity = dis?0.4:1; }
 }
 function resetAll(){
   // each slider's own identity default — NOT a blanket 0 (stretch x/y default
@@ -1268,7 +1500,7 @@ function resetAll(){
   FX.forEach(f=>STATE[f.key] = (f.key==='griddler') ? 0 : f.def);
   GRID.rows=4; GRID.cols=4; GRID.tileRotation=0; GRID.tileScale=1; GRID.randomize=false;
   ECHO.repeats=3; ECHO.angle=0; POLY.facets=2; POLY.chamfer=50;
-  JITTER.seed=7; WOBBLE.freq=6; WOBBLE.phase=0; SCATTER.seed=5;
+  JITTER.seed=7; WOBBLE.freq=6; WOBBLE.phase=0; SCATTER.seed=5; BUBBLE.size=24; BUBBLE.sizeInner=24; BUBBLE.faceted=false; BUBBLE.allOuter=false;
   syncPanelFromState(); render();
 }
 function randomizeAll(){
@@ -1366,7 +1598,7 @@ function exportSVG(){
   const gl=FONT.charToGlyph(SELECTED);
   const raw=fromOTCommands((gl.path&&gl.path.commands)||[]);
   const {subs}=applyPipeline(raw);
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><path fill="#0a0a0a" fill-rule="evenodd" d="${dFromSubs(subs)}"/></svg>`;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><path fill="#0a0a0a" fill-rule="${currentFillRule()}" d="${dFromSubs(subs)}"/></svg>`;
   Organica.download(new Blob([svg],{type:'image/svg+xml'}), 'apostate-'+SELECTED+'.svg');
 }
 
@@ -1392,6 +1624,7 @@ window.addEventListener('drop', e=>{
 
 Organica.popover($('btn-export'), $('export-popover'));
 buildPanel();
+syncBubbleInnerDisabled();
 fetch('/shared/vendor/archivo-black.ttf').then(r=>r.arrayBuffer()).then(buf=>loadFontBuffer(buf,'Archivo Black'))
   .catch(()=>setStatus('','drop a font to begin'));
 </script>
