@@ -44,6 +44,9 @@ body { background: var(--paper); }
   grid-template-columns: 210px 1fr var(--panel-w, 248px);
   height: calc(100vh - var(--header-h, 52px));
 }
+/* tester mode drops the charset column entirely — #charset is display:none'd
+   by the view dispatcher, so the grid collapses to 2 columns */
+#app.mode-tester { grid-template-columns: 1fr var(--panel-w, 248px); }
 #charset {
   overflow-y: auto;
   border-right: 1px solid var(--border);
@@ -78,9 +81,36 @@ body { background: var(--paper); }
   font-size: var(--fs-large); letter-spacing: .06em; color: var(--ink);
 }
 #board { max-width: 92%; max-height: 88%; }
+#board.zoomed { cursor: grab; }
+#board.panning { cursor: grabbing; }
 #board path.glyph { fill: var(--ink); }
 #board path.glyph.outline-mode { fill: none; stroke: var(--ink); stroke-width: 2; }
 #board .handle { fill: var(--tool); opacity: .55; }
+/* ── type tester — a transparent contenteditable overlay drives the SVG
+   specimen underneath (#board), same mechanism as Living Path's own tester:
+   the SVG stays authoritative, the overlay only owns the caret/typing. ── */
+#specEdit {
+  position: absolute; z-index: 4; margin: 0; overflow: hidden;
+  color: transparent; caret-color: var(--ink); background: transparent; border: 0; outline: 0;
+  white-space: pre-wrap; word-break: normal; overflow-wrap: anywhere;
+  font-family: 'apostate-specimen', var(--font); -webkit-user-modify: read-write-plaintext-only;
+}
+#specEdit::selection { background: color-mix(in srgb, var(--tool) 30%, transparent); }
+#specEdit[hidden] { display: none; }
+/* single-glyph node editor (Organica.glyphEditor) — a raster canvas replacing
+   #board while in glyph-edit mode */
+#glyphCanvas { position: absolute; inset: var(--space-7); display: none; touch-action: none; outline: 0; }
+#glyphCanvas.show { display: block; }
+#glyphTools {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 8;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid var(--border); border-radius: var(--radius-md); backdrop-filter: blur(6px);
+}
+#glyphTools[hidden] { display: none; }
+#glyphTools .mini-btn.is-armed { background: var(--danger); border-color: var(--danger); color: var(--paper); }
+#btn-edit-points[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 #empty-hint {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   color: var(--mid); font-size: var(--fs-medium); text-align: center; pointer-events: none;
@@ -114,31 +144,72 @@ body { background: var(--paper); }
     <span class="org-header__dot" id="status-dot"></span>
     <span class="org-header__state" id="status-text">Loading default face…</span>
   </output>
-  <div class="org-header__actions">
-    <button class="org-btn" onclick="document.getElementById('file-input').click()">upload (.otf / .ttf)</button>
-    <div class="org-popover-wrap">
-      <button class="org-btn" id="btn-export">export &#9662;</button>
-      <div class="org-popover" id="export-popover" aria-label="Export options">
-        <div class="org-popover__title">Format</div>
-        <div class="org-formats">
-          <button class="org-btn" onclick="exportOTF()">.otf</button>
-          <button class="org-btn" onclick="exportSVG()">.svg</button>
-        </div>
-        <div class="org-popover__divider"></div>
-        <div class="org-popover__row">
-          <span class="org-popover__label">Include</span>
-        </div>
-        <label class="check-row"><input type="checkbox" id="ck-upper" checked><span>A–Z</span></label>
-        <label class="check-row"><input type="checkbox" id="ck-lower" checked><span>a–z</span></label>
-        <label class="check-row"><input type="checkbox" id="ck-digits" checked><span>0–9</span></label>
-        <label class="check-row"><input type="checkbox" id="ck-punct" checked><span>punctuation</span></label>
-        <div class="org-popover__divider"></div>
-        <div class="org-popover__row"><span class="org-popover__label">Font name</span></div>
-        <input class="panel-input panel-input--full" id="exName" value="Apostate" style="width:100%">
+</header>
+
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <button class="org-floatbar__btn" id="btn-open-font" aria-label="Load a font (OTF / TTF)">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <!-- type-tester controls (specimen only — hidden in family/glyph view) -->
+  <div class="fb-tester" id="fb-tester" role="group" aria-label="Type tester controls" hidden>
+    <label class="fb-field"><span>SIZE</span>
+      <input type="range" id="tbSize" min="24" max="240" step="1" value="96">
+      <b class="fb-val" id="tbSizeVal">96</b>
+    </label>
+    <label class="fb-field"><span>TRACK</span>
+      <input type="range" id="tbTrack" min="-40" max="400" step="5" value="0">
+      <b class="fb-val" id="tbTrackVal">0</b>
+    </label>
+    <div class="seg-ctrl" role="group" aria-label="Align">
+      <button class="seg-btn" data-align="left" aria-pressed="false" aria-label="Align left"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M1 5h9M1 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+      <button class="seg-btn" data-align="center" aria-pressed="true" aria-label="Align centre"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M3.5 5h9M2 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+      <button class="seg-btn" data-align="right" aria-pressed="false" aria-label="Align right"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M6 5h9M3 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+    </div>
+    <button class="seg-btn" id="tbCaps" aria-pressed="false">CAPS</button>
+  </div>
+
+  <div class="org-floatbar__sep"></div>
+
+  <button class="org-floatbar__btn" id="tgFamily" aria-label="Full Family" aria-pressed="false">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 2.5v11M2.5 8h11" stroke="currentColor" stroke-width="1.3"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <button class="org-floatbar__btn" id="btn-reset-all" aria-label="Reset">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13 4.8A5.5 5.5 0 1 0 14 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M13.3 1.5v3.5H9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" onclick="exportOTF()">.otf</button>
+        <button class="org-btn" onclick="exportSVG()">.svg</button>
       </div>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__row">
+        <span class="org-popover__label">Include</span>
+      </div>
+      <label class="check-row"><input type="checkbox" id="ck-upper" checked><span>A–Z</span></label>
+      <label class="check-row"><input type="checkbox" id="ck-lower" checked><span>a–z</span></label>
+      <label class="check-row"><input type="checkbox" id="ck-digits" checked><span>0–9</span></label>
+      <label class="check-row"><input type="checkbox" id="ck-punct" checked><span>punctuation</span></label>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__row"><span class="org-popover__label">Font name</span></div>
+      <input class="panel-input panel-input--full" id="exName" value="Apostate" style="width:100%">
     </div>
   </div>
-</header>
+</div>
 
 <div id="app">
 
@@ -147,11 +218,16 @@ body { background: var(--paper); }
   <div id="stage">
     <div id="empty-hint">load a font to begin</div>
     <svg id="board" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" style="display:none"></svg>
+    <canvas id="glyphCanvas" hidden></canvas>
+    <div id="glyphTools" role="group" aria-label="Glyph editor" hidden></div>
+    <div id="specEdit" contenteditable="plaintext-only" spellcheck="false"
+         autocapitalize="off" autocorrect="off" aria-label="Specimen text — type to edit" hidden></div>
     <div id="zoom-hud">
-      <button onclick="zoomBy(-0.1)">&minus;</button>
+      <button onclick="zoomPan.zoomBy(1/1.2)">&minus;</button>
       <span id="zoom-level">1.00x</span>
-      <button onclick="zoomBy(0.1)">+</button>
+      <button onclick="zoomPan.zoomBy(1.2)">+</button>
     </div>
+    <button class="mini-btn" id="btn-edit-points" aria-pressed="false" style="position:absolute; bottom:12px; right:12px;" hidden>edit points</button>
   </div>
 
   <div id="panel">
@@ -192,6 +268,8 @@ body { background: var(--paper); }
 <div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
 
 <script src="/shared/core.js"></script>
+<script src="/shared/glyph-model.js"></script>
+<script src="/shared/glyph-editor.js"></script>
 
 <script>
 'use strict';
@@ -1297,6 +1375,14 @@ let FONT=null, CHARSET=[], SELECTED='A';
 function loadFontBuffer(buf, name){
   let font; try{ font=opentype.parse(buf); }catch(e){ setStatus('','✗ could not parse font'); return; }
   FONT=font;
+  window.__FONT_BUF = buf.slice(0);   // opentype.parse can detach views; keep a copy for the FontFace overlay
+  _gmodel = null;                     // new font -> drop the per-glyph node-edit cache
+  try{
+    if(window.__APOSTATE_FACE) document.fonts.delete(window.__APOSTATE_FACE);
+    window.__APOSTATE_FACE = new FontFace('apostate-specimen', window.__FONT_BUF);
+    document.fonts.add(window.__APOSTATE_FACE);
+    window.__APOSTATE_FACE.load().then(()=>syncSpecEditBox()).catch(()=>{});
+  }catch(e){ /* overlay falls back to system font; SVG stays correct */ }
   CHARSET=[];
   for(let i=0;i<font.glyphs.length;i++){
     const g=font.glyphs.get(i);
@@ -1322,15 +1408,111 @@ function renderCharset(){
 }
 
 /* ============================================================
-   RENDER — the single source of truth for preview and export
+   NODE-EDIT MODEL — a minimal per-glyph "bake" layer on top of the
+   otherwise-stateless applyPipeline, reusing Organica.glyphModel/
+   glyphEditor exactly as Living Path does (both modules are already
+   font-agnostic — no change needed to either). Nothing here runs unless
+   the user explicitly enters glyph-edit mode; every glyph that was never
+   node-edited keeps going through applyPipeline fresh on every render,
+   byte-identical to before this feature existed.
    ============================================================ */
-let zoom=1;
+let _gmodel=null;
+function gmodel(){ return FONT ? (_gmodel || (_gmodel = Organica.glyphModel.createModel(FONT))) : null; }
+// returns the baked override for this glyph, or null if it was never node-edited
+function editedGlyph(glyph){
+  const m=_gmodel; if(!m || !glyph) return null;
+  const c = m.masters[0]._cache[Organica.glyphModel.glyphKey(glyph)];
+  return (c && (c.edited || c.baked)) ? c : null;
+}
+function stackIsIdentity(){
+  return FX.every(f => STATE[f.key] === (f.key==='griddler' ? 0 : f.def));
+}
+function glyphAdvance(gl){
+  const ov = editedGlyph(gl);
+  if(ov) return Math.round(ov.advance);
+  return Math.round((gl&&gl.advanceWidth) || (FONT&&FONT.unitsPerEm||1000)*0.5);
+}
+
+/* ============================================================
+   VIEW DISPATCH — 'tester' (default, editable text specimen) |
+   'family' (today's original screen: charset + one big glyph + panel) |
+   'glyph' (node/point editor for the currently-selected letter in family).
+   NOTE naming is intentionally the OPPOSITE of Living Path's own
+   tester/family split — there, "family" is a Fontra-style grid of every
+   glyph; here, per an explicit product decision, "family" is just today's
+   existing single-glyph screen. #panel (the FX sliders) stays visible and
+   fully functional in all three states — never hidden.
+   Each mode has a real, shareable/bookmarkable name in the URL query
+   string (?view=tester|family|glyph, plus &char=X for glyph — e.g. Full
+   Family is literally "?view=family"), kept in sync via history.pushState
+   so the browser's back/forward buttons move between modes too.
+   ============================================================ */
+let VIEW='tester';
+const VIEW_NAMES = ['tester','family','glyph'];
+function setView(v, push){
+  VIEW = VIEW_NAMES.includes(v) ? v : 'tester';
+  const url = new URL(location.href);
+  url.searchParams.set('view', VIEW);
+  if(VIEW==='glyph') url.searchParams.set('char', SELECTED);
+  else url.searchParams.delete('char');
+  if(push===false) history.replaceState({view:VIEW}, '', url);
+  else history.pushState({view:VIEW}, '', url);
+  render();
+}
+function readViewFromURL(){
+  const p = new URLSearchParams(location.search);
+  const v = p.get('view');
+  const ch = p.get('char');
+  if(ch && ch.length) SELECTED = ch[0];
+  VIEW = VIEW_NAMES.includes(v) ? v : 'tester';
+}
+window.addEventListener('popstate', e=>{
+  const v = (e.state && e.state.view) || new URLSearchParams(location.search).get('view') || 'tester';
+  VIEW = VIEW_NAMES.includes(v) ? v : 'tester';
+  const ch = new URLSearchParams(location.search).get('char');
+  if(VIEW==='glyph' && ch && ch.length) SELECTED = ch[0];
+  render();
+});
 function render(){
   if(!FONT) return;
+  $('app').classList.toggle('mode-tester', VIEW==='tester');
+  $('tgFamily').setAttribute('aria-pressed', String(VIEW==='family'));
+  $('fb-tester').hidden = VIEW!=='tester';
+  $('specEdit').hidden = VIEW!=='tester';
+  $('charset').style.display = VIEW==='tester' ? 'none' : '';
+  $('glyphTools').hidden = VIEW!=='glyph';
+  $('btn-edit-points').hidden = VIEW==='tester';
+  $('btn-edit-points').setAttribute('aria-pressed', String(VIEW==='glyph'));
+  $('zoom-hud').style.display = VIEW==='tester' ? '' : 'none';
+  // zoomPan's transform lives on #board, shared by every view — reset it
+  // on the way OUT of tester so family/glyph (which don't zoom) always
+  // render at native scale instead of inheriting a leftover tester zoom.
+  if(VIEW!=='tester' && typeof zoomPan!=='undefined') zoomPan.reset();
+  if(VIEW==='glyph'){ $('board').style.display='none'; $('glyphCanvas').hidden=false; $('glyphCanvas').classList.add('show'); mountGlyphEditor(); return; }
+  $('glyphCanvas').classList.remove('show'); $('glyphCanvas').hidden=true;
+  $('board').style.display='';
+  if(VIEW==='family') return renderFamily();
+  return renderTester();
+}
+
+/* ============================================================
+   RENDER (family) — today's original single-glyph screen, unchanged
+   except for the editedGlyph() check so a node-edited letter shows its
+   baked shape instead of a fresh applyPipeline run.
+   ============================================================ */
+function renderFamily(){
+  if(!FONT) return;
   const gl = FONT.charToGlyph(SELECTED);
-  const raw = fromOTCommands((gl.path&&gl.path.commands)||[]);
-  if(!raw.length){ $('board').innerHTML=''; return; }
-  const {subs} = applyPipeline(raw);
+  const ov = editedGlyph(gl);
+  let subs;
+  if(ov){
+    const {norm} = normGlyph(Organica.glyphModel.toSubs(ov.contours));
+    subs = norm;
+  } else {
+    const raw = fromOTCommands((gl.path&&gl.path.commands)||[]);
+    if(!raw.length){ $('board').innerHTML=''; return; }
+    subs = applyPipeline(raw).subs;
+  }
   const board=$('board');
   board.setAttribute('viewBox', `0 0 1000 1000`);
   const outlineOn = $('ck-outline').checked;
@@ -1342,9 +1524,186 @@ function render(){
     }));
   }
   board.innerHTML = markup;
-  board.style.transform = `scale(${zoom})`;
 }
-function zoomBy(d){ zoom=Math.max(0.2, Math.min(4, +(zoom+d).toFixed(2))); $('zoom-level').textContent=zoom.toFixed(2)+'x'; render(); }
+// wheel-zoom toward the cursor (+ drag-pan once zoomed, dblclick reset,
+// ⌘/Ctrl +/-/0) — the same shared utility Spore/Pollen/Halide already use,
+// gated to the 'family' view only (the tester/glyph views don't use this
+// scale transform at all).
+const zoomPan = Organica.createZoomPan({
+  canvas: $('board'), wrap: $('stage'), min: 0.2, max: 4,
+  isReady: ()=> VIEW==='tester',
+  onChange: ({zoom,zoomed})=>{
+    $('zoom-level').textContent = zoom.toFixed(2)+'x';
+    $('board').classList.toggle('zoomed', zoomed);
+    if(VIEW==='tester') syncSpecEditBox();   // the overlay glues itself to #board's own rect, which now scales too
+  },
+});
+
+/* ============================================================
+   TESTER — the new default view: an editable text specimen. Runs
+   applyPipeline PER CHARACTER (each still normalised to its own 1000-box,
+   so every effect — incl. bubbleSubpath's size/radius maths — stays
+   calibrated exactly as it is for a single glyph), then denormGlyph()
+   converts back to real font-em-unit coordinates (the same conversion
+   exportOTF already relies on) so glyphs lay out at their true advance
+   widths, not independently boxed.
+   ============================================================ */
+const TESTER_DEFAULTS = { size:96, track:0, align:'center', caps:false };
+let tester = { ...TESTER_DEFAULTS };
+let specimenString = 'Apostate';
+const TESTER_BOX_W=1400, TESTER_BOX_H=900, TESTER_LINE_H=1.36;
+function buildSpecimenSubs(opts){
+  if(!FONT) return null;
+  const { size, track, align, caps } = opts;
+  const upm = FONT.unitsPerEm || 1000;
+  const scale = size/upm;
+  const trackEm = size*(track/1000);
+  const x0=45, maxX=TESTER_BOX_W-45;
+  const spaceAdv = ((FONT.charToGlyph(' ')&&FONT.charToGlyph(' ').advanceWidth)||upm*0.3)*scale;
+  const glyphAdv = ch => { const g=FONT.charToGlyph(ch); return (glyphAdvance(g)||upm*0.5)*scale; };
+  const wordAdv = w => { let a=0; for(const ch of w) a += glyphAdv(ch)+trackEm; return a; };
+
+  const lines=[];
+  for(const para of (specimenString||'').split('\n')){
+    const words = para.split(/\s+/).filter(Boolean).map(w=>caps?w.toUpperCase():w);
+    let cur=[], curW=0;
+    for(const w of words){
+      const wA=wordAdv(w), add=(cur.length?spaceAdv+trackEm:0)+wA;
+      if(cur.length && x0+curW+add>maxX){ lines.push({words:cur,width:curW}); cur=[w]; curW=wA; }
+      else { cur.push(w); curW+=add; }
+    }
+    if(cur.length || !words.length) lines.push({words:cur,width:curW});
+  }
+
+  const lh = size*TESTER_LINE_H;
+  const blockH = Math.max(0, lines.length-1)*lh + size;
+  const y0 = Math.max(size, (TESTER_BOX_H-blockH)/2 + size*0.82);
+  tester.baseline0 = y0;
+
+  const all=[]; let y=y0;
+  for(const ln of lines){
+    const w = Math.max(0, ln.width-trackEm);
+    let x = align==='center' ? x0+(maxX-x0-w)/2 : align==='right' ? maxX-w : x0;
+    for(let wi=0; wi<ln.words.length; wi++){
+      if(wi) x += spaceAdv+trackEm;
+      for(const ch of ln.words[wi]){
+        const gl = FONT.charToGlyph(ch);
+        if(!gl){ x += size*0.5+trackEm; continue; }
+        const ov = editedGlyph(gl);
+        let em;
+        if(ov){ em = Organica.glyphModel.toSubs(ov.contours); }
+        else {
+          const raw = fromOTCommands((gl.path&&gl.path.commands)||[]);
+          if(raw.length){ const {subs,k,ox,oy}=applyPipeline(raw); em=denormGlyph(subs,k,ox,oy); }
+          else em=[];
+        }
+        const cx=x, cy=y;
+        for(const s of em) all.push({closed:s.closed, pts:s.pts.map(p=>({x:cx+p.x*scale, y:cy-p.y*scale}))});
+        x += (glyphAdvance(gl)||upm*0.5)*scale + trackEm;
+      }
+    }
+    y += lh;
+    if(y > TESTER_BOX_H-15) break;
+  }
+  return all;
+}
+function renderTester(){
+  const subs = buildSpecimenSubs(tester);
+  const board=$('board');
+  board.setAttribute('viewBox', `0 0 ${TESTER_BOX_W} ${TESTER_BOX_H}`);
+  board.innerHTML = subs&&subs.length ? `<path class="glyph" fill-rule="${currentFillRule()}" d="${dFromSubs(subs)}"/>` : '';
+  syncSpecEditBox();
+}
+function syncSpecEditBox(){
+  const specEdit=$('specEdit');
+  if(specEdit.hidden) return;
+  const b=$('board').getBoundingClientRect(), w=$('stage').getBoundingClientRect();
+  if(!b.width) return;
+  const px = b.width/TESTER_BOX_W;
+  const s=tester.size, lh=s*TESTER_LINE_H, top0=(tester.baseline0||s)-s;
+  Object.assign(specEdit.style, {
+    left: (b.left-w.left+45*px)+'px',
+    top: (b.top-w.top+top0*px)+'px',
+    width: ((TESTER_BOX_W-90)*px)+'px',
+    height: (b.height-top0*px-8)+'px',
+    fontSize:(s*px)+'px', lineHeight:(lh*px)+'px',
+    letterSpacing:((tester.trackEm||0)*px)+'px',
+    textAlign: tester.align, textTransform: tester.caps?'uppercase':'none',
+  });
+}
+
+/* ============================================================
+   GLYPH NODE EDITOR — drag-the-points editing for the currently-
+   selected letter, reached from Full Family via "edit points". Bakes
+   the current effect-stack result once on entry (unless the stack is at
+   identity), then edits that frozen shape — a later slider tweak never
+   silently overwrites it (matches Living Path's own documented rule).
+   ============================================================ */
+let _ged=null, _addPt=false, _resetGlyphArmed=null;
+function glyphMetrics(){
+  const upm=(FONT&&FONT.unitsPerEm)||1000, os2=FONT&&FONT.tables&&FONT.tables.os2;
+  return { baseline:0,
+    ascender:(FONT&&FONT.ascender)||Math.round(upm*0.8),
+    descender:(FONT&&FONT.descender)||-Math.round(upm*0.2),
+    xHeight:(os2&&os2.sxHeight)||Math.round(upm*0.5),
+    capHeight:(os2&&os2.sCapHeight)||Math.round(upm*0.7) };
+}
+function glyphEd(){
+  return _ged || (_ged = Organica.glyphEditor($('glyphCanvas'), {
+    ink: ()=>getComputedStyle(document.body).getPropertyValue('--ink')||'#0a0a0a',
+    paper: ()=>getComputedStyle(document.body).getPropertyValue('--paper')||'#f5f2ec',
+    metrics: glyphMetrics(),
+    addMode: ()=>_addPt,
+    onChange: ()=>{},
+  }));
+}
+function sizeGlyphCanvas(){
+  const canvas=$('glyphCanvas'), r=$('stage').getBoundingClientRect(), pad=24;
+  const dpr=Math.min(2, window.devicePixelRatio||1);
+  const w=Math.max(64, r.width-pad*2), h=Math.max(64, r.height-pad*2);
+  canvas.style.width=w+'px'; canvas.style.height=h+'px';
+  canvas.width=Math.round(w*dpr); canvas.height=Math.round(h*dpr);
+  if(_ged) _ged.resize();
+}
+function enterGlyphEdit(){
+  if(!FONT) return;
+  setView('glyph');
+}
+function mountGlyphEditor(){
+  const m=gmodel(), gl=FONT.charToGlyph(SELECTED), key=gl&&Organica.glyphModel.glyphKey(gl);
+  if(!m||!key) return;
+  const g=m.masters[0].glyph(key);
+  if(!g.baked && !stackIsIdentity()){
+    const raw=fromOTCommands((gl.path&&gl.path.commands)||[]);
+    if(raw.length){
+      const {subs,k,ox,oy}=applyPipeline(raw);
+      const em=denormGlyph(subs,k,ox,oy);
+      g.contours = em.map(s=>({closed:s.closed!==false, pts:s.pts.map(p=>({x:p.x,y:p.y,corner:false}))}));
+      g.advance = Math.round(gl.advanceWidth || (FONT.unitsPerEm||1000)*0.5);
+      g.baked=true; g.edited=true;
+    }
+  }
+  sizeGlyphCanvas();
+  glyphEd().setGlyph(m, 0, key);
+  buildGlyphTools();
+}
+function buildGlyphTools(){
+  const t=$('glyphTools');
+  t.innerHTML = '<button class="mini-btn" id="gtUndo">Undo</button>'
+              + '<button class="mini-btn" id="gtReset">Reset glyph</button>'
+              + '<button class="seg-btn" id="gtAddPt" aria-pressed="false" aria-label="Add point mode">+ pt</button>';
+  $('gtUndo').onclick = ()=>{ if(_ged) _ged.undo(); };
+  $('gtReset').onclick = function(){
+    if(_resetGlyphArmed!==this){ _resetGlyphArmed=this; this.classList.add('is-armed');
+      setTimeout(()=>{ this.classList.remove('is-armed'); if(_resetGlyphArmed===this) _resetGlyphArmed=null; }, 2600); return; }
+    this.classList.remove('is-armed'); _resetGlyphArmed=null;
+    if(_ged) _ged.resetGlyph();
+    const m=gmodel(), gl=FONT.charToGlyph(SELECTED), key=gl&&Organica.glyphModel.glyphKey(gl);
+    if(m&&key){ const g=m.masters[0].glyph(key); g.baked=false; g.edited=false; }
+    render();   // re-mount -> re-bakes through the CURRENT live stack
+  };
+  $('gtAddPt').onclick = function(){ _addPt=!_addPt; this.setAttribute('aria-pressed', String(_addPt)); };
+}
 
 /* ============================================================
    PANEL — 27 sliders generated from FX, no hand-written boilerplate
@@ -1572,15 +1931,20 @@ async function exportOTF(){
     const gl=FONT.glyphs.get(i);
     if(gl.unicode==null || gl.unicode<=32 || seen.has(gl.unicode) || !inCharset(gl.unicode)) continue;
     seen.add(gl.unicode);
-    const raw=fromOTCommands((gl.path&&gl.path.commands)||[]);
+    const ov=editedGlyph(gl);
     let path=new opentype.Path();
-    if(raw.length){
-      const {subs,k,ox,oy}=applyPipeline(raw);
-      const em=denormGlyph(subs,k,ox,oy);
-      path=subsToOTPath(em);
+    if(ov){
+      path=subsToOTPath(Organica.glyphModel.toSubs(ov.contours));
+    } else {
+      const raw=fromOTCommands((gl.path&&gl.path.commands)||[]);
+      if(raw.length){
+        const {subs,k,ox,oy}=applyPipeline(raw);
+        const em=denormGlyph(subs,k,ox,oy);
+        path=subsToOTPath(em);
+      }
     }
     glyphs.push(new opentype.Glyph({name:gl.name||('uni'+gl.unicode.toString(16)), unicode:gl.unicode,
-      advanceWidth:Math.round(gl.advanceWidth||upm*0.5), path}));
+      advanceWidth:glyphAdvance(gl), path}));
   }
   const name=($('exName').value||'Apostate').trim();
   const font=new opentype.Font({familyName:name, styleName:'Regular', unitsPerEm:upm,
@@ -1596,8 +1960,10 @@ async function exportOTF(){
 function exportSVG(){
   if(!FONT){ setStatus('','✗ load a font first'); return; }
   const gl=FONT.charToGlyph(SELECTED);
-  const raw=fromOTCommands((gl.path&&gl.path.commands)||[]);
-  const {subs}=applyPipeline(raw);
+  const ov=editedGlyph(gl);
+  let subs;
+  if(ov){ subs = normGlyph(Organica.glyphModel.toSubs(ov.contours)).norm; }
+  else { const raw=fromOTCommands((gl.path&&gl.path.commands)||[]); subs=applyPipeline(raw).subs; }
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><path fill="#0a0a0a" fill-rule="${currentFillRule()}" d="${dFromSubs(subs)}"/></svg>`;
   Organica.download(new Blob([svg],{type:'image/svg+xml'}), 'apostate-'+SELECTED+'.svg');
 }
@@ -1622,9 +1988,65 @@ window.addEventListener('drop', e=>{
   reader.readAsArrayBuffer(file);
 });
 
+/* ============================================================
+   FLOATBAR / TESTER wiring
+   ============================================================ */
+$('btn-open-font').addEventListener('click', ()=>$('file-input').click());
+
+$('tgFamily').addEventListener('click', function(){
+  setView(VIEW==='tester' ? 'family' : 'tester');   // from 'glyph' this also lands on 'family'
+});
+$('btn-reset-all').addEventListener('click', resetAll);
+$('btn-edit-points').addEventListener('click', function(){
+  if(VIEW==='glyph'){ setView('family'); }
+  else { enterGlyphEdit(); }
+});
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape' && VIEW==='glyph'){
+    if(_ged && _ged.getSelection && _ged.getSelection()){ return; }  // first Esc just deselects (editor's own handler)
+    setView('family');
+  }
+});
+
+function wireTbSlider(id, valId, key){
+  const el=$(id);
+  el.addEventListener('input', ()=>{
+    tester[key] = +el.value;
+    $(valId).textContent = el.value;
+    render();
+  });
+}
+wireTbSlider('tbSize','tbSizeVal','size');
+wireTbSlider('tbTrack','tbTrackVal','track');
+$('fb-tester').querySelectorAll('.seg-ctrl [data-align]').forEach(btn=>btn.addEventListener('click', ()=>{
+  $('fb-tester').querySelectorAll('.seg-ctrl [data-align]').forEach(b=>b.setAttribute('aria-pressed', String(b===btn)));
+  tester.align = btn.dataset.align;
+  render();
+}));
+$('tbCaps').addEventListener('click', function(){
+  tester.caps = !tester.caps;
+  this.setAttribute('aria-pressed', String(tester.caps));
+  render();
+});
+
+const specEdit = $('specEdit');
+specEdit.textContent = specimenString;
+specEdit.addEventListener('input', ()=>{
+  specimenString = specEdit.textContent;
+  render();
+});
+specEdit.addEventListener('paste', e=>{
+  e.preventDefault();
+  const text=(e.clipboardData||window.clipboardData).getData('text/plain');
+  document.execCommand('insertText', false, text);
+});
+window.addEventListener('resize', ()=>{ if(VIEW==='tester') syncSpecEditBox(); else if(VIEW==='glyph') sizeGlyphCanvas(); });
+
 Organica.popover($('btn-export'), $('export-popover'));
 buildPanel();
 syncBubbleInnerDisabled();
+readViewFromURL();   // ?view=tester|family|glyph (+&char=X) — before the first render, so it lands correctly
+history.replaceState({view:VIEW}, '', location.href);
 fetch('/shared/vendor/archivo-black.ttf').then(r=>r.arrayBuffer()).then(buf=>loadFontBuffer(buf,'Archivo Black'))
   .catch(()=>setStatus('','drop a font to begin'));
 </script>

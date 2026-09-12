@@ -157,15 +157,8 @@
   #glyphTools .seg-btn{flex:0 0 auto; overflow:visible; font-size:var(--fs-micro); padding:0 var(--space-3); white-space:nowrap}
   #glyphTools .mini-btn{white-space:nowrap}
   #glyphTools .mini-btn.is-armed{background:var(--danger); border-color:var(--danger); color:var(--paper)}
-  /* type-tester controls inside the floatbar */
-  .fb-tester{display:flex; align-items:center; gap:var(--space-3)}
-  .fb-tester[hidden]{display:none}
-  .fb-field{display:flex; align-items:center; gap:var(--space-2); margin:0; font-size:var(--fs-micro); letter-spacing:.06em; color:var(--mid); cursor:default}
-  .fb-field input[type=range]{width:82px}
-  .fb-val{min-width:2.5ch; font-size:var(--fs-small); font-weight:400; color:var(--ink); text-align:right}
-  .fb-tester .seg-ctrl{flex:0 0 auto}
-  .fb-tester .seg-btn{min-width:28px; padding:0 var(--space-2); font-size:var(--fs-micro)}
-  .fb-tester .seg-btn svg{width:14px; height:10px; display:block; margin:0 auto}
+  /* .fb-tester / .fb-field / .fb-val — promoted to shared/floatbar.css
+     2026-09 at the second consumer (Apostate's own tester) */
   /* 4 XS rounded-square icon buttons — one per project-themed phrase, near the stage */
   .lp-phrases{position:absolute; bottom:96px; left:50%; transform:translateX(-50%); display:flex; gap:var(--space-2); z-index:8}
   .lp-phrases[hidden]{display:none}
