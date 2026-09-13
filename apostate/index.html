@@ -102,28 +102,16 @@ body { background: var(--paper); }
 #specEdit[hidden] { display: none; }
 /* single-glyph node editor (Organica.glyphEditor) — a raster canvas replacing
    #board while in glyph-edit mode */
-#glyphCanvas { position: absolute; inset: var(--space-7); display: none; touch-action: none; outline: 0; }
+#glyphCanvas { position: absolute; inset: var(--space-3); display: none; touch-action: none; outline: 0; }
 #glyphCanvas.show { display: block; }
-#glyphTools {
-  position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 8;
-  display: flex; align-items: center; gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  background: color-mix(in srgb, var(--panel) 92%, transparent);
-  border: 1px solid var(--border); border-radius: var(--radius-md); backdrop-filter: blur(6px);
-}
-#glyphTools[hidden] { display: none; }
-#btn-edit-points[hidden], #btn-show-handles[hidden], #btn-show-outline[hidden] { display: none; }
-#glyphTools .mini-btn.is-armed { background: var(--danger); border-color: var(--danger); color: var(--paper); }
+#btn-edit-points[hidden], #btn-show-handles[hidden], #btn-show-outline[hidden],
+#gtUndo[hidden], #gtReset[hidden], #gtAddPt[hidden] { display: none; }
 .org-floatbar__btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.org-floatbar__btn.is-armed { background: var(--danger); border-color: var(--danger); color: var(--paper); }
 #empty-hint {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   color: var(--mid); font-size: var(--fs-medium); text-align: center; pointer-events: none;
 }
-#zoom-hud {
-  position: absolute; bottom: 12px; left: 12px; display: flex; gap: var(--space-2); align-items: center;
-  font-size: var(--fs-small); color: var(--mid);
-}
-#zoom-hud button { border: 1px solid var(--border); background: var(--panel); border-radius: var(--radius-sm); width: 22px; height: 22px; cursor: pointer; }
 #panel { overflow-y: auto; border-left: 1px solid var(--border); }
 .fx-cat-head {
   display: flex; align-items: center; justify-content: space-between; width: 100%;
@@ -135,7 +123,6 @@ body { background: var(--paper); }
 .fx-cat-head.collapsed .chev { transform: rotate(-90deg); }
 .fx-cat-body.collapsed { display: none; }
 .fx-cat-head .cat-tag { color: var(--tool); }
-.row-btns2 { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
 .griddler-sub { padding-left: var(--space-3); border-left: 2px solid var(--border); margin: var(--space-2) 0 var(--space-3); }
 .lp-phrases{position:absolute; bottom:96px; left:50%; transform:translateX(-50%); display:flex; gap:var(--space-2); z-index:8}
 .lp-phrases[hidden]{display:none}
@@ -147,7 +134,6 @@ body { background: var(--paper); }
 }
 .lp-phrase-btn svg{width:13px; height:13px; display:block}
 .lp-phrase-btn:hover{border-color:var(--ink); color:var(--ink); transform:translateY(-1px)}
-.lp-phrase-btn.is-active{background:var(--ink); border-color:var(--ink); color:var(--paper)}
 </style>
 </head>
 <body>
@@ -170,14 +156,6 @@ body { background: var(--paper); }
 
   <!-- type-tester controls (specimen only — hidden in family/glyph view) -->
   <div class="fb-tester" id="fb-tester" role="group" aria-label="Type tester controls" hidden>
-    <label class="fb-field"><span>SIZE</span>
-      <input type="range" id="tbSize" min="24" max="240" step="1" value="96">
-      <b class="fb-val" id="tbSizeVal">96</b>
-    </label>
-    <label class="fb-field"><span>TRACK</span>
-      <input type="range" id="tbTrack" min="-40" max="400" step="5" value="0">
-      <b class="fb-val" id="tbTrackVal">0</b>
-    </label>
     <div class="seg-ctrl" role="group" aria-label="Align">
       <button class="seg-btn" data-align="left" aria-pressed="false" aria-label="Align left"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M1 5h9M1 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
       <button class="seg-btn" data-align="center" aria-pressed="true" aria-label="Align centre"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M3.5 5h9M2 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
@@ -196,6 +174,22 @@ body { background: var(--paper); }
     <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 13.5 6 12l6.2-6.2a1.4 1.4 0 0 0 0-2L11.7 3.3a1.4 1.4 0 0 0-2 0L3.5 9.5l-1 4Z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10.5" cy="4.8" r="1" fill="currentColor"/></svg>
   </button>
 
+  <div class="org-floatbar__sep"></div>
+
+  <button class="org-floatbar__btn" id="gtUndo" aria-label="Undo" hidden>
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 4v4h4M4 8a5 5 0 1 1 1.5 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <button class="org-floatbar__btn" id="gtReset" aria-label="Reset glyph" hidden>
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+  </button>
+
+  <button class="org-floatbar__btn" id="gtAddPt" aria-label="Add point mode" aria-pressed="false" hidden>
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 2"/><path d="M8 5.5v5M5.5 8h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
   <button class="org-floatbar__btn" id="btn-show-handles" aria-label="Show handles" aria-pressed="true" hidden>
     <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 12 8 4l5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="12" r="1.4" fill="currentColor"/><circle cx="8" cy="4" r="1.4" fill="currentColor"/><circle cx="13" cy="12" r="1.4" fill="currentColor"/></svg>
   </button>
@@ -205,6 +199,10 @@ body { background: var(--paper); }
   </button>
 
   <div class="org-floatbar__sep"></div>
+
+  <button class="org-floatbar__btn" id="btn-randomize" aria-label="Randomize">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.3"/><circle cx="5.5" cy="5.5" r="1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1" fill="currentColor"/><circle cx="8" cy="8" r="1" fill="currentColor"/></svg>
+  </button>
 
   <button class="org-floatbar__btn" id="btn-reset-all" aria-label="Reset">
     <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13 4.8A5.5 5.5 0 1 0 14 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M13.3 1.5v3.5H9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -246,45 +244,35 @@ body { background: var(--paper); }
     <div id="empty-hint">load a font to begin</div>
     <svg id="board" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" style="display:none"></svg>
     <canvas id="glyphCanvas" hidden></canvas>
-    <div id="glyphTools" role="group" aria-label="Glyph editor" hidden></div>
     <div id="specEdit" contenteditable="plaintext-only" spellcheck="false"
          autocapitalize="off" autocorrect="off" aria-label="Specimen text — type to edit" hidden></div>
     <div class="lp-phrases" id="phrases" role="group" aria-label="Specimen phrases" hidden></div>
-    <div id="zoom-hud">
-      <button onclick="zoomPan.zoomBy(1/1.2)">&minus;</button>
-      <span id="zoom-level">1.00x</span>
-      <button onclick="zoomPan.zoomBy(1.2)">+</button>
-    </div>
   </div>
 
   <div id="panel">
     <div id="canvas-size-host"></div>
 
     <div class="panel-section">
-      <h3>View</h3>
-      <div class="row-btns2">
-        <button class="mini-btn" onclick="randomizeAll()">randomize</button>
-        <button class="mini-btn" onclick="resetAll()">reset all</button>
+      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Transform</span><span class="chev">&#9660;</span></button>
+      <div id="specimen-size-row" hidden>
+        <div class="ctrl-row"><div class="ctrl-label">Size</div><input type="range" id="tbSize" min="24" max="240" step="1" value="96"><span class="ctrl-val" id="tbSizeVal">96</span></div>
+        <div class="ctrl-row"><div class="ctrl-label">Track</div><input type="range" id="tbTrack" min="-40" max="400" step="5" value="0"><span class="ctrl-val" id="tbTrackVal">0</span></div>
       </div>
-    </div>
-
-    <div class="panel-section">
-      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Mild heresy</span><span class="chev">&#9660;</span></button>
       <div class="fx-cat-body" id="cat-mild"></div>
     </div>
 
     <div class="panel-section">
-      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Total blasphemy</span><span class="chev">&#9660;</span></button>
+      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Distort</span><span class="chev">&#9660;</span></button>
       <div class="fx-cat-body" id="cat-blasphemy"></div>
     </div>
 
     <div class="panel-section">
-      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Eternal damnation</span><span class="chev">&#9660;</span></button>
+      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Break</span><span class="chev">&#9660;</span></button>
       <div class="fx-cat-body" id="cat-damnation"></div>
     </div>
 
     <div class="panel-section">
-      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Texture (extra)</span><span class="chev">&#9660;</span></button>
+      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Texture</span><span class="chev">&#9660;</span></button>
       <div class="fx-cat-body" id="cat-texture"></div>
     </div>
   </div>
@@ -551,12 +539,12 @@ const FX = [
   {key:'ripple',       cat:'blasphemy', label:'ripple',       min:-100, max:100, step:1, def:0},
   {key:'flip',         cat:'blasphemy', label:'flip',         min:0,    max:100, step:1, def:0},
   {key:'crush',        cat:'blasphemy', label:'crush',        min:0,    max:100, step:1, def:0},
-  {key:'wind',         cat:'blasphemy', label:'wind (new)',   min:-100, max:100, step:1, def:0},
+  {key:'wind',         cat:'blasphemy', label:'wind',   min:-100, max:100, step:1, def:0},
   {key:'curl',         cat:'blasphemy', label:'curl',         min:-90,  max:90,  step:1, def:0, unit:'°'},
   // ── eternal damnation — most topology-changing, applied last ──
-  {key:'spikes',       cat:'damnation', label:'spikes (new)',            min:0,    max:100, step:1,   def:0},
-  {key:'polygonize',   cat:'damnation', label:'polygonize (new) (beta)', min:0,    max:100, step:1,   def:0},
-  {key:'echo',         cat:'damnation', label:'echo (new) (beta)',       min:0,    max:100, step:1,   def:0},
+  {key:'spikes',       cat:'damnation', label:'spikes',            min:0,    max:100, step:1,   def:0},
+  {key:'polygonize',   cat:'damnation', label:'polygonize', min:0,    max:100, step:1,   def:0},
+  {key:'echo',         cat:'damnation', label:'echo',       min:0,    max:100, step:1,   def:0},
   {key:'pixelate',     cat:'damnation', label:'pixelate',                min:0,    max:100, step:1,   def:0},
   {key:'slice',        cat:'damnation', label:'slice',                   min:-4.9, max:4.9, step:0.1, def:0},
   {key:'groviera',     cat:'damnation', label:'groviera',                min:0,    max:100, step:1,   def:0},
@@ -566,9 +554,9 @@ const FX = [
   // registry (jitter/wobble/scatter), reimplemented from zero on Apostate's
   // own point-space model — no shared code, per Apostate's "start from
   // zero" rule. Applied as a final pass after damnation.
-  {key:'jitter',       cat:'texture',   label:'jitter (new)',            min:0,    max:100, step:1,   def:0},
-  {key:'wobble',       cat:'texture',   label:'wobble (new)',            min:0,    max:100, step:1,   def:0},
-  {key:'scatter',      cat:'texture',   label:'scatter (new)',           min:0,    max:100, step:1,   def:0},
+  {key:'jitter',       cat:'texture',   label:'jitter',            min:0,    max:100, step:1,   def:0},
+  {key:'wobble',       cat:'texture',   label:'wobble',            min:0,    max:100, step:1,   def:0},
+  {key:'scatter',      cat:'texture',   label:'scatter',           min:0,    max:100, step:1,   def:0},
   // bubbles — perfect semicircular bulges between resampled contour points.
   // Signed range: sign picks direction (+outward / -inward), magnitude is
   // strength — same "direction+amount in one slider" convention already
@@ -576,8 +564,8 @@ const FX = [
   // (the hole of "O", the triangle of "A") can bulge independently of the
   // outer contour, classified the same way pinch/refraction/flip/crush
   // already do (largest-bbox-area subpath = outer, everything else = inner).
-  {key:'bubbles',      cat:'texture',   label:'bubbles · outer (new)',   min:-100, max:100, step:1,   def:0},
-  {key:'bubblesInner', cat:'texture',   label:'bubbles · inner (new)',   min:-100, max:100, step:1,   def:0},
+  {key:'bubbles',      cat:'texture',   label:'bubbles · outer',   min:-100, max:100, step:1,   def:0},
+  {key:'bubblesInner', cat:'texture',   label:'bubbles · inner',   min:-100, max:100, step:1,   def:0},
 ];
 const STATE = {}; FX.forEach(f=>STATE[f.key]=f.def);
 // griddler's own sub-parameters — Amount alone gives a clean grid-cut;
@@ -1511,15 +1499,19 @@ function render(){
   $('fb-tester').hidden = VIEW!=='tester';
   $('specEdit').hidden = VIEW!=='tester';
   $('phrases').hidden = VIEW!=='tester';
+  $('specimen-size-row').hidden = VIEW!=='tester';
   $('charset').style.display = VIEW==='tester' ? 'none' : '';
-  $('glyphTools').hidden = VIEW!=='glyph';
   $('btn-edit-points').hidden = VIEW==='tester';
   $('btn-edit-points').setAttribute('aria-pressed', String(VIEW==='glyph'));
+  $('gtUndo').hidden = VIEW!=='glyph';
+  $('gtReset').hidden = VIEW!=='glyph';
+  $('gtAddPt').hidden = VIEW!=='glyph';
+  $('gtAddPt').setAttribute('aria-pressed', String(_addPt));
+  if(VIEW!=='glyph'){ _resetGlyphArmed=null; $('gtReset').classList.remove('is-armed'); }
   $('btn-show-handles').hidden = VIEW!=='family';
   $('btn-show-outline').hidden = VIEW!=='family';
   $('btn-show-handles').setAttribute('aria-pressed', String(showHandles));
   $('btn-show-outline').setAttribute('aria-pressed', String(showOutline));
-  $('zoom-hud').style.display = VIEW==='tester' ? '' : 'none';
   // zoomPan's transform lives on #board, shared by every view — reset it
   // on the way OUT of tester so family/glyph (which don't zoom) always
   // render at native scale instead of inheriting a leftover tester zoom.
@@ -1567,8 +1559,7 @@ function renderFamily(){
 const zoomPan = Organica.createZoomPan({
   canvas: $('board'), wrap: $('stage'), min: 0.2, max: 4,
   isReady: ()=> VIEW==='tester',
-  onChange: ({zoom,zoomed})=>{
-    $('zoom-level').textContent = zoom.toFixed(2)+'x';
+  onChange: ({zoomed})=>{
     $('board').classList.toggle('zoomed', zoomed);
     if(VIEW==='tester') syncSpecEditBox();   // the overlay glues itself to #board's own rect, which now scales too
   },
@@ -1586,13 +1577,8 @@ const zoomPan = Organica.createZoomPan({
 const TESTER_DEFAULTS = { size:96, track:0, align:'center', caps:false };
 let tester = { ...TESTER_DEFAULTS };
 let specimenString = 'Apostate';
-const SPECIMEN_PHRASES = [
-  'Every letterform is heresy waiting to happen',
-  'Twist, pinch, and let the glyph confess',
-  'Blasphemy renders in perfect black vectors',
-  'Damnation is just another word for style',
-];
-const TESTER_BOX_W=1400, TESTER_BOX_H=900, TESTER_LINE_H=1.36;
+let TESTER_BOX_W=1000, TESTER_BOX_H=1000;
+const TESTER_LINE_H=1.36;
 function buildSpecimenSubs(opts){
   if(!FONT) return null;
   const { size, track, align, caps } = opts;
@@ -1696,10 +1682,12 @@ function glyphEd(){
     metrics: glyphMetrics(),
     addMode: ()=>_addPt,
     onChange: ()=>{},
+    guideLineWidth: 1.5,
+    guideFontSize: 13,
   }));
 }
 function sizeGlyphCanvas(){
-  const canvas=$('glyphCanvas'), r=$('stage').getBoundingClientRect(), pad=24;
+  const canvas=$('glyphCanvas'), r=$('stage').getBoundingClientRect(), pad=8;
   const dpr=Math.min(2, window.devicePixelRatio||1);
   const w=Math.max(64, r.width-pad*2), h=Math.max(64, r.height-pad*2);
   canvas.style.width=w+'px'; canvas.style.height=h+'px';
@@ -1726,24 +1714,6 @@ function mountGlyphEditor(){
   }
   sizeGlyphCanvas();
   glyphEd().setGlyph(m, 0, key);
-  buildGlyphTools();
-}
-function buildGlyphTools(){
-  const t=$('glyphTools');
-  t.innerHTML = '<button class="mini-btn" id="gtUndo">Undo</button>'
-              + '<button class="mini-btn" id="gtReset">Reset glyph</button>'
-              + '<button class="seg-btn" id="gtAddPt" aria-pressed="false" aria-label="Add point mode">+ pt</button>';
-  $('gtUndo').onclick = ()=>{ if(_ged) _ged.undo(); };
-  $('gtReset').onclick = function(){
-    if(_resetGlyphArmed!==this){ _resetGlyphArmed=this; this.classList.add('is-armed');
-      setTimeout(()=>{ this.classList.remove('is-armed'); if(_resetGlyphArmed===this) _resetGlyphArmed=null; }, 2600); return; }
-    this.classList.remove('is-armed'); _resetGlyphArmed=null;
-    if(_ged) _ged.resetGlyph();
-    const m=gmodel(), gl=FONT.charToGlyph(SELECTED), key=gl&&Organica.glyphModel.glyphKey(gl);
-    if(m&&key){ const g=m.masters[0].glyph(key); g.baked=false; g.edited=false; }
-    render();   // re-mount -> re-bakes through the CURRENT live stack
-  };
-  $('gtAddPt').onclick = function(){ _addPt=!_addPt; this.setAttribute('aria-pressed', String(_addPt)); };
 }
 
 /* ============================================================
@@ -2042,6 +2012,7 @@ $('btn-open-font').addEventListener('click', ()=>$('file-input').click());
 $('tgFamily').addEventListener('click', function(){
   setView(VIEW==='tester' ? 'family' : 'tester');   // from 'glyph' this also lands on 'family'
 });
+$('btn-randomize').addEventListener('click', randomizeAll);
 $('btn-reset-all').addEventListener('click', resetAll);
 $('btn-show-handles').addEventListener('click', function(){
   showHandles = !showHandles;
@@ -2057,6 +2028,17 @@ $('btn-edit-points').addEventListener('click', function(){
   if(VIEW==='glyph'){ setView('family'); }
   else { enterGlyphEdit(); }
 });
+$('gtUndo').addEventListener('click', ()=>{ if(_ged) _ged.undo(); });
+$('gtReset').addEventListener('click', function(){
+  if(_resetGlyphArmed!==this){ _resetGlyphArmed=this; this.classList.add('is-armed');
+    setTimeout(()=>{ this.classList.remove('is-armed'); if(_resetGlyphArmed===this) _resetGlyphArmed=null; }, 2600); return; }
+  this.classList.remove('is-armed'); _resetGlyphArmed=null;
+  if(_ged) _ged.resetGlyph();
+  const m=gmodel(), gl=FONT.charToGlyph(SELECTED), key=gl&&Organica.glyphModel.glyphKey(gl);
+  if(m&&key){ const g=m.masters[0].glyph(key); g.baked=false; g.edited=false; }
+  render();   // re-mount -> re-bakes through the CURRENT live stack
+});
+$('gtAddPt').addEventListener('click', function(){ _addPt=!_addPt; this.setAttribute('aria-pressed', String(_addPt)); });
 document.addEventListener('keydown', e=>{
   if(e.key==='Escape' && VIEW==='glyph'){
     if(_ged && _ged.getSelection && _ged.getSelection()){ return; }  // first Esc just deselects (editor's own handler)
@@ -2096,33 +2078,30 @@ specEdit.addEventListener('paste', e=>{
   const text=(e.clipboardData||window.clipboardData).getData('text/plain');
   document.execCommand('insertText', false, text);
 });
-const PHRASE_ICONS = [
-  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 8c2-3 4 3 6 0s4-3 6 0"/></svg>',
-  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 13c2-8 6-8 6-2s4 6 6-2"/></svg>',
-  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2v5M8 7 4 5M8 7l4-2M8 7v3l-3 4M8 10l3 4"/></svg>',
-  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2c-3 3-3 6 0 9M8 2c3 3 3 6 0 9M4 13h8"/></svg>',
-];
+const SILLY_ADJ = ['soggy','turbo','cosmic','grumpy','velvet','feral','disco','molten','pixelated','haunted','buttery','radioactive','sneaky','glorious','wobbly'];
+const SILLY_NOUN = ['wizard','taco','raccoon','spaceship','pickle','disco ball','yeti','toaster','unicorn','goblin','pancake','vortex','llama','jellyfish'];
+const SILLY_VERB = ['juggles','moonwalks','devours','summons','befriends','microwaves','outsmarts','serenades','ambushes','high-fives'];
+const SILLY_LOC = ['at midnight','in the multiverse','on a Tuesday','under the disco ball','during brunch','at warp speed','in slow motion'];
+function randomSillyPhrase(){
+  const pick = a => a[Math.floor(Math.random()*a.length)];
+  return `The ${pick(SILLY_ADJ)} ${pick(SILLY_NOUN)} ${pick(SILLY_VERB)} the ${pick(SILLY_ADJ)} ${pick(SILLY_NOUN)} ${pick(SILLY_LOC)}.`;
+}
 const phrasesEl = $('phrases');
-function markPhrase(i){ phrasesEl.querySelectorAll('.lp-phrase-btn').forEach((b,j)=>b.classList.toggle('is-active', j===i)); }
-SPECIMEN_PHRASES.forEach((txt,i)=>{
-  const b=document.createElement('button');
-  b.type='button'; b.className='lp-phrase-btn';
-  b.innerHTML = PHRASE_ICONS[i] || '';
-  b.setAttribute('aria-label', 'Phrase '+(i+1)+': '+txt);
-  b.title = txt;
-  b.addEventListener('click', ()=>{ specimenString = txt; specEdit.textContent = txt; markPhrase(i); render(); });
-  phrasesEl.appendChild(b);
-});
-markPhrase(SPECIMEN_PHRASES.indexOf(specimenString));
+const phraseBtn = document.createElement('button');
+phraseBtn.type = 'button'; phraseBtn.className = 'lp-phrase-btn';
+phraseBtn.setAttribute('aria-label', 'Generate a random test phrase');
+phraseBtn.title = 'Generate a random test phrase';
+phraseBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><circle cx="5.5" cy="5.5" r="0.9" fill="currentColor" stroke="none"/><circle cx="10.5" cy="10.5" r="0.9" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="0.9" fill="currentColor" stroke="none"/></svg>';
+phraseBtn.addEventListener('click', ()=>{ specimenString = randomSillyPhrase(); specEdit.textContent = specimenString; render(); });
+phrasesEl.appendChild(phraseBtn);
 window.addEventListener('resize', ()=>{ if(VIEW==='tester') syncSpecEditBox(); else if(VIEW==='glyph') sizeGlyphCanvas(); });
 
 const canvasSizePanel = Organica.canvasSizePanel($('canvas-size-host'), {
   idPrefix: 'cs',
   title: 'Canvas',
-  hint: 'export size',
   defaultWidth: 1000,
   defaultHeight: 1000,
-  onChange: () => {},
+  onChange: ({width,height}) => { TESTER_BOX_W = width; TESTER_BOX_H = height; render(); },
 });
 Organica.popover($('btn-export'), $('export-popover'));
 buildPanel();
