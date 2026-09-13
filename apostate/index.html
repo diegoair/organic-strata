@@ -389,7 +389,7 @@ function resampleArcLength(pts, closed, step){
 // exactly like it does under evenodd, but same-winding overlaps (bubbles
 // crossing themselves) now union into solid black instead of alternating —
 // literally "merge them and fill with black", Diego's own framing.
-function currentFillRule(){ return STATE.echo ? 'evenodd' : 'nonzero'; }
+function currentFillRule(){ return (STATE.echo || STATE.skeleton) ? 'evenodd' : 'nonzero'; }
 function dFromSubs(subs){
   let d='';
   for(const s of subs){
@@ -510,6 +510,161 @@ function findCorners(pts, angleDeg){
   return out;
 }
 
+// ── skeleton (centerline) helpers ──────────────────────────────────────
+// A self-contained raster detour, local to this one effect only — the
+// rest of this engine is pure point-space, but topological thinning has
+// no vector-only equivalent, so `case 'skeleton'` rasterizes, thins,
+// re-dilates and retraces internally and hands back an ordinary closed
+// polygon `subs` array, indistinguishable to every downstream consumer
+// (dFromSubs/exportSVG/exportOTF) from any other effect's output.
+let _skelCanvas=null;
+// 8% margin around the rasterized glyph — keeps ink off the canvas edge.
+// Zhang–Suen's own thinning loop below never inspects row/col 0 or the
+// last row/col (by definition — it needs a full 3x3 neighborhood), so any
+// real ink pixel sitting exactly on the raster boundary can never be
+// thinned and survives as a stray un-eroded sliver. Confirmed live against
+// Living Path's own reference implementation (shared/pathfx.js) at "Stream
+// width" 0 — several glyphs (R, A, K, X) whose rasterized bbox touches the
+// canvas edge leave a flat, near-zero-height fragment spanning up to ~14%
+// of the glyph's own width. This margin keeps every glyph's ink at least
+// a few px inside the canvas so the boundary rows are always guaranteed
+// background, never real edge.
+const SKEL_MARGIN_FRAC = 0.08;
+function rasterizeSubsToField(subs, res){
+  if(!_skelCanvas) _skelCanvas=document.createElement('canvas');
+  const c=_skelCanvas; c.width=res; c.height=res;
+  const ctx=c.getContext('2d', {willReadFrequently:true});
+  ctx.clearRect(0,0,res,res);
+  ctx.save();
+  const m=res*SKEL_MARGIN_FRAC, s=(res-2*m)/1000;
+  ctx.translate(m,m);
+  ctx.scale(s,s);
+  ctx.fillStyle='#000';
+  ctx.fill(new Path2D(dFromSubs(subs)), currentFillRule());
+  ctx.restore();
+  const data=ctx.getImageData(0,0,res,res).data;
+  const field=new Uint8Array(res*res);
+  for(let i=0;i<field.length;i++) field[i] = data[i*4+3] > 127 ? 1 : 0;
+  return field;
+}
+// classic Zhang–Suen two-subiteration topological thinning — textbook
+// public-domain algorithm, reimplemented locally (no shared/pathfx.js
+// code shared, per this file's own "start from zero" convention).
+// `maxIters` lets the caller stop thinning partway through — Living Path's
+// own skeleton always runs to full convergence (or 60), only varying the
+// POST-thinning re-dilation width, which makes Amount 0->1 an instant jump
+// from the untouched glyph straight to a fully-thinned skeleton. Scaling
+// the iteration count with Amount instead gives a genuinely gradual
+// erosion — a partial, still-mostly-solid shape at low Amount, thinning
+// further as it increases — a real 0..1 transition, not a snap.
+function zhangSuenThin(field, w, h, maxIters){
+  const b=Uint8Array.from(field);
+  const at=(x,y)=> (x<0||y<0||x>=w||y>=h) ? 0 : b[y*w+x];
+  let changed=true, guard=0;
+  while(changed && guard++<maxIters){
+    changed=false;
+    for(const step of [0,1]){
+      const del=[];
+      for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){
+        if(!at(x,y)) continue;
+        const p2=at(x,y-1),p3=at(x+1,y-1),p4=at(x+1,y),p5=at(x+1,y+1),
+              p6=at(x,y+1),p7=at(x-1,y+1),p8=at(x-1,y),p9=at(x-1,y-1);
+        const C=(p2===0&&p3===1)+(p3===0&&p4===1)+(p4===0&&p5===1)+(p5===0&&p6===1)
+              +(p6===0&&p7===1)+(p7===0&&p8===1)+(p8===0&&p9===1)+(p9===0&&p2===1);
+        const Nn=p2+p3+p4+p5+p6+p7+p8+p9;
+        if(C!==1 || Nn<2 || Nn>6) continue;
+        if(step===0){ if(p2*p4*p6!==0 || p4*p6*p8!==0) continue; }
+        else { if(p2*p4*p8!==0 || p2*p6*p8!==0) continue; }
+        del.push(y*w+x);
+      }
+      if(del.length){ changed=true; for(const i of del) b[i]=0; }
+    }
+  }
+  return b;
+}
+// simple box dilation — re-thickens the 1px skeleton into a visible stream
+function dilateBitmap(field, w, h, radiusPx){
+  const r=Math.max(0, Math.round(radiusPx));
+  if(r<=0) return field;
+  const out=new Uint8Array(field.length);
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    if(!field[y*w+x]) continue;
+    for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++){
+      if(dx*dx+dy*dy>r*r) continue;
+      const nx=x+dx, ny=y+dy;
+      if(nx>=0&&ny>=0&&nx<w&&ny<h) out[ny*w+nx]=1;
+    }
+  }
+  return out;
+}
+// standard 16-case marching squares + endpoint-hash stitching into closed
+// polylines — same generic public-domain algorithm shared/pathfx.js's own
+// `contours()` uses, reimplemented locally.
+function marchingSquaresTrace(field, w, h){
+  const val=(x,y)=> (x<0||y<0||x>=w||y>=h) ? 0 : field[y*w+x];
+  const level=0.5, segs=[];
+  const ip=(x1,y1,v1,x2,y2,v2)=>{ const t=(level-v1)/((v2-v1)||1e-6); return [x1+(x2-x1)*t, y1+(y2-y1)*t]; };
+  for(let y=0;y<h-1;y++) for(let x=0;x<w-1;x++){
+    const tl=val(x,y), tr=val(x+1,y), br=val(x+1,y+1), bl=val(x,y+1);
+    let idx=0; if(tl>level)idx|=8; if(tr>level)idx|=4; if(br>level)idx|=2; if(bl>level)idx|=1;
+    if(idx===0||idx===15) continue;
+    const top=()=>ip(x,y,tl,x+1,y,tr), right=()=>ip(x+1,y,tr,x+1,y+1,br),
+          bottom=()=>ip(x,y+1,bl,x+1,y+1,br), left=()=>ip(x,y,tl,x,y+1,bl);
+    const pairs={1:[left,bottom],2:[bottom,right],3:[left,right],4:[top,right],
+      5:[top,left,bottom,right],6:[top,bottom],7:[top,left],8:[top,left],
+      9:[top,bottom],10:[top,right,left,bottom],11:[top,right],12:[left,right],
+      13:[bottom,right],14:[left,bottom]}[idx];
+    if(!pairs) continue;
+    for(let i=0;i<pairs.length;i+=2) segs.push([pairs[i](), pairs[i+1]()]);
+  }
+  // stitch segments into polylines by UNDIRECTED endpoint hashing — each
+  // cell's segment direction (which crossing is [0] vs [1]) isn't tracked
+  // consistently across cells, so a directed start->end match fragments
+  // into many tiny pieces; matching on EITHER endpoint (and taking the
+  // segment's other end) links them correctly regardless of orientation.
+  // Fill-rule is 'evenodd' for skeleton output (see currentFillRule), so
+  // the resulting loops' winding direction doesn't matter for rendering.
+  const key=p=>Math.round(p[0]*4)+','+Math.round(p[1]*4);
+  const byPoint=new Map();
+  const reg=(k,ref)=>{ let a=byPoint.get(k); if(!a){ a=[]; byPoint.set(k,a); } a.push(ref); };
+  segs.forEach((s,si)=>{ reg(key(s[0]),{si,end:0}); reg(key(s[1]),{si,end:1}); });
+  const used=new Set(); const polys=[];
+  for(let si0=0; si0<segs.length; si0++){
+    if(used.has(si0)) continue;
+    used.add(si0);
+    const poly=[segs[si0][0], segs[si0][1]];
+    let guard=0;
+    while(guard++<w*h){
+      const k=key(poly[poly.length-1]);
+      const cands=byPoint.get(k)||[];
+      const next=cands.find(c=>!used.has(c.si));
+      if(!next) break;
+      used.add(next.si);
+      const other = segs[next.si][next.end===0?1:0];
+      poly.push(other);
+      if(key(poly[poly.length-1])===key(poly[0])) break;
+    }
+    if(poly.length>2) polys.push(poly);
+  }
+  return polys;
+}
+function skeletonEffect(subs, amount){
+  const res=120;
+  const field=rasterizeSubsToField(subs, res);
+  // Amount drives thinning ITERATIONS (progressive erosion — a smooth
+  // solid-to-skeleton transition), not just the post-thinning stream width.
+  const maxIters=Math.max(1, Math.round((amount/100)*60));
+  const thin=zhangSuenThin(field, res, res, maxIters);
+  const widthPx=1+(amount/100)*6;
+  const dilated=dilateBitmap(thin, res, res, widthPx);
+  const polys=marchingSquaresTrace(dilated, res, res);
+  const m=res*SKEL_MARGIN_FRAC, s=(res-2*m)/1000;
+  return polys
+    .map(pts=>resamplePolyline(pts.map(p=>({x:(p[0]-m)/s, y:(p[1]-m)/s})), true, 14))
+    .filter(pts=>pts.length>3)
+    .map(pts=>({closed:true, pts}));
+}
+
 /* ============================================================
    THE 27-SLIDER PIPELINE — independently re-derived from typoclast.com
    (this session — live slider manipulation on the real site, isolating
@@ -549,6 +704,7 @@ const FX = [
   {key:'slice',        cat:'damnation', label:'slice',                   min:-4.9, max:4.9, step:0.1, def:0},
   {key:'groviera',     cat:'damnation', label:'groviera',                min:0,    max:100, step:1,   def:0},
   {key:'griddler',     cat:'damnation', label:'vector griddler',         min:0,    max:100, step:1,   def:0},
+  {key:'skeleton',     cat:'damnation', label:'skeleton',                min:0,    max:100, step:1,   def:0},
   // ── texture (extra) — NOT part of typoclast's own 27-slider pipeline.
   // Ported concept-only from Living Path/Sinew's shared shared/pathfx.js FX
   // registry (jitter/wobble/scatter), reimplemented from zero on Apostate's
@@ -1275,6 +1431,7 @@ function applyEffect(key, subs){
       }
       return out;
     }
+    case 'skeleton': return skeletonEffect(subs, v);
     case 'jitter': {
       // per-point random displacement, fixed seed so the noise pattern
       // itself stays put as Amount is dragged (no flicker) — same idea as
