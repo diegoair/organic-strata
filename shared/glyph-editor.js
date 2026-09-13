@@ -266,12 +266,14 @@
     if (!canvasEl.hasAttribute('tabindex')) canvasEl.setAttribute('tabindex', '0');
 
     // ── render ──────────────────────────────────────────────────────────────
+    const guideLineWidth = opts.guideLineWidth || 1;
+    const guideFontSize = opts.guideFontSize || 10;
     function line(y, label, col) {
       const py = view.oy - y * view.s;
-      ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = col; ctx.lineWidth = guideLineWidth; ctx.setLineDash([4, 4]);
       ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(canvasEl.width, py); ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = col; ctx.font = '10px system-ui, sans-serif';
+      ctx.fillStyle = col; ctx.font = guideFontSize + 'px system-ui, sans-serif';
       ctx.fillText(label, 4, py - 3);
     }
     function redraw() {
@@ -293,7 +295,7 @@
       if (metrics.ascender) line(metrics.ascender, 'asc', mid);
       if (metrics.descender) line(metrics.descender, 'desc', mid);
       // sidebearings + advance
-      ctx.strokeStyle = mid; ctx.setLineDash([2, 3]); ctx.lineWidth = 1;
+      ctx.strokeStyle = mid; ctx.setLineDash([2, 3]); ctx.lineWidth = guideLineWidth;
       [0, adv].forEach(x => { const px = x * view.s + view.ox; ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke(); });
       ctx.setLineDash([]);
 
