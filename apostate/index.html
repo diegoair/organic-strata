@@ -2261,6 +2261,7 @@ const canvasSizePanel = Organica.canvasSizePanel($('canvas-size-host'), {
   onChange: ({width,height}) => { TESTER_BOX_W = width; TESTER_BOX_H = height; render(); },
 });
 Organica.popover($('btn-export'), $('export-popover'));
+Organica.enhanceSliders(document);
 buildPanel();
 syncBubbleInnerDisabled();
 readViewFromURL();   // ?view=tester|family|glyph (+&char=X) — before the first render, so it lands correctly

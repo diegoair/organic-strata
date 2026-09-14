@@ -514,7 +514,7 @@
 
     <section class="ds-entry" id="slider">
       <h2>Slider</h2>
-      <p class="ds-desc">A filled housing (<code>--track-bg</code>) with the value up to the thumb in <code>--accent-warm</code> — one accent everywhere, not each tool's own hue, the same way Figma's own inspector uses one blue for every handle regardless of file content. <code>--fill</code> is written live by <code>Organica.enhanceSliders()</code>, on drag and on any script assignment to <code>.value</code> (so presets stay honest too).</p>
+      <p class="ds-desc">A filled housing (<code>--track-bg</code>) with the value up to the thumb in <code>--ink</code> — one neutral grey/black everywhere, not each tool's own hue, the same way Figma's own inspector uses one neutral for every handle regardless of file content. <code>--fill</code> is written live by <code>Organica.enhanceSliders()</code>, on drag and on any script assignment to <code>.value</code> (so presets stay honest too).</p>
       <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>JS</strong><span>Organica.enhanceSliders()</span><strong>Used in</strong><span>every panel</span></div>
       <div class="ds-example ds-example--column" style="max-width:280px">
         <div class="ctrl-row">
@@ -528,6 +528,29 @@
 
 <span class="attr">/* once, at page init */</span>
 Organica.enhanceSliders(document);</pre>
+
+      <p class="ds-desc" style="margin-top:var(--space-5)">Stacked — <code>.ctrl-row</code>'s own <code>margin-bottom: var(--space-2)</code> sets the rhythm between consecutive sliders in a real panel section, on top of each row's <code>min-height: var(--row-h)</code> (26px). No extra wrapper gap needed — every panel section (Transform, Distort, Break…) is just a stack of these.</p>
+      <div class="ds-usage"><strong>Row gap</strong><span>--space-2</span><strong>Row height</strong><span>--row-h (26px)</span></div>
+      <div class="ds-example ds-example--column" style="max-width:280px">
+        <div class="ctrl-row">
+          <span class="ctrl-label">Rotate</span>
+          <input type="range" min="-360" max="360" value="45" style="--fill:56%">
+          <span class="ctrl-val">45°</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">Slant</span>
+          <input type="range" min="-15" max="15" value="-3" style="--fill:40%">
+          <span class="ctrl-val">-3°</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">Stretch X</span>
+          <input type="range" min="10" max="300" value="120" style="--fill:38%">
+          <span class="ctrl-val">1.20</span>
+        </div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"ctrl-row"</span>&gt;&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-label"</span>&gt;Rotate&lt;/<span class="tag">span</span>&gt;&lt;<span class="tag">input</span> <span class="attr">type</span>=<span class="str">"range"</span>&gt;&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-val"</span>&gt;45°&lt;/<span class="tag">span</span>&gt;&lt;/<span class="tag">div</span>&gt;
+&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"ctrl-row"</span>&gt;&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-label"</span>&gt;Slant&lt;/<span class="tag">span</span>&gt;&lt;<span class="tag">input</span> <span class="attr">type</span>=<span class="str">"range"</span>&gt;&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-val"</span>&gt;-3°&lt;/<span class="tag">span</span>&gt;&lt;/<span class="tag">div</span>&gt;
+&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"ctrl-row"</span>&gt;&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-label"</span>&gt;Stretch X&lt;/<span class="tag">span</span>&gt;&lt;<span class="tag">input</span> <span class="attr">type</span>=<span class="str">"range"</span>&gt;&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-val"</span>&gt;1.20&lt;/<span class="tag">span</span>&gt;&lt;/<span class="tag">div</span>&gt;</pre>
     </section>
 
     <section class="ds-entry" id="panel-controls">
@@ -843,6 +866,10 @@ Organica.popover(document.getElementById(<span class="str">'btn-export'</span>),
   </main>
 </div>
 
+<script src="/shared/core.js"></script>
+<script>
+Organica.enhanceSliders(document);
+</script>
 <script>
 /* Self-verification. See the "Self-check" section for why this exists.
    Pure client-side, no build step — the page checks itself against the
