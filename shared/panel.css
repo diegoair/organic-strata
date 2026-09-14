@@ -184,20 +184,35 @@
    SLIDER — one implementation, Figma's Design-panel handle
    Was a flat 2–3px line with a flat thumb — no fill, so the only way to
    read a value was the number beside it. Now a filled pill: the track
-   reads its own value (--accent-warm up to the thumb, --panel after),
-   and a white floating thumb with its own shadow separates it from the
-   track under it. --fill is written by Organica.enhanceSliders() in
-   core.js, both on drag (bubbled 'input') and on any script
-   assignment to .value (a wrapped property setter) — so presets and
-   hand-dragging both keep the fill honest.
+   reads its own value (--ink up to the thumb, --panel after), and a
+   white floating thumb with its own shadow separates it from the track
+   under it. --fill is written by Organica.enhanceSliders() in core.js,
+   both on drag (bubbled 'input') and on any script assignment to
+   .value (a wrapped property setter) — so presets and hand-dragging
+   both keep the fill honest. Fill colour is --ink (grey/black) rather
+   than --accent-warm — one neutral value-fill across every tool,
+   independent of each tool's own --tool accent.
+
+   The filled portion is itself a light->ink gradient (not a flat colour)
+   — the higher the value climbs, the more of the dark end the fill
+   reveals, reading as the value "building up" rather than just a bar
+   growing. --fill is registered as a real animatable <percentage> via
+   @property, so the gradient eases smoothly on every value change
+   (drag or scripted) instead of snapping — a small but real motion cue.
    ═══════════════════════════════════════════════════════════ */
+
+@property --fill {
+  syntax: '<percentage>';
+  inherits: true;
+  initial-value: 0%;
+}
 
 input[type=range] {
   -webkit-appearance: none;
   appearance: none;
   flex: 1 1 auto;
   min-width: 0;
-  height: 11px;              /* the track itself is the visible chip now */
+  height: 15px;              /* tall enough to clear the thumb without clipping its shadow */
   background: transparent;
   outline: none;
   cursor: pointer;
@@ -214,40 +229,42 @@ input[type=range] {
    so the housing reads as the same component family as the rest of the
    panel instead of a one-off pill shape. */
 input[type=range]::-webkit-slider-runnable-track {
-  height: 9px;
+  height: 5px;
   border-radius: var(--radius-md);
   background: linear-gradient(to right,
-    var(--accent-warm) 0%, var(--accent-warm) var(--fill, 0%),
+    color-mix(in srgb, var(--ink) 35%, var(--track-bg, var(--panel))) 0%, var(--ink) var(--fill, 0%),
     var(--track-bg, var(--panel)) var(--fill, 0%), var(--track-bg, var(--panel)) 100%);
+  transition: --fill 0.18s ease-out;
 }
 input[type=range]::-moz-range-track {
-  height: 9px;
+  height: 5px;
   border-radius: var(--radius-md);
   background: var(--track-bg, var(--panel));
 }
 input[type=range]::-moz-range-progress {
-  height: 9px;
+  height: 5px;
   border-radius: var(--radius-md) 0 0 var(--radius-md);
-  background: var(--accent-warm);
+  background: linear-gradient(to right,
+    color-mix(in srgb, var(--ink) 35%, var(--track-bg, var(--panel))) 0%, var(--ink) 100%);
 }
 
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 11px; height: 11px;
-  margin-top: -1px;   /* (9px track − 11px thumb) / 2, centers the thumb */
+  width: 15px; height: 15px;
+  margin-top: -5px;   /* (5px track − 15px thumb) / 2, centers the thumb */
   border-radius: 50%;
   background: #fff;
   border: 0;
-  box-shadow: 0 1px 2px rgba(0,0,0,.3), 0 0 0 1px rgba(0,0,0,.08);
+  box-shadow: 0 2px 4px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.1);
   cursor: pointer;
   transition: transform 0.12s, box-shadow 0.12s;
 }
 input[type=range]::-moz-range-thumb {
-  width: 11px; height: 11px;
+  width: 15px; height: 15px;
   border-radius: 50%;
   background: #fff;
   border: 0;
-  box-shadow: 0 1px 2px rgba(0,0,0,.3), 0 0 0 1px rgba(0,0,0,.08);
+  box-shadow: 0 2px 4px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.1);
   cursor: pointer;
   transition: transform 0.12s, box-shadow 0.12s;
 }
@@ -255,8 +272,8 @@ input[type=range]:hover::-webkit-slider-thumb,
 input[type=range]:hover::-moz-range-thumb { transform: scale(1.15); }
 input[type=range]:focus-visible::-webkit-slider-thumb,
 input[type=range]:focus-visible::-moz-range-thumb {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-warm) 45%, transparent),
-              0 1px 2px rgba(0,0,0,.3);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 45%, transparent),
+              0 2px 4px rgba(0,0,0,.35);
 }
 input[type=range]:focus-visible { outline: none; }
 
