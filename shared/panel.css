@@ -193,12 +193,9 @@
    than --accent-warm — one neutral value-fill across every tool,
    independent of each tool's own --tool accent.
 
-   The filled portion is itself a light->ink gradient (not a flat colour)
-   — the higher the value climbs, the more of the dark end the fill
-   reveals, reading as the value "building up" rather than just a bar
-   growing. --fill is registered as a real animatable <percentage> via
-   @property, so the gradient eases smoothly on every value change
-   (drag or scripted) instead of snapping — a small but real motion cue.
+   --fill is registered as a real animatable <percentage> via @property,
+   so the fill/empty boundary eases smoothly on every value change (drag
+   or scripted) instead of snapping — a small but real motion cue.
    ═══════════════════════════════════════════════════════════ */
 
 @property --fill {
@@ -232,7 +229,7 @@ input[type=range]::-webkit-slider-runnable-track {
   height: 5px;
   border-radius: var(--radius-md);
   background: linear-gradient(to right,
-    color-mix(in srgb, var(--ink) 35%, var(--track-bg, var(--panel))) 0%, var(--ink) var(--fill, 0%),
+    var(--ink) 0%, var(--ink) var(--fill, 0%),
     var(--track-bg, var(--panel)) var(--fill, 0%), var(--track-bg, var(--panel)) 100%);
   transition: --fill 0.18s ease-out;
 }
@@ -244,8 +241,7 @@ input[type=range]::-moz-range-track {
 input[type=range]::-moz-range-progress {
   height: 5px;
   border-radius: var(--radius-md) 0 0 var(--radius-md);
-  background: linear-gradient(to right,
-    color-mix(in srgb, var(--ink) 35%, var(--track-bg, var(--panel))) 0%, var(--ink) 100%);
+  background: var(--ink);
 }
 
 input[type=range]::-webkit-slider-thumb {
