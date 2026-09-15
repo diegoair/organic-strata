@@ -134,6 +134,12 @@ body { background: var(--paper); }
 }
 .lp-phrase-btn svg{width:13px; height:13px; display:block}
 .lp-phrase-btn:hover{border-color:var(--ink); color:var(--ink); transform:translateY(-1px)}
+/* .presets/.preset-trigger/.pt-ico/.pt-name/.pt-chev/.preset-menu/
+   .preset-item/.pi-ico/.pi-name are shared/panel.css — the same thumbnail
+   dropdown Living Path/Sinew/Camo Turing use. .pc-hint is local: a short
+   one-line description under each preset's name in the menu — the shared
+   component has no such row (its own consumers just show a name). */
+.pc-hint { display: block; font-size: var(--fs-micro); color: var(--mid); font-weight: 400; }
 </style>
 </head>
 <body>
@@ -251,6 +257,11 @@ body { background: var(--paper); }
 
   <div id="panel">
     <div id="canvas-size-host"></div>
+
+    <div class="panel-section">
+      <h3>Presets <span class="hint">creative combos</span></h3>
+      <div class="presets" id="presets"></div>
+    </div>
 
     <div class="panel-section">
       <button class="fx-cat-head" onclick="toggleCat(this)"><span>Transform</span><span class="chev">&#9660;</span></button>
@@ -756,6 +767,49 @@ const SCATTER = {seed:5};
 // reasons OTHER than a true hole (e.g. a detached serif fragment) and the
 // smaller one should still read as part of the outer silhouette.
 const BUBBLE = {size:24, sizeInner:24, faceted:false, allOuter:false};
+
+// CREATIVE PRESETS — a fixed, hand-authored showcase set (not user-saved,
+// no localStorage, no shared/panel.css preset dropdown — that component is
+// built for thumbnail-previewed/saved presets, mismatched for a small fixed
+// set). Each entry is a SPARSE override: applyCreativePreset() resets every
+// FX key/side-table to its own identity default first, then overlays only
+// what's listed here — so an unlisted key (e.g. stretchX/stretchY) always
+// lands on its real default (1), never a blanket 0. Side-table override
+// keys are grid/echo_/poly/jitter_/wobble/scatter_/bubble — the trailing
+// underscore on echo_/jitter_/scatter_ avoids colliding with the top-level
+// FX state keys of the same root name (echo/jitter/scatter are slider
+// VALUES; ECHO/JITTER/SCATTER are the side-table OBJECTS).
+const CREATIVE_PRESETS = [
+  { name:'Molten Wax', hint:'dripping, soft-bulged',
+    state:{ stretchY:1.15, inflate:55, wave:35, noise:30, ripple:-40, sharpen:15 } },
+  { name:'Cathedral Spire', hint:'tall, thorned',
+    state:{ stretchY:1.6, slant:8, tracking:20, spikes:45, sharpen:30 } },
+  { name:'Shattered Pane', hint:'faceted glass-break',
+    state:{ polygonize:65, echo:30, jitter:18 }, poly:{facets:6, chamfer:20}, echo_:{repeats:2, angle:8} },
+  { name:'Radio Static', hint:'coherent noise + grain',
+    state:{ noise:45, jitter:30, scatter:14, pixelate:25 } },
+  { name:'Honeycomb Press', hint:'per-tile mosaic',
+    state:{ griddler:55, twist:25 }, grid:{rows:6, cols:6, tileRotation:12, tileScale:0.85} },
+  { name:'Cheese Rind', hint:'round gear-bites, rippled edge',
+    state:{ groviera:60, wobble:22 }, wobble:{freq:9, phase:30} },
+  { name:'Echo Chamber', hint:'nested concentric rings',
+    state:{ echo:55, wave:20, refraction:25 }, echo_:{repeats:5, angle:14} },
+  { name:'Pixel Phantom', hint:'blocky + circular + sliced',
+    state:{ pixelate:55, flip:30, crush:20, slice:1.8 } },
+  { name:'Bubble Bath', hint:'outer bulge, inner dimple',
+    state:{ bubbles:55, bubblesInner:-35 }, bubble:{size:40, sizeInner:16} },
+  { name:'Wind Erosion', hint:'weathered, sanded',
+    state:{ wind:45, slant:-5, noise:20, jitter:12, sharpen:15 } },
+  { name:'Vertigo Drop', hint:'vanishing-point plunge',
+    state:{ perspective:70, stretchY:1.35, slant:6, wave:18 } },
+  { name:'Crystal Lattice', hint:'hard octagonal facets',
+    state:{ polygonize:80, sharpen:25, twist:15 }, poly:{facets:8, chamfer:65} },
+  { name:'Refraction Bloom', hint:'lensed, petal-soft',
+    state:{ refraction:70, bulge:45, inflate:35, pull:25 } },
+  { name:'Skeleton Key', hint:'thin centreline, wide-set',
+    state:{ skeleton:55, stretchX:0.55, slant:4, tracking:60 } },
+];
+
 // r' = r*(1 + amp*cos(lobes*theta + phase)) around a shared centre — the
 // angular-harmonic family confirmed live for bulge/wave/ripple/inflate.
 function angularHarmonic(subs, cx, cy, lobes, amp, phaseDeg){
@@ -2028,6 +2082,7 @@ function resetAll(){
   GRID.rows=4; GRID.cols=4; GRID.tileRotation=0; GRID.tileScale=1; GRID.randomize=false;
   ECHO.repeats=3; ECHO.angle=0; POLY.facets=2; POLY.chamfer=50;
   JITTER.seed=7; WOBBLE.freq=6; WOBBLE.phase=0; SCATTER.seed=5; BUBBLE.size=24; BUBBLE.sizeInner=24; BUBBLE.faceted=false; BUBBLE.allOuter=false;
+  CURRENT_PRESET=null; updatePresetTrigger();   // the trigger shouldn't keep naming a preset the state no longer matches
   syncPanelFromState(); render();
 }
 function randomizeAll(){
@@ -2035,8 +2090,119 @@ function randomizeAll(){
   FX.forEach(f=>{ STATE[f.key] = f.min + rng()*(f.max-f.min); if(f.step>=1) STATE[f.key]=Math.round(STATE[f.key]); });
   GRID.tileRotation = Math.round((rng()-0.5)*40);
   GRID.tileScale = +(0.6+rng()*0.5).toFixed(2);
+  CURRENT_PRESET=null; updatePresetTrigger();
   syncPanelFromState(); render();
 }
+
+// Same reset-then-overlay shape as resetAll() — every FX key/side-table
+// returns to its own identity default first (stretchX/Y -> 1, not 0), then
+// the preset's sparse overrides are applied on top. Shared by the real
+// apply path AND the thumbnail-icon renderer below (which sets state
+// temporarily, reads the result, then restores whatever was live before).
+function setStateFromPreset(preset){
+  FX.forEach(f=>STATE[f.key] = f.def);
+  GRID.rows=4; GRID.cols=4; GRID.tileRotation=0; GRID.tileScale=1; GRID.randomize=false;
+  ECHO.repeats=3; ECHO.angle=0; POLY.facets=2; POLY.chamfer=50;
+  JITTER.seed=7; WOBBLE.freq=6; WOBBLE.phase=0; SCATTER.seed=5;
+  BUBBLE.size=24; BUBBLE.sizeInner=24; BUBBLE.faceted=false; BUBBLE.allOuter=false;
+
+  if(preset.state)    Object.assign(STATE, preset.state);
+  if(preset.grid)     Object.assign(GRID, preset.grid);
+  if(preset.echo_)    Object.assign(ECHO, preset.echo_);
+  if(preset.poly)     Object.assign(POLY, preset.poly);
+  if(preset.jitter_)  Object.assign(JITTER, preset.jitter_);
+  if(preset.wobble)   Object.assign(WOBBLE, preset.wobble);
+  if(preset.scatter_) Object.assign(SCATTER, preset.scatter_);
+  if(preset.bubble)   Object.assign(BUBBLE, preset.bubble);
+}
+
+let CURRENT_PRESET = null;
+function applyCreativePreset(preset){
+  // No special handling for VIEW==='glyph': a preset only ever mutates
+  // STATE/GRID/ECHO/POLY/JITTER/WOBBLE/SCATTER/BUBBLE — exactly what a
+  // manual slider drag does. renderFamily() already ignores STATE for any
+  // glyph that carries a baked node-edit override (editedGlyph(gl) !==
+  // null), the same way it does on a live slider drag today —
+  // resetAll/randomizeAll don't special-case that either, so this doesn't
+  // need to.
+  setStateFromPreset(preset);
+  CURRENT_PRESET = preset.name;
+  updatePresetTrigger();
+  syncPanelFromState(); render();
+}
+
+// ── preview thumbnails — a preset rendered onto a fixed sample glyph ("g",
+// same choice Living Path's own iconFor() makes — a double-story counter
+// shows facet/bubble/echo/griddler effects clearly). Mirrors Living Path's
+// iconFor()/presetIcon() contract (livingpath/index.html) but reads/writes
+// Apostate's own flat STATE/GRID/etc globals instead of a layered stack:
+// snapshot the live state, apply the preset, render, then restore — so
+// opening the menu never disturbs whatever is currently on screen. */
+const ICON_CACHE = {};
+function fontSig(){ return FONT ? ('f'+FONT.glyphs.length+'_'+(FONT.unitsPerEm||0)) : 'nofont'; }
+function sampleRawSubs(){
+  if(!FONT) return null;
+  const gl = FONT.charToGlyph('g'); if(!gl) return null;
+  const raw = fromOTCommands((gl.path&&gl.path.commands)||[]);
+  return raw.length ? raw : null;
+}
+function presetIconSVG(preset){
+  const key = preset.name+':'+fontSig();
+  if(ICON_CACHE[key]) return ICON_CACHE[key];
+  const raw = sampleRawSubs();
+  let shape = '';
+  if(raw){
+    const snap = { STATE:{...STATE}, GRID:{...GRID}, ECHO:{...ECHO}, POLY:{...POLY},
+                   JITTER:{...JITTER}, WOBBLE:{...WOBBLE}, SCATTER:{...SCATTER}, BUBBLE:{...BUBBLE} };
+    setStateFromPreset(preset);
+    let subs=null; try{ subs = applyPipeline(raw).subs; }catch(e){}
+    const fillRule = currentFillRule();
+    Object.assign(STATE, snap.STATE); Object.assign(GRID, snap.GRID); Object.assign(ECHO, snap.ECHO);
+    Object.assign(POLY, snap.POLY); Object.assign(JITTER, snap.JITTER); Object.assign(WOBBLE, snap.WOBBLE);
+    Object.assign(SCATTER, snap.SCATTER); Object.assign(BUBBLE, snap.BUBBLE);
+    if(subs) shape = `<path d="${dFromSubs(subs)}" fill="#000" fill-rule="${fillRule}"/>`;
+  }
+  const svg = `<svg viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"><rect width="1000" height="1000" fill="#fff"/>${shape}</svg>`;
+  ICON_CACHE[key] = svg; return svg;
+}
+function updatePresetTrigger(){
+  const ico=$('ptIco'), nm=$('ptName'); if(!ico) return;
+  nm.textContent = CURRENT_PRESET || 'Choose a preset…';
+  const p = CURRENT_PRESET && CREATIVE_PRESETS.find(p=>p.name===CURRENT_PRESET);
+  ico.innerHTML = (p && FONT) ? presetIconSVG(p) : '';
+}
+function populatePresetMenu(){
+  const m=$('presetMenu'); if(!m) return; m.innerHTML='';
+  CREATIVE_PRESETS.forEach(p=>{
+    const row=document.createElement('button');
+    row.className='preset-item'+(p.name===CURRENT_PRESET?' on':'');
+    row.innerHTML=`<span class="pi-ico">${FONT?presetIconSVG(p):''}</span><span class="pi-name">${p.name}<span class="pc-hint">${p.hint||''}</span></span>`;
+    row.addEventListener('click', ()=>{ applyCreativePreset(p); m.hidden=true; populatePresetMenu(); });
+    m.appendChild(row);
+  });
+}
+// position the fixed menu under the trigger, capped to the viewport so the
+// scrolling side panel never clips it (flips above if there's more room up
+// top) — same layout math as Living Path's positionPresetMenu().
+function positionPresetMenu(){
+  const t=$('presetTrigger').getBoundingClientRect(), m=$('presetMenu'), gap=5, margin=12;
+  const below=window.innerHeight-t.bottom-margin, above=t.top-margin;
+  m.style.left=t.left+'px'; m.style.width=t.width+'px';
+  if(below>=200 || below>=above){ m.style.top=(t.bottom+gap)+'px'; m.style.bottom='auto'; m.style.maxHeight=Math.max(160,below)+'px'; }
+  else { m.style.bottom=(window.innerHeight-t.top+gap)+'px'; m.style.top='auto'; m.style.maxHeight=Math.max(160,above)+'px'; }
+}
+function buildPresets(){
+  const host=$('presets'); if(!host) return;
+  host.innerHTML = `<button class="preset-trigger" id="presetTrigger">
+      <span class="pt-ico" id="ptIco"></span><span class="pt-name" id="ptName">Choose a preset…</span><span class="pt-chev">▾</span>
+    </button><div class="preset-menu" id="presetMenu" hidden></div>`;
+  $('presetTrigger').addEventListener('click', e=>{ e.stopPropagation();
+    const m=$('presetMenu'); if(m.hidden){ populatePresetMenu(); positionPresetMenu(); m.hidden=false; } else m.hidden=true; });
+  updatePresetTrigger();
+}
+document.addEventListener('click', e=>{
+  const m=$('presetMenu'); if(m && !m.hidden && !e.target.closest('.presets') && !e.target.closest('#presetMenu')) m.hidden=true;
+});
 
 /* ============================================================
    EXPORT — OTF (a Worker running the SAME point-space pipeline
@@ -2263,6 +2429,7 @@ const canvasSizePanel = Organica.canvasSizePanel($('canvas-size-host'), {
 Organica.popover($('btn-export'), $('export-popover'));
 Organica.enhanceSliders(document);
 buildPanel();
+buildPresets();
 syncBubbleInnerDisabled();
 readViewFromURL();   // ?view=tester|family|glyph (+&char=X) — before the first render, so it lands correctly
 history.replaceState({view:VIEW}, '', location.href);
