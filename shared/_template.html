@@ -247,6 +247,8 @@ function resetZoom() { zoomPan.reset(); }
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 setStatus('', 'Drop an image to begin');
 populatePresets();
+Organica.autoLabelPanel(document);
+Organica.enhanceSliders(document);
 </script>
 </body>
 </html>
