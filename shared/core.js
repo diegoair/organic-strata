@@ -766,8 +766,8 @@
   //      a delegated click handler, not a per-element one, so it survives
   //      DOM rebuilt after this function ran (Living Path's layer rows) —
   //      those sliders still get their fill wired via a MutationObserver.
-  const rangeValSel = '.ctrl-val, .panel-value, .row .val, .param-val, .panel-unit, .val';
-  const rangeRowSel = '.ctrl-row, .panel-row, .row, .param-row, .panel-input-group';
+  const rangeValSel = '.ctrl-val, .panel-value, .row .val, .param-val, .panel-unit, .val, .fb-val';
+  const rangeRowSel = '.ctrl-row, .panel-row, .row, .param-row, .panel-input-group, .fb-field';
 
   function organicaUpdateFill(range) {
     const min = range.min !== '' ? parseFloat(range.min) : 0;
