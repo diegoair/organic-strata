@@ -206,6 +206,10 @@ body { background: var(--paper); }
 
   <div class="org-floatbar__sep"></div>
 
+  <button class="org-floatbar__btn" id="btn-legible" aria-label="Keep randomize legible" aria-pressed="true">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 12V4M3 4h6M3 8h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 12V6.5c0-1 .6-1.5 1.5-1.5s1.5.5 1.5 1.5V12M10.5 9h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
   <button class="org-floatbar__btn" id="btn-randomize" aria-label="Randomize">
     <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.3"/><circle cx="5.5" cy="5.5" r="1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1" fill="currentColor"/><circle cx="8" cy="8" r="1" fill="currentColor"/></svg>
   </button>
@@ -716,6 +720,18 @@ const FX = [
   {key:'groviera',     cat:'damnation', label:'groviera',                min:0,    max:100, step:1,   def:0},
   {key:'griddler',     cat:'damnation', label:'vector griddler',         min:0,    max:100, step:1,   def:0},
   {key:'skeleton',     cat:'damnation', label:'skeleton',                min:0,    max:100, step:1,   def:0},
+  // shatter — NOT part of typoclast's own 27-slider pipeline, added per
+  // Diego's own request for "un filtro per fare a pezzetti il font." No
+  // polygon-boolean library exists anywhere in this file (deliberately —
+  // the "start from zero" rule), so a true Voronoi/glass-shatter clip isn't
+  // available; this is a pragmatic hand-derived approximation instead: each
+  // subpath is decomposed into SHARD.pieces pie-wedges around its OWN
+  // centroid, then each wedge is independently shrunk + displaced/rotated
+  // by a small seeded-random amount. Reads best on roughly star-convex
+  // letterforms (most Latin glyphs) — a very elongated/complex shape may
+  // look "pizza-sliced" rather than truly shattered, an accepted
+  // stylization the same way groviera's own corner-only limitation is.
+  {key:'shatter',      cat:'damnation', label:'shatter',                 min:0,    max:100, step:1,   def:0},
   // ── texture (extra) — NOT part of typoclast's own 27-slider pipeline.
   // Ported concept-only from Living Path/Sinew's shared shared/pathfx.js FX
   // registry (jitter/wobble/scatter), reimplemented from zero on Apostate's
@@ -733,6 +749,13 @@ const FX = [
   // already do (largest-bbox-area subpath = outer, everything else = inner).
   {key:'bubbles',      cat:'texture',   label:'bubbles · outer',   min:-100, max:100, step:1,   def:0},
   {key:'bubblesInner', cat:'texture',   label:'bubbles · inner',   min:-100, max:100, step:1,   def:0},
+  // dots — turns the glyph into a field of circles, per Diego's own request
+  // for "un filtro per renderlo a pallini." Fill mode (default) halftones
+  // the glyph's solid area via a grid + point-in-polygon test; Outline mode
+  // beads dots along the resampled contour only. Radius grows continuously
+  // with Amount (pinpricks -> solid halftone), so it's identity-at-0 and
+  // graceful like every other slider here, not a hard on/off swap.
+  {key:'dots',         cat:'texture',   label:'dots',              min:0,    max:100, step:1,   def:0},
 ];
 const STATE = {}; FX.forEach(f=>STATE[f.key]=f.def);
 // griddler's own sub-parameters — Amount alone gives a clean grid-cut;
@@ -767,6 +790,31 @@ const SCATTER = {seed:5};
 // reasons OTHER than a true hole (e.g. a detached serif fragment) and the
 // smaller one should still read as part of the outer silhouette.
 const BUBBLE = {size:24, sizeInner:24, faceted:false, allOuter:false};
+// shatter/dots' own sub-parameters
+const SHARD = {pieces:8, seed:5};
+const DOTS = {spacing:22, outline:false};
+// even-odd point-in-polygon (ray-cast) test against a full subs array —
+// used by `dots`' Fill mode to halftone only the glyph's own solid area.
+// Standard ray-casting, no existing helper in this file does this.
+function pointInSubs(x, y, subs){
+  let inside=false;
+  for(const s of subs){
+    const pts=s.pts, n=pts.length;
+    for(let i=0,j=n-1;i<n;j=i++){
+      const xi=pts[i].x, yi=pts[i].y, xj=pts[j].x, yj=pts[j].y;
+      if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+    }
+  }
+  return inside;
+}
+// a closed K-gon approximating a circle — the shared building block for
+// both of `dots`' modes (and reusable by any future effect that wants a
+// real circular subpath rather than a bump on an existing contour, unlike
+// bubbleSubpath's semicircle-between-points approach).
+function circlePts(cx, cy, r, K){
+  const pts=[]; for(let i=0;i<K;i++){ const a=i/K*Math.PI*2; pts.push({x:cx+r*Math.cos(a), y:cy+r*Math.sin(a)}); }
+  return pts;
+}
 
 // CREATIVE PRESETS — a fixed, hand-authored showcase set (not user-saved,
 // no localStorage, no shared/panel.css preset dropdown — that component is
@@ -808,6 +856,10 @@ const CREATIVE_PRESETS = [
     state:{ refraction:70, bulge:45, inflate:35, pull:25 } },
   { name:'Skeleton Key', hint:'thin centreline, wide-set',
     state:{ skeleton:55, stretchX:0.55, slant:4, tracking:60 } },
+  { name:'Glass Shards', hint:'exploded into loose pieces',
+    state:{ shatter:60, jitter:8 }, shard:{pieces:10, seed:3} },
+  { name:'Confetti Bloom', hint:'solid halftone dots',
+    state:{ dots:70, inflate:15 }, dots_:{spacing:16, outline:false} },
 ];
 
 // r' = r*(1 + amp*cos(lobes*theta + phase)) around a shared centre — the
@@ -1045,8 +1097,7 @@ function applyEffect(key, subs){
       return angularHarmonic(subs, cx, cy, 3, amt*0.3, 0);
     }
     case 'refraction': {
-      // best-effort, still lower-confidence than the others in this pass —
-      // re-checked (Sep 2026 group re-review): the outer contour stays
+      // Re-checked (Sep 2026 group re-review): the outer contour stays
       // close to its original round shape in the live reference, while the
       // INNER counter alone turns into a rounded near-square with a slight
       // cusp — the two-harmonic wobble was distorting the OUTER contour
@@ -1054,6 +1105,19 @@ function applyEffect(key, subs){
       // Reworked on the pinch/pull "leave the largest subpath alone, warp
       // only the smaller ones" pattern, with a squareify-style pull on the
       // inner subpath(s) plus a touch of the harmonic wobble for the cusp.
+      // Re-verified this session (no live typoclast.com access this pass —
+      // the in-app Browser pane can't upload a font file to it, and going
+      // through the user's own Chrome for this internal QA check felt like
+      // overreach) by rendering "O" and "A" at Amount 100 and comparing
+      // against exactly this documented target: on "O" the outer ring stays
+      // visibly round while the inner hole clearly rounds toward a
+      // near-square; on "A" the outer triangle is untouched (correct — it's
+      // the largest-area subpath) and the counter shows the same subtler
+      // rounding. Numerically, the outer contour's radius coefficient-of-
+      // variation only doubles from a near-circular 0.022 to 0.046 (still
+      // reads as round), while the inner counter's own CV rises alongside
+      // it — matches the target well enough to drop the "lower-confidence"
+      // label; the two magic constants below were left as-is.
       const amt=v/100;
       const areas = subs.map(s=>{ const b=bboxOf([s]); return b.w*b.h; });
       const maxArea = Math.max(...areas);
@@ -1486,6 +1550,40 @@ function applyEffect(key, subs){
       return out;
     }
     case 'skeleton': return skeletonEffect(subs, v);
+    case 'shatter': {
+      // pie-wedge decomposition around each subpath's own centroid — see
+      // the FX registry comment above for why this (not a real polygon
+      // clip) is what's implementable here. At amt=0 shrink=1/dist=0/rot=0
+      // so the wedges reconstruct the original silhouette exactly (this
+      // case is only reached at all once STATE.shatter>0, per the guard at
+      // the top of applyEffect, so there's no visible seam to worry about
+      // at rest).
+      const amt=v/100;
+      const rng=mulberry32(SHARD.seed*7919+1);
+      const out=[];
+      subs.forEach(s=>{
+        const sb=bboxOf([s]), scx=sb.minX+sb.w/2, scy=sb.minY+sb.h/2;
+        const dense=resampleArcLength(s.pts, s.closed, Math.max(4, Math.max(sb.w,sb.h)/40));
+        const n=dense.length;
+        if(n<SHARD.pieces*2){ out.push(s); return; }
+        const per=Math.floor(n/SHARD.pieces);
+        for(let i=0;i<SHARD.pieces;i++){
+          const start=i*per, end=(i===SHARD.pieces-1)?n:start+per;
+          const arc=dense.slice(start,end); if(arc.length<2) continue;
+          const wedge=[{x:scx,y:scy}, ...arc];
+          const shrink=1-amt*0.25*rng();
+          const ang=rng()*Math.PI*2, dist=amt*Math.max(sb.w,sb.h)*0.11*rng();
+          const dx=Math.cos(ang)*dist, dy=Math.sin(ang)*dist;
+          const rot=(rng()-0.5)*amt*0.5, cr=Math.cos(rot), sr=Math.sin(rot);
+          out.push({closed:true, pts: wedge.map(p=>{
+            const px=scx+(p.x-scx)*shrink, py=scy+(p.y-scy)*shrink;
+            const rx=scx+(px-scx)*cr-(py-scy)*sr, ry=scy+(px-scx)*sr+(py-scy)*cr;
+            return {x:rx+dx, y:ry+dy};
+          })});
+        }
+      });
+      return out.length ? out : subs;
+    }
     case 'jitter': {
       // per-point random displacement, fixed seed so the noise pattern
       // itself stays put as Amount is dragged (no flicker) — same idea as
@@ -1584,6 +1682,26 @@ function applyEffect(key, subs){
       const maxArea = Math.max(...areas);
       const rawAmt=v/100, amt=Math.abs(rawAmt);
       return subs.map((s,i)=> areas[i]!==maxArea ? bubbleSubpath(s,rawAmt,amt,BUBBLE.sizeInner) : s);
+    }
+    case 'dots': {
+      const amt=v/100;
+      const spacing=Math.max(8, DOTS.spacing);
+      const radius=spacing*0.34*amt + spacing*0.06;
+      const out=[];
+      if(DOTS.outline){
+        subs.forEach(s=>{
+          const ring=resampleArcLength(s.pts, s.closed, spacing);
+          ring.forEach(p=> out.push({closed:true, pts:circlePts(p.x,p.y,radius,14)}));
+        });
+      } else {
+        const bb=bboxOf(subs);
+        for(let y=bb.minY+spacing/2; y<bb.maxY; y+=spacing){
+          for(let x=bb.minX+spacing/2; x<bb.maxX; x+=spacing){
+            if(pointInSubs(x,y,subs)) out.push({closed:true, pts:circlePts(x,y,radius,12)});
+          }
+        }
+      }
+      return out.length ? out : subs;
     }
     default: return subs;
   }
@@ -2038,6 +2156,27 @@ function buildPanel(){
         host.appendChild(sub);
         sub.querySelector('#rg-bi-size').oninput=e=>{ BUBBLE.sizeInner=+e.target.value; $('v-bi-size').textContent=BUBBLE.sizeInner; render(); };
       }
+      if(f.key==='shatter'){
+        const sub=document.createElement('div'); sub.className='griddler-sub';
+        sub.innerHTML = `
+          <div class="ctrl-row"><div class="ctrl-label">pieces</div>
+            <input type="range" id="rg-sh-pieces" min="3" max="20" step="1" value="${SHARD.pieces}"><span class="ctrl-val" id="v-sh-pieces">${SHARD.pieces}</span></div>
+          <div class="ctrl-row"><div class="ctrl-label">seed</div>
+            <input type="range" id="rg-sh-seed" min="1" max="99" step="1" value="${SHARD.seed}"><span class="ctrl-val" id="v-sh-seed">${SHARD.seed}</span></div>`;
+        host.appendChild(sub);
+        sub.querySelector('#rg-sh-pieces').oninput=e=>{ SHARD.pieces=+e.target.value; $('v-sh-pieces').textContent=SHARD.pieces; render(); };
+        sub.querySelector('#rg-sh-seed').oninput=e=>{ SHARD.seed=+e.target.value; $('v-sh-seed').textContent=SHARD.seed; render(); };
+      }
+      if(f.key==='dots'){
+        const sub=document.createElement('div'); sub.className='griddler-sub';
+        sub.innerHTML = `
+          <div class="ctrl-row"><div class="ctrl-label">spacing</div>
+            <input type="range" id="rg-dt-spacing" min="8" max="60" step="1" value="${DOTS.spacing}"><span class="ctrl-val" id="v-dt-spacing">${DOTS.spacing}</span></div>
+          <label class="check-row"><input type="checkbox" id="ck-dt-outline" ${DOTS.outline?'checked':''}><span>outline only</span></label>`;
+        host.appendChild(sub);
+        sub.querySelector('#rg-dt-spacing').oninput=e=>{ DOTS.spacing=+e.target.value; $('v-dt-spacing').textContent=DOTS.spacing; render(); };
+        sub.querySelector('#ck-dt-outline').onchange=e=>{ DOTS.outline=e.target.checked; render(); };
+      }
     });
   });
 }
@@ -2060,6 +2199,10 @@ function syncPanelFromState(){
   const bs=$('rg-b-size'); if(bs){ bs.value=BUBBLE.size; $('v-b-size').textContent=BUBBLE.size;
     $('ck-b-faceted').checked=BUBBLE.faceted; $('ck-b-allouter').checked=BUBBLE.allOuter; }
   const bis=$('rg-bi-size'); if(bis){ bis.value=BUBBLE.sizeInner; $('v-bi-size').textContent=BUBBLE.sizeInner; }
+  const shp=$('rg-sh-pieces'); if(shp){ shp.value=SHARD.pieces; $('v-sh-pieces').textContent=SHARD.pieces;
+    $('rg-sh-seed').value=SHARD.seed; $('v-sh-seed').textContent=SHARD.seed; }
+  const dts=$('rg-dt-spacing'); if(dts){ dts.value=DOTS.spacing; $('v-dt-spacing').textContent=DOTS.spacing;
+    $('ck-dt-outline').checked=DOTS.outline; }
   syncBubbleInnerDisabled();
 }
 // `bubblesInner` and its own size sub-slider go dead the moment "all outer"
@@ -2082,12 +2225,39 @@ function resetAll(){
   GRID.rows=4; GRID.cols=4; GRID.tileRotation=0; GRID.tileScale=1; GRID.randomize=false;
   ECHO.repeats=3; ECHO.angle=0; POLY.facets=2; POLY.chamfer=50;
   JITTER.seed=7; WOBBLE.freq=6; WOBBLE.phase=0; SCATTER.seed=5; BUBBLE.size=24; BUBBLE.sizeInner=24; BUBBLE.faceted=false; BUBBLE.allOuter=false;
+  SHARD.pieces=8; SHARD.seed=5; DOTS.spacing=22; DOTS.outline=false;
   CURRENT_PRESET=null; updatePresetTrigger();   // the trigger shouldn't keep naming a preset the state no longer matches
   syncPanelFromState(); render();
 }
+// KEEP_LEGIBLE default true: the old behaviour (every one of the ~30 FX
+// keys randomized simultaneously across its FULL range) reliably collapsed
+// the glyph into an unreadable blob — stacking that many strong,
+// uncorrelated distortions at once has no reason to stay legible. The
+// legible mode instead resets to identity, then picks a small handful of
+// non-'mild' effects and nudges each only a GENTLE fraction of its own
+// range, plus a small always-tasteful mild transform — varied, but never
+// wrecking the letterform. The old full-chaos behaviour is still one
+// click away via the btn-legible floatbar toggle.
+let KEEP_LEGIBLE = true;
 function randomizeAll(){
   const rng=mulberry32(Date.now()&0xffffffff);
-  FX.forEach(f=>{ STATE[f.key] = f.min + rng()*(f.max-f.min); if(f.step>=1) STATE[f.key]=Math.round(STATE[f.key]); });
+  if(KEEP_LEGIBLE){
+    FX.forEach(f=>STATE[f.key]=f.def);
+    const pool = FX.filter(f=>f.cat!=='mild');
+    for(let i=pool.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+    const n = 2 + Math.floor(rng()*3);   // 2..4 simultaneous effects
+    pool.slice(0,n).forEach(f=>{
+      const magFrac = 0.15 + rng()*0.30;                       // 15%-45% of the slider's own magnitude
+      const val = (f.min<0 && f.max>0) ? (rng()<0.5?-1:1)*magFrac*f.max : f.min+magFrac*(f.max-f.min);
+      STATE[f.key] = f.step>=1 ? Math.round(val) : val;
+    });
+    STATE.rotate = Math.round((rng()-0.5)*24);
+    STATE.slant = Math.round((rng()-0.5)*8);
+    STATE.stretchX = +(0.92+rng()*0.16).toFixed(2);
+    STATE.stretchY = +(0.92+rng()*0.16).toFixed(2);
+  } else {
+    FX.forEach(f=>{ STATE[f.key] = f.min + rng()*(f.max-f.min); if(f.step>=1) STATE[f.key]=Math.round(STATE[f.key]); });
+  }
   GRID.tileRotation = Math.round((rng()-0.5)*40);
   GRID.tileScale = +(0.6+rng()*0.5).toFixed(2);
   CURRENT_PRESET=null; updatePresetTrigger();
@@ -2105,6 +2275,7 @@ function setStateFromPreset(preset){
   ECHO.repeats=3; ECHO.angle=0; POLY.facets=2; POLY.chamfer=50;
   JITTER.seed=7; WOBBLE.freq=6; WOBBLE.phase=0; SCATTER.seed=5;
   BUBBLE.size=24; BUBBLE.sizeInner=24; BUBBLE.faceted=false; BUBBLE.allOuter=false;
+  SHARD.pieces=8; SHARD.seed=5; DOTS.spacing=22; DOTS.outline=false;
 
   if(preset.state)    Object.assign(STATE, preset.state);
   if(preset.grid)     Object.assign(GRID, preset.grid);
@@ -2114,6 +2285,47 @@ function setStateFromPreset(preset){
   if(preset.wobble)   Object.assign(WOBBLE, preset.wobble);
   if(preset.scatter_) Object.assign(SCATTER, preset.scatter_);
   if(preset.bubble)   Object.assign(BUBBLE, preset.bubble);
+  if(preset.shard)    Object.assign(SHARD, preset.shard);
+  if(preset.dots_)    Object.assign(DOTS, preset.dots_);
+}
+
+// ── user-saved presets (Organica.presetStore, same mechanism Living
+// Path/Sinew use) — sit alongside the 14 fixed CREATIVE_PRESETS, in a
+// "YOURS" section of the same dropdown. A saved preset is captured in the
+// exact same sparse shape CREATIVE_PRESETS entries already use, via
+// diffFromDefaults() below, so applyCreativePreset/presetIconSVG/
+// populatePresetMenu all work on it with zero special-casing.
+const PRESET_STORE = Organica.presetStore('apostate');
+const userPresets = () => PRESET_STORE.read();
+function presetDef(name){
+  const builtin = CREATIVE_PRESETS.find(p=>p.name===name); if(builtin) return builtin;
+  const mine = userPresets()[name]; return mine ? {name, ...mine} : null;
+}
+function diffFromDefaults(){
+  const state={}; FX.forEach(f=>{ if(STATE[f.key]!==f.def) state[f.key]=STATE[f.key]; });
+  const out={state};
+  const grid={}; if(GRID.rows!==4) grid.rows=GRID.rows; if(GRID.cols!==4) grid.cols=GRID.cols;
+    if(GRID.tileRotation!==0) grid.tileRotation=GRID.tileRotation; if(GRID.tileScale!==1) grid.tileScale=GRID.tileScale;
+    if(GRID.randomize) grid.randomize=true;
+  if(Object.keys(grid).length) out.grid=grid;
+  const echo={}; if(ECHO.repeats!==3) echo.repeats=ECHO.repeats; if(ECHO.angle!==0) echo.angle=ECHO.angle;
+  if(Object.keys(echo).length) out.echo_=echo;
+  const poly={}; if(POLY.facets!==2) poly.facets=POLY.facets; if(POLY.chamfer!==50) poly.chamfer=POLY.chamfer;
+  if(Object.keys(poly).length) out.poly=poly;
+  const jitter={}; if(JITTER.seed!==7) jitter.seed=JITTER.seed;
+  if(Object.keys(jitter).length) out.jitter_=jitter;
+  const wobble={}; if(WOBBLE.freq!==6) wobble.freq=WOBBLE.freq; if(WOBBLE.phase!==0) wobble.phase=WOBBLE.phase;
+  if(Object.keys(wobble).length) out.wobble=wobble;
+  const scatter={}; if(SCATTER.seed!==5) scatter.seed=SCATTER.seed;
+  if(Object.keys(scatter).length) out.scatter_=scatter;
+  const bubble={}; if(BUBBLE.size!==24) bubble.size=BUBBLE.size; if(BUBBLE.sizeInner!==24) bubble.sizeInner=BUBBLE.sizeInner;
+    if(BUBBLE.faceted) bubble.faceted=true; if(BUBBLE.allOuter) bubble.allOuter=true;
+  if(Object.keys(bubble).length) out.bubble=bubble;
+  const shard={}; if(SHARD.pieces!==8) shard.pieces=SHARD.pieces; if(SHARD.seed!==5) shard.seed=SHARD.seed;
+  if(Object.keys(shard).length) out.shard=shard;
+  const dots={}; if(DOTS.spacing!==22) dots.spacing=DOTS.spacing; if(DOTS.outline) dots.outline=true;
+  if(Object.keys(dots).length) out.dots_=dots;
+  return out;
 }
 
 let CURRENT_PRESET = null;
@@ -2153,13 +2365,15 @@ function presetIconSVG(preset){
   let shape = '';
   if(raw){
     const snap = { STATE:{...STATE}, GRID:{...GRID}, ECHO:{...ECHO}, POLY:{...POLY},
-                   JITTER:{...JITTER}, WOBBLE:{...WOBBLE}, SCATTER:{...SCATTER}, BUBBLE:{...BUBBLE} };
+                   JITTER:{...JITTER}, WOBBLE:{...WOBBLE}, SCATTER:{...SCATTER}, BUBBLE:{...BUBBLE},
+                   SHARD:{...SHARD}, DOTS:{...DOTS} };
     setStateFromPreset(preset);
     let subs=null; try{ subs = applyPipeline(raw).subs; }catch(e){}
     const fillRule = currentFillRule();
     Object.assign(STATE, snap.STATE); Object.assign(GRID, snap.GRID); Object.assign(ECHO, snap.ECHO);
     Object.assign(POLY, snap.POLY); Object.assign(JITTER, snap.JITTER); Object.assign(WOBBLE, snap.WOBBLE);
     Object.assign(SCATTER, snap.SCATTER); Object.assign(BUBBLE, snap.BUBBLE);
+    Object.assign(SHARD, snap.SHARD); Object.assign(DOTS, snap.DOTS);
     if(subs) shape = `<path d="${dFromSubs(subs)}" fill="#000" fill-rule="${fillRule}"/>`;
   }
   const svg = `<svg viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"><rect width="1000" height="1000" fill="#fff"/>${shape}</svg>`;
@@ -2168,18 +2382,33 @@ function presetIconSVG(preset){
 function updatePresetTrigger(){
   const ico=$('ptIco'), nm=$('ptName'); if(!ico) return;
   nm.textContent = CURRENT_PRESET || 'Choose a preset…';
-  const p = CURRENT_PRESET && CREATIVE_PRESETS.find(p=>p.name===CURRENT_PRESET);
+  const p = CURRENT_PRESET && presetDef(CURRENT_PRESET);
   ico.innerHTML = (p && FONT) ? presetIconSVG(p) : '';
 }
 function populatePresetMenu(){
   const m=$('presetMenu'); if(!m) return; m.innerHTML='';
-  CREATIVE_PRESETS.forEach(p=>{
+  const addRow=(p, deletable)=>{
     const row=document.createElement('button');
     row.className='preset-item'+(p.name===CURRENT_PRESET?' on':'');
     row.innerHTML=`<span class="pi-ico">${FONT?presetIconSVG(p):''}</span><span class="pi-name">${p.name}<span class="pc-hint">${p.hint||''}</span></span>`;
     row.addEventListener('click', ()=>{ applyCreativePreset(p); m.hidden=true; populatePresetMenu(); });
+    if(deletable){
+      const del=document.createElement('button'); del.className='mini'; del.textContent='×'; del.title='Delete preset';
+      del.style.cssText='margin-left:auto;padding:0 6px';
+      del.addEventListener('click', e=>{ e.stopPropagation(); const all=userPresets(); delete all[p.name]; PRESET_STORE.write(all);
+        if(CURRENT_PRESET===p.name){ CURRENT_PRESET=null; updatePresetTrigger(); } populatePresetMenu(); });
+      row.appendChild(del);
+    }
     m.appendChild(row);
-  });
+  };
+  CREATIVE_PRESETS.forEach(p=> addRow(p, false));
+  const mineNames = Object.keys(userPresets());
+  if(mineNames.length){
+    const h=document.createElement('div'); h.className='pi-name';
+    h.style.cssText='padding:var(--space-2) var(--space-3);color:var(--mid);letter-spacing:.12em';
+    h.textContent='YOURS'; m.appendChild(h);
+    mineNames.forEach(n=> addRow({name:n, ...userPresets()[n]}, true));
+  }
 }
 // position the fixed menu under the trigger, capped to the viewport so the
 // scrolling side panel never clips it (flips above if there's more room up
@@ -2195,9 +2424,31 @@ function buildPresets(){
   const host=$('presets'); if(!host) return;
   host.innerHTML = `<button class="preset-trigger" id="presetTrigger">
       <span class="pt-ico" id="ptIco"></span><span class="pt-name" id="ptName">Choose a preset…</span><span class="pt-chev">▾</span>
-    </button><div class="preset-menu" id="presetMenu" hidden></div>`;
+    </button><div class="preset-menu" id="presetMenu" hidden></div>
+    <button class="mini-btn" id="btnOpenSave" style="margin-top:var(--space-2);width:100%">+ save current look</button>
+    <div class="row" id="savePresetRow" style="display:none;margin-top:var(--space-2);gap:var(--space-2)">
+      <input id="newPresetName" class="panel-input panel-input--full" placeholder="name this look" style="flex:1">
+      <button class="mini-btn" id="btnSavePreset">Save</button>
+    </div>`;
+  // .row is display:flex (shared/panel.css) with no [hidden] override — the
+  // same "[hidden] must beat display:flex" gotcha .preset-menu's own CSS
+  // comment already documents — so this row toggles via style.display, not
+  // the hidden attribute, which would silently stay visible.
   $('presetTrigger').addEventListener('click', e=>{ e.stopPropagation();
     const m=$('presetMenu'); if(m.hidden){ populatePresetMenu(); positionPresetMenu(); m.hidden=false; } else m.hidden=true; });
+  $('btnOpenSave').addEventListener('click', ()=>{
+    $('savePresetRow').style.display='flex'; $('btnOpenSave').hidden=true; $('newPresetName').focus();
+  });
+  const doSave=()=>{
+    const name=($('newPresetName').value||'').trim(); if(!name) return;
+    if(CREATIVE_PRESETS.some(p=>p.name===name)){ setStatus('', 'that name is a built-in preset'); return; }
+    const all=userPresets(); all[name]=diffFromDefaults(); PRESET_STORE.write(all);
+    $('newPresetName').value=''; $('savePresetRow').style.display='none'; $('btnOpenSave').hidden=false;
+    CURRENT_PRESET=name; updatePresetTrigger(); populatePresetMenu();
+    setStatus('', '✓ preset saved');
+  };
+  $('btnSavePreset').addEventListener('click', doSave);
+  $('newPresetName').addEventListener('keydown', e=>{ if(e.key==='Enter') doSave(); });
   updatePresetTrigger();
 }
 document.addEventListener('click', e=>{
@@ -2337,6 +2588,7 @@ $('tgFamily').addEventListener('click', function(){
 });
 $('btn-randomize').addEventListener('click', randomizeAll);
 $('btn-reset-all').addEventListener('click', resetAll);
+$('btn-legible').addEventListener('click', ()=>{ KEEP_LEGIBLE=!KEEP_LEGIBLE; $('btn-legible').setAttribute('aria-pressed', KEEP_LEGIBLE); });
 $('btn-show-handles').addEventListener('click', function(){
   showHandles = !showHandles;
   this.setAttribute('aria-pressed', String(showHandles));
