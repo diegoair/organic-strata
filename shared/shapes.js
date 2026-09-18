@@ -107,32 +107,40 @@
   // branch as arcPathD); outer/inner arcs wind opposite directions so the
   // hole reads correctly under the default nonzero fill-rule, no
   // fill-rule attribute needed.
-  function wedgePathD(angle, innerRadiusPct) {
+  // squashPct (30-100, default 100 — byte-identical to the plain circular
+  // wedge) scales the whole shape vertically only, turning the circular
+  // sector into an elliptical one — every radius becomes an (rx,ry) pair
+  // (rx = rad, ry = rad*squash) rather than a single circle radius; the M/L
+  // endpoints already come from pt(), which applies the same y-scale, so
+  // they land exactly on the ellipse regardless of squash.
+  function wedgePathD(angle, innerRadiusPct, squashPct) {
     angle = Math.min(360, Math.max(1, angle == null ? 90 : angle));
     innerRadiusPct = Math.min(95, Math.max(0, innerRadiusPct == null ? 0 : innerRadiusPct));
+    const squash = Math.min(1, Math.max(0.3, (squashPct == null ? 100 : squashPct) / 100));
     const cx = 50, cy = 50, R = 50, r = R * innerRadiusPct / 100;
     const r2 = v => Math.round(v * 1000) / 1000;
     const pt = (deg, rad) => {
       const t = (deg - 90) * Math.PI / 180;
-      return [r2(cx + rad * Math.cos(t)), r2(cy + rad * Math.sin(t))];
+      return [r2(cx + rad * Math.cos(t)), r2(cy + rad * Math.sin(t) * squash)];
     };
+    const ry = rad => r2(rad * squash);
     if (angle >= 359.9) {
-      const outer = `M ${cx - R},${cy} A ${R},${R} 0 1,1 ${cx + R},${cy} A ${R},${R} 0 1,1 ${cx - R},${cy} Z`;
+      const outer = `M ${cx - R},${cy} A ${R},${ry(R)} 0 1,1 ${cx + R},${cy} A ${R},${ry(R)} 0 1,1 ${cx - R},${cy} Z`;
       if (r <= 0.5) return outer;
-      const inner = `M ${cx - r},${cy} A ${r},${r} 0 1,0 ${cx + r},${cy} A ${r},${r} 0 1,0 ${cx - r},${cy} Z`;
+      const inner = `M ${cx - r},${cy} A ${r},${ry(r)} 0 1,0 ${cx + r},${cy} A ${r},${ry(r)} 0 1,0 ${cx - r},${cy} Z`;
       return outer + ' ' + inner;
     }
     const half = angle / 2, large = angle > 180 ? 1 : 0;
     const [ox0, oy0] = pt(-half, R), [ox1, oy1] = pt(half, R);
     if (r <= 0.5) {
-      return `M ${cx},${cy} L ${ox0},${oy0} A ${R},${R} 0 ${large},1 ${ox1},${oy1} Z`;
+      return `M ${cx},${cy} L ${ox0},${oy0} A ${R},${ry(R)} 0 ${large},1 ${ox1},${oy1} Z`;
     }
     const [ix0, iy0] = pt(-half, r), [ix1, iy1] = pt(half, r);
-    return `M ${ix0},${iy0} L ${ox0},${oy0} A ${R},${R} 0 ${large},1 ${ox1},${oy1}`
-      + ` L ${ix1},${iy1} A ${r},${r} 0 ${large},0 ${ix0},${iy0} Z`;
+    return `M ${ix0},${iy0} L ${ox0},${oy0} A ${R},${ry(R)} 0 ${large},1 ${ox1},${oy1}`
+      + ` L ${ix1},${iy1} A ${r},${ry(r)} 0 ${large},0 ${ix0},${iy0} Z`;
   }
-  function wedgeGeometry(angle, innerRadiusPct) {
-    return { d: wedgePathD(angle, innerRadiusPct), normTx: 0, normTy: 0, normScale: 1 };
+  function wedgeGeometry(angle, innerRadiusPct, squashPct) {
+    return { d: wedgePathD(angle, innerRadiusPct, squashPct), normTx: 0, normTy: 0, normScale: 1 };
   }
 
   // Regular polygon, centred at (50,50), radius 50 (vertices touch the box
@@ -142,15 +150,23 @@
   // a quadratic curve through the original vertex — the standard
   // "rounded polygon" construction, same family as the corner-clamp trick
   // already used elsewhere in this project (Apostate's sharpen/polygonizevec).
-  function polygonPathD(sides, cornerRadiusPct) {
+  // irregularityPct (0-100, default 0 — byte-identical to the regular
+  // polygon) jitters each vertex's own radius by a seeded amount, up to
+  // ±50% of that jitter at 100%; a fresh mulberry32(seed) stream each call
+  // so the same seed always reproduces the same silhouette (same
+  // discipline as Symbols' own generateSymbolCells/ruleRandom).
+  function polygonPathD(sides, cornerRadiusPct, irregularityPct, seed) {
     sides = Math.max(3, Math.round(sides == null ? 6 : sides));
     cornerRadiusPct = Math.min(100, Math.max(0, cornerRadiusPct == null ? 0 : cornerRadiusPct));
+    const irregular = Math.min(100, Math.max(0, irregularityPct == null ? 0 : irregularityPct)) / 100;
     const cx = 50, cy = 50, R = 50;
+    const rng = Organica.mulberry32((seed == null ? 1 : seed) >>> 0);
     const r2 = v => Math.round(v * 1000) / 1000;
     const pts = [];
     for (let i = 0; i < sides; i++) {
       const t = (i * 360 / sides - 90) * Math.PI / 180;
-      pts.push([cx + R * Math.cos(t), cy + R * Math.sin(t)]);
+      const rad = R * (1 - irregular * 0.5 + rng() * irregular);
+      pts.push([cx + rad * Math.cos(t), cy + rad * Math.sin(t)]);
     }
     if (cornerRadiusPct <= 0.5) {
       return 'M ' + pts.map(p => `${r2(p[0])},${r2(p[1])}`).join(' L ') + ' Z';
@@ -166,27 +182,33 @@
     }
     return d + 'Z';
   }
-  function polygonGeometry(sides, cornerRadiusPct) {
-    return { d: polygonPathD(sides, cornerRadiusPct), normTx: 0, normTy: 0, normScale: 1 };
+  function polygonGeometry(sides, cornerRadiusPct, irregularityPct, seed) {
+    return { d: polygonPathD(sides, cornerRadiusPct, irregularityPct, seed), normTx: 0, normTy: 0, normScale: 1 };
   }
 
   // Star: `points`-pointed, alternating outer (radius 50, box-edge-touching)
   // and inner (innerRadiusPct of outer) vertices, centred at (50,50).
-  function starPathD(points, innerRadiusPct) {
+  // irregularityPct (0-100, default 0 — byte-identical to the regular
+  // star) jitters each of the outer AND inner vertices' own radius by a
+  // seeded amount, same discipline as polygonPathD's own irregularity.
+  function starPathD(points, innerRadiusPct, irregularityPct, seed) {
     points = Math.max(3, Math.round(points == null ? 5 : points));
     innerRadiusPct = Math.min(90, Math.max(5, innerRadiusPct == null ? 45 : innerRadiusPct));
+    const irregular = Math.min(100, Math.max(0, irregularityPct == null ? 0 : irregularityPct)) / 100;
     const cx = 50, cy = 50, R = 50, r = R * innerRadiusPct / 100;
+    const rng = Organica.mulberry32((seed == null ? 1 : seed) >>> 0);
     const r2 = v => Math.round(v * 1000) / 1000;
     const n = points * 2, pts = [];
     for (let i = 0; i < n; i++) {
       const t = (i * 360 / n - 90) * Math.PI / 180;
-      const rad = i % 2 === 0 ? R : r;
+      const base = i % 2 === 0 ? R : r;
+      const rad = base * (1 - irregular * 0.5 + rng() * irregular);
       pts.push([cx + rad * Math.cos(t), cy + rad * Math.sin(t)]);
     }
     return 'M ' + pts.map(p => `${r2(p[0])},${r2(p[1])}`).join(' L ') + ' Z';
   }
-  function starGeometry(points, innerRadiusPct) {
-    return { d: starPathD(points, innerRadiusPct), normTx: 0, normTy: 0, normScale: 1 };
+  function starGeometry(points, innerRadiusPct, irregularityPct, seed) {
+    return { d: starPathD(points, innerRadiusPct, irregularityPct, seed), normTx: 0, normTy: 0, normScale: 1 };
   }
 
   // Rounded rect / capsule, centred at (50,50). cornerRadiusPct maps to a
