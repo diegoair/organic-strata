@@ -189,9 +189,12 @@
       <h3>Seed</h3>
       <div class="ctrl-row">
         <select class="panel-select" id="sel-seed-type" aria-label="Seed type">
-          <option value="triangle">Isosceles triangle</option>
+          <option value="triangle">Triangle</option>
           <option value="arc">Arc</option>
           <option value="arctruchet">Arc truchet</option>
+          <option value="wedge">Wedge</option>
+          <option value="polygon">Polygon</option>
+          <option value="star">Star</option>
         </select>
       </div>
       <div id="seed-triangle-block">
@@ -204,6 +207,11 @@
           <div class="ctrl-label">Height</div>
           <input type="range" id="rg-height" min="20" max="100" step="1" value="100">
           <span class="ctrl-val" id="v-height">100</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Slides the apex off-centre — 0 is isosceles, either extreme approaches a right triangle. Base + Height + Apex X together reach every triangle shape.">Apex X</div>
+          <input type="range" id="rg-tri-apex" min="-98" max="98" step="1" value="0">
+          <span class="ctrl-val" id="v-tri-apex">0</span>
         </div>
       </div>
       <div id="seed-arc-block" style="display:none">
@@ -225,6 +233,42 @@
           <span class="ctrl-val" id="v-arc-ratio">70</span>
         </div>
       </div>
+      <div id="seed-wedge-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Angle</div>
+          <input type="range" id="rg-wedge-angle" min="10" max="360" step="1" value="90">
+          <span class="ctrl-val" id="v-wedge-angle">90</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="0 = solid pie, higher = a ring segment.">Inner radius</div>
+          <input type="range" id="rg-wedge-inner" min="0" max="95" step="1" value="0">
+          <span class="ctrl-val" id="v-wedge-inner">0</span>
+        </div>
+      </div>
+      <div id="seed-polygon-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Sides</div>
+          <input type="range" id="rg-poly-sides" min="3" max="12" step="1" value="6">
+          <span class="ctrl-val" id="v-poly-sides">6</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Corner radius</div>
+          <input type="range" id="rg-poly-corner" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-poly-corner">0</span>
+        </div>
+      </div>
+      <div id="seed-star-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Points</div>
+          <input type="range" id="rg-star-points" min="3" max="12" step="1" value="5">
+          <span class="ctrl-val" id="v-star-points">5</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Inner radius</div>
+          <input type="range" id="rg-star-inner" min="5" max="90" step="1" value="45">
+          <span class="ctrl-val" id="v-star-inner">45</span>
+        </div>
+      </div>
       <div class="row-btns">
         <button class="mini-btn" id="btn-upload-seed">Upload SVG…</button>
         <button class="mini-btn" id="btn-browse-creator">Creator library…</button>
@@ -236,7 +280,7 @@
       </div>
       <div class="sub-label" style="margin-top:var(--space-3)">Preview — rotation &amp; flip</div>
       <div id="seed-preview" class="fvs-seed-preview" aria-label="Seed transform preview"></div>
-      <p class="org-panel__hint">Base/Height (triangle) and Thickness (arc) default to 100 — the Seed fills its cell exactly, corner to corner, edge to edge. Arc truchet is concentric semicircle bands from the top &amp; bottom edges (the bookofshapes "Arc Truchet" tile) — pair it with a Symbol grid + the Oscillator rule. Upload an SVG or pick a Seed saved in Creator (first drawable shape, fitted to the cell). The strip above shows this exact Seed at 0/90/180/270° and each flip, on its own — check it looks right before generating a full grid of it. Colour lives in Palette below.</p>
+      <p class="org-panel__hint">Base/Height (triangle) and Thickness (arc) default to 100 — the Seed fills its cell exactly, corner to corner, edge to edge. Triangle's Apex X slides the apex off-centre (0 = isosceles) — Base + Height + Apex X together reach any triangle shape, scalene included. Arc truchet is concentric semicircle bands from the top &amp; bottom edges (the bookofshapes "Arc Truchet" tile) — pair it with a Symbol grid + the Oscillator rule. Upload an SVG or pick a Seed saved in Creator (first drawable shape, fitted to the cell). The strip above shows this exact Seed at 0/90/180/270° and each flip, on its own — check it looks right before generating a full grid of it. Colour lives in Palette below.</p>
     </div>
     </div>
 
@@ -836,27 +880,45 @@ function buildPalette() {
 // version takes an explicit rawCells arg where the old inline copy reached
 // into state.symbolGrid directly.
 const { triangleGeometry, arcGeometry, arcPathD, arcTruchetGeometry, arcTruchetPathD,
+  wedgeGeometry, polygonGeometry, starGeometry,
   resolveGridCells, resolveCellPlacement, frameSize, median } = Organica.shapes;
 
 const SEED_TYPES = {
-  triangle: { label: 'Isosceles triangle', geometry: (p) => triangleGeometry(p.base, p.height) },
+  triangle: { label: 'Triangle', geometry: (p) => triangleGeometry(p.base, p.height, p.triApex) },
   arc: { label: 'Arc', geometry: (p) => arcGeometry(p.thickness) },
   arctruchet: { label: 'Arc truchet', geometry: (p) => arcTruchetGeometry(p.arcCount, p.arcRatio) },
+  wedge: { label: 'Wedge', geometry: (p) => wedgeGeometry(p.wedgeAngle, p.wedgeInner) },
+  polygon: { label: 'Polygon', geometry: (p) => polygonGeometry(p.polySides, p.polyCorner) },
+  star: { label: 'Star', geometry: (p) => starGeometry(p.starPoints, p.starInner) },
   custom: {
     label: 'Custom (uploaded)',
     geometry: () => state.customSeed || { d: '', normTx: 0, normTy: 0, normScale: 1 },
   },
 };
 const SYMBOL_ARC_TRUCHET = { arcCount: 5, arcRatio: 0.7 };   // fixed defaults for the Symbols tier
+const SYMBOL_WEDGE = { wedgeAngle: 90, wedgeInner: 0 };
+const SYMBOL_POLYGON = { polySides: 6, polyCorner: 0 };
+const SYMBOL_STAR = { starPoints: 5, starInner: 45 };
+// Symbols cells carry no per-seed params of their own (same as they already
+// ignore Base/Height/Thickness) — one merged params object covers every
+// SEED_TYPES geometry fn, each reading only the fields it needs.
+const SYMBOL_SEED_DEFAULTS = { base: 100, height: 100, thickness: 100, ...SYMBOL_ARC_TRUCHET, ...SYMBOL_WEDGE, ...SYMBOL_POLYGON, ...SYMBOL_STAR };
 
 function getSeed() {
   return {
     type: ctrl('sel-seed-type').value,
     base: val('rg-base'),
     height: val('rg-height'),
+    triApex: val('rg-tri-apex'),
     thickness: val('rg-thickness'),
     arcCount: val('rg-arc-count'),
     arcRatio: val('rg-arc-ratio') / 100,
+    wedgeAngle: val('rg-wedge-angle'),
+    wedgeInner: val('rg-wedge-inner'),
+    polySides: val('rg-poly-sides'),
+    polyCorner: val('rg-poly-corner'),
+    starPoints: val('rg-star-points'),
+    starInner: val('rg-star-inner'),
   };
 }
 
@@ -2028,6 +2090,9 @@ function syncSeedUI() {
   ctrl('seed-triangle-block').style.display = type === 'triangle' ? '' : 'none';
   ctrl('seed-arc-block').style.display = type === 'arc' ? '' : 'none';
   ctrl('seed-arctruchet-block').style.display = type === 'arctruchet' ? '' : 'none';
+  ctrl('seed-wedge-block').style.display = type === 'wedge' ? '' : 'none';
+  ctrl('seed-polygon-block').style.display = type === 'polygon' ? '' : 'none';
+  ctrl('seed-star-block').style.display = type === 'star' ? '' : 'none';
 }
 
 // ── Component Library — save/reload full snapshots (Seed incl. an
@@ -2043,7 +2108,7 @@ function buildLibraryEntry() {
   const comp = getSelectedComponent();
   if (!comp) return null;
   return {
-    seed: { type: ctrl('sel-seed-type').value, base: val('rg-base'), height: val('rg-height'), thickness: val('rg-thickness'), arcCount: val('rg-arc-count'), arcRatio: val('rg-arc-ratio') / 100, customSeed: state.customSeed },
+    seed: { ...getSeed(), customSeed: state.customSeed },
     grid: getGrid(),
     colors: state.colors.slice(),
     paperColor: state.paperColor,
@@ -2107,9 +2172,16 @@ function applyLibraryEntryToUI(entry) {
   state.customSeed = entry.seed.customSeed || null;
   ctrl('rg-base').value = entry.seed.base; ctrl('v-base').textContent = entry.seed.base;
   ctrl('rg-height').value = entry.seed.height; ctrl('v-height').textContent = entry.seed.height;
+  if (entry.seed.triApex != null) { ctrl('rg-tri-apex').value = entry.seed.triApex; ctrl('v-tri-apex').textContent = entry.seed.triApex; }
   ctrl('rg-thickness').value = entry.seed.thickness; ctrl('v-thickness').textContent = entry.seed.thickness;
   if (entry.seed.arcCount != null) { ctrl('rg-arc-count').value = entry.seed.arcCount; ctrl('v-arc-count').textContent = entry.seed.arcCount; }
   if (entry.seed.arcRatio != null) { const pct = Math.round(entry.seed.arcRatio * 100); ctrl('rg-arc-ratio').value = pct; ctrl('v-arc-ratio').textContent = pct; }
+  if (entry.seed.wedgeAngle != null) { ctrl('rg-wedge-angle').value = entry.seed.wedgeAngle; ctrl('v-wedge-angle').textContent = entry.seed.wedgeAngle; }
+  if (entry.seed.wedgeInner != null) { ctrl('rg-wedge-inner').value = entry.seed.wedgeInner; ctrl('v-wedge-inner').textContent = entry.seed.wedgeInner; }
+  if (entry.seed.polySides != null) { ctrl('rg-poly-sides').value = entry.seed.polySides; ctrl('v-poly-sides').textContent = entry.seed.polySides; }
+  if (entry.seed.polyCorner != null) { ctrl('rg-poly-corner').value = entry.seed.polyCorner; ctrl('v-poly-corner').textContent = entry.seed.polyCorner; }
+  if (entry.seed.starPoints != null) { ctrl('rg-star-points').value = entry.seed.starPoints; ctrl('v-star-points').textContent = entry.seed.starPoints; }
+  if (entry.seed.starInner != null) { ctrl('rg-star-inner').value = entry.seed.starInner; ctrl('v-star-inner').textContent = entry.seed.starInner; }
   syncSeedUI();
 
   if (entry.grid.kind === 'loom') {
@@ -2399,7 +2471,7 @@ function buildSymbolItems() {
         nestedItems, nestedSeed: entry.seed, nestedSize, nestedPaper: entry.paperColor,
       };
     }
-    const geo = SEED_TYPES[cell.seedType].geometry({ base: 100, height: 100, thickness: 100, ...SYMBOL_ARC_TRUCHET });
+    const geo = SEED_TYPES[cell.seedType].geometry(SYMBOL_SEED_DEFAULTS);
     const place = resolveCellPlacement(c.cellW, c.cellH, 100, cell);
     return {
       type: 'seed', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
@@ -2615,7 +2687,7 @@ function generateSymbolCells() {
   const seed = parseInt(ctrl('num-symbol-seed').value, 10) || 0;
   const rng = mulberry32(seed);
   const libNames = Object.keys(LIBRARY.read());
-  const seedTypes = ['triangle', 'arc', 'arctruchet'];
+  const seedTypes = ['triangle', 'arc', 'arctruchet', 'wedge', 'polygon', 'star'];
   const scaleChoices = [0.75, 1, 1.25];
   state.symbolSelection.clear();
   // Fit mode/anchor/padding are deliberately NOT randomized — a chaotic
@@ -3083,8 +3155,8 @@ function renderCellContentOverlayTiles() {
 
   const elWrap = ctrl('symbol-content-overlay__seeds');
   elWrap.innerHTML = '';
-  ['triangle', 'arc', 'arctruchet'].forEach(type => {
-    const svgStr = buildSeedPreviewSVG({ type, base: 100, height: 100, thickness: 100, ...SYMBOL_ARC_TRUCHET }, 0, false, false, 72);
+  ['triangle', 'arc', 'arctruchet', 'wedge', 'polygon', 'star'].forEach(type => {
+    const svgStr = buildSeedPreviewSVG({ type, ...SYMBOL_SEED_DEFAULTS }, 0, false, false, 72);
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
     btn.title = SEED_TYPES[type].label;
@@ -3332,9 +3404,16 @@ function populateSymbolLoomPresets() {
 // ── Wiring ──
 ctrl('rg-base').addEventListener('input', e => { ctrl('v-base').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-height').addEventListener('input', e => { ctrl('v-height').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-tri-apex').addEventListener('input', e => { ctrl('v-tri-apex').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-thickness').addEventListener('input', e => { ctrl('v-thickness').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-arc-count').addEventListener('input', e => { ctrl('v-arc-count').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-arc-ratio').addEventListener('input', e => { ctrl('v-arc-ratio').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-wedge-angle').addEventListener('input', e => { ctrl('v-wedge-angle').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-wedge-inner').addEventListener('input', e => { ctrl('v-wedge-inner').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-poly-sides').addEventListener('input', e => { ctrl('v-poly-sides').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-poly-corner').addEventListener('input', e => { ctrl('v-poly-corner').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-star-points').addEventListener('input', e => { ctrl('v-star-points').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-star-inner').addEventListener('input', e => { ctrl('v-star-inner').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-cellsize').addEventListener('input', e => { ctrl('v-cellsize').textContent = e.target.value; renderGallery(); });
 ctrl('rg-gap').addEventListener('input', e => { ctrl('v-gap').textContent = e.target.value; renderGallery(); });
 ctrl('rg-random-count').addEventListener('input', e => { ctrl('v-random-count').textContent = e.target.value; });
