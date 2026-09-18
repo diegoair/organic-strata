@@ -783,9 +783,7 @@ function exportPNG() {
     ctx.globalAlpha = 1;
   }
   const url = c.toDataURL('image/png');
-  const bin = atob(url.split(',')[1]);
-  let bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  let bytes = Organica.dataURLToBytes(url);
   if (isPrint) bytes = Organica.printSize.embedPngDpi(bytes.buffer, dpi);
   Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('loom', 'png'));
   setStatus('active', 'PNG saved');

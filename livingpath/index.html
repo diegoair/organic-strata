@@ -390,6 +390,7 @@
 
 <!-- core BEFORE the tool script, per docs/UI-SHELL.md -->
 <script src="/shared/core.js"></script>
+<script src="/shared/canvas.js"></script>
 <script src="/shared/palette.js"></script>
 <!-- The raster effect engine + presets. Shared with Sinew (which also keeps
      the vector FX). Living Path keeps only the font-specific parts local:
@@ -2344,14 +2345,12 @@ new ResizeObserver(()=>{
 window.addEventListener('resize', syncSpecEditBox);
 
 // ── zoom / pan on the stage — wheel + ⌘/Ctrl +/-/0, drag to pan when zoomed,
-//    double-click to reset (shared Organica.createZoomPan, like every other tool)
-const zoomPan = Organica.createZoomPan({
+//    double-click to reset (shared Organica.canvasZoomHud, like every other tool)
+const zoomPan = Organica.canvasZoomHud({
   canvas: board, wrap: canvasWrap,
   isReady: () => board.classList.contains('show') && !showFamily && !showGlyph,   // family scrolls; glyph view is a focused fit-to-box
-  onChange: ({ zoom, zoomed }) => {
-    $('#zoom-level').textContent = Math.round(zoom * 100) + '%';
-    $('#zoom-hud').classList.toggle('visible', zoomed && board.classList.contains('show'));
-    board.classList.toggle('zoomed', zoomed);
+  hudVisible: (state) => state.zoomed && board.classList.contains('show'),
+  onChange: ({ zoomed }) => {
     // when zoomed the overlay must not eat the drag-to-pan; editing resumes at 1×
     specEdit.style.pointerEvents = zoomed ? 'none' : 'auto';
     syncSpecEditBox();

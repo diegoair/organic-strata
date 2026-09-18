@@ -188,7 +188,11 @@
   function cellColRow(grid, rawCells, gridMeta) {
     const centers = resolveGridCells(grid);   // {cx,cy,cellSize,cellW,cellH} grid-centred
     const n = centers.length;
-    const halfW = grid.width / 2, halfH = grid.height / 2;
+    // 'square' grids carry no width/height (only 'loom' grids do) — fall
+    // back to frameSize(grid), which already knows both kinds; a square
+    // grid is square, so one dimension is exactly right for both halves.
+    const halfW = (grid.width != null ? grid.width : frameSize(grid)) / 2;
+    const halfH = (grid.height != null ? grid.height : frameSize(grid)) / 2;
     let colRow;
     if (grid.cellShape === 'rect' && rawCells && rawCells.length === n && rawCells.every(c => c.col != null)) {
       const g = gridMeta || {};

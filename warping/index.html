@@ -507,10 +507,7 @@ function exportRaster(mime, ext, quality) {
   setStatus('active', 'Rendering ' + ext.toUpperCase() + '…');
   setTimeout(() => {
     const url = withExportSize(w, h, () => canvas.toDataURL(mime, quality));
-    const bin = atob(url.split(',')[1]);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    Organica.download(new Blob([bytes], { type: mime }), Organica.stamp('warping', ext));
+    Organica.download(Organica.dataURLToBlob(url), Organica.stamp('warping', ext));
     setStatus('active', w + '×' + h + ' · ' + ext.toUpperCase() + ' saved');
   }, 20);
 }

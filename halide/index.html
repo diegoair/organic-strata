@@ -339,6 +339,7 @@
 
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/canvas.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
 <script src="/shared/auth-badge.js"></script>
@@ -666,18 +667,9 @@ function loadImage(input) {
   img.src = url;
   input.value = '';
 }
-document.querySelector('.drop-icon').addEventListener('click', e => { e.stopPropagation(); document.getElementById('file-input').click(); });
-canvasWrap.addEventListener('dragover', e => { e.preventDefault(); canvasWrap.classList.add('drag-over'); });
-canvasWrap.addEventListener('dragleave', () => canvasWrap.classList.remove('drag-over'));
-canvasWrap.addEventListener('drop', e => {
-  e.preventDefault();
-  canvasWrap.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file && file.type.startsWith('image/')) {
-    const dt = new DataTransfer(); dt.items.add(file);
-    document.getElementById('file-input').files = dt.files;
-    loadImage(document.getElementById('file-input'));
-  }
+Organica.canvasDropZone({
+  wrap: canvasWrap, dropIcon: '.drop-icon', fileInput: 'file-input',
+  onFile: (input) => loadImage(input),
 });
 
 // ─────────────────────────────────────────────
@@ -1243,19 +1235,15 @@ function sendToFigma() {
 }
 
 // ── ZOOM & PAN ──
-// Shared maths: Organica.createZoomPan (core.js) — cursor-focal
-// zoom, ⌘±/⌘0 shortcuts and the pre-wheel slider-blur live there. Inline
-// copy until 2026-08-30. The tool still owns its own HUD.
-const zoomPan = Organica.createZoomPan({
+// Shared maths + HUD wiring: Organica.canvasZoomHud (shared/canvas.js),
+// built on createZoomPan (core.js) — cursor-focal zoom, ⌘±/⌘0 shortcuts,
+// the pre-wheel slider-blur, and the #zoom-level/#zoom-hud/.zoomed DOM
+// updates all live there now.
+const zoomPan = Organica.canvasZoomHud({
   canvas,
   wrap: canvasWrap,
   isReady: () => canvas.classList.contains('visible'),
-  onChange: ({ zoom, zoomed }) => {
-    document.getElementById('zoom-level').textContent = Math.round(zoom * 100) + '%';
-    document.getElementById('zoom-hud')
-      .classList.toggle('visible', zoomed && canvas.classList.contains('visible'));
-    canvas.classList.toggle('zoomed', zoomed);
-  },
+  hudVisible: (state) => state.zoomed && canvas.classList.contains('visible'),
 });
 // Global fn — the HUD's `onclick="resetZoom()"` and the image-load path call it.
 function resetZoom() { zoomPan.reset(); }

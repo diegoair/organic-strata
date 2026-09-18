@@ -63,19 +63,16 @@ function paintBackground() {
 // 4000px; a 4000px canvas in a ~900px wrap needs ≈0.225 to fit, well
 // inside 0.1) without Loom's own sharper edge case at 0.01 (multi-metre
 // print canvases don't exist here).
+// Shared maths + HUD wiring: Organica.canvasZoomHud (shared/canvas.js —
+// unrelated to this tool's own js/canvas.js, the Canvas Manager panel).
 let zoomPan = null;
 function setupZoomPan() {
-  zoomPan = Organica.createZoomPan({
+  zoomPan = Organica.canvasZoomHud({
     canvas: state.p.canvas,
     wrap: ctrl('canvas-wrap'),
     min: 0.1,
-    onChange: ({ zoom, zoomed }) => {
-      ctrl('zoom-level').textContent = Math.round(zoom * 100) + '%';
-      ctrl('zoom-hud').classList.toggle('visible', zoomed);
-      state.p.canvas.classList.toggle('zoomed', zoomed);
-    },
+    resetEl: 'btn-zoom-reset',
   });
-  ctrl('btn-zoom-reset').addEventListener('click', () => zoomPan.reset());
   fitToViewIfNeeded();
 }
 

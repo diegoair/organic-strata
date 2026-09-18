@@ -362,6 +362,7 @@
 
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/canvas.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
 <script src="/shared/auth-badge.js"></script>
@@ -2138,10 +2139,7 @@ function canvasToBlob(c, mime, quality) {
   // a canvas back afterwards (docs/UI-SHELL.md §5). Reused unchanged for
   // Print-mode raster/plate export below.
   const url = c.toDataURL(mime, quality);
-  const bin = atob(url.split(',')[1]);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new Blob([bytes], { type: mime });
+  return Organica.dataURLToBlob(url);
 }
 
 function exportRaster(mime, ext) {
@@ -2559,20 +2557,15 @@ ctrl('btn-preset-delete').addEventListener('click', () => {
 });
 
 // ═══════════════════════════════════════════
-// ZOOM & PAN — shared maths, this tool owns the HUD
+// ZOOM & PAN — shared maths + HUD wiring (shared/canvas.js)
 // ═══════════════════════════════════════════
 
-const zoomPan = Organica.createZoomPan({
+const zoomPan = Organica.canvasZoomHud({
   canvas: view,
   wrap: canvasWrap,
   isReady: () => view.classList.contains('visible'),
-  onChange: ({ zoom, zoomed }) => {
-    ctrl('zoom-level').textContent = Math.round(zoom * 100) + '%';
-    ctrl('zoom-hud').classList.toggle('visible', zoomed);
-    view.classList.toggle('zoomed', zoomed);
-  },
+  resetEl: 'zoom-reset',
 });
-ctrl('zoom-reset').addEventListener('click', () => zoomPan.reset());
 
 // ── INIT ──
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));

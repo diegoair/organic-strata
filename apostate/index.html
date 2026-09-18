@@ -298,6 +298,7 @@ body { background: var(--paper); }
 <div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
 
 <script src="/shared/core.js"></script>
+<script src="/shared/canvas.js"></script>
 <script src="/shared/canvas-size-panel.js"></script>
 <script src="/shared/glyph-model.js"></script>
 <script src="/shared/glyph-editor.js"></script>
@@ -1885,11 +1886,11 @@ function renderFamily(){
 // ⌘/Ctrl +/-/0) — the same shared utility Spore/Pollen/Halide already use,
 // gated to the 'family' view only (the tester/glyph views don't use this
 // scale transform at all).
-const zoomPan = Organica.createZoomPan({
+const zoomPan = Organica.canvasZoomHud({
   canvas: $('board'), wrap: $('stage'), min: 0.2, max: 4,
+  hud: null, level: null,   // no #zoom-hud markup here — Apostate has no on-canvas HUD
   isReady: ()=> VIEW==='tester',
   onChange: ({zoomed})=>{
-    $('board').classList.toggle('zoomed', zoomed);
     if(VIEW==='tester') syncSpecEditBox();   // the overlay glues itself to #board's own rect, which now scales too
   },
 });
