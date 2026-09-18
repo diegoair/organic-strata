@@ -1625,6 +1625,19 @@ function renderGallery() {
   const seed = getSeed();
   const size = frameSize(grid);
 
+  // The grid type/size can change (sel-grid-type, a Loom re-upload) without
+  // a fresh Generate — gallery candidates built for the PREVIOUS cell count
+  // would otherwise crash buildComponentItems() (centers[i] undefined past
+  // the new, smaller cell count). A grid change invalidates the gallery the
+  // same way clearGallery() does; drop anything that no longer fits.
+  const cellCount = resolveGridCells(grid).length;
+  if (state.components.some(c => c.cells.length !== cellCount)) {
+    state.components = state.components.filter(c => c.cells.length === cellCount);
+    if (!state.components.find(c => c.id === state.selectedId)) {
+      state.selectedId = state.components.length ? state.components[0].id : null;
+    }
+  }
+
   gallery.innerHTML = '';
   if (state.components.length === 0) {
     gallery.classList.remove('visible');
