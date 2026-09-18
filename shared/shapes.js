@@ -143,44 +143,54 @@
     return { d: wedgePathD(angle, innerRadiusPct, squashPct), normTx: 0, normTy: 0, normScale: 1 };
   }
 
-  // Regular polygon, centred at (50,50), radius 50 (vertices touch the box
-  // edges — pointy-top). cornerRadiusPct rounds each vertex by pulling two
-  // points back along its adjacent edges (capped at each edge's own
-  // midpoint, so opposite corners can never overlap) and bridging them with
-  // a quadratic curve through the original vertex — the standard
-  // "rounded polygon" construction, same family as the corner-clamp trick
-  // already used elsewhere in this project (Apostate's sharpen/polygonizevec).
-  // irregularityPct (0-100, default 0 — byte-identical to the regular
-  // polygon) jitters each vertex's own radius by a seeded amount, up to
-  // ±50% of that jitter at 100%; a fresh mulberry32(seed) stream each call
-  // so the same seed always reproduces the same silhouette (same
-  // discipline as Symbols' own generateSymbolCells/ruleRandom).
-  function polygonPathD(sides, cornerRadiusPct, irregularityPct, seed) {
-    sides = Math.max(3, Math.round(sides == null ? 6 : sides));
-    cornerRadiusPct = Math.min(100, Math.max(0, cornerRadiusPct == null ? 0 : cornerRadiusPct));
-    const irregular = Math.min(100, Math.max(0, irregularityPct == null ? 0 : irregularityPct)) / 100;
-    const cx = 50, cy = 50, R = 50;
-    const rng = Organica.mulberry32((seed == null ? 1 : seed) >>> 0);
+  // Shared "rounded polygon" construction — rounds every vertex of an
+  // arbitrary point-list polygon by pulling two points back along its
+  // adjacent edges (each pull is a FRACTION of that edge's own length, so
+  // it scales safely regardless of how short an edge is — opposite corners
+  // meet at worst at an edge's own midpoint, degenerating that edge to a
+  // point rather than overlapping past it) and bridging them with a
+  // quadratic curve through the original vertex. Works for any polygon,
+  // convex or concave (reflex) vertices alike — used by Polygon and Cross.
+  // Same family as the corner-clamp trick already used elsewhere in this
+  // project (Apostate's sharpen/polygonizevec).
+  function roundedPolyPathD(pts, cornerRadiusPct) {
+    const cornerPct = Math.min(100, Math.max(0, cornerRadiusPct == null ? 0 : cornerRadiusPct));
     const r2 = v => Math.round(v * 1000) / 1000;
-    const pts = [];
-    for (let i = 0; i < sides; i++) {
-      const t = (i * 360 / sides - 90) * Math.PI / 180;
-      const rad = R * (1 - irregular * 0.5 + rng() * irregular);
-      pts.push([cx + rad * Math.cos(t), cy + rad * Math.sin(t)]);
-    }
-    if (cornerRadiusPct <= 0.5) {
+    const n = pts.length;
+    if (cornerPct <= 0.5) {
       return 'M ' + pts.map(p => `${r2(p[0])},${r2(p[1])}`).join(' L ') + ' Z';
     }
-    const frac = cornerRadiusPct / 100 * 0.5;
+    const frac = cornerPct / 100 * 0.5;
     let d = '';
-    for (let i = 0; i < sides; i++) {
-      const prev = pts[(i - 1 + sides) % sides], cur = pts[i], next = pts[(i + 1) % sides];
+    for (let i = 0; i < n; i++) {
+      const prev = pts[(i - 1 + n) % n], cur = pts[i], next = pts[(i + 1) % n];
       const p1 = [cur[0] + (prev[0] - cur[0]) * frac, cur[1] + (prev[1] - cur[1]) * frac];
       const p2 = [cur[0] + (next[0] - cur[0]) * frac, cur[1] + (next[1] - cur[1]) * frac];
       d += (i === 0 ? 'M ' : 'L ') + `${r2(p1[0])},${r2(p1[1])} `;
       d += `Q ${r2(cur[0])},${r2(cur[1])} ${r2(p2[0])},${r2(p2[1])} `;
     }
     return d + 'Z';
+  }
+
+  // Regular polygon, centred at (50,50), radius 50 (vertices touch the box
+  // edges — pointy-top). irregularityPct (0-100, default 0 — byte-identical
+  // to the regular polygon) jitters each vertex's own radius by a seeded
+  // amount, up to ±50% of that jitter at 100%; a fresh mulberry32(seed)
+  // stream each call so the same seed always reproduces the same
+  // silhouette (same discipline as Symbols' own
+  // generateSymbolCells/ruleRandom).
+  function polygonPathD(sides, cornerRadiusPct, irregularityPct, seed) {
+    sides = Math.max(3, Math.round(sides == null ? 6 : sides));
+    const irregular = Math.min(100, Math.max(0, irregularityPct == null ? 0 : irregularityPct)) / 100;
+    const cx = 50, cy = 50, R = 50;
+    const rng = Organica.mulberry32((seed == null ? 1 : seed) >>> 0);
+    const pts = [];
+    for (let i = 0; i < sides; i++) {
+      const t = (i * 360 / sides - 90) * Math.PI / 180;
+      const rad = R * (1 - irregular * 0.5 + rng() * irregular);
+      pts.push([cx + rad * Math.cos(t), cy + rad * Math.sin(t)]);
+    }
+    return roundedPolyPathD(pts, cornerRadiusPct);
   }
   function polygonGeometry(sides, cornerRadiusPct, irregularityPct, seed) {
     return { d: polygonPathD(sides, cornerRadiusPct, irregularityPct, seed), normTx: 0, normTy: 0, normScale: 1 };
@@ -239,18 +249,26 @@
   // on the bottom edge. notchPct sets how far down the inner V's apex sits
   // (as a % of box height); armPct sets the ribbon's own thickness, as a %
   // of the outer half-span, independent of notch depth.
-  function chevronPathD(notchPct, armPct) {
+  // squashPct (30-100, default 100 — byte-identical to the plain chevron)
+  // scales every point's own y toward the box's own vertical centre
+  // (y' = 50 + (y-50)*squash), compressing the ribbon's height while
+  // keeping it centred — same "vertical-only, centred" convention as
+  // Wedge's own Squash.
+  function chevronPathD(notchPct, armPct, squashPct) {
     const notchY = Math.min(90, Math.max(10, notchPct == null ? 40 : notchPct));
     const arm = Math.min(80, Math.max(20, armPct == null ? 55 : armPct));
+    const squash = Math.min(1, Math.max(0.3, (squashPct == null ? 100 : squashPct) / 100));
     const cx = 50, halfSpread = 50, innerHalf = halfSpread * (arm / 100);
+    const sy = y => 50 + (y - 50) * squash;
+    const r2 = v => Math.round(v * 1000) / 1000;
     const pts = [
-      [cx, 0], [cx + halfSpread, 100], [cx + innerHalf, 100],
-      [cx, notchY], [cx - innerHalf, 100], [cx - halfSpread, 100],
+      [cx, sy(0)], [cx + halfSpread, sy(100)], [cx + innerHalf, sy(100)],
+      [cx, sy(notchY)], [cx - innerHalf, sy(100)], [cx - halfSpread, sy(100)],
     ];
-    return 'M ' + pts.map(p => p.join(',')).join(' L ') + ' Z';
+    return 'M ' + pts.map(p => `${r2(p[0])},${r2(p[1])}`).join(' L ') + ' Z';
   }
-  function chevronGeometry(notchPct, armPct) {
-    return { d: chevronPathD(notchPct, armPct), normTx: 0, normTy: 0, normScale: 1 };
+  function chevronGeometry(notchPct, armPct, squashPct) {
+    return { d: chevronPathD(notchPct, armPct, squashPct), normTx: 0, normTy: 0, normScale: 1 };
   }
 
   // Cross / plus, centred at (50,50), axis-aligned — the standard 12-point
@@ -259,7 +277,12 @@
   // box's own half-extent (100 = touches every edge, less = a floating
   // cross inset from the cell's edges). armWidth is clamped below
   // armLength so the shape can never self-intersect.
-  function crossPathD(armWidthPct, armLengthPct) {
+  // cornerRadiusPct (0-100, default 0 — byte-identical to the sharp plus)
+  // rounds every one of the 12 vertices via roundedPolyPathD — including
+  // the 8 reflex (concave, inward-facing) corners at the crook of each
+  // arm, which the shared pull-back-by-fraction construction handles the
+  // same way as an ordinary convex corner.
+  function crossPathD(armWidthPct, armLengthPct, cornerRadiusPct) {
     const length = Math.min(50, Math.max(15, (armLengthPct == null ? 100 : armLengthPct) / 100 * 50));
     const width = Math.min(50, Math.max(5, armWidthPct == null ? 35 : armWidthPct));
     const aw = Math.min(width / 2, length * 0.9), al = length, cx = 50, cy = 50;
@@ -269,11 +292,10 @@
       [cx + aw, cy + al], [cx - aw, cy + al], [cx - aw, cy + aw],
       [cx - al, cy + aw], [cx - al, cy - aw], [cx - aw, cy - aw],
     ];
-    const r2 = v => Math.round(v * 1000) / 1000;
-    return 'M ' + pts.map(p => `${r2(p[0])},${r2(p[1])}`).join(' L ') + ' Z';
+    return roundedPolyPathD(pts, cornerRadiusPct);
   }
-  function crossGeometry(armWidthPct, armLengthPct) {
-    return { d: crossPathD(armWidthPct, armLengthPct), normTx: 0, normTy: 0, normScale: 1 };
+  function crossGeometry(armWidthPct, armLengthPct, cornerRadiusPct) {
+    return { d: crossPathD(armWidthPct, armLengthPct, cornerRadiusPct), normTx: 0, normTy: 0, normScale: 1 };
   }
 
   // Lens / vesica — two circular arcs sharing fixed tips at (50,0)/(50,100)
