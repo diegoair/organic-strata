@@ -326,6 +326,11 @@
           <input type="range" id="rg-chev-arm" min="20" max="80" step="1" value="55">
           <span class="ctrl-val" id="v-chev-arm">55</span>
         </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Scales the chevron vertically only, centred — 100 is the full-height ribbon, lower flattens it.">Squash</div>
+          <input type="range" id="rg-chev-squash" min="30" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-chev-squash">100</span>
+        </div>
       </div>
       <div id="seed-cross-block" style="display:none">
         <div class="ctrl-row">
@@ -337,6 +342,11 @@
           <div class="ctrl-label" title="100 = arms reach every edge; less = a floating cross inset from the cell.">Arm length</div>
           <input type="range" id="rg-cross-armlength" min="30" max="100" step="1" value="100">
           <span class="ctrl-val" id="v-cross-armlength">100</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Rounds all 12 corners, including the 8 inward crooks between arms.">Corner radius</div>
+          <input type="range" id="rg-cross-corner" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-cross-corner">0</span>
         </div>
       </div>
       <div id="seed-lens-block" style="display:none">
@@ -969,8 +979,8 @@ const SEED_TYPES = {
   polygon: { label: 'Polygon', geometry: (p) => polygonGeometry(p.polySides, p.polyCorner, p.polyIrregular, p.polySeed) },
   star: { label: 'Star', geometry: (p) => starGeometry(p.starPoints, p.starInner, p.starIrregular, p.starSeed) },
   roundedrect: { label: 'Rounded rect', geometry: (p) => roundedRectGeometry(p.rrWidth, p.rrHeight, p.rrCorner) },
-  chevron: { label: 'Chevron', geometry: (p) => chevronGeometry(p.chevNotch, p.chevArm) },
-  cross: { label: 'Cross', geometry: (p) => crossGeometry(p.crossArmWidth, p.crossArmLength) },
+  chevron: { label: 'Chevron', geometry: (p) => chevronGeometry(p.chevNotch, p.chevArm, p.chevSquash) },
+  cross: { label: 'Cross', geometry: (p) => crossGeometry(p.crossArmWidth, p.crossArmLength, p.crossCorner) },
   lens: { label: 'Lens', geometry: (p) => lensGeometry(p.lensWidth) },
   custom: {
     label: 'Custom (uploaded)',
@@ -1015,8 +1025,10 @@ function getSeed() {
     rrCorner: val('rg-rr-corner'),
     chevNotch: val('rg-chev-notch'),
     chevArm: val('rg-chev-arm'),
+    chevSquash: val('rg-chev-squash'),
     crossArmWidth: val('rg-cross-armwidth'),
     crossArmLength: val('rg-cross-armlength'),
+    crossCorner: val('rg-cross-corner'),
     lensWidth: val('rg-lens-width'),
   };
 }
@@ -2295,8 +2307,10 @@ function applyLibraryEntryToUI(entry) {
   if (entry.seed.rrCorner != null) { ctrl('rg-rr-corner').value = entry.seed.rrCorner; ctrl('v-rr-corner').textContent = entry.seed.rrCorner; }
   if (entry.seed.chevNotch != null) { ctrl('rg-chev-notch').value = entry.seed.chevNotch; ctrl('v-chev-notch').textContent = entry.seed.chevNotch; }
   if (entry.seed.chevArm != null) { ctrl('rg-chev-arm').value = entry.seed.chevArm; ctrl('v-chev-arm').textContent = entry.seed.chevArm; }
+  if (entry.seed.chevSquash != null) { ctrl('rg-chev-squash').value = entry.seed.chevSquash; ctrl('v-chev-squash').textContent = entry.seed.chevSquash; }
   if (entry.seed.crossArmWidth != null) { ctrl('rg-cross-armwidth').value = entry.seed.crossArmWidth; ctrl('v-cross-armwidth').textContent = entry.seed.crossArmWidth; }
   if (entry.seed.crossArmLength != null) { ctrl('rg-cross-armlength').value = entry.seed.crossArmLength; ctrl('v-cross-armlength').textContent = entry.seed.crossArmLength; }
+  if (entry.seed.crossCorner != null) { ctrl('rg-cross-corner').value = entry.seed.crossCorner; ctrl('v-cross-corner').textContent = entry.seed.crossCorner; }
   if (entry.seed.lensWidth != null) { ctrl('rg-lens-width').value = entry.seed.lensWidth; ctrl('v-lens-width').textContent = entry.seed.lensWidth; }
   syncSeedUI();
 
@@ -3540,8 +3554,10 @@ ctrl('rg-rr-height').addEventListener('input', e => { ctrl('v-rr-height').textCo
 ctrl('rg-rr-corner').addEventListener('input', e => { ctrl('v-rr-corner').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-chev-notch').addEventListener('input', e => { ctrl('v-chev-notch').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-chev-arm').addEventListener('input', e => { ctrl('v-chev-arm').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-chev-squash').addEventListener('input', e => { ctrl('v-chev-squash').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-cross-armwidth').addEventListener('input', e => { ctrl('v-cross-armwidth').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-cross-armlength').addEventListener('input', e => { ctrl('v-cross-armlength').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-cross-corner').addEventListener('input', e => { ctrl('v-cross-corner').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-lens-width').addEventListener('input', e => { ctrl('v-lens-width').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-cellsize').addEventListener('input', e => { ctrl('v-cellsize').textContent = e.target.value; renderGallery(); });
 ctrl('rg-gap').addEventListener('input', e => { ctrl('v-gap').textContent = e.target.value; renderGallery(); });
