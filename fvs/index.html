@@ -248,6 +248,11 @@
           <input type="range" id="rg-wedge-inner" min="0" max="95" step="1" value="0">
           <span class="ctrl-val" id="v-wedge-inner">0</span>
         </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Scales the wedge vertically only — 100 is a plain circular sector, lower flattens it into an ellipse.">Squash</div>
+          <input type="range" id="rg-wedge-squash" min="30" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-wedge-squash">100</span>
+        </div>
       </div>
       <div id="seed-polygon-block" style="display:none">
         <div class="ctrl-row">
@@ -260,6 +265,16 @@
           <input type="range" id="rg-poly-corner" min="0" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-poly-corner">0</span>
         </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Jitters each vertex's own radius — 0 stays a perfectly regular polygon.">Irregularity</div>
+          <input type="range" id="rg-poly-irregular" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-poly-irregular">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Same seed always reproduces the same irregular silhouette.">Seed</div>
+          <input type="range" id="rg-poly-seed" min="1" max="999" step="1" value="1">
+          <span class="ctrl-val" id="v-poly-seed">1</span>
+        </div>
       </div>
       <div id="seed-star-block" style="display:none">
         <div class="ctrl-row">
@@ -271,6 +286,16 @@
           <div class="ctrl-label">Inner radius</div>
           <input type="range" id="rg-star-inner" min="5" max="90" step="1" value="45">
           <span class="ctrl-val" id="v-star-inner">45</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Jitters every point's own radius — 0 stays a perfectly regular star.">Irregularity</div>
+          <input type="range" id="rg-star-irregular" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-star-irregular">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Same seed always reproduces the same irregular silhouette.">Seed</div>
+          <input type="range" id="rg-star-seed" min="1" max="999" step="1" value="1">
+          <span class="ctrl-val" id="v-star-seed">1</span>
         </div>
       </div>
       <div id="seed-roundedrect-block" style="display:none">
@@ -940,9 +965,9 @@ const SEED_TYPES = {
   triangle: { label: 'Triangle', geometry: (p) => triangleGeometry(p.base, p.height, p.triApex) },
   arc: { label: 'Arc', geometry: (p) => arcGeometry(p.thickness) },
   arctruchet: { label: 'Arc truchet', geometry: (p) => arcTruchetGeometry(p.arcCount, p.arcRatio) },
-  wedge: { label: 'Wedge', geometry: (p) => wedgeGeometry(p.wedgeAngle, p.wedgeInner) },
-  polygon: { label: 'Polygon', geometry: (p) => polygonGeometry(p.polySides, p.polyCorner) },
-  star: { label: 'Star', geometry: (p) => starGeometry(p.starPoints, p.starInner) },
+  wedge: { label: 'Wedge', geometry: (p) => wedgeGeometry(p.wedgeAngle, p.wedgeInner, p.wedgeSquash) },
+  polygon: { label: 'Polygon', geometry: (p) => polygonGeometry(p.polySides, p.polyCorner, p.polyIrregular, p.polySeed) },
+  star: { label: 'Star', geometry: (p) => starGeometry(p.starPoints, p.starInner, p.starIrregular, p.starSeed) },
   roundedrect: { label: 'Rounded rect', geometry: (p) => roundedRectGeometry(p.rrWidth, p.rrHeight, p.rrCorner) },
   chevron: { label: 'Chevron', geometry: (p) => chevronGeometry(p.chevNotch, p.chevArm) },
   cross: { label: 'Cross', geometry: (p) => crossGeometry(p.crossArmWidth, p.crossArmLength) },
@@ -976,10 +1001,15 @@ function getSeed() {
     arcRatio: val('rg-arc-ratio') / 100,
     wedgeAngle: val('rg-wedge-angle'),
     wedgeInner: val('rg-wedge-inner'),
+    wedgeSquash: val('rg-wedge-squash'),
     polySides: val('rg-poly-sides'),
     polyCorner: val('rg-poly-corner'),
+    polyIrregular: val('rg-poly-irregular'),
+    polySeed: val('rg-poly-seed'),
     starPoints: val('rg-star-points'),
     starInner: val('rg-star-inner'),
+    starIrregular: val('rg-star-irregular'),
+    starSeed: val('rg-star-seed'),
     rrWidth: val('rg-rr-width'),
     rrHeight: val('rg-rr-height'),
     rrCorner: val('rg-rr-corner'),
@@ -2251,10 +2281,15 @@ function applyLibraryEntryToUI(entry) {
   if (entry.seed.arcRatio != null) { const pct = Math.round(entry.seed.arcRatio * 100); ctrl('rg-arc-ratio').value = pct; ctrl('v-arc-ratio').textContent = pct; }
   if (entry.seed.wedgeAngle != null) { ctrl('rg-wedge-angle').value = entry.seed.wedgeAngle; ctrl('v-wedge-angle').textContent = entry.seed.wedgeAngle; }
   if (entry.seed.wedgeInner != null) { ctrl('rg-wedge-inner').value = entry.seed.wedgeInner; ctrl('v-wedge-inner').textContent = entry.seed.wedgeInner; }
+  if (entry.seed.wedgeSquash != null) { ctrl('rg-wedge-squash').value = entry.seed.wedgeSquash; ctrl('v-wedge-squash').textContent = entry.seed.wedgeSquash; }
   if (entry.seed.polySides != null) { ctrl('rg-poly-sides').value = entry.seed.polySides; ctrl('v-poly-sides').textContent = entry.seed.polySides; }
   if (entry.seed.polyCorner != null) { ctrl('rg-poly-corner').value = entry.seed.polyCorner; ctrl('v-poly-corner').textContent = entry.seed.polyCorner; }
+  if (entry.seed.polyIrregular != null) { ctrl('rg-poly-irregular').value = entry.seed.polyIrregular; ctrl('v-poly-irregular').textContent = entry.seed.polyIrregular; }
+  if (entry.seed.polySeed != null) { ctrl('rg-poly-seed').value = entry.seed.polySeed; ctrl('v-poly-seed').textContent = entry.seed.polySeed; }
   if (entry.seed.starPoints != null) { ctrl('rg-star-points').value = entry.seed.starPoints; ctrl('v-star-points').textContent = entry.seed.starPoints; }
   if (entry.seed.starInner != null) { ctrl('rg-star-inner').value = entry.seed.starInner; ctrl('v-star-inner').textContent = entry.seed.starInner; }
+  if (entry.seed.starIrregular != null) { ctrl('rg-star-irregular').value = entry.seed.starIrregular; ctrl('v-star-irregular').textContent = entry.seed.starIrregular; }
+  if (entry.seed.starSeed != null) { ctrl('rg-star-seed').value = entry.seed.starSeed; ctrl('v-star-seed').textContent = entry.seed.starSeed; }
   if (entry.seed.rrWidth != null) { ctrl('rg-rr-width').value = entry.seed.rrWidth; ctrl('v-rr-width').textContent = entry.seed.rrWidth; }
   if (entry.seed.rrHeight != null) { ctrl('rg-rr-height').value = entry.seed.rrHeight; ctrl('v-rr-height').textContent = entry.seed.rrHeight; }
   if (entry.seed.rrCorner != null) { ctrl('rg-rr-corner').value = entry.seed.rrCorner; ctrl('v-rr-corner').textContent = entry.seed.rrCorner; }
@@ -3491,10 +3526,15 @@ ctrl('rg-arc-count').addEventListener('input', e => { ctrl('v-arc-count').textCo
 ctrl('rg-arc-ratio').addEventListener('input', e => { ctrl('v-arc-ratio').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-wedge-angle').addEventListener('input', e => { ctrl('v-wedge-angle').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-wedge-inner').addEventListener('input', e => { ctrl('v-wedge-inner').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-wedge-squash').addEventListener('input', e => { ctrl('v-wedge-squash').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-poly-sides').addEventListener('input', e => { ctrl('v-poly-sides').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-poly-corner').addEventListener('input', e => { ctrl('v-poly-corner').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-poly-irregular').addEventListener('input', e => { ctrl('v-poly-irregular').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-poly-seed').addEventListener('input', e => { ctrl('v-poly-seed').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-star-points').addEventListener('input', e => { ctrl('v-star-points').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-star-inner').addEventListener('input', e => { ctrl('v-star-inner').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-star-irregular').addEventListener('input', e => { ctrl('v-star-irregular').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-star-seed').addEventListener('input', e => { ctrl('v-star-seed').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-rr-width').addEventListener('input', e => { ctrl('v-rr-width').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-rr-height').addEventListener('input', e => { ctrl('v-rr-height').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-rr-corner').addEventListener('input', e => { ctrl('v-rr-corner').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
