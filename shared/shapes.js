@@ -189,6 +189,94 @@
     return { d: starPathD(points, innerRadiusPct), normTx: 0, normTy: 0, normScale: 1 };
   }
 
+  // Rounded rect / capsule, centred at (50,50). cornerRadiusPct maps to a
+  // fraction of min(width,height)/2 — 0 is a plain axis-aligned rect, 100 is
+  // a full stadium/pill (fully rounded on the shorter axis), same "half the
+  // shorter side" cap as CSS border-radius.
+  function roundedRectPathD(widthPct, heightPct, cornerRadiusPct) {
+    const w = Math.min(100, Math.max(5, widthPct == null ? 100 : widthPct));
+    const h = Math.min(100, Math.max(5, heightPct == null ? 100 : heightPct));
+    const cornerPct = Math.min(100, Math.max(0, cornerRadiusPct == null ? 0 : cornerRadiusPct));
+    const x0 = 50 - w / 2, x1 = 50 + w / 2, y0 = 50 - h / 2, y1 = 50 + h / 2;
+    const r = Math.min(w, h) / 2 * (cornerPct / 100);
+    if (r <= 0.5) return `M ${x0},${y0} L ${x1},${y0} L ${x1},${y1} L ${x0},${y1} Z`;
+    const r2 = v => Math.round(v * 1000) / 1000;
+    return `M ${r2(x0 + r)},${r2(y0)} L ${r2(x1 - r)},${r2(y0)} A ${r2(r)},${r2(r)} 0 0,1 ${r2(x1)},${r2(y0 + r)}`
+      + ` L ${r2(x1)},${r2(y1 - r)} A ${r2(r)},${r2(r)} 0 0,1 ${r2(x1 - r)},${r2(y1)}`
+      + ` L ${r2(x0 + r)},${r2(y1)} A ${r2(r)},${r2(r)} 0 0,1 ${r2(x0)},${r2(y1 - r)}`
+      + ` L ${r2(x0)},${r2(y0 + r)} A ${r2(r)},${r2(r)} 0 0,1 ${r2(x0 + r)},${r2(y0)} Z`;
+  }
+  function roundedRectGeometry(widthPct, heightPct, cornerRadiusPct) {
+    return { d: roundedRectPathD(widthPct, heightPct, cornerRadiusPct), normTx: 0, normTy: 0, normScale: 1 };
+  }
+
+  // Chevron / V-ribbon, apex up, outer legs always fixed to the box's own
+  // bottom corners (same "fills the cell corner to corner" convention as
+  // Triangle/Arc at their own full-param defaults) — a simple 6-point
+  // polygon, no boolean/hole needed since the ribbon's two "feet" both rest
+  // on the bottom edge. notchPct sets how far down the inner V's apex sits
+  // (as a % of box height); armPct sets the ribbon's own thickness, as a %
+  // of the outer half-span, independent of notch depth.
+  function chevronPathD(notchPct, armPct) {
+    const notchY = Math.min(90, Math.max(10, notchPct == null ? 40 : notchPct));
+    const arm = Math.min(80, Math.max(20, armPct == null ? 55 : armPct));
+    const cx = 50, halfSpread = 50, innerHalf = halfSpread * (arm / 100);
+    const pts = [
+      [cx, 0], [cx + halfSpread, 100], [cx + innerHalf, 100],
+      [cx, notchY], [cx - innerHalf, 100], [cx - halfSpread, 100],
+    ];
+    return 'M ' + pts.map(p => p.join(',')).join(' L ') + ' Z';
+  }
+  function chevronGeometry(notchPct, armPct) {
+    return { d: chevronPathD(notchPct, armPct), normTx: 0, normTy: 0, normScale: 1 };
+  }
+
+  // Cross / plus, centred at (50,50), axis-aligned — the standard 12-point
+  // plus polygon. armWidthPct sets each bar's thickness (% of the box);
+  // armLengthPct sets how far the bars reach from centre, as a % of the
+  // box's own half-extent (100 = touches every edge, less = a floating
+  // cross inset from the cell's edges). armWidth is clamped below
+  // armLength so the shape can never self-intersect.
+  function crossPathD(armWidthPct, armLengthPct) {
+    const length = Math.min(50, Math.max(15, (armLengthPct == null ? 100 : armLengthPct) / 100 * 50));
+    const width = Math.min(50, Math.max(5, armWidthPct == null ? 35 : armWidthPct));
+    const aw = Math.min(width / 2, length * 0.9), al = length, cx = 50, cy = 50;
+    const pts = [
+      [cx - aw, cy - al], [cx + aw, cy - al], [cx + aw, cy - aw],
+      [cx + al, cy - aw], [cx + al, cy + aw], [cx + aw, cy + aw],
+      [cx + aw, cy + al], [cx - aw, cy + al], [cx - aw, cy + aw],
+      [cx - al, cy + aw], [cx - al, cy - aw], [cx - aw, cy - aw],
+    ];
+    const r2 = v => Math.round(v * 1000) / 1000;
+    return 'M ' + pts.map(p => `${r2(p[0])},${r2(p[1])}`).join(' L ') + ' Z';
+  }
+  function crossGeometry(armWidthPct, armLengthPct) {
+    return { d: crossPathD(armWidthPct, armLengthPct), normTx: 0, normTy: 0, normScale: 1 };
+  }
+
+  // Lens / vesica — two circular arcs sharing fixed tips at (50,0)/(50,100)
+  // (the box's own top/bottom midpoints), bulging left and right to a
+  // combined width of widthPct at the vertical midline. For each arc, the
+  // circle is the one passing through both tips and the target midline
+  // point — solved directly (centre lies on y=50 by the tips' own
+  // symmetry): with halfW = width/2 and k = halfW/2 - 1250/halfW, the
+  // radius is R = sqrt(k² + 50²). The two arcs need the SAME sweep-flag
+  // (both 0) to bulge to opposite sides — confirmed empirically by
+  // rasterising and pixel-probing both edges + the tips (see fvs
+  // session notes: the "opposite flags" guess that looks right on paper
+  // actually retraces the same side and leaves a zero-area lens).
+  function lensPathD(widthPct) {
+    const w = Math.min(95, Math.max(8, widthPct == null ? 50 : widthPct));
+    const halfW = w / 2;
+    const k = halfW / 2 - 1250 / halfW;
+    const R = Math.sqrt(k * k + 2500);
+    const r2 = v => Math.round(v * 1000) / 1000;
+    return `M 50,0 A ${r2(R)},${r2(R)} 0 0,0 50,100 A ${r2(R)},${r2(R)} 0 0,0 50,0 Z`;
+  }
+  function lensGeometry(widthPct) {
+    return { d: lensPathD(widthPct), normTx: 0, normTy: 0, normScale: 1 };
+  }
+
   // ── GRID CELL PLACEMENT ─────────────────────────────────────────────────
   // grid = either { kind:'loom', cellShape, cells, width, height } (the shape
   // FVS wraps Organica.loadLoomGrid()'s return into — width/height = the
@@ -326,6 +414,8 @@
   Organica.shapes = {
     triangleGeometry, arcGeometry, arcPathD, arcTruchetGeometry, arcTruchetPathD,
     wedgeGeometry, wedgePathD, polygonGeometry, polygonPathD, starGeometry, starPathD,
+    roundedRectGeometry, roundedRectPathD, chevronGeometry, chevronPathD,
+    crossGeometry, crossPathD, lensGeometry, lensPathD,
     resolveGridCells, resolveCellPlacement, cellColRow, frameSize, median,
   };
 })(window);
