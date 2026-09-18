@@ -195,6 +195,10 @@
           <option value="wedge">Wedge</option>
           <option value="polygon">Polygon</option>
           <option value="star">Star</option>
+          <option value="roundedrect">Rounded rect</option>
+          <option value="chevron">Chevron</option>
+          <option value="cross">Cross</option>
+          <option value="lens">Lens</option>
         </select>
       </div>
       <div id="seed-triangle-block">
@@ -267,6 +271,54 @@
           <div class="ctrl-label">Inner radius</div>
           <input type="range" id="rg-star-inner" min="5" max="90" step="1" value="45">
           <span class="ctrl-val" id="v-star-inner">45</span>
+        </div>
+      </div>
+      <div id="seed-roundedrect-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Width</div>
+          <input type="range" id="rg-rr-width" min="5" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-rr-width">100</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Height</div>
+          <input type="range" id="rg-rr-height" min="5" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-rr-height">100</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="0 = sharp rect, 100 = a full stadium/capsule.">Corner radius</div>
+          <input type="range" id="rg-rr-corner" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-rr-corner">0</span>
+        </div>
+      </div>
+      <div id="seed-chevron-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How far down the inner V's apex sits — lower is a shallower chevron.">Notch</div>
+          <input type="range" id="rg-chev-notch" min="10" max="90" step="1" value="40">
+          <span class="ctrl-val" id="v-chev-notch">40</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="The ribbon's own thickness — outer legs always reach the cell's bottom corners.">Arm width</div>
+          <input type="range" id="rg-chev-arm" min="20" max="80" step="1" value="55">
+          <span class="ctrl-val" id="v-chev-arm">55</span>
+        </div>
+      </div>
+      <div id="seed-cross-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Arm width</div>
+          <input type="range" id="rg-cross-armwidth" min="5" max="50" step="1" value="35">
+          <span class="ctrl-val" id="v-cross-armwidth">35</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="100 = arms reach every edge; less = a floating cross inset from the cell.">Arm length</div>
+          <input type="range" id="rg-cross-armlength" min="30" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-cross-armlength">100</span>
+        </div>
+      </div>
+      <div id="seed-lens-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Width at the midline — tips are always fixed to the cell's top/bottom edges.">Width</div>
+          <input type="range" id="rg-lens-width" min="8" max="95" step="1" value="50">
+          <span class="ctrl-val" id="v-lens-width">50</span>
         </div>
       </div>
       <div class="row-btns">
@@ -881,6 +933,7 @@ function buildPalette() {
 // into state.symbolGrid directly.
 const { triangleGeometry, arcGeometry, arcPathD, arcTruchetGeometry, arcTruchetPathD,
   wedgeGeometry, polygonGeometry, starGeometry,
+  roundedRectGeometry, chevronGeometry, crossGeometry, lensGeometry,
   resolveGridCells, resolveCellPlacement, frameSize, median } = Organica.shapes;
 
 const SEED_TYPES = {
@@ -890,6 +943,10 @@ const SEED_TYPES = {
   wedge: { label: 'Wedge', geometry: (p) => wedgeGeometry(p.wedgeAngle, p.wedgeInner) },
   polygon: { label: 'Polygon', geometry: (p) => polygonGeometry(p.polySides, p.polyCorner) },
   star: { label: 'Star', geometry: (p) => starGeometry(p.starPoints, p.starInner) },
+  roundedrect: { label: 'Rounded rect', geometry: (p) => roundedRectGeometry(p.rrWidth, p.rrHeight, p.rrCorner) },
+  chevron: { label: 'Chevron', geometry: (p) => chevronGeometry(p.chevNotch, p.chevArm) },
+  cross: { label: 'Cross', geometry: (p) => crossGeometry(p.crossArmWidth, p.crossArmLength) },
+  lens: { label: 'Lens', geometry: (p) => lensGeometry(p.lensWidth) },
   custom: {
     label: 'Custom (uploaded)',
     geometry: () => state.customSeed || { d: '', normTx: 0, normTy: 0, normScale: 1 },
@@ -899,10 +956,14 @@ const SYMBOL_ARC_TRUCHET = { arcCount: 5, arcRatio: 0.7 };   // fixed defaults f
 const SYMBOL_WEDGE = { wedgeAngle: 90, wedgeInner: 0 };
 const SYMBOL_POLYGON = { polySides: 6, polyCorner: 0 };
 const SYMBOL_STAR = { starPoints: 5, starInner: 45 };
+const SYMBOL_ROUNDEDRECT = { rrWidth: 100, rrHeight: 100, rrCorner: 0 };
+const SYMBOL_CHEVRON = { chevNotch: 40, chevArm: 55 };
+const SYMBOL_CROSS = { crossArmWidth: 35, crossArmLength: 100 };
+const SYMBOL_LENS = { lensWidth: 50 };
 // Symbols cells carry no per-seed params of their own (same as they already
 // ignore Base/Height/Thickness) — one merged params object covers every
 // SEED_TYPES geometry fn, each reading only the fields it needs.
-const SYMBOL_SEED_DEFAULTS = { base: 100, height: 100, thickness: 100, ...SYMBOL_ARC_TRUCHET, ...SYMBOL_WEDGE, ...SYMBOL_POLYGON, ...SYMBOL_STAR };
+const SYMBOL_SEED_DEFAULTS = { base: 100, height: 100, thickness: 100, ...SYMBOL_ARC_TRUCHET, ...SYMBOL_WEDGE, ...SYMBOL_POLYGON, ...SYMBOL_STAR, ...SYMBOL_ROUNDEDRECT, ...SYMBOL_CHEVRON, ...SYMBOL_CROSS, ...SYMBOL_LENS };
 
 function getSeed() {
   return {
@@ -919,6 +980,14 @@ function getSeed() {
     polyCorner: val('rg-poly-corner'),
     starPoints: val('rg-star-points'),
     starInner: val('rg-star-inner'),
+    rrWidth: val('rg-rr-width'),
+    rrHeight: val('rg-rr-height'),
+    rrCorner: val('rg-rr-corner'),
+    chevNotch: val('rg-chev-notch'),
+    chevArm: val('rg-chev-arm'),
+    crossArmWidth: val('rg-cross-armwidth'),
+    crossArmLength: val('rg-cross-armlength'),
+    lensWidth: val('rg-lens-width'),
   };
 }
 
@@ -2093,6 +2162,10 @@ function syncSeedUI() {
   ctrl('seed-wedge-block').style.display = type === 'wedge' ? '' : 'none';
   ctrl('seed-polygon-block').style.display = type === 'polygon' ? '' : 'none';
   ctrl('seed-star-block').style.display = type === 'star' ? '' : 'none';
+  ctrl('seed-roundedrect-block').style.display = type === 'roundedrect' ? '' : 'none';
+  ctrl('seed-chevron-block').style.display = type === 'chevron' ? '' : 'none';
+  ctrl('seed-cross-block').style.display = type === 'cross' ? '' : 'none';
+  ctrl('seed-lens-block').style.display = type === 'lens' ? '' : 'none';
 }
 
 // ── Component Library — save/reload full snapshots (Seed incl. an
@@ -2182,6 +2255,14 @@ function applyLibraryEntryToUI(entry) {
   if (entry.seed.polyCorner != null) { ctrl('rg-poly-corner').value = entry.seed.polyCorner; ctrl('v-poly-corner').textContent = entry.seed.polyCorner; }
   if (entry.seed.starPoints != null) { ctrl('rg-star-points').value = entry.seed.starPoints; ctrl('v-star-points').textContent = entry.seed.starPoints; }
   if (entry.seed.starInner != null) { ctrl('rg-star-inner').value = entry.seed.starInner; ctrl('v-star-inner').textContent = entry.seed.starInner; }
+  if (entry.seed.rrWidth != null) { ctrl('rg-rr-width').value = entry.seed.rrWidth; ctrl('v-rr-width').textContent = entry.seed.rrWidth; }
+  if (entry.seed.rrHeight != null) { ctrl('rg-rr-height').value = entry.seed.rrHeight; ctrl('v-rr-height').textContent = entry.seed.rrHeight; }
+  if (entry.seed.rrCorner != null) { ctrl('rg-rr-corner').value = entry.seed.rrCorner; ctrl('v-rr-corner').textContent = entry.seed.rrCorner; }
+  if (entry.seed.chevNotch != null) { ctrl('rg-chev-notch').value = entry.seed.chevNotch; ctrl('v-chev-notch').textContent = entry.seed.chevNotch; }
+  if (entry.seed.chevArm != null) { ctrl('rg-chev-arm').value = entry.seed.chevArm; ctrl('v-chev-arm').textContent = entry.seed.chevArm; }
+  if (entry.seed.crossArmWidth != null) { ctrl('rg-cross-armwidth').value = entry.seed.crossArmWidth; ctrl('v-cross-armwidth').textContent = entry.seed.crossArmWidth; }
+  if (entry.seed.crossArmLength != null) { ctrl('rg-cross-armlength').value = entry.seed.crossArmLength; ctrl('v-cross-armlength').textContent = entry.seed.crossArmLength; }
+  if (entry.seed.lensWidth != null) { ctrl('rg-lens-width').value = entry.seed.lensWidth; ctrl('v-lens-width').textContent = entry.seed.lensWidth; }
   syncSeedUI();
 
   if (entry.grid.kind === 'loom') {
@@ -2687,7 +2768,7 @@ function generateSymbolCells() {
   const seed = parseInt(ctrl('num-symbol-seed').value, 10) || 0;
   const rng = mulberry32(seed);
   const libNames = Object.keys(LIBRARY.read());
-  const seedTypes = ['triangle', 'arc', 'arctruchet', 'wedge', 'polygon', 'star'];
+  const seedTypes = ['triangle', 'arc', 'arctruchet', 'wedge', 'polygon', 'star', 'roundedrect', 'chevron', 'cross', 'lens'];
   const scaleChoices = [0.75, 1, 1.25];
   state.symbolSelection.clear();
   // Fit mode/anchor/padding are deliberately NOT randomized — a chaotic
@@ -3155,7 +3236,7 @@ function renderCellContentOverlayTiles() {
 
   const elWrap = ctrl('symbol-content-overlay__seeds');
   elWrap.innerHTML = '';
-  ['triangle', 'arc', 'arctruchet', 'wedge', 'polygon', 'star'].forEach(type => {
+  ['triangle', 'arc', 'arctruchet', 'wedge', 'polygon', 'star', 'roundedrect', 'chevron', 'cross', 'lens'].forEach(type => {
     const svgStr = buildSeedPreviewSVG({ type, ...SYMBOL_SEED_DEFAULTS }, 0, false, false, 72);
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
@@ -3414,6 +3495,14 @@ ctrl('rg-poly-sides').addEventListener('input', e => { ctrl('v-poly-sides').text
 ctrl('rg-poly-corner').addEventListener('input', e => { ctrl('v-poly-corner').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-star-points').addEventListener('input', e => { ctrl('v-star-points').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-star-inner').addEventListener('input', e => { ctrl('v-star-inner').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-rr-width').addEventListener('input', e => { ctrl('v-rr-width').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-rr-height').addEventListener('input', e => { ctrl('v-rr-height').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-rr-corner').addEventListener('input', e => { ctrl('v-rr-corner').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-chev-notch').addEventListener('input', e => { ctrl('v-chev-notch').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-chev-arm').addEventListener('input', e => { ctrl('v-chev-arm').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-cross-armwidth').addEventListener('input', e => { ctrl('v-cross-armwidth').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-cross-armlength').addEventListener('input', e => { ctrl('v-cross-armlength').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+ctrl('rg-lens-width').addEventListener('input', e => { ctrl('v-lens-width').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-cellsize').addEventListener('input', e => { ctrl('v-cellsize').textContent = e.target.value; renderGallery(); });
 ctrl('rg-gap').addEventListener('input', e => { ctrl('v-gap').textContent = e.target.value; renderGallery(); });
 ctrl('rg-random-count').addEventListener('input', e => { ctrl('v-random-count').textContent = e.target.value; });
