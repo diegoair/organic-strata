@@ -33,11 +33,21 @@
   // why this is `d` (SVG path syntax) rather than a plain polygon point-list:
   // SVG renders it via <path>, Canvas2D via `ctx.fill(new Path2D(d))` — both
   // support arc (A) commands natively.
-  function triangleGeometry(base, height) {
+  // Any triangle can be placed with its base on a horizontal edge and its
+  // apex somewhere above — base width + height + the apex's horizontal
+  // position is exactly enough freedom to reach every triangle shape up to
+  // similarity (rotation/reflection are already covered by FVS's own
+  // transform controls). apexPct = 0 is the old isosceles default (apex
+  // centred, byte-identical `d` to the pre-generalisation output); ±100
+  // would put the apex directly above a base corner (zero area), so it's
+  // clamped just short of that to keep the triangle non-degenerate.
+  function triangleGeometry(base, height, apexPct) {
     const halfBase = base / 2;
     const apexY = 50 - height / 2;
     const baseY = 50 + height / 2;
-    const d = `M 50,${apexY} L ${50 - halfBase},${baseY} L ${50 + halfBase},${baseY} Z`;
+    const pct = Math.max(-98, Math.min(98, apexPct == null ? 0 : apexPct));
+    const apexX = 50 + halfBase * (pct / 100);
+    const d = `M ${apexX},${apexY} L ${50 - halfBase},${baseY} L ${50 + halfBase},${baseY} Z`;
     return { d, normTx: 0, normTy: 0, normScale: 1 };
   }
 
@@ -87,6 +97,96 @@
   }
   function arcTruchetGeometry(count, ratio) {
     return { d: arcTruchetPathD(count, ratio), normTx: 0, normTy: 0, normScale: 1 };
+  }
+
+  // Pie / wedge slice, pivoted at the box centre (50,50), radius 50 (touches
+  // the box's edge midpoints — same "fills the box at full param" scale as
+  // triangleGeometry). Symmetric about the upward vertical axis so a plain
+  // rotation transform sweeps it intuitively. angle=360 falls back to a
+  // full disc/annulus (two half-circle arcs, same ir<=0.5 solid-vs-ring
+  // branch as arcPathD); outer/inner arcs wind opposite directions so the
+  // hole reads correctly under the default nonzero fill-rule, no
+  // fill-rule attribute needed.
+  function wedgePathD(angle, innerRadiusPct) {
+    angle = Math.min(360, Math.max(1, angle == null ? 90 : angle));
+    innerRadiusPct = Math.min(95, Math.max(0, innerRadiusPct == null ? 0 : innerRadiusPct));
+    const cx = 50, cy = 50, R = 50, r = R * innerRadiusPct / 100;
+    const r2 = v => Math.round(v * 1000) / 1000;
+    const pt = (deg, rad) => {
+      const t = (deg - 90) * Math.PI / 180;
+      return [r2(cx + rad * Math.cos(t)), r2(cy + rad * Math.sin(t))];
+    };
+    if (angle >= 359.9) {
+      const outer = `M ${cx - R},${cy} A ${R},${R} 0 1,1 ${cx + R},${cy} A ${R},${R} 0 1,1 ${cx - R},${cy} Z`;
+      if (r <= 0.5) return outer;
+      const inner = `M ${cx - r},${cy} A ${r},${r} 0 1,0 ${cx + r},${cy} A ${r},${r} 0 1,0 ${cx - r},${cy} Z`;
+      return outer + ' ' + inner;
+    }
+    const half = angle / 2, large = angle > 180 ? 1 : 0;
+    const [ox0, oy0] = pt(-half, R), [ox1, oy1] = pt(half, R);
+    if (r <= 0.5) {
+      return `M ${cx},${cy} L ${ox0},${oy0} A ${R},${R} 0 ${large},1 ${ox1},${oy1} Z`;
+    }
+    const [ix0, iy0] = pt(-half, r), [ix1, iy1] = pt(half, r);
+    return `M ${ix0},${iy0} L ${ox0},${oy0} A ${R},${R} 0 ${large},1 ${ox1},${oy1}`
+      + ` L ${ix1},${iy1} A ${r},${r} 0 ${large},0 ${ix0},${iy0} Z`;
+  }
+  function wedgeGeometry(angle, innerRadiusPct) {
+    return { d: wedgePathD(angle, innerRadiusPct), normTx: 0, normTy: 0, normScale: 1 };
+  }
+
+  // Regular polygon, centred at (50,50), radius 50 (vertices touch the box
+  // edges — pointy-top). cornerRadiusPct rounds each vertex by pulling two
+  // points back along its adjacent edges (capped at each edge's own
+  // midpoint, so opposite corners can never overlap) and bridging them with
+  // a quadratic curve through the original vertex — the standard
+  // "rounded polygon" construction, same family as the corner-clamp trick
+  // already used elsewhere in this project (Apostate's sharpen/polygonizevec).
+  function polygonPathD(sides, cornerRadiusPct) {
+    sides = Math.max(3, Math.round(sides == null ? 6 : sides));
+    cornerRadiusPct = Math.min(100, Math.max(0, cornerRadiusPct == null ? 0 : cornerRadiusPct));
+    const cx = 50, cy = 50, R = 50;
+    const r2 = v => Math.round(v * 1000) / 1000;
+    const pts = [];
+    for (let i = 0; i < sides; i++) {
+      const t = (i * 360 / sides - 90) * Math.PI / 180;
+      pts.push([cx + R * Math.cos(t), cy + R * Math.sin(t)]);
+    }
+    if (cornerRadiusPct <= 0.5) {
+      return 'M ' + pts.map(p => `${r2(p[0])},${r2(p[1])}`).join(' L ') + ' Z';
+    }
+    const frac = cornerRadiusPct / 100 * 0.5;
+    let d = '';
+    for (let i = 0; i < sides; i++) {
+      const prev = pts[(i - 1 + sides) % sides], cur = pts[i], next = pts[(i + 1) % sides];
+      const p1 = [cur[0] + (prev[0] - cur[0]) * frac, cur[1] + (prev[1] - cur[1]) * frac];
+      const p2 = [cur[0] + (next[0] - cur[0]) * frac, cur[1] + (next[1] - cur[1]) * frac];
+      d += (i === 0 ? 'M ' : 'L ') + `${r2(p1[0])},${r2(p1[1])} `;
+      d += `Q ${r2(cur[0])},${r2(cur[1])} ${r2(p2[0])},${r2(p2[1])} `;
+    }
+    return d + 'Z';
+  }
+  function polygonGeometry(sides, cornerRadiusPct) {
+    return { d: polygonPathD(sides, cornerRadiusPct), normTx: 0, normTy: 0, normScale: 1 };
+  }
+
+  // Star: `points`-pointed, alternating outer (radius 50, box-edge-touching)
+  // and inner (innerRadiusPct of outer) vertices, centred at (50,50).
+  function starPathD(points, innerRadiusPct) {
+    points = Math.max(3, Math.round(points == null ? 5 : points));
+    innerRadiusPct = Math.min(90, Math.max(5, innerRadiusPct == null ? 45 : innerRadiusPct));
+    const cx = 50, cy = 50, R = 50, r = R * innerRadiusPct / 100;
+    const r2 = v => Math.round(v * 1000) / 1000;
+    const n = points * 2, pts = [];
+    for (let i = 0; i < n; i++) {
+      const t = (i * 360 / n - 90) * Math.PI / 180;
+      const rad = i % 2 === 0 ? R : r;
+      pts.push([cx + rad * Math.cos(t), cy + rad * Math.sin(t)]);
+    }
+    return 'M ' + pts.map(p => `${r2(p[0])},${r2(p[1])}`).join(' L ') + ' Z';
+  }
+  function starGeometry(points, innerRadiusPct) {
+    return { d: starPathD(points, innerRadiusPct), normTx: 0, normTy: 0, normScale: 1 };
   }
 
   // ── GRID CELL PLACEMENT ─────────────────────────────────────────────────
@@ -225,6 +325,7 @@
 
   Organica.shapes = {
     triangleGeometry, arcGeometry, arcPathD, arcTruchetGeometry, arcTruchetPathD,
+    wedgeGeometry, wedgePathD, polygonGeometry, polygonPathD, starGeometry, starPathD,
     resolveGridCells, resolveCellPlacement, cellColRow, frameSize, median,
   };
 })(window);
