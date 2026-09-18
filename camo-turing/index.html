@@ -2831,10 +2831,7 @@ function exportPNG() {
     renderer.setSize(baseDims.w, baseDims.h, false);
     scheduleRender();   // restore the on-screen frame — otherwise the canvas stays blank (0×0 GL viewport) at the old buffer size until the next natural redraw
   }
-  const bin = atob(url.split(',')[1]);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('camo-turing', 'png'));
+  Organica.download(Organica.dataURLToBlob(url), Organica.stamp('camo-turing', 'png'));
 }
 
 // ── SVG export — traces the FROZEN field into genuine vector paths, with

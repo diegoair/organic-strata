@@ -373,6 +373,7 @@
 
 <!-- Centralized Organica shape library (window.ORGANIC_FORMS), shared with Genesis/Pollen -->
 <script src="/shared/core.js"></script>
+<script src="/shared/canvas.js"></script>
 <script src="/shared/palette.js"></script>
 <script src="/shared/print-size.js"></script>
 <script src="/shared/print-size-panel.js"></script>
@@ -551,22 +552,9 @@ function loadImage(input) {
 // Drag & drop on canvas wrap
 const canvasWrap = document.getElementById('canvas-wrap');
 // Click the "+" circle to open the file picker.
-document.querySelector('.drop-icon').addEventListener('click', e => {
-  e.stopPropagation();
-  document.getElementById('file-input').click();
-});
-canvasWrap.addEventListener('dragover', e => { e.preventDefault(); canvasWrap.classList.add('drag-over'); });
-canvasWrap.addEventListener('dragleave', () => canvasWrap.classList.remove('drag-over'));
-canvasWrap.addEventListener('drop', e => {
-  e.preventDefault();
-  canvasWrap.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file && file.type.startsWith('image/')) {
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    document.getElementById('file-input').files = dt.files;
-    loadImage(document.getElementById('file-input'));
-  }
+Organica.canvasDropZone({
+  wrap: canvasWrap, dropIcon: '.drop-icon', fileInput: 'file-input',
+  onFile: (input) => loadImage(input),
 });
 
 // ─────────────────────────────────────────────
@@ -1277,23 +1265,16 @@ function exportSVGString() {
 // ─────────────────────────────────────────────
 // ZOOM & PAN (preview only — does not affect render/export)
 //
-// Shared maths: Organica.createZoomPan (core.js). This was an
-// inline copy until 2026-08-30; adopting the shared one also picks up two
-// behaviours the copy never had — the ⌘+/⌘-/⌘0 shortcuts, and the blur of
-// a still-focused panel slider before wheel-zooming (without it, scrolling
-// over the canvas silently nudges the last slider you dragged).
-// The tool still owns its own HUD.
+// Shared maths + HUD wiring: Organica.canvasZoomHud (shared/canvas.js),
+// built on createZoomPan (core.js) — the ⌘+/⌘-/⌘0 shortcuts, cursor-focal
+// zoom, the pre-wheel slider-blur, and the #zoom-level/#zoom-hud/.zoomed
+// DOM updates all live there now.
 // ─────────────────────────────────────────────
-const zoomPan = Organica.createZoomPan({
+const zoomPan = Organica.canvasZoomHud({
   canvas,
   wrap: canvasWrap,
   isReady: () => canvas.classList.contains('visible'),
-  onChange: ({ zoom, zoomed }) => {
-    document.getElementById('zoom-level').textContent = Math.round(zoom * 100) + '%';
-    document.getElementById('zoom-hud')
-      .classList.toggle('visible', zoomed && canvas.classList.contains('visible'));
-    canvas.classList.toggle('zoomed', zoomed);
-  },
+  hudVisible: (state) => state.zoomed && canvas.classList.contains('visible'),
 });
 // Kept as a global function — the HUD's own `onclick="resetZoom()"` calls it,
 // as does the image-load path.

@@ -691,10 +691,7 @@ function exportPNG() {
   }
 
   const url = canvas.toDataURL('image/png');
-  const bin = atob(url.split(',')[1]);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('tunesutra', 'png'));
+  Organica.download(Organica.dataURLToBlob(url), Organica.stamp('tunesutra', 'png'));
 }
 function activeRoleKeys() {
   return Array.from({ length: state.n }, (_, i) => roleName(i).toLowerCase().replace(/\s+/g, ''));

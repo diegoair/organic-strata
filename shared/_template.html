@@ -153,6 +153,7 @@
      (Organica.recorder — see pulsar/vortex/membrane/camo-turing). -->
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/canvas.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
 <script src="/shared/auth-badge.js"></script>
@@ -219,10 +220,7 @@ function updateSizeReadout() { /* … */ }
 function exportPNG() {
   // toDataURL, not toBlob — toBlob is async and races the canvas resize-back.
   const url = canvas.toDataURL('image/png');
-  const bin = atob(url.split(',')[1]);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('newtool', 'png'));
+  Organica.download(Organica.dataURLToBlob(url), Organica.stamp('newtool', 'png'));
 }
 function exportSVG() { /* … */ }
 function sendToFigma() { Organica.sendToFigma(buildSVG(), 'New Tool'); }
@@ -230,16 +228,22 @@ function buildSVG() { return '<svg xmlns="http://www.w3.org/2000/svg"></svg>'; }
 
 function loadImage(input) { /* … */ }
 
-// ── ZOOM & PAN — shared maths, this tool owns the HUD ──
-const zoomPan = Organica.createZoomPan({
+// ── DROP ZONE — click-to-open + dragover/dragleave/drop (Organica.
+//    canvasDropZone, shared/canvas.js). Drop it and wire the three
+//    listeners by hand only if this tool's drop behaviour genuinely
+//    diverges (e.g. Colornet's multi-file batch drop). ──
+Organica.canvasDropZone({
+  wrap: ctrl('canvas-wrap'), dropIcon: '.drop-icon', fileInput: 'file-input',
+  onFile: (input) => loadImage(input),
+});
+
+// ── ZOOM & PAN — shared maths AND the #zoom-hud DOM wiring
+//    (Organica.canvasZoomHud, shared/canvas.js — built on createZoomPan).
+//    No #zoom-hud in this tool? Pass hud: null, level: null instead. ──
+const zoomPan = Organica.canvasZoomHud({
   canvas,
   wrap: ctrl('canvas-wrap'),
   isReady: () => canvas.classList.contains('visible'),
-  onChange: ({ zoom, zoomed }) => {
-    ctrl('zoom-level').textContent = Math.round(zoom * 100) + '%';
-    ctrl('zoom-hud').classList.toggle('visible', zoomed);
-    canvas.classList.toggle('zoomed', zoomed);
-  },
 });
 function resetZoom() { zoomPan.reset(); }
 

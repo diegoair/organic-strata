@@ -365,6 +365,7 @@
 
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/canvas.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
 <script src="/shared/auth-badge.js"></script>
@@ -1373,15 +1374,10 @@ function deletePreset() {
   setStatus('active', 'Deleted preset: ' + key);
 }
 
-// ── ZOOM / PAN ────────────────────────────────────────────────
-const zoomPan = Organica.createZoomPan({
+// ── ZOOM / PAN ── shared maths + HUD wiring (shared/canvas.js) ──
+const zoomPan = Organica.canvasZoomHud({
   canvas: stage, wrap: $('canvas-wrap'),
   isReady: () => stage.classList.contains('visible'),
-  onChange: ({ zoom, zoomed }) => {
-    $('zoom-level').textContent = Math.round(zoom * 100) + '%';
-    $('zoom-hud').classList.toggle('visible', zoomed);
-    stage.classList.toggle('zoomed', zoomed);
-  },
 });
 function resetZoom() { zoomPan.reset(); }
 

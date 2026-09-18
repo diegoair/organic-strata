@@ -51,6 +51,26 @@
     return tool + '-' + Date.now() + '.' + ext;
   };
 
+  // The atob → Uint8Array conversion found byte-near-identical in 11 files'
+  // own canvas-export paths — always fed by canvas.toDataURL(), never
+  // canvas.toBlob(): toBlob() is async and can race a canvas that gets
+  // resized back to its live dimensions right after export (docs/UI-SHELL.md
+  // §5), so every one of those sites needs the synchronous toDataURL() read.
+  // Split into two layers: most callers want the Blob; Loom's PNG-DPI-chunk
+  // export needs the raw bytes themselves (to splice in a pHYs chunk before
+  // it's ever wrapped in a Blob), so that stays the lower-level primitive.
+  Organica.dataURLToBytes = function (dataURL) {
+    const bin = atob(dataURL.split(',')[1]);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  };
+
+  Organica.dataURLToBlob = function (dataURL) {
+    const mime = (dataURL.match(/^data:([^;]+);base64,/) || [, 'application/octet-stream'])[1];
+    return new Blob([Organica.dataURLToBytes(dataURL)], { type: mime });
+  };
+
   // ═══════════════════════════════════════════════════════════
   // COLOUR
   // ═══════════════════════════════════════════════════════════

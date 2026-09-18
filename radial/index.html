@@ -384,6 +384,7 @@
      noise.js's own header for why the order matters. -->
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/canvas.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
 <script src="/shared/auth-badge.js"></script>
@@ -555,10 +556,7 @@ function exportPNG() {
   c.width = SIZE * scale; c.height = SIZE * scale;
   drawSceneCanvas(c.getContext('2d'), prim, P, scale);
   const url = c.toDataURL('image/png');
-  const bin = atob(url.split(',')[1]);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('radial', 'png'));
+  Organica.download(Organica.dataURLToBlob(url), Organica.stamp('radial', 'png'));
   setStatus('active', c.width + '×' + c.height + ' · PNG saved');
 }
 function sendToFigma() {
@@ -672,7 +670,7 @@ ctrl('txt-preset-name').addEventListener('keydown', e => {
   if (e.key === 'Escape') cancelSavePreset();
 });
 
-Organica.createZoomPan({ canvas: frame, wrap: ctrl('stage'), min: 0.3, max: 6 });
+Organica.canvasZoomHud({ canvas: frame, wrap: ctrl('stage'), min: 0.3, max: 6, hud: null, level: null });
 
 // ── Rhizome bridge (Tier 2 node graph) — same shape as warping/komorebi. ──
 window.addEventListener('message', (e) => {

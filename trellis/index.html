@@ -236,6 +236,7 @@
 
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/canvas.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
 <script src="/shared/auth-badge.js"></script>
@@ -268,7 +269,23 @@ const S = Organica.shapes;
 
 const canvas = ctrl('preview');
 const pctx = canvas.getContext('2d');
-const SIZE = canvas.width;
+const SIZE = canvas.width;   // the logical drawing space every render/export
+                              // coordinate is written in — read BEFORE the
+                              // DPR resize below touches canvas.width itself.
+
+// DPR-aware backing store (same pattern as Pulsar/Radial's shared/radial.js
+// drawSceneCanvas): the canvas's raw pixel grid gets sharper on a HiDPI
+// display, but SIZE and every draw call stay in logical (CSS-px) space —
+// renderFrameAt() bakes DPR into a single ctx.setTransform() per frame
+// instead. Pinning canvas.style.width/height to SIZE keeps the on-screen
+// box identical to before — without it, the canvas's intrinsic (replaced-
+// element) sizing would inflate to the new backing-store size and the
+// preview would silently render larger inside the wrap.
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+canvas.width = SIZE * DPR;
+canvas.height = SIZE * DPR;
+canvas.style.width = SIZE + 'px';
+canvas.style.height = SIZE + 'px';
 
 // ── GRID IMPORT ─────────────────────────────────────────────────────────
 // gridRaw = the exact Organica.loadLoomGrid() return: {canvas, grid, inner,
@@ -763,7 +780,7 @@ function renderFrameAt(tNorm) {
   }
   const list = buildDrawList(tNorm);
   const originX = SIZE / 2, originY = SIZE / 2, unit = SIZE / (S.frameSize(gridWrap) || SIZE);
-  pctx.setTransform(1, 0, 0, 1, 0, 0);
+  pctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawList(pctx, list, originX, originY, unit);
   if (ctrl('ck-show-grid').checked) drawGridOverlay(pctx, originX, originY, unit, tNorm);
   if (!playing) setStatus('active', cellCount + ' cells · t=' + tNorm.toFixed(2));
@@ -822,10 +839,7 @@ function exportPNG() {
   const unit = (SIZE * scale) / (S.frameSize(gridWrap) || SIZE);
   drawList(c.getContext('2d'), list, (SIZE * scale) / 2, (SIZE * scale) / 2, unit);
   const url = c.toDataURL('image/png');
-  const bin = atob(url.split(',')[1]);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('trellis', 'png'));
+  Organica.download(Organica.dataURLToBlob(url), Organica.stamp('trellis', 'png'));
   setStatus('active', c.width + '×' + c.height + ' · PNG saved');
 }
 // Byte-faithful mirror of drawList() at unit 1 (Pollen/Mote/Loom's own SVG
@@ -852,9 +866,9 @@ let trellisRecorder = null;
 function toggleRecording() { if (trellisRecorder) trellisRecorder.toggle(); }
 
 // ── ZOOM & PAN ────────────────────────────────────────────────────────
-const zoomPan = Organica.createZoomPan({
+const zoomPan = Organica.canvasZoomHud({
   canvas, wrap: ctrl('stage'), isReady: () => cellCount > 0,
-  onChange: () => {},
+  hud: null, level: null,   // no #zoom-hud markup here
 });
 
 // ── INIT ──────────────────────────────────────────────────────────────
