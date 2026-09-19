@@ -495,6 +495,10 @@
               <label class="panel-label">Height</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-h" min="10" max="100" value="60"><span class="panel-unit" id="gen-h-val" style="width:24px">60</span></div>
             </div>
+            <div class="panel-row" id="row-gen-triapex" style="display:none">
+              <label class="panel-label" title="Slides the apex off-centre — 0 is isosceles, either extreme approaches a right triangle.">Apex X</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-triapex" min="-98" max="98" value="0"><span class="panel-unit" id="gen-triapex-val" style="width:24px">0</span></div>
+            </div>
             <div class="panel-row" id="row-gen-corner" style="display:none">
               <label class="panel-label">Corner rounding</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-corner" min="0" max="50" value="0"><span class="panel-unit" id="gen-corner-val" style="width:24px">0</span></div>
@@ -606,6 +610,7 @@
 
   <script src="/shared/noise.js"></script>
   <script src="/shared/transformer.js"></script>
+  <script src="/shared/shapes.js"></script>
   <script src="/shared/vendor/paper-full.min.js"></script>
   <script src="/shared/paper.js"></script>
   <script src="defs.js"></script>
@@ -719,7 +724,7 @@
   // ── Authoring (Draw/Import/Generate) state ─────────────
   const DEFAULT_GEN = {
     type: 'circle', n: 5, r: 60, thickness: 100,
-    w: 60, h: 60, corner: 0, irregularity: 0, seed: 1,
+    w: 60, h: 60, triApex: 0, corner: 0, irregularity: 0, seed: 1,
     innerRatio: 45, pivot: 'corner', sweep: 90, len: 70, tail: 50, amount: 40,
   };
 
@@ -1748,6 +1753,7 @@
     $('gen-thickness').addEventListener('input', e => { S.gen.thickness = parseInt(e.target.value); $('gen-thickness-val').textContent = S.gen.thickness; renderArt(); });
     $('gen-w').addEventListener('input', e => { S.gen.w = parseInt(e.target.value, 10); $('gen-w-val').textContent = S.gen.w; renderArt(); });
     $('gen-h').addEventListener('input', e => { S.gen.h = parseInt(e.target.value, 10); $('gen-h-val').textContent = S.gen.h; renderArt(); });
+    $('gen-triapex').addEventListener('input', e => { S.gen.triApex = parseInt(e.target.value, 10); $('gen-triapex-val').textContent = S.gen.triApex; renderArt(); });
     $('gen-corner').addEventListener('input', e => { S.gen.corner = parseInt(e.target.value, 10); $('gen-corner-val').textContent = S.gen.corner; renderArt(); });
     $('gen-irregularity').addEventListener('input', e => { S.gen.irregularity = parseInt(e.target.value, 10); $('gen-irregularity-val').textContent = S.gen.irregularity; renderArt(); });
     $('gen-seed').addEventListener('input', e => { S.gen.seed = parseInt(e.target.value, 10) || 0; renderArt(); });
@@ -1907,6 +1913,7 @@
     $('gen-thickness').value = g.thickness; $('gen-thickness-val').textContent = g.thickness;
     $('gen-w').value = g.w; $('gen-w-val').textContent = g.w;
     $('gen-h').value = g.h; $('gen-h-val').textContent = g.h;
+    $('gen-triapex').value = g.triApex; $('gen-triapex-val').textContent = g.triApex;
     $('gen-corner').value = g.corner; $('gen-corner-val').textContent = g.corner;
     $('gen-irregularity').value = g.irregularity; $('gen-irregularity-val').textContent = g.irregularity;
     $('gen-seed').value = g.seed;
@@ -1980,9 +1987,10 @@
     show('row-gen-thickness', t === 'arc');
     show('row-gen-w', t === 'triangle' || t === 'square');
     show('row-gen-h', t === 'triangle' || t === 'square');
+    show('row-gen-triapex', t === 'triangle');
     show('row-gen-corner', t === 'polygon' || t === 'square');
-    show('row-gen-irregularity', t === 'polygon');
-    show('row-gen-seed', t === 'polygon' || t === 'blob');
+    show('row-gen-irregularity', t === 'polygon' || t === 'star');
+    show('row-gen-seed', t === 'polygon' || t === 'star' || t === 'blob');
     show('row-gen-inner', t === 'star');
     show('row-gen-pivot', t === 'arc');
     show('row-gen-sweep', t === 'arc');
@@ -2145,19 +2153,38 @@
   }
 
   // Inner geometry (before the appearance transform), as an SVG string.
+  // Re-centres a shared/shapes.js path (drawn in its own 0..100 box,
+  // centred at 50,50) onto this canvas's 0..200 box, centred at 100,100 —
+  // `k` is the extra radius/size multiplier beyond the base 2x (Genesis's
+  // box is exactly double FVS's); k=2 alone reproduces the old fixed-box
+  // triangle/square math exactly, k = radius/50 lets Polygon/Star keep
+  // their own Radius slider on top of the shared, fixed-radius-50 geometry.
+  function sharedShapeMarkup(d, k) {
+    return `<path d="${d}" transform="translate(100,100) scale(${k}) translate(-50,-50)"/>`;
+  }
+
   function geometry() {
     if (S.importInner) return importMarkup();
     if (isCreatorMode() && S.gen.type !== 'freehand') {
       const g = S.gen;
       if (g.type === 'circle') return `<circle cx="100" cy="100" r="${g.r}"/>`;
       if (g.type === 'arc') return `<path d="${arcGenPathD()}"/>`;
-      if (g.type === 'triangle') return `<path d="${trianglePathD(g.w, g.h)}"/>`;
+      // Triangle/Polygon/Star share their geometry with FVS's Element step
+      // now (shared/shapes.js, loaded above) — Genesis's own w/h/r/corner/
+      // irregularity/seed sliders map straight onto the shared functions'
+      // params; sharedShapeMarkup() just re-centres the shared 0..100 box
+      // onto this canvas's own 0..200 box (see its own comment). Arc keeps
+      // its own local implementation deliberately — its pivot/sweep
+      // generality has no FVS equivalent (FVS's Arc is always a fixed
+      // 90°-corner wedge, sized by the grid cell it sits in).
+      if (g.type === 'triangle') return sharedShapeMarkup(Organica.shapes.triangleGeometry(g.w, g.h, g.triApex).d, 2);
       if (g.type === 'square') return `<path d="${rectPathD(g.w, g.h, g.corner)}"/>`;
       if (g.type === 'segment') return `<path d="${segmentPathD(g.len)}"/>`;
       if (g.type === 'drop') return `<path d="${dropPathD(g.r, g.tail)}"/>`;
       if (g.type === 'blob') return `<path d="${blobPathD(g.r, g.amount, g.seed)}"/>`;
-      const pts = polyPoints(g.n, g.r, g.type === 'star', g.type === 'polygon' ? g.irregularity : 0, g.seed);
-      return `<path d="${g.type === 'polygon' ? roundedPolyPathD(pts, g.corner) : linePathD(pts, true)}"/>`;
+      if (g.type === 'polygon') return sharedShapeMarkup(Organica.shapes.polygonGeometry(g.n, g.corner, g.irregularity, g.seed).d, g.r / 50);
+      if (g.type === 'star') return sharedShapeMarkup(Organica.shapes.starGeometry(g.n, g.innerRatio, g.irregularity, g.seed).d, g.r / 50);
+      return '';
     }
     // freehand draw / a multi-contour seed being bezier-edited (Edit mode).
     // Also the fall-through for library mode (artboard not visible — harmless).
