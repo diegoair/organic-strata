@@ -25,7 +25,14 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: var(--fs-base); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
 
-  #app { display: flex; flex: 1; overflow: hidden; height: calc(100vh - var(--header-h, 40px)); }
+  /* Step nav — sits between header and #app, same "minimal header, nav
+     below" move Genesis made for Library/Create. */
+  .fvs-stepnav { flex-shrink: 0; padding: var(--space-3) var(--space-5) 0; background: var(--paper); border-bottom: 1px solid var(--border); }
+  .fvs-stepnav .org-tabs { margin-bottom: var(--space-2); }
+  .fvs-stepnav__num { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; background: currentColor; opacity: 0.16; font-size: 9px; margin-right: var(--space-1); }
+  .fvs-stepnav__hint { font-size: var(--fs-small); color: var(--mid); padding-bottom: var(--space-2); min-height: 1.4em; }
+
+  #app { display: flex; flex: 1; overflow: hidden; }
 
   /* No zoom/pan — the gallery is a static, scrollable grid of thumbnails,
      not a single pannable canvas (there is no one canvas to zoom). */
@@ -65,19 +72,20 @@
   .fvs-library-item:hover { border-color: var(--mid); }
   .fvs-library-item svg { width: 100%; height: 100%; display: block; }
   .fvs-library-item .rmx-x { position: absolute; top: 0; right: 0; }
+  .fvs-library-item.selected { border-color: var(--tool); box-shadow: 0 0 0 1px var(--tool); }
   .fvs-library-empty { font-size: var(--fs-micro); color: var(--mid); margin-bottom: var(--space-2); }
 
-  /* Components ↔ Symbols tier switch — same show/hide-by-data-attribute
-     convention Genesis Creator's own Draw/Import/Generate mode-blocks use. */
+  /* Element ↔ Component ↔ Symbol ↔ Grid tier switch — same
+     show/hide-by-data-attribute convention Genesis Creator's own
+     Draw/Import/Generate mode-blocks use. */
   .tier-block { display: none; }
   .tier-block.active { display: block; }
   #canvas-wrap .tier-view { display: none; height: 100%; }
   #canvas-wrap .tier-view.active { display: flex; align-items: center; justify-content: center; }
 
-  /* Numbered step scaffold for the Components tier — groups existing
+  /* Numbered step scaffold within a tier's own panel — groups existing
      panel-sections under an explicit "01 / 02 / ..." flow without
-     changing any of their own markup or IDs. Room for 03+ (motion,
-     export) in a later pass. */
+     changing any of their own markup or IDs. */
   .panel-step-head { padding: var(--space-3) 0 var(--space-2); border-top: 1px solid var(--border); }
   .panel-step-head:first-child { border-top: none; padding-top: 0; }
   .panel-step-head__title { font-weight: 700; }
@@ -106,6 +114,19 @@
   #underlying-component-overlay-tiles .fvs-library-item { width: 76px; height: 76px; }
 
   #symbol-frame svg .symbol-marquee { fill: rgba(51,153,255,0.12); stroke: #3399ff; stroke-width: 1; stroke-dasharray: 4 3; }
+
+  /* Element tier — a single big live preview of the current Seed, on
+     its own canvas (not the scrollable-gallery/live-grid surfaces the
+     other 3 tiers use). */
+  .fvs-element-frame { width: min(70vh, 70vw); height: min(70vh, 70vw); display: flex; align-items: center; justify-content: center; }
+  .fvs-element-frame svg { width: 100%; height: 100%; display: block; }
+
+  /* Grid tier — tiles one saved Symbol across a bigger grid. Reuses the
+     gallery-empty pattern from the Component tier. */
+  #grid-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: var(--space-3); color: var(--mid); font-size: var(--fs-small); text-align: center; }
+  #fvsgrid-frame { display: none; }
+  #fvsgrid-frame.visible { display: block; }
+  #fvsgrid-frame svg { max-width: 100%; max-height: 100%; display: block; }
 </style>
 </head>
 <body>
@@ -113,18 +134,25 @@
 
 <header class="org-header org-header--editor" role="banner">
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ FVS</span></a>
-  <div class="org-header__context">
-    <div class="org-tabs" id="tier-tabs" role="group" aria-label="Tier">
-      <button class="org-btn" data-tier="components" aria-pressed="true">Components</button>
-      <button class="org-btn" data-tier="symbols" aria-pressed="false">Symbols</button>
-    </div>
-  </div>
   <div class="org-header__spacer"></div>
   <output class="org-header__status" aria-live="polite" aria-atomic="true">
     <span class="org-header__dot" id="status-dot"></span>
     <span class="org-header__state" id="status-text">No components yet</span>
   </output>
 </header>
+
+<!-- Step nav — 4 propaedeutic tiers, moved out of the header (same move
+     Genesis made for its Library/Create nav). Element → Component →
+     Symbol → Grid: each consumes what the previous step produced. -->
+<div class="fvs-stepnav">
+  <div class="org-tabs" id="tier-tabs" role="group" aria-label="Step">
+    <button class="org-btn" data-tier="element" aria-pressed="true"><span class="fvs-stepnav__num">1</span> Element</button>
+    <button class="org-btn" data-tier="component" aria-pressed="false"><span class="fvs-stepnav__num">2</span> Component</button>
+    <button class="org-btn" data-tier="symbol" aria-pressed="false"><span class="fvs-stepnav__num">3</span> Symbol</button>
+    <button class="org-btn" data-tier="grid" aria-pressed="false"><span class="fvs-stepnav__num">4</span> Grid</button>
+  </div>
+  <p class="fvs-stepnav__hint" id="stepnav-hint"></p>
+</div>
 
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
   <button class="org-floatbar__btn" id="btn-playpause" aria-label="Play" disabled>
@@ -166,24 +194,33 @@
 
 <div id="app">
   <div id="canvas-wrap">
-    <div class="tier-view active" data-tier="components">
+    <div class="tier-view active" data-tier="element">
+      <div id="element-frame" class="fvs-element-frame"></div>
+    </div>
+    <div class="tier-view" data-tier="component">
       <div id="gallery-empty">
         <p>No components generated yet.<br>Pick a rule below and hit Generate.</p>
       </div>
       <div id="gallery-status"></div>
       <div id="gallery"></div>
     </div>
-    <div class="tier-view" data-tier="symbols">
+    <div class="tier-view" data-tier="symbol">
       <div id="symbol-frame"></div>
+    </div>
+    <div class="tier-view" data-tier="grid">
+      <div id="grid-empty">
+        <p>No Symbol picked yet.<br>Save one in the Symbol step, then pick it here.</p>
+      </div>
+      <div id="fvsgrid-frame"></div>
     </div>
   </div>
 
   <div id="panel">
 
-    <div class="tier-block active" data-tier="components">
+    <div class="tier-block active" data-tier="element">
     <div class="panel-step-head">
-      <div class="panel-step-head__title"><span class="panel-step-head__num">01</span> · Element</div>
-      <p class="panel-step-head__desc">Pick a shape, then choose the grid it repeats into.</p>
+      <div class="panel-step-head__title">Element <span class="hint">step 1 of 4</span></div>
+      <p class="panel-step-head__desc">Pick a shape and its parameters — every later step (Component, Symbol, Grid) builds on this one Element.</p>
     </div>
     <div class="panel-section">
       <h3>Seed</h3>
@@ -371,7 +408,11 @@
     </div>
     </div>
 
-    <div class="tier-block" data-tier="symbols">
+    <div class="tier-block" data-tier="symbol">
+    <div class="panel-step-head">
+      <div class="panel-step-head__title">Symbol <span class="hint">step 3 of 4</span></div>
+      <p class="panel-step-head__desc">A grid of cells, each filled with an Element or a saved Component.</p>
+    </div>
     <div class="panel-section">
       <h3>Symbol grid <span class="hint" id="symbol-cellcount-hint">0 cells</span></h3>
       <div class="ctrl-row">
@@ -394,7 +435,11 @@
     <input type="file" id="file-seed" accept=".svg,image/svg+xml" aria-label="Upload SVG seed" class="org-file-input">
     <input type="file" id="file-loom-grid" accept=".json,application/json" aria-label="Upload Loom grid JSON" class="org-file-input">
 
-    <div class="tier-block active" data-tier="components">
+    <div class="tier-block" data-tier="component">
+    <div class="panel-step-head">
+      <div class="panel-step-head__title">Component <span class="hint">step 2 of 4</span></div>
+      <p class="panel-step-head__desc">Repeat the Element across a small grid with a symmetry rule, to produce a Component you can save and reuse.</p>
+    </div>
     <div class="panel-section">
       <h3>Grid <span class="hint" id="grid-cellcount-hint">4 cells</span></h3>
       <div class="ctrl-row">
@@ -425,7 +470,7 @@
     </div>
 
     <div class="panel-step-head">
-      <div class="panel-step-head__title"><span class="panel-step-head__num">02</span> · Repetition</div>
+      <div class="panel-step-head__title">Repetition</div>
       <p class="panel-step-head__desc">Choose which properties vary, then pick a symmetry rule.</p>
     </div>
     <div class="panel-section">
@@ -587,8 +632,9 @@
       <p class="org-panel__hint">Paper is the ground every Component renders and exports against — the gallery thumbnail, PNG, and SVG all read this same colour, not a fixed white.</p>
     </div>
 
+    <div id="motion-block">
     <div class="panel-step-head">
-      <div class="panel-step-head__title"><span class="panel-step-head__num">03</span> · Motion</div>
+      <div class="panel-step-head__title">Motion</div>
       <p class="panel-step-head__desc">Animate the selected result — per-cell colour/scale, or pan the whole field. Live preview only, via the floatbar's Play button.</p>
     </div>
     <div class="panel-section">
@@ -627,8 +673,9 @@
         <span class="ctrl-val" id="v-speed">1</span>
       </div>
     </div>
+    </div>
 
-    <div class="tier-block" data-tier="symbols">
+    <div class="tier-block" data-tier="symbol">
     <div class="panel-section">
       <h3>Fill</h3>
       <div class="ctrl-row">
@@ -813,6 +860,50 @@
     </div>
     </div>
 
+    <div class="tier-block" data-tier="grid">
+    <div class="panel-step-head">
+      <div class="panel-step-head__title">Grid <span class="hint">step 4 of 4</span></div>
+      <p class="panel-step-head__desc">Pick a saved Symbol, then tile it across a bigger grid — the final pattern.</p>
+    </div>
+    <div class="panel-section">
+      <h3>Symbol</h3>
+      <div id="fvsgrid-symbol-empty" class="fvs-library-empty">No saved Symbols yet — save one in the Symbol step first.</div>
+      <div id="fvsgrid-symbol-picker" class="fvs-library"></div>
+    </div>
+    <div class="panel-section">
+      <h3>Grid <span class="hint" id="fvsgrid-cellcount-hint">4 cells</span></h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-fvsgrid-type" aria-label="Tiling grid type">
+          <option value="square2x2">Square 2×2</option>
+          <option value="square3x3">Square 3×3</option>
+          <option value="square4x4" selected>Square 4×4</option>
+          <option value="square6x6">Square 6×6</option>
+          <option value="loom">Import from Loom (JSON)…</option>
+        </select>
+      </div>
+      <div id="fvsgrid-square-block">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Cell size</div>
+          <input type="range" id="rg-fvsgrid-cellsize" min="40" max="220" step="1" value="110">
+          <span class="ctrl-val" id="v-fvsgrid-cellsize">110</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Gap</div>
+          <input type="range" id="rg-fvsgrid-gap" min="0" max="40" step="1" value="0">
+          <span class="ctrl-val" id="v-fvsgrid-gap">0</span>
+        </div>
+      </div>
+      <div id="fvsgrid-loom-block" style="display:none">
+        <button class="mini-btn" id="btn-fvsgrid-upload-loom" style="width:100%">Upload Loom grid JSON…</button>
+        <div id="fvsgrid-loom-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
+      </div>
+      <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-fvsgrid-alt-flip"><span>Alternate flip (checkerboard)</span></label>
+      <p class="org-panel__hint">Every cell repeats the picked Symbol at its own resolved size — a Loom import uses that grid's own saved cell geometry (rect or polygon) exactly as exported. "Alternate flip" mirrors every other cell for a less mechanical repeat.</p>
+    </div>
+    </div>
+
+    <input type="file" id="file-fvsgrid-loom" accept=".json,application/json" aria-label="Upload Loom grid JSON for Grid tier" class="org-file-input">
+
   </div>
 </div>
 
@@ -828,7 +919,7 @@
     <div class="sub-label">Seeds</div>
     <div id="symbol-content-overlay__seeds" class="fvs-library"></div>
     <div class="sub-label" style="margin-top:var(--space-3)">Components</div>
-    <div id="symbol-content-overlay__components-empty" class="fvs-library-empty">No saved Components yet — build one in the Components tab first.</div>
+    <div id="symbol-content-overlay__components-empty" class="fvs-library-empty">No saved Components yet — build one in the Component step first.</div>
     <div id="symbol-content-overlay__components" class="fvs-library"></div>
   </div>
 </div>
@@ -899,7 +990,9 @@ const state = {
   componentRole: 'normal',           // 'normal' | 'container' | 'mask' — this Component's own silhouette used as a clip/knockout boundary for underlyingComponentName
   underlyingComponentName: null,     // another saved Component Library entry's name, or null
   loomGrid: null,   // {cellShape, cells, inner:{width,height}} from Organica.loadLoomGrid, or null until a file is imported
-  activeTier: 'components',   // 'components' | 'symbols'
+  activeTier: 'element',   // 'element' | 'component' | 'symbol' | 'grid'
+  fvsGrid: null,     // {cellShape, cells, inner:{width,height}} — the Grid tier's own tiling grid, Loom-imported
+  fvsGridSymbolName: null,   // name of the saved Symbol (SYMBOL_LIBRARY entry) currently tiled in the Grid tier
   symbolGrid: null,   // same shape as loomGrid — a SECOND, independent Loom grid for the Symbols tier
   symbolCells: [],    // one per resolveGridCells(symbolGrid) index:
                        //   {source:'seed', seedType, rotation, flipH, flipV, scale, color,
@@ -1961,6 +2054,38 @@ function renderSeedPreview() {
   const seed = getSeed();
   ctrl('seed-preview').innerHTML = SEED_PREVIEW_STATES
     .map(([r, fh, fv]) => buildSeedPreviewSVG(seed, r, fh, fv, 48)).join('');
+  renderElementFrame(seed);
+}
+
+// Element tier's own big canvas — a single live preview of the current
+// Seed at 0°, on its own stage. Reuses buildSeedPreviewSVG (the same
+// geometry the 7-tile strip below uses) at a larger size.
+function renderElementFrame(seed) {
+  const frame = ctrl('element-frame');
+  if (!frame) return;
+  frame.innerHTML = buildSeedPreviewSVG(seed || getSeed(), 0, false, false, 400);
+}
+
+function exportElement(format) {
+  const seed = getSeed();
+  if (format === 'svg') {
+    Organica.download(new Blob([buildSeedPreviewSVG(seed, 0, false, false, 400)], { type: 'image/svg+xml' }), Organica.stamp('fvs-element', 'svg'));
+    return;
+  }
+  const scale = parseInt(ctrl('sel-export-scale').value, 10);
+  const size = 400 * scale;
+  const svgStr = buildSeedPreviewSVG(seed, 0, false, false, size);
+  const svgBlob = new Blob([svgStr], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(svgBlob);
+  const img = new Image();
+  img.onload = () => {
+    const off = document.createElement('canvas');
+    off.width = size; off.height = size;
+    off.getContext('2d').drawImage(img, 0, 0, size, size);
+    URL.revokeObjectURL(url);
+    off.toBlob(blob => Organica.download(blob, Organica.stamp('fvs-element', 'png')));
+  };
+  img.src = url;
 }
 
 // ── Gallery ──
@@ -2513,6 +2638,146 @@ function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<':
 function getSymbolGrid() {
   if (!state.symbolGrid) return null;
   return { kind: 'loom', cellShape: state.symbolGrid.cellShape, cells: state.symbolGrid.cells, width: state.symbolGrid.inner.width, height: state.symbolGrid.inner.height };
+}
+
+// ── Grid tier (step 4) — tiles one saved Symbol across a bigger grid ──
+
+function getFvsGrid() {
+  const type = ctrl('sel-fvsgrid-type').value;
+  if (type === 'loom') {
+    if (!state.fvsGrid) return null;
+    return { kind: 'loom', cellShape: state.fvsGrid.cellShape, cells: state.fvsGrid.cells, width: state.fvsGrid.inner.width, height: state.fvsGrid.inner.height };
+  }
+  const n = type === 'square3x3' ? 3 : type === 'square4x4' ? 4 : type === 'square6x6' ? 6 : 2;
+  return { kind: 'square', cols: n, rows: n, cellSize: val('rg-fvsgrid-cellsize'), gap: val('rg-fvsgrid-gap') };
+}
+
+function fvsGridSelectedEntry() {
+  if (!state.fvsGridSymbolName) return null;
+  return SYMBOL_LIBRARY.read()[state.fvsGridSymbolName] || null;
+}
+
+// Renders one saved Symbol entry's SVG string against its OWN saved
+// state (not the live one), same swap-state-then-restore trick
+// renderSymbolLibrary() already uses for its own thumbnails.
+function renderedSymbolEntrySVG(entry) {
+  const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, paper: state.paperColor, clip: state.symbolClipEnabled };
+  state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
+  state.symbolCells = entry.cells;
+  state.colors = entry.colors;
+  state.paperColor = entry.paperColor;
+  state.symbolClipEnabled = entry.clipEnabled !== false;
+  const size = frameSize(getSymbolGrid());
+  const svgStr = buildSymbolSVG();
+  state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip;
+  return { size, inner: svgStr.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '') };
+}
+
+function buildFvsGridSVG() {
+  const grid = getFvsGrid();
+  const entry = fvsGridSelectedEntry();
+  if (!grid || !entry) return '';
+  const size = frameSize(grid);
+  const centers = resolveGridCells(grid);
+  const { size: natSize, inner } = renderedSymbolEntrySVG(entry);
+  const altFlip = ctrl('chk-fvsgrid-alt-flip').checked;
+  let body = '';
+  centers.forEach((c, i) => {
+    const cw = c.cellW || c.cellSize, ch = c.cellH || c.cellSize;
+    const target = Math.min(cw, ch);
+    const s = target / natSize;
+    const tx = c.cx - target / 2, ty = c.cy - target / 2;
+    const flipPart = (altFlip && i % 2 === 1) ? ` translate(${natSize},0) scale(-1,1)` : '';
+    body += `<g transform="translate(${tx.toFixed(3)},${ty.toFixed(3)}) scale(${s.toFixed(4)})${flipPart}">${inner}</g>`;
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`
+    + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${body}</svg>`;
+}
+
+function renderFvsGrid() {
+  const frame = ctrl('fvsgrid-frame');
+  const entry = fvsGridSelectedEntry();
+  const grid = getFvsGrid();
+  if (!entry || !grid) {
+    ctrl('grid-empty').style.display = '';
+    frame.classList.remove('visible');
+    frame.innerHTML = '';
+    return;
+  }
+  ctrl('grid-empty').style.display = 'none';
+  frame.classList.add('visible');
+  frame.innerHTML = buildFvsGridSVG();
+  ctrl('fvsgrid-cellcount-hint').textContent = resolveGridCells(grid).length + ' cells';
+}
+
+function renderFvsGridPicker() {
+  const all = SYMBOL_LIBRARY.read();
+  const names = Object.keys(all);
+  ctrl('fvsgrid-symbol-empty').style.display = names.length ? 'none' : '';
+  if (!names.includes(state.fvsGridSymbolName)) state.fvsGridSymbolName = names[0] || null;
+  const wrap = ctrl('fvsgrid-symbol-picker');
+  wrap.innerHTML = '';
+  for (const name of names) {
+    const entry = all[name];
+    const { size, inner } = renderedSymbolEntrySVG(entry);
+    const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${inner}</svg>`;
+    const btn = document.createElement('button');
+    btn.className = 'fvs-library-item';
+    if (name === state.fvsGridSymbolName) btn.classList.add('selected');
+    btn.setAttribute('aria-label', 'Pick symbol ' + name);
+    btn.title = name;
+    btn.innerHTML = svgStr;
+    btn.addEventListener('click', () => { state.fvsGridSymbolName = name; renderFvsGridPicker(); renderFvsGrid(); updateStepHint('grid'); });
+    wrap.appendChild(btn);
+  }
+}
+
+function syncFvsGridTypeUI() {
+  const isLoom = ctrl('sel-fvsgrid-type').value === 'loom';
+  ctrl('fvsgrid-square-block').style.display = isLoom ? 'none' : '';
+  ctrl('fvsgrid-loom-block').style.display = isLoom ? '' : 'none';
+}
+
+function handleFvsGridLoomUpload(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      state.fvsGrid = Organica.loadLoomGrid(reader.result);
+      ctrl('fvsgrid-loom-error').style.display = 'none';
+      renderFvsGrid();
+    } catch (e) {
+      ctrl('fvsgrid-loom-error').textContent = e.message;
+      ctrl('fvsgrid-loom-error').style.display = '';
+    }
+  };
+  reader.onerror = () => {
+    ctrl('fvsgrid-loom-error').textContent = 'Could not read that file.';
+    ctrl('fvsgrid-loom-error').style.display = '';
+  };
+  reader.readAsText(file);
+}
+
+function exportFvsGrid(format) {
+  const svgStr = buildFvsGridSVG();
+  if (!svgStr) return;
+  if (format === 'svg') {
+    Organica.download(new Blob([svgStr], { type: 'image/svg+xml' }), Organica.stamp('fvs-grid', 'svg'));
+    return;
+  }
+  const scale = parseInt(ctrl('sel-export-scale').value, 10);
+  const grid = getFvsGrid();
+  const size = frameSize(grid) * scale;
+  const scaledSVG = buildFvsGridSVG().replace(/width="[\d.]+" height="[\d.]+"/, `width="${size}" height="${size}"`);
+  const url = URL.createObjectURL(new Blob([scaledSVG], { type: 'image/svg+xml' }));
+  const img = new Image();
+  img.onload = () => {
+    const off = document.createElement('canvas');
+    off.width = size; off.height = size;
+    off.getContext('2d').drawImage(img, 0, 0, size, size);
+    URL.revokeObjectURL(url);
+    off.toBlob(blob => Organica.download(blob, Organica.stamp('fvs-grid', 'png')));
+  };
+  img.src = url;
 }
 
 function defaultSymbolCells(grid) {
@@ -3494,17 +3759,38 @@ function exportSymbol(format) {
 }
 
 // ── Components ↔ Symbols tab switch ──
+const STEP_EXPORT_HINTS = {
+  element: 'Exports the current Element on its own, at 0°.',
+  component: 'Exports the selected component only — click one in the gallery first. Paper background (Palette section), real vector geometry (one path per cell).',
+  symbol: 'Exports the current Symbol. Paper background (Palette section), real nested vector geometry.',
+  grid: 'Exports the current Grid tiling. Paper background (Palette section), real vector geometry — one Symbol repeated per cell.',
+};
+
+function updateStepHint(tier) {
+  let msg = '';
+  if (tier === 'symbol' && Object.keys(LIBRARY.read()).length === 0) {
+    msg = 'No saved Components yet — a Symbol cell can still use a raw Element directly.';
+  } else if (tier === 'grid' && Object.keys(SYMBOL_LIBRARY.read()).length === 0) {
+    msg = 'No saved Symbols yet — save one in the Symbol step first, then pick it here.';
+  }
+  ctrl('stepnav-hint').textContent = msg;
+}
+
 function setTier(tier) {
   pausePlayback();   // Motion animates one tier at a time — switching pauses, Play resumes on the newly active one.
   state.activeTier = tier;
   ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(t => t.setAttribute('aria-pressed', String(t.dataset.tier === tier)));
   document.querySelectorAll('.tier-block').forEach(b => b.classList.toggle('active', b.dataset.tier === tier));
   document.querySelectorAll('#canvas-wrap .tier-view').forEach(v => v.classList.toggle('active', v.dataset.tier === tier));
-  ctrl('export-hint').textContent = tier === 'symbols'
-    ? 'Exports the current Symbol. Paper background (Palette section), real nested vector geometry.'
-    : 'Exports the selected component only — click one in the gallery first. Paper background (Palette section), real vector geometry (one path per cell).';
-  if (tier === 'symbols') { populateSymbolLoomPresets(); renderSymbol(); renderSymbolLibrary(); }
+  ctrl('export-hint').textContent = STEP_EXPORT_HINTS[tier] || STEP_EXPORT_HINTS.component;
+  // Motion only ever animates Component/Symbol (playbackReady() agrees) —
+  // hide it for Element/Grid rather than show controls that can't do anything.
+  ctrl('motion-block').style.display = (tier === 'component' || tier === 'symbol') ? '' : 'none';
+  if (tier === 'symbol') { populateSymbolLoomPresets(); renderSymbol(); renderSymbolLibrary(); }
+  else if (tier === 'grid') { renderFvsGridPicker(); syncFvsGridTypeUI(); renderFvsGrid(); }
+  else if (tier === 'element') { renderSeedPreview(); }
   else { renderGallery(); }
+  updateStepHint(tier);
   syncPlayEnabled();
 }
 
@@ -3583,15 +3869,27 @@ ctrl('sel-grid-type').addEventListener('change', () => {
   syncRuleAvailability();
   renderGallery();
 });
+
+ctrl('sel-fvsgrid-type').addEventListener('change', () => { syncFvsGridTypeUI(); renderFvsGrid(); });
+ctrl('rg-fvsgrid-cellsize').addEventListener('input', e => { ctrl('v-fvsgrid-cellsize').textContent = e.target.value; renderFvsGrid(); });
+ctrl('rg-fvsgrid-gap').addEventListener('input', e => { ctrl('v-fvsgrid-gap').textContent = e.target.value; renderFvsGrid(); });
+ctrl('chk-fvsgrid-alt-flip').addEventListener('change', renderFvsGrid);
 // Shared hidden file input between Components' own Grid section and
 // Symbols' Grid section — a flag set right before .click() tells the
 // one 'change' handler which state field to populate.
-let loomUploadTarget = 'components';
-ctrl('btn-upload-loom').addEventListener('click', () => { loomUploadTarget = 'components'; ctrl('file-loom-grid').click(); });
-ctrl('btn-symbol-grid-upload').addEventListener('click', () => { loomUploadTarget = 'symbols'; ctrl('file-loom-grid').click(); });
+let loomUploadTarget = 'component';
+ctrl('btn-upload-loom').addEventListener('click', () => { loomUploadTarget = 'component'; ctrl('file-loom-grid').click(); });
+ctrl('btn-symbol-grid-upload').addEventListener('click', () => { loomUploadTarget = 'symbol'; ctrl('file-loom-grid').click(); });
 ctrl('file-loom-grid').addEventListener('change', e => {
   const file = e.target.files[0];
-  if (file) { loomUploadTarget === 'symbols' ? handleSymbolGridUpload(file) : handleLoomGridUpload(file); }
+  if (file) { loomUploadTarget === 'symbol' ? handleSymbolGridUpload(file) : handleLoomGridUpload(file); }
+  e.target.value = '';
+});
+
+ctrl('btn-fvsgrid-upload-loom').addEventListener('click', () => ctrl('file-fvsgrid-loom').click());
+ctrl('file-fvsgrid-loom').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) handleFvsGridLoomUpload(file);
   e.target.value = '';
 });
 ctrl('btn-symbol-grid-bento').addEventListener('click', () => loadSymbolGrid(SYMBOL_GRID_PRESETS.bento));
@@ -3716,8 +4014,14 @@ ctrl('btn-clear-gallery').addEventListener('click', clearGallery);
 ctrl('btn-seed-random').addEventListener('click', () => { ctrl('num-seed').value = Math.floor(Math.random() * 1e6); });
 
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
-ctrl('btn-export-png').addEventListener('click', () => state.activeTier === 'symbols' ? exportSymbol('png') : exportSelected('png'));
-ctrl('btn-export-svg').addEventListener('click', () => state.activeTier === 'symbols' ? exportSymbol('svg') : exportSelected('svg'));
+function exportByTier(format) {
+  if (state.activeTier === 'symbol') return exportSymbol(format);
+  if (state.activeTier === 'grid') return exportFvsGrid(format);
+  if (state.activeTier === 'element') return exportElement(format);
+  return exportSelected(format);
+}
+ctrl('btn-export-png').addEventListener('click', () => exportByTier('png'));
+ctrl('btn-export-svg').addEventListener('click', () => exportByTier('svg'));
 
 ctrl('sel-component-role').addEventListener('change', e => {
   state.componentRole = e.target.value;
@@ -3922,12 +4226,16 @@ function renderSymbolFrame(tNorm) {
 
 function renderFrameAt(tNorm) {
   curT = tNorm;
-  if (state.activeTier === 'components') renderComponentFrame(tNorm);
-  else renderSymbolFrame(tNorm);
+  if (state.activeTier === 'component') renderComponentFrame(tNorm);
+  else if (state.activeTier === 'symbol') renderSymbolFrame(tNorm);
 }
 
 function playbackReady() {
-  return state.activeTier === 'components' ? !!getSelectedComponent() : !!getSymbolGrid();
+  // Motion (the floatbar's Play/Stop) only exists for Component/Symbol —
+  // Element has no cell grid to animate, Grid is a static tiled export.
+  if (state.activeTier === 'component') return !!getSelectedComponent();
+  if (state.activeTier === 'symbol') return !!getSymbolGrid();
+  return false;
 }
 function syncPlayEnabled() {
   const ready = playbackReady();
@@ -3987,11 +4295,13 @@ syncSeedUI();
 syncComponentRoleUI();
 syncRuleAvailability();
 syncRuleUI();
+syncFvsGridTypeUI();
 renderSymbol();
 renderSymbolLibrary();
 renderGallery();
 renderSeedPreview();
 renderLibrary();
+setTier(state.activeTier);   // 'element' by default — syncs the stepnav, export hint, and the Element canvas
 Organica.autoLabelPanel(document);
 // Cloud sync (shared/store.js): hydrate component + symbol libraries from Supabase.
 LIBRARY.pull().then(() => renderLibrary());        LIBRARY.onSync(() => renderLibrary());
