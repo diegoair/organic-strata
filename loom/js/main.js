@@ -1254,54 +1254,16 @@ const GENERATOR_ICONS = {
 const GENERATOR_ICON_FALLBACK = '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3" y="3" width="20" height="20"/></svg>';
 
 function buildGeneratorPicker() {
-  const host = ctrl('gridtype-picker');
-  const sel = ctrl('sel-gridtype');
-  const id = 'gridtype';
-  host.innerHTML = `<button class="preset-trigger" id="${id}-trigger" aria-label="Grid type">
-      <span class="pt-ico" id="${id}-ico"></span><span class="pt-name" id="${id}-name"></span><span class="pt-chev">▾</span>
-    </button><div class="preset-menu" id="${id}-menu" hidden></div>`;
-  const trigger = ctrl(id + '-trigger'), menu = ctrl(id + '-menu');
-  const icoEl = ctrl(id + '-ico'), nameEl = ctrl(id + '-name');
-
-  const icon = type => GENERATOR_ICONS[type] || GENERATOR_ICON_FALLBACK;
-  const label = type => GENERATORS[type] ? GENERATORS[type].label : type;
-
-  function updateTrigger() {
-    const type = sel.value;
-    icoEl.innerHTML = icon(type);
-    nameEl.textContent = label(type);
-  }
-  function populateMenu() {
-    menu.innerHTML = '';
-    Object.keys(GENERATORS).forEach(type => {
-      const row = document.createElement('button');
-      row.className = 'preset-item' + (type === sel.value ? ' on' : '');
-      row.innerHTML = `<span class="pi-ico">${icon(type)}</span><span class="pi-name">${label(type)}</span>`;
-      row.addEventListener('click', () => {
-        sel.value = type;
-        sel.dispatchEvent(new Event('change', { bubbles: true }));
-        updateTrigger();
-        menu.hidden = true;
-      });
-      menu.appendChild(row);
-    });
-  }
-  function positionMenu() {
-    const t = trigger.getBoundingClientRect(), gap = 5, margin = 12;
-    const below = window.innerHeight - t.bottom - margin, above = t.top - margin;
-    menu.style.left = t.left + 'px'; menu.style.width = t.width + 'px';
-    if (below >= 200 || below >= above) { menu.style.top = (t.bottom + gap) + 'px'; menu.style.bottom = 'auto'; menu.style.maxHeight = Math.max(160, below) + 'px'; }
-    else { menu.style.bottom = (window.innerHeight - t.top + gap) + 'px'; menu.style.top = 'auto'; menu.style.maxHeight = Math.max(160, above) + 'px'; }
-  }
-  trigger.addEventListener('click', e => {
-    e.stopPropagation();
-    if (menu.hidden) { populateMenu(); positionMenu(); menu.hidden = false; } else menu.hidden = true;
+  const registry = {};
+  Object.keys(GENERATORS).forEach(type => {
+    registry[type] = { name: GENERATORS[type].label, icon: GENERATOR_ICONS[type] || GENERATOR_ICON_FALLBACK };
   });
-  document.addEventListener('click', e => {
-    if (!menu.hidden && !host.contains(e.target) && !menu.contains(e.target)) menu.hidden = true;
+  // The thumbnail dropdown itself is the shared design-system component
+  // (shared/select-picker.js) — it keeps the hidden #sel-gridtype as the
+  // source of truth, which is why the rest of this file never changed.
+  return Organica.selectPicker(ctrl('sel-gridtype'), ctrl('gridtype-picker'), {
+    registry, ariaLabel: 'Grid type', fallbackIcon: GENERATOR_ICON_FALLBACK,
   });
-  updateTrigger();
-  return { refresh: updateTrigger };
 }
 
 // ── INIT ──

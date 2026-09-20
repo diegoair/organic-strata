@@ -119,7 +119,13 @@
      its own canvas (not the scrollable-gallery/live-grid surfaces the
      other 3 tiers use). */
   .fvs-element-frame { width: min(70vh, 70vw); height: min(70vh, 70vw); display: flex; align-items: center; justify-content: center; }
-  .fvs-element-frame svg { width: 100%; height: 100%; display: block; }
+  .fvs-element-frame { position: relative; }
+  #element-svg { width: 100%; height: 100%; }
+  #element-svg svg { width: 100%; height: 100%; display: block; }
+  #fh-grid { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--border); pointer-events: none; display: none; }
+  #fvs-draw-canvas { position: absolute; top: 0; left: 0; display: none; }
+  .fvs-element-frame.drawing #fh-grid { display: block; }
+  .fvs-element-frame.drawing #fvs-draw-canvas { display: block; }
 
   /* Grid tier — tiles one saved Symbol across a bigger grid. Reuses the
      gallery-empty pattern from the Component tier. */
@@ -195,7 +201,11 @@
 <div id="app">
   <div id="canvas-wrap">
     <div class="tier-view active" data-tier="element">
-      <div id="element-frame" class="fvs-element-frame"></div>
+      <div id="element-frame" class="fvs-element-frame">
+        <div id="element-svg"></div>
+        <svg id="fh-grid" viewBox="0 0 100 100" aria-hidden="true"><path d="M25 0V100M50 0V100M75 0V100M0 25H100M0 50H100M0 75H100" fill="none" stroke="currentColor" stroke-width="0.3"/></svg>
+        <canvas id="fvs-draw-canvas" aria-label="Freehand drawing"></canvas>
+      </div>
     </div>
     <div class="tier-view" data-tier="component">
       <div id="gallery-empty">
@@ -225,7 +235,10 @@
     <div class="panel-section">
       <h3>Seed</h3>
       <div class="ctrl-row">
+        <div id="seedtype-picker" style="width:100%"></div>
         <select class="panel-select" id="sel-seed-type" aria-label="Seed type">
+          <option value="freehand">Freehand</option>
+          <option value="circle">Circle</option>
           <option value="triangle">Triangle</option>
           <option value="arc">Arc</option>
           <option value="arctruchet">Arc truchet</option>
@@ -236,17 +249,20 @@
           <option value="chevron">Chevron</option>
           <option value="cross">Cross</option>
           <option value="lens">Lens</option>
+          <option value="segment">Segment</option>
+          <option value="drop">Drop</option>
+          <option value="blob">Blob</option>
         </select>
       </div>
       <div id="seed-triangle-block">
         <div class="ctrl-row">
           <div class="ctrl-label">Base</div>
-          <input type="range" id="rg-base" min="20" max="100" step="1" value="100">
+          <input type="range" id="rg-base" min="10" max="100" step="1" value="100">
           <span class="ctrl-val" id="v-base">100</span>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label">Height</div>
-          <input type="range" id="rg-height" min="20" max="100" step="1" value="100">
+          <input type="range" id="rg-height" min="10" max="100" step="1" value="100">
           <span class="ctrl-val" id="v-height">100</span>
         </div>
         <div class="ctrl-row">
@@ -260,6 +276,18 @@
           <div class="ctrl-label">Thickness</div>
           <input type="range" id="rg-thickness" min="1" max="100" step="1" value="100">
           <span class="ctrl-val" id="v-thickness">100</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Corner = a quarter-style wedge pivoting on the cell's top-left corner (the classic Arc). Centre = pivots on the middle, starting straight up.">Pivot</div>
+          <select class="panel-select" id="sel-arc-pivot" aria-label="Arc pivot">
+            <option value="corner" selected>Corner</option>
+            <option value="center">Centre</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="90° is the original quarter arc. Any other sweep (or a Centre pivot) is fitted to the cell.">Sweep</div>
+          <input type="range" id="rg-arc-sweep" min="10" max="350" step="1" value="90">
+          <span class="ctrl-val" id="v-arc-sweep">90</span>
         </div>
       </div>
       <div id="seed-arctruchet-block" style="display:none">
@@ -294,7 +322,7 @@
       <div id="seed-polygon-block" style="display:none">
         <div class="ctrl-row">
           <div class="ctrl-label">Sides</div>
-          <input type="range" id="rg-poly-sides" min="3" max="12" step="1" value="6">
+          <input type="range" id="rg-poly-sides" min="3" max="20" step="1" value="6">
           <span class="ctrl-val" id="v-poly-sides">6</span>
         </div>
         <div class="ctrl-row">
@@ -312,11 +340,16 @@
           <input type="range" id="rg-poly-seed" min="1" max="999" step="1" value="1">
           <span class="ctrl-val" id="v-poly-seed">1</span>
         </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Size of the polygon inside its cell — 100 touches the edges.">Radius</div>
+          <input type="range" id="rg-poly-radius" min="10" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-poly-radius">100</span>
+        </div>
       </div>
       <div id="seed-star-block" style="display:none">
         <div class="ctrl-row">
           <div class="ctrl-label">Points</div>
-          <input type="range" id="rg-star-points" min="3" max="12" step="1" value="5">
+          <input type="range" id="rg-star-points" min="3" max="20" step="1" value="5">
           <span class="ctrl-val" id="v-star-points">5</span>
         </div>
         <div class="ctrl-row">
@@ -333,6 +366,11 @@
           <div class="ctrl-label" title="Same seed always reproduces the same irregular silhouette.">Seed</div>
           <input type="range" id="rg-star-seed" min="1" max="999" step="1" value="1">
           <span class="ctrl-val" id="v-star-seed">1</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Size of the star inside its cell — 100 touches the edges.">Radius</div>
+          <input type="range" id="rg-star-radius" min="10" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-star-radius">100</span>
         </div>
       </div>
       <div id="seed-roundedrect-block" style="display:none">
@@ -393,6 +431,157 @@
           <span class="ctrl-val" id="v-lens-width">50</span>
         </div>
       </div>
+      <div id="seed-circle-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="100 touches the cell's edges. Use Width/Length in Appearance for an ellipse.">Radius</div>
+          <input type="range" id="rg-circle-radius" min="5" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-circle-radius">100</span>
+        </div>
+        <div class="ctrl-row" id="row-circle-round">
+          <div class="ctrl-label" title="0 = a true circle, 100 = a near-square squircle.">Roundness</div>
+          <input type="range" id="rg-circle-round" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-circle-round">0</span>
+        </div>
+        <div class="ctrl-row" id="row-circle-lobes">
+          <div class="ctrl-label" title="0 = smooth. 2+ gives the outline that many soft waves (flower / soft gear).">Lobes</div>
+          <input type="range" id="rg-circle-lobes" min="0" max="24" step="1" value="0">
+          <span class="ctrl-val" id="v-circle-lobes">0</span>
+        </div>
+        <div class="ctrl-row" id="row-circle-lobedepth">
+          <div class="ctrl-label">Lobe depth</div>
+          <input type="range" id="rg-circle-lobedepth" min="1" max="50" step="1" value="20">
+          <span class="ctrl-val" id="v-circle-lobedepth">20</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="One interior at a time. Solid keeps the disc full.">Interior</div>
+          <select class="panel-select" id="sel-circle-interior" aria-label="Circle interior">
+            <option value="solid" selected>Solid</option>
+            <option value="ring">Ring</option>
+            <option value="rings">Concentric rings</option>
+            <option value="holes">Perforated</option>
+          </select>
+        </div>
+        <div class="ctrl-row" id="row-circle-inner">
+          <div class="ctrl-label">Inner radius</div>
+          <input type="range" id="rg-circle-inner" min="5" max="95" step="1" value="50">
+          <span class="ctrl-val" id="v-circle-inner">50</span>
+        </div>
+        <div class="ctrl-row" id="row-circle-ringcount">
+          <div class="ctrl-label">Rings</div>
+          <input type="range" id="rg-circle-ringcount" min="2" max="8" step="1" value="3">
+          <span class="ctrl-val" id="v-circle-ringcount">3</span>
+        </div>
+        <div class="ctrl-row" id="row-circle-ringratio">
+          <div class="ctrl-label" title="Band thickness relative to the gap between rings.">Ring / gap</div>
+          <input type="range" id="rg-circle-ringratio" min="10" max="95" step="1" value="55">
+          <span class="ctrl-val" id="v-circle-ringratio">55</span>
+        </div>
+        <div class="ctrl-row" id="row-circle-holes">
+          <div class="ctrl-label">Holes</div>
+          <input type="range" id="rg-circle-holes" min="2" max="24" step="1" value="6">
+          <span class="ctrl-val" id="v-circle-holes">6</span>
+        </div>
+        <div class="ctrl-row" id="row-circle-holesize">
+          <div class="ctrl-label">Hole size</div>
+          <input type="range" id="rg-circle-holesize" min="3" max="40" step="1" value="14">
+          <span class="ctrl-val" id="v-circle-holesize">14</span>
+        </div>
+        <div class="ctrl-row" id="row-circle-holering">
+          <div class="ctrl-label" title="How far from the centre the holes sit.">Hole ring</div>
+          <input type="range" id="rg-circle-holering" min="0" max="90" step="1" value="60">
+          <span class="ctrl-val" id="v-circle-holering">60</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="One trim at a time. None keeps the outline whole.">Trim</div>
+          <select class="panel-select" id="sel-circle-trim" aria-label="Circle trim">
+            <option value="none" selected>None</option>
+            <option value="cut">Cut (flat side)</option>
+            <option value="bite">Crescent bite</option>
+            <option value="slices">Slices</option>
+          </select>
+        </div>
+        <div class="ctrl-row" id="row-circle-cutpos">
+          <div class="ctrl-label">Cut position</div>
+          <input type="range" id="rg-circle-cutpos" min="-90" max="90" step="1" value="0">
+          <span class="ctrl-val" id="v-circle-cutpos">0</span>
+        </div>
+        <div class="ctrl-row" id="row-circle-cutangle">
+          <div class="ctrl-label">Cut angle</div>
+          <input type="range" id="rg-circle-cutangle" min="0" max="359" step="1" value="0">
+          <span class="ctrl-val" id="v-circle-cutangle">0</span>
+        </div>
+        <div class="ctrl-row" id="row-circle-biteradius">
+          <div class="ctrl-label">Bite radius</div>
+          <input type="range" id="rg-circle-biteradius" min="10" max="100" step="1" value="70">
+          <span class="ctrl-val" id="v-circle-biteradius">70</span>
+        </div>
+        <div class="ctrl-row" id="row-circle-biteoffset">
+          <div class="ctrl-label">Bite offset</div>
+          <input type="range" id="rg-circle-biteoffset" min="0" max="100" step="1" value="60">
+          <span class="ctrl-val" id="v-circle-biteoffset">60</span>
+        </div>
+        <div class="ctrl-row" id="row-circle-biteangle">
+          <div class="ctrl-label">Bite angle</div>
+          <input type="range" id="rg-circle-biteangle" min="0" max="359" step="1" value="45">
+          <span class="ctrl-val" id="v-circle-biteangle">45</span>
+        </div>
+        <div class="ctrl-row" id="row-circle-slices">
+          <div class="ctrl-label">Slices</div>
+          <input type="range" id="rg-circle-slices" min="2" max="16" step="1" value="6">
+          <span class="ctrl-val" id="v-circle-slices">6</span>
+        </div>
+        <div class="ctrl-row" id="row-circle-slicegap">
+          <div class="ctrl-label">Slice gap</div>
+          <input type="range" id="rg-circle-slicegap" min="1" max="30" step="1" value="6">
+          <span class="ctrl-val" id="v-circle-slicegap">6</span>
+        </div>
+        <button class="mini-btn" id="btn-circle-reset" style="width:100%;margin-top:var(--space-2)">Reset to plain circle</button>
+      </div>
+      <div id="seed-segment-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="A line has no area, so it only shows with Style set to Stroke (picked automatically).">Length</div>
+          <input type="range" id="rg-seg-len" min="5" max="100" step="1" value="70">
+          <span class="ctrl-val" id="v-seg-len">70</span>
+        </div>
+      </div>
+      <div id="seed-drop-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Radius</div>
+          <input type="range" id="rg-drop-radius" min="5" max="100" step="1" value="60">
+          <span class="ctrl-val" id="v-drop-radius">60</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Tail length</div>
+          <input type="range" id="rg-drop-tail" min="0" max="100" step="1" value="50">
+          <span class="ctrl-val" id="v-drop-tail">50</span>
+        </div>
+      </div>
+      <div id="seed-blob-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Radius</div>
+          <input type="range" id="rg-blob-radius" min="5" max="100" step="1" value="60">
+          <span class="ctrl-val" id="v-blob-radius">60</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How far the outline wobbles from a perfect circle.">Amount</div>
+          <input type="range" id="rg-blob-amount" min="0" max="100" step="1" value="40">
+          <span class="ctrl-val" id="v-blob-amount">40</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Same seed always reproduces the same silhouette.">Seed</div>
+          <input type="range" id="rg-blob-seed" min="1" max="999" step="1" value="1">
+          <span class="ctrl-val" id="v-blob-seed">1</span>
+        </div>
+      </div>
+      <div id="seed-freehand-block" style="display:none">
+        <label class="check-row"><input type="checkbox" id="ck-fh-close" checked><span>Close path</span></label>
+        <label class="check-row"><input type="checkbox" id="ck-fh-smooth" checked><span>Smooth (curve)</span></label>
+        <div class="row-btns">
+          <button class="mini-btn" id="btn-fh-undo">Undo</button>
+          <button class="mini-btn" id="btn-fh-clear">Clear</button>
+        </div>
+        <p class="org-panel__hint">Click on the artboard to add points; drag a point or handle to reshape it. The stage shows the drawing as you make it; every later step (Component, Symbol, Grid) uses it fitted to the cell.</p>
+      </div>
       <div class="row-btns">
         <button class="mini-btn" id="btn-upload-seed">Upload SVG…</button>
         <button class="mini-btn" id="btn-browse-creator">Creator library…</button>
@@ -405,6 +594,36 @@
       <div class="sub-label" style="margin-top:var(--space-3)">Preview — rotation &amp; flip</div>
       <div id="seed-preview" class="fvs-seed-preview" aria-label="Seed transform preview"></div>
       <p class="org-panel__hint">Base/Height (triangle) and Thickness (arc) default to 100 — the Seed fills its cell exactly, corner to corner, edge to edge. Triangle's Apex X slides the apex off-centre (0 = isosceles) — Base + Height + Apex X together reach any triangle shape, scalene included. Arc truchet is concentric semicircle bands from the top &amp; bottom edges (the bookofshapes "Arc Truchet" tile) — pair it with a Symbol grid + the Oscillator rule. Upload an SVG or pick a Seed saved in Creator (first drawable shape, fitted to the cell). The strip above shows this exact Seed at 0/90/180/270° and each flip, on its own — check it looks right before generating a full grid of it. Colour lives in Palette below.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Appearance</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Style</div>
+        <select class="panel-select" id="sel-element-fillmode" aria-label="Element style">
+          <option value="fill" selected>Fill</option>
+          <option value="stroke">Stroke</option>
+        </select>
+      </div>
+      <div id="element-stroke-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Stroke W</div>
+          <input type="range" id="rg-element-strokew" min="1" max="20" step="1" value="4">
+          <span class="ctrl-val" id="v-element-strokew">4</span>
+        </div>
+        <label class="check-row"><input type="checkbox" id="ck-element-rounded" checked><span>Rounded caps</span></label>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Stretches the shape itself horizontally, before it is placed in any cell — the per-cell Scale in Component/Symbol stays uniform.">Width</div>
+        <input type="range" id="rg-element-w" min="0.25" max="2" step="0.05" value="1">
+        <span class="ctrl-val" id="v-element-w">1</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Stretches the shape itself vertically, before it is placed in any cell.">Length</div>
+        <input type="range" id="rg-element-l" min="0.25" max="2" step="0.05" value="1">
+        <span class="ctrl-val" id="v-element-l">1</span>
+      </div>
+      <p class="org-panel__hint">Style and Width/Length belong to the Element itself, so every cell of every Component/Symbol/Grid built from it shares them — the stroke reuses the same Palette colours the fill would have. Rotation, flip and uniform scale stay per cell, where Component and Symbol already set them.</p>
     </div>
     </div>
 
@@ -950,6 +1169,11 @@
 <script src="/shared/print-size.js"></script>
 <script src="/shared/print-size-panel.js"></script>
 <script src="/shared/shapes.js"></script>
+<script src="/shared/shape-appearance.js"></script>
+<script src="/shared/select-picker.js"></script>
+<script src="/shared/vendor/paper-full.min.js"></script>
+<script src="/shared/paper.js"></script>
+<script src="/shared/circle-advanced.js"></script>
 <script>
 /* ─────────────────────────────────────────────────────────────
    FVS — Flexible Visual System. First pass: Seeds → Components only
@@ -1062,19 +1286,28 @@ function buildPalette() {
 const { triangleGeometry, arcGeometry, arcPathD, arcTruchetGeometry, arcTruchetPathD,
   wedgeGeometry, polygonGeometry, starGeometry,
   roundedRectGeometry, chevronGeometry, crossGeometry, lensGeometry,
+  circleGeometry, segmentGeometry, dropGeometry, blobGeometry,
   resolveGridCells, resolveCellPlacement, frameSize, median } = Organica.shapes;
 
 const SEED_TYPES = {
   triangle: { label: 'Triangle', geometry: (p) => triangleGeometry(p.base, p.height, p.triApex) },
-  arc: { label: 'Arc', geometry: (p) => arcGeometry(p.thickness) },
+  arc: { label: 'Arc', geometry: (p) => arcGeometry(p.thickness, p.arcPivot, p.arcSweep) },
   arctruchet: { label: 'Arc truchet', geometry: (p) => arcTruchetGeometry(p.arcCount, p.arcRatio) },
   wedge: { label: 'Wedge', geometry: (p) => wedgeGeometry(p.wedgeAngle, p.wedgeInner, p.wedgeSquash) },
-  polygon: { label: 'Polygon', geometry: (p) => polygonGeometry(p.polySides, p.polyCorner, p.polyIrregular, p.polySeed) },
-  star: { label: 'Star', geometry: (p) => starGeometry(p.starPoints, p.starInner, p.starIrregular, p.starSeed) },
+  polygon: { label: 'Polygon', geometry: (p) => polygonGeometry(p.polySides, p.polyCorner, p.polyIrregular, p.polySeed, p.polyRadius) },
+  star: { label: 'Star', geometry: (p) => starGeometry(p.starPoints, p.starInner, p.starIrregular, p.starSeed, p.starRadius) },
   roundedrect: { label: 'Rounded rect', geometry: (p) => roundedRectGeometry(p.rrWidth, p.rrHeight, p.rrCorner) },
   chevron: { label: 'Chevron', geometry: (p) => chevronGeometry(p.chevNotch, p.chevArm, p.chevSquash) },
   cross: { label: 'Cross', geometry: (p) => crossGeometry(p.crossArmWidth, p.crossArmLength, p.crossCorner) },
   lens: { label: 'Lens', geometry: (p) => lensGeometry(p.lensWidth) },
+  circle: { label: 'Circle', geometry: (p) => circleGeometry(p.circleRadius, circleOptsFrom(p)) },
+  segment: { label: 'Segment', geometry: (p) => segmentGeometry(p.segLen) },
+  drop: { label: 'Drop', geometry: (p) => dropGeometry(p.dropRadius, p.dropTail) },
+  blob: { label: 'Blob', geometry: (p) => blobGeometry(p.blobRadius, p.blobAmount, p.blobSeed) },
+  // Freehand: every step after Element sees the drawing fitted to the cell;
+  // only the Element stage shows it raw ('freehandraw', not in the picker).
+  freehand: { label: 'Freehand', geometry: (p) => (p && p.customSeed) || (state.freehand && state.freehand.seed) || { d: '', normTx: 0, normTy: 0, normScale: 1 } },
+  freehandraw: { label: 'Freehand (raw)', geometry: () => ({ d: (state.freehand && state.freehand.raw) || '', normTx: 0, normTy: 0, normScale: 1 }) },
   custom: {
     label: 'Custom (uploaded)',
     geometry: () => state.customSeed || { d: '', normTx: 0, normTy: 0, normScale: 1 },
@@ -1092,6 +1325,119 @@ const SYMBOL_LENS = { lensWidth: 50 };
 // ignore Base/Height/Thickness) — one merged params object covers every
 // SEED_TYPES geometry fn, each reading only the fields it needs.
 const SYMBOL_SEED_DEFAULTS = { base: 100, height: 100, thickness: 100, ...SYMBOL_ARC_TRUCHET, ...SYMBOL_WEDGE, ...SYMBOL_POLYGON, ...SYMBOL_STAR, ...SYMBOL_ROUNDEDRECT, ...SYMBOL_CHEVRON, ...SYMBOL_CROSS, ...SYMBOL_LENS };
+
+// ── Seed type picker (thumbnail dropdown — shared/select-picker.js) ──
+// 26×26 pictograms, currentColor, like Genesis Create's Kind picker.
+const SI = (inner, mode) => `<svg viewBox="0 0 26 26" ${mode === 'stroke' ? 'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"' : 'fill="currentColor"'}>${inner}</svg>`;
+const SEED_ICONS = {
+  freehand: { name: 'Freehand', icon: SI('<path d="M4 20 C7 8 11 8 13 14 C15 20 19 20 22 6"/>', 'stroke') },
+  circle: { name: 'Circle', icon: SI('<circle cx="13" cy="13" r="9"/>') },
+  triangle: { name: 'Triangle', icon: SI('<polygon points="13,4 23,22 3,22"/>') },
+  arc: { name: 'Arc', icon: SI('<path d="M4,4 L22,4 A18,18 0 0,1 4,22 Z"/>') },
+  arctruchet: { name: 'Arc truchet', icon: SI('<path d="M4 13 A9 9 0 0 1 22 13 M8 13 A5 5 0 0 1 18 13 M4 13 A9 9 0 0 0 22 13 M8 13 A5 5 0 0 0 18 13"/>', 'stroke') },
+  wedge: { name: 'Wedge', icon: SI('<path d="M13 22 L4.5 8 A11 11 0 0 1 21.5 8 Z"/>') },
+  polygon: { name: 'Polygon', icon: SI('<polygon points="13,3 22,9.5 18.5,20.5 7.5,20.5 4,9.5"/>') },
+  star: { name: 'Star', icon: SI('<polygon points="13,3 15.8,10.2 23,10.8 17.5,15.5 19.2,22.5 13,18.7 6.8,22.5 8.5,15.5 3,10.8 10.2,10.2"/>') },
+  roundedrect: { name: 'Rounded rect', icon: SI('<rect x="3" y="6" width="20" height="14" rx="5"/>') },
+  chevron: { name: 'Chevron', icon: SI('<polygon points="13,4 23,22 17,22 13,13 9,22 3,22"/>') },
+  cross: { name: 'Cross', icon: SI('<polygon points="10,3 16,3 16,10 23,10 23,16 16,16 16,23 10,23 10,16 3,16 3,10 10,10"/>') },
+  lens: { name: 'Lens', icon: SI('<path d="M13 3 C21 8 21 18 13 23 C5 18 5 8 13 3 Z"/>') },
+  segment: { name: 'Segment', icon: SI('<line x1="4" y1="13" x2="22" y2="13"/>', 'stroke') },
+  drop: { name: 'Drop', icon: SI('<path d="M13,3 C9,10 5,13 5,17 A8,8 0 0,0 21,17 C21,13 17,10 13,3 Z"/>') },
+  blob: { name: 'Blob', icon: SI('<path d="M13,4 C18,3 22,7 21,12 C23,17 19,22 13,21 C7,23 3,18 5,13 C3,8 8,3 13,4 Z"/>') },
+  custom: { name: 'Custom (uploaded)', icon: SI('<rect x="4" y="4" width="18" height="18" stroke-dasharray="2.5 2.5"/><path d="M13 17 V9 M9.5 12 L13 8.5 L16.5 12"/>', 'stroke') },
+};
+const seedPicker = Organica.selectPicker(ctrl('sel-seed-type'), ctrl('seedtype-picker'), { registry: SEED_ICONS, ariaLabel: 'Seed type' });
+
+// Circle modifiers: [getSeed key, control id suffix, default]. One table
+// drives getSeed(), the snapshot restore and the input listeners.
+const CIRCLE_PARAMS = [
+  ['round', 'round', 0], ['lobes', 'lobes', 0], ['lobeDepth', 'lobedepth', 20], ['inner', 'inner', 50],
+  ['ringCount', 'ringcount', 3], ['ringRatio', 'ringratio', 55], ['holes', 'holes', 6], ['holeSize', 'holesize', 14], ['holeRing', 'holering', 60],
+  ['cutPos', 'cutpos', 0], ['cutAngle', 'cutangle', 0], ['biteRadius', 'biteradius', 70], ['biteOffset', 'biteoffset', 60], ['biteAngle', 'biteangle', 45],
+  ['slices', 'slices', 6], ['sliceGap', 'slicegap', 6],
+];
+const cap = k => 'circle' + k[0].toUpperCase() + k.slice(1);
+// getSeed()-shaped params → circleAdvanced opts (only what's defined, so a
+// Symbol's bare defaults object stays a plain circle).
+function circleOptsFrom(p) {
+  const o = {};
+  CIRCLE_PARAMS.forEach(([k]) => { if (p[cap(k)] != null) o[k] = p[cap(k)]; });
+  if (p.circleInterior) o.interior = p.circleInterior;
+  if (p.circleTrim) o.trim = p.circleTrim;
+  return o;
+}
+// Show only the rows of the active Interior / Trim mode / Lobes (dead-control rule).
+function syncCircleRows() {
+  const interior = ctrl('sel-circle-interior').value, trim = ctrl('sel-circle-trim').value;
+  const show = (suffix, on) => { ctrl('row-circle-' + suffix).style.display = on ? '' : 'none'; };
+  show('lobedepth', val('rg-circle-lobes') >= 2);
+  show('inner', interior === 'ring');
+  show('ringcount', interior === 'rings'); show('ringratio', interior === 'rings');
+  show('holes', interior === 'holes'); show('holesize', interior === 'holes'); show('holering', interior === 'holes');
+  show('cutpos', trim === 'cut'); show('cutangle', trim === 'cut');
+  show('biteradius', trim === 'bite'); show('biteoffset', trim === 'bite'); show('biteangle', trim === 'bite');
+  show('slices', trim === 'slices'); show('slicegap', trim === 'slices');
+}
+
+// The Seed as a snapshot stores it: freehand also carries its editable
+// path data plus the fitted geometry, so it renders with no editor present.
+function seedForSnapshot() {
+  const seed = { ...getSeed(), customSeed: state.customSeed };
+  if (seed.type === 'freehand') {
+    seed.customSeed = state.freehand.seed;
+    seed.freehandData = state.freehand.data;
+    seed.freehandRaw = state.freehand.raw;
+  }
+  return seed;
+}
+
+// ── Freehand Seed — Genesis Create's Paper.js draw editor, hosted on the
+// Element stage. The stage shows the drawing raw (so it doesn't rescale
+// under the cursor); every other step reads it fitted to the cell (the
+// same bbox fit an uploaded SVG gets). One Paper editor per page.
+state.freehand = { data: null, raw: '', seed: null };
+let fhEditor = null, fhSize = 0, fhSyncing = false;
+
+function fhFittedSeed(d) {
+  if (!d) return null;
+  try { return extractSeedFromSVG('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="' + d + '"/></svg>'); }
+  catch (e) { return null; }
+}
+function onFreehandChange() {
+  if (!fhEditor || fhSyncing) return;
+  state.freehand.data = fhEditor.serialize();
+  const d = fhEditor.getPathData();
+  state.freehand.raw = d;
+  state.freehand.seed = fhFittedSeed(d);
+  renderGallery();
+  renderSeedPreview();
+}
+function syncFreehandEditor() {
+  const frame = ctrl('element-frame');
+  const active = state.activeTier === 'element' && ctrl('sel-seed-type').value === 'freehand';
+  frame.classList.toggle('drawing', active);
+  if (!active) return;
+  const size = frame.clientWidth;
+  if (!size || (fhEditor && fhSize === size)) return;
+  // Paper fixes its zoom at setup and has no resize(): rebuild at the new size.
+  const data = fhEditor ? fhEditor.serialize() : state.freehand.data;
+  if (fhEditor) fhEditor.destroy();
+  const canvas = ctrl('fvs-draw-canvas');
+  canvas.width = canvas.height = size;
+  canvas.style.width = canvas.style.height = size + 'px';
+  fhSyncing = true;
+  fhEditor = Organica.createPaperDrawEditor(canvas, {
+    strokeColor: 'transparent',
+    fitBox: { x: 0, y: 0, width: 100, height: 100 },
+    onChange: onFreehandChange,
+  });
+  fhEditor.setClosed(ctrl('ck-fh-close').checked);
+  fhEditor.setSmooth(ctrl('ck-fh-smooth').checked);
+  if (data) fhEditor.load(data);
+  fhSyncing = false;
+  fhSize = size;
+}
 
 function getSeed() {
   return {
@@ -1123,6 +1469,20 @@ function getSeed() {
     crossArmLength: val('rg-cross-armlength'),
     crossCorner: val('rg-cross-corner'),
     lensWidth: val('rg-lens-width'),
+    arcPivot: ctrl('sel-arc-pivot').value,
+    arcSweep: val('rg-arc-sweep'),
+    polyRadius: val('rg-poly-radius'),
+    starRadius: val('rg-star-radius'),
+    circleRadius: val('rg-circle-radius'),
+    segLen: val('rg-seg-len'),
+    dropRadius: val('rg-drop-radius'),
+    dropTail: val('rg-drop-tail'),
+    blobRadius: val('rg-blob-radius'),
+    blobAmount: val('rg-blob-amount'),
+    blobSeed: val('rg-blob-seed'),
+    circleInterior: ctrl('sel-circle-interior').value,
+    circleTrim: ctrl('sel-circle-trim').value,
+    ...Object.fromEntries(CIRCLE_PARAMS.map(([k, id]) => [cap(k), val('rg-circle-' + id)])),
   };
 }
 
@@ -1817,7 +2177,7 @@ function resolveUnderlyingComponent(name) {
   if (!entry) return null;
   const savedColorAt = j => entry.colors[j % entry.colors.length];
   const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
-  return { items, seed: entry.seed, size: frameSize(entry.grid), paperColor: entry.paperColor };
+  return { items, seed: entry.seed, size: frameSize(entry.grid), paperColor: entry.paperColor, appearance: entry.appearance };
 }
 
 // Real, empirically-verified browser bug (found building the equivalent
@@ -1830,12 +2190,70 @@ function resolveUnderlyingComponent(name) {
 // <clipPath> can hold as one of several direct children (their combined
 // areas union automatically, per spec).
 function componentBoundaryClipContent(items, geo, half) {
+  const a = getElementAppearance();
+  const stretch = Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50);
   return items.map(it => {
     const fit = it.cellSize / 100;
     const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
-    const tf = `translate(${(half + it.cx).toFixed(2)},${(half + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50) translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})`;
+    const tf = `translate(${(half + it.cx).toFixed(2)},${(half + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50) ${stretch} translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})`;
     return `<path transform="${tf}" d="${geo.d}"/>`;
   }).join('');
+}
+
+// ── Element appearance (Style + Width/Length stretch) ──
+// Read live from the Element tier's own controls, same way getSeed() reads
+// the shape params — shared/shape-appearance.js owns the actual attribute /
+// transform strings so Genesis Create and this tool can't drift apart.
+const DEFAULT_APPEARANCE = { fillMode: 'fill', strokeW: 4, rounded: true, w: 1, l: 1 };
+// While set, getElementAppearance() returns it instead of the live controls —
+// how a saved Component/Symbol (and the nested Components inside a Symbol)
+// renders with the appearance it was SAVED with, not whatever the Element
+// panel says now. Entries saved before this field existed fall back to plain.
+let appearanceOverride = null;
+function withAppearance(app, fn) {
+  const prev = appearanceOverride;
+  appearanceOverride = { ...DEFAULT_APPEARANCE, ...(app || {}) };
+  try { return fn(); } finally { appearanceOverride = prev; }
+}
+function applyAppearanceToUI(app) {
+  const a = { ...DEFAULT_APPEARANCE, ...(app || {}) };
+  ctrl('sel-element-fillmode').value = a.fillMode;
+  ctrl('rg-element-strokew').value = a.strokeW; ctrl('v-element-strokew').textContent = a.strokeW;
+  ctrl('ck-element-rounded').checked = a.rounded;
+  ctrl('rg-element-w').value = a.w; ctrl('v-element-w').textContent = a.w;
+  ctrl('rg-element-l').value = a.l; ctrl('v-element-l').textContent = a.l;
+  ctrl('element-stroke-block').style.display = a.fillMode === 'stroke' ? '' : 'none';
+}
+function getElementAppearance() {
+  if (appearanceOverride) return appearanceOverride;
+  return {
+    fillMode: ctrl('sel-element-fillmode').value,
+    strokeW: val('rg-element-strokew'),
+    rounded: ctrl('ck-element-rounded').checked,
+    w: val('rg-element-w'),
+    l: val('rg-element-l'),
+  };
+}
+
+// The inner half of every per-cell/preview <g>: stretch layer (identity, and
+// omitted, at w=l=1) → norm-fit layer → the styled path. `forceFill` is for
+// Container/Mask boundaries, whose silhouette must stay solid regardless of
+// an outline-only Style.
+function elementPathMarkup(geo, color, forceFill) {
+  const a = getElementAppearance();
+  const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: forceFill ? 'fill' : a.fillMode, color, strokeW: a.strokeW, rounded: a.rounded });
+  const norm = `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
+    + `<path d="${geo.d}" ${attrs}/></g>`;
+  if (a.w === 1 && a.l === 1) return norm;
+  return `<g transform="${Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50)}">${norm}</g>`;
+}
+
+// Canvas2D twin of elementPathMarkup: apply the stretch layer to the
+// current transform (call after translate(-50,-50), before the norm layer).
+function applyElementStretchCanvas(ctx) {
+  const a = getElementAppearance();
+  if (a.w === 1 && a.l === 1) return;
+  ctx.translate(50, 50); ctx.scale(a.w, a.l); ctx.translate(-50, -50);
 }
 
 // Mask's own content tolerates <g> wrapping fine (confirmed directly,
@@ -1849,8 +2267,7 @@ function componentBoundaryMaskContent(items, geo, half) {
     const fit = it.cellSize / 100;
     const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
     return `<g transform="translate(${(half + it.cx).toFixed(2)},${(half + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
-      + `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
-      + `<path d="${geo.d}" fill="#000"/></g></g>`;
+      + elementPathMarkup(geo, '#000', true) + `</g>`;
   }).join('');
 }
 
@@ -1863,10 +2280,12 @@ function drawItemsPlain(ctx, itemsToDraw, geo, path, boxSize) {
     const fit = it.cellSize / 100;
     ctx.scale((it.flipH ? -1 : 1) * it.scale * fit, (it.flipV ? -1 : 1) * it.scale * fit);
     ctx.translate(-50, -50);
+    applyElementStretchCanvas(ctx);
     ctx.translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale);
     ctx.scale(geo.normScale, geo.normScale);
-    ctx.fillStyle = it.color;
-    ctx.fill(path);
+    const a = getElementAppearance();
+    const op = Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: a.fillMode, color: it.color, strokeW: a.strokeW, rounded: a.rounded });
+    ctx[op](path);
     ctx.restore();
   }
 }
@@ -1889,11 +2308,13 @@ function drawComponentCanvas(ctx, items, seed, size) {
   // is the direct, simple equivalent of the SVG boundary-flatten above.
   const half = size / 2;
   const boundaryPath = new Path2D();
+  const boundaryApp = getElementAppearance();
   for (const it of items) {
     const fit = it.cellSize / 100;
     const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
     const m = new DOMMatrix()
       .translate(half + it.cx, half + it.cy).rotate(it.rotation).scale(sx, sy).translate(-50, -50)
+      .translate(50, 50).scale(boundaryApp.w, boundaryApp.l).translate(-50, -50)
       .translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale).scale(geo.normScale, geo.normScale);
     boundaryPath.addPath(path, m);
   }
@@ -1909,7 +2330,7 @@ function drawComponentCanvas(ctx, items, seed, size) {
     ctx.fillRect(0, 0, size, size);
     ctx.save();
     ctx.scale(fitScale, fitScale);
-    drawItemsPlain(ctx, under.items, underGeo, underPath, under.size);
+    withAppearance(under.appearance, () => drawItemsPlain(ctx, under.items, underGeo, underPath, under.size));
     ctx.restore();
     ctx.restore();
   } else {
@@ -1924,7 +2345,7 @@ function drawComponentCanvas(ctx, items, seed, size) {
     ctx.scale(fitScale, fitScale);
     ctx.fillStyle = under.paperColor;
     ctx.fillRect(0, 0, under.size, under.size);
-    drawItemsPlain(ctx, under.items, underGeo, underPath, under.size);
+    withAppearance(under.appearance, () => drawItemsPlain(ctx, under.items, underGeo, underPath, under.size));
     ctx.restore();
     ctx.save();
     ctx.globalCompositeOperation = 'destination-out';
@@ -1958,8 +2379,7 @@ function buildComponentSVGBody(items, seed, size) {
       const fit = it.cellSize / 100;
       const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
       underBody += `<g transform="translate(${(under.size / 2 + it.cx).toFixed(2)},${(under.size / 2 + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
-        + `<g transform="translate(${(underGeo.normTx * underGeo.normScale).toFixed(4)},${(underGeo.normTy * underGeo.normScale).toFixed(4)}) scale(${underGeo.normScale.toFixed(4)})">`
-        + `<path d="${underGeo.d}" fill="${it.color}"/></g></g>`;
+        + withAppearance(under.appearance, () => elementPathMarkup(underGeo, it.color)) + `</g>`;
     }
     // fitScale maps the underlying Component's own frame exactly onto this
     // one's (size = under.size * fitScale by construction) — a plain
@@ -1981,8 +2401,7 @@ function buildComponentSVGBody(items, seed, size) {
       const sx = (it.flipH ? -1 : 1) * it.scale * fit;
       const sy = (it.flipV ? -1 : 1) * it.scale * fit;
       body += `<g transform="translate(${(half + it.cx).toFixed(2)},${(half + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
-        + `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
-        + `<path d="${geo.d}" fill="${it.color}"/></g></g>`;
+        + elementPathMarkup(geo, it.color) + `</g>`;
     }
   }
   return body;
@@ -2040,8 +2459,7 @@ function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size) {
   const half = size / 2;
   const sx = (flipH ? -1 : 1) * (size / 100), sy = (flipV ? -1 : 1) * (size / 100);
   const body = `<g transform="translate(${half},${half}) rotate(${rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
-    + `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
-    + `<path d="${geo.d}" fill="${colorAt(0)}"/></g></g>`;
+    + elementPathMarkup(geo, colorAt(0)) + `</g>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
     + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${body}</svg>`;
 }
@@ -2063,7 +2481,8 @@ function renderSeedPreview() {
 function renderElementFrame(seed) {
   const frame = ctrl('element-frame');
   if (!frame) return;
-  frame.innerHTML = buildSeedPreviewSVG(seed || getSeed(), 0, false, false, 400);
+  const sd = seed || getSeed();
+  ctrl('element-svg').innerHTML = buildSeedPreviewSVG(sd.type === 'freehand' ? { ...sd, type: 'freehandraw' } : sd, 0, false, false, 400);
 }
 
 function exportElement(format) {
@@ -2333,6 +2752,14 @@ function syncSeedUI() {
   ctrl('seed-chevron-block').style.display = type === 'chevron' ? '' : 'none';
   ctrl('seed-cross-block').style.display = type === 'cross' ? '' : 'none';
   ctrl('seed-lens-block').style.display = type === 'lens' ? '' : 'none';
+  ctrl('seed-circle-block').style.display = type === 'circle' ? '' : 'none';
+  ctrl('seed-segment-block').style.display = type === 'segment' ? '' : 'none';
+  ctrl('seed-drop-block').style.display = type === 'drop' ? '' : 'none';
+  ctrl('seed-blob-block').style.display = type === 'blob' ? '' : 'none';
+  ctrl('seed-freehand-block').style.display = type === 'freehand' ? '' : 'none';
+  syncCircleRows();
+  seedPicker.refresh();
+  syncFreehandEditor();
 }
 
 // ── Component Library — save/reload full snapshots (Seed incl. an
@@ -2348,7 +2775,8 @@ function buildLibraryEntry() {
   const comp = getSelectedComponent();
   if (!comp) return null;
   return {
-    seed: { ...getSeed(), customSeed: state.customSeed },
+    seed: seedForSnapshot(),
+    appearance: getElementAppearance(),
     grid: getGrid(),
     colors: state.colors.slice(),
     paperColor: state.paperColor,
@@ -2437,7 +2865,29 @@ function applyLibraryEntryToUI(entry) {
   if (entry.seed.crossArmLength != null) { ctrl('rg-cross-armlength').value = entry.seed.crossArmLength; ctrl('v-cross-armlength').textContent = entry.seed.crossArmLength; }
   if (entry.seed.crossCorner != null) { ctrl('rg-cross-corner').value = entry.seed.crossCorner; ctrl('v-cross-corner').textContent = entry.seed.crossCorner; }
   if (entry.seed.lensWidth != null) { ctrl('rg-lens-width').value = entry.seed.lensWidth; ctrl('v-lens-width').textContent = entry.seed.lensWidth; }
+  // Newer Seed params — snapshots saved before they existed simply lack them
+  // and fall back to each control's own default (identical to the old shape).
+  ctrl('sel-arc-pivot').value = entry.seed.arcPivot || 'corner';
+  [['arcSweep', 'rg-arc-sweep', 'v-arc-sweep', 90], ['polyRadius', 'rg-poly-radius', 'v-poly-radius', 100], ['starRadius', 'rg-star-radius', 'v-star-radius', 100],
+   ['circleRadius', 'rg-circle-radius', 'v-circle-radius', 100], ['segLen', 'rg-seg-len', 'v-seg-len', 70], ['dropRadius', 'rg-drop-radius', 'v-drop-radius', 60],
+   ['dropTail', 'rg-drop-tail', 'v-drop-tail', 50], ['blobRadius', 'rg-blob-radius', 'v-blob-radius', 60], ['blobAmount', 'rg-blob-amount', 'v-blob-amount', 40],
+   ['blobSeed', 'rg-blob-seed', 'v-blob-seed', 1]].forEach(([k, id, vid, def]) => {
+    const v = entry.seed[k] != null ? entry.seed[k] : def;
+    ctrl(id).value = v; ctrl(vid).textContent = v;
+  });
+  ctrl('sel-circle-interior').value = entry.seed.circleInterior || 'solid';
+  ctrl('sel-circle-trim').value = entry.seed.circleTrim || 'none';
+  CIRCLE_PARAMS.forEach(([k, id, def]) => {
+    const v = entry.seed[cap(k)] != null ? entry.seed[cap(k)] : def;
+    ctrl('rg-circle-' + id).value = v; ctrl('v-circle-' + id).textContent = v;
+  });
+  syncCircleRows();
+  if (entry.seed.type === 'freehand') {
+    state.freehand = { data: entry.seed.freehandData || null, raw: entry.seed.freehandRaw || '', seed: entry.seed.customSeed || null };
+    if (fhEditor) { if (state.freehand.data) fhEditor.load(state.freehand.data); else fhEditor.clear(); }
+  }
   syncSeedUI();
+  applyAppearanceToUI(entry.appearance);
 
   if (entry.grid.kind === 'loom') {
     state.loomGrid = { cellShape: entry.grid.cellShape, cells: entry.grid.cells, inner: { width: entry.grid.width, height: entry.grid.height } };
@@ -2538,7 +2988,7 @@ function renderLibrary() {
     // the panel keeps getting edited after saving.
     const savedColorAt = (i) => entry.colors[i % entry.colors.length];
     const itemsWithSavedColor = items.map((it, i) => ({ ...it, color: savedColorAt(i) }));
-    const svgStr = buildComponentSVGWithPaper(itemsWithSavedColor, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName);
+    const svgStr = withAppearance(entry.appearance, () => buildComponentSVGWithPaper(itemsWithSavedColor, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName));
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
     btn.setAttribute('aria-label', 'Load saved component ' + name);
@@ -2668,7 +3118,7 @@ function renderedSymbolEntrySVG(entry) {
   state.paperColor = entry.paperColor;
   state.symbolClipEnabled = entry.clipEnabled !== false;
   const size = frameSize(getSymbolGrid());
-  const svgStr = buildSymbolSVG();
+  const svgStr = withAppearance(entry.appearance, buildSymbolSVG);
   state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip;
   return { size, inner: svgStr.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '') };
 }
@@ -2863,7 +3313,7 @@ function buildSymbolItems() {
       return {
         type: 'component', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
         scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
-        nestedItems, nestedSeed: entry.seed, nestedSize, nestedPaper: entry.paperColor,
+        nestedItems, nestedSeed: entry.seed, nestedSize, nestedPaper: entry.paperColor, nestedAppearance: entry.appearance,
       };
     }
     const geo = SEED_TYPES[cell.seedType].geometry(SYMBOL_SEED_DEFAULTS);
@@ -2900,8 +3350,7 @@ function cellOverflowInfo(index) {
 
 function seedMarkupSVG(cx, cy, rotation, sx, sy, geo, color) {
   return `<g transform="translate(${cx.toFixed(2)},${cy.toFixed(2)}) rotate(${rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
-    + `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
-    + `<path d="${geo.d}" fill="${color}"/></g></g>`;
+    + elementPathMarkup(geo, color) + `</g>`;
 }
 
 // Matches the --danger token (tokens.css); a literal because it's
@@ -2953,7 +3402,7 @@ function symbolSVGFromItems(items) {
       for (const ni of it.nestedItems) {
         const nfit = ni.cellSize / 100;
         const nsx = (ni.flipH ? -1 : 1) * ni.scale * nfit, nsy = (ni.flipV ? -1 : 1) * ni.scale * nfit;
-        inner += seedMarkupSVG(nHalf + ni.cx, nHalf + ni.cy, ni.rotation, nsx, nsy, geo, ni.color);
+        inner += withAppearance(it.nestedAppearance, () => seedMarkupSVG(nHalf + ni.cx, nHalf + ni.cy, ni.rotation, nsx, nsy, geo, ni.color));
       }
       cellMarkup = `<g transform="translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(${(-nHalf).toFixed(2)},${(-nHalf).toFixed(2)})">${inner}</g>`;
     }
@@ -3038,10 +3487,11 @@ function drawSymbolCanvas(ctx, size) {
       ctx.rotate(it.rotation * Math.PI / 180);
       ctx.scale(it.scaleX, it.scaleY);
       ctx.translate(-50, -50);
+      applyElementStretchCanvas(ctx);
       ctx.translate(it.geo.normTx * it.geo.normScale, it.geo.normTy * it.geo.normScale);
       ctx.scale(it.geo.normScale, it.geo.normScale);
-      ctx.fillStyle = it.color;
-      ctx.fill(new Path2D(it.geo.d));
+      const sa = getElementAppearance();
+      ctx[Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: sa.fillMode, color: it.color, strokeW: sa.strokeW, rounded: sa.rounded })](new Path2D(it.geo.d));
       ctx.restore();
     } else {
       const geo = SEED_TYPES[it.nestedSeed.type].geometry(it.nestedSeed);
@@ -3054,6 +3504,8 @@ function drawSymbolCanvas(ctx, size) {
       ctx.translate(-nHalf, -nHalf);
       ctx.fillStyle = it.nestedPaper;
       ctx.fillRect(0, 0, it.nestedSize, it.nestedSize);
+      const prevOverride = appearanceOverride;
+      appearanceOverride = { ...DEFAULT_APPEARANCE, ...(it.nestedAppearance || {}) };
       for (const ni of it.nestedItems) {
         ctx.save();
         ctx.translate(nHalf + ni.cx, nHalf + ni.cy);
@@ -3061,12 +3513,14 @@ function drawSymbolCanvas(ctx, size) {
         const nfit = ni.cellSize / 100;
         ctx.scale((ni.flipH ? -1 : 1) * ni.scale * nfit, (ni.flipV ? -1 : 1) * ni.scale * nfit);
         ctx.translate(-50, -50);
+        applyElementStretchCanvas(ctx);
         ctx.translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale);
         ctx.scale(geo.normScale, geo.normScale);
-        ctx.fillStyle = ni.color;
-        ctx.fill(path);
+        const na = getElementAppearance();
+        ctx[Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: na.fillMode, color: ni.color, strokeW: na.strokeW, rounded: na.rounded })](path);
         ctx.restore();
       }
+      appearanceOverride = prevOverride;
       ctx.restore();
     }
     if (clipping) ctx.restore();
@@ -3550,7 +4004,7 @@ function renderCellContentOverlayTiles() {
 
   const elWrap = ctrl('symbol-content-overlay__seeds');
   elWrap.innerHTML = '';
-  ['triangle', 'arc', 'arctruchet', 'wedge', 'polygon', 'star', 'roundedrect', 'chevron', 'cross', 'lens'].forEach(type => {
+  ['triangle', 'arc', 'arctruchet', 'wedge', 'polygon', 'star', 'roundedrect', 'chevron', 'cross', 'lens', 'circle', 'drop', 'blob'].forEach(type => {
     const svgStr = buildSeedPreviewSVG({ type, ...SYMBOL_SEED_DEFAULTS }, 0, false, false, 72);
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
@@ -3646,6 +4100,7 @@ function buildSymbolLibraryEntry() {
     colors: state.colors.slice(),
     paperColor: state.paperColor,
     clipEnabled: state.symbolClipEnabled,
+    appearance: getElementAppearance(),
     rule: readRuleState(),
     savedAt: new Date().toISOString(),
   };
@@ -3698,6 +4153,7 @@ function applySymbolLibraryEntryToUI(entry) {
   // restoring exactly the pre-feature behaviour for anything not saved.
   state.symbolClipEnabled = entry.clipEnabled !== false;
   ctrl('chk-symbol-clip').checked = state.symbolClipEnabled;
+  applyAppearanceToUI(entry.appearance);
   applyRuleState(entry.rule);
   renderSymbol();
 }
@@ -3718,7 +4174,7 @@ function renderSymbolLibrary() {
     state.colors = entry.colors;
     state.paperColor = entry.paperColor;
     state.symbolClipEnabled = entry.clipEnabled !== false;
-    const svgStr = buildSymbolSVG();
+    const svgStr = withAppearance(entry.appearance, buildSymbolSVG);
     state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip;
 
     const btn = document.createElement('button');
@@ -3790,6 +4246,7 @@ function setTier(tier) {
   else if (tier === 'grid') { renderFvsGridPicker(); syncFvsGridTypeUI(); renderFvsGrid(); }
   else if (tier === 'element') { renderSeedPreview(); }
   else { renderGallery(); }
+  syncFreehandEditor();
   updateStepHint(tier);
   syncPlayEnabled();
 }
@@ -3868,6 +4325,76 @@ ctrl('sel-grid-type').addEventListener('change', () => {
   ctrl('grid-loom-block').style.display = isLoom ? '' : 'none';
   syncRuleAvailability();
   renderGallery();
+});
+
+// Element appearance feeds every tier that draws the Element, so a change
+// re-renders all of them (the inactive tiers' DOM is just hidden, not gone).
+function onAppearanceChange() {
+  ctrl('element-stroke-block').style.display = ctrl('sel-element-fillmode').value === 'stroke' ? '' : 'none';
+  renderSeedPreview();
+  renderGallery();
+  renderSymbol();
+  renderSymbolLibrary();
+  renderLibrary();
+  renderFvsGridPicker();
+  renderFvsGrid();
+}
+ctrl('sel-element-fillmode').addEventListener('change', onAppearanceChange);
+
+// New Seed parameters (same pattern as the original rg-* listeners: label
+// readout, then re-render the gallery + the Element preview).
+[['rg-arc-sweep', 'v-arc-sweep'], ['rg-poly-radius', 'v-poly-radius'], ['rg-star-radius', 'v-star-radius'],
+ ['rg-circle-radius', 'v-circle-radius'], ['rg-seg-len', 'v-seg-len'], ['rg-drop-radius', 'v-drop-radius'],
+ ['rg-drop-tail', 'v-drop-tail'], ['rg-blob-radius', 'v-blob-radius'], ['rg-blob-amount', 'v-blob-amount'],
+ ['rg-blob-seed', 'v-blob-seed']].forEach(([id, vid]) => {
+  ctrl(id).addEventListener('input', e => { ctrl(vid).textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+});
+CIRCLE_PARAMS.forEach(([k, id]) => {
+  ctrl('rg-circle-' + id).addEventListener('input', e => { ctrl('v-circle-' + id).textContent = e.target.value; syncCircleRows(); renderGallery(); renderSeedPreview(); });
+});
+['sel-circle-interior', 'sel-circle-trim'].forEach(id => {
+  ctrl(id).addEventListener('change', () => { syncCircleRows(); renderGallery(); renderSeedPreview(); });
+});
+ctrl('btn-circle-reset').addEventListener('click', () => {
+  ctrl('rg-circle-radius').value = 100; ctrl('v-circle-radius').textContent = 100;
+  ctrl('sel-circle-interior').value = 'solid'; ctrl('sel-circle-trim').value = 'none';
+  CIRCLE_PARAMS.forEach(([k, id, def]) => { ctrl('rg-circle-' + id).value = def; ctrl('v-circle-' + id).textContent = def; });
+  syncCircleRows(); renderGallery(); renderSeedPreview();
+});
+ctrl('sel-arc-pivot').addEventListener('change', () => { renderGallery(); renderSeedPreview(); });
+
+// A Segment has no area — it is invisible as a fill, so picking it switches
+// Style to Stroke (same as Genesis Create).
+// Segment forces Stroke; leaving it restores the Style you had (otherwise a
+// Circle picked afterwards would come up as an outline, not a disc).
+let styleBeforeSegment = null;
+ctrl('sel-seed-type').addEventListener('change', () => {
+  const type = ctrl('sel-seed-type').value, fm = ctrl('sel-element-fillmode');
+  if (type === 'segment' && fm.value !== 'stroke') {
+    styleBeforeSegment = fm.value;
+    fm.value = 'stroke';
+    onAppearanceChange();
+  } else if (type !== 'segment' && styleBeforeSegment) {
+    fm.value = styleBeforeSegment;
+    styleBeforeSegment = null;
+    onAppearanceChange();
+  }
+});
+
+ctrl('ck-fh-close').addEventListener('change', e => { if (fhEditor) fhEditor.setClosed(e.target.checked); });
+ctrl('ck-fh-smooth').addEventListener('change', e => { if (fhEditor) fhEditor.setSmooth(e.target.checked); });
+ctrl('btn-fh-undo').addEventListener('click', () => { if (fhEditor) fhEditor.undo(); });
+ctrl('btn-fh-clear').addEventListener('click', () => { if (fhEditor) fhEditor.clear(); });
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z' && fhEditor && state.activeTier === 'element' && ctrl('sel-seed-type').value === 'freehand') {
+    e.preventDefault(); fhEditor.undo();
+  }
+});
+let fhResizeT = 0;
+window.addEventListener('resize', () => { clearTimeout(fhResizeT); fhResizeT = setTimeout(syncFreehandEditor, 120); });
+ctrl('ck-element-rounded').addEventListener('change', onAppearanceChange);
+['strokew', 'w', 'l'].forEach(k => {
+  ctrl('rg-element-' + k).addEventListener('input', e => { ctrl('v-element-' + k).textContent = e.target.value; onAppearanceChange(); });
 });
 
 ctrl('sel-fvsgrid-type').addEventListener('change', () => { syncFvsGridTypeUI(); renderFvsGrid(); });

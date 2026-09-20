@@ -60,8 +60,109 @@
     if (ir <= 0.5) return 'M 0,0 L 100,0 A 100,100 0 0,1 0,100 Z';
     return `M 100,0 A 100,100 0 0,1 0,100 L 0,${ir} A ${ir},${ir} 0 0,0 ${ir},0 Z`;
   }
-  function arcGeometry(thicknessPct) {
-    return { d: arcPathD(thicknessPct), normTx: 0, normTy: 0, normScale: 1 };
+  // bbox {x,y,w,h} → the {normTx,normTy,normScale} that fits it into the
+  // 0..100 box, aspect preserved and centred — the same formula FVS's
+  // extractSeedFromSVG uses for an uploaded shape, here for generated shapes
+  // that overflow the box by construction (drop, blob, free-sweep arc).
+  function fitToBox(b) {
+    const normScale = 100 / Math.max(b.w, b.h, 1e-6);
+    const offX = (100 - b.w * normScale) / 2, offY = (100 - b.h * normScale) / 2;
+    return { normScale, normTx: -b.x + offX / normScale, normTy: -b.y + offY / normScale };
+  }
+  function bboxOfPoints(pts) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  }
+
+  // Arc: with the defaults (corner pivot, 90° sweep) this is EXACTLY the
+  // quarter-disc above, so every saved Component/Symbol is untouched. A
+  // different sweep, or a centre pivot, builds a general wedge/ring segment
+  // (same construction as Genesis Create's arc) and fits it to the box.
+  function arcWedgePathD(cx, cy, outerR, startDeg, sweepDeg, innerR) {
+    const r2 = v => Math.round(v * 1000) / 1000;
+    const a0 = startDeg * Math.PI / 180, a1 = (startDeg + sweepDeg) * Math.PI / 180;
+    const p = (r, a) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+    const [ox0, oy0] = p(outerR, a0), [ox1, oy1] = p(outerR, a1);
+    const large = sweepDeg > 180 ? 1 : 0;
+    if (innerR <= 0.5) {
+      return `M ${r2(cx)},${r2(cy)} L ${r2(ox0)},${r2(oy0)} A ${r2(outerR)},${r2(outerR)} 0 ${large},1 ${r2(ox1)},${r2(oy1)} Z`;
+    }
+    const [ix1, iy1] = p(innerR, a1), [ix0, iy0] = p(innerR, a0);
+    return `M ${r2(ox0)},${r2(oy0)} A ${r2(outerR)},${r2(outerR)} 0 ${large},1 ${r2(ox1)},${r2(oy1)}`
+      + ` L ${r2(ix1)},${r2(iy1)} A ${r2(innerR)},${r2(innerR)} 0 ${large},0 ${r2(ix0)},${r2(iy0)} Z`;
+  }
+  function arcGeometry(thicknessPct, pivot, sweepDeg) {
+    const isCenter = pivot === 'center';
+    const sweep = Math.min(350, Math.max(10, sweepDeg == null ? 90 : sweepDeg));
+    if (!isCenter && sweep === 90) return { d: arcPathD(thicknessPct), normTx: 0, normTy: 0, normScale: 1 };
+    const cx = isCenter ? 50 : 0, cy = isCenter ? 50 : 0, outerR = isCenter ? 50 : 100;
+    const start = isCenter ? -90 : 0;
+    const innerR = outerR * (1 - thicknessPct / 100);
+    const d = arcWedgePathD(cx, cy, outerR, start, sweep, innerR);
+    const pts = [];
+    for (let i = 0; i <= 64; i++) {
+      const a = (start + sweep * i / 64) * Math.PI / 180;
+      pts.push([cx + Math.cos(a) * outerR, cy + Math.sin(a) * outerR]);
+      if (innerR > 0.5) pts.push([cx + Math.cos(a) * innerR, cy + Math.sin(a) * innerR]);
+    }
+    if (innerR <= 0.5) pts.push([cx, cy]);
+    return { d, ...fitToBox(bboxOfPoints(pts)) };
+  }
+
+  // Circle, centred at (50,50): radiusPct 100 touches the box edges.
+  // `opts` (optional) switches on the Circle's advanced modifiers — see
+  // shared/circle-advanced.js. Absent / all Off → the plain analytic circle
+  // below, byte-identical to before; also the fallback if that module (and
+  // Paper.js) isn't loaded, so Genesis and Trellis never depend on Paper.
+  function circleGeometry(radiusPct, opts) {
+    const adv = Organica.circleAdvanced;
+    if (opts && adv && global.paper && adv.isActive(Object.assign({}, adv.DEFAULTS, opts))) {
+      const d = adv.build(radiusPct, opts);
+      if (d) return { d, normTx: 0, normTy: 0, normScale: 1 };
+    }
+    const r = 50 * Math.min(100, Math.max(5, radiusPct == null ? 100 : radiusPct)) / 100;
+    const r2 = v => Math.round(v * 1000) / 1000;
+    const d = `M ${r2(50 - r)},50 A ${r2(r)},${r2(r)} 0 1,1 ${r2(50 + r)},50 A ${r2(r)},${r2(r)} 0 1,1 ${r2(50 - r)},50 Z`;
+    return { d, normTx: 0, normTy: 0, normScale: 1 };
+  }
+
+  // Segment: a horizontal line through the centre. Zero area, so it only
+  // shows in Stroke style (FVS switches Style for it, same as Genesis).
+  function segmentGeometry(lenPct) {
+    const len = Math.min(100, Math.max(5, lenPct == null ? 70 : lenPct));
+    return { d: `M ${50 - len / 2},50 L ${50 + len / 2},50`, normTx: 0, normTy: 0, normScale: 1 };
+  }
+
+  // Drop / teardrop — Genesis Create's dropPathD in the 0..100 box. The tail
+  // makes it taller than the box, so it is fitted rather than clipped.
+  function dropGeometry(radiusPct, tailPct) {
+    const r = 50 * Math.min(100, Math.max(5, radiusPct == null ? 60 : radiusPct)) / 100;
+    const tail = Math.min(100, Math.max(0, tailPct == null ? 50 : tailPct));
+    const r2 = v => Math.round(v * 1000) / 1000;
+    const cx = 50, cy = 50 + r * 0.3, tipY = cy - r - tail;
+    const d = `M ${r2(cx)},${r2(tipY)} `
+      + `C ${r2(cx - r * 0.6)},${r2(tipY + tail * 0.5)} ${r2(cx - r)},${r2(cy - r * 0.6)} ${r2(cx - r)},${r2(cy)} `
+      + `A ${r2(r)},${r2(r)} 0 1,0 ${r2(cx + r)},${r2(cy)} `
+      + `C ${r2(cx + r)},${r2(cy - r * 0.6)} ${r2(cx + r * 0.6)},${r2(tipY + tail * 0.5)} ${r2(cx)},${r2(tipY)} Z`;
+    return { d, ...fitToBox({ x: cx - r, y: tipY, w: 2 * r, h: cy + r - tipY }) };
+  }
+
+  // Blob — a noise-wobbled closed loop (Genesis Create's blobPathD): same
+  // seed, same silhouette. Needs Organica.noise (shared/noise.js).
+  function blobGeometry(radiusPct, amount, seed) {
+    const r = 50 * Math.min(100, Math.max(5, radiusPct == null ? 60 : radiusPct)) / 100;
+    const amt = (amount == null ? 40 : amount) / 100, sd = seed == null ? 1 : seed;
+    const r2 = v => Math.round(v * 1000) / 1000;
+    const n = 32, pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const nv = Organica.noise.simplex2(Math.cos(a) * 0.7 + sd, Math.sin(a) * 0.7 + sd);
+      const rr = r * (1 + nv * 0.4 * amt);
+      pts.push([50 + Math.cos(a) * rr, 50 + Math.sin(a) * rr]);
+    }
+    const d = 'M ' + pts.map(p => `${r2(p[0])},${r2(p[1])}`).join(' L ') + ' Z';
+    return { d, ...fitToBox(bboxOfPoints(pts)) };
   }
 
   // Concentric semicircular arc bands from the top AND bottom edge midpoints,
@@ -179,10 +280,10 @@
   // stream each call so the same seed always reproduces the same
   // silhouette (same discipline as Symbols' own
   // generateSymbolCells/ruleRandom).
-  function polygonPathD(sides, cornerRadiusPct, irregularityPct, seed) {
+  function polygonPathD(sides, cornerRadiusPct, irregularityPct, seed, radiusPct) {
     sides = Math.max(3, Math.round(sides == null ? 6 : sides));
     const irregular = Math.min(100, Math.max(0, irregularityPct == null ? 0 : irregularityPct)) / 100;
-    const cx = 50, cy = 50, R = 50;
+    const cx = 50, cy = 50, R = 50 * Math.min(100, Math.max(10, radiusPct == null ? 100 : radiusPct)) / 100;
     const rng = Organica.mulberry32((seed == null ? 1 : seed) >>> 0);
     const pts = [];
     for (let i = 0; i < sides; i++) {
@@ -192,8 +293,8 @@
     }
     return roundedPolyPathD(pts, cornerRadiusPct);
   }
-  function polygonGeometry(sides, cornerRadiusPct, irregularityPct, seed) {
-    return { d: polygonPathD(sides, cornerRadiusPct, irregularityPct, seed), normTx: 0, normTy: 0, normScale: 1 };
+  function polygonGeometry(sides, cornerRadiusPct, irregularityPct, seed, radiusPct) {
+    return { d: polygonPathD(sides, cornerRadiusPct, irregularityPct, seed, radiusPct), normTx: 0, normTy: 0, normScale: 1 };
   }
 
   // Star: `points`-pointed, alternating outer (radius 50, box-edge-touching)
@@ -201,11 +302,11 @@
   // irregularityPct (0-100, default 0 — byte-identical to the regular
   // star) jitters each of the outer AND inner vertices' own radius by a
   // seeded amount, same discipline as polygonPathD's own irregularity.
-  function starPathD(points, innerRadiusPct, irregularityPct, seed) {
+  function starPathD(points, innerRadiusPct, irregularityPct, seed, radiusPct) {
     points = Math.max(3, Math.round(points == null ? 5 : points));
     innerRadiusPct = Math.min(90, Math.max(5, innerRadiusPct == null ? 45 : innerRadiusPct));
     const irregular = Math.min(100, Math.max(0, irregularityPct == null ? 0 : irregularityPct)) / 100;
-    const cx = 50, cy = 50, R = 50, r = R * innerRadiusPct / 100;
+    const cx = 50, cy = 50, R = 50 * Math.min(100, Math.max(10, radiusPct == null ? 100 : radiusPct)) / 100, r = R * innerRadiusPct / 100;
     const rng = Organica.mulberry32((seed == null ? 1 : seed) >>> 0);
     const r2 = v => Math.round(v * 1000) / 1000;
     const n = points * 2, pts = [];
@@ -217,8 +318,8 @@
     }
     return 'M ' + pts.map(p => `${r2(p[0])},${r2(p[1])}`).join(' L ') + ' Z';
   }
-  function starGeometry(points, innerRadiusPct, irregularityPct, seed) {
-    return { d: starPathD(points, innerRadiusPct, irregularityPct, seed), normTx: 0, normTy: 0, normScale: 1 };
+  function starGeometry(points, innerRadiusPct, irregularityPct, seed, radiusPct) {
+    return { d: starPathD(points, innerRadiusPct, irregularityPct, seed, radiusPct), normTx: 0, normTy: 0, normScale: 1 };
   }
 
   // Rounded rect / capsule, centred at (50,50). cornerRadiusPct maps to a
@@ -456,7 +557,8 @@
   }
 
   Organica.shapes = {
-    triangleGeometry, arcGeometry, arcPathD, arcTruchetGeometry, arcTruchetPathD,
+    triangleGeometry, arcGeometry, arcPathD, circleGeometry, segmentGeometry, dropGeometry, blobGeometry, fitToBox,
+    arcTruchetGeometry, arcTruchetPathD,
     wedgeGeometry, wedgePathD, polygonGeometry, polygonPathD, starGeometry, starPathD,
     roundedRectGeometry, roundedRectPathD, chevronGeometry, chevronPathD,
     crossGeometry, crossPathD, lensGeometry, lensPathD,
