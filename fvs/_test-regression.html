@@ -140,6 +140,19 @@ function battery() {
     put('print:square:px', [sq.outW, sq.outH, sq.trimHmm].join('x'));
   } finally { Object.assign(printSizePanel, P0); }
 
+  // 10 — named rules on 3×3 and 4×4 (rotation/flip signature per candidate)
+  chg('sel-seed-type', 'arc'); inp('rg-thickness', 100);
+  ['square3x3', 'square4x4'].forEach(gt => {
+    chg('sel-grid-type', gt);
+    ['pinwheel', 'mirror', 'diagonal', 'checkerboard', 'rowmirror', 'columnmirror', 'radial'].forEach(mode => {
+      const opt = ctrl('sel-rule').querySelector(`option[value="${mode}"]`);
+      if (opt.disabled) { put(`rulenm:${gt}:${mode}`, 'disabled'); return; }
+      chg('sel-rule', mode); generate();
+      put(`rulenm:${gt}:${mode}`, state.components.map(c => c.cells.map(x => x.rotation + (x.flipH ? 'h' : '') + (x.flipV ? 'v' : '')).join(',')).join('|'));
+    });
+  });
+  chg('sel-rule', 'identity'); chg('sel-grid-type', 'square2x2');
+
   // tidy the throw-away tiles the recipes wrote into the Component library
   const lib = LIBRARY.read(); Object.keys(lib).filter(k => k.startsWith('Tile · recipe-')).forEach(k => delete lib[k]); LIBRARY.write(lib);
   reset();

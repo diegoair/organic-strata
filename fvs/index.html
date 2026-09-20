@@ -2411,26 +2411,46 @@ function ruleIdentity() {
   return [{ id: 'identity-0', ruleSource: 'identity', cells: buildIdentityCells(0, false, false, 1.0, activeCellCount()) }];
 }
 
+// Any grid size: the named rules read each cell's col/row (Organica.shapes
+// .cellColRow — native for rect grids, centroid-binned for polygon ones) and
+// apply the same relation the 4-cell tables encode. On a 4-cell grid the
+// original literal builders run instead, so every existing 2×2 result is
+// untouched (the regression suite hashes them).
+function ruleCR() { return activeCellCount() === 4 ? null : componentCellColRow(getGrid()); }
+const mod360 = r => ((r % 360) + 360) % 360;
+
 function rulePinwheel() {
+  const cr = ruleCR();
   const out = [];
   for (const chirality of [1, -1]) for (const base of [0, 90, 180, 270]) {
-    out.push({ id: `pinwheel-${base}-${chirality}`, ruleSource: 'pinwheel', cells: buildPinwheelCells(base, chirality, 1.0) });
+    // step by (col + 2·row) mod 4 — on 2×2 that is exactly the row-major index
+    const cells = cr ? cr.map(c => stateFrom(mod360(base + chirality * ((c.col + 2 * c.row) % 4) * 90), false, false, 1.0))
+                     : buildPinwheelCells(base, chirality, 1.0);
+    out.push({ id: `pinwheel-${base}-${chirality}`, ruleSource: 'pinwheel', cells });
   }
   return dedupeComponents(out);
 }
 
 function ruleMirror() {
+  const cr = ruleCR();
   const out = [];
   for (let seed = 0; seed < 4; seed++) {
-    out.push({ id: `mirror-${seed}`, ruleSource: 'mirror', cells: buildMirrorCells(seed, 1.0) });
+    // the seed cell sits at (seed % 2, seed >> 1); flips follow column/row parity from it
+    const sx = seed % 2, sy = seed >> 1;
+    const cells = cr ? cr.map(c => stateFrom(0, (c.col + sx) % 2 === 1, (c.row + sy) % 2 === 1, 1.0))
+                     : buildMirrorCells(seed, 1.0);
+    out.push({ id: `mirror-${seed}`, ruleSource: 'mirror', cells });
   }
   return dedupeComponents(out);
 }
 
 function ruleDiagonal() {
+  const cr = ruleCR();
   const out = [];
   for (const r of [0, 90, 180, 270]) {
-    out.push({ id: `diagonal-${r}`, ruleSource: 'diagonal', cells: buildDiagonalCells(r, 1.0) });
+    const cells = cr ? cr.map(c => stateFrom((c.col + c.row) % 2 === 0 ? r : mod360(90 - r), false, false, 1.0))
+                     : buildDiagonalCells(r, 1.0);
+    out.push({ id: `diagonal-${r}`, ruleSource: 'diagonal', cells });
   }
   return dedupeComponents(out);
 }
@@ -2461,19 +2481,39 @@ function ruleCheckerboard() {
 }
 
 function ruleRowMirror() {
-  const out = [0, 90, 180, 270].map(r => ({ id: `rowmirror-${r}`, ruleSource: 'rowmirror', cells: buildRowMirrorCells(r, 1.0) }));
+  const cr = ruleCR();
+  const out = [0, 90, 180, 270].map(r => ({ id: `rowmirror-${r}`, ruleSource: 'rowmirror',
+    cells: cr ? cr.map(c => stateFrom(r, false, c.row % 2 === 1, 1.0)) : buildRowMirrorCells(r, 1.0) }));
   return dedupeComponents(out);
 }
 
 function ruleColumnMirror() {
-  const out = [0, 90, 180, 270].map(r => ({ id: `columnmirror-${r}`, ruleSource: 'columnmirror', cells: buildColumnMirrorCells(r, 1.0) }));
+  const cr = ruleCR();
+  const out = [0, 90, 180, 270].map(r => ({ id: `columnmirror-${r}`, ruleSource: 'columnmirror',
+    cells: cr ? cr.map(c => stateFrom(r, c.col % 2 === 0, false, 1.0)) : buildColumnMirrorCells(r, 1.0) }));
   return dedupeComponents(out);
 }
 
+// Radial needs a centre that falls between cells: an even × even grid (the
+// four quadrants each take one step of the clockwise walk TL,TR,BR,BL).
+function radialEligible() {
+  if (activeCellCount() === 4) return true;
+  const cr = componentCellColRow(getGrid());
+  if (!cr.length) return false;
+  const cols = Math.max(...cr.map(c => c.col)) + 1, rows = Math.max(...cr.map(c => c.row)) + 1;
+  return cols % 2 === 0 && rows % 2 === 0 && cols * rows === cr.length;
+}
 function ruleRadial() {
+  const cr = activeCellCount() === 4 ? null : componentCellColRow(getGrid());
+  const cols = cr ? Math.max(...cr.map(c => c.col)) + 1 : 2, rows = cr ? Math.max(...cr.map(c => c.row)) + 1 : 2;
   const out = [];
   for (const chirality of [1, -1]) for (const base of [0, 90, 180, 270]) {
-    out.push({ id: `radial-${base}-${chirality}`, ruleSource: 'radial', cells: buildRadialCells(base, chirality, 1.0) });
+    const cells = cr ? cr.map(c => {
+      const qx = c.col >= cols / 2 ? 1 : 0, qy = c.row >= rows / 2 ? 1 : 0;
+      const k = qy === 0 ? qx : (qx === 1 ? 2 : 3);   // TL 0, TR 1, BR 2, BL 3
+      return stateFrom(mod360(base + chirality * k * 90), false, false, 1.0);
+    }) : buildRadialCells(base, chirality, 1.0);
+    out.push({ id: `radial-${base}-${chirality}`, ruleSource: 'radial', cells });
   }
   return dedupeComponents(out);
 }
@@ -2482,7 +2522,7 @@ function ruleRadial() {
 // hand-derived for exactly 4 cells, TL/TR/BL/BR), this reads N×M-general
 // row/col context off componentCellColRow (added for Motion's stagger
 // context) so it works at any grid size, same as Identity/Random/
-// Exhaustive/Manual — not added to FOUR_CELL_ONLY_RULES. Same
+// Exhaustive/Manual — not gated by grid size. Same
 // Alternate/Ramp + Step shape as the Symbols tier's own Rows/Columns
 // rule (SYMBOL_RULES.rows/.columns below), just keyed on rotation only —
 // deterministic, one candidate per Generate, no enumeration needed.
@@ -3156,19 +3196,20 @@ function getSelectedComponent() {
   return state.components.find(c => c.id === state.selectedId) || null;
 }
 
-// ── Grid-driven rule availability — the 4-cell-specific named rules
-// only mean anything at exactly 4 cells (see the comment above
-// ruleRandom). Grey them out otherwise and bounce off a now-invalid
-// selection rather than leaving it silently selected but unusable. ──
-const FOUR_CELL_ONLY_RULES = ['pinwheel', 'mirror', 'diagonal', 'rowmirror', 'columnmirror', 'radial'];
+// ── Grid-driven rule availability — Radial needs an even × even grid (its
+// centre falls between cells); Random/Exhaustive/Manual stay 4-cell shaped
+// (see the comment above ruleRandom). Grey out what does not apply and bounce
+// off a now-invalid selection rather than leaving it silently unusable. ──
+const EVEN_GRID_ONLY_RULES = ['radial'];   // the centre must fall between cells; the other named rules run on any grid
 function syncRuleAvailability() {
   const count = activeCellCount();
   const sel = ctrl('sel-rule');
   let currentInvalid = false;
-  FOUR_CELL_ONLY_RULES.forEach(v => {
+  EVEN_GRID_ONLY_RULES.forEach(v => {
     const opt = sel.querySelector(`option[value="${v}"]`);
-    const eligible = count === 4;
+    const eligible = radialEligible();
     opt.disabled = !eligible;
+    opt.title = eligible ? '' : 'Radial needs a grid with an even number of columns and rows (2×2, 4×4, …)';
     if (!eligible && sel.value === v) currentInvalid = true;
   });
   if (currentInvalid) { sel.value = 'identity'; syncRuleUI(); }

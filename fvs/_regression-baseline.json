@@ -90,5 +90,19 @@
   "print:nonsquare:svg": "5dc07653",
   "print:nonsquare:dims": "106mmx56mm",
   "print:nonsquare:px": "1251x661x50",
-  "print:square:px": "1251x1251x100"
+  "print:square:px": "1251x1251x100",
+  "rulenm:square3x3:pinwheel": "b72aad13",
+  "rulenm:square3x3:mirror": "f5925ba3",
+  "rulenm:square3x3:diagonal": "54a75a7e",
+  "rulenm:square3x3:checkerboard": "991380ae",
+  "rulenm:square3x3:rowmirror": "cafc205e",
+  "rulenm:square3x3:columnmirror": "24540922",
+  "rulenm:square3x3:radial": "disabled",
+  "rulenm:square4x4:pinwheel": "4838ad0b",
+  "rulenm:square4x4:mirror": "50c7b5bb",
+  "rulenm:square4x4:diagonal": "869b8c9b",
+  "rulenm:square4x4:checkerboard": "a15a1f3b",
+  "rulenm:square4x4:rowmirror": "ba5a6bc3",
+  "rulenm:square4x4:columnmirror": "8fb9cddb",
+  "rulenm:square4x4:radial": "39f1d65b"
 }
