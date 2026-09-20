@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>FVS regression</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  /* Dev-only page (underscore prefix, like _test-scanline-relief.html): loads
+     /fvs/ in a hidden frame, runs a fixed battery of builds inside it, hashes
+     every SVG and diffs the hashes against fvs/_regression-baseline.json.
+     Open it on the dev server and press Run. Record → paste the printed JSON
+     into fvs/_regression-baseline.json when a change is intentional. */
+  body { margin: var(--space-6); font-family: var(--font); font-size: var(--fs-base); color: var(--ink); background: var(--paper); }
+  h1 { font-size: var(--fs-large); margin: 0 0 var(--space-4); }
+  button { font: inherit; padding: var(--space-2) var(--space-4); border: 1px solid var(--border-strong); background: var(--panel); color: var(--ink); cursor: pointer; margin-right: var(--space-2); }
+  #summary { margin: var(--space-4) 0; font-size: var(--fs-medium); }
+  .ok { color: var(--tool, var(--ink)); }
+  .bad { color: var(--danger); }
+  table { border-collapse: collapse; margin-top: var(--space-3); }
+  td, th { text-align: left; padding: var(--space-1) var(--space-4) var(--space-1) 0; border-bottom: 1px solid var(--border); font-size: var(--fs-small); }
+  textarea { width: 100%; height: 160px; margin-top: var(--space-4); font-size: var(--fs-small); }
+  iframe { position: absolute; left: -9999px; width: 1200px; height: 900px; }
+</style>
+</head>
+<body>
+<h1>FVS regression</h1>
+<button id="run">Run</button><button id="record">Show JSON to record</button>
+<div id="summary">Press Run.</div>
+<table id="rows"></table>
+<textarea id="json" readonly hidden aria-label="Recorded results"></textarea>
+<iframe id="frame" src="/fvs/" title="FVS under test"></iframe>
+
+<script>
+// Executed INSIDE the FVS page (via eval in the frame), so it sees its globals.
+function battery() {
+  const H = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16).padStart(8, '0'); };
+  // <metadata> carries a timestamp and the last-selected rule name (module state) — neither is geometry.
+  const norm = s => s.replace(/"exportedAt":"[^"]*"/g, '"exportedAt":""').replace(/"ruleSource":"[^"]*"/g, '"ruleSource":""');
+  const out = {};
+  const put = (k, v) => { out[k] = typeof v === 'string' && v.length > 40 ? H(norm(v)) : String(v); };
+  const chg = (id, v) => { const e = ctrl(id); e.value = v; e.dispatchEvent(new Event('change', { bubbles: true })); };
+  const inp = (id, v) => { const e = ctrl(id); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); };
+  const reset = () => {
+    state.colors = ['#000000']; state.colorRule = { ...DEFAULT_COLOR_RULE }; state.paperColor = '#ffffff';
+    syncColorRuleUI(); buildPalette();
+    chg('sel-element-fillmode', 'fill'); chg('sel-grid-type', 'square2x2');
+  };
+
+  // 1 — every Seed type at its defaults
+  reset();
+  // controls the battery itself edits later — start every run from the page defaults
+  chg('sel-rule-chk-rota', '0'); chg('sel-rule-chk-rot', '90');
+  ctrl('chk-rule-chk-swap').checked = false; ctrl('chk-rule-chk-flip').checked = false;
+  chg('sel-color-rule', 'index'); chg('sel-color-offset', '0');
+  Object.keys(SEED_TYPES).forEach(t => {
+    if (t === 'freehand' || t === 'custom') return;
+    if (!ctrl('sel-seed-type').querySelector(`option[value="${t}"]`)) return;
+    chg('sel-seed-type', t);
+    chg('sel-element-fillmode', 'fill');   // Segment auto-switches Style to Stroke — pin it so every run sees the same thing
+    put('seed:' + t, buildSeedPreviewSVG(getSeed(), 0, false, false, 100));
+  });
+
+  // 2 — Component rules, Arc quarter-disc, 2×2
+  chg('sel-seed-type', 'arc'); chg('sel-element-fillmode', 'fill'); inp('rg-thickness', 100);
+  ['identity', 'pinwheel', 'mirror', 'diagonal', 'checkerboard', 'rowmirror', 'columnmirror', 'radial'].forEach(mode => {
+    chg('sel-rule', mode); generate();
+    state.components.forEach(c => {
+      const g = getGrid();
+      put(`rule:${mode}:${c.id}`, buildComponentSVG(buildComponentItems(c, g), getSeed(), frameSize(g)));
+    });
+  });
+  // 3 — Checkerboard on a 3×3
+  chg('sel-grid-type', 'square3x3'); chg('sel-rule', 'checkerboard'); generate();
+  put('rule3x3:checkerboard', state.components.map(c => c.cells.map(x => x.rotation + (x.flipH ? 'h' : '') + (x.flipV ? 'v' : '')).join(',')).join('|'));
+
+  // 4 — colour rules on a 3×3 with three inks
+  chg('sel-rule', 'identity'); generate();
+  state.colors = ['#e8321e', '#0a9a3e', '#1e5be8']; buildPalette();
+  Object.keys(COLOR_RULES).forEach(m => [0, 1].forEach(off => {
+    state.colorRule = { mode: m, offset: off };
+    const it = buildComponentItems(state.components[0], getGrid());
+    put(`colour:${m}:${off}`, it.map(x => x.color).join(','));
+  }));
+  reset();
+
+  // 5 — Symbol Square 4×4 + Checkerboard rule (default, Rotate A/B, Swap)
+  setTier('symbol');
+  chg('sel-symbol-square-cols', '4'); chg('sel-symbol-square-rows', '4');
+  ctrl('btn-symbol-grid-square').click();
+  state.symbolCells = state.symbolCells.map(c => ({ ...c, source: 'seed', seedType: 'arc', rotation: 0, fitMode: 'fill', color: null }));
+  chg('sel-symbol-fill', 'rule'); chg('sel-symbol-rule', 'checkerboard');
+  const rot = () => { applySymbolRule({ resetAll: true }); return state.symbolCells.map(c => c.rotation).join(','); };
+  put('symbol:checker:default', rot());
+  chg('sel-rule-chk-rota', '180'); chg('sel-rule-chk-rot', '0'); put('symbol:checker:A180B0', rot());
+  ctrl('chk-rule-chk-swap').checked = true; put('symbol:checker:swap', rot());
+  put('symbol:svg', buildSymbolSVG());
+
+  // 6 — Grid tier: Alternate flip is a true checkerboard
+  const LEAF = [180, 0, 0, 180].map(r => ({ rotation: r, flipH: false, flipV: false, scale: 1 }));
+  const runR = id => runBuiltinRecipe(BUILTIN_RECIPES.find(r => r.id === id));
+  runR('leaf-wave'); ctrl('chk-fvsgrid-alt-flip').checked = true;
+  ['square2x2', 'square3x3', 'square4x4'].forEach(t => {
+    chg('sel-fvsgrid-type', t);
+    const n = +t.slice(6, 7);
+    const d = new DOMParser().parseFromString(buildFvsGridSVG(), 'image/svg+xml');
+    const f = [...d.documentElement.children].filter(e => e.tagName === 'g').map(e => /scale\(-1,1\)/.test(e.getAttribute('transform')) ? 1 : 0);
+    const rows = []; for (let r = 0; r < n; r++) rows.push(f.slice(r * n, r * n + n).join(''));
+    put('altflip:' + t, rows.join('/'));
+  });
+  ctrl('chk-fvsgrid-alt-flip').checked = false;
+
+  // 7 — built-in recipes (whole chain)
+  BUILTIN_RECIPES.forEach(r => { runR(r.id); put('recipe:' + r.id, tierSVG()); });
+
+  // 8 — variants and plates on the two-ink recipe
+  runR('leaf-two-ink');
+  put('variant:fill', renderVariant({ style: 'fill', ink: '#0a9a3e', strokeW: 4, paper: null }, false));
+  put('variant:stroke', renderVariant({ style: 'stroke', ink: '#e8321e', strokeW: 5, paper: '#fff3c0' }, false));
+  const svg = tierSVG(), cs = state.colors.slice();
+  cs.forEach((c, i) => put('plate:' + i, plateSVG(svg, cs, i, state.paperColor)));
+
+  // tidy the throw-away tiles the recipes wrote into the Component library
+  const lib = LIBRARY.read(); Object.keys(lib).filter(k => k.startsWith('Tile · recipe-')).forEach(k => delete lib[k]); LIBRARY.write(lib);
+  reset();
+  return out;
+}
+
+const $ = id => document.getElementById(id);
+const frame = $('frame');
+let last = null, baseline = null;
+
+async function loadBaseline() {
+  try { const r = await fetch('/fvs/_regression-baseline.json', { cache: 'no-store' }); if (r.ok) return await r.json(); } catch (e) {}
+  return null;
+}
+async function run() {
+  $('summary').textContent = 'Running…';
+  const w = frame.contentWindow;
+  if (!w || !w.eval || !w.document || w.document.readyState !== 'complete') { $('summary').textContent = 'FVS is still loading — try again in a second.'; return; }
+  try { last = w.eval('(' + battery.toString() + ')()'); }
+  catch (e) { $('summary').innerHTML = '<span class="bad">Battery threw: ' + e.message + '</span>'; return; }
+  baseline = await loadBaseline();
+  const keys = Object.keys(last);
+  let bad = 0, rows = '<tr><th>case</th><th>now</th><th>baseline</th></tr>';
+  keys.forEach(k => {
+    const b = baseline ? baseline[k] : undefined, ok = b === undefined ? null : b === last[k];
+    if (ok === false) bad++;
+    rows += `<tr><td>${k}</td><td class="${ok === false ? 'bad' : ''}">${last[k]}</td><td>${b === undefined ? '—' : b}</td></tr>`;
+  });
+  const missing = baseline ? Object.keys(baseline).filter(k => !(k in last)) : [];
+  $('rows').innerHTML = rows;
+  $('summary').innerHTML = baseline
+    ? (bad || missing.length ? `<span class="bad">${bad} changed, ${missing.length} missing of ${keys.length} cases</span>` : `<span class="ok">All ${keys.length} cases match the baseline.</span>`)
+    : `${keys.length} cases run — no baseline yet (fvs/_regression-baseline.json).`;
+}
+$('run').addEventListener('click', run);
+$('record').addEventListener('click', () => {
+  if (!last) { $('summary').textContent = 'Run first.'; return; }
+  const t = $('json'); t.hidden = false; t.value = JSON.stringify(last, null, 2); t.select();
+});
+</script>
+</body>
+</html>
