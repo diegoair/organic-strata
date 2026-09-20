@@ -217,7 +217,25 @@
       if (irr > 0) { ro *= 1 + irr * 0.16 * noise(t, 0); if (ri > 0.5) ri = Math.min(ro - 0.3, ri * (1 + irr * 0.2 * noise(t, 1))); }
       return [ro, Math.max(0, ri)];
     };
-    const at = (r, a) => [cx + Math.cos(a * Math.PI / 180) * r, cy + Math.sin(a * Math.PI / 180) * r];
+    // Wedge extras (squash / rotate / apex fillet / bowed radial edges) — absent for Arc, whose output stays byte-identical.
+    const sq = o.squash == null ? 1 : o.squash, rotDeg = o.rotate || 0, crot = Math.cos(rotDeg * Math.PI / 180), srot = Math.sin(rotDeg * Math.PI / 180);
+    const at = (sq === 1 && !rotDeg)
+      ? (r, a) => [cx + Math.cos(a * Math.PI / 180) * r, cy + Math.sin(a * Math.PI / 180) * r]
+      : (r, a) => { let x = Math.cos(a * Math.PI / 180) * r, y = Math.sin(a * Math.PI / 180) * r * sq; if (rotDeg) { const xr = x * crot - y * srot; y = x * srot + y * crot; x = xr; } return [cx + x, cy + y]; };
+    const E = o.edgeCurve ? 8 : 0, edgeCurve = (o.edgeCurve || 0) / 100;
+    // interior samples of a bowed radial edge p→q (outward = away from the segment's mid-angle side)
+    const bowEdge = (p, q, aMid) => {
+      const mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2, len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+      if (len < 1e-9) return [];
+      const dm = Math.hypot(mx - cx, my - cy) / Math.max(sq, 0.3), qm = at(dm, aMid);
+      let nx = -(q[1] - p[1]) / len, ny = (q[0] - p[0]) / len;
+      if (nx * (mx - qm[0]) + ny * (my - qm[1]) < 0) { nx = -nx; ny = -ny; }
+      let dev = edgeCurve * 0.3 * len;
+      if (dev < 0) dev = Math.max(dev, -0.9 * Math.hypot(mx - qm[0], my - qm[1]));
+      const c = [mx + nx * 2 * dev, my + ny * 2 * dev], out = [];
+      for (let i = 1; i <= E; i++) { const t = i / (E + 1), u = 1 - t; out.push([u * u * p[0] + 2 * u * t * c[0] + t * t * q[0], u * u * p[1] + 2 * u * t * c[1] + t * t * q[1]]); }
+      return out;
+    };
     let d = '';
     const all = [];   // pre-rounding points → the Fit bbox (so End rounding never rescales the shape)
     for (let s = 0; s < n; s++) {
@@ -232,8 +250,18 @@
       const apex = solid || innerPts.every(p => p[0] === cx && p[1] === cy);
       outerPts.forEach(p => ring.push(p));
       corners.push(0, steps);
-      if (apex) ring.push([cx, cy]);
-      else { for (let i = steps; i >= 0; i--) ring.push(innerPts[i]); corners.push(steps + 1, 2 * steps + 1); }
+      const aMid = (a0 + a1) / 2;
+      let apexIdx = -1;
+      if (apex) {
+        if (E) bowEdge(outerPts[steps], [cx, cy], aMid).forEach(p => ring.push(p));
+        apexIdx = ring.length; ring.push([cx, cy]);
+        if (E) bowEdge([cx, cy], outerPts[0], aMid).forEach(p => ring.push(p));
+      } else {
+        if (E) bowEdge(outerPts[steps], innerPts[steps], aMid).forEach(p => ring.push(p));
+        for (let i = steps; i >= 0; i--) ring.push(innerPts[i]);
+        corners.push(steps + E + 1, 2 * steps + E + 1);
+        if (E) bowEdge(innerPts[0], outerPts[0], aMid).forEach(p => ring.push(p));
+      }
       ring.forEach(p => all.push(p));
       // corner radius = End rounding × half the band width at that end
       const wEnd = i => Math.hypot(outerPts[i][0] - innerPts[i][0], outerPts[i][1] - innerPts[i][1]);
@@ -241,10 +269,17 @@
         if (round <= 0) return 0;
         if (c === 0) return wEnd(0) / 2 * round;
         if (c === steps) return wEnd(steps) / 2 * round;
-        if (c === steps + 1) return wEnd(steps) / 2 * round;
+        if (c === steps + E + 1) return wEnd(steps) / 2 * round;
         return wEnd(0) / 2 * round;
       };
-      d += ringPathD(ring, corners.map(c => [c, want(c)]), r2);
+      const list = corners.map(c => [c, want(c)]);
+      const alpha = segLen * Math.PI / 180;
+      if (apexIdx >= 0 && o.apexRound && round > 0 && alpha < Math.PI - 1e-6) {
+        const rcA = Math.hypot(outerPts[0][0] - cx, outerPts[0][1] - cy) / 2 * round, tau = Math.PI - alpha;
+        const cut = rcA / Math.tan(alpha / 2);
+        list.push([apexIdx, cut, (4 / 3) * Math.tan(tau / 4) * rcA / cut]);
+      }
+      d += ringPathD(ring, list, r2);
     }
     return { d, bbox: bboxOfPoints(all) };
   }
@@ -265,7 +300,7 @@
       const t = seg > 1e-12 ? (s - cs[lo]) / seg : 0;
       return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
     };
-    const rounded = cornerList.filter(([, r]) => r > 0.05).map(([c, r]) => ({ c, r, s: cs[c] })).sort((a, b) => a.s - b.s);
+    const rounded = cornerList.filter(([, r]) => r > 0.05).map(([c, r, k]) => ({ c, r, k: k || 0.5523, s: cs[c] })).sort((a, b) => a.s - b.s);
     if (!rounded.length) return 'M ' + P.map(p => `${r2(p[0])},${r2(p[1])}`).join(' L ') + ' Z';
     // clamp: two fillets on one edge may each use at most half of it
     rounded.forEach((k, i) => {
@@ -274,7 +309,6 @@
       k.r = Math.min(k.r, dn / 2, dp / 2);
     });
     const num = v => r2(v);
-    const KAPPA = 0.5523;
     const info = rounded.map(k => ({ ...k, B: ptAt(k.s - k.r), F: ptAt(k.s + k.r), C: P[k.c] }));
     let out = `M ${num(info[0].F[0])},${num(info[0].F[1])}`;
     info.forEach((k, i) => {
@@ -284,8 +318,8 @@
       for (let v = 0; v < m; v++) { const rel = wrap(cs[v] - sF); if (rel > 1e-9 && rel < span - 1e-9) vs.push([rel, P[v]]); }
       vs.sort((a, b) => a[0] - b[0]).forEach(([, p]) => { out += ` L ${num(p[0])},${num(p[1])}`; });
       // curve at the NEXT corner: line to its back point, cubic through it
-      const c1 = [nx.B[0] + (nx.C[0] - nx.B[0]) * KAPPA, nx.B[1] + (nx.C[1] - nx.B[1]) * KAPPA];
-      const c2 = [nx.F[0] + (nx.C[0] - nx.F[0]) * KAPPA, nx.F[1] + (nx.C[1] - nx.F[1]) * KAPPA];
+      const c1 = [nx.B[0] + (nx.C[0] - nx.B[0]) * nx.k, nx.B[1] + (nx.C[1] - nx.B[1]) * nx.k];
+      const c2 = [nx.F[0] + (nx.C[0] - nx.F[0]) * nx.k, nx.F[1] + (nx.C[1] - nx.F[1]) * nx.k];
       out += ` L ${num(nx.B[0])},${num(nx.B[1])} C ${num(c1[0])},${num(c1[1])} ${num(c2[0])},${num(c2[1])} ${num(nx.F[0])},${num(nx.F[1])}`;
     });
     return out + ' Z';
@@ -412,41 +446,71 @@
     return !!o && ((o.fans != null && o.fans !== 2) || (o.core || 0) > 0 || (o.spread != null && o.spread < 180) || (o.reach != null && o.reach < 100)
       || (o.ramp || 0) !== 0 || (o.curve || 0) !== 0 || (o.round || 0) > 0 || (o.segs || 1) > 1);
   }
-  // One band segment between angles p0<p1 (degrees, measured from the +x baseline
-  // direction into the fan's own half-plane), outer radius R, inner radius r
-  // (<= 0.5 → solid wedge with a sharp apex at the pivot). rc = corner fillet
-  // radius: the fillet circle is tangent to the arc and to the radial end line —
-  // centre at distance (R−rc) / (r+rc) from the pivot, angular offset
+  // One sector/band segment between angles p0<p1 (degrees, measured from the +x
+  // direction into the half-plane given by sgn: −1 = up on screen), outer radius
+  // R, inner radius r (<= 0.5 → solid wedge with an apex at the pivot). rc = corner
+  // fillet radius: the fillet circle is tangent to the arc and to the radial end
+  // line — centre at distance (R−rc) / (r+rc) from the pivot, angular offset
   // asin(rc/(R−rc)) / asin(rc/(r+rc)), tangent on the radial line at
   // √((R−rc)²−rc²) / √((r+rc)²−rc²). At rc = t/2 the two tangent points meet →
-  // a perfect semicircular cap.
-  function truchetBandD(cx, py, sgn, R, r, p0, p1, round) {
+  // a perfect semicircular cap. Shared by Arc truchet (defaults) and Wedge:
+  //   o.sq        y-scale about the pivot (an axis-aligned scale keeps every
+  //               fillet tangent; arcs become A R,R·sq)
+  //   o.rot       rigid rotation (deg) about the pivot; arcs carry it as x-axis-rotation
+  //   o.apexRound also fillet the apex of a solid wedge (span < 180°)
+  //   o.curve     −100..100 bows the two radial edges (+ outward, − inward)
+  function sectorD(cx, py, sgn, R, r, p0, p1, round, o) {
+    o = o || {};
+    const sq = o.sq == null ? 1 : o.sq, rot = o.rot || 0, curve = o.curve || 0;
     const r2 = v => Math.round(v * 1000) / 1000;
     const rad = Math.PI / 180, apex = r <= 0.5, span = (p1 - p0) * rad;
-    const P = (dist, deg) => `${r2(cx + dist * Math.cos(deg * rad))},${r2(py + sgn * dist * Math.sin(deg * rad))}`;
+    const cr = Math.cos(rot * rad), sr = Math.sin(rot * rad);
+    const map = (x, y) => { y *= sq; if (rot) { const xr = x * cr - y * sr; y = x * sr + y * cr; x = xr; } return [cx + x, py + y]; };
+    const pt = (dist, deg) => map(dist * Math.cos(deg * rad), sgn * dist * Math.sin(deg * rad));
+    const fmt = q => `${r2(q[0])},${r2(q[1])}`;
+    const P = (dist, deg) => fmt(pt(dist, deg));
     const inc = sgn < 0 ? 0 : 1, dec = 1 - inc;           // sweep flag for increasing / decreasing angle
+    const AR = (rr, large, sw) => `A ${r2(rr)},${r2(rr * sq)} ${rot ? r2(rot) : 0} ${large} ${sw}`;
+    // radial edge from distance d1 to d2 at angle deg; s = +1 if outward is the +angle side
+    const seg = (d1, d2, deg, s) => {
+      if (!curve) return `L ${P(d2, deg)}`;
+      const len = Math.abs(d2 - d1), dm = (d1 + d2) / 2;
+      let dev = curve / 100 * 0.3 * len;
+      if (dev < 0) dev = Math.max(dev, -0.9 * dm * Math.sin(Math.min(span, Math.PI) / 2));
+      const a = deg * rad, off = 2 * dev * s;
+      const c = map(dm * Math.cos(a) - off * Math.sin(a), sgn * (dm * Math.sin(a) + off * Math.cos(a)));
+      return `Q ${fmt(c)} ${P(d2, deg)}`;
+    };
+    const apexOn = apex && !!o.apexRound && span < Math.PI - 1e-6;
     let rc = round * (apex ? R / 2 : (R - r) / 2);
     rc = Math.min(rc, (apex ? R : Math.min(R, (R + r) / 2)) / 2 * 0.999);
     const angOf = c => Math.max(Math.asin(Math.min(1, c / (R - c))), apex ? 0 : Math.asin(Math.min(1, c / (r + c))));
-    if (rc > 0 && 2 * angOf(rc) > span * 0.999) {        // clamp so the two end fillets never overlap
+    const fits = c => 2 * angOf(c) <= span * 0.999 && (!apexOn || c / Math.tan(span / 2) <= 0.6 * Math.sqrt(Math.max(0, (R - c) ** 2 - c * c)));
+    if (rc > 0 && !fits(rc)) {                             // clamp so neighbouring fillets never overlap
       let lo = 0, hi = rc;
-      for (let i = 0; i < 24; i++) { const mid = (lo + hi) / 2; if (2 * angOf(mid) > span * 0.999) hi = mid; else lo = mid; }
+      for (let i = 0; i < 24; i++) { const mid = (lo + hi) / 2; if (!fits(mid)) hi = mid; else lo = mid; }
       rc = lo;
     }
-    if (rc < 0.02) {                                       // sharp ends: plain arcs + radial lines
+    if (rc < 0.02) {                                       // sharp ends: plain arcs + radial edges
       const large = span > Math.PI ? 1 : 0;
       return apex
-        ? `M ${cx},${py} L ${P(R, p0)} A ${r2(R)},${r2(R)} 0 ${large} ${inc} ${P(R, p1)} Z`
-        : `M ${P(r, p0)} L ${P(R, p0)} A ${r2(R)},${r2(R)} 0 ${large} ${inc} ${P(R, p1)} L ${P(r, p1)} A ${r2(r)},${r2(r)} 0 ${large} ${dec} ${P(r, p0)} Z`;
+        ? `M ${fmt(map(0, 0))} ${seg(0, R, p0, -1)} ${AR(R, large, inc)} ${P(R, p1)}${curve ? ' ' + seg(R, 0, p1, 1) : ''} Z`
+        : `M ${P(r, p0)} ${seg(r, R, p0, -1)} ${AR(R, large, inc)} ${P(R, p1)} ${seg(R, r, p1, 1)} ${AR(r, large, dec)} ${P(r, p0)} Z`;
     }
     const to = Math.asin(rc / (R - rc)) / rad, dO = Math.sqrt((R - rc) ** 2 - rc * rc);
-    const F = `A ${r2(rc)},${r2(rc)} 0 0 ${inc}`;
-    const arcO = `A ${r2(R)},${r2(R)} 0 0 ${inc} ${P(R, p1 - to)}`;
-    if (apex) return `M ${cx},${py} L ${P(dO, p0)} ${F} ${P(R, p0 + to)} ${arcO} ${F} ${P(dO, p1)} Z`;
+    const F = `${AR(rc, 0, inc)}`;
+    const arcO = `${AR(R, (p1 - p0 - 2 * to) > 180 ? 1 : 0, inc)} ${P(R, p1 - to)}`;
+    if (apex) {
+      if (apexOn) {
+        const t = rc / Math.tan(span / 2);
+        return `M ${P(t, p0)} ${seg(t, dO, p0, -1)} ${F} ${P(R, p0 + to)} ${arcO} ${F} ${P(dO, p1)} ${seg(dO, t, p1, 1)} ${F} ${P(t, p0)} Z`;
+      }
+      return `M ${fmt(map(0, 0))} ${seg(0, dO, p0, -1)} ${F} ${P(R, p0 + to)} ${arcO} ${F} ${P(dO, p1)}${curve ? ' ' + seg(dO, 0, p1, 1) : ''} Z`;
+    }
     const ti = Math.asin(rc / (r + rc)) / rad, dI = Math.sqrt((r + rc) ** 2 - rc * rc);
     const line0 = Math.abs(dO - dI) > 1e-4;
-    return `M ${P(dI, p0)}${line0 ? ` L ${P(dO, p0)}` : ''} ${F} ${P(R, p0 + to)} ${arcO} ${F} ${P(dO, p1)}`
-      + `${line0 ? ` L ${P(dI, p1)}` : ''} ${F} ${P(r, p1 - ti)} A ${r2(r)},${r2(r)} 0 0 ${dec} ${P(r, p0 + ti)} ${F} ${P(dI, p0)} Z`;
+    return `M ${P(dI, p0)}${line0 ? ` ${seg(dI, dO, p0, -1)}` : ''} ${F} ${P(R, p0 + to)} ${arcO} ${F} ${P(dO, p1)}`
+      + `${line0 ? ` ${seg(dO, dI, p1, 1)}` : ''} ${F} ${P(r, p1 - ti)} ${AR(r, (p1 - p0 - 2 * ti) > 180 ? 1 : 0, dec)} ${P(r, p0 + ti)} ${F} ${P(dI, p0)} Z`;
   }
   function truchetBuild(count, ratio, o) {
     count = Math.max(1, Math.round(count == null ? 5 : count));
@@ -469,7 +533,7 @@
         const f = count > 1 ? (i - 1) / (count - 1) : 0.5;
         const ri = Math.min(0.95, Math.max(0.1, ratio * (1 + ramp * (2 * f - 1))));
         const r = R - step * ri;
-        for (let k = 0; k < segs; k++) d += truchetBandD(50, py, sgn, R, r, p0all + k * pitch, p0all + k * pitch + segLen, round) + ' ';
+        for (let k = 0; k < segs; k++) d += sectorD(50, py, sgn, R, r, p0all + k * pitch, p0all + k * pitch + segLen, round) + ' ';
         prev = R;
       }
     };
@@ -522,7 +586,49 @@
     return `M ${ix0},${iy0} L ${ox0},${oy0} A ${R},${ry(R)} 0 ${large},1 ${ox1},${oy1}`
       + ` L ${ix1},${iy1} A ${r},${ry(r)} 0 ${large},0 ${ix0},${iy0} Z`;
   }
-  function wedgeGeometry(angle, innerRadiusPct, squashPct) {
+  // Wedge extras (Corner rounding incl. the apex · Rotate · Edge curvature ·
+  // Irregularity+Seed). All at default → wedgePathD untouched (byte-identical).
+  // Active → sectorD (analytic true arcs + exact fillets, same maths as Arc
+  // truchet's bands); with Irregularity the sampled arcBuild takes over so the
+  // look does not jump. Rotation is about the centre, so the shape stays inside
+  // the radius-50 circle → still inscribed, normScale 1.
+  function wedgeExtrasActive(o) {
+    return !!o && ((o.round || 0) > 0 || (o.rotate || 0) !== 0 || (o.curve || 0) !== 0 || (o.irregular || 0) > 0);
+  }
+  function wedgeBuild(angle, innerRadiusPct, squashPct, o) {
+    angle = Math.min(360, Math.max(1, angle == null ? 90 : angle));
+    innerRadiusPct = Math.min(95, Math.max(0, innerRadiusPct == null ? 0 : innerRadiusPct));
+    const sq = Math.min(1, Math.max(0.3, (squashPct == null ? 100 : squashPct) / 100));
+    const R = 50, r = R * innerRadiusPct / 100, r2 = v => Math.round(v * 1000) / 1000;
+    const round = Math.min(100, Math.max(0, o.round || 0)) / 100, rot = Math.min(180, Math.max(-180, o.rotate || 0));
+    const curve = Math.min(100, Math.max(-100, o.curve || 0)), irr = Math.min(100, Math.max(0, o.irregular || 0));
+    const full = angle >= 359.9;
+    if (irr > 0) {
+      const sweep = full ? 359.5 : angle;
+      return arcBuild(50, 50, R, -90 - sweep / 2, sweep, r, { irregular: irr, seed: o.seed, round: round * 100, squash: sq, rotate: rot, edgeCurve: full ? 0 : curve, apexRound: true });
+    }
+    if (full) {                                            // full disc / annulus — no corners, no edges; only Rotate can show (squashed)
+      const xr = rot ? r2(rot) : 0, ell = rr => `${r2(rr)},${r2(rr * sq)} ${xr}`;
+      const rc = Math.cos(rot * Math.PI / 180), rs = Math.sin(rot * Math.PI / 180);
+      const at = rr => [[50 - rr * rc, 50 - rr * rs], [50 + rr * rc, 50 + rr * rs]].map(q => `${r2(q[0])},${r2(q[1])}`);
+      const [o0, o1] = at(R);
+      const outer = `M ${o0} A ${ell(R)} 1,1 ${o1} A ${ell(R)} 1,1 ${o0} Z`;
+      if (r <= 0.5) return { d: outer };
+      const [i0, i1] = at(r);
+      return { d: outer + ' ' + `M ${i0} A ${ell(r)} 1,0 ${i1} A ${ell(r)} 1,0 ${i0} Z` };
+    }
+    return { d: sectorD(50, 50, -1, R, r, 90 - angle / 2, 90 + angle / 2, round, { sq, rot, apexRound: true, curve }) };
+  }
+  function wedgeGeometry(angle, innerRadiusPct, squashPct, opts) {
+    if (wedgeExtrasActive(opts)) {
+      const b = wedgeBuild(angle, innerRadiusPct, squashPct, opts);
+      // Irregularity can push the wobbled rim past the box; shrink + recentre ONLY on overflow (Triangle's pattern)
+      if (b.bbox && (b.bbox.x < 0 || b.bbox.y < 0 || b.bbox.x + b.bbox.w > 100 || b.bbox.y + b.bbox.h > 100)) {
+        const sc = Math.min(1, 100 / Math.max(b.bbox.w, 1e-6), 100 / Math.max(b.bbox.h, 1e-6));
+        return { d: b.d, normTx: 50 / sc - (b.bbox.x + b.bbox.w / 2), normTy: 50 / sc - (b.bbox.y + b.bbox.h / 2), normScale: sc };
+      }
+      return { d: b.d, normTx: 0, normTy: 0, normScale: 1 };
+    }
     return { d: wedgePathD(angle, innerRadiusPct, squashPct), normTx: 0, normTy: 0, normScale: 1 };
   }
 
@@ -873,7 +979,7 @@
   Organica.shapes = {
     scalePathAbout, triangleGeometry, arcGeometry, arcBuild, arcExtrasActive, arcPathD, circleGeometry, segmentGeometry, dropGeometry, blobGeometry, fitToBox,
     arcTruchetGeometry, arcTruchetPathD, truchetExtrasActive,
-    wedgeGeometry, wedgePathD, polygonGeometry, polygonPathD, starGeometry, starPathD,
+    wedgeGeometry, wedgePathD, wedgeExtrasActive, polygonGeometry, polygonPathD, starGeometry, starPathD,
     roundedRectGeometry, roundedRectPathD, chevronGeometry, chevronPathD,
     crossGeometry, crossPathD, lensGeometry, lensPathD,
     resolveGridCells, resolveCellPlacement, cellColRow, frameSize, median,
