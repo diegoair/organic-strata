@@ -54,6 +54,9 @@
   .fvs-thumb-wrap { display: flex; flex-direction: column; gap: var(--space-1); width: 96px; flex-shrink: 0; }
   .fvs-thumb-caption, .fvs-library-caption { font-size: var(--fs-micro); color: var(--mid); line-height: var(--lh-snug); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fvs-library-caption { display: block; width: 76px; margin-top: var(--space-1); }
+  .fvs-library-rename { width: 64px; padding: 0; border: 0; background: none; text-align: left; cursor: text; font-family: var(--font); }
+  .fvs-library-rename:hover { color: var(--ink); }
+  .fvs-library-rename-input { width: 64px; margin-top: var(--space-1); }
 
   /* .icon-btn + .rmx-* chip CSS now in shared/palette.css.
      .fvs-library-item .rmx-x below reuses the shared .rmx-x for the
@@ -77,6 +80,7 @@
   .fvs-variant-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
   .fvs-variant-row .panel-select { flex: 1; min-width: 0; }
   .fvs-variant-row input[type="number"] { flex: 0 0 44px; width: 44px; }
+  #in-cellprop-color { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
   .fvs-variant-row input[type="color"] { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
   .fvs-variant-row .mini-btn { flex: 0 0 var(--row-h); width: var(--row-h); padding: 0; }
   .fvs-library-item { position: relative; width: 64px; height: 64px; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; padding: 0; background: none; }
@@ -191,6 +195,13 @@
         <div id="creator-library-tiles" class="fvs-library"></div>
       </div>
     </div>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
+  </div>
+  <!-- Component-tier action — undo the last Generate / Clear / Add / Tile. Shown only on that tier by setTier(). -->
+  <div id="fb-component-actions" class="fvs-fb-group" style="display:none">
+    <button class="org-floatbar__btn" id="btn-undo-components" aria-label="Undo (⌘Z)" disabled>
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5.5 3 2.5 6l3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 6h6.5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+    </button>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
   </div>
   <button class="org-floatbar__btn" id="btn-playpause" aria-label="Play" disabled>
@@ -1174,6 +1185,7 @@
         <span class="ctrl-label">Start at</span>
         <select class="panel-select" id="sel-color-offset" aria-label="Colour rule start colour"></select>
       </div>
+      <p class="org-panel__hint" id="color-quadrant-hint" style="display:none">By quadrant needs an even number of columns and rows — on this grid the middle column or row falls in the second half.</p>
       <p class="org-panel__hint">Ink — which palette colour each cell gets. By cell order cycles colour 1, 2, 3… across the cells; the other rules follow the grid's structure (checkerboard, rows, columns, diagonal bands, quadrants). One colour by default (a plain fill); add more for a multi-ink pattern.</p>
       <div class="color-row">
         <span class="color-name">Paper</span>
@@ -1390,6 +1402,15 @@
             <input type="range" id="rg-cellprop-fixedsize" min="5" max="300" step="1" value="100">
             <span class="ctrl-val" id="v-cellprop-fixedsize">100</span>
           </div>
+          <div class="ctrl-row" id="row-cellprop-color">
+            <div class="ctrl-label">Colour</div>
+            <select class="panel-select" id="sel-cellprop-color" aria-label="Cell colour"></select>
+            <input type="color" id="in-cellprop-color" aria-label="Custom cell colour" style="display:none">
+          </div>
+          <div class="ctrl-row" id="row-cellprop-color-override" style="display:none">
+            <span class="ctrl-val" style="color:var(--tool);text-align:left;flex:1">● Overrides the palette</span>
+            <button class="mini-btn" id="btn-cellprop-color-reset">Reset</button>
+          </div>
           <div class="ctrl-row">
             <div class="ctrl-label">Padding</div>
             <input type="range" id="rg-cellprop-padding" min="0" max="40" step="1" value="0">
@@ -1478,11 +1499,20 @@
         <svg viewBox="0 0 16 16" width="11" height="11"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
       </button>
     </div>
-    <div class="sub-label">Seeds</div>
-    <div id="symbol-content-overlay__seeds" class="fvs-library"></div>
-    <div class="sub-label" style="margin-top:var(--space-3)">Components</div>
-    <div id="symbol-content-overlay__components-empty" class="fvs-library-empty">No saved Components yet — build one in the Component step first.</div>
-    <div id="symbol-content-overlay__components" class="fvs-library"></div>
+    <div class="seg-ctrl" id="seg-content-filter" role="group" aria-label="Show">
+      <button type="button" class="seg-btn active" data-filter="all" aria-pressed="true">All</button>
+      <button type="button" class="seg-btn" data-filter="seeds" aria-pressed="false">Seeds</button>
+      <button type="button" class="seg-btn" data-filter="components" aria-pressed="false">Components</button>
+    </div>
+    <div id="content-sec-seeds">
+      <div class="sub-label">Seeds</div>
+      <div id="symbol-content-overlay__seeds" class="fvs-library"></div>
+    </div>
+    <div id="content-sec-components">
+      <div class="sub-label" style="margin-top:var(--space-3)">Components</div>
+      <div id="symbol-content-overlay__components-empty" class="fvs-library-empty">No saved Components yet — build one in the Component step first.</div>
+      <div id="symbol-content-overlay__components" class="fvs-library"></div>
+    </div>
   </div>
 </div>
 
@@ -1643,7 +1673,9 @@ function symbolCR() {
 }
 function cellInk(cell, i) {
   const p = ruleInk(i, symbolCR());
-  return (!cell.color || String(cell.color).toLowerCase() === String(p).toLowerCase()) ? p : cell.color;
+  // null = follow the palette; anything else is an explicit override set in Cell properties
+  // (legacy colours that merely pinned the palette value are released when a saved Symbol loads).
+  return cell.color ? cell.color : p;
 }
 
 function buildPalette() {
@@ -1668,6 +1700,20 @@ function syncColorRuleUI() {
   sel.value = state.colorRule.mode;
   off.value = String(Math.min(state.colorRule.offset || 0, n - 1));
   ctrl('row-color-offset').style.display = n < 2 ? 'none' : '';
+  syncQuadrantHint();
+}
+// "By quadrant" splits the grid at its middle; with an odd number of columns
+// or rows the middle line runs through a cell, which is documented behaviour
+// (that cell joins the second half) — so it is only flagged, never changed.
+function syncQuadrantHint() {
+  let odd = false;
+  if (state.colorRule.mode === 'quadrant') {
+    try {
+      const cr = state.activeTier === 'symbol' ? (state.symbolGrid ? cellColRow(getSymbolGrid()) : []) : componentCellColRow(getGrid());
+      if (cr.length) odd = (Math.max(...cr.map(c => c.col)) + 1) % 2 === 1 || (Math.max(...cr.map(c => c.row)) + 1) % 2 === 1;
+    } catch (e) { odd = false; }
+  }
+  ctrl('color-quadrant-hint').style.display = odd ? '' : 'none';
 }
 function refreshColourViews() {
   renderGallery();
@@ -3214,6 +3260,7 @@ function syncRuleAvailability() {
   });
   if (currentInvalid) { sel.value = 'identity'; syncRuleUI(); }
   ctrl('grid-cellcount-hint').textContent = count + ' cell' + (count === 1 ? '' : 's');
+  syncQuadrantHint();
   buildManualEditor();
   if (sel.value === 'exhaustive') syncExhaustiveHint();
 }
@@ -3281,6 +3328,32 @@ function buildManualEditor() {
   Organica.autoLabelPanel(wrap);
 }
 
+// Component-tier undo: a stack of the last 20 snapshots of the gallery (the
+// Components, which one is selected, and the Component the Grid tiles), taken
+// before Generate / Add to gallery / Clear / Tile / a recipe. The Seed and every
+// other control are left alone.
+const UNDO_MAX = 20;
+const undoStack = [];
+function pushUndo() {
+  undoStack.push(structuredClone({ components: state.components, selectedId: state.selectedId, tile: state.fvsGridComponentName }));
+  if (undoStack.length > UNDO_MAX) undoStack.shift();
+  syncUndoUI();
+}
+function undoComponents() {
+  const snap = undoStack.pop();
+  if (!snap) return;
+  state.components = snap.components; state.selectedId = snap.selectedId; state.fvsGridComponentName = snap.tile;
+  renderGallery(); syncUndoUI();
+}
+function syncUndoUI() { ctrl('btn-undo-components').disabled = undoStack.length === 0; }
+ctrl('btn-undo-components').addEventListener('click', undoComponents);
+document.addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z' || state.activeTier !== 'component') return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;   // keep native text undo
+  e.preventDefault(); undoComponents();
+});
+
 function generate() {
   const mode = ctrl('sel-rule').value;
   let produced;
@@ -3302,6 +3375,7 @@ function generate() {
       produced = ruleExhaustive();
       break;
     case 'manual': {
+      pushUndo();
       const comp = { id: `manual-${Date.now()}`, ruleSource: 'manual', cells: readManualCells() };
       state.components.push(comp);
       state.selectedId = comp.id;
@@ -3309,12 +3383,14 @@ function generate() {
       return;
     }
   }
+  pushUndo();
   state.components = produced;
   state.selectedId = produced.length ? produced[0].id : null;
   renderGallery();
 }
 
 function clearGallery() {
+  pushUndo();
   state.components = [];
   state.selectedId = null;
   renderGallery();
@@ -3696,10 +3772,53 @@ function renderLibrary() {
     x.setAttribute('aria-label', 'Remove saved component ' + name);
     x.addEventListener('click', e => { e.stopPropagation(); removeLibraryEntry(name); });
     const holder = document.createElement('div');
-    holder.style.position = 'relative';
-    holder.appendChild(btn); holder.appendChild(x);
+    const cap = document.createElement('button');
+    cap.className = 'fvs-library-caption fvs-library-rename';
+    cap.textContent = name; cap.title = 'Rename';
+    cap.setAttribute('aria-label', 'Rename saved component ' + name);
+    cap.addEventListener('click', () => beginRenameLibraryEntry(cap, name));
+    const tile = document.createElement('div');
+    tile.style.position = 'relative';
+    tile.appendChild(btn); tile.appendChild(x);
+    holder.append(tile, cap);
     wrap.appendChild(holder);
   }
+}
+
+// Inline rename: the caption becomes an input (Enter confirms, Esc/blur cancels
+// — same keys as the save-name row). No native prompt().
+function beginRenameLibraryEntry(cap, oldName) {
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.className = 'panel-select fvs-library-rename-input'; inp.value = oldName;
+  inp.setAttribute('aria-label', 'New name for ' + oldName);
+  let done = false;
+  const finish = ok => {
+    if (done) return; done = true;
+    const v = inp.value.trim();
+    if (ok && v && v !== oldName) renameLibraryEntry(oldName, v); else renderLibrary();
+  };
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') finish(true); else if (e.key === 'Escape') finish(false); });
+  inp.addEventListener('blur', () => finish(false));
+  cap.replaceWith(inp); inp.focus(); inp.select();
+}
+// Renames a saved Component and repoints everything that names it: saved
+// Symbols' cells, the live Symbol, Container/Mask references, the Grid pick.
+function renameLibraryEntry(oldName, newName) {
+  const all = LIBRARY.read();
+  if (!all[oldName]) return;
+  if (all[newName]) { renderLibrary(); ctrl('library-empty').textContent = `"${newName}" already exists.`; ctrl('library-empty').style.display = ''; return; }
+  all[newName] = all[oldName]; delete all[oldName];
+  Object.values(all).forEach(e => { if (e.underlyingComponentName === oldName) e.underlyingComponentName = newName; });
+  LIBRARY.write(all);
+  const sym = SYMBOL_LIBRARY.read();
+  Object.values(sym).forEach(e => (e.cells || []).forEach(c => { if (c.componentName === oldName) c.componentName = newName; }));
+  SYMBOL_LIBRARY.write(sym);
+  (state.symbolCells || []).forEach(c => { if (c.componentName === oldName) c.componentName = newName; });
+  if (state.underlyingComponentName === oldName) state.underlyingComponentName = newName;
+  if (state.fvsGridComponentName === oldName) state.fvsGridComponentName = newName;
+  renderLibrary(); renderSymbolLibrary(); renderFvsGridPicker();
+  if (state.symbolGrid) renderSymbol();
+  ctrl('library-empty').textContent = 'Nothing saved yet.';
 }
 
 // buildComponentSVG always reads state.paperColor/componentRole/
@@ -3816,6 +3935,7 @@ function componentTileEntry(name) {
 function tileSelectedInGrid() {
   const comp = getSelectedComponent();
   if (!comp) return;
+  pushUndo();
   const name = 'Tile · ' + comp.id;
   const all = LIBRARY.read();
   if (!all[name]) { all[name] = { ...buildLibraryEntry(), auto: true }; LIBRARY.write(all); }
@@ -4676,6 +4796,25 @@ function syncAnchorGridUI(ax, ay) {
 // what used to risk drifting (a dropdown AND an overlay both able to set
 // the same fields). The docked panel just reflects the result: a plain
 // text readout plus the Choose… button that reopens the overlay.
+// Colour: "Follow palette" (color null) or an explicit override — a palette
+// colour or a free one. Only Seed cells carry a colour (a nested Component
+// keeps its own inks).
+function syncCellColourUI(cell, isComponent) {
+  ctrl('row-cellprop-color').style.display = isComponent ? 'none' : '';
+  if (isComponent) { ctrl('row-cellprop-color-override').style.display = 'none'; return; }
+  const sel = ctrl('sel-cellprop-color');
+  const pal = state.colors.map(hexKey);
+  const cur = cell.color ? hexKey(cell.color) : '';
+  const custom = cur && !pal.includes(cur);
+  sel.innerHTML = `<option value="">Follow palette</option>`
+    + pal.map((c, i) => `<option value="${c}">Palette ${i + 1} · ${c}</option>`).join('')
+    + `<option value="custom">Custom…</option>`;
+  sel.value = !cur ? '' : custom ? 'custom' : cur;
+  const inp = ctrl('in-cellprop-color');
+  inp.style.display = custom ? '' : 'none';
+  if (custom) inp.value = cur;
+  ctrl('row-cellprop-color-override').style.display = cur ? '' : 'none';
+}
 function renderCellPropertiesPanel() {
   const hasSelection = state.symbolSelection.size > 0 && state.symbolGrid;
   ctrl('symbol-cell-empty').style.display = hasSelection ? 'none' : '';
@@ -4709,6 +4848,7 @@ function renderCellPropertiesPanel() {
   ctrl('v-cellprop-scale').textContent = ctrl('rg-cellprop-scale').value;
   ctrl('rg-cellprop-fixedsize').value = first.fixedSize || 100;
   ctrl('v-cellprop-fixedsize').textContent = ctrl('rg-cellprop-fixedsize').value;
+  syncCellColourUI(first, isComponent);
   ctrl('rg-cellprop-padding').value = Math.round((first.padding || 0) * 100);
   ctrl('v-cellprop-padding').textContent = ctrl('rg-cellprop-padding').value;
   syncAnchorGridUI(first.anchorX || 0, first.anchorY || 0);
@@ -4748,6 +4888,16 @@ function applyToAllCells(patch) {
 }
 function contentTarget() { return ctrl('chk-content-overlay-all').checked ? applyToAllCells : applyToSelection; }
 
+// Choose-content filter — which of the two lists to show (memory only).
+let contentFilter = 'all';
+function syncContentFilter() {
+  ctrl('content-sec-seeds').style.display = contentFilter === 'components' ? 'none' : '';
+  ctrl('content-sec-components').style.display = contentFilter === 'seeds' ? 'none' : '';
+  ctrl('seg-content-filter').querySelectorAll('.seg-btn').forEach(b => {
+    const on = b.dataset.filter === contentFilter;
+    b.classList.toggle('active', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
 function closeCellContentOverlay() {
   ctrl('symbol-content-overlay').style.display = 'none';
   ctrl('chk-content-overlay-all').checked = false;   // disarm so a later single-cell edit isn't hijacked
@@ -4815,6 +4965,7 @@ function renderCellContentOverlayTiles() {
     item.append(btn, cap);
     compWrap.appendChild(item);
   }
+  syncContentFilter();
   Organica.autoLabelPanel(ctrl('symbol-content-overlay'));
 }
 
@@ -5010,6 +5161,8 @@ function setTier(tier) {
   ctrl('export-hint').textContent = STEP_EXPORT_HINTS[tier] || STEP_EXPORT_HINTS.component;
   // Reset / Upload / Creator library only act on the Element's Seed.
   ctrl('fb-element-actions').style.display = tier === 'element' ? '' : 'none';
+  ctrl('fb-component-actions').style.display = tier === 'component' ? '' : 'none';
+  syncQuadrantHint();
   creatorPopover.close();
   // Motion only ever animates Component/Symbol (playbackReady() agrees) —
   // hide it for Element/Grid rather than show controls that can't do anything.
@@ -5457,6 +5610,10 @@ buildAnchorGrid();
 ctrl('btn-cellprop-choose').addEventListener('click', openCellContentOverlay);
 ctrl('btn-rule-choose-content').addEventListener('click', openCellContentOverlayForAll);
 ctrl('btn-content-overlay-close').addEventListener('click', closeCellContentOverlay);
+ctrl('seg-content-filter').addEventListener('click', e => {
+  const b = e.target.closest('.seg-btn'); if (!b) return;
+  contentFilter = b.dataset.filter; syncContentFilter();
+});
 ctrl('symbol-content-overlay').addEventListener('click', e => {
   if (e.target === ctrl('symbol-content-overlay')) closeCellContentOverlay(); // click on the backdrop itself
 });
@@ -5484,6 +5641,16 @@ ctrl('rg-cellprop-padding').addEventListener('input', e => {
   ctrl('v-cellprop-padding').textContent = e.target.value;
   applyToSelection({ padding: parseInt(e.target.value, 10) / 100 });
 });
+ctrl('sel-cellprop-color').addEventListener('change', e => {
+  const v = e.target.value;
+  const inp = ctrl('in-cellprop-color');
+  const color = v === '' ? null : v === 'custom' ? hexKey(inp.value || state.colors[0]) : v;
+  if (v === 'custom') inp.value = color;
+  applyToSelection({ color });
+  renderCellPropertiesPanel();
+});
+ctrl('in-cellprop-color').addEventListener('input', e => applyToSelection({ color: hexKey(e.target.value) }));
+ctrl('btn-cellprop-color-reset').addEventListener('click', () => { applyToSelection({ color: null }); renderCellPropertiesPanel(); });
 ctrl('chk-cellprop-lock').addEventListener('change', e => applyToSelection({ locked: e.target.checked }));
 
 ctrl('btn-save-symbol-library').addEventListener('click', saveSymbolToLibrary);
@@ -5566,6 +5733,7 @@ function runBuiltinRecipe(def) {
   buildPalette();
   fireChange('sel-grid-type', def.component.grid);
   const comp = { id: 'recipe-' + def.id, ruleSource: 'recipe', cells: def.component.cells() };
+  pushUndo();
   state.components = [comp];
   state.selectedId = comp.id;
   renderGallery();

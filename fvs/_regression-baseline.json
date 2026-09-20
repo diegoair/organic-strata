@@ -104,5 +104,12 @@
   "rulenm:square4x4:checkerboard": "a15a1f3b",
   "rulenm:square4x4:rowmirror": "ba5a6bc3",
   "rulenm:square4x4:columnmirror": "8fb9cddb",
-  "rulenm:square4x4:radial": "39f1d65b"
+  "rulenm:square4x4:radial": "39f1d65b",
+  "cell:follow": "2/2",
+  "cell:override": "1/2",
+  "cell:ui": "custom,",
+  "cell:reset": "true",
+  "undo": "true,true,true",
+  "rename": "true,true,zz-renamed,zz-renamed",
+  "quadrant:hint": "true,false"
 }

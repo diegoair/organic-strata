@@ -153,6 +153,43 @@ function battery() {
   });
   chg('sel-rule', 'identity'); chg('sel-grid-type', 'square2x2');
 
+  // 11 — Cell properties colour override, Undo, rename, quadrant hint
+  chg('sel-seed-type', 'arc'); chg('sel-element-fillmode', 'fill');
+  setTier('symbol');
+  chg('sel-symbol-square-cols', '2'); chg('sel-symbol-square-rows', '2'); ctrl('btn-symbol-grid-square').click();
+  state.colors = ['#e8321e', '#0a9a3e']; buildPalette();
+  state.symbolCells = state.symbolCells.map(c => ({ ...c, source: 'seed', seedType: 'arc', fitMode: 'fill', color: null }));
+  const count = (svg, c) => (svg.match(new RegExp(c, 'gi')) || []).length;
+  put('cell:follow', [count(buildSymbolSVG(), '#e8321e'), count(buildSymbolSVG(), '#0a9a3e')].join('/'));
+  state.symbolCells[0].color = '#123456'; state.symbolCells[1].color = '#0A9A3E';
+  const ov = buildSymbolSVG();
+  put('cell:override', [count(ov, '#123456'), count(ov, '#0a9a3e')].join('/'));
+  state.symbolSelection = new Set([0]); renderCellPropertiesPanel();
+  put('cell:ui', [ctrl('sel-cellprop-color').value, ctrl('row-cellprop-color-override').style.display].join(','));
+  ctrl('btn-cellprop-color-reset').click();
+  put('cell:reset', state.symbolCells[0].color === null);
+  state.symbolSelection.clear();
+  setTier('component'); reset();
+  chg('sel-rule', 'identity'); generate(); const before = state.components.map(c => c.id).join(','); chg('sel-rule', 'pinwheel'); generate(); clearGallery();
+  const depth = undoStack.length; undoComponents(); const afterOne = state.components.length;
+  undoComponents(); const afterTwo = state.components.map(c => c.id).join(',');
+  put('undo', [depth >= 3, afterOne > 0, afterTwo === before].join(','));
+  const lib0 = LIBRARY.read(), sym0 = SYMBOL_LIBRARY.read();
+  try {
+    chg('sel-rule', 'identity'); generate();
+    const L = LIBRARY.read(); L['zz-a'] = buildLibraryEntry(); L['zz-b'] = { ...buildLibraryEntry(), underlyingComponentName: 'zz-a' }; LIBRARY.write(L);
+    state.symbolCells = [{ source: 'component', componentName: 'zz-a' }];
+    renameLibraryEntry('zz-a', 'zz-renamed');
+    const L2 = LIBRARY.read();
+    put('rename', [!!L2['zz-renamed'], !L2['zz-a'], L2['zz-b'].underlyingComponentName, state.symbolCells[0].componentName].join(','));
+  } finally { LIBRARY.write(lib0); SYMBOL_LIBRARY.write(sym0); }
+  chg('sel-grid-type', 'square3x3'); state.colorRule = { mode: 'quadrant', offset: 0 }; setTier('component'); syncColorRuleUI();
+  const h3 = ctrl('color-quadrant-hint').style.display === '';
+  chg('sel-grid-type', 'square2x2'); syncColorRuleUI();
+  put('quadrant:hint', [h3, ctrl('color-quadrant-hint').style.display === ''].join(','));
+  state.colorRule = { ...DEFAULT_COLOR_RULE }; syncColorRuleUI();
+  undoStack.length = 0;
+
   // tidy the throw-away tiles the recipes wrote into the Component library
   const lib = LIBRARY.read(); Object.keys(lib).filter(k => k.startsWith('Tile · recipe-')).forEach(k => delete lib[k]); LIBRARY.write(lib);
   reset();
