@@ -3574,7 +3574,7 @@ function buildFvsGridSVG() {
     const cw = c.cellW || c.cellSize, ch = c.cellH || c.cellSize;
     const target = Math.min(cw, ch);
     const s = target / natSize;
-    const tx = c.cx - target / 2, ty = c.cy - target / 2;
+    const tx = size / 2 + c.cx - target / 2, ty = size / 2 + c.cy - target / 2;
     const flipPart = (altFlip && i % 2 === 1) ? ` translate(${natSize},0) scale(-1,1)` : '';
     body += `<g transform="translate(${tx.toFixed(3)},${ty.toFixed(3)}) scale(${s.toFixed(4)})${flipPart}">${inner}</g>`;
   });
