@@ -3689,13 +3689,15 @@ function buildFvsGridSVG() {
   const centers = resolveGridCells(grid);
   const { size: natSize, inner } = renderedSymbolEntrySVG(entry);
   const altFlip = ctrl('chk-fvsgrid-alt-flip').checked;
+  // Checkerboard by (col + row) parity — index parity gave vertical stripes on grids with an even column count.
+  const colRow = altFlip ? Organica.shapes.cellColRow(grid, null, null) : null;
   let body = '';
   centers.forEach((c, i) => {
     const cw = c.cellW || c.cellSize, ch = c.cellH || c.cellSize;
     const target = Math.min(cw, ch);
     const s = target / natSize;
     const tx = size / 2 + c.cx - target / 2, ty = size / 2 + c.cy - target / 2;
-    const flipPart = (altFlip && i % 2 === 1) ? ` translate(${natSize},0) scale(-1,1)` : '';
+    const flipPart = (altFlip && (colRow[i].col + colRow[i].row) % 2 === 1) ? ` translate(${natSize},0) scale(-1,1)` : '';
     body += `<g transform="translate(${tx.toFixed(3)},${ty.toFixed(3)}) scale(${s.toFixed(4)})${flipPart}">${inner}</g>`;
   });
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`
