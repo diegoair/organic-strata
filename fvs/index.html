@@ -1240,6 +1240,10 @@
         </div>
 
         <div id="rp-checkerboard" class="rule-params" style="display:none">
+          <div class="ctrl-row"><div class="ctrl-label">Rotate A</div>
+            <select class="panel-select" id="sel-rule-chk-rota"><option value="0" selected>0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
+          </div>
+          <label class="check-row"><input type="checkbox" id="chk-rule-chk-swap"><span>Swap A and B (start on B)</span></label>
           <div class="ctrl-row"><div class="ctrl-label">Rotate B</div>
             <select class="panel-select" id="sel-rule-chk-rot"><option value="0">0°</option><option value="90" selected>90°</option><option value="180">180°</option><option value="270">270°</option></select>
           </div>
@@ -2340,8 +2344,18 @@ function ruleCheckerboard() {
     [stateFrom(90, false, false, 1), stateFrom(270, false, false, 1)],
     [stateFrom(0, false, false, 1), stateFrom(0, true, true, 1)],
     [stateFrom(0, true, false, 1), stateFrom(0, false, true, 1)],
+    // Same pairs starting on the other state (TL = the second one) — the
+    // phase the earlier four can't reach, e.g. (180°, 0°).
+    [stateFrom(180, false, false, 1), stateFrom(0, false, false, 1)],
+    [stateFrom(270, false, false, 1), stateFrom(90, false, false, 1)],
   ];
-  const out = pairs.map(([a, b], i) => ({ id: `checkerboard-${i}`, ruleSource: 'checkerboard', cells: buildCheckerboardCells(a, b) }));
+  // Any grid size: parity of (col + row) picks A or B. On 4 cells that is
+  // exactly [A,B,B,A] (buildCheckerboardCells), so 2×2 output is unchanged.
+  const cr = activeCellCount() === 4 ? null : componentCellColRow(getGrid());
+  const out = pairs.map(([a, b], i) => ({
+    id: `checkerboard-${i}`, ruleSource: 'checkerboard',
+    cells: cr ? cr.map(c => ((c.col + c.row) % 2 === 0 ? a : b)) : buildCheckerboardCells(a, b),
+  }));
   return dedupeComponents(out);
 }
 
@@ -3019,7 +3033,7 @@ function getSelectedComponent() {
 // only mean anything at exactly 4 cells (see the comment above
 // ruleRandom). Grey them out otherwise and bounce off a now-invalid
 // selection rather than leaving it silently selected but unusable. ──
-const FOUR_CELL_ONLY_RULES = ['pinwheel', 'mirror', 'diagonal', 'checkerboard', 'rowmirror', 'columnmirror', 'radial'];
+const FOUR_CELL_ONLY_RULES = ['pinwheel', 'mirror', 'diagonal', 'rowmirror', 'columnmirror', 'radial'];
 function syncRuleAvailability() {
   const count = activeCellCount();
   const sel = ctrl('sel-rule');
@@ -4139,10 +4153,12 @@ const SYMBOL_RULES = {
     }),
   },
   checkerboard: {
-    read: () => ({ rotB: parseInt(ctrl('sel-rule-chk-rot').value, 10), flip: ctrl('chk-rule-chk-flip').checked }),
+    read: () => ({ rotA: parseInt(ctrl('sel-rule-chk-rota').value, 10), swap: ctrl('chk-rule-chk-swap').checked,
+      rotB: parseInt(ctrl('sel-rule-chk-rot').value, 10), flip: ctrl('chk-rule-chk-flip').checked }),
     fn: (ctx, p) => {
-      const odd = ((ctx.col + ctx.row) % 2) === 1;
-      if (!odd) return { rotation: 0, flipH: false, flipV: false };
+      // Defaults (rotA 0, no swap) reproduce the original A-even / B-odd result exactly.
+      const odd = ((ctx.col + ctx.row + (p.swap ? 1 : 0)) % 2) === 1;
+      if (!odd) return { rotation: p.rotA || 0, flipH: false, flipV: false };
       return p.flip ? { rotation: 0, flipH: true, flipV: false } : { rotation: p.rotB, flipH: false, flipV: false };
     },
   },
@@ -4608,7 +4624,7 @@ const SYMBOL_LIBRARY = Organica.presetStore('fvs-symbols');
 // this is purely additive — an old entry without `rule` still loads).
 const RULE_CONTROL_IDS = ['sel-symbol-fill', 'sel-symbol-rule',
   'sel-rule-osc-angle', 'rg-rule-osc-shift', 'rg-rule-osc-period', 'rg-rule-osc-phase',
-  'sel-rule-chk-rot', 'chk-rule-chk-flip', 'rg-rule-rows-step', 'sel-rule-rows-mode',
+  'sel-rule-chk-rota', 'chk-rule-chk-swap', 'sel-rule-chk-rot', 'chk-rule-chk-flip', 'rg-rule-rows-step', 'sel-rule-rows-mode',
   'rg-rule-cols-step', 'sel-rule-cols-mode', 'chk-rule-radial-snap', 'sel-rule-radial-chir',
   'rg-rule-wave-amp', 'rg-rule-wave-freq', 'rg-rule-wave-phase', 'chk-rule-wave-snap',
   'chk-rule-rotation', 'chk-rule-flip', 'chk-rule-scale', 'rg-rule-scale-min', 'rg-rule-scale-max',
