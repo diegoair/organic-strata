@@ -1,0 +1,153 @@
+# FVS — User Manual
+
+> Organica · Flexible Visual System — Element → Component → Symbol → Grid
+> Live: [theorganicalanguage.vercel.app/fvs/](https://theorganicalanguage.vercel.app/fvs/)
+> Last updated: September 20, 2026
+
+---
+
+## 1. What FVS does
+
+FVS is a **rule engine for visual patterns**, modelled on Figma's own
+Elements → Components → Symbols chain. You author one small shape, then
+compose it with rules — so a whole pattern stays coherent and every result is a
+real symmetry, not noise. Everything is vector: one `<path>` per cell, the
+preview **is** the export string, and PNG rasterises the same geometry.
+
+Single-file vanilla HTML/CSS/JS (`fvs/index.html`), no build step.
+
+---
+
+## 2. The four steps
+
+The step bar above the canvas moves along the chain; each step builds on the
+one before.
+
+| Step | What you make | Built from |
+|---|---|---|
+| **Element** | The Seed shape and how it is drawn | a Seed type, its extras, Appearance, Palette |
+| **Component** | A small cell arrangement (2×2, 3×3, 4×4 or an imported Loom grid) | the Element, placed by a **rule** |
+| **Symbol** | A larger grid whose every cell holds a Seed or a saved Component | a Square N×M grid (2–8) or a Loom grid |
+| **Grid** | A Symbol, or a saved Component, tiled 2×2 / 3×3 / 4×4 / Loom | the previous step's output |
+
+**Tile in Grid** (Component step) tiles the selected Component directly in the
+Grid step without saving it first.
+
+---
+
+## 3. Element
+
+- **Seed type** — Arc, Arc truchet, Blob, Chevron, Circle, Cross, Drop, Lens,
+  Polygon, Rounded rect, Segment, Star, Triangle, Wedge (alphabetical), plus
+  **Freehand** (draw with bezier anchors), **Custom** (an uploaded SVG) and
+  Seeds picked from the **Creator library** (Genesis). Each type has its own
+  *extras* — corner styles, curvature, outline, twist and so on — listed from
+  one shared table (`Organica.shapes.EXTRAS`), the same one Genesis Create uses.
+- **Appearance** — Style **Fill / Stroke**, Width / Length, **Scale, Move X/Y**
+  and **⤢ Fit to canvas** (one-shot). **Inner seed** adds nested copies
+  (Count, Ratio, Anchor).
+- **Reset seed shape** (floatbar) puts the current shape's controls back to
+  their defaults without touching Appearance or Palette.
+- The strip above the frame shows the Element at 0/90/180/270° and each flip.
+
+---
+
+## 4. Palette and colour rules
+
+- **Ink** — 1 to 8 colours (RMX chips); **Paper** is the ground for every
+  gallery thumbnail, PNG and SVG.
+- **Colour by** decides which ink each cell gets: cell order, Checkerboard, By
+  row, By column, Diagonal bands, By quadrant; **Start at** picks the leading
+  colour. *By quadrant* splits the grid at its middle — on a grid with an odd
+  number of columns or rows the middle line runs through a cell, which joins the
+  second half (the panel flags this).
+- All colours are stored as lower-case 6-digit hex (`hexKey()` folds `#ABC` and
+  case), because recolouring, plates and the paper strip work on the finished
+  SVG by string.
+
+---
+
+## 5. Component rules
+
+Generate produces a gallery of candidates; click one to select it.
+
+- **Named rules** — Identity, Pinwheel, Mirror, Diagonal, Checkerboard, Row
+  mirror, Column mirror, Radial, plus Lines, Oscillator, Random, Exhaustive and
+  Manual. Every named rule reads each cell's column/row, so they work on **any**
+  grid (2×2, 3×3, 4×4, Loom): Pinwheel steps rotation by `(col + 2·row) mod 4`,
+  Mirror flips by column/row parity, Diagonal alternates `R` / `90−R`,
+  Row/Column mirror flip by row/column parity. **Radial** needs an even × even
+  grid (its centre falls between cells) and is greyed out otherwise. On a 2×2
+  grid every rule gives exactly the original four-cell result.
+- **Random / Exhaustive / Manual** stay four-cell shaped; Exhaustive is capped at
+  512 and refuses cleanly above it.
+- **Role** — a Component can be a *Container* or *Mask* over another saved one.
+- **Undo** (floatbar, ⌘Z) — the last 20 Generate / Add / Clear / Tile / recipe
+  steps of the gallery. It never touches the Seed.
+
+---
+
+## 6. Symbol
+
+- Grid: a built-in or saved **Loom** grid, an uploaded grid JSON, or **Square
+  N×M** (2–8).
+- **Fill** — Manual (click cells; Shift-click or drag to multi-select), a
+  generative **Rule** (Oscillator, Checkerboard, Rows, Columns, Radial, Wave,
+  Random — lock-aware, with Reset & apply to all) or **Generate (seeded)**.
+- **Choose content** — a Seed or a saved Component, with an *All / Seeds /
+  Components* filter and an **Apply to all cells** switch.
+- **Cell properties** — rotation, flip, fit, scale, padding, anchor, **Lock**,
+  and **Colour**: *Follow palette* (default) or an explicit override (a palette
+  colour or a free one). An override is flagged, and **Reset** returns the cell
+  to the palette.
+
+---
+
+## 7. Libraries
+
+- **Component library** — save the selected Component; click the caption under
+  a thumbnail to **rename it inline** (Enter confirms, Esc cancels). Renaming
+  repoints saved Symbols, Container/Mask references and the Grid pick.
+- **Symbol library** — saved separately.
+- Entries named `Tile · …` are working copies made by *Tile in Grid* and the
+  recipes; they are marked `auto`, hidden from every list, and pruned at start.
+
+---
+
+## 8. Export
+
+Export popover: **PNG**, **SVG**, **Figma** (posts the active step's SVG to the
+Organica Figma plugin, like Spore/Pollen/Halide).
+
+- **Screen / Print** — Print exports at a real physical size, DPI and bleed with
+  crop marks and a DPI chunk in the PNG. Non-square artwork (a rectangular Loom
+  grid) keeps its proportions: the width drives the scale, the height follows.
+- **Variants** — rows of Fill/Stroke, ink, paper, stroke width → one file each,
+  SVG or PNG at ×1/×2/×4.
+- **Plates** — one black-on-transparent file per ink, with registration marks in
+  Print mode (needs a bleed of at least 8 mm).
+- **Recipe** — save/load everything needed to rebuild the work as one JSON file.
+- **Start from a recipe** builds Element → Component → colours → Grid in one
+  click (circle, leaf block/wave/outline/two-ink, pinwheel, kaleidoscope).
+
+---
+
+## 9. Motion
+
+Per-cell colour / scale tracks or a whole-field pan on the Component and Symbol
+steps, previewed live with the floatbar's Play.
+
+---
+
+## 10. Regression suite
+
+`fvs/_test-regression.html` (dev only): loads `/fvs/` in a hidden frame, runs a
+fixed battery of builds, hashes every SVG and diffs against
+`fvs/_regression-baseline.json`. Open it on the dev server and press **Run** —
+expected: *All N cases match the baseline*. When a change is intentional, use
+**Show JSON to record** and update the baseline in the same commit. New FVS
+behaviour gets new cases in `battery()`. It is run before every commit that
+touches `fvs/index.html` or the shared files FVS uses.
+
+Not covered: PNG byte content, cross-browser behaviour (see the backlog in
+CLAUDE.md).
