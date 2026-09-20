@@ -1148,7 +1148,15 @@
     <div class="panel-section">
       <h3>Palette</h3>
       <div id="fvs-palette" class="rmx-palette"></div>
-      <p class="org-panel__hint">Ink — colours cycle across the grid's own cells by index (cell 1 → colour 1, cell 2 → colour 2, wrapping if there are more cells than colours). One colour by default (a plain fill); add more for a genuinely multi-colour grid.</p>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Colour by</span>
+        <select class="panel-select" id="sel-color-rule" aria-label="Colour rule"></select>
+      </div>
+      <div class="ctrl-row" id="row-color-offset">
+        <span class="ctrl-label">Start at</span>
+        <select class="panel-select" id="sel-color-offset" aria-label="Colour rule start colour"></select>
+      </div>
+      <p class="org-panel__hint">Ink — which palette colour each cell gets. By cell order cycles colour 1, 2, 3… across the cells; the other rules follow the grid's structure (checkerboard, rows, columns, diagonal bands, quadrants). One colour by default (a plain fill); add more for a multi-ink pattern.</p>
       <div class="color-row">
         <span class="color-name">Paper</span>
         <span class="color-swatch-wrap">
@@ -1568,12 +1576,55 @@ const ICO_PAUSE = '<path d="M5 3.5h2.2v9H5zM8.8 3.5H11v9H8.8z" fill="currentColo
 // ceiling (no shader array-size bound applies).
 const PALETTE_MAX = 8;
 function colorAt(i) { return state.colors[i % state.colors.length]; }
+
+// ── Colour rule — WHICH palette colour a cell gets. `index` is the original
+// behaviour (cell i → colour i, wrapping); the others read the cell's grid
+// position so a multi-ink pattern follows the structure (checker parity,
+// rows, columns, diagonals, quadrants) instead of the row-major order.
+const COLOR_RULES = {
+  index:    { label: 'By cell order',  fn: (i) => i },
+  checker:  { label: 'Checkerboard',   fn: (i, c) => c.col + c.row },
+  rows:     { label: 'By row',         fn: (i, c) => c.row },
+  columns:  { label: 'By column',      fn: (i, c) => c.col },
+  diagonal: { label: 'Diagonal bands', fn: (i, c) => c.col + c.row },
+  quadrant: { label: 'By quadrant',    fn: (i, c) => (c.col * 2 >= c.cols ? 1 : 0) + (c.row * 2 >= c.rows ? 2 : 0) },
+};
+const DEFAULT_COLOR_RULE = { mode: 'index', offset: 0 };
+state.colorRule = { ...DEFAULT_COLOR_RULE };
+// `checker` alternates between two neighbours only, whatever the palette size.
+function paletteInk(colors, rule, i, cr) {
+  const r = rule || DEFAULT_COLOR_RULE;
+  const def = COLOR_RULES[r.mode] || COLOR_RULES.index;
+  let k = def.fn(i, cr ? cr[i] : { col: i, row: 0, cols: 1, rows: 1 }) + (r.offset || 0);
+  if (r.mode === 'checker') k = ((k % 2) + 2) % 2;
+  const n = colors.length;
+  return colors[((k % n) + n) % n];
+}
+// col/row of every cell of a Component/Symbol grid (binning fallback, so it
+// works for square and Loom grids alike). Null when the rule needs no position.
+function colorRuleCR(grid, rule) {
+  if (!grid || !rule || rule.mode === 'index') return null;
+  try { return Organica.shapes.cellColRow(grid, null, null); } catch (e) { return null; }
+}
+// Ink of cell i under the LIVE palette + rule.
+function ruleInk(i, cr) { return paletteInk(state.colors, state.colorRule, i, cr); }
+// Same for a saved Component entry (its own palette + rule), as a j → colour fn.
+function entryInkAt(entry) {
+  const cr = colorRuleCR(entry.grid, entry.colorRule);
+  return j => paletteInk(entry.colors, entry.colorRule, j, cr);
+}
 // A Symbol cell's ink. `color: null` = follow the palette (what new cells
 // store). A stored colour equal to the palette entry for that index — how
 // older saves wrote it — is treated the same, so recolouring the palette
 // recolours those cells too; any other stored colour is a real override.
+let _symCR = { key: null, rule: null, cr: null };
+function symbolCR() {
+  const g = state.symbolGrid, r = state.colorRule.mode;
+  if (_symCR.key !== g || _symCR.rule !== r) _symCR = { key: g, rule: r, cr: r === 'index' ? null : colorRuleCR(getSymbolGrid(), state.colorRule) };
+  return _symCR.cr;
+}
 function cellInk(cell, i) {
-  const p = colorAt(i);
+  const p = ruleInk(i, symbolCR());
   return (!cell.color || String(cell.color).toLowerCase() === String(p).toLowerCase()) ? p : cell.color;
 }
 
@@ -1584,11 +1635,32 @@ function buildPalette() {
     max: PALETTE_MAX,
     onChange: (colors) => {
       state.colors = colors;
-      renderGallery();
-      renderSeedPreview();
-      if (state.symbolGrid) renderSymbolCanvasOnly();
+      syncColorRuleUI();
+      refreshColourViews();
     },
   });
+}
+
+function syncColorRuleUI() {
+  const sel = ctrl('sel-color-rule'), off = ctrl('sel-color-offset');
+  if (!sel.options.length) Object.entries(COLOR_RULES).forEach(([k, v]) => sel.add(new Option(v.label, k)));
+  const n = Math.max(1, state.colors.length);
+  off.innerHTML = '';
+  for (let i = 0; i < n; i++) off.add(new Option('Colour ' + (i + 1), i));
+  sel.value = state.colorRule.mode;
+  off.value = String(Math.min(state.colorRule.offset || 0, n - 1));
+  ctrl('row-color-offset').style.display = n < 2 ? 'none' : '';
+}
+function refreshColourViews() {
+  renderGallery();
+  renderSeedPreview();
+  if (state.symbolGrid) renderSymbolCanvasOnly();
+  if (state.activeTier === 'grid') renderFvsGrid();
+}
+function onColorRuleChange() {
+  state.colorRule = { mode: ctrl('sel-color-rule').value, offset: parseInt(ctrl('sel-color-offset').value, 10) || 0 };
+  syncColorRuleUI();
+  refreshColourViews();
 }
 
 // ── Seed ──
@@ -2614,10 +2686,11 @@ function readManualCells() {
 // ── Item resolution + draw/export (shared by canvas + SVG) ──
 function buildComponentItems(component, grid) {
   const centers = resolveGridCells(grid);
+  const cr = colorRuleCR(grid, state.colorRule);
   return component.cells.map((t, i) => ({
     cx: centers[i].cx, cy: centers[i].cy,
     rotation: t.rotation, flipH: t.flipH, flipV: t.flipV, scale: t.scale,
-    cellSize: centers[i].cellSize, color: colorAt(i),
+    cellSize: centers[i].cellSize, color: ruleInk(i, cr),
   }));
 }
 
@@ -2642,7 +2715,7 @@ function resolveUnderlyingComponent(name) {
   if (!name) return null;
   const entry = LIBRARY.read()[name];
   if (!entry) return null;
-  const savedColorAt = j => entry.colors[j % entry.colors.length];
+  const savedColorAt = entryInkAt(entry);
   const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
   return { items, seed: entry.seed, size: frameSize(entry.grid), paperColor: entry.paperColor, appearance: entry.appearance };
 }
@@ -3287,6 +3360,7 @@ function buildLibraryEntry() {
     appearance: getElementAppearance(),
     grid: getGrid(),
     colors: state.colors.slice(),
+    colorRule: { ...state.colorRule },
     paperColor: state.paperColor,
     component: { ruleSource: comp.ruleSource, cells: comp.cells },
     role: state.componentRole,
@@ -3435,6 +3509,8 @@ function applyLibraryEntryToUI(entry) {
   syncRuleAvailability();
 
   state.colors = entry.colors.slice();
+  state.colorRule = { ...DEFAULT_COLOR_RULE, ...(entry.colorRule || {}) };
+  syncColorRuleUI();
   buildPalette();
   state.paperColor = entry.paperColor;
   paperSwatch.set(entry.paperColor);
@@ -3480,7 +3556,7 @@ function openUnderlyingComponentPicker() {
   for (const name of names) {
     const entry = all[name];
     const size = frameSize(entry.grid);
-    const savedColorAt = j => entry.colors[j % entry.colors.length];
+    const savedColorAt = entryInkAt(entry);
     const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
     const svgStr = buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName);
     const btn = document.createElement('button');
@@ -3517,7 +3593,7 @@ function renderLibrary() {
     // Render with the ENTRY's own saved colours/paper, not the live
     // Palette state — a library thumbnail must never drift just because
     // the panel keeps getting edited after saving.
-    const savedColorAt = (i) => entry.colors[i % entry.colors.length];
+    const savedColorAt = entryInkAt(entry);
     const itemsWithSavedColor = items.map((it, i) => ({ ...it, color: savedColorAt(i) }));
     const svgStr = withAppearance(entry.appearance, () => buildComponentSVGWithPaper(itemsWithSavedColor, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName));
     const btn = document.createElement('button');
@@ -3642,7 +3718,7 @@ function componentTileEntry(name) {
     gridModel: squareLoomModel(1, 1, frameSize(c.grid)),
     cells: [{ source: 'component', componentName: name, rotation: 0, flipH: false, flipV: false, scale: 1, color: null,
       fitMode: 'fill', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false }],
-    colors: c.colors, paperColor: c.paperColor, clipEnabled: false, appearance: c.appearance, rule: null,
+    colors: c.colors, colorRule: c.colorRule, paperColor: c.paperColor, clipEnabled: false, appearance: c.appearance, rule: null,
   };
 }
 
@@ -3669,15 +3745,16 @@ function fvsGridSelectedEntry() {
 // state (not the live one), same swap-state-then-restore trick
 // renderSymbolLibrary() already uses for its own thumbnails.
 function renderedSymbolEntrySVG(entry) {
-  const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, paper: state.paperColor, clip: state.symbolClipEnabled };
+  const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, rule: state.colorRule, paper: state.paperColor, clip: state.symbolClipEnabled };
   state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
   state.symbolCells = entry.cells;
   state.colors = entry.colors;
+  state.colorRule = entry.colorRule || DEFAULT_COLOR_RULE;
   state.paperColor = entry.paperColor;
   state.symbolClipEnabled = entry.clipEnabled !== false;
   const size = frameSize(getSymbolGrid());
   const svgStr = withAppearance({ ...entry.appearance, ...(variantAppearance || {}) }, buildSymbolSVG);
-  state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip;
+  state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.colorRule = prev.rule; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip;
   return { size, inner: svgStr.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '') };
 }
 
@@ -3894,7 +3971,7 @@ function buildSymbolItems() {
       // same fix renderLibrary()'s own thumbnails already need, since
       // buildComponentItems()'s color field always reads the live
       // colorAt(), not any particular saved snapshot's colours.
-      const savedColorAt = j => entry.colors[j % entry.colors.length];
+      const savedColorAt = entryInkAt(entry);
       const nestedItems = buildComponentItems({ cells: entry.component.cells }, entry.grid)
         .map((it, j) => ({ ...it, color: savedColorAt(j) }));
       const place = resolveCellPlacement(c.cellW, c.cellH, nestedSize, cell);
@@ -4623,7 +4700,7 @@ function renderCellContentOverlayTiles() {
     const size = frameSize(entry.grid);
     // Entry's own saved colours/paper, not the live Palette — same rule
     // renderLibrary()'s own thumbnails already follow.
-    const savedColorAt = j => entry.colors[j % entry.colors.length];
+    const savedColorAt = entryInkAt(entry);
     const items = buildComponentItems({ cells: entry.component.cells }, entry.grid)
       .map((it, j) => ({ ...it, color: savedColorAt(j) }));
     const svgStr = buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName);
@@ -4693,6 +4770,7 @@ function buildSymbolLibraryEntry() {
     gridModel: state.symbolGrid,
     cells: state.symbolCells.map(c => ({ ...c })),
     colors: state.colors.slice(),
+    colorRule: { ...state.colorRule },
     paperColor: state.paperColor,
     clipEnabled: state.symbolClipEnabled,
     appearance: getElementAppearance(),
@@ -4740,9 +4818,11 @@ function applySymbolLibraryEntryToUI(entry) {
   state.symbolCells = entry.cells.map(c => withPlacementDefaults({ ...c }));
   state.symbolSelection.clear();
   state.colors = entry.colors.slice();
+  state.colorRule = { ...DEFAULT_COLOR_RULE, ...(entry.colorRule || {}) };
+  syncColorRuleUI();
   // Older saves pinned each cell to its palette colour — release those pins
   // (cellInk) so the palette drives them; genuinely different colours stay.
-  state.symbolCells.forEach((c, i) => { if (c.color && String(c.color).toLowerCase() === String(colorAt(i)).toLowerCase()) c.color = null; });
+  state.symbolCells.forEach((c, i) => { if (c.color && String(c.color).toLowerCase() === String(ruleInk(i, symbolCR())).toLowerCase()) c.color = null; });
   buildPalette();
   state.paperColor = entry.paperColor;
   paperSwatch.set(entry.paperColor);
@@ -4766,14 +4846,15 @@ function renderSymbolLibrary() {
     const entry = all[name];
     // Render each thumbnail against the ENTRY's own saved state, not
     // the live one — same rule as Components' own library thumbnails.
-    const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, paper: state.paperColor, clip: state.symbolClipEnabled };
+    const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, rule: state.colorRule, paper: state.paperColor, clip: state.symbolClipEnabled };
     state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
     state.symbolCells = entry.cells;
     state.colors = entry.colors;
+    state.colorRule = entry.colorRule || DEFAULT_COLOR_RULE;
     state.paperColor = entry.paperColor;
     state.symbolClipEnabled = entry.clipEnabled !== false;
     const svgStr = withAppearance(entry.appearance, buildSymbolSVG);
-    state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip;
+    state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.colorRule = prev.rule; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip;
 
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
@@ -5781,6 +5862,9 @@ function scheduleStill() {
 
 // ── Init ──
 buildPalette();
+syncColorRuleUI();
+ctrl('sel-color-rule').addEventListener('change', onColorRuleChange);
+ctrl('sel-color-offset').addEventListener('change', onColorRuleChange);
 syncSeedUI();
 syncComponentRoleUI();
 syncRuleAvailability();
