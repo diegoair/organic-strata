@@ -974,8 +974,11 @@
       path.fullySelected = true;
       smooth = data.smooth !== false;
       path.closed = !!data.closed;
+      // importJSON restores `data` from the JSON, where the old Set was
+      // serialised to a plain {} — start a fresh Set (was a latent
+      // `man.clear is not a function` on any save→reload round-trip).
+      path.data._manual = new Set();
       const man = manualOf(path);
-      man.clear();
       (data.manual || []).forEach(i => man.add(i));
       snapshotBaseline();
       notify();

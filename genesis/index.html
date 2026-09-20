@@ -611,6 +611,7 @@
   <script src="/shared/noise.js"></script>
   <script src="/shared/transformer.js"></script>
   <script src="/shared/shapes.js"></script>
+  <script src="/shared/shape-appearance.js"></script>
   <script src="/shared/vendor/paper-full.min.js"></script>
   <script src="/shared/paper.js"></script>
   <script src="defs.js"></script>
@@ -2155,35 +2156,51 @@
   // Inner geometry (before the appearance transform), as an SVG string.
   // Re-centres a shared/shapes.js path (drawn in its own 0..100 box,
   // centred at 50,50) onto this canvas's 0..200 box, centred at 100,100 —
-  // `k` is the extra radius/size multiplier beyond the base 2x (Genesis's
-  // box is exactly double FVS's); k=2 alone reproduces the old fixed-box
-  // triangle/square math exactly, k = radius/50 lets Polygon/Star keep
-  // their own Radius slider on top of the shared, fixed-radius-50 geometry.
+  // `k` is the size multiplier (Genesis's box is exactly double FVS's, so
+  // k=2 reproduces the old fixed-box math). The numbers are rewritten into
+  // the path itself rather than wrapped in a transform: a transform would
+  // also scale the outer <g>'s stroke-width, doubling every Stroke-style
+  // outline. Only `d` is used — the shared geometry's own fit-to-box
+  // normalisation (drop, blob) is deliberately ignored, so the artboard shows
+  // the shape unfitted exactly as before and "Fit to grid" stays the user's call.
+  function scalePathD(d, k) {
+    const out = [];
+    let cmd = '', argIdx = 0;
+    const per = { M: 2, L: 2, C: 6, Q: 4, A: 7, Z: 0 };
+    (d.match(/[MLCQAZ]|-?\d*\.?\d+(?:e-?\d+)?/g) || []).forEach(tok => {
+      if (/[MLCQAZ]/.test(tok)) { cmd = tok; argIdx = 0; out.push(tok); return; }
+      const v = parseFloat(tok), i = argIdx % per[cmd];
+      argIdx++;
+      if (cmd === 'A' && i >= 2 && i < 5) { out.push(String(v)); return; }   // rotation + the two arc flags stay bare integers
+      out.push(f(cmd === 'A' && i < 2 ? v * k : 100 + (v - 50) * k));
+    });
+    return out.join(' ');
+  }
   function sharedShapeMarkup(d, k) {
-    return `<path d="${d}" transform="translate(100,100) scale(${k}) translate(-50,-50)"/>`;
+    return `<path d="${scalePathD(d, k)}"/>`;
   }
 
   function geometry() {
     if (S.importInner) return importMarkup();
     if (isCreatorMode() && S.gen.type !== 'freehand') {
       const g = S.gen;
-      if (g.type === 'circle') return `<circle cx="100" cy="100" r="${g.r}"/>`;
+      if (g.type === 'circle') return sharedShapeMarkup(Organica.shapes.circleGeometry(g.r).d, 2);
       if (g.type === 'arc') return `<path d="${arcGenPathD()}"/>`;
-      // Triangle/Polygon/Star share their geometry with FVS's Element step
-      // now (shared/shapes.js, loaded above) — Genesis's own w/h/r/corner/
-      // irregularity/seed sliders map straight onto the shared functions'
-      // params; sharedShapeMarkup() just re-centres the shared 0..100 box
-      // onto this canvas's own 0..200 box (see its own comment). Arc keeps
-      // its own local implementation deliberately — its pivot/sweep
-      // generality has no FVS equivalent (FVS's Arc is always a fixed
-      // 90°-corner wedge, sized by the grid cell it sits in).
+      // Every kind but Arc and Square draws through shared/shapes.js (the
+      // geometry FVS's Element step uses): Genesis's own sliders map onto the
+      // shared functions' params, and sharedShapeMarkup() re-centres their
+      // 0..100 box onto this canvas's 0..200 box (k=2 is the exact old scale;
+      // Radius is now a real shared parameter instead of an extra multiplier).
+      // Arc stays local — its 200/90 radius + manual Fit-to-grid is a different
+      // convention from FVS's auto-fitted arc; Square stays local because its
+      // Corner is a quadratic cut, not FVS's Rounded rect arc.
       if (g.type === 'triangle') return sharedShapeMarkup(Organica.shapes.triangleGeometry(g.w, g.h, g.triApex).d, 2);
       if (g.type === 'square') return `<path d="${rectPathD(g.w, g.h, g.corner)}"/>`;
-      if (g.type === 'segment') return `<path d="${segmentPathD(g.len)}"/>`;
-      if (g.type === 'drop') return `<path d="${dropPathD(g.r, g.tail)}"/>`;
-      if (g.type === 'blob') return `<path d="${blobPathD(g.r, g.amount, g.seed)}"/>`;
-      if (g.type === 'polygon') return sharedShapeMarkup(Organica.shapes.polygonGeometry(g.n, g.corner, g.irregularity, g.seed).d, g.r / 50);
-      if (g.type === 'star') return sharedShapeMarkup(Organica.shapes.starGeometry(g.n, g.innerRatio, g.irregularity, g.seed).d, g.r / 50);
+      if (g.type === 'segment') return sharedShapeMarkup(Organica.shapes.segmentGeometry(g.len).d, 2);
+      if (g.type === 'drop') return sharedShapeMarkup(Organica.shapes.dropGeometry(g.r, g.tail).d, 2);
+      if (g.type === 'blob') return sharedShapeMarkup(Organica.shapes.blobGeometry(g.r, g.amount, g.seed).d, 2);
+      if (g.type === 'polygon') return sharedShapeMarkup(Organica.shapes.polygonGeometry(g.n, g.corner, g.irregularity, g.seed, g.r).d, 2);
+      if (g.type === 'star') return sharedShapeMarkup(Organica.shapes.starGeometry(g.n, g.innerRatio, g.irregularity, g.seed, g.r).d, 2);
       return '';
     }
     // freehand draw / a multi-contour seed being bezier-edited (Edit mode).
@@ -2203,8 +2220,7 @@
   // formMarkup() (the artboard + what Save serializes).
   function styleAttrs() {
     if (S.importInner) return '';                 // import keeps its own re-coloured fills
-    if (S.fillMode === 'stroke') return `fill="none" stroke="var(--ink)" stroke-width="${S.strokeW}" stroke-linecap="${S.rounded ? 'round' : 'butt'}" stroke-linejoin="round"`;
-    return `fill="var(--ink)"`;
+    return Organica.shapeAppearance.styleAttrs({ fillMode: S.fillMode, color: 'var(--ink)', strokeW: S.strokeW, rounded: S.rounded });
   }
 
   // Container/Mask compositing — see the long note this was ported with:
