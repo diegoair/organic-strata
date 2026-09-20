@@ -149,6 +149,16 @@
   #fvsgrid-frame { display: none; }
   #fvsgrid-frame.visible { display: block; }
   #fvsgrid-frame svg { max-width: 100%; max-height: 100%; display: block; }
+  #figure-stage { position: relative; display: block; line-height: 0; width: min(70vh, 100%); }
+  #figure-frame svg { display: block; width: 100%; height: auto; }
+  #fg-ink, #fg-paper { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
+  #figure-ref-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+  .fg-report { display: grid; gap: var(--space-1); font-size: var(--fs-micro); margin-bottom: var(--space-3); }
+  .fg-report .fg-row { display: flex; gap: var(--space-2); }
+  .fg-report .fg-dot { flex: 0 0 auto; width: 1.2em; }
+  .fg-report .fg-ok { color: var(--tool); }
+  .fg-report .fg-bad { color: var(--danger); }
+  .fg-json { width: 100%; min-height: 120px; font-family: var(--font); font-size: var(--fs-micro); }
 </style>
 </head>
 <body>
@@ -172,6 +182,7 @@
     <button class="org-btn" data-tier="component" aria-pressed="false"><span class="fvs-stepnav__num">2</span> Component</button>
     <button class="org-btn" data-tier="symbol" aria-pressed="false"><span class="fvs-stepnav__num">3</span> Symbol</button>
     <button class="org-btn" data-tier="grid" aria-pressed="false"><span class="fvs-stepnav__num">4</span> Grid</button>
+    <button class="org-btn" data-tier="figure" aria-pressed="false" title="Build a whole figure in one place — Seed, lattice, rules, composition, transform"><span class="fvs-stepnav__num">★</span> Figure</button>
   </div>
   <p class="fvs-stepnav__hint" id="stepnav-hint"></p>
 </div>
@@ -302,6 +313,9 @@
         <p>No Symbol picked yet.<br>Save one in the Symbol step, then pick it here.</p>
       </div>
       <div id="fvsgrid-frame"></div>
+    </div>
+    <div class="tier-view" data-tier="figure">
+      <div id="figure-stage"><div id="figure-frame"></div><canvas id="figure-ref-canvas" aria-hidden="true"></canvas></div>
     </div>
   </div>
 
@@ -1453,6 +1467,84 @@
         <button class="mini-btn" id="btn-symbol-library-cancel">Cancel</button>
       </div>
       <p class="org-panel__hint">Saved separately from the Component Library above — a Symbol snapshot is its own grid + per-cell fill (Seeds and/or nested Components), not one Seed repeated.</p>
+    </div>
+    </div>
+
+    <div class="tier-block" data-tier="figure">
+    <div class="panel-step-head">
+      <div class="panel-step-head__title">Figure <span class="hint">all in one</span></div>
+      <p class="panel-step-head__desc">Seed → lattice → rules → composition → transform. Every change redraws the figure; the same recipe can be pasted or saved as JSON.</p>
+    </div>
+    <div class="panel-section">
+      <h3>Start from</h3>
+      <div class="ctrl-row"><select class="panel-select" id="fg-preset" aria-label="Figure preset"></select></div>
+    </div>
+    <div class="panel-section">
+      <h3>1 · Seed</h3>
+      <div class="ctrl-row"><div class="ctrl-label">Shape</div><select class="panel-select" id="fg-seed" aria-label="Seed shape"></select></div>
+      <div class="ctrl-row"><div class="ctrl-label">Style</div>
+        <select class="panel-select" id="fg-style" aria-label="Style"><option value="fill">Fill</option><option value="stroke">Stroke</option></select></div>
+      <div class="ctrl-row"><div class="ctrl-label">Ink</div><input type="color" id="fg-ink" value="#f0301f" aria-label="Ink colour"></div>
+      <div class="ctrl-row"><div class="ctrl-label">Paper</div><input type="color" id="fg-paper" value="#ffffff" aria-label="Paper colour"></div>
+    </div>
+    <div class="panel-section">
+      <h3>2 · Lattice</h3>
+      <div class="ctrl-row"><div class="ctrl-label">Type</div>
+        <select class="panel-select" id="fg-lattice" aria-label="Lattice type">
+          <option value="triangle">Triangle (n rows)</option><option value="square">Square (cols × rows)</option><option value="component">Component block 2×2</option>
+        </select></div>
+      <div class="ctrl-row" id="fg-row-n"><div class="ctrl-label">Rows</div><select class="panel-select" id="fg-n" aria-label="Rows"></select></div>
+      <div class="ctrl-row" id="fg-row-cols"><div class="ctrl-label">Columns</div><select class="panel-select" id="fg-cols" aria-label="Columns"></select></div>
+      <div class="ctrl-row" id="fg-row-comprule"><div class="ctrl-label">Block rule</div>
+        <select class="panel-select" id="fg-comprule" aria-label="Component rule">
+          <option value="checkerboard">Checkerboard 180° / 0°</option><option value="radial">Radial 180°</option><option value="pinwheel">Pinwheel</option><option value="mirror">Mirror</option>
+        </select></div>
+    </div>
+    <div class="panel-section" id="fg-rules-section">
+      <h3>3 · Rules <span class="hint">slot class → content</span></h3>
+      <div class="ctrl-row" id="fg-row-up"><div class="ctrl-label">Up cells</div>
+        <select class="panel-select" id="fg-up" aria-label="Up cells"><option value="filled">Filled</option><option value="empty">Empty</option></select></div>
+      <div class="ctrl-row" id="fg-row-down"><div class="ctrl-label">Down cells</div>
+        <select class="panel-select" id="fg-down" aria-label="Down cells"><option value="empty">Empty</option><option value="turned">Filled, turned 180°</option><option value="filled">Filled</option></select></div>
+      <div class="ctrl-row"><div class="ctrl-label">Empty rows</div><input type="text" class="panel-select" id="fg-emptyrows" placeholder="e.g. 0 or 0,2" aria-label="Empty rows (numbers from the top, starting at 0)"></div>
+      <div class="ctrl-row"><div class="ctrl-label">Odd cells</div>
+        <select class="panel-select" id="fg-odd" aria-label="Rotation of odd cells"><option value="none">Unchanged</option><option value="90">Rotate 90°</option><option value="180">Rotate 180°</option><option value="270">Rotate 270°</option></select></div>
+      <p class="org-panel__hint">Up/Down apply to triangular lattices; "odd" is the checkerboard parity of column + row.</p>
+    </div>
+    <div class="panel-section">
+      <h3>4 · Composition</h3>
+      <div class="ctrl-row"><div class="ctrl-label">Tile it as</div>
+        <select class="panel-select" id="fg-comp" aria-label="Composition">
+          <option value="none">Nothing (single figure)</option>
+          <option value="tier1">Tier (trapezoid of 3)</option><option value="tier2">Tier ×2 (stepped)</option>
+          <option value="tri2">Triangle 2 rows</option><option value="tri3">Triangle 3 rows</option><option value="tri4">Triangle 4 rows</option>
+          <option value="square2x2">Square 2×2</option><option value="square3x3">Square 3×3</option><option value="square4x4">Square 4×4</option><option value="square6x6">Square 6×6</option>
+        </select></div>
+      <label class="check-row"><input type="checkbox" id="fg-altflip"><span>Alternate flip (checkerboard)</span></label>
+    </div>
+    <div class="panel-section">
+      <h3>5 · Transform</h3>
+      <div class="ctrl-row"><div class="ctrl-label">Rotate</div>
+        <select class="panel-select" id="fg-rot" aria-label="Rotate figure"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select></div>
+      <div class="ctrl-row"><div class="ctrl-label">Mirror</div>
+        <select class="panel-select" id="fg-mirror" aria-label="Mirror figure"><option value="none">None</option><option value="v">One axis — right edge</option><option value="h">One axis — bottom edge</option><option value="vh">Two axes</option></select></div>
+    </div>
+    <div class="panel-section">
+      <h3>Checks <span class="hint" id="fg-report-hint"></span></h3>
+      <div id="fg-report" class="fg-report" role="status"></div>
+    </div>
+    <div class="panel-section">
+      <h3>Reference image</h3>
+      <div class="ctrl-row"><button class="mini-btn" id="fg-ref-load" style="flex:1">Load image…</button><button class="mini-btn" id="fg-ref-clear">Clear</button></div>
+      <input type="file" id="fg-ref-file" accept="image/*" class="org-file-input" aria-label="Reference image">
+      <div class="ctrl-row"><div class="ctrl-label">Overlay</div><input type="range" id="fg-ref-opacity" min="0" max="100" value="45"><span class="ctrl-val" id="v-fg-ref-opacity">45</span></div>
+      <p class="org-panel__hint">The image's dark/coloured shape is fitted onto the figure's own box; the check reports how much the two silhouettes overlap. Crop the reference to one figure first.</p>
+    </div>
+    <div class="panel-section">
+      <h3>Recipe JSON</h3>
+      <textarea id="fg-json" class="fg-json panel-input" spellcheck="false" aria-label="Figure recipe JSON"></textarea>
+      <div class="row-btns"><button class="mini-btn" id="fg-json-apply">Apply</button><button class="mini-btn" id="fg-json-copy">Copy</button><button class="mini-btn" id="fg-json-save">Save file</button></div>
+      <div id="fg-json-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
     </div>
     </div>
 
@@ -3977,7 +4069,7 @@ function componentTileEntry(name) {
 
 // Component tier → Grid tier in one click: auto-saves the selected
 // Component to the library (once, by id) and tiles it.
-function tileSelectedInGrid() {
+function tileSelectedInGrid(stay) {
   const comp = getSelectedComponent();
   if (!comp) return;
   pushUndo();
@@ -3986,7 +4078,7 @@ function tileSelectedInGrid() {
   // always refreshed: the id stays the same when the Element/colours change, so a cached copy would go stale
   all[name] = { ...buildLibraryEntry(), auto: true }; LIBRARY.write(all);
   state.fvsGridComponentName = name;
-  setTier('grid');
+  if (!stay) setTier('grid');
   renderFvsGridPicker(); renderFvsGrid();
 }
 
@@ -4192,7 +4284,7 @@ function exportFvsGrid(format) {
   }
   const scale = parseInt(ctrl('sel-export-scale').value, 10);
   const grid = getFvsGrid();
-  const size = frameSize(grid) * scale;
+  const size = (parseFloat((svgStr.match(/ width="([\d.]+)"/) || [])[1]) || frameSize(grid)) * scale;   // the drawn frame (a Mirror changes it)
   const scaledSVG = buildFvsGridSVG().replace(/width="[\d.]+" height="[\d.]+"/, `width="${size}" height="${size}"`);
   const url = URL.createObjectURL(new Blob([scaledSVG], { type: 'image/svg+xml' }));
   const img = new Image();
@@ -5342,6 +5434,7 @@ const STEP_EXPORT_HINTS = {
   component: 'Exports the selected component only — click one in the gallery first. Paper background (Palette section), real vector geometry (one path per cell).',
   symbol: 'Exports the current Symbol. Paper background (Palette section), real nested vector geometry.',
   grid: 'Exports the current Grid tiling. Paper background (Palette section), real vector geometry — one Symbol repeated per cell.',
+  figure: 'Exports the figure as drawn (SVG: real vector geometry, one path per shape; PNG: the same drawing rasterised).',
 };
 
 function updateStepHint(tier) {
@@ -5372,6 +5465,7 @@ function setTier(tier) {
   if (tier === 'symbol') { populateSymbolLoomPresets(); renderSymbol(); renderSymbolLibrary(); }
   else if (tier === 'grid') { renderFvsGridPicker(); syncFvsGridTypeUI(); renderFvsGrid(); }
   else if (tier === 'element') { renderSeedPreview(); }
+  else if (tier === 'figure') { renderFigureTier(); }
   else { renderGallery(); }
   syncFreehandEditor();
   updateStepHint(tier);
@@ -5893,9 +5987,13 @@ ctrl('btn-seed-random').addEventListener('click', () => { ctrl('num-seed').value
 
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 function exportByTier(format) {
-  if (state.activeTier === 'symbol') return exportSymbol(format);
-  if (state.activeTier === 'grid') return exportFvsGrid(format);
-  if (state.activeTier === 'element') return exportElement(format);
+  if (state.activeTier === 'figure') return exportByTierName(state.figureTier || 'symbol', format);
+  return exportByTierName(state.activeTier, format);
+}
+function exportByTierName(tier, format) {
+  if (tier === 'symbol') return exportSymbol(format);
+  if (tier === 'grid') return exportFvsGrid(format);
+  if (tier === 'element') return exportElement(format);
   return exportSelected(format);
 }
 // ── Built-in recipes — one click builds a whole chain from scratch (Element →
@@ -6018,7 +6116,7 @@ function validateFigureRecipe(def) {
   if (lv.length > 2 || (lv[1] && lv[1].kind !== 'grid')) throw new Error('Only one grid level may follow the first');
   return lv;
 }
-function runFigureRecipe(def) {
+function runFigureRecipe(def, opts) {
   const lv = validateFigureRecipe(def);
   const el = def.element;
   fireChange('sel-seed-type', el.type);
@@ -6037,7 +6135,7 @@ function runFigureRecipe(def) {
     pushUndo(); state.components = [comp]; state.selectedId = comp.id;
     renderGallery(); refreshColourViews();
     tier = 'component';
-    if (gridLv) { const all = LIBRARY.read(); delete all['Tile · ' + comp.id]; LIBRARY.write(all); tileSelectedInGrid(); }
+    if (gridLv) { const all = LIBRARY.read(); delete all['Tile · ' + comp.id]; LIBRARY.write(all); tileSelectedInGrid(true); }
   } else {
     const l = first.lattice;
     loadSymbolGrid(l.type === 'triangle' ? triangleLoomModel(l.rows) : squareLoomModel(l.cols, l.rows || l.cols));
@@ -6056,8 +6154,19 @@ function runFigureRecipe(def) {
     ctrl('chk-fvsgrid-alt-flip').checked = !!gridLv.altFlip;
   }
   fireChange('sel-fvsgrid-rot', String(tr.rotate || 0)); fireChange('sel-fvsgrid-mirror', tr.mirror || 'none');
+  if (opts && opts.keepTier) { state.figureTier = tier; return figureSVGOf(tier); }
   setTier(tier);
   return tierSVG();
+}
+// The finished SVG of one underlying step, whichever step is on screen.
+function figureSVGOf(tier) {
+  if (tier === 'grid') return buildFvsGridSVG();
+  if (tier === 'symbol') return getSymbolGrid() ? buildSymbolSVG() : '';
+  const comp = getSelectedComponent();
+  if (!comp) return '';
+  state.selectedRuleSource = comp.ruleSource;
+  const grid = getGrid();
+  return buildComponentSVG(buildComponentItems(comp, grid), getSeed(), frameSize(grid));
 }
 
 // The built-in recipes, written as v2 data. Each one reproduces its v1 twin above exactly
@@ -6091,6 +6200,217 @@ function triangleFigureRecipes() {
   }));
   return out;
 }
+// ── Figure tier: the form, the recipe JSON, the checks, the reference overlay ──
+const FIGURE_CLASSIC_LABELS = { circle: 'Circle from four arcs', 'leaf-block': 'Leaf block 2×2', 'leaf-wave': 'Leaf wave (tiled 2×2)', 'leaf-wave-outline': 'Leaf wave, outline', 'leaf-two-ink': 'Leaf wave, two inks (4×4)', pinwheel: 'Triangle pinwheels (3×3)', kaleidoscope: 'Arc kaleidoscope' };
+const figureCatalog = () => {
+  const cat = {};
+  Object.entries(triangleFigureRecipes()).forEach(([k, r]) => {
+    const [a, c] = k.split(':');
+    cat['Triangle · ' + { sierpinski: 'Sierpinski', trapezoid: 'Trapezoid', lattice4: 'Lattice 4' }[a] + ' · ' + { asset: 'asset', repeated: 'repeated', 'mirror-1': 'mirrored, one axis', 'mirror-2': 'mirrored, two axes' }[c]] = r;
+  });
+  Object.entries(FIGURE_RECIPES_V1_AS_V2).forEach(([k, r]) => { cat['Classic · ' + FIGURE_CLASSIC_LABELS[k]] = { tool: 'fvs-recipe', version: 2, ...r }; });
+  return cat;
+};
+const FG_LATTICE_OF = v => /^tier(\d)$/.test(v) ? { type: 'tier', stack: +v[4] } : /^tri(\d)$/.test(v) ? { type: 'triangle', rows: +v[3] } : { type: 'square', n: +v.match(/^square(\d)/)[1] };
+const FG_STR_OF = l => l.type === 'tier' ? 'tier' + l.stack : l.type === 'triangle' ? 'tri' + l.rows : `square${l.n}x${l.n}`;
+
+function figureRecipeFromForm() {
+  const v = id => ctrl(id).value, lat = v('fg-lattice');
+  const el = { type: v('fg-seed'), style: v('fg-style'), colors: [v('fg-ink')], paper: v('fg-paper') };
+  if (el.type === 'arc') el.params = { 'rg-thickness': 100 };
+  let first;
+  if (lat === 'component') {
+    const rule = v('fg-comprule');
+    const params = { checkerboard: { a: 180, b: 0 }, radial: { base: 180, chirality: 1 }, pinwheel: { base: 0, chirality: 1 }, mirror: { seed: 0 } }[rule];
+    first = { kind: 'component', grid: 'square2x2', rule, params };
+  } else {
+    const rules = [];
+    const odd = v('fg-odd'); if (odd !== 'none') rules.push({ when: { parity: 'odd' }, do: { rotate: +odd } });
+    if (lat === 'triangle') {
+      if (v('fg-up') === 'empty') rules.push({ when: { class: 'up' }, do: { content: 'empty' } });
+      const d = v('fg-down');
+      rules.push({ when: { class: 'down' }, do: d === 'empty' ? { content: 'empty' } : d === 'turned' ? { content: 'filled', rotate: 180 } : { content: 'filled' } });
+    }
+    const rows = v('fg-emptyrows').split(',').map(x => parseInt(x, 10)).filter(x => !isNaN(x));
+    if (rows.length) rules.push({ when: { row: rows }, do: { content: 'empty' } });
+    first = { kind: 'symbol', lattice: lat === 'triangle' ? { type: 'triangle', rows: +v('fg-n') } : { type: 'square', cols: +v('fg-cols'), rows: +v('fg-n') },
+      fit: lat === 'triangle' ? 'fill' : 'contain', rules };
+  }
+  const levels = [first];
+  if (v('fg-comp') !== 'none') levels.push({ kind: 'grid', lattice: FG_LATTICE_OF(v('fg-comp')), cellSize: 110, altFlip: ctrl('fg-altflip').checked });
+  return { tool: 'fvs-recipe', version: 2, element: el, levels, transform: { rotate: +v('fg-rot'), mirror: v('fg-mirror') } };
+}
+function figureFormFromRecipe(def) {
+  const set = (id, val) => { const e = ctrl(id); e.value = String(val); };
+  const el = def.element, first = def.levels[0], g = def.levels[1], tr = def.transform || {};
+  set('fg-seed', el.type); set('fg-style', el.style || 'fill'); set('fg-ink', hexKey((el.colors || ['#000000'])[0])); set('fg-paper', hexKey(el.paper || '#ffffff'));
+  set('fg-up', 'filled'); set('fg-down', 'empty'); set('fg-emptyrows', ''); set('fg-odd', 'none');
+  if (first.kind === 'component') { set('fg-lattice', 'component'); set('fg-comprule', first.rule || 'checkerboard'); }
+  else {
+    set('fg-lattice', first.lattice.type); set('fg-n', first.lattice.type === 'triangle' ? first.lattice.rows : first.lattice.rows || first.lattice.cols);
+    if (first.lattice.type === 'square') set('fg-cols', first.lattice.cols);
+    (first.rules || []).forEach(r => {
+      const w = r.when || {}, d = r.do || {};
+      if (w.parity === 'odd' && d.rotate != null) set('fg-odd', d.rotate);
+      else if (w.class === 'up' && d.content === 'empty') set('fg-up', 'empty');
+      else if (w.class === 'down') set('fg-down', d.content === 'empty' ? 'empty' : d.rotate === 180 ? 'turned' : 'filled');
+      else if (w.row != null && d.content === 'empty') set('fg-emptyrows', [].concat(w.row).join(','));
+    });
+  }
+  set('fg-comp', g ? FG_STR_OF(g.lattice) : 'none'); ctrl('fg-altflip').checked = !!(g && g.altFlip);
+  set('fg-rot', tr.rotate || 0); set('fg-mirror', tr.mirror || 'none');
+  syncFigureFormUI();
+}
+function syncFigureFormUI() {
+  const lat = ctrl('fg-lattice').value;
+  ctrl('fg-row-n').style.display = lat === 'component' ? 'none' : '';
+  ctrl('fg-row-cols').style.display = lat === 'square' ? '' : 'none';
+  ctrl('fg-row-comprule').style.display = lat === 'component' ? '' : 'none';
+  ctrl('fg-rules-section').style.display = lat === 'component' ? 'none' : '';
+  ctrl('fg-row-up').style.display = ctrl('fg-row-down').style.display = lat === 'triangle' ? '' : 'none';
+}
+
+let figureRun = 0;
+function applyFigureRecipe(def, opts) {
+  opts = opts || {};
+  ctrl('fg-json-error').style.display = 'none';
+  try {
+    state.figureRecipe = def;
+    const svg = runFigureRecipe(def, { keepTier: true });
+    ctrl('figure-frame').innerHTML = svg;
+    if (!opts.fromForm) figureFormFromRecipe(def);
+    ctrl('fg-json').value = JSON.stringify(def, null, 2);
+    refreshFigureChecks(def, svg, ++figureRun);
+  } catch (e) {
+    ctrl('fg-json-error').textContent = e.message; ctrl('fg-json-error').style.display = '';
+  }
+}
+function renderFigureTier() {
+  if (!state.figureRecipe) state.figureRecipe = figureCatalog()['Triangle · Sierpinski · asset'];
+  applyFigureRecipe(state.figureRecipe);
+}
+
+// Checks — every one reads the drawn result, none reads the recipe's own intent back.
+function figureChecks(def, svg) {
+  const out = [];
+  const add = (ok, label, detail) => out.push({ ok, label, detail });
+  const noDefs = svg.replace(/<defs>[\s\S]*?<\/defs>/g, '');
+  add(!/NaN|undefined|Infinity/.test(svg), 'Numbers are valid', '');
+  const refs = [...svg.matchAll(/url\(#([^)]+)\)/g)].map(m => m[1]), ids = new Set([...svg.matchAll(/ id="([^"]+)"/g)].map(m => m[1]));
+  add(refs.every(r => ids.has(r)), 'Every clip reference resolves', refs.length + ' refs');
+  add((svg.match(/<metadata>/g) || []).length <= 1 && (svg.match(/<defs>/g) || []).length <= 1, 'Defs and metadata appear once', '');
+  const paths = (noDefs.match(/<path /g) || []).length;
+  const first = def.levels[0], gridLv = def.levels[1];
+  let slots = null;
+  if (first.kind === 'symbol') {
+    const l = first.lattice, total = l.type === 'triangle' ? l.rows * l.rows : l.cols * (l.rows || l.cols);
+    add(state.symbolCells.length === total, 'Lattice has the expected number of slots', `${state.symbolCells.length} of ${total}`);
+    slots = state.symbolCells.filter(c => c.source !== 'empty').length;
+  } else slots = getSelectedComponent() ? getSelectedComponent().cells.length : 0;
+  let tiles = 1, copies = 1;
+  if (gridLv) { try { tiles = resolveGridCells(getFvsGrid()).length; } catch (e) { tiles = 0; } }
+  const tr = def.transform || {};
+  if (tr.mirror === 'v' || tr.mirror === 'h') copies = 2; if (tr.mirror === 'vh') copies = 4;
+  const expected = slots * tiles * copies;
+  add(paths === expected, 'Shapes drawn = filled slots × tiles × mirror copies', `${paths} of ${expected}`);
+  add(svg.length < 400000, 'File size is reasonable', Math.round(svg.length / 1024) + ' KB');
+  return out;
+}
+function renderFigureReport(rows, extra) {
+  const all = rows.concat(extra || []);
+  const bad = all.filter(r => !r.ok).length;
+  ctrl('fg-report-hint').textContent = bad ? bad + ' to look at' : 'all good';
+  ctrl('fg-report').innerHTML = all.map(r => `<div class="fg-row"><span class="fg-dot ${r.ok ? 'fg-ok' : 'fg-bad'}">${r.ok ? '●' : '○'}</span><span>${r.label}${r.detail ? ' — ' + r.detail : ''}</span></div>`).join('');
+}
+// Raster mask of an SVG string or an <img>: 1 where a pixel differs from the ground.
+async function rasterMask(src, n, ground) {
+  const c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d');
+  const im = src instanceof HTMLImageElement ? src : await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(src); });
+  const w = im.naturalWidth || n, h = im.naturalHeight || n, k = Math.min(n / w, n / h);
+  g.fillStyle = ground || '#ffffff'; g.fillRect(0, 0, n, n);
+  g.drawImage(im, (n - w * k) / 2, (n - h * k) / 2, w * k, h * k);
+  const d = g.getImageData(0, 0, n, n).data;
+  let gr = ground ? null : [0, 0, 0];
+  if (!ground) { const cs = [0, (n - 1) * 4, (n - 1) * n * 4, ((n - 1) * n + n - 1) * 4]; cs.forEach(i => { gr[0] += d[i] / 4; gr[1] += d[i + 1] / 4; gr[2] += d[i + 2] / 4; }); }
+  else { const t = document.createElement('canvas').getContext('2d'); t.fillStyle = ground; t.fillRect(0, 0, 1, 1); const p = t.getImageData(0, 0, 1, 1).data; gr = [p[0], p[1], p[2]]; }
+  const mask = new Uint8Array(n * n); let x0 = n, y0 = n, x1 = -1, y1 = -1;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const i = (y * n + x) * 4, dist = Math.abs(d[i] - gr[0]) + Math.abs(d[i + 1] - gr[1]) + Math.abs(d[i + 2] - gr[2]);
+    if (dist > 110) { mask[y * n + x] = 1; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  }
+  return { mask, n, box: x1 < 0 ? null : { x0, y0, x1: x1 + 1, y1: y1 + 1 } };
+}
+// The mask's own box resampled to m×m (so two silhouettes of different size compare shape, not scale).
+function normMask(M, m) {
+  const out = new Uint8Array(m * m); if (!M.box) return out;
+  const bw = M.box.x1 - M.box.x0, bh = M.box.y1 - M.box.y0;
+  for (let y = 0; y < m; y++) for (let x = 0; x < m; x++) out[y * m + x] = M.mask[Math.min(M.n - 1, Math.floor(M.box.y0 + (y + .5) * bh / m)) * M.n + Math.min(M.n - 1, Math.floor(M.box.x0 + (x + .5) * bw / m))];
+  return out;
+}
+const maskIoU = (a, b) => { let i = 0, u = 0; for (let k = 0; k < a.length; k++) { i += a[k] & b[k]; u += a[k] | b[k]; } return u ? i / u : 0; };
+let figureRef = null;
+async function refreshFigureChecks(def, svg, run) {
+  const rows = figureChecks(def, svg);
+  renderFigureReport(rows);
+  try {
+    const fm = await rasterMask(svg, 160, state.paperColor);
+    if (run !== figureRun) return;
+    const extra = [];
+    const m = 96, nf = normMask(fm, m), tr = def.transform || {};
+    if (fm.box) {
+      const sym = (a, flip) => { let same = 0, tot = 0; for (let y = 0; y < m; y++) for (let x = 0; x < m; x++) { const b = flip(x, y); same += a[y * m + x] === a[b] ? 1 : 0; tot++; } return same / tot; };
+      if (tr.mirror === 'v' || tr.mirror === 'vh') { const q = sym(nf, (x, y) => y * m + (m - 1 - x)); extra.push({ ok: q > 0.97, label: 'Mirror over the right edge is symmetric', detail: Math.round(q * 100) + '%' }); }
+      if (tr.mirror === 'h' || tr.mirror === 'vh') { const q = sym(nf, (x, y) => (m - 1 - y) * m + x); extra.push({ ok: q > 0.97, label: 'Mirror over the bottom edge is symmetric', detail: Math.round(q * 100) + '%' }); }
+      extra.push({ ok: true, label: 'Figure box (w × h)', detail: `${fm.box.x1 - fm.box.x0} × ${fm.box.y1 - fm.box.y0} of 160` });
+    }
+    if (figureRef) {
+      const rm = await rasterMask(figureRef, 160, null);
+      if (run !== figureRun) return;
+      const iou = maskIoU(nf, normMask(rm, m));
+      const ar = rm.box && fm.box ? ((rm.box.x1 - rm.box.x0) / (rm.box.y1 - rm.box.y0)) / ((fm.box.x1 - fm.box.x0) / (fm.box.y1 - fm.box.y0)) : 0;
+      extra.push({ ok: iou > 0.8, label: 'Silhouette overlap with the reference', detail: Math.round(iou * 100) + '%' });
+      extra.push({ ok: Math.abs(ar - 1) < 0.12, label: 'Proportions match the reference', detail: 'ratio ' + ar.toFixed(2) });
+      drawFigureRef(fm, rm);
+    } else ctrl('figure-ref-canvas').style.display = 'none';
+    renderFigureReport(rows, extra);
+  } catch (e) { /* raster checks are best-effort */ }
+}
+function drawFigureRef(fm, rm) {
+  const cv = ctrl('figure-ref-canvas'), N = 400; cv.width = cv.height = N;
+  const g = cv.getContext('2d'), k = N / fm.n;
+  g.clearRect(0, 0, N, N);
+  if (!fm.box || !rm.box || !figureRef) { cv.style.display = 'none'; return; }
+  const w = figureRef.naturalWidth, h = figureRef.naturalHeight, kk = Math.min(rm.n / w, rm.n / h);
+  const offx = (rm.n - w * kk) / 2, offy = (rm.n - h * kk) / 2;
+  const sx = (rm.box.x0 - offx) / kk, sy = (rm.box.y0 - offy) / kk, sw = (rm.box.x1 - rm.box.x0) / kk, sh = (rm.box.y1 - rm.box.y0) / kk;
+  g.drawImage(figureRef, sx, sy, sw, sh, fm.box.x0 * k, fm.box.y0 * k, (fm.box.x1 - fm.box.x0) * k, (fm.box.y1 - fm.box.y0) * k);
+  cv.style.display = 'block'; cv.style.opacity = String(ctrl('fg-ref-opacity').value / 100);
+}
+(function initFigureTier() {
+  const seedSel = ctrl('fg-seed');
+  Object.keys(SEED_TYPES).filter(t => t !== 'freehand' && t !== 'custom' && t !== 'freehandraw').forEach(t => seedSel.add(new Option(SEED_TYPES[t].label, t, false, t === 'triangle')));
+  for (let n = 2; n <= 8; n++) { ctrl('fg-n').add(new Option(n, n, false, n === 2)); ctrl('fg-cols').add(new Option(n, n, false, n === 3)); }
+  const cat = figureCatalog(), ps = ctrl('fg-preset');
+  ps.add(new Option('— choose a figure —', ''));
+  Object.keys(cat).forEach(k => ps.add(new Option(k, k)));
+  ps.addEventListener('change', () => { if (ps.value) applyFigureRecipe(JSON.parse(JSON.stringify(cat[ps.value]))); });
+  const onForm = () => { syncFigureFormUI(); applyFigureRecipe(figureRecipeFromForm(), { fromForm: true }); };
+  ['fg-seed', 'fg-style', 'fg-lattice', 'fg-n', 'fg-cols', 'fg-comprule', 'fg-up', 'fg-down', 'fg-odd', 'fg-comp', 'fg-rot', 'fg-mirror'].forEach(id => ctrl(id).addEventListener('change', onForm));
+  ['fg-ink', 'fg-paper', 'fg-emptyrows'].forEach(id => ctrl(id).addEventListener('input', onForm));
+  ctrl('fg-altflip').addEventListener('change', onForm);
+  ctrl('fg-json-apply').addEventListener('click', () => { try { applyFigureRecipe(JSON.parse(ctrl('fg-json').value)); } catch (e) { ctrl('fg-json-error').textContent = e.message; ctrl('fg-json-error').style.display = ''; } });
+  ctrl('fg-json-copy').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText(ctrl('fg-json').value); });
+  ctrl('fg-json-save').addEventListener('click', () => Organica.downloadText(ctrl('fg-json').value, Organica.stamp('fvs-figure', 'json'), 'application/json'));
+  ctrl('fg-ref-load').addEventListener('click', () => ctrl('fg-ref-file').click());
+  ctrl('fg-ref-file').addEventListener('change', e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    const im = new Image(); im.onload = () => { figureRef = im; if (state.figureRecipe) refreshFigureChecks(state.figureRecipe, figureSVGOf(state.figureTier || 'symbol'), ++figureRun); };
+    im.src = URL.createObjectURL(f);
+  });
+  ctrl('fg-ref-clear').addEventListener('click', () => { figureRef = null; ctrl('figure-ref-canvas').style.display = 'none'; if (state.figureRecipe) refreshFigureChecks(state.figureRecipe, figureSVGOf(state.figureTier || 'symbol'), ++figureRun); });
+  ctrl('fg-ref-opacity').addEventListener('input', e => { ctrl('v-fg-ref-opacity').textContent = e.target.value; ctrl('figure-ref-canvas').style.opacity = String(e.target.value / 100); });
+  syncFigureFormUI();
+})();
 (function initBuiltinRecipes() {
   const sel = ctrl('sel-builtin-recipe');
   BUILTIN_RECIPES.forEach(r => sel.add(new Option(r.label, r.id)));
@@ -6121,6 +6441,7 @@ function tierSVG() {
   if (t === 'symbol') return getSymbolGrid() ? buildSymbolSVG() : '';
   if (t === 'grid') return buildFvsGridSVG();
   if (t === 'element') return buildSeedPreviewSVG(getSeed(), 0, false, false, 400);
+  if (t === 'figure') return figureSVGOf(state.figureTier || 'symbol');
   const comp = getSelectedComponent();
   if (!comp) return '';
   state.selectedRuleSource = comp.ruleSource;

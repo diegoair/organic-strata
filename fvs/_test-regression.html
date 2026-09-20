@@ -290,6 +290,29 @@ async function battery() {
     put('fig:invalid', bad);
   } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); }
 
+  // 15 — Figure tier: form ↔ recipe round-trip, checks, catalog, tier wiring
+  try {
+    const cat = figureCatalog();
+    put('fig:catalog', Object.keys(cat).length);
+    let rtBad = [], chkBad = [];
+    Object.entries(triangleFigureRecipes()).forEach(([k, def]) => {
+      const direct = norm(runFigureRecipe(def, { keepTier: true }));
+      const rows = figureChecks(def, figureSVGOf(state.figureTier)); if (rows.some(r => !r.ok)) chkBad.push(k);
+      figureFormFromRecipe(def);
+      const back = norm(runFigureRecipe(figureRecipeFromForm(), { keepTier: true }));
+      if (back !== direct) rtBad.push(k);
+    });
+    put('fig:form:roundtrip', rtBad.join(',') || 'ok');
+    put('fig:checks:triangle', chkBad.join(',') || 'ok');
+    setTier('figure'); applyFigureRecipe(cat['Triangle · Sierpinski · repeated']);
+    put('fig:tier', [state.activeTier, state.figureTier, ctrl('figure-frame').innerHTML.length > 100, (tierSVG().match(/<path /g) || []).length === (ctrl('figure-frame').innerHTML.match(/<path /g) || []).length].join(','));
+    ctrl('fg-json').value = '{"tool":"nope"}'; ctrl('fg-json-apply').click();
+    put('fig:json:error', ctrl('fg-json-error').textContent);
+    const bent = JSON.parse(JSON.stringify(cat['Triangle · Sierpinski · asset'])); bent.levels[0].lattice.rows = 3;
+    const rep3 = figureChecks(bent, runFigureRecipe(bent, { keepTier: true }));
+    put('fig:checks:rows3', rep3.filter(r => !r.ok).length);
+  } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); }
+
   // tidy the throw-away tiles the recipes wrote into the Component library
   const lib = LIBRARY.read(); Object.keys(lib).filter(k => k.startsWith('Tile · recipe-')).forEach(k => delete lib[k]); LIBRARY.write(lib);
   reset();

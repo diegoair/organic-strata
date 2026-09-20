@@ -163,5 +163,11 @@
   "fig:seed:star": "5f1c6408",
   "fig:seed:blob": "d4348a9c",
   "fig:seed:polygon": "59fe215f",
-  "fig:invalid": "Unknown Seed type: nope"
+  "fig:invalid": "Unknown Seed type: nope",
+  "fig:catalog": "19",
+  "fig:form:roundtrip": "ok",
+  "fig:checks:triangle": "ok",
+  "fig:tier": "figure,grid,true,true",
+  "fig:json:error": "Not a v2 figure recipe",
+  "fig:checks:rows3": "0"
 }

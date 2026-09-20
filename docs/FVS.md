@@ -125,6 +125,35 @@ trapezoid; Triangle grid 4 → the finer lattice. Save each, then in Grid: **Tie
 (repeated), **Tier** + Rotate 90° + Mirror right edge (mirrored over one axis, a
 "bow tie"), **Tier** + Mirror bottom edge (a hexagon star).
 
+### The Figure tab and recipes (Sep 20, 2026)
+
+A **figure** is one pipeline that does not mention a particular Seed:
+**Seed → lattice → slot classes → rules (class → content + pose) → composition → transform.**
+The **Figure** step (★, after Grid) is one screen for all of it: pick a preset or set the
+five sections; every change redraws the figure, and the recipe JSON underneath can be
+pasted, copied or saved. It replaces the current Element, palette and Symbol/Grid state.
+
+- **Slot classes** a rule can address: `class` (`up`/`down` on triangular lattices), `row`,
+  `col`, `index`, `parity` (`odd`/`even` of column + row). Rules run in order; the last
+  match wins.
+- **Recipe v2** (`{tool:'fvs-recipe', version:2, element, levels, transform}`): the first
+  level is a `component` (a 2×2 block from checkerboard / radial / pinwheel / mirror) or a
+  `symbol` (a triangle or square lattice + rules); an optional second level is a `grid`
+  (square n, triangle rows, Tier stack) that tiles the first. v1 recipes still load.
+- **Presets**: 12 "Triangle" figures (3 assets × asset / repeated / mirrored one axis /
+  two axes) and the 7 classic recipes, all as data. The suite checks that the classic
+  ones give exactly the same drawing as their v1 form.
+- **Checks** (read from the drawn result): numbers valid, every clip reference resolves,
+  defs/metadata once, slot count, shapes drawn = filled slots × tiles × mirror copies,
+  file size, mirror symmetry, figure box.
+- **Reference image**: load a picture (crop it to one figure first); its shape is fitted to
+  the figure's own box, shown as an overlay, and the checks add *silhouette overlap* and
+  *proportions*. Photos of screens are often stretched, so a moderate overlap is normal.
+- **Limits**: a Symbol cell holds a Seed at its default parameters (not the live Element's
+  extras); a Grid cannot yet be the tile of another Grid (two levels only); poses are
+  multiples of 90° (no 60° rotations for hexagonal lattices).
+- An assistant can produce the recipe from an image: see `.claude/skills/fvs-figure-from-image`.
+
 ## 7. Libraries
 
 - **Component library** — save the selected Component; click the caption under
