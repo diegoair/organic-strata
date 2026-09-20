@@ -1565,6 +1565,14 @@ const ICO_PAUSE = '<path d="M5 3.5h2.2v9H5zM8.8 3.5H11v9H8.8z" fill="currentColo
 // ceiling (no shader array-size bound applies).
 const PALETTE_MAX = 8;
 function colorAt(i) { return state.colors[i % state.colors.length]; }
+// A Symbol cell's ink. `color: null` = follow the palette (what new cells
+// store). A stored colour equal to the palette entry for that index — how
+// older saves wrote it — is treated the same, so recolouring the palette
+// recolours those cells too; any other stored colour is a real override.
+function cellInk(cell, i) {
+  const p = colorAt(i);
+  return (!cell.color || String(cell.color).toLowerCase() === String(p).toLowerCase()) ? p : cell.color;
+}
 
 function buildPalette() {
   Organica.palette.swatch(ctrl('fvs-palette'), {
@@ -3608,7 +3616,7 @@ function componentTileEntry(name) {
   if (!c) return null;
   return {
     gridModel: squareLoomModel(1, 1, frameSize(c.grid)),
-    cells: [{ source: 'component', componentName: name, rotation: 0, flipH: false, flipV: false, scale: 1, color: c.colors[0],
+    cells: [{ source: 'component', componentName: name, rotation: 0, flipH: false, flipV: false, scale: 1, color: null,
       fitMode: 'fill', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false }],
     colors: c.colors, paperColor: c.paperColor, clipEnabled: false, appearance: c.appearance, rule: null,
   };
@@ -3769,7 +3777,7 @@ function exportFvsGrid(format) {
 
 function defaultSymbolCells(grid) {
   return resolveGridCells(grid).map((c, i) => ({
-    source: 'seed', seedType: 'triangle', rotation: 0, flipH: false, flipV: false, scale: 1, color: colorAt(i),
+    source: 'seed', seedType: 'triangle', rotation: 0, flipH: false, flipV: false, scale: 1, color: null,
     fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false,
   }));
 }
@@ -3875,7 +3883,7 @@ function buildSymbolItems() {
     return {
       type: 'seed', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
       scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
-      color: cell.color, geo,
+      color: cellInk(cell, i), geo,
     };
   }).filter(Boolean);
 }
@@ -4108,7 +4116,7 @@ function generateSymbolCells() {
       return { source: 'component', componentName, rotation, flipH, flipV, scale, ...placement };
     }
     const seedType = seedTypes[Math.floor(rng() * seedTypes.length)];
-    return { source: 'seed', seedType, rotation, flipH, flipV, scale, color: colorAt(i), ...placement };
+    return { source: 'seed', seedType, rotation, flipH, flipV, scale, color: null, ...placement };
   });
   renderSymbol();
 }
@@ -4569,7 +4577,7 @@ function renderCellContentOverlayTiles() {
     btn.innerHTML = svgStr;
     btn.addEventListener('click', () => {
       contentTarget()(cell => ({
-        source: 'seed', seedType: type, color: cell.color || colorAt(0),
+        source: 'seed', seedType: type, color: cell.color || null,
         rotation: 0, flipH: false, flipV: false,
         fitMode: 'fill', scale: 1, padding: 0, anchorX: 0, anchorY: 0,
       }));
@@ -4701,6 +4709,9 @@ function applySymbolLibraryEntryToUI(entry) {
   state.symbolCells = entry.cells.map(c => withPlacementDefaults({ ...c }));
   state.symbolSelection.clear();
   state.colors = entry.colors.slice();
+  // Older saves pinned each cell to its palette colour — release those pins
+  // (cellInk) so the palette drives them; genuinely different colours stay.
+  state.symbolCells.forEach((c, i) => { if (c.color && String(c.color).toLowerCase() === String(colorAt(i)).toLowerCase()) c.color = null; });
   buildPalette();
   state.paperColor = entry.paperColor;
   paperSwatch.set(entry.paperColor);
