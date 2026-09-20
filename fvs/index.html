@@ -1130,6 +1130,7 @@
       <div id="library-empty" class="fvs-library-empty">Nothing saved yet.</div>
       <div id="fvs-library" class="fvs-library"></div>
       <button class="mini-btn" id="btn-save-library" style="width:100%">Save selected to library</button>
+      <button class="mini-btn" id="btn-tile-in-grid" style="width:100%;margin-top:var(--space-2)">Tile selected in Grid</button>
       <div id="library-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
         <input type="text" class="panel-select" id="txt-library-name" placeholder="Name this component" aria-label="Name this component" style="flex:1">
       </div>
@@ -1393,6 +1394,10 @@
       <h3>Symbol</h3>
       <div id="fvsgrid-symbol-empty" class="fvs-library-empty">No saved Symbols yet — save one in the Symbol step first.</div>
       <div id="fvsgrid-symbol-picker" class="fvs-library"></div>
+      <div id="fvsgrid-component-block">
+        <div class="ctrl-label">Or tile a saved Component directly</div>
+        <div id="fvsgrid-component-picker" class="fvs-library"></div>
+      </div>
     </div>
     <div class="panel-section">
       <h3>Grid <span class="hint" id="fvsgrid-cellcount-hint">4 cells</span></h3>
@@ -1522,6 +1527,7 @@ const state = {
   loomGrid: null,   // {cellShape, cells, inner:{width,height}} from Organica.loadLoomGrid, or null until a file is imported
   activeTier: 'element',   // 'element' | 'component' | 'symbol' | 'grid'
   fvsGrid: null,     // {cellShape, cells, inner:{width,height}} — the Grid tier's own tiling grid, Loom-imported
+  fvsGridComponentName: null,  // when set, the Grid tiles this saved Component directly (componentTileEntry) instead of a Symbol
   fvsGridSymbolName: null,   // name of the saved Symbol (SYMBOL_LIBRARY entry) currently tiled in the Grid tier
   symbolGrid: null,   // same shape as loomGrid — a SECOND, independent Loom grid for the Symbols tier
   symbolCells: [],    // one per resolveGridCells(symbolGrid) index:
@@ -3581,7 +3587,34 @@ function getFvsGrid() {
   return { kind: 'square', cols: n, rows: n, cellSize: val('rg-fvsgrid-cellsize'), gap: val('rg-fvsgrid-gap') };
 }
 
+// A saved Component tiled directly: a throw-away 1×1 Symbol whose only cell
+// holds the Component, built on the fly so nothing pollutes SYMBOL_LIBRARY.
+function componentTileEntry(name) {
+  const c = LIBRARY.read()[name];
+  if (!c) return null;
+  return {
+    gridModel: squareLoomModel(1, 1, frameSize(c.grid)),
+    cells: [{ source: 'component', componentName: name, rotation: 0, flipH: false, flipV: false, scale: 1, color: c.colors[0],
+      fitMode: 'fill', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false }],
+    colors: c.colors, paperColor: c.paperColor, clipEnabled: false, appearance: c.appearance, rule: null,
+  };
+}
+
+// Component tier → Grid tier in one click: auto-saves the selected
+// Component to the library (once, by id) and tiles it.
+function tileSelectedInGrid() {
+  const comp = getSelectedComponent();
+  if (!comp) return;
+  const name = 'Tile · ' + comp.id;
+  const all = LIBRARY.read();
+  if (!all[name]) { all[name] = buildLibraryEntry(); LIBRARY.write(all); renderLibrary(); }
+  state.fvsGridComponentName = name;
+  setTier('grid');
+  renderFvsGridPicker(); renderFvsGrid();
+}
+
 function fvsGridSelectedEntry() {
+  if (state.fvsGridComponentName) return componentTileEntry(state.fvsGridComponentName);
   if (!state.fvsGridSymbolName) return null;
   return SYMBOL_LIBRARY.read()[state.fvsGridSymbolName] || null;
 }
@@ -3642,22 +3675,33 @@ function renderFvsGrid() {
 function renderFvsGridPicker() {
   const all = SYMBOL_LIBRARY.read();
   const names = Object.keys(all);
-  ctrl('fvsgrid-symbol-empty').style.display = names.length ? 'none' : '';
+  const compNames = Object.keys(LIBRARY.read());
+  ctrl('fvsgrid-symbol-empty').style.display = (names.length || compNames.length) ? 'none' : '';
   if (!names.includes(state.fvsGridSymbolName)) state.fvsGridSymbolName = names[0] || null;
+  if (state.fvsGridComponentName && !compNames.includes(state.fvsGridComponentName)) state.fvsGridComponentName = null;
   const wrap = ctrl('fvsgrid-symbol-picker');
   wrap.innerHTML = '';
-  for (const name of names) {
-    const entry = all[name];
+  const addTile = (host, name, entry, selected, label, onPick) => {
     const { size, inner } = renderedSymbolEntrySVG(entry);
-    const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${inner}</svg>`;
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
-    if (name === state.fvsGridSymbolName) btn.classList.add('selected');
-    btn.setAttribute('aria-label', 'Pick symbol ' + name);
+    if (selected) btn.classList.add('selected');
+    btn.setAttribute('aria-label', label + ' ' + name);
     btn.title = name;
-    btn.innerHTML = svgStr;
-    btn.addEventListener('click', () => { state.fvsGridSymbolName = name; renderFvsGridPicker(); renderFvsGrid(); updateStepHint('grid'); });
-    wrap.appendChild(btn);
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${inner}</svg>`;
+    btn.addEventListener('click', () => { onPick(); renderFvsGridPicker(); renderFvsGrid(); updateStepHint('grid'); });
+    host.appendChild(btn);
+  };
+  for (const name of names) {
+    addTile(wrap, name, all[name], !state.fvsGridComponentName && name === state.fvsGridSymbolName, 'Pick symbol',
+      () => { state.fvsGridSymbolName = name; state.fvsGridComponentName = null; });
+  }
+  const cwrap = ctrl('fvsgrid-component-picker');
+  cwrap.innerHTML = '';
+  ctrl('fvsgrid-component-block').style.display = compNames.length ? '' : 'none';
+  for (const name of compNames) {
+    addTile(cwrap, name, componentTileEntry(name), name === state.fvsGridComponentName, 'Tile component',
+      () => { state.fvsGridComponentName = name; });
   }
 }
 
@@ -5370,7 +5414,8 @@ function buildRecipe() {
     tool: 'fvs-recipe', version: 1, tier: state.activeTier,
     component: buildLibraryEntry(),
     symbol: buildSymbolLibraryEntry(),
-    grid: { symbolName: symName, symbol: symName ? (SYMBOL_LIBRARY.read()[symName] || null) : null,
+    grid: { componentName: state.fvsGridComponentName, componentEntry: state.fvsGridComponentName ? (LIBRARY.read()[state.fvsGridComponentName] || null) : null,
+      symbolName: symName, symbol: symName ? (SYMBOL_LIBRARY.read()[symName] || null) : null,
       type: ctrl('sel-fvsgrid-type').value, cellSize: val('rg-fvsgrid-cellsize'), gap: val('rg-fvsgrid-gap'), altFlip: ctrl('chk-fvsgrid-alt-flip').checked },
     variants: variantList,
   };
@@ -5379,6 +5424,10 @@ function applyRecipe(r) {
   if (!r || r.tool !== 'fvs-recipe') throw new Error('Not an FVS recipe');
   if (r.component) applyLibraryEntryToUI(r.component);
   if (r.symbol) applySymbolLibraryEntryToUI(r.symbol);
+  if (r.grid && r.grid.componentName && r.grid.componentEntry) {
+    const all = LIBRARY.read(); all[r.grid.componentName] = r.grid.componentEntry; LIBRARY.write(all);
+    state.fvsGridComponentName = r.grid.componentName;
+  }
   if (r.grid && r.grid.symbol && r.grid.symbolName) {
     const all = SYMBOL_LIBRARY.read(); all[r.grid.symbolName] = r.grid.symbol; SYMBOL_LIBRARY.write(all);
     state.fvsGridSymbolName = r.grid.symbolName;
@@ -5417,6 +5466,7 @@ ctrl('underlying-component-overlay').addEventListener('click', e => { if (e.targ
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && ctrl('underlying-component-overlay').style.display !== 'none') closeUnderlyingComponentPicker(); });
 
 ctrl('btn-save-library').addEventListener('click', saveToLibrary);
+ctrl('btn-tile-in-grid').addEventListener('click', tileSelectedInGrid);
 ctrl('btn-library-confirm').addEventListener('click', confirmSaveToLibrary);
 ctrl('btn-library-cancel').addEventListener('click', cancelSaveToLibrary);
 ctrl('txt-library-name').addEventListener('keydown', e => {
