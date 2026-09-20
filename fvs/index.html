@@ -344,6 +344,51 @@
           <input type="range" id="rg-arc-sweep" min="10" max="350" step="1" value="90">
           <span class="ctrl-val" id="v-arc-sweep">90</span>
         </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Shortcut that sets Sweep. Reads Custom as soon as you move Sweep by hand.">Type</div>
+          <select class="panel-select" id="sel-arc-type" aria-label="Arc type">
+            <option value="quarter" selected>Quarter</option>
+            <option value="half">Half</option>
+            <option value="threequarter">Three-quarter</option>
+            <option value="ring">Ring</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Rotates the arc in place (degrees, added to the pivot's own start angle).">Start angle</div>
+          <input type="range" id="rg-arc-start" min="0" max="359" step="1" value="0">
+          <span class="ctrl-val" id="v-arc-start">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Rounds the arc's ends — 100 is a full semicircular cap (needs Thickness below 100).">End rounding</div>
+          <input type="range" id="rg-arc-round" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-arc-round">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Splits the arc into separate dashes.">Segments</div>
+          <input type="range" id="rg-arc-segs" min="1" max="24" step="1" value="1">
+          <span class="ctrl-val" id="v-arc-segs">1</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Gap between segments, as a % of a segment's length.">Segment gap</div>
+          <input type="range" id="rg-arc-gap" min="0" max="80" step="1" value="20">
+          <span class="ctrl-val" id="v-arc-gap">20</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Thins the band toward one end (positive: toward the end, negative: toward the start) — comet and crescent shapes.">Taper</div>
+          <input type="range" id="rg-arc-taper" min="-100" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-arc-taper">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Wobbles the inner and outer edge. 0 is a clean arc.">Irregularity</div>
+          <input type="range" id="rg-arc-irregular" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-arc-irregular">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Same seed, same wobble.">Seed</div>
+          <input type="range" id="rg-arc-seed" min="1" max="99" step="1" value="1">
+          <span class="ctrl-val" id="v-arc-seed">1</span>
+        </div>
       </div>
       <div id="seed-arctruchet-block" style="display:none">
         <div class="ctrl-row">
@@ -355,6 +400,63 @@
           <div class="ctrl-label" title="Band thickness ÷ gap.">Arc ratio</div>
           <input type="range" id="rg-arc-ratio" min="10" max="95" step="1" value="70">
           <span class="ctrl-val" id="v-arc-ratio">70</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Shortcut that sets Fans, Count, Ratio, Core and Rounding. Reads Custom as soon as you change any of the truchet controls by hand.">Type</div>
+          <select class="panel-select" id="sel-tru-type" aria-label="Arc truchet type">
+            <option value="butterfly" selected>Butterfly</option>
+            <option value="rainbow">Rainbow</option>
+            <option value="horseshoe">Horseshoe</option>
+            <option value="halo">Halo</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Opposed = a fan from the top AND the bottom edge (the butterfly). Single = one fan only; turn it with the per-cell Rotation.">Fans</div>
+          <select class="panel-select" id="sel-tru-fans" aria-label="Arc truchet fans">
+            <option value="2" selected>Opposed</option>
+            <option value="1">Single</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Starts the bands away from the pivot, leaving a hollow centre (horseshoe / halo).">Core</div>
+          <input type="range" id="rg-tru-core" min="0" max="80" step="1" value="0">
+          <span class="ctrl-val" id="v-tru-core">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Angular width of each fan, centred on the vertical axis. 180 is the full half-circle.">Spread</div>
+          <input type="range" id="rg-tru-spread" min="60" max="180" step="1" value="180">
+          <span class="ctrl-val" id="v-tru-spread">180</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Outer radius of the fans. Below 100 the two opposed fans no longer meet in the middle.">Reach</div>
+          <input type="range" id="rg-tru-reach" min="30" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-tru-reach">100</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Positive: bands get thicker toward the rim. Negative: thinner.">Thickness ramp</div>
+          <input type="range" id="rg-tru-ramp" min="-100" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-tru-ramp">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Positive: bands crowd toward the pivot. Negative: toward the rim.">Spacing curve</div>
+          <input type="range" id="rg-tru-curve" min="-100" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-tru-curve">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Rounds every band end — 100 is a full semicircular cap.">End rounding</div>
+          <input type="range" id="rg-tru-round" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-tru-round">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Splits each band into dashes.">Segments</div>
+          <input type="range" id="rg-tru-segs" min="1" max="8" step="1" value="1">
+          <span class="ctrl-val" id="v-tru-segs">1</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Gap between segments, as a % of a segment's length.">Segment gap</div>
+          <input type="range" id="rg-tru-gap" min="0" max="80" step="1" value="20">
+          <span class="ctrl-val" id="v-tru-gap">20</span>
         </div>
       </div>
       <div id="seed-wedge-block" style="display:none">
@@ -1364,8 +1466,8 @@ const { triangleGeometry, arcGeometry, arcPathD, arcTruchetGeometry, arcTruchetP
 
 const SEED_TYPES = {
   triangle: { label: 'Triangle', geometry: (p) => triangleGeometry(p.base, p.height, p.triApex, { corner: p.triCorner, curve: p.triCurve, irregular: p.triIrregular, seed: p.triSeed, outline: p.triOutline }) },
-  arc: { label: 'Arc', geometry: (p) => arcGeometry(p.thickness, p.arcPivot, p.arcSweep) },
-  arctruchet: { label: 'Arc truchet', geometry: (p) => arcTruchetGeometry(p.arcCount, p.arcRatio) },
+  arc: { label: 'Arc', geometry: (p) => arcGeometry(p.thickness, p.arcPivot, p.arcSweep, { start: p.arcStart, round: p.arcRound, segs: p.arcSegs, gap: p.arcGap, taper: p.arcTaper, irregular: p.arcIrregular, seed: p.arcSeed }) },
+  arctruchet: { label: 'Arc truchet', geometry: (p) => arcTruchetGeometry(p.arcCount, p.arcRatio, { fans: p.truFans, core: p.truCore, spread: p.truSpread, reach: p.truReach, ramp: p.truRamp, curve: p.truCurve, round: p.truRound, segs: p.truSegs, gap: p.truGap }) },
   wedge: { label: 'Wedge', geometry: (p) => wedgeGeometry(p.wedgeAngle, p.wedgeInner, p.wedgeSquash) },
   polygon: { label: 'Polygon', geometry: (p) => polygonGeometry(p.polySides, p.polyCorner, p.polyIrregular, p.polySeed, p.polyRadius) },
   star: { label: 'Star', geometry: (p) => starGeometry(p.starPoints, p.starInner, p.starIrregular, p.starSeed, p.starRadius) },
@@ -1425,7 +1527,8 @@ for (const k of Object.keys(SEED_TYPES)) {
   const g0 = SEED_TYPES[k].geometry;
   SEED_TYPES[k].geometry = p => withInnerCopies(g0(p), p);
 }
-const SYMBOL_ARC_TRUCHET = { arcCount: 5, arcRatio: 0.7 };   // fixed defaults for the Symbols tier
+const SYMBOL_ARC_TRUCHET = { arcCount: 5, arcRatio: 0.7, truFans: 2, truCore: 0, truSpread: 180, truReach: 100, truRamp: 0, truCurve: 0, truRound: 0, truSegs: 1, truGap: 20 };   // fixed defaults for the Symbols tier
+const SYMBOL_ARC = { arcPivot: 'corner', arcSweep: 90, arcStart: 0, arcRound: 0, arcSegs: 1, arcGap: 20, arcTaper: 0, arcIrregular: 0, arcSeed: 1 };   // Symbols stay a plain quarter arc
 const SYMBOL_WEDGE = { wedgeAngle: 90, wedgeInner: 0 };
 const SYMBOL_POLYGON = { polySides: 6, polyCorner: 0 };
 const SYMBOL_STAR = { starPoints: 5, starInner: 45 };
@@ -1438,7 +1541,7 @@ const SYMBOL_TRIANGLE = { triApex: 0, triCorner: 0, triCurve: 0, triIrregular: 0
 // Symbols cells carry no per-seed params of their own (same as they already
 // ignore Base/Height/Thickness) — one merged params object covers every
 // SEED_TYPES geometry fn, each reading only the fields it needs.
-const SYMBOL_SEED_DEFAULTS = { base: 100, height: 100, thickness: 100, ...SYMBOL_ARC_TRUCHET, ...SYMBOL_WEDGE, ...SYMBOL_POLYGON, ...SYMBOL_STAR, ...SYMBOL_ROUNDEDRECT, ...SYMBOL_CHEVRON, ...SYMBOL_CROSS, ...SYMBOL_LENS, ...SYMBOL_TRIANGLE, ...SYMBOL_INNER };
+const SYMBOL_SEED_DEFAULTS = { base: 100, height: 100, thickness: 100, ...SYMBOL_ARC_TRUCHET, ...SYMBOL_ARC, ...SYMBOL_WEDGE, ...SYMBOL_POLYGON, ...SYMBOL_STAR, ...SYMBOL_ROUNDEDRECT, ...SYMBOL_CHEVRON, ...SYMBOL_CROSS, ...SYMBOL_LENS, ...SYMBOL_TRIANGLE, ...SYMBOL_INNER };
 
 // ── Seed type picker (thumbnail dropdown — shared/select-picker.js) ──
 // 26×26 pictograms, currentColor, like Genesis Create's Kind picker.
@@ -1569,6 +1672,15 @@ function getSeed() {
     thickness: val('rg-thickness'),
     arcCount: val('rg-arc-count'),
     arcRatio: val('rg-arc-ratio') / 100,
+    truFans: +ctrl('sel-tru-fans').value,
+    truCore: val('rg-tru-core'),
+    truSpread: val('rg-tru-spread'),
+    truReach: val('rg-tru-reach'),
+    truRamp: val('rg-tru-ramp'),
+    truCurve: val('rg-tru-curve'),
+    truRound: val('rg-tru-round'),
+    truSegs: val('rg-tru-segs'),
+    truGap: val('rg-tru-gap'),
     wedgeAngle: val('rg-wedge-angle'),
     wedgeInner: val('rg-wedge-inner'),
     wedgeSquash: val('rg-wedge-squash'),
@@ -1592,6 +1704,13 @@ function getSeed() {
     lensWidth: val('rg-lens-width'),
     arcPivot: ctrl('sel-arc-pivot').value,
     arcSweep: val('rg-arc-sweep'),
+    arcStart: val('rg-arc-start'),
+    arcRound: val('rg-arc-round'),
+    arcSegs: val('rg-arc-segs'),
+    arcGap: val('rg-arc-gap'),
+    arcTaper: val('rg-arc-taper'),
+    arcIrregular: val('rg-arc-irregular'),
+    arcSeed: val('rg-arc-seed'),
     polyRadius: val('rg-poly-radius'),
     starRadius: val('rg-star-radius'),
     circleRadius: val('rg-circle-radius'),
@@ -2997,7 +3116,10 @@ function applyLibraryEntryToUI(entry) {
   [['innerCount', 'rg-inner-count', 'v-inner-count', 0], ['innerRatio', 'rg-inner-ratio', 'v-inner-ratio', 70],
    ['triCorner', 'rg-tri-corner', 'v-tri-corner', 0], ['triCurve', 'rg-tri-curve', 'v-tri-curve', 0], ['triIrregular', 'rg-tri-irregular', 'v-tri-irregular', 0],
    ['triSeed', 'rg-tri-seed', 'v-tri-seed', 1], ['triOutline', 'rg-tri-outline', 'v-tri-outline', 0],
-   ['arcSweep', 'rg-arc-sweep', 'v-arc-sweep', 90], ['polyRadius', 'rg-poly-radius', 'v-poly-radius', 100], ['starRadius', 'rg-star-radius', 'v-star-radius', 100],
+   ['truCore', 'rg-tru-core', 'v-tru-core', 0], ['truSpread', 'rg-tru-spread', 'v-tru-spread', 180], ['truReach', 'rg-tru-reach', 'v-tru-reach', 100], ['truRamp', 'rg-tru-ramp', 'v-tru-ramp', 0],
+   ['truCurve', 'rg-tru-curve', 'v-tru-curve', 0], ['truRound', 'rg-tru-round', 'v-tru-round', 0], ['truSegs', 'rg-tru-segs', 'v-tru-segs', 1], ['truGap', 'rg-tru-gap', 'v-tru-gap', 20],
+   ['arcSweep', 'rg-arc-sweep', 'v-arc-sweep', 90], ['arcStart', 'rg-arc-start', 'v-arc-start', 0], ['arcRound', 'rg-arc-round', 'v-arc-round', 0], ['arcSegs', 'rg-arc-segs', 'v-arc-segs', 1],
+   ['arcGap', 'rg-arc-gap', 'v-arc-gap', 20], ['arcTaper', 'rg-arc-taper', 'v-arc-taper', 0], ['arcIrregular', 'rg-arc-irregular', 'v-arc-irregular', 0], ['arcSeed', 'rg-arc-seed', 'v-arc-seed', 1], ['polyRadius', 'rg-poly-radius', 'v-poly-radius', 100], ['starRadius', 'rg-star-radius', 'v-star-radius', 100],
    ['circleRadius', 'rg-circle-radius', 'v-circle-radius', 100], ['segLen', 'rg-seg-len', 'v-seg-len', 70], ['dropRadius', 'rg-drop-radius', 'v-drop-radius', 60],
    ['dropTail', 'rg-drop-tail', 'v-drop-tail', 50], ['blobRadius', 'rg-blob-radius', 'v-blob-radius', 60], ['blobAmount', 'rg-blob-amount', 'v-blob-amount', 40],
    ['blobSeed', 'rg-blob-seed', 'v-blob-seed', 1]].forEach(([k, id, vid, def]) => {
@@ -3006,7 +3128,8 @@ function applyLibraryEntryToUI(entry) {
   });
   ctrl('sel-circle-interior').value = entry.seed.circleInterior || 'solid';
   ctrl('sel-circle-trim').value = entry.seed.circleTrim || 'none';
-  syncTriType();
+  ctrl('sel-tru-fans').value = String(entry.seed.truFans || 2);
+  syncTriType(); syncArcType(); syncTruType();
   CIRCLE_PARAMS.forEach(([k, id, def]) => {
     const v = entry.seed[cap(k)] != null ? entry.seed[cap(k)] : def;
     ctrl('rg-circle-' + id).value = v; ctrl('v-circle-' + id).textContent = v;
@@ -4425,6 +4548,45 @@ ctrl('sel-tri-type').addEventListener('change', e => {
 ctrl('rg-base').addEventListener('input', e => { ctrl('v-base').textContent = e.target.value; syncTriType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-height').addEventListener('input', e => { ctrl('v-height').textContent = e.target.value; syncTriType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-tri-apex').addEventListener('input', e => { ctrl('v-tri-apex').textContent = e.target.value; syncTriType(); renderGallery(); renderSeedPreview(); });
+// Arc truchet Type is a derived shortcut over several controls (no stored
+// state): picking one writes them, any hand edit flips it back to Custom.
+const TRU_PRESETS = {
+  butterfly: { fans: 2, count: 5, ratio: 70, core: 0, round: 0 },
+  rainbow:   { fans: 1, count: 5, ratio: 60, core: 0, round: 0 },
+  horseshoe: { fans: 1, count: 4, ratio: 60, core: 35, round: 100 },
+  halo:      { fans: 2, count: 4, ratio: 55, core: 40, round: 100 },
+};
+const TRU_NEUTRAL = { spread: 180, reach: 100, ramp: 0, curve: 0, segs: 1 };   // a preset always resets these
+const TRU_IDS = { count: 'rg-arc-count', ratio: 'rg-arc-ratio', core: 'rg-tru-core', round: 'rg-tru-round', spread: 'rg-tru-spread', reach: 'rg-tru-reach', ramp: 'rg-tru-ramp', curve: 'rg-tru-curve', segs: 'rg-tru-segs' };
+function truState() { const o = { fans: +ctrl('sel-tru-fans').value }; Object.keys(TRU_IDS).forEach(k => { o[k] = val(TRU_IDS[k]); }); return o; }
+function syncTruType() {
+  const cur = truState();
+  const hit = Object.keys(TRU_PRESETS).find(k => { const t = { ...TRU_NEUTRAL, ...TRU_PRESETS[k] }; return Object.keys(t).every(f => t[f] === cur[f]); });
+  ctrl('sel-tru-type').value = hit || 'custom';
+}
+ctrl('sel-tru-type').addEventListener('change', e => {
+  const pr = TRU_PRESETS[e.target.value];
+  if (!pr) return;
+  const t = { ...TRU_NEUTRAL, ...pr };
+  ctrl('sel-tru-fans').value = String(t.fans);
+  Object.keys(TRU_IDS).forEach(k => { const el = ctrl(TRU_IDS[k]); el.value = t[k]; const v = ctrl('v-' + TRU_IDS[k].slice(3)); if (v) v.textContent = t[k]; });
+  renderGallery(); renderSeedPreview();
+});
+ctrl('sel-tru-fans').addEventListener('change', () => { syncTruType(); renderGallery(); renderSeedPreview(); });
+Object.values(TRU_IDS).concat(['rg-tru-gap']).forEach(id => ctrl(id).addEventListener('input', syncTruType));
+// Arc Type is a derived shortcut for Sweep, same idea as Triangle Type.
+const ARC_PRESETS = { quarter: 90, half: 180, threequarter: 270, ring: 350 };
+function syncArcType() {
+  const cur = val('rg-arc-sweep');
+  ctrl('sel-arc-type').value = Object.keys(ARC_PRESETS).find(k => ARC_PRESETS[k] === cur) || 'custom';
+}
+ctrl('sel-arc-type').addEventListener('change', e => {
+  const sw = ARC_PRESETS[e.target.value];
+  if (sw == null) return;
+  ctrl('rg-arc-sweep').value = sw; ctrl('v-arc-sweep').textContent = sw;
+  renderGallery(); renderSeedPreview();
+});
+ctrl('rg-arc-sweep').addEventListener('input', syncArcType);
 ctrl('rg-thickness').addEventListener('input', e => { ctrl('v-thickness').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-arc-count').addEventListener('input', e => { ctrl('v-arc-count').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-arc-ratio').addEventListener('input', e => { ctrl('v-arc-ratio').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
@@ -4494,7 +4656,10 @@ ctrl('sel-element-fillmode').addEventListener('change', onAppearanceChange);
 // readout, then re-render the gallery + the Element preview).
 [['rg-inner-count', 'v-inner-count'], ['rg-inner-ratio', 'v-inner-ratio'],
  ['rg-tri-corner', 'v-tri-corner'], ['rg-tri-curve', 'v-tri-curve'], ['rg-tri-irregular', 'v-tri-irregular'], ['rg-tri-seed', 'v-tri-seed'], ['rg-tri-outline', 'v-tri-outline'],
- ['rg-arc-sweep', 'v-arc-sweep'], ['rg-poly-radius', 'v-poly-radius'], ['rg-star-radius', 'v-star-radius'],
+ ['rg-tru-core', 'v-tru-core'], ['rg-tru-spread', 'v-tru-spread'], ['rg-tru-reach', 'v-tru-reach'], ['rg-tru-ramp', 'v-tru-ramp'],
+ ['rg-tru-curve', 'v-tru-curve'], ['rg-tru-round', 'v-tru-round'], ['rg-tru-segs', 'v-tru-segs'], ['rg-tru-gap', 'v-tru-gap'],
+ ['rg-arc-sweep', 'v-arc-sweep'], ['rg-arc-start', 'v-arc-start'], ['rg-arc-round', 'v-arc-round'], ['rg-arc-segs', 'v-arc-segs'], ['rg-arc-gap', 'v-arc-gap'],
+ ['rg-arc-taper', 'v-arc-taper'], ['rg-arc-irregular', 'v-arc-irregular'], ['rg-arc-seed', 'v-arc-seed'], ['rg-poly-radius', 'v-poly-radius'], ['rg-star-radius', 'v-star-radius'],
  ['rg-circle-radius', 'v-circle-radius'], ['rg-seg-len', 'v-seg-len'], ['rg-drop-radius', 'v-drop-radius'],
  ['rg-drop-tail', 'v-drop-tail'], ['rg-blob-radius', 'v-blob-radius'], ['rg-blob-amount', 'v-blob-amount'],
  ['rg-blob-seed', 'v-blob-seed']].forEach(([id, vid]) => {

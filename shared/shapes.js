@@ -183,13 +183,126 @@
     return `M ${r2(ox0)},${r2(oy0)} A ${r2(outerR)},${r2(outerR)} 0 ${large},1 ${r2(ox1)},${r2(oy1)}`
       + ` L ${r2(ix1)},${r2(iy1)} A ${r2(innerR)},${r2(innerR)} 0 ${large},0 ${r2(ix0)},${r2(iy0)} Z`;
   }
-  function arcGeometry(thicknessPct, pivot, sweepDeg) {
+  // ── Arc extras (Start · End rounding · Segments/Gap · Taper · Irregularity) ──
+  // arcBuild() draws the arc as one closed ring per segment, sampled at ~1°
+  // (sagitta < 0.004 in the 0..100 box, invisible even at mural scale), so a
+  // tapering / wobbling band and its rounded ends share one construction.
+  // It is only reached when an extra is ACTIVE — arcGeometry() keeps the
+  // analytic true-arc path for everything else, byte-identical to before.
+  // Convention-free: the caller supplies the pivot (cx,cy), radii and base
+  // start angle, so FVS (0..100 box, then fitToBox) and Genesis (its own 0..200
+  // box, unfitted) get the same geometry in their own coordinate systems.
+  function arcExtrasActive(o) {
+    return !!o && ((o.start || 0) !== 0 || (o.round || 0) > 0 || (o.segs || 1) > 1 || (o.taper || 0) !== 0 || (o.irregular || 0) > 0);
+  }
+  function arcBuild(cx, cy, outerR, startDeg, sweepDeg, innerR, o) {
+    o = o || {};
+    const n = Math.min(24, Math.max(1, Math.round(o.segs || 1)));
+    const gapF = Math.min(80, Math.max(0, o.gap || 0)) / 100;
+    const taper = Math.min(100, Math.max(-100, o.taper || 0)) / 100;
+    const irr = Math.min(100, Math.max(0, o.irregular || 0)) / 100;
+    const round = Math.min(100, Math.max(0, o.round || 0)) / 100;
+    const sd = o.seed == null ? 1 : o.seed;
+    const start = startDeg + (o.start || 0);
+    const segLen = sweepDeg / (n + (n - 1) * gapF), pitch = segLen * (1 + gapF);
+    const band = outerR - innerR, solid = innerR <= 0.5 && taper === 0;
+    const r2 = v => Math.round(v * 1000) / 1000;
+    const noise = (t, k) => Organica.noise.simplex2(t * 3 + sd * 1.7 + k * 11.3, sd * 0.37 + k);
+    // Outer / inner radius at angle a — t is the position along the WHOLE sweep,
+    // so taper and wobble run continuously across segments.
+    const radii = a => {
+      const t = (a - start) / sweepDeg;
+      const k = Math.max(0, taper >= 0 ? 1 - taper * t : 1 + taper * (1 - t));
+      let ro = outerR, ri = solid ? 0 : outerR - band * k;
+      if (irr > 0) { ro *= 1 + irr * 0.16 * noise(t, 0); if (ri > 0.5) ri = Math.min(ro - 0.3, ri * (1 + irr * 0.2 * noise(t, 1))); }
+      return [ro, Math.max(0, ri)];
+    };
+    const at = (r, a) => [cx + Math.cos(a * Math.PI / 180) * r, cy + Math.sin(a * Math.PI / 180) * r];
+    let d = '';
+    const all = [];   // pre-rounding points → the Fit bbox (so End rounding never rescales the shape)
+    for (let s = 0; s < n; s++) {
+      const a0 = start + s * pitch, a1 = a0 + segLen;
+      const steps = Math.max(2, Math.ceil(segLen));
+      const ring = [], corners = [];
+      const outerPts = [], innerPts = [];
+      for (let i = 0; i <= steps; i++) {
+        const a = a0 + (a1 - a0) * i / steps, [ro, ri] = radii(a);
+        outerPts.push(at(ro, a)); innerPts.push(ri > 0.5 ? at(ri, a) : [cx, cy]);
+      }
+      const apex = solid || innerPts.every(p => p[0] === cx && p[1] === cy);
+      outerPts.forEach(p => ring.push(p));
+      corners.push(0, steps);
+      if (apex) ring.push([cx, cy]);
+      else { for (let i = steps; i >= 0; i--) ring.push(innerPts[i]); corners.push(steps + 1, 2 * steps + 1); }
+      ring.forEach(p => all.push(p));
+      // corner radius = End rounding × half the band width at that end
+      const wEnd = i => Math.hypot(outerPts[i][0] - innerPts[i][0], outerPts[i][1] - innerPts[i][1]);
+      const want = c => {
+        if (round <= 0) return 0;
+        if (c === 0) return wEnd(0) / 2 * round;
+        if (c === steps) return wEnd(steps) / 2 * round;
+        if (c === steps + 1) return wEnd(steps) / 2 * round;
+        return wEnd(0) / 2 * round;
+      };
+      d += ringPathD(ring, corners.map(c => [c, want(c)]), r2);
+    }
+    return { d, bbox: bboxOfPoints(all) };
+  }
+  // Closed polyline → path `d`, rounding the listed [vertexIndex, radius] corners
+  // with a cubic fillet cut `radius` back along the ring on both sides. Radii are
+  // clamped so neighbouring fillets never overlap; corners with radius ~0 stay sharp.
+  function ringPathD(P, cornerList, r2) {
+    const m = P.length;
+    const cs = [0];
+    for (let i = 1; i <= m; i++) cs.push(cs[i - 1] + Math.hypot(P[i % m][0] - P[i - 1][0], P[i % m][1] - P[i - 1][1]));
+    const L = cs[m];
+    const wrap = s => ((s % L) + L) % L;
+    const ptAt = s => {
+      s = wrap(s);
+      let lo = 0, hi = m;
+      while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (cs[mid] <= s) lo = mid; else hi = mid; }
+      const a = P[lo], b = P[(lo + 1) % m], seg = cs[lo + 1] - cs[lo];
+      const t = seg > 1e-12 ? (s - cs[lo]) / seg : 0;
+      return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    };
+    const rounded = cornerList.filter(([, r]) => r > 0.05).map(([c, r]) => ({ c, r, s: cs[c] })).sort((a, b) => a.s - b.s);
+    if (!rounded.length) return 'M ' + P.map(p => `${r2(p[0])},${r2(p[1])}`).join(' L ') + ' Z';
+    // clamp: two fillets on one edge may each use at most half of it
+    rounded.forEach((k, i) => {
+      const nx = rounded[(i + 1) % rounded.length], pv = rounded[(i - 1 + rounded.length) % rounded.length];
+      const dn = rounded.length > 1 ? wrap(nx.s - k.s) || L : L, dp = rounded.length > 1 ? wrap(k.s - pv.s) || L : L;
+      k.r = Math.min(k.r, dn / 2, dp / 2);
+    });
+    const num = v => r2(v);
+    const KAPPA = 0.5523;
+    const info = rounded.map(k => ({ ...k, B: ptAt(k.s - k.r), F: ptAt(k.s + k.r), C: P[k.c] }));
+    let out = `M ${num(info[0].F[0])},${num(info[0].F[1])}`;
+    info.forEach((k, i) => {
+      const nx = info[(i + 1) % info.length];
+      const sF = k.s + k.r, span = wrap((nx.s - nx.r) - sF);
+      const vs = [];
+      for (let v = 0; v < m; v++) { const rel = wrap(cs[v] - sF); if (rel > 1e-9 && rel < span - 1e-9) vs.push([rel, P[v]]); }
+      vs.sort((a, b) => a[0] - b[0]).forEach(([, p]) => { out += ` L ${num(p[0])},${num(p[1])}`; });
+      // curve at the NEXT corner: line to its back point, cubic through it
+      const c1 = [nx.B[0] + (nx.C[0] - nx.B[0]) * KAPPA, nx.B[1] + (nx.C[1] - nx.B[1]) * KAPPA];
+      const c2 = [nx.F[0] + (nx.C[0] - nx.F[0]) * KAPPA, nx.F[1] + (nx.C[1] - nx.F[1]) * KAPPA];
+      out += ` L ${num(nx.B[0])},${num(nx.B[1])} C ${num(c1[0])},${num(c1[1])} ${num(c2[0])},${num(c2[1])} ${num(nx.F[0])},${num(nx.F[1])}`;
+    });
+    return out + ' Z';
+  }
+
+  function arcGeometry(thicknessPct, pivot, sweepDeg, opts) {
     const isCenter = pivot === 'center';
     const sweep = Math.min(350, Math.max(10, sweepDeg == null ? 90 : sweepDeg));
-    if (!isCenter && sweep === 90) return { d: arcPathD(thicknessPct), normTx: 0, normTy: 0, normScale: 1 };
+    const extras = arcExtrasActive(opts);
+    if (!extras && !isCenter && sweep === 90) return { d: arcPathD(thicknessPct), normTx: 0, normTy: 0, normScale: 1 };
     const cx = isCenter ? 50 : 0, cy = isCenter ? 50 : 0, outerR = isCenter ? 50 : 100;
     const start = isCenter ? -90 : 0;
     const innerR = outerR * (1 - thicknessPct / 100);
+    if (extras) {
+      const b = arcBuild(cx, cy, outerR, start, sweep, innerR, opts);
+      return { d: b.d, ...fitToBox(b.bbox) };
+    }
     const d = arcWedgePathD(cx, cy, outerR, start, sweep, innerR);
     const pts = [];
     for (let i = 0; i <= 64; i++) {
@@ -287,7 +400,85 @@
     fan(0, 1);
     return d;
   }
-  function arcTruchetGeometry(count, ratio) {
+  // ── Arc truchet extras (Fans · Core · Spread · Reach · Ramp · Curve · Rounding · Segments) ──
+  // Only reached when an extra is ACTIVE; with all of them at default
+  // arcTruchetGeometry() returns arcTruchetPathD() untouched (byte-identical —
+  // Trellis, saved Components/Symbols and the Radial rules depend on that).
+  // Everything stays analytic (true `A` arcs + exact fillets, no sampling) and
+  // inscribed in the 0..100 box: radii ≤ 50, fans centred on the vertical axis
+  // with spread ≤ 180°, bands never overlap (thickness ≤ 0.95 × the local step),
+  // so still no fill-rule, no fit and no per-cell clip.
+  function truchetExtrasActive(o) {
+    return !!o && ((o.fans != null && o.fans !== 2) || (o.core || 0) > 0 || (o.spread != null && o.spread < 180) || (o.reach != null && o.reach < 100)
+      || (o.ramp || 0) !== 0 || (o.curve || 0) !== 0 || (o.round || 0) > 0 || (o.segs || 1) > 1);
+  }
+  // One band segment between angles p0<p1 (degrees, measured from the +x baseline
+  // direction into the fan's own half-plane), outer radius R, inner radius r
+  // (<= 0.5 → solid wedge with a sharp apex at the pivot). rc = corner fillet
+  // radius: the fillet circle is tangent to the arc and to the radial end line —
+  // centre at distance (R−rc) / (r+rc) from the pivot, angular offset
+  // asin(rc/(R−rc)) / asin(rc/(r+rc)), tangent on the radial line at
+  // √((R−rc)²−rc²) / √((r+rc)²−rc²). At rc = t/2 the two tangent points meet →
+  // a perfect semicircular cap.
+  function truchetBandD(cx, py, sgn, R, r, p0, p1, round) {
+    const r2 = v => Math.round(v * 1000) / 1000;
+    const rad = Math.PI / 180, apex = r <= 0.5, span = (p1 - p0) * rad;
+    const P = (dist, deg) => `${r2(cx + dist * Math.cos(deg * rad))},${r2(py + sgn * dist * Math.sin(deg * rad))}`;
+    const inc = sgn < 0 ? 0 : 1, dec = 1 - inc;           // sweep flag for increasing / decreasing angle
+    let rc = round * (apex ? R / 2 : (R - r) / 2);
+    rc = Math.min(rc, (apex ? R : Math.min(R, (R + r) / 2)) / 2 * 0.999);
+    const angOf = c => Math.max(Math.asin(Math.min(1, c / (R - c))), apex ? 0 : Math.asin(Math.min(1, c / (r + c))));
+    if (rc > 0 && 2 * angOf(rc) > span * 0.999) {        // clamp so the two end fillets never overlap
+      let lo = 0, hi = rc;
+      for (let i = 0; i < 24; i++) { const mid = (lo + hi) / 2; if (2 * angOf(mid) > span * 0.999) hi = mid; else lo = mid; }
+      rc = lo;
+    }
+    if (rc < 0.02) {                                       // sharp ends: plain arcs + radial lines
+      const large = span > Math.PI ? 1 : 0;
+      return apex
+        ? `M ${cx},${py} L ${P(R, p0)} A ${r2(R)},${r2(R)} 0 ${large} ${inc} ${P(R, p1)} Z`
+        : `M ${P(r, p0)} L ${P(R, p0)} A ${r2(R)},${r2(R)} 0 ${large} ${inc} ${P(R, p1)} L ${P(r, p1)} A ${r2(r)},${r2(r)} 0 ${large} ${dec} ${P(r, p0)} Z`;
+    }
+    const to = Math.asin(rc / (R - rc)) / rad, dO = Math.sqrt((R - rc) ** 2 - rc * rc);
+    const F = `A ${r2(rc)},${r2(rc)} 0 0 ${inc}`;
+    const arcO = `A ${r2(R)},${r2(R)} 0 0 ${inc} ${P(R, p1 - to)}`;
+    if (apex) return `M ${cx},${py} L ${P(dO, p0)} ${F} ${P(R, p0 + to)} ${arcO} ${F} ${P(dO, p1)} Z`;
+    const ti = Math.asin(rc / (r + rc)) / rad, dI = Math.sqrt((r + rc) ** 2 - rc * rc);
+    const line0 = Math.abs(dO - dI) > 1e-4;
+    return `M ${P(dI, p0)}${line0 ? ` L ${P(dO, p0)}` : ''} ${F} ${P(R, p0 + to)} ${arcO} ${F} ${P(dO, p1)}`
+      + `${line0 ? ` L ${P(dI, p1)}` : ''} ${F} ${P(r, p1 - ti)} A ${r2(r)},${r2(r)} 0 0 ${dec} ${P(r, p0 + ti)} ${F} ${P(dI, p0)} Z`;
+  }
+  function truchetBuild(count, ratio, o) {
+    count = Math.max(1, Math.round(count == null ? 5 : count));
+    ratio = Math.min(0.95, Math.max(0.1, ratio == null ? 0.7 : ratio));
+    const clampN = (v, lo, hi, def) => Math.min(hi, Math.max(lo, v == null ? def : v));
+    const fans = o.fans === 1 ? 1 : 2;
+    const reach = 50 * clampN(o.reach, 30, 100, 100) / 100;
+    const c0 = reach * clampN(o.core, 0, 80, 0) / 100;
+    const cv = clampN(o.curve, -100, 100, 0) / 100, pw = cv >= 0 ? 1 + cv * 2 : 1 / (1 + -cv * 2);
+    const ramp = clampN(o.ramp, -100, 100, 0) / 100;
+    const spread = clampN(o.spread, 60, 180, 180), p0all = 90 - spread / 2;
+    const segs = Math.round(clampN(o.segs, 1, 8, 1)), gapF = clampN(o.gap, 0, 80, 20) / 100;
+    const round = clampN(o.round, 0, 100, 0) / 100;
+    const segLen = spread / (segs + (segs - 1) * gapF), pitch = segLen * (1 + gapF);
+    let d = '';
+    const fan = (py, sgn) => {
+      let prev = c0;
+      for (let i = 1; i <= count; i++) {
+        const R = c0 + (reach - c0) * Math.pow(i / count, pw), step = R - prev;
+        const f = count > 1 ? (i - 1) / (count - 1) : 0.5;
+        const ri = Math.min(0.95, Math.max(0.1, ratio * (1 + ramp * (2 * f - 1))));
+        const r = R - step * ri;
+        for (let k = 0; k < segs; k++) d += truchetBandD(50, py, sgn, R, r, p0all + k * pitch, p0all + k * pitch + segLen, round) + ' ';
+        prev = R;
+      }
+    };
+    fan(100, -1);
+    if (fans === 2) fan(0, 1);
+    return d.trim();
+  }
+  function arcTruchetGeometry(count, ratio, opts) {
+    if (truchetExtrasActive(opts)) return { d: truchetBuild(count, ratio, opts), normTx: 0, normTy: 0, normScale: 1 };
     return { d: arcTruchetPathD(count, ratio), normTx: 0, normTy: 0, normScale: 1 };
   }
 
@@ -680,8 +871,8 @@
   }
 
   Organica.shapes = {
-    scalePathAbout, triangleGeometry, arcGeometry, arcPathD, circleGeometry, segmentGeometry, dropGeometry, blobGeometry, fitToBox,
-    arcTruchetGeometry, arcTruchetPathD,
+    scalePathAbout, triangleGeometry, arcGeometry, arcBuild, arcExtrasActive, arcPathD, circleGeometry, segmentGeometry, dropGeometry, blobGeometry, fitToBox,
+    arcTruchetGeometry, arcTruchetPathD, truchetExtrasActive,
     wedgeGeometry, wedgePathD, polygonGeometry, polygonPathD, starGeometry, starPathD,
     roundedRectGeometry, roundedRectPathD, chevronGeometry, chevronPathD,
     crossGeometry, crossPathD, lensGeometry, lensPathD,
