@@ -5953,6 +5953,144 @@ function runBuiltinRecipe(def) {
     renderFvsGrid();
   } else setTier('component');
 }
+// ── Figure recipe v2 ─────────────────────────────────────────────────────────
+// A figure is a pipeline of levels, none of which mentions a particular Seed:
+//   element  — the unit Seed (any type), its style and colours
+//   levels   — [ component | symbol ] then optionally [ grid ]
+//     component: a 2×2/3×3… block from a named rule (radial, checkerboard, pinwheel, mirror)
+//     symbol:    a lattice of slots (triangle rows / square cols×rows) + rules that map each
+//                slot's CLASS (up/down, row, col, index, parity) to content and pose
+//     grid:      tiles the level above over a lattice (square n / tier stack / triangle rows)
+//   transform — rotate the whole figure, mirror it over its right/bottom edge
+// runFigureRecipe() drives the same state and functions the UI does, so what it draws IS what
+// the tiers export (one code path, checked by the regression suite).
+function slotClassContext(grid) {
+  const cr = cellColRow(grid);
+  const raw = (state.symbolGrid && state.symbolGrid.cells) || [];
+  return cr.map((c, i) => ({
+    index: i, col: c.col, row: c.row, parity: (c.col + c.row) % 2 === 1 ? 'odd' : 'even',
+    orient: raw[i] && raw[i].points ? polyOrient(raw[i].points) : null,
+  }));
+}
+function ruleMatches(when, ctx) {
+  const has = (v, x) => Array.isArray(v) ? v.includes(x) : v === x;
+  return (when.class == null || has(when.class, ctx.orient)) && (when.row == null || has(when.row, ctx.row))
+    && (when.col == null || has(when.col, ctx.col)) && (when.index == null || has(when.index, ctx.index))
+    && (when.parity == null || when.parity === ctx.parity);
+}
+// Rules apply in order; a later rule overrides an earlier one on the slots it matches.
+function applyClassRules(rules, seedType) {
+  const grid = getSymbolGrid();
+  if (!grid) return;
+  const ctxs = slotClassContext(grid);
+  state.symbolCells.forEach((cell, i) => {
+    (rules || []).forEach(r => {
+      if (!ruleMatches(r.when || {}, ctxs[i])) return;
+      const d = r.do || {};
+      if (d.content === 'empty') cell.source = 'empty';
+      else if (d.content === 'filled') { cell.source = 'seed'; cell.seedType = d.seed || seedType; }
+      if (d.rotate != null) cell.rotation = snap90(d.rotate);
+      if (d.flipH != null) cell.flipH = !!d.flipH;
+      if (d.flipV != null) cell.flipV = !!d.flipV;
+      if (d.scale != null) cell.scale = d.scale;
+    });
+  });
+}
+function componentCellsFromRule(rule, p) {
+  p = p || {};
+  if (rule === 'radial') return buildRadialCells(p.base || 0, p.chirality || 1, 1);
+  if (rule === 'pinwheel') return buildPinwheelCells(p.base || 0, p.chirality || 1, 1);
+  if (rule === 'mirror') return buildMirrorCells(p.seed || 0, 1);
+  if (rule === 'checkerboard') return buildCheckerboardCells(stateFrom(p.a || 0, false, false, 1), stateFrom(p.b || 0, false, false, 1));
+  throw new Error('Unknown component rule: ' + rule);
+}
+function gridTypeFromLattice(l) {
+  if (l.type === 'tier') return 'tier' + (l.stack || 1);
+  if (l.type === 'triangle') return 'tri' + l.rows;
+  if (l.type === 'square') return `square${l.n}x${l.n}`;
+  throw new Error('Unknown grid lattice: ' + l.type);
+}
+function validateFigureRecipe(def) {
+  if (!def || def.tool !== 'fvs-recipe' || def.version !== 2) throw new Error('Not a v2 figure recipe');
+  if (!def.element || !SEED_TYPES[def.element.type]) throw new Error('Unknown Seed type: ' + (def.element && def.element.type));
+  const lv = def.levels || [];
+  if (!lv.length || !['component', 'symbol'].includes(lv[0].kind)) throw new Error('The first level must be a component or a symbol');
+  if (lv.length > 2 || (lv[1] && lv[1].kind !== 'grid')) throw new Error('Only one grid level may follow the first');
+  return lv;
+}
+function runFigureRecipe(def) {
+  const lv = validateFigureRecipe(def);
+  const el = def.element;
+  fireChange('sel-seed-type', el.type);
+  Object.entries(el.params || {}).forEach(([id, v]) => fireInput(id, v));
+  fireChange('sel-element-fillmode', el.style || 'fill');
+  if (el.strokeW) fireInput('rg-element-strokew', el.strokeW);
+  state.colors = (el.colors || ['#000000']).map(hexKey);
+  state.colorRule = { ...DEFAULT_COLOR_RULE, ...(el.colorRule || {}) };
+  syncColorRuleUI(); buildPalette();
+  paperSwatch.set(hexKey(el.paper || '#ffffff'));
+  const first = lv[0], gridLv = lv[1];
+  let tier;
+  if (first.kind === 'component') {
+    fireChange('sel-grid-type', first.grid || 'square2x2');
+    const comp = { id: 'figure-component', ruleSource: 'recipe', cells: first.cells || componentCellsFromRule(first.rule, first.params) };
+    pushUndo(); state.components = [comp]; state.selectedId = comp.id;
+    renderGallery(); refreshColourViews();
+    tier = 'component';
+    if (gridLv) { const all = LIBRARY.read(); delete all['Tile · ' + comp.id]; LIBRARY.write(all); tileSelectedInGrid(); }
+  } else {
+    const l = first.lattice;
+    loadSymbolGrid(l.type === 'triangle' ? triangleLoomModel(l.rows) : squareLoomModel(l.cols, l.rows || l.cols));
+    const fit = first.fit || (l.type === 'triangle' ? 'fill' : 'contain');
+    state.symbolCells.forEach(c => { c.source = 'seed'; c.seedType = el.type; c.fitMode = fit; c.rotation = 0; c.flipH = false; c.flipV = false; c.scale = 1; c.color = null; });
+    applyClassRules(first.rules, el.type);
+    renderSymbol();
+    tier = 'symbol';
+    if (gridLv) { state.fvsGridSymbolName = LIVE_SYMBOL; state.fvsGridComponentName = null; }
+  }
+  const tr = def.transform || {};
+  if (gridLv) {
+    tier = 'grid';
+    fireChange('sel-fvsgrid-type', gridTypeFromLattice(gridLv.lattice));
+    fireInput('rg-fvsgrid-cellsize', gridLv.cellSize || 110);
+    ctrl('chk-fvsgrid-alt-flip').checked = !!gridLv.altFlip;
+  }
+  fireChange('sel-fvsgrid-rot', String(tr.rotate || 0)); fireChange('sel-fvsgrid-mirror', tr.mirror || 'none');
+  setTier(tier);
+  return tierSVG();
+}
+
+// The built-in recipes, written as v2 data. Each one reproduces its v1 twin above exactly
+// (the regression suite compares them) — the proof that the model is not triangle-specific.
+const FIGURE_RECIPES_V1_AS_V2 = {
+  'circle': { element: { type: 'arc', params: { 'rg-thickness': 100 }, colors: ['#0a9a3e'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'radial', params: { base: 180, chirality: 1 } }] },
+  'leaf-block': { element: { type: 'arc', params: { 'rg-thickness': 100 }, colors: ['#0a9a3e'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'checkerboard', params: { a: 180, b: 0 } }] },
+  'leaf-wave': { element: { type: 'arc', params: { 'rg-thickness': 100 }, colors: ['#0a9a3e'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'checkerboard', params: { a: 180, b: 0 } }, { kind: 'grid', lattice: { type: 'square', n: 2 }, cellSize: 110 }] },
+  'leaf-wave-outline': { element: { type: 'arc', params: { 'rg-thickness': 100 }, style: 'stroke', strokeW: 5, colors: ['#e8321e'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'checkerboard', params: { a: 180, b: 0 } }, { kind: 'grid', lattice: { type: 'square', n: 2 }, cellSize: 110 }] },
+  'leaf-two-ink': { element: { type: 'arc', params: { 'rg-thickness': 100 }, colors: ['#e8321e', '#0a9a3e'], colorRule: { mode: 'checker', offset: 0 } }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'checkerboard', params: { a: 180, b: 0 } }, { kind: 'grid', lattice: { type: 'square', n: 4 }, cellSize: 110 }] },
+  'pinwheel': { element: { type: 'triangle', colors: ['#e8321e'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'pinwheel', params: { base: 0, chirality: 1 } }, { kind: 'grid', lattice: { type: 'square', n: 3 }, cellSize: 110 }] },
+  'kaleidoscope': { element: { type: 'arc', params: { 'rg-thickness': 60 }, colors: ['#1e5be8'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'mirror', params: { seed: 0 } }, { kind: 'grid', lattice: { type: 'square', n: 2 }, cellSize: 110, altFlip: true }] },
+};
+// The twelve "Triangle Symbol" figures: 3 assets × 4 compositions.
+function triangleFigureRecipes() {
+  const assets = {
+    sierpinski: { rows: 2, rules: [{ when: { class: 'down' }, do: { content: 'empty' } }] },
+    trapezoid: { rows: 2, rules: [{ when: { class: 'down' }, do: { content: 'filled', rotate: 180 } }, { when: { row: 0 }, do: { content: 'empty' } }] },
+    lattice4: { rows: 4, rules: [{ when: { class: 'down' }, do: { content: 'empty' } }] },
+  };
+  const comps = {
+    asset: [], repeated: [{ kind: 'grid', lattice: { type: 'tier', stack: 2 } }],
+    'mirror-1': [{ kind: 'grid', lattice: { type: 'tier', stack: 1 } }], 'mirror-2': [{ kind: 'grid', lattice: { type: 'tier', stack: 1 } }],
+  };
+  const tf = { asset: {}, repeated: {}, 'mirror-1': { rotate: 90, mirror: 'v' }, 'mirror-2': { mirror: 'h' } };
+  const out = {};
+  Object.entries(assets).forEach(([an, a]) => Object.entries(comps).forEach(([cn, extra]) => {
+    out[an + ':' + cn] = { tool: 'fvs-recipe', version: 2, id: an + ':' + cn,
+      element: { type: 'triangle', style: 'fill', colors: ['#f0301f'], paper: '#ffffff' },
+      levels: [{ kind: 'symbol', lattice: { type: 'triangle', rows: a.rows }, fit: 'fill', rules: a.rules }, ...extra], transform: tf[cn] };
+  }));
+  return out;
+}
 (function initBuiltinRecipes() {
   const sel = ctrl('sel-builtin-recipe');
   BUILTIN_RECIPES.forEach(r => sel.add(new Option(r.label, r.id)));
