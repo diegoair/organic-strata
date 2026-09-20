@@ -499,6 +499,14 @@
               <label class="panel-label" title="Slides the apex off-centre — 0 is isosceles, either extreme approaches a right triangle.">Apex X</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-triapex" min="-98" max="98" value="0"><span class="panel-unit" id="gen-triapex-val" style="width:24px">0</span></div>
             </div>
+            <div class="panel-row" id="row-gen-tricurve" style="display:none">
+              <label class="panel-label" title="Bows every edge — positive bulges outward, negative caves inward.">Edge curvature</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-tricurve" min="-100" max="100" value="0"><span class="panel-unit" id="gen-tricurve-val" style="width:24px">0</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-trioutline" style="display:none">
+              <label class="panel-label" title="Hollow ring — wall thickness as a % of the triangle's inradius. 0 is solid.">Outline (hollow)</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-trioutline" min="0" max="95" value="0"><span class="panel-unit" id="gen-trioutline-val" style="width:24px">0</span></div>
+            </div>
             <div class="panel-row" id="row-gen-corner" style="display:none">
               <label class="panel-label">Corner rounding</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-corner" min="0" max="50" value="0"><span class="panel-unit" id="gen-corner-val" style="width:24px">0</span></div>
@@ -725,7 +733,7 @@
   // ── Authoring (Draw/Import/Generate) state ─────────────
   const DEFAULT_GEN = {
     type: 'circle', n: 5, r: 60, thickness: 100,
-    w: 60, h: 60, triApex: 0, corner: 0, irregularity: 0, seed: 1,
+    w: 60, h: 60, triApex: 0, triCurve: 0, triOutline: 0, corner: 0, irregularity: 0, seed: 1,
     innerRatio: 45, pivot: 'corner', sweep: 90, len: 70, tail: 50, amount: 40,
   };
 
@@ -1755,6 +1763,8 @@
     $('gen-w').addEventListener('input', e => { S.gen.w = parseInt(e.target.value, 10); $('gen-w-val').textContent = S.gen.w; renderArt(); });
     $('gen-h').addEventListener('input', e => { S.gen.h = parseInt(e.target.value, 10); $('gen-h-val').textContent = S.gen.h; renderArt(); });
     $('gen-triapex').addEventListener('input', e => { S.gen.triApex = parseInt(e.target.value, 10); $('gen-triapex-val').textContent = S.gen.triApex; renderArt(); });
+    $('gen-tricurve').addEventListener('input', e => { S.gen.triCurve = parseInt(e.target.value, 10); $('gen-tricurve-val').textContent = S.gen.triCurve; renderArt(); });
+    $('gen-trioutline').addEventListener('input', e => { S.gen.triOutline = parseInt(e.target.value, 10); $('gen-trioutline-val').textContent = S.gen.triOutline; renderArt(); });
     $('gen-corner').addEventListener('input', e => { S.gen.corner = parseInt(e.target.value, 10); $('gen-corner-val').textContent = S.gen.corner; renderArt(); });
     $('gen-irregularity').addEventListener('input', e => { S.gen.irregularity = parseInt(e.target.value, 10); $('gen-irregularity-val').textContent = S.gen.irregularity; renderArt(); });
     $('gen-seed').addEventListener('input', e => { S.gen.seed = parseInt(e.target.value, 10) || 0; renderArt(); });
@@ -1915,6 +1925,8 @@
     $('gen-w').value = g.w; $('gen-w-val').textContent = g.w;
     $('gen-h').value = g.h; $('gen-h-val').textContent = g.h;
     $('gen-triapex').value = g.triApex; $('gen-triapex-val').textContent = g.triApex;
+    $('gen-tricurve').value = g.triCurve; $('gen-tricurve-val').textContent = g.triCurve;
+    $('gen-trioutline').value = g.triOutline; $('gen-trioutline-val').textContent = g.triOutline;
     $('gen-corner').value = g.corner; $('gen-corner-val').textContent = g.corner;
     $('gen-irregularity').value = g.irregularity; $('gen-irregularity-val').textContent = g.irregularity;
     $('gen-seed').value = g.seed;
@@ -1989,9 +2001,11 @@
     show('row-gen-w', t === 'triangle' || t === 'square');
     show('row-gen-h', t === 'triangle' || t === 'square');
     show('row-gen-triapex', t === 'triangle');
-    show('row-gen-corner', t === 'polygon' || t === 'square');
-    show('row-gen-irregularity', t === 'polygon' || t === 'star');
-    show('row-gen-seed', t === 'polygon' || t === 'star' || t === 'blob');
+    show('row-gen-tricurve', t === 'triangle');
+    show('row-gen-trioutline', t === 'triangle');
+    show('row-gen-corner', t === 'polygon' || t === 'square' || t === 'triangle');
+    show('row-gen-irregularity', t === 'polygon' || t === 'star' || t === 'triangle');
+    show('row-gen-seed', t === 'polygon' || t === 'star' || t === 'blob' || t === 'triangle');
     show('row-gen-inner', t === 'star');
     show('row-gen-pivot', t === 'arc');
     show('row-gen-sweep', t === 'arc');
@@ -2194,7 +2208,7 @@
       // Arc stays local — its 200/90 radius + manual Fit-to-grid is a different
       // convention from FVS's auto-fitted arc; Square stays local because its
       // Corner is a quadratic cut, not FVS's Rounded rect arc.
-      if (g.type === 'triangle') return sharedShapeMarkup(Organica.shapes.triangleGeometry(g.w, g.h, g.triApex).d, 2);
+      if (g.type === 'triangle') return sharedShapeMarkup(Organica.shapes.triangleGeometry(g.w, g.h, g.triApex, { corner: g.corner, curve: g.triCurve, irregular: g.irregularity, seed: g.seed, outline: g.triOutline }).d, 2);
       if (g.type === 'square') return `<path d="${rectPathD(g.w, g.h, g.corner)}"/>`;
       if (g.type === 'segment') return sharedShapeMarkup(Organica.shapes.segmentGeometry(g.len).d, 2);
       if (g.type === 'drop') return sharedShapeMarkup(Organica.shapes.dropGeometry(g.r, g.tail).d, 2);

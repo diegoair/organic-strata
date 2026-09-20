@@ -41,13 +41,103 @@
   // centred, byte-identical `d` to the pre-generalisation output); ±100
   // would put the apex directly above a base corner (zero area), so it's
   // clamped just short of that to keep the triangle non-degenerate.
-  function triangleGeometry(base, height, apexPct) {
+  //
+  // Optional 4th arg `opts` = {corner, curve, irregular, seed, outline}, every
+  // field defaulting to "off". With all of them off the function returns the
+  // exact same path as before (Genesis's 3-arg call and every pre-existing
+  // saved Element depend on that).
+  //   corner    0-100  rounds the three corners (same fraction logic as
+  //                    roundedPolyPathD: up to half of each adjacent edge)
+  //   curve     -100..100  bows every edge outward (+) / inward (-) with a
+  //                    quadratic; +100 is a little past a Reuleaux triangle
+  //   irregular 0-100  seeded per-vertex jitter, clamped to the triangle's
+  //                    own bbox so dragging it never rescales the shape
+  //   seed             same seed → same silhouette (mulberry32, like polygon)
+  //   outline   0-95   hollow ring: thickness as % of the inradius. The inner
+  //                    ring is the outer scaled toward the incentre and wound
+  //                    the opposite way, so the default nonzero fill-rule cuts
+  //                    the hole (same trick as wedgePathD, no fill-rule attr)
+  function triRing(pts, cornerPct, curvePct) {
+    const n = pts.length, f = cornerPct / 100 * 0.5;
+    const r2 = v => Math.round(v * 1000) / 1000;
+    const cx = (pts[0][0] + pts[1][0] + pts[2][0]) / 3, cy = (pts[0][1] + pts[1][1] + pts[2][1]) / 3;
+    const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    const quad = (P, C, Q, t) => { const u = 1 - t; return [u * u * P[0] + 2 * u * t * C[0] + t * t * Q[0], u * u * P[1] + 2 * u * t * C[1] + t * t * Q[1]]; };
+    const edges = [], samples = [];
+    for (let i = 0; i < n; i++) {
+      const P = pts[i], Q = pts[(i + 1) % n];
+      let C = null;
+      if (curvePct !== 0) {
+        const dx = Q[0] - P[0], dy = Q[1] - P[1], len = Math.hypot(dx, dy) || 1;
+        const mx = (P[0] + Q[0]) / 2, my = (P[1] + Q[1]) / 2;
+        let nx = dy / len, ny = -dx / len;
+        if ((mx - cx) * nx + (my - cy) * ny < 0) { nx = -nx; ny = -ny; }   // always point away from the ring's centre
+        const off = curvePct / 100 * 0.3 * len;
+        C = [mx + nx * off, my + ny * off];
+      }
+      for (let k = 0; k <= 12; k++) samples.push(C ? quad(P, C, Q, k / 12) : lerp(P, Q, k / 12));
+      let p0, p1, c = null;
+      if (!C) { p0 = lerp(P, Q, f); p1 = lerp(P, Q, 1 - f); }
+      else {
+        p0 = quad(P, C, Q, f); p1 = quad(P, C, Q, 1 - f);
+        // sub-segment [f, 1-f] of a quadratic: control = p0 + (t1-t0)/2 * B'(f)
+        const dv = [2 * ((1 - f) * (C[0] - P[0]) + f * (Q[0] - C[0])), 2 * ((1 - f) * (C[1] - P[1]) + f * (Q[1] - C[1]))];
+        c = [p0[0] + (1 - 2 * f) / 2 * dv[0], p0[1] + (1 - 2 * f) / 2 * dv[1]];
+      }
+      edges.push({ p0, p1, c, v: Q });
+    }
+    const fmt = p => `${r2(p[0])},${r2(p[1])}`;
+    let d = 'M ' + fmt(edges[0].p0) + ' ';
+    for (let i = 0; i < n; i++) {
+      const e = edges[i];
+      d += e.c ? `Q ${fmt(e.c)} ${fmt(e.p1)} ` : `L ${fmt(e.p1)} `;
+      if (f > 0) d += `Q ${fmt(e.v)} ${fmt(edges[(i + 1) % n].p0)} `;
+    }
+    return { d: d + 'Z', samples };
+  }
+  function triangleGeometry(base, height, apexPct, opts) {
     const halfBase = base / 2;
     const apexY = 50 - height / 2;
     const baseY = 50 + height / 2;
     const pct = Math.max(-98, Math.min(98, apexPct == null ? 0 : apexPct));
     const apexX = 50 + halfBase * (pct / 100);
-    const d = `M ${apexX},${apexY} L ${50 - halfBase},${baseY} L ${50 + halfBase},${baseY} Z`;
+    const o = opts || {};
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v == null ? 0 : v));
+    const corner = clamp(o.corner, 0, 100), curve = clamp(o.curve, -100, 100);
+    const irregular = clamp(o.irregular, 0, 100), outline = clamp(o.outline, 0, 95);
+    if (!corner && !curve && !irregular && !outline) {
+      const d = `M ${apexX},${apexY} L ${50 - halfBase},${baseY} L ${50 + halfBase},${baseY} Z`;
+      return { d, normTx: 0, normTy: 0, normScale: 1 };
+    }
+    let pts = [[apexX, apexY], [50 - halfBase, baseY], [50 + halfBase, baseY]];
+    if (irregular > 0) {
+      const rng = Organica.mulberry32((o.seed == null ? 1 : o.seed) >>> 0);
+      const amp = irregular / 100 * 0.3 * Math.min(base, height);
+      pts = pts.map(p => [
+        Math.min(50 + halfBase, Math.max(50 - halfBase, p[0] + (rng() - 0.5) * 2 * amp)),
+        Math.min(baseY, Math.max(apexY, p[1] + (rng() - 0.5) * 2 * amp)),
+      ]);
+    }
+    const outer = triRing(pts, corner, curve);
+    let d = outer.d;
+    if (outline > 0) {
+      // incentre = side-length-weighted centroid; scaling toward it by k gives
+      // a concentric triangle whose inradius (and so wall thickness) is exact.
+      const len = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+      const la = len(pts[1], pts[2]), lb = len(pts[0], pts[2]), lc = len(pts[0], pts[1]), per = la + lb + lc;
+      const ix = (la * pts[0][0] + lb * pts[1][0] + lc * pts[2][0]) / per, iy = (la * pts[0][1] + lb * pts[1][1] + lc * pts[2][1]) / per;
+      const k = 1 - outline / 100;
+      const inner = [pts[0], pts[2], pts[1]].map(p => [ix + (p[0] - ix) * k, iy + (p[1] - iy) * k]);   // reversed winding
+      d += ' ' + triRing(inner, corner, curve).d;
+    }
+    // Curvature can push the silhouette past the 0..100 box; shrink + recentre
+    // ONLY on overflow so the shape never jumps in size as the slider crosses 0.
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    outer.samples.forEach(p => { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+    if (x0 < 0 || y0 < 0 || x1 > 100 || y1 > 100) {
+      const s = Math.min(1, 100 / Math.max(x1 - x0, 1e-6), 100 / Math.max(y1 - y0, 1e-6));
+      return { d, normTx: 50 / s - (x0 + x1) / 2, normTy: 50 / s - (y0 + y1) / 2, normScale: s };
+    }
     return { d, normTx: 0, normTy: 0, normScale: 1 };
   }
 

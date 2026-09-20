@@ -270,6 +270,40 @@
           <input type="range" id="rg-tri-apex" min="-98" max="98" step="1" value="0">
           <span class="ctrl-val" id="v-tri-apex">0</span>
         </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Shortcut that sets Base, Height and Apex X. Reads Custom as soon as you move any of them by hand.">Type</div>
+          <select class="panel-select" id="sel-tri-type" aria-label="Triangle type">
+            <option value="isosceles">Isosceles</option>
+            <option value="right">Right</option>
+            <option value="equilateral">Equilateral</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Rounds the three corners.">Corner radius</div>
+          <input type="range" id="rg-tri-corner" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-tri-corner">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Bows every edge — positive bulges outward (up to a Reuleaux-like shape), negative caves inward.">Edge curvature</div>
+          <input type="range" id="rg-tri-curve" min="-100" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-tri-curve">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Jitters each vertex — 0 stays a perfectly clean triangle.">Irregularity</div>
+          <input type="range" id="rg-tri-irregular" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-tri-irregular">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Same seed always reproduces the same irregular silhouette.">Seed</div>
+          <input type="range" id="rg-tri-seed" min="1" max="999" step="1" value="1">
+          <span class="ctrl-val" id="v-tri-seed">1</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Hollow ring — wall thickness as a % of the triangle's inradius, so 0 is solid. This is real geometry, separate from Style → Stroke.">Outline (hollow)</div>
+          <input type="range" id="rg-tri-outline" min="0" max="95" step="1" value="0">
+          <span class="ctrl-val" id="v-tri-outline">0</span>
+        </div>
       </div>
       <div id="seed-arc-block" style="display:none">
         <div class="ctrl-row">
@@ -1290,7 +1324,7 @@ const { triangleGeometry, arcGeometry, arcPathD, arcTruchetGeometry, arcTruchetP
   resolveGridCells, resolveCellPlacement, frameSize, median } = Organica.shapes;
 
 const SEED_TYPES = {
-  triangle: { label: 'Triangle', geometry: (p) => triangleGeometry(p.base, p.height, p.triApex) },
+  triangle: { label: 'Triangle', geometry: (p) => triangleGeometry(p.base, p.height, p.triApex, { corner: p.triCorner, curve: p.triCurve, irregular: p.triIrregular, seed: p.triSeed, outline: p.triOutline }) },
   arc: { label: 'Arc', geometry: (p) => arcGeometry(p.thickness, p.arcPivot, p.arcSweep) },
   arctruchet: { label: 'Arc truchet', geometry: (p) => arcTruchetGeometry(p.arcCount, p.arcRatio) },
   wedge: { label: 'Wedge', geometry: (p) => wedgeGeometry(p.wedgeAngle, p.wedgeInner, p.wedgeSquash) },
@@ -1321,10 +1355,11 @@ const SYMBOL_ROUNDEDRECT = { rrWidth: 100, rrHeight: 100, rrCorner: 0 };
 const SYMBOL_CHEVRON = { chevNotch: 40, chevArm: 55 };
 const SYMBOL_CROSS = { crossArmWidth: 35, crossArmLength: 100 };
 const SYMBOL_LENS = { lensWidth: 50 };
+const SYMBOL_TRIANGLE = { triApex: 0, triCorner: 0, triCurve: 0, triIrregular: 0, triSeed: 1, triOutline: 0 };   // Symbols stay a plain triangle
 // Symbols cells carry no per-seed params of their own (same as they already
 // ignore Base/Height/Thickness) — one merged params object covers every
 // SEED_TYPES geometry fn, each reading only the fields it needs.
-const SYMBOL_SEED_DEFAULTS = { base: 100, height: 100, thickness: 100, ...SYMBOL_ARC_TRUCHET, ...SYMBOL_WEDGE, ...SYMBOL_POLYGON, ...SYMBOL_STAR, ...SYMBOL_ROUNDEDRECT, ...SYMBOL_CHEVRON, ...SYMBOL_CROSS, ...SYMBOL_LENS };
+const SYMBOL_SEED_DEFAULTS = { base: 100, height: 100, thickness: 100, ...SYMBOL_ARC_TRUCHET, ...SYMBOL_WEDGE, ...SYMBOL_POLYGON, ...SYMBOL_STAR, ...SYMBOL_ROUNDEDRECT, ...SYMBOL_CHEVRON, ...SYMBOL_CROSS, ...SYMBOL_LENS, ...SYMBOL_TRIANGLE };
 
 // ── Seed type picker (thumbnail dropdown — shared/select-picker.js) ──
 // 26×26 pictograms, currentColor, like Genesis Create's Kind picker.
@@ -1445,6 +1480,11 @@ function getSeed() {
     base: val('rg-base'),
     height: val('rg-height'),
     triApex: val('rg-tri-apex'),
+    triCorner: val('rg-tri-corner'),
+    triCurve: val('rg-tri-curve'),
+    triIrregular: val('rg-tri-irregular'),
+    triSeed: val('rg-tri-seed'),
+    triOutline: val('rg-tri-outline'),
     thickness: val('rg-thickness'),
     arcCount: val('rg-arc-count'),
     arcRatio: val('rg-arc-ratio') / 100,
@@ -2868,7 +2908,9 @@ function applyLibraryEntryToUI(entry) {
   // Newer Seed params — snapshots saved before they existed simply lack them
   // and fall back to each control's own default (identical to the old shape).
   ctrl('sel-arc-pivot').value = entry.seed.arcPivot || 'corner';
-  [['arcSweep', 'rg-arc-sweep', 'v-arc-sweep', 90], ['polyRadius', 'rg-poly-radius', 'v-poly-radius', 100], ['starRadius', 'rg-star-radius', 'v-star-radius', 100],
+  [['triCorner', 'rg-tri-corner', 'v-tri-corner', 0], ['triCurve', 'rg-tri-curve', 'v-tri-curve', 0], ['triIrregular', 'rg-tri-irregular', 'v-tri-irregular', 0],
+   ['triSeed', 'rg-tri-seed', 'v-tri-seed', 1], ['triOutline', 'rg-tri-outline', 'v-tri-outline', 0],
+   ['arcSweep', 'rg-arc-sweep', 'v-arc-sweep', 90], ['polyRadius', 'rg-poly-radius', 'v-poly-radius', 100], ['starRadius', 'rg-star-radius', 'v-star-radius', 100],
    ['circleRadius', 'rg-circle-radius', 'v-circle-radius', 100], ['segLen', 'rg-seg-len', 'v-seg-len', 70], ['dropRadius', 'rg-drop-radius', 'v-drop-radius', 60],
    ['dropTail', 'rg-drop-tail', 'v-drop-tail', 50], ['blobRadius', 'rg-blob-radius', 'v-blob-radius', 60], ['blobAmount', 'rg-blob-amount', 'v-blob-amount', 40],
    ['blobSeed', 'rg-blob-seed', 'v-blob-seed', 1]].forEach(([k, id, vid, def]) => {
@@ -2877,6 +2919,7 @@ function applyLibraryEntryToUI(entry) {
   });
   ctrl('sel-circle-interior').value = entry.seed.circleInterior || 'solid';
   ctrl('sel-circle-trim').value = entry.seed.circleTrim || 'none';
+  syncTriType();
   CIRCLE_PARAMS.forEach(([k, id, def]) => {
     const v = entry.seed[cap(k)] != null ? entry.seed[cap(k)] : def;
     ctrl('rg-circle-' + id).value = v; ctrl('v-circle-' + id).textContent = v;
@@ -4275,9 +4318,23 @@ function populateSymbolLoomPresets() {
 }
 
 // ── Wiring ──
-ctrl('rg-base').addEventListener('input', e => { ctrl('v-base').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
-ctrl('rg-height').addEventListener('input', e => { ctrl('v-height').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
-ctrl('rg-tri-apex').addEventListener('input', e => { ctrl('v-tri-apex').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+// Triangle Type is a derived shortcut, not stored state: picking one writes
+// Base/Height/Apex X; any hand edit of those three flips it back to Custom.
+const TRI_PRESETS = { isosceles: [100, 100, 0], right: [100, 100, -98], equilateral: [100, 87, 0] };
+function syncTriType() {
+  const cur = [val('rg-base'), val('rg-height'), val('rg-tri-apex')];
+  const hit = Object.keys(TRI_PRESETS).find(k => TRI_PRESETS[k].every((v, i) => v === cur[i]));
+  ctrl('sel-tri-type').value = hit || 'custom';
+}
+ctrl('sel-tri-type').addEventListener('change', e => {
+  const p = TRI_PRESETS[e.target.value];
+  if (!p) return;
+  [['rg-base', 'v-base'], ['rg-height', 'v-height'], ['rg-tri-apex', 'v-tri-apex']].forEach(([id, vid], i) => { ctrl(id).value = p[i]; ctrl(vid).textContent = p[i]; });
+  renderGallery(); renderSeedPreview();
+});
+ctrl('rg-base').addEventListener('input', e => { ctrl('v-base').textContent = e.target.value; syncTriType(); renderGallery(); renderSeedPreview(); });
+ctrl('rg-height').addEventListener('input', e => { ctrl('v-height').textContent = e.target.value; syncTriType(); renderGallery(); renderSeedPreview(); });
+ctrl('rg-tri-apex').addEventListener('input', e => { ctrl('v-tri-apex').textContent = e.target.value; syncTriType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-thickness').addEventListener('input', e => { ctrl('v-thickness').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-arc-count').addEventListener('input', e => { ctrl('v-arc-count').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-arc-ratio').addEventListener('input', e => { ctrl('v-arc-ratio').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
@@ -4343,7 +4400,8 @@ ctrl('sel-element-fillmode').addEventListener('change', onAppearanceChange);
 
 // New Seed parameters (same pattern as the original rg-* listeners: label
 // readout, then re-render the gallery + the Element preview).
-[['rg-arc-sweep', 'v-arc-sweep'], ['rg-poly-radius', 'v-poly-radius'], ['rg-star-radius', 'v-star-radius'],
+[['rg-tri-corner', 'v-tri-corner'], ['rg-tri-curve', 'v-tri-curve'], ['rg-tri-irregular', 'v-tri-irregular'], ['rg-tri-seed', 'v-tri-seed'], ['rg-tri-outline', 'v-tri-outline'],
+ ['rg-arc-sweep', 'v-arc-sweep'], ['rg-poly-radius', 'v-poly-radius'], ['rg-star-radius', 'v-star-radius'],
  ['rg-circle-radius', 'v-circle-radius'], ['rg-seg-len', 'v-seg-len'], ['rg-drop-radius', 'v-drop-radius'],
  ['rg-drop-tail', 'v-drop-tail'], ['rg-blob-radius', 'v-blob-radius'], ['rg-blob-amount', 'v-blob-amount'],
  ['rg-blob-seed', 'v-blob-seed']].forEach(([id, vid]) => {
