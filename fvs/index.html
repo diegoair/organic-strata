@@ -1403,6 +1403,12 @@
             <span class="ctrl-val" id="symbol-cellprop-content-label" style="flex:1;text-align:left">—</span>
             <button class="mini-btn" id="btn-cellprop-choose">Choose…</button>
           </div>
+          <div class="ctrl-row" id="row-cellprop-seedparams">
+            <div class="ctrl-label">Shape</div>
+            <span class="ctrl-val" id="symbol-cellprop-seedparams-label" style="flex:1;text-align:left">Default</span>
+            <button class="mini-btn" id="btn-cellprop-useseed" title="Copy the Element step's current settings (extras, thickness…) into the selected cells">Use Element</button>
+            <button class="mini-btn" id="btn-cellprop-defseed" title="Back to the plain default shape">Default</button>
+          </div>
           <div class="ctrl-row" id="row-cellprop-rotation"><div class="ctrl-label">Rotation</div>
             <select class="panel-select" id="sel-cellprop-rot">
               <option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option>
@@ -1509,7 +1515,8 @@
       <div class="ctrl-row"><div class="ctrl-label">Empty rows</div><input type="text" class="panel-select" id="fg-emptyrows" placeholder="e.g. 0 or 0,2" aria-label="Empty rows (numbers from the top, starting at 0)"></div>
       <div class="ctrl-row"><div class="ctrl-label">Odd cells</div>
         <select class="panel-select" id="fg-odd" aria-label="Rotation of odd cells"><option value="none">Unchanged</option><option value="90">Rotate 90°</option><option value="180">Rotate 180°</option><option value="270">Rotate 270°</option></select></div>
-      <p class="org-panel__hint">Up/Down apply to triangular lattices; "odd" is the checkerboard parity of column + row.</p>
+      <label class="check-row"><input type="checkbox" id="fg-liveseed"><span>Use the Element step's own settings</span></label>
+      <p class="org-panel__hint">Up/Down apply to triangular lattices; "odd" is the checkerboard parity of column + row. With the box ticked, each cell keeps the shape as configured in the Element step (extras, thickness…) instead of the plain default.</p>
     </div>
     <div class="panel-section">
       <h3>4 · Composition</h3>
@@ -4455,7 +4462,8 @@ function buildSymbolItems() {
         nestedItems, nestedSeed: entry.seed, nestedSize, nestedPaper: entry.paperColor, nestedAppearance: { ...entry.appearance, ...(variantAppearance || {}) },
       };
     }
-    const geo = SEED_TYPES[cell.seedType].geometry(SYMBOL_SEED_DEFAULTS);
+    // a cell may carry the Element's own settings (seedParams); otherwise the plain default shape
+    const geo = SEED_TYPES[cell.seedType].geometry(cell.seedParams || SYMBOL_SEED_DEFAULTS);
     const place = resolveCellPlacement(c.cellW, c.cellH, 100, cell);
     return {
       type: 'seed', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
@@ -5132,6 +5140,8 @@ function renderCellPropertiesPanel() {
   ctrl('rg-cellprop-fixedsize').value = first.fixedSize || 100;
   ctrl('v-cellprop-fixedsize').textContent = ctrl('rg-cellprop-fixedsize').value;
   syncCellColourUI(first, isComponent);
+  ctrl('row-cellprop-seedparams').style.display = (isComponent || first.source === 'empty') ? 'none' : '';
+  ctrl('symbol-cellprop-seedparams-label').textContent = first.seedParams ? 'Element settings' : 'Default';
   ctrl('rg-cellprop-padding').value = Math.round((first.padding || 0) * 100);
   ctrl('v-cellprop-padding').textContent = ctrl('rg-cellprop-padding').value;
   syncAnchorGridUI(first.anchorX || 0, first.anchorY || 0);
@@ -5951,6 +5961,12 @@ ctrl('sel-cellprop-color').addEventListener('change', e => {
 });
 ctrl('in-cellprop-color').addEventListener('input', e => applyToSelection({ color: hexKey(e.target.value) }));
 ctrl('btn-cellprop-color-reset').addEventListener('click', () => { applyToSelection({ color: null }); renderCellPropertiesPanel(); });
+ctrl('btn-cellprop-useseed').addEventListener('click', () => {
+  const sp = seedForSnapshot();
+  applyToSelection(cell => ({ seedParams: cell.source === 'seed' ? JSON.parse(JSON.stringify(sp)) : undefined, seedType: cell.source === 'seed' ? sp.type : cell.seedType }));
+  renderCellPropertiesPanel();
+});
+ctrl('btn-cellprop-defseed').addEventListener('click', () => { applyToSelection({ seedParams: undefined }); renderCellPropertiesPanel(); });
 ctrl('chk-cellprop-lock').addEventListener('change', e => applyToSelection({ locked: e.target.checked }));
 
 ctrl('btn-save-symbol-library').addEventListener('click', saveSymbolToLibrary);
@@ -6141,6 +6157,10 @@ function runFigureRecipe(def, opts) {
     loadSymbolGrid(l.type === 'triangle' ? triangleLoomModel(l.rows) : squareLoomModel(l.cols, l.rows || l.cols));
     const fit = first.fit || (l.type === 'triangle' ? 'fill' : 'contain');
     state.symbolCells.forEach(c => { c.source = 'seed'; c.seedType = el.type; c.fitMode = fit; c.rotation = 0; c.flipH = false; c.flipV = false; c.scale = 1; c.color = null; });
+    if (first.seed === 'live') {   // every cell keeps the Element's own settings, frozen at this moment
+      const sp = seedForSnapshot();
+      state.symbolCells.forEach(c => { c.seedParams = JSON.parse(JSON.stringify(sp)); });
+    } else state.symbolCells.forEach(c => { delete c.seedParams; });
     applyClassRules(first.rules, el.type);
     renderSymbol();
     tier = 'symbol';
@@ -6235,6 +6255,7 @@ function figureRecipeFromForm() {
     if (rows.length) rules.push({ when: { row: rows }, do: { content: 'empty' } });
     first = { kind: 'symbol', lattice: lat === 'triangle' ? { type: 'triangle', rows: +v('fg-n') } : { type: 'square', cols: +v('fg-cols'), rows: +v('fg-n') },
       fit: lat === 'triangle' ? 'fill' : 'contain', rules };
+    if (ctrl('fg-liveseed').checked) first.seed = 'live';
   }
   const levels = [first];
   if (v('fg-comp') !== 'none') levels.push({ kind: 'grid', lattice: FG_LATTICE_OF(v('fg-comp')), cellSize: 110, altFlip: ctrl('fg-altflip').checked });
@@ -6244,7 +6265,7 @@ function figureFormFromRecipe(def) {
   const set = (id, val) => { const e = ctrl(id); e.value = String(val); };
   const el = def.element, first = def.levels[0], g = def.levels[1], tr = def.transform || {};
   set('fg-seed', el.type); set('fg-style', el.style || 'fill'); set('fg-ink', hexKey((el.colors || ['#000000'])[0])); set('fg-paper', hexKey(el.paper || '#ffffff'));
-  set('fg-up', 'filled'); set('fg-down', 'empty'); set('fg-emptyrows', ''); set('fg-odd', 'none');
+  set('fg-up', 'filled'); set('fg-down', 'empty'); set('fg-emptyrows', ''); set('fg-odd', 'none'); ctrl('fg-liveseed').checked = first.seed === 'live';
   if (first.kind === 'component') { set('fg-lattice', 'component'); set('fg-comprule', first.rule || 'checkerboard'); }
   else {
     set('fg-lattice', first.lattice.type); set('fg-n', first.lattice.type === 'triangle' ? first.lattice.rows : first.lattice.rows || first.lattice.cols);
@@ -6327,12 +6348,18 @@ async function rasterMask(src, n, ground) {
   const c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d');
   const im = src instanceof HTMLImageElement ? src : await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(src); });
   const w = im.naturalWidth || n, h = im.naturalHeight || n, k = Math.min(n / w, n / h);
+  const ox = (n - w * k) / 2, oy = (n - h * k) / 2;
   g.fillStyle = ground || '#ffffff'; g.fillRect(0, 0, n, n);
-  g.drawImage(im, (n - w * k) / 2, (n - h * k) / 2, w * k, h * k);
-  const d = g.getImageData(0, 0, n, n).data;
+  g.drawImage(im, ox, oy, w * k, h * k);
+  let d = g.getImageData(0, 0, n, n).data;
   let gr = ground ? null : [0, 0, 0];
-  if (!ground) { const cs = [0, (n - 1) * 4, (n - 1) * n * 4, ((n - 1) * n + n - 1) * 4]; cs.forEach(i => { gr[0] += d[i] / 4; gr[1] += d[i + 1] / 4; gr[2] += d[i + 2] / 4; }); }
-  else { const t = document.createElement('canvas').getContext('2d'); t.fillStyle = ground; t.fillRect(0, 0, 1, 1); const p = t.getImageData(0, 0, 1, 1).data; gr = [p[0], p[1], p[2]]; }
+  if (!ground) {
+    // an image's ground is read from its OWN corners (the letterbox is not part of it), then the box is repainted with it
+    const cx0 = Math.ceil(ox), cx1 = Math.floor(ox + w * k) - 1, cy0 = Math.ceil(oy), cy1 = Math.floor(oy + h * k) - 1;
+    [[cx0, cy0], [cx1, cy0], [cx0, cy1], [cx1, cy1]].forEach(([x, y]) => { const i = (y * n + x) * 4; gr[0] += d[i] / 4; gr[1] += d[i + 1] / 4; gr[2] += d[i + 2] / 4; });
+    g.fillStyle = `rgb(${gr.map(Math.round).join(',')})`; g.fillRect(0, 0, n, n); g.drawImage(im, ox, oy, w * k, h * k);
+    d = g.getImageData(0, 0, n, n).data;
+  } else { const t = document.createElement('canvas').getContext('2d'); t.fillStyle = ground; t.fillRect(0, 0, 1, 1); const p = t.getImageData(0, 0, 1, 1).data; gr = [p[0], p[1], p[2]]; }
   const mask = new Uint8Array(n * n); let x0 = n, y0 = n, x1 = -1, y1 = -1;
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
     const i = (y * n + x) * 4, dist = Math.abs(d[i] - gr[0]) + Math.abs(d[i + 1] - gr[1]) + Math.abs(d[i + 2] - gr[2]);
@@ -6398,6 +6425,7 @@ function drawFigureRef(fm, rm) {
   ['fg-seed', 'fg-style', 'fg-lattice', 'fg-n', 'fg-cols', 'fg-comprule', 'fg-up', 'fg-down', 'fg-odd', 'fg-comp', 'fg-rot', 'fg-mirror'].forEach(id => ctrl(id).addEventListener('change', onForm));
   ['fg-ink', 'fg-paper', 'fg-emptyrows'].forEach(id => ctrl(id).addEventListener('input', onForm));
   ctrl('fg-altflip').addEventListener('change', onForm);
+  ctrl('fg-liveseed').addEventListener('change', onForm);
   ctrl('fg-json-apply').addEventListener('click', () => { try { applyFigureRecipe(JSON.parse(ctrl('fg-json').value)); } catch (e) { ctrl('fg-json-error').textContent = e.message; ctrl('fg-json-error').style.display = ''; } });
   ctrl('fg-json-copy').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText(ctrl('fg-json').value); });
   ctrl('fg-json-save').addEventListener('click', () => Organica.downloadText(ctrl('fg-json').value, Organica.stamp('fvs-figure', 'json'), 'application/json'));

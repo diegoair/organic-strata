@@ -313,6 +313,21 @@ async function battery() {
     put('fig:checks:rows3', rep3.filter(r => !r.ok).length);
   } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); }
 
+  // 16 — per-cell Seed settings, reference-image mask
+  try {
+    const R = live => ({ tool: 'fvs-recipe', version: 2, element: { type: 'arc', params: { 'rg-thickness': 40 }, colors: ['#e8321e'] },
+      levels: [{ kind: 'symbol', lattice: { type: 'square', cols: 2, rows: 2 }, fit: 'contain', ...(live ? { seed: 'live' } : {}), rules: [] }] });
+    const dflt = runFigureRecipe(R(false)), liveSvg = runFigureRecipe(R(true));
+    put('seed:cellparams', [dflt !== liveSvg, state.symbolCells.every(c => !!c.seedParams)].join(','));
+    put('seed:cellparams:svg', liveSvg);
+    runFigureRecipe(R(false)); put('seed:cellparams:cleared', state.symbolCells.every(c => !c.seedParams));
+    const c = document.createElement('canvas'); c.width = 60; c.height = 40; const g = c.getContext('2d');
+    g.fillStyle = '#c8c8c8'; g.fillRect(0, 0, 60, 40); g.fillStyle = '#d03020'; g.fillRect(20, 10, 20, 20);
+    const im = new Image(); im.src = c.toDataURL(); await im.decode();
+    const M = await rasterMask(im, 64, null), n = M.mask.reduce((a, b) => a + b, 0);
+    put('refmask', [n > 100 && n < 600, M.box && M.box.x1 - M.box.x0 < 40].join(','));
+  } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); }
+
   // tidy the throw-away tiles the recipes wrote into the Component library
   const lib = LIBRARY.read(); Object.keys(lib).filter(k => k.startsWith('Tile · recipe-')).forEach(k => delete lib[k]); LIBRARY.write(lib);
   reset();

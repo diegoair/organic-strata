@@ -169,5 +169,9 @@
   "fig:checks:triangle": "ok",
   "fig:tier": "figure,grid,true,true",
   "fig:json:error": "Not a v2 figure recipe",
-  "fig:checks:rows3": "0"
+  "fig:checks:rows3": "0",
+  "seed:cellparams": "true,true",
+  "seed:cellparams:svg": "099d7be8",
+  "seed:cellparams:cleared": "true",
+  "refmask": "true,true"
 }
