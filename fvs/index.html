@@ -51,6 +51,9 @@
   .fvs-thumb:hover { border-color: var(--mid); }
   .fvs-thumb.selected { border-color: var(--tool); box-shadow: 0 0 0 1px var(--tool); }
   .fvs-thumb svg { width: 100%; height: 100%; display: block; }
+  .fvs-thumb-wrap { display: flex; flex-direction: column; gap: var(--space-1); width: 96px; flex-shrink: 0; }
+  .fvs-thumb-caption, .fvs-library-caption { font-size: var(--fs-micro); color: var(--mid); line-height: var(--lh-snug); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fvs-library-caption { display: block; width: 76px; margin-top: var(--space-1); }
 
   /* .icon-btn + .rmx-* chip CSS now in shared/palette.css.
      .fvs-library-item .rmx-x below reuses the shared .rmx-x for the
@@ -71,6 +74,11 @@
   .fvs-seed-preview svg { width: 48px; height: 48px; flex-shrink: 0; border: 1px solid var(--border); display: block; }
 
   .fvs-library { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .fvs-variant-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+  .fvs-variant-row .panel-select { flex: 1; min-width: 0; }
+  .fvs-variant-row input[type="number"] { flex: 0 0 44px; width: 44px; }
+  .fvs-variant-row input[type="color"] { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
+  .fvs-variant-row .mini-btn { flex: 0 0 var(--row-h); width: var(--row-h); padding: 0; }
   .fvs-library-item { position: relative; width: 64px; height: 64px; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; padding: 0; background: none; }
   .fvs-library-item:hover { border-color: var(--mid); }
   .fvs-library-item svg { width: 100%; height: 100%; display: block; }
@@ -218,6 +226,31 @@
           </select>
         </div>
       </div>
+
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__title">Variants</div>
+      <div id="variant-rows"></div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-variant-add">+ Variant</button>
+        <button class="org-btn" id="btn-variant-export">Export SVGs</button>
+      </div>
+      <label class="check-row"><input type="checkbox" id="chk-variant-transparent"><span>Transparent paper</span></label>
+      <p class="org-popover__hint">One SVG per row, same geometry — only Style, ink and stroke width change.</p>
+
+      <div id="plates-block" hidden>
+        <div class="org-popover__divider"></div>
+        <div class="org-popover__title">Plates</div>
+        <div class="org-formats"><button class="org-btn" id="btn-plates-export">One SVG per ink</button></div>
+        <p class="org-popover__hint">Black on transparent, one file per palette colour — for screenprint / riso.</p>
+      </div>
+
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__title">Recipe</div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-recipe-export">Save .json</button>
+        <button class="org-btn" id="btn-recipe-import">Load .json</button>
+      </div>
+      <input type="file" id="file-recipe" accept=".json,application/json" aria-label="Load FVS recipe" class="org-file-input">
     </div>
   </div>
 </div>
@@ -911,6 +944,13 @@
         <button class="mini-btn" id="btn-symbol-grid-bento">Bento (Loom)</button>
         <button class="mini-btn" id="btn-symbol-grid-hex">Hexagonal (Loom)</button>
       </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Square grid</span>
+        <select class="panel-select" id="sel-symbol-square-cols" aria-label="Square grid columns"></select>
+        <span class="hint">×</span>
+        <select class="panel-select" id="sel-symbol-square-rows" aria-label="Square grid rows"></select>
+        <button class="mini-btn" id="btn-symbol-grid-square">Create</button>
+      </div>
       <button class="mini-btn" id="btn-symbol-grid-upload" style="width:100%;margin-top:var(--space-2)">Upload Loom grid JSON…</button>
       <div id="symbol-grid-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-symbol-grid-outline"><span>Show loaded grid</span></label>
@@ -1093,6 +1133,7 @@
       <div id="library-empty" class="fvs-library-empty">Nothing saved yet.</div>
       <div id="fvs-library" class="fvs-library"></div>
       <button class="mini-btn" id="btn-save-library" style="width:100%">Save selected to library</button>
+      <button class="mini-btn" id="btn-tile-in-grid" style="width:100%;margin-top:var(--space-2)">Tile selected in Grid</button>
       <div id="library-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
         <input type="text" class="panel-select" id="txt-library-name" placeholder="Name this component" aria-label="Name this component" style="flex:1">
       </div>
@@ -1202,6 +1243,10 @@
         </div>
 
         <div id="rp-checkerboard" class="rule-params" style="display:none">
+          <div class="ctrl-row"><div class="ctrl-label">Rotate A</div>
+            <select class="panel-select" id="sel-rule-chk-rota"><option value="0" selected>0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
+          </div>
+          <label class="check-row"><input type="checkbox" id="chk-rule-chk-swap"><span>Swap A and B (start on B)</span></label>
           <div class="ctrl-row"><div class="ctrl-label">Rotate B</div>
             <select class="panel-select" id="sel-rule-chk-rot"><option value="0">0°</option><option value="90" selected>90°</option><option value="180">180°</option><option value="270">270°</option></select>
           </div>
@@ -1356,6 +1401,10 @@
       <h3>Symbol</h3>
       <div id="fvsgrid-symbol-empty" class="fvs-library-empty">No saved Symbols yet — save one in the Symbol step first.</div>
       <div id="fvsgrid-symbol-picker" class="fvs-library"></div>
+      <div id="fvsgrid-component-block">
+        <div class="ctrl-label">Or tile a saved Component directly</div>
+        <div id="fvsgrid-component-picker" class="fvs-library"></div>
+      </div>
     </div>
     <div class="panel-section">
       <h3>Grid <span class="hint" id="fvsgrid-cellcount-hint">4 cells</span></h3>
@@ -1436,6 +1485,7 @@
 <script src="/shared/tracks.js"></script>
 <script src="/shared/print-size.js"></script>
 <script src="/shared/print-size-panel.js"></script>
+<script src="/shared/plate-export.js"></script>
 <script src="/shared/shapes.js"></script>
 <script src="/shared/shape-appearance.js"></script>
 <script src="/shared/select-picker.js"></script>
@@ -1484,6 +1534,7 @@ const state = {
   loomGrid: null,   // {cellShape, cells, inner:{width,height}} from Organica.loadLoomGrid, or null until a file is imported
   activeTier: 'element',   // 'element' | 'component' | 'symbol' | 'grid'
   fvsGrid: null,     // {cellShape, cells, inner:{width,height}} — the Grid tier's own tiling grid, Loom-imported
+  fvsGridComponentName: null,  // when set, the Grid tiles this saved Component directly (componentTileEntry) instead of a Symbol
   fvsGridSymbolName: null,   // name of the saved Symbol (SYMBOL_LIBRARY entry) currently tiled in the Grid tier
   symbolGrid: null,   // same shape as loomGrid — a SECOND, independent Loom grid for the Symbols tier
   symbolCells: [],    // one per resolveGridCells(symbolGrid) index:
@@ -1517,6 +1568,14 @@ const ICO_PAUSE = '<path d="M5 3.5h2.2v9H5zM8.8 3.5H11v9H8.8z" fill="currentColo
 // ceiling (no shader array-size bound applies).
 const PALETTE_MAX = 8;
 function colorAt(i) { return state.colors[i % state.colors.length]; }
+// A Symbol cell's ink. `color: null` = follow the palette (what new cells
+// store). A stored colour equal to the palette entry for that index — how
+// older saves wrote it — is treated the same, so recolouring the palette
+// recolours those cells too; any other stored colour is a real override.
+function cellInk(cell, i) {
+  const p = colorAt(i);
+  return (!cell.color || String(cell.color).toLowerCase() === String(p).toLowerCase()) ? p : cell.color;
+}
 
 function buildPalette() {
   Organica.palette.swatch(ctrl('fvs-palette'), {
@@ -2296,8 +2355,18 @@ function ruleCheckerboard() {
     [stateFrom(90, false, false, 1), stateFrom(270, false, false, 1)],
     [stateFrom(0, false, false, 1), stateFrom(0, true, true, 1)],
     [stateFrom(0, true, false, 1), stateFrom(0, false, true, 1)],
+    // Same pairs starting on the other state (TL = the second one) — the
+    // phase the earlier four can't reach, e.g. (180°, 0°).
+    [stateFrom(180, false, false, 1), stateFrom(0, false, false, 1)],
+    [stateFrom(270, false, false, 1), stateFrom(90, false, false, 1)],
   ];
-  const out = pairs.map(([a, b], i) => ({ id: `checkerboard-${i}`, ruleSource: 'checkerboard', cells: buildCheckerboardCells(a, b) }));
+  // Any grid size: parity of (col + row) picks A or B. On 4 cells that is
+  // exactly [A,B,B,A] (buildCheckerboardCells), so 2×2 output is unchanged.
+  const cr = activeCellCount() === 4 ? null : componentCellColRow(getGrid());
+  const out = pairs.map(([a, b], i) => ({
+    id: `checkerboard-${i}`, ruleSource: 'checkerboard',
+    cells: cr ? cr.map(c => ((c.col + c.row) % 2 === 0 ? a : b)) : buildCheckerboardCells(a, b),
+  }));
   return dedupeComponents(out);
 }
 
@@ -2611,6 +2680,9 @@ const DEFAULT_APPEARANCE = { fillMode: 'fill', strokeW: 4, rounded: true, w: 1, 
 // renders with the appearance it was SAVED with, not whatever the Element
 // panel says now. Entries saved before this field existed fall back to plain.
 let appearanceOverride = null;
+// Export "Variants" override — merged over a saved Symbol's own appearance
+// in renderedSymbolEntrySVG so the Grid tier can change Style too.
+let variantAppearance = null;
 function withAppearance(app, fn) {
   const prev = appearanceOverride;
   appearanceOverride = { ...DEFAULT_APPEARANCE, ...(app || {}) };
@@ -2941,14 +3013,15 @@ function renderGallery() {
   if (state.components.length === 0) {
     gallery.classList.remove('visible');
     empty.style.display = 'flex';
-    ctrl('gallery-status').textContent = '';
+    ctrl('gallery-status').textContent = elementIsEmpty() ? 'The Element is empty — draw a shape or pick one in step 1 first.' : '';
     setStatus('', 'No components yet');
     syncPlayEnabled();
     return;
   }
   empty.style.display = 'none';
   gallery.classList.add('visible');
-  ctrl('gallery-status').textContent = `${state.components.length} component${state.components.length === 1 ? '' : 's'}`;
+  ctrl('gallery-status').textContent = `${state.components.length} component${state.components.length === 1 ? '' : 's'}`
+    + (elementIsEmpty() ? ' — the Element is empty (draw a shape or pick one in step 1), so they render blank' : '');
   setStatus('active', `${state.components.length} component${state.components.length === 1 ? '' : 's'}`);
 
   for (const comp of state.components) {
@@ -2959,9 +3032,29 @@ function renderGallery() {
     btn.setAttribute('aria-label', `Component ${comp.ruleSource} ${comp.id}`);
     btn.innerHTML = svgStr;
     btn.addEventListener('click', () => { state.selectedId = comp.id; renderGallery(); });
-    gallery.appendChild(btn);
+    // Caption = the rule that made it + each cell's rotation (f = flipped),
+    // so two look-alike candidates can be told apart without opening them.
+    const caption = componentCaption(comp);
+    btn.title = caption;
+    const wrap = document.createElement('div');
+    wrap.className = 'fvs-thumb-wrap';
+    const cap = document.createElement('span');
+    cap.className = 'fvs-thumb-caption';
+    cap.textContent = caption;
+    wrap.append(btn, cap);
+    gallery.appendChild(wrap);
   }
   syncPlayEnabled();
+}
+
+function componentCaption(comp) {
+  const cells = comp.cells.slice(0, 6).map(c => c.rotation + ((c.flipH || c.flipV) ? 'f' : '')).join(' ');
+  return `${comp.ruleSource} · ${cells}${comp.cells.length > 6 ? ' …' : ''}`;
+}
+
+// The Element is Freehand with nothing drawn: every candidate would be blank.
+function elementIsEmpty() {
+  return ctrl('sel-seed-type').value === 'freehand' && !state.freehand.seed;
 }
 
 function getSelectedComponent() {
@@ -2972,7 +3065,7 @@ function getSelectedComponent() {
 // only mean anything at exactly 4 cells (see the comment above
 // ruleRandom). Grey them out otherwise and bounce off a now-invalid
 // selection rather than leaving it silently selected but unusable. ──
-const FOUR_CELL_ONLY_RULES = ['pinwheel', 'mirror', 'diagonal', 'checkerboard', 'rowmirror', 'columnmirror', 'radial'];
+const FOUR_CELL_ONLY_RULES = ['pinwheel', 'mirror', 'diagonal', 'rowmirror', 'columnmirror', 'radial'];
 function syncRuleAvailability() {
   const count = activeCellCount();
   const sel = ctrl('sel-rule');
@@ -3540,7 +3633,34 @@ function getFvsGrid() {
   return { kind: 'square', cols: n, rows: n, cellSize: val('rg-fvsgrid-cellsize'), gap: val('rg-fvsgrid-gap') };
 }
 
+// A saved Component tiled directly: a throw-away 1×1 Symbol whose only cell
+// holds the Component, built on the fly so nothing pollutes SYMBOL_LIBRARY.
+function componentTileEntry(name) {
+  const c = LIBRARY.read()[name];
+  if (!c) return null;
+  return {
+    gridModel: squareLoomModel(1, 1, frameSize(c.grid)),
+    cells: [{ source: 'component', componentName: name, rotation: 0, flipH: false, flipV: false, scale: 1, color: null,
+      fitMode: 'fill', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false }],
+    colors: c.colors, paperColor: c.paperColor, clipEnabled: false, appearance: c.appearance, rule: null,
+  };
+}
+
+// Component tier → Grid tier in one click: auto-saves the selected
+// Component to the library (once, by id) and tiles it.
+function tileSelectedInGrid() {
+  const comp = getSelectedComponent();
+  if (!comp) return;
+  const name = 'Tile · ' + comp.id;
+  const all = LIBRARY.read();
+  if (!all[name]) { all[name] = buildLibraryEntry(); LIBRARY.write(all); renderLibrary(); }
+  state.fvsGridComponentName = name;
+  setTier('grid');
+  renderFvsGridPicker(); renderFvsGrid();
+}
+
 function fvsGridSelectedEntry() {
+  if (state.fvsGridComponentName) return componentTileEntry(state.fvsGridComponentName);
   if (!state.fvsGridSymbolName) return null;
   return SYMBOL_LIBRARY.read()[state.fvsGridSymbolName] || null;
 }
@@ -3556,7 +3676,7 @@ function renderedSymbolEntrySVG(entry) {
   state.paperColor = entry.paperColor;
   state.symbolClipEnabled = entry.clipEnabled !== false;
   const size = frameSize(getSymbolGrid());
-  const svgStr = withAppearance(entry.appearance, buildSymbolSVG);
+  const svgStr = withAppearance({ ...entry.appearance, ...(variantAppearance || {}) }, buildSymbolSVG);
   state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip;
   return { size, inner: svgStr.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '') };
 }
@@ -3569,13 +3689,15 @@ function buildFvsGridSVG() {
   const centers = resolveGridCells(grid);
   const { size: natSize, inner } = renderedSymbolEntrySVG(entry);
   const altFlip = ctrl('chk-fvsgrid-alt-flip').checked;
+  // Checkerboard by (col + row) parity — index parity gave vertical stripes on grids with an even column count.
+  const colRow = altFlip ? Organica.shapes.cellColRow(grid, null, null) : null;
   let body = '';
   centers.forEach((c, i) => {
     const cw = c.cellW || c.cellSize, ch = c.cellH || c.cellSize;
     const target = Math.min(cw, ch);
     const s = target / natSize;
-    const tx = c.cx - target / 2, ty = c.cy - target / 2;
-    const flipPart = (altFlip && i % 2 === 1) ? ` translate(${natSize},0) scale(-1,1)` : '';
+    const tx = size / 2 + c.cx - target / 2, ty = size / 2 + c.cy - target / 2;
+    const flipPart = (altFlip && (colRow[i].col + colRow[i].row) % 2 === 1) ? ` translate(${natSize},0) scale(-1,1)` : '';
     body += `<g transform="translate(${tx.toFixed(3)},${ty.toFixed(3)}) scale(${s.toFixed(4)})${flipPart}">${inner}</g>`;
   });
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`
@@ -3601,22 +3723,33 @@ function renderFvsGrid() {
 function renderFvsGridPicker() {
   const all = SYMBOL_LIBRARY.read();
   const names = Object.keys(all);
-  ctrl('fvsgrid-symbol-empty').style.display = names.length ? 'none' : '';
+  const compNames = Object.keys(LIBRARY.read());
+  ctrl('fvsgrid-symbol-empty').style.display = (names.length || compNames.length) ? 'none' : '';
   if (!names.includes(state.fvsGridSymbolName)) state.fvsGridSymbolName = names[0] || null;
+  if (state.fvsGridComponentName && !compNames.includes(state.fvsGridComponentName)) state.fvsGridComponentName = null;
   const wrap = ctrl('fvsgrid-symbol-picker');
   wrap.innerHTML = '';
-  for (const name of names) {
-    const entry = all[name];
+  const addTile = (host, name, entry, selected, label, onPick) => {
     const { size, inner } = renderedSymbolEntrySVG(entry);
-    const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${inner}</svg>`;
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
-    if (name === state.fvsGridSymbolName) btn.classList.add('selected');
-    btn.setAttribute('aria-label', 'Pick symbol ' + name);
+    if (selected) btn.classList.add('selected');
+    btn.setAttribute('aria-label', label + ' ' + name);
     btn.title = name;
-    btn.innerHTML = svgStr;
-    btn.addEventListener('click', () => { state.fvsGridSymbolName = name; renderFvsGridPicker(); renderFvsGrid(); updateStepHint('grid'); });
-    wrap.appendChild(btn);
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${inner}</svg>`;
+    btn.addEventListener('click', () => { onPick(); renderFvsGridPicker(); renderFvsGrid(); updateStepHint('grid'); });
+    host.appendChild(btn);
+  };
+  for (const name of names) {
+    addTile(wrap, name, all[name], !state.fvsGridComponentName && name === state.fvsGridSymbolName, 'Pick symbol',
+      () => { state.fvsGridSymbolName = name; state.fvsGridComponentName = null; });
+  }
+  const cwrap = ctrl('fvsgrid-component-picker');
+  cwrap.innerHTML = '';
+  ctrl('fvsgrid-component-block').style.display = compNames.length ? '' : 'none';
+  for (const name of compNames) {
+    addTile(cwrap, name, componentTileEntry(name), name === state.fvsGridComponentName, 'Tile component',
+      () => { state.fvsGridComponentName = name; });
   }
 }
 
@@ -3670,7 +3803,7 @@ function exportFvsGrid(format) {
 
 function defaultSymbolCells(grid) {
   return resolveGridCells(grid).map((c, i) => ({
-    source: 'seed', seedType: 'triangle', rotation: 0, flipH: false, flipV: false, scale: 1, color: colorAt(i),
+    source: 'seed', seedType: 'triangle', rotation: 0, flipH: false, flipV: false, scale: 1, color: null,
     fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false,
   }));
 }
@@ -3682,6 +3815,23 @@ function withPlacementDefaults(cell) {
   return {
     fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false,
     ...cell,
+  };
+}
+
+// A plain cols×rows grid of equal square rect cells, in the same Loom-model
+// shape as SYMBOL_GRID_PRESETS.bento so it goes through Organica.loadLoomGrid
+// and every Symbol code path (rules, cellColRow, export) unchanged.
+function squareLoomModel(cols, rows, cell = 270) {
+  const cells = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    cells.push({ id: 'c' + (r * cols + c), col: c, row: r, colSpan: 1, rowSpan: 1, number: r * cols + c + 1 });
+  }
+  const W = cell * cols, H = cell * rows;
+  return {
+    version: '1.0',
+    canvas: { width: W, height: H, displayWidth: W, displayHeight: H, unit: 'px', orientation: 'landscape', marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, margin: 0, safeArea: 0, bleed: 0 },
+    grid: { type: 'bento', solver: 'kiwi', params: { cols, rows, variety: 0, seed: 1 }, gap: 0, tracks: { cols: Array(cols).fill(cell), rows: Array(rows).fill(cell) }, padding: 0 },
+    cells,
   };
 }
 
@@ -3759,7 +3909,7 @@ function buildSymbolItems() {
     return {
       type: 'seed', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
       scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
-      color: cell.color, geo,
+      color: cellInk(cell, i), geo,
     };
   }).filter(Boolean);
 }
@@ -3992,7 +4142,7 @@ function generateSymbolCells() {
       return { source: 'component', componentName, rotation, flipH, flipV, scale, ...placement };
     }
     const seedType = seedTypes[Math.floor(rng() * seedTypes.length)];
-    return { source: 'seed', seedType, rotation, flipH, flipV, scale, color: colorAt(i), ...placement };
+    return { source: 'seed', seedType, rotation, flipH, flipV, scale, color: null, ...placement };
   });
   renderSymbol();
 }
@@ -4037,10 +4187,12 @@ const SYMBOL_RULES = {
     }),
   },
   checkerboard: {
-    read: () => ({ rotB: parseInt(ctrl('sel-rule-chk-rot').value, 10), flip: ctrl('chk-rule-chk-flip').checked }),
+    read: () => ({ rotA: parseInt(ctrl('sel-rule-chk-rota').value, 10), swap: ctrl('chk-rule-chk-swap').checked,
+      rotB: parseInt(ctrl('sel-rule-chk-rot').value, 10), flip: ctrl('chk-rule-chk-flip').checked }),
     fn: (ctx, p) => {
-      const odd = ((ctx.col + ctx.row) % 2) === 1;
-      if (!odd) return { rotation: 0, flipH: false, flipV: false };
+      // Defaults (rotA 0, no swap) reproduce the original A-even / B-odd result exactly.
+      const odd = ((ctx.col + ctx.row + (p.swap ? 1 : 0)) % 2) === 1;
+      if (!odd) return { rotation: p.rotA || 0, flipH: false, flipV: false };
       return p.flip ? { rotation: 0, flipH: true, flipV: false } : { rotation: p.rotB, flipH: false, flipV: false };
     },
   },
@@ -4451,7 +4603,7 @@ function renderCellContentOverlayTiles() {
     btn.innerHTML = svgStr;
     btn.addEventListener('click', () => {
       contentTarget()(cell => ({
-        source: 'seed', seedType: type, color: cell.color || colorAt(0),
+        source: 'seed', seedType: type, color: cell.color || null,
         rotation: 0, flipH: false, flipV: false,
         fitMode: 'fill', scale: 1, padding: 0, anchorX: 0, anchorY: 0,
       }));
@@ -4489,7 +4641,12 @@ function renderCellContentOverlayTiles() {
       closeCellContentOverlay();
       renderCellPropertiesPanel();
     });
-    compWrap.appendChild(btn);
+    const item = document.createElement('div');
+    const cap = document.createElement('span');
+    cap.className = 'fvs-library-caption';
+    cap.textContent = name;
+    item.append(btn, cap);
+    compWrap.appendChild(item);
   }
   Organica.autoLabelPanel(ctrl('symbol-content-overlay'));
 }
@@ -4506,7 +4663,7 @@ const SYMBOL_LIBRARY = Organica.presetStore('fvs-symbols');
 // this is purely additive — an old entry without `rule` still loads).
 const RULE_CONTROL_IDS = ['sel-symbol-fill', 'sel-symbol-rule',
   'sel-rule-osc-angle', 'rg-rule-osc-shift', 'rg-rule-osc-period', 'rg-rule-osc-phase',
-  'sel-rule-chk-rot', 'chk-rule-chk-flip', 'rg-rule-rows-step', 'sel-rule-rows-mode',
+  'sel-rule-chk-rota', 'chk-rule-chk-swap', 'sel-rule-chk-rot', 'chk-rule-chk-flip', 'rg-rule-rows-step', 'sel-rule-rows-mode',
   'rg-rule-cols-step', 'sel-rule-cols-mode', 'chk-rule-radial-snap', 'sel-rule-radial-chir',
   'rg-rule-wave-amp', 'rg-rule-wave-freq', 'rg-rule-wave-phase', 'chk-rule-wave-snap',
   'chk-rule-rotation', 'chk-rule-flip', 'chk-rule-scale', 'rg-rule-scale-min', 'rg-rule-scale-max',
@@ -4583,6 +4740,9 @@ function applySymbolLibraryEntryToUI(entry) {
   state.symbolCells = entry.cells.map(c => withPlacementDefaults({ ...c }));
   state.symbolSelection.clear();
   state.colors = entry.colors.slice();
+  // Older saves pinned each cell to its palette colour — release those pins
+  // (cellInk) so the palette drives them; genuinely different colours stay.
+  state.symbolCells.forEach((c, i) => { if (c.color && String(c.color).toLowerCase() === String(colorAt(i)).toLowerCase()) c.color = null; });
   buildPalette();
   state.paperColor = entry.paperColor;
   paperSwatch.set(entry.paperColor);
@@ -5062,6 +5222,12 @@ ctrl('file-fvsgrid-loom').addEventListener('change', e => {
 });
 ctrl('btn-symbol-grid-bento').addEventListener('click', () => loadSymbolGrid(SYMBOL_GRID_PRESETS.bento));
 ctrl('btn-symbol-grid-hex').addEventListener('click', () => loadSymbolGrid(SYMBOL_GRID_PRESETS.hexagonal));
+['sel-symbol-square-cols', 'sel-symbol-square-rows'].forEach(id => {
+  const sel = ctrl(id);
+  for (let n = 2; n <= 8; n++) sel.add(new Option(n, n, false, n === 2));
+});
+ctrl('btn-symbol-grid-square').addEventListener('click', () =>
+  loadSymbolGrid(squareLoomModel(+ctrl('sel-symbol-square-cols').value, +ctrl('sel-symbol-square-rows').value)));
 ctrl('sel-symbol-loom-preset').addEventListener('change', e => {
   const v = e.target.value;
   if (!v) return;
@@ -5188,6 +5354,161 @@ function exportByTier(format) {
   if (state.activeTier === 'element') return exportElement(format);
   return exportSelected(format);
 }
+// ── Variants / Plates / Recipe ─────────────────────────────────────
+// One geometry, many outputs. tierSVG() is the single SVG builder for
+// the active tier (the same functions the normal SVG export uses), so a
+// variant / plate is exactly what the preview shows — only Style, ink
+// and paper differ, applied as overrides around that one call.
+const VARIANTS = Organica.presetStore('fvs-variants');
+const DEFAULT_VARIANTS = [
+  { style: 'fill', ink: '#0a9a3e', strokeW: 4 },
+  { style: 'stroke', ink: '#e8321e', strokeW: 5 },
+];
+function readVariants() {
+  try { const v = VARIANTS.read().list; if (Array.isArray(v) && v.length) return v; } catch (e) {}
+  return DEFAULT_VARIANTS.map(v => ({ ...v }));
+}
+function writeVariants(list) { try { VARIANTS.write({ list }); } catch (e) {} }
+let variantList = readVariants();
+
+function tierSVG() {
+  const t = state.activeTier;
+  if (t === 'symbol') return getSymbolGrid() ? buildSymbolSVG() : '';
+  if (t === 'grid') return buildFvsGridSVG();
+  if (t === 'element') return buildSeedPreviewSVG(getSeed(), 0, false, false, 400);
+  const comp = getSelectedComponent();
+  if (!comp) return '';
+  state.selectedRuleSource = comp.ruleSource;
+  const grid = getGrid();
+  return buildComponentSVG(buildComponentItems(comp, grid), getSeed(), frameSize(grid));
+}
+
+// Recolour by string on the finished SVG: every fill/stroke that is not
+// "none" or the paper colour becomes `ink`. Works for every tier alike.
+function recolourSVG(svg, ink, paper) {
+  const p = (paper || '').toLowerCase();
+  return svg.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,8})"/g, (m, attr, c) => c.toLowerCase() === p ? m : `${attr}="${ink}"`);
+}
+
+function renderVariant(v, transparent) {
+  const prev = { colors: state.colors, paper: state.paperColor };
+  const paper = prev.paper;
+  const app = { ...getElementAppearance(), fillMode: v.style, strokeW: v.strokeW, rounded: true };
+  variantAppearance = { fillMode: v.style, strokeW: v.strokeW, rounded: true };
+  state.colors = [v.ink];
+  try {
+    let svg = withAppearance(app, tierSVG);
+    if (!svg) return '';
+    svg = recolourSVG(svg, v.ink, paper);
+    if (transparent) svg = svg.replace(new RegExp(`<rect width="[\\d.]+" height="[\\d.]+" fill="${paper}"/>`, 'i'), '');
+    return svg;
+  } finally { variantAppearance = null; state.colors = prev.colors; state.paperColor = prev.paper; }
+}
+
+function renderVariantRows() {
+  const host = ctrl('variant-rows');
+  host.innerHTML = '';
+  variantList.forEach((v, i) => {
+    const row = document.createElement('div');
+    row.className = 'fvs-variant-row';
+    row.innerHTML = `<select class="panel-select" aria-label="Variant ${i + 1} style"><option value="fill">Fill</option><option value="stroke">Stroke</option></select>`
+      + `<input type="color" aria-label="Variant ${i + 1} ink">`
+      + `<input type="number" class="panel-input" min="1" max="20" aria-label="Variant ${i + 1} stroke width">`
+      + `<button class="mini-btn" aria-label="Remove variant ${i + 1}">×</button>`;
+    const [sel, col, num, del] = row.children;
+    sel.value = v.style; col.value = v.ink; num.value = v.strokeW;
+    num.disabled = v.style !== 'stroke';
+    sel.addEventListener('change', () => { v.style = sel.value; num.disabled = v.style !== 'stroke'; writeVariants(variantList); });
+    col.addEventListener('input', () => { v.ink = col.value; writeVariants(variantList); });
+    num.addEventListener('input', () => { v.strokeW = Math.max(1, +num.value || 1); writeVariants(variantList); });
+    del.addEventListener('click', () => { variantList.splice(i, 1); writeVariants(variantList); renderVariantRows(); });
+    host.appendChild(row);
+  });
+}
+renderVariantRows();
+ctrl('btn-variant-add').addEventListener('click', () => {
+  variantList.push({ style: 'fill', ink: '#000000', strokeW: 4 });
+  writeVariants(variantList); renderVariantRows();
+});
+ctrl('btn-variant-export').addEventListener('click', () => {
+  const transparent = ctrl('chk-variant-transparent').checked;
+  Organica.plateExport.run(variantList.length, {
+    build: i => {
+      const v = variantList[i];
+      const svg = renderVariant(v, transparent);
+      if (!svg) return null;
+      return { blob: new Blob([svg], { type: 'image/svg+xml' }), filename: Organica.stamp(`fvs-${v.style}-${v.ink.slice(1)}`, 'svg') };
+    },
+  });
+});
+
+// Plates: one black-on-transparent SVG per palette colour. Only the
+// shapes painted in ink i survive; every other palette colour → none.
+function plateSVG(svg, colors, i, paper) {
+  const cs = colors.map(c => c.toLowerCase());
+  let out = svg.replace(new RegExp(`<rect width="[\\d.]+" height="[\\d.]+" fill="${paper}"/>`, 'i'), '');
+  out = out.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,8})"/g, (m, attr, c) => {
+    const j = cs.indexOf(c.toLowerCase());
+    return j === -1 ? m : `${attr}="${j === i ? '#000000' : 'none'}"`;
+  });
+  return out;
+}
+function syncPlatesBlock() { ctrl('plates-block').hidden = state.colors.length < 2; }
+ctrl('btn-export').addEventListener('click', syncPlatesBlock);
+ctrl('btn-plates-export').addEventListener('click', () => {
+  const svg = tierSVG(); if (!svg) return;
+  const colors = state.colors.slice(), paper = state.paperColor;
+  Organica.plateExport.run(colors.length, {
+    build: i => ({ blob: new Blob([plateSVG(svg, colors, i, paper)], { type: 'image/svg+xml' }), filename: Organica.stamp(`fvs-plate${i + 1}-${colors[i].slice(1)}`, 'svg') }),
+  });
+});
+
+// Recipe: everything needed to rebuild the current work — Element (with
+// Appearance), the selected Component, the live Symbol, the Grid setup,
+// palette and the variant rows — as one JSON file.
+function buildRecipe() {
+  const symName = state.fvsGridSymbolName;
+  return {
+    tool: 'fvs-recipe', version: 1, tier: state.activeTier,
+    component: buildLibraryEntry(),
+    symbol: buildSymbolLibraryEntry(),
+    grid: { componentName: state.fvsGridComponentName, componentEntry: state.fvsGridComponentName ? (LIBRARY.read()[state.fvsGridComponentName] || null) : null,
+      symbolName: symName, symbol: symName ? (SYMBOL_LIBRARY.read()[symName] || null) : null,
+      type: ctrl('sel-fvsgrid-type').value, cellSize: val('rg-fvsgrid-cellsize'), gap: val('rg-fvsgrid-gap'), altFlip: ctrl('chk-fvsgrid-alt-flip').checked },
+    variants: variantList,
+  };
+}
+function applyRecipe(r) {
+  if (!r || r.tool !== 'fvs-recipe') throw new Error('Not an FVS recipe');
+  if (r.component) applyLibraryEntryToUI(r.component);
+  if (r.symbol) applySymbolLibraryEntryToUI(r.symbol);
+  if (r.grid && r.grid.componentName && r.grid.componentEntry) {
+    const all = LIBRARY.read(); all[r.grid.componentName] = r.grid.componentEntry; LIBRARY.write(all);
+    state.fvsGridComponentName = r.grid.componentName;
+  }
+  if (r.grid && r.grid.symbol && r.grid.symbolName) {
+    const all = SYMBOL_LIBRARY.read(); all[r.grid.symbolName] = r.grid.symbol; SYMBOL_LIBRARY.write(all);
+    state.fvsGridSymbolName = r.grid.symbolName;
+    ctrl('sel-fvsgrid-type').value = r.grid.type;
+    ctrl('rg-fvsgrid-cellsize').value = r.grid.cellSize; ctrl('rg-fvsgrid-gap').value = r.grid.gap;
+    ctrl('chk-fvsgrid-alt-flip').checked = !!r.grid.altFlip;
+  }
+  if (Array.isArray(r.variants) && r.variants.length) { variantList = r.variants; writeVariants(variantList); renderVariantRows(); }
+  setTier(r.tier || 'component');
+  if (r.tier === 'grid') { renderFvsGridPicker(); renderFvsGrid(); }
+}
+ctrl('btn-recipe-export').addEventListener('click', () => {
+  Organica.downloadText(JSON.stringify(buildRecipe(), null, 2), Organica.stamp('fvs-recipe', 'json'), 'application/json');
+});
+ctrl('btn-recipe-import').addEventListener('click', () => ctrl('file-recipe').click());
+ctrl('file-recipe').addEventListener('change', e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => { try { applyRecipe(JSON.parse(reader.result)); } catch (err) { alert('Recipe not loaded: ' + err.message); } };
+  reader.readAsText(f);
+});
+
 ctrl('btn-export-png').addEventListener('click', () => exportByTier('png'));
 ctrl('btn-export-svg').addEventListener('click', () => exportByTier('svg'));
 
@@ -5203,6 +5524,7 @@ ctrl('underlying-component-overlay').addEventListener('click', e => { if (e.targ
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && ctrl('underlying-component-overlay').style.display !== 'none') closeUnderlyingComponentPicker(); });
 
 ctrl('btn-save-library').addEventListener('click', saveToLibrary);
+ctrl('btn-tile-in-grid').addEventListener('click', tileSelectedInGrid);
 ctrl('btn-library-confirm').addEventListener('click', confirmSaveToLibrary);
 ctrl('btn-library-cancel').addEventListener('click', cancelSaveToLibrary);
 ctrl('txt-library-name').addEventListener('keydown', e => {
