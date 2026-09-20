@@ -496,8 +496,8 @@
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-h" min="10" max="100" value="60"><span class="panel-unit" id="gen-h-val" style="width:24px">60</span></div>
             </div>
             <div class="panel-row" id="row-gen-triapex" style="display:none">
-              <label class="panel-label" title="Slides the apex off-centre — 0 is isosceles, either extreme approaches a right triangle.">Apex X</label>
-              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-triapex" min="-98" max="98" value="0"><span class="panel-unit" id="gen-triapex-val" style="width:24px">0</span></div>
+              <label class="panel-label" title="Where the apex sits along the base — 0 is above the left corner, 50 is centred (isosceles), 100 is above the right corner.">Apex X</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-triapex" min="0" max="100" value="50"><span class="panel-unit" id="gen-triapex-val" style="width:24px">50</span></div>
             </div>
             <div class="panel-row" id="row-gen-tricurve" style="display:none">
               <label class="panel-label" title="Bows every edge — positive bulges outward, negative caves inward.">Edge curvature</label>
@@ -1762,7 +1762,8 @@
     $('gen-thickness').addEventListener('input', e => { S.gen.thickness = parseInt(e.target.value); $('gen-thickness-val').textContent = S.gen.thickness; renderArt(); });
     $('gen-w').addEventListener('input', e => { S.gen.w = parseInt(e.target.value, 10); $('gen-w-val').textContent = S.gen.w; renderArt(); });
     $('gen-h').addEventListener('input', e => { S.gen.h = parseInt(e.target.value, 10); $('gen-h-val').textContent = S.gen.h; renderArt(); });
-    $('gen-triapex').addEventListener('input', e => { S.gen.triApex = parseInt(e.target.value, 10); $('gen-triapex-val').textContent = S.gen.triApex; renderArt(); });
+    // Slider is a 0–100 position (0 left corner · 50 centred · 100 right corner); S.gen.triApex keeps the shared -100..100 centred value so saved seeds need no migration.
+    $('gen-triapex').addEventListener('input', e => { const pos = parseInt(e.target.value, 10); S.gen.triApex = pos * 2 - 100; $('gen-triapex-val').textContent = pos; renderArt(); });
     $('gen-tricurve').addEventListener('input', e => { S.gen.triCurve = parseInt(e.target.value, 10); $('gen-tricurve-val').textContent = S.gen.triCurve; renderArt(); });
     $('gen-trioutline').addEventListener('input', e => { S.gen.triOutline = parseInt(e.target.value, 10); $('gen-trioutline-val').textContent = S.gen.triOutline; renderArt(); });
     $('gen-corner').addEventListener('input', e => { S.gen.corner = parseInt(e.target.value, 10); $('gen-corner-val').textContent = S.gen.corner; renderArt(); });
@@ -1924,7 +1925,7 @@
     $('gen-thickness').value = g.thickness; $('gen-thickness-val').textContent = g.thickness;
     $('gen-w').value = g.w; $('gen-w-val').textContent = g.w;
     $('gen-h').value = g.h; $('gen-h-val').textContent = g.h;
-    $('gen-triapex').value = g.triApex; $('gen-triapex-val').textContent = g.triApex;
+    { const pos = Math.round((Math.max(-100, Math.min(100, g.triApex)) + 100) / 2); $('gen-triapex').value = pos; $('gen-triapex-val').textContent = pos; }
     $('gen-tricurve').value = g.triCurve; $('gen-tricurve-val').textContent = g.triCurve;
     $('gen-trioutline').value = g.triOutline; $('gen-trioutline-val').textContent = g.triOutline;
     $('gen-corner').value = g.corner; $('gen-corner-val').textContent = g.corner;
