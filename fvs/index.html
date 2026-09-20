@@ -149,6 +149,16 @@
   #fvsgrid-frame { display: none; }
   #fvsgrid-frame.visible { display: block; }
   #fvsgrid-frame svg { max-width: 100%; max-height: 100%; display: block; }
+  #figure-stage { position: relative; display: block; line-height: 0; width: min(70vh, 100%); }
+  #figure-frame svg { display: block; width: 100%; height: auto; }
+  #fg-ink, #fg-paper { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
+  #figure-ref-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+  .fg-report { display: grid; gap: var(--space-1); font-size: var(--fs-micro); margin-bottom: var(--space-3); }
+  .fg-report .fg-row { display: flex; gap: var(--space-2); }
+  .fg-report .fg-dot { flex: 0 0 auto; width: 1.2em; }
+  .fg-report .fg-ok { color: var(--tool); }
+  .fg-report .fg-bad { color: var(--danger); }
+  .fg-json { width: 100%; min-height: 120px; font-family: var(--font); font-size: var(--fs-micro); }
 </style>
 </head>
 <body>
@@ -172,6 +182,7 @@
     <button class="org-btn" data-tier="component" aria-pressed="false"><span class="fvs-stepnav__num">2</span> Component</button>
     <button class="org-btn" data-tier="symbol" aria-pressed="false"><span class="fvs-stepnav__num">3</span> Symbol</button>
     <button class="org-btn" data-tier="grid" aria-pressed="false"><span class="fvs-stepnav__num">4</span> Grid</button>
+    <button class="org-btn" data-tier="figure" aria-pressed="false" title="Build a whole figure in one place — Seed, lattice, rules, composition, transform"><span class="fvs-stepnav__num">★</span> Figure</button>
   </div>
   <p class="fvs-stepnav__hint" id="stepnav-hint"></p>
 </div>
@@ -302,6 +313,9 @@
         <p>No Symbol picked yet.<br>Save one in the Symbol step, then pick it here.</p>
       </div>
       <div id="fvsgrid-frame"></div>
+    </div>
+    <div class="tier-view" data-tier="figure">
+      <div id="figure-stage"><div id="figure-frame"></div><canvas id="figure-ref-canvas" aria-hidden="true"></canvas></div>
     </div>
   </div>
 
@@ -981,6 +995,12 @@
         <select class="panel-select" id="sel-symbol-square-rows" aria-label="Square grid rows"></select>
         <button class="mini-btn" id="btn-symbol-grid-square">Create</button>
       </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Triangle grid</span>
+        <select class="panel-select" id="sel-symbol-tri-n" aria-label="Triangle grid side (rows)"></select>
+        <span class="hint">rows</span>
+        <button class="mini-btn" id="btn-symbol-grid-tri">Create</button>
+      </div>
       <button class="mini-btn" id="btn-symbol-grid-upload" style="width:100%;margin-top:var(--space-2)">Upload Loom grid JSON…</button>
       <div id="symbol-grid-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-symbol-grid-outline"><span>Show loaded grid</span></label>
@@ -1262,10 +1282,20 @@
             <option value="columns">Columns</option>
             <option value="radial">Radial</option>
             <option value="wave">Wave</option>
+            <option value="orientation">Orientation (up / down triangles)</option>
             <option value="random">Random (transforms only)</option>
           </select>
         </div>
 
+        <div id="rp-orientation" class="rule-params" style="display:none">
+          <p class="org-panel__hint">For triangular grids: decide what the up-pointing and the down-pointing cells hold. A filled down cell is turned 180° so it stays a triangle that fills its cell; Empty leaves a hole.</p>
+          <div class="ctrl-row"><div class="ctrl-label">Up cells</div>
+            <select class="panel-select" id="sel-rule-ori-up"><option value="filled">Filled</option><option value="empty">Empty</option></select>
+          </div>
+          <div class="ctrl-row"><div class="ctrl-label">Down cells</div>
+            <select class="panel-select" id="sel-rule-ori-down"><option value="empty">Empty</option><option value="filled">Filled</option></select>
+          </div>
+        </div>
         <div id="rp-oscillator" class="rule-params">
           <div class="ctrl-row"><div class="ctrl-label">Angle step</div>
             <select class="panel-select" id="sel-rule-osc-angle"><option value="90">90°</option><option value="180">180°</option></select>
@@ -1373,9 +1403,15 @@
             <span class="ctrl-val" id="symbol-cellprop-content-label" style="flex:1;text-align:left">—</span>
             <button class="mini-btn" id="btn-cellprop-choose">Choose…</button>
           </div>
+          <div class="ctrl-row" id="row-cellprop-seedparams">
+            <div class="ctrl-label">Shape</div>
+            <span class="ctrl-val" id="symbol-cellprop-seedparams-label" style="flex:1;text-align:left">Default</span>
+            <button class="mini-btn" id="btn-cellprop-useseed" title="Copy the Element step's current settings (extras, thickness…) into the selected cells">Use Element</button>
+            <button class="mini-btn" id="btn-cellprop-defseed" title="Back to the plain default shape">Default</button>
+          </div>
           <div class="ctrl-row" id="row-cellprop-rotation"><div class="ctrl-label">Rotation</div>
             <select class="panel-select" id="sel-cellprop-rot">
-              <option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option>
+              <option value="0">0°</option><option value="60">60°</option><option value="90">90°</option><option value="120">120°</option><option value="180">180°</option><option value="240">240°</option><option value="270">270°</option><option value="300">300°</option>
             </select>
           </div>
           <div class="ctrl-row" id="row-cellprop-flip"><div class="ctrl-label">Flip</div>
@@ -1440,6 +1476,89 @@
     </div>
     </div>
 
+    <div class="tier-block" data-tier="figure">
+    <div class="panel-step-head">
+      <div class="panel-step-head__title">Figure <span class="hint">all in one</span></div>
+      <p class="panel-step-head__desc">Seed → lattice → rules → composition → transform. Every change redraws the figure; the same recipe can be pasted or saved as JSON.</p>
+    </div>
+    <div class="panel-section">
+      <h3>Start from</h3>
+      <div class="ctrl-row"><select class="panel-select" id="fg-preset" aria-label="Figure preset"></select></div>
+    </div>
+    <div class="panel-section">
+      <h3>1 · Seed</h3>
+      <div class="ctrl-row"><div class="ctrl-label">Shape</div><select class="panel-select" id="fg-seed" aria-label="Seed shape"></select></div>
+      <div class="ctrl-row"><div class="ctrl-label">Style</div>
+        <select class="panel-select" id="fg-style" aria-label="Style"><option value="fill">Fill</option><option value="stroke">Stroke</option></select></div>
+      <div class="ctrl-row"><div class="ctrl-label">Ink</div><input type="color" id="fg-ink" value="#f0301f" aria-label="Ink colour"></div>
+      <div class="ctrl-row"><div class="ctrl-label">Paper</div><input type="color" id="fg-paper" value="#ffffff" aria-label="Paper colour"></div>
+    </div>
+    <div class="panel-section">
+      <h3>2 · Lattice</h3>
+      <div class="ctrl-row"><div class="ctrl-label">Type</div>
+        <select class="panel-select" id="fg-lattice" aria-label="Lattice type">
+          <option value="triangle">Triangle (n rows)</option><option value="square">Square (cols × rows)</option><option value="hexagon">Hexagon (n rings)</option><option value="component">Component block 2×2</option>
+        </select></div>
+      <div class="ctrl-row" id="fg-row-n"><div class="ctrl-label">Rows</div><select class="panel-select" id="fg-n" aria-label="Rows"></select></div>
+      <div class="ctrl-row" id="fg-row-cols"><div class="ctrl-label">Columns</div><select class="panel-select" id="fg-cols" aria-label="Columns"></select></div>
+      <div class="ctrl-row" id="fg-row-comprule"><div class="ctrl-label">Block rule</div>
+        <select class="panel-select" id="fg-comprule" aria-label="Component rule">
+          <option value="checkerboard">Checkerboard 180° / 0°</option><option value="radial">Radial 180°</option><option value="pinwheel">Pinwheel</option><option value="mirror">Mirror</option>
+        </select></div>
+    </div>
+    <div class="panel-section" id="fg-rules-section">
+      <h3>3 · Rules <span class="hint">slot class → content</span></h3>
+      <div class="ctrl-row" id="fg-row-up"><div class="ctrl-label">Up cells</div>
+        <select class="panel-select" id="fg-up" aria-label="Up cells"><option value="filled">Filled</option><option value="empty">Empty</option></select></div>
+      <div class="ctrl-row" id="fg-row-down"><div class="ctrl-label">Down cells</div>
+        <select class="panel-select" id="fg-down" aria-label="Down cells"><option value="empty">Empty</option><option value="turned">Filled, turned 180°</option><option value="filled">Filled</option></select></div>
+      <div class="ctrl-row" id="fg-row-hexturn"><div class="ctrl-label">Turn</div>
+        <select class="panel-select" id="fg-hexturn" aria-label="Turn cells by sector"><option value="none">Unchanged</option><option value="sector">By sector (60° each)</option></select></div>
+      <label class="check-row" id="fg-row-hexcentre"><input type="checkbox" id="fg-hexcentre"><span>Empty centre</span></label>
+      <div class="ctrl-row"><div class="ctrl-label">Empty rows</div><input type="text" class="panel-select" id="fg-emptyrows" placeholder="e.g. 0 or 0,2" aria-label="Empty rows (numbers from the top, starting at 0)"></div>
+      <div class="ctrl-row"><div class="ctrl-label">Odd cells</div>
+        <select class="panel-select" id="fg-odd" aria-label="Rotation of odd cells"><option value="none">Unchanged</option><option value="60">Rotate 60°</option><option value="90">Rotate 90°</option><option value="120">Rotate 120°</option><option value="180">Rotate 180°</option><option value="240">Rotate 240°</option><option value="270">Rotate 270°</option><option value="300">Rotate 300°</option></select></div>
+      <label class="check-row"><input type="checkbox" id="fg-liveseed"><span>Use the Element step's own settings</span></label>
+      <p class="org-panel__hint">Up/Down apply to triangular lattices; "odd" is the checkerboard parity of column + row. With the box ticked, each cell keeps the shape as configured in the Element step (extras, thickness…) instead of the plain default.</p>
+    </div>
+    <div class="panel-section">
+      <h3>4 · Composition</h3>
+      <div class="ctrl-row"><div class="ctrl-label">Tile it as</div>
+        <select class="panel-select" id="fg-comp" aria-label="Composition">
+          <option value="none">Nothing (single figure)</option>
+          <option value="tier1">Tier (trapezoid of 3)</option><option value="tier2">Tier ×2 (stepped)</option>
+          <option value="tri2">Triangle 2 rows</option><option value="tri3">Triangle 3 rows</option><option value="tri4">Triangle 4 rows</option>
+          <option value="square2x2">Square 2×2</option><option value="square3x3">Square 3×3</option><option value="square4x4">Square 4×4</option><option value="square6x6">Square 6×6</option>
+        </select></div>
+      <div class="ctrl-row" id="fg-row-comp2"><div class="ctrl-label">Then tile that as</div><select class="panel-select" id="fg-comp2" aria-label="Second composition"></select></div>
+      <label class="check-row"><input type="checkbox" id="fg-altflip"><span>Alternate flip (checkerboard)</span></label>
+    </div>
+    <div class="panel-section">
+      <h3>5 · Transform</h3>
+      <div class="ctrl-row"><div class="ctrl-label">Rotate</div>
+        <select class="panel-select" id="fg-rot" aria-label="Rotate figure"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select></div>
+      <div class="ctrl-row"><div class="ctrl-label">Mirror</div>
+        <select class="panel-select" id="fg-mirror" aria-label="Mirror figure"><option value="none">None</option><option value="v">One axis — right edge</option><option value="h">One axis — bottom edge</option><option value="vh">Two axes</option></select></div>
+    </div>
+    <div class="panel-section">
+      <h3>Checks <span class="hint" id="fg-report-hint"></span></h3>
+      <div id="fg-report" class="fg-report" role="status"></div>
+    </div>
+    <div class="panel-section">
+      <h3>Reference image</h3>
+      <div class="ctrl-row"><button class="mini-btn" id="fg-ref-load" style="flex:1">Load image…</button><button class="mini-btn" id="fg-ref-clear">Clear</button></div>
+      <input type="file" id="fg-ref-file" accept="image/*" class="org-file-input" aria-label="Reference image">
+      <div class="ctrl-row"><div class="ctrl-label">Overlay</div><input type="range" id="fg-ref-opacity" min="0" max="100" value="45"><span class="ctrl-val" id="v-fg-ref-opacity">45</span></div>
+      <p class="org-panel__hint">The image's dark/coloured shape is fitted onto the figure's own box; the check reports how much the two silhouettes overlap. Crop the reference to one figure first.</p>
+    </div>
+    <div class="panel-section">
+      <h3>Recipe JSON</h3>
+      <textarea id="fg-json" class="fg-json panel-input" spellcheck="false" aria-label="Figure recipe JSON"></textarea>
+      <div class="row-btns"><button class="mini-btn" id="fg-json-apply">Apply</button><button class="mini-btn" id="fg-json-copy">Copy</button><button class="mini-btn" id="fg-json-save">Save file</button></div>
+      <div id="fg-json-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
+    </div>
+    </div>
+
     <div class="tier-block" data-tier="grid">
     <div class="panel-step-head">
       <div class="panel-step-head__title">Grid <span class="hint">step 4 of 4</span></div>
@@ -1462,6 +1581,11 @@
           <option value="square3x3">Square 3×3</option>
           <option value="square4x4" selected>Square 4×4</option>
           <option value="square6x6">Square 6×6</option>
+          <option value="tri2">Triangle 2 rows</option>
+          <option value="tri3">Triangle 3 rows</option>
+          <option value="tri4">Triangle 4 rows</option>
+          <option value="tier1">Tier (trapezoid of 3)</option>
+          <option value="tier2">Tier ×2 (stepped)</option>
           <option value="loom">Import from Loom (JSON)…</option>
         </select>
       </div>
@@ -1482,6 +1606,21 @@
         <div id="fvsgrid-loom-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       </div>
       <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-fvsgrid-alt-flip"><span>Alternate flip (checkerboard)</span></label>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Rotate figure</div>
+        <select class="panel-select" id="sel-fvsgrid-rot" aria-label="Rotate the tiled figure">
+          <option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Mirror</div>
+        <select class="panel-select" id="sel-fvsgrid-mirror" aria-label="Mirror the figure over its edge">
+          <option value="none">None</option>
+          <option value="v">One axis — right edge</option>
+          <option value="h">One axis — bottom edge</option>
+          <option value="vh">Two axes — right + bottom</option>
+        </select>
+      </div>
       <p class="org-panel__hint">Every cell repeats the picked Symbol at its own resolved size — a Loom import uses that grid's own saved cell geometry (rect or polygon) exactly as exported. "Alternate flip" mirrors every other cell for a less mechanical repeat.</p>
     </div>
     </div>
@@ -3914,6 +4053,14 @@ function getFvsGrid() {
     if (!state.fvsGrid) return null;
     return { kind: 'loom', cellShape: state.fvsGrid.cellShape, cells: state.fvsGrid.cells, width: state.fvsGrid.inner.width, height: state.fvsGrid.inner.height };
   }
+  if (/^tier\d$/.test(type)) {
+    const g = Organica.loadLoomGrid(tierLoomModel(+type[4], Math.max(20, val('rg-fvsgrid-cellsize'))));
+    return { kind: 'loom', tri: true, cellShape: 'polygon', cells: g.cells, width: g.inner.width, height: g.inner.height };
+  }
+  if (/^tri\d$/.test(type)) {
+    const g = Organica.loadLoomGrid(triangleLoomModel(+type[3], Math.max(20, val('rg-fvsgrid-cellsize'))));
+    return { kind: 'loom', tri: true, cellShape: 'polygon', cells: g.cells, width: g.inner.width, height: g.inner.height };
+  }
   const n = type === 'square3x3' ? 3 : type === 'square4x4' ? 4 : type === 'square6x6' ? 6 : 2;
   return { kind: 'square', cols: n, rows: n, cellSize: val('rg-fvsgrid-cellsize'), gap: val('rg-fvsgrid-gap') };
 }
@@ -3933,7 +4080,7 @@ function componentTileEntry(name) {
 
 // Component tier → Grid tier in one click: auto-saves the selected
 // Component to the library (once, by id) and tiles it.
-function tileSelectedInGrid() {
+function tileSelectedInGrid(stay) {
   const comp = getSelectedComponent();
   if (!comp) return;
   pushUndo();
@@ -3942,13 +4089,18 @@ function tileSelectedInGrid() {
   // always refreshed: the id stays the same when the Element/colours change, so a cached copy would go stale
   all[name] = { ...buildLibraryEntry(), auto: true }; LIBRARY.write(all);
   state.fvsGridComponentName = name;
-  setTier('grid');
+  if (!stay) setTier('grid');
   renderFvsGridPicker(); renderFvsGrid();
 }
 
+// The Symbol being edited, offered to the Grid as it is right now — no save step
+// in between (a saved copy went stale the moment the Symbol was edited).
+const LIVE_SYMBOL = '● Current symbol';
 function fvsGridSelectedEntry() {
+  if (state.fvsGridRaw) return { raw: state.fvsGridRaw };   // the figure below, promoted to a tile
   if (state.fvsGridComponentName) return componentTileEntry(state.fvsGridComponentName);
   if (!state.fvsGridSymbolName) return null;
+  if (state.fvsGridSymbolName === LIVE_SYMBOL) return state.symbolGrid ? buildSymbolLibraryEntry() : null;
   return SYMBOL_LIBRARY.read()[state.fvsGridSymbolName] || null;
 }
 
@@ -3956,6 +4108,7 @@ function fvsGridSelectedEntry() {
 // state (not the live one), same swap-state-then-restore trick
 // renderSymbolLibrary() already uses for its own thumbnails.
 function renderedSymbolEntrySVG(entry) {
+  if (entry.raw) return { size: entry.raw.size, inner: entry.raw.inner };   // a finished figure used as a tile
   const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, rule: state.colorRule, paper: state.paperColor, clip: state.symbolClipEnabled };
   state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
   state.symbolCells = entry.cells;
@@ -3979,17 +4132,93 @@ function buildFvsGridSVG() {
   const altFlip = ctrl('chk-fvsgrid-alt-flip').checked;
   // Checkerboard by (col + row) parity — index parity gave vertical stripes on grids with an even column count.
   const colRow = altFlip ? Organica.shapes.cellColRow(grid, null, null) : null;
+  // Every tile repeats the same Symbol markup, so the clip <defs> (identical in each tile's own
+  // coordinates) are emitted once and the per-tile <metadata> is dropped: a 36-tile grid used to
+  // carry 36 copies of both. Triangular tiles overlap as boxes, so only the grid's own paper rect
+  // may paint the ground.
+  const defsM = inner.match(/<defs>[\s\S]*?<\/defs>/);
+  const sharedDefs = defsM ? defsM[0] : '';
+  let tileInner = inner.replace(/<metadata>[\s\S]*?<\/metadata>/, '').replace(/<defs>[\s\S]*?<\/defs>/, '');
+  if (grid.tri) tileInner = tileInner.replace(/<rect width="[\d.]+" height="[\d.]+" fill="#[0-9a-fA-F]+"\/>/, '');
+  const cbox = symbolContentBox(entry, natSize);   // where the Symbol actually draws, in its own frame
+  // A promoted figure is placed by its drawn box; a Symbol by its (square) frame, exactly as before.
+  const raw = !!entry.raw && !!cbox;
+  const lcx = raw ? (cbox.x0 + cbox.x1) / 2 : natSize / 2, lcy = raw ? (cbox.y0 + cbox.y1) / 2 : natSize / 2;
+  const ext = raw ? (grid.tri ? cbox.x1 - cbox.x0 : Math.max(cbox.x1 - cbox.x0, cbox.y1 - cbox.y0)) : natSize;
   let body = '';
+  let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
   centers.forEach((c, i) => {
     const cw = c.cellW || c.cellSize, ch = c.cellH || c.cellSize;
-    const target = Math.min(cw, ch);
-    const s = target / natSize;
-    const tx = size / 2 + c.cx - target / 2, ty = size / 2 + c.cy - target / 2;
-    const flipPart = (altFlip && (colRow[i].col + colRow[i].row) % 2 === 1) ? ` translate(${natSize},0) scale(-1,1)` : '';
-    body += `<g transform="translate(${tx.toFixed(3)},${ty.toFixed(3)}) scale(${s.toFixed(4)})${flipPart}">${inner}</g>`;
+    // Triangle lattices: the Symbol's own width matches the cell's width (the cell box is not square)
+    const target = grid.tri ? cw : Math.min(cw, ch);
+    const s = target / ext;
+    const tx = size / 2 + c.cx - (raw ? s * lcx : target / 2), ty = size / 2 + c.cy - (raw ? s * lcy : target / 2);
+    const flip = altFlip && (colRow[i].col + colRow[i].row) % 2 === 1;
+    const flipPart = flip ? ` translate(${2 * lcx},0) scale(-1,1)` : '';
+    // a tile in a down-pointing cell is turned half a turn so it keeps facing its lattice slot
+    const down = grid.tri && polyOrient(grid.cells[i].points) === 'down';
+    const turn = down ? ` rotate(180 ${lcx} ${lcy})` : '';
+    body += `<g transform="translate(${tx.toFixed(3)},${ty.toFixed(3)}) scale(${s.toFixed(4)})${turn}${flipPart}">${tileInner}</g>`;
+    if (cbox) {   // the content box through this tile's own transform (flip, then turn, then scale + move)
+      [[cbox.x0, cbox.y0], [cbox.x1, cbox.y0], [cbox.x0, cbox.y1], [cbox.x1, cbox.y1]].forEach(([px, py]) => {
+        if (flip) px = 2 * lcx - px;
+        if (down) { px = 2 * lcx - px; py = 2 * lcy - py; }
+        const X = tx + px * s, Y = ty + py * s;
+        bx0 = Math.min(bx0, X); bx1 = Math.max(bx1, X); by0 = Math.min(by0, Y); by1 = Math.max(by1, Y);
+      });
+    }
   });
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`
-    + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${body}</svg>`;
+  const rot = parseInt(ctrl('sel-fvsgrid-rot').value, 10) || 0, mir = ctrl('sel-fvsgrid-mirror').value;
+  lastFigureMeta = { size, box: cbox ? { x0: bx0, y0: by0, x1: bx1, y1: by1 } : { x0: 0, y0: 0, x1: size, y1: size } };
+  if (!rot && mir === 'none') {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`
+      + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${sharedDefs}${body}</svg>`;
+  }
+  return figureWithMirror(sharedDefs, body, cbox ? { x0: bx0, y0: by0, x1: bx1, y1: by1 } : { x0: 0, y0: 0, x1: size, y1: size }, size, rot, mir);
+}
+
+let lastFigureMeta = { size: 0, box: null };   // the frame and drawn box of the last Grid figure built
+// The box a saved Symbol really draws in (its non-empty cells), in the Symbol's own frame — so a
+// mirror lands on the visible edge even when a tile's outer rows are empty.
+function symbolContentBox(entry, nat) {
+  if (entry.raw) return entry.raw.box;
+  try {
+    const g = Organica.loadLoomGrid(entry.gridModel);
+    const cs = resolveGridCells({ kind: 'loom', cellShape: g.cellShape, cells: g.cells, width: g.inner.width, height: g.inner.height });
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    cs.forEach((c, i) => {
+      if (!entry.cells[i] || entry.cells[i].source === 'empty') return;
+      const cw = c.cellW || c.cellSize, ch = c.cellH || c.cellSize;
+      x0 = Math.min(x0, nat / 2 + c.cx - cw / 2); x1 = Math.max(x1, nat / 2 + c.cx + cw / 2);
+      y0 = Math.min(y0, nat / 2 + c.cy - ch / 2); y1 = Math.max(y1, nat / 2 + c.cy + ch / 2);
+    });
+    return x0 === Infinity ? null : { x0, y0, x1, y1 };
+  } catch (e) { return null; }
+}
+
+// Rotate the tiled figure about its centre, then reflect it over its right and/or
+// bottom edge (the copy shares that edge), then fit the result in a square frame.
+// The figure's box is the drawn content of the tiles (empty cells excluded), so the
+// reflection meets the visible edge for any lattice and any Seed.
+function figureWithMirror(defs, body, box, size, rot, mir) {
+  const { x0, x1, y0, y1 } = box;   // the figure's drawn box, in frame coordinates
+  const fw = x1 - x0, fh = y1 - y0, quarter = rot % 180 === 90;
+  const bw = quarter ? fh : fw, bh = quarter ? fw : fh;             // box after rotation
+  const mv = mir === 'v' || mir === 'vh', mh = mir === 'h' || mir === 'vh';
+  const mw = bw * (mv ? 2 : 1), mhgt = bh * (mh ? 2 : 1), S = Math.max(mw, mhgt);
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;   // figure centre in frame coords
+  // rotated figure with its box's top-left at the origin
+  const fig = `<g transform="translate(${r2(bw / 2)},${r2(bh / 2)}) rotate(${rot}) translate(${r2(-cx)},${r2(-cy)})">${body}</g>`;
+  let out = fig;
+  if (mv) out += `<g transform="translate(${r2(2 * bw)},0) scale(-1,1)">${fig}</g>`;
+  if (mh) {
+    const row = out;
+    out += `<g transform="translate(0,${r2(2 * bh)}) scale(1,-1)">${row}</g>`;
+  }
+  const ox = (S - mw) / 2, oy = (S - mhgt) / 2;
+  lastFigureMeta = { size: S, box: { x0: ox, y0: oy, x1: ox + mw, y1: oy + mhgt } };   // what the next level sees as this figure's drawn box
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${r2(S)} ${r2(S)}" width="${r2(S)}" height="${r2(S)}">`
+    + `<rect width="${r2(S)}" height="${r2(S)}" fill="${state.paperColor}"/>${defs}<g transform="translate(${r2(ox)},${r2(oy)})">${out}</g></svg>`;
 }
 
 function renderFvsGrid() {
@@ -4010,7 +4239,7 @@ function renderFvsGrid() {
 
 function renderFvsGridPicker() {
   const all = SYMBOL_LIBRARY.read();
-  const names = Object.keys(all);
+  const names = (state.symbolGrid ? [LIVE_SYMBOL] : []).concat(Object.keys(all));
   const allComps = LIBRARY.read();
   const compNames = libraryNames(allComps);
   ctrl('fvsgrid-symbol-empty').style.display = (names.length || compNames.length) ? 'none' : '';
@@ -4026,11 +4255,11 @@ function renderFvsGridPicker() {
     btn.setAttribute('aria-label', label + ' ' + name);
     btn.title = name;
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${inner}</svg>`;
-    btn.addEventListener('click', () => { onPick(); renderFvsGridPicker(); renderFvsGrid(); updateStepHint('grid'); });
+    btn.addEventListener('click', () => { state.fvsGridRaw = null; onPick(); renderFvsGridPicker(); renderFvsGrid(); updateStepHint('grid'); });
     host.appendChild(btn);
   };
   for (const name of names) {
-    addTile(wrap, name, all[name], !state.fvsGridComponentName && name === state.fvsGridSymbolName, 'Pick symbol',
+    addTile(wrap, name, name === LIVE_SYMBOL ? buildSymbolLibraryEntry() : all[name], !state.fvsGridComponentName && name === state.fvsGridSymbolName, 'Pick symbol',
       () => { state.fvsGridSymbolName = name; state.fvsGridComponentName = null; });
   }
   const cwrap = ctrl('fvsgrid-component-picker');
@@ -4076,7 +4305,7 @@ function exportFvsGrid(format) {
   }
   const scale = parseInt(ctrl('sel-export-scale').value, 10);
   const grid = getFvsGrid();
-  const size = frameSize(grid) * scale;
+  const size = (parseFloat((svgStr.match(/ width="([\d.]+)"/) || [])[1]) || frameSize(grid)) * scale;   // the drawn frame (a Mirror changes it)
   const scaledSVG = buildFvsGridSVG().replace(/width="[\d.]+" height="[\d.]+"/, `width="${size}" height="${size}"`);
   const url = URL.createObjectURL(new Blob([scaledSVG], { type: 'image/svg+xml' }));
   const img = new Image();
@@ -4124,6 +4353,86 @@ function squareLoomModel(cols, rows, cell = 270) {
   };
 }
 
+// An exact triangular lattice of `n` rows (a triangle of side n): row r holds
+// 2r+1 cells alternating up/down, so the silhouette is a real triangle (Loom's
+// rectangular Triangular grid clips its boundary cells instead). Polygon
+// cells, same model shape as Loom's own Triangular generator.
+function triangleLoomModel(n, side = 200) {
+  const h = side * Math.sqrt(3) / 2, W = side * n, H = h * n;
+  const cells = [];
+  for (let r = 0; r < n; r++) {
+    const y0 = r * h, y1 = y0 + h, left = W / 2 - (r + 1) * side / 2;
+    for (let i = 0; i <= 2 * r; i++) {
+      const x0 = left + i * side / 2;
+      const pts = i % 2 === 0 ? [[x0, y1], [x0 + side, y1], [x0 + side / 2, y0]] : [[x0, y0], [x0 + side, y0], [x0 + side / 2, y1]];
+      // placement anchor = the bbox centre, not the true centroid (h/6 apart on a triangle): a shape fitted to the cell's box must be centred on that box
+      const cx = x0 + side / 2, cy = (y0 + y1) / 2;
+      cells.push({ id: 'c' + cells.length, number: cells.length + 1, points: pts, centroid: [cx, cy] });
+    }
+  }
+  return {
+    version: '1.0',
+    canvas: { width: W, height: H, displayWidth: W, displayHeight: H, unit: 'px', orientation: 'landscape', marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, margin: 0, safeArea: 0, bleed: 0 },
+    grid: { type: 'triangular', solver: 'geometric', cellShape: 'polygon', params: { rows: n }, gap: 0 },
+    cells,
+  };
+}
+// A "tier": one row of three triangles (up, down, up) forming a trapezoid, stacked
+// `stack` times without lattice offset — the stepped silhouette of a tree. Same
+// polygon-cell model as triangleLoomModel (bbox-centre placement anchor).
+function tierLoomModel(stack, side = 200) {
+  const h = side * Math.sqrt(3) / 2, W = 2 * side, H = h * stack;
+  const cells = [];
+  for (let k = 0; k < stack; k++) {
+    const y0 = k * h, y1 = y0 + h;
+    [0, 1, 2].forEach(i => {
+      const x0 = i * side / 2;
+      const pts = i % 2 === 0 ? [[x0, y1], [x0 + side, y1], [x0 + side / 2, y0]] : [[x0, y0], [x0 + side, y0], [x0 + side / 2, y1]];
+      cells.push({ id: 'c' + cells.length, number: cells.length + 1, points: pts, centroid: [x0 + side / 2, (y0 + y1) / 2] });
+    });
+  }
+  return {
+    version: '1.0',
+    canvas: { width: W, height: H, displayWidth: W, displayHeight: H, unit: 'px', orientation: 'landscape', marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, margin: 0, safeArea: 0, bleed: 0 },
+    grid: { type: 'triangular', solver: 'geometric', cellShape: 'polygon', params: { tier: stack }, gap: 0 },
+    cells,
+  };
+}
+// A hexagonal lattice of `rings` rings (1, 7, 19, 37… pointy-top hexagons). Each cell knows its
+// ring (distance from the centre) and its sector (0–5, clockwise from the +x axis: one corner
+// cell plus the edge cells that follow it), the classes 60° poses are keyed on.
+function hexLoomModel(rings, side = 100) {
+  const R = rings - 1, w = Math.sqrt(3) * side, pos = [];
+  for (let q = -R; q <= R; q++) for (let r = Math.max(-R, -q - R); r <= Math.min(R, -q + R); r++) pos.push([q, r]);
+  pos.sort((a, b) => a[1] - b[1] || (a[0] + a[1] / 2) - (b[0] + b[1] / 2));
+  const xy = pos.map(([q, r]) => [w * (q + r / 2), 1.5 * side * r]);
+  const minX = Math.min(...xy.map(p => p[0])) - w / 2, maxX = Math.max(...xy.map(p => p[0])) + w / 2;
+  const minY = Math.min(...xy.map(p => p[1])) - side, maxY = Math.max(...xy.map(p => p[1])) + side;
+  const cells = xy.map(([x, y], i) => {
+    const [q, r] = pos[i], ring = (Math.abs(q) + Math.abs(r) + Math.abs(q + r)) / 2;
+    const ang = ((Math.atan2(y, x) * 180 / Math.PI) % 360 + 360) % 360;
+    const cx = x - minX, cy = y - minY;
+    const points = [0, 1, 2, 3, 4, 5].map(k => { const a = (-90 + 60 * k) * Math.PI / 180; return [cx + side * Math.cos(a), cy + side * Math.sin(a)]; });
+    return { id: 'c' + i, number: i + 1, points, centroid: [cx, cy], ring, sector: ring ? Math.floor(ang / 60 + 1e-6) % 6 : 0 };
+  });
+  const W = maxX - minX, H = maxY - minY;
+  return {
+    version: '1.0',
+    canvas: { width: W, height: H, displayWidth: W, displayHeight: H, unit: 'px', orientation: 'landscape', marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, margin: 0, safeArea: 0, bleed: 0 },
+    grid: { type: 'hexagonal', solver: 'geometric', cellShape: 'polygon', params: { rings }, gap: 0 },
+    cells,
+  };
+}
+// Poses are multiples of 30° (0/90/180/270 for square lattices, 60° steps for hexagonal ones).
+const snapPose = n => ((Math.round(n / 30) * 30) % 360 + 360) % 360;
+// 'up' when the triangle's base is its lower edge (two vertices share the max y), 'down' otherwise; null for non-triangles.
+function polyOrient(points) {
+  if (!points || points.length !== 3) return null;
+  const ys = points.map(p => p[1]), mx = Math.max(...ys), mn = Math.min(...ys);
+  const low = ys.filter(y => Math.abs(y - mx) < 1e-6).length, high = ys.filter(y => Math.abs(y - mn) < 1e-6).length;
+  return low === 2 ? 'up' : high === 2 ? 'down' : null;
+}
+
 function loadSymbolGrid(model) {
   state.symbolGrid = Organica.loadLoomGrid(model);
   state.symbolCells = defaultSymbolCells(getSymbolGrid());
@@ -4167,6 +4476,7 @@ function buildSymbolItems() {
     const c = centers[i];
     if (!c) return null;
     const baseCx = half + c.cx, baseCy = half + c.cy;
+    if (cell.source === 'empty') return null;   // a deliberate hole — nothing is drawn, the cell stays selectable
     if (cell.source === 'component') {
       const entry = library[cell.componentName];
       // A cell can end up pointing at a Component that no longer exists
@@ -4193,7 +4503,8 @@ function buildSymbolItems() {
         nestedItems, nestedSeed: entry.seed, nestedSize, nestedPaper: entry.paperColor, nestedAppearance: { ...entry.appearance, ...(variantAppearance || {}) },
       };
     }
-    const geo = SEED_TYPES[cell.seedType].geometry(SYMBOL_SEED_DEFAULTS);
+    // a cell may carry the Element's own settings (seedParams); otherwise the plain default shape
+    const geo = SEED_TYPES[cell.seedType].geometry(cell.seedParams || SYMBOL_SEED_DEFAULTS);
     const place = resolveCellPlacement(c.cellW, c.cellH, 100, cell);
     return {
       type: 'seed', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
@@ -4220,6 +4531,7 @@ function cellOverflowInfo(index) {
     if (!entry) return false; // missing-reference placeholder — no fit math to check
     natural = frameSize(entry.grid);
   }
+  if (cell.source === 'empty') return false;
   const place = resolveCellPlacement(c.cellW, c.cellH, natural, cell);
   const itemW = natural * place.scaleX, itemH = natural * place.scaleY;
   return itemW > c.cellW + 0.01 || itemH > c.cellH + 0.01;
@@ -4485,6 +4797,14 @@ const SYMBOL_RULES = {
       return p.flip ? { rotation: 0, flipH: true, flipV: false } : { rotation: p.rotB, flipH: false, flipV: false };
     },
   },
+  orientation: {
+    read: () => ({ up: ctrl('sel-rule-ori-up').value, down: ctrl('sel-rule-ori-down').value }),
+    fn: (ctx, p) => {
+      if (!ctx.orient) return {};
+      const mode = ctx.orient === 'up' ? p.up : p.down;
+      return { empty: mode === 'empty', turn: ctx.orient === 'down' ? 180 : 0 };
+    },
+  },
   rows: {
     read: () => ({ step: parseInt(ctrl('rg-rule-rows-step').value, 10), mode: ctrl('sel-rule-rows-mode').value }),
     fn: (ctx, p) => ({ rotation: p.mode === 'ramp' ? snap90(p.step * ctx.row) : p.step * (ctx.row % 2) }),
@@ -4537,9 +4857,17 @@ function applySymbolRule(opts) {
     flip: ctrl('chk-rule-flip').checked,
     scale: ctrl('chk-rule-scale').checked,
   };
+  const rawCells = (state.symbolGrid && state.symbolGrid.cells) || [];
   state.symbolCells.forEach((cell, i) => {
     if (!opts.resetAll && cell.locked) return;
-    const t = rule.fn(ctxs[i], params, rng);
+    const raw = rawCells[i];
+    const t = rule.fn({ ...ctxs[i], orient: raw && raw.points ? polyOrient(raw.points) : null }, params, rng);
+    // Content-level results (the Orientation rule): a hole, or a filled cell turned to face its lattice slot.
+    if (t.empty != null) {
+      if (t.empty) cell.source = 'empty';
+      else { if (cell.source !== 'seed') { cell.source = 'seed'; cell.seedType = cell.seedType || 'triangle'; } cell.fitMode = 'fill'; cell.rotation = t.turn || 0; }
+      return;
+    }
     if (vary.rotation && t.rotation != null) cell.rotation = snap90(t.rotation);
     if (vary.flip) {
       if (t.flipH != null) cell.flipH = t.flipH;
@@ -4830,6 +5158,8 @@ function renderCellPropertiesPanel() {
   if (isComponent) {
     const exists = first.componentName && LIBRARY.read()[first.componentName];
     label = first.componentName ? (exists ? first.componentName : `⚠ ${first.componentName} (missing)`) : '—';
+  } else if (first.source === 'empty') {
+    label = 'Empty';
   } else if (first.seedType && SEED_TYPES[first.seedType]) {
     label = SEED_TYPES[first.seedType].label;
   }
@@ -4851,6 +5181,8 @@ function renderCellPropertiesPanel() {
   ctrl('rg-cellprop-fixedsize').value = first.fixedSize || 100;
   ctrl('v-cellprop-fixedsize').textContent = ctrl('rg-cellprop-fixedsize').value;
   syncCellColourUI(first, isComponent);
+  ctrl('row-cellprop-seedparams').style.display = (isComponent || first.source === 'empty') ? 'none' : '';
+  ctrl('symbol-cellprop-seedparams-label').textContent = first.seedParams ? 'Element settings' : 'Default';
   ctrl('rg-cellprop-padding').value = Math.round((first.padding || 0) * 100);
   ctrl('v-cellprop-padding').textContent = ctrl('rg-cellprop-padding').value;
   syncAnchorGridUI(first.anchorX || 0, first.anchorY || 0);
@@ -4913,6 +5245,17 @@ function renderCellContentOverlayTiles() {
 
   const elWrap = ctrl('symbol-content-overlay__seeds');
   elWrap.innerHTML = '';
+  const emptyBtn = document.createElement('button');
+  emptyBtn.className = 'fvs-library-item';
+  emptyBtn.title = 'Empty — leave the cell blank';
+  emptyBtn.setAttribute('aria-label', 'Use Empty (blank cell)');
+  emptyBtn.innerHTML = '<svg viewBox="0 0 72 72" aria-hidden="true"><rect x="10" y="10" width="52" height="52" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="5 4"/></svg>';
+  emptyBtn.addEventListener('click', () => {
+    contentTarget()(() => ({ source: 'empty', rotation: 0, flipH: false, flipV: false, fitMode: 'fill', scale: 1, padding: 0, anchorX: 0, anchorY: 0 }));
+    closeCellContentOverlay();
+    renderCellPropertiesPanel();
+  });
+  elWrap.appendChild(emptyBtn);
   ['arc', 'arctruchet', 'blob', 'chevron', 'circle', 'cross', 'drop', 'lens', 'polygon', 'roundedrect', 'star', 'triangle', 'wedge'].forEach(type => {   // alphabetical (UI only — generateSymbolCells' seeded seedTypes array is deliberately NOT reordered)
     const svgStr = buildSeedPreviewSVG({ type, ...SYMBOL_SEED_DEFAULTS }, 0, false, false, 72);
     const btn = document.createElement('button');
@@ -4981,7 +5324,7 @@ const SYMBOL_LIBRARY = Organica.presetStore('fvs-symbols');
 // The whole rule block's control values, so a saved Symbol re-opens with
 // its generator intact and re-tunable (cells are also stored resolved, so
 // this is purely additive — an old entry without `rule` still loads).
-const RULE_CONTROL_IDS = ['sel-symbol-fill', 'sel-symbol-rule',
+const RULE_CONTROL_IDS = ['sel-symbol-fill', 'sel-symbol-rule', 'sel-rule-ori-up', 'sel-rule-ori-down',
   'sel-rule-osc-angle', 'rg-rule-osc-shift', 'rg-rule-osc-period', 'rg-rule-osc-phase',
   'sel-rule-chk-rota', 'chk-rule-chk-swap', 'sel-rule-chk-rot', 'chk-rule-chk-flip', 'rg-rule-rows-step', 'sel-rule-rows-mode',
   'rg-rule-cols-step', 'sel-rule-cols-mode', 'chk-rule-radial-snap', 'sel-rule-radial-chir',
@@ -5142,6 +5485,7 @@ const STEP_EXPORT_HINTS = {
   component: 'Exports the selected component only — click one in the gallery first. Paper background (Palette section), real vector geometry (one path per cell).',
   symbol: 'Exports the current Symbol. Paper background (Palette section), real nested vector geometry.',
   grid: 'Exports the current Grid tiling. Paper background (Palette section), real vector geometry — one Symbol repeated per cell.',
+  figure: 'Exports the figure as drawn (SVG: real vector geometry, one path per shape; PNG: the same drawing rasterised).',
 };
 
 function updateStepHint(tier) {
@@ -5172,6 +5516,7 @@ function setTier(tier) {
   if (tier === 'symbol') { populateSymbolLoomPresets(); renderSymbol(); renderSymbolLibrary(); }
   else if (tier === 'grid') { renderFvsGridPicker(); syncFvsGridTypeUI(); renderFvsGrid(); }
   else if (tier === 'element') { renderSeedPreview(); }
+  else if (tier === 'figure') { renderFigureTier(); }
   else { renderGallery(); }
   syncFreehandEditor();
   updateStepHint(tier);
@@ -5528,6 +5873,8 @@ ctrl('sel-fvsgrid-type').addEventListener('change', () => { syncFvsGridTypeUI();
 ctrl('rg-fvsgrid-cellsize').addEventListener('input', e => { ctrl('v-fvsgrid-cellsize').textContent = e.target.value; renderFvsGrid(); });
 ctrl('rg-fvsgrid-gap').addEventListener('input', e => { ctrl('v-fvsgrid-gap').textContent = e.target.value; renderFvsGrid(); });
 ctrl('chk-fvsgrid-alt-flip').addEventListener('change', renderFvsGrid);
+ctrl('sel-fvsgrid-rot').addEventListener('change', renderFvsGrid);
+ctrl('sel-fvsgrid-mirror').addEventListener('change', renderFvsGrid);
 // Shared hidden file input between Components' own Grid section and
 // Symbols' Grid section — a flag set right before .click() tells the
 // one 'change' handler which state field to populate.
@@ -5554,6 +5901,8 @@ ctrl('btn-symbol-grid-hex').addEventListener('click', () => loadSymbolGrid(SYMBO
 });
 ctrl('btn-symbol-grid-square').addEventListener('click', () =>
   loadSymbolGrid(squareLoomModel(+ctrl('sel-symbol-square-cols').value, +ctrl('sel-symbol-square-rows').value)));
+for (let n = 2; n <= 8; n++) ctrl('sel-symbol-tri-n').add(new Option(n, n, false, n === 2));
+ctrl('btn-symbol-grid-tri').addEventListener('click', () => loadSymbolGrid(triangleLoomModel(+ctrl('sel-symbol-tri-n').value)));
 ctrl('sel-symbol-loom-preset').addEventListener('change', e => {
   const v = e.target.value;
   if (!v) return;
@@ -5622,7 +5971,7 @@ ctrl('symbol-content-overlay').addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && ctrl('symbol-content-overlay').style.display !== 'none') closeCellContentOverlay();
 });
-ctrl('sel-cellprop-rot').addEventListener('change', e => applyToSelection({ rotation: parseInt(e.target.value, 10) }));
+ctrl('sel-cellprop-rot').addEventListener('change', e => applyToSelection({ rotation: snapPose(parseInt(e.target.value, 10)) }));
 ctrl('sel-cellprop-flip').addEventListener('change', e => {
   const v = e.target.value;
   applyToSelection({ flipH: v === 'h' || v === 'hv', flipV: v === 'v' || v === 'hv' });
@@ -5653,6 +6002,12 @@ ctrl('sel-cellprop-color').addEventListener('change', e => {
 });
 ctrl('in-cellprop-color').addEventListener('input', e => applyToSelection({ color: hexKey(e.target.value) }));
 ctrl('btn-cellprop-color-reset').addEventListener('click', () => { applyToSelection({ color: null }); renderCellPropertiesPanel(); });
+ctrl('btn-cellprop-useseed').addEventListener('click', () => {
+  const sp = seedForSnapshot();
+  applyToSelection(cell => ({ seedParams: cell.source === 'seed' ? JSON.parse(JSON.stringify(sp)) : undefined, seedType: cell.source === 'seed' ? sp.type : cell.seedType }));
+  renderCellPropertiesPanel();
+});
+ctrl('btn-cellprop-defseed').addEventListener('click', () => { applyToSelection({ seedParams: undefined }); renderCellPropertiesPanel(); });
 ctrl('chk-cellprop-lock').addEventListener('change', e => applyToSelection({ locked: e.target.checked }));
 
 ctrl('btn-save-symbol-library').addEventListener('click', saveSymbolToLibrary);
@@ -5689,9 +6044,13 @@ ctrl('btn-seed-random').addEventListener('click', () => { ctrl('num-seed').value
 
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 function exportByTier(format) {
-  if (state.activeTier === 'symbol') return exportSymbol(format);
-  if (state.activeTier === 'grid') return exportFvsGrid(format);
-  if (state.activeTier === 'element') return exportElement(format);
+  if (state.activeTier === 'figure') return exportByTierName(state.figureTier || 'symbol', format);
+  return exportByTierName(state.activeTier, format);
+}
+function exportByTierName(tier, format) {
+  if (tier === 'symbol') return exportSymbol(format);
+  if (tier === 'grid') return exportFvsGrid(format);
+  if (tier === 'element') return exportElement(format);
   return exportSelected(format);
 }
 // ── Built-in recipes — one click builds a whole chain from scratch (Element →
@@ -5749,6 +6108,432 @@ function runBuiltinRecipe(def) {
     renderFvsGrid();
   } else setTier('component');
 }
+// ── Figure recipe v2 ─────────────────────────────────────────────────────────
+// A figure is a pipeline of levels, none of which mentions a particular Seed:
+//   element  — the unit Seed (any type), its style and colours
+//   levels   — [ component | symbol ] then optionally [ grid ]
+//     component: a 2×2/3×3… block from a named rule (radial, checkerboard, pinwheel, mirror)
+//     symbol:    a lattice of slots (triangle rows / square cols×rows) + rules that map each
+//                slot's CLASS (up/down, row, col, index, parity) to content and pose
+//     grid:      tiles the level above over a lattice (square n / tier stack / triangle rows)
+//   transform — rotate the whole figure, mirror it over its right/bottom edge
+// runFigureRecipe() drives the same state and functions the UI does, so what it draws IS what
+// the tiers export (one code path, checked by the regression suite).
+function slotClassContext(grid) {
+  const cr = cellColRow(grid);
+  const raw = (state.symbolGrid && state.symbolGrid.cells) || [];
+  return cr.map((c, i) => ({
+    index: i, col: c.col, row: c.row, parity: (c.col + c.row) % 2 === 1 ? 'odd' : 'even',
+    orient: raw[i] && raw[i].points ? polyOrient(raw[i].points) : null,
+    ring: raw[i] && raw[i].ring != null ? raw[i].ring : null, sector: raw[i] && raw[i].sector != null ? raw[i].sector : null,
+  }));
+}
+function ruleMatches(when, ctx) {
+  const has = (v, x) => Array.isArray(v) ? v.includes(x) : v === x;
+  return (when.class == null || has(when.class, ctx.orient)) && (when.row == null || has(when.row, ctx.row))
+    && (when.col == null || has(when.col, ctx.col)) && (when.index == null || has(when.index, ctx.index))
+    && (when.parity == null || when.parity === ctx.parity) && (when.ring == null || has(when.ring, ctx.ring)) && (when.sector == null || has(when.sector, ctx.sector));
+}
+// Rules apply in order; a later rule overrides an earlier one on the slots it matches.
+function applyClassRules(rules, seedType) {
+  const grid = getSymbolGrid();
+  if (!grid) return;
+  const ctxs = slotClassContext(grid);
+  state.symbolCells.forEach((cell, i) => {
+    (rules || []).forEach(r => {
+      if (!ruleMatches(r.when || {}, ctxs[i])) return;
+      const d = r.do || {};
+      if (d.content === 'empty') cell.source = 'empty';
+      else if (d.content === 'filled') { cell.source = 'seed'; cell.seedType = d.seed || seedType; }
+      if (d.rotate != null) cell.rotation = snapPose(d.rotate === 'sector' ? 60 * (ctxs[i].sector || 0) : d.rotate);
+      if (d.flipH != null) cell.flipH = !!d.flipH;
+      if (d.flipV != null) cell.flipV = !!d.flipV;
+      if (d.scale != null) cell.scale = d.scale;
+    });
+  });
+}
+function componentCellsFromRule(rule, p) {
+  p = p || {};
+  if (rule === 'radial') return buildRadialCells(p.base || 0, p.chirality || 1, 1);
+  if (rule === 'pinwheel') return buildPinwheelCells(p.base || 0, p.chirality || 1, 1);
+  if (rule === 'mirror') return buildMirrorCells(p.seed || 0, 1);
+  if (rule === 'checkerboard') return buildCheckerboardCells(stateFrom(p.a || 0, false, false, 1), stateFrom(p.b || 0, false, false, 1));
+  throw new Error('Unknown component rule: ' + rule);
+}
+function gridTypeFromLattice(l) {
+  if (l.type === 'tier') return 'tier' + (l.stack || 1);
+  if (l.type === 'triangle') return 'tri' + l.rows;
+  if (l.type === 'square') return `square${l.n}x${l.n}`;
+  throw new Error('Unknown grid lattice: ' + l.type);
+}
+function validateFigureRecipe(def) {
+  if (!def || def.tool !== 'fvs-recipe' || def.version !== 2) throw new Error('Not a v2 figure recipe');
+  if (!def.element || !SEED_TYPES[def.element.type]) throw new Error('Unknown Seed type: ' + (def.element && def.element.type));
+  const lv = def.levels || [];
+  if (!lv.length || !['component', 'symbol'].includes(lv[0].kind)) throw new Error('The first level must be a component or a symbol');
+  if (lv.slice(1).some(l => l.kind !== 'grid')) throw new Error('Every level after the first must be a grid');
+  if (lv.length > 4) throw new Error('At most three grid levels');
+  return lv;
+}
+function runFigureRecipe(def, opts) {
+  const lv = validateFigureRecipe(def);
+  const el = def.element;
+  fireChange('sel-seed-type', el.type);
+  Object.entries(el.params || {}).forEach(([id, v]) => fireInput(id, v));
+  fireChange('sel-element-fillmode', el.style || 'fill');
+  if (el.strokeW) fireInput('rg-element-strokew', el.strokeW);
+  state.colors = (el.colors || ['#000000']).map(hexKey);
+  state.colorRule = { ...DEFAULT_COLOR_RULE, ...(el.colorRule || {}) };
+  syncColorRuleUI(); buildPalette();
+  paperSwatch.set(hexKey(el.paper || '#ffffff'));
+  const first = lv[0], grids = lv.slice(1), gridLv = grids[0];
+  let tier;
+  state.fvsGridRaw = null; state.figureLevelStats = [];
+  if (first.kind === 'component') {
+    fireChange('sel-grid-type', first.grid || 'square2x2');
+    const comp = { id: 'figure-component', ruleSource: 'recipe', cells: first.cells || componentCellsFromRule(first.rule, first.params) };
+    pushUndo(); state.components = [comp]; state.selectedId = comp.id;
+    renderGallery(); refreshColourViews();
+    tier = 'component';
+    if (gridLv) { const all = LIBRARY.read(); delete all['Tile · ' + comp.id]; LIBRARY.write(all); tileSelectedInGrid(true); }
+  } else {
+    const l = first.lattice;
+    loadSymbolGrid(l.type === 'triangle' ? triangleLoomModel(l.rows) : l.type === 'hexagon' ? hexLoomModel(l.rings) : squareLoomModel(l.cols, l.rows || l.cols));
+    const fit = first.fit || (l.type === 'triangle' ? 'fill' : 'contain');
+    state.symbolCells.forEach(c => { c.source = 'seed'; c.seedType = el.type; c.fitMode = fit; c.rotation = 0; c.flipH = false; c.flipV = false; c.scale = 1; c.color = null; });
+    if (first.seed === 'live') {   // every cell keeps the Element's own settings, frozen at this moment
+      const sp = seedForSnapshot();
+      state.symbolCells.forEach(c => { c.seedParams = JSON.parse(JSON.stringify(sp)); });
+    } else state.symbolCells.forEach(c => { delete c.seedParams; });
+    applyClassRules(first.rules, el.type);
+    renderSymbol();
+    tier = 'symbol';
+    if (gridLv) { state.fvsGridSymbolName = LIVE_SYMBOL; state.fvsGridComponentName = null; }
+  }
+  const tr = def.transform || {};
+  let shapes = first.kind === 'symbol' ? state.symbolCells.filter(c => c.source !== 'empty').length : (getSelectedComponent() ? getSelectedComponent().cells.length : 0);
+  grids.forEach((g, gi) => {
+    const last = gi === grids.length - 1;
+    tier = 'grid';
+    fireChange('sel-fvsgrid-type', gridTypeFromLattice(g.lattice));
+    fireInput('rg-fvsgrid-cellsize', g.cellSize || 110);
+    ctrl('chk-fvsgrid-alt-flip').checked = !!g.altFlip;
+    const t = g.transform || (last ? tr : {});
+    fireChange('sel-fvsgrid-rot', String(t.rotate || 0)); fireChange('sel-fvsgrid-mirror', t.mirror || 'none');
+    const tiles = resolveGridCells(getFvsGrid()).length, copies = t.mirror === 'vh' ? 4 : (t.mirror === 'v' || t.mirror === 'h') ? 2 : 1;
+    state.figureLevelStats.push({ tiles, copies });
+    shapes *= tiles * copies;
+    if (shapes > FIGURE_MAX_SHAPES) throw new Error(`Too many shapes (${shapes}) — the limit is ${FIGURE_MAX_SHAPES}`);
+    if (!last) { const svg = buildFvsGridSVG(); state.fvsGridRaw = promoteFigureToTile(svg); }   // this figure becomes the next level's tile
+  });
+  if (!grids.length) { fireChange('sel-fvsgrid-rot', String(tr.rotate || 0)); fireChange('sel-fvsgrid-mirror', tr.mirror || 'none'); }
+  if (opts && opts.keepTier) { state.figureTier = tier; return figureSVGOf(tier); }
+  setTier(tier);
+  return tierSVG();
+}
+const FIGURE_MAX_SHAPES = 20000;
+// A finished Grid figure as the tile of the next level: its markup without the paper rect,
+// its frame, and the box it really draws in (set by the last buildFvsGridSVG()).
+function promoteFigureToTile(svg) {
+  const inner = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').replace(/<rect width="[\d.]+" height="[\d.]+" fill="#[0-9a-fA-F]+"\/>/, '');
+  return { size: lastFigureMeta.size, inner, box: lastFigureMeta.box };
+}
+// The finished SVG of one underlying step, whichever step is on screen.
+function figureSVGOf(tier) {
+  if (tier === 'grid') return buildFvsGridSVG();
+  if (tier === 'symbol') return getSymbolGrid() ? buildSymbolSVG() : '';
+  const comp = getSelectedComponent();
+  if (!comp) return '';
+  state.selectedRuleSource = comp.ruleSource;
+  const grid = getGrid();
+  return buildComponentSVG(buildComponentItems(comp, grid), getSeed(), frameSize(grid));
+}
+
+// The built-in recipes, written as v2 data. Each one reproduces its v1 twin above exactly
+// (the regression suite compares them) — the proof that the model is not triangle-specific.
+const FIGURE_RECIPES_V1_AS_V2 = {
+  'circle': { element: { type: 'arc', params: { 'rg-thickness': 100 }, colors: ['#0a9a3e'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'radial', params: { base: 180, chirality: 1 } }] },
+  'leaf-block': { element: { type: 'arc', params: { 'rg-thickness': 100 }, colors: ['#0a9a3e'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'checkerboard', params: { a: 180, b: 0 } }] },
+  'leaf-wave': { element: { type: 'arc', params: { 'rg-thickness': 100 }, colors: ['#0a9a3e'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'checkerboard', params: { a: 180, b: 0 } }, { kind: 'grid', lattice: { type: 'square', n: 2 }, cellSize: 110 }] },
+  'leaf-wave-outline': { element: { type: 'arc', params: { 'rg-thickness': 100 }, style: 'stroke', strokeW: 5, colors: ['#e8321e'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'checkerboard', params: { a: 180, b: 0 } }, { kind: 'grid', lattice: { type: 'square', n: 2 }, cellSize: 110 }] },
+  'leaf-two-ink': { element: { type: 'arc', params: { 'rg-thickness': 100 }, colors: ['#e8321e', '#0a9a3e'], colorRule: { mode: 'checker', offset: 0 } }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'checkerboard', params: { a: 180, b: 0 } }, { kind: 'grid', lattice: { type: 'square', n: 4 }, cellSize: 110 }] },
+  'pinwheel': { element: { type: 'triangle', colors: ['#e8321e'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'pinwheel', params: { base: 0, chirality: 1 } }, { kind: 'grid', lattice: { type: 'square', n: 3 }, cellSize: 110 }] },
+  'kaleidoscope': { element: { type: 'arc', params: { 'rg-thickness': 60 }, colors: ['#1e5be8'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'mirror', params: { seed: 0 } }, { kind: 'grid', lattice: { type: 'square', n: 2 }, cellSize: 110, altFlip: true }] },
+};
+// Levels of levels: each grid's finished figure becomes the tile of the next one.
+function recursiveFigureRecipes() {
+  const sym = { kind: 'symbol', lattice: { type: 'triangle', rows: 2 }, fit: 'fill', rules: [{ when: { class: 'down' }, do: { content: 'empty' } }] };
+  const el = { type: 'triangle', style: 'fill', colors: ['#f0301f'], paper: '#ffffff' };
+  const g = (lattice, extra) => ({ kind: 'grid', lattice, cellSize: 110, ...(extra || {}) });
+  return {
+    'Recursive · Sierpinski, three levels': { tool: 'fvs-recipe', version: 2, id: 'rec-sierpinski', element: el, levels: [sym, g({ type: 'triangle', rows: 2 }), g({ type: 'triangle', rows: 2 })] },
+    'Recursive · bow tie tiled 2×2': { tool: 'fvs-recipe', version: 2, id: 'rec-bowtie', element: el, levels: [sym, g({ type: 'tier', stack: 1 }, { transform: { rotate: 90, mirror: 'v' } }), g({ type: 'square', n: 2 })] },
+    'Recursive · tier of tiers, mirrored': { tool: 'fvs-recipe', version: 2, id: 'rec-tiers', element: el, levels: [sym, g({ type: 'tier', stack: 1 }), g({ type: 'tier', stack: 1 })], transform: { mirror: 'h' } },
+  };
+}
+// Hexagonal lattices: poses in 60° steps (each cell turned by its sector).
+function hexFigureRecipes() {
+  const mk = (id, el, rings, rules) => ({ tool: 'fvs-recipe', version: 2, id, element: el, levels: [{ kind: 'symbol', lattice: { type: 'hexagon', rings }, fit: 'contain', rules }] });
+  return {
+    'Hexagon · rosette (triangles turned by sector)': mk('hex-rosette', { type: 'triangle', colors: ['#f0301f'] }, 3, [{ when: {}, do: { rotate: 'sector', scale: 0.62 } }]),
+    'Hexagon · star with empty centre': mk('hex-star', { type: 'star', colors: ['#1e5be8'] }, 3, [{ when: { ring: 0 }, do: { content: 'empty' } }, { when: { parity: 'odd' }, do: { rotate: 60 } }]),
+    'Hexagon · arcs turned by sector': mk('hex-arcs', { type: 'arc', params: { 'rg-thickness': 100 }, colors: ['#0a9a3e'] }, 3, [{ when: {}, do: { rotate: 'sector', scale: 0.62 } }]),
+  };
+}
+// The twelve "Triangle Symbol" figures: 3 assets × 4 compositions.
+function triangleFigureRecipes() {
+  const assets = {
+    sierpinski: { rows: 2, rules: [{ when: { class: 'down' }, do: { content: 'empty' } }] },
+    trapezoid: { rows: 2, rules: [{ when: { class: 'down' }, do: { content: 'filled', rotate: 180 } }, { when: { row: 0 }, do: { content: 'empty' } }] },
+    lattice4: { rows: 4, rules: [{ when: { class: 'down' }, do: { content: 'empty' } }] },
+  };
+  const comps = {
+    asset: [], repeated: [{ kind: 'grid', lattice: { type: 'tier', stack: 2 } }],
+    'mirror-1': [{ kind: 'grid', lattice: { type: 'tier', stack: 1 } }], 'mirror-2': [{ kind: 'grid', lattice: { type: 'tier', stack: 1 } }],
+  };
+  const tf = { asset: {}, repeated: {}, 'mirror-1': { rotate: 90, mirror: 'v' }, 'mirror-2': { mirror: 'h' } };
+  const out = {};
+  Object.entries(assets).forEach(([an, a]) => Object.entries(comps).forEach(([cn, extra]) => {
+    out[an + ':' + cn] = { tool: 'fvs-recipe', version: 2, id: an + ':' + cn,
+      element: { type: 'triangle', style: 'fill', colors: ['#f0301f'], paper: '#ffffff' },
+      levels: [{ kind: 'symbol', lattice: { type: 'triangle', rows: a.rows }, fit: 'fill', rules: a.rules }, ...extra], transform: tf[cn] };
+  }));
+  return out;
+}
+// ── Figure tier: the form, the recipe JSON, the checks, the reference overlay ──
+const FIGURE_CLASSIC_LABELS = { circle: 'Circle from four arcs', 'leaf-block': 'Leaf block 2×2', 'leaf-wave': 'Leaf wave (tiled 2×2)', 'leaf-wave-outline': 'Leaf wave, outline', 'leaf-two-ink': 'Leaf wave, two inks (4×4)', pinwheel: 'Triangle pinwheels (3×3)', kaleidoscope: 'Arc kaleidoscope' };
+const figureCatalog = () => {
+  const cat = {};
+  Object.entries(triangleFigureRecipes()).forEach(([k, r]) => {
+    const [a, c] = k.split(':');
+    cat['Triangle · ' + { sierpinski: 'Sierpinski', trapezoid: 'Trapezoid', lattice4: 'Lattice 4' }[a] + ' · ' + { asset: 'asset', repeated: 'repeated', 'mirror-1': 'mirrored, one axis', 'mirror-2': 'mirrored, two axes' }[c]] = r;
+  });
+  Object.entries(FIGURE_RECIPES_V1_AS_V2).forEach(([k, r]) => { cat['Classic · ' + FIGURE_CLASSIC_LABELS[k]] = { tool: 'fvs-recipe', version: 2, ...r }; });
+  Object.entries(hexFigureRecipes()).forEach(([k, r]) => { cat[k] = r; });
+  Object.entries(recursiveFigureRecipes()).forEach(([k, r]) => { cat[k] = r; });
+  return cat;
+};
+const FG_LATTICE_OF = v => /^tier(\d)$/.test(v) ? { type: 'tier', stack: +v[4] } : /^tri(\d)$/.test(v) ? { type: 'triangle', rows: +v[3] } : { type: 'square', n: +v.match(/^square(\d)/)[1] };
+const FG_STR_OF = l => l.type === 'tier' ? 'tier' + l.stack : l.type === 'triangle' ? 'tri' + l.rows : `square${l.n}x${l.n}`;
+
+function figureRecipeFromForm() {
+  const v = id => ctrl(id).value, lat = v('fg-lattice');
+  const el = { type: v('fg-seed'), style: v('fg-style'), colors: [v('fg-ink')], paper: v('fg-paper') };
+  if (el.type === 'arc') el.params = { 'rg-thickness': 100 };
+  let first;
+  if (lat === 'component') {
+    const rule = v('fg-comprule');
+    const params = { checkerboard: { a: 180, b: 0 }, radial: { base: 180, chirality: 1 }, pinwheel: { base: 0, chirality: 1 }, mirror: { seed: 0 } }[rule];
+    first = { kind: 'component', grid: 'square2x2', rule, params };
+  } else {
+    const rules = [];
+    const odd = v('fg-odd'); if (odd !== 'none') rules.push({ when: { parity: 'odd' }, do: { rotate: +odd } });
+    if (lat === 'hexagon') {
+      if (v('fg-hexturn') === 'sector') rules.push({ when: {}, do: { rotate: 'sector', scale: 0.62 } });   // a turned shape must stay inside its hexagon
+      if (ctrl('fg-hexcentre').checked) rules.push({ when: { ring: 0 }, do: { content: 'empty' } });
+    }
+    if (lat === 'triangle') {
+      if (v('fg-up') === 'empty') rules.push({ when: { class: 'up' }, do: { content: 'empty' } });
+      const d = v('fg-down');
+      rules.push({ when: { class: 'down' }, do: d === 'empty' ? { content: 'empty' } : d === 'turned' ? { content: 'filled', rotate: 180 } : { content: 'filled' } });
+    }
+    const rows = v('fg-emptyrows').split(',').map(x => parseInt(x, 10)).filter(x => !isNaN(x));
+    if (rows.length) rules.push({ when: { row: rows }, do: { content: 'empty' } });
+    first = { kind: 'symbol', lattice: lat === 'triangle' ? { type: 'triangle', rows: +v('fg-n') } : lat === 'hexagon' ? { type: 'hexagon', rings: Math.min(5, +v('fg-n')) } : { type: 'square', cols: +v('fg-cols'), rows: +v('fg-n') },
+      fit: lat === 'triangle' ? 'fill' : 'contain', rules };
+    if (ctrl('fg-liveseed').checked) first.seed = 'live';
+  }
+  const levels = [first];
+  if (v('fg-comp') !== 'none') {
+    levels.push({ kind: 'grid', lattice: FG_LATTICE_OF(v('fg-comp')), cellSize: 110, altFlip: ctrl('fg-altflip').checked });
+    if (v('fg-comp2') !== 'none') levels.push({ kind: 'grid', lattice: FG_LATTICE_OF(v('fg-comp2')), cellSize: 110 });
+  }
+  return { tool: 'fvs-recipe', version: 2, element: el, levels, transform: { rotate: +v('fg-rot'), mirror: v('fg-mirror') } };
+}
+function figureFormFromRecipe(def) {
+  const set = (id, val) => { const e = ctrl(id); e.value = String(val); };
+  const el = def.element, first = def.levels[0], g = def.levels[1], tr = def.transform || {};
+  set('fg-seed', el.type); set('fg-style', el.style || 'fill'); set('fg-ink', hexKey((el.colors || ['#000000'])[0])); set('fg-paper', hexKey(el.paper || '#ffffff'));
+  set('fg-up', 'filled'); set('fg-down', 'empty'); set('fg-emptyrows', ''); set('fg-odd', 'none'); ctrl('fg-liveseed').checked = first.seed === 'live';
+  if (first.kind === 'component') { set('fg-lattice', 'component'); set('fg-comprule', first.rule || 'checkerboard'); }
+  else {
+    set('fg-lattice', first.lattice.type); set('fg-n', first.lattice.type === 'triangle' ? first.lattice.rows : first.lattice.type === 'hexagon' ? first.lattice.rings : first.lattice.rows || first.lattice.cols);
+    set('fg-hexturn', 'none'); ctrl('fg-hexcentre').checked = false;
+    if (first.lattice.type === 'square') set('fg-cols', first.lattice.cols);
+    (first.rules || []).forEach(r => {
+      const w = r.when || {}, d = r.do || {};
+      if (w.parity === 'odd' && d.rotate != null) set('fg-odd', d.rotate);
+      else if (d.rotate === 'sector') set('fg-hexturn', 'sector');
+      else if (w.ring === 0 && d.content === 'empty') ctrl('fg-hexcentre').checked = true;
+      else if (w.class === 'up' && d.content === 'empty') set('fg-up', 'empty');
+      else if (w.class === 'down') set('fg-down', d.content === 'empty' ? 'empty' : d.rotate === 180 ? 'turned' : 'filled');
+      else if (w.row != null && d.content === 'empty') set('fg-emptyrows', [].concat(w.row).join(','));
+    });
+  }
+  set('fg-comp', g ? FG_STR_OF(g.lattice) : 'none'); ctrl('fg-altflip').checked = !!(g && g.altFlip);
+  set('fg-comp2', def.levels[2] ? FG_STR_OF(def.levels[2].lattice) : 'none');
+  set('fg-rot', tr.rotate || 0); set('fg-mirror', tr.mirror || 'none');
+  syncFigureFormUI();
+}
+function syncFigureFormUI() {
+  const lat = ctrl('fg-lattice').value;
+  ctrl('fg-row-n').style.display = lat === 'component' ? 'none' : '';
+  ctrl('fg-row-cols').style.display = lat === 'square' ? '' : 'none';
+  ctrl('fg-row-comprule').style.display = lat === 'component' ? '' : 'none';
+  ctrl('fg-rules-section').style.display = lat === 'component' ? 'none' : '';
+  ctrl('fg-row-up').style.display = ctrl('fg-row-down').style.display = lat === 'triangle' ? '' : 'none';
+  ctrl('fg-row-comp2').style.display = ctrl('fg-comp').value === 'none' ? 'none' : '';
+  ctrl('fg-row-hexturn').style.display = ctrl('fg-row-hexcentre').style.display = lat === 'hexagon' ? '' : 'none';
+  ctrl('fg-row-n').querySelector('.ctrl-label').textContent = lat === 'hexagon' ? 'Rings' : 'Rows';
+}
+
+let figureRun = 0;
+function applyFigureRecipe(def, opts) {
+  opts = opts || {};
+  ctrl('fg-json-error').style.display = 'none';
+  try {
+    state.figureRecipe = def;
+    const svg = runFigureRecipe(def, { keepTier: true });
+    ctrl('figure-frame').innerHTML = svg;
+    if (!opts.fromForm) figureFormFromRecipe(def);
+    ctrl('fg-json').value = JSON.stringify(def, null, 2);
+    refreshFigureChecks(def, svg, ++figureRun);
+  } catch (e) {
+    ctrl('fg-json-error').textContent = e.message; ctrl('fg-json-error').style.display = '';
+  }
+}
+function renderFigureTier() {
+  if (!state.figureRecipe) state.figureRecipe = figureCatalog()['Triangle · Sierpinski · asset'];
+  applyFigureRecipe(state.figureRecipe);
+}
+
+// Checks — every one reads the drawn result, none reads the recipe's own intent back.
+function figureChecks(def, svg) {
+  const out = [];
+  const add = (ok, label, detail) => out.push({ ok, label, detail });
+  const noDefs = svg.replace(/<defs>[\s\S]*?<\/defs>/g, '');
+  add(!/NaN|undefined|Infinity/.test(svg), 'Numbers are valid', '');
+  const refs = [...svg.matchAll(/url\(#([^)]+)\)/g)].map(m => m[1]), ids = new Set([...svg.matchAll(/ id="([^"]+)"/g)].map(m => m[1]));
+  add(refs.every(r => ids.has(r)), 'Every clip reference resolves', refs.length + ' refs');
+  add((svg.match(/<metadata>/g) || []).length <= 1 && (svg.match(/<defs>/g) || []).length <= 1, 'Defs and metadata appear once', '');
+  const paths = (noDefs.match(/<path /g) || []).length;
+  const first = def.levels[0];
+  let slots = null;
+  if (first.kind === 'symbol') {
+    const l = first.lattice, total = l.type === 'triangle' ? l.rows * l.rows : l.type === 'hexagon' ? 3 * l.rings * (l.rings - 1) + 1 : l.cols * (l.rows || l.cols);
+    add(state.symbolCells.length === total, 'Lattice has the expected number of slots', `${state.symbolCells.length} of ${total}`);
+    slots = state.symbolCells.filter(c => c.source !== 'empty').length;
+  } else slots = getSelectedComponent() ? getSelectedComponent().cells.length : 0;
+  const stats = state.figureLevelStats || [];
+  const expected = stats.reduce((acc, st) => acc * st.tiles * st.copies, slots);
+  add(paths === expected, 'Shapes drawn = filled slots × tiles × mirror copies (per level)', `${paths} of ${expected}`);
+  add(svg.length < 400000, 'File size is reasonable', Math.round(svg.length / 1024) + ' KB');
+  return out;
+}
+function renderFigureReport(rows, extra) {
+  const all = rows.concat(extra || []);
+  const bad = all.filter(r => !r.ok).length;
+  ctrl('fg-report-hint').textContent = bad ? bad + ' to look at' : 'all good';
+  ctrl('fg-report').innerHTML = all.map(r => `<div class="fg-row"><span class="fg-dot ${r.ok ? 'fg-ok' : 'fg-bad'}">${r.ok ? '●' : '○'}</span><span>${r.label}${r.detail ? ' — ' + r.detail : ''}</span></div>`).join('');
+}
+// Raster mask of an SVG string or an <img>: 1 where a pixel differs from the ground.
+async function rasterMask(src, n, ground) {
+  const c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d');
+  const im = src instanceof HTMLImageElement ? src : await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(src); });
+  const w = im.naturalWidth || n, h = im.naturalHeight || n, k = Math.min(n / w, n / h);
+  const ox = (n - w * k) / 2, oy = (n - h * k) / 2;
+  g.fillStyle = ground || '#ffffff'; g.fillRect(0, 0, n, n);
+  g.drawImage(im, ox, oy, w * k, h * k);
+  let d = g.getImageData(0, 0, n, n).data;
+  let gr = ground ? null : [0, 0, 0];
+  if (!ground) {
+    // an image's ground is read from its OWN corners (the letterbox is not part of it), then the box is repainted with it
+    const cx0 = Math.ceil(ox), cx1 = Math.floor(ox + w * k) - 1, cy0 = Math.ceil(oy), cy1 = Math.floor(oy + h * k) - 1;
+    [[cx0, cy0], [cx1, cy0], [cx0, cy1], [cx1, cy1]].forEach(([x, y]) => { const i = (y * n + x) * 4; gr[0] += d[i] / 4; gr[1] += d[i + 1] / 4; gr[2] += d[i + 2] / 4; });
+    g.fillStyle = `rgb(${gr.map(Math.round).join(',')})`; g.fillRect(0, 0, n, n); g.drawImage(im, ox, oy, w * k, h * k);
+    d = g.getImageData(0, 0, n, n).data;
+  } else { const t = document.createElement('canvas').getContext('2d'); t.fillStyle = ground; t.fillRect(0, 0, 1, 1); const p = t.getImageData(0, 0, 1, 1).data; gr = [p[0], p[1], p[2]]; }
+  const mask = new Uint8Array(n * n); let x0 = n, y0 = n, x1 = -1, y1 = -1;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const i = (y * n + x) * 4, dist = Math.abs(d[i] - gr[0]) + Math.abs(d[i + 1] - gr[1]) + Math.abs(d[i + 2] - gr[2]);
+    if (dist > 110) { mask[y * n + x] = 1; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  }
+  return { mask, n, box: x1 < 0 ? null : { x0, y0, x1: x1 + 1, y1: y1 + 1 } };
+}
+// The mask's own box resampled to m×m (so two silhouettes of different size compare shape, not scale).
+function normMask(M, m) {
+  const out = new Uint8Array(m * m); if (!M.box) return out;
+  const bw = M.box.x1 - M.box.x0, bh = M.box.y1 - M.box.y0;
+  for (let y = 0; y < m; y++) for (let x = 0; x < m; x++) out[y * m + x] = M.mask[Math.min(M.n - 1, Math.floor(M.box.y0 + (y + .5) * bh / m)) * M.n + Math.min(M.n - 1, Math.floor(M.box.x0 + (x + .5) * bw / m))];
+  return out;
+}
+const maskIoU = (a, b) => { let i = 0, u = 0; for (let k = 0; k < a.length; k++) { i += a[k] & b[k]; u += a[k] | b[k]; } return u ? i / u : 0; };
+let figureRef = null;
+async function refreshFigureChecks(def, svg, run) {
+  const rows = figureChecks(def, svg);
+  renderFigureReport(rows);
+  try {
+    const fm = await rasterMask(svg, 160, state.paperColor);
+    if (run !== figureRun) return;
+    const extra = [];
+    const m = 96, nf = normMask(fm, m), tr = def.transform || {};
+    if (fm.box) {
+      const sym = (a, flip) => { let same = 0, tot = 0; for (let y = 0; y < m; y++) for (let x = 0; x < m; x++) { const b = flip(x, y); same += a[y * m + x] === a[b] ? 1 : 0; tot++; } return same / tot; };
+      if (tr.mirror === 'v' || tr.mirror === 'vh') { const q = sym(nf, (x, y) => y * m + (m - 1 - x)); extra.push({ ok: q > 0.97, label: 'Mirror over the right edge is symmetric', detail: Math.round(q * 100) + '%' }); }
+      if (tr.mirror === 'h' || tr.mirror === 'vh') { const q = sym(nf, (x, y) => (m - 1 - y) * m + x); extra.push({ ok: q > 0.97, label: 'Mirror over the bottom edge is symmetric', detail: Math.round(q * 100) + '%' }); }
+      extra.push({ ok: true, label: 'Figure box (w × h)', detail: `${fm.box.x1 - fm.box.x0} × ${fm.box.y1 - fm.box.y0} of 160` });
+    }
+    if (figureRef) {
+      const rm = await rasterMask(figureRef, 160, null);
+      if (run !== figureRun) return;
+      const iou = maskIoU(nf, normMask(rm, m));
+      const ar = rm.box && fm.box ? ((rm.box.x1 - rm.box.x0) / (rm.box.y1 - rm.box.y0)) / ((fm.box.x1 - fm.box.x0) / (fm.box.y1 - fm.box.y0)) : 0;
+      extra.push({ ok: iou > 0.8, label: 'Silhouette overlap with the reference', detail: Math.round(iou * 100) + '%' });
+      extra.push({ ok: Math.abs(ar - 1) < 0.12, label: 'Proportions match the reference', detail: 'ratio ' + ar.toFixed(2) });
+      drawFigureRef(fm, rm);
+    } else ctrl('figure-ref-canvas').style.display = 'none';
+    renderFigureReport(rows, extra);
+  } catch (e) { /* raster checks are best-effort */ }
+}
+function drawFigureRef(fm, rm) {
+  const cv = ctrl('figure-ref-canvas'), N = 400; cv.width = cv.height = N;
+  const g = cv.getContext('2d'), k = N / fm.n;
+  g.clearRect(0, 0, N, N);
+  if (!fm.box || !rm.box || !figureRef) { cv.style.display = 'none'; return; }
+  const w = figureRef.naturalWidth, h = figureRef.naturalHeight, kk = Math.min(rm.n / w, rm.n / h);
+  const offx = (rm.n - w * kk) / 2, offy = (rm.n - h * kk) / 2;
+  const sx = (rm.box.x0 - offx) / kk, sy = (rm.box.y0 - offy) / kk, sw = (rm.box.x1 - rm.box.x0) / kk, sh = (rm.box.y1 - rm.box.y0) / kk;
+  g.drawImage(figureRef, sx, sy, sw, sh, fm.box.x0 * k, fm.box.y0 * k, (fm.box.x1 - fm.box.x0) * k, (fm.box.y1 - fm.box.y0) * k);
+  cv.style.display = 'block'; cv.style.opacity = String(ctrl('fg-ref-opacity').value / 100);
+}
+(function initFigureTier() {
+  const seedSel = ctrl('fg-seed');
+  Object.keys(SEED_TYPES).filter(t => t !== 'freehand' && t !== 'custom' && t !== 'freehandraw').forEach(t => seedSel.add(new Option(SEED_TYPES[t].label, t, false, t === 'triangle')));
+  for (let n = 2; n <= 8; n++) { ctrl('fg-n').add(new Option(n, n, false, n === 2)); ctrl('fg-cols').add(new Option(n, n, false, n === 3)); }
+  const cat = figureCatalog(), ps = ctrl('fg-preset');
+  ps.add(new Option('— choose a figure —', ''));
+  Object.keys(cat).forEach(k => ps.add(new Option(k, k)));
+  ps.addEventListener('change', () => { if (ps.value) applyFigureRecipe(JSON.parse(JSON.stringify(cat[ps.value]))); });
+  const onForm = () => { syncFigureFormUI(); applyFigureRecipe(figureRecipeFromForm(), { fromForm: true }); };
+  Array.from(ctrl('fg-comp').options).forEach(o => ctrl('fg-comp2').add(new Option(o.value === 'none' ? 'Nothing' : o.text, o.value)));
+  ['fg-seed', 'fg-style', 'fg-lattice', 'fg-n', 'fg-cols', 'fg-comprule', 'fg-up', 'fg-down', 'fg-odd', 'fg-hexturn', 'fg-comp2', 'fg-comp', 'fg-rot', 'fg-mirror'].forEach(id => ctrl(id).addEventListener('change', onForm));
+  ['fg-ink', 'fg-paper', 'fg-emptyrows'].forEach(id => ctrl(id).addEventListener('input', onForm));
+  ctrl('fg-altflip').addEventListener('change', onForm);
+  ctrl('fg-liveseed').addEventListener('change', onForm);
+  ctrl('fg-hexcentre').addEventListener('change', onForm);
+  ctrl('fg-json-apply').addEventListener('click', () => { try { applyFigureRecipe(JSON.parse(ctrl('fg-json').value)); } catch (e) { ctrl('fg-json-error').textContent = e.message; ctrl('fg-json-error').style.display = ''; } });
+  ctrl('fg-json-copy').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText(ctrl('fg-json').value); });
+  ctrl('fg-json-save').addEventListener('click', () => Organica.downloadText(ctrl('fg-json').value, Organica.stamp('fvs-figure', 'json'), 'application/json'));
+  ctrl('fg-ref-load').addEventListener('click', () => ctrl('fg-ref-file').click());
+  ctrl('fg-ref-file').addEventListener('change', e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    const im = new Image(); im.onload = () => { figureRef = im; if (state.figureRecipe) refreshFigureChecks(state.figureRecipe, figureSVGOf(state.figureTier || 'symbol'), ++figureRun); };
+    im.src = URL.createObjectURL(f);
+  });
+  ctrl('fg-ref-clear').addEventListener('click', () => { figureRef = null; ctrl('figure-ref-canvas').style.display = 'none'; if (state.figureRecipe) refreshFigureChecks(state.figureRecipe, figureSVGOf(state.figureTier || 'symbol'), ++figureRun); });
+  ctrl('fg-ref-opacity').addEventListener('input', e => { ctrl('v-fg-ref-opacity').textContent = e.target.value; ctrl('figure-ref-canvas').style.opacity = String(e.target.value / 100); });
+  syncFigureFormUI();
+})();
 (function initBuiltinRecipes() {
   const sel = ctrl('sel-builtin-recipe');
   BUILTIN_RECIPES.forEach(r => sel.add(new Option(r.label, r.id)));
@@ -5779,6 +6564,7 @@ function tierSVG() {
   if (t === 'symbol') return getSymbolGrid() ? buildSymbolSVG() : '';
   if (t === 'grid') return buildFvsGridSVG();
   if (t === 'element') return buildSeedPreviewSVG(getSeed(), 0, false, false, 400);
+  if (t === 'figure') return figureSVGOf(state.figureTier || 'symbol');
   const comp = getSelectedComponent();
   if (!comp) return '';
   state.selectedRuleSource = comp.ruleSource;
@@ -5943,7 +6729,8 @@ function buildRecipe() {
     component: buildLibraryEntry(),
     symbol: buildSymbolLibraryEntry(),
     grid: { componentName: state.fvsGridComponentName, componentEntry: state.fvsGridComponentName ? (LIBRARY.read()[state.fvsGridComponentName] || null) : null,
-      symbolName: symName, symbol: symName ? (SYMBOL_LIBRARY.read()[symName] || null) : null,
+      symbolName: symName === LIVE_SYMBOL ? 'Recipe symbol' : symName,
+      symbol: symName === LIVE_SYMBOL ? buildSymbolLibraryEntry() : (symName ? (SYMBOL_LIBRARY.read()[symName] || null) : null),
       type: ctrl('sel-fvsgrid-type').value, cellSize: val('rg-fvsgrid-cellsize'), gap: val('rg-fvsgrid-gap'), altFlip: ctrl('chk-fvsgrid-alt-flip').checked },
     variants: variantList,
   };

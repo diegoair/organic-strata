@@ -220,6 +220,144 @@ async function battery() {
   ['mirror', 'pinwheel', 'diagonal'].forEach(m => { chg('sel-rule', m); generate(); const c = state.components[1] || state.components[0]; put('triangle:3x3:' + m, buildComponentSVG(buildComponentItems(c, getGrid()), getSeed(), frameSize(getGrid()))); });
   chg('sel-rule', 'identity'); chg('sel-grid-type', 'square2x2'); chg('sel-seed-type', 'arc'); undoStack.length = 0;
 
+  // 13 — triangle lattice, Empty cells, Orientation rule, Tier grids, Mirror
+  const symLib0 = SYMBOL_LIBRARY.read();
+  try {
+    chg('sel-seed-type', 'triangle'); chg('sel-element-fillmode', 'fill'); state.colors = ['#f0301f']; buildPalette();
+    const mk = (name, n, up, down, empty) => {
+      setTier('symbol'); chg('sel-symbol-tri-n', String(n)); ctrl('btn-symbol-grid-tri').click();
+      chg('sel-symbol-fill', 'rule'); chg('sel-symbol-rule', 'orientation'); chg('sel-rule-ori-up', up); chg('sel-rule-ori-down', down);
+      applySymbolRule({ resetAll: true }); (empty || []).forEach(i => { state.symbolCells[i].source = 'empty'; });
+      const all = SYMBOL_LIBRARY.read(); all[name] = buildSymbolLibraryEntry(); SYMBOL_LIBRARY.write(all);
+      return buildSymbolSVG();
+    };
+    const sa = mk('t-a', 2, 'filled', 'empty'), sb = mk('t-b', 2, 'filled', 'filled', [0]), sc = mk('t-c', 4, 'filled', 'empty');
+    put('tri:sym:a', sa); put('tri:sym:b', sb); put('tri:sym:c', sc);
+    put('tri:counts', [state.symbolCells.length, buildSymbolItems().length, state.symbolCells.filter(c => c.source === 'empty').length].join('/'));
+    const ori = triangleLoomModel(4).cells.map(c => polyOrient(c.points));
+    put('tri:orient', ori.filter(o => o === 'up').length + '/' + ori.filter(o => o === 'down').length);
+    mk('t-d', 2, 'filled', 'filled');
+    put('tri:downturn', state.symbolCells.map(c => c.rotation).join(','));
+    const G = (name, type, rot, mir) => {
+      setTier('grid'); state.fvsGridSymbolName = name; state.fvsGridComponentName = null;
+      chg('sel-fvsgrid-type', type); chg('sel-fvsgrid-rot', rot || '0'); chg('sel-fvsgrid-mirror', mir || 'none');
+      const svg = buildFvsGridSVG(); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); return svg;
+    };
+    const g2 = G('t-a', 'tier2');
+    put('grid:tier2', g2); put('grid:tier1:rot90:v', G('t-a', 'tier1', '90', 'v')); put('grid:tier1:h', G('t-b', 'tier1', '0', 'h'));
+    put('grid:tri3', G('t-a', 'tri3')); put('grid:tier1:vh', G('t-c', 'tier1', '0', 'vh'));
+    const ids = (g2.match(/<clipPath id="[^"]+"/g) || []);
+    put('grid:clipids', ids.length + '/' + new Set(ids).size);
+    put('grid:nometa', (g2.match(/<metadata>/g) || []).length + '/' + (g2.match(/<defs>/g) || []).length);
+    // live Symbol: the Grid can tile the Symbol as it is right now, identical to the saved copy
+    mk('t-live', 2, 'filled', 'empty');
+    setTier('grid'); state.fvsGridSymbolName = LIVE_SYMBOL; chg('sel-fvsgrid-type', 'tier2');
+    put('grid:live', norm(buildFvsGridSVG()) === norm(G('t-live', 'tier2')));
+    // mirror lands on the drawn edge: a Symbol whose bottom row is empty
+    mk('t-top', 2, 'filled', 'filled', [1, 2, 3]);
+    put('grid:mirror:contentbox', (G('t-top', 'tier1', '0', 'h').match(/viewBox="([^"]+)"/) || [])[1]);
+    put('grid:viewbox', (G('t-a', 'tier1', '90', 'v').match(/viewBox="([^"]+)"/) || [])[1]);
+  } finally { SYMBOL_LIBRARY.write(symLib0); chg('sel-fvsgrid-type', 'square4x4'); setTier('component'); reset(); }
+
+  // 14 — figure recipe v2: the v1 recipes and the twelve triangle figures re-expressed as data
+  try {
+    const norm2 = x => norm(x);
+    Object.keys(FIGURE_RECIPES_V1_AS_V2).forEach(id => {
+      runBuiltinRecipe(BUILTIN_RECIPES.find(r => r.id === id)); const v1 = tierSVG();
+      const v2 = runFigureRecipe({ tool: 'fvs-recipe', version: 2, ...FIGURE_RECIPES_V1_AS_V2[id] });
+      put('fig:v1v2:' + id, norm2(v1) === norm2(v2));
+    });
+    const ref = { 'sierpinski:asset': out['tri:sym:a'], 'trapezoid:asset': out['tri:sym:b'], 'lattice4:asset': out['tri:sym:c'] };
+    const tri = triangleFigureRecipes();
+    Object.keys(tri).forEach(k => {
+      const svg = runFigureRecipe(tri[k]);
+      put('fig:tri:' + k, svg);
+      if (ref[k]) put('fig:tri:same:' + k, H(norm2(svg)) === ref[k]);
+    });
+    const other = {
+      star: { tool: 'fvs-recipe', version: 2, element: { type: 'star', colors: ['#1e5be8'] },
+        levels: [{ kind: 'symbol', lattice: { type: 'square', cols: 3, rows: 3 }, fit: 'contain', rules: [{ when: { parity: 'odd' }, do: { rotate: 90 } }, { when: { index: 4 }, do: { content: 'empty' } }] },
+          { kind: 'grid', lattice: { type: 'square', n: 2 }, cellSize: 110 }] },
+      blob: { tool: 'fvs-recipe', version: 2, element: { type: 'blob', colors: ['#0a9a3e'] },
+        levels: [{ kind: 'symbol', lattice: { type: 'triangle', rows: 2 }, fit: 'fill', rules: [{ when: { class: 'down' }, do: { content: 'empty' } }] },
+          { kind: 'grid', lattice: { type: 'tier', stack: 2 } }] },
+      polygon: { tool: 'fvs-recipe', version: 2, element: { type: 'polygon', colors: ['#e8321e'] },
+        levels: [{ kind: 'symbol', lattice: { type: 'triangle', rows: 3 }, fit: 'fill', rules: [{ when: { class: 'down' }, do: { content: 'filled', rotate: 180 } }, { when: { row: 1 }, do: { content: 'empty' } }] },
+          { kind: 'grid', lattice: { type: 'tier', stack: 1 } }], transform: { mirror: 'h' } },
+    };
+    Object.keys(other).forEach(k => put('fig:seed:' + k, runFigureRecipe(other[k])));
+    let bad = ''; try { runFigureRecipe({ tool: 'fvs-recipe', version: 2, element: { type: 'nope' }, levels: [] }); } catch (e) { bad = e.message; }
+    put('fig:invalid', bad);
+  } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); }
+
+  // 15 — Figure tier: form ↔ recipe round-trip, checks, catalog, tier wiring
+  try {
+    const cat = figureCatalog();
+    put('fig:catalog', Object.keys(cat).length);
+    let rtBad = [], chkBad = [];
+    Object.entries(triangleFigureRecipes()).forEach(([k, def]) => {
+      const direct = norm(runFigureRecipe(def, { keepTier: true }));
+      const rows = figureChecks(def, figureSVGOf(state.figureTier)); if (rows.some(r => !r.ok)) chkBad.push(k);
+      figureFormFromRecipe(def);
+      const back = norm(runFigureRecipe(figureRecipeFromForm(), { keepTier: true }));
+      if (back !== direct) rtBad.push(k);
+    });
+    put('fig:form:roundtrip', rtBad.join(',') || 'ok');
+    put('fig:checks:triangle', chkBad.join(',') || 'ok');
+    setTier('figure'); applyFigureRecipe(cat['Triangle · Sierpinski · repeated']);
+    put('fig:tier', [state.activeTier, state.figureTier, ctrl('figure-frame').innerHTML.length > 100, (tierSVG().match(/<path /g) || []).length === (ctrl('figure-frame').innerHTML.match(/<path /g) || []).length].join(','));
+    ctrl('fg-json').value = '{"tool":"nope"}'; ctrl('fg-json-apply').click();
+    put('fig:json:error', ctrl('fg-json-error').textContent);
+    const bent = JSON.parse(JSON.stringify(cat['Triangle · Sierpinski · asset'])); bent.levels[0].lattice.rows = 3;
+    const rep3 = figureChecks(bent, runFigureRecipe(bent, { keepTier: true }));
+    put('fig:checks:rows3', rep3.filter(r => !r.ok).length);
+  } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); }
+
+  // 16 — per-cell Seed settings, reference-image mask
+  try {
+    const R = live => ({ tool: 'fvs-recipe', version: 2, element: { type: 'arc', params: { 'rg-thickness': 40 }, colors: ['#e8321e'] },
+      levels: [{ kind: 'symbol', lattice: { type: 'square', cols: 2, rows: 2 }, fit: 'contain', ...(live ? { seed: 'live' } : {}), rules: [] }] });
+    const dflt = runFigureRecipe(R(false)), liveSvg = runFigureRecipe(R(true));
+    put('seed:cellparams', [dflt !== liveSvg, state.symbolCells.every(c => !!c.seedParams)].join(','));
+    put('seed:cellparams:svg', liveSvg);
+    runFigureRecipe(R(false)); put('seed:cellparams:cleared', state.symbolCells.every(c => !c.seedParams));
+    const c = document.createElement('canvas'); c.width = 60; c.height = 40; const g = c.getContext('2d');
+    g.fillStyle = '#c8c8c8'; g.fillRect(0, 0, 60, 40); g.fillStyle = '#d03020'; g.fillRect(20, 10, 20, 20);
+    const im = new Image(); im.src = c.toDataURL(); await im.decode();
+    const M = await rasterMask(im, 64, null), n = M.mask.reduce((a, b) => a + b, 0);
+    put('refmask', [n > 100 && n < 600, M.box && M.box.x1 - M.box.x0 < 40].join(','));
+  } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); }
+
+  // 17 — hexagonal lattice and 60° poses
+  try {
+    const hm = hexLoomModel(3);
+    const sec = [0, 1, 2, 3, 4, 5].map(k => hm.cells.filter(c => c.ring > 0 && c.sector === k).length).join(',');
+    put('hex:model', [hm.cells.length, hm.cells.filter(c => c.ring === 0).length, hm.cells.filter(c => c.ring === 1).length, hm.cells.filter(c => c.ring === 2).length, sec].join('/'));
+    put('hex:snap', [snapPose(60), snapPose(89), snapPose(-60), snapPose(370)].join(','));
+    Object.entries(hexFigureRecipes()).forEach(([k, def]) => {
+      const svg = runFigureRecipe(def, { keepTier: true });
+      put('fig:hex:' + def.id, svg);
+      put('fig:hex:checks:' + def.id, figureChecks(def, svg).filter(r => !r.ok).length);
+      figureFormFromRecipe(def); put('fig:hex:roundtrip:' + def.id, norm(runFigureRecipe(figureRecipeFromForm(), { keepTier: true })) === norm(svg));
+    });
+    put('hex:poses', [...new Set(state.symbolCells.map(c => c.rotation))].sort((a, b) => a - b).join(','));
+  } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); }
+
+  // 18 — a Grid figure as the tile of another Grid (recursion)
+  try {
+    Object.values(recursiveFigureRecipes()).forEach(def => {
+      const svg = runFigureRecipe(def, { keepTier: true });
+      put('fig:rec:' + def.id, svg);
+      put('fig:rec:checks:' + def.id, figureChecks(def, svg).filter(r => !r.ok).length + '/' + (svg.replace(/<defs>[\s\S]*?<\/defs>/g, '').match(/<path /g) || []).length);
+      put('fig:rec:stats:' + def.id, state.figureLevelStats.map(s => s.tiles + 'x' + s.copies).join(','));
+      if (def.id !== 'rec-bowtie') { figureFormFromRecipe(def); put('fig:rec:roundtrip:' + def.id, norm(runFigureRecipe(figureRecipeFromForm(), { keepTier: true })) === norm(svg)); }
+    });
+    let err = ''; try { runFigureRecipe({ tool: 'fvs-recipe', version: 2, element: { type: 'triangle', colors: ['#000000'] },
+      levels: [{ kind: 'symbol', lattice: { type: 'triangle', rows: 8 }, fit: 'fill', rules: [] }, { kind: 'grid', lattice: { type: 'square', n: 6 } }, { kind: 'grid', lattice: { type: 'square', n: 6 } }, { kind: 'grid', lattice: { type: 'square', n: 6 } }] }, { keepTier: true }); } catch (e) { err = e.message.replace(/\d+/g, 'N'); }
+    put('fig:rec:limit', err);
+    put('fig:rec:cleared', (runFigureRecipe(triangleFigureRecipes()['sierpinski:repeated'], { keepTier: true }), state.fvsGridRaw === null));
+  } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); }
+
   // tidy the throw-away tiles the recipes wrote into the Component library
   const lib = LIBRARY.read(); Object.keys(lib).filter(k => k.startsWith('Tile · recipe-')).forEach(k => delete lib[k]); LIBRARY.write(lib);
   reset();
