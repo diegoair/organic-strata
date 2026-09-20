@@ -3990,9 +3990,13 @@ function tileSelectedInGrid() {
   renderFvsGridPicker(); renderFvsGrid();
 }
 
+// The Symbol being edited, offered to the Grid as it is right now — no save step
+// in between (a saved copy went stale the moment the Symbol was edited).
+const LIVE_SYMBOL = '● Current symbol';
 function fvsGridSelectedEntry() {
   if (state.fvsGridComponentName) return componentTileEntry(state.fvsGridComponentName);
   if (!state.fvsGridSymbolName) return null;
+  if (state.fvsGridSymbolName === LIVE_SYMBOL) return state.symbolGrid ? buildSymbolLibraryEntry() : null;
   return SYMBOL_LIBRARY.read()[state.fvsGridSymbolName] || null;
 }
 
@@ -4023,46 +4027,74 @@ function buildFvsGridSVG() {
   const altFlip = ctrl('chk-fvsgrid-alt-flip').checked;
   // Checkerboard by (col + row) parity — index parity gave vertical stripes on grids with an even column count.
   const colRow = altFlip ? Organica.shapes.cellColRow(grid, null, null) : null;
+  // Every tile repeats the same Symbol markup, so the clip <defs> (identical in each tile's own
+  // coordinates) are emitted once and the per-tile <metadata> is dropped: a 36-tile grid used to
+  // carry 36 copies of both. Triangular tiles overlap as boxes, so only the grid's own paper rect
+  // may paint the ground.
+  const defsM = inner.match(/<defs>[\s\S]*?<\/defs>/);
+  const sharedDefs = defsM ? defsM[0] : '';
+  let tileInner = inner.replace(/<metadata>[\s\S]*?<\/metadata>/, '').replace(/<defs>[\s\S]*?<\/defs>/, '');
+  if (grid.tri) tileInner = tileInner.replace(/<rect width="[\d.]+" height="[\d.]+" fill="#[0-9a-fA-F]+"\/>/, '');
+  const cbox = symbolContentBox(entry, natSize);   // where the Symbol actually draws, in its own frame
   let body = '';
+  let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
   centers.forEach((c, i) => {
     const cw = c.cellW || c.cellSize, ch = c.cellH || c.cellSize;
     // Triangle lattices: the Symbol's own width matches the cell's width (the cell box is not square)
     const target = grid.tri ? cw : Math.min(cw, ch);
     const s = target / natSize;
     const tx = size / 2 + c.cx - target / 2, ty = size / 2 + c.cy - target / 2;
-    const flipPart = (altFlip && (colRow[i].col + colRow[i].row) % 2 === 1) ? ` translate(${natSize},0) scale(-1,1)` : '';
+    const flip = altFlip && (colRow[i].col + colRow[i].row) % 2 === 1;
+    const flipPart = flip ? ` translate(${natSize},0) scale(-1,1)` : '';
     // a tile in a down-pointing cell is turned half a turn so it keeps facing its lattice slot
-    const turn = grid.tri && polyOrient(grid.cells[i].points) === 'down' ? ` rotate(180 ${natSize / 2} ${natSize / 2})` : '';
-    // every tile repeats the Symbol's markup: its clip-cell-N ids must be unique per tile or all tiles share the first one's clip
-    // triangular tiles overlap as boxes: only the grid's own paper rect may paint the ground
-    const tileBase = grid.tri ? inner.replace(/<rect width="[\d.]+" height="[\d.]+" fill="#[0-9a-fA-F]+"\/>/, '') : inner;
-    const tileInner = tileBase.replace(/(id="clip-cell-\d+)"/g, `$1-t${i}"`).replace(/(url\(#clip-cell-\d+)\)/g, `$1-t${i})`);
+    const down = grid.tri && polyOrient(grid.cells[i].points) === 'down';
+    const turn = down ? ` rotate(180 ${natSize / 2} ${natSize / 2})` : '';
     body += `<g transform="translate(${tx.toFixed(3)},${ty.toFixed(3)}) scale(${s.toFixed(4)})${turn}${flipPart}">${tileInner}</g>`;
+    if (cbox) {   // the content box through this tile's own transform (flip, then turn, then scale + move)
+      [[cbox.x0, cbox.y0], [cbox.x1, cbox.y0], [cbox.x0, cbox.y1], [cbox.x1, cbox.y1]].forEach(([px, py]) => {
+        if (flip) px = natSize - px;
+        if (down) { px = natSize - px; py = natSize - py; }
+        const X = tx + px * s, Y = ty + py * s;
+        bx0 = Math.min(bx0, X); bx1 = Math.max(bx1, X); by0 = Math.min(by0, Y); by1 = Math.max(by1, Y);
+      });
+    }
   });
   const rot = parseInt(ctrl('sel-fvsgrid-rot').value, 10) || 0, mir = ctrl('sel-fvsgrid-mirror').value;
   if (!rot && mir === 'none') {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`
-      + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${body}</svg>`;
+      + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${sharedDefs}${body}</svg>`;
   }
-  return figureWithMirror(body, centers, size, rot, mir);
+  return figureWithMirror(sharedDefs, body, cbox ? { x0: bx0, y0: by0, x1: bx1, y1: by1 } : { x0: 0, y0: 0, x1: size, y1: size }, size, rot, mir);
+}
+
+// The box a saved Symbol really draws in (its non-empty cells), in the Symbol's own frame — so a
+// mirror lands on the visible edge even when a tile's outer rows are empty.
+function symbolContentBox(entry, nat) {
+  try {
+    const g = Organica.loadLoomGrid(entry.gridModel);
+    const cs = resolveGridCells({ kind: 'loom', cellShape: g.cellShape, cells: g.cells, width: g.inner.width, height: g.inner.height });
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    cs.forEach((c, i) => {
+      if (!entry.cells[i] || entry.cells[i].source === 'empty') return;
+      const cw = c.cellW || c.cellSize, ch = c.cellH || c.cellSize;
+      x0 = Math.min(x0, nat / 2 + c.cx - cw / 2); x1 = Math.max(x1, nat / 2 + c.cx + cw / 2);
+      y0 = Math.min(y0, nat / 2 + c.cy - ch / 2); y1 = Math.max(y1, nat / 2 + c.cy + ch / 2);
+    });
+    return x0 === Infinity ? null : { x0, y0, x1, y1 };
+  } catch (e) { return null; }
 }
 
 // Rotate the tiled figure about its centre, then reflect it over its right and/or
 // bottom edge (the copy shares that edge), then fit the result in a square frame.
-// The figure's box is taken from the cells themselves, so it is exact for
-// rectangular and triangular lattices alike.
-function figureWithMirror(body, centers, size, rot, mir) {
-  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-  centers.forEach(c => {
-    const cw = c.cellW || c.cellSize, ch = c.cellH || c.cellSize;
-    x0 = Math.min(x0, c.cx - cw / 2); x1 = Math.max(x1, c.cx + cw / 2);
-    y0 = Math.min(y0, c.cy - ch / 2); y1 = Math.max(y1, c.cy + ch / 2);
-  });
+// The figure's box is the drawn content of the tiles (empty cells excluded), so the
+// reflection meets the visible edge for any lattice and any Seed.
+function figureWithMirror(defs, body, box, size, rot, mir) {
+  const { x0, x1, y0, y1 } = box;   // the figure's drawn box, in frame coordinates
   const fw = x1 - x0, fh = y1 - y0, quarter = rot % 180 === 90;
   const bw = quarter ? fh : fw, bh = quarter ? fw : fh;             // box after rotation
   const mv = mir === 'v' || mir === 'vh', mh = mir === 'h' || mir === 'vh';
   const mw = bw * (mv ? 2 : 1), mhgt = bh * (mh ? 2 : 1), S = Math.max(mw, mhgt);
-  const cx = size / 2 + (x0 + x1) / 2, cy = size / 2 + (y0 + y1) / 2;   // figure centre in frame coords
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;   // figure centre in frame coords
   // rotated figure with its box's top-left at the origin
   const fig = `<g transform="translate(${r2(bw / 2)},${r2(bh / 2)}) rotate(${rot}) translate(${r2(-cx)},${r2(-cy)})">${body}</g>`;
   let out = fig;
@@ -4073,7 +4105,7 @@ function figureWithMirror(body, centers, size, rot, mir) {
   }
   const ox = (S - mw) / 2, oy = (S - mhgt) / 2;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${r2(S)} ${r2(S)}" width="${r2(S)}" height="${r2(S)}">`
-    + `<rect width="${r2(S)}" height="${r2(S)}" fill="${state.paperColor}"/><g transform="translate(${r2(ox)},${r2(oy)})">${out}</g></svg>`;
+    + `<rect width="${r2(S)}" height="${r2(S)}" fill="${state.paperColor}"/>${defs}<g transform="translate(${r2(ox)},${r2(oy)})">${out}</g></svg>`;
 }
 
 function renderFvsGrid() {
@@ -4094,7 +4126,7 @@ function renderFvsGrid() {
 
 function renderFvsGridPicker() {
   const all = SYMBOL_LIBRARY.read();
-  const names = Object.keys(all);
+  const names = (state.symbolGrid ? [LIVE_SYMBOL] : []).concat(Object.keys(all));
   const allComps = LIBRARY.read();
   const compNames = libraryNames(allComps);
   ctrl('fvsgrid-symbol-empty').style.display = (names.length || compNames.length) ? 'none' : '';
@@ -4114,7 +4146,7 @@ function renderFvsGridPicker() {
     host.appendChild(btn);
   };
   for (const name of names) {
-    addTile(wrap, name, all[name], !state.fvsGridComponentName && name === state.fvsGridSymbolName, 'Pick symbol',
+    addTile(wrap, name, name === LIVE_SYMBOL ? buildSymbolLibraryEntry() : all[name], !state.fvsGridComponentName && name === state.fvsGridSymbolName, 'Pick symbol',
       () => { state.fvsGridSymbolName = name; state.fvsGridComponentName = null; });
   }
   const cwrap = ctrl('fvsgrid-component-picker');
@@ -6115,7 +6147,8 @@ function buildRecipe() {
     component: buildLibraryEntry(),
     symbol: buildSymbolLibraryEntry(),
     grid: { componentName: state.fvsGridComponentName, componentEntry: state.fvsGridComponentName ? (LIBRARY.read()[state.fvsGridComponentName] || null) : null,
-      symbolName: symName, symbol: symName ? (SYMBOL_LIBRARY.read()[symName] || null) : null,
+      symbolName: symName === LIVE_SYMBOL ? 'Recipe symbol' : symName,
+      symbol: symName === LIVE_SYMBOL ? buildSymbolLibraryEntry() : (symName ? (SYMBOL_LIBRARY.read()[symName] || null) : null),
       type: ctrl('sel-fvsgrid-type').value, cellSize: val('rg-fvsgrid-cellsize'), gap: val('rg-fvsgrid-gap'), altFlip: ctrl('chk-fvsgrid-alt-flip').checked },
     variants: variantList,
   };

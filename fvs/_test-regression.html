@@ -248,6 +248,14 @@ async function battery() {
     put('grid:tri3', G('t-a', 'tri3')); put('grid:tier1:vh', G('t-c', 'tier1', '0', 'vh'));
     const ids = (g2.match(/<clipPath id="[^"]+"/g) || []);
     put('grid:clipids', ids.length + '/' + new Set(ids).size);
+    put('grid:nometa', (g2.match(/<metadata>/g) || []).length + '/' + (g2.match(/<defs>/g) || []).length);
+    // live Symbol: the Grid can tile the Symbol as it is right now, identical to the saved copy
+    mk('t-live', 2, 'filled', 'empty');
+    setTier('grid'); state.fvsGridSymbolName = LIVE_SYMBOL; chg('sel-fvsgrid-type', 'tier2');
+    put('grid:live', norm(buildFvsGridSVG()) === norm(G('t-live', 'tier2')));
+    // mirror lands on the drawn edge: a Symbol whose bottom row is empty
+    mk('t-top', 2, 'filled', 'filled', [1, 2, 3]);
+    put('grid:mirror:contentbox', (G('t-top', 'tier1', '0', 'h').match(/viewBox="([^"]+)"/) || [])[1]);
     put('grid:viewbox', (G('t-a', 'tier1', '90', 'v').match(/viewBox="([^"]+)"/) || [])[1]);
   } finally { SYMBOL_LIBRARY.write(symLib0); chg('sel-fvsgrid-type', 'square4x4'); setTier('component'); reset(); }
 
