@@ -911,6 +911,13 @@
         <button class="mini-btn" id="btn-symbol-grid-bento">Bento (Loom)</button>
         <button class="mini-btn" id="btn-symbol-grid-hex">Hexagonal (Loom)</button>
       </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Square grid</span>
+        <select class="panel-select" id="sel-symbol-square-cols" aria-label="Square grid columns"></select>
+        <span class="hint">×</span>
+        <select class="panel-select" id="sel-symbol-square-rows" aria-label="Square grid rows"></select>
+        <button class="mini-btn" id="btn-symbol-grid-square">Create</button>
+      </div>
       <button class="mini-btn" id="btn-symbol-grid-upload" style="width:100%;margin-top:var(--space-2)">Upload Loom grid JSON…</button>
       <div id="symbol-grid-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-symbol-grid-outline"><span>Show loaded grid</span></label>
@@ -3685,6 +3692,23 @@ function withPlacementDefaults(cell) {
   };
 }
 
+// A plain cols×rows grid of equal square rect cells, in the same Loom-model
+// shape as SYMBOL_GRID_PRESETS.bento so it goes through Organica.loadLoomGrid
+// and every Symbol code path (rules, cellColRow, export) unchanged.
+function squareLoomModel(cols, rows, cell = 270) {
+  const cells = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    cells.push({ id: 'c' + (r * cols + c), col: c, row: r, colSpan: 1, rowSpan: 1, number: r * cols + c + 1 });
+  }
+  const W = cell * cols, H = cell * rows;
+  return {
+    version: '1.0',
+    canvas: { width: W, height: H, displayWidth: W, displayHeight: H, unit: 'px', orientation: 'landscape', marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, margin: 0, safeArea: 0, bleed: 0 },
+    grid: { type: 'bento', solver: 'kiwi', params: { cols, rows, variety: 0, seed: 1 }, gap: 0, tracks: { cols: Array(cols).fill(cell), rows: Array(rows).fill(cell) }, padding: 0 },
+    cells,
+  };
+}
+
 function loadSymbolGrid(model) {
   state.symbolGrid = Organica.loadLoomGrid(model);
   state.symbolCells = defaultSymbolCells(getSymbolGrid());
@@ -5062,6 +5086,12 @@ ctrl('file-fvsgrid-loom').addEventListener('change', e => {
 });
 ctrl('btn-symbol-grid-bento').addEventListener('click', () => loadSymbolGrid(SYMBOL_GRID_PRESETS.bento));
 ctrl('btn-symbol-grid-hex').addEventListener('click', () => loadSymbolGrid(SYMBOL_GRID_PRESETS.hexagonal));
+['sel-symbol-square-cols', 'sel-symbol-square-rows'].forEach(id => {
+  const sel = ctrl(id);
+  for (let n = 2; n <= 8; n++) sel.add(new Option(n, n, false, n === 2));
+});
+ctrl('btn-symbol-grid-square').addEventListener('click', () =>
+  loadSymbolGrid(squareLoomModel(+ctrl('sel-symbol-square-cols').value, +ctrl('sel-symbol-square-rows').value)));
 ctrl('sel-symbol-loom-preset').addEventListener('change', e => {
   const v = e.target.value;
   if (!v) return;
