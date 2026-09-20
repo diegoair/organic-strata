@@ -297,6 +297,14 @@
 
     <div class="tier-block active" data-tier="element">
     <div class="panel-section">
+      <h3>Start from a recipe</h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-builtin-recipe" aria-label="Built-in recipe"></select>
+      </div>
+      <button class="mini-btn" id="btn-builtin-recipe" style="width:100%">Build it</button>
+      <p class="org-panel__hint" id="builtin-recipe-hint">Builds the whole chain — Element, Component, colours and Grid — in one click. It replaces the current Element, palette and gallery.</p>
+    </div>
+    <div class="panel-section">
       <h3>Seed</h3>
       <div class="ctrl-row">
         <div id="seedtype-picker"></div>
@@ -5445,6 +5453,68 @@ function exportByTier(format) {
   if (state.activeTier === 'element') return exportElement(format);
   return exportSelected(format);
 }
+// ── Built-in recipes — one click builds a whole chain from scratch (Element →
+// Component → colours → Grid), so a starting point never has to be saved
+// first. Each `cells()` reuses the same builders the rule dropdown uses, so a
+// recipe is exactly what the matching rule would generate.
+const LEAF_CELLS = () => buildCheckerboardCells(stateFrom(180, false, false, 1), stateFrom(0, false, false, 1));
+const BUILTIN_RECIPES = [
+  { id: 'circle', label: 'Circle from four arcs', hint: 'Arc, Radial 180° — four quarter-discs meeting at the centre.',
+    element: { type: 'arc', params: { 'rg-thickness': 100 } }, colors: ['#0a9a3e'],
+    component: { grid: 'square2x2', cells: () => buildRadialCells(180, 1, 1) } },
+  { id: 'leaf-block', label: 'Leaf block 2×2', hint: 'Arc, Checkerboard 180° / 0°.',
+    element: { type: 'arc', params: { 'rg-thickness': 100 } }, colors: ['#0a9a3e'],
+    component: { grid: 'square2x2', cells: LEAF_CELLS } },
+  { id: 'leaf-wave', label: 'Leaf wave (tiled 2×2)', hint: 'The leaf block repeated 2×2 — diagonal chains of leaves.',
+    element: { type: 'arc', params: { 'rg-thickness': 100 } }, colors: ['#0a9a3e'],
+    component: { grid: 'square2x2', cells: LEAF_CELLS }, tile: { type: 'square2x2', cellSize: 110 } },
+  { id: 'leaf-wave-outline', label: 'Leaf wave, outline', hint: 'Same pattern in Stroke, red.',
+    element: { type: 'arc', params: { 'rg-thickness': 100 } }, style: 'stroke', strokeW: 5, colors: ['#e8321e'],
+    component: { grid: 'square2x2', cells: LEAF_CELLS }, tile: { type: 'square2x2', cellSize: 110 } },
+  { id: 'leaf-two-ink', label: 'Leaf wave, two inks (4×4)', hint: 'Red and green alternating like a checkerboard, tiled 4×4.',
+    element: { type: 'arc', params: { 'rg-thickness': 100 } }, colors: ['#e8321e', '#0a9a3e'], colorRule: { mode: 'checker', offset: 0 },
+    component: { grid: 'square2x2', cells: LEAF_CELLS }, tile: { type: 'square4x4', cellSize: 110 } },
+  { id: 'pinwheel', label: 'Triangle pinwheels (3×3)', hint: 'Triangle, Pinwheel 0° — a windmill block tiled 3×3.',
+    element: { type: 'triangle', params: {} }, colors: ['#e8321e'],
+    component: { grid: 'square2x2', cells: () => buildPinwheelCells(0, 1, 1) }, tile: { type: 'square3x3', cellSize: 110 } },
+  { id: 'kaleidoscope', label: 'Arc kaleidoscope', hint: 'Arc, Mirror — reflections meeting at the centre, tiled 2×2 with Alternate flip.',
+    element: { type: 'arc', params: { 'rg-thickness': 60 } }, colors: ['#1e5be8'],
+    component: { grid: 'square2x2', cells: () => buildMirrorCells(0, 1) }, tile: { type: 'square2x2', cellSize: 110, altFlip: true } },
+];
+function fireInput(id, v) { const e = ctrl(id); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }
+function fireChange(id, v) { const e = ctrl(id); e.value = v; e.dispatchEvent(new Event('change', { bubbles: true })); }
+function runBuiltinRecipe(def) {
+  fireChange('sel-seed-type', def.element.type);
+  Object.entries(def.element.params || {}).forEach(([id, v]) => fireInput(id, v));
+  fireChange('sel-element-fillmode', def.style || 'fill');
+  if (def.strokeW) fireInput('rg-element-strokew', def.strokeW);
+  state.colors = def.colors.slice();
+  state.colorRule = { ...DEFAULT_COLOR_RULE, ...(def.colorRule || {}) };
+  syncColorRuleUI();
+  buildPalette();
+  fireChange('sel-grid-type', def.component.grid);
+  const comp = { id: 'recipe-' + def.id, ruleSource: 'recipe', cells: def.component.cells() };
+  state.components = [comp];
+  state.selectedId = comp.id;
+  renderGallery();
+  refreshColourViews();
+  if (def.tile) {
+    const all = LIBRARY.read(); delete all['Tile · ' + comp.id]; LIBRARY.write(all);   // never reuse a stale tile from an earlier run
+    tileSelectedInGrid();
+    fireChange('sel-fvsgrid-type', def.tile.type);
+    fireInput('rg-fvsgrid-cellsize', def.tile.cellSize);
+    ctrl('chk-fvsgrid-alt-flip').checked = !!def.tile.altFlip;
+    renderFvsGrid();
+  } else setTier('component');
+}
+(function initBuiltinRecipes() {
+  const sel = ctrl('sel-builtin-recipe');
+  BUILTIN_RECIPES.forEach(r => sel.add(new Option(r.label, r.id)));
+  const showHint = () => { const r = BUILTIN_RECIPES.find(x => x.id === sel.value); ctrl('builtin-recipe-hint').textContent = (r ? r.hint + ' ' : '') + 'Builds the whole chain in one click; it replaces the current Element, palette and gallery.'; };
+  sel.addEventListener('change', showHint); showHint();
+  ctrl('btn-builtin-recipe').addEventListener('click', () => runBuiltinRecipe(BUILTIN_RECIPES.find(x => x.id === sel.value)));
+})();
+
 // ── Variants / Plates / Recipe ─────────────────────────────────────
 // One geometry, many outputs. tierSVG() is the single SVG builder for
 // the active tier (the same functions the normal SVG export uses), so a
