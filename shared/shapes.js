@@ -58,10 +58,15 @@
   //                    ring is the outer scaled toward the incentre and wound
   //                    the opposite way, so the default nonzero fill-rule cuts
   //                    the hole (same trick as wedgePathD, no fill-rule attr)
-  function triRing(pts, cornerPct, curvePct) {
+  // Also drives Polygon's extras (any vertex count): `centre` overrides the
+  // ring's own mean (curvature bows AWAY from it — Polygon's Step loops must
+  // use the shape's true centre), `style` picks the corner join — 'round' (the
+  // quadratic through the vertex, default), 'chamfer' (straight cut) or 'scoop'
+  // (the quadratic mirrored across the chord → concave).
+  function triRing(pts, cornerPct, curvePct, centre, style) {
     const n = pts.length, f = cornerPct / 100 * 0.5;
     const r2 = v => Math.round(v * 1000) / 1000;
-    const cx = (pts[0][0] + pts[1][0] + pts[2][0]) / 3, cy = (pts[0][1] + pts[1][1] + pts[2][1]) / 3;
+    const cx = centre ? centre[0] : pts.reduce((a, p) => a + p[0], 0) / n, cy = centre ? centre[1] : pts.reduce((a, p) => a + p[1], 0) / n;
     const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
     const quad = (P, C, Q, t) => { const u = 1 - t; return [u * u * P[0] + 2 * u * t * C[0] + t * t * Q[0], u * u * P[1] + 2 * u * t * C[1] + t * t * Q[1]]; };
     const edges = [], samples = [];
@@ -92,7 +97,12 @@
     for (let i = 0; i < n; i++) {
       const e = edges[i];
       d += e.c ? `Q ${fmt(e.c)} ${fmt(e.p1)} ` : `L ${fmt(e.p1)} `;
-      if (f > 0) d += `Q ${fmt(e.v)} ${fmt(edges[(i + 1) % n].p0)} `;
+      if (f > 0) {
+        const nx = edges[(i + 1) % n].p0;
+        if (style === 'chamfer') d += `L ${fmt(nx)} `;
+        else if (style === 'scoop') d += `Q ${fmt([e.p1[0] + nx[0] - e.v[0], e.p1[1] + nx[1] - e.v[1]])} ${fmt(nx)} `;
+        else d += `Q ${fmt(e.v)} ${fmt(nx)} `;
+      }
     }
     return { d: d + 'Z', samples };
   }
@@ -681,7 +691,55 @@
     }
     return roundedPolyPathD(pts, cornerRadiusPct);
   }
-  function polygonGeometry(sides, cornerRadiusPct, irregularityPct, seed, radiusPct) {
+  // Polygon extras (Rotate · Step (star polygon {n/k}) · Corner style · Edge
+  // curvature · Outline (hollow) · Angle jitter). All at default →
+  // polygonPathD untouched (byte-identical). Active → polygonBuild: same
+  // vertices (same rng order, so Irregularity looks identical), each Step loop
+  // through triRing. Outward curvature can pass the box → shrink+recentre only
+  // on overflow (Triangle's pattern).
+  function polygonExtrasActive(o) {
+    return !!o && ((o.rotate || 0) !== 0 || (o.step || 1) > 1 || (o.curve || 0) !== 0 || (o.outline || 0) > 0 || (o.skew || 0) > 0 || (o.style && o.style !== 'round'));
+  }
+  function polygonBuild(sides, cornerPct, irregularityPct, seed, radiusPct, o) {
+    sides = Math.max(3, Math.round(sides == null ? 6 : sides));
+    const cl = (v, lo, hi) => Math.min(hi, Math.max(lo, v == null ? 0 : v));
+    const irregular = cl(irregularityPct, 0, 100) / 100, corner = cl(cornerPct, 0, 100);
+    const R = 50 * Math.min(100, Math.max(10, radiusPct == null ? 100 : radiusPct)) / 100;
+    const rot = cl(o.rotate, -180, 180), curve = cl(o.curve, -100, 100), outline = cl(o.outline, 0, 95), skew = cl(o.skew, 0, 100) / 100;
+    const kMax = Math.max(1, Math.floor((sides - 1) / 2)), step = Math.min(kMax, Math.max(1, Math.round(o.step || 1)));
+    const style = o.style === 'chamfer' || o.style === 'scoop' ? o.style : 'round';
+    const rng = Organica.mulberry32((seed == null ? 1 : seed) >>> 0);
+    const rng2 = skew > 0 ? Organica.mulberry32(((seed == null ? 1 : seed) ^ 0x9e3779b9) >>> 0) : null;
+    const pts = [];
+    for (let i = 0; i < sides; i++) {
+      const jit = rng2 ? (rng2() - 0.5) * 2 * skew * 0.45 * (360 / sides) : 0;
+      const t = (i * 360 / sides - 90 + rot + jit) * Math.PI / 180;
+      const rad = R * (1 - irregular * 0.5 + rng() * irregular);
+      pts.push([50 + rad * Math.cos(t), 50 + rad * Math.sin(t)]);
+    }
+    const gcd = (a, b) => b ? gcd(b, a % b) : a, g = gcd(sides, step), per = sides / g;
+    const centre = [50, 50];
+    let d = '', x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let l = 0; l < g; l++) {
+      const loop = [];
+      for (let j = 0; j < per; j++) loop.push(pts[(l + j * step) % sides]);
+      const ring = triRing(loop, corner, curve, centre, style);
+      d += (d ? ' ' : '') + ring.d;
+      ring.samples.forEach(q => { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); });
+      if (outline > 0 && step === 1) {
+        const k = 1 - outline / 100;
+        const inner = loop.slice().reverse().map(q => [50 + (q[0] - 50) * k, 50 + (q[1] - 50) * k]);   // reversed winding cuts the hole
+        d += ' ' + triRing(inner, corner, curve, centre, style).d;
+      }
+    }
+    if (x0 < 0 || y0 < 0 || x1 > 100 || y1 > 100) {
+      const sc = Math.min(1, 100 / Math.max(x1 - x0, 1e-6), 100 / Math.max(y1 - y0, 1e-6));
+      return { d, normTx: 50 / sc - (x0 + x1) / 2, normTy: 50 / sc - (y0 + y1) / 2, normScale: sc };
+    }
+    return { d, normTx: 0, normTy: 0, normScale: 1 };
+  }
+  function polygonGeometry(sides, cornerRadiusPct, irregularityPct, seed, radiusPct, opts) {
+    if (polygonExtrasActive(opts)) return polygonBuild(sides, cornerRadiusPct, irregularityPct, seed, radiusPct, opts);
     return { d: polygonPathD(sides, cornerRadiusPct, irregularityPct, seed, radiusPct), normTx: 0, normTy: 0, normScale: 1 };
   }
 
@@ -979,7 +1037,7 @@
   Organica.shapes = {
     scalePathAbout, triangleGeometry, arcGeometry, arcBuild, arcExtrasActive, arcPathD, circleGeometry, segmentGeometry, dropGeometry, blobGeometry, fitToBox,
     arcTruchetGeometry, arcTruchetPathD, truchetExtrasActive,
-    wedgeGeometry, wedgePathD, wedgeExtrasActive, polygonGeometry, polygonPathD, starGeometry, starPathD,
+    wedgeGeometry, wedgePathD, wedgeExtrasActive, polygonGeometry, polygonPathD, polygonExtrasActive, starGeometry, starPathD,
     roundedRectGeometry, roundedRectPathD, chevronGeometry, chevronPathD,
     crossGeometry, crossPathD, lensGeometry, lensPathD,
     resolveGridCells, resolveCellPlacement, cellColRow, frameSize, median,

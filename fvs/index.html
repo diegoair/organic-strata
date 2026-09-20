@@ -513,9 +513,25 @@
       </div>
       <div id="seed-polygon-block" style="display:none">
         <div class="ctrl-row">
+          <div class="ctrl-label" title="Shortcut that sets Sides (and Rotate for Square). Reads Custom as soon as you move either by hand.">Type</div>
+          <select class="panel-select" id="sel-poly-type" aria-label="Polygon type">
+            <option value="triangle">Triangle</option>
+            <option value="square">Square</option>
+            <option value="pentagon">Pentagon</option>
+            <option value="hexagon" selected>Hexagon</option>
+            <option value="octagon">Octagon</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
           <div class="ctrl-label">Sides</div>
           <input type="range" id="rg-poly-sides" min="3" max="20" step="1" value="6">
           <span class="ctrl-val" id="v-poly-sides">6</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Connects every n-th vertex: 2 on 5 sides is a pentagram, 2 on 6 sides two overlapping triangles. Capped by Sides. Style → Stroke shows the crossings.">Step</div>
+          <input type="range" id="rg-poly-step" min="1" max="9" step="1" value="1">
+          <span class="ctrl-val" id="v-poly-step">1</span>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label">Corner radius</div>
@@ -523,9 +539,37 @@
           <span class="ctrl-val" id="v-poly-corner">0</span>
         </div>
         <div class="ctrl-row">
+          <div class="ctrl-label" title="How the corners are cut when Corner radius is above 0.">Corner style</div>
+          <select class="panel-select" id="sel-poly-style" aria-label="Polygon corner style">
+            <option value="round" selected>Round</option>
+            <option value="chamfer">Chamfer</option>
+            <option value="scoop">Scoop</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Bows every edge — positive outward, negative inward.">Edge curvature</div>
+          <input type="range" id="rg-poly-curve" min="-100" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-poly-curve">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Hollow ring — wall thickness as a % of the polygon's inradius, so 0 is solid. Real geometry, separate from Style → Stroke. Ignored when Step is above 1.">Outline (hollow)</div>
+          <input type="range" id="rg-poly-outline" min="0" max="95" step="1" value="0">
+          <span class="ctrl-val" id="v-poly-outline">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Rotates the polygon about the cell centre, in degrees.">Rotate</div>
+          <input type="range" id="rg-poly-rotate" min="-180" max="180" step="1" value="0">
+          <span class="ctrl-val" id="v-poly-rotate">0</span>
+        </div>
+        <div class="ctrl-row">
           <div class="ctrl-label" title="Jitters each vertex's own radius — 0 stays a perfectly regular polygon.">Irregularity</div>
           <input type="range" id="rg-poly-irregular" min="0" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-poly-irregular">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Jitters each vertex's angle (uneven side lengths). Independent of Irregularity, which jitters the radius.">Angle jitter</div>
+          <input type="range" id="rg-poly-skew" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-poly-skew">0</span>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Same seed always reproduces the same irregular silhouette.">Seed</div>
@@ -1504,7 +1548,7 @@ const SEED_TYPES = {
   arc: { label: 'Arc', geometry: (p) => arcGeometry(p.thickness, p.arcPivot, p.arcSweep, { start: p.arcStart, round: p.arcRound, segs: p.arcSegs, gap: p.arcGap, taper: p.arcTaper, irregular: p.arcIrregular, seed: p.arcSeed }) },
   arctruchet: { label: 'Arc truchet', geometry: (p) => arcTruchetGeometry(p.arcCount, p.arcRatio, { fans: p.truFans, core: p.truCore, spread: p.truSpread, reach: p.truReach, ramp: p.truRamp, curve: p.truCurve, round: p.truRound, segs: p.truSegs, gap: p.truGap }) },
   wedge: { label: 'Wedge', geometry: (p) => wedgeGeometry(p.wedgeAngle, p.wedgeInner, p.wedgeSquash, { round: p.wedgeRound, rotate: p.wedgeRotate, curve: p.wedgeCurve, irregular: p.wedgeIrregular, seed: p.wedgeSeed }) },
-  polygon: { label: 'Polygon', geometry: (p) => polygonGeometry(p.polySides, p.polyCorner, p.polyIrregular, p.polySeed, p.polyRadius) },
+  polygon: { label: 'Polygon', geometry: (p) => polygonGeometry(p.polySides, p.polyCorner, p.polyIrregular, p.polySeed, p.polyRadius, { rotate: p.polyRotate, step: p.polyStep, style: p.polyStyle, curve: p.polyCurve, outline: p.polyOutline, skew: p.polySkew }) },
   star: { label: 'Star', geometry: (p) => starGeometry(p.starPoints, p.starInner, p.starIrregular, p.starSeed, p.starRadius) },
   roundedrect: { label: 'Rounded rect', geometry: (p) => roundedRectGeometry(p.rrWidth, p.rrHeight, p.rrCorner) },
   chevron: { label: 'Chevron', geometry: (p) => chevronGeometry(p.chevNotch, p.chevArm, p.chevSquash) },
@@ -1565,7 +1609,7 @@ for (const k of Object.keys(SEED_TYPES)) {
 const SYMBOL_ARC_TRUCHET = { arcCount: 5, arcRatio: 0.7, truFans: 2, truCore: 0, truSpread: 180, truReach: 100, truRamp: 0, truCurve: 0, truRound: 0, truSegs: 1, truGap: 20 };   // fixed defaults for the Symbols tier
 const SYMBOL_ARC = { arcPivot: 'corner', arcSweep: 90, arcStart: 0, arcRound: 0, arcSegs: 1, arcGap: 20, arcTaper: 0, arcIrregular: 0, arcSeed: 1 };   // Symbols stay a plain quarter arc
 const SYMBOL_WEDGE = { wedgeAngle: 90, wedgeInner: 0, wedgeSquash: 100, wedgeRound: 0, wedgeRotate: 0, wedgeCurve: 0, wedgeIrregular: 0, wedgeSeed: 1 };
-const SYMBOL_POLYGON = { polySides: 6, polyCorner: 0 };
+const SYMBOL_POLYGON = { polySides: 6, polyCorner: 0, polyRotate: 0, polyStep: 1, polyStyle: 'round', polyCurve: 0, polyOutline: 0, polySkew: 0 };
 const SYMBOL_STAR = { starPoints: 5, starInner: 45 };
 const SYMBOL_ROUNDEDRECT = { rrWidth: 100, rrHeight: 100, rrCorner: 0 };
 const SYMBOL_CHEVRON = { chevNotch: 40, chevArm: 55 };
@@ -1726,6 +1770,12 @@ function getSeed() {
     wedgeSeed: val('rg-wedge-seed'),
     polySides: val('rg-poly-sides'),
     polyCorner: val('rg-poly-corner'),
+    polyRotate: val('rg-poly-rotate'),
+    polyStep: val('rg-poly-step'),
+    polyStyle: ctrl('sel-poly-style').value,
+    polyCurve: val('rg-poly-curve'),
+    polyOutline: val('rg-poly-outline'),
+    polySkew: val('rg-poly-skew'),
     polyIrregular: val('rg-poly-irregular'),
     polySeed: val('rg-poly-seed'),
     starPoints: val('rg-star-points'),
@@ -3137,6 +3187,11 @@ function applyLibraryEntryToUI(entry) {
     ctrl('rg-wedge-' + id).value = v; ctrl('v-wedge-' + id).textContent = v;
   });
   if (entry.seed.polySides != null) { ctrl('rg-poly-sides').value = entry.seed.polySides; ctrl('v-poly-sides').textContent = entry.seed.polySides; }
+  [['polyRotate', 'rotate', 0], ['polyStep', 'step', 1], ['polyCurve', 'curve', 0], ['polyOutline', 'outline', 0], ['polySkew', 'skew', 0]].forEach(([k, id, def]) => {
+    const v = entry.seed[k] != null ? entry.seed[k] : def;
+    ctrl('rg-poly-' + id).value = v; ctrl('v-poly-' + id).textContent = v;
+  });
+  ctrl('sel-poly-style').value = entry.seed.polyStyle || 'round';
   if (entry.seed.polyCorner != null) { ctrl('rg-poly-corner').value = entry.seed.polyCorner; ctrl('v-poly-corner').textContent = entry.seed.polyCorner; }
   if (entry.seed.polyIrregular != null) { ctrl('rg-poly-irregular').value = entry.seed.polyIrregular; ctrl('v-poly-irregular').textContent = entry.seed.polyIrregular; }
   if (entry.seed.polySeed != null) { ctrl('rg-poly-seed').value = entry.seed.polySeed; ctrl('v-poly-seed').textContent = entry.seed.polySeed; }
@@ -3173,7 +3228,7 @@ function applyLibraryEntryToUI(entry) {
   ctrl('sel-circle-interior').value = entry.seed.circleInterior || 'solid';
   ctrl('sel-circle-trim').value = entry.seed.circleTrim || 'none';
   ctrl('sel-tru-fans').value = String(entry.seed.truFans || 2);
-  syncTriType(); syncArcType(); syncTruType(); syncWedgeType();
+  syncPolyStepMax(); syncTriType(); syncArcType(); syncTruType(); syncWedgeType(); syncPolyType();
   CIRCLE_PARAMS.forEach(([k, id, def]) => {
     const v = entry.seed[cap(k)] != null ? entry.seed[cap(k)] : def;
     ctrl('rg-circle-' + id).value = v; ctrl('v-circle-' + id).textContent = v;
@@ -4652,7 +4707,29 @@ ctrl('sel-wedge-type').addEventListener('change', e => {
 ctrl('rg-wedge-angle').addEventListener('input', e => { ctrl('v-wedge-angle').textContent = e.target.value; syncWedgeType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-wedge-inner').addEventListener('input', e => { ctrl('v-wedge-inner').textContent = e.target.value; syncWedgeType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-wedge-squash').addEventListener('input', e => { ctrl('v-wedge-squash').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
-ctrl('rg-poly-sides').addEventListener('input', e => { ctrl('v-poly-sides').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+// Polygon Type is a derived shortcut for Sides (+ Rotate for Square, so it stands upright);
+// Step is capped by Sides (a star polygon {n/k} needs k < n/2).
+const POLY_PRESETS = { triangle: [3, 0], square: [4, 45], pentagon: [5, 0], hexagon: [6, 0], octagon: [8, 0] };
+function syncPolyType() {
+  const cur = [val('rg-poly-sides'), val('rg-poly-rotate')];
+  ctrl('sel-poly-type').value = Object.keys(POLY_PRESETS).find(k => POLY_PRESETS[k].every((v, i) => v === cur[i])) || 'custom';
+}
+function syncPolyStepMax() {
+  const max = Math.max(1, Math.floor((val('rg-poly-sides') - 1) / 2)), el = ctrl('rg-poly-step');
+  el.max = max;
+  if (+el.value > max) { el.value = max; ctrl('v-poly-step').textContent = max; }
+}
+ctrl('sel-poly-type').addEventListener('change', e => {
+  const p = POLY_PRESETS[e.target.value];
+  if (!p) return;
+  [['rg-poly-sides', 'v-poly-sides'], ['rg-poly-rotate', 'v-poly-rotate']].forEach(([id, vid], i) => { ctrl(id).value = p[i]; ctrl(vid).textContent = p[i]; });
+  syncPolyStepMax(); renderGallery(); renderSeedPreview();
+});
+ctrl('sel-poly-style').addEventListener('change', () => { renderGallery(); renderSeedPreview(); });
+[['rg-poly-step', 'v-poly-step'], ['rg-poly-curve', 'v-poly-curve'], ['rg-poly-outline', 'v-poly-outline'], ['rg-poly-rotate', 'v-poly-rotate'], ['rg-poly-skew', 'v-poly-skew']].forEach(([id, vid]) => {
+  ctrl(id).addEventListener('input', e => { ctrl(vid).textContent = e.target.value; if (id === 'rg-poly-rotate') syncPolyType(); renderGallery(); renderSeedPreview(); });
+});
+ctrl('rg-poly-sides').addEventListener('input', e => { ctrl('v-poly-sides').textContent = e.target.value; syncPolyStepMax(); syncPolyType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-poly-corner').addEventListener('input', e => { ctrl('v-poly-corner').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-poly-irregular').addEventListener('input', e => { ctrl('v-poly-irregular').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-poly-seed').addEventListener('input', e => { ctrl('v-poly-seed').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
