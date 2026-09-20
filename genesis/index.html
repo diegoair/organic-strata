@@ -534,6 +534,36 @@
               <label class="panel-label">Sweep</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-sweep" min="10" max="350" value="90"><span class="panel-unit" id="gen-sweep-val" style="width:28px">90°</span></div>
             </div>
+            <div class="panel-row" id="row-gen-arctype" style="display:none">
+              <label class="panel-label" title="Shortcut that sets Sweep. Reads Custom as soon as you move Sweep by hand.">Type</label>
+              <select class="panel-select" id="gen-arctype" aria-label="Arc type">
+                <option value="quarter">Quarter</option>
+                <option value="half">Half</option>
+                <option value="threequarter">Three-quarter</option>
+                <option value="ring">Ring</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div class="panel-row" id="row-gen-arcstart" style="display:none">
+              <label class="panel-label" title="Rotates the arc in place.">Start angle</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-arcstart" min="0" max="359" value="0"><span class="panel-unit" id="gen-arcstart-val" style="width:24px">0</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-arcround" style="display:none">
+              <label class="panel-label" title="Rounds the arc's ends — 100 is a full semicircular cap (needs Thickness below 100).">End rounding</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-arcround" min="0" max="100" value="0"><span class="panel-unit" id="gen-arcround-val" style="width:24px">0</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-arcsegs" style="display:none">
+              <label class="panel-label" title="Splits the arc into separate dashes.">Segments</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-arcsegs" min="1" max="24" value="1"><span class="panel-unit" id="gen-arcsegs-val" style="width:24px">1</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-arcgap" style="display:none">
+              <label class="panel-label" title="Gap between segments, as a % of a segment's length.">Segment gap</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-arcgap" min="0" max="80" value="20"><span class="panel-unit" id="gen-arcgap-val" style="width:24px">20</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-arctaper" style="display:none">
+              <label class="panel-label" title="Thins the band toward one end — comet and crescent shapes.">Taper</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-arctaper" min="-100" max="100" value="0"><span class="panel-unit" id="gen-arctaper-val" style="width:24px">0</span></div>
+            </div>
             <div class="panel-row" id="row-gen-len" style="display:none">
               <label class="panel-label">Length</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-len" min="10" max="100" value="70"><span class="panel-unit" id="gen-len-val" style="width:24px">70</span></div>
@@ -734,7 +764,7 @@
   const DEFAULT_GEN = {
     type: 'circle', n: 5, r: 60, thickness: 100,
     w: 60, h: 60, triApex: 0, triCurve: 0, triOutline: 0, corner: 0, irregularity: 0, seed: 1,
-    innerRatio: 45, pivot: 'corner', sweep: 90, len: 70, tail: 50, amount: 40,
+    innerRatio: 45, pivot: 'corner', sweep: 90, arcStart: 0, arcRound: 0, arcSegs: 1, arcGap: 20, arcTaper: 0, len: 70, tail: 50, amount: 40,
   };
 
   let S = {
@@ -1771,6 +1801,16 @@
     $('gen-seed').addEventListener('input', e => { S.gen.seed = parseInt(e.target.value, 10) || 0; renderArt(); });
     $('gen-inner').addEventListener('input', e => { S.gen.innerRatio = parseInt(e.target.value, 10); $('gen-inner-val').textContent = S.gen.innerRatio; renderArt(); });
     $('gen-sweep').addEventListener('input', e => { S.gen.sweep = parseInt(e.target.value, 10); $('gen-sweep-val').textContent = S.gen.sweep + '°'; renderArt(); });
+    const ARC_PRESETS = { quarter: 90, half: 180, threequarter: 270, ring: 350 };
+    const syncArcType = () => { $('gen-arctype').value = Object.keys(ARC_PRESETS).find(k => ARC_PRESETS[k] === S.gen.sweep) || 'custom'; };
+    $('gen-sweep').addEventListener('input', syncArcType);
+    $('gen-arctype').addEventListener('change', e => {
+      const sw = ARC_PRESETS[e.target.value]; if (sw == null) return;
+      S.gen.sweep = sw; $('gen-sweep').value = sw; $('gen-sweep-val').textContent = sw + '°'; markDirty(); renderArt();
+    });
+    [['arcstart', 'arcStart'], ['arcround', 'arcRound'], ['arcsegs', 'arcSegs'], ['arcgap', 'arcGap'], ['arctaper', 'arcTaper']].forEach(([id, key]) => {
+      $('gen-' + id).addEventListener('input', e => { S.gen[key] = parseInt(e.target.value, 10); $('gen-' + id + '-val').textContent = S.gen[key]; if (key === 'arcSegs') syncGenerator(); renderArt(); });
+    });
     $('gen-len').addEventListener('input', e => { S.gen.len = parseInt(e.target.value, 10); $('gen-len-val').textContent = S.gen.len; renderArt(); });
     $('gen-tail').addEventListener('input', e => { S.gen.tail = parseInt(e.target.value, 10); $('gen-tail-val').textContent = S.gen.tail; renderArt(); });
     $('gen-amount').addEventListener('input', e => { S.gen.amount = parseInt(e.target.value, 10); $('gen-amount-val').textContent = S.gen.amount; renderArt(); });
@@ -1934,6 +1974,8 @@
     $('gen-inner').value = g.innerRatio; $('gen-inner-val').textContent = g.innerRatio;
     $('gen-sweep').value = g.sweep; $('gen-sweep-val').textContent = g.sweep + '°';
     $('gen-len').value = g.len; $('gen-len-val').textContent = g.len;
+    [['arcstart', 'arcStart'], ['arcround', 'arcRound'], ['arcsegs', 'arcSegs'], ['arcgap', 'arcGap'], ['arctaper', 'arcTaper']].forEach(([id, key]) => { $('gen-' + id).value = g[key]; $('gen-' + id + '-val').textContent = g[key]; });
+    { const AP = { quarter: 90, half: 180, threequarter: 270, ring: 350 }; $('gen-arctype').value = Object.keys(AP).find(k => AP[k] === g.sweep) || 'custom'; }
     $('gen-tail').value = g.tail; $('gen-tail-val').textContent = g.tail;
     $('gen-amount').value = g.amount; $('gen-amount-val').textContent = g.amount;
     $('gen-pivot-seg').querySelectorAll('.seg-btn').forEach(x => x.classList.toggle('active', x.dataset.pivot === g.pivot));
@@ -2005,11 +2047,13 @@
     show('row-gen-tricurve', t === 'triangle');
     show('row-gen-trioutline', t === 'triangle');
     show('row-gen-corner', t === 'polygon' || t === 'square' || t === 'triangle');
-    show('row-gen-irregularity', t === 'polygon' || t === 'star' || t === 'triangle');
-    show('row-gen-seed', t === 'polygon' || t === 'star' || t === 'blob' || t === 'triangle');
+    show('row-gen-irregularity', t === 'polygon' || t === 'star' || t === 'triangle' || t === 'arc');
+    show('row-gen-seed', t === 'polygon' || t === 'star' || t === 'blob' || t === 'triangle' || t === 'arc');
     show('row-gen-inner', t === 'star');
     show('row-gen-pivot', t === 'arc');
     show('row-gen-sweep', t === 'arc');
+    ['arctype', 'arcstart', 'arcround', 'arcsegs', 'arctaper'].forEach(id => show('row-gen-' + id, t === 'arc'));
+    show('row-gen-arcgap', t === 'arc' && (S.gen.arcSegs || 1) > 1);
     show('row-gen-len', t === 'segment');
     show('row-gen-tail', t === 'drop');
     show('row-gen-amount', t === 'blob');
@@ -2119,6 +2163,8 @@
     const cx = corner ? 0 : 100, cy = corner ? 0 : 100, outerR = corner ? 200 : 90;
     const startDeg = corner ? 0 : -90;
     const innerR = outerR * (1 - S.gen.thickness / 100);
+    const ex = { start: S.gen.arcStart, round: S.gen.arcRound, segs: S.gen.arcSegs, gap: S.gen.arcGap, taper: S.gen.arcTaper, irregular: S.gen.irregularity, seed: S.gen.seed };
+    if (Organica.shapes.arcExtrasActive(ex)) return Organica.shapes.arcBuild(cx, cy, outerR, startDeg, S.gen.sweep, innerR, ex).d;
     return wedgePathD(cx, cy, outerR, startDeg, S.gen.sweep, innerR);
   }
   // Thin wrapper (corner pivot, 90° sweep — the exact old shape) since Basic
@@ -2200,7 +2246,7 @@
     if (isCreatorMode() && S.gen.type !== 'freehand') {
       const g = S.gen;
       if (g.type === 'circle') return sharedShapeMarkup(Organica.shapes.circleGeometry(g.r).d, 2);
-      if (g.type === 'arc') return `<path d="${arcGenPathD()}"/>`;
+      if (g.type === 'arc') return `<path d="${arcGenPathD()}"/>`;   // extras (Start/Rounding/Segments/Taper/Irregularity) go through shared arcBuild inside
       // Every kind but Arc and Square draws through shared/shapes.js (the
       // geometry FVS's Element step uses): Genesis's own sliders map onto the
       // shared functions' params, and sharedShapeMarkup() re-centres their
