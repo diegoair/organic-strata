@@ -3939,7 +3939,8 @@ function tileSelectedInGrid() {
   pushUndo();
   const name = 'Tile · ' + comp.id;
   const all = LIBRARY.read();
-  if (!all[name]) { all[name] = { ...buildLibraryEntry(), auto: true }; LIBRARY.write(all); }
+  // always refreshed: the id stays the same when the Element/colours change, so a cached copy would go stale
+  all[name] = { ...buildLibraryEntry(), auto: true }; LIBRARY.write(all);
   state.fvsGridComponentName = name;
   setTier('grid');
   renderFvsGridPicker(); renderFvsGrid();
