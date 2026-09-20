@@ -475,6 +475,41 @@
           <input type="range" id="rg-wedge-squash" min="30" max="100" step="1" value="100">
           <span class="ctrl-val" id="v-wedge-squash">100</span>
         </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Shortcut that sets Angle and Inner radius. Reads Custom as soon as you move either by hand.">Type</div>
+          <select class="panel-select" id="sel-wedge-type" aria-label="Wedge type">
+            <option value="quarter" selected>Quarter</option>
+            <option value="half">Half</option>
+            <option value="threequarter">Three-quarter</option>
+            <option value="ring">Ring</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Rounds every corner, including the apex (needs Angle below 180 for the apex). No effect at 360°.">Corner rounding</div>
+          <input type="range" id="rg-wedge-round" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-wedge-round">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Rotates the wedge about the cell centre, in degrees.">Rotate</div>
+          <input type="range" id="rg-wedge-rotate" min="-180" max="180" step="1" value="0">
+          <span class="ctrl-val" id="v-wedge-rotate">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Bows the two straight edges — positive outward, negative inward. No effect at 360°.">Edge curvature</div>
+          <input type="range" id="rg-wedge-curve" min="-100" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-wedge-curve">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Wobbles the outline. 0 is a clean wedge.">Irregularity</div>
+          <input type="range" id="rg-wedge-irregular" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-wedge-irregular">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Same seed, same wobble.">Seed</div>
+          <input type="range" id="rg-wedge-seed" min="1" max="99" step="1" value="1">
+          <span class="ctrl-val" id="v-wedge-seed">1</span>
+        </div>
       </div>
       <div id="seed-polygon-block" style="display:none">
         <div class="ctrl-row">
@@ -1468,7 +1503,7 @@ const SEED_TYPES = {
   triangle: { label: 'Triangle', geometry: (p) => triangleGeometry(p.base, p.height, p.triApex, { corner: p.triCorner, curve: p.triCurve, irregular: p.triIrregular, seed: p.triSeed, outline: p.triOutline }) },
   arc: { label: 'Arc', geometry: (p) => arcGeometry(p.thickness, p.arcPivot, p.arcSweep, { start: p.arcStart, round: p.arcRound, segs: p.arcSegs, gap: p.arcGap, taper: p.arcTaper, irregular: p.arcIrregular, seed: p.arcSeed }) },
   arctruchet: { label: 'Arc truchet', geometry: (p) => arcTruchetGeometry(p.arcCount, p.arcRatio, { fans: p.truFans, core: p.truCore, spread: p.truSpread, reach: p.truReach, ramp: p.truRamp, curve: p.truCurve, round: p.truRound, segs: p.truSegs, gap: p.truGap }) },
-  wedge: { label: 'Wedge', geometry: (p) => wedgeGeometry(p.wedgeAngle, p.wedgeInner, p.wedgeSquash) },
+  wedge: { label: 'Wedge', geometry: (p) => wedgeGeometry(p.wedgeAngle, p.wedgeInner, p.wedgeSquash, { round: p.wedgeRound, rotate: p.wedgeRotate, curve: p.wedgeCurve, irregular: p.wedgeIrregular, seed: p.wedgeSeed }) },
   polygon: { label: 'Polygon', geometry: (p) => polygonGeometry(p.polySides, p.polyCorner, p.polyIrregular, p.polySeed, p.polyRadius) },
   star: { label: 'Star', geometry: (p) => starGeometry(p.starPoints, p.starInner, p.starIrregular, p.starSeed, p.starRadius) },
   roundedrect: { label: 'Rounded rect', geometry: (p) => roundedRectGeometry(p.rrWidth, p.rrHeight, p.rrCorner) },
@@ -1529,7 +1564,7 @@ for (const k of Object.keys(SEED_TYPES)) {
 }
 const SYMBOL_ARC_TRUCHET = { arcCount: 5, arcRatio: 0.7, truFans: 2, truCore: 0, truSpread: 180, truReach: 100, truRamp: 0, truCurve: 0, truRound: 0, truSegs: 1, truGap: 20 };   // fixed defaults for the Symbols tier
 const SYMBOL_ARC = { arcPivot: 'corner', arcSweep: 90, arcStart: 0, arcRound: 0, arcSegs: 1, arcGap: 20, arcTaper: 0, arcIrregular: 0, arcSeed: 1 };   // Symbols stay a plain quarter arc
-const SYMBOL_WEDGE = { wedgeAngle: 90, wedgeInner: 0 };
+const SYMBOL_WEDGE = { wedgeAngle: 90, wedgeInner: 0, wedgeSquash: 100, wedgeRound: 0, wedgeRotate: 0, wedgeCurve: 0, wedgeIrregular: 0, wedgeSeed: 1 };
 const SYMBOL_POLYGON = { polySides: 6, polyCorner: 0 };
 const SYMBOL_STAR = { starPoints: 5, starInner: 45 };
 const SYMBOL_ROUNDEDRECT = { rrWidth: 100, rrHeight: 100, rrCorner: 0 };
@@ -1684,6 +1719,11 @@ function getSeed() {
     wedgeAngle: val('rg-wedge-angle'),
     wedgeInner: val('rg-wedge-inner'),
     wedgeSquash: val('rg-wedge-squash'),
+    wedgeRound: val('rg-wedge-round'),
+    wedgeRotate: val('rg-wedge-rotate'),
+    wedgeCurve: val('rg-wedge-curve'),
+    wedgeIrregular: val('rg-wedge-irregular'),
+    wedgeSeed: val('rg-wedge-seed'),
     polySides: val('rg-poly-sides'),
     polyCorner: val('rg-poly-corner'),
     polyIrregular: val('rg-poly-irregular'),
@@ -3092,6 +3132,10 @@ function applyLibraryEntryToUI(entry) {
   if (entry.seed.wedgeAngle != null) { ctrl('rg-wedge-angle').value = entry.seed.wedgeAngle; ctrl('v-wedge-angle').textContent = entry.seed.wedgeAngle; }
   if (entry.seed.wedgeInner != null) { ctrl('rg-wedge-inner').value = entry.seed.wedgeInner; ctrl('v-wedge-inner').textContent = entry.seed.wedgeInner; }
   if (entry.seed.wedgeSquash != null) { ctrl('rg-wedge-squash').value = entry.seed.wedgeSquash; ctrl('v-wedge-squash').textContent = entry.seed.wedgeSquash; }
+  [['wedgeRound', 'round', 0], ['wedgeRotate', 'rotate', 0], ['wedgeCurve', 'curve', 0], ['wedgeIrregular', 'irregular', 0], ['wedgeSeed', 'seed', 1]].forEach(([k, id, def]) => {
+    const v = entry.seed[k] != null ? entry.seed[k] : def;
+    ctrl('rg-wedge-' + id).value = v; ctrl('v-wedge-' + id).textContent = v;
+  });
   if (entry.seed.polySides != null) { ctrl('rg-poly-sides').value = entry.seed.polySides; ctrl('v-poly-sides').textContent = entry.seed.polySides; }
   if (entry.seed.polyCorner != null) { ctrl('rg-poly-corner').value = entry.seed.polyCorner; ctrl('v-poly-corner').textContent = entry.seed.polyCorner; }
   if (entry.seed.polyIrregular != null) { ctrl('rg-poly-irregular').value = entry.seed.polyIrregular; ctrl('v-poly-irregular').textContent = entry.seed.polyIrregular; }
@@ -3129,7 +3173,7 @@ function applyLibraryEntryToUI(entry) {
   ctrl('sel-circle-interior').value = entry.seed.circleInterior || 'solid';
   ctrl('sel-circle-trim').value = entry.seed.circleTrim || 'none';
   ctrl('sel-tru-fans').value = String(entry.seed.truFans || 2);
-  syncTriType(); syncArcType(); syncTruType();
+  syncTriType(); syncArcType(); syncTruType(); syncWedgeType();
   CIRCLE_PARAMS.forEach(([k, id, def]) => {
     const v = entry.seed[cap(k)] != null ? entry.seed[cap(k)] : def;
     ctrl('rg-circle-' + id).value = v; ctrl('v-circle-' + id).textContent = v;
@@ -4590,8 +4634,23 @@ ctrl('rg-arc-sweep').addEventListener('input', syncArcType);
 ctrl('rg-thickness').addEventListener('input', e => { ctrl('v-thickness').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-arc-count').addEventListener('input', e => { ctrl('v-arc-count').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-arc-ratio').addEventListener('input', e => { ctrl('v-arc-ratio').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
-ctrl('rg-wedge-angle').addEventListener('input', e => { ctrl('v-wedge-angle').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
-ctrl('rg-wedge-inner').addEventListener('input', e => { ctrl('v-wedge-inner').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+// Wedge Type is a derived shortcut for Angle + Inner radius (same idea as Arc Type).
+const WEDGE_PRESETS = { quarter: [90, 0], half: [180, 0], threequarter: [270, 0], ring: [360, 50] };
+function syncWedgeType() {
+  const cur = [val('rg-wedge-angle'), val('rg-wedge-inner')];
+  ctrl('sel-wedge-type').value = Object.keys(WEDGE_PRESETS).find(k => WEDGE_PRESETS[k].every((v, i) => v === cur[i])) || 'custom';
+}
+ctrl('sel-wedge-type').addEventListener('change', e => {
+  const p = WEDGE_PRESETS[e.target.value];
+  if (!p) return;
+  [['rg-wedge-angle', 'v-wedge-angle'], ['rg-wedge-inner', 'v-wedge-inner']].forEach(([id, vid], i) => { ctrl(id).value = p[i]; ctrl(vid).textContent = p[i]; });
+  renderGallery(); renderSeedPreview();
+});
+[['rg-wedge-round', 'v-wedge-round'], ['rg-wedge-rotate', 'v-wedge-rotate'], ['rg-wedge-curve', 'v-wedge-curve'], ['rg-wedge-irregular', 'v-wedge-irregular'], ['rg-wedge-seed', 'v-wedge-seed']].forEach(([id, vid]) => {
+  ctrl(id).addEventListener('input', e => { ctrl(vid).textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+});
+ctrl('rg-wedge-angle').addEventListener('input', e => { ctrl('v-wedge-angle').textContent = e.target.value; syncWedgeType(); renderGallery(); renderSeedPreview(); });
+ctrl('rg-wedge-inner').addEventListener('input', e => { ctrl('v-wedge-inner').textContent = e.target.value; syncWedgeType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-wedge-squash').addEventListener('input', e => { ctrl('v-wedge-squash').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-poly-sides').addEventListener('input', e => { ctrl('v-poly-sides').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-poly-corner').addEventListener('input', e => { ctrl('v-poly-corner').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
