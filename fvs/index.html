@@ -71,6 +71,11 @@
   .fvs-seed-preview svg { width: 48px; height: 48px; flex-shrink: 0; border: 1px solid var(--border); display: block; }
 
   .fvs-library { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .fvs-variant-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+  .fvs-variant-row .panel-select { flex: 1; min-width: 0; }
+  .fvs-variant-row input[type="number"] { flex: 0 0 44px; width: 44px; }
+  .fvs-variant-row input[type="color"] { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
+  .fvs-variant-row .mini-btn { flex: 0 0 var(--row-h); width: var(--row-h); padding: 0; }
   .fvs-library-item { position: relative; width: 64px; height: 64px; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; padding: 0; background: none; }
   .fvs-library-item:hover { border-color: var(--mid); }
   .fvs-library-item svg { width: 100%; height: 100%; display: block; }
@@ -218,6 +223,31 @@
           </select>
         </div>
       </div>
+
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__title">Variants</div>
+      <div id="variant-rows"></div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-variant-add">+ Variant</button>
+        <button class="org-btn" id="btn-variant-export">Export SVGs</button>
+      </div>
+      <label class="check-row"><input type="checkbox" id="chk-variant-transparent"><span>Transparent paper</span></label>
+      <p class="org-popover__hint">One SVG per row, same geometry — only Style, ink and stroke width change.</p>
+
+      <div id="plates-block" hidden>
+        <div class="org-popover__divider"></div>
+        <div class="org-popover__title">Plates</div>
+        <div class="org-formats"><button class="org-btn" id="btn-plates-export">One SVG per ink</button></div>
+        <p class="org-popover__hint">Black on transparent, one file per palette colour — for screenprint / riso.</p>
+      </div>
+
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__title">Recipe</div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-recipe-export">Save .json</button>
+        <button class="org-btn" id="btn-recipe-import">Load .json</button>
+      </div>
+      <input type="file" id="file-recipe" accept=".json,application/json" aria-label="Load FVS recipe" class="org-file-input">
     </div>
   </div>
 </div>
@@ -1443,6 +1473,7 @@
 <script src="/shared/tracks.js"></script>
 <script src="/shared/print-size.js"></script>
 <script src="/shared/print-size-panel.js"></script>
+<script src="/shared/plate-export.js"></script>
 <script src="/shared/shapes.js"></script>
 <script src="/shared/shape-appearance.js"></script>
 <script src="/shared/select-picker.js"></script>
@@ -2618,6 +2649,9 @@ const DEFAULT_APPEARANCE = { fillMode: 'fill', strokeW: 4, rounded: true, w: 1, 
 // renders with the appearance it was SAVED with, not whatever the Element
 // panel says now. Entries saved before this field existed fall back to plain.
 let appearanceOverride = null;
+// Export "Variants" override — merged over a saved Symbol's own appearance
+// in renderedSymbolEntrySVG so the Grid tier can change Style too.
+let variantAppearance = null;
 function withAppearance(app, fn) {
   const prev = appearanceOverride;
   appearanceOverride = { ...DEFAULT_APPEARANCE, ...(app || {}) };
@@ -3563,7 +3597,7 @@ function renderedSymbolEntrySVG(entry) {
   state.paperColor = entry.paperColor;
   state.symbolClipEnabled = entry.clipEnabled !== false;
   const size = frameSize(getSymbolGrid());
-  const svgStr = withAppearance(entry.appearance, buildSymbolSVG);
+  const svgStr = withAppearance({ ...entry.appearance, ...(variantAppearance || {}) }, buildSymbolSVG);
   state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip;
   return { size, inner: svgStr.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '') };
 }
@@ -5218,6 +5252,156 @@ function exportByTier(format) {
   if (state.activeTier === 'element') return exportElement(format);
   return exportSelected(format);
 }
+// ── Variants / Plates / Recipe ─────────────────────────────────────
+// One geometry, many outputs. tierSVG() is the single SVG builder for
+// the active tier (the same functions the normal SVG export uses), so a
+// variant / plate is exactly what the preview shows — only Style, ink
+// and paper differ, applied as overrides around that one call.
+const VARIANTS = Organica.presetStore('fvs-variants');
+const DEFAULT_VARIANTS = [
+  { style: 'fill', ink: '#0a9a3e', strokeW: 4 },
+  { style: 'stroke', ink: '#e8321e', strokeW: 5 },
+];
+function readVariants() {
+  try { const v = VARIANTS.read().list; if (Array.isArray(v) && v.length) return v; } catch (e) {}
+  return DEFAULT_VARIANTS.map(v => ({ ...v }));
+}
+function writeVariants(list) { try { VARIANTS.write({ list }); } catch (e) {} }
+let variantList = readVariants();
+
+function tierSVG() {
+  const t = state.activeTier;
+  if (t === 'symbol') return getSymbolGrid() ? buildSymbolSVG() : '';
+  if (t === 'grid') return buildFvsGridSVG();
+  if (t === 'element') return buildSeedPreviewSVG(getSeed(), 0, false, false, 400);
+  const comp = getSelectedComponent();
+  if (!comp) return '';
+  state.selectedRuleSource = comp.ruleSource;
+  const grid = getGrid();
+  return buildComponentSVG(buildComponentItems(comp, grid), getSeed(), frameSize(grid));
+}
+
+// Recolour by string on the finished SVG: every fill/stroke that is not
+// "none" or the paper colour becomes `ink`. Works for every tier alike.
+function recolourSVG(svg, ink, paper) {
+  const p = (paper || '').toLowerCase();
+  return svg.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,8})"/g, (m, attr, c) => c.toLowerCase() === p ? m : `${attr}="${ink}"`);
+}
+
+function renderVariant(v, transparent) {
+  const prev = { colors: state.colors, paper: state.paperColor };
+  const paper = prev.paper;
+  const app = { ...getElementAppearance(), fillMode: v.style, strokeW: v.strokeW, rounded: true };
+  variantAppearance = { fillMode: v.style, strokeW: v.strokeW, rounded: true };
+  state.colors = [v.ink];
+  try {
+    let svg = withAppearance(app, tierSVG);
+    if (!svg) return '';
+    svg = recolourSVG(svg, v.ink, paper);
+    if (transparent) svg = svg.replace(new RegExp(`<rect width="[\\d.]+" height="[\\d.]+" fill="${paper}"/>`, 'i'), '');
+    return svg;
+  } finally { variantAppearance = null; state.colors = prev.colors; state.paperColor = prev.paper; }
+}
+
+function renderVariantRows() {
+  const host = ctrl('variant-rows');
+  host.innerHTML = '';
+  variantList.forEach((v, i) => {
+    const row = document.createElement('div');
+    row.className = 'fvs-variant-row';
+    row.innerHTML = `<select class="panel-select" aria-label="Variant ${i + 1} style"><option value="fill">Fill</option><option value="stroke">Stroke</option></select>`
+      + `<input type="color" aria-label="Variant ${i + 1} ink">`
+      + `<input type="number" class="panel-input" min="1" max="20" aria-label="Variant ${i + 1} stroke width">`
+      + `<button class="mini-btn" aria-label="Remove variant ${i + 1}">×</button>`;
+    const [sel, col, num, del] = row.children;
+    sel.value = v.style; col.value = v.ink; num.value = v.strokeW;
+    num.disabled = v.style !== 'stroke';
+    sel.addEventListener('change', () => { v.style = sel.value; num.disabled = v.style !== 'stroke'; writeVariants(variantList); });
+    col.addEventListener('input', () => { v.ink = col.value; writeVariants(variantList); });
+    num.addEventListener('input', () => { v.strokeW = Math.max(1, +num.value || 1); writeVariants(variantList); });
+    del.addEventListener('click', () => { variantList.splice(i, 1); writeVariants(variantList); renderVariantRows(); });
+    host.appendChild(row);
+  });
+}
+renderVariantRows();
+ctrl('btn-variant-add').addEventListener('click', () => {
+  variantList.push({ style: 'fill', ink: '#000000', strokeW: 4 });
+  writeVariants(variantList); renderVariantRows();
+});
+ctrl('btn-variant-export').addEventListener('click', () => {
+  const transparent = ctrl('chk-variant-transparent').checked;
+  Organica.plateExport.run(variantList.length, {
+    build: i => {
+      const v = variantList[i];
+      const svg = renderVariant(v, transparent);
+      if (!svg) return null;
+      return { blob: new Blob([svg], { type: 'image/svg+xml' }), filename: Organica.stamp(`fvs-${v.style}-${v.ink.slice(1)}`, 'svg') };
+    },
+  });
+});
+
+// Plates: one black-on-transparent SVG per palette colour. Only the
+// shapes painted in ink i survive; every other palette colour → none.
+function plateSVG(svg, colors, i, paper) {
+  const cs = colors.map(c => c.toLowerCase());
+  let out = svg.replace(new RegExp(`<rect width="[\\d.]+" height="[\\d.]+" fill="${paper}"/>`, 'i'), '');
+  out = out.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,8})"/g, (m, attr, c) => {
+    const j = cs.indexOf(c.toLowerCase());
+    return j === -1 ? m : `${attr}="${j === i ? '#000000' : 'none'}"`;
+  });
+  return out;
+}
+function syncPlatesBlock() { ctrl('plates-block').hidden = state.colors.length < 2; }
+ctrl('btn-export').addEventListener('click', syncPlatesBlock);
+ctrl('btn-plates-export').addEventListener('click', () => {
+  const svg = tierSVG(); if (!svg) return;
+  const colors = state.colors.slice(), paper = state.paperColor;
+  Organica.plateExport.run(colors.length, {
+    build: i => ({ blob: new Blob([plateSVG(svg, colors, i, paper)], { type: 'image/svg+xml' }), filename: Organica.stamp(`fvs-plate${i + 1}-${colors[i].slice(1)}`, 'svg') }),
+  });
+});
+
+// Recipe: everything needed to rebuild the current work — Element (with
+// Appearance), the selected Component, the live Symbol, the Grid setup,
+// palette and the variant rows — as one JSON file.
+function buildRecipe() {
+  const symName = state.fvsGridSymbolName;
+  return {
+    tool: 'fvs-recipe', version: 1, tier: state.activeTier,
+    component: buildLibraryEntry(),
+    symbol: buildSymbolLibraryEntry(),
+    grid: { symbolName: symName, symbol: symName ? (SYMBOL_LIBRARY.read()[symName] || null) : null,
+      type: ctrl('sel-fvsgrid-type').value, cellSize: val('rg-fvsgrid-cellsize'), gap: val('rg-fvsgrid-gap'), altFlip: ctrl('chk-fvsgrid-alt-flip').checked },
+    variants: variantList,
+  };
+}
+function applyRecipe(r) {
+  if (!r || r.tool !== 'fvs-recipe') throw new Error('Not an FVS recipe');
+  if (r.component) applyLibraryEntryToUI(r.component);
+  if (r.symbol) applySymbolLibraryEntryToUI(r.symbol);
+  if (r.grid && r.grid.symbol && r.grid.symbolName) {
+    const all = SYMBOL_LIBRARY.read(); all[r.grid.symbolName] = r.grid.symbol; SYMBOL_LIBRARY.write(all);
+    state.fvsGridSymbolName = r.grid.symbolName;
+    ctrl('sel-fvsgrid-type').value = r.grid.type;
+    ctrl('rg-fvsgrid-cellsize').value = r.grid.cellSize; ctrl('rg-fvsgrid-gap').value = r.grid.gap;
+    ctrl('chk-fvsgrid-alt-flip').checked = !!r.grid.altFlip;
+  }
+  if (Array.isArray(r.variants) && r.variants.length) { variantList = r.variants; writeVariants(variantList); renderVariantRows(); }
+  setTier(r.tier || 'component');
+  if (r.tier === 'grid') { renderFvsGridPicker(); renderFvsGrid(); }
+}
+ctrl('btn-recipe-export').addEventListener('click', () => {
+  Organica.downloadText(JSON.stringify(buildRecipe(), null, 2), Organica.stamp('fvs-recipe', 'json'), 'application/json');
+});
+ctrl('btn-recipe-import').addEventListener('click', () => ctrl('file-recipe').click());
+ctrl('file-recipe').addEventListener('change', e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => { try { applyRecipe(JSON.parse(reader.result)); } catch (err) { alert('Recipe not loaded: ' + err.message); } };
+  reader.readAsText(f);
+});
+
 ctrl('btn-export-png').addEventListener('click', () => exportByTier('png'));
 ctrl('btn-export-svg').addEventListener('click', () => exportByTier('svg'));
 
