@@ -794,6 +794,10 @@
     w: 60, h: 60, triApex: 0, triCurve: 0, triOutline: 0, corner: 0, irregularity: 0, seed: 1,
     innerRatio: 45, polyRotate: 0, polyStep: 1, polyStyle: 'round', polyCurve: 0, polyOutline: 0, polySkew: 0, pivot: 'corner', sweep: 90, arcStart: 0, arcRound: 0, arcSegs: 1, arcGap: 20, arcTaper: 0, len: 70, tail: 50, amount: 40,
   };
+  // Star / Segment / Drop / Blob extras — rows, ranges and defaults come from the SAME table FVS uses
+  // (Organica.shapes.EXTRAS in shared/shapes.js); older seeds without the keys load at the defaults.
+  const GX_SHAPES = ['star', 'segment', 'drop', 'blob'];
+  GX_SHAPES.forEach(sh => Organica.shapes.EXTRAS[sh].forEach(r => { DEFAULT_GEN[r.key] = r.def; }));
 
   let S = {
     mode: 'library',
@@ -1815,6 +1819,23 @@
         syncGenerator(); syncImportUI(); renderArt();
       },
     });
+    // Extras rows (Star · Segment · Drop · Blob) — built from the shared table, shown per shape by syncGenerator().
+    { let after = $('row-gen-amount');
+      GX_SHAPES.forEach(sh => Organica.shapes.EXTRAS[sh].forEach(r => {
+        const row = document.createElement('div'); row.className = 'panel-row'; row.id = 'row-gen-x-' + r.key; row.style.display = 'none'; row.dataset.shape = sh;
+        const lab = document.createElement('label'); lab.className = 'panel-label'; lab.textContent = r.label; if (r.title) lab.title = r.title; row.appendChild(lab);
+        if (r.kind === 'select') {
+          const sel = document.createElement('select'); sel.className = 'panel-select'; sel.id = 'gen-x-' + r.key; sel.setAttribute('aria-label', r.label);
+          r.options.forEach(([v, t]) => sel.appendChild(new Option(t, v))); sel.value = r.def; row.appendChild(sel);
+          sel.addEventListener('change', e => { S.gen[r.key] = e.target.value; renderArt(); });
+        } else {
+          const g = document.createElement('div'); g.className = 'panel-input-group';
+          g.innerHTML = `<input type="range" class="panel-range" id="gen-x-${r.key}" min="${r.min}" max="${r.max}" value="${r.def}"><span class="panel-unit" id="gen-x-${r.key}-val" style="width:28px">${r.def}</span>`;
+          row.appendChild(g);
+          g.querySelector('input').addEventListener('input', e => { S.gen[r.key] = parseInt(e.target.value, 10); $('gen-x-' + r.key + '-val').textContent = S.gen[r.key]; renderArt(); });
+        }
+        after.after(row); after = row;
+      })); }
     const polyStepMax = () => {
       const max = Math.max(1, Math.floor((S.gen.n - 1) / 2)), el = $('gen-polystep');
       el.max = max; if (S.gen.polyStep > max) { S.gen.polyStep = max; el.value = max; $('gen-polystep-val').textContent = max; }
@@ -2000,6 +2021,10 @@
     { const el = $('gen-polystep'); el.max = Math.max(1, Math.floor((g.n - 1) / 2)); }
     [['polystep', 'polyStep'], ['polycurve', 'polyCurve'], ['polyoutline', 'polyOutline'], ['polyrotate', 'polyRotate'], ['polyskew', 'polySkew']].forEach(([id, key]) => { $('gen-' + id).value = g[key]; $('gen-' + id + '-val').textContent = g[key]; });
     $('gen-polystyle').value = g.polyStyle || 'round';
+    GX_SHAPES.forEach(sh => Organica.shapes.EXTRAS[sh].forEach(r => {
+      const el = $('gen-x-' + r.key), v = g[r.key] != null ? g[r.key] : r.def; el.value = v;
+      const out = $('gen-x-' + r.key + '-val'); if (out) out.textContent = v;
+    }));
     $('gen-r').value = g.r; $('gen-r-val').textContent = g.r;
     $('gen-thickness').value = g.thickness; $('gen-thickness-val').textContent = g.thickness;
     $('gen-w').value = g.w; $('gen-w-val').textContent = g.w;
@@ -2090,6 +2115,7 @@
     show('row-gen-seed', t === 'polygon' || t === 'star' || t === 'blob' || t === 'triangle' || t === 'arc');
     show('row-gen-inner', t === 'star');
     ['polystep', 'polystyle', 'polycurve', 'polyoutline', 'polyrotate', 'polyskew'].forEach(id => show('row-gen-' + id, t === 'polygon'));
+    GX_SHAPES.forEach(sh => Organica.shapes.EXTRAS[sh].forEach(r => show('row-gen-x-' + r.key, t === sh)));
     show('row-gen-pivot', t === 'arc');
     show('row-gen-sweep', t === 'arc');
     ['arctype', 'arcstart', 'arcround', 'arcsegs', 'arctaper'].forEach(id => show('row-gen-' + id, t === 'arc'));
@@ -2277,6 +2303,14 @@
     });
     return out.join(' ');
   }
+  // S.gen extras → the shared geometry's opts object (keys are 'starRotate' → rotate, 'segWave' → wave, …).
+  const GX_PREFIX = { star: 'star', segment: 'seg', drop: 'drop', blob: 'blob' };
+  const GX_OPT = { starTipRound: 'tipRound', starValleyRound: 'valleyRound', starSkew: 'skew' };
+  function gx(g, shape) {
+    const o = {};
+    Organica.shapes.EXTRAS[shape].forEach(r => { o[GX_OPT[r.key] || r.id] = g[r.key] != null ? g[r.key] : r.def; });
+    return o;
+  }
   function sharedShapeMarkup(d, k) {
     return `<path d="${scalePathD(d, k)}"/>`;
   }
@@ -2297,11 +2331,11 @@
       // Corner is a quadratic cut, not FVS's Rounded rect arc.
       if (g.type === 'triangle') return sharedShapeMarkup(Organica.shapes.triangleGeometry(g.w, g.h, g.triApex, { corner: g.corner, curve: g.triCurve, irregular: g.irregularity, seed: g.seed, outline: g.triOutline }).d, 2);
       if (g.type === 'square') return `<path d="${rectPathD(g.w, g.h, g.corner)}"/>`;
-      if (g.type === 'segment') return sharedShapeMarkup(Organica.shapes.segmentGeometry(g.len).d, 2);
-      if (g.type === 'drop') return sharedShapeMarkup(Organica.shapes.dropGeometry(g.r, g.tail).d, 2);
-      if (g.type === 'blob') return sharedShapeMarkup(Organica.shapes.blobGeometry(g.r, g.amount, g.seed).d, 2);
+      if (g.type === 'segment') return sharedShapeMarkup(Organica.shapes.segmentGeometry(g.len, gx(g, 'segment')).d, 2);
+      if (g.type === 'drop') return sharedShapeMarkup(Organica.shapes.dropGeometry(g.r, g.tail, gx(g, 'drop')).d, 2);
+      if (g.type === 'blob') return sharedShapeMarkup(Organica.shapes.blobGeometry(g.r, g.amount, g.seed, gx(g, 'blob')).d, 2);
       if (g.type === 'polygon') return sharedShapeMarkup(Organica.shapes.polygonGeometry(g.n, g.corner, g.irregularity, g.seed, g.r, { rotate: g.polyRotate, step: g.polyStep, style: g.polyStyle, curve: g.polyCurve, outline: g.polyOutline, skew: g.polySkew }).d, 2);
-      if (g.type === 'star') return sharedShapeMarkup(Organica.shapes.starGeometry(g.n, g.innerRatio, g.irregularity, g.seed, g.r).d, 2);
+      if (g.type === 'star') return sharedShapeMarkup(Organica.shapes.starGeometry(g.n, g.innerRatio, g.irregularity, g.seed, g.r, gx(g, 'star')).d, 2);
       return '';
     }
     // freehand draw / a multi-contour seed being bezier-edited (Edit mode).
