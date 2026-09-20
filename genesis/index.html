@@ -519,6 +519,34 @@
               <label class="panel-label">Seed</label>
               <div class="panel-input-group"><input type="number" class="panel-input" id="gen-seed" value="1" min="0" max="9999"></div>
             </div>
+            <div class="panel-row" id="row-gen-polystep" style="display:none">
+              <label class="panel-label" title="Connects every n-th vertex: 2 on 5 sides is a pentagram. Capped by Sides.">Step</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-polystep" min="1" max="9" value="1"><span class="panel-unit" id="gen-polystep-val" style="width:28px">1</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-polystyle" style="display:none">
+              <label class="panel-label" title="How the corners are cut when Corner rounding is above 0.">Corner style</label>
+              <select class="panel-select" id="gen-polystyle" aria-label="Polygon corner style">
+                <option value="round">Round</option>
+                <option value="chamfer">Chamfer</option>
+                <option value="scoop">Scoop</option>
+              </select>
+            </div>
+            <div class="panel-row" id="row-gen-polycurve" style="display:none">
+              <label class="panel-label" title="Bows every edge — positive outward, negative inward.">Edge curvature</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-polycurve" min="-100" max="100" value="0"><span class="panel-unit" id="gen-polycurve-val" style="width:28px">0</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-polyoutline" style="display:none">
+              <label class="panel-label" title="Hollow ring, thickness as a % of the inradius. Ignored when Step is above 1.">Outline (hollow)</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-polyoutline" min="0" max="95" value="0"><span class="panel-unit" id="gen-polyoutline-val" style="width:28px">0</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-polyrotate" style="display:none">
+              <label class="panel-label" title="Rotates the polygon in place.">Rotate</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-polyrotate" min="-180" max="180" value="0"><span class="panel-unit" id="gen-polyrotate-val" style="width:28px">0</span></div>
+            </div>
+            <div class="panel-row" id="row-gen-polyskew" style="display:none">
+              <label class="panel-label" title="Jitters each vertex's angle (uneven sides).">Angle jitter</label>
+              <div class="panel-input-group"><input type="range" class="panel-range" id="gen-polyskew" min="0" max="100" value="0"><span class="panel-unit" id="gen-polyskew-val" style="width:28px">0</span></div>
+            </div>
             <div class="panel-row" id="row-gen-inner" style="display:none">
               <label class="panel-label">Inner radius</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-inner" min="10" max="90" value="45"><span class="panel-unit" id="gen-inner-val" style="width:24px">45</span></div>
@@ -764,7 +792,7 @@
   const DEFAULT_GEN = {
     type: 'circle', n: 5, r: 60, thickness: 100,
     w: 60, h: 60, triApex: 0, triCurve: 0, triOutline: 0, corner: 0, irregularity: 0, seed: 1,
-    innerRatio: 45, pivot: 'corner', sweep: 90, arcStart: 0, arcRound: 0, arcSegs: 1, arcGap: 20, arcTaper: 0, len: 70, tail: 50, amount: 40,
+    innerRatio: 45, polyRotate: 0, polyStep: 1, polyStyle: 'round', polyCurve: 0, polyOutline: 0, polySkew: 0, pivot: 'corner', sweep: 90, arcStart: 0, arcRound: 0, arcSegs: 1, arcGap: 20, arcTaper: 0, len: 70, tail: 50, amount: 40,
   };
 
   let S = {
@@ -1787,7 +1815,15 @@
         syncGenerator(); syncImportUI(); renderArt();
       },
     });
-    $('gen-n').addEventListener('input', e => { S.gen.n = parseInt(e.target.value, 10); $('gen-n-val').textContent = S.gen.n; renderArt(); });
+    const polyStepMax = () => {
+      const max = Math.max(1, Math.floor((S.gen.n - 1) / 2)), el = $('gen-polystep');
+      el.max = max; if (S.gen.polyStep > max) { S.gen.polyStep = max; el.value = max; $('gen-polystep-val').textContent = max; }
+    };
+    $('gen-n').addEventListener('input', e => { S.gen.n = parseInt(e.target.value, 10); $('gen-n-val').textContent = S.gen.n; polyStepMax(); renderArt(); });
+    [['polystep', 'polyStep'], ['polycurve', 'polyCurve'], ['polyoutline', 'polyOutline'], ['polyrotate', 'polyRotate'], ['polyskew', 'polySkew']].forEach(([id, key]) => {
+      $('gen-' + id).addEventListener('input', e => { S.gen[key] = parseInt(e.target.value, 10); $('gen-' + id + '-val').textContent = S.gen[key]; renderArt(); });
+    });
+    $('gen-polystyle').addEventListener('change', e => { S.gen.polyStyle = e.target.value; renderArt(); });
     $('gen-r').addEventListener('input', e => { S.gen.r = parseInt(e.target.value); $('gen-r-val').textContent = S.gen.r; renderArt(); });
     $('gen-thickness').addEventListener('input', e => { S.gen.thickness = parseInt(e.target.value); $('gen-thickness-val').textContent = S.gen.thickness; renderArt(); });
     $('gen-w').addEventListener('input', e => { S.gen.w = parseInt(e.target.value, 10); $('gen-w-val').textContent = S.gen.w; renderArt(); });
@@ -1961,6 +1997,9 @@
   function syncGenInputsUI() {
     const g = S.gen;
     $('gen-n').value = g.n; $('gen-n-val').textContent = g.n;
+    { const el = $('gen-polystep'); el.max = Math.max(1, Math.floor((g.n - 1) / 2)); }
+    [['polystep', 'polyStep'], ['polycurve', 'polyCurve'], ['polyoutline', 'polyOutline'], ['polyrotate', 'polyRotate'], ['polyskew', 'polySkew']].forEach(([id, key]) => { $('gen-' + id).value = g[key]; $('gen-' + id + '-val').textContent = g[key]; });
+    $('gen-polystyle').value = g.polyStyle || 'round';
     $('gen-r').value = g.r; $('gen-r-val').textContent = g.r;
     $('gen-thickness').value = g.thickness; $('gen-thickness-val').textContent = g.thickness;
     $('gen-w').value = g.w; $('gen-w-val').textContent = g.w;
@@ -2050,6 +2089,7 @@
     show('row-gen-irregularity', t === 'polygon' || t === 'star' || t === 'triangle' || t === 'arc');
     show('row-gen-seed', t === 'polygon' || t === 'star' || t === 'blob' || t === 'triangle' || t === 'arc');
     show('row-gen-inner', t === 'star');
+    ['polystep', 'polystyle', 'polycurve', 'polyoutline', 'polyrotate', 'polyskew'].forEach(id => show('row-gen-' + id, t === 'polygon'));
     show('row-gen-pivot', t === 'arc');
     show('row-gen-sweep', t === 'arc');
     ['arctype', 'arcstart', 'arcround', 'arcsegs', 'arctaper'].forEach(id => show('row-gen-' + id, t === 'arc'));
@@ -2260,7 +2300,7 @@
       if (g.type === 'segment') return sharedShapeMarkup(Organica.shapes.segmentGeometry(g.len).d, 2);
       if (g.type === 'drop') return sharedShapeMarkup(Organica.shapes.dropGeometry(g.r, g.tail).d, 2);
       if (g.type === 'blob') return sharedShapeMarkup(Organica.shapes.blobGeometry(g.r, g.amount, g.seed).d, 2);
-      if (g.type === 'polygon') return sharedShapeMarkup(Organica.shapes.polygonGeometry(g.n, g.corner, g.irregularity, g.seed, g.r).d, 2);
+      if (g.type === 'polygon') return sharedShapeMarkup(Organica.shapes.polygonGeometry(g.n, g.corner, g.irregularity, g.seed, g.r, { rotate: g.polyRotate, step: g.polyStep, style: g.polyStyle, curve: g.polyCurve, outline: g.polyOutline, skew: g.polySkew }).d, 2);
       if (g.type === 'star') return sharedShapeMarkup(Organica.shapes.starGeometry(g.n, g.innerRatio, g.irregularity, g.seed, g.r).d, 2);
       return '';
     }
