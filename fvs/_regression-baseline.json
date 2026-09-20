@@ -111,5 +111,15 @@
   "cell:reset": "true",
   "undo": "true,true,true",
   "rename": "true,true,zz-renamed,zz-renamed",
-  "quadrant:hint": "true,false"
+  "quadrant:hint": "true,false",
+  "recipe:roundtrip": "true",
+  "print:marks": "24/4/8/0",
+  "print:png": "1369x779xtrue",
+  "symbol:bento:cells": "7",
+  "symbol:bento:svg": "d47d8bd4",
+  "symbol:hex:cells": "17",
+  "symbol:hex:svg": "91a10eb3",
+  "triangle:3x3:mirror": "e38876ea",
+  "triangle:3x3:pinwheel": "930987fb",
+  "triangle:3x3:diagonal": "997c3536"
 }

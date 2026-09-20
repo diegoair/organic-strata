@@ -221,6 +221,7 @@
       <div class="org-formats">
         <button class="org-btn" id="btn-export-png">PNG</button>
         <button class="org-btn" id="btn-export-svg">SVG</button>
+        <button class="org-btn" id="btn-export-figma" title="Send the active step's SVG to the Organica Figma plugin">Figma</button>
       </div>
       <p class="org-popover__hint" id="export-hint">Exports the selected component only — click one in the gallery first. Paper background (Palette section), real vector geometry (one path per cell).</p>
       <div class="org-popover__divider"></div>
@@ -5979,6 +5980,14 @@ ctrl('file-recipe').addEventListener('change', e => {
 
 ctrl('btn-export-png').addEventListener('click', () => exportByTier('png'));
 ctrl('btn-export-svg').addEventListener('click', () => exportByTier('svg'));
+// Same channel Spore/Pollen/Halide use: the finished SVG of the active step, posted to the Figma plugin.
+ctrl('btn-export-figma').addEventListener('click', () => {
+  const btn = ctrl('btn-export-figma');
+  const svg = tierSVG();
+  if (!svg) { btn.textContent = 'Nothing to send'; setTimeout(() => { btn.textContent = 'Figma'; }, 1600); return; }
+  Organica.sendToFigma(svg, 'FVS');
+  btn.textContent = 'Sent ↗'; setTimeout(() => { btn.textContent = 'Figma'; }, 1600);
+});
 
 ctrl('sel-component-role').addEventListener('change', e => {
   state.componentRole = e.target.value;

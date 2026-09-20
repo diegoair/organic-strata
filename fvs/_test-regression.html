@@ -34,7 +34,7 @@
 
 <script>
 // Executed INSIDE the FVS page (via eval in the frame), so it sees its globals.
-function battery() {
+async function battery() {
   const H = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16).padStart(8, '0'); };
   // <metadata> carries a timestamp and the last-selected rule name (module state) — neither is geometry.
   const norm = s => s.replace(/"exportedAt":"[^"]*"/g, '"exportedAt":""').replace(/"ruleSource":"[^"]*"/g, '"ruleSource":""');
@@ -190,6 +190,36 @@ function battery() {
   state.colorRule = { ...DEFAULT_COLOR_RULE }; syncColorRuleUI();
   undoStack.length = 0;
 
+  // 12 — recipe JSON round-trip, Print marks, PNG size + DPI, Loom grids as Symbols, Triangle
+  runR('leaf-two-ink'); setTier('component');
+  const rBefore = tierSVG(), rJson = JSON.parse(JSON.stringify(buildRecipe()));
+  state.colors = ['#000000']; buildPalette(); chg('sel-grid-type', 'square2x2');
+  applyRecipe(rJson);
+  put('recipe:roundtrip', norm(rBefore) === norm(tierSVG()));
+  const P1 = { ...printSizePanel };
+  Object.assign(printSizePanel, { getMode: () => 'print', getUnit: () => 'mm', getSize: () => ({ width: 100, height: 100 }), getDpi: () => 300, getBleed: () => 8 });
+  try {
+    const ns = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"><rect width="400" height="200" fill="#ffffff"/></svg>';
+    const wp = printWrapSVG(ns, '#ffffff', true), wn = printWrapSVG(ns, '#ffffff', false);
+    put('print:marks', [(wp.match(/<line/g) || []).length, (wp.match(/<circle/g) || []).length, (wn.match(/<line/g) || []).length, (wn.match(/<circle/g) || []).length].join('/'));
+    const png = await encodeOutput(ns, { format: 'png', scale: 1, paper: '#ffffff', plate: false });
+    const bmp = await createImageBitmap(png), bytes = new Uint8Array(await png.arrayBuffer());
+    let hasPhys = false; for (let i = 0; i < 64; i++) if (bytes[i] === 0x70 && bytes[i + 1] === 0x48 && bytes[i + 2] === 0x59 && bytes[i + 3] === 0x73) hasPhys = true;
+    put('print:png', [bmp.width, bmp.height, hasPhys].join('x'));
+  } finally { Object.assign(printSizePanel, P1); }
+  chg('sel-seed-type', 'arc'); chg('sel-element-fillmode', 'fill');
+  setTier('symbol');
+  ['bento', 'hex'].forEach(k => {
+    ctrl('btn-symbol-grid-' + k).click();
+    state.symbolCells = state.symbolCells.map(c => ({ ...c, source: 'seed', seedType: 'arc', rotation: 0, flipH: false, flipV: false, scale: 1, fitMode: 'fill', color: null }));
+    put('symbol:' + k + ':cells', state.symbolCells.length);
+    put('symbol:' + k + ':svg', buildSymbolSVG());
+  });
+  setTier('component'); reset();
+  chg('sel-seed-type', 'triangle'); chg('sel-element-fillmode', 'fill'); chg('sel-grid-type', 'square3x3');
+  ['mirror', 'pinwheel', 'diagonal'].forEach(m => { chg('sel-rule', m); generate(); const c = state.components[1] || state.components[0]; put('triangle:3x3:' + m, buildComponentSVG(buildComponentItems(c, getGrid()), getSeed(), frameSize(getGrid()))); });
+  chg('sel-rule', 'identity'); chg('sel-grid-type', 'square2x2'); chg('sel-seed-type', 'arc'); undoStack.length = 0;
+
   // tidy the throw-away tiles the recipes wrote into the Component library
   const lib = LIBRARY.read(); Object.keys(lib).filter(k => k.startsWith('Tile · recipe-')).forEach(k => delete lib[k]); LIBRARY.write(lib);
   reset();
@@ -208,7 +238,7 @@ async function run() {
   $('summary').textContent = 'Running…';
   const w = frame.contentWindow;
   if (!w || !w.eval || !w.document || w.document.readyState !== 'complete') { $('summary').textContent = 'FVS is still loading — try again in a second.'; return; }
-  try { last = w.eval('(' + battery.toString() + ')()'); }
+  try { last = await w.eval('(' + battery.toString() + ')()'); }
   catch (e) { $('summary').innerHTML = '<span class="bad">Battery threw: ' + e.message + '</span>'; return; }
   baseline = await loadBaseline();
   const keys = Object.keys(last);
