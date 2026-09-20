@@ -837,6 +837,14 @@
         <input type="range" id="rg-inner-ratio" min="10" max="95" step="1" value="70">
         <span class="ctrl-val" id="v-inner-ratio">70</span>
       </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Where the copies are centred. Centroid keeps the rings evenly spaced on shapes whose bounding-box centre is off-centre (Triangle, Drop, Chevron, Arc, Wedge).">Anchor</div>
+        <select class="panel-select" id="sel-inner-anchor" aria-label="Inner seed anchor">
+          <option value="bbox" selected>Bbox centre</option>
+          <option value="centroid">Centroid</option>
+        </select>
+      </div>
+      <p class="org-panel__hint" id="inner-unsupported" style="display:none">Not available for this shape — its copies would cross instead of nest.</p>
     </div>
 
     <div class="panel-section">
@@ -1595,19 +1603,47 @@ function pathBBox(d) {
   _pathBBoxCache.set(d, bb);
   return bb;
 }
+// Area centroid of a path's filled region: a 24×24 isPointInFill sweep over its
+// bbox (respects holes, works for any command set). Falls back to the bbox centre.
+const _pathCentroidCache = new Map();
+function pathCentroid(d, bb) {
+  if (_pathCentroidCache.has(d)) return _pathCentroidCache.get(d);
+  let c = { x: bb.x + bb.width / 2, y: bb.y + bb.height / 2 };
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('style', 'position:absolute;width:0;height:0;visibility:hidden');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', d);
+  svg.appendChild(path);
+  document.body.appendChild(svg);
+  try {
+    const N = 24; let sx = 0, sy = 0, n = 0;
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+      const pt = svg.createSVGPoint();
+      pt.x = bb.x + (i + 0.5) / N * bb.width; pt.y = bb.y + (j + 0.5) / N * bb.height;
+      if (path.isPointInFill(pt)) { sx += pt.x; sy += pt.y; n++; }
+    }
+    if (n) c = { x: sx / n, y: sy / n };
+  } catch (e) { /* keep bbox centre */ }
+  document.body.removeChild(svg);
+  if (_pathCentroidCache.size > 200) _pathCentroidCache.clear();
+  _pathCentroidCache.set(d, c);
+  return c;
+}
+const INNER_UNSUPPORTED = new Set(['segment', 'arctruchet']);   // open / already multi-ring — copies would cross, not nest
 function withInnerCopies(geo, p) {
   const n = Math.round((p && p.innerCount) || 0);
   if (!(n > 0) || !geo || !geo.d) return geo;
   const ratio = Math.min(0.95, Math.max(0.1, (p.innerRatio == null ? 70 : p.innerRatio) / 100));
   const bb = pathBBox(geo.d);
   if (!bb) return geo;
-  const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
+  const ctr = p.innerAnchor === 'centroid' ? pathCentroid(geo.d, bb) : { x: bb.x + bb.width / 2, y: bb.y + bb.height / 2 };
+  const cx = ctr.x, cy = ctr.y;
   let d = geo.d;
   for (let k = 1; k <= n; k++) d += ' ' + Organica.shapes.scalePathAbout(geo.d, Math.pow(ratio, k), cx, cy);
   return { ...geo, d, fillRule: 'evenodd' };
 }
 for (const k of Object.keys(SEED_TYPES)) {
-  if (k === 'freehandraw') continue;   // the raw drawing stage view stays untouched
+  if (k === 'freehandraw' || INNER_UNSUPPORTED.has(k)) continue;   // the raw drawing stage view stays untouched
   const g0 = SEED_TYPES[k].geometry;
   SEED_TYPES[k].geometry = p => withInnerCopies(g0(p), p);
 }
@@ -1620,7 +1656,7 @@ const SYMBOL_ROUNDEDRECT = { rrWidth: 100, rrHeight: 100, rrCorner: 0 };
 const SYMBOL_CHEVRON = { chevNotch: 40, chevArm: 55 };
 const SYMBOL_CROSS = { crossArmWidth: 35, crossArmLength: 100 };
 const SYMBOL_LENS = { lensWidth: 50 };
-const SYMBOL_INNER = { innerCount: 0, innerRatio: 70 };   // Symbols stay plain shapes
+const SYMBOL_INNER = { innerCount: 0, innerRatio: 70, innerAnchor: 'bbox' };   // Symbols stay plain shapes
 const SYMBOL_TRIANGLE = { triApex: 0, triCorner: 0, triCurve: 0, triIrregular: 0, triSeed: 1, triOutline: 0 };   // Symbols stay a plain triangle
 // Symbols cells carry no per-seed params of their own (same as they already
 // ignore Base/Height/Thickness) — one merged params object covers every
@@ -1780,6 +1816,7 @@ function getSeed() {
     triOutline: val('rg-tri-outline'),
     innerCount: val('rg-inner-count'),
     innerRatio: val('rg-inner-ratio'),
+    innerAnchor: ctrl('sel-inner-anchor').value,
     thickness: val('rg-thickness'),
     arcCount: val('rg-arc-count'),
     arcRatio: val('rg-arc-ratio') / 100,
@@ -3123,6 +3160,9 @@ function syncSeedUI() {
   ctrl('seed-drop-block').style.display = type === 'drop' ? '' : 'none';
   ctrl('seed-blob-block').style.display = type === 'blob' ? '' : 'none';
   ctrl('seed-freehand-block').style.display = type === 'freehand' ? '' : 'none';
+  { const off = INNER_UNSUPPORTED.has(type);
+    ['rg-inner-count', 'rg-inner-ratio', 'sel-inner-anchor'].forEach(id => { ctrl(id).disabled = off; });
+    ctrl('inner-unsupported').style.display = off ? '' : 'none'; }
   syncCircleRows();
   seedPicker.refresh();
   syncFreehandEditor();
@@ -3244,6 +3284,7 @@ function applyLibraryEntryToUI(entry) {
   // Newer Seed params — snapshots saved before they existed simply lack them
   // and fall back to each control's own default (identical to the old shape).
   ctrl('sel-arc-pivot').value = entry.seed.arcPivot || 'corner';
+  ctrl('sel-inner-anchor').value = entry.seed.innerAnchor || 'bbox';
   [['innerCount', 'rg-inner-count', 'v-inner-count', 0], ['innerRatio', 'rg-inner-ratio', 'v-inner-ratio', 70],
    ['triCorner', 'rg-tri-corner', 'v-tri-corner', 0], ['triCurve', 'rg-tri-curve', 'v-tri-curve', 0], ['triIrregular', 'rg-tri-irregular', 'v-tri-irregular', 0],
    ['triSeed', 'rg-tri-seed', 'v-tri-seed', 1], ['triOutline', 'rg-tri-outline', 'v-tri-outline', 0],
@@ -4904,6 +4945,7 @@ function resetSeedShape() {
     const el = ctrl(id);
     if (el.value !== el.defaultValue) { el.value = el.defaultValue; el.dispatchEvent(new Event('input', { bubbles: true })); }
   });
+  { const a = ctrl('sel-inner-anchor'); if (a.value !== 'bbox') { a.value = 'bbox'; a.dispatchEvent(new Event('change', { bubbles: true })); } }
   if (type === 'freehand') { if (fhEditor) fhEditor.clear(); return; }
   const block = document.getElementById('seed-' + type + '-block');
   if (!block) return;
@@ -4951,6 +4993,7 @@ function fitSeedToCanvas() {
 }
 ctrl('btn-fit-seed').addEventListener('click', fitSeedToCanvas);
 ctrl('sel-arc-pivot').addEventListener('change', () => { renderGallery(); renderSeedPreview(); });
+ctrl('sel-inner-anchor').addEventListener('change', () => { renderGallery(); renderSeedPreview(); });
 
 // A Segment has no area — it is invisible as a fill, so picking it switches
 // Style to Stroke (same as Genesis Create).
