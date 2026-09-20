@@ -220,6 +220,37 @@ async function battery() {
   ['mirror', 'pinwheel', 'diagonal'].forEach(m => { chg('sel-rule', m); generate(); const c = state.components[1] || state.components[0]; put('triangle:3x3:' + m, buildComponentSVG(buildComponentItems(c, getGrid()), getSeed(), frameSize(getGrid()))); });
   chg('sel-rule', 'identity'); chg('sel-grid-type', 'square2x2'); chg('sel-seed-type', 'arc'); undoStack.length = 0;
 
+  // 13 — triangle lattice, Empty cells, Orientation rule, Tier grids, Mirror
+  const symLib0 = SYMBOL_LIBRARY.read();
+  try {
+    chg('sel-seed-type', 'triangle'); chg('sel-element-fillmode', 'fill'); state.colors = ['#f0301f']; buildPalette();
+    const mk = (name, n, up, down, empty) => {
+      setTier('symbol'); chg('sel-symbol-tri-n', String(n)); ctrl('btn-symbol-grid-tri').click();
+      chg('sel-symbol-fill', 'rule'); chg('sel-symbol-rule', 'orientation'); chg('sel-rule-ori-up', up); chg('sel-rule-ori-down', down);
+      applySymbolRule({ resetAll: true }); (empty || []).forEach(i => { state.symbolCells[i].source = 'empty'; });
+      const all = SYMBOL_LIBRARY.read(); all[name] = buildSymbolLibraryEntry(); SYMBOL_LIBRARY.write(all);
+      return buildSymbolSVG();
+    };
+    const sa = mk('t-a', 2, 'filled', 'empty'), sb = mk('t-b', 2, 'filled', 'filled', [0]), sc = mk('t-c', 4, 'filled', 'empty');
+    put('tri:sym:a', sa); put('tri:sym:b', sb); put('tri:sym:c', sc);
+    put('tri:counts', [state.symbolCells.length, buildSymbolItems().length, state.symbolCells.filter(c => c.source === 'empty').length].join('/'));
+    const ori = triangleLoomModel(4).cells.map(c => polyOrient(c.points));
+    put('tri:orient', ori.filter(o => o === 'up').length + '/' + ori.filter(o => o === 'down').length);
+    mk('t-d', 2, 'filled', 'filled');
+    put('tri:downturn', state.symbolCells.map(c => c.rotation).join(','));
+    const G = (name, type, rot, mir) => {
+      setTier('grid'); state.fvsGridSymbolName = name; state.fvsGridComponentName = null;
+      chg('sel-fvsgrid-type', type); chg('sel-fvsgrid-rot', rot || '0'); chg('sel-fvsgrid-mirror', mir || 'none');
+      const svg = buildFvsGridSVG(); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); return svg;
+    };
+    const g2 = G('t-a', 'tier2');
+    put('grid:tier2', g2); put('grid:tier1:rot90:v', G('t-a', 'tier1', '90', 'v')); put('grid:tier1:h', G('t-b', 'tier1', '0', 'h'));
+    put('grid:tri3', G('t-a', 'tri3')); put('grid:tier1:vh', G('t-c', 'tier1', '0', 'vh'));
+    const ids = (g2.match(/<clipPath id="[^"]+"/g) || []);
+    put('grid:clipids', ids.length + '/' + new Set(ids).size);
+    put('grid:viewbox', (G('t-a', 'tier1', '90', 'v').match(/viewBox="([^"]+)"/) || [])[1]);
+  } finally { SYMBOL_LIBRARY.write(symLib0); chg('sel-fvsgrid-type', 'square4x4'); setTier('component'); reset(); }
+
   // tidy the throw-away tiles the recipes wrote into the Component library
   const lib = LIBRARY.read(); Object.keys(lib).filter(k => k.startsWith('Tile · recipe-')).forEach(k => delete lib[k]); LIBRARY.write(lib);
   reset();

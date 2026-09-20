@@ -103,6 +103,28 @@ Generate produces a gallery of candidates; click one to select it.
 
 ---
 
+### Triangle lattices, Empty cells, Orientation, Tier and Mirror (Sep 20, 2026)
+
+- **Triangle grid** (Symbol → Grid section): an exact triangular lattice of 2–8 rows
+  (row *r* holds 2r+1 alternating up/down cells). Placement is centred on each cell's
+  bounding box, not its centroid.
+- **Empty** — a Choose-content tile that leaves the cell blank (a deliberate hole);
+  the cell stays selectable and rules never fill it by accident.
+- **Orientation rule** (Symbol → Rule): sets what *up* and *down* triangles hold —
+  Filled or Empty. A filled down cell is turned 180° so it still fills its slot.
+- **Grid step** gains **Triangle 2–4 rows**, **Tier** (one row of three triangles,
+  up-down-up, forming a trapezoid) and **Tier ×2** (two tiers stacked, the stepped
+  "tree" silhouette). Each cell holds the chosen Symbol; down cells are turned 180°.
+- **Rotate figure** (0/90/180/270°) and **Mirror** (none / right edge / bottom edge /
+  both) reflect the whole tiled figure over its own edge; the copy shares that edge.
+
+Worked example — *Form-based FVS, Triangle Symbol*: Element **Triangle**, Fill red →
+Symbol **Triangle grid 2**, Rule **Orientation** (up Filled, down Empty) → the
+Sierpinski triangle; Triangle grid 2 with the top cell Empty and down Filled → the
+trapezoid; Triangle grid 4 → the finer lattice. Save each, then in Grid: **Tier ×2**
+(repeated), **Tier** + Rotate 90° + Mirror right edge (mirrored over one axis, a
+"bow tie"), **Tier** + Mirror bottom edge (a hexagon star).
+
 ## 7. Libraries
 
 - **Component library** — save the selected Component; click the caption under

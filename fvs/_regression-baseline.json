@@ -121,5 +121,18 @@
   "symbol:hex:svg": "91a10eb3",
   "triangle:3x3:mirror": "e38876ea",
   "triangle:3x3:pinwheel": "930987fb",
-  "triangle:3x3:diagonal": "997c3536"
+  "triangle:3x3:diagonal": "997c3536",
+  "tri:sym:a": "153e4a36",
+  "tri:sym:b": "f01785ae",
+  "tri:sym:c": "54b80e65",
+  "tri:counts": "16/10/6",
+  "tri:orient": "10/6",
+  "tri:downturn": "0,0,180,0",
+  "grid:tier2": "cb58d9c5",
+  "grid:tier1:rot90:v": "8c736799",
+  "grid:tier1:h": "025efe27",
+  "grid:tri3": "5ff823c9",
+  "grid:tier1:vh": "7e958cb7",
+  "grid:clipids": "18/18",
+  "grid:viewbox": "0 0 220 220"
 }

@@ -981,6 +981,12 @@
         <select class="panel-select" id="sel-symbol-square-rows" aria-label="Square grid rows"></select>
         <button class="mini-btn" id="btn-symbol-grid-square">Create</button>
       </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Triangle grid</span>
+        <select class="panel-select" id="sel-symbol-tri-n" aria-label="Triangle grid side (rows)"></select>
+        <span class="hint">rows</span>
+        <button class="mini-btn" id="btn-symbol-grid-tri">Create</button>
+      </div>
       <button class="mini-btn" id="btn-symbol-grid-upload" style="width:100%;margin-top:var(--space-2)">Upload Loom grid JSON…</button>
       <div id="symbol-grid-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-symbol-grid-outline"><span>Show loaded grid</span></label>
@@ -1262,10 +1268,20 @@
             <option value="columns">Columns</option>
             <option value="radial">Radial</option>
             <option value="wave">Wave</option>
+            <option value="orientation">Orientation (up / down triangles)</option>
             <option value="random">Random (transforms only)</option>
           </select>
         </div>
 
+        <div id="rp-orientation" class="rule-params" style="display:none">
+          <p class="org-panel__hint">For triangular grids: decide what the up-pointing and the down-pointing cells hold. A filled down cell is turned 180° so it stays a triangle that fills its cell; Empty leaves a hole.</p>
+          <div class="ctrl-row"><div class="ctrl-label">Up cells</div>
+            <select class="panel-select" id="sel-rule-ori-up"><option value="filled">Filled</option><option value="empty">Empty</option></select>
+          </div>
+          <div class="ctrl-row"><div class="ctrl-label">Down cells</div>
+            <select class="panel-select" id="sel-rule-ori-down"><option value="empty">Empty</option><option value="filled">Filled</option></select>
+          </div>
+        </div>
         <div id="rp-oscillator" class="rule-params">
           <div class="ctrl-row"><div class="ctrl-label">Angle step</div>
             <select class="panel-select" id="sel-rule-osc-angle"><option value="90">90°</option><option value="180">180°</option></select>
@@ -1462,6 +1478,11 @@
           <option value="square3x3">Square 3×3</option>
           <option value="square4x4" selected>Square 4×4</option>
           <option value="square6x6">Square 6×6</option>
+          <option value="tri2">Triangle 2 rows</option>
+          <option value="tri3">Triangle 3 rows</option>
+          <option value="tri4">Triangle 4 rows</option>
+          <option value="tier1">Tier (trapezoid of 3)</option>
+          <option value="tier2">Tier ×2 (stepped)</option>
           <option value="loom">Import from Loom (JSON)…</option>
         </select>
       </div>
@@ -1482,6 +1503,21 @@
         <div id="fvsgrid-loom-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       </div>
       <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-fvsgrid-alt-flip"><span>Alternate flip (checkerboard)</span></label>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Rotate figure</div>
+        <select class="panel-select" id="sel-fvsgrid-rot" aria-label="Rotate the tiled figure">
+          <option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Mirror</div>
+        <select class="panel-select" id="sel-fvsgrid-mirror" aria-label="Mirror the figure over its edge">
+          <option value="none">None</option>
+          <option value="v">One axis — right edge</option>
+          <option value="h">One axis — bottom edge</option>
+          <option value="vh">Two axes — right + bottom</option>
+        </select>
+      </div>
       <p class="org-panel__hint">Every cell repeats the picked Symbol at its own resolved size — a Loom import uses that grid's own saved cell geometry (rect or polygon) exactly as exported. "Alternate flip" mirrors every other cell for a less mechanical repeat.</p>
     </div>
     </div>
@@ -3914,6 +3950,14 @@ function getFvsGrid() {
     if (!state.fvsGrid) return null;
     return { kind: 'loom', cellShape: state.fvsGrid.cellShape, cells: state.fvsGrid.cells, width: state.fvsGrid.inner.width, height: state.fvsGrid.inner.height };
   }
+  if (/^tier\d$/.test(type)) {
+    const g = Organica.loadLoomGrid(tierLoomModel(+type[4], Math.max(20, val('rg-fvsgrid-cellsize'))));
+    return { kind: 'loom', tri: true, cellShape: 'polygon', cells: g.cells, width: g.inner.width, height: g.inner.height };
+  }
+  if (/^tri\d$/.test(type)) {
+    const g = Organica.loadLoomGrid(triangleLoomModel(+type[3], Math.max(20, val('rg-fvsgrid-cellsize'))));
+    return { kind: 'loom', tri: true, cellShape: 'polygon', cells: g.cells, width: g.inner.width, height: g.inner.height };
+  }
   const n = type === 'square3x3' ? 3 : type === 'square4x4' ? 4 : type === 'square6x6' ? 6 : 2;
   return { kind: 'square', cols: n, rows: n, cellSize: val('rg-fvsgrid-cellsize'), gap: val('rg-fvsgrid-gap') };
 }
@@ -3982,14 +4026,54 @@ function buildFvsGridSVG() {
   let body = '';
   centers.forEach((c, i) => {
     const cw = c.cellW || c.cellSize, ch = c.cellH || c.cellSize;
-    const target = Math.min(cw, ch);
+    // Triangle lattices: the Symbol's own width matches the cell's width (the cell box is not square)
+    const target = grid.tri ? cw : Math.min(cw, ch);
     const s = target / natSize;
     const tx = size / 2 + c.cx - target / 2, ty = size / 2 + c.cy - target / 2;
     const flipPart = (altFlip && (colRow[i].col + colRow[i].row) % 2 === 1) ? ` translate(${natSize},0) scale(-1,1)` : '';
-    body += `<g transform="translate(${tx.toFixed(3)},${ty.toFixed(3)}) scale(${s.toFixed(4)})${flipPart}">${inner}</g>`;
+    // a tile in a down-pointing cell is turned half a turn so it keeps facing its lattice slot
+    const turn = grid.tri && polyOrient(grid.cells[i].points) === 'down' ? ` rotate(180 ${natSize / 2} ${natSize / 2})` : '';
+    // every tile repeats the Symbol's markup: its clip-cell-N ids must be unique per tile or all tiles share the first one's clip
+    // triangular tiles overlap as boxes: only the grid's own paper rect may paint the ground
+    const tileBase = grid.tri ? inner.replace(/<rect width="[\d.]+" height="[\d.]+" fill="#[0-9a-fA-F]+"\/>/, '') : inner;
+    const tileInner = tileBase.replace(/(id="clip-cell-\d+)"/g, `$1-t${i}"`).replace(/(url\(#clip-cell-\d+)\)/g, `$1-t${i})`);
+    body += `<g transform="translate(${tx.toFixed(3)},${ty.toFixed(3)}) scale(${s.toFixed(4)})${turn}${flipPart}">${tileInner}</g>`;
   });
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`
-    + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${body}</svg>`;
+  const rot = parseInt(ctrl('sel-fvsgrid-rot').value, 10) || 0, mir = ctrl('sel-fvsgrid-mirror').value;
+  if (!rot && mir === 'none') {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`
+      + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${body}</svg>`;
+  }
+  return figureWithMirror(body, centers, size, rot, mir);
+}
+
+// Rotate the tiled figure about its centre, then reflect it over its right and/or
+// bottom edge (the copy shares that edge), then fit the result in a square frame.
+// The figure's box is taken from the cells themselves, so it is exact for
+// rectangular and triangular lattices alike.
+function figureWithMirror(body, centers, size, rot, mir) {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  centers.forEach(c => {
+    const cw = c.cellW || c.cellSize, ch = c.cellH || c.cellSize;
+    x0 = Math.min(x0, c.cx - cw / 2); x1 = Math.max(x1, c.cx + cw / 2);
+    y0 = Math.min(y0, c.cy - ch / 2); y1 = Math.max(y1, c.cy + ch / 2);
+  });
+  const fw = x1 - x0, fh = y1 - y0, quarter = rot % 180 === 90;
+  const bw = quarter ? fh : fw, bh = quarter ? fw : fh;             // box after rotation
+  const mv = mir === 'v' || mir === 'vh', mh = mir === 'h' || mir === 'vh';
+  const mw = bw * (mv ? 2 : 1), mhgt = bh * (mh ? 2 : 1), S = Math.max(mw, mhgt);
+  const cx = size / 2 + (x0 + x1) / 2, cy = size / 2 + (y0 + y1) / 2;   // figure centre in frame coords
+  // rotated figure with its box's top-left at the origin
+  const fig = `<g transform="translate(${r2(bw / 2)},${r2(bh / 2)}) rotate(${rot}) translate(${r2(-cx)},${r2(-cy)})">${body}</g>`;
+  let out = fig;
+  if (mv) out += `<g transform="translate(${r2(2 * bw)},0) scale(-1,1)">${fig}</g>`;
+  if (mh) {
+    const row = out;
+    out += `<g transform="translate(0,${r2(2 * bh)}) scale(1,-1)">${row}</g>`;
+  }
+  const ox = (S - mw) / 2, oy = (S - mhgt) / 2;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${r2(S)} ${r2(S)}" width="${r2(S)}" height="${r2(S)}">`
+    + `<rect width="${r2(S)}" height="${r2(S)}" fill="${state.paperColor}"/><g transform="translate(${r2(ox)},${r2(oy)})">${out}</g></svg>`;
 }
 
 function renderFvsGrid() {
@@ -4124,6 +4208,59 @@ function squareLoomModel(cols, rows, cell = 270) {
   };
 }
 
+// An exact triangular lattice of `n` rows (a triangle of side n): row r holds
+// 2r+1 cells alternating up/down, so the silhouette is a real triangle (Loom's
+// rectangular Triangular grid clips its boundary cells instead). Polygon
+// cells, same model shape as Loom's own Triangular generator.
+function triangleLoomModel(n, side = 200) {
+  const h = side * Math.sqrt(3) / 2, W = side * n, H = h * n;
+  const cells = [];
+  for (let r = 0; r < n; r++) {
+    const y0 = r * h, y1 = y0 + h, left = W / 2 - (r + 1) * side / 2;
+    for (let i = 0; i <= 2 * r; i++) {
+      const x0 = left + i * side / 2;
+      const pts = i % 2 === 0 ? [[x0, y1], [x0 + side, y1], [x0 + side / 2, y0]] : [[x0, y0], [x0 + side, y0], [x0 + side / 2, y1]];
+      // placement anchor = the bbox centre, not the true centroid (h/6 apart on a triangle): a shape fitted to the cell's box must be centred on that box
+      const cx = x0 + side / 2, cy = (y0 + y1) / 2;
+      cells.push({ id: 'c' + cells.length, number: cells.length + 1, points: pts, centroid: [cx, cy] });
+    }
+  }
+  return {
+    version: '1.0',
+    canvas: { width: W, height: H, displayWidth: W, displayHeight: H, unit: 'px', orientation: 'landscape', marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, margin: 0, safeArea: 0, bleed: 0 },
+    grid: { type: 'triangular', solver: 'geometric', cellShape: 'polygon', params: { rows: n }, gap: 0 },
+    cells,
+  };
+}
+// A "tier": one row of three triangles (up, down, up) forming a trapezoid, stacked
+// `stack` times without lattice offset — the stepped silhouette of a tree. Same
+// polygon-cell model as triangleLoomModel (bbox-centre placement anchor).
+function tierLoomModel(stack, side = 200) {
+  const h = side * Math.sqrt(3) / 2, W = 2 * side, H = h * stack;
+  const cells = [];
+  for (let k = 0; k < stack; k++) {
+    const y0 = k * h, y1 = y0 + h;
+    [0, 1, 2].forEach(i => {
+      const x0 = i * side / 2;
+      const pts = i % 2 === 0 ? [[x0, y1], [x0 + side, y1], [x0 + side / 2, y0]] : [[x0, y0], [x0 + side, y0], [x0 + side / 2, y1]];
+      cells.push({ id: 'c' + cells.length, number: cells.length + 1, points: pts, centroid: [x0 + side / 2, (y0 + y1) / 2] });
+    });
+  }
+  return {
+    version: '1.0',
+    canvas: { width: W, height: H, displayWidth: W, displayHeight: H, unit: 'px', orientation: 'landscape', marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, margin: 0, safeArea: 0, bleed: 0 },
+    grid: { type: 'triangular', solver: 'geometric', cellShape: 'polygon', params: { tier: stack }, gap: 0 },
+    cells,
+  };
+}
+// 'up' when the triangle's base is its lower edge (two vertices share the max y), 'down' otherwise; null for non-triangles.
+function polyOrient(points) {
+  if (!points || points.length !== 3) return null;
+  const ys = points.map(p => p[1]), mx = Math.max(...ys), mn = Math.min(...ys);
+  const low = ys.filter(y => Math.abs(y - mx) < 1e-6).length, high = ys.filter(y => Math.abs(y - mn) < 1e-6).length;
+  return low === 2 ? 'up' : high === 2 ? 'down' : null;
+}
+
 function loadSymbolGrid(model) {
   state.symbolGrid = Organica.loadLoomGrid(model);
   state.symbolCells = defaultSymbolCells(getSymbolGrid());
@@ -4167,6 +4304,7 @@ function buildSymbolItems() {
     const c = centers[i];
     if (!c) return null;
     const baseCx = half + c.cx, baseCy = half + c.cy;
+    if (cell.source === 'empty') return null;   // a deliberate hole — nothing is drawn, the cell stays selectable
     if (cell.source === 'component') {
       const entry = library[cell.componentName];
       // A cell can end up pointing at a Component that no longer exists
@@ -4220,6 +4358,7 @@ function cellOverflowInfo(index) {
     if (!entry) return false; // missing-reference placeholder — no fit math to check
     natural = frameSize(entry.grid);
   }
+  if (cell.source === 'empty') return false;
   const place = resolveCellPlacement(c.cellW, c.cellH, natural, cell);
   const itemW = natural * place.scaleX, itemH = natural * place.scaleY;
   return itemW > c.cellW + 0.01 || itemH > c.cellH + 0.01;
@@ -4485,6 +4624,14 @@ const SYMBOL_RULES = {
       return p.flip ? { rotation: 0, flipH: true, flipV: false } : { rotation: p.rotB, flipH: false, flipV: false };
     },
   },
+  orientation: {
+    read: () => ({ up: ctrl('sel-rule-ori-up').value, down: ctrl('sel-rule-ori-down').value }),
+    fn: (ctx, p) => {
+      if (!ctx.orient) return {};
+      const mode = ctx.orient === 'up' ? p.up : p.down;
+      return { empty: mode === 'empty', turn: ctx.orient === 'down' ? 180 : 0 };
+    },
+  },
   rows: {
     read: () => ({ step: parseInt(ctrl('rg-rule-rows-step').value, 10), mode: ctrl('sel-rule-rows-mode').value }),
     fn: (ctx, p) => ({ rotation: p.mode === 'ramp' ? snap90(p.step * ctx.row) : p.step * (ctx.row % 2) }),
@@ -4537,9 +4684,17 @@ function applySymbolRule(opts) {
     flip: ctrl('chk-rule-flip').checked,
     scale: ctrl('chk-rule-scale').checked,
   };
+  const rawCells = (state.symbolGrid && state.symbolGrid.cells) || [];
   state.symbolCells.forEach((cell, i) => {
     if (!opts.resetAll && cell.locked) return;
-    const t = rule.fn(ctxs[i], params, rng);
+    const raw = rawCells[i];
+    const t = rule.fn({ ...ctxs[i], orient: raw && raw.points ? polyOrient(raw.points) : null }, params, rng);
+    // Content-level results (the Orientation rule): a hole, or a filled cell turned to face its lattice slot.
+    if (t.empty != null) {
+      if (t.empty) cell.source = 'empty';
+      else { if (cell.source !== 'seed') { cell.source = 'seed'; cell.seedType = cell.seedType || 'triangle'; } cell.fitMode = 'fill'; cell.rotation = t.turn || 0; }
+      return;
+    }
     if (vary.rotation && t.rotation != null) cell.rotation = snap90(t.rotation);
     if (vary.flip) {
       if (t.flipH != null) cell.flipH = t.flipH;
@@ -4830,6 +4985,8 @@ function renderCellPropertiesPanel() {
   if (isComponent) {
     const exists = first.componentName && LIBRARY.read()[first.componentName];
     label = first.componentName ? (exists ? first.componentName : `⚠ ${first.componentName} (missing)`) : '—';
+  } else if (first.source === 'empty') {
+    label = 'Empty';
   } else if (first.seedType && SEED_TYPES[first.seedType]) {
     label = SEED_TYPES[first.seedType].label;
   }
@@ -4913,6 +5070,17 @@ function renderCellContentOverlayTiles() {
 
   const elWrap = ctrl('symbol-content-overlay__seeds');
   elWrap.innerHTML = '';
+  const emptyBtn = document.createElement('button');
+  emptyBtn.className = 'fvs-library-item';
+  emptyBtn.title = 'Empty — leave the cell blank';
+  emptyBtn.setAttribute('aria-label', 'Use Empty (blank cell)');
+  emptyBtn.innerHTML = '<svg viewBox="0 0 72 72" aria-hidden="true"><rect x="10" y="10" width="52" height="52" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="5 4"/></svg>';
+  emptyBtn.addEventListener('click', () => {
+    contentTarget()(() => ({ source: 'empty', rotation: 0, flipH: false, flipV: false, fitMode: 'fill', scale: 1, padding: 0, anchorX: 0, anchorY: 0 }));
+    closeCellContentOverlay();
+    renderCellPropertiesPanel();
+  });
+  elWrap.appendChild(emptyBtn);
   ['arc', 'arctruchet', 'blob', 'chevron', 'circle', 'cross', 'drop', 'lens', 'polygon', 'roundedrect', 'star', 'triangle', 'wedge'].forEach(type => {   // alphabetical (UI only — generateSymbolCells' seeded seedTypes array is deliberately NOT reordered)
     const svgStr = buildSeedPreviewSVG({ type, ...SYMBOL_SEED_DEFAULTS }, 0, false, false, 72);
     const btn = document.createElement('button');
@@ -4981,7 +5149,7 @@ const SYMBOL_LIBRARY = Organica.presetStore('fvs-symbols');
 // The whole rule block's control values, so a saved Symbol re-opens with
 // its generator intact and re-tunable (cells are also stored resolved, so
 // this is purely additive — an old entry without `rule` still loads).
-const RULE_CONTROL_IDS = ['sel-symbol-fill', 'sel-symbol-rule',
+const RULE_CONTROL_IDS = ['sel-symbol-fill', 'sel-symbol-rule', 'sel-rule-ori-up', 'sel-rule-ori-down',
   'sel-rule-osc-angle', 'rg-rule-osc-shift', 'rg-rule-osc-period', 'rg-rule-osc-phase',
   'sel-rule-chk-rota', 'chk-rule-chk-swap', 'sel-rule-chk-rot', 'chk-rule-chk-flip', 'rg-rule-rows-step', 'sel-rule-rows-mode',
   'rg-rule-cols-step', 'sel-rule-cols-mode', 'chk-rule-radial-snap', 'sel-rule-radial-chir',
@@ -5528,6 +5696,8 @@ ctrl('sel-fvsgrid-type').addEventListener('change', () => { syncFvsGridTypeUI();
 ctrl('rg-fvsgrid-cellsize').addEventListener('input', e => { ctrl('v-fvsgrid-cellsize').textContent = e.target.value; renderFvsGrid(); });
 ctrl('rg-fvsgrid-gap').addEventListener('input', e => { ctrl('v-fvsgrid-gap').textContent = e.target.value; renderFvsGrid(); });
 ctrl('chk-fvsgrid-alt-flip').addEventListener('change', renderFvsGrid);
+ctrl('sel-fvsgrid-rot').addEventListener('change', renderFvsGrid);
+ctrl('sel-fvsgrid-mirror').addEventListener('change', renderFvsGrid);
 // Shared hidden file input between Components' own Grid section and
 // Symbols' Grid section — a flag set right before .click() tells the
 // one 'change' handler which state field to populate.
@@ -5554,6 +5724,8 @@ ctrl('btn-symbol-grid-hex').addEventListener('click', () => loadSymbolGrid(SYMBO
 });
 ctrl('btn-symbol-grid-square').addEventListener('click', () =>
   loadSymbolGrid(squareLoomModel(+ctrl('sel-symbol-square-cols').value, +ctrl('sel-symbol-square-rows').value)));
+for (let n = 2; n <= 8; n++) ctrl('sel-symbol-tri-n').add(new Option(n, n, false, n === 2));
+ctrl('btn-symbol-grid-tri').addEventListener('click', () => loadSymbolGrid(triangleLoomModel(+ctrl('sel-symbol-tri-n').value)));
 ctrl('sel-symbol-loom-preset').addEventListener('change', e => {
   const v = e.target.value;
   if (!v) return;
