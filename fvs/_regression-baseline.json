@@ -82,5 +82,13 @@
   "variant:fill": "2b90939d",
   "variant:stroke": "18ff1745",
   "plate:0": "2038b5fc",
-  "plate:1": "a9b373fc"
+  "plate:1": "a9b373fc",
+  "lib:auto-hidden": "true",
+  "hexKey": "#aabbcc,#a1b2c3,#ffffff",
+  "plate:shorthex": "ebae4db4",
+  "recolour:shorthex": "c352ec69",
+  "print:nonsquare:svg": "5dc07653",
+  "print:nonsquare:dims": "106mmx56mm",
+  "print:nonsquare:px": "1251x661x50",
+  "print:square:px": "1251x1251x100"
 }

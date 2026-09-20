@@ -1652,7 +1652,7 @@ function buildPalette() {
     min: 1,
     max: PALETTE_MAX,
     onChange: (colors) => {
-      state.colors = colors;
+      state.colors = colors.map(hexKey);
       syncColorRuleUI();
       refreshColourViews();
     },
@@ -2991,13 +2991,17 @@ function r2(n) { return Math.round(n * 100) / 100; }
 // frame, not a canvas). Same v1 discipline as the other four tools: a
 // bleed box + a uniform scale(trimWmm/size) group wrapping the SAME body
 // buildComponentSVG() uses, plus crop marks when bleed > 0.
-function printComponentDims(baseSize) {
+function printComponentDims(baseSize, baseH) {
   const unit = printSizePanel.getUnit();
   const sz = printSizePanel.getSize();
   const dpi = printSizePanel.getDpi() || 300;
   const bleedMm = printSizePanel.getBleed();
   const trimWmm = Organica.printSize.toMM(sz.width, unit) || 0;
-  const trimHmm = Organica.printSize.toMM(sz.height, unit) || 0;
+  let trimHmm = Organica.printSize.toMM(sz.height, unit) || 0;
+  // A non-square artwork (a rectangular Loom grid) keeps its own proportions:
+  // the width drives the scale, the trim height follows the viewBox ratio.
+  // Square artwork keeps using the panel's height field, as before.
+  if (baseSize && baseH && Math.abs(baseH - baseSize) > 1e-6) trimHmm = trimWmm * baseH / baseSize;
   const trimWpx = Math.round(Organica.printSize.mmToPx(trimWmm, dpi));
   const trimHpx = Math.round(Organica.printSize.mmToPx(trimHmm, dpi));
   const bleedPx = Math.round(Organica.printSize.mmToPx(bleedMm, dpi));
@@ -3370,6 +3374,32 @@ function syncSeedUI() {
 // is unambiguous regardless of whatever else is on screen at the time. ──
 const LIBRARY = Organica.presetStore('fvs');
 
+// Colours are compared and post-processed as STRINGS on the finished SVG
+// (recolourSVG / plateSVG / the paper-rect strip) — a deliberate choice: one
+// pass works for every tier alike, with no per-tier colour plumbing. That is
+// only sound if one colour has one spelling, so hexKey() folds case and the
+// short #abc form, and every entry point (palette, paper, saved entries,
+// recipes) normalises through it.
+const hexKey = c => {
+  c = String(c == null ? '' : c).trim().toLowerCase();
+  return /^#[0-9a-f]{3}$/.test(c) ? '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3] : c;
+};
+
+// Auto-generated entries ("Tile · <id>", written by tileSelectedInGrid and the
+// recipes so the Grid can tile a Component) are working copies, not the user's
+// own saved work: they carry `auto: true` (older ones are recognised by their
+// name), stay out of every picker/list, and are pruned at boot — the Grid
+// rebuilds one from the live Component and a recipe carries its own entry.
+const isAutoEntry = (name, e) => !!(e && e.auto) || name.startsWith('Tile · ');
+const libraryNames = all => Object.keys(all).filter(n => !isAutoEntry(n, all[n]));
+function pruneAutoLibraryEntries() {
+  const all = LIBRARY.read();
+  const gone = Object.keys(all).filter(n => isAutoEntry(n, all[n]));
+  if (!gone.length) return;
+  gone.forEach(n => delete all[n]);
+  LIBRARY.write(all);
+}
+
 function buildLibraryEntry() {
   const comp = getSelectedComponent();
   if (!comp) return null;
@@ -3526,11 +3556,11 @@ function applyLibraryEntryToUI(entry) {
   }
   syncRuleAvailability();
 
-  state.colors = entry.colors.slice();
+  state.colors = entry.colors.map(hexKey);
   state.colorRule = { ...DEFAULT_COLOR_RULE, ...(entry.colorRule || {}) };
   syncColorRuleUI();
   buildPalette();
-  state.paperColor = entry.paperColor;
+  state.paperColor = hexKey(entry.paperColor);
   paperSwatch.set(entry.paperColor);
 
   const comp = { id: `library-${Date.now()}`, ruleSource: entry.component.ruleSource, cells: entry.component.cells };
@@ -3567,7 +3597,7 @@ function removeUnderlyingComponent() {
 
 function openUnderlyingComponentPicker() {
   const all = LIBRARY.read();
-  const names = Object.keys(all);
+  const names = libraryNames(all);
   ctrl('underlying-component-overlay-empty').style.display = names.length ? 'none' : '';
   const wrap = ctrl('underlying-component-overlay-tiles');
   wrap.innerHTML = '';
@@ -3600,7 +3630,7 @@ function closeUnderlyingComponentPicker() {
 
 function renderLibrary() {
   const all = LIBRARY.read();
-  const names = Object.keys(all);
+  const names = libraryNames(all);
   ctrl('library-empty').style.display = names.length ? 'none' : '';
   const wrap = ctrl('fvs-library');
   wrap.innerHTML = '';
@@ -3747,7 +3777,7 @@ function tileSelectedInGrid() {
   if (!comp) return;
   const name = 'Tile · ' + comp.id;
   const all = LIBRARY.read();
-  if (!all[name]) { all[name] = buildLibraryEntry(); LIBRARY.write(all); renderLibrary(); }
+  if (!all[name]) { all[name] = { ...buildLibraryEntry(), auto: true }; LIBRARY.write(all); }
   state.fvsGridComponentName = name;
   setTier('grid');
   renderFvsGridPicker(); renderFvsGrid();
@@ -3818,10 +3848,11 @@ function renderFvsGrid() {
 function renderFvsGridPicker() {
   const all = SYMBOL_LIBRARY.read();
   const names = Object.keys(all);
-  const compNames = Object.keys(LIBRARY.read());
+  const allComps = LIBRARY.read();
+  const compNames = libraryNames(allComps);
   ctrl('fvsgrid-symbol-empty').style.display = (names.length || compNames.length) ? 'none' : '';
   if (!names.includes(state.fvsGridSymbolName)) state.fvsGridSymbolName = names[0] || null;
-  if (state.fvsGridComponentName && !compNames.includes(state.fvsGridComponentName)) state.fvsGridComponentName = null;
+  if (state.fvsGridComponentName && !allComps[state.fvsGridComponentName]) state.fvsGridComponentName = null;
   const wrap = ctrl('fvsgrid-symbol-picker');
   wrap.innerHTML = '';
   const addTile = (host, name, entry, selected, label, onPick) => {
@@ -4218,7 +4249,7 @@ function generateSymbolCells() {
   if (!grid) return;
   const seed = parseInt(ctrl('num-symbol-seed').value, 10) || 0;
   const rng = mulberry32(seed);
-  const libNames = Object.keys(LIBRARY.read());
+  const libNames = libraryNames(LIBRARY.read());
   const seedTypes = ['triangle', 'arc', 'arctruchet', 'wedge', 'polygon', 'star', 'roundedrect', 'chevron', 'cross', 'lens'];
   const scaleChoices = [0.75, 1, 1.25];
   state.symbolSelection.clear();
@@ -4709,7 +4740,7 @@ function renderCellContentOverlayTiles() {
   });
 
   const library = LIBRARY.read();
-  const libNames = Object.keys(library);
+  const libNames = libraryNames(library);
   ctrl('symbol-content-overlay__components-empty').style.display = libNames.length ? 'none' : '';
   const compWrap = ctrl('symbol-content-overlay__components');
   compWrap.innerHTML = '';
@@ -4835,14 +4866,14 @@ function applySymbolLibraryEntryToUI(entry) {
   state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
   state.symbolCells = entry.cells.map(c => withPlacementDefaults({ ...c }));
   state.symbolSelection.clear();
-  state.colors = entry.colors.slice();
+  state.colors = entry.colors.map(hexKey);
   state.colorRule = { ...DEFAULT_COLOR_RULE, ...(entry.colorRule || {}) };
   syncColorRuleUI();
   // Older saves pinned each cell to its palette colour — release those pins
   // (cellInk) so the palette drives them; genuinely different colours stay.
   state.symbolCells.forEach((c, i) => { if (c.color && String(c.color).toLowerCase() === String(ruleInk(i, symbolCR())).toLowerCase()) c.color = null; });
   buildPalette();
-  state.paperColor = entry.paperColor;
+  state.paperColor = hexKey(entry.paperColor);
   paperSwatch.set(entry.paperColor);
   // Old saved Symbols (pre-Clip-to-cell) have no clipEnabled field — back-
   // filled to true, matching withPlacementDefaults' own convention of
@@ -4921,7 +4952,7 @@ const STEP_EXPORT_HINTS = {
 
 function updateStepHint(tier) {
   let msg = '';
-  if (tier === 'symbol' && Object.keys(LIBRARY.read()).length === 0) {
+  if (tier === 'symbol' && libraryNames(LIBRARY.read()).length === 0) {
     msg = 'No saved Components yet — a Symbol cell can still use a raw Element directly.';
   } else if (tier === 'grid' && Object.keys(SYMBOL_LIBRARY.read()).length === 0) {
     msg = 'No saved Symbols yet — save one in the Symbol step first, then pick it here.';
@@ -5428,7 +5459,7 @@ ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(btn => {
 
 const paperSwatch = Organica.palette.swatch('paper', {
   initial: '#ffffff',
-  onChange: (hex) => { state.paperColor = hex; renderGallery(); renderSeedPreview(); if (state.symbolGrid) renderSymbolCanvasOnly(); },
+  onChange: (hex) => { state.paperColor = hexKey(hex); renderGallery(); renderSeedPreview(); if (state.symbolGrid) renderSymbolCanvasOnly(); },
 });
 
 ctrl('chk-axis-rotation').addEventListener('change', syncExhaustiveHint);
@@ -5488,7 +5519,7 @@ function runBuiltinRecipe(def) {
   Object.entries(def.element.params || {}).forEach(([id, v]) => fireInput(id, v));
   fireChange('sel-element-fillmode', def.style || 'fill');
   if (def.strokeW) fireInput('rg-element-strokew', def.strokeW);
-  state.colors = def.colors.slice();
+  state.colors = def.colors.map(hexKey);
   state.colorRule = { ...DEFAULT_COLOR_RULE, ...(def.colorRule || {}) };
   syncColorRuleUI();
   buildPalette();
@@ -5547,8 +5578,8 @@ function tierSVG() {
 // Recolour by string on the finished SVG: every fill/stroke that is not
 // "none" or the paper colour becomes `ink`. Works for every tier alike.
 function recolourSVG(svg, ink, paper) {
-  const p = (paper || '').toLowerCase();
-  return svg.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,8})"/g, (m, attr, c) => c.toLowerCase() === p ? m : `${attr}="${ink}"`);
+  const p = hexKey(paper);
+  return svg.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,8})"/g, (m, attr, c) => hexKey(c) === p ? m : `${attr}="${ink}"`);
 }
 
 function renderVariant(v, transparent) {
@@ -5600,10 +5631,10 @@ ctrl('btn-variant-add').addEventListener('click', () => {
 // physical-mm wrapper with bleed, crop marks, and — plates only — registration
 // marks) → SVG blob, or a rasterised PNG (screen: base×scale; print: exact
 // px from the panel's size/DPI, with the DPI written into the file).
-function svgBaseSize(svg) { const m = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/); return m ? parseFloat(m[1]) : 400; }
+function svgBaseDims(svg) { const m = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/); return m ? { w: parseFloat(m[1]), h: parseFloat(m[2]) } : { w: 400, h: 400 }; }
 function svgInnerOf(svg) { return svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, ''); }
 function printWrapSVG(svg, paper, plate) {
-  const base = svgBaseSize(svg), p = printComponentDims(base);
+  const bd = svgBaseDims(svg), base = bd.w, p = printComponentDims(base, bd.h);
   const bw = p.trimWmm + 2 * p.bleedMm, bh = p.trimHmm + 2 * p.bleedMm;
   let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(bw)}mm" height="${r2(bh)}mm" viewBox="0 0 ${r2(bw)} ${r2(bh)}">`;
   if (paper && paper !== 'none') out += `<rect width="100%" height="100%" fill="${paper}"/>`;
@@ -5616,10 +5647,10 @@ async function encodeOutput(svg, { format, scale, paper, plate }) {
   const print = printSizePanel.getMode() === 'print';
   const doc = print ? printWrapSVG(svg, paper, plate) : svg;
   if (format === 'svg') return new Blob([doc], { type: 'image/svg+xml' });
-  const base = svgBaseSize(svg);
+  const bd = svgBaseDims(svg), base = bd.w;
   let outW, outH, dpi = null;
-  if (print) { const p = printComponentDims(base); outW = p.outW; outH = p.outH; dpi = p.dpi; }
-  else { outW = outH = Math.round(base * scale); }
+  if (print) { const p = printComponentDims(base, bd.h); outW = p.outW; outH = p.outH; dpi = p.dpi; }
+  else { outW = Math.round(base * scale); outH = Math.round(bd.h * scale); }
   const sized = /<svg[^>]*\swidth="/.test(doc)
     ? doc.replace(/(<svg[^>]*?)\swidth="[^"]*"\sheight="[^"]*"/, `$1 width="${outW}" height="${outH}"`)
     : doc.replace('<svg ', `<svg width="${outW}" height="${outH}" `);
@@ -5667,10 +5698,10 @@ ctrl('btn-variant-export').addEventListener('click', () => {
 // Plates: one black-on-transparent SVG per palette colour. Only the
 // shapes painted in ink i survive; every other palette colour → none.
 function plateSVG(svg, colors, i, paper) {
-  const cs = colors.map(c => c.toLowerCase());
+  const cs = colors.map(hexKey);
   let out = svg.replace(new RegExp(`<rect width="[\\d.]+" height="[\\d.]+" fill="${paper}"/>`, 'i'), '');
   out = out.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,8})"/g, (m, attr, c) => {
-    const j = cs.indexOf(c.toLowerCase());
+    const j = cs.indexOf(hexKey(c));
     return j === -1 ? m : `${attr}="${j === i ? '#000000' : 'none'}"`;
   });
   return out;
@@ -6021,11 +6052,12 @@ renderSymbol();
 renderSymbolLibrary();
 renderGallery();
 renderSeedPreview();
+pruneAutoLibraryEntries();
 renderLibrary();
 setTier(state.activeTier);   // 'element' by default — syncs the stepnav, export hint, and the Element canvas
 Organica.autoLabelPanel(document);
 // Cloud sync (shared/store.js): hydrate component + symbol libraries from Supabase.
-LIBRARY.pull().then(() => renderLibrary());        LIBRARY.onSync(() => renderLibrary());
+LIBRARY.pull().then(() => { pruneAutoLibraryEntries(); renderLibrary(); });        LIBRARY.onSync(() => renderLibrary());
 SYMBOL_LIBRARY.pull().then(() => renderSymbolLibrary()); SYMBOL_LIBRARY.onSync(() => renderSymbolLibrary());
 LOOM_GRID_STORE.pull();
 // Genesis library (seed picker) — hydrate the cache from Supabase; the picker

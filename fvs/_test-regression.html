@@ -121,6 +121,25 @@ function battery() {
   const svg = tierSVG(), cs = state.colors.slice();
   cs.forEach((c, i) => put('plate:' + i, plateSVG(svg, cs, i, state.paperColor)));
 
+  // 9 — hygiene: auto tiles hidden, colour spelling, non-square Print
+  runR('leaf-wave');
+  put('lib:auto-hidden', Object.keys(LIBRARY.read()).some(k => k.startsWith('Tile · ')) && !libraryNames(LIBRARY.read()).some(k => k.startsWith('Tile · ')));
+  put('hexKey', [hexKey('#ABC'), hexKey('#A1b2C3'), hexKey(' #fFf ')].join(','));
+  put('plate:shorthex', plateSVG('<svg viewBox="0 0 10 10"><path fill="#F00" d="M0 0"/><path fill="#0f0" d="M1 1"/></svg>', ['#ff0000', '#00ff00'], 0, '#fff'));
+  put('recolour:shorthex', recolourSVG('<svg><rect fill="#FFF"/><path fill="#123456"/></svg>', '#e8321e', '#ffffff'));
+  const P0 = { ...printSizePanel };
+  Object.assign(printSizePanel, { getMode: () => 'print', getUnit: () => 'mm', getSize: () => ({ width: 100, height: 100 }), getDpi: () => 300, getBleed: () => 3 });
+  try {
+    const ns = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"><rect width="400" height="200" fill="#ffffff"/></svg>';
+    const w = printWrapSVG(ns, '#ffffff', true);
+    put('print:nonsquare:svg', w);
+    put('print:nonsquare:dims', w.match(/width="([^"]+)" height="([^"]+)"/).slice(1).join('x'));
+    const d = printComponentDims(400, 200);
+    put('print:nonsquare:px', [d.outW, d.outH, d.trimHmm].join('x'));
+    const sq = printComponentDims(400, 400);
+    put('print:square:px', [sq.outW, sq.outH, sq.trimHmm].join('x'));
+  } finally { Object.assign(printSizePanel, P0); }
+
   // tidy the throw-away tiles the recipes wrote into the Component library
   const lib = LIBRARY.read(); Object.keys(lib).filter(k => k.startsWith('Tile · recipe-')).forEach(k => delete lib[k]); LIBRARY.write(lib);
   reset();
