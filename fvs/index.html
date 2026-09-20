@@ -51,6 +51,9 @@
   .fvs-thumb:hover { border-color: var(--mid); }
   .fvs-thumb.selected { border-color: var(--tool); box-shadow: 0 0 0 1px var(--tool); }
   .fvs-thumb svg { width: 100%; height: 100%; display: block; }
+  .fvs-thumb-wrap { display: flex; flex-direction: column; gap: var(--space-1); width: 96px; flex-shrink: 0; }
+  .fvs-thumb-caption, .fvs-library-caption { font-size: var(--fs-micro); color: var(--mid); line-height: var(--lh-snug); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fvs-library-caption { display: block; width: 76px; margin-top: var(--space-1); }
 
   /* .icon-btn + .rmx-* chip CSS now in shared/palette.css.
      .fvs-library-item .rmx-x below reuses the shared .rmx-x for the
@@ -3010,14 +3013,15 @@ function renderGallery() {
   if (state.components.length === 0) {
     gallery.classList.remove('visible');
     empty.style.display = 'flex';
-    ctrl('gallery-status').textContent = '';
+    ctrl('gallery-status').textContent = elementIsEmpty() ? 'The Element is empty — draw a shape or pick one in step 1 first.' : '';
     setStatus('', 'No components yet');
     syncPlayEnabled();
     return;
   }
   empty.style.display = 'none';
   gallery.classList.add('visible');
-  ctrl('gallery-status').textContent = `${state.components.length} component${state.components.length === 1 ? '' : 's'}`;
+  ctrl('gallery-status').textContent = `${state.components.length} component${state.components.length === 1 ? '' : 's'}`
+    + (elementIsEmpty() ? ' — the Element is empty (draw a shape or pick one in step 1), so they render blank' : '');
   setStatus('active', `${state.components.length} component${state.components.length === 1 ? '' : 's'}`);
 
   for (const comp of state.components) {
@@ -3028,9 +3032,29 @@ function renderGallery() {
     btn.setAttribute('aria-label', `Component ${comp.ruleSource} ${comp.id}`);
     btn.innerHTML = svgStr;
     btn.addEventListener('click', () => { state.selectedId = comp.id; renderGallery(); });
-    gallery.appendChild(btn);
+    // Caption = the rule that made it + each cell's rotation (f = flipped),
+    // so two look-alike candidates can be told apart without opening them.
+    const caption = componentCaption(comp);
+    btn.title = caption;
+    const wrap = document.createElement('div');
+    wrap.className = 'fvs-thumb-wrap';
+    const cap = document.createElement('span');
+    cap.className = 'fvs-thumb-caption';
+    cap.textContent = caption;
+    wrap.append(btn, cap);
+    gallery.appendChild(wrap);
   }
   syncPlayEnabled();
+}
+
+function componentCaption(comp) {
+  const cells = comp.cells.slice(0, 6).map(c => c.rotation + ((c.flipH || c.flipV) ? 'f' : '')).join(' ');
+  return `${comp.ruleSource} · ${cells}${comp.cells.length > 6 ? ' …' : ''}`;
+}
+
+// The Element is Freehand with nothing drawn: every candidate would be blank.
+function elementIsEmpty() {
+  return ctrl('sel-seed-type').value === 'freehand' && !state.freehand.seed;
 }
 
 function getSelectedComponent() {
@@ -4615,7 +4639,12 @@ function renderCellContentOverlayTiles() {
       closeCellContentOverlay();
       renderCellPropertiesPanel();
     });
-    compWrap.appendChild(btn);
+    const item = document.createElement('div');
+    const cap = document.createElement('span');
+    cap.className = 'fvs-library-caption';
+    cap.textContent = name;
+    item.append(btn, cap);
+    compWrap.appendChild(item);
   }
   Organica.autoLabelPanel(ctrl('symbol-content-overlay'));
 }
