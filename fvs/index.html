@@ -64,7 +64,10 @@
   #rule-total-hint { font-size: var(--fs-micro); color: var(--mid); margin-top: var(--space-2); line-height: 1.5; }
   #rule-total-hint.over-cap { color: var(--danger); }
 
-  .fvs-seed-preview { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
+  .fvs-fb-group { display: contents; }
+  #seedtype-picker { width: 100%; }
+  .fvs-error { color: var(--danger); }
+  .fvs-seed-preview { display: flex; justify-content: center; gap: var(--space-2); }
   .fvs-seed-preview svg { width: 48px; height: 48px; flex-shrink: 0; border: 1px solid var(--border); display: block; }
 
   .fvs-library { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
@@ -82,6 +85,7 @@
   .tier-block.active { display: block; }
   #canvas-wrap .tier-view { display: none; height: 100%; }
   #canvas-wrap .tier-view.active { display: flex; align-items: center; justify-content: center; }
+  #canvas-wrap .tier-view[data-tier="element"].active { flex-direction: column; gap: var(--space-5); }
 
   /* Numbered step scaffold within a tier's own panel — groups existing
      panel-sections under an explicit "01 / 02 / ..." flow without
@@ -118,7 +122,7 @@
   /* Element tier — a single big live preview of the current Seed, on
      its own canvas (not the scrollable-gallery/live-grid surfaces the
      other 3 tiers use). */
-  .fvs-element-frame { width: min(70vh, 70vw); height: min(70vh, 70vw); display: flex; align-items: center; justify-content: center; }
+  .fvs-element-frame { width: min(60vh, 70vw); height: min(60vh, 70vw); display: flex; align-items: center; justify-content: center; }
   .fvs-element-frame { position: relative; }
   #element-svg { width: 100%; height: 100%; }
   #element-svg svg { width: 100%; height: 100%; display: block; }
@@ -161,6 +165,26 @@
 </div>
 
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <!-- Element-tier actions — hidden on the other tiers by setTier(). display:contents keeps the buttons direct flex items of the floatbar. -->
+  <div id="fb-element-actions" class="fvs-fb-group">
+    <button class="org-floatbar__btn" id="btn-reset-seed" aria-label="Reset seed shape">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M3 2.5v3h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="org-floatbar__btn" id="btn-upload-seed" aria-label="Upload SVG">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 10.5V2.5M8 2.5 5 5.5M8 2.5l3 3M2.5 9.5v3a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover-wrap">
+      <button class="org-floatbar__btn" id="btn-browse-creator" aria-label="Creator library">
+        <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+      </button>
+      <div class="org-popover" id="creator-library-popover" aria-label="Creator library">
+        <div class="org-popover__title">Creator library</div>
+        <div id="creator-library-empty" class="fvs-library-empty">No saved Seeds found — save one in Creator first.</div>
+        <div id="creator-library-tiles" class="fvs-library"></div>
+      </div>
+    </div>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
+  </div>
   <button class="org-floatbar__btn" id="btn-playpause" aria-label="Play" disabled>
     <svg class="ico" id="ico-playpause" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor"/></svg>
   </button>
@@ -201,6 +225,7 @@
 <div id="app">
   <div id="canvas-wrap">
     <div class="tier-view active" data-tier="element">
+      <div id="seed-preview" class="fvs-seed-preview" aria-label="Seed transform preview — rotation and flip"></div>
       <div id="element-frame" class="fvs-element-frame">
         <div id="element-svg"></div>
         <svg id="fh-grid" viewBox="0 0 100 100" aria-hidden="true"><path d="M25 0V100M50 0V100M75 0V100M0 25H100M0 50H100M0 75H100" fill="none" stroke="currentColor" stroke-width="0.3"/></svg>
@@ -228,14 +253,10 @@
   <div id="panel">
 
     <div class="tier-block active" data-tier="element">
-    <div class="panel-step-head">
-      <div class="panel-step-head__title">Element <span class="hint">step 1 of 4</span></div>
-      <p class="panel-step-head__desc">Pick a shape and its parameters — every later step (Component, Symbol, Grid) builds on this one Element.</p>
-    </div>
     <div class="panel-section">
       <h3>Seed</h3>
       <div class="ctrl-row">
-        <div id="seedtype-picker" style="width:100%"></div>
+        <div id="seedtype-picker"></div>
         <select class="panel-select" id="sel-seed-type" aria-label="Seed type">
           <option value="freehand">Freehand</option>
           <option value="circle">Circle</option>
@@ -266,9 +287,9 @@
           <span class="ctrl-val" id="v-height">100</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Slides the apex off-centre — 0 is isosceles, either extreme approaches a right triangle. Base + Height + Apex X together reach every triangle shape.">Apex X</div>
-          <input type="range" id="rg-tri-apex" min="-98" max="98" step="1" value="0">
-          <span class="ctrl-val" id="v-tri-apex">0</span>
+          <div class="ctrl-label" title="Where the apex sits along the base — 0 is above the left corner, 50 is centred (isosceles), 100 is above the right corner (0 and 100 are right triangles). Base + Height + Apex X together reach every triangle shape.">Apex X</div>
+          <input type="range" id="rg-tri-apex" min="0" max="100" step="1" value="50">
+          <span class="ctrl-val" id="v-tri-apex">50</span>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Shortcut that sets Base, Height and Apex X. Reads Custom as soon as you move any of them by hand.">Type</div>
@@ -569,7 +590,6 @@
           <input type="range" id="rg-circle-slicegap" min="1" max="30" step="1" value="6">
           <span class="ctrl-val" id="v-circle-slicegap">6</span>
         </div>
-        <button class="mini-btn" id="btn-circle-reset" style="width:100%;margin-top:var(--space-2)">Reset to plain circle</button>
       </div>
       <div id="seed-segment-block" style="display:none">
         <div class="ctrl-row">
@@ -616,18 +636,21 @@
         </div>
         <p class="org-panel__hint">Click on the artboard to add points; drag a point or handle to reshape it. The stage shows the drawing as you make it; every later step (Component, Symbol, Grid) uses it fitted to the cell.</p>
       </div>
-      <div class="row-btns">
-        <button class="mini-btn" id="btn-upload-seed">Upload SVG…</button>
-        <button class="mini-btn" id="btn-browse-creator">Creator library…</button>
+      <div id="seed-upload-error" class="org-panel__hint fvs-error" style="display:none"></div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Inner seed</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Nested copies of the shape drawn inside itself, alternating ring and gap. 0 turns it off.">Count</div>
+        <input type="range" id="rg-inner-count" min="0" max="8" step="1" value="0">
+        <span class="ctrl-val" id="v-inner-count">0</span>
       </div>
-      <div id="seed-upload-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
-      <div id="creator-library-picker" style="display:none">
-        <div id="creator-library-empty" class="fvs-library-empty">No saved Seeds found — save one in Creator first.</div>
-        <div id="creator-library-tiles" class="fvs-library"></div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Each copy's size as a % of the previous one (70 → 70%, 49%, 34%…).">Ratio</div>
+        <input type="range" id="rg-inner-ratio" min="10" max="95" step="1" value="70">
+        <span class="ctrl-val" id="v-inner-ratio">70</span>
       </div>
-      <div class="sub-label" style="margin-top:var(--space-3)">Preview — rotation &amp; flip</div>
-      <div id="seed-preview" class="fvs-seed-preview" aria-label="Seed transform preview"></div>
-      <p class="org-panel__hint">Base/Height (triangle) and Thickness (arc) default to 100 — the Seed fills its cell exactly, corner to corner, edge to edge. Triangle's Apex X slides the apex off-centre (0 = isosceles) — Base + Height + Apex X together reach any triangle shape, scalene included. Arc truchet is concentric semicircle bands from the top &amp; bottom edges (the bookofshapes "Arc Truchet" tile) — pair it with a Symbol grid + the Oscillator rule. Upload an SVG or pick a Seed saved in Creator (first drawable shape, fitted to the cell). The strip above shows this exact Seed at 0/90/180/270° and each flip, on its own — check it looks right before generating a full grid of it. Colour lives in Palette below.</p>
     </div>
 
     <div class="panel-section">
@@ -657,6 +680,22 @@
         <input type="range" id="rg-element-l" min="0.25" max="2" step="0.05" value="1">
         <span class="ctrl-val" id="v-element-l">1</span>
       </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Uniform size of the shape itself, before it is placed in any cell.">Scale</div>
+        <input type="range" id="rg-element-scale" min="0.1" max="5" step="0.01" value="1">
+        <span class="ctrl-val" id="v-element-scale">1</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Shifts the shape inside its cell — 100 is a full cell width.">Move X</div>
+        <input type="range" id="rg-element-mx" min="-100" max="100" step="1" value="0">
+        <span class="ctrl-val" id="v-element-mx">0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Shifts the shape inside its cell — 100 is a full cell height.">Move Y</div>
+        <input type="range" id="rg-element-my" min="-100" max="100" step="1" value="0">
+        <span class="ctrl-val" id="v-element-my">0</span>
+      </div>
+      <button class="mini-btn" id="btn-fit-seed" title="Measures the shape once and sets Scale + Move so it fills the cell, centred.">⤢ Fit to canvas</button>
       <p class="org-panel__hint">Style and Width/Length belong to the Element itself, so every cell of every Component/Symbol/Grid built from it shares them — the stroke reuses the same Palette colours the fill would have. Rotation, flip and uniform scale stay per cell, where Component and Symbol already set them.</p>
     </div>
     </div>
@@ -1347,6 +1386,45 @@ const SEED_TYPES = {
     geometry: () => state.customSeed || { d: '', normTx: 0, normTy: 0, normScale: 1 },
   },
 };
+// ── Inner seed: N nested copies of ANY Seed inside itself (Arc truchet's
+// Count + Ratio, generalised). The copies are baked into the shape's own `d`
+// so every renderer keeps consuming one path per cell; alternating ring / gap
+// comes from fill-rule evenodd, set on the returned geometry ONLY when Count > 0
+// (so every shape at Count 0 stays byte-identical). Container / Mask
+// silhouettes ignore the rule on purpose — the union of the copies is the
+// solid outline, which is the boundary you want.
+const _pathBBoxCache = new Map();
+function pathBBox(d) {
+  if (_pathBBoxCache.has(d)) return _pathBBoxCache.get(d);
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('style', 'position:absolute;width:0;height:0;visibility:hidden');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', d);
+  svg.appendChild(path);
+  document.body.appendChild(svg);
+  let bb = null;
+  try { const b = path.getBBox(); bb = { x: b.x, y: b.y, width: b.width, height: b.height }; } catch (e) { /* empty path */ }
+  document.body.removeChild(svg);
+  if (_pathBBoxCache.size > 200) _pathBBoxCache.clear();
+  _pathBBoxCache.set(d, bb);
+  return bb;
+}
+function withInnerCopies(geo, p) {
+  const n = Math.round((p && p.innerCount) || 0);
+  if (!(n > 0) || !geo || !geo.d) return geo;
+  const ratio = Math.min(0.95, Math.max(0.1, (p.innerRatio == null ? 70 : p.innerRatio) / 100));
+  const bb = pathBBox(geo.d);
+  if (!bb) return geo;
+  const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
+  let d = geo.d;
+  for (let k = 1; k <= n; k++) d += ' ' + Organica.shapes.scalePathAbout(geo.d, Math.pow(ratio, k), cx, cy);
+  return { ...geo, d, fillRule: 'evenodd' };
+}
+for (const k of Object.keys(SEED_TYPES)) {
+  if (k === 'freehandraw') continue;   // the raw drawing stage view stays untouched
+  const g0 = SEED_TYPES[k].geometry;
+  SEED_TYPES[k].geometry = p => withInnerCopies(g0(p), p);
+}
 const SYMBOL_ARC_TRUCHET = { arcCount: 5, arcRatio: 0.7 };   // fixed defaults for the Symbols tier
 const SYMBOL_WEDGE = { wedgeAngle: 90, wedgeInner: 0 };
 const SYMBOL_POLYGON = { polySides: 6, polyCorner: 0 };
@@ -1355,11 +1433,12 @@ const SYMBOL_ROUNDEDRECT = { rrWidth: 100, rrHeight: 100, rrCorner: 0 };
 const SYMBOL_CHEVRON = { chevNotch: 40, chevArm: 55 };
 const SYMBOL_CROSS = { crossArmWidth: 35, crossArmLength: 100 };
 const SYMBOL_LENS = { lensWidth: 50 };
+const SYMBOL_INNER = { innerCount: 0, innerRatio: 70 };   // Symbols stay plain shapes
 const SYMBOL_TRIANGLE = { triApex: 0, triCorner: 0, triCurve: 0, triIrregular: 0, triSeed: 1, triOutline: 0 };   // Symbols stay a plain triangle
 // Symbols cells carry no per-seed params of their own (same as they already
 // ignore Base/Height/Thickness) — one merged params object covers every
 // SEED_TYPES geometry fn, each reading only the fields it needs.
-const SYMBOL_SEED_DEFAULTS = { base: 100, height: 100, thickness: 100, ...SYMBOL_ARC_TRUCHET, ...SYMBOL_WEDGE, ...SYMBOL_POLYGON, ...SYMBOL_STAR, ...SYMBOL_ROUNDEDRECT, ...SYMBOL_CHEVRON, ...SYMBOL_CROSS, ...SYMBOL_LENS, ...SYMBOL_TRIANGLE };
+const SYMBOL_SEED_DEFAULTS = { base: 100, height: 100, thickness: 100, ...SYMBOL_ARC_TRUCHET, ...SYMBOL_WEDGE, ...SYMBOL_POLYGON, ...SYMBOL_STAR, ...SYMBOL_ROUNDEDRECT, ...SYMBOL_CHEVRON, ...SYMBOL_CROSS, ...SYMBOL_LENS, ...SYMBOL_TRIANGLE, ...SYMBOL_INNER };
 
 // ── Seed type picker (thumbnail dropdown — shared/select-picker.js) ──
 // 26×26 pictograms, currentColor, like Genesis Create's Kind picker.
@@ -1479,12 +1558,14 @@ function getSeed() {
     type: ctrl('sel-seed-type').value,
     base: val('rg-base'),
     height: val('rg-height'),
-    triApex: val('rg-tri-apex'),
+    triApex: val('rg-tri-apex') * 2 - 100,   // slider is a 0–100 position (0 left corner · 50 centred · 100 right corner); stored/geometry value stays -100..100 centred, so old snapshots need no migration
     triCorner: val('rg-tri-corner'),
     triCurve: val('rg-tri-curve'),
     triIrregular: val('rg-tri-irregular'),
     triSeed: val('rg-tri-seed'),
     triOutline: val('rg-tri-outline'),
+    innerCount: val('rg-inner-count'),
+    innerRatio: val('rg-inner-ratio'),
     thickness: val('rg-thickness'),
     arcCount: val('rg-arc-count'),
     arcRatio: val('rg-arc-ratio') / 100,
@@ -1672,13 +1753,6 @@ function getCreatorLibraryForms() {
   return forms;
 }
 
-function toggleCreatorLibraryPicker() {
-  const picker = ctrl('creator-library-picker');
-  const opening = picker.style.display === 'none';
-  picker.style.display = opening ? '' : 'none';
-  if (opening) renderCreatorLibraryPicker();
-}
-
 function renderCreatorLibraryPicker() {
   const forms = getCreatorLibraryForms();
   ctrl('creator-library-empty').style.display = forms.length ? 'none' : '';
@@ -1693,7 +1767,7 @@ function renderCreatorLibraryPicker() {
     btn.addEventListener('click', () => {
       try {
         useSvgAsSeed(form.svg);
-        ctrl('creator-library-picker').style.display = 'none';
+        creatorPopover.close();
       } catch (e) {
         ctrl('seed-upload-error').textContent = e.message;
         ctrl('seed-upload-error').style.display = '';
@@ -2229,9 +2303,12 @@ function resolveUnderlyingComponent(name) {
 // `transform` attribute on a bare <path> (no <g> anywhere), which a
 // <clipPath> can hold as one of several direct children (their combined
 // areas union automatically, per spec).
+// Scale + Move ride on the same Element-level transform as Width/Length.
+const stretchOpts = a => ({ scale: a.scale, mx: a.mx, my: a.my });
+const appearanceIsIdentity = a => a.w === 1 && a.l === 1 && (a.scale == null || a.scale === 1) && !a.mx && !a.my;
 function componentBoundaryClipContent(items, geo, half) {
   const a = getElementAppearance();
-  const stretch = Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50);
+  const stretch = Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a));
   return items.map(it => {
     const fit = it.cellSize / 100;
     const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
@@ -2244,7 +2321,7 @@ function componentBoundaryClipContent(items, geo, half) {
 // Read live from the Element tier's own controls, same way getSeed() reads
 // the shape params — shared/shape-appearance.js owns the actual attribute /
 // transform strings so Genesis Create and this tool can't drift apart.
-const DEFAULT_APPEARANCE = { fillMode: 'fill', strokeW: 4, rounded: true, w: 1, l: 1 };
+const DEFAULT_APPEARANCE = { fillMode: 'fill', strokeW: 4, rounded: true, w: 1, l: 1, scale: 1, mx: 0, my: 0 };
 // While set, getElementAppearance() returns it instead of the live controls —
 // how a saved Component/Symbol (and the nested Components inside a Symbol)
 // renders with the appearance it was SAVED with, not whatever the Element
@@ -2262,6 +2339,7 @@ function applyAppearanceToUI(app) {
   ctrl('ck-element-rounded').checked = a.rounded;
   ctrl('rg-element-w').value = a.w; ctrl('v-element-w').textContent = a.w;
   ctrl('rg-element-l').value = a.l; ctrl('v-element-l').textContent = a.l;
+  ['scale', 'mx', 'my'].forEach(k => { ctrl('rg-element-' + k).value = a[k]; ctrl('v-element-' + k).textContent = a[k]; });
   ctrl('element-stroke-block').style.display = a.fillMode === 'stroke' ? '' : 'none';
 }
 function getElementAppearance() {
@@ -2272,6 +2350,9 @@ function getElementAppearance() {
     rounded: ctrl('ck-element-rounded').checked,
     w: val('rg-element-w'),
     l: val('rg-element-l'),
+    scale: val('rg-element-scale'),
+    mx: val('rg-element-mx'),
+    my: val('rg-element-my'),
   };
 }
 
@@ -2283,17 +2364,21 @@ function elementPathMarkup(geo, color, forceFill) {
   const a = getElementAppearance();
   const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: forceFill ? 'fill' : a.fillMode, color, strokeW: a.strokeW, rounded: a.rounded });
   const norm = `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
-    + `<path d="${geo.d}" ${attrs}/></g>`;
-  if (a.w === 1 && a.l === 1) return norm;
-  return `<g transform="${Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50)}">${norm}</g>`;
+    + `<path d="${geo.d}" ${attrs}${geo.fillRule && !forceFill ? ` fill-rule="${geo.fillRule}"` : ''}/></g>`;
+  if (appearanceIsIdentity(a)) return norm;
+  return `<g transform="${Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a))}">${norm}</g>`;
 }
+
+// Fill with the geometry's own fill-rule (evenodd when Inner seed copies are on) — the canvas twin of the fill-rule attr above.
+function paintPath(ctx, op, path, geo) { if (op === 'fill') ctx.fill(path, (geo && geo.fillRule) || 'nonzero'); else ctx.stroke(path); }
 
 // Canvas2D twin of elementPathMarkup: apply the stretch layer to the
 // current transform (call after translate(-50,-50), before the norm layer).
 function applyElementStretchCanvas(ctx) {
   const a = getElementAppearance();
-  if (a.w === 1 && a.l === 1) return;
-  ctx.translate(50, 50); ctx.scale(a.w, a.l); ctx.translate(-50, -50);
+  if (appearanceIsIdentity(a)) return;
+  const s = a.scale == null ? 1 : a.scale;
+  ctx.translate(50 + (a.mx || 0), 50 + (a.my || 0)); ctx.scale(a.w * s, a.l * s); ctx.translate(-50, -50);
 }
 
 // Mask's own content tolerates <g> wrapping fine (confirmed directly,
@@ -2325,7 +2410,7 @@ function drawItemsPlain(ctx, itemsToDraw, geo, path, boxSize) {
     ctx.scale(geo.normScale, geo.normScale);
     const a = getElementAppearance();
     const op = Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: a.fillMode, color: it.color, strokeW: a.strokeW, rounded: a.rounded });
-    ctx[op](path);
+    paintPath(ctx, op, path, geo);
     ctx.restore();
   }
 }
@@ -2354,7 +2439,7 @@ function drawComponentCanvas(ctx, items, seed, size) {
     const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
     const m = new DOMMatrix()
       .translate(half + it.cx, half + it.cy).rotate(it.rotation).scale(sx, sy).translate(-50, -50)
-      .translate(50, 50).scale(boundaryApp.w, boundaryApp.l).translate(-50, -50)
+      .translate(50 + (boundaryApp.mx || 0), 50 + (boundaryApp.my || 0)).scale(boundaryApp.w * (boundaryApp.scale == null ? 1 : boundaryApp.scale), boundaryApp.l * (boundaryApp.scale == null ? 1 : boundaryApp.scale)).translate(-50, -50)
       .translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale).scale(geo.normScale, geo.normScale);
     boundaryPath.addPath(path, m);
   }
@@ -2880,7 +2965,8 @@ function applyLibraryEntryToUI(entry) {
   state.customSeed = entry.seed.customSeed || null;
   ctrl('rg-base').value = entry.seed.base; ctrl('v-base').textContent = entry.seed.base;
   ctrl('rg-height').value = entry.seed.height; ctrl('v-height').textContent = entry.seed.height;
-  if (entry.seed.triApex != null) { ctrl('rg-tri-apex').value = entry.seed.triApex; ctrl('v-tri-apex').textContent = entry.seed.triApex; }
+  if (entry.seed.triApex != null) { const pos = Math.round((Math.max(-100, Math.min(100, entry.seed.triApex)) + 100) / 2); ctrl('rg-tri-apex').value = pos; ctrl('v-tri-apex').textContent = pos; }
+  else { ctrl('rg-tri-apex').value = 50; ctrl('v-tri-apex').textContent = 50; }
   ctrl('rg-thickness').value = entry.seed.thickness; ctrl('v-thickness').textContent = entry.seed.thickness;
   if (entry.seed.arcCount != null) { ctrl('rg-arc-count').value = entry.seed.arcCount; ctrl('v-arc-count').textContent = entry.seed.arcCount; }
   if (entry.seed.arcRatio != null) { const pct = Math.round(entry.seed.arcRatio * 100); ctrl('rg-arc-ratio').value = pct; ctrl('v-arc-ratio').textContent = pct; }
@@ -2908,7 +2994,8 @@ function applyLibraryEntryToUI(entry) {
   // Newer Seed params — snapshots saved before they existed simply lack them
   // and fall back to each control's own default (identical to the old shape).
   ctrl('sel-arc-pivot').value = entry.seed.arcPivot || 'corner';
-  [['triCorner', 'rg-tri-corner', 'v-tri-corner', 0], ['triCurve', 'rg-tri-curve', 'v-tri-curve', 0], ['triIrregular', 'rg-tri-irregular', 'v-tri-irregular', 0],
+  [['innerCount', 'rg-inner-count', 'v-inner-count', 0], ['innerRatio', 'rg-inner-ratio', 'v-inner-ratio', 70],
+   ['triCorner', 'rg-tri-corner', 'v-tri-corner', 0], ['triCurve', 'rg-tri-curve', 'v-tri-curve', 0], ['triIrregular', 'rg-tri-irregular', 'v-tri-irregular', 0],
    ['triSeed', 'rg-tri-seed', 'v-tri-seed', 1], ['triOutline', 'rg-tri-outline', 'v-tri-outline', 0],
    ['arcSweep', 'rg-arc-sweep', 'v-arc-sweep', 90], ['polyRadius', 'rg-poly-radius', 'v-poly-radius', 100], ['starRadius', 'rg-star-radius', 'v-star-radius', 100],
    ['circleRadius', 'rg-circle-radius', 'v-circle-radius', 100], ['segLen', 'rg-seg-len', 'v-seg-len', 70], ['dropRadius', 'rg-drop-radius', 'v-drop-radius', 60],
@@ -3534,7 +3621,7 @@ function drawSymbolCanvas(ctx, size) {
       ctx.translate(it.geo.normTx * it.geo.normScale, it.geo.normTy * it.geo.normScale);
       ctx.scale(it.geo.normScale, it.geo.normScale);
       const sa = getElementAppearance();
-      ctx[Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: sa.fillMode, color: it.color, strokeW: sa.strokeW, rounded: sa.rounded })](new Path2D(it.geo.d));
+      paintPath(ctx, Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: sa.fillMode, color: it.color, strokeW: sa.strokeW, rounded: sa.rounded }), new Path2D(it.geo.d), it.geo);
       ctx.restore();
     } else {
       const geo = SEED_TYPES[it.nestedSeed.type].geometry(it.nestedSeed);
@@ -3560,7 +3647,7 @@ function drawSymbolCanvas(ctx, size) {
         ctx.translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale);
         ctx.scale(geo.normScale, geo.normScale);
         const na = getElementAppearance();
-        ctx[Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: na.fillMode, color: ni.color, strokeW: na.strokeW, rounded: na.rounded })](path);
+        paintPath(ctx, Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: na.fillMode, color: ni.color, strokeW: na.strokeW, rounded: na.rounded }), path, geo);
         ctx.restore();
       }
       appearanceOverride = prevOverride;
@@ -4282,6 +4369,9 @@ function setTier(tier) {
   document.querySelectorAll('.tier-block').forEach(b => b.classList.toggle('active', b.dataset.tier === tier));
   document.querySelectorAll('#canvas-wrap .tier-view').forEach(v => v.classList.toggle('active', v.dataset.tier === tier));
   ctrl('export-hint').textContent = STEP_EXPORT_HINTS[tier] || STEP_EXPORT_HINTS.component;
+  // Reset / Upload / Creator library only act on the Element's Seed.
+  ctrl('fb-element-actions').style.display = tier === 'element' ? '' : 'none';
+  creatorPopover.close();
   // Motion only ever animates Component/Symbol (playbackReady() agrees) —
   // hide it for Element/Grid rather than show controls that can't do anything.
   ctrl('motion-block').style.display = (tier === 'component' || tier === 'symbol') ? '' : 'none';
@@ -4320,7 +4410,7 @@ function populateSymbolLoomPresets() {
 // ── Wiring ──
 // Triangle Type is a derived shortcut, not stored state: picking one writes
 // Base/Height/Apex X; any hand edit of those three flips it back to Custom.
-const TRI_PRESETS = { isosceles: [100, 100, 0], right: [100, 100, -98], equilateral: [100, 87, 0] };
+const TRI_PRESETS = { isosceles: [100, 100, 50], right: [100, 100, 0], equilateral: [100, 87, 50] };
 function syncTriType() {
   const cur = [val('rg-base'), val('rg-height'), val('rg-tri-apex')];
   const hit = Object.keys(TRI_PRESETS).find(k => TRI_PRESETS[k].every((v, i) => v === cur[i]));
@@ -4374,7 +4464,9 @@ ctrl('file-seed').addEventListener('change', e => {
   if (file) handleSeedUpload(file);
   e.target.value = '';
 });
-ctrl('btn-browse-creator').addEventListener('click', toggleCreatorLibraryPicker);
+// Creator library lives in a floatbar popover; opening it (re)reads the shared library.
+const creatorPopover = Organica.popover(ctrl('btn-browse-creator'), ctrl('creator-library-popover'));
+ctrl('btn-browse-creator').addEventListener('click', () => { if (creatorPopover.isOpen) renderCreatorLibraryPicker(); });
 
 ctrl('sel-grid-type').addEventListener('change', () => {
   const isLoom = ctrl('sel-grid-type').value === 'loom';
@@ -4400,7 +4492,8 @@ ctrl('sel-element-fillmode').addEventListener('change', onAppearanceChange);
 
 // New Seed parameters (same pattern as the original rg-* listeners: label
 // readout, then re-render the gallery + the Element preview).
-[['rg-tri-corner', 'v-tri-corner'], ['rg-tri-curve', 'v-tri-curve'], ['rg-tri-irregular', 'v-tri-irregular'], ['rg-tri-seed', 'v-tri-seed'], ['rg-tri-outline', 'v-tri-outline'],
+[['rg-inner-count', 'v-inner-count'], ['rg-inner-ratio', 'v-inner-ratio'],
+ ['rg-tri-corner', 'v-tri-corner'], ['rg-tri-curve', 'v-tri-curve'], ['rg-tri-irregular', 'v-tri-irregular'], ['rg-tri-seed', 'v-tri-seed'], ['rg-tri-outline', 'v-tri-outline'],
  ['rg-arc-sweep', 'v-arc-sweep'], ['rg-poly-radius', 'v-poly-radius'], ['rg-star-radius', 'v-star-radius'],
  ['rg-circle-radius', 'v-circle-radius'], ['rg-seg-len', 'v-seg-len'], ['rg-drop-radius', 'v-drop-radius'],
  ['rg-drop-tail', 'v-drop-tail'], ['rg-blob-radius', 'v-blob-radius'], ['rg-blob-amount', 'v-blob-amount'],
@@ -4413,12 +4506,63 @@ CIRCLE_PARAMS.forEach(([k, id]) => {
 ['sel-circle-interior', 'sel-circle-trim'].forEach(id => {
   ctrl(id).addEventListener('change', () => { syncCircleRows(); renderGallery(); renderSeedPreview(); });
 });
-ctrl('btn-circle-reset').addEventListener('click', () => {
-  ctrl('rg-circle-radius').value = 100; ctrl('v-circle-radius').textContent = 100;
-  ctrl('sel-circle-interior').value = 'solid'; ctrl('sel-circle-trim').value = 'none';
-  CIRCLE_PARAMS.forEach(([k, id, def]) => { ctrl('rg-circle-' + id).value = def; ctrl('v-circle-' + id).textContent = def; });
+// Reset seed shape (floatbar): restores every control of the CURRENT shape's own
+// block to its markup default. Type, Appearance and Palette are untouched;
+// Freehand clears the drawing; an uploaded / Creator seed has no parameters.
+// Each control gets its real input/change event, so its own listener refreshes
+// the readout + gallery + preview and the slider fill (core.js delegate) follows.
+function resetSeedShape() {
+  const type = ctrl('sel-seed-type').value;
+  ['rg-inner-count', 'rg-inner-ratio'].forEach(id => {   // Inner seed belongs to the Seed, whatever its shape
+    const el = ctrl(id);
+    if (el.value !== el.defaultValue) { el.value = el.defaultValue; el.dispatchEvent(new Event('input', { bubbles: true })); }
+  });
+  if (type === 'freehand') { if (fhEditor) fhEditor.clear(); return; }
+  const block = document.getElementById('seed-' + type + '-block');
+  if (!block) return;
+  block.querySelectorAll('input, select').forEach(el => {
+    if (el.type === 'checkbox') { if (el.checked !== el.defaultChecked) { el.checked = el.defaultChecked; el.dispatchEvent(new Event('change', { bubbles: true })); } return; }
+    if (el.tagName === 'SELECT') {
+      const i = Math.max(0, Array.from(el.options).findIndex(o => o.defaultSelected));
+      if (el.selectedIndex !== i) { el.selectedIndex = i; el.dispatchEvent(new Event('change', { bubbles: true })); }
+      return;
+    }
+    if (el.value !== el.defaultValue) { el.value = el.defaultValue; el.dispatchEvent(new Event('input', { bubbles: true })); }
+  });
   syncCircleRows(); renderGallery(); renderSeedPreview();
-});
+}
+ctrl('btn-reset-seed').addEventListener('click', resetSeedShape);
+
+// ⤢ Fit to canvas (one-shot, same maths as Genesis's Fit to grid): measure the
+// Seed as drawn at Scale 1 / Move 0 (Width/Length kept), then write the Scale +
+// Move sliders so its bbox fills the cell, centred. Goes stale if the shape's
+// own parameters change afterwards — press it again.
+function fitSeedToCanvas() {
+  const seed = getSeed();
+  const geo = SEED_TYPES[seed.type].geometry(seed);
+  if (!geo || !geo.d) return;
+  const a = getElementAppearance();
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('style', 'position:absolute;width:0;height:0;visibility:hidden');
+  svg.innerHTML = '<g>' + withAppearance({ ...a, scale: 1, mx: 0, my: 0 }, () => elementPathMarkup(geo, '#000', true)) + '</g>';
+  document.body.appendChild(svg);
+  let bb = null;
+  try { const b = svg.firstChild.getBBox(); bb = { x: b.x, y: b.y, width: b.width, height: b.height }; } catch (e) { /* nothing drawn */ }
+  document.body.removeChild(svg);
+  // A Segment is a zero-height line — only bail when BOTH dimensions are ~0.
+  if (!bb || (bb.width < 0.01 && bb.height < 0.01)) return;
+  const setCtl = (k, v) => { ctrl('rg-element-' + k).value = v; ctrl('v-element-' + k).textContent = val('rg-element-' + k); };
+  // getBBox() excludes the stroke, and the stroke scales with the shape (a Stroke-style seed
+  // painted S·(bbox + strokeW) wide, so it was cut at the cell edge) — reserve it.
+  const pad = a.fillMode === 'stroke' ? a.strokeW : 0;
+  setCtl('scale', Math.round(100 / (Math.max(bb.width, bb.height) + pad) * 100) / 100);
+  const S = val('rg-element-scale');   // the slider may clamp — centre with the scale it actually holds
+  setCtl('mx', Math.round(S * (50 - (bb.x + bb.width / 2))));
+  setCtl('my', Math.round(S * (50 - (bb.y + bb.height / 2))));
+  onAppearanceChange();
+}
+ctrl('btn-fit-seed').addEventListener('click', fitSeedToCanvas);
 ctrl('sel-arc-pivot').addEventListener('change', () => { renderGallery(); renderSeedPreview(); });
 
 // A Segment has no area — it is invisible as a fill, so picking it switches
@@ -4451,7 +4595,7 @@ document.addEventListener('keydown', e => {
 let fhResizeT = 0;
 window.addEventListener('resize', () => { clearTimeout(fhResizeT); fhResizeT = setTimeout(syncFreehandEditor, 120); });
 ctrl('ck-element-rounded').addEventListener('change', onAppearanceChange);
-['strokew', 'w', 'l'].forEach(k => {
+['strokew', 'w', 'l', 'scale', 'mx', 'my'].forEach(k => {
   ctrl('rg-element-' + k).addEventListener('input', e => { ctrl('v-element-' + k).textContent = e.target.value; onAppearanceChange(); });
 });
 

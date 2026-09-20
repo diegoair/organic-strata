@@ -39,8 +39,9 @@
   // similarity (rotation/reflection are already covered by FVS's own
   // transform controls). apexPct = 0 is the old isosceles default (apex
   // centred, byte-identical `d` to the pre-generalisation output); ±100
-  // would put the apex directly above a base corner (zero area), so it's
-  // clamped just short of that to keep the triangle non-degenerate.
+  // puts the apex directly above a base corner — a right triangle, still
+  // full-area (base × height / 2), so the whole -100..100 range is valid.
+  // (The UIs show it as a 0–100 position: (apexPct + 100) / 2.)
   //
   // Optional 4th arg `opts` = {corner, curve, irregular, seed, outline}, every
   // field defaulting to "off". With all of them off the function returns the
@@ -99,7 +100,7 @@
     const halfBase = base / 2;
     const apexY = 50 - height / 2;
     const baseY = 50 + height / 2;
-    const pct = Math.max(-98, Math.min(98, apexPct == null ? 0 : apexPct));
+    const pct = Math.max(-100, Math.min(100, apexPct == null ? 0 : apexPct));
     const apexX = 50 + halfBase * (pct / 100);
     const o = opts || {};
     const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v == null ? 0 : v));
@@ -646,8 +647,40 @@
     }));
   }
 
+  // Uniform scale of an arbitrary SVG path `d` by `s` about (cx, cy). Handles the
+  // whole command set — absolute and relative M L H V C S Q T A Z. Absolute
+  // points map p → c + s·(p − c); relative deltas just scale; an arc's radii
+  // scale and its rotation + two flags stay as they are. Used by FVS's Inner
+  // seed (nested copies), where `d` may come from an uploaded SVG (relative
+  // commands, H/V/S) as well as from the hand-authored shapes above.
+  function scalePathAbout(d, s, cx, cy) {
+    const per = { M: 2, L: 2, H: 1, V: 1, C: 6, S: 4, Q: 4, T: 2, A: 7, Z: 0 };
+    const r = v => Math.round(v * 1000) / 1000;
+    const toks = String(d).match(/[a-zA-Z]|-?\d*\.?\d+(?:e[-+]?\d+)?/g) || [];
+    const out = [];
+    let i = 0, cmd = '', first = true;
+    while (i < toks.length) {
+      if (/[a-zA-Z]/.test(toks[i])) { cmd = toks[i++]; out.push(cmd); if (!per[cmd.toUpperCase()]) continue; }
+      // A path's very first moveto is absolute even when written lowercase ('m').
+      const up = cmd.toUpperCase(), rel = cmd !== up && !(first && cmd === 'm'), n = per[up];
+      first = false;
+      if (n === 0) continue;
+      const a = toks.slice(i, i + n).map(Number); i += n;
+      const map = (k, v) => {
+        if (up === 'A') { if (k < 2) return v * s; if (k < 5) return v; }
+        if (rel) return v * s;
+        const isY = up === 'V' || (up !== 'H' && k % 2 === 1);
+        const c = isY ? cy : cx;
+        return c + s * (v - c);
+      };
+      out.push(a.map((v, k) => r(map(k, v))).join(' '));
+      if (up === 'M') cmd = cmd === 'm' ? 'l' : 'L';   // extra coordinate pairs after M are implicit lineto
+    }
+    return out.join(' ');
+  }
+
   Organica.shapes = {
-    triangleGeometry, arcGeometry, arcPathD, circleGeometry, segmentGeometry, dropGeometry, blobGeometry, fitToBox,
+    scalePathAbout, triangleGeometry, arcGeometry, arcPathD, circleGeometry, segmentGeometry, dropGeometry, blobGeometry, fitToBox,
     arcTruchetGeometry, arcTruchetPathD,
     wedgeGeometry, wedgePathD, polygonGeometry, polygonPathD, starGeometry, starPathD,
     roundedRectGeometry, roundedRectPathD, chevronGeometry, chevronPathD,
