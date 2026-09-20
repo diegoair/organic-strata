@@ -343,6 +343,21 @@ async function battery() {
     put('hex:poses', [...new Set(state.symbolCells.map(c => c.rotation))].sort((a, b) => a - b).join(','));
   } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); }
 
+  // 18 — a Grid figure as the tile of another Grid (recursion)
+  try {
+    Object.values(recursiveFigureRecipes()).forEach(def => {
+      const svg = runFigureRecipe(def, { keepTier: true });
+      put('fig:rec:' + def.id, svg);
+      put('fig:rec:checks:' + def.id, figureChecks(def, svg).filter(r => !r.ok).length + '/' + (svg.replace(/<defs>[\s\S]*?<\/defs>/g, '').match(/<path /g) || []).length);
+      put('fig:rec:stats:' + def.id, state.figureLevelStats.map(s => s.tiles + 'x' + s.copies).join(','));
+      if (def.id !== 'rec-bowtie') { figureFormFromRecipe(def); put('fig:rec:roundtrip:' + def.id, norm(runFigureRecipe(figureRecipeFromForm(), { keepTier: true })) === norm(svg)); }
+    });
+    let err = ''; try { runFigureRecipe({ tool: 'fvs-recipe', version: 2, element: { type: 'triangle', colors: ['#000000'] },
+      levels: [{ kind: 'symbol', lattice: { type: 'triangle', rows: 8 }, fit: 'fill', rules: [] }, { kind: 'grid', lattice: { type: 'square', n: 6 } }, { kind: 'grid', lattice: { type: 'square', n: 6 } }, { kind: 'grid', lattice: { type: 'square', n: 6 } }] }, { keepTier: true }); } catch (e) { err = e.message.replace(/\d+/g, 'N'); }
+    put('fig:rec:limit', err);
+    put('fig:rec:cleared', (runFigureRecipe(triangleFigureRecipes()['sierpinski:repeated'], { keepTier: true }), state.fvsGridRaw === null));
+  } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); }
+
   // tidy the throw-away tiles the recipes wrote into the Component library
   const lib = LIBRARY.read(); Object.keys(lib).filter(k => k.startsWith('Tile · recipe-')).forEach(k => delete lib[k]); LIBRARY.write(lib);
   reset();

@@ -1530,6 +1530,7 @@
           <option value="tri2">Triangle 2 rows</option><option value="tri3">Triangle 3 rows</option><option value="tri4">Triangle 4 rows</option>
           <option value="square2x2">Square 2×2</option><option value="square3x3">Square 3×3</option><option value="square4x4">Square 4×4</option><option value="square6x6">Square 6×6</option>
         </select></div>
+      <div class="ctrl-row" id="fg-row-comp2"><div class="ctrl-label">Then tile that as</div><select class="panel-select" id="fg-comp2" aria-label="Second composition"></select></div>
       <label class="check-row"><input type="checkbox" id="fg-altflip"><span>Alternate flip (checkerboard)</span></label>
     </div>
     <div class="panel-section">
@@ -4096,6 +4097,7 @@ function tileSelectedInGrid(stay) {
 // in between (a saved copy went stale the moment the Symbol was edited).
 const LIVE_SYMBOL = '● Current symbol';
 function fvsGridSelectedEntry() {
+  if (state.fvsGridRaw) return { raw: state.fvsGridRaw };   // the figure below, promoted to a tile
   if (state.fvsGridComponentName) return componentTileEntry(state.fvsGridComponentName);
   if (!state.fvsGridSymbolName) return null;
   if (state.fvsGridSymbolName === LIVE_SYMBOL) return state.symbolGrid ? buildSymbolLibraryEntry() : null;
@@ -4106,6 +4108,7 @@ function fvsGridSelectedEntry() {
 // state (not the live one), same swap-state-then-restore trick
 // renderSymbolLibrary() already uses for its own thumbnails.
 function renderedSymbolEntrySVG(entry) {
+  if (entry.raw) return { size: entry.raw.size, inner: entry.raw.inner };   // a finished figure used as a tile
   const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, rule: state.colorRule, paper: state.paperColor, clip: state.symbolClipEnabled };
   state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
   state.symbolCells = entry.cells;
@@ -4138,30 +4141,35 @@ function buildFvsGridSVG() {
   let tileInner = inner.replace(/<metadata>[\s\S]*?<\/metadata>/, '').replace(/<defs>[\s\S]*?<\/defs>/, '');
   if (grid.tri) tileInner = tileInner.replace(/<rect width="[\d.]+" height="[\d.]+" fill="#[0-9a-fA-F]+"\/>/, '');
   const cbox = symbolContentBox(entry, natSize);   // where the Symbol actually draws, in its own frame
+  // A promoted figure is placed by its drawn box; a Symbol by its (square) frame, exactly as before.
+  const raw = !!entry.raw && !!cbox;
+  const lcx = raw ? (cbox.x0 + cbox.x1) / 2 : natSize / 2, lcy = raw ? (cbox.y0 + cbox.y1) / 2 : natSize / 2;
+  const ext = raw ? (grid.tri ? cbox.x1 - cbox.x0 : Math.max(cbox.x1 - cbox.x0, cbox.y1 - cbox.y0)) : natSize;
   let body = '';
   let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
   centers.forEach((c, i) => {
     const cw = c.cellW || c.cellSize, ch = c.cellH || c.cellSize;
     // Triangle lattices: the Symbol's own width matches the cell's width (the cell box is not square)
     const target = grid.tri ? cw : Math.min(cw, ch);
-    const s = target / natSize;
-    const tx = size / 2 + c.cx - target / 2, ty = size / 2 + c.cy - target / 2;
+    const s = target / ext;
+    const tx = size / 2 + c.cx - (raw ? s * lcx : target / 2), ty = size / 2 + c.cy - (raw ? s * lcy : target / 2);
     const flip = altFlip && (colRow[i].col + colRow[i].row) % 2 === 1;
-    const flipPart = flip ? ` translate(${natSize},0) scale(-1,1)` : '';
+    const flipPart = flip ? ` translate(${2 * lcx},0) scale(-1,1)` : '';
     // a tile in a down-pointing cell is turned half a turn so it keeps facing its lattice slot
     const down = grid.tri && polyOrient(grid.cells[i].points) === 'down';
-    const turn = down ? ` rotate(180 ${natSize / 2} ${natSize / 2})` : '';
+    const turn = down ? ` rotate(180 ${lcx} ${lcy})` : '';
     body += `<g transform="translate(${tx.toFixed(3)},${ty.toFixed(3)}) scale(${s.toFixed(4)})${turn}${flipPart}">${tileInner}</g>`;
     if (cbox) {   // the content box through this tile's own transform (flip, then turn, then scale + move)
       [[cbox.x0, cbox.y0], [cbox.x1, cbox.y0], [cbox.x0, cbox.y1], [cbox.x1, cbox.y1]].forEach(([px, py]) => {
-        if (flip) px = natSize - px;
-        if (down) { px = natSize - px; py = natSize - py; }
+        if (flip) px = 2 * lcx - px;
+        if (down) { px = 2 * lcx - px; py = 2 * lcy - py; }
         const X = tx + px * s, Y = ty + py * s;
         bx0 = Math.min(bx0, X); bx1 = Math.max(bx1, X); by0 = Math.min(by0, Y); by1 = Math.max(by1, Y);
       });
     }
   });
   const rot = parseInt(ctrl('sel-fvsgrid-rot').value, 10) || 0, mir = ctrl('sel-fvsgrid-mirror').value;
+  lastFigureMeta = { size, box: cbox ? { x0: bx0, y0: by0, x1: bx1, y1: by1 } : { x0: 0, y0: 0, x1: size, y1: size } };
   if (!rot && mir === 'none') {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`
       + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${sharedDefs}${body}</svg>`;
@@ -4169,9 +4177,11 @@ function buildFvsGridSVG() {
   return figureWithMirror(sharedDefs, body, cbox ? { x0: bx0, y0: by0, x1: bx1, y1: by1 } : { x0: 0, y0: 0, x1: size, y1: size }, size, rot, mir);
 }
 
+let lastFigureMeta = { size: 0, box: null };   // the frame and drawn box of the last Grid figure built
 // The box a saved Symbol really draws in (its non-empty cells), in the Symbol's own frame — so a
 // mirror lands on the visible edge even when a tile's outer rows are empty.
 function symbolContentBox(entry, nat) {
+  if (entry.raw) return entry.raw.box;
   try {
     const g = Organica.loadLoomGrid(entry.gridModel);
     const cs = resolveGridCells({ kind: 'loom', cellShape: g.cellShape, cells: g.cells, width: g.inner.width, height: g.inner.height });
@@ -4206,6 +4216,7 @@ function figureWithMirror(defs, body, box, size, rot, mir) {
     out += `<g transform="translate(0,${r2(2 * bh)}) scale(1,-1)">${row}</g>`;
   }
   const ox = (S - mw) / 2, oy = (S - mhgt) / 2;
+  lastFigureMeta = { size: S, box: { x0: ox, y0: oy, x1: ox + mw, y1: oy + mhgt } };   // what the next level sees as this figure's drawn box
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${r2(S)} ${r2(S)}" width="${r2(S)}" height="${r2(S)}">`
     + `<rect width="${r2(S)}" height="${r2(S)}" fill="${state.paperColor}"/>${defs}<g transform="translate(${r2(ox)},${r2(oy)})">${out}</g></svg>`;
 }
@@ -4244,7 +4255,7 @@ function renderFvsGridPicker() {
     btn.setAttribute('aria-label', label + ' ' + name);
     btn.title = name;
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${inner}</svg>`;
-    btn.addEventListener('click', () => { onPick(); renderFvsGridPicker(); renderFvsGrid(); updateStepHint('grid'); });
+    btn.addEventListener('click', () => { state.fvsGridRaw = null; onPick(); renderFvsGridPicker(); renderFvsGrid(); updateStepHint('grid'); });
     host.appendChild(btn);
   };
   for (const name of names) {
@@ -6160,7 +6171,8 @@ function validateFigureRecipe(def) {
   if (!def.element || !SEED_TYPES[def.element.type]) throw new Error('Unknown Seed type: ' + (def.element && def.element.type));
   const lv = def.levels || [];
   if (!lv.length || !['component', 'symbol'].includes(lv[0].kind)) throw new Error('The first level must be a component or a symbol');
-  if (lv.length > 2 || (lv[1] && lv[1].kind !== 'grid')) throw new Error('Only one grid level may follow the first');
+  if (lv.slice(1).some(l => l.kind !== 'grid')) throw new Error('Every level after the first must be a grid');
+  if (lv.length > 4) throw new Error('At most three grid levels');
   return lv;
 }
 function runFigureRecipe(def, opts) {
@@ -6174,8 +6186,9 @@ function runFigureRecipe(def, opts) {
   state.colorRule = { ...DEFAULT_COLOR_RULE, ...(el.colorRule || {}) };
   syncColorRuleUI(); buildPalette();
   paperSwatch.set(hexKey(el.paper || '#ffffff'));
-  const first = lv[0], gridLv = lv[1];
+  const first = lv[0], grids = lv.slice(1), gridLv = grids[0];
   let tier;
+  state.fvsGridRaw = null; state.figureLevelStats = [];
   if (first.kind === 'component') {
     fireChange('sel-grid-type', first.grid || 'square2x2');
     const comp = { id: 'figure-component', ruleSource: 'recipe', cells: first.cells || componentCellsFromRule(first.rule, first.params) };
@@ -6198,16 +6211,32 @@ function runFigureRecipe(def, opts) {
     if (gridLv) { state.fvsGridSymbolName = LIVE_SYMBOL; state.fvsGridComponentName = null; }
   }
   const tr = def.transform || {};
-  if (gridLv) {
+  let shapes = first.kind === 'symbol' ? state.symbolCells.filter(c => c.source !== 'empty').length : (getSelectedComponent() ? getSelectedComponent().cells.length : 0);
+  grids.forEach((g, gi) => {
+    const last = gi === grids.length - 1;
     tier = 'grid';
-    fireChange('sel-fvsgrid-type', gridTypeFromLattice(gridLv.lattice));
-    fireInput('rg-fvsgrid-cellsize', gridLv.cellSize || 110);
-    ctrl('chk-fvsgrid-alt-flip').checked = !!gridLv.altFlip;
-  }
-  fireChange('sel-fvsgrid-rot', String(tr.rotate || 0)); fireChange('sel-fvsgrid-mirror', tr.mirror || 'none');
+    fireChange('sel-fvsgrid-type', gridTypeFromLattice(g.lattice));
+    fireInput('rg-fvsgrid-cellsize', g.cellSize || 110);
+    ctrl('chk-fvsgrid-alt-flip').checked = !!g.altFlip;
+    const t = g.transform || (last ? tr : {});
+    fireChange('sel-fvsgrid-rot', String(t.rotate || 0)); fireChange('sel-fvsgrid-mirror', t.mirror || 'none');
+    const tiles = resolveGridCells(getFvsGrid()).length, copies = t.mirror === 'vh' ? 4 : (t.mirror === 'v' || t.mirror === 'h') ? 2 : 1;
+    state.figureLevelStats.push({ tiles, copies });
+    shapes *= tiles * copies;
+    if (shapes > FIGURE_MAX_SHAPES) throw new Error(`Too many shapes (${shapes}) — the limit is ${FIGURE_MAX_SHAPES}`);
+    if (!last) { const svg = buildFvsGridSVG(); state.fvsGridRaw = promoteFigureToTile(svg); }   // this figure becomes the next level's tile
+  });
+  if (!grids.length) { fireChange('sel-fvsgrid-rot', String(tr.rotate || 0)); fireChange('sel-fvsgrid-mirror', tr.mirror || 'none'); }
   if (opts && opts.keepTier) { state.figureTier = tier; return figureSVGOf(tier); }
   setTier(tier);
   return tierSVG();
+}
+const FIGURE_MAX_SHAPES = 20000;
+// A finished Grid figure as the tile of the next level: its markup without the paper rect,
+// its frame, and the box it really draws in (set by the last buildFvsGridSVG()).
+function promoteFigureToTile(svg) {
+  const inner = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').replace(/<rect width="[\d.]+" height="[\d.]+" fill="#[0-9a-fA-F]+"\/>/, '');
+  return { size: lastFigureMeta.size, inner, box: lastFigureMeta.box };
 }
 // The finished SVG of one underlying step, whichever step is on screen.
 function figureSVGOf(tier) {
@@ -6231,6 +6260,17 @@ const FIGURE_RECIPES_V1_AS_V2 = {
   'pinwheel': { element: { type: 'triangle', colors: ['#e8321e'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'pinwheel', params: { base: 0, chirality: 1 } }, { kind: 'grid', lattice: { type: 'square', n: 3 }, cellSize: 110 }] },
   'kaleidoscope': { element: { type: 'arc', params: { 'rg-thickness': 60 }, colors: ['#1e5be8'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'mirror', params: { seed: 0 } }, { kind: 'grid', lattice: { type: 'square', n: 2 }, cellSize: 110, altFlip: true }] },
 };
+// Levels of levels: each grid's finished figure becomes the tile of the next one.
+function recursiveFigureRecipes() {
+  const sym = { kind: 'symbol', lattice: { type: 'triangle', rows: 2 }, fit: 'fill', rules: [{ when: { class: 'down' }, do: { content: 'empty' } }] };
+  const el = { type: 'triangle', style: 'fill', colors: ['#f0301f'], paper: '#ffffff' };
+  const g = (lattice, extra) => ({ kind: 'grid', lattice, cellSize: 110, ...(extra || {}) });
+  return {
+    'Recursive · Sierpinski, three levels': { tool: 'fvs-recipe', version: 2, id: 'rec-sierpinski', element: el, levels: [sym, g({ type: 'triangle', rows: 2 }), g({ type: 'triangle', rows: 2 })] },
+    'Recursive · bow tie tiled 2×2': { tool: 'fvs-recipe', version: 2, id: 'rec-bowtie', element: el, levels: [sym, g({ type: 'tier', stack: 1 }, { transform: { rotate: 90, mirror: 'v' } }), g({ type: 'square', n: 2 })] },
+    'Recursive · tier of tiers, mirrored': { tool: 'fvs-recipe', version: 2, id: 'rec-tiers', element: el, levels: [sym, g({ type: 'tier', stack: 1 }), g({ type: 'tier', stack: 1 })], transform: { mirror: 'h' } },
+  };
+}
 // Hexagonal lattices: poses in 60° steps (each cell turned by its sector).
 function hexFigureRecipes() {
   const mk = (id, el, rings, rules) => ({ tool: 'fvs-recipe', version: 2, id, element: el, levels: [{ kind: 'symbol', lattice: { type: 'hexagon', rings }, fit: 'contain', rules }] });
@@ -6270,6 +6310,7 @@ const figureCatalog = () => {
   });
   Object.entries(FIGURE_RECIPES_V1_AS_V2).forEach(([k, r]) => { cat['Classic · ' + FIGURE_CLASSIC_LABELS[k]] = { tool: 'fvs-recipe', version: 2, ...r }; });
   Object.entries(hexFigureRecipes()).forEach(([k, r]) => { cat[k] = r; });
+  Object.entries(recursiveFigureRecipes()).forEach(([k, r]) => { cat[k] = r; });
   return cat;
 };
 const FG_LATTICE_OF = v => /^tier(\d)$/.test(v) ? { type: 'tier', stack: +v[4] } : /^tri(\d)$/.test(v) ? { type: 'triangle', rows: +v[3] } : { type: 'square', n: +v.match(/^square(\d)/)[1] };
@@ -6303,7 +6344,10 @@ function figureRecipeFromForm() {
     if (ctrl('fg-liveseed').checked) first.seed = 'live';
   }
   const levels = [first];
-  if (v('fg-comp') !== 'none') levels.push({ kind: 'grid', lattice: FG_LATTICE_OF(v('fg-comp')), cellSize: 110, altFlip: ctrl('fg-altflip').checked });
+  if (v('fg-comp') !== 'none') {
+    levels.push({ kind: 'grid', lattice: FG_LATTICE_OF(v('fg-comp')), cellSize: 110, altFlip: ctrl('fg-altflip').checked });
+    if (v('fg-comp2') !== 'none') levels.push({ kind: 'grid', lattice: FG_LATTICE_OF(v('fg-comp2')), cellSize: 110 });
+  }
   return { tool: 'fvs-recipe', version: 2, element: el, levels, transform: { rotate: +v('fg-rot'), mirror: v('fg-mirror') } };
 }
 function figureFormFromRecipe(def) {
@@ -6327,6 +6371,7 @@ function figureFormFromRecipe(def) {
     });
   }
   set('fg-comp', g ? FG_STR_OF(g.lattice) : 'none'); ctrl('fg-altflip').checked = !!(g && g.altFlip);
+  set('fg-comp2', def.levels[2] ? FG_STR_OF(def.levels[2].lattice) : 'none');
   set('fg-rot', tr.rotate || 0); set('fg-mirror', tr.mirror || 'none');
   syncFigureFormUI();
 }
@@ -6337,6 +6382,7 @@ function syncFigureFormUI() {
   ctrl('fg-row-comprule').style.display = lat === 'component' ? '' : 'none';
   ctrl('fg-rules-section').style.display = lat === 'component' ? 'none' : '';
   ctrl('fg-row-up').style.display = ctrl('fg-row-down').style.display = lat === 'triangle' ? '' : 'none';
+  ctrl('fg-row-comp2').style.display = ctrl('fg-comp').value === 'none' ? 'none' : '';
   ctrl('fg-row-hexturn').style.display = ctrl('fg-row-hexcentre').style.display = lat === 'hexagon' ? '' : 'none';
   ctrl('fg-row-n').querySelector('.ctrl-label').textContent = lat === 'hexagon' ? 'Rings' : 'Rows';
 }
@@ -6371,19 +6417,16 @@ function figureChecks(def, svg) {
   add(refs.every(r => ids.has(r)), 'Every clip reference resolves', refs.length + ' refs');
   add((svg.match(/<metadata>/g) || []).length <= 1 && (svg.match(/<defs>/g) || []).length <= 1, 'Defs and metadata appear once', '');
   const paths = (noDefs.match(/<path /g) || []).length;
-  const first = def.levels[0], gridLv = def.levels[1];
+  const first = def.levels[0];
   let slots = null;
   if (first.kind === 'symbol') {
     const l = first.lattice, total = l.type === 'triangle' ? l.rows * l.rows : l.type === 'hexagon' ? 3 * l.rings * (l.rings - 1) + 1 : l.cols * (l.rows || l.cols);
     add(state.symbolCells.length === total, 'Lattice has the expected number of slots', `${state.symbolCells.length} of ${total}`);
     slots = state.symbolCells.filter(c => c.source !== 'empty').length;
   } else slots = getSelectedComponent() ? getSelectedComponent().cells.length : 0;
-  let tiles = 1, copies = 1;
-  if (gridLv) { try { tiles = resolveGridCells(getFvsGrid()).length; } catch (e) { tiles = 0; } }
-  const tr = def.transform || {};
-  if (tr.mirror === 'v' || tr.mirror === 'h') copies = 2; if (tr.mirror === 'vh') copies = 4;
-  const expected = slots * tiles * copies;
-  add(paths === expected, 'Shapes drawn = filled slots × tiles × mirror copies', `${paths} of ${expected}`);
+  const stats = state.figureLevelStats || [];
+  const expected = stats.reduce((acc, st) => acc * st.tiles * st.copies, slots);
+  add(paths === expected, 'Shapes drawn = filled slots × tiles × mirror copies (per level)', `${paths} of ${expected}`);
   add(svg.length < 400000, 'File size is reasonable', Math.round(svg.length / 1024) + ' KB');
   return out;
 }
@@ -6472,7 +6515,8 @@ function drawFigureRef(fm, rm) {
   Object.keys(cat).forEach(k => ps.add(new Option(k, k)));
   ps.addEventListener('change', () => { if (ps.value) applyFigureRecipe(JSON.parse(JSON.stringify(cat[ps.value]))); });
   const onForm = () => { syncFigureFormUI(); applyFigureRecipe(figureRecipeFromForm(), { fromForm: true }); };
-  ['fg-seed', 'fg-style', 'fg-lattice', 'fg-n', 'fg-cols', 'fg-comprule', 'fg-up', 'fg-down', 'fg-odd', 'fg-hexturn', 'fg-comp', 'fg-rot', 'fg-mirror'].forEach(id => ctrl(id).addEventListener('change', onForm));
+  Array.from(ctrl('fg-comp').options).forEach(o => ctrl('fg-comp2').add(new Option(o.value === 'none' ? 'Nothing' : o.text, o.value)));
+  ['fg-seed', 'fg-style', 'fg-lattice', 'fg-n', 'fg-cols', 'fg-comprule', 'fg-up', 'fg-down', 'fg-odd', 'fg-hexturn', 'fg-comp2', 'fg-comp', 'fg-rot', 'fg-mirror'].forEach(id => ctrl(id).addEventListener('change', onForm));
   ['fg-ink', 'fg-paper', 'fg-emptyrows'].forEach(id => ctrl(id).addEventListener('input', onForm));
   ctrl('fg-altflip').addEventListener('change', onForm);
   ctrl('fg-liveseed').addEventListener('change', onForm);

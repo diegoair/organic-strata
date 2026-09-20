@@ -164,7 +164,7 @@
   "fig:seed:blob": "d4348a9c",
   "fig:seed:polygon": "59fe215f",
   "fig:invalid": "Unknown Seed type: nope",
-  "fig:catalog": "22",
+  "fig:catalog": "25",
   "fig:form:roundtrip": "ok",
   "fig:checks:triangle": "ok",
   "fig:tier": "figure,grid,true,true",
@@ -185,5 +185,18 @@
   "fig:hex:hex-arcs": "f9ae8270",
   "fig:hex:checks:hex-arcs": "0",
   "fig:hex:roundtrip:hex-arcs": "true",
-  "hex:poses": "0,60,120,180,240,300"
+  "hex:poses": "0,60,120,180,240,300",
+  "fig:rec:rec-sierpinski": "c7eb3898",
+  "fig:rec:checks:rec-sierpinski": "0/48",
+  "fig:rec:stats:rec-sierpinski": "4x1,4x1",
+  "fig:rec:roundtrip:rec-sierpinski": "true",
+  "fig:rec:rec-bowtie": "17a542b2",
+  "fig:rec:checks:rec-bowtie": "0/72",
+  "fig:rec:stats:rec-bowtie": "3x2,4x1",
+  "fig:rec:rec-tiers": "d96a1f7e",
+  "fig:rec:checks:rec-tiers": "0/54",
+  "fig:rec:stats:rec-tiers": "3x1,3x2",
+  "fig:rec:roundtrip:rec-tiers": "true",
+  "fig:rec:limit": "Too many shapes (N) \u2014 the limit is N",
+  "fig:rec:cleared": "true"
 }

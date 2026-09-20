@@ -149,9 +149,18 @@ pasted, copied or saved. It replaces the current Element, palette and Symbol/Gri
 - **Reference image**: load a picture (crop it to one figure first); its shape is fitted to
   the figure's own box, shown as an overlay, and the checks add *silhouette overlap* and
   *proportions*. Photos of screens are often stretched, so a moderate overlap is normal.
-- **Limits**: a Symbol cell holds a Seed at its default parameters (not the live Element's
-  extras); a Grid cannot yet be the tile of another Grid (two levels only); poses are
-  multiples of 90° (no 60° rotations for hexagonal lattices).
+- **Levels of levels**: any number (up to three) of grid levels can follow the first; each
+  grid's finished figure — rotation and mirror included — becomes the tile of the next
+  (`levels: [symbol, grid, grid, …]`, an optional `transform` per grid level, the recipe's own
+  `transform` belongs to the last). A guard stops at 20 000 shapes.
+- **Hexagonal lattices** (`{type:'hexagon', rings:n}`): cells know their `ring` and `sector`;
+  poses are multiples of 30° and `rotate: 'sector'` turns each cell by 60° × its sector
+  (rosettes). Three presets.
+- **Per-cell Seed settings**: `seed: 'live'` on a symbol level (or **Use Element** in Cell
+  properties) freezes the Element step's own settings — extras, thickness — into each cell,
+  instead of the plain default shape.
+- **Limits**: the Figure form edits one or two grid levels (more are JSON-only); Grid
+  lattices are square / triangle / tier (no hexagonal Grid yet).
 - An assistant can produce the recipe from an image: see `.claude/skills/fvs-figure-from-image`.
 
 ## 7. Libraries

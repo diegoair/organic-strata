@@ -25,7 +25,9 @@ FVS describes a figure as **Seed · lattice · slot classes · class→content/p
     {"kind":"grid","lattice":{"type":"tier","stack":2}} ],
   "transform":{"rotate":0,"mirror":"none"} }
 ```
-- `rules` apply in order; later rules override earlier ones. `when` keys: `class`, `row`, `col`, `index`, `parity` (a value or an array). `do` keys: `content` (`empty`|`filled`), `rotate`, `flipH`, `flipV`, `scale`.
+- Lattices: `triangle` (`rows`), `square` (`cols`, `rows`), `hexagon` (`rings`, with classes `ring` and `sector`; `rotate: 'sector'` gives 60° rosettes). Grid lattices: `square` (`n`), `triangle` (`rows`), `tier` (`stack`). Up to three grid levels: each figure is the tile of the next; a grid level may carry its own `transform`.
+- `seed: 'live'` on a symbol level keeps the Element's own settings in every cell.
+- `rules` apply in order; later rules override earlier ones. `when` keys: `class`, `row`, `col`, `index`, `parity`, `ring`, `sector` (a value or an array). `do` keys: `content` (`empty`|`filled`), `rotate`, `flipH`, `flipV`, `scale`.
 - A `component` first level (`rule`: checkerboard / radial / pinwheel / mirror, with `params`) covers the classic 2×2 blocks.
 - Examples: `triangleFigureRecipes()` and `FIGURE_RECIPES_V1_AS_V2` in `fvs/index.html`.
 
