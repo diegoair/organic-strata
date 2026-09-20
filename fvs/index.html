@@ -234,14 +234,24 @@
         <button class="org-btn" id="btn-variant-add">+ Variant</button>
         <button class="org-btn" id="btn-variant-export">Export SVGs</button>
       </div>
-      <label class="check-row"><input type="checkbox" id="chk-variant-transparent"><span>Transparent paper</span></label>
-      <p class="org-popover__hint">One SVG per row, same geometry — only Style, ink and stroke width change.</p>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-variant-format">Format</label>
+        <select class="org-select" id="sel-variant-format"><option value="svg">SVG</option><option value="png">PNG</option></select>
+      </div>
+      <div class="org-popover__row" id="row-variant-scales">
+        <span class="org-popover__label">PNG sizes</span>
+        <label class="check-row"><input type="checkbox" id="chk-vscale-1" checked><span>×1</span></label>
+        <label class="check-row"><input type="checkbox" id="chk-vscale-2"><span>×2</span></label>
+        <label class="check-row"><input type="checkbox" id="chk-vscale-4"><span>×4</span></label>
+      </div>
+      <label class="check-row"><input type="checkbox" id="chk-variant-transparent"><span>Transparent paper (all rows)</span></label>
+      <p class="org-popover__hint">One file per row and size — same geometry, only Style, ink, paper and stroke width change. In Print mode each file gets bleed + crop marks at the size set above.</p>
 
       <div id="plates-block" hidden>
         <div class="org-popover__divider"></div>
         <div class="org-popover__title">Plates</div>
-        <div class="org-formats"><button class="org-btn" id="btn-plates-export">One SVG per ink</button></div>
-        <p class="org-popover__hint">Black on transparent, one file per palette colour — for screenprint / riso.</p>
+        <div class="org-formats"><button class="org-btn" id="btn-plates-export">One file per ink</button></div>
+        <p class="org-popover__hint">Black on transparent, one file per palette colour (format and sizes above) — for screenprint / riso. Print mode adds crop marks, and registration marks once the bleed is 8 mm or more.</p>
       </div>
 
       <div class="org-popover__divider"></div>
@@ -3978,7 +3988,7 @@ function buildSymbolItems() {
       return {
         type: 'component', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
         scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
-        nestedItems, nestedSeed: entry.seed, nestedSize, nestedPaper: entry.paperColor, nestedAppearance: entry.appearance,
+        nestedItems, nestedSeed: entry.seed, nestedSize, nestedPaper: entry.paperColor, nestedAppearance: { ...entry.appearance, ...(variantAppearance || {}) },
       };
     }
     const geo = SEED_TYPES[cell.seedType].geometry(SYMBOL_SEED_DEFAULTS);
@@ -5442,8 +5452,8 @@ function exportByTier(format) {
 // and paper differ, applied as overrides around that one call.
 const VARIANTS = Organica.presetStore('fvs-variants');
 const DEFAULT_VARIANTS = [
-  { style: 'fill', ink: '#0a9a3e', strokeW: 4 },
-  { style: 'stroke', ink: '#e8321e', strokeW: 5 },
+  { style: 'fill', ink: '#0a9a3e', strokeW: 4, paper: null },
+  { style: 'stroke', ink: '#e8321e', strokeW: 5, paper: null },
 ];
 function readVariants() {
   try { const v = VARIANTS.read().list; if (Array.isArray(v) && v.length) return v; } catch (e) {}
@@ -5474,14 +5484,16 @@ function recolourSVG(svg, ink, paper) {
 function renderVariant(v, transparent) {
   const prev = { colors: state.colors, paper: state.paperColor };
   const paper = prev.paper;
+  if (v.paper) state.paperColor = v.paper;
   const app = { ...getElementAppearance(), fillMode: v.style, strokeW: v.strokeW, rounded: true };
   variantAppearance = { fillMode: v.style, strokeW: v.strokeW, rounded: true };
   state.colors = [v.ink];
   try {
     let svg = withAppearance(app, tierSVG);
     if (!svg) return '';
-    svg = recolourSVG(svg, v.ink, paper);
-    if (transparent) svg = svg.replace(new RegExp(`<rect width="[\\d.]+" height="[\\d.]+" fill="${paper}"/>`, 'i'), '');
+    const paperNow = v.paper || paper;
+    svg = recolourSVG(svg, v.ink, paperNow);
+    if (transparent) svg = svg.replace(new RegExp(`<rect width="[\\d.]+" height="[\\d.]+" fill="${paperNow}"/>`, 'i'), '');
     return svg;
   } finally { variantAppearance = null; state.colors = prev.colors; state.paperColor = prev.paper; }
 }
@@ -5494,10 +5506,13 @@ function renderVariantRows() {
     row.className = 'fvs-variant-row';
     row.innerHTML = `<select class="panel-select" aria-label="Variant ${i + 1} style"><option value="fill">Fill</option><option value="stroke">Stroke</option></select>`
       + `<input type="color" aria-label="Variant ${i + 1} ink">`
+      + `<input type="color" aria-label="Variant ${i + 1} paper">`
       + `<input type="number" class="panel-input" min="1" max="20" aria-label="Variant ${i + 1} stroke width">`
       + `<button class="mini-btn" aria-label="Remove variant ${i + 1}">×</button>`;
-    const [sel, col, num, del] = row.children;
-    sel.value = v.style; col.value = v.ink; num.value = v.strokeW;
+    const [sel, col, pap, num, del] = row.children;
+    sel.value = v.style; col.value = v.ink; num.value = v.strokeW; pap.value = v.paper || state.paperColor;
+    pap.title = 'Paper for this variant';
+    pap.addEventListener('input', () => { v.paper = pap.value; writeVariants(variantList); });
     num.disabled = v.style !== 'stroke';
     sel.addEventListener('change', () => { v.style = sel.value; num.disabled = v.style !== 'stroke'; writeVariants(variantList); });
     col.addEventListener('input', () => { v.ink = col.value; writeVariants(variantList); });
@@ -5508,17 +5523,73 @@ function renderVariantRows() {
 }
 renderVariantRows();
 ctrl('btn-variant-add').addEventListener('click', () => {
-  variantList.push({ style: 'fill', ink: '#000000', strokeW: 4 });
+  variantList.push({ style: 'fill', ink: '#000000', strokeW: 4, paper: null });
   writeVariants(variantList); renderVariantRows();
 });
+// Output pipeline shared by Variants and Plates: raw tier SVG → (Print mode:
+// physical-mm wrapper with bleed, crop marks, and — plates only — registration
+// marks) → SVG blob, or a rasterised PNG (screen: base×scale; print: exact
+// px from the panel's size/DPI, with the DPI written into the file).
+function svgBaseSize(svg) { const m = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/); return m ? parseFloat(m[1]) : 400; }
+function svgInnerOf(svg) { return svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, ''); }
+function printWrapSVG(svg, paper, plate) {
+  const base = svgBaseSize(svg), p = printComponentDims(base);
+  const bw = p.trimWmm + 2 * p.bleedMm, bh = p.trimHmm + 2 * p.bleedMm;
+  let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(bw)}mm" height="${r2(bh)}mm" viewBox="0 0 ${r2(bw)} ${r2(bh)}">`;
+  if (paper && paper !== 'none') out += `<rect width="100%" height="100%" fill="${paper}"/>`;
+  out += `<g transform="translate(${r2(p.bleedMm)},${r2(p.bleedMm)})"><g transform="scale(${base ? p.trimWmm / base : 1})">${svgInnerOf(svg)}</g>`;
+  if (p.bleedMm > 0) out += Organica.printSize.cropMarksSVG(p.trimWmm, p.trimHmm, {}, '#000');
+  if (plate && p.bleedMm > 0) out += Organica.printSize.registrationMarksSVG(p.trimWmm, p.trimHmm, { bleed: p.bleedMm }, '#000');
+  return out + '</g></svg>';
+}
+async function encodeOutput(svg, { format, scale, paper, plate }) {
+  const print = printSizePanel.getMode() === 'print';
+  const doc = print ? printWrapSVG(svg, paper, plate) : svg;
+  if (format === 'svg') return new Blob([doc], { type: 'image/svg+xml' });
+  const base = svgBaseSize(svg);
+  let outW, outH, dpi = null;
+  if (print) { const p = printComponentDims(base); outW = p.outW; outH = p.outH; dpi = p.dpi; }
+  else { outW = outH = Math.round(base * scale); }
+  const sized = /<svg[^>]*\swidth="/.test(doc)
+    ? doc.replace(/(<svg[^>]*?)\swidth="[^"]*"\sheight="[^"]*"/, `$1 width="${outW}" height="${outH}"`)
+    : doc.replace('<svg ', `<svg width="${outW}" height="${outH}" `);
+  const url = URL.createObjectURL(new Blob([sized], { type: 'image/svg+xml' }));
+  try {
+    const img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('SVG raster failed')); im.src = url; });
+    const cv = document.createElement('canvas'); cv.width = outW; cv.height = outH;
+    cv.getContext('2d').drawImage(img, 0, 0, outW, outH);
+    const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+    if (dpi) return new Blob([Organica.printSize.embedPngDpi(await blob.arrayBuffer(), dpi)], { type: 'image/png' });
+    return blob;
+  } finally { URL.revokeObjectURL(url); }
+}
+// The (scale) sizes to emit: PNG in screen mode honours the ×1/×2/×4 ticks;
+// SVG and print mode are one file per item.
+function outputScales() {
+  if (ctrl('sel-variant-format').value !== 'png' || printSizePanel.getMode() === 'print') return [1];
+  const out = [1, 2, 4].filter(n => ctrl('chk-vscale-' + n).checked);
+  return out.length ? out : [1];
+}
+function outputName(label, scale) {
+  const fmt = ctrl('sel-variant-format').value;
+  return Organica.stamp(`fvs-${label}${fmt === 'png' && scale > 1 ? '@' + scale + 'x' : ''}`, fmt);
+}
+function syncVariantFormatUI() { ctrl('row-variant-scales').style.display = ctrl('sel-variant-format').value === 'png' ? '' : 'none'; }
+ctrl('sel-variant-format').addEventListener('change', syncVariantFormatUI);
+syncVariantFormatUI();
+
 ctrl('btn-variant-export').addEventListener('click', () => {
   const transparent = ctrl('chk-variant-transparent').checked;
-  Organica.plateExport.run(variantList.length, {
-    build: i => {
-      const v = variantList[i];
+  const scales = outputScales(), format = ctrl('sel-variant-format').value;
+  const jobs = [];
+  variantList.forEach(v => scales.forEach(sc => jobs.push({ v, sc })));
+  Organica.plateExport.run(jobs.length, {
+    build: async i => {
+      const { v, sc } = jobs[i];
       const svg = renderVariant(v, transparent);
       if (!svg) return null;
-      return { blob: new Blob([svg], { type: 'image/svg+xml' }), filename: Organica.stamp(`fvs-${v.style}-${v.ink.slice(1)}`, 'svg') };
+      const paper = transparent ? 'none' : (v.paper || state.paperColor);
+      return { blob: await encodeOutput(svg, { format, scale: sc, paper, plate: false }), filename: outputName(`${v.style}-${v.ink.slice(1)}`, sc) };
     },
   });
 });
@@ -5539,8 +5610,14 @@ ctrl('btn-export').addEventListener('click', syncPlatesBlock);
 ctrl('btn-plates-export').addEventListener('click', () => {
   const svg = tierSVG(); if (!svg) return;
   const colors = state.colors.slice(), paper = state.paperColor;
-  Organica.plateExport.run(colors.length, {
-    build: i => ({ blob: new Blob([plateSVG(svg, colors, i, paper)], { type: 'image/svg+xml' }), filename: Organica.stamp(`fvs-plate${i + 1}-${colors[i].slice(1)}`, 'svg') }),
+  const scales = outputScales(), format = ctrl('sel-variant-format').value;
+  const jobs = [];
+  colors.forEach((c, i) => scales.forEach(sc => jobs.push({ i, sc })));
+  Organica.plateExport.run(jobs.length, {
+    build: async n => {
+      const { i, sc } = jobs[n];
+      return { blob: await encodeOutput(plateSVG(svg, colors, i, paper), { format, scale: sc, paper: 'none', plate: true }), filename: outputName(`plate${i + 1}-${colors[i].slice(1)}`, sc) };
+    },
   });
 });
 
