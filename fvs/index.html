@@ -258,21 +258,21 @@
       <div class="ctrl-row">
         <div id="seedtype-picker"></div>
         <select class="panel-select" id="sel-seed-type" aria-label="Seed type">
-          <option value="freehand">Freehand</option>
-          <option value="circle">Circle</option>
-          <option value="triangle">Triangle</option>
           <option value="arc">Arc</option>
           <option value="arctruchet">Arc truchet</option>
-          <option value="wedge">Wedge</option>
-          <option value="polygon">Polygon</option>
-          <option value="star">Star</option>
-          <option value="roundedrect">Rounded rect</option>
-          <option value="chevron">Chevron</option>
-          <option value="cross">Cross</option>
-          <option value="lens">Lens</option>
-          <option value="segment">Segment</option>
-          <option value="drop">Drop</option>
           <option value="blob">Blob</option>
+          <option value="chevron">Chevron</option>
+          <option value="circle">Circle</option>
+          <option value="cross">Cross</option>
+          <option value="drop">Drop</option>
+          <option value="freehand" selected>Freehand</option>
+          <option value="lens">Lens</option>
+          <option value="polygon">Polygon</option>
+          <option value="roundedrect">Rounded rect</option>
+          <option value="segment">Segment</option>
+          <option value="star">Star</option>
+          <option value="triangle">Triangle</option>
+          <option value="wedge">Wedge</option>
         </select>
       </div>
       <div id="seed-triangle-block">
@@ -677,6 +677,11 @@
           <div class="ctrl-label" title="0 = a true circle, 100 = a near-square squircle.">Roundness</div>
           <input type="range" id="rg-circle-round" min="0" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-circle-round">0</span>
+        </div>
+        <div class="ctrl-row" id="row-circle-rotate">
+          <div class="ctrl-label" title="Turns a squircle or the lobes; Holes and Slices follow. No visible effect on a plain circle.">Rotate</div>
+          <input type="range" id="rg-circle-rotate" min="0" max="359" step="1" value="0">
+          <span class="ctrl-val" id="v-circle-rotate">0</span>
         </div>
         <div class="ctrl-row" id="row-circle-lobes">
           <div class="ctrl-label" title="0 = smooth. 2+ gives the outline that many soft waves (flower / soft gear).">Lobes</div>
@@ -1549,15 +1554,15 @@ const SEED_TYPES = {
   arctruchet: { label: 'Arc truchet', geometry: (p) => arcTruchetGeometry(p.arcCount, p.arcRatio, { fans: p.truFans, core: p.truCore, spread: p.truSpread, reach: p.truReach, ramp: p.truRamp, curve: p.truCurve, round: p.truRound, segs: p.truSegs, gap: p.truGap }) },
   wedge: { label: 'Wedge', geometry: (p) => wedgeGeometry(p.wedgeAngle, p.wedgeInner, p.wedgeSquash, { round: p.wedgeRound, rotate: p.wedgeRotate, curve: p.wedgeCurve, irregular: p.wedgeIrregular, seed: p.wedgeSeed }) },
   polygon: { label: 'Polygon', geometry: (p) => polygonGeometry(p.polySides, p.polyCorner, p.polyIrregular, p.polySeed, p.polyRadius, { rotate: p.polyRotate, step: p.polyStep, style: p.polyStyle, curve: p.polyCurve, outline: p.polyOutline, skew: p.polySkew }) },
-  star: { label: 'Star', geometry: (p) => starGeometry(p.starPoints, p.starInner, p.starIrregular, p.starSeed, p.starRadius) },
-  roundedrect: { label: 'Rounded rect', geometry: (p) => roundedRectGeometry(p.rrWidth, p.rrHeight, p.rrCorner) },
-  chevron: { label: 'Chevron', geometry: (p) => chevronGeometry(p.chevNotch, p.chevArm, p.chevSquash) },
-  cross: { label: 'Cross', geometry: (p) => crossGeometry(p.crossArmWidth, p.crossArmLength, p.crossCorner) },
-  lens: { label: 'Lens', geometry: (p) => lensGeometry(p.lensWidth) },
+  star: { label: 'Star', geometry: (p) => starGeometry(p.starPoints, p.starInner, p.starIrregular, p.starSeed, p.starRadius, { rotate: p.starRotate, tipRound: p.starTipRound, valleyRound: p.starValleyRound, style: p.starStyle, curve: p.starCurve, twist: p.starTwist, outline: p.starOutline, skew: p.starSkew }) },
+  roundedrect: { label: 'Rounded rect', geometry: (p) => roundedRectGeometry(p.rrWidth, p.rrHeight, p.rrCorner, { style: p.rrStyle, mask: p.rrMask, skew: p.rrSkew, rotate: p.rrRotate, curve: p.rrCurve, outline: p.rrOutline }) },
+  chevron: { label: 'Chevron', geometry: (p) => chevronGeometry(p.chevNotch, p.chevArm, p.chevSquash, { round: p.chevRound, style: p.chevStyle, curve: p.chevCurve, lean: p.chevLean, flat: p.chevFlat, stack: p.chevStack, gap: p.chevGap, rotate: p.chevRotate }) },
+  cross: { label: 'Cross', geometry: (p) => crossGeometry(p.crossArmWidth, p.crossArmLength, p.crossCorner, { arms: p.crossArms, taper: p.crossTaper, tip: p.crossTip, style: p.crossStyle, rotate: p.crossRotate }) },
+  lens: { label: 'Lens', geometry: (p) => lensGeometry(p.lensWidth, { crescent: p.lensCrescent, petals: p.lensPetals, outline: p.lensOutline, rotate: p.lensRotate }) },
   circle: { label: 'Circle', geometry: (p) => circleGeometry(p.circleRadius, circleOptsFrom(p)) },
-  segment: { label: 'Segment', geometry: (p) => segmentGeometry(p.segLen) },
-  drop: { label: 'Drop', geometry: (p) => dropGeometry(p.dropRadius, p.dropTail) },
-  blob: { label: 'Blob', geometry: (p) => blobGeometry(p.blobRadius, p.blobAmount, p.blobSeed) },
+  segment: { label: 'Segment', geometry: (p) => segmentGeometry(p.segLen, { angle: p.segAngle, bend: p.segBend, wave: p.segWave, cycles: p.segCycles, dashes: p.segDashes, gap: p.segGap, lines: p.segLines, spacing: p.segSpacing }) },
+  drop: { label: 'Drop', geometry: (p) => dropGeometry(p.dropRadius, p.dropTail, { bend: p.dropBend, neck: p.dropNeck, petals: p.dropPetals, rotate: p.dropRotate }) },
+  blob: { label: 'Blob', geometry: (p) => blobGeometry(p.blobRadius, p.blobAmount, p.blobSeed, { freq: p.blobFreq, smooth: p.blobSmooth, outline: p.blobOutline }) },
   // Freehand: every step after Element sees the drawing fitted to the cell;
   // only the Element stage shows it raw ('freehandraw', not in the picker).
   freehand: { label: 'Freehand', geometry: (p) => (p && p.customSeed) || (state.freehand && state.freehand.seed) || { d: '', normTx: 0, normTy: 0, normScale: 1 } },
@@ -1620,27 +1625,48 @@ const SYMBOL_TRIANGLE = { triApex: 0, triCorner: 0, triCurve: 0, triIrregular: 0
 // Symbols cells carry no per-seed params of their own (same as they already
 // ignore Base/Height/Thickness) — one merged params object covers every
 // SEED_TYPES geometry fn, each reading only the fields it needs.
-const SYMBOL_SEED_DEFAULTS = { base: 100, height: 100, thickness: 100, ...SYMBOL_ARC_TRUCHET, ...SYMBOL_ARC, ...SYMBOL_WEDGE, ...SYMBOL_POLYGON, ...SYMBOL_STAR, ...SYMBOL_ROUNDEDRECT, ...SYMBOL_CHEVRON, ...SYMBOL_CROSS, ...SYMBOL_LENS, ...SYMBOL_TRIANGLE, ...SYMBOL_INNER };
+// ── Seed extras registry (Star · Rounded rect · Chevron · Cross · Lens · Segment · Drop · Blob) ──
+// The row definitions (labels, ranges, defaults) live in shared/shapes.js → Organica.shapes.EXTRAS so Genesis
+// Create reads the SAME table. Here: the FVS-side prefix + the derived Type shortcuts. One table drives, per
+// shape: the panel rows (built into #seed-<shape>-block at boot), getSeed() keys, snapshot load (old entries
+// fall back to `def`), the generic listeners and the Symbols defaults. Keys are shape-prefixed, never shared.
+const SEED_EXTRAS = {
+  star: { prefix: "star", rows: Organica.shapes.EXTRAS.star, type: { label: "Star type", title: "Shortcut that sets Points, Inner radius, Edge curvature and Tip rounding. Reads Custom as soon as you move any of them by hand.",
+    presets: { star: ["Star", {"rg-star-points": 5, "rg-star-inner": 45, "rg-star-curve": 0, "rg-star-tip": 0}], burst: ["Burst", {"rg-star-points": 12, "rg-star-inner": 70, "rg-star-curve": 0, "rg-star-tip": 0}], sparkle: ["Sparkle", {"rg-star-points": 4, "rg-star-inner": 20, "rg-star-curve": -50, "rg-star-tip": 0}], badge: ["Badge", {"rg-star-points": 12, "rg-star-inner": 88, "rg-star-curve": 0, "rg-star-tip": 40}] } } },
+  roundedrect: { prefix: "rr", rows: Organica.shapes.EXTRAS.roundedrect, type: { label: "Rounded rect type", title: "Shortcut that sets Width and Height (Pill also Corner radius). Reads Custom as soon as you move them by hand.",
+    presets: { square: ["Square", {"rg-rr-width": 100, "rg-rr-height": 100}], landscape: ["Landscape", {"rg-rr-width": 100, "rg-rr-height": 60}], portrait: ["Portrait", {"rg-rr-width": 60, "rg-rr-height": 100}], pill: ["Pill", {"rg-rr-width": 100, "rg-rr-height": 50, "rg-rr-corner": 100}] } } },
+  chevron: { prefix: "chev", rows: Organica.shapes.EXTRAS.chevron },
+  cross: { prefix: "cross", rows: Organica.shapes.EXTRAS.cross, type: { label: "Cross type", title: "Shortcut that sets Arms and Rotate. Reads Custom as soon as you move them by hand.",
+    presets: { plus: ["Plus", {"rg-cross-arms": 4, "rg-cross-rotate": 0}], x: ["X", {"rg-cross-arms": 4, "rg-cross-rotate": 45}], y: ["Y", {"rg-cross-arms": 3, "rg-cross-rotate": 0}], asterisk: ["Asterisk", {"rg-cross-arms": 6, "rg-cross-rotate": 0}] } } },
+  lens: { prefix: "lens", rows: Organica.shapes.EXTRAS.lens },
+  segment: { prefix: "seg", rows: Organica.shapes.EXTRAS.segment },
+  drop: { prefix: "drop", rows: Organica.shapes.EXTRAS.drop },
+  blob: { prefix: "blob", rows: Organica.shapes.EXTRAS.blob },
+};
+const SEED_EXTRAS_DEFAULTS = {};
+Object.values(SEED_EXTRAS).forEach(sh => sh.rows.forEach(r => { SEED_EXTRAS_DEFAULTS[r.key] = r.def; }));
+const xrId = (sh, r) => (r.kind === 'select' ? 'sel-' : 'rg-') + sh.prefix + '-' + r.id;
+const SYMBOL_SEED_DEFAULTS = { base: 100, height: 100, thickness: 100, ...SYMBOL_ARC_TRUCHET, ...SYMBOL_ARC, ...SYMBOL_WEDGE, ...SYMBOL_POLYGON, ...SYMBOL_STAR, ...SYMBOL_ROUNDEDRECT, ...SYMBOL_CHEVRON, ...SYMBOL_CROSS, ...SYMBOL_LENS, ...SYMBOL_TRIANGLE, ...SYMBOL_INNER, ...SEED_EXTRAS_DEFAULTS };
 
 // ── Seed type picker (thumbnail dropdown — shared/select-picker.js) ──
 // 26×26 pictograms, currentColor, like Genesis Create's Kind picker.
 const SI = (inner, mode) => `<svg viewBox="0 0 26 26" ${mode === 'stroke' ? 'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"' : 'fill="currentColor"'}>${inner}</svg>`;
 const SEED_ICONS = {
-  freehand: { name: 'Freehand', icon: SI('<path d="M4 20 C7 8 11 8 13 14 C15 20 19 20 22 6"/>', 'stroke') },
-  circle: { name: 'Circle', icon: SI('<circle cx="13" cy="13" r="9"/>') },
-  triangle: { name: 'Triangle', icon: SI('<polygon points="13,4 23,22 3,22"/>') },
   arc: { name: 'Arc', icon: SI('<path d="M4,4 L22,4 A18,18 0 0,1 4,22 Z"/>') },
   arctruchet: { name: 'Arc truchet', icon: SI('<path d="M4 13 A9 9 0 0 1 22 13 M8 13 A5 5 0 0 1 18 13 M4 13 A9 9 0 0 0 22 13 M8 13 A5 5 0 0 0 18 13"/>', 'stroke') },
-  wedge: { name: 'Wedge', icon: SI('<path d="M13 22 L4.5 8 A11 11 0 0 1 21.5 8 Z"/>') },
-  polygon: { name: 'Polygon', icon: SI('<polygon points="13,3 22,9.5 18.5,20.5 7.5,20.5 4,9.5"/>') },
-  star: { name: 'Star', icon: SI('<polygon points="13,3 15.8,10.2 23,10.8 17.5,15.5 19.2,22.5 13,18.7 6.8,22.5 8.5,15.5 3,10.8 10.2,10.2"/>') },
-  roundedrect: { name: 'Rounded rect', icon: SI('<rect x="3" y="6" width="20" height="14" rx="5"/>') },
-  chevron: { name: 'Chevron', icon: SI('<polygon points="13,4 23,22 17,22 13,13 9,22 3,22"/>') },
-  cross: { name: 'Cross', icon: SI('<polygon points="10,3 16,3 16,10 23,10 23,16 16,16 16,23 10,23 10,16 3,16 3,10 10,10"/>') },
-  lens: { name: 'Lens', icon: SI('<path d="M13 3 C21 8 21 18 13 23 C5 18 5 8 13 3 Z"/>') },
-  segment: { name: 'Segment', icon: SI('<line x1="4" y1="13" x2="22" y2="13"/>', 'stroke') },
-  drop: { name: 'Drop', icon: SI('<path d="M13,3 C9,10 5,13 5,17 A8,8 0 0,0 21,17 C21,13 17,10 13,3 Z"/>') },
   blob: { name: 'Blob', icon: SI('<path d="M13,4 C18,3 22,7 21,12 C23,17 19,22 13,21 C7,23 3,18 5,13 C3,8 8,3 13,4 Z"/>') },
+  chevron: { name: 'Chevron', icon: SI('<polygon points="13,4 23,22 17,22 13,13 9,22 3,22"/>') },
+  circle: { name: 'Circle', icon: SI('<circle cx="13" cy="13" r="9"/>') },
+  cross: { name: 'Cross', icon: SI('<polygon points="10,3 16,3 16,10 23,10 23,16 16,16 16,23 10,23 10,16 3,16 3,10 10,10"/>') },
+  drop: { name: 'Drop', icon: SI('<path d="M13,3 C9,10 5,13 5,17 A8,8 0 0,0 21,17 C21,13 17,10 13,3 Z"/>') },
+  freehand: { name: 'Freehand', icon: SI('<path d="M4 20 C7 8 11 8 13 14 C15 20 19 20 22 6"/>', 'stroke') },
+  lens: { name: 'Lens', icon: SI('<path d="M13 3 C21 8 21 18 13 23 C5 18 5 8 13 3 Z"/>') },
+  polygon: { name: 'Polygon', icon: SI('<polygon points="13,3 22,9.5 18.5,20.5 7.5,20.5 4,9.5"/>') },
+  roundedrect: { name: 'Rounded rect', icon: SI('<rect x="3" y="6" width="20" height="14" rx="5"/>') },
+  segment: { name: 'Segment', icon: SI('<line x1="4" y1="13" x2="22" y2="13"/>', 'stroke') },
+  star: { name: 'Star', icon: SI('<polygon points="13,3 15.8,10.2 23,10.8 17.5,15.5 19.2,22.5 13,18.7 6.8,22.5 8.5,15.5 3,10.8 10.2,10.2"/>') },
+  triangle: { name: 'Triangle', icon: SI('<polygon points="13,4 23,22 3,22"/>') },
+  wedge: { name: 'Wedge', icon: SI('<path d="M13 22 L4.5 8 A11 11 0 0 1 21.5 8 Z"/>') },
   custom: { name: 'Custom (uploaded)', icon: SI('<rect x="4" y="4" width="18" height="18" stroke-dasharray="2.5 2.5"/><path d="M13 17 V9 M9.5 12 L13 8.5 L16.5 12"/>', 'stroke') },
 };
 const seedPicker = Organica.selectPicker(ctrl('sel-seed-type'), ctrl('seedtype-picker'), { registry: SEED_ICONS, ariaLabel: 'Seed type' });
@@ -1648,7 +1674,7 @@ const seedPicker = Organica.selectPicker(ctrl('sel-seed-type'), ctrl('seedtype-p
 // Circle modifiers: [getSeed key, control id suffix, default]. One table
 // drives getSeed(), the snapshot restore and the input listeners.
 const CIRCLE_PARAMS = [
-  ['round', 'round', 0], ['lobes', 'lobes', 0], ['lobeDepth', 'lobedepth', 20], ['inner', 'inner', 50],
+  ['round', 'round', 0], ['rotate', 'rotate', 0], ['lobes', 'lobes', 0], ['lobeDepth', 'lobedepth', 20], ['inner', 'inner', 50],
   ['ringCount', 'ringcount', 3], ['ringRatio', 'ringratio', 55], ['holes', 'holes', 6], ['holeSize', 'holesize', 14], ['holeRing', 'holering', 60],
   ['cutPos', 'cutpos', 0], ['cutAngle', 'cutangle', 0], ['biteRadius', 'biteradius', 70], ['biteOffset', 'biteoffset', 60], ['biteAngle', 'biteangle', 45],
   ['slices', 'slices', 6], ['sliceGap', 'slicegap', 6],
@@ -1678,6 +1704,12 @@ function syncCircleRows() {
 
 // The Seed as a snapshot stores it: freehand also carries its editable
 // path data plus the fitted geometry, so it renders with no editor present.
+// Extras registry → getSeed keys (numbers for sliders, strings for selects).
+function getSeedExtras() {
+  const o = {};
+  Object.values(SEED_EXTRAS).forEach(sh => sh.rows.forEach(r => { const el = ctrl(xrId(sh, r)); o[r.key] = r.kind === 'select' ? el.value : parseFloat(el.value); }));
+  return o;
+}
 function seedForSnapshot() {
   const seed = { ...getSeed(), customSeed: state.customSeed };
   if (seed.type === 'freehand') {
@@ -1736,7 +1768,7 @@ function syncFreehandEditor() {
 }
 
 function getSeed() {
-  return {
+  return { ...getSeedExtras(),
     type: ctrl('sel-seed-type').value,
     base: val('rg-base'),
     height: val('rg-height'),
@@ -3228,7 +3260,11 @@ function applyLibraryEntryToUI(entry) {
   ctrl('sel-circle-interior').value = entry.seed.circleInterior || 'solid';
   ctrl('sel-circle-trim').value = entry.seed.circleTrim || 'none';
   ctrl('sel-tru-fans').value = String(entry.seed.truFans || 2);
-  syncPolyStepMax(); syncTriType(); syncArcType(); syncTruType(); syncWedgeType(); syncPolyType();
+  Object.values(SEED_EXTRAS).forEach(sh => sh.rows.forEach(r => {
+    const el = ctrl(xrId(sh, r)), v = entry.seed[r.key] != null ? entry.seed[r.key] : r.def;
+    el.value = v; const vv = ctrl('v-' + sh.prefix + '-' + r.id); if (vv) vv.textContent = v;
+  }));
+  syncPolyStepMax(); syncTriType(); syncArcType(); syncTruType(); syncWedgeType(); syncPolyType(); syncExtrasTypes();
   CIRCLE_PARAMS.forEach(([k, id, def]) => {
     const v = entry.seed[cap(k)] != null ? entry.seed[cap(k)] : def;
     ctrl('rg-circle-' + id).value = v; ctrl('v-circle-' + id).textContent = v;
@@ -4356,7 +4392,7 @@ function renderCellContentOverlayTiles() {
 
   const elWrap = ctrl('symbol-content-overlay__seeds');
   elWrap.innerHTML = '';
-  ['triangle', 'arc', 'arctruchet', 'wedge', 'polygon', 'star', 'roundedrect', 'chevron', 'cross', 'lens', 'circle', 'drop', 'blob'].forEach(type => {
+  ['arc', 'arctruchet', 'blob', 'chevron', 'circle', 'cross', 'drop', 'lens', 'polygon', 'roundedrect', 'star', 'triangle', 'wedge'].forEach(type => {   // alphabetical (UI only — generateSymbolCells' seeded seedTypes array is deliberately NOT reordered)
     const svgStr = buildSeedPreviewSVG({ type, ...SYMBOL_SEED_DEFAULTS }, 0, false, false, 72);
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
@@ -4707,6 +4743,56 @@ ctrl('sel-wedge-type').addEventListener('change', e => {
 ctrl('rg-wedge-angle').addEventListener('input', e => { ctrl('v-wedge-angle').textContent = e.target.value; syncWedgeType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-wedge-inner').addEventListener('input', e => { ctrl('v-wedge-inner').textContent = e.target.value; syncWedgeType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-wedge-squash').addEventListener('input', e => { ctrl('v-wedge-squash').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+// Build the extras rows into each shape's block, then wire them (label readout,
+// derived Type shortcut, re-render). Called once at boot, before the first render.
+function buildSeedExtras() {
+  Object.entries(SEED_EXTRAS).forEach(([shape, sh]) => {
+    const block = ctrl('seed-' + shape + '-block');
+    sh.rows.forEach(r => {
+      const row = document.createElement('div'); row.className = 'ctrl-row';
+      const lab = document.createElement('div'); lab.className = 'ctrl-label'; lab.textContent = r.label; if (r.title) lab.title = r.title; row.appendChild(lab);
+      if (r.kind === 'select') {
+        const sel = document.createElement('select'); sel.className = 'panel-select'; sel.id = xrId(sh, r); sel.setAttribute('aria-label', sh.prefix + ' ' + r.label);
+        r.options.forEach(([v, t]) => { const o = new Option(t, v); if (v === r.def) o.defaultSelected = true; sel.appendChild(o); });
+        sel.value = r.def; row.appendChild(sel);
+      } else {
+        const inp = document.createElement('input'); inp.type = 'range'; inp.id = xrId(sh, r); inp.min = r.min; inp.max = r.max; inp.step = 1; inp.setAttribute('value', r.def); inp.value = r.def; row.appendChild(inp);
+        const out = document.createElement('span'); out.className = 'ctrl-val'; out.id = 'v-' + sh.prefix + '-' + r.id; out.textContent = r.def; row.appendChild(out);
+      }
+      block.appendChild(row);
+    });
+    if (sh.type) {
+      const row = document.createElement('div'); row.className = 'ctrl-row';
+      const lab = document.createElement('div'); lab.className = 'ctrl-label'; lab.textContent = 'Type'; lab.title = sh.type.title; row.appendChild(lab);
+      const sel = document.createElement('select'); sel.className = 'panel-select'; sel.id = 'sel-' + sh.prefix + '-type'; sel.setAttribute('aria-label', sh.type.label);
+      Object.entries(sh.type.presets).forEach(([k, [t]], i) => { const o = new Option(t, k); if (i === 0) o.defaultSelected = true; sel.appendChild(o); });
+      sel.appendChild(new Option('Custom', 'custom')); sel.value = Object.keys(sh.type.presets)[0]; row.appendChild(sel);
+      block.insertBefore(row, block.firstChild);
+      sel.addEventListener('change', () => {
+        const p = sh.type.presets[sel.value]; if (!p) return;
+        Object.entries(p[1]).forEach(([id, v]) => { ctrl(id).value = v; const vv = ctrl(id.replace(/^rg-/, 'v-')); if (vv) vv.textContent = v; });
+        renderGallery(); renderSeedPreview();
+      });
+      Object.keys(Object.values(sh.type.presets)[0][1]).forEach(id => ctrl(id).addEventListener('input', () => syncExtrasType(sh)));
+    }
+    sh.rows.forEach(r => {
+      const el = ctrl(xrId(sh, r));
+      el.addEventListener(r.kind === 'select' ? 'change' : 'input', e => {
+        if (r.kind !== 'select') ctrl('v-' + sh.prefix + '-' + r.id).textContent = e.target.value;
+        if (sh.type) syncExtrasType(sh);
+        renderGallery(); renderSeedPreview();
+      });
+    });
+  });
+}
+function syncExtrasType(sh) {
+  const sel = ctrl('sel-' + sh.prefix + '-type'); if (!sel) return;
+  const hit = Object.keys(sh.type.presets).find(k => Object.entries(sh.type.presets[k][1]).every(([id, v]) => val(id) === v));
+  sel.value = hit || 'custom';
+}
+function syncExtrasTypes() { Object.values(SEED_EXTRAS).forEach(sh => { if (sh.type) syncExtrasType(sh); }); }
+buildSeedExtras();
+
 // Polygon Type is a derived shortcut for Sides (+ Rotate for Square, so it stands upright);
 // Step is capped by Sides (a star polygon {n/k} needs k < n/2).
 const POLY_PRESETS = { triangle: [3, 0], square: [4, 45], pentagon: [5, 0], hexagon: [6, 0], octagon: [8, 0] };

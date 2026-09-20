@@ -64,7 +64,9 @@
   // quadratic through the vertex, default), 'chamfer' (straight cut) or 'scoop'
   // (the quadratic mirrored across the chord → concave).
   function triRing(pts, cornerPct, curvePct, centre, style) {
-    const n = pts.length, f = cornerPct / 100 * 0.5;
+    const n = pts.length, cornerArr = Array.isArray(cornerPct) ? cornerPct : null;
+    const fOf = i => (cornerArr ? cornerArr[i] : cornerPct) / 100 * 0.5;   // per-vertex fraction (Star: tips vs valleys)
+    const f = fOf(0);
     const r2 = v => Math.round(v * 1000) / 1000;
     const cx = centre ? centre[0] : pts.reduce((a, p) => a + p[0], 0) / n, cy = centre ? centre[1] : pts.reduce((a, p) => a + p[1], 0) / n;
     const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
@@ -83,12 +85,14 @@
       }
       for (let k = 0; k <= 12; k++) samples.push(C ? quad(P, C, Q, k / 12) : lerp(P, Q, k / 12));
       let p0, p1, c = null;
-      if (!C) { p0 = lerp(P, Q, f); p1 = lerp(P, Q, 1 - f); }
+      const fa = fOf(i), fb = fOf((i + 1) % n);
+      if (!C) { p0 = lerp(P, Q, fa); p1 = lerp(P, Q, 1 - fb); }
       else {
-        p0 = quad(P, C, Q, f); p1 = quad(P, C, Q, 1 - f);
+        p0 = quad(P, C, Q, fa); p1 = quad(P, C, Q, 1 - fb);
         // sub-segment [f, 1-f] of a quadratic: control = p0 + (t1-t0)/2 * B'(f)
-        const dv = [2 * ((1 - f) * (C[0] - P[0]) + f * (Q[0] - C[0])), 2 * ((1 - f) * (C[1] - P[1]) + f * (Q[1] - C[1]))];
-        c = [p0[0] + (1 - 2 * f) / 2 * dv[0], p0[1] + (1 - 2 * f) / 2 * dv[1]];
+        const dv = [2 * ((1 - fa) * (C[0] - P[0]) + fa * (Q[0] - C[0])), 2 * ((1 - fa) * (C[1] - P[1]) + fa * (Q[1] - C[1]))];
+        const sp = cornerArr ? (1 - fa - fb) / 2 : (1 - 2 * f) / 2;
+        c = [p0[0] + sp * dv[0], p0[1] + sp * dv[1]];
       }
       edges.push({ p0, p1, c, v: Q });
     }
@@ -97,7 +101,7 @@
     for (let i = 0; i < n; i++) {
       const e = edges[i];
       d += e.c ? `Q ${fmt(e.c)} ${fmt(e.p1)} ` : `L ${fmt(e.p1)} `;
-      if (f > 0) {
+      if (fOf((i + 1) % n) > 0) {
         const nx = edges[(i + 1) % n].p0;
         if (style === 'chamfer') d += `L ${fmt(nx)} `;
         else if (style === 'scoop') d += `Q ${fmt([e.p1[0] + nx[0] - e.v[0], e.p1[1] + nx[1] - e.v[1]])} ${fmt(nx)} `;
@@ -310,7 +314,7 @@
       const t = seg > 1e-12 ? (s - cs[lo]) / seg : 0;
       return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
     };
-    const rounded = cornerList.filter(([, r]) => r > 0.05).map(([c, r, k]) => ({ c, r, k: k || 0.5523, s: cs[c] })).sort((a, b) => a.s - b.s);
+    const rounded = cornerList.filter(([, r]) => r > 0.05).map(([c, r, k, st]) => ({ c, r, k: k || 0.5523, st, s: cs[c] })).sort((a, b) => a.s - b.s);
     if (!rounded.length) return 'M ' + P.map(p => `${r2(p[0])},${r2(p[1])}`).join(' L ') + ' Z';
     // clamp: two fillets on one edge may each use at most half of it
     rounded.forEach((k, i) => {
@@ -328,8 +332,16 @@
       for (let v = 0; v < m; v++) { const rel = wrap(cs[v] - sF); if (rel > 1e-9 && rel < span - 1e-9) vs.push([rel, P[v]]); }
       vs.sort((a, b) => a[0] - b[0]).forEach(([, p]) => { out += ` L ${num(p[0])},${num(p[1])}`; });
       // curve at the NEXT corner: line to its back point, cubic through it
-      const c1 = [nx.B[0] + (nx.C[0] - nx.B[0]) * nx.k, nx.B[1] + (nx.C[1] - nx.B[1]) * nx.k];
-      const c2 = [nx.F[0] + (nx.C[0] - nx.F[0]) * nx.k, nx.F[1] + (nx.C[1] - nx.F[1]) * nx.k];
+      if (nx.st === 'chamfer') { out += ` L ${num(nx.B[0])},${num(nx.B[1])} L ${num(nx.F[0])},${num(nx.F[1])}`; return; }
+      let c1 = [nx.B[0] + (nx.C[0] - nx.B[0]) * nx.k, nx.B[1] + (nx.C[1] - nx.B[1]) * nx.k];
+      let c2 = [nx.F[0] + (nx.C[0] - nx.F[0]) * nx.k, nx.F[1] + (nx.C[1] - nx.F[1]) * nx.k];
+      if (nx.st === 'scoop') {   // concave: the arc of the circle centred on the corner itself (radius = the cut distance)
+        const vb = [nx.B[0] - nx.C[0], nx.B[1] - nx.C[1]], vf = [nx.F[0] - nx.C[0], nx.F[1] - nx.C[1]];
+        const dd = Math.hypot(vb[0], vb[1]) || 1, ang = Math.acos(Math.max(-1, Math.min(1, (vb[0] * vf[0] + vb[1] * vf[1]) / (dd * (Math.hypot(vf[0], vf[1]) || 1)))));
+        const kk = 4 / 3 * Math.tan(ang / 4) * dd, tow = (v, to) => { let q = [-v[1] / dd, v[0] / dd]; if (q[0] * to[0] + q[1] * to[1] < 0) q = [-q[0], -q[1]]; return q; };
+        const tb = tow(vb, [nx.F[0] - nx.B[0], nx.F[1] - nx.B[1]]), tf = tow(vf, [nx.B[0] - nx.F[0], nx.B[1] - nx.F[1]]);
+        c1 = [nx.B[0] + tb[0] * kk, nx.B[1] + tb[1] * kk]; c2 = [nx.F[0] + tf[0] * kk, nx.F[1] + tf[1] * kk];
+      }
       out += ` L ${num(nx.B[0])},${num(nx.B[1])} C ${num(c1[0])},${num(c1[1])} ${num(c2[0])},${num(c2[1])} ${num(nx.F[0])},${num(nx.F[1])}`;
     });
     return out + ' Z';
@@ -366,8 +378,9 @@
   function circleGeometry(radiusPct, opts) {
     const adv = Organica.circleAdvanced;
     if (opts && adv && global.paper && adv.isActive(Object.assign({}, adv.DEFAULTS, opts))) {
-      const d = adv.build(radiusPct, opts);
-      if (d) return { d, normTx: 0, normTy: 0, normScale: 1 };
+      const res = adv.buildWithBounds(radiusPct, opts), d = res.d;
+      // Rotate can push a squircle's corners past the cell → shrink+recentre only on overflow; every other case stays 1:1.
+      if (d) return opts.rotate && res.bounds ? overflowNorm(d, res.bounds) : { d, normTx: 0, normTy: 0, normScale: 1 };
     }
     const r = 50 * Math.min(100, Math.max(5, radiusPct == null ? 100 : radiusPct)) / 100;
     const r2 = v => Math.round(v * 1000) / 1000;
@@ -377,14 +390,16 @@
 
   // Segment: a horizontal line through the centre. Zero area, so it only
   // shows in Stroke style (FVS switches Style for it, same as Genesis).
-  function segmentGeometry(lenPct) {
+  function segmentGeometry(lenPct, opts) {
+    if (segmentExtrasActive(opts)) return segmentBuild(lenPct, opts);
     const len = Math.min(100, Math.max(5, lenPct == null ? 70 : lenPct));
     return { d: `M ${50 - len / 2},50 L ${50 + len / 2},50`, normTx: 0, normTy: 0, normScale: 1 };
   }
 
   // Drop / teardrop — Genesis Create's dropPathD in the 0..100 box. The tail
   // makes it taller than the box, so it is fitted rather than clipped.
-  function dropGeometry(radiusPct, tailPct) {
+  function dropGeometry(radiusPct, tailPct, opts) {
+    if (dropExtrasActive(opts)) return dropBuild(radiusPct, tailPct, opts);
     const r = 50 * Math.min(100, Math.max(5, radiusPct == null ? 60 : radiusPct)) / 100;
     const tail = Math.min(100, Math.max(0, tailPct == null ? 50 : tailPct));
     const r2 = v => Math.round(v * 1000) / 1000;
@@ -398,7 +413,8 @@
 
   // Blob — a noise-wobbled closed loop (Genesis Create's blobPathD): same
   // seed, same silhouette. Needs Organica.noise (shared/noise.js).
-  function blobGeometry(radiusPct, amount, seed) {
+  function blobGeometry(radiusPct, amount, seed, opts) {
+    if (blobExtrasActive(opts)) return blobBuild(radiusPct, amount, seed, opts);
     const r = 50 * Math.min(100, Math.max(5, radiusPct == null ? 60 : radiusPct)) / 100;
     const amt = (amount == null ? 40 : amount) / 100, sd = seed == null ? 1 : seed;
     const r2 = v => Math.round(v * 1000) / 1000;
@@ -764,7 +780,8 @@
     }
     return 'M ' + pts.map(p => `${r2(p[0])},${r2(p[1])}`).join(' L ') + ' Z';
   }
-  function starGeometry(points, innerRadiusPct, irregularityPct, seed, radiusPct) {
+  function starGeometry(points, innerRadiusPct, irregularityPct, seed, radiusPct, opts) {
+    if (starExtrasActive(opts)) return starBuild(points, innerRadiusPct, irregularityPct, seed, radiusPct, opts);
     return { d: starPathD(points, innerRadiusPct, irregularityPct, seed, radiusPct), normTx: 0, normTy: 0, normScale: 1 };
   }
 
@@ -785,7 +802,8 @@
       + ` L ${r2(x0 + r)},${r2(y1)} A ${r2(r)},${r2(r)} 0 0,1 ${r2(x0)},${r2(y1 - r)}`
       + ` L ${r2(x0)},${r2(y0 + r)} A ${r2(r)},${r2(r)} 0 0,1 ${r2(x0 + r)},${r2(y0)} Z`;
   }
-  function roundedRectGeometry(widthPct, heightPct, cornerRadiusPct) {
+  function roundedRectGeometry(widthPct, heightPct, cornerRadiusPct, opts) {
+    if (rrExtrasActive(opts)) return rrBuild(widthPct, heightPct, cornerRadiusPct, opts);
     return { d: roundedRectPathD(widthPct, heightPct, cornerRadiusPct), normTx: 0, normTy: 0, normScale: 1 };
   }
 
@@ -814,7 +832,8 @@
     ];
     return 'M ' + pts.map(p => `${r2(p[0])},${r2(p[1])}`).join(' L ') + ' Z';
   }
-  function chevronGeometry(notchPct, armPct, squashPct) {
+  function chevronGeometry(notchPct, armPct, squashPct, opts) {
+    if (chevronExtrasActive(opts)) return chevronBuild(notchPct, armPct, squashPct, opts);
     return { d: chevronPathD(notchPct, armPct, squashPct), normTx: 0, normTy: 0, normScale: 1 };
   }
 
@@ -841,7 +860,8 @@
     ];
     return roundedPolyPathD(pts, cornerRadiusPct);
   }
-  function crossGeometry(armWidthPct, armLengthPct, cornerRadiusPct) {
+  function crossGeometry(armWidthPct, armLengthPct, cornerRadiusPct, opts) {
+    if (crossExtrasActive(opts)) return crossBuild(armWidthPct, armLengthPct, cornerRadiusPct, opts);
     return { d: crossPathD(armWidthPct, armLengthPct, cornerRadiusPct), normTx: 0, normTy: 0, normScale: 1 };
   }
 
@@ -864,8 +884,269 @@
     const r2 = v => Math.round(v * 1000) / 1000;
     return `M 50,0 A ${r2(R)},${r2(R)} 0 0,0 50,100 A ${r2(R)},${r2(R)} 0 0,0 50,0 Z`;
   }
-  function lensGeometry(widthPct) {
+  function lensGeometry(widthPct, opts) {
+    if (lensExtrasActive(opts)) return lensBuild(widthPct, opts);
     return { d: lensPathD(widthPct), normTx: 0, normTy: 0, normScale: 1 };
+  }
+
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Extras for Star · Rounded rect · Chevron · Cross · Lens · Segment · Drop ·
+  // Blob. Same contract as Arc/Wedge/Polygon: every `xGeometry(…, opts)` takes an
+  // optional trailing `opts`; with all of them at default the ORIGINAL path
+  // function runs untouched (byte-identical), so saved Components/Symbols/
+  // snapshots don't change. Shapes that can leave the 0..100 box use the
+  // overflow-only shrink+recentre (Triangle's pattern).
+  // ════════════════════════════════════════════════════════════════════════
+  const N3 = v => Math.round(v * 1000) / 1000;
+  const cl3 = (v, lo, hi, def) => Math.min(hi, Math.max(lo, v == null ? def : v));
+  const rot3 = (p, deg, c) => {
+    if (!deg) return p;
+    const a = deg * Math.PI / 180, co = Math.cos(a), si = Math.sin(a), dx = p[0] - c[0], dy = p[1] - c[1];
+    return [c[0] + dx * co - dy * si, c[1] + dx * si + dy * co];
+  };
+  function overflowNorm(d, bb) {
+    if (bb.x < 0 || bb.y < 0 || bb.x + bb.w > 100 || bb.y + bb.h > 100) {
+      const s = Math.min(1, 100 / Math.max(bb.w, 1e-6), 100 / Math.max(bb.h, 1e-6));
+      return { d, normTx: 50 / s - (bb.x + bb.w / 2), normTy: 50 / s - (bb.y + bb.h / 2), normScale: s };
+    }
+    return { d, normTx: 0, normTy: 0, normScale: 1 };
+  }
+  const styleOf = st => (st === 'chamfer' || st === 'scoop' ? st : 'round');
+
+  // ── Star ── rotate · tip/valley rounding · corner style · edge curvature · twist · outline · angle jitter
+  function starExtrasActive(o) {
+    return !!o && ((o.rotate || 0) !== 0 || (o.tipRound || 0) > 0 || (o.valleyRound || 0) > 0 || (o.curve || 0) !== 0 || (o.outline || 0) > 0 || (o.twist || 0) !== 0 || (o.skew || 0) > 0 || (o.style && o.style !== 'round'));
+  }
+  function starBuild(points, innerPct, irrPct, seed, radiusPct, o) {
+    points = Math.max(3, Math.round(points == null ? 5 : points));
+    innerPct = cl3(innerPct, 5, 90, 45);
+    const irr = cl3(irrPct, 0, 100, 0) / 100, R = 50 * cl3(radiusPct, 10, 100, 100) / 100, r = R * innerPct / 100;
+    const rot = cl3(o.rotate, -180, 180, 0), curve = cl3(o.curve, -100, 100, 0), outline = cl3(o.outline, 0, 95, 0);
+    const twist = cl3(o.twist, -100, 100, 0) / 100, skew = cl3(o.skew, 0, 100, 0) / 100;
+    const tip = cl3(o.tipRound, 0, 100, 0), val = cl3(o.valleyRound, 0, 100, 0), style = styleOf(o.style);
+    const rng = Organica.mulberry32((seed == null ? 1 : seed) >>> 0);
+    const rng2 = skew > 0 ? Organica.mulberry32(((seed == null ? 1 : seed) ^ 0x9e3779b9) >>> 0) : null;
+    const n = points * 2, pts = [];
+    for (let i = 0; i < n; i++) {
+      const jit = rng2 ? (rng2() - 0.5) * 2 * skew * 0.45 * (360 / n) : 0;
+      const tw = i % 2 ? twist * 0.45 * (360 / n) : 0;
+      const t = (i * 360 / n - 90 + rot + tw + jit) * Math.PI / 180;
+      const rad = (i % 2 === 0 ? R : r) * (1 - irr * 0.5 + rng() * irr);
+      pts.push([50 + rad * Math.cos(t), 50 + rad * Math.sin(t)]);
+    }
+    const corner = i => (i % 2 ? val : tip);
+    const ring = triRing(pts, pts.map((_, i) => corner(i)), curve, [50, 50], style);
+    let d = ring.d;
+    if (outline > 0) {
+      const k = 1 - outline / 100, rev = pts.slice().reverse().map(q => [50 + (q[0] - 50) * k, 50 + (q[1] - 50) * k]);
+      d += ' ' + triRing(rev, rev.map((_, j) => corner(n - 1 - j)), curve, [50, 50], style).d;
+    }
+    return overflowNorm(d, bboxOfPoints(ring.samples));
+  }
+
+  // ── Rounded rect ── corner style · corner mask · skew · rotate · edge curvature · outline
+  const RR_MASKS = { all: [1, 1, 1, 1], top: [1, 1, 0, 0], bottom: [0, 0, 1, 1], left: [1, 0, 0, 1], right: [0, 1, 1, 0], 'tl-br': [1, 0, 1, 0], 'tr-bl': [0, 1, 0, 1], tl: [1, 0, 0, 0], tr: [0, 1, 0, 0], br: [0, 0, 1, 0], bl: [0, 0, 0, 1] };
+  function rrExtrasActive(o) {
+    return !!o && ((o.style && o.style !== 'round') || (o.mask && o.mask !== 'all') || (o.skew || 0) !== 0 || (o.rotate || 0) !== 0 || (o.curve || 0) !== 0 || (o.outline || 0) > 0);
+  }
+  function rrRing(w, h, rc, mask, style, skew, rot, curve) {
+    const x0 = 50 - w / 2, x1 = 50 + w / 2, y0 = 50 - h / 2, y1 = 50 + h / 2, tk = Math.tan(skew * Math.PI / 180);
+    const P = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(p => rot3([p[0] + (p[1] - 50) * tk, p[1]], rot, [50, 50]));
+    const E = curve ? 8 : 0, ring = [], list = [];
+    for (let i = 0; i < 4; i++) {
+      const A = P[i], B = P[(i + 1) % 4], prev = P[(i + 3) % 4];
+      if (mask[i] && rc > 0.05) {
+        const a = [prev[0] - A[0], prev[1] - A[1]], b = [B[0] - A[0], B[1] - A[1]];
+        const al = Math.acos(Math.max(-1, Math.min(1, (a[0] * b[0] + a[1] * b[1]) / ((Math.hypot(a[0], a[1]) * Math.hypot(b[0], b[1])) || 1))));
+        const cut = rc / Math.tan(al / 2);
+        list.push([ring.length, cut, 4 / 3 * Math.tan((Math.PI - al) / 4) * rc / cut, style]);
+      }
+      ring.push(A);
+      if (E) {
+        const mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2, len = Math.hypot(B[0] - A[0], B[1] - A[1]) || 1;
+        let nx = (B[1] - A[1]) / len, ny = -(B[0] - A[0]) / len;
+        if ((mx - 50) * nx + (my - 50) * ny < 0) { nx = -nx; ny = -ny; }
+        const off = 2 * curve / 100 * 0.12 * len, C = [mx + nx * off, my + ny * off];
+        for (let k = 1; k <= E; k++) { const t = k / (E + 1), u = 1 - t; ring.push([u * u * A[0] + 2 * u * t * C[0] + t * t * B[0], u * u * A[1] + 2 * u * t * C[1] + t * t * B[1]]); }
+      }
+    }
+    return { ring, list };
+  }
+  function rrBuild(wPct, hPct, cornerPct, o) {
+    const w = cl3(wPct, 5, 100, 100), h = cl3(hPct, 5, 100, 100), corner = cl3(cornerPct, 0, 100, 0);
+    const rc = Math.min(w, h) / 2 * corner / 100, mask = RR_MASKS[o.mask] || RR_MASKS.all, style = styleOf(o.style);
+    const skew = cl3(o.skew, -60, 60, 0), rot = cl3(o.rotate, -180, 180, 0), curve = cl3(o.curve, -100, 100, 0), outline = cl3(o.outline, 0, 95, 0);
+    const outer = rrRing(w, h, rc, mask, style, skew, rot, curve);
+    let d = ringPathD(outer.ring, outer.list, N3);
+    if (outline > 0) {
+      const t = outline / 100 * Math.min(w, h) / 2 * 0.95;
+      const inner = rrRing(Math.max(1, w - 2 * t), Math.max(1, h - 2 * t), Math.max(0, rc - t), mask, style, skew, rot, curve), m = inner.ring.length;
+      d += ' ' + ringPathD(inner.ring.slice().reverse(), inner.list.map(([i, c, k, st]) => [m - 1 - i, c, k, st]), N3);
+    }
+    return overflowNorm(d, bboxOfPoints(outer.ring));
+  }
+
+  // ── Chevron ── corner radius/style · edge curvature · lean · apex flat · stack · rotate
+  function chevronExtrasActive(o) {
+    return !!o && ((o.round || 0) > 0 || (o.curve || 0) !== 0 || (o.lean || 0) !== 0 || (o.flat || 0) > 0 || (o.stack || 1) > 1 || (o.rotate || 0) !== 0);
+  }
+  function chevronBuild(notchPct, armPct, squashPct, o) {
+    const notchY = cl3(notchPct, 10, 90, 40), arm = cl3(armPct, 20, 80, 55), squash = cl3(squashPct, 30, 100, 100) / 100;
+    const lean = cl3(o.lean, -100, 100, 0) / 100 * 30, flat = cl3(o.flat, 0, 100, 0) / 100;
+    const stack = Math.round(cl3(o.stack, 1, 5, 1)), gap = cl3(o.gap, 0, 30, 6), round = cl3(o.round, 0, 100, 0);
+    const curve = cl3(o.curve, -100, 100, 0), rot = cl3(o.rotate, -180, 180, 0), style = styleOf(o.style);
+    const innerHalf = 50 * arm / 100, bandH = (100 - gap * (stack - 1)) / stack, apexX = 50 + lean;
+    let d = '', all = [];
+    for (let s = 0; s < stack; s++) {
+      const top = s * (bandH + gap), Y = y => top + (50 + (y - 50) * squash) / 100 * bandH;
+      const yc = flat * Math.min(40, notchY * 0.8);
+      const pts = (flat > 0 ? [[apexX - apexX * yc / 100, Y(yc)], [apexX + (100 - apexX) * yc / 100, Y(yc)]] : [[apexX, Y(0)]])
+        .concat([[100, Y(100)], [50 + innerHalf, Y(100)], [50 + lean, Y(notchY)], [50 - innerHalf, Y(100)], [0, Y(100)]])
+        .map(p => rot3(p, rot, [50, 50]));
+      const ring = triRing(pts, round, curve, undefined, style);
+      d += (d ? ' ' : '') + ring.d; all = all.concat(ring.samples);
+    }
+    return overflowNorm(d, bboxOfPoints(all));
+  }
+
+  // ── Cross ── arms (2–12) · taper · tip · corner style · rotate
+  function crossExtrasActive(o) {
+    return !!o && ((o.arms != null && o.arms !== 4) || (o.taper || 0) !== 0 || (o.tip && o.tip !== 'flat') || (o.style && o.style !== 'round') || (o.rotate || 0) !== 0);
+  }
+  function crossBuild(armWidthPct, armLengthPct, cornerPct, o) {
+    const al = cl3(armLengthPct, 30, 100, 100) / 100 * 50 < 15 ? 15 : cl3(armLengthPct, 30, 100, 100) / 100 * 50, width = cl3(armWidthPct, 5, 50, 35);
+    const N = Math.round(cl3(o.arms, 2, 12, 4)), taper = cl3(o.taper, -100, 100, 0) / 100, rot = cl3(o.rotate, -180, 180, 0);
+    const point = o.tip === 'point', style = styleOf(o.style);
+    const awMax = N === 2 ? Infinity : al * Math.tan(Math.PI / N) * 0.9;
+    const aw = Math.min(width / 2, al * 0.9, awMax), w2 = Math.min(Math.max(0.5, aw * (1 + taper)), aw * 2, al * 0.9);
+    const ac = point ? al - Math.min(w2, al * 0.4) : al;
+    const arms = [];
+    for (let k = 0; k < N; k++) {
+      const th = (-90 + k * 360 / N + rot) * Math.PI / 180, u = [Math.cos(th), Math.sin(th)], e = [-Math.sin(th), Math.cos(th)];   // e = toward the next arm (clockwise)
+      const at = (a, b) => [50 + u[0] * a + e[0] * b, 50 + u[1] * a + e[1] * b];
+      arms.push({ trail: [at(0, -aw), at(ac, -w2)], lead: [at(0, aw), at(ac, w2)], tips: [at(ac, -w2)].concat(point ? [at(al, 0)] : []).concat([at(ac, w2)]) });
+    }
+    const isect = (a, b, c, d) => {
+      const x1 = a[0], y1 = a[1], x2 = b[0], y2 = b[1], x3 = c[0], y3 = c[1], x4 = d[0], y4 = d[1];
+      const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+      if (Math.abs(den) < 1e-9) return null;
+      const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den;
+      return [x1 + t * (x2 - x1), y1 + t * (y2 - y1)];
+    };
+    const pts = [];
+    for (let k = 0; k < N; k++) {
+      arms[k].tips.forEach(p => pts.push(p));
+      const nx = arms[(k + 1) % N], c = isect(arms[k].lead[0], arms[k].lead[1], nx.trail[0], nx.trail[1]);
+      if (c) pts.push(c);
+    }
+    const ring = triRing(pts, cl3(cornerPct, 0, 100, 0), 0, [50, 50], style);
+    return overflowNorm(ring.d, bboxOfPoints(ring.samples));
+  }
+
+  // ── Lens ── crescent · petals · outline · rotate
+  function lensExtrasActive(o) {
+    return !!o && ((o.crescent || 0) !== 0 || (o.petals || 1) > 1 || (o.outline || 0) > 0 || (o.rotate || 0) !== 0);
+  }
+  function lensPetalD(rho, k, bl, br, reversed) {
+    const H = 50 * k, c = [50, 50], top = rot3([50, 50 - H], rho, c), bot = rot3([50, 50 + H], rho, c);
+    const P = p => `${N3(p[0])},${N3(p[1])}`;
+    const seg = (to, b, sweepPos) => {
+      const bb = Math.abs(b) * k;
+      if (bb < 0.05) return `L ${P(to)}`;
+      const kk = bb / 2 - H * H / (2 * bb), R = Math.sqrt(kk * kk + H * H);
+      return `A ${N3(R)},${N3(R)} 0 0,${b > 0 ? sweepPos : 1 - sweepPos} ${P(to)}`;
+    };
+    return reversed
+      ? `M ${P(top)} ${seg(bot, br, 1)} ${seg(top, bl, 1)} Z`
+      : `M ${P(top)} ${seg(bot, bl, 0)} ${seg(top, br, 0)} Z`;
+  }
+  function lensBuild(widthPct, o) {
+    const halfW = cl3(widthPct, 8, 95, 50) / 2, cres = cl3(o.crescent, -100, 100, 0), petals = Math.round(cl3(o.petals, 1, 12, 1));
+    const outline = cl3(o.outline, 0, 95, 0), rot = cl3(o.rotate, -180, 180, 0);
+    const bl = halfW * (cres < 0 ? 1 + cres / 50 : 1), br = halfW * (cres > 0 ? 1 - cres / 50 : 1);
+    let d = '';
+    for (let i = 0; i < petals; i++) d += (d ? ' ' : '') + lensPetalD(rot + i * 180 / petals, 1, bl, br, false);
+    if (outline > 0 && petals === 1) d += ' ' + lensPetalD(rot, 1 - outline / 100, bl, br, true);
+    return { d, normTx: 0, normTy: 0, normScale: 1 };
+  }
+
+  // ── Segment ── angle · bend · wave · dashes · parallel lines
+  function segmentExtrasActive(o) {
+    return !!o && ((o.angle || 0) !== 0 || (o.bend || 0) !== 0 || (o.wave || 0) > 0 || (o.dashes || 1) > 1 || (o.lines || 1) > 1);
+  }
+  function segmentBuild(lenPct, o) {
+    const len = cl3(lenPct, 5, 100, 70), ang = cl3(o.angle, -90, 90, 0), bend = cl3(o.bend, -100, 100, 0) / 100;
+    const amp = cl3(o.wave, 0, 100, 0) / 100 * 15, cycles = Math.round(cl3(o.cycles, 1, 8, 3));
+    const dashes = Math.round(cl3(o.dashes, 1, 12, 1)), dgap = cl3(o.gap, 0, 80, 30) / 100;
+    const lines = Math.round(cl3(o.lines, 1, 9, 1)), sp = cl3(o.spacing, 1, 12, 6);
+    const dl = 1 / (dashes + (dashes - 1) * dgap), pitch = dl * (1 + dgap), curved = bend !== 0 || amp > 0;
+    let d = '', all = [];
+    const at = (t, oy) => {
+      const u = t * 2 - 1;
+      return rot3([50 + u * len / 2, 50 - bend * 0.35 * len * (1 - u * u) + amp * Math.sin(2 * Math.PI * cycles * t) + oy], ang, [50, 50]);
+    };
+    for (let j = 0; j < lines; j++) {
+      const oy = (j - (lines - 1) / 2) * sp;
+      for (let k = 0; k < dashes; k++) {
+        const t0 = k * pitch, t1 = t0 + dl, steps = curved ? Math.max(2, Math.ceil((t1 - t0) * (cycles * 24 + 24))) : 1;
+        const pts = [];
+        for (let i = 0; i <= steps; i++) pts.push(at(t0 + (t1 - t0) * i / steps, oy));
+        d += (d ? ' ' : '') + 'M ' + pts.map(p => `${N3(p[0])},${N3(p[1])}`).join(' L ');
+        all = all.concat(pts);
+      }
+    }
+    return overflowNorm(d, bboxOfPoints(all));
+  }
+
+  // ── Drop ── tail bend · neck · petals · rotate
+  function dropExtrasActive(o) {
+    return !!o && ((o.bend || 0) !== 0 || (o.neck || 0) !== 0 || (o.petals || 1) > 1 || (o.rotate || 0) !== 0);
+  }
+  function dropBuild(radiusPct, tailPct, o) {
+    const r = 50 * cl3(radiusPct, 5, 100, 60) / 100, tail = cl3(tailPct, 0, 100, 50);
+    const neck = cl3(o.neck, -100, 100, 0) / 100, bend = cl3(o.bend, -100, 100, 0) / 100, petals = Math.round(cl3(o.petals, 1, 8, 1)), rot = cl3(o.rotate, -180, 180, 0);
+    const cx = 50, cy = 50 + r * 0.3, tipY = cy - r - tail, tipX = cx + bend * r * 0.9, kx = 0.6 * (1 + neck * 0.8), half = (tipX - cx) * 0.5;
+    const base = { tip: [tipX, tipY], l1: [cx - r * kx + half, tipY + tail * 0.5], l2: [cx - r, cy - r * 0.6], L: [cx - r, cy], R: [cx + r, cy], r2: [cx + r, cy - r * 0.6], r1: [cx + r * kx + half, tipY + tail * 0.5] };
+    let d = '', all = [];
+    for (let i = 0; i < petals; i++) {
+      const rho = rot + i * 360 / petals, q = {}, P = p => `${N3(p[0])},${N3(p[1])}`;
+      Object.keys(base).forEach(k => { q[k] = rot3(base[k], rho, [cx, cy]); });
+      d += (d ? ' ' : '') + `M ${P(q.tip)} C ${P(q.l1)} ${P(q.l2)} ${P(q.L)} A ${N3(r)},${N3(r)} 0 1,0 ${P(q.R)} C ${P(q.r2)} ${P(q.r1)} ${P(q.tip)} Z`;
+      const pp = [], bez = (a, b, c, e) => { for (let t = 0; t <= 1.0001; t += 1 / 16) { const u = 1 - t; pp.push([u * u * u * a[0] + 3 * u * u * t * b[0] + 3 * u * t * t * c[0] + t * t * t * e[0], u * u * u * a[1] + 3 * u * u * t * b[1] + 3 * u * t * t * c[1] + t * t * t * e[1]]); } };
+      bez(base.tip, base.l1, base.l2, base.L); bez(base.R, base.r2, base.r1, base.tip);
+      for (let a = 0; a <= 180; a += 10) pp.push([cx - r * Math.cos(a * Math.PI / 180), cy + r * Math.sin(a * Math.PI / 180)]);
+      pp.forEach(q => all.push(rot3(q, rho, [cx, cy])));
+    }
+    return { d, ...fitToBox(bboxOfPoints(all)) };
+  }
+
+  // ── Blob ── frequency · smoothness · outline
+  function blobExtrasActive(o) {
+    return !!o && ((o.freq != null && o.freq !== 7) || (o.smooth || 0) > 0 || (o.outline || 0) > 0);
+  }
+  function blobBuild(radiusPct, amount, seed, o) {
+    const r = 50 * cl3(radiusPct, 5, 100, 60) / 100, amt = cl3(amount, 0, 100, 40) / 100, sd = seed == null ? 1 : seed;
+    const f = cl3(o.freq, 1, 20, 7) / 10, sm = cl3(o.smooth, 0, 100, 0) / 100 / 6, outline = cl3(o.outline, 0, 95, 0);
+    const n = 32, pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2, nv = Organica.noise.simplex2(Math.cos(a) * f + sd, Math.sin(a) * f + sd), rr = r * (1 + nv * 0.4 * amt);
+      pts.push([50 + Math.cos(a) * rr, 50 + Math.sin(a) * rr]);
+    }
+    const P = p => `${N3(p[0])},${N3(p[1])}`;
+    const ring = pp => {
+      const m = pp.length;
+      if (!(sm > 0)) return 'M ' + pp.map(P).join(' L ') + ' Z';
+      let d = 'M ' + P(pp[0]);
+      for (let i = 0; i < m; i++) {
+        const a = pp[i], b = pp[(i + 1) % m], pv = pp[(i - 1 + m) % m], nx = pp[(i + 2) % m];
+        d += ` C ${P([a[0] + (b[0] - pv[0]) * sm, a[1] + (b[1] - pv[1]) * sm])} ${P([b[0] - (nx[0] - a[0]) * sm, b[1] - (nx[1] - a[1]) * sm])} ${P(b)}`;
+      }
+      return d + ' Z';
+    };
+    let d = ring(pts);
+    if (outline > 0) { const k = 1 - outline / 100; d += ' ' + ring(pts.slice().reverse().map(q => [50 + (q[0] - 50) * k, 50 + (q[1] - 50) * k])); }
+    return { d, ...fitToBox(bboxOfPoints(pts)) };
   }
 
   // ── GRID CELL PLACEMENT ─────────────────────────────────────────────────
@@ -1034,12 +1315,80 @@
     return out.join(' ');
   }
 
+  // Panel-row definitions for the extras above — data only, shared by FVS and Genesis Create so the
+  // labels/ranges/defaults live in ONE place. kind: 'range' | 'select'; key = the params-object key.
+  const EXTRAS = {
+    star: [
+      {"kind": "range", "id": "rotate", "key": "starRotate", "label": "Rotate", "min": -180, "max": 180, "def": 0, "title": "Rotates the star about the cell centre, in degrees."},
+      {"kind": "range", "id": "tip", "key": "starTipRound", "label": "Tip rounding", "min": 0, "max": 100, "def": 0, "title": "Rounds the outer points."},
+      {"kind": "range", "id": "valley", "key": "starValleyRound", "label": "Valley rounding", "min": 0, "max": 100, "def": 0, "title": "Rounds the inner corners between the points."},
+      {"kind": "select", "id": "style", "key": "starStyle", "label": "Corner style", "options": [["round", "Round"], ["chamfer", "Chamfer"], ["scoop", "Scoop"]], "def": "round", "title": "How corners are cut when a rounding is above 0."},
+      {"kind": "range", "id": "curve", "key": "starCurve", "label": "Edge curvature", "min": -100, "max": 100, "def": 0, "title": "Bows every edge — negative gives the classic ✦ sparkle."},
+      {"kind": "range", "id": "twist", "key": "starTwist", "label": "Twist", "min": -100, "max": 100, "def": 0, "title": "Turns the inner vertices against the outer ones → pinwheel."},
+      {"kind": "range", "id": "outline", "key": "starOutline", "label": "Outline (hollow)", "min": 0, "max": 95, "def": 0, "title": "Hollow ring — wall thickness as a % of the radius. Separate from Style → Stroke."},
+      {"kind": "range", "id": "skew", "key": "starSkew", "label": "Angle jitter", "min": 0, "max": 100, "def": 0, "title": "Jitters each vertex's angle. Independent of Irregularity (radius)."},
+    ],
+    roundedrect: [
+      {"kind": "select", "id": "style", "key": "rrStyle", "label": "Corner style", "options": [["round", "Round"], ["chamfer", "Chamfer"], ["scoop", "Scoop"]], "def": "round", "title": "Round, a straight cut, or a concave scoop (ticket)."},
+      {"kind": "select", "id": "mask", "key": "rrMask", "label": "Corners", "options": [["all", "All"], ["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"], ["tl-br", "TL + BR"], ["tr-bl", "TR + BL"], ["tl", "Top-left"], ["tr", "Top-right"], ["br", "Bottom-right"], ["bl", "Bottom-left"]], "def": "all", "title": "Which corners are rounded — the others stay sharp (leaf, tab and tag shapes)."},
+      {"kind": "range", "id": "skew", "key": "rrSkew", "label": "Skew", "min": -60, "max": 60, "def": 0, "title": "Shears the rectangle into a parallelogram, in degrees."},
+      {"kind": "range", "id": "rotate", "key": "rrRotate", "label": "Rotate", "min": -180, "max": 180, "def": 0, "title": "Rotates about the cell centre, in degrees."},
+      {"kind": "range", "id": "curve", "key": "rrCurve", "label": "Edge curvature", "min": -100, "max": 100, "def": 0, "title": "Bows the sides — pillow (positive) or barrel/hourglass (negative)."},
+      {"kind": "range", "id": "outline", "key": "rrOutline", "label": "Outline (hollow)", "min": 0, "max": 95, "def": 0, "title": "Hollow frame — wall thickness as a % of the shorter half-side."},
+    ],
+    chevron: [
+      {"kind": "range", "id": "round", "key": "chevRound", "label": "Corner radius", "min": 0, "max": 100, "def": 0, "title": "Rounds every corner of the ribbon."},
+      {"kind": "select", "id": "style", "key": "chevStyle", "label": "Corner style", "options": [["round", "Round"], ["chamfer", "Chamfer"], ["scoop", "Scoop"]], "def": "round", "title": "How corners are cut when Corner radius is above 0."},
+      {"kind": "range", "id": "curve", "key": "chevCurve", "label": "Edge curvature", "min": -100, "max": 100, "def": 0, "title": "Bows the ribbon edges."},
+      {"kind": "range", "id": "lean", "key": "chevLean", "label": "Lean", "min": -100, "max": 100, "def": 0, "title": "Shifts the apex sideways → an asymmetric chevron."},
+      {"kind": "range", "id": "flat", "key": "chevFlat", "label": "Apex flat", "min": 0, "max": 100, "def": 0, "title": "Truncates the tip into a flat top."},
+      {"kind": "range", "id": "stack", "key": "chevStack", "label": "Stack", "min": 1, "max": 5, "def": 1, "title": "Number of stacked chevrons (double / triple ») inside the cell."},
+      {"kind": "range", "id": "gap", "key": "chevGap", "label": "Stack gap", "min": 0, "max": 30, "def": 6, "title": "Vertical gap between stacked chevrons."},
+      {"kind": "range", "id": "rotate", "key": "chevRotate", "label": "Rotate", "min": -180, "max": 180, "def": 0, "title": "Rotates about the cell centre, in degrees."},
+    ],
+    cross: [
+      {"kind": "range", "id": "arms", "key": "crossArms", "label": "Arms", "min": 2, "max": 12, "def": 4, "title": "4 is the plus; 3 a Y; 6 an asterisk."},
+      {"kind": "range", "id": "taper", "key": "crossTaper", "label": "Taper", "min": -100, "max": 100, "def": 0, "title": "Arm tips narrower (negative) or wider (positive) than their root."},
+      {"kind": "select", "id": "tip", "key": "crossTip", "label": "Tip", "options": [["flat", "Flat"], ["point", "Point"]], "def": "flat", "title": "Flat-cut or pointed arm ends."},
+      {"kind": "select", "id": "style", "key": "crossStyle", "label": "Corner style", "options": [["round", "Round"], ["chamfer", "Chamfer"], ["scoop", "Scoop"]], "def": "round", "title": "How corners are cut when Corner radius is above 0."},
+      {"kind": "range", "id": "rotate", "key": "crossRotate", "label": "Rotate", "min": -180, "max": 180, "def": 0, "title": "Rotates about the cell centre — 45° turns the plus into an X."},
+    ],
+    lens: [
+      {"kind": "range", "id": "crescent", "key": "lensCrescent", "label": "Crescent", "min": -100, "max": 100, "def": 0, "title": "Flattens then inverts one arc → half-moon and crescent shapes."},
+      {"kind": "range", "id": "petals", "key": "lensPetals", "label": "Petals", "min": 1, "max": 12, "def": 1, "title": "Lens copies rotated about the centre → flower / rosette."},
+      {"kind": "range", "id": "outline", "key": "lensOutline", "label": "Outline (hollow)", "min": 0, "max": 95, "def": 0, "title": "Hollow eye shape. Ignored when Petals is above 1."},
+      {"kind": "range", "id": "rotate", "key": "lensRotate", "label": "Rotate", "min": -180, "max": 180, "def": 0, "title": "Rotates about the cell centre, in degrees."},
+    ],
+    segment: [
+      {"kind": "range", "id": "angle", "key": "segAngle", "label": "Angle", "min": -90, "max": 90, "def": 0, "title": "Tilts the line about the cell centre, in degrees."},
+      {"kind": "range", "id": "bend", "key": "segBend", "label": "Bend", "min": -100, "max": 100, "def": 0, "title": "Bows the line into an arc."},
+      {"kind": "range", "id": "wave", "key": "segWave", "label": "Wave", "min": 0, "max": 100, "def": 0, "title": "Wave amplitude — a squiggle."},
+      {"kind": "range", "id": "cycles", "key": "segCycles", "label": "Wave cycles", "min": 1, "max": 8, "def": 3, "title": "Number of waves along the line."},
+      {"kind": "range", "id": "dashes", "key": "segDashes", "label": "Dashes", "min": 1, "max": 12, "def": 1, "title": "Splits the line into separate dashes."},
+      {"kind": "range", "id": "gap", "key": "segGap", "label": "Dash gap", "min": 0, "max": 80, "def": 30, "title": "Gap between dashes, as a % of a dash's length."},
+      {"kind": "range", "id": "lines", "key": "segLines", "label": "Lines", "min": 1, "max": 9, "def": 1, "title": "Parallel copies of the line (hatch)."},
+      {"kind": "range", "id": "spacing", "key": "segSpacing", "label": "Line spacing", "min": 1, "max": 12, "def": 6, "title": "Distance between parallel lines."},
+    ],
+    drop: [
+      {"kind": "range", "id": "bend", "key": "dropBend", "label": "Tail bend", "min": -100, "max": 100, "def": 0, "title": "Curves the tail sideways → comma / flame."},
+      {"kind": "range", "id": "neck", "key": "dropNeck", "label": "Neck", "min": -100, "max": 100, "def": 0, "title": "Pinches (negative) or bulges (positive) the sides between belly and tip."},
+      {"kind": "range", "id": "petals", "key": "dropPetals", "label": "Petals", "min": 1, "max": 8, "def": 1, "title": "Drop copies rotated about the belly → flame / flower."},
+      {"kind": "range", "id": "rotate", "key": "dropRotate", "label": "Rotate", "min": -180, "max": 180, "def": 0, "title": "Rotates the drop, in degrees."},
+    ],
+    blob: [
+      {"kind": "range", "id": "freq", "key": "blobFreq", "label": "Frequency", "min": 1, "max": 20, "def": 7, "title": "How many wobbles around the outline (7 is the original)."},
+      {"kind": "range", "id": "smooth", "key": "blobSmooth", "label": "Smoothness", "min": 0, "max": 100, "def": 0, "title": "0 keeps the original faceted outline; 100 is a fully smooth curve through the same points."},
+      {"kind": "range", "id": "outline", "key": "blobOutline", "label": "Outline (hollow)", "min": 0, "max": 95, "def": 0, "title": "Hollow ring — wall thickness as a % of the radius."},
+    ],
+  };
+
   Organica.shapes = {
     scalePathAbout, triangleGeometry, arcGeometry, arcBuild, arcExtrasActive, arcPathD, circleGeometry, segmentGeometry, dropGeometry, blobGeometry, fitToBox,
     arcTruchetGeometry, arcTruchetPathD, truchetExtrasActive,
     wedgeGeometry, wedgePathD, wedgeExtrasActive, polygonGeometry, polygonPathD, polygonExtrasActive, starGeometry, starPathD,
     roundedRectGeometry, roundedRectPathD, chevronGeometry, chevronPathD,
     crossGeometry, crossPathD, lensGeometry, lensPathD,
+    EXTRAS, starExtrasActive, rrExtrasActive, chevronExtrasActive, crossExtrasActive, lensExtrasActive, segmentExtrasActive, dropExtrasActive, blobExtrasActive,
     resolveGridCells, resolveCellPlacement, cellColRow, frameSize, median,
   };
 })(window);
