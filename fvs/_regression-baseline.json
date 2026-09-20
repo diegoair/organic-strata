@@ -164,7 +164,7 @@
   "fig:seed:blob": "d4348a9c",
   "fig:seed:polygon": "59fe215f",
   "fig:invalid": "Unknown Seed type: nope",
-  "fig:catalog": "19",
+  "fig:catalog": "22",
   "fig:form:roundtrip": "ok",
   "fig:checks:triangle": "ok",
   "fig:tier": "figure,grid,true,true",
@@ -173,5 +173,17 @@
   "seed:cellparams": "true,true",
   "seed:cellparams:svg": "099d7be8",
   "seed:cellparams:cleared": "true",
-  "refmask": "true,true"
+  "refmask": "true,true",
+  "hex:model": "19/1/6/12/3,3,3,3,3,3",
+  "hex:snap": "60,90,300,0",
+  "fig:hex:hex-rosette": "7905a6e1",
+  "fig:hex:checks:hex-rosette": "0",
+  "fig:hex:roundtrip:hex-rosette": "true",
+  "fig:hex:hex-star": "d3f09356",
+  "fig:hex:checks:hex-star": "0",
+  "fig:hex:roundtrip:hex-star": "true",
+  "fig:hex:hex-arcs": "f9ae8270",
+  "fig:hex:checks:hex-arcs": "0",
+  "fig:hex:roundtrip:hex-arcs": "true",
+  "hex:poses": "0,60,120,180,240,300"
 }

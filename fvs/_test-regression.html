@@ -328,6 +328,21 @@ async function battery() {
     put('refmask', [n > 100 && n < 600, M.box && M.box.x1 - M.box.x0 < 40].join(','));
   } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); }
 
+  // 17 — hexagonal lattice and 60° poses
+  try {
+    const hm = hexLoomModel(3);
+    const sec = [0, 1, 2, 3, 4, 5].map(k => hm.cells.filter(c => c.ring > 0 && c.sector === k).length).join(',');
+    put('hex:model', [hm.cells.length, hm.cells.filter(c => c.ring === 0).length, hm.cells.filter(c => c.ring === 1).length, hm.cells.filter(c => c.ring === 2).length, sec].join('/'));
+    put('hex:snap', [snapPose(60), snapPose(89), snapPose(-60), snapPose(370)].join(','));
+    Object.entries(hexFigureRecipes()).forEach(([k, def]) => {
+      const svg = runFigureRecipe(def, { keepTier: true });
+      put('fig:hex:' + def.id, svg);
+      put('fig:hex:checks:' + def.id, figureChecks(def, svg).filter(r => !r.ok).length);
+      figureFormFromRecipe(def); put('fig:hex:roundtrip:' + def.id, norm(runFigureRecipe(figureRecipeFromForm(), { keepTier: true })) === norm(svg));
+    });
+    put('hex:poses', [...new Set(state.symbolCells.map(c => c.rotation))].sort((a, b) => a - b).join(','));
+  } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); }
+
   // tidy the throw-away tiles the recipes wrote into the Component library
   const lib = LIBRARY.read(); Object.keys(lib).filter(k => k.startsWith('Tile · recipe-')).forEach(k => delete lib[k]); LIBRARY.write(lib);
   reset();

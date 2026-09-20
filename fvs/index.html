@@ -1411,7 +1411,7 @@
           </div>
           <div class="ctrl-row" id="row-cellprop-rotation"><div class="ctrl-label">Rotation</div>
             <select class="panel-select" id="sel-cellprop-rot">
-              <option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option>
+              <option value="0">0°</option><option value="60">60°</option><option value="90">90°</option><option value="120">120°</option><option value="180">180°</option><option value="240">240°</option><option value="270">270°</option><option value="300">300°</option>
             </select>
           </div>
           <div class="ctrl-row" id="row-cellprop-flip"><div class="ctrl-label">Flip</div>
@@ -1497,7 +1497,7 @@
       <h3>2 · Lattice</h3>
       <div class="ctrl-row"><div class="ctrl-label">Type</div>
         <select class="panel-select" id="fg-lattice" aria-label="Lattice type">
-          <option value="triangle">Triangle (n rows)</option><option value="square">Square (cols × rows)</option><option value="component">Component block 2×2</option>
+          <option value="triangle">Triangle (n rows)</option><option value="square">Square (cols × rows)</option><option value="hexagon">Hexagon (n rings)</option><option value="component">Component block 2×2</option>
         </select></div>
       <div class="ctrl-row" id="fg-row-n"><div class="ctrl-label">Rows</div><select class="panel-select" id="fg-n" aria-label="Rows"></select></div>
       <div class="ctrl-row" id="fg-row-cols"><div class="ctrl-label">Columns</div><select class="panel-select" id="fg-cols" aria-label="Columns"></select></div>
@@ -1512,9 +1512,12 @@
         <select class="panel-select" id="fg-up" aria-label="Up cells"><option value="filled">Filled</option><option value="empty">Empty</option></select></div>
       <div class="ctrl-row" id="fg-row-down"><div class="ctrl-label">Down cells</div>
         <select class="panel-select" id="fg-down" aria-label="Down cells"><option value="empty">Empty</option><option value="turned">Filled, turned 180°</option><option value="filled">Filled</option></select></div>
+      <div class="ctrl-row" id="fg-row-hexturn"><div class="ctrl-label">Turn</div>
+        <select class="panel-select" id="fg-hexturn" aria-label="Turn cells by sector"><option value="none">Unchanged</option><option value="sector">By sector (60° each)</option></select></div>
+      <label class="check-row" id="fg-row-hexcentre"><input type="checkbox" id="fg-hexcentre"><span>Empty centre</span></label>
       <div class="ctrl-row"><div class="ctrl-label">Empty rows</div><input type="text" class="panel-select" id="fg-emptyrows" placeholder="e.g. 0 or 0,2" aria-label="Empty rows (numbers from the top, starting at 0)"></div>
       <div class="ctrl-row"><div class="ctrl-label">Odd cells</div>
-        <select class="panel-select" id="fg-odd" aria-label="Rotation of odd cells"><option value="none">Unchanged</option><option value="90">Rotate 90°</option><option value="180">Rotate 180°</option><option value="270">Rotate 270°</option></select></div>
+        <select class="panel-select" id="fg-odd" aria-label="Rotation of odd cells"><option value="none">Unchanged</option><option value="60">Rotate 60°</option><option value="90">Rotate 90°</option><option value="120">Rotate 120°</option><option value="180">Rotate 180°</option><option value="240">Rotate 240°</option><option value="270">Rotate 270°</option><option value="300">Rotate 300°</option></select></div>
       <label class="check-row"><input type="checkbox" id="fg-liveseed"><span>Use the Element step's own settings</span></label>
       <p class="org-panel__hint">Up/Down apply to triangular lattices; "odd" is the checkerboard parity of column + row. With the box ticked, each cell keeps the shape as configured in the Element step (extras, thickness…) instead of the plain default.</p>
     </div>
@@ -4384,6 +4387,33 @@ function tierLoomModel(stack, side = 200) {
     cells,
   };
 }
+// A hexagonal lattice of `rings` rings (1, 7, 19, 37… pointy-top hexagons). Each cell knows its
+// ring (distance from the centre) and its sector (0–5, clockwise from the +x axis: one corner
+// cell plus the edge cells that follow it), the classes 60° poses are keyed on.
+function hexLoomModel(rings, side = 100) {
+  const R = rings - 1, w = Math.sqrt(3) * side, pos = [];
+  for (let q = -R; q <= R; q++) for (let r = Math.max(-R, -q - R); r <= Math.min(R, -q + R); r++) pos.push([q, r]);
+  pos.sort((a, b) => a[1] - b[1] || (a[0] + a[1] / 2) - (b[0] + b[1] / 2));
+  const xy = pos.map(([q, r]) => [w * (q + r / 2), 1.5 * side * r]);
+  const minX = Math.min(...xy.map(p => p[0])) - w / 2, maxX = Math.max(...xy.map(p => p[0])) + w / 2;
+  const minY = Math.min(...xy.map(p => p[1])) - side, maxY = Math.max(...xy.map(p => p[1])) + side;
+  const cells = xy.map(([x, y], i) => {
+    const [q, r] = pos[i], ring = (Math.abs(q) + Math.abs(r) + Math.abs(q + r)) / 2;
+    const ang = ((Math.atan2(y, x) * 180 / Math.PI) % 360 + 360) % 360;
+    const cx = x - minX, cy = y - minY;
+    const points = [0, 1, 2, 3, 4, 5].map(k => { const a = (-90 + 60 * k) * Math.PI / 180; return [cx + side * Math.cos(a), cy + side * Math.sin(a)]; });
+    return { id: 'c' + i, number: i + 1, points, centroid: [cx, cy], ring, sector: ring ? Math.floor(ang / 60 + 1e-6) % 6 : 0 };
+  });
+  const W = maxX - minX, H = maxY - minY;
+  return {
+    version: '1.0',
+    canvas: { width: W, height: H, displayWidth: W, displayHeight: H, unit: 'px', orientation: 'landscape', marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, margin: 0, safeArea: 0, bleed: 0 },
+    grid: { type: 'hexagonal', solver: 'geometric', cellShape: 'polygon', params: { rings }, gap: 0 },
+    cells,
+  };
+}
+// Poses are multiples of 30° (0/90/180/270 for square lattices, 60° steps for hexagonal ones).
+const snapPose = n => ((Math.round(n / 30) * 30) % 360 + 360) % 360;
 // 'up' when the triangle's base is its lower edge (two vertices share the max y), 'down' otherwise; null for non-triangles.
 function polyOrient(points) {
   if (!points || points.length !== 3) return null;
@@ -5930,7 +5960,7 @@ ctrl('symbol-content-overlay').addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && ctrl('symbol-content-overlay').style.display !== 'none') closeCellContentOverlay();
 });
-ctrl('sel-cellprop-rot').addEventListener('change', e => applyToSelection({ rotation: parseInt(e.target.value, 10) }));
+ctrl('sel-cellprop-rot').addEventListener('change', e => applyToSelection({ rotation: snapPose(parseInt(e.target.value, 10)) }));
 ctrl('sel-cellprop-flip').addEventListener('change', e => {
   const v = e.target.value;
   applyToSelection({ flipH: v === 'h' || v === 'hv', flipV: v === 'v' || v === 'hv' });
@@ -6084,13 +6114,14 @@ function slotClassContext(grid) {
   return cr.map((c, i) => ({
     index: i, col: c.col, row: c.row, parity: (c.col + c.row) % 2 === 1 ? 'odd' : 'even',
     orient: raw[i] && raw[i].points ? polyOrient(raw[i].points) : null,
+    ring: raw[i] && raw[i].ring != null ? raw[i].ring : null, sector: raw[i] && raw[i].sector != null ? raw[i].sector : null,
   }));
 }
 function ruleMatches(when, ctx) {
   const has = (v, x) => Array.isArray(v) ? v.includes(x) : v === x;
   return (when.class == null || has(when.class, ctx.orient)) && (when.row == null || has(when.row, ctx.row))
     && (when.col == null || has(when.col, ctx.col)) && (when.index == null || has(when.index, ctx.index))
-    && (when.parity == null || when.parity === ctx.parity);
+    && (when.parity == null || when.parity === ctx.parity) && (when.ring == null || has(when.ring, ctx.ring)) && (when.sector == null || has(when.sector, ctx.sector));
 }
 // Rules apply in order; a later rule overrides an earlier one on the slots it matches.
 function applyClassRules(rules, seedType) {
@@ -6103,7 +6134,7 @@ function applyClassRules(rules, seedType) {
       const d = r.do || {};
       if (d.content === 'empty') cell.source = 'empty';
       else if (d.content === 'filled') { cell.source = 'seed'; cell.seedType = d.seed || seedType; }
-      if (d.rotate != null) cell.rotation = snap90(d.rotate);
+      if (d.rotate != null) cell.rotation = snapPose(d.rotate === 'sector' ? 60 * (ctxs[i].sector || 0) : d.rotate);
       if (d.flipH != null) cell.flipH = !!d.flipH;
       if (d.flipV != null) cell.flipV = !!d.flipV;
       if (d.scale != null) cell.scale = d.scale;
@@ -6154,7 +6185,7 @@ function runFigureRecipe(def, opts) {
     if (gridLv) { const all = LIBRARY.read(); delete all['Tile · ' + comp.id]; LIBRARY.write(all); tileSelectedInGrid(true); }
   } else {
     const l = first.lattice;
-    loadSymbolGrid(l.type === 'triangle' ? triangleLoomModel(l.rows) : squareLoomModel(l.cols, l.rows || l.cols));
+    loadSymbolGrid(l.type === 'triangle' ? triangleLoomModel(l.rows) : l.type === 'hexagon' ? hexLoomModel(l.rings) : squareLoomModel(l.cols, l.rows || l.cols));
     const fit = first.fit || (l.type === 'triangle' ? 'fill' : 'contain');
     state.symbolCells.forEach(c => { c.source = 'seed'; c.seedType = el.type; c.fitMode = fit; c.rotation = 0; c.flipH = false; c.flipV = false; c.scale = 1; c.color = null; });
     if (first.seed === 'live') {   // every cell keeps the Element's own settings, frozen at this moment
@@ -6200,6 +6231,15 @@ const FIGURE_RECIPES_V1_AS_V2 = {
   'pinwheel': { element: { type: 'triangle', colors: ['#e8321e'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'pinwheel', params: { base: 0, chirality: 1 } }, { kind: 'grid', lattice: { type: 'square', n: 3 }, cellSize: 110 }] },
   'kaleidoscope': { element: { type: 'arc', params: { 'rg-thickness': 60 }, colors: ['#1e5be8'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'mirror', params: { seed: 0 } }, { kind: 'grid', lattice: { type: 'square', n: 2 }, cellSize: 110, altFlip: true }] },
 };
+// Hexagonal lattices: poses in 60° steps (each cell turned by its sector).
+function hexFigureRecipes() {
+  const mk = (id, el, rings, rules) => ({ tool: 'fvs-recipe', version: 2, id, element: el, levels: [{ kind: 'symbol', lattice: { type: 'hexagon', rings }, fit: 'contain', rules }] });
+  return {
+    'Hexagon · rosette (triangles turned by sector)': mk('hex-rosette', { type: 'triangle', colors: ['#f0301f'] }, 3, [{ when: {}, do: { rotate: 'sector', scale: 0.62 } }]),
+    'Hexagon · star with empty centre': mk('hex-star', { type: 'star', colors: ['#1e5be8'] }, 3, [{ when: { ring: 0 }, do: { content: 'empty' } }, { when: { parity: 'odd' }, do: { rotate: 60 } }]),
+    'Hexagon · arcs turned by sector': mk('hex-arcs', { type: 'arc', params: { 'rg-thickness': 100 }, colors: ['#0a9a3e'] }, 3, [{ when: {}, do: { rotate: 'sector', scale: 0.62 } }]),
+  };
+}
 // The twelve "Triangle Symbol" figures: 3 assets × 4 compositions.
 function triangleFigureRecipes() {
   const assets = {
@@ -6229,6 +6269,7 @@ const figureCatalog = () => {
     cat['Triangle · ' + { sierpinski: 'Sierpinski', trapezoid: 'Trapezoid', lattice4: 'Lattice 4' }[a] + ' · ' + { asset: 'asset', repeated: 'repeated', 'mirror-1': 'mirrored, one axis', 'mirror-2': 'mirrored, two axes' }[c]] = r;
   });
   Object.entries(FIGURE_RECIPES_V1_AS_V2).forEach(([k, r]) => { cat['Classic · ' + FIGURE_CLASSIC_LABELS[k]] = { tool: 'fvs-recipe', version: 2, ...r }; });
+  Object.entries(hexFigureRecipes()).forEach(([k, r]) => { cat[k] = r; });
   return cat;
 };
 const FG_LATTICE_OF = v => /^tier(\d)$/.test(v) ? { type: 'tier', stack: +v[4] } : /^tri(\d)$/.test(v) ? { type: 'triangle', rows: +v[3] } : { type: 'square', n: +v.match(/^square(\d)/)[1] };
@@ -6246,6 +6287,10 @@ function figureRecipeFromForm() {
   } else {
     const rules = [];
     const odd = v('fg-odd'); if (odd !== 'none') rules.push({ when: { parity: 'odd' }, do: { rotate: +odd } });
+    if (lat === 'hexagon') {
+      if (v('fg-hexturn') === 'sector') rules.push({ when: {}, do: { rotate: 'sector', scale: 0.62 } });   // a turned shape must stay inside its hexagon
+      if (ctrl('fg-hexcentre').checked) rules.push({ when: { ring: 0 }, do: { content: 'empty' } });
+    }
     if (lat === 'triangle') {
       if (v('fg-up') === 'empty') rules.push({ when: { class: 'up' }, do: { content: 'empty' } });
       const d = v('fg-down');
@@ -6253,7 +6298,7 @@ function figureRecipeFromForm() {
     }
     const rows = v('fg-emptyrows').split(',').map(x => parseInt(x, 10)).filter(x => !isNaN(x));
     if (rows.length) rules.push({ when: { row: rows }, do: { content: 'empty' } });
-    first = { kind: 'symbol', lattice: lat === 'triangle' ? { type: 'triangle', rows: +v('fg-n') } : { type: 'square', cols: +v('fg-cols'), rows: +v('fg-n') },
+    first = { kind: 'symbol', lattice: lat === 'triangle' ? { type: 'triangle', rows: +v('fg-n') } : lat === 'hexagon' ? { type: 'hexagon', rings: Math.min(5, +v('fg-n')) } : { type: 'square', cols: +v('fg-cols'), rows: +v('fg-n') },
       fit: lat === 'triangle' ? 'fill' : 'contain', rules };
     if (ctrl('fg-liveseed').checked) first.seed = 'live';
   }
@@ -6268,11 +6313,14 @@ function figureFormFromRecipe(def) {
   set('fg-up', 'filled'); set('fg-down', 'empty'); set('fg-emptyrows', ''); set('fg-odd', 'none'); ctrl('fg-liveseed').checked = first.seed === 'live';
   if (first.kind === 'component') { set('fg-lattice', 'component'); set('fg-comprule', first.rule || 'checkerboard'); }
   else {
-    set('fg-lattice', first.lattice.type); set('fg-n', first.lattice.type === 'triangle' ? first.lattice.rows : first.lattice.rows || first.lattice.cols);
+    set('fg-lattice', first.lattice.type); set('fg-n', first.lattice.type === 'triangle' ? first.lattice.rows : first.lattice.type === 'hexagon' ? first.lattice.rings : first.lattice.rows || first.lattice.cols);
+    set('fg-hexturn', 'none'); ctrl('fg-hexcentre').checked = false;
     if (first.lattice.type === 'square') set('fg-cols', first.lattice.cols);
     (first.rules || []).forEach(r => {
       const w = r.when || {}, d = r.do || {};
       if (w.parity === 'odd' && d.rotate != null) set('fg-odd', d.rotate);
+      else if (d.rotate === 'sector') set('fg-hexturn', 'sector');
+      else if (w.ring === 0 && d.content === 'empty') ctrl('fg-hexcentre').checked = true;
       else if (w.class === 'up' && d.content === 'empty') set('fg-up', 'empty');
       else if (w.class === 'down') set('fg-down', d.content === 'empty' ? 'empty' : d.rotate === 180 ? 'turned' : 'filled');
       else if (w.row != null && d.content === 'empty') set('fg-emptyrows', [].concat(w.row).join(','));
@@ -6289,6 +6337,8 @@ function syncFigureFormUI() {
   ctrl('fg-row-comprule').style.display = lat === 'component' ? '' : 'none';
   ctrl('fg-rules-section').style.display = lat === 'component' ? 'none' : '';
   ctrl('fg-row-up').style.display = ctrl('fg-row-down').style.display = lat === 'triangle' ? '' : 'none';
+  ctrl('fg-row-hexturn').style.display = ctrl('fg-row-hexcentre').style.display = lat === 'hexagon' ? '' : 'none';
+  ctrl('fg-row-n').querySelector('.ctrl-label').textContent = lat === 'hexagon' ? 'Rings' : 'Rows';
 }
 
 let figureRun = 0;
@@ -6324,7 +6374,7 @@ function figureChecks(def, svg) {
   const first = def.levels[0], gridLv = def.levels[1];
   let slots = null;
   if (first.kind === 'symbol') {
-    const l = first.lattice, total = l.type === 'triangle' ? l.rows * l.rows : l.cols * (l.rows || l.cols);
+    const l = first.lattice, total = l.type === 'triangle' ? l.rows * l.rows : l.type === 'hexagon' ? 3 * l.rings * (l.rings - 1) + 1 : l.cols * (l.rows || l.cols);
     add(state.symbolCells.length === total, 'Lattice has the expected number of slots', `${state.symbolCells.length} of ${total}`);
     slots = state.symbolCells.filter(c => c.source !== 'empty').length;
   } else slots = getSelectedComponent() ? getSelectedComponent().cells.length : 0;
@@ -6422,10 +6472,11 @@ function drawFigureRef(fm, rm) {
   Object.keys(cat).forEach(k => ps.add(new Option(k, k)));
   ps.addEventListener('change', () => { if (ps.value) applyFigureRecipe(JSON.parse(JSON.stringify(cat[ps.value]))); });
   const onForm = () => { syncFigureFormUI(); applyFigureRecipe(figureRecipeFromForm(), { fromForm: true }); };
-  ['fg-seed', 'fg-style', 'fg-lattice', 'fg-n', 'fg-cols', 'fg-comprule', 'fg-up', 'fg-down', 'fg-odd', 'fg-comp', 'fg-rot', 'fg-mirror'].forEach(id => ctrl(id).addEventListener('change', onForm));
+  ['fg-seed', 'fg-style', 'fg-lattice', 'fg-n', 'fg-cols', 'fg-comprule', 'fg-up', 'fg-down', 'fg-odd', 'fg-hexturn', 'fg-comp', 'fg-rot', 'fg-mirror'].forEach(id => ctrl(id).addEventListener('change', onForm));
   ['fg-ink', 'fg-paper', 'fg-emptyrows'].forEach(id => ctrl(id).addEventListener('input', onForm));
   ctrl('fg-altflip').addEventListener('change', onForm);
   ctrl('fg-liveseed').addEventListener('change', onForm);
+  ctrl('fg-hexcentre').addEventListener('change', onForm);
   ctrl('fg-json-apply').addEventListener('click', () => { try { applyFigureRecipe(JSON.parse(ctrl('fg-json').value)); } catch (e) { ctrl('fg-json-error').textContent = e.message; ctrl('fg-json-error').style.display = ''; } });
   ctrl('fg-json-copy').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText(ctrl('fg-json').value); });
   ctrl('fg-json-save').addEventListener('click', () => Organica.downloadText(ctrl('fg-json').value, Organica.stamp('fvs-figure', 'json'), 'application/json'));
