@@ -838,10 +838,11 @@
         <span class="ctrl-val" id="v-inner-ratio">70</span>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label" title="Where the copies are centred. Centroid keeps the rings evenly spaced on shapes whose bounding-box centre is off-centre (Triangle, Drop, Chevron, Arc, Wedge).">Anchor</div>
+        <div class="ctrl-label" title="Where the copies are centred. Centroid keeps the rings evenly spaced on shapes whose bounding-box centre is off-centre (Triangle, Drop, Chevron). Apex (Arc, Wedge only) centres them on the pivot / tip, so the copies stay concentric with the shape.">Anchor</div>
         <select class="panel-select" id="sel-inner-anchor" aria-label="Inner seed anchor">
           <option value="bbox" selected>Bbox centre</option>
           <option value="centroid">Centroid</option>
+          <option value="apex">Apex</option>
         </select>
       </div>
       <p class="org-panel__hint" id="inner-unsupported" style="display:none">Not available for this shape — its copies would cross instead of nest.</p>
@@ -1629,14 +1630,19 @@ function pathCentroid(d, bb) {
   _pathCentroidCache.set(d, c);
   return c;
 }
+const INNER_APEX = {   // where the shape's pivot sits in its own d-space (before the norm fit)
+  wedge: () => [50, 50],
+  arc: p => p.arcPivot === 'center' ? [50, 50] : [0, 0],
+};
 const INNER_UNSUPPORTED = new Set(['segment', 'arctruchet']);   // open / already multi-ring — copies would cross, not nest
-function withInnerCopies(geo, p) {
+function withInnerCopies(geo, p, apex) {
   const n = Math.round((p && p.innerCount) || 0);
   if (!(n > 0) || !geo || !geo.d) return geo;
   const ratio = Math.min(0.95, Math.max(0.1, (p.innerRatio == null ? 70 : p.innerRatio) / 100));
   const bb = pathBBox(geo.d);
   if (!bb) return geo;
-  const ctr = p.innerAnchor === 'centroid' ? pathCentroid(geo.d, bb) : { x: bb.x + bb.width / 2, y: bb.y + bb.height / 2 };
+  const ap = p.innerAnchor === 'apex' && apex ? apex(p) : null;   // Arc / Wedge pivot in the shape's own d-space
+  const ctr = ap ? { x: ap[0], y: ap[1] } : p.innerAnchor === 'centroid' || p.innerAnchor === 'apex' ? pathCentroid(geo.d, bb) : { x: bb.x + bb.width / 2, y: bb.y + bb.height / 2 };
   const cx = ctr.x, cy = ctr.y;
   let d = geo.d;
   for (let k = 1; k <= n; k++) d += ' ' + Organica.shapes.scalePathAbout(geo.d, Math.pow(ratio, k), cx, cy);
@@ -1645,7 +1651,7 @@ function withInnerCopies(geo, p) {
 for (const k of Object.keys(SEED_TYPES)) {
   if (k === 'freehandraw' || INNER_UNSUPPORTED.has(k)) continue;   // the raw drawing stage view stays untouched
   const g0 = SEED_TYPES[k].geometry;
-  SEED_TYPES[k].geometry = p => withInnerCopies(g0(p), p);
+  SEED_TYPES[k].geometry = p => withInnerCopies(g0(p), p, INNER_APEX[k]);
 }
 const SYMBOL_ARC_TRUCHET = { arcCount: 5, arcRatio: 0.7, truFans: 2, truCore: 0, truSpread: 180, truReach: 100, truRamp: 0, truCurve: 0, truRound: 0, truSegs: 1, truGap: 20 };   // fixed defaults for the Symbols tier
 const SYMBOL_ARC = { arcPivot: 'corner', arcSweep: 90, arcStart: 0, arcRound: 0, arcSegs: 1, arcGap: 20, arcTaper: 0, arcIrregular: 0, arcSeed: 1 };   // Symbols stay a plain quarter arc
@@ -3162,7 +3168,10 @@ function syncSeedUI() {
   ctrl('seed-freehand-block').style.display = type === 'freehand' ? '' : 'none';
   { const off = INNER_UNSUPPORTED.has(type);
     ['rg-inner-count', 'rg-inner-ratio', 'sel-inner-anchor'].forEach(id => { ctrl(id).disabled = off; });
-    ctrl('inner-unsupported').style.display = off ? '' : 'none'; }
+    ctrl('inner-unsupported').style.display = off ? '' : 'none';
+    const hasApex = !!INNER_APEX[type], sel = ctrl('sel-inner-anchor');
+    sel.querySelector('option[value="apex"]').disabled = !hasApex;
+    if (!hasApex && sel.value === 'apex') { sel.value = 'centroid'; renderGallery(); renderSeedPreview(); } }
   syncCircleRows();
   seedPicker.refresh();
   syncFreehandEditor();
