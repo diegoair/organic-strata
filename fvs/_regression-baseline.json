@@ -206,5 +206,14 @@
   "figstrip:hist": "2,false",
   "figstrip:undoredo": "2,3,2",
   "figstrip:nohist": "2",
-  "figstrip:same": "true"
+  "figstrip:same": "true",
+  "paint:sierpinski": "ae4d2db8",
+  "paint:trapezoid": "2|true",
+  "paint:toggle:merge": "1:{\"content\":\"filled\"}",
+  "paint:chips": "77b9ebd4",
+  "paint:off": "true",
+  "paint:isformrule": "true,false,false",
+  "paint:formkeeps": "7f683182",
+  "paint:step": "level0,true",
+  "paint:step:kept": "level0"
 }

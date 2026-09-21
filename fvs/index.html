@@ -165,7 +165,29 @@
   .fg-gallery { width: min(100%, 720px); max-height: 60vh; overflow: auto; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
   .fg-gallery[hidden] { display: none; }
   #fg-strip, .fg-gallery { flex-shrink: 0; }
-  #fg-gallery:not([hidden]) ~ #figure-stage { display: none; }
+  #fg-gallery:not([hidden]) ~ #figure-stage, #fg-variations:not([hidden]) ~ #figure-stage { display: none; }
+  #fg-toolbar { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; justify-content: center; }
+  #fg-toolbar .fg-group { display: inline-flex; gap: var(--space-1); align-items: center; }
+  #fg-toolbar .fg-label { font-size: var(--fs-micro); color: var(--mid); }
+  #fg-toolbar .mini-btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  #fg-chips { display: flex; gap: var(--space-2); flex-wrap: wrap; justify-content: center; }
+  .fg-chip { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--panel); font-size: var(--fs-micro); }
+  .fg-chip[data-off="true"] > .fg-chip__text { opacity: 0.45; text-decoration: line-through; }
+  .fg-chip button { border: 0; background: none; cursor: pointer; color: var(--mid); font: inherit; padding: 0 var(--space-1); }
+  .fg-chip button:hover:not(:disabled) { color: var(--ink); }
+  .fg-chip button:disabled { opacity: 0.3; cursor: default; }
+  .fg-advanced > summary { cursor: pointer; padding: var(--space-3) var(--space-4); font-size: var(--fs-small); color: var(--mid); }
+  .fg-thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: var(--space-2); margin-bottom: var(--space-3); }
+  .fg-thumb { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-1); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font: inherit; color: var(--ink); }
+  .fg-thumb:hover, .fg-thumb[aria-pressed="true"] { border-color: var(--tool); }
+  .fg-thumb svg { width: 100%; aspect-ratio: 1; display: block; }
+  .fg-thumb span { font-size: var(--fs-micro); color: var(--mid); text-align: center; }
+  .fg-color { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
+  #fg-handles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+  #fg-handles [data-handle] { pointer-events: all; cursor: pointer; fill: var(--tool); fill-opacity: 0; }
+  #fg-handles [data-handle]:hover { fill-opacity: 0.4; }
+  #figure-frame svg [data-cell-index] { cursor: pointer; }
+  #figure-frame svg [data-cell-index]:hover > polygon:first-child, #figure-frame svg [data-cell-index]:hover > rect:first-child { fill: var(--tool); fill-opacity: 0.18; }
   .fg-gallery__head { display: flex; justify-content: space-between; align-items: center; font-size: var(--fs-small); }
   .fg-gallery__actions { display: flex; gap: var(--space-2); }
   .fg-gallery__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-3); }
@@ -348,7 +370,13 @@
         <div class="fg-gallery__head"><span>Start from a figure</span><span class="fg-gallery__actions"><button class="mini-btn" id="fg-gallery-ref">Load a reference image…</button><button class="mini-btn" id="fg-gallery-close">Close</button></span></div>
         <div class="fg-gallery__grid" id="fg-gallery-grid"></div>
       </div>
-      <div id="figure-stage"><div id="figure-frame"></div><canvas id="figure-ref-canvas" aria-hidden="true"></canvas></div>
+      <div id="fg-toolbar" role="toolbar" aria-label="Figure tools"></div>
+      <div id="fg-variations" class="fg-gallery" hidden>
+        <div class="fg-gallery__head"><span>Variations — pick one to adopt it</span><span class="fg-gallery__actions"><button class="mini-btn" id="fg-var-more">More</button><button class="mini-btn" id="fg-var-close">Close</button></span></div>
+        <div class="fg-gallery__grid" id="fg-var-grid"></div>
+      </div>
+      <div id="figure-stage"><div id="figure-frame"></div><svg id="fg-handles" aria-hidden="true"></svg><canvas id="figure-ref-canvas" aria-hidden="true"></canvas></div>
+      <div id="fg-chips" role="list" aria-label="Rules"></div>
     </div>
   </div>
 
@@ -1514,8 +1542,11 @@
       <div class="panel-step-head__title">Figure <span class="hint">all in one</span></div>
       <p class="panel-step-head__desc">Seed → lattice → rules → composition → transform. Every change redraws the figure; the same recipe can be pasted or saved as JSON.</p>
     </div>
+    <div class="panel-section" id="fg-step-panel" aria-live="polite"></div>
+    <details id="fg-advanced" class="fg-advanced">
+    <summary>Advanced — form, checks, reference, recipe JSON</summary>
     <div class="panel-section">
-      <h3>Start from</h3>
+      <h3>Preset</h3>
       <div class="ctrl-row"><select class="panel-select" id="fg-preset" aria-label="Figure preset"></select></div>
     </div>
     <div class="panel-section">
@@ -1590,6 +1621,7 @@
       <div class="row-btns"><button class="mini-btn" id="fg-json-apply">Apply</button><button class="mini-btn" id="fg-json-copy">Copy</button><button class="mini-btn" id="fg-json-save">Save file</button></div>
       <div id="fg-json-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
     </div>
+    </details>
     </div>
 
     <div class="tier-block" data-tier="grid">
@@ -6174,7 +6206,7 @@ function applyClassRules(rules, seedType) {
   const ctxs = slotClassContext(grid);
   state.symbolCells.forEach((cell, i) => {
     (rules || []).forEach(r => {
-      if (!ruleMatches(r.when || {}, ctxs[i])) return;
+      if (r.off || !ruleMatches(r.when || {}, ctxs[i])) return;   // a switched-off rule stays in the recipe but does nothing
       const d = r.do || {};
       if (d.content === 'empty') cell.source = 'empty';
       else if (d.content === 'filled') { cell.source = 'seed'; cell.seedType = d.seed || seedType; }
@@ -6221,7 +6253,7 @@ function runFigureRecipe(def, opts) {
   paperSwatch.set(hexKey(el.paper || '#ffffff'));
   const first = lv[0], grids = lv.slice(1), gridLv = grids[0];
   let tier;
-  state.fvsGridRaw = null; state.figureLevelStats = [];
+  state.fvsGridRaw = null; state.figureLevelStats = []; state.figureLevelMeta = [];
   if (first.kind === 'component') {
     fireChange('sel-grid-type', first.grid || 'square2x2');
     const comp = { id: 'figure-component', ruleSource: 'recipe', cells: first.cells || componentCellsFromRule(first.rule, first.params) };
@@ -6257,7 +6289,7 @@ function runFigureRecipe(def, opts) {
     state.figureLevelStats.push({ tiles, copies });
     shapes *= tiles * copies;
     if (shapes > FIGURE_MAX_SHAPES) throw new Error(`Too many shapes (${shapes}) — the limit is ${FIGURE_MAX_SHAPES}`);
-    if (!last) { const svg = buildFvsGridSVG(); state.fvsGridRaw = promoteFigureToTile(svg); }   // this figure becomes the next level's tile
+    if (!last) { const svg = buildFvsGridSVG(); state.figureLevelMeta[gi] = lastFigureMeta; state.fvsGridRaw = promoteFigureToTile(svg); }   // this figure becomes the next level's tile
   });
   if (!grids.length) { fireChange('sel-fvsgrid-rot', String(tr.rotate || 0)); fireChange('sel-fvsgrid-mirror', tr.mirror || 'none'); }
   if (opts && opts.keepTier) { state.figureTier = tier; return figureSVGOf(tier); }
@@ -6349,6 +6381,18 @@ const figureCatalog = () => {
 const FG_LATTICE_OF = v => /^tier(\d)$/.test(v) ? { type: 'tier', stack: +v[4] } : /^tri(\d)$/.test(v) ? { type: 'triangle', rows: +v[3] } : { type: 'square', n: +v.match(/^square(\d)/)[1] };
 const FG_STR_OF = l => l.type === 'tier' ? 'tier' + l.stack : l.type === 'triangle' ? 'tri' + l.rows : `square${l.n}x${l.n}`;
 
+// The rules the Advanced form can express (and re-create itself); everything else is kept as it is.
+function isFormRule(r) {
+  const w = r.when || {}, d = r.do || {}, keys = Object.keys(w);
+  if (r.off) return false;
+  if (w.parity === 'odd' && keys.length === 1 && d.rotate != null && Object.keys(d).length === 1) return true;
+  if (w.class === 'up' && keys.length === 1 && d.content === 'empty' && Object.keys(d).length === 1) return true;
+  if (w.class === 'down' && keys.length === 1 && (d.content === 'empty' || (d.content === 'filled' && (d.rotate === 180 || d.rotate == null))) && Object.keys(d).length <= 2) return true;
+  if (w.row != null && keys.length === 1 && d.content === 'empty' && Object.keys(d).length === 1) return true;
+  if (keys.length === 0 && d.rotate === 'sector') return true;
+  if (w.ring === 0 && keys.length === 1 && d.content === 'empty' && Object.keys(d).length === 1) return true;
+  return false;
+}
 function figureRecipeFromForm() {
   const v = id => ctrl(id).value, lat = v('fg-lattice');
   const el = { type: v('fg-seed'), style: v('fg-style'), colors: [v('fg-ink')], paper: v('fg-paper') };
@@ -6372,6 +6416,9 @@ function figureRecipeFromForm() {
     }
     const rows = v('fg-emptyrows').split(',').map(x => parseInt(x, 10)).filter(x => !isNaN(x));
     if (rows.length) rules.push({ when: { row: rows }, do: { content: 'empty' } });
+    // rules painted on the canvas (single cells, switched-off, flips…) have no field in this form: keep them
+    const cur = state.figureRecipe && state.figureRecipe.levels[0] && state.figureRecipe.levels[0].rules;
+    (cur || []).filter(r => !isFormRule(r)).forEach(r => rules.push(JSON.parse(JSON.stringify(r))));
     first = { kind: 'symbol', lattice: lat === 'triangle' ? { type: 'triangle', rows: +v('fg-n') } : lat === 'hexagon' ? { type: 'hexagon', rings: Math.min(5, +v('fg-n')) } : { type: 'square', cols: +v('fg-cols'), rows: +v('fg-n') },
       fit: lat === 'triangle' ? 'fill' : 'contain', rules };
     if (ctrl('fg-liveseed').checked) first.seed = 'live';
@@ -6425,12 +6472,17 @@ function applyFigureRecipe(def, opts) {
   opts = opts || {};
   ctrl('fg-json-error').style.display = 'none';
   try {
-    state.figureRecipe = def;
+    validateFigureRecipe(def);   // an invalid recipe must never become the current one
+    if (opts.resetStep || !state.figureStep) state.figureStep = 'final';
+    if (/^level(\d+)$/.test(state.figureStep) && +state.figureStep.slice(5) >= def.levels.length) state.figureStep = 'final';
     const steps = figureStepSVGs(def);
     const svg = runFigureRecipe(def, { keepTier: true });
-    ctrl('figure-frame').innerHTML = svg;
+    state.figureRecipe = def;
+    const metas = (state.figureLevelMeta || []).slice(); if (def.levels.length > 1) metas[def.levels.length - 2] = lastFigureMeta;
+    state.figureShown = { def, steps, svg, metas };
     if (!opts.noHistory) pushFigureHistory(def);
     renderFigurePipeline(def, steps, svg);
+    showFigureStep();
     if (!opts.fromForm) figureFormFromRecipe(def);
     ctrl('fg-json').value = JSON.stringify(def, null, 2);
     refreshFigureChecks(def, svg, ++figureRun);
@@ -6473,14 +6525,11 @@ function renderFigurePipeline(def, steps, finalSVG) {
   cards.forEach((c, i) => {
     if (i) { const a = document.createElement('span'); a.className = 'fg-arrow'; a.textContent = '→'; box.appendChild(a); }
     const b = document.createElement('button'); b.type = 'button'; b.className = 'fg-card'; b.setAttribute('role', 'tab');
-    b.setAttribute('aria-selected', c.final ? 'true' : 'false');
+    const id = c.final ? 'final' : c.level == null ? 'element' : 'level' + c.level;
+    b.dataset.step = id;
+    b.setAttribute('aria-selected', String(state.figureStep === id));
     b.innerHTML = figureCardHTML(c.label, c.svg);
-    b.addEventListener('click', () => {
-      box.querySelectorAll('.fg-card').forEach(x => x.setAttribute('aria-selected', String(x === b)));
-      if (c.view) ctrl('figure-frame').innerHTML = c.view;
-      else ctrl('figure-frame').innerHTML = buildSeedPreviewSVG(getSeed(), 0, false, false, 400);
-      ctrl('figure-ref-canvas').style.visibility = c.final ? '' : 'hidden';
-    });
+    b.addEventListener('click', () => setFigureStep(id));
     if (c.level > 0) {   // a Grid level: removable and draggable
       const x = document.createElement('button'); x.type = 'button'; x.className = 'fg-card__x'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove this Grid');
       x.addEventListener('click', e => { e.stopPropagation(); const d = JSON.parse(JSON.stringify(def)); d.levels.splice(c.level, 1); applyFigureRecipe(d); });
@@ -6504,7 +6553,6 @@ function renderFigurePipeline(def, steps, finalSVG) {
     applyFigureRecipe(d);
   });
   box.appendChild(add);
-  ctrl('figure-ref-canvas').style.visibility = '';
 }
 // History of recipes (JSON snapshots, max 50)
 const figureHistory = { stack: [], idx: -1 };
@@ -6536,7 +6584,7 @@ async function openFigureGallery() {
   Object.keys(cat).forEach(name => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'fg-card';
     b.innerHTML = `<span class="fg-thumb" style="width:80px;height:80px;display:block"></span><span>${name.replace(/^(Triangle|Classic|Hexagon|Recursive) · /, '')}</span>`;
-    b.addEventListener('click', () => { closeFigureGallery(); applyFigureRecipe(JSON.parse(JSON.stringify(cat[name]))); });
+    b.addEventListener('click', () => { closeFigureGallery(); applyFigureRecipe(JSON.parse(JSON.stringify(cat[name])), { resetStep: true }); });
     grid.appendChild(b); cards.push([name, b]);
   });
   const undoLen = undoStack.length;
@@ -6568,6 +6616,238 @@ document.addEventListener('keydown', e => {
   const t = e.target;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
   e.preventDefault(); figureHistoryStep(e.shiftKey ? 1 : -1);
+});
+
+// ── Figure workspace: the active step, cell tools, rule chips, the step panel ──
+const FIGURE_TOOLS = [
+  ['toggle', 'Toggle', 'Click a cell to switch it between Seed and Empty'], ['seed', 'Seed', 'Fill the cell with the Seed'], ['empty', 'Empty', 'Leave the cell blank'],
+  ['rotate', 'Rotate', 'Turn the cell by 90° (60° on a hexagonal lattice)'], ['flipH', 'Flip H', 'Mirror the cell left–right'], ['flipV', 'Flip V', 'Mirror the cell top–bottom'],
+];
+const figureStepIds = def => ['element'].concat(def.levels.map((_, i) => 'level' + i), ['final']);
+function setFigureStep(id) {
+  state.figureStep = id;
+  document.querySelectorAll('#fg-pipeline .fg-card').forEach(c => c.setAttribute('aria-selected', String(c.dataset.step === id)));
+  showFigureStep();
+}
+const figurePaintable = () => !!state.figureShown && state.figureStep === 'level0' && state.figureShown.def.levels[0].kind === 'symbol';
+function showFigureStep() {
+  const sh = state.figureShown; if (!sh) return;
+  const id = state.figureStep;
+  const view = id === 'element' ? buildSeedPreviewSVG(getSeed(), 0, false, false, 400) : id === 'final' ? sh.svg : ((sh.steps && sh.steps[+id.slice(5)]) || sh.svg);
+  ctrl('figure-frame').innerHTML = view;
+  ctrl('figure-ref-canvas').style.visibility = id === 'final' ? '' : 'hidden';
+  renderFigureToolbar(); renderFigureChips(); renderFigureHandles(); renderFigureStepPanel();
+}
+// One edit of the recipe: copy, change, validate, redraw (the active step is kept).
+function figureMutate(fn, opts) {
+  const d = JSON.parse(JSON.stringify(state.figureRecipe));
+  fn(d);
+  try { validateFigureRecipe(d); } catch (e) { ctrl('fg-json-error').textContent = e.message; ctrl('fg-json-error').style.display = ''; ctrl('fg-advanced').open = true; return false; }
+  applyFigureRecipe(d, opts || {});
+  return !ctrl('fg-json-error').textContent || ctrl('fg-json-error').style.display === 'none';
+}
+
+// Painting a cell writes a Rule: a single cell → `when {index}`, Shift → the whole class of that cell.
+function figureClassWhen(ctx, lat) {
+  if (lat.type === 'triangle' && ctx.orient) return { class: ctx.orient };
+  if (lat.type === 'hexagon' && ctx.ring != null) return { ring: ctx.ring };
+  return { parity: ctx.parity };
+}
+function paintCell(def, ctx, cellState, tool, byClass) {
+  const d = JSON.parse(JSON.stringify(def)), first = d.levels[0];
+  if (first.kind !== 'symbol') return d;
+  const when = byClass ? figureClassWhen(ctx, first.lattice) : { index: ctx.index };
+  const step = first.lattice.type === 'hexagon' ? 60 : 90;
+  const act = {
+    toggle: () => ({ content: cellState.source === 'empty' ? 'filled' : 'empty' }), seed: () => ({ content: 'filled' }), empty: () => ({ content: 'empty' }),
+    rotate: () => ({ rotate: (((cellState.rotation || 0) + step) % 360 + 360) % 360 }), flipH: () => ({ flipH: !cellState.flipH }), flipV: () => ({ flipV: !cellState.flipV }),
+  }[tool];
+  if (!act) return d;
+  const dd = act(), key = JSON.stringify(when);
+  first.rules = first.rules || [];
+  const same = first.rules.find(r => JSON.stringify(r.when || {}) === key);
+  if (same) { same.do = { ...same.do, ...dd }; delete same.off; } else first.rules.push({ when, do: dd });
+  return d;
+}
+let figureStroke = null;
+function figurePaintAt(cellEl) {
+  const i = +cellEl.dataset.cellIndex, grid = getSymbolGrid(); if (!grid || isNaN(i)) return;
+  const ctx = slotClassContext(grid)[i], st = state.symbolCells[i]; if (!ctx || !st) return;
+  const key = figureStroke.byClass ? JSON.stringify(figureClassWhen(ctx, state.figureRecipe.levels[0].lattice)) : 'i' + i;
+  if (figureStroke.seen.has(key)) return;
+  figureStroke.seen.add(key);
+  const d = paintCell(state.figureRecipe, ctx, st, state.figureTool || 'toggle', figureStroke.byClass);
+  state.figureRecipe = d;
+  try { runFigureRecipe(d, { keepTier: true }); ctrl('figure-frame').innerHTML = buildSymbolSVG(); } catch (e) { /* the full redraw at the end reports it */ }
+}
+function figureEndStroke() {
+  if (!figureStroke) return;
+  figureStroke = null;
+  applyFigureRecipe(state.figureRecipe, {});   // one full redraw and ONE history entry for the whole gesture
+}
+(function initFigureCanvasTools() {
+  const fr = ctrl('figure-frame');
+  fr.addEventListener('pointerdown', e => {
+    if (!figurePaintable() || e.button !== 0) return;
+    const c = e.target.closest && e.target.closest('[data-cell-index]'); if (!c) return;
+    e.preventDefault();
+    figureStroke = { byClass: e.shiftKey, seen: new Set() };
+    figurePaintAt(c);
+  });
+  fr.addEventListener('pointermove', e => {
+    if (!figureStroke) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY), c = el && el.closest && el.closest('#figure-frame [data-cell-index]');
+    if (c) figurePaintAt(c);
+  });
+  window.addEventListener('pointerup', figureEndStroke);
+  window.addEventListener('pointercancel', figureEndStroke);
+})();
+
+function renderFigureToolbar() {
+  const tb = ctrl('fg-toolbar'); tb.innerHTML = '';
+  if (!state.figureShown) return;
+  const add = (cls, html) => { const g = document.createElement('span'); g.className = cls; g.innerHTML = html; tb.appendChild(g); return g; };
+  if (figurePaintable()) {
+    const g = add('fg-group', '<span class="fg-label">Cells</span>');
+    FIGURE_TOOLS.forEach(([id, label, hint], k) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'mini-btn'; b.textContent = label; b.title = `${hint} (${k + 1})`;
+      b.setAttribute('aria-pressed', String((state.figureTool || 'toggle') === id)); b.dataset.tool = id;
+      b.addEventListener('click', () => { state.figureTool = id; renderFigureToolbar(); });
+      g.appendChild(b);
+    });
+    add('fg-label', 'Click or drag to paint · Shift = the whole class of the cell');
+  } else {
+    const hints = { element: 'The Element is the Seed every cell starts from.', final: state.figureShown.def.levels.length > 1 ? 'Hover the edges of the figure to Mirror or Rotate it.' : 'Add a Grid to Mirror or Rotate the figure.' };
+    add('fg-label', hints[state.figureStep] || (state.figureShown.def.levels[+state.figureStep.slice(5)] || {}).kind === 'grid' ? 'Hover the edges of the figure to Mirror or Rotate this Grid.' : (hints[state.figureStep] || ''));
+  }
+}
+
+// Rule chips
+function describeRule(r) {
+  const w = r.when || {}, d = r.do || {}, parts = [];
+  if (w.class != null) parts.push([].concat(w.class).join('/') + ' cells');
+  if (w.ring != null) parts.push('ring ' + [].concat(w.ring).join('/'));
+  if (w.sector != null) parts.push('sector ' + [].concat(w.sector).join('/'));
+  if (w.row != null) parts.push('row ' + [].concat(w.row).map(x => x + 1).join('/'));
+  if (w.col != null) parts.push('column ' + [].concat(w.col).map(x => x + 1).join('/'));
+  if (w.index != null) parts.push('cell ' + [].concat(w.index).map(x => x + 1).join('/'));
+  if (w.parity != null) parts.push(w.parity + ' cells');
+  const what = [];
+  if (d.content === 'empty') what.push('Empty'); if (d.content === 'filled') what.push('Seed');
+  if (d.rotate != null) what.push(d.rotate === 'sector' ? 'Rotate by sector' : 'Rotate ' + d.rotate + '°');
+  if (d.flipH != null) what.push(d.flipH ? 'Flip H' : 'Unflip H'); if (d.flipV != null) what.push(d.flipV ? 'Flip V' : 'Unflip V');
+  if (d.scale != null) what.push('Scale ' + Math.round(d.scale * 100) + '%');
+  return (parts.length ? parts.join(' + ') : 'all cells') + ' → ' + (what.join(', ') || '—');
+}
+function renderFigureChips() {
+  const box = ctrl('fg-chips'); box.innerHTML = '';
+  if (!figurePaintable()) return;
+  const rules = state.figureShown.def.levels[0].rules || [];
+  if (!rules.length) { const h = document.createElement('span'); h.className = 'fg-label'; h.textContent = 'No rules yet — click a cell to make one.'; box.appendChild(h); return; }
+  rules.forEach((r, i) => {
+    const c = document.createElement('span'); c.className = 'fg-chip'; c.setAttribute('role', 'listitem'); c.dataset.off = String(!!r.off);
+    c.innerHTML = `<span class="fg-chip__text">${describeRule(r)}</span>`;
+    const btn = (label, title, fn, disabled) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.title = title; b.setAttribute('aria-label', title); b.disabled = !!disabled; b.addEventListener('click', fn); c.appendChild(b); };
+    const edit = fn => () => figureMutate(d => fn(d.levels[0].rules));
+    btn(r.off ? '○' : '●', r.off ? 'Switch this rule on' : 'Switch this rule off', edit(rs => { if (rs[i].off) delete rs[i].off; else rs[i].off = true; }));
+    btn('↑', 'Earlier (rules apply in order; later ones win)', edit(rs => { [rs[i - 1], rs[i]] = [rs[i], rs[i - 1]]; }), i === 0);
+    btn('↓', 'Later', edit(rs => { [rs[i + 1], rs[i]] = [rs[i], rs[i + 1]]; }), i === rules.length - 1);
+    btn('×', 'Delete this rule', edit(rs => { rs.splice(i, 1); }));
+    box.appendChild(c);
+  });
+}
+function renderFigureHandles() { const h = ctrl('fg-handles'); h.style.display = 'none'; h.innerHTML = ''; }
+
+// The step panel: the few parameters of whichever step is active
+const FG_SEEDS = ['triangle', 'arc', 'arctruchet', 'wedge', 'polygon', 'star', 'roundedrect', 'chevron', 'cross', 'lens', 'circle', 'drop', 'blob'];
+const FG_ICONS = {
+  triangle: '<path d="M20 5 L5 33 H35 Z M12.5 19 H27.5 M20 33 L12.5 19 M20 33 L27.5 19"/>',
+  square: '<rect x="6" y="6" width="28" height="28"/><path d="M20 6V34M6 20H34"/>',
+  hexagon: '<path d="M20 4 L34 12 V28 L20 36 L6 28 V12 Z M20 4V36 M6 12L34 28 M34 12L6 28"/>',
+  component: '<rect x="6" y="6" width="28" height="28"/><path d="M20 6V34M6 20H34"/><circle cx="20" cy="20" r="8"/>',
+  tier1: '<path d="M11 12 H29 L37 30 H3 Z M11 12 L20 30 L29 12"/>',
+  tier2: '<path d="M13 4H27L34 16H6Z M13 4L20 16L27 4 M10 22H30L38 36H2Z M10 22L20 36L30 22"/>',
+  tri2: '<path d="M20 5 L5 33 H35 Z M12.5 19 H27.5 M20 33 L12.5 19 M20 33 L27.5 19"/>',
+  tri3: '<path d="M20 5 L5 33 H35 Z M15 14 H25 M10 24 H30 M20 33 L10 24 M20 33 L30 24 M15 14 L20 24 M25 14 L20 24"/>',
+  square2x2: '<rect x="6" y="6" width="28" height="28"/><path d="M20 6V34M6 20H34"/>',
+  square3x3: '<rect x="6" y="6" width="28" height="28"/><path d="M15.3 6V34M24.7 6V34M6 15.3H34M6 24.7H34"/>',
+};
+const FG_GRID_TYPES = [['tier1', 'Tier'], ['tier2', 'Tier ×2'], ['tri2', 'Triangle 2'], ['tri3', 'Triangle 3'], ['square2x2', 'Square 2×2'], ['square3x3', 'Square 3×3']];
+function figureThumb(label, svgInner, pressed, onClick, raw) {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'fg-thumb'; b.title = label; b.setAttribute('aria-pressed', String(!!pressed));
+  b.innerHTML = (raw ? raw : `<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">${svgInner}</svg>`) + `<span>${label}</span>`;
+  b.addEventListener('click', onClick); return b;
+}
+function renderFigureStepPanel() {
+  const box = ctrl('fg-step-panel'), sh = state.figureShown; if (!sh) return;
+  const def = sh.def, id = state.figureStep; box.innerHTML = '';
+  const h = t => { const e = document.createElement('h3'); e.textContent = t; box.appendChild(e); };
+  const row = (label, el) => { const r = document.createElement('div'); r.className = 'ctrl-row'; r.innerHTML = `<div class="ctrl-label">${label}</div>`; r.appendChild(el); box.appendChild(r); return r; };
+  const thumbs = () => { const t = document.createElement('div'); t.className = 'fg-thumbs'; box.appendChild(t); return t; };
+  const hint = t => { const p = document.createElement('p'); p.className = 'org-panel__hint'; p.textContent = t; box.appendChild(p); };
+  const sel = (opts, cur, fn, aria) => { const s2 = document.createElement('select'); s2.className = 'panel-select'; s2.setAttribute('aria-label', aria); opts.forEach(([v, l]) => s2.add(new Option(l, v))); s2.value = String(cur); s2.addEventListener('change', () => fn(s2.value)); return s2; };
+  if (id === 'element') {
+    h('Element');
+    const t = thumbs();
+    FG_SEEDS.forEach(k => t.appendChild(figureThumb(SEED_TYPES[k].label, '', def.element.type === k, () => figureMutate(d => { d.element.type = k; if (k === 'arc') d.element.params = { 'rg-thickness': 100 }; else delete d.element.params; }),
+      buildSeedPreviewSVG({ type: k, ...SYMBOL_SEED_DEFAULTS }, 0, false, false, 44).replace(/<rect [^>]*\/>/, ''))));
+    row('Style', sel([['fill', 'Fill'], ['stroke', 'Stroke']], def.element.style || 'fill', v => figureMutate(d => { d.element.style = v; }), 'Style'));
+    const ink = document.createElement('input'); ink.type = 'color'; ink.value = hexKey((def.element.colors || ['#000000'])[0]); ink.className = 'fg-color';
+    ink.addEventListener('change', () => figureMutate(d => { d.element.colors = [ink.value]; })); row('Ink', ink);
+    const pap = document.createElement('input'); pap.type = 'color'; pap.value = hexKey(def.element.paper || '#ffffff'); pap.className = 'fg-color';
+    pap.addEventListener('change', () => figureMutate(d => { d.element.paper = pap.value; })); row('Paper', pap);
+    hint('For the Seed\'s own extras (thickness, points, corners) use the Element step, then tick "Use the Element step\'s own settings" under Advanced.');
+  } else if (id === 'final') {
+    h('Mirror / Rotate');
+    if (def.levels.length < 2) { hint('Add a Grid first — Mirror and Rotate act on the figure a Grid makes.'); return; }
+    const g = def.levels.length - 2, cur = (def.levels[g + 1].transform || def.transform || {});
+    row('Rotate', sel([[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], cur.rotate || 0, v => figureSetTransform(d => { d.rotate = +v; }), 'Rotate'));
+    row('Mirror', sel([['none', 'None'], ['v', 'Right edge'], ['h', 'Bottom edge'], ['vh', 'Both edges']], cur.mirror || 'none', v => figureSetTransform(d => { d.mirror = v; }), 'Mirror'));
+    hint('Or hover the edges of the figure on the canvas and click.');
+  } else {
+    const k = +id.slice(5), lv = def.levels[k];
+    if (lv.kind === 'grid') {
+      h('Grid');
+      const t = thumbs(), cur = FG_STR_OF(lv.lattice);
+      FG_GRID_TYPES.forEach(([v, l]) => t.appendChild(figureThumb(l, FG_ICONS[v], cur === v, () => figureMutate(d => { d.levels[k].lattice = FG_LATTICE_OF(v); }))));
+      const alt = document.createElement('input'); alt.type = 'checkbox'; alt.checked = !!lv.altFlip; alt.addEventListener('change', () => figureMutate(d => { d.levels[k].altFlip = alt.checked; }));
+      row('Alternate flip', alt);
+      const rm = document.createElement('button'); rm.className = 'mini-btn'; rm.textContent = 'Remove this Grid'; rm.addEventListener('click', () => { figureMutate(d => { d.levels.splice(k, 1); }, { resetStep: true }); });
+      box.appendChild(rm);
+    } else {
+      h(lv.kind === 'component' ? 'Component' : 'Symbol');
+      const t = thumbs(), cur = lv.kind === 'component' ? 'component' : lv.lattice.type;
+      [['triangle', 'Triangle'], ['square', 'Square'], ['hexagon', 'Hexagon'], ['component', 'Component']].forEach(([v, l]) => t.appendChild(figureThumb(l, FG_ICONS[v], cur === v, () => figureMutate(d => {
+        d.levels[0] = v === 'component' ? { kind: 'component', grid: 'square2x2', rule: 'checkerboard', params: { a: 180, b: 0 } }
+          : { kind: 'symbol', lattice: v === 'triangle' ? { type: 'triangle', rows: 2 } : v === 'hexagon' ? { type: 'hexagon', rings: 2 } : { type: 'square', cols: 2, rows: 2 }, fit: v === 'triangle' ? 'fill' : 'contain', rules: [] };
+      }))));
+      if (lv.kind === 'symbol') {
+        const lat = lv.lattice, key = lat.type === 'triangle' ? 'rows' : lat.type === 'hexagon' ? 'rings' : 'cols', max = lat.type === 'hexagon' ? 4 : 6;
+        const r = document.createElement('input'); r.type = 'range'; r.min = lat.type === 'hexagon' ? 1 : 2; r.max = max; r.step = 1; r.value = lat[key];
+        const v = document.createElement('span'); v.className = 'ctrl-val'; v.textContent = r.value;
+        r.addEventListener('input', () => { v.textContent = r.value; });
+        r.addEventListener('change', () => figureMutate(d => { const l = d.levels[0].lattice; l[key] = +r.value; if (l.type === 'square') l.rows = +r.value; }));
+        const rr = row(key === 'rows' ? 'Rows' : key === 'rings' ? 'Rings' : 'Size', r); rr.appendChild(v);
+        hint('Click or drag on the canvas to paint cells; the Rules appear as chips under it.');
+      } else {
+        row('Rule', sel([['checkerboard', 'Checkerboard'], ['radial', 'Radial'], ['pinwheel', 'Pinwheel'], ['mirror', 'Mirror']], lv.rule || 'checkerboard', v => figureMutate(d => {
+          d.levels[0].rule = v; d.levels[0].params = { checkerboard: { a: 180, b: 0 }, radial: { base: 180, chirality: 1 }, pinwheel: { base: 0, chirality: 1 }, mirror: { seed: 0 } }[v]; }), 'Component rule'));
+      }
+    }
+  }
+}
+// Mirror / Rotate belong to the last Grid (its own transform, or the recipe's when it has none)
+function figureSetTransform(fn) {
+  figureMutate(d => {
+    const g = d.levels.length - 1; if (g < 1) return;
+    const target = d.levels[g].transform ? d.levels[g].transform : (d.transform = d.transform || {});
+    fn(target);
+  });
+}
+document.addEventListener('keydown', e => {
+  if (state.activeTier !== 'figure' || e.metaKey || e.ctrlKey || e.altKey) return;
+  const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+  if (figurePaintable() && /^[1-6]$/.test(e.key)) { state.figureTool = FIGURE_TOOLS[+e.key - 1][0]; renderFigureToolbar(); }
 });
 
 // Checks — every one reads the drawn result, none reads the recipe's own intent back.
@@ -6676,7 +6956,7 @@ function drawFigureRef(fm, rm) {
   const cat = figureCatalog(), ps = ctrl('fg-preset');
   ps.add(new Option('— choose a figure —', ''));
   Object.keys(cat).forEach(k => ps.add(new Option(k, k)));
-  ps.addEventListener('change', () => { if (ps.value) applyFigureRecipe(JSON.parse(JSON.stringify(cat[ps.value]))); });
+  ps.addEventListener('change', () => { if (ps.value) applyFigureRecipe(JSON.parse(JSON.stringify(cat[ps.value])), { resetStep: true }); });
   const onForm = () => { syncFigureFormUI(); applyFigureRecipe(figureRecipeFromForm(), { fromForm: true }); };
   Array.from(ctrl('fg-comp').options).forEach(o => ctrl('fg-comp2').add(new Option(o.value === 'none' ? 'Nothing' : o.text, o.value)));
   ['fg-seed', 'fg-style', 'fg-lattice', 'fg-n', 'fg-cols', 'fg-comprule', 'fg-up', 'fg-down', 'fg-odd', 'fg-hexturn', 'fg-comp2', 'fg-comp', 'fg-rot', 'fg-mirror'].forEach(id => ctrl(id).addEventListener('change', onForm));
@@ -6684,7 +6964,7 @@ function drawFigureRef(fm, rm) {
   ctrl('fg-altflip').addEventListener('change', onForm);
   ctrl('fg-liveseed').addEventListener('change', onForm);
   ctrl('fg-hexcentre').addEventListener('change', onForm);
-  ctrl('fg-json-apply').addEventListener('click', () => { try { applyFigureRecipe(JSON.parse(ctrl('fg-json').value)); } catch (e) { ctrl('fg-json-error').textContent = e.message; ctrl('fg-json-error').style.display = ''; } });
+  ctrl('fg-json-apply').addEventListener('click', () => { try { applyFigureRecipe(JSON.parse(ctrl('fg-json').value), { resetStep: true }); } catch (e) { ctrl('fg-json-error').textContent = e.message; ctrl('fg-json-error').style.display = ''; } });
   ctrl('fg-json-copy').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText(ctrl('fg-json').value); });
   ctrl('fg-json-save').addEventListener('click', () => Organica.downloadText(ctrl('fg-json').value, Organica.stamp('fvs-figure', 'json'), 'application/json'));
   ctrl('fg-ref-load').addEventListener('click', () => ctrl('fg-ref-file').click());

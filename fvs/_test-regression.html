@@ -376,6 +376,36 @@ async function battery() {
     put('fig:rec:cleared', (runFigureRecipe(triangleFigureRecipes()['sierpinski:repeated'], { keepTier: true }), state.fvsGridRaw === null));
   } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); }
 
+  // 19 — painting cells writes Rules; chips; the active step survives edits
+  try {
+    const blank = () => ({ tool: 'fvs-recipe', version: 2, element: { type: 'triangle', style: 'fill', colors: ['#f0301f'], paper: '#ffffff' }, levels: [{ kind: 'symbol', lattice: { type: 'triangle', rows: 2 }, fit: 'fill', rules: [] }], transform: {} });
+    const cellOf = (def, i) => { runFigureRecipe(def, { keepTier: true }); return [slotClassContext(getSymbolGrid())[i], state.symbolCells[i]]; };
+    const draw = def => runFigureRecipe(def, { keepTier: true });
+    let d = blank(); let [c, st] = cellOf(d, 2);
+    d = paintCell(d, c, st, 'empty', true);
+    put('paint:sierpinski', [JSON.stringify(d.levels[0].rules), H(norm(draw(d))) === out['tri:sym:a']].join('|'));
+    d = blank(); [c, st] = cellOf(d, 2); d = paintCell(d, c, st, 'rotate', true);
+    [c, st] = cellOf(d, 2); d = paintCell(d, c, st, 'rotate', true);
+    [c, st] = cellOf(d, 0); d = paintCell(d, c, st, 'empty', false);
+    put('paint:trapezoid', [d.levels[0].rules.length, H(norm(draw(d))) === out['tri:sym:b']].join('|'));
+    d = blank(); [c, st] = cellOf(d, 1); d = paintCell(d, c, st, 'toggle', false);
+    [c, st] = cellOf(d, 1); d = paintCell(d, c, st, 'toggle', false);
+    put('paint:toggle:merge', d.levels[0].rules.length + ':' + JSON.stringify(d.levels[0].rules[0].do));
+    put('paint:chips', [describeRule({ when: { class: 'down' }, do: { content: 'empty' } }), describeRule({ when: { index: 3 }, do: { rotate: 180 } }), describeRule({ when: { row: [0] }, do: { content: 'empty' } }), describeRule({ when: {}, do: { rotate: 'sector' } }), describeRule({ when: { parity: 'odd' }, do: { flipH: true } })].join(' ; '));
+    const on = blank(); on.levels[0].rules = [{ when: { class: 'down' }, do: { content: 'empty' } }];
+    const off = JSON.parse(JSON.stringify(on)); off.levels[0].rules[0].off = true;
+    put('paint:off', H(norm(draw(off))) === H(norm(draw(blank()))) && H(norm(draw(on))) !== H(norm(draw(off))));
+    put('paint:isformrule', [isFormRule({ when: { class: 'down' }, do: { content: 'empty' } }), isFormRule({ when: { index: 1 }, do: { content: 'empty' } }), isFormRule({ when: { class: 'down' }, do: { content: 'empty' }, off: true })].join(','));
+    const painted = blank(); painted.levels[0].rules = [{ when: { index: 1 }, do: { content: 'empty' } }];
+    applyFigureRecipe(painted, { resetStep: true }); setFigureStep('level0');
+    figureFormFromRecipe(painted); const back = figureRecipeFromForm();
+    put('paint:formkeeps', JSON.stringify(back.levels[0].rules));
+    applyFigureRecipe(figureRecipeFromForm(), { fromForm: true });
+    put('paint:step', state.figureStep + ',' + figurePaintable());
+    figureMutate(x => { x.levels[0].rules.push({ when: { index: 2 }, do: { content: 'empty' } }); });
+    put('paint:step:kept', state.figureStep);
+  } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); state.figureStep = null; }
+
   // tidy the throw-away tiles the recipes wrote into the Component library
   const lib = LIBRARY.read(); Object.keys(lib).filter(k => k.startsWith('Tile · recipe-')).forEach(k => delete lib[k]); LIBRARY.write(lib);
   reset();
