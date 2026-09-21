@@ -238,5 +238,18 @@
   "ux:hexagon": "5,true",
   "fig:seedmain:ids": "true",
   "fig:seedmain:sliders": "2,2,2,2,1,2",
-  "fig:seedmain:write": "{\"rg-star-points\":8},8"
+  "fig:seedmain:write": "{\"rg-star-points\":8},8",
+  "ux12:sierpinski:asset": "1,true,true",
+  "ux12:sierpinski:repeated": "3,true,true",
+  "ux12:sierpinski:mirror-1": "4,true,true",
+  "ux12:sierpinski:mirror-2": "3,true,true",
+  "ux12:trapezoid:asset": "3,true,true",
+  "ux12:trapezoid:repeated": "5,true,true",
+  "ux12:trapezoid:mirror-1": "6,true,true",
+  "ux12:trapezoid:mirror-2": "5,true,true",
+  "ux12:lattice4:asset": "2,true,true",
+  "ux12:lattice4:repeated": "4,true,true",
+  "ux12:lattice4:mirror-1": "5,true,true",
+  "ux12:lattice4:mirror-2": "4,true,true",
+  "fig:switch": "symbol,component,symbol,true,level0"
 }

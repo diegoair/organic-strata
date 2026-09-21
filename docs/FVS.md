@@ -184,8 +184,12 @@ The tab is a workspace, not a form:
   **Variations** (V) shows up to nine nearby figures — one click adopts one, *More* gives others;
   **Lock** Element / Symbol / Rules / Grid / Mirror-Rotate protects a group from both. `[` `]` change
   the rows/rings.
-- **Reach**: from a blank triangle the stepped tree takes 4 actions, the hexagon 5, the bow tie 6
-  (checked in the regression suite with real UI events, and identical to the preset recipes).
+- **Symbol ⇄ Component**: the ⇄ on the first card swaps the Symbol for a Component block and back.
+  A figure that is only a Symbol opens on it, so its cells are paintable at once; on a triangular
+  lattice **Rotate** turns a cell by 180° (90° on a square one, 60° on a hexagonal one).
+- **Reach**: all twelve "Triangle Symbol" figures are rebuilt from a blank one with real UI events
+  in 1 to 6 actions each (Sierpinski 1–4, trapezoid 3–6, lattice 4 2–5) and draw exactly what the
+  preset recipes draw — checked by `ux12:*` in the regression suite.
 
 - An assistant can produce the recipe from an image: see `.claude/skills/fvs-figure-from-image`.
 

@@ -161,6 +161,8 @@
   .fg-card.dragover { border-style: dashed; border-color: var(--tool); }
   .fg-card__x { position: absolute; top: 0; right: 0; padding: 0 var(--space-2); background: none; border: 0; color: var(--mid); cursor: pointer; font: inherit; }
   .fg-card__x:hover { color: var(--danger); }
+  .fg-card__sw { position: absolute; top: 0; left: 0; padding: 0 var(--space-2); background: none; border: 0; color: var(--mid); cursor: pointer; font: inherit; }
+  .fg-card__sw:hover { color: var(--tool); }
   .fg-arrow { color: var(--mid); }
   .fg-gallery { width: min(100%, 720px); max-height: 60vh; overflow: auto; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
   .fg-gallery[hidden] { display: none; }
@@ -6475,7 +6477,8 @@ function applyFigureRecipe(def, opts) {
   ctrl('fg-json-error').style.display = 'none';
   try {
     validateFigureRecipe(def);   // an invalid recipe must never become the current one
-    if (opts.resetStep || !state.figureStep) state.figureStep = 'final';
+    // a figure with only a Symbol has nothing after it: work on it directly (its cells are paintable at once)
+    if (opts.resetStep || !state.figureStep) state.figureStep = def.levels.length === 1 && def.levels[0].kind === 'symbol' ? 'level0' : 'final';
     if (/^level(\d+)$/.test(state.figureStep) && +state.figureStep.slice(5) >= def.levels.length) state.figureStep = 'final';
     const steps = figureStepSVGs(def);
     const svg = runFigureRecipe(def, { keepTier: true });
@@ -6532,6 +6535,12 @@ function renderFigurePipeline(def, steps, finalSVG) {
     b.setAttribute('aria-selected', String(state.figureStep === id));
     b.innerHTML = figureCardHTML(c.label, c.svg);
     b.addEventListener('click', () => setFigureStep(id));
+    if (c.level === 0) {   // the first level: a Symbol or a Component — one click to swap
+      const isSym = def.levels[0].kind === 'symbol', sw = document.createElement('button'); sw.type = 'button'; sw.className = 'fg-card__sw'; sw.textContent = '⇄';
+      sw.setAttribute('aria-label', isSym ? 'Use a Component instead' : 'Use a Symbol instead'); sw.title = sw.getAttribute('aria-label');
+      sw.addEventListener('click', e => { e.stopPropagation(); figureMutate(d => { d.levels[0] = figureFirstLevelOf(isSym ? 'component' : 'triangle'); }, { resetStep: true }); });
+      b.appendChild(sw);
+    }
     if (c.level > 0) {   // a Grid level: removable and draggable
       const x = document.createElement('button'); x.type = 'button'; x.className = 'fg-card__x'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove this Grid');
       x.addEventListener('click', e => { e.stopPropagation(); const d = JSON.parse(JSON.stringify(def)); d.levels.splice(c.level, 1); applyFigureRecipe(d); });
@@ -6624,7 +6633,7 @@ document.addEventListener('keydown', e => {
 // ── Figure workspace: the active step, cell tools, rule chips, the step panel ──
 const FIGURE_TOOLS = [
   ['toggle', 'Toggle', 'Click a cell to switch it between Seed and Empty'], ['seed', 'Seed', 'Fill the cell with the Seed'], ['empty', 'Empty', 'Leave the cell blank'],
-  ['rotate', 'Rotate', 'Turn the cell by 90° (60° on a hexagonal lattice)'], ['flipH', 'Flip H', 'Mirror the cell left–right'], ['flipV', 'Flip V', 'Mirror the cell top–bottom'],
+  ['rotate', 'Rotate', 'Turn the cell by 90° (60° on a hexagonal lattice, 180° on a triangular one)'], ['flipH', 'Flip H', 'Mirror the cell left–right'], ['flipV', 'Flip V', 'Mirror the cell top–bottom'],
 ];
 const figureStepIds = def => ['element'].concat(def.levels.map((_, i) => 'level' + i), ['final']);
 function setFigureStep(id) {
@@ -6660,7 +6669,7 @@ function paintCell(def, ctx, cellState, tool, byClass) {
   const d = JSON.parse(JSON.stringify(def)), first = d.levels[0];
   if (first.kind !== 'symbol') return d;
   const when = byClass ? figureClassWhen(ctx, first.lattice) : { index: ctx.index };
-  const step = first.lattice.type === 'hexagon' ? 60 : 90;
+  const step = first.lattice.type === 'hexagon' ? 60 : first.lattice.type === 'triangle' ? 180 : 90;   // a triangle only fits its cell turned by 180°
   const act = {
     toggle: () => ({ content: cellState.source === 'empty' ? 'filled' : 'empty' }), seed: () => ({ content: 'filled' }), empty: () => ({ content: 'empty' }),
     rotate: () => ({ rotate: (((cellState.rotation || 0) + step) % 360 + 360) % 360 }), flipH: () => ({ flipH: !cellState.flipH }), flipV: () => ({ flipV: !cellState.flipV }),
@@ -6948,6 +6957,11 @@ const FG_SEED_MAIN = {
   circle: [['rg-circle-radius', 'Radius'], ['rg-circle-lobes', 'Lobes']], drop: [['rg-drop-radius', 'Size'], ['rg-drop-tail', 'Tail']],
   blob: [['rg-blob-amount', 'Wobble'], ['rg-blob-seed', 'Variation']],
 };
+// A fresh first level: a Component block or a Symbol on a triangle / square / hexagon lattice.
+function figureFirstLevelOf(v) {
+  return v === 'component' ? { kind: 'component', grid: 'square2x2', rule: 'checkerboard', params: { a: 180, b: 0 } }
+    : { kind: 'symbol', lattice: v === 'triangle' ? { type: 'triangle', rows: 2 } : v === 'hexagon' ? { type: 'hexagon', rings: 2 } : { type: 'square', cols: 2, rows: 2 }, fit: v === 'triangle' ? 'fill' : 'contain', rules: [] };
+}
 function figureThumb(label, svgInner, pressed, onClick, raw) {
   const b = document.createElement('button'); b.type = 'button'; b.className = 'fg-thumb'; b.title = label; b.setAttribute('aria-pressed', String(!!pressed));
   b.innerHTML = (raw ? raw : `<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">${svgInner}</svg>`) + `<span>${label}</span>`;
@@ -7000,8 +7014,7 @@ function renderFigureStepPanel() {
       h(lv.kind === 'component' ? 'Component' : 'Symbol');
       const t = thumbs(), cur = lv.kind === 'component' ? 'component' : lv.lattice.type;
       [['triangle', 'Triangle'], ['square', 'Square'], ['hexagon', 'Hexagon'], ['component', 'Component']].forEach(([v, l]) => t.appendChild(figureThumb(l, FG_ICONS[v], cur === v, () => figureMutate(d => {
-        d.levels[0] = v === 'component' ? { kind: 'component', grid: 'square2x2', rule: 'checkerboard', params: { a: 180, b: 0 } }
-          : { kind: 'symbol', lattice: v === 'triangle' ? { type: 'triangle', rows: 2 } : v === 'hexagon' ? { type: 'hexagon', rings: 2 } : { type: 'square', cols: 2, rows: 2 }, fit: v === 'triangle' ? 'fill' : 'contain', rules: [] };
+        d.levels[0] = figureFirstLevelOf(v);
       }))));
       if (lv.kind === 'symbol') {
         const lat = lv.lattice, key = lat.type === 'triangle' ? 'rows' : lat.type === 'hexagon' ? 'rings' : 'cols', max = lat.type === 'hexagon' ? 4 : 6;
