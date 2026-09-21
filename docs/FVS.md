@@ -176,15 +176,20 @@ The tab is a workspace, not a form:
 - **Grid steps — handles on the figure**: click the right edge to Mirror over it, the bottom edge to
   Mirror over it, the corner to Rotate 90° (keys `M`, `Shift+M`, `R`). A middle Grid keeps its own
   transform; the last one uses the recipe's.
-- **Right panel — the active step's few parameters**: Seed thumbnails, Style/Ink/Paper; layout
+- **Right panel — the active step's few parameters**: Seed thumbnails, the Seed's two or three main
+  sliders (Star: Points / Inner radius; Arc: Thickness / Sweep…), Style/Ink/Paper; layout
   thumbnails and a rows/rings slider; Grid types; Rotate/Mirror. Everything else (form, checks,
   reference, JSON) is under **Advanced**.
 - **Play**: **Shuffle** (Space) changes one to three things at random, keeping what is locked;
   **Variations** (V) shows up to nine nearby figures — one click adopts one, *More* gives others;
   **Lock** Element / Symbol / Rules / Grid / Mirror-Rotate protects a group from both. `[` `]` change
   the rows/rings.
-- **Reach**: from a blank triangle the stepped tree takes 4 actions, the hexagon 5, the bow tie 6
-  (checked in the regression suite with real UI events, and identical to the preset recipes).
+- **Symbol ⇄ Component**: the ⇄ on the first card swaps the Symbol for a Component block and back.
+  A figure that is only a Symbol opens on it, so its cells are paintable at once; on a triangular
+  lattice **Rotate** turns a cell by 180° (90° on a square one, 60° on a hexagonal one).
+- **Reach**: all twelve "Triangle Symbol" figures are rebuilt from a blank one with real UI events
+  in 1 to 6 actions each (Sierpinski 1–4, trapezoid 3–6, lattice 4 2–5) and draw exactly what the
+  preset recipes draw — checked by `ux12:*` in the regression suite.
 
 - An assistant can produce the recipe from an image: see `.claude/skills/fvs-figure-from-image`.
 
