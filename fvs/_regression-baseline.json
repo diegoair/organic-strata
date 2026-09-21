@@ -235,5 +235,8 @@
   "play:shortcuts": "true,2,3,2",
   "ux:repeated": "4,true",
   "ux:bowtie": "6,true",
-  "ux:hexagon": "5,true"
+  "ux:hexagon": "5,true",
+  "fig:seedmain:ids": "true",
+  "fig:seedmain:sliders": "2,2,2,2,1,2",
+  "fig:seedmain:write": "{\"rg-star-points\":8},8"
 }

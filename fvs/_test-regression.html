@@ -404,6 +404,17 @@ async function battery() {
     put('paint:step', state.figureStep + ',' + figurePaintable());
     figureMutate(x => { x.levels[0].rules.push({ when: { index: 2 }, do: { content: 'empty' } }); });
     put('paint:step:kept', state.figureStep);
+    // Phase 5 — main Seed parameters in the step panel
+    const rec = JSON.parse(JSON.stringify(triangleFigureRecipes()['sierpinski:asset']));
+    applyFigureRecipe(rec, { noHistory: true, resetStep: true }); setFigureStep('element');
+    put('fig:seedmain:ids', Object.values(FG_SEED_MAIN).flat().every(([id]) => !!document.getElementById(id)));
+    const counts = [];
+    ['triangle', 'arc', 'star', 'polygon', 'lens', 'blob'].forEach(t => { figureMutate(d => { d.element.type = t; delete d.element.params; }); setFigureStep('element'); counts.push(document.querySelectorAll('#fg-step-panel input[type=range]').length); });
+    put('fig:seedmain:sliders', counts.join(','));
+    figureMutate(d => { d.element.type = 'star'; delete d.element.params; }); setFigureStep('element');
+    const sl = document.querySelector('#fg-step-panel input[type=range]'); sl.value = 8; sl.dispatchEvent(new Event('change', { bubbles: true }));
+    put('fig:seedmain:write', JSON.stringify(state.figureRecipe.element.params) + ',' + ctrl('rg-star-points').value);
+    fireInput('rg-star-points', 5);
   } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); state.figureStep = null; }
 
   // 20 — Mirror / Rotate handles

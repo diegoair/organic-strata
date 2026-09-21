@@ -182,7 +182,7 @@
   .fg-thumb:hover, .fg-thumb[aria-pressed="true"] { border-color: var(--tool); }
   .fg-thumb svg { width: 100%; aspect-ratio: 1; display: block; }
   .fg-thumb span { font-size: var(--fs-micro); color: var(--mid); text-align: center; }
-  .fg-color { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
+  input.fg-color { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
   #fg-handles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
   #fg-handles [data-handle] { pointer-events: all; cursor: pointer; fill: var(--tool); fill-opacity: 0; }
   #fg-handles [data-handle]:hover { fill-opacity: 0.4; }
@@ -6938,6 +6938,16 @@ const FG_ICONS = {
   square3x3: '<rect x="6" y="6" width="28" height="28"/><path d="M15.3 6V34M24.7 6V34M6 15.3H34M6 24.7H34"/>',
 };
 const FG_GRID_TYPES = [['tier1', 'Tier'], ['tier2', 'Tier ×2'], ['tri2', 'Triangle 2'], ['tri3', 'Triangle 3'], ['square2x2', 'Square 2×2'], ['square3x3', 'Square 3×3']];
+// The two or three settings of each Seed that change it most (control id → label); ranges come from the controls themselves.
+const FG_SEED_MAIN = {
+  triangle: [['rg-tri-apex', 'Apex'], ['rg-tri-corner', 'Corner']], arc: [['rg-thickness', 'Thickness'], ['rg-arc-sweep', 'Sweep']],
+  arctruchet: [['rg-arc-count', 'Arcs'], ['rg-arc-ratio', 'Ratio']], wedge: [['rg-wedge-angle', 'Angle'], ['rg-wedge-inner', 'Hole']],
+  polygon: [['rg-poly-sides', 'Sides'], ['rg-poly-corner', 'Corner']], star: [['rg-star-points', 'Points'], ['rg-star-inner', 'Inner radius']],
+  roundedrect: [['rg-rr-width', 'Width'], ['rg-rr-corner', 'Corner']], chevron: [['rg-chev-notch', 'Notch'], ['rg-chev-arm', 'Arm']],
+  cross: [['rg-cross-armwidth', 'Arm width'], ['rg-cross-corner', 'Corner']], lens: [['rg-lens-width', 'Width']],
+  circle: [['rg-circle-radius', 'Radius'], ['rg-circle-lobes', 'Lobes']], drop: [['rg-drop-radius', 'Size'], ['rg-drop-tail', 'Tail']],
+  blob: [['rg-blob-amount', 'Wobble'], ['rg-blob-seed', 'Variation']],
+};
 function figureThumb(label, svgInner, pressed, onClick, raw) {
   const b = document.createElement('button'); b.type = 'button'; b.className = 'fg-thumb'; b.title = label; b.setAttribute('aria-pressed', String(!!pressed));
   b.innerHTML = (raw ? raw : `<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">${svgInner}</svg>`) + `<span>${label}</span>`;
@@ -6961,7 +6971,14 @@ function renderFigureStepPanel() {
     ink.addEventListener('change', () => figureMutate(d => { d.element.colors = [ink.value]; })); row('Ink', ink);
     const pap = document.createElement('input'); pap.type = 'color'; pap.value = hexKey(def.element.paper || '#ffffff'); pap.className = 'fg-color';
     pap.addEventListener('change', () => figureMutate(d => { d.element.paper = pap.value; })); row('Paper', pap);
-    hint('For the Seed\'s own extras (thickness, points, corners) use the Element step, then tick "Use the Element step\'s own settings" under Advanced.');
+    (FG_SEED_MAIN[def.element.type] || []).forEach(([pid, label]) => {
+      const c = ctrl(pid), r = document.createElement('input'); r.type = 'range'; r.min = c.min; r.max = c.max; r.step = c.step || 1; r.value = c.value;
+      const v = document.createElement('span'); v.className = 'ctrl-val'; v.textContent = r.value;
+      r.addEventListener('input', () => { v.textContent = r.value; });
+      r.addEventListener('change', () => figureMutate(d => { d.element.params = { ...(d.element.params || {}), [pid]: +r.value }; }));
+      row(label, r).appendChild(v);
+    });
+    hint('More of the Seed\'s own settings (extras, corners…) are in the Element step; tick "Use the Element step\'s own settings" under Advanced to use them in every cell.');
   } else if (id === 'final') {
     h('Mirror / Rotate');
     if (def.levels.length < 2) { hint('Add a Grid first — Mirror and Rotate act on the figure a Grid makes.'); return; }
