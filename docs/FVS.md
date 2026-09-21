@@ -161,6 +161,31 @@ pasted, copied or saved. It replaces the current Element, palette and Symbol/Gri
   instead of the plain default shape.
 - **Limits**: the Figure form edits one or two grid levels (more are JSON-only); Grid
   lattices are square / triangle / tier (no hexagonal Grid yet).
+### Working on the figure (Figure tab, Sep 21, 2026)
+
+The tab is a workspace, not a form:
+
+- **Pipeline** across the top — Element → Symbol/Component → Grid… → Mirror / Rotate, each card
+  showing that step's own output. Click a card to work on that step (it stays active while you edit);
+  `+ Grid` adds a level and selects it, `×` removes one, drag reorders. **New figure…** opens the
+  gallery of the 25 starting figures; Undo / Redo (⌘Z / ⇧⌘Z) walk the recipe history.
+- **Symbol step — paint the cells**: tools Toggle · Seed · Empty · Rotate · Flip H · Flip V (keys
+  1–6). Click or drag; **Shift = the whole class of the cell** (all down triangles, all odd cells, the
+  ring). Every gesture writes a **Rule**, shown as a chip under the canvas — switch off (●), reorder
+  (↑ ↓), delete (×). A whole drag is one history step.
+- **Grid steps — handles on the figure**: click the right edge to Mirror over it, the bottom edge to
+  Mirror over it, the corner to Rotate 90° (keys `M`, `Shift+M`, `R`). A middle Grid keeps its own
+  transform; the last one uses the recipe's.
+- **Right panel — the active step's few parameters**: Seed thumbnails, Style/Ink/Paper; layout
+  thumbnails and a rows/rings slider; Grid types; Rotate/Mirror. Everything else (form, checks,
+  reference, JSON) is under **Advanced**.
+- **Play**: **Shuffle** (Space) changes one to three things at random, keeping what is locked;
+  **Variations** (V) shows up to nine nearby figures — one click adopts one, *More* gives others;
+  **Lock** Element / Symbol / Rules / Grid / Mirror-Rotate protects a group from both. `[` `]` change
+  the rows/rings.
+- **Reach**: from a blank triangle the stepped tree takes 4 actions, the hexagon 5, the bow tie 6
+  (checked in the regression suite with real UI events, and identical to the preset recipes).
+
 - An assistant can produce the recipe from an image: see `.claude/skills/fvs-figure-from-image`.
 
 ## 7. Libraries
