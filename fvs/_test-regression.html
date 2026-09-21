@@ -288,6 +288,24 @@ async function battery() {
     Object.keys(other).forEach(k => put('fig:seed:' + k, runFigureRecipe(other[k])));
     let bad = ''; try { runFigureRecipe({ tool: 'fvs-recipe', version: 2, element: { type: 'nope' }, levels: [] }); } catch (e) { bad = e.message; }
     put('fig:invalid', bad);
+    // Phase 1 — pipeline strip + recipe history
+    const r0 = JSON.parse(JSON.stringify(triangleFigureRecipes()['sierpinski:repeated']));
+    setTier('figure');
+    const h0 = figureHistory.stack.length, u0 = undoStack.length;
+    applyFigureRecipe(r0);
+    const cardsOf = () => Array.from(document.querySelectorAll('#fg-pipeline .fg-card')).map(c => c.textContent.replace('×', '')).join('|');
+    put('figstrip:cards', cardsOf());
+    put('figstrip:steps', (figureStepSVGs(r0) || []).map(x => x.length > 200).join(','));
+    put('figstrip:undostack', undoStack.length === u0);
+    const r1 = JSON.parse(JSON.stringify(r0)); r1.levels.push({ kind: 'grid', lattice: { type: 'tier', stack: 1 }, cellSize: 110 });
+    applyFigureRecipe(r1);
+    put('figstrip:cards:grid', cardsOf());
+    put('figstrip:hist', [figureHistory.stack.length - h0, ctrl('fg-undo').disabled].join(','));
+    figureHistoryStep(-1); const back = state.figureRecipe.levels.length;
+    figureHistoryStep(1); const fwd = state.figureRecipe.levels.length;
+    put('figstrip:undoredo', [back, fwd, figureHistory.stack.length - h0].join(','));
+    applyFigureRecipe(r1, { noHistory: true }); put('figstrip:nohist', figureHistory.stack.length - h0);
+    put('figstrip:same', JSON.stringify(state.figureRecipe) === JSON.stringify(r1));
   } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); }
 
   // 15 — Figure tier: form ↔ recipe round-trip, checks, catalog, tier wiring
@@ -357,6 +375,127 @@ async function battery() {
     put('fig:rec:limit', err);
     put('fig:rec:cleared', (runFigureRecipe(triangleFigureRecipes()['sierpinski:repeated'], { keepTier: true }), state.fvsGridRaw === null));
   } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); }
+
+  // 19 — painting cells writes Rules; chips; the active step survives edits
+  try {
+    const blank = () => ({ tool: 'fvs-recipe', version: 2, element: { type: 'triangle', style: 'fill', colors: ['#f0301f'], paper: '#ffffff' }, levels: [{ kind: 'symbol', lattice: { type: 'triangle', rows: 2 }, fit: 'fill', rules: [] }], transform: {} });
+    const cellOf = (def, i) => { runFigureRecipe(def, { keepTier: true }); return [slotClassContext(getSymbolGrid())[i], state.symbolCells[i]]; };
+    const draw = def => runFigureRecipe(def, { keepTier: true });
+    let d = blank(); let [c, st] = cellOf(d, 2);
+    d = paintCell(d, c, st, 'empty', true);
+    put('paint:sierpinski', [JSON.stringify(d.levels[0].rules), H(norm(draw(d))) === out['tri:sym:a']].join('|'));
+    d = blank(); [c, st] = cellOf(d, 2); d = paintCell(d, c, st, 'rotate', true);
+    [c, st] = cellOf(d, 2); d = paintCell(d, c, st, 'rotate', true);
+    [c, st] = cellOf(d, 0); d = paintCell(d, c, st, 'empty', false);
+    put('paint:trapezoid', [d.levels[0].rules.length, H(norm(draw(d))) === out['tri:sym:b']].join('|'));
+    d = blank(); [c, st] = cellOf(d, 1); d = paintCell(d, c, st, 'toggle', false);
+    [c, st] = cellOf(d, 1); d = paintCell(d, c, st, 'toggle', false);
+    put('paint:toggle:merge', d.levels[0].rules.length + ':' + JSON.stringify(d.levels[0].rules[0].do));
+    put('paint:chips', [describeRule({ when: { class: 'down' }, do: { content: 'empty' } }), describeRule({ when: { index: 3 }, do: { rotate: 180 } }), describeRule({ when: { row: [0] }, do: { content: 'empty' } }), describeRule({ when: {}, do: { rotate: 'sector' } }), describeRule({ when: { parity: 'odd' }, do: { flipH: true } })].join(' ; '));
+    const on = blank(); on.levels[0].rules = [{ when: { class: 'down' }, do: { content: 'empty' } }];
+    const off = JSON.parse(JSON.stringify(on)); off.levels[0].rules[0].off = true;
+    put('paint:off', H(norm(draw(off))) === H(norm(draw(blank()))) && H(norm(draw(on))) !== H(norm(draw(off))));
+    put('paint:isformrule', [isFormRule({ when: { class: 'down' }, do: { content: 'empty' } }), isFormRule({ when: { index: 1 }, do: { content: 'empty' } }), isFormRule({ when: { class: 'down' }, do: { content: 'empty' }, off: true })].join(','));
+    const painted = blank(); painted.levels[0].rules = [{ when: { index: 1 }, do: { content: 'empty' } }];
+    applyFigureRecipe(painted, { resetStep: true }); setFigureStep('level0');
+    figureFormFromRecipe(painted); const back = figureRecipeFromForm();
+    put('paint:formkeeps', JSON.stringify(back.levels[0].rules));
+    applyFigureRecipe(figureRecipeFromForm(), { fromForm: true });
+    put('paint:step', state.figureStep + ',' + figurePaintable());
+    figureMutate(x => { x.levels[0].rules.push({ when: { index: 2 }, do: { content: 'empty' } }); });
+    put('paint:step:kept', state.figureStep);
+  } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); state.figureStep = null; }
+
+  // 20 — Mirror / Rotate handles
+  try {
+    const seq = [];
+    let tr = {}; ['mirror-v', 'mirror-h', 'mirror-v', 'mirror-h'].forEach(k => { applyHandle(tr, k); seq.push(tr.mirror); });
+    tr = {}; for (let i = 0; i < 5; i++) applyHandle(tr, 'rotate');
+    put('handle:toggle', seq.join(',') + '|' + tr.rotate);
+    const def = JSON.parse(JSON.stringify(figureCatalog()['Triangle · Sierpinski · repeated']));
+    applyFigureRecipe(def, { resetStep: true });
+    const hs = [...document.querySelectorAll('#fg-handles [data-handle]')].map(e => e.dataset.handle).join(',');
+    const vb = ctrl('fg-handles').getAttribute('viewBox') === ctrl('figure-frame').querySelector('svg').getAttribute('viewBox');
+    put('handle:present', hs + '|' + vb);
+    const click = k => document.querySelector(`#fg-handles [data-handle="${k}"]`).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    click('mirror-v'); const a1 = JSON.stringify(state.figureRecipe.transform);
+    click('rotate'); click('rotate'); const a2 = JSON.stringify(state.figureRecipe.transform);
+    click('mirror-v'); const a3 = JSON.stringify(state.figureRecipe.transform);
+    put('handle:click', [a1, a2, a3, state.figureStep].join(' / '));
+    put('handle:panel', ctrl('fg-step-panel').querySelectorAll('select').length + ':' + [...ctrl('fg-step-panel').querySelectorAll('select')].map(s => s.value).join(','));
+    // a middle Grid keeps its own transform, the last one uses the recipe's
+    const two = JSON.parse(JSON.stringify(figureCatalog()['Recursive · Sierpinski, three levels']));
+    applyFigureRecipe(two, { resetStep: true }); setFigureStep('level1');
+    document.querySelector('#fg-handles [data-handle="mirror-h"]').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    put('handle:level', JSON.stringify(state.figureRecipe.levels[1].transform) + '|' + JSON.stringify(state.figureRecipe.transform || {}) + '|' + state.figureStep);
+    setFigureStep('level0'); put('handle:none', ctrl('fg-handles').style.display + '|' + figureHandleTarget());
+    const noGrid = JSON.parse(JSON.stringify(figureCatalog()['Triangle · Sierpinski · asset'])); applyFigureRecipe(noGrid, { resetStep: true });
+    put('handle:nogrid', ctrl('fg-handles').style.display + '|' + figureHandleTarget());
+  } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); state.figureStep = null; }
+
+  // 21 — play: variations, shuffle with locks, shortcuts
+  try {
+    setTier('figure');   // the shortcuts only listen while the Figure step is on screen
+    const cat = figureCatalog(), base = JSON.parse(JSON.stringify(cat['Triangle · Sierpinski · repeated']));
+    const n1 = figureNeighbours(base, 7), n2 = figureNeighbours(base, 7), n3 = figureNeighbours(base, 8);
+    put('play:neighbours:det', (JSON.stringify(n1) === JSON.stringify(n2)) + ',' + (JSON.stringify(n1) !== JSON.stringify(n3)));
+    let bad = 0, differ = 0; n1.forEach(c => { try { validateFigureRecipe(c.recipe); runFigureRecipe(JSON.parse(JSON.stringify(c.recipe)), { keepTier: true }); } catch (e) { bad++; } if (JSON.stringify(c.recipe) !== JSON.stringify(base)) differ++; });
+    put('play:neighbours:valid', [n1.length >= 6 && n1.length <= 9, bad, differ === n1.length].join(','));
+    const allLocked = { element: true, symbol: true, rules: true, grid: true, transform: true };
+    put('play:shuffle:alllocked', figureShuffle(base, allLocked, 3) === null);
+    const onlyTransform = { element: true, symbol: true, rules: true, grid: true };
+    let okT = true; for (let sd = 1; sd <= 12; sd++) { const r = figureShuffle(base, onlyTransform, sd); if (!r) continue; const a1 = JSON.parse(JSON.stringify(r)), b1 = JSON.parse(JSON.stringify(base));
+      const strip = d => { d.transform = {}; d.levels.forEach(l => { delete l.transform; }); return JSON.stringify(d); }; if (strip(a1) !== strip(b1)) okT = false; }
+    put('play:shuffle:transformonly', okT);
+    const onlyElement = { symbol: true, rules: true, grid: true, transform: true };
+    let okE = true; for (let sd = 1; sd <= 12; sd++) { const r = figureShuffle(base, onlyElement, sd); if (!r) continue; if (JSON.stringify(r.levels) !== JSON.stringify(base.levels) || JSON.stringify(r.transform) !== JSON.stringify(base.transform)) okE = false; }
+    put('play:shuffle:elementonly', okE);
+    put('play:shuffle:det', JSON.stringify(figureShuffle(base, {}, 5)) === JSON.stringify(figureShuffle(base, {}, 5)));
+    // triangles are only turned half a turn
+    const turned = figureNeighbours(base, 3, 14).filter(c => c.label === 'Turn cells').map(c => JSON.stringify(c.recipe.levels[0].rules)).join('');
+    put('play:turn:tri', !/"rotate":(90|270)/.test(turned));
+    // UI: shuffle is one history step and undo restores it
+    applyFigureRecipe(JSON.parse(JSON.stringify(base)), { resetStep: true }); const hist0 = figureHistory.stack.length, before = JSON.stringify(state.figureRecipe);
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    const after = JSON.stringify(state.figureRecipe), hist1 = figureHistory.stack.length;
+    figureHistoryStep(-1); const undone = JSON.stringify(state.figureRecipe);
+    put('play:shuffle:ui', [after !== before, hist1 === hist0 + 1, undone === before].join(','));
+    // locks from the toolbar
+    const lockBtns = [...document.querySelectorAll('#fg-toolbar .fg-group button')].filter(b => ['Element', 'Symbol', 'Rules', 'Grid', 'Mirror / Rotate'].includes(b.textContent));
+    lockBtns.forEach(b => b.click());
+    put('play:locks:ui', Object.values(state.figureLocks).filter(Boolean).length + ',' + (figureShuffle(state.figureRecipe, state.figureLocks, 1) === null));
+    Object.keys(state.figureLocks).forEach(k => { state.figureLocks[k] = false; });
+    // shortcuts
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', bubbles: true })); const shown = !ctrl('fg-variations').hidden;
+    closeFigureVariations();
+    const sym = JSON.parse(JSON.stringify(cat['Triangle · Sierpinski · asset'])); applyFigureRecipe(sym, { resetStep: true }); const r0 = state.figureRecipe.levels[0].lattice.rows;
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: ']', bubbles: true })); const r1 = state.figureRecipe.levels[0].lattice.rows;
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '[', bubbles: true })); const r2 = state.figureRecipe.levels[0].lattice.rows;
+    put('play:shortcuts', [shown, r0, r1, r2].join(','));
+  } finally { closeFigureVariations(); setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); state.figureStep = null; state.figureLocks = {}; }
+
+  // 22 — from a blank figure, with real UI events, in at most six actions
+  try {
+    setTier('figure');
+    const blank = () => ({ tool: 'fvs-recipe', version: 2, element: { type: 'triangle', style: 'fill', colors: ['#f0301f'], paper: '#ffffff' }, levels: [{ kind: 'symbol', lattice: { type: 'triangle', rows: 2 }, fit: 'fill', rules: [] }], transform: {} });
+    const click = el => el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const handle = k => click(document.querySelector(`#fg-handles [data-handle="${k}"]`));
+    const build = steps => {
+      applyFigureRecipe(blank(), { resetStep: true }); let n = 0;
+      click(document.querySelector('#fg-pipeline .fg-card[data-step="level0"]')); n++;                                  // 1 open the Symbol step
+      const cell = document.querySelector('#figure-frame [data-cell-index="2"]');
+      cell.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, shiftKey: true })); window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); n++;   // 2 Shift+click a down cell
+      click([...document.querySelectorAll('#fg-pipeline .mini-btn')].find(b => b.textContent === '+ Grid')); n++;       // 3 add a Grid
+      steps.forEach(st => { st(); n++; });
+      return { n, svg: figureSVGOf(state.figureTier) };
+    };
+    const tier = label => () => click([...document.querySelectorAll('#fg-step-panel .fg-thumb')].find(b => b.title === label));
+    const rep = build([tier('Tier ×2')]), bow = build([tier('Tier'), () => handle('rotate'), () => handle('mirror-v')]), hexa = build([tier('Tier'), () => handle('mirror-h')]);
+    const ref = k => runFigureRecipe(triangleFigureRecipes()[k], { keepTier: true });
+    put('ux:repeated', [rep.n, H(norm(rep.svg)) === H(norm(ref('sierpinski:repeated')))].join(','));
+    put('ux:bowtie', [bow.n, H(norm(bow.svg)) === H(norm(ref('sierpinski:mirror-1')))].join(','));
+    put('ux:hexagon', [hexa.n, H(norm(hexa.svg)) === H(norm(ref('sierpinski:mirror-2')))].join(','));
+  } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); state.figureStep = null; }
 
   // tidy the throw-away tiles the recipes wrote into the Component library
   const lib = LIBRARY.read(); Object.keys(lib).filter(k => k.startsWith('Tile · recipe-')).forEach(k => delete lib[k]); LIBRARY.write(lib);
