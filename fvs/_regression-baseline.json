@@ -215,5 +215,12 @@
   "paint:isformrule": "true,false,false",
   "paint:formkeeps": "7f683182",
   "paint:step": "level0,true",
-  "paint:step:kept": "level0"
+  "paint:step:kept": "level0",
+  "handle:toggle": "v,vh,h,none|90",
+  "handle:present": "mirror-v,mirror-h,rotate|true",
+  "handle:click": "ce0faa39",
+  "handle:panel": "2:180,none",
+  "handle:level": "{\"mirror\":\"h\"}|{}|level1",
+  "handle:none": "none|-1",
+  "handle:nogrid": "none|-1"
 }

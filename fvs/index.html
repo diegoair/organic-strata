@@ -186,6 +186,8 @@
   #fg-handles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
   #fg-handles [data-handle] { pointer-events: all; cursor: pointer; fill: var(--tool); fill-opacity: 0; }
   #fg-handles [data-handle]:hover { fill-opacity: 0.4; }
+  #fg-handles .fg-box { fill: none; stroke: var(--tool); stroke-opacity: 0; stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; pointer-events: none; }
+  #figure-stage:hover #fg-handles .fg-box { stroke-opacity: 0.45; }
   #figure-frame svg [data-cell-index] { cursor: pointer; }
   #figure-frame svg [data-cell-index]:hover > polygon:first-child, #figure-frame svg [data-cell-index]:hover > rect:first-child { fill: var(--tool); fill-opacity: 0.18; }
   .fg-gallery__head { display: flex; justify-content: space-between; align-items: center; font-size: var(--fs-small); }
@@ -6717,8 +6719,13 @@ function renderFigureToolbar() {
     });
     add('fg-label', 'Click or drag to paint · Shift = the whole class of the cell');
   } else {
-    const hints = { element: 'The Element is the Seed every cell starts from.', final: state.figureShown.def.levels.length > 1 ? 'Hover the edges of the figure to Mirror or Rotate it.' : 'Add a Grid to Mirror or Rotate the figure.' };
-    add('fg-label', hints[state.figureStep] || (state.figureShown.def.levels[+state.figureStep.slice(5)] || {}).kind === 'grid' ? 'Hover the edges of the figure to Mirror or Rotate this Grid.' : (hints[state.figureStep] || ''));
+    const def = state.figureShown.def, lv = state.figureStep.startsWith('level') ? def.levels[+state.figureStep.slice(5)] : null;
+    let hint = '';
+    if (state.figureStep === 'element') hint = 'The Element is the Seed every cell starts from.';
+    else if (state.figureStep === 'final') hint = def.levels.length > 1 ? 'Hover the edges of the figure: click the right or bottom edge to Mirror, the corner to Rotate (M / R).' : 'Add a Grid to Mirror or Rotate the figure.';
+    else if (lv && lv.kind === 'grid') hint = 'Hover the edges of the figure: click the right or bottom edge to Mirror this Grid, the corner to Rotate it.';
+    else if (lv && lv.kind === 'component') hint = 'Component rules are in the panel on the right.';
+    if (hint) add('fg-label', hint);
   }
 }
 
@@ -6756,7 +6763,43 @@ function renderFigureChips() {
     box.appendChild(c);
   });
 }
-function renderFigureHandles() { const h = ctrl('fg-handles'); h.style.display = 'none'; h.innerHTML = ''; }
+// Edge handles: the right edge mirrors over it, the bottom edge mirrors over it, the corner rotates.
+function figureHandleTarget() {
+  const sh = state.figureShown; if (!sh || sh.def.levels.length < 2) return -1;
+  if (state.figureStep === 'final') return sh.def.levels.length - 1;
+  if (state.figureStep.startsWith('level')) { const k = +state.figureStep.slice(5); return sh.def.levels[k] && sh.def.levels[k].kind === 'grid' ? k : -1; }
+  return -1;
+}
+function renderFigureHandles() {
+  const h = ctrl('fg-handles'); h.style.display = 'none'; h.innerHTML = '';
+  const L = figureHandleTarget(); if (L < 1) return;
+  const m = state.figureShown.metas[L - 1]; if (!m || !m.box || !m.size) return;
+  const { x0, y0, x1, y1 } = m.box, S = m.size, t = S * 0.04, NS = 'http://www.w3.org/2000/svg';
+  h.setAttribute('viewBox', `0 0 ${S} ${S}`);
+  const mk = (tag, attrs, title) => { const e = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v)); if (title) { const tt = document.createElementNS(NS, 'title'); tt.textContent = title; e.appendChild(tt); } h.appendChild(e); return e; };
+  mk('rect', { class: 'fg-box', x: x0, y: y0, width: x1 - x0, height: y1 - y0 });
+  mk('rect', { 'data-handle': 'mirror-v', x: x1 - t / 2, y: y0, width: t, height: y1 - y0 }, 'Mirror over the right edge (M)');
+  mk('rect', { 'data-handle': 'mirror-h', x: x0, y: y1 - t / 2, width: x1 - x0, height: t }, 'Mirror over the bottom edge (Shift+M)');
+  mk('circle', { 'data-handle': 'rotate', cx: x1, cy: y0, r: t * 1.6 }, 'Rotate 90° (R)');
+  h.style.display = 'block';
+}
+// Pure: how a handle changes a transform {rotate, mirror}
+function applyHandle(t, kind) {
+  const cur = t.mirror || 'none', hasV = cur === 'v' || cur === 'vh', hasH = cur === 'h' || cur === 'vh';
+  if (kind === 'mirror-v') t.mirror = hasV ? (hasH ? 'h' : 'none') : (hasH ? 'vh' : 'v');
+  else if (kind === 'mirror-h') t.mirror = hasH ? (hasV ? 'v' : 'none') : (hasV ? 'vh' : 'h');
+  else if (kind === 'rotate') t.rotate = (((t.rotate || 0) + 90) % 360);
+  return t;
+}
+function figureHandleAction(kind) {
+  const L = figureHandleTarget(); if (L < 1) return;
+  figureMutate(d => {
+    const g = d.levels[L], last = L === d.levels.length - 1;
+    const t = g.transform ? g.transform : (last ? (d.transform = d.transform || {}) : (g.transform = {}));
+    applyHandle(t, kind);
+  });
+}
+ctrl('fg-handles').addEventListener('click', e => { const el = e.target.closest && e.target.closest('[data-handle]'); if (el) figureHandleAction(el.dataset.handle); });
 
 // The step panel: the few parameters of whichever step is active
 const FG_SEEDS = ['triangle', 'arc', 'arctruchet', 'wedge', 'polygon', 'star', 'roundedrect', 'chevron', 'cross', 'lens', 'circle', 'drop', 'blob'];
@@ -6848,6 +6891,11 @@ document.addEventListener('keydown', e => {
   if (state.activeTier !== 'figure' || e.metaKey || e.ctrlKey || e.altKey) return;
   const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
   if (figurePaintable() && /^[1-6]$/.test(e.key)) { state.figureTool = FIGURE_TOOLS[+e.key - 1][0]; renderFigureToolbar(); }
+  if (figureHandleTarget() > 0) {
+    if (e.key === 'r' || e.key === 'R') figureHandleAction('rotate');
+    else if (e.key === 'm') figureHandleAction('mirror-v');
+    else if (e.key === 'M') figureHandleAction('mirror-h');
+  }
 });
 
 // Checks — every one reads the drawn result, none reads the recipe's own intent back.

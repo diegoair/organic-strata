@@ -406,6 +406,33 @@ async function battery() {
     put('paint:step:kept', state.figureStep);
   } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); state.figureStep = null; }
 
+  // 20 — Mirror / Rotate handles
+  try {
+    const seq = [];
+    let tr = {}; ['mirror-v', 'mirror-h', 'mirror-v', 'mirror-h'].forEach(k => { applyHandle(tr, k); seq.push(tr.mirror); });
+    tr = {}; for (let i = 0; i < 5; i++) applyHandle(tr, 'rotate');
+    put('handle:toggle', seq.join(',') + '|' + tr.rotate);
+    const def = JSON.parse(JSON.stringify(figureCatalog()['Triangle · Sierpinski · repeated']));
+    applyFigureRecipe(def, { resetStep: true });
+    const hs = [...document.querySelectorAll('#fg-handles [data-handle]')].map(e => e.dataset.handle).join(',');
+    const vb = ctrl('fg-handles').getAttribute('viewBox') === ctrl('figure-frame').querySelector('svg').getAttribute('viewBox');
+    put('handle:present', hs + '|' + vb);
+    const click = k => document.querySelector(`#fg-handles [data-handle="${k}"]`).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    click('mirror-v'); const a1 = JSON.stringify(state.figureRecipe.transform);
+    click('rotate'); click('rotate'); const a2 = JSON.stringify(state.figureRecipe.transform);
+    click('mirror-v'); const a3 = JSON.stringify(state.figureRecipe.transform);
+    put('handle:click', [a1, a2, a3, state.figureStep].join(' / '));
+    put('handle:panel', ctrl('fg-step-panel').querySelectorAll('select').length + ':' + [...ctrl('fg-step-panel').querySelectorAll('select')].map(s => s.value).join(','));
+    // a middle Grid keeps its own transform, the last one uses the recipe's
+    const two = JSON.parse(JSON.stringify(figureCatalog()['Recursive · Sierpinski, three levels']));
+    applyFigureRecipe(two, { resetStep: true }); setFigureStep('level1');
+    document.querySelector('#fg-handles [data-handle="mirror-h"]').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    put('handle:level', JSON.stringify(state.figureRecipe.levels[1].transform) + '|' + JSON.stringify(state.figureRecipe.transform || {}) + '|' + state.figureStep);
+    setFigureStep('level0'); put('handle:none', ctrl('fg-handles').style.display + '|' + figureHandleTarget());
+    const noGrid = JSON.parse(JSON.stringify(figureCatalog()['Triangle · Sierpinski · asset'])); applyFigureRecipe(noGrid, { resetStep: true });
+    put('handle:nogrid', ctrl('fg-handles').style.display + '|' + figureHandleTarget());
+  } finally { setTier('component'); reset(); chg('sel-fvsgrid-type', 'square4x4'); chg('sel-fvsgrid-rot', '0'); chg('sel-fvsgrid-mirror', 'none'); state.figureStep = null; }
+
   // tidy the throw-away tiles the recipes wrote into the Component library
   const lib = LIBRARY.read(); Object.keys(lib).filter(k => k.startsWith('Tile · recipe-')).forEach(k => delete lib[k]); LIBRARY.write(lib);
   reset();
