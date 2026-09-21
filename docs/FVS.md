@@ -176,7 +176,8 @@ The tab is a workspace, not a form:
 - **Grid steps — handles on the figure**: click the right edge to Mirror over it, the bottom edge to
   Mirror over it, the corner to Rotate 90° (keys `M`, `Shift+M`, `R`). A middle Grid keeps its own
   transform; the last one uses the recipe's.
-- **Right panel — the active step's few parameters**: Seed thumbnails, Style/Ink/Paper; layout
+- **Right panel — the active step's few parameters**: Seed thumbnails, the Seed's two or three main
+  sliders (Star: Points / Inner radius; Arc: Thickness / Sweep…), Style/Ink/Paper; layout
   thumbnails and a rows/rings slider; Grid types; Rotate/Mirror. Everything else (form, checks,
   reference, JSON) is under **Advanced**.
 - **Play**: **Shuffle** (Space) changes one to three things at random, keeping what is locked;
