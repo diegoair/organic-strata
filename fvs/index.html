@@ -149,7 +149,28 @@
   #fvsgrid-frame { display: none; }
   #fvsgrid-frame.visible { display: block; }
   #fvsgrid-frame svg { max-width: 100%; max-height: 100%; display: block; }
-  #figure-stage { position: relative; display: block; line-height: 0; width: min(70vh, 100%); }
+  #canvas-wrap .tier-view[data-tier="figure"].active { flex-direction: column; gap: var(--space-5); }
+  #figure-stage { position: relative; display: block; line-height: 0; width: min(58vh, 100%); }
+  #fg-strip { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); max-width: 100%; }
+  .fg-strip__bar { display: flex; gap: var(--space-2); }
+  .fg-pipeline { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; justify-content: center; }
+  .fg-card { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; font: inherit; font-size: var(--fs-small); color: var(--ink); position: relative; }
+  .fg-card:hover { border-color: var(--tool); }
+  .fg-card[aria-selected="true"] { border-color: var(--tool); outline: 2px solid var(--tool); }
+  .fg-card img { width: 64px; height: 64px; object-fit: contain; display: block; background: var(--paper); }
+  .fg-card.dragover { border-style: dashed; border-color: var(--tool); }
+  .fg-card__x { position: absolute; top: 0; right: 0; padding: 0 var(--space-2); background: none; border: 0; color: var(--mid); cursor: pointer; font: inherit; }
+  .fg-card__x:hover { color: var(--danger); }
+  .fg-arrow { color: var(--mid); }
+  .fg-gallery { width: min(100%, 720px); max-height: 60vh; overflow: auto; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+  .fg-gallery[hidden] { display: none; }
+  #fg-strip, .fg-gallery { flex-shrink: 0; }
+  #fg-gallery:not([hidden]) ~ #figure-stage { display: none; }
+  .fg-gallery__head { display: flex; justify-content: space-between; align-items: center; font-size: var(--fs-small); }
+  .fg-gallery__actions { display: flex; gap: var(--space-2); }
+  .fg-gallery__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-3); }
+  .fg-gallery__grid .fg-card { text-align: center; }
+  .fg-gallery__grid .fg-card img { width: 80px; height: 80px; }
   #figure-frame svg { display: block; width: 100%; height: auto; }
   #fg-ink, #fg-paper { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
   #figure-ref-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
@@ -315,6 +336,18 @@
       <div id="fvsgrid-frame"></div>
     </div>
     <div class="tier-view" data-tier="figure">
+      <div id="fg-strip">
+        <div class="fg-strip__bar">
+          <button class="mini-btn" id="fg-new" aria-expanded="false">New figure…</button>
+          <button class="mini-btn" id="fg-undo" disabled aria-label="Undo (⌘Z)">Undo</button>
+          <button class="mini-btn" id="fg-redo" disabled aria-label="Redo (⇧⌘Z)">Redo</button>
+        </div>
+        <div id="fg-pipeline" class="fg-pipeline" aria-label="Figure steps"></div>
+      </div>
+      <div id="fg-gallery" class="fg-gallery" hidden>
+        <div class="fg-gallery__head"><span>Start from a figure</span><span class="fg-gallery__actions"><button class="mini-btn" id="fg-gallery-ref">Load a reference image…</button><button class="mini-btn" id="fg-gallery-close">Close</button></span></div>
+        <div class="fg-gallery__grid" id="fg-gallery-grid"></div>
+      </div>
       <div id="figure-stage"><div id="figure-frame"></div><canvas id="figure-ref-canvas" aria-hidden="true"></canvas></div>
     </div>
   </div>
@@ -6393,8 +6426,11 @@ function applyFigureRecipe(def, opts) {
   ctrl('fg-json-error').style.display = 'none';
   try {
     state.figureRecipe = def;
+    const steps = figureStepSVGs(def);
     const svg = runFigureRecipe(def, { keepTier: true });
     ctrl('figure-frame').innerHTML = svg;
+    if (!opts.noHistory) pushFigureHistory(def);
+    renderFigurePipeline(def, steps, svg);
     if (!opts.fromForm) figureFormFromRecipe(def);
     ctrl('fg-json').value = JSON.stringify(def, null, 2);
     refreshFigureChecks(def, svg, ++figureRun);
@@ -6406,6 +6442,133 @@ function renderFigureTier() {
   if (!state.figureRecipe) state.figureRecipe = figureCatalog()['Triangle · Sierpinski · asset'];
   applyFigureRecipe(state.figureRecipe);
 }
+
+// ── Pipeline strip, starting gallery, recipe history ──
+// The strip shows each step's own output (Element → Symbol/Component → Grid… → Mirror/Rotate)
+// as a thumbnail; a thumbnail is a truncated run of the same recipe, cached by its JSON.
+const figureStepCache = new Map();
+const figureGalleryCache = new Map();
+function capMap(m, n) { while (m.size > n) m.delete(m.keys().next().value); }
+const svgURI = svg => 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+function figureStepSVGs(def) {
+  const out = [], undoLen = undoStack.length;
+  try {
+    def.levels.forEach((_, k) => {
+      const part = { ...def, levels: def.levels.slice(0, k + 1), transform: {} }, key = JSON.stringify(part);
+      if (!figureStepCache.has(key)) { figureStepCache.set(key, runFigureRecipe(part, { keepTier: true })); capMap(figureStepCache, 60); }
+      out.push(figureStepCache.get(key));
+    });
+  } catch (e) { return null; }
+  finally { undoStack.length = undoLen; syncUndoUI(); }   // the truncated runs must not touch the Component undo stack
+  return out;
+}
+function figureCardHTML(label, svg, extra) {
+  return `<img alt="" src="${svgURI(svg)}"><span>${label}</span>${extra || ''}`;
+}
+function renderFigurePipeline(def, steps, finalSVG) {
+  const box = ctrl('fg-pipeline'); box.innerHTML = '';
+  const cards = [{ label: 'Element', svg: buildSeedPreviewSVG(getSeed(), 0, false, false, 96), view: null }];
+  def.levels.forEach((l, i) => cards.push({ label: l.kind === 'grid' ? 'Grid' : l.kind === 'symbol' ? 'Symbol' : 'Component', svg: steps ? steps[i] : finalSVG, view: steps ? steps[i] : finalSVG, level: i }));
+  cards.push({ label: 'Mirror / Rotate', svg: finalSVG, view: finalSVG, final: true });
+  cards.forEach((c, i) => {
+    if (i) { const a = document.createElement('span'); a.className = 'fg-arrow'; a.textContent = '→'; box.appendChild(a); }
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'fg-card'; b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', c.final ? 'true' : 'false');
+    b.innerHTML = figureCardHTML(c.label, c.svg);
+    b.addEventListener('click', () => {
+      box.querySelectorAll('.fg-card').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+      if (c.view) ctrl('figure-frame').innerHTML = c.view;
+      else ctrl('figure-frame').innerHTML = buildSeedPreviewSVG(getSeed(), 0, false, false, 400);
+      ctrl('figure-ref-canvas').style.visibility = c.final ? '' : 'hidden';
+    });
+    if (c.level > 0) {   // a Grid level: removable and draggable
+      const x = document.createElement('button'); x.type = 'button'; x.className = 'fg-card__x'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove this Grid');
+      x.addEventListener('click', e => { e.stopPropagation(); const d = JSON.parse(JSON.stringify(def)); d.levels.splice(c.level, 1); applyFigureRecipe(d); });
+      b.appendChild(x); b.draggable = true;
+      b.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', String(c.level)); });
+      b.addEventListener('dragover', e => { e.preventDefault(); b.classList.add('dragover'); });
+      b.addEventListener('dragleave', () => b.classList.remove('dragover'));
+      b.addEventListener('drop', e => {
+        e.preventDefault(); b.classList.remove('dragover');
+        const from = +e.dataTransfer.getData('text/plain'); if (!(from > 0) || from === c.level) return;
+        const d = JSON.parse(JSON.stringify(def)); const [m] = d.levels.splice(from, 1); d.levels.splice(c.level, 0, m); applyFigureRecipe(d);
+      });
+    }
+    box.appendChild(b);
+  });
+  const nGrids = def.levels.length - 1;
+  const add = document.createElement('button'); add.type = 'button'; add.className = 'mini-btn'; add.textContent = '+ Grid'; add.disabled = nGrids >= 3;
+  add.addEventListener('click', () => {
+    const d = JSON.parse(JSON.stringify(def)), t = d.levels[0].lattice && d.levels[0].lattice.type;
+    d.levels.push({ kind: 'grid', lattice: t === 'triangle' ? { type: 'tier', stack: 1 } : { type: 'square', n: 2 }, cellSize: 110 });
+    applyFigureRecipe(d);
+  });
+  box.appendChild(add);
+  ctrl('figure-ref-canvas').style.visibility = '';
+}
+// History of recipes (JSON snapshots, max 50)
+const figureHistory = { stack: [], idx: -1 };
+function pushFigureHistory(def) {
+  const k = JSON.stringify(def);
+  if (figureHistory.stack[figureHistory.idx] === k) return;
+  figureHistory.stack.length = figureHistory.idx + 1;
+  figureHistory.stack.push(k);
+  if (figureHistory.stack.length > 50) figureHistory.stack.shift();
+  figureHistory.idx = figureHistory.stack.length - 1;
+  syncFigureHistoryUI();
+}
+function syncFigureHistoryUI() {
+  ctrl('fg-undo').disabled = figureHistory.idx <= 0;
+  ctrl('fg-redo').disabled = figureHistory.idx >= figureHistory.stack.length - 1;
+}
+function figureHistoryStep(d) {
+  const i = figureHistory.idx + d; if (i < 0 || i >= figureHistory.stack.length) return;
+  figureHistory.idx = i; syncFigureHistoryUI();
+  applyFigureRecipe(JSON.parse(figureHistory.stack[i]), { noHistory: true });
+}
+// Starting gallery: one thumbnail per catalog figure, computed in chunks the first time it opens.
+let galleryToken = 0;
+function closeFigureGallery() { galleryToken++; ctrl('fg-gallery').hidden = true; ctrl('fg-new').setAttribute('aria-expanded', 'false'); }
+async function openFigureGallery() {
+  const g = ctrl('fg-gallery'), grid = ctrl('fg-gallery-grid'), token = ++galleryToken, cat = figureCatalog();
+  g.hidden = false; ctrl('fg-new').setAttribute('aria-expanded', 'true'); grid.innerHTML = '';
+  const cur = state.figureRecipe, cards = [];
+  Object.keys(cat).forEach(name => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'fg-card';
+    b.innerHTML = `<span class="fg-thumb" style="width:80px;height:80px;display:block"></span><span>${name.replace(/^(Triangle|Classic|Hexagon|Recursive) · /, '')}</span>`;
+    b.addEventListener('click', () => { closeFigureGallery(); applyFigureRecipe(JSON.parse(JSON.stringify(cat[name]))); });
+    grid.appendChild(b); cards.push([name, b]);
+  });
+  const undoLen = undoStack.length;
+  try {
+    for (const [name, b] of cards) {
+      if (token !== galleryToken) break;
+      const key = JSON.stringify(cat[name]);
+      if (!figureGalleryCache.has(key)) {
+        try { figureGalleryCache.set(key, runFigureRecipe(JSON.parse(key), { keepTier: true })); capMap(figureGalleryCache, 120); } catch (e) { figureGalleryCache.set(key, ''); }
+      }
+      const svg = figureGalleryCache.get(key);
+      if (svg) b.querySelector('.fg-thumb').outerHTML = `<img alt="" src="${svgURI(svg)}">`;
+      await new Promise(r => setTimeout(r, 0));
+    }
+  } finally {
+    undoStack.length = undoLen; syncUndoUI();
+    if (cur) applyFigureRecipe(cur, { noHistory: true });   // the gallery's runs used the shared state; put the current figure back
+  }
+}
+ctrl('fg-new').addEventListener('click', () => { if (ctrl('fg-gallery').hidden) openFigureGallery(); else closeFigureGallery(); });
+ctrl('fg-gallery-close').addEventListener('click', closeFigureGallery);
+ctrl('fg-gallery-ref').addEventListener('click', () => ctrl('fg-ref-file').click());
+ctrl('fg-undo').addEventListener('click', () => figureHistoryStep(-1));
+ctrl('fg-redo').addEventListener('click', () => figureHistoryStep(1));
+document.addEventListener('keydown', e => {
+  if (state.activeTier !== 'figure') return;
+  if (e.key === 'Escape' && !ctrl('fg-gallery').hidden) { closeFigureGallery(); return; }
+  if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+  e.preventDefault(); figureHistoryStep(e.shiftKey ? 1 : -1);
+});
 
 // Checks — every one reads the drawn result, none reads the recipe's own intent back.
 function figureChecks(def, svg) {

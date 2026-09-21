@@ -198,5 +198,13 @@
   "fig:rec:stats:rec-tiers": "3x1,3x2",
   "fig:rec:roundtrip:rec-tiers": "true",
   "fig:rec:limit": "Too many shapes (N) \u2014 the limit is N",
-  "fig:rec:cleared": "true"
+  "fig:rec:cleared": "true",
+  "figstrip:cards": "Element|Symbol|Grid|Mirror / Rotate",
+  "figstrip:steps": "true,true",
+  "figstrip:undostack": "true",
+  "figstrip:cards:grid": "Element|Symbol|Grid|Grid|Mirror / Rotate",
+  "figstrip:hist": "2,false",
+  "figstrip:undoredo": "2,3,2",
+  "figstrip:nohist": "2",
+  "figstrip:same": "true"
 }
