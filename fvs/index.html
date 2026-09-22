@@ -74,9 +74,10 @@
   #seedtype-picker { width: 100%; }
   .fvs-error { color: var(--danger); }
   .fvs-seed-preview-wrap { width: min(60vh, 70vw); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
-  .fvs-seed-preview { display: flex; justify-content: center; gap: var(--space-2); width: 100%; }
-  .fvs-seed-preview svg { flex: 1 1 0; min-width: 0; aspect-ratio: 1; border: 1px solid var(--border); display: block; }
-  .fvs-seed-preview-label { margin: 0; font-size: var(--fs-small); color: var(--mid); text-align: center; }
+  .fvs-seed-preview { display: flex; justify-content: center; align-items: flex-start; gap: var(--space-2); width: 100%; }
+  .fvs-seed-tile { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); flex: 1 1 0; min-width: 0; }
+  .fvs-seed-tile svg { width: 100%; height: auto; aspect-ratio: 1; border: 1px solid var(--border); display: block; }   /* height:auto: the SVG's own height="…" attribute would otherwise pin it, and aspect-ratio only fills in a dimension left auto */
+  .fvs-seed-tile__label { font-size: var(--fs-small); color: var(--mid); text-align: center; }
 
   .fvs-library { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
   .fvs-variant-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
@@ -345,7 +346,6 @@
     <div class="tier-view active" data-tier="element">
       <div class="fvs-seed-preview-wrap">
         <div id="seed-preview" class="fvs-seed-preview" aria-label="Seed transform preview — rotation and flip"></div>
-        <p class="fvs-seed-preview-label">Rotated 90° / 180° / 270°, then flipped horizontal / vertical / both</p>
       </div>
       <div id="element-frame" class="fvs-element-frame">
         <div id="element-svg"></div>
@@ -3350,13 +3350,13 @@ function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size) {
 // The 0°/no-flip state is dropped on purpose: it's pixel-identical to the big
 // canvas below (same seed, same transform, just smaller) — showing it twice added no information.
 const SEED_PREVIEW_STATES = [
-  [90, false, false], [180, false, false], [270, false, false],
-  [0, true, false], [0, false, true], [0, true, true],
+  [90, false, false, '90°'], [180, false, false, '180°'], [270, false, false, '270°'],
+  [0, true, false, 'Flip H'], [0, false, true, 'Flip V'], [0, true, true, 'Flip H+V'],
 ];
 function renderSeedPreview() {
   const seed = getSeed();
   ctrl('seed-preview').innerHTML = SEED_PREVIEW_STATES
-    .map(([r, fh, fv]) => buildSeedPreviewSVG(seed, r, fh, fv, 48)).join('');
+    .map(([r, fh, fv, label]) => `<div class="fvs-seed-tile">${buildSeedPreviewSVG(seed, r, fh, fv, 48)}<span class="fvs-seed-tile__label">${label}</span></div>`).join('');
   renderElementFrame(seed);
 }
 
