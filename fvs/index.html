@@ -3685,10 +3685,12 @@ document.addEventListener('keydown', e => {
 });
 
 // The Component tier's own "several different rules at once" starter gallery —
-// one representative candidate (each rule's own [0]) from a curated subset of the
-// named rules, NOT the full enumeration any one rule can itself produce (that's
-// what Generate + the dropdown is for). Radial only when the grid is eligible
-// (radialEligible(), the same gate the Rules dropdown already applies).
+// up to STARTER_VARIANTS_PER_RULE candidates (each rule's own first N, in the
+// order it already curates them) from a subset of the named rules, NOT the full
+// enumeration any one rule can itself produce (that's what Generate + the
+// dropdown is for). Radial only when the grid is eligible (radialEligible(),
+// the same gate the Rules dropdown already applies).
+const STARTER_VARIANTS_PER_RULE = 4;
 const COMPONENT_STARTER_RULES = [
   { name: 'checkerboard', fn: ruleCheckerboard },
   { name: 'pinwheel', fn: rulePinwheel },
@@ -3703,7 +3705,7 @@ function populateComponentStarterGallery() {
   for (const r of COMPONENT_STARTER_RULES) {
     if (r.eligible && !r.eligible()) continue;
     const out = r.fn();
-    if (out && out.length) picks.push(out[0]);
+    if (out && out.length) picks.push(...out.slice(0, STARTER_VARIANTS_PER_RULE));
   }
   state.components = picks;
   state.selectedId = picks.length ? picks[0].id : null;
