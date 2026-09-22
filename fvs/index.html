@@ -3700,12 +3700,77 @@ const COMPONENT_STARTER_RULES = [
 function componentElementSignature() {
   return JSON.stringify({ seed: getSeed(), appearance: getElementAppearance(), cells: resolveGridCells(getGrid()).length });
 }
+// Cross-rule visual dedup — each rule's own dedupeComponents() already drops
+// exact cells-array repeats WITHIN that one rule, but two DIFFERENT states
+// (even from two different rules) can still PAINT identically: a Seed with
+// its own rotational/reflective symmetry (a plain Circle, lobes 0…) makes
+// rotation/flip themselves invisible, so e.g. pinwheel's 0/90/180/270
+// states — structurally 4 distinct cells arrays — all paint the exact same
+// picture, and radial's states can coincide with pinwheel's too. Comparing
+// the cells array (or the SVG markup's own transform strings) can't catch
+// this — "rotate(90)" and "rotate(0)" are different TEXT even when they
+// render the same pixels. So the signature is the actual RASTER: each
+// candidate is drawn with the same drawComponentCanvas() the PNG export
+// uses (small offscreen canvas, deterministic Canvas2D fill — no Image
+// load, no async). An exact per-byte hash of that raster was tried first
+// and rejected — a rotate(0) vs rotate(90) transform on a shape that IS
+// symmetric under that rotation still lands each anti-aliased edge pixel
+// on a very slightly different sub-pixel offset (float rounding inside the
+// rotation matrix), so a byte-exact digest saw two visually-identical
+// circles as "different" purely from that boundary noise. Fixed by
+// averaging into a coarse N×N block signature (smooths away a few
+// differently-rounded edge pixels) and comparing signatures with a small
+// tolerance instead of exact equality — "close enough to be the same
+// picture", not "byte-identical file".
+function componentVisualSignature(comp, grid, seed, size) {
+  const RES = 48, N = 10;   // RES: raster res (small + fast); N: signature grid (coarse enough to absorb AA noise, fine enough that two really-different arrangements can't coincide)
+  if (!componentVisualSignature._canvas) {
+    componentVisualSignature._canvas = document.createElement('canvas');
+    componentVisualSignature._canvas.width = RES; componentVisualSignature._canvas.height = RES;
+  }
+  const ctx = componentVisualSignature._canvas.getContext('2d');
+  ctx.setTransform(RES / size, 0, 0, RES / size, 0, 0);
+  drawComponentCanvas(ctx, buildComponentItems(comp, grid), seed, size);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const data = ctx.getImageData(0, 0, RES, RES).data;
+  const block = RES / N;
+  const sig = new Float32Array(N * N);
+  for (let by = 0; by < N; by++) for (let bx = 0; bx < N; bx++) {
+    let sum = 0, count = 0;
+    for (let y = Math.floor(by * block); y < Math.floor((by + 1) * block); y++) {
+      for (let x = Math.floor(bx * block); x < Math.floor((bx + 1) * block); x++) {
+        const i = (y * RES + x) * 4;
+        sum += (data[i] + data[i + 1] + data[i + 2]) / 3 * (data[i + 3] / 255);   // alpha-weighted luma — a transparent pixel never reads as equal to an opaque light one
+        count++;
+      }
+    }
+    sig[by * N + bx] = count ? sum / count : 0;
+  }
+  return sig;
+}
+const VISUAL_MATCH_TOLERANCE = 3;   // average per-block luma difference (0..255 scale) below which two signatures count as "the same picture"
+function signaturesMatch(a, b) {
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff += Math.abs(a[i] - b[i]);
+  return (diff / a.length) <= VISUAL_MATCH_TOLERANCE;
+}
 function populateComponentStarterGallery() {
+  const grid = getGrid(), seed = getSeed(), size = frameSize(grid);
+  const seenVisuals = [];
   const picks = [];
   for (const r of COMPONENT_STARTER_RULES) {
     if (r.eligible && !r.eligible()) continue;
     const out = r.fn();
-    if (out && out.length) picks.push(...out.slice(0, STARTER_VARIANTS_PER_RULE));
+    if (!out || !out.length) continue;
+    let taken = 0;
+    for (const comp of out) {
+      if (taken >= STARTER_VARIANTS_PER_RULE) break;
+      const sig = componentVisualSignature(comp, grid, seed, size);
+      if (seenVisuals.some(s => signaturesMatch(s, sig))) continue;   // paints (near-)identically to a candidate already picked — skip, don't show two look-alike tiles
+      seenVisuals.push(sig);
+      picks.push(comp);
+      taken++;
+    }
   }
   state.components = picks;
   state.selectedId = picks.length ? picks[0].id : null;

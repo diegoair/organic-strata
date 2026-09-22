@@ -262,7 +262,7 @@
   "content:subtraction:differsFromOthers": "true",
   "content:noref-fallback": "true,true",
   "content:silhouette": "true,true,true",
-  "auto:populates-on-entry": "16,true",
+  "auto:populates-on-entry": "14,true",
   "auto:rulesRun": "checkerboard,mirror,pinwheel,radial",
   "auto:regeneratesOnElementChange": "true,true",
   "auto:generateLocksIt": "false,true",
