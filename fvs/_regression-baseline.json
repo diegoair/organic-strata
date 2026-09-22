@@ -220,7 +220,7 @@
   "handle:present": "mirror-v,mirror-h,rotate|true",
   "handle:click": "ce0faa39",
   "handle:panel": "2:180,none",
-  "handle:level": "{\"mirror\":\"h\"}|{}|level1",
+  "handle:level": "{\"mirror\":\"h\"}|{}|final",
   "handle:none": "none|-1",
   "handle:nogrid": "none|-1",
   "play:neighbours:det": "true,true",
