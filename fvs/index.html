@@ -186,10 +186,12 @@
   .fg-thumb span { font-size: var(--fs-micro); color: var(--mid); text-align: center; }
   input.fg-color { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
   #fg-handles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
-  #fg-handles [data-handle] { pointer-events: all; cursor: pointer; fill: var(--tool); fill-opacity: 0; }
+  #fg-handles [data-handle] { pointer-events: all; cursor: pointer; fill: var(--tool); fill-opacity: 0.1; }
   #fg-handles [data-handle]:hover { fill-opacity: 0.4; }
-  #fg-handles .fg-box { fill: none; stroke: var(--tool); stroke-opacity: 0; stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; pointer-events: none; }
-  #figure-stage:hover #fg-handles .fg-box { stroke-opacity: 0.45; }
+  #fg-handles .fg-box { fill: none; stroke: var(--tool); stroke-opacity: 0.22; stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; pointer-events: none; }
+  #figure-stage:hover #fg-handles .fg-box { stroke-opacity: 0.55; }
+  #fg-handles .fg-handle-icon { pointer-events: none; fill: var(--tool); opacity: 0.6; font-family: var(--font); text-anchor: middle; dominant-baseline: central; }
+  #figure-stage:hover #fg-handles .fg-handle-icon { opacity: 0.95; }
   #figure-frame svg [data-cell-index] { cursor: pointer; }
   #figure-frame svg [data-cell-index]:hover > polygon:first-child, #figure-frame svg [data-cell-index]:hover > rect:first-child { fill: var(--tool); fill-opacity: 0.18; }
   .fg-gallery__head { display: flex; justify-content: space-between; align-items: center; font-size: var(--fs-small); }
@@ -6908,10 +6910,14 @@ function renderFigureHandles() {
   const { x0, y0, x1, y1 } = m.box, S = m.size, t = S * 0.04, NS = 'http://www.w3.org/2000/svg';
   h.setAttribute('viewBox', `0 0 ${S} ${S}`);
   const mk = (tag, attrs, title) => { const e = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v)); if (title) { const tt = document.createElementNS(NS, 'title'); tt.textContent = title; e.appendChild(tt); } h.appendChild(e); return e; };
+  const icon = (cx, cy, glyph) => { const e = document.createElementNS(NS, 'text'); e.setAttribute('class', 'fg-handle-icon'); e.setAttribute('x', cx); e.setAttribute('y', cy); e.setAttribute('font-size', t * 1.8); e.textContent = glyph; h.appendChild(e); };
   mk('rect', { class: 'fg-box', x: x0, y: y0, width: x1 - x0, height: y1 - y0 });
   mk('rect', { 'data-handle': 'mirror-v', x: x1 - t / 2, y: y0, width: t, height: y1 - y0 }, 'Mirror over the right edge (M)');
+  icon(x1, (y0 + y1) / 2, '⇔');
   mk('rect', { 'data-handle': 'mirror-h', x: x0, y: y1 - t / 2, width: x1 - x0, height: t }, 'Mirror over the bottom edge (Shift+M)');
+  icon((x0 + x1) / 2, y1, '⇕');
   mk('circle', { 'data-handle': 'rotate', cx: x1, cy: y0, r: t * 1.6 }, 'Rotate 90° (R)');
+  icon(x1, y0, '⟳');
   h.style.display = 'block';
 }
 // Pure: how a handle changes a transform {rotate, mirror}
@@ -6924,6 +6930,7 @@ function applyHandle(t, kind) {
 }
 function figureHandleAction(kind) {
   const L = figureHandleTarget(); if (L < 1) return;
+  state.figureStep = 'final';   // show what the handle just changed, not the level's own pre-transform view
   figureMutate(d => {
     const g = d.levels[L], last = L === d.levels.length - 1;
     const t = g.transform ? g.transform : (last ? (d.transform = d.transform || {}) : (g.transform = {}));

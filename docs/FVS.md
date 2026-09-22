@@ -174,8 +174,10 @@ The tab is a workspace, not a form:
   ring). Every gesture writes a **Rule**, shown as a chip under the canvas — switch off (●), reorder
   (↑ ↓), delete (×). A whole drag is one history step.
 - **Grid steps — handles on the figure**: click the right edge to Mirror over it, the bottom edge to
-  Mirror over it, the corner to Rotate 90° (keys `M`, `Shift+M`, `R`). A middle Grid keeps its own
-  transform; the last one uses the recipe's.
+  Mirror over it, the corner to Rotate 90° (keys `M`, `Shift+M`, `R`). The handles are always faintly
+  visible (⇔ / ⇕ / ⟳ icons, not only on hover) and a click switches the view to **Mirror / Rotate**
+  right away, so the result shows immediately rather than needing a separate click on that card. A
+  middle Grid keeps its own transform; the last one uses the recipe's.
 - **Right panel — the active step's few parameters**: Seed thumbnails, the Seed's two or three main
   sliders (Star: Points / Inner radius; Arc: Thickness / Sweep…), Style/Ink/Paper; layout
   thumbnails and a rows/rings slider; Grid types; Rotate/Mirror. Everything else (form, checks,
