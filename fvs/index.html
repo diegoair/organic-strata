@@ -38,9 +38,13 @@
      not a single pannable canvas (there is no one canvas to zoom). */
   #canvas-wrap { flex: 1; overflow-y: auto; background: var(--panel); padding: var(--space-7); }
   #gallery-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: var(--space-3); color: var(--mid); font-size: var(--fs-small); text-align: center; }
-  #gallery { display: none; flex-wrap: wrap; gap: var(--space-5); align-content: flex-start; }
+  #gallery { display: none; flex-wrap: wrap; justify-content: center; gap: var(--space-5); align-content: flex-start; max-width: 100%; }
   #gallery.visible { display: flex; }
-  #gallery-status { width: 100%; font-size: var(--fs-micro); color: var(--mid); margin-bottom: var(--space-2); }
+  /* Warning-only now (e.g. "the Element is empty") — the plain "N components" count lives in the
+     header status pill alone; :empty collapses this to zero footprint so it doesn't push the
+     (now-centered) grid down when there's nothing to say. */
+  #gallery-status { width: 100%; font-size: var(--fs-micro); color: var(--mid); text-align: center; }
+  #gallery-status:empty { display: none; }
 
   .fvs-thumb {
     width: 96px; height: 96px; flex-shrink: 0;
@@ -101,6 +105,7 @@
   #canvas-wrap .tier-view { display: none; height: 100%; }
   #canvas-wrap .tier-view.active { display: flex; align-items: center; justify-content: center; }
   #canvas-wrap .tier-view[data-tier="element"].active { flex-direction: column; gap: var(--space-5); }
+  #canvas-wrap .tier-view[data-tier="component"].active { flex-direction: column; gap: var(--space-3); }
 
   /* Numbered step scaffold within a tier's own panel — groups existing
      panel-sections under an explicit "01 / 02 / ..." flow without
@@ -3530,8 +3535,9 @@ function renderGallery() {
   }
   empty.style.display = 'none';
   gallery.classList.add('visible');
-  ctrl('gallery-status').textContent = `${state.components.length} component${state.components.length === 1 ? '' : 's'}`
-    + (elementIsEmpty() ? ' — the Element is empty (draw a shape or pick one in step 1), so they render blank' : '');
+  // The plain "N components" count lives in the header status pill alone now — this line is
+  // warning-only, so it stays empty (zero footprint, see the :empty CSS rule) most of the time.
+  ctrl('gallery-status').textContent = elementIsEmpty() ? 'The Element is empty (draw a shape or pick one in step 1) — these render blank.' : '';
   setStatus('active', `${state.components.length} component${state.components.length === 1 ? '' : 's'}`);
 
   for (const comp of state.components) {
