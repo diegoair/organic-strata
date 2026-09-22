@@ -172,7 +172,8 @@
   #fg-toolbar .fg-group { display: inline-flex; gap: var(--space-1); align-items: center; }
   #fg-toolbar .fg-label { font-size: var(--fs-micro); color: var(--mid); }
   #fg-toolbar .mini-btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
-  #fg-chips { display: flex; gap: var(--space-2); flex-wrap: wrap; justify-content: center; }
+  #fg-chips { display: flex; flex-direction: column; gap: var(--space-2); }
+  #fg-chips .fg-chip { justify-content: space-between; }
   .fg-chip { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--panel); font-size: var(--fs-micro); }
   .fg-chip[data-off="true"] > .fg-chip__text { opacity: 0.45; text-decoration: line-through; }
   .fg-chip button { border: 0; background: none; cursor: pointer; color: var(--mid); font: inherit; padding: 0 var(--space-1); }
@@ -382,7 +383,6 @@
         <div class="fg-gallery__grid" id="fg-var-grid"></div>
       </div>
       <div id="figure-stage"><div id="figure-frame"></div><svg id="fg-handles" aria-hidden="true"></svg><canvas id="figure-ref-canvas" aria-hidden="true"></canvas></div>
-      <div id="fg-chips" role="list" aria-label="Rules"></div>
     </div>
   </div>
 
@@ -1260,6 +1260,11 @@
       </div>
       <p class="org-panel__hint">A saved entry is a full snapshot — Seed (incl. an upload's own shape), Grid, Palette, and the exact generated arrangement — not just a link back to the current controls. Click a tile to load it back exactly as saved.</p>
     </div>
+    </div>
+
+    <div class="panel-section" id="fg-rules-panel" style="display:none">
+      <h3>Rules</h3>
+      <div id="fg-chips" role="list" aria-label="Rules"></div>
     </div>
 
     <div class="panel-section">
@@ -5584,6 +5589,7 @@ function setTier(tier) {
   // Motion only ever animates Component/Symbol (playbackReady() agrees) —
   // hide it for Element/Grid rather than show controls that can't do anything.
   ctrl('motion-block').style.display = (tier === 'component' || tier === 'symbol') ? '' : 'none';
+  ctrl('fg-rules-panel').style.display = tier === 'figure' ? '' : 'none';
   if (tier === 'symbol') { populateSymbolLoomPresets(); renderSymbol(); renderSymbolLibrary(); }
   else if (tier === 'grid') { renderFvsGridPicker(); syncFvsGridTypeUI(); renderFvsGrid(); }
   else if (tier === 'element') { renderSeedPreview(); }
@@ -7030,7 +7036,7 @@ function renderFigureStepPanel() {
         r.addEventListener('input', () => { v.textContent = r.value; });
         r.addEventListener('change', () => figureMutate(d => { const l = d.levels[0].lattice; l[key] = +r.value; if (l.type === 'square') l.rows = +r.value; }));
         const rr = row(key === 'rows' ? 'Rows' : key === 'rings' ? 'Rings' : 'Size', r); rr.appendChild(v);
-        hint('Click or drag on the canvas to paint cells; the Rules appear as chips under it.');
+        hint('Click or drag on the canvas to paint cells; the Rules appear above, in the Rules section.');
       } else {
         row('Rule', sel([['checkerboard', 'Checkerboard'], ['radial', 'Radial'], ['pinwheel', 'Pinwheel'], ['mirror', 'Mirror']], lv.rule || 'checkerboard', v => figureMutate(d => {
           d.levels[0].rule = v; d.levels[0].params = { checkerboard: { a: 180, b: 0 }, radial: { base: 180, chirality: 1 }, pinwheel: { base: 0, chirality: 1 }, mirror: { seed: 0 } }[v]; }), 'Component rule'));

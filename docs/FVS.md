@@ -171,8 +171,8 @@ The tab is a workspace, not a form:
   gallery of the 25 starting figures; Undo / Redo (⌘Z / ⇧⌘Z) walk the recipe history.
 - **Symbol step — paint the cells**: tools Toggle · Seed · Empty · Rotate · Flip H · Flip V (keys
   1–6). Click or drag; **Shift = the whole class of the cell** (all down triangles, all odd cells, the
-  ring). Every gesture writes a **Rule**, shown as a chip under the canvas — switch off (●), reorder
-  (↑ ↓), delete (×). A whole drag is one history step.
+  ring). Every gesture writes a **Rule**, shown as a chip in the right panel's **Rules** section (above
+  Palette, visible only on this tab) — switch off (●), reorder (↑ ↓), delete (×). A whole drag is one history step.
 - **Grid steps — handles on the figure**: click the right edge to Mirror over it, the bottom edge to
   Mirror over it, the corner to Rotate 90° (keys `M`, `Shift+M`, `R`). The handles are always faintly
   visible (⇔ / ⇕ / ⟳ icons, not only on hover) and a click switches the view to **Mirror / Rotate**
