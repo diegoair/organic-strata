@@ -73,8 +73,11 @@
   .fvs-fb-group { display: contents; }
   #seedtype-picker { width: 100%; }
   .fvs-error { color: var(--danger); }
-  .fvs-seed-preview { display: flex; justify-content: center; gap: var(--space-2); }
-  .fvs-seed-preview svg { width: 48px; height: 48px; flex-shrink: 0; border: 1px solid var(--border); display: block; }
+  .fvs-seed-preview-wrap { width: min(60vh, 70vw); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+  .fvs-seed-preview { display: flex; justify-content: center; align-items: flex-start; gap: var(--space-2); width: 100%; }
+  .fvs-seed-tile { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); flex: 1 1 0; min-width: 0; }
+  .fvs-seed-tile svg { width: 100%; height: auto; aspect-ratio: 1; border: 1px solid var(--border); display: block; }   /* height:auto: the SVG's own height="…" attribute would otherwise pin it, and aspect-ratio only fills in a dimension left auto */
+  .fvs-seed-tile__label { font-size: var(--fs-small); color: var(--mid); text-align: center; }
 
   .fvs-library { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
   .fvs-variant-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
@@ -341,7 +344,9 @@
 <div id="app">
   <div id="canvas-wrap">
     <div class="tier-view active" data-tier="element">
-      <div id="seed-preview" class="fvs-seed-preview" aria-label="Seed transform preview — rotation and flip"></div>
+      <div class="fvs-seed-preview-wrap">
+        <div id="seed-preview" class="fvs-seed-preview" aria-label="Seed transform preview — rotation and flip"></div>
+      </div>
       <div id="element-frame" class="fvs-element-frame">
         <div id="element-svg"></div>
         <svg id="fh-grid" viewBox="0 0 100 100" aria-hidden="true"><path d="M25 0V100M50 0V100M75 0V100M0 25H100M0 50H100M0 75H100" fill="none" stroke="currentColor" stroke-width="0.3"/></svg>
@@ -390,26 +395,18 @@
 
     <div class="tier-block active" data-tier="element">
     <div class="panel-section">
-      <h3>Start from a recipe</h3>
-      <div class="ctrl-row">
-        <select class="panel-select" id="sel-builtin-recipe" aria-label="Built-in recipe"></select>
-      </div>
-      <button class="mini-btn" id="btn-builtin-recipe" style="width:100%">Build it</button>
-      <p class="org-panel__hint" id="builtin-recipe-hint">Builds the whole chain — Element, Component, colours and Grid — in one click. It replaces the current Element, palette and gallery.</p>
-    </div>
-    <div class="panel-section">
       <h3>Seed</h3>
       <div class="ctrl-row">
         <div id="seedtype-picker"></div>
         <select class="panel-select" id="sel-seed-type" aria-label="Seed type">
-          <option value="arc">Arc</option>
+          <option value="arc" selected>Arc</option>
           <option value="arctruchet">Arc truchet</option>
           <option value="blob">Blob</option>
           <option value="chevron">Chevron</option>
           <option value="circle">Circle</option>
           <option value="cross">Cross</option>
           <option value="drop">Drop</option>
-          <option value="freehand" selected>Freehand</option>
+          <option value="freehand">Freehand</option>
           <option value="lens">Lens</option>
           <option value="polygon">Polygon</option>
           <option value="roundedrect">Rounded rect</option>
@@ -993,6 +990,28 @@
     </div>
 
     <div class="panel-section">
+      <h3>Content</h3>
+      <div class="ctrl-row"><div class="ctrl-label">Content</div>
+        <select class="panel-select" id="sel-element-content" aria-label="Element content">
+          <option value="filled">Filled</option>
+          <option value="mask">Mask</option>
+          <option value="subtraction">Subtraction mask</option>
+          <option value="container" disabled>Container (coming soon)</option>
+        </select>
+      </div>
+      <div id="underlying-element-block" style="display:none;margin-top:var(--space-2)">
+        <div id="underlying-element-empty">
+          <button class="mini-btn" id="btn-pick-underlying-element" style="width:100%">Pick underlying component…</button>
+        </div>
+        <div id="underlying-element-set" class="ctrl-row" style="display:none">
+          <span class="ctrl-val" id="underlying-element-name" style="flex:1;text-align:left"></span>
+          <button class="mini-btn" id="btn-remove-underlying-element">Remove</button>
+        </div>
+      </div>
+      <p class="org-panel__hint">Subtraction mask shows a picked Component only inside this Element's own outline; Mask shows it everywhere except inside — a real hole. Applies to this Element's own preview only, for now.</p>
+    </div>
+
+    <div class="panel-section">
       <h3>Appearance</h3>
       <div class="ctrl-row">
         <div class="ctrl-label">Style</div>
@@ -1036,6 +1055,14 @@
       </div>
       <button class="mini-btn" id="btn-fit-seed" title="Measures the shape once and sets Scale + Move so it fills the cell, centred.">⤢ Fit to canvas</button>
       <p class="org-panel__hint">Style and Width/Length belong to the Element itself, so every cell of every Component/Symbol/Grid built from it shares them — the stroke reuses the same Palette colours the fill would have. Rotation, flip and uniform scale stay per cell, where Component and Symbol already set them.</p>
+    </div>
+    <div class="panel-section">
+      <h3>Start from a recipe</h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-builtin-recipe" aria-label="Built-in recipe"></select>
+      </div>
+      <button class="mini-btn" id="btn-builtin-recipe" style="width:100%">Build it</button>
+      <p class="org-panel__hint" id="builtin-recipe-hint">Builds the whole chain — Element, Component, colours and Grid — in one click. It replaces the current Element, palette and gallery.</p>
     </div>
     </div>
 
@@ -1745,6 +1772,19 @@
   </div>
 </div>
 
+<div id="underlying-element-overlay" class="org-modal" role="dialog" aria-modal="true" aria-label="Pick underlying component" style="display:none">
+  <div id="underlying-element-overlay__panel" class="org-modal__panel">
+    <div id="underlying-element-overlay__header" class="org-modal__header">
+      <span class="org-modal__title">Pick underlying component</span>
+      <button class="icon-btn" id="btn-underlying-element-overlay-close" aria-label="Close">
+        <svg viewBox="0 0 16 16" width="11" height="11"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div id="underlying-element-overlay-empty" class="fvs-library-empty">No saved Components yet — build one first.</div>
+    <div id="underlying-element-overlay-tiles" class="fvs-library"></div>
+  </div>
+</div>
+
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
 <script src="/shared/supabase.js"></script>
@@ -1798,11 +1838,15 @@ const printSizePanel = Organica.printSizePanel(document.getElementById('print-si
 const state = {
   components: [],   // [{id, ruleSource, cells:[{rotation,flipH,flipV,scale} x4]}]
   selectedId: null,
+  componentAutoGenerated: null,       // null = never populated this session; true = the current gallery is the live, untouched starter set; false = the user did something explicit (Generate/Manual/Clear/a Library load)
+  componentAutoGenSignature: null,    // signature of (seed, appearance, cell count) at the moment the starter set was last (re)built
   colors: ['#000000'],   // the centralised Palette (Ink) — see buildPalette()/colorAt() below
   paperColor: '#ffffff',   // the ground every render/export paints against
   customSeed: null,   // {d, normTx, normTy, normScale} from an uploaded SVG, or null
   componentRole: 'normal',           // 'normal' | 'container' | 'mask' — this Component's own silhouette used as a clip/knockout boundary for underlyingComponentName
   underlyingComponentName: null,     // another saved Component Library entry's name, or null
+  elementContent: 'filled',          // 'filled' | 'mask' | 'subtraction' | 'container' (container disabled — not yet selectable) — the Element's OWN silhouette used the same way, one tier down from componentRole
+  underlyingElementName: null,       // a LIBRARY entry name — the SAME shared store componentRole's picker reads, just a second, independent reference
   loomGrid: null,   // {cellShape, cells, inner:{width,height}} from Organica.loadLoomGrid, or null until a file is imported
   activeTier: 'element',   // 'element' | 'component' | 'symbol' | 'grid'
   fvsGrid: null,     // {cellShape, cells, inner:{width,height}} — the Grid tier's own tiling grid, Loom-imported
@@ -3332,9 +3376,65 @@ function buildPrintComponentSVG(items, seed, baseSize) {
 // under a transform is visible before committing to a full grid
 // generation. Shares the same geometry/transform discipline as
 // buildComponentSVG, for exactly one item instead of a 4-cell grid. ──
+// Single-shape equivalents of componentBoundaryClipContent/componentBoundaryMaskContent
+// (above) — same bare-<path>-with-one-consolidated-transform discipline for the
+// <clipPath> case (the same "a <g> anywhere inside a <clipPath> renders it empty"
+// browser bug applies), just for exactly one shape instance instead of a cells array.
+function elementBoundaryClipContent(geo, half, rotation, flipH, flipV, size) {
+  const a = getElementAppearance();
+  const stretch = Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a));
+  const sx = (flipH ? -1 : 1) * (size / 100), sy = (flipV ? -1 : 1) * (size / 100);
+  const tf = `translate(${half.toFixed(2)},${half.toFixed(2)}) rotate(${rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50) ${stretch} translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})`;
+  return `<path transform="${tf}" d="${geo.d}"/>`;
+}
+function elementBoundaryMaskContent(geo, half, rotation, flipH, flipV, size) {
+  const sx = (flipH ? -1 : 1) * (size / 100), sy = (flipV ? -1 : 1) * (size / 100);
+  return `<g transform="translate(${half.toFixed(2)},${half.toFixed(2)}) rotate(${rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
+    + elementPathMarkup(geo, '#000', true) + `</g>`;
+}
+// The Element-level Content SVG (Mask / Subtraction mask): the SAME <clipPath>/<mask>
+// wrapping buildComponentSVGBody uses for a whole Component's Role, just against
+// this one Seed's own boundary instead of an array of cells. Mirrors that function's
+// "paper stays outside the clip for Subtraction, moves inside the masked group for
+// Mask" rule exactly (componentBoundaryClipContent/MaskContent's own header comment).
+function buildSeedContentSVG(seed, geo, rotation, flipH, flipV, size, half) {
+  const under = resolveUnderlyingComponent(state.underlyingElementName);
+  if (!under) return null;   // nothing picked yet — caller falls back to plain Filled
+  const underGeo = SEED_TYPES[under.seed.type].geometry(under.seed);
+  const fitScale = size / under.size;
+  let underBody = `<rect width="${under.size}" height="${under.size}" fill="${under.paperColor}"/>`;
+  for (const it of under.items) {
+    const fit = it.cellSize / 100;
+    const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
+    underBody += `<g transform="translate(${(under.size / 2 + it.cx).toFixed(2)},${(under.size / 2 + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
+      + withAppearance(under.appearance, () => elementPathMarkup(underGeo, it.color)) + `</g>`;
+  }
+  const underWrapped = `<g transform="scale(${fitScale.toFixed(4)})">${underBody}</g>`;
+  // A <clipPath>/<mask> id must be unique for the WHOLE document, not just this
+  // <svg> — url(#id) resolves document-wide, and this same function is called once
+  // for the big canvas AND once per one of the 6 preview tiles, all on screen at
+  // once. Folding rotation/flip/size into the id keeps every one of those 7 calls
+  // distinct (a real bug caught live: without this, all 7 shared one id and the
+  // browser picked whichever element matched it first, showing the wrong clip/mask).
+  const uid = 'elfx-' + String(state.underlyingElementName).replace(/[^a-zA-Z0-9_-]/g, '_') + '-' + rotation + (flipH ? 'h' : '') + (flipV ? 'v' : '') + '-' + size;
+  let body = state.elementContent === 'mask' ? '' : `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>`;
+  if (state.elementContent === 'subtraction') {
+    body += `<clipPath id="${uid}">${elementBoundaryClipContent(geo, half, rotation, flipH, flipV, size)}</clipPath>`
+      + `<g clip-path="url(#${uid})">${underWrapped}</g>`;
+  } else {
+    body += `<mask id="${uid}" maskUnits="userSpaceOnUse" x="0" y="0" width="${size}" height="${size}">`
+      + `<rect width="${size}" height="${size}" fill="white"/>${elementBoundaryMaskContent(geo, half, rotation, flipH, flipV, size)}</mask>`
+      + `<g mask="url(#${uid})"><rect width="${size}" height="${size}" fill="${state.paperColor}"/>${underWrapped}</g>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${body}</svg>`;
+}
 function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size) {
   const geo = SEED_TYPES[seed.type].geometry(seed);
   const half = size / 2;
+  if (state.elementContent === 'mask' || state.elementContent === 'subtraction') {
+    const contentSVG = buildSeedContentSVG(seed, geo, rotation, flipH, flipV, size, half);
+    if (contentSVG) return contentSVG;   // no underlying picked yet — fall through to plain Filled below
+  }
   const sx = (flipH ? -1 : 1) * (size / 100), sy = (flipV ? -1 : 1) * (size / 100);
   const body = `<g transform="translate(${half},${half}) rotate(${rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
     + elementPathMarkup(geo, colorAt(0)) + `</g>`;
@@ -3342,14 +3442,16 @@ function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size) {
     + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${body}</svg>`;
 }
 
+// The 0°/no-flip state is dropped on purpose: it's pixel-identical to the big
+// canvas below (same seed, same transform, just smaller) — showing it twice added no information.
 const SEED_PREVIEW_STATES = [
-  [0, false, false], [90, false, false], [180, false, false], [270, false, false],
-  [0, true, false], [0, false, true], [0, true, true],
+  [90, false, false, '90°'], [180, false, false, '180°'], [270, false, false, '270°'],
+  [0, true, false, 'Flip H'], [0, false, true, 'Flip V'], [0, true, true, 'Flip H+V'],
 ];
 function renderSeedPreview() {
   const seed = getSeed();
   ctrl('seed-preview').innerHTML = SEED_PREVIEW_STATES
-    .map(([r, fh, fv]) => buildSeedPreviewSVG(seed, r, fh, fv, 48)).join('');
+    .map(([r, fh, fv, label]) => `<div class="fvs-seed-tile">${buildSeedPreviewSVG(seed, r, fh, fv, 48)}<span class="fvs-seed-tile__label">${label}</span></div>`).join('');
   renderElementFrame(seed);
 }
 
@@ -3404,6 +3506,17 @@ function renderGallery() {
     if (!state.components.find(c => c.id === state.selectedId)) {
       state.selectedId = state.components.length ? state.components[0].id : null;
     }
+  }
+
+  // If the starter gallery is still "live" (nothing explicit has touched it yet
+  // — Generate/Manual/Clear/a Library load all flip componentAutoGenerated to
+  // false first), keep it in sync with whatever the Element/grid now is, instead
+  // of drawing stale candidates against a shape or cell count they weren't built
+  // for. Runs AFTER the cell-count invalidation above, so a grid resize and an
+  // Element change are both handled by the same repopulate call.
+  if (state.activeTier === 'component' && state.componentAutoGenerated) {
+    const sig = componentElementSignature();
+    if (sig !== state.componentAutoGenSignature) { populateComponentStarterGallery(); return; }
   }
 
   gallery.innerHTML = '';
@@ -3551,7 +3664,7 @@ function buildManualEditor() {
 const UNDO_MAX = 20;
 const undoStack = [];
 function pushUndo() {
-  undoStack.push(structuredClone({ components: state.components, selectedId: state.selectedId, tile: state.fvsGridComponentName }));
+  undoStack.push(structuredClone({ components: state.components, selectedId: state.selectedId, tile: state.fvsGridComponentName, auto: state.componentAutoGenerated, sig: state.componentAutoGenSignature }));
   if (undoStack.length > UNDO_MAX) undoStack.shift();
   syncUndoUI();
 }
@@ -3559,6 +3672,7 @@ function undoComponents() {
   const snap = undoStack.pop();
   if (!snap) return;
   state.components = snap.components; state.selectedId = snap.selectedId; state.fvsGridComponentName = snap.tile;
+  state.componentAutoGenerated = snap.auto; state.componentAutoGenSignature = snap.sig;
   renderGallery(); syncUndoUI();
 }
 function syncUndoUI() { ctrl('btn-undo-components').disabled = undoStack.length === 0; }
@@ -3569,6 +3683,101 @@ document.addEventListener('keydown', e => {
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;   // keep native text undo
   e.preventDefault(); undoComponents();
 });
+
+// The Component tier's own "several different rules at once" starter gallery —
+// up to STARTER_VARIANTS_PER_RULE candidates (each rule's own first N, in the
+// order it already curates them) from a subset of the named rules, NOT the full
+// enumeration any one rule can itself produce (that's what Generate + the
+// dropdown is for). Radial only when the grid is eligible (radialEligible(),
+// the same gate the Rules dropdown already applies).
+const STARTER_VARIANTS_PER_RULE = 4;
+const COMPONENT_STARTER_RULES = [
+  { name: 'checkerboard', fn: ruleCheckerboard },
+  { name: 'pinwheel', fn: rulePinwheel },
+  { name: 'mirror', fn: ruleMirror },
+  { name: 'radial', fn: ruleRadial, eligible: radialEligible },
+];
+function componentElementSignature() {
+  return JSON.stringify({ seed: getSeed(), appearance: getElementAppearance(), cells: resolveGridCells(getGrid()).length });
+}
+// Cross-rule visual dedup — each rule's own dedupeComponents() already drops
+// exact cells-array repeats WITHIN that one rule, but two DIFFERENT states
+// (even from two different rules) can still PAINT identically: a Seed with
+// its own rotational/reflective symmetry (a plain Circle, lobes 0…) makes
+// rotation/flip themselves invisible, so e.g. pinwheel's 0/90/180/270
+// states — structurally 4 distinct cells arrays — all paint the exact same
+// picture, and radial's states can coincide with pinwheel's too. Comparing
+// the cells array (or the SVG markup's own transform strings) can't catch
+// this — "rotate(90)" and "rotate(0)" are different TEXT even when they
+// render the same pixels. So the signature is the actual RASTER: each
+// candidate is drawn with the same drawComponentCanvas() the PNG export
+// uses (small offscreen canvas, deterministic Canvas2D fill — no Image
+// load, no async). An exact per-byte hash of that raster was tried first
+// and rejected — a rotate(0) vs rotate(90) transform on a shape that IS
+// symmetric under that rotation still lands each anti-aliased edge pixel
+// on a very slightly different sub-pixel offset (float rounding inside the
+// rotation matrix), so a byte-exact digest saw two visually-identical
+// circles as "different" purely from that boundary noise. Fixed by
+// averaging into a coarse N×N block signature (smooths away a few
+// differently-rounded edge pixels) and comparing signatures with a small
+// tolerance instead of exact equality — "close enough to be the same
+// picture", not "byte-identical file".
+function componentVisualSignature(comp, grid, seed, size) {
+  const RES = 48, N = 10;   // RES: raster res (small + fast); N: signature grid (coarse enough to absorb AA noise, fine enough that two really-different arrangements can't coincide)
+  if (!componentVisualSignature._canvas) {
+    componentVisualSignature._canvas = document.createElement('canvas');
+    componentVisualSignature._canvas.width = RES; componentVisualSignature._canvas.height = RES;
+  }
+  const ctx = componentVisualSignature._canvas.getContext('2d');
+  ctx.setTransform(RES / size, 0, 0, RES / size, 0, 0);
+  drawComponentCanvas(ctx, buildComponentItems(comp, grid), seed, size);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const data = ctx.getImageData(0, 0, RES, RES).data;
+  const block = RES / N;
+  const sig = new Float32Array(N * N);
+  for (let by = 0; by < N; by++) for (let bx = 0; bx < N; bx++) {
+    let sum = 0, count = 0;
+    for (let y = Math.floor(by * block); y < Math.floor((by + 1) * block); y++) {
+      for (let x = Math.floor(bx * block); x < Math.floor((bx + 1) * block); x++) {
+        const i = (y * RES + x) * 4;
+        sum += (data[i] + data[i + 1] + data[i + 2]) / 3 * (data[i + 3] / 255);   // alpha-weighted luma — a transparent pixel never reads as equal to an opaque light one
+        count++;
+      }
+    }
+    sig[by * N + bx] = count ? sum / count : 0;
+  }
+  return sig;
+}
+const VISUAL_MATCH_TOLERANCE = 3;   // average per-block luma difference (0..255 scale) below which two signatures count as "the same picture"
+function signaturesMatch(a, b) {
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff += Math.abs(a[i] - b[i]);
+  return (diff / a.length) <= VISUAL_MATCH_TOLERANCE;
+}
+function populateComponentStarterGallery() {
+  const grid = getGrid(), seed = getSeed(), size = frameSize(grid);
+  const seenVisuals = [];
+  const picks = [];
+  for (const r of COMPONENT_STARTER_RULES) {
+    if (r.eligible && !r.eligible()) continue;
+    const out = r.fn();
+    if (!out || !out.length) continue;
+    let taken = 0;
+    for (const comp of out) {
+      if (taken >= STARTER_VARIANTS_PER_RULE) break;
+      const sig = componentVisualSignature(comp, grid, seed, size);
+      if (seenVisuals.some(s => signaturesMatch(s, sig))) continue;   // paints (near-)identically to a candidate already picked — skip, don't show two look-alike tiles
+      seenVisuals.push(sig);
+      picks.push(comp);
+      taken++;
+    }
+  }
+  state.components = picks;
+  state.selectedId = picks.length ? picks[0].id : null;
+  state.componentAutoGenerated = true;
+  state.componentAutoGenSignature = componentElementSignature();
+  renderGallery();
+}
 
 function generate() {
   const mode = ctrl('sel-rule').value;
@@ -3595,6 +3804,7 @@ function generate() {
       const comp = { id: `manual-${Date.now()}`, ruleSource: 'manual', cells: readManualCells() };
       state.components.push(comp);
       state.selectedId = comp.id;
+      state.componentAutoGenerated = false;
       renderGallery();
       return;
     }
@@ -3602,6 +3812,7 @@ function generate() {
   pushUndo();
   state.components = produced;
   state.selectedId = produced.length ? produced[0].id : null;
+  state.componentAutoGenerated = false;
   renderGallery();
 }
 
@@ -3609,6 +3820,7 @@ function clearGallery() {
   pushUndo();
   state.components = [];
   state.selectedId = null;
+  state.componentAutoGenerated = false;
   renderGallery();
 }
 
@@ -3899,6 +4111,7 @@ function applyLibraryEntryToUI(entry) {
   const comp = { id: `library-${Date.now()}`, ruleSource: entry.component.ruleSource, cells: entry.component.cells };
   state.components = [comp];
   state.selectedId = comp.id;
+  state.componentAutoGenerated = false;
 
   // Old saved Components (pre-Role) have neither field — backfilled to
   // the pre-feature-equivalent no-op (Normal, no underlying component).
@@ -3959,6 +4172,53 @@ function openUnderlyingComponentPicker() {
 
 function closeUnderlyingComponentPicker() {
   ctrl('underlying-component-overlay').style.display = 'none';
+}
+
+// Element-level Content picker — same mechanism as Role's, a second independent
+// instance (own overlay, own state field) so the two can never fight over "which
+// one is open."
+function syncElementContentUI() {
+  const relevant = state.elementContent === 'mask' || state.elementContent === 'subtraction';
+  ctrl('underlying-element-block').style.display = relevant ? '' : 'none';
+  ctrl('underlying-element-empty').style.display = state.underlyingElementName ? 'none' : '';
+  ctrl('underlying-element-set').style.display = state.underlyingElementName ? 'flex' : 'none';
+  if (state.underlyingElementName) ctrl('underlying-element-name').textContent = state.underlyingElementName;
+}
+function removeUnderlyingElement() {
+  state.underlyingElementName = null;
+  syncElementContentUI();
+  renderSeedPreview();
+}
+function openUnderlyingElementPicker() {
+  const all = LIBRARY.read();
+  const names = libraryNames(all);
+  ctrl('underlying-element-overlay-empty').style.display = names.length ? 'none' : '';
+  const wrap = ctrl('underlying-element-overlay-tiles');
+  wrap.innerHTML = '';
+  for (const name of names) {
+    const entry = all[name];
+    const size = frameSize(entry.grid);
+    const savedColorAt = entryInkAt(entry);
+    const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
+    const svgStr = buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName);
+    const btn = document.createElement('button');
+    btn.className = 'fvs-library-item';
+    btn.title = name;
+    btn.setAttribute('aria-label', 'Use ' + name + ' as underlying component');
+    btn.innerHTML = svgStr;
+    btn.addEventListener('click', () => {
+      state.underlyingElementName = name;
+      syncElementContentUI();
+      renderSeedPreview();
+      closeUnderlyingElementPicker();
+    });
+    wrap.appendChild(btn);
+  }
+  ctrl('underlying-element-overlay').style.display = 'flex';
+  Organica.autoLabelPanel(ctrl('underlying-element-overlay'));
+}
+function closeUnderlyingElementPicker() {
+  ctrl('underlying-element-overlay').style.display = 'none';
 }
 
 function renderLibrary() {
@@ -5594,6 +5854,10 @@ function setTier(tier) {
   else if (tier === 'grid') { renderFvsGridPicker(); syncFvsGridTypeUI(); renderFvsGrid(); }
   else if (tier === 'element') { renderSeedPreview(); }
   else if (tier === 'figure') { renderFigureTier(); }
+  else if (tier === 'component') {
+    if (state.components.length === 0 && state.componentAutoGenerated !== false) populateComponentStarterGallery();
+    else renderGallery();
+  }
   else { renderGallery(); }
   syncFreehandEditor();
   updateStepHint(tier);
@@ -6173,6 +6437,7 @@ function runBuiltinRecipe(def) {
   const comp = { id: 'recipe-' + def.id, ruleSource: 'recipe', cells: def.component.cells() };
   pushUndo();
   state.components = [comp];
+  state.componentAutoGenerated = false;
   state.selectedId = comp.id;
   renderGallery();
   refreshColourViews();
@@ -6269,7 +6534,7 @@ function runFigureRecipe(def, opts) {
   if (first.kind === 'component') {
     fireChange('sel-grid-type', first.grid || 'square2x2');
     const comp = { id: 'figure-component', ruleSource: 'recipe', cells: first.cells || componentCellsFromRule(first.rule, first.params) };
-    pushUndo(); state.components = [comp]; state.selectedId = comp.id;
+    pushUndo(); state.components = [comp]; state.selectedId = comp.id; state.componentAutoGenerated = false;
     renderGallery(); refreshColourViews();
     tier = 'component';
     if (gridLv) { const all = LIBRARY.read(); delete all['Tile · ' + comp.id]; LIBRARY.write(all); tileSelectedInGrid(true); }
@@ -7444,6 +7709,17 @@ ctrl('btn-underlying-overlay-close').addEventListener('click', closeUnderlyingCo
 ctrl('underlying-component-overlay').addEventListener('click', e => { if (e.target === ctrl('underlying-component-overlay')) closeUnderlyingComponentPicker(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && ctrl('underlying-component-overlay').style.display !== 'none') closeUnderlyingComponentPicker(); });
 
+ctrl('sel-element-content').addEventListener('change', e => {
+  state.elementContent = e.target.value;
+  syncElementContentUI();
+  renderSeedPreview();
+});
+ctrl('btn-pick-underlying-element').addEventListener('click', openUnderlyingElementPicker);
+ctrl('btn-remove-underlying-element').addEventListener('click', removeUnderlyingElement);
+ctrl('btn-underlying-element-overlay-close').addEventListener('click', closeUnderlyingElementPicker);
+ctrl('underlying-element-overlay').addEventListener('click', e => { if (e.target === ctrl('underlying-element-overlay')) closeUnderlyingElementPicker(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && ctrl('underlying-element-overlay').style.display !== 'none') closeUnderlyingElementPicker(); });
+
 ctrl('btn-save-library').addEventListener('click', saveToLibrary);
 ctrl('btn-tile-in-grid').addEventListener('click', tileSelectedInGrid);
 ctrl('btn-library-confirm').addEventListener('click', confirmSaveToLibrary);
@@ -7707,6 +7983,7 @@ ctrl('sel-color-rule').addEventListener('change', onColorRuleChange);
 ctrl('sel-color-offset').addEventListener('change', onColorRuleChange);
 syncSeedUI();
 syncComponentRoleUI();
+syncElementContentUI();
 syncRuleAvailability();
 syncRuleUI();
 syncFvsGridTypeUI();

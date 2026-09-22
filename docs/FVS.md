@@ -195,6 +195,35 @@ The tab is a workspace, not a form:
 
 - An assistant can produce the recipe from an image: see `.claude/skills/fvs-figure-from-image`.
 
+## 6a. Element-level Content: Mask / Subtraction mask (Phase 1, Sep 2026)
+
+An Element's own Seed can be `Filled` (default, no change), `Mask`, or `Subtraction mask` — the
+same two behaviours the Component tier's own **Role** already has, one tier down, on a single
+Seed's own outline against a second, separately picked Component reference. Same mapping as
+Role: **Mask** shows the picked reference everywhere *except* inside this Seed's own outline (a
+real hole); **Subtraction mask** shows it only *inside*. A fourth option, **Container** (a
+group/pattern of several loaded figures — a different, open-ended concept, not the same as
+Subtraction mask), is visible in the dropdown but disabled — it needs its own design pass.
+
+The **Content** section sits in the Element panel, between Seed and Appearance. Picking Mask or
+Subtraction mask reveals a "Pick underlying component…" button — the SAME shared Library store
+Role's own picker reads (`resolveUnderlyingComponent`), just a second, independent reference
+(`state.underlyingElementName`, separate from `state.underlyingComponentName`). With nothing
+picked yet, the Element renders as plain Filled — never a broken clip/mask reference.
+
+**Scope, this phase**: only the Element tier's own two previews (the big canvas, and the 6-tile
+transform strip) — `buildSeedPreviewSVG` branches internally, so neither render function needed
+changes. Threading Content into Component/Symbol/Grid cells, the Canvas2D/PNG export twin, and
+Library persistence are a later Phase 2, deliberately not built yet (Container's own design pass
+is also deferred).
+
+A real bug found during this build, not assumed away: the `<clipPath>`/`<mask>` `id` **must be
+unique for the whole document**, not just the one `<svg>` it lives in — `url(#id)` resolves
+document-wide. Since the 6 tiles and the big canvas all render the SAME underlying reference at
+once, and all 7 originally computed the exact same `id`, the browser silently picked whichever
+one happened to match first, showing the wrong clip/mask on most of them. Fixed by folding
+`rotation`/`flipH`/`flipV`/`size` into the id, so all 7 simultaneous renders get distinct ids.
+
 ## 7. Libraries
 
 - **Component library** — save the selected Component; click the caption under
