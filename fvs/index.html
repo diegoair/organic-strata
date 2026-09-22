@@ -73,8 +73,10 @@
   .fvs-fb-group { display: contents; }
   #seedtype-picker { width: 100%; }
   .fvs-error { color: var(--danger); }
-  .fvs-seed-preview { display: flex; justify-content: center; gap: var(--space-2); }
-  .fvs-seed-preview svg { width: 48px; height: 48px; flex-shrink: 0; border: 1px solid var(--border); display: block; }
+  .fvs-seed-preview-wrap { width: min(60vh, 70vw); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+  .fvs-seed-preview { display: flex; justify-content: center; gap: var(--space-2); width: 100%; }
+  .fvs-seed-preview svg { flex: 1 1 0; min-width: 0; aspect-ratio: 1; border: 1px solid var(--border); display: block; }
+  .fvs-seed-preview-label { margin: 0; font-size: var(--fs-small); color: var(--mid); text-align: center; }
 
   .fvs-library { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
   .fvs-variant-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
@@ -341,7 +343,10 @@
 <div id="app">
   <div id="canvas-wrap">
     <div class="tier-view active" data-tier="element">
-      <div id="seed-preview" class="fvs-seed-preview" aria-label="Seed transform preview — rotation and flip"></div>
+      <div class="fvs-seed-preview-wrap">
+        <div id="seed-preview" class="fvs-seed-preview" aria-label="Seed transform preview — rotation and flip"></div>
+        <p class="fvs-seed-preview-label">Rotated 90° / 180° / 270°, then flipped horizontal / vertical / both</p>
+      </div>
       <div id="element-frame" class="fvs-element-frame">
         <div id="element-svg"></div>
         <svg id="fh-grid" viewBox="0 0 100 100" aria-hidden="true"><path d="M25 0V100M50 0V100M75 0V100M0 25H100M0 50H100M0 75H100" fill="none" stroke="currentColor" stroke-width="0.3"/></svg>
@@ -3342,8 +3347,10 @@ function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size) {
     + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${body}</svg>`;
 }
 
+// The 0°/no-flip state is dropped on purpose: it's pixel-identical to the big
+// canvas below (same seed, same transform, just smaller) — showing it twice added no information.
 const SEED_PREVIEW_STATES = [
-  [0, false, false], [90, false, false], [180, false, false], [270, false, false],
+  [90, false, false], [180, false, false], [270, false, false],
   [0, true, false], [0, false, true], [0, true, true],
 ];
 function renderSeedPreview() {
