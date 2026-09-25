@@ -153,6 +153,41 @@ async function battery() {
   });
   chg('sel-rule', 'identity'); chg('sel-grid-type', 'square2x2');
 
+  // 10b — rule-engine audit (Sep 25, 2026): canonical states (H+V ≡ 180°), a
+  // 4-cell Loom row is not a 2×2, hex lattice binning, Random/Exhaustive on any grid
+  {
+    const axes0 = ['rotation', 'flip', 'scale'].map(a => ctrl('chk-axis-' + a).checked);
+    const setAxes = (r, f, sc) => { ctrl('chk-axis-rotation').checked = r; ctrl('chk-axis-flip').checked = f; ctrl('chk-axis-scale').checked = sc; };
+    const loom0 = state.loomGrid;
+    const rectLoom = (cols, rows) => JSON.stringify({ version: '1.0', canvas: { width: cols * 200, height: rows * 200, unit: 'px', margin: 0, marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, bleed: 0, safeArea: 0 },
+      grid: { type: 'rectangular', params: { cols, rows }, gap: 0, padding: 0, tracks: { cols: Array(cols).fill(200), rows: Array(rows).fill(200) } },
+      cells: Array.from({ length: cols * rows }, (_, i) => ({ id: 'c' + i, col: i % cols, row: Math.floor(i / cols), colSpan: 1, rowSpan: 1, number: i + 1 })) });
+    put('engine:canon', [canonicalState(stateFrom(0, true, true, 1)) === canonicalState(stateFrom(180, false, false, 1)),
+      dedupeComponents([{ cells: [stateFrom(90, true, true, 1)] }, { cells: [stateFrom(270, false, false, 1)] }]).length].join(','));
+    put('engine:checker:distinct', ruleCheckerboard().length);
+    state.loomGrid = Organica.loadLoomGrid(rectLoom(4, 1)); chg('sel-grid-type', 'loom');
+    put('engine:4x1', [isCanonical2x2(), radialEligible(), ctrl('sel-rule').querySelector('option[value="rowmirror"]').disabled,
+      rulePinwheel()[0].cells.map(c => c.rotation).join('.')].join(','));
+    state.loomGrid = Organica.loadLoomGrid(rectLoom(2, 2)); chg('sel-grid-type', 'loom');
+    put('engine:loom2x2:canonical', isCanonical2x2());
+    state.loomGrid = Organica.loadLoomGrid(JSON.stringify(SYMBOL_GRID_PRESETS.hexagonal)); chg('sel-grid-type', 'loom');
+    const hc = resolveGridCells(getGrid()), maxA = Math.max(...hc.map(c => c.cellW * c.cellH));
+    put('engine:hex:checker', new Set(ruleCheckerboard()[0].cells.filter((c, i) => hc[i].cellW * hc[i].cellH >= maxA * 0.5).map(canonicalState)).size);
+    state.loomGrid = loom0; chg('sel-grid-type', 'square3x3');
+    setAxes(true, false, false); put('engine:3x3:ex:R', ruleExhaustive().length);
+    setAxes(true, true, false); put('engine:3x3:ex:RF', ruleExhaustive().length);
+    setAxes(true, false, false); inp('rg-random-count', 16); inp('num-seed', 7);
+    const rnd = ruleRandom();
+    put('engine:3x3:random', [rnd.length, new Set(rnd.map(c => componentKey(c.cells))).size, H(rnd.map(c => componentKey(c.cells)).join('|'))].join(','));
+    chg('sel-grid-type', 'square4x4');
+    put('engine:4x4:radial:ids', ruleRadial().length + ':' + ruleRadial().filter(c => c.id.includes('tiled')).length);
+    put('engine:4x4:mirror:book', ruleMirror().filter(c => c.id.startsWith('mirror-book')).length);
+    chg('sel-seed-type', 'circle'); chg('sel-rule', 'pinwheel'); generate();
+    put('engine:lookalike:circle', state.components.length + ':' + (ctrl('gallery-status').textContent.startsWith('7 look-alike')));
+    chg('sel-seed-type', 'arc'); inp('rg-thickness', 100);
+    setAxes(...axes0); inp('num-seed', 1); chg('sel-rule', 'identity'); chg('sel-grid-type', 'square2x2');
+  }
+
   // 11 — Cell properties colour override, Undo, rename, quadrant hint
   chg('sel-seed-type', 'arc'); chg('sel-element-fillmode', 'fill');
   setTier('symbol');

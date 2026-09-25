@@ -76,11 +76,26 @@ Generate produces a gallery of candidates; click one to select it.
   Manual. Every named rule reads each cell's column/row, so they work on **any**
   grid (2×2, 3×3, 4×4, Loom): Pinwheel steps rotation by `(col + 2·row) mod 4`,
   Mirror flips by column/row parity, Diagonal alternates `R` / `90−R`,
-  Row/Column mirror flip by row/column parity. **Radial** needs an even × even
-  grid (its centre falls between cells) and is greyed out otherwise. On a 2×2
-  grid every rule gives exactly the original four-cell result.
-- **Random / Exhaustive / Manual** stay four-cell shaped; Exhaustive is capped at
-  512 and refuses cleanly above it.
+  Row/Column mirror flip by row/column parity. Beyond 2×2, **Mirror** also offers
+  the three whole-grid *book-matched* mirrors (left|right, top|bottom, both) and
+  **Radial** offers both one rosette on the whole grid and a *tiled* rosette per
+  2×2 block (four quarter-arcs → four circles on a 4×4). **Radial** needs an
+  even × even grid (its centre falls between cells), **Row mirror** needs ≥ 2 rows,
+  **Column mirror** ≥ 2 columns — greyed out otherwise. Only a real 2×2 (four
+  cells laid out TL, TR, BL, BR) uses the original four-cell tables; a 4-cell Loom
+  row or column is treated as the 4×1 / 1×4 it is.
+- **Polygon Loom grids** (e.g. Hexagonal) get their columns/rows from the
+  full-size cells only, with a hex lattice's offset ("doubled") rows folded back —
+  otherwise every full hexagon landed on the same parity and Checkerboard/Mirror/
+  Diagonal collapsed to Identity.
+- **Random / Exhaustive** draw from the same symmetry families on **any** grid
+  (never per-cell noise). Exhaustive is capped at 512 and refuses cleanly above it;
+  its count is the honest one after folding duplicates.
+- **No duplicates.** Candidates are compared on the canonical state — flip H + flip
+  V *is* a 180° turn — so the same component is never listed twice. And Generate
+  hides candidates that *paint* the same with the current Element (a Circle turns
+  all 8 Pinwheels into one picture); the gallery says how many were hidden. Random
+  keeps drawing until it has the count you asked for, or the space runs out.
 - **Role** — a Component can be a *Container* or *Mask* over another saved one.
 - **Undo** (floatbar, ⌘Z) — the last 20 Generate / Add / Clear / Tile / recipe
   steps of the gallery. It never touches the Seed.
