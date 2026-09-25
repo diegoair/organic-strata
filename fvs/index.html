@@ -52,10 +52,55 @@
     cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center;
     transition: border-color 0.12s, box-shadow 0.12s;
   }
-  .fvs-thumb:hover { border-color: var(--mid); }
+  /* Selection (thin 1px + ring) and "saved to Library" (thick 3px, below)
+     are two distinct, unrelated states and must stay visually distinct —
+     a selected-but-unsaved candidate must never look like a saved one. */
   .fvs-thumb.selected { border-color: var(--tool); box-shadow: 0 0 0 1px var(--tool); }
+  /* Persistent marker for "this candidate is saved to the Library" — independent
+     of state.selectedId (a saved thumbnail keeps this even once selection moves
+     to a different one), a thicker 3px ring so it reads at a glance next to the
+     thinner 1px selection border above. box-sizing:border-box (set globally,
+     line 25) means the extra 2px doesn't shift the thumbnail's own footprint. */
+  .fvs-thumb.saved-in-library { border-width: 3px; border-color: var(--tool); box-shadow: none; }
+  /* On hover, drop the border entirely so nothing frames/competes with
+     the shape while you're looking at it up close — just the quick-save
+     ✓/delete button over a bare figure. (Plain, non-saved thumbnails never
+     had a hover border colour of their own to begin with — that rule was
+     removed because it left a stray grey line on every hover, inconsistently
+     overridden only for .selected by CSS source order.) */
+  .fvs-thumb.saved-in-library:hover { border-color: transparent; }
   .fvs-thumb svg { width: 100%; height: 100%; display: block; }
-  .fvs-thumb-wrap { display: flex; flex-direction: column; gap: var(--space-1); width: 96px; flex-shrink: 0; }
+  .fvs-thumb-wrap { position: relative; display: flex; flex-direction: column; gap: var(--space-1); width: 96px; flex-shrink: 0; }
+  /* "Quick save to library" — a rounded + over the thumbnail's own
+     top-right corner. Hidden until hover/focus so it doesn't compete with
+     the shape underneath the rest of the time — EXCEPT once saved
+     (.saved, driven by comp.savedName), where it stays a permanent ✓
+     indicator, visible with no hover needed, that persists across
+     re-renders. */
+  .fvs-thumb-quicksave {
+    position: absolute; top: 4px; right: 4px; width: 20px; height: 20px;
+    border-radius: 50%; border: 1px solid var(--border); background: var(--paper); color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    font-size: var(--fs-small); line-height: 1; padding: 0; cursor: pointer;
+    opacity: 0; transition: opacity 0.12s, border-color 0.12s, background 0.12s, color 0.12s;
+  }
+  .fvs-thumb-wrap:hover .fvs-thumb-quicksave, .fvs-thumb-quicksave:focus-visible { opacity: 1; }
+  .fvs-thumb-quicksave:hover { border-color: var(--tool); background: var(--tool); color: var(--paper); }
+  .fvs-thumb-quicksave.saved { opacity: 1; border-color: var(--tool); background: var(--tool); color: var(--paper); }
+  /* Hovering an already-saved ✓ previews the delete it's about to do. */
+  .fvs-thumb-quicksave.saved.delete-hover { border-color: var(--danger); background: var(--danger); color: var(--paper); }
+  /* Edit-structure — same hover-reveal circle as quick-save, one slot to
+     its left (4px + 20px + 3px gap), neutral --ink on hover rather than
+     --tool's green so it reads as a distinct action from Save. */
+  .fvs-thumb-edit {
+    position: absolute; top: 4px; right: 27px; width: 20px; height: 20px;
+    border-radius: 50%; border: 1px solid var(--border); background: var(--paper); color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    padding: 0; cursor: pointer;
+    opacity: 0; transition: opacity 0.12s, border-color 0.12s, background 0.12s, color 0.12s;
+  }
+  .fvs-thumb-wrap:hover .fvs-thumb-edit, .fvs-thumb-edit:focus-visible { opacity: 1; }
+  .fvs-thumb-edit:hover { border-color: var(--ink); background: var(--ink); color: var(--paper); }
   .fvs-thumb-caption, .fvs-library-caption { font-size: var(--fs-micro); color: var(--mid); line-height: var(--lh-snug); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fvs-library-caption { display: block; width: 76px; margin-top: var(--space-1); }
   .fvs-library-rename { width: 64px; padding: 0; border: 0; background: none; text-align: left; cursor: text; font-family: var(--font); }
@@ -150,6 +195,17 @@
   #fvs-draw-canvas { position: absolute; top: 0; left: 0; display: none; }
   .fvs-element-frame.drawing #fh-grid { display: block; }
   .fvs-element-frame.drawing #fvs-draw-canvas { display: block; }
+
+  /* Component Edit mode — a big single-component view + a toolbar row above
+     it. Reuses .fvs-element-frame for the same square-canvas footprint as
+     the Element tier's own big preview. */
+  #component-edit-view { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); width: 100%; }
+  #component-edit-toolbar { display: flex; align-items: center; gap: var(--space-3); width: min(60vh, 70vw); }
+  #component-edit-toolbar .hint { flex: 1; text-align: center; }
+  #component-edit-toolbar #btn-component-edit-save { width: auto; padding: 0 var(--space-4); }
+  #component-edit-frame svg { width: 100%; height: 100%; display: block; }
+  #component-edit-frame [data-cell-index] { cursor: pointer; }
+  #component-edit-frame [data-cell-index]:hover { fill: color-mix(in srgb, var(--tool) 8%, transparent); }
 
   /* Grid tier — tiles one saved Symbol across a bigger grid. Reuses the
      gallery-empty pattern from the Component tier. */
@@ -364,6 +420,19 @@
       </div>
       <div id="gallery-status"></div>
       <div id="gallery"></div>
+      <!-- Component Edit mode — a big single-component view, shown instead of
+           #gallery while state.componentEditMode is true. Each cell is
+           clickable (data-cell-index hit layer, same pattern as Symbol's own
+           #symbol-frame); the selected cell's own shape edits live from the
+           Element sidebar panel, temporarily swapped into view. -->
+      <div id="component-edit-view" style="display:none">
+        <div id="component-edit-toolbar">
+          <button type="button" id="btn-component-edit-exit" class="mini-btn">← Back to gallery</button>
+          <span id="component-edit-hint" class="hint">Click a cell to give it its own shape</span>
+          <button type="button" id="btn-component-edit-save" class="panel-btn">Save as new component</button>
+        </div>
+        <div id="component-edit-frame" class="fvs-element-frame"></div>
+      </div>
     </div>
     <div class="tier-view" data-tier="symbol">
       <div id="symbol-frame"></div>
@@ -1112,10 +1181,6 @@
     <input type="file" id="file-loom-grid" accept=".json,application/json" aria-label="Upload Loom grid JSON" class="org-file-input">
 
     <div class="tier-block" data-tier="component">
-    <div class="panel-step-head">
-      <div class="panel-step-head__title">Component <span class="hint">step 2 of 4</span></div>
-      <p class="panel-step-head__desc">Repeat the Element across a small grid with a symmetry rule, to produce a Component you can save and reuse.</p>
-    </div>
     <div class="panel-section">
       <h3>Grid <span class="hint" id="grid-cellcount-hint">4 cells</span></h3>
       <div class="ctrl-row">
@@ -1142,13 +1207,8 @@
         <button class="mini-btn" id="btn-upload-loom" style="width:100%">Upload Loom grid JSON…</button>
         <div id="loom-grid-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       </div>
-      <p class="org-panel__hint">Square grids use Cell size/Gap directly. A Loom import uses that grid's own saved cell geometry (rect or polygon) exactly as exported — Cell size/Gap don't apply to it. Named symmetry rules (Pinwheel/Mirror/Diagonal/Checkerboard/Row/Column/Radial) only make sense for a 4-cell grid and grey out otherwise — Identity/Horizontal lines/Vertical lines/Oscillator/Random/Exhaustive/Manual work at any cell count.</p>
     </div>
 
-    <div class="panel-step-head">
-      <div class="panel-step-head__title">Repetition</div>
-      <p class="panel-step-head__desc">Choose which properties vary, then pick a symmetry rule.</p>
-    </div>
     <div class="panel-section">
       <h3>Transform axes <span class="hint">Random + Exhaustive only</span></h3>
       <label class="check-row"><input type="checkbox" id="chk-axis-rotation" checked><span>Rotation (0/90/180/270°)</span></label>
@@ -1171,7 +1231,6 @@
           <span class="ctrl-val" id="v-scale-large">125</span>
         </div>
       </div>
-      <p class="org-panel__hint">Named rules (Identity/Pinwheel/Mirror/Diagonal/Checkerboard) use their own fixed pattern and ignore these. Random and Exhaustive instead pick from a small library of symmetric arrangements built from these same rules — active axes gate which arrangements are eligible (Pinwheel/Diagonal need Rotation, Mirror needs Flip, Checkerboard needs any one) and how much each varies. Every result is still a real symmetry, never 4 independently-chosen cells — that's deliberate, it's what keeps Random/Exhaustive from looking like noise.</p>
     </div>
 
     <div class="panel-section">
@@ -1274,7 +1333,6 @@
           <button class="mini-btn" id="btn-remove-underlying-component">Remove</button>
         </div>
       </div>
-      <p class="org-panel__hint">Container shows a picked Component only inside this one's own silhouette; Mask shows it everywhere except inside — a real hole. Applies to every generated candidate below and bakes into Save/export.</p>
     </div>
 
     <div class="panel-section">
@@ -1841,8 +1899,22 @@ const printSizePanel = Organica.printSizePanel(document.getElementById('print-si
 });
 
 const state = {
-  components: [],   // [{id, ruleSource, cells:[{rotation,flipH,flipV,scale} x4]}]
+  components: [],   // [{id, ruleSource, cells:[{rotation,flipH,flipV,scale,content} x4]}]
+                     // cell.content: null (default, follow the shared Element) or
+                     // {source:'seed', seedType, seedParams} — set live in Component Edit mode
   selectedId: null,
+  selectionExplicit: false,   // true once selectedId was set by a real action (click/Generate/quick-save/Library load), not just the starter gallery's own passive default — gates the .selected border in renderGallery()
+  // ── Component Edit mode — a big single-component view (enterComponentEditMode)
+  // where each cell is clickable and, once selected, the Element sidebar edits
+  // THAT cell's own shape live. Editing never mutates the source component —
+  // "Save as new" (saveComponentEditAsNew) pushes a fresh gallery candidate.
+  componentEditMode: false,
+  componentEditId: null,          // the component being edited FROM (read-only source, never mutated)
+  componentEditCells: null,       // working copy of cells, edited in place while in this mode
+  componentEditGrid: null,        // grid snapshot at entry — fixed for the duration (per design decision)
+  componentEditSelectedCell: null,   // index into componentEditCells, or null
+  componentEditDefaultSeed: null,    // seedForSnapshot() frozen at entry — the shared Element every non-overridden cell keeps using
+  componentEditDefaultAppearance: null,   // getElementAppearance() frozen at entry — same idea, for Style/Width/Length/Scale/Move
   componentAutoGenerated: null,       // null = never populated this session; true = the current gallery is the live, untouched starter set; false = the user did something explicit (Generate/Manual/Clear/a Library load)
   componentAutoGenSignature: null,    // signature of (seed, appearance, cell count) at the moment the starter set was last (re)built
   colors: ['#000000'],   // the centralised Palette (Ink) — see buildPalette()/colorAt() below
@@ -2038,7 +2110,14 @@ const SEED_TYPES = {
   freehandraw: { label: 'Freehand (raw)', geometry: () => ({ d: (state.freehand && state.freehand.raw) || '', normTx: 0, normTy: 0, normScale: 1 }) },
   custom: {
     label: 'Custom (uploaded)',
-    geometry: () => state.customSeed || { d: '', normTx: 0, normTy: 0, normScale: 1 },
+    // Same convention as 'freehand' just above: prefer the snapshot's OWN
+    // customSeed (a per-cell content override in Component Edit mode) and
+    // only fall back to the live global upload when none was passed — a
+    // plain `() => state.customSeed` here (the previous body) ignored its
+    // argument entirely, so every cell showing an uploaded shape displayed
+    // whatever was CURRENTLY uploaded, all changing together regardless of
+    // which cell's content was actually selected.
+    geometry: (p) => (p && p.customSeed) || state.customSeed || { d: '', normTx: 0, normTy: 0, normScale: 1 },
   },
 };
 // ── Inner seed: N nested copies of ANY Seed inside itself (Arc truchet's
@@ -3060,7 +3139,17 @@ function buildComponentItems(component, grid) {
     cx: centers[i].cx, cy: centers[i].cy,
     rotation: t.rotation, flipH: t.flipH, flipV: t.flipV, scale: t.scale,
     cellSize: centers[i].cellSize, color: ruleInk(i, cr),
+    content: t.content || null,
   }));
+}
+
+// A cell's own content override (Component Edit mode) replaces the shared
+// Element's geometry for that one item; every other item keeps using the
+// ONE `defaultGeo` computed once per render — a component with no edited
+// cells renders byte-identical to before this existed.
+function resolveItemGeo(item, defaultGeo) {
+  if (!item.content) return defaultGeo;
+  return SEED_TYPES[item.content.seedType].geometry(item.content.seedParams);
 }
 
 // Per-cell {col,row,cols,rows,cx,cy,nx,ny,angle,index,count} for the
@@ -3101,6 +3190,11 @@ function resolveUnderlyingComponent(name) {
 // Scale + Move ride on the same Element-level transform as Width/Length.
 const stretchOpts = a => ({ scale: a.scale, mx: a.mx, my: a.my });
 const appearanceIsIdentity = a => a.w === 1 && a.l === 1 && (a.scale == null || a.scale === 1) && !a.mx && !a.my;
+// Deliberately still `geo` here, not resolveItemGeo(it, geo) — a per-cell
+// content override (Component Edit mode) changes what a cell PAINTS, not
+// the Container/Mask boundary silhouette, which stays the shared Element's
+// outline for every cell regardless. Mixing per-cell shapes into the clip
+// itself is a real, separate idea, out of scope for this pass.
 function componentBoundaryClipContent(items, geo, half) {
   const a = getElementAppearance();
   const stretch = Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a));
@@ -3196,20 +3290,36 @@ function componentBoundaryMaskContent(items, geo, half) {
 
 function drawItemsPlain(ctx, itemsToDraw, geo, path, boxSize) {
   const half = boxSize / 2;
+  const overrideCache = new Map();   // seedType|params → {geo,path}, so several cells sharing one override don't re-tessellate
   for (const it of itemsToDraw) {
-    ctx.save();
-    ctx.translate(half + it.cx, half + it.cy);
-    ctx.rotate(it.rotation * Math.PI / 180);
-    const fit = it.cellSize / 100;
-    ctx.scale((it.flipH ? -1 : 1) * it.scale * fit, (it.flipV ? -1 : 1) * it.scale * fit);
-    ctx.translate(-50, -50);
-    applyElementStretchCanvas(ctx);
-    ctx.translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale);
-    ctx.scale(geo.normScale, geo.normScale);
-    const a = getElementAppearance();
-    const op = Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: a.fillMode, color: it.color, strokeW: a.strokeW, rounded: a.rounded });
-    paintPath(ctx, op, path, geo);
-    ctx.restore();
+    let itGeo = geo, itPath = path;
+    if (it.content) {
+      const key = it.content.seedType + '|' + JSON.stringify(it.content.seedParams || null);
+      let hit = overrideCache.get(key);
+      if (!hit) { const g = resolveItemGeo(it, geo); hit = { geo: g, path: new Path2D(g.d) }; overrideCache.set(key, hit); }
+      itGeo = hit.geo; itPath = hit.path;
+    }
+    const drawOne = () => {
+      ctx.save();
+      ctx.translate(half + it.cx, half + it.cy);
+      ctx.rotate(it.rotation * Math.PI / 180);
+      const fit = it.cellSize / 100;
+      ctx.scale((it.flipH ? -1 : 1) * it.scale * fit, (it.flipV ? -1 : 1) * it.scale * fit);
+      ctx.translate(-50, -50);
+      applyElementStretchCanvas(ctx);   // reads getElementAppearance() itself — must run inside the withAppearance below too
+      ctx.translate(itGeo.normTx * itGeo.normScale, itGeo.normTy * itGeo.normScale);
+      ctx.scale(itGeo.normScale, itGeo.normScale);
+      const a = getElementAppearance();
+      const op = Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: a.fillMode, color: it.color, strokeW: a.strokeW, rounded: a.rounded });
+      paintPath(ctx, op, itPath, itGeo);
+      ctx.restore();
+    };
+    // A cell with its own content carries its own Appearance snapshot too
+    // (Component Edit mode) — withAppearance makes every getElementAppearance()
+    // read inside drawOne() (including applyElementStretchCanvas's own) see
+    // that snapshot instead of the live/global panel, for this item only.
+    if (it.content && it.content.appearance) withAppearance(it.content.appearance, drawOne);
+    else drawOne();
   }
 }
 
@@ -3302,7 +3412,7 @@ function buildComponentSVGBody(items, seed, size) {
       const fit = it.cellSize / 100;
       const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
       underBody += `<g transform="translate(${(under.size / 2 + it.cx).toFixed(2)},${(under.size / 2 + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
-        + withAppearance(under.appearance, () => elementPathMarkup(underGeo, it.color)) + `</g>`;
+        + withAppearance(under.appearance, () => elementPathMarkup(resolveItemGeo(it, underGeo), it.color)) + `</g>`;
     }
     // fitScale maps the underlying Component's own frame exactly onto this
     // one's (size = under.size * fitScale by construction) — a plain
@@ -3323,8 +3433,18 @@ function buildComponentSVGBody(items, seed, size) {
       const fit = it.cellSize / 100;
       const sx = (it.flipH ? -1 : 1) * it.scale * fit;
       const sy = (it.flipV ? -1 : 1) * it.scale * fit;
+      // A cell with its own content carries its own Appearance snapshot too
+      // (Component Edit mode) — withAppearance makes elementPathMarkup's own
+      // getElementAppearance() read see that snapshot instead of the live/
+      // global panel, for this one item only; every other item keeps
+      // reading whatever appearance is already in effect for this whole
+      // call (the live panel normally, or componentEditDefaultAppearance
+      // while renderComponentEditCanvas has it wrapped).
+      const markup = (it.content && it.content.appearance)
+        ? withAppearance(it.content.appearance, () => elementPathMarkup(resolveItemGeo(it, geo), it.color))
+        : elementPathMarkup(resolveItemGeo(it, geo), it.color);
       body += `<g transform="translate(${(half + it.cx).toFixed(2)},${(half + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
-        + elementPathMarkup(geo, it.color) + `</g>`;
+        + markup + `</g>`;
     }
   }
   return body;
@@ -3494,6 +3614,10 @@ function exportElement(format) {
 
 // ── Gallery ──
 function renderGallery() {
+  // Component Edit mode owns the view while active (renderComponentEditCanvas
+  // is its own render path) — a reactive renderGallery() call from elsewhere
+  // (e.g. a Palette edit) must not repaint the hidden #gallery underneath it.
+  if (state.componentEditMode) return;
   const gallery = ctrl('gallery');
   const empty = ctrl('gallery-empty');
   const grid = getGrid();
@@ -3544,23 +3668,226 @@ function renderGallery() {
     const items = buildComponentItems(comp, grid);
     const svgStr = buildComponentSVG(items, seed, size);
     const btn = document.createElement('button');
-    btn.className = 'fvs-thumb' + (comp.id === state.selectedId ? ' selected' : '');
+    const isSelected = comp.id === state.selectedId && state.selectionExplicit;
+    btn.className = 'fvs-thumb' + (isSelected ? ' selected' : '') + (comp.savedName ? ' saved-in-library' : '');
     btn.setAttribute('aria-label', `Component ${comp.ruleSource} ${comp.id}`);
     btn.innerHTML = svgStr;
-    btn.addEventListener('click', () => { state.selectedId = comp.id; renderGallery(); });
+    btn.addEventListener('click', () => { state.selectedId = comp.id; state.selectionExplicit = true; renderGallery(); });
     // Caption = the rule that made it + each cell's rotation (f = flipped),
     // so two look-alike candidates can be told apart without opening them.
     const caption = componentCaption(comp);
     btn.title = caption;
     const wrap = document.createElement('div');
     wrap.className = 'fvs-thumb-wrap';
+    // Hover-only quick-save — a sibling of the thumb button, not nested in
+    // it (a <button> inside a <button> is invalid HTML), positioned over
+    // its top-right corner by .fvs-thumb-wrap's own `position: relative`.
+    // Once a candidate is saved (comp.savedName), the ✓ stays put — no
+    // fade, no revert to "+" — since renderGallery() rebuilds this button
+    // from comp.savedName on every re-render, not from transient DOM state.
+    // Hovering that ✓ swaps it to a delete "×" (mouseenter/leave, not CSS
+    // content, since the label/title need to change too for a11y) — a
+    // click then removes the saved entry instead of re-saving it.
+    const quickSave = document.createElement('button');
+    quickSave.type = 'button';
+    quickSave.className = 'fvs-thumb-quicksave' + (comp.savedName ? ' saved' : '');
+    const qsLabelSaved = `Saved to library as "${comp.savedName}"`;
+    quickSave.setAttribute('aria-label', comp.savedName ? qsLabelSaved : 'Save to library');
+    quickSave.title = comp.savedName ? qsLabelSaved : 'Save to library';
+    quickSave.textContent = comp.savedName ? '✓' : '+';
+    if (comp.savedName) {
+      quickSave.addEventListener('mouseenter', () => {
+        quickSave.textContent = '×'; quickSave.classList.add('delete-hover');
+        quickSave.setAttribute('aria-label', 'Remove from library'); quickSave.title = 'Remove from library';
+      });
+      quickSave.addEventListener('mouseleave', () => {
+        quickSave.textContent = '✓'; quickSave.classList.remove('delete-hover');
+        quickSave.setAttribute('aria-label', qsLabelSaved); quickSave.title = qsLabelSaved;
+      });
+    }
+    quickSave.addEventListener('click', e => {
+      e.stopPropagation();
+      if (comp.savedName) deleteQuickSavedComponent(comp.id);
+      else quickSaveComponentToLibrary(comp.id);
+    });
+    // Hover-only edit — sits directly left of the save circle, same reveal
+    // behaviour. Jumps into Manual mode pre-loaded with THIS candidate's
+    // own per-cell rotation/flip/scale, so you can start from what's
+    // already there instead of building a new arrangement from scratch.
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'fvs-thumb-edit';
+    editBtn.setAttribute('aria-label', 'Edit component structure');
+    editBtn.title = 'Edit component structure';
+    editBtn.innerHTML = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M11.3 2.3l2.4 2.4L5.2 13.2l-3.1.6.6-3.1 8.6-8.4z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    editBtn.addEventListener('click', e => { e.stopPropagation(); enterComponentEditMode(comp.id); });
     const cap = document.createElement('span');
     cap.className = 'fvs-thumb-caption';
     cap.textContent = caption;
-    wrap.append(btn, cap);
+    wrap.append(btn, editBtn, quickSave, cap);
     gallery.appendChild(wrap);
   }
   syncPlayEnabled();
+}
+
+// ── Component Edit mode ──────────────────────────────────────────────────
+// A big single-component view (state.componentEditMode) where every cell is
+// clickable; the selected cell's own shape can then be edited LIVE from the
+// Element sidebar panel (temporarily swapped into view in place of the
+// Component tier's own Grid/Rule panel). Never mutates the source component
+// — componentEditCells is a working copy, and "Save as new component" pushes
+// a fresh gallery candidate, leaving the original untouched.
+function enterComponentEditMode(compId) {
+  const comp = state.components.find(c => c.id === compId);
+  if (!comp) return;
+  state.selectedId = comp.id;
+  state.selectionExplicit = true;
+  state.componentEditMode = true;
+  state.componentEditId = compId;
+  // A per-cell shallow copy, NOT structuredClone(comp.cells) — some rule
+  // generators (confirmed live: checkerboard) build their cells array with
+  // two slots pointing at the SAME object (harmless until now, since
+  // nothing ever mutated one cell in place). structuredClone faithfully
+  // preserves that aliasing, so editing "cell 0" would silently also edit
+  // whichever other index shares its object. map(c => ({...c})) guarantees
+  // every slot is its own independent object regardless.
+  state.componentEditCells = comp.cells.map(c => ({ ...c }));
+  state.componentEditGrid = structuredClone(getGrid());
+  state.componentEditSelectedCell = null;
+  // Frozen once, at entry — every non-overridden cell's DEFAULT shape must
+  // stay this, even while the same physical Seed panel is being reused as
+  // the SELECTED cell's own scratch pad (selectComponentEditCell/
+  // componentEditLiveBind write into cell.content, they never touch this).
+  // Without freezing it, moving a slider would change every un-edited
+  // cell's shape too, since they'd otherwise read the live (now-scratch)
+  // panel same as before this mode existed.
+  state.componentEditDefaultSeed = seedForSnapshot();
+  state.componentEditDefaultAppearance = getElementAppearance();   // same freezing, for Style/Width/Length/Scale/Move
+  // Grid is fixed for the duration of the edit (a resize could invalidate
+  // cells mid-edit) — disable the controls that would change it.
+  ctrl('sel-grid-type').disabled = true;
+  ctrl('sel-rule').disabled = true;
+  ctrl('gallery').classList.remove('visible');
+  ctrl('gallery-empty').style.display = 'none';
+  ctrl('gallery-status').textContent = '';
+  ctrl('component-edit-view').style.display = 'flex';
+  renderComponentEditCanvas();
+}
+
+function exitComponentEditMode() {
+  // The panel was repurposed as the selected cell's own scratch pad —
+  // restore it to the real shared Element before leaving, so normal
+  // Element-tier editing (and the next cell you select) doesn't inherit
+  // whatever the last-edited cell happened to be showing.
+  if (state.componentEditDefaultSeed) applySeedToPanel(state.componentEditDefaultSeed);
+  if (state.componentEditDefaultAppearance) applyAppearanceToUI(state.componentEditDefaultAppearance);
+  state.componentEditMode = false;
+  state.componentEditId = null;
+  state.componentEditCells = null;
+  state.componentEditGrid = null;
+  state.componentEditSelectedCell = null;
+  state.componentEditDefaultSeed = null;
+  state.componentEditDefaultAppearance = null;
+  ctrl('sel-grid-type').disabled = false;
+  ctrl('sel-rule').disabled = false;
+  ctrl('component-edit-view').style.display = 'none';
+  const compBlock = document.querySelector('.tier-block[data-tier="component"]');
+  const elBlock = document.querySelector('.tier-block[data-tier="element"]');
+  if (compBlock) compBlock.classList.add('active');
+  if (elBlock) elBlock.classList.remove('active');
+  renderGallery();
+  renderSeedPreview();
+}
+
+// Pushes a brand-new gallery candidate carrying the edited cells, then
+// leaves edit mode — the component being edited FROM is never touched.
+function saveComponentEditAsNew() {
+  if (!state.componentEditMode) return;
+  const newComp = { id: `edit-${Date.now()}`, ruleSource: 'edited', cells: structuredClone(state.componentEditCells) };
+  pushUndo();
+  state.components.push(newComp);
+  state.selectedId = newComp.id;
+  state.selectionExplicit = true;
+  state.componentAutoGenerated = false;
+  exitComponentEditMode();
+}
+
+// The big canvas: buildComponentSVGBody's normal visual output plus an
+// invisible (or, for the selected cell, outlined) hit-rect per cell —
+// exactly Symbol's own data-cell-index pattern, just built as an overlay
+// layer instead of threading the attribute through every <g> in the body.
+function componentEditHitLayer(items, size) {
+  const half = size / 2;
+  return items.map((it, i) => {
+    const x = half + it.cx - it.cellSize / 2, y = half + it.cy - it.cellSize / 2;
+    const sel = i === state.componentEditSelectedCell;
+    const style = sel ? 'fill:transparent;stroke:var(--tool);stroke-width:3px;' : 'fill:transparent;';
+    return `<rect data-cell-index="${i}" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${it.cellSize}" height="${it.cellSize}" style="${style}"/>`;
+  }).join('');
+}
+
+function renderComponentEditCanvas() {
+  if (!state.componentEditMode) return;
+  const grid = state.componentEditGrid;
+  const seed = state.componentEditDefaultSeed;   // frozen — see enterComponentEditMode's comment
+  const size = frameSize(grid);
+  const items = buildComponentItems({ cells: state.componentEditCells }, grid);
+  // Frozen default Appearance for the whole call (every non-overridden cell) —
+  // an overridden cell's own withAppearance (inside buildComponentSVGBody's
+  // per-item loop) nests inside this one and wins for just that item.
+  const body = withAppearance(state.componentEditDefaultAppearance, () => buildComponentSVGBody(items, seed, size));
+  const hit = componentEditHitLayer(items, size);
+  ctrl('component-edit-frame').innerHTML =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${body}${hit}</svg>`;
+  const cell = state.componentEditSelectedCell;
+  ctrl('component-edit-hint').textContent = cell == null
+    ? 'Click a cell to give it its own shape'
+    : `Editing cell ${cell + 1} — adjust the Seed panel on the right`;
+}
+
+// Selecting a cell swaps the sidebar to the Element panel and loads that
+// cell's own content (or, if it has none yet, leaves the panel exactly as
+// it already reads — a reasonable starting point for a first edit).
+function selectComponentEditCell(i) {
+  if (!state.componentEditMode) return;
+  state.componentEditSelectedCell = i;
+  const cell = state.componentEditCells[i];
+  if (cell.content) {
+    applySeedToPanel(cell.content.seedParams);
+    applyAppearanceToUI(cell.content.appearance || state.componentEditDefaultAppearance);
+  }
+  const compBlock = document.querySelector('.tier-block[data-tier="component"]');
+  const elBlock = document.querySelector('.tier-block[data-tier="element"]');
+  if (compBlock) compBlock.classList.remove('active');
+  if (elBlock) elBlock.classList.add('active');
+  renderComponentEditCanvas();
+}
+
+ctrl('component-edit-frame').addEventListener('click', e => {
+  const hit = e.target.closest('[data-cell-index]');
+  if (!hit) return;
+  selectComponentEditCell(parseInt(hit.dataset.cellIndex, 10));
+});
+ctrl('btn-component-edit-exit').addEventListener('click', exitComponentEditMode);
+ctrl('btn-component-edit-save').addEventListener('click', saveComponentEditAsNew);
+
+// Live binding: any edit inside the Element sidebar, while a cell is
+// selected in Component Edit mode, writes straight into that cell's own
+// content and re-renders — delegated on the whole panel (fires in the
+// bubble phase, after each control's own input/change listener already ran
+// its usual job), so no individual Seed slider needs touching.
+ctrl('panel').addEventListener('input', componentEditLiveBind);
+ctrl('panel').addEventListener('change', componentEditLiveBind);
+function componentEditLiveBind(e) {
+  if (!state.componentEditMode || state.componentEditSelectedCell == null) return;
+  if (!e.target.closest('.tier-block[data-tier="element"]')) return;
+  const cell = state.componentEditCells[state.componentEditSelectedCell];
+  // Appearance (Style/Width/Length/Scale/Move) rides along in the same
+  // snapshot as the shape — the Element panel is this cell's own scratch
+  // pad while it's selected, so everything you touch in it (not just the
+  // Seed section) belongs to that one cell, not the whole Component.
+  cell.content = { source: 'seed', seedType: getSeed().type, seedParams: seedForSnapshot(), appearance: getElementAppearance() };
+  renderComponentEditCanvas();
 }
 
 function componentCaption(comp) {
@@ -3670,14 +3997,14 @@ function buildManualEditor() {
 const UNDO_MAX = 20;
 const undoStack = [];
 function pushUndo() {
-  undoStack.push(structuredClone({ components: state.components, selectedId: state.selectedId, tile: state.fvsGridComponentName, auto: state.componentAutoGenerated, sig: state.componentAutoGenSignature }));
+  undoStack.push(structuredClone({ components: state.components, selectedId: state.selectedId, explicit: state.selectionExplicit, tile: state.fvsGridComponentName, auto: state.componentAutoGenerated, sig: state.componentAutoGenSignature }));
   if (undoStack.length > UNDO_MAX) undoStack.shift();
   syncUndoUI();
 }
 function undoComponents() {
   const snap = undoStack.pop();
   if (!snap) return;
-  state.components = snap.components; state.selectedId = snap.selectedId; state.fvsGridComponentName = snap.tile;
+  state.components = snap.components; state.selectedId = snap.selectedId; state.selectionExplicit = !!snap.explicit; state.fvsGridComponentName = snap.tile;
   state.componentAutoGenerated = snap.auto; state.componentAutoGenSignature = snap.sig;
   renderGallery(); syncUndoUI();
 }
@@ -3779,7 +4106,15 @@ function populateComponentStarterGallery() {
     }
   }
   state.components = picks;
+  // selectedId still defaults to the first candidate — Save/Tile/Export etc.
+  // all read getSelectedComponent() and several other tests/recipes rely on
+  // a fresh tier entry already having a working default target. What
+  // changes is state.selectionExplicit (false here): the starter gallery's
+  // own pick is a passive default nobody has looked at yet, so it renders
+  // with NO visible border (see renderGallery()'s isSelected) until a real
+  // action — a click, Generate, quick-save, a Library load — happens.
   state.selectedId = picks.length ? picks[0].id : null;
+  state.selectionExplicit = false;
   state.componentAutoGenerated = true;
   state.componentAutoGenSignature = componentElementSignature();
   renderGallery();
@@ -3810,6 +4145,7 @@ function generate() {
       const comp = { id: `manual-${Date.now()}`, ruleSource: 'manual', cells: readManualCells() };
       state.components.push(comp);
       state.selectedId = comp.id;
+      state.selectionExplicit = true;
       state.componentAutoGenerated = false;
       renderGallery();
       return;
@@ -3818,6 +4154,7 @@ function generate() {
   pushUndo();
   state.components = produced;
   state.selectedId = produced.length ? produced[0].id : null;
+  state.selectionExplicit = true;
   state.componentAutoGenerated = false;
   renderGallery();
 }
@@ -3826,6 +4163,7 @@ function clearGallery() {
   pushUndo();
   state.components = [];
   state.selectedId = null;
+  state.selectionExplicit = false;
   state.componentAutoGenerated = false;
   renderGallery();
 }
@@ -3951,8 +4289,7 @@ function pruneAutoLibraryEntries() {
   LIBRARY.write(all);
 }
 
-function buildLibraryEntry() {
-  const comp = getSelectedComponent();
+function buildLibraryEntryFor(comp) {
   if (!comp) return null;
   return {
     seed: seedForSnapshot(),
@@ -3966,6 +4303,61 @@ function buildLibraryEntry() {
     underlyingComponentName: state.underlyingComponentName,
     savedAt: new Date().toISOString(),
   };
+}
+function buildLibraryEntry() { return buildLibraryEntryFor(getSelectedComponent()); }
+
+// The same "<rule> <time>" convention saveToLibrary() pre-fills the name
+// row with — quick-save just commits it immediately instead of asking.
+// Two quick-saves in the same second (or off two candidates that share a
+// rule) would otherwise collide and silently overwrite one another, so a
+// taken name gets " (2)", " (3)"… appended, same idea as a filesystem's
+// own "file (1).txt" convention.
+function uniqueLibraryName(base) {
+  const all = LIBRARY.read();
+  if (!all[base]) return base;
+  let i = 2;
+  while (all[`${base} (${i})`]) i++;
+  return `${base} (${i})`;
+}
+
+// One-click save straight from a gallery thumbnail's own hover button —
+// no name prompt, unlike "Save selected to library" below (which stays
+// for when you actually want to pick your own name). Saves whichever
+// candidate the button sits on, not necessarily the selected one — but
+// also SELECTS it (an explicit action, same as clicking the thumbnail
+// itself would), so the saved thumbnail keeps the normal selected border
+// on top of its own persistent 3px "saved" marker. The ✓ + border both
+// persist through any later renderGallery() re-render (grid resize,
+// Element change, undo…) since they're read from comp.savedName /
+// state.selectedId, not a transient timeout. Once saved, the same button
+// becomes a delete toggle (deleteQuickSavedComponent below) — a fresh save
+// always mints a new entry (or dedupes), it never silently overwrites an
+// existing one.
+function quickSaveComponentToLibrary(compId) {
+  const comp = state.components.find(c => c.id === compId);
+  const entry = buildLibraryEntryFor(comp);
+  if (!entry) return;
+  const name = uniqueLibraryName(comp.ruleSource + ' ' + new Date().toLocaleTimeString());
+  const all = LIBRARY.read();
+  all[name] = entry;
+  LIBRARY.write(all);
+  state.selectedId = comp.id;
+  state.selectionExplicit = true;
+  comp.savedName = name;
+  renderLibrary();
+  renderGallery();
+}
+
+// The saved ✓'s own hover-delete affordance — removes the library entry
+// this candidate was saved as (reuses removeLibraryEntry, the same one
+// the Library section's own "×" tile calls), then clears the marker so
+// the thumbnail's button reverts to a plain hover-only "+".
+function deleteQuickSavedComponent(compId) {
+  const comp = state.components.find(c => c.id === compId);
+  if (!comp || !comp.savedName) return;
+  removeLibraryEntry(comp.savedName);
+  comp.savedName = null;
+  renderGallery();
 }
 
 // A native prompt() is a real, silent failure point: it throws (rather
@@ -4010,56 +4402,62 @@ function removeLibraryEntry(name) {
   renderLibrary();
 }
 
-function applyLibraryEntryToUI(entry) {
-  ctrl('sel-seed-type').value = entry.seed.type;
-  if (entry.seed.type === 'custom' && !ctrl('sel-seed-type').querySelector('option[value="custom"]')) {
+// Restores every Seed-panel control (type + all its rg-*/sel-* params) from
+// a plain seed object — extracted out of applyLibraryEntryToUI (which still
+// calls this first thing) so Component Edit mode's cell-select can reuse the
+// exact same restore logic without also touching grid/palette/role, which
+// applyLibraryEntryToUI does right after this. Pure refactor: byte-identical
+// behaviour, verified against the regression suite.
+function applySeedToPanel(seed) {
+  ctrl('sel-seed-type').value = seed.type;
+  if (seed.type === 'custom' && !ctrl('sel-seed-type').querySelector('option[value="custom"]')) {
     const opt = document.createElement('option');
     opt.value = 'custom'; opt.textContent = 'Custom (uploaded)';
     ctrl('sel-seed-type').appendChild(opt);
     ctrl('sel-seed-type').value = 'custom';
   }
-  state.customSeed = entry.seed.customSeed || null;
-  ctrl('rg-base').value = entry.seed.base; ctrl('v-base').textContent = entry.seed.base;
-  ctrl('rg-height').value = entry.seed.height; ctrl('v-height').textContent = entry.seed.height;
-  if (entry.seed.triApex != null) { const pos = Math.round((Math.max(-100, Math.min(100, entry.seed.triApex)) + 100) / 2); ctrl('rg-tri-apex').value = pos; ctrl('v-tri-apex').textContent = pos; }
+  state.customSeed = seed.customSeed || null;
+  ctrl('rg-base').value = seed.base; ctrl('v-base').textContent = seed.base;
+  ctrl('rg-height').value = seed.height; ctrl('v-height').textContent = seed.height;
+  if (seed.triApex != null) { const pos = Math.round((Math.max(-100, Math.min(100, seed.triApex)) + 100) / 2); ctrl('rg-tri-apex').value = pos; ctrl('v-tri-apex').textContent = pos; }
   else { ctrl('rg-tri-apex').value = 50; ctrl('v-tri-apex').textContent = 50; }
-  ctrl('rg-thickness').value = entry.seed.thickness; ctrl('v-thickness').textContent = entry.seed.thickness;
-  if (entry.seed.arcCount != null) { ctrl('rg-arc-count').value = entry.seed.arcCount; ctrl('v-arc-count').textContent = entry.seed.arcCount; }
-  if (entry.seed.arcRatio != null) { const pct = Math.round(entry.seed.arcRatio * 100); ctrl('rg-arc-ratio').value = pct; ctrl('v-arc-ratio').textContent = pct; }
-  if (entry.seed.wedgeAngle != null) { ctrl('rg-wedge-angle').value = entry.seed.wedgeAngle; ctrl('v-wedge-angle').textContent = entry.seed.wedgeAngle; }
-  if (entry.seed.wedgeInner != null) { ctrl('rg-wedge-inner').value = entry.seed.wedgeInner; ctrl('v-wedge-inner').textContent = entry.seed.wedgeInner; }
-  if (entry.seed.wedgeSquash != null) { ctrl('rg-wedge-squash').value = entry.seed.wedgeSquash; ctrl('v-wedge-squash').textContent = entry.seed.wedgeSquash; }
+  ctrl('rg-thickness').value = seed.thickness; ctrl('v-thickness').textContent = seed.thickness;
+  if (seed.arcCount != null) { ctrl('rg-arc-count').value = seed.arcCount; ctrl('v-arc-count').textContent = seed.arcCount; }
+  if (seed.arcRatio != null) { const pct = Math.round(seed.arcRatio * 100); ctrl('rg-arc-ratio').value = pct; ctrl('v-arc-ratio').textContent = pct; }
+  if (seed.wedgeAngle != null) { ctrl('rg-wedge-angle').value = seed.wedgeAngle; ctrl('v-wedge-angle').textContent = seed.wedgeAngle; }
+  if (seed.wedgeInner != null) { ctrl('rg-wedge-inner').value = seed.wedgeInner; ctrl('v-wedge-inner').textContent = seed.wedgeInner; }
+  if (seed.wedgeSquash != null) { ctrl('rg-wedge-squash').value = seed.wedgeSquash; ctrl('v-wedge-squash').textContent = seed.wedgeSquash; }
   [['wedgeRound', 'round', 0], ['wedgeRotate', 'rotate', 0], ['wedgeCurve', 'curve', 0], ['wedgeIrregular', 'irregular', 0], ['wedgeSeed', 'seed', 1]].forEach(([k, id, def]) => {
-    const v = entry.seed[k] != null ? entry.seed[k] : def;
+    const v = seed[k] != null ? seed[k] : def;
     ctrl('rg-wedge-' + id).value = v; ctrl('v-wedge-' + id).textContent = v;
   });
-  if (entry.seed.polySides != null) { ctrl('rg-poly-sides').value = entry.seed.polySides; ctrl('v-poly-sides').textContent = entry.seed.polySides; }
+  if (seed.polySides != null) { ctrl('rg-poly-sides').value = seed.polySides; ctrl('v-poly-sides').textContent = seed.polySides; }
   [['polyRotate', 'rotate', 0], ['polyStep', 'step', 1], ['polyCurve', 'curve', 0], ['polyOutline', 'outline', 0], ['polySkew', 'skew', 0]].forEach(([k, id, def]) => {
-    const v = entry.seed[k] != null ? entry.seed[k] : def;
+    const v = seed[k] != null ? seed[k] : def;
     ctrl('rg-poly-' + id).value = v; ctrl('v-poly-' + id).textContent = v;
   });
-  ctrl('sel-poly-style').value = entry.seed.polyStyle || 'round';
-  if (entry.seed.polyCorner != null) { ctrl('rg-poly-corner').value = entry.seed.polyCorner; ctrl('v-poly-corner').textContent = entry.seed.polyCorner; }
-  if (entry.seed.polyIrregular != null) { ctrl('rg-poly-irregular').value = entry.seed.polyIrregular; ctrl('v-poly-irregular').textContent = entry.seed.polyIrregular; }
-  if (entry.seed.polySeed != null) { ctrl('rg-poly-seed').value = entry.seed.polySeed; ctrl('v-poly-seed').textContent = entry.seed.polySeed; }
-  if (entry.seed.starPoints != null) { ctrl('rg-star-points').value = entry.seed.starPoints; ctrl('v-star-points').textContent = entry.seed.starPoints; }
-  if (entry.seed.starInner != null) { ctrl('rg-star-inner').value = entry.seed.starInner; ctrl('v-star-inner').textContent = entry.seed.starInner; }
-  if (entry.seed.starIrregular != null) { ctrl('rg-star-irregular').value = entry.seed.starIrregular; ctrl('v-star-irregular').textContent = entry.seed.starIrregular; }
-  if (entry.seed.starSeed != null) { ctrl('rg-star-seed').value = entry.seed.starSeed; ctrl('v-star-seed').textContent = entry.seed.starSeed; }
-  if (entry.seed.rrWidth != null) { ctrl('rg-rr-width').value = entry.seed.rrWidth; ctrl('v-rr-width').textContent = entry.seed.rrWidth; }
-  if (entry.seed.rrHeight != null) { ctrl('rg-rr-height').value = entry.seed.rrHeight; ctrl('v-rr-height').textContent = entry.seed.rrHeight; }
-  if (entry.seed.rrCorner != null) { ctrl('rg-rr-corner').value = entry.seed.rrCorner; ctrl('v-rr-corner').textContent = entry.seed.rrCorner; }
-  if (entry.seed.chevNotch != null) { ctrl('rg-chev-notch').value = entry.seed.chevNotch; ctrl('v-chev-notch').textContent = entry.seed.chevNotch; }
-  if (entry.seed.chevArm != null) { ctrl('rg-chev-arm').value = entry.seed.chevArm; ctrl('v-chev-arm').textContent = entry.seed.chevArm; }
-  if (entry.seed.chevSquash != null) { ctrl('rg-chev-squash').value = entry.seed.chevSquash; ctrl('v-chev-squash').textContent = entry.seed.chevSquash; }
-  if (entry.seed.crossArmWidth != null) { ctrl('rg-cross-armwidth').value = entry.seed.crossArmWidth; ctrl('v-cross-armwidth').textContent = entry.seed.crossArmWidth; }
-  if (entry.seed.crossArmLength != null) { ctrl('rg-cross-armlength').value = entry.seed.crossArmLength; ctrl('v-cross-armlength').textContent = entry.seed.crossArmLength; }
-  if (entry.seed.crossCorner != null) { ctrl('rg-cross-corner').value = entry.seed.crossCorner; ctrl('v-cross-corner').textContent = entry.seed.crossCorner; }
-  if (entry.seed.lensWidth != null) { ctrl('rg-lens-width').value = entry.seed.lensWidth; ctrl('v-lens-width').textContent = entry.seed.lensWidth; }
+  ctrl('sel-poly-style').value = seed.polyStyle || 'round';
+  if (seed.polyCorner != null) { ctrl('rg-poly-corner').value = seed.polyCorner; ctrl('v-poly-corner').textContent = seed.polyCorner; }
+  if (seed.polyIrregular != null) { ctrl('rg-poly-irregular').value = seed.polyIrregular; ctrl('v-poly-irregular').textContent = seed.polyIrregular; }
+  if (seed.polySeed != null) { ctrl('rg-poly-seed').value = seed.polySeed; ctrl('v-poly-seed').textContent = seed.polySeed; }
+  if (seed.starPoints != null) { ctrl('rg-star-points').value = seed.starPoints; ctrl('v-star-points').textContent = seed.starPoints; }
+  if (seed.starInner != null) { ctrl('rg-star-inner').value = seed.starInner; ctrl('v-star-inner').textContent = seed.starInner; }
+  if (seed.starIrregular != null) { ctrl('rg-star-irregular').value = seed.starIrregular; ctrl('v-star-irregular').textContent = seed.starIrregular; }
+  if (seed.starSeed != null) { ctrl('rg-star-seed').value = seed.starSeed; ctrl('v-star-seed').textContent = seed.starSeed; }
+  if (seed.rrWidth != null) { ctrl('rg-rr-width').value = seed.rrWidth; ctrl('v-rr-width').textContent = seed.rrWidth; }
+  if (seed.rrHeight != null) { ctrl('rg-rr-height').value = seed.rrHeight; ctrl('v-rr-height').textContent = seed.rrHeight; }
+  if (seed.rrCorner != null) { ctrl('rg-rr-corner').value = seed.rrCorner; ctrl('v-rr-corner').textContent = seed.rrCorner; }
+  if (seed.chevNotch != null) { ctrl('rg-chev-notch').value = seed.chevNotch; ctrl('v-chev-notch').textContent = seed.chevNotch; }
+  if (seed.chevArm != null) { ctrl('rg-chev-arm').value = seed.chevArm; ctrl('v-chev-arm').textContent = seed.chevArm; }
+  if (seed.chevSquash != null) { ctrl('rg-chev-squash').value = seed.chevSquash; ctrl('v-chev-squash').textContent = seed.chevSquash; }
+  if (seed.crossArmWidth != null) { ctrl('rg-cross-armwidth').value = seed.crossArmWidth; ctrl('v-cross-armwidth').textContent = seed.crossArmWidth; }
+  if (seed.crossArmLength != null) { ctrl('rg-cross-armlength').value = seed.crossArmLength; ctrl('v-cross-armlength').textContent = seed.crossArmLength; }
+  if (seed.crossCorner != null) { ctrl('rg-cross-corner').value = seed.crossCorner; ctrl('v-cross-corner').textContent = seed.crossCorner; }
+  if (seed.lensWidth != null) { ctrl('rg-lens-width').value = seed.lensWidth; ctrl('v-lens-width').textContent = seed.lensWidth; }
   // Newer Seed params — snapshots saved before they existed simply lack them
   // and fall back to each control's own default (identical to the old shape).
-  ctrl('sel-arc-pivot').value = entry.seed.arcPivot || 'corner';
-  ctrl('sel-inner-anchor').value = entry.seed.innerAnchor || 'bbox';
+  ctrl('sel-arc-pivot').value = seed.arcPivot || 'corner';
+  ctrl('sel-inner-anchor').value = seed.innerAnchor || 'bbox';
   [['innerCount', 'rg-inner-count', 'v-inner-count', 0], ['innerRatio', 'rg-inner-ratio', 'v-inner-ratio', 70],
    ['triCorner', 'rg-tri-corner', 'v-tri-corner', 0], ['triCurve', 'rg-tri-curve', 'v-tri-curve', 0], ['triIrregular', 'rg-tri-irregular', 'v-tri-irregular', 0],
    ['triSeed', 'rg-tri-seed', 'v-tri-seed', 1], ['triOutline', 'rg-tri-outline', 'v-tri-outline', 0],
@@ -4070,27 +4468,31 @@ function applyLibraryEntryToUI(entry) {
    ['circleRadius', 'rg-circle-radius', 'v-circle-radius', 100], ['segLen', 'rg-seg-len', 'v-seg-len', 70], ['dropRadius', 'rg-drop-radius', 'v-drop-radius', 60],
    ['dropTail', 'rg-drop-tail', 'v-drop-tail', 50], ['blobRadius', 'rg-blob-radius', 'v-blob-radius', 60], ['blobAmount', 'rg-blob-amount', 'v-blob-amount', 40],
    ['blobSeed', 'rg-blob-seed', 'v-blob-seed', 1]].forEach(([k, id, vid, def]) => {
-    const v = entry.seed[k] != null ? entry.seed[k] : def;
+    const v = seed[k] != null ? seed[k] : def;
     ctrl(id).value = v; ctrl(vid).textContent = v;
   });
-  ctrl('sel-circle-interior').value = entry.seed.circleInterior || 'solid';
-  ctrl('sel-circle-trim').value = entry.seed.circleTrim || 'none';
-  ctrl('sel-tru-fans').value = String(entry.seed.truFans || 2);
+  ctrl('sel-circle-interior').value = seed.circleInterior || 'solid';
+  ctrl('sel-circle-trim').value = seed.circleTrim || 'none';
+  ctrl('sel-tru-fans').value = String(seed.truFans || 2);
   Object.values(SEED_EXTRAS).forEach(sh => sh.rows.forEach(r => {
-    const el = ctrl(xrId(sh, r)), v = entry.seed[r.key] != null ? entry.seed[r.key] : r.def;
+    const el = ctrl(xrId(sh, r)), v = seed[r.key] != null ? seed[r.key] : r.def;
     el.value = v; const vv = ctrl('v-' + sh.prefix + '-' + r.id); if (vv) vv.textContent = v;
   }));
   syncPolyStepMax(); syncTriType(); syncArcType(); syncTruType(); syncWedgeType(); syncPolyType(); syncExtrasTypes();
   CIRCLE_PARAMS.forEach(([k, id, def]) => {
-    const v = entry.seed[cap(k)] != null ? entry.seed[cap(k)] : def;
+    const v = seed[cap(k)] != null ? seed[cap(k)] : def;
     ctrl('rg-circle-' + id).value = v; ctrl('v-circle-' + id).textContent = v;
   });
   syncCircleRows();
-  if (entry.seed.type === 'freehand') {
-    state.freehand = { data: entry.seed.freehandData || null, raw: entry.seed.freehandRaw || '', seed: entry.seed.customSeed || null };
+  if (seed.type === 'freehand') {
+    state.freehand = { data: seed.freehandData || null, raw: seed.freehandRaw || '', seed: seed.customSeed || null };
     if (fhEditor) { if (state.freehand.data) fhEditor.load(state.freehand.data); else fhEditor.clear(); }
   }
   syncSeedUI();
+}
+
+function applyLibraryEntryToUI(entry) {
+  applySeedToPanel(entry.seed);
   applyAppearanceToUI(entry.appearance);
 
   if (entry.grid.kind === 'loom') {
@@ -4117,6 +4519,7 @@ function applyLibraryEntryToUI(entry) {
   const comp = { id: `library-${Date.now()}`, ruleSource: entry.component.ruleSource, cells: entry.component.cells };
   state.components = [comp];
   state.selectedId = comp.id;
+  state.selectionExplicit = true;
   state.componentAutoGenerated = false;
 
   // Old saved Components (pre-Role) have neither field — backfilled to
@@ -5841,6 +6244,10 @@ function updateStepHint(tier) {
 }
 
 function setTier(tier) {
+  // Navigating away mid-edit abandons it (no auto-save) — otherwise
+  // #component-edit-view and the disabled Grid/Rule controls would stay
+  // stuck in their edit-mode state the next time Component tier is shown.
+  if (state.componentEditMode && tier !== 'component') exitComponentEditMode();
   pausePlayback();   // Motion animates one tier at a time — switching pauses, Play resumes on the newly active one.
   state.activeTier = tier;
   ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(t => t.setAttribute('aria-pressed', String(t.dataset.tier === tier)));
@@ -6445,6 +6852,7 @@ function runBuiltinRecipe(def) {
   state.components = [comp];
   state.componentAutoGenerated = false;
   state.selectedId = comp.id;
+  state.selectionExplicit = true;
   renderGallery();
   refreshColourViews();
   if (def.tile) {
@@ -6540,7 +6948,7 @@ function runFigureRecipe(def, opts) {
   if (first.kind === 'component') {
     fireChange('sel-grid-type', first.grid || 'square2x2');
     const comp = { id: 'figure-component', ruleSource: 'recipe', cells: first.cells || componentCellsFromRule(first.rule, first.params) };
-    pushUndo(); state.components = [comp]; state.selectedId = comp.id; state.componentAutoGenerated = false;
+    pushUndo(); state.components = [comp]; state.selectedId = comp.id; state.selectionExplicit = true; state.componentAutoGenerated = false;
     renderGallery(); refreshColourViews();
     tier = 'component';
     if (gridLv) { const all = LIBRARY.read(); delete all['Tile · ' + comp.id]; LIBRARY.write(all); tileSelectedInGrid(true); }
