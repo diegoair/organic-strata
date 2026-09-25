@@ -1200,9 +1200,17 @@
     return centers;   // square grids: row-major, e.g. 2×2 = [TL, TR, BL, BR]
   }
 
+  // The grid's own drawn extent. frameSize is the square frame every caller
+  // centres a grid in (a non-square grid is letterboxed inside it — identical
+  // to before for square grids); frameDims is the tight width × height.
+  function frameDims(grid) {
+    if (grid.kind === 'loom') return { w: grid.width, h: grid.height };
+    const rows = grid.rows || grid.cols;
+    return { w: grid.cols * grid.cellSize + (grid.cols - 1) * grid.gap, h: rows * grid.cellSize + (rows - 1) * grid.gap };
+  }
   function frameSize(grid) {
-    if (grid.kind === 'loom') return Math.max(grid.width, grid.height);
-    return grid.cols * grid.cellSize + (grid.cols - 1) * grid.gap;
+    const d = frameDims(grid);
+    return Math.max(d.w, d.h);
   }
 
   // Turns fit mode + anchor + padding + scale into a concrete {scaleX,
@@ -1210,7 +1218,21 @@
   // untransformed box size (100 for these shapes; a nested item's own frame
   // size for a compound shape). Reduces to exactly plain centred-contain at
   // the defaults (fitMode:'contain', anchorX/Y:0, padding:0, scale:1).
+  // `natural` may also be {w, h} — a non-square nested item (a rectangular
+  // FVS Component) fills/contains by its own proportions instead of a square box.
   function resolveCellPlacement(cellW, cellH, natural, cell) {
+    if (natural && typeof natural === 'object') {
+      const pad = 1 - (cell.padding || 0);
+      const effW = cellW * pad, effH = cellH * pad;
+      const scale = cell.scale == null ? 1 : cell.scale;
+      let scaleX, scaleY;
+      if (cell.fitMode === 'fill') { scaleX = (effW / natural.w) * scale; scaleY = (effH / natural.h) * scale; }
+      else if (cell.fitMode === 'fixed') scaleX = scaleY = (cell.fixedSize || 100) / Math.max(natural.w, natural.h);
+      else scaleX = scaleY = Math.min(effW / natural.w, effH / natural.h) * scale;
+      const itemW = natural.w * scaleX, itemH = natural.h * scaleY;
+      const ax = cell.anchorX || 0, ay = cell.anchorY || 0;
+      return { scaleX, scaleY, offsetX: ax * (effW - itemW) / 2, offsetY: ay * (effH - itemH) / 2 };
+    }
     const pad = 1 - (cell.padding || 0);
     const effW = cellW * pad, effH = cellH * pad;
     const scale = cell.scale == null ? 1 : cell.scale;
@@ -1251,8 +1273,8 @@
     // 'square' grids carry no width/height (only 'loom' grids do) — fall
     // back to frameSize(grid), which already knows both kinds; a square
     // grid is square, so one dimension is exactly right for both halves.
-    const halfW = (grid.width != null ? grid.width : frameSize(grid)) / 2;
-    const halfH = (grid.height != null ? grid.height : frameSize(grid)) / 2;
+    const halfW = (grid.width != null ? grid.width : frameDims(grid).w) / 2;
+    const halfH = (grid.height != null ? grid.height : frameDims(grid).h) / 2;
     let colRow;
     if (grid.cellShape === 'rect' && rawCells && rawCells.length === n && rawCells.every(c => c.col != null)) {
       const g = gridMeta || {};
@@ -1389,6 +1411,6 @@
     roundedRectGeometry, roundedRectPathD, chevronGeometry, chevronPathD,
     crossGeometry, crossPathD, lensGeometry, lensPathD,
     EXTRAS, starExtrasActive, rrExtrasActive, chevronExtrasActive, crossExtrasActive, lensExtrasActive, segmentExtrasActive, dropExtrasActive, blobExtrasActive,
-    resolveGridCells, resolveCellPlacement, cellColRow, frameSize, median,
+    resolveGridCells, resolveCellPlacement, cellColRow, frameSize, frameDims, median,
   };
 })(window);
