@@ -69,6 +69,15 @@ Grid step without saving it first.
 
 ## 5. Component rules
 
+The Component is the small building block: a grid of **1–4 columns × 1–4 rows**
+(square or rectangular — 2×3, 3×4, 4×1…). Larger and irregular grids live in the
+Symbol (§6). A rectangular Component sits letterboxed in its square frame in the
+gallery/export; inside a Symbol it is placed by its own tight box. A Component
+saved on an imported Loom grid before this split still renders exactly as saved
+("legacy" hint in the Grid section); picking columns × rows replaces it. A 1×1
+Component is one Element on its own — the way to put a single shape in a Symbol;
+the pattern rules are greyed out there (use Exhaustive for its turns/flips).
+
 Generate produces a gallery of candidates; click one to select it.
 
 - **Named rules** — Identity, Pinwheel, Mirror, Diagonal, Checkerboard, Row
@@ -104,17 +113,81 @@ Generate produces a gallery of candidates; click one to select it.
 
 ## 6. Symbol
 
-- Grid: a built-in or saved **Loom** grid, an uploaded grid JSON, or **Square
-  N×M** (2–8).
-- **Fill** — Manual (click cells; Shift-click or drag to multi-select), a
-  generative **Rule** (Oscillator, Checkerboard, Rows, Columns, Radial, Wave,
-  Random — lock-aware, with Reset & apply to all) or **Generate (seeded)**.
-- **Choose content** — a Seed or a saved Component, with an *All / Seeds /
-  Components* filter and an **Apply to all cells** switch.
+The Symbol is the composition: a page, a grid inside it, and saved Components in
+its cells.
+
+- **Canvas** — a format (Square 1:1, Portrait 4:5, Landscape 16:9, Vertical 9:16,
+  Widescreen 3:2, A4/A3/Letter, or Custom), **Screen** (px) or **Print** (mm/in,
+  DPI, bleed), and a margin (% of the short side). The page is stored on the
+  grid's own Loom model (`canvas.fvsFrame`), so it travels with saved Symbols and
+  the Grid tier with no extra field. In Print the Export follows the canvas: SVG at
+  the physical size with the paper extended into the bleed and crop marks; PNG at
+  the canvas DPI with the DPI written into the file.
+- **Symbol grid** — *Generate grid in canvas* runs one of Loom's own generators
+  (Rectangular, Bento, Wave, Masonry, Hexagonal, Triangular, Diamond, Circular,
+  Radial, Organic, Fractal, Spiral — `loom/js/generators/registry.js`, imported as
+  ES modules) inside the canvas margin, gap 0 so cells meet. *Other grids* keeps a
+  saved Loom grid, the ready-made Bento/Hexagonal, Square N×M, Triangle and upload;
+  those keep the old square frame. The preview fits any proportion.
+- **Resize columns and rows by dragging** — on any rect grid that has tracks
+  (Rectangular, Bento, Wave, a plain square…) each inner border shows a dashed
+  handle on the preview (never exported). Drag it: the two tracks either side trade
+  size, the total stays, the cells keep their content, and a track never goes below
+  4% of the grid. On *Rectangular* the Column / Row weights fields follow live
+  (mean 1, two decimals), so *Generate grid in canvas* reproduces the proportions.
+- **Components (palette)** — the saved Components the Symbol is built from, each
+  with a weight (×1–×5). *+ Add Components…* opens the library to toggle them; a
+  first visit starts with the three most recently saved.
+- **Fill**
+  - **Suggest** (default) — proposes whole Symbols from the palette (§6a).
+  - **Arrange (palette)** — places the palette by a rule: Random (by weight),
+    Checkerboard (first two), Rows, Columns, Diagonal bands, 2×2 blocks, Rings,
+    Sectors, Wave bands, Up/down (triangles). The n-th class takes the n-th
+    Component. Fit: Fill the cell or Contain. Locked cells stay.
+  - **Rule** — transforms only (Oscillator, Checkerboard, Rows, Columns, Radial,
+    Wave, Orientation, Random), lock-aware, with Reset & apply to all.
+  - **Manual** — click cells (Shift-click or drag to multi-select).
+- **Choose content** — a saved Component or **Empty**, with an **Apply to all
+  cells** switch. Seeds are no longer offered as Symbol content (old Symbols with
+  Seed cells, and the Figure tier's lattices, still render them).
 - **Cell properties** — rotation, flip, fit, scale, padding, anchor, **Lock**,
   and **Colour**: *Follow palette* (default) or an explicit override (a palette
   colour or a free one). An override is flagged, and **Reset** returns the cell
   to the palette.
+
+- **No seams.** Cells never show a light line where they meet: nested Components'
+  papers are painted first under all ink, and each cell's content and clip reach
+  0.1% of the page past its border (the Component's own cells too), so neighbours
+  overlap instead of touching. With *Fill*, a polygon cell's content is centred on
+  the cell's box, not its centroid (a hexagon cut by the margin stays covered).
+
+### 6a. Suggest — how the proposals are made
+
+- Each palette Component is rasterised once into an ink mask of its own tight
+  frame (cached by name + save time), so any point of any turned/flipped placement
+  can be asked "ink or paper?".
+- The grid's real adjacencies: rect cells share a vertical/horizontal segment
+  (bento spans included); polygon cells share an edge, including partial ones
+  (Loom's triangular lattice offsets its rows) and curved borders made of many
+  pieces (Radial). One pair per two neighbouring cells, with 10 sample points
+  along the shared border, nudged into each side.
+- A proposal = per cell {Component, turn}. Square Components in square-ish cells
+  take any of the 8 turns/flips; otherwise only 0°/180° (± flip).
+- Scores, weighted by the three sliders:
+  - **Continuity** — the two sides of every shared border agree (ink meets ink
+    counts most, paper meets paper a little, a mismatch costs);
+  - **Balance** — ink spread evenly over a 3×3 split of the page, and each
+    Component used as often as its weight;
+  - **Surprise** — fewer identical neighbours.
+- Generators: every Arrange rule with each cell's turn chosen for continuity; a
+  beam search (width 4) over Component × turn, cell by cell; a weighted mix with
+  the same turn search. Ranked, exact duplicates dropped, up to 12 shown above the
+  canvas with a caption ("Continuity search · continuity 97%"). Deterministic per
+  seed. Click one to take it; **More like this** re-draws 8–20% of the cells of
+  the current Symbol and re-turns them. Locked cells are always kept.
+- On a grid whose cells don't share borders (Circular) continuity doesn't apply
+  and the caption omits it. On hexagons/triangles a square Component is deformed
+  into the cell, so continuity is an approximation.
 
 ---
 

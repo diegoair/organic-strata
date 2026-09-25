@@ -151,6 +151,13 @@
   #canvas-wrap .tier-view.active { display: flex; align-items: center; justify-content: center; }
   #canvas-wrap .tier-view[data-tier="element"].active { flex-direction: column; gap: var(--space-5); }
   #canvas-wrap .tier-view[data-tier="component"].active { flex-direction: column; gap: var(--space-3); }
+  #canvas-wrap .tier-view[data-tier="symbol"].active { flex-direction: column; }
+  .fvs-suggest { display: flex; gap: var(--space-2); overflow-x: auto; width: 100%; box-sizing: border-box; padding: var(--space-3) var(--space-5) 0; flex: none; }
+  .fvs-suggest:empty { display: none; }
+  .fvs-suggest__item { flex: none; display: flex; flex-direction: column; align-items: center; gap: var(--space-1); background: none; border: 1px solid transparent; border-radius: var(--radius-sm); padding: var(--space-1); cursor: pointer; font: inherit; color: var(--mid); }
+  .fvs-suggest__item svg { height: 96px; width: auto; display: block; box-shadow: 0 0 0 1px var(--border); }
+  .fvs-suggest__item.is-current { border-color: var(--tool); color: var(--ink); }
+  .fvs-suggest__cap { font-size: var(--fs-micro); max-width: 120px; text-align: center; line-height: 1.25; }
 
   /* Numbered step scaffold within a tier's own panel — groups existing
      panel-sections under an explicit "01 / 02 / ..." flow without
@@ -164,8 +171,27 @@
   /* Motion track slots — same compact block Trellis/Pulsar use. */
   .trk { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-2); margin-bottom: var(--space-2); }
   .trk .panel-select { margin-bottom: var(--space-1); }
-  #symbol-frame svg { max-width: 100%; max-height: 100%; display: block; }
+  /* The Symbol can be any proportion (its Canvas): the frame fills the stage and
+     the SVG fits inside it (viewBox, preserveAspectRatio meet), never overflowing. */
+  #symbol-frame { align-self: stretch; flex: 1; min-width: 0; min-height: 0; box-sizing: border-box; padding: var(--space-5); display: flex; align-items: center; justify-content: center; }
+  #symbol-frame svg { width: 100%; height: 100%; display: block; }
   #symbol-frame svg [data-cell-index] { cursor: pointer; }
+  /* Column / row borders of a rectangular grid — drag to resize (preview only, never exported). */
+  #symbol-frame svg .sym-track__hit { fill: transparent; }
+  #symbol-frame svg .sym-track__line { stroke: var(--tool); stroke-opacity: 0.35; stroke-dasharray: 6 5; pointer-events: none; }
+  #symbol-frame svg .sym-track:hover .sym-track__line, #symbol-frame svg .sym-track.is-dragging .sym-track__line { stroke-opacity: 1; stroke-dasharray: none; }
+  #symbol-frame svg .sym-track[data-axis="cols"] { cursor: col-resize; }
+  #symbol-frame svg .sym-track[data-axis="rows"] { cursor: row-resize; }
+  #symbol-frame.is-resizing-cols, #symbol-frame.is-resizing-cols * { cursor: col-resize !important; }
+  #symbol-frame.is-resizing-rows, #symbol-frame.is-resizing-rows * { cursor: row-resize !important; }
+  .fvs-sympal { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); margin-bottom: var(--space-2); }
+  .fvs-sympal:empty { display: none; }
+  .fvs-sympal__item { position: relative; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-1); background: var(--paper); }
+  .fvs-sympal__item svg { display: block; width: 100%; height: auto; aspect-ratio: 1; }
+  .fvs-sympal__item .panel-select { width: 100%; margin-top: var(--space-1); }
+  .fvs-sympal__x { position: absolute; top: 2px; right: 2px; }
+  #btn-sympal-add { width: 100%; }
+  .fvs-library-item.is-in-palette { outline: 2px solid var(--tool); }
 
   .symbol-anchor-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; width: 84px; }
   .symbol-anchor-btn { width: 26px; height: 26px; padding: 0; border: 1px solid var(--border); background: var(--paper); cursor: pointer; position: relative; }
@@ -435,6 +461,7 @@
       </div>
     </div>
     <div class="tier-view" data-tier="symbol">
+      <div id="symbol-suggest-gallery" class="fvs-suggest" aria-label="Suggested Symbols"></div>
       <div id="symbol-frame"></div>
     </div>
     <div class="tier-view" data-tier="grid">
@@ -1143,10 +1170,56 @@
     <div class="tier-block" data-tier="symbol">
     <div class="panel-step-head">
       <div class="panel-step-head__title">Symbol <span class="hint">step 3 of 4</span></div>
-      <p class="panel-step-head__desc">A grid of cells, each filled with an Element or a saved Component.</p>
+      <p class="panel-step-head__desc">A page and a grid, composed from your saved Components.</p>
     </div>
     <div class="panel-section">
+      <h3>Canvas <span class="hint" id="symbol-canvas-hint"></span></h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-symcanvas-preset" aria-label="Canvas format" style="flex:1"></select>
+      </div>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-symcanvas-mode" role="group" aria-label="Canvas mode">
+          <button class="seg-btn active" data-mode="screen">Screen</button><button class="seg-btn" data-mode="print">Print</button>
+        </div>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Size</span>
+        <input type="number" class="panel-input" id="num-symcanvas-w" min="1" step="1" value="1080" aria-label="Canvas width" style="width:30%">
+        <span class="hint">×</span>
+        <input type="number" class="panel-input" id="num-symcanvas-h" min="1" step="1" value="1080" aria-label="Canvas height" style="width:30%">
+        <span class="hint" id="symcanvas-unit-label">px</span>
+      </div>
+      <div id="symcanvas-print-block" style="display:none">
+        <div class="ctrl-row">
+          <span class="ctrl-label">Unit</span>
+          <select class="panel-select" id="sel-symcanvas-unit" aria-label="Canvas unit"><option value="mm">mm</option><option value="in">in</option></select>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">DPI</span>
+          <input type="number" class="panel-input" id="num-symcanvas-dpi" min="72" max="2400" step="1" value="300" aria-label="Canvas DPI">
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">Bleed (mm)</span>
+          <input type="number" class="panel-input" id="num-symcanvas-bleed" min="0" max="20" step="0.5" value="3" aria-label="Canvas bleed in millimetres">
+        </div>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Margin</div>
+        <input type="range" id="rg-symcanvas-margin" min="0" max="25" step="1" value="5"><span class="ctrl-val" id="v-symcanvas-margin">5</span>
+      </div>
+      <p class="org-panel__hint">The Symbol's page — its proportions, and in Print a real physical size with DPI and bleed (the Export follows it). Margin is a % of the short side; the grid is generated inside it.</p>
+    </div>
+
+    <div class="panel-section">
       <h3>Symbol grid <span class="hint" id="symbol-cellcount-hint">0 cells</span></h3>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-symgrid-gen" aria-label="Grid generator" style="flex:1"></select>
+      </div>
+      <div id="symgrid-gen-params"></div>
+      <button class="panel-btn" id="btn-symgrid-generate" style="width:100%">Generate grid in canvas</button>
+      <div id="symgrid-gen-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
+      <details class="fvs-more" style="margin-top:var(--space-3)">
+      <summary class="hint">Other grids (saved in Loom, ready-made, square, triangle)</summary>
       <div class="ctrl-row">
         <select class="panel-select" id="sel-symbol-loom-preset" aria-label="Load a grid saved in Loom" style="flex:1">
           <option value="">Load a grid…</option>
@@ -1170,10 +1243,11 @@
         <button class="mini-btn" id="btn-symbol-grid-tri">Create</button>
       </div>
       <button class="mini-btn" id="btn-symbol-grid-upload" style="width:100%;margin-top:var(--space-2)">Upload Loom grid JSON…</button>
+      </details>
       <div id="symbol-grid-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-symbol-grid-outline"><span>Show loaded grid</span></label>
       <label class="check-row"><input type="checkbox" id="chk-symbol-clip" checked><span>Clip to cell</span></label>
-      <p class="org-panel__hint">Two ready-made Loom exports for this evaluation — a small Bento (merged rect cells) and a Hexagonal (polygon cells, the "more complex" case) — or upload any other Loom grid JSON export. "Show loaded grid" overlays the grid's own cell outlines on the preview (not baked into PNG/SVG export) — useful to confirm a grid loaded correctly before filling it in. "Clip to cell" (on by default) crops each cell's content to its own boundary — turn it off to allow a deliberate bleed across cells; while off, a selected cell whose content exceeds its bounds is flagged in Cell properties below.</p>
+      <p class="org-panel__hint">Generate a grid inside the canvas with any of Loom's generators — or, under "Other grids", load one saved in Loom, a ready-made Bento/Hexagonal, a plain square or triangle lattice (those keep the old square frame), or upload a Loom JSON. "Show loaded grid" overlays the grid's own cell outlines on the preview (not baked into PNG/SVG export) — useful to confirm a grid loaded correctly before filling it in. "Clip to cell" (on by default) crops each cell's content to its own boundary — turn it off to allow a deliberate bleed across cells; while off, a selected cell whose content exceeds its bounds is flagged in Cell properties below.</p>
     </div>
     </div>
 
@@ -1184,13 +1258,12 @@
     <div class="panel-section">
       <h3>Grid <span class="hint" id="grid-cellcount-hint">4 cells</span></h3>
       <div class="ctrl-row">
-        <select class="panel-select" id="sel-grid-type" aria-label="Grid type">
-          <option value="square2x2">Square 2×2</option>
-          <option value="square3x3">Square 3×3</option>
-          <option value="square4x4">Square 4×4</option>
-          <option value="loom">Import from Loom (JSON)…</option>
-        </select>
+        <span class="ctrl-label">Columns × rows</span>
+        <select class="panel-select" id="sel-grid-cols" aria-label="Component grid columns"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select>
+        <span class="hint">×</span>
+        <select class="panel-select" id="sel-grid-rows" aria-label="Component grid rows"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select>
       </div>
+      <p class="org-panel__hint" id="grid-legacy-hint" style="display:none">This Component was saved on an imported Loom grid (legacy). It renders as saved; pick columns × rows to start a new grid. Larger and irregular grids now live in the Symbol.</p>
       <div id="grid-square-block">
         <div class="ctrl-row">
           <div class="ctrl-label">Cell size</div>
@@ -1202,10 +1275,6 @@
           <input type="range" id="rg-gap" min="0" max="40" step="1" value="0">
           <span class="ctrl-val" id="v-gap">0</span>
         </div>
-      </div>
-      <div id="grid-loom-block" style="display:none">
-        <button class="mini-btn" id="btn-upload-loom" style="width:100%">Upload Loom grid JSON…</button>
-        <div id="loom-grid-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       </div>
     </div>
 
@@ -1426,11 +1495,18 @@
 
     <div class="tier-block" data-tier="symbol">
     <div class="panel-section">
+      <h3>Components <span class="hint" id="symbol-palette-hint">none yet</span></h3>
+      <div id="symbol-palette" class="fvs-sympal"></div>
+      <button class="mini-btn" id="btn-sympal-add">+ Add Components…</button>
+      <p class="org-panel__hint">The saved Components this Symbol is built from — Arrange and Suggest only use these. Weight: how often each one is picked.</p>
+    </div>
+    <div class="panel-section">
       <h3>Fill</h3>
       <div class="ctrl-row">
         <select class="panel-select" id="sel-symbol-fill" aria-label="Fill mode">
+          <option value="suggest" selected>Suggest</option>
+          <option value="generate">Arrange (palette)</option>
           <option value="manual">Manual</option>
-          <option value="generate" selected>Generate (seeded)</option>
           <option value="rule">Rule</option>
         </select>
       </div>
@@ -1546,7 +1622,36 @@
         <p class="org-panel__hint">The rule fills every cell's transform from its column/row (Oscillator / Checkerboard / Rows / Columns) or its position (Radial / Wave / Random). Content is never changed — set it once with Choose content → "Apply to all". Edit individual cells afterward in Manual; lock a cell there so <em>Apply rule</em> skips it. <em>Reset &amp; apply to all</em> ignores locks.</p>
       </div>
 
-      <div id="symbol-generate-block">
+      <div id="symbol-suggest-block">
+        <div class="ctrl-row"><div class="ctrl-label">Continuity</div>
+          <input type="range" id="rg-sug-cont" min="0" max="100" step="5" value="60"><span class="ctrl-val" id="v-sug-cont">60</span></div>
+        <div class="ctrl-row"><div class="ctrl-label">Balance</div>
+          <input type="range" id="rg-sug-bal" min="0" max="100" step="5" value="30"><span class="ctrl-val" id="v-sug-bal">30</span></div>
+        <div class="ctrl-row"><div class="ctrl-label">Surprise</div>
+          <input type="range" id="rg-sug-sur" min="0" max="100" step="5" value="30"><span class="ctrl-val" id="v-sug-sur">30</span></div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="number" class="panel-select" id="num-sug-seed" value="1" min="0" max="999999" step="1" aria-label="Suggestion seed">
+          <button class="icon-btn" id="btn-sug-seed-random" title="Random seed" aria-label="Random suggestion seed">
+            <svg viewBox="0 0 16 16" width="11" height="11"><path d="M13 8a5 5 0 1 1-1.6-3.65" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M13 2.3V6h-3.7" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="row-btns">
+          <button class="mini-btn" id="btn-sug-run">Suggest</button>
+          <button class="mini-btn" id="btn-sug-more">More like this</button>
+        </div>
+        <p class="org-panel__hint" id="sug-hint">Proposes Symbols from the palette's Components: which one goes in each cell and how it is turned. <em>Continuity</em> — lines and shapes carry on across neighbouring cells; <em>Balance</em> — even weight over the page and each Component used as often as its weight; <em>Surprise</em> — fewer repeats side by side. Click a proposal to take it; <em>More like this</em> varies the current Symbol. Locked cells are kept.</p>
+      </div>
+
+      <div id="symbol-generate-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Arrange</div>
+          <select class="panel-select" id="sel-sym-arrange" aria-label="Arrangement"></select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Fit</div>
+          <select class="panel-select" id="sel-sym-arrange-fit" aria-label="Fit in cell"><option value="fill">Fill the cell</option><option value="contain">Contain</option></select>
+        </div>
         <div class="ctrl-row">
           <div class="ctrl-label">Seed</div>
           <input type="number" class="panel-select" id="num-symbol-seed" value="1" min="0" max="999999" step="1" style="width:70%">
@@ -1554,8 +1659,8 @@
             <svg viewBox="0 0 16 16" width="11" height="11"><path d="M13 8a5 5 0 1 1-1.6-3.65" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M13 2.3V6h-3.7" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
-        <button class="mini-btn" id="btn-symbol-regenerate" style="width:100%">Regenerate</button>
-        <p class="org-panel__hint">Each cell gets a seeded random source — an Seed (random type/rotation/flip/scale) or, if the Component Library has saved entries, sometimes a nested Component instead.</p>
+        <button class="mini-btn" id="btn-symbol-regenerate" style="width:100%">Arrange</button>
+        <p class="org-panel__hint">Places the palette's Components by a rule — which one goes in each cell follows its column/row, ring, sector or band (the n-th class takes the n-th Component). Random picks by weight. Locked cells stay. Then refine transforms with Rule, or single cells in Manual.</p>
       </div>
       <div id="symbol-manual-block" style="display:none">
         <p class="org-panel__hint">Click a cell on the canvas to select it and choose its content. Shift-click, or click-and-drag, to select more than one cell.</p>
@@ -1634,7 +1739,7 @@
         <button class="mini-btn" id="btn-symbol-library-confirm">Save</button>
         <button class="mini-btn" id="btn-symbol-library-cancel">Cancel</button>
       </div>
-      <p class="org-panel__hint">Saved separately from the Component Library above — a Symbol snapshot is its own grid + per-cell fill (Seeds and/or nested Components), not one Seed repeated.</p>
+      <p class="org-panel__hint">Saved separately from the Component Library above — a Symbol snapshot is its own canvas, grid, palette and per-cell Components, not one Seed repeated.</p>
     </div>
     </div>
 
@@ -1865,6 +1970,7 @@
 <script src="/shared/shape-appearance.js"></script>
 <script src="/shared/select-picker.js"></script>
 <script src="/shared/vendor/paper-full.min.js"></script>
+<script src="/shared/vendor/kiwi.min.js"></script>
 <script src="/shared/paper.js"></script>
 <script src="/shared/circle-advanced.js"></script>
 <script>
@@ -1934,6 +2040,8 @@ const state = {
                        //   {source:'seed', seedType, rotation, flipH, flipV, scale, color,
                        //    fitMode:'contain'|'fill'|'fixed', fixedSize, anchorX, anchorY, padding}
                        //   {source:'component', componentName, rotation, flipH, flipV, scale, fitMode, fixedSize, anchorX, anchorY, padding}
+  symbolPalette: [],   // [{name, weight}] — the saved Components a Symbol is built from (Arrange / Suggest)
+  symbolSuggestions: [],   // the last Suggest gallery ({label, score, cells}), tied to the current grid
   symbolSelection: new Set(),   // cell indices, Manual mode's click-to-select — never persisted (editing-session-only)
   symbolMarqueeRect: null,      // {x,y,w,h} in the canvas's own 0..size space, live during a drag-select — preview-only, never persisted or exported
   symbolClipEnabled: true,      // Symbol-level: clip each cell's content to its own bounds (rect/polygon). OFF allows deliberate bleed; persisted per saved Symbol.
@@ -2087,7 +2195,7 @@ const { triangleGeometry, arcGeometry, arcPathD, arcTruchetGeometry, arcTruchetP
   wedgeGeometry, polygonGeometry, starGeometry,
   roundedRectGeometry, chevronGeometry, crossGeometry, lensGeometry,
   circleGeometry, segmentGeometry, dropGeometry, blobGeometry,
-  resolveGridCells, resolveCellPlacement, frameSize, median } = Organica.shapes;
+  resolveGridCells, resolveCellPlacement, frameSize, frameDims, median } = Organica.shapes;
 
 const SEED_TYPES = {
   triangle: { label: 'Triangle', geometry: (p) => triangleGeometry(p.base, p.height, p.triApex, { corner: p.triCorner, curve: p.triCurve, irregular: p.triIrregular, seed: p.triSeed, outline: p.triOutline }) },
@@ -2600,39 +2708,41 @@ function renderCreatorLibraryPicker() {
   }
 }
 
-// ── Loom grid import ──
-function handleLoomGridUpload(file) {
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      state.loomGrid = Organica.loadLoomGrid(reader.result);
-      ctrl('loom-grid-error').style.display = 'none';
-      syncRuleAvailability();
-      renderGallery();
-    } catch (e) {
-      ctrl('loom-grid-error').textContent = e.message;
-      ctrl('loom-grid-error').style.display = '';
-    }
-  };
-  reader.onerror = () => {
-    ctrl('loom-grid-error').textContent = 'Could not read that file.';
-    ctrl('loom-grid-error').style.display = '';
-  };
-  reader.readAsText(file);
-}
-
 // ── Grid — either a plain square NxN (cellSize/gap-driven) or an
 // imported Loom grid (rect or polygon cellShape, arbitrary cell count
 // and layout, read via Organica.loadLoomGrid). Cell centres are always
 // resolved relative to the component's own centre (0,0), so
 // buildComponentSVG/Canvas only ever need one translate. ──
+// The Component is the small building block: 1×1 up to 4×4, square or
+// rectangular. Larger and irregular (Loom) grids belong to the Symbol. A
+// Component saved on an imported Loom grid before that split still loads
+// (state.loomGrid, "legacy") and renders exactly as saved; picking columns ×
+// rows replaces it.
 function getGrid() {
-  const type = ctrl('sel-grid-type').value;
-  if (type === 'loom' && state.loomGrid) {
+  if (state.loomGrid) {
     return { kind: 'loom', cellShape: state.loomGrid.cellShape, cells: state.loomGrid.cells, width: state.loomGrid.inner.width, height: state.loomGrid.inner.height };
   }
-  const n = type === 'square3x3' ? 3 : type === 'square4x4' ? 4 : 2;
-  return { kind: 'square', cols: n, rows: n, cellSize: val('rg-cellsize'), gap: val('rg-gap') };
+  return { kind: 'square', cols: +ctrl('sel-grid-cols').value, rows: +ctrl('sel-grid-rows').value, cellSize: val('rg-cellsize'), gap: val('rg-gap') };
+}
+// spec: 'square3x3' (the recipes' string form), {cols, rows}, or a saved entry.grid.
+function setComponentGrid(spec, opts = {}) {
+  let cols = 2, rows = 2;
+  if (typeof spec === 'string') { const m = spec.match(/^square(\d)x(\d)$/); if (m) { cols = +m[1]; rows = +m[2]; } }
+  else if (spec && spec.kind === 'loom') {
+    state.loomGrid = { cellShape: spec.cellShape, cells: spec.cells, inner: { width: spec.width, height: spec.height } };
+  } else if (spec) { cols = spec.cols; rows = spec.rows || spec.cols; }
+  if (!(spec && spec.kind === 'loom')) {
+    state.loomGrid = null;
+    ctrl('sel-grid-cols').value = String(Math.min(4, Math.max(1, cols)));
+    ctrl('sel-grid-rows').value = String(Math.min(4, Math.max(1, rows)));
+  }
+  syncComponentGridUI();
+  if (!opts.silent) { syncRuleAvailability(); renderGallery(); }
+}
+function syncComponentGridUI() {
+  const legacy = !!state.loomGrid;
+  ctrl('grid-legacy-hint').style.display = legacy ? '' : 'none';
+  ctrl('grid-square-block').style.display = legacy ? 'none' : '';
 }
 
 // resolveGridCells(grid) / frameSize(grid) — moved to shared/shapes.js,
@@ -2818,7 +2928,7 @@ function ruleIdentity() {
 function isCanonical2x2() {
   const grid = getGrid();
   if (resolveGridCells(grid).length !== 4) return false;
-  if (grid.kind === 'square') return true;
+  if (grid.kind === 'square') return grid.cols === 2 && grid.rows === 2;
   return componentCellColRow(grid).every((c, i) => c.col === i % 2 && c.row === (i >> 1));
 }
 function ruleCR() { return isCanonical2x2() ? null : componentCellColRow(getGrid()); }
@@ -3699,7 +3809,7 @@ function renderGallery() {
   const seed = getSeed();
   const size = frameSize(grid);
 
-  // The grid type/size can change (sel-grid-type, a Loom re-upload) without
+  // The grid size can change (columns × rows, a legacy Loom entry) without
   // a fresh Generate — gallery candidates built for the PREVIOUS cell count
   // would otherwise crash buildComponentItems() (centers[i] undefined past
   // the new, smaller cell count). A grid change invalidates the gallery the
@@ -3842,7 +3952,7 @@ function enterComponentEditMode(compId) {
   state.componentEditDefaultAppearance = getElementAppearance();   // same freezing, for Style/Width/Length/Scale/Move
   // Grid is fixed for the duration of the edit (a resize could invalidate
   // cells mid-edit) — disable the controls that would change it.
-  ctrl('sel-grid-type').disabled = true;
+  ctrl('sel-grid-cols').disabled = true; ctrl('sel-grid-rows').disabled = true;
   ctrl('sel-rule').disabled = true;
   ctrl('gallery').classList.remove('visible');
   ctrl('gallery-empty').style.display = 'none';
@@ -3865,7 +3975,7 @@ function exitComponentEditMode() {
   state.componentEditSelectedCell = null;
   state.componentEditDefaultSeed = null;
   state.componentEditDefaultAppearance = null;
-  ctrl('sel-grid-type').disabled = false;
+  ctrl('sel-grid-cols').disabled = false; ctrl('sel-grid-rows').disabled = false;
   ctrl('sel-rule').disabled = false;
   ctrl('component-edit-view').style.display = 'none';
   const compBlock = document.querySelector('.tier-block[data-tier="component"]');
@@ -3997,11 +4107,17 @@ function syncRuleAvailability() {
     rowmirror: [d.rows > 1, 'Row mirror needs at least two rows'],
     columnmirror: [d.cols > 1, 'Column mirror needs at least two columns'],
   };
+  // A single cell has no pattern to arrange — Identity / Random / Exhaustive /
+  // Manual cover its rotations and flips.
+  if (count === 1) ['pinwheel', 'mirror', 'diagonal', 'checkerboard', 'hlines', 'vlines', 'oscillator'].forEach(v => { gates[v] = [false, 'A 1×1 Component has no pattern — use Exhaustive for its rotations/flips']; });
   Object.entries(gates).forEach(([v, [eligible, why]]) => {
     const opt = sel.querySelector(`option[value="${v}"]`);
     opt.disabled = !eligible;
     opt.title = eligible ? '' : why;
     if (!eligible && sel.value === v) currentInvalid = true;
+  });
+  ['pinwheel', 'mirror', 'diagonal', 'checkerboard', 'hlines', 'vlines', 'oscillator'].forEach(v => {
+    if (count !== 1 && !(v in gates)) { const opt = sel.querySelector(`option[value="${v}"]`); if (opt) { opt.disabled = false; opt.title = ''; } }
   });
   if (currentInvalid) { sel.value = 'identity'; syncRuleUI(); }
   ctrl('grid-cellcount-hint').textContent = count + ' cell' + (count === 1 ? '' : 's');
@@ -4047,7 +4163,7 @@ function buildManualEditor() {
   const square4Labels = ['Cell 1 (top-left)', 'Cell 2 (top-right)', 'Cell 3 (bottom-left)', 'Cell 4 (bottom-right)'];
   let html = '';
   for (let i = 0; i < count; i++) {
-    const label = (count === 4 && ctrl('sel-grid-type').value === 'square2x2') ? square4Labels[i] : `Cell ${i + 1}`;
+    const label = isCanonical2x2() ? square4Labels[i] : `Cell ${i + 1}`;
     html += `<div class="fvs-cell-group">
       <div class="sub-label">${label}</div>
       <div class="ctrl-row"><div class="ctrl-label">Rotation</div>
@@ -4606,15 +4722,8 @@ function applyLibraryEntryToUI(entry) {
   applySeedToPanel(entry.seed);
   applyAppearanceToUI(entry.appearance);
 
-  if (entry.grid.kind === 'loom') {
-    state.loomGrid = { cellShape: entry.grid.cellShape, cells: entry.grid.cells, inner: { width: entry.grid.width, height: entry.grid.height } };
-    ctrl('sel-grid-type').value = 'loom';
-    ctrl('grid-square-block').style.display = 'none';
-    ctrl('grid-loom-block').style.display = '';
-  } else {
-    ctrl('sel-grid-type').value = entry.grid.cols === 3 ? 'square3x3' : entry.grid.cols === 4 ? 'square4x4' : 'square2x2';
-    ctrl('grid-square-block').style.display = '';
-    ctrl('grid-loom-block').style.display = 'none';
+  setComponentGrid(entry.grid, { silent: true });
+  if (entry.grid.kind !== 'loom') {
     ctrl('rg-cellsize').value = entry.grid.cellSize; ctrl('v-cellsize').textContent = entry.grid.cellSize;
     ctrl('rg-gap').value = entry.grid.gap; ctrl('v-gap').textContent = entry.grid.gap;
   }
@@ -4898,7 +5007,29 @@ function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<':
 // does for Components, on demand, for resolveGridCells()/frameSize().
 function getSymbolGrid() {
   if (!state.symbolGrid) return null;
-  return { kind: 'loom', cellShape: state.symbolGrid.cellShape, cells: state.symbolGrid.cells, width: state.symbolGrid.inner.width, height: state.symbolGrid.inner.height };
+  return { kind: 'loom', cellShape: state.symbolGrid.cellShape, cells: state.symbolGrid.cells, width: state.symbolGrid.inner.width, height: state.symbolGrid.inner.height,
+    canvasFrame: state.symbolGrid.canvas && state.symbolGrid.canvas.fvsFrame ? state.symbolGrid.canvas : null };
+}
+// Where the Symbol draws. Without a Symbol Canvas (every grid loaded or saved
+// before it, and every Figure lattice) the frame is the old square
+// frameSize(grid) with the grid centred — byte-identical to before. With a
+// Canvas the frame IS the canvas (w × h, any proportion) and the cells sit at
+// their own absolute canvas coordinates (the grid was generated inside the
+// canvas margin). bx/by: where a resolveGridCells() centre (c.cx = 0) lands;
+// X/Y: map a RAW cell coordinate (outline, hit shape, clip) into the frame.
+function symbolFrame(grid) {
+  if (grid && grid.canvasFrame) {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    grid.cells.forEach(c => {
+      if (grid.cellShape === 'polygon') c.points.forEach(p => { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+      else { x0 = Math.min(x0, c.x); x1 = Math.max(x1, c.x + c.width); y0 = Math.min(y0, c.y); y1 = Math.max(y1, c.y + c.height); }
+    });
+    return { w: grid.canvasFrame.width, h: grid.canvasFrame.height, bx: (x0 + x1) / 2, by: (y0 + y1) / 2, X: v => v, Y: v => v };
+  }
+  const S = frameSize(grid), half = S / 2, ox = grid.width / 2, oy = grid.height / 2;
+  // (half + v) − origin, in exactly the order the renderers always used, so every
+  // coordinate string stays byte-identical
+  return { w: S, h: S, bx: half, by: half, X: v => half + v - ox, Y: v => half + v - oy };
 }
 
 // ── Grid tier (step 4) — tiles one saved Symbol across a bigger grid ──
@@ -4972,10 +5103,15 @@ function renderedSymbolEntrySVG(entry) {
   state.colorRule = entry.colorRule || DEFAULT_COLOR_RULE;
   state.paperColor = entry.paperColor;
   state.symbolClipEnabled = entry.clipEnabled !== false;
-  const size = frameSize(getSymbolGrid());
+  // A Symbol with a Canvas may not be square: it is tiled letterboxed in a
+  // square of its long side (centred), so the Grid tier's placement is unchanged.
+  const F = symbolFrame(getSymbolGrid());
+  const size = Math.max(F.w, F.h);
   const svgStr = withAppearance({ ...entry.appearance, ...(variantAppearance || {}) }, buildSymbolSVG);
   state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.colorRule = prev.rule; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip;
-  return { size, inner: svgStr.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '') };
+  let inner = svgStr.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+  if (F.w !== F.h) inner = `<g transform="translate(${r2((size - F.w) / 2)},${r2((size - F.h) / 2)})">${inner}</g>`;
+  return { size, inner };
 }
 
 function buildFvsGridSVG() {
@@ -5040,13 +5176,15 @@ function symbolContentBox(entry, nat) {
   if (entry.raw) return entry.raw.box;
   try {
     const g = Organica.loadLoomGrid(entry.gridModel);
-    const cs = resolveGridCells({ kind: 'loom', cellShape: g.cellShape, cells: g.cells, width: g.inner.width, height: g.inner.height });
+    const gw = { kind: 'loom', cellShape: g.cellShape, cells: g.cells, width: g.inner.width, height: g.inner.height, canvasFrame: symbolCanvasOf(g) ? g.canvas : null };
+    const cs = resolveGridCells(gw);
+    const F = symbolFrame(gw), bx = (nat - F.w) / 2 + F.bx, by = (nat - F.h) / 2 + F.by;   // = nat/2 for a Symbol without a Canvas
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     cs.forEach((c, i) => {
       if (!entry.cells[i] || entry.cells[i].source === 'empty') return;
       const cw = c.cellW || c.cellSize, ch = c.cellH || c.cellSize;
-      x0 = Math.min(x0, nat / 2 + c.cx - cw / 2); x1 = Math.max(x1, nat / 2 + c.cx + cw / 2);
-      y0 = Math.min(y0, nat / 2 + c.cy - ch / 2); y1 = Math.max(y1, nat / 2 + c.cy + ch / 2);
+      x0 = Math.min(x0, bx + c.cx - cw / 2); x1 = Math.max(x1, bx + c.cx + cw / 2);
+      y0 = Math.min(y0, by + c.cy - ch / 2); y1 = Math.max(y1, by + c.cy + ch / 2);
     });
     return x0 === Infinity ? null : { x0, y0, x1, y1 };
   } catch (e) { return null; }
@@ -5188,6 +5326,7 @@ function defaultSymbolCells(grid) {
 function withPlacementDefaults(cell) {
   return {
     fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false,
+    rotation: 0, flipH: false, flipV: false, scale: 1,
     ...cell,
   };
 }
@@ -5291,6 +5430,7 @@ function polyOrient(points) {
 
 function loadSymbolGrid(model) {
   state.symbolGrid = Organica.loadLoomGrid(model);
+  state.symbolSuggestions = []; ctrl('symbol-suggest-gallery').innerHTML = '';   // proposals belong to the previous grid
   state.symbolCells = defaultSymbolCells(getSymbolGrid());
   state.symbolSelection.clear();
   state.symbolClipEnabled = true;
@@ -5298,6 +5438,155 @@ function loadSymbolGrid(model) {
   ctrl('symbol-grid-error').style.display = 'none';
   renderSymbol();
 }
+
+// ── Symbol Canvas + grid generators ─────────────────────────────
+// The Symbol is the composition: it gets a real page (proportions, and in
+// Print a physical size + DPI + bleed that the Export follows) and a grid
+// generated INSIDE that page by any of Loom's own generators (imported as ES
+// modules, the Rhizome way — loom/js/generators/registry.js, untouched). The
+// page travels with the grid: it is stored on the Loom model's own canvas
+// (canvas.fvsFrame), so saving/loading a Symbol and the Grid tier need no new
+// field. Drawing units: px for Screen, px at 96 dpi of the physical size for
+// Print (A4 = 794 × 1123) — the Export converts to the real size.
+const SYMCANVAS_PRESETS = {   // Loom's CANVAS_PRESETS (loom/js/canvas-manager.js) + 9:16 and A3
+  'Square 1:1': { w: 1080, h: 1080, unit: 'px' },
+  'Portrait 4:5': { w: 1080, h: 1350, unit: 'px' },
+  'Landscape 16:9': { w: 1920, h: 1080, unit: 'px' },
+  'Vertical 9:16': { w: 1080, h: 1920, unit: 'px' },
+  'Widescreen 3:2': { w: 1620, h: 1080, unit: 'px' },
+  'A4 portrait': { w: 210, h: 297, unit: 'mm' },
+  'A4 landscape': { w: 297, h: 210, unit: 'mm' },
+  'A3 portrait': { w: 297, h: 420, unit: 'mm' },
+  'Letter portrait': { w: 215.9, h: 279.4, unit: 'mm' },
+};
+const PX_PER_MM = 96 / 25.4;
+// [key, label, min, max, step, default] — or [key, label, 'text', default]. Everything
+// else comes from the generator's own registry defaults; gap is 0 so cells touch
+// (edge continuity needs neighbours that meet).
+const SYMGRID_GENS = {
+  rectangular: { label: 'Rectangular', params: [['colWeights', 'Column weights', 'text', '1,1,1'], ['rowWeights', 'Row weights', 'text', '1,1,1']] },
+  bento: { label: 'Bento', params: [['cols', 'Columns', 2, 12, 1, 4], ['rows', 'Rows', 2, 12, 1, 4], ['variety', 'Variety', 0, 1, 0.05, 0.5], ['seed', 'Seed', 0, 999, 1, 7]] },
+  sinusoidal: { label: 'Wave', params: [['cols', 'Columns', 2, 16, 1, 6], ['rows', 'Rows', 2, 16, 1, 4], ['amount', 'Amount', 0, 1, 0.05, 0.5], ['frequency', 'Frequency', 0.5, 6, 0.5, 2]] },
+  masonry: { label: 'Masonry', params: [['cols', 'Columns', 2, 10, 1, 4], ['seed', 'Seed', 0, 999, 1, 7]] },
+  hexagonal: { label: 'Hexagonal', params: [['cols', 'Columns', 2, 14, 1, 5]] },
+  triangular: { label: 'Triangular', params: [['cols', 'Columns', 2, 14, 1, 6]] },
+  diamond: { label: 'Diamond', params: [['cols', 'Columns', 2, 14, 1, 5]] },
+  circular: { label: 'Circular', params: [['cols', 'Columns', 2, 14, 1, 5]] },
+  radial: { label: 'Radial', params: [['rings', 'Rings', 1, 8, 1, 3], ['sectors', 'Sectors', 3, 24, 1, 8]] },
+  organic: { label: 'Organic (Voronoi)', params: [['points', 'Cells', 4, 60, 1, 16], ['iterations', 'Relax', 0, 8, 1, 4], ['seed', 'Seed', 0, 999, 1, 7]] },
+  fractal: { label: 'Fractal', params: [['depth', 'Depth', 1, 7, 1, 4], ['variance', 'Variance', 0, 0.5, 0.05, 0.2], ['seed', 'Seed', 0, 999, 1, 7]] },
+  spiral: { label: 'Spiral (golden)', params: [['count', 'Cells', 3, 16, 1, 8]] },
+};
+let loomRegistryP = null;
+function loomRegistry() { return (loomRegistryP = loomRegistryP || import('/loom/js/generators/registry.js').then(m => m.GENERATORS)); }
+
+function readSymbolCanvas() {
+  const mode = ctrl('seg-symcanvas-mode').querySelector('.seg-btn.active').dataset.mode;
+  const unit = mode === 'print' ? ctrl('sel-symcanvas-unit').value : 'px';
+  const pw = Math.max(1, parseFloat(ctrl('num-symcanvas-w').value) || 1), ph = Math.max(1, parseFloat(ctrl('num-symcanvas-h').value) || 1);
+  const toPx = v => mode === 'print' ? v * (unit === 'in' ? 25.4 : 1) * PX_PER_MM : v;
+  return {
+    preset: ctrl('sel-symcanvas-preset').value, mode, unit, pw, ph,
+    dpi: parseFloat(ctrl('num-symcanvas-dpi').value) || 300, bleed: Math.max(0, parseFloat(ctrl('num-symcanvas-bleed').value) || 0),
+    margin: +ctrl('rg-symcanvas-margin').value,
+    W: Math.round(toPx(pw) * 100) / 100, H: Math.round(toPx(ph) * 100) / 100,
+  };
+}
+function applySymbolCanvasToUI(cv) {
+  ctrl('sel-symcanvas-preset').value = cv.preset in SYMCANVAS_PRESETS ? cv.preset : 'Custom';
+  setSymbolCanvasMode(cv.mode || 'screen');
+  if (cv.unit && cv.unit !== 'px') ctrl('sel-symcanvas-unit').value = cv.unit;
+  ctrl('num-symcanvas-w').value = cv.pw; ctrl('num-symcanvas-h').value = cv.ph;
+  if (cv.dpi) ctrl('num-symcanvas-dpi').value = cv.dpi;
+  if (cv.bleed != null) ctrl('num-symcanvas-bleed').value = cv.bleed;
+  ctrl('rg-symcanvas-margin').value = cv.margin || 0; ctrl('v-symcanvas-margin').textContent = cv.margin || 0;
+  syncSymbolCanvasHint();
+}
+function setSymbolCanvasMode(mode) {
+  ctrl('seg-symcanvas-mode').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  ctrl('symcanvas-print-block').style.display = mode === 'print' ? '' : 'none';
+  ctrl('symcanvas-unit-label').textContent = mode === 'print' ? ctrl('sel-symcanvas-unit').value : 'px';
+}
+function syncSymbolCanvasHint() {
+  const cv = readSymbolCanvas();
+  ctrl('symbol-canvas-hint').textContent = cv.mode === 'print' ? `${cv.pw} × ${cv.ph} ${cv.unit} · ${cv.dpi} dpi` : `${cv.pw} × ${cv.ph} px`;
+}
+function renderSymgridParams() {
+  const spec = SYMGRID_GENS[ctrl('sel-symgrid-gen').value];
+  ctrl('symgrid-gen-params').innerHTML = spec.params.map(([k, label, a, b, step, def]) => a === 'text'
+    ? `<div class="ctrl-row"><div class="ctrl-label">${label}</div><input type="text" class="panel-input" id="symgen-${k}" value="${b}" aria-label="${label}"></div>`
+    : `<div class="ctrl-row"><div class="ctrl-label">${label}</div><input type="range" id="symgen-${k}" min="${a}" max="${b}" step="${step}" value="${def}" aria-label="${label}"><span class="ctrl-val" id="v-symgen-${k}">${def}</span></div>`).join('');
+  spec.params.forEach(([k, , a]) => { if (a !== 'text') ctrl('symgen-' + k).addEventListener('input', e => { ctrl('v-symgen-' + k).textContent = e.target.value; }); });
+}
+function readSymgridParams(id) {
+  const out = {};
+  SYMGRID_GENS[id].params.forEach(([k, , a]) => { const v = ctrl('symgen-' + k).value; out[k] = a === 'text' ? v : parseFloat(v); });
+  return out;
+}
+// The Loom model for a generated grid — pure, so the regression suite can call it too.
+async function symbolGridModel(genId, params, cv) {
+  const G = (await loomRegistry())[genId];
+  if (!G) throw new Error(`Unknown grid generator "${genId}".`);
+  const m = Math.min(cv.W, cv.H) * (cv.margin / 100);
+  const inner = { x: m, y: m, width: Math.max(1, cv.W - 2 * m), height: Math.max(1, cv.H - 2 * m) };
+  const full = { ...G.defaults, ...params, gap: 0 };
+  const { grid, cells } = G.generate(full, inner);
+  if (G.cellShape === 'polygon') grid.cellShape = 'polygon';
+  cells.forEach((c, i) => { c.number = i + 1; });
+  const { W, H, ...frame } = cv;
+  return {
+    version: '1.0',
+    canvas: { width: W, height: H, unit: 'px', margin: cv.margin, marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, safeArea: 0, bleed: 0,
+      fvsFrame: { ...frame, generator: genId, params } },
+    grid, cells,
+  };
+}
+async function generateSymbolGridInCanvas() {
+  const id = ctrl('sel-symgrid-gen').value;
+  try {
+    const model = await symbolGridModel(id, readSymgridParams(id), readSymbolCanvas());
+    if (!model.cells.length) throw new Error('No cells — make the canvas larger or lower the counts.');
+    ctrl('symgrid-gen-error').style.display = 'none';
+    loadSymbolGrid(model);
+    if (paletteEntries().length) { if (ctrl('sel-symbol-fill').value === 'suggest') runSuggest(false); else generateSymbolCells(); }
+  } catch (e) {
+    ctrl('symgrid-gen-error').textContent = /unsatisfiable/i.test(e.message) ? 'The canvas is too small for this grid — enlarge it or reduce columns/rows.' : e.message;
+    ctrl('symgrid-gen-error').style.display = '';
+  }
+}
+// The canvas of the loaded Symbol, if it has one (a grid generated in a Canvas).
+function symbolCanvasOf(model) { return model && model.canvas && model.canvas.fvsFrame ? model.canvas.fvsFrame : null; }
+
+ctrl('sel-symcanvas-preset').innerHTML = Object.keys(SYMCANVAS_PRESETS).map(n => `<option>${n}</option>`).join('') + '<option>Custom</option>';
+ctrl('sel-symgrid-gen').innerHTML = Object.entries(SYMGRID_GENS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+ctrl('sel-symgrid-gen').value = 'bento';
+renderSymgridParams();
+ctrl('sel-symgrid-gen').addEventListener('change', () => { ctrl('symgrid-gen-error').style.display = 'none'; renderSymgridParams(); });
+ctrl('btn-symgrid-generate').addEventListener('click', generateSymbolGridInCanvas);
+ctrl('sel-symcanvas-preset').addEventListener('change', () => {
+  const p = SYMCANVAS_PRESETS[ctrl('sel-symcanvas-preset').value];
+  if (!p) return;
+  setSymbolCanvasMode(p.unit === 'px' ? 'screen' : 'print');
+  if (p.unit !== 'px') ctrl('sel-symcanvas-unit').value = 'mm';
+  ctrl('num-symcanvas-w').value = p.w; ctrl('num-symcanvas-h').value = p.h;
+  syncSymbolCanvasHint();
+});
+ctrl('seg-symcanvas-mode').addEventListener('click', e => {
+  const b = e.target.closest('.seg-btn'); if (!b) return;
+  const cur = readSymbolCanvas();
+  if (b.dataset.mode === cur.mode) return;
+  // keep the page's proportions: px ↔ mm at 96 dpi
+  const k = b.dataset.mode === 'print' ? 1 / PX_PER_MM : PX_PER_MM;
+  ctrl('num-symcanvas-w').value = Math.round(cur.pw * k * 10) / 10; ctrl('num-symcanvas-h').value = Math.round(cur.ph * k * 10) / 10;
+  if (b.dataset.mode === 'print') ctrl('sel-symcanvas-unit').value = 'mm';
+  setSymbolCanvasMode(b.dataset.mode);
+  ctrl('sel-symcanvas-preset').value = 'Custom';
+  syncSymbolCanvasHint();
+});
+['num-symcanvas-w', 'num-symcanvas-h'].forEach(id => ctrl(id).addEventListener('input', () => { ctrl('sel-symcanvas-preset').value = 'Custom'; syncSymbolCanvasHint(); }));
+['sel-symcanvas-unit', 'num-symcanvas-dpi', 'num-symcanvas-bleed'].forEach(id => ctrl(id).addEventListener('input', () => { setSymbolCanvasMode(readSymbolCanvas().mode); syncSymbolCanvasHint(); }));
+ctrl('rg-symcanvas-margin').addEventListener('input', e => { ctrl('v-symcanvas-margin').textContent = e.target.value; });
+syncSymbolCanvasHint();
 
 function handleSymbolGridUpload(file) {
   const reader = new FileReader();
@@ -5326,12 +5615,20 @@ function buildSymbolItems() {
   const grid = getSymbolGrid();
   if (!grid) return [];
   const centers = resolveGridCells(grid);
-  const half = frameSize(grid) / 2;
+  const F = symbolFrame(grid);
   const library = LIBRARY.read();
-  return state.symbolCells.map((cell, i) => {
+  return state.symbolCells.map((rawCell, i) => {
     const c = centers[i];
-    if (!c) return null;
-    const baseCx = half + c.cx, baseCy = half + c.cy;
+    if (!c || !rawCell) return null;
+    // A cell missing a field (an older entry, a hand-built one) draws with the
+    // defaults instead of writing "rotate(undefined)" into the SVG.
+    const cell = rawCell.rotation == null || rawCell.scale == null || rawCell.fitMode == null ? withPlacementDefaults(rawCell) : rawCell;
+    let baseCx = F.bx + c.cx, baseCy = F.by + c.cy;
+    // Fill sizes the content to the cell's bounding box, so it must sit on the box's
+    // centre too — a polygon cell's centroid is off-centre when the cell is not
+    // symmetric (a hexagon cut by the page margin, a triangle), which left an
+    // uncovered strip. (Zero shift for symmetric cells and every Figure lattice.)
+    if (cell.fitMode === 'fill') { const off = polygonBoxOffset(grid, i); baseCx += off.x; baseCy += off.y; }
     if (cell.source === 'empty') return null;   // a deliberate hole — nothing is drawn, the cell stays selectable
     if (cell.source === 'component') {
       const entry = library[cell.componentName];
@@ -5345,6 +5642,9 @@ function buildSymbolItems() {
       // worse than a visible "this needs fixing" marker.
       if (!entry) return { type: 'missing', index: i, cx: baseCx, cy: baseCy, cellW: c.cellW, cellH: c.cellH };
       const nestedSize = frameSize(entry.grid);
+      // A rectangular Component (columns ≠ rows) is placed by its own tight box,
+      // so Fill doesn't stretch its letterbox bands into the cell.
+      const nd = frameDims(entry.grid), nestedW = nd.w === nd.h ? nestedSize : nd.w, nestedH = nd.w === nd.h ? nestedSize : nd.h;
       // Colours from the ENTRY's own saved palette, not the live one —
       // same fix renderLibrary()'s own thumbnails already need, since
       // buildComponentItems()'s color field always reads the live
@@ -5352,11 +5652,11 @@ function buildSymbolItems() {
       const savedColorAt = entryInkAt(entry);
       const nestedItems = buildComponentItems({ cells: entry.component.cells }, entry.grid)
         .map((it, j) => ({ ...it, color: savedColorAt(j) }));
-      const place = resolveCellPlacement(c.cellW, c.cellH, nestedSize, cell);
+      const place = resolveCellPlacement(c.cellW, c.cellH, nestedW === nestedH ? nestedSize : { w: nestedW, h: nestedH }, cell);
       return {
         type: 'component', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
         scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
-        nestedItems, nestedSeed: entry.seed, nestedSize, nestedPaper: entry.paperColor, nestedAppearance: { ...entry.appearance, ...(variantAppearance || {}) },
+        nestedItems, nestedSeed: entry.seed, nestedSize, nestedW, nestedH, nestedPaper: entry.paperColor, nestedAppearance: { ...entry.appearance, ...(variantAppearance || {}) },
       };
     }
     // a cell may carry the Element's own settings (seedParams); otherwise the plain default shape
@@ -5385,11 +5685,12 @@ function cellOverflowInfo(index) {
   if (cell.source === 'component') {
     const entry = LIBRARY.read()[cell.componentName];
     if (!entry) return false; // missing-reference placeholder — no fit math to check
-    natural = frameSize(entry.grid);
+    const nd = frameDims(entry.grid);
+    natural = nd.w === nd.h ? frameSize(entry.grid) : { w: nd.w, h: nd.h };
   }
   if (cell.source === 'empty') return false;
   const place = resolveCellPlacement(c.cellW, c.cellH, natural, cell);
-  const itemW = natural * place.scaleX, itemH = natural * place.scaleY;
+  const itemW = (natural.w || natural) * place.scaleX, itemH = (natural.h || natural) * place.scaleY;
   return itemW > c.cellW + 0.01 || itemH > c.cellH + 0.01;
 }
 
@@ -5426,30 +5727,64 @@ function buildSymbolSVG() {
 // returns, same .index into grid.cells) instead of always recomputing fresh
 // from state.symbolCells — the one render path both the static and the
 // live-motion view share.
+// ── Seams between cells ──
+// Two shapes that meet exactly on a cell border are each anti-aliased there, so
+// at any zoom where the border falls inside a pixel their half-covered pixels
+// add up to a light hairline. And every nested Component used to paint its own
+// paper right before its ink — the next cell's paper, a hair wider than the cell
+// after rounding, covered the previous cell's ink along the border: a 1px line
+// on every row. Two fixes, shared by the SVG and the Canvas renderer: all nested
+// papers are painted first, under all ink; and each cell's content (and its
+// clip) reaches SYMBOL_BLEED beyond the border — ~0.1% of the page — so
+// neighbours overlap instead of touching. Too small to see as a change of shape.
+// bounding-box centre − centroid of polygon cell i (0 for rect cells)
+function polygonBoxOffset(grid, i) {
+  const raw = grid.cellShape === 'polygon' && grid.cells[i];
+  if (!raw || !raw.points) return { x: 0, y: 0 };
+  const xs = raw.points.map(p => p[0]), ys = raw.points.map(p => p[1]);
+  return { x: (Math.min(...xs) + Math.max(...xs)) / 2 - raw.centroid[0], y: (Math.min(...ys) + Math.max(...ys)) / 2 - raw.centroid[1] };
+}
+function symbolBleed(F) { return Math.max(0.5, 0.001 * Math.max(F.w, F.h)); }
+// the same reach inside a nested Component, in its own units (its cells meet on seams too)
+function nestedBleed(it, d) { return d / Math.max(1e-6, Math.min(Math.abs(it.scaleX), Math.abs(it.scaleY))); }
+// scale about the cell centre so the content reaches `d` past each side
+function cellBleed(c, d) { return { kx: 1 + 2 * d / Math.max(1e-6, c.cellW), ky: 1 + 2 * d / Math.max(1e-6, c.cellH) }; }
+// the cell's clip outline, pushed out by `d`
+function bleedCellOutline(grid, rawCell, F, d) {
+  if (grid.cellShape === 'polygon') {
+    const cx = rawCell.points.reduce((t, p) => t + p[0], 0) / rawCell.points.length, cy = rawCell.points.reduce((t, p) => t + p[1], 0) / rawCell.points.length;
+    return { poly: rawCell.points.map(p => { const dx = p[0] - cx, dy = p[1] - cy, l = Math.hypot(dx, dy) || 1, k = 1.5 * d / l; return [F.X(p[0] + dx * k), F.Y(p[1] + dy * k)]; }) };
+  }
+  return { x: F.X(rawCell.x) - d, y: F.Y(rawCell.y) - d, w: rawCell.width + 2 * d, h: rawCell.height + 2 * d };
+}
+
 function symbolSVGFromItems(items) {
   const grid = getSymbolGrid();
   if (!grid) return '';
-  const size = frameSize(grid);
-  const half = size / 2;
-  const originX = grid.width / 2, originY = grid.height / 2;
+  const F = symbolFrame(grid);
+  const bleed = symbolBleed(F), centers = resolveGridCells(grid);
   let defs = '';
-  let body = `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>`;
+  let papers = '';   // every nested Component's own paper, painted before any ink
+  let body = '';
   for (const it of items) {
-    let cellMarkup;
+    let cellMarkup, paperMarkup = '';
     if (it.type === 'missing') {
       cellMarkup = missingComponentMarkupSVG(it.cx, it.cy, it.cellW, it.cellH);
     } else if (it.type === 'seed') {
       cellMarkup = seedMarkupSVG(it.cx, it.cy, it.rotation, it.scaleX, it.scaleY, it.geo, it.color);
     } else {
       const geo = SEED_TYPES[it.nestedSeed.type].geometry(it.nestedSeed);
-      const nHalf = it.nestedSize / 2;
-      let inner = `<rect width="${it.nestedSize}" height="${it.nestedSize}" fill="${it.nestedPaper}"/>`;
+      const nhx = it.nestedW / 2, nhy = it.nestedH / 2;
+      const nBleed = nestedBleed(it, bleed);
+      let inner = '';
       for (const ni of it.nestedItems) {
-        const nfit = ni.cellSize / 100;
-        const nsx = (ni.flipH ? -1 : 1) * ni.scale * nfit, nsy = (ni.flipV ? -1 : 1) * ni.scale * nfit;
-        inner += withAppearance(it.nestedAppearance, () => seedMarkupSVG(nHalf + ni.cx, nHalf + ni.cy, ni.rotation, nsx, nsy, geo, ni.color));
+        const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);   // the Component's own cells overlap too
+        const nsx = (ni.flipH ? -1 : 1) * ni.scale * nfit * nk, nsy = (ni.flipV ? -1 : 1) * ni.scale * nfit * nk;
+        inner += withAppearance(it.nestedAppearance, () => seedMarkupSVG(nhx + ni.cx, nhy + ni.cy, ni.rotation, nsx, nsy, geo, ni.color));
       }
-      cellMarkup = `<g transform="translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(${(-nHalf).toFixed(2)},${(-nHalf).toFixed(2)})">${inner}</g>`;
+      const tf = `translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(${(-nhx).toFixed(2)},${(-nhy).toFixed(2)})`;
+      cellMarkup = `<g transform="${tf}">${inner}</g>`;
+      paperMarkup = `<g transform="${tf}"><rect width="${it.nestedW}" height="${it.nestedH}" fill="${it.nestedPaper}"/></g>`;
     }
     // An invisible hit-shape covering the cell's FULL boundary (not just
     // whatever the content happens to draw) — without this, clicking the
@@ -5460,11 +5795,11 @@ function symbolSVGFromItems(items) {
     let hit = '', cellPts = '';
     if (rawCell) {
       if (grid.cellShape === 'polygon') {
-        const pts = rawCell.points.map(p => `${(half + p[0] - originX).toFixed(2)},${(half + p[1] - originY).toFixed(2)}`).join(' ');
+        const pts = rawCell.points.map(p => `${F.X(p[0]).toFixed(2)},${F.Y(p[1]).toFixed(2)}`).join(' ');
         hit = `<polygon points="${pts}" fill="transparent"/>`;
         cellPts = `<polygon points="${pts}"/>`;
       } else {
-        const x = half + rawCell.x - originX, y = half + rawCell.y - originY;
+        const x = F.X(rawCell.x), y = F.Y(rawCell.y);
         hit = `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${rawCell.width.toFixed(2)}" height="${rawCell.height.toFixed(2)}" fill="transparent"/>`;
         cellPts = `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${rawCell.width.toFixed(2)}" height="${rawCell.height.toFixed(2)}"/>`;
       }
@@ -5476,43 +5811,74 @@ function symbolSVGFromItems(items) {
     // free-overflow behaviour (a deliberate bleed effect stays possible).
     let clipAttr = '';
     if (state.symbolClipEnabled && cellPts) {
-      defs += `<clipPath id="clip-cell-${it.index}">${cellPts}</clipPath>`;
+      const o = bleedCellOutline(grid, rawCell, F, bleed);
+      const clipShape = o.poly ? `<polygon points="${o.poly.map(p => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(' ')}"/>`
+        : `<rect x="${o.x.toFixed(2)}" y="${o.y.toFixed(2)}" width="${o.w.toFixed(2)}" height="${o.h.toFixed(2)}"/>`;
+      defs += `<clipPath id="clip-cell-${it.index}">${clipShape}</clipPath>`;
       clipAttr = ` clip-path="url(#clip-cell-${it.index})"`;
     }
+    const c = centers[it.index];
+    if (c && it.type !== 'missing') {
+      const k = cellBleed(c, bleed), ox = F.bx + c.cx, oy = F.by + c.cy;
+      const wrap = m => `<g transform="translate(${ox.toFixed(2)},${oy.toFixed(2)}) scale(${k.kx.toFixed(5)},${k.ky.toFixed(5)}) translate(${(-ox).toFixed(2)},${(-oy).toFixed(2)})">${m}</g>`;
+      cellMarkup = wrap(cellMarkup);
+      if (paperMarkup) paperMarkup = wrap(paperMarkup);
+    }
+    if (paperMarkup) papers += `<g${clipAttr}>${paperMarkup}</g>`;
     body += `<g data-cell-index="${it.index}"${clipAttr}>${hit}${cellMarkup}</g>`;
   }
   const meta = { tool: 'FVS-Symbol', cells: items.length, exportedAt: new Date().toISOString() };
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
-    + `<metadata>${JSON.stringify(meta)}</metadata>` + (defs ? `<defs>${defs}</defs>` : '') + body + `</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${F.w}" height="${F.h}" viewBox="0 0 ${F.w} ${F.h}">`
+    + `<metadata>${JSON.stringify(meta)}</metadata>` + (defs ? `<defs>${defs}</defs>` : '')
+    + `<rect width="${F.w}" height="${F.h}" fill="${state.paperColor}"/>` + papers + body + `</svg>`;
 }
 
-function drawSymbolCanvas(ctx, size) {
+function drawSymbolCanvas(ctx) {
   const grid = getSymbolGrid();
-  const half = size / 2;
-  const originX = grid ? grid.width / 2 : 0, originY = grid ? grid.height / 2 : 0;
-  ctx.clearRect(0, 0, size, size);
+  const F = grid ? symbolFrame(grid) : { w: 0, h: 0, X: v => v, Y: v => v };
+  ctx.clearRect(0, 0, F.w, F.h);
   ctx.fillStyle = state.paperColor;
-  ctx.fillRect(0, 0, size, size);
-  for (const it of buildSymbolItems()) {
-    // "Clip to cell" mirror of buildSymbolSVG()'s <clipPath> — same rect/
-    // polygon source data, applied as a Canvas2D clip path around whatever
-    // this cell draws below, so preview/PNG and SVG export can't disagree.
-    const rawCell = grid ? grid.cells[it.index] : null;
+  ctx.fillRect(0, 0, F.w, F.h);
+  if (!grid) return;
+  const items = buildSymbolItems().filter(Boolean);
+  const bleed = symbolBleed(F), centers = resolveGridCells(grid);
+  // "Clip to cell" mirror of buildSymbolSVG()'s <clipPath> (the same bled outline)
+  // and the same bled content, so preview/PNG and SVG export can't disagree.
+  const enter = it => {
+    const rawCell = grid.cells[it.index];
     const clipping = state.symbolClipEnabled && rawCell;
+    ctx.save();
     if (clipping) {
-      ctx.save();
+      const o = bleedCellOutline(grid, rawCell, F, bleed);
       ctx.beginPath();
-      if (grid.cellShape === 'polygon') {
-        rawCell.points.forEach((p, i) => {
-          const x = half + p[0] - originX, y = half + p[1] - originY;
-          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-        });
-        ctx.closePath();
-      } else {
-        ctx.rect(half + rawCell.x - originX, half + rawCell.y - originY, rawCell.width, rawCell.height);
-      }
+      if (o.poly) { o.poly.forEach((p, i) => (i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1]))); ctx.closePath(); }
+      else ctx.rect(o.x, o.y, o.w, o.h);
       ctx.clip();
     }
+    const c = centers[it.index];
+    if (c && it.type !== 'missing') {
+      const k = cellBleed(c, bleed), ox = F.bx + c.cx, oy = F.by + c.cy;
+      ctx.translate(ox, oy); ctx.scale(k.kx, k.ky); ctx.translate(-ox, -oy);
+    }
+  };
+  const nestedFrame = it => {
+    ctx.translate(it.cx, it.cy);
+    ctx.rotate(it.rotation * Math.PI / 180);
+    ctx.scale(it.scaleX, it.scaleY);
+    ctx.translate(-it.nestedW / 2, -it.nestedH / 2);
+  };
+  // pass 1 — every nested Component's paper, under all ink
+  for (const it of items) {
+    if (it.type !== 'component') continue;
+    enter(it);
+    nestedFrame(it);
+    ctx.fillStyle = it.nestedPaper;
+    ctx.fillRect(0, 0, it.nestedW, it.nestedH);
+    ctx.restore();
+  }
+  // pass 2 — ink
+  for (const it of items) {
+    enter(it);
     if (it.type === 'missing') {
       const x = it.cx - it.cellW / 2, y = it.cy - it.cellH / 2;
       ctx.save();
@@ -5541,22 +5907,18 @@ function drawSymbolCanvas(ctx, size) {
     } else {
       const geo = SEED_TYPES[it.nestedSeed.type].geometry(it.nestedSeed);
       const path = new Path2D(geo.d);
-      const nHalf = it.nestedSize / 2;
+      const nhx = it.nestedW / 2, nhy = it.nestedH / 2;
       ctx.save();
-      ctx.translate(it.cx, it.cy);
-      ctx.rotate(it.rotation * Math.PI / 180);
-      ctx.scale(it.scaleX, it.scaleY);
-      ctx.translate(-nHalf, -nHalf);
-      ctx.fillStyle = it.nestedPaper;
-      ctx.fillRect(0, 0, it.nestedSize, it.nestedSize);
+      nestedFrame(it);
+      const nBleed = nestedBleed(it, bleed);
       const prevOverride = appearanceOverride;
       appearanceOverride = { ...DEFAULT_APPEARANCE, ...(it.nestedAppearance || {}) };
       for (const ni of it.nestedItems) {
         ctx.save();
-        ctx.translate(nHalf + ni.cx, nHalf + ni.cy);
+        ctx.translate(nhx + ni.cx, nhy + ni.cy);
         ctx.rotate(ni.rotation * Math.PI / 180);
-        const nfit = ni.cellSize / 100;
-        ctx.scale((ni.flipH ? -1 : 1) * ni.scale * nfit, (ni.flipV ? -1 : 1) * ni.scale * nfit);
+        const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);
+        ctx.scale((ni.flipH ? -1 : 1) * ni.scale * nfit * nk, (ni.flipV ? -1 : 1) * ni.scale * nfit * nk);
         ctx.translate(-50, -50);
         applyElementStretchCanvas(ctx);
         ctx.translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale);
@@ -5568,41 +5930,486 @@ function drawSymbolCanvas(ctx, size) {
       appearanceOverride = prevOverride;
       ctx.restore();
     }
-    if (clipping) ctx.restore();
+    ctx.restore();
   }
 }
 
-// Seeded — a fresh mulberry32(seed) stream each call, so the same seed
-// always reproduces the exact same per-cell choices (same discipline
-// as ruleRandom() above), never accumulating across repeated clicks.
+// ── Component palette + Arrange ─────────────────────────────────
+// A Symbol is composed from saved Components only. The palette is the set
+// it draws from (each with a weight); Arrange decides WHICH Component goes in
+// each cell from the cell's place in the grid: class = f(col, row, ring,
+// sector, band…), the n-th class takes the n-th palette entry. Random picks
+// by weight. Transforms are reset (a down-pointing triangle cell is turned
+// 180° to face its slot); refine them with the Rule mode. Locked cells stay.
+const SYMBOL_ARRANGE = {
+  random: { label: 'Random (by weight)' },
+  checker: { label: 'Checkerboard', cls: c => c.col + c.row },
+  rows: { label: 'Rows', cls: c => c.row },
+  columns: { label: 'Columns', cls: c => c.col },
+  diagonal: { label: 'Diagonal bands', cls: c => c.col + c.row, full: true },
+  blocks: { label: '2×2 blocks', cls: c => (c.col >> 1) + (c.row >> 1) },
+  rings: { label: 'Rings (from the centre)', cls: (c, k) => Math.floor(Math.min(0.9999, Math.hypot(c.nx, c.ny) / Math.SQRT2) * k) },
+  sectors: { label: 'Sectors (around the centre)', cls: (c, k) => Math.floor(((c.angle + Math.PI) / (2 * Math.PI)) * k) % k },
+  wave: { label: 'Wave bands', cls: (c, k) => Math.floor(Math.min(0.9999, (Math.sin((c.nx * 1.5 + c.ny) * Math.PI) + 1) / 2) * k) },
+  orientation: { label: 'Up / down (triangles)', cls: c => (c.orient === 'down' ? 1 : 0) },
+};
+// Checkerboard alternates the first two palette entries; every other patterned
+// rule cycles through all of them.
+function paletteEntries() {
+  const lib = LIBRARY.read();
+  return state.symbolPalette.filter(p => lib[p.name]);
+}
+function weightedPick(pal, rng) {
+  const total = pal.reduce((t, p) => t + (p.weight || 1), 0);
+  let r = rng() * total;
+  for (const p of pal) { r -= (p.weight || 1); if (r < 0) return p; }
+  return pal[pal.length - 1];
+}
+function symbolCellContext(grid) {
+  const ctxs = cellColRow(grid);
+  const raw = (state.symbolGrid && state.symbolGrid.cells) || [];
+  return ctxs.map((c, i) => ({ ...c, orient: raw[i] && raw[i].points ? polyOrient(raw[i].points) : null }));
+}
+// Pure: the cells an arrangement produces for (grid, palette, rule, seed, fit),
+// leaving locked cells as they are.
+function arrangeCells(grid, cells, pal, ruleId, seed, fit) {
+  const rule = SYMBOL_ARRANGE[ruleId] || SYMBOL_ARRANGE.random;
+  const rng = mulberry32(seed);
+  const ctxs = symbolCellContext(grid);
+  const k = ruleId === 'checker' ? Math.min(2, pal.length) : pal.length;
+  return resolveGridCells(grid).map((c, i) => {
+    const prev = cells[i];
+    if (prev && prev.locked) return prev;
+    const ctx = ctxs[i];
+    const pick = rule.cls ? pal[((rule.cls(ctx, k) % k) + k) % k] : weightedPick(pal, rng);
+    return {
+      source: 'component', componentName: pick.name,
+      rotation: ctx.orient === 'down' ? 180 : 0, flipH: false, flipV: false, scale: 1, color: null,
+      fitMode: fit, fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false,
+    };
+  });
+}
 function generateSymbolCells() {
   const grid = getSymbolGrid();
   if (!grid) return;
-  const seed = parseInt(ctrl('num-symbol-seed').value, 10) || 0;
-  const rng = mulberry32(seed);
-  const libNames = libraryNames(LIBRARY.read());
-  const seedTypes = ['triangle', 'arc', 'arctruchet', 'wedge', 'polygon', 'star', 'roundedrect', 'chevron', 'cross', 'lens'];
-  const scaleChoices = [0.75, 1, 1.25];
+  const pal = paletteEntries();
+  if (!pal.length) { setStatus('', 'Add Components to the palette first'); return; }
   state.symbolSelection.clear();
-  // Fit mode/anchor/padding are deliberately NOT randomized — a chaotic
-  // per-cell mix of fit modes reads as broken rather than as intentional
-  // variety (unlike rotation/flip, which read as deliberate). They stay
-  // at the plain defaults; Generate's own visual output is exactly what
-  // it was before this feature, unless a cell is hand-adjusted afterward.
-  state.symbolCells = resolveGridCells(grid).map((c, i) => {
-    const rotation = [0, 90, 180, 270][Math.floor(rng() * 4)];
-    const flipH = rng() < 0.5, flipV = rng() < 0.5;
-    const scale = scaleChoices[Math.floor(rng() * scaleChoices.length)];
-    const placement = { fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0 };
-    if (libNames.length > 0 && rng() < 0.5) {
-      const componentName = libNames[Math.floor(rng() * libNames.length)];
-      return { source: 'component', componentName, rotation, flipH, flipV, scale, ...placement };
-    }
-    const seedType = seedTypes[Math.floor(rng() * seedTypes.length)];
-    return { source: 'seed', seedType, rotation, flipH, flipV, scale, color: null, ...placement };
-  });
+  state.symbolCells = arrangeCells(grid, state.symbolCells, pal, ctrl('sel-sym-arrange').value,
+    parseInt(ctrl('num-symbol-seed').value, 10) || 0, ctrl('sel-sym-arrange-fit').value);
   renderSymbol();
 }
+
+function togglePaletteComponent(name) {
+  const i = state.symbolPalette.findIndex(p => p.name === name);
+  if (i >= 0) state.symbolPalette.splice(i, 1);
+  else if (state.symbolPalette.length < 8) state.symbolPalette.push({ name, weight: 1 });
+  renderSymbolPalette();
+}
+function openPalettePicker() {
+  contentOverlayPaletteMode = true;
+  renderCellContentOverlayTiles();
+  ctrl('symbol-content-overlay').style.display = 'flex';
+}
+function componentThumbSVG(name) {
+  const entry = LIBRARY.read()[name];
+  if (!entry) return '';
+  const savedColorAt = entryInkAt(entry);
+  const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
+  return buildComponentSVGWithPaper(items, entry.seed, frameSize(entry.grid), entry.paperColor, entry.role, entry.underlyingComponentName);
+}
+function renderSymbolPalette() {
+  const wrap = ctrl('symbol-palette');
+  const pal = paletteEntries();
+  state.symbolPalette = pal;   // drop entries whose Component was deleted
+  wrap.innerHTML = pal.map((p, i) => `<div class="fvs-sympal__item" title="${p.name.replace(/"/g, '&quot;')}">${componentThumbSVG(p.name)}
+    <select class="panel-select" data-pal-weight="${i}" aria-label="Weight of ${p.name.replace(/"/g, '&quot;')}">${[1, 2, 3, 4, 5].map(w => `<option value="${w}"${w === (p.weight || 1) ? ' selected' : ''}>×${w}</option>`).join('')}</select>
+    <button class="icon-btn fvs-sympal__x" data-pal-remove="${i}" aria-label="Remove ${p.name.replace(/"/g, '&quot;')} from the palette">×</button></div>`).join('');
+  const n = pal.length;
+  ctrl('symbol-palette-hint').textContent = n ? `${n} in the palette` : (libraryNames(LIBRARY.read()).length ? 'none yet' : 'save Components first');
+}
+ctrl('symbol-palette').addEventListener('change', e => {
+  const i = e.target.dataset.palWeight;
+  if (i != null) state.symbolPalette[+i].weight = +e.target.value;
+});
+ctrl('symbol-palette').addEventListener('click', e => {
+  const b = e.target.closest('[data-pal-remove]');
+  if (b) { state.symbolPalette.splice(+b.dataset.palRemove, 1); renderSymbolPalette(); }
+});
+ctrl('btn-sympal-add').addEventListener('click', openPalettePicker);
+ctrl('sel-sym-arrange').innerHTML = Object.entries(SYMBOL_ARRANGE).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+
+// ── Suggestion engine ────────────────────────────────────────────
+// Proposes whole Symbols from the palette. Three analyses, then generators
+// scored on three sliders.
+//  1. Each Component is rasterised once (cached by name + savedAt) into an
+//     ink mask over its own tight frame — so any point of any turned/flipped
+//     placement can be asked "ink or paper?".
+//  2. The grid's real adjacencies: rect cells share a vertical/horizontal
+//     segment (bento spans included), polygon cells share an edge. Each shared
+//     edge gets N sample points, nudged a little into each of its two cells.
+//  3. A candidate = per cell {name, rotation, flipH}. Continuity = how often the
+//     two sides of every shared edge agree (ink meets ink, paper meets paper;
+//     ink-to-ink counts most), Balance = even ink over the page + each Component
+//     used as often as its weight, Surprise = fewer identical neighbours.
+// Generators: every Arrange rule with its turns chosen for continuity; a beam
+// search over Component × turn for continuity; weighted random + the same turn
+// search. Ranked, look-alikes dropped, shown as a gallery. Deterministic (seed).
+const SUG_N = 10;   // samples per shared edge
+const SUG_STATES_SQ = [[0, false], [90, false], [180, false], [270, false], [0, true], [90, true], [180, true], [270, true]];   // D4 (flip H + a turn covers flip V)
+const SUG_STATES_RECT = [[0, false], [180, false], [0, true], [180, true]];   // a non-square Component or cell only turns half-way
+const compAnalysisCache = new Map();
+function analyseComponent(name) {
+  const entry = LIBRARY.read()[name];
+  if (!entry) return null;
+  const key = name + '|' + (entry.savedAt || '');
+  if (compAnalysisCache.has(key)) return compAnalysisCache.get(key);
+  const S = frameSize(entry.grid), d = frameDims(entry.grid), RES = 64;
+  const cv = document.createElement('canvas'); cv.width = RES; cv.height = RES;
+  const ctx = cv.getContext('2d');
+  const prev = { paper: state.paperColor, role: state.componentRole, under: state.underlyingComponentName };
+  state.paperColor = entry.paperColor || '#ffffff'; state.componentRole = entry.role || 'normal'; state.underlyingComponentName = entry.underlyingComponentName || null;
+  try {
+    const savedColorAt = entryInkAt(entry);
+    const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
+    ctx.setTransform(RES / S, 0, 0, RES / S, 0, 0);
+    withAppearance(entry.appearance, () => drawComponentCanvas(ctx, items, entry.seed, S));
+  } finally { state.paperColor = prev.paper; state.componentRole = prev.role; state.underlyingComponentName = prev.under; ctx.setTransform(1, 0, 0, 1, 0, 0); }
+  const px = ctx.getImageData(0, 0, RES, RES).data;
+  const paper = hexToRgb(entry.paperColor || '#ffffff');
+  const GW = Math.max(4, Math.round(d.w / S * RES)), GH = Math.max(4, Math.round(d.h / S * RES));
+  const ox = Math.round((RES - GW) / 2), oy = Math.round((RES - GH) / 2);
+  const cov = new Uint8Array(GW * GH);
+  let ink = 0;
+  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
+    const i = ((oy + y) * RES + ox + x) * 4;
+    const on = Math.abs(px[i] - paper.r) + Math.abs(px[i + 1] - paper.g) + Math.abs(px[i + 2] - paper.b) > 90 ? 1 : 0;
+    cov[y * GW + x] = on; ink += on;
+  }
+  const out = { cov, GW, GH, density: ink / (GW * GH), square: Math.abs(d.w - d.h) < 1e-6, natural: Math.abs(d.w - d.h) < 1e-6 ? S : { w: d.w, h: d.h } };
+  compAnalysisCache.set(key, out);
+  return out;
+}
+function hexToRgb(h) { const m = String(h).replace('#', ''); const f = m.length === 3 ? m.split('').map(c => c + c).join('') : m; return { r: parseInt(f.slice(0, 2), 16) || 0, g: parseInt(f.slice(2, 4), 16) || 0, b: parseInt(f.slice(4, 6), 16) || 0 }; }
+function inkAt(an, u, v) {
+  if (u <= -1 || u >= 1 || v <= -1 || v >= 1) return 0;
+  const gx = Math.min(an.GW - 1, Math.floor((u + 1) / 2 * an.GW)), gy = Math.min(an.GH - 1, Math.floor((v + 1) / 2 * an.GH));
+  return an.cov[gy * an.GW + gx];
+}
+
+// The grid, in raw (canvas) coordinates: per-cell centre + size, and the shared edges.
+function suggestGridContext() {
+  const grid = getSymbolGrid();
+  if (!grid) return null;
+  const raw = state.symbolGrid.cells;
+  const res = resolveGridCells(grid);
+  const fill = (ctrl('sel-sym-arrange-fit').value || 'fill') === 'fill';
+  const cells = raw.map((c, i) => {
+    if (grid.cellShape !== 'polygon') return { cx: c.x + c.width / 2, cy: c.y + c.height / 2, w: c.width, h: c.height };
+    const off = fill ? polygonBoxOffset(grid, i) : { x: 0, y: 0 };   // where buildSymbolItems centres the content
+    return { cx: c.centroid[0] + off.x, cy: c.centroid[1] + off.y, w: res[i].cellW, h: res[i].cellH };
+  });
+  const segs = [];   // {i, j, a:[x,y], b:[x,y]}
+  if (grid.cellShape === 'polygon') {
+    // Shared edges, including partial ones (Loom's triangular lattice offsets its
+    // rows, so a base is shared with two neighbours, half each): edges are
+    // bucketed by the line they lie on, and two edges of different cells on the
+    // same line share the overlap of their spans.
+    const buckets = new Map();
+    raw.forEach((c, i) => c.points.forEach((p, k) => {
+      const q = c.points[(k + 1) % c.points.length];
+      const dx = q[0] - p[0], dy = q[1] - p[1], len = Math.hypot(dx, dy);
+      if (len < 1) return;
+      let ux = dx / len, uy = dy / len;
+      if (ux < -1e-9 || (Math.abs(ux) < 1e-9 && uy < 0)) { ux = -ux; uy = -uy; }
+      const ang = Math.round(Math.atan2(uy, ux) * 180 / Math.PI * 2);   // ½° bins
+      const dist = Math.round((p[0] * -uy + p[1] * ux) * 2);            // ½-unit bins
+      const t0 = p[0] * ux + p[1] * uy, t1 = q[0] * ux + q[1] * uy;
+      const id = ang + '|' + dist;
+      if (!buckets.has(id)) buckets.set(id, []);
+      buckets.get(id).push({ i, lo: Math.min(t0, t1), hi: Math.max(t0, t1), ux, uy, n: dist / 2 });
+    }));
+    for (const list of buckets.values()) {
+      for (let a = 0; a < list.length; a++) for (let b = a + 1; b < list.length; b++) {
+        const A = list[a], B = list[b];
+        if (A.i === B.i) continue;
+        const lo = Math.max(A.lo, B.lo), hi = Math.min(A.hi, B.hi);
+        if (hi - lo < 1) continue;
+        const pt = t => [t * A.ux - A.n * A.uy, t * A.uy + A.n * A.ux];
+        segs.push({ i: A.i, j: B.i, a: pt(lo), b: pt(hi) });
+      }
+    }
+  } else {
+    const eps = 0.5;
+    for (let i = 0; i < raw.length; i++) for (let j = i + 1; j < raw.length; j++) {
+      const A = raw[i], B = raw[j];
+      const y0 = Math.max(A.y, B.y), y1 = Math.min(A.y + A.height, B.y + B.height);
+      const x0 = Math.max(A.x, B.x), x1 = Math.min(A.x + A.width, B.x + B.width);
+      if (y1 - y0 > eps) {
+        if (Math.abs(A.x + A.width - B.x) < eps) segs.push({ i, j, a: [B.x, y0], b: [B.x, y1] });
+        else if (Math.abs(B.x + B.width - A.x) < eps) segs.push({ i, j, a: [A.x, y0], b: [A.x, y1] });
+      }
+      if (x1 - x0 > eps) {
+        if (Math.abs(A.y + A.height - B.y) < eps) segs.push({ i, j, a: [x0, B.y], b: [x1, B.y] });
+        else if (Math.abs(B.y + B.height - A.y) < eps) segs.push({ i, j, a: [x0, A.y], b: [x1, A.y] });
+      }
+    }
+  }
+  // One pair per two neighbouring cells, however many pieces their border has (a
+  // Radial grid's curved ring borders are polylines): SUG_N sample points spread
+  // along the whole shared border, nudged 4% of the cell's size into each side,
+  // stored relative to that cell's centre.
+  const groups = new Map();
+  segs.forEach(sg => { const i = Math.min(sg.i, sg.j), j = Math.max(sg.i, sg.j), k = i + '|' + j; if (!groups.has(k)) groups.set(k, { i, j, segs: [] }); groups.get(k).segs.push(sg); });
+  const pairs = [...groups.values()].map(gp => {
+    const lens = gp.segs.map(sg => Math.hypot(sg.b[0] - sg.a[0], sg.b[1] - sg.a[1]));
+    const total = lens.reduce((a, b) => a + b, 0);
+    const at = t => {   // point at arc-length fraction t of the whole border
+      let d = t * total;
+      for (let k = 0; k < gp.segs.length; k++) {
+        if (d <= lens[k] || k === gp.segs.length - 1) { const f = lens[k] ? Math.min(1, d / lens[k]) : 0, sg = gp.segs[k]; return [sg.a[0] + (sg.b[0] - sg.a[0]) * f, sg.a[1] + (sg.b[1] - sg.a[1]) * f]; }
+        d -= lens[k];
+      }
+      return gp.segs[0].a;
+    };
+    const side = (c) => {
+      const pts = [];
+      for (let k = 0; k < SUG_N; k++) {
+        const [x, y] = at((k + 0.5) / SUG_N);
+        const dx = c.cx - x, dy = c.cy - y, len = Math.hypot(dx, dy) || 1, inset = 0.04 * Math.min(c.w, c.h);
+        pts.push([x + dx / len * inset - c.cx, y + dy / len * inset - c.cy]);
+      }
+      return pts;
+    };
+    return { i: gp.i, j: gp.j, pi: side(cells[gp.i]), pj: side(cells[gp.j]) };
+  });
+  const nbrs = cells.map(() => []);
+  pairs.forEach((p, k) => { nbrs[p.i].push(k); nbrs[p.j].push(k); });
+  const order = cells.map((c, i) => i).sort((a, b) => (Math.round(cells[a].cy / 4) - Math.round(cells[b].cy / 4)) || (cells[a].cx - cells[b].cx));
+  const xs = cells.map(c => c.cx), ys = cells.map(c => c.cy);
+  const bounds = { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+  return { cells, pairs, nbrs, order, bounds, orient: raw.map(c => (c.points ? polyOrient(c.points) : null)) };
+}
+
+// The ink bits a choice {name, r, fh} shows at a list of cell-relative points.
+function choiceBits(G, i, ch, pts, fit, anByName) {
+  const an = anByName[ch.name];
+  const c = G.cells[i];
+  const place = resolveCellPlacement(c.w, c.h, an.natural, { fitMode: fit, scale: 1, padding: 0, anchorX: 0, anchorY: 0, fixedSize: 100 });
+  const hw = (an.natural.w || an.natural) / 2 * place.scaleX, hh = (an.natural.h || an.natural) / 2 * place.scaleY;
+  const rad = ch.r * Math.PI / 180, cs = Math.cos(rad), sn = Math.sin(rad), fx = ch.fh ? -1 : 1;
+  return pts.map(([x, y]) => {
+    const rx = x * cs + y * sn, ry = -x * sn + y * cs;   // undo the turn
+    return inkAt(an, rx / (hw * fx), ry / hh);
+  });
+}
+function pairScore(bi, bj) {
+  let inkInk = 0, paper = 0, miss = 0;
+  for (let k = 0; k < bi.length; k++) { if (bi[k] && bj[k]) inkInk++; else if (!bi[k] && !bj[k]) paper++; else miss++; }
+  return { s: (2 * inkInk + 0.5 * paper - miss) / (2 * bi.length), match: (inkInk + paper) / bi.length, active: inkInk + miss > 0 };
+}
+function statesFor(G, i, an) {
+  const c = G.cells[i];
+  return an.square && Math.abs(c.w - c.h) / Math.max(c.w, c.h) < 0.08 ? SUG_STATES_SQ : SUG_STATES_RECT;
+}
+// Whole-candidate score: {total, cont, bal, sur, match}
+function scoreSymbolCandidate(G, cand, pal, W, fit, anByName) {
+  let sc = 0, match = 0, act = 0, same = 0;
+  const bitsCache = new Map();
+  const bits = (i, side, p) => { const k = i + ':' + p + side; if (!bitsCache.has(k)) bitsCache.set(k, choiceBits(G, i, cand[i], side === 'i' ? G.pairs[p].pi : G.pairs[p].pj, fit, anByName)); return bitsCache.get(k); };
+  G.pairs.forEach((p, k) => {
+    const r = pairScore(bits(p.i, 'i', k), bits(p.j, 'j', k));
+    sc += r.s; match += r.match; if (r.active) act++;
+    const a = cand[p.i], b = cand[p.j];
+    if (a.name === b.name && a.r === b.r && a.fh === b.fh) same++;
+  });
+  const np = Math.max(1, G.pairs.length);
+  const cont = (sc / np + 0.5) / 1.5;
+  // balance: ink over a 3×3 split of the page + usage vs weight
+  const reg = new Array(9).fill(0), regN = new Array(9).fill(0);
+  const bw = Math.max(1, G.bounds.x1 - G.bounds.x0), bh = Math.max(1, G.bounds.y1 - G.bounds.y0);
+  const use = {};
+  cand.forEach((ch, i) => {
+    const c = G.cells[i], an = anByName[ch.name];
+    const rx = Math.min(2, Math.floor((c.cx - G.bounds.x0) / bw * 3)), ry = Math.min(2, Math.floor((c.cy - G.bounds.y0) / bh * 3));
+    reg[ry * 3 + rx] += an.density * c.w * c.h; regN[ry * 3 + rx] += c.w * c.h;
+    use[ch.name] = (use[ch.name] || 0) + 1;
+  });
+  const dens = reg.map((v, k) => (regN[k] ? v / regN[k] : null)).filter(v => v != null);
+  const mean = dens.reduce((a, b) => a + b, 0) / dens.length;
+  const sd = Math.sqrt(dens.reduce((a, b) => a + (b - mean) ** 2, 0) / dens.length);
+  const totW = pal.reduce((t, p) => t + (p.weight || 1), 0);
+  const dev = pal.reduce((t, p) => t + Math.abs((use[p.name] || 0) / cand.length - (p.weight || 1) / totW), 0) / 2;
+  const bal = 0.5 * Math.max(0, 1 - sd / 0.35) + 0.5 * (1 - dev);
+  const sur = 1 - same / np;
+  const wsum = W.cont + W.bal + W.sur || 1;
+  return { total: (W.cont * cont + W.bal * bal + W.sur * sur) / wsum, cont, bal, sur, match: match / np, edges: G.pairs.length };
+}
+// For fixed Components, pick each cell's turn for continuity with the already-placed
+// neighbours (cells visited top-to-bottom, left-to-right). Locked cells keep theirs.
+function refineTurns(G, cand, fit, anByName, rng, fixed) {
+  const placed = new Array(cand.length).fill(false);
+  fixed.forEach((f, i) => { if (f) placed[i] = true; });
+  for (const i of G.order) {
+    if (fixed[i]) continue;
+    const an = anByName[cand[i].name];
+    let best = null, bestS = -Infinity;
+    for (const [r, fh] of statesFor(G, i, an)) {
+      const ch = { name: cand[i].name, r, fh };
+      let s = rng() * 0.02;
+      for (const k of G.nbrs[i]) {
+        const p = G.pairs[k], o = p.i === i ? p.j : p.i;
+        if (!placed[o]) continue;
+        const mine = choiceBits(G, i, ch, p.i === i ? p.pi : p.pj, fit, anByName);
+        const theirs = choiceBits(G, o, cand[o], p.i === i ? p.pj : p.pi, fit, anByName);
+        s += pairScore(mine, theirs).s;
+      }
+      if (s > bestS) { bestS = s; best = ch; }
+    }
+    cand[i] = best; placed[i] = true;
+  }
+  return cand;
+}
+// Beam search over Component × turn, cell by cell.
+function beamCandidate(G, pal, W, fit, anByName, rng, locked, width) {
+  const n = G.cells.length;
+  const totW = pal.reduce((t, p) => t + (p.weight || 1), 0);
+  let beam = [{ cand: locked.map(l => l || null), s: 0, uses: {} }];
+  for (const i of G.order) {
+    if (locked[i]) continue;
+    const next = [];
+    for (const b of beam) {
+      for (const p of pal) {
+        const an = anByName[p.name];
+        for (const [r, fh] of statesFor(G, i, an)) {
+          const ch = { name: p.name, r, fh };
+          let s = 0, rep = 0;
+          for (const k of G.nbrs[i]) {
+            const pr = G.pairs[k], o = pr.i === i ? pr.j : pr.i;
+            const other = b.cand[o];
+            if (!other) continue;
+            s += pairScore(choiceBits(G, i, ch, pr.i === i ? pr.pi : pr.pj, fit, anByName), choiceBits(G, o, other, pr.i === i ? pr.pj : pr.pi, fit, anByName)).s;
+            if (other.name === ch.name && other.r === r && other.fh === fh) rep++;
+          }
+          const used = (b.uses[p.name] || 0) / n, want = (p.weight || 1) / totW;
+          const inc = W.cont * s - W.sur * 0.6 * rep - W.bal * Math.max(0, used - want) * 2 + rng() * (0.05 + W.sur * 0.25);
+          next.push({ b, i, ch, s: b.s + inc });
+        }
+      }
+    }
+    next.sort((x, y) => y.s - x.s);
+    beam = next.slice(0, width).map(x => {
+      const cand = x.b.cand.slice(); cand[x.i] = x.ch;
+      return { cand, s: x.s, uses: { ...x.b.uses, [x.ch.name]: (x.b.uses[x.ch.name] || 0) + 1 } };
+    });
+  }
+  return beam[0].cand;
+}
+// A cell's turn in the engine's own form {r, fh}: flip V = a half turn + flip H,
+// flip H + V = a half turn (see canonicalState).
+function choiceOfCell(c) {
+  if (!c || c.source !== 'component') return null;
+  let r = ((Math.round(c.rotation / 90) * 90) % 360 + 360) % 360, fh = !!c.flipH;
+  if (c.flipV) { r = (r + 180) % 360; fh = !fh; }
+  return { name: c.componentName, r, fh };
+}
+function candFromCells(cells) { return cells.map(choiceOfCell); }
+function cellsFromCand(cand, fit, prevCells) {
+  return cand.map((ch, i) => {
+    const prev = prevCells[i];
+    if (prev && prev.locked) return prev;
+    return { source: 'component', componentName: ch.name, rotation: ch.r, flipH: ch.fh, flipV: false, scale: 1, color: null,
+      fitMode: fit, fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false };
+  });
+}
+function suggestWeights() { return { cont: +ctrl('rg-sug-cont').value / 100, bal: +ctrl('rg-sug-bal').value / 100, sur: +ctrl('rg-sug-sur').value / 100 }; }
+
+// The candidate list (pure apart from reading the grid/palette state).
+function suggestSymbols(opts = {}) {
+  const G = suggestGridContext();
+  const pal = paletteEntries();
+  if (!G || !pal.length) return [];
+  const W = opts.weights || suggestWeights();
+  const fit = opts.fit || ctrl('sel-sym-arrange-fit').value || 'fill';
+  const seed = opts.seed != null ? opts.seed : (parseInt(ctrl('num-sug-seed').value, 10) || 0);
+  const anByName = {};
+  pal.forEach(p => { anByName[p.name] = analyseComponent(p.name); });
+  const cur = state.symbolCells;
+  const locked = cur.map(c => (c && c.locked && c.source === 'component' && anByName[c.componentName] ? choiceOfCell(c) : null));
+  const fixed = locked.map(Boolean);
+  const grid = getSymbolGrid();
+  const out = [];
+  const add = (cand, label) => out.push({ cand, label });
+  const rng = mulberry32(seed * 7919 + 13);
+  if (opts.base) {
+    // "More like this": 8–20% of the free cells re-drawn, then turns refined.
+    for (let v = 0; v < 11; v++) {
+      const r = mulberry32(seed * 131 + v * 977 + 5);
+      const cand = opts.base.map((ch, i) => (fixed[i] ? locked[i] : ch && anByName[ch.name] ? { ...ch } : { name: pal[0].name, r: 0, fh: false }));
+      const rate = 0.08 + 0.12 * r();
+      const keep = cand.map((ch, i) => fixed[i] || r() >= rate);   // only the re-drawn cells get a new Component + turn
+      cand.forEach((ch, i) => { if (!keep[i]) cand[i] = { name: weightedPick(pal, r).name, r: 0, fh: false }; });
+      add(refineTurns(G, cand, fit, anByName, r, keep), 'Variation');
+    }
+  } else {
+    for (const [id, rule] of Object.entries(SYMBOL_ARRANGE)) {
+      if (id === 'random' || (id === 'orientation' && !G.orient.some(Boolean))) continue;
+      const cells = arrangeCells(grid, cur, pal, id, seed, fit);
+      const cand = cells.map((c, i) => (fixed[i] ? locked[i] : { name: c.componentName, r: 0, fh: false }));
+      add(refineTurns(G, cand, fit, anByName, mulberry32(seed + id.length * 31), fixed), rule.label);
+    }
+    for (let b = 0; b < 3; b++) add(beamCandidate(G, pal, W, fit, anByName, mulberry32(seed * 17 + b * 101 + 1), locked, 4), 'Continuity search');
+    for (let b = 0; b < 2; b++) {
+      const r = mulberry32(seed * 29 + b * 53 + 7);
+      const cand = G.cells.map((c, i) => (fixed[i] ? locked[i] : { name: weightedPick(pal, r).name, r: 0, fh: false }));
+      add(refineTurns(G, cand, fit, anByName, r, fixed), 'Weighted mix');
+    }
+  }
+  // score, rank, drop duplicates (same Component + canonical turn in every cell)
+  const seen = new Set();
+  const scored = out.map(o => ({ ...o, score: scoreSymbolCandidate(G, o.cand, pal, W, fit, anByName) }))
+    .sort((a, b) => b.score.total - a.score.total)
+    .filter(o => { const key = o.cand.map(c => c.name + canonicalState({ rotation: c.r, flipH: c.fh, flipV: false, scale: 1 })).join('|'); if (seen.has(key)) return false; seen.add(key); return true; });
+  return scored.slice(0, opts.limit || 12).map(o => ({ ...o, cells: cellsFromCand(o.cand, fit, cur) }));
+}
+
+function renderSuggestGallery(currentIdx) {
+  const wrap = ctrl('symbol-suggest-gallery');
+  if (!state.symbolSuggestions.length) { wrap.innerHTML = ''; return; }
+  const prev = state.symbolCells;
+  wrap.innerHTML = '';
+  state.symbolSuggestions.forEach((sg, i) => {
+    state.symbolCells = sg.cells;
+    const svg = buildSymbolSVG();
+    const btn = document.createElement('button');
+    btn.className = 'fvs-suggest__item' + (i === currentIdx ? ' is-current' : '');
+    btn.innerHTML = svg + `<span class="fvs-suggest__cap">${sg.label}${sg.score.edges ? ` · continuity ${Math.round(sg.score.match * 100)}%` : ''}</span>`;
+    btn.setAttribute('aria-label', `Use proposal ${i + 1}: ${sg.label}`);
+    btn.addEventListener('click', () => {
+      state.symbolCells = sg.cells.map(c => ({ ...c }));
+      state.symbolSelection.clear();
+      renderSymbol();
+      wrap.querySelectorAll('.fvs-suggest__item').forEach((b, k) => b.classList.toggle('is-current', k === i));
+    });
+    wrap.appendChild(btn);
+  });
+  state.symbolCells = prev;
+}
+function runSuggest(more) {
+  if (!state.symbolGrid) return;
+  if (!paletteEntries().length) { ctrl('sug-hint').textContent = 'Add Components to the palette first (Components section above).'; return; }
+  const base = more ? candFromCells(state.symbolCells) : null;
+  if (more && base.some(c => !c)) { runSuggest(false); return; }
+  setStatus('active', 'Suggesting…');
+  state.symbolSuggestions = suggestSymbols(more ? { base } : {});
+  if (!more && state.symbolSuggestions.length) state.symbolCells = state.symbolSuggestions[0].cells.map(c => ({ ...c }));
+  renderSymbol();
+  renderSuggestGallery(more ? -1 : 0);
+}
+['cont', 'bal', 'sur'].forEach(k => ctrl('rg-sug-' + k).addEventListener('input', e => { ctrl('v-sug-' + k).textContent = e.target.value; }));
+ctrl('btn-sug-run').addEventListener('click', () => runSuggest(false));
+ctrl('btn-sug-more').addEventListener('click', () => runSuggest(true));
+ctrl('btn-sug-seed-random').addEventListener('click', () => { ctrl('num-sug-seed').value = Math.floor(Math.random() * 1e6); runSuggest(false); });
 
 // ─────────────────────────────────────────────────────────────
 // GENERATIVE RULE LAYER — fill every cell's transform from a rule + a
@@ -5751,17 +6558,16 @@ function syncSymbolRuleUI() {
 function buildGridOutlineSVG() {
   const grid = getSymbolGrid();
   if (!grid) return '';
-  const half = frameSize(grid) / 2;
-  const originX = grid.width / 2, originY = grid.height / 2;
+  const F = symbolFrame(grid);
   let s = '<g fill="none" stroke="#3399ff" stroke-width="1.5">';
   if (grid.cellShape === 'polygon') {
     for (const c of grid.cells) {
-      const pts = c.points.map(p => `${(half + p[0] - originX).toFixed(2)},${(half + p[1] - originY).toFixed(2)}`).join(' ');
+      const pts = c.points.map(p => `${F.X(p[0]).toFixed(2)},${F.Y(p[1]).toFixed(2)}`).join(' ');
       s += `<polygon points="${pts}"/>`;
     }
   } else {
     for (const c of grid.cells) {
-      const x = half + c.x - originX, y = half + c.y - originY;
+      const x = F.X(c.x), y = F.Y(c.y);
       s += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${c.width.toFixed(2)}" height="${c.height.toFixed(2)}"/>`;
     }
   }
@@ -5775,16 +6581,15 @@ function buildGridOutlineSVG() {
 function buildSelectionOutlineSVG() {
   const grid = getSymbolGrid();
   if (!grid || state.symbolSelection.size === 0) return '';
-  const half = frameSize(grid) / 2;
-  const originX = grid.width / 2, originY = grid.height / 2;
+  const F = symbolFrame(grid);
   let s = '<g fill="none" stroke="#ff3d7f" stroke-width="2.5">';
   grid.cells.forEach((c, i) => {
     if (!state.symbolSelection.has(i)) return;
     if (grid.cellShape === 'polygon') {
-      const pts = c.points.map(p => `${(half + p[0] - originX).toFixed(2)},${(half + p[1] - originY).toFixed(2)}`).join(' ');
+      const pts = c.points.map(p => `${F.X(p[0]).toFixed(2)},${F.Y(p[1]).toFixed(2)}`).join(' ');
       s += `<polygon points="${pts}"/>`;
     } else {
-      const x = half + c.x - originX, y = half + c.y - originY;
+      const x = F.X(c.x), y = F.Y(c.y);
       s += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${c.width.toFixed(2)}" height="${c.height.toFixed(2)}"/>`;
     }
   });
@@ -5807,6 +6612,7 @@ function renderSymbolCanvasOnly() {
   let overlay = '';
   if (ctrl('chk-symbol-grid-outline').checked) overlay += buildGridOutlineSVG();
   overlay += buildSelectionOutlineSVG();
+  overlay += buildTrackHandlesSVG();
   if (state.symbolMarqueeRect) {
     const r = state.symbolMarqueeRect;
     overlay += `<rect class="symbol-marquee" x="${r.x.toFixed(2)}" y="${r.y.toFixed(2)}" width="${r.w.toFixed(2)}" height="${r.h.toFixed(2)}"/>`;
@@ -5850,9 +6656,9 @@ function svgPointFromEvent(e) {
 function symbolCellBounds() {
   const grid = getSymbolGrid();
   if (!grid) return [];
-  const half = frameSize(grid) / 2;
+  const F = symbolFrame(grid);
   return resolveGridCells(grid).map((c, i) => ({
-    index: i, x: half + c.cx - c.cellW / 2, y: half + c.cy - c.cellH / 2, w: c.cellW, h: c.cellH,
+    index: i, x: F.bx + c.cx - c.cellW / 2, y: F.by + c.cy - c.cellH / 2, w: c.cellW, h: c.cellH,
   }));
 }
 
@@ -5866,6 +6672,101 @@ function rectsIntersect(a, b) {
 // Creator's own old draw-mode click handler used (downPt/moved). mouseup
 // is bound on window, not the frame, so releasing outside the canvas
 // while dragging still ends the drag cleanly rather than leaving it stuck.
+// ── Drag the column / row borders of a rectangular Symbol grid ──
+// Any rect grid that carries Loom tracks (Rectangular, Bento, Wave, a plain
+// square…) shows a handle on each inner border. Dragging moves the border: the
+// two tracks on either side trade size, the total stays the same, and the cells
+// keep their content (only the tracks change; the grid is re-resolved from
+// them). On the Rectangular generator the Column / Row weights fields follow
+// live, so the grid regenerates to the same proportions.
+const TRACK_MIN_FRAC = 0.04;   // a track never shrinks below 4% of the grid's side
+function symbolTrackGrid() {
+  const g = state.symbolGrid;
+  if (!g || g.cellShape !== 'rect' || !g.grid || !g.grid.tracks || !g.grid.tracks.cols || !g.grid.tracks.rows) return null;
+  return g;
+}
+function trackBorders(axis) {
+  const g = symbolTrackGrid();
+  const sizes = g.grid.tracks[axis], gap = g.grid.gap || 0, start = axis === 'cols' ? g.inner.x : g.inner.y;
+  const out = [];
+  let acc = start;
+  for (let i = 0; i < sizes.length - 1; i++) { acc += sizes[i] + gap; out.push(acc - gap / 2); }
+  return out;
+}
+function buildTrackHandlesSVG() {
+  const g = symbolTrackGrid();
+  if (!g) return '';
+  const grid = getSymbolGrid(), F = symbolFrame(grid);
+  const hitW = Math.max(6, 0.012 * Math.max(F.w, F.h)), lw = Math.max(1, 0.002 * Math.max(F.w, F.h));
+  const x0 = F.X(g.inner.x), x1 = F.X(g.inner.x + g.inner.width), y0 = F.Y(g.inner.y), y1 = F.Y(g.inner.y + g.inner.height);
+  let s = '';
+  trackBorders('cols').forEach((b, i) => {
+    const x = F.X(b);
+    s += `<g class="sym-track${trackDrag && trackDrag.axis === 'cols' && trackDrag.i === i ? ' is-dragging' : ''}" data-axis="cols" data-track="${i}"><rect class="sym-track__hit" x="${(x - hitW / 2).toFixed(2)}" y="${y0.toFixed(2)}" width="${hitW.toFixed(2)}" height="${(y1 - y0).toFixed(2)}"/><line class="sym-track__line" x1="${x.toFixed(2)}" y1="${y0.toFixed(2)}" x2="${x.toFixed(2)}" y2="${y1.toFixed(2)}" stroke-width="${lw}"/></g>`;
+  });
+  trackBorders('rows').forEach((b, i) => {
+    const y = F.Y(b);
+    s += `<g class="sym-track${trackDrag && trackDrag.axis === 'rows' && trackDrag.i === i ? ' is-dragging' : ''}" data-axis="rows" data-track="${i}"><rect class="sym-track__hit" x="${x0.toFixed(2)}" y="${(y - hitW / 2).toFixed(2)}" width="${(x1 - x0).toFixed(2)}" height="${hitW.toFixed(2)}"/><line class="sym-track__line" x1="${x0.toFixed(2)}" y1="${y.toFixed(2)}" x2="${x1.toFixed(2)}" y2="${y.toFixed(2)}" stroke-width="${lw}"/></g>`;
+  });
+  return s;
+}
+// sizes → the weights text the Rectangular generator reads ("1.25,0.75,1"), mean 1
+function tracksToWeights(sizes) {
+  const mean = sizes.reduce((a, b) => a + b, 0) / sizes.length;
+  return sizes.map(v => String(Math.round(v / mean * 100) / 100)).join(',');
+}
+// Move border i of `axis` to raw coordinate `pos`; the grid is re-resolved, cells untouched.
+function moveTrackBorder(axis, i, pos) {
+  const g = symbolTrackGrid();
+  if (!g) return;
+  const sizes = g.grid.tracks[axis].slice(), gap = g.grid.gap || 0;
+  const start = (axis === 'cols' ? g.inner.x : g.inner.y) + sizes.slice(0, i).reduce((a, b) => a + b + gap, 0);
+  const pair = sizes[i] + sizes[i + 1];
+  const min = Math.max(1, TRACK_MIN_FRAC * sizes.reduce((a, b) => a + b, 0));
+  const a = Math.min(pair - min, Math.max(min, pos - start - gap / 2));
+  sizes[i] = a; sizes[i + 1] = pair - a;
+  const tracks = { ...g.grid.tracks, [axis]: sizes };
+  const grid = { ...g.grid, tracks };
+  const frame = g.canvas && g.canvas.fvsFrame;
+  const key = axis === 'cols' ? 'colWeights' : 'rowWeights';
+  if (grid.type === 'rectangular') {
+    grid.params = { ...(grid.params || {}), [key]: tracksToWeights(sizes) };
+    if (frame && frame.params) frame.params = { ...frame.params, [key]: grid.params[key] };
+    if (ctrl('sel-symgrid-gen').value === 'rectangular' && ctrl('symgen-' + key)) ctrl('symgen-' + key).value = grid.params[key];
+  }
+  state.symbolGrid = Organica.loadLoomGrid({ ...g, grid });
+}
+let trackDrag = null;   // {axis, i} while a border is being dragged
+function bindSymbolTrackDrag() {
+  const frame = ctrl('symbol-frame');
+  // capture phase: a border drag must not also start a marquee selection
+  frame.addEventListener('mousedown', e => {
+    const h = e.button === 0 && e.target.closest && e.target.closest('.sym-track');
+    if (!h) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    trackDrag = { axis: h.dataset.axis, i: +h.dataset.track };
+    frame.classList.add('is-resizing-' + trackDrag.axis);
+    renderSymbolCanvasOnly();
+  }, true);
+  window.addEventListener('mousemove', e => {
+    if (!trackDrag) return;
+    const pt = svgPointFromEvent(e);
+    if (!pt) return;
+    const F = symbolFrame(getSymbolGrid());
+    // frame → raw coordinates: invert F.X / F.Y (both are v + constant)
+    const pos = trackDrag.axis === 'cols' ? pt.x - (F.X(0)) : pt.y - (F.Y(0));
+    moveTrackBorder(trackDrag.axis, trackDrag.i, pos);
+    renderSymbolCanvasOnly();
+  });
+  window.addEventListener('mouseup', () => {
+    if (!trackDrag) return;
+    frame.classList.remove('is-resizing-' + trackDrag.axis);
+    trackDrag = null;
+    state.symbolSuggestions = []; ctrl('symbol-suggest-gallery').innerHTML = '';   // proposals were drawn for the old proportions
+    renderSymbol();
+  }, true);
+}
+
 function bindSymbolCanvasSelection() {
   const frame = ctrl('symbol-frame');
   const THRESHOLD = 5;
@@ -6090,14 +6991,21 @@ function syncContentFilter() {
 }
 function closeCellContentOverlay() {
   ctrl('symbol-content-overlay').style.display = 'none';
+  contentOverlayPaletteMode = false;
   ctrl('chk-content-overlay-all').checked = false;   // disarm so a later single-cell edit isn't hijacked
 }
 
+// The overlay has two jobs: fill the selected cell(s) (a Component or Empty —
+// a Symbol is built from saved Components only, so the raw Seeds are no
+// longer offered; old Symbols with Seed cells still render), or, in palette
+// mode, toggle Components in and out of the Symbol's palette.
+let contentOverlayPaletteMode = false;
 function renderCellContentOverlayTiles() {
   const toAll = ctrl('chk-content-overlay-all').checked;
   const count = state.symbolSelection.size;
-  ctrl('symbol-content-overlay__title').textContent = toAll ? 'Choose content for all cells'
-    : count > 1 ? `Choose content for ${count} cells` : 'Choose content';
+  ctrl('symbol-content-overlay__title').textContent = contentOverlayPaletteMode ? 'Components for this Symbol'
+    : toAll ? 'Choose content for all cells' : count > 1 ? `Choose content for ${count} cells` : 'Choose content';
+  ctrl('chk-content-overlay-all').parentElement.style.display = contentOverlayPaletteMode ? 'none' : '';
 
   const elWrap = ctrl('symbol-content-overlay__seeds');
   elWrap.innerHTML = '';
@@ -6136,6 +7044,7 @@ function renderCellContentOverlayTiles() {
   ctrl('symbol-content-overlay__components-empty').style.display = libNames.length ? 'none' : '';
   const compWrap = ctrl('symbol-content-overlay__components');
   compWrap.innerHTML = '';
+  if (!contentOverlayPaletteMode) compWrap.appendChild(emptyBtn);
   for (const name of libNames) {
     const entry = library[name];
     const size = frameSize(entry.grid);
@@ -6150,7 +7059,11 @@ function renderCellContentOverlayTiles() {
     btn.title = name;
     btn.setAttribute('aria-label', 'Use Component ' + name);
     btn.innerHTML = svgStr;
-    btn.addEventListener('click', () => {
+    if (contentOverlayPaletteMode) {
+      btn.classList.toggle('is-in-palette', state.symbolPalette.some(p => p.name === name));
+      btn.setAttribute('aria-pressed', String(btn.classList.contains('is-in-palette')));
+      btn.addEventListener('click', () => { togglePaletteComponent(name); renderCellContentOverlayTiles(); });
+    } else btn.addEventListener('click', () => {
       contentTarget()({
         source: 'component', componentName: name,
         rotation: 0, flipH: false, flipV: false,
@@ -6166,7 +7079,9 @@ function renderCellContentOverlayTiles() {
     item.append(btn, cap);
     compWrap.appendChild(item);
   }
-  syncContentFilter();
+  // Seeds are not Symbol content any more: the Seeds list and the filter stay hidden.
+  ctrl('content-sec-seeds').style.display = 'none';
+  ctrl('seg-content-filter').style.display = 'none';
   Organica.autoLabelPanel(ctrl('symbol-content-overlay'));
 }
 
@@ -6202,6 +7117,7 @@ function applyRuleState(s) {
   });
   ctrl('symbol-rule-block').style.display = ctrl('sel-symbol-fill').value === 'rule' ? '' : 'none';
   ctrl('symbol-generate-block').style.display = ctrl('sel-symbol-fill').value === 'generate' ? '' : 'none';
+  ctrl('symbol-suggest-block').style.display = ctrl('sel-symbol-fill').value === 'suggest' ? '' : 'none';
   ctrl('symbol-manual-block').style.display = ctrl('sel-symbol-fill').value === 'manual' ? '' : 'none';
   syncSymbolRuleUI();
 }
@@ -6217,6 +7133,8 @@ function buildSymbolLibraryEntry() {
     clipEnabled: state.symbolClipEnabled,
     appearance: getElementAppearance(),
     rule: readRuleState(),
+    palette: state.symbolPalette.map(p => ({ ...p })),
+    arrange: { rule: ctrl('sel-sym-arrange').value, fit: ctrl('sel-sym-arrange-fit').value, seed: ctrl('num-symbol-seed').value },
     savedAt: new Date().toISOString(),
   };
 }
@@ -6257,6 +7175,9 @@ function removeSymbolLibraryEntry(name) {
 
 function applySymbolLibraryEntryToUI(entry) {
   state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
+  if (symbolCanvasOf(state.symbolGrid)) applySymbolCanvasToUI(symbolCanvasOf(state.symbolGrid));
+  if (entry.palette) { state.symbolPalette = entry.palette.map(p => ({ ...p })); renderSymbolPalette(); }
+  if (entry.arrange) { ctrl('sel-sym-arrange').value = entry.arrange.rule; ctrl('sel-sym-arrange-fit').value = entry.arrange.fit; ctrl('num-symbol-seed').value = entry.arrange.seed; }
   state.symbolCells = entry.cells.map(c => withPlacementDefaults({ ...c }));
   state.symbolSelection.clear();
   state.colors = entry.colors.map(hexKey);
@@ -6318,21 +7239,68 @@ function renderSymbolLibrary() {
 function exportSymbol(format) {
   const grid = getSymbolGrid();
   if (!grid) return;
-  const size = frameSize(grid);
+  const F = symbolFrame(grid);
+  const cv = symbolCanvasOf(state.symbolGrid);
+  if (cv && cv.mode === 'print') { exportSymbolPrint(format, F, cv); return; }
   if (format === 'svg') {
     Organica.download(new Blob([buildSymbolSVG()], { type: 'image/svg+xml' }), Organica.stamp('fvs-symbol', 'svg'));
     return;
   }
   const scale = parseInt(ctrl('sel-export-scale').value, 10);
-  const outSize = size * scale;
   const off = document.createElement('canvas');
-  off.width = outSize; off.height = outSize;
+  off.width = Math.round(F.w * scale); off.height = Math.round(F.h * scale);
   const ctx = off.getContext('2d');
   ctx.save();
   ctx.scale(scale, scale);
-  drawSymbolCanvas(ctx, size);
+  drawSymbolCanvas(ctx);
   ctx.restore();
   off.toBlob(blob => { Organica.download(blob, Organica.stamp('fvs-symbol', 'png')); });
+}
+
+// A Print canvas exports at its own physical size: SVG in mm with the bleed
+// (paper extended into it) and crop marks; PNG at the canvas DPI with the DPI
+// written into the file. Same v1 discipline as the rest of the suite
+// (shared/print-size.js) — the bleed is a flat paper extension.
+function symbolPrintDims(F, cv) {
+  const mm = v => v * (cv.unit === 'in' ? 25.4 : 1);
+  const trimWmm = mm(cv.pw), trimHmm = mm(cv.ph), bleedMm = cv.bleed || 0;
+  const px = v => Math.round(Organica.printSize.mmToPx(v, cv.dpi));
+  return { trimWmm, trimHmm, bleedMm, dpi: cv.dpi, trimWpx: px(trimWmm), trimHpx: px(trimHmm), bleedPx: px(bleedMm), k: trimWmm / F.w };
+}
+function buildSymbolPrintSVG(F, cv) {
+  const d = symbolPrintDims(F, cv);
+  const bw = d.trimWmm + 2 * d.bleedMm, bh = d.trimHmm + 2 * d.bleedMm;
+  let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(bw)}mm" height="${r2(bh)}mm" viewBox="0 0 ${r2(bw)} ${r2(bh)}">`
+    + `<rect width="${r2(bw)}" height="${r2(bh)}" fill="${state.paperColor}"/>`
+    + `<g transform="translate(${r2(d.bleedMm)},${r2(d.bleedMm)})"><g transform="scale(${d.k})">${svgInnerOf(buildSymbolSVG())}</g>`;
+  if (d.bleedMm > 0) out += Organica.printSize.cropMarksSVG(d.trimWmm, d.trimHmm, {}, '#000');
+  return out + '</g></svg>';
+}
+function exportSymbolPrint(format, F, cv) {
+  if (format === 'svg') {
+    Organica.download(new Blob([buildSymbolPrintSVG(F, cv)], { type: 'image/svg+xml' }), Organica.stamp('fvs-symbol', 'svg'));
+    return;
+  }
+  const d = symbolPrintDims(F, cv);
+  const off = document.createElement('canvas');
+  off.width = d.trimWpx + 2 * d.bleedPx; off.height = d.trimHpx + 2 * d.bleedPx;
+  const ctx = off.getContext('2d');
+  ctx.fillStyle = state.paperColor;
+  ctx.fillRect(0, 0, off.width, off.height);
+  ctx.save();
+  ctx.translate(d.bleedPx, d.bleedPx);
+  ctx.scale(d.trimWpx / F.w, d.trimHpx / F.h);
+  drawSymbolCanvas(ctx);
+  ctx.restore();
+  if (d.bleedPx > 0) {
+    ctx.save(); ctx.translate(d.bleedPx, d.bleedPx);
+    Organica.printSize.drawCropMarksCanvas(ctx, d.trimWpx, d.trimHpx, {}, '#000');
+    ctx.restore();
+  }
+  off.toBlob(async blob => {
+    const bytes = Organica.printSize.embedPngDpi(await blob.arrayBuffer(), d.dpi);
+    Organica.download(new Blob([bytes], { type: 'image/png' }), Organica.stamp('fvs-symbol', 'png'));
+  });
 }
 
 // ── Components ↔ Symbols tab switch ──
@@ -6347,7 +7315,7 @@ const STEP_EXPORT_HINTS = {
 function updateStepHint(tier) {
   let msg = '';
   if (tier === 'symbol' && libraryNames(LIBRARY.read()).length === 0) {
-    msg = 'No saved Components yet — a Symbol cell can still use a raw Element directly.';
+    msg = 'No saved Components yet — a Symbol is built from saved Components: save some in the Component step first.';
   } else if (tier === 'grid' && Object.keys(SYMBOL_LIBRARY.read()).length === 0) {
     msg = 'No saved Symbols yet — save one in the Symbol step first, then pick it here.';
   }
@@ -6374,7 +7342,14 @@ function setTier(tier) {
   // hide it for Element/Grid rather than show controls that can't do anything.
   ctrl('motion-block').style.display = (tier === 'component' || tier === 'symbol') ? '' : 'none';
   ctrl('fg-rules-panel').style.display = tier === 'figure' ? '' : 'none';
-  if (tier === 'symbol') { populateSymbolLoomPresets(); renderSymbol(); renderSymbolLibrary(); }
+  if (tier === 'symbol') {
+    // A first visit starts the palette with the (up to 3) most recently saved Components.
+    if (!state.symbolPalette.length) {
+      const lib = LIBRARY.read();
+      state.symbolPalette = libraryNames(lib).sort((a, b) => String(lib[b].savedAt || '').localeCompare(String(lib[a].savedAt || ''))).slice(0, 3).map(name => ({ name, weight: 1 }));
+    }
+    renderSymbolPalette(); populateSymbolLoomPresets(); renderSymbol(); renderSymbolLibrary();
+  }
   else if (tier === 'grid') { renderFvsGridPicker(); syncFvsGridTypeUI(); renderFvsGrid(); }
   else if (tier === 'element') { renderSeedPreview(); }
   else if (tier === 'figure') { renderFigureTier(); }
@@ -6598,13 +7573,12 @@ ctrl('file-seed').addEventListener('change', e => {
 const creatorPopover = Organica.popover(ctrl('btn-browse-creator'), ctrl('creator-library-popover'));
 ctrl('btn-browse-creator').addEventListener('click', () => { if (creatorPopover.isOpen) renderCreatorLibraryPicker(); });
 
-ctrl('sel-grid-type').addEventListener('change', () => {
-  const isLoom = ctrl('sel-grid-type').value === 'loom';
-  ctrl('grid-square-block').style.display = isLoom ? 'none' : '';
-  ctrl('grid-loom-block').style.display = isLoom ? '' : 'none';
+['sel-grid-cols', 'sel-grid-rows'].forEach(id => ctrl(id).addEventListener('change', () => {
+  state.loomGrid = null;   // picking columns × rows replaces a legacy Loom grid
+  syncComponentGridUI();
   syncRuleAvailability();
   renderGallery();
-});
+}));
 
 // Element appearance feeds every tier that draws the Element, so a change
 // re-renders all of them (the inactive tiers' DOM is just hidden, not gone).
@@ -6743,12 +7717,10 @@ ctrl('sel-fvsgrid-mirror').addEventListener('change', renderFvsGrid);
 // Shared hidden file input between Components' own Grid section and
 // Symbols' Grid section — a flag set right before .click() tells the
 // one 'change' handler which state field to populate.
-let loomUploadTarget = 'component';
-ctrl('btn-upload-loom').addEventListener('click', () => { loomUploadTarget = 'component'; ctrl('file-loom-grid').click(); });
-ctrl('btn-symbol-grid-upload').addEventListener('click', () => { loomUploadTarget = 'symbol'; ctrl('file-loom-grid').click(); });
+ctrl('btn-symbol-grid-upload').addEventListener('click', () => ctrl('file-loom-grid').click());
 ctrl('file-loom-grid').addEventListener('change', e => {
   const file = e.target.files[0];
-  if (file) { loomUploadTarget === 'symbol' ? handleSymbolGridUpload(file) : handleLoomGridUpload(file); }
+  if (file) handleSymbolGridUpload(file);
   e.target.value = '';
 });
 
@@ -6789,6 +7761,7 @@ ctrl('chk-symbol-clip').addEventListener('change', e => {
 
 ctrl('sel-symbol-fill').addEventListener('change', e => {
   ctrl('symbol-generate-block').style.display = e.target.value === 'generate' ? '' : 'none';
+  ctrl('symbol-suggest-block').style.display = e.target.value === 'suggest' ? '' : 'none';
   ctrl('symbol-manual-block').style.display = e.target.value === 'manual' ? '' : 'none';
   ctrl('symbol-rule-block').style.display = e.target.value === 'rule' ? '' : 'none';
   if (e.target.value === 'manual') renderCellPropertiesPanel();
@@ -6822,6 +7795,7 @@ ctrl('symbol-rule-block').addEventListener('change', scheduleRuleApply);
 // ── Cell properties panel — one shared editor for whatever is currently
 // selected (state.symbolSelection), written via applyToSelection(). ──
 bindSymbolCanvasSelection();
+bindSymbolTrackDrag();
 buildAnchorGrid();
 ctrl('btn-cellprop-choose').addEventListener('click', openCellContentOverlay);
 ctrl('btn-rule-choose-content').addEventListener('click', openCellContentOverlayForAll);
@@ -6957,7 +7931,7 @@ function runBuiltinRecipe(def) {
   state.colorRule = { ...DEFAULT_COLOR_RULE, ...(def.colorRule || {}) };
   syncColorRuleUI();
   buildPalette();
-  fireChange('sel-grid-type', def.component.grid);
+  setComponentGrid(def.component.grid);
   const comp = { id: 'recipe-' + def.id, ruleSource: 'recipe', cells: def.component.cells() };
   pushUndo();
   state.components = [comp];
@@ -7057,7 +8031,7 @@ function runFigureRecipe(def, opts) {
   let tier;
   state.fvsGridRaw = null; state.figureLevelStats = []; state.figureLevelMeta = [];
   if (first.kind === 'component') {
-    fireChange('sel-grid-type', first.grid || 'square2x2');
+    setComponentGrid(first.grid || 'square2x2');
     const comp = { id: 'figure-component', ruleSource: 'recipe', cells: first.cells || componentCellsFromRule(first.rule, first.params) };
     pushUndo(); state.components = [comp]; state.selectedId = comp.id; state.selectionExplicit = true; state.componentAutoGenerated = false;
     renderGallery(); refreshColourViews();

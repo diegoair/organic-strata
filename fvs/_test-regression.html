@@ -45,12 +45,18 @@ async function battery() {
   const reset = () => {
     state.colors = ['#000000']; state.colorRule = { ...DEFAULT_COLOR_RULE }; state.paperColor = '#ffffff';
     syncColorRuleUI(); buildPalette();
-    chg('sel-element-fillmode', 'fill'); chg('sel-grid-type', 'square2x2');
+    chg('sel-element-fillmode', 'fill'); setComponentGrid('square2x2');
   };
 
   // 1 — every Seed type at its defaults
   reset();
   // controls the battery itself edits later — start every run from the page defaults
+  // Figure history is capped at 50 steps: a second run in the same page found it full,
+  // so a new step dropped the oldest and the history-length checks read 0. Start empty,
+  // and with no current recipe (entering the Figure tab re-applies it — a leftover one
+  // made the next identical step a no-op in the history).
+  figureHistory.stack.length = 0; figureHistory.idx = -1; syncFigureHistoryUI();
+  state.figureRecipe = null;
   chg('sel-rule-chk-rota', '0'); chg('sel-rule-chk-rot', '90');
   ctrl('chk-rule-chk-swap').checked = false; ctrl('chk-rule-chk-flip').checked = false;
   chg('sel-color-rule', 'index'); chg('sel-color-offset', '0');
@@ -72,7 +78,7 @@ async function battery() {
     });
   });
   // 3 — Checkerboard on a 3×3
-  chg('sel-grid-type', 'square3x3'); chg('sel-rule', 'checkerboard'); generate();
+  setComponentGrid('square3x3'); chg('sel-rule', 'checkerboard'); generate();
   put('rule3x3:checkerboard', state.components.map(c => c.cells.map(x => x.rotation + (x.flipH ? 'h' : '') + (x.flipV ? 'v' : '')).join(',')).join('|'));
 
   // 4 — colour rules on a 3×3 with three inks
@@ -143,7 +149,7 @@ async function battery() {
   // 10 — named rules on 3×3 and 4×4 (rotation/flip signature per candidate)
   chg('sel-seed-type', 'arc'); inp('rg-thickness', 100);
   ['square3x3', 'square4x4'].forEach(gt => {
-    chg('sel-grid-type', gt);
+    setComponentGrid(gt);
     ['pinwheel', 'mirror', 'diagonal', 'checkerboard', 'rowmirror', 'columnmirror', 'radial'].forEach(mode => {
       const opt = ctrl('sel-rule').querySelector(`option[value="${mode}"]`);
       if (opt.disabled) { put(`rulenm:${gt}:${mode}`, 'disabled'); return; }
@@ -151,41 +157,156 @@ async function battery() {
       put(`rulenm:${gt}:${mode}`, state.components.map(c => c.cells.map(x => x.rotation + (x.flipH ? 'h' : '') + (x.flipV ? 'v' : '')).join(',')).join('|'));
     });
   });
-  chg('sel-rule', 'identity'); chg('sel-grid-type', 'square2x2');
+  chg('sel-rule', 'identity'); setComponentGrid('square2x2');
 
   // 10b — rule-engine audit (Sep 25, 2026): canonical states (H+V ≡ 180°), a
   // 4-cell Loom row is not a 2×2, hex lattice binning, Random/Exhaustive on any grid
   {
     const axes0 = ['rotation', 'flip', 'scale'].map(a => ctrl('chk-axis-' + a).checked);
     const setAxes = (r, f, sc) => { ctrl('chk-axis-rotation').checked = r; ctrl('chk-axis-flip').checked = f; ctrl('chk-axis-scale').checked = sc; };
-    const loom0 = state.loomGrid;
+    const useLoom = g => { state.loomGrid = Organica.loadLoomGrid(g); syncComponentGridUI(); syncRuleAvailability(); renderGallery(); };   // a legacy Component grid (the Loom import left the Component UI)
     const rectLoom = (cols, rows) => JSON.stringify({ version: '1.0', canvas: { width: cols * 200, height: rows * 200, unit: 'px', margin: 0, marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, bleed: 0, safeArea: 0 },
       grid: { type: 'rectangular', params: { cols, rows }, gap: 0, padding: 0, tracks: { cols: Array(cols).fill(200), rows: Array(rows).fill(200) } },
       cells: Array.from({ length: cols * rows }, (_, i) => ({ id: 'c' + i, col: i % cols, row: Math.floor(i / cols), colSpan: 1, rowSpan: 1, number: i + 1 })) });
     put('engine:canon', [canonicalState(stateFrom(0, true, true, 1)) === canonicalState(stateFrom(180, false, false, 1)),
       dedupeComponents([{ cells: [stateFrom(90, true, true, 1)] }, { cells: [stateFrom(270, false, false, 1)] }]).length].join(','));
     put('engine:checker:distinct', ruleCheckerboard().length);
-    state.loomGrid = Organica.loadLoomGrid(rectLoom(4, 1)); chg('sel-grid-type', 'loom');
+    useLoom(rectLoom(4, 1));
     put('engine:4x1', [isCanonical2x2(), radialEligible(), ctrl('sel-rule').querySelector('option[value="rowmirror"]').disabled,
       rulePinwheel()[0].cells.map(c => c.rotation).join('.')].join(','));
-    state.loomGrid = Organica.loadLoomGrid(rectLoom(2, 2)); chg('sel-grid-type', 'loom');
+    useLoom(rectLoom(2, 2));
     put('engine:loom2x2:canonical', isCanonical2x2());
-    state.loomGrid = Organica.loadLoomGrid(JSON.stringify(SYMBOL_GRID_PRESETS.hexagonal)); chg('sel-grid-type', 'loom');
+    useLoom(JSON.stringify(SYMBOL_GRID_PRESETS.hexagonal));
     const hc = resolveGridCells(getGrid()), maxA = Math.max(...hc.map(c => c.cellW * c.cellH));
     put('engine:hex:checker', new Set(ruleCheckerboard()[0].cells.filter((c, i) => hc[i].cellW * hc[i].cellH >= maxA * 0.5).map(canonicalState)).size);
-    state.loomGrid = loom0; chg('sel-grid-type', 'square3x3');
+    setComponentGrid('square3x3');
     setAxes(true, false, false); put('engine:3x3:ex:R', ruleExhaustive().length);
     setAxes(true, true, false); put('engine:3x3:ex:RF', ruleExhaustive().length);
     setAxes(true, false, false); inp('rg-random-count', 16); inp('num-seed', 7);
     const rnd = ruleRandom();
     put('engine:3x3:random', [rnd.length, new Set(rnd.map(c => componentKey(c.cells))).size, H(rnd.map(c => componentKey(c.cells)).join('|'))].join(','));
-    chg('sel-grid-type', 'square4x4');
+    setComponentGrid('square4x4');
     put('engine:4x4:radial:ids', ruleRadial().length + ':' + ruleRadial().filter(c => c.id.includes('tiled')).length);
     put('engine:4x4:mirror:book', ruleMirror().filter(c => c.id.startsWith('mirror-book')).length);
     chg('sel-seed-type', 'circle'); chg('sel-rule', 'pinwheel'); generate();
     put('engine:lookalike:circle', state.components.length + ':' + (ctrl('gallery-status').textContent.startsWith('7 look-alike')));
     chg('sel-seed-type', 'arc'); inp('rg-thickness', 100);
-    setAxes(...axes0); inp('num-seed', 1); chg('sel-rule', 'identity'); chg('sel-grid-type', 'square2x2');
+    setAxes(...axes0); inp('num-seed', 1); chg('sel-rule', 'identity'); setComponentGrid('square2x2');
+  }
+
+  // 10c — Component grids are columns × rows, 1–4 each (Sep 25, 2026); Loom is Symbol-only
+  {
+    const disabled = () => [...ctrl('sel-rule').options].filter(o => o.disabled).map(o => o.value).join('/');
+    const counts = () => ['pinwheel', 'mirror', 'checkerboard', 'exhaustive'].filter(m => !ctrl('sel-rule').querySelector(`option[value="${m}"]`).disabled)
+      .map(m => { chg('sel-rule', m); generate(); return m[0] + state.components.length; }).join('');
+    [[1, 1], [2, 3], [3, 4], [4, 1]].forEach(([c, r]) => {
+      setComponentGrid({ cols: c, rows: r });
+      put(`comp:rect:${c}x${r}`, [activeCellCount(), disabled(), counts()].join('|'));
+    });
+    setComponentGrid({ cols: 3, rows: 4 }); chg('sel-rule', 'mirror'); generate();
+    put('comp:rect:3x4:svg', buildComponentSVG(buildComponentItems(state.components[0], getGrid()), getSeed(), frameSize(getGrid())));
+    put('comp:rect:frame', [frameSize(getGrid()), JSON.stringify(frameDims(getGrid()))].join('|'));
+    const legacyGrid = { kind: 'loom', cellShape: 'rect', cells: Organica.loadLoomGrid(JSON.stringify(SYMBOL_GRID_PRESETS.bento)).cells, width: 1080, height: 1080 };
+    setComponentGrid(legacyGrid);
+    put('comp:legacy', [activeCellCount(), ctrl('grid-legacy-hint').style.display !== 'none'].join(','));
+    setComponentGrid('square2x2');
+    put('comp:legacy:cleared', [state.loomGrid === null, ctrl('grid-legacy-hint').style.display === 'none'].join(','));
+    chg('sel-rule', 'identity');
+  }
+
+  // 10d — Symbol Canvas + grids generated inside it (Loom's own generators)
+  {
+    const prevGrid = state.symbolGrid, prevCells = state.symbolCells;
+    chg('sel-symcanvas-preset', 'A4 portrait');
+    const cv = readSymbolCanvas();
+    put('symcanvas:a4', [cv.mode, cv.unit, cv.W, cv.H, cv.dpi, cv.bleed].join(','));
+    for (const id of Object.keys(SYMGRID_GENS)) {
+      const m = await symbolGridModel(id, {}, cv);
+      put('symgrid:gen:' + id, m.cells.length + ':' + H(JSON.stringify(m.cells)));
+    }
+    loadSymbolGrid(await symbolGridModel('bento', { cols: 3, rows: 4, variety: 0.4, seed: 3 }, cv));
+    const F = symbolFrame(getSymbolGrid());
+    put('symcanvas:frame', [F.w, F.h].join('x'));
+    put('symcanvas:svg', buildSymbolSVG());
+    put('symcanvas:print', buildSymbolPrintSVG(F, cv).slice(0, 120));
+    const d = symbolPrintDims(F, cv);
+    put('symcanvas:printpx', [d.trimWpx, d.trimHpx, d.bleedPx].join('x'));
+    const tile = renderedSymbolEntrySVG(buildSymbolLibraryEntry());
+    put('symcanvas:tile', [Math.round(tile.size), tile.inner.startsWith('<g transform="translate(')].join(','));
+    // drag a column / row border of a Rectangular grid: tracks trade size, weights follow, cells kept
+    loadSymbolGrid(await symbolGridModel('rectangular', { colWeights: '1,1,1,1', rowWeights: '1,1,1' }, { ...cv, mode: 'screen', unit: 'px', pw: 1080, ph: 1080, W: 1080, H: 1080, margin: 5 }));
+    state.symbolCells[0].locked = true;
+    const g0 = state.symbolGrid, b0 = trackBorders('cols')[0];
+    moveTrackBorder('cols', 0, b0 + 100); moveTrackBorder('rows', 1, trackBorders('rows')[1] - 60);
+    moveTrackBorder('cols', 2, 99999);   // clamped: the last column keeps its 4% minimum
+    put('symgrid:drag', [state.symbolGrid.grid.tracks.cols.map(Math.round).join('/'), state.symbolGrid.grid.params.colWeights, state.symbolGrid.grid.params.rowWeights,
+      state.symbolCells.length, state.symbolCells[0].locked, state.symbolGrid.canvas.fvsFrame.params.colWeights === state.symbolGrid.grid.params.colWeights,
+      !buildSymbolSVG().includes('sym-track'), g0 !== state.symbolGrid].join(','));
+    chg('sel-symcanvas-preset', 'Square 1:1');
+    state.symbolGrid = prevGrid; state.symbolCells = prevCells;
+  }
+
+  // 10e — Symbol from saved Components: palette, Arrange, Suggest (edge continuity, balance, surprise)
+  {
+    const prevGrid = state.symbolGrid, prevCells = state.symbolCells, prevPal = state.symbolPalette;
+    const lib = LIBRARY.read();
+    setTier('component'); chg('sel-seed-type', 'arc'); inp('rg-thickness', 30);
+    setComponentGrid({ cols: 1, rows: 1 }); chg('sel-rule', 'identity'); generate(); lib['zz-t-arc'] = buildLibraryEntryFor(state.components[0]);
+    setComponentGrid('square2x2'); chg('sel-rule', 'radial'); generate(); lib['zz-t-ring'] = buildLibraryEntryFor(state.components[0]);
+    chg('sel-rule', 'checkerboard'); generate(); lib['zz-t-wave'] = buildLibraryEntryFor(state.components[0]);
+    ['zz-t-arc', 'zz-t-ring', 'zz-t-wave'].forEach(n => { lib[n].savedAt = '2000-01-01T00:00:00.000Z'; });   // stable analysis cache key
+    LIBRARY.write(lib);
+    inp('rg-thickness', 100); chg('sel-rule', 'identity');
+    const an = analyseComponent('zz-t-arc');
+    put('suggest:analysis', [an.GW, an.GH, an.density.toFixed(3), H(Array.from(an.cov).join(''))].join(','));
+    state.symbolPalette = [{ name: 'zz-t-arc', weight: 2 }, { name: 'zz-t-ring', weight: 1 }, { name: 'zz-t-wave', weight: 1 }];
+    const cv = { ...readSymbolCanvas(), mode: 'screen', unit: 'px', pw: 1080, ph: 1080, W: 1080, H: 1080, margin: 5 };
+    loadSymbolGrid(await symbolGridModel('rectangular', { colWeights: '1,1,1,1,1,1', rowWeights: '1,1,1,1,1,1' }, cv));
+    const pal = paletteEntries();
+    put('arrange:rules', Object.keys(SYMBOL_ARRANGE).map(id => id + ':' + H(arrangeCells(getSymbolGrid(), state.symbolCells, pal, id, 3, 'fill').map(c => c.componentName[5]).join(''))).join(','));
+    const sug = suggestSymbols({ seed: 5, weights: { cont: 0.6, bal: 0.3, sur: 0.3 }, fit: 'fill' });
+    const keyOf = sg => sg.cells.map(c => c.componentName + canonicalState(c)).join('|');
+    put('suggest:rect', [sug.length, new Set(sug.map(keyOf)).size, sug[0].label, sug[0].score.match.toFixed(2), H(sug.map(keyOf).join('/'))].join(','));
+    put('suggest:det', keyOf(suggestSymbols({ seed: 5, weights: { cont: 0.6, bal: 0.3, sur: 0.3 }, fit: 'fill' })[0]) === keyOf(sug[0]));
+    state.symbolCells = sug[0].cells.map(c => ({ ...c }));
+    state.symbolCells[0].locked = true; state.symbolCells[7].locked = true;
+    const l0 = JSON.stringify(state.symbolCells[0]), l7 = JSON.stringify(state.symbolCells[7]);
+    const sugL = suggestSymbols({ seed: 9, weights: { cont: 0.6, bal: 0.3, sur: 0.3 }, fit: 'fill' });
+    put('suggest:lock', sugL.every(sg => JSON.stringify(sg.cells[0]) === l0 && JSON.stringify(sg.cells[7]) === l7));
+    const base = candFromCells(state.symbolCells);
+    const more = suggestSymbols({ seed: 2, base, weights: { cont: 0.6, bal: 0.3, sur: 0.3 }, fit: 'fill' });
+    const changed = more.map(sg => sg.cells.filter((c, i) => c.componentName !== state.symbolCells[i].componentName || c.rotation !== state.symbolCells[i].rotation || c.flipH !== state.symbolCells[i].flipH).length);
+    put('suggest:more', [more.length > 0, Math.max(...changed) < state.symbolCells.length / 2, more.every(sg => JSON.stringify(sg.cells[0]) === l0)].join(','));
+    state.symbolCells.forEach(c => { c.locked = false; });
+    for (const [g, prm] of [['triangular', { cols: 6 }], ['hexagonal', { cols: 5 }], ['radial', {}], ['circular', { cols: 5 }]]) {
+      loadSymbolGrid(await symbolGridModel(g, prm, cv));
+      const G = suggestGridContext();
+      const top = suggestSymbols({ seed: 1, weights: { cont: 0.6, bal: 0.3, sur: 0.3 }, fit: 'fill' })[0];
+      put('suggest:grid:' + g, [G.cells.length, G.pairs.length, Math.max(...G.nbrs.map(n => n.length)), top.score.edges, top.score.match.toFixed(2)].join(','));
+    }
+    // seams: a Component of solid squares fills every cell — at a zoom where cell borders
+    // fall inside a pixel no light pixel may appear (SVG and Canvas)
+    const inks0 = state.colors, paper0 = state.paperColor;
+    state.colors = ['#000000']; state.paperColor = '#ffffff'; buildPalette();
+    setTier('component'); chg('sel-seed-type', 'roundedrect'); setComponentGrid('square2x2'); chg('sel-rule', 'identity'); generate();
+    const libS = LIBRARY.read(); libS['zz-t-solid'] = buildLibraryEntryFor(state.components[0]); libS['zz-t-solid'].savedAt = '2000-01-01T00:00:00.000Z'; LIBRARY.write(libS);
+    chg('sel-seed-type', 'arc');
+    state.symbolPalette = [{ name: 'zz-t-solid', weight: 1 }];
+    const leak = d => { let n = 0; for (let y = 32; y < 505; y++) for (let x = 32; x < 505; x++) { const i = (y * 537 + x) * 4; if (d[i] + d[i + 1] + d[i + 2] > 36) n++; } return n; };
+    const seams = [];
+    for (const [g, prm] of [['rectangular', { colWeights: '1,1,1,1,1', rowWeights: '1,1,1,1,1' }], ['bento', { cols: 4, rows: 4, variety: 0.5, seed: 7 }], ['hexagonal', { cols: 5 }]]) {
+      loadSymbolGrid(await symbolGridModel(g, prm, cv));
+      state.symbolCells = arrangeCells(getSymbolGrid(), [], paletteEntries(), 'random', 1, 'fill');
+      const img = new Image(); img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(buildSymbolSVG()); await img.decode();
+      const a = document.createElement('canvas'); a.width = a.height = 537; a.getContext('2d').drawImage(img, 0, 0, 537, 537);
+      const b = document.createElement('canvas'); b.width = b.height = 537; const bx = b.getContext('2d'); bx.scale(537 / 1080, 537 / 1080); drawSymbolCanvas(bx);
+      seams.push(g.slice(0, 3) + ':' + leak(a.getContext('2d').getImageData(0, 0, 537, 537).data) + '/' + leak(bx.getImageData(0, 0, 537, 537).data));
+    }
+    put('symbol:seams', seams.join(','));
+    state.colors = inks0; state.paperColor = paper0; buildPalette();
+    const lib2 = LIBRARY.read(); ['zz-t-arc', 'zz-t-ring', 'zz-t-wave', 'zz-t-solid'].forEach(n => delete lib2[n]); LIBRARY.write(lib2);
+    state.symbolGrid = prevGrid; state.symbolCells = prevCells; state.symbolPalette = prevPal;
+    setComponentGrid('square2x2'); setTier('component');
   }
 
   // 11 — Cell properties colour override, Undo, rename, quadrant hint
@@ -218,9 +339,9 @@ async function battery() {
     const L2 = LIBRARY.read();
     put('rename', [!!L2['zz-renamed'], !L2['zz-a'], L2['zz-b'].underlyingComponentName, state.symbolCells[0].componentName].join(','));
   } finally { LIBRARY.write(lib0); SYMBOL_LIBRARY.write(sym0); }
-  chg('sel-grid-type', 'square3x3'); state.colorRule = { mode: 'quadrant', offset: 0 }; setTier('component'); syncColorRuleUI();
+  setComponentGrid('square3x3'); state.colorRule = { mode: 'quadrant', offset: 0 }; setTier('component'); syncColorRuleUI();
   const h3 = ctrl('color-quadrant-hint').style.display === '';
-  chg('sel-grid-type', 'square2x2'); syncColorRuleUI();
+  setComponentGrid('square2x2'); syncColorRuleUI();
   put('quadrant:hint', [h3, ctrl('color-quadrant-hint').style.display === ''].join(','));
   state.colorRule = { ...DEFAULT_COLOR_RULE }; syncColorRuleUI();
   undoStack.length = 0;
@@ -228,7 +349,7 @@ async function battery() {
   // 12 — recipe JSON round-trip, Print marks, PNG size + DPI, Loom grids as Symbols, Triangle
   runR('leaf-two-ink'); setTier('component');
   const rBefore = tierSVG(), rJson = JSON.parse(JSON.stringify(buildRecipe()));
-  state.colors = ['#000000']; buildPalette(); chg('sel-grid-type', 'square2x2');
+  state.colors = ['#000000']; buildPalette(); setComponentGrid('square2x2');
   applyRecipe(rJson);
   put('recipe:roundtrip', norm(rBefore) === norm(tierSVG()));
   const P1 = { ...printSizePanel };
@@ -251,9 +372,9 @@ async function battery() {
     put('symbol:' + k + ':svg', buildSymbolSVG());
   });
   setTier('component'); reset();
-  chg('sel-seed-type', 'triangle'); chg('sel-element-fillmode', 'fill'); chg('sel-grid-type', 'square3x3');
+  chg('sel-seed-type', 'triangle'); chg('sel-element-fillmode', 'fill'); setComponentGrid('square3x3');
   ['mirror', 'pinwheel', 'diagonal'].forEach(m => { chg('sel-rule', m); generate(); const c = state.components[1] || state.components[0]; put('triangle:3x3:' + m, buildComponentSVG(buildComponentItems(c, getGrid()), getSeed(), frameSize(getGrid()))); });
-  chg('sel-rule', 'identity'); chg('sel-grid-type', 'square2x2'); chg('sel-seed-type', 'arc'); undoStack.length = 0;
+  chg('sel-rule', 'identity'); setComponentGrid('square2x2'); chg('sel-seed-type', 'arc'); undoStack.length = 0;
 
   // 13 — triangle lattice, Empty cells, Orientation rule, Tier grids, Mirror
   const symLib0 = SYMBOL_LIBRARY.read();
@@ -610,7 +731,7 @@ async function battery() {
   try {
     reset();
     state.components = []; state.selectedId = null; state.componentAutoGenerated = null; state.componentAutoGenSignature = null;
-    chg('sel-grid-type', 'square2x2');
+    setComponentGrid('square2x2');
     setTier('element'); setTier('component');   // a fresh tier entry with nothing generated yet this "session"
     put('auto:populates-on-entry', [state.components.length, state.componentAutoGenerated].join(','));
     put('auto:rulesRun', [...new Set(state.components.map(c => c.ruleSource))].sort().join(','));   // checkerboard,mirror,pinwheel,radial on an eligible 2×2
@@ -649,12 +770,12 @@ async function battery() {
     state.components = []; state.selectedId = null; state.componentAutoGenerated = null; state.componentAutoGenSignature = null;
     setTier('element'); setTier('component');
     const cellsBefore = state.components[0].cells.length;
-    chg('sel-grid-type', 'square3x3');
+    setComponentGrid('square3x3');
     put('auto:gridResizeRegenerates', [state.components.length > 0, state.components[0].cells.length !== cellsBefore, state.componentAutoGenerated].join(','));
 
     // undo restores the auto-generated flag/signature, not just the components
     state.components = []; state.selectedId = null; state.componentAutoGenerated = null; state.componentAutoGenSignature = null;
-    chg('sel-grid-type', 'square2x2');
+    setComponentGrid('square2x2');
     setTier('element'); setTier('component');
     const beforeGenAuto = state.componentAutoGenerated;
     chg('sel-rule', 'identity'); generate();
@@ -662,7 +783,7 @@ async function battery() {
     put('auto:undoRestoresFlag', [beforeGenAuto, state.componentAutoGenerated].join(','));
   } finally {
     state.components = []; state.selectedId = null; state.componentAutoGenerated = null; state.componentAutoGenSignature = null;
-    setTier('component'); reset(); chg('sel-grid-type', 'square2x2');
+    setTier('component'); reset(); setComponentGrid('square2x2');
   }
 
   // tidy the throw-away tiles the recipes wrote into the Component library
