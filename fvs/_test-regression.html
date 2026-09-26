@@ -248,7 +248,7 @@ async function battery() {
 
   // 10e — Symbol from saved Components: palette, Arrange, Suggest (edge continuity, balance, surprise)
   {
-    const prevGrid = state.symbolGrid, prevCells = state.symbolCells, prevPal = state.symbolPalette;
+    const prevGrid = state.symbolGrid, prevCells = state.symbolCells, prevPal = state.symbolPool;
     const lib = LIBRARY.read();
     setTier('component'); chg('sel-seed-type', 'arc'); inp('rg-thickness', 30);
     setComponentGrid({ cols: 1, rows: 1 }); chg('sel-rule', 'identity'); generate(); lib['zz-t-arc'] = buildLibraryEntryFor(state.components[0]);
@@ -259,10 +259,10 @@ async function battery() {
     inp('rg-thickness', 100); chg('sel-rule', 'identity');
     const an = analyseComponent('zz-t-arc');
     put('suggest:analysis', [an.GW, an.GH, an.density.toFixed(3), H(Array.from(an.cov).join(''))].join(','));
-    state.symbolPalette = [{ name: 'zz-t-arc', weight: 2 }, { name: 'zz-t-ring', weight: 1 }, { name: 'zz-t-wave', weight: 1 }];
+    state.symbolPool = [{ name: 'zz-t-arc', weight: 2 }, { name: 'zz-t-ring', weight: 1 }, { name: 'zz-t-wave', weight: 1 }];
     const cv = { ...readSymbolCanvas(), mode: 'screen', unit: 'px', pw: 1080, ph: 1080, W: 1080, H: 1080, margin: 5 };
     loadSymbolGrid(await symbolGridModel('rectangular', { colWeights: '1,1,1,1,1,1', rowWeights: '1,1,1,1,1,1' }, cv));
-    const pal = paletteEntries();
+    const pal = poolEntries();
     put('arrange:rules', Object.keys(SYMBOL_ARRANGE).map(id => id + ':' + H(arrangeCells(getSymbolGrid(), state.symbolCells, pal, id, 3, 'fill').map(c => c.componentName[5]).join(''))).join(','));
     const sug = suggestSymbols({ seed: 5, weights: { cont: 0.6, bal: 0.3, sur: 0.3 }, fit: 'fill' });
     const keyOf = sg => sg.cells.map(c => c.componentName + canonicalState(c)).join('|');
@@ -291,12 +291,12 @@ async function battery() {
     setTier('component'); chg('sel-seed-type', 'roundedrect'); setComponentGrid('square2x2'); chg('sel-rule', 'identity'); generate();
     const libS = LIBRARY.read(); libS['zz-t-solid'] = buildLibraryEntryFor(state.components[0]); libS['zz-t-solid'].savedAt = '2000-01-01T00:00:00.000Z'; LIBRARY.write(libS);
     chg('sel-seed-type', 'arc');
-    state.symbolPalette = [{ name: 'zz-t-solid', weight: 1 }];
+    state.symbolPool = [{ name: 'zz-t-solid', weight: 1 }];
     const leak = d => { let n = 0; for (let y = 32; y < 505; y++) for (let x = 32; x < 505; x++) { const i = (y * 537 + x) * 4; if (d[i] + d[i + 1] + d[i + 2] > 36) n++; } return n; };
     const seams = [];
     for (const [g, prm] of [['rectangular', { colWeights: '1,1,1,1,1', rowWeights: '1,1,1,1,1' }], ['bento', { cols: 4, rows: 4, variety: 0.5, seed: 7 }], ['hexagonal', { cols: 5 }]]) {
       loadSymbolGrid(await symbolGridModel(g, prm, cv));
-      state.symbolCells = arrangeCells(getSymbolGrid(), [], paletteEntries(), 'random', 1, 'fill');
+      state.symbolCells = arrangeCells(getSymbolGrid(), [], poolEntries(), 'random', 1, 'fill');
       const img = new Image(); img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(buildSymbolSVG()); await img.decode();
       const a = document.createElement('canvas'); a.width = a.height = 537; a.getContext('2d').drawImage(img, 0, 0, 537, 537);
       const b = document.createElement('canvas'); b.width = b.height = 537; const bx = b.getContext('2d'); bx.scale(537 / 1080, 537 / 1080); drawSymbolCanvas(bx);
@@ -305,7 +305,7 @@ async function battery() {
     put('symbol:seams', seams.join(','));
     state.colors = inks0; state.paperColor = paper0; buildPalette();
     const lib2 = LIBRARY.read(); ['zz-t-arc', 'zz-t-ring', 'zz-t-wave', 'zz-t-solid'].forEach(n => delete lib2[n]); LIBRARY.write(lib2);
-    state.symbolGrid = prevGrid; state.symbolCells = prevCells; state.symbolPalette = prevPal;
+    state.symbolGrid = prevGrid; state.symbolCells = prevCells; state.symbolPool = prevPal;
     setComponentGrid('square2x2'); setTier('component');
   }
 

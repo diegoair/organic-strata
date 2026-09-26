@@ -1071,31 +1071,63 @@
     return { d, normTx: 0, normTy: 0, normScale: 1 };
   }
 
-  // ── Segment ── angle · bend · wave · dashes · parallel lines
+  // ── Segment ── angle · bend · wave · dashes · parallel lines · repeat X/Y · rays
   function segmentExtrasActive(o) {
-    return !!o && ((o.angle || 0) !== 0 || (o.bend || 0) !== 0 || (o.wave || 0) > 0 || (o.dashes || 1) > 1 || (o.lines || 1) > 1);
+    return !!o && ((o.angle || 0) !== 0 || (o.bend || 0) !== 0 || (o.wave || 0) > 0 || (o.dashes || 1) > 1 || (o.lines || 1) > 1
+      || (o.repeatX || 1) > 1 || (o.repeatY || 1) > 1 || (o.rays || 1) > 1);
   }
   function segmentBuild(lenPct, o) {
     const len = cl3(lenPct, 5, 100, 70), ang = cl3(o.angle, -90, 90, 0), bend = cl3(o.bend, -100, 100, 0) / 100;
     const amp = cl3(o.wave, 0, 100, 0) / 100 * 15, cycles = Math.round(cl3(o.cycles, 1, 8, 3));
     const dashes = Math.round(cl3(o.dashes, 1, 12, 1)), dgap = cl3(o.gap, 0, 80, 30) / 100;
     const lines = Math.round(cl3(o.lines, 1, 9, 1)), sp = cl3(o.spacing, 1, 12, 6);
+    // Repeat X/Y translate the WHOLE line (dashes+lines already applied) along
+    // the cell's own global axes — independent of Angle, so "horizontal"/
+    // "vertical" mean the canvas's own axes, not the line's own direction (that's
+    // what the existing Lines hatch already does, rotating with Angle). Rays
+    // then rotates that translated cluster as N copies evenly spaced around
+    // the cell centre — same "petals" idea Lens/Drop already use, generalised
+    // to a cluster instead of a single unit, so all three combine freely.
+    const repeatX = Math.round(cl3(o.repeatX, 1, 9, 1)), spaceX = cl3(o.spaceX, 1, 40, 14);
+    const repeatY = Math.round(cl3(o.repeatY, 1, 9, 1)), spaceY = cl3(o.spaceY, 1, 40, 14);
+    const rays = Math.round(cl3(o.rays, 1, 12, 1));
     const dl = 1 / (dashes + (dashes - 1) * dgap), pitch = dl * (1 + dgap), curved = bend !== 0 || amp > 0;
-    let d = '', all = [];
     const at = (t, oy) => {
       const u = t * 2 - 1;
       return rot3([50 + u * len / 2, 50 - bend * 0.35 * len * (1 - u * u) + amp * Math.sin(2 * Math.PI * cycles * t) + oy], ang, [50, 50]);
     };
+    let unit = [];
     for (let j = 0; j < lines; j++) {
       const oy = (j - (lines - 1) / 2) * sp;
       for (let k = 0; k < dashes; k++) {
         const t0 = k * pitch, t1 = t0 + dl, steps = curved ? Math.max(2, Math.ceil((t1 - t0) * (cycles * 24 + 24))) : 1;
         const pts = [];
         for (let i = 0; i <= steps; i++) pts.push(at(t0 + (t1 - t0) * i / steps, oy));
-        d += (d ? ' ' : '') + 'M ' + pts.map(p => `${N3(p[0])},${N3(p[1])}`).join(' L ');
-        all = all.concat(pts);
+        unit.push(pts);
       }
     }
+    let cluster = unit;
+    if (repeatX > 1 || repeatY > 1) {
+      const placed = [];
+      for (let iy = 0; iy < repeatY; iy++) {
+        const dy = (iy - (repeatY - 1) / 2) * spaceY;
+        for (let ix = 0; ix < repeatX; ix++) {
+          const dx = (ix - (repeatX - 1) / 2) * spaceX;
+          for (const pts of cluster) placed.push(pts.map(p => [p[0] + dx, p[1] + dy]));
+        }
+      }
+      cluster = placed;
+    }
+    if (rays > 1) {
+      const spoked = [];
+      for (let r = 0; r < rays; r++) {
+        const rdeg = r * 360 / rays;
+        for (const pts of cluster) spoked.push(pts.map(p => rot3(p, rdeg, [50, 50])));
+      }
+      cluster = spoked;
+    }
+    let d = '', all = [];
+    for (const pts of cluster) { d += (d ? ' ' : '') + 'M ' + pts.map(p => `${N3(p[0])},${N3(p[1])}`).join(' L '); all = all.concat(pts); }
     return overflowNorm(d, bboxOfPoints(all));
   }
 
@@ -1390,6 +1422,11 @@
       {"kind": "range", "id": "gap", "key": "segGap", "label": "Dash gap", "min": 0, "max": 80, "def": 30, "title": "Gap between dashes, as a % of a dash's length."},
       {"kind": "range", "id": "lines", "key": "segLines", "label": "Lines", "min": 1, "max": 9, "def": 1, "title": "Parallel copies of the line (hatch)."},
       {"kind": "range", "id": "spacing", "key": "segSpacing", "label": "Line spacing", "min": 1, "max": 12, "def": 6, "title": "Distance between parallel lines."},
+      {"kind": "range", "id": "repeatX", "key": "segRepeatX", "label": "Repeat X", "min": 1, "max": 9, "def": 1, "title": "Copies of the whole line, side by side along the horizontal axis — independent of Angle."},
+      {"kind": "range", "id": "spaceX", "key": "segSpaceX", "label": "Space X", "min": 1, "max": 40, "def": 14, "title": "Distance between horizontal copies."},
+      {"kind": "range", "id": "repeatY", "key": "segRepeatY", "label": "Repeat Y", "min": 1, "max": 9, "def": 1, "title": "Copies of the whole line, stacked along the vertical axis — independent of Angle."},
+      {"kind": "range", "id": "spaceY", "key": "segSpaceY", "label": "Space Y", "min": 1, "max": 40, "def": 14, "title": "Distance between vertical copies."},
+      {"kind": "range", "id": "rays", "key": "segRays", "label": "Rays", "min": 1, "max": 12, "def": 1, "title": "Copies rotated evenly around the cell centre — spokes / asterisk. Applies to whatever Repeat X/Y already produced."},
     ],
     drop: [
       {"kind": "range", "id": "bend", "key": "dropBend", "label": "Tail bend", "min": -100, "max": 100, "def": 0, "title": "Curves the tail sideways → comma / flame."},
