@@ -168,9 +168,6 @@
   .panel-step-head__num { color: var(--tool); }
   .panel-step-head__desc { color: var(--mid); font-size: var(--fs-small); margin-top: var(--space-1); }
 
-  /* Motion track slots — same compact block Trellis/Pulsar use. */
-  .trk { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-2); margin-bottom: var(--space-2); }
-  .trk .panel-select { margin-bottom: var(--space-1); }
   /* The Symbol can be any proportion (its Canvas): the frame fills the stage and
      the SVG fits inside it (viewBox, preserveAspectRatio meet), never overflowing. */
   #symbol-frame { align-self: stretch; flex: 1; min-width: 0; min-height: 0; box-sizing: border-box; padding: var(--space-5); display: flex; align-items: center; justify-content: center; }
@@ -233,12 +230,6 @@
   #component-edit-frame [data-cell-index] { cursor: pointer; }
   #component-edit-frame [data-cell-index]:hover { fill: color-mix(in srgb, var(--tool) 8%, transparent); }
 
-  /* Grid tier — tiles one saved Symbol across a bigger grid. Reuses the
-     gallery-empty pattern from the Component tier. */
-  #grid-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: var(--space-3); color: var(--mid); font-size: var(--fs-small); text-align: center; }
-  #fvsgrid-frame { display: none; }
-  #fvsgrid-frame.visible { display: block; }
-  #fvsgrid-frame svg { max-width: 100%; max-height: 100%; display: block; }
   #canvas-wrap .tier-view[data-tier="figure"].active { flex-direction: column; gap: var(--space-5); }
   #figure-stage { position: relative; display: block; line-height: 0; width: min(58vh, 100%); }
   #fg-strip { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); max-width: 100%; }
@@ -270,6 +261,8 @@
   .fg-chip button:hover:not(:disabled) { color: var(--ink); }
   .fg-chip button:disabled { opacity: 0.3; cursor: default; }
   .fg-advanced > summary { cursor: pointer; padding: var(--space-3) var(--space-4); font-size: var(--fs-small); color: var(--mid); }
+  .fg-adopted { margin-bottom: var(--space-3); border: 1px solid var(--border); background: var(--paper); }
+  .fg-adopted img { display: block; width: 100%; height: auto; }
   .fg-thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: var(--space-2); margin-bottom: var(--space-3); }
   .fg-thumb { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-1); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font: inherit; color: var(--ink); }
   .fg-thumb:hover, .fg-thumb[aria-pressed="true"] { border-color: var(--tool); }
@@ -313,15 +306,17 @@
   </output>
 </header>
 
-<!-- Step nav — 4 propaedeutic tiers, moved out of the header (same move
+<!-- Step nav — 3 propaedeutic tiers, moved out of the header (same move
      Genesis made for its Library/Create nav). Element → Component →
-     Symbol → Grid: each consumes what the previous step produced. -->
+     Symbol: each consumes what the previous step produced. Figure (★) is a
+     separate, self-contained recipe tier that still tiles internally
+     (buildFvsGridSVG et al., kept as page-less helpers — see the Grid tier
+     comment further down) but has no standalone page of its own anymore. -->
 <div class="fvs-stepnav">
   <div class="org-tabs" id="tier-tabs" role="group" aria-label="Step">
     <button class="org-btn" data-tier="element" aria-pressed="true"><span class="fvs-stepnav__num">1</span> Element</button>
     <button class="org-btn" data-tier="component" aria-pressed="false"><span class="fvs-stepnav__num">2</span> Component</button>
     <button class="org-btn" data-tier="symbol" aria-pressed="false"><span class="fvs-stepnav__num">3</span> Symbol</button>
-    <button class="org-btn" data-tier="grid" aria-pressed="false"><span class="fvs-stepnav__num">4</span> Grid</button>
     <button class="org-btn" data-tier="figure" aria-pressed="false" title="Build a whole figure in one place — Seed, lattice, rules, composition, transform"><span class="fvs-stepnav__num">★</span> Figure</button>
   </div>
   <p class="fvs-stepnav__hint" id="stepnav-hint"></p>
@@ -355,13 +350,13 @@
     </button>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
   </div>
-  <button class="org-floatbar__btn" id="btn-playpause" aria-label="Play" disabled>
-    <svg class="ico" id="ico-playpause" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor"/></svg>
-  </button>
-  <button class="org-floatbar__btn" id="btn-stop" aria-label="Stop" disabled>
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1" fill="currentColor"/></svg>
-  </button>
-  <span class="org-floatbar__sep" aria-hidden="true"></span>
+  <!-- Symbol-tier action — hand the live Symbol to the ★ Figure tier as its first level. Shown only on that tier by setTier(). -->
+  <div id="fb-symbol-actions" class="fvs-fb-group" style="display:none">
+    <button class="org-floatbar__btn" id="btn-symbol-to-figure" aria-label="Build a Figure from this Symbol">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.8" y="4.5" width="6" height="6" stroke="currentColor" stroke-width="1.3"/><path d="M8.5 7.5h2.2M9.6 6.2l1.3 1.3-1.3 1.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 4.2l.7 1.5 1.6.2-1.2 1.1.3 1.6-1.4-.8-1.4.8.3-1.6-1.2-1.1 1.6-.2z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
+    </button>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
+  </div>
   <div class="org-popover-wrap">
     <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
       <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
@@ -463,12 +458,6 @@
     <div class="tier-view" data-tier="symbol">
       <div id="symbol-suggest-gallery" class="fvs-suggest" aria-label="Suggested Symbols"></div>
       <div id="symbol-frame"></div>
-    </div>
-    <div class="tier-view" data-tier="grid">
-      <div id="grid-empty">
-        <p>No Symbol picked yet.<br>Save one in the Symbol step, then pick it here.</p>
-      </div>
-      <div id="fvsgrid-frame"></div>
     </div>
     <div class="tier-view" data-tier="figure">
       <div id="fg-strip">
@@ -1163,13 +1152,13 @@
         <select class="panel-select" id="sel-builtin-recipe" aria-label="Built-in recipe"></select>
       </div>
       <button class="mini-btn" id="btn-builtin-recipe" style="width:100%">Build it</button>
-      <p class="org-panel__hint" id="builtin-recipe-hint">Builds the whole chain — Element, Component, colours and Grid — in one click. It replaces the current Element, palette and gallery.</p>
+      <p class="org-panel__hint" id="builtin-recipe-hint">Builds the whole chain — Element, Component and colours — in one click. It replaces the current Element, palette and gallery.</p>
     </div>
     </div>
 
     <div class="tier-block" data-tier="symbol">
     <div class="panel-step-head">
-      <div class="panel-step-head__title">Symbol <span class="hint">step 3 of 4</span></div>
+      <div class="panel-step-head__title">Symbol <span class="hint">step 3 of 3</span></div>
       <p class="panel-step-head__desc">A page and a grid, composed from your saved Components.</p>
     </div>
     <div class="panel-section">
@@ -1409,7 +1398,6 @@
       <div id="library-empty" class="fvs-library-empty">Nothing saved yet.</div>
       <div id="fvs-library" class="fvs-library"></div>
       <button class="mini-btn" id="btn-save-library" style="width:100%">Save selected to library</button>
-      <button class="mini-btn" id="btn-tile-in-grid" style="width:100%;margin-top:var(--space-2)">Tile selected in Grid</button>
       <div id="library-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
         <input type="text" class="panel-select" id="txt-library-name" placeholder="Name this component" aria-label="Name this component" style="flex:1">
       </div>
@@ -1448,49 +1436,6 @@
         <input class="color-hex" id="hex-paper" value="#ffffff" maxlength="7">
       </div>
       <p class="org-panel__hint">Paper is the ground every Component renders and exports against — the gallery thumbnail, PNG, and SVG all read this same colour, not a fixed white.</p>
-    </div>
-
-    <div id="motion-block">
-    <div class="panel-step-head">
-      <div class="panel-step-head__title">Motion</div>
-      <p class="panel-step-head__desc">Animate the selected result — per-cell colour/scale, or pan the whole field. Live preview only, via the floatbar's Play button.</p>
-    </div>
-    <div class="panel-section">
-      <h3>Tracks <span class="hint">up to 2, per cell</span></h3>
-      <div id="tracks"></div>
-      <p class="org-panel__hint">Colour cycle blends between two colours; Scale pulse multiplies each cell's own scale. Stagger offsets each cell's phase by its index/row/column/distance-from-centre/a noise field, so the motion ripples across the grid instead of pulsing in lockstep.</p>
-    </div>
-    <div class="panel-section">
-      <h3>Field pan <span class="hint">whole-field, seamless loop</span></h3>
-      <div class="ctrl-row">
-        <div class="ctrl-label">Axis</div>
-        <select class="panel-select" id="sel-field-axis" aria-label="Field pan axis">
-          <option value="none" selected>Off</option>
-          <option value="x">X</option>
-          <option value="y">Y</option>
-          <option value="xy">X and Y</option>
-        </select>
-      </div>
-      <div class="ctrl-row" id="row-field-period">
-        <div class="ctrl-label">Cycles</div>
-        <input type="range" id="rg-field-period" min="1" max="8" step="1" value="1">
-        <span class="ctrl-val" id="v-field-period">1</span>
-      </div>
-      <p class="org-panel__hint">Scrolls the whole tiled pattern continuously, wrapping seamlessly — cleanest on Square grids and rect Loom grids (Bento); a Hexagonal/polygon grid will pan too but the wrap seam may be visible.</p>
-    </div>
-    <div class="panel-section">
-      <h3>Loop</h3>
-      <div class="ctrl-row">
-        <div class="ctrl-label">Length</div>
-        <input type="range" id="rg-loop-seconds" min="1" max="30" step="1" value="6">
-        <span class="ctrl-val" id="v-loop-seconds">6</span>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label">Speed</div>
-        <input type="range" id="rg-speed" min="0.25" max="4" step="0.25" value="1">
-        <span class="ctrl-val" id="v-speed">1</span>
-      </div>
-    </div>
     </div>
 
     <div class="tier-block" data-tier="symbol">
@@ -1767,7 +1712,7 @@
       <h3>2 · Lattice</h3>
       <div class="ctrl-row"><div class="ctrl-label">Type</div>
         <select class="panel-select" id="fg-lattice" aria-label="Lattice type">
-          <option value="triangle">Triangle (n rows)</option><option value="square">Square (cols × rows)</option><option value="hexagon">Hexagon (n rings)</option><option value="component">Component block 2×2</option>
+          <option value="triangle">Triangle (n rows)</option><option value="square">Square (cols × rows)</option><option value="hexagon">Hexagon (n rings)</option><option value="component">Component block 2×2</option><option value="adopted" hidden>Adopted from the Symbol step</option>
         </select></div>
       <div class="ctrl-row" id="fg-row-n"><div class="ctrl-label">Rows</div><select class="panel-select" id="fg-n" aria-label="Rows"></select></div>
       <div class="ctrl-row" id="fg-row-cols"><div class="ctrl-label">Columns</div><select class="panel-select" id="fg-cols" aria-label="Columns"></select></div>
@@ -1829,74 +1774,6 @@
     </div>
     </details>
     </div>
-
-    <div class="tier-block" data-tier="grid">
-    <div class="panel-step-head">
-      <div class="panel-step-head__title">Grid <span class="hint">step 4 of 4</span></div>
-      <p class="panel-step-head__desc">Pick a saved Symbol, then tile it across a bigger grid — the final pattern.</p>
-    </div>
-    <div class="panel-section">
-      <h3>Symbol</h3>
-      <div id="fvsgrid-symbol-empty" class="fvs-library-empty">No saved Symbols yet — save one in the Symbol step first.</div>
-      <div id="fvsgrid-symbol-picker" class="fvs-library"></div>
-      <div id="fvsgrid-component-block">
-        <div class="ctrl-label">Or tile a saved Component directly</div>
-        <div id="fvsgrid-component-picker" class="fvs-library"></div>
-      </div>
-    </div>
-    <div class="panel-section">
-      <h3>Grid <span class="hint" id="fvsgrid-cellcount-hint">4 cells</span></h3>
-      <div class="ctrl-row">
-        <select class="panel-select" id="sel-fvsgrid-type" aria-label="Tiling grid type">
-          <option value="square2x2">Square 2×2</option>
-          <option value="square3x3">Square 3×3</option>
-          <option value="square4x4" selected>Square 4×4</option>
-          <option value="square6x6">Square 6×6</option>
-          <option value="tri2">Triangle 2 rows</option>
-          <option value="tri3">Triangle 3 rows</option>
-          <option value="tri4">Triangle 4 rows</option>
-          <option value="tier1">Tier (trapezoid of 3)</option>
-          <option value="tier2">Tier ×2 (stepped)</option>
-          <option value="loom">Import from Loom (JSON)…</option>
-        </select>
-      </div>
-      <div id="fvsgrid-square-block">
-        <div class="ctrl-row">
-          <div class="ctrl-label">Cell size</div>
-          <input type="range" id="rg-fvsgrid-cellsize" min="40" max="220" step="1" value="110">
-          <span class="ctrl-val" id="v-fvsgrid-cellsize">110</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Gap</div>
-          <input type="range" id="rg-fvsgrid-gap" min="0" max="40" step="1" value="0">
-          <span class="ctrl-val" id="v-fvsgrid-gap">0</span>
-        </div>
-      </div>
-      <div id="fvsgrid-loom-block" style="display:none">
-        <button class="mini-btn" id="btn-fvsgrid-upload-loom" style="width:100%">Upload Loom grid JSON…</button>
-        <div id="fvsgrid-loom-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
-      </div>
-      <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-fvsgrid-alt-flip"><span>Alternate flip (checkerboard)</span></label>
-      <div class="ctrl-row">
-        <div class="ctrl-label">Rotate figure</div>
-        <select class="panel-select" id="sel-fvsgrid-rot" aria-label="Rotate the tiled figure">
-          <option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option>
-        </select>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label">Mirror</div>
-        <select class="panel-select" id="sel-fvsgrid-mirror" aria-label="Mirror the figure over its edge">
-          <option value="none">None</option>
-          <option value="v">One axis — right edge</option>
-          <option value="h">One axis — bottom edge</option>
-          <option value="vh">Two axes — right + bottom</option>
-        </select>
-      </div>
-      <p class="org-panel__hint">Every cell repeats the picked Symbol at its own resolved size — a Loom import uses that grid's own saved cell geometry (rect or polygon) exactly as exported. "Alternate flip" mirrors every other cell for a less mechanical repeat.</p>
-    </div>
-    </div>
-
-    <input type="file" id="file-fvsgrid-loom" accept=".json,application/json" aria-label="Upload Loom grid JSON for Grid tier" class="org-file-input">
 
   </div>
 </div>
@@ -1962,7 +1839,6 @@
 
 <script src="/shared/palette.js"></script>
 <script src="/shared/noise.js"></script>
-<script src="/shared/tracks.js"></script>
 <script src="/shared/print-size.js"></script>
 <script src="/shared/print-size-panel.js"></script>
 <script src="/shared/plate-export.js"></script>
@@ -2031,10 +1907,13 @@ const state = {
   elementContent: 'filled',          // 'filled' | 'mask' | 'subtraction' | 'container' (container disabled — not yet selectable) — the Element's OWN silhouette used the same way, one tier down from componentRole
   underlyingElementName: null,       // a LIBRARY entry name — the SAME shared store componentRole's picker reads, just a second, independent reference
   loomGrid: null,   // {cellShape, cells, inner:{width,height}} from Organica.loadLoomGrid, or null until a file is imported
-  activeTier: 'element',   // 'element' | 'component' | 'symbol' | 'grid'
-  fvsGrid: null,     // {cellShape, cells, inner:{width,height}} — the Grid tier's own tiling grid, Loom-imported
+  activeTier: 'element',   // 'element' | 'component' | 'symbol' | 'figure'
+  // The Grid tier's own page is gone — buildFvsGridSVG()/getFvsGrid() are kept as
+  // page-less helpers (Figure recipes and the legacy "Start from a recipe" tile
+  // step both still tile), reading this plain config object instead of DOM controls.
+  fvsGridConfig: { type: 'square4x4', cellSize: 110, gap: 0, altFlip: false, rot: 0, mirror: 'none' },
   fvsGridComponentName: null,  // when set, the Grid tiles this saved Component directly (componentTileEntry) instead of a Symbol
-  fvsGridSymbolName: null,   // name of the saved Symbol (SYMBOL_LIBRARY entry) currently tiled in the Grid tier
+  fvsGridSymbolName: null,   // name of the saved Symbol (SYMBOL_LIBRARY entry) currently tiled
   symbolGrid: null,   // same shape as loomGrid — a SECOND, independent Loom grid for the Symbols tier
   symbolCells: [],    // one per resolveGridCells(symbolGrid) index:
                        //   {source:'seed', seedType, rotation, flipH, flipV, scale, color,
@@ -2046,17 +1925,6 @@ const state = {
   symbolMarqueeRect: null,      // {x,y,w,h} in the canvas's own 0..size space, live during a drag-select — preview-only, never persisted or exported
   symbolClipEnabled: true,      // Symbol-level: clip each cell's content to its own bounds (rect/polygon). OFF allows deliberate bleed; persisted per saved Symbol.
 };
-
-// Motion playback state — declared early (not down by the rest of the
-// Motion code, further below) because several swatch/component
-// constructors below call renderGallery()/renderSymbolCanvasOnly()
-// synchronously during setup, which now reach syncPlayEnabled() ->
-// pausePlayback() -> `playing`; those run before the script reaches a
-// later declaration, hitting its temporal-dead-zone (the same class of
-// bug documented elsewhere in this repo for Loom's `renderQueued`).
-let curT = 0, playing = false, raf = 0, t0 = 0, loopSec = 6, speedMult = 1;
-const ICO_PLAY = '<path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor"/>';
-const ICO_PAUSE = '<path d="M5 3.5h2.2v9H5zM8.8 3.5H11v9H8.8z" fill="currentColor"/>';
 
 // ── Palette — centralised colour assignment (moved out of Seed, which
 // is now pure shape geometry). Promoted to shared/palette.js
@@ -2164,7 +2032,6 @@ function refreshColourViews() {
   renderGallery();
   renderSeedPreview();
   if (state.symbolGrid) renderSymbolCanvasOnly();
-  if (state.activeTier === 'grid') renderFvsGrid();
 }
 function onColorRuleChange() {
   state.colorRule = { mode: ctrl('sel-color-rule').value, offset: parseInt(ctrl('sel-color-offset').value, 10) || 0 };
@@ -3301,8 +3168,8 @@ function resolveItemGeo(item, defaultGeo) {
 }
 
 // Per-cell {col,row,cols,rows,cx,cy,nx,ny,angle,index,count} for the
-// Components tier's own grid — the stagger-phase context Motion tracks
-// need (shared/tracks.js's staggerDelay). Mirrors the Symbols tier's own
+// Components tier's own grid — used by the named component rules
+// (checkerboard/radial/pinwheel/…). Mirrors the Symbols tier's own
 // cellColRow(grid) wrapper below, just reading Components' own Loom state
 // (state.loomGrid) instead of state.symbolGrid — the two tiers keep
 // independent Loom imports, so this can't be the same function.
@@ -3839,7 +3706,6 @@ function renderGallery() {
     empty.style.display = 'flex';
     ctrl('gallery-status').textContent = elementIsEmpty() ? 'The Element is empty — draw a shape or pick one in step 1 first.' : '';
     setStatus('', 'No components yet');
-    syncPlayEnabled();
     return;
   }
   empty.style.display = 'none';
@@ -3914,7 +3780,6 @@ function renderGallery() {
     wrap.append(btn, editBtn, quickSave, cap);
     gallery.appendChild(wrap);
   }
-  syncPlayEnabled();
 }
 
 // ── Component Edit mode ──────────────────────────────────────────────────
@@ -4921,7 +4786,7 @@ function renameLibraryEntry(oldName, newName) {
   (state.symbolCells || []).forEach(c => { if (c.componentName === oldName) c.componentName = newName; });
   if (state.underlyingComponentName === oldName) state.underlyingComponentName = newName;
   if (state.fvsGridComponentName === oldName) state.fvsGridComponentName = newName;
-  renderLibrary(); renderSymbolLibrary(); renderFvsGridPicker();
+  renderLibrary(); renderSymbolLibrary();
   if (state.symbolGrid) renderSymbol();
   ctrl('library-empty').textContent = 'Nothing saved yet.';
 }
@@ -5032,24 +4897,24 @@ function symbolFrame(grid) {
   return { w: S, h: S, bx: half, by: half, X: v => half + v - ox, Y: v => half + v - oy };
 }
 
-// ── Grid tier (step 4) — tiles one saved Symbol across a bigger grid ──
+// ── Grid tiling — page-less now (no standalone tier/nav/export); kept as an
+// internal helper for Figure recipes ({kind:'grid'} levels) and the legacy
+// "Start from a recipe" tile step. Reads state.fvsGridConfig instead of DOM
+// controls, since there's no longer a panel for those controls to live in. ──
 
 function getFvsGrid() {
-  const type = ctrl('sel-fvsgrid-type').value;
-  if (type === 'loom') {
-    if (!state.fvsGrid) return null;
-    return { kind: 'loom', cellShape: state.fvsGrid.cellShape, cells: state.fvsGrid.cells, width: state.fvsGrid.inner.width, height: state.fvsGrid.inner.height };
-  }
+  const cfg = state.fvsGridConfig;
+  const type = cfg.type;
   if (/^tier\d$/.test(type)) {
-    const g = Organica.loadLoomGrid(tierLoomModel(+type[4], Math.max(20, val('rg-fvsgrid-cellsize'))));
+    const g = Organica.loadLoomGrid(tierLoomModel(+type[4], Math.max(20, cfg.cellSize)));
     return { kind: 'loom', tri: true, cellShape: 'polygon', cells: g.cells, width: g.inner.width, height: g.inner.height };
   }
   if (/^tri\d$/.test(type)) {
-    const g = Organica.loadLoomGrid(triangleLoomModel(+type[3], Math.max(20, val('rg-fvsgrid-cellsize'))));
+    const g = Organica.loadLoomGrid(triangleLoomModel(+type[3], Math.max(20, cfg.cellSize)));
     return { kind: 'loom', tri: true, cellShape: 'polygon', cells: g.cells, width: g.inner.width, height: g.inner.height };
   }
   const n = type === 'square3x3' ? 3 : type === 'square4x4' ? 4 : type === 'square6x6' ? 6 : 2;
-  return { kind: 'square', cols: n, rows: n, cellSize: val('rg-fvsgrid-cellsize'), gap: val('rg-fvsgrid-gap') };
+  return { kind: 'square', cols: n, rows: n, cellSize: cfg.cellSize, gap: cfg.gap };
 }
 
 // A saved Component tiled directly: a throw-away 1×1 Symbol whose only cell
@@ -5065,9 +4930,10 @@ function componentTileEntry(name) {
   };
 }
 
-// Component tier → Grid tier in one click: auto-saves the selected
-// Component to the library (once, by id) and tiles it.
-function tileSelectedInGrid(stay) {
+// Auto-saves the selected Component to the library (once, by id) and points
+// the (page-less) Grid helper at it — used internally by Figure recipes and
+// the legacy "Start from a recipe" tile step, never by a visible page anymore.
+function tileSelectedInGrid() {
   const comp = getSelectedComponent();
   if (!comp) return;
   pushUndo();
@@ -5076,8 +4942,6 @@ function tileSelectedInGrid(stay) {
   // always refreshed: the id stays the same when the Element/colours change, so a cached copy would go stale
   all[name] = { ...buildLibraryEntry(), auto: true }; LIBRARY.write(all);
   state.fvsGridComponentName = name;
-  if (!stay) setTier('grid');
-  renderFvsGridPicker(); renderFvsGrid();
 }
 
 // The Symbol being edited, offered to the Grid as it is right now — no save step
@@ -5121,7 +4985,7 @@ function buildFvsGridSVG() {
   const size = frameSize(grid);
   const centers = resolveGridCells(grid);
   const { size: natSize, inner } = renderedSymbolEntrySVG(entry);
-  const altFlip = ctrl('chk-fvsgrid-alt-flip').checked;
+  const altFlip = state.fvsGridConfig.altFlip;
   // Checkerboard by (col + row) parity — index parity gave vertical stripes on grids with an even column count.
   const colRow = altFlip ? Organica.shapes.cellColRow(grid, null, null) : null;
   // Every tile repeats the same Symbol markup, so the clip <defs> (identical in each tile's own
@@ -5131,7 +4995,11 @@ function buildFvsGridSVG() {
   const defsM = inner.match(/<defs>[\s\S]*?<\/defs>/);
   const sharedDefs = defsM ? defsM[0] : '';
   let tileInner = inner.replace(/<metadata>[\s\S]*?<\/metadata>/, '').replace(/<defs>[\s\S]*?<\/defs>/, '');
-  if (grid.tri) tileInner = tileInner.replace(/<rect width="[\d.]+" height="[\d.]+" fill="#[0-9a-fA-F]+"\/>/, '');
+  // A tile's own paper is also dropped when it is the ground colour anyway: a Symbol with a Canvas
+  // margin has a paper larger than its drawn box, and a mirrored copy's paper covered the original's
+  // edge across the mirror axis.
+  const tilePaper = tileInner.match(/<rect width="[\d.]+" height="[\d.]+" fill="(#[0-9a-fA-F]+)"\/>/);
+  if (grid.tri || (tilePaper && hexKey(tilePaper[1]) === hexKey(state.paperColor))) tileInner = tileInner.replace(/<rect width="[\d.]+" height="[\d.]+" fill="#[0-9a-fA-F]+"\/>/, '');
   const cbox = symbolContentBox(entry, natSize);   // where the Symbol actually draws, in its own frame
   // A promoted figure is placed by its drawn box; a Symbol by its (square) frame, exactly as before.
   const raw = !!entry.raw && !!cbox;
@@ -5160,7 +5028,7 @@ function buildFvsGridSVG() {
       });
     }
   });
-  const rot = parseInt(ctrl('sel-fvsgrid-rot').value, 10) || 0, mir = ctrl('sel-fvsgrid-mirror').value;
+  const rot = parseInt(state.fvsGridConfig.rot, 10) || 0, mir = state.fvsGridConfig.mirror;
   lastFigureMeta = { size, box: cbox ? { x0: bx0, y0: by0, x1: bx1, y1: by1 } : { x0: 0, y0: 0, x1: size, y1: size } };
   if (!rot && mir === 'none') {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`
@@ -5213,81 +5081,6 @@ function figureWithMirror(defs, body, box, size, rot, mir) {
   lastFigureMeta = { size: S, box: { x0: ox, y0: oy, x1: ox + mw, y1: oy + mhgt } };   // what the next level sees as this figure's drawn box
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${r2(S)} ${r2(S)}" width="${r2(S)}" height="${r2(S)}">`
     + `<rect width="${r2(S)}" height="${r2(S)}" fill="${state.paperColor}"/>${defs}<g transform="translate(${r2(ox)},${r2(oy)})">${out}</g></svg>`;
-}
-
-function renderFvsGrid() {
-  const frame = ctrl('fvsgrid-frame');
-  const entry = fvsGridSelectedEntry();
-  const grid = getFvsGrid();
-  if (!entry || !grid) {
-    ctrl('grid-empty').style.display = '';
-    frame.classList.remove('visible');
-    frame.innerHTML = '';
-    return;
-  }
-  ctrl('grid-empty').style.display = 'none';
-  frame.classList.add('visible');
-  frame.innerHTML = buildFvsGridSVG();
-  ctrl('fvsgrid-cellcount-hint').textContent = resolveGridCells(grid).length + ' cells';
-}
-
-function renderFvsGridPicker() {
-  const all = SYMBOL_LIBRARY.read();
-  const names = (state.symbolGrid ? [LIVE_SYMBOL] : []).concat(Object.keys(all));
-  const allComps = LIBRARY.read();
-  const compNames = libraryNames(allComps);
-  ctrl('fvsgrid-symbol-empty').style.display = (names.length || compNames.length) ? 'none' : '';
-  if (!names.includes(state.fvsGridSymbolName)) state.fvsGridSymbolName = names[0] || null;
-  if (state.fvsGridComponentName && !allComps[state.fvsGridComponentName]) state.fvsGridComponentName = null;
-  const wrap = ctrl('fvsgrid-symbol-picker');
-  wrap.innerHTML = '';
-  const addTile = (host, name, entry, selected, label, onPick) => {
-    const { size, inner } = renderedSymbolEntrySVG(entry);
-    const btn = document.createElement('button');
-    btn.className = 'fvs-library-item';
-    if (selected) btn.classList.add('selected');
-    btn.setAttribute('aria-label', label + ' ' + name);
-    btn.title = name;
-    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${inner}</svg>`;
-    btn.addEventListener('click', () => { state.fvsGridRaw = null; onPick(); renderFvsGridPicker(); renderFvsGrid(); updateStepHint('grid'); });
-    host.appendChild(btn);
-  };
-  for (const name of names) {
-    addTile(wrap, name, name === LIVE_SYMBOL ? buildSymbolLibraryEntry() : all[name], !state.fvsGridComponentName && name === state.fvsGridSymbolName, 'Pick symbol',
-      () => { state.fvsGridSymbolName = name; state.fvsGridComponentName = null; });
-  }
-  const cwrap = ctrl('fvsgrid-component-picker');
-  cwrap.innerHTML = '';
-  ctrl('fvsgrid-component-block').style.display = compNames.length ? '' : 'none';
-  for (const name of compNames) {
-    addTile(cwrap, name, componentTileEntry(name), name === state.fvsGridComponentName, 'Tile component',
-      () => { state.fvsGridComponentName = name; });
-  }
-}
-
-function syncFvsGridTypeUI() {
-  const isLoom = ctrl('sel-fvsgrid-type').value === 'loom';
-  ctrl('fvsgrid-square-block').style.display = isLoom ? 'none' : '';
-  ctrl('fvsgrid-loom-block').style.display = isLoom ? '' : 'none';
-}
-
-function handleFvsGridLoomUpload(file) {
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      state.fvsGrid = Organica.loadLoomGrid(reader.result);
-      ctrl('fvsgrid-loom-error').style.display = 'none';
-      renderFvsGrid();
-    } catch (e) {
-      ctrl('fvsgrid-loom-error').textContent = e.message;
-      ctrl('fvsgrid-loom-error').style.display = '';
-    }
-  };
-  reader.onerror = () => {
-    ctrl('fvsgrid-loom-error').textContent = 'Could not read that file.';
-    ctrl('fvsgrid-loom-error').style.display = '';
-  };
-  reader.readAsText(file);
 }
 
 function exportFvsGrid(format) {
@@ -6603,7 +6396,6 @@ function renderSymbolCanvasOnly() {
     frame.innerHTML = '<p style="color:var(--mid);font-size:var(--fs-small)">Pick a grid to begin.</p>';
     ctrl('symbol-cellcount-hint').textContent = '0 cells';
     setStatus('', 'No symbol grid loaded');
-    syncPlayEnabled();
     return;
   }
   const count = resolveGridCells(grid).length;
@@ -6620,7 +6412,6 @@ function renderSymbolCanvasOnly() {
   if (overlay) svg = svg.replace('</svg>', overlay + '</svg>');
   frame.innerHTML = svg;
   setStatus('active', `Symbol · ${count} cells`);
-  syncPlayEnabled();
 }
 
 function renderSymbol() {
@@ -7308,7 +7099,6 @@ const STEP_EXPORT_HINTS = {
   element: 'Exports the current Element on its own, at 0°.',
   component: 'Exports the selected component only — click one in the gallery first. Paper background (Palette section), real vector geometry (one path per cell).',
   symbol: 'Exports the current Symbol. Paper background (Palette section), real nested vector geometry.',
-  grid: 'Exports the current Grid tiling. Paper background (Palette section), real vector geometry — one Symbol repeated per cell.',
   figure: 'Exports the figure as drawn (SVG: real vector geometry, one path per shape; PNG: the same drawing rasterised).',
 };
 
@@ -7316,8 +7106,6 @@ function updateStepHint(tier) {
   let msg = '';
   if (tier === 'symbol' && libraryNames(LIBRARY.read()).length === 0) {
     msg = 'No saved Components yet — a Symbol is built from saved Components: save some in the Component step first.';
-  } else if (tier === 'grid' && Object.keys(SYMBOL_LIBRARY.read()).length === 0) {
-    msg = 'No saved Symbols yet — save one in the Symbol step first, then pick it here.';
   }
   ctrl('stepnav-hint').textContent = msg;
 }
@@ -7327,7 +7115,6 @@ function setTier(tier) {
   // #component-edit-view and the disabled Grid/Rule controls would stay
   // stuck in their edit-mode state the next time Component tier is shown.
   if (state.componentEditMode && tier !== 'component') exitComponentEditMode();
-  pausePlayback();   // Motion animates one tier at a time — switching pauses, Play resumes on the newly active one.
   state.activeTier = tier;
   ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(t => t.setAttribute('aria-pressed', String(t.dataset.tier === tier)));
   document.querySelectorAll('.tier-block').forEach(b => b.classList.toggle('active', b.dataset.tier === tier));
@@ -7336,11 +7123,9 @@ function setTier(tier) {
   // Reset / Upload / Creator library only act on the Element's Seed.
   ctrl('fb-element-actions').style.display = tier === 'element' ? '' : 'none';
   ctrl('fb-component-actions').style.display = tier === 'component' ? '' : 'none';
+  ctrl('fb-symbol-actions').style.display = tier === 'symbol' ? '' : 'none';
   syncQuadrantHint();
   creatorPopover.close();
-  // Motion only ever animates Component/Symbol (playbackReady() agrees) —
-  // hide it for Element/Grid rather than show controls that can't do anything.
-  ctrl('motion-block').style.display = (tier === 'component' || tier === 'symbol') ? '' : 'none';
   ctrl('fg-rules-panel').style.display = tier === 'figure' ? '' : 'none';
   if (tier === 'symbol') {
     // A first visit starts the palette with the (up to 3) most recently saved Components.
@@ -7350,7 +7135,6 @@ function setTier(tier) {
     }
     renderSymbolPalette(); populateSymbolLoomPresets(); renderSymbol(); renderSymbolLibrary();
   }
-  else if (tier === 'grid') { renderFvsGridPicker(); syncFvsGridTypeUI(); renderFvsGrid(); }
   else if (tier === 'element') { renderSeedPreview(); }
   else if (tier === 'figure') { renderFigureTier(); }
   else if (tier === 'component') {
@@ -7360,7 +7144,6 @@ function setTier(tier) {
   else { renderGallery(); }
   syncFreehandEditor();
   updateStepHint(tier);
-  syncPlayEnabled();
 }
 
 // Loom publishes every saved grid to localStorage 'organica.loom.presets'
@@ -7589,8 +7372,6 @@ function onAppearanceChange() {
   renderSymbol();
   renderSymbolLibrary();
   renderLibrary();
-  renderFvsGridPicker();
-  renderFvsGrid();
 }
 ctrl('sel-element-fillmode').addEventListener('change', onAppearanceChange);
 
@@ -7708,12 +7489,6 @@ ctrl('ck-element-rounded').addEventListener('change', onAppearanceChange);
   ctrl('rg-element-' + k).addEventListener('input', e => { ctrl('v-element-' + k).textContent = e.target.value; onAppearanceChange(); });
 });
 
-ctrl('sel-fvsgrid-type').addEventListener('change', () => { syncFvsGridTypeUI(); renderFvsGrid(); });
-ctrl('rg-fvsgrid-cellsize').addEventListener('input', e => { ctrl('v-fvsgrid-cellsize').textContent = e.target.value; renderFvsGrid(); });
-ctrl('rg-fvsgrid-gap').addEventListener('input', e => { ctrl('v-fvsgrid-gap').textContent = e.target.value; renderFvsGrid(); });
-ctrl('chk-fvsgrid-alt-flip').addEventListener('change', renderFvsGrid);
-ctrl('sel-fvsgrid-rot').addEventListener('change', renderFvsGrid);
-ctrl('sel-fvsgrid-mirror').addEventListener('change', renderFvsGrid);
 // Shared hidden file input between Components' own Grid section and
 // Symbols' Grid section — a flag set right before .click() tells the
 // one 'change' handler which state field to populate.
@@ -7724,12 +7499,6 @@ ctrl('file-loom-grid').addEventListener('change', e => {
   e.target.value = '';
 });
 
-ctrl('btn-fvsgrid-upload-loom').addEventListener('click', () => ctrl('file-fvsgrid-loom').click());
-ctrl('file-fvsgrid-loom').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (file) handleFvsGridLoomUpload(file);
-  e.target.value = '';
-});
 ctrl('btn-symbol-grid-bento').addEventListener('click', () => loadSymbolGrid(SYMBOL_GRID_PRESETS.bento));
 ctrl('btn-symbol-grid-hex').addEventListener('click', () => loadSymbolGrid(SYMBOL_GRID_PRESETS.hexagonal));
 ['sel-symbol-square-cols', 'sel-symbol-square-rows'].forEach(id => {
@@ -7943,11 +7712,11 @@ function runBuiltinRecipe(def) {
   if (def.tile) {
     const all = LIBRARY.read(); delete all['Tile · ' + comp.id]; LIBRARY.write(all);   // never reuse a stale tile from an earlier run
     tileSelectedInGrid();
-    fireChange('sel-fvsgrid-type', def.tile.type);
-    fireInput('rg-fvsgrid-cellsize', def.tile.cellSize);
-    ctrl('chk-fvsgrid-alt-flip').checked = !!def.tile.altFlip;
-    renderFvsGrid();
-  } else setTier('component');
+    // No page shows this tiling live anymore — buildFvsGridSVG()/tierSVG() still
+    // resolve it correctly (via state.fvsGridComponentName) for anything that asks.
+    state.fvsGridConfig = { ...state.fvsGridConfig, type: def.tile.type, cellSize: def.tile.cellSize, gap: 0, altFlip: !!def.tile.altFlip, rot: 0, mirror: 'none' };
+  }
+  setTier('component');
 }
 // ── Figure recipe v2 ─────────────────────────────────────────────────────────
 // A figure is a pipeline of levels, none of which mentions a particular Seed:
@@ -8016,6 +7785,64 @@ function validateFigureRecipe(def) {
   if (lv.length > 4) throw new Error('At most three grid levels');
   return lv;
 }
+// ── Symbol → Figure bridge ──
+// A symbol level may carry the Symbol step's own work instead of a lattice + rules: the full
+// Loom grid (lattice.type 'loomModel', its Canvas frame included), every cell as it is, the
+// saved Components those cells use (inline, so the recipe travels), and the Symbol's palette.
+// Such a level is sealed: its cells are drawn as they are, Rules are not applied on top.
+const isSealedSymbol = l => !!l && l.kind === 'symbol' && Array.isArray(l.cells);
+function runSealedSymbolLevel(first) {
+  const l = first.lattice;
+  if (!l || l.type !== 'loomModel' || !l.model) throw new Error('An adopted Symbol needs its Loom grid (lattice.type "loomModel")');
+  if (first.componentEntries) {   // make the recipe self-contained, never overwriting the user's own entry of the same name
+    const all = LIBRARY.read(); let added = false;
+    Object.entries(first.componentEntries).forEach(([name, entry]) => { if (!all[name] && entry) { all[name] = JSON.parse(JSON.stringify(entry)); added = true; } });
+    if (added) LIBRARY.write(all);
+  }
+  if (first.colors) {
+    state.colors = first.colors.map(hexKey);
+    state.colorRule = { ...DEFAULT_COLOR_RULE, ...(first.colorRule || {}) };
+    syncColorRuleUI(); buildPalette();
+  }
+  if (first.paperColor) { state.paperColor = hexKey(first.paperColor); paperSwatch.set(state.paperColor); }
+  loadSymbolGrid(JSON.parse(JSON.stringify(l.model)));
+  if (first.cells.length !== getSymbolGrid().cells.length) throw new Error(`The adopted Symbol has ${first.cells.length} cells but its grid has ${getSymbolGrid().cells.length}`);
+  state.symbolCells = first.cells.map(c => withPlacementDefaults(JSON.parse(JSON.stringify(c))));
+  state.symbolClipEnabled = first.clip !== false;
+  ctrl('chk-symbol-clip').checked = state.symbolClipEnabled;
+  renderSymbol();
+}
+// The Symbol step as a sealed symbol level (null when there is no Symbol grid yet).
+function symbolLevelFromLiveState() {
+  if (!state.symbolGrid) return null;
+  const lib = LIBRARY.read(), componentEntries = {};
+  const queue = state.symbolCells.filter(c => c.source === 'component' && c.componentName).map(c => c.componentName);
+  while (queue.length) {   // a Component used as a Container/Mask reference travels with its user
+    const name = queue.shift();
+    if (componentEntries[name] || !lib[name]) continue;
+    componentEntries[name] = JSON.parse(JSON.stringify(lib[name]));
+    if (lib[name].underlyingComponentName) queue.push(lib[name].underlyingComponentName);
+  }
+  const level = {
+    kind: 'symbol',
+    lattice: { type: 'loomModel', model: JSON.parse(JSON.stringify(state.symbolGrid)) },
+    cells: state.symbolCells.map(c => JSON.parse(JSON.stringify(c))),
+    colors: state.colors.slice(), colorRule: { ...state.colorRule }, paperColor: state.paperColor,
+    clip: state.symbolClipEnabled,
+  };
+  if (Object.keys(componentEntries).length) level.componentEntries = componentEntries;
+  return level;
+}
+function buildFigureFromSymbol() {
+  const level = symbolLevelFromLiveState(); if (!level) return;
+  const el = { type: ctrl('sel-seed-type').value, style: ctrl('sel-element-fillmode').value || 'fill', colors: state.colors.slice(), colorRule: { ...state.colorRule }, paper: state.paperColor };
+  if (el.style === 'stroke') el.strokeW = +ctrl('rg-element-strokew').value;
+  const def = { tool: 'fvs-recipe', version: 2, element: el, levels: [level] };
+  try { validateFigureRecipe(def); } catch (e) { return; }
+  state.figureRecipe = def; state.figureStep = 'level0';
+  setTier('figure');   // renderFigureTier() applies state.figureRecipe
+}
+ctrl('btn-symbol-to-figure').addEventListener('click', buildFigureFromSymbol);
 function runFigureRecipe(def, opts) {
   const lv = validateFigureRecipe(def);
   const el = def.element;
@@ -8036,7 +7863,11 @@ function runFigureRecipe(def, opts) {
     pushUndo(); state.components = [comp]; state.selectedId = comp.id; state.selectionExplicit = true; state.componentAutoGenerated = false;
     renderGallery(); refreshColourViews();
     tier = 'component';
-    if (gridLv) { const all = LIBRARY.read(); delete all['Tile · ' + comp.id]; LIBRARY.write(all); tileSelectedInGrid(true); }
+    if (gridLv) { const all = LIBRARY.read(); delete all['Tile · ' + comp.id]; LIBRARY.write(all); tileSelectedInGrid(); }
+  } else if (isSealedSymbol(first)) {
+    runSealedSymbolLevel(first);
+    tier = 'symbol';
+    if (gridLv) { state.fvsGridSymbolName = LIVE_SYMBOL; state.fvsGridComponentName = null; }
   } else {
     const l = first.lattice;
     loadSymbolGrid(l.type === 'triangle' ? triangleLoomModel(l.rows) : l.type === 'hexagon' ? hexLoomModel(l.rings) : squareLoomModel(l.cols, l.rows || l.cols));
@@ -8056,20 +7887,19 @@ function runFigureRecipe(def, opts) {
   grids.forEach((g, gi) => {
     const last = gi === grids.length - 1;
     tier = 'grid';
-    fireChange('sel-fvsgrid-type', gridTypeFromLattice(g.lattice));
-    fireInput('rg-fvsgrid-cellsize', g.cellSize || 110);
-    ctrl('chk-fvsgrid-alt-flip').checked = !!g.altFlip;
     const t = g.transform || (last ? tr : {});
-    fireChange('sel-fvsgrid-rot', String(t.rotate || 0)); fireChange('sel-fvsgrid-mirror', t.mirror || 'none');
+    state.fvsGridConfig = { ...state.fvsGridConfig, type: gridTypeFromLattice(g.lattice), cellSize: g.cellSize || 110, gap: 0, altFlip: !!g.altFlip, rot: t.rotate || 0, mirror: t.mirror || 'none' };
     const tiles = resolveGridCells(getFvsGrid()).length, copies = t.mirror === 'vh' ? 4 : (t.mirror === 'v' || t.mirror === 'h') ? 2 : 1;
     state.figureLevelStats.push({ tiles, copies });
     shapes *= tiles * copies;
     if (shapes > FIGURE_MAX_SHAPES) throw new Error(`Too many shapes (${shapes}) — the limit is ${FIGURE_MAX_SHAPES}`);
     if (!last) { const svg = buildFvsGridSVG(); state.figureLevelMeta[gi] = lastFigureMeta; state.fvsGridRaw = promoteFigureToTile(svg); }   // this figure becomes the next level's tile
   });
-  if (!grids.length) { fireChange('sel-fvsgrid-rot', String(tr.rotate || 0)); fireChange('sel-fvsgrid-mirror', tr.mirror || 'none'); }
+  if (!grids.length) { state.fvsGridConfig.rot = tr.rotate || 0; state.fvsGridConfig.mirror = tr.mirror || 'none'; }
   if (opts && opts.keepTier) { state.figureTier = tier; return figureSVGOf(tier); }
-  setTier(tier);
+  // Every real caller passes keepTier — this path is a defensive fallback only.
+  // 'grid' has no page of its own anymore, so land on Symbol instead of a blank UI.
+  setTier(tier === 'grid' ? 'symbol' : tier);
   return tierSVG();
 }
 const FIGURE_MAX_SHAPES = 20000;
@@ -8174,7 +8004,9 @@ function figureRecipeFromForm() {
   const el = { type: v('fg-seed'), style: v('fg-style'), colors: [v('fg-ink')], paper: v('fg-paper') };
   if (el.type === 'arc') el.params = { 'rg-thickness': 100 };
   let first;
-  if (lat === 'component') {
+  const cur0 = state.figureRecipe && state.figureRecipe.levels[0];
+  if (lat === 'adopted' && isSealedSymbol(cur0)) first = JSON.parse(JSON.stringify(cur0));   // the form can't express it: keep it whole
+  else if (lat === 'component') {
     const rule = v('fg-comprule');
     const params = { checkerboard: { a: 180, b: 0 }, radial: { base: 180, chirality: 1 }, pinwheel: { base: 0, chirality: 1 }, mirror: { seed: 0 } }[rule];
     first = { kind: 'component', grid: 'square2x2', rule, params };
@@ -8212,6 +8044,7 @@ function figureFormFromRecipe(def) {
   set('fg-seed', el.type); set('fg-style', el.style || 'fill'); set('fg-ink', hexKey((el.colors || ['#000000'])[0])); set('fg-paper', hexKey(el.paper || '#ffffff'));
   set('fg-up', 'filled'); set('fg-down', 'empty'); set('fg-emptyrows', ''); set('fg-odd', 'none'); ctrl('fg-liveseed').checked = first.seed === 'live';
   if (first.kind === 'component') { set('fg-lattice', 'component'); set('fg-comprule', first.rule || 'checkerboard'); }
+  else if (isSealedSymbol(first)) set('fg-lattice', 'adopted');
   else {
     set('fg-lattice', first.lattice.type); set('fg-n', first.lattice.type === 'triangle' ? first.lattice.rows : first.lattice.type === 'hexagon' ? first.lattice.rings : first.lattice.rows || first.lattice.cols);
     set('fg-hexturn', 'none'); ctrl('fg-hexcentre').checked = false;
@@ -8233,10 +8066,10 @@ function figureFormFromRecipe(def) {
 }
 function syncFigureFormUI() {
   const lat = ctrl('fg-lattice').value;
-  ctrl('fg-row-n').style.display = lat === 'component' ? 'none' : '';
+  ctrl('fg-row-n').style.display = lat === 'component' || lat === 'adopted' ? 'none' : '';
   ctrl('fg-row-cols').style.display = lat === 'square' ? '' : 'none';
   ctrl('fg-row-comprule').style.display = lat === 'component' ? '' : 'none';
-  ctrl('fg-rules-section').style.display = lat === 'component' ? 'none' : '';
+  ctrl('fg-rules-section').style.display = lat === 'component' || lat === 'adopted' ? 'none' : '';
   ctrl('fg-row-up').style.display = ctrl('fg-row-down').style.display = lat === 'triangle' ? '' : 'none';
   ctrl('fg-row-comp2').style.display = ctrl('fg-comp').value === 'none' ? 'none' : '';
   ctrl('fg-row-hexturn').style.display = ctrl('fg-row-hexcentre').style.display = lat === 'hexagon' ? '' : 'none';
@@ -8413,7 +8246,7 @@ function setFigureStep(id) {
   document.querySelectorAll('#fg-pipeline .fg-card').forEach(c => c.setAttribute('aria-selected', String(c.dataset.step === id)));
   showFigureStep();
 }
-const figurePaintable = () => !!state.figureShown && state.figureStep === 'level0' && state.figureShown.def.levels[0].kind === 'symbol';
+const figurePaintable = () => !!state.figureShown && state.figureStep === 'level0' && state.figureShown.def.levels[0].kind === 'symbol' && !isSealedSymbol(state.figureShown.def.levels[0]);
 function showFigureStep() {
   const sh = state.figureShown; if (!sh) return;
   const id = state.figureStep;
@@ -8439,7 +8272,7 @@ function figureClassWhen(ctx, lat) {
 }
 function paintCell(def, ctx, cellState, tool, byClass) {
   const d = JSON.parse(JSON.stringify(def)), first = d.levels[0];
-  if (first.kind !== 'symbol') return d;
+  if (first.kind !== 'symbol' || isSealedSymbol(first)) return d;
   const when = byClass ? figureClassWhen(ctx, first.lattice) : { index: ctx.index };
   const step = first.lattice.type === 'hexagon' ? 60 : first.lattice.type === 'triangle' ? 180 : 90;   // a triangle only fits its cell turned by 180°
   const act = {
@@ -8507,6 +8340,7 @@ function renderFigureToolbar() {
     else if (state.figureStep === 'final') hint = def.levels.length > 1 ? 'Hover the edges of the figure: click the right or bottom edge to Mirror, the corner to Rotate (M / R).' : 'Add a Grid to Mirror or Rotate the figure.';
     else if (lv && lv.kind === 'grid') hint = 'Hover the edges of the figure: click the right or bottom edge to Mirror this Grid, the corner to Rotate it.';
     else if (lv && lv.kind === 'component') hint = 'Component rules are in the panel on the right.';
+    else if (lv && isSealedSymbol(lv)) hint = 'Adopted from the Symbol step — edit it there and build the Figure again.';
     if (hint) add('fg-label', hint);
   }
   renderFigurePlay(tb);
@@ -8523,7 +8357,7 @@ function fgLastGridTransform(d) {
   const g = d.levels.length - 1; if (g < 1) return null;
   return d.levels[g].transform ? d.levels[g].transform : (d.transform = d.transform || {});
 }
-function fgSymbol(d) { return d.levels[0].kind === 'symbol' ? d.levels[0] : null; }
+function fgSymbol(d) { return d.levels[0].kind === 'symbol' && !isSealedSymbol(d.levels[0]) ? d.levels[0] : null; }
 const FIGURE_MUTATIONS = [
   { group: 'element', name: 'Other Seed', fn: (d, rng) => { const cur = d.element.type, t = fgPick(FG_SEED_POOL.filter(x => x !== cur), rng); d.element.type = t; if (t === 'arc') d.element.params = { 'rg-thickness': 100 }; else delete d.element.params; delete d.element.strokeW; if (d.element.style === 'stroke') d.element.strokeW = 4; return true; } },
   { group: 'element', name: 'Other ink', fn: (d, rng) => { const cur = (d.element.colors || [])[0]; d.element.colors = [fgPick(FG_INKS.filter(x => x !== cur), rng)]; return true; } },
@@ -8788,12 +8622,21 @@ function renderFigureStepPanel() {
       const rm = document.createElement('button'); rm.className = 'mini-btn'; rm.textContent = 'Remove this Grid'; rm.addEventListener('click', () => { figureMutate(d => { d.levels.splice(k, 1); }, { resetStep: true }); });
       box.appendChild(rm);
     } else {
-      h(lv.kind === 'component' ? 'Component' : 'Symbol');
+      h(lv.kind === 'component' ? 'Component' : isSealedSymbol(lv) ? 'Symbol · adopted' : 'Symbol');
+      if (isSealedSymbol(lv)) {
+        const card = document.createElement('div'); card.className = 'fg-adopted';
+        card.innerHTML = `<img alt="" src="${svgURI((sh.steps && sh.steps[0]) || sh.svg)}">`;
+        box.appendChild(card);
+        const n = lv.cells.length, filled = lv.cells.filter(c => c.source !== 'empty').length, comps = Object.keys(lv.componentEntries || {}).length;
+        hint(`Adopted from the Symbol step: ${n} cells (${filled} filled)${comps ? `, ${comps} saved Component${comps > 1 ? 's' : ''} carried in the recipe` : ''}. Its cells are sealed — edit the Symbol there and build the Figure again, or add Grids here.`);
+        const back = document.createElement('button'); back.type = 'button'; back.className = 'mini-btn'; back.textContent = 'Open the Symbol step';
+        back.addEventListener('click', () => setTier('symbol')); box.appendChild(back);
+      }
       const t = thumbs(), cur = lv.kind === 'component' ? 'component' : lv.lattice.type;
       [['triangle', 'Triangle'], ['square', 'Square'], ['hexagon', 'Hexagon'], ['component', 'Component']].forEach(([v, l]) => t.appendChild(figureThumb(l, FG_ICONS[v], cur === v, () => figureMutate(d => {
         d.levels[0] = figureFirstLevelOf(v);
       }))));
-      if (lv.kind === 'symbol') {
+      if (lv.kind === 'symbol' && !isSealedSymbol(lv)) {
         const lat = lv.lattice, key = lat.type === 'triangle' ? 'rows' : lat.type === 'hexagon' ? 'rings' : 'cols', max = lat.type === 'hexagon' ? 4 : 6;
         const r = document.createElement('input'); r.type = 'range'; r.min = lat.type === 'hexagon' ? 1 : 2; r.max = max; r.step = 1; r.value = lat[key];
         const v = document.createElement('span'); v.className = 'ctrl-val'; v.textContent = r.value;
@@ -8801,7 +8644,7 @@ function renderFigureStepPanel() {
         r.addEventListener('change', () => figureMutate(d => { const l = d.levels[0].lattice; l[key] = +r.value; if (l.type === 'square') l.rows = +r.value; }));
         const rr = row(key === 'rows' ? 'Rows' : key === 'rings' ? 'Rings' : 'Size', r); rr.appendChild(v);
         hint('Click or drag on the canvas to paint cells; the Rules appear above, in the Rules section.');
-      } else {
+      } else if (lv.kind === 'component') {
         row('Rule', sel([['checkerboard', 'Checkerboard'], ['radial', 'Radial'], ['pinwheel', 'Pinwheel'], ['mirror', 'Mirror']], lv.rule || 'checkerboard', v => figureMutate(d => {
           d.levels[0].rule = v; d.levels[0].params = { checkerboard: { a: 180, b: 0 }, radial: { base: 180, chirality: 1 }, pinwheel: { base: 0, chirality: 1 }, mirror: { seed: 0 } }[v]; }), 'Component rule'));
       }
@@ -8839,7 +8682,11 @@ function figureChecks(def, svg) {
   const paths = (noDefs.match(/<path /g) || []).length;
   const first = def.levels[0];
   let slots = null;
-  if (first.kind === 'symbol') {
+  if (isSealedSymbol(first)) {
+    add(state.symbolCells.length === first.cells.length, 'Lattice has the expected number of slots', `${state.symbolCells.length} of ${first.cells.length}`);
+    // a cell may hold a whole Component (many shapes): count what the Symbol itself draws
+    slots = (buildSymbolSVG().replace(/<defs>[\s\S]*?<\/defs>/g, '').match(/<path /g) || []).length;
+  } else if (first.kind === 'symbol') {
     const l = first.lattice, total = l.type === 'triangle' ? l.rows * l.rows : l.type === 'hexagon' ? 3 * l.rings * (l.rings - 1) + 1 : l.cols * (l.rows || l.cols);
     add(state.symbolCells.length === total, 'Lattice has the expected number of slots', `${state.symbolCells.length} of ${total}`);
     slots = state.symbolCells.filter(c => c.source !== 'empty').length;
@@ -9151,7 +8998,7 @@ function buildRecipe() {
     grid: { componentName: state.fvsGridComponentName, componentEntry: state.fvsGridComponentName ? (LIBRARY.read()[state.fvsGridComponentName] || null) : null,
       symbolName: symName === LIVE_SYMBOL ? 'Recipe symbol' : symName,
       symbol: symName === LIVE_SYMBOL ? buildSymbolLibraryEntry() : (symName ? (SYMBOL_LIBRARY.read()[symName] || null) : null),
-      type: ctrl('sel-fvsgrid-type').value, cellSize: val('rg-fvsgrid-cellsize'), gap: val('rg-fvsgrid-gap'), altFlip: ctrl('chk-fvsgrid-alt-flip').checked },
+      type: state.fvsGridConfig.type, cellSize: state.fvsGridConfig.cellSize, gap: state.fvsGridConfig.gap, altFlip: state.fvsGridConfig.altFlip },
     variants: variantList,
   };
 }
@@ -9166,13 +9013,11 @@ function applyRecipe(r) {
   if (r.grid && r.grid.symbol && r.grid.symbolName) {
     const all = SYMBOL_LIBRARY.read(); all[r.grid.symbolName] = r.grid.symbol; SYMBOL_LIBRARY.write(all);
     state.fvsGridSymbolName = r.grid.symbolName;
-    ctrl('sel-fvsgrid-type').value = r.grid.type;
-    ctrl('rg-fvsgrid-cellsize').value = r.grid.cellSize; ctrl('rg-fvsgrid-gap').value = r.grid.gap;
-    ctrl('chk-fvsgrid-alt-flip').checked = !!r.grid.altFlip;
+    state.fvsGridConfig = { ...state.fvsGridConfig, type: r.grid.type, cellSize: r.grid.cellSize, gap: r.grid.gap, altFlip: !!r.grid.altFlip };
   }
   if (Array.isArray(r.variants) && r.variants.length) { variantList = r.variants; writeVariants(variantList); renderVariantRows(); }
-  setTier(r.tier || 'component');
-  if (r.tier === 'grid') { renderFvsGridPicker(); renderFvsGrid(); }
+  // A recipe saved while the (now-removed) Grid page was active falls back to Symbol.
+  setTier(r.tier === 'grid' ? 'symbol' : (r.tier || 'component'));
 }
 ctrl('btn-recipe-export').addEventListener('click', () => {
   Organica.downloadText(JSON.stringify(buildRecipe(), null, 2), Organica.stamp('fvs-recipe', 'json'), 'application/json');
@@ -9220,260 +9065,12 @@ ctrl('underlying-element-overlay').addEventListener('click', e => { if (e.target
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && ctrl('underlying-element-overlay').style.display !== 'none') closeUnderlyingElementPicker(); });
 
 ctrl('btn-save-library').addEventListener('click', saveToLibrary);
-ctrl('btn-tile-in-grid').addEventListener('click', tileSelectedInGrid);
 ctrl('btn-library-confirm').addEventListener('click', confirmSaveToLibrary);
 ctrl('btn-library-cancel').addEventListener('click', cancelSaveToLibrary);
 ctrl('txt-library-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') confirmSaveToLibrary();
   if (e.key === 'Escape') cancelSaveToLibrary();
 });
-
-// ── Motion (step 03) — full track port from Trellis (trellis/index.html),
-// same track object shape shared/tracks.js expects, same play/pause/stop
-// loop mechanics, plus a whole-field pan (Supermarket's own "Animation:
-// X/Y" idea — new code, no prior Organica precedent for a seamless
-// tiled-copy wraparound). Live preview only: PNG/SVG export still call
-// buildComponentSVG/buildSymbolSVG with the tier's own current (unpanned,
-// untracked) items, unchanged from before this feature. ──
-const NTRACKS = 2;
-
-function buildTrackRow(i) {
-  const div = document.createElement('div');
-  div.className = 'trk';
-  div.innerHTML = `
-    <select class="panel-select" id="trk${i}-type" aria-label="Track ${i + 1} type">
-      <option value="none"${i === 0 ? '' : ' selected'}>Off</option>
-      <option value="colour">Colour cycle</option>
-      <option value="scale"${i === 0 ? ' selected' : ''}>Scale pulse</option>
-    </select>
-    <div class="ctrl-row" id="trk${i}-row-colours" style="display:none">
-      <div class="ctrl-label">Colours</div>
-      <div class="color-swatch-wrap"><button class="color-swatch" id="sw-trk${i}a" aria-label="Track ${i + 1} colour A"></button><input type="color" id="cp-trk${i}a" value="#1c1c1c"></div>
-      <input type="hidden" id="hex-trk${i}a" value="#1c1c1c">
-      <div class="color-swatch-wrap"><button class="color-swatch" id="sw-trk${i}b" aria-label="Track ${i + 1} colour B"></button><input type="color" id="cp-trk${i}b" value="#f2efe6"></div>
-      <input type="hidden" id="hex-trk${i}b" value="#f2efe6">
-    </div>
-    <div class="ctrl-row" id="trk${i}-row-amount" style="display:none">
-      <div class="ctrl-label">Amount</div>
-      <input type="range" id="trk${i}-amount" min="0" max="1" step="0.01" value="0.3">
-      <span class="ctrl-val" id="v-trk${i}-amount">0.3</span>
-    </div>
-    <div class="ctrl-row" id="trk${i}-row-rest" style="display:none">
-      <div class="ctrl-label">Wave</div>
-      <select class="panel-select" id="trk${i}-wave">
-        <option value="sine">Sine</option>
-        <option value="triangle">Triangle</option>
-        <option value="noise">Noise</option>
-      </select>
-    </div>
-    <div class="ctrl-row" id="trk${i}-row-period" style="display:none">
-      <div class="ctrl-label">Period</div>
-      <input type="range" id="trk${i}-period" min="1" max="4" step="1" value="1">
-      <span class="ctrl-val" id="v-trk${i}-period">1</span>
-    </div>
-    <div class="ctrl-row" id="trk${i}-row-phase" style="display:none">
-      <div class="ctrl-label">Phase</div>
-      <input type="range" id="trk${i}-phase" min="0" max="1" step="0.01" value="0">
-      <span class="ctrl-val" id="v-trk${i}-phase">0</span>
-    </div>
-    <div class="ctrl-row" id="trk${i}-row-ease" style="display:none">
-      <div class="ctrl-label">Ease</div>
-      <select class="panel-select" id="trk${i}-ease">
-        <option value="linear">Linear</option>
-        <option value="inOut">Ease in-out</option>
-        <option value="in">Ease in</option>
-        <option value="out">Ease out</option>
-      </select>
-    </div>
-    <div class="ctrl-row" id="trk${i}-row-staggerby" style="display:none">
-      <div class="ctrl-label">Stagger by</div>
-      <select class="panel-select" id="trk${i}-staggerby">
-        <option value="none">None (all together)</option>
-        <option value="index" selected>Index</option>
-        <option value="row">Row</option>
-        <option value="col">Column</option>
-        <option value="distance">Distance from centre</option>
-        <option value="noise">Noise</option>
-      </select>
-    </div>
-    <div class="ctrl-row" id="trk${i}-row-staggeramt" style="display:none">
-      <div class="ctrl-label">Stagger amount</div>
-      <input type="range" id="trk${i}-staggeramt" min="0" max="2" step="0.05" value="0">
-      <span class="ctrl-val" id="v-trk${i}-staggeramt">0</span>
-    </div>`;
-  return div;
-}
-function syncTrackRows(i) {
-  const t = ctrl('trk' + i + '-type').value;
-  const show = t !== 'none';
-  ctrl('trk' + i + '-row-colours').style.display = t === 'colour' ? '' : 'none';
-  ctrl('trk' + i + '-row-amount').style.display = t === 'scale' ? '' : 'none';
-  ['rest', 'period', 'phase', 'ease', 'staggerby', 'staggeramt'].forEach(k => {
-    ctrl('trk' + i + '-row-' + k).style.display = show ? '' : 'none';
-  });
-}
-function readTracks() {
-  const out = [];
-  for (let i = 0; i < NTRACKS; i++) {
-    const type = ctrl('trk' + i + '-type').value;
-    if (type === 'none') continue;
-    out.push({
-      idx: i, type,
-      colourA: ctrl('hex-trk' + i + 'a').value,
-      colourB: ctrl('hex-trk' + i + 'b').value,
-      amount: type === 'colour' ? 1 : val('trk' + i + '-amount'),
-      wave: ctrl('trk' + i + '-wave').value,
-      period: val('trk' + i + '-period'),
-      phase: val('trk' + i + '-phase'),
-      ease: ctrl('trk' + i + '-ease').value,
-      staggerBy: ctrl('trk' + i + '-staggerby').value,
-      staggerAmount: val('trk' + i + '-staggeramt'),
-    });
-  }
-  return out;
-}
-
-// Applies every active track to a plain items array IN PLACE — Components
-// items carry a single .scale, Symbols items carry .scaleX/.scaleY
-// (resolveCellPlacement's own two-axis output); a colour track is a no-op
-// on any item with no .color at all (Symbols' 'component'/'missing' cells
-// — documented Symbols-tier scope limit, not silently papered over).
-function applyMotion(items, ctxs, tNorm) {
-  const tracks = readTracks();
-  if (!tracks.length) return;
-  tracks.forEach(track => {
-    items.forEach((item, i) => {
-      const ctx = (ctxs && ctxs[i]) || { index: i, count: items.length, row: 0, col: 0, rows: 1, cols: 1, cx: item.cx, cy: item.cy, nx: 0, ny: 0, angle: 0 };
-      if (track.type === 'colour') {
-        if (item.color != null) item.color = Organica.tracks.compute('colour', track, tNorm, ctx);
-      } else if (track.type === 'scale') {
-        const f = Organica.tracks.compute('scale', track, tNorm, ctx);
-        if (item.scale != null) item.scale *= f;
-        if (item.scaleX != null) { item.scaleX *= f; item.scaleY *= f; }
-      }
-    });
-  });
-}
-
-// Whole-field pan. Rather than just shifting item.cx/cy (a hard cut at the
-// frame edge), each item is duplicated at every tile offset the active
-// axis needs so the pattern wraps with no visible seam when drawn into a
-// fixed size×size viewBox (SVG clips to it by default) — exact only for a
-// grid whose own bounding box tiles edge-to-edge (square NxN, Bento-style
-// rect Loom); best-effort on a polygon/irregular grid (e.g. Hexagonal) —
-// it still pans, the seam just may not be perfectly invisible there.
-function applyFieldPan(items, grid, tNorm) {
-  const axis = ctrl('sel-field-axis').value;
-  if (axis === 'none') return items;
-  const sizeX = grid.kind === 'loom' ? grid.width : frameSize(grid);
-  const sizeY = grid.kind === 'loom' ? grid.height : frameSize(grid);
-  const cycles = val('rg-field-period') || 1;
-  const p = (tNorm * cycles) % 1;
-  const panX = (axis === 'x' || axis === 'xy') ? p * sizeX : 0;
-  const panY = (axis === 'y' || axis === 'xy') ? p * sizeY : 0;
-  const dxs = panX ? [0, -sizeX] : [0];
-  const dys = panY ? [0, -sizeY] : [0];
-  const out = [];
-  for (const dx of dxs) for (const dy of dys) for (const it of items) out.push({ ...it, cx: it.cx + panX + dx, cy: it.cy + panY + dy });
-  return out;
-}
-
-function renderComponentFrame(tNorm) {
-  const comp = getSelectedComponent();
-  if (!comp) return;
-  const grid = getGrid();
-  const seed = getSeed();
-  let items = buildComponentItems(comp, grid);
-  applyMotion(items, componentCellColRow(grid), tNorm);
-  items = applyFieldPan(items, grid, tNorm);
-  const svgStr = buildComponentSVG(items, seed, frameSize(grid));
-  const selBtn = ctrl('gallery').querySelector('.fvs-thumb.selected');
-  if (selBtn) selBtn.innerHTML = svgStr;
-}
-
-function renderSymbolFrame(tNorm) {
-  const grid = getSymbolGrid();
-  if (!grid) return;
-  let items = buildSymbolItems();
-  applyMotion(items, cellColRow(grid), tNorm);
-  const panAxis = ctrl('sel-field-axis').value;
-  items = applyFieldPan(items, grid, tNorm);
-  // symbolSVGFromItems' per-cell clip-path is derived from the RAW,
-  // unshifted grid.cells[it.index] geometry (needed for click-to-select
-  // hit-testing) — with a pan active that would clip the panned content
-  // right back to its original, unshifted cell. Suspending "Clip to
-  // cell" only for this one animated frame keeps the pan visible; the
-  // static (paused) render is unaffected.
-  const prevClip = state.symbolClipEnabled;
-  if (panAxis !== 'none') state.symbolClipEnabled = false;
-  ctrl('symbol-frame').innerHTML = symbolSVGFromItems(items);
-  state.symbolClipEnabled = prevClip;
-}
-
-function renderFrameAt(tNorm) {
-  curT = tNorm;
-  if (state.activeTier === 'component') renderComponentFrame(tNorm);
-  else if (state.activeTier === 'symbol') renderSymbolFrame(tNorm);
-}
-
-function playbackReady() {
-  // Motion (the floatbar's Play/Stop) only exists for Component/Symbol —
-  // Element has no cell grid to animate, Grid is a static tiled export.
-  if (state.activeTier === 'component') return !!getSelectedComponent();
-  if (state.activeTier === 'symbol') return !!getSymbolGrid();
-  return false;
-}
-function syncPlayEnabled() {
-  const ready = playbackReady();
-  ctrl('btn-playpause').disabled = !ready;
-  ctrl('btn-stop').disabled = !ready;
-  if (!ready) pausePlayback();
-}
-
-// ── Playback loop — ported from Trellis (trellis/index.html). State
-// (curT/playing/raf/t0/loopSec/speedMult) is declared early, next to
-// `state` — see the comment there. ──
-function effLoopDur() { return (loopSec > 0 ? loopSec : 6) / speedMult; }
-function loopFrame(now) {
-  if (!playing) return;
-  const el = (now - t0) / 1000;
-  renderFrameAt((el / effLoopDur()) % 1);
-  raf = requestAnimationFrame(loopFrame);
-}
-function play(fromStart) {
-  if (!playbackReady()) return;
-  if (fromStart) curT = 0;
-  t0 = performance.now() - curT * effLoopDur() * 1000;
-  playing = true; setPlayIcon(true);
-  cancelAnimationFrame(raf);
-  raf = requestAnimationFrame(loopFrame);
-}
-function pausePlayback() {
-  playing = false;
-  cancelAnimationFrame(raf);
-  setPlayIcon(false);
-}
-function stopPlayback() {
-  playing = false;
-  cancelAnimationFrame(raf);
-  setPlayIcon(false);
-  curT = 0;
-  if (playbackReady()) renderFrameAt(0);
-}
-function togglePlayPause() { playing ? pausePlayback() : play(false); }
-function setPlayIcon(isPlaying) {
-  ctrl('ico-playpause').innerHTML = isPlaying ? ICO_PAUSE : ICO_PLAY;
-  ctrl('btn-playpause').setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
-}
-
-// One-shot still-frame refresh at curT when a Motion control changes while
-// not playing — same pattern as Trellis's own scheduleStill().
-let stillQueued = false;
-function scheduleStill() {
-  if (playing || stillQueued || !playbackReady()) return;
-  stillQueued = true;
-  requestAnimationFrame(() => { stillQueued = false; renderFrameAt(curT); });
-}
 
 // ── Init ──
 buildPalette();
@@ -9485,7 +9082,6 @@ syncComponentRoleUI();
 syncElementContentUI();
 syncRuleAvailability();
 syncRuleUI();
-syncFvsGridTypeUI();
 renderSymbol();
 renderSymbolLibrary();
 renderGallery();
@@ -9501,40 +9097,6 @@ LOOM_GRID_STORE.pull();
 // Genesis library (seed picker) — hydrate the cache from Supabase; the picker
 // reads it live each time it opens, so no re-render needed here.
 Organica.store.library.pull();
-
-// ── Motion init ──
-for (let i = 0; i < NTRACKS; i++) ctrl('tracks').appendChild(buildTrackRow(i));
-for (let i = 0; i < NTRACKS; i++) {
-  ctrl('trk' + i + '-type').addEventListener('change', () => { syncTrackRows(i); scheduleStill(); });
-  Organica.palette.swatch('trk' + i + 'a', { initial: '#1c1c1c', onChange: scheduleStill });
-  Organica.palette.swatch('trk' + i + 'b', { initial: '#f2efe6', onChange: scheduleStill });
-  syncTrackRows(i);
-}
-document.querySelectorAll('#tracks input[type=range], #row-field-period input[type=range]').forEach(r => {
-  r.addEventListener('input', () => {
-    const valEl = r.closest('.ctrl-row')?.querySelector('.ctrl-val');
-    if (valEl) valEl.textContent = r.value;
-    scheduleStill();
-  });
-});
-document.querySelectorAll('#tracks select, #sel-field-axis').forEach(el => {
-  el.addEventListener('change', scheduleStill);
-});
-ctrl('btn-playpause').addEventListener('click', togglePlayPause);
-ctrl('btn-stop').addEventListener('click', stopPlayback);
-ctrl('rg-loop-seconds').addEventListener('input', () => {
-  const v = Math.round(val('rg-loop-seconds'));
-  if (playing) { const dur = effLoopDur(); loopSec = v; t0 += (dur - effLoopDur()) * curT * 1000; }
-  else loopSec = v;
-  ctrl('v-loop-seconds').textContent = v;
-});
-ctrl('rg-speed').addEventListener('input', () => {
-  const v = val('rg-speed');
-  if (playing) { const dur = effLoopDur(); speedMult = v; t0 += (dur - effLoopDur()) * curT * 1000; }
-  else speedMult = v;
-  ctrl('v-speed').textContent = v;
-});
-syncPlayEnabled();
 
 Organica.enhanceSliders(document);
 </script>
