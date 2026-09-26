@@ -47,7 +47,11 @@
   #gallery-status:empty { display: none; }
 
   .fvs-thumb {
-    width: 96px; height: 96px; flex-shrink: 0;
+    /* --thumb-w/--thumb-h are set once per #gallery render (renderGallery),
+       from the grid's own real proportions — see fitThumbBox(). Default
+       96×96 covers callers that never set them (there are none left, kept
+       as a safety fallback). */
+    width: var(--thumb-w, 96px); height: var(--thumb-h, 96px); flex-shrink: 0;
     border: 1px solid var(--border);
     cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center;
     transition: border-color 0.12s, box-shadow 0.12s;
@@ -70,7 +74,7 @@
      overridden only for .selected by CSS source order.) */
   .fvs-thumb.saved-in-library:hover { border-color: transparent; }
   .fvs-thumb svg { width: 100%; height: 100%; display: block; }
-  .fvs-thumb-wrap { position: relative; display: flex; flex-direction: column; gap: var(--space-1); width: 96px; flex-shrink: 0; }
+  .fvs-thumb-wrap { position: relative; display: flex; flex-direction: column; gap: var(--space-1); width: var(--thumb-w, 96px); flex-shrink: 0; }
   /* "Quick save to library" — a rounded + over the thumbnail's own
      top-right corner. Hidden until hover/focus so it doesn't compete with
      the shape underneath the rest of the time — EXCEPT once saved
@@ -135,6 +139,10 @@
   #in-cellprop-color { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
   .fvs-variant-row input[type="color"] { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
   .fvs-variant-row .mini-btn { flex: 0 0 var(--row-h); width: var(--row-h); padding: 0; }
+  /* width/height default to a square (64px) but are normally overridden inline
+     per item — each saved entry can have its own grid shape (see fitThumbBox()
+     at each of the 4 render sites: renderLibrary, the two underlying-component
+     pickers, the Choose-content overlay's Components tab). */
   .fvs-library-item { position: relative; width: 64px; height: 64px; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; padding: 0; background: none; }
   .fvs-library-item:hover { border-color: var(--mid); }
   .fvs-library-item svg { width: 100%; height: 100%; display: block; }
@@ -181,14 +189,17 @@
   #symbol-frame svg .sym-track[data-axis="rows"] { cursor: row-resize; }
   #symbol-frame.is-resizing-cols, #symbol-frame.is-resizing-cols * { cursor: col-resize !important; }
   #symbol-frame.is-resizing-rows, #symbol-frame.is-resizing-rows * { cursor: row-resize !important; }
-  .fvs-sympal { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); margin-bottom: var(--space-2); }
-  .fvs-sympal:empty { display: none; }
-  .fvs-sympal__item { position: relative; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-1); background: var(--paper); }
-  .fvs-sympal__item svg { display: block; width: 100%; height: auto; aspect-ratio: 1; }
-  .fvs-sympal__item .panel-select { width: 100%; margin-top: var(--space-1); }
-  .fvs-sympal__x { position: absolute; top: 2px; right: 2px; }
-  #btn-sympal-add { width: 100%; }
-  .fvs-library-item.is-in-palette { outline: 2px solid var(--tool); }
+  .fvs-sympool { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); margin-bottom: var(--space-2); }
+  .fvs-sympool:empty { display: none; }
+  .fvs-sympool__item { position: relative; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-1); background: var(--paper); }
+  /* height:auto lets the embedded SVG's own real width/height attributes
+     (buildComponentSVG now emits the grid's true w:h, not a forced square)
+     set the cell's proportion — no more aspect-ratio:1 override. */
+  .fvs-sympool__item svg { display: block; width: 100%; height: auto; }
+  .fvs-sympool__item .panel-select { width: 100%; margin-top: var(--space-1); }
+  .fvs-sympool__x { position: absolute; top: 2px; right: 2px; }
+  #btn-sympool-add { width: 100%; }
+  .fvs-library-item.is-in-pool { outline: 2px solid var(--tool); }
 
   .symbol-anchor-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; width: 84px; }
   .symbol-anchor-btn { width: 26px; height: 26px; padding: 0; border: 1px solid var(--border); background: var(--paper); cursor: pointer; position: relative; }
@@ -1157,10 +1168,6 @@
     </div>
 
     <div class="tier-block" data-tier="symbol">
-    <div class="panel-step-head">
-      <div class="panel-step-head__title">Symbol <span class="hint">step 3 of 3</span></div>
-      <p class="panel-step-head__desc">A page and a grid, composed from your saved Components.</p>
-    </div>
     <div class="panel-section">
       <h3>Canvas <span class="hint" id="symbol-canvas-hint"></span></h3>
       <div class="ctrl-row">
@@ -1196,7 +1203,6 @@
         <div class="ctrl-label">Margin</div>
         <input type="range" id="rg-symcanvas-margin" min="0" max="25" step="1" value="5"><span class="ctrl-val" id="v-symcanvas-margin">5</span>
       </div>
-      <p class="org-panel__hint">The Symbol's page — its proportions, and in Print a real physical size with DPI and bleed (the Export follows it). Margin is a % of the short side; the grid is generated inside it.</p>
     </div>
 
     <div class="panel-section">
@@ -1236,7 +1242,6 @@
       <div id="symbol-grid-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-symbol-grid-outline"><span>Show loaded grid</span></label>
       <label class="check-row"><input type="checkbox" id="chk-symbol-clip" checked><span>Clip to cell</span></label>
-      <p class="org-panel__hint">Generate a grid inside the canvas with any of Loom's generators — or, under "Other grids", load one saved in Loom, a ready-made Bento/Hexagonal, a plain square or triangle lattice (those keep the old square frame), or upload a Loom JSON. "Show loaded grid" overlays the grid's own cell outlines on the preview (not baked into PNG/SVG export) — useful to confirm a grid loaded correctly before filling it in. "Clip to cell" (on by default) crops each cell's content to its own boundary — turn it off to allow a deliberate bleed across cells; while off, a selected cell whose content exceeds its bounds is flagged in Cell properties below.</p>
     </div>
     </div>
 
@@ -1247,10 +1252,14 @@
     <div class="panel-section">
       <h3>Grid <span class="hint" id="grid-cellcount-hint">4 cells</span></h3>
       <div class="ctrl-row">
-        <span class="ctrl-label">Columns × rows</span>
-        <select class="panel-select" id="sel-grid-cols" aria-label="Component grid columns"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select>
-        <span class="hint">×</span>
-        <select class="panel-select" id="sel-grid-rows" aria-label="Component grid rows"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select>
+        <div class="ctrl-label">Columns</div>
+        <input type="range" id="rg-grid-cols" min="1" max="4" step="1" value="2" aria-label="Component grid columns">
+        <span class="ctrl-val" id="v-grid-cols">2</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Rows</div>
+        <input type="range" id="rg-grid-rows" min="1" max="4" step="1" value="2" aria-label="Component grid rows">
+        <span class="ctrl-val" id="v-grid-rows">2</span>
       </div>
       <p class="org-panel__hint" id="grid-legacy-hint" style="display:none">This Component was saved on an imported Loom grid (legacy). It renders as saved; pick columns × rows to start a new grid. Larger and irregular grids now live in the Symbol.</p>
       <div id="grid-square-block">
@@ -1426,7 +1435,6 @@
         <select class="panel-select" id="sel-color-offset" aria-label="Colour rule start colour"></select>
       </div>
       <p class="org-panel__hint" id="color-quadrant-hint" style="display:none">By quadrant needs an even number of columns and rows — on this grid the middle column or row falls in the second half.</p>
-      <p class="org-panel__hint">Ink — which palette colour each cell gets. By cell order cycles colour 1, 2, 3… across the cells; the other rules follow the grid's structure (checkerboard, rows, columns, diagonal bands, quadrants). One colour by default (a plain fill); add more for a multi-ink pattern.</p>
       <div class="color-row">
         <span class="color-name">Paper</span>
         <span class="color-swatch-wrap">
@@ -1435,22 +1443,20 @@
         </span>
         <input class="color-hex" id="hex-paper" value="#ffffff" maxlength="7">
       </div>
-      <p class="org-panel__hint">Paper is the ground every Component renders and exports against — the gallery thumbnail, PNG, and SVG all read this same colour, not a fixed white.</p>
     </div>
 
     <div class="tier-block" data-tier="symbol">
     <div class="panel-section">
-      <h3>Components <span class="hint" id="symbol-palette-hint">none yet</span></h3>
-      <div id="symbol-palette" class="fvs-sympal"></div>
-      <button class="mini-btn" id="btn-sympal-add">+ Add Components…</button>
-      <p class="org-panel__hint">The saved Components this Symbol is built from — Arrange and Suggest only use these. Weight: how often each one is picked.</p>
+      <h3>Components <span class="hint" id="symbol-pool-hint">none yet</span></h3>
+      <div id="symbol-pool" class="fvs-sympool"></div>
+      <button class="mini-btn" id="btn-sympool-add">+ Add Components…</button>
     </div>
     <div class="panel-section">
       <h3>Fill</h3>
       <div class="ctrl-row">
         <select class="panel-select" id="sel-symbol-fill" aria-label="Fill mode">
           <option value="suggest" selected>Suggest</option>
-          <option value="generate">Arrange (palette)</option>
+          <option value="generate">Arrange (pool)</option>
           <option value="manual">Manual</option>
           <option value="rule">Rule</option>
         </select>
@@ -1585,7 +1591,7 @@
           <button class="mini-btn" id="btn-sug-run">Suggest</button>
           <button class="mini-btn" id="btn-sug-more">More like this</button>
         </div>
-        <p class="org-panel__hint" id="sug-hint">Proposes Symbols from the palette's Components: which one goes in each cell and how it is turned. <em>Continuity</em> — lines and shapes carry on across neighbouring cells; <em>Balance</em> — even weight over the page and each Component used as often as its weight; <em>Surprise</em> — fewer repeats side by side. Click a proposal to take it; <em>More like this</em> varies the current Symbol. Locked cells are kept.</p>
+        <p class="org-panel__hint" id="sug-hint"></p>
       </div>
 
       <div id="symbol-generate-block" style="display:none">
@@ -1605,7 +1611,7 @@
           </button>
         </div>
         <button class="mini-btn" id="btn-symbol-regenerate" style="width:100%">Arrange</button>
-        <p class="org-panel__hint">Places the palette's Components by a rule — which one goes in each cell follows its column/row, ring, sector or band (the n-th class takes the n-th Component). Random picks by weight. Locked cells stay. Then refine transforms with Rule, or single cells in Manual.</p>
+        <p class="org-panel__hint">Places the pool's Components by a rule — which one goes in each cell follows its column/row, ring, sector or band (the n-th class takes the n-th Component). Random picks by weight. Locked cells stay. Then refine transforms with Rule, or single cells in Manual.</p>
       </div>
       <div id="symbol-manual-block" style="display:none">
         <p class="org-panel__hint">Click a cell on the canvas to select it and choose its content. Shift-click, or click-and-drag, to select more than one cell.</p>
@@ -1919,7 +1925,7 @@ const state = {
                        //   {source:'seed', seedType, rotation, flipH, flipV, scale, color,
                        //    fitMode:'contain'|'fill'|'fixed', fixedSize, anchorX, anchorY, padding}
                        //   {source:'component', componentName, rotation, flipH, flipV, scale, fitMode, fixedSize, anchorX, anchorY, padding}
-  symbolPalette: [],   // [{name, weight}] — the saved Components a Symbol is built from (Arrange / Suggest)
+  symbolPool: [],   // [{name, weight}] — the saved Components a Symbol is built from (Arrange / Suggest). "Pool", not "Palette" — Palette is colour only.
   symbolSuggestions: [],   // the last Suggest gallery ({label, score, cells}), tied to the current grid
   symbolSelection: new Set(),   // cell indices, Manual mode's click-to-select — never persisted (editing-session-only)
   symbolMarqueeRect: null,      // {x,y,w,h} in the canvas's own 0..size space, live during a drag-select — preview-only, never persisted or exported
@@ -2589,7 +2595,7 @@ function getGrid() {
   if (state.loomGrid) {
     return { kind: 'loom', cellShape: state.loomGrid.cellShape, cells: state.loomGrid.cells, width: state.loomGrid.inner.width, height: state.loomGrid.inner.height };
   }
-  return { kind: 'square', cols: +ctrl('sel-grid-cols').value, rows: +ctrl('sel-grid-rows').value, cellSize: val('rg-cellsize'), gap: val('rg-gap') };
+  return { kind: 'square', cols: +ctrl('rg-grid-cols').value, rows: +ctrl('rg-grid-rows').value, cellSize: val('rg-cellsize'), gap: val('rg-gap') };
 }
 // spec: 'square3x3' (the recipes' string form), {cols, rows}, or a saved entry.grid.
 function setComponentGrid(spec, opts = {}) {
@@ -2600,8 +2606,9 @@ function setComponentGrid(spec, opts = {}) {
   } else if (spec) { cols = spec.cols; rows = spec.rows || spec.cols; }
   if (!(spec && spec.kind === 'loom')) {
     state.loomGrid = null;
-    ctrl('sel-grid-cols').value = String(Math.min(4, Math.max(1, cols)));
-    ctrl('sel-grid-rows').value = String(Math.min(4, Math.max(1, rows)));
+    cols = String(Math.min(4, Math.max(1, cols))); rows = String(Math.min(4, Math.max(1, rows)));
+    ctrl('rg-grid-cols').value = cols; ctrl('v-grid-cols').textContent = cols;
+    ctrl('rg-grid-rows').value = rows; ctrl('v-grid-rows').textContent = rows;
   }
   syncComponentGridUI();
   if (!opts.silent) { syncRuleAvailability(); renderGallery(); }
@@ -2615,6 +2622,32 @@ function syncComponentGridUI() {
 // resolveGridCells(grid) / frameSize(grid) — moved to shared/shapes.js,
 // aliased at the top of this script. Returns [{cx, cy, cellSize, cellW,
 // cellH}], one per cell, relative to the grid's own centre.
+
+// Whether the Component's own canvas frame should stay a forced square —
+// true only while a Role (Container/Mask) is set, since the underlying-
+// Component fit maths (resolveUnderlyingComponent's own `.size`) is still a
+// single square scalar. Left false the frame is the grid's REAL width×height
+// (a 1×4 grid draws as 4 cells wide, 1 tall — no square letterbox padding).
+function componentRoleActive() { return state.componentRole === 'container' || state.componentRole === 'mask'; }
+// `size` may be a plain number (legacy square, e.g. frameSize()) or a {w,h}
+// pair (frameDims()) — either way this is the one place that decides the
+// Component canvas's actual drawn shape, used by drawComponentCanvas/
+// buildComponentSVGBody/buildComponentSVG/componentEditHitLayer/
+// componentVisualSignature so they all agree.
+function resolvedComponentDims(size) {
+  const d = typeof size === 'object' ? size : { w: size, h: size };
+  if (componentRoleActive()) { const s = Math.max(d.w, d.h); return { w: s, h: s }; }
+  return d;
+}
+// A thumbnail box that keeps the real w:h proportion of a component's frame,
+// scaled to fit within a `maxSide`×`maxSide` square (so a 1×4 grid's thumbnail
+// is a wide short box, a 4×1 grid's a tall narrow one — never a square with
+// letterbox padding around the drawn content, and never wider/taller than the
+// gallery can comfortably lay out).
+function fitThumbBox(w, h, maxSide) {
+  const scale = maxSide / Math.max(w, h);
+  return { w: Math.max(1, Math.round(w * scale)), h: Math.max(1, Math.round(h * scale)) };
+}
 
 // ── Transform axes — the full vocabulary. ──
 const ROTATIONS = [0, 90, 180, 270];
@@ -3340,8 +3373,8 @@ function componentBoundaryMaskContent(items, geo, half) {
   }).join('');
 }
 
-function drawItemsPlain(ctx, itemsToDraw, geo, path, boxSize) {
-  const half = boxSize / 2;
+function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH) {
+  const halfX = boxW / 2, halfY = (boxH == null ? boxW : boxH) / 2;
   const overrideCache = new Map();   // seedType|params → {geo,path}, so several cells sharing one override don't re-tessellate
   for (const it of itemsToDraw) {
     let itGeo = geo, itPath = path;
@@ -3353,7 +3386,7 @@ function drawItemsPlain(ctx, itemsToDraw, geo, path, boxSize) {
     }
     const drawOne = () => {
       ctx.save();
-      ctx.translate(half + it.cx, half + it.cy);
+      ctx.translate(halfX + it.cx, halfY + it.cy);
       ctx.rotate(it.rotation * Math.PI / 180);
       const fit = it.cellSize / 100;
       ctx.scale((it.flipH ? -1 : 1) * it.scale * fit, (it.flipV ? -1 : 1) * it.scale * fit);
@@ -3376,18 +3409,20 @@ function drawItemsPlain(ctx, itemsToDraw, geo, path, boxSize) {
 }
 
 function drawComponentCanvas(ctx, items, seed, size) {
-  ctx.clearRect(0, 0, size, size);
+  const dims = resolvedComponentDims(size);
+  ctx.clearRect(0, 0, dims.w, dims.h);
   const geo = SEED_TYPES[seed.type].geometry(seed);
   const path = new Path2D(geo.d);
   const under = (state.componentRole === 'container' || state.componentRole === 'mask') ? resolveUnderlyingComponent(state.underlyingComponentName) : null;
 
   if (!under) {
     ctx.fillStyle = state.paperColor;
-    ctx.fillRect(0, 0, size, size);
-    drawItemsPlain(ctx, items, geo, path, size);
+    ctx.fillRect(0, 0, dims.w, dims.h);
+    drawItemsPlain(ctx, items, geo, path, dims.w, dims.h);
     return;
   }
 
+  size = dims.w;   // role active — resolvedComponentDims already forced dims.w === dims.h
   // ONE combined Path2D unioning every cell's own transformed outline —
   // Canvas2D has no <clipPath>-style bug (it never parses markup), so this
   // is the direct, simple equivalent of the SVG boundary-flatten above.
@@ -3444,7 +3479,8 @@ function drawComponentCanvas(ctx, items, seed, size) {
 // <metadata> — the piece both buildComponentSVG() (Screen mode + Figma)
 // and buildPrintComponentSVG() (Print mode) wrap.
 function buildComponentSVGBody(items, seed, size) {
-  const half = size / 2;
+  const dims = resolvedComponentDims(size);
+  const halfX = dims.w / 2, halfY = dims.h / 2;
   const geo = SEED_TYPES[seed.type].geometry(seed);
   const under = (state.componentRole === 'container' || state.componentRole === 'mask') ? resolveUnderlyingComponent(state.underlyingComponentName) : null;
   // Container keeps the usual unconditional paper rect (the boundary only
@@ -3454,11 +3490,15 @@ function buildComponentSVGBody(items, seed, size) {
   // mask the paper rect moves inside the masked group below instead —
   // otherwise the "hole" would only remove the underlying layer and still
   // show opaque paper underneath, not a genuine hole.
-  let body = (under && state.componentRole === 'mask') ? '' : `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>`;
+  let body = (under && state.componentRole === 'mask') ? '' : `<rect width="${dims.w}" height="${dims.h}" fill="${state.paperColor}"/>`;
 
   if (under) {
+    // Role active — resolvedComponentDims already forced dims.w === dims.h,
+    // so the rest of this branch keeps the existing square-frame maths
+    // (`size`/`half`) exactly as before.
+    const size2 = dims.w, half = size2 / 2;
     const underGeo = SEED_TYPES[under.seed.type].geometry(under.seed);
-    const fitScale = size / under.size;
+    const fitScale = size2 / under.size;
     let underBody = `<rect width="${under.size}" height="${under.size}" fill="${under.paperColor}"/>`;
     for (const it of under.items) {
       const fit = it.cellSize / 100;
@@ -3467,7 +3507,7 @@ function buildComponentSVGBody(items, seed, size) {
         + withAppearance(under.appearance, () => elementPathMarkup(resolveItemGeo(it, underGeo), it.color)) + `</g>`;
     }
     // fitScale maps the underlying Component's own frame exactly onto this
-    // one's (size = under.size * fitScale by construction) — a plain
+    // one's (size2 = under.size * fitScale by construction) — a plain
     // scale from the origin already covers corner-to-corner, no centring
     // offset needed since both frames are square.
     const underWrapped = `<g transform="scale(${fitScale.toFixed(4)})">${underBody}</g>`;
@@ -3476,9 +3516,9 @@ function buildComponentSVGBody(items, seed, size) {
       body += `<clipPath id="${uid}">${componentBoundaryClipContent(items, geo, half)}</clipPath>`
         + `<g clip-path="url(#${uid})">${underWrapped}</g>`;
     } else {
-      body += `<mask id="${uid}" maskUnits="userSpaceOnUse" x="0" y="0" width="${size}" height="${size}">`
-        + `<rect width="${size}" height="${size}" fill="white"/>${componentBoundaryMaskContent(items, geo, half)}</mask>`
-        + `<g mask="url(#${uid})"><rect width="${size}" height="${size}" fill="${state.paperColor}"/>${underWrapped}</g>`;
+      body += `<mask id="${uid}" maskUnits="userSpaceOnUse" x="0" y="0" width="${size2}" height="${size2}">`
+        + `<rect width="${size2}" height="${size2}" fill="white"/>${componentBoundaryMaskContent(items, geo, half)}</mask>`
+        + `<g mask="url(#${uid})"><rect width="${size2}" height="${size2}" fill="${state.paperColor}"/>${underWrapped}</g>`;
     }
   } else {
     for (const it of items) {
@@ -3495,16 +3535,17 @@ function buildComponentSVGBody(items, seed, size) {
       const markup = (it.content && it.content.appearance)
         ? withAppearance(it.content.appearance, () => elementPathMarkup(resolveItemGeo(it, geo), it.color))
         : elementPathMarkup(resolveItemGeo(it, geo), it.color);
-      body += `<g transform="translate(${(half + it.cx).toFixed(2)},${(half + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
+      body += `<g transform="translate(${(halfX + it.cx).toFixed(2)},${(halfY + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
         + markup + `</g>`;
     }
   }
   return body;
 }
 function buildComponentSVG(items, seed, size) {
+  const dims = resolvedComponentDims(size);
   const meta = { tool: 'FVS', ruleSource: state.selectedRuleSource || '', cells: items.length, exportedAt: new Date().toISOString() };
   const body = buildComponentSVGBody(items, seed, size);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${dims.w}" height="${dims.h}" viewBox="0 0 ${dims.w} ${dims.h}">`
     + `<metadata>${JSON.stringify(meta)}</metadata>` + body + `</svg>`;
 }
 function r2(n) { return Math.round(n * 100) / 100; }
@@ -3534,10 +3575,10 @@ function printComponentDims(baseSize, baseH) {
     scale: baseSize ? trimWpx / baseSize : 1,
   };
 }
-function buildPrintComponentSVG(items, seed, baseSize) {
-  const p = printComponentDims(baseSize);
+function buildPrintComponentSVG(items, seed, baseSize, baseH) {
+  const p = printComponentDims(baseSize, baseH);
   const bw = p.trimWmm + 2 * p.bleedMm, bh = p.trimHmm + 2 * p.bleedMm;
-  const body = buildComponentSVGBody(items, seed, baseSize);
+  const body = buildComponentSVGBody(items, seed, baseH ? { w: baseSize, h: baseH } : baseSize);
   const scaleMm = baseSize ? p.trimWmm / baseSize : 1;
   let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(bw)}mm" height="${r2(bh)}mm" viewBox="0 0 ${r2(bw)} ${r2(bh)}">`;
   s += `<rect width="100%" height="100%" fill="${state.paperColor}"/>`;
@@ -3674,7 +3715,12 @@ function renderGallery() {
   const empty = ctrl('gallery-empty');
   const grid = getGrid();
   const seed = getSeed();
-  const size = frameSize(grid);
+  const size = frameDims(grid);
+  // Every thumbnail in this gallery shares the same grid, so one box fits
+  // them all — set once as CSS vars rather than per-button inline styles.
+  const thumbBox = fitThumbBox(size.w, size.h, 96);
+  gallery.style.setProperty('--thumb-w', thumbBox.w + 'px');
+  gallery.style.setProperty('--thumb-h', thumbBox.h + 'px');
 
   // The grid size can change (columns × rows, a legacy Loom entry) without
   // a fresh Generate — gallery candidates built for the PREVIOUS cell count
@@ -3817,7 +3863,7 @@ function enterComponentEditMode(compId) {
   state.componentEditDefaultAppearance = getElementAppearance();   // same freezing, for Style/Width/Length/Scale/Move
   // Grid is fixed for the duration of the edit (a resize could invalidate
   // cells mid-edit) — disable the controls that would change it.
-  ctrl('sel-grid-cols').disabled = true; ctrl('sel-grid-rows').disabled = true;
+  ctrl('rg-grid-cols').disabled = true; ctrl('rg-grid-rows').disabled = true;
   ctrl('sel-rule').disabled = true;
   ctrl('gallery').classList.remove('visible');
   ctrl('gallery-empty').style.display = 'none';
@@ -3840,7 +3886,7 @@ function exitComponentEditMode() {
   state.componentEditSelectedCell = null;
   state.componentEditDefaultSeed = null;
   state.componentEditDefaultAppearance = null;
-  ctrl('sel-grid-cols').disabled = false; ctrl('sel-grid-rows').disabled = false;
+  ctrl('rg-grid-cols').disabled = false; ctrl('rg-grid-rows').disabled = false;
   ctrl('sel-rule').disabled = false;
   ctrl('component-edit-view').style.display = 'none';
   const compBlock = document.querySelector('.tier-block[data-tier="component"]');
@@ -3869,9 +3915,10 @@ function saveComponentEditAsNew() {
 // exactly Symbol's own data-cell-index pattern, just built as an overlay
 // layer instead of threading the attribute through every <g> in the body.
 function componentEditHitLayer(items, size) {
-  const half = size / 2;
+  const dims = resolvedComponentDims(size);
+  const halfX = dims.w / 2, halfY = dims.h / 2;
   return items.map((it, i) => {
-    const x = half + it.cx - it.cellSize / 2, y = half + it.cy - it.cellSize / 2;
+    const x = halfX + it.cx - it.cellSize / 2, y = halfY + it.cy - it.cellSize / 2;
     const sel = i === state.componentEditSelectedCell;
     const style = sel ? 'fill:transparent;stroke:var(--tool);stroke-width:3px;' : 'fill:transparent;';
     return `<rect data-cell-index="${i}" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${it.cellSize}" height="${it.cellSize}" style="${style}"/>`;
@@ -3882,15 +3929,16 @@ function renderComponentEditCanvas() {
   if (!state.componentEditMode) return;
   const grid = state.componentEditGrid;
   const seed = state.componentEditDefaultSeed;   // frozen — see enterComponentEditMode's comment
-  const size = frameSize(grid);
+  const size = frameDims(grid);   // real width×height — no square letterbox
   const items = buildComponentItems({ cells: state.componentEditCells }, grid);
   // Frozen default Appearance for the whole call (every non-overridden cell) —
   // an overridden cell's own withAppearance (inside buildComponentSVGBody's
   // per-item loop) nests inside this one and wins for just that item.
   const body = withAppearance(state.componentEditDefaultAppearance, () => buildComponentSVGBody(items, seed, size));
   const hit = componentEditHitLayer(items, size);
+  const dims = resolvedComponentDims(size);
   ctrl('component-edit-frame').innerHTML =
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${body}${hit}</svg>`;
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dims.w} ${dims.h}">${body}${hit}</svg>`;
   const cell = state.componentEditSelectedCell;
   ctrl('component-edit-hint').textContent = cell == null
     ? 'Click a cell to give it its own shape'
@@ -4124,25 +4172,31 @@ function componentVisualSignature(comp, grid, seed, size) {
   // cell count so a dense grid's cells don't shrink to a few pixels each (where
   // two different arrangements could average out alike). N: signature grid
   // (coarse enough to absorb AA noise, fine enough that two really-different
-  // arrangements can't coincide).
-  const RES = Math.max(48, Math.ceil(Math.sqrt(comp.cells.length)) * 12), N = 10;
+  // arrangements can't coincide). A non-square frame (dims.w !== dims.h) rasters
+  // at the same longer-side resolution, short side scaled down proportionally —
+  // reduces to the old square behaviour exactly when the frame is square.
+  const dims = resolvedComponentDims(size);
+  const longSide = Math.max(dims.w, dims.h);
+  const RESbase = Math.max(48, Math.ceil(Math.sqrt(comp.cells.length)) * 12), N = 10;
+  const scale = RESbase / longSide;
+  const RESW = Math.max(1, Math.round(dims.w * scale)), RESH = Math.max(1, Math.round(dims.h * scale));
   if (!componentVisualSignature._canvas) componentVisualSignature._canvas = document.createElement('canvas');
   const cv = componentVisualSignature._canvas;
-  if (cv.width !== RES) { cv.width = RES; cv.height = RES; }
+  if (cv.width !== RESW || cv.height !== RESH) { cv.width = RESW; cv.height = RESH; }
   const ctx = cv.getContext('2d');
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, RES, RES);
-  ctx.setTransform(RES / size, 0, 0, RES / size, 0, 0);
+  ctx.clearRect(0, 0, RESW, RESH);
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
   drawComponentCanvas(ctx, buildComponentItems(comp, grid), seed, size);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  const data = ctx.getImageData(0, 0, RES, RES).data;
-  const block = RES / N;
+  const data = ctx.getImageData(0, 0, RESW, RESH).data;
+  const blockX = RESW / N, blockY = RESH / N;
   const sig = new Float32Array(N * N);
   for (let by = 0; by < N; by++) for (let bx = 0; bx < N; bx++) {
     let sum = 0, count = 0;
-    for (let y = Math.floor(by * block); y < Math.floor((by + 1) * block); y++) {
-      for (let x = Math.floor(bx * block); x < Math.floor((bx + 1) * block); x++) {
-        const i = (y * RES + x) * 4;
+    for (let y = Math.floor(by * blockY); y < Math.floor((by + 1) * blockY); y++) {
+      for (let x = Math.floor(bx * blockX); x < Math.floor((bx + 1) * blockX); x++) {
+        const i = (y * RESW + x) * 4;
         sum += (data[i] + data[i + 1] + data[i + 2]) / 3 * (data[i + 3] / 255);   // alpha-weighted luma — a transparent pixel never reads as equal to an opaque light one
         count++;
       }
@@ -4158,7 +4212,7 @@ function signaturesMatch(a, b) {
   return (diff / a.length) <= VISUAL_MATCH_TOLERANCE;
 }
 function populateComponentStarterGallery() {
-  const grid = getGrid(), seed = getSeed(), size = frameSize(grid);
+  const grid = getGrid(), seed = getSeed(), size = frameDims(grid);
   const seenVisuals = [];
   const picks = [];
   for (const r of COMPONENT_STARTER_RULES) {
@@ -4196,7 +4250,7 @@ function populateComponentStarterGallery() {
 // turns all 8 Pinwheels into one picture; a left–right symmetric Triangle
 // makes flip H a no-op) — Generate used to list those look-alikes as distinct.
 function lookAlikeFilter() {
-  const grid = getGrid(), seed = getSeed(), size = frameSize(grid);
+  const grid = getGrid(), seed = getSeed(), size = frameDims(grid);
   const sigs = [];
   return comp => {
     const sig = componentVisualSignature(comp, grid, seed, size);
@@ -4268,17 +4322,17 @@ function exportSelected(format) {
   const grid = getGrid();
   const seed = getSeed();
   const items = buildComponentItems(comp, grid);
-  const baseSize = frameSize(grid);
+  const baseDims = frameDims(grid);
   const isPrint = printSizePanel.getMode() === 'print';
 
   if (format === 'svg') {
-    const svg = isPrint ? buildPrintComponentSVG(items, seed, baseSize) : buildComponentSVG(items, seed, baseSize);
+    const svg = isPrint ? buildPrintComponentSVG(items, seed, baseDims.w, baseDims.h) : buildComponentSVG(items, seed, baseDims);
     Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('fvs', 'svg'));
     return;
   }
 
   if (isPrint) {
-    const p = printComponentDims(baseSize);
+    const p = printComponentDims(baseDims.w, baseDims.h);
     const off = document.createElement('canvas');
     off.width = p.outW; off.height = p.outH;
     const ctx = off.getContext('2d');
@@ -4287,7 +4341,7 @@ function exportSelected(format) {
     ctx.save();
     ctx.translate(p.bleedPx, p.bleedPx);
     ctx.scale(p.scale, p.scale);
-    drawComponentCanvas(ctx, items, seed, baseSize);
+    drawComponentCanvas(ctx, items, seed, baseDims);
     ctx.restore();
     if (p.bleedPx > 0) {
       ctx.save();
@@ -4303,13 +4357,12 @@ function exportSelected(format) {
   }
 
   const scale = parseInt(ctrl('sel-export-scale').value, 10);
-  const size = baseSize * scale;
   const off = document.createElement('canvas');
-  off.width = size; off.height = size;
+  off.width = baseDims.w * scale; off.height = baseDims.h * scale;
   const ctx = off.getContext('2d');
   ctx.save();
   ctx.scale(scale, scale);
-  drawComponentCanvas(ctx, items, seed, baseSize);
+  drawComponentCanvas(ctx, items, seed, baseDims);
   ctx.restore();
   off.toBlob(blob => {
     Organica.download(blob, Organica.stamp('fvs', 'png'));
@@ -4643,12 +4696,14 @@ function openUnderlyingComponentPicker() {
   wrap.innerHTML = '';
   for (const name of names) {
     const entry = all[name];
-    const size = frameSize(entry.grid);
+    const size = frameDims(entry.grid);
     const savedColorAt = entryInkAt(entry);
     const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
     const svgStr = buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName);
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
+    const box = fitThumbBox(size.w, size.h, 76);
+    btn.style.width = box.w + 'px'; btn.style.height = box.h + 'px';
     btn.title = name;
     btn.setAttribute('aria-label', 'Use ' + name + ' as underlying component');
     btn.innerHTML = svgStr;
@@ -4691,12 +4746,14 @@ function openUnderlyingElementPicker() {
   wrap.innerHTML = '';
   for (const name of names) {
     const entry = all[name];
-    const size = frameSize(entry.grid);
+    const size = frameDims(entry.grid);
     const savedColorAt = entryInkAt(entry);
     const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
     const svgStr = buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName);
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
+    const box = fitThumbBox(size.w, size.h, 64);
+    btn.style.width = box.w + 'px'; btn.style.height = box.h + 'px';
     btn.title = name;
     btn.setAttribute('aria-label', 'Use ' + name + ' as underlying component');
     btn.innerHTML = svgStr;
@@ -4724,7 +4781,7 @@ function renderLibrary() {
   for (const name of names) {
     const entry = all[name];
     const items = buildComponentItems({ cells: entry.component.cells }, entry.grid);
-    const size = frameSize(entry.grid);
+    const size = frameDims(entry.grid);
     // Render with the ENTRY's own saved colours/paper, not the live
     // Palette state — a library thumbnail must never drift just because
     // the panel keeps getting edited after saving.
@@ -4733,6 +4790,8 @@ function renderLibrary() {
     const svgStr = withAppearance(entry.appearance, () => buildComponentSVGWithPaper(itemsWithSavedColor, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName));
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
+    const box = fitThumbBox(size.w, size.h, 64);
+    btn.style.width = box.w + 'px'; btn.style.height = box.h + 'px';
     btn.setAttribute('aria-label', 'Load saved component ' + name);
     btn.title = name;
     btn.innerHTML = svgStr;
@@ -5361,7 +5420,7 @@ async function generateSymbolGridInCanvas() {
     if (!model.cells.length) throw new Error('No cells — make the canvas larger or lower the counts.');
     ctrl('symgrid-gen-error').style.display = 'none';
     loadSymbolGrid(model);
-    if (paletteEntries().length) { if (ctrl('sel-symbol-fill').value === 'suggest') runSuggest(false); else generateSymbolCells(); }
+    if (poolEntries().length) { if (ctrl('sel-symbol-fill').value === 'suggest') runSuggest(false); else generateSymbolCells(); }
   } catch (e) {
     ctrl('symgrid-gen-error').textContent = /unsatisfiable/i.test(e.message) ? 'The canvas is too small for this grid — enlarge it or reduce columns/rows.' : e.message;
     ctrl('symgrid-gen-error').style.display = '';
@@ -5747,11 +5806,11 @@ function drawSymbolCanvas(ctx) {
   }
 }
 
-// ── Component palette + Arrange ─────────────────────────────────
-// A Symbol is composed from saved Components only. The palette is the set
+// ── Component pool + Arrange ─────────────────────────────────
+// A Symbol is composed from saved Components only. The pool is the set
 // it draws from (each with a weight); Arrange decides WHICH Component goes in
 // each cell from the cell's place in the grid: class = f(col, row, ring,
-// sector, band…), the n-th class takes the n-th palette entry. Random picks
+// sector, band…), the n-th class takes the n-th pool entry. Random picks
 // by weight. Transforms are reset (a down-pointing triangle cell is turned
 // 180° to face its slot); refine them with the Rule mode. Locked cells stay.
 const SYMBOL_ARRANGE = {
@@ -5766,11 +5825,11 @@ const SYMBOL_ARRANGE = {
   wave: { label: 'Wave bands', cls: (c, k) => Math.floor(Math.min(0.9999, (Math.sin((c.nx * 1.5 + c.ny) * Math.PI) + 1) / 2) * k) },
   orientation: { label: 'Up / down (triangles)', cls: c => (c.orient === 'down' ? 1 : 0) },
 };
-// Checkerboard alternates the first two palette entries; every other patterned
+// Checkerboard alternates the first two pool entries; every other patterned
 // rule cycles through all of them.
-function paletteEntries() {
+function poolEntries() {
   const lib = LIBRARY.read();
-  return state.symbolPalette.filter(p => lib[p.name]);
+  return state.symbolPool.filter(p => lib[p.name]);
 }
 function weightedPick(pal, rng) {
   const total = pal.reduce((t, p) => t + (p.weight || 1), 0);
@@ -5805,22 +5864,22 @@ function arrangeCells(grid, cells, pal, ruleId, seed, fit) {
 function generateSymbolCells() {
   const grid = getSymbolGrid();
   if (!grid) return;
-  const pal = paletteEntries();
-  if (!pal.length) { setStatus('', 'Add Components to the palette first'); return; }
+  const pal = poolEntries();
+  if (!pal.length) { setStatus('', 'Add Components to the pool first'); return; }
   state.symbolSelection.clear();
   state.symbolCells = arrangeCells(grid, state.symbolCells, pal, ctrl('sel-sym-arrange').value,
     parseInt(ctrl('num-symbol-seed').value, 10) || 0, ctrl('sel-sym-arrange-fit').value);
   renderSymbol();
 }
 
-function togglePaletteComponent(name) {
-  const i = state.symbolPalette.findIndex(p => p.name === name);
-  if (i >= 0) state.symbolPalette.splice(i, 1);
-  else if (state.symbolPalette.length < 8) state.symbolPalette.push({ name, weight: 1 });
-  renderSymbolPalette();
+function togglePoolComponent(name) {
+  const i = state.symbolPool.findIndex(p => p.name === name);
+  if (i >= 0) state.symbolPool.splice(i, 1);
+  else if (state.symbolPool.length < 8) state.symbolPool.push({ name, weight: 1 });
+  renderSymbolPool();
 }
-function openPalettePicker() {
-  contentOverlayPaletteMode = true;
+function openPoolPicker() {
+  contentOverlayPoolMode = true;
   renderCellContentOverlayTiles();
   ctrl('symbol-content-overlay').style.display = 'flex';
 }
@@ -5829,27 +5888,27 @@ function componentThumbSVG(name) {
   if (!entry) return '';
   const savedColorAt = entryInkAt(entry);
   const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
-  return buildComponentSVGWithPaper(items, entry.seed, frameSize(entry.grid), entry.paperColor, entry.role, entry.underlyingComponentName);
+  return buildComponentSVGWithPaper(items, entry.seed, frameDims(entry.grid), entry.paperColor, entry.role, entry.underlyingComponentName);
 }
-function renderSymbolPalette() {
-  const wrap = ctrl('symbol-palette');
-  const pal = paletteEntries();
-  state.symbolPalette = pal;   // drop entries whose Component was deleted
-  wrap.innerHTML = pal.map((p, i) => `<div class="fvs-sympal__item" title="${p.name.replace(/"/g, '&quot;')}">${componentThumbSVG(p.name)}
+function renderSymbolPool() {
+  const wrap = ctrl('symbol-pool');
+  const pal = poolEntries();
+  state.symbolPool = pal;   // drop entries whose Component was deleted
+  wrap.innerHTML = pal.map((p, i) => `<div class="fvs-sympool__item" title="${p.name.replace(/"/g, '&quot;')}">${componentThumbSVG(p.name)}
     <select class="panel-select" data-pal-weight="${i}" aria-label="Weight of ${p.name.replace(/"/g, '&quot;')}">${[1, 2, 3, 4, 5].map(w => `<option value="${w}"${w === (p.weight || 1) ? ' selected' : ''}>×${w}</option>`).join('')}</select>
-    <button class="icon-btn fvs-sympal__x" data-pal-remove="${i}" aria-label="Remove ${p.name.replace(/"/g, '&quot;')} from the palette">×</button></div>`).join('');
+    <button class="icon-btn fvs-sympool__x" data-pal-remove="${i}" aria-label="Remove ${p.name.replace(/"/g, '&quot;')} from the pool">×</button></div>`).join('');
   const n = pal.length;
-  ctrl('symbol-palette-hint').textContent = n ? `${n} in the palette` : (libraryNames(LIBRARY.read()).length ? 'none yet' : 'save Components first');
+  ctrl('symbol-pool-hint').textContent = n ? `${n} in the pool` : (libraryNames(LIBRARY.read()).length ? 'none yet' : 'save Components first');
 }
-ctrl('symbol-palette').addEventListener('change', e => {
+ctrl('symbol-pool').addEventListener('change', e => {
   const i = e.target.dataset.palWeight;
-  if (i != null) state.symbolPalette[+i].weight = +e.target.value;
+  if (i != null) state.symbolPool[+i].weight = +e.target.value;
 });
-ctrl('symbol-palette').addEventListener('click', e => {
+ctrl('symbol-pool').addEventListener('click', e => {
   const b = e.target.closest('[data-pal-remove]');
-  if (b) { state.symbolPalette.splice(+b.dataset.palRemove, 1); renderSymbolPalette(); }
+  if (b) { state.symbolPool.splice(+b.dataset.palRemove, 1); renderSymbolPool(); }
 });
-ctrl('btn-sympal-add').addEventListener('click', openPalettePicker);
+ctrl('btn-sympool-add').addEventListener('click', openPoolPicker);
 ctrl('sel-sym-arrange').innerHTML = Object.entries(SYMBOL_ARRANGE).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
 
 // ── Suggestion engine ────────────────────────────────────────────
@@ -6140,7 +6199,7 @@ function suggestWeights() { return { cont: +ctrl('rg-sug-cont').value / 100, bal
 // The candidate list (pure apart from reading the grid/palette state).
 function suggestSymbols(opts = {}) {
   const G = suggestGridContext();
-  const pal = paletteEntries();
+  const pal = poolEntries();
   if (!G || !pal.length) return [];
   const W = opts.weights || suggestWeights();
   const fit = opts.fit || ctrl('sel-sym-arrange-fit').value || 'fill';
@@ -6210,7 +6269,7 @@ function renderSuggestGallery(currentIdx) {
 }
 function runSuggest(more) {
   if (!state.symbolGrid) return;
-  if (!paletteEntries().length) { ctrl('sug-hint').textContent = 'Add Components to the palette first (Components section above).'; return; }
+  if (!poolEntries().length) { ctrl('sug-hint').textContent = 'Add Components to the pool first (Components section above).'; return; }
   const base = more ? candFromCells(state.symbolCells) : null;
   if (more && base.some(c => !c)) { runSuggest(false); return; }
   setStatus('active', 'Suggesting…');
@@ -6802,21 +6861,21 @@ function syncContentFilter() {
 }
 function closeCellContentOverlay() {
   ctrl('symbol-content-overlay').style.display = 'none';
-  contentOverlayPaletteMode = false;
+  contentOverlayPoolMode = false;
   ctrl('chk-content-overlay-all').checked = false;   // disarm so a later single-cell edit isn't hijacked
 }
 
 // The overlay has two jobs: fill the selected cell(s) (a Component or Empty —
 // a Symbol is built from saved Components only, so the raw Seeds are no
-// longer offered; old Symbols with Seed cells still render), or, in palette
-// mode, toggle Components in and out of the Symbol's palette.
-let contentOverlayPaletteMode = false;
+// longer offered; old Symbols with Seed cells still render), or, in pool
+// mode, toggle Components in and out of the Symbol's pool.
+let contentOverlayPoolMode = false;
 function renderCellContentOverlayTiles() {
   const toAll = ctrl('chk-content-overlay-all').checked;
   const count = state.symbolSelection.size;
-  ctrl('symbol-content-overlay__title').textContent = contentOverlayPaletteMode ? 'Components for this Symbol'
+  ctrl('symbol-content-overlay__title').textContent = contentOverlayPoolMode ? 'Components for this Symbol'
     : toAll ? 'Choose content for all cells' : count > 1 ? `Choose content for ${count} cells` : 'Choose content';
-  ctrl('chk-content-overlay-all').parentElement.style.display = contentOverlayPaletteMode ? 'none' : '';
+  ctrl('chk-content-overlay-all').parentElement.style.display = contentOverlayPoolMode ? 'none' : '';
 
   const elWrap = ctrl('symbol-content-overlay__seeds');
   elWrap.innerHTML = '';
@@ -6855,10 +6914,10 @@ function renderCellContentOverlayTiles() {
   ctrl('symbol-content-overlay__components-empty').style.display = libNames.length ? 'none' : '';
   const compWrap = ctrl('symbol-content-overlay__components');
   compWrap.innerHTML = '';
-  if (!contentOverlayPaletteMode) compWrap.appendChild(emptyBtn);
+  if (!contentOverlayPoolMode) compWrap.appendChild(emptyBtn);
   for (const name of libNames) {
     const entry = library[name];
-    const size = frameSize(entry.grid);
+    const size = frameDims(entry.grid);
     // Entry's own saved colours/paper, not the live Palette — same rule
     // renderLibrary()'s own thumbnails already follow.
     const savedColorAt = entryInkAt(entry);
@@ -6867,13 +6926,15 @@ function renderCellContentOverlayTiles() {
     const svgStr = buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName);
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
+    const box = fitThumbBox(size.w, size.h, 76);
+    btn.style.width = box.w + 'px'; btn.style.height = box.h + 'px';
     btn.title = name;
     btn.setAttribute('aria-label', 'Use Component ' + name);
     btn.innerHTML = svgStr;
-    if (contentOverlayPaletteMode) {
-      btn.classList.toggle('is-in-palette', state.symbolPalette.some(p => p.name === name));
-      btn.setAttribute('aria-pressed', String(btn.classList.contains('is-in-palette')));
-      btn.addEventListener('click', () => { togglePaletteComponent(name); renderCellContentOverlayTiles(); });
+    if (contentOverlayPoolMode) {
+      btn.classList.toggle('is-in-pool', state.symbolPool.some(p => p.name === name));
+      btn.setAttribute('aria-pressed', String(btn.classList.contains('is-in-pool')));
+      btn.addEventListener('click', () => { togglePoolComponent(name); renderCellContentOverlayTiles(); });
     } else btn.addEventListener('click', () => {
       contentTarget()({
         source: 'component', componentName: name,
@@ -6944,7 +7005,7 @@ function buildSymbolLibraryEntry() {
     clipEnabled: state.symbolClipEnabled,
     appearance: getElementAppearance(),
     rule: readRuleState(),
-    palette: state.symbolPalette.map(p => ({ ...p })),
+    pool: state.symbolPool.map(p => ({ ...p })),   // was "palette" — renamed to avoid clashing with the colour Palette; `applySymbolLibraryEntryToUI` still reads the old key too
     arrange: { rule: ctrl('sel-sym-arrange').value, fit: ctrl('sel-sym-arrange-fit').value, seed: ctrl('num-symbol-seed').value },
     savedAt: new Date().toISOString(),
   };
@@ -6987,7 +7048,7 @@ function removeSymbolLibraryEntry(name) {
 function applySymbolLibraryEntryToUI(entry) {
   state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
   if (symbolCanvasOf(state.symbolGrid)) applySymbolCanvasToUI(symbolCanvasOf(state.symbolGrid));
-  if (entry.palette) { state.symbolPalette = entry.palette.map(p => ({ ...p })); renderSymbolPalette(); }
+  if (entry.pool || entry.palette) { state.symbolPool = (entry.pool || entry.palette).map(p => ({ ...p })); renderSymbolPool(); }
   if (entry.arrange) { ctrl('sel-sym-arrange').value = entry.arrange.rule; ctrl('sel-sym-arrange-fit').value = entry.arrange.fit; ctrl('num-symbol-seed').value = entry.arrange.seed; }
   state.symbolCells = entry.cells.map(c => withPlacementDefaults({ ...c }));
   state.symbolSelection.clear();
@@ -7148,12 +7209,13 @@ function setTier(tier) {
   creatorPopover.close();
   ctrl('fg-rules-panel').style.display = tier === 'figure' ? '' : 'none';
   if (tier === 'symbol') {
-    // A first visit starts the palette with the (up to 3) most recently saved Components.
-    if (!state.symbolPalette.length) {
+    // A first visit starts the pool with every saved Component (up to the 8-slot cap),
+    // most recently saved first — so a fresh Symbol is built from the full saved set, not a subset.
+    if (!state.symbolPool.length) {
       const lib = LIBRARY.read();
-      state.symbolPalette = libraryNames(lib).sort((a, b) => String(lib[b].savedAt || '').localeCompare(String(lib[a].savedAt || ''))).slice(0, 3).map(name => ({ name, weight: 1 }));
+      state.symbolPool = libraryNames(lib).sort((a, b) => String(lib[b].savedAt || '').localeCompare(String(lib[a].savedAt || ''))).slice(0, 8).map(name => ({ name, weight: 1 }));
     }
-    renderSymbolPalette(); populateSymbolLoomPresets(); renderSymbol(); renderSymbolLibrary();
+    renderSymbolPool(); populateSymbolLoomPresets(); renderSymbol(); renderSymbolLibrary();
   }
   else if (tier === 'element') { renderSeedPreview(); }
   else if (tier === 'figure') { renderFigureTier(); }
@@ -7376,7 +7438,8 @@ ctrl('file-seed').addEventListener('change', e => {
 const creatorPopover = Organica.popover(ctrl('btn-browse-creator'), ctrl('creator-library-popover'));
 ctrl('btn-browse-creator').addEventListener('click', () => { if (creatorPopover.isOpen) renderCreatorLibraryPicker(); });
 
-['sel-grid-cols', 'sel-grid-rows'].forEach(id => ctrl(id).addEventListener('change', () => {
+[['rg-grid-cols', 'v-grid-cols'], ['rg-grid-rows', 'v-grid-rows']].forEach(([id, valId]) => ctrl(id).addEventListener('input', e => {
+  ctrl(valId).textContent = e.target.value;
   state.loomGrid = null;   // picking columns × rows replaces a legacy Loom grid
   syncComponentGridUI();
   syncRuleAvailability();
@@ -7950,7 +8013,7 @@ function figureSVGOf(tier) {
   if (!comp) return '';
   state.selectedRuleSource = comp.ruleSource;
   const grid = getGrid();
-  return buildComponentSVG(buildComponentItems(comp, grid), getSeed(), frameSize(grid));
+  return buildComponentSVG(buildComponentItems(comp, grid), getSeed(), frameDims(grid));
 }
 
 // The built-in recipes, written as v2 data. Each one reproduces its v1 twin above exactly
@@ -8900,7 +8963,7 @@ function tierSVG() {
   if (!comp) return '';
   state.selectedRuleSource = comp.ruleSource;
   const grid = getGrid();
-  return buildComponentSVG(buildComponentItems(comp, grid), getSeed(), frameSize(grid));
+  return buildComponentSVG(buildComponentItems(comp, grid), getSeed(), frameDims(grid));
 }
 
 // Recolour by string on the finished SVG: every fill/stroke that is not
