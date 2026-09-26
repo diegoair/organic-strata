@@ -91,9 +91,9 @@ async function battery() {
   }));
   reset();
 
-  // 5 — Symbol Square 4×4 + Checkerboard rule (default, Rotate A/B, Swap)
+  // 5 — Symbol Square 5×5 + Checkerboard rule (default, Rotate A/B, Swap)
   setTier('symbol');
-  chg('sel-symbol-square-cols', '4'); chg('sel-symbol-square-rows', '4');
+  chg('sel-symbol-square-cols', '5'); chg('sel-symbol-square-rows', '5');
   ctrl('btn-symbol-grid-square').click();
   state.symbolCells = state.symbolCells.map(c => ({ ...c, source: 'seed', seedType: 'arc', rotation: 0, fitMode: 'fill', color: null }));
   chg('sel-symbol-fill', 'rule'); chg('sel-symbol-rule', 'checkerboard');
@@ -312,7 +312,7 @@ async function battery() {
   // 11 — Cell properties colour override, Undo, rename, quadrant hint
   chg('sel-seed-type', 'arc'); chg('sel-element-fillmode', 'fill');
   setTier('symbol');
-  chg('sel-symbol-square-cols', '2'); chg('sel-symbol-square-rows', '2'); ctrl('btn-symbol-grid-square').click();
+  chg('sel-symbol-square-cols', '5'); chg('sel-symbol-square-rows', '5'); ctrl('btn-symbol-grid-square').click();
   state.colors = ['#e8321e', '#0a9a3e']; buildPalette();
   state.symbolCells = state.symbolCells.map(c => ({ ...c, source: 'seed', seedType: 'arc', fitMode: 'fill', color: null }));
   const count = (svg, c) => (svg.match(new RegExp(c, 'gi')) || []).length;
@@ -381,7 +381,9 @@ async function battery() {
   try {
     chg('sel-seed-type', 'triangle'); chg('sel-element-fillmode', 'fill'); state.colors = ['#f0301f']; buildPalette();
     const mk = (name, n, up, down, empty) => {
-      setTier('symbol'); chg('sel-symbol-tri-n', String(n)); ctrl('btn-symbol-grid-tri').click();
+      // small n here exercises the orientation rule directly, bypassing the UI picker
+      // (now 5-8 per the Symbol size ladder) — the underlying model fn is unchanged.
+      setTier('symbol'); loadSymbolGrid(triangleLoomModel(n));
       chg('sel-symbol-fill', 'rule'); chg('sel-symbol-rule', 'orientation'); chg('sel-rule-ori-up', up); chg('sel-rule-ori-down', down);
       applySymbolRule({ resetAll: true }); (empty || []).forEach(i => { state.symbolCells[i].source = 'empty'; });
       const all = SYMBOL_LIBRARY.read(); all[name] = buildSymbolLibraryEntry(); SYMBOL_LIBRARY.write(all);
