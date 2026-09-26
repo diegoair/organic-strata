@@ -1068,51 +1068,6 @@
     </div>
 
     <div class="panel-section">
-      <h3>Inner seed</h3>
-      <div class="ctrl-row">
-        <div class="ctrl-label" title="Nested copies of the shape drawn inside itself, alternating ring and gap. 0 turns it off.">Count</div>
-        <input type="range" id="rg-inner-count" min="0" max="8" step="1" value="0">
-        <span class="ctrl-val" id="v-inner-count">0</span>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label" title="Each copy's size as a % of the previous one (70 → 70%, 49%, 34%…).">Ratio</div>
-        <input type="range" id="rg-inner-ratio" min="10" max="95" step="1" value="70">
-        <span class="ctrl-val" id="v-inner-ratio">70</span>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label" title="Where the copies are centred. Centroid keeps the rings evenly spaced on shapes whose bounding-box centre is off-centre (Triangle, Drop, Chevron). Apex (Arc, Wedge only) centres them on the pivot / tip, so the copies stay concentric with the shape.">Anchor</div>
-        <select class="panel-select" id="sel-inner-anchor" aria-label="Inner seed anchor">
-          <option value="bbox" selected>Bbox centre</option>
-          <option value="centroid">Centroid</option>
-          <option value="apex">Apex</option>
-        </select>
-      </div>
-      <p class="org-panel__hint" id="inner-unsupported" style="display:none">Not available for this shape — its copies would cross instead of nest.</p>
-    </div>
-
-    <div class="panel-section">
-      <h3>Content</h3>
-      <div class="ctrl-row"><div class="ctrl-label">Content</div>
-        <select class="panel-select" id="sel-element-content" aria-label="Element content">
-          <option value="filled">Filled</option>
-          <option value="mask">Mask</option>
-          <option value="subtraction">Subtraction mask</option>
-          <option value="container" disabled>Container (coming soon)</option>
-        </select>
-      </div>
-      <div id="underlying-element-block" style="display:none;margin-top:var(--space-2)">
-        <div id="underlying-element-empty">
-          <button class="mini-btn" id="btn-pick-underlying-element" style="width:100%">Pick underlying component…</button>
-        </div>
-        <div id="underlying-element-set" class="ctrl-row" style="display:none">
-          <span class="ctrl-val" id="underlying-element-name" style="flex:1;text-align:left"></span>
-          <button class="mini-btn" id="btn-remove-underlying-element">Remove</button>
-        </div>
-      </div>
-      <p class="org-panel__hint">Subtraction mask shows a picked Component only inside this Element's own outline; Mask shows it everywhere except inside — a real hole. Applies to this Element's own preview only, for now.</p>
-    </div>
-
-    <div class="panel-section">
       <h3>Appearance</h3>
       <div class="ctrl-row">
         <div class="ctrl-label">Style</div>
@@ -1156,6 +1111,51 @@
       </div>
       <button class="mini-btn" id="btn-fit-seed" title="Measures the shape once and sets Scale + Move so it fills the cell, centred.">⤢ Fit to canvas</button>
       <p class="org-panel__hint">Style and Width/Length belong to the Element itself, so every cell of every Component/Symbol/Grid built from it shares them — the stroke reuses the same Palette colours the fill would have. Rotation, flip and uniform scale stay per cell, where Component and Symbol already set them.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Inner seed</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Nested copies of the shape drawn inside itself, alternating ring and gap. 0 turns it off.">Count</div>
+        <input type="range" id="rg-inner-count" min="0" max="8" step="1" value="0">
+        <span class="ctrl-val" id="v-inner-count">0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Each copy's size as a % of the previous one (70 → 70%, 49%, 34%…).">Ratio</div>
+        <input type="range" id="rg-inner-ratio" min="10" max="95" step="1" value="70">
+        <span class="ctrl-val" id="v-inner-ratio">70</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Where the copies are centred. Centroid keeps the rings evenly spaced on shapes whose bounding-box centre is off-centre (Triangle, Drop, Chevron). Apex (Arc, Wedge only) centres them on the pivot / tip, so the copies stay concentric with the shape.">Anchor</div>
+        <select class="panel-select" id="sel-inner-anchor" aria-label="Inner seed anchor">
+          <option value="bbox" selected>Bbox centre</option>
+          <option value="centroid">Centroid</option>
+          <option value="apex">Apex</option>
+        </select>
+      </div>
+      <p class="org-panel__hint" id="inner-unsupported" style="display:none">Not available for this shape — its copies would cross instead of nest.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Content</h3>
+      <div class="ctrl-row"><div class="ctrl-label">Content</div>
+        <select class="panel-select" id="sel-element-content" aria-label="Element content">
+          <option value="filled">Filled</option>
+          <option value="mask">Mask</option>
+          <option value="subtraction">Subtraction mask</option>
+          <option value="container" disabled>Container (coming soon)</option>
+        </select>
+      </div>
+      <div id="underlying-element-block" style="display:none;margin-top:var(--space-2)">
+        <div id="underlying-element-empty">
+          <button class="mini-btn" id="btn-pick-underlying-element" style="width:100%">Pick underlying component…</button>
+        </div>
+        <div id="underlying-element-set" class="ctrl-row" style="display:none">
+          <span class="ctrl-val" id="underlying-element-name" style="flex:1;text-align:left"></span>
+          <button class="mini-btn" id="btn-remove-underlying-element">Remove</button>
+        </div>
+      </div>
+      <p class="org-panel__hint">Subtraction mask shows a picked Component only inside this Element's own outline; Mask shows it everywhere except inside — a real hole. Applies to this Element's own preview only, for now.</p>
     </div>
     <div class="panel-section">
       <h3>Start from a recipe</h3>
@@ -1277,7 +1277,7 @@
     </div>
 
     <div class="panel-section">
-      <h3>Transform axes <span class="hint">Random + Exhaustive only</span></h3>
+      <h3>Transform axes <span class="hint">also affects the fixed-pattern Rules below</span></h3>
       <label class="check-row"><input type="checkbox" id="chk-axis-rotation" checked><span>Rotation (0/90/180/270°)</span></label>
       <label class="check-row"><input type="checkbox" id="chk-axis-flip"><span>Flip (none/H/V/both)</span></label>
       <label class="check-row"><input type="checkbox" id="chk-axis-scale"><span>Scale</span></label>
@@ -1320,6 +1320,7 @@
           <option value="manual">Manual</option>
         </select>
       </div>
+      <p class="org-panel__hint" id="rule-axis-note" style="display:none"></p>
 
       <div id="rule-random-block">
         <div class="ctrl-row">
@@ -2082,7 +2083,7 @@ const SEED_TYPES = {
   cross: { label: 'Cross', geometry: (p) => crossGeometry(p.crossArmWidth, p.crossArmLength, p.crossCorner, { arms: p.crossArms, taper: p.crossTaper, tip: p.crossTip, style: p.crossStyle, rotate: p.crossRotate }) },
   lens: { label: 'Lens', geometry: (p) => lensGeometry(p.lensWidth, { crescent: p.lensCrescent, petals: p.lensPetals, outline: p.lensOutline, rotate: p.lensRotate }) },
   circle: { label: 'Circle', geometry: (p) => circleGeometry(p.circleRadius, circleOptsFrom(p)) },
-  segment: { label: 'Segment', geometry: (p) => segmentGeometry(p.segLen, { angle: p.segAngle, bend: p.segBend, wave: p.segWave, cycles: p.segCycles, dashes: p.segDashes, gap: p.segGap, lines: p.segLines, spacing: p.segSpacing }) },
+  segment: { label: 'Segment', geometry: (p) => segmentGeometry(p.segLen, { angle: p.segAngle, bend: p.segBend, wave: p.segWave, cycles: p.segCycles, dashes: p.segDashes, gap: p.segGap, lines: p.segLines, spacing: p.segSpacing, repeatX: p.segRepeatX, spaceX: p.segSpaceX, repeatY: p.segRepeatY, spaceY: p.segSpaceY, rays: p.segRays }) },
   drop: { label: 'Drop', geometry: (p) => dropGeometry(p.dropRadius, p.dropTail, { bend: p.dropBend, neck: p.dropNeck, petals: p.dropPetals, rotate: p.dropRotate }) },
   blob: { label: 'Blob', geometry: (p) => blobGeometry(p.blobRadius, p.blobAmount, p.blobSeed, { freq: p.blobFreq, smooth: p.blobSmooth, outline: p.blobOutline }) },
   // Freehand: every step after Element sees the drawing fitted to the cell;
@@ -2818,6 +2819,17 @@ function ruleIdentity() {
   return [{ id: 'identity-0', ruleSource: 'identity', cells: buildIdentityCells(0, false, false, 1.0, activeCellCount()) }];
 }
 
+// Does the active axis state satisfy a FAMILIES entry's own requiresAxis gate
+// (null = always, 'any' = at least one of the three, else that one axis)?
+// Shared by activeFamilies() (Random/Exhaustive's pool filter) and the
+// standalone named rules below, so the two can't drift on what "eligible"
+// means for a given family.
+function axisSatisfied(req, axes) {
+  if (req == null) return true;
+  if (req === 'any') return axes.rotation || axes.flip || axes.scale;
+  return !!axes[req];
+}
+
 // Any grid size: the named rules read each cell's col/row (componentCellColRow
 // — native for rect grids, lattice-binned for polygon ones) and apply the same
 // relation the 4-cell tables encode. Only a CANONICAL 2×2 (4 cells laid out
@@ -2866,81 +2878,51 @@ const GRID_BUILD = {
 // A grid bigger than one 2×2 block — where the global and the tiled readings differ.
 const crIsLarge = cr => { if (!cr) return false; const d = crDims(cr); return d.cols > 2 || d.rows > 2; };
 
-function rulePinwheel() {
+// Every named rule below (bar Mirror, handled separately just after) draws
+// its candidate gallery straight from its own FAMILIES entry — the same
+// paramSpace/build pair Random/Exhaustive already use — parametrised on the
+// live Transform-axes checkboxes (Rotation/Flip/Scale). With every axis at
+// its default (Rotation on, Flip/Scale off) this reproduces the exact
+// pre-existing curated set 1:1 (av.rotations=[0,90,180,270],
+// av.flips=[identity], av.scales=[1.0] — see axisValues()). If the ONE axis a
+// rule structurally needs is off (e.g. Flip for Mirror), the rule has
+// nothing to draw and falls back to Identity rather than showing an empty
+// gallery — the Rule dropdown itself stays selectable either way; the axes
+// panel's own hint explains the fallback.
+function familyRuleGallery(key) {
+  const fam = FAMILIES[key];
+  if (!axisSatisfied(fam.requiresAxis, activeAxes())) return ruleIdentity();
+  if (fam.eligible && !fam.eligible()) return ruleIdentity();
+  const av = axisValues();
   const cr = ruleCR();
-  const out = [];
-  for (const chirality of [1, -1]) for (const base of [0, 90, 180, 270]) {
-    const cells = cr ? GRID_BUILD.pinwheel(cr, base, chirality, 1.0) : buildPinwheelCells(base, chirality, 1.0);
-    out.push({ id: `pinwheel-${base}-${chirality}`, ruleSource: 'pinwheel', cells });
-  }
+  const out = fam.paramSpace(av, cr).map((p, i) => ({ id: `${key}-${i}`, ruleSource: key, cells: fam.build(p, cr) }));
   return dedupeComponents(out);
 }
+
+function rulePinwheel() { return familyRuleGallery('pinwheel'); }
 
 function ruleMirror() {
-  const cr = ruleCR();
-  const out = [];
-  for (let seed = 0; seed < 4; seed++) {
-    const cells = cr ? GRID_BUILD.mirror(cr, seed, 1.0) : buildMirrorCells(seed, 1.0);
-    out.push({ id: `mirror-${seed}`, ruleSource: 'mirror', cells });
-  }
+  const gallery = familyRuleGallery('mirror');
+  if (gallery.length === 1 && gallery[0].ruleSource === 'identity') return gallery;   // Flip axis off — nothing to add
   // Beyond 2×2 the per-tile mirror above is not the only reading: add the
-  // whole-grid (book-matched) mirrors — left|right, top|bottom, and both.
-  if (cr) {
-    for (const axis of ['h', 'v', 'hv']) out.push({ id: `mirror-book-${axis}`, ruleSource: 'mirror', cells: GRID_BUILD.bookmatch(cr, axis, 1.0) });
+  // whole-grid (book-matched) mirrors — left|right, top|bottom, and both —
+  // from their own FAMILIES entry, same axis-gating.
+  const bm = FAMILIES.bookmatch;
+  if (bm.eligible() && axisSatisfied(bm.requiresAxis, activeAxes())) {
+    const av = axisValues();
+    const cr = ruleCR();
+    bm.paramSpace(av, cr).forEach((p, i) => gallery.push({ id: `mirror-book-${i}`, ruleSource: 'mirror', cells: bm.build(p, cr) }));
   }
-  return dedupeComponents(out);
+  return dedupeComponents(gallery);
 }
 
-function ruleDiagonal() {
-  const cr = ruleCR();
-  const out = [];
-  for (const r of [0, 90, 180, 270]) {
-    const cells = cr ? GRID_BUILD.diagonal(cr, r, 1.0) : buildDiagonalCells(r, 1.0);
-    out.push({ id: `diagonal-${r}`, ruleSource: 'diagonal', cells });
-  }
-  return dedupeComponents(out);
-}
+function ruleDiagonal() { return familyRuleGallery('diagonal'); }
 
-// A small curated set — full free cross of stateA×stateB belongs to the
-// FAMILIES registry below (Random/Exhaustive), not to this standalone
-// dropdown option, which stays a handful of clearly-different pairings
-// like every other named rule here.
-function ruleCheckerboard() {
-  const pairs = [
-    [stateFrom(0, false, false, 1), stateFrom(180, false, false, 1)],
-    [stateFrom(90, false, false, 1), stateFrom(270, false, false, 1)],
-    // was (0°, H+V) — H+V IS a 180° turn, so that pair always painted exactly
-    // like the first one. (0°, flip H) is the plain mirror pairing it meant.
-    [stateFrom(0, false, false, 1), stateFrom(0, true, false, 1)],
-    [stateFrom(0, true, false, 1), stateFrom(0, false, true, 1)],
-    // Same pairs starting on the other state (TL = the second one) — the
-    // phase the earlier four can't reach, e.g. (180°, 0°).
-    [stateFrom(180, false, false, 1), stateFrom(0, false, false, 1)],
-    [stateFrom(270, false, false, 1), stateFrom(90, false, false, 1)],
-  ];
-  // Any grid size: parity of (col + row) picks A or B. On 4 cells that is
-  // exactly [A,B,B,A] (buildCheckerboardCells), so 2×2 output is unchanged.
-  const cr = ruleCR();
-  const out = pairs.map(([a, b], i) => ({
-    id: `checkerboard-${i}`, ruleSource: 'checkerboard',
-    cells: cr ? GRID_BUILD.checkerboard(cr, a, b) : buildCheckerboardCells(a, b),
-  }));
-  return dedupeComponents(out);
-}
+function ruleCheckerboard() { return familyRuleGallery('checkerboard'); }
 
-function ruleRowMirror() {
-  const cr = ruleCR();
-  const out = [0, 90, 180, 270].map(r => ({ id: `rowmirror-${r}`, ruleSource: 'rowmirror',
-    cells: cr ? GRID_BUILD.rowmirror(cr, r, 1.0) : buildRowMirrorCells(r, 1.0) }));
-  return dedupeComponents(out);
-}
+function ruleRowMirror() { return familyRuleGallery('rowmirror'); }
 
-function ruleColumnMirror() {
-  const cr = ruleCR();
-  const out = [0, 90, 180, 270].map(r => ({ id: `columnmirror-${r}`, ruleSource: 'columnmirror',
-    cells: cr ? GRID_BUILD.columnmirror(cr, r, 1.0) : buildColumnMirrorCells(r, 1.0) }));
-  return dedupeComponents(out);
-}
+function ruleColumnMirror() { return familyRuleGallery('columnmirror'); }
 
 // Radial needs a centre that falls between cells: an even × even grid (the
 // four quadrants each take one step of the clockwise walk TL,TR,BR,BL).
@@ -2951,17 +2933,7 @@ function radialEligible() {
   const d = crDims(cr);
   return d.cols % 2 === 0 && d.rows % 2 === 0 && d.cols * d.rows === cr.length;
 }
-function ruleRadial() {
-  const cr = ruleCR();
-  const out = [];
-  for (const tiled of crIsLarge(cr) ? [false, true] : [false]) {
-    for (const chirality of [1, -1]) for (const base of [0, 90, 180, 270]) {
-      const cells = cr ? GRID_BUILD.radial(cr, base, chirality, 1.0, tiled) : buildRadialCells(base, chirality, 1.0);
-      out.push({ id: `radial-${tiled ? 'tiled-' : ''}${base}-${chirality}`, ruleSource: 'radial', cells });
-    }
-  }
-  return dedupeComponents(out);
-}
+function ruleRadial() { return familyRuleGallery('radial'); }
 
 // Horizontal/vertical lines — unlike the 8 named rules above (all
 // hand-derived for exactly 4 cells, TL/TR/BL/BR), this reads N×M-general
@@ -2970,19 +2942,27 @@ function ruleRadial() {
 // Exhaustive/Manual — not gated by grid size. Same
 // Alternate/Ramp + Step shape as the Symbols tier's own Rows/Columns
 // rule (SYMBOL_RULES.rows/.columns below), just keyed on rotation only —
-// deterministic, one candidate per Generate, no enumeration needed.
+// deterministic, one candidate per Generate, no enumeration needed. When the
+// Scale axis is on, the same per-row/col key that alternates/ramps rotation
+// also cycles through the Small/Medium/Large values (scaleValues()) — off,
+// every cell stays at the untouched scale 1.0 (byte-identical to before this
+// axis existed). Rotation/Flip have no hook here (the angle is already
+// governed by Mode/Step, not by the axis checkboxes).
 function ruleLines(axis) {
   const grid = getGrid();
   const ctxs = componentCellColRow(grid);
   const mode = ctrl('sel-lines-mode').value;
   const step = parseInt(ctrl('rg-lines-step').value, 10) || 0;
+  const scaleOn = ctrl('chk-axis-scale').checked;
+  const sv = scaleValues();
   const cells = ctxs.map(ctx => {
     const key = axis === 'row' ? ctx.row : ctx.col;
     const rot = mode === 'ramp' ? snap90(step * key) : (key % 2 ? step : 0);
-    return stateFrom(((rot % 360) + 360) % 360, false, false, 1.0);
+    const scale = !scaleOn ? 1.0 : (mode === 'ramp' ? sv[key % sv.length] : sv[key % 2 ? 2 : 0]);
+    return stateFrom(((rot % 360) + 360) % 360, false, false, scale);
   });
   const ruleSource = axis === 'row' ? 'hlines' : 'vlines';
-  return [{ id: `${ruleSource}-${mode}-${step}`, ruleSource, cells }];
+  return [{ id: `${ruleSource}-${mode}-${step}-${scaleOn ? 's' : ''}`, ruleSource, cells }];
 }
 
 // Oscillator (Truchet) — byte-identical math to the Symbols tier's own
@@ -2991,7 +2971,9 @@ function ruleLines(axis) {
 // Components' own controls + componentCellColRow instead of Symbols'
 // cellColRow/state.symbolCells — N×M-general like ruleLines above, not
 // tied to a fixed Loom Bento import. Pair with SEED_TYPES.arctruchet
-// (step 01) for the reference look.
+// (step 01) for the reference look. Scale axis, same idea as ruleLines: the
+// phase-position key already driving rotation on/off also indexes into
+// Small/Medium/Large — off, scale stays 1.0 everywhere (byte-identical).
 function ruleOscillator() {
   const grid = getGrid();
   const ctxs = componentCellColRow(grid);
@@ -2999,13 +2981,16 @@ function ruleOscillator() {
   const shift = parseFloat(ctrl('rg-osc-shift').value);
   const period = parseInt(ctrl('rg-osc-period').value, 10) || 1;
   const phase = parseInt(ctrl('rg-osc-phase').value, 10);
+  const scaleOn = ctrl('chk-axis-scale').checked;
+  const sv = scaleValues();
   const cells = ctxs.map(ctx => {
     const raw = ctx.col + Math.floor(shift * ctx.row);
     const mod = ((raw % period) + period) % period;
     const phaseMod = ((phase % period) + period) % period;
-    return stateFrom(mod === phaseMod ? angle : 0, false, false, 1.0);
+    const scale = scaleOn ? sv[mod % sv.length] : 1.0;
+    return stateFrom(mod === phaseMod ? angle : 0, false, false, scale);
   });
-  return [{ id: `oscillator-${angle}-${shift}-${period}-${phase}`, ruleSource: 'oscillator', cells }];
+  return [{ id: `oscillator-${angle}-${shift}-${period}-${phase}-${scaleOn ? 's' : ''}`, ruleSource: 'oscillator', cells }];
 }
 
 // ── Family registry — Random/Exhaustive draw from here, on ANY grid (every
@@ -4039,6 +4024,24 @@ function syncRuleAvailability() {
   if (sel.value === 'exhaustive') syncExhaustiveHint();
 }
 
+// Which FAMILIES entry backs each standalone named rule, so the axis-note
+// below can read its requiresAxis/eligible directly — Lines/Oscillator/
+// Identity/Random/Exhaustive/Manual have no entry here (Lines/Oscillator only
+// take Scale, handled inline in ruleLines/ruleOscillator; the rest need no
+// note at all).
+const RULE_TO_FAMILY = { pinwheel: 'pinwheel', mirror: 'mirror', diagonal: 'diagonal', checkerboard: 'checkerboard', rowmirror: 'rowmirror', columnmirror: 'columnmirror', radial: 'radial' };
+const AXIS_LABEL = { rotation: 'Rotation', flip: 'Flip', scale: 'Scale' };
+function syncRuleAxisNote() {
+  const note = ctrl('rule-axis-note');
+  const famKey = RULE_TO_FAMILY[ctrl('sel-rule').value];
+  const fam = famKey && FAMILIES[famKey];
+  const satisfied = !fam || (axisSatisfied(fam.requiresAxis, activeAxes()) && (!fam.eligible || fam.eligible()));
+  if (satisfied) { note.style.display = 'none'; return; }
+  const label = fam.requiresAxis === 'any' ? 'an axis' : AXIS_LABEL[fam.requiresAxis];
+  note.textContent = `Needs ${label} active in Transform axes (above) — showing Identity until then.`;
+  note.style.display = '';
+}
+
 // ── Rule UI wiring ──
 function syncRuleUI() {
   const mode = ctrl('sel-rule').value;
@@ -4048,6 +4051,7 @@ function syncRuleUI() {
   ctrl('rule-exhaustive-block').style.display = mode === 'exhaustive' ? '' : 'none';
   ctrl('rule-manual-block').style.display = mode === 'manual' ? '' : 'none';
   ctrl('btn-generate').textContent = mode === 'manual' ? 'Add to gallery' : 'Generate';
+  syncRuleAxisNote();
   // Exhaustive-over-cap disables Generate; leaving that mode for any
   // other rule must re-enable it — previously only re-checked when
   // switching BACK INTO exhaustive, so Generate could stay permanently
@@ -7719,11 +7723,12 @@ const paperSwatch = Organica.palette.swatch('paper', {
   onChange: (hex) => { state.paperColor = hexKey(hex); renderGallery(); renderSeedPreview(); if (state.symbolGrid) renderSymbolCanvasOnly(); },
 });
 
-ctrl('chk-axis-rotation').addEventListener('change', syncExhaustiveHint);
-ctrl('chk-axis-flip').addEventListener('change', syncExhaustiveHint);
+ctrl('chk-axis-rotation').addEventListener('change', () => { syncExhaustiveHint(); syncRuleAxisNote(); });
+ctrl('chk-axis-flip').addEventListener('change', () => { syncExhaustiveHint(); syncRuleAxisNote(); });
 ctrl('chk-axis-scale').addEventListener('change', e => {
   ctrl('scale-values-block').style.display = e.target.checked ? '' : 'none';
   syncExhaustiveHint();
+  syncRuleAxisNote();
 });
 [['rg-scale-small', 'v-scale-small'], ['rg-scale-medium', 'v-scale-medium'], ['rg-scale-large', 'v-scale-large']].forEach(([rangeId, valId]) => {
   ctrl(rangeId).addEventListener('input', e => { ctrl(valId).textContent = e.target.value; syncExhaustiveHint(); });
