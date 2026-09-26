@@ -1743,7 +1743,7 @@
           <option value="none">Nothing (single figure)</option>
           <option value="tier1">Tier (trapezoid of 3)</option><option value="tier2">Tier ×2 (stepped)</option>
           <option value="tri2">Triangle 2 rows</option><option value="tri3">Triangle 3 rows</option><option value="tri4">Triangle 4 rows</option>
-          <option value="square2x2">Square 2×2</option><option value="square3x3">Square 3×3</option><option value="square4x4">Square 4×4</option><option value="square6x6">Square 6×6</option>
+          <option value="square2x2">Square 2×2</option><option value="square3x3">Square 3×3</option><option value="square4x4">Square 4×4</option><option value="square5x5">Square 5×5</option><option value="square6x6">Square 6×6</option><option value="square7x7">Square 7×7</option><option value="square8x8">Square 8×8</option><option value="square9x9">Square 9×9</option><option value="square10x10">Square 10×10</option><option value="square11x11">Square 11×11</option><option value="square12x12">Square 12×12</option>
         </select></div>
       <div class="ctrl-row" id="fg-row-comp2"><div class="ctrl-label">Then tile that as</div><select class="panel-select" id="fg-comp2" aria-label="Second composition"></select></div>
       <label class="check-row"><input type="checkbox" id="fg-altflip"><span>Alternate flip (checkerboard)</span></label>
@@ -4913,7 +4913,8 @@ function getFvsGrid() {
     const g = Organica.loadLoomGrid(triangleLoomModel(+type[3], Math.max(20, cfg.cellSize)));
     return { kind: 'loom', tri: true, cellShape: 'polygon', cells: g.cells, width: g.inner.width, height: g.inner.height };
   }
-  const n = type === 'square3x3' ? 3 : type === 'square4x4' ? 4 : type === 'square6x6' ? 6 : 2;
+  const m = /^square(\d+)/.exec(type);
+  const n = m ? +m[1] : 2;
   return { kind: 'square', cols: n, rows: n, cellSize: cfg.cellSize, gap: cfg.gap };
 }
 
@@ -5256,20 +5257,35 @@ const PX_PER_MM = 96 / 25.4;
 // [key, label, min, max, step, default] — or [key, label, 'text', default]. Everything
 // else comes from the generator's own registry defaults; gap is 0 so cells touch
 // (edge continuity needs neighbours that meet).
+// Every generator is bounded so its cell count lands in the same "Symbol" band —
+// above a maxed-out Component (4×4 = 16 cells) and below a Figure-scale canvas —
+// roughly 25-64 cells, i.e. what a 5×5 to 8×8 square grid produces. Two generators
+// (Fractal's exact 2^depth, and Figure's own hex-ring picker elsewhere) don't map
+// onto a literal 5-8 slider and get their own deliberately different-looking range
+// that still lands in the same cell-count band — see CLAUDE.md session note.
 const SYMGRID_GENS = {
-  rectangular: { label: 'Rectangular', params: [['colWeights', 'Column weights', 'text', '1,1,1'], ['rowWeights', 'Row weights', 'text', '1,1,1']] },
-  bento: { label: 'Bento', params: [['cols', 'Columns', 2, 12, 1, 4], ['rows', 'Rows', 2, 12, 1, 4], ['variety', 'Variety', 0, 1, 0.05, 0.5], ['seed', 'Seed', 0, 999, 1, 7]] },
-  sinusoidal: { label: 'Wave', params: [['cols', 'Columns', 2, 16, 1, 6], ['rows', 'Rows', 2, 16, 1, 4], ['amount', 'Amount', 0, 1, 0.05, 0.5], ['frequency', 'Frequency', 0.5, 6, 0.5, 2]] },
-  masonry: { label: 'Masonry', params: [['cols', 'Columns', 2, 10, 1, 4], ['seed', 'Seed', 0, 999, 1, 7]] },
-  hexagonal: { label: 'Hexagonal', params: [['cols', 'Columns', 2, 14, 1, 5]] },
-  triangular: { label: 'Triangular', params: [['cols', 'Columns', 2, 14, 1, 6]] },
-  diamond: { label: 'Diamond', params: [['cols', 'Columns', 2, 14, 1, 5]] },
-  circular: { label: 'Circular', params: [['cols', 'Columns', 2, 14, 1, 5]] },
-  radial: { label: 'Radial', params: [['rings', 'Rings', 1, 8, 1, 3], ['sectors', 'Sectors', 3, 24, 1, 8]] },
-  organic: { label: 'Organic (Voronoi)', params: [['points', 'Cells', 4, 60, 1, 16], ['iterations', 'Relax', 0, 8, 1, 4], ['seed', 'Seed', 0, 999, 1, 7]] },
-  fractal: { label: 'Fractal', params: [['depth', 'Depth', 1, 7, 1, 4], ['variance', 'Variance', 0, 0.5, 0.05, 0.2], ['seed', 'Seed', 0, 999, 1, 7]] },
-  spiral: { label: 'Spiral (golden)', params: [['count', 'Cells', 3, 16, 1, 8]] },
+  rectangular: { label: 'Rectangular', params: [['colWeights', 'Column weights', 'text', '1,1,1,1,1'], ['rowWeights', 'Row weights', 'text', '1,1,1,1,1']] },
+  bento: { label: 'Bento', params: [['cols', 'Columns', 5, 8, 1, 6], ['rows', 'Rows', 5, 8, 1, 6], ['variety', 'Variety', 0, 1, 0.05, 0.5], ['seed', 'Seed', 0, 999, 1, 7]] },
+  sinusoidal: { label: 'Wave', params: [['cols', 'Columns', 5, 8, 1, 6], ['rows', 'Rows', 5, 8, 1, 6], ['amount', 'Amount', 0, 1, 0.05, 0.5], ['frequency', 'Frequency', 0.5, 6, 0.5, 2]] },
+  masonry: { label: 'Masonry', params: [['cols', 'Columns', 5, 8, 1, 6], ['seed', 'Seed', 0, 999, 1, 7]] },
+  hexagonal: { label: 'Hexagonal', params: [['cols', 'Columns', 5, 8, 1, 6]] },
+  triangular: { label: 'Triangular', params: [['cols', 'Columns', 5, 8, 1, 6]] },
+  diamond: { label: 'Diamond', params: [['cols', 'Columns', 5, 8, 1, 6]] },
+  circular: { label: 'Circular', params: [['cols', 'Columns', 5, 8, 1, 6]] },
+  radial: { label: 'Radial', params: [['rings', 'Rings', 5, 8, 1, 6], ['sectors', 'Sectors', 5, 8, 1, 6]] },
+  organic: { label: 'Organic (Voronoi)', params: [['points', 'Cells', 25, 64, 1, 40], ['iterations', 'Relax', 0, 8, 1, 4], ['seed', 'Seed', 0, 999, 1, 7]] },
+  fractal: { label: 'Fractal', params: [['depth', 'Depth', 5, 6, 1, 5], ['variance', 'Variance', 0, 0.5, 0.05, 0.2], ['seed', 'Seed', 0, 999, 1, 7]] },
+  spiral: { label: 'Spiral (golden)', params: [['count', 'Cells', 25, 64, 1, 40]] },
 };
+// Rectangular has no cols/rows slider — column/row count is literally the number of
+// comma-separated weights typed in. Clamp the track COUNT (not the weight values) to
+// the same 5-8 band every other generator uses, padding/truncating as needed.
+function clampWeightTrackCount(str, min = 5, max = 8) {
+  let parts = String(str).split(',').map(s => s.trim()).filter(s => s !== '');
+  if (parts.length > max) parts = parts.slice(0, max);
+  while (parts.length < min) parts.push('1');
+  return parts.join(',');
+}
 let loomRegistryP = null;
 function loomRegistry() { return (loomRegistryP = loomRegistryP || import('/loom/js/generators/registry.js').then(m => m.GENERATORS)); }
 
@@ -5307,7 +5323,7 @@ function syncSymbolCanvasHint() {
 function renderSymgridParams() {
   const spec = SYMGRID_GENS[ctrl('sel-symgrid-gen').value];
   ctrl('symgrid-gen-params').innerHTML = spec.params.map(([k, label, a, b, step, def]) => a === 'text'
-    ? `<div class="ctrl-row"><div class="ctrl-label">${label}</div><input type="text" class="panel-input" id="symgen-${k}" value="${b}" aria-label="${label}"></div>`
+    ? `<div class="ctrl-row"><div class="ctrl-label">${label} <span class="hint">5–8 weights</span></div><input type="text" class="panel-input" id="symgen-${k}" value="${b}" aria-label="${label}"></div>`
     : `<div class="ctrl-row"><div class="ctrl-label">${label}</div><input type="range" id="symgen-${k}" min="${a}" max="${b}" step="${step}" value="${def}" aria-label="${label}"><span class="ctrl-val" id="v-symgen-${k}">${def}</span></div>`).join('');
   spec.params.forEach(([k, , a]) => { if (a !== 'text') ctrl('symgen-' + k).addEventListener('input', e => { ctrl('v-symgen-' + k).textContent = e.target.value; }); });
 }
@@ -5322,6 +5338,10 @@ async function symbolGridModel(genId, params, cv) {
   if (!G) throw new Error(`Unknown grid generator "${genId}".`);
   const m = Math.min(cv.W, cv.H) * (cv.margin / 100);
   const inner = { x: m, y: m, width: Math.max(1, cv.W - 2 * m), height: Math.max(1, cv.H - 2 * m) };
+  if (genId === 'rectangular') {
+    if (params.colWeights != null) params = { ...params, colWeights: clampWeightTrackCount(params.colWeights) };
+    if (params.rowWeights != null) params = { ...params, rowWeights: clampWeightTrackCount(params.rowWeights) };
+  }
   const full = { ...G.defaults, ...params, gap: 0 };
   const { grid, cells } = G.generate(full, inner);
   if (G.cellShape === 'polygon') grid.cellShape = 'polygon';
@@ -7501,13 +7521,14 @@ ctrl('file-loom-grid').addEventListener('change', e => {
 
 ctrl('btn-symbol-grid-bento').addEventListener('click', () => loadSymbolGrid(SYMBOL_GRID_PRESETS.bento));
 ctrl('btn-symbol-grid-hex').addEventListener('click', () => loadSymbolGrid(SYMBOL_GRID_PRESETS.hexagonal));
+// 5-8: above a maxed-out Component (4×4), capped below Figure scale — see CLAUDE.md session note.
 ['sel-symbol-square-cols', 'sel-symbol-square-rows'].forEach(id => {
   const sel = ctrl(id);
-  for (let n = 2; n <= 8; n++) sel.add(new Option(n, n, false, n === 2));
+  for (let n = 5; n <= 8; n++) sel.add(new Option(n, n, false, n === 5));
 });
 ctrl('btn-symbol-grid-square').addEventListener('click', () =>
   loadSymbolGrid(squareLoomModel(+ctrl('sel-symbol-square-cols').value, +ctrl('sel-symbol-square-rows').value)));
-for (let n = 2; n <= 8; n++) ctrl('sel-symbol-tri-n').add(new Option(n, n, false, n === 2));
+for (let n = 5; n <= 8; n++) ctrl('sel-symbol-tri-n').add(new Option(n, n, false, n === 5));
 ctrl('btn-symbol-grid-tri').addEventListener('click', () => loadSymbolGrid(triangleLoomModel(+ctrl('sel-symbol-tri-n').value)));
 ctrl('sel-symbol-loom-preset').addEventListener('change', e => {
   const v = e.target.value;
@@ -7783,6 +7804,13 @@ function validateFigureRecipe(def) {
   if (!lv.length || !['component', 'symbol'].includes(lv[0].kind)) throw new Error('The first level must be a component or a symbol');
   if (lv.slice(1).some(l => l.kind !== 'grid')) throw new Error('Every level after the first must be a grid');
   if (lv.length > 4) throw new Error('At most three grid levels');
+  // A transform is only ever applied by buildFvsGridSVG (the Grid step's own
+  // renderer) — with no grid level, runFigureRecipe silently never reaches that
+  // code path, so a mirror/rotate on a gridless figure would be a no-op the
+  // checks panel couldn't even detect. Reject it outright rather than accept a
+  // recipe whose own transform field lies about what gets rendered.
+  const tr = def.transform || {};
+  if (lv.length < 2 && ((tr.rotate && tr.rotate !== 0) || (tr.mirror && tr.mirror !== 'none'))) throw new Error('A transform (rotate/mirror) needs at least one Grid level to apply to');
   return lv;
 }
 // ── Symbol → Figure bridge ──
@@ -7902,7 +7930,12 @@ function runFigureRecipe(def, opts) {
   setTier(tier === 'grid' ? 'symbol' : tier);
   return tierSVG();
 }
-const FIGURE_MAX_SHAPES = 20000;
+// Raised from 20000 alongside the Symbol/Figure size ladder (Symbol now up to ~64
+// cells, Figure's Grid up to square12x12=144 tiles): a single properly-sized
+// Symbol × one Grid level × a mirror stays comfortably under this (64×144×4=36,864);
+// the most extreme chained combinations (two maxed grids stacked) still hit it, by
+// design — see CLAUDE.md session note.
+const FIGURE_MAX_SHAPES = 40000;
 // A finished Grid figure as the tile of the next level: its markup without the paper rect,
 // its frame, and the box it really draws in (set by the last buildFvsGridSVG()).
 function promoteFigureToTile(svg) {
@@ -7984,7 +8017,7 @@ const figureCatalog = () => {
   Object.entries(recursiveFigureRecipes()).forEach(([k, r]) => { cat[k] = r; });
   return cat;
 };
-const FG_LATTICE_OF = v => /^tier(\d)$/.test(v) ? { type: 'tier', stack: +v[4] } : /^tri(\d)$/.test(v) ? { type: 'triangle', rows: +v[3] } : { type: 'square', n: +v.match(/^square(\d)/)[1] };
+const FG_LATTICE_OF = v => /^tier(\d)$/.test(v) ? { type: 'tier', stack: +v[4] } : /^tri(\d)$/.test(v) ? { type: 'triangle', rows: +v[3] } : { type: 'square', n: +v.match(/^square(\d+)/)[1] };
 const FG_STR_OF = l => l.type === 'tier' ? 'tier' + l.stack : l.type === 'triangle' ? 'tri' + l.rows : `square${l.n}x${l.n}`;
 
 // The rules the Advanced form can express (and re-create itself); everything else is kept as it is.
@@ -8027,7 +8060,7 @@ function figureRecipeFromForm() {
     // rules painted on the canvas (single cells, switched-off, flips…) have no field in this form: keep them
     const cur = state.figureRecipe && state.figureRecipe.levels[0] && state.figureRecipe.levels[0].rules;
     (cur || []).filter(r => !isFormRule(r)).forEach(r => rules.push(JSON.parse(JSON.stringify(r))));
-    first = { kind: 'symbol', lattice: lat === 'triangle' ? { type: 'triangle', rows: +v('fg-n') } : lat === 'hexagon' ? { type: 'hexagon', rings: Math.min(5, +v('fg-n')) } : { type: 'square', cols: +v('fg-cols'), rows: +v('fg-n') },
+    first = { kind: 'symbol', lattice: lat === 'triangle' ? { type: 'triangle', rows: +v('fg-n') } : lat === 'hexagon' ? { type: 'hexagon', rings: +v('fg-n') } : { type: 'square', cols: +v('fg-cols'), rows: +v('fg-n') },
       fit: lat === 'triangle' ? 'fill' : 'contain', rules };
     if (ctrl('fg-liveseed').checked) first.seed = 'live';
   }
@@ -8040,16 +8073,24 @@ function figureRecipeFromForm() {
 }
 function figureFormFromRecipe(def) {
   const set = (id, val) => { const e = ctrl(id); e.value = String(val); };
+  // fg-n/fg-cols are populated with a recommended 5-8 (or 3-4 hex) range for fresh
+  // authoring (syncFgNOptions), but a loaded recipe — including the built-in catalog's
+  // own small triangle/hex lattices — may carry a value outside that range; inject a
+  // one-off option for it rather than silently clipping to whatever's already selected.
+  const setOrInject = (id, val) => { const e = ctrl(id), s = String(val); if (!e.querySelector(`option[value="${s}"]`)) e.add(new Option(s, s)); e.value = s; };
   const el = def.element, first = def.levels[0], g = def.levels[1], tr = def.transform || {};
   set('fg-seed', el.type); set('fg-style', el.style || 'fill'); set('fg-ink', hexKey((el.colors || ['#000000'])[0])); set('fg-paper', hexKey(el.paper || '#ffffff'));
   set('fg-up', 'filled'); set('fg-down', 'empty'); set('fg-emptyrows', ''); set('fg-odd', 'none'); ctrl('fg-liveseed').checked = first.seed === 'live';
   if (first.kind === 'component') { set('fg-lattice', 'component'); set('fg-comprule', first.rule || 'checkerboard'); }
   else if (isSealedSymbol(first)) set('fg-lattice', 'adopted');
   else {
-    set('fg-lattice', first.lattice.type); set('fg-n', first.lattice.type === 'triangle' ? first.lattice.rows : first.lattice.type === 'hexagon' ? first.lattice.rings : first.lattice.rows || first.lattice.cols);
+    set('fg-lattice', first.lattice.type);
+    syncFgNOptions();   // fg-n's option range depends on the lattice just set — repopulate before assigning its value
+    setOrInject('fg-n', first.lattice.type === 'triangle' ? first.lattice.rows : first.lattice.type === 'hexagon' ? first.lattice.rings : first.lattice.rows || first.lattice.cols);
     set('fg-hexturn', 'none'); ctrl('fg-hexcentre').checked = false;
-    if (first.lattice.type === 'square') set('fg-cols', first.lattice.cols);
+    if (first.lattice.type === 'square') setOrInject('fg-cols', first.lattice.cols);
     (first.rules || []).forEach(r => {
+      if (r.off) return;   // a switched-off rule must not read back as active on the form (isFormRule agrees: r.off => false)
       const w = r.when || {}, d = r.do || {};
       if (w.parity === 'odd' && d.rotate != null) set('fg-odd', d.rotate);
       else if (d.rotate === 'sector') set('fg-hexturn', 'sector');
@@ -8064,7 +8105,27 @@ function figureFormFromRecipe(def) {
   set('fg-rot', tr.rotate || 0); set('fg-mirror', tr.mirror || 'none');
   syncFigureFormUI();
 }
+// #fg-n's range depends on the lattice: hex rings grow ~1+3n(n-1) — confirmed against
+// hexLoomModel() directly (n=4→37, n=5→61 cells), not the 1+3n(n+1) estimate this
+// comment originally carried (off by one ring) — so it needs its own tighter band;
+// square rows and triangle rows share the flat 5-8 "Symbol" band every other picker
+// uses. See CLAUDE.md session note.
+function syncFgNOptions() {
+  const lat = ctrl('fg-lattice').value;
+  const [lo, hi] = lat === 'hexagon' ? [4, 5] : [5, 8];
+  const sel = ctrl('fg-n');
+  const prev = +sel.value;
+  sel.innerHTML = '';
+  for (let n = lo; n <= hi; n++) sel.add(new Option(n, n, false, n === prev));
+  // an existing value outside the recommended band (e.g. a loaded recipe's own small
+  // triangle/hex lattice — the built-in catalog uses rows/rings well under 5) is kept
+  // as a one-off extra option rather than silently clamped away; this call runs twice
+  // per recipe load (figureFormFromRecipe, then syncFigureFormUI at its own end) and
+  // must be idempotent either way.
+  if (prev && !(prev >= lo && prev <= hi)) sel.add(new Option(prev, prev, false, true));
+}
 function syncFigureFormUI() {
+  syncFgNOptions();
   const lat = ctrl('fg-lattice').value;
   ctrl('fg-row-n').style.display = lat === 'component' || lat === 'adopted' ? 'none' : '';
   ctrl('fg-row-cols').style.display = lat === 'square' ? '' : 'none';
@@ -8569,9 +8630,12 @@ const FG_SEED_MAIN = {
   blob: [['rg-blob-amount', 'Wobble'], ['rg-blob-seed', 'Variation']],
 };
 // A fresh first level: a Component block or a Symbol on a triangle / square / hexagon lattice.
+// Row/ring/col defaults match the Symbol size ladder's own lower bound (5 for
+// triangle/square, 4 rings for hexagon — hexLoomModel(4) = 37 cells, confirmed live;
+// Component stays its own 1-4 tier, untouched). See CLAUDE.md session note.
 function figureFirstLevelOf(v) {
   return v === 'component' ? { kind: 'component', grid: 'square2x2', rule: 'checkerboard', params: { a: 180, b: 0 } }
-    : { kind: 'symbol', lattice: v === 'triangle' ? { type: 'triangle', rows: 2 } : v === 'hexagon' ? { type: 'hexagon', rings: 2 } : { type: 'square', cols: 2, rows: 2 }, fit: v === 'triangle' ? 'fill' : 'contain', rules: [] };
+    : { kind: 'symbol', lattice: v === 'triangle' ? { type: 'triangle', rows: 5 } : v === 'hexagon' ? { type: 'hexagon', rings: 4 } : { type: 'square', cols: 5, rows: 5 }, fit: v === 'triangle' ? 'fill' : 'contain', rules: [] };
 }
 function figureThumb(label, svgInner, pressed, onClick, raw) {
   const b = document.createElement('button'); b.type = 'button'; b.className = 'fg-thumb'; b.title = label; b.setAttribute('aria-pressed', String(!!pressed));
@@ -8776,7 +8840,7 @@ function drawFigureRef(fm, rm) {
 (function initFigureTier() {
   const seedSel = ctrl('fg-seed');
   Object.keys(SEED_TYPES).filter(t => t !== 'freehand' && t !== 'custom' && t !== 'freehandraw').forEach(t => seedSel.add(new Option(SEED_TYPES[t].label, t, false, t === 'triangle')));
-  for (let n = 2; n <= 8; n++) { ctrl('fg-n').add(new Option(n, n, false, n === 2)); ctrl('fg-cols').add(new Option(n, n, false, n === 3)); }
+  for (let n = 5; n <= 8; n++) ctrl('fg-cols').add(new Option(n, n, false, n === 5));   // square-only, flat 5-8 band; fg-n is populated by syncFgNOptions()
   const cat = figureCatalog(), ps = ctrl('fg-preset');
   ps.add(new Option('— choose a figure —', ''));
   Object.keys(cat).forEach(k => ps.add(new Option(k, k)));
