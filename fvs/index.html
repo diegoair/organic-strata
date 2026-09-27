@@ -1260,6 +1260,7 @@
       <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-symbol-grid-outline"><span>Show loaded grid</span></label>
       <label class="check-row"><input type="checkbox" id="chk-symbol-clip" checked><span>Clip to cell</span></label>
       <label class="check-row"><input type="checkbox" id="chk-symbol-cover-preview"><span>Show cover crop</span></label>
+      <label class="check-row"><input type="checkbox" id="chk-symbol-track-guides" checked><span>Show column/row guides</span></label>
       <div class="ctrl-row" style="margin-top:var(--space-2)"><div class="ctrl-label">Fit (all cells)</div></div>
       <div class="row-btns">
         <button class="mini-btn" id="btn-symbol-fit-all-contain">Contain</button>
@@ -5489,7 +5490,19 @@ async function generateSymbolGridInCanvas() {
     if (!model.cells.length) throw new Error('No cells — make the canvas larger or lower the counts.');
     ctrl('symgrid-gen-error').style.display = 'none';
     loadSymbolGrid(model);
+    // A pool entry can go stale between visits (its Component renamed/deleted
+    // in the Component tier since) — renderSymbolPool() already self-heals
+    // state.symbolPool (poolEntries()) and its own "N in the pool" hint on
+    // every tier entry, but not here, so a stale-but-still-nonzero-looking
+    // pool used to silently skip arrangement and leave every cell on its
+    // plain Triangle placeholder (defaultSymbolCells(), loadSymbolGrid()
+    // above) with no visible explanation at all.
+    renderSymbolPool();
     if (poolEntries().length) { if (ctrl('sel-symbol-fill').value === 'suggest') runSuggest(false); else generateSymbolCells(); }
+    else {
+      ctrl('symgrid-gen-error').textContent = 'The grid built, but the Components pool is empty (a saved Component may have been renamed or deleted) — cells were left on a plain placeholder shape. Add Components to the pool below, then Arrange.';
+      ctrl('symgrid-gen-error').style.display = '';
+    }
   } catch (e) {
     ctrl('symgrid-gen-error').textContent = /unsatisfiable/i.test(e.message) ? 'The canvas is too small for this grid — enlarge it or reduce columns/rows.' : e.message;
     ctrl('symgrid-gen-error').style.display = '';
@@ -6531,7 +6544,13 @@ function applySymbolRule(opts) {
     // Content-level results (the Orientation rule): a hole, or a filled cell turned to face its lattice slot.
     if (t.empty != null) {
       if (t.empty) cell.source = 'empty';
-      else { if (cell.source !== 'seed') { cell.source = 'seed'; cell.seedType = cell.seedType || 'triangle'; } cell.fitMode = 'fill'; cell.rotation = t.turn || 0; }
+      // Only a genuinely empty cell needs a fresh default shape to become
+      // visible again — a cell that already holds a Component or a Seed
+      // keeps its own content; this used to force ANY non-'seed' cell
+      // (i.e. every Component cell) to a plain Triangle seed on every
+      // single run, silently discarding the Component reference each time
+      // the rule was re-applied.
+      else { if (cell.source === 'empty') { cell.source = 'seed'; cell.seedType = cell.seedType || 'triangle'; } cell.fitMode = 'fill'; cell.rotation = t.turn || 0; }
       return;
     }
     if (vary.rotation && t.rotation != null) cell.rotation = snap90(t.rotation);
@@ -6672,7 +6691,7 @@ function renderSymbolCanvasOnly() {
   let overlay = '';
   if (ctrl('chk-symbol-grid-outline').checked) overlay += buildGridOutlineSVG();
   overlay += buildSelectionOutlineSVG();
-  overlay += buildTrackHandlesSVG();
+  if (ctrl('chk-symbol-track-guides').checked) overlay += buildTrackHandlesSVG();
   if (trackDrag) overlay += buildOverflowOutlineSVG();
   if (ctrl('chk-symbol-cover-preview').checked) overlay += buildCoverCropPreviewSVG();
   if (state.symbolMarqueeRect) {
@@ -6804,6 +6823,7 @@ function buildTrackHandlesSVG() {
 function renderTrackLabelsOverlay() {
   const old = document.getElementById('sym-track-labels');
   if (old) old.remove();
+  if (!ctrl('chk-symbol-track-guides').checked) return;
   const g = symbolTrackGrid();
   if (!g) return;
   const frame = ctrl('symbol-frame'), svgEl = frame.querySelector('svg');
@@ -7872,6 +7892,7 @@ ctrl('sel-symbol-loom-preset').addEventListener('change', e => {
 });
 ctrl('chk-symbol-grid-outline').addEventListener('change', renderSymbolCanvasOnly);
 ctrl('chk-symbol-cover-preview').addEventListener('change', renderSymbolCanvasOnly);
+ctrl('chk-symbol-track-guides').addEventListener('change', renderSymbolCanvasOnly);
 ctrl('chk-symbol-clip').addEventListener('change', e => {
   state.symbolClipEnabled = e.target.checked;
   renderSymbolCanvasOnly();
