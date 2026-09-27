@@ -20,11 +20,12 @@
     /* color-scheme:light + the surface palette are shared defaults in
        tokens.css now. FVS keeps its own scrollable-gallery shell. */
     --tool: #3fa876;   /* identity colour — emerald, unclaimed hue gap between Komorebi's olive and Camo Turing's teal */
-    /* The same slate-blue Halide/Spore already use for their own UI chrome
-       (--tool there) — reused here, not as FVS's identity colour, but as a
-       neutral "you're dragging this" accent for the Symbol track handles,
-       independent of --tool/--danger which both mean something else already. */
-    --track-accent: #5a7a96;
+    /* The same blue FVS's own "Show loaded grid" outline already uses
+       (buildGridOutlineSVG, below) — checked: #3399ff is NOT a shared
+       tokens.css value, it's a hardcoded hex repeated as-is across FVS/
+       Loom/motion.js's own grid-overlay markup, so this reuses that exact
+       existing convention rather than introducing a new, different blue. */
+    --track-accent: #3399ff;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -6655,6 +6656,9 @@ function renderTrackLabelsOverlay() {
   const scale = Math.min(svgR.width / F.w, svgR.height / F.h);
   const offX = svgR.left - frameR.left + (svgR.width - F.w * scale) / 2;
   const offY = svgR.top - frameR.top + (svgR.height - F.h * scale) / 2;
+  // Gap between the label and the true canvas edge — --space-4 (10px), read
+  // live rather than hardcoded so it tracks the token if it ever changes.
+  const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--space-4')) || 10;
   const wrap = document.createElement('div');
   wrap.id = 'sym-track-labels';
   wrap.className = 'sym-track-labels';
@@ -6662,14 +6666,14 @@ function renderTrackLabelsOverlay() {
     const el = document.createElement('div');
     el.className = 'sym-track-label sym-track-label--col';
     el.style.left = (offX + F.X((band.start + band.end) / 2) * scale).toFixed(1) + 'px';
-    el.style.top = (offY - 4).toFixed(1) + 'px';
+    el.style.top = (offY - gap).toFixed(1) + 'px';
     el.textContent = band.pct + '%';
     wrap.appendChild(el);
   });
   trackBands('rows').forEach(band => {
     const el = document.createElement('div');
     el.className = 'sym-track-label sym-track-label--row';
-    el.style.left = (offX - 4).toFixed(1) + 'px';
+    el.style.left = (offX - gap).toFixed(1) + 'px';
     el.style.top = (offY + F.Y((band.start + band.end) / 2) * scale).toFixed(1) + 'px';
     el.textContent = band.pct + '%';
     wrap.appendChild(el);
