@@ -5187,9 +5187,13 @@ function exportFvsGrid(format) {
   img.src = url;
 }
 
+// A fresh grid starts with every cell empty — Symbol content is saved
+// Components only, and there's no sensible "generic" shape to default a
+// cell to (a triangle only makes sense on a triangular lattice). A cell
+// gets content from the pool/rule/manual pick, or stays a deliberate hole.
 function defaultSymbolCells(grid) {
   return resolveGridCells(grid).map((c, i) => ({
-    source: 'seed', seedType: 'triangle', rotation: 0, flipH: false, flipV: false, scale: 1, color: null,
+    source: 'empty', rotation: 0, flipH: false, flipV: false, scale: 1, color: null,
     fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false,
   }));
 }
@@ -6512,6 +6516,14 @@ function renderSymbolCanvasOnly() {
     return;
   }
   const count = resolveGridCells(grid).length;
+  // A Symbol is built from saved Components — with none in the library there's
+  // nothing to fill the grid with, so say so instead of building an empty one.
+  if (libraryNames(LIBRARY.read()).length === 0) {
+    frame.innerHTML = '<p style="color:var(--mid);font-size:var(--fs-small)">No saved Components yet — create a Component and save it first, then come back to build a Symbol.</p>';
+    ctrl('symbol-cellcount-hint').textContent = count + (count === 1 ? ' cell' : ' cells');
+    setStatus('', 'No saved Components yet');
+    return;
+  }
   ctrl('symbol-cellcount-hint').textContent = count + (count === 1 ? ' cell' : ' cells');
   let svg = buildSymbolSVG();
   let overlay = '';
