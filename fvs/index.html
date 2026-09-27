@@ -20,6 +20,11 @@
     /* color-scheme:light + the surface palette are shared defaults in
        tokens.css now. FVS keeps its own scrollable-gallery shell. */
     --tool: #3fa876;   /* identity colour — emerald, unclaimed hue gap between Komorebi's olive and Camo Turing's teal */
+    /* The same slate-blue Halide/Spore already use for their own UI chrome
+       (--tool there) — reused here, not as FVS's identity colour, but as a
+       neutral "you're dragging this" accent for the Symbol track handles,
+       independent of --tool/--danger which both mean something else already. */
+    --track-accent: #5a7a96;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -177,25 +182,29 @@
   .panel-step-head__desc { color: var(--mid); font-size: var(--fs-small); margin-top: var(--space-1); }
 
   /* The Symbol can be any proportion (its Canvas): the frame fills the stage and
-     the SVG fits inside it (viewBox, preserveAspectRatio meet), never overflowing. */
-  #symbol-frame { align-self: stretch; flex: 1; min-width: 0; min-height: 0; box-sizing: border-box; padding: var(--space-5); display: flex; align-items: center; justify-content: center; }
-  /* overflow: visible lets the track % labels sit outside the SVG's own
-     viewBox (in the frame's padding), instead of over the artwork. */
-  #symbol-frame svg { width: 100%; height: 100%; display: block; overflow: visible; }
+     the SVG fits inside it (viewBox, preserveAspectRatio meet), never overflowing.
+     position:relative anchors the track-% label overlay (a real HTML sibling,
+     not SVG text — see renderTrackLabelsOverlay). */
+  #symbol-frame { position: relative; align-self: stretch; flex: 1; min-width: 0; min-height: 0; box-sizing: border-box; padding: var(--space-5); display: flex; align-items: center; justify-content: center; }
+  #symbol-frame svg { width: 100%; height: 100%; display: block; }
   #symbol-frame svg [data-cell-index] { cursor: pointer; }
   /* Column / row borders of a rectangular grid — drag to resize (preview only, never exported). */
   #symbol-frame svg .sym-track__hit { fill: transparent; }
-  #symbol-frame svg .sym-track__line { stroke: var(--danger); stroke-opacity: 0.35; stroke-dasharray: 6 5; pointer-events: none; }
+  #symbol-frame svg .sym-track__line { stroke: var(--track-accent); stroke-opacity: 0.35; stroke-dasharray: 6 5; pointer-events: none; }
   #symbol-frame svg .sym-track:hover .sym-track__line, #symbol-frame svg .sym-track.is-dragging .sym-track__line { stroke-opacity: 1; stroke-dasharray: none; }
   #symbol-frame svg .sym-track[data-axis="cols"] { cursor: col-resize; }
   #symbol-frame svg .sym-track[data-axis="rows"] { cursor: row-resize; }
   #symbol-frame.is-resizing-cols, #symbol-frame.is-resizing-cols * { cursor: col-resize !important; }
   #symbol-frame.is-resizing-rows, #symbol-frame.is-resizing-rows * { cursor: row-resize !important; }
-  /* Live % share of each column/row track, outside the canvas — same type
-     ramp the panel's own numeric readouts use (.ctrl-val: --t-value-size/
-     -weight, tabular figures), just scaled up from its 9px/300 token values
-     to stay legible at the canvas's own (variable) render size. */
-  #symbol-frame svg .sym-track-label { fill: var(--danger); font-family: var(--font); font-weight: var(--w-light); font-variant-numeric: tabular-nums; pointer-events: none; }
+  /* Live % share of each column/row track, positioned in real screen px
+     (see renderTrackLabelsOverlay) so it lands outside the canvas regardless
+     of the frame's own proportions — same numeric-readout type the panel's
+     own .ctrl-val uses, at its real token size/weight (no canvas-size
+     scaling needed now that this is a real HTML element, not SVG text). */
+  .sym-track-labels { position: absolute; inset: 0; pointer-events: none; }
+  .sym-track-label { position: absolute; font-family: var(--font); font-size: var(--fs-micro); font-weight: var(--w-light); font-variant-numeric: tabular-nums; color: var(--track-accent); white-space: nowrap; }
+  .sym-track-label--col { transform: translate(-50%, -100%); }
+  .sym-track-label--row { transform: translate(-100%, -50%); }
   .fvs-sympool { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); margin-bottom: var(--space-2); }
   .fvs-sympool:empty { display: none; }
   .fvs-sympool__item { position: relative; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-1); background: var(--paper); }
@@ -6514,6 +6523,7 @@ function renderSymbolCanvasOnly() {
   }
   if (overlay) svg = svg.replace('</svg>', overlay + '</svg>');
   frame.innerHTML = svg;
+  renderTrackLabelsOverlay();
   setStatus('active', `Symbol · ${count} cells`);
 }
 
@@ -6608,7 +6618,6 @@ function buildTrackHandlesSVG() {
   if (!g) return '';
   const grid = getSymbolGrid(), F = symbolFrame(grid);
   const hitW = Math.max(6, 0.012 * Math.max(F.w, F.h)), lw = Math.max(1, 0.002 * Math.max(F.w, F.h));
-  const fs = Math.max(10, 0.02 * Math.max(F.w, F.h));   // scaled-up --fs-small (10px @ 1:1)
   const x0 = F.X(g.inner.x), x1 = F.X(g.inner.x + g.inner.width), y0 = F.Y(g.inner.y), y1 = F.Y(g.inner.y + g.inner.height);
   let s = '';
   trackBorders('cols').forEach((b, i) => {
@@ -6619,19 +6628,53 @@ function buildTrackHandlesSVG() {
     const y = F.Y(b);
     s += `<g class="sym-track${trackDrag && trackDrag.axis === 'rows' && trackDrag.i === i ? ' is-dragging' : ''}" data-axis="rows" data-track="${i}"><rect class="sym-track__hit" x="${x0.toFixed(2)}" y="${(y - hitW / 2).toFixed(2)}" width="${(x1 - x0).toFixed(2)}" height="${hitW.toFixed(2)}"/><line class="sym-track__line" x1="${x0.toFixed(2)}" y1="${y.toFixed(2)}" x2="${x1.toFixed(2)}" y2="${y.toFixed(2)}" stroke-width="${lw}"/></g>`;
   });
-  // % labels — one above each column, one left of each row, OUTSIDE the
-  // canvas itself (negative user-space coordinates past the grid's own top/
-  // left edge). The svg's own `overflow: visible` (see CSS) lets these render
-  // into the frame's padding instead of being clipped by the viewBox.
+  return s;
+}
+// % labels — one above each column, one left of each row, genuinely OUTSIDE
+// the canvas. These are real HTML elements (a sibling overlay div, not SVG
+// <text>), because "outside" has to survive the SVG's own preserveAspectRatio
+// letterboxing: the viewBox (F.w × F.h, always the canvas's own square/
+// rectangle) rarely matches #symbol-frame's own box exactly, so the browser
+// centres it inside with extra space on one axis — a fixed SVG-user-space
+// offset cleared the constrained axis fine but fell well short on the
+// letterboxed one (a small negative x still landed inside the visible
+// canvas whenever the frame was wider than the canvas itself). Measuring the
+// SVG's REAL rendered rect after it's in the DOM and mapping through that
+// gives the correct answer regardless of the frame's own proportions, and
+// lets the labels use real design-system tokens directly (--fs-micro,
+// --w-light) instead of a canvas-size-scaled approximation.
+function renderTrackLabelsOverlay() {
+  const old = document.getElementById('sym-track-labels');
+  if (old) old.remove();
+  const g = symbolTrackGrid();
+  if (!g) return;
+  const frame = ctrl('symbol-frame'), svgEl = frame.querySelector('svg');
+  if (!svgEl) return;
+  const grid = getSymbolGrid(), F = symbolFrame(grid);
+  const svgR = svgEl.getBoundingClientRect(), frameR = frame.getBoundingClientRect();
+  const scale = Math.min(svgR.width / F.w, svgR.height / F.h);
+  const offX = svgR.left - frameR.left + (svgR.width - F.w * scale) / 2;
+  const offY = svgR.top - frameR.top + (svgR.height - F.h * scale) / 2;
+  const wrap = document.createElement('div');
+  wrap.id = 'sym-track-labels';
+  wrap.className = 'sym-track-labels';
   trackBands('cols').forEach(band => {
-    const cx = F.X((band.start + band.end) / 2), ty = y0 - fs * 0.7;
-    s += `<text class="sym-track-label" x="${cx.toFixed(2)}" y="${ty.toFixed(2)}" font-size="${fs.toFixed(2)}" text-anchor="middle">${band.pct}%</text>`;
+    const el = document.createElement('div');
+    el.className = 'sym-track-label sym-track-label--col';
+    el.style.left = (offX + F.X((band.start + band.end) / 2) * scale).toFixed(1) + 'px';
+    el.style.top = (offY - 4).toFixed(1) + 'px';
+    el.textContent = band.pct + '%';
+    wrap.appendChild(el);
   });
   trackBands('rows').forEach(band => {
-    const cy = F.Y((band.start + band.end) / 2), tx = x0 - fs * 0.5;
-    s += `<text class="sym-track-label" x="${tx.toFixed(2)}" y="${cy.toFixed(2)}" font-size="${fs.toFixed(2)}" text-anchor="end" dominant-baseline="middle">${band.pct}%</text>`;
+    const el = document.createElement('div');
+    el.className = 'sym-track-label sym-track-label--row';
+    el.style.left = (offX - 4).toFixed(1) + 'px';
+    el.style.top = (offY + F.Y((band.start + band.end) / 2) * scale).toFixed(1) + 'px';
+    el.textContent = band.pct + '%';
+    wrap.appendChild(el);
   });
-  return s;
+  frame.appendChild(wrap);
 }
 // sizes → the weights text the Rectangular generator reads ("1.25,0.75,1"), mean 1
 function tracksToWeights(sizes) {
@@ -7702,6 +7745,12 @@ ctrl('symbol-rule-block').addEventListener('change', scheduleRuleApply);
 // selected (state.symbolSelection), written via applyToSelection(). ──
 bindSymbolCanvasSelection();
 bindSymbolTrackDrag();
+// The track-% overlay is real HTML positioned in screen px (see
+// renderTrackLabelsOverlay) — unlike the SVG content it sits over, it does
+// not rescale itself when the frame's own box changes size, so a plain
+// window resize needs its own reposition pass, cheap enough to run on every
+// frame of it.
+new ResizeObserver(() => { if (state.symbolGrid) renderTrackLabelsOverlay(); }).observe(ctrl('symbol-frame'));
 buildAnchorGrid();
 ctrl('btn-cellprop-choose').addEventListener('click', openCellContentOverlay);
 ctrl('btn-rule-choose-content').addEventListener('click', openCellContentOverlayForAll);
