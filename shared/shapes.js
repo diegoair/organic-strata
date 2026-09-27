@@ -1260,6 +1260,10 @@
       let scaleX, scaleY;
       if (cell.fitMode === 'fill') { scaleX = (effW / natural.w) * scale; scaleY = (effH / natural.h) * scale; }
       else if (cell.fitMode === 'fixed') scaleX = scaleY = (cell.fixedSize || 100) / Math.max(natural.w, natural.h);
+      else if (cell.fitMode === 'cover') {
+        const rw = effW / natural.w, rh = effH / natural.h;
+        scaleX = scaleY = (cell.coverAxis === 'x' ? rw : cell.coverAxis === 'y' ? rh : Math.max(rw, rh)) * scale;
+      }
       else scaleX = scaleY = Math.min(effW / natural.w, effH / natural.h) * scale;
       const itemW = natural.w * scaleX, itemH = natural.h * scaleY;
       const ax = cell.anchorX || 0, ay = cell.anchorY || 0;
@@ -1274,6 +1278,9 @@
       scaleY = (effH / natural) * scale;
     } else if (cell.fitMode === 'fixed') {
       scaleX = scaleY = (cell.fixedSize || 100) / natural;
+    } else if (cell.fitMode === 'cover') {
+      const rw = effW / natural, rh = effH / natural;
+      scaleX = scaleY = (cell.coverAxis === 'x' ? rw : cell.coverAxis === 'y' ? rh : Math.max(rw, rh)) * scale;
     } else {
       scaleX = scaleY = (Math.min(effW, effH) / natural) * scale;
     }
