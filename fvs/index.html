@@ -179,16 +179,23 @@
   /* The Symbol can be any proportion (its Canvas): the frame fills the stage and
      the SVG fits inside it (viewBox, preserveAspectRatio meet), never overflowing. */
   #symbol-frame { align-self: stretch; flex: 1; min-width: 0; min-height: 0; box-sizing: border-box; padding: var(--space-5); display: flex; align-items: center; justify-content: center; }
-  #symbol-frame svg { width: 100%; height: 100%; display: block; }
+  /* overflow: visible lets the track % labels sit outside the SVG's own
+     viewBox (in the frame's padding), instead of over the artwork. */
+  #symbol-frame svg { width: 100%; height: 100%; display: block; overflow: visible; }
   #symbol-frame svg [data-cell-index] { cursor: pointer; }
   /* Column / row borders of a rectangular grid — drag to resize (preview only, never exported). */
   #symbol-frame svg .sym-track__hit { fill: transparent; }
-  #symbol-frame svg .sym-track__line { stroke: var(--tool); stroke-opacity: 0.35; stroke-dasharray: 6 5; pointer-events: none; }
+  #symbol-frame svg .sym-track__line { stroke: var(--danger); stroke-opacity: 0.35; stroke-dasharray: 6 5; pointer-events: none; }
   #symbol-frame svg .sym-track:hover .sym-track__line, #symbol-frame svg .sym-track.is-dragging .sym-track__line { stroke-opacity: 1; stroke-dasharray: none; }
   #symbol-frame svg .sym-track[data-axis="cols"] { cursor: col-resize; }
   #symbol-frame svg .sym-track[data-axis="rows"] { cursor: row-resize; }
   #symbol-frame.is-resizing-cols, #symbol-frame.is-resizing-cols * { cursor: col-resize !important; }
   #symbol-frame.is-resizing-rows, #symbol-frame.is-resizing-rows * { cursor: row-resize !important; }
+  /* Live % share of each column/row track, outside the canvas — same type
+     ramp the panel's own numeric readouts use (.ctrl-val: --t-value-size/
+     -weight, tabular figures), just scaled up from its 9px/300 token values
+     to stay legible at the canvas's own (variable) render size. */
+  #symbol-frame svg .sym-track-label { fill: var(--danger); font-family: var(--font); font-weight: var(--w-light); font-variant-numeric: tabular-nums; pointer-events: none; }
   .fvs-sympool { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); margin-bottom: var(--space-2); }
   .fvs-sympool:empty { display: none; }
   .fvs-sympool__item { position: relative; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-1); background: var(--paper); }
@@ -5327,7 +5334,13 @@ const PX_PER_MM = 96 / 25.4;
 // onto a literal 5-8 slider and get their own deliberately different-looking range
 // that still lands in the same cell-count band — see CLAUDE.md session note.
 const SYMGRID_GENS = {
-  rectangular: { label: 'Rectangular', params: [['colWeights', 'Column weights', 'text', '1,1,1,1,1'], ['rowWeights', 'Row weights', 'text', '1,1,1,1,1']] },
+  // Columns/Rows just pick the track COUNT (equal-width to start, same slider
+  // shape as every other generator) — uneven weights are set afterward by
+  // dragging the borders directly on the canvas, where a live % label above
+  // each column / beside each row shows the current share. A free-text
+  // "1,1,1,1,1" field asked the user to hand-author that string blind; this
+  // doesn't, and it's the same generate-then-drag workflow Loom itself uses.
+  rectangular: { label: 'Rectangular', params: [['cols', 'Columns', 5, 8, 1, 6], ['rows', 'Rows', 5, 8, 1, 6]] },
   bento: { label: 'Bento', params: [['cols', 'Columns', 5, 8, 1, 6], ['rows', 'Rows', 5, 8, 1, 6], ['variety', 'Variety', 0, 1, 0.05, 0.5], ['seed', 'Seed', 0, 999, 1, 7]] },
   sinusoidal: { label: 'Wave', params: [['cols', 'Columns', 5, 8, 1, 6], ['rows', 'Rows', 5, 8, 1, 6], ['amount', 'Amount', 0, 1, 0.05, 0.5], ['frequency', 'Frequency', 0.5, 6, 0.5, 2]] },
   masonry: { label: 'Masonry', params: [['cols', 'Columns', 5, 8, 1, 6], ['seed', 'Seed', 0, 999, 1, 7]] },
@@ -5402,6 +5415,13 @@ async function symbolGridModel(genId, params, cv) {
   const m = Math.min(cv.W, cv.H) * (cv.margin / 100);
   const inner = { x: m, y: m, width: Math.max(1, cv.W - 2 * m), height: Math.max(1, cv.H - 2 * m) };
   if (genId === 'rectangular') {
+    // New UI path: cols/rows are just a track COUNT → equal starting weights
+    // (uneven ones come from dragging borders afterward). Old path, still
+    // supported for saved recipes / the regression suite: a literal
+    // colWeights/rowWeights string, clamped to the same 5–8 track band.
+    const equalWeights = n => Array.from({ length: Math.max(1, Math.round(n)) }, () => '1').join(',');
+    if (params.cols != null) params = { ...params, colWeights: equalWeights(params.cols) };
+    if (params.rows != null) params = { ...params, rowWeights: equalWeights(params.rows) };
     if (params.colWeights != null) params = { ...params, colWeights: clampWeightTrackCount(params.colWeights) };
     if (params.rowWeights != null) params = { ...params, rowWeights: clampWeightTrackCount(params.rowWeights) };
   }
@@ -6567,11 +6587,28 @@ function trackBorders(axis) {
   for (let i = 0; i < sizes.length - 1; i++) { acc += sizes[i] + gap; out.push(acc - gap / 2); }
   return out;
 }
+// Every track's own band (start/end in raw coords) + its % share of the axis
+// total — the live readout drawn above each column / beside each row so a
+// drag has real feedback instead of a blind border.
+function trackBands(axis) {
+  const g = symbolTrackGrid();
+  if (!g) return [];
+  const sizes = g.grid.tracks[axis], gap = g.grid.gap || 0, start = axis === 'cols' ? g.inner.x : g.inner.y;
+  const total = sizes.reduce((a, b) => a + b, 0);
+  const out = [];
+  let acc = start;
+  for (let i = 0; i < sizes.length; i++) {
+    out.push({ start: acc, end: acc + sizes[i], pct: Math.round(sizes[i] / total * 100) });
+    acc += sizes[i] + gap;
+  }
+  return out;
+}
 function buildTrackHandlesSVG() {
   const g = symbolTrackGrid();
   if (!g) return '';
   const grid = getSymbolGrid(), F = symbolFrame(grid);
   const hitW = Math.max(6, 0.012 * Math.max(F.w, F.h)), lw = Math.max(1, 0.002 * Math.max(F.w, F.h));
+  const fs = Math.max(10, 0.02 * Math.max(F.w, F.h));   // scaled-up --fs-small (10px @ 1:1)
   const x0 = F.X(g.inner.x), x1 = F.X(g.inner.x + g.inner.width), y0 = F.Y(g.inner.y), y1 = F.Y(g.inner.y + g.inner.height);
   let s = '';
   trackBorders('cols').forEach((b, i) => {
@@ -6581,6 +6618,18 @@ function buildTrackHandlesSVG() {
   trackBorders('rows').forEach((b, i) => {
     const y = F.Y(b);
     s += `<g class="sym-track${trackDrag && trackDrag.axis === 'rows' && trackDrag.i === i ? ' is-dragging' : ''}" data-axis="rows" data-track="${i}"><rect class="sym-track__hit" x="${x0.toFixed(2)}" y="${(y - hitW / 2).toFixed(2)}" width="${(x1 - x0).toFixed(2)}" height="${hitW.toFixed(2)}"/><line class="sym-track__line" x1="${x0.toFixed(2)}" y1="${y.toFixed(2)}" x2="${x1.toFixed(2)}" y2="${y.toFixed(2)}" stroke-width="${lw}"/></g>`;
+  });
+  // % labels — one above each column, one left of each row, OUTSIDE the
+  // canvas itself (negative user-space coordinates past the grid's own top/
+  // left edge). The svg's own `overflow: visible` (see CSS) lets these render
+  // into the frame's padding instead of being clipped by the viewBox.
+  trackBands('cols').forEach(band => {
+    const cx = F.X((band.start + band.end) / 2), ty = y0 - fs * 0.7;
+    s += `<text class="sym-track-label" x="${cx.toFixed(2)}" y="${ty.toFixed(2)}" font-size="${fs.toFixed(2)}" text-anchor="middle">${band.pct}%</text>`;
+  });
+  trackBands('rows').forEach(band => {
+    const cy = F.Y((band.start + band.end) / 2), tx = x0 - fs * 0.5;
+    s += `<text class="sym-track-label" x="${tx.toFixed(2)}" y="${cy.toFixed(2)}" font-size="${fs.toFixed(2)}" text-anchor="end" dominant-baseline="middle">${band.pct}%</text>`;
   });
   return s;
 }
