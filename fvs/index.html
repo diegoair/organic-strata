@@ -1259,6 +1259,19 @@
       <div id="symbol-grid-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-symbol-grid-outline"><span>Show loaded grid</span></label>
       <label class="check-row"><input type="checkbox" id="chk-symbol-clip" checked><span>Clip to cell</span></label>
+      <label class="check-row"><input type="checkbox" id="chk-symbol-cover-preview"><span>Show cover crop</span></label>
+      <div class="ctrl-row" style="margin-top:var(--space-2)"><div class="ctrl-label">Fit (all cells)</div></div>
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-symbol-fit-all-contain">Contain</button>
+        <button class="mini-btn" id="btn-symbol-fit-all-fill">Fill</button>
+      </div>
+      <div class="row-btns" style="margin-top:var(--space-2)">
+        <button class="mini-btn" id="btn-symbol-fit-all-cover">Cover</button>
+        <button class="mini-btn" id="btn-symbol-fit-all-fixed">Fixed</button>
+      </div>
+      <p class="org-panel__hint">Sets the fit mode for every cell in the grid at once — Contain keeps proportions (may leave gaps), Fill stretches to match the cell (no gaps, distorts), Cover scales to fully cover the cell with no gaps and no distortion (crops the overflow — pair with Clip to cell), Fixed keeps a constant size (may overflow a shrunken cell). Edit a single cell's own Fit afterward in Manual → Cell properties to override it.</p>
+      <div class="ctrl-row" style="margin-top:var(--space-2)"><div class="ctrl-label">Anchor (all cells)</div></div>
+      <div id="symbol-fitall-anchor-grid" class="symbol-anchor-grid" role="group" aria-label="Anchor position for every cell"></div>
     </div>
     </div>
 
@@ -1619,7 +1632,7 @@
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label">Fit</div>
-          <select class="panel-select" id="sel-sym-arrange-fit" aria-label="Fit in cell"><option value="fill">Fill the cell</option><option value="contain">Contain</option></select>
+          <select class="panel-select" id="sel-sym-arrange-fit" aria-label="Fit in cell"><option value="fill">Fill the cell</option><option value="contain">Contain</option><option value="cover">Cover (no gaps)</option></select>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label">Seed</div>
@@ -1659,7 +1672,16 @@
             <select class="panel-select" id="sel-cellprop-fit">
               <option value="contain">Contain</option>
               <option value="fill">Fill</option>
+              <option value="cover">Cover (no gaps)</option>
               <option value="fixed">Fixed size</option>
+            </select>
+          </div>
+          <div class="ctrl-row" id="row-cellprop-coveraxis" style="display:none">
+            <div class="ctrl-label">Cover axis</div>
+            <select class="panel-select" id="sel-cellprop-coveraxis">
+              <option value="auto">Auto (no gaps)</option>
+              <option value="x">Lock to width</option>
+              <option value="y">Lock to height</option>
             </select>
           </div>
           <div class="ctrl-row" id="row-cellprop-overflow" style="display:none">
@@ -1810,6 +1832,12 @@
       <button class="icon-btn" id="btn-content-overlay-close" aria-label="Close">
         <svg viewBox="0 0 16 16" width="11" height="11"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
       </button>
+    </div>
+    <div class="ctrl-row"><div class="ctrl-label">New content fit</div>
+      <div class="seg-ctrl" id="seg-content-fit" role="group" aria-label="Fit for newly chosen content">
+        <button type="button" class="seg-btn active" data-fit="fill" aria-pressed="true">Fill</button>
+        <button type="button" class="seg-btn" data-fit="cover" aria-pressed="false">Cover</button>
+      </div>
     </div>
     <div class="seg-ctrl" id="seg-content-filter" role="group" aria-label="Show">
       <button type="button" class="seg-btn active" data-filter="all" aria-pressed="true">All</button>
@@ -4233,22 +4261,17 @@ function signaturesMatch(a, b) {
   return (diff / a.length) <= VISUAL_MATCH_TOLERANCE;
 }
 function populateComponentStarterGallery() {
-  const grid = getGrid(), seed = getSeed(), size = frameDims(grid);
-  const seenVisuals = [];
+  // No longer hides look-alikes by default — this runs automatically the
+  // moment you land on the Component step, with no user action and no way
+  // to see what (if anything) got filtered out (unlike generate(), whose own
+  // dedupe is explicit and always surfaced via #gallery-status). Every
+  // candidate up to the per-rule cap is shown now.
   const picks = [];
   for (const r of COMPONENT_STARTER_RULES) {
     if (r.eligible && !r.eligible()) continue;
     const out = r.fn();
     if (!out || !out.length) continue;
-    let taken = 0;
-    for (const comp of out) {
-      if (taken >= STARTER_VARIANTS_PER_RULE) break;
-      const sig = componentVisualSignature(comp, grid, seed, size);
-      if (seenVisuals.some(s => signaturesMatch(s, sig))) continue;   // paints (near-)identically to a candidate already picked — skip, don't show two look-alike tiles
-      seenVisuals.push(sig);
-      picks.push(comp);
-      taken++;
-    }
+    for (const comp of out.slice(0, STARTER_VARIANTS_PER_RULE)) picks.push(comp);
   }
   state.components = picks;
   // selectedId still defaults to the first candidate — Save/Tile/Export etc.
@@ -5449,6 +5472,18 @@ async function symbolGridModel(genId, params, cv) {
 }
 async function generateSymbolGridInCanvas() {
   const id = ctrl('sel-symgrid-gen').value;
+  // A Symbol is built from saved Components only (Arrange picks from
+  // state.symbolPool, which only ever holds names that resolve in LIBRARY) —
+  // with nothing saved yet there is nothing to fill the grid with, so don't
+  // build one at all. Centred canvas message, same "Pick a grid to begin."
+  // pattern renderSymbolCanvasOnly() already uses for the no-grid state.
+  if (!libraryNames(LIBRARY.read()).length) {
+    ctrl('symgrid-gen-error').style.display = 'none';
+    ctrl('symbol-frame').innerHTML = '<p style="color:var(--mid);font-size:var(--fs-small)">No component saved.<br>Build one in the Component tier first.</p>';
+    ctrl('symbol-cellcount-hint').textContent = '0 cells';
+    setStatus('', 'No saved Components');
+    return;
+  }
   try {
     const model = await symbolGridModel(id, readSymgridParams(id), readSymbolCanvas());
     if (!model.cells.length) throw new Error('No cells — make the canvas larger or lower the counts.');
@@ -5469,6 +5504,54 @@ ctrl('sel-symgrid-gen').value = 'bento';
 renderSymgridParams();
 ctrl('sel-symgrid-gen').addEventListener('change', () => { ctrl('symgrid-gen-error').style.display = 'none'; renderSymgridParams(); });
 ctrl('btn-symgrid-generate').addEventListener('click', generateSymbolGridInCanvas);
+// Mirrors Trellis's refCellSize() (trellis/index.html) — a sensible starting
+// size for newly-"Fixed" content, so switching TO fixed doesn't leave every
+// cell's content looking randomly sized. getSymbolGrid(), not state.symbolGrid
+// directly — resolveGridCells() expects the resolved {cells,cellShape,...}
+// shape getSymbolGrid() returns, same as cellOverflowInfo() already does.
+function symbolMedianCellSize() {
+  const grid = getSymbolGrid();
+  if (!grid) return 100;
+  const cells = resolveGridCells(grid);
+  return cells.length ? Math.round(median(cells.map(c => Math.min(c.cellW, c.cellH)))) || 100 : 100;
+}
+function applyFitToAllCells(fitMode) {
+  if (!state.symbolGrid) return;
+  const fixedSize = fitMode === 'fixed' ? symbolMedianCellSize() : undefined;
+  applyToAllCells(cell => {
+    const patch = { fitMode };
+    if (fitMode === 'fixed') patch.fixedSize = fixedSize;
+    if (fitMode === 'cover') patch.coverAxis = 'auto';   // fresh bulk Cover always starts from the safe, guaranteed-no-gaps baseline
+    return patch;
+  });
+  // applyToAllCells() only re-renders the canvas — the docked Cell properties
+  // panel (if a cell is selected) has its own #sel-cellprop-fit readout that
+  // would otherwise go stale, same reason every other applyToSelection() call
+  // site pairs it with an explicit re-sync.
+  if (state.symbolSelection.size) renderCellPropertiesPanel();
+}
+['contain', 'fill', 'cover', 'fixed'].forEach(fit =>
+  ctrl('btn-symbol-fit-all-' + fit).addEventListener('click', () => applyFitToAllCells(fit)));
+// Bulk anchor: which part of a cropped/overflowing cell's content shows —
+// meaningful for Cover (which part gets kept) and Fixed (which part
+// overflows) alike, independent of the Fit buttons above. Reuses the exact
+// anchor-grid component already built for Cell Properties (ANCHOR_POSITIONS,
+// .symbol-anchor-grid/.symbol-anchor-btn CSS) — no active-state tracking,
+// same one-shot-action choice already made for the Fit buttons (cells can
+// end up with mixed anchors after this, same as they can with mixed fits).
+function applyAnchorToAllCells(ax, ay) {
+  if (!state.symbolGrid) return;
+  applyToAllCells({ anchorX: ax, anchorY: ay });
+  if (state.symbolSelection.size) renderCellPropertiesPanel();
+}
+function buildFitAllAnchorGrid() {
+  const wrap = ctrl('symbol-fitall-anchor-grid');
+  wrap.innerHTML = ANCHOR_POSITIONS.map(([ax, ay]) =>
+    `<button type="button" class="symbol-anchor-btn" data-ax="${ax}" data-ay="${ay}" aria-label="Anchor all cells ${ax < 0 ? 'left' : ax > 0 ? 'right' : 'center'} ${ay < 0 ? 'top' : ay > 0 ? 'bottom' : 'middle'}"><span></span></button>`
+  ).join('');
+  wrap.querySelectorAll('.symbol-anchor-btn').forEach(btn => btn.addEventListener('click', () =>
+    applyAnchorToAllCells(parseInt(btn.dataset.ax, 10), parseInt(btn.dataset.ay, 10))));
+}
 ctrl('sel-symcanvas-preset').addEventListener('change', () => {
   const p = SYMCANVAS_PRESETS[ctrl('sel-symcanvas-preset').value];
   if (!p) return;
@@ -5581,11 +5664,25 @@ function buildSymbolItems() {
 // computed for real placement — an axis-aligned-footprint check, same
 // disclosed approximation symbolCellBounds() already uses for hex/polygon
 // cells elsewhere in this feature (rotation isn't accounted for precisely).
-function cellOverflowInfo(index) {
+function cellOverflowInfo(index, resolvedCells) {
   const grid = getSymbolGrid();
   const cell = state.symbolCells[index];
   if (!grid || !cell) return false;
-  const c = resolveGridCells(grid)[index];
+  // Cover is BY DESIGN "over" one axis whenever the cell's aspect ratio
+  // doesn't exactly match the content's own — that's what lets it fill the
+  // cell with no gaps (pair with Clip to cell to crop it). Flagging that as
+  // an overflow warning would fire on almost every Cover cell for no reason;
+  // this check exists to catch a genuine surprise (Fixed outgrowing a
+  // shrunk cell), which Cover never does — including an axis-locked one
+  // (coverAxis 'x'/'y'): locking to whichever axis already had the larger
+  // ratio reproduces auto's own scale exactly (same overshoot auto already
+  // gets a pass on); locking to the smaller-ratio axis only ever UNDERFILLS
+  // the other axis (a visible gap, same as Contain's gaps — never flagged),
+  // it can never overshoot beyond what auto itself already would. Verified:
+  // there is no coverAxis value that introduces an overshoot auto doesn't
+  // already have, so the exemption stays unconditional for every Cover cell.
+  if (cell.fitMode === 'cover') return false;
+  const c = (resolvedCells || resolveGridCells(grid))[index];
   if (!c) return false;
   let natural = 100;
   if (cell.source === 'component') {
@@ -6502,6 +6599,64 @@ function buildSelectionOutlineSVG() {
   return s + '</g>';
 }
 
+// Only meaningful while a border drag is actually happening — see the
+// `if (trackDrag)` gate at its one call site in renderSymbolCanvasOnly().
+// Skipped while Clip to cell is on, same guard cellOverflowInfo()'s own
+// docs already state (clipping already makes the question moot).
+function buildOverflowOutlineSVG() {
+  const grid = getSymbolGrid();
+  if (!grid || state.symbolClipEnabled) return '';
+  const F = symbolFrame(grid);
+  const resolvedCells = resolveGridCells(grid);
+  let s = '<g fill="none" stroke="var(--danger)" stroke-width="2.5" stroke-dasharray="5 3">';
+  grid.cells.forEach((c, i) => {
+    if (!cellOverflowInfo(i, resolvedCells)) return;
+    if (grid.cellShape === 'polygon') {
+      const pts = c.points.map(p => `${F.X(p[0]).toFixed(2)},${F.Y(p[1]).toFixed(2)}`).join(' ');
+      s += `<polygon points="${pts}"/>`;
+    } else {
+      const x = F.X(c.x), y = F.Y(c.y);
+      s += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${c.width.toFixed(2)}" height="${c.height.toFixed(2)}"/>`;
+    }
+  });
+  return s + '</g>';
+}
+
+// A light, un-cropped preview of what Cover is scaling to, regardless of
+// drag state — complements buildOverflowOutlineSVG (which only reacts to a
+// genuine surprise, and is silent for auto-Cover on purpose). Box position/
+// size read straight off buildSymbolItems()'s own resolved cx/cy/scale — the
+// same values the real render uses — rather than re-deriving symbolFrame()'s
+// coordinate math by hand (it has two different conventions depending on
+// whether the grid has a canvasFrame, and buildSymbolItems() is the one
+// place that already reconciles them correctly). Rotation ignored
+// (axis-aligned box), same disclosed approximation cellOverflowInfo()/
+// symbolCellBounds() already use elsewhere. Most useful while Clip to cell
+// is on — that's exactly when the crop is otherwise invisible.
+function buildCoverCropPreviewSVG() {
+  const grid = getSymbolGrid();
+  if (!grid || !state.symbolClipEnabled) return '';
+  const library = LIBRARY.read();
+  const items = buildSymbolItems();
+  let s = '<g fill="none" stroke="var(--tool)" stroke-width="1" stroke-dasharray="2 2" opacity="0.6">';
+  state.symbolCells.forEach((cell, i) => {
+    if (cell.fitMode !== 'cover') return;
+    const it = items[i];
+    if (!it || it.type === 'missing') return;
+    let natural = 100;
+    if (cell.source === 'component') {
+      const entry = library[cell.componentName];
+      if (!entry) return;
+      const nd = frameDims(entry.grid);
+      natural = nd.w === nd.h ? frameSize(entry.grid) : { w: nd.w, h: nd.h };
+    }
+    const itemW = (natural.w || natural) * Math.abs(it.scaleX);
+    const itemH = (natural.h || natural) * Math.abs(it.scaleY);
+    s += `<rect x="${(it.cx - itemW / 2).toFixed(2)}" y="${(it.cy - itemH / 2).toFixed(2)}" width="${itemW.toFixed(2)}" height="${itemH.toFixed(2)}"/>`;
+  });
+  return s + '</g>';
+}
+
 function renderSymbolCanvasOnly() {
   const frame = ctrl('symbol-frame');
   const grid = getSymbolGrid();
@@ -6518,6 +6673,8 @@ function renderSymbolCanvasOnly() {
   if (ctrl('chk-symbol-grid-outline').checked) overlay += buildGridOutlineSVG();
   overlay += buildSelectionOutlineSVG();
   overlay += buildTrackHandlesSVG();
+  if (trackDrag) overlay += buildOverflowOutlineSVG();
+  if (ctrl('chk-symbol-cover-preview').checked) overlay += buildCoverCropPreviewSVG();
   if (state.symbolMarqueeRect) {
     const r = state.symbolMarqueeRect;
     overlay += `<rect class="symbol-marquee" x="${r.x.toFixed(2)}" y="${r.y.toFixed(2)}" width="${r.w.toFixed(2)}" height="${r.h.toFixed(2)}"/>`;
@@ -6901,6 +7058,8 @@ function renderCellPropertiesPanel() {
   ctrl('sel-cellprop-rot').value = String(first.rotation);
   ctrl('sel-cellprop-flip').value = first.flipH && first.flipV ? 'hv' : first.flipH ? 'h' : first.flipV ? 'v' : 'none';
   ctrl('sel-cellprop-fit').value = first.fitMode || 'contain';
+  ctrl('row-cellprop-coveraxis').style.display = first.fitMode === 'cover' ? '' : 'none';
+  ctrl('sel-cellprop-coveraxis').value = first.coverAxis || 'auto';
   ctrl('row-cellprop-scale').style.display = first.fitMode === 'fixed' ? 'none' : '';
   ctrl('row-cellprop-fixedsize').style.display = first.fitMode === 'fixed' ? '' : 'none';
   ctrl('rg-cellprop-scale').value = Math.round((first.scale == null ? 1 : first.scale) * 100);
@@ -6970,6 +7129,12 @@ function closeCellContentOverlay() {
 // longer offered; old Symbols with Seed cells still render), or, in pool
 // mode, toggle Components in and out of the Symbol's pool.
 let contentOverlayPoolMode = false;
+// Which fitMode fresh content picked from this overlay gets — sticky for the
+// session (same convention as contentFilter below), not reset on close: a
+// deliberate visible choice, unlike "Apply to all cells" which IS reset
+// (that one guards against an accidental bulk edit; this one doesn't carry
+// that risk — a wrong fit is obvious immediately and easy to redo).
+let contentOverlayFit = 'fill';
 function renderCellContentOverlayTiles() {
   const toAll = ctrl('chk-content-overlay-all').checked;
   const count = state.symbolSelection.size;
@@ -6985,7 +7150,7 @@ function renderCellContentOverlayTiles() {
   emptyBtn.setAttribute('aria-label', 'Use Empty (blank cell)');
   emptyBtn.innerHTML = '<svg viewBox="0 0 72 72" aria-hidden="true"><rect x="10" y="10" width="52" height="52" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="5 4"/></svg>';
   emptyBtn.addEventListener('click', () => {
-    contentTarget()(() => ({ source: 'empty', rotation: 0, flipH: false, flipV: false, fitMode: 'fill', scale: 1, padding: 0, anchorX: 0, anchorY: 0 }));
+    contentTarget()(() => ({ source: 'empty', rotation: 0, flipH: false, flipV: false, fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 }));
     closeCellContentOverlay();
     renderCellPropertiesPanel();
   });
@@ -7001,7 +7166,7 @@ function renderCellContentOverlayTiles() {
       contentTarget()(cell => ({
         source: 'seed', seedType: type, color: cell.color || null,
         rotation: 0, flipH: false, flipV: false,
-        fitMode: 'fill', scale: 1, padding: 0, anchorX: 0, anchorY: 0,
+        fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0,
       }));
       closeCellContentOverlay();
       renderCellPropertiesPanel();
@@ -7039,7 +7204,7 @@ function renderCellContentOverlayTiles() {
       contentTarget()({
         source: 'component', componentName: name,
         rotation: 0, flipH: false, flipV: false,
-        fitMode: 'fill', scale: 1, padding: 0, anchorX: 0, anchorY: 0,
+        fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0,
       });
       closeCellContentOverlay();
       renderCellPropertiesPanel();
@@ -7706,6 +7871,7 @@ ctrl('sel-symbol-loom-preset').addEventListener('change', e => {
   }
 });
 ctrl('chk-symbol-grid-outline').addEventListener('change', renderSymbolCanvasOnly);
+ctrl('chk-symbol-cover-preview').addEventListener('change', renderSymbolCanvasOnly);
 ctrl('chk-symbol-clip').addEventListener('change', e => {
   state.symbolClipEnabled = e.target.checked;
   renderSymbolCanvasOnly();
@@ -7756,12 +7922,20 @@ bindSymbolTrackDrag();
 // frame of it.
 new ResizeObserver(() => { if (state.symbolGrid) renderTrackLabelsOverlay(); }).observe(ctrl('symbol-frame'));
 buildAnchorGrid();
+buildFitAllAnchorGrid();
 ctrl('btn-cellprop-choose').addEventListener('click', openCellContentOverlay);
 ctrl('btn-rule-choose-content').addEventListener('click', openCellContentOverlayForAll);
 ctrl('btn-content-overlay-close').addEventListener('click', closeCellContentOverlay);
 ctrl('seg-content-filter').addEventListener('click', e => {
   const b = e.target.closest('.seg-btn'); if (!b) return;
   contentFilter = b.dataset.filter; syncContentFilter();
+});
+ctrl('seg-content-fit').addEventListener('click', e => {
+  const b = e.target.closest('.seg-btn'); if (!b) return;
+  contentOverlayFit = b.dataset.fit;
+  ctrl('seg-content-fit').querySelectorAll('.seg-btn').forEach(x => {
+    x.classList.toggle('active', x === b); x.setAttribute('aria-pressed', String(x === b));
+  });
 });
 ctrl('symbol-content-overlay').addEventListener('click', e => {
   if (e.target === ctrl('symbol-content-overlay')) closeCellContentOverlay(); // click on the backdrop itself
@@ -7778,6 +7952,7 @@ ctrl('sel-cellprop-fit').addEventListener('change', e => {
   applyToSelection({ fitMode: e.target.value });
   renderCellPropertiesPanel();
 });
+ctrl('sel-cellprop-coveraxis').addEventListener('change', e => applyToSelection({ coverAxis: e.target.value }));
 ctrl('rg-cellprop-scale').addEventListener('input', e => {
   ctrl('v-cellprop-scale').textContent = e.target.value;
   applyToSelection({ scale: parseInt(e.target.value, 10) / 100 });
