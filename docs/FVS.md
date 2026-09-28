@@ -43,6 +43,14 @@ Grid step without saving it first.
   Seeds picked from the **Creator library** (Genesis). Each type has its own
   *extras* — corner styles, curvature, outline, twist and so on — listed from
   one shared table (`Organica.shapes.EXTRAS`), the same one Genesis Create uses.
+- **Segment** is a filled bar: *Length*, *Thickness* (% of the cell, default 8) and
+  *Round ends* (off by default — square ends). It shows in Fill style like any other
+  shape; picking it turns *Rounded caps* off (they only matter in Stroke, where the bar is
+  outlined) and leaving it gives them back. **Repeat X / Y** split the canvas into tiles
+  and put one copy in each, so the copies always fill the whole canvas; **Space X / Y** are
+  the gap between copies as a % of a tile (0 = touching). Rays then turn the whole grid;
+  if the bar's thickness pushes past the canvas it is fitted back in. Segments saved before
+  this (plain lines) are drawn as bars too.
 - **Layers** — a multi-layer Element: each layer has its own shape, placement,
   role (Fill / Container / Mask), ink, and its own **Style, Stroke W, Rounded caps,
   Width and Length**. With layers, those Appearance controls edit the active layer

@@ -1044,10 +1044,16 @@
       </div>
       <div id="seed-segment-block" style="display:none">
         <div class="ctrl-row">
-          <div class="ctrl-label" title="A line has no area, so it only shows with Style set to Stroke (picked automatically).">Length</div>
+          <div class="ctrl-label">Length</div>
           <input type="range" id="rg-seg-len" min="5" max="100" step="1" value="70">
           <span class="ctrl-val" id="v-seg-len">70</span>
         </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="How thick the bar is, in % of the cell. A Segment is a filled bar, so it shows in Fill style.">Thickness</div>
+          <input type="range" id="rg-seg-weight" min="1" max="40" step="0.5" value="8">
+          <span class="ctrl-val" id="v-seg-weight">8</span>
+        </div>
+        <label class="check-row"><input type="checkbox" id="ck-seg-round"><span>Round ends</span></label>
       </div>
       <div id="seed-drop-block" style="display:none">
         <div class="ctrl-row">
@@ -2157,7 +2163,7 @@ const SEED_TYPES = {
   cross: { label: 'Cross', geometry: (p) => crossGeometry(p.crossArmWidth, p.crossArmLength, p.crossCorner, { arms: p.crossArms, taper: p.crossTaper, tip: p.crossTip, style: p.crossStyle, rotate: p.crossRotate }) },
   lens: { label: 'Lens', geometry: (p) => lensGeometry(p.lensWidth, { crescent: p.lensCrescent, petals: p.lensPetals, outline: p.lensOutline, rotate: p.lensRotate }) },
   circle: { label: 'Circle', geometry: (p) => circleGeometry(p.circleRadius, circleOptsFrom(p)) },
-  segment: { label: 'Segment', geometry: (p) => segmentGeometry(p.segLen, { angle: p.segAngle, bend: p.segBend, wave: p.segWave, cycles: p.segCycles, dashes: p.segDashes, gap: p.segGap, lines: p.segLines, spacing: p.segSpacing, repeatX: p.segRepeatX, spaceX: p.segSpaceX, repeatY: p.segRepeatY, spaceY: p.segSpaceY, rays: p.segRays }) },
+  segment: { label: 'Segment', geometry: (p) => segmentBar(segmentGeometry(p.segLen, { angle: p.segAngle, bend: p.segBend, wave: p.segWave, cycles: p.segCycles, dashes: p.segDashes, gap: p.segGap, lines: p.segLines, spacing: p.segSpacing, repeatX: p.segRepeatX, spaceX: p.segSpaceX, repeatY: p.segRepeatY, spaceY: p.segSpaceY, rays: p.segRays, tile: true }), p.segWeight == null ? SEG_WEIGHT_DEF : p.segWeight, !!p.segRound) },
   drop: { label: 'Drop', geometry: (p) => dropGeometry(p.dropRadius, p.dropTail, { bend: p.dropBend, neck: p.dropNeck, petals: p.dropPetals, rotate: p.dropRotate }) },
   blob: { label: 'Blob', geometry: (p) => blobGeometry(p.blobRadius, p.blobAmount, p.blobSeed, { freq: p.blobFreq, smooth: p.blobSmooth, outline: p.blobOutline }) },
   // Stack: an Element made of several layered shapes (state.layers). Its
@@ -2235,6 +2241,61 @@ const INNER_APEX = {   // where the shape's pivot sits in its own d-space (befor
   wedge: () => [50, 50],
   arc: p => p.arcPivot === 'center' ? [50, 50] : [0, 0],
 };
+// Segment in FVS is a FILLED BAR, not a hairline: the shared segmentGeometry()
+// centre-lines (still a plain stroke, as Genesis draws them) are thickened here
+// into closed ribbons `weight` wide (in the final 0..100 space, so Repeat/Rays
+// never squash the thickness), butt ends unless `round`. Each ribbon is wound
+// the same way (positive area), so overlaps (Rays, Lines) stay filled under
+// nonzero instead of cancelling out. No Paper.js — pure maths, memoised.
+const SEG_WEIGHT_DEF = 8;
+const _segBarCache = new Map();
+function segmentBar(g, weight, round) {
+  const key = g.d + '|' + g.normTx + '|' + g.normTy + '|' + g.normScale + '|' + weight + '|' + round;
+  if (_segBarCache.has(key)) return _segBarCache.get(key);
+  const hw = Math.max(0.05, weight / 2), R = v => Math.round(v * 1000) / 1000;
+  const polys = g.d.split(/(?=M)/).map(sub => (sub.match(/-?\d*\.?\d+(?:e-?\d+)?/g) || []).map(Number))
+    .map(nums => { const pts = []; for (let i = 0; i + 1 < nums.length; i += 2) pts.push([(nums[i] + g.normTx) * g.normScale, (nums[i + 1] + g.normTy) * g.normScale]); return pts; })
+    .filter(pts => pts.length > 1);
+  let d = '', x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const grow = (q, r) => { if (q[0] - r < x0) x0 = q[0] - r; if (q[0] + r > x1) x1 = q[0] + r; if (q[1] - r < y0) y0 = q[1] - r; if (q[1] + r > y1) y1 = q[1] + r; };
+  for (let pts of polys) {
+    pts = pts.filter((p, i) => i === 0 || Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) > 1e-6);
+    const n = pts.length;
+    if (n < 2) continue;
+    const normals = pts.map((p, i) => {
+      const n1 = i > 0 ? segNormal(pts[i - 1], p) : null, n2 = i < n - 1 ? segNormal(p, pts[i + 1]) : null;
+      if (n1 && n2) { const m = unitVec([n1[0] + n2[0], n1[1] + n2[1]]); const c = Math.max(0.3, m[0] * n1[0] + m[1] * n1[1]); return [m[0] / c, m[1] / c]; }   // miter, clamped
+      return n1 || n2;
+    });
+    let left = pts.map((p, i) => [p[0] + normals[i][0] * hw, p[1] + normals[i][1] * hw]);
+    let right = pts.map((p, i) => [p[0] - normals[i][0] * hw, p[1] - normals[i][1] * hw]);
+    // signed area of left→(reversed)right; flip sides so every ribbon winds the same way
+    const ring = left.concat(right.slice().reverse());
+    let area = 0; for (let i = 0; i < ring.length; i++) { const a = ring[i], b = ring[(i + 1) % ring.length]; area += a[0] * b[1] - b[0] * a[1]; }
+    if (area < 0) { [left, right] = [right, left]; }
+    left.forEach(q => grow(q, 0)); right.forEach(q => grow(q, 0));
+    if (round) { grow(pts[0], hw); grow(pts[n - 1], hw); }   // a round end bulges up to hw past its centre point
+    const P = q => R(q[0]) + ',' + R(q[1]);
+    const tanEnd = unitVec([pts[n - 1][0] - pts[n - 2][0], pts[n - 1][1] - pts[n - 2][1]]);
+    const tanStart = unitVec([pts[0][0] - pts[1][0], pts[0][1] - pts[1][1]]);
+    const arc = (c, from, to, dir) => capArc(c, from, to, dir).replace(/-?\d*\.?\d+(?:e-?\d+)?/g, m => String(R(+m)));
+    let s = 'M ' + left.map(P).join(' L ');
+    s += round ? ' ' + arc(pts[n - 1], left[n - 1], right[n - 1], tanEnd) : ' L ' + P(right[n - 1]);
+    s += ' L ' + right.slice(0, n - 1).reverse().map(P).join(' L ');   // down to right[0] — a 2-point line needs it too (else a triangle)
+    s += round ? ' ' + arc(pts[0], right[0], left[0], tanStart) : '';
+    d += (d ? ' ' : '') + s + ' Z';
+  }
+  // The thickness can push past the canvas (Rays turning a full grid, round ends
+  // on a full-length bar): fit the finished bar back in, like overflowNorm does.
+  let out = { d, normTx: 0, normTy: 0, normScale: 1 };
+  if (d && (x0 < -0.01 || y0 < -0.01 || x1 > 100.01 || y1 > 100.01)) {
+    const sc = Math.min(1, 100 / Math.max(x1 - x0, 1e-6), 100 / Math.max(y1 - y0, 1e-6));
+    out = { d, normTx: 50 / sc - (x0 + x1) / 2, normTy: 50 / sc - (y0 + y1) / 2, normScale: sc };
+  }
+  if (_segBarCache.size > 200) _segBarCache.clear();
+  _segBarCache.set(key, out);
+  return out;
+}
 const INNER_UNSUPPORTED = new Set(['segment', 'arctruchet']);   // open / already multi-ring — copies would cross, not nest
 function withInnerCopies(geo, p, apex) {
   const n = Math.round((p && p.innerCount) || 0);
@@ -2378,7 +2439,7 @@ function strokeToShapeD(d, widthUnits) {
       const tanStart = unitVec([pts[0][0] - pts[1][0], pts[0][1] - pts[1][1]]);
       let s = 'M ' + left.map(p => p[0] + ',' + p[1]).join(' L ');
       s += rounded ? ' ' + capArc(pts[n - 1], left[n - 1], right[n - 1], tanEnd) : ' L ' + right[n - 1][0] + ',' + right[n - 1][1];
-      if (n > 2) s += ' L ' + right.slice(0, n - 1).reverse().map(p => p[0] + ',' + p[1]).join(' L ');
+      s += ' L ' + right.slice(0, n - 1).reverse().map(p => p[0] + ',' + p[1]).join(' L ');   // a 2-point line needs right[0] too
       s += rounded ? ' ' + capArc(pts[0], right[0], left[0], tanStart) : ' L ' + left[0][0] + ',' + left[0][1];
       s += ' Z';
       ribbonD = s;
@@ -2688,6 +2749,8 @@ function getPanelSeed() {
     starRadius: val('rg-star-radius'),
     circleRadius: val('rg-circle-radius'),
     segLen: val('rg-seg-len'),
+    segWeight: val('rg-seg-weight'),
+    segRound: ctrl('ck-seg-round').checked,
     dropRadius: val('rg-drop-radius'),
     dropTail: val('rg-drop-tail'),
     blobRadius: val('rg-blob-radius'),
@@ -5211,12 +5274,13 @@ function applyPanelSeedRaw(seed) {
    ['truCurve', 'rg-tru-curve', 'v-tru-curve', 0], ['truRound', 'rg-tru-round', 'v-tru-round', 0], ['truSegs', 'rg-tru-segs', 'v-tru-segs', 1], ['truGap', 'rg-tru-gap', 'v-tru-gap', 20],
    ['arcSweep', 'rg-arc-sweep', 'v-arc-sweep', 90], ['arcStart', 'rg-arc-start', 'v-arc-start', 0], ['arcRound', 'rg-arc-round', 'v-arc-round', 0], ['arcSegs', 'rg-arc-segs', 'v-arc-segs', 1],
    ['arcGap', 'rg-arc-gap', 'v-arc-gap', 20], ['arcTaper', 'rg-arc-taper', 'v-arc-taper', 0], ['arcIrregular', 'rg-arc-irregular', 'v-arc-irregular', 0], ['arcSeed', 'rg-arc-seed', 'v-arc-seed', 1], ['polyRadius', 'rg-poly-radius', 'v-poly-radius', 100], ['starRadius', 'rg-star-radius', 'v-star-radius', 100],
-   ['circleRadius', 'rg-circle-radius', 'v-circle-radius', 100], ['segLen', 'rg-seg-len', 'v-seg-len', 70], ['dropRadius', 'rg-drop-radius', 'v-drop-radius', 60],
+   ['circleRadius', 'rg-circle-radius', 'v-circle-radius', 100], ['segLen', 'rg-seg-len', 'v-seg-len', 70], ['segWeight', 'rg-seg-weight', 'v-seg-weight', SEG_WEIGHT_DEF], ['dropRadius', 'rg-drop-radius', 'v-drop-radius', 60],
    ['dropTail', 'rg-drop-tail', 'v-drop-tail', 50], ['blobRadius', 'rg-blob-radius', 'v-blob-radius', 60], ['blobAmount', 'rg-blob-amount', 'v-blob-amount', 40],
    ['blobSeed', 'rg-blob-seed', 'v-blob-seed', 1]].forEach(([k, id, vid, def]) => {
     const v = seed[k] != null ? seed[k] : def;
     ctrl(id).value = v; ctrl(vid).textContent = v;
   });
+  ctrl('ck-seg-round').checked = !!seed.segRound;
   ctrl('sel-circle-interior').value = seed.circleInterior || 'solid';
   ctrl('sel-circle-trim').value = seed.circleTrim || 'none';
   ctrl('sel-tru-fans').value = String(seed.truFans || 2);
@@ -5286,9 +5350,9 @@ function addLayer() {
   const seed = JSON.parse(JSON.stringify(base));
   seed.type = base.type === 'circle' ? 'triangle' : 'circle';
   const slot = L.items.length;
-  // A new layer takes the current layer's look — except after a Segment, whose Stroke is forced, not chosen.
+  // A new layer takes the current layer's look — except after a Segment, whose square caps are forced, not chosen.
   const look = { ...baseLook };
-  if (base.type === 'segment') look.fillMode = L.items[L.active].styleBeforeSegment || 'fill';
+  if (base.type === 'segment' && L.items[L.active].roundedBeforeSegment != null) look.rounded = L.items[L.active].roundedBeforeSegment;
   L.items.push({ id: newLayerId(), role: 'fill', ink: slot, place: { mx: 0, my: 0, scale: 0.6, rotate: 0 }, seed, look });
   // Above/below is only visible with different colours: make sure the Palette has one for this layer.
   if (state.colors.length <= slot && state.colors.length < PALETTE_MAX) {
@@ -8543,11 +8607,14 @@ ctrl('sel-element-fillmode').addEventListener('change', onAppearanceChange);
  ['rg-tru-curve', 'v-tru-curve'], ['rg-tru-round', 'v-tru-round'], ['rg-tru-segs', 'v-tru-segs'], ['rg-tru-gap', 'v-tru-gap'],
  ['rg-arc-sweep', 'v-arc-sweep'], ['rg-arc-start', 'v-arc-start'], ['rg-arc-round', 'v-arc-round'], ['rg-arc-segs', 'v-arc-segs'], ['rg-arc-gap', 'v-arc-gap'],
  ['rg-arc-taper', 'v-arc-taper'], ['rg-arc-irregular', 'v-arc-irregular'], ['rg-arc-seed', 'v-arc-seed'], ['rg-poly-radius', 'v-poly-radius'], ['rg-star-radius', 'v-star-radius'],
- ['rg-circle-radius', 'v-circle-radius'], ['rg-seg-len', 'v-seg-len'], ['rg-drop-radius', 'v-drop-radius'],
+ ['rg-circle-radius', 'v-circle-radius'], ['rg-seg-len', 'v-seg-len'], ['rg-seg-weight', 'v-seg-weight'], ['rg-drop-radius', 'v-drop-radius'],
  ['rg-drop-tail', 'v-drop-tail'], ['rg-blob-radius', 'v-blob-radius'], ['rg-blob-amount', 'v-blob-amount'],
  ['rg-blob-seed', 'v-blob-seed']].forEach(([id, vid]) => {
   ctrl(id).addEventListener('input', e => { ctrl(vid).textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 });
+ctrl('ck-seg-round').addEventListener('change', () => { renderGallery(); renderSeedPreview(); });
+// In FVS Repeat X/Y tile the canvas and Space X/Y are the gap between tiles — 0 (touching) is valid here.
+['rg-seg-spaceX', 'rg-seg-spaceY'].forEach(id => { if (ctrl(id)) ctrl(id).min = 0; });
 CIRCLE_PARAMS.forEach(([k, id]) => {
   ctrl('rg-circle-' + id).addEventListener('input', e => { ctrl('v-circle-' + id).textContent = e.target.value; syncCircleRows(); renderGallery(); renderSeedPreview(); });
 });
@@ -8615,25 +8682,23 @@ ctrl('btn-fit-seed').addEventListener('click', fitSeedToCanvas);
 ctrl('sel-arc-pivot').addEventListener('change', () => { renderGallery(); renderSeedPreview(); });
 ctrl('sel-inner-anchor').addEventListener('change', () => { renderGallery(); renderSeedPreview(); });
 
-// A Segment has no area — it is invisible as a fill, so picking it switches
-// Style to Stroke (same as Genesis Create).
-// Segment forces Stroke; leaving it restores the Style you had (otherwise a
-// Circle picked afterwards would come up as an outline, not a disc).
-// In a multi-layer Element this is the ACTIVE layer's Style only (remembered
-// on the layer itself), never the other layers'.
-let styleBeforeSegment = null;
+// A Segment is a filled bar (segmentBar), so Style stays as it is. Its ends
+// are square by default: picking Segment turns Rounded caps OFF (it only
+// matters in Stroke style, where the bar is outlined); leaving Segment gives
+// back what you had. In a multi-layer Element this is the ACTIVE layer's own
+// setting only (remembered on the layer itself), never the other layers'.
+let roundedBeforeSegment = null;
 ctrl('sel-seed-type').addEventListener('change', () => {
-  const type = ctrl('sel-seed-type').value, fm = ctrl('sel-element-fillmode');
+  const type = ctrl('sel-seed-type').value, ck = ctrl('ck-element-rounded');
   const layer = state.layers ? state.layers.items[state.layers.active] : null;
-  const saved = layer ? layer.styleBeforeSegment : styleBeforeSegment;
-  const setSaved = v => { if (layer) { if (v) layer.styleBeforeSegment = v; else delete layer.styleBeforeSegment; } else styleBeforeSegment = v; };
-  const setStyle = v => { fm.value = v; onAppearanceChange(); };   // onAppearanceChange stores it on the active layer
-  if (type === 'segment' && fm.value !== 'stroke') {
-    setSaved(fm.value);
-    setStyle('stroke');
-  } else if (type !== 'segment' && saved) {
+  const saved = layer ? layer.roundedBeforeSegment : roundedBeforeSegment;
+  const setSaved = v => { if (layer) { if (v != null) layer.roundedBeforeSegment = v; else delete layer.roundedBeforeSegment; } else roundedBeforeSegment = v; };
+  if (type === 'segment' && ck.checked) {
+    setSaved(true);
+    ck.checked = false; onAppearanceChange();   // onAppearanceChange stores it on the active layer
+  } else if (type !== 'segment' && saved != null) {
     setSaved(null);
-    setStyle(saved);
+    ck.checked = saved; onAppearanceChange();
   }
 });
 

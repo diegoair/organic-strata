@@ -1107,7 +1107,24 @@
       }
     }
     let cluster = unit;
-    if (repeatX > 1 || repeatY > 1) {
+    if (o.tile && (repeatX > 1 || repeatY > 1)) {
+      // Tile mode (FVS): the canvas is split into repeatX × repeatY tiles and each
+      // copy's 0..100 box is fitted into its own tile, so the copies always fill
+      // the whole canvas. Space X/Y become the gap between tiles, as a % of a tile
+      // (only on an axis that actually repeats). Genesis keeps the pitch mode below.
+      const tw = 100 / repeatX, th = 100 / repeatY;
+      const gx = cl3(o.spaceX, 0, 90, 14), gy = cl3(o.spaceY, 0, 90, 14);   // 0 = copies touching (the pitch mode's own clamp starts at 1)
+      const sx = repeatX > 1 ? tw * (1 - gx / 100) / 100 : 1, sy = repeatY > 1 ? th * (1 - gy / 100) / 100 : 1;
+      const placed = [];
+      for (let iy = 0; iy < repeatY; iy++) {
+        const cy = repeatY > 1 ? (iy + 0.5) * th : 50;
+        for (let ix = 0; ix < repeatX; ix++) {
+          const cx = repeatX > 1 ? (ix + 0.5) * tw : 50;
+          for (const pts of cluster) placed.push(pts.map(p => [cx + (p[0] - 50) * sx, cy + (p[1] - 50) * sy]));
+        }
+      }
+      cluster = placed;
+    } else if (repeatX > 1 || repeatY > 1) {
       const placed = [];
       for (let iy = 0; iy < repeatY; iy++) {
         const dy = (iy - (repeatY - 1) / 2) * spaceY;

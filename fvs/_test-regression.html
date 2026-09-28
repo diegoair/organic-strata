@@ -806,10 +806,12 @@ async function battery() {
     // Style is per layer: a Segment layer strokes, the other layers stay filled
     {
       const styles = () => [...buildSeedPreviewSVG(getSeed(), 0, false, false, 100).matchAll(/<path d="[^"]*" ([^/]*)/g)].map(m => /fill="none"/.test(m[1]) ? 's' : 'f').join('');
-      selectLayer(1); chg('sel-seed-type', 'segment');
-      const seg = styles();
+      // Segment is a filled bar now: it stays Fill, and turns Rounded caps off on ITS layer only
+      ctrl('ck-element-rounded').checked = true; onAppearanceChange();
+      selectLayer(1); ctrl('ck-element-rounded').checked = true; onAppearanceChange(); chg('sel-seed-type', 'segment');
+      const seg = styles() + ':' + state.layers.items.map(l => l.look.rounded ? 'r' : 'b').join('');
       chg('sel-seed-type', 'triangle');
-      put('layers:segment:perLayer', seg + ',' + styles() + ',' + ctrl('sel-element-fillmode').value);
+      put('layers:segment:perLayer', seg + ',' + styles() + ':' + state.layers.items.map(l => l.look.rounded ? 'r' : 'b').join('') + ',' + ctrl('sel-element-fillmode').value);
     }
     // Width / Length are per layer: stretching the active layer leaves the others alone
     {
@@ -824,6 +826,30 @@ async function battery() {
     removeLayer(2); removeLayer(1);
     put('layers:collapse', state.layers === null);
   } finally { reset(); }
+
+  // 25c — Segment: a filled bar (Fill, square ends by default); Repeat X/Y tile the whole canvas
+  try {
+    reset();
+    ctrl('ck-element-rounded').checked = true;
+    chg('sel-seed-type', 'segment');
+    put('segment:defaults', [ctrl('sel-element-fillmode').value, ctrl('ck-element-rounded').checked, ctrl('ck-seg-round').checked, ctrl('rg-seg-weight').value].join(','));
+    const segBox = () => { const g = SEED_TYPES.segment.geometry(getSeed()); const n = (g.d.match(/-?\d*\.?\d+/g) || []).map(Number); const xs = n.filter((_, i) => i % 2 === 0).map(x => (x + g.normTx) * g.normScale), ys = n.filter((_, i) => i % 2 === 1).map(y => (y + g.normTy) * g.normScale); return [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)].map(v => Math.round(v)).join(' ') + '|' + (g.d.match(/M/g) || []).length; };
+    put('segment:bar', segBox() + '|' + (SEED_TYPES.segment.geometry(getSeed()).d.match(/ L /g) || []).length);   // 4 corners → 3 L per bar
+    inp('rg-seg-len', 100); inp('rg-seg-spaceX', 0); inp('rg-seg-spaceY', 0); inp('rg-seg-repeatY', 5); inp('rg-seg-repeatX', 4);
+    put('segment:tile:gap0', segBox());
+    inp('rg-seg-spaceX', 14); inp('rg-seg-spaceY', 14);
+    put('segment:tile:svg', buildSeedPreviewSVG(getSeed(), 0, false, false, 100));
+    inp('rg-seg-rays', 4); ctrl('ck-seg-round').checked = true; ctrl('ck-seg-round').dispatchEvent(new Event('change'));
+    put('segment:rays:inCanvas', segBox());
+    const legacy = { ...getSeed() }; delete legacy.segWeight; delete legacy.segRound;
+    put('segment:legacyIsBar', / Z/.test(SEED_TYPES.segment.geometry(legacy).d));
+    chg('sel-seed-type', 'circle');
+    put('segment:leaveRestoresCaps', ctrl('ck-element-rounded').checked);
+  } finally {
+    ctrl('ck-seg-round').checked = false;
+    [['rg-seg-len', 70], ['rg-seg-spaceX', 14], ['rg-seg-spaceY', 14], ['rg-seg-repeatX', 1], ['rg-seg-repeatY', 1], ['rg-seg-rays', 1]].forEach(([id, v]) => inp(id, v));
+    reset();
+  }
 
   // 25b — layer-ink colour variants: every candidate × every Fill layer's ink choice
   try {
