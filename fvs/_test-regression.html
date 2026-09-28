@@ -739,6 +739,21 @@ async function battery() {
     const subN = subMask.mask.reduce((a, b) => a + b, 0), maskN = maskMask.mask.reduce((a, b) => a + b, 0);
     let diffPx = 0; for (let i = 0; i < subMask.mask.length; i++) if (subMask.mask[i] !== maskMask.mask[i]) diffPx++;
     put('content:silhouette', [subN > 0, maskN > 0, diffPx > subMask.mask.length * 0.2].join(','));   // genuinely different regions, not just a coincidentally-equal total count
+    // per layer: adding a layer moves the Element's Content onto layer 1; the panel edits the active layer
+    state.elementContent = 'subtraction'; state.underlyingElementName = 'zz-content-under'; syncElementContentUI();
+    addLayer();
+    put('content:layer:moved', [state.layers.items[0].content, state.layers.items[0].under === 'zz-content-under', state.elementContent, ctrl('sel-element-content').value].join(','));
+    chg('sel-element-content', 'mask'); elementContentTarget().under = 'zz-content-under'; syncElementContentUI();
+    const layerSvg = buildSeedPreviewSVG(getSeed(), 0, false, false, 100);
+    put('content:layer:svg', layerSvg);
+    put('content:layer:clipAndMask', [/<clipPath id="stk[^"]*-c0-/.test(layerSvg), /<mask id="stk[^"]*-c1-/.test(layerSvg)].join(','));
+    selectLayer(0);
+    put('content:layer:panelFollows', ctrl('sel-element-content').value);
+    // Element step only: the Component step still paints each layer's own ink
+    generate();
+    put('content:layer:componentUnaffected', !/-c[01]-/.test(buildComponentSVG(buildComponentItems(getSelectedComponent(), getGrid()), getSeed(), frameDims(getGrid()))));
+    removeLayer(1);
+    put('content:layer:collapse', [state.layers, state.elementContent, state.underlyingElementName === 'zz-content-under'].join(','));
     // clean up
     const lib23 = LIBRARY.read(); delete lib23['zz-content-under']; LIBRARY.write(lib23);
   } finally { state.elementContent = 'filled'; state.underlyingElementName = null; syncElementContentUI(); reset(); }
@@ -788,6 +803,23 @@ async function battery() {
     const entry25 = buildLibraryEntryFor(comp25);
     applySeedToPanel(entry25.seed);
     put('layers:library:roundtrip', JSON.stringify(seedForSnapshot()) === before25);
+    // Style is per layer: a Segment layer strokes, the other layers stay filled
+    {
+      const styles = () => [...buildSeedPreviewSVG(getSeed(), 0, false, false, 100).matchAll(/<path d="[^"]*" ([^/]*)/g)].map(m => /fill="none"/.test(m[1]) ? 's' : 'f').join('');
+      selectLayer(1); chg('sel-seed-type', 'segment');
+      const seg = styles();
+      chg('sel-seed-type', 'triangle');
+      put('layers:segment:perLayer', seg + ',' + styles() + ',' + ctrl('sel-element-fillmode').value);
+    }
+    // Width / Length are per layer: stretching the active layer leaves the others alone
+    {
+      selectLayer(1); inp('rg-element-w', 1.8);
+      const w1 = state.layers.items.map(l => l.look.w).join('/');
+      selectLayer(0);
+      put('layers:width:perLayer', [w1, ctrl('rg-element-w').value, getElementAppearance().w].join(','));
+      put('layers:width:svg', buildSeedPreviewSVG(getSeed(), 0, false, false, 100));
+      selectLayer(1); inp('rg-element-w', 1); selectLayer(0);
+    }
     // deleting layers back to one collapses to a plain single-shape Element
     removeLayer(2); removeLayer(1);
     put('layers:collapse', state.layers === null);

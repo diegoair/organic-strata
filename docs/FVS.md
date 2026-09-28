@@ -43,6 +43,12 @@ Grid step without saving it first.
   Seeds picked from the **Creator library** (Genesis). Each type has its own
   *extras* — corner styles, curvature, outline, twist and so on — listed from
   one shared table (`Organica.shapes.EXTRAS`), the same one Genesis Create uses.
+- **Layers** — a multi-layer Element: each layer has its own shape, placement,
+  role (Fill / Container / Mask), ink, and its own **Style, Stroke W, Rounded caps,
+  Width and Length**. With layers, those Appearance controls edit the active layer
+  only: a Segment layer (forced to Stroke) leaves the others filled, and stretching
+  one layer leaves the others alone. Appearance **Scale and Move** still move the
+  whole Element (each layer also has its own Move/Scale/Rotate).
 - **Appearance** — Style **Fill / Stroke**, Width / Length, **Scale, Move X/Y**
   and **⤢ Fit to canvas** (one-shot). **Inner seed** adds nested copies
   (Count, Ratio, Anchor).
@@ -310,6 +316,12 @@ Subtraction mask reveals a "Pick underlying component…" button — the SAME sh
 Role's own picker reads (`resolveUnderlyingComponent`), just a second, independent reference
 (`state.underlyingElementName`, separate from `state.underlyingComponentName`). With nothing
 picked yet, the Element renders as plain Filled — never a broken clip/mask reference.
+
+**Per layer** (Sep 28, 2026): with a multi-layer Element, Content and its picked
+Component belong to each layer — the Content section edits the active layer, like Style and
+Width. A layer with Subtraction mask shows the Component only inside its outline; with Mask,
+everywhere except inside it (so it covers the layers below apart from that hole). Adding the
+first layer moves the Element's Content onto layer 1; going back to one shape moves it back.
 
 **Scope, this phase**: only the Element tier's own two previews (the big canvas, and the 6-tile
 transform strip) — `buildSeedPreviewSVG` branches internally, so neither render function needed

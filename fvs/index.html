@@ -3537,7 +3537,7 @@ function resolveUnderlyingComponent(name) {
   if (!entry) return null;
   const savedColorAt = entryInkAt(entry);
   const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
-  return { items, seed: entry.seed, size: frameSize(entry.grid), paperColor: entry.paperColor, appearance: entry.appearance };
+  return { items, seed: entry.seed, size: frameSize(entry.grid), paperColor: entry.paperColor, appearance: entry.appearance, colors: entry.colors };
 }
 
 // Real, empirically-verified browser bug (found building the equivalent
@@ -3595,6 +3595,12 @@ function applyAppearanceToUI(app) {
   ctrl('rg-element-l').value = a.l; ctrl('v-element-l').textContent = a.l;
   ['scale', 'mx', 'my'].forEach(k => { ctrl('rg-element-' + k).value = a[k]; ctrl('v-element-' + k).textContent = a[k]; });
   ctrl('element-stroke-block').style.display = a.fillMode === 'stroke' ? '' : 'none';
+  // A loaded stack whose layers predate per-layer looks: they take this appearance
+  // as their own, so the live Element keeps the Width/Length it was saved with.
+  if (state.layers) {
+    state.layers.items.forEach(l => { if (!l.look) l.look = readLookControls(); });
+    showLayerStyle(state.layers.items[state.layers.active]);
+  }
 }
 function getElementAppearance() {
   if (appearanceOverride) return appearanceOverride;
@@ -3602,8 +3608,10 @@ function getElementAppearance() {
     fillMode: ctrl('sel-element-fillmode').value,
     strokeW: val('rg-element-strokew'),
     rounded: ctrl('ck-element-rounded').checked,
-    w: val('rg-element-w'),
-    l: val('rg-element-l'),
+    // A live multi-layer Element: these two controls edit the ACTIVE layer's
+    // own look, so the Element-wide stretch is identity.
+    w: state.layers ? 1 : val('rg-element-w'),
+    l: state.layers ? 1 : val('rg-element-l'),
     scale: val('rg-element-scale'),
     mx: val('rg-element-mx'),
     my: val('rg-element-my'),
@@ -3617,10 +3625,21 @@ function getElementAppearance() {
 // outline out of everything below it. Layers above are never affected.
 const LAYER_ROLES = { fill: 'Fill', container: 'Container', mask: 'Mask' };
 const layerPlace = l => ({ mx: 0, my: 0, scale: 1, rotate: 0, ...(l.place || {}) });
+// Style, Stroke W, Rounded caps, Width and Length are per layer (`l.look`) —
+// a Segment layer strokes and a stretched layer stretches without touching the
+// others. Appearance Scale / Move stay Element-wide (each layer already has its
+// own place). A layer saved before this has no `look`: it follows the Element's
+// Style, and its Width/Length ride on the Element-wide stretch as they did then.
+// An Export "Variants" row (variantAppearance) still overrides Style/Stroke W.
+const LOOK_KEYS = ['fillMode', 'strokeW', 'rounded', 'w', 'l'];
+function layerLook(l, a) {
+  return { fillMode: a.fillMode, strokeW: a.strokeW, rounded: a.rounded, w: 1, l: 1, ...(l.look || {}), ...(variantAppearance || {}) };
+}
+const lookStretch = lk => (lk.w !== 1 || lk.l !== 1 ? ` scale(${lk.w},${lk.l})` : '');
 // place → norm-fit, as ONE transform string (a <clipPath>/<mask> child must be a bare <path>, no <g>).
 function layerTransformAttr(l, g) {
   const pl = layerPlace(l);
-  return `translate(${(50 + pl.mx).toFixed(3)},${(50 + pl.my).toFixed(3)}) rotate(${pl.rotate}) scale(${pl.scale}) translate(-50,-50)`
+  return `translate(${(50 + pl.mx).toFixed(3)},${(50 + pl.my).toFixed(3)}) rotate(${pl.rotate}) scale(${pl.scale})${lookStretch(layerLook(l, {}))} translate(-50,-50)`
     + ` translate(${(g.normTx * g.normScale).toFixed(4)},${(g.normTy * g.normScale).toFixed(4)}) scale(${g.normScale.toFixed(4)})`;
 }
 let inkPaletteOverride = null;   // set while rendering a saved entry with ITS palette
@@ -3635,7 +3654,7 @@ const _stackFlatCache = new Map();
 // The placed union of the FILL layers as one path (in the 0..100 space) via
 // Paper.js — only feeds bbox measuring and Container/Mask boundaries.
 function stackFlatD(layers) {
-  const key = JSON.stringify(layers.map(l => [l.role, layerPlace(l), l.geo.d, l.geo.fillRule, l.geo.normTx, l.geo.normTy, l.geo.normScale]));
+  const key = JSON.stringify(layers.map(l => [l.role, layerPlace(l), ...(lookStretch(layerLook(l, {})) ? [lookStretch(layerLook(l, {}))] : []), l.geo.d, l.geo.fillRule, l.geo.normTx, l.geo.normTy, l.geo.normScale]));
   if (_stackFlatCache.has(key)) return _stackFlatCache.get(key);
   let d = '';
   try {
@@ -3645,7 +3664,8 @@ function stackFlatD(layers) {
       if ((l.role || 'fill') !== 'fill' || !l.geo.d) continue;
       const cp = importAsPaperShape(scope, l.geo.d, l.geo.fillRule);
       const pl = layerPlace(l), g = l.geo, m = new scope.Matrix();
-      m.translate(50 + pl.mx, 50 + pl.my); m.rotate(pl.rotate); m.scale(pl.scale); m.translate(-50, -50);
+      const lk = layerLook(l, {});
+      m.translate(50 + pl.mx, 50 + pl.my); m.rotate(pl.rotate); m.scale(pl.scale); m.scale(lk.w, lk.l); m.translate(-50, -50);
       m.translate(g.normTx * g.normScale, g.normTy * g.normScale); m.scale(g.normScale);
       cp.transform(m);
       parts.push(cp.pathData);
@@ -3663,11 +3683,16 @@ function stackGeometry(p) {
 }
 function stackUid(geo) {
   let h = 2166136261;
-  const str = JSON.stringify(geo.layers.map(l => [l.role, layerPlace(l), l.geo.d, l.geo.normTx, l.geo.normTy, l.geo.normScale]));
+  const str = JSON.stringify(geo.layers.map(l => [l.role, layerPlace(l), ...(lookStretch(layerLook(l, {})) ? [lookStretch(layerLook(l, {}))] : []), l.geo.d, l.geo.normTx, l.geo.normTy, l.geo.normScale]));
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
   return 'stk' + (h >>> 0).toString(36);
 }
-function stackPathMarkup(geo, color, forceFill) {
+// withContent: a Fill layer whose Content is Mask / Subtraction mask (and has a
+// picked Component) draws that Component instead of its ink — Subtraction keeps
+// it only inside the layer's outline, Mask everywhere except inside it. Only the
+// Element step asks for this (buildSeedPreviewSVG); every other tier still paints
+// the layer's own ink.
+function stackPathMarkup(geo, color, forceFill, withContent) {
   const a = getElementAppearance();
   const uid = stackUid(geo);
   let out = '';
@@ -3679,9 +3704,17 @@ function stackPathMarkup(geo, color, forceFill) {
     } else if (role === 'mask') {
       out = `<mask id="${uid}-${i}" maskUnits="userSpaceOnUse" x="-100" y="-100" width="300" height="300"><rect x="-100" y="-100" width="300" height="300" fill="white"/>`
         + `<path d="${g.d}" transform="${t}" fill="black"${g.fillRule ? ` fill-rule="${g.fillRule}"` : ''}/></mask><g mask="url(#${uid}-${i})">${out}</g>`;
+    } else if (withContent && !forceFill && (l.content === 'mask' || l.content === 'subtraction') && resolveUnderlyingComponent(l.under)) {
+      const under = underlyingComponentMarkup(resolveUnderlyingComponent(l.under), 100);
+      const cid = `${uid}-c${i}-${String(l.under).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+      const shape = `<path d="${g.d}" transform="${t}"${g.fillRule ? ` fill-rule="${g.fillRule}"` : ''}`;
+      out += l.content === 'subtraction'
+        ? `<clipPath id="${cid}">${shape}${g.fillRule ? ` clip-rule="${g.fillRule}"` : ''}/></clipPath><g clip-path="url(#${cid})">${under}</g>`
+        : `<mask id="${cid}" maskUnits="userSpaceOnUse" x="-100" y="-100" width="300" height="300"><rect x="-100" y="-100" width="300" height="300" fill="white"/>${shape} fill="black"/></mask><g mask="url(#${cid})">${under}</g>`;
     } else {
-      const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: forceFill ? 'fill' : a.fillMode, color: forceFill ? color : layerInkColor(l, color), strokeW: a.strokeW, rounded: a.rounded });
-      out += `<g transform="${t}"><path d="${g.d}" ${attrs}${g.fillRule && !forceFill ? ` fill-rule="${g.fillRule}"` : ''}/></g>`;
+      const lk = layerLook(l, a), fm = forceFill ? 'fill' : lk.fillMode;
+      const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: fm, color: forceFill ? color : layerInkColor(l, color), strokeW: lk.strokeW, rounded: lk.rounded });
+      out += `<g transform="${t}"><path d="${g.d}" ${attrs}${g.fillRule && fm === 'fill' ? ` fill-rule="${g.fillRule}"` : ''}/></g>`;
     }
   });
   if (appearanceIsIdentity(a)) return out;
@@ -3706,11 +3739,12 @@ function paintStackCanvas(ctx, geo, color) {
     const g = l.geo, role = l.role || 'fill', pl = layerPlace(l);
     if (!g.d) continue;
     tc.save();
-    tc.translate(50 + pl.mx, 50 + pl.my); tc.rotate(pl.rotate * Math.PI / 180); tc.scale(pl.scale, pl.scale); tc.translate(-50, -50);
+    const lk = layerLook(l, a);
+    tc.translate(50 + pl.mx, 50 + pl.my); tc.rotate(pl.rotate * Math.PI / 180); tc.scale(pl.scale, pl.scale); tc.scale(lk.w, lk.l); tc.translate(-50, -50);
     tc.translate(g.normTx * g.normScale, g.normTy * g.normScale); tc.scale(g.normScale, g.normScale);
     const path = new Path2D(g.d);
     if (role === 'fill') {
-      const op = Organica.shapeAppearance.applyCanvasStyle(tc, { fillMode: a.fillMode, color: layerInkColor(l, color), strokeW: a.strokeW, rounded: a.rounded });
+      const op = Organica.shapeAppearance.applyCanvasStyle(tc, { fillMode: lk.fillMode, color: layerInkColor(l, color), strokeW: lk.strokeW, rounded: lk.rounded });
       paintPath(tc, op, path, g);
     } else {
       tc.globalCompositeOperation = role === 'container' ? 'destination-in' : 'destination-out';
@@ -3733,8 +3767,8 @@ function paintGeoCanvas(ctx, geo, path, color) {
 // omitted, at w=l=1) → norm-fit layer → the styled path. `forceFill` is for
 // Container/Mask boundaries, whose silhouette must stay solid regardless of
 // an outline-only Style.
-function elementPathMarkup(geo, color, forceFill) {
-  if (geo.layers) return stackPathMarkup(geo, color, forceFill);
+function elementPathMarkup(geo, color, forceFill, withContent) {
+  if (geo.layers) return stackPathMarkup(geo, color, forceFill, withContent);
   const a = getElementAppearance();
   const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: forceFill ? 'fill' : a.fillMode, color, strokeW: a.strokeW, rounded: a.rounded });
   const norm = `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
@@ -4010,19 +4044,28 @@ function elementBoundaryMaskContent(geo, half, rotation, flipH, flipV, size) {
 // this one Seed's own boundary instead of an array of cells. Mirrors that function's
 // "paper stays outside the clip for Subtraction, moves inside the masked group for
 // Mask" rule exactly (componentBoundaryClipContent/MaskContent's own header comment).
+// A saved Component drawn to fill a size×size box (its own paper, palette and
+// appearance) — the "underlying component" of an Element Content Mask /
+// Subtraction mask, whole-Element or per layer.
+function underlyingComponentMarkup(under, size) {
+  const underGeo = SEED_TYPES[under.seed.type].geometry(under.seed);
+  let underBody = `<rect width="${under.size}" height="${under.size}" fill="${under.paperColor}"/>`;
+  const prevPal = inkPaletteOverride;
+  if (under.colors && under.colors.length) inkPaletteOverride = under.colors;   // a stack's own layer inks read ITS palette
+  try {
+    for (const it of under.items) {
+      const fit = it.cellSize / 100;
+      const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
+      underBody += `<g transform="translate(${(under.size / 2 + it.cx).toFixed(2)},${(under.size / 2 + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
+        + withAppearance(under.appearance, () => elementPathMarkup(underGeo, it.color)) + `</g>`;
+    }
+  } finally { inkPaletteOverride = prevPal; }
+  return `<g transform="scale(${(size / under.size).toFixed(4)})">${underBody}</g>`;
+}
 function buildSeedContentSVG(seed, geo, rotation, flipH, flipV, size, half) {
   const under = resolveUnderlyingComponent(state.underlyingElementName);
   if (!under) return null;   // nothing picked yet — caller falls back to plain Filled
-  const underGeo = SEED_TYPES[under.seed.type].geometry(under.seed);
-  const fitScale = size / under.size;
-  let underBody = `<rect width="${under.size}" height="${under.size}" fill="${under.paperColor}"/>`;
-  for (const it of under.items) {
-    const fit = it.cellSize / 100;
-    const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
-    underBody += `<g transform="translate(${(under.size / 2 + it.cx).toFixed(2)},${(under.size / 2 + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
-      + withAppearance(under.appearance, () => elementPathMarkup(underGeo, it.color)) + `</g>`;
-  }
-  const underWrapped = `<g transform="scale(${fitScale.toFixed(4)})">${underBody}</g>`;
+  const underWrapped = underlyingComponentMarkup(under, size);
   // A <clipPath>/<mask> id must be unique for the WHOLE document, not just this
   // <svg> — url(#id) resolves document-wide, and this same function is called once
   // for the big canvas AND once per one of the 6 preview tiles, all on screen at
@@ -4044,13 +4087,13 @@ function buildSeedContentSVG(seed, geo, rotation, flipH, flipV, size, half) {
 function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size) {
   const geo = SEED_TYPES[seed.type].geometry(seed);
   const half = size / 2;
-  if (state.elementContent === 'mask' || state.elementContent === 'subtraction') {
+  if (!geo.layers && (state.elementContent === 'mask' || state.elementContent === 'subtraction')) {
     const contentSVG = buildSeedContentSVG(seed, geo, rotation, flipH, flipV, size, half);
     if (contentSVG) return contentSVG;   // no underlying picked yet — fall through to plain Filled below
   }
   const sx = (flipH ? -1 : 1) * (size / 100), sy = (flipV ? -1 : 1) * (size / 100);
   const body = `<g transform="translate(${half},${half}) rotate(${rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
-    + elementPathMarkup(geo, colorAt(0)) + `</g>`;
+    + elementPathMarkup(geo, colorAt(0), false, true) + `</g>`;   // true: per-layer Content (Element step only, for now)
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
     + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${body}</svg>`;
 }
@@ -5201,26 +5244,52 @@ function applyPanelSeedRaw(seed) {
 const LAYER_NEW_INKS = ['#e8321e', '#0a9a3e', '#1f5fd6', '#f2b300', '#7a3fd1', '#0e9aa7', '#d6336c'];
 function syncActiveLayer() {
   if (!state.layers) return;
-  state.layers.items[state.layers.active].seed = panelSeedSnapshot();
+  const l = state.layers.items[state.layers.active];
+  l.seed = panelSeedSnapshot();
+  l.look = readLookControls();
+}
+// A single shape's Content moves onto its layer when it becomes a stack (and back on collapse).
+function contentFromElement() {
+  const c = state.elementContent, u = state.underlyingElementName;
+  state.elementContent = 'filled'; state.underlyingElementName = null;
+  return c === 'mask' || c === 'subtraction' ? { content: c, under: u } : {};
+}
+function readLookControls() {
+  return { fillMode: ctrl('sel-element-fillmode').value, strokeW: val('rg-element-strokew'), rounded: ctrl('ck-element-rounded').checked, w: val('rg-element-w'), l: val('rg-element-l') };
+}
+// Style / Stroke W / Rounded / Width / Length show the active layer's own look.
+function showLayerStyle(l) {
+  if (!l.look) l.look = readLookControls();
+  const lk = l.look;
+  ctrl('sel-element-fillmode').value = lk.fillMode;
+  ctrl('rg-element-strokew').value = lk.strokeW; ctrl('v-element-strokew').textContent = lk.strokeW;
+  ctrl('ck-element-rounded').checked = lk.rounded;
+  ctrl('rg-element-w').value = lk.w; ctrl('v-element-w').textContent = lk.w;
+  ctrl('rg-element-l').value = lk.l; ctrl('v-element-l').textContent = lk.l;
+  ctrl('element-stroke-block').style.display = lk.fillMode === 'stroke' ? '' : 'none';
 }
 const newLayerId = () => 'l' + Math.random().toString(36).slice(2, 7);
 const layerLabel = (l, i) => (i + 1) + ' · ' + ((SEED_TYPES[l.seed.type] || {}).label || l.seed.type);
-function layersChanged() { renderLayersUI(); renderGallery(); renderSeedPreview(); }
+function layersChanged() { renderLayersUI(); syncElementContentUI(); renderGallery(); renderSeedPreview(); }
 function selectLayer(i) {
   if (!state.layers || i === state.layers.active || !state.layers.items[i]) return;
   syncActiveLayer();
   state.layers.active = i;
   applyPanelSeedRaw(state.layers.items[i].seed);
+  showLayerStyle(state.layers.items[i]);
   layersChanged();
 }
 function addLayer() {
-  if (!state.layers) state.layers = { items: [{ id: newLayerId(), role: 'fill', ink: 'cell', place: { mx: 0, my: 0, scale: 1, rotate: 0 }, seed: panelSeedSnapshot() }], active: 0 };
+  if (!state.layers) state.layers = { items: [{ id: newLayerId(), role: 'fill', ink: 'cell', place: { mx: 0, my: 0, scale: 1, rotate: 0 }, seed: panelSeedSnapshot(), look: readLookControls(), ...contentFromElement() }], active: 0 };
   syncActiveLayer();
-  const L = state.layers, base = L.items[L.active].seed;
+  const L = state.layers, base = L.items[L.active].seed, baseLook = L.items[L.active].look;
   const seed = JSON.parse(JSON.stringify(base));
   seed.type = base.type === 'circle' ? 'triangle' : 'circle';
   const slot = L.items.length;
-  L.items.push({ id: newLayerId(), role: 'fill', ink: slot, place: { mx: 0, my: 0, scale: 0.6, rotate: 0 }, seed });
+  // A new layer takes the current layer's look — except after a Segment, whose Stroke is forced, not chosen.
+  const look = { ...baseLook };
+  if (base.type === 'segment') look.fillMode = L.items[L.active].styleBeforeSegment || 'fill';
+  L.items.push({ id: newLayerId(), role: 'fill', ink: slot, place: { mx: 0, my: 0, scale: 0.6, rotate: 0 }, seed, look });
   // Above/below is only visible with different colours: make sure the Palette has one for this layer.
   if (state.colors.length <= slot && state.colors.length < PALETTE_MAX) {
     state.colors = state.colors.concat(hexKey(LAYER_NEW_INKS[(slot - 1) % LAYER_NEW_INKS.length]));
@@ -5228,6 +5297,7 @@ function addLayer() {
   }
   L.active = L.items.length - 1;
   applyPanelSeedRaw(seed);
+  showLayerStyle(L.items[L.active]);
   layersChanged();
 }
 function removeLayer(i) {
@@ -5236,12 +5306,15 @@ function removeLayer(i) {
   syncActiveLayer();
   L.items.splice(i, 1);
   if (L.items.length <= 1) {
-    const only = L.items[0].seed;
+    const only = L.items[0];
     state.layers = null;
-    applyPanelSeedRaw(only);
+    applyPanelSeedRaw(only.seed);
+    showLayerStyle(only);   // back to one shape: its Style becomes the Element's
+    state.elementContent = only.content || 'filled'; state.underlyingElementName = only.under || null;   // …and so does its Content
   } else {
     L.active = Math.min(L.active > i ? L.active - 1 : L.active, L.items.length - 1);
     applyPanelSeedRaw(L.items[L.active].seed);
+    showLayerStyle(L.items[L.active]);
   }
   layersChanged();
 }
@@ -5452,15 +5525,24 @@ function closeUnderlyingComponentPicker() {
 // Element-level Content picker — same mechanism as Role's, a second independent
 // instance (own overlay, own state field) so the two can never fight over "which
 // one is open."
+// With layers, Content + its picked Component belong to the ACTIVE layer
+// (layer.content / layer.under); a single shape keeps the Element-wide fields.
+function elementContentTarget() {
+  const l = state.layers && state.layers.items[state.layers.active];
+  return l ? { get content() { return l.content || 'filled'; }, set content(v) { l.content = v; }, get under() { return l.under || null; }, set under(v) { l.under = v; } }
+    : { get content() { return state.elementContent; }, set content(v) { state.elementContent = v; }, get under() { return state.underlyingElementName; }, set under(v) { state.underlyingElementName = v; } };
+}
 function syncElementContentUI() {
-  const relevant = state.elementContent === 'mask' || state.elementContent === 'subtraction';
+  const t = elementContentTarget();
+  ctrl('sel-element-content').value = t.content;
+  const relevant = t.content === 'mask' || t.content === 'subtraction';
   ctrl('underlying-element-block').style.display = relevant ? '' : 'none';
-  ctrl('underlying-element-empty').style.display = state.underlyingElementName ? 'none' : '';
-  ctrl('underlying-element-set').style.display = state.underlyingElementName ? 'flex' : 'none';
-  if (state.underlyingElementName) ctrl('underlying-element-name').textContent = state.underlyingElementName;
+  ctrl('underlying-element-empty').style.display = t.under ? 'none' : '';
+  ctrl('underlying-element-set').style.display = t.under ? 'flex' : 'none';
+  if (t.under) ctrl('underlying-element-name').textContent = t.under;
 }
 function removeUnderlyingElement() {
-  state.underlyingElementName = null;
+  elementContentTarget().under = null;
   syncElementContentUI();
   renderSeedPreview();
 }
@@ -5484,7 +5566,7 @@ function openUnderlyingElementPicker() {
     btn.setAttribute('aria-label', 'Use ' + name + ' as underlying component');
     btn.innerHTML = svgStr;
     btn.addEventListener('click', () => {
-      state.underlyingElementName = name;
+      elementContentTarget().under = name;
       syncElementContentUI();
       renderSeedPreview();
       closeUnderlyingElementPicker();
@@ -8443,6 +8525,7 @@ ctrl('btn-browse-creator').addEventListener('click', () => { if (creatorPopover.
 // Element appearance feeds every tier that draws the Element, so a change
 // re-renders all of them (the inactive tiers' DOM is just hidden, not gone).
 function onAppearanceChange() {
+  if (state.layers) state.layers.items[state.layers.active].look = readLookControls();
   ctrl('element-stroke-block').style.display = ctrl('sel-element-fillmode').value === 'stroke' ? '' : 'none';
   renderSeedPreview();
   renderGallery();
@@ -8536,17 +8619,21 @@ ctrl('sel-inner-anchor').addEventListener('change', () => { renderGallery(); ren
 // Style to Stroke (same as Genesis Create).
 // Segment forces Stroke; leaving it restores the Style you had (otherwise a
 // Circle picked afterwards would come up as an outline, not a disc).
+// In a multi-layer Element this is the ACTIVE layer's Style only (remembered
+// on the layer itself), never the other layers'.
 let styleBeforeSegment = null;
 ctrl('sel-seed-type').addEventListener('change', () => {
   const type = ctrl('sel-seed-type').value, fm = ctrl('sel-element-fillmode');
+  const layer = state.layers ? state.layers.items[state.layers.active] : null;
+  const saved = layer ? layer.styleBeforeSegment : styleBeforeSegment;
+  const setSaved = v => { if (layer) { if (v) layer.styleBeforeSegment = v; else delete layer.styleBeforeSegment; } else styleBeforeSegment = v; };
+  const setStyle = v => { fm.value = v; onAppearanceChange(); };   // onAppearanceChange stores it on the active layer
   if (type === 'segment' && fm.value !== 'stroke') {
-    styleBeforeSegment = fm.value;
-    fm.value = 'stroke';
-    onAppearanceChange();
-  } else if (type !== 'segment' && styleBeforeSegment) {
-    fm.value = styleBeforeSegment;
-    styleBeforeSegment = null;
-    onAppearanceChange();
+    setSaved(fm.value);
+    setStyle('stroke');
+  } else if (type !== 'segment' && saved) {
+    setSaved(null);
+    setStyle(saved);
   }
 });
 
@@ -10201,7 +10288,7 @@ ctrl('underlying-component-overlay').addEventListener('click', e => { if (e.targ
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && ctrl('underlying-component-overlay').style.display !== 'none') closeUnderlyingComponentPicker(); });
 
 ctrl('sel-element-content').addEventListener('change', e => {
-  state.elementContent = e.target.value;
+  elementContentTarget().content = e.target.value;
   syncElementContentUI();
   renderSeedPreview();
 });
