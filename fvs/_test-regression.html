@@ -37,7 +37,8 @@
 async function battery() {
   const H = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16).padStart(8, '0'); };
   // <metadata> carries a timestamp and the last-selected rule name (module state) — neither is geometry.
-  const norm = s => s.replace(/"exportedAt":"[^"]*"/g, '"exportedAt":""').replace(/"ruleSource":"[^"]*"/g, '"ruleSource":""');
+  // …and the per-drawing suffix of a stack's clip/mask ids (stk<hash>-<seq>-<layer>), which depends on render order
+  const norm = s => s.replace(/"exportedAt":"[^"]*"/g, '"exportedAt":""').replace(/"ruleSource":"[^"]*"/g, '"ruleSource":""').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
   const out = {};
   const put = (k, v) => { out[k] = typeof v === 'string' && v.length > 40 ? H(norm(v)) : String(v); };
   const chg = (id, v) => { const e = ctrl(id); e.value = v; e.dispatchEvent(new Event('change', { bubbles: true })); };
@@ -724,6 +725,17 @@ async function battery() {
     act(1, 'eye');
     put('layers:hidden', [state.layers.items[1].hidden === true, H(norm(buildSeedPreviewSVG(getSeed(), 0, false, false, 100))) === H(norm(bottomOnly)), fillLayers().length, row(1).classList.contains('is-hidden')].join(','));
     act(1, 'eye');
+    // Element → Component continuity: every stack drawing owns its clip/mask ids. With one id per SHAPE,
+    // url(#id) hit the first copy in the page — the hidden Element previews — and every Component
+    // thumbnail lost its Subtraction mask.
+    {
+      act(1, 'role');   // Subtraction mask
+      setTier('component'); chg('sel-rule', 'pinwheel'); generate();
+      const ids = [...document.querySelectorAll('clipPath[id^="stk"], mask[id^="stk"], clipPath[id^="compfx"], mask[id^="compfx"], clipPath[id^="clip-cell"]')].map(n => n.id);
+      put('layers:uniqueClipIds', (ids.length > 0) + ',' + (ids.length === new Set(ids).size));
+      setTier('element'); act(1, 'role'); act(1, 'role');   // → mask → fill
+      chg('sel-rule', 'identity');
+    }
     // reorder: moveLayerTo keeps the active layer; ⌥↓ on a row moves it down
     selectLayer(1);
     const activeType = state.layers.items[state.layers.active].seed.type;
@@ -811,6 +823,24 @@ async function battery() {
     removeLayer(2); removeLayer(1);
     put('layers:collapse', state.layers === null);
   } finally { reset(); }
+
+  // 25d — transparent Paper (the checkerboard button next to Paper): 'none' everywhere, PNG keeps the alpha
+  try {
+    reset();
+    chg('sel-seed-type', 'star'); paperSwatch.set('#f2e8d0');
+    ctrl('btn-paper-clear').click();
+    put('paper:clear:state', [state.paperColor, ctrl('btn-paper-clear').getAttribute('aria-pressed'), ctrl('hex-paper').value].join(','));
+    put('paper:clear:elementSvg', /<rect width="100" height="100" fill="none"\/>/.test(buildSeedPreviewSVG(getSeed(), 0, false, false, 100)));
+    chg('sel-rule', 'pinwheel'); generate();
+    const comp25d = getSelectedComponent(), size25d = frameDims(getGrid());
+    const cv25d = document.createElement('canvas'); cv25d.width = size25d.w; cv25d.height = size25d.h;
+    drawComponentCanvas(cv25d.getContext('2d'), buildComponentItems(comp25d, getGrid()), getSeed(), size25d);
+    const px25d = (x, y) => cv25d.getContext('2d').getImageData(x, y, 1, 1).data[3];
+    put('paper:clear:pngAlpha', px25d(1, 1) + ',' + (px25d(size25d.w / 4 | 0, size25d.h / 4 | 0) > 0));
+    put('paper:clear:entry', buildLibraryEntryFor(comp25d).paperColor);
+    ctrl('btn-paper-clear').click();   // off → the colour it had
+    put('paper:clear:restore', state.paperColor + ',' + ctrl('btn-paper-clear').getAttribute('aria-pressed'));
+  } finally { chg('sel-rule', 'identity'); reset(); syncPaperClearUI(); paperSwatch.set('#ffffff'); }
 
   // 25c — Segment: a filled bar (Fill, square ends by default); Repeat X/Y tile the whole canvas
   try {

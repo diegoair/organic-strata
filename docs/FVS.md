@@ -84,7 +84,10 @@ Grid step without saving it first.
 ## 4. Palette and colour rules
 
 - **Ink** — 1 to 8 colours (RMX chips); **Paper** is the ground for every
-  gallery thumbnail, PNG and SVG.
+  gallery thumbnail, PNG and SVG. The **checkerboard button** next to Paper makes it
+  **transparent** everywhere (every step, thumbnail, saved Component/Symbol and export):
+  SVG gets `fill="none"`, PNG keeps the alpha, and the previews show a checkerboard behind.
+  Click it again (or pick a colour) to get the previous Paper colour back.
 - **Colour by** decides which ink each cell gets: cell order, Checkerboard, By
   row, By column, Diagonal bands, By quadrant; **Start at** picks the leading
   colour. *By quadrant* splits the grid at its middle — on a grid with an odd

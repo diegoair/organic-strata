@@ -329,40 +329,52 @@
   /* ── Layers panel (Element): one lean row per layer, Figma-style ──
      FVS-local classes (the shared .org-layer-card stays as Colornet / Camo Turing use it). */
   .fvs-layers-head { display: inline-flex; align-items: center; gap: var(--space-2); }
-  .fvs-layers { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .fvs-layers { display: flex; flex-direction: column; }
+  #btn-layer-add { border: 0; color: var(--mid); border-radius: var(--radius-sm); }
+  #btn-layer-add:hover { color: var(--ink); background: var(--panel); }
   .fvs-layers:empty { display: none; }
-  .fvs-layer { display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); border-top: 1px solid var(--border); background: var(--paper); cursor: default; }
-  .fvs-layer:first-child { border-top: 0; border-radius: var(--radius-md) var(--radius-md) 0 0; }
-  .fvs-layer.active { background: color-mix(in srgb, var(--tool) 8%, var(--paper)); box-shadow: inset 2px 0 0 var(--tool); }
+  .fvs-layer { display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); border-radius: var(--radius-sm); cursor: default; }
+  .fvs-layer.active { background: var(--panel); }   /* selected: light grey */
+  .fvs-layer:hover, .fvs-layer.active:hover { background: var(--track-bg); }   /* hover: a darker grey */
+  .fvs-layer.active .fvs-layer__name { font-weight: var(--w-medium); }
+  .fvs-layer.active + .fvs-layer__place { border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+  .fvs-layer.active:has(+ .fvs-layer__place) { border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
   .fvs-layer.is-hidden .fvs-layer__icon, .fvs-layer.is-hidden .fvs-layer__name { opacity: 0.35; }
-  .fvs-layer.drop-above { box-shadow: inset 0 2px 0 var(--tool); }
-  .fvs-layer.drop-below { box-shadow: inset 0 -2px 0 var(--tool); }
+  .fvs-layer.drop-above { box-shadow: inset 0 2px 0 var(--ink); }
+  .fvs-layer.drop-below { box-shadow: inset 0 -2px 0 var(--ink); }
   .fvs-layer.dragging { opacity: 0.4; }
-  .fvs-layer:focus-visible { outline: 2px solid var(--tool); outline-offset: -2px; }
+  .fvs-layer:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
   .fvs-layer__grip { width: 10px; height: 18px; display: flex; align-items: center; justify-content: center; color: var(--mid); cursor: grab; flex-shrink: 0; }
   .fvs-layer__main { all: unset; flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); cursor: pointer; padding: var(--space-1) 0; }
   .fvs-layer__icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; }
   .fvs-layer__icon svg { width: 100%; height: 100%; }
   .fvs-layer__name { font-size: var(--fs-small); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fvs-layer__btn { all: unset; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: var(--mid); cursor: pointer; border-radius: var(--radius-sm); flex-shrink: 0; }
-  .fvs-layer__btn:hover { color: var(--ink); background: var(--border); }
-  .fvs-layer__btn:focus-visible, .fvs-layer__swatch:focus-visible { outline: 2px solid var(--tool); }
+  .fvs-layer__btn:hover { color: var(--ink); }
+  .fvs-layer__btn:focus-visible, .fvs-layer__swatch:focus-visible { outline: 2px solid var(--ink); }
   .fvs-layer__btn svg { width: 13px; height: 13px; }
-  .fvs-layer__swatch { all: unset; width: 14px; height: 14px; margin: 0 var(--space-1); border-radius: 50%; border: 1px solid var(--border-strong); background: var(--sw); cursor: pointer; flex-shrink: 0; }
+  .fvs-layer__swatch { all: unset; width: 14px; height: 14px; margin: 0 var(--space-1); border-radius: 50%; background: var(--sw); cursor: pointer; flex-shrink: 0; }
   .fvs-layer__swatch.is-cell { background: linear-gradient(135deg, var(--sw) 50%, var(--paper) 50%); }
   .fvs-layer__swatch:disabled { opacity: 0.25; cursor: default; }
   .fvs-layer__del { opacity: 0; }
   .fvs-layer:hover .fvs-layer__del, .fvs-layer.active .fvs-layer__del, .fvs-layer__del:focus-visible { opacity: 1; }
-  .fvs-layer__place { display: flex; flex-direction: column; padding: var(--space-1) var(--space-2) var(--space-1) var(--space-6); border-top: 1px solid var(--border); background: color-mix(in srgb, var(--tool) 8%, var(--paper)); box-shadow: inset 2px 0 0 var(--tool); }
+  .fvs-layer__place { display: flex; flex-direction: column; padding: 0 var(--space-2) var(--space-1) var(--space-6); background: var(--panel); border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
   .fvs-layer__place .ctrl-row { margin-bottom: 0; min-height: var(--space-7); gap: var(--space-2); }
   .fvs-layer__place .ctrl-label { min-width: 0; width: auto; flex: 0 0 26px; }
   .fvs-layer__place .ctrl-val { flex: 0 0 22px; }
-  .fvs-ink-pop { position: fixed; z-index: 40; display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: 180px; padding: var(--space-3); background: var(--paper); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 15%, transparent); }
+  .fvs-ink-pop { position: fixed; z-index: 40; display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: 180px; padding: var(--space-3); background: var(--paper); border-radius: var(--radius-md); box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 15%, transparent); }
   .fvs-ink-pop[hidden] { display: none; }
-  .fvs-ink-pop button { all: unset; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--border-strong); background: var(--sw); cursor: pointer; }
+  .fvs-ink-pop button { all: unset; width: 20px; height: 20px; border-radius: 50%; background: var(--sw); cursor: pointer; }
   .fvs-ink-pop button.is-cell { background: linear-gradient(135deg, var(--sw) 50%, var(--paper) 50%); }
-  .fvs-ink-pop button[aria-pressed="true"] { outline: 2px solid var(--tool); outline-offset: 1px; }
+  .fvs-ink-pop button[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
   .fvs-ink-pop button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+  /* Transparent paper: the toggle next to Paper, and a checkerboard behind every preview so "no paper" reads as such. */
+  #btn-paper-clear.is-on { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+  body.paper-clear #element-svg svg, body.paper-clear .fvs-seed-tile svg, body.paper-clear .fvs-thumb svg,
+  body.paper-clear #component-edit-frame svg, body.paper-clear #symbol-frame svg, body.paper-clear #figure-frame svg {
+    background: repeating-conic-gradient(var(--panel) 0 25%, var(--paper) 0 50%) 0 0 / var(--space-6) var(--space-6);
+  }
 </style>
 </head>
 <body>
@@ -1531,6 +1543,7 @@
           <input type="color" id="cp-paper" value="#ffffff">
         </span>
         <input class="color-hex" id="hex-paper" value="#ffffff" maxlength="7">
+        <button type="button" class="icon-btn" id="btn-paper-clear" aria-pressed="false" aria-label="Transparent paper" title="Transparent paper — no background in any step or export (PNG keeps the alpha, SVG has no paper rectangle)"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M2 2h4v4H2zM10 2h4v4h-4zM6 6h4v4H6zM2 10h4v4H2zM10 10h4v4h-4z" fill="currentColor"/><rect x="2" y="2" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1"/></svg></button>
       </div>
     </div>
 
@@ -3778,9 +3791,19 @@ function stackUid(geo) {
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
   return 'stk' + (h >>> 0).toString(36);
 }
+let _stackDrawSeq = 0;
+// The same per-drawing suffix for the Component Role and Symbol "Clip to cell" ids —
+// both are drawn many times in one page (gallery, library, suggestions, hidden steps).
+const nextDrawId = () => 'd' + (++_stackDrawSeq).toString(36);
 function stackPathMarkup(geo, color, forceFill) {
   const a = getElementAppearance();
-  const uid = stackUid(geo);
+  // Unique per drawing, not just per shape: url(#id) resolves to the FIRST
+  // element with that id in the whole document, and the same stack is drawn
+  // in many places at once — when the first copy sits in a hidden step
+  // (the Element previews, display:none while on Component) its clipPath /
+  // mask doesn't apply, so every Component thumbnail lost its Subtraction
+  // mask / Mask. The `-<n>` suffix makes each drawing reference its own defs.
+  const uid = stackUid(geo) + '-' + (++_stackDrawSeq).toString(36);
   let out = '';
   geo.layers.forEach((l, i) => {
     const g = l.geo, t = layerTransformAttr(l, g), role = l.role || 'fill';
@@ -3924,8 +3947,7 @@ function drawComponentCanvas(ctx, items, seed, size) {
   const under = (state.componentRole === 'container' || state.componentRole === 'mask') ? resolveUnderlyingComponent(state.underlyingComponentName) : null;
 
   if (!under) {
-    ctx.fillStyle = state.paperColor;
-    ctx.fillRect(0, 0, dims.w, dims.h);
+    fillPaper(ctx, state.paperColor, 0, 0, dims.w, dims.h);
     drawItemsPlain(ctx, items, geo, path, dims.w, dims.h);
     return;
   }
@@ -3954,8 +3976,7 @@ function drawComponentCanvas(ctx, items, seed, size) {
   if (state.componentRole === 'container') {
     ctx.save();
     ctx.clip(boundaryPath);
-    ctx.fillStyle = under.paperColor;
-    ctx.fillRect(0, 0, size, size);
+    fillPaper(ctx, under.paperColor, 0, 0, size, size);
     ctx.save();
     ctx.scale(fitScale, fitScale);
     withAppearance(under.appearance, () => drawItemsPlain(ctx, under.items, underGeo, underPath, under.size));
@@ -3967,12 +3988,10 @@ function drawComponentCanvas(ctx, items, seed, size) {
     // transparency (destination-out) — the same unifying mechanism
     // confirmed for Creator: "empty" wherever nothing else is beneath,
     // a genuine hole wherever there is.
-    ctx.fillStyle = state.paperColor;
-    ctx.fillRect(0, 0, size, size);
+    fillPaper(ctx, state.paperColor, 0, 0, size, size);
     ctx.save();
     ctx.scale(fitScale, fitScale);
-    ctx.fillStyle = under.paperColor;
-    ctx.fillRect(0, 0, under.size, under.size);
+    fillPaper(ctx, under.paperColor, 0, 0, under.size, under.size);
     withAppearance(under.appearance, () => drawItemsPlain(ctx, under.items, underGeo, underPath, under.size));
     ctx.restore();
     ctx.save();
@@ -4019,7 +4038,7 @@ function buildComponentSVGBody(items, seed, size) {
     // scale from the origin already covers corner-to-corner, no centring
     // offset needed since both frames are square.
     const underWrapped = `<g transform="scale(${fitScale.toFixed(4)})">${underBody}</g>`;
-    const uid = 'compfx-' + String(state.underlyingComponentName).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const uid = 'compfx-' + String(state.underlyingComponentName).replace(/[^a-zA-Z0-9_-]/g, '_') + '-' + nextDrawId();   // unique per drawing (see nextDrawId)
     if (state.componentRole === 'container') {
       body += `<clipPath id="${uid}">${componentBoundaryClipContent(items, geo, half)}</clipPath>`
         + `<g clip-path="url(#${uid})">${underWrapped}</g>`;
@@ -4936,8 +4955,7 @@ function exportSelected(format) {
     const off = document.createElement('canvas');
     off.width = p.outW; off.height = p.outH;
     const ctx = off.getContext('2d');
-    ctx.fillStyle = state.paperColor;
-    ctx.fillRect(0, 0, p.outW, p.outH);
+    fillPaper(ctx, state.paperColor, 0, 0, p.outW, p.outH);
     ctx.save();
     ctx.translate(p.bleedPx, p.bleedPx);
     ctx.scale(p.scale, p.scale);
@@ -5014,6 +5032,15 @@ const LIBRARY = Organica.presetStore('fvs');
 // only sound if one colour has one spelling, so hexKey() folds case and the
 // short #abc form, and every entry point (palette, paper, saved entries,
 // recipes) normalises through it.
+// Paper can be transparent: state.paperColor === 'none' (Palette → the checkerboard
+// button next to Paper). In SVG that's just fill="none"; on Canvas nothing is painted.
+const PAPER_NONE = 'none';
+const isPaperNone = c => String(c == null ? '' : c).trim().toLowerCase() === PAPER_NONE;
+function fillPaper(ctx, color, x, y, w, h) {
+  if (!color || isPaperNone(color)) return;
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
+}
 const hexKey = c => {
   c = String(c == null ? '' : c).trim().toLowerCase();
   return /^#[0-9a-f]{3}$/.test(c) ? '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3] : c;
@@ -5533,7 +5560,7 @@ function restoreComponentElementState(snap) {
   syncColorRuleUI();
   buildPalette();
   state.paperColor = hexKey(snap.paperColor);
-  paperSwatch.set(snap.paperColor);
+  setPaperUI(snap.paperColor);
 
   state.componentRole = snap.componentRole;
   state.underlyingComponentName = snap.underlyingComponentName;
@@ -5560,7 +5587,7 @@ function applyLibraryEntryToUI(entry) {
   syncColorRuleUI();
   buildPalette();
   state.paperColor = hexKey(entry.paperColor);
-  paperSwatch.set(entry.paperColor);
+  setPaperUI(entry.paperColor);
 
   const comp = { id: `library-${Date.now()}`, ruleSource: entry.component.ruleSource, cells: entry.component.cells };
   state.components = [comp];
@@ -6589,6 +6616,7 @@ function bleedCellOutline(grid, rawCell, F, d) {
 }
 
 function symbolSVGFromItems(items) {
+  const drawId = nextDrawId();
   const grid = getSymbolGrid();
   if (!grid) return '';
   const F = symbolFrame(grid);
@@ -6644,8 +6672,8 @@ function symbolSVGFromItems(items) {
       const o = bleedCellOutline(grid, rawCell, F, bleed);
       const clipShape = o.poly ? `<polygon points="${o.poly.map(p => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(' ')}"/>`
         : `<rect x="${o.x.toFixed(2)}" y="${o.y.toFixed(2)}" width="${o.w.toFixed(2)}" height="${o.h.toFixed(2)}"/>`;
-      defs += `<clipPath id="clip-cell-${it.index}">${clipShape}</clipPath>`;
-      clipAttr = ` clip-path="url(#clip-cell-${it.index})"`;
+      defs += `<clipPath id="clip-cell-${it.index}-${drawId}">${clipShape}</clipPath>`;
+      clipAttr = ` clip-path="url(#clip-cell-${it.index}-${drawId})"`;
     }
     const c = centers[it.index];
     if (c && it.type !== 'missing') {
@@ -6667,8 +6695,7 @@ function drawSymbolCanvas(ctx) {
   const grid = getSymbolGrid();
   const F = grid ? symbolFrame(grid) : { w: 0, h: 0, X: v => v, Y: v => v };
   ctx.clearRect(0, 0, F.w, F.h);
-  ctx.fillStyle = state.paperColor;
-  ctx.fillRect(0, 0, F.w, F.h);
+  fillPaper(ctx, state.paperColor, 0, 0, F.w, F.h);
   if (!grid) return;
   const items = buildSymbolItems().filter(Boolean);
   const bleed = symbolBleed(F), centers = resolveGridCells(grid);
@@ -6702,8 +6729,7 @@ function drawSymbolCanvas(ctx) {
     if (it.type !== 'component') continue;
     enter(it);
     nestedFrame(it);
-    ctx.fillStyle = it.nestedPaper;
-    ctx.fillRect(0, 0, it.nestedW, it.nestedH);
+    fillPaper(ctx, it.nestedPaper, 0, 0, it.nestedW, it.nestedH);
     ctx.restore();
   }
   // pass 2 — ink
@@ -6920,14 +6946,15 @@ function analyseComponent(name) {
     withAppearance(entry.appearance, () => drawComponentCanvas(ctx, items, entry.seed, S));
   } finally { state.paperColor = prev.paper; state.componentRole = prev.role; state.underlyingComponentName = prev.under; ctx.setTransform(1, 0, 0, 1, 0, 0); }
   const px = ctx.getImageData(0, 0, RES, RES).data;
-  const paper = hexToRgb(entry.paperColor || '#ffffff');
+  const clearPaper = isPaperNone(entry.paperColor);   // transparent Paper: ink = an opaque pixel
+  const paper = hexToRgb(clearPaper ? '#ffffff' : (entry.paperColor || '#ffffff'));
   const GW = Math.max(4, Math.round(d.w / S * RES)), GH = Math.max(4, Math.round(d.h / S * RES));
   const ox = Math.round((RES - GW) / 2), oy = Math.round((RES - GH) / 2);
   const cov = new Uint8Array(GW * GH);
   let ink = 0;
   for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
     const i = ((oy + y) * RES + ox + x) * 4;
-    const on = Math.abs(px[i] - paper.r) + Math.abs(px[i + 1] - paper.g) + Math.abs(px[i + 2] - paper.b) > 90 ? 1 : 0;
+    const on = clearPaper ? (px[i + 3] > 128 ? 1 : 0) : (Math.abs(px[i] - paper.r) + Math.abs(px[i + 1] - paper.g) + Math.abs(px[i + 2] - paper.b) > 90 ? 1 : 0);
     cov[y * GW + x] = on; ink += on;
   }
   const out = { cov, GW, GH, density: ink / (GW * GH), square: Math.abs(d.w - d.h) < 1e-6, natural: Math.abs(d.w - d.h) < 1e-6 ? S : { w: d.w, h: d.h } };
@@ -8173,7 +8200,7 @@ function applySymbolLibraryEntryToUI(entry) {
   state.symbolCells.forEach((c, i) => { if (c.color && String(c.color).toLowerCase() === String(ruleInk(i, symbolCR())).toLowerCase()) c.color = null; });
   buildPalette();
   state.paperColor = hexKey(entry.paperColor);
-  paperSwatch.set(entry.paperColor);
+  setPaperUI(entry.paperColor);
   // Old saved Symbols (pre-Clip-to-cell) have no clipEnabled field — back-
   // filled to true, matching withPlacementDefaults' own convention of
   // restoring exactly the pre-feature behaviour for anything not saved.
@@ -8270,8 +8297,7 @@ function exportSymbolPrint(format, F, cv) {
   const off = document.createElement('canvas');
   off.width = d.trimWpx + 2 * d.bleedPx; off.height = d.trimHpx + 2 * d.bleedPx;
   const ctx = off.getContext('2d');
-  ctx.fillStyle = state.paperColor;
-  ctx.fillRect(0, 0, off.width, off.height);
+  fillPaper(ctx, state.paperColor, 0, 0, off.width, off.height);
   ctx.save();
   ctx.translate(d.bleedPx, d.bleedPx);
   ctx.scale(d.trimWpx / F.w, d.trimHpx / F.h);
@@ -8946,10 +8972,30 @@ ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(btn => {
   btn.addEventListener('click', () => setTier(btn.dataset.tier));
 });
 
+const repaintPaper = () => { renderGallery(); renderSeedPreview(); if (state.symbolGrid) renderSymbolCanvasOnly(); };
 const paperSwatch = Organica.palette.swatch('paper', {
   initial: '#ffffff',
-  onChange: (hex) => { state.paperColor = hexKey(hex); renderGallery(); renderSeedPreview(); if (state.symbolGrid) renderSymbolCanvasOnly(); },
+  // picking a colour always means an opaque paper again
+  onChange: (hex) => { state.paperColor = hexKey(hex); syncPaperClearUI(); repaintPaper(); },
 });
+// Transparent paper (state.paperColor === 'none'): the checkerboard button next to
+// Paper. The swatch keeps the last colour, so switching it off gives that colour back.
+function syncPaperClearUI() {
+  const on = isPaperNone(state.paperColor);
+  ctrl('btn-paper-clear').setAttribute('aria-pressed', String(on));
+  ctrl('btn-paper-clear').classList.toggle('is-on', on);
+  document.body.classList.toggle('paper-clear', on);
+}
+// Every place that restores a saved paper goes through here (a colour or 'none').
+function setPaperUI(c) {
+  if (isPaperNone(c)) { state.paperColor = PAPER_NONE; syncPaperClearUI(); repaintPaper(); }
+  else paperSwatch.set(c);
+}
+ctrl('btn-paper-clear').addEventListener('click', () => {
+  if (isPaperNone(state.paperColor)) paperSwatch.set(hexKey(ctrl('hex-paper').value) || '#ffffff');
+  else setPaperUI(PAPER_NONE);
+});
+syncPaperClearUI();
 
 ctrl('chk-axis-rotation').addEventListener('change', () => { syncExhaustiveHint(); syncRuleAxisNote(); });
 ctrl('chk-axis-flip').addEventListener('change', () => { syncExhaustiveHint(); syncRuleAxisNote(); });
@@ -9135,7 +9181,7 @@ function runSealedSymbolLevel(first) {
     state.colorRule = { ...DEFAULT_COLOR_RULE, ...(first.colorRule || {}) };
     syncColorRuleUI(); buildPalette();
   }
-  if (first.paperColor) { state.paperColor = hexKey(first.paperColor); paperSwatch.set(state.paperColor); }
+  if (first.paperColor) { state.paperColor = hexKey(first.paperColor); setPaperUI(state.paperColor); }
   loadSymbolGrid(JSON.parse(JSON.stringify(l.model)));
   if (first.cells.length !== getSymbolGrid().cells.length) throw new Error(`The adopted Symbol has ${first.cells.length} cells but its grid has ${getSymbolGrid().cells.length}`);
   state.symbolCells = first.cells.map(c => withPlacementDefaults(JSON.parse(JSON.stringify(c))));
@@ -9184,7 +9230,7 @@ function runFigureRecipe(def, opts) {
   state.colors = (el.colors || ['#000000']).map(hexKey);
   state.colorRule = { ...DEFAULT_COLOR_RULE, ...(el.colorRule || {}) };
   syncColorRuleUI(); buildPalette();
-  paperSwatch.set(hexKey(el.paper || '#ffffff'));
+  setPaperUI(hexKey(el.paper || '#ffffff'));
   const first = lv[0], grids = lv.slice(1), gridLv = grids[0];
   let tier;
   state.fvsGridRaw = null; state.figureLevelStats = []; state.figureLevelMeta = [];
@@ -10110,7 +10156,7 @@ async function refreshFigureChecks(def, svg, run) {
   const rows = figureChecks(def, svg);
   renderFigureReport(rows);
   try {
-    const fm = await rasterMask(svg, 160, state.paperColor);
+    const fm = await rasterMask(svg, 160, isPaperNone(state.paperColor) ? '#ffffff' : state.paperColor);
     if (run !== figureRun) return;
     const extra = [];
     const m = 96, nf = normMask(fm, m), tr = def.transform || {};
@@ -10243,7 +10289,7 @@ function renderVariantRows() {
       + `<input type="number" class="panel-input" min="1" max="20" aria-label="Variant ${i + 1} stroke width">`
       + `<button class="mini-btn" aria-label="Remove variant ${i + 1}">×</button>`;
     const [sel, col, pap, num, del] = row.children;
-    sel.value = v.style; col.value = v.ink; num.value = v.strokeW; pap.value = v.paper || state.paperColor;
+    sel.value = v.style; col.value = v.ink; num.value = v.strokeW; pap.value = v.paper || (isPaperNone(state.paperColor) ? '#ffffff' : state.paperColor);
     pap.title = 'Paper for this variant';
     pap.addEventListener('input', () => { v.paper = pap.value; writeVariants(variantList); });
     num.disabled = v.style !== 'stroke';
