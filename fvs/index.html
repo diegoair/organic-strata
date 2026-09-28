@@ -1177,7 +1177,7 @@
     <div class="panel-section">
       <h3>Split <span class="hint">a real geometric cut</span></h3>
       <div class="ctrl-row"><div class="ctrl-label">Keep</div>
-        <div class="seg-ctrl" id="seg-split-quadrant" role="group" aria-label="Keep one quadrant of the Element">
+        <div class="seg-ctrl" id="seg-split-quadrant" role="group" aria-label="Keep one or more quadrants of the Element">
           <button type="button" class="seg-btn active" data-q="whole" aria-pressed="true" title="Restore the whole shape">All</button>
           <button type="button" class="seg-btn" data-q="tl" aria-pressed="false">TL</button>
           <button type="button" class="seg-btn" data-q="tr" aria-pressed="false">TR</button>
@@ -1185,7 +1185,12 @@
           <button type="button" class="seg-btn" data-q="br" aria-pressed="false">BR</button>
         </div>
       </div>
-      <p class="org-panel__hint" id="split-status">Cuts the Element's own shape at its centre into 4 quadrants (top-left, top-right, bottom-left, bottom-right) and keeps the one you pick as the Element. Whole restores the original shape.</p>
+      <div class="ctrl-row"><div class="ctrl-label">Cut grid</div>
+        <label class="check-row"><input type="checkbox" id="chk-split-grid" checked><span>Show cut grid</span></label>
+      </div>
+      <button class="mini-btn" id="btn-split-save" style="width:100%" disabled>Save piece as Seed…</button>
+      <p class="org-panel__hint" id="split-status">Cuts the Element's own shape at its centre into 4 quadrants (top-left, top-right, bottom-left, bottom-right) — pick one or more to keep as the Element. All restores the original shape.</p>
+      <p class="org-panel__hint" id="split-recipe-hint" style="display:none">Press All to edit the original shape's sliders again.</p>
     </div>
     <div class="panel-section">
       <h3>Start from a recipe</h3>
@@ -1975,6 +1980,10 @@ const state = {
   loomGrid: null,   // {cellShape, cells, inner:{width,height}} from Organica.loadLoomGrid, or null until a file is imported
   activeTier: 'element',   // 'element' | 'component' | 'symbol' | 'figure'
   splitOriginal: null, splitApplied: null,   // Element-tier Split: the pre-split seed, and the custom seed we produced
+  splitOriginalStyle: null,   // the Style (Fill/Stroke) the Element had before a Segment split forced it to Fill — restored by 'All'
+  splitKeep: new Set(),       // Split: which of tl/tr/bl/br are currently kept (empty = whole shape)
+  splitCache: null,           // {key, pieces} — splitElementGeometry() result for the current pre-split seed, so toggling chips doesn't re-run Paper
+  splitCombinedRaw: null,     // the raw (unfitted) concatenated `d` of the currently-kept quadrants — reused by "Save piece as Seed"
   preFigureSnapshot: null,   // Element+Component state captured right before entering Figure — see setTier()
   // The Grid tier's own page is gone — buildFvsGridSVG()/getFvsGrid() are kept as
   // page-less helpers (Figure recipes and the legacy "Start from a recipe" tile
@@ -2299,16 +2308,114 @@ function fitPathToSeed(d, frameBB) {
   const offX = (100 - fitW) / 2, offY = (100 - fitH) / 2;
   return { d, normScale, normTx: -bb.x + offX / normScale, normTy: -bb.y + offY / normScale };
 }
-// Splits `d` into up to 4 quadrant fragments {id:'tl'|'tr'|'bl'|'br', seed}
-// (seed already fit to its own 0..100 box via fitPathToSeed) — omits a
-// quadrant Paper's intersect() finds empty (common for an off-centre or
-// non-convex shape, e.g. a diagonal Segment only touching 2 of 4).
-function splitElementGeometry(d, fillRule) {
-  const bb = pathBBox(d);
-  if (!bb || bb.width <= 0 || bb.height <= 0) return [];
+// Segment (and any other open-stroke geometry) has zero fill area, so
+// intersect() below finds nothing — this turns its open strokes into thin
+// FILLED ribbons first, at the Element's own current stroke width, so the
+// normal area-cut pipeline can run unchanged. FVS-local only: shared/shapes.js
+// segmentGeometry() must keep returning a plain stroke (Genesis draws it that
+// way), so the conversion happens here, at split time, not in the shared geometry.
+function unitVec(v) { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; }
+function segNormal(a, b) { const dx = b[0] - a[0], dy = b[1] - a[1]; const len = Math.hypot(dx, dy) || 1; return [-dy / len, dx / len]; }
+function ptsToD(pts, closed) { let d = 'M ' + pts.map(p => p[0] + ',' + p[1]).join(' L '); if (closed) d += ' Z'; return d; }
+// A true semicircular cap from `from` to `to`, both at radius r from `center`
+// (the path's own endpoint) — picks the sweep flag by directly computing
+// which of the two candidate arc directions points toward `outwardDir`,
+// rather than reasoning about SVG's own sweep-flag convention (exact for a
+// diameter chord: sweep=1's arc midpoint is center + rotate90CCW(from-center)).
+function capArc(center, from, to, outwardDir) {
+  const r = Math.hypot(from[0] - center[0], from[1] - center[1]);
+  const v = [from[0] - center[0], from[1] - center[1]];
+  const mid = [-v[1], v[0]];   // candidate midpoint direction for sweep=1
+  const sweep = (mid[0] * outwardDir[0] + mid[1] * outwardDir[1]) > 0 ? 1 : 0;
+  return `A ${r} ${r} 0 0 ${sweep} ${to[0]} ${to[1]}`;
+}
+function strokeToShapeD(d, widthUnits) {
+  const rounded = ctrl('ck-element-rounded') ? ctrl('ck-element-rounded').checked : true;
+  const halfW = Math.max(0.05, (widthUnits || 4) / 2);
   const scope = splitPaperScope();
+  let src;
+  try { src = new scope.CompoundPath(d); } catch (e) { return null; }
+  const subs = (src.children && src.children.length ? src.children.slice() : [src]);
+  const ribbonDs = [];
+  for (const sub of subs) {
+    const clone = sub.clone({ insert: false });
+    try { clone.flatten(0.25); } catch (e) { /* already straight segments */ }
+    const pts = (clone.segments || []).map(s => [s.point.x, s.point.y]);
+    const closed = !!sub.closed;
+    clone.remove();
+    const n = pts.length;
+    if (n < 2) continue;
+    // Per-vertex normal = the average of its two flanking segment normals
+    // (re-normalised) — a plain miter join, fine at Segment's typical widths.
+    const normals = pts.map((p, i) => {
+      const prevI = i > 0 ? i - 1 : (closed ? n - 1 : -1);
+      const nextI = i < n - 1 ? i + 1 : (closed ? 0 : -1);
+      const n1 = prevI >= 0 ? segNormal(pts[prevI], p) : null;
+      const n2 = nextI >= 0 ? segNormal(p, pts[nextI]) : null;
+      if (n1 && n2) return unitVec([n1[0] + n2[0], n1[1] + n2[1]]);
+      return n1 || n2 || [0, 0];
+    });
+    const left = pts.map((p, i) => [p[0] + normals[i][0] * halfW, p[1] + normals[i][1] * halfW]);
+    const right = pts.map((p, i) => [p[0] - normals[i][0] * halfW, p[1] - normals[i][1] * halfW]);
+    let ribbonD;
+    if (closed) {
+      // Outer ring (left, forward) + inner ring (right, reversed) — opposite
+      // traversal order gives opposite winding, so nonzero fill reads it as
+      // an annulus (a hole), same convention withInnerCopies' evenodd rings use.
+      ribbonD = ptsToD(left, true) + ' ' + ptsToD(right.slice().reverse(), true);
+    } else {
+      const tanEnd = unitVec([pts[n - 1][0] - pts[n - 2][0], pts[n - 1][1] - pts[n - 2][1]]);
+      const tanStart = unitVec([pts[0][0] - pts[1][0], pts[0][1] - pts[1][1]]);
+      let s = 'M ' + left.map(p => p[0] + ',' + p[1]).join(' L ');
+      s += rounded ? ' ' + capArc(pts[n - 1], left[n - 1], right[n - 1], tanEnd) : ' L ' + right[n - 1][0] + ',' + right[n - 1][1];
+      if (n > 2) s += ' L ' + right.slice(0, n - 1).reverse().map(p => p[0] + ',' + p[1]).join(' L ');
+      s += rounded ? ' ' + capArc(pts[0], right[0], left[0], tanStart) : ' L ' + left[0][0] + ',' + left[0][1];
+      s += ' Z';
+      ribbonD = s;
+    }
+    ribbonDs.push(ribbonD);
+  }
+  src.remove();
+  if (!ribbonDs.length) return null;
+  let combined = null;
+  for (const rd of ribbonDs) {
+    let p; try { p = new scope.Path(rd); } catch (e) { continue; }
+    if (!combined) combined = p;
+    else { const u = combined.unite(p, { insert: false }); combined.remove(); p.remove(); combined = u; }
+  }
+  if (!combined) return null;
+  const out = combined.pathData;
+  combined.remove();
+  return out;
+}
+// Splits `d` into up to 4 quadrant fragments {id:'tl'|'tr'|'bl'|'br', seed,
+// strokeConv, frameBB} (seed already fit to its own 0..100 box via
+// fitPathToSeed) — omits a quadrant Paper's intersect() finds empty (common
+// for an off-centre or non-convex shape, e.g. a diagonal Segment only
+// touching 2 of 4). `strokeConv` is true when `d` had no fillable area
+// (Segment and its variants) and was converted to a filled ribbon first —
+// the caller uses it to force the Element into Fill style, since a stroke
+// re-applied on top of an already-filled ribbon piece would double-outline it.
+function splitElementGeometry(d, fillRule) {
+  const scope = splitPaperScope();
+  const bb0 = pathBBox(d);
+  if (!bb0) return [];
+  let allOpen = false;
+  try {
+    const probe = new scope.CompoundPath(d);
+    const subs = probe.children && probe.children.length ? probe.children : [probe];
+    allOpen = subs.every(s => !s.closed);
+    probe.remove();
+  } catch (e) { /* fall through, treat as a normal filled shape */ }
+  let dd = d, fr = fillRule, strokeConv = false;
+  if (bb0.width < 0.01 || bb0.height < 0.01 || allOpen) {
+    const conv = strokeToShapeD(d, (getElementAppearance().strokeW) || 4);
+    if (conv) { dd = conv; fr = undefined; strokeConv = true; }
+  }
+  const bb = strokeConv ? pathBBox(dd) : bb0;
+  if (!bb || bb.width <= 0 || bb.height <= 0) return [];
   let shape;
-  try { shape = importAsPaperShape(scope, d, fillRule); } catch (e) { return []; }
+  try { shape = importAsPaperShape(scope, dd, fr); } catch (e) { return []; }
   const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
   // A margin well past the shape's own extent keeps a quadrant rectangle's
   // inner edges off any coincident shape boundary — an exact-touch can make
@@ -2324,7 +2431,7 @@ function splitElementGeometry(d, fillRule) {
     if (piece) {
       if (Math.abs(piece.area) > 0.01) {
         const seed = fitPathToSeed(piece.pathData, bb);
-        if (seed) out.push({ id: q.id, seed });
+        if (seed) out.push({ id: q.id, seed, strokeConv, frameBB: bb });
       }
       piece.remove();
     }
@@ -3817,6 +3924,46 @@ function renderSeedPreview() {
   renderElementFrame(seed);
 }
 
+// Split's cut grid — a dashed frame + centre cross showing exactly where the
+// two cut lines fall, drawn over the Element canvas only (never exported —
+// exportElement() calls buildSeedPreviewSVG directly). The frame is the
+// ORIGINAL (pre-split) shape's own bbox mapped through its own geometry
+// transform: transformed_x = (raw_x + normTx) * normScale, the same formula
+// elementPathMarkup's <g transform> applies — works for any Seed, centred or
+// not, without assuming fitToBox's usual centring.
+function buildSplitGridOverlaySVG(size) {
+  const chk = ctrl('chk-split-grid');
+  if (!chk || !chk.checked) return '';
+  const split = state.splitOriginal && state.customSeed === state.splitApplied;
+  const srcSeed = split ? state.splitOriginal : (elementIsEmpty() ? null : seedForSnapshot());
+  if (!srcSeed || !SEED_TYPES[srcSeed.type]) return '';
+  const geo = SEED_TYPES[srcSeed.type].geometry(srcSeed);
+  if (!geo || !geo.d) return '';
+  const bb = pathBBox(geo.d);
+  if (!bb) return '';
+  const scale = size / 100;
+  const fx = (bb.x + geo.normTx) * geo.normScale * scale;
+  const fy = (bb.y + geo.normTy) * geo.normScale * scale;
+  const fw = bb.width * geo.normScale * scale, fh = bb.height * geo.normScale * scale;
+  const cx = fx + fw / 2, cy = fy + fh / 2;
+  const kept = state.splitKeep;
+  const tint = (q, dx, dy) => {
+    const on = kept.size === 0 || kept.has(q);
+    const rx = dx < 0 ? fx : cx, ry = dy < 0 ? fy : cy;
+    return `<rect x="${rx.toFixed(2)}" y="${ry.toFixed(2)}" width="${(fw / 2).toFixed(2)}" height="${(fh / 2).toFixed(2)}" fill="${on ? 'var(--tool)' : 'var(--mid)'}" fill-opacity="${on ? 0.14 : 0.05}"/>`;
+  };
+  const label = (dx, dy, text) => {
+    const lx = (dx < 0 ? fx : cx) + fw * 0.06, ly = (dy < 0 ? fy : cy) + fh * 0.2;
+    return `<text x="${lx.toFixed(2)}" y="${ly.toFixed(2)}" font-size="10" fill="var(--mid)" font-family="var(--font)">${text}</text>`;
+  };
+  return `<g pointer-events="none">`
+    + tint('tl', -1, -1) + tint('tr', 1, -1) + tint('bl', -1, 1) + tint('br', 1, 1)
+    + `<rect x="${fx.toFixed(2)}" y="${fy.toFixed(2)}" width="${fw.toFixed(2)}" height="${fh.toFixed(2)}" fill="none" stroke="var(--tool)" stroke-width="1" stroke-dasharray="4 3"/>`
+    + `<line x1="${cx.toFixed(2)}" y1="${fy.toFixed(2)}" x2="${cx.toFixed(2)}" y2="${(fy + fh).toFixed(2)}" stroke="var(--tool)" stroke-width="1" stroke-dasharray="4 3"/>`
+    + `<line x1="${fx.toFixed(2)}" y1="${cy.toFixed(2)}" x2="${(fx + fw).toFixed(2)}" y2="${cy.toFixed(2)}" stroke="var(--tool)" stroke-width="1" stroke-dasharray="4 3"/>`
+    + label(-1, -1, 'TL') + label(1, -1, 'TR') + label(-1, 1, 'BL') + label(1, 1, 'BR')
+    + `</g>`;
+}
 // Element tier's own big canvas — a single live preview of the current
 // Seed at 0°, on its own stage. Reuses buildSeedPreviewSVG (the same
 // geometry the 7-tile strip below uses) at a larger size.
@@ -3824,7 +3971,10 @@ function renderElementFrame(seed) {
   const frame = ctrl('element-frame');
   if (!frame) return;
   const sd = seed || getSeed();
-  ctrl('element-svg').innerHTML = buildSeedPreviewSVG(sd.type === 'freehand' ? { ...sd, type: 'freehandraw' } : sd, 0, false, false, 400);
+  let svg = buildSeedPreviewSVG(sd.type === 'freehand' ? { ...sd, type: 'freehandraw' } : sd, 0, false, false, 400);
+  const overlay = buildSplitGridOverlaySVG(400);
+  if (overlay) svg = svg.replace('</svg>', overlay + '</svg>');
+  ctrl('element-svg').innerHTML = svg;
 }
 
 function exportElement(format) {
@@ -4473,45 +4623,114 @@ function clearGallery() {
 }
 
 // Element-tier split: cuts the Element's own shape at its bbox centre (a real
-// geometric clip via splitElementGeometry, not a mask) and keeps ONE quadrant
-// as the Element itself, stored as a 'custom' seed — every downstream tier
-// (Component, Symbol, Figure, export) already understands that. `Whole`
-// restores the original. state.splitOriginal remembers the pre-split seed;
-// it is re-snapshotted whenever the Element is no longer the piece we made
-// (state.splitApplied), so a manual change of shape never restores stale data.
-function syncSplitUI(q) {
+// geometric clip via splitElementGeometry, not a mask) and keeps ONE OR MORE
+// quadrants as the Element itself, stored as one combined 'custom' seed —
+// every downstream tier (Component, Symbol, Figure, export) already
+// understands that. `All` restores the original. state.splitOriginal
+// remembers the pre-split seed; it is re-snapshotted whenever the Element is
+// no longer the piece we made (state.splitApplied), so a manual change of
+// shape never restores stale data. state.splitKeep is the live multi-select
+// set (empty = whole shape); state.splitCache memoises splitElementGeometry's
+// Paper.js work per pre-split seed so toggling chips is cheap.
+const SPLIT_QNAMES = { tl: 'top-left', tr: 'top-right', bl: 'bottom-left', br: 'bottom-right' };
+function syncSplitUI() {
   ctrl('seg-split-quadrant').querySelectorAll('.seg-btn').forEach(b => {
-    const on = b.dataset.q === q;
+    const q = b.dataset.q;
+    const on = q === 'whole' ? state.splitKeep.size === 0 : state.splitKeep.has(q);
     b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
   });
+  ctrl('btn-split-save').disabled = state.splitKeep.size === 0;
+  ctrl('split-recipe-hint').style.display = state.splitKeep.size > 0 ? '' : 'none';
 }
-function splitElementKeepQuadrant(q) {
-  const status = ctrl('split-status');
-  if (q === 'whole') {
-    if (state.splitOriginal && state.customSeed === state.splitApplied) {
-      applySeedToPanel(state.splitOriginal);
-      state.splitOriginal = null; state.splitApplied = null;
-      renderGallery(); renderSeedPreview();
-    }
-    syncSplitUI('whole');
-    status.textContent = 'Whole shape.';
-    return;
-  }
+// Whichever pre-split seed is live right now (freshly snapshotted the first
+// time a chip is toggled on, reused across further toggles while it's ours).
+function splitCurrentOriginal() {
   const stillOurs = state.splitOriginal && state.customSeed && state.customSeed === state.splitApplied;
-  const original = stillOurs ? state.splitOriginal : seedForSnapshot();
-  if (!stillOurs && elementIsEmpty()) { status.textContent = 'Draw or pick a Seed first — nothing to split.'; syncSplitUI('whole'); return; }
+  return { stillOurs, original: stillOurs ? state.splitOriginal : seedForSnapshot() };
+}
+function splitElementReset() {
+  const status = ctrl('split-status');
+  if (state.splitOriginal && state.customSeed === state.splitApplied) {
+    applySeedToPanel(state.splitOriginal);
+    if (state.splitOriginalStyle) fireChange('sel-element-fillmode', state.splitOriginalStyle);
+  }
+  state.splitOriginal = null; state.splitApplied = null; state.splitOriginalStyle = null;
+  state.splitCache = null; state.splitCombinedRaw = null; state.splitKeep.clear();
+  renderGallery(); renderSeedPreview();
+  syncSplitUI();
+  status.textContent = 'Whole shape.';
+}
+function toggleSplitQuadrant(q) {
+  if (state.splitKeep.has(q)) state.splitKeep.delete(q); else state.splitKeep.add(q);
+  if (state.splitKeep.size === 0 || state.splitKeep.size === 4) { splitElementReset(); return; }
+  splitElementApply();
+}
+function splitElementApply() {
+  const status = ctrl('split-status');
+  const { stillOurs, original } = splitCurrentOriginal();
+  if (!stillOurs && elementIsEmpty()) { status.textContent = 'Draw or pick a Seed first — nothing to split.'; state.splitKeep.clear(); syncSplitUI(); return; }
   const geo = SEED_TYPES[original.type].geometry(original);
-  if (!geo || !geo.d) { status.textContent = 'This Element has no visible shape to split.'; syncSplitUI('whole'); return; }
-  const piece = splitElementGeometry(geo.d, geo.fillRule).find(p => p.id === q);
-  if (!piece) { status.textContent = 'That quadrant is empty — the shape has no material there.'; return; }
+  if (!geo || !geo.d) { status.textContent = 'This Element has no visible shape to split.'; state.splitKeep.clear(); syncSplitUI(); return; }
+  const key = JSON.stringify(original);
+  if (!state.splitCache || state.splitCache.key !== key) {
+    state.splitCache = { key, pieces: splitElementGeometry(geo.d, geo.fillRule) };
+  }
+  const pieces = state.splitCache.pieces;
+  const kept = ['tl', 'tr', 'bl', 'br'].filter(q => state.splitKeep.has(q)).map(q => pieces.find(p => p.id === q)).filter(Boolean);
+  if (!kept.length) { status.textContent = 'Those quadrants are empty — the shape has no material there.'; syncSplitUI(); return; }
+  // Each kept piece's seed.d is its RAW (unfitted) pathData (fitPathToSeed's
+  // `d` field is the input unchanged) — concatenating them and fitting the
+  // whole against the shared frameBB keeps every piece at its original place
+  // and size, so several kept quadrants reassemble exactly like the original.
+  const combinedRaw = kept.map(p => p.seed.d).join(' ');
+  const fitted = fitPathToSeed(combinedRaw, kept[0].frameBB);
+  if (!fitted) { status.textContent = 'Could not combine the kept quadrants.'; return; }
+  if (!stillOurs) state.splitOriginalStyle = ctrl('sel-element-fillmode').value;
   state.splitOriginal = JSON.parse(JSON.stringify(original));
+  state.splitCombinedRaw = combinedRaw;
   // innerCount forced to 0: Inner Seed rings are already baked into the clipped
   // `d`; 'custom' runs back through withInnerCopies, which would nest a second set.
-  applySeedToPanel({ ...original, type: 'custom', customSeed: piece.seed, innerCount: 0 });
+  applySeedToPanel({ ...original, type: 'custom', customSeed: fitted, innerCount: 0 });
+  const strokeConv = kept.some(p => p.strokeConv);
+  if (strokeConv && ctrl('sel-element-fillmode').value !== 'fill') fireChange('sel-element-fillmode', 'fill');
   state.splitApplied = state.customSeed;
   renderGallery(); renderSeedPreview();
-  syncSplitUI(q);
-  status.textContent = 'Kept the ' + { tl: 'top-left', tr: 'top-right', bl: 'bottom-left', br: 'bottom-right' }[q] + ' quadrant. Whole restores the original shape.';
+  syncSplitUI();
+  status.textContent = 'Kept ' + kept.map(p => SPLIT_QNAMES[p.id]).join(' + ') + '. All restores the original shape.';
+}
+function savePieceAsSeed() {
+  const status = ctrl('split-status');
+  const raw = state.splitCombinedRaw;
+  if (!raw) return;
+  const scope = splitPaperScope();
+  let src;
+  try { src = new scope.CompoundPath(raw); } catch (e) { status.textContent = 'Could not save this piece.'; return; }
+  const b = src.bounds;
+  if (!b || b.width <= 0 || b.height <= 0) { src.remove(); status.textContent = 'Could not save this piece.'; return; }
+  const s = 180 / Math.max(b.width, b.height);
+  src.scale(s, b.center);
+  src.position = new scope.Point(100, 100);
+  const d = src.pathData;
+  src.remove();
+  const typeLabel = (SEED_TYPES[state.splitOriginal ? state.splitOriginal.type : getSeed().type] || {}).label || 'Element';
+  const pieceLabel = ['tl', 'tr', 'bl', 'br'].filter(q => state.splitKeep.has(q)).map(q => q.toUpperCase()).join('+') || 'piece';
+  const name = typeLabel + ' · ' + pieceLabel + ' piece';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><path d="${d}" fill="var(--ink)"/></svg>`;
+  const lib = Organica.store.library.read();
+  lib.forms = lib.forms || []; lib.sets = lib.sets || [];
+  const id = 'seed-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  lib.forms.push({ id, name, svg, type: 'asset', builtIn: false });
+  let mySet = lib.sets.find(x => x.id === 'set-my-seeds');
+  if (!mySet) { mySet = { id: 'set-my-seeds', name: 'My Seeds', builtIn: false, forms: [] }; lib.sets.push(mySet); }
+  if (!mySet.forms) mySet.forms = [];
+  mySet.forms.push(id);
+  Organica.store.library.write(lib);
+  if (typeof renderCreatorLibraryPicker === 'function') renderCreatorLibraryPicker();
+  useSvgAsSeed(svg);
+  state.splitOriginal = null; state.splitApplied = null; state.splitOriginalStyle = null;
+  state.splitCache = null; state.splitCombinedRaw = null; state.splitKeep.clear();
+  syncSplitUI();
+  status.textContent = "Saved '" + name + "' to your Seeds and set it as the Element.";
 }
 
 // ── Export ──
@@ -8260,8 +8479,11 @@ ctrl('sel-rule').addEventListener('change', syncRuleUI);
 ctrl('btn-generate').addEventListener('click', generate);
 ctrl('btn-clear-gallery').addEventListener('click', clearGallery);
 ctrl('seg-split-quadrant').addEventListener('click', e => {
-  const b = e.target.closest('.seg-btn'); if (b) splitElementKeepQuadrant(b.dataset.q);
+  const b = e.target.closest('.seg-btn'); if (!b) return;
+  if (b.dataset.q === 'whole') splitElementReset(); else toggleSplitQuadrant(b.dataset.q);
 });
+ctrl('chk-split-grid').addEventListener('change', renderSeedPreview);
+ctrl('btn-split-save').addEventListener('click', savePieceAsSeed);
 ctrl('btn-seed-random').addEventListener('click', () => { ctrl('num-seed').value = Math.floor(Math.random() * 1e6); });
 
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
