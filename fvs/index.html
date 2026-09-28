@@ -1415,6 +1415,12 @@
     </div>
 
     <div class="panel-section">
+      <h3>Split <span class="hint">a real geometric cut, not 4 copies</span></h3>
+      <button class="mini-btn" id="btn-split-quadrants" style="width:100%">Split Element → 4 quadrants</button>
+      <p class="org-panel__hint" id="split-status">Sets the grid to 2×2 and cuts the Element's own shape at its centre into top-left / top-right / bottom-left / bottom-right pieces — each becomes that cell's own content, editable independently (pencil icon on the gallery tile). An empty quadrant renders as a blank cell.</p>
+    </div>
+
+    <div class="panel-section">
       <h3>Role</h3>
       <div class="ctrl-row"><div class="ctrl-label">Role</div>
         <select class="panel-select" id="sel-component-role" aria-label="Component role">
@@ -2220,7 +2226,102 @@ for (const k of Object.keys(SEED_TYPES)) {
   const g0 = SEED_TYPES[k].geometry;
   SEED_TYPES[k].geometry = p => withInnerCopies(g0(p), p, INNER_APEX[k]);
 }
-const SYMBOL_ARC_TRUCHET = { arcCount: 5, arcRatio: 0.7, truFans: 2, truCore: 0, truSpread: 180, truReach: 100, truRamp: 0, truCurve: 0, truRound: 0, truSegs: 1, truGap: 20 };   // fixed defaults for the Symbols tier
+
+// ── Split Element into 4 quadrant pieces — a true path-boolean clip
+// (Paper.js, already vendored above for the Freehand editor), not the
+// render-time <clipPath>/<mask> trick Content (Mask/Subtraction, further
+// below) uses — this needs a REAL new `d` per piece, since each quadrant
+// becomes its own independent cell content, not just a picture. Operates on
+// the shape's own raw geo.d (pre-normTx/normScale), same convention as
+// pathBBox/withInnerCopies above; splits at the shape's own bbox centre, not
+// a fixed 50/50 of the placement box, so an off-centre shape (Wedge,
+// Segment, an uploaded SVG) gets quadrants relative to where its mass
+// actually sits, not the frame.
+//
+// A dedicated PaperScope, never `paper.setup()` on the shared default scope
+// createPaperDrawEditor (above) uses for the live Freehand canvas —
+// re-setup on the default scope would silently break that editor if it's
+// mounted at the same time. Every construction below goes through this
+// scope's OWN bound classes (scope.Path, scope.CompoundPath, scope.Path.
+// Rectangle…), never the bare global Path/CompoundPath, so this never
+// touches the shared scope at all.
+let _splitScope = null;
+function splitPaperScope() {
+  if (_splitScope) return _splitScope;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 8;   // never mounted — Paper only needs a context to attach to
+  _splitScope = new paper.PaperScope();
+  _splitScope.setup(canvas);
+  return _splitScope;
+}
+const SPLIT_QUADRANTS = [
+  { id: 'tl', dx: -1, dy: -1 }, { id: 'tr', dx: 1, dy: -1 },
+  { id: 'bl', dx: -1, dy: 1 }, { id: 'br', dx: 1, dy: 1 },
+];   // TL,TR,BL,BR — the same row-major order resolveGridCells gives a square 2×2
+// Paper.js has no evenodd concept — Inner Seed's `fillRule:'evenodd'` d
+// strings are N NESTED, SAME-WINDING copies of one shape (withInnerCopies
+// above), so importing them as a plain nonzero CompoundPath would fill every
+// ring solid instead of alternating. Rebuilding via iterative exclude()
+// (symmetric difference) across the subpaths reproduces the same alternating
+// fill — exclude() operates on each subpath's own filled REGION, not its
+// winding direction, and is commutative/associative, so subpath order
+// doesn't matter. A plain (non-evenodd) `d` — every other geometry, incl.
+// the reverse-winding "outline" hollow shapes — imports correctly as-is.
+function importAsPaperShape(scope, d, fillRule) {
+  const cp = new scope.CompoundPath(d);
+  if (fillRule !== 'evenodd' || cp.children.length < 2) return cp;
+  const kids = cp.children.map(c => c.clone({ insert: false }));
+  cp.remove();
+  let combined = kids[0];
+  for (let i = 1; i < kids.length; i++) combined = combined.exclude(kids[i], { insert: false });
+  return combined;
+}
+// Fits a raw `d` into a fresh 0..100 box — the exact formula
+// extractSeedFromSVG (below) uses for an uploaded file, generalised to work
+// on any `d` string via pathBBox instead of a DOM getBBox() call.
+function fitPathToSeed(d) {
+  const bb = pathBBox(d);
+  if (!bb || bb.width <= 0 || bb.height <= 0) return null;
+  const normScale = 100 / Math.max(bb.width, bb.height);
+  const fitW = bb.width * normScale, fitH = bb.height * normScale;
+  const offX = (100 - fitW) / 2, offY = (100 - fitH) / 2;
+  return { d, normScale, normTx: -bb.x + offX / normScale, normTy: -bb.y + offY / normScale };
+}
+// Splits `d` into up to 4 quadrant fragments {id:'tl'|'tr'|'bl'|'br', seed}
+// (seed already fit to its own 0..100 box via fitPathToSeed) — omits a
+// quadrant Paper's intersect() finds empty (common for an off-centre or
+// non-convex shape, e.g. a diagonal Segment only touching 2 of 4).
+function splitElementGeometry(d, fillRule) {
+  const bb = pathBBox(d);
+  if (!bb || bb.width <= 0 || bb.height <= 0) return [];
+  const scope = splitPaperScope();
+  let shape;
+  try { shape = importAsPaperShape(scope, d, fillRule); } catch (e) { return []; }
+  const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
+  // A margin well past the shape's own extent keeps a quadrant rectangle's
+  // inner edges off any coincident shape boundary — an exact-touch can make
+  // intersect() return a degenerate near-zero sliver instead of a clean cut.
+  const pad = Math.max(bb.width, bb.height) + 10;
+  const out = [];
+  for (const q of SPLIT_QUADRANTS) {
+    const rx = q.dx < 0 ? cx - pad : cx, ry = q.dy < 0 ? cy - pad : cy;
+    const rect = new scope.Path.Rectangle(new scope.Rectangle(rx, ry, pad, pad));
+    let piece = null;
+    try { piece = shape.intersect(rect, { insert: false }); } catch (e) { piece = null; }
+    rect.remove();
+    if (piece) {
+      if (Math.abs(piece.area) > 0.01) {
+        const seed = fitPathToSeed(piece.pathData);
+        if (seed) out.push({ id: q.id, seed });
+      }
+      piece.remove();
+    }
+  }
+  shape.remove();
+  return out;
+}
+
+const SYMBOL_ARC_TRUCHET ={ arcCount: 5, arcRatio: 0.7, truFans: 2, truCore: 0, truSpread: 180, truReach: 100, truRamp: 0, truCurve: 0, truRound: 0, truSegs: 1, truGap: 20 };   // fixed defaults for the Symbols tier
 const SYMBOL_ARC = { arcPivot: 'corner', arcSweep: 90, arcStart: 0, arcRound: 0, arcSegs: 1, arcGap: 20, arcTaper: 0, arcIrregular: 0, arcSeed: 1 };   // Symbols stay a plain quarter arc
 const SYMBOL_WEDGE = { wedgeAngle: 90, wedgeInner: 0, wedgeSquash: 100, wedgeRound: 0, wedgeRotate: 0, wedgeCurve: 0, wedgeIrregular: 0, wedgeSeed: 1 };
 const SYMBOL_POLYGON = { polySides: 6, polyCorner: 0, polyRotate: 0, polyStep: 1, polyStyle: 'round', polyCurve: 0, polyOutline: 0, polySkew: 0 };
@@ -4357,6 +4458,52 @@ function clearGallery() {
   state.selectionExplicit = false;
   state.componentAutoGenerated = false;
   renderGallery();
+}
+
+// Forces a 2×2 grid, then fills each cell with one quadrant of the current
+// Element's own shape (a real geometric clip via splitElementGeometry, not
+// 4 copies of the whole shape) — the Component-tier realisation of "split
+// this Element into 4". A quadrant the clip finds empty renders as a
+// genuinely blank cell (an empty-`d` custom seed), not the untouched whole
+// shape — silently falling back would misrepresent which quadrants actually
+// had material. Produces one gallery candidate, same as the Manual/recipe
+// one-click paths — the pencil icon on its tile (enterComponentEditMode)
+// is how a single quadrant gets fine-tuned afterward.
+function splitElementIntoQuadrants() {
+  if (elementIsEmpty()) { ctrl('split-status').textContent = 'Draw or pick a Seed first — nothing to split.'; return; }
+  const seed = seedForSnapshot();
+  const geo = SEED_TYPES[seed.type].geometry(seed);
+  if (!geo || !geo.d) { ctrl('split-status').textContent = 'This Element has no visible shape to split.'; return; }
+  const pieces = splitElementGeometry(geo.d, geo.fillRule);
+  if (!pieces.length) { ctrl('split-status').textContent = 'Could not split this shape — try a different Seed.'; return; }
+  const appearance = getElementAppearance();
+  const byId = {};
+  pieces.forEach(p => { byId[p.id] = p; });
+  setComponentGrid('square2x2');
+  const cells = SPLIT_QUADRANTS.map(q => {
+    const piece = byId[q.id];
+    const customSeed = piece ? piece.seed : { d: '', normTx: 0, normTy: 0, normScale: 1 };
+    // innerCount forced to 0: any Inner Seed rings on the SOURCE Element are
+    // already baked into the clipped `d` (splitElementGeometry ran on the
+    // whole geo.d, Inner Seed included) — every SEED_TYPES entry incl.
+    // 'custom' runs back through withInnerCopies (above), so carrying the
+    // original innerCount over would nest a SECOND set of copies onto an
+    // already-nested fragment.
+    return {
+      rotation: 0, flipH: false, flipV: false, scale: 1, color: null,
+      content: { source: 'seed', seedType: 'custom', seedParams: { ...seed, type: 'custom', customSeed, innerCount: 0 }, appearance },
+    };
+  });
+  const comp = { id: `split-${Date.now()}`, ruleSource: 'split', cells };
+  pushUndo();
+  state.components = [comp];
+  state.selectedId = comp.id;
+  state.selectionExplicit = true;
+  state.componentAutoGenerated = false;
+  renderGallery();
+  ctrl('split-status').textContent = pieces.length === 4
+    ? 'Split into 4 quadrants — pencil icon on the tile to fine-tune one.'
+    : `Split into ${pieces.length} of 4 quadrants — the rest were empty.`;
 }
 
 // ── Export ──
@@ -8035,6 +8182,7 @@ ctrl('chk-axis-scale').addEventListener('change', e => {
 ctrl('sel-rule').addEventListener('change', syncRuleUI);
 ctrl('btn-generate').addEventListener('click', generate);
 ctrl('btn-clear-gallery').addEventListener('click', clearGallery);
+ctrl('btn-split-quadrants').addEventListener('click', splitElementIntoQuadrants);
 ctrl('btn-seed-random').addEventListener('click', () => { ctrl('num-seed').value = Math.floor(Math.random() * 1e6); });
 
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
