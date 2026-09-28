@@ -699,27 +699,38 @@ async function battery() {
     }));
   } finally { setTier('component'); reset(); state.fvsGridConfig.type = 'square4x4'; state.fvsGridConfig.rot = 0; state.fvsGridConfig.mirror = 'none'; state.figureStep = null; }
 
-  // 23 — Element Content = the active layer's role (Filled / Mask / Subtraction mask), acting on the layers below
+  // 23 — Layer rows (Sep 28, 2026 redesign): the role icon on each row (Filled → Subtraction mask → Mask),
+  // the eye, drag / ⌥-arrow reorder; the old Content section is gone
   try {
     reset();
     chg('sel-seed-type', 'circle');
-    const sel = ctrl('sel-element-content');
-    put('content:single', [sel.value, [...sel.options].filter(o => o.disabled).map(o => o.value).join('/'), !document.getElementById('btn-pick-underlying-element')].join(','));
+    put('content:single', [!document.getElementById('sel-element-content'), !document.getElementById('btn-pick-underlying-element'), ctrl('layers-list').children.length].join(','));
     addLayer();
+    const row = i => document.querySelector(`#layers-list .fvs-layer[data-layer="${i}"]`);
+    const act = (i, a) => row(i).querySelector(`[data-layer-act="${a}"]`).click();
+    put('layers:ui:row', [...document.querySelectorAll('#layers-list .fvs-layer')].map(r => r.dataset.layer + ':' + r.querySelector('.fvs-layer__name').textContent + ':' + !!r.querySelector('.fvs-layer__icon svg')).join('|') + '|place-under:' + ctrl('layer-place-block').previousElementSibling.dataset.layer);
     const filledSvg = buildSeedPreviewSVG(getSeed(), 0, false, false, 100);
-    chg('sel-element-content', 'mask');
-    const maskSvg = buildSeedPreviewSVG(getSeed(), 0, false, false, 100);
-    put('content:mask', [state.layers.items[1].role, /<mask /.test(maskSvg), H(norm(maskSvg)) !== H(norm(filledSvg))].join(','));
-    chg('sel-element-content', 'container');
+    act(1, 'role');   // fill → container (Subtraction mask)
     const subSvg = buildSeedPreviewSVG(getSeed(), 0, false, false, 100);
     put('content:subtraction', [state.layers.items[1].role, /<clipPath/.test(subSvg)].join(','));
     put('content:subtraction:svg', subSvg);
-    // the layer card's own role select and the panel box are one setting
-    const card = document.querySelector('.org-layer-card[data-layer="1"] [data-layer-role]');
-    card.value = 'mask'; card.dispatchEvent(new Event('change', { bubbles: true }));
-    put('content:cardSync', sel.value);
-    selectLayer(0);
-    put('content:followsActive', sel.value);
+    act(1, 'role');   // container → mask
+    const maskSvg = buildSeedPreviewSVG(getSeed(), 0, false, false, 100);
+    put('content:mask', [state.layers.items[1].role, /<mask /.test(maskSvg), H(norm(maskSvg)) !== H(norm(filledSvg))].join(','));
+    act(1, 'role');   // mask → fill
+    put('layers:roleCycle', state.layers.items[1].role + ',' + (H(norm(buildSeedPreviewSVG(getSeed(), 0, false, false, 100))) === H(norm(filledSvg))));
+    // the eye: a hidden top layer draws exactly the stack without it, and is left out of colour variants
+    const bottomOnly = (() => { const sd = getSeed(); return buildSeedPreviewSVG({ ...sd, layers: [sd.layers[0]] }, 0, false, false, 100); })();
+    act(1, 'eye');
+    put('layers:hidden', [state.layers.items[1].hidden === true, H(norm(buildSeedPreviewSVG(getSeed(), 0, false, false, 100))) === H(norm(bottomOnly)), fillLayers().length, row(1).classList.contains('is-hidden')].join(','));
+    act(1, 'eye');
+    // reorder: moveLayerTo keeps the active layer; ⌥↓ on a row moves it down
+    selectLayer(1);
+    const activeType = state.layers.items[state.layers.active].seed.type;
+    moveLayerTo(1, 0);
+    const afterMove = state.layers.items.map(l => l.seed.type).join('<') + ':' + (state.layers.items[state.layers.active].seed.type === activeType);
+    row(1).querySelector('.fvs-layer__main').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, bubbles: true }));   // top row one step down
+    put('layers:dnd', afterMove + ',' + state.layers.items.map(l => l.seed.type).join('<'));
   } finally { reset(); }
 
   // 25 — multi-layer Element (state.layers → SEED_TYPES.stack)
@@ -789,7 +800,7 @@ async function battery() {
     // changing the Seed shape renames the active layer's card at once, not on the next layer switch
     {
       selectLayer(1);
-      const lbl = () => document.querySelector('.org-layer-card[data-layer="1"] [data-layer-act="select"]').textContent;
+      const lbl = () => document.querySelector('#layers-list .fvs-layer[data-layer="1"] .fvs-layer__name').textContent;
       const t0 = state.layers.items[1].seed.type;
       chg('sel-seed-type', 'cross');
       const afterMenu = lbl();

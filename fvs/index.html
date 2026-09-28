@@ -325,6 +325,44 @@
   .fg-report .fg-ok { color: var(--tool); }
   .fg-report .fg-bad { color: var(--danger); }
   .fg-json { width: 100%; min-height: 120px; font-family: var(--font); font-size: var(--fs-micro); }
+
+  /* ── Layers panel (Element): one lean row per layer, Figma-style ──
+     FVS-local classes (the shared .org-layer-card stays as Colornet / Camo Turing use it). */
+  .fvs-layers-head { display: inline-flex; align-items: center; gap: var(--space-2); }
+  .fvs-layers { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .fvs-layers:empty { display: none; }
+  .fvs-layer { display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); border-top: 1px solid var(--border); background: var(--paper); cursor: default; }
+  .fvs-layer:first-child { border-top: 0; border-radius: var(--radius-md) var(--radius-md) 0 0; }
+  .fvs-layer.active { background: color-mix(in srgb, var(--tool) 8%, var(--paper)); box-shadow: inset 2px 0 0 var(--tool); }
+  .fvs-layer.is-hidden .fvs-layer__icon, .fvs-layer.is-hidden .fvs-layer__name { opacity: 0.35; }
+  .fvs-layer.drop-above { box-shadow: inset 0 2px 0 var(--tool); }
+  .fvs-layer.drop-below { box-shadow: inset 0 -2px 0 var(--tool); }
+  .fvs-layer.dragging { opacity: 0.4; }
+  .fvs-layer:focus-visible { outline: 2px solid var(--tool); outline-offset: -2px; }
+  .fvs-layer__grip { width: 10px; height: 18px; display: flex; align-items: center; justify-content: center; color: var(--mid); cursor: grab; flex-shrink: 0; }
+  .fvs-layer__main { all: unset; flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); cursor: pointer; padding: var(--space-1) 0; }
+  .fvs-layer__icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; }
+  .fvs-layer__icon svg { width: 100%; height: 100%; }
+  .fvs-layer__name { font-size: var(--fs-small); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fvs-layer__btn { all: unset; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: var(--mid); cursor: pointer; border-radius: var(--radius-sm); flex-shrink: 0; }
+  .fvs-layer__btn:hover { color: var(--ink); background: var(--border); }
+  .fvs-layer__btn:focus-visible, .fvs-layer__swatch:focus-visible { outline: 2px solid var(--tool); }
+  .fvs-layer__btn svg { width: 13px; height: 13px; }
+  .fvs-layer__swatch { all: unset; width: 14px; height: 14px; margin: 0 var(--space-1); border-radius: 50%; border: 1px solid var(--border-strong); background: var(--sw); cursor: pointer; flex-shrink: 0; }
+  .fvs-layer__swatch.is-cell { background: linear-gradient(135deg, var(--sw) 50%, var(--paper) 50%); }
+  .fvs-layer__swatch:disabled { opacity: 0.25; cursor: default; }
+  .fvs-layer__del { opacity: 0; }
+  .fvs-layer:hover .fvs-layer__del, .fvs-layer.active .fvs-layer__del, .fvs-layer__del:focus-visible { opacity: 1; }
+  .fvs-layer__place { display: flex; flex-direction: column; padding: var(--space-1) var(--space-2) var(--space-1) var(--space-6); border-top: 1px solid var(--border); background: color-mix(in srgb, var(--tool) 8%, var(--paper)); box-shadow: inset 2px 0 0 var(--tool); }
+  .fvs-layer__place .ctrl-row { margin-bottom: 0; min-height: var(--space-7); gap: var(--space-2); }
+  .fvs-layer__place .ctrl-label { min-width: 0; width: auto; flex: 0 0 26px; }
+  .fvs-layer__place .ctrl-val { flex: 0 0 22px; }
+  .fvs-ink-pop { position: fixed; z-index: 40; display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: 180px; padding: var(--space-3); background: var(--paper); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 15%, transparent); }
+  .fvs-ink-pop[hidden] { display: none; }
+  .fvs-ink-pop button { all: unset; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--border-strong); background: var(--sw); cursor: pointer; }
+  .fvs-ink-pop button.is-cell { background: linear-gradient(135deg, var(--sw) 50%, var(--paper) 50%); }
+  .fvs-ink-pop button[aria-pressed="true"] { outline: 2px solid var(--tool); outline-offset: 1px; }
+  .fvs-ink-pop button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 </style>
 </head>
 <body>
@@ -519,15 +557,16 @@
 
     <div class="tier-block active" data-tier="element">
     <div class="panel-section" id="layers-section">
-      <h3>Layers <span class="hint" id="layers-hint">single shape</span></h3>
-      <div id="layers-list"></div>
-      <div id="layer-place-block" style="display:none">
-        <div class="ctrl-row"><div class="ctrl-label" title="Shifts this layer inside the Element — 100 is a full cell.">Move X</div><input type="range" id="rg-layer-mx" min="-100" max="100" step="1" value="0"><span class="ctrl-val" id="v-layer-mx">0</span></div>
-        <div class="ctrl-row"><div class="ctrl-label">Move Y</div><input type="range" id="rg-layer-my" min="-100" max="100" step="1" value="0"><span class="ctrl-val" id="v-layer-my">0</span></div>
-        <div class="ctrl-row"><div class="ctrl-label">Scale</div><input type="range" id="rg-layer-scale" min="0.1" max="2" step="0.01" value="1"><span class="ctrl-val" id="v-layer-scale">1</span></div>
-        <div class="ctrl-row"><div class="ctrl-label">Rotate</div><input type="range" id="rg-layer-rotate" min="-180" max="180" step="1" value="0"><span class="ctrl-val" id="v-layer-rotate">0</span></div>
+      <h3>Layers <span class="fvs-layers-head"><span class="hint" id="layers-hint">single shape</span><button type="button" class="icon-btn" id="btn-layer-add" aria-label="Add layer" title="Add a layer on top"><svg viewBox="0 0 16 16" width="11" height="11"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></span></h3>
+      <div id="layers-list" class="fvs-layers" role="list" aria-label="Layers, top first"></div>
+      <!-- Moved under the ACTIVE layer row by renderLayersUI (the node, so its listeners stay). -->
+      <div id="layer-place-block" class="fvs-layer__place" style="display:none">
+        <div class="ctrl-row"><div class="ctrl-label" title="Move X — shifts this layer inside the Element; 100 is a full cell.">X</div><input type="range" id="rg-layer-mx" min="-100" max="100" step="1" value="0" aria-label="Move X"><span class="ctrl-val" id="v-layer-mx">0</span></div>
+        <div class="ctrl-row"><div class="ctrl-label" title="Move Y">Y</div><input type="range" id="rg-layer-my" min="-100" max="100" step="1" value="0" aria-label="Move Y"><span class="ctrl-val" id="v-layer-my">0</span></div>
+        <div class="ctrl-row"><div class="ctrl-label" title="Scale">Size</div><input type="range" id="rg-layer-scale" min="0.1" max="2" step="0.01" value="1" aria-label="Scale"><span class="ctrl-val" id="v-layer-scale">1</span></div>
+        <div class="ctrl-row"><div class="ctrl-label" title="Rotate, in degrees">Rot</div><input type="range" id="rg-layer-rotate" min="-180" max="180" step="1" value="0" aria-label="Rotate"><span class="ctrl-val" id="v-layer-rotate">0</span></div>
       </div>
-      <button class="mini-btn" id="btn-layer-add" style="width:100%">+ Add layer</button>
+      <div id="layer-ink-pop" class="fvs-ink-pop" role="dialog" aria-label="Layer colour" hidden></div>
     </div>
     <div class="panel-section">
       <h3>Seed <span class="hint" id="seed-layer-hint"></span></h3>
@@ -1175,17 +1214,6 @@
       <p class="org-panel__hint" id="inner-unsupported" style="display:none">Not available for this shape — its copies would cross instead of nest.</p>
     </div>
 
-    <div class="panel-section">
-      <h3>Content</h3>
-      <div class="ctrl-row"><div class="ctrl-label">Content</div>
-        <select class="panel-select" id="sel-element-content" aria-label="Element content">
-          <option value="fill">Filled</option>
-          <option value="mask">Mask</option>
-          <option value="container">Subtraction mask</option>
-        </select>
-      </div>
-      <p class="org-panel__hint" id="element-content-hint"></p>
-    </div>
     <div class="panel-section">
       <h3>Split <span class="hint">a real geometric cut</span></h3>
       <div class="ctrl-row"><div class="ctrl-label">Keep</div>
@@ -3739,7 +3767,9 @@ function stackFlatD(layers) {
   return d;
 }
 function stackGeometry(p) {
-  const layers = ((p && p.layers) || []).map(l => ({ ...l, geo: SEED_TYPES[l.seed.type].geometry(l.seed) }));
+  // A hidden layer (the eye on its row) is skipped here once — every renderer,
+  // export and nested Component/Symbol reads geo.layers.
+  const layers = ((p && p.layers) || []).filter(l => !l.hidden).map(l => ({ ...l, geo: SEED_TYPES[l.seed.type].geometry(l.seed) }));
   return { d: stackFlatD(layers), normTx: 0, normTy: 0, normScale: 1, layers };
 }
 function stackUid(geo) {
@@ -4664,7 +4694,7 @@ function populateComponentStarterGallery() {
 // candidate carries its pick as comp.layerInks {layerId: 'cell'|slot}.
 // The Element's CURRENT inks come first, so the default-selected first
 // candidate paints exactly like the live Element.
-const fillLayers = () => (state.layers ? state.layers.items.filter(l => (l.role || 'fill') === 'fill') : []);
+const fillLayers = () => (state.layers ? state.layers.items.filter(l => (l.role || 'fill') === 'fill' && !l.hidden) : []);
 function currentLayerInks() {
   const out = {};
   for (const l of fillLayers()) out[l.id] = l.ink == null ? 'cell' : l.ink;
@@ -5248,7 +5278,6 @@ function showLayerStyle(l) {
   ctrl('element-stroke-block').style.display = lk.fillMode === 'stroke' ? '' : 'none';
 }
 const newLayerId = () => 'l' + Math.random().toString(36).slice(2, 7);
-const layerLabel = (l, i) => (i + 1) + ' · ' + ((SEED_TYPES[l.seed.type] || {}).label || l.seed.type);
 function layersChanged() { renderLayersUI(); renderGallery(); renderSeedPreview(); }
 function selectLayer(i) {
   if (!state.layers || i === state.layers.active || !state.layers.items[i]) return;
@@ -5304,55 +5333,152 @@ function moveLayer(i, dir) {
   if (L.active === i) L.active = j; else if (L.active === j) L.active = i;
   layersChanged();
 }
+// Layer-row pictograms (16px, currentColor).
+const LI = (inner, extra) => `<svg viewBox="0 0 16 16" aria-hidden="true" ${extra || 'fill="currentColor"'}>${inner}</svg>`;
+const LAYER_ICONS = {
+  grip: LI('<circle cx="6" cy="4" r="1.2"/><circle cx="10" cy="4" r="1.2"/><circle cx="6" cy="8" r="1.2"/><circle cx="10" cy="8" r="1.2"/><circle cx="6" cy="12" r="1.2"/><circle cx="10" cy="12" r="1.2"/>'),
+  eye: LI('<path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/>', 'fill="none" stroke="currentColor" stroke-width="1.3"'),
+  eyeOff: LI('<path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z"/><path d="M2.5 13.5l11-11"/>', 'fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"'),
+  trash: LI('<path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/>', 'fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"'),
+  // role pictograms: solid disc = Filled · disc keeping stripes inside = Subtraction mask · square with a disc hole = Mask
+  fill: LI('<circle cx="8" cy="8" r="5.5"/>'),
+  container: LI('<circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 10.5l6-6M6 12l6-6M3.8 8.2l4.4-4.4" stroke="currentColor" stroke-width="1.1"/>', 'fill="none"'),
+  mask: LI('<path fill-rule="evenodd" d="M2 2h12v12H2z M8 4.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7z"/>'),
+};
+const LAYER_ROLE_ORDER = ['fill', 'container', 'mask'];
+const layerName = l => (SEED_ICONS[l.seed.type] || {}).name || (SEED_TYPES[l.seed.type] || {}).label || l.seed.type;
 function renderLayersUI() {
-  const list = ctrl('layers-list'), L = state.layers;
-  ctrl('layer-place-block').style.display = L ? '' : 'none';
+  const list = ctrl('layers-list'), L = state.layers, place = ctrl('layer-place-block');
+  closeLayerInkPop();
+  place.style.display = L ? '' : 'none';
+  ctrl('layers-section').appendChild(place);   // park it before the list is rebuilt
   ctrl('layer-inks-row').style.display = L ? '' : 'none';   // the colour-variants toggle only means something for a stack
   if (ctrl('sel-rule').value === 'exhaustive') syncExhaustiveHint();
-  ctrl('layers-hint').textContent = L ? L.items.length + ' layers · top first' : 'single shape';
-  ctrl('seed-layer-hint').textContent = L ? 'editing layer ' + (L.active + 1) : '';
-  syncElementContentUI();   // Content = the active layer's role
+  ctrl('layers-hint').textContent = L ? L.items.length + ' · top first' : 'single shape';
+  ctrl('seed-layer-hint').textContent = L ? 'editing ' + layerName(L.items[L.active]) : '';
   if (!L) { list.innerHTML = ''; return; }
-  const inkOpts = cur => `<option value="cell"${cur === 'cell' || cur == null ? ' selected' : ''}>Follow cell colour</option>`
-    + Array.from({ length: PALETTE_MAX }, (_, k) => `<option value="${k}"${cur === k ? ' selected' : ''}>Ink ${k + 1}</option>`).join('');
   // Top layer first, like every layer panel.
   list.innerHTML = L.items.map((l, i) => i).reverse().map(i => {
-    const l = L.items[i], on = i === L.active;
-    return `<div class="org-layer-card${on ? ' active' : ''}" data-layer="${i}">
-      <div class="org-layer-card__head">
-        <button class="mini-btn" data-layer-act="select" style="flex:1;text-align:left;padding:0 var(--space-2)">${layerLabel(l, i)}</button>
-        <button class="icon-btn" data-layer-act="up" aria-label="Move layer up" title="Up (above)"${i === L.items.length - 1 ? ' disabled' : ''}>↑</button>
-        <button class="icon-btn" data-layer-act="down" aria-label="Move layer down" title="Down (below)"${i === 0 ? ' disabled' : ''}>↓</button>
-        <button class="icon-btn" data-layer-act="del" aria-label="Delete layer" title="Delete">×</button>
-      </div>
-      <div class="org-layer-card__body">
-        <select class="panel-select" data-layer-role aria-label="Layer role" title="Filled paints. Mask cuts its shape out of every layer below it. Subtraction mask keeps the layers below only inside its shape." style="flex:1">${Object.entries(LAYER_ROLES).map(([k, v]) => `<option value="${k}"${(l.role || 'fill') === k ? ' selected' : ''}>${v}</option>`).join('')}</select>
-        <select class="panel-select" data-layer-ink aria-label="Layer colour" style="flex:1"${(l.role || 'fill') === 'fill' ? '' : ' disabled'}>${inkOpts(l.ink)}</select>
-      </div>
+    const l = L.items[i], on = i === L.active, role = l.role || 'fill', isFill = role === 'fill';
+    const tint = isFill ? layerInkColor(l, colorAt(0)) : 'var(--mid)', cell = l.ink == null || l.ink === 'cell';
+    const icon = (SEED_ICONS[l.seed.type] || SEED_ICONS.custom).icon;
+    return `<div class="fvs-layer${on ? ' active' : ''}${l.hidden ? ' is-hidden' : ''}" data-layer="${i}" role="listitem" tabindex="-1" draggable="true" title="Drag to reorder · ⌥↑ / ⌥↓">
+      <span class="fvs-layer__grip" aria-hidden="true">${LAYER_ICONS.grip}</span>
+      <button type="button" class="fvs-layer__main" data-layer-act="select" aria-pressed="${on}" aria-label="Edit layer ${i + 1}: ${layerName(l)}"><span class="fvs-layer__icon" style="color:${tint}">${icon}</span><span class="fvs-layer__name">${layerName(l)}</span></button>
+      <button type="button" class="fvs-layer__btn" data-layer-act="eye" aria-pressed="${!l.hidden}" aria-label="${l.hidden ? 'Show' : 'Hide'} layer" title="${l.hidden ? 'Hidden — click to show' : 'Hide this layer'}">${l.hidden ? LAYER_ICONS.eyeOff : LAYER_ICONS.eye}</button>
+      <button type="button" class="fvs-layer__btn" data-layer-act="role" aria-label="Role: ${LAYER_ROLES[role]} — click to change" title="${LAYER_ROLES[role]} — ${role === 'fill' ? 'paints its own ink' : role === 'mask' ? 'cuts its shape out of the layers below' : 'keeps the layers below only inside its shape'}. Click: ${LAYER_ROLES[LAYER_ROLE_ORDER[(LAYER_ROLE_ORDER.indexOf(role) + 1) % 3]]}">${LAYER_ICONS[role]}</button>
+      <button type="button" class="fvs-layer__swatch${cell ? ' is-cell' : ''}" data-layer-act="ink" style="--sw:${isFill ? layerInkColor(l, colorAt(0)) : 'var(--border)'}" aria-label="Colour: ${cell ? 'follow cell colour' : 'Ink ' + (l.ink + 1)}" title="${isFill ? (cell ? 'Follows the cell colour' : 'Ink ' + (l.ink + 1)) + ' — click to change' : 'Mask layers have no colour'}"${isFill ? '' : ' disabled'}></button>
+      <button type="button" class="fvs-layer__btn fvs-layer__del" data-layer-act="del" aria-label="Delete layer" title="Delete layer">${LAYER_ICONS.trash}</button>
     </div>`;
   }).join('');
+  const activeRow = list.querySelector(`.fvs-layer[data-layer="${L.active}"]`);
+  if (activeRow) activeRow.after(place);   // Move / Size / Rotate live under the layer they edit
   const pl = layerPlace(L.items[L.active]);
   [['mx', pl.mx], ['my', pl.my], ['scale', pl.scale], ['rotate', pl.rotate]].forEach(([k, v]) => { ctrl('rg-layer-' + k).value = v; ctrl('v-layer-' + k).textContent = v; });
 }
+function toggleLayerHidden(i) { const l = state.layers.items[i]; if (l.hidden) delete l.hidden; else l.hidden = true; layersChanged(); }
+function cycleLayerRole(i) {
+  const l = state.layers.items[i];
+  l.role = LAYER_ROLE_ORDER[(LAYER_ROLE_ORDER.indexOf(l.role || 'fill') + 1) % LAYER_ROLE_ORDER.length];
+  layersChanged();
+}
+// Move a layer from stack index `from` to `to` (0 = bottom); the active layer stays the same object.
+function moveLayerTo(from, to) {
+  const L = state.layers;
+  if (!L || from === to || !L.items[from] || to < 0 || to >= L.items.length) return;
+  syncActiveLayer();
+  const activeItem = L.items[L.active];
+  const [it] = L.items.splice(from, 1);
+  L.items.splice(to, 0, it);
+  L.active = L.items.indexOf(activeItem);
+  layersChanged();
+}
+// One shared colour panel (built on open, positioned under the clicked swatch).
+let layerInkPopFor = null;
+function closeLayerInkPop() { const pop = ctrl('layer-ink-pop'); if (pop) pop.hidden = true; layerInkPopFor = null; }
+function openLayerInkPop(i, anchor) {
+  const pop = ctrl('layer-ink-pop'), l = state.layers.items[i];
+  if (layerInkPopFor === i && !pop.hidden) { closeLayerInkPop(); return; }
+  const cur = l.ink == null ? 'cell' : l.ink;
+  pop.innerHTML = `<button type="button" class="is-cell" data-ink="cell" style="--sw:${colorAt(0)}" aria-pressed="${cur === 'cell'}" aria-label="Follow cell colour" title="Follow the cell colour"></button>`
+    + state.colors.map((c, k) => `<button type="button" data-ink="${k}" style="--sw:${c}" aria-pressed="${cur === k}" aria-label="Ink ${k + 1}" title="Ink ${k + 1} · ${c}"></button>`).join('');
+  const r = anchor.getBoundingClientRect();
+  pop.hidden = false;
+  pop.style.left = Math.max(8, Math.min(window.innerWidth - pop.offsetWidth - 8, r.right - pop.offsetWidth)) + 'px';
+  pop.style.top = (r.bottom + 6 + pop.offsetHeight > window.innerHeight ? r.top - pop.offsetHeight - 6 : r.bottom + 6) + 'px';
+  layerInkPopFor = i;
+  (pop.querySelector('[aria-pressed="true"]') || pop.querySelector('button')).focus();
+}
+ctrl('layer-ink-pop').addEventListener('click', e => {
+  const b = e.target.closest('[data-ink]');
+  if (!b || layerInkPopFor == null || !state.layers) return;
+  const l = state.layers.items[layerInkPopFor];
+  l.ink = b.dataset.ink === 'cell' ? 'cell' : +b.dataset.ink;
+  const i = layerInkPopFor;
+  closeLayerInkPop();
+  layersChanged();
+  const sw = ctrl('layers-list').querySelector(`.fvs-layer[data-layer="${i}"] [data-layer-act="ink"]`); if (sw) sw.focus();
+});
+document.addEventListener('click', e => { if (layerInkPopFor != null && !e.target.closest('#layer-ink-pop, [data-layer-act="ink"]')) closeLayerInkPop(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && layerInkPopFor != null) closeLayerInkPop(); });
+ctrl('panel').addEventListener('scroll', closeLayerInkPop, true);
+
 ctrl('btn-layer-add').addEventListener('click', addLayer);
-// Changing the Seed shape renames the active layer's card at once ("2 · Star"),
+// Changing the Seed shape renames the active layer's row at once ("Star"),
 // not only on the next layer switch.
 ctrl('sel-seed-type').addEventListener('change', () => { if (state.layers) { syncActiveLayer(); renderLayersUI(); } });
 ctrl('layers-list').addEventListener('click', e => {
-  const b = e.target.closest('[data-layer-act]'), card = e.target.closest('[data-layer]');
-  if (!b || !card) return;
-  const i = +card.dataset.layer, act = b.dataset.layerAct;
-  if (act === 'select') selectLayer(i); else if (act === 'up') moveLayer(i, 1); else if (act === 'down') moveLayer(i, -1); else if (act === 'del') removeLayer(i);
+  const b = e.target.closest('[data-layer-act]'), row = e.target.closest('[data-layer]');
+  if (!row || !state.layers) return;
+  const i = +row.dataset.layer, act = b ? b.dataset.layerAct : 'select';
+  if (e.target.closest('#layer-place-block')) return;
+  if (act === 'select') selectLayer(i);
+  else if (act === 'eye') toggleLayerHidden(i);
+  else if (act === 'role') cycleLayerRole(i);
+  else if (act === 'ink') openLayerInkPop(i, b);
+  else if (act === 'del') removeLayer(i);
 });
-ctrl('layers-list').addEventListener('change', e => {
-  const card = e.target.closest('[data-layer]');
-  if (!card || !state.layers) return;
-  const l = state.layers.items[+card.dataset.layer];
-  if (e.target.matches('[data-layer-role]')) l.role = e.target.value;
-  else if (e.target.matches('[data-layer-ink]')) l.ink = e.target.value === 'cell' ? 'cell' : +e.target.value;
-  else return;
-  layersChanged();
+// Keyboard: ⌥↑ / ⌥↓ on a row moves the layer up / down the stack.
+ctrl('layers-list').addEventListener('keydown', e => {
+  const row = e.target.closest('.fvs-layer');
+  if (!row || !e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+  e.preventDefault();
+  const i = +row.dataset.layer, to = i + (e.key === 'ArrowUp' ? 1 : -1);
+  moveLayerTo(i, to);
+  const moved = ctrl('layers-list').querySelector(`.fvs-layer[data-layer="${Math.max(0, Math.min(state.layers.items.length - 1, to))}"] .fvs-layer__main`); if (moved) moved.focus();
 });
+// Drag and drop: drop on a row's upper half = above it, lower half = below it.
+let layerDragFrom = null;
+ctrl('layers-list').addEventListener('dragstart', e => {
+  const row = e.target.closest && e.target.closest('.fvs-layer');
+  if (!row) return;
+  layerDragFrom = +row.dataset.layer;
+  row.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', String(layerDragFrom));
+});
+const clearLayerDropMarks = () => ctrl('layers-list').querySelectorAll('.drop-above, .drop-below, .dragging').forEach(r => r.classList.remove('drop-above', 'drop-below', 'dragging'));
+ctrl('layers-list').addEventListener('dragover', e => {
+  const row = e.target.closest && e.target.closest('.fvs-layer');
+  if (layerDragFrom == null || !row) return;
+  e.preventDefault();
+  const r = row.getBoundingClientRect(), above = e.clientY < r.top + r.height / 2;
+  ctrl('layers-list').querySelectorAll('.drop-above, .drop-below').forEach(x => x.classList.remove('drop-above', 'drop-below'));
+  row.classList.add(above ? 'drop-above' : 'drop-below');
+});
+ctrl('layers-list').addEventListener('drop', e => {
+  const row = e.target.closest && e.target.closest('.fvs-layer');
+  if (layerDragFrom == null || !row) return;
+  e.preventDefault();
+  const t = +row.dataset.layer, r = row.getBoundingClientRect(), above = e.clientY < r.top + r.height / 2;
+  // rows are listed top first: "above" a row = a higher stack index
+  let to = above ? t + 1 : t;
+  if (layerDragFrom < to) to--;
+  const from = layerDragFrom;
+  layerDragFrom = null; clearLayerDropMarks();
+  moveLayerTo(from, Math.max(0, Math.min(state.layers.items.length - 1, to)));
+});
+ctrl('layers-list').addEventListener('dragend', () => { layerDragFrom = null; clearLayerDropMarks(); });
 ['mx', 'my', 'scale', 'rotate'].forEach(k => ctrl('rg-layer-' + k).addEventListener('input', e => {
   if (!state.layers) return;
   const l = state.layers.items[state.layers.active];
@@ -5503,22 +5629,6 @@ function openUnderlyingComponentPicker() {
 
 function closeUnderlyingComponentPicker() {
   ctrl('underlying-component-overlay').style.display = 'none';
-}
-
-// Element Content = the ACTIVE layer's role, the same setting as the Fill /
-// Mask / Subtraction mask select on its layer card (the two stay in sync).
-// Mask cuts the layer's shape out of every layer below it; Subtraction mask
-// keeps the layers below only inside its shape. Both act on what is BELOW, so
-// a single shape (nothing below) can only be Filled.
-function syncElementContentUI() {
-  const sel = ctrl('sel-element-content'), l = state.layers && state.layers.items[state.layers.active];
-  sel.value = l ? (l.role || 'fill') : 'fill';
-  [...sel.options].forEach(o => { o.disabled = o.value !== 'fill' && !l; });
-  const below = l ? state.layers.active : 0;
-  ctrl('element-content-hint').textContent = !l ? 'Mask and Subtraction mask act on the layers below — add a layer first.'
-    : below === 0 && sel.value !== 'fill' ? 'This is the bottom layer — there is nothing below it to mask. Move it up.'
-    : sel.value === 'mask' ? 'Cuts this layer\'s shape out of the layers below.'
-    : sel.value === 'container' ? 'Keeps the layers below only inside this layer\'s shape.' : '';
 }
 
 function renderLibrary() {
@@ -10311,11 +10421,6 @@ ctrl('btn-underlying-overlay-close').addEventListener('click', closeUnderlyingCo
 ctrl('underlying-component-overlay').addEventListener('click', e => { if (e.target === ctrl('underlying-component-overlay')) closeUnderlyingComponentPicker(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && ctrl('underlying-component-overlay').style.display !== 'none') closeUnderlyingComponentPicker(); });
 
-ctrl('sel-element-content').addEventListener('change', e => {
-  if (!state.layers) { syncElementContentUI(); return; }
-  state.layers.items[state.layers.active].role = e.target.value;
-  layersChanged();   // re-renders the layer cards (their role select) + this section
-});
 
 ctrl('btn-save-library').addEventListener('click', saveToLibrary);
 ctrl('btn-library-confirm').addEventListener('click', confirmSaveToLibrary);
@@ -10332,7 +10437,6 @@ ctrl('sel-color-rule').addEventListener('change', onColorRuleChange);
 ctrl('sel-color-offset').addEventListener('change', onColorRuleChange);
 syncSeedUI();
 syncComponentRoleUI();
-syncElementContentUI();
 syncRuleAvailability();
 syncRuleUI();
 renderSymbol();

@@ -63,12 +63,15 @@ Grid step without saving it first.
   it shows on top of the one below), and choosing Segment on it sets Scale 1 so its repeats
   fill the whole canvas, not the central 60%. Going back to another shape gives 0.6 back; a
   placement you set by hand is always kept.
-- **Layers** — a multi-layer Element: each layer has its own shape, placement,
-  role (Filled / Mask / Subtraction mask, §6a), ink, and its own **Style, Stroke W, Rounded caps,
-  Width and Length**. With layers, those Appearance controls edit the active layer
-  only: a Segment layer (forced to Stroke) leaves the others filled, and stretching
-  one layer leaves the others alone. Appearance **Scale and Move** still move the
-  whole Element (each layer also has its own Move/Scale/Rotate).
+- **Layers** — a multi-layer Element, one lean row per layer (top first), with **+** in the
+  section header. Each row: **⠿** drag to reorder (or ⌥↑ / ⌥↓ on a focused row) · the shape's
+  icon tinted with its ink + its name (click = edit it) · **eye** to hide it (a hidden layer is
+  skipped everywhere, exports and colour variants included) · **role icon** — click cycles
+  Filled → Subtraction mask → Mask (§6a) · **colour dot** — opens the palette: *follow cell
+  colour* or an ink (off for mask layers) · **bin** on hover. The active row opens **X / Y /
+  Size / Rot** (the layer's own placement) right under it. Each layer also has its own
+  **Style, Stroke W, Rounded caps, Width and Length**: with layers, those Appearance controls
+  edit the active layer only. Appearance **Scale and Move** still move the whole Element.
 - **Appearance** — Style **Fill / Stroke**, Width / Length, **Scale, Move X/Y**
   and **⤢ Fit to canvas** (one-shot). **Inner seed** adds nested copies
   (Count, Ratio, Anchor).
@@ -321,20 +324,17 @@ The tab is a workspace, not a form:
 
 - An assistant can produce the recipe from an image: see `.claude/skills/fvs-figure-from-image`.
 
-## 6a. Element Content: Mask / Subtraction mask (layers)
+## 6a. Layer roles: Mask / Subtraction mask
 
-**Content** (Element panel) is the active layer's role — the same setting as the select on
-its layer card, and the two stay in sync. It always acts on the **layers below**:
+A layer's **role icon** (on its row) sets how it acts on the **layers below** it:
 
-- **Filled** — the layer paints its own ink (default).
-- **Mask** — cuts the layer's shape out of every layer below it (a hole).
-- **Subtraction mask** — keeps the layers below only inside the layer's shape.
+- **Filled** (solid disc) — the layer paints its own ink (default).
+- **Subtraction mask** (striped disc) — keeps the layers below only inside the layer's shape.
+- **Mask** (square with a hole) — cuts the layer's shape out of every layer below it.
 
-A single shape has nothing below it, so only Filled is available (add a layer first); on the
-bottom layer the panel says there is nothing to mask. It works in every step (Component,
-Symbol, Grid, export) because it is the layer stack itself. The old *Pick underlying
-component…* button (Sep 2026, Element-previews-only) was removed on Sep 28, 2026: without a
-picked Component it silently did nothing, which read as broken.
+It works in every step (Component, Symbol, Grid, export) because it is the layer stack itself.
+The old Element **Content** section (and before it, *Pick underlying component…*) was removed
+on Sep 28, 2026 — the role now lives only on the row.
 
 ## 7. Libraries
 
