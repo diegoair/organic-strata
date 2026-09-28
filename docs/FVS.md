@@ -51,8 +51,12 @@ Grid step without saving it first.
   the gap between copies as a % of a tile (0 = touching). Rays then turn the whole grid;
   if the bar's thickness pushes past the canvas it is fitted back in. Segments saved before
   this (plain lines) are drawn as bars too.
+  As a **second layer**, a Segment gets the full canvas: a new layer starts at Scale 0.6 (so
+  it shows on top of the one below), and choosing Segment on it sets Scale 1 so its repeats
+  fill the whole canvas, not the central 60%. Going back to another shape gives 0.6 back; a
+  placement you set by hand is always kept.
 - **Layers** — a multi-layer Element: each layer has its own shape, placement,
-  role (Fill / Container / Mask), ink, and its own **Style, Stroke W, Rounded caps,
+  role (Filled / Mask / Subtraction mask, §6a), ink, and its own **Style, Stroke W, Rounded caps,
   Width and Length**. With layers, those Appearance controls edit the active layer
   only: a Segment layer (forced to Stroke) leaves the others filled, and stretching
   one layer leaves the others alone. Appearance **Scale and Move** still move the
@@ -309,40 +313,20 @@ The tab is a workspace, not a form:
 
 - An assistant can produce the recipe from an image: see `.claude/skills/fvs-figure-from-image`.
 
-## 6a. Element-level Content: Mask / Subtraction mask (Phase 1, Sep 2026)
+## 6a. Element Content: Mask / Subtraction mask (layers)
 
-An Element's own Seed can be `Filled` (default, no change), `Mask`, or `Subtraction mask` — the
-same two behaviours the Component tier's own **Role** already has, one tier down, on a single
-Seed's own outline against a second, separately picked Component reference. Same mapping as
-Role: **Mask** shows the picked reference everywhere *except* inside this Seed's own outline (a
-real hole); **Subtraction mask** shows it only *inside*. A fourth option, **Container** (a
-group/pattern of several loaded figures — a different, open-ended concept, not the same as
-Subtraction mask), is visible in the dropdown but disabled — it needs its own design pass.
+**Content** (Element panel) is the active layer's role — the same setting as the select on
+its layer card, and the two stay in sync. It always acts on the **layers below**:
 
-The **Content** section sits in the Element panel, between Seed and Appearance. Picking Mask or
-Subtraction mask reveals a "Pick underlying component…" button — the SAME shared Library store
-Role's own picker reads (`resolveUnderlyingComponent`), just a second, independent reference
-(`state.underlyingElementName`, separate from `state.underlyingComponentName`). With nothing
-picked yet, the Element renders as plain Filled — never a broken clip/mask reference.
+- **Filled** — the layer paints its own ink (default).
+- **Mask** — cuts the layer's shape out of every layer below it (a hole).
+- **Subtraction mask** — keeps the layers below only inside the layer's shape.
 
-**Per layer** (Sep 28, 2026): with a multi-layer Element, Content and its picked
-Component belong to each layer — the Content section edits the active layer, like Style and
-Width. A layer with Subtraction mask shows the Component only inside its outline; with Mask,
-everywhere except inside it (so it covers the layers below apart from that hole). Adding the
-first layer moves the Element's Content onto layer 1; going back to one shape moves it back.
-
-**Scope, this phase**: only the Element tier's own two previews (the big canvas, and the 6-tile
-transform strip) — `buildSeedPreviewSVG` branches internally, so neither render function needed
-changes. Threading Content into Component/Symbol/Grid cells, the Canvas2D/PNG export twin, and
-Library persistence are a later Phase 2, deliberately not built yet (Container's own design pass
-is also deferred).
-
-A real bug found during this build, not assumed away: the `<clipPath>`/`<mask>` `id` **must be
-unique for the whole document**, not just the one `<svg>` it lives in — `url(#id)` resolves
-document-wide. Since the 6 tiles and the big canvas all render the SAME underlying reference at
-once, and all 7 originally computed the exact same `id`, the browser silently picked whichever
-one happened to match first, showing the wrong clip/mask on most of them. Fixed by folding
-`rotation`/`flipH`/`flipV`/`size` into the id, so all 7 simultaneous renders get distinct ids.
+A single shape has nothing below it, so only Filled is available (add a layer first); on the
+bottom layer the panel says there is nothing to mask. It works in every step (Component,
+Symbol, Grid, export) because it is the layer stack itself. The old *Pick underlying
+component…* button (Sep 2026, Element-previews-only) was removed on Sep 28, 2026: without a
+picked Component it silently did nothing, which read as broken.
 
 ## 7. Libraries
 
