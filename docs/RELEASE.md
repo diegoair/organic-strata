@@ -11,8 +11,10 @@ Local first, preview second, production last. Nothing reaches `main` without an 
 ## 1. Build and test locally
 - Serve the repo on a no-store dev server; exercise the change in the browser pane.
 - Check the console is clean and that preview and exports (PNG/SVG) match.
-- FVS (or `shared/shapes.js`, `palette.js`, `print-size*.js`, `plate-export.js`) changed →
-  run `fvs/_test-regression.html`; an intended change updates `_regression-baseline.json` in the same commit.
+- FVS (or `shared/shapes.js`, `palette.js`, `print-size*.js`, `plate-export.js`) changed → the regression suite
+  runs **automatically** in the pre-commit hook (headless Chrome, ~4 s). Run it by hand any time with
+  `scripts/regression.sh`. An intended change re-records `fvs/_regression-baseline.json` in the same commit
+  (open `fvs/_test-regression.html` in the browser → Run → "Show JSON to record").
 
 ## 2. Local commit (always local first)
 When a release is ready to test, leave it as a **local commit**. Never push at this stage.
@@ -30,7 +32,8 @@ scripts/check.sh             # what the hook runs on every commit
 - a `/shared/…` or `/genesis/…` reference to a file that does not exist
 - `scripts/css-lint.py` findings
 
-The hook also *reminds* (does not block) about the FVS regression suite when it applies.
+When FVS or a shared module it uses is staged, the hook also runs `scripts/regression.sh` (headless Chrome via
+the DevTools protocol; names the changed cases on failure) and blocks the commit if any case differs.
 Emergency bypass: `git commit --no-verify`.
 
 Fill in the release checklist from `.gitmessage` in the commit body (changed / affects / checks /
@@ -48,8 +51,11 @@ git push origin main:staging          # or your branch → staging
 python3 scripts/smoke.py https://<preview-url>
 ```
 
-A preview behind Deployment Protection answers `401` — use the Vercel MCP
-(`get_access_to_vercel_url` / `web_fetch_vercel_url`) for that case.
+Vercel builds a preview for **every** pushed branch automatically. Previews sit behind Vercel Authentication
+(verified 2026-09-28: they 302 to `vercel.com/sso`), and the smoke test reports that as `PROTECTED` rather than
+a false pass. To smoke-test a preview from the terminal, create a *Protection Bypass for Automation* secret
+(Project → Settings → Deployment Protection) and `export VERCEL_PROTECTION_BYPASS=<secret>`; otherwise fetch pages
+through the Vercel MCP (`web_fetch_vercel_url`).
 
 ## 4. Production
 Only on **"commit in prod" / "porta in prod"**: `git push origin main`.
@@ -59,15 +65,23 @@ A successful `git push` does **not** mean the deploy succeeded.
 
 1. Vercel MCP: `list_deployments` → the newest production deployment must be **READY**
    (on ERROR, `get_deployment_build_logs`; empty logs usually means config validation — re-run `check.py`).
-2. Smoke test production:
+2. Smoke test production (also runs by itself in CI, see below):
    ```bash
    python3 scripts/smoke.py
    ```
-   Every tool page + key shared assets must return 200.
+   Every tool page + key shared assets must return 200 **with the right content type and real content**.
 3. Open the tool that changed and confirm the console is clean.
 
 If prod is broken: `request_rollback` (Vercel MCP) to the previous READY deployment first, diagnose second.
 
+## CI (GitHub Actions)
+- `.github/workflows/ci.yml` — every push/PR: `scripts/check.py` + the FVS regression. Catches a bypassed hook
+  (`--no-verify`) or a push from another machine.
+- `.github/workflows/deploy-verify.yml` — when Vercel reports a **Production** deployment `success`, runs
+  `scripts/smoke.py` against the live site. A red ✗ on the commit means the deploy is broken.
+  *(Both are validated as YAML but only run once pushed to GitHub — check the Actions tab after the first push.)*
+
 ## Not automated (yet)
-- Regression suites for tools other than FVS (Loom, Rhizome, shared modules).
-- Safari/Firefox pass — see the cross-browser backlog in `CLAUDE.md`.
+- Regression suites for tools other than FVS (Loom, Rhizome, shared modules) — deliberately deferred.
+- Safari/Firefox pass — see the cross-browser backlog in `CLAUDE.md`; needs real browsers.
+- Automatic rollback on a failed deploy (do it by hand: Vercel MCP `request_rollback`).

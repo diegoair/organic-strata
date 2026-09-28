@@ -882,6 +882,20 @@ async function run() {
     : `${keys.length} cases run — no baseline yet (fvs/_regression-baseline.json).`;
 }
 $('run').addEventListener('click', run);
+// Headless mode (scripts/regression.py): /fvs/_test-regression.html?auto=1 runs on load and
+// exposes the verdict as <body data-result="pass|fail|error" data-detail="...">.
+if (new URLSearchParams(location.search).has('auto')) {
+  const go = async () => {
+    for (let i = 0; i < 100 && !(frame.contentWindow && frame.contentWindow.document && frame.contentWindow.document.readyState === 'complete'); i++) await new Promise(r => setTimeout(r, 200));
+    await new Promise(r => setTimeout(r, 1500)); // let FVS boot (library pull, first render)
+    await run();
+    const t = $('summary').textContent;
+    document.body.dataset.detail = t;
+    if (last && baseline) document.body.dataset.changed = Object.keys(last).filter(k => k in baseline && baseline[k] !== last[k]).concat(Object.keys(baseline).filter(k => !(k in last)).map(k => k + '(missing)')).join(', ');
+    document.body.dataset.result = /All \d+ cases match/.test(t) ? 'pass' : (/changed|missing|threw|loading|no baseline/.test(t) ? 'fail' : 'error');
+  };
+  go();
+}
 $('record').addEventListener('click', () => {
   if (!last) { $('summary').textContent = 'Run first.'; return; }
   const t = $('json'); t.hidden = false; t.value = JSON.stringify(last, null, 2); t.select();

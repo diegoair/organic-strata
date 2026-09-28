@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
-# Runs scripts/check.py before every commit. Bypass in an emergency: git commit --no-verify
+# Runs scripts/check.py before every commit, plus the headless FVS regression when FVS (or a shared
+# module it uses) is staged. Bypass in an emergency: git commit --no-verify
 # Enable once per clone:  scripts/install-hooks.sh
 root="$(git rev-parse --show-toplevel)"
 python3 "$root/scripts/check.py" || { echo; echo "Commit blocked by pre-commit checks."; exit 1; }
-# Checks that can't run headless — remind, don't block.
 staged="$(git diff --cached --name-only)"
 if echo "$staged" | grep -qE '^(fvs/|shared/(shapes|palette|print-size|plate-export)\.)'; then
-  echo "REMINDER: FVS (or a shared module it uses) changed — run fvs/_test-regression.html and record it in the commit."
+  echo
+  echo "FVS (or a shared module it uses) changed — running the headless regression…"
+  if ! "$root/scripts/regression.sh"; then
+    echo
+    echo "Commit blocked: FVS regression failed. If the change is intended, re-record fvs/_regression-baseline.json"
+    echo "(open fvs/_test-regression.html, Run, 'Show JSON to record') and stage it in the same commit."
+    exit 1
+  fi
 fi
 exit 0

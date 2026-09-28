@@ -1,0 +1,17 @@
+name: Verify production deploy
+
+# Vercel reports each deployment to GitHub as a deployment_status event. When a PRODUCTION deploy
+# succeeds, smoke-test the live site (every tool page + key assets, content-type checked).
+# A failing run = a red X on the commit, so a silently-broken deploy no longer goes unnoticed.
+on:
+  deployment_status
+
+jobs:
+  smoke:
+    if: github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ github.event.deployment.sha }}" }
+      - name: Smoke test production
+        run: python3 scripts/smoke.py https://theorganicalanguage.vercel.app

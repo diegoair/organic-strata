@@ -259,11 +259,11 @@ These 6 originated as Genesis's hand-typed CSS `@keyframes`. **Pulsar** maps 4 o
 
 Full detail: [`docs/RELEASE.md`](docs/RELEASE.md). In short: **local first, preview second, prod last.**
 
-1. Build + test locally (no-store dev server, browser pane; FVS regression suite when FVS/shared shapes changed).
+1. Build + test locally (no-store dev server, browser pane). FVS regression runs headless: `scripts/regression.sh` (the hook runs it automatically when FVS/shared shapes are staged).
 2. **Local commit only** when a release is ready to test — never push at this stage. The tracked pre-commit hook runs `scripts/check.py` (`vercel.json` schema guard, JSON, JS syntax, local refs, css-lint). Enable once per clone: `scripts/install-hooks.sh`.
 3. Preview gate: push to `staging`, run `python3 scripts/smoke.py <preview-url>`.
 4. **Only on "commit in prod" / "porta in prod"**: push `main`.
-5. After every prod push: Vercel MCP `list_deployments` must show READY, then `python3 scripts/smoke.py`. A successful git push does not prove the deploy worked.
+5. After every prod push: Vercel MCP `list_deployments` must show READY, then `python3 scripts/smoke.py` (CI's `deploy-verify.yml` also runs it). A successful git push does not prove the deploy worked. CI (`ci.yml`) re-runs check + regression on every push.
 
 ---
 

@@ -1,0 +1,21 @@
+name: CI
+
+# Same checks as the local pre-commit hook, so a bypassed hook (--no-verify) or a
+# push from another machine still can't ship a broken vercel.json / JS syntax error.
+on:
+  push:
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Static checks (vercel.json schema, JSON, JS syntax, local refs, css-lint)
+        run: python3 scripts/check.py
+      - name: FVS regression (headless Chrome)
+        run: |
+          export CHROME="$(which google-chrome || which chromium || which chromium-browser)"
+          scripts/regression.sh
