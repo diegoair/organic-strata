@@ -9539,8 +9539,11 @@ function figureNeighbours(def, seed, count) {
 function figureShuffle(def, locks, seed) {
   const rng = mulberry32(seed >>> 0), pool = FIGURE_MUTATIONS.filter(m => !(locks && locks[m.group]));
   if (!pool.length) return null;
+  // A later mutation can undo an earlier one (Fill ↔ Stroke twice, Add then Remove a Grid) — a step
+  // that lands back on `def` is rejected, so a shuffle always changes something.
+  const start = JSON.stringify(def);
   let d = def, changed = 0; const want = 1 + Math.floor(rng() * 3);
-  for (let tries = 0; tries < 30 && changed < want; tries++) { const n = figureMutateOnce(d, fgPick(pool, rng), rng); if (n) { d = n; changed++; } }
+  for (let tries = 0; tries < 30 && changed < want; tries++) { const n = figureMutateOnce(d, fgPick(pool, rng), rng); if (n && JSON.stringify(n) !== start) { d = n; changed++; } }
   return changed ? d : null;
 }
 function figureShuffleNow() {
