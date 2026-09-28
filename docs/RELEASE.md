@@ -14,7 +14,7 @@ Local first, preview second, production last. Nothing reaches `main` without an 
 - FVS (or `shared/shapes.js`, `palette.js`, `print-size*.js`, `plate-export.js`) changed → the regression suite
   runs **automatically** in the pre-commit hook (headless Chrome, ~4 s). Run it by hand any time with
   `scripts/regression.sh`. An intended change re-records `fvs/_regression-baseline.json` in the same commit
-  (open `fvs/_test-regression.html` in the browser → Run → "Show JSON to record").
+  (`scripts/regression.sh --record`, then review the `git diff`).
 
 ## 2. Local commit (always local first)
 When a release is ready to test, leave it as a **local commit**. Never push at this stage.
@@ -79,7 +79,7 @@ If prod is broken: `request_rollback` (Vercel MCP) to the previous READY deploym
   (`--no-verify`) or a push from another machine.
 - `.github/workflows/deploy-verify.yml` — when Vercel reports a **Production** deployment `success`, runs
   `scripts/smoke.py` against the live site. A red ✗ on the commit means the deploy is broken.
-  *(Both are validated as YAML but only run once pushed to GitHub — check the Actions tab after the first push.)*
+  *(Verified 2026-09-28: `ci.yml` green on Linux; `deploy-verify.yml` fires on every deployment and correctly skips previews. Its Production path is confirmed on the first real prod push.)*
 
 ## Not automated (yet)
 - Regression suites for tools other than FVS (Loom, Rhizome, shared modules) — deliberately deferred.
