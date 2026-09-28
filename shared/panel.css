@@ -310,6 +310,29 @@ input[type=range]:focus-visible { outline: none; }
   flex-shrink: 0;
 }
 
+/* Toggle switch — .check-row.org-switch keeps the real checkbox (state, label
+   click, keyboard, JS all unchanged) and only restyles it: label left, switch
+   right. Pill track/knob are stadium shapes (radius = half the height), the
+   documented exception to the radius scale; 26x14 / 10px are control-box sizes
+   like the 13px checkbox above. Colours are all tokens. */
+.check-row.org-switch { justify-content: space-between; }
+.check-row.org-switch input[type=checkbox] {
+  appearance: none; -webkit-appearance: none;
+  order: 2; position: relative;
+  width: 26px; height: 14px;
+  border: 1px solid var(--border-strong, var(--border)); border-radius: 7px;
+  background: var(--track-bg);
+  transition: background-color .15s, border-color .15s;
+}
+.check-row.org-switch input[type=checkbox]::after {
+  content: ''; position: absolute; top: 1px; left: 1px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--mid); transition: transform .15s, background-color .15s;
+}
+.check-row.org-switch input[type=checkbox]:checked { background: var(--tool, var(--ink)); border-color: var(--tool, var(--ink)); }
+.check-row.org-switch input[type=checkbox]:checked::after { background: var(--paper); transform: translateX(12px); }
+.check-row.org-switch input[type=checkbox]:focus-visible { outline: 1px solid var(--tool, var(--ink)); outline-offset: 2px; }
+
 /* Segmented control — Figma's tab row. aria-pressed is the state where the
    markup supports it; .active is kept for the tools not yet converted. */
 .seg-ctrl, .seg { display: flex; flex: 1; min-width: 0; }

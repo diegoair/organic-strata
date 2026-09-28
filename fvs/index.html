@@ -206,16 +206,9 @@
   .sym-track-label { position: absolute; font-family: var(--font); font-size: var(--fs-micro); font-weight: var(--w-light); font-variant-numeric: tabular-nums; color: var(--track-accent); white-space: nowrap; }
   .sym-track-label--col { transform: translate(-50%, -100%); }
   .sym-track-label--row { transform: translate(-100%, -50%); }
-  .fvs-sympool { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); margin-bottom: var(--space-2); }
+  .fvs-sympool { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
+  .fvs-sympool__w { width: 64px; margin-top: var(--space-1); }
   .fvs-sympool:empty { display: none; }
-  .fvs-sympool__item { position: relative; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-1); background: var(--paper); }
-  /* height:auto lets the embedded SVG's own real width/height attributes
-     (buildComponentSVG now emits the grid's true w:h, not a forced square)
-     set the cell's proportion — no more aspect-ratio:1 override. */
-  .fvs-sympool__item svg { display: block; width: 100%; height: auto; }
-  .fvs-sympool__item .panel-select { width: 100%; margin-top: var(--space-1); }
-  .fvs-sympool__name { display: block; margin-top: var(--space-1); font-size: var(--fs-small); color: var(--mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .fvs-sympool__x { position: absolute; top: 2px; right: 2px; }
   #btn-sympool-add { width: 100%; }
   .fvs-library-item.is-in-pool { outline: 2px solid var(--tool); }
 
@@ -1250,7 +1243,7 @@
       <button class="panel-btn" id="btn-symgrid-generate" style="width:100%">Generate grid in canvas</button>
       <div id="symgrid-gen-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       <details class="fvs-more" style="margin-top:var(--space-3)">
-      <summary class="hint">Other grids (saved in Loom, ready-made, square, triangle)</summary>
+      <summary class="hint">More grids</summary>
       <div class="ctrl-row">
         <select class="panel-select" id="sel-symbol-loom-preset" aria-label="Load a grid saved in Loom" style="flex:1">
           <option value="">Load a grid…</option>
@@ -1276,10 +1269,10 @@
       <button class="mini-btn" id="btn-symbol-grid-upload" style="width:100%;margin-top:var(--space-2)">Upload Loom grid JSON…</button>
       </details>
       <div id="symbol-grid-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
-      <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-symbol-grid-outline"><span>Show loaded grid</span></label>
-      <label class="check-row"><input type="checkbox" id="chk-symbol-clip" checked><span>Clip to cell</span></label>
-      <label class="check-row"><input type="checkbox" id="chk-symbol-cover-preview"><span>Show cover crop</span></label>
-      <label class="check-row"><input type="checkbox" id="chk-symbol-track-guides" checked><span>Show column/row guides</span></label>
+      <label class="check-row org-switch" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-symbol-grid-outline"><span>Show loaded grid</span></label>
+      <label class="check-row org-switch"><input type="checkbox" id="chk-symbol-clip" checked><span>Clip to cell</span></label>
+      <label class="check-row org-switch"><input type="checkbox" id="chk-symbol-cover-preview"><span>Show cover crop</span></label>
+      <label class="check-row org-switch"><input type="checkbox" id="chk-symbol-track-guides" checked><span>Show column/row guides</span></label>
       <div class="ctrl-row" style="margin-top:var(--space-2)"><div class="ctrl-label">Fit (all cells)</div></div>
       <div class="row-btns">
         <button class="mini-btn" id="btn-symbol-fit-all-contain">Contain</button>
@@ -1289,7 +1282,6 @@
         <button class="mini-btn" id="btn-symbol-fit-all-cover">Cover</button>
         <button class="mini-btn" id="btn-symbol-fit-all-fixed">Fixed</button>
       </div>
-      <p class="org-panel__hint">Sets the fit mode for every cell in the grid at once — Contain keeps proportions (may leave gaps), Fill stretches to match the cell (no gaps, distorts), Cover scales to fully cover the cell with no gaps and no distortion (crops the overflow — pair with Clip to cell), Fixed keeps a constant size (may overflow a shrunken cell). Edit a single cell's own Fit afterward in Manual → Cell properties to override it.</p>
       <div class="ctrl-row" style="margin-top:var(--space-2)"><div class="ctrl-label">Anchor (all cells)</div></div>
       <div id="symbol-fitall-anchor-grid" class="symbol-anchor-grid" role="group" aria-label="Anchor position for every cell"></div>
     </div>
@@ -1499,7 +1491,6 @@
     <div class="tier-block" data-tier="symbol">
     <div class="panel-section">
       <h3>Components <span class="hint" id="symbol-pool-hint">none yet</span></h3>
-      <p class="panel-hint" id="symbol-pool-note"></p>
       <div id="symbol-pool" class="fvs-sympool"></div>
       <button class="mini-btn" id="btn-sympool-add">+ Add Components…</button>
     </div>
@@ -6481,18 +6472,18 @@ function renderSymbolPool() {
   const wrap = ctrl('symbol-pool');
   const pal = poolEntries();
   state.symbolPool = pal;   // drop entries whose Component was deleted
-  wrap.innerHTML = pal.map((p, i) => `<div class="fvs-sympool__item" title="${p.name.replace(/"/g, '&quot;')}">${componentThumbSVG(p.name)}
-    <span class="fvs-sympool__name">${p.name.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span>
-    <select class="panel-select" data-pal-weight="${i}" aria-label="Weight of ${p.name.replace(/"/g, '&quot;')}">${[1, 2, 3, 4, 5].map(w => `<option value="${w}"${w === (p.weight || 1) ? ' selected' : ''}>×${w}</option>`).join('')}</select>
-    <button class="icon-btn fvs-sympool__x" data-pal-remove="${i}" aria-label="Remove ${p.name.replace(/"/g, '&quot;')} from the pool">×</button></div>`).join('');
+  // Same tile as the right-bar Library (.fvs-library-item / .fvs-library-caption /
+  // .rmx-x); the weight select stays underneath since the pool needs it.
+  wrap.innerHTML = pal.map((p, i) => {
+    const nm = p.name.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    const box = fitThumbBox(frameDims(LIBRARY.read()[p.name].grid).w, frameDims(LIBRARY.read()[p.name].grid).h, 64);
+    return `<div><div style="position:relative"><span class="fvs-library-item" style="width:${box.w}px;height:${box.h}px;display:block" title="${nm}">${componentThumbSVG(p.name)}</span>
+      <button class="rmx-x" style="position:absolute;top:0;right:0" data-pal-remove="${i}" aria-label="Remove ${nm} from the pool" title="Remove">×</button></div>
+      <span class="fvs-library-caption" title="${nm}">${nm}</span>
+      <select class="panel-select fvs-sympool__w" data-pal-weight="${i}" aria-label="Weight of ${nm}">${[1, 2, 3, 4, 5].map(w => `<option value="${w}"${w === (p.weight || 1) ? ' selected' : ''}>×${w}</option>`).join('')}</select></div>`;
+  }).join('');
   const n = pal.length;
   ctrl('symbol-pool-hint').textContent = n ? `${n} in the pool` : (libraryNames(LIBRARY.read()).length ? 'none yet' : 'save Components first');
-  // Make the contract explicit: Arrange / Suggest use ONLY the saved Components
-  // listed here, never the Component currently open in the Component tier.
-  const cur = getSelectedComponent();
-  const unsaved = cur && !(cur.savedName && LIBRARY.read()[cur.savedName]);
-  ctrl('symbol-pool-note').textContent = 'Arrange and Suggest use only the Components below.'
-    + (unsaved ? ' The Component you are editing is not saved, so it is not included — save it (+) in the Component tier first.' : '');
 }
 ctrl('symbol-pool').addEventListener('change', e => {
   const i = e.target.dataset.palWeight;

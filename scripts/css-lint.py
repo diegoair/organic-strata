@@ -261,6 +261,7 @@ ALLOW_RADIUS = {
     ('camo-turing/index.html', 9): '.toggle-slider on an 18px track — stadium',
     ('design-system/index.html', 3): '::-webkit-scrollbar-thumb on a 6px bar — stadium',
     ('shared/panel.css', 3): 'scrollbar thumb — stadium',
+    ('shared/panel.css', 7): '.org-switch track on a 14px height — stadium',
 }
 for f in glob.glob('shared/*.css') + all_pages():
     src = open(f, errors='ignore').read()
