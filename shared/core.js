@@ -607,7 +607,29 @@
       zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX, e.clientY);
     }, { passive: false });
 
-    canvas.addEventListener('mousedown', e => {
+    // opts.panStart(e) → bool — opt-in, for a canvas whose own clicks/drags
+    // mean something (FVS paints cells, drags borders): a pan then starts only
+    // when this says so (e.g. Space held / middle button), on the WRAP in
+    // capture phase, and swallows the event so the canvas's own pointer/mouse
+    // handlers never see it. Omitted → the original behaviour below, unchanged.
+    const panStart = opts.panStart || null;
+    if (panStart) {
+      wrap.addEventListener('pointerdown', e => {
+        if ((!panAlways && zoom <= 1.001) || !isReady() || !panStart(e)) return;
+        panning = true; startX = e.clientX - panX; startY = e.clientY - panY;
+        canvas.classList.add('panning');
+        e.preventDefault(); e.stopPropagation();   // preventDefault also suppresses the follow-up mousedown
+      }, true);
+      // …and the compat mousemove/mouseup too, so this mode tracks the pointer itself.
+      global.addEventListener('pointermove', e => {
+        if (!panning) return;
+        panX = e.clientX - startX; panY = e.clientY - startY; apply();
+      });
+      global.addEventListener('pointerup', () => {
+        if (!panning) return;
+        panning = false; canvas.classList.remove('panning');
+      });
+    } else canvas.addEventListener('mousedown', e => {
       if (!panAlways && zoom <= 1.001) return;
       panning = true; startX = e.clientX - panX; startY = e.clientY - panY;
       canvas.classList.add('panning');

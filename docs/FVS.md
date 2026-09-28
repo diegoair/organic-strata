@@ -35,6 +35,13 @@ Grid step without saving it first.
 
 ---
 
+**Zoom** — mouse wheel or **⌘+ / ⌘− / ⌘0** zooms the canvas of the current step
+(Element, Component Edit, Symbol/Grid, Figure), the same zoom as every other Organica tool,
+with a "142 % · reset" chip bottom-left. Pan with **Space + drag** (not in Figure, where Space
+is Shuffle), **⌥ + drag** or the **middle button**; a plain click keeps doing what it does
+(select/paint cells, drag borders). Double-click or ⌘0 = 100%. The Component gallery scrolls
+as before. Off while drawing Freehand.
+
 ## 3. Element
 
 - **Seed type** — Arc, Arc truchet, Blob, Chevron, Circle, Cross, Drop, Lens,

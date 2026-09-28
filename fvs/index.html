@@ -43,6 +43,16 @@
   /* No zoom/pan — the gallery is a static, scrollable grid of thumbnails,
      not a single pannable canvas (there is no one canvas to zoom). */
   #canvas-wrap { flex: 1; overflow-y: auto; background: var(--panel); padding: var(--space-7); }
+  /* Zoom (wheel / ⌘+ ⌘− ⌘0) — the suite-wide Organica.createZoomPan. FVS doesn't
+     load shell.css (own canvas surface), so the stage + HUD rules it needs live here,
+     mirroring shell.css's .org-stage / #zoom-hud. Pan = Space / ⌥ / middle-button drag. */
+  .fvs-zoomable { transform-origin: 0 0; }
+  body.fvs-pan-key .fvs-zoomable.zoomed { cursor: grab; }
+  .fvs-zoomable.panning, body.fvs-pan-key .fvs-zoomable.panning { cursor: grabbing; }
+  #zoom-hud { position: fixed; left: var(--space-5); bottom: var(--space-5); z-index: 30; background: var(--ink); color: var(--paper); font-family: var(--font); font-size: var(--fs-micro); letter-spacing: 0.1em; padding: var(--space-2) var(--space-4); display: none; align-items: center; gap: var(--space-3); user-select: none; }
+  #zoom-hud.visible { display: flex; }
+  #zoom-hud .zoom-reset { all: unset; cursor: pointer; opacity: 0.6; font: inherit; letter-spacing: inherit; }
+  #zoom-hud .zoom-reset:hover { opacity: 1; }
   #gallery-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: var(--space-3); color: var(--mid); font-size: var(--fs-small); text-align: center; }
   #gallery { display: none; flex-wrap: wrap; justify-content: center; gap: var(--space-5); align-content: flex-start; max-width: 100%; }
   #gallery.visible { display: flex; }
@@ -447,6 +457,7 @@
 </div>
 
 <div id="app">
+  <div id="zoom-hud" aria-live="polite"><span id="zoom-level">100%</span><button type="button" class="zoom-reset" id="zoom-reset" title="Reset zoom (⌘0)">reset</button></div>
   <div id="canvas-wrap">
     <div class="tier-view active" data-tier="element">
       <div class="fvs-seed-preview-wrap">
@@ -2629,6 +2640,7 @@ function syncFreehandEditor() {
   const frame = ctrl('element-frame');
   const active = state.activeTier === 'element' && ctrl('sel-seed-type').value === 'freehand';
   frame.classList.toggle('drawing', active);
+  if (active && fvsZoom && fvsZoom.element && fvsZoom.element.zoom > 1.001) fvsZoom.element.reset();   // Freehand draws in untransformed pixels
   if (!active) return;
   const size = frame.clientWidth;
   if (!size || (fhEditor && fhSize === size)) return;
@@ -8218,7 +8230,58 @@ function setTier(tier) {
   else { renderGallery(); }
   syncFreehandEditor();
   updateStepHint(tier);
+  syncFvsZoomHud();
 }
+
+// ── Zoom: mouse wheel / ⌘+ ⌘− ⌘0, the same Organica.createZoomPan every other
+// tool uses — one instance per step canvas, each live only while its step (and
+// mode) is showing, so the wheel scrolls normally elsewhere (the Component
+// gallery). FVS's own clicks and drags stay theirs: a pan starts only with
+// Space held (not in Figure, where Space is Shuffle), ⌥ held, or the middle
+// button (`panStart`). Off while drawing Freehand — Paper.js maps the pointer
+// in untransformed canvas pixels. Double-click / ⌘0 / "reset" = 100%.
+var fvsPanKey = false;
+var fvsIsTypingTarget = t => t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && state.activeTier !== 'figure' && !fvsIsTypingTarget(e.target)) {
+    if (!fvsPanKey) { fvsPanKey = true; document.body.classList.add('fvs-pan-key'); }
+    if (fvsZoomActive() && fvsZoomActive().zoom > 1.001) e.preventDefault();   // no page scroll while panning
+  }
+  if (e.key === 'Alt') document.body.classList.add('fvs-pan-key');
+});
+document.addEventListener('keyup', e => {
+  if (e.code === 'Space') { fvsPanKey = false; }
+  if (!fvsPanKey && !e.altKey) document.body.classList.remove('fvs-pan-key');
+});
+window.addEventListener('blur', () => { fvsPanKey = false; document.body.classList.remove('fvs-pan-key'); });
+var FVS_ZOOM_SURFACES = [
+  { tier: 'element', canvas: 'element-frame', ready: () => !ctrl('element-frame').classList.contains('drawing') },
+  { tier: 'component', canvas: 'component-edit-frame', wrap: 'component-edit-view', ready: () => !!state.componentEditMode },
+  { tier: 'symbol', canvas: 'symbol-frame' },
+  { tier: 'figure', canvas: 'figure-stage' },
+];
+var fvsZoom = {};
+function fvsSurfaceLive(sf) { return state.activeTier === sf.tier && (!sf.ready || sf.ready()); }
+function fvsZoomActive() { if (!FVS_ZOOM_SURFACES) return null; const sf = FVS_ZOOM_SURFACES.find(fvsSurfaceLive); return sf ? fvsZoom[sf.tier] : null; }
+function syncFvsZoomHud() {
+  if (!FVS_ZOOM_SURFACES) return;   // startup: setTier can run before this block
+  const zp = fvsZoomActive();
+  const z = zp ? zp.zoom : 1;
+  ctrl('zoom-level').textContent = Math.round(z * 100) + '%';
+  ctrl('zoom-hud').classList.toggle('visible', z > 1.001);
+}
+FVS_ZOOM_SURFACES.forEach(sf => {
+  const canvas = ctrl(sf.canvas);
+  canvas.classList.add('fvs-zoomable');
+  fvsZoom[sf.tier] = Organica.createZoomPan({
+    canvas,
+    wrap: sf.wrap ? ctrl(sf.wrap) : document.querySelector(`#canvas-wrap .tier-view[data-tier="${sf.tier}"]`),
+    isReady: () => fvsSurfaceLive(sf),
+    panStart: e => e.button === 1 || (e.button === 0 && (e.altKey || (fvsPanKey && sf.tier !== 'figure'))),
+    onChange(st) { canvas.classList.toggle('zoomed', st.zoomed); if (fvsSurfaceLive(sf)) syncFvsZoomHud(); },
+  });
+});
+ctrl('zoom-reset').addEventListener('click', () => { const zp = fvsZoomActive(); if (zp) zp.reset(); });
 
 // Loom publishes every saved grid to localStorage 'organica.loom.presets'
 // as a full buildModel() object — directly Organica.loadLoomGrid-able. Read
