@@ -43,6 +43,7 @@ async function battery() {
   const chg = (id, v) => { const e = ctrl(id); e.value = v; e.dispatchEvent(new Event('change', { bubbles: true })); };
   const inp = (id, v) => { const e = ctrl(id); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); };
   const reset = () => {
+    if (state.layers) { state.layers = null; renderLayersUI(); }
     state.colors = ['#000000']; state.colorRule = { ...DEFAULT_COLOR_RULE }; state.paperColor = '#ffffff';
     syncColorRuleUI(); buildPalette();
     chg('sel-element-fillmode', 'fill'); setComponentGrid('square2x2');
@@ -736,6 +737,56 @@ async function battery() {
     // clean up
     const lib23 = LIBRARY.read(); delete lib23['zz-content-under']; LIBRARY.write(lib23);
   } finally { state.elementContent = 'filled'; state.underlyingElementName = null; syncElementContentUI(); reset(); }
+
+  // 25 — multi-layer Element (state.layers → SEED_TYPES.stack)
+  try {
+    reset();
+    chg('sel-seed-type', 'circle');
+    const single = buildSeedPreviewSVG(getSeed(), 0, false, false, 100);
+    put('layers:single:noStack', !/stk[0-9a-z]+-/.test(single) && state.layers === null);
+    addLayer();   // circle + triangle (ink 2)
+    const two = buildSeedPreviewSVG(getSeed(), 0, false, false, 100);
+    put('layers:overlap', two);
+    put('layers:overlap:twoPaths', (two.match(/<path /g) || []).length + ',' + /#e8321e/.test(two));
+    moveLayer(1, -1);   // triangle now BELOW the circle
+    const swapped = buildSeedPreviewSVG(getSeed(), 0, false, false, 100);
+    put('layers:order:differs', H(norm(swapped)) !== H(norm(two)));
+    moveLayer(0, 1);
+    state.layers.items[1].role = 'container';
+    const cont = buildSeedPreviewSVG(getSeed(), 0, false, false, 100);
+    put('layers:container', cont);
+    const cin = cont.match(/<clipPath[^>]*>([\s\S]*?)<\/clipPath>/);
+    put('layers:container:noGInClip', !!cin && !/<g[\s>]/.test(cin[1]));
+    state.layers.items[1].role = 'mask';
+    const msk = buildSeedPreviewSVG(getSeed(), 0, false, false, 100);
+    put('layers:mask', msk);
+    put('layers:mask:hasMask', /<mask /.test(msk));
+    state.layers.items[1].role = 'fill';
+    // Component + Canvas parity: the SVG and Canvas2D renderings of a stack (fill + container + mask) must agree
+    addLayer(); state.layers.items[2].seed.type = 'star'; state.layers.items[2].role = 'mask'; state.layers.items[2].place.scale = 0.5;
+    generate();
+    const grid25 = getGrid(), seed25 = getSeed(), size25 = frameDims(grid25), comp25 = getSelectedComponent();
+    const items25 = buildComponentItems(comp25, grid25);
+    const svg25 = buildComponentSVG(items25, seed25, size25);
+    put('layers:component:svg', svg25);
+    const cv25 = document.createElement('canvas'); cv25.width = size25.w; cv25.height = size25.h;
+    drawComponentCanvas(cv25.getContext('2d'), items25, seed25, size25);
+    const img25 = new Image(), url25 = URL.createObjectURL(new Blob([svg25], { type: 'image/svg+xml' }));
+    await new Promise(r => { img25.onload = r; img25.src = url25; });
+    const c25 = document.createElement('canvas'); c25.width = size25.w; c25.height = size25.h;
+    const x25 = c25.getContext('2d'); x25.drawImage(img25, 0, 0, size25.w, size25.h); URL.revokeObjectURL(url25);
+    const pa = cv25.getContext('2d').getImageData(0, 0, size25.w, size25.h).data, pb = x25.getImageData(0, 0, size25.w, size25.h).data;
+    let bad25 = 0; for (let i = 0; i < pa.length; i += 4) if (Math.abs(pa[i] - pb[i]) + Math.abs(pa[i + 1] - pb[i + 1]) + Math.abs(pa[i + 2] - pb[i + 2]) > 120) bad25++;
+    put('layers:canvas:parity', bad25 === 0);
+    // library round trip: the saved entry restores the exact stack
+    const before25 = JSON.stringify(seedForSnapshot());
+    const entry25 = buildLibraryEntryFor(comp25);
+    applySeedToPanel(entry25.seed);
+    put('layers:library:roundtrip', JSON.stringify(seedForSnapshot()) === before25);
+    // deleting layers back to one collapses to a plain single-shape Element
+    removeLayer(2); removeLayer(1);
+    put('layers:collapse', state.layers === null);
+  } finally { reset(); }
 
   // 24 — Component tier auto-default starter gallery
   try {

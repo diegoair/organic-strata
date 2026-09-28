@@ -507,8 +507,19 @@
   <div id="panel">
 
     <div class="tier-block active" data-tier="element">
+    <div class="panel-section" id="layers-section">
+      <h3>Layers <span class="hint" id="layers-hint">single shape</span></h3>
+      <div id="layers-list"></div>
+      <div id="layer-place-block" style="display:none">
+        <div class="ctrl-row"><div class="ctrl-label" title="Shifts this layer inside the Element — 100 is a full cell.">Move X</div><input type="range" id="rg-layer-mx" min="-100" max="100" step="1" value="0"><span class="ctrl-val" id="v-layer-mx">0</span></div>
+        <div class="ctrl-row"><div class="ctrl-label">Move Y</div><input type="range" id="rg-layer-my" min="-100" max="100" step="1" value="0"><span class="ctrl-val" id="v-layer-my">0</span></div>
+        <div class="ctrl-row"><div class="ctrl-label">Scale</div><input type="range" id="rg-layer-scale" min="0.1" max="2" step="0.01" value="1"><span class="ctrl-val" id="v-layer-scale">1</span></div>
+        <div class="ctrl-row"><div class="ctrl-label">Rotate</div><input type="range" id="rg-layer-rotate" min="-180" max="180" step="1" value="0"><span class="ctrl-val" id="v-layer-rotate">0</span></div>
+      </div>
+      <button class="mini-btn" id="btn-layer-add" style="width:100%">+ Add layer</button>
+    </div>
     <div class="panel-section">
-      <h3>Seed</h3>
+      <h3>Seed <span class="hint" id="seed-layer-hint"></span></h3>
       <div class="ctrl-row">
         <div id="seedtype-picker"></div>
         <select class="panel-select" id="sel-seed-type" aria-label="Seed type">
@@ -1964,6 +1975,7 @@ const state = {
   colors: ['#000000'],   // the centralised Palette (Ink) — see buildPalette()/colorAt() below
   paperColor: '#ffffff',   // the ground every render/export paints against
   customSeed: null,   // {d, normTx, normTy, normScale} from an uploaded SVG, or null
+  layers: null,       // null = a plain single-shape Element. Else {items:[{id,name,role:'fill'|'mask'|'container',ink:'cell'|slot,place:{mx,my,scale,rotate},seed}], active} — a stack, bottom→top; the Seed panel edits items[active]
   componentRole: 'normal',           // 'normal' | 'container' | 'mask' — this Component's own silhouette used as a clip/knockout boundary for underlyingComponentName
   underlyingComponentName: null,     // another saved Component Library entry's name, or null
   elementContent: 'filled',          // 'filled' | 'mask' | 'subtraction' | 'container' (container disabled — not yet selectable) — the Element's OWN silhouette used the same way, one tier down from componentRole
@@ -2147,6 +2159,12 @@ const SEED_TYPES = {
   segment: { label: 'Segment', geometry: (p) => segmentGeometry(p.segLen, { angle: p.segAngle, bend: p.segBend, wave: p.segWave, cycles: p.segCycles, dashes: p.segDashes, gap: p.segGap, lines: p.segLines, spacing: p.segSpacing, repeatX: p.segRepeatX, spaceX: p.segSpaceX, repeatY: p.segRepeatY, spaceY: p.segSpaceY, rays: p.segRays }) },
   drop: { label: 'Drop', geometry: (p) => dropGeometry(p.dropRadius, p.dropTail, { bend: p.dropBend, neck: p.dropNeck, petals: p.dropPetals, rotate: p.dropRotate }) },
   blob: { label: 'Blob', geometry: (p) => blobGeometry(p.blobRadius, p.blobAmount, p.blobSeed, { freq: p.blobFreq, smooth: p.blobSmooth, outline: p.blobOutline }) },
+  // Stack: an Element made of several layered shapes (state.layers). Its
+  // geometry carries the per-layer geometries; elementPathMarkup /
+  // paintGeoCanvas know how to paint them (fills in order, containers clip
+  // and masks knock out everything BELOW them). `d` is the placed union of the
+  // fill layers, only used for measuring / clip boundaries.
+  stack: { label: 'Layers', geometry: (p) => stackGeometry(p) },
   // Freehand: every step after Element sees the drawing fitted to the cell;
   // only the Element stage shows it raw ('freehandraw', not in the picker).
   freehand: { label: 'Freehand', geometry: (p) => (p && p.customSeed) || (state.freehand && state.freehand.seed) || { d: '', normTx: 0, normTy: 0, normScale: 1 } },
@@ -2530,14 +2548,22 @@ function getSeedExtras() {
   Object.values(SEED_EXTRAS).forEach(sh => sh.rows.forEach(r => { const el = ctrl(xrId(sh, r)); o[r.key] = r.kind === 'select' ? el.value : parseFloat(el.value); }));
   return o;
 }
-function seedForSnapshot() {
-  const seed = { ...getSeed(), customSeed: state.customSeed };
+// The Seed panel's own controls as ONE shape (the active layer, when the
+// Element is a stack). getSeed()/seedForSnapshot() below are the stack-aware
+// versions every other consumer uses.
+function panelSeedSnapshot() {
+  const seed = { ...getPanelSeed(), customSeed: state.customSeed };
   if (seed.type === 'freehand') {
     seed.customSeed = state.freehand.seed;
     seed.freehandData = state.freehand.data;
     seed.freehandRaw = state.freehand.raw;
   }
   return seed;
+}
+function seedForSnapshot() {
+  if (!state.layers) return panelSeedSnapshot();
+  syncActiveLayer();
+  return { type: 'stack', active: state.layers.active, layers: state.layers.items.map(l => JSON.parse(JSON.stringify(l))) };
 }
 
 // ── Freehand Seed — Genesis Create's Paper.js draw editor, hosted on the
@@ -2588,6 +2614,9 @@ function syncFreehandEditor() {
 }
 
 function getSeed() {
+  return state.layers ? seedForSnapshot() : getPanelSeed();
+}
+function getPanelSeed() {
   return { ...getSeedExtras(),
     type: ctrl('sel-seed-type').value,
     base: val('rg-base'),
@@ -3575,11 +3604,129 @@ function getElementAppearance() {
   };
 }
 
+// ── Stack (multi-layer Element) ───────────────────────────────────────
+// Each layer is a normal Element shape + a placement (Move/Scale/Rotate about
+// the cell centre) + an ink + a role. Painted bottom→top: 'fill' paints,
+// 'container' clips everything below it to its outline, 'mask' knocks its
+// outline out of everything below it. Layers above are never affected.
+const LAYER_ROLES = { fill: 'Fill', container: 'Container', mask: 'Mask' };
+const layerPlace = l => ({ mx: 0, my: 0, scale: 1, rotate: 0, ...(l.place || {}) });
+// place → norm-fit, as ONE transform string (a <clipPath>/<mask> child must be a bare <path>, no <g>).
+function layerTransformAttr(l, g) {
+  const pl = layerPlace(l);
+  return `translate(${(50 + pl.mx).toFixed(3)},${(50 + pl.my).toFixed(3)}) rotate(${pl.rotate}) scale(${pl.scale}) translate(-50,-50)`
+    + ` translate(${(g.normTx * g.normScale).toFixed(4)},${(g.normTy * g.normScale).toFixed(4)}) scale(${g.normScale.toFixed(4)})`;
+}
+let inkPaletteOverride = null;   // set while rendering a saved entry with ITS palette
+function layerInkColor(l, cellColor) {
+  if (l.ink == null || l.ink === 'cell') return cellColor;
+  const pal = inkPaletteOverride || state.colors;
+  return pal[((l.ink % pal.length) + pal.length) % pal.length];
+}
+const _stackFlatCache = new Map();
+// The placed union of the FILL layers as one path (in the 0..100 space) via
+// Paper.js — only feeds bbox measuring and Container/Mask boundaries.
+function stackFlatD(layers) {
+  const key = JSON.stringify(layers.map(l => [l.role, layerPlace(l), l.geo.d, l.geo.fillRule, l.geo.normTx, l.geo.normTy, l.geo.normScale]));
+  if (_stackFlatCache.has(key)) return _stackFlatCache.get(key);
+  let d = '';
+  try {
+    const scope = splitPaperScope();
+    const parts = [];
+    for (const l of layers) {
+      if ((l.role || 'fill') !== 'fill' || !l.geo.d) continue;
+      const cp = importAsPaperShape(scope, l.geo.d, l.geo.fillRule);
+      const pl = layerPlace(l), g = l.geo, m = new scope.Matrix();
+      m.translate(50 + pl.mx, 50 + pl.my); m.rotate(pl.rotate); m.scale(pl.scale); m.translate(-50, -50);
+      m.translate(g.normTx * g.normScale, g.normTy * g.normScale); m.scale(g.normScale);
+      cp.transform(m);
+      parts.push(cp.pathData);
+      cp.remove();
+    }
+    d = parts.join(' ');
+  } catch (e) { d = ''; }
+  if (_stackFlatCache.size > 60) _stackFlatCache.clear();
+  _stackFlatCache.set(key, d);
+  return d;
+}
+function stackGeometry(p) {
+  const layers = ((p && p.layers) || []).map(l => ({ ...l, geo: SEED_TYPES[l.seed.type].geometry(l.seed) }));
+  return { d: stackFlatD(layers), normTx: 0, normTy: 0, normScale: 1, layers };
+}
+function stackUid(geo) {
+  let h = 2166136261;
+  const str = JSON.stringify(geo.layers.map(l => [l.role, layerPlace(l), l.geo.d, l.geo.normTx, l.geo.normTy, l.geo.normScale]));
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return 'stk' + (h >>> 0).toString(36);
+}
+function stackPathMarkup(geo, color, forceFill) {
+  const a = getElementAppearance();
+  const uid = stackUid(geo);
+  let out = '';
+  geo.layers.forEach((l, i) => {
+    const g = l.geo, t = layerTransformAttr(l, g), role = l.role || 'fill';
+    if (!g.d) return;
+    if (role === 'container') {
+      out = `<clipPath id="${uid}-${i}"><path d="${g.d}" transform="${t}"${g.fillRule ? ` clip-rule="${g.fillRule}"` : ''}/></clipPath><g clip-path="url(#${uid}-${i})">${out}</g>`;
+    } else if (role === 'mask') {
+      out = `<mask id="${uid}-${i}" maskUnits="userSpaceOnUse" x="-100" y="-100" width="300" height="300"><rect x="-100" y="-100" width="300" height="300" fill="white"/>`
+        + `<path d="${g.d}" transform="${t}" fill="black"${g.fillRule ? ` fill-rule="${g.fillRule}"` : ''}/></mask><g mask="url(#${uid}-${i})">${out}</g>`;
+    } else {
+      const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: forceFill ? 'fill' : a.fillMode, color: forceFill ? color : layerInkColor(l, color), strokeW: a.strokeW, rounded: a.rounded });
+      out += `<g transform="${t}"><path d="${g.d}" ${attrs}${g.fillRule && !forceFill ? ` fill-rule="${g.fillRule}"` : ''}/></g>`;
+    }
+  });
+  if (appearanceIsIdentity(a)) return out;
+  return `<g transform="${Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a))}">${out}</g>`;
+}
+let _stackAcc = null;
+// Canvas twin of stackPathMarkup. Pure-fill stacks paint straight onto ctx;
+// a container/mask needs an offscreen layer (destination-in / destination-out).
+function paintStackCanvas(ctx, geo, color) {
+  const a = getElementAppearance();
+  const fx = geo.layers.some(l => (l.role || 'fill') !== 'fill');
+  let tc = ctx;
+  if (fx) {
+    const cv = ctx.canvas;
+    if (!_stackAcc) _stackAcc = document.createElement('canvas');
+    if (_stackAcc.width !== cv.width || _stackAcc.height !== cv.height) { _stackAcc.width = cv.width; _stackAcc.height = cv.height; }
+    tc = _stackAcc.getContext('2d');
+    tc.setTransform(1, 0, 0, 1, 0, 0); tc.clearRect(0, 0, cv.width, cv.height);
+    tc.setTransform(ctx.getTransform());
+  }
+  for (const l of geo.layers) {
+    const g = l.geo, role = l.role || 'fill', pl = layerPlace(l);
+    if (!g.d) continue;
+    tc.save();
+    tc.translate(50 + pl.mx, 50 + pl.my); tc.rotate(pl.rotate * Math.PI / 180); tc.scale(pl.scale, pl.scale); tc.translate(-50, -50);
+    tc.translate(g.normTx * g.normScale, g.normTy * g.normScale); tc.scale(g.normScale, g.normScale);
+    const path = new Path2D(g.d);
+    if (role === 'fill') {
+      const op = Organica.shapeAppearance.applyCanvasStyle(tc, { fillMode: a.fillMode, color: layerInkColor(l, color), strokeW: a.strokeW, rounded: a.rounded });
+      paintPath(tc, op, path, g);
+    } else {
+      tc.globalCompositeOperation = role === 'container' ? 'destination-in' : 'destination-out';
+      tc.fillStyle = '#000';
+      tc.fill(path, g.fillRule || 'nonzero');
+    }
+    tc.restore();
+  }
+  if (fx) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(_stackAcc, 0, 0); ctx.restore(); }
+}
+// Style + paint one geometry on a canvas whose transform already places it —
+// the single Canvas2D paint step drawItemsPlain / Symbol seed cells share.
+function paintGeoCanvas(ctx, geo, path, color) {
+  if (geo.layers) { paintStackCanvas(ctx, geo, color); return; }
+  const a = getElementAppearance();
+  paintPath(ctx, Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: a.fillMode, color, strokeW: a.strokeW, rounded: a.rounded }), path, geo);
+}
+
 // The inner half of every per-cell/preview <g>: stretch layer (identity, and
 // omitted, at w=l=1) → norm-fit layer → the styled path. `forceFill` is for
 // Container/Mask boundaries, whose silhouette must stay solid regardless of
 // an outline-only Style.
 function elementPathMarkup(geo, color, forceFill) {
+  if (geo.layers) return stackPathMarkup(geo, color, forceFill);
   const a = getElementAppearance();
   const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: forceFill ? 'fill' : a.fillMode, color, strokeW: a.strokeW, rounded: a.rounded });
   const norm = `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
@@ -3636,9 +3783,7 @@ function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH) {
       applyElementStretchCanvas(ctx);   // reads getElementAppearance() itself — must run inside the withAppearance below too
       ctx.translate(itGeo.normTx * itGeo.normScale, itGeo.normTy * itGeo.normScale);
       ctx.scale(itGeo.normScale, itGeo.normScale);
-      const a = getElementAppearance();
-      const op = Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: a.fillMode, color: it.color, strokeW: a.strokeW, rounded: a.rounded });
-      paintPath(ctx, op, itPath, itGeo);
+      paintGeoCanvas(ctx, itGeo, itPath, it.color);
       ctx.restore();
     };
     // A cell with its own content carries its own Appearance snapshot too
@@ -4967,6 +5112,18 @@ function removeLibraryEntry(name) {
 // applyLibraryEntryToUI does right after this. Pure refactor: byte-identical
 // behaviour, verified against the regression suite.
 function applySeedToPanel(seed) {
+  if (seed && seed.type === 'stack' && Array.isArray(seed.layers) && seed.layers.length) {
+    const items = seed.layers.map(l => JSON.parse(JSON.stringify(l)));
+    const active = Math.max(0, Math.min(items.length - 1, seed.active | 0));
+    state.layers = { items, active };
+    applyPanelSeedRaw(items[active].seed);
+  } else {
+    state.layers = null;
+    applyPanelSeedRaw(seed);
+  }
+  renderLayersUI();
+}
+function applyPanelSeedRaw(seed) {
   ctrl('sel-seed-type').value = seed.type;
   if (seed.type === 'custom' && !ctrl('sel-seed-type').querySelector('option[value="custom"]')) {
     const opt = document.createElement('option');
@@ -5048,6 +5205,117 @@ function applySeedToPanel(seed) {
   }
   syncSeedUI();
 }
+
+
+// ── Layers UI (state.layers) ───────────────────────────────────────────
+// The Seed panel below always edits ONE shape: the active layer. Switching
+// layer saves the panel into the layer being left and loads the new one.
+const LAYER_NEW_INKS = ['#e8321e', '#0a9a3e', '#1f5fd6', '#f2b300', '#7a3fd1', '#0e9aa7', '#d6336c'];
+function syncActiveLayer() {
+  if (!state.layers) return;
+  state.layers.items[state.layers.active].seed = panelSeedSnapshot();
+}
+const newLayerId = () => 'l' + Math.random().toString(36).slice(2, 7);
+const layerLabel = (l, i) => (i + 1) + ' · ' + ((SEED_TYPES[l.seed.type] || {}).label || l.seed.type);
+function layersChanged() { renderLayersUI(); renderGallery(); renderSeedPreview(); }
+function selectLayer(i) {
+  if (!state.layers || i === state.layers.active || !state.layers.items[i]) return;
+  syncActiveLayer();
+  state.layers.active = i;
+  applyPanelSeedRaw(state.layers.items[i].seed);
+  layersChanged();
+}
+function addLayer() {
+  if (!state.layers) state.layers = { items: [{ id: newLayerId(), role: 'fill', ink: 'cell', place: { mx: 0, my: 0, scale: 1, rotate: 0 }, seed: panelSeedSnapshot() }], active: 0 };
+  syncActiveLayer();
+  const L = state.layers, base = L.items[L.active].seed;
+  const seed = JSON.parse(JSON.stringify(base));
+  seed.type = base.type === 'circle' ? 'triangle' : 'circle';
+  const slot = L.items.length;
+  L.items.push({ id: newLayerId(), role: 'fill', ink: slot, place: { mx: 0, my: 0, scale: 0.6, rotate: 0 }, seed });
+  // Above/below is only visible with different colours: make sure the Palette has one for this layer.
+  if (state.colors.length <= slot && state.colors.length < PALETTE_MAX) {
+    state.colors = state.colors.concat(hexKey(LAYER_NEW_INKS[(slot - 1) % LAYER_NEW_INKS.length]));
+    buildPalette(); syncColorRuleUI();
+  }
+  L.active = L.items.length - 1;
+  applyPanelSeedRaw(seed);
+  layersChanged();
+}
+function removeLayer(i) {
+  const L = state.layers;
+  if (!L || !L.items[i]) return;
+  syncActiveLayer();
+  L.items.splice(i, 1);
+  if (L.items.length <= 1) {
+    const only = L.items[0].seed;
+    state.layers = null;
+    applyPanelSeedRaw(only);
+  } else {
+    L.active = Math.min(L.active > i ? L.active - 1 : L.active, L.items.length - 1);
+    applyPanelSeedRaw(L.items[L.active].seed);
+  }
+  layersChanged();
+}
+function moveLayer(i, dir) {
+  const L = state.layers, j = i + dir;
+  if (!L || j < 0 || j >= L.items.length) return;
+  syncActiveLayer();
+  [L.items[i], L.items[j]] = [L.items[j], L.items[i]];
+  if (L.active === i) L.active = j; else if (L.active === j) L.active = i;
+  layersChanged();
+}
+function renderLayersUI() {
+  const list = ctrl('layers-list'), L = state.layers;
+  ctrl('layer-place-block').style.display = L ? '' : 'none';
+  ctrl('layers-hint').textContent = L ? L.items.length + ' layers · top first' : 'single shape';
+  ctrl('seed-layer-hint').textContent = L ? 'editing layer ' + (L.active + 1) : '';
+  if (!L) { list.innerHTML = ''; return; }
+  const inkOpts = cur => `<option value="cell"${cur === 'cell' || cur == null ? ' selected' : ''}>Follow cell colour</option>`
+    + Array.from({ length: PALETTE_MAX }, (_, k) => `<option value="${k}"${cur === k ? ' selected' : ''}>Ink ${k + 1}</option>`).join('');
+  // Top layer first, like every layer panel.
+  list.innerHTML = L.items.map((l, i) => i).reverse().map(i => {
+    const l = L.items[i], on = i === L.active;
+    return `<div class="org-layer-card${on ? ' active' : ''}" data-layer="${i}">
+      <div class="org-layer-card__head">
+        <button class="mini-btn" data-layer-act="select" style="flex:1;text-align:left;padding:0 var(--space-2)">${layerLabel(l, i)}</button>
+        <button class="icon-btn" data-layer-act="up" aria-label="Move layer up" title="Up (above)"${i === L.items.length - 1 ? ' disabled' : ''}>↑</button>
+        <button class="icon-btn" data-layer-act="down" aria-label="Move layer down" title="Down (below)"${i === 0 ? ' disabled' : ''}>↓</button>
+        <button class="icon-btn" data-layer-act="del" aria-label="Delete layer" title="Delete">×</button>
+      </div>
+      <div class="org-layer-card__body">
+        <select class="panel-select" data-layer-role aria-label="Layer role" title="Fill paints. Container clips everything below it to its outline. Mask cuts its outline out of everything below it." style="flex:1">${Object.entries(LAYER_ROLES).map(([k, v]) => `<option value="${k}"${(l.role || 'fill') === k ? ' selected' : ''}>${v}</option>`).join('')}</select>
+        <select class="panel-select" data-layer-ink aria-label="Layer colour" style="flex:1"${(l.role || 'fill') === 'fill' ? '' : ' disabled'}>${inkOpts(l.ink)}</select>
+      </div>
+    </div>`;
+  }).join('');
+  const pl = layerPlace(L.items[L.active]);
+  [['mx', pl.mx], ['my', pl.my], ['scale', pl.scale], ['rotate', pl.rotate]].forEach(([k, v]) => { ctrl('rg-layer-' + k).value = v; ctrl('v-layer-' + k).textContent = v; });
+}
+ctrl('btn-layer-add').addEventListener('click', addLayer);
+ctrl('layers-list').addEventListener('click', e => {
+  const b = e.target.closest('[data-layer-act]'), card = e.target.closest('[data-layer]');
+  if (!b || !card) return;
+  const i = +card.dataset.layer, act = b.dataset.layerAct;
+  if (act === 'select') selectLayer(i); else if (act === 'up') moveLayer(i, 1); else if (act === 'down') moveLayer(i, -1); else if (act === 'del') removeLayer(i);
+});
+ctrl('layers-list').addEventListener('change', e => {
+  const card = e.target.closest('[data-layer]');
+  if (!card || !state.layers) return;
+  const l = state.layers.items[+card.dataset.layer];
+  if (e.target.matches('[data-layer-role]')) l.role = e.target.value;
+  else if (e.target.matches('[data-layer-ink]')) l.ink = e.target.value === 'cell' ? 'cell' : +e.target.value;
+  else return;
+  layersChanged();
+});
+['mx', 'my', 'scale', 'rotate'].forEach(k => ctrl('rg-layer-' + k).addEventListener('input', e => {
+  if (!state.layers) return;
+  const l = state.layers.items[state.layers.active];
+  l.place = { ...layerPlace(l), [k]: parseFloat(e.target.value) };
+  ctrl('v-layer-' + k).textContent = e.target.value;
+  renderGallery(); renderSeedPreview();
+}));
+renderLayersUI();
 
 // Figure recipes rewrite the shared Element seed-type control and replace
 // state.components wholesale as a side effect (runBuiltinRecipe/
@@ -6340,8 +6608,7 @@ function drawSymbolCanvas(ctx) {
       applyElementStretchCanvas(ctx);
       ctx.translate(it.geo.normTx * it.geo.normScale, it.geo.normTy * it.geo.normScale);
       ctx.scale(it.geo.normScale, it.geo.normScale);
-      const sa = getElementAppearance();
-      paintPath(ctx, Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: sa.fillMode, color: it.color, strokeW: sa.strokeW, rounded: sa.rounded }), new Path2D(it.geo.d), it.geo);
+      paintGeoCanvas(ctx, it.geo, new Path2D(it.geo.d), it.color);
       ctx.restore();
     } else {
       const geo = SEED_TYPES[it.nestedSeed.type].geometry(it.nestedSeed);
@@ -6362,8 +6629,7 @@ function drawSymbolCanvas(ctx) {
         applyElementStretchCanvas(ctx);
         ctx.translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale);
         ctx.scale(geo.normScale, geo.normScale);
-        const na = getElementAppearance();
-        paintPath(ctx, Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: na.fillMode, color: ni.color, strokeW: na.strokeW, rounded: na.rounded }), path, geo);
+        paintGeoCanvas(ctx, geo, path, ni.color);
         ctx.restore();
       }
       appearanceOverride = prevOverride;
