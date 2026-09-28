@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Headless FVS regression. Usage: node --experimental-websocket scripts/regression.mjs   (or scripts/regression.sh)
+// Headless FVS regression. Usage: scripts/regression.sh [--record]
+// --record re-writes fvs/_regression-baseline.json from the current run (use after an INTENDED change).
 //
 // Serves the repo on a throwaway port, opens fvs/_test-regression.html?auto=1 in headless Chrome
 // over the DevTools protocol, waits for the verdict the page writes to <body data-result>, and
@@ -59,6 +60,12 @@ for (let i = 0; i < 480 && !result; i++) {
   await new Promise(r => setTimeout(r, 500));
   const r = await cdp('Runtime.evaluate', { expression: '[document.body && document.body.dataset.result || "", document.body && document.body.dataset.detail || "", document.body && document.body.dataset.changed || ""]', returnByValue: true });
   [result, detail, changed] = r.result?.result?.value || ['', '', ''];
+}
+if (process.argv.includes('--record')) {
+  const r = await cdp('Runtime.evaluate', { expression: 'JSON.stringify(last, null, 2)', returnByValue: true });
+  fs.writeFileSync(path.join(ROOT, 'fvs', '_regression-baseline.json'), r.result.result.value + '\n');
+  console.log('Baseline re-recorded → fvs/_regression-baseline.json (review the git diff before committing).');
+  done(0);
 }
 console.log(`FVS regression: ${(result || 'error').toUpperCase()} — ${detail || 'no verdict'}`);
 if (changed) console.log(`  changed: ${changed}`);

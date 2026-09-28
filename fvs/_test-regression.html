@@ -258,7 +258,11 @@ async function battery() {
     LIBRARY.write(lib);
     inp('rg-thickness', 100); chg('sel-rule', 'identity');
     const an = analyseComponent('zz-t-arc');
-    put('suggest:analysis', [an.GW, an.GH, an.density.toFixed(3), H(Array.from(an.cov).join(''))].join(','));
+    // Coarse on purpose: a per-cell hash of a rasterised mask flips with the platform's anti-aliasing
+    // (Linux CI Chrome vs macOS). Size + per-quadrant coverage still catches an empty/inverted/shifted mask.
+    const q = [0, 0, 0, 0], qn = [0, 0, 0, 0];
+    Array.from(an.cov).forEach((v, i) => { const k = (Math.floor(i / an.GW) >= an.GH / 2 ? 2 : 0) + ((i % an.GW) >= an.GW / 2 ? 1 : 0); q[k] += v ? 1 : 0; qn[k]++; });
+    put('suggest:analysis', [an.GW, an.GH, an.density.toFixed(1), ...q.map((c, k) => (c / qn[k]).toFixed(1))].join(','));
     state.symbolPool = [{ name: 'zz-t-arc', weight: 2 }, { name: 'zz-t-ring', weight: 1 }, { name: 'zz-t-wave', weight: 1 }];
     const cv = { ...readSymbolCanvas(), mode: 'screen', unit: 'px', pw: 1080, ph: 1080, W: 1080, H: 1080, margin: 5 };
     loadSymbolGrid(await symbolGridModel('rectangular', { colWeights: '1,1,1,1,1,1', rowWeights: '1,1,1,1,1,1' }, cv));
