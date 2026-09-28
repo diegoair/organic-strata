@@ -1,0 +1,10 @@
+
+
+# ── Release checklist (delete the lines that don't apply) ──────────────
+# Changed:        <tools / shared modules touched>
+# Affects:        <other tools that consume the changed shared code>
+# Checks:         scripts/check.py passed            [ ]
+# FVS regression: N/N match (only if FVS/shared shapes changed)   [ ]
+# Manual verify:  <what was exercised in the browser, exports compared>
+# Console:        clean                              [ ]
+# Deploy:         local commit only — push to staging for preview, main only on "porta in prod"
