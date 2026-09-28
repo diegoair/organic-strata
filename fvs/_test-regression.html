@@ -190,7 +190,12 @@ async function battery() {
     put('engine:4x4:radial:ids', ruleRadial().length + ':' + ruleRadial().filter(c => c.id.includes('tiled')).length);
     put('engine:4x4:mirror:book', ruleMirror().filter(c => c.id.startsWith('mirror-book')).length);
     chg('sel-seed-type', 'circle'); chg('sel-rule', 'pinwheel'); generate();
-    put('engine:lookalike:circle', state.components.length + ':' + (ctrl('gallery-status').textContent.startsWith('7 look-alike')));
+    // nothing is hidden for looking alike: a Circle still lists all 8 Pinwheels, no status note
+    put('engine:nohide:circle', state.components.length + ':' + (ctrl('gallery-status').textContent === ''));
+    // a named rule implies the axis it needs: Mirror with Flip OFF still lists its family (not Identity)
+    setComponentGrid('square2x2'); setAxes(true, false, false); chg('sel-rule', 'mirror'); generate();
+    put('engine:mirror:flipOff', state.components.length + ':' + state.components.every(c => c.ruleSource === 'mirror'));
+    setComponentGrid('square4x4');
     chg('sel-seed-type', 'arc'); inp('rg-thickness', 100);
     setAxes(...axes0); inp('num-seed', 1); chg('sel-rule', 'identity'); setComponentGrid('square2x2');
   }
@@ -787,6 +792,33 @@ async function battery() {
     removeLayer(2); removeLayer(1);
     put('layers:collapse', state.layers === null);
   } finally { reset(); }
+
+  // 25b — layer-ink colour variants: every candidate × every Fill layer's ink choice
+  try {
+    reset();
+    chg('sel-seed-type', 'triangle');
+    state.colors = ['#111111', '#e8321e', '#1f5fd6']; buildPalette();
+    chg('sel-rule', 'pinwheel'); generate();
+    put('layers:inks:single', state.components.length + ':' + state.components.every(c => !c.layerInks));
+    addLayer();   // 2 fill layers, 3 inks → (3+1)² = 16 combos
+    chg('sel-rule', 'pinwheel'); generate();
+    const n25b = state.components.length;
+    put('layers:inks:pinwheel', n25b + ':' + new Set(state.components.map(c => c.id)).size);
+    put('layers:inks:firstIsLive', JSON.stringify(state.components[0].layerInks) === JSON.stringify(currentLayerInks()));
+    const thumbs25b = [...document.querySelectorAll('#gallery .fvs-thumb')].slice(0, 16).map(b => norm(b.innerHTML));
+    put('layers:inks:distinct16', new Set(thumbs25b).size);
+    put('layers:inks:thumb:first', thumbs25b[0]);
+    put('layers:inks:thumb:last', thumbs25b[15]);
+    // saving a variant that is NOT selected bakes its own inks into the entry
+    const v25b = state.components[7], e25b = buildLibraryEntryFor(v25b);
+    put('layers:inks:save', e25b.seed.layers.every(l => v25b.layerInks[l.id] === l.ink));
+    // picking a variant makes its inks the Element's own
+    document.querySelectorAll('#gallery .fvs-thumb')[5].click();
+    put('layers:inks:adopt', state.layers.items.every(l => l.ink === state.components[5].layerInks[l.id]));
+    // over the cap: 3 layers × Exhaustive → first 512 shown, the real total reported
+    addLayer(); chg('sel-rule', 'exhaustive'); generate();
+    put('layers:inks:cap', state.components.length + ':' + ctrl('gallery-status').textContent.startsWith('Showing 512 of'));
+  } finally { chg('sel-rule', 'identity'); reset(); }
 
   // 24 — Component tier auto-default starter gallery
   try {

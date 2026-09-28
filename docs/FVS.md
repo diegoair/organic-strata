@@ -100,11 +100,22 @@ Generate produces a gallery of candidates; click one to select it.
 - **Random / Exhaustive** draw from the same symmetry families on **any** grid
   (never per-cell noise). Exhaustive is capped at 512 and refuses cleanly above it;
   its count is the honest one after folding duplicates.
-- **No duplicates.** Candidates are compared on the canonical state — flip H + flip
-  V *is* a 180° turn — so the same component is never listed twice. And Generate
-  hides candidates that *paint* the same with the current Element (a Circle turns
-  all 8 Pinwheels into one picture); the gallery says how many were hidden. Random
-  keeps drawing until it has the count you asked for, or the space runs out.
+- **Nothing hidden.** Picking a named rule shows its whole family: the axis the
+  rule needs (Flip for the mirrors, Rotation for Pinwheel/Diagonal/Radial) is
+  implied by the pick, so Mirror with Flip off still lists every mirror, not
+  Identity. Only Checkerboard, built entirely from the active axes, falls back to
+  Identity when every axis is off. Candidates that merely *paint* alike with this
+  Element (a Circle's 8 Pinwheels) are all listed. The only fold is the exact one:
+  flip H + flip V *is* a 180° turn, so that pair is never listed twice. Random keeps
+  drawing until it has the count you asked for, or the space runs out.
+- **Layer colours.** With a multi-layer Element, every candidate is repeated for
+  every combination of layer inks — each Fill layer takes *Follow cell colour* or
+  each palette ink ((inks + 1)^layers combinations; 2 layers × 3 inks = 16). The
+  Element's current inks come first. The caption ends with the inks (`inks c/2` =
+  bottom layer follows the cell, top layer Ink 2). Clicking a variant makes its inks
+  the Element's own; quick-saving one stores its own inks. Above 512 results the
+  first 512 are shown and the gallery says how many exist (Exhaustive's hint gives
+  the product too).
 - **Role** — a Component can be a *Container* or *Mask* over another saved one.
 - **Undo** (floatbar, ⌘Z) — the last 20 Generate / Add / Clear / Tile / recipe
   steps of the gallery. It never touches the Seed.

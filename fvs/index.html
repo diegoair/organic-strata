@@ -2919,8 +2919,8 @@ function componentRoleActive() { return state.componentRole === 'container' || s
 // `size` may be a plain number (legacy square, e.g. frameSize()) or a {w,h}
 // pair (frameDims()) — either way this is the one place that decides the
 // Component canvas's actual drawn shape, used by drawComponentCanvas/
-// buildComponentSVGBody/buildComponentSVG/componentEditHitLayer/
-// componentVisualSignature so they all agree.
+// buildComponentSVGBody/buildComponentSVG/componentEditHitLayer so
+// they all agree.
 function resolvedComponentDims(size) {
   const d = typeof size === 'object' ? size : { w: size, h: size };
   if (componentRoleActive()) { const s = Math.max(d.w, d.h); return { w: s, h: s }; }
@@ -3175,26 +3175,31 @@ const crIsLarge = cr => { if (!cr) return false; const d = crDims(cr); return d.
 // nothing to draw and falls back to Identity rather than showing an empty
 // gallery — the Rule dropdown itself stays selectable either way; the axes
 // panel's own hint explains the fallback.
+// A named rule picked in the dropdown always shows its whole family: the one
+// axis it structurally needs (Flip for the mirrors, Rotation for Pinwheel/
+// Diagonal/Radial) is implied by the pick, not gated by the axis checkboxes —
+// those only add the OTHER axes' values. Only Checkerboard, whose states come
+// entirely from the axes, can still come out empty (every axis off) and then
+// shows Identity.
 function familyRuleGallery(key) {
   const fam = FAMILIES[key];
-  if (!axisSatisfied(fam.requiresAxis, activeAxes())) return ruleIdentity();
   if (fam.eligible && !fam.eligible()) return ruleIdentity();
   const av = axisValues();
   const cr = ruleCR();
   const out = fam.paramSpace(av, cr).map((p, i) => ({ id: `${key}-${i}`, ruleSource: key, cells: fam.build(p, cr) }));
-  return dedupeComponents(out);
+  const kept = dedupeComponents(out);
+  return kept.length ? kept : ruleIdentity();
 }
 
 function rulePinwheel() { return familyRuleGallery('pinwheel'); }
 
 function ruleMirror() {
   const gallery = familyRuleGallery('mirror');
-  if (gallery.length === 1 && gallery[0].ruleSource === 'identity') return gallery;   // Flip axis off — nothing to add
   // Beyond 2×2 the per-tile mirror above is not the only reading: add the
   // whole-grid (book-matched) mirrors — left|right, top|bottom, and both —
   // from their own FAMILIES entry, same axis-gating.
   const bm = FAMILIES.bookmatch;
-  if (bm.eligible() && axisSatisfied(bm.requiresAxis, activeAxes())) {
+  if (bm.eligible()) {
     const av = axisValues();
     const cr = ruleCR();
     bm.paramSpace(av, cr).forEach((p, i) => gallery.push({ id: `mirror-book-${i}`, ruleSource: 'mirror', cells: bm.build(p, cr) }));
@@ -3395,9 +3400,9 @@ function activeFamilies() {
 // every result is a real symmetry, never per-cell noise. (Previously any grid
 // other than 4 cells fell back to drawing every cell independently: pure
 // noise, and on a 3×3 Exhaustive was over the cap as soon as one axis was on.)
-// Repeats are skipped — structurally (canonical cells) and, via `accept`,
-// visually (generate() passes a look-alike check) — and the draw continues
-// until `count` distinct candidates exist or the space is visibly exhausted.
+// Structural repeats (canonical cells) are skipped — plus anything `accept`
+// rejects, if given — and the draw continues until `count` distinct
+// candidates exist or the space is visibly exhausted.
 function ruleRandom(accept) {
   const count = Math.round(val('rg-random-count'));
   const seed = Math.round(val('num-seed'));
@@ -3618,10 +3623,12 @@ function layerTransformAttr(l, g) {
     + ` translate(${(g.normTx * g.normScale).toFixed(4)},${(g.normTy * g.normScale).toFixed(4)}) scale(${g.normScale.toFixed(4)})`;
 }
 let inkPaletteOverride = null;   // set while rendering a saved entry with ITS palette
+let layerInkOverride = null;     // {layerId: 'cell'|slot} — set while rendering a colour-variant thumbnail
 function layerInkColor(l, cellColor) {
-  if (l.ink == null || l.ink === 'cell') return cellColor;
+  const ink = layerInkOverride && l.id in layerInkOverride ? layerInkOverride[l.id] : l.ink;
+  if (ink == null || ink === 'cell') return cellColor;
   const pal = inkPaletteOverride || state.colors;
-  return pal[((l.ink % pal.length) + pal.length) % pal.length];
+  return pal[((ink % pal.length) + pal.length) % pal.length];
 }
 const _stackFlatCache = new Map();
 // The placed union of the FILL layers as one path (in the 0..100 space) via
@@ -4188,20 +4195,21 @@ function renderGallery() {
   gallery.classList.add('visible');
   // The plain "N components" count lives in the header status pill alone now — this line is
   // warning-only, so it stays empty (zero footprint, see the :empty CSS rule) most of the time.
-  const hidden = state.lookAlikesHidden && state.lookAlikesHidden.list === state.components ? state.lookAlikesHidden.n : 0;
-  ctrl('gallery-status').textContent = elementIsEmpty() ? 'The Element is empty (draw a shape or pick one in step 1) — these render blank.'
-    : hidden ? `${hidden} look-alike candidate${hidden === 1 ? '' : 's'} hidden — this Element paints ${hidden === 1 ? 'it' : 'them'} the same as one already shown.` : '';
+  const capNote = state.galleryCapNote && state.galleryCapNote.list === state.components ? state.galleryCapNote.text : '';   // tied to THIS gallery array
+  ctrl('gallery-status').textContent = elementIsEmpty() ? 'The Element is empty (draw a shape or pick one in step 1) — these render blank.' : capNote;
   setStatus('active', `${state.components.length} component${state.components.length === 1 ? '' : 's'}`);
 
   for (const comp of state.components) {
     const items = buildComponentItems(comp, grid);
-    const svgStr = buildComponentSVG(items, seed, size);
+    let svgStr;
+    layerInkOverride = comp.layerInks || null;
+    try { svgStr = buildComponentSVG(items, seed, size); } finally { layerInkOverride = null; }
     const btn = document.createElement('button');
     const isSelected = comp.id === state.selectedId && state.selectionExplicit;
     btn.className = 'fvs-thumb' + (isSelected ? ' selected' : '') + (comp.savedName ? ' saved-in-library' : '');
     btn.setAttribute('aria-label', `Component ${comp.ruleSource} ${comp.id}`);
     btn.innerHTML = svgStr;
-    btn.addEventListener('click', () => { state.selectedId = comp.id; state.selectionExplicit = true; renderGallery(); });
+    btn.addEventListener('click', () => { state.selectedId = comp.id; state.selectionExplicit = true; adoptLayerInks(comp); renderGallery(); });
     // Caption = the rule that made it + each cell's rotation (f = flipped),
     // so two look-alike candidates can be told apart without opening them.
     const caption = componentCaption(comp);
@@ -4422,7 +4430,8 @@ function componentEditLiveBind(e) {
 
 function componentCaption(comp) {
   const cells = comp.cells.slice(0, 6).map(c => c.rotation + ((c.flipH || c.flipV) ? 'f' : '')).join(' ');
-  return `${comp.ruleSource} · ${cells}${comp.cells.length > 6 ? ' …' : ''}`;
+  const inks = comp.layerInks ? ' · inks ' + Object.values(comp.layerInks).map(v => v === 'cell' ? 'c' : v + 1).join('/') : '';
+  return `${comp.ruleSource} · ${cells}${comp.cells.length > 6 ? ' …' : ''}${inks}`;
 }
 
 // The Element is Freehand with nothing drawn: every candidate would be blank.
@@ -4475,15 +4484,14 @@ function syncRuleAvailability() {
 // take Scale, handled inline in ruleLines/ruleOscillator; the rest need no
 // note at all).
 const RULE_TO_FAMILY = { pinwheel: 'pinwheel', mirror: 'mirror', diagonal: 'diagonal', checkerboard: 'checkerboard', rowmirror: 'rowmirror', columnmirror: 'columnmirror', radial: 'radial' };
-const AXIS_LABEL = { rotation: 'Rotation', flip: 'Flip', scale: 'Scale' };
 function syncRuleAxisNote() {
   const note = ctrl('rule-axis-note');
   const famKey = RULE_TO_FAMILY[ctrl('sel-rule').value];
   const fam = famKey && FAMILIES[famKey];
-  const satisfied = !fam || (axisSatisfied(fam.requiresAxis, activeAxes()) && (!fam.eligible || fam.eligible()));
+  // Only Checkerboard still depends on the axes (see familyRuleGallery).
+  const satisfied = !fam || fam.requiresAxis !== 'any' || axisSatisfied('any', activeAxes());
   if (satisfied) { note.style.display = 'none'; return; }
-  const label = fam.requiresAxis === 'any' ? 'an axis' : AXIS_LABEL[fam.requiresAxis];
-  note.textContent = `Needs ${label} active in Transform axes (above) — showing Identity until then.`;
+  note.textContent = 'Checkerboard needs an axis active in Transform axes (above) — showing Identity until then.';
   note.style.display = '';
 }
 
@@ -4513,7 +4521,10 @@ function syncExhaustiveHint() {
     hint.classList.add('over-cap');
     ctrl('btn-generate').disabled = ctrl('sel-rule').value === 'exhaustive';
   } else {
-    hint.textContent = `${total.toLocaleString()} possible component${total === 1 ? '' : 's'}.`;
+    const k = layerInkComboCount();
+    hint.textContent = k > 1
+      ? `${total.toLocaleString()} possible component${total === 1 ? '' : 's'} × ${k} layer-colour combinations = ${(total * k).toLocaleString()}${total * k > EXHAUSTIVE_CAP ? ` (first ${EXHAUSTIVE_CAP} shown)` : ''}.`
+      : `${total.toLocaleString()} possible component${total === 1 ? '' : 's'}.`;
     hint.classList.remove('over-cap');
     if (ctrl('sel-rule').value === 'exhaustive') ctrl('btn-generate').disabled = false;
   }
@@ -4594,78 +4605,10 @@ const COMPONENT_STARTER_RULES = [
 function componentElementSignature() {
   return JSON.stringify({ seed: getSeed(), appearance: getElementAppearance(), cells: resolveGridCells(getGrid()).length });
 }
-// Cross-rule visual dedup — each rule's own dedupeComponents() already drops
-// exact cells-array repeats WITHIN that one rule, but two DIFFERENT states
-// (even from two different rules) can still PAINT identically: a Seed with
-// its own rotational/reflective symmetry (a plain Circle, lobes 0…) makes
-// rotation/flip themselves invisible, so e.g. pinwheel's 0/90/180/270
-// states — structurally 4 distinct cells arrays — all paint the exact same
-// picture, and radial's states can coincide with pinwheel's too. Comparing
-// the cells array (or the SVG markup's own transform strings) can't catch
-// this — "rotate(90)" and "rotate(0)" are different TEXT even when they
-// render the same pixels. So the signature is the actual RASTER: each
-// candidate is drawn with the same drawComponentCanvas() the PNG export
-// uses (small offscreen canvas, deterministic Canvas2D fill — no Image
-// load, no async). An exact per-byte hash of that raster was tried first
-// and rejected — a rotate(0) vs rotate(90) transform on a shape that IS
-// symmetric under that rotation still lands each anti-aliased edge pixel
-// on a very slightly different sub-pixel offset (float rounding inside the
-// rotation matrix), so a byte-exact digest saw two visually-identical
-// circles as "different" purely from that boundary noise. Fixed by
-// averaging into a coarse N×N block signature (smooths away a few
-// differently-rounded edge pixels) and comparing signatures with a small
-// tolerance instead of exact equality — "close enough to be the same
-// picture", not "byte-identical file".
-function componentVisualSignature(comp, grid, seed, size) {
-  // RES: raster res (small + fast) — 48 px up to 16 cells, then grown with the
-  // cell count so a dense grid's cells don't shrink to a few pixels each (where
-  // two different arrangements could average out alike). N: signature grid
-  // (coarse enough to absorb AA noise, fine enough that two really-different
-  // arrangements can't coincide). A non-square frame (dims.w !== dims.h) rasters
-  // at the same longer-side resolution, short side scaled down proportionally —
-  // reduces to the old square behaviour exactly when the frame is square.
-  const dims = resolvedComponentDims(size);
-  const longSide = Math.max(dims.w, dims.h);
-  const RESbase = Math.max(48, Math.ceil(Math.sqrt(comp.cells.length)) * 12), N = 10;
-  const scale = RESbase / longSide;
-  const RESW = Math.max(1, Math.round(dims.w * scale)), RESH = Math.max(1, Math.round(dims.h * scale));
-  if (!componentVisualSignature._canvas) componentVisualSignature._canvas = document.createElement('canvas');
-  const cv = componentVisualSignature._canvas;
-  if (cv.width !== RESW || cv.height !== RESH) { cv.width = RESW; cv.height = RESH; }
-  const ctx = cv.getContext('2d');
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, RESW, RESH);
-  ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  drawComponentCanvas(ctx, buildComponentItems(comp, grid), seed, size);
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  const data = ctx.getImageData(0, 0, RESW, RESH).data;
-  const blockX = RESW / N, blockY = RESH / N;
-  const sig = new Float32Array(N * N);
-  for (let by = 0; by < N; by++) for (let bx = 0; bx < N; bx++) {
-    let sum = 0, count = 0;
-    for (let y = Math.floor(by * blockY); y < Math.floor((by + 1) * blockY); y++) {
-      for (let x = Math.floor(bx * blockX); x < Math.floor((bx + 1) * blockX); x++) {
-        const i = (y * RESW + x) * 4;
-        sum += (data[i] + data[i + 1] + data[i + 2]) / 3 * (data[i + 3] / 255);   // alpha-weighted luma — a transparent pixel never reads as equal to an opaque light one
-        count++;
-      }
-    }
-    sig[by * N + bx] = count ? sum / count : 0;
-  }
-  return sig;
-}
-const VISUAL_MATCH_TOLERANCE = 3;   // average per-block luma difference (0..255 scale) below which two signatures count as "the same picture"
-function signaturesMatch(a, b) {
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff += Math.abs(a[i] - b[i]);
-  return (diff / a.length) <= VISUAL_MATCH_TOLERANCE;
-}
 function populateComponentStarterGallery() {
-  // No longer hides look-alikes by default — this runs automatically the
-  // moment you land on the Component step, with no user action and no way
-  // to see what (if anything) got filtered out (unlike generate(), whose own
-  // dedupe is explicit and always surfaced via #gallery-status). Every
-  // candidate up to the per-rule cap is shown now.
+  // Runs automatically the moment you land on the Component step: each
+  // starter rule's first STARTER_VARIANTS_PER_RULE candidates, nothing
+  // filtered for looking alike (Generate doesn't filter either).
   const picks = [];
   for (const r of COMPONENT_STARTER_RULES) {
     if (r.eligible && !r.eligible()) continue;
@@ -4688,20 +4631,59 @@ function populateComponentStarterGallery() {
   renderGallery();
 }
 
-// Keeps the first of any candidates that PAINT the same with the current
-// Element (componentVisualSignature — the same check the starter gallery uses).
-// A shape with its own symmetry makes some rotations/flips invisible (a Circle
-// turns all 8 Pinwheels into one picture; a left–right symmetric Triangle
-// makes flip H a no-op) — Generate used to list those look-alikes as distinct.
-function lookAlikeFilter() {
-  const grid = getGrid(), seed = getSeed(), size = frameDims(grid);
-  const sigs = [];
-  return comp => {
-    const sig = componentVisualSignature(comp, grid, seed, size);
-    if (sigs.some(s => signaturesMatch(s, sig))) return false;
-    sigs.push(sig);
-    return true;
-  };
+// ── Layer-ink variants (multi-layer Element) ──
+// Every Fill layer can take "Follow cell colour" or any palette ink; a
+// candidate carries its pick as comp.layerInks {layerId: 'cell'|slot}.
+// The Element's CURRENT inks come first, so the default-selected first
+// candidate paints exactly like the live Element.
+const fillLayers = () => (state.layers ? state.layers.items.filter(l => (l.role || 'fill') === 'fill') : []);
+function currentLayerInks() {
+  const out = {};
+  for (const l of fillLayers()) out[l.id] = l.ink == null ? 'cell' : l.ink;
+  return out;
+}
+function layerInkCombos() {
+  const layers = fillLayers();
+  if (!layers.length) return [];
+  const opts = ['cell', ...state.colors.map((_, k) => k)];
+  let combos = [{}];
+  for (const l of layers) combos = combos.flatMap(c => opts.map(o => ({ ...c, [l.id]: o })));
+  const curKey = JSON.stringify(currentLayerInks());
+  const cur = combos.findIndex(c => JSON.stringify(c) === curKey);
+  if (cur > 0) combos.unshift(combos.splice(cur, 1)[0]);
+  return combos;
+}
+function layerInkComboCount() {
+  const n = fillLayers().length;
+  return n ? Math.pow(state.colors.length + 1, n) : 1;
+}
+// geometry × combos, geometry-major, capped at EXHAUSTIVE_CAP (the total is reported).
+function expandLayerInks(list) {
+  const combos = layerInkCombos();
+  if (!combos.length) return { list, total: list.length };
+  const out = [];
+  for (const comp of list) {
+    for (let j = 0; j < combos.length && out.length < EXHAUSTIVE_CAP; j++) out.push({ ...comp, id: `${comp.id}-k${j}`, layerInks: combos[j] });
+  }
+  return { list: out, total: list.length * combos.length };
+}
+// Picking a colour variant makes its inks the Element's own, so Export, Tile
+// in Grid, Component Edit and the Symbol step all see what the thumbnail shows.
+function adoptLayerInks(comp) {
+  if (!comp || !comp.layerInks || !state.layers) return;
+  let changed = false;
+  for (const l of state.layers.items) {
+    if (!(l.id in comp.layerInks) || l.ink === comp.layerInks[l.id]) continue;
+    l.ink = comp.layerInks[l.id]; changed = true;
+  }
+  if (changed) { renderLayersUI(); renderSeedPreview(); }
+}
+// A clone of the Element snapshot with a candidate's own layer inks baked in.
+function seedWithLayerInks(seed, layerInks) {
+  if (!layerInks || !seed || seed.type !== 'stack') return seed;
+  const out = JSON.parse(JSON.stringify(seed));
+  out.layers.forEach(l => { if (l.id in layerInks) l.ink = layerInks[l.id]; });
+  return out;
 }
 
 function generate() {
@@ -4719,7 +4701,7 @@ function generate() {
     case 'hlines': produced = ruleLines('row'); break;
     case 'vlines': produced = ruleLines('col'); break;
     case 'oscillator': produced = ruleOscillator(); break;
-    case 'random': produced = ruleRandom(lookAlikeFilter()); break;
+    case 'random': produced = ruleRandom(); break;
     case 'exhaustive':
       produced = ruleExhaustive();
       if (produced.length > EXHAUSTIVE_CAP) return;
@@ -4727,6 +4709,7 @@ function generate() {
     case 'manual': {
       pushUndo();
       const comp = { id: `manual-${Date.now()}`, ruleSource: 'manual', cells: readManualCells() };
+      if (state.layers) comp.layerInks = currentLayerInks();
       state.components.push(comp);
       state.selectedId = comp.id;
       state.selectionExplicit = true;
@@ -4736,12 +4719,14 @@ function generate() {
     }
   }
   pushUndo();
-  if (mode !== 'random') {   // Random already filtered while drawing (and refilled the count)
-    const keep = lookAlikeFilter();
-    const before = produced.length;
-    produced = produced.filter(keep);
-    state.lookAlikesHidden = { list: produced, n: before - produced.length };   // tied to THIS gallery array — any later replacement hides the note
-  } else state.lookAlikesHidden = null;
+  // Nothing is hidden: every structurally distinct candidate is listed, even
+  // when this Element paints two of them alike (a Circle's 8 Pinwheels).
+  // A multi-layer Element multiplies each one by every layer-ink combination.
+  const expanded = expandLayerInks(produced);
+  produced = expanded.list;
+  state.galleryCapNote = expanded.total > expanded.list.length
+    ? { list: produced, text: `Showing ${expanded.list.length} of ${expanded.total.toLocaleString()} (geometry × layer colours) — reduce inks, layers or axes to see all.` }
+    : null;
   state.components = produced;
   state.selectedId = produced.length ? produced[0].id : null;
   state.selectionExplicit = true;
@@ -4992,7 +4977,7 @@ function pruneAutoLibraryEntries() {
 function buildLibraryEntryFor(comp) {
   if (!comp) return null;
   return {
-    seed: seedForSnapshot(),
+    seed: seedWithLayerInks(seedForSnapshot(), comp.layerInks),
     appearance: getElementAppearance(),
     grid: getGrid(),
     colors: state.colors.slice(),
