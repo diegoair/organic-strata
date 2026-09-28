@@ -1372,6 +1372,7 @@
         </select>
       </div>
       <p class="org-panel__hint" id="rule-axis-note" style="display:none"></p>
+      <label class="check-row org-switch" id="layer-inks-row" style="display:none"><input type="checkbox" id="chk-layer-inks" checked><span>Layer colour variants</span></label>
 
       <div id="rule-random-block">
         <div class="ctrl-row">
@@ -4642,7 +4643,9 @@ function currentLayerInks() {
   for (const l of fillLayers()) out[l.id] = l.ink == null ? 'cell' : l.ink;
   return out;
 }
+const layerInksOn = () => ctrl('chk-layer-inks').checked;
 function layerInkCombos() {
+  if (!layerInksOn()) return [];
   const layers = fillLayers();
   if (!layers.length) return [];
   const opts = ['cell', ...state.colors.map((_, k) => k)];
@@ -4654,7 +4657,7 @@ function layerInkCombos() {
   return combos;
 }
 function layerInkComboCount() {
-  const n = fillLayers().length;
+  const n = layerInksOn() ? fillLayers().length : 0;
   return n ? Math.pow(state.colors.length + 1, n) : 1;
 }
 // geometry × combos, geometry-major, capped at EXHAUSTIVE_CAP (the total is reported).
@@ -5253,6 +5256,8 @@ function moveLayer(i, dir) {
 function renderLayersUI() {
   const list = ctrl('layers-list'), L = state.layers;
   ctrl('layer-place-block').style.display = L ? '' : 'none';
+  ctrl('layer-inks-row').style.display = L ? '' : 'none';   // the colour-variants toggle only means something for a stack
+  if (ctrl('sel-rule').value === 'exhaustive') syncExhaustiveHint();
   ctrl('layers-hint').textContent = L ? L.items.length + ' layers · top first' : 'single shape';
   ctrl('seed-layer-hint').textContent = L ? 'editing layer ' + (L.active + 1) : '';
   if (!L) { list.innerHTML = ''; return; }
@@ -8737,6 +8742,7 @@ ctrl('chk-axis-scale').addEventListener('change', e => {
 });
 
 ctrl('sel-rule').addEventListener('change', syncRuleUI);
+ctrl('chk-layer-inks').addEventListener('change', () => { if (ctrl('sel-rule').value === 'exhaustive') syncExhaustiveHint(); });
 ctrl('btn-generate').addEventListener('click', generate);
 ctrl('btn-clear-gallery').addEventListener('click', clearGallery);
 ctrl('seg-split-quadrant').addEventListener('click', e => {

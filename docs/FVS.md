@@ -108,7 +108,8 @@ Generate produces a gallery of candidates; click one to select it.
   Element (a Circle's 8 Pinwheels) are all listed. The only fold is the exact one:
   flip H + flip V *is* a 180° turn, so that pair is never listed twice. Random keeps
   drawing until it has the count you asked for, or the space runs out.
-- **Layer colours.** With a multi-layer Element, every candidate is repeated for
+- **Layer colours** (switch *Layer colour variants* under the Rule, on by default,
+  shown only for a multi-layer Element). When on, every candidate is repeated for
   every combination of layer inks — each Fill layer takes *Follow cell colour* or
   each palette ink ((inks + 1)^layers combinations; 2 layers × 3 inks = 16). The
   Element's current inks come first. The caption ends with the inks (`inks c/2` =

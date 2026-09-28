@@ -815,6 +815,10 @@ async function battery() {
     // picking a variant makes its inks the Element's own
     document.querySelectorAll('#gallery .fvs-thumb')[5].click();
     put('layers:inks:adopt', state.layers.items.every(l => l.ink === state.components[5].layerInks[l.id]));
+    // the toggle: off → geometry only, even with a stack
+    ctrl('chk-layer-inks').checked = false; generate();
+    put('layers:inks:toggleOff', state.components.length + ':' + state.components.every(c => !c.layerInks));
+    ctrl('chk-layer-inks').checked = true;
     // over the cap: 3 layers × Exhaustive → first 512 shown, the real total reported
     addLayer(); chg('sel-rule', 'exhaustive'); generate();
     put('layers:inks:cap', state.components.length + ':' + ctrl('gallery-status').textContent.startsWith('Showing 512 of'));
