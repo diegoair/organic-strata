@@ -1120,8 +1120,13 @@
     }
     if (rays > 1) {
       const spoked = [];
+      // Without Bend the cluster (line, wave, dashes, lines, repeats — all
+      // centred) is identical after a 180° turn, so a 360° spread would draw
+      // every line twice and show only rays/2. Spread over 180° so the slider
+      // value is the number of distinct lines.
+      const span = bend === 0 ? 180 : 360;
       for (let r = 0; r < rays; r++) {
-        const rdeg = r * 360 / rays;
+        const rdeg = r * span / rays;
         for (const pts of cluster) spoked.push(pts.map(p => rot3(p, rdeg, [50, 50])));
       }
       cluster = spoked;
