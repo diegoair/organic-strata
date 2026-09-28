@@ -214,6 +214,7 @@
      set the cell's proportion — no more aspect-ratio:1 override. */
   .fvs-sympool__item svg { display: block; width: 100%; height: auto; }
   .fvs-sympool__item .panel-select { width: 100%; margin-top: var(--space-1); }
+  .fvs-sympool__name { display: block; margin-top: var(--space-1); font-size: var(--fs-small); color: var(--mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fvs-sympool__x { position: absolute; top: 2px; right: 2px; }
   #btn-sympool-add { width: 100%; }
   .fvs-library-item.is-in-pool { outline: 2px solid var(--tool); }
@@ -1498,6 +1499,7 @@
     <div class="tier-block" data-tier="symbol">
     <div class="panel-section">
       <h3>Components <span class="hint" id="symbol-pool-hint">none yet</span></h3>
+      <p class="panel-hint" id="symbol-pool-note"></p>
       <div id="symbol-pool" class="fvs-sympool"></div>
       <button class="mini-btn" id="btn-sympool-add">+ Add Components…</button>
     </div>
@@ -4905,6 +4907,7 @@ function quickSaveComponentToLibrary(compId) {
   const all = LIBRARY.read();
   all[name] = entry;
   LIBRARY.write(all);
+  addSavedToPool(name);
   state.selectedId = comp.id;
   state.selectionExplicit = true;
   comp.savedName = name;
@@ -4949,6 +4952,8 @@ function confirmSaveToLibrary() {
   const all = LIBRARY.read();
   all[name] = entry;
   LIBRARY.write(all);
+  addSavedToPool(name);
+  const cur = getSelectedComponent(); if (cur) cur.savedName = name;
   cancelSaveToLibrary();
   renderLibrary();
 }
@@ -6445,6 +6450,15 @@ function generateSymbolCells() {
   renderSymbol();
 }
 
+// A Component saved in the Component tier joins the Symbol pool straight away —
+// the pool otherwise only auto-fills on the very first Symbol visit, so anything
+// saved later (after changing the Element/Component) was silently left out and
+// Arrange kept building from the old set. Full pool (8): the oldest entry makes room.
+function addSavedToPool(name) {
+  if (!name || state.symbolPool.some(p => p.name === name)) return;
+  if (state.symbolPool.length >= 8) state.symbolPool.shift();
+  state.symbolPool.push({ name, weight: 1 });
+}
 function togglePoolComponent(name) {
   const i = state.symbolPool.findIndex(p => p.name === name);
   if (i >= 0) state.symbolPool.splice(i, 1);
@@ -6468,10 +6482,17 @@ function renderSymbolPool() {
   const pal = poolEntries();
   state.symbolPool = pal;   // drop entries whose Component was deleted
   wrap.innerHTML = pal.map((p, i) => `<div class="fvs-sympool__item" title="${p.name.replace(/"/g, '&quot;')}">${componentThumbSVG(p.name)}
+    <span class="fvs-sympool__name">${p.name.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span>
     <select class="panel-select" data-pal-weight="${i}" aria-label="Weight of ${p.name.replace(/"/g, '&quot;')}">${[1, 2, 3, 4, 5].map(w => `<option value="${w}"${w === (p.weight || 1) ? ' selected' : ''}>×${w}</option>`).join('')}</select>
     <button class="icon-btn fvs-sympool__x" data-pal-remove="${i}" aria-label="Remove ${p.name.replace(/"/g, '&quot;')} from the pool">×</button></div>`).join('');
   const n = pal.length;
   ctrl('symbol-pool-hint').textContent = n ? `${n} in the pool` : (libraryNames(LIBRARY.read()).length ? 'none yet' : 'save Components first');
+  // Make the contract explicit: Arrange / Suggest use ONLY the saved Components
+  // listed here, never the Component currently open in the Component tier.
+  const cur = getSelectedComponent();
+  const unsaved = cur && !(cur.savedName && LIBRARY.read()[cur.savedName]);
+  ctrl('symbol-pool-note').textContent = 'Arrange and Suggest use only the Components below.'
+    + (unsaved ? ' The Component you are editing is not saved, so it is not included — save it (+) in the Component tier first.' : '');
 }
 ctrl('symbol-pool').addEventListener('change', e => {
   const i = e.target.dataset.palWeight;
