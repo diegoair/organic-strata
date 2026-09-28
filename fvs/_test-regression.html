@@ -786,6 +786,16 @@ async function battery() {
       put('layers:width:svg', buildSeedPreviewSVG(getSeed(), 0, false, false, 100));
       selectLayer(1); inp('rg-element-w', 1); selectLayer(0);
     }
+    // changing the Seed shape renames the active layer's card at once, not on the next layer switch
+    {
+      selectLayer(1);
+      const lbl = () => document.querySelector('.org-layer-card[data-layer="1"] [data-layer-act="select"]').textContent;
+      const t0 = state.layers.items[1].seed.type;
+      chg('sel-seed-type', 'cross');
+      const afterMenu = lbl();
+      chg('sel-seed-type', t0);
+      put('layers:cardFollowsSeed', afterMenu + ' | ' + lbl());
+    }
     // deleting layers back to one collapses to a plain single-shape Element
     removeLayer(2); removeLayer(1);
     put('layers:collapse', state.layers === null);

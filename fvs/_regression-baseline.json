@@ -328,6 +328,7 @@
   "layers:segment:perLayer": "fff:rbr,fff:rrr,fill",
   "layers:width:perLayer": "1/1.8/1,1,1",
   "layers:width:svg": "c2fcf758",
+  "layers:cardFollowsSeed": "2 · Cross | 2 · Triangle",
   "layers:collapse": "true",
   "segment:defaults": "fill,false,false,8",
   "segment:bar": "15 85 46 54|1|3",

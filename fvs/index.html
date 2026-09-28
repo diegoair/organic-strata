@@ -2841,6 +2841,7 @@ function useSvgAsSeed(svgString) {
   }
   ctrl('sel-seed-type').value = 'custom';
   syncSeedUI();
+  if (state.layers) { syncActiveLayer(); renderLayersUI(); }   // the active layer's card shows "Custom" at once
   ctrl('seed-upload-error').style.display = 'none';
   renderGallery();
   renderSeedPreview();
@@ -5334,6 +5335,9 @@ function renderLayersUI() {
   [['mx', pl.mx], ['my', pl.my], ['scale', pl.scale], ['rotate', pl.rotate]].forEach(([k, v]) => { ctrl('rg-layer-' + k).value = v; ctrl('v-layer-' + k).textContent = v; });
 }
 ctrl('btn-layer-add').addEventListener('click', addLayer);
+// Changing the Seed shape renames the active layer's card at once ("2 · Star"),
+// not only on the next layer switch.
+ctrl('sel-seed-type').addEventListener('change', () => { if (state.layers) { syncActiveLayer(); renderLayersUI(); } });
 ctrl('layers-list').addEventListener('click', e => {
   const b = e.target.closest('[data-layer-act]'), card = e.target.closest('[data-layer]');
   if (!b || !card) return;
