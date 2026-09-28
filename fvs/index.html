@@ -2640,7 +2640,6 @@ function syncFreehandEditor() {
   const frame = ctrl('element-frame');
   const active = state.activeTier === 'element' && ctrl('sel-seed-type').value === 'freehand';
   frame.classList.toggle('drawing', active);
-  if (active && fvsZoom && fvsZoom.element && fvsZoom.element.zoom > 1.001) fvsZoom.element.reset();   // Freehand draws in untransformed pixels
   if (!active) return;
   const size = frame.clientWidth;
   if (!size || (fhEditor && fhSize === size)) return;
@@ -2983,6 +2982,16 @@ function resolvedComponentDims(size) {
 // is a wide short box, a 4×1 grid's a tall narrow one — never a square with
 // letterbox padding around the drawn content, and never wider/taller than the
 // gallery can comfortably lay out).
+// Component gallery zoom = thumbnail size (wheel / ⌘+ ⌘− ⌘0 on the gallery):
+// only the two CSS vars change, the grid reflows and still scrolls.
+const GALLERY_THUMB = 96, GALLERY_ZOOM_MAX = 5;
+var galleryZoom = 1;
+function setGalleryThumbVars(size) {
+  const box = fitThumbBox(size.w, size.h, Math.round(GALLERY_THUMB * galleryZoom));
+  const g = document.getElementById('gallery');
+  g.style.setProperty('--thumb-w', box.w + 'px');
+  g.style.setProperty('--thumb-h', box.h + 'px');
+}
 function fitThumbBox(w, h, maxSide) {
   const scale = maxSide / Math.max(w, h);
   return { w: Math.max(1, Math.round(w * scale)), h: Math.max(1, Math.round(h * scale)) };
@@ -4173,9 +4182,7 @@ function renderGallery() {
   const size = frameDims(grid);
   // Every thumbnail in this gallery shares the same grid, so one box fits
   // them all — set once as CSS vars rather than per-button inline styles.
-  const thumbBox = fitThumbBox(size.w, size.h, 96);
-  gallery.style.setProperty('--thumb-w', thumbBox.w + 'px');
-  gallery.style.setProperty('--thumb-h', thumbBox.h + 'px');
+  setGalleryThumbVars(size);
 
   // The grid size can change (columns × rows, a legacy Loom entry) without
   // a fresh Generate — gallery candidates built for the PREVIOUS cell count
@@ -4326,6 +4333,7 @@ function enterComponentEditMode(compId) {
   ctrl('gallery-status').textContent = '';
   ctrl('component-edit-view').style.display = 'flex';
   renderComponentEditCanvas();
+  syncFvsZoomHud();   // gallery ⇄ Edit: the zoom chip follows
 }
 
 function exitComponentEditMode() {
@@ -4351,6 +4359,7 @@ function exitComponentEditMode() {
   if (elBlock) elBlock.classList.remove('active');
   renderGallery();
   renderSeedPreview();
+  syncFvsZoomHud();   // gallery ⇄ Edit: the zoom chip follows
 }
 
 // Pushes a brand-new gallery candidate carrying the edited cells, then
@@ -8233,17 +8242,18 @@ function setTier(tier) {
   syncFvsZoomHud();
 }
 
-// ── Zoom: mouse wheel / ⌘+ ⌘− ⌘0, the same Organica.createZoomPan every other
-// tool uses — one instance per step canvas, each live only while its step (and
-// mode) is showing, so the wheel scrolls normally elsewhere (the Component
-// gallery). FVS's own clicks and drags stay theirs: a pan starts only with
-// Space held (not in Figure, where Space is Shuffle), ⌥ held, or the middle
-// button (`panStart`). Off while drawing Freehand — Paper.js maps the pointer
-// in untransformed canvas pixels. Double-click / ⌘0 / "reset" = 100%.
+// ── Zoom: mouse wheel / ⌘+ ⌘− ⌘0 — only in Symbol and Component (Diego:
+// not in Element; Figure has none either).
+//   · Symbol, Component Edit: the suite's Organica.createZoomPan, one instance
+//     each, live only while that step/mode shows. FVS's own clicks and drags stay
+//     theirs: a pan starts only with Space / ⌥ held or the middle button
+//     (`panStart`). Double-click / ⌘0 / "reset" = 100%.
+//   · Component gallery: zoom = thumbnail size (galleryZoom → the --thumb-w/h
+//     vars), so the grid reflows and still scrolls with its scrollbar.
 var fvsPanKey = false;
 var fvsIsTypingTarget = t => t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
 document.addEventListener('keydown', e => {
-  if (e.code === 'Space' && state.activeTier !== 'figure' && !fvsIsTypingTarget(e.target)) {
+  if (e.code === 'Space' && fvsZoomActive() && !fvsIsTypingTarget(e.target)) {
     if (!fvsPanKey) { fvsPanKey = true; document.body.classList.add('fvs-pan-key'); }
     if (fvsZoomActive() && fvsZoomActive().zoom > 1.001) e.preventDefault();   // no page scroll while panning
   }
@@ -8255,18 +8265,22 @@ document.addEventListener('keyup', e => {
 });
 window.addEventListener('blur', () => { fvsPanKey = false; document.body.classList.remove('fvs-pan-key'); });
 var FVS_ZOOM_SURFACES = [
-  { tier: 'element', canvas: 'element-frame', ready: () => !ctrl('element-frame').classList.contains('drawing') },
   { tier: 'component', canvas: 'component-edit-frame', wrap: 'component-edit-view', ready: () => !!state.componentEditMode },
   { tier: 'symbol', canvas: 'symbol-frame' },
-  { tier: 'figure', canvas: 'figure-stage' },
 ];
 var fvsZoom = {};
 function fvsSurfaceLive(sf) { return state.activeTier === sf.tier && (!sf.ready || sf.ready()); }
 function fvsZoomActive() { if (!FVS_ZOOM_SURFACES) return null; const sf = FVS_ZOOM_SURFACES.find(fvsSurfaceLive); return sf ? fvsZoom[sf.tier] : null; }
+function fvsGalleryLive() { return state.activeTier === 'component' && !state.componentEditMode; }
+function galleryZoomTo(z) {
+  galleryZoom = Math.min(GALLERY_ZOOM_MAX, Math.max(1, z));
+  setGalleryThumbVars(frameDims(getGrid()));
+  syncFvsZoomHud();
+}
 function syncFvsZoomHud() {
   if (!FVS_ZOOM_SURFACES) return;   // startup: setTier can run before this block
   const zp = fvsZoomActive();
-  const z = zp ? zp.zoom : 1;
+  const z = zp ? zp.zoom : fvsGalleryLive() ? galleryZoom : 1;
   ctrl('zoom-level').textContent = Math.round(z * 100) + '%';
   ctrl('zoom-hud').classList.toggle('visible', z > 1.001);
 }
@@ -8277,11 +8291,22 @@ FVS_ZOOM_SURFACES.forEach(sf => {
     canvas,
     wrap: sf.wrap ? ctrl(sf.wrap) : document.querySelector(`#canvas-wrap .tier-view[data-tier="${sf.tier}"]`),
     isReady: () => fvsSurfaceLive(sf),
-    panStart: e => e.button === 1 || (e.button === 0 && (e.altKey || (fvsPanKey && sf.tier !== 'figure'))),
+    panStart: e => e.button === 1 || (e.button === 0 && (e.altKey || fvsPanKey)),
     onChange(st) { canvas.classList.toggle('zoomed', st.zoomed); if (fvsSurfaceLive(sf)) syncFvsZoomHud(); },
   });
 });
-ctrl('zoom-reset').addEventListener('click', () => { const zp = fvsZoomActive(); if (zp) zp.reset(); });
+ctrl('zoom-reset').addEventListener('click', () => { const zp = fvsZoomActive(); if (zp) zp.reset(); else if (fvsGalleryLive()) galleryZoomTo(1); });
+document.querySelector('#canvas-wrap .tier-view[data-tier="component"]').addEventListener('wheel', e => {
+  if (!fvsGalleryLive() || e.target.closest('#component-edit-view')) return;
+  e.preventDefault();
+  galleryZoomTo(galleryZoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15));
+}, { passive: false });
+window.addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey) || !fvsGalleryLive()) return;
+  if (e.key === '+' || e.key === '=') { e.preventDefault(); galleryZoomTo(galleryZoom * 1.2); }
+  else if (e.key === '-' || e.key === '_') { e.preventDefault(); galleryZoomTo(galleryZoom / 1.2); }
+  else if (e.key === '0') { e.preventDefault(); galleryZoomTo(1); }
+});
 
 // Loom publishes every saved grid to localStorage 'organica.loom.presets'
 // as a full buildModel() object — directly Organica.loadLoomGrid-able. Read

@@ -35,12 +35,13 @@ Grid step without saving it first.
 
 ---
 
-**Zoom** — mouse wheel or **⌘+ / ⌘− / ⌘0** zooms the canvas of the current step
-(Element, Component Edit, Symbol/Grid, Figure), the same zoom as every other Organica tool,
-with a "142 % · reset" chip bottom-left. Pan with **Space + drag** (not in Figure, where Space
-is Shuffle), **⌥ + drag** or the **middle button**; a plain click keeps doing what it does
-(select/paint cells, drag borders). Double-click or ⌘0 = 100%. The Component gallery scrolls
-as before. Off while drawing Freehand.
+**Zoom** — only in **Symbol** and **Component** (not Element or Figure):
+- **Symbol** and **Component Edit**: mouse wheel or **⌘+ / ⌘− / ⌘0** zooms the view, the same
+  zoom as every other Organica tool, with a "142 % · reset" chip bottom-left. Pan with
+  **Space + drag**, **⌥ + drag** or the **middle button**; a plain click keeps doing what it
+  does (select cells, drag borders). Double-click or ⌘0 = 100%.
+- **Component gallery**: the wheel / ⌘+ / ⌘− make the **thumbnails bigger** (up to 5×); the
+  grid reflows and still scrolls with its scrollbar. ⌘0 or *reset* = normal size.
 
 ## 3. Element
 
