@@ -247,10 +247,15 @@ input[type=range] {
      always sits under the handle's centre. --sf is the spring, --fv the
      rigid value written by core.js before the spring exists. */
   --slo-x: calc(var(--sf, var(--fv, 0)) * (100% - var(--slo-knob)) + var(--slo-knob) / 2);
-  /* the dot must be WHITE in both themes: `difference` with white is what inverts it over
-     the grey and the ink. It was --paper, which is near-black in dark mode, and a
-     difference with black changes nothing — the dots vanished. */
-  --slo-dots: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0 1px, transparent 1.3px);
+  /* The dotted centre line, drawn only over the FILLED part (Diego, Sep 29 2026):
+     one layer as wide as the fill (--slo-x, see background-size below), not a
+     tile repeated across the whole track. A repeating gradient paints a 2px dot
+     at the middle of every --space-3 step — the same pitch and place as the old
+     radial dots. The dot must be WHITE in both themes: `difference` with white
+     is what inverts it over the ink; --paper (near-black in dark) made it vanish. */
+  --slo-dot-a: calc(var(--space-3) / 2 - 1px);
+  --slo-dot-b: calc(var(--space-3) / 2 + 1px);
+  --slo-dots: repeating-linear-gradient(90deg, transparent 0 var(--slo-dot-a), rgba(255, 255, 255, 0.3) var(--slo-dot-a) var(--slo-dot-b), transparent var(--slo-dot-b) var(--space-3));
 }
 input[type=range]:active { cursor: grabbing; }
 input[type=range]:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -260,9 +265,9 @@ input[type=range]::-webkit-slider-runnable-track {
   border-radius: var(--slo-r);
   background-image: var(--slo-dots),
     var(--sedge, linear-gradient(90deg, var(--ink) var(--slo-x), var(--track-bg) var(--slo-x)));
-  background-size: var(--space-3) 2px, 100% 100%;
+  background-size: var(--slo-x) 2px, 100% 100%;   /* dots: only as wide as the fill */
   background-position: 0 50%, 0 0;
-  background-repeat: repeat-x, no-repeat;
+  background-repeat: no-repeat, no-repeat;
   background-blend-mode: difference, normal;
 }
 input[type=range]::-moz-range-track {
@@ -270,9 +275,9 @@ input[type=range]::-moz-range-track {
   border-radius: var(--slo-r);
   background-image: var(--slo-dots),
     var(--sedge, linear-gradient(90deg, var(--ink) var(--slo-x), var(--track-bg) var(--slo-x)));
-  background-size: var(--space-3) 2px, 100% 100%;
+  background-size: var(--slo-x) 2px, 100% 100%;   /* dots: only as wide as the fill */
   background-position: 0 50%, 0 0;
-  background-repeat: repeat-x, no-repeat;
+  background-repeat: no-repeat, no-repeat;
   background-blend-mode: difference, normal;
 }
 input[type=range]::-moz-range-progress { background: transparent; }

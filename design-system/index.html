@@ -563,6 +563,7 @@
 
     <section class="ds-entry" id="dark-mode">
       <h2>Dark mode</h2>
+      <p class="ds-note"><strong>Rule: every new component, token and style works in both themes.</strong> A new colour token gets a light and a dark value (dark contrast-checked); a new component uses tokens only; check it with the moon button and <a href="/design-system/_dark-audit.html"><code>_dark-audit.html</code></a> before it ships.</p>
       <p class="ds-desc"><strong>Dark flips the chrome, never the work.</strong> The header, the panel, the floatbar and the canvas area around the sheet go dark; the sheet itself (<code>.org-stage</code>, or anything marked <code>data-theme="light"</code>) keeps the light palette and the tool's own Paper, so what you see is what exports and prints. Exports are byte-identical in both themes (checked on Pollen and the FVS regression).</p>
       <div class="ds-usage"><strong>Defined in</strong><span>shared/tokens.css (THEMES)</span><strong>Switched by</strong><span>the header's moon button · shared/header.js</span><span>localStorage organica.ui.theme</span><strong>Opted in</strong><span>hub · design system · Pollen · Loom · FVS</span></div>
       <div class="ds-example">
@@ -795,7 +796,7 @@
 
     <section class="ds-entry" id="slider">
       <h2>Slider</h2>
-      <p class="ds-desc">One slider, everywhere — the <strong>Slosh slider</strong> (after Bencho's, MIT). A grey <code>--track-bg</code> well with an <code>--ink</code> liquid that has mass: the handle (a round droplet, shared with the switch) is rigid under your finger; the liquid is a softer spring behind it that overshoots, rocks into the end stop and leans on its leading edge. A dotted centre line runs through it, and the number beside it is <strong>drag-to-scrub and click-to-type</strong>. It replaced the previous Figma-style slider (5px line, round thumb, eased <code>--fill</code>), which is removed.</p>
+      <p class="ds-desc">One slider, everywhere — the <strong>Slosh slider</strong> (after Bencho's, MIT). A grey <code>--track-bg</code> well with an <code>--ink</code> liquid that has mass: the handle (a round droplet, shared with the switch) is rigid under your finger; the liquid is a softer spring behind it that overshoots, rocks into the end stop and leans on its leading edge. A dotted centre line runs through the liquid only (it stops at the liquid's edge, the empty well stays plain), and the number beside it is <strong>drag-to-scrub and click-to-type</strong>. It replaced the previous Figma-style slider (5px line, round thumb, eased <code>--fill</code>), which is removed.</p>
       <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>JS</strong><span>Organica.slosh() via Organica.enhanceSliders()</span><strong>Used in</strong><span>every panel</span></div>
       <div class="ds-example ds-example--column" style="max-width:280px">
         <div class="ctrl-row">

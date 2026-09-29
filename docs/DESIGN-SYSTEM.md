@@ -352,6 +352,8 @@ failures, not close calls:
 
 ## 5b. Dark mode (Sep 29, 2026)
 
+> **Rule (Diego, Sep 29, 2026): every new component, token and style must work in both themes.** A token lands with a light and a dark value; a component is built from tokens only; it is checked with the header toggle and `/design-system/_dark-audit.html` before it ships.
+
 **Dark flips the chrome, never the work.** Header, panel, floatbar and the canvas area around the sheet go dark; the sheet (`.org-stage`, or anything marked `data-theme="light"`) keeps the light palette and the tool's own Paper. Preview = export: exports are byte-identical in both themes.
 
 - **Tokens** — `shared/tokens.css`, section THEMES: (1) the light literals on `:root`, `[data-theme="light"]` and `[data-theme="dark"] .org-stage`; (2) the dark literals on `:root[data-theme="dark"]` / `[data-theme="dark"]`; (3) the derived tokens (`--track-bg`, `--gray-*`, `--canvas-bg`, `--canvas-grid`) on `:root, [data-theme], .org-stage`, so they re-compute in each scope. `--border-strong` moved here from `header.css`.
