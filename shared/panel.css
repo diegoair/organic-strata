@@ -33,6 +33,8 @@
   --slo-h: calc(var(--row-h) - var(--space-2));   /* the slider AND its number box */
   --slo-r: var(--radius-md);                       /* their corner */
   --chk-size: var(--space-5);                      /* checkbox box + switch height (14px) */
+  --knob-r: 0.78;                                  /* THE knob: a droplet this fraction of the track height (Bencho's 36 in 46) ... */
+  --knob-size: calc(var(--slo-h) * var(--knob-r)); /* ... shared by the slider's handle and the switch's droplet */
   --panel-pad: 14px;
 }
 
@@ -212,9 +214,9 @@
    neutral value-fill every Organica slider has always used — on the
    shared --track-bg housing. The well is a recess and gets no shadow: a
    recess with a drop shadow is a hole that is somehow also on top. The
-   handle is --paper with a --border-strong stroke and a soft all-round
-   shadow; its width, height and corner are the track's (--slo-knob,
-   --slo-h, --slo-r = --radius-md).
+   handle is THE knob, the same definition as the switch's droplet: a round
+   --paper droplet (--knob-size = 0.78 of the track, same air all round),
+   a 1px --border-strong stroke and a soft all-round --ink shadow.
 
    The centre line is a row of dots (2px, one every --space-3) drawn once
    with background-blend-mode: difference: a translucent white dot inverts
@@ -237,7 +239,7 @@ input[type=range] {
   cursor: grab;
   margin: 0;
 
-  --slo-knob: calc(var(--space-3) + 1px);   /* handle width */
+  --slo-knob: var(--knob-size);             /* handle diameter */
   /* where the liquid's edge is: 0..1 of the travel, mapped so the edge
      always sits under the handle's centre. --sf is the spring, --fv the
      rigid value written by core.js before the spring exists. */
@@ -274,21 +276,21 @@ input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: var(--slo-knob);
-  height: var(--slo-h);
-  margin-top: 0;
+  height: var(--slo-knob);
+  margin-top: calc((var(--slo-h) - var(--slo-knob)) / 2);   /* centred in the track */
   box-sizing: border-box;
   border: 1px solid var(--border-strong);
-  border-radius: var(--slo-r);
+  border-radius: 999px;                                      /* a droplet, like the switch's */
   background: var(--paper);
   box-shadow: 0 0 var(--space-3) color-mix(in srgb, var(--ink) 40%, transparent);
   cursor: inherit;
 }
 input[type=range]::-moz-range-thumb {
   width: var(--slo-knob);
-  height: var(--slo-h);
+  height: var(--slo-knob);
   box-sizing: border-box;
   border: 1px solid var(--border-strong);
-  border-radius: var(--slo-r);
+  border-radius: 999px;
   background: var(--paper);
   box-shadow: 0 0 var(--space-3) color-mix(in srgb, var(--ink) 40%, transparent);
   cursor: inherit;
@@ -334,14 +336,14 @@ input[type=range]:focus-visible::-moz-range-track {
    label click, keyboard, disabled and every tool's JS are untouched.
 
    Checkbox  (default)   .check-row / .org-check / .ctrl-row > input
-   Switch    .check-row.org-switch — label left, switch right
-   Both are on when checked: the box/track takes --tool (the tool's own
-   identity colour, --ink if it declares none) and the mark takes --paper.
+   Switch    .check-row.org-switch — label left, switch right (the Liquid
+             toggle, below)
+   A checked checkbox takes --tool (the tool's own identity colour, --ink if
+   it declares none) with a --paper tick; the switch is black and white.
 
-   The switch's pill (track and knob) is a stadium shape — radius = half
+   The switch's pill (track and droplet) is a stadium shape — radius = half
    the height — the documented exception to the radius scale, so it is
-   999px, not a corner token. Its knob is the box size minus --space-1;
-   travel is one --chk-size (the track is two).
+   999px, not a corner token.
    ═══════════════════════════════════════════════════════════ */
 :is(.check-row, .org-check) input[type=checkbox],
 .ctrl-row > input[type=checkbox] {
@@ -381,43 +383,79 @@ input[type=range]:focus-visible::-moz-range-track {
 :is(.check-row, .org-check) input[type=checkbox]:disabled,
 .ctrl-row > input[type=checkbox]:disabled { opacity: 0.35; cursor: not-allowed; }
 
-/* Switch — label left, switch right. Track = two boxes wide. */
+/* ═══════════════════════════════════════════════════════════
+   SWITCH — the Liquid toggle (Sep 29, 2026, after Bencho's, MIT). Label
+   left, switch right. A pill track with ONE droplet in it: it stretches
+   along its own travel and thins across it (area kept: scaleY = 1/scaleX),
+   so the elasticity is in the shape of the thing moving rather than in a
+   trail left behind it — Bencho's note: a second blob on a lagging spring
+   necks into a thread, which is what a trail IS, and what it looks like.
+   No goo filter either: a blur-then-threshold pass over a single round
+   shape can only soften its edge. It is a plain circle, drawn by the
+   browser at device resolution.
+
+   BLACK AND WHITE. The TRACK carries the state and the droplet is along
+   for the ride: OFF is --track-bg (the slider's own well) and ON is --ink,
+   the droplet --paper in both, OPAQUE. No hue (a switch does not need one
+   to say it is on): the switch no longer takes --tool. Bencho's off track
+   is white on a grey stage; a tool's panel is WHITE, so a white track
+   vanished and only a grey dot showed — it borrows the slider's well
+   instead, and the droplet went white (a 19% grey droplet on that well
+   would be the same colour as the well). No border — Bencho's Stroke
+   switch is off.
+
+   Height is --slo-h, the same as the slider and its number box, so a
+   switch and a slider in one panel sit on one line; the track is twice
+   that, the droplet is 0.78 of it (Bencho's 36 in 46) with the same gap
+   all round. The real input is kept: the position lives in three custom
+   properties written by Organica.liquidSwitch (core.js) — --lx (0..1),
+   --lsx / --lsy (the stretch); with none set it is a plain two-state
+   switch, --lx falling back to 0 / 1 from :checked.
+   ═══════════════════════════════════════════════════════════ */
 .check-row.org-switch { justify-content: space-between; }
 .check-row.org-switch input[type=checkbox] {
   order: 2;
-  width: calc(var(--chk-size) * 2);
-  border-radius: 999px;
-  background: var(--track-bg);
+  --sw-thumb: var(--knob-size);                                  /* the shared knob (0.78 of the track height) */
+  --sw-pad: calc((var(--slo-h) - var(--sw-thumb)) / 2);          /* the air round it, all sides */
+  --sw-travel: calc(var(--slo-h) * 2 - var(--sw-thumb) - var(--sw-pad) * 2);
+  width: calc(var(--slo-h) * 2);
+  height: var(--slo-h);
+  border: 0;
+  border-radius: 999px;                  /* always a pill */
+  background: var(--track-bg);           /* OFF = the slider's own well, so it reads on a white panel */
+  touch-action: none;
+  transition: background-color 320ms ease;
 }
-.check-row.org-switch input[type=checkbox]::after {
+.check-row.org-switch input[type=checkbox]:hover { border-color: transparent; }
+.check-row.org-switch input[type=checkbox]:checked { background: var(--ink); border-color: transparent; }
+.check-row.org-switch input[type=checkbox]::after,
+.check-row.org-switch input[type=checkbox]:checked::after {
   content: '';
   position: absolute;
-  left: 1px; top: 50%;
-  width: calc(var(--chk-size) - var(--space-1));
-  height: calc(var(--chk-size) - var(--space-1));
-  margin-top: calc((var(--chk-size) - var(--space-1)) / -2);
-  border: 0;
-  border-radius: 50%;
-  background: var(--mid);
-  transform: none;
-  transition: transform .15s, background-color .15s;
-}
-.check-row.org-switch input[type=checkbox]:checked {
-  background: var(--tool, var(--ink));
-  border-color: var(--tool, var(--ink));
+  left: var(--sw-pad); top: 50%;
+  width: var(--sw-thumb); height: var(--sw-thumb);
+  margin-top: calc(var(--sw-thumb) / -2);
+  box-sizing: border-box;
+  /* the droplet wears the slider knob's border and shadow, verbatim */
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--paper);
+  box-shadow: 0 0 var(--space-3) color-mix(in srgb, var(--ink) 40%, transparent);
+  /* transform is the spring's (core.js): a CSS transition on the same
+     property would re-interpolate every frame it writes, and what you would
+     see is the easing, not the spring. Only the colour eases. */
+  transform: translateX(calc(var(--lx, 0) * var(--sw-travel))) scale(var(--lsx, 1), var(--lsy, 1));
+  transition: background-color 320ms ease;
 }
 .check-row.org-switch input[type=checkbox]:checked::after {
-  left: 1px; top: 50%;
-  width: calc(var(--chk-size) - var(--space-1));
-  height: calc(var(--chk-size) - var(--space-1));
-  border: 0;
   background: var(--paper);
-  transform: translateX(var(--chk-size));
+  transform: translateX(calc(var(--lx, 1) * var(--sw-travel))) scale(var(--lsx, 1), var(--lsy, 1));
 }
 @media (prefers-reduced-motion: reduce) {
   :is(.check-row, .org-check) input[type=checkbox],
   .ctrl-row > input[type=checkbox],
-  .check-row.org-switch input[type=checkbox]::after { transition: none; }
+  .check-row.org-switch input[type=checkbox],
+  .check-row.org-switch input[type=checkbox]::after { transition-duration: 1ms; }
 }
 
 /* Segmented control — Figma's tab row. aria-pressed is the state where the

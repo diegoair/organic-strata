@@ -59,7 +59,9 @@
   .ds-nav a:hover { color: var(--accent-warm); }
   .ds-nav a.current { border-left-color: var(--accent-warm); color: var(--accent-warm); font-weight: var(--w-medium); }
 
-  .ds-content { flex: 1; overflow-y: auto; padding: var(--space-8) var(--space-8) 240px; }
+  /* the reading surface is --gray-100; the panel-control demos sit on white (--paper) boxes on it,
+     like a tool's real white panel on the canvas */
+  .ds-content { flex: 1; overflow-y: auto; padding: var(--space-8) var(--space-8) 240px; background: var(--gray-100); }
   .ds-content > p.ds-intro {
     max-width: 640px;
     font-size: var(--fs-large);
@@ -110,7 +112,7 @@
 
   /* Live example stage */
   .ds-example {
-    background: var(--panel);
+    background: var(--paper);   /* white boxes on the grey page — the same surface a tool's panel is */
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     padding: var(--space-6);
@@ -366,6 +368,21 @@
           <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--canvas-grid), var(--canvas-bg);box-shadow:inset 0 0 0 1px var(--border)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--canvas-grid</div><div class="ds-swatch__val">dot grid, --space-7 pitch</div></div></div>
         </div>
       </div>
+      <p class="ds-desc" style="margin-top:var(--space-5)"><strong>Grey scale — the scale of black.</strong> <code>--gray-0</code> … <code>--gray-900</code>: ten steps from <code>--paper</code> to <code>--ink</code>, step N being N/10 of <code>--ink</code> mixed into <code>--paper</code>. Derived, not typed, so it follows each tool's own ink and paper. This page's own background is <code>--gray-100</code>. The role tokens above (<code>--panel</code>, <code>--track-bg</code>, <code>--border</code>, <code>--mid</code>) keep their names; reach for a step only when you need "a grey" that isn't a surface role.</p>
+      <div class="ds-example">
+        <div class="ds-swatches">
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--gray-0);box-shadow:inset 0 0 0 1px var(--border)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--gray-0</div><div class="ds-swatch__val">= --paper</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--gray-100)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--gray-100</div><div class="ds-swatch__val">10% --ink in --paper · the page</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--gray-200)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--gray-200</div><div class="ds-swatch__val">20% --ink in --paper</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--gray-300)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--gray-300</div><div class="ds-swatch__val">30% --ink in --paper</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--gray-400)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--gray-400</div><div class="ds-swatch__val">40% --ink in --paper</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--gray-500)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--gray-500</div><div class="ds-swatch__val">50% --ink in --paper</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--gray-600)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--gray-600</div><div class="ds-swatch__val">60% --ink in --paper</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--gray-700)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--gray-700</div><div class="ds-swatch__val">70% --ink in --paper</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--gray-800)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--gray-800</div><div class="ds-swatch__val">80% --ink in --paper</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--gray-900)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--gray-900</div><div class="ds-swatch__val">90% --ink in --paper</div></div></div>
+          </div>
+      </div>
       <pre class="ds-code"><span class="attr">color</span>: var(--ink);
 <span class="attr">background</span>: var(--panel);
 <span class="attr">border-color</span>: var(--border-strong);</pre>
@@ -538,7 +555,7 @@
 
     <section class="ds-entry" id="slider">
       <h2>Slider</h2>
-      <p class="ds-desc">One slider, everywhere — the <strong>Slosh slider</strong> (after Bencho's, MIT). A grey <code>--track-bg</code> well with an <code>--ink</code> liquid that has mass: the handle is rigid under your finger; the liquid is a softer spring behind it that overshoots, rocks into the end stop and leans on its leading edge. A dotted centre line runs through it, and the number beside it is <strong>drag-to-scrub and click-to-type</strong>. It replaced the previous Figma-style slider (5px line, round thumb, eased <code>--fill</code>), which is removed.</p>
+      <p class="ds-desc">One slider, everywhere — the <strong>Slosh slider</strong> (after Bencho's, MIT). A grey <code>--track-bg</code> well with an <code>--ink</code> liquid that has mass: the handle (a round droplet, shared with the switch) is rigid under your finger; the liquid is a softer spring behind it that overshoots, rocks into the end stop and leans on its leading edge. A dotted centre line runs through it, and the number beside it is <strong>drag-to-scrub and click-to-type</strong>. It replaced the previous Figma-style slider (5px line, round thumb, eased <code>--fill</code>), which is removed.</p>
       <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>JS</strong><span>Organica.slosh() via Organica.enhanceSliders()</span><strong>Used in</strong><span>every panel</span></div>
       <div class="ds-example ds-example--column" style="max-width:280px">
         <div class="ctrl-row">
@@ -578,14 +595,14 @@ Organica.enhanceSliders(document);
 
 <span class="attr">/* optional per slider, each 0–100 (defaults 85 / 0 / 100), or data-slosh="off" */</span>
 data-viscosity  data-momentum  data-tilt</pre>
-      <p class="ds-note"><strong>Tokens.</strong> Height <code>--slo-h</code> (= <code>--row-h</code> − <code>--space-2</code>) is shared by the track, the handle and the number box; the corner <code>--slo-r</code> is <code>--radius-md</code>; the handle is <code>--space-3</code> + 1px wide, <code>--paper</code> with a <code>--border-strong</code> stroke and a soft <code>--ink</code> shadow; the dots are <code>--space-3</code> apart. Colours: well <code>--track-bg</code>, liquid <code>--ink</code>. No second slider exists — don't restyle <code>input[type=range]</code> in a tool.</p>
+      <p class="ds-note"><strong>Tokens.</strong> Height <code>--slo-h</code> (= <code>--row-h</code> − <code>--space-2</code>) is shared by the track, the handle and the number box; the corner <code>--slo-r</code> is <code>--radius-md</code>; the handle is <strong>the knob</strong> — the same definition as the switch's droplet: a round <code>--paper</code> droplet of <code>--knob-size</code> (= <code>--slo-h</code> × <code>--knob-r</code>, 0.78, Bencho's 36 in 46) with the same air all round, a 1px <code>--border-strong</code> stroke and a soft <code>--ink</code> shadow; the dots are <code>--space-3</code> apart. Colours: well <code>--track-bg</code>, liquid <code>--ink</code>. No second slider exists — don't restyle <code>input[type=range]</code> in a tool.</p>
       <p class="ds-note"><strong>Behaviour.</strong> Styled on the <em>native</em> input, no wrapper: <code>value</code>, <code>step</code>, keys, disabled and every tool's own <code>input</code> listener keep working, and code that does <code>input.nextElementSibling.textContent = …</code> (Colornet, Sinew, Living Path) still finds its number. Cursor is <code>grab</code> / <code>grabbing</code> on the slider and <code>ew-resize</code> on the number, which shows a light <code>--border</code> stroke on hover. <strong>Momentum</strong> (the value coasting after release) is off by default — it re-fires <code>input</code> every frame, which costs in tools that regenerate an image per input; opt in with <code>data-momentum</code>. Reduced-motion: rigid, no coast.</p>
     </section>
 
     <section class="ds-entry" id="toggle">
       <h2>Checkbox &amp; switch</h2>
-      <p class="ds-desc">One component, two shapes, drawn by us so they look identical in Chrome, Safari and Firefox. The real <code>input[type=checkbox]</code> is kept (state, label click, keyboard, <code>disabled</code> and every tool's JS are untouched) — only the drawing is replaced. When checked, the box or track takes <code>--tool</code> (the tool's own identity colour, <code>--ink</code> if it declares none) and the mark takes <code>--paper</code>.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>Size token</strong><span>--chk-size (= --space-5, 14px)</span><strong>Used in</strong><span>every panel with an on/off option</span></div>
+      <p class="ds-desc">One component, two shapes, drawn by us so they look identical in Chrome, Safari and Firefox. The real <code>input[type=checkbox]</code> is kept (state, label click, keyboard, <code>disabled</code> and every tool's JS are untouched) — only the drawing is replaced. A checked <strong>checkbox</strong> takes <code>--tool</code> (the tool's own identity colour, <code>--ink</code> if it declares none) with a <code>--paper</code> tick. The <strong>switch</strong> is the <em>Liquid toggle</em> (after Bencho's, MIT): black and white, no hue, a droplet that stretches along its travel and thins across it, draggable.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>Size tokens</strong><span>--chk-size (= --space-5, 14px) · switch height --slo-h</span><strong>Used in</strong><span>every panel with an on/off option</span></div>
       <div class="ds-example ds-example--column" style="max-width:280px">
         <label class="check-row"><input type="checkbox"><span>Checkbox</span></label>
         <label class="check-row"><input type="checkbox" checked><span>Checkbox, checked</span></label>
@@ -606,12 +623,12 @@ data-viscosity  data-momentum  data-tilt</pre>
         <tr><th>Part</th><th>Definition</th></tr>
         <tr><td>Box</td><td><code>--chk-size</code> square · 1px <code>--border-strong</code> · corner <code>--radius-sm</code> · <code>--paper</code> fill; hover border <code>--ink</code></td></tr>
         <tr><td>Checked</td><td>fill + border <code>--tool</code> (fallback <code>--ink</code>) · tick <code>--paper</code>, sized from the box</td></tr>
-        <tr><td>Switch track</td><td>two boxes wide (<code>--chk-size</code> × 2) · <code>--track-bg</code> off, <code>--tool</code> on · pill (radius = half the height — the documented exception to the radius scale)</td></tr>
-        <tr><td>Switch knob</td><td><code>--chk-size</code> − <code>--space-1</code> · <code>--mid</code> off, <code>--paper</code> on · travels one <code>--chk-size</code></td></tr>
+        <tr><td>Switch track</td><td>height <code>--slo-h</code> (the slider's and the number box's) × two wide · <code>--track-bg</code> off (the slider's own well), <code>--ink</code> on (no border, no hue) · pill (radius = half the height — the documented exception to the radius scale) · colour eases 320ms</td></tr>
+        <tr><td>Switch droplet</td><td><code>--knob-size</code> (0.78 of the track height, <code>--knob-r</code> — the slider's handle is this same knob) with the same air all round · <code>--paper</code> in both states, with the slider knob's own 1px <code>--border-strong</code> stroke and soft all-round <code>--ink</code> shadow · stretches along its travel and thins across it (area kept) · hover swell 1.035 · spring-driven: <code>data-speed</code> (66) / <code>data-stretch</code> (60), 0–100</td></tr>
         <tr><td>States</td><td>focus-visible: 1px <code>--tool</code> outline, 2px offset · disabled: 35% opacity · reduced-motion: no transitions</td></tr>
       </table>
       </div>
-      <p class="ds-note"><strong>Audit (Sep 29, 2026) — five implementations became one.</strong> Before: (1) 88 native checkboxes tinted with <code>accent-color</code>, drawn differently by every OS/browser; (2) FVS's own 26×14 switch; (3) header.css's 15px <code>.org-check</code>; (4) Camo Turing's hand-built 32×18 <code>.toggle</code>, a Strata port with a hardcoded white knob and 9px radius; (5) three bare checkboxes in Trellis that matched none of them. All 115 checkboxes in 16 tools now resolve to the same two shapes (14×14 / 28×14). Camo Turing's four toggles moved to <code>.check-row.org-switch</code>; the local <code>.toggle</code> CSS is deleted. <strong>Which to use:</strong> a checkbox for an option in a list; a switch for a setting that takes effect the moment it flips. Put an <code>info-tip</code> inside a <code>div.check-row</code>, not a <code>label</code> (clicking the tip would toggle the switch).</p>
+      <p class="ds-note"><strong>Audit (Sep 29, 2026) — five implementations became one.</strong> Before: (1) 88 native checkboxes tinted with <code>accent-color</code>, drawn differently by every OS/browser; (2) FVS's own 26×14 switch; (3) header.css's 15px <code>.org-check</code>; (4) Camo Turing's hand-built 32×18 <code>.toggle</code>, a Strata port with a hardcoded white knob and 9px radius; (5) three bare checkboxes in Trellis that matched none of them. All 115 checkboxes in 16 tools now resolve to the same two shapes (14×14 / 28×14). Camo Turing's four toggles moved to <code>.check-row.org-switch</code>; the local <code>.toggle</code> CSS is deleted. The switch's spring lives in <code>Organica.liquidSwitch()</code> (core.js, applied by <code>enhanceSliders</code>) and writes <code>--lx</code>, <code>--lsx</code>, <code>--lsy</code> on the input — the real checkbox stays; a preset doing <code>checkbox.checked = x</code> still animates it. <strong>Which to use:</strong> a checkbox for an option in a list; a switch for a setting that takes effect the moment it flips. Put an <code>info-tip</code> inside a <code>div.check-row</code>, not a <code>label</code> (clicking the tip would toggle the switch).</p>
       <p class="ds-note"><strong>Not this component</strong> — other on/off controls with their own entries: the floating toolbar's <code>aria-pressed</code> buttons, the layer card's dot toggle, the segmented control, and Sinew's <code>.mini.on</code> text buttons (still local to Sinew).</p>
     </section>
 
@@ -950,11 +967,11 @@ Organica.popover(document.getElementById(<span class="str">'btn-export'</span>),
 
     <section class="ds-entry ds-prose" id="self-check">
       <h2>Self-check</h2>
-      <p class="ds-desc">This page is the reference, so it has to be able to fail. Three checks run on load and report in the banner at the top — a stale claim here shows up the moment someone opens the page, instead of at the next audit a year later.</p>
+      <p class="ds-desc">This page is the reference, so it has to be able to fail. Three checks run on load; a red banner appears at the top only when one fails (a pass is silent, recorded as <code>data-self-check="passed"</code> on <code>&lt;body&gt;</code>) — a stale claim here shows up the moment someone opens the page, instead of at the next audit a year later.</p>
       <ol>
         <li><strong>Token tables are read from the CSSOM</strong>, not typed. A renamed or deleted token renders as an empty cell rather than a lie. Typed tables are exactly how <code>docs/UI-SHELL.md</code>'s panel type table came to have three of its four rows wrong.</li>
         <li><strong>Orphan tokens</strong> — every custom property declared on <code>:root</code> that this page never demonstrates is listed. This is the check that catches the next <code>--fs-display</code>: a token that outlived the design it described.</li>
-        <li><strong>Contract assertions</strong> — a handful of components assert their key computed values against the live demo above. If a shared sheet changes underneath the documentation, the banner goes red.</li>
+        <li><strong>Contract assertions</strong> — a handful of components assert their key computed values against the live demo above. If a shared sheet changes underneath the documentation, the red banner appears.</li>
       </ol>
       <div id="ds-orphans"></div>
     </section>
@@ -1045,18 +1062,18 @@ document.querySelectorAll('#slider input[type=range]').forEach(r => {
 
   /* banner ----------------------------------------------------------- */
   const fails = results.filter(r => !r[0]);
-  const el = document.createElement('div');
-  el.style.cssText = 'position:sticky;top:0;z-index:99;padding:var(--space-3) var(--space-5);' +
-    'font-size:var(--fs-small);border-bottom:1px solid var(--border);' +
-    (fails.length
-      ? 'background:var(--danger);color:#fff;'
-      : 'background:var(--panel);color:var(--mid);');
-  el.innerHTML = fails.length
-    ? '<strong>' + fails.length + ' documentation check(s) failing.</strong> ' +
-      fails.map(f => f[1]).join(' · ')
-    : 'Self-check passed — every documented token resolves, every :root token is documented, ' +
-      'and the component contracts match the live shared stylesheets.';
-  document.querySelector('.ds-content, main')?.prepend(el);
+  /* Silent when everything passes: a pinned banner that only ever said "passed" covered the
+     heading you jumped to. It appears — sticky, in --danger — only when a check FAILS; a pass
+     is recorded on <body data-self-check="passed"> for anyone (or any test) that wants to read it. */
+  document.body.dataset.selfCheck = fails.length ? 'failed' : 'passed';
+  if (fails.length) {
+    const el = document.createElement('div');
+    el.style.cssText = 'position:sticky;top:0;z-index:99;padding:var(--space-3) var(--space-5);' +
+      'font-size:var(--fs-small);border-bottom:1px solid var(--border);background:var(--danger);color:var(--paper);';
+    el.innerHTML = '<strong>' + fails.length + ' documentation check(s) failing.</strong> ' +
+      fails.map(f => f[1]).join(' · ');
+    document.querySelector('.ds-content, main')?.prepend(el);
+  }
 })();
 </script>
 <script>

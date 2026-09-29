@@ -916,8 +916,8 @@
     const max = () => (range.max !== '' ? parseFloat(range.max) : 100);
     const toPct = v => (max() > min() ? clamp(((v - min()) / (max() - min())) * 100, 0, 100) : 0);
     const fromPct = p => min() + (p / 100) * (max() - min());
-    /* the handle's width = --space-3 + 1px, read from the token so JS and CSS agree */
-    const knobW = () => (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--space-3')) || 8) + 1;
+    /* the handle's diameter = --knob-r (0.78) of the track height — the shared knob, read from the token so JS and CSS agree */
+    const knobW = () => range.clientHeight * (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--knob-r')) || 0.78);
 
     /* the handle (rigid value), its velocity after release, and the
        liquid chasing it with a velocity of its own */
@@ -1091,12 +1091,147 @@
     return api;
   };
 
+  // ── Liquid switch (every .check-row.org-switch checkbox) ───────
+  // After Bencho's Liquid toggle (MIT), ported off framer-motion. The real
+  // checkbox stays; this only drives three custom properties on it that
+  // panel.css turns into the droplet's transform: --lx (position 0..1),
+  // --lsx / --lsy (the stretch). Three springs, integrated here:
+  //   · the droplet's position, released onto its target;
+  //   · a second, softer spring FOLLOWING the droplet's velocity, so the
+  //     stretch eases in and out instead of flickering with every frame;
+  //   · a hover swell (1.035) about the droplet's own centre.
+  // The stretch is 1 + min(.4, |v|/600)·stretch, area-kept (scaleY = 1/scaleX).
+  // The divisor is the whole tuning: the thumb's peak speed on Bencho's
+  // 46px crossing is ~150px/s, so /1400 peaked at 1.039 — present and
+  // invisible; /600 gives ~1.09. Velocity here is in fractions/s, scaled by
+  // 46 back to that crossing so the same numbers mean the same thing.
+  // Drag the droplet: it follows the finger from where it IS (the offset
+  // is taken at the first MOVE, so no press can make it teleport), and it
+  // flips as it passes the middle so the track answers under your finger.
+  // A press that never travelled is a click and the native input handles
+  // it. Tunables: data-speed (0–100, default 66) and data-stretch (0–100,
+  // default 60) — the values of the saved Bencho configuration.
+  Organica.liquidSwitch = function (input) {
+    if (input.__liquid) return input.__liquid;
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+    const speed = input.dataset.speed !== undefined ? +input.dataset.speed : 66;
+    const stretch = input.dataset.stretch !== undefined ? +input.dataset.stretch : 60;
+    const reduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    /* softer than Bencho's first pass on purpose: 170/21.5 is zeta .87, it
+       arrives with a hint of give and no snap */
+    const K = 170 - (50 - speed) * 1.1, C = 21.5, M = 0.9;
+    const CROSSING = 46;
+
+    let f = input.checked ? 1 : 0, v = 0, target = f;
+    let ev = 0, ew = 0;              // eased velocity (its own spring)
+    let sw = 1, swv = 0, hot = false;
+    let raf = 0, prev = 0, held = false, dragged = false, grab = null, pid = null;
+
+    const paint = () => {
+      const len = 1 + Math.min(0.4, Math.abs(ev * CROSSING) / 600) * (clamp(stretch, 0, 100) / 100);
+      input.style.setProperty('--lx', f.toFixed(4));
+      input.style.setProperty('--lsx', (len * sw).toFixed(4));
+      input.style.setProperty('--lsy', (sw / len).toFixed(4));
+    };
+    const rest = () => !held && Math.abs(target - f) < 0.0005 && Math.abs(v) < 0.001 &&
+      Math.abs(ev) < 0.001 && Math.abs(ew) < 0.001 && Math.abs(sw - (hot ? 1.035 : 1)) < 0.0005 && Math.abs(swv) < 0.001;
+
+    const tick = t => {
+      const dt = prev ? clamp((t - prev) / 1000, 0, 0.032) : 0.016;
+      prev = t;
+      const f0 = f;
+      if (!held) {                                     // a finger owns it while held
+        const a = (K * (target - f) - C * v) / M;
+        v += a * dt; f += v * dt;
+      }
+      const vel = (f - f0) / dt;                       // fractions / s, either driver
+      const ea = (320 * (vel - ev) - 40 * ew) / 0.6;   // the velocity-following spring
+      ew += ea * dt; ev += ew * dt;
+      const sa = (520 * ((hot ? 1.035 : 1) - sw) - 34 * swv) / 0.6;
+      swv += sa * dt; sw += swv * dt;
+      paint();
+      if (rest()) {
+        f = target; v = ev = ew = 0; sw = hot ? 1.035 : 1; swv = 0;
+        input.style.removeProperty('--lsx'); input.style.removeProperty('--lsy');
+        input.style.setProperty('--lx', f.toFixed(4));
+        raf = 0; prev = 0; return;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    const run = () => { if (!raf) raf = requestAnimationFrame(tick); };
+    const retarget = () => {
+      target = input.checked ? 1 : 0;
+      if (reduced()) { f = target; v = 0; paint(); input.style.removeProperty('--lsx'); input.style.removeProperty('--lsy'); return; }
+      run();
+    };
+
+    input.addEventListener('change', () => { if (!held) retarget(); });
+    input.addEventListener('pointerenter', () => { hot = true; if (!reduced()) run(); });
+    input.addEventListener('pointerleave', () => { hot = false; if (!reduced()) run(); });
+
+    // ── drag ──
+    const geom = () => {
+      const r = input.getBoundingClientRect();
+      const thumb = r.height * (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--knob-r')) || 0.78), pad = (r.height - thumb) / 2;
+      return { r, travel: r.width - thumb - pad * 2, pad, thumb };
+    };
+    input.addEventListener('pointerdown', e => {
+      if (input.disabled || e.button !== 0 || reduced()) return;
+      held = true; dragged = false; grab = null; pid = e.pointerId;
+      try { input.setPointerCapture(e.pointerId); } catch (x) { /* not a live pointer */ }
+      run();
+    });
+    input.addEventListener('pointermove', e => {
+      if (!held || e.pointerId !== pid) return;
+      const g = geom();
+      const at = (e.clientX - g.r.left) / g.travel;     // pointer, in the droplet's own 0..1
+      if (grab === null) grab = at - f;                 // taken at the first move: never a jump
+      const next = clamp(at - grab, 0, 1);
+      if (Math.abs(next - f) * g.travel > 0.4) dragged = true;
+      f = next; v = 0;
+      const past = next > 0.5;
+      if (past !== input.checked) {
+        input.checked = past;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+    const release = e => {
+      if (!held || (e && e.pointerId !== pid)) return;
+      held = false;
+      try { input.releasePointerCapture(pid); } catch (x) { /* never captured */ }
+      target = input.checked ? 1 : 0;
+      run();
+    };
+    input.addEventListener('pointerup', release);
+    input.addEventListener('pointercancel', release);
+    /* the click after a drag must not flip it back: cancelling a checkbox's
+       click restores the state it had before the click — the one we set */
+    input.addEventListener('click', e => { if (dragged) { dragged = false; e.preventDefault(); } });
+
+    /* a preset doing `checkbox.checked = x` never fires an event: wrap the
+       property the way enhanceSliders wraps a range's .value */
+    const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'checked');
+    Object.defineProperty(input, 'checked', {
+      configurable: true,
+      get() { return desc.get.call(input); },
+      set(val) { desc.set.call(input, val); if (!held) retarget(); },
+    });
+
+    const api = { retarget };
+    input.__liquid = api;
+    paint();
+    input.style.removeProperty('--lsx'); input.style.removeProperty('--lsy');
+    return api;
+  };
+
   let sliderObserver = null;
   let sliderDelegatesWired = false;
 
   Organica.enhanceSliders = function (root) {
     root = root || document;
     root.querySelectorAll('input[type=range]').forEach(organicaWireRange);
+    root.querySelectorAll('.check-row.org-switch input[type=checkbox]').forEach(Organica.liquidSwitch);
 
     if (!sliderDelegatesWired) {
       sliderDelegatesWired = true;
@@ -1123,6 +1258,8 @@
             if (n.nodeType !== 1) return;
             if (n.matches && n.matches('input[type=range]')) organicaWireRange(n);
             if (n.querySelectorAll) n.querySelectorAll('input[type=range]').forEach(organicaWireRange);
+            if (n.matches && n.matches('.check-row.org-switch input[type=checkbox]')) Organica.liquidSwitch(n);
+            if (n.querySelectorAll) n.querySelectorAll('.check-row.org-switch input[type=checkbox]').forEach(Organica.liquidSwitch);
           });
         });
       });

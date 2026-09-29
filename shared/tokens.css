@@ -212,6 +212,24 @@ html {
      that would read differently against every panel colour. */
   --track-bg: color-mix(in srgb, var(--ink) 10%, var(--panel));
 
+  /* ── GREY SCALE — the scale of black (Sep 29, 2026) ──────────────
+     Ten steps from --paper (0) to --ink (900): step N is N/10 of --ink
+     mixed into --paper. Derived, not typed, so it follows each tool's own
+     ink and paper (Warping/Radial/Pulsar's warm black gives a warm grey)
+     and the two ends can never disagree with the surface palette. Use a
+     step when you need "a light grey" that isn't a surface role — the role
+     tokens (--panel, --track-bg, --border, --mid) keep their own names. */
+  --gray-0:   var(--paper);
+  --gray-100: color-mix(in srgb, var(--ink) 10%, var(--paper));
+  --gray-200: color-mix(in srgb, var(--ink) 20%, var(--paper));
+  --gray-300: color-mix(in srgb, var(--ink) 30%, var(--paper));
+  --gray-400: color-mix(in srgb, var(--ink) 40%, var(--paper));
+  --gray-500: color-mix(in srgb, var(--ink) 50%, var(--paper));
+  --gray-600: color-mix(in srgb, var(--ink) 60%, var(--paper));
+  --gray-700: color-mix(in srgb, var(--ink) 70%, var(--paper));
+  --gray-800: color-mix(in srgb, var(--ink) 80%, var(--paper));
+  --gray-900: color-mix(in srgb, var(--ink) 90%, var(--paper));
+
   /* ── SURFACE PALETTE (defaults) ────────────────────────────
      Every tool used to redeclare these six, byte-identical, in its own
      <style>. UI-SHELL.md §3 originally kept the palette per-tool on the
