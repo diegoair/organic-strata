@@ -52,8 +52,13 @@ directly against the license banner in each vendored file, August 27, 2026.
 - **Source**: npm registry tarball (`@supabase/supabase-js`)
 - **Used by**: the cloud sync layer (`shared/supabase.js` → `Organica.sb`), consumed by `shared/auth.js` and `shared/store.js` on every tool page — per-user auth (Google OAuth / magic link) and preset/seed persistence in Postgres with row-level security.
 
+### Space Grotesk (typeface)
+- **File**: `shared/vendor/space-grotesk-variable.ttf` (licence text alongside: `shared/vendor/space-grotesk-OFL.txt`) — the interface typeface since Sep 29, 2026, self-hosted via `@font-face` in `shared/tokens.css`.
+- **Source**: https://github.com/floriankarsten/space-grotesk. Copyright 2020 The Space Grotesk Project Authors.
+- **License**: SIL Open Font License 1.1 — same terms as Manrope below.
+
 ### Wix Madefor Display (typeface)
-- **File**: `shared/vendor/wix-madefor-display-variable.ttf` (licence text alongside: `shared/vendor/wix-madefor-display-OFL.txt`) — the interface typeface since Sep 29, 2026, self-hosted via `@font-face` in `shared/tokens.css`.
+- **File**: `shared/vendor/wix-madefor-display-variable.ttf` (licence text alongside: `shared/vendor/wix-madefor-display-OFL.txt`) — first fallback in `--font` (was the interface typeface earlier on Sep 29, 2026), self-hosted via `@font-face` in `shared/tokens.css`.
 - **Source**: https://github.com/wix/wixmadefor. Copyright 2023 The Wix Madefor Project Authors.
 - **License**: SIL Open Font License 1.1 — same terms as Manrope below.
 

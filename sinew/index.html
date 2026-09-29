@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Sinew · Organica</title>
-<link rel="preload" href="/shared/vendor/wix-madefor-display-variable.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
@@ -44,7 +44,7 @@
   display:flex; align-items:center; justify-content:center; font-size:var(--fs-small); color:var(--paper);
 }
 .layer.on .layer-head .tog{background:var(--tool); border-color:var(--tool); color:var(--ink)}
-.layer-head b{flex:1; font-size:var(--fs-base); font-weight:500; letter-spacing:.04em}
+.layer-head b{flex:1; font-size:var(--fs-base); font-weight:var(--w-medium); letter-spacing:.04em}
 .layer-head .chev{font-size:var(--fs-micro); color:var(--mid); transition:.16s}
 .layer.open .layer-head .chev{transform:rotate(90deg)}
 .layer-body{padding:var(--space-1) var(--space-4) 11px; display:none}
@@ -78,7 +78,7 @@
 #board{max-width:92%; max-height:92%; display:none}
 #board.show{display:block}
 .empty{text-align:center; color:var(--mid)}
-.empty .big{font-family:var(--font); font-weight:700; font-size:30px; color:var(--ink); margin-bottom:var(--space-3)}
+.empty .big{font-family:var(--font); font-weight:var(--w-bold); font-size:var(--fs-4xl); color:var(--ink); margin-bottom:var(--space-3)}
 .empty p{font-size:var(--fs-medium); line-height:1.7}
 .gridtoggle{position:absolute; top:14px; right:16px; display:flex; gap:var(--space-2)}
 .mini{font-size:var(--fs-small); padding:var(--space-2) var(--space-4); background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; color:var(--ink)}

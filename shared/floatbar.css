@@ -220,7 +220,7 @@
   background: var(--ink);
   color: var(--paper);
   font-size: var(--fs-small, 10px);
-  font-weight: 400;
+  font-weight: var(--w-regular);
   line-height: 1;
   letter-spacing: 0.01em;
   padding: 5px 8px;
@@ -289,7 +289,7 @@
 .fb-tester[hidden] { display: none; }
 .fb-field { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--fs-micro); letter-spacing: .06em; color: var(--mid); cursor: default; }
 .fb-field input[type=range] { width: 82px; }
-.fb-val { min-width: 2.5ch; font-size: var(--fs-small); font-weight: 400; color: var(--ink); text-align: right; }
+.fb-val { min-width: 2.5ch; font-size: var(--fs-small); font-weight: var(--w-regular); color: var(--ink); text-align: right; }
 .fb-tester .seg-ctrl { flex: 0 0 auto; }
 .fb-tester .seg-btn { min-width: 28px; padding: 0 var(--space-2); font-size: var(--fs-micro); }
 .fb-tester .seg-btn svg { width: 14px; height: 10px; display: block; margin: 0 auto; }

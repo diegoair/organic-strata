@@ -9,14 +9,14 @@
    pages like /admin/ (use the role tokens directly there).
 
    Everything is a token; nothing here names a px value. Load AFTER
-   tokens.css. Modifier: `.org-prose--flush` drops the first heading's
-   top margin logic for when the prose sits inside a card.
+   tokens.css. Modifier `.org-prose--compact` sets body/md (12px) for dense
+   reference docs. Running text is capped at --measure (66ch, WCAG 1.4.8).
    ═══════════════════════════════════════════════════════════ */
 
 .org-prose {
   color: var(--ink);
   font-family: var(--font);
-  font-size: var(--t-body-md-size);
+  font-size: var(--t-body-lg-size);   /* reading pages default to 14px; --compact drops to body/md */
   font-weight: var(--t-body-weight);
   line-height: var(--t-body-lh);
   letter-spacing: var(--ls-normal);
@@ -25,6 +25,10 @@
 /* Headings — one rule per level, each reading its own role. */
 .org-prose :is(h1, h2, h3, h4, h5, h6) { color: var(--ink); margin: var(--space-7) 0 var(--space-2); }
 .org-prose > :first-child { margin-top: 0; }
+
+.org-prose--compact { font-size: var(--t-body-md-size); }
+.org-prose :is(p, li, blockquote) { max-width: var(--measure); text-wrap: pretty; }
+.org-prose :is(h1, h2, h3, h4, h5, h6) { text-wrap: balance; }
 
 .org-prose h1 { font-size: var(--t-h1-size); font-weight: var(--t-h1-weight); line-height: var(--t-h1-lh); letter-spacing: var(--t-h1-ls); margin-top: 0; margin-bottom: var(--space-3); }
 .org-prose h2 { font-size: var(--t-h2-size); font-weight: var(--t-h2-weight); line-height: var(--t-h2-lh); letter-spacing: var(--t-h2-ls); margin-top: var(--space-8); }
@@ -41,6 +45,8 @@
 .org-prose ul, .org-prose ol { padding-left: var(--space-6); margin: var(--space-3) 0 var(--space-4); }
 .org-prose li { margin: var(--space-1) 0; }
 .org-prose strong, .org-prose b { font-weight: var(--w-semibold); }
+/* No italic exists (font-synthesis: none). Emphasis is one weight step; strong is two. */
+.org-prose em, .org-prose i { font-style: normal; font-weight: var(--w-medium); }
 .org-prose a { color: var(--ink); text-decoration: underline; text-underline-offset: 0.18em; }
 .org-prose a:hover { color: var(--accent); }
 
@@ -51,7 +57,7 @@
 .org-prose__meta    { font-size: var(--t-caption-size); line-height: var(--t-caption-lh); color: var(--mid); }
 .org-prose__meta    { margin-bottom: var(--space-7); }
 
-/* Code and mono: same --font, tabular figures — the system never adds a second typeface. */
+/* Numbers in prose stay tabular; code and mono: same --font, tabular figures — the system never adds a second typeface. */
 .org-prose :is(code, kbd, pre, samp) { font-family: inherit; font-variant-numeric: tabular-nums; }
 .org-prose code { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 var(--space-1); font-size: 0.95em; }
 

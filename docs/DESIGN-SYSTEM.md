@@ -82,7 +82,7 @@ captions; at panel density they stop being readable.
 
 ### Weights
 
-Wix Madefor Display's axis is 400–800. Organica defines four stops.
+Space Grotesk's axis is 300–700; the system uses 400–700. Organica defines four stops.
 
 **The number is canonical, not the token name.** Figma's weight picker shows the
 font's own style names, so a token called "medium" holding 400 would read as
@@ -94,7 +94,6 @@ font's own style names, so a token called "medium" holding 400 would read as
 | `--w-medium` | 500 | emphasis, primary action, H4/H5 |
 | `--w-semibold` | 600 | H2/H3, `<strong>` |
 | `--w-bold` | 700 | H1, display, overline, wordmark |
-| `--w-light` | 400 | **deprecated** alias of regular — was 300, which the typeface never had |
 
 ### Letter spacing
 
@@ -176,7 +175,7 @@ Links are underlined `--ink`; `<strong>` is 600.
 
 ### Two styles, and colour does the rest
 
-**The panel runs on exactly two type styles: 10/400 and 9/400** (9/300 while the typeface had a Light; `--w-light` is now an alias of regular).
+**The panel runs on exactly two type styles: 10/400 and 9/400** (no Light — thin 9px strokes in grey are the wrong trade for legibility; `--w-light` was removed).
 
 `panel/section` and `panel/control` are typographically identical — a section
 title is told from a button only by being `--ink` (near-black) rather than
@@ -446,3 +445,26 @@ carries its own equivalent 0-unnamed check in its own session notes.
 ---
 
 *Studio Rann · Organica System v0.1 · August 26, 2026 · rules + lint added September 6, 2026*
+
+
+---
+
+## Typography rules — numerics, emphasis, measure, accessibility
+
+Typeface: **Space Grotesk** (since Sep 29, 2026; fallbacks Wix Madefor Display → Manrope). It has
+**no italic** and no slashed zero, and its default figures are **proportional**.
+
+- **Numeric role** — `--t-num-variant` (tabular-nums) + `--t-num-ls`; apply with `.org-num` to every
+  live readout, value, hex field and counter so digits don't jitter.
+- **Header roles** — `--t-header-logo-size|weight`, `--t-header-action-size|weight`.
+- **Measure** — `--measure` (66ch); `.org-prose` caps running text at it (WCAG 1.4.8 ≤ 80 chars).
+- **Reading pages** default to 14px / 1.7 (`body/lg`); `.org-prose--compact` = 12px.
+- **Emphasis is weight, never slant**: `strong` 600, `em` 500; `font-synthesis: none` on `html`.
+- **No Light weight**; 9px is the floor and only for panel labels; running text is never below 11px.
+- **Wrapping** — headings `text-wrap: balance`, body `pretty`. **Truncation** — `.org-truncate` (+ a `title`).
+- **Uppercase** implies `--ls-wider` or wider, never below `--fs-small`, never for a sentence.
+- **Contrast (WCAG 1.4.3, text under 24px needs 4.5:1)** — `--ink` 19.8:1, `--accent` 14.4:1,
+  `--mid` 6.0:1 on white (5.0:1 on `--panel`) pass. **`--accent-warm` is a non-text accent** (bars,
+  borders, fills, progress): as text it is 4.6:1 on white, 3.8:1 on `--panel`, 2.7:1 on a dark
+  overlay. Text that must stand out uses `--ink` (or `--paper` on dark), with the accent beside it.
+- Never convey meaning by colour alone (WCAG 1.4.1).

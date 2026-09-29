@@ -8,7 +8,7 @@
 <!-- This page IS the component library: every example below renders with
      the real, live shared/*.css — not a screenshot or a re-implementation.
      If a token or class changes in shared/, this page changes with it. -->
-<link rel="preload" href="/shared/vendor/wix-madefor-display-variable.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/prose.css">
@@ -58,8 +58,9 @@
     padding-left: var(--space-3);
     margin-left: calc(var(--space-3) * -1);
   }
-  .ds-nav a:hover { color: var(--accent-warm); }
-  .ds-nav a.current { border-left-color: var(--accent-warm); color: var(--accent-warm); font-weight: var(--w-medium); }
+  /* --accent-warm is a non-text accent (see the typography rules): the current item is told by the bar + weight, its text stays --ink */
+  .ds-nav a:hover { border-left-color: var(--border-strong); }
+  .ds-nav a.current { border-left-color: var(--accent-warm); font-weight: var(--w-medium); }
 
   /* the reading surface is --gray-100; the panel-control demos sit on white (--paper) boxes on it,
      like a tool's real white panel on the canvas */
@@ -325,7 +326,7 @@
 
     <section class="ds-entry" id="typography">
       <h2>Typography</h2>
-      <p class="ds-desc">One family — Wix Madefor Display, variable weight 400–800 — via <code>--font</code> (Manrope until Sep 29, 2026; still the fallback). There is no 300, so the panel's "9/300" style has been 9/400 since the switch; <code>--w-light</code> is a deprecated alias of <code>--w-regular</code>. Two families of type live here: the <strong>tool UI</strong> (9–17px — the five panel roles and the header roles, fixed-size) and <strong>editorial</strong> (display, H1–H6, body, caption — for pages that read: hub, docs, legal, sign-in). No second typeface, no hardcoded <code>font-size</code>.</p>
+      <p class="ds-desc">One family — Space Grotesk, variable weight 300–700 (the system uses 400–700) — via <code>--font</code>. Fallbacks: Wix Madefor Display, then Manrope. There is <strong>no italic</strong> (and <code>font-synthesis: none</code> stops the browser faking one) and no slashed zero. The panel runs on two styles, 10/400 and 9/400 — no Light: thin 9px strokes in grey are the wrong trade for legibility. Two families of type live here: the <strong>tool UI</strong> (9–17px — the five panel roles and the header roles, fixed-size) and <strong>editorial</strong> (display, H1–H6, body, caption — for pages that read). No second typeface, no hardcoded <code>font-size</code>.</p>
       <div class="ds-usage"><strong>Defined in</strong><span>shared/tokens.css</span><strong>Used in</strong><span>every page</span></div>
       <div class="ds-example ds-example--column">
         <div class="ds-type-row"><span class="ds-type-tag">--fs-micro · 9px</span><span class="ds-type-sample" style="font-size:var(--fs-micro)">Sub-labels, panel values, captions</span></div>
@@ -343,7 +344,6 @@
         <div class="ds-type-row"><span class="ds-type-tag">--w-medium · 500</span><span class="ds-type-sample" style="font-weight:500">Medium — emphasis, primary action, H4/H5</span></div>
         <div class="ds-type-row"><span class="ds-type-tag">--w-semibold · 600</span><span class="ds-type-sample" style="font-weight:600">SemiBold — H2/H3, strong</span></div>
         <div class="ds-type-row"><span class="ds-type-tag">--w-bold · 700</span><span class="ds-type-sample" style="font-weight:700">Bold — H1, display, overline, wordmark</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--w-light · 400</span><span class="ds-type-sample" style="font-weight:var(--w-light)">Deprecated alias of regular (was 300, which the typeface never had)</span></div>
       </div>
       <pre class="ds-code"><span class="attr">font-family</span>: var(--font);
 <span class="attr">font-size</span>: var(--fs-base);      <span class="attr">/* never a raw px */</span>
@@ -366,7 +366,7 @@
       </div>
 
       <h3 style="margin-top:var(--space-7)">Role tokens — what components actually reference</h3>
-      <p class="ds-desc">A panel component never names a size directly; it names a <em>role</em>, and the role points at a step in the scale above. Change what a section title weighs in one place and every tool follows. This indirection is why the whole panel runs on just two pairs — 10/400 and 9/400 (9/300 in the design, until the typeface lost its Light). Values below are read live from the stylesheet.</p>
+      <p class="ds-desc">A panel component never names a size directly; it names a <em>role</em>, and the role points at a step in the scale above. Change what a section title weighs in one place and every tool follows. This indirection is why the whole panel runs on just two pairs — 10/400 and 9/400. Values below are read live from the stylesheet.</p>
       <div class="ds-example ds-example--column">
         <div class="ds-type-row"><span class="ds-type-tag">--t-section-size · --t-section-weight</span><span class="ds-type-sample">Section title — <code data-token="--t-section-size"></code> / <code data-token="--t-section-weight"></code></span></div>
         <div class="ds-type-row"><span class="ds-type-tag">--t-sublabel-size · --t-sublabel-weight</span><span class="ds-type-sample">Sub-label — <code data-token="--t-sublabel-size"></code> / <code data-token="--t-sublabel-weight"></code></span></div>
@@ -374,6 +374,26 @@
         <div class="ds-type-row"><span class="ds-type-tag">--t-value-size · --t-value-weight</span><span class="ds-type-sample">Row value — <code data-token="--t-value-size"></code> / <code data-token="--t-value-weight"></code></span></div>
         <div class="ds-type-row"><span class="ds-type-tag">--t-control-size · --t-control-weight</span><span class="ds-type-sample">Control text — <code data-token="--t-control-size"></code> / <code data-token="--t-control-weight"></code></span></div>
       </div>
+
+      <h3 style="margin-top:var(--space-7)">Numbers, header, measure — and the accessibility rules</h3>
+      <p class="ds-desc">The typeface's default figures are <strong>proportional</strong> — a "1" is about two-thirds the width of an "8" — so a live number makes its neighbours jitter. The numeric role fixes that: <code>font-variant-numeric: var(--t-num-variant)</code> (tabular-nums) plus <code>--t-num-ls</code> tracking, applied with <code>.org-num</code> to every readout, value, hex field and counter. <code>.org-truncate</code> is the one ellipsis rule (one line, <code>min-width: 0</code>; always give it a <code>title</code> with the full text).</p>
+      <div class="ds-example ds-example--column">
+        <div class="ds-type-row"><span class="ds-type-tag">.org-num</span><span class="ds-type-sample"><span class="org-num">1111 · 8888 · 0.25 → 0.75</span> — tabular (columns line up)&nbsp;&nbsp;<span>1111 · 8888 — proportional</span></span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--t-num-variant · --t-num-ls</span><span class="ds-type-sample"><code data-token="--t-num-variant"></code> · <code data-token="--t-num-ls"></code></span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--t-header-logo-size · --t-header-logo-weight</span><span class="ds-type-sample">Header logo — <code data-token="--t-header-logo-size"></code> / <code data-token="--t-header-logo-weight"></code></span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--t-header-action-size · --t-header-action-weight</span><span class="ds-type-sample">Header action — <code data-token="--t-header-action-size"></code> / <code data-token="--t-header-action-weight"></code></span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--measure</span><span class="ds-type-sample"><code data-token="--measure"></code> — longest comfortable line of running text (WCAG 1.4.8 caps at 80)</span></div>
+      </div>
+      <table class="ds-table" style="margin-top:var(--space-4)">
+        <tr><th>Rule</th><th>Why</th></tr>
+        <tr><td>Emphasis is weight, never slant: <code>strong</code> 600, <code>em</code> 500, <code>font-synthesis: none</code></td><td>No italic exists; a faked oblique distorts a geometric sans and is harder to read</td></tr>
+        <tr><td>No Light weight; 9px is the floor and only for labels</td><td>Thin strokes at 9px in grey fail in practice even when the contrast ratio passes; running text is never below 11px</td></tr>
+        <tr><td>Reading pages default to 14px, 1.7 line, ≤ 66ch</td><td>WCAG 1.4.12 (line height ≥ 1.5) and 1.4.8 (≤ 80 characters); 12px only via <code>.org-prose--compact</code></td></tr>
+        <tr><td>Headings <code>text-wrap: balance</code>, body <code>pretty</code></td><td>No one-word last lines, no lopsided titles</td></tr>
+        <tr><td>Uppercase implies <code>--ls-wider</code> or wider, never below <code>--fs-small</code>, never for a sentence</td><td>Caps lose their word shapes; tracking restores legibility</td></tr>
+        <tr><td>Text colour: <code>--ink</code> 19.8:1, <code>--accent</code> 14.4:1, <code>--mid</code> 6.0:1 on white (5.0:1 on <code>--panel</code>) all pass AA. <code>--accent-warm</code> is <strong>a non-text accent</strong> (bars, borders, fills, progress): as text it is only 4.6:1 on white, 3.8:1 on <code>--panel</code> and 2.7:1 on a dark overlay. Text that must stand out uses <code>--ink</code> or <code>--paper</code>, with the accent beside it</td><td>WCAG 1.4.3 needs 4.5:1 for text under 24px</td></tr>
+        <tr><td>Never convey meaning by colour alone; every ellipsis carries a <code>title</code></td><td>WCAG 1.4.1</td></tr>
+      </table>
 
       <h3 style="margin-top:var(--space-7)">Line height &amp; letter spacing</h3>
       <p class="ds-desc">Line heights are unitless so they scale with the element's own size. <code>--ls-normal</code> is <code>0</code> and is written explicitly rather than omitted — <code>panel.css</code> uses it 11 times, because "no tracking" is a decision the panel makes deliberately against a house voice that is otherwise tracked.</p>
@@ -436,7 +456,7 @@
 
     <section class="ds-entry" id="prose">
       <h2>Prose</h2>
-      <p class="ds-desc">Bare <code>h1–h6</code>, <code>p</code>, lists, links, <code>strong</code>, <code>code</code> and tables inside <code>.org-prose</code>, styled from the editorial roles above — so a page that reads (legal, docs, long-form copy) writes plain semantic HTML and never hand-rolls a heading scale. Used by <code>/privacy</code> and <code>/terms</code>. Not for tool panels (panel roles) or dense data pages like <code>/admin</code> (role tokens directly). Optional classes: <code>.org-prose__lead</code>, <code>__small</code>, <code>__caption</code>, <code>__meta</code>.</p>
+      <p class="ds-desc">Bare <code>h1–h6</code>, <code>p</code>, lists, links, <code>strong</code>, <code>code</code> and tables inside <code>.org-prose</code>, styled from the editorial roles above — so a page that reads (legal, docs, long-form copy) writes plain semantic HTML and never hand-rolls a heading scale. Used by <code>/privacy</code> and <code>/terms</code>. Not for tool panels (panel roles) or dense data pages like <code>/admin</code> (role tokens directly). Reading pages default to 14px; <code>.org-prose--compact</code> drops to body/md (12px). Emphasis is weight (no italic exists). Optional classes: <code>.org-prose__lead</code>, <code>__small</code>, <code>__caption</code>, <code>__meta</code>.</p>
       <div class="ds-usage"><strong>Defined in</strong><span>shared/prose.css</span><strong>Used in</strong><span>privacy, terms</span></div>
       <div class="ds-example ds-example--column">
         <div class="org-prose">
@@ -444,7 +464,7 @@
           <p class="org-prose__meta">Last updated 29 September 2026 · caption role</p>
           <p class="org-prose__lead">A lead paragraph sits at body/lg — it introduces a page before the body text starts.</p>
           <h2>Section, H2</h2>
-          <p>Body text is body/md: 12px on a 1.7 line, with <strong>semibold emphasis</strong>, an <a href="#prose">underlined link</a> and <code>tabular code</code> in the same typeface.</p>
+          <p>Body text is body/lg: 14px on a 1.7 line, capped at 66ch, with <strong>semibold emphasis</strong>, an <a href="#prose">underlined link</a> and <code>tabular code</code> in the same typeface.</p>
           <h3>Subsection, H3</h3>
           <ul><li>Lists take the same size and rhythm.</li><li>Markers and indents come from spacing tokens.</li></ul>
           <h6>Overline · H6</h6>
@@ -1298,7 +1318,7 @@ document.querySelectorAll('#slider input[type=range]').forEach(r => {
       if (!/radial-gradient/.test(c.backgroundImage) || c.backgroundColor !== 'rgb(255, 255, 255)') bad('#ds-canvas-demo { background } — documented as var(--canvas-grid), var(--canvas-bg)');
     }
     const fam = getComputedStyle(document.body).fontFamily.split(',')[0].replace(/["']/g, '').trim();
-    if (fam !== 'Wix Madefor Display') bad('body font is ' + fam + ' — documented as Wix Madefor Display via --font');
+    if (fam !== 'Space Grotesk') bad('body font is ' + fam + ' — documented as Space Grotesk via --font');
   }
 
   /* banner ----------------------------------------------------------- */

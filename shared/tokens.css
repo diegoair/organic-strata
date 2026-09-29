@@ -38,10 +38,21 @@
   font-style: normal;
 }
 
-/* The interface typeface since Sep 29, 2026 — Wix Madefor Display, SIL OFL 1.1
-   (shared/vendor/wix-madefor-display-OFL.txt), self-hosted like Manrope. Variable wght 400–800:
-   there is no 300, so --w-light renders as 400. Manrope stays loaded — it's the fallback in --font
-   and the text seeds read its file (opentype.js). */
+/* The interface typeface since Sep 29, 2026 — Space Grotesk, SIL OFL 1.1 (shared/vendor/space-grotesk-OFL.txt),
+   self-hosted, variable wght 300–700 (the system uses 400–700). No italic, no slashed zero. Wix Madefor Display
+   (interface face earlier that day) stays loaded below as the fallback, then Manrope. */
+@font-face {
+  font-family: 'Space Grotesk';
+  src: url('/shared/vendor/space-grotesk-variable.ttf') format('truetype-variations'),
+       url('/shared/vendor/space-grotesk-variable.ttf') format('truetype');
+  font-weight: 300 700;
+  font-display: swap;
+  font-style: normal;
+}
+
+/* Fallback #1 — Wix Madefor Display (the interface face earlier on Sep 29, 2026), SIL OFL 1.1
+   (shared/vendor/wix-madefor-display-OFL.txt), self-hosted like Manrope. Manrope stays loaded — the last
+   fallback in --font, and the text seeds read its file (opentype.js). */
 @font-face {
   font-family: 'Wix Madefor Display';
   src: url('/shared/vendor/wix-madefor-display-variable.ttf') format('truetype-variations'),
@@ -68,6 +79,10 @@ input, select, button, textarea, code, pre, kbd, samp {
    can't resurface. */
 html {
   font-family: var(--font);
+  /* Never fake bold/italic: the typeface has no italic, and a skewed geometric
+     sans is worse to read than an upright one. Emphasis is weight (see .org-prose
+     em/strong), never slant. Real weights inside the variable axis are unaffected. */
+  font-synthesis: none;
 }
 
 :root {
@@ -75,10 +90,10 @@ html {
      One family. --font is the only name; the old --sans / --mono /
      --display aliases are kept at the bottom of this file so existing
      rules keep working, but new code should use --font. */
-  --font: 'Wix Madefor Display', 'Manrope', ui-sans-serif, system-ui, sans-serif;   /* was Manrope until Sep 29, 2026 */
+  --font: 'Space Grotesk', 'Wix Madefor Display', 'Manrope', ui-sans-serif, system-ui, sans-serif;   /* was Manrope until Sep 29, 2026 */
 
   /* ── WEIGHTS ─────────────────────────────────────────────
-     Wix Madefor Display's axis runs 400–800. Organica uses four stops;
+     Space Grotesk's axis runs 300–700; the system uses 400–700. Organica uses four stops;
      anything between them is available but undefined by the system, so
      don't reach for it without adding it here first.
 
@@ -89,18 +104,14 @@ html {
   --w-medium:   500;   /* Medium    — emphasis, primary action, H4/H5       */
   --w-semibold: 600;   /* SemiBold  — H2/H3, <strong>                       */
   --w-bold:     700;   /* Bold      — H1, display, wordmark, overline       */
-  /* --w-light (300) is DEPRECATED: the typeface has no 300, so it always
-     rendered 400. Kept as an alias of regular so its consumers resolve
-     unchanged; new code uses --w-regular. Removed once the panel roles
-     below stop referencing it. */
-  --w-light:    var(--w-regular);
+
 
   /* ── PANEL TYPE ROLES ────────────────────────────────────
      The five roles the control panel is built from. Named by ROLE, not by
      size, so a component never hardcodes a value and Figma can mirror the
      same five text styles one-for-one.
 
-     The panel runs on TWO type styles — 10/400 and 9/300. Hierarchy is
+     The panel runs on TWO type styles — 10/400 and 9/400 (same weight; the size step plus colour carries hierarchy). No Light: thin strokes at 9px in --mid grey are the wrong trade for legibility. Hierarchy is
      carried by COLOUR, not by size: --ink for section titles, --accent for
      labels and controls, --mid for sub-labels and values. That is the Figma
      Design-panel model taken to its conclusion.
@@ -108,11 +119,11 @@ html {
   --t-section-size:    var(--fs-small);   /* 10px */
   --t-section-weight:  var(--w-regular);  /* 400  Manrope Regular */
   --t-sublabel-size:   var(--fs-micro);   /*  9px */
-  --t-sublabel-weight: var(--w-light);    /* 300  Manrope Light   */
+  --t-sublabel-weight: var(--w-regular);  /* 400 */
   --t-label-size:      var(--fs-micro);   /*  9px */
-  --t-label-weight:    var(--w-light);    /* 300  Manrope Light   */
+  --t-label-weight:    var(--w-regular);  /* 400 */
   --t-value-size:      var(--fs-micro);   /*  9px */
-  --t-value-weight:    var(--w-light);    /* 300  Manrope Light   */
+  --t-value-weight:    var(--w-regular);  /* 400 */
   /* Interactive control text (segmented buttons, selects, inputs). Same
      size and weight as a section title — the two are told apart by colour
      (section is --ink, control is --accent) and by position, not by type.
@@ -173,6 +184,27 @@ html {
   --t-caption-size:    var(--fs-small);   /* hints, help */
   --t-caption-weight:  var(--w-regular);
   --t-caption-lh:      var(--lh-snug);
+
+  /* ── NUMERIC ROLE ────────────────────────────────────────
+     Live readouts, values, hex, counters. The typeface's default figures
+     are proportional (a "1" is ~2/3 the width of an "8"), so a changing
+     number makes its neighbours jitter. Tabular figures + a little tracking.
+     Apply with .org-num (panel.css) or font-variant-numeric: var(--t-num-variant). */
+  --t-num-variant:     tabular-nums;
+  --t-num-ls:          var(--ls-wide);
+
+  /* ── HEADER ROLES ────────────────────────────────────────
+     The bar's own type — sentence case since Sep 29, 2026. */
+  --t-header-logo-size:   var(--fs-large);
+  --t-header-logo-weight: var(--w-bold);     /* the tool name; the "/ Section" stays regular */
+  --t-header-action-size: var(--fs-small);
+  --t-header-action-weight: var(--w-medium);
+
+  /* ── READING MEASURE ─────────────────────────────────────
+     Longest comfortable line for running text. WCAG 1.4.8 caps it at 80
+     characters; 66ch is the classic sweet spot. ch tracks the font, so it
+     stays right if the typeface changes. */
+  --measure: 66ch;
 
   /* ── TYPE SCALE ──────────────────────────────────────────
      A 1.2 (minor third) ratio anchored at 11px, the size the tool

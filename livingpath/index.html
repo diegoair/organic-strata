@@ -6,7 +6,7 @@
 <title>Living Path · Organica</title>
 <!-- opentype.js — read OTF/TTF glyph outlines in the browser -->
 <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
-<link rel="preload" href="/shared/vendor/wix-madefor-display-variable.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/header.css">
   <link rel="stylesheet" href="/shared/panel.css">
@@ -54,7 +54,7 @@
   .fx-cat-head{
     display:flex; align-items:center; gap:var(--space-2); width:100%;
     padding:var(--space-2) var(--space-2); background:none; border:none;
-    font-family:var(--font); font-size:var(--fs-small); font-weight:600;
+    font-family:var(--font); font-size:var(--fs-small); font-weight:var(--w-semibold);
     letter-spacing:.08em; text-transform:uppercase; color:var(--mid);
     cursor:pointer; border-bottom:1px solid var(--border);
   }
@@ -63,7 +63,7 @@
   .fx-cat.is-open .fx-cat-chev{transform:rotate(90deg)}
   .fx-cat-label{flex:1; text-align:left}
   .fx-cat-count{
-    font-size:var(--fs-small); font-weight:600; letter-spacing:0;
+    font-size:var(--fs-small); font-weight:var(--w-semibold); letter-spacing:0;
     color:var(--paper); background:var(--tool);
     min-width:1.4em; text-align:center; padding:0 var(--space-1);
     border-radius:var(--radius-sm);
@@ -73,7 +73,7 @@
      (Distort/Deform/Break) halves of the stack; the first divider (before
      Raster) has no top margin so it doesn't add a gap under "Effect stack" */
   .fx-engine-div{
-    font-size:var(--fs-micro); font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    font-size:var(--fs-micro); font-weight:var(--w-semibold); letter-spacing:.14em; text-transform:uppercase;
     color:var(--tool); margin:var(--space-4) 0 var(--space-2); padding-top:var(--space-3);
     border-top:1px solid var(--border);
   }
@@ -90,7 +90,7 @@
   .layer-head:active{cursor:grabbing}
   .layer--fixed .layer-head{cursor:default}
   .layer-head .drag{color:var(--mid); font-size:var(--fs-medium); letter-spacing:-2px}
-  .layer-head b{flex:1; font-size:var(--fs-base); font-weight:500; letter-spacing:.04em}
+  .layer-head b{flex:1; font-size:var(--fs-base); font-weight:var(--w-medium); letter-spacing:.04em}
   .layer-body{padding:var(--space-1) var(--space-4) 10px}
   /* The presets picker (.presets/.preset-trigger/.pt-ico/.pi-ico/.pt-name/
      .pt-chev/.preset-menu/.preset-item/.pi-name) is shared/panel.css. */

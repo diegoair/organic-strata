@@ -949,3 +949,15 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
   outline: 1px solid var(--border);
   outline-offset: -1px;
 }
+
+
+/* ═══════════════════════════════════════════════════════════
+   Text utilities (typography foundation, Sep 29, 2026)
+   .org-num      — the numeric role: tabular figures + --t-num-ls. Use on any
+                   live readout so digits don't jitter as they change.
+   .org-truncate — one line, ellipsis. Needs a width from its container
+                   (flex child: it sets min-width:0). Pair with a title="…"
+                   carrying the full text so nothing is lost to the ellipsis.
+   ═══════════════════════════════════════════════════════════ */
+.org-num { font-variant-numeric: var(--t-num-variant); letter-spacing: var(--t-num-ls); }
+.org-truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

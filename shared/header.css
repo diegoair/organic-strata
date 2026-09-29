@@ -92,7 +92,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-3);
-  font-size: var(--fs-large);
+  font-size: var(--t-header-logo-size);
   letter-spacing: var(--ls-normal);       /* sentence case now — the caps tracking went with the caps */
   color: var(--mid);
   text-decoration: none;
@@ -105,7 +105,7 @@
   padding: 0 var(--space-1);
   margin-left: calc(var(--space-1) * -1);
 }
-.org-header__logo b { font-weight: var(--w-bold); color: var(--ink); }
+.org-header__logo b { font-weight: var(--t-header-logo-weight); color: var(--ink); }
 /* The logo. A placeholder until the real mark is supplied — swap this one rule
    (or drop an <svg> inside .org-header__mark and delete the background). */
 .org-header__mark {

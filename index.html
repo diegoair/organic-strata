@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Organica</title>
-  <link rel="preload" href="/shared/vendor/wix-madefor-display-variable.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="/shared/tokens.css">
   <link rel="stylesheet" href="/shared/header.css">
   <link rel="stylesheet" href="/shared/mobile-gate.css">
@@ -69,8 +69,8 @@
     }
 
     .group-label {
-      font-size: 0.62rem;
-      font-weight: 500;
+      font-size: var(--fs-small);
+      font-weight: var(--w-medium);
       letter-spacing: 0.04em;
       color: var(--ink-dim);
       opacity: 0.65;
@@ -81,8 +81,8 @@
       display: inline-block;
       width: fit-content;
       text-decoration: none;
-      font-size: 0.8rem;
-      font-weight: 600;
+      font-size: var(--fs-medium);
+      font-weight: var(--w-semibold);
       letter-spacing: 0.01em;
       color: var(--ink-dim);
       transition: color 0.2s ease;
@@ -307,7 +307,7 @@
       border-radius: var(--radius-lg);
       background: #fff;
       font-size: var(--fs-micro);
-      font-weight: 600;
+      font-weight: var(--w-semibold);
       letter-spacing: 0.02em;
       color: var(--tag-color, var(--tool-color));
       pointer-events: none;
@@ -315,8 +315,8 @@
 
     .bento-link {
       align-self: center;
-      font-size: 0.7rem;
-      font-weight: 600;
+      font-size: var(--fs-base);
+      font-weight: var(--w-semibold);
       letter-spacing: 0.04em;
       color: var(--ink-dim);
       text-decoration: none;
@@ -404,8 +404,8 @@
     }
 
     .meta__link, .meta__c, .meta__sep {
-      font-size: 0.6rem;
-      font-weight: 600;
+      font-size: var(--fs-small);
+      font-weight: var(--w-semibold);
       letter-spacing: 0.08em;
       color: var(--ink-dim);
     }

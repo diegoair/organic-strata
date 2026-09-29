@@ -6,7 +6,7 @@
 <title>Apostate · Organica</title>
 <!-- opentype.js — read/write OTF glyph outlines in the browser -->
 <script src="/shared/vendor/opentype.min.js"></script>
-<link rel="preload" href="/shared/vendor/wix-madefor-display-variable.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
@@ -132,7 +132,7 @@ body {
   display: flex; align-items: center; justify-content: space-between; width: 100%;
   background: none; border: none; padding: 0; cursor: pointer;
   font: inherit; color: var(--ink); text-transform: uppercase; letter-spacing: .06em;
-  font-size: var(--fs-small); font-weight: 600; margin-bottom: var(--space-3);
+  font-size: var(--fs-small); font-weight: var(--w-semibold); margin-bottom: var(--space-3);
 }
 .fx-cat-head .chev { transition: transform .15s; }
 .fx-cat-head.collapsed .chev { transform: rotate(-90deg); }
@@ -154,7 +154,7 @@ body {
    dropdown Living Path/Sinew/Camo Turing use. .pc-hint is local: a short
    one-line description under each preset's name in the menu — the shared
    component has no such row (its own consumers just show a name). */
-.pc-hint { display: block; font-size: var(--fs-micro); color: var(--mid); font-weight: 400; }
+.pc-hint { display: block; font-size: var(--fs-micro); color: var(--mid); font-weight: var(--w-regular); }
 </style>
 <script src="/shared/pattern-init.js"></script>
 </head>
