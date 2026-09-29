@@ -338,8 +338,9 @@ input[type=range]:focus-visible::-moz-range-track {
    Checkbox  (default)   .check-row / .org-check / .ctrl-row > input
    Switch    .check-row.org-switch — label left, switch right (the Liquid
              toggle, below)
-   A checked checkbox takes --tool (the tool's own identity colour, --ink if
-   it declares none) with a --paper tick; the switch is black and white.
+   Both are black and white and share one colour definition (--track-bg
+   off, --ink on) and one set of springs: the switch's droplet travels, the
+   checkbox's tick springs in. No hue — neither takes --tool any more.
 
    The switch's pill (track and droplet) is a stadium shape — radius = half
    the height — the documented exception to the radius scale, so it is
@@ -353,22 +354,37 @@ input[type=range]:focus-visible::-moz-range-track {
   box-sizing: border-box;
   width: var(--chk-size); height: var(--chk-size);
   margin: 0;
-  border: 1px solid var(--border-strong);
+  border: 0;
   border-radius: var(--radius-sm);
-  background: var(--paper);
+  /* the SWITCH's own definition: --track-bg off (the slider's well), --ink
+     on, no border, the colour easing 320ms — the checkbox is the same
+     object, smaller (Sep 29, 2026; it used to be a --border-strong box that
+     took --tool). */
+  background: var(--track-bg);
   cursor: pointer;
-  transition: background-color .15s, border-color .15s;
+  transform: scale(var(--hw, 1));      /* the hover swell (Organica.liquidCheck) */
+  transition: background-color 320ms ease;
 }
-:is(.check-row, .org-check) input[type=checkbox]:hover,
-.ctrl-row > input[type=checkbox]:hover { border-color: var(--ink); }
 :is(.check-row, .org-check) input[type=checkbox]:checked,
-.ctrl-row > input[type=checkbox]:checked {
-  background: var(--tool, var(--ink));
-  border-color: var(--tool, var(--ink));
-}
-/* the tick: an L rotated 45deg, sized from the box */
-:is(.check-row, .org-check) input[type=checkbox]:checked::after,
-.ctrl-row > input[type=checkbox]:checked::after {
+.ctrl-row > input[type=checkbox]:checked { background: var(--ink); }
+/* HOVER (Sep 29, 2026): the surface answers before you click — one step
+   darker on the grey scale (--gray-200 off, --gray-900 on) — the box swells
+   (1.1) and an unchecked box previews its tick. The whole row counts as
+   hovered, because the label is the click target. */
+.check-row:hover input[type=checkbox]:not(:checked):not(:disabled),
+.org-check:hover input[type=checkbox]:not(:checked):not(:disabled),
+.ctrl-row > input[type=checkbox]:not(:checked):not(:disabled):hover { background: var(--gray-200); }
+.check-row:hover input[type=checkbox]:checked:not(:disabled),
+.org-check:hover input[type=checkbox]:checked:not(:disabled),
+.ctrl-row > input[type=checkbox]:checked:not(:disabled):hover { background: var(--gray-900); }
+/* The tick: an L rotated 45deg, sized from the box, and ALWAYS present —
+   its scale is the spring's (Organica.liquidCheck, core.js), the same three
+   springs as the switch's droplet: --cx is how far it has sprung in (0..1,
+   with overshoot), --csx/--csy its squash-and-stretch, area kept, along its
+   own long axis. With none set it is a plain two-state box: --cx falls back
+   to 0 / 1 from :checked. */
+:is(.check-row, .org-check) input[type=checkbox]::after,
+.ctrl-row > input[type=checkbox]::after {
   content: '';
   position: absolute;
   left: 50%; top: 46%;
@@ -376,12 +392,33 @@ input[type=range]:focus-visible::-moz-range-track {
   height: calc(var(--chk-size) * 0.55);
   border: solid var(--paper);
   border-width: 0 2px 2px 0;
-  transform: translate(-50%, -50%) rotate(45deg);
+  transform: translate(-50%, -50%) rotate(45deg)
+             scale(calc(var(--cx, 0) * var(--csx, 1)), calc(var(--cx, 0) * var(--csy, 1)));
+}
+:is(.check-row, .org-check) input[type=checkbox]:checked::after,
+.ctrl-row > input[type=checkbox]:checked::after {
+  transform: translate(-50%, -50%) rotate(45deg)
+             scale(calc(var(--cx, 1) * var(--csx, 1)), calc(var(--cx, 1) * var(--csy, 1)));
 }
 :is(.check-row, .org-check) input[type=checkbox]:focus-visible,
 .ctrl-row > input[type=checkbox]:focus-visible { outline: 1px solid var(--tool, var(--ink)); outline-offset: 2px; }
+/* DISABLED — not a 35% ghost. Fading --track-bg to 35% left an unchecked box
+   a near-invisible pale square; it is drawn instead, from the grey scale: the
+   unchecked box is --gray-100 with a hairline ring (--border) so its shape
+   survives on a white panel, the checked one is a flat --gray-400 with the
+   --paper tick, so "on but unavailable" still reads. Nothing springs, swells
+   or darkens on hover (those rules exclude :disabled). */
 :is(.check-row, .org-check) input[type=checkbox]:disabled,
-.ctrl-row > input[type=checkbox]:disabled { opacity: 0.35; cursor: not-allowed; }
+.ctrl-row > input[type=checkbox]:disabled {
+  background: var(--gray-100);
+  box-shadow: inset 0 0 0 1px var(--border);
+  cursor: not-allowed;
+}
+:is(.check-row, .org-check) input[type=checkbox]:disabled:checked,
+.ctrl-row > input[type=checkbox]:disabled:checked {
+  background: var(--gray-400);
+  box-shadow: none;
+}
 
 /* ═══════════════════════════════════════════════════════════
    SWITCH — the Liquid toggle (Sep 29, 2026, after Bencho's, MIT). Label
@@ -426,8 +463,10 @@ input[type=range]:focus-visible::-moz-range-track {
   touch-action: none;
   transition: background-color 320ms ease;
 }
-.check-row.org-switch input[type=checkbox]:hover { border-color: transparent; }
 .check-row.org-switch input[type=checkbox]:checked { background: var(--ink); border-color: transparent; }
+/* hover, as the checkbox: one step darker on the grey scale, and the droplet swells */
+.check-row.org-switch:hover input[type=checkbox]:not(:checked):not(:disabled) { background: var(--gray-200); }
+.check-row.org-switch:hover input[type=checkbox]:checked:not(:disabled) { background: var(--gray-900); }
 .check-row.org-switch input[type=checkbox]::after,
 .check-row.org-switch input[type=checkbox]:checked::after {
   content: '';
@@ -450,6 +489,15 @@ input[type=range]:focus-visible::-moz-range-track {
 .check-row.org-switch input[type=checkbox]:checked::after {
   background: var(--paper);
   transform: translateX(calc(var(--lx, 1) * var(--sw-travel))) scale(var(--lsx, 1), var(--lsy, 1));
+}
+/* disabled switch: the same flat grey track as the checkbox (its own colour
+   rules outrank the shared disabled ones, so it restates them), and a droplet
+   with no glow */
+.check-row.org-switch input[type=checkbox]:disabled { background: var(--gray-100); box-shadow: inset 0 0 0 1px var(--border); }
+.check-row.org-switch input[type=checkbox]:disabled:checked { background: var(--gray-400); box-shadow: none; }
+.check-row.org-switch input[type=checkbox]:disabled::after {
+  border-color: var(--border);
+  box-shadow: none;
 }
 @media (prefers-reduced-motion: reduce) {
   :is(.check-row, .org-check) input[type=checkbox],

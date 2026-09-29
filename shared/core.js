@@ -1099,7 +1099,7 @@
   //   · the droplet's position, released onto its target;
   //   · a second, softer spring FOLLOWING the droplet's velocity, so the
   //     stretch eases in and out instead of flickering with every frame;
-  //   · a hover swell (1.035) about the droplet's own centre.
+  //   · a hover swell (LIQUID_HOVER) about the droplet's own centre.
   // The stretch is 1 + min(.4, |v|/600)·stretch, area-kept (scaleY = 1/scaleX).
   // The divisor is the whole tuning: the thumb's peak speed on Bencho's
   // 46px crossing is ~150px/s, so /1400 peaked at 1.039 — present and
@@ -1111,6 +1111,12 @@
   // A press that never travelled is a click and the native input handles
   // it. Tunables: data-speed (0–100, default 66) and data-stretch (0–100,
   // default 60) — the values of the saved Bencho configuration.
+  /* How far the thing under the pointer swells. Bencho's was 1.035, which on a
+     14–20px control is under a pixel — present and invisible — so it is 1.1
+     here, and the hover also darkens the surface (panel.css) and previews the
+     tick; the whole label row counts as hovering because the label is the
+     click target. */
+  const LIQUID_HOVER = 1.1;
   Organica.liquidSwitch = function (input) {
     if (input.__liquid) return input.__liquid;
     const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -1134,7 +1140,7 @@
       input.style.setProperty('--lsy', (sw / len).toFixed(4));
     };
     const rest = () => !held && Math.abs(target - f) < 0.0005 && Math.abs(v) < 0.001 &&
-      Math.abs(ev) < 0.001 && Math.abs(ew) < 0.001 && Math.abs(sw - (hot ? 1.035 : 1)) < 0.0005 && Math.abs(swv) < 0.001;
+      Math.abs(ev) < 0.001 && Math.abs(ew) < 0.001 && Math.abs(sw - (hot ? LIQUID_HOVER : 1)) < 0.0005 && Math.abs(swv) < 0.001;
 
     const tick = t => {
       const dt = prev ? clamp((t - prev) / 1000, 0, 0.032) : 0.016;
@@ -1147,12 +1153,14 @@
       const vel = (f - f0) / dt;                       // fractions / s, either driver
       const ea = (320 * (vel - ev) - 40 * ew) / 0.6;   // the velocity-following spring
       ew += ea * dt; ev += ew * dt;
-      const sa = (520 * ((hot ? 1.035 : 1) - sw) - 34 * swv) / 0.6;
+      const sa = (520 * ((hot ? LIQUID_HOVER : 1) - sw) - 34 * swv) / 0.6;
       swv += sa * dt; sw += swv * dt;
       paint();
       if (rest()) {
-        f = target; v = ev = ew = 0; sw = hot ? 1.035 : 1; swv = 0;
-        input.style.removeProperty('--lsx'); input.style.removeProperty('--lsy');
+        f = target; v = ev = ew = 0; sw = hot ? LIQUID_HOVER : 1; swv = 0;
+        if (hot) {                       // resting under the pointer: the swell stays
+          input.style.setProperty('--lsx', sw.toFixed(4)); input.style.setProperty('--lsy', sw.toFixed(4));
+        } else { input.style.removeProperty('--lsx'); input.style.removeProperty('--lsy'); }
         input.style.setProperty('--lx', f.toFixed(4));
         raf = 0; prev = 0; return;
       }
@@ -1166,8 +1174,9 @@
     };
 
     input.addEventListener('change', () => { if (!held) retarget(); });
-    input.addEventListener('pointerenter', () => { hot = true; if (!reduced()) run(); });
-    input.addEventListener('pointerleave', () => { hot = false; if (!reduced()) run(); });
+    const host = input.closest('.check-row, .org-check') || input;   // the label is the click target: hovering it counts
+    host.addEventListener('pointerenter', () => { if (input.disabled) return; hot = true; if (!reduced()) run(); });
+    host.addEventListener('pointerleave', () => { hot = false; if (!reduced()) run(); });
 
     // ── drag ──
     const geom = () => {
@@ -1225,6 +1234,77 @@
     return api;
   };
 
+  // ── Liquid checkbox (every non-switch checkbox) ────────────────
+  // The switch's springs applied to the checkbox's tick (Diego: "apply the
+  // same animation to the checkbox, same style definition"). The tick is the
+  // only thing that moves, so it is the droplet: position p goes 0 → 1 on the
+  // SAME spring (170·speed, 21.5, 0.9), a second softer spring follows its
+  // velocity for the stretch, a third is the hover swell. Written as three
+  // custom properties on the real checkbox — --cx (how far sprung in, with
+  // overshoot), --csx / --csy (squash and stretch, area kept, along the
+  // tick's own long axis) — which panel.css turns into the tick's scale.
+  // No drag: a checkbox has no travel. data-speed / data-stretch as the switch.
+  Organica.liquidCheck = function (input) {
+    if (input.__liquid) return input.__liquid;
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+    const speed = input.dataset.speed !== undefined ? +input.dataset.speed : 66;
+    const stretch = input.dataset.stretch !== undefined ? +input.dataset.stretch : 60;
+    const reduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const K = 170 - (50 - speed) * 1.1, C = 21.5, M = 0.9, CROSSING = 46;
+
+    let p = input.checked ? 1 : 0, v = 0, target = p, ev = 0, ew = 0, sw = 1, swv = 0, hot = false, raf = 0, prev = 0;
+    const PREVIEW = 0.4;             // hovering an unchecked box springs the tick 40% of the way in
+    const paint = () => {
+      const len = 1 + Math.min(0.4, Math.abs(ev * CROSSING) / 600) * (clamp(stretch, 0, 100) / 100);
+      input.style.setProperty('--hw', sw.toFixed(4));            // the box's own swell
+      input.style.setProperty('--cx', Math.max(0, p).toFixed(4));
+      input.style.setProperty('--csx', (sw / len).toFixed(4));
+      input.style.setProperty('--csy', (sw * len).toFixed(4));
+    };
+    const rest = () => Math.abs(target - p) < 0.0005 && Math.abs(v) < 0.001 && Math.abs(ev) < 0.001 &&
+      Math.abs(ew) < 0.001 && Math.abs(sw - (hot ? LIQUID_HOVER : 1)) < 0.0005 && Math.abs(swv) < 0.001;
+    const tick = t => {
+      const dt = prev ? clamp((t - prev) / 1000, 0, 0.032) : 0.016;
+      prev = t;
+      const p0 = p;
+      const a = (K * (target - p) - C * v) / M;
+      v += a * dt; p += v * dt;
+      const vel = (p - p0) / dt;
+      ew += ((320 * (vel - ev) - 40 * ew) / 0.6) * dt; ev += ew * dt;
+      swv += ((520 * ((hot ? LIQUID_HOVER : 1) - sw) - 34 * swv) / 0.6) * dt; sw += swv * dt;
+      paint();
+      if (rest()) {
+        p = target; v = ev = ew = 0; sw = hot ? LIQUID_HOVER : 1; swv = 0;
+        input.style.removeProperty('--csx'); input.style.removeProperty('--csy');
+        input.style.setProperty('--cx', p.toFixed(4));
+        raf = 0; prev = 0; return;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    const run = () => { if (!raf) raf = requestAnimationFrame(tick); };
+    const retarget = () => {
+      target = input.checked ? 1 : (hot && !input.disabled ? PREVIEW : 0);
+      if (reduced()) { p = input.checked ? 1 : 0; v = 0; paint(); input.style.removeProperty('--csx'); input.style.removeProperty('--csy'); return; }
+      run();
+    };
+    input.addEventListener('change', retarget);
+    const host = input.closest('.check-row, .org-check') || input;   // the label is the click target: hovering it counts
+    host.addEventListener('pointerenter', () => { if (input.disabled) return; hot = true; retarget(); });
+    host.addEventListener('pointerleave', () => { hot = false; retarget(); });
+    /* a preset doing `checkbox.checked = x` never fires an event: wrap the property */
+    const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'checked');
+    Object.defineProperty(input, 'checked', {
+      configurable: true,
+      get() { return desc.get.call(input); },
+      set(val) { desc.set.call(input, val); retarget(); },
+    });
+    const api = { retarget };
+    input.__liquid = api;
+    input.style.setProperty('--cx', p.toFixed(4));
+    return api;
+  };
+  const CHECK_SEL = '.check-row:not(.org-switch) input[type=checkbox], .org-check input[type=checkbox], .ctrl-row > input[type=checkbox]';
+
   let sliderObserver = null;
   let sliderDelegatesWired = false;
 
@@ -1232,6 +1312,7 @@
     root = root || document;
     root.querySelectorAll('input[type=range]').forEach(organicaWireRange);
     root.querySelectorAll('.check-row.org-switch input[type=checkbox]').forEach(Organica.liquidSwitch);
+    root.querySelectorAll(CHECK_SEL).forEach(el => Organica.liquidCheck(el));
 
     if (!sliderDelegatesWired) {
       sliderDelegatesWired = true;
@@ -1260,6 +1341,8 @@
             if (n.querySelectorAll) n.querySelectorAll('input[type=range]').forEach(organicaWireRange);
             if (n.matches && n.matches('.check-row.org-switch input[type=checkbox]')) Organica.liquidSwitch(n);
             if (n.querySelectorAll) n.querySelectorAll('.check-row.org-switch input[type=checkbox]').forEach(Organica.liquidSwitch);
+            if (n.matches && n.matches(CHECK_SEL)) Organica.liquidCheck(n);
+            if (n.querySelectorAll) n.querySelectorAll(CHECK_SEL).forEach(el => Organica.liquidCheck(el));
           });
         });
       });
