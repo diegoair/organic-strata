@@ -28,8 +28,6 @@ const nodesLayer = document.getElementById('nodes-layer');
 const wireLayerEl = document.getElementById('wire-layer');
 const marqueeEl = document.getElementById('marquee-rect');
 const panelEl = document.getElementById('panel');
-const statusText = document.getElementById('status-text');
-const statusDot = document.getElementById('status-dot');
 
 const model = buildModel({ nodes: [], edges: [] });
 const engine = createEngine();
@@ -41,10 +39,8 @@ const wireLayer = new WireLayer(wireLayerEl, onWireClick);
 let selectedNodeId = null;
 let selection = null;   // set below, after bindSelection
 
-function setStatus(state, msg) {
-  statusDot.className = 'org-header__dot' + (state ? ' ' + state : '');
-  statusText.textContent = msg;
-}
+// Errors and guards show as a notice (shared Organica.notice); everything else is silent.
+const setStatus = Organica.status();
 
 function guessValueType(value) {
   if (typeof value === 'string' && value.trim().startsWith('<svg')) return 'svg';
@@ -124,9 +120,9 @@ async function recomputeNow() {
     }
     updateWires();
     const errCount = [...errors.keys()].length;
-    setStatus(errCount ? '' : 'active', errCount ? `${errCount} node error${errCount === 1 ? '' : 's'}` : `${model.nodes.length} nodes · ${model.edges.length} edges`);
+    setStatus(errCount ? 'error' : 'active', errCount ? `${errCount} node error${errCount === 1 ? '' : 's'}` : `${model.nodes.length} nodes · ${model.edges.length} edges`);
   } catch (e) {
-    setStatus('', e.message);
+    setStatus('error', e.message);
   }
 }
 
@@ -179,17 +175,17 @@ function renderInspectorFor(nodeId) {
     exportActions: node && nodeType.meta.id === 'export' ? {
       png: async () => {
         const cached = engine.cache.get(node.id);
-        if (!cached || !cached.value) { setStatus('', 'Nothing to export yet.'); return; }
+        if (!cached || !cached.value) { setStatus('error', 'Nothing to export yet.'); return; }
         await exportOps.exportPNG(cached.value, parseFloat(node.params.scale || '2'));
       },
       svg: () => {
         const cached = engine.cache.get(node.id);
-        if (!cached || !cached.value) { setStatus('', 'Nothing to export yet.'); return; }
+        if (!cached || !cached.value) { setStatus('error', 'Nothing to export yet.'); return; }
         exportOps.exportSVG(cached.value);
       },
       figma: () => {
         const cached = engine.cache.get(node.id);
-        if (!cached || !cached.value) { setStatus('', 'Nothing to export yet.'); return; }
+        if (!cached || !cached.value) { setStatus('error', 'Nothing to export yet.'); return; }
         exportOps.sendToFigma(cached.value);
       },
     } : null,
@@ -295,7 +291,7 @@ bindPortInteractions({
   },
   zoomPanRef,
   onConnected: () => { updateWires(); recompute(); commitHistory(); },
-  onRejected: (msg) => setStatus('', msg),
+  onRejected: (msg) => setStatus('error', msg),
 });
 
 // ── Delete key — removes the selected node(s) or the selected wire.

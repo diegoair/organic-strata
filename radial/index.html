@@ -42,10 +42,6 @@
 
   <div class="org-header__spacer"></div>
 
-  <output class="org-header__status" aria-live="polite" aria-atomic="true">
-    <span class="org-header__dot" id="status-dot"></span>
-    <span class="org-header__state" id="status-text">Ready</span>
-  </output>
 </header>
 
 <!-- Export lives in the shared bottom-centre floating toolbar
@@ -621,7 +617,7 @@ function savePreset() {
 function confirmSavePreset() {
   const name = ctrl('txt-preset-name').value.trim();
   if (!name) return;
-  if (BUILTIN_PRESETS[name]) { setStatus('', 'That name is a built-in preset — pick another'); return; }
+  if (BUILTIN_PRESETS[name]) { setStatus('error', 'That name is a built-in preset — pick another'); return; }
   const all = userPresets();
   all[name] = readState();
   presetStoreObj().write(all);
@@ -637,7 +633,7 @@ function cancelSavePreset() {
 }
 function deletePreset() {
   if (!currentPresetName) return;
-  if (BUILTIN_PRESETS[currentPresetName]) { setStatus('', 'Built-in presets cannot be deleted'); return; }
+  if (BUILTIN_PRESETS[currentPresetName]) { setStatus('error', 'Built-in presets cannot be deleted'); return; }
   const all = userPresets();
   if (!all[currentPresetName]) return;
   delete all[currentPresetName];

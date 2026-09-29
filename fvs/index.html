@@ -386,10 +386,6 @@
 <header class="org-header org-header--editor" role="banner">
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ FVS</span></a>
   <div class="org-header__spacer"></div>
-  <output class="org-header__status" aria-live="polite" aria-atomic="true">
-    <span class="org-header__dot" id="status-dot"></span>
-    <span class="org-header__state" id="status-text">No components yet</span>
-  </output>
 </header>
 
 <!-- Step nav — 3 propaedeutic tiers, moved out of the header (same move
@@ -6333,7 +6329,7 @@ async function generateSymbolGridInCanvas() {
     ctrl('symgrid-gen-error').style.display = 'none';
     ctrl('symbol-frame').innerHTML = '<p style="color:var(--mid);font-size:var(--fs-small)">No component saved.<br>Build one in the Component tier first.</p>';
     ctrl('symbol-cellcount-hint').textContent = '0 cells';
-    setStatus('', 'No saved Components');
+    setStatus('error', 'No saved Components');
     return;
   }
   try {
@@ -6858,7 +6854,7 @@ function generateSymbolCells() {
   const grid = getSymbolGrid();
   if (!grid) return;
   const pal = poolEntries();
-  if (!pal.length) { setStatus('', 'Add Components to the pool first'); return; }
+  if (!pal.length) { setStatus('error', 'Add Components to the pool first'); return; }
   state.symbolSelection.clear();
   state.symbolCells = arrangeCells(grid, state.symbolCells, pal, ctrl('sel-sym-arrange').value,
     parseInt(ctrl('num-symbol-seed').value, 10) || 0, ctrl('sel-sym-arrange-fit').value);

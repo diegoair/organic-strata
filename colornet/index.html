@@ -100,10 +100,6 @@
 
   <div class="org-header__spacer"></div>
 
-  <output class="org-header__status" aria-live="polite" aria-atomic="true">
-    <span class="org-header__dot" id="status-dot"></span>
-    <span class="org-header__state" id="status-text">Drop an image to begin</span>
-  </output>
 
   <div class="org-header__actions">
     <button class="org-btn" id="btn-open">Open…</button>
@@ -2046,7 +2042,7 @@ function loadImage(input) {
     separate(false);
     URL.revokeObjectURL(url);
   };
-  img.onerror = () => { setStatus('', 'Could not read that image'); URL.revokeObjectURL(url); };
+  img.onerror = () => { setStatus('error', 'Could not read that image'); URL.revokeObjectURL(url); };
   img.src = url;
   input.value = '';
 }
@@ -2235,7 +2231,7 @@ function exportSeparations() {
   const isPrint = printSizePanel.getMode() === 'print';
   const d = isPrint ? printRasterDims() : null;
   const plan = isPrint ? buildPlanPrint(d.trimWpx, d.trimHpx, d.dpi) : buildPlan(exportScale());
-  if (!plan.items.length) { setStatus('', 'No visible channels'); return; }
+  if (!plan.items.length) { setStatus('error', 'No visible channels'); return; }
   // One timestamp for the whole set, so a run's plates sort together —
   // Date.now() per file would give each plate its own stamp.
   const t = Date.now();
@@ -2261,7 +2257,7 @@ function exportSeparationsSVG() {
   const isPrint = printSizePanel.getMode() === 'print';
   const d = isPrint ? printRasterDims() : null;
   const plan = isPrint ? buildPlanPrint(d.trimWpx, d.trimHpx, d.dpi) : buildPlan(exportScale());
-  if (!plan.items.length) { setStatus('', 'No visible channels'); return; }
+  if (!plan.items.length) { setStatus('error', 'No visible channels'); return; }
   const t = Date.now();
   Organica.plateExport.run(plan.items.length, {
     build: (i) => {
@@ -2310,7 +2306,7 @@ async function runBatch(files) {
     ditherAlgo: ch.ditherAlgo, ditherSize: ch.ditherSize, ditherLevel: ch.ditherLevel, bayerLevel: ch.bayerLevel, patternFormId: ch.patternFormId,
     edgeRoughen: ch.edgeRoughen, edgeScale: ch.edgeScale,
   }));
-  if (!cosmeticByIdx.length) { setStatus('', 'Separate an image first, then batch'); return; }
+  if (!cosmeticByIdx.length) { setStatus('error', 'Separate an image first, then batch'); return; }
 
   // Snapshot the live session so it can be restored byte-for-byte — batch
   // reuses S/buildPlan/render() (the exact same WYSIWYG pipeline as every
@@ -2540,7 +2536,7 @@ ctrl('preset-name').addEventListener('keydown', e => {
 function savePresetConfirm() {
   const name = ctrl('preset-name').value.trim();
   if (!name) return;
-  if (BUILTIN_PRESETS[name]) { setStatus('', 'That name is a built-in preset — pick another'); return; }
+  if (BUILTIN_PRESETS[name]) { setStatus('error', 'That name is a built-in preset — pick another'); return; }
   const all = userPresets(); all[name] = readState();
   PRESETS.write(all);
   ctrl('preset-name-row').style.display = 'none';
@@ -2550,7 +2546,7 @@ function savePresetConfirm() {
 ctrl('btn-preset-delete').addEventListener('click', () => {
   const name = ctrl('sel-preset').value;
   if (!name) return;
-  if (BUILTIN_PRESETS[name]) { setStatus('', 'Built-in presets cannot be deleted'); return; }
+  if (BUILTIN_PRESETS[name]) { setStatus('error', 'Built-in presets cannot be deleted'); return; }
   const all = userPresets(); delete all[name];
   PRESETS.write(all); populatePresets();
   setStatus('', 'Preset "' + name + '" deleted');

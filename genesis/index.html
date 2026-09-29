@@ -1060,7 +1060,7 @@
     const set = getSet(id);
     if (!set || set.builtIn || !name) { renderSetsList(); return; }
     if (state.library.sets.some(s => s.id !== id && s.name.toLowerCase() === name.toLowerCase())) {
-      setStatus('', 'A set with that name already exists'); renderSetsList(); return;
+      setStatus('error', 'A set with that name already exists'); renderSetsList(); return;
     }
     set.name = name;
     saveLibrary();
@@ -1589,7 +1589,7 @@
       const elsewhere = state.library.sets.some(s =>
         s.id !== setId && (s.forms || []).indexOf(formId) !== -1);
       if (!elsewhere) {
-        setStatus('', 'A seed must stay in at least one set — use Delete to remove it entirely.');
+        setStatus('error', 'A seed must stay in at least one set — use Delete to remove it entirely.');
         renderEditSets();
         return;
       }
@@ -2508,7 +2508,7 @@
     let setId = $('ctrl-set').value;
     if (setId === '__new__') {
       const name = ($('ctrl-new-set-name').value || '').trim();
-      if (!name) { $('ctrl-new-set-name').focus(); setStatus('', 'Name the new set first'); return false; }
+      if (!name) { $('ctrl-new-set-name').focus(); setStatus('error', 'Name the new set first'); return false; }
       setId = createNewSet(name);
       $('ctrl-new-set-name').value = '';
       $('ctrl-set').value = setId;
@@ -2516,7 +2516,7 @@
     }
     const set = getSet(setId);
     if (!set) return false;
-    if (set.builtIn) { setStatus('', 'Base Seeds is built-in — pick or make a set'); return false; }
+    if (set.builtIn) { setStatus('error', 'Base Seeds is built-in — pick or make a set'); return false; }
 
     const form = { id: newSeedId(), name: ($('ctrl-name').value.trim() || 'untitled'), svg, type: S.type, builtIn: false };
     // The parametric/freehand recipe travels with the saved picture so it

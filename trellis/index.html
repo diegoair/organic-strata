@@ -54,10 +54,6 @@
 
   <div class="org-header__spacer"></div>
 
-  <output class="org-header__status" aria-live="polite" aria-atomic="true">
-    <span class="org-header__dot" id="status-dot"></span>
-    <span class="org-header__state" id="status-text">Pick a grid to begin</span>
-  </output>
 </header>
 
 <!-- Playback + Export in the shared bottom-centre floating toolbar (Pulsar's own shape). -->
@@ -301,7 +297,7 @@ function loadGrid(model) {
   try {
     gridRaw = Organica.loadLoomGrid(model);
   } catch (e) {
-    setStatus('', 'Could not read that grid: ' + e.message);
+    setStatus('error', 'Could not read that grid: ' + e.message);
     return;
   }
   rawModel = model;   // kept for Track Breathe — re-fed to Organica.loadLoomGrid() each frame with animated tracks.cols/rows
@@ -347,7 +343,7 @@ ctrl('file-grid').addEventListener('change', e => {
   const file = e.target.files[0]; e.target.value = '';
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = () => { try { loadGrid(JSON.parse(reader.result)); } catch (err) { setStatus('', 'Invalid JSON: ' + err.message); } };
+  reader.onload = () => { try { loadGrid(JSON.parse(reader.result)); } catch (err) { setStatus('error', 'Invalid JSON: ' + err.message); } };
   reader.readAsText(file);
 });
 
@@ -775,7 +771,7 @@ function renderFrameAt(tNorm) {
   if (!cellCount) return;
   if (cellCount > CEIL) {
     pausePlayback();
-    setStatus('', cellCount + ' cells — too many to animate smoothly');
+    setStatus('error', cellCount + ' cells — too many to animate smoothly');
     return;
   }
   const list = buildDrawList(tNorm);

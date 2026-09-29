@@ -38,11 +38,28 @@
      framing and reads distinctly next to every neighbour in the registry. */
   --tool: #9c2b3a;
 }
-body { background: var(--paper); }
+/* The shared reset + app frame (shell.css's RESET + APP FRAME block, which this tool
+   doesn't link because its 3-pane #app is its own grid). It was missing: the body kept
+   the browser's 8px margin, so the header sat 8px in from the top-left, was 45px tall
+   (content-box + its border) and the page scrolled. Same rules as every other tool. */
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; padding: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs-base);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 #app {
   display: grid;
   grid-template-columns: 210px 1fr var(--panel-w, 248px);
-  height: calc(100vh - var(--header-h, 52px));
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 /* tester mode drops the charset column entirely — #charset is display:none'd
    by the view dispatcher, so the grid collapses to 2 columns */
@@ -145,10 +162,6 @@ body { background: var(--paper); }
 <header class="org-header org-header--tool" role="banner">
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ Apostate</span></a>
   <div class="org-header__spacer"></div>
-  <output class="org-header__status" aria-live="polite" aria-atomic="true">
-    <span class="org-header__dot" id="status-dot"></span>
-    <span class="org-header__state" id="status-text">Loading default face…</span>
-  </output>
 </header>
 
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
@@ -1719,7 +1732,7 @@ function applyPipeline(rawSubs){
    ============================================================ */
 let FONT=null, CHARSET=[], SELECTED='A';
 function loadFontBuffer(buf, name){
-  let font; try{ font=opentype.parse(buf); }catch(e){ setStatus('','✗ could not parse font'); return; }
+  let font; try{ font=opentype.parse(buf); }catch(e){ setStatus('error','✗ could not parse font'); return; }
   FONT=font;
   window.__FONT_BUF = buf.slice(0);   // opentype.parse can detach views; keep a copy for the FontFace overlay
   _gmodel = null;                     // new font -> drop the per-glyph node-edit cache

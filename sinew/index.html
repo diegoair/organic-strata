@@ -96,10 +96,6 @@
 
   <div class="org-header__spacer"></div>
 
-  <output class="org-header__status" aria-live="polite" aria-atomic="true">
-    <span class="org-header__dot" id="status-dot"></span>
-    <span class="org-header__state" id="status">no input</span>
-  </output>
 </header>
 
 <!-- FLOATING TOOLBAR — Reset / Export, fixed bottom-centre over the canvas -->
@@ -213,7 +209,7 @@
    ============================================================ */
 
 const $ = s => document.querySelector(s);
-const board = $('#board'), empty = $('#empty'), statusEl = $('#status');
+const board = $('#board'), empty = $('#empty'), setStatus = Organica.status();   // errors show as a notice; the rest is silent
 
 const {
   fromSVGString, bboxOf, normalise, dFromSubs,
@@ -457,9 +453,8 @@ function repaint(){
 function render(){
   if(!SRC){ repaint(); return; }
   if(TECH==='raster'){
-    statusEl.textContent='raster…';
     clearTimeout(rasterTimer);
-    rasterTimer=setTimeout(()=>{ CACHE=computed(); repaint(); statusEl.textContent=SRC_LABEL; }, 110);
+    rasterTimer=setTimeout(()=>{ CACHE=computed(); repaint(); }, 110);
   } else { CACHE=computed(); repaint(); }
 }
 
@@ -468,7 +463,7 @@ function render(){
 // ============================================================
 function setSource(subs, flipY, kind, label){
   SRC=normalise(subs, flipY); SRC_KIND=kind;
-  SRC_LABEL=label; statusEl.textContent=label;
+  SRC_LABEL=label;
   render();
 }
 
@@ -483,23 +478,23 @@ const seedsPanel = Organica.seedsPanel({
     if(!result.svgString) return;
     try{
       setSource(fromSVGString(result.svgString), false, result.kind, result.kind + ' · ' + (result.descriptor && result.descriptor.formId || 'upload'));
-    }catch(e){ statusEl.textContent='✗ '+e.message; }
+    }catch(e){ setStatus('error', e.message); }
   },
-  onError(msg){ statusEl.textContent='✗ '+msg; },
+  onError(msg){ setStatus('error', msg); },
 });
 
 // --- global drop: accept an SVG dropped ANYWHERE on the page ---
 function readSVGFile(file){
   const fr=new FileReader();
   fr.onload=()=>{ try{ setSource(fromSVGString(fr.result), false, 'svg', `svg · ${file.name}`); }
-    catch(e){ statusEl.textContent='✗ '+e.message; } };
+    catch(e){ setStatus('error', e.message); } };
   fr.readAsText(file);
 }
 function routeFile(file){
   if(!file) return;
   const n=(file.name||'').toLowerCase(), t=file.type||'';
   if(/\.svg$/.test(n) || t.includes('svg')) readSVGFile(file);
-  else statusEl.textContent='✗ drop an SVG';
+  else setStatus('error', 'Drop an SVG file');
 }
 const stage=document.getElementById('canvas-wrap');
 ['dragenter','dragover'].forEach(ev=>window.addEventListener(ev,e=>{
@@ -586,7 +581,6 @@ $('#selUserPreset').addEventListener('change',e=>{
 $('#techSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) switchTech(b.dataset.tech); });
 $('#tgChain').addEventListener('click',function(){
   CHAIN=!CHAIN; this.classList.toggle('on',CHAIN);
-  statusEl.textContent = CHAIN ? (vectorActive()?'vector → raster chained':'chain on (vector stack is empty)') : SRC_LABEL;
   render();
 });
 $('#reset').addEventListener('click',()=>{ GROUPS[TECH]=[newGroup('union')]; CURRENT_PRESET=null; updatePresetTrigger(); renderStack(); render(); });

@@ -93,10 +93,6 @@
 <header class="org-header org-header--tool" role="banner">
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ Mote</span></a>
   <div class="org-header__spacer"></div>
-  <output class="org-header__status" aria-live="polite" aria-atomic="true">
-    <span class="org-header__dot" id="status-dot"></span>
-    <span class="org-header__state" id="status-text">Open a video or start the webcam</span>
-  </output>
   <div class="org-header__actions">
     <button class="org-btn" id="btn-kiosk" onclick="toggleKiosk()">Fullscreen</button>
   </div>
@@ -838,7 +834,7 @@ function updateSizeReadout() {
   $('out-size').textContent = exportCanvas.width + ' × ' + exportCanvas.height;
 }
 function exportFrame() {
-  if (!workW || !lastPaintedPts.length) { setStatus('', 'Nothing to export yet'); return; }
+  if (!workW || !lastPaintedPts.length) { setStatus('error', 'Nothing to export yet'); return; }
   sizeExportCanvas();
   paintExport();
   exportCanvas.toBlob(b => {
@@ -889,7 +885,7 @@ function buildMoteSVG(pts, P, W, H) {
     + `</svg>`;
 }
 function exportFrameSVG() {
-  if (!workW || !lastPaintedPts.length) { setStatus('', 'Nothing to export yet'); return; }
+  if (!workW || !lastPaintedPts.length) { setStatus('error', 'Nothing to export yet'); return; }
   const svg = buildMoteSVG(lastPaintedPts, pointParams(), workW, workH);
   Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('mote', 'svg'));
   setStatus('active', 'SVG frame — ' + workW + '×' + workH + ' · ' + Math.round(svg.length / 1024) + ' KB');
@@ -919,7 +915,7 @@ const moteRecorder = Organica.recorder({
 });
 function toggleRecord() {
   if (moteRecorder.isRecording()) { moteRecorder.stop(); return; }
-  if (!workW) { setStatus('', 'Load a source first'); return; }
+  if (!workW) { setStatus('error', 'Load a source first'); return; }
   sizeExportCanvas();
   moteRecorder.start();
 }
@@ -951,9 +947,9 @@ function renderBatch() { return renderJobs(collectJobs()); }    // the "Export b
 
 let seqBusy = false;
 async function renderJobs(jobs) {
-  if (!workW || seqBusy || !jobs.length) { if (!jobs.length) setStatus('', 'Tick at least one size'); return; }
+  if (!workW || seqBusy || !jobs.length) { if (!jobs.length) setStatus('error', 'Tick at least one size'); return; }
   if (typeof MediaStreamTrackGenerator === 'undefined' || typeof VideoFrame === 'undefined') {
-    setStatus('', 'Render needs MediaStreamTrackGenerator + VideoFrame (Chromium). Use Record instead.'); return;
+    setStatus('error', 'Render needs MediaStreamTrackGenerator + VideoFrame (Chromium). Use Record instead.'); return;
   }
   seqBusy = true;
   const fps = +$('sel-fps').value, dur = clipDuration(), n = Math.ceil(dur * fps), fdUs = Math.round(1e6 / fps);
@@ -994,7 +990,7 @@ async function renderJobs(jobs) {
       gen = new MediaStreamTrackGenerator({ kind: 'video' });
       writer = gen.writable.getWriter();
       mr = new MediaRecorder(new MediaStream([gen]), mime ? { mimeType: mime, videoBitsPerSecond: bitrate } : { videoBitsPerSecond: bitrate });
-    } catch (e) { setStatus('', 'Encoder init failed (' + job.label + '): ' + e.message); break; }
+    } catch (e) { setStatus('error', 'Encoder init failed (' + job.label + '): ' + e.message); break; }
     const chunks = [];
     mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
     const stopped = new Promise(res => mr.onstop = res);
@@ -1040,7 +1036,7 @@ async function renderJobs(jobs) {
       Organica.download(new Blob(chunks, { type }), Organica.stamp('mote-' + job.label, ext));
       ok++;
     } else {
-      setStatus('', 'Job "' + job.label + '" produced 0 bytes — no working offline encoder in this browser.');
+      setStatus('error', 'Job "' + job.label + '" produced 0 bytes — no working offline encoder in this browser.');
     }
   }
 
@@ -1081,7 +1077,7 @@ function onFilePick(input) { const f = input.files[0]; if (f) loadVideo(f); inpu
 function loadVideo(file) {
   const ok = (file && file.type && file.type.startsWith('video/'))
     || (file && /\.(mov|mp4|m4v|webm|mkv|avi|ogv)$/i.test(file.name));
-  if (!ok) { setStatus('', 'Not a video — pick an .mp4 / .mov / .webm'); return; }
+  if (!ok) { setStatus('error', 'Not a video — pick an .mp4 / .mov / .webm'); return; }
   releaseCamera();
   setMirrorEnabled(false);
   source = 'file';
@@ -1110,7 +1106,7 @@ video.addEventListener('error', () => {
   if (source !== 'file') return;
   clearTimeout(loadWatch);
   const m = (video.error && video.error.message) ? ' (' + video.error.message + ')' : '';
-  setStatus('', 'Could not decode that video' + m + ' — convert to .mp4 (H.264).');
+  setStatus('error', 'Could not decode that video' + m + ' — convert to .mp4 (H.264).');
 });
 
 // webcam ---------------------------------------------------------
@@ -1120,7 +1116,7 @@ function releaseCamera() {
 }
 async function startCamera() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    setStatus('', 'This browser has no getUserMedia (needs localhost or https).'); return;
+    setStatus('error', 'This browser has no getUserMedia (needs localhost or https).'); return;
   }
   setStatus('rendering', 'Requesting camera…');
   releaseCamera();
@@ -1129,7 +1125,7 @@ async function startCamera() {
       video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false,
     });
   } catch (e) {
-    setStatus('', 'Camera unavailable: ' + (e && e.message || e));
+    setStatus('error', 'Camera unavailable: ' + (e && e.message || e));
     return;
   }
   source = 'webcam';
@@ -1346,7 +1342,7 @@ function savePreset() { $('preset-save-row').hidden = false; $('preset-name').va
 function commitPreset() {
   const name = $('preset-name').value.trim();
   if (!name) return;
-  if (BUILTIN_PRESETS[name]) { setStatus('', 'That name is a built-in — pick another'); return; }
+  if (BUILTIN_PRESETS[name]) { setStatus('error', 'That name is a built-in — pick another'); return; }
   const all = userPresets();
   all[name] = {
     mode, shape: pointShape, detail: +$('sl-detail').value,
@@ -1365,7 +1361,7 @@ function commitPreset() {
 }
 function deletePreset() {
   const key = currentPresetKey;
-  if (!key || BUILTIN_PRESETS[key]) { setStatus('', 'Pick one of your own presets to delete'); return; }
+  if (!key || BUILTIN_PRESETS[key]) { setStatus('error', 'Pick one of your own presets to delete'); return; }
   const all = userPresets(); delete all[key];
   STORE.write(all);
   delete thumbCache[key];

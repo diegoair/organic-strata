@@ -667,18 +667,66 @@
   // behaviours that were missing everywhere and are easy to get wrong.
   // ═══════════════════════════════════════════════════════════
 
-  // Status. The element is an <output> — implicitly role="status", a polite
-  // live region — so this announces to a screen reader as well as painting
-  // pixels. Before, #status-text was mutated silently: the one piece of
-  // feedback you need mid-export was invisible to anyone not watching.
-  //   state: 'active' (done) | 'busy' (working) | '' (idle)
-  Organica.status = function (root) {
-    root = root || document;
-    const dot = root.querySelector('.org-header__dot');
-    const text = root.querySelector('.org-header__state');
+  // ── Notice — the one place a tool tells you something ────────────────
+  // (Sep 29, 2026.) It replaced the header's status slot, which had grown
+  // into five things at once: state ("Ready"), prompts that repeated the
+  // canvas's own drop hint ("Drop a photo to begin"), live counts that
+  // rewrote at slider-drag rate ("1064 elements", "t=0.42"), a bare "—", and
+  // the only thing that genuinely needed to be there: errors and guards
+  // ("Could not read that image", "WebGL2 unavailable", "Pause the
+  // simulation before exporting SVG"). Those now show here — centred on the
+  // canvas (the same centring the floatbar uses, so it clears the panel),
+  // dismissable with a ×, Escape, or after 12s (paused while hovered).
+  // One at a time; a new one replaces the old.
+  //   Organica.notice(message, { kind: 'error' | 'busy' | 'info' })  → { close }
+  //   error  --danger dot, role="alert"; closes itself after 12s
+  //   busy   pulsing --tool dot, no timer; closed by the next non-busy call
+  //          (Organica.status does this) or by hand
+  //   info   plain; closes itself after 12s
+  let noticeEl = null, noticeTimer = 0;
+  Organica.notice = function (message, opts) {
+    opts = opts || {};
+    const kind = opts.kind === 'error' || opts.kind === 'busy' ? opts.kind : 'info';
+    Organica.noticeClose();
+    const el = document.createElement('div');
+    el.className = 'org-notice';
+    el.dataset.kind = kind;
+    el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+    const dot = document.createElement('span'); dot.className = 'org-notice__dot'; dot.setAttribute('aria-hidden', 'true');
+    const text = document.createElement('span'); text.className = 'org-notice__text'; text.textContent = message;
+    const x = document.createElement('button');
+    x.type = 'button'; x.className = 'org-notice__close'; x.setAttribute('aria-label', 'Dismiss');
+    x.innerHTML = '<svg viewBox="0 0 10 10" width="10" height="10" fill="none" aria-hidden="true"><path d="M2 2l6 6M8 2L2 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
+    x.addEventListener('click', () => Organica.noticeClose());
+    el.append(dot, text, x);
+    document.body.appendChild(el);
+    noticeEl = el;
+    if (kind !== 'busy') {
+      const arm = () => { clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { if (noticeEl === el) Organica.noticeClose(); }, 12000); };
+      arm();
+      el.addEventListener('pointerenter', () => clearTimeout(noticeTimer));
+      el.addEventListener('pointerleave', arm);
+    }
+    return { close: () => { if (noticeEl === el) Organica.noticeClose(); } };
+  };
+  Organica.noticeClose = function () {
+    clearTimeout(noticeTimer);
+    if (noticeEl) { noticeEl.remove(); noticeEl = null; }
+  };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && noticeEl) Organica.noticeClose(); });
+
+  // Status — the tools' one feedback call, kept so ~280 call sites didn't
+  // have to change, but no longer painted in the header. setStatus(state, msg):
+  //   'error'  → a notice (dismissable, centred on the canvas)
+  //   'busy'   → a busy notice ("Recording 6s…") that stays until the next call
+  //   'active' / '' → silent. Confirmations ("saved"), prompts, counts and
+  //   idle text were redundant with the canvas, the panel and the download
+  //   itself; a busy notice still open is closed, since the work is done.
+  Organica.status = function () {
     return function setStatus(state, msg) {
-      if (dot) dot.className = 'org-header__dot' + (state ? ' ' + state : '');
-      if (text) text.textContent = msg;
+      if (state === 'error') { Organica.notice(msg, { kind: 'error' }); return; }
+      if (state === 'busy')  { Organica.notice(msg, { kind: 'busy' }); return; }
+      if (noticeEl && noticeEl.dataset.kind === 'busy') Organica.noticeClose();
     };
   };
 

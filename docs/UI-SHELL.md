@@ -265,7 +265,7 @@ Replaces five divergent bars. Full audit and rationale in this section.
 
 ### The rule
 
-**Identity · Context · Status · at most three actions.** Everything else moves
+**Identity · Context · at most three actions.** (Status was retired Sep 29, 2026 — see "Notice" below.) Everything else moves
 closer to what it acts on. An audit found 8–9 interactive controls crammed
 into a 40px bar; the component brings Halide to 4 and Komorebi to 3.
 
@@ -276,10 +276,6 @@ into a 40px bar; the component brings Halide to 4 and Komorebi to 3.
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ Tool</span></a>
   <div class="org-header__context"><!-- variant-dependent --></div>
   <div class="org-header__spacer"></div>
-  <output class="org-header__status" aria-live="polite" aria-atomic="true">
-    <span class="org-header__dot" id="status-dot"></span>
-    <span class="org-header__state" id="status-text">Ready</span>
-  </output>
   <div class="org-header__actions"><!-- max 3 --></div>
 </header>
 ```
@@ -287,7 +283,7 @@ into a 40px bar; the component brings Halide to 4 and Komorebi to 3.
 Wire the two behaviours:
 
 ```js
-const setStatus = Organica.status();                       // announces
+const setStatus = Organica.status();   // 'error' / 'busy' show a Notice; 'active' / '' are silent
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 ```
 
@@ -303,7 +299,21 @@ Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 Strata was among them and was later removed from the product). The stale
 `#organica-banner` migration notice was removed from Genesis and Indicators.
 
-Only the Context slot differs — identity, status and actions are identical.
+Only the Context slot differs — identity and actions are identical.
+
+### Notice (replaced the status slot, Sep 29, 2026)
+
+The header's status slot (a dot + a line at the right) had grown into five
+things: state ("Ready"), prompts that repeated the canvas's own drop hint,
+live counts rewriting at slider-drag rate, a bare "—", and the errors that
+were the only part worth keeping. It was removed from every header. Errors,
+guards and progress ("Could not read that image", "Pause the simulation
+before exporting SVG", "Recording 6s…") now show as a **Notice**
+(`Organica.notice()` / `Organica.status()`, `.org-notice` in `header.css`):
+centred on the canvas, always closable (×, Escape, 12s). Tools keep calling
+`setStatus(state, msg)`; `'error'` and `'busy'` show, `'active'` and `''` are
+silent. Never put status text in a header again — see the design system's
+Notice entry.
 
 ### What moved out, and where
 

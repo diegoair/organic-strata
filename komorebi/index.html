@@ -31,10 +31,6 @@
 
   <div class="org-header__spacer"></div>
 
-  <output class="org-header__status" aria-live="polite" aria-atomic="true">
-    <span class="org-header__dot" id="status-dot"></span>
-    <span class="org-header__state" id="status-text">Ready</span>
-  </output>
 
 </header>
 
@@ -1099,7 +1095,7 @@ function useCookieFile(file) {
     URL.revokeObjectURL(img.src);
     scheduleRender();
   };
-  img.onerror = () => setStatus('', 'Could not read that image');
+  img.onerror = () => setStatus('error', 'Could not read that image');
   img.src = URL.createObjectURL(file);
 }
 const wrap = ctrl('canvas-wrap');
@@ -1477,7 +1473,7 @@ function cancelSavePreset() {
 }
 function deletePreset() {
   const name = ctrl('sel-preset').value;
-  if (BUILTIN_PRESETS[name]) { setStatus('', 'Built-in presets cannot be deleted'); return; }
+  if (BUILTIN_PRESETS[name]) { setStatus('error', 'Built-in presets cannot be deleted'); return; }
   const all = userPresets();
   if (!all[name]) return;
   delete all[name];

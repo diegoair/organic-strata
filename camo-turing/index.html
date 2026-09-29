@@ -1164,7 +1164,7 @@ function initGL() {
   if (!context) {
     ctrl('gl-error').classList.add('visible');
     canvas.style.display = 'none';
-    setStatus('', 'WebGL2 unavailable');
+    setStatus('error', 'WebGL2 unavailable');
     return false;
   }
 
@@ -2404,7 +2404,7 @@ const maskCtxB = maskCanvasB.getContext('2d');
 // independent shapes" question before building real UI for it.
 function testTwoShapeSeed() {
   rasterizeGenesisSource('seed-breath', MASK_N, MASK_N, (circleCanvas) => {
-    if (!circleCanvas) { setStatus('', 'Circle rasterize failed'); return; }
+    if (!circleCanvas) { setStatus('error', 'Circle rasterize failed'); return; }
     maskCanvasB.width = MASK_N; maskCanvasB.height = MASK_N;
     maskCtxB.clearRect(0, 0, MASK_N, MASK_N);
     maskCtxB.drawImage(circleCanvas, 0, 0);
@@ -3134,7 +3134,7 @@ function buildExportSVGString() {
 
 function exportSVG() {
   if (document.getElementById('btn-playpause').getAttribute('aria-label') === 'Pause') {
-    setStatus('', 'Pause the simulation before exporting SVG');
+    setStatus('error', 'Pause the simulation before exporting SVG');
     return;
   }
   const svg = buildExportSVGString();
@@ -3179,7 +3179,7 @@ function toggleExportDiff() {
     return;
   }
   if (document.getElementById('btn-playpause').getAttribute('aria-label') === 'Pause') {
-    setStatus('', 'Pause the simulation to compare against the export');
+    setStatus('error', 'Pause the simulation to compare against the export');
     return;
   }
   const svg = buildExportSVGString();
@@ -3193,7 +3193,7 @@ function toggleExportDiff() {
   btn.classList.add('org-btn--primary');
 }
 
-function sendToFigma() { setStatus('', 'Figma export lands in a later step'); }
+function sendToFigma() { setStatus('error', 'Figma export lands in a later step'); }
 
 // ── PRESETS ──
 // Real f/k values from Robert Munafo's (mrob's) Gray-Scott map, as used by
@@ -3525,7 +3525,7 @@ function cancelSavePreset() {
 
 function deletePreset() {
   if (!currentPresetName) return;
-  if (BUILTIN_PRESETS[currentPresetName]) { setStatus('', 'Built-in presets cannot be deleted'); return; }
+  if (BUILTIN_PRESETS[currentPresetName]) { setStatus('error', 'Built-in presets cannot be deleted'); return; }
   const all = userPresets();
   if (!all[currentPresetName]) return;
   delete all[currentPresetName];

@@ -29,10 +29,6 @@
 
   <div class="org-header__spacer"></div>
 
-  <output class="org-header__status" aria-live="polite" aria-atomic="true">
-    <span class="org-header__dot" id="status-dot"></span>
-    <span class="org-header__state" id="status-text">Ready</span>
-  </output>
 </header>
 
 <!-- Export moved from the header into the shared bottom-centre floating
@@ -681,7 +677,7 @@ function cancelSavePreset() {
 }
 function deletePreset() {
   if (!currentPresetName) return;
-  if (BUILTIN_PRESETS[currentPresetName]) { setStatus('', 'Built-in presets cannot be deleted'); return; }
+  if (BUILTIN_PRESETS[currentPresetName]) { setStatus('error', 'Built-in presets cannot be deleted'); return; }
   const all = userPresets();
   if (!all[currentPresetName]) return;
   delete all[currentPresetName];

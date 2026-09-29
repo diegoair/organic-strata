@@ -53,10 +53,6 @@
 
   <div class="org-header__spacer"></div>
 
-  <output class="org-header__status" aria-live="polite" aria-atomic="true">
-    <span class="org-header__dot" id="status-dot"></span>
-    <span class="org-header__state" id="status-text">Ready</span>
-  </output>
 </header>
 
 <!-- Playback + Export in the shared bottom-centre floating toolbar. -->
@@ -960,7 +956,7 @@ function saveScene() {
 function confirmSaveScene() {
   const name = ctrl('txt-scene-name').value.trim();
   if (!name) return;
-  if (PULSAR_SCENES[name]) { setStatus('', 'That name is a built-in scene — pick another'); return; }
+  if (PULSAR_SCENES[name]) { setStatus('error', 'That name is a built-in scene — pick another'); return; }
   const all = userScenes();
   all[name] = {
     state: readState(),
@@ -982,7 +978,7 @@ function cancelSaveScene() {
 }
 function deleteScene() {
   if (!currentSceneName) return;
-  if (PULSAR_SCENES[currentSceneName]) { setStatus('', 'Built-in scenes cannot be deleted'); return; }
+  if (PULSAR_SCENES[currentSceneName]) { setStatus('error', 'Built-in scenes cannot be deleted'); return; }
   const all = userScenes();
   if (!all[currentSceneName]) return;
   delete all[currentSceneName];
@@ -1009,7 +1005,7 @@ function renderFrameAt(tNorm) {
   const n = elCount(prim);
   if (n > CEIL) {
     playing = false; cancelAnimationFrame(raf); setPlayIcon(false);
-    setStatus('', n + ' elements — too many to animate smoothly; reduce count / rings');
+    setStatus('error', n + ' elements — too many to animate smoothly; reduce count / rings');
     return;
   }
   pctx.setTransform(1, 0, 0, 1, 0, 0);
