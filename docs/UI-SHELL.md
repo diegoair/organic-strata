@@ -74,7 +74,8 @@ box-sizing reset, the flex-column `<body>`, `#app`, the centred
 the canvas, its id varies per tool), `#zoom-hud` and `#drop-hint`. Before
 it, all 17 tools carried their own ~30-line copy. A tool keeps only its
 genuine deltas locally (`#canvas-wrap { padding: 0 }` for edge-to-edge
-canvases, a lighter `box-shadow`, a bespoke `#stage-frame`). Genesis
+canvases, a bespoke `#stage-frame` — but never a different stage shadow: since
+Sep 29, 2026 that is `--stage-shadow`, one value everywhere). Genesis
 (3-column shell), Rhizome and FVS (own canvas surfaces) don't link it;
 they still get the reset + surface palette from tokens.
 
@@ -217,6 +218,19 @@ rather than annotated.
 | `#zoom-hud` / `#hud` | bottom-left state chip, `pointer-events: none` |
 
 `#canvas-wrap.checker` paints the alpha checkerboard for transparent output.
+
+**Rules (Sep 29, 2026 — also on `/design-system/#canvas-stage`):**
+- The canvas **area** is `background: var(--canvas-grid), var(--canvas-bg);` — white
+  with the light cyan dot grid. A tool with its own stage area (not `#canvas-wrap`)
+  uses the same line. Never `--panel`: that grey is interface chrome only.
+- The **stage** (the sheet you draw on) gets its look from `class="org-stage"`
+  (`--stage-shadow`, `transform-origin`, zoom cursors). Its id is free and per-tool
+  (`#board`, `#preview`, `#view-canvas`…) because the script finds it by id — the
+  style never hangs off the id. Where the class can't go (a p5 canvas, a re-rendered
+  SVG) use `box-shadow: var(--stage-shadow)`. Never retype the shadow.
+- The stage's own colour is the tool's Paper — user content, not a token.
+- Every text on the canvas surface uses `var(--font)`; text drawn on a `<canvas>`
+  reads `--font` at draw time (`shared/glyph-editor.js`).
 
 ### Panel (240–244px, `overflow-y: auto`)
 
@@ -556,6 +570,8 @@ blank or preview-sized file. Komorebi hit this; the fix is in its export path.
 4. Add the tool to `index.html` (nav link + accent class), `vercel.json`
    (rewrite), `README.md` and `CLAUDE.md`.
 5. Register the accent in `docs/DESIGN-SYSTEM.md` §5.
+6. Canvas: keep the template's `#canvas-wrap` + `class="org-stage"` on the sheet (§4 Canvas rules) —
+   no local canvas-area background, no local stage shadow, no font outside `--font`.
 
 ---
 

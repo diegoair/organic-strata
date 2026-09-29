@@ -8,7 +8,7 @@
 <!-- This page IS the component library: every example below renders with
      the real, live shared/*.css — not a screenshot or a re-implementation.
      If a token or class changes in shared/, this page changes with it. -->
-<link rel="preload" href="/shared/vendor/manrope-variable.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="/shared/vendor/wix-madefor-display-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
@@ -249,6 +249,7 @@
     <div class="ds-nav__group">
       <div class="ds-nav__title">Shell</div>
       <a href="#shell">App shell</a>
+      <a href="#canvas-stage">Canvas area &amp; stage</a>
       <a href="#modal">Modal</a>
       <a href="#upload">File input</a>
       <a href="#layer-card">Layer card</a>
@@ -416,6 +417,24 @@
   &lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"panel"</span>&gt;…&lt;/<span class="tag">div</span>&gt;
 &lt;/<span class="tag">div</span>&gt;</pre>
       <p class="ds-desc"><code>.org-stage</code> carries the canvas's shadow, <code>transform-origin</code> and the <code>.zoomed</code>/<code>.panning</code>/<code>.picking</code> cursor states — its id varies per tool (<code>#main-canvas</code>, <code>#view-canvas</code>, <code>#stage-frame</code>…) so the shared rules hang off the class. Genesis (3-column shell), Rhizome and FVS (their own canvas surfaces) keep their own; they still pick up the reset + surface palette.</p>
+    </section>
+
+    <section class="ds-entry ds-prose" id="canvas-stage">
+      <h2>Canvas area &amp; stage</h2>
+      <p class="ds-desc">Two surfaces, two rules — the same in every tool (Sep 29, 2026).</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/tokens.css</span><span>shared/shell.css</span><strong>Used in</strong><span>every tool with a canvas</span></div>
+      <div class="ds-example">
+        <div id="ds-canvas-demo" style="background:var(--canvas-grid), var(--canvas-bg);padding:var(--space-7);display:flex;justify-content:center">
+          <div id="ds-stage-demo" class="org-stage" style="width:160px;height:110px;background:var(--paper)"></div>
+        </div>
+      </div>
+      <ol>
+        <li><strong>The canvas area</strong> (what the stage sits on — <code>#canvas-wrap</code> / <code>.org-canvas-wrap</code>, or a tool's own stage area) is always <code>background: var(--canvas-grid), var(--canvas-bg);</code> — white with the light cyan dot grid (<code>--canvas-dot</code>, 24px pitch). Never <code>--panel</code>: that grey is for interface chrome (inputs, selected rows, the floating bar).</li>
+        <li><strong>The stage</strong> (the sheet you draw on) gets its look from the class <code>.org-stage</code>, never from its <code>id</code>. Ids differ per tool (<code>#board</code>, <code>#preview</code>, <code>#view-canvas</code>, <code>#gl-canvas</code>…) because each script finds its sheet by id. A tool that can't add the class (a p5 canvas, an SVG rendered by the tool) uses the token directly: <code>box-shadow: var(--stage-shadow);</code>. Never retype the shadow.</li>
+        <li><strong>The stage's own colour is user content</strong> — a tool's Paper (Living Path's cream, a transparent FVS paper) is not tokenised.</li>
+        <li><strong>Text</strong> is always <code>var(--font)</code> — including text drawn on a <code>&lt;canvas&gt;</code>, which can't read CSS variables: resolve it at draw time with <code>getComputedStyle(document.documentElement).getPropertyValue('--font')</code> (see <code>shared/glyph-editor.js</code>). No <code>monospace</code>, no <code>system-ui</code>, no <code>Georgia</code> for interface text.</li>
+      </ol>
+      <p class="ds-desc">Exceptions, on purpose: Rhizome is an infinite node canvas (the dot grid, no sheet); Mote's kiosk mode is black; a font the user loads (Living Path / Apostate specimen) is content.</p>
     </section>
 
     <section class="ds-entry" id="modal">
@@ -839,6 +858,21 @@ Organica.popover(document.getElementById(<span class="str">'btn-export'</span>),
       <p class="ds-desc">Real ones, found auditing this codebase — not hypotheticals.</p>
 
       <div class="ds-mistake">
+        <div class="ds-mistake__title">Retyping the stage shadow</div>
+        <p>Seven tools carried their own <code>box-shadow: 0 4px 40px rgba(0,0,0,.18)</code> on their sheet — two at <code>.12</code>, three more overriding the shared one to be lighter. They looked "almost" the same and drifted. Put <code>class="org-stage"</code> on the sheet, or <code>box-shadow: var(--stage-shadow)</code> where the class can't go. The id (<code>#board</code>, <code>#preview</code>…) is for the script, never for the style.</p>
+      </div>
+
+      <div class="ds-mistake">
+        <div class="ds-mistake__title">A grey canvas area</div>
+        <p>The area around the sheet used to be <code>--panel</code>, and six tools with their own stage area had copied that grey. Since Sep 29, 2026 it is <code>var(--canvas-grid), var(--canvas-bg)</code> everywhere; <code>--panel</code> is interface chrome only.</p>
+      </div>
+
+      <div class="ds-mistake">
+        <div class="ds-mistake__title">A font set outside <code>--font</code></div>
+        <p>Switching the typeface showed six places that ignored it: a <code>Georgia</code> info tip, <code>monospace</code> readouts, a retired <code>--mono</code>, redirect stubs in <code>sans-serif</code>, and glyph-editor labels drawn on a canvas with <code>system-ui</code>. Every interface text uses <code>var(--font)</code>; canvas text reads <code>--font</code> at draw time.</p>
+      </div>
+
+      <div class="ds-mistake">
         <div class="ds-mistake__title">Treating user data as a design token</div>
         <p>Spore/Pollen/Halide's ink &amp; paper colour-swatch buttons have <code>style="background:#0a0a0a"</code> — that hex matches <code>--ink</code> by coincidence (it's the default artwork colour), not by role. It's set from the colour picker at runtime; forcing it to <code>var(--ink)</code> would be wrong the moment a user picks a different colour. Before "fixing" a hardcoded colour, check whether JS ever reassigns it.</p>
       </div>
@@ -950,6 +984,18 @@ Organica.enhanceSliders(document);
   assert('.seg-btn',    { fontSize: '10px' });
   assert('.mini-btn',   { minHeight: '26px' });
   assert('.color-swatch', { width: '18px', height: '18px', borderRadius: '2px' });
+  // Canvas area & stage: the demo must render from the shared tokens / class
+  assert('#ds-stage-demo', { boxShadow: 'rgba(0, 0, 0, 0.18) 0px 4px 40px 0px' });      // .org-stage → --stage-shadow
+  {
+    const el = document.getElementById('ds-canvas-demo');
+    if (!el) bad('no demo on this page for #ds-canvas-demo');
+    else {
+      const c = getComputedStyle(el);
+      if (!/radial-gradient/.test(c.backgroundImage) || c.backgroundColor !== 'rgb(255, 255, 255)') bad('#ds-canvas-demo { background } — documented as var(--canvas-grid), var(--canvas-bg)');
+    }
+    const fam = getComputedStyle(document.body).fontFamily.split(',')[0].replace(/["']/g, '').trim();
+    if (fam !== 'Wix Madefor Display') bad('body font is ' + fam + ' — documented as Wix Madefor Display via --font');
+  }
 
   /* banner ----------------------------------------------------------- */
   const fails = results.filter(r => !r[0]);
