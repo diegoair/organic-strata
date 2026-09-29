@@ -53,11 +53,11 @@
       position: relative;
       min-height: calc(100vh - var(--header-h));
       display: grid;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: 1fr auto;
       padding: var(--space-7) var(--space-8) var(--space-8);
       gap: var(--space-7);
     }
-    .hub-hero__top, .hub-hero__bottom {
+    .hub-hero__bottom {
       display: flex; justify-content: space-between; align-items: flex-end;
       gap: var(--space-8); flex-wrap: wrap;
     }
@@ -76,7 +76,6 @@
       text-wrap: balance;
     }
     .hub-hero__lead em { font-style: normal; color: var(--mid); }
-    .hub-hero__hint { text-align: right; }
     .hub-hero__meta {
       display: flex; gap: var(--space-7);
       font-family: var(--t-num-font);
@@ -355,10 +354,6 @@
 
   <!-- ── 1. hero ── -->
   <section class="hub-hero" aria-labelledby="hub-title">
-    <div class="hub-hero__top">
-      <p class="hub-overline">A visual language system — and the tools that grow it</p>
-      <p class="hub-overline hub-hero__hint">Move through the dots ↘</p>
-    </div>
     <div class="hub-hero__field">
       <h1 id="hub-title" class="hub-sr">Organica</h1>
       <canvas id="hub-hero" aria-hidden="true"></canvas>
