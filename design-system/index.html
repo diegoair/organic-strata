@@ -73,45 +73,95 @@
     margin: 0 0 var(--space-8);
   }
 
-  section.ds-entry { max-width: 780px; margin-bottom: var(--space-8); scroll-margin-top: var(--space-6); }
-  section.ds-entry h2 {
-    font-size: var(--fs-xl);
-    font-weight: var(--w-medium);
-    margin: 0 0 var(--space-2);
-  }
-  section.ds-entry > p.ds-desc {
-    font-size: var(--fs-base);
-    line-height: var(--lh-normal);
-    color: var(--mid);
-    max-width: 620px;
-    margin: 0 0 var(--space-5);
-  }
-  .ds-group-title {
-    font-size: var(--fs-xl);
-    font-weight: var(--w-bold);
-    margin: 0 0 var(--space-3);
+  /* ── Section headers (reworked Sep 29, 2026 for readability) ──
+     Three levels that no longer look alike: a GROUP is a chapter divider (overline
+     with the entry count + a display title + a rule), an ENTRY is a second-level
+     title with its own hairline, the DESCRIPTION is reading text (12px, --ink,
+     capped at --measure, token names as small code chips), and the USAGE row is
+     a label/value grid — one line per label, labels in a fixed column — built
+     from the flat <strong>/<span> markup by the script at the foot of the page. */
+  section.ds-entry {
+    max-width: 780px;
+    margin-bottom: var(--space-8);
     padding-top: var(--space-7);
     border-top: 1px solid var(--border);
+    scroll-margin-top: var(--space-6);
   }
-  .ds-group-title:first-child { padding-top: 0; border-top: 0; }
-
-  /* Where / how used — the sidebar-requested "how and where it can be used" */
-  .ds-usage {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
+  .ds-group-title + section.ds-entry { border-top: 0; padding-top: var(--space-5); }
+  section.ds-entry h2 {
+    font-size: var(--t-h3-size);
+    font-weight: var(--t-h3-weight);
+    line-height: var(--t-h3-lh);
+    letter-spacing: var(--t-h3-ls);
+    margin: 0 0 var(--space-3);
+  }
+  section.ds-entry > p.ds-desc {
+    font-size: var(--t-body-md-size);
+    line-height: var(--t-body-lh);
+    color: var(--ink);
+    max-width: none;   /* full entry width (780px), aligned with the tables and examples — Diego, Sep 29 2026 */
     margin: 0 0 var(--space-5);
+    text-wrap: pretty;
   }
-  .ds-usage span {
-    font-size: var(--fs-micro);
-    letter-spacing: var(--ls-wide);
-    color: var(--mid);
+  :is(section.ds-entry > p.ds-desc, .ds-note, .ty-lede) code {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
     background: var(--panel);
-    border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 2px var(--space-2);
+    padding: 0 calc(var(--space-1) / 2);
+    white-space: nowrap;
   }
-  .ds-usage strong { color: var(--mid); font-weight: var(--w-regular); margin-right: var(--space-1); }
+  .ds-group-title {
+    font-size: var(--t-h1-size);
+    font-weight: var(--t-h1-weight);
+    line-height: var(--t-h1-lh);
+    letter-spacing: var(--t-h1-ls);
+    margin: var(--space-8) 0 0;
+    padding-top: var(--space-7);
+    border-top: 2px solid var(--ink);
+  }
+  .ds-group-title::before {
+    content: attr(data-count);
+    display: block;
+    margin-bottom: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--t-h6-size);
+    font-weight: var(--w-regular);
+    letter-spacing: var(--ls-widest);
+    text-transform: uppercase;
+    color: var(--mid);
+  }
+  .ds-group-title:first-child { margin-top: 0; }
+
+  /* Where / how used — a label/value grid (rows built by JS from the flat markup) */
+  .ds-usage {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: var(--space-2) var(--space-5);
+    align-items: baseline;
+    margin: 0 0 var(--space-6);
+    padding: var(--space-3) var(--space-4);
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    max-width: none;   /* full entry width (780px), aligned with the tables and examples — Diego, Sep 29 2026 */
+  }
+  .ds-usage__label {
+    font-family: var(--font-mono);
+    font-size: var(--fs-micro);
+    letter-spacing: var(--ls-wider);
+    text-transform: uppercase;
+    color: var(--mid);
+  }
+  .ds-usage__values { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
+  .ds-usage span {
+    font-family: var(--font-mono);
+    font-size: var(--fs-small);
+    color: var(--ink);
+    background: var(--panel);
+    border-radius: var(--radius-sm);
+    padding: 0 var(--space-2);
+  }
 
   /* Live example stage */
   .ds-example {
@@ -170,10 +220,21 @@
   [data-theme="dark"] pre.ds-code .str  { color: #d58fb0; }
 
   .ds-note {
-    font-size: var(--fs-small);
-    color: var(--mid);
-    line-height: var(--lh-snug);
-    margin: 0 0 var(--space-5);
+    font-size: var(--t-body-md-size);
+    color: var(--ink);
+    line-height: var(--t-body-lh);
+    max-width: none;   /* full entry width (780px), aligned with the tables and examples — Diego, Sep 29 2026 */
+    margin: 0 0 var(--space-6);
+    text-wrap: pretty;
+  }
+  /* A note that opens with a bold title ("Responsive.", "History, Sep 29, 2026.") reads as a
+     mini-section: the title on its own line in the display face (class set by the script). */
+  .ds-note--titled > strong:first-child {
+    display: block;
+    margin-bottom: var(--space-1);
+    font-family: var(--font-display);
+    font-size: var(--fs-medium);
+    font-weight: var(--w-semibold);
   }
 
 
@@ -186,7 +247,7 @@
   .ty-badge--d { background: var(--ink); color: var(--paper); font-family: var(--font-display); font-weight: var(--w-medium); }
   .ty-badge--m { background: var(--paper); color: var(--ink); font-family: var(--font-mono); }
   .ty-sub { font-size: var(--fs-medium); font-weight: var(--w-medium); margin: var(--space-8) 0 var(--space-2); }
-  .ty-lede { font-size: var(--fs-base); line-height: var(--lh-normal); color: var(--mid); max-width: 620px; margin: 0 0 var(--space-5); }
+  .ty-lede { /* the Typography entry's description — same reading style as p.ds-desc */ font-size: var(--t-body-md-size); line-height: var(--t-body-lh); color: var(--ink); max-width: none;   /* full entry width (780px), aligned with the tables and examples — Diego, Sep 29 2026 */ margin: 0 0 var(--space-5); }
 
   /* the two faces */
   .ty-faces { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-3); }
@@ -259,10 +320,10 @@
   }
   .ds-prose h3:first-child { margin-top: 0; }
   .ds-prose p, .ds-prose li {
-    font-size: var(--fs-base);
-    line-height: var(--lh-normal);
+    font-size: var(--t-body-md-size);   /* same reading size as p.ds-desc */
+    line-height: var(--t-body-lh);
     color: var(--ink);
-    max-width: 640px;
+    max-width: none;   /* full entry width (780px), aligned with the tables and examples — Diego, Sep 29 2026 */
   }
   .ds-prose p { margin: 0 0 var(--space-4); }
   .ds-prose ul, .ds-prose ol { margin: 0 0 var(--space-4); padding-left: var(--space-6); }
@@ -273,6 +334,56 @@
     border-radius: var(--radius-sm);
     padding: 1px var(--space-1);
     font-size: 0.95em;
+  }
+  /* Spec tables (Property · Value · Token, Part · Definition, …) — every documentation table on
+     the page except the live prose demo and the dark-mode token table. A bordered white card,
+     a tinted overline header row, roomy top-aligned 12px cells, the first column as the name,
+     token names as mono chips (wrapped by the script). */
+  :is(section.ds-entry > table, section.ds-entry > .ds-prose > table, .ds-table) {
+    width: 100%;
+    max-width: 780px;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin: 0 0 var(--space-6);
+  }
+  :is(section.ds-entry > table, section.ds-entry > .ds-prose > table, .ds-table) :is(th, td) {
+    text-align: left;
+    vertical-align: top;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--t-body-md-size);
+    line-height: var(--lh-snug);
+    color: var(--ink);
+    max-width: none;
+  }
+  :is(section.ds-entry > table, section.ds-entry > .ds-prose > table, .ds-table) tr:last-child > :is(th, td) { border-bottom: 0; }
+  :is(section.ds-entry > table, section.ds-entry > .ds-prose > table, .ds-table) th {
+    background: var(--panel);
+    font-family: var(--font-mono);
+    font-size: var(--fs-micro);
+    font-weight: var(--w-regular);
+    letter-spacing: var(--ls-wider);
+    text-transform: uppercase;
+    color: var(--mid);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+  }
+  :is(section.ds-entry > table, section.ds-entry > .ds-prose > table, .ds-table) td:first-child {
+    font-family: var(--font-display);
+    font-weight: var(--w-medium);
+    white-space: nowrap;
+  }
+  :is(section.ds-entry > table, section.ds-entry > .ds-prose > table, .ds-table) td code {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    background: var(--panel);
+    border-radius: var(--radius-sm);
+    padding: 0 calc(var(--space-1) / 2);
+    white-space: nowrap;
   }
   .ds-prose table { border-collapse: collapse; width: 100%; max-width: 700px; margin: 0 0 var(--space-5); }
   .ds-prose th, .ds-prose td {
@@ -1423,6 +1534,42 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
 <script src="/shared/core.js"></script>
 <script src="/shared/select-picker.js"></script>
 <script>
+/* Section headers: turn each flat .ds-usage (<strong>label</strong><span>…</span>…) into
+   label/value rows, and stamp each group title with its entry count (read by ::before). */
+document.querySelectorAll('.ds-usage').forEach(u => {
+  const rows = []; let cur = null;
+  [...u.children].forEach(el => {
+    if (el.tagName === 'STRONG') { cur = { label: el.textContent, values: [] }; rows.push(cur); }
+    else { if (!cur) { cur = { label: '', values: [] }; rows.push(cur); } cur.values.push(el); }
+  });
+  u.textContent = '';
+  rows.forEach(r => {
+    const l = document.createElement('div'); l.className = 'ds-usage__label'; l.textContent = r.label;
+    const v = document.createElement('div'); v.className = 'ds-usage__values'; r.values.forEach(x => v.appendChild(x));
+    u.append(l, v);
+  });
+});
+document.querySelectorAll('.ds-note').forEach(n => {
+  const f = n.firstElementChild;
+  if (f && f.tagName === 'STRONG' && n.firstChild === f && /[.:]\s*$/.test(f.textContent)) n.classList.add('ds-note--titled');
+});
+// token names in spec-table cells → mono chips (text nodes only; existing <code> untouched)
+document.querySelectorAll('section.ds-entry > table td, section.ds-entry > .ds-prose > table td, .ds-table td').forEach(td => {
+  const walk = document.createTreeWalker(td, NodeFilter.SHOW_TEXT), nodes = [];
+  while (walk.nextNode()) if (!walk.currentNode.parentElement.closest('code') && /--[a-z0-9]/.test(walk.currentNode.nodeValue)) nodes.push(walk.currentNode);
+  nodes.forEach(t => {
+    const frag = document.createDocumentFragment();
+    t.nodeValue.split(/(--[a-z0-9][a-z0-9-]*)/).forEach((part, i) => {
+      if (i % 2) { const c = document.createElement('code'); c.textContent = part; frag.appendChild(c); }
+      else if (part) frag.appendChild(document.createTextNode(part));
+    });
+    t.replaceWith(frag);
+  });
+});
+document.querySelectorAll('.ds-group-title').forEach(h => {
+  let n = 0; for (let e = h.nextElementSibling; e && !e.classList.contains('ds-group-title'); e = e.nextElementSibling) if (e.matches('section.ds-entry')) n++;
+  h.dataset.count = n + (n === 1 ? ' entry' : ' entries');
+});
 Organica.enhanceSliders(document);
 // Notice demo: the real component, centred on this page's canvas-less layout
 document.getElementById('ds-notice-error')?.addEventListener('click', () => Organica.notice('Could not read that image', { kind: 'error' }));
