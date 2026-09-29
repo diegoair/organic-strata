@@ -1,0 +1,118 @@
+/* ─────────────────────────────────────────────────────────────
+   ORGANICA — auth-card.css
+   The sign-in card: Continue with Google, an emailed magic link, a message
+   line, the legal line. Promoted from sign-in/index.html's page-local
+   <style> (Sep 29, 2026) so the design-system page renders the real thing
+   instead of a copy. The page keeps only its own body layout (centred on
+   --panel); everything about the card lives here.
+
+   Requires shared/tokens.css. Not linked from the tools — they never show it.
+   Markup contract: docs/DESIGN-SYSTEM.md / design-system #sign-in.
+   ───────────────────────────────────────────────────────────── */
+
+.org-auth-card {
+  --auth-card-w: 320px;          /* component-local, like --slo-h: not a scale value */
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--auth-card-w);
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8) var(--space-7);
+  font-family: var(--font);
+  color: var(--ink);
+}
+.org-auth-card *, .org-auth-card *::before, .org-auth-card *::after { box-sizing: border-box; }
+
+.org-auth-card__brand {
+  font-size: var(--fs-large);
+  font-weight: var(--w-bold);
+  letter-spacing: var(--ls-normal);
+  margin: 0 0 var(--space-2);
+}
+.org-auth-card__sub {
+  font-size: var(--fs-base);
+  color: var(--accent);
+  margin: 0 0 var(--space-7);
+}
+
+/* Both buttons: full width. The Google one is the primary route. */
+.org-auth-card__google,
+.org-auth-card__link {
+  width: 100%;
+  font-family: var(--font);
+  font-size: var(--fs-medium);
+  font-weight: var(--w-medium);
+  padding: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.org-auth-card__google {
+  background: var(--ink);
+  color: var(--paper);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+.org-auth-card__google svg { width: 16px; height: 16px; }   /* the brand "G" — its four colours are the one hex exception */
+.org-auth-card__link {
+  background: none;
+  color: var(--accent);
+  border: 1px solid var(--border);
+}
+.org-auth-card button:disabled { opacity: 0.5; cursor: default; }
+
+.org-auth-card__divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-6) 0;
+  color: var(--accent);
+  font-size: var(--fs-small);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-wider);
+}
+.org-auth-card__divider::before,
+.org-auth-card__divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+.org-auth-card__label {
+  display: block;
+  font-size: var(--fs-small);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-wider);
+  color: var(--accent);
+  margin: 0 0 var(--space-1);
+}
+.org-auth-card__input {
+  width: 100%;
+  font-family: var(--font);
+  font-size: var(--fs-medium);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--ink);
+  margin: 0 0 var(--space-3);
+}
+.org-auth-card__input:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+/* role="status" line — empty until there is something to say */
+.org-auth-card__msg {
+  font-size: var(--fs-base);
+  margin: var(--space-4) 0 0;
+  min-height: 1.2em;
+  text-align: center;
+}
+.org-auth-card__msg--err { color: var(--danger); }
+.org-auth-card__msg--ok  { color: var(--accent); }
+
+.org-auth-card__legal {
+  font-size: var(--fs-small);
+  color: var(--mid);
+  text-align: center;
+  margin: var(--space-5) 0 0;
+  line-height: 1.5;
+}
+.org-auth-card__legal a { color: var(--mid); }
