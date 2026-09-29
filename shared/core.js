@@ -795,19 +795,21 @@
     return fixed;
   };
 
-  // ── SLIDERS — filled track + click-to-edit value ──────────────────────
-  // Two things every input[type=range] in the panel gets, wired once and
+  // ── SLIDERS — the Slosh slider + click/drag-to-edit value ─────────────
+  // Three things every input[type=range] in the panel gets, wired once and
   // reaching content added later (Living Path rebuilds its effect rows on
-  // every layer toggle):
-  //   1. A live --fill custom property (0%–100%), read by the gradient in
-  //      panel.css. User drags update it via the bubbling 'input'
-  //      event; script-driven changes (a preset doing `slider.value = x`)
-  //      update it via a wrapped .value accessor, since presets never
-  //      dispatch a synthetic input event.
-  //   2. Click the number beside a slider to type an exact value. This is
-  //      a delegated click handler, not a per-element one, so it survives
-  //      DOM rebuilt after this function ran (Living Path's layer rows) —
-  //      those sliders still get their fill wired via a MutationObserver.
+  // every layer toggle; Rhizome builds its inspector from JS):
+  //   1. The slider itself (Organica.slosh, below): a spring-driven liquid
+  //      fill that panel.css draws from --sf. Until the spring exists the
+  //      CSS falls back to --fv, the rigid value 0..1 written here. User
+  //      drags update it via the bubbling 'input' event; script-driven
+  //      changes (a preset doing `slider.value = x`) go through a wrapped
+  //      .value accessor, since presets never dispatch a synthetic input.
+  //   2. Click the number beside a slider to type an exact value — and
+  //      drag it to scrub (see Organica.slosh). This is a delegated click
+  //      handler, not a per-element one, so it survives DOM rebuilt after
+  //      this function ran — those sliders still get wired via a
+  //      MutationObserver.
   const rangeValSel = '.ctrl-val, .panel-value, .row .val, .param-val, .panel-unit, .val, .fb-val';
   const rangeRowSel = '.ctrl-row, .panel-row, .row, .param-row, .panel-input-group, .fb-field';
 
@@ -816,7 +818,8 @@
     const max = range.max !== '' ? parseFloat(range.max) : 100;
     const v = parseFloat(range.value);
     const pct = max > min ? Math.min(100, Math.max(0, ((v - min) / (max - min)) * 100)) : 0;
-    range.style.setProperty('--fill', pct + '%');
+    range.style.setProperty('--fv', (pct / 100).toFixed(4));   // rigid value: the liquid's fallback before the spring exists
+    if (range.__slosh) range.__slosh.retarget();                 // typed / scripted value → the liquid follows
   }
 
   function organicaWireRange(range) {
@@ -829,6 +832,7 @@
       set(v) { desc.set.call(range, v); organicaUpdateFill(range); },
     });
     organicaUpdateFill(range);
+    if (range.dataset.slosh !== 'off') Organica.slosh(range);
   }
 
   function organicaBeginValueEdit(val, range) {
@@ -872,6 +876,220 @@
     val.addEventListener('blur', onBlur);
     val.addEventListener('keydown', onKey);
   }
+
+  // ── Slosh slider — THE slider (every input[type=range]) ─────────
+  // After Bencho's Slosh (MIT). The handle (the native thumb) is rigid —
+  // under your finger, and anything that lags a finger is broken. The
+  // LIQUID (the ink fill, drawn by panel.css) is a second, softer,
+  // barely-damped spring behind it: a fast drag throws it past the handle
+  // into the end stop and rocks it back a few times. The lean of the
+  // leading edge is what sells it as liquid — a bar that lags is a laggy
+  // bar; one whose edge leans the way it is travelling is a surface with
+  // a meniscus. Release mid-drag and (if momentum > 0) the value coasts.
+  //
+  // It only styles/observes the NATIVE input — no wrapper, no extra
+  // nodes — so value, step, keys, a11y and every tool's own listeners and
+  // `input.nextElementSibling` reads keep working. It writes two custom
+  // properties on the input: --sf (liquid position, 0..1) and, only while
+  // the edge is leaning, --sedge (an angled hard-stop gradient). The loop
+  // PARKS itself when everything is at rest.
+  // Opt out per range with data-slosh="off". Tunables (0–100):
+  // data-viscosity / data-momentum / data-tilt.
+  Organica.slosh = function (range, opts) {
+    if (range.__slosh) return range.__slosh;
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+    const ds = range.dataset;
+    const o = Object.assign({
+      /* 0 is a rigid fill, 100 loose liquid. Bencho's 15 is a little give; we default to 85 — a loose, wavy slosh */
+      viscosity: ds.viscosity !== undefined ? +ds.viscosity : 85,
+      /* how far the VALUE coasts after release, 0..100. Default 0: a coast
+         re-fires 'input' every frame, and in a tool that regenerates an
+         image per input that is a real cost — and a parameter that keeps
+         drifting after you let go is a surprise. Opt in per slider. */
+      momentum: ds.momentum !== undefined ? +ds.momentum : 0,
+      /* lean on the leading edge, 0..100 */
+      tilt: ds.tilt !== undefined ? +ds.tilt : 100,
+    }, opts || {});
+    const reduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    const min = () => (range.min !== '' ? parseFloat(range.min) : 0);
+    const max = () => (range.max !== '' ? parseFloat(range.max) : 100);
+    const toPct = v => (max() > min() ? clamp(((v - min()) / (max() - min())) * 100, 0, 100) : 0);
+    const fromPct = p => min() + (p / 100) * (max() - min());
+    /* the handle's width = --space-3 + 1px, read from the token so JS and CSS agree */
+    const knobW = () => (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--space-3')) || 8) + 1;
+
+    /* the handle (rigid value), its velocity after release, and the
+       liquid chasing it with a velocity of its own */
+    let val = toPct(parseFloat(range.value)), hv = 0, fill = val, fv = 0;
+    let held = false, raf = 0, prev = 0, writing = false, leaning = false;
+    let last = { v: val, t: 0 };
+
+    const paint = () => {
+      range.style.setProperty('--sf', (fill / 100).toFixed(4));
+      /* the meniscus: proportional to how fast the liquid is actually
+         moving, so it is upright at rest and cannot be decoration */
+      const lean = reduced() ? 0 : clamp((o.tilt / 100) * fv * 3, -32, 32);
+      if (Math.abs(lean) < 0.05) {
+        if (leaning) { range.style.removeProperty('--sedge'); leaning = false; }
+        return;
+      }
+      /* an angled hard-stop gradient: its iso-lines ARE the slanted edge.
+         Angle 90° is a vertical edge; tilt it by atan(2·lean/height), and
+         place the stop at the edge centre's distance along the gradient
+         line (whose length is W·cosφ + H·|sinφ|). */
+      const W = range.clientWidth, H = range.clientHeight;
+      if (!W || !H) return;
+      const k = knobW();
+      const x = (fill / 100) * (W - k) + k / 2;
+      const phi = Math.atan2(2 * lean, H);
+      const len = W * Math.cos(phi) + H * Math.abs(Math.sin(phi));
+      const pos = len / 2 + (x - W / 2) * Math.cos(phi);
+      range.style.setProperty('--sedge',
+        'linear-gradient(' + (90 + phi * 180 / Math.PI).toFixed(2) + 'deg, var(--ink) ' + pos.toFixed(2) + 'px, var(--track-bg) ' + pos.toFixed(2) + 'px)');
+      leaning = true;
+    };
+    const rest = () => !held && Math.abs(hv) < 0.01 && Math.abs(fv) < 0.01 && Math.abs(val - fill) < 0.02;
+
+    const write = () => {
+      writing = true;
+      range.value = fromPct(val);       // the native input snaps to its step
+      writing = false;
+      range.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    const tick = t => {
+      const dt = prev ? clamp((t - prev) / 16.67, 0, 2.5) : 1;
+      prev = t;
+      /* the coast. Friction is per frame, so it is raised to dt rather
+         than multiplied by it — a dropped frame must not double the
+         deceleration. */
+      if (!held && hv) {
+        val += hv * dt;
+        hv *= Math.pow(0.86 + (o.momentum / 100) * 0.115, dt);
+        if (val <= 0 || val >= 100) { val = clamp(val, 0, 100); hv = 0; }
+        if (Math.abs(hv) < 0.01) { hv = 0; range.dispatchEvent(new Event('change', { bubbles: true })); }
+        write();
+      }
+      const soft = reduced() ? 0 : o.viscosity / 100;
+      if (soft === 0) {
+        /* 0 is an ordinary slider and has to be exactly that, not a very
+           stiff spring that still rings */
+        fill = val; fv = 0;
+      } else {
+        /* stiffness falls and damping rises together: thin liquid is slow
+           to answer and slow to forget — one thing said twice, so one knob */
+        const stiff = 0.34 - soft * 0.29, damp = 0.74 + soft * 0.22;
+        fv += (val - fill) * stiff * dt;
+        fv *= Math.pow(damp, dt);
+        fill += fv * dt;
+        /* the end stop is a wall, and a wall gives some back */
+        if (fill > 100) { fill = 100; fv = -fv * 0.42; }
+        else if (fill < 0) { fill = 0; fv = -fv * 0.42; }
+        if (Math.abs(val - fill) < 0.02 && Math.abs(fv) < 0.02) { fill = val; fv = 0; }
+      }
+      paint();
+      if (rest()) { raf = 0; prev = 0; return; }
+      raf = requestAnimationFrame(tick);
+    };
+    const run = () => { if (!raf) raf = requestAnimationFrame(tick); };
+
+    range.addEventListener('pointerdown', e => {
+      held = true; hv = 0;
+      val = toPct(parseFloat(range.value));
+      last = { v: val, t: e.timeStamp };
+      run();
+    });
+    range.addEventListener('input', e => {
+      if (writing) return;
+      const v = toPct(parseFloat(range.value));
+      if (held) {
+        const dt = Math.max(1, e.timeStamp - last.t);
+        /* per frame, not per ms — the loop is in frames and a release
+           velocity in the other unit is a hundred times too big */
+        hv = ((v - last.v) / dt) * 16.67;
+        last = { v, t: e.timeStamp };
+      }
+      val = v; run();
+    });
+    const drop = () => {
+      if (!held) return;
+      held = false;
+      /* leaves along the velocity it actually had, capped so a flick
+         across the whole track does not simply pin it */
+      hv = (reduced() || !o.momentum) ? 0 : clamp(hv, -6, 6);
+      run();
+    };
+    range.addEventListener('pointerup', drop);
+    range.addEventListener('pointercancel', drop);
+    range.addEventListener('lostpointercapture', drop);
+    range.addEventListener('keydown', () => { hv = 0; });
+
+    // ── drag-to-scrub on the number beside the slider ──────────────
+    // Press on the value and drag left/right to change it (the ew-resize
+    // cursor promises exactly this). Under 3px of travel it is still a
+    // click, so click-to-type keeps working; past that it is a scrub and
+    // the click that follows the release is swallowed so it doesn't also
+    // open the editor. 200px of travel = the full range; Shift = 10x finer.
+    const valSel = '.ctrl-val, .panel-value, .panel-unit, .param-val, .val, .fb-val';
+    const valEl = (() => {
+      const n = range.nextElementSibling;
+      if (n && n.matches && n.matches(valSel)) return n;
+      const row = range.parentElement;
+      if (row && row.querySelectorAll('input[type=range]').length === 1) return row.querySelector(valSel);
+      return null;
+    })();
+    if (valEl) {
+      let sx = 0, sv = 0, scrubbing = false, down = false, swallow = false;
+      const step = () => (range.step && range.step !== 'any' ? parseFloat(range.step) : null);
+      valEl.addEventListener('pointerdown', e => {
+        if (e.button !== 0 || valEl.isContentEditable) return;
+        down = true; scrubbing = false; sx = e.clientX; sv = parseFloat(range.value);
+        valEl.setPointerCapture && valEl.setPointerCapture(e.pointerId);
+      });
+      valEl.addEventListener('pointermove', e => {
+        if (!down) return;
+        if (!scrubbing && Math.abs(e.clientX - sx) < 3) return;
+        if (!scrubbing) { scrubbing = true; valEl.style.userSelect = 'none'; }
+        const per = (max() - min()) / 200 * (e.shiftKey ? 0.1 : 1);
+        let v = clamp(sv + (e.clientX - sx) * per, min(), max());
+        const st = step();
+        if (st) v = Math.round((v - min()) / st) * st + min();
+        v = Math.round(v * 1e6) / 1e6;
+        if (String(v) === range.value) return;
+        range.value = v;
+        range.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      const end = () => {
+        if (!down) return;
+        down = false;
+        if (scrubbing) {
+          swallow = true;                       // the click after a scrub is not an edit
+          valEl.style.userSelect = '';
+          range.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      };
+      valEl.addEventListener('pointerup', end);
+      valEl.addEventListener('pointercancel', end);
+      valEl.addEventListener('click', e => {
+        if (swallow) { swallow = false; e.stopPropagation(); e.preventDefault(); }
+      });
+    }
+
+    const api = {
+      /* a typed / scripted value: snap the handle, let the liquid follow */
+      retarget() {
+        if (writing) return;
+        hv = 0;
+        val = toPct(parseFloat(range.value));
+        run();
+      },
+    };
+    range.__slosh = api;
+    /* first paint: the liquid starts AT the value, so nothing animates in */
+    range.style.setProperty('--sf', (fill / 100).toFixed(4));
+    return api;
+  };
 
   let sliderObserver = null;
   let sliderDelegatesWired = false;

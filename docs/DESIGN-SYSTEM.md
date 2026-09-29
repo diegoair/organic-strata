@@ -235,7 +235,7 @@ back to the class and it never shows.
 
 | Token | Value | Role |
 |---|---|---|
-| `--accent-warm` | `#c2551b` | The one accent for every slider fill and the floating toolbar's primary button — deliberately *not* `--tool` (which is blue for Halide/Spore), so a control reads as "you're dragging this" identically regardless of which tool it's in. Computed for contrast: 3.79:1 on `--panel`, 4.08:1 on `--paper`. |
+| `--accent-warm` | `#c2551b` | The one accent (slider fills were retired Sep 29, 2026 — the Slosh slider is ink on `--track-bg`) — deliberately *not* `--tool` (which is blue for Halide/Spore), so a control reads as "you're dragging this" identically regardless of which tool it's in. Computed for contrast: 3.79:1 on `--panel`, 4.08:1 on `--paper`. |
 | `--track-bg` | `color-mix(in srgb, var(--ink) 10%, var(--panel))` | The slider track's empty-portion housing — derived per-tool automatically, never a hardcoded hex. |
 | `--canvas-bg` | `var(--paper)` (#ffffff) | The canvas **area** every tool's stage sits on (`#canvas-wrap` / `.org-canvas-wrap` in `shell.css`, plus FVS, Rhizome, Genesis, Apostate, Mycel, TuneSutra's own stage areas). Replaced the grey `--panel` area on Sep 29, 2026. |
 | `--canvas-dot` | `#a8dff0` | Light cyan blue of the canvas dot grid. |

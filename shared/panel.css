@@ -30,6 +30,8 @@
 :root {
   --panel-w: 248px;          /* was 240 / 244 / 280 — one width */
   --row-h: 26px;             /* every control row, so columns align */
+  --slo-h: calc(var(--row-h) - var(--space-2));   /* the slider AND its number box */
+  --slo-r: var(--radius-md);                       /* their corner */
   --panel-pad: 14px;
 }
 
@@ -181,101 +183,120 @@
 }
 
 /* ═══════════════════════════════════════════════════════════
-   SLIDER — one implementation, Figma's Design-panel handle
-   Was a flat 2–3px line with a flat thumb — no fill, so the only way to
-   read a value was the number beside it. Now a filled pill: the track
-   reads its own value (--ink up to the thumb, --panel after), and a
-   white floating thumb with its own shadow separates it from the track
-   under it. --fill is written by Organica.enhanceSliders() in core.js,
-   both on drag (bubbled 'input') and on any script assignment to
-   .value (a wrapped property setter) — so presets and hand-dragging
-   both keep the fill honest. Fill colour is --ink (grey/black) rather
-   than --accent-warm — one neutral value-fill across every tool,
-   independent of each tool's own --tool accent.
+   SLIDER — the Slosh slider (Sep 29, 2026; the ONLY slider). After
+   Bencho's Slosh slider (MIT). It replaced the previous Figma-style
+   slider (5px ink line + round white thumb + eased --fill), which is
+   removed: there is no second slider to fall back to.
 
-   --fill is registered as a real animatable <percentage> via @property,
-   so the fill/empty boundary eases smoothly on every value change (drag
-   or scripted) instead of snapping — a small but real motion cue.
+   A slider whose value has mass. The handle (the native thumb) is rigid —
+   it is under your finger, and anything under a finger that lags it is
+   broken. The LIQUID (the ink fill) is a second spring behind it, softer
+   and barely damped, so a fast drag throws it past the handle, into the
+   end stop, and rocks it back a few times; its leading edge leans in the
+   direction it travels (a bar that lags is a laggy bar, a bar whose edge
+   leans is a surface with a meniscus). The spring lives in core.js
+   (Organica.slosh, applied to EVERY range by Organica.enhanceSliders); it
+   only writes two custom properties on the input, --sf (where the liquid
+   is, 0..1) and, while it is moving, --sedge (the slanted-edge gradient).
+
+   Styled on the native input itself — no wrapper, no extra elements —
+   because tools read `input.nextElementSibling` to update the number
+   beside it (Colornet, Sinew, Living Path), and keyboard, step snapping,
+   a11y, disabled/hidden and every tool's own 'input' events must keep
+   working untouched.
+
+   THE LIQUID IS INK, THE WELL IS --track-bg. Bencho draws a white liquid
+   in a grey well; on our off-white panels that vanishes (a full slider
+   reads as an empty one), so the moving surface takes --ink — the same
+   neutral value-fill every Organica slider has always used — on the
+   shared --track-bg housing. The well is a recess and gets no shadow: a
+   recess with a drop shadow is a hole that is somehow also on top. The
+   handle is --paper with a --border-strong stroke and a soft all-round
+   shadow; its width, height and corner are the track's (--slo-knob,
+   --slo-h, --slo-r = --radius-md).
+
+   The centre line is a row of dots (2px, one every --space-3) drawn once
+   with background-blend-mode: difference: a translucent white dot inverts
+   what is under it, so it reads darker on the grey well and lighter on
+   the ink liquid, and stays one continuous line across the join.
+
+   No transitions anywhere in here: every value is written by the spring
+   loop, and a transition on top of a spring is two opinions about one
+   number. Respects prefers-reduced-motion (rigid, no coast).
    ═══════════════════════════════════════════════════════════ */
-
-@property --fill {
-  syntax: '<percentage>';
-  inherits: true;
-  initial-value: 0%;
-}
 
 input[type=range] {
   -webkit-appearance: none;
   appearance: none;
   flex: 1 1 auto;
   min-width: 0;
-  height: 15px;              /* tall enough to clear the thumb without clipping its shadow */
+  height: var(--slo-h);
   background: transparent;
   outline: none;
-  cursor: pointer;
+  cursor: grab;
   margin: 0;
-}
 
-/* The empty portion of the track IS the "grey rounded background" — not a
-   separate wrapper element, so it has to be thick enough to read as a
-   housing rather than a hairline. --track-bg is derived per-tool from
-   --ink mixed into --panel, so it stays a visible-but-quiet chip against
-   each tool's own panel colour without a hardcoded hex. Radius comes from
-   --radius-md, the same token every other panel control (.panel-select,
-   .panel-input, .color-swatch…) uses — a card corner, not a stadium cap,
-   so the housing reads as the same component family as the rest of the
-   panel instead of a one-off pill shape. */
+  --slo-knob: calc(var(--space-3) + 1px);   /* handle width */
+  /* where the liquid's edge is: 0..1 of the travel, mapped so the edge
+     always sits under the handle's centre. --sf is the spring, --fv the
+     rigid value written by core.js before the spring exists. */
+  --slo-x: calc(var(--sf, var(--fv, 0)) * (100% - var(--slo-knob)) + var(--slo-knob) / 2);
+  --slo-dots: radial-gradient(circle, color-mix(in srgb, var(--paper) 30%, transparent) 0 1px, transparent 1.3px);
+}
+input[type=range]:active { cursor: grabbing; }
+input[type=range]:disabled { opacity: 0.35; cursor: not-allowed; }
+
 input[type=range]::-webkit-slider-runnable-track {
-  height: 5px;
-  border-radius: var(--radius-md);
-  background: linear-gradient(to right,
-    var(--ink) 0%, var(--ink) var(--fill, 0%),
-    var(--track-bg, var(--panel)) var(--fill, 0%), var(--track-bg, var(--panel)) 100%);
-  transition: --fill 0.18s ease-out;
+  height: 100%;
+  border-radius: var(--slo-r);
+  background-image: var(--slo-dots),
+    var(--sedge, linear-gradient(90deg, var(--ink) var(--slo-x), var(--track-bg) var(--slo-x)));
+  background-size: var(--space-3) 2px, 100% 100%;
+  background-position: 0 50%, 0 0;
+  background-repeat: repeat-x, no-repeat;
+  background-blend-mode: difference, normal;
 }
 input[type=range]::-moz-range-track {
-  height: 5px;
-  border-radius: var(--radius-md);
-  background: var(--track-bg, var(--panel));
+  height: 100%;
+  border-radius: var(--slo-r);
+  background-image: var(--slo-dots),
+    var(--sedge, linear-gradient(90deg, var(--ink) var(--slo-x), var(--track-bg) var(--slo-x)));
+  background-size: var(--space-3) 2px, 100% 100%;
+  background-position: 0 50%, 0 0;
+  background-repeat: repeat-x, no-repeat;
+  background-blend-mode: difference, normal;
 }
-input[type=range]::-moz-range-progress {
-  height: 5px;
-  border-radius: var(--radius-md) 0 0 var(--radius-md);
-  background: var(--ink);
-}
+input[type=range]::-moz-range-progress { background: transparent; }
 
+/* the handle: rigid and under your finger */
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 15px; height: 15px;
-  margin-top: -5px;   /* (5px track − 15px thumb) / 2, centers the thumb */
-  border-radius: 50%;
-  background: #fff;
-  border: 0;
-  box-shadow: 0 2px 4px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.1);
-  cursor: pointer;
-  transition: transform 0.12s, box-shadow 0.12s;
+  appearance: none;
+  width: var(--slo-knob);
+  height: var(--slo-h);
+  margin-top: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--slo-r);
+  background: var(--paper);
+  box-shadow: 0 0 var(--space-3) color-mix(in srgb, var(--ink) 40%, transparent);
+  cursor: inherit;
 }
 input[type=range]::-moz-range-thumb {
-  width: 15px; height: 15px;
-  border-radius: 50%;
-  background: #fff;
-  border: 0;
-  box-shadow: 0 2px 4px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.1);
-  cursor: pointer;
-  transition: transform 0.12s, box-shadow 0.12s;
+  width: var(--slo-knob);
+  height: var(--slo-h);
+  box-sizing: border-box;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--slo-r);
+  background: var(--paper);
+  box-shadow: 0 0 var(--space-3) color-mix(in srgb, var(--ink) 40%, transparent);
+  cursor: inherit;
 }
-input[type=range]:hover::-webkit-slider-thumb,
-input[type=range]:hover::-moz-range-thumb { transform: scale(1.15); }
-input[type=range]:focus-visible::-webkit-slider-thumb,
-input[type=range]:focus-visible::-moz-range-thumb {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 45%, transparent),
-              0 2px 4px rgba(0,0,0,.35);
+input[type=range]:focus-visible::-webkit-slider-runnable-track {
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px color-mix(in srgb, var(--ink) 40%, transparent);
 }
-input[type=range]:focus-visible { outline: none; }
-
-@media (prefers-reduced-motion: reduce) {
-  input[type=range]::-webkit-slider-thumb,
-  input[type=range]::-moz-range-thumb { transition: none; }
+input[type=range]:focus-visible::-moz-range-track {
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px color-mix(in srgb, var(--ink) 40%, transparent);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -747,3 +768,32 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
    before, which should have taken the aliases with it. See docs/CSS-RULES.md
    (e): the commit that removes an alias's last consumer removes the alias.
    ═══════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════
+   SLIDER VALUE — the number beside a slider. Its box is the SAME size as
+   the slider: one definition (--slo-h, on :root above), the same corner
+   (--slo-r), --space-2 of side padding, right-aligned. Hover shows the
+   horizontal-resize cursor and a light --border stroke (the same 1px
+   inset outline the value uses while editing, just lighter). It is
+   drag-to-scrub (core.js) AND click-to-type: .editing keeps its own
+   text cursor and stronger outline. Only values whose row holds a range.
+   ═══════════════════════════════════════════════════════════ */
+:is(.ctrl-row, .panel-row, .row, .panel-input-group, .fb-field):has(> input[type=range])
+  > :is(.ctrl-val, .panel-value, .panel-unit, .param-val, .val, .fb-val) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  height: var(--slo-h);
+  padding: 0 var(--space-2);
+  border-radius: var(--slo-r);
+}
+/* Genesis writes an inline width:24px on .panel-unit — too narrow for three
+   digits once the box is padded, so it gets a floor */
+.panel-input-group:has(> input[type=range]) > .panel-unit { min-width: var(--space-8); }
+:is(.ctrl-row, .panel-row, .row, .panel-input-group, .fb-field):has(> input[type=range])
+  > :is(.ctrl-val, .panel-value, .panel-unit, .param-val, .val, .fb-val):not(.editing):hover {
+  cursor: ew-resize;
+  outline: 1px solid var(--border);
+  outline-offset: -1px;
+}

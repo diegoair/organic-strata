@@ -18,6 +18,10 @@ import { renderInspector } from './renderers/inspector-panel.js';
 import { createHistory } from './history.js';
 import * as exportOps from './nodes/export.js';
 
+// The inspector builds its range inputs from JS: enhanceSliders' MutationObserver
+// gives each the shared slider (liquid fill + click/drag-to-edit number) as it appears.
+Organica.enhanceSliders(document);
+
 const graphEl = document.getElementById('graph');
 const wrapEl = document.getElementById('canvas-wrap');
 const nodesLayer = document.getElementById('nodes-layer');

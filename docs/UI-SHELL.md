@@ -252,7 +252,7 @@ rather than annotated.
 | `.panel-select` | full-width `<select>` |
 | `.row-btns` / `.mini-btn` | paired buttons (Save / Delete) |
 
-**Sliders** are `input[type=range]`, 2px track, 10px round thumb, `--ink`.
+**Sliders** are `input[type=range]` — the one **Slosh slider** (Sep 29, 2026): grey `--track-bg` well, `--ink` spring liquid, full-height 9px handle, dotted centre line; the number beside it drags to scrub and clicks to type. Applied to every range by `Organica.enhanceSliders()`; see the design system's Slider entry. Never restyle `input[type=range]` in a tool.
 
 ---
 

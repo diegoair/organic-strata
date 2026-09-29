@@ -537,43 +537,48 @@
 
     <section class="ds-entry" id="slider">
       <h2>Slider</h2>
-      <p class="ds-desc">A filled housing (<code>--track-bg</code>) with the value up to the thumb in <code>--ink</code> — one neutral grey/black everywhere, not each tool's own hue, the same way Figma's own inspector uses one neutral for every handle regardless of file content. <code>--fill</code> is written live by <code>Organica.enhanceSliders()</code>, on drag and on any script assignment to <code>.value</code> (so presets stay honest too).</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>JS</strong><span>Organica.enhanceSliders()</span><strong>Used in</strong><span>every panel</span></div>
+      <p class="ds-desc">One slider, everywhere — the <strong>Slosh slider</strong> (after Bencho's, MIT). A grey <code>--track-bg</code> well with an <code>--ink</code> liquid that has mass: the handle is rigid under your finger; the liquid is a softer spring behind it that overshoots, rocks into the end stop and leans on its leading edge. A dotted centre line runs through it, and the number beside it is <strong>drag-to-scrub and click-to-type</strong>. It replaced the previous Figma-style slider (5px line, round thumb, eased <code>--fill</code>), which is removed.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>JS</strong><span>Organica.slosh() via Organica.enhanceSliders()</span><strong>Used in</strong><span>every panel</span></div>
       <div class="ds-example ds-example--column" style="max-width:280px">
         <div class="ctrl-row">
           <span class="ctrl-label">Dot scale</span>
-          <input type="range" min="0" max="10" value="6" style="--fill:60%">
+          <input type="range" min="0" max="10" value="6">
           <span class="ctrl-val">6</span>
         </div>
-      </div>
-      <pre class="ds-code">&lt;<span class="tag">input</span> <span class="attr">type</span>=<span class="str">"range"</span> <span class="attr">min</span>=<span class="str">"0"</span> <span class="attr">max</span>=<span class="str">"10"</span> <span class="attr">value</span>=<span class="str">"6"</span>&gt;
-&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-val"</span>&gt;6&lt;/<span class="tag">span</span>&gt;
-
-<span class="attr">/* once, at page init */</span>
-Organica.enhanceSliders(document);</pre>
-
-      <p class="ds-desc" style="margin-top:var(--space-5)">Stacked — <code>.ctrl-row</code>'s own <code>margin-bottom: var(--space-2)</code> sets the rhythm between consecutive sliders in a real panel section, on top of each row's <code>min-height: var(--row-h)</code> (26px). No extra wrapper gap needed — every panel section (Transform, Distort, Break…) is just a stack of these.</p>
-      <div class="ds-usage"><strong>Row gap</strong><span>--space-2</span><strong>Row height</strong><span>--row-h (26px)</span></div>
-      <div class="ds-example ds-example--column" style="max-width:280px">
         <div class="ctrl-row">
           <span class="ctrl-label">Rotate</span>
-          <input type="range" min="-360" max="360" value="45" style="--fill:56%">
+          <input type="range" min="-360" max="360" value="45">
           <span class="ctrl-val">45°</span>
         </div>
         <div class="ctrl-row">
           <span class="ctrl-label">Slant</span>
-          <input type="range" min="-15" max="15" value="-3" style="--fill:40%">
+          <input type="range" min="-15" max="15" value="-3">
           <span class="ctrl-val">-3°</span>
         </div>
         <div class="ctrl-row">
-          <span class="ctrl-label">Stretch X</span>
-          <input type="range" min="10" max="300" value="120" style="--fill:38%">
-          <span class="ctrl-val">1.20</span>
+          <span class="ctrl-label">Rigid</span>
+          <input type="range" min="0" max="100" value="40" data-viscosity="0">
+          <span class="ctrl-val">40</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">Disabled</span>
+          <input type="range" min="0" max="100" value="60" disabled>
+          <span class="ctrl-val">60</span>
         </div>
       </div>
-      <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"ctrl-row"</span>&gt;&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-label"</span>&gt;Rotate&lt;/<span class="tag">span</span>&gt;&lt;<span class="tag">input</span> <span class="attr">type</span>=<span class="str">"range"</span>&gt;&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-val"</span>&gt;45°&lt;/<span class="tag">span</span>&gt;&lt;/<span class="tag">div</span>&gt;
-&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"ctrl-row"</span>&gt;&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-label"</span>&gt;Slant&lt;/<span class="tag">span</span>&gt;&lt;<span class="tag">input</span> <span class="attr">type</span>=<span class="str">"range"</span>&gt;&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-val"</span>&gt;-3°&lt;/<span class="tag">span</span>&gt;&lt;/<span class="tag">div</span>&gt;
-&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"ctrl-row"</span>&gt;&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-label"</span>&gt;Stretch X&lt;/<span class="tag">span</span>&gt;&lt;<span class="tag">input</span> <span class="attr">type</span>=<span class="str">"range"</span>&gt;&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-val"</span>&gt;1.20&lt;/<span class="tag">span</span>&gt;&lt;/<span class="tag">div</span>&gt;</pre>
+      <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"ctrl-row"</span>&gt;
+  &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-label"</span>&gt;Dot scale&lt;/<span class="tag">span</span>&gt;
+  &lt;<span class="tag">input</span> <span class="attr">type</span>=<span class="str">"range"</span> <span class="attr">min</span>=<span class="str">"0"</span> <span class="attr">max</span>=<span class="str">"10"</span> <span class="attr">value</span>=<span class="str">"6"</span>&gt;
+  &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"ctrl-val"</span>&gt;6&lt;/<span class="tag">span</span>&gt;
+&lt;/<span class="tag">div</span>&gt;
+
+<span class="attr">/* once, at page init — also picks up sliders added later */</span>
+Organica.enhanceSliders(document);
+
+<span class="attr">/* optional per slider, each 0–100 (defaults 85 / 0 / 100), or data-slosh="off" */</span>
+data-viscosity  data-momentum  data-tilt</pre>
+      <p class="ds-note"><strong>Tokens.</strong> Height <code>--slo-h</code> (= <code>--row-h</code> − <code>--space-2</code>) is shared by the track, the handle and the number box; the corner <code>--slo-r</code> is <code>--radius-md</code>; the handle is <code>--space-3</code> + 1px wide, <code>--paper</code> with a <code>--border-strong</code> stroke and a soft <code>--ink</code> shadow; the dots are <code>--space-3</code> apart. Colours: well <code>--track-bg</code>, liquid <code>--ink</code>. No second slider exists — don't restyle <code>input[type=range]</code> in a tool.</p>
+      <p class="ds-note"><strong>Behaviour.</strong> Styled on the <em>native</em> input, no wrapper: <code>value</code>, <code>step</code>, keys, disabled and every tool's own <code>input</code> listener keep working, and code that does <code>input.nextElementSibling.textContent = …</code> (Colornet, Sinew, Living Path) still finds its number. Cursor is <code>grab</code> / <code>grabbing</code> on the slider and <code>ew-resize</code> on the number, which shows a light <code>--border</code> stroke on hover. <strong>Momentum</strong> (the value coasting after release) is off by default — it re-fires <code>input</code> every frame, which costs in tools that regenerate an image per input; opt in with <code>data-momentum</code>. Reduced-motion: rigid, no coast.</p>
     </section>
 
     <section class="ds-entry" id="panel-controls">
@@ -927,6 +932,12 @@ Organica.popover(document.getElementById(<span class="str">'btn-export'</span>),
 <script src="/shared/select-picker.js"></script>
 <script>
 Organica.enhanceSliders(document);
+// Slider demo: the numbers follow the (rigid) value, as a real tool's would
+document.querySelectorAll('#slider input[type=range]').forEach(r => {
+  const val = r.nextElementSibling;
+  const unit = val.textContent.replace(/[-\d.]+/, '');
+  r.addEventListener('input', () => { if (!val.isContentEditable) val.textContent = r.value + unit; });
+});
 </script>
 <script>
 /* Self-verification. See the "Self-check" section for why this exists.
