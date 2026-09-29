@@ -368,7 +368,7 @@
       <a href="#panel-row">Row, label &amp; value</a>
       <a href="#slider">Slider</a>
       <a href="#toggle">Checkbox &amp; switch</a>
-      <a href="#panel-controls">Select, input &amp; color row</a>
+      <a href="#panel-controls">Fields — input, select &amp; color row</a>
       <a href="#palette-chips">Palette — RMX chip strip</a>
       <a href="#select-picker">Thumbnail picker</a>
       <a href="#seg-ctrl">Segmented control</a>
@@ -877,28 +877,33 @@ data-viscosity  data-momentum  data-tilt</pre>
     </section>
 
     <section class="ds-entry" id="panel-controls">
-      <h2>Select, input &amp; color row</h2>
-      <p class="ds-desc">The rest of the panel's control vocabulary — a native select styled to match, a numeric field with tabular figures, and the three-part colour row (swatch → native picker → hex field) used everywhere a colour is exposed.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span></div>
-      <div class="ds-example ds-example--column" style="max-width:280px">
+      <h2>Fields — input, select &amp; color row</h2>
+      <p class="ds-desc"><strong>One field.</strong> <code>.org-field</code> is the only definition for text/number inputs, selects and textareas — THE BUTTON's measures: display face, <code>--t-control-size</code>, <code>--row-h</code> tall (<code>--lg</code> 32), <code>--panel</code> fill, <code>--border-strong</code>, <code>--radius-sm</code>; hover <code>--mid</code>, focus <code>--ink</code>, disabled 0.42, placeholder <code>--mid</code>. The <a href="/design-system/_control-audit.html?kind=fields">field audit</a> (Sep 29, 2026) found 347 fields in 24 looks — about 91% already agreed; the rest were local copies (Genesis's white 11px fields, Spore's ink-map select, Sinew's blend select, the sign-in email field, a 9px code textarea), now migrated.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/header.css (THE FIELD)</span><strong>Aliases</strong><span>.panel-select</span><span>.panel-input</span><span>.color-hex</span><span>.org-select</span><strong>Deltas</strong><span>shared/panel.css</span></div>
+      <div class="ds-example ds-example--column" style="max-width:320px" id="ds-field-matrix">
+        <input class="org-field org-field--block mb-3" placeholder="Name this preset">
         <select class="panel-select mb-3">
           <option>stroke only</option>
           <option>fill</option>
         </select>
-        <input class="panel-input mb-3" value="1.2">
-        <div class="color-row">
+        <div class="ctrl-row mb-3"><span class="ctrl-label">Width</span><input class="panel-input" type="number" value="1080"></div>
+        <div class="color-row mb-3">
           <span class="color-name">Ink</span>
           <button class="color-swatch" style="background:var(--ink)"></button>
           <input class="color-hex" value="#0a0a0a">
         </div>
+        <input class="org-field org-field--block mb-3" value="Disabled" disabled>
+        <input class="org-field org-field--lg org-field--block mb-3" placeholder="you@example.com — --lg">
+        <textarea class="org-field org-field--code org-field--block" rows="3">{ "tool": "fvs-recipe" }</textarea>
       </div>
-      <pre class="ds-code">&lt;<span class="tag">select</span> <span class="attr">class</span>=<span class="str">"panel-select"</span>&gt;…&lt;/<span class="tag">select</span>&gt;
-&lt;<span class="tag">input</span> <span class="attr">class</span>=<span class="str">"panel-input"</span>&gt;
-&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"color-row"</span>&gt;
-  &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"color-name"</span>&gt;Ink&lt;/<span class="tag">span</span>&gt;
-  &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"color-swatch"</span>&gt;&lt;/<span class="tag">button</span>&gt;
-  &lt;<span class="tag">input</span> <span class="attr">class</span>=<span class="str">"color-hex"</span>&gt;
-&lt;/<span class="tag">div</span>&gt;</pre>
+      <pre class="ds-code"><span class="attr">/* base */</span>    org-field        <span class="attr">/* sizes */</span> (default 26) · org-field--lg (32)
+<span class="attr">/* shapes */</span>  org-field--block (full width) · org-field--code (mono, for JSON/code)
+<span class="attr">/* aliases */</span> panel-select (full width) · panel-input (68px, right-aligned digits) · color-hex (fills the colour row) · org-select
+
+&lt;<span class="tag">input</span> <span class="attr">class</span>=<span class="str">"org-field org-field--block"</span> <span class="attr">placeholder</span>=<span class="str">"Name this preset"</span>&gt;
+&lt;<span class="tag">select</span> <span class="attr">class</span>=<span class="str">"panel-select"</span>&gt;…&lt;/<span class="tag">select</span>&gt;
+&lt;<span class="tag">input</span> <span class="attr">class</span>=<span class="str">"panel-input"</span> <span class="attr">type</span>=<span class="str">"number"</span>&gt;</pre>
+      <p class="ds-note"><strong>Not this component, on purpose.</strong> The slider's number box (click-to-type, see <a href="#slider">Slider</a>); the <a href="#select-picker">select-picker</a> trigger — select-like, the same 26px and border, with room for its thumbnail; TuneSutra's compact R/G/B/H/S/B triplets (narrower padding); Loom's borderless inputs inside the margin-corner boxes (the box is the border); Sinew's "+ add effect…" select, styled as an action; checkboxes, switches, colour and file inputs (their own components). Both themes: every colour is a token.</p>
     </section>
 
     <section class="ds-entry" id="palette-chips">
@@ -997,7 +1002,7 @@ Organica.seedsPanel({
 
     <section class="ds-entry" id="buttons">
       <h2>Buttons</h2>
-      <p class="ds-desc"><strong>One button.</strong> <code>.org-btn</code> is the only definition — three sizes, four variants, two shapes, one pressed state — sized from existing tokens (<code>--slo-h</code> 20 · <code>--row-h</code> 26 · <code>--space-8</code> 32), display face, <code>--t-control-size</code>, sentence case, <code>--radius-sm</code>. It replaced 78 distinct looks found by the <a href="/design-system/_button-audit.html">button audit</a> (Sep 29, 2026): heights from 20 to 40px, radius 0/2/4/5, weight 400/500/700, 9–14px, upper and sentence case.</p>
+      <p class="ds-desc"><strong>One button.</strong> <code>.org-btn</code> is the only definition — three sizes, four variants, two shapes, one pressed state — sized from existing tokens (<code>--slo-h</code> 20 · <code>--row-h</code> 26 · <code>--space-8</code> 32), display face, <code>--t-control-size</code>, sentence case, <code>--radius-sm</code>. It replaced 78 distinct looks found by the <a href="/design-system/_control-audit.html">button audit</a> (Sep 29, 2026): heights from 20 to 40px, radius 0/2/4/5, weight 400/500/700, 9–14px, upper and sentence case.</p>
       <div class="ds-usage"><strong>Defined in</strong><span>shared/header.css (THE BUTTON)</span><strong>Aliases</strong><span>.mini-btn</span><span>.panel-btn</span><span>.upload-btn</span><span>.icon-btn</span><span>.hud-btn</span><strong>Used in</strong><span>every page</span></div>
       <div class="ds-example ds-example--column" id="ds-btn-matrix">
         <div class="row-btns" style="flex:none;margin:0;align-items:center;flex-wrap:wrap;gap:var(--space-3)">
@@ -1535,6 +1540,11 @@ document.querySelectorAll('#slider input[type=range]').forEach(r => {
   };
   assert('.ctrl-row',   { minHeight: '26px' });                       // --row-h
   assert('.panel-select', { fontSize: '10px', borderRadius: '2px' }); // --t-control-size
+  // THE FIELD — base, alias, lg, code (header.css)
+  assert('#ds-field-matrix .org-field:not(.org-field--lg):not(.org-field--code)', { minHeight: '26px', fontSize: '10px', borderTopLeftRadius: '2px' });
+  assert('#ds-field-matrix .panel-input', { minHeight: '26px', width: '68px', textAlign: 'right' });
+  assert('#ds-field-matrix .org-field--lg', { minHeight: '32px', fontSize: '12px' });
+  assert('#ds-field-matrix .org-field--code', { fontFamily: '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace' });
   assert('.ctrl-label', { fontSize: '9px', fontWeight: '400' });      // --t-label-* (--w-light is an alias of regular)
   assert('.seg-btn',    { fontSize: '10px' });
   assert('.mini-btn',   { minHeight: '26px' });

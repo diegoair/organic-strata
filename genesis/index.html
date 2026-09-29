@@ -214,11 +214,6 @@
        bare <input type=range> has a real browser intrinsic minimum (~129px),
        which is what made these rows overflow the panel. */
     .panel-input-group { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; justify-content: flex-end; }
-    .panel-input { background: var(--bg); border: 1px solid var(--border); color: var(--ink); font-size: var(--fs-base); font-family: var(--font); padding: 4px 8px; width: 64px; text-align: right; outline: none; -moz-appearance: textfield; }
-    .panel-input::-webkit-inner-spin-button, .panel-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-    .panel-input:focus { border-color: var(--ink); }
-    .panel-input--full { width: 100%; text-align: left; }
-    .panel-input:disabled { opacity: 0.45; }
     /* panel.css's own .panel-unit sets min-width:34px — wider than
        this file's per-element inline widths (14-30px), and min-width always
        wins over a smaller width, which silently clipped several rows'
@@ -230,9 +225,7 @@
     .panel-range { flex: 1; min-width: 0; }
     .panel-hint { font-size: var(--fs-small); color: var(--ink-muted); line-height: 1.5; margin: 0 0 var(--space-2); }
     /* input[type=range] styling comes from shared/panel.css — do not redeclare here (was a stale pre-redesign copy) */
-    select.panel-select { background: var(--bg); border: 1px solid var(--border); color: var(--ink); font-size: var(--fs-base); font-family: var(--font); padding: 4px 6px; outline: none; accent-color: var(--ink); flex: 1; }
-    textarea.paste { width: 100%; height: 90px; resize: vertical; background: var(--bg); border: 1px solid var(--border); color: var(--ink); font-family: var(--font); font-size: var(--fs-small); padding: 6px; outline: none; }
-    textarea.paste:focus { border-color: var(--ink); }
+    select.panel-select { flex: 1; }   /* look from THE FIELD (header.css) — local copy removed, field audit Sep 29 2026 */
 
     .seg { display: flex; gap: 0; }
     /* .seg-btn comes from panel.css now (the local copy was a duplicate — button audit, Sep 29 2026) */

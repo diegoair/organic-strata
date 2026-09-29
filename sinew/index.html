@@ -63,7 +63,7 @@
 .group:not(.goff) .group-head .gtog{ background:var(--tool); border-color:var(--tool); color:var(--ink) }
 .group-head .gbase{ font-size:var(--fs-small); letter-spacing:.14em; color:var(--mid) }
 .group-head .gsp{ flex:1 }
-.blendsel{ font-family:var(--font); font-size:var(--fs-base); padding:var(--space-1) var(--space-2); border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--panel); color:var(--ink); cursor:pointer }
+.blendsel{ flex:0 0 auto }   /* look from THE FIELD (org-field, header.css) */
 .gdel{ color:var(--danger) }
 .newgroup{ font-size:var(--fs-base); width:100%; margin-top:var(--space-1); border-style:dashed }
 .addfx{position:relative; margin-top:var(--space-1)}
@@ -391,7 +391,7 @@ function renderStack(){
     if(grouped){
       const blend = gi===0
         ? '<span class="gbase">base group</span>'
-        : `<select class="blendsel">${BLENDS.map(m=>`<option ${grp.blend===m?'selected':''}>${m}</option>`).join('')}</select>`;
+        : `<select class="blendsel org-field">${BLENDS.map(m=>`<option ${grp.blend===m?'selected':''}>${m}</option>`).join('')}</select>`;
       const del = groups.length>1 ? '<button class="org-btn org-btn--sm gdel">×</button>' : '';
       const gh=document.createElement('div'); gh.className='group-head';
       gh.innerHTML=`<div class="tog gtog">✓</div>${blend}<span class="gsp"></span>${del}`;

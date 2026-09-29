@@ -4,11 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Button audit</title>
+<title>Control audit</title>
 <link rel="stylesheet" href="/shared/tokens.css">
 <style>
-  /* Dev-only page (underscore prefix, like _dark-audit.html). Loads every page
-     in a hidden 1440×900 frame and collects every button-like element —
+  /* Dev-only page (underscore prefix, like _dark-audit.html). Two audits:
+     ?kind=buttons (default) and ?kind=fields (text/number inputs, selects,
+     textareas, the select-picker trigger). Loads every page
+     in a hidden 1440×900 frame and collects every matching element —
      <button>, [role=button], input[type=button|submit], a.org-btn/.hub-btn, and
      .seg-btn/.mini-btn/.panel-btn/.upload-btn anchors — hidden ones included
      (collapsed panels, popovers). Each is reduced to a style signature from its
@@ -34,7 +36,8 @@
 </style>
 </head>
 <body>
-<h1>Button audit</h1>
+<h1 id="title">Control audit</h1>
+<p><a href="?kind=buttons">Buttons</a> · <a href="?kind=fields">Fields &amp; selects</a></p>
 <button id="run">Run</button>
 <div id="summary">Press Run — about a minute.</div>
 <div id="out"></div>
@@ -42,7 +45,11 @@
 const PAGES = ['/', '/design-system/', '/genesis/', '/spore/', '/pollen/', '/halide/', '/komorebi/', '/camo-turing/', '/warping/',
   '/loom/', '/membrane/', '/vortex/', '/fvs/', '/radial/', '/pulsar/', '/mote/', '/mycel/', '/trellis/', '/tunesutra/',
   '/livingpath/', '/sinew/', '/apostate/', '/colornet/', '/blob-boundary/', '/rhizome/', '/sign-in/'];
-const SEL = 'button, [role="button"], input[type="button"], input[type="submit"], a.org-btn, a.hub-btn, a.seg-btn, a.mini-btn, a.panel-btn, a.upload-btn, label.upload-btn';
+const KIND = new URLSearchParams(location.search).get('kind') === 'fields' ? 'fields' : 'buttons';
+document.getElementById('title').textContent = KIND === 'fields' ? 'Field & select audit' : 'Button audit';
+const SEL = KIND === 'fields'
+  ? 'input:not([type]), input[type="text"], input[type="number"], input[type="search"], input[type="email"], input[type="url"], input[type="password"], input[type="tel"], select, textarea, .preset-trigger'
+  : 'button:not(.preset-trigger), [role="button"], input[type="button"], input[type="submit"], a.org-btn, a.hub-btn, a.seg-btn, a.mini-btn, a.panel-btn, a.upload-btn, label.upload-btn';
 const PROPS = ['fontFamily', 'fontSize', 'fontWeight', 'textTransform', 'letterSpacing', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
   'borderTopWidth', 'borderTopStyle', 'borderTopColor', 'borderTopLeftRadius', 'backgroundColor', 'color', 'height', 'minHeight', 'lineHeight', 'boxShadow'];
 const INLINE = PROPS.concat(['borderRightWidth', 'borderBottomWidth', 'borderLeftWidth', 'borderRightStyle', 'borderBottomStyle', 'borderLeftStyle', 'borderRightColor', 'borderBottomColor', 'borderLeftColor',
@@ -50,7 +57,8 @@ const INLINE = PROPS.concat(['borderRightWidth', 'borderBottomWidth', 'borderLef
 
 function family(el) {
   const cls = typeof el.className === 'string' ? el.className.trim().split(/\s+/).filter(c => !/^(active|on|selected|is-|preset-active|armed|disabled)/.test(c)) : [];
-  return cls[0] || ('<' + el.tagName.toLowerCase() + (el.type && el.tagName === 'INPUT' ? ' ' + el.type : '') + '>');
+  const tag = '<' + el.tagName.toLowerCase() + (el.tagName === 'INPUT' ? ' ' + (el.getAttribute('type') || 'text') : '') + '>';
+  return KIND === 'fields' ? (cls[0] ? tag + ' .' + cls[0] : tag) : (cls[0] || tag);
 }
 function collect(doc, url) {
   const win = doc.defaultView, out = [];
@@ -64,8 +72,9 @@ function collect(doc, url) {
     sig.height = r.height ? Math.round(r.height) + 'px' : 'hidden';
     const st = {}; INLINE.forEach(p => st[p] = cs[p]);
     if (r.width) st.width = Math.round(r.width) + 'px';
-    const label = (el.getAttribute('aria-label') || el.textContent || el.value || '').trim().replace(/\s+/g, ' ').slice(0, 28);
-    out.push({ url, fam: family(el), active: /\b(active|on|selected)\b/.test(el.className) || el.getAttribute('aria-pressed') === 'true' || el.getAttribute('aria-checked') === 'true', sig, st, html: el.innerHTML.length < 3000 ? el.innerHTML : label, tag: el.tagName.toLowerCase(), label });
+    const label = (el.tagName === 'SELECT' ? (el.selectedOptions[0] || {}).textContent || '' : el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' ? (el.value || el.placeholder || '') : (el.getAttribute('aria-label') || el.textContent || '')).trim().replace(/\s+/g, ' ').slice(0, 28);
+    if (el.tagName === 'SELECT' || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') { st.backgroundImage = cs.backgroundImage; }
+    out.push({ url, fam: family(el), active: /\b(active|on|selected)\b/.test(el.className) || el.getAttribute('aria-pressed') === 'true' || el.getAttribute('aria-checked') === 'true', sig, st, html: (el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') ? esc(label) + (el.tagName === 'SELECT' ? ' ▾' : '') : el.innerHTML.length < 3000 ? el.innerHTML : label, tag: el.tagName.toLowerCase(), label });
   });
   return out;
 }
@@ -97,7 +106,7 @@ document.getElementById('run').onclick = async () => {
   document.getElementById('summary').textContent = all.length + ' buttons on ' + PAGES.length + ' pages → ' + famList.length + ' families, ' + nSigs + ' distinct looks (font · size · weight · case · tracking · padding · border · radius · height).';
   const spec = (b) => { const st = Object.entries(b.st).map(([k, v]) => k.replace(/[A-Z]/g, m => '-' + m.toLowerCase()) + ':' + v).join(';'); return '<' + (b.tag === 'input' ? 'span' : 'span') + ' style="' + esc(st) + ';box-sizing:border-box;flex-shrink:0">' + (b.tag === 'input' ? esc(b.label) : b.html) + '</span>'; };
   document.getElementById('out').innerHTML = famList.map(([name, F]) =>
-    '<div class="fam"><div class="fam__head"><span class="fam__name">.' + esc(name) + '</span><span class="fam__meta">' + F.n + ' instances · ' + Object.keys(F.sigs).length + ' look(s) · ' + F.pages.size + ' page(s)</span></div><div class="variants">' +
+    '<div class="fam"><div class="fam__head"><span class="fam__name">' + (name[0] === '<' ? '' : '.') + esc(name) + '</span><span class="fam__meta">' + F.n + ' instances · ' + Object.keys(F.sigs).length + ' look(s) · ' + F.pages.size + ' page(s)</span></div><div class="variants">' +
     Object.values(F.sigs).sort((a, b) => b.n - a.n).map(S => {
       const s = S.sample.sig;
       return '<div class="v"><div class="v__stage">' + spec(S.sample) + (S.activeSample && S.activeSample !== S.sample ? '&nbsp;&nbsp;' + spec(S.activeSample) : '') + '</div>' +

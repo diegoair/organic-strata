@@ -379,7 +379,11 @@ Verified at 700px — no wrapping, no clipping, height stable.
 
 ### Buttons — one component (Sep 29, 2026)
 
-Every text/icon button is `.org-btn` (shared/header.css, "THE BUTTON"): sizes `--sm` 20 · default 26 · `--lg` 32 (`--slo-h` / `--row-h` / `--space-8`), variants `--primary` · `--ghost` · `--danger`, shapes `--icon` · `--block`, pressed via `aria-pressed="true"` (or `.on` / `.active`). Sentence case, never uppercase. `.mini-btn` / `.panel-btn` / `.upload-btn` / `.icon-btn` / `.hud-btn` are aliases of it — use them or the modifiers, never a local button look. Re-check with `/design-system/_button-audit.html`.
+Every text/icon button is `.org-btn` (shared/header.css, "THE BUTTON"): sizes `--sm` 20 · default 26 · `--lg` 32 (`--slo-h` / `--row-h` / `--space-8`), variants `--primary` · `--ghost` · `--danger`, shapes `--icon` · `--block`, pressed via `aria-pressed="true"` (or `.on` / `.active`). Sentence case, never uppercase. `.mini-btn` / `.panel-btn` / `.upload-btn` / `.icon-btn` / `.hud-btn` are aliases of it — use them or the modifiers, never a local button look. Re-check with `/design-system/_control-audit.html`.
+
+### Fields — one component (Sep 29, 2026)
+
+Every text/number input, select and textarea is `.org-field` (shared/header.css, "THE FIELD") or one of its aliases — `.panel-select` (full width), `.panel-input` (68px, right-aligned digits), `.color-hex`, `.org-select`. Same height and type as THE BUTTON, so a control row lines up. `--lg` 32 · `--block` · `--code` (mono). Never a local field look; re-check with `/design-system/_control-audit.html?kind=fields`.
 
 ### Dark mode — opting a tool in (Sep 29, 2026)
 

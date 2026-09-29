@@ -323,7 +323,7 @@
   .fg-report .fg-dot { flex: 0 0 auto; width: 1.2em; }
   .fg-report .fg-ok { color: var(--tool); }
   .fg-report .fg-bad { color: var(--danger); }
-  .fg-json { width: 100%; min-height: 120px; font-family: var(--font); font-size: var(--fs-micro); }
+  .fg-json { width: 100%; min-height: 120px; }   /* look from THE FIELD (org-field--code, header.css) */
 
   /* ── Layers panel (Element): one lean row per layer, Figma-style ──
      FVS-local classes (the shared .org-layer-card stays as Colornet / Camo Turing use it). */
@@ -1885,7 +1885,7 @@
     </div>
     <div class="panel-section">
       <h3>Recipe JSON</h3>
-      <textarea id="fg-json" class="fg-json panel-input" spellcheck="false" aria-label="Figure recipe JSON"></textarea>
+      <textarea id="fg-json" class="fg-json org-field org-field--code" spellcheck="false" aria-label="Figure recipe JSON"></textarea>
       <div class="row-btns"><button class="mini-btn" id="fg-json-apply">Apply</button><button class="mini-btn" id="fg-json-copy">Copy</button><button class="mini-btn" id="fg-json-save">Save file</button></div>
       <div id="fg-json-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
     </div>

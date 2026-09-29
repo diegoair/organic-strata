@@ -368,7 +368,11 @@ failures, not close calls:
 
 ## 5c. Buttons (Sep 29, 2026)
 
-One component, `.org-btn` in `shared/header.css`: sizes `--sm` (`--slo-h`, 20) · default (`--row-h`, 26) · `--lg` (`--space-8`, 32); variants default outline · `--primary` · `--ghost` · `--danger`; shapes `--icon` · `--block`; pressed = `aria-pressed="true"` / `.on` / `.active`. Display face, `--t-control-size`, sentence case, `--radius-sm`. `--row-h`/`--slo-h` moved from panel.css into tokens.css so every page can size buttons. Legacy names are aliases (`.mini-btn`, `.panel-btn`, `.upload-btn`, `.icon-btn`, `.hud-btn`). The audit (`/design-system/_button-audit.html`) found 78 looks across 1,299 buttons before; the text buttons now resolve to the system's sizes only.
+One component, `.org-btn` in `shared/header.css`: sizes `--sm` (`--slo-h`, 20) · default (`--row-h`, 26) · `--lg` (`--space-8`, 32); variants default outline · `--primary` · `--ghost` · `--danger`; shapes `--icon` · `--block`; pressed = `aria-pressed="true"` / `.on` / `.active`. Display face, `--t-control-size`, sentence case, `--radius-sm`. `--row-h`/`--slo-h` moved from panel.css into tokens.css so every page can size buttons. Legacy names are aliases (`.mini-btn`, `.panel-btn`, `.upload-btn`, `.icon-btn`, `.hud-btn`). The audit (`/design-system/_control-audit.html`) found 78 looks across 1,299 buttons before; the text buttons now resolve to the system's sizes only.
+
+## 5d. Fields (Sep 29, 2026)
+
+One component, `.org-field` in `shared/header.css` ("THE FIELD"), for text/number inputs, selects and textareas — THE BUTTON's measures: display face, `--t-control-size`, `--row-h` tall (`--lg` 32), `--panel` fill, `--border-strong`, `--radius-sm`; hover `--mid`, focus `--ink`. Modifiers `--lg`, `--block`, `--code` (mono). Aliases: `.panel-select`, `.panel-input`, `.color-hex`, `.org-select` (deltas in panel.css). The select-picker trigger is 26px with the same border. Audit: `/design-system/_control-audit.html?kind=fields` (347 fields, 24 looks → 317 in one look; the rest documented exceptions).
 
 ## 6. Accessible names
 

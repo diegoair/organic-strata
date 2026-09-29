@@ -562,18 +562,39 @@
   margin: var(--space-4) 0;
 }
 
-.org-select {
-  font-family: var(--font);
-  font-size: var(--fs-small);
-  letter-spacing: var(--ls-wide);
+/* ── THE FIELD — one definition for every text/number input, select and textarea (Sep 29, 2026) ──
+   Audit (design-system/_control-audit.html?kind=fields): 347 fields, 24 looks — ~91% already
+   shared one look; the rest were local copies (Genesis's white 11px fields, Spore's ink-map
+   select, Sinew's blend select, the sign-in email field, a 9px textarea). Now one base,
+   the same measures as THE BUTTON: display face, --t-control-size, --row-h tall (--lg: 32),
+   --panel fill, --border-strong, --radius-sm; hover --mid, focus --ink.
+   Aliases in the same rule — .panel-select, .panel-input, .color-hex, .org-select — keep
+   their deltas in panel.css (width, right-aligned tabular digits). A textarea grows in
+   height; one that holds code adds .org-field--code (the mono face). */
+.org-field, .panel-select, .panel-input, .color-hex, .org-select {
+  --field-h: var(--row-h);
+  font-family: var(--font-display);
+  font-size: var(--t-control-size);
+  font-weight: var(--t-control-weight);
+  letter-spacing: var(--ls-normal);
   background: var(--panel);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   color: var(--ink);
-  min-height: 28px;
+  min-height: var(--field-h);
   padding: 0 var(--space-2);
-  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
 }
+:is(.org-field, .panel-select, .panel-input, .color-hex, .org-select):hover { border-color: var(--mid); }
+:is(.org-field, .panel-select, .panel-input, .color-hex, .org-select):focus { border-color: var(--ink); }
+:is(.org-field, .panel-select, .panel-input, .color-hex, .org-select):disabled { opacity: 0.42; cursor: not-allowed; }
+:is(.org-field, .panel-select, .panel-input, .color-hex, .org-select)::placeholder { color: var(--mid); }
+select:is(.org-field, .panel-select, .org-select) { cursor: pointer; }
+textarea.org-field { padding: var(--space-2); line-height: var(--lh-snug); resize: vertical; }
+.org-field--lg { --field-h: var(--space-8); font-size: var(--fs-medium); padding: 0 var(--space-3); }
+.org-field--code { font-family: var(--font-mono); }
+.org-field--block { width: 100%; }
 
 .org-check {
   display: flex;
