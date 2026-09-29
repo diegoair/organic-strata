@@ -118,6 +118,8 @@ body {
   width: 48px; height: 48px;
   border: 1.5px solid var(--mid);
   border-radius: 50%;
+  /* white (--paper) at 80%, so the canvas dots don't run through the + */
+  background: color-mix(in srgb, var(--paper) 80%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
