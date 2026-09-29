@@ -6,6 +6,7 @@
   <title>Organica</title>
   <link rel="preload" href="/shared/vendor/wix-madefor-display-variable.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="/shared/tokens.css">
+  <link rel="stylesheet" href="/shared/header.css">
   <link rel="stylesheet" href="/shared/mobile-gate.css">
   <style>
     *, *::before, *::after {
@@ -66,6 +67,16 @@
       color: var(--ink-dim);
       opacity: 0;
       animation: fadeUp 0.7s ease forwards 0.15s;
+    }
+
+    /* account control — the hub has no .org-header bar, so it hosts the shared
+       control (shared/auth-badge.js) in its own top-right corner */
+    .header-account {
+      position: fixed;
+      top: 0;
+      right: 0;
+      z-index: 3;
+      padding: 1.5rem clamp(1.25rem, 3vw, 2.5rem);
     }
 
     /* ── left column of tool links ── */
@@ -474,6 +485,7 @@
     <span class="header__wordmark">Organica</span>
     <span class="header__payoff">Visual Design Language System</span>
   </header>
+  <div class="header-account" data-org-account-host></div>
 
   <nav class="side-nav">
     <div class="nav__group">

@@ -4,7 +4,8 @@
  * LOAD ORDER: … → core.js → supabase.js → auth.js → auth-badge.js → tool script.
  * Paired CSS: .org-account* rules live in shared/header.css.
  *
- * Self-mounting: finds .org-header and appends
+ * Self-mounting: finds .org-header (or, on a page with no bar, an empty
+ * [data-org-account-host] element) and appends
  *   <button class="org-account__trigger"><img avatar> <span>name</span></button>
  *   <div class="org-account__menu">  email · Admin (owner only) · Delete my
  *                                    account · Sign out
@@ -18,11 +19,13 @@
   var OWNER = '997a1f53-23b2-40bb-8a4a-90b0aacb7921';
 
   function ensureBox() {
-    var header = document.querySelector('.org-header');
+    // A tool's bar is .org-header; a page with no bar (the hub) opts in with
+    // an empty [data-org-account-host] element it positions itself.
+    var header = document.querySelector('.org-header') || document.querySelector('[data-org-account-host]');
     if (!header) return null;
     var box = header.querySelector('.org-account');
     if (!box) {
-      if (!header.querySelector('.org-header__spacer')) {
+      if (header.classList.contains('org-header') && !header.querySelector('.org-header__spacer')) {
         var sp = document.createElement('div');
         sp.className = 'org-header__spacer';
         header.appendChild(sp);
