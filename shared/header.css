@@ -84,7 +84,7 @@
   transition: background-color 0.15s;
 }
 .org-header__nav:hover { background: var(--panel); }
-.org-header__nav svg { width: 16px; height: 16px; }   /* the hamburger */
+.org-header__nav menu-icon { --color: var(--ink); }   /* the hamburger — shared/menu-icon.js */
 
 
 /* ── SLOT 1 — identity ── */

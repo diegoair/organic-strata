@@ -80,6 +80,13 @@
         btn.setAttribute('aria-expanded', String(o));
       });
     }
+    /* The hamburger morphs to an X while the menu is open (shared/menu-icon.js). */
+    var icon = btn.querySelector('menu-icon');
+    if (icon) {
+      var syncIcon = function () { icon.setAttribute('state', btn.getAttribute('aria-expanded') === 'true' ? 'close' : 'menu'); };
+      new MutationObserver(syncIcon).observe(btn, { attributes: true, attributeFilter: ['aria-expanded'] });
+      syncIcon();
+    }
     backdrop.addEventListener('click', function () {
       if (api) api.close(); else { panel.dataset.open = 'false'; btn.setAttribute('aria-expanded', 'false'); }
     });
