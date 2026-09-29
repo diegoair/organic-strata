@@ -75,7 +75,9 @@ Modules in Organica:
 
 ```
 organic-strata/          ← GitHub repo name (diegoair/organic-strata)
-├── index.html           ← Organica hub (shared header + the canvas-pattern background; the animated noise field was removed Sep 29, 2026)
+├── index.html           ← Organica home (rebuilt Sep 29, 2026): stipple-field hero word, a gallery of live placeholder sketches (one per tool language), then the what/why text. No side-nav — tool navigation is the header mega menu only (`shared/tools.js`, incl. an Explorations group)
+├── archive/
+│   └── hub-bento/index.html ← the previous hub (side-nav + bento), kept for later reuse
 ├── genesis/
 │   ├── index.html       ← Genesis — the seed library (Aug 30, 2026 restructure): two modes, Library + Create. Sets = plain ordered id lists. Base Seeds built-in = 13 organic + 6 procedural, synthesized
 │   ├── creator.html     ← thin redirect to /genesis/ (kept so old links resolve)
@@ -154,7 +156,7 @@ organic-strata/          ← GitHub repo name (diegoair/organic-strata)
 │   ├── core.js    ← download, presets, Figma, tracer, zoom/pan, hex/CMYK utils, mulberry32, `Organica.dataURLToBytes`/`dataURLToBlob` (the atob→Uint8Array canvas-export tail, found in 11 files — `toDataURL()` not `toBlob()` everywhere, since `toBlob()` is async and can race a canvas resized back right after export)
 │   ├── prose.css  ← `.org-prose` — styles bare h1–h6/p/lists/links/code/tables from the editorial type roles (legal, docs, long-form). `--compact` = 12px body. Not for tool panels or dense data pages. Load AFTER tokens.css
 │   ├── header.js ← the header's two self-built parts: the **mega menu** (nav button → full-width panel of every tool from `Organica.tools`, via `Organica.popover`) and the **pattern switcher** (4 round buttons → `<html data-canvas-pattern>`, persisted in `localStorage['organica.ui.canvas-pattern']`). Load AFTER core.js + tools.js
-│   ├── tools.js ← `Organica.tools` — the tool list as data (8 groups, 23 tools) for the mega menu; mirrors the hub nav (minus Explorations), `scripts/check.py` fails if the hub links a tool it lacks
+│   ├── tools.js ← `Organica.tools` — the tool list as data (8 groups, 23 tools + an Explorations group) for the mega menu, the only tool navigation since the hub side-nav was removed; `scripts/check.py` fails if a link doesn't resolve to a file
 │   ├── pattern-init.js ← sync `<head>` script: applies the saved canvas pattern before first paint (no dot flash). Tokens: `:root[data-canvas-pattern=…]` in tokens.css re-point `--canvas-grid`
 │   ├── auth-card.css ← the sign-in card (`.org-auth-card` + `__brand/__sub/__google/__link/__divider/__label/__input/__msg(--ok,--err)/__legal`), promoted out of `sign-in/index.html` Sep 29, 2026; linked only by `/sign-in` and the design-system page (live example). Tokens only, `--auth-card-w` is component-local
 │   ├── palette.js ← the Palette component: Organica.palette.swatch(target, opts) — string target = attach a #cp-/#hex-/#sw- colour row, element target = build an RMX chip strip — plus .colorAt (score→colour) / .mix. Paired CSS: palette.css. Folded in organica-palette-chip.js + core's createColorSwatch (Aug 29). Load AFTER core

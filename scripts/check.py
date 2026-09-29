@@ -127,19 +127,16 @@ for f, r in sorted(missing):
 if not missing:
     ok("all resolve")
 
-# 4b. mega menu data vs the hub nav ---------------------------------------------
-print("tools.js vs hub nav")
-hub = open("index.html", encoding="utf-8").read()
-nav = hub[hub.index('<nav class="side-nav">'):hub.index("</nav>")]
-nav = nav[:nav.index("Explorations")] if "Explorations" in nav else nav   # explorations are not in the mega menu
-hub_links = set(re.findall(r'href="(/[\w-]+/)"', nav))
+# 4b. mega menu data resolves ---------------------------------------------------
+# shared/tools.js is the only tool navigation since the hub side-nav was removed (Sep 29, 2026).
+print("tools.js links")
 tools_js = open("shared/tools.js", encoding="utf-8").read()
-menu_links = set(re.findall(r"'(/[\w-]+/)'", tools_js))
-gap = sorted(hub_links - menu_links)
-if gap:
-    fail(f"shared/tools.js is missing tool(s) linked from the hub nav: {gap}")
+menu_links = re.findall(r"'(/[\w./-]+)'", tools_js)
+dead = [l for l in menu_links if not os.path.exists(l.lstrip("/") + ("index.html" if l.endswith("/") else ""))]
+if dead:
+    fail(f"shared/tools.js links to missing page(s): {dead}")
 else:
-    ok(f"{len(hub_links)} hub tools all in shared/tools.js")
+    ok(f"{len(menu_links)} menu links all resolve")
 
 # 5. css-lint ------------------------------------------------------------------
 print("css-lint")
