@@ -49,20 +49,6 @@
     panel.id = btn.getAttribute('aria-controls') || 'org-mega';
     panel.setAttribute('aria-label', 'All tools');
 
-    // Column 1 — Shortcuts: the way home, and (highlighted, dark) where you are.
-    var sc = el('div', 'org-mega__group org-mega__shortcuts');
-    sc.appendChild(el('div', 'org-mega__title', 'Shortcuts'));
-    var scLinks = el('div', 'org-mega__links');
-    sc.appendChild(scLinks);
-    scLinks.appendChild(link('org-mega__link', 'Home', '/'));
-    var currentTool = null;
-    tools.forEach(function (g) { g.items.forEach(function (it) {
-      var p = it[1].replace(/\/$/, '');
-      if (p && here.indexOf(p) === 0) currentTool = it;
-    }); });
-    if (currentTool) scLinks.appendChild(link('org-mega__link', currentTool[0], currentTool[1]));
-    panel.appendChild(sc);
-
     tools.forEach(function (g) {
       var col = el('div', 'org-mega__group');
       col.appendChild(el('div', 'org-mega__title', g.group));
