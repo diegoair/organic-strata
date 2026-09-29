@@ -260,6 +260,7 @@
       <a href="#panel-section">Section &amp; sub-label</a>
       <a href="#panel-row">Row, label &amp; value</a>
       <a href="#slider">Slider</a>
+      <a href="#toggle">Checkbox &amp; switch</a>
       <a href="#panel-controls">Select, input &amp; color row</a>
       <a href="#palette-chips">Palette — RMX chip strip</a>
       <a href="#select-picker">Thumbnail picker</a>
@@ -579,6 +580,39 @@ Organica.enhanceSliders(document);
 data-viscosity  data-momentum  data-tilt</pre>
       <p class="ds-note"><strong>Tokens.</strong> Height <code>--slo-h</code> (= <code>--row-h</code> − <code>--space-2</code>) is shared by the track, the handle and the number box; the corner <code>--slo-r</code> is <code>--radius-md</code>; the handle is <code>--space-3</code> + 1px wide, <code>--paper</code> with a <code>--border-strong</code> stroke and a soft <code>--ink</code> shadow; the dots are <code>--space-3</code> apart. Colours: well <code>--track-bg</code>, liquid <code>--ink</code>. No second slider exists — don't restyle <code>input[type=range]</code> in a tool.</p>
       <p class="ds-note"><strong>Behaviour.</strong> Styled on the <em>native</em> input, no wrapper: <code>value</code>, <code>step</code>, keys, disabled and every tool's own <code>input</code> listener keep working, and code that does <code>input.nextElementSibling.textContent = …</code> (Colornet, Sinew, Living Path) still finds its number. Cursor is <code>grab</code> / <code>grabbing</code> on the slider and <code>ew-resize</code> on the number, which shows a light <code>--border</code> stroke on hover. <strong>Momentum</strong> (the value coasting after release) is off by default — it re-fires <code>input</code> every frame, which costs in tools that regenerate an image per input; opt in with <code>data-momentum</code>. Reduced-motion: rigid, no coast.</p>
+    </section>
+
+    <section class="ds-entry" id="toggle">
+      <h2>Checkbox &amp; switch</h2>
+      <p class="ds-desc">One component, two shapes, drawn by us so they look identical in Chrome, Safari and Firefox. The real <code>input[type=checkbox]</code> is kept (state, label click, keyboard, <code>disabled</code> and every tool's JS are untouched) — only the drawing is replaced. When checked, the box or track takes <code>--tool</code> (the tool's own identity colour, <code>--ink</code> if it declares none) and the mark takes <code>--paper</code>.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>Size token</strong><span>--chk-size (= --space-5, 14px)</span><strong>Used in</strong><span>every panel with an on/off option</span></div>
+      <div class="ds-example ds-example--column" style="max-width:280px">
+        <label class="check-row"><input type="checkbox"><span>Checkbox</span></label>
+        <label class="check-row"><input type="checkbox" checked><span>Checkbox, checked</span></label>
+        <label class="check-row"><input type="checkbox" disabled><span>Checkbox, disabled</span></label>
+        <label class="check-row org-switch"><span>Switch</span><input type="checkbox"></label>
+        <label class="check-row org-switch"><span>Switch, on</span><input type="checkbox" checked></label>
+        <label class="check-row org-switch"><span>Switch, disabled</span><input type="checkbox" disabled></label>
+        <label class="org-check"><input type="checkbox" checked>Header / popover checkbox</label>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">label</span> <span class="attr">class</span>=<span class="str">"check-row"</span>&gt;&lt;<span class="tag">input</span> <span class="attr">type</span>=<span class="str">"checkbox"</span>&gt;&lt;<span class="tag">span</span>&gt;Serpentine scan&lt;/<span class="tag">span</span>&gt;&lt;/<span class="tag">label</span>&gt;
+
+<span class="attr">/* the switch: same markup + org-switch — label left, switch right */</span>
+&lt;<span class="tag">label</span> <span class="attr">class</span>=<span class="str">"check-row org-switch"</span>&gt;&lt;<span class="tag">span</span>&gt;Enable layers&lt;/<span class="tag">span</span>&gt;&lt;<span class="tag">input</span> <span class="attr">type</span>=<span class="str">"checkbox"</span>&gt;&lt;/<span class="tag">label</span>&gt;
+
+<span class="attr">/* a checkbox directly in a .ctrl-row (label left, box right) also gets it */</span></pre>
+      <div class="ds-prose">
+      <table>
+        <tr><th>Part</th><th>Definition</th></tr>
+        <tr><td>Box</td><td><code>--chk-size</code> square · 1px <code>--border-strong</code> · corner <code>--radius-sm</code> · <code>--paper</code> fill; hover border <code>--ink</code></td></tr>
+        <tr><td>Checked</td><td>fill + border <code>--tool</code> (fallback <code>--ink</code>) · tick <code>--paper</code>, sized from the box</td></tr>
+        <tr><td>Switch track</td><td>two boxes wide (<code>--chk-size</code> × 2) · <code>--track-bg</code> off, <code>--tool</code> on · pill (radius = half the height — the documented exception to the radius scale)</td></tr>
+        <tr><td>Switch knob</td><td><code>--chk-size</code> − <code>--space-1</code> · <code>--mid</code> off, <code>--paper</code> on · travels one <code>--chk-size</code></td></tr>
+        <tr><td>States</td><td>focus-visible: 1px <code>--tool</code> outline, 2px offset · disabled: 35% opacity · reduced-motion: no transitions</td></tr>
+      </table>
+      </div>
+      <p class="ds-note"><strong>Audit (Sep 29, 2026) — five implementations became one.</strong> Before: (1) 88 native checkboxes tinted with <code>accent-color</code>, drawn differently by every OS/browser; (2) FVS's own 26×14 switch; (3) header.css's 15px <code>.org-check</code>; (4) Camo Turing's hand-built 32×18 <code>.toggle</code>, a Strata port with a hardcoded white knob and 9px radius; (5) three bare checkboxes in Trellis that matched none of them. All 115 checkboxes in 16 tools now resolve to the same two shapes (14×14 / 28×14). Camo Turing's four toggles moved to <code>.check-row.org-switch</code>; the local <code>.toggle</code> CSS is deleted. <strong>Which to use:</strong> a checkbox for an option in a list; a switch for a setting that takes effect the moment it flips. Put an <code>info-tip</code> inside a <code>div.check-row</code>, not a <code>label</code> (clicking the tip would toggle the switch).</p>
+      <p class="ds-note"><strong>Not this component</strong> — other on/off controls with their own entries: the floating toolbar's <code>aria-pressed</code> buttons, the layer card's dot toggle, the segmented control, and Sinew's <code>.mini.on</code> text buttons (still local to Sinew).</p>
     </section>
 
     <section class="ds-entry" id="panel-controls">

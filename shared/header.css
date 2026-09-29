@@ -384,7 +384,7 @@
   color: var(--accent);
   min-height: 28px;
 }
-.org-check input { accent-color: var(--tool); width: 15px; height: 15px; cursor: pointer; }
+/* the box itself is the shared checkbox in panel.css (--chk-size) — this class is layout only */
 
 /* Format buttons — the three export targets, side by side */
 .org-formats { display: flex; gap: var(--space-2); }

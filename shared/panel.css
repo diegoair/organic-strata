@@ -32,6 +32,7 @@
   --row-h: 26px;             /* every control row, so columns align */
   --slo-h: calc(var(--row-h) - var(--space-2));   /* the slider AND its number box */
   --slo-r: var(--radius-md);                       /* their corner */
+  --chk-size: var(--space-5);                      /* checkbox box + switch height (14px) */
   --panel-pad: 14px;
 }
 
@@ -318,41 +319,106 @@ input[type=range]:focus-visible::-moz-range-track {
   text-transform: none;
   color: var(--accent);
 }
-/* 13px is a control BOX size, not type — it is not a --fs-* violation.
-   .org-check deliberately does NOT appear here: it is a header/popover
-   component owned by header.css at that family's 15px density. It used to be
-   in this selector, which won on specificity (0,2,1 vs header's 0,1,1) and
-   silently shrank the only popover checkbox in the suite to panel density.
-   Two components, two densities, two owners. Split 2026-09-06. */
-.check-row input[type=checkbox] {
-  accent-color: var(--tool, var(--ink));
-  width: 13px; height: 13px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
+/* ═══════════════════════════════════════════════════════════
+   CHECKBOX & SWITCH — one component, two shapes (Sep 29, 2026).
+   Before this there were FIVE: the browser's own checkbox tinted with
+   accent-color (88 of them, drawn differently by every OS/browser and
+   only "on brand" by the tint), a 26x14 switch owned by FVS, a 15px
+   .org-check owned by header.css, Camo Turing's hand-built 32x18
+   .toggle (a Strata port, with a hardcoded white knob and a hardcoded
+   9px radius), and three bare checkboxes in Trellis that matched none
+   of them. They are one definition now, drawn by us (appearance: none)
+   so they look the same in Chrome, Safari and Firefox, every measure
+   derived from ONE variable — --chk-size (--space-5, the box) — and
+   every colour a token. The real <input type=checkbox> is kept: state,
+   label click, keyboard, disabled and every tool's JS are untouched.
 
-/* Toggle switch — .check-row.org-switch keeps the real checkbox (state, label
-   click, keyboard, JS all unchanged) and only restyles it: label left, switch
-   right. Pill track/knob are stadium shapes (radius = half the height), the
-   documented exception to the radius scale; 26x14 / 10px are control-box sizes
-   like the 13px checkbox above. Colours are all tokens. */
-.check-row.org-switch { justify-content: space-between; }
-.check-row.org-switch input[type=checkbox] {
+   Checkbox  (default)   .check-row / .org-check / .ctrl-row > input
+   Switch    .check-row.org-switch — label left, switch right
+   Both are on when checked: the box/track takes --tool (the tool's own
+   identity colour, --ink if it declares none) and the mark takes --paper.
+
+   The switch's pill (track and knob) is a stadium shape — radius = half
+   the height — the documented exception to the radius scale, so it is
+   999px, not a corner token. Its knob is the box size minus --space-1;
+   travel is one --chk-size (the track is two).
+   ═══════════════════════════════════════════════════════════ */
+:is(.check-row, .org-check) input[type=checkbox],
+.ctrl-row > input[type=checkbox] {
   appearance: none; -webkit-appearance: none;
-  order: 2; position: relative;
-  width: 26px; height: 14px;
-  border: 1px solid var(--border-strong, var(--border)); border-radius: 7px;
-  background: var(--track-bg);
+  position: relative;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: var(--chk-size); height: var(--chk-size);
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  cursor: pointer;
   transition: background-color .15s, border-color .15s;
 }
-.check-row.org-switch input[type=checkbox]::after {
-  content: ''; position: absolute; top: 1px; left: 1px;
-  width: 10px; height: 10px; border-radius: 50%;
-  background: var(--mid); transition: transform .15s, background-color .15s;
+:is(.check-row, .org-check) input[type=checkbox]:hover,
+.ctrl-row > input[type=checkbox]:hover { border-color: var(--ink); }
+:is(.check-row, .org-check) input[type=checkbox]:checked,
+.ctrl-row > input[type=checkbox]:checked {
+  background: var(--tool, var(--ink));
+  border-color: var(--tool, var(--ink));
 }
-.check-row.org-switch input[type=checkbox]:checked { background: var(--tool, var(--ink)); border-color: var(--tool, var(--ink)); }
-.check-row.org-switch input[type=checkbox]:checked::after { background: var(--paper); transform: translateX(12px); }
-.check-row.org-switch input[type=checkbox]:focus-visible { outline: 1px solid var(--tool, var(--ink)); outline-offset: 2px; }
+/* the tick: an L rotated 45deg, sized from the box */
+:is(.check-row, .org-check) input[type=checkbox]:checked::after,
+.ctrl-row > input[type=checkbox]:checked::after {
+  content: '';
+  position: absolute;
+  left: 50%; top: 46%;
+  width: calc(var(--chk-size) * 0.3);
+  height: calc(var(--chk-size) * 0.55);
+  border: solid var(--paper);
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+:is(.check-row, .org-check) input[type=checkbox]:focus-visible,
+.ctrl-row > input[type=checkbox]:focus-visible { outline: 1px solid var(--tool, var(--ink)); outline-offset: 2px; }
+:is(.check-row, .org-check) input[type=checkbox]:disabled,
+.ctrl-row > input[type=checkbox]:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Switch — label left, switch right. Track = two boxes wide. */
+.check-row.org-switch { justify-content: space-between; }
+.check-row.org-switch input[type=checkbox] {
+  order: 2;
+  width: calc(var(--chk-size) * 2);
+  border-radius: 999px;
+  background: var(--track-bg);
+}
+.check-row.org-switch input[type=checkbox]::after {
+  content: '';
+  position: absolute;
+  left: 1px; top: 50%;
+  width: calc(var(--chk-size) - var(--space-1));
+  height: calc(var(--chk-size) - var(--space-1));
+  margin-top: calc((var(--chk-size) - var(--space-1)) / -2);
+  border: 0;
+  border-radius: 50%;
+  background: var(--mid);
+  transform: none;
+  transition: transform .15s, background-color .15s;
+}
+.check-row.org-switch input[type=checkbox]:checked {
+  background: var(--tool, var(--ink));
+  border-color: var(--tool, var(--ink));
+}
+.check-row.org-switch input[type=checkbox]:checked::after {
+  left: 1px; top: 50%;
+  width: calc(var(--chk-size) - var(--space-1));
+  height: calc(var(--chk-size) - var(--space-1));
+  border: 0;
+  background: var(--paper);
+  transform: translateX(var(--chk-size));
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.check-row, .org-check) input[type=checkbox],
+  .ctrl-row > input[type=checkbox],
+  .check-row.org-switch input[type=checkbox]::after { transition: none; }
+}
 
 /* Segmented control — Figma's tab row. aria-pressed is the state where the
    markup supports it; .active is kept for the tools not yet converted. */

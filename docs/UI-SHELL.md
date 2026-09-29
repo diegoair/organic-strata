@@ -254,6 +254,8 @@ rather than annotated.
 
 **Sliders** are `input[type=range]` — the one **Slosh slider** (Sep 29, 2026): grey `--track-bg` well, `--ink` spring liquid, full-height 9px handle, dotted centre line; the number beside it drags to scrub and clicks to type. Applied to every range by `Organica.enhanceSliders()`; see the design system's Slider entry. Never restyle `input[type=range]` in a tool.
 
+**Checkboxes & switches** are one component (Sep 29, 2026): `.check-row` (checkbox) / `.check-row.org-switch` (switch), drawn by `shared/panel.css` from `--chk-size` so they look the same in every browser; the real `input[type=checkbox]` is kept. Never restyle a checkbox or hand-build a toggle in a tool. See the design system's "Checkbox & switch" entry.
+
 ---
 
 ## 4b. The header component

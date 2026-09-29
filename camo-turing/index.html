@@ -144,49 +144,9 @@
 
   #panel { width: 248px; flex-shrink: 0; }
 
-  /* Toggle switch — ported from Strata verbatim (the project's own
-     established toggle pattern, not a checkbox styled to look like
-     one), only var(--line) → var(--border) since that's this tool's
-     equivalent token. .toggle-row/.toggle-name are already in
-     Organica.autoLabelPanel's row/label selectors, so the switch gets
-     its accessible name from the sibling label same as everywhere else
-     this pattern is used — the label itself carries no text of its own
-     on purpose (see Strata's own note on this: a naive "closest(label)"
-     accessible-name check treated that empty label as already-named
-     and skipped it, which is why the row/label association is what
-     actually names it, not the label wrapper). */
-  .toggle-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--space-2);
-  }
-  .toggle-name { font-size: var(--fs-small); }
-  .toggle {
-    position: relative;
-    width: 32px; height: 18px;
-    flex-shrink: 0;
-  }
-  .toggle input { opacity: 0; width: 0; height: 0; }
-  .toggle-slider {
-    position: absolute;
-    inset: 0;
-    background: var(--border);
-    border-radius: 9px;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-  .toggle-slider::before {
-    content: '';
-    position: absolute;
-    width: 12px; height: 12px;
-    left: 3px; top: 3px;
-    background: white;
-    border-radius: 50%;
-    transition: transform 0.2s;
-  }
-  .toggle input:checked + .toggle-slider { background: var(--ink); }
-  .toggle input:checked + .toggle-slider::before { transform: translateX(14px); }
+  /* Toggle switches are the shared .check-row.org-switch (shared/panel.css) — the
+     local Strata-port .toggle was removed Sep 29, 2026. Rows keep .toggle-name so
+     Organica.autoLabelPanel still names them from the sibling label. */
 
   .info-tip {
     position: relative;
@@ -522,13 +482,7 @@
           <input type="range" id="tx-seam-count" min="0" max="160" step="1" value="16" oninput="syncVal(this,'v-tx-seam-count')">
           <span class="ctrl-val" id="v-tx-seam-count">16</span>
         </div>
-        <div class="toggle-row">
-          <span class="toggle-name">Horizontal seams</span>
-          <label class="toggle">
-            <input type="checkbox" id="tx-seam-dir">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
+        <label class="check-row org-switch"><span class="toggle-name">Horizontal seams</span><input type="checkbox" id="tx-seam-dir"></label>
       </div>
 
       <div id="tx-reaction-controls" style="display:none">
@@ -564,15 +518,9 @@
     <div class="panel-section">
       <h3>Pattern <span class="hint" id="pattern-hint">Gray-Scott, GPU-live</span></h3>
       <div class="presets" id="presets"></div>
-      <div class="toggle-row" style="margin-top: var(--space-2)">
-        <span class="toggle-name">Reset seed on preset change
+      <div class="check-row org-switch" style="margin-top: var(--space-2)"><span class="toggle-name">Reset seed on preset change
           <span class="info-tip" tabindex="0" role="note" aria-label="Off: presets only change the chemistry, so the pattern keeps evolving live. On: each preset reseeds fresh.">i<span class="info-tip-bubble" aria-hidden="true">Off: presets only change the chemistry, so the pattern keeps evolving live. On: each preset reseeds fresh.</span></span>
-        </span>
-        <label class="toggle">
-          <input type="checkbox" id="ck-reset-on-preset">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
+        </span><input type="checkbox" id="ck-reset-on-preset"></div>
       <div class="ctrl-row" style="margin-top: var(--space-4)">
         <div class="ctrl-label" title="Feed rate — how fast chemical A is replenished.">Feed (f)</div>
         <input type="range" id="rg-f" min="0.010" max="0.090" step="0.0001" value="0.0367" oninput="syncVal(this,'v-f'); onParamChange();">
@@ -628,13 +576,7 @@
     <div class="panel-section">
       <h3>Layers <span class="hint">stack + blend, same algorithm</span></h3>
       <p class="org-panel__hint">Each layer is its own independent Gray-Scott sim, blended onto the pattern above (BEFORE colour) so Multiply/Diff carve genuinely new shapes, not just new colours. Select a layer below to edit its own Feed/Kill/dA/dB with the sliders above — Seeds/Transformers/export still work on the base pattern only.</p>
-      <div class="toggle-row">
-        <span class="toggle-name">Enable layers</span>
-        <label class="toggle">
-          <input type="checkbox" id="ck-layers-on" onchange="toggleLayersOn()">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
+      <label class="check-row org-switch"><span class="toggle-name">Enable layers</span><input type="checkbox" id="ck-layers-on" onchange="toggleLayersOn()"></label>
       <div id="layers-block" style="display:none">
         <div id="layers-stack"></div>
         <button class="mini-btn" style="width:100%; margin-top: var(--space-2)" onclick="addLayer()">+ Add layer</button>
@@ -643,15 +585,9 @@
 
     <div class="panel-section">
       <h3>Compare <span class="hint">diff vs. a snapshot</span></h3>
-      <div class="toggle-row">
-        <span class="toggle-name">Diff overlay
+      <div class="check-row org-switch"><span class="toggle-name">Diff overlay
           <span class="info-tip" tabindex="0" role="note" aria-label="Shows how much the field has changed since your last Snapshot — Ink where it moved a lot, Paper where it barely moved.">i<span class="info-tip-bubble" aria-hidden="true">Shows how much the field has changed since your last Snapshot — Ink where it moved a lot, Paper where it barely moved.</span></span>
-        </span>
-        <label class="toggle">
-          <input type="checkbox" id="ck-diff" onchange="toggleDiffOverlay()">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
+        </span><input type="checkbox" id="ck-diff" onchange="toggleDiffOverlay()"></div>
       <button class="mini-btn" style="width:100%; margin-top: var(--space-2)" onclick="snapshotDiff()">Snapshot</button>
       <div class="org-popover__divider" style="margin: var(--space-3) 0"></div>
       <div class="ctrl-label" style="margin-bottom: var(--space-1)" title="The literal technique used to verify this session's SVG-export fixes: overlays the exported SVG on the live canvas at mix-blend-mode:difference — near-black means the export matches the preview exactly.">Export vs. preview</div>
