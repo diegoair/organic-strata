@@ -75,7 +75,7 @@ Modules in Organica:
 
 ```
 organic-strata/          ← GitHub repo name (diegoair/organic-strata)
-├── index.html           ← Organica hub (dark, animated noise field)
+├── index.html           ← Organica hub (shared header + the canvas-pattern background; the animated noise field was removed Sep 29, 2026)
 ├── genesis/
 │   ├── index.html       ← Genesis — the seed library (Aug 30, 2026 restructure): two modes, Library + Create. Sets = plain ordered id lists. Base Seeds built-in = 13 organic + 6 procedural, synthesized
 │   ├── creator.html     ← thin redirect to /genesis/ (kept so old links resolve)

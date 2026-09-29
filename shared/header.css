@@ -75,14 +75,14 @@
   width: var(--space-8); height: var(--space-8);
   padding: 0;
   background: none;
-  border: 1px solid var(--border);
+  border: 0;                          /* no outline — it shows a grey wash on hover / while open */
   border-radius: var(--radius-md);
   color: var(--ink);
   cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
+  transition: background-color 0.15s;
 }
-.org-header__nav:hover, .org-header__nav[aria-expanded="true"] { background: var(--panel); border-color: var(--border-strong); }
-.org-header__nav svg { width: 16px; height: 16px; }
+.org-header__nav:hover { background: var(--panel); }
+.org-header__nav svg { width: 16px; height: 16px; }   /* the hamburger */
 
 
 /* ── SLOT 1 — identity ── */
@@ -221,7 +221,7 @@
    Sizes are Pinterest's, snapped to our scale: its 20px heading → --fs-xl, 16px links →
    --fs-large; 12/16/24/32px spacing → --space-4/6/7/8; its 16px bottom radius has no token,
    so --radius-lg. Built by shared/header.js. */
-.org-header__nav[aria-expanded="true"] { background: var(--track-bg); border-color: transparent; }
+.org-header__nav[aria-expanded="true"] { background: var(--track-bg); }
 .org-header:has(.org-mega[data-open="true"]) { z-index: 300; }   /* above the floatbar, so the dim covers it */
 
 .org-mega__backdrop {

@@ -277,7 +277,7 @@ Mega menu and Pattern switcher entries.
 ```html
 <head> … <script src="/shared/pattern-init.js"></script> </head>
 <header class="org-header" role="banner">
-  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega">…9-dot svg…</button>
+  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega">…hamburger svg…</button>
   <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ Tool</span></a>
   <div class="org-header__spacer"></div>
   <!-- JS appends: .org-mega + .org-pattern (header.js), .org-header__auth | .org-account (auth-badge.js) -->

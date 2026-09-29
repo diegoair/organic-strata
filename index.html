@@ -32,14 +32,6 @@
       overflow: hidden;
     }
 
-    /* ── organic noise canvas behind everything ── */
-    #canvas-bg {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      opacity: 0.35;
-    }
-
     /* header: the shared .org-header (shared/header.css), in flow above the hub — nothing local */
 
     /* ── left column of tool links ── */
@@ -440,10 +432,9 @@
 
   <div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
 
-  <canvas id="canvas-bg"></canvas>
 
   <header class="org-header" role="banner">
-  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="3" r="1.3"/><circle cx="8" cy="3" r="1.3"/><circle cx="13" cy="3" r="1.3"/><circle cx="3" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="13" cy="8" r="1.3"/><circle cx="3" cy="13" r="1.3"/><circle cx="8" cy="13" r="1.3"/><circle cx="13" cy="13" r="1.3"/></svg></button>
+  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></svg></button>
     <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b></a>
     <div class="org-header__spacer"></div>
   </header>
@@ -692,82 +683,6 @@
         p.style.animationDelay = (0.4 + (i / n) * 1.6) + 's';
       });
     }
-  </script>
-
-  <script>
-    // ── organic noise field on canvas — same mechanic as before, just
-    // recoloured (darker, higher-opacity strokes) so it still reads
-    // clearly against a white page instead of a near-black one.
-    const canvas = document.getElementById('canvas-bg');
-    const ctx    = canvas.getContext('2d');
-
-    let W, H, t = 0;
-
-    function resize() {
-      W = canvas.width  = window.innerWidth;
-      H = canvas.height = window.innerHeight;
-    }
-
-    // simple smooth-noise helper (value noise)
-    function hash(x, y) {
-      const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
-      return n - Math.floor(n);
-    }
-
-    function noise(x, y) {
-      const ix = Math.floor(x), iy = Math.floor(y);
-      const fx = x - ix, fy = y - iy;
-      const ux = fx * fx * (3 - 2 * fx);
-      const uy = fy * fy * (3 - 2 * fy);
-      return (
-        hash(ix,   iy)   * (1-ux) * (1-uy) +
-        hash(ix+1, iy)   * ux     * (1-uy) +
-        hash(ix,   iy+1) * (1-ux) * uy     +
-        hash(ix+1, iy+1) * ux     * uy
-      );
-    }
-
-    function draw() {
-      ctx.clearRect(0, 0, W, H);
-
-      const step   = 36;         // grid spacing
-      const scale  = 0.0035;     // noise zoom
-      const speed  = 0.0004;     // animation pace
-
-      ctx.lineWidth = 0.9;
-
-      for (let x = 0; x <= W; x += step) {
-        for (let y = 0; y <= H; y += step) {
-          const n   = noise(x * scale + t, y * scale + t * 0.6);
-          const ang = n * Math.PI * 4;
-          const len = 14 + n * 12;
-
-          const x2 = x + Math.cos(ang) * len;
-          const y2 = y + Math.sin(ang) * len;
-
-          // gradient: acid green → ember, based on position — darker,
-          // more saturated values than the dark-theme original so the
-          // lines still read on white at a moderate opacity.
-          const mix = x / W;
-          const r   = Math.round(70  + mix * 130);
-          const g   = Math.round(110 - mix * 70);
-          const b   = Math.round(50  - mix * 20);
-
-          ctx.strokeStyle = `rgba(${r},${g},${b},0.4)`;
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.lineTo(x2, y2);
-          ctx.stroke();
-        }
-      }
-
-      t += speed;
-      requestAnimationFrame(draw);
-    }
-
-    resize();
-    window.addEventListener('resize', resize);
-    draw();
   </script>
 
   <!-- Vercel Web Analytics — plain-HTML form (no npm/build step, matches
