@@ -12,6 +12,8 @@
   <link rel="stylesheet" href="/shared/shell.css">
   <link rel="stylesheet" href="/shared/mobile-gate.css">
   <style>
+  /* Four algorithm buttons don't fit at equal width in the panel — "Atkinson" clipped by 2px. Size by content instead. */
+  #alg-seg .seg-btn { flex: 1 1 auto; }
   :root {
     --halide: #5a7a96;
     --tool: #5a7a96;   /* drives the header focus ring — see header.css */
