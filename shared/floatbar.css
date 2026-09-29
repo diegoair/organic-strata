@@ -4,11 +4,24 @@
    the canvas, replacing the header's action slot (Open / Export / Figma
    / per-tool extras) across every tool.
 
-   --panel (a quiet grey, the same token the slider chips and format
-   fields use), not white — the design-system fill for a floating surface.
-   Radius comes from --radius-lg (8px), one step up from the panel
-   controls' --radius-md, so a bigger floating surface still reads as the
-   same family at a bigger size.
+   STYLE (Sep 29, 2026 — the glass "Icon bar", after Bencho's IconBar, MIT):
+   a full-pill glass pane with the icons resting quiet (opacity) and ONE
+   indicator pill that travels between them — no per-button tile. The pill
+   follows the hovered / focused button, and rests on a pressed / open
+   toggle (aria-pressed / aria-expanded) when nothing is hovered. It moves
+   in two phases, as in Bencho: the leading edge runs ahead and the pill
+   stretches across both slots (--ind-stretch), then the trailing edge
+   catches up and overshoots on landing (--ind-settle, --ind-move/-size).
+   The pill is positioned by Organica.floatbarPill (core.js), which injects
+   one .org-floatbar__ind span per bar; everything else is CSS here.
+
+   Bencho's tokens, mapped to ours (defined on .org-floatbar, so nothing
+   leaks): --ink → --ink · --pane → 75% --paper · --pane-thumb (the
+   indicator "wash") → 8% --ink · --pane-edge → --border · --bar-slot 34px
+   (the button) · --bar-pad --space-1 · --bar-gap --space-2 · --shadow-rgb
+   → the bar's own two-layer shadow · --g-* → the local values below.
+   Shape: a genuine pill (radius = half the 48px height), the token
+   rules' pill exception — not a corner radius.
 
    Centred on the CANVAS, not the browser viewport: the panel sits fixed
    on the right, so centring on 50vw would drift the bar visibly toward it.
@@ -47,30 +60,145 @@
   gap: var(--space-2);
   height: 48px;
   padding: 0 var(--space-4);
-  background: var(--panel);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08);
+  border-radius: 999px;   /* pill: half the bar's height */
+
+  /* The material. Bencho's recipe is 60% white with a 2px frost, a
+     refraction (saturate) and a lit inner edge. Ours is 75% so the --mid
+     readouts (Camo Turing's Step, Mote's stats, the tester labels) keep
+     >4:1 even when the bar floats over a black canvas; the frost is a
+     little wider for the same reason — busy stipple/dither art behind a
+     10px label is the case that decides it. */
+  --pane: color-mix(in srgb, var(--paper) 75%, transparent);
+  --pane-thumb: color-mix(in srgb, var(--ink) 8%, transparent);
+  --g-blur: 6px;
+  --g-sat: 150%;
+  --g-bright: 100%;
+  /* the rim's three stops: bright at the corner facing the light, almost
+     nothing along the sides running edge-on to it, a weaker catch at the
+     far corner. Also the top face catching light (--g-spec). */
+  --g-edge-hi: 0.9;
+  --g-edge-lo: 0.15;
+  --g-edge-far: 0.45;
+  --g-spec: 0.8;
+  /* the indicator's clocks, as Bencho tuned them (50 = these numbers) */
+  --ind-stretch: 190ms;
+  --ind-settle: 420ms;
+  --ind-move: cubic-bezier(0.28, 1.28, 0.36, 1);
+  --ind-size: cubic-bezier(0.24, 1.34, 0.38, 1);
+
+  background: var(--pane);
+  -webkit-backdrop-filter: blur(var(--g-blur)) saturate(var(--g-sat)) brightness(var(--g-bright));
+  backdrop-filter: blur(var(--g-blur)) saturate(var(--g-sat)) brightness(var(--g-bright));
+  isolation: isolate;
+  /* Thickness: the lit top edge says light enters the sheet; the wide soft
+     shadow says the pane is ABOVE the page — the one thing a backdrop
+     filter alone can't say, since a filter has no depth. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, var(--g-spec)),
+    0 8px 28px rgba(0, 0, 0, 0.16),
+    0 2px 6px rgba(0, 0, 0, 0.08);
 }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .org-floatbar { background: var(--panel); }
+}
+
+/* The rim. A flat 1px ring is the clearest tell of a rectangle with a
+   border rather than a pane with thickness, so the ring is a gradient.
+   Painting a gradient into a border needs the border box filled and the
+   padding box punched out of it — the two masks: one covers the whole
+   element, one only the inside, and compositing them apart leaves the rim.
+   No drawn hairline: the edge is the rim + the shadow (Sep 29, 2026). */
+.org-floatbar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid transparent;   /* the ring the masks cut the rim from */
+  background: linear-gradient(
+    142deg,
+    rgba(255, 255, 255, var(--g-edge-hi)) 0%,
+    rgba(255, 255, 255, var(--g-edge-lo)) 26%,
+    rgba(255, 255, 255, var(--g-edge-lo)) 62%,
+    rgba(255, 255, 255, var(--g-edge-far)) 100%
+  ) border-box;
+  -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* The one indicator. Just a wash — no border, no highlight, no frost of
+   its own: the pane underneath already carries the glass, and stacking a
+   second lit surface on it reads as a white lozenge floating over the bar
+   rather than a selected slot in it. The icon going to full opacity does
+   most of the work; this only has to hint at the slot. Left/width/top/
+   height are set from JS (measured off the target button); the two phases
+   are two rules keyed on data-phase. */
+.org-floatbar__ind {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  border-radius: 999px;
+  background: var(--pane-thumb);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, width;
+}
+.org-floatbar__ind[data-on="true"] { opacity: 1; }
+.org-floatbar__ind[data-phase="stretch"] {
+  transition:
+    transform var(--ind-stretch) cubic-bezier(0.32, 0.72, 0.24, 1),
+    width var(--ind-stretch) cubic-bezier(0.32, 0.72, 0.24, 1),
+    opacity 160ms;
+}
+.org-floatbar__ind[data-phase="settle"] {
+  transition:
+    transform var(--ind-settle) var(--ind-move),
+    width var(--ind-settle) var(--ind-size),
+    opacity 160ms;
+}
+.org-floatbar__ind[data-phase="idle"] { transition: opacity 160ms; }
 
 .org-floatbar__btn {
   position: relative;   /* tooltip anchor — see the :hover::after rule below */
+  z-index: 1;           /* above the indicator */
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 3px;
-  width: 34px;
+  width: 34px;          /* Bencho's --bar-slot */
   height: 34px;
   padding: 0;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border: 0;
+  border-radius: 999px;
   background: none;
   color: var(--ink);
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: color 0.15s;
 }
 .org-floatbar__btn svg { display: block; flex-shrink: 0; }
+/* Resting glyphs are quiet; hover / focus / an on-toggle bring them to
+   full. Opacity goes on the glyph, not the button, or the tooltip (the
+   button's ::after) would fade with it. */
+.org-floatbar__btn > svg,
+.org-floatbar__btn > span {
+  opacity: 0.6;
+  transition: opacity 260ms cubic-bezier(0.32, 0.72, 0.24, 1);
+}
+.org-floatbar__btn:hover > svg,
+.org-floatbar__btn:hover > span,
+.org-floatbar__btn:focus-visible > svg,
+.org-floatbar__btn:focus-visible > span,
+.org-floatbar__btn[aria-pressed="true"] > svg,
+.org-floatbar__btn[aria-pressed="true"] > span,
+.org-floatbar__btn[aria-expanded="true"] > svg,
+.org-floatbar__btn[aria-expanded="true"] > span,
+.org-floatbar__btn.is-armed > svg { opacity: 1; }
 .org-floatbar__btn .ico { width: 16px; height: 16px; }
 .org-floatbar__btn .chev { width: 7px; height: 7px; margin-left: 1px; }
 
@@ -85,7 +213,7 @@
 .org-floatbar__btn[aria-label]:not([aria-expanded="true"]):hover::after {
   content: attr(aria-label);
   position: absolute;
-  bottom: calc(100% + 8px);
+  bottom: calc(100% + var(--space-3));
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
@@ -101,15 +229,10 @@
   z-index: 200;
 }
 
-/* Hover/active read against --track-bg, not --panel — the bar's own
-   background IS --panel now, so a --panel hover state would be invisible. */
-.org-floatbar__btn:hover { background: var(--track-bg); }
-.org-floatbar__btn[aria-expanded="true"] {
-  background: var(--ink);
-  color: var(--paper);
-}
+/* No hover tile — the travelling indicator is the hover/active state.
+   Armed (two-click destructive, .is-armed) = --danger ink. */
+.org-floatbar__btn.is-armed { color: var(--danger); }
 .org-floatbar__btn:disabled { opacity: 0.35; cursor: not-allowed; }
-.org-floatbar__btn:disabled:hover { background: none; }
 
 /* Wider hit area for a two-glyph button (icon + dropdown chevron) */
 .org-floatbar__btn--wide { width: auto; padding: 0 var(--space-3); }
@@ -150,7 +273,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .org-floatbar__btn { transition: none; }
+  .org-floatbar__btn,
+  .org-floatbar__btn > svg,
+  .org-floatbar__btn > span,
+  .org-floatbar__ind { transition: none !important; }
 }
 
 /* Type-tester controls (SIZE / TRACK / align / CAPS) — a labeled-range +

@@ -172,11 +172,7 @@
     #save-popover .mt-4 { margin-top: var(--space-3); }
 
     /* ─── Edit mode ─────────────────────────────────────────── */
-    .org-floatbar__btn.is-armed { color: var(--danger); }
-    .org-floatbar__btn[disabled] { opacity: .3; pointer-events: none; }
-    /* Current-mode icon reads as active — matches the Library nav tabs. */
-    .org-floatbar__btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
-    .org-floatbar__btn[aria-pressed="true"]:hover { background: #000; }
+    /* .is-armed / disabled / aria-pressed (the running dot) live in shared/floatbar.css */
     .edit-kind-badge { display: inline-block; font-size: 9px; letter-spacing: .08em; text-transform: uppercase;
       color: var(--ink-muted); border: 1px solid var(--border-strong); padding: 3px 7px; margin-bottom: 12px; }
     #edit-facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: var(--fs-base); margin: 0 0 12px; }

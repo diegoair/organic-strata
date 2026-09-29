@@ -84,6 +84,11 @@ they still get the reset + surface palette from tokens.
 lives in — see §5's WYSIWYG rule and the many tools' own "Export moved
 here, not the header" notes. Linked by every tool except the Genesis
 catalog pages, which use the `--catalog` header variant instead.
+Since Sep 29, 2026 the bar is a **glass icon bar** (after Bencho's IconBar) —
+a translucent pill, no tile behind buttons, one elastic indicator that
+follows hover and rests on a pressed/open toggle (`Organica.floatbarPill` in
+`core.js`). Tooltips are unchanged. Never add a per-tool `aria-pressed` /
+`.is-armed` / hover background override: it lives in `floatbar.css`.
 
 Before the tool's own `<script>`:
 

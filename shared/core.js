@@ -912,5 +912,111 @@
     }
   };
 
+  // ── Floatbar indicator pill ──────────────────────────────────
+  // Drives shared/floatbar.css's .org-floatbar__ind: one wash that travels
+  // between the bar's buttons. Target = the hovered / focused button, else
+  // the first pressed / open toggle, else hidden. Two phases (Bencho's
+  // IconBar): the pill first stretches across the union of the old and new
+  // slot, then settles onto the new one and overshoots on landing.
+  // Delegated + self-mounting so every bar in every tool works with zero
+  // per-tool wiring. Touch has no hover, so it only ever rests on toggles.
+  Organica.floatbarPill = (function () {
+    const bars = new WeakMap();
+    const BTN = '.org-floatbar__btn';
+
+    function restTarget(bar) {
+      return bar.querySelector(BTN + '[aria-pressed="true"], ' + BTN + '[aria-expanded="true"]');
+    }
+    function measure(bar, btn) {
+      const b = bar.getBoundingClientRect(), r = btn.getBoundingClientRect();
+      return { x: r.left - b.left - bar.clientLeft, y: r.top - b.top - bar.clientTop, w: r.width, h: r.height };
+    }
+    function paint(st, m, phase) {
+      const i = st.ind;
+      i.dataset.phase = phase;
+      i.style.top = m.y + 'px';
+      i.style.height = m.h + 'px';
+      i.style.width = m.w + 'px';
+      i.style.transform = 'translate3d(' + m.x + 'px,0,0)';
+      st.cur = m;
+    }
+    function go(bar, target) {
+      const st = bars.get(bar);
+      if (!st) return;
+      clearTimeout(st.timer);
+      if (!target || !target.getClientRects().length) {
+        st.target = null;
+        st.ind.dataset.on = 'false';
+        return;
+      }
+      const to = measure(bar, target);
+      const from = st.cur;
+      const first = st.ind.dataset.on !== 'true' || !from;
+      st.target = target;
+      if (first) {
+        // appearing: place without travelling, then fade in
+        paint(st, to, 'idle');
+        void st.ind.offsetWidth;
+        st.ind.dataset.on = 'true';
+        return;
+      }
+      if (from.x === to.x && from.w === to.w) { paint(st, to, 'idle'); return; }
+      const start = Math.min(from.x, to.x), end = Math.max(from.x + from.w, to.x + to.w);
+      paint(st, { x: start, w: end - start, y: to.y, h: to.h }, 'stretch');
+      st.timer = setTimeout(() => {
+        if (st.target === target) paint(st, measure(bar, target), 'settle');
+      }, 150);
+    }
+    function mount(bar) {
+      if (bars.has(bar)) return;
+      const ind = document.createElement('span');
+      ind.className = 'org-floatbar__ind';
+      ind.setAttribute('aria-hidden', 'true');
+      ind.dataset.on = 'false';
+      ind.dataset.phase = 'idle';
+      bar.insertBefore(ind, bar.firstChild);
+      bars.set(bar, { ind, cur: null, target: null, timer: 0, hover: null });
+      go(bar, restTarget(bar));
+      // toggles flipping, buttons hidden/enabled → re-rest the pill
+      new MutationObserver(recs => {
+        const st = bars.get(bar);
+        if (recs.every(r => r.target === st.ind)) return;   // our own paint
+        go(bar, st.hover || restTarget(bar));
+      }).observe(bar, { subtree: true, attributes: true, attributeFilter: ['aria-pressed', 'aria-expanded', 'hidden', 'disabled', 'style', 'class'] });
+      if (window.ResizeObserver) new ResizeObserver(() => {
+        const st = bars.get(bar);
+        const t = st.hover || restTarget(bar);
+        if (t) { clearTimeout(st.timer); paint(st, measure(bar, t), 'idle'); }
+      }).observe(bar);
+    }
+    function point(e) {
+      const btn = e.target.closest && e.target.closest(BTN);
+      const bar = btn && btn.closest('.org-floatbar');
+      if (!bar) return;
+      mount(bar);
+      const st = bars.get(bar);
+      if (btn.disabled) return;
+      st.hover = btn;
+      go(bar, btn);
+    }
+    function leave(e) {
+      const btn = e.target.closest && e.target.closest(BTN);
+      const bar = btn && btn.closest('.org-floatbar');
+      const st = bar && bars.get(bar);
+      if (!st) return;
+      const to = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest(BTN);
+      if (to && bar.contains(to)) return;       // moving to another button: pointerover handles it
+      st.hover = null;
+      go(bar, restTarget(bar));
+    }
+    document.addEventListener('pointerover', e => { if (e.pointerType !== 'touch') point(e); });
+    document.addEventListener('pointerout', e => { if (e.pointerType !== 'touch') leave(e); });
+    document.addEventListener('focusin', point);
+    document.addEventListener('focusout', leave);
+    const boot = () => document.querySelectorAll('.org-floatbar').forEach(mount);
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+    return { mount };
+  })();
+
   global.Organica = Organica;
 })(window);
