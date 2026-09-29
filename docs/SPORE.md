@@ -68,7 +68,7 @@ Shared, identical picker with Pollen.
 ## 2a. Export — Screen/Print & Plates (September 2026)
 
 The Export popover carries an explicit **Screen | Print** mode switch
-(`shared/print-size-panel.js`, shared with Loom/Pollen/Halide/FVS):
+(`shared/print-size-panel.js`, shared with Loom/Pollen/Halide/Flexible Visual System):
 
 - **Screen** (default) — today's behaviour exactly.
 - **Print** — a real physical size (mm/in) + DPI. PNG/JPG export a

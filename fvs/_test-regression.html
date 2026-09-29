@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>FVS regression</title>
+<title>Flexible Visual System regression</title>
 <link rel="stylesheet" href="/shared/tokens.css">
 <style>
   /* Dev-only page (underscore prefix, like _test-scanline-relief.html): loads
@@ -25,15 +25,15 @@
 </style>
 </head>
 <body>
-<h1>FVS regression</h1>
+<h1>Flexible Visual System regression</h1>
 <button id="run">Run</button><button id="record">Show JSON to record</button>
 <div id="summary">Press Run.</div>
 <table id="rows"></table>
 <textarea id="json" readonly hidden aria-label="Recorded results"></textarea>
-<iframe id="frame" src="/fvs/" title="FVS under test"></iframe>
+<iframe id="frame" src="/fvs/" title="Flexible Visual System under test"></iframe>
 
 <script>
-// Executed INSIDE the FVS page (via eval in the frame), so it sees its globals.
+// Executed INSIDE the Flexible Visual System page (via eval in the frame), so it sees its globals.
 async function battery() {
   const H = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16).padStart(8, '0'); };
   // <metadata> carries a timestamp and the last-selected rule name (module state) — neither is geometry.
@@ -1064,7 +1064,7 @@ async function loadBaseline() {
 async function run() {
   $('summary').textContent = 'Running…';
   const w = frame.contentWindow;
-  if (!w || !w.eval || !w.document || w.document.readyState !== 'complete') { $('summary').textContent = 'FVS is still loading — try again in a second.'; return; }
+  if (!w || !w.eval || !w.document || w.document.readyState !== 'complete') { $('summary').textContent = 'Flexible Visual System is still loading — try again in a second.'; return; }
   try { last = await w.eval('(' + battery.toString() + ')()'); }
   catch (e) { $('summary').innerHTML = '<span class="bad">Battery threw: ' + e.message + '</span>'; return; }
   baseline = await loadBaseline();
@@ -1087,7 +1087,7 @@ $('run').addEventListener('click', run);
 if (new URLSearchParams(location.search).has('auto')) {
   const go = async () => {
     for (let i = 0; i < 100 && !(frame.contentWindow && frame.contentWindow.document && frame.contentWindow.document.readyState === 'complete'); i++) await new Promise(r => setTimeout(r, 200));
-    await new Promise(r => setTimeout(r, 1500)); // let FVS boot (library pull, first render)
+    await new Promise(r => setTimeout(r, 1500)); // let Flexible Visual System boot (library pull, first render)
     await run();
     const t = $('summary').textContent;
     document.body.dataset.detail = t;

@@ -11,7 +11,7 @@ Local first, preview second, production last. Nothing reaches `main` without an 
 ## 1. Build and test locally
 - Serve the repo on a no-store dev server; exercise the change in the browser pane.
 - Check the console is clean and that preview and exports (PNG/SVG) match.
-- FVS (or `shared/shapes.js`, `palette.js`, `print-size*.js`, `plate-export.js`) changed → the regression suite
+- Flexible Visual System (or `shared/shapes.js`, `palette.js`, `print-size*.js`, `plate-export.js`) changed → the regression suite
   runs **automatically** in the pre-commit hook (headless Chrome, ~4 s). Run it by hand any time with
   `scripts/regression.sh`. An intended change re-records `fvs/_regression-baseline.json` in the same commit
   (`scripts/regression.sh --record`, then review the `git diff`).
@@ -32,7 +32,7 @@ scripts/check.sh             # what the hook runs on every commit
 - a `/shared/…` or `/genesis/…` reference to a file that does not exist
 - `scripts/css-lint.py` findings
 
-When FVS or a shared module it uses is staged, the hook also runs `scripts/regression.sh` (headless Chrome via
+When Flexible Visual System or a shared module it uses is staged, the hook also runs `scripts/regression.sh` (headless Chrome via
 the DevTools protocol; names the changed cases on failure) and blocks the commit if any case differs.
 Emergency bypass: `git commit --no-verify`.
 
@@ -75,13 +75,13 @@ A successful `git push` does **not** mean the deploy succeeded.
 If prod is broken: `request_rollback` (Vercel MCP) to the previous READY deployment first, diagnose second.
 
 ## CI (GitHub Actions)
-- `.github/workflows/ci.yml` — every push/PR: `scripts/check.py` + the FVS regression. Catches a bypassed hook
+- `.github/workflows/ci.yml` — every push/PR: `scripts/check.py` + the Flexible Visual System regression. Catches a bypassed hook
   (`--no-verify`) or a push from another machine.
 - `.github/workflows/deploy-verify.yml` — when Vercel reports a **Production** deployment `success`, runs
   `scripts/smoke.py` against the live site. A red ✗ on the commit means the deploy is broken.
   *(Verified 2026-09-28: `ci.yml` green on Linux; `deploy-verify.yml` fires on every deployment and correctly skips previews. Its Production path is confirmed on the first real prod push.)*
 
 ## Not automated (yet)
-- Regression suites for tools other than FVS (Loom, Rhizome, shared modules) — deliberately deferred.
+- Regression suites for tools other than Flexible Visual System (Loom, Rhizome, shared modules) — deliberately deferred.
 - Safari/Firefox pass — see the cross-browser backlog in `CLAUDE.md`; needs real browsers.
 - Automatic rollback on a failed deploy (do it by hand: Vercel MCP `request_rollback`).

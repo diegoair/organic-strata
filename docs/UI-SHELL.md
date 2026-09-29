@@ -76,7 +76,7 @@ it, all 17 tools carried their own ~30-line copy. A tool keeps only its
 genuine deltas locally (`#canvas-wrap { padding: 0 }` for edge-to-edge
 canvases, a bespoke `#stage-frame` — but never a different stage shadow: since
 Sep 29, 2026 that is `--stage-shadow`, one value everywhere). Genesis
-(3-column shell), Rhizome and FVS (own canvas surfaces) don't link it;
+(3-column shell), Rhizome and Flexible Visual System (own canvas surfaces) don't link it;
 they still get the reset + surface palette from tokens.
 
 `floatbar.css` is the shared bottom-centre floating action bar
@@ -271,6 +271,7 @@ Left → right: **nav button** (opens the mega menu) · **logo mark** (placehold
 **Sign Up / Login** (signed out) or the **account control** · the **4 pattern circles**.
 Everything else moves closer to what it acts on. Live reference: the design system's Header, Account control,
 Mega menu and Pattern switcher entries.
+The mega menu (Sep 29, 2026 regroup): one row of six groups by what you start from — Form & grid · From an image · Patterns · Colour · Type & vector · Motion — with Rhizome ("Chain them all") and the Explorations in its foot; data in `shared/tools.js`.
 
 ### Markup
 
@@ -679,7 +680,7 @@ Honest list of where the tools still disagree:
 
 - **App shell** — resolved 2026-08-30. `shell.css` owns the reset,
   `body`, `#app`, `#canvas-wrap`, `.org-stage`, `#zoom-hud`, `#drop-hint`;
-  14 tools link it (all but Genesis / Rhizome / FVS, which keep their own
+  14 tools link it (all but Genesis / Rhizome / Flexible Visual System, which keep their own
   canvas surface but still get the surface palette). This also retired the
   "Panel width — 240 vs 244 vs 260" item (one `--panel-w: 248px` token in
   `panel.css`) and the "Zoom/pan CSS still inline in Spore /

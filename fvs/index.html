@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FVS — Organica</title>
+<title>Flexible Visual System — Organica</title>
 
 <!-- Tokens → header → floatbar → panel, in this order (load-bearing —
      UI-SHELL.md §2/§4b/§4c). core.js is a plain script, loaded
@@ -386,7 +386,7 @@
 
 <header class="org-header" role="banner">
   <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><menu-icon state="menu" size="20" line-cap="square"></menu-icon></button>
-  <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ FVS</span></a>
+  <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ Flexible Visual System</span></a>
   <div class="org-header__spacer"></div>
 </header>
 
@@ -502,7 +502,7 @@
         <button class="org-btn" id="btn-recipe-export">Save .json</button>
         <button class="org-btn" id="btn-recipe-import">Load .json</button>
       </div>
-      <input type="file" id="file-recipe" accept=".json,application/json" aria-label="Load FVS recipe" class="org-file-input">
+      <input type="file" id="file-recipe" accept=".json,application/json" aria-label="Load Flexible Visual System recipe" class="org-file-input">
     </div>
   </div>
 </div>
@@ -10426,7 +10426,7 @@ function buildRecipe() {
   };
 }
 function applyRecipe(r) {
-  if (!r || r.tool !== 'fvs-recipe') throw new Error('Not an FVS recipe');
+  if (!r || r.tool !== 'fvs-recipe') throw new Error('Not a Flexible Visual System recipe');
   if (r.component) applyLibraryEntryToUI(r.component);
   if (r.symbol) applySymbolLibraryEntryToUI(r.symbol);
   if (r.grid && r.grid.componentName && r.grid.componentEntry) {
@@ -10461,7 +10461,7 @@ ctrl('btn-export-figma').addEventListener('click', () => {
   const btn = ctrl('btn-export-figma');
   const svg = tierSVG();
   if (!svg) { btn.textContent = 'Nothing to send'; setTimeout(() => { btn.textContent = 'Figma'; }, 1600); return; }
-  Organica.sendToFigma(svg, 'FVS');
+  Organica.sendToFigma(svg, 'Flexible Visual System');
   btn.textContent = 'Sent ↗'; setTimeout(() => { btn.textContent = 'Figma'; }, 1600);
 });
 

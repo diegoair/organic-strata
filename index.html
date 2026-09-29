@@ -412,7 +412,7 @@
           <h3>Rules that generate, constraints that hold.</h3>
           <p>A style is a set of finished outcomes. A grammar is what produces them. Organica splits a visual system into modules — each one a set of rules you can tune — and every output is a sentence written in that grammar. Change a parameter and the sentence changes; the voice stays.</p>
           <div class="hub-modules">
-            <div class="hub-module"><b>Form</b><p>Seeds, elements, components, patterns, symbols — the vector shapes that define the mark.</p><i>Genesis · FVS</i></div>
+            <div class="hub-module"><b>Form</b><p>Seeds, elements, components, patterns, symbols — the vector shapes that define the mark.</p><i>Genesis · Flexible Visual System</i></div>
             <div class="hub-module"><b>Canvas</b><p>The space the language is written on — its format, margins, bleed.</p><i>every tool</i></div>
             <div class="hub-module"><b>Grid</b><p>Composed grids that constrain the canvas — solved, not guessed.</p><i>Loom · Trellis</i></div>
             <div class="hub-module"><b>Color</b><p>Palette methods, harmonies, separations into inks.</p><i>TuneSutra · Colornet</i></div>
@@ -500,9 +500,9 @@
     document.addEventListener('organica:theme', function () { HERO_INK = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim(); });
     var DPR = Math.min(window.devicePixelRatio || 1, 2);
 
-    // tool count from the mega-menu data (explorations excluded)
-    var count = (Organica.tools || []).filter(function (g) { return g.group !== 'Explorations'; })
-      .reduce(function (n, g) { return n + g.items.length; }, 0);
+    // tool count from the mega-menu data: the six groups + Rhizome (explorations are not tools)
+    var count = (Organica.tools || []).reduce(function (n, g) { return n + g.items.length; }, 0)
+      + (Organica.toolsPipeline ? 1 : 0);
     if (count) document.getElementById('hub-count-tools').textContent = count;
 
     // "All tools" opens the header's mega menu

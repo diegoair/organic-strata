@@ -1,4 +1,4 @@
-# FVS — User Manual
+# Flexible Visual System — User Manual
 
 > Organica · Flexible Visual System — Element → Component → Symbol → Grid
 > Live: [theorganicalanguage.vercel.app/fvs/](https://theorganicalanguage.vercel.app/fvs/)
@@ -6,9 +6,9 @@
 
 ---
 
-## 1. What FVS does
+## 1. What Flexible Visual System does
 
-FVS is a **rule engine for visual patterns**, modelled on Figma's own
+Flexible Visual System is a **rule engine for visual patterns**, modelled on Figma's own
 Elements → Components → Symbols chain. You author one small shape, then
 compose it with rules — so a whole pattern stays coherent and every result is a
 real symmetry, not noise. Everything is vector: one `<path>` per cell, the
@@ -250,7 +250,7 @@ its cells.
 - **Rotate figure** (0/90/180/270°) and **Mirror** (none / right edge / bottom edge /
   both) reflect the whole tiled figure over its own edge; the copy shares that edge.
 
-Worked example — *Form-based FVS, Triangle Symbol*: Element **Triangle**, Fill red →
+Worked example — *Form-based Flexible Visual System, Triangle Symbol*: Element **Triangle**, Fill red →
 Symbol **Triangle grid 2**, Rule **Orientation** (up Filled, down Empty) → the
 Sierpinski triangle; Triangle grid 2 with the top cell Empty and down Filled → the
 trapezoid; Triangle grid 4 → the finer lattice. Save each, then in Grid: **Tier ×2**
@@ -381,9 +381,9 @@ steps, previewed live with the floatbar's Play.
 fixed battery of builds, hashes every SVG and diffs against
 `fvs/_regression-baseline.json`. Open it on the dev server and press **Run** —
 expected: *All N cases match the baseline*. When a change is intentional, use
-**Show JSON to record** and update the baseline in the same commit. New FVS
+**Show JSON to record** and update the baseline in the same commit. New Flexible Visual System
 behaviour gets new cases in `battery()`. It is run before every commit that
-touches `fvs/index.html` or the shared files FVS uses.
+touches `fvs/index.html` or the shared files Flexible Visual System uses.
 
 Not covered: PNG byte content, cross-browser behaviour (see the backlog in
 CLAUDE.md).

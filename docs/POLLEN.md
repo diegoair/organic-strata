@@ -188,7 +188,7 @@ smooth arc. Everything stays WYSIWYG (the SVG export integrates the same field).
 ## 6. Export — Screen/Print & Plates (September 2026)
 
 The Export popover carries an explicit **Screen | Print** mode switch
-(`shared/print-size-panel.js`, shared with Loom/Spore/Halide/FVS):
+(`shared/print-size-panel.js`, shared with Loom/Spore/Halide/Flexible Visual System):
 
 - **Screen** (default) — today's behaviour exactly: the Scale multiplier
   (×1/×2/×3) drives raster output, SVG stays resolution-independent.

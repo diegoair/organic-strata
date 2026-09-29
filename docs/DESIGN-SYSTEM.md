@@ -269,7 +269,7 @@ back to the class and it never shows.
 | `--accent-warm` | `#c2551b` | The one accent (slider fills were retired Sep 29, 2026 — the Slosh slider is ink on `--track-bg`) — deliberately *not* `--tool` (which is blue for Halide/Spore), so a control reads as "you're dragging this" identically regardless of which tool it's in. Computed for contrast: 3.79:1 on `--panel`, 4.08:1 on `--paper`. |
 | `--track-bg` | `color-mix(in srgb, var(--ink) 10%, var(--panel))` | The slider track's empty-portion housing — derived per-tool automatically, never a hardcoded hex. |
 | `--gray-0` … `--gray-900` | `--gray-0` = `--paper`; step N = `color-mix(in srgb, var(--ink) N/10, var(--paper))` (100 = 10% … 900 = 90%) | **The grey scale — the scale of black** (added Sep 29, 2026, at Diego's request). Ten steps, derived from each tool's own `--ink`/`--paper` so they follow warm-black tools. For "a grey" that isn't a surface role; the role tokens (`--panel`, `--track-bg`, `--border`, `--mid`) keep their names. The design-system page's own background is `--gray-100`. |
-| `--canvas-bg` | `var(--paper)` (#ffffff) | The canvas **area** every tool's stage sits on (`#canvas-wrap` / `.org-canvas-wrap` in `shell.css`, plus FVS, Rhizome, Genesis, Apostate, Mycel, TuneSutra's own stage areas). Replaced the grey `--panel` area on Sep 29, 2026. |
+| `--canvas-bg` | `var(--paper)` (#ffffff) | The canvas **area** every tool's stage sits on (`#canvas-wrap` / `.org-canvas-wrap` in `shell.css`, plus Flexible Visual System, Rhizome, Genesis, Apostate, Mycel, TuneSutra's own stage areas). Replaced the grey `--panel` area on Sep 29, 2026. |
 | `--canvas-dot` | `#a8dff0` | Light cyan blue of the canvas dot grid. |
 | `--stage-shadow` | `0 4px 40px rgba(0,0,0,.18)` | The one shadow of the **stage** — the sheet you draw on, class `.org-stage` in `shell.css`. Its element `id` differs per tool (`#board`, `#preview`, `#gl-canvas`, `#view-canvas`, `#stage`…) because each tool's script finds it by id; the *style* is the class/token, never the id. Used by all 22 tools that have a sheet (Rhizome is an infinite node canvas, no sheet). |
 | `--canvas-grid` | `radial-gradient(circle, var(--canvas-dot) 1px, transparent 1.4px) 0 0 / var(--space-7) var(--space-7)` | The dot grid itself, one 24px pitch everywhere. Use as `background: var(--canvas-grid), var(--canvas-bg);` (grid layer over the colour). The stage/sheet on top keeps its own colour — a tool's Paper is user content. |
@@ -296,12 +296,12 @@ hub nav and as the tool's identity colour.
 | Loom | `#4a7fc9` | blueprint blue |
 | Membrane | `#c15b4a` | warm coral / tissue-red |
 | Vortex | `#6d4bd8` | deep indigo |
-| FVS | `#3fa876` | emerald |
+| Flexible Visual System | `#3fa876` | emerald |
 | TuneSutra | `#c93ed6` | vivid orchid / magenta |
 | Mycel | `#8a7355` | mushroom taupe |
 | Colornet | `#4a5fc7` | cornflower blue-violet |
 | Blob Boundary | `#8a8a28` | mustard gold |
-| Mote | `#2f9e8f` | sea-green teal — the Motion band's cool accent (hue ~172, between FVS's green and Camo Turing's cyan) |
+| Mote | `#2f9e8f` | sea-green teal — the Motion band's cool accent (hue ~172, between Flexible Visual System's green and Camo Turing's cyan) |
 
 The palette spans green → yellow → orange → blue → violet → teal. When adding a
 tool, pick a hue that isn't already taken and note it here. (Strata's own row
@@ -317,7 +317,7 @@ ship date — each `.nav__group` carries a `group-label`:
 |---|---|
 | Seed / Form | Genesis |
 | Coloring & palette | TuneSutra, Colornet |
-| Grid & composition | Loom, FVS |
+| Grid & composition | Loom, Flexible Visual System |
 | Tracing & vectorization | Halide, Living Path |
 | Generative patterns | Komorebi, Camo Turing, Warping, Radial |
 | Stippling & marks | Spore, Pollen |
@@ -359,7 +359,7 @@ failures, not close calls:
 - **Tokens** — `shared/tokens.css`, section THEMES: (1) the light literals on `:root`, `[data-theme="light"]` and `[data-theme="dark"] .org-stage`; (2) the dark literals on `:root[data-theme="dark"]` / `[data-theme="dark"]`; (3) the derived tokens (`--track-bg`, `--gray-*`, `--canvas-bg`, `--canvas-grid`) on `:root, [data-theme], .org-stage`, so they re-compute in each scope. `--border-strong` moved here from `header.css`.
 - **Dark values** (on `--paper #121210` / `--panel #1f1e1a`): `--ink #eceae4` 15.6:1 · `--mid #a39c90` 6.9:1 · `--accent #d9d6cf` · `--border #3a362f` (decorative) · `--border-strong #7d725e` 3.97:1 · `--accent-hover #bdb8ae` · `--danger #e0735f` 6.1:1 · `--canvas-dot #2e4a55` · `--stage-shadow` 0.6 · `--accent-warm` unchanged (4.1:1). The design-system self-check fails if a dark text token drops under 4.5:1 or `--border-strong` under 3:1.
 - **Switch** — the header's moon/sun button (`shared/header.js`, `.org-theme`), saved in `localStorage['organica.ui.theme']`, applied before first paint by `shared/pattern-init.js`. No OS following (Diego's call).
-- **Opt-in per page** — `<html data-theme-support>`. Opted in: hub, design system, Pollen, Loom, FVS. Every other page stays light even when the user chose dark, and shows no button.
+- **Opt-in per page** — `<html data-theme-support>`. Opted in: hub, design system, Pollen, Loom, Flexible Visual System. Every other page stays light even when the user chose dark, and shows no button.
 - **Canvas / export colours** — never read off `documentElement`; use `Organica.contentColor('--ink')` (core.js), which reads the light content palette.
 - **Shared sheets** — no raw hex outside `tokens.css` (css-lint check `shared-hex`).
 - **Shadows and scrims are black in both themes** (`rgba(0,0,0,…)`), never `color-mix(var(--ink) …, transparent)` — in dark `--ink` is light, so it glows. Focus rings, by contrast, follow `--ink`.

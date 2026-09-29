@@ -63,9 +63,22 @@
       panel.appendChild(col);
     });
 
+    // The foot: Rhizome (chains the tools, so not a column) + the explorations, one line each.
     var foot = el('div', 'org-mega__foot');
-    foot.appendChild(el('b', null, 'Organica:'));
-    foot.appendChild(document.createTextNode('Visual Design Language System'));
+    var pipe = Organica.toolsPipeline;
+    if (pipe) {
+      var row = el('div', 'org-mega__foot-row');
+      row.appendChild(el('b', null, 'Chain them all'));
+      row.appendChild(link('org-mega__foot-link', pipe[0] + ' →', pipe[1]));
+      foot.appendChild(row);
+    }
+    var exp = Organica.explorations || [];
+    if (exp.length) {
+      var row2 = el('div', 'org-mega__foot-row');
+      row2.appendChild(el('b', null, 'Explorations'));
+      exp.forEach(function (it) { row2.appendChild(link('org-mega__foot-link', it[0], it[1])); });
+      foot.appendChild(row2);
+    }
     panel.appendChild(foot);
     header.appendChild(panel);
 

@@ -248,8 +248,8 @@
   left: 0; right: 0;
   top: 100%;
   z-index: 200;
-  grid-template-columns: repeat(4, minmax(0, 1fr));   /* 8 groups = two clean rows of four */
-  padding: var(--space-6) var(--space-6) 0;          /* was 32/24 — tightened */
+  grid-template-columns: repeat(6, minmax(0, 1fr));   /* 6 groups = one row (Sep 29, 2026 regroup — was 9 groups in 3 rows) */
+  padding: var(--space-5) var(--space-5) 0;
   background: var(--paper);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   overflow: hidden;
@@ -261,22 +261,23 @@
   grid-row: span 2;                    /* title row + links row, shared across the whole grid row */
   grid-template-rows: subgrid;         /* so a two-line heading doesn't push its neighbours' links out of line */
   align-content: start;
-  padding: 0 var(--space-4) var(--space-5);          /* was 16 sides / 24 below */
+  padding: 0 var(--space-3) var(--space-4);
   border-left: 1px solid var(--border);
   min-width: 0;
 }
-.org-mega__group:nth-child(4n + 1) { border-left: 0; }          /* no rule at the start of a row */
+.org-mega__group:first-child { border-left: 0; }                 /* no rule at the start of the row */
 .org-mega__title {
-  margin: 0 0 var(--space-3);                        /* was 16 */
-  font-size: var(--fs-large);
+  margin: 0 0 var(--space-2);
+  padding: 0 var(--space-3);                         /* lines up with the link text */
+  font-size: var(--fs-medium);
   font-weight: var(--w-bold);
   line-height: var(--lh-snug);
   color: var(--ink);
 }
 .org-mega__link {
   display: block;
-  padding: var(--space-2) var(--space-4);            /* was 8/16 */
-  border-radius: var(--radius-lg);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
   font-size: var(--fs-medium);
   line-height: var(--lh-snug);
   color: var(--ink);
@@ -292,13 +293,23 @@
 /* The strip at the foot: bold label + a line of what this is. Full-bleed inside the sheet. */
 .org-mega__foot {
   grid-column: 1 / -1;
-  margin: 0 calc(var(--space-6) * -1);                             /* out to the sheet's edges */
-  padding: var(--space-4) var(--space-6);
+  margin: 0 calc(var(--space-5) * -1);                             /* out to the sheet's edges */
+  padding: var(--space-3) var(--space-5);
+  display: flex; flex-direction: column; gap: var(--space-1);
   background: color-mix(in srgb, var(--panel) 70%, transparent);
   font-size: var(--fs-medium);
   color: var(--ink);
 }
 .org-mega__foot b { font-weight: var(--w-bold); margin-right: var(--space-2); }
+.org-mega__foot-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--space-4); }
+.org-mega__foot-link { color: var(--ink); text-decoration: none; border-radius: var(--radius-md); padding: var(--space-1) var(--space-2); margin: 0 calc(var(--space-2) * -1); }
+.org-mega__foot-link:hover { background: var(--track-bg); }
+.org-mega__foot-link[aria-current="page"] { font-weight: var(--w-bold); }
+/* narrower windows: two rows of three */
+@media (max-width: 1100px) {
+  .org-mega { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .org-mega__group:nth-child(3n + 1) { border-left: 0; }
+}
 
 /* ── SLOT 5 — actions, max three ── */
 .org-header__actions {

@@ -207,7 +207,7 @@ protected.
 Top bar: **PNG · JPG · SVG**, plus **→ Figma** (same `organica-svg` postMessage
 protocol as Spore/Pollen/Living Path). The Export popover carries an explicit
 **Screen | Print** mode switch (`shared/print-size-panel.js`, shared with
-Loom/Pollen/Spore/FVS):
+Loom/Pollen/Spore/Flexible Visual System):
 
 - **Screen** (default) — today's behaviour exactly. **Export Scale** (×2 to
   ×12) sets pixels per dithered cell in the raster/SVG output, independent of
