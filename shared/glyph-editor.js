@@ -268,12 +268,14 @@
     // ── render ──────────────────────────────────────────────────────────────
     const guideLineWidth = opts.guideLineWidth || 1;
     const guideFontSize = opts.guideFontSize || 10;
+    // Canvas text can't read CSS vars: resolve the design-system --font (tokens.css) at draw time.
+    const uiFont = () => (getComputedStyle(document.documentElement).getPropertyValue('--font').trim() || 'system-ui, sans-serif');
     function line(y, label, col) {
       const py = view.oy - y * view.s;
       ctx.strokeStyle = col; ctx.lineWidth = guideLineWidth; ctx.setLineDash([4, 4]);
       ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(canvasEl.width, py); ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = col; ctx.font = guideFontSize + 'px system-ui, sans-serif';
+      ctx.fillStyle = col; ctx.font = guideFontSize + 'px ' + uiFont();
       ctx.fillText(label, 4, py - 3);
     }
     function redraw() {
@@ -310,7 +312,7 @@
       ctx.fillStyle = preview ? 'rgba(128,128,128,0.20)' : 'rgba(128,128,128,0.14)'; ctx.fill(p2, 'evenodd');
       ctx.strokeStyle = ink.trim(); ctx.lineWidth = 1; ctx.stroke(p2);
       if (preview) {
-        ctx.fillStyle = mid; ctx.font = '10px system-ui, sans-serif';
+        ctx.fillStyle = mid; ctx.font = '10px ' + uiFont();
         ctx.fillText('interpolated — pick a master to edit', 6, H - 8);
         return;
       }

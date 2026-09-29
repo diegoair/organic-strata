@@ -31,7 +31,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--panel);
+    background: var(--canvas-grid), var(--canvas-bg);
     padding: 32px;
     overflow: auto;
   }
@@ -39,7 +39,7 @@
     max-width: 100%;
     height: auto;
     background: var(--paper);
-    box-shadow: 0 4px 40px rgba(0,0,0,0.12);
+    box-shadow: var(--stage-shadow);
   }
   .bar-seg { cursor: pointer; stroke: var(--paper); stroke-width: 2; }
   .bar-seg.role-active { stroke: var(--ink); stroke-width: 3; }

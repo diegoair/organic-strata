@@ -77,7 +77,7 @@
     width: auto;
     height: auto;
     object-fit: contain;
-    box-shadow: 0 4px 40px rgba(0,0,0,0.18);
+    box-shadow: var(--stage-shadow);
     cursor: crosshair;
     display: block;
     /* The drawing buffer itself now renders at DISPLAY_LONG (1024), not
@@ -200,7 +200,7 @@
     color: var(--mid);
     font-size: 9px;
     font-style: italic;
-    font-family: Georgia, serif;
+    font-family: var(--font);
     cursor: help;
     flex-shrink: 0;
   }

@@ -68,7 +68,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--panel);
+  background: var(--canvas-grid), var(--canvas-bg);   /* white + light cyan dot grid (tokens.css) */
   position: relative;
   overflow: hidden;
   padding: var(--space-7);
@@ -86,7 +86,7 @@ body {
   display: block;
   max-width: 100%;
   max-height: 100%;
-  box-shadow: 0 4px 40px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--stage-shadow);
   transform-origin: 0 0;
   will-change: transform;
 }

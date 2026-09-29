@@ -31,11 +31,11 @@
      the ONLY zoom/pan mechanism, so there is deliberately no zoom-hud
      block and no .zoomed/.panning cursor classes the way Membrane has.
      grab/grabbing instead communicate "this canvas is drag-orbitable". */
-  #canvas-wrap canvas { display: block; cursor: grab; }
+  #canvas-wrap canvas { display: block; cursor: grab; box-shadow: var(--stage-shadow); }   /* the stage */
   #canvas-wrap canvas.orbiting { cursor: grabbing; }
   #tool-label { position: absolute; left: var(--space-4); bottom: var(--space-4); font-size: var(--fs-micro); color: #f6e8c3; opacity: 0.6; pointer-events: none; }
 
-  #panel { background: var(--panel); }   /* override — Vortex's panel sits on the grey, not paper */
+  #panel { background: var(--panel); }   /* override — Vortex's panel keeps the grey --panel, not paper */
 
   /* Panel shell, .icon-btn, .rmx-* chips and the .color-* row are all shared
      (panel.css / palette.css). */

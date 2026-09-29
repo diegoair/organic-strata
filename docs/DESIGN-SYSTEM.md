@@ -13,14 +13,25 @@
 
 ## 1. One typeface
 
-**Manrope**, everywhere. Nothing else.
+**Wix Madefor Display**, everywhere, via `--font`. Nothing else. (Since Sep 29, 2026 —
+until then the typeface was **Manrope**; the rest of this document still names Manrope's
+styles where it records history.)
 
-Manrope is a **variable font** with a single weight axis running 200–800, so
-the entire weight range costs one file. Loaded once, from `tokens.css`:
+Wix Madefor Display is a **variable font** with a single weight axis running **400–800**, so
+the whole range costs one file. Self-hosted, loaded once from `tokens.css`:
 
 ```css
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
+@font-face {
+  font-family: 'Wix Madefor Display';
+  src: url('/shared/vendor/wix-madefor-display-variable.ttf') format('truetype-variations');
+  font-weight: 400 800;
+}
+:root { --font: 'Wix Madefor Display', 'Manrope', ui-sans-serif, system-ui, sans-serif; }
 ```
+
+There is **no 300**: `--w-light` (panel labels, sub-labels, values) renders as 400. Manrope
+stays vendored — it is the fallback in `--font`, and the text seeds read its file for glyph
+outlines (opentype.js).
 
 ### What this replaced
 
@@ -226,6 +237,10 @@ back to the class and it never shows.
 |---|---|---|
 | `--accent-warm` | `#c2551b` | The one accent for every slider fill and the floating toolbar's primary button — deliberately *not* `--tool` (which is blue for Halide/Spore), so a control reads as "you're dragging this" identically regardless of which tool it's in. Computed for contrast: 3.79:1 on `--panel`, 4.08:1 on `--paper`. |
 | `--track-bg` | `color-mix(in srgb, var(--ink) 10%, var(--panel))` | The slider track's empty-portion housing — derived per-tool automatically, never a hardcoded hex. |
+| `--canvas-bg` | `var(--paper)` (#ffffff) | The canvas **area** every tool's stage sits on (`#canvas-wrap` / `.org-canvas-wrap` in `shell.css`, plus FVS, Rhizome, Genesis, Apostate, Mycel, TuneSutra's own stage areas). Replaced the grey `--panel` area on Sep 29, 2026. |
+| `--canvas-dot` | `#a8dff0` | Light cyan blue of the canvas dot grid. |
+| `--stage-shadow` | `0 4px 40px rgba(0,0,0,.18)` | The one shadow of the **stage** — the sheet you draw on, class `.org-stage` in `shell.css`. Its element `id` differs per tool (`#board`, `#preview`, `#gl-canvas`, `#view-canvas`, `#stage`…) because each tool's script finds it by id; the *style* is the class/token, never the id. Used by all 22 tools that have a sheet (Rhizome is an infinite node canvas, no sheet). |
+| `--canvas-grid` | `radial-gradient(circle, var(--canvas-dot) 1px, transparent 1.4px) 0 0 / var(--space-7) var(--space-7)` | The dot grid itself, one 24px pitch everywhere. Use as `background: var(--canvas-grid), var(--canvas-bg);` (grid layer over the colour). The stage/sheet on top keeps its own colour — a tool's Paper is user content. |
 
 ---
 

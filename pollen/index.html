@@ -24,14 +24,13 @@
      Pollen's own deltas: */
   #canvas-wrap { padding: 0; }        /* canvas reaches the letterbox edge */
   #main-canvas:not(.visible) { display: none; }
-  #main-canvas { box-shadow: 0 4px 40px rgba(0,0,0,0.12); }   /* lighter than the shared stage */
 
   /* live recompute indicator (debounced placement updates) */
   #recompute-overlay {
     position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
     display: none; align-items: center; gap: var(--space-3);
     padding: var(--space-2) var(--space-5); background: rgba(10,10,10,0.82); color: #fff;
-    font-family: var(--mono, monospace); font-size: var(--fs-small); letter-spacing: 0.08em; border-radius: var(--radius-sm); z-index: 20; pointer-events: none;
+    font-family: var(--font); font-size: var(--fs-small); letter-spacing: 0.08em; border-radius: var(--radius-sm); z-index: 20; pointer-events: none;
   }
   #recompute-overlay.visible { display: flex; }
   #recompute-overlay .spinner {

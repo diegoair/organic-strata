@@ -52,8 +52,13 @@ directly against the license banner in each vendored file, August 27, 2026.
 - **Source**: npm registry tarball (`@supabase/supabase-js`)
 - **Used by**: the cloud sync layer (`shared/supabase.js` → `Organica.sb`), consumed by `shared/auth.js` and `shared/store.js` on every tool page — per-user auth (Google OAuth / magic link) and preset/seed persistence in Postgres with row-level security.
 
+### Wix Madefor Display (typeface)
+- **File**: `shared/vendor/wix-madefor-display-variable.ttf` (licence text alongside: `shared/vendor/wix-madefor-display-OFL.txt`) — the interface typeface since Sep 29, 2026, self-hosted via `@font-face` in `shared/tokens.css`.
+- **Source**: https://github.com/wix/wixmadefor. Copyright 2023 The Wix Madefor Project Authors.
+- **License**: SIL Open Font License 1.1 — same terms as Manrope below.
+
 ### Manrope (typeface)
-- **Loaded via**: Google Fonts (`shared/tokens.css`'s `@import`) for on-screen display; a local copy at `shared/vendor/manrope-variable.ttf` for glyph-outline extraction (opentype.js) in Membrane / Camo Turing's text-seed features and the shared seeds panel
+- **Loaded via**: self-hosted `@font-face` in `shared/tokens.css` (the `--font` fallback; the interface typeface until Sep 29, 2026); a local copy at `shared/vendor/manrope-variable.ttf` for glyph-outline extraction (opentype.js) in Membrane / Camo Turing's text-seed features and the shared seeds panel
 - **License**: SIL Open Font License 1.1 — permits bundling/embedding in software, including commercial use; the only real restriction is not selling the font file standalone and preserving its Reserved Font Name if modified (it isn't, here)
 
 ### Archivo Black (typeface)

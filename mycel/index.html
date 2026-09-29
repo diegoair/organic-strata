@@ -31,14 +31,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--panel);
+    background: var(--canvas-grid), var(--canvas-bg);
     overflow: hidden;
   }
   #stage {
     width: min(90%, 90vh);
     height: min(90%, 90vh);
     background: var(--paper);
-    box-shadow: 0 4px 40px rgba(0,0,0,0.12);
+    box-shadow: var(--stage-shadow);
     cursor: crosshair;
   }
 

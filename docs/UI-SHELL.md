@@ -185,7 +185,7 @@ one place. A tool now declares only:
 | `--paper` | page background | `#ffffff` |
 | `--mid` | secondary text, dividers | `#696256` |
 | `--accent` | emphasis text | `#2a2a2a` |
-| `--panel` | canvas surround, inputs | `#eceae4` |
+| `--panel` | inputs, selected rows, floating bars (the canvas surround moved to `--canvas-bg` + `--canvas-grid`, Sep 29, 2026) | `#eceae4` |
 | `--border` | all 1px rules | `#d0c8b8` |
 
 A tool's own **content** colour (Halide's ink/paper for the dithered
@@ -653,7 +653,7 @@ Honest list of where the tools still disagree:
   its own documented aliases (`.sec`/`.row`/`.group-label`).
 - **Mote** (promoted from `scratchpad/mote.html` Sep 1, 2026) links all 5
   shared sheets and uses the standard header / panel / floatbar / `.org-stage`
-  classes with the shared `#canvas-wrap { background: var(--panel) }` surround
+  classes with the shared `#canvas-wrap` surround (white + dot grid: `--canvas-grid`, `--canvas-bg`)
   (the prototype's near-black stage was dropped Sep 1 as off-system). Source
   (open-file `＋`, webcam, mirror) lives in the floatbar, which also carries a
   small `#perf` readout (`ms / fps / pts`, `var(--font)` tabular). The Export

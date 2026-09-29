@@ -303,7 +303,7 @@
 
     <section class="ds-entry" id="typography">
       <h2>Typography</h2>
-      <p class="ds-desc">One family — Manrope, variable weight 200–800 — via <code>--font</code>. The panel runs on exactly two styles (10/400 and 9/300); everything outside the panel uses the type scale below. No second typeface, no hardcoded <code>font-size</code>.</p>
+      <p class="ds-desc">One family — Wix Madefor Display, variable weight 400–800 — via <code>--font</code> (Manrope until Sep 29, 2026; still the fallback). There is no 300, so <code>--w-light</code> renders as 400. The panel runs on exactly two styles (10/400 and 9/300); everything outside the panel uses the type scale below. No second typeface, no hardcoded <code>font-size</code>.</p>
       <div class="ds-usage"><strong>Defined in</strong><span>shared/tokens.css</span><strong>Used in</strong><span>every page</span></div>
       <div class="ds-example ds-example--column">
         <div class="ds-type-row"><span class="ds-type-tag">--fs-micro · 9px</span><span class="ds-type-sample" style="font-size:var(--fs-micro)">Sub-labels, panel values, captions</span></div>
@@ -312,10 +312,10 @@
         <div class="ds-type-row"><span class="ds-type-tag">--fs-medium · 12px</span><span class="ds-type-sample" style="font-size:var(--fs-medium)">Header context title</span></div>
         <div class="ds-type-row"><span class="ds-type-tag">--fs-large · 14px</span><span class="ds-type-sample" style="font-size:var(--fs-large)">Page-level heading inside a tool</span></div>
         <div class="ds-type-row"><span class="ds-type-tag">--fs-xl · 17px</span><span class="ds-type-sample" style="font-size:var(--fs-xl)">Tool title</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--w-light · 300</span><span class="ds-type-sample" style="font-weight:300">Manrope Light — sub-labels, labels, values</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--w-regular · 400</span><span class="ds-type-sample" style="font-weight:400">Manrope Regular — section titles, controls</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--w-medium · 500</span><span class="ds-type-sample" style="font-weight:500">Manrope Medium — emphasis, primary action</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--w-bold · 700</span><span class="ds-type-sample" style="font-weight:700">Manrope Bold — wordmark</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--w-light · 300</span><span class="ds-type-sample" style="font-weight:300">Light (renders 400) — sub-labels, labels, values</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--w-regular · 400</span><span class="ds-type-sample" style="font-weight:400">Regular — section titles, controls</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--w-medium · 500</span><span class="ds-type-sample" style="font-weight:500">Medium — emphasis, primary action</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--w-bold · 700</span><span class="ds-type-sample" style="font-weight:700">Bold — wordmark</span></div>
       </div>
       <pre class="ds-code"><span class="attr">font-family</span>: var(--font);
 <span class="attr">font-size</span>: var(--fs-base);      <span class="attr">/* never a raw px */</span>
@@ -359,6 +359,9 @@
           <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--danger)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--danger</div><div class="ds-swatch__val">validation / destructive text</div></div></div>
           <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--accent-hover)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--accent-hover</div><div class="ds-swatch__val">hover under an ink-filled button</div></div></div>
           <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--track-bg)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--track-bg</div><div class="ds-swatch__val">ink mixed into panel</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--canvas-bg);box-shadow:inset 0 0 0 1px var(--border)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--canvas-bg</div><div class="ds-swatch__val">canvas area (= --paper)</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--canvas-dot)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--canvas-dot</div><div class="ds-swatch__val">canvas grid dots</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--canvas-grid), var(--canvas-bg);box-shadow:inset 0 0 0 1px var(--border)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--canvas-grid</div><div class="ds-swatch__val">dot grid, --space-7 pitch</div></div></div>
         </div>
       </div>
       <pre class="ds-code"><span class="attr">color</span>: var(--ink);
@@ -402,7 +405,7 @@
 
     <section class="ds-entry ds-prose" id="shell">
       <h2>App shell</h2>
-      <p class="ds-desc">The frame every tool sits in — the box-sizing reset, a flex-column <code>&lt;body&gt;</code> pinned to the viewport, an <code>#app</code> row, and a centred <code>#canvas-wrap</code> stage area. Before this sheet, all 17 tools carried their own ~30-line copy of it, each annotated "same shared pattern as Loom/Halide/Spore/Pollen".</p>
+      <p class="ds-desc">The frame every tool sits in — the box-sizing reset, a flex-column <code>&lt;body&gt;</code> pinned to the viewport, an <code>#app</code> row, and a centred <code>#canvas-wrap</code> stage area — white (<code>--canvas-bg</code>) with a light cyan dot grid (<code>--canvas-grid</code>), the same surface FVS, Rhizome and Genesis use for their own canvas areas. The sheet you draw on is the <strong>stage</strong>: class <code>.org-stage</code> (its <code>id</code> differs per tool — <code>#board</code>, <code>#preview</code>, <code>#view-canvas</code>… — because each tool's script finds it by id), with the one shared <code>--stage-shadow</code>. Before this sheet, all 17 tools carried their own ~30-line copy of it, each annotated "same shared pattern as Loom/Halide/Spore/Pollen".</p>
       <div class="ds-usage"><strong>Defined in</strong><span>shared/shell.css</span><strong>Used in</strong><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Camo Turing</span><span>Warping</span><span>Loom</span><span>Membrane</span><span>Vortex</span><span>Radial</span><span>Pulsar</span><span>Colornet</span><span>Blob Boundary</span></div>
       <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"app"</span>&gt;
   &lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"canvas-wrap"</span>&gt;

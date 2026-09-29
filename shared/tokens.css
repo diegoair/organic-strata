@@ -38,6 +38,19 @@
   font-style: normal;
 }
 
+/* The interface typeface since Sep 29, 2026 — Wix Madefor Display, SIL OFL 1.1
+   (shared/vendor/wix-madefor-display-OFL.txt), self-hosted like Manrope. Variable wght 400–800:
+   there is no 300, so --w-light renders as 400. Manrope stays loaded — it's the fallback in --font
+   and the text seeds read its file (opentype.js). */
+@font-face {
+  font-family: 'Wix Madefor Display';
+  src: url('/shared/vendor/wix-madefor-display-variable.ttf') format('truetype-variations'),
+       url('/shared/vendor/wix-madefor-display-variable.ttf') format('truetype');
+  font-weight: 400 800;
+  font-display: swap;
+  font-style: normal;
+}
+
 /* Form controls and <code>/<pre> never inherit font-family by default in any
    browser — that's the UA stylesheet, not a bug in any one tool. Without this
    rule every <input>, <select>, <button>, <textarea> silently renders Arial
@@ -62,7 +75,7 @@ html {
      One family. --font is the only name; the old --sans / --mono /
      --display aliases are kept at the bottom of this file so existing
      rules keep working, but new code should use --font. */
-  --font: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font: 'Wix Madefor Display', 'Manrope', ui-sans-serif, system-ui, sans-serif;   /* was Manrope until Sep 29, 2026 */
 
   /* ── WEIGHTS ─────────────────────────────────────────────
      Manrope's axis runs 200–800. Organica uses four stops; anything
@@ -171,6 +184,20 @@ html {
      --panel, 4.08:1 on --paper, 4.56:1 on a white thumb — real headroom
      over the 3:1 non-text-contrast floor. */
   --accent-warm: #c2551b;
+
+  /* The canvas AREA every tool's stage sits on (#canvas-wrap and the
+     tools with their own canvas surface: FVS, Rhizome, Genesis) — white
+     with a light cyan dot grid, one pitch everywhere. The stage/sheet on
+     top keeps its own colour (a tool's Paper is user content). Use as
+     `background: var(--canvas-grid), var(--canvas-bg);` — grid over colour.
+     Replaces the old grey --panel area (Sep 29, 2026). */
+  --canvas-bg:   var(--paper);          /* #ffffff */
+  /* The STAGE (the sheet you draw on, .org-stage in shell.css) sits on the
+     canvas area with one soft shadow — the same in every tool. Was retyped
+     by hand in 7 tools (two at 0.12). */
+  --stage-shadow: 0 4px 40px rgba(0, 0, 0, 0.18);
+  --canvas-dot:  #a8dff0;               /* light cyan blue */
+  --canvas-grid: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1.4px) 0 0 / var(--space-7) var(--space-7);
 
   /* Error / destructive text. One earthy red, chosen to sit next to
      --accent-warm without clashing (both are warm, desaturated). Used for

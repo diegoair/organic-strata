@@ -42,16 +42,16 @@
      "fixed", since edge-to-edge would be a deliberate layout change. */
   #app { height: calc(100vh - var(--header-h, 40px)); }
 
-  #canvas-wrap canvas { display: block; cursor: default; transform-origin: 0 0; will-change: transform; }
+  #canvas-wrap canvas { display: block; cursor: default; transform-origin: 0 0; will-change: transform; box-shadow: var(--stage-shadow); }   /* the stage */
   #canvas-wrap canvas.zoomed { cursor: grab; }
   #canvas-wrap canvas.panning { cursor: grabbing; }
   #tool-label { position: absolute; left: var(--space-4); bottom: var(--space-4); font-size: var(--fs-micro); color: var(--mark-ink); opacity: 0.6; pointer-events: none; }
 
   #zoom-hud { bottom: calc(var(--space-4) + 20px); left: var(--space-4); z-index: 10; }
 
-  #panel { background: var(--panel); }   /* override — panel on grey, not paper */
+  #panel { background: var(--panel); }   /* override — the panel keeps the grey --panel, not paper */
   .upload-btn { margin-bottom: var(--space-2); }
-  .org-panel__readout { font-family: monospace; font-size: var(--fs-micro); color: var(--tool); background: var(--paper); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); margin-bottom: var(--space-3); word-break: break-word; }
+  .org-panel__readout { font-family: var(--font); font-size: var(--fs-micro); color: var(--tool); background: var(--paper); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); margin-bottom: var(--space-3); word-break: break-word; }
 </style>
 </head>
 <body>

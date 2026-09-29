@@ -190,9 +190,9 @@
     #edit-facts dd { color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
 
     /* ─── Artboard (Draw / Import / Generate) ───────────────── */
-    .stage { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .stage { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--canvas-grid), var(--canvas-bg); }
     .artwrap { position: relative; }
-    #art { display: block; width: 460px; height: 460px; background: var(--surface); border: 1px solid var(--border); cursor: crosshair; }
+    #art { display: block; width: 460px; height: 460px; background: var(--surface); box-shadow: var(--stage-shadow); cursor: crosshair; }   /* the stage: shared shadow, no border */
     #art.notdraw { cursor: default; }
     /* Paper.js's own input surface for Draw mode — sits exactly over #art
        (same 460x460 box) so its project coordinates share the artboard's

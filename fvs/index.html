@@ -42,7 +42,7 @@
 
   /* No zoom/pan — the gallery is a static, scrollable grid of thumbnails,
      not a single pannable canvas (there is no one canvas to zoom). */
-  #canvas-wrap { flex: 1; overflow-y: auto; background: var(--panel); padding: var(--space-7); }
+  #canvas-wrap { flex: 1; overflow-y: auto; background: var(--canvas-grid), var(--canvas-bg); padding: var(--space-7); }
   /* Zoom (wheel / ⌘+ ⌘− ⌘0) — the suite-wide Organica.createZoomPan. FVS doesn't
      load shell.css (own canvas surface), so the stage + HUD rules it needs live here,
      mirroring shell.css's .org-stage / #zoom-hud. Pan = Space / ⌥ / middle-button drag. */
@@ -375,6 +375,9 @@
   body.paper-clear #component-edit-frame svg, body.paper-clear #symbol-frame svg, body.paper-clear #figure-frame svg {
     background: repeating-conic-gradient(var(--panel) 0 25%, var(--paper) 0 50%) 0 0 / var(--space-6) var(--space-6);
   }
+
+  /* The stage: each step's big sheet gets the shared stage shadow (tokens.css --stage-shadow). */
+  #element-svg > svg, #component-edit-frame > svg, #symbol-frame > svg, #figure-frame > svg { box-shadow: var(--stage-shadow); }
 </style>
 </head>
 <body>
