@@ -98,6 +98,9 @@
     0 8px 28px rgba(0, 0, 0, 0.16),
     0 2px 6px rgba(0, 0, 0, 0.08);
 }
+/* Dark theme: the pane is already dark (it mixes --paper); the white rim and
+   the lit top edge are dimmed so the glass reads as smoked, not frosted. */
+[data-theme="dark"] .org-floatbar { --g-edge-hi: 0.28; --g-edge-lo: 0.05; --g-edge-far: 0.14; --g-spec: 0.12; }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .org-floatbar { background: var(--panel); }
 }

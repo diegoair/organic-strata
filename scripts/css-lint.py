@@ -276,6 +276,22 @@ for f in glob.glob('shared/*.css') + all_pages():
         (debt if f in KNOWN_DEBT else fail)(
             'radius', f'{f}: border-radius {px}px is off the 2/4/8 scale')
 
+# ── 8. Shared sheets: no raw hex outside tokens.css ─────────────────
+# Dark mode (Sep 29, 2026) works by re-pointing tokens; a hex typed into a
+# shared sheet can't follow. Masks (`#000 0 0`, only alpha matters) and the
+# two surfaces that are deliberately the same in both themes are allowed.
+ALLOW_HEX = {
+    ('shared/shell.css', '#f5f2ec'): '.hud-btn — a dark HUD pill over the canvas, identical in both themes',
+    ('shared/palette.css', '#000'): '.rmx-x — the remove mark on a user-colour chip',
+}
+for f in sorted(glob.glob('shared/*.css')):
+    if f == 'shared/tokens.css': continue
+    css = re.sub(r'#000 0 0', '', strip_comments(open(f, errors='ignore').read()))
+    css = re.sub(r'(var\(--[\w-]+,\s*)#[0-9a-fA-F]{3,8}', r'\1', css)   # a var() fallback is not a colour choice
+    for h in sorted(set(re.findall(r'#[0-9a-fA-F]{3,8}\b', css))):
+        if (f, h.lower()) in ALLOW_HEX: continue
+        fail('shared-hex', f'{f}: raw colour {h} — use a token so the dark theme can re-point it')
+
 # ── report ────────────────────────────────────────────────────────────
 def show(items, title):
     if not items: return

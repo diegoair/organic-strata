@@ -356,13 +356,10 @@ html {
      top keeps its own colour (a tool's Paper is user content). Use as
      `background: var(--canvas-grid), var(--canvas-bg);` — grid over colour.
      Replaces the old grey --panel area (Sep 29, 2026). */
-  --canvas-bg:   var(--paper);          /* #ffffff */
   /* The STAGE (the sheet you draw on, .org-stage in shell.css) sits on the
      canvas area with one soft shadow — the same in every tool. Was retyped
      by hand in 7 tools (two at 0.12). */
   --stage-shadow: 0 4px 40px rgba(0, 0, 0, 0.18);
-  --canvas-dot:  #a8dff0;               /* light cyan blue */
-  --canvas-grid: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1.4px) 0 0 / var(--space-7) var(--space-7);
   /* The canvas-pattern switcher (header) sets <html data-canvas-pattern>. The default
      is dots — the value above; the others re-point the same token, so every canvas area
      follows with no per-tool edit. Persisted by shared/pattern-init.js. */
@@ -372,55 +369,9 @@ html {
      validation messages and destructive-action labels — NOT for a tool's
      own content. Before this, FVS carried two different hardcoded reds
      (#a03828 ×3, #c0392b ×1) for the same job. */
-  --danger: #a03828;
 
-  /* Slider track housing — a quiet grey chip, mixed from each tool's own
-     --ink into its own --panel so it stays visible-but-subordinate no
-     matter which tool's palette it sits in, instead of one hardcoded hex
-     that would read differently against every panel colour. */
-  --track-bg: color-mix(in srgb, var(--ink) 10%, var(--panel));
-
-  /* ── GREY SCALE — the scale of black (Sep 29, 2026) ──────────────
-     Ten steps from --paper (0) to --ink (900): step N is N/10 of --ink
-     mixed into --paper. Derived, not typed, so it follows each tool's own
-     ink and paper (Warping/Radial/Pulsar's warm black gives a warm grey)
-     and the two ends can never disagree with the surface palette. Use a
-     step when you need "a light grey" that isn't a surface role — the role
-     tokens (--panel, --track-bg, --border, --mid) keep their own names. */
-  --gray-0:   var(--paper);
-  --gray-100: color-mix(in srgb, var(--ink) 10%, var(--paper));
-  --gray-200: color-mix(in srgb, var(--ink) 20%, var(--paper));
-  --gray-300: color-mix(in srgb, var(--ink) 30%, var(--paper));
-  --gray-400: color-mix(in srgb, var(--ink) 40%, var(--paper));
-  --gray-500: color-mix(in srgb, var(--ink) 50%, var(--paper));
-  --gray-600: color-mix(in srgb, var(--ink) 60%, var(--paper));
-  --gray-700: color-mix(in srgb, var(--ink) 70%, var(--paper));
-  --gray-800: color-mix(in srgb, var(--ink) 80%, var(--paper));
-  --gray-900: color-mix(in srgb, var(--ink) 90%, var(--paper));
-
-  /* ── SURFACE PALETTE (defaults) ────────────────────────────
-     Every tool used to redeclare these six, byte-identical, in its own
-     <style>. UI-SHELL.md §3 originally kept the palette per-tool on the
-     theory each tool would tune its own light/dark surfaces — that
-     divergence never happened (15 of 17 tools shipped exactly these
-     values). They live here now as defaults; a tool declares only --tool
-     (its identity hue) plus the rare genuine override: --ink #241b14 for
-     the warm-black trio (Warping / Radial / Pulsar), --mid #726a5e for
-     Blob Boundary. Genesis keeps its own separate --bg/--ink-muted scale.
-     A tool's own CONTENT colour (Halide's ink/paper, Pollen's dots) is
-     user data, still set locally — see DESIGN-SYSTEM.md §5. */
-  --ink:    #0a0a0a;
-  --paper:  #ffffff;
-  --mid:    #696256;
-  --accent: #2a2a2a;
-  --panel:  #eceae4;
-  --border: #d0c8b8;
-  /* The hover fill under an ink-filled button (.org-btn--primary,
-     .panel-btn). Lifted off --ink rather than darkened, so the button
-     visibly responds on a surface that is already near-black. Was a raw
-     #333 written twice, in header.css and panel.css, for the same role. */
-  --accent-hover: #333333;
-  color-scheme: light;
+  /* The surface palette, --track-bg and the grey scale moved to their own
+     rule below (THEMES) so a dark theme can re-point them — Sep 29, 2026. */
 }
 
 /* ── SPACING UTILITIES ────────────────────────────────────────
@@ -479,4 +430,110 @@ html {
 }
 :root[data-canvas-pattern="plain"] {
   --canvas-grid: linear-gradient(transparent, transparent);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   THEMES — light (default) and dark (Sep 29, 2026)
+   ───────────────────────────────────────────────────────────────
+   Dark mode flips the CHROME — header, panel, floatbar, the canvas area
+   around the sheet. It never touches the WORK: the sheet a tool draws on
+   (.org-stage, or anything marked data-theme="light") keeps the light
+   palette, so what you see is what exports and prints.
+
+   How: three rules.
+     1. the light palette (literal values) on :root, on anything marked
+        data-theme="light", and on a .org-stage inside a dark scope;
+     2. the dark palette on <html data-theme="dark"> — or any element
+        marked data-theme="dark" (the design-system page previews both
+        side by side that way);
+     3. the derived tokens (--track-bg, --gray-*) on :root and on every
+        theme scope, so they are re-computed from whichever --ink/--paper
+        is in force there instead of inheriting the other theme's values.
+
+   Who gets dark: only pages that opt in with <html data-theme-support>.
+   shared/pattern-init.js sets <html data-theme="dark"> from
+   localStorage['organica.ui.theme'] before first paint; the header's
+   theme button (shared/header.js) toggles it. See DESIGN-SYSTEM.md.
+   ═══════════════════════════════════════════════════════════════ */
+:root,
+[data-theme="light"],
+[data-theme="dark"] .org-stage {
+  /* ── SURFACE PALETTE (defaults) ────────────────────────────
+     Every tool used to redeclare these six, byte-identical, in its own
+     <style>. UI-SHELL.md §3 originally kept the palette per-tool on the
+     theory each tool would tune its own light/dark surfaces — that
+     divergence never happened (15 of 17 tools shipped exactly these
+     values). They live here now as defaults; a tool declares only --tool
+     (its identity hue) plus the rare genuine override: --ink #241b14 for
+     the warm-black trio (Warping / Radial / Pulsar), --mid #726a5e for
+     Blob Boundary. Genesis keeps its own separate --bg/--ink-muted scale.
+     A tool's own CONTENT colour (Halide's ink/paper, Pollen's dots) is
+     user data, still set locally — see DESIGN-SYSTEM.md §5. */
+  --ink:    #0a0a0a;
+  --paper:  #ffffff;
+  --mid:    #696256;
+  --accent: #2a2a2a;
+  --panel:  #eceae4;
+  --border: #d0c8b8;
+  /* The hover fill under an ink-filled button (.org-btn--primary,
+     .panel-btn). Lifted off --ink rather than darkened, so the button
+     visibly responds on a surface that is already near-black. Was a raw
+     #333 written twice, in header.css and panel.css, for the same role. */
+  --accent-hover: #333333;
+  color-scheme: light;
+  /* Accessible companion to --border for anything that must be SEEN as a
+     boundary (header rule, control outlines, separators): 3.27:1 on
+     --paper, 3.03:1 on --panel. Moved here from header.css so the dark
+     theme can re-point it. */
+  --border-strong: #958462;
+  --danger: #a03828;       /* see --danger's note above (moved here with the themes) */
+  --canvas-dot: #a8dff0;   /* light cyan blue */
+}
+
+:root,
+[data-theme],
+.org-stage {
+  /* Slider track housing — a quiet grey chip, mixed from each tool's own
+     --ink into its own --panel so it stays visible-but-subordinate no
+     matter which tool's palette it sits in, instead of one hardcoded hex
+     that would read differently against every panel colour. */
+  --track-bg: color-mix(in srgb, var(--ink) 10%, var(--panel));
+
+  /* ── GREY SCALE — the scale of black (Sep 29, 2026) ──────────────
+     Ten steps from --paper (0) to --ink (900): step N is N/10 of --ink
+     mixed into --paper. Derived, not typed, so it follows each tool's own
+     ink and paper (Warping/Radial/Pulsar's warm black gives a warm grey)
+     and the two ends can never disagree with the surface palette. Use a
+     step when you need "a light grey" that isn't a surface role — the role
+     tokens (--panel, --track-bg, --border, --mid) keep their own names. */
+  --gray-0:   var(--paper);
+  --gray-100: color-mix(in srgb, var(--ink) 10%, var(--paper));
+  --gray-200: color-mix(in srgb, var(--ink) 20%, var(--paper));
+  --gray-300: color-mix(in srgb, var(--ink) 30%, var(--paper));
+  --gray-400: color-mix(in srgb, var(--ink) 40%, var(--paper));
+  --gray-500: color-mix(in srgb, var(--ink) 50%, var(--paper));
+  --gray-600: color-mix(in srgb, var(--ink) 60%, var(--paper));
+  --gray-700: color-mix(in srgb, var(--ink) 70%, var(--paper));
+  --gray-800: color-mix(in srgb, var(--ink) 80%, var(--paper));
+  --gray-900: color-mix(in srgb, var(--ink) 90%, var(--paper));
+  /* the canvas area: see its note in the main :root block */
+  --canvas-bg:   var(--paper);
+  --canvas-grid: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1.4px) 0 0 / var(--space-7) var(--space-7);
+}
+
+:root[data-theme="dark"],
+[data-theme="dark"] {
+  /* Measured on --paper #121210 / --panel #1f1e1a — text ≥ 4.5:1, boundaries ≥ 3:1. */
+  --ink:    #eceae4;   /* 15.6:1 */
+  --paper:  #121210;
+  --mid:    #a39c90;   /* 6.9:1 */
+  --accent: #d9d6cf;
+  --panel:  #1f1e1a;
+  --border: #3a362f;   /* decorative, as in light */
+  --border-strong: #7d725e;   /* 3.97:1 */
+  --accent-hover: #bdb8ae;    /* the hover under an ink-filled button: dropped off --ink, the mirror of light's lift */
+  --danger: #e0735f;          /* 6.1:1 — light's #a03828 is 2.8:1 here */
+  --canvas-dot: #2e4a55;      /* the cyan dot, dimmed to the same quietness on black */
+  --stage-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);   /* the sheet still has to lift off a dark ground */
+  color-scheme: dark;
 }

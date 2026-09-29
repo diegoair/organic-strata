@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme-support>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -128,6 +128,17 @@
   .ds-example--column { flex-direction: column; align-items: stretch; }
   .ds-example--dark { background: var(--ink); }
 
+  /* Dark mode entry — the same mini tool, once per theme */
+  .ds-theme-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-5); width: 100%; }
+  .ds-theme-demo { color: var(--ink); background: var(--paper); border: 1px solid var(--border-strong); border-radius: var(--radius-md); overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+  .ds-theme-demo__bar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-5); font-family: var(--font-display); font-weight: var(--w-bold); font-size: var(--fs-medium); }
+  .ds-theme-demo__canvas { background: var(--canvas-grid), var(--canvas-bg); display: grid; place-items: center; padding: var(--space-7); }
+  .ds-theme-demo__sheet { width: 100%; aspect-ratio: 1; background: radial-gradient(circle, var(--ink) 2px, transparent 2.4px) 0 0 / var(--space-3) var(--space-3), var(--paper); }
+  .ds-theme-demo__panel { border-left: 1px solid var(--border); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
+  .ds-theme-table { width: 100%; border-collapse: collapse; font-size: var(--fs-small); }
+  .ds-theme-table th, .ds-theme-table td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+  .ds-theme-table .chip { display: inline-block; width: var(--space-5); height: var(--space-5); border-radius: var(--radius-sm); vertical-align: middle; margin-right: var(--space-2); box-shadow: inset 0 0 0 1px var(--border-strong); }
+
 
   /* Header entry — labelled rows of header variants + the sign-in replica */
   .ds-hdr-row { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; }
@@ -138,7 +149,7 @@
 
   /* Code block */
   pre.ds-code {
-    background: #fff;
+    background: var(--paper);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     padding: var(--space-4) var(--space-5);
@@ -153,6 +164,10 @@
   pre.ds-code .tag { color: #8a5a2a; }
   pre.ds-code .attr { color: #4a7a6a; }
   pre.ds-code .str { color: #7a3a5a; }
+  /* the syntax colours are this page's own content palette; dark gets lighter twins (≥7:1 on --paper #121210) */
+  [data-theme="dark"] pre.ds-code .tag  { color: #d9a36b; }
+  [data-theme="dark"] pre.ds-code .attr { color: #7fbfa9; }
+  [data-theme="dark"] pre.ds-code .str  { color: #d58fb0; }
 
   .ds-note {
     font-size: var(--fs-small);
@@ -289,7 +304,7 @@
 
   /* Swatch grid for color tokens */
   .ds-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--space-4); width: 100%; }
-  .ds-swatch { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: #fff; }
+  .ds-swatch { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--paper); }
   .ds-swatch__fill { height: 56px; }
   .ds-swatch__meta { padding: var(--space-3); }
   .ds-swatch__name { font-size: var(--fs-small); font-weight: var(--w-medium); }
@@ -334,6 +349,7 @@
       <a href="#typography">Typography</a>
       <a href="#prose">Prose</a>
       <a href="#color">Color tokens</a>
+      <a href="#dark-mode">Dark mode</a>
       <a href="#spacing">Spacing</a>
       <a href="#radius">Radius</a>
     </div>
@@ -507,7 +523,7 @@
 
     <section class="ds-entry" id="color">
       <h2>Color tokens</h2>
-      <p class="ds-desc"><code>--ink</code>/<code>--paper</code>/<code>--panel</code>/<code>--mid</code>/<code>--border</code>/<code>--accent</code> are the surface palette. They're <strong>defaults in <code>tokens.css</code></strong> now — 15 of 17 tools shipped byte-identical values, so a tool declares only <code>--tool</code> (its identity hue) plus the rare real override (<code>--ink #241b14</code> for the warm-black trio, <code>--mid #726a5e</code> for Blob Boundary). <code>--accent-warm</code>, <code>--track-bg</code> and <code>--danger</code> are fixed, the same in every tool. A tool's own <em>content</em> colour (Halide's ink/paper, Pollen's dots) is still local — that's user data, not a role.</p>
+      <p class="ds-desc"><code>--ink</code>/<code>--paper</code>/<code>--panel</code>/<code>--mid</code>/<code>--border</code>/<code>--accent</code> are the surface palette. They're <strong>defaults in <code>tokens.css</code></strong> now — 15 of 17 tools shipped byte-identical values, so a tool declares only <code>--tool</code> (its identity hue) plus the rare real override (<code>--ink #241b14</code> for the warm-black trio, <code>--mid #726a5e</code> for Blob Boundary). <code>--accent-warm</code>, <code>--track-bg</code> and <code>--danger</code> are the same in every tool. Every swatch here shows the <strong>current theme</strong> — in <a href="#dark-mode">dark mode</a> the surface palette, <code>--danger</code>, <code>--border-strong</code>, <code>--canvas-dot</code> and <code>--stage-shadow</code> take their dark values and the derived tokens re-compute. A tool's own <em>content</em> colour (Halide's ink/paper, Pollen's dots) is still local — that's user data, not a role.</p>
       <div class="ds-usage"><strong>Defined in</strong><span>shared/tokens.css</span></div>
       <div class="ds-example">
         <div class="ds-swatches">
@@ -543,6 +559,52 @@
       <pre class="ds-code"><span class="attr">color</span>: var(--ink);
 <span class="attr">background</span>: var(--panel);
 <span class="attr">border-color</span>: var(--border-strong);</pre>
+    </section>
+
+    <section class="ds-entry" id="dark-mode">
+      <h2>Dark mode</h2>
+      <p class="ds-desc"><strong>Dark flips the chrome, never the work.</strong> The header, the panel, the floatbar and the canvas area around the sheet go dark; the sheet itself (<code>.org-stage</code>, or anything marked <code>data-theme="light"</code>) keeps the light palette and the tool's own Paper, so what you see is what exports and prints. Exports are byte-identical in both themes (checked on Pollen and the FVS regression).</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/tokens.css (THEMES)</span><strong>Switched by</strong><span>the header's moon button · shared/header.js</span><span>localStorage organica.ui.theme</span><strong>Opted in</strong><span>hub · design system · Pollen · Loom · FVS</span></div>
+      <div class="ds-example">
+        <div class="ds-theme-pair">
+          <div class="ds-theme-demo" data-theme="light">
+            <div class="ds-theme-demo__bar"><span>Light</span><span class="org-num" style="font-weight:var(--w-regular);color:var(--mid)">data-theme="light"</span></div>
+            <div class="ds-theme-demo__canvas"><div class="ds-theme-demo__sheet org-stage" title="the sheet — stays light"></div></div>
+            <div class="ds-theme-demo__panel">
+              <div class="ctrl-row"><span class="ctrl-label">Density</span><input type="range" min="0" max="100" value="60"><span class="ctrl-val">60</span></div>
+              <label class="check-row"><input type="checkbox" checked><span>Range</span></label>
+              <label class="check-row org-switch"><span>Layers</span><input type="checkbox" checked></label>
+              <select class="panel-select"><option>Blue noise</option></select>
+              <button class="panel-btn">Generate</button>
+              <span class="ds-note" style="color:var(--mid);margin:0">--mid · <span style="color:var(--danger)">--danger</span></span>
+            </div>
+          </div>
+          <div class="ds-theme-demo" data-theme="dark">
+            <div class="ds-theme-demo__bar"><span>Dark</span><span class="org-num" style="font-weight:var(--w-regular);color:var(--mid)">data-theme="dark"</span></div>
+            <div class="ds-theme-demo__canvas"><div class="ds-theme-demo__sheet org-stage" title="the sheet — stays light"></div></div>
+            <div class="ds-theme-demo__panel">
+              <div class="ctrl-row"><span class="ctrl-label">Density</span><input type="range" min="0" max="100" value="60"><span class="ctrl-val">60</span></div>
+              <label class="check-row"><input type="checkbox" checked><span>Range</span></label>
+              <label class="check-row org-switch"><span>Layers</span><input type="checkbox" checked></label>
+              <select class="panel-select"><option>Blue noise</option></select>
+              <button class="panel-btn">Generate</button>
+              <span class="ds-note" style="color:var(--mid);margin:0">--mid · <span style="color:var(--danger)">--danger</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="ds-desc">Every surface token has a dark value; the derived ones (<code>--track-bg</code>, <code>--gray-0…900</code>, <code>--canvas-bg</code>, <code>--canvas-grid</code>) are re-computed in each scope, so nothing is typed twice. Values below are read from the stylesheet, and the self-check fails if a dark text token drops under 4.5:1 or a boundary under 3:1.</p>
+      <div class="ds-example ds-example--column"><table class="ds-theme-table" id="ds-theme-table"><thead><tr><th>Token</th><th>Light</th><th>Dark</th><th>Dark contrast on --paper</th></tr></thead><tbody></tbody></table></div>
+      <ol>
+        <li><strong>Opt in</strong> a page with <code>&lt;html data-theme-support&gt;</code>. Only then does <code>pattern-init.js</code> apply the saved theme before first paint and the header show the button. A page that hasn't opted in stays light even when the user chose dark.</li>
+        <li><strong>Before opting in</strong>, a tool's own <code>&lt;style&gt;</code> must have no raw chrome colours (a hex that should have been <code>--panel</code> or <code>--border</code>), and anything that is <em>work</em> but not <code>.org-stage</code> (a preview frame, a gallery of results) gets <code>data-theme="light"</code>. Then run the dev page <a href="/design-system/_dark-audit.html"><code>_dark-audit.html</code></a> — it loads every page light and dark and lists text under the contrast floor and light islands left in dark chrome.</li>
+        <li><strong>Canvas and export colours</strong> never come from <code>documentElement</code>: use <code>Organica.contentColor('--ink')</code> (core.js), which reads the light content palette whatever the theme.</li>
+        <li><strong>Shadows and scrims are black in both themes</strong> (<code>rgba(0, 0, 0, …)</code>), never a mix of <code>--ink</code>: in dark, <code>--ink</code> is the light text colour, so an ink shadow becomes a glow and an ink scrim lightens the page (the mega-menu dim and the slider/switch knob shadows had exactly this bug). Focus rings are the opposite — they should follow <code>--ink</code>.</li>
+        <li><strong>No OS following</strong> — the theme changes only when the user presses the button (Diego's call, Sep 29, 2026).</li>
+      </ol>
+      <pre class="ds-code">&lt;<span class="tag">html</span> <span class="attr">lang</span>=<span class="str">"en"</span> <span class="attr">data-theme-support</span>&gt;
+&lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"preview-frame"</span> <span class="attr">data-theme</span>=<span class="str">"light"</span>&gt;…the work…&lt;/<span class="tag">div</span>&gt;
+<span class="attr">ctx.fillStyle</span> = Organica.contentColor(<span class="str">'--ink'</span>);</pre>
     </section>
 
     <section class="ds-entry" id="prose">
@@ -625,9 +687,9 @@
         </div>
       </div>
       <ol>
-        <li><strong>The canvas area</strong> (what the stage sits on — <code>#canvas-wrap</code> / <code>.org-canvas-wrap</code>, or a tool's own stage area) is always <code>background: var(--canvas-grid), var(--canvas-bg);</code> — white with the light cyan dot grid (<code>--canvas-dot</code>, 24px pitch). Never <code>--panel</code>: that grey is for interface chrome (inputs, selected rows, the floating bar).</li>
+        <li><strong>The canvas area</strong> (what the stage sits on — <code>#canvas-wrap</code> / <code>.org-canvas-wrap</code>, or a tool's own stage area) is always <code>background: var(--canvas-grid), var(--canvas-bg);</code> — white with the light cyan dot grid (<code>--canvas-dot</code>, 24px pitch); in <a href="#dark-mode">dark mode</a> near-black with a dimmed dot. Never <code>--panel</code>: that grey is for interface chrome (inputs, selected rows, the floating bar).</li>
         <li><strong>The stage</strong> (the sheet you draw on) gets its look from the class <code>.org-stage</code>, never from its <code>id</code>. Ids differ per tool (<code>#board</code>, <code>#preview</code>, <code>#view-canvas</code>, <code>#gl-canvas</code>…) because each script finds its sheet by id. A tool that can't add the class (a p5 canvas, an SVG rendered by the tool) uses the token directly: <code>box-shadow: var(--stage-shadow);</code>. Never retype the shadow.</li>
-        <li><strong>The stage's own colour is user content</strong> — a tool's Paper (Living Path's cream, a transparent FVS paper) is not tokenised.</li>
+        <li><strong>The stage's own colour is user content</strong> — a tool's Paper (Living Path's cream, a transparent FVS paper) is not tokenised. It also stays light in dark mode: <code>.org-stage</code> is a light-palette scope.</li>
         <li><strong>Text</strong> is always <code>var(--font)</code> — including text drawn on a <code>&lt;canvas&gt;</code>, which can't read CSS variables: resolve it at draw time with <code>getComputedStyle(document.documentElement).getPropertyValue('--font')</code> (see <code>shared/glyph-editor.js</code>). No <code>monospace</code>, no <code>system-ui</code>, no <code>Georgia</code> for interface text.</li>
       </ol>
       <p class="ds-desc">Exceptions, on purpose: Rhizome is an infinite node canvas (the dot grid, no sheet); Mote's kiosk mode is black; a font the user loads (Living Path / Apostate specimen) is content.</p>
@@ -1452,7 +1514,8 @@ document.querySelectorAll('#slider input[type=range]').forEach(r => {
   assert('.org-account__trigger', { minHeight: '24px' });
   assert('.org-account__avatar', { width: '20px', height: '20px' });
   // Canvas area & stage: the demo must render from the shared tokens / class
-  assert('#ds-stage-demo', { boxShadow: 'rgba(0, 0, 0, 0.18) 0px 4px 40px 0px' });      // .org-stage → --stage-shadow
+  const DARK = document.documentElement.dataset.theme === 'dark';
+  assert('#ds-stage-demo', { boxShadow: DARK ? 'rgba(0, 0, 0, 0.6) 0px 4px 40px 0px' : 'rgba(0, 0, 0, 0.18) 0px 4px 40px 0px' });      // .org-stage → --stage-shadow
   {
     const el = document.getElementById('ds-canvas-demo');
     if (!el) bad('no demo on this page for #ds-canvas-demo');
@@ -1461,7 +1524,7 @@ document.querySelectorAll('#slider input[type=range]').forEach(r => {
       // the pattern switcher re-points --canvas-grid (dots / grid / lines / plain), so don't assume dots:
       // white ground always; an image unless the saved pattern is "plain"
       const pat = document.documentElement.dataset.canvasPattern || 'dots';
-      if (c.backgroundColor !== 'rgb(255, 255, 255)' || (pat !== 'plain' && c.backgroundImage === 'none')) bad('#ds-canvas-demo { background } — documented as var(--canvas-grid), var(--canvas-bg)');
+      if (c.backgroundColor !== (DARK ? 'rgb(18, 18, 16)' : 'rgb(255, 255, 255)') || (pat !== 'plain' && c.backgroundImage === 'none')) bad('#ds-canvas-demo { background } — documented as var(--canvas-grid), var(--canvas-bg)');
     }
     const fam = getComputedStyle(document.body).fontFamily.split(',')[0].replace(/["']/g, '').trim();
     if (fam !== 'IBM Plex Mono') bad('body font is ' + fam + ' — documented as IBM Plex Mono via --font');
@@ -1476,6 +1539,38 @@ document.querySelectorAll('#slider input[type=range]').forEach(r => {
     const want = row.dataset.face === 'd' ? 'Space Grotesk' : 'IBM Plex Mono';
     if (got !== want) bad('typography row "' + row.querySelector('.ty-row__role').firstChild.textContent + '" renders ' + got + ' — documented as ' + want);
   });
+
+  /* 5 — dark mode: the palette table, read from the THEMES rules, + contrast floors */
+  {
+    const lit = {}, drk = {};
+    for (const sheet of document.styleSheets) {
+      let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+      for (const r of rules) {
+        if (!r.style || !r.selectorText) continue;
+        const into = /\[data-theme="light"\]/.test(r.selectorText) ? lit : /^:root\[data-theme="dark"\]/.test(r.selectorText) ? drk : null;
+        if (into) for (const p of r.style) if (p.startsWith('--')) into[p] = r.style.getPropertyValue(p).trim();
+      }
+    }
+    const rgb = (hex) => { const n = parseInt(hex.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+    const lum = (hex) => { const f = c => (c /= 255) <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); const [r, g, b] = rgb(hex); return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+    const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+    const FLOOR = { '--ink': 4.5, '--mid': 4.5, '--danger': 4.5, '--accent': 4.5, '--border-strong': 3 };
+    const warm = tok('--accent-warm');
+    if (!drk['--paper']) bad('dark theme rule not found in tokens.css');
+    else {
+      for (const [t, min] of Object.entries(FLOOR)) for (const bg of ['--paper', '--panel']) {
+        const r = ratio(drk[t], drk[bg]);
+        if (r < min) bad('dark ' + t + ' on ' + bg + ' is ' + r.toFixed(2) + ':1 — floor ' + min + ':1');
+      }
+      if (ratio(warm, drk['--panel']) < 3) bad('--accent-warm on dark --panel is under 3:1');
+    }
+    const body = document.querySelector('#ds-theme-table tbody');
+    if (body) body.innerHTML = Object.keys(drk).filter(t => /^#/.test(drk[t])).map(t =>
+      '<tr><td><code>' + t + '</code></td>' +
+      '<td>' + (lit[t] ? '<span class="chip" style="background:' + lit[t] + '"></span>' + lit[t] : '—') + '</td>' +
+      '<td><span class="chip" style="background:' + drk[t] + '"></span>' + drk[t] + '</td>' +
+      '<td class="org-num">' + (t === '--paper' ? '—' : ratio(drk[t], drk['--paper']).toFixed(2) + ':1') + '</td></tr>').join('');
+  }
 
   /* banner ----------------------------------------------------------- */
   const fails = results.filter(r => !r[0]);

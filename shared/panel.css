@@ -247,7 +247,10 @@ input[type=range] {
      always sits under the handle's centre. --sf is the spring, --fv the
      rigid value written by core.js before the spring exists. */
   --slo-x: calc(var(--sf, var(--fv, 0)) * (100% - var(--slo-knob)) + var(--slo-knob) / 2);
-  --slo-dots: radial-gradient(circle, color-mix(in srgb, var(--paper) 30%, transparent) 0 1px, transparent 1.3px);
+  /* the dot must be WHITE in both themes: `difference` with white is what inverts it over
+     the grey and the ink. It was --paper, which is near-black in dark mode, and a
+     difference with black changes nothing — the dots vanished. */
+  --slo-dots: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0 1px, transparent 1.3px);
 }
 input[type=range]:active { cursor: grabbing; }
 input[type=range]:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -285,7 +288,7 @@ input[type=range]::-webkit-slider-thumb {
   border: 1px solid var(--border-strong);
   border-radius: 999px;                                      /* a droplet, like the switch's */
   background: var(--paper);
-  box-shadow: 0 0 var(--space-3) color-mix(in srgb, var(--ink) 40%, transparent);
+  box-shadow: 0 0 var(--space-3) rgba(0, 0, 0, 0.4);   /* a shadow is black in both themes — --ink would glow in dark */
   cursor: inherit;
 }
 input[type=range]::-moz-range-thumb {
@@ -295,7 +298,7 @@ input[type=range]::-moz-range-thumb {
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   background: var(--paper);
-  box-shadow: 0 0 var(--space-3) color-mix(in srgb, var(--ink) 40%, transparent);
+  box-shadow: 0 0 var(--space-3) rgba(0, 0, 0, 0.4);   /* a shadow is black in both themes — --ink would glow in dark */
   cursor: inherit;
 }
 input[type=range]:focus-visible::-webkit-slider-runnable-track {
@@ -483,7 +486,7 @@ input[type=range]:focus-visible::-moz-range-track {
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   background: var(--paper);
-  box-shadow: 0 0 var(--space-3) color-mix(in srgb, var(--ink) 40%, transparent);
+  box-shadow: 0 0 var(--space-3) rgba(0, 0, 0, 0.4);   /* a shadow is black in both themes — --ink would glow in dark */
   /* transform is the spring's (core.js): a CSS transition on the same
      property would re-interpolate every frame it writes, and what you would
      see is the easing, not the spring. Only the colour eases. */

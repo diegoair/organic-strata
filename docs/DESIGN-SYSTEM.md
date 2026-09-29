@@ -350,6 +350,20 @@ failures, not close calls:
 
 ---
 
+## 5b. Dark mode (Sep 29, 2026)
+
+**Dark flips the chrome, never the work.** Header, panel, floatbar and the canvas area around the sheet go dark; the sheet (`.org-stage`, or anything marked `data-theme="light"`) keeps the light palette and the tool's own Paper. Preview = export: exports are byte-identical in both themes.
+
+- **Tokens** — `shared/tokens.css`, section THEMES: (1) the light literals on `:root`, `[data-theme="light"]` and `[data-theme="dark"] .org-stage`; (2) the dark literals on `:root[data-theme="dark"]` / `[data-theme="dark"]`; (3) the derived tokens (`--track-bg`, `--gray-*`, `--canvas-bg`, `--canvas-grid`) on `:root, [data-theme], .org-stage`, so they re-compute in each scope. `--border-strong` moved here from `header.css`.
+- **Dark values** (on `--paper #121210` / `--panel #1f1e1a`): `--ink #eceae4` 15.6:1 · `--mid #a39c90` 6.9:1 · `--accent #d9d6cf` · `--border #3a362f` (decorative) · `--border-strong #7d725e` 3.97:1 · `--accent-hover #bdb8ae` · `--danger #e0735f` 6.1:1 · `--canvas-dot #2e4a55` · `--stage-shadow` 0.6 · `--accent-warm` unchanged (4.1:1). The design-system self-check fails if a dark text token drops under 4.5:1 or `--border-strong` under 3:1.
+- **Switch** — the header's moon/sun button (`shared/header.js`, `.org-theme`), saved in `localStorage['organica.ui.theme']`, applied before first paint by `shared/pattern-init.js`. No OS following (Diego's call).
+- **Opt-in per page** — `<html data-theme-support>`. Opted in: hub, design system, Pollen, Loom, FVS. Every other page stays light even when the user chose dark, and shows no button.
+- **Canvas / export colours** — never read off `documentElement`; use `Organica.contentColor('--ink')` (core.js), which reads the light content palette.
+- **Shared sheets** — no raw hex outside `tokens.css` (css-lint check `shared-hex`).
+- **Shadows and scrims are black in both themes** (`rgba(0,0,0,…)`), never `color-mix(var(--ink) …, transparent)` — in dark `--ink` is light, so it glows. Focus rings, by contrast, follow `--ink`.
+- **Always-dark bands** (the hub's marquee and CTA) carry `data-theme="dark"` and paint `--paper`/`--ink` from the dark palette in both themes, instead of an `--ink` slab that would turn into a light slab in dark.
+- **Audit** — `/design-system/_dark-audit.html` (dev page, press Run) loads every page light and dark and lists text under the WCAG floor and light islands left in dark chrome; pages not opted in are forced dark to show readiness.
+
 ## 6. Accessible names
 
 **Every interactive control needs a name a screen reader can announce.** A

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme-support>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -98,9 +98,12 @@
     @keyframes hubPulse { 0%,100% { transform: scaleX(.3); } 50% { transform: scaleX(1); } }
 
     /* ── marquee: the modules, as a moving band ─────────────── */
+    /* the marquee and the CTA are always-dark bands: they carry data-theme="dark",
+       so they read --paper/--ink from the dark palette in BOTH page themes (an
+       --ink slab would turn into a glaring light slab in dark mode) */
     .hub-marquee {
-      border-block: 1px solid var(--ink);
-      background: var(--ink); color: var(--paper);
+      border-block: 1px solid var(--border-strong);
+      background: var(--paper); color: var(--ink);
       overflow: hidden; white-space: nowrap;
       padding: var(--space-5) 0;
     }
@@ -118,8 +121,8 @@
       content: ''; width: .42em; height: .42em; border-radius: 50%;
       background: var(--accent-warm);
     }
-    .hub-marquee__track span:nth-child(3n)::after { border-radius: 0; transform: rotate(45deg); background: var(--paper); }
-    .hub-marquee__track span:nth-child(3n+1)::after { background: transparent; border: 2px solid var(--paper); }
+    .hub-marquee__track span:nth-child(3n)::after { border-radius: 0; transform: rotate(45deg); background: var(--ink); }
+    .hub-marquee__track span:nth-child(3n+1)::after { background: transparent; border: 2px solid var(--ink); }
     @keyframes hubMarquee { to { transform: translateX(-50%); } }
 
     /* ── 2. gallery ──────────────────────────────────────────── */
@@ -295,7 +298,8 @@
     .hub-cta {
       display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: center;
       padding: var(--space-8); margin: 0 var(--space-8) var(--space-8);
-      background: var(--ink); color: var(--paper);
+      background: var(--paper); color: var(--ink);
+      border: 1px solid var(--border-strong);
       border-radius: var(--radius-sm);
     }
     .hub-cta__text {
@@ -307,12 +311,12 @@
       font-family: var(--font-display); font-size: var(--fs-large); font-weight: var(--w-medium);
       padding: var(--space-4) var(--space-6);
       border-radius: var(--radius-sm);
-      border: 1px solid var(--paper);
-      background: var(--paper); color: var(--ink);
+      border: 1px solid var(--ink);
+      background: var(--ink); color: var(--paper);
       text-decoration: none; cursor: pointer;
       transition: background .2s ease, color .2s ease;
     }
-    .hub-btn--ghost { background: transparent; color: var(--paper); }
+    .hub-btn--ghost { background: transparent; color: var(--ink); }
     .hub-btn:hover { background: var(--accent-warm); border-color: var(--accent-warm); color: var(--paper); }
 
     .hub-foot {
@@ -370,7 +374,7 @@
     </div>
   </section>
 
-  <div class="hub-marquee" aria-hidden="true">
+  <div class="hub-marquee" aria-hidden="true" data-theme="dark">
     <div class="hub-marquee__track" id="hub-marquee"></div>
   </div>
 
@@ -380,7 +384,7 @@
       <h2 class="hub-section__title" id="hub-work-title">Specimens</h2>
       <p class="hub-overline">Placeholders — live sketches in each tool's language</p>
     </div>
-    <div class="hub-gallery" id="hub-gallery"></div>
+    <div class="hub-gallery" id="hub-gallery" data-theme="light"><!-- the work stays light in dark mode --></div>
   </section>
 
   <!-- ── 3. what + why ── -->
@@ -456,7 +460,7 @@
     </div>
   </section>
 
-  <div class="hub-cta">
+  <div class="hub-cta" data-theme="dark">
     <p class="hub-cta__text">Start from a seed. Grow a language.</p>
     <a class="hub-btn" href="/genesis/">Open Genesis</a>
     <button type="button" class="hub-btn hub-btn--ghost" id="hub-all-tools">All tools</button>
@@ -489,7 +493,11 @@
     var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
     var css = getComputedStyle(document.documentElement);
     function tok(name) { return css.getPropertyValue(name).trim(); }
-    var INK = tok('--ink'), PAPER = tok('--paper'), WARM = tok('--accent-warm'), MID = tok('--mid');
+    // gallery sketches are work → the content palette (light in both themes);
+    // the hero word is chrome → the live theme ink, re-read when the theme flips
+    var INK = Organica.contentColor('--ink'), PAPER = Organica.contentColor('--paper'), WARM = tok('--accent-warm'), MID = tok('--mid');
+    var HERO_INK = tok('--ink');
+    document.addEventListener('organica:theme', function () { HERO_INK = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim(); });
     var DPR = Math.min(window.devicePixelRatio || 1, 2);
 
     // tool count from the mega-menu data (explorations excluded)
@@ -592,7 +600,7 @@
           p.x += p.vx; p.y += p.vy;
           var sp = Math.min(1, Math.hypot(p.vx, p.vy) / 12);
           var r = p.r * (1 + 0.18 * Math.sin(t * 2 + p.ph)) * (1 - sp * 0.4);
-          ctx.fillStyle = p.warm ? WARM : INK;
+          ctx.fillStyle = p.warm ? WARM : HERO_INK;
           if (sp > 0.25) {        // fast dots stretch into strokes (motion reads as marks)
             ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = r * 1.6; ctx.lineCap = 'round';
             ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 1.4, p.y - p.vy * 1.4); ctx.stroke();

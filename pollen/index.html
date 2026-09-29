@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme-support>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -56,7 +56,7 @@
     overflow: hidden;
   }
   .shape-thumb:hover { border-color: var(--accent); }
-  .shape-thumb.selected { border-color: var(--ink); background: #e8e4dc; }
+  .shape-thumb.selected { border-color: var(--ink); background: var(--panel); }
   .shape-thumb svg { width: 100%; height: 100%; display: block; }
   .thumb-num {
     position: absolute; top: 1px; right: 2px;
@@ -73,7 +73,7 @@
   }
   .rmx-slot:hover { border-color: var(--accent); }
   .rmx-slot.filled { border-style: solid; }
-  .rmx-slot.active { border-color: var(--ink); background: #e8e4dc; }
+  .rmx-slot.active { border-color: var(--ink); background: var(--panel); }
   .rmx-slot svg { width: 100%; height: 100%; display: block; }
   .rmx-plus { font-size: var(--fs-large); color: var(--mid); line-height: 1; }
 
@@ -106,7 +106,7 @@
     width: 100%;
     max-width: 208px;
     aspect-ratio: 1;
-    border: 1px solid rgba(10,10,10,0.2);
+    border: 1px solid var(--border);
     background: var(--panel);
     display: block;
   }

@@ -7,6 +7,11 @@
  *  2. Pattern switcher — four round buttons (right of the bar) that set the
  *                   canvas pattern: <html data-canvas-pattern>, persisted in
  *                   localStorage['organica.ui.canvas-pattern'].
+ *  3. Theme button — light/dark, only on pages that opt in with
+ *                   <html data-theme-support>: <html data-theme="dark">,
+ *                   persisted in localStorage['organica.ui.theme'] (applied
+ *                   before paint by pattern-init.js). Dark flips the chrome
+ *                   only; the sheet (.org-stage) stays light — see tokens.css.
  *
  * LOAD ORDER: … → core.js (Organica.popover, optional) → tools.js → header.js.
  * Sign Up / Login + the account control are auth-badge.js's job, not this file's.
@@ -137,11 +142,39 @@
     sync();
   }
 
+  /* ── 3. Theme button ────────────────────────────────────────────────────── */
+  var THEME_KEY = 'organica.ui.theme';
+  var SUN = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6L13 13M3 13l1.4-1.4M11.6 4.4L13 3"/></svg>';
+  var MOON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 9.5A5.5 5.5 0 1 1 6.5 3a4.5 4.5 0 0 0 6.5 6.5z"/></svg>';
+  function mountTheme(header) {
+    var root = document.documentElement;
+    if (!root.hasAttribute('data-theme-support') || header.querySelector('.org-theme')) return;
+    var b = el('button', 'org-theme');
+    b.type = 'button';
+    function sync() {
+      var dark = root.getAttribute('data-theme') === 'dark';
+      b.setAttribute('aria-pressed', String(dark));
+      b.setAttribute('aria-label', 'Dark mode');
+      b.title = dark ? 'Switch to light' : 'Switch to dark';
+      b.innerHTML = dark ? SUN : MOON;
+    }
+    b.addEventListener('click', function () {
+      var dark = root.getAttribute('data-theme') !== 'dark';
+      if (dark) root.setAttribute('data-theme', 'dark'); else root.removeAttribute('data-theme');
+      try { localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light'); } catch (e) { /* not persisted */ }
+      sync();
+      document.dispatchEvent(new CustomEvent('organica:theme', { detail: { dark: dark } }));
+    });
+    header.appendChild(b);
+    sync();
+  }
+
   Organica.headerInit = function () {
     var header = document.querySelector('.org-header');
     if (!header) return;
     mountMega(header);
     mountPattern(header);
+    mountTheme(header);
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', Organica.headerInit);

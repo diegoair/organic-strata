@@ -376,6 +376,16 @@ Verified at 700px — no wrapping, no clipping, height stable.
 
 ---
 
+### Dark mode — opting a tool in (Sep 29, 2026)
+
+Dark mode is per page, opt-in (full rules: DESIGN-SYSTEM.md §5b). To opt a tool in:
+1. `<html lang="en" data-theme-support>`.
+2. Its own `<style>`: no raw chrome colours — a hex that means "panel grey" or "border" becomes `--panel` / `--border` / `--gray-*`. Content colours (the tool's Paper, marks) stay.
+3. Anything that is work but not `.org-stage` (a preview frame, a results gallery, an SVG stage) gets `data-theme="light"` (Loom's `#canvas-frame`, the hub's gallery).
+4. Canvas/export colours read through `Organica.contentColor()`, never `getComputedStyle(documentElement)`.
+5. Shadows/scrims: `rgba(0,0,0,…)`, never an `--ink` mix (it glows in dark).
+6. Run `/design-system/_dark-audit.html`, check both themes in the browser, and that PNG/SVG exports hash the same in both.
+
 ## 4c. The panel component
 
 `shared/panel.css`. Modelled on Figma's Design panel, which is the

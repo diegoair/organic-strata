@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Dark-mode audit</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  /* Dev-only page (underscore prefix, like fvs/_test-regression.html). Loads
+     every page in a hidden 1440×900 frame, once light and once dark, and lists
+     (1) text under the WCAG floor against its real background and
+     (2) light "islands" left in dark chrome — large near-white boxes outside
+     the content scopes (.org-stage, [data-theme="light"], canvas, img).
+     Pages that have not opted in (<html data-theme-support>) are forced dark
+     to show how ready they are; their rows are marked "forced".
+     Open on the dev server and press Run. */
+  body { margin: var(--space-6); font-family: var(--font); font-size: var(--fs-base); color: var(--ink); background: var(--paper); }
+  h1 { font-size: var(--fs-large); margin: 0 0 var(--space-4); }
+  button { font: inherit; padding: var(--space-2) var(--space-4); border: 1px solid var(--border-strong); background: var(--panel); color: var(--ink); cursor: pointer; }
+  #summary { margin: var(--space-4) 0; font-size: var(--fs-medium); }
+  .bad { color: var(--danger); } .ok { color: var(--mid); }
+  table { border-collapse: collapse; margin-top: var(--space-3); width: 100%; }
+  td, th { text-align: left; vertical-align: top; padding: var(--space-1) var(--space-4) var(--space-1) 0; border-bottom: 1px solid var(--border); font-size: var(--fs-small); }
+  iframe { position: absolute; left: -9999px; width: 1440px; height: 900px; }
+  details { margin: var(--space-2) 0; } summary { cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>Dark-mode audit</h1>
+<button id="run">Run</button> <label><input type="checkbox" id="forced" checked> include pages not opted in (forced dark)</label>
+<div id="summary">Press Run.</div>
+<div id="out"></div>
+<script>
+const PAGES = ['/', '/design-system/', '/genesis/', '/spore/', '/pollen/', '/halide/', '/komorebi/', '/camo-turing/', '/warping/',
+  '/loom/', '/membrane/', '/vortex/', '/fvs/', '/radial/', '/pulsar/', '/mote/', '/mycel/', '/trellis/', '/tunesutra/',
+  '/livingpath/', '/sinew/', '/apostate/', '/colornet/', '/blob-boundary/', '/rhizome/', '/admin/', '/sign-in/', '/privacy/', '/terms/'];
+// Dark-mode audit — injected into a same-origin iframe's window.
+// Returns text elements whose contrast against their effective background is under WCAG floor.
+window.__darkAudit = function (doc) {
+  const win = doc.defaultView;
+  const parse = (c) => { const m = c.match(/rgba?\(([^)]+)\)/); if (!m) return null; const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1]; };
+  const L = ([r, g, b]) => { const f = c => (c /= 255) <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+  const ratio = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const blend = (top, bot) => { const a = top[3]; return [top[0] * a + bot[0] * (1 - a), top[1] * a + bot[1] * (1 - a), top[2] * a + bot[2] * (1 - a), 1]; };
+  function bgOf(el) {
+    const stack = [];
+    for (let e = el; e && e.nodeType === 1; e = e.parentElement) {
+      const cs = win.getComputedStyle(e);
+      const c = parse(cs.backgroundColor);
+      if (cs.backgroundImage !== 'none' && /url\(|gradient/.test(cs.backgroundImage) && !/radial-gradient\(circle/.test(cs.backgroundImage) && !/linear-gradient\(transparent/.test(cs.backgroundImage) && e !== doc.documentElement && e !== doc.body) return { img: true };
+      if (e.tagName === 'CANVAS' || e.tagName === 'IMG' || e.tagName === 'VIDEO') return { img: true };
+      if (c && c[3] > 0) { stack.push(c); if (c[3] >= 1) break; }
+    }
+    let base = [255, 255, 255, 1];
+    const root = parse(win.getComputedStyle(doc.documentElement).backgroundColor);
+    if (root && root[3] > 0) base = root;
+    for (let i = stack.length - 1; i >= 0; i--) base = blend(stack[i], base);
+    return { c: base };
+  }
+  const out = [];
+  const seen = new Set();
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  let n;
+  while ((n = walker.nextNode())) {
+    if (!n.textContent.trim()) continue;
+    const el = n.parentElement; if (!el || seen.has(el)) continue; seen.add(el);
+    if (el.closest('svg, .mobile-gate, [aria-hidden="true"], script, style, noscript, option')) continue;
+    const r = el.getBoundingClientRect(); if (r.width < 1 || r.height < 1) continue;
+    const cs = win.getComputedStyle(el);
+    if (cs.visibility === 'hidden' || +cs.opacity === 0) continue;
+    let hidden = false; for (let e = el; e; e = e.parentElement) { const s = win.getComputedStyle(e); if (s.display === 'none' || +s.opacity === 0 || s.visibility === 'hidden') { hidden = true; break; } } if (hidden) continue;
+    const fg = parse(cs.color); if (!fg) continue;
+    const bg = bgOf(el); if (bg.img) continue;
+    const fgb = fg[3] < 1 ? blend(fg, bg.c) : fg;
+    let op = 1; for (let e = el; e; e = e.parentElement) op *= +win.getComputedStyle(e).opacity;
+    const fgo = op < 1 ? blend([fgb[0], fgb[1], fgb[2], op], bg.c) : fgb;
+    const size = parseFloat(cs.fontSize), bold = +cs.fontWeight >= 700;
+    const floor = (size >= 24 || (size >= 18.66 && bold)) ? 3 : 4.5;
+    const disabled = el.closest(':disabled, [disabled], [aria-disabled="true"]');
+    const cr = ratio(fgo, bg.c);
+    if (cr < floor && !disabled) {
+      const id = el.id ? '#' + el.id : '';
+      const cls = typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '';
+      out.push({ sel: el.tagName.toLowerCase() + id + cls, text: n.textContent.trim().slice(0, 30), ratio: +cr.toFixed(2), fg: cs.color, bg: 'rgb(' + bg.c.slice(0, 3).map(Math.round).join(',') + ')', op: +op.toFixed(2) });
+    }
+  }
+  return out;
+};
+
+function islands(doc) {
+  const win = doc.defaultView, out = [];
+  const parse = (c) => { const m = c.match(/rgba?\(([^)]+)\)/); if (!m) return null; const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1]; };
+  for (const el of doc.body.querySelectorAll('*')) {
+    if (el.closest('.org-stage, [data-theme="light"], canvas, svg, img, video, .mobile-gate')) continue;
+    const r = el.getBoundingClientRect(); if (r.width * r.height < 900 || r.width < 1) continue;
+    const cs = win.getComputedStyle(el); const c = parse(cs.backgroundColor); if (!c || c[3] < 0.6) continue;
+    let hidden = false; for (let e = el; e; e = e.parentElement) { const s = win.getComputedStyle(e); if (s.display === 'none' || s.visibility === 'hidden' || +s.opacity === 0) { hidden = true; break; } } if (hidden) continue;
+    const lum = (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
+    if (lum > 0.75) out.push({ sel: el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : ''), bg: cs.backgroundColor, size: Math.round(r.width) + '×' + Math.round(r.height) });
+  }
+  return out;
+}
+function load(url, dark) {
+  return new Promise(res => {
+    try { localStorage.setItem('organica.ui.theme', dark ? 'dark' : 'light'); } catch (e) {}
+    const f = document.createElement('iframe'); f.src = url;
+    f.onload = () => setTimeout(() => {
+      const d = f.contentDocument, root = d.documentElement;
+      const opted = root.hasAttribute('data-theme-support');
+      if (dark && !opted) root.setAttribute('data-theme', 'dark');
+      setTimeout(() => {
+        let res2;
+        try { res2 = { opted, text: window.__darkAudit(d), islands: dark ? islands(d) : [], applied: root.getAttribute('data-theme') || 'light', button: !!d.querySelector('.org-theme') }; }
+        catch (e) { res2 = { opted, error: String(e) }; }
+        f.remove(); res(res2);
+      }, 400);
+    }, 1800);
+    document.body.appendChild(f);
+  });
+}
+const esc = s => String(s).replace(/[&<]/g, c => c === '&' ? '&amp;' : '&lt;');
+document.getElementById('run').onclick = async () => {
+  const saved = localStorage.getItem('organica.ui.theme');
+  const forced = document.getElementById('forced').checked, rows = [], sum = document.getElementById('summary');
+  window.__auditResults = {};
+  for (const url of PAGES) {
+    sum.textContent = 'Auditing ' + url + '…';
+    const light = await load(url, false), dark = await load(url, true);
+    window.__auditResults[url] = { light, dark };
+    if (!dark.opted && !forced) continue;
+    const bad = (light.text || []).length + (dark.text || []).length + (dark.islands || []).length;
+    rows.push('<details' + (bad ? ' open' : '') + '><summary class="' + (bad ? 'bad' : 'ok') + '">' + url + ' — ' + (dark.opted ? 'opted in' : 'forced') +
+      ' · light text ' + (light.text || []).length + ' · dark text ' + (dark.text || []).length + ' · dark islands ' + (dark.islands || []).length +
+      (dark.opted && !dark.button ? ' · NO BUTTON' : '') + (light.error || dark.error ? ' · ERROR ' + esc(light.error || dark.error) : '') + '</summary>' +
+      ['light', 'dark'].map(t => (window.__auditResults[url][t].text || []).map(x => '<div>' + t + ' text ' + x.ratio + ':1 <code>' + esc(x.sel) + '</code> "' + esc(x.text) + '" ' + x.fg + ' on ' + x.bg + (x.op < 1 ? ' op ' + x.op : '') + '</div>').join('')).join('') +
+      (dark.islands || []).map(x => '<div>dark island <code>' + esc(x.sel) + '</code> ' + x.bg + ' ' + x.size + '</div>').join('') + '</details>');
+    document.getElementById('out').innerHTML = rows.join('');
+  }
+  try { localStorage.setItem('organica.ui.theme', saved || 'light'); } catch (e) {}
+  sum.textContent = 'Done — ' + PAGES.length + ' pages. Results in window.__auditResults.';
+};
+</script>
+</body>
+</html>

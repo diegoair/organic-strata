@@ -51,6 +51,23 @@
     return tool + '-' + Date.now() + '.' + ext;
   };
 
+  // A token's value in the CONTENT palette — the light values the work is
+  // drawn in, whatever the chrome theme (tokens.css THEMES: dark mode flips
+  // the chrome, never the sheet). Use it for colours that end up inside a
+  // canvas or an export; reading --ink off documentElement would hand you
+  // the dark theme's light-grey ink. The probe is one hidden element marked
+  // data-theme="light", created on first use.
+  var contentProbe = null;
+  Organica.contentColor = function (name) {
+    if (!contentProbe) {
+      contentProbe = document.createElement('span');
+      contentProbe.setAttribute('data-theme', 'light');
+      contentProbe.hidden = true;
+      (document.body || document.documentElement).appendChild(contentProbe);
+    }
+    return getComputedStyle(contentProbe).getPropertyValue(name).trim();
+  };
+
   // The atob → Uint8Array conversion found byte-near-identical in 11 files'
   // own canvas-export paths — always fed by canvas.toDataURL(), never
   // canvas.toBlob(): toBlob() is async and can race a canvas that gets
