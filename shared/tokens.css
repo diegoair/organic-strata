@@ -62,6 +62,45 @@
   font-style: normal;
 }
 
+/* IBM Plex Mono — SIL OFL 1.1 (shared/vendor/ibm-plex-mono-OFL.txt), self-hosted static files (no variable
+   build). The DEFAULT text face since Sep 29, 2026 (--font): labels, body, captions, overlines, code — everything
+   that isn't a heading, a button or a number. Real 400/500/600/700 + a real 400 italic, so em is a true italic. */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/shared/vendor/ibm-plex-mono-regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/shared/vendor/ibm-plex-mono-italic.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/shared/vendor/ibm-plex-mono-medium.ttf') format('truetype');
+  font-weight: 500;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/shared/vendor/ibm-plex-mono-semibold.ttf') format('truetype');
+  font-weight: 600;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/shared/vendor/ibm-plex-mono-bold.ttf') format('truetype');
+  font-weight: 700;
+  font-display: swap;
+  font-style: normal;
+}
+
 /* Form controls and <code>/<pre> never inherit font-family by default in any
    browser — that's the UA stylesheet, not a bug in any one tool. Without this
    rule every <input>, <select>, <button>, <textarea> silently renders Arial
@@ -72,6 +111,24 @@ input, select, button, textarea, code, pre, kbd, samp {
   font-family: inherit;
 }
 
+/* Buttons and controls are set in the display face (Space Grotesk), everything else inherits the mono
+   default. Done by re-pointing --font on the control, so every existing `font-family: var(--font)` rule
+   on a button/input/select resolves to the display face with no per-tool edit. The element rule must sit
+   AFTER the `font-family: inherit` one (same specificity, later wins); the class/role list is :where()
+   (zero specificity) and only re-points --font, so a tool's own font-family still applies on top. */
+button, select, input, textarea, summary {
+  --font: var(--font-display);
+  font-family: var(--font-display);
+}
+:where([role="button"], [role="tab"], [role="menuitem"], .org-btn, .seg-btn, .mini-btn) {
+  --font: var(--font-display);
+}/* Headings h1–h5 are the display face (h6, the overline, stays mono). Zero specificity: a tool or
+   .org-prose can still set its own. */
+:where(h1, h2, h3, h4, h5) { font-family: var(--font-display); }
+
+/* Numbers: any rule that declares tabular figures is a numeric readout — it gets the display face too
+   (see .org-num in panel.css and the numeric role below). */
+
 /* Most tools set font-family on body but not html. Nothing renders directly
    on <html>, so this was invisible — but leaving it serif meant one stray
    rule (a `*, html { … }` reset, a component that inherits from the root
@@ -79,18 +136,23 @@ input, select, button, textarea, code, pre, kbd, samp {
    can't resurface. */
 html {
   font-family: var(--font);
-  /* Never fake bold/italic: the typeface has no italic, and a skewed geometric
-     sans is worse to read than an upright one. Emphasis is weight (see .org-prose
-     em/strong), never slant. Real weights inside the variable axis are unaffected. */
+  /* Never fake bold/italic: Space Grotesk has no italic and a skewed geometric
+     sans reads worse than an upright one. IBM Plex Mono has a REAL italic, so em is a
+     true italic in body text and upright inside display text. Real weights are unaffected. */
   font-synthesis: none;
 }
 
 :root {
   /* ── TYPEFACE ────────────────────────────────────────────
-     One family. --font is the only name; the old --sans / --mono /
-     --display aliases are kept at the bottom of this file so existing
-     rules keep working, but new code should use --font. */
-  --font: 'Space Grotesk', 'Wix Madefor Display', 'Manrope', ui-sans-serif, system-ui, sans-serif;   /* was Manrope until Sep 29, 2026 */
+     TWO families, by role (Diego, Sep 29, 2026):
+       --font-display  Space Grotesk — display, H1–H5, buttons/controls, numbers
+       --font-mono     IBM Plex Mono — H6/overline, body, caption, labels, code, everything else
+     --font is the inherited default and points at the mono; a control or a
+     heading re-points it. The old --sans / --mono / --display aliases at the
+     bottom of this file keep old rules working. */
+  --font-display: 'Space Grotesk', 'Wix Madefor Display', 'Manrope', ui-sans-serif, system-ui, sans-serif;   /* display, H1–H5, buttons/controls, numbers */
+  --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;                       /* everything else */
+  --font: var(--font-mono);   /* the DEFAULT inherited face (was Space Grotesk alone, was Manrope until Sep 29, 2026) */
 
   /* ── WEIGHTS ─────────────────────────────────────────────
      Space Grotesk's axis runs 300–700; the system uses 400–700. Organica uses four stops;
@@ -191,6 +253,7 @@ html {
      number makes its neighbours jitter. Tabular figures + a little tracking.
      Apply with .org-num (panel.css) or font-variant-numeric: var(--t-num-variant). */
   --t-num-variant:     tabular-nums;
+  --t-num-font:        var(--font-display);   /* numbers are always the display face */
   --t-num-ls:          var(--ls-wide);
 
   /* ── HEADER ROLES ────────────────────────────────────────

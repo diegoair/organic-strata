@@ -188,7 +188,7 @@
      changing any of their own markup or IDs. */
   .panel-step-head { padding: var(--space-3) 0 var(--space-2); border-top: 1px solid var(--border); }
   .panel-step-head:first-child { border-top: none; padding-top: 0; }
-  .panel-step-head__title { font-weight: var(--w-bold); }
+  .panel-step-head__title { font-family: var(--font-display); font-weight: var(--w-bold); }
   .panel-step-head__num { color: var(--tool); }
   .panel-step-head__desc { color: var(--mid); font-size: var(--fs-small); margin-top: var(--space-1); }
 
@@ -213,7 +213,7 @@
      own .ctrl-val uses, at its real token size/weight (no canvas-size
      scaling needed now that this is a real HTML element, not SVG text). */
   .sym-track-labels { position: absolute; inset: 0; pointer-events: none; }
-  .sym-track-label { position: absolute; font-family: var(--font); font-size: var(--fs-micro); font-weight: var(--w-regular); font-variant-numeric: tabular-nums; color: var(--track-accent); white-space: nowrap; }
+  .sym-track-label { position: absolute; font-family: var(--font-display); font-size: var(--fs-micro); font-weight: var(--w-regular); font-variant-numeric: tabular-nums; color: var(--track-accent); white-space: nowrap; }
   .sym-track-label--col { transform: translate(-50%, -100%); }
   .sym-track-label--row { transform: translate(-100%, -50%); }
   .fvs-sympool { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }

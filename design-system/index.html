@@ -161,6 +161,81 @@
     margin: 0 0 var(--space-5);
   }
 
+
+  /* ── Typography specimen (.ty-*) — the section documents type, so its own chrome is tokens only ── */
+  .ty-badge {
+    display: inline-block; white-space: nowrap;
+    font-size: var(--fs-small); letter-spacing: var(--ls-wider); text-transform: uppercase;
+    padding: 1px var(--space-2); border: 1px solid var(--ink); border-radius: var(--radius-sm);
+  }
+  .ty-badge--d { background: var(--ink); color: var(--paper); font-family: var(--font-display); font-weight: var(--w-medium); }
+  .ty-badge--m { background: var(--paper); color: var(--ink); font-family: var(--font-mono); }
+  .ty-sub { font-size: var(--fs-medium); font-weight: var(--w-medium); margin: var(--space-8) 0 var(--space-2); }
+  .ty-lede { font-size: var(--fs-base); line-height: var(--lh-normal); color: var(--mid); max-width: 620px; margin: 0 0 var(--space-5); }
+
+  /* the two faces */
+  .ty-faces { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-3); }
+  .ty-face { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
+  .ty-face__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+  .ty-face__token { font-size: var(--fs-small); color: var(--mid); }
+  .ty-face__aa { font-size: var(--fs-6xl); line-height: var(--lh-none); letter-spacing: var(--ls-display); font-weight: var(--w-bold); }
+  .ty-face__name { font-size: var(--fs-xl); font-weight: var(--w-medium); margin-top: var(--space-1); }
+  .ty-face__meta { font-size: var(--fs-small); color: var(--mid); line-height: var(--lh-snug); margin-top: var(--space-1); }
+  .ty-face__glyphs { font-size: var(--fs-medium); line-height: var(--lh-normal); overflow-wrap: anywhere; }
+  .ty-face__weights { display: flex; gap: var(--space-5); }
+  .ty-face__weights span { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--fs-3xl); line-height: var(--lh-none); }
+  .ty-face__weights small { font-family: var(--font-display); font-size: var(--fs-small); font-weight: var(--w-regular); color: var(--mid); line-height: var(--lh-snug); }
+  .ty-face__uses { list-style: none; margin: 0; padding: var(--space-4) 0 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--fs-small); color: var(--mid); }
+  .ty-face__uses b { color: var(--ink); font-weight: var(--w-medium); }
+
+  /* how tokens work */
+  .ty-flow { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-3); }
+  .ty-step { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+  .ty-step__n { font-family: var(--font-display); font-size: var(--fs-small); color: var(--mid); letter-spacing: var(--ls-wider); text-transform: uppercase; }
+  .ty-step__title { font-family: var(--font-display); font-size: var(--fs-large); font-weight: var(--w-semibold); }
+  .ty-step p { margin: 0; font-size: var(--fs-small); line-height: var(--lh-snug); color: var(--mid); }
+  .ty-step code { font-size: var(--fs-small); color: var(--ink); overflow-wrap: anywhere; }
+
+  /* role matrix */
+  .ty-matrix { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0 var(--space-6) var(--space-3); margin-bottom: var(--space-3); }
+  .ty-group { display: grid; grid-template-columns: 112px minmax(0, 1fr) 156px; gap: var(--space-4); align-items: end; padding: var(--space-6) 0 var(--space-2); border-bottom: 1px solid var(--ink); font-size: var(--fs-small); color: var(--mid); }
+  .ty-group b { font-family: var(--font-display); font-size: var(--fs-medium); font-weight: var(--w-semibold); color: var(--ink); }
+  .ty-group span:last-child { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ty-row { display: grid; grid-template-columns: 112px minmax(0, 1fr) 156px; gap: var(--space-4); align-items: center; padding: var(--space-4) 0; border-bottom: 1px solid var(--border); }
+  .ty-row:last-child { border-bottom: 0; }
+  .ty-row__role { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); font-size: var(--fs-small); color: var(--ink); font-weight: var(--w-medium); font-family: var(--font-display); }
+  .ty-row__body { min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+  .ty-sample { color: var(--ink); overflow-wrap: anywhere; }
+  .ty-tokens { font-size: var(--fs-micro); color: var(--mid); line-height: var(--lh-snug); overflow-wrap: anywhere; font-family: var(--font-mono); }
+  .ty-spec { text-align: right; font-size: var(--fs-small); color: var(--mid); font-family: var(--font-display); font-variant-numeric: tabular-nums; line-height: var(--lh-snug); }
+  .ty-spec b { color: var(--ink); font-weight: var(--w-medium); }
+
+  /* primitives */
+  .ty-ladder { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-6); margin-bottom: var(--space-3); }
+  .ty-ladder__row { display: grid; grid-template-columns: 96px 40px minmax(0, 1fr) 220px; gap: var(--space-4); align-items: baseline; padding: var(--space-3) 0; border-bottom: 1px solid var(--border); }
+  .ty-ladder__row:last-child { border-bottom: 0; }
+  .ty-ladder__tok { font-size: var(--fs-small); color: var(--mid); font-family: var(--font-mono); }
+  .ty-ladder__px { font-size: var(--fs-small); color: var(--ink); font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+  .ty-ladder__use { font-size: var(--fs-small); color: var(--mid); text-align: right; }
+  .ty-ladder__sample { font-family: var(--font-display); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ty-wt { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); margin-bottom: var(--space-3); }
+  .ty-wt__cell { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+  .ty-wt__aa { display: flex; gap: var(--space-4); font-size: var(--fs-4xl); line-height: var(--lh-none); }
+  .ty-wt__aa span:first-child { font-family: var(--font-display); }
+  .ty-wt__aa span:last-child { font-family: var(--font-mono); }
+  .ty-wt__tok { font-size: var(--fs-small); color: var(--mid); font-family: var(--font-mono); }
+  .ty-wt__use { font-size: var(--fs-small); color: var(--ink); line-height: var(--lh-snug); font-family: var(--font-display); }
+  .ty-lh { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-3); margin-bottom: var(--space-3); }
+  .ty-lh__cell { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+  .ty-lh__cell p { margin: 0; font-family: var(--font-display); font-size: var(--fs-large); background: var(--gray-100); border-radius: var(--radius-sm); }
+  .ty-lh__tok { font-size: var(--fs-small); color: var(--mid); font-family: var(--font-mono); }
+  .ty-lh__use { font-size: var(--fs-micro); color: var(--mid); font-family: var(--font-display); line-height: var(--lh-snug); }
+  .ty-ls { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-6); margin-bottom: var(--space-3); }
+  .ty-ls__row { display: grid; grid-template-columns: 112px 64px minmax(0, 1fr) 170px; gap: var(--space-4); align-items: baseline; padding: var(--space-3) 0; border-bottom: 1px solid var(--border); }
+  .ty-ls__row:last-child { border-bottom: 0; }
+  .ty-ls__sample { font-family: var(--font-display); color: var(--ink); }
+  .ty-ls__use { font-size: var(--fs-small); color: var(--mid); text-align: right; }
+
   /* Prose — guide sections read as documentation, not a component demo */
   .ds-prose h3 {
     font-size: var(--fs-medium);
@@ -326,92 +401,108 @@
 
     <section class="ds-entry" id="typography">
       <h2>Typography</h2>
-      <p class="ds-desc">One family — Space Grotesk, variable weight 300–700 (the system uses 400–700) — via <code>--font</code>. Fallbacks: Wix Madefor Display, then Manrope. There is <strong>no italic</strong> (and <code>font-synthesis: none</code> stops the browser faking one) and no slashed zero. The panel runs on two styles, 10/400 and 9/400 — no Light: thin 9px strokes in grey are the wrong trade for legibility. Two families of type live here: the <strong>tool UI</strong> (9–17px — the five panel roles and the header roles, fixed-size) and <strong>editorial</strong> (display, H1–H6, body, caption — for pages that read). No second typeface, no hardcoded <code>font-size</code>.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/tokens.css</span><strong>Used in</strong><span>every page</span></div>
-      <div class="ds-example ds-example--column">
-        <div class="ds-type-row"><span class="ds-type-tag">--fs-micro · 9px</span><span class="ds-type-sample" style="font-size:var(--fs-micro)">Sub-labels, panel values, captions</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--fs-small · 10px</span><span class="ds-type-sample" style="font-size:var(--fs-small)">Section titles, controls</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--fs-base · 11px</span><span class="ds-type-sample" style="font-size:var(--fs-base)">Header &amp; body text outside the panel</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--fs-medium · 12px</span><span class="ds-type-sample" style="font-size:var(--fs-medium)">Header context title</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--fs-large · 14px</span><span class="ds-type-sample" style="font-size:var(--fs-large)">Page-level heading inside a tool</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--fs-xl · 17px</span><span class="ds-type-sample" style="font-size:var(--fs-xl)">Tool title</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--fs-2xl · 20px</span><span class="ds-type-sample" style="font-size:var(--fs-2xl)">Editorial H3</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--fs-3xl · 24px</span><span class="ds-type-sample" style="font-size:var(--fs-3xl)">Editorial H2 (max)</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--fs-4xl · 32px</span><span class="ds-type-sample" style="font-size:var(--fs-4xl)">Editorial H1 (max)</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--fs-5xl · 44px</span><span class="ds-type-sample" style="font-size:var(--fs-5xl)">Reserved step</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--fs-6xl · 64px</span><span class="ds-type-sample" style="font-size:var(--fs-6xl)">Display (max)</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--w-regular · 400</span><span class="ds-type-sample" style="font-weight:400">Regular — body, panel section titles, controls</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--w-medium · 500</span><span class="ds-type-sample" style="font-weight:500">Medium — emphasis, primary action, H4/H5</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--w-semibold · 600</span><span class="ds-type-sample" style="font-weight:600">SemiBold — H2/H3, strong</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--w-bold · 700</span><span class="ds-type-sample" style="font-weight:700">Bold — H1, display, overline, wordmark</span></div>
-      </div>
-      <pre class="ds-code"><span class="attr">font-family</span>: var(--font);
-<span class="attr">font-size</span>: var(--fs-base);      <span class="attr">/* never a raw px */</span>
-<span class="attr">font-weight</span>: var(--w-regular);</pre>
+      <p class="ty-lede">Organica speaks in <strong>two typefaces, split by role</strong>. Space Grotesk carries anything you act on or measure — headings, buttons, numbers, panel labels. IBM Plex Mono carries anything you read. Every size, weight and face is a token, and components reference a <em>role</em>, never a raw value.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/tokens.css</span><strong>Applied by</strong><span>shared/panel.css</span><span>shared/header.css</span><span>shared/prose.css</span></div>
 
-      <h3 style="margin-top:var(--space-7)">Editorial roles — display, headings, body</h3>
-      <p class="ds-desc">For pages that <em>read</em>. Same convention as the panel roles: a component names a role, the role names size / weight / line-height / tracking, and Figma mirrors them one-for-one (<code>display</code>, <code>heading/h1…h6</code>, <code>body/lg|md|sm</code>, <code>caption</code>). Display, H1 and H2 are the only <strong>fluid</strong> sizes (<code>clamp</code>) — drag the window to see them move; tool panels never use any of these and stay fixed. H6 is the overline: the system's uppercase-and-tracked voice, set with <code>text-transform: uppercase</code> by whoever uses it. Code and mono text use the same <code>--font</code> with tabular figures — no second typeface. Links are underlined <code>--ink</code>; <code>strong</code> is <code>--w-semibold</code>.</p>
-      <div class="ds-example ds-example--column">
-        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">display</span><span class="ds-type-sample" style="font-size:var(--t-display-size);font-weight:var(--t-display-weight);line-height:var(--t-display-lh);letter-spacing:var(--t-display-ls);">Organica</span><span class="ds-type-meta">--t-display-size · --t-display-weight · --t-display-lh · --t-display-ls</span></div>
-        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">heading/h1</span><span class="ds-type-sample" style="font-size:var(--t-h1-size);font-weight:var(--t-h1-weight);line-height:var(--t-h1-lh);letter-spacing:var(--t-h1-ls);">A visual system is a grammar</span><span class="ds-type-meta">--t-h1-size · --t-h1-weight · --t-h1-lh · --t-h1-ls</span></div>
-        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">heading/h2</span><span class="ds-type-sample" style="font-size:var(--t-h2-size);font-weight:var(--t-h2-weight);line-height:var(--t-h2-lh);letter-spacing:var(--t-h2-ls);">Rules that generate infinite variations</span><span class="ds-type-meta">--t-h2-size · --t-h2-weight · --t-h2-lh · --t-h2-ls</span></div>
-        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">heading/h3</span><span class="ds-type-sample" style="font-size:var(--t-h3-size);font-weight:var(--t-h3-weight);line-height:var(--t-h3-lh);letter-spacing:var(--t-h3-ls);">Coherent, however far it stretches</span><span class="ds-type-meta">--t-h3-size · --t-h3-weight · --t-h3-lh · --t-h3-ls</span></div>
-        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">heading/h4</span><span class="ds-type-sample" style="font-size:var(--t-h4-size);font-weight:var(--t-h4-weight);line-height:var(--t-h4-lh);letter-spacing:var(--t-h4-ls);">Form, canvas, grid, colour, type</span><span class="ds-type-meta">--t-h4-size · --t-h4-weight · --t-h4-lh · --t-h4-ls</span></div>
-        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">heading/h5</span><span class="ds-type-sample" style="font-size:var(--t-h5-size);font-weight:var(--t-h5-weight);line-height:var(--t-h5-lh);letter-spacing:var(--t-h5-ls);">Vector-first, screen to mural</span><span class="ds-type-meta">--t-h5-size · --t-h5-weight · --t-h5-lh · --t-h5-ls</span></div>
-        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">heading/h6</span><span class="ds-type-sample" style="font-size:var(--t-h6-size);font-weight:var(--t-h6-weight);line-height:var(--t-h6-lh);letter-spacing:var(--t-h6-ls);text-transform:uppercase;">Overline · eyebrow</span><span class="ds-type-meta">--t-h6-size · --t-h6-weight · --t-h6-lh · --t-h6-ls</span></div>
-        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">body/lg</span><span class="ds-type-sample" style="font-size:var(--t-body-lg-size);font-weight:var(--t-body-weight);line-height:var(--t-body-lh);max-width:56ch">Organica is a visual language and the tools to compose new ones — vector-first, so a mark can find its way to a screen, a screenprint or a wall.</span><span class="ds-type-meta">--t-body-lg-size · --t-body-weight · --t-body-lh</span></div>
-        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">body/md</span><span class="ds-type-sample" style="font-size:var(--t-body-md-size);font-weight:var(--t-body-weight);line-height:var(--t-body-lh);max-width:56ch">Organica is a visual language and the tools to compose new ones — vector-first, so a mark can find its way to a screen, a screenprint or a wall.</span><span class="ds-type-meta">--t-body-md-size · --t-body-weight · --t-body-lh</span></div>
-        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">body/sm</span><span class="ds-type-sample" style="font-size:var(--t-body-sm-size);font-weight:var(--t-body-weight);line-height:var(--lh-snug);max-width:56ch">Organica is a visual language and the tools to compose new ones — vector-first, so a mark can find its way to a screen, a screenprint or a wall.</span><span class="ds-type-meta">--t-body-sm-size · --t-body-weight · --lh-snug</span></div>
-        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">caption</span><span class="ds-type-sample" style="font-size:var(--t-caption-size);font-weight:var(--t-caption-weight);line-height:var(--t-caption-lh)">Hints, help text, footnotes — the quietest editorial text</span><span class="ds-type-meta">--t-caption-size · --t-caption-weight · --t-caption-lh</span></div>
+      <h3 class="ty-sub" style="margin-top:var(--space-5)">The two faces</h3>
+      <div class="ty-faces">
+        <div class="ty-face">
+          <div class="ty-face__head"><span class="ty-badge ty-badge--d">Display</span><code class="ty-face__token">--font-display</code></div>
+          <div><div class="ty-face__aa" style="font-family:var(--font-display)">Aa</div><div class="ty-face__name" style="font-family:var(--font-display)">Space Grotesk</div><div class="ty-face__meta" style="font-family:var(--font-display)">Variable 300–700 · SIL OFL · no italic, no slashed zero</div></div>
+          <div class="ty-face__glyphs" style="font-family:var(--font-display)">ABCDEFGHIJKLMNOPQRSTUVWXYZ<br>abcdefghijklmnopqrstuvwxyz<br>0123456789 → × · − — ≠ ✓</div>
+          <div class="ty-face__weights" style="font-family:var(--font-display)"><span style="font-weight:var(--w-regular)">Aa<small>400</small></span><span style="font-weight:var(--w-medium)">Aa<small>500</small></span><span style="font-weight:var(--w-semibold)">Aa<small>600</small></span><span style="font-weight:var(--w-bold)">Aa<small>700</small></span></div>
+          <ul class="ty-face__uses" style="font-family:var(--font-display)"><li><b>Display</b> and <b>H1 – H5</b></li><li><b>Buttons</b> and controls: button, select, input, textarea</li><li><b>Numbers</b>: values, readouts, hex — tabular</li><li><b>Panel</b> labels, sub-labels, titles, checkbox labels</li><li>Header logo, mega menu</li></ul>
+        </div>
+        <div class="ty-face">
+          <div class="ty-face__head"><span class="ty-badge ty-badge--m">Mono</span><code class="ty-face__token">--font-mono</code></div>
+          <div><div class="ty-face__aa" style="font-family:var(--font-mono)">Aa</div><div class="ty-face__name" style="font-family:var(--font-mono)">IBM Plex Mono</div><div class="ty-face__meta" style="font-family:var(--font-mono)">Static 400 · 500 · 600 · 700 + real italic · SIL OFL</div></div>
+          <div class="ty-face__glyphs" style="font-family:var(--font-mono)">ABCDEFGHIJKLMNOPQRSTUVWXYZ<br>abcdefghijklmnopqrstuvwxyz<br>0123456789 → × · − — ≠ ✓</div>
+          <div class="ty-face__weights" style="font-family:var(--font-mono)"><span style="font-weight:var(--w-regular)">Aa<small>400</small></span><span style="font-weight:var(--w-medium)">Aa<small>500</small></span><span style="font-weight:var(--w-semibold)">Aa<small>600</small></span><span style="font-weight:var(--w-bold)">Aa<small>700</small></span></div>
+          <ul class="ty-face__uses" style="font-family:var(--font-mono)"><li><b>H6</b> overline / eyebrow</li><li><b>Body</b> lg, md, sm and <b>caption</b></li><li><b>Panel</b> hints, notes, empty states</li><li><b>Code</b> and anything not listed on the left</li></ul>
+        </div>
+      </div>
+      <p class="ds-note"><code>--font</code> is the <strong>inherited default</strong> and points at the mono: <code data-token="--font"></code>. A heading, a button or a number re-points it to <code>--font-display</code>, so an untouched element is always mono. Fallbacks: Wix Madefor Display, then Manrope. <code>font-synthesis: none</code> stops the browser faking a bold or italic.</p>
+
+      <h3 class="ty-sub">How the tokens work</h3>
+      <p class="ty-lede">Three layers. Change a value in one place and everything above it follows.</p>
+      <div class="ty-flow">
+        <div class="ty-step"><span class="ty-step__n">1 · Primitives</span><span class="ty-step__title">The raw scales</span><p>Sizes, weights, line heights, tracking, the two families. Nothing else in the system holds a number.</p><code>--fs-3xl: 24px</code><code>--w-semibold: 600</code><code>--lh-heading: 1.25</code></div>
+        <div class="ty-step"><span class="ty-step__n">2 · Roles</span><span class="ty-step__title">A named text style</span><p>A role picks a size, weight, line height and tracking from the primitives. Figma text styles mirror these one-for-one.</p><code>--t-h2-size</code><code>--t-h2-weight</code><code>--t-h2-lh · --t-h2-ls</code></div>
+        <div class="ty-step"><span class="ty-step__n">3 · Components</span><span class="ty-step__title">Reference a role</span><p>A component names a role and a family. It never writes a px value, and never a typeface by name.</p><code>font-size: var(--t-h2-size)</code><code>font-family: var(--font-display)</code></div>
+      </div>
+      <pre class="ds-code"><span class="attr">--fs-3xl</span>: 24px;                                     <span class="attr">/* 1 primitive */</span>
+<span class="attr">--t-h2-size</span>: clamp(1.25rem, 1rem + 0.9vw, var(--fs-3xl));  <span class="attr">/* 2 role — fluid, capped at the primitive */</span>
+.org-prose h2 { font-size: var(--t-h2-size); font-family: var(--font-display); }  <span class="attr">/* 3 component */</span></pre>
+
+      <h3 class="ty-sub">Every text style</h3>
+      <p class="ty-lede">One row per role. The face badge, the size, weight, line height and tracking are <strong>read live</strong> from the rendered sample, so this table cannot drift from the CSS: if a row's face stops matching its badge, the self-check at the bottom of the page fails. Fluid sizes are shown at the current window width.</p>
+      <div class="ty-matrix" id="ty-matrix"></div>
+
+      <h3 class="ty-sub">Primitives</h3>
+      <p class="ty-lede"><strong>Size.</strong> Steps land on whole pixels. Below 17px is the tool UI; above it is editorial only.</p>
+      <div class="ty-ladder">
+        <div class="ty-ladder__row"><span class="ty-ladder__tok">--fs-micro</span><span class="ty-ladder__px">9</span><span class="ty-ladder__sample" style="font-size:var(--fs-micro)">Grid width · 120</span><span class="ty-ladder__use">panel labels — the floor</span></div>
+        <div class="ty-ladder__row"><span class="ty-ladder__tok">--fs-small</span><span class="ty-ladder__px">10</span><span class="ty-ladder__sample" style="font-size:var(--fs-small)">Section title · Control</span><span class="ty-ladder__use">panel titles, controls, caption</span></div>
+        <div class="ty-ladder__row"><span class="ty-ladder__tok">--fs-base</span><span class="ty-ladder__px">11</span><span class="ty-ladder__sample" style="font-size:var(--fs-base)">Header and body text</span><span class="ty-ladder__use">H6 overline, body/sm</span></div>
+        <div class="ty-ladder__row"><span class="ty-ladder__tok">--fs-medium</span><span class="ty-ladder__px">12</span><span class="ty-ladder__sample" style="font-size:var(--fs-medium)">Header context title</span><span class="ty-ladder__use">body/md</span></div>
+        <div class="ty-ladder__row"><span class="ty-ladder__tok">--fs-large</span><span class="ty-ladder__px">14</span><span class="ty-ladder__sample" style="font-size:var(--fs-large)">Page-level heading</span><span class="ty-ladder__use">H5, body/lg, header logo</span></div>
+        <div class="ty-ladder__row"><span class="ty-ladder__tok">--fs-xl</span><span class="ty-ladder__px">17</span><span class="ty-ladder__sample" style="font-size:var(--fs-xl)">Tool title</span><span class="ty-ladder__use">H4</span></div>
+        <div class="ty-ladder__row"><span class="ty-ladder__tok">--fs-2xl</span><span class="ty-ladder__px">20</span><span class="ty-ladder__sample" style="font-size:var(--fs-2xl)">Editorial H3</span><span class="ty-ladder__use">H3</span></div>
+        <div class="ty-ladder__row"><span class="ty-ladder__tok">--fs-3xl</span><span class="ty-ladder__px">24</span><span class="ty-ladder__sample" style="font-size:var(--fs-3xl)">Editorial H2</span><span class="ty-ladder__use">H2 (max)</span></div>
+        <div class="ty-ladder__row"><span class="ty-ladder__tok">--fs-4xl</span><span class="ty-ladder__px">32</span><span class="ty-ladder__sample" style="font-size:var(--fs-4xl)">Editorial H1</span><span class="ty-ladder__use">H1 (max)</span></div>
+        <div class="ty-ladder__row"><span class="ty-ladder__tok">--fs-5xl</span><span class="ty-ladder__px">44</span><span class="ty-ladder__sample" style="font-size:var(--fs-5xl)">Reserved step</span><span class="ty-ladder__use">reserved</span></div>
+        <div class="ty-ladder__row"><span class="ty-ladder__tok">--fs-6xl</span><span class="ty-ladder__px">64</span><span class="ty-ladder__sample" style="font-size:var(--fs-6xl)">Organica</span><span class="ty-ladder__use">display (max)</span></div>
+      </div>
+      <p class="ty-lede"><strong>Weight.</strong> Four stops, everywhere. Each cell shows Display (left) and Mono (right).</p>
+      <div class="ty-wt">
+        <div class="ty-wt__cell"><div class="ty-wt__aa" style="font-weight:var(--w-regular)"><span>Aa</span><span>Aa</span></div><span class="ty-wt__tok">--w-regular · 400</span><span class="ty-wt__use">Body, panel titles and controls</span></div>
+        <div class="ty-wt__cell"><div class="ty-wt__aa" style="font-weight:var(--w-medium)"><span>Aa</span><span>Aa</span></div><span class="ty-wt__tok">--w-medium · 500</span><span class="ty-wt__use">Emphasis, primary action, H4 / H5</span></div>
+        <div class="ty-wt__cell"><div class="ty-wt__aa" style="font-weight:var(--w-semibold)"><span>Aa</span><span>Aa</span></div><span class="ty-wt__tok">--w-semibold · 600</span><span class="ty-wt__use">H2 / H3, strong</span></div>
+        <div class="ty-wt__cell"><div class="ty-wt__aa" style="font-weight:var(--w-bold)"><span>Aa</span><span>Aa</span></div><span class="ty-wt__tok">--w-bold · 700</span><span class="ty-wt__use">H1, display, overline, wordmark</span></div>
+      </div>
+      <p class="ty-lede"><strong>Line height.</strong> Unitless, so it scales with the element's own size. Tighter for big type, looser for reading.</p>
+      <div class="ty-lh">
+        <div class="ty-lh__cell"><p style="line-height:var(--lh-none)">Form, canvas,<br>grid, colour</p><span class="ty-lh__tok"><code data-token="--lh-none"></code> · --lh-none</span><span class="ty-lh__use">display</span></div>
+        <div class="ty-lh__cell"><p style="line-height:var(--lh-tight)">Form, canvas,<br>grid, colour</p><span class="ty-lh__tok"><code data-token="--lh-tight"></code> · --lh-tight</span><span class="ty-lh__use">H1</span></div>
+        <div class="ty-lh__cell"><p style="line-height:var(--lh-heading)">Form, canvas,<br>grid, colour</p><span class="ty-lh__tok"><code data-token="--lh-heading"></code> · --lh-heading</span><span class="ty-lh__use">H2 – H6</span></div>
+        <div class="ty-lh__cell"><p style="line-height:var(--lh-snug)">Form, canvas,<br>grid, colour</p><span class="ty-lh__tok"><code data-token="--lh-snug"></code> · --lh-snug</span><span class="ty-lh__use">multi-line labels, body/sm, caption</span></div>
+        <div class="ty-lh__cell"><p style="line-height:var(--lh-normal)">Form, canvas,<br>grid, colour</p><span class="ty-lh__tok"><code data-token="--lh-normal"></code> · --lh-normal</span><span class="ty-lh__use">body, docs, help text</span></div>
+      </div>
+      <p class="ty-lede"><strong>Tracking.</strong> Big type goes negative, small uppercase goes wide. In CSS <code>em</code> equals Figma percent one-to-one.</p>
+      <div class="ty-ls">
+        <div class="ty-ls__row"><span class="ty-ladder__tok">--ls-display</span><code data-token="--ls-display"></code><span class="ty-ls__sample" style="letter-spacing:var(--ls-display);font-size:var(--fs-large)">Organica</span><span class="ty-ls__use">display</span></div>
+        <div class="ty-ls__row"><span class="ty-ladder__tok">--ls-tight</span><code data-token="--ls-tight"></code><span class="ty-ls__sample" style="letter-spacing:var(--ls-tight);font-size:var(--fs-large)">Organica</span><span class="ty-ls__use">H1, H2</span></div>
+        <div class="ty-ls__row"><span class="ty-ladder__tok">--ls-snug</span><code data-token="--ls-snug"></code><span class="ty-ls__sample" style="letter-spacing:var(--ls-snug);font-size:var(--fs-large)">Organica</span><span class="ty-ls__use">H3</span></div>
+        <div class="ty-ls__row"><span class="ty-ladder__tok">--ls-normal</span><code data-token="--ls-normal"></code><span class="ty-ls__sample" style="letter-spacing:var(--ls-normal);font-size:var(--fs-large)">Organica</span><span class="ty-ls__use">panel labels — on purpose</span></div>
+        <div class="ty-ls__row"><span class="ty-ladder__tok">--ls-wide</span><code data-token="--ls-wide"></code><span class="ty-ls__sample" style="letter-spacing:var(--ls-wide);font-size:var(--fs-large)">0.25 → 0.75</span><span class="ty-ls__use">values, hex, readouts</span></div>
+        <div class="ty-ls__row"><span class="ty-ladder__tok">--ls-wider</span><code data-token="--ls-wider"></code><span class="ty-ls__sample" style="letter-spacing:var(--ls-wider);font-size:var(--fs-large)">EXPORT</span><span class="ty-ls__use">buttons, overline, uppercase</span></div>
+        <div class="ty-ls__row"><span class="ty-ladder__tok">--ls-widest</span><code data-token="--ls-widest"></code><span class="ty-ls__sample" style="letter-spacing:var(--ls-widest);font-size:var(--fs-large)">ORGANICA</span><span class="ty-ls__use">tool logo, micro-labels</span></div>
       </div>
 
-      <h3 style="margin-top:var(--space-7)">Role tokens — what components actually reference</h3>
-      <p class="ds-desc">A panel component never names a size directly; it names a <em>role</em>, and the role points at a step in the scale above. Change what a section title weighs in one place and every tool follows. This indirection is why the whole panel runs on just two pairs — 10/400 and 9/400. Values below are read live from the stylesheet.</p>
+      <h3 class="ty-sub">Numbers, header and measure</h3>
+      <p class="ty-lede">The typeface's default figures are proportional — a "1" is about two-thirds the width of an "8" — so a live number makes its neighbours jitter. The numeric role fixes that. <code>.org-truncate</code> is the one ellipsis rule; always give it a <code>title</code>.</p>
       <div class="ds-example ds-example--column">
-        <div class="ds-type-row"><span class="ds-type-tag">--t-section-size · --t-section-weight</span><span class="ds-type-sample">Section title — <code data-token="--t-section-size"></code> / <code data-token="--t-section-weight"></code></span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--t-sublabel-size · --t-sublabel-weight</span><span class="ds-type-sample">Sub-label — <code data-token="--t-sublabel-size"></code> / <code data-token="--t-sublabel-weight"></code></span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--t-label-size · --t-label-weight</span><span class="ds-type-sample">Row label — <code data-token="--t-label-size"></code> / <code data-token="--t-label-weight"></code></span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--t-value-size · --t-value-weight</span><span class="ds-type-sample">Row value — <code data-token="--t-value-size"></code> / <code data-token="--t-value-weight"></code></span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--t-control-size · --t-control-weight</span><span class="ds-type-sample">Control text — <code data-token="--t-control-size"></code> / <code data-token="--t-control-weight"></code></span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">.org-num</span><span class="ds-type-sample"><span class="org-num">1111 · 8888 · 0.25 → 0.75</span> — tabular, columns line up&nbsp;&nbsp;<span style="font-family:var(--font-display)">1111 · 8888 — proportional</span></span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--t-num-font</span><span class="ds-type-sample"><code data-token="--t-num-font"></code> — numbers are always the display face</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--t-num-variant</span><span class="ds-type-sample"><code data-token="--t-num-variant"></code></span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--t-num-ls</span><span class="ds-type-sample"><code data-token="--t-num-ls"></code></span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--t-header-logo-size</span><span class="ds-type-sample"><code data-token="--t-header-logo-size"></code> · <code data-token="--t-header-logo-weight"></code> <span class="ds-note" style="display:inline;margin:0">— header logo (--t-header-logo-weight)</span></span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--t-header-action-size</span><span class="ds-type-sample"><code data-token="--t-header-action-size"></code> · <code data-token="--t-header-action-weight"></code> <span class="ds-note" style="display:inline;margin:0">— header action (--t-header-action-weight)</span></span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--measure</span><span class="ds-type-sample"><code data-token="--measure"></code> — longest comfortable line of running text (WCAG 1.4.8 caps it at 80)</span></div>
       </div>
 
-      <h3 style="margin-top:var(--space-7)">Numbers, header, measure — and the accessibility rules</h3>
-      <p class="ds-desc">The typeface's default figures are <strong>proportional</strong> — a "1" is about two-thirds the width of an "8" — so a live number makes its neighbours jitter. The numeric role fixes that: <code>font-variant-numeric: var(--t-num-variant)</code> (tabular-nums) plus <code>--t-num-ls</code> tracking, applied with <code>.org-num</code> to every readout, value, hex field and counter. <code>.org-truncate</code> is the one ellipsis rule (one line, <code>min-width: 0</code>; always give it a <code>title</code> with the full text).</p>
-      <div class="ds-example ds-example--column">
-        <div class="ds-type-row"><span class="ds-type-tag">.org-num</span><span class="ds-type-sample"><span class="org-num">1111 · 8888 · 0.25 → 0.75</span> — tabular (columns line up)&nbsp;&nbsp;<span>1111 · 8888 — proportional</span></span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--t-num-variant · --t-num-ls</span><span class="ds-type-sample"><code data-token="--t-num-variant"></code> · <code data-token="--t-num-ls"></code></span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--t-header-logo-size · --t-header-logo-weight</span><span class="ds-type-sample">Header logo — <code data-token="--t-header-logo-size"></code> / <code data-token="--t-header-logo-weight"></code></span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--t-header-action-size · --t-header-action-weight</span><span class="ds-type-sample">Header action — <code data-token="--t-header-action-size"></code> / <code data-token="--t-header-action-weight"></code></span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--measure</span><span class="ds-type-sample"><code data-token="--measure"></code> — longest comfortable line of running text (WCAG 1.4.8 caps at 80)</span></div>
-      </div>
-      <table class="ds-table" style="margin-top:var(--space-4)">
+      <h3 class="ty-sub">Rules</h3>
+      <table class="ds-table">
         <tr><th>Rule</th><th>Why</th></tr>
-        <tr><td>Emphasis is weight, never slant: <code>strong</code> 600, <code>em</code> 500, <code>font-synthesis: none</code></td><td>No italic exists; a faked oblique distorts a geometric sans and is harder to read</td></tr>
-        <tr><td>No Light weight; 9px is the floor and only for labels</td><td>Thin strokes at 9px in grey fail in practice even when the contrast ratio passes; running text is never below 11px</td></tr>
-        <tr><td>Reading pages default to 14px, 1.7 line, ≤ 66ch</td><td>WCAG 1.4.12 (line height ≥ 1.5) and 1.4.8 (≤ 80 characters); 12px only via <code>.org-prose--compact</code></td></tr>
+        <tr><td>Face by role: display for headings, controls, numbers and panel labels; mono for everything read</td><td>The mono is about 20% wider per character; labels in it would not fit the panel</td></tr>
+        <tr><td>Emphasis: <code>strong</code> is 600; <code>em</code> is the mono's <strong>real</strong> italic in body text and stays upright in display text</td><td>Space Grotesk has no italic and a faked oblique distorts it; Plex Mono ships a true one</td></tr>
+        <tr><td>No Light weight. 9px is the floor and only for panel labels; running text is never below 11px</td><td>Thin strokes at 9px in grey fail in practice even when the ratio passes</td></tr>
+        <tr><td>Reading pages default to 14px, 1.7 line, at most 66ch; 12px only via <code>.org-prose--compact</code></td><td>WCAG 1.4.12 (line height at least 1.5) and 1.4.8 (at most 80 characters)</td></tr>
         <tr><td>Headings <code>text-wrap: balance</code>, body <code>pretty</code></td><td>No one-word last lines, no lopsided titles</td></tr>
         <tr><td>Uppercase implies <code>--ls-wider</code> or wider, never below <code>--fs-small</code>, never for a sentence</td><td>Caps lose their word shapes; tracking restores legibility</td></tr>
-        <tr><td>Text colour: <code>--ink</code> 19.8:1, <code>--accent</code> 14.4:1, <code>--mid</code> 6.0:1 on white (5.0:1 on <code>--panel</code>) all pass AA. <code>--accent-warm</code> is <strong>a non-text accent</strong> (bars, borders, fills, progress): as text it is only 4.6:1 on white, 3.8:1 on <code>--panel</code> and 2.7:1 on a dark overlay. Text that must stand out uses <code>--ink</code> or <code>--paper</code>, with the accent beside it</td><td>WCAG 1.4.3 needs 4.5:1 for text under 24px</td></tr>
+        <tr><td>Text colour: <code>--ink</code> 19.8:1, <code>--accent</code> 14.4:1, <code>--mid</code> 6.0:1 on white (5.0:1 on <code>--panel</code>) all pass AA. <code>--accent-warm</code> is <strong>a non-text accent</strong>: as text it is 4.6:1 on white, 3.8:1 on <code>--panel</code> and 2.7:1 on a dark overlay. Text that must stand out uses <code>--ink</code> or <code>--paper</code>, with the accent beside it</td><td>WCAG 1.4.3 needs 4.5:1 for text under 24px</td></tr>
         <tr><td>Never convey meaning by colour alone; every ellipsis carries a <code>title</code></td><td>WCAG 1.4.1</td></tr>
       </table>
-
-      <h3 style="margin-top:var(--space-7)">Line height &amp; letter spacing</h3>
-      <p class="ds-desc">Line heights are unitless so they scale with the element's own size. <code>--ls-normal</code> is <code>0</code> and is written explicitly rather than omitted — <code>panel.css</code> uses it 11 times, because "no tracking" is a decision the panel makes deliberately against a house voice that is otherwise tracked.</p>
-      <div class="ds-example ds-example--column">
-        <div class="ds-type-row"><span class="ds-type-tag">--lh-none</span><span class="ds-type-sample"><code data-token="--lh-none"></code> — display</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--lh-tight</span><span class="ds-type-sample"><code data-token="--lh-tight"></code> — H1</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--lh-heading</span><span class="ds-type-sample"><code data-token="--lh-heading"></code> — H2–H6</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--lh-snug</span><span class="ds-type-sample"><code data-token="--lh-snug"></code> — multi-line labels in panels</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--lh-normal</span><span class="ds-type-sample"><code data-token="--lh-normal"></code> — body copy, docs, help text</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--ls-display</span><span class="ds-type-sample"><code data-token="--ls-display"></code> — display: big type needs negative</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--ls-tight</span><span class="ds-type-sample"><code data-token="--ls-tight"></code> — H1, H2</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--ls-snug</span><span class="ds-type-sample"><code data-token="--ls-snug"></code> — H3</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--ls-normal</span><span class="ds-type-sample"><code data-token="--ls-normal"></code> — panel labels: no tracking, on purpose</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--ls-wide</span><span class="ds-type-sample"><code data-token="--ls-wide"></code> — values, hex fields, readouts</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--ls-wider</span><span class="ds-type-sample"><code data-token="--ls-wider"></code> — buttons, control labels</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--ls-widest</span><span class="ds-type-sample"><code data-token="--ls-widest"></code> — uppercase micro-labels, the tool logo</span></div>
-      </div>
-      <p class="ds-note"><strong>Retired 2026-09-06:</strong> <code>--fs-display</code>, <code>--lh-tight</code>, <code>--ls-tight</code> and the <code>--sans</code>/<code>--mono</code>/<code>--display</code> typeface aliases. <code>--fs-display</code> described a <code>clamp(1.5rem, 9vw, 13rem)</code> hero wordmark that no longer exists — the hub's is a 0.95rem corner logo. The scale <em>comment</em> documenting it outlived the token's only consumer, which is the more useful half of the lesson.</p>
     </section>
 
     <section class="ds-entry" id="color">
@@ -1247,6 +1338,58 @@ document.querySelectorAll('#slider input[type=range]').forEach(r => {
 });
 </script>
 <script>
+/* Typography matrix — one row per role. The sample is REAL markup (real classes / real role tokens); the badge is what the
+   docs claim, the spec column is read back from the rendered sample. The self-check asserts claim === reality. */
+(function () {
+  const host = document.getElementById('ty-matrix'); if (!host) return;
+  const ed = (pre, extra) => 'font-size:var(--t-' + pre + '-size);font-weight:var(--t-' + pre + '-weight);line-height:var(--t-' + pre + '-lh);letter-spacing:var(--t-' + pre + '-ls);' + (extra || '');
+  const bd = (sz, lh) => 'font-size:var(--t-' + sz + ');font-weight:var(--t-body-weight);line-height:' + lh + ';letter-spacing:var(--ls-normal);max-width:52ch;';
+  const P = 'A visual system is a grammar — rules that generate infinite variations while staying coherent.';
+  const G = [
+    { g: 'Editorial', note: 'pages that read', rows: [
+      ['display', 'd', '<span class="ty-sample" style="' + ed('display', 'font-family:var(--font-display)') + '">Organica</span>', '--t-display-size · --t-display-weight · --t-display-lh · --t-display-ls'],
+      ['heading/h1', 'd', '<span class="ty-sample" style="' + ed('h1', 'font-family:var(--font-display)') + '">A visual system is a grammar</span>', '--t-h1-size · --t-h1-weight · --t-h1-lh · --t-h1-ls'],
+      ['heading/h2', 'd', '<span class="ty-sample" style="' + ed('h2', 'font-family:var(--font-display)') + '">Rules that generate variations</span>', '--t-h2-size · --t-h2-weight · --t-h2-lh · --t-h2-ls'],
+      ['heading/h3', 'd', '<span class="ty-sample" style="' + ed('h3', 'font-family:var(--font-display)') + '">Coherent, however far it stretches</span>', '--t-h3-size · --t-h3-weight · --t-h3-lh · --t-h3-ls'],
+      ['heading/h4', 'd', '<span class="ty-sample" style="' + ed('h4', 'font-family:var(--font-display)') + '">Form, canvas, grid, colour, type</span>', '--t-h4-size · --t-h4-weight · --t-h4-lh · --t-h4-ls'],
+      ['heading/h5', 'd', '<span class="ty-sample" style="' + ed('h5', 'font-family:var(--font-display)') + '">Vector-first, screen to mural</span>', '--t-h5-size · --t-h5-weight · --t-h5-lh · --t-h5-ls'],
+      ['heading/h6', 'm', '<span class="ty-sample" style="' + ed('h6', 'font-family:var(--font-mono);text-transform:uppercase;color:var(--mid)') + '">Overline · eyebrow</span>', '--t-h6-size · --t-h6-weight · --t-h6-lh · --t-h6-ls'],
+      ['body/lg', 'm', '<span class="ty-sample" style="' + bd('body-lg-size', 'var(--t-body-lh)') + '">' + P + '</span>', '--t-body-lg-size · --t-body-weight · --t-body-lh'],
+      ['body/md', 'm', '<span class="ty-sample" style="' + bd('body-md-size', 'var(--t-body-lh)') + '">' + P + '</span>', '--t-body-md-size · --t-body-weight · --t-body-lh'],
+      ['body/sm', 'm', '<span class="ty-sample" style="' + bd('body-sm-size', 'var(--lh-snug)') + '">' + P + '</span>', '--t-body-sm-size · --t-body-weight · --lh-snug'],
+      ['caption', 'm', '<span class="ty-sample" style="font-size:var(--t-caption-size);font-weight:var(--t-caption-weight);line-height:var(--t-caption-lh)">Hints, help text, footnotes — the quietest editorial text</span>', '--t-caption-size · --t-caption-weight · --t-caption-lh']
+    ]},
+    { g: 'Panel', note: 'the tool control panel — real components', rows: [
+      ['panel/section', 'd', '<span class="ty-sample panel-section__title" style="display:inline">Dither</span>', '--t-section-size · --t-section-weight'],
+      ['panel/sub-label', 'd', '<span class="ty-sample sub-label" style="display:inline;min-height:0;margin:0">Algorithm</span>', '--t-sublabel-size · --t-sublabel-weight'],
+      ['panel/label', 'd', '<span class="ty-sample ctrl-label" style="display:inline">Grid width</span>', '--t-label-size · --t-label-weight'],
+      ['panel/value', 'd', '<span class="ty-sample ctrl-val" style="display:inline;text-align:left">120 · 0.25</span>', '--t-value-size · --t-value-weight'],
+      ['panel/control', 'd', '<span class="ty-sample"><button class="seg-btn" type="button" style="display:inline-block;margin:0;border-radius:var(--radius-sm)">Segmented</button></span>', '--t-control-size · --t-control-weight']
+    ]},
+    { g: 'Shared', note: 'numbers and the header', rows: [
+      ['numeric', 'd', '<span class="ty-sample org-num" style="font-size:var(--fs-large)">1234.50 · 0.75</span>', '--t-num-font · --t-num-variant · --t-num-ls'],
+      ['header/logo', 'd', '<span class="ty-sample org-header__logo" style="min-height:0;margin:0;padding:0"><b>Organica</b>&nbsp;/ Design System</span>', '--t-header-logo-size · --t-header-logo-weight'],
+      ['header/action', 'd', '<span class="ty-sample"><button class="org-btn" type="button">Export</button></span>', '--t-header-action-size · --t-header-action-weight']
+    ]}
+  ];
+  host.innerHTML = G.map(gr =>
+    '<div class="ty-group"><b>' + gr.g + '</b><span>' + gr.note + '</span><span>size · wt · line · track</span></div>' +
+    gr.rows.map(r =>
+      '<div class="ty-row" data-face="' + r[1] + '"><div class="ty-row__role">' + r[0] +
+      '<span class="ty-badge ty-badge--' + r[1] + '">' + (r[1] === 'd' ? 'Display' : 'Mono') + '</span></div>' +
+      '<div class="ty-row__body">' + r[2] + '<span class="ty-tokens">' + r[3] + '</span></div>' +
+      '<div class="ty-spec"></div></div>').join('')
+  ).join('');
+  const fill = () => host.querySelectorAll('.ty-row').forEach(row => {
+    const el = row.querySelector('.ty-sample'), c = getComputedStyle(el.querySelector('button, b') || el);
+    const fs = parseFloat(c.fontSize), lh = c.lineHeight === 'normal' ? 1.2 : parseFloat(c.lineHeight) / fs;
+    const ls = c.letterSpacing === 'normal' ? 0 : parseFloat(c.letterSpacing) / fs;
+    row.querySelector('.ty-spec').innerHTML = '<b>' + Math.round(fs * 10) / 10 + 'px</b> · ' + c.fontWeight + '<br>' + (Math.round(lh * 100) / 100) + ' · ' + (Math.round(ls * 1000) / 10) + '%';
+  });
+  fill(); addEventListener('resize', fill);
+})();
+</script>
+<script>
 /* Self-verification. See the "Self-check" section for why this exists.
    Pure client-side, no build step — the page checks itself against the
    stylesheets it documents. */
@@ -1315,11 +1458,24 @@ document.querySelectorAll('#slider input[type=range]').forEach(r => {
     if (!el) bad('no demo on this page for #ds-canvas-demo');
     else {
       const c = getComputedStyle(el);
-      if (!/radial-gradient/.test(c.backgroundImage) || c.backgroundColor !== 'rgb(255, 255, 255)') bad('#ds-canvas-demo { background } — documented as var(--canvas-grid), var(--canvas-bg)');
+      // the pattern switcher re-points --canvas-grid (dots / grid / lines / plain), so don't assume dots:
+      // white ground always; an image unless the saved pattern is "plain"
+      const pat = document.documentElement.dataset.canvasPattern || 'dots';
+      if (c.backgroundColor !== 'rgb(255, 255, 255)' || (pat !== 'plain' && c.backgroundImage === 'none')) bad('#ds-canvas-demo { background } — documented as var(--canvas-grid), var(--canvas-bg)');
     }
     const fam = getComputedStyle(document.body).fontFamily.split(',')[0].replace(/["']/g, '').trim();
-    if (fam !== 'Space Grotesk') bad('body font is ' + fam + ' — documented as Space Grotesk via --font');
+    if (fam !== 'IBM Plex Mono') bad('body font is ' + fam + ' — documented as IBM Plex Mono via --font');
+    const dfam = getComputedStyle(document.querySelector('.ds-entry h2')).fontFamily.split(',')[0].replace(/["\']/g, '').trim();
+    if (dfam !== 'Space Grotesk') bad('h2 font is ' + dfam + ' — documented as Space Grotesk via --font-display');
   }
+
+  /* 4 — the typography matrix: every row's badge must match the face it actually renders */
+  document.querySelectorAll('#ty-matrix .ty-row').forEach(row => {
+    const el = row.querySelector('.ty-sample'), t = el.querySelector('button, b') || el;
+    const got = getComputedStyle(t).fontFamily.split(',')[0].replace(/["']/g, '').trim();
+    const want = row.dataset.face === 'd' ? 'Space Grotesk' : 'IBM Plex Mono';
+    if (got !== want) bad('typography row "' + row.querySelector('.ty-row__role').firstChild.textContent + '" renders ' + got + ' — documented as ' + want);
+  });
 
   /* banner ----------------------------------------------------------- */
   const fails = results.filter(r => !r[0]);

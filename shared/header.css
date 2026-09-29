@@ -89,6 +89,7 @@
 
 /* ── SLOT 1 — identity ── */
 .org-header__logo {
+  font-family: var(--font-display);   /* the wordmark + section name: display face */
   display: inline-flex;
   align-items: center;
   gap: var(--space-3);
@@ -237,6 +238,7 @@
 .org-mega[data-open="true"] ~ .org-mega__backdrop { display: block; }
 
 .org-mega {
+  font-family: var(--font-display);   /* a menu of controls: display face, like buttons */
   display: none;
   position: absolute;
   left: 0; right: 0;
@@ -541,7 +543,7 @@
   font-size: var(--fs-small);
   letter-spacing: var(--ls-wide);
   color: var(--mid);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-display); font-variant-numeric: tabular-nums;
 }
 
 /* ═══════════════════════════════════════════════════════════

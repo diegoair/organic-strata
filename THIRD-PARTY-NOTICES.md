@@ -52,8 +52,13 @@ directly against the license banner in each vendored file, August 27, 2026.
 - **Source**: npm registry tarball (`@supabase/supabase-js`)
 - **Used by**: the cloud sync layer (`shared/supabase.js` → `Organica.sb`), consumed by `shared/auth.js` and `shared/store.js` on every tool page — per-user auth (Google OAuth / magic link) and preset/seed persistence in Postgres with row-level security.
 
+### IBM Plex Mono (typeface)
+- **Files**: `shared/vendor/ibm-plex-mono-{regular,italic,medium,semibold,bold}.ttf` (licence text alongside: `shared/vendor/ibm-plex-mono-OFL.txt`) — the default text face since Sep 29, 2026, self-hosted via `@font-face` in `shared/tokens.css`.
+- **Source**: https://github.com/IBM/plex. Copyright © 2017 IBM Corp. with Reserved Font Name "Plex".
+- **License**: SIL Open Font License 1.1 — same terms as Manrope below.
+
 ### Space Grotesk (typeface)
-- **File**: `shared/vendor/space-grotesk-variable.ttf` (licence text alongside: `shared/vendor/space-grotesk-OFL.txt`) — the interface typeface since Sep 29, 2026, self-hosted via `@font-face` in `shared/tokens.css`.
+- **File**: `shared/vendor/space-grotesk-variable.ttf` (licence text alongside: `shared/vendor/space-grotesk-OFL.txt`) — the display face (headings, buttons, numbers) since Sep 29, 2026, self-hosted via `@font-face` in `shared/tokens.css`.
 - **Source**: https://github.com/floriankarsten/space-grotesk. Copyright 2020 The Space Grotesk Project Authors.
 - **License**: SIL Open Font License 1.1 — same terms as Manrope below.
 

@@ -243,7 +243,8 @@ for page in all_pages():
                 fail('missing-sheet', f'{page}: uses .{cls} (owned by {owner}.css) without linking it')
 
 # ── 6. Retired tokens must stay retired ───────────────────────────────
-for name in ('--sans', '--mono', '--display', '--fs-display', '--lh-tight', '--ls-tight'):
+# --lh-tight / --ls-tight were retired Sep 6 and REINSTATED Sep 29, 2026 with the editorial heading roles (H1 uses both).
+for name in ('--sans', '--mono', '--display', '--fs-display'):
     hits = []
     for f in glob.glob('*/index.html') + glob.glob('shared/*.css') + ['index.html']:
         if f.split('/')[0] in EXCLUDE_DIRS: continue

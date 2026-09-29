@@ -451,15 +451,22 @@ carries its own equivalent 0-unnamed check in its own session notes.
 
 ## Typography rules — numerics, emphasis, measure, accessibility
 
-Typeface: **Space Grotesk** (since Sep 29, 2026; fallbacks Wix Madefor Display → Manrope). It has
-**no italic** and no slashed zero, and its default figures are **proportional**.
+Typefaces (Sep 29, 2026) — **two families, split by role**:
 
-- **Numeric role** — `--t-num-variant` (tabular-nums) + `--t-num-ls`; apply with `.org-num` to every
+- **`--font-display` — Space Grotesk**: display, H1–H5, buttons and controls (`button`, `select`, `input`,
+  `textarea`, seg/mini/org buttons, header logo, mega menu) and numbers (`.org-num`, every tabular readout), and panel labels, sub-labels, section titles and checkbox labels (the mono is ~20% wider and would not fit the panel).
+  No italic, no slashed zero, proportional figures by default.
+- **`--font-mono` — IBM Plex Mono**: H6 overline, body lg/md/sm, caption, panel hints/notes, code —
+  everything else. Real 400/500/600/700 and a real 400 italic.
+- **`--font`** is the inherited default and points at the mono; controls and headings re-point it. Fallbacks:
+  Wix Madefor Display → Manrope.
+
+- **Numeric role** — `--t-num-font` (display face) + `--t-num-variant` (tabular-nums) + `--t-num-ls`; apply with `.org-num` to every
   live readout, value, hex field and counter so digits don't jitter.
 - **Header roles** — `--t-header-logo-size|weight`, `--t-header-action-size|weight`.
 - **Measure** — `--measure` (66ch); `.org-prose` caps running text at it (WCAG 1.4.8 ≤ 80 chars).
 - **Reading pages** default to 14px / 1.7 (`body/lg`); `.org-prose--compact` = 12px.
-- **Emphasis is weight, never slant**: `strong` 600, `em` 500; `font-synthesis: none` on `html`.
+- **Emphasis**: `strong` 600; `em` is the mono's real italic in body text, upright in display text; `font-synthesis: none` on `html`.
 - **No Light weight**; 9px is the floor and only for panel labels; running text is never below 11px.
 - **Wrapping** — headings `text-wrap: balance`, body `pretty`. **Truncation** — `.org-truncate` (+ a `title`).
 - **Uppercase** implies `--ls-wider` or wider, never below `--fs-small`, never for a sentence.
