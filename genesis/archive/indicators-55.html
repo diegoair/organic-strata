@@ -419,6 +419,13 @@
   /* The catalog page chrome pads the body for the form grid; the banner is not
      part of that column, so it escapes the padding and stays edge-to-edge —
      consistent with the app-shell pages. */
+  /* The banner's context slot (title + count) was retired from header.css when the
+     header collapsed to one definition (Sep 29, 2026); this preserved page keeps
+     its own copy so it doesn't silently rot. */
+  .org-header__context { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+  .org-header__context::before { content: ''; width: 1px; height: 18px; background: var(--border-strong); margin-right: var(--space-3); }
+  .org-header__title { font-size: var(--fs-medium); font-weight: var(--w-medium); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .org-header__sub { font-size: var(--fs-micro); letter-spacing: var(--ls-wider); text-transform: uppercase; color: var(--mid); white-space: nowrap; flex-shrink: 0; }
   .org-header {
     margin: -48px -48px 32px;
     position: sticky;
@@ -428,7 +435,7 @@
 </head>
 <body>
 
-<header class="org-header org-header--catalog" role="banner">
+<header class="org-header" role="banner">
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ Indicators</span></a>
 
   <div class="org-header__context">

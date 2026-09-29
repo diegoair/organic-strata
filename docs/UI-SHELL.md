@@ -272,7 +272,7 @@ into a 40px bar; the component brings Halide to 4 and Komorebi to 3.
 ### Markup
 
 ```html
-<header class="org-header org-header--tool" role="banner">
+<header class="org-header" role="banner">
   <a class="org-header__logo" href="/"><b>Organica</b><span>/ Tool</span></a>
   <div class="org-header__context"><!-- variant-dependent --></div>
   <div class="org-header__spacer"></div>
@@ -614,7 +614,7 @@ shipping. Follow every line here in the same session as the migration —
 - [ ] **Shell**: link the 5 shared CSS files in the load-bearing order
   (`tokens.css` → `header.css` → `panel.css`
   → `floatbar.css` → `shell.css`), add a real
-  `<header class="org-header org-header--tool">` with the logo linking to
+  `<header class="org-header">` with the logo linking to
   `/`, put `class="org-stage"` on the canvas element, and migrate panel
   markup onto the shared `.panel-section`/`.ctrl-row`/`.panel-select`/
   `.color-row` classes instead of the exploration's own bespoke

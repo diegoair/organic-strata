@@ -1,13 +1,13 @@
 /* ─────────────────────────────────────────────────────────────
    ORGANICA — header.css
-   One header component, three variants.
+   One header component, one definition — no variants.
 
    Replaces five divergent bars (#topbar in Spore/Pollen/Halide/Komorebi,
    .top in Living Path, <header>+.toolbar in Strata, the editorial <header>
    in Genesis index/Indicators, .toolbar in Library/Creator).
 
    ── THE RULE ──
-   The header holds IDENTITY, CONTEXT, STATUS and at most THREE actions.
+   The header holds IDENTITY and at most THREE actions.
    Everything else lives closer to what it acts on:
      · export settings (scale, format options) → the Export popover
      · playback / transport                    → over the canvas
@@ -87,34 +87,6 @@
 .org-header__logo b { font-weight: var(--w-bold); color: var(--ink); }
 .org-header__logo:hover { color: var(--ink); }
 
-/* ── SLOT 2 — context: title, breadcrumb, or mode tabs (variant-dependent) ── */
-.org-header__context {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-width: 0;                  /* lets the title ellipsis instead of pushing */
-}
-/* .org-header__title / __sub: the only live consumer is
-   genesis/archive/indicators-55.html, a deliberately preserved artifact.
-   Kept for it — deleting the CSS would silently rot the archive rather than
-   break it visibly. Not for use in new work. */
-.org-header__title {
-  font-size: var(--fs-medium);
-  font-weight: var(--w-medium);
-  color: var(--ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.org-header__sub {
-  font-size: var(--fs-micro);
-  letter-spacing: var(--ls-wider);
-  text-transform: uppercase;
-  color: var(--mid);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
 /* ── SLOT 3 — spacer ── */
 .org-header__spacer { flex: 1 1 auto; min-width: var(--space-3); }
 
@@ -124,8 +96,8 @@
    the canvas's own drop hint, live counts that rewrote at slider-drag rate,
    a bare "—", and the only part that ever needed to be there: errors. Removed
    Sep 29, 2026, from every header. What genuinely needs saying is now the
-   NOTICE (below), centred on the canvas. The header is identity, context and
-   at most three actions.
+   NOTICE (below), centred on the canvas. The header is identity and at most
+   three actions.
    ─────────────────────────────────────────────────────────────────────── */
 
 /* ── NOTICE — a message about what just happened ──────────────────────────
@@ -441,22 +413,11 @@
 }
 
 /* ═══════════════════════════════════════════════════════════
-   VARIANTS — only the CONTEXT slot differs
+   TABS — a button group (mode / step switch). Not header chrome: Genesis and
+   FVS use it in the floating toolbar / step nav. The header itself has no
+   variants — one definition for every page (collapsed Sep 29, 2026, when
+   --tool / --editor / --catalog and the context slot were retired).
    ═══════════════════════════════════════════════════════════ */
-
-/* Tool — no context. Spore, Pollen, Halide, Komorebi, Living Path. */
-.org-header--tool .org-header__context { display: none; }
-
-/* Catalog — set name + count. Genesis Library, Indicators. */
-.org-header--catalog .org-header__context::before {
-  content: '';
-  width: 1px; height: 18px;
-  background: var(--border-strong);
-  margin-right: var(--space-3);
-}
-
-/* Editor — mode tabs / breadcrumb. Creator, Strata. */
-.org-header--editor .org-header__context { gap: var(--space-4); }
 .org-tabs { display: flex; }
 .org-tabs .org-btn {
   border-color: var(--border-strong);
@@ -487,6 +448,5 @@
 }
 
 @media (max-width: 600px) {
-  .org-header__context { display: none; }
   .org-btn { padding: 0 var(--space-3); }
 }
