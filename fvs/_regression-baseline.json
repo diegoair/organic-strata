@@ -333,6 +333,8 @@
   "layers:width:svg": "c2fcf758",
   "layers:cardFollowsSeed": "Cross | Triangle",
   "layers:collapse": "true",
+  "symbol:layered:thumbInks": "5,0",
+  "symbol:layered:nested": "true,0,false,true,true",
   "paper:clear:state": "none,true,#f2e8d0",
   "paper:clear:elementSvg": "true",
   "paper:clear:pngAlpha": "0,true",

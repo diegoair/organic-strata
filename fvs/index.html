@@ -3744,7 +3744,14 @@ function layerTransformAttr(l, g) {
   return `translate(${(50 + pl.mx).toFixed(3)},${(50 + pl.my).toFixed(3)}) rotate(${pl.rotate}) scale(${pl.scale})${lookStretch(layerLook(l, {}))} translate(-50,-50)`
     + ` translate(${(g.normTx * g.normScale).toFixed(4)},${(g.normTy * g.normScale).toFixed(4)}) scale(${g.normScale.toFixed(4)})`;
 }
-let inkPaletteOverride = null;   // set while rendering a saved entry with ITS palette
+let inkPaletteOverride = null;   // set while rendering a saved entry with ITS palette (withEntryInks)
+// A saved Component draws its layers' fixed inks ("Ink 2") from ITS OWN saved palette,
+// like its cell colours (entryInkAt) — never the live one.
+function withEntryInks(colors, fn) {
+  const prev = inkPaletteOverride;
+  if (colors && colors.length) inkPaletteOverride = colors;
+  try { return fn(); } finally { inkPaletteOverride = prev; }
+}
 let layerInkOverride = null;     // {layerId: 'cell'|slot} — set while rendering a colour-variant thumbnail
 function layerInkColor(l, cellColor) {
   const ink = layerInkOverride && l.id in layerInkOverride ? layerInkOverride[l.id] : l.ink;
@@ -3979,7 +3986,7 @@ function drawComponentCanvas(ctx, items, seed, size) {
     fillPaper(ctx, under.paperColor, 0, 0, size, size);
     ctx.save();
     ctx.scale(fitScale, fitScale);
-    withAppearance(under.appearance, () => drawItemsPlain(ctx, under.items, underGeo, underPath, under.size));
+    withEntryInks(under.colors, () => withAppearance(under.appearance, () => drawItemsPlain(ctx, under.items, underGeo, underPath, under.size)));
     ctx.restore();
     ctx.restore();
   } else {
@@ -3992,7 +3999,7 @@ function drawComponentCanvas(ctx, items, seed, size) {
     ctx.save();
     ctx.scale(fitScale, fitScale);
     fillPaper(ctx, under.paperColor, 0, 0, under.size, under.size);
-    withAppearance(under.appearance, () => drawItemsPlain(ctx, under.items, underGeo, underPath, under.size));
+    withEntryInks(under.colors, () => withAppearance(under.appearance, () => drawItemsPlain(ctx, under.items, underGeo, underPath, under.size)));
     ctx.restore();
     ctx.save();
     ctx.globalCompositeOperation = 'destination-out';
@@ -4031,7 +4038,7 @@ function buildComponentSVGBody(items, seed, size) {
       const fit = it.cellSize / 100;
       const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
       underBody += `<g transform="translate(${(under.size / 2 + it.cx).toFixed(2)},${(under.size / 2 + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
-        + withAppearance(under.appearance, () => elementPathMarkup(resolveItemGeo(it, underGeo), it.color)) + `</g>`;
+        + withEntryInks(under.colors, () => withAppearance(under.appearance, () => elementPathMarkup(resolveItemGeo(it, underGeo), it.color))) + `</g>`;
     }
     // fitScale maps the underlying Component's own frame exactly onto this
     // one's (size2 = under.size * fitScale by construction) — a plain
@@ -5634,7 +5641,7 @@ function openUnderlyingComponentPicker() {
     const size = frameDims(entry.grid);
     const savedColorAt = entryInkAt(entry);
     const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
-    const svgStr = buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName);
+    const svgStr = withEntryInks(entry.colors, () => buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName));
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
     const box = fitThumbBox(size.w, size.h, 76);
@@ -5673,7 +5680,7 @@ function renderLibrary() {
     // the panel keeps getting edited after saving.
     const savedColorAt = entryInkAt(entry);
     const itemsWithSavedColor = items.map((it, i) => ({ ...it, color: savedColorAt(i) }));
-    const svgStr = withAppearance(entry.appearance, () => buildComponentSVGWithPaper(itemsWithSavedColor, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName));
+    const svgStr = withEntryInks(entry.colors, () => withAppearance(entry.appearance, () => buildComponentSVGWithPaper(itemsWithSavedColor, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName)));
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
     const box = fitThumbBox(size.w, size.h, 64);
@@ -6499,7 +6506,7 @@ function buildSymbolItems() {
       return {
         type: 'component', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
         scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
-        nestedItems, nestedSeed: entry.seed, nestedSize, nestedW, nestedH, nestedPaper: entry.paperColor, nestedAppearance: { ...entry.appearance, ...(variantAppearance || {}) },
+        nestedItems, nestedSeed: entry.seed, nestedSize, nestedW, nestedH, nestedPaper: entry.paperColor, nestedColors: entry.colors, nestedAppearance: { ...entry.appearance, ...(variantAppearance || {}) },
       };
     }
     // a cell may carry the Element's own settings (seedParams); otherwise the plain default shape
@@ -6638,7 +6645,7 @@ function symbolSVGFromItems(items) {
       for (const ni of it.nestedItems) {
         const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);   // the Component's own cells overlap too
         const nsx = (ni.flipH ? -1 : 1) * ni.scale * nfit * nk, nsy = (ni.flipV ? -1 : 1) * ni.scale * nfit * nk;
-        inner += withAppearance(it.nestedAppearance, () => seedMarkupSVG(nhx + ni.cx, nhy + ni.cy, ni.rotation, nsx, nsy, geo, ni.color));
+        inner += withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => seedMarkupSVG(nhx + ni.cx, nhy + ni.cy, ni.rotation, nsx, nsy, geo, ni.color)));
       }
       const tf = `translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(${(-nhx).toFixed(2)},${(-nhy).toFixed(2)})`;
       cellMarkup = `<g transform="${tf}">${inner}</g>`;
@@ -6766,8 +6773,9 @@ function drawSymbolCanvas(ctx) {
       ctx.save();
       nestedFrame(it);
       const nBleed = nestedBleed(it, bleed);
-      const prevOverride = appearanceOverride;
+      const prevOverride = appearanceOverride, prevInks = inkPaletteOverride;
       appearanceOverride = { ...DEFAULT_APPEARANCE, ...(it.nestedAppearance || {}) };
+      if (it.nestedColors && it.nestedColors.length) inkPaletteOverride = it.nestedColors;
       for (const ni of it.nestedItems) {
         ctx.save();
         ctx.translate(nhx + ni.cx, nhy + ni.cy);
@@ -6781,7 +6789,7 @@ function drawSymbolCanvas(ctx) {
         paintGeoCanvas(ctx, geo, path, ni.color);
         ctx.restore();
       }
-      appearanceOverride = prevOverride;
+      appearanceOverride = prevOverride; inkPaletteOverride = prevInks;
       ctx.restore();
     }
     ctx.restore();
@@ -6879,7 +6887,7 @@ function componentThumbSVG(name) {
   if (!entry) return '';
   const savedColorAt = entryInkAt(entry);
   const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
-  return buildComponentSVGWithPaper(items, entry.seed, frameDims(entry.grid), entry.paperColor, entry.role, entry.underlyingComponentName);
+  return withEntryInks(entry.colors, () => buildComponentSVGWithPaper(items, entry.seed, frameDims(entry.grid), entry.paperColor, entry.role, entry.underlyingComponentName));
 }
 function renderSymbolPool() {
   const wrap = ctrl('symbol-pool');
@@ -6943,7 +6951,7 @@ function analyseComponent(name) {
     const savedColorAt = entryInkAt(entry);
     const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
     ctx.setTransform(RES / S, 0, 0, RES / S, 0, 0);
-    withAppearance(entry.appearance, () => drawComponentCanvas(ctx, items, entry.seed, S));
+    withEntryInks(entry.colors, () => withAppearance(entry.appearance, () => drawComponentCanvas(ctx, items, entry.seed, S)));
   } finally { state.paperColor = prev.paper; state.componentRole = prev.role; state.underlyingComponentName = prev.under; ctx.setTransform(1, 0, 0, 1, 0, 0); }
   const px = ctx.getImageData(0, 0, RES, RES).data;
   const clearPaper = isPaperNone(entry.paperColor);   // transparent Paper: ink = an opaque pixel
@@ -8063,7 +8071,7 @@ function renderCellContentOverlayTiles() {
     const savedColorAt = entryInkAt(entry);
     const items = buildComponentItems({ cells: entry.component.cells }, entry.grid)
       .map((it, j) => ({ ...it, color: savedColorAt(j) }));
-    const svgStr = buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName);
+    const svgStr = withEntryInks(entry.colors, () => buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName));
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
     const box = fitThumbBox(size.w, size.h, 76);

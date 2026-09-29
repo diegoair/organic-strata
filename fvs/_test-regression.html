@@ -824,6 +824,36 @@ async function battery() {
     put('layers:collapse', state.layers === null);
   } finally { reset(); }
 
+  // 25e — a layered Component inside a Symbol keeps ITS OWN layer inks (a fixed "Ink 2" layer), hidden layers,
+  // per-layer Width and its Subtraction mask — even after the live palette changes
+  try {
+    reset();
+    state.colors = ['#111111', '#e8321e']; buildPalette();
+    chg('sel-seed-type', 'circle');
+    addLayer(); chg('sel-seed-type', 'star'); inp('rg-element-w', 1.5);          // layer 1: Ink 2 (red), Width 1.5
+    addLayer(); chg('sel-seed-type', 'triangle'); toggleLayerHidden(2);          // layer 2: hidden
+    addLayer(); chg('sel-seed-type', 'segment'); inp('rg-seg-repeatY', 6); cycleLayerRole(3);   // layer 3: Subtraction mask
+    chg('sel-rule', 'identity'); generate();
+    const lib25e = LIBRARY.read(); lib25e['zz-layered'] = buildLibraryEntryFor(getSelectedComponent()); LIBRARY.write(lib25e);
+    const A25e = LIBRARY.read()['zz-layered'];
+    const triD = SEED_TYPES.triangle.geometry(A25e.seed.layers[2].seed).d;
+    state.colors = ['#ffcc00', '#00aaaa']; buildPalette();                       // a different live palette
+    const thumb = componentThumbSVG('zz-layered');
+    const cnt = (sv, c) => (sv.match(new RegExp('fill="' + c + '"', 'g')) || []).length;
+    put('symbol:layered:thumbInks', cnt(thumb, '#e8321e') + ',' + cnt(thumb, '#00aaaa'));
+    // a nested cell, drawn the way the Symbol draws it
+    const items = [{ type: 'component', index: 0, cx: 50, cy: 50, rotation: 0, scaleX: 1, scaleY: 1, nestedItems: buildComponentItems({ cells: A25e.component.cells }, A25e.grid).map((it, j) => ({ ...it, color: entryInkAt(A25e)(j) })), nestedSeed: A25e.seed, nestedSize: frameSize(A25e.grid), nestedW: frameSize(A25e.grid), nestedH: frameSize(A25e.grid), nestedPaper: A25e.paperColor, nestedColors: A25e.colors, nestedAppearance: A25e.appearance }];
+    const nested = items.map(it => it.nestedItems.map(ni => withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => seedMarkupSVG(50 + ni.cx, 50 + ni.cy, 0, 1, 1, SEED_TYPES.stack.geometry(it.nestedSeed), ni.color)))).join('')).join('');
+    put('symbol:layered:nested', [cnt(nested, '#e8321e') > 0, cnt(nested, '#00aaaa'), nested.includes(triD), /scale\(1\.5,1\)/.test(nested), /<clipPath/.test(nested)].join(','));
+    const lib25e2 = LIBRARY.read(); delete lib25e2['zz-layered']; LIBRARY.write(lib25e2);
+  } finally {
+    // controls reset() doesn't own: put them back so later cases see the page defaults
+    reset();
+    inp('rg-element-w', 1); inp('rg-seg-repeatY', 1); inp('rg-seg-len', 70);
+    ctrl('ck-element-rounded').checked = true; onAppearanceChange();
+    chg('sel-seed-type', 'circle');
+  }
+
   // 25d — transparent Paper (the checkerboard button next to Paper): 'none' everywhere, PNG keeps the alpha
   try {
     reset();
