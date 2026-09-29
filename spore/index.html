@@ -84,7 +84,6 @@
   }
 
   /* .upload-btn base is in panel.css; Spore's delta (same as Pollen's): */
-  .upload-btn { font-size: var(--fs-micro); letter-spacing: 0.1em; }
 
   /* Color mode */
   .color-mode-grid {
@@ -97,19 +96,8 @@
   #rmx-palette { --rmx-palette-mb: 0; }
   #sel-rmx-map { font-family: var(--font); font-size: var(--fs-small); background: var(--panel); border: 1px solid var(--border); color: var(--ink); padding: var(--space-1) var(--space-2); accent-color: var(--ink); }
 
-  .cm-btn {
-    font-family: var(--font);
-    font-size: var(--fs-micro);
-    letter-spacing: 0.06em;
-    padding: var(--space-2) 0;
-    border: 1px solid var(--border);
-    background: none;
-    color: var(--accent);
-    cursor: pointer;
-    transition: background 0.12s, color 0.12s;
-  }
-
-  .cm-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  /* .cm-btn is THE BUTTON now (header.css; .active = pressed) — the class stays as the JS hook */
+  .cm-btn { padding: 0; }
 
   /* Progress bar */
   #progress-bar {
@@ -315,11 +303,11 @@
       <h3>Color</h3>
 
       <div class="color-mode-grid" style="margin-bottom: var(--space-5)">
-        <button class="cm-btn active" onclick="setColorMode('solid',this)">Solid</button>
-        <button class="cm-btn" onclick="setColorMode('adaptive',this)">Adaptive</button>
-        <button class="cm-btn" onclick="setColorMode('image',this)">Image</button>
-        <button class="cm-btn" onclick="setColorMode('multi',this)">Multi</button>
-        <button class="cm-btn" onclick="setColorMode('rmx',this)">RMX</button>
+        <button class="cm-btn org-btn active" onclick="setColorMode('solid',this)">Solid</button>
+        <button class="cm-btn org-btn" onclick="setColorMode('adaptive',this)">Adaptive</button>
+        <button class="cm-btn org-btn" onclick="setColorMode('image',this)">Image</button>
+        <button class="cm-btn org-btn" onclick="setColorMode('multi',this)">Multi</button>
+        <button class="cm-btn org-btn" onclick="setColorMode('rmx',this)">RMX</button>
       </div>
 
       <!-- RMX palette: up to 5 colours assigned by a chosen mapping (by tone) -->

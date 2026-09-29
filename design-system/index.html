@@ -997,17 +997,47 @@ Organica.seedsPanel({
 
     <section class="ds-entry" id="buttons">
       <h2>Buttons</h2>
-      <p class="ds-desc">One base (<code>.org-btn</code>), three modifiers: <code>--primary</code> for the one "ship it" action in a row, <code>--block</code> to stack full-width inside a popover. <code>.mini-btn</code> and <code>.panel-btn</code> are the panel's own smaller/full-width variants.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/header.css</span><span>panel.css</span></div>
-      <div class="ds-example">
-        <button class="org-btn">Reset</button>
-        <button class="org-btn org-btn--primary">→ Figma</button>
-        <button class="mini-btn">Save</button>
-        <button class="panel-btn" style="width:auto;padding:0 var(--space-4)">Full action</button>
+      <p class="ds-desc"><strong>One button.</strong> <code>.org-btn</code> is the only definition — three sizes, four variants, two shapes, one pressed state — sized from existing tokens (<code>--slo-h</code> 20 · <code>--row-h</code> 26 · <code>--space-8</code> 32), display face, <code>--t-control-size</code>, sentence case, <code>--radius-sm</code>. It replaced 78 distinct looks found by the <a href="/design-system/_button-audit.html">button audit</a> (Sep 29, 2026): heights from 20 to 40px, radius 0/2/4/5, weight 400/500/700, 9–14px, upper and sentence case.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/header.css (THE BUTTON)</span><strong>Aliases</strong><span>.mini-btn</span><span>.panel-btn</span><span>.upload-btn</span><span>.icon-btn</span><span>.hud-btn</span><strong>Used in</strong><span>every page</span></div>
+      <div class="ds-example ds-example--column" id="ds-btn-matrix">
+        <div class="row-btns" style="flex:none;margin:0;align-items:center;flex-wrap:wrap;gap:var(--space-3)">
+          <button class="org-btn org-btn--sm">Small</button>
+          <button class="org-btn">Default</button>
+          <button class="org-btn org-btn--lg">Large</button>
+          <span class="ctrl-label" style="margin-left:var(--space-4)">sizes · 20 / 26 / 32</span>
+        </div>
+        <div class="row-btns" style="flex:none;margin:0;align-items:center;flex-wrap:wrap;gap:var(--space-3)">
+          <button class="org-btn">Default</button>
+          <button class="org-btn org-btn--primary">Primary</button>
+          <button class="org-btn org-btn--ghost">Ghost</button>
+          <button class="org-btn org-btn--danger">Delete</button>
+          <span class="ctrl-label" style="margin-left:var(--space-4)">variants</span>
+        </div>
+        <div class="row-btns" style="flex:none;margin:0;align-items:center;flex-wrap:wrap;gap:var(--space-3)">
+          <button class="org-btn" aria-pressed="true">Pressed</button>
+          <button class="org-btn" disabled>Disabled</button>
+          <button class="org-btn org-btn--primary" disabled>Primary, disabled</button>
+          <button class="org-btn org-btn--icon" aria-label="Add"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg></button>
+          <button class="org-btn org-btn--icon org-btn--sm org-btn--ghost" aria-label="Close">×</button>
+          <span class="ctrl-label" style="margin-left:var(--space-4)">states · icon</span>
+        </div>
+        <div style="max-width:280px;display:flex;flex-direction:column;gap:var(--space-2)">
+          <button class="org-btn org-btn--block">Block</button>
+          <button class="panel-btn">.panel-btn — primary + block</button>
+          <button class="upload-btn">+ Upload SVG — .upload-btn</button>
+          <div class="row-btns" style="margin:0"><button class="mini-btn">Save</button><button class="mini-btn">Delete</button></div>
+        </div>
       </div>
-      <pre class="ds-code">&lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-btn"</span>&gt;Reset&lt;/<span class="tag">button</span>&gt;
-&lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-btn org-btn--primary"</span>&gt;→ Figma&lt;/<span class="tag">button</span>&gt;
-&lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-btn org-btn--block"</span>&gt;Full width, stacked&lt;/<span class="tag">button</span>&gt;</pre>
+      <pre class="ds-code"><span class="attr">/* sizes */</span>    org-btn--sm · (default) · org-btn--lg
+<span class="attr">/* variants */</span> (default outline) · org-btn--primary · org-btn--ghost · org-btn--danger
+<span class="attr">/* shapes */</span>   org-btn--icon (square) · org-btn--block (full width)
+<span class="attr">/* pressed */</span>  aria-pressed="true" (preferred) · .on · .active
+
+&lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-btn org-btn--primary"</span>&gt;Generate&lt;/<span class="tag">button</span>&gt;
+&lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-btn org-btn--icon org-btn--sm org-btn--ghost"</span> <span class="attr">aria-label</span>=<span class="str">"Close"</span>&gt;×&lt;/<span class="tag">button</span>&gt;</pre>
+      <p class="ds-note"><strong>Rules.</strong> One <code>--primary</code> per group of actions. Sentence case, never uppercase (Diego, Sep 29, 2026). Icon-only buttons carry an <code>aria-label</code>. A disabled button says why (<code>aria-describedby</code> / <code>data-why</code>). <code>[hidden]</code> is honoured — the base sets <code>display</code>, so it restates <code>[hidden] { display: none }</code>. Works in both themes: every colour is a token (<code>--ink</code>, <code>--paper</code>, <code>--panel</code>, <code>--border-strong</code>, <code>--accent-hover</code>, <code>--danger</code>).</p>
+      <p class="ds-note"><strong>What is NOT this component.</strong> The segmented control (<code>.seg-btn</code>, same height/type/colours, a group shape), <code>.org-tabs</code>, the floatbar's round icons, the pattern dots, colour swatches, seed/mark thumbnails, the RMX chip slots, Apostate's glyph cells, and the header's nav/theme circles. Genesis's library set/filter tabs are a borderless tab style of their own.</p>
+      <p class="ds-note"><strong>Migrated</strong> (Sep 29, 2026): the header's uppercase <code>.org-btn</code> (Login is now <code>--ghost</code>), the panel's <code>.mini-btn</code>/<code>.panel-btn</code>/<code>.upload-btn</code>/<code>.icon-btn</code> and the canvas <code>.hud-btn</code> (now aliases), Sinew's local <code>.mini</code>, Spore's <code>.cm-btn</code>, Genesis's <code>.btn-primary</code>/<code>.type-pill</code>/<code>.picker-close</code> and its duplicate <code>.seg-btn</code>, the hub's <code>.hub-btn</code> (→ <code>--lg</code>), the sign-in card (restated at <code>--lg</code> — that page doesn't load header.css).</p>
     </section>
 
     <section class="ds-entry" id="header">
@@ -1508,6 +1538,12 @@ document.querySelectorAll('#slider input[type=range]').forEach(r => {
   assert('.ctrl-label', { fontSize: '9px', fontWeight: '400' });      // --t-label-* (--w-light is an alias of regular)
   assert('.seg-btn',    { fontSize: '10px' });
   assert('.mini-btn',   { minHeight: '26px' });
+  // THE BUTTON — sizes, face, case, radius (header.css)
+  assert('#ds-btn-matrix .org-btn--sm', { minHeight: '20px', fontSize: '10px', textTransform: 'none', borderTopLeftRadius: '2px' });
+  assert('#ds-btn-matrix .org-btn:not(.org-btn--sm):not(.org-btn--lg)', { minHeight: '26px', fontSize: '10px', textTransform: 'none' });
+  assert('#ds-btn-matrix .org-btn--lg', { minHeight: '32px', fontSize: '12px' });
+  assert('#ds-btn-matrix .panel-btn', { minHeight: '26px', fontWeight: '500' });
+  assert('#ds-btn-matrix .org-btn--icon', { width: '26px' });
   assert('.color-swatch', { width: '18px', height: '18px', borderRadius: '2px' });
   assert('.org-header', { height: '64px', backgroundColor: 'rgba(0, 0, 0, 0)', borderBottomWidth: '0px' }); // --header-h, transparent, no rule
   assert('.org-header__nav', { width: '32px', height: '32px', borderTopWidth: '0px' });

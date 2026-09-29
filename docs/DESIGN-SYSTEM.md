@@ -366,6 +366,10 @@ failures, not close calls:
 - **Always-dark bands** (the hub's marquee and CTA) carry `data-theme="dark"` and paint `--paper`/`--ink` from the dark palette in both themes, instead of an `--ink` slab that would turn into a light slab in dark.
 - **Audit** — `/design-system/_dark-audit.html` (dev page, press Run) loads every page light and dark and lists text under the WCAG floor and light islands left in dark chrome; pages not opted in are forced dark to show readiness.
 
+## 5c. Buttons (Sep 29, 2026)
+
+One component, `.org-btn` in `shared/header.css`: sizes `--sm` (`--slo-h`, 20) · default (`--row-h`, 26) · `--lg` (`--space-8`, 32); variants default outline · `--primary` · `--ghost` · `--danger`; shapes `--icon` · `--block`; pressed = `aria-pressed="true"` / `.on` / `.active`. Display face, `--t-control-size`, sentence case, `--radius-sm`. `--row-h`/`--slo-h` moved from panel.css into tokens.css so every page can size buttons. Legacy names are aliases (`.mini-btn`, `.panel-btn`, `.upload-btn`, `.icon-btn`, `.hud-btn`). The audit (`/design-system/_button-audit.html`) found 78 looks across 1,299 buttons before; the text buttons now resolve to the system's sizes only.
+
 ## 6. Accessible names
 
 **Every interactive control needs a name a screen reader can announce.** A

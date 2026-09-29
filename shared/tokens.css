@@ -339,6 +339,11 @@ html {
   --space-7:  24px;
   --space-8:  32px;
 
+  /* Control heights — moved here from panel.css (Sep 29, 2026) so the one button system
+     (header.css) can size from them on pages that don't load the panel. */
+  --row-h: 26px;                                   /* every control row, so columns align · the default button */
+  --slo-h: calc(var(--row-h) - var(--space-2));   /* the slider AND its number box · the small button (20) */
+
   /* ── SLIDER FILL ─────────────────────────────────────────
      One accent for every slider's filled track, across every tool —
      deliberately NOT --tool (which varies per tool and is blue for

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Button audit</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  /* Dev-only page (underscore prefix, like _dark-audit.html). Loads every page
+     in a hidden 1440×900 frame and collects every button-like element —
+     <button>, [role=button], input[type=button|submit], a.org-btn/.hub-btn, and
+     .seg-btn/.mini-btn/.panel-btn/.upload-btn anchors — hidden ones included
+     (collapsed panels, popovers). Each is reduced to a style signature from its
+     COMPUTED style (font, size, weight, case, padding, border, radius, colours,
+     height), grouped by signature, and drawn as a live specimen: a copy of the
+     real element with those computed values inlined. Press Run. */
+  body { margin: var(--space-6); font-family: var(--font); font-size: var(--fs-base); color: var(--ink); background: var(--gray-100); }
+  h1 { font-family: var(--font-display); font-size: var(--fs-2xl); margin: 0 0 var(--space-2); }
+  h2 { font-family: var(--font-display); font-size: var(--fs-large); margin: var(--space-7) 0 var(--space-3); }
+  button#run { font: inherit; padding: var(--space-2) var(--space-4); border: 1px solid var(--border-strong); background: var(--paper); color: var(--ink); cursor: pointer; }
+  #summary { margin: var(--space-3) 0; color: var(--mid); }
+  iframe { position: absolute; left: -9999px; width: 1440px; height: 900px; }
+  .fam { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-5); margin-bottom: var(--space-4); }
+  .fam__head { display: flex; justify-content: space-between; gap: var(--space-5); align-items: baseline; margin-bottom: var(--space-4); }
+  .fam__name { font-family: var(--font-display); font-weight: var(--w-bold); font-size: var(--fs-medium); }
+  .fam__meta { color: var(--mid); font-size: var(--fs-small); }
+  .variants { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-4); }
+  .v { border-top: 1px solid var(--border); padding-top: var(--space-3); }
+  .v__stage { min-height: 48px; display: flex; align-items: center; padding: var(--space-3); background: var(--gray-100); border-radius: var(--radius-sm); margin-bottom: var(--space-2); overflow: hidden; }
+  .v__sig { font-size: var(--fs-micro); color: var(--mid); line-height: var(--lh-snug); word-break: break-word; }
+  .v__pages { font-size: var(--fs-micro); margin-top: var(--space-1); }
+  .v__stage > * { pointer-events: none; max-width: 100%; }
+</style>
+</head>
+<body>
+<h1>Button audit</h1>
+<button id="run">Run</button>
+<div id="summary">Press Run — about a minute.</div>
+<div id="out"></div>
+<script>
+const PAGES = ['/', '/design-system/', '/genesis/', '/spore/', '/pollen/', '/halide/', '/komorebi/', '/camo-turing/', '/warping/',
+  '/loom/', '/membrane/', '/vortex/', '/fvs/', '/radial/', '/pulsar/', '/mote/', '/mycel/', '/trellis/', '/tunesutra/',
+  '/livingpath/', '/sinew/', '/apostate/', '/colornet/', '/blob-boundary/', '/rhizome/', '/sign-in/'];
+const SEL = 'button, [role="button"], input[type="button"], input[type="submit"], a.org-btn, a.hub-btn, a.seg-btn, a.mini-btn, a.panel-btn, a.upload-btn, label.upload-btn';
+const PROPS = ['fontFamily', 'fontSize', 'fontWeight', 'textTransform', 'letterSpacing', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+  'borderTopWidth', 'borderTopStyle', 'borderTopColor', 'borderTopLeftRadius', 'backgroundColor', 'color', 'height', 'minHeight', 'lineHeight', 'boxShadow'];
+const INLINE = PROPS.concat(['borderRightWidth', 'borderBottomWidth', 'borderLeftWidth', 'borderRightStyle', 'borderBottomStyle', 'borderLeftStyle', 'borderRightColor', 'borderBottomColor', 'borderLeftColor',
+  'borderTopRightRadius', 'borderBottomLeftRadius', 'borderBottomRightRadius', 'width', 'display', 'alignItems', 'justifyContent', 'gap', 'textAlign', 'whiteSpace', 'fontStyle', 'backgroundImage', 'opacity']);
+
+function family(el) {
+  const cls = typeof el.className === 'string' ? el.className.trim().split(/\s+/).filter(c => !/^(active|on|selected|is-|preset-active|armed|disabled)/.test(c)) : [];
+  return cls[0] || ('<' + el.tagName.toLowerCase() + (el.type && el.tagName === 'INPUT' ? ' ' + el.type : '') + '>');
+}
+function collect(doc, url) {
+  const win = doc.defaultView, out = [];
+  doc.querySelectorAll(SEL).forEach(el => {
+    if (el.closest('.mobile-gate, #ds-root-never')) return;
+    const cs = win.getComputedStyle(el);
+    if (cs.display === 'none' && !el.closest('[hidden], [style*="display"]')) {/* still counted */}
+    const sig = {}; PROPS.forEach(p => sig[p] = cs[p]);
+    sig.fontFamily = cs.fontFamily.split(',')[0].replace(/["']/g, '').trim();
+    const r = el.getBoundingClientRect();
+    sig.height = r.height ? Math.round(r.height) + 'px' : 'hidden';
+    const st = {}; INLINE.forEach(p => st[p] = cs[p]);
+    if (r.width) st.width = Math.round(r.width) + 'px';
+    const label = (el.getAttribute('aria-label') || el.textContent || el.value || '').trim().replace(/\s+/g, ' ').slice(0, 28);
+    out.push({ url, fam: family(el), active: /\b(active|on|selected)\b/.test(el.className) || el.getAttribute('aria-pressed') === 'true' || el.getAttribute('aria-checked') === 'true', sig, st, html: el.innerHTML.length < 3000 ? el.innerHTML : label, tag: el.tagName.toLowerCase(), label });
+  });
+  return out;
+}
+function load(url) {
+  return new Promise(res => {
+    const f = document.createElement('iframe'); f.src = url;
+    f.onload = () => setTimeout(() => { let r = []; try { r = collect(f.contentDocument, url); } catch (e) {} f.remove(); res(r); }, 1800);
+    document.body.appendChild(f);
+  });
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const sigKey = s => [s.fontFamily, s.fontSize, s.fontWeight, s.textTransform, s.letterSpacing, s.paddingTop + ' ' + s.paddingRight, s.borderTopWidth + ' ' + s.borderTopStyle, s.borderTopLeftRadius, s.height].join(' | ');
+document.getElementById('run').onclick = async () => {
+  const all = [];
+  for (const u of PAGES) { document.getElementById('summary').textContent = 'Collecting ' + u + '…'; all.push(...await load(u)); }
+  window.__buttons = all;
+  // family → signature → {count, pages, sample}
+  const fams = {};
+  all.forEach(b => {
+    const F = fams[b.fam] = fams[b.fam] || { n: 0, pages: new Set(), sigs: {} };
+    F.n++; F.pages.add(b.url);
+    const k = sigKey(b.sig), S = F.sigs[k] = F.sigs[k] || { n: 0, pages: new Set(), sample: b, activeSample: null };
+    S.n++; S.pages.add(b.url);
+    if (b.active && !S.activeSample) S.activeSample = b;
+    if (S.sample.sig.height === 'hidden' && b.sig.height !== 'hidden') S.sample = b;
+  });
+  const famList = Object.entries(fams).sort((a, b) => b[1].n - a[1].n);
+  const nSigs = famList.reduce((n, [, F]) => n + Object.keys(F.sigs).length, 0);
+  document.getElementById('summary').textContent = all.length + ' buttons on ' + PAGES.length + ' pages → ' + famList.length + ' families, ' + nSigs + ' distinct looks (font · size · weight · case · tracking · padding · border · radius · height).';
+  const spec = (b) => { const st = Object.entries(b.st).map(([k, v]) => k.replace(/[A-Z]/g, m => '-' + m.toLowerCase()) + ':' + v).join(';'); return '<' + (b.tag === 'input' ? 'span' : 'span') + ' style="' + esc(st) + ';box-sizing:border-box;flex-shrink:0">' + (b.tag === 'input' ? esc(b.label) : b.html) + '</span>'; };
+  document.getElementById('out').innerHTML = famList.map(([name, F]) =>
+    '<div class="fam"><div class="fam__head"><span class="fam__name">.' + esc(name) + '</span><span class="fam__meta">' + F.n + ' instances · ' + Object.keys(F.sigs).length + ' look(s) · ' + F.pages.size + ' page(s)</span></div><div class="variants">' +
+    Object.values(F.sigs).sort((a, b) => b.n - a.n).map(S => {
+      const s = S.sample.sig;
+      return '<div class="v"><div class="v__stage">' + spec(S.sample) + (S.activeSample && S.activeSample !== S.sample ? '&nbsp;&nbsp;' + spec(S.activeSample) : '') + '</div>' +
+        '<div class="v__sig">' + esc(s.fontFamily) + ' ' + s.fontSize + '/' + s.fontWeight + (s.textTransform !== 'none' ? ' ' + s.textTransform : '') + (s.letterSpacing !== 'normal' ? ' ls ' + s.letterSpacing : '') +
+        ' · pad ' + s.paddingTop + ' ' + s.paddingRight + ' · border ' + s.borderTopWidth + ' ' + s.borderTopStyle + ' · r ' + s.borderTopLeftRadius + ' · h ' + s.height + '</div>' +
+        '<div class="v__pages">' + S.n + '× — ' + [...S.pages].join(' ') + '</div></div>';
+    }).join('') + '</div></div>').join('');
+};
+</script>
+</body>
+</html>

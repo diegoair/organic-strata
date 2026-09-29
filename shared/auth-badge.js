@@ -54,7 +54,7 @@
         box.className = 'org-header__auth';
         var next = encodeURIComponent(location.pathname + location.search);
         var login = document.createElement('a');
-        login.className = 'org-btn';
+        login.className = 'org-btn org-btn--ghost';
         login.href = '/sign-in?next=' + next;
         login.textContent = 'Login';
         var signup = document.createElement('a');

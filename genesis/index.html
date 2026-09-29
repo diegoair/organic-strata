@@ -235,28 +235,19 @@
     textarea.paste:focus { border-color: var(--ink); }
 
     .seg { display: flex; gap: 0; }
-    .seg-btn { flex: 1; font-size: var(--fs-small); padding: 5px 0; background: none; border: 1px solid var(--border); color: var(--ink-muted); cursor: pointer; font-family: var(--font); margin-left: -1px; }
-    .seg-btn:first-child { margin-left: 0; }
-    .seg-btn:hover { color: var(--ink); }
-    .seg-btn.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+    /* .seg-btn comes from panel.css now (the local copy was a duplicate — button audit, Sep 29 2026) */
 
     .check-row { display: flex; align-items: center; gap: 7px; min-height: 26px; cursor: pointer; }
     .check-row input { accent-color: var(--ink); }
     .check-row span { font-size: var(--fs-base); color: var(--ink-muted); }
 
     .type-pills { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
-    .type-pill { font-size: var(--fs-small); padding: 2px 7px; border: 1px solid var(--border); background: transparent; color: var(--ink-muted); cursor: pointer; font-family: var(--font); }
-    .type-pill:hover { border-color: var(--border-strong); color: var(--ink); }
-    .type-pill.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+    /* .type-pill / #btn-save / #layer-picker-close are THE BUTTON now (header.css) — only JS hooks remain */
 
-    .btn-primary { width: 100%; font-size: var(--fs-base); padding: 9px; background: var(--ink); color: var(--bg); border: 1px solid var(--ink); cursor: pointer; font-family: var(--font); }
-    .btn-primary:hover { background: #000; }
-    .btn-primary:disabled { opacity: 0.4; cursor: default; }
     /* .upload-btn base is in panel.css (byte-identical to Genesis's old
        values: --ink-muted==--mid, 8px==--space-3). Genesis keeps its
        softer hover + a bottom margin. */
     .upload-btn { margin-bottom: var(--space-3); }
-    .upload-btn:hover { border-color: var(--border-strong); color: var(--ink); }
     .btn-icon { width: 24px; height: 24px; background: transparent; border: 1px solid var(--border); color: var(--ink-muted); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; line-height: 1; transition: all 0.1s; }
     .btn-icon:hover { border-color: var(--border-strong); color: var(--ink); }
 
@@ -270,8 +261,6 @@
     .picker-panel { background: var(--bg); border: 1px solid var(--border); width: 420px; max-height: 80vh; overflow-y: auto; padding: 16px; }
     .picker-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
     .picker-header span { font-size: var(--fs-medium); font-weight: var(--w-semibold); color: var(--ink); }
-    .picker-close { background: none; border: none; color: var(--ink-muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 6px; }
-    .picker-close:hover { color: var(--ink); }
     .picker-tiles { display: flex; flex-wrap: wrap; gap: 8px; }
     .picker-item { width: 72px; height: 72px; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; padding: 0; background: none; color: var(--ink); }
     .picker-item:hover { border-color: var(--border-strong); }
@@ -331,10 +320,10 @@
         <div class="panel-row">
           <label class="panel-label">Type</label>
           <div class="type-pills" id="type-pills">
-            <button class="type-pill active" data-type="asset">Asset</button>
-            <button class="type-pill" data-type="variant">Variant</button>
-            <button class="type-pill" data-type="mask">Mask</button>
-            <button class="type-pill" data-type="container">Container</button>
+            <button class="type-pill org-btn org-btn--sm active" data-type="asset">Asset</button>
+            <button class="type-pill org-btn org-btn--sm" data-type="variant">Variant</button>
+            <button class="type-pill org-btn org-btn--sm" data-type="mask">Mask</button>
+            <button class="type-pill org-btn org-btn--sm" data-type="container">Container</button>
           </div>
         </div>
         <div id="underlying-layer-block" style="display:none">
@@ -362,7 +351,7 @@
             <input type="text" class="panel-input panel-input--full" id="ctrl-new-set-name" placeholder="new set name" aria-label="New set name">
           </div>
         </div>
-        <div class="mt-4"><button class="btn-primary" id="btn-save" style="width:100%">Save to Library</button></div>
+        <div class="mt-4"><button class="org-btn org-btn--primary org-btn--block" id="btn-save">Save to Library</button></div>
       </div>
     </div>
     <button class="org-floatbar__btn" id="btn-undo" aria-label="Back">
@@ -658,7 +647,7 @@
     <div class="picker-panel">
       <div class="picker-header">
         <span>Pick underlying layer</span>
-        <button class="picker-close" id="layer-picker-close" aria-label="Close">&times;</button>
+        <button class="org-btn org-btn--ghost org-btn--icon org-btn--sm" id="layer-picker-close" aria-label="Close">&times;</button>
       </div>
       <div id="layer-picker-empty" style="display:none">No saved seeds yet — save one first.</div>
       <div id="layer-picker-tiles" class="picker-tiles"></div>

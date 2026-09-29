@@ -377,6 +377,10 @@ Verified at 700px — no wrapping, no clipping, height stable.
 
 ---
 
+### Buttons — one component (Sep 29, 2026)
+
+Every text/icon button is `.org-btn` (shared/header.css, "THE BUTTON"): sizes `--sm` 20 · default 26 · `--lg` 32 (`--slo-h` / `--row-h` / `--space-8`), variants `--primary` · `--ghost` · `--danger`, shapes `--icon` · `--block`, pressed via `aria-pressed="true"` (or `.on` / `.active`). Sentence case, never uppercase. `.mini-btn` / `.panel-btn` / `.upload-btn` / `.icon-btn` / `.hud-btn` are aliases of it — use them or the modifiers, never a local button look. Re-check with `/design-system/_button-audit.html`.
+
 ### Dark mode — opting a tool in (Sep 29, 2026)
 
 Dark mode is per page, opt-in (full rules: DESIGN-SYSTEM.md §5b). To opt a tool in:

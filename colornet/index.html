@@ -63,13 +63,8 @@
    genuine local deltas — a borderless "ghost" variant (the channel
    reorder/delete glyphs sit inside an already-bordered card, so a second
    border would double up), sized via the component's own tuning vars. */
-.icon-btn {
-  --icon-btn-w: 18px; --icon-btn-h: 18px;
-  border-color: transparent; color: var(--mid);
-  font-family: var(--font); font-size: var(--fs-small); line-height: 1;
-  border-radius: var(--radius-sm);
-}
-.icon-btn:hover { border-color: var(--border-strong, var(--border)); color: var(--ink); }
+.icon-btn { border-color: transparent; color: var(--mid); }   /* ghost: the card already has a border */
+.icon-btn:hover { border-color: transparent; color: var(--ink); }
 .chan-opacity { flex: 1; min-width: 0; }
 .chan-val { font-size: var(--fs-micro); color: var(--mid); min-width: 30px; text-align: right; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
 .chan-cmyk { font-size: var(--fs-micro); color: var(--mid); font-family: var(--font-display); font-variant-numeric: tabular-nums; margin-left: auto; }

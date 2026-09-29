@@ -307,17 +307,7 @@
       font-family: var(--font-display); font-size: var(--t-h1-size);
       font-weight: var(--t-h1-weight); line-height: var(--t-h1-lh); letter-spacing: var(--t-h1-ls);
     }
-    .hub-btn {
-      font-family: var(--font-display); font-size: var(--fs-large); font-weight: var(--w-medium);
-      padding: var(--space-4) var(--space-6);
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--ink);
-      background: var(--ink); color: var(--paper);
-      text-decoration: none; cursor: pointer;
-      transition: background .2s ease, color .2s ease;
-    }
-    .hub-btn--ghost { background: transparent; color: var(--ink); }
-    .hub-btn:hover { background: var(--accent-warm); border-color: var(--accent-warm); color: var(--paper); }
+    /* the CTA buttons are THE BUTTON (org-btn --lg, header.css) */
 
     .hub-foot {
       display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-5);
@@ -462,8 +452,8 @@
 
   <div class="hub-cta" data-theme="dark">
     <p class="hub-cta__text">Start from a seed. Grow a language.</p>
-    <a class="hub-btn" href="/genesis/">Open Genesis</a>
-    <button type="button" class="hub-btn hub-btn--ghost" id="hub-all-tools">All tools</button>
+    <a class="org-btn org-btn--lg org-btn--primary" href="/genesis/">Open Genesis</a>
+    <button type="button" class="org-btn org-btn--lg" id="hub-all-tools">All tools</button>
   </div>
 
   <footer class="hub-foot">

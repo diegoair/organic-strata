@@ -64,7 +64,7 @@
 .group-head .gbase{ font-size:var(--fs-small); letter-spacing:.14em; color:var(--mid) }
 .group-head .gsp{ flex:1 }
 .blendsel{ font-family:var(--font); font-size:var(--fs-base); padding:var(--space-1) var(--space-2); border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--panel); color:var(--ink); cursor:pointer }
-.mini.gdel{ color:var(--danger) }   /* .mini's own color would otherwise win on source order */
+.gdel{ color:var(--danger) }
 .newgroup{ font-size:var(--fs-base); width:100%; margin-top:var(--space-1); border-style:dashed }
 .addfx{position:relative; margin-top:var(--space-1)}
 .addfx select{
@@ -81,8 +81,7 @@
 .empty .big{font-family:var(--font); font-weight:var(--w-bold); font-size:var(--fs-4xl); color:var(--ink); margin-bottom:var(--space-3)}
 .empty p{font-size:var(--fs-medium); line-height:1.7}
 .gridtoggle{position:absolute; top:14px; right:16px; display:flex; gap:var(--space-2)}
-.mini{font-size:var(--fs-small); padding:var(--space-2) var(--space-4); background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; color:var(--ink)}
-.mini.on{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+/* the old local .mini is THE BUTTON now (org-btn org-btn--sm, header.css; .on = pressed) */
 .hint{font-size:var(--fs-small); color:var(--mid); line-height:1.6; margin-top:var(--space-3)}
 ::-webkit-scrollbar{width:9px;height:9px}
 ::-webkit-scrollbar-thumb{background:rgba(10,10,10,.14); border-radius:var(--radius-md)}
@@ -127,9 +126,9 @@
   <!-- CENTER : stage -->
   <main id="canvas-wrap">
     <div class="gridtoggle">
-      <button class="mini on" id="tgOrig">overlay original</button>
-      <button class="mini" id="tgOutline">outline</button>
-      <button class="mini" id="tgNodes">nodes</button>
+      <button class="org-btn org-btn--sm on" id="tgOrig">overlay original</button>
+      <button class="org-btn org-btn--sm" id="tgOutline">outline</button>
+      <button class="org-btn org-btn--sm" id="tgNodes">nodes</button>
     </div>
     <svg id="board" class="org-stage" viewBox="0 0 1000 1000"></svg>
     <div class="empty" id="empty">
@@ -146,7 +145,7 @@
         <button data-tech="vector" class="seg-btn active">Vector</button>
         <button data-tech="raster" class="seg-btn">Raster</button>
       </div>
-      <button class="mini" id="tgChain" hidden style="width:100%">&#8646; vector &rarr; raster</button>
+      <button class="org-btn org-btn--sm" id="tgChain" hidden style="width:100%">&#8646; vector &rarr; raster</button>
     </div>
 
     <div class="panel-section">
@@ -364,9 +363,9 @@ function buildLayerEl(grp, layer, idx, reg){
       <span class="val">${layer.params[key]}</span></div>`;
   });
   body+=`<div class="row" style="margin-top:var(--space-2); gap:var(--space-2)">
-    <button class="mini" data-act="up" ${idx===0?'disabled':''}>↑</button>
-    <button class="mini" data-act="down" ${idx===grp.layers.length-1?'disabled':''}>↓</button>
-    <button class="mini" data-act="del" style="margin-left:auto; color:var(--danger)">remove</button></div>`;
+    <button class="org-btn org-btn--sm" data-act="up" ${idx===0?'disabled':''}>↑</button>
+    <button class="org-btn org-btn--sm" data-act="down" ${idx===grp.layers.length-1?'disabled':''}>↓</button>
+    <button class="org-btn org-btn--sm" data-act="del" style="margin-left:auto; color:var(--danger)">remove</button></div>`;
   el.innerHTML=`<div class="layer-head">
       <div class="tog">✓</div><b>${def.name}</b><span class="chev">▶</span>
     </div><div class="layer-body">${body}</div>`;
@@ -393,7 +392,7 @@ function renderStack(){
       const blend = gi===0
         ? '<span class="gbase">base group</span>'
         : `<select class="blendsel">${BLENDS.map(m=>`<option ${grp.blend===m?'selected':''}>${m}</option>`).join('')}</select>`;
-      const del = groups.length>1 ? '<button class="mini gdel">×</button>' : '';
+      const del = groups.length>1 ? '<button class="org-btn org-btn--sm gdel">×</button>' : '';
       const gh=document.createElement('div'); gh.className='group-head';
       gh.innerHTML=`<div class="tog gtog">✓</div>${blend}<span class="gsp"></span>${del}`;
       gh.querySelector('.gtog').addEventListener('click',()=>{ grp.on=!grp.on; markCustom(); renderStack(); render(); });

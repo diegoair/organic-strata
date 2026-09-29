@@ -406,46 +406,82 @@
    CONTROLS
    ═══════════════════════════════════════════════════════════ */
 
-.org-btn {
-  font-family: var(--font);
-  font-size: var(--fs-small);
-  font-weight: var(--w-medium);
-  letter-spacing: var(--ls-wider);
-  text-transform: uppercase;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  color: var(--ink);
-  padding: 0 var(--space-4);
-  min-height: 28px;              /* ≥24px WCAG 2.2 target, with room to breathe */
-  cursor: pointer;
+/* ── THE BUTTON — one definition for every text and icon button (Sep 29, 2026) ──
+   Audit (design-system/_button-audit.html): 1,299 buttons on 26 pages had 78
+   distinct looks — heights 20–40px, radius 0/2/4/5, weight 400/500/700, 9–14px,
+   upper and sentence case. Now one base, sized from existing tokens:
+     size     --sm (--slo-h, 20) · default (--row-h, 26) · --lg (--space-8, 32)
+     variant  default (outline) · --primary (ink fill) · --ghost (no border) · --danger
+     shape    --icon (square, width = height) · --block (full width)
+     state    pressed = .on / .active / [aria-pressed="true"] (ink fill) · :disabled
+   Sentence case, display face, --t-control-size (Diego's call: no uppercase).
+   The panel's older names are ALIASES of this rule, so their ~300 instances
+   follow without markup changes: .mini-btn (default, flex:1 in a .row-btns),
+   .panel-btn (primary + block), .upload-btn (block, dashed), .icon-btn (icon, sm),
+   .hud-btn (default on the dark canvas HUD). Their deltas stay in panel/shell.css.
+   The segmented control (.seg-btn) is a separate group component with the same
+   height, type and colours. Special controls (pattern dots, swatches, thumbs,
+   floatbar icons, glyph cells) are not buttons in this sense and keep their own. */
+.org-btn, .mini-btn, .panel-btn, .upload-btn, .icon-btn, .hud-btn {
+  --btn-h: var(--row-h);
+  font-family: var(--font-display);
+  font-size: var(--t-control-size);
+  font-weight: var(--t-control-weight);
+  letter-spacing: var(--ls-normal);
+  text-transform: none;
+  line-height: 1;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
+  min-height: var(--btn-h);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
   white-space: nowrap;
+  text-decoration: none;
   transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
-.org-btn:hover { border-color: var(--border-strong); background: var(--panel); }
+/* the base sets display, which would beat the browser's own [hidden] rule — a button hidden with
+   the attribute (Sinew's vector→raster chain, …) must stay hidden */
+:is(.org-btn, .mini-btn, .panel-btn, .upload-btn, .icon-btn, .hud-btn)[hidden] { display: none; }
+.org-btn:hover, .mini-btn:hover, .upload-btn:hover, .icon-btn:hover { border-color: var(--ink); background: var(--panel); }
 
-.org-btn--primary {
+/* sizes */
+.org-btn--sm, .icon-btn { --btn-h: var(--slo-h); padding: 0 var(--space-3); }
+.org-btn--lg { --btn-h: var(--space-8); padding: 0 var(--space-5); font-size: var(--fs-medium); font-weight: var(--w-medium); }
+
+/* variants */
+.org-btn--primary, .panel-btn,
+.org-btn.on, .org-btn.active, .org-btn[aria-pressed="true"],
+.mini-btn.on, .mini-btn.active, .mini-btn[aria-pressed="true"] {
   background: var(--ink);
   color: var(--paper);
   border-color: var(--ink);
-  font-weight: var(--w-bold);
 }
-.org-btn--primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.org-btn--primary, .panel-btn { font-weight: var(--w-medium); }
+.org-btn--primary:hover, .panel-btn:hover,
+.org-btn.on:hover, .org-btn.active:hover, .org-btn[aria-pressed="true"]:hover,
+.mini-btn.on:hover, .mini-btn.active:hover, .mini-btn[aria-pressed="true"]:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.org-btn--ghost { border-color: transparent; }
+.org-btn--ghost:hover { border-color: transparent; background: var(--panel); }
+.org-btn--danger { color: var(--danger); border-color: var(--danger); }
+.org-btn--danger:hover { background: var(--danger); border-color: var(--danger); color: var(--paper); }
 
-/* Full-width, centred label — a stack of equal-weight actions inside a
-   popover (Strata's Download SVG / All regions / Copy code), instead of
-   the row's default left-aligned inline-flex sizing. */
-.org-btn--block { width: 100%; justify-content: center; }
+/* shapes */
+.org-btn--icon, .icon-btn { width: var(--btn-h); padding: 0; }
+.org-btn--icon svg, .icon-btn svg { width: var(--space-5); height: var(--space-5); }
+.org-btn--block, .panel-btn, .upload-btn { width: 100%; }
 
-/* A disabled control must say WHY. Tools set aria-describedby or a
-   data-why the popover/tooltip reads; the cursor change alone is not an
-   explanation. Opacity kept above 0.4 so the label stays readable. */
-.org-btn:disabled,
-.org-btn[aria-disabled="true"] { opacity: 0.42; cursor: not-allowed; }
-.org-btn:disabled:hover { border-color: transparent; background: none; }
+/* A disabled control must say WHY (aria-describedby / data-why). Opacity kept
+   above 0.4 so the label stays readable; no hover response. */
+.org-btn:disabled, .org-btn[aria-disabled="true"],
+.mini-btn:disabled, .panel-btn:disabled, .upload-btn:disabled, .icon-btn:disabled, .hud-btn:disabled { opacity: 0.42; cursor: not-allowed; }
+.org-btn:disabled:hover, .mini-btn:disabled:hover, .icon-btn:disabled:hover { border-color: var(--border-strong); background: none; }
+.org-btn--primary:disabled:hover, .panel-btn:disabled:hover { background: var(--ink); border-color: var(--ink); }
 
 /* .org-sep retired 2026-09-06 — 0 consumers, superseded by
    .org-floatbar__sep when the actions moved out of the header. */

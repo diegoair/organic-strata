@@ -29,8 +29,7 @@
 
 :root {
   --panel-w: 248px;          /* was 240 / 244 / 280 — one width */
-  --row-h: 26px;             /* every control row, so columns align */
-  --slo-h: calc(var(--row-h) - var(--space-2));   /* the slider AND its number box */
+  /* --row-h and --slo-h live in tokens.css since Sep 29, 2026 — the button system (header.css) sizes from them on every page */
   --slo-r: var(--radius-md);                       /* their corner */
   --chk-size: var(--space-5);                      /* checkbox box + switch height (14px) */
   --knob-r: 0.78;                                  /* THE knob: a droplet this fraction of the track height (Bencho's 36 in 46) ... */
@@ -658,22 +657,8 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 
 /* Paired buttons (Save / Delete) */
 .row-btns { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
-.mini-btn {
-  flex: 1;
-  font-family: var(--font);
-  font-size: var(--t-control-size);
-  font-weight: var(--t-control-weight);
-  letter-spacing: var(--ls-normal);
-  text-transform: none;
-  min-height: var(--row-h);
-  border: 1px solid var(--border-strong, var(--border));
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--accent);
-  cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-}
-.mini-btn:hover { border-color: var(--ink); color: var(--ink); }
+/* .mini-btn is an alias of THE BUTTON (header.css); its one delta: it shares a .row-btns row equally. */
+.mini-btn { flex: 1; }
 
 /* Small square icon button (random-seed / close / reorder) that sits next to
    a control — usually a colour row, but not only. Deliberately shorter than
@@ -682,39 +667,11 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
    Lived in palette.css until 2026-09-06; moved here because it has 7
    consumers and only one of them is palette-related — colornet used it
    without linking palette.css and got an unstyled button. */
-.icon-btn {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--accent);
-  width: var(--icon-btn-w, 22px);
-  height: var(--icon-btn-h, 20px);
-  flex-shrink: 0;
-  padding: 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color 0.15s, color 0.15s;
-}
-.icon-btn:hover { border-color: var(--accent); color: var(--ink); }
+/* .icon-btn is an alias of THE BUTTON (--icon --sm, header.css); a caller may still widen it. */
+.icon-btn { flex-shrink: 0; width: var(--icon-btn-w, var(--btn-h)); }
 
 /* Full-width primary action inside a section */
-.panel-btn {
-  width: 100%;
-  font-family: var(--font);
-  font-size: var(--fs-small);
-  font-weight: var(--w-medium);
-  letter-spacing: var(--ls-normal);
-  text-transform: none;
-  min-height: 30px;
-  background: var(--ink);
-  color: var(--paper);
-  border: 1px solid var(--ink);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-.panel-btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-.panel-btn:disabled { opacity: 0.42; cursor: not-allowed; }
+/* .panel-btn is an alias of THE BUTTON (--primary --block, header.css) — no delta. */
 
 /* Explanatory note under a control — replaces title= tooltips, which are
    unreachable by keyboard and ignored by most assistive tech. */
@@ -739,19 +696,9 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
    isn't rendered.
    ═══════════════════════════════════════════════════════════ */
 
-.upload-btn {
-  width: 100%;
-  padding: var(--space-3);
-  border: 1px dashed var(--border);
-  border-radius: 0;
-  background: none;
-  color: var(--mid);
-  font-family: var(--font);
-  font-size: var(--fs-small);
-  cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-}
-.upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+/* .upload-btn is an alias of THE BUTTON (--block, header.css); its delta: the dashed "drop here" border. */
+.upload-btn { border-style: dashed; color: var(--mid); }
+.upload-btn:hover { border-style: dashed; color: var(--ink); }
 
 .org-file-input {
   position: absolute;

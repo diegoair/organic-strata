@@ -39,17 +39,21 @@
 /* Both buttons: full width. The Google one is the primary route. */
 .org-auth-card__google,
 .org-auth-card__link {
+  /* the --lg button of THE BUTTON (header.css) — this page doesn't load header.css, so the
+     measurements are restated here from the same tokens */
   width: 100%;
-  font-family: var(--font);
+  font-family: var(--font-display);
   font-size: var(--fs-medium);
   font-weight: var(--w-medium);
-  padding: var(--space-3);
-  border: 0;
-  border-radius: var(--radius-md);
+  min-height: var(--space-8);
+  padding: 0 var(--space-5);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 .org-auth-card__google {
   background: var(--ink);
+  border-color: var(--ink);
   color: var(--paper);
   display: flex;
   align-items: center;
@@ -59,8 +63,7 @@
 .org-auth-card__google svg { width: 16px; height: 16px; }   /* the brand "G" — its four colours are the one hex exception */
 .org-auth-card__link {
   background: none;
-  color: var(--accent);
-  border: 1px solid var(--border);
+  color: var(--ink);
 }
 .org-auth-card button:disabled { opacity: 0.5; cursor: default; }
 
