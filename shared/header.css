@@ -43,9 +43,8 @@
      without duplicating any rule. */
   --tool: var(--ink);
 
-  --header-h: 44px;              /* was 40 — 26px controls + 9px labels were
-                                    cramped, and 44 is the comfortable
-                                    minimum for a 24px+ touch target */
+  --header-h: 110px;             /* v2 (Sep 29, 2026): a tall, transparent bar — was 44px white
+                                    with a rule. It sits IN FLOW, so every canvas starts below it. */
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -55,27 +54,48 @@
 .org-header {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-5);
   height: var(--header-h);
-  padding: 0 var(--space-6);
-  background: var(--paper);
-  border-bottom: 1px solid var(--border-strong);
+  padding: var(--space-8) var(--space-7);   /* 110px − 2×32px = a 46px row, centred */
+  background: transparent;                  /* the page / canvas colour shows through */
+  border: 0;                                /* no rule — the bar is not a strip */
   flex-shrink: 0;
   position: relative;
   z-index: 100;
 }
+/* Right-hand zone ordering: spacer, then Sign Up / Login or the account control, then the pattern circles. */
+.org-header__spacer { order: 5; }
+.org-account, .org-header__auth { order: 10; }
+.org-pattern { order: 20; }
+
+/* ── SLOT 0 — the nav button: opens the mega menu (shared/header.js) ── */
+.org-header__nav {
+  flex-shrink: 0;
+  display: grid; place-items: center;
+  width: var(--space-8); height: var(--space-8);
+  padding: 0;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.org-header__nav:hover, .org-header__nav[aria-expanded="true"] { background: var(--panel); border-color: var(--border-strong); }
+.org-header__nav svg { width: 16px; height: 16px; }
+
 
 /* ── SLOT 1 — identity ── */
 .org-header__logo {
   display: inline-flex;
   align-items: center;
-  gap: 0.4em;
-  font-size: var(--fs-small);
+  gap: var(--space-3);
+  font-size: var(--fs-large);
   letter-spacing: var(--ls-widest);
   text-transform: uppercase;
   color: var(--mid);
   text-decoration: none;
-  white-space: nowrap;           /* never wrap the wordmark inside a 44px bar */
+  white-space: nowrap;           /* never wrap the wordmark inside the bar */
   flex-shrink: 0;
   /* It's a navigation link, not inline prose, so WCAG 2.2's inline exception
      doesn't apply — the text box alone measured 14px tall. Padding brings the
@@ -85,6 +105,14 @@
   margin-left: calc(var(--space-1) * -1);
 }
 .org-header__logo b { font-weight: var(--w-bold); color: var(--ink); }
+/* The logo. A placeholder until the real mark is supplied — swap this one rule
+   (or drop an <svg> inside .org-header__mark and delete the background). */
+.org-header__mark {
+  flex-shrink: 0;
+  width: var(--space-7); height: var(--space-7);
+  border-radius: 50%;
+  background: var(--ink);
+}
 .org-header__logo:hover { color: var(--ink); }
 
 /* ── SLOT 3 — spacer ── */
@@ -162,6 +190,108 @@
   .org-notice { animation: none; }
   .org-notice[data-kind="busy"] .org-notice__dot { animation: none; }
 }
+
+/* ── Sign Up / Login — shown by shared/auth-badge.js while signed out ── */
+.org-header__auth { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; }
+.org-header__auth .org-btn { text-decoration: none; }
+
+/* ── Pattern switcher — four round previews of the canvas pattern (shared/header.js) ── */
+.org-pattern { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; }
+.org-pattern__dot {
+  width: var(--space-7); height: var(--space-7);
+  padding: 0;
+  border-radius: 50%;                     /* a circle, not a corner radius — the pill exception */
+  border: 1px solid var(--border-strong);
+  background-color: var(--paper);
+  background-repeat: repeat;
+  cursor: pointer;
+  transition: outline-color 0.15s;
+}
+.org-pattern__dot[data-pattern="dots"]  { background-image: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1.4px); background-size: var(--space-3) var(--space-3); background-position: center; }
+.org-pattern__dot[data-pattern="grid"]  { background-image: linear-gradient(var(--canvas-dot) 1px, transparent 1px), linear-gradient(90deg, var(--canvas-dot) 1px, transparent 1px); background-size: var(--space-3) var(--space-3); background-position: center; }
+.org-pattern__dot[data-pattern="lines"] { background-image: linear-gradient(var(--canvas-dot) 1px, transparent 1px); background-size: var(--space-3) var(--space-3); background-position: center; }
+.org-pattern__dot[data-pattern="plain"] { background-image: none; }
+.org-pattern__dot[aria-checked="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ── Mega menu — copied from Pinterest's top-left menu (Business Hub), Sep 29, 2026 ──
+   A full-bleed white sheet hung directly under the bar, square top / rounded bottom, columns
+   separated by hairline dividers, a large bold heading per column over plain link rows
+   (padding + radius, grey on hover), a DARK pill for where you are, a tinted info strip at the
+   foot, and the page dimmed behind. The trigger takes a grey pill while open.
+   Sizes are Pinterest's, snapped to our scale: its 20px heading → --fs-xl, 16px links →
+   --fs-large; 12/16/24/32px spacing → --space-4/6/7/8; its 16px bottom radius has no token,
+   so --radius-lg. Built by shared/header.js. */
+.org-header__nav[aria-expanded="true"] { background: var(--track-bg); border-color: transparent; }
+.org-header:has(.org-mega[data-open="true"]) { z-index: 300; }   /* above the floatbar, so the dim covers it */
+
+.org-mega__backdrop {
+  display: none;
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  top: var(--header-h);
+  z-index: 150;
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
+}
+.org-mega[data-open="true"] ~ .org-mega__backdrop { display: block; }
+
+.org-mega {
+  display: none;
+  position: absolute;
+  left: 0; right: 0;
+  top: 100%;
+  z-index: 200;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: var(--space-8) var(--space-7) 0;
+  background: var(--paper);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  overflow: hidden;
+}
+.org-mega[data-open="true"] { display: grid; }
+
+.org-mega__group {
+  display: grid;
+  grid-row: span 2;                    /* title row + links row, shared across the whole grid row */
+  grid-template-rows: subgrid;         /* so a two-line heading doesn't push its neighbours' links out of line */
+  align-content: start;
+  padding: 0 var(--space-6) var(--space-7);
+  border-left: 1px solid var(--border);
+  min-width: 0;
+}
+.org-mega__group:nth-child(5n + 1) { border-left: 0; }          /* no rule at the start of a row */
+.org-mega__title {
+  margin: 0 0 var(--space-6);
+  font-size: var(--fs-xl);
+  font-weight: var(--w-bold);
+  line-height: var(--lh-snug);
+  color: var(--ink);
+}
+.org-mega__link {
+  display: block;
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-lg);
+  font-size: var(--fs-large);
+  line-height: var(--lh-snug);
+  color: var(--ink);
+  text-decoration: none;
+  transition: background-color 0.085s ease-out;
+}
+.org-mega__link:hover { background: var(--track-bg); }
+.org-mega__links { min-width: 0; }
+/* Where you are: the dark pill lives in Shortcuts only (as in Pinterest); in a group it is just bolder. */
+.org-mega__link[aria-current="page"] { font-weight: var(--w-bold); }
+.org-mega__shortcuts .org-mega__link[aria-current="page"] { background: var(--ink); color: var(--paper); font-weight: var(--w-medium); }
+.org-mega :focus:not(:focus-visible) { outline: none; }   /* opened with the mouse: no ring on the first link */
+
+/* The strip at the foot: bold label + a line of what this is. Full-bleed inside the sheet. */
+.org-mega__foot {
+  grid-column: 1 / -1;
+  margin: 0 calc(var(--space-7) * -1);                             /* out to the sheet's edges */
+  padding: var(--space-6) var(--space-7);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+  font-size: var(--fs-large);
+  color: var(--ink);
+}
+.org-mega__foot b { font-weight: var(--w-bold); margin-right: var(--space-3); }
 
 /* ── SLOT 5 — actions, max three ── */
 .org-header__actions {
@@ -307,7 +437,8 @@
    keyboard tab does. Two-pixel outline in the tool's identity colour,
    offset so it never collides with the 1px border. */
 .org-header :focus-visible,
-.org-popover :focus-visible {
+.org-popover :focus-visible,
+.org-mega :focus-visible {
   outline: 2px solid var(--tool);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
@@ -443,10 +574,12 @@
    ═══════════════════════════════════════════════════════════ */
 
 @media (max-width: 820px) {
-  .org-header { padding: 0 var(--space-4); gap: var(--space-2); }
-  .org-header__logo span { display: none; }        /* keep "Organica", drop "/ Tool" */
+  .org-header { padding: var(--space-8) var(--space-4); gap: var(--space-3); }
+  .org-header__logo span:not(.org-header__mark) { display: none; }        /* keep "Organica", drop "/ Tool" */
 }
 
 @media (max-width: 600px) {
   .org-btn { padding: 0 var(--space-3); }
+  .org-pattern { gap: var(--space-2); }
+  .org-pattern__dot { width: var(--space-6); height: var(--space-6); }
 }

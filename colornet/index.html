@@ -91,12 +91,14 @@
 }
 .pe-cell:hover { outline: 2px solid var(--tool); outline-offset: -2px; }
 </style>
+<script src="/shared/pattern-init.js"></script>
 </head>
 <body>
 <div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
 
 <header class="org-header" role="banner">
-  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Colornet</span></a>
+  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="3" r="1.3"/><circle cx="8" cy="3" r="1.3"/><circle cx="13" cy="3" r="1.3"/><circle cx="3" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="13" cy="8" r="1.3"/><circle cx="3" cy="13" r="1.3"/><circle cx="8" cy="13" r="1.3"/><circle cx="13" cy="13" r="1.3"/></svg></button>
+  <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ Colornet</span></a>
 
   <div class="org-header__spacer"></div>
 
@@ -2577,5 +2579,7 @@ GENESIS_LIB.pull().then(() => buildChannelUI());
 GENESIS_LIB.onSync(() => buildChannelUI());
 setStatus('', 'Drop an image to begin');
 </script>
+<script src="/shared/tools.js"></script>
+<script src="/shared/header.js"></script>
 </body>
 </html>

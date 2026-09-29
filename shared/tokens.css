@@ -198,6 +198,9 @@ html {
   --stage-shadow: 0 4px 40px rgba(0, 0, 0, 0.18);
   --canvas-dot:  #a8dff0;               /* light cyan blue */
   --canvas-grid: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1.4px) 0 0 / var(--space-7) var(--space-7);
+  /* The canvas-pattern switcher (header) sets <html data-canvas-pattern>. The default
+     is dots — the value above; the others re-point the same token, so every canvas area
+     follows with no per-tool edit. Persisted by shared/pattern-init.js. */
 
   /* Error / destructive text. One earthy red, chosen to sit next to
      --accent-warm without clashing (both are warm, desaturated). Used for
@@ -300,3 +303,15 @@ html {
    If an old rule turns up still asking for one of them it will fall back to
    the browser default and be visible, which is the intended failure mode —
    a silent alias is what kept this alive for a month. */
+
+:root[data-canvas-pattern="grid"] {
+  --canvas-grid:
+    linear-gradient(var(--canvas-dot) 1px, transparent 1px) 0 0 / var(--space-7) var(--space-7),
+    linear-gradient(90deg, var(--canvas-dot) 1px, transparent 1px) 0 0 / var(--space-7) var(--space-7);
+}
+:root[data-canvas-pattern="lines"] {
+  --canvas-grid: linear-gradient(var(--canvas-dot) 1px, transparent 1px) 0 0 / var(--space-7) var(--space-7);
+}
+:root[data-canvas-pattern="plain"] {
+  --canvas-grid: linear-gradient(transparent, transparent);
+}

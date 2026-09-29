@@ -4,12 +4,11 @@
  * LOAD ORDER: … → core.js → supabase.js → auth.js → auth-badge.js → tool script.
  * Paired CSS: .org-account* rules live in shared/header.css.
  *
- * Self-mounting: finds .org-header (or, on a page with no bar, an empty
- * [data-org-account-host] element) and appends
+ * Self-mounting: finds .org-header and appends
  *   <button class="org-account__trigger"><img avatar> <span>name</span></button>
  *   <div class="org-account__menu">  email · Admin (owner only) · Delete my
  *                                    account · Sign out
- * Hidden when signed out. Re-renders on every auth state change.
+ * Signed out: Login + Sign Up buttons (.org-header__auth). Re-renders on every auth state change.
  * ───────────────────────────────────────────────────────────────────────────*/
 (function (global) {
   'use strict';
@@ -19,18 +18,17 @@
   var OWNER = '997a1f53-23b2-40bb-8a4a-90b0aacb7921';
 
   function ensureBox() {
-    // A tool's bar is .org-header; a page with no bar (the hub) opts in with
-    // an empty [data-org-account-host] element it positions itself.
-    var header = document.querySelector('.org-header') || document.querySelector('[data-org-account-host]');
+    var header = document.querySelector('.org-header');
     if (!header) return null;
-    var box = header.querySelector('.org-account');
+    var box = header.querySelector('[data-org-auth-box]');
     if (!box) {
-      if (header.classList.contains('org-header') && !header.querySelector('.org-header__spacer')) {
+      if (!header.querySelector('.org-header__spacer')) {
         var sp = document.createElement('div');
         sp.className = 'org-header__spacer';
         header.appendChild(sp);
       }
       box = document.createElement('div');
+      box.setAttribute('data-org-auth-box', '');
       box.className = 'org-account';
       header.appendChild(box);
     }
@@ -49,7 +47,25 @@
     if (!box) return;
     Organica.auth.user().then(function (u) {
       box.innerHTML = '';
-      if (!u) { box.hidden = true; return; }
+      if (!u) {
+        // Signed out: Login + Sign Up. Sign Up is the same card with request-access copy
+        // (sign-ups are invite-only while the beta lasts — see /sign-in?mode=signup).
+        box.hidden = false;
+        box.className = 'org-header__auth';
+        var next = encodeURIComponent(location.pathname + location.search);
+        var login = document.createElement('a');
+        login.className = 'org-btn';
+        login.href = '/sign-in?next=' + next;
+        login.textContent = 'Login';
+        var signup = document.createElement('a');
+        signup.className = 'org-btn org-btn--primary';
+        signup.href = '/sign-in?next=' + next + '&mode=signup';
+        signup.textContent = 'Sign Up';
+        box.appendChild(login);
+        box.appendChild(signup);
+        return;
+      }
+      box.className = 'org-account';
       box.hidden = false;
 
       var md = u.user_metadata || {};

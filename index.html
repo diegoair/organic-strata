@@ -26,7 +26,7 @@
     html, body {
       width: 100%;
       height: 100%;
-      background: var(--bg);
+      background: var(--canvas-grid), var(--bg);   /* follows the header's pattern switcher */
       color: var(--ink);
       font-family: var(--font);
       overflow: hidden;
@@ -40,52 +40,15 @@
       opacity: 0.35;
     }
 
-    /* ── header — Organica's only appearance on the page ── */
-    .header {
-      position: fixed;
-      top: 0;
-      left: 0;
-      z-index: 2;
-      padding: 1.5rem clamp(1.25rem, 3vw, 2.5rem);
-    }
-
-    .header__wordmark {
-      font-size: 0.95rem;
-      font-weight: 700;
-      letter-spacing: 0.01em;
-      color: var(--ink);
-      opacity: 0;
-      animation: fadeUp 0.7s ease forwards 0.05s;
-    }
-
-    .header__payoff {
-      display: block;
-      margin-top: 0.3rem;
-      font-size: 0.68rem;
-      font-weight: 400;
-      letter-spacing: 0.01em;
-      color: var(--ink-dim);
-      opacity: 0;
-      animation: fadeUp 0.7s ease forwards 0.15s;
-    }
-
-    /* account control — the hub has no .org-header bar, so it hosts the shared
-       control (shared/auth-badge.js) in its own top-right corner */
-    .header-account {
-      position: fixed;
-      top: 0;
-      right: 0;
-      z-index: 3;
-      padding: 1.5rem clamp(1.25rem, 3vw, 2.5rem);
-    }
+    /* header: the shared .org-header (shared/header.css), in flow above the hub — nothing local */
 
     /* ── left column of tool links ── */
     .side-nav {
       position: fixed;
-      top: 0;
+      top: var(--header-h);
       left: 0;
       z-index: 1;
-      height: 100vh;
+      height: calc(100vh - var(--header-h));
       width: clamp(14rem, 20vw, 18rem);
       display: flex;
       flex-direction: column;
@@ -98,11 +61,8 @@
          centering on tall viewports where everything fits. */
       justify-content: safe center;
       gap: 0.85rem;
-      /* top padding clears .header's own height (~90px, wordmark +
-         payoff) — needed now that "safe center" can pin content flush
-         to the top padding on short viewports instead of overflowing
-         above it silently */
-      padding: 6.5rem clamp(1.25rem, 3vw, 2.5rem) 1.5rem;
+/* the shared header sits above this column now (side-nav starts at --header-h) */
+      padding: 1.5rem clamp(1.25rem, 3vw, 2.5rem);
       overflow-y: auto;
       opacity: 0;
       animation: fadeUp 0.8s ease forwards 0.2s;
@@ -284,10 +244,10 @@
          overflow:hidden (needed elsewhere on the page) then made that
          extra content simply unreachable. height:100vh caps the box so
          overflow-y:auto actually has something to do. */
-      height: 100vh;
+      height: calc(100vh - var(--header-h));
       margin-left: clamp(14rem, 20vw, 18rem);
       overflow-y: auto;
-      padding: 6.5rem clamp(1.25rem, 3vw, 2.5rem) 4rem;
+      padding: 1.5rem clamp(1.25rem, 3vw, 2.5rem) 4rem;
     }
 
     .bento-wrap {
@@ -474,6 +434,7 @@
       to   { opacity: 1; transform: translateY(0); }
     }
   </style>
+<script src="/shared/pattern-init.js"></script>
 </head>
 <body>
 
@@ -481,11 +442,11 @@
 
   <canvas id="canvas-bg"></canvas>
 
-  <header class="header">
-    <span class="header__wordmark">Organica</span>
-    <span class="header__payoff">Visual Design Language System</span>
+  <header class="org-header" role="banner">
+  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="3" r="1.3"/><circle cx="8" cy="3" r="1.3"/><circle cx="13" cy="3" r="1.3"/><circle cx="3" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="13" cy="8" r="1.3"/><circle cx="3" cy="13" r="1.3"/><circle cx="8" cy="13" r="1.3"/><circle cx="13" cy="13" r="1.3"/></svg></button>
+    <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b></a>
+    <div class="org-header__spacer"></div>
   </header>
-  <div class="header-account" data-org-account-host></div>
 
   <nav class="side-nav">
     <div class="nav__group">
@@ -569,11 +530,14 @@
     <a class="meta__link" href="/design-system/">Design System</a>
   </div>
 
+  <script>window.ORGANICA_PUBLIC = true; /* the hub is open to signed-out visitors — Login / Sign Up live in the header; the tools stay gated */</script>
   <script src="/shared/vendor/supabase-js.min.js"></script>
   <script src="/shared/core.js"></script>
   <script src="/shared/supabase.js"></script>
   <script src="/shared/auth.js"></script>
   <script src="/shared/auth-badge.js"></script>
+  <script src="/shared/tools.js"></script>
+  <script src="/shared/header.js"></script>
   <script src="/genesis/forms.js"></script>
   <script>
     // ── bento showcase — Genesis forms + hand-built preview motifs for

@@ -127,6 +127,20 @@ for f, r in sorted(missing):
 if not missing:
     ok("all resolve")
 
+# 4b. mega menu data vs the hub nav ---------------------------------------------
+print("tools.js vs hub nav")
+hub = open("index.html", encoding="utf-8").read()
+nav = hub[hub.index('<nav class="side-nav">'):hub.index("</nav>")]
+nav = nav[:nav.index("Explorations")] if "Explorations" in nav else nav   # explorations are not in the mega menu
+hub_links = set(re.findall(r'href="(/[\w-]+/)"', nav))
+tools_js = open("shared/tools.js", encoding="utf-8").read()
+menu_links = set(re.findall(r"'(/[\w-]+/)'", tools_js))
+gap = sorted(hub_links - menu_links)
+if gap:
+    fail(f"shared/tools.js is missing tool(s) linked from the hub nav: {gap}")
+else:
+    ok(f"{len(hub_links)} hub tools all in shared/tools.js")
+
 # 5. css-lint ------------------------------------------------------------------
 print("css-lint")
 r = subprocess.run([sys.executable, "scripts/css-lint.py"], capture_output=True, text=True)

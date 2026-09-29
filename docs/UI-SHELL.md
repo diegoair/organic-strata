@@ -265,41 +265,37 @@ Replaces five divergent bars. Full audit and rationale in this section.
 
 ### The rule
 
-**Identity · Context · at most three actions.** (Status was retired Sep 29, 2026 — see "Notice" below.) Everything else moves
-closer to what it acts on. An audit found 8–9 interactive controls crammed
-into a 40px bar; the component brings Halide to 4 and Komorebi to 3.
+**One header, no variants** (v2, Sep 29, 2026): transparent, **110px** (`--header-h`), no border, `--space-8` top/bottom
+padding, **in flow** — it costs 66px of canvas, and pages that do height maths read `--header-h`.
+Left → right: **nav button** (opens the mega menu) · **logo mark** (placeholder) · **name** + `/ Page` · spacer ·
+**Sign Up / Login** (signed out) or the **account control** · the **4 pattern circles**.
+Everything else moves closer to what it acts on. Live reference: the design system's Header, Account control,
+Mega menu and Pattern switcher entries.
 
 ### Markup
 
 ```html
+<head> … <script src="/shared/pattern-init.js"></script> </head>
 <header class="org-header" role="banner">
-  <a class="org-header__logo" href="/"><b>Organica</b><span>/ Tool</span></a>
-  <div class="org-header__context"><!-- variant-dependent --></div>
+  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega">…9-dot svg…</button>
+  <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ Tool</span></a>
   <div class="org-header__spacer"></div>
-  <div class="org-header__actions"><!-- max 3 --></div>
+  <!-- JS appends: .org-mega + .org-pattern (header.js), .org-header__auth | .org-account (auth-badge.js) -->
 </header>
+…
+<script src="/shared/tools.js"></script><script src="/shared/header.js"></script>   <!-- before </body> -->
 ```
 
-Wire the two behaviours:
+Wire the behaviours:
 
 ```js
 const setStatus = Organica.status();   // 'error' / 'busy' show a Notice; 'active' / '' are silent
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 ```
 
-### Variants
-
-| Variant | Context slot | Used by |
-|---|---|---|
-| `--tool` | hidden (or engine tabs) | Spore, Pollen, Halide, Komorebi, Living Path, template |
-| `--catalog` | title + count | Indicators (archived — `genesis/archive/indicators-55.html`) |
-| `--editor` | mode tabs / breadcrumb | Genesis (context slot now empty — the Library/Create mode nav moved above the filter bar Aug 31, 2026; see below) |
-
-**All 11 pages migrated** (6 tool / 3 catalog / 2 editor, historical count —
-Strata was among them and was later removed from the product). The stale
-`#organica-banner` migration notice was removed from Genesis and Indicators.
-
-Only the Context slot differs — identity and actions are identical.
+**New tool:** add its link to the hub nav **and** one line in `shared/tools.js` (`scripts/check.py` fails otherwise).
+**Not** on the header: the sign-in page (a centred card), the archived `genesis/archive/indicators-55.html`.
+The old variants (`--tool` / `--editor` / `--catalog`), the context slot and the status slot are gone.
 
 ### Notice (replaced the status slot, Sep 29, 2026)
 

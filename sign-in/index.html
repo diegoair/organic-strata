@@ -56,6 +56,13 @@
   var form = $('form'), email = $('email'), submit = $('submit'),
       google = $('google'), msg = $('msg');
 
+  // ?mode=signup (the header's Sign Up button): same card, request-access copy. Sign-ups are
+  // invite-only during the beta, so there is no separate flow — Google / magic link is it.
+  if (/[?&]mode=signup(&|$)/.test(location.search)) {
+    var sub = document.querySelector('.org-auth-card__sub');
+    if (sub) sub.textContent = 'Private beta — sign up with the email you were invited on.';
+    document.title = 'Sign up — Organica';
+  }
   function nextUrl() {
     var m = /[?&]next=([^&]+)/.exec(location.search);
     var n = m ? decodeURIComponent(m[1]) : '/';
