@@ -66,6 +66,11 @@ the pixel grid in a dense UI.
 | `--fs-medium` | 12px | header context title |
 | `--fs-large` | 14px | headings inside a tool |
 | `--fs-xl` | 17px | tool title |
+| `--fs-2xl` | 20px | editorial H3 |
+| `--fs-3xl` | 24px | editorial H2 (max) |
+| `--fs-4xl` | 32px | editorial H1 (max) |
+| `--fs-5xl` | 44px | reserved step |
+| `--fs-6xl` | 64px | display (max) |
 | `--fs-display` | fluid | hub wordmark only |
 
 `--fs-display` is `clamp(1.5rem, 9vw, 13rem)` — it scales with the viewport and
@@ -77,19 +82,19 @@ captions; at panel density they stop being readable.
 
 ### Weights
 
-Manrope's axis is 200–800. Organica defines four stops.
+Wix Madefor Display's axis is 400–800. Organica defines four stops.
 
 **The number is canonical, not the token name.** Figma's weight picker shows the
 font's own style names, so a token called "medium" holding 400 would read as
-*Regular* in Figma and the two would silently disagree. Each stop records the
-Manrope name it maps to.
+*Regular* in Figma and the two would silently disagree.
 
-| Token | Value | Manrope name | Used for |
-|---|---|---|---|
-| `--w-light` | 300 | Light | panel sub-labels, labels, values |
-| `--w-regular` | 400 | Regular | panel section titles and controls, body |
-| `--w-medium` | 500 | Medium | emphasis, primary action |
-| `--w-bold` | 700 | Bold | wordmark |
+| Token | Value | Used for |
+|---|---|---|
+| `--w-regular` | 400 | body, panel section titles and controls |
+| `--w-medium` | 500 | emphasis, primary action, H4/H5 |
+| `--w-semibold` | 600 | H2/H3, `<strong>` |
+| `--w-bold` | 700 | H1, display, overline, wordmark |
+| `--w-light` | 400 | **deprecated** alias of regular — was 300, which the typeface never had |
 
 ### Letter spacing
 
@@ -100,7 +105,9 @@ tracking it needs to stay legible. Sentence-case text never needs it.
 
 | Token | Value | Figma | Used for |
 |---|---|---|---|
-| `--ls-tight` | −0.02em | −2% | display / wordmark — big type needs negative |
+| `--ls-display` | −0.03em | −3% | display — big type needs negative |
+| `--ls-tight` | −0.02em | −2% | H1, H2 |
+| `--ls-snug` | −0.01em | −1% | H3 |
 | `--ls-normal` | 0 | 0% | **everything in the panel** |
 | `--ls-wide` | 0.05em | 5% | hex fields |
 | `--ls-wider` | 0.08em | 8% | header button labels |
@@ -114,7 +121,9 @@ Unitless, so it scales with the element's own size.
 
 | Token | Value | Used for |
 |---|---|---|
-| `--lh-tight` | 1.2 | headings, single-line controls |
+| `--lh-none` | 1 | display |
+| `--lh-tight` | 1.15 | H1 |
+| `--lh-heading` | 1.25 | H2–H6 |
 | `--lh-snug` | 1.45 | multi-line labels in panels |
 | `--lh-normal` | 1.7 | body copy, docs, help text |
 
@@ -142,9 +151,32 @@ Outside the panel:
 | `header/action` | 10 | 500 | Medium | 8% | `--ink` | EXPORT, FIGMA |
 | `display/wordmark` | 96\* | 800 | ExtraBold | −3% | — | ORGANICA |
 
+### Editorial roles
+
+For pages that read (hub, docs, legal, sign-in) — never the tool panel. Tokens are
+`--t-<role>-size|weight|lh|ls`. Display, H1 and H2 are fluid (`clamp`); everything
+else is fixed.
+
+| Role | Size | Weight | LH | Tracking | Use |
+|---|---|---|---|---|---|
+| `display` | 64 (fluid) | 700 | 1 | −3% | hub hero only |
+| `heading/h1` | 32 (fluid) | 700 | 1.15 | −2% | page title |
+| `heading/h2` | 24 (fluid) | 600 | 1.25 | −2% | section |
+| `heading/h3` | 20 | 600 | 1.25 | −1% | subsection |
+| `heading/h4` | 17 | 500 | 1.25 | 0 | tool / card title |
+| `heading/h5` | 14 | 500 | 1.25 | 0 | group title |
+| `heading/h6` | 11, UPPERCASE | 700 | 1.25 | 8% | overline / eyebrow |
+| `body/lg` | 14 | 400 | 1.7 | 0 | lead paragraph |
+| `body/md` | 12 | 400 | 1.7 | 0 | docs, legal |
+| `body/sm` | 11 | 400 | 1.45 | 0 | outside-the-panel text |
+| `caption` | 10 | 400 | 1.45 | 0 | hints, help |
+
+Code and mono use the same `--font` with tabular figures (no second typeface).
+Links are underlined `--ink`; `<strong>` is 600.
+
 ### Two styles, and colour does the rest
 
-**The panel runs on exactly two type styles: 10/400 and 9/300.**
+**The panel runs on exactly two type styles: 10/400 and 9/400** (9/300 while the typeface had a Light; `--w-light` is now an alias of regular).
 
 `panel/section` and `panel/control` are typographically identical — a section
 title is told from a button only by being `--ink` (near-black) rather than

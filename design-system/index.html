@@ -11,6 +11,7 @@
 <link rel="preload" href="/shared/vendor/wix-madefor-display-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/prose.css">
 <link rel="stylesheet" href="/shared/auth-card.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
@@ -223,6 +224,9 @@
   .ds-type-row:last-child { border-bottom: 0; }
   .ds-type-row .ds-type-tag { width: 110px; flex-shrink: 0; font-size: var(--fs-micro); color: var(--mid); font-variant-numeric: tabular-nums; }
   .ds-type-row .ds-type-sample { color: var(--ink); }
+  .ds-type-row--role { flex-wrap: wrap; }
+  .ds-type-row--role .ds-type-sample { flex: 1 1 320px; min-width: 0; }
+  .ds-type-meta { flex: 1 1 100%; padding-left: calc(110px + var(--space-5)); font-size: var(--fs-micro); color: var(--mid); font-variant-numeric: tabular-nums; }
 
   /* Spacing scale bars */
   .ds-space-row { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) 0; }
@@ -252,6 +256,7 @@
     <div class="ds-nav__group">
       <div class="ds-nav__title">Foundations</div>
       <a href="#typography">Typography</a>
+      <a href="#prose">Prose</a>
       <a href="#color">Color tokens</a>
       <a href="#spacing">Spacing</a>
       <a href="#radius">Radius</a>
@@ -320,7 +325,7 @@
 
     <section class="ds-entry" id="typography">
       <h2>Typography</h2>
-      <p class="ds-desc">One family — Wix Madefor Display, variable weight 400–800 — via <code>--font</code> (Manrope until Sep 29, 2026; still the fallback). There is no 300, so <code>--w-light</code> renders as 400. The panel runs on exactly two styles (10/400 and 9/300); everything outside the panel uses the type scale below. No second typeface, no hardcoded <code>font-size</code>.</p>
+      <p class="ds-desc">One family — Wix Madefor Display, variable weight 400–800 — via <code>--font</code> (Manrope until Sep 29, 2026; still the fallback). There is no 300, so the panel's "9/300" style has been 9/400 since the switch; <code>--w-light</code> is a deprecated alias of <code>--w-regular</code>. Two families of type live here: the <strong>tool UI</strong> (9–17px — the five panel roles and the header roles, fixed-size) and <strong>editorial</strong> (display, H1–H6, body, caption — for pages that read: hub, docs, legal, sign-in). No second typeface, no hardcoded <code>font-size</code>.</p>
       <div class="ds-usage"><strong>Defined in</strong><span>shared/tokens.css</span><strong>Used in</strong><span>every page</span></div>
       <div class="ds-example ds-example--column">
         <div class="ds-type-row"><span class="ds-type-tag">--fs-micro · 9px</span><span class="ds-type-sample" style="font-size:var(--fs-micro)">Sub-labels, panel values, captions</span></div>
@@ -329,17 +334,39 @@
         <div class="ds-type-row"><span class="ds-type-tag">--fs-medium · 12px</span><span class="ds-type-sample" style="font-size:var(--fs-medium)">Header context title</span></div>
         <div class="ds-type-row"><span class="ds-type-tag">--fs-large · 14px</span><span class="ds-type-sample" style="font-size:var(--fs-large)">Page-level heading inside a tool</span></div>
         <div class="ds-type-row"><span class="ds-type-tag">--fs-xl · 17px</span><span class="ds-type-sample" style="font-size:var(--fs-xl)">Tool title</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--w-light · 300</span><span class="ds-type-sample" style="font-weight:300">Light (renders 400) — sub-labels, labels, values</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--w-regular · 400</span><span class="ds-type-sample" style="font-weight:400">Regular — section titles, controls</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--w-medium · 500</span><span class="ds-type-sample" style="font-weight:500">Medium — emphasis, primary action</span></div>
-        <div class="ds-type-row"><span class="ds-type-tag">--w-bold · 700</span><span class="ds-type-sample" style="font-weight:700">Bold — wordmark</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--fs-2xl · 20px</span><span class="ds-type-sample" style="font-size:var(--fs-2xl)">Editorial H3</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--fs-3xl · 24px</span><span class="ds-type-sample" style="font-size:var(--fs-3xl)">Editorial H2 (max)</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--fs-4xl · 32px</span><span class="ds-type-sample" style="font-size:var(--fs-4xl)">Editorial H1 (max)</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--fs-5xl · 44px</span><span class="ds-type-sample" style="font-size:var(--fs-5xl)">Reserved step</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--fs-6xl · 64px</span><span class="ds-type-sample" style="font-size:var(--fs-6xl)">Display (max)</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--w-regular · 400</span><span class="ds-type-sample" style="font-weight:400">Regular — body, panel section titles, controls</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--w-medium · 500</span><span class="ds-type-sample" style="font-weight:500">Medium — emphasis, primary action, H4/H5</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--w-semibold · 600</span><span class="ds-type-sample" style="font-weight:600">SemiBold — H2/H3, strong</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--w-bold · 700</span><span class="ds-type-sample" style="font-weight:700">Bold — H1, display, overline, wordmark</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--w-light · 400</span><span class="ds-type-sample" style="font-weight:var(--w-light)">Deprecated alias of regular (was 300, which the typeface never had)</span></div>
       </div>
       <pre class="ds-code"><span class="attr">font-family</span>: var(--font);
 <span class="attr">font-size</span>: var(--fs-base);      <span class="attr">/* never a raw px */</span>
 <span class="attr">font-weight</span>: var(--w-regular);</pre>
 
+      <h3 style="margin-top:var(--space-7)">Editorial roles — display, headings, body</h3>
+      <p class="ds-desc">For pages that <em>read</em>. Same convention as the panel roles: a component names a role, the role names size / weight / line-height / tracking, and Figma mirrors them one-for-one (<code>display</code>, <code>heading/h1…h6</code>, <code>body/lg|md|sm</code>, <code>caption</code>). Display, H1 and H2 are the only <strong>fluid</strong> sizes (<code>clamp</code>) — drag the window to see them move; tool panels never use any of these and stay fixed. H6 is the overline: the system's uppercase-and-tracked voice, set with <code>text-transform: uppercase</code> by whoever uses it. Code and mono text use the same <code>--font</code> with tabular figures — no second typeface. Links are underlined <code>--ink</code>; <code>strong</code> is <code>--w-semibold</code>.</p>
+      <div class="ds-example ds-example--column">
+        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">display</span><span class="ds-type-sample" style="font-size:var(--t-display-size);font-weight:var(--t-display-weight);line-height:var(--t-display-lh);letter-spacing:var(--t-display-ls);">Organica</span><span class="ds-type-meta">--t-display-size · --t-display-weight · --t-display-lh · --t-display-ls</span></div>
+        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">heading/h1</span><span class="ds-type-sample" style="font-size:var(--t-h1-size);font-weight:var(--t-h1-weight);line-height:var(--t-h1-lh);letter-spacing:var(--t-h1-ls);">A visual system is a grammar</span><span class="ds-type-meta">--t-h1-size · --t-h1-weight · --t-h1-lh · --t-h1-ls</span></div>
+        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">heading/h2</span><span class="ds-type-sample" style="font-size:var(--t-h2-size);font-weight:var(--t-h2-weight);line-height:var(--t-h2-lh);letter-spacing:var(--t-h2-ls);">Rules that generate infinite variations</span><span class="ds-type-meta">--t-h2-size · --t-h2-weight · --t-h2-lh · --t-h2-ls</span></div>
+        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">heading/h3</span><span class="ds-type-sample" style="font-size:var(--t-h3-size);font-weight:var(--t-h3-weight);line-height:var(--t-h3-lh);letter-spacing:var(--t-h3-ls);">Coherent, however far it stretches</span><span class="ds-type-meta">--t-h3-size · --t-h3-weight · --t-h3-lh · --t-h3-ls</span></div>
+        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">heading/h4</span><span class="ds-type-sample" style="font-size:var(--t-h4-size);font-weight:var(--t-h4-weight);line-height:var(--t-h4-lh);letter-spacing:var(--t-h4-ls);">Form, canvas, grid, colour, type</span><span class="ds-type-meta">--t-h4-size · --t-h4-weight · --t-h4-lh · --t-h4-ls</span></div>
+        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">heading/h5</span><span class="ds-type-sample" style="font-size:var(--t-h5-size);font-weight:var(--t-h5-weight);line-height:var(--t-h5-lh);letter-spacing:var(--t-h5-ls);">Vector-first, screen to mural</span><span class="ds-type-meta">--t-h5-size · --t-h5-weight · --t-h5-lh · --t-h5-ls</span></div>
+        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">heading/h6</span><span class="ds-type-sample" style="font-size:var(--t-h6-size);font-weight:var(--t-h6-weight);line-height:var(--t-h6-lh);letter-spacing:var(--t-h6-ls);text-transform:uppercase;">Overline · eyebrow</span><span class="ds-type-meta">--t-h6-size · --t-h6-weight · --t-h6-lh · --t-h6-ls</span></div>
+        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">body/lg</span><span class="ds-type-sample" style="font-size:var(--t-body-lg-size);font-weight:var(--t-body-weight);line-height:var(--t-body-lh);max-width:56ch">Organica is a visual language and the tools to compose new ones — vector-first, so a mark can find its way to a screen, a screenprint or a wall.</span><span class="ds-type-meta">--t-body-lg-size · --t-body-weight · --t-body-lh</span></div>
+        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">body/md</span><span class="ds-type-sample" style="font-size:var(--t-body-md-size);font-weight:var(--t-body-weight);line-height:var(--t-body-lh);max-width:56ch">Organica is a visual language and the tools to compose new ones — vector-first, so a mark can find its way to a screen, a screenprint or a wall.</span><span class="ds-type-meta">--t-body-md-size · --t-body-weight · --t-body-lh</span></div>
+        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">body/sm</span><span class="ds-type-sample" style="font-size:var(--t-body-sm-size);font-weight:var(--t-body-weight);line-height:var(--lh-snug);max-width:56ch">Organica is a visual language and the tools to compose new ones — vector-first, so a mark can find its way to a screen, a screenprint or a wall.</span><span class="ds-type-meta">--t-body-sm-size · --t-body-weight · --lh-snug</span></div>
+        <div class="ds-type-row ds-type-row--role"><span class="ds-type-tag">caption</span><span class="ds-type-sample" style="font-size:var(--t-caption-size);font-weight:var(--t-caption-weight);line-height:var(--t-caption-lh)">Hints, help text, footnotes — the quietest editorial text</span><span class="ds-type-meta">--t-caption-size · --t-caption-weight · --t-caption-lh</span></div>
+      </div>
+
       <h3 style="margin-top:var(--space-7)">Role tokens — what components actually reference</h3>
-      <p class="ds-desc">A panel component never names a size directly; it names a <em>role</em>, and the role points at a step in the scale above. Change what a section title weighs in one place and every tool follows. This indirection is why the whole panel runs on just two pairs — 10/400 and 9/300. Values below are read live from the stylesheet.</p>
+      <p class="ds-desc">A panel component never names a size directly; it names a <em>role</em>, and the role points at a step in the scale above. Change what a section title weighs in one place and every tool follows. This indirection is why the whole panel runs on just two pairs — 10/400 and 9/400 (9/300 in the design, until the typeface lost its Light). Values below are read live from the stylesheet.</p>
       <div class="ds-example ds-example--column">
         <div class="ds-type-row"><span class="ds-type-tag">--t-section-size · --t-section-weight</span><span class="ds-type-sample">Section title — <code data-token="--t-section-size"></code> / <code data-token="--t-section-weight"></code></span></div>
         <div class="ds-type-row"><span class="ds-type-tag">--t-sublabel-size · --t-sublabel-weight</span><span class="ds-type-sample">Sub-label — <code data-token="--t-sublabel-size"></code> / <code data-token="--t-sublabel-weight"></code></span></div>
@@ -351,8 +378,14 @@
       <h3 style="margin-top:var(--space-7)">Line height &amp; letter spacing</h3>
       <p class="ds-desc">Line heights are unitless so they scale with the element's own size. <code>--ls-normal</code> is <code>0</code> and is written explicitly rather than omitted — <code>panel.css</code> uses it 11 times, because "no tracking" is a decision the panel makes deliberately against a house voice that is otherwise tracked.</p>
       <div class="ds-example ds-example--column">
+        <div class="ds-type-row"><span class="ds-type-tag">--lh-none</span><span class="ds-type-sample"><code data-token="--lh-none"></code> — display</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--lh-tight</span><span class="ds-type-sample"><code data-token="--lh-tight"></code> — H1</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--lh-heading</span><span class="ds-type-sample"><code data-token="--lh-heading"></code> — H2–H6</span></div>
         <div class="ds-type-row"><span class="ds-type-tag">--lh-snug</span><span class="ds-type-sample"><code data-token="--lh-snug"></code> — multi-line labels in panels</span></div>
         <div class="ds-type-row"><span class="ds-type-tag">--lh-normal</span><span class="ds-type-sample"><code data-token="--lh-normal"></code> — body copy, docs, help text</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--ls-display</span><span class="ds-type-sample"><code data-token="--ls-display"></code> — display: big type needs negative</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--ls-tight</span><span class="ds-type-sample"><code data-token="--ls-tight"></code> — H1, H2</span></div>
+        <div class="ds-type-row"><span class="ds-type-tag">--ls-snug</span><span class="ds-type-sample"><code data-token="--ls-snug"></code> — H3</span></div>
         <div class="ds-type-row"><span class="ds-type-tag">--ls-normal</span><span class="ds-type-sample"><code data-token="--ls-normal"></code> — panel labels: no tracking, on purpose</span></div>
         <div class="ds-type-row"><span class="ds-type-tag">--ls-wide</span><span class="ds-type-sample"><code data-token="--ls-wide"></code> — values, hex fields, readouts</span></div>
         <div class="ds-type-row"><span class="ds-type-tag">--ls-wider</span><span class="ds-type-sample"><code data-token="--ls-wider"></code> — buttons, control labels</span></div>
@@ -399,6 +432,27 @@
       <pre class="ds-code"><span class="attr">color</span>: var(--ink);
 <span class="attr">background</span>: var(--panel);
 <span class="attr">border-color</span>: var(--border-strong);</pre>
+    </section>
+
+    <section class="ds-entry" id="prose">
+      <h2>Prose</h2>
+      <p class="ds-desc">Bare <code>h1–h6</code>, <code>p</code>, lists, links, <code>strong</code>, <code>code</code> and tables inside <code>.org-prose</code>, styled from the editorial roles above — so a page that reads (legal, docs, long-form copy) writes plain semantic HTML and never hand-rolls a heading scale. Used by <code>/privacy</code> and <code>/terms</code>. Not for tool panels (panel roles) or dense data pages like <code>/admin</code> (role tokens directly). Optional classes: <code>.org-prose__lead</code>, <code>__small</code>, <code>__caption</code>, <code>__meta</code>.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/prose.css</span><strong>Used in</strong><span>privacy, terms</span></div>
+      <div class="ds-example ds-example--column">
+        <div class="org-prose">
+          <h1>Page title, H1</h1>
+          <p class="org-prose__meta">Last updated 29 September 2026 · caption role</p>
+          <p class="org-prose__lead">A lead paragraph sits at body/lg — it introduces a page before the body text starts.</p>
+          <h2>Section, H2</h2>
+          <p>Body text is body/md: 12px on a 1.7 line, with <strong>semibold emphasis</strong>, an <a href="#prose">underlined link</a> and <code>tabular code</code> in the same typeface.</p>
+          <h3>Subsection, H3</h3>
+          <ul><li>Lists take the same size and rhythm.</li><li>Markers and indents come from spacing tokens.</li></ul>
+          <h6>Overline · H6</h6>
+          <table><tr><th>Element</th><th>Role</th></tr><tr><td><code>h1</code></td><td>heading/h1</td></tr><tr><td><code>p</code></td><td>body/md</td></tr></table>
+        </div>
+      </div>
+      <pre class="ds-code">&lt;link rel="stylesheet" href="/shared/prose.css"&gt;
+&lt;article class="org-prose"&gt; &lt;h1&gt;…&lt;/h1&gt; &lt;p&gt;…&lt;/p&gt; &lt;/article&gt;</pre>
     </section>
 
     <section class="ds-entry" id="spacing">
@@ -1225,7 +1279,7 @@ document.querySelectorAll('#slider input[type=range]').forEach(r => {
   };
   assert('.ctrl-row',   { minHeight: '26px' });                       // --row-h
   assert('.panel-select', { fontSize: '10px', borderRadius: '2px' }); // --t-control-size
-  assert('.ctrl-label', { fontSize: '9px', fontWeight: '300' });      // --t-label-*
+  assert('.ctrl-label', { fontSize: '9px', fontWeight: '400' });      // --t-label-* (--w-light is an alias of regular)
   assert('.seg-btn',    { fontSize: '10px' });
   assert('.mini-btn',   { minHeight: '26px' });
   assert('.color-swatch', { width: '18px', height: '18px', borderRadius: '2px' });

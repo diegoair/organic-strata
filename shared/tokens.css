@@ -78,18 +78,22 @@ html {
   --font: 'Wix Madefor Display', 'Manrope', ui-sans-serif, system-ui, sans-serif;   /* was Manrope until Sep 29, 2026 */
 
   /* ── WEIGHTS ─────────────────────────────────────────────
-     Manrope's axis runs 200–800. Organica uses four stops; anything
-     between them is available but undefined by the system, so don't
-     reach for it without adding it here first.
+     Wix Madefor Display's axis runs 400–800. Organica uses four stops;
+     anything between them is available but undefined by the system, so
+     don't reach for it without adding it here first.
 
      The NUMBER is canonical, not the token name — Figma's weight picker
      shows the font's own style names, so a token called "medium" holding
-     400 would read as "Regular" in Figma and the two would disagree.
-     Manrope's names are noted per stop so code and Figma stay in sync. */
-  --w-light:    300;   /* Manrope Light    — sub-labels, labels, values   */
-  --w-regular:  400;   /* Manrope Regular  — section titles, controls     */
-  --w-medium:   500;   /* Manrope Medium   — emphasis, primary action     */
-  --w-bold:     700;   /* Manrope Bold     — wordmark                     */
+     400 would read as "Regular" in Figma and the two would disagree. */
+  --w-regular:  400;   /* Regular   — body, panel section titles + controls */
+  --w-medium:   500;   /* Medium    — emphasis, primary action, H4/H5       */
+  --w-semibold: 600;   /* SemiBold  — H2/H3, <strong>                       */
+  --w-bold:     700;   /* Bold      — H1, display, wordmark, overline       */
+  /* --w-light (300) is DEPRECATED: the typeface has no 300, so it always
+     rendered 400. Kept as an alias of regular so its consumers resolve
+     unchanged; new code uses --w-regular. Removed once the panel roles
+     below stop referencing it. */
+  --w-light:    var(--w-regular);
 
   /* ── PANEL TYPE ROLES ────────────────────────────────────
      The five roles the control panel is built from. Named by ROLE, not by
@@ -116,6 +120,60 @@ html {
   --t-control-size:    var(--fs-small);   /* 10px */
   --t-control-weight:  var(--w-regular);  /* 400  Manrope Regular */
 
+  /* ── EDITORIAL TYPE ROLES ────────────────────────────────
+     Display, H1–H6, body and caption — for pages that read (hub, docs,
+     legal, sign-in), never the tool panel. Same convention as the panel
+     roles above: size / weight / line-height / tracking per role, so a
+     component never hardcodes one and Figma mirrors them one-for-one as
+     `display`, `heading/h1…h6`, `body/lg|md|sm`, `caption`.
+     display, H1 and H2 are the only fluid sizes (clamp), and only here —
+     tools stay fixed. */
+  --t-display-size:    clamp(2.5rem, 1.5rem + 4vw, var(--fs-6xl));
+  --t-display-weight:  var(--w-bold);
+  --t-display-lh:      var(--lh-none);
+  --t-display-ls:      var(--ls-display);
+
+  --t-h1-size:         clamp(1.625rem, 1.1rem + 1.6vw, var(--fs-4xl));
+  --t-h1-weight:       var(--w-bold);
+  --t-h1-lh:           var(--lh-tight);
+  --t-h1-ls:           var(--ls-tight);
+
+  --t-h2-size:         clamp(1.25rem, 1rem + 0.9vw, var(--fs-3xl));
+  --t-h2-weight:       var(--w-semibold);
+  --t-h2-lh:           var(--lh-heading);
+  --t-h2-ls:           var(--ls-tight);
+
+  --t-h3-size:         var(--fs-2xl);
+  --t-h3-weight:       var(--w-semibold);
+  --t-h3-lh:           var(--lh-heading);
+  --t-h3-ls:           var(--ls-snug);
+
+  --t-h4-size:         var(--fs-xl);
+  --t-h4-weight:       var(--w-medium);
+  --t-h4-lh:           var(--lh-heading);
+  --t-h4-ls:           var(--ls-normal);
+
+  --t-h5-size:         var(--fs-large);
+  --t-h5-weight:       var(--w-medium);
+  --t-h5-lh:           var(--lh-heading);
+  --t-h5-ls:           var(--ls-normal);
+
+  /* H6 = overline / eyebrow: the system's uppercase-and-tracked voice.
+     The text is uppercased by the role's consumer (text-transform). */
+  --t-h6-size:         var(--fs-base);
+  --t-h6-weight:       var(--w-bold);
+  --t-h6-lh:           var(--lh-heading);
+  --t-h6-ls:           var(--ls-wider);
+
+  --t-body-lg-size:    var(--fs-large);   /* lead paragraph */
+  --t-body-md-size:    var(--fs-medium);  /* docs, legal */
+  --t-body-sm-size:    var(--fs-base);    /* outside-the-panel text */
+  --t-body-weight:     var(--w-regular);
+  --t-body-lh:         var(--lh-normal);  /* body/sm uses --lh-snug */
+  --t-caption-size:    var(--fs-small);   /* hints, help */
+  --t-caption-weight:  var(--w-regular);
+  --t-caption-lh:      var(--lh-snug);
+
   /* ── TYPE SCALE ──────────────────────────────────────────
      A 1.2 (minor third) ratio anchored at 11px, the size the tool
      panels were already built around. Steps are rounded to whole pixels
@@ -137,20 +195,32 @@ html {
   --fs-medium:  12px;
   --fs-large:   14px;
   --fs-xl:      17px;
+  /* Above the tool UI — editorial pages only (hub, docs, legal, sign-in).
+     Tool panels never use these. Steps are hand-picked, not a strict
+     ratio: 17→20→24→32→44→64 lands on whole pixels and keeps a heading
+     level visibly distinct from the next. */
+  --fs-2xl:     20px;
+  --fs-3xl:     24px;
+  --fs-4xl:     32px;
+  --fs-5xl:     44px;
+  --fs-6xl:     64px;   /* display only — see --t-display-size for the fluid form */
 
   /* ── LINE HEIGHT ─────────────────────────────────────────
      Unitless, so it scales with the element's own font-size.
      Dense UI wants tight; reading text wants loose. */
   --lh-snug:    1.45;   /* multi-line labels in panels */
   --lh-normal:  1.7;    /* body copy, docs, help text */
-  /* --lh-tight (1.2) retired 2026-09-06 — 0 consumers. */
+  --lh-none:    1;      /* display */
+  --lh-tight:   1.15;   /* H1 — reinstated Sep 29, 2026 with the heading roles */
+  --lh-heading: 1.25;   /* H2–H6 */
 
   /* ── LETTER SPACING ──────────────────────────────────────
      Organica's UI voice is uppercase-and-tracked. The rule of thumb the
      tools already followed: the smaller and more uppercase the text,
      the more tracking it needs to stay legible. */
-  /* --ls-tight (-0.02em) retired 2026-09-06 — 0 consumers; it paired with
-     the display size that went with it. */
+  --ls-display: -0.03em;   /* display — big type needs negative */
+  --ls-tight:   -0.02em;   /* H1, H2 — reinstated Sep 29, 2026 */
+  --ls-snug:    -0.01em;   /* H3 */
   --ls-normal:  0;         /* body copy — panel.css uses it 14x */
   --ls-wide:    0.05em;    /* values, hex fields, readouts */
   --ls-wider:   0.08em;    /* buttons, control labels */

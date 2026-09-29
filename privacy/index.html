@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/prose.css">
 <style>
   body { background: var(--panel); color: var(--ink); font-family: var(--font); }
   .doc {
@@ -21,21 +22,6 @@
     border-radius: var(--radius-lg);
     padding: var(--space-8) var(--space-7);
   }
-  .doc h1 { font-size: var(--fs-xl); margin: 0 0 var(--space-2); }
-  .doc__meta { color: var(--mid); font-size: var(--fs-base); margin: 0 0 var(--space-7); }
-  .doc h2 {
-    font-size: var(--fs-large);
-    color: var(--ink);
-    margin: var(--space-7) 0 var(--space-2);
-  }
-  .doc p, .doc li { font-size: var(--fs-medium); line-height: 1.65; }
-  .doc ul { padding-left: var(--space-6); margin: var(--space-3) 0; }
-  .doc li { margin: var(--space-1) 0; }
-  .doc strong { font-weight: var(--w-bold); }
-  .doc a { color: var(--accent); }
-  .doc table { border-collapse: collapse; width: 100%; margin: var(--space-3) 0; }
-  .doc th, .doc td { text-align: left; font-size: var(--fs-small); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); vertical-align: top; }
-  .doc th { color: var(--mid); font-weight: var(--w-medium); }
   .doc__foot {
     max-width: 660px;
     margin: var(--space-5) auto 0;
@@ -55,9 +41,9 @@
 </header>
 
 <div class="doc">
-  <article class="doc__card">
+  <article class="doc__card org-prose">
     <h1>Privacy Policy</h1>
-    <p class="doc__meta">Last updated 2 September 2026 · Private beta</p>
+    <p class="org-prose__meta">Last updated 2 September 2026 · Private beta</p>
 
     <p>Organica is a set of creative tools for designers and artists, currently
     in a private, invite-only beta. This policy explains what personal data the

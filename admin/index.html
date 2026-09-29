@@ -11,11 +11,12 @@
 <style>
   body { background: var(--panel); color: var(--ink); font-family: var(--font); overflow: auto; height: auto; }
   .wrap { max-width: 1040px; margin: 0 auto; padding: var(--space-8) var(--space-6) var(--space-8); }
-  h1 { font-size: var(--fs-xl); margin: 0 0 var(--space-2); }
+  /* Dense data page, not a reading page — uses the role tokens directly rather than .org-prose. */
+  h1 { font-size: var(--t-h4-size); font-weight: var(--t-h4-weight); line-height: var(--t-h4-lh); margin: 0 0 var(--space-2); }
   .sub { color: var(--mid); font-size: var(--fs-base); margin: 0 0 var(--space-7); }
   section { margin: 0 0 var(--space-8); }
   section > h2 {
-    font-size: var(--fs-large); font-weight: var(--w-medium);
+    font-size: var(--t-h5-size); font-weight: var(--t-h5-weight); line-height: var(--t-h5-lh);
     margin: 0 0 var(--space-4); padding-bottom: var(--space-2);
     border-bottom: 1px solid var(--border);
   }
@@ -41,7 +42,7 @@
   }
   .row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; margin: 0 0 var(--space-4); }
   .detail { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4) var(--space-5); margin: var(--space-3) 0; }
-  .detail h3 { font-size: var(--fs-base); margin: 0 0 var(--space-3); color: var(--mid); }
+  .detail h3 { font-size: var(--t-h6-size); font-weight: var(--t-h5-weight); margin: 0 0 var(--space-3); color: var(--mid); }
   .muted { color: var(--mid); }
   #status { font-size: var(--fs-base); color: var(--mid); min-height: 1.2em; margin: 0 0 var(--space-5); }
   #status.err { color: var(--danger); }
