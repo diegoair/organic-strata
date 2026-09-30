@@ -129,7 +129,13 @@
   }
 
   /* ── ON-CANVAS COMPUTE CONTROLS ── */
-  /* #compute-bar + .hud-btn are in shell.css now. */
+  /* Refresh / Stop live in the floatbar. A control change marks Refresh
+     .dirty (markDirty) — shown as a small warm dot on its icon. */
+  #btn-refresh { position: relative; }
+  #btn-refresh.dirty::after {
+    content: ''; position: absolute; top: var(--space-1); right: var(--space-1);
+    width: var(--space-2); height: var(--space-2); border-radius: 50%; background: var(--accent-warm);
+  }
 </style>
 <script src="/shared/pattern-init.js"></script>
 </head>
@@ -152,6 +158,18 @@
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
   <button class="org-floatbar__btn" aria-label="Open image" onclick="document.getElementById('file-input').click()">
     <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M1.5 4A1 1 0 0 1 2.5 3h2.8l1 1.3H13.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <!-- Refresh / Stop — moved from the on-canvas #compute-bar into the floatbar
+       (Sep 30, 2026, same as Spore). Same ids, so markDirty()/clearDirty()/
+       computePoints()'s enable/disable logic is untouched. -->
+  <button class="org-floatbar__btn" id="btn-refresh" onclick="refresh()" disabled aria-label="Refresh" title="Refresh">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.6 2.2v2.6h2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="org-floatbar__btn" id="btn-stop" onclick="stopCompute()" disabled aria-label="Stop computing" title="Stop">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1" fill="currentColor"/></svg>
   </button>
 
   <div class="org-floatbar__sep"></div>
@@ -212,13 +230,6 @@
     </div>
     <canvas id="main-canvas" class="org-stage"></canvas>
     <div id="recompute-overlay"><span class="spinner"></span>Recomputing…</div>
-    <!-- Compute controls sit ON the canvas: they drive the render whose
-         progress overlay is already here. Keeps the header at three actions
-         — see docs/UI-SHELL.md §4b. -->
-    <div id="compute-bar" role="group" aria-label="Render">
-      <button class="hud-btn" id="btn-refresh" onclick="refresh()" disabled>&#8635; Refresh</button>
-      <button class="hud-btn" id="btn-stop" onclick="stopCompute()" disabled>&#9632; Stop</button>
-    </div>
     <div id="zoom-hud">
       <span id="zoom-level">100%</span>
       <span class="zoom-reset" onclick="resetZoom()">Reset</span>
@@ -672,11 +683,13 @@ function markDirty() {
   if (!sourceImage) return;
   isDirty = true;
   document.getElementById('btn-refresh').classList.add('dirty');
+  document.getElementById('btn-refresh').title = 'Refresh — settings changed';
   setStatus('active', 'Needs refresh ↻');
 }
 function clearDirty() {
   isDirty = false;
   document.getElementById('btn-refresh').classList.remove('dirty');
+  document.getElementById('btn-refresh').title = 'Refresh';
 }
 function refresh() {
   if (!sourceImage) return;

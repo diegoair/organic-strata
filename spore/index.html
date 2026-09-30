@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme-support>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,7 +15,6 @@
   <style>
   :root {
     --tool: #5a7a96;   /* header focus ring */
-    --active: #1a1a1a;
   }
 
   /* Reset, body, #app, #canvas-wrap, #drop-hint, .drop-icon, #zoom-hud, the
@@ -37,6 +36,7 @@
   }
 
   .mark-thumb {
+    color: var(--ink);   /* marks paint currentColor → follow the theme like any icon */
     aspect-ratio: 1;
     border: 1px solid var(--border);
     display: flex;
@@ -80,7 +80,7 @@
   .preview-wrap { display: flex; justify-content: center; margin-bottom: var(--space-5); }
   #symbol-preview {
     width: 100%; max-width: 208px; aspect-ratio: 1;
-    border: 1px solid rgba(10,10,10,0.2); background: var(--panel); display: block;
+    border: 1px solid var(--border); background: var(--panel); display: block;
   }
 
   /* .upload-btn base is in panel.css; Spore's delta (same as Pollen's): */
@@ -115,7 +115,7 @@
   /* hidden file inputs use the shared .org-file-input class now */
 
   /* ── ON-CANVAS COMPUTE CONTROLS ── */
-  /* #compute-bar + .hud-btn are in shell.css now. */
+  /* Render / Stop live in the floatbar (no on-canvas #compute-bar). */
 </style>
 <script src="/shared/pattern-init.js"></script>
 </head>
@@ -139,6 +139,18 @@
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
   <button class="org-floatbar__btn" aria-label="Open image" onclick="document.getElementById('file-input').click()">
     <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M1.5 4A1 1 0 0 1 2.5 3h2.8l1 1.3H13.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+  </button>
+
+  <div class="org-floatbar__sep"></div>
+
+  <!-- Render / Stop — moved from the on-canvas #compute-bar into the floatbar
+       (Sep 30, 2026): the playback-style verbs live with Open and Export.
+       Same ids, so doRender()/finishRender()'s enable/disable logic is untouched. -->
+  <button class="org-floatbar__btn" id="btn-refresh" onclick="triggerRender()" disabled aria-label="Render" title="Render">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.6 2.2v2.6h2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="org-floatbar__btn" id="btn-stop" onclick="stopRender()" disabled aria-label="Stop rendering" title="Stop">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1" fill="currentColor"/></svg>
   </button>
 
   <div class="org-floatbar__sep"></div>
@@ -198,13 +210,6 @@
       <p>Drop an image here<br>or click Open</p>
     </div>
     <canvas id="main-canvas" class="org-stage"></canvas>
-    <!-- Compute controls sit ON the canvas: they drive the render whose
-         progress overlay is already here. Keeps the header at three actions
-         — see docs/UI-SHELL.md §4b. -->
-    <div id="compute-bar" role="group" aria-label="Render">
-      <button class="hud-btn" id="btn-refresh" onclick="triggerRender()" disabled>&#8635; Render</button>
-      <button class="hud-btn" id="btn-stop" onclick="stopRender()" disabled>&#9632; Stop</button>
-    </div>
     <div id="zoom-hud">
       <span id="zoom-level">100%</span>
       <span class="zoom-reset" onclick="resetZoom()">Reset</span>
@@ -450,7 +455,7 @@ function buildMarkGrid() {
     thumb.title = mark.name || '';
     thumb.onclick = () => selectMark(mark.id);
     // Render SVG in thumb + small reference number (Genesis form id)
-    thumb.innerHTML = '<span class="thumb-num">' + (mark.name || '') + '</span>' + mark.svg.replace(/currentColor/g, '#0a0a0a');
+    thumb.innerHTML = '<span class="thumb-num">' + (mark.name || '') + '</span>' + mark.svg;   // currentColor → .mark-thumb's --ink (both themes)
     grid.appendChild(thumb);
   });
 }
