@@ -43,7 +43,7 @@ Output: a **video loop** (MP4 / WebM).
   The status line then shows the tool as *guessed*.
 - A **full-canvas `<rect>`** is the background: it sets Paper and is not
   animated. Halide's paper-coloured regions are skipped too.
-- **Cap: 60,000 marks.** Above that the file is refused, with the count.
+- **Cap: 100,000 marks** (Pollen exports up to 70k points). Above that the file is refused, with the count. Every refusal (Print mode, not an SVG, too many marks, parse error) opens the red error notice — `Organica.status` is silent for `''`/`'active'`, so errors must use `'error'`.
 - **Colours:** above 256 distinct colours (Pollen's image-colour mode), colours
   are quantised to 17 levels per channel so marks can share styles.
 
@@ -86,9 +86,11 @@ Distances are in **reference pixels**. The engine multiplies them by
 `unit = long edge ÷ 1200`, so one params object feels the same on a 600 px Halide
 export and a 4000 px Pollen export.
 
-**Motion** — one-click starting points mapped to `docs/ANIMATION-SYSTEM.md`:
+**Presets** — one thumbnail picker (the shared `Organica.selectPicker`) with two groups:
+- **Built-in:** Default, the six patterns from `docs/ANIMATION-SYSTEM.md`, and four curated combinations.
+- **Saved:** your own presets, in `Organica.store('murmur')`. A saved preset stores the params (only what differs from the defaults), the loop length and the Paper colour.
 
-| Mode | Pattern | What it sets |
+| Preset | Pattern | What it sets |
 |---|---|---|
 | Pulse | Internal Pressure | strong breath, stiff spring |
 | Drip | Gravity + Viscosity | each mark sags and falls on its own phase |
@@ -96,11 +98,17 @@ export and a 4000 px Pollen export.
 | Swarm | Collective Behaviour | loose spring, strong noise drift |
 | Drift | Environmental Forces | a steady wave across the field |
 | Orbit | Differential Rotation | the field swings about its centre, inner marks further |
+| Murmuration | curated | soft spring, swirl pointer on an orbit path, entrance from the edges |
+| Tide | curated | a big slow wave, rising from below, staggered by x |
+| Shatter | curated | blows out and reforms once a cycle, hatching as it moves |
+| Hatch storm | curated | fast noise drift, marks almost always drawn as strokes |
 
-**Presets** save the params (only what differs from the defaults), the loop
-length and the Paper colour to `Organica.store('murmur')`. **Copy params** puts
-the params JSON on the clipboard, ready to paste into the hub hero's
-`HERO_PARAMS`.
+**Thumbnails** follow the design system's icon contract: a 26×26 **SVG pictogram in `currentColor`**, crisp at 22 and 26 px and taking `--ink` in both themes. An earlier raster version looked like grey noise under the panel's `pixelated` scaling. Each is a motion diagram drawn by the real engine on a small fixed dot field:
+- each mark's trajectory is a comet tail, clipped to its most recent ~7.5 units in three fading bands, with its end position as a dot; clipping keeps a field that never stops (Murmuration) readable;
+- a preset that defines its own entrance shows the entrance; any other shows one cycle of its settled motion;
+- a strong breath adds a thin ring at each mark's peak size.
+
+A saved preset's thumbnail re-renders when you save over it. Built-in presets can't be deleted. **Copy params** puts the params JSON on the clipboard, ready to paste into the hub hero's `HERO_PARAMS`.
 
 ---
 

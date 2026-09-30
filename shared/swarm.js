@@ -42,7 +42,7 @@
             it, so one params object feels the same on a 1200px hero and a
             4000px Pollen export.
    → { advance(t, pointer, warm), draw(ctx), reset(), settle(), setParams(p),
-       params, styles, count, pointerAt(t), time }
+       params, styles, count, pointerAt(t), time, positions: { x, y } }
      advance(t, pointer) steps the fixed-timestep simulation up to time t
      (seconds since reset()). pointer = { x, y, down } in source units, or
      null (→ the scripted path, if any). warm = true lifts the per-call step
@@ -362,7 +362,9 @@
 
     reset();
     return { advance, draw, reset, settle, setParams, params: P, styles, count: n, pointerAt,
-             get time() { return simT; } };
+             get time() { return simT; },
+             // live positions (read-only by convention) — for motion diagrams, e.g. Murmur's preset thumbnails
+             positions: { x, y } };
   }
 
   // ── The control schema — the same groups drive Murmur's panel and the

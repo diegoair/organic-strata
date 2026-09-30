@@ -1038,7 +1038,7 @@ data-viscosity  data-momentum  data-tilt</pre>
 &lt;<span class="tag">input</span> <span class="attr">class</span>=<span class="str">"org-field org-field--block"</span> <span class="attr">placeholder</span>=<span class="str">"Name this preset"</span>&gt;
 &lt;<span class="tag">select</span> <span class="attr">class</span>=<span class="str">"panel-select"</span>&gt;…&lt;/<span class="tag">select</span>&gt;
 &lt;<span class="tag">input</span> <span class="attr">class</span>=<span class="str">"panel-input"</span> <span class="attr">type</span>=<span class="str">"number"</span>&gt;</pre>
-      <p class="ds-note"><strong>Not this component, on purpose.</strong> The slider's number box (click-to-type, see <a href="#slider">Slider</a>); the <a href="#select-picker">select-picker</a> trigger — select-like, the same 26px and border, with room for its thumbnail; TuneSutra's compact R/G/B/H/S/B triplets (narrower padding); Loom's borderless inputs inside the margin-corner boxes (the box is the border); Sinew's "+ add effect…" select, styled as an action; checkboxes, switches, colour and file inputs (their own components). Both themes: every colour is a token.</p>
+      <p class="ds-note"><strong>Not this component, on purpose.</strong> The slider's number box (click-to-type, see <a href="#slider">Slider</a>); the <a href="#select-picker">select-picker</a> trigger — select-like (same border and type) but 32px, so its 22px thumbnail has the same --space-1 of air on top, bottom and left; TuneSutra's compact R/G/B/H/S/B triplets (narrower padding); Loom's borderless inputs inside the margin-corner boxes (the box is the border); Sinew's "+ add effect…" select, styled as an action; checkboxes, switches, colour and file inputs (their own components). Both themes: every colour is a token.</p>
     </section>
 
     <section class="ds-entry" id="palette-chips">
@@ -1065,7 +1065,8 @@ Organica.palette.swatch(<span class="attr">wrapEl</span>, {
     <section class="ds-entry" id="select-picker">
       <h2>Thumbnail select picker</h2>
       <p class="ds-desc">A dropdown whose rows carry a 26×26 pictogram — for choices a name alone doesn't convey (shape kinds, grid types). Built by <code>Organica.selectPicker(selectEl, hostEl, { registry, ariaLabel })</code>. <strong>The real <code>&lt;select&gt;</code> stays in the DOM (hidden) and stays the source of truth:</strong> picking a row sets <code>select.value</code> and dispatches a real <code>change</code> event, so every existing <code>.value</code> read/write and <code>change</code> listener keeps working. After changing the value or the options from code, call <code>picker.refresh()</code>. Options missing from the registry (added at runtime) still get a row, with a generic icon. Icons use <code>currentColor</code> so <code>--ink</code> comes from the component, never a hardcoded colour. The classes (<code>.presets</code>, <code>.preset-trigger</code>, <code>.pt-ico</code>, <code>.pi-ico</code>, <code>.preset-menu</code>, <code>.preset-item</code>) live in <code>panel.css</code>; Genesis, Camo Turing, Living Path, Sinew and Apostate use the same classes hand-wired.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><span>shared/select-picker.js</span><strong>Used in</strong><span>Flexible Visual System (Seed type)</span><span>Loom (Grid type)</span></div>
+      <p class="ds-note"><strong>Measures.</strong> Every thumbnail sits in even air: the trigger is <code>--space-8</code> (32px) tall so its 22px <code>.pt-ico</code> has <code>--space-1</code> of padding on top, bottom and left (1 + 4 + 22 + 4 + 1); each menu row is 40px so its 26px <code>.pi-ico</code> has <code>--space-2</code> on every side. The trigger was <code>--row-h</code> (26px) until Sep 30, 2026 — 5px of air on the left but only 2px above and below. Options inside an <code>&lt;optgroup&gt;</code> are listed under the group's label (<code>.pi-group</code>).</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><span>shared/select-picker.js</span><strong>Used in</strong><span>Flexible Visual System (Seed type)</span><span>Loom (Grid type)</span><span>Murmur (Preset)</span></div>
       <div class="ds-example" style="max-width:280px">
         <div id="ds-selpick-host"></div>
         <select id="ds-selpick-sel" class="panel-select"><option value="circle">Circle</option><option value="square">Square</option><option value="star">Star</option></select>
@@ -1708,6 +1709,17 @@ document.querySelectorAll('#slider input[type=range]').forEach(r => {
 })();
 </script>
 <script>
+/* the select-picker demo is built before the self-check, which asserts its measures */
+Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getElementById('ds-selpick-host'), {
+  ariaLabel: 'Demo',
+  registry: {
+    circle: { name: 'Circle', icon: '<svg viewBox="0 0 26 26" fill="currentColor"><circle cx="13" cy="13" r="9"/></svg>' },
+    square: { name: 'Square', icon: '<svg viewBox="0 0 26 26" fill="currentColor"><rect x="4" y="4" width="18" height="18"/></svg>' },
+    star: { name: 'Star', icon: '<svg viewBox="0 0 26 26" fill="currentColor"><polygon points="13,3 15.8,10.2 23,10.8 17.5,15.5 19.2,22.5 13,18.7 6.8,22.5 8.5,15.5 3,10.8 10.2,10.2"/></svg>' },
+  },
+});
+</script>
+<script>
 /* Self-verification. See the "Self-check" section for why this exists.
    Pure client-side, no build step — the page checks itself against the
    stylesheets it documents. */
@@ -1759,6 +1771,7 @@ document.querySelectorAll('#slider input[type=range]').forEach(r => {
     }
   };
   assert('.ctrl-row',   { minHeight: '26px' });                       // --row-h
+  assert('#ds-selpick-host .preset-trigger', { minHeight: '32px', paddingTop: '4px', paddingBottom: '4px', paddingLeft: '4px' });   // even air round the 22px thumbnail
   assert('.panel-select', { fontSize: '10px', borderRadius: '2px' }); // --t-control-size
   // THE FIELD — base, alias, lg, code (header.css)
   assert('#ds-field-matrix .org-field:not(.org-field--lg):not(.org-field--code)', { minHeight: '26px', fontSize: '10px', borderTopLeftRadius: '2px' });
@@ -1854,16 +1867,6 @@ document.querySelectorAll('#slider input[type=range]').forEach(r => {
     document.querySelector('.ds-content, main')?.prepend(el);
   }
 })();
-</script>
-<script>
-Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getElementById('ds-selpick-host'), {
-  ariaLabel: 'Demo',
-  registry: {
-    circle: { name: 'Circle', icon: '<svg viewBox="0 0 26 26" fill="currentColor"><circle cx="13" cy="13" r="9"/></svg>' },
-    square: { name: 'Square', icon: '<svg viewBox="0 0 26 26" fill="currentColor"><rect x="4" y="4" width="18" height="18"/></svg>' },
-    star: { name: 'Star', icon: '<svg viewBox="0 0 26 26" fill="currentColor"><polygon points="13,3 15.8,10.2 23,10.8 17.5,15.5 19.2,22.5 13,18.7 6.8,22.5 8.5,15.5 3,10.8 10.2,10.2"/></svg>' },
-  },
-});
 </script>
 <script src="/shared/tools.js"></script>
 <script src="/shared/menu-icon.js"></script>

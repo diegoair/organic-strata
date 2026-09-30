@@ -18,7 +18,9 @@
  *   picker.refresh();   // after changing select.value or its options from code
  *
  * Icons: 26×26 viewBox SVG, `currentColor` (fill or stroke) so the CSS
- * component supplies --ink. Options in the <select> that are missing from the
+ * component supplies --ink — or an `<img>` (a rendered thumbnail; panel.css
+ * sizes it to the icon box). Options inside an <optgroup> are listed under
+ * the group's label (.pi-group); a select without groups renders as before. Options in the <select> that are missing from the
  * registry (e.g. an option added at runtime) still get a row, with a generic
  * icon and the option's own text. Host needs class "presets" (position:relative).
  *
@@ -57,7 +59,16 @@
     }
     function populate() {
       menu.innerHTML = '';
+      let lastGroup = null;
       keys().forEach(key => {
+        const opt = [...sel.options].find(o => o.value === key);
+        const grp = opt && opt.parentElement && opt.parentElement.tagName === 'OPTGROUP' ? opt.parentElement.label : null;
+        if (grp && grp !== lastGroup) {
+          const h = document.createElement('div');
+          h.className = 'pi-group'; h.textContent = grp;
+          menu.appendChild(h);
+        }
+        lastGroup = grp;
         const row = document.createElement('button');
         row.type = 'button';
         row.className = 'preset-item' + (key === sel.value ? ' on' : '');

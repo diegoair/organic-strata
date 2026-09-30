@@ -18,8 +18,6 @@
   }
   #main-canvas:not(.visible) { display: none; }
   #main-canvas { cursor: crosshair; touch-action: none; transform: none; }
-  .mode-row { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-  .mode-row .mini-btn { flex: 1 1 30%; }
 </style>
 <script src="/shared/pattern-init.js"></script>
 </head>
@@ -110,13 +108,9 @@
 
   <div id="panel">
     <div class="panel-section">
-      <h3>Motion <span class="hint">start from a pattern</span></h3>
-      <div class="mode-row" id="mode-row"></div>
-    </div>
-
-    <div class="panel-section">
-      <h3>Preset</h3>
-      <select class="panel-select" id="sel-preset" onchange="applyPreset(this.value)"></select>
+      <h3>Preset <span class="hint">motion patterns + your own</span></h3>
+      <div id="preset-picker"></div>
+      <select class="panel-select" id="sel-preset" aria-label="Preset" onchange="applyPreset(this.value)"></select>
       <div class="row-btns">
         <button class="mini-btn" onclick="savePreset()">Save</button>
         <button class="mini-btn" onclick="deletePreset()">Delete</button>
@@ -154,6 +148,7 @@
 <script src="/shared/tracks.js"></script>
 <script src="/shared/recorder.js"></script>
 <script src="/shared/swarm.js"></script>
+<script src="/shared/select-picker.js"></script>
 
 <script>
 // ─────────────────────────────────────────────
@@ -171,7 +166,7 @@ function val(id)  { return parseFloat(ctrl(id).value); }
 const setStatus = Organica.status();
 const canvas = ctrl('main-canvas');
 const ctx = canvas.getContext('2d');
-const MAX_MARKS = 60000;
+const MAX_MARKS = 100000;   // Pollen exports up to 70k points; >25k draws batched
 const DPR = Math.min(window.devicePixelRatio || 1, 2);
 
 let src = null;          // { W, H, homes, styles, bg, tool, name, count }
@@ -507,17 +502,25 @@ function svgToHomes(text) {
 }
 
 // ═══════════════ Loading ═══════════════
+// Errors MUST go through setStatus('error', …): Organica.status shows a
+// notice only for 'error' / 'busy' — '' and 'active' are silent by design,
+// so a refused file would otherwise look like "nothing happened".
 function loadFile(input) {
   const f = input.files && input.files[0];
   if (!f) return;
   input.value = '';
+  if (!/\.svg$/i.test(f.name) && !/svg/.test(f.type)) {
+    setStatus('error', `“${f.name}” is not an SVG. Murmur opens Screen-mode SVG exports from Pollen, Spore or Halide.`);
+    return;
+  }
   setStatus('busy', 'Reading ' + f.name + '…');
   f.text().then(text => {
     const t0 = performance.now();
     let s;
     try { s = svgToHomes(text); }
     catch (e) {
-      setStatus('', e.message);
+      console.error('[murmur] could not load', f.name, e);
+      setStatus('error', e.message);
       return;
     }
     s.name = f.name;
@@ -534,6 +537,9 @@ function loadFile(input) {
     fitCanvas();
     updateSizeReadout();
     setStatus('active', info);
+  }).catch(e => {
+    console.error('[murmur] could not load', f.name, e);
+    setStatus('error', 'Could not load “' + f.name + '”: ' + e.message);
   });
 }
 
@@ -605,45 +611,131 @@ const ui = Organica.swarm.panel(ctrl('swarm-controls'), params, (k, v) => {
   if (k === 'entrance' || k === 'staggerBy' || k === 'stagger') replay();
 }, 'sw-');
 
-(function buildModes() {
-  const row = ctrl('mode-row');
-  const all = Object.assign({ Default: {} }, Organica.swarm.MODES);
-  Object.keys(all).forEach(name => {
-    const b = document.createElement('button');
-    b.className = 'mini-btn'; b.textContent = name;
-    b.addEventListener('click', () => {
-      row.querySelectorAll('.mini-btn').forEach(x => x.classList.toggle('active', x === b));
-      setParams(all[name]); replay();
-    });
-    row.appendChild(b);
-  });
-})();
-
 function replay() { if (swarm) { swarm.reset(); clock = 0; } }
+
+// ── PRESETS — one thumbnail picker (Organica.selectPicker): the built-in
+//    motion patterns (the six ANIMATION-SYSTEM modes + curated combinations)
+//    and the user's saved ones (Organica.store('murmur')). Values are
+//    'b:<name>' / 'u:<name>'. ──
+const M = Organica.swarm.MODES;
+const BUILTINS = {
+  'Default':     {},
+  'Pulse':       M.Pulse,
+  'Drip':        M.Drip,
+  'Assemble':    M.Assemble,
+  'Swarm':       M.Swarm,
+  'Drift':       M.Drift,
+  'Orbit':       M.Orbit,
+  'Murmuration': { stiffness: 0.02, damping: 0.9, drift: 18, driftSpeed: 0.5, pointerMode: 'swirl', pointerForce: 4, pointerRadius: 0.2, path: 'orbit', entrance: 'edges', staggerBy: 'distance', stagger: 1.2 },
+  'Tide':        { waveAmp: 16, waveSpeed: 1.2, waveScale: 0.008, drift: 6, damping: 0.88, entrance: 'below', staggerBy: 'x', stagger: 1.5 },
+  'Shatter':     { scatter: 160, stiffness: 0.05, damping: 0.82, strokeAt: 0.15, strokeLen: 2 },
+  'Hatch storm': { drift: 30, driftSpeed: 1.2, driftScale: 0.01, strokeAt: 0.05, speedRef: 6, strokeLen: 2.5, stiffness: 0.03, damping: 0.86 },
+};
+
+// Thumbnail: a motion diagram drawn by the real engine on a small fixed dot
+// field, emitted as a 26×26 SVG pictogram in currentColor — the design
+// system's icon contract (crisp at 22 and 26 px, takes --ink from the
+// component in both themes), not a raster. Each mark's actual trajectory is
+// a polyline in three fading bands (older = fainter), its end position a
+// dot. A preset that defines its own entrance shows the entrance (from a
+// reset); any other shows one cycle of its settled motion. Distances are
+// exaggerated (unit) so the motion reads at icon size.
+const THUMB_W = 120, THUMB_UNIT = 0.7, THUMB_SAMPLES = 24;
+const THUMB_HOMES = (() => {
+  const rnd = Organica.mulberry32(11), hx = [], hy = [], r = [];
+  for (let k = 0; k < 600 && hx.length < 34; k++) {          // dart-throw: an even, non-grid disc
+    const a = rnd() * 6.2832, d = Math.sqrt(rnd()) * 40, x = 60 + Math.cos(a) * d, y = 60 + Math.sin(a) * d;
+    if (hx.some((px, i) => Math.hypot(px - x, hy[i] - y) < 12)) continue;
+    hx.push(x); hy.push(y); r.push(2.8 + 2.4 * (1 - d / 40));
+  }
+  return { hx, hy, r };
+})();
+const ENTRANCE_KEYS = ['entrance', 'staggerBy', 'stagger'];
+const thumbCache = new Map();
+function presetThumb(key, p) {
+  if (thumbCache.has(key)) return thumbCache.get(key);
+  const P = Object.assign({}, Organica.swarm.DEFAULTS, p, { loop: 0 });
+  const sw = Organica.swarm.create({ homes: THUMB_HOMES, styles: [{ kind: 'circle', color: '#000' }],
+    W: THUMB_W, H: THUMB_W, params: P, unit: THUMB_UNIT, seed: 5 });
+  const entrance = ENTRANCE_KEYS.some(q => p[q] != null && p[q] !== Organica.swarm.DEFAULTS[q]);
+  // an entrance lasts its stagger plus the time a (possibly soft) spring needs to land
+  const span = entrance ? Math.max(2.6, (+P.stagger || 0) + 0.06 / Math.max(0.01, P.stiffness)) : P.cycle;
+  if (!entrance) sw.settle();
+  const { x, y } = sw.positions, n = sw.count, k = 26 / THUMB_W;
+  const f = v => Math.round(Math.max(-2, Math.min(28, v * k)) * 10) / 10;   // 26-unit coords, clipped just past the box
+  const tr = Array.from({ length: n }, (_, i) => [[f(x[i]), f(y[i])]]);
+  for (let s = 1; s <= THUMB_SAMPLES; s++) {
+    sw.advance(span * s / THUMB_SAMPLES, null, true);
+    for (let i = 0; i < n; i++) tr[i].push([f(x[i]), f(y[i])]);
+  }
+  // Comet tails: keep only the most recent TAIL units of each path (so a
+  // field that never stops — Murmuration — reads as short sweeping arcs, not
+  // a tangle), split into three bands, oldest faintest.
+  const TAIL = 7.5;
+  const bands = ['', '', ''];
+  tr.forEach(t => {
+    let len = 0, j = t.length - 1;
+    while (j > 0 && len < TAIL) { len += Math.hypot(t[j][0] - t[j - 1][0], t[j][1] - t[j - 1][1]); j--; }
+    const tail = t.slice(j), m = tail.length - 1;
+    if (m < 1) return;
+    for (let b = 0; b < 3; b++) {
+      const a = Math.floor(m * b / 3), e = Math.max(a + 1, Math.floor(m * (b + 1) / 3));
+      bands[b] += 'M' + tail.slice(a, e + 1).map(q => q[0] + ' ' + q[1]).join('L');
+    }
+  });
+  let svg = '<svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="0.6" stroke-linecap="round" stroke-linejoin="round">';
+  [0.14, 0.28, 0.5].forEach((o, b) => { if (bands[b]) svg += `<path d="${bands[b]}" stroke-opacity="${o}"/>`; });
+  svg += '<g fill="currentColor" stroke="none">';
+  for (let i = 0; i < n; i++) svg += `<circle cx="${f(x[i])}" cy="${f(y[i])}" r="${Math.max(0.55, THUMB_HOMES.r[i] * k * 0.55).toFixed(2)}"/>`;
+  svg += '</g>';
+  // breath → a thin ring at each mark's peak size, so Pulse reads apart from a calm field
+  if (P.breathAmp > 0.2) {
+    svg += '<g stroke-width="0.4" stroke-opacity="0.6">';
+    for (let i = 0; i < n; i++) svg += `<circle cx="${f(x[i])}" cy="${f(y[i])}" r="${(THUMB_HOMES.r[i] * k * 0.55 * (1 + P.breathAmp) + 0.5).toFixed(2)}"/>`;
+    svg += '</g>';
+  }
+  svg += '</svg>';
+  thumbCache.set(key, svg);
+  return svg;
+}
 
 const PRESETS = Organica.store('murmur');
 function userPresets() { return PRESETS.read(); }
+const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+let presetPicker = null;
+const registry = {};   // one object, refilled in place — selectPicker keeps a reference to it
 function populatePresets(select) {
   const sel = ctrl('sel-preset'), all = userPresets();
+  const cur = select || sel.value || 'b:Default';
   const names = Object.keys(all).sort();
-  sel.innerHTML = '<option value="">' + (names.length ? 'Choose a preset…' : 'No saved presets') + '</option>' +
-    names.map(n => `<option value="${n.replace(/"/g, '&quot;')}">${n.replace(/</g, '&lt;')}</option>`).join('');
-  if (select) sel.value = select;
+  Object.keys(registry).forEach(k => delete registry[k]);
+  Object.keys(BUILTINS).forEach(n => { registry['b:' + n] = { name: n, icon: presetThumb('b:' + n, BUILTINS[n]) }; });
+  names.forEach(n => { registry['u:' + n] = { name: esc(n), icon: presetThumb('u:' + n, (all[n] && all[n].params) || {}) }; });
+  sel.innerHTML = '<optgroup label="Built-in">' + Object.keys(BUILTINS).map(n => `<option value="b:${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>' +
+    (names.length ? '<optgroup label="Saved">' + names.map(n => `<option value="u:${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>' : '');
+  sel.value = [...sel.options].some(o => o.value === cur) ? cur : 'b:Default';
+  if (!presetPicker) presetPicker = Organica.selectPicker(sel, ctrl('preset-picker'), { registry, ariaLabel: 'Preset' });
+  else presetPicker.refresh();
 }
 function savePreset() {
   const name = prompt('Preset name'); if (!name) return;
   const all = userPresets();
   all[name] = { params: Organica.swarm.diff(params), loop: val('rg-loop'), bg: swBg.get() };
-  PRESETS.write(all); populatePresets(name);
+  PRESETS.write(all);
+  thumbCache.delete('u:' + name);            // re-render: the params changed
+  populatePresets('u:' + name);
   setStatus('active', 'Saved “' + name + '”');
 }
 function deletePreset() {
-  const name = ctrl('sel-preset').value; if (!name) return;
-  const all = userPresets(); delete all[name];
-  PRESETS.write(all); populatePresets();
+  const v = ctrl('sel-preset').value;
+  if (!v.startsWith('u:')) { setStatus('error', 'Built-in presets can’t be deleted — pick one of your saved presets.'); return; }
+  const all = userPresets(); delete all[v.slice(2)];
+  PRESETS.write(all); thumbCache.delete(v); populatePresets('b:Default');
 }
-function applyPreset(name) {
-  const p = userPresets()[name]; if (!p) return;
+function applyPreset(v) {
+  if (!v) return;
+  if (v.startsWith('b:')) { setParams(BUILTINS[v.slice(2)] || {}); replay(); return; }
+  const p = userPresets()[v.slice(2)]; if (!p) return;
   if (p.loop != null) { ctrl('rg-loop').value = p.loop; syncLoop(); }
   if (p.bg) swBg.set(p.bg);
   setParams(p.params || {}); replay();
@@ -714,7 +806,7 @@ const recorder = Organica.recorder({
   },
   onStatus: (phase, msg) => {
     if (phase === 'recording') setStatus('busy', 'Recording ' + recLoop + 's…');
-    else setStatus(phase === 'error' ? '' : 'active', msg);
+    else setStatus(phase === 'error' ? 'error' : 'active', msg);
   },
   onStateChange: isRec => {
     ctrl('btn-video').textContent = isRec ? 'Stop recording' : 'Record loop';
@@ -722,7 +814,7 @@ const recorder = Organica.recorder({
   },
 });
 function toggleRecording() {
-  if (!swarm) { setStatus('', 'Open an SVG first'); return; }
+  if (!swarm) { setStatus('error', 'Open an SVG first — the ＋ in the toolbar.'); return; }
   recLoop = loopSeconds();
   recorder.toggle();
 }
@@ -731,7 +823,7 @@ function toggleRecording() {
 ctrl('btn-open').addEventListener('click', () => ctrl('file-input').click());
 Organica.canvasDropZone({
   wrap: ctrl('canvas-wrap'), dropIcon: '.drop-icon', fileInput: 'file-input',
-  accept: 'image/svg',   // MIME prefix
+  accept: '',   // any type — some systems give an .svg an empty MIME type; loadFile checks it
   onFile: input => loadFile(input),
 });
 Organica.popover(ctrl('btn-loop'), ctrl('loop-popover'));
