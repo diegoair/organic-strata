@@ -1066,11 +1066,31 @@ Organica.palette.swatch(<span class="attr">wrapEl</span>, {
       <h2>Thumbnail select picker</h2>
       <p class="ds-desc">A dropdown whose rows carry a 26×26 pictogram — for choices a name alone doesn't convey (shape kinds, grid types). Built by <code>Organica.selectPicker(selectEl, hostEl, { registry, ariaLabel })</code>. <strong>The real <code>&lt;select&gt;</code> stays in the DOM (hidden) and stays the source of truth:</strong> picking a row sets <code>select.value</code> and dispatches a real <code>change</code> event, so every existing <code>.value</code> read/write and <code>change</code> listener keeps working. After changing the value or the options from code, call <code>picker.refresh()</code>. Options missing from the registry (added at runtime) still get a row, with a generic icon. Icons use <code>currentColor</code> so <code>--ink</code> comes from the component, never a hardcoded colour. The classes (<code>.presets</code>, <code>.preset-trigger</code>, <code>.pt-ico</code>, <code>.pi-ico</code>, <code>.preset-menu</code>, <code>.preset-item</code>) live in <code>panel.css</code>; Genesis, Camo Turing, Living Path, Sinew and Apostate use the same classes hand-wired.</p>
       <p class="ds-note"><strong>Measures.</strong> Every thumbnail sits in even air: the trigger is <code>--space-8</code> (32px) tall so its 22px <code>.pt-ico</code> has <code>--space-1</code> of padding on top, bottom and left (1 + 4 + 22 + 4 + 1); each menu row is 40px so its 26px <code>.pi-ico</code> has <code>--space-2</code> on every side. The trigger was <code>--row-h</code> (26px) until Sep 30, 2026 — 5px of air on the left but only 2px above and below. Options inside an <code>&lt;optgroup&gt;</code> are listed under the group's label (<code>.pi-group</code>).</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><span>shared/select-picker.js</span><strong>Used in</strong><span>Flexible Visual System (Seed type)</span><span>Loom (Grid type)</span><span>Murmur (Preset)</span></div>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><span>shared/select-picker.js</span><strong>Used in</strong><span>Flexible Visual System (Seed type, Canvas format, Loom grids)</span><span>Loom (Grid type, Canvas preset, Saved grids)</span><span>Murmur (Preset)</span><span>Radial (Preset)</span><span>Pulsar (Scene)</span><span>Warping (Preset)</span><span>Halide (Preset)</span><span>Pollen (Preset)</span><span>Colornet (Preset)</span><span>Komorebi (Preset)</span><span>Mote (Preset)</span><span>TuneSutra (Saved palettes)</span><span>Trellis (Loom grid)</span><span>Membrane (Canvas preset)</span><span>Vortex (Canvas preset)</span></div>
+      <p class="ds-note"><strong>When a dropdown gets thumbnails.</strong> Only when all three hold: the options differ <em>visibly</em> (the look is the choice); the name doesn't predict the look ("Burl wood" vs "Oak plank", or any user-named saved preset); and the image comes from the tool's <em>own renderer</em>, never a drawing of it, which could mislead. A graph's wiring (Rhizome) or a name that already says the shape (Genesis arc type) doesn't qualify.</p>
+      <p class="ds-note"><strong>Two sizes, by what differs.</strong> <code>icon</code> (default): a 26×26 pictogram in <code>currentColor</code> for <em>structure</em> (shape kinds, aspect ratios, motion diagrams), which takes <code>--ink</code> in both themes. <code>size: 'preview'</code>: a 3:2 rendered image for <em>look and texture</em> (dither, stipple, grain, light, palettes, grids), 60×40 in the menu and 33×22 in the trigger, with the same even air. A 26px square turns a dither to grey, which is why the second size exists. Previews are content, so they stay light in dark mode.</p>
+      <p class="ds-note"><strong>Where thumbnails come from.</strong> A registry entry gives <code>icon</code> (markup) or <code>thumb: () =&gt; markup | dataURL | Promise</code>. A thumb renders <em>lazily</em>: only when the menu first opens, paced one per frame so opening is instant, then cached; <code>picker.invalidate(key)</code> after a preset is re-saved. Every image-effect tool (Halide, Pollen, Colornet, Mote) renders on the <em>same subject</em>, <code>Organica.previewImage(w, h)</code>, so presets compare like for like. Grids use <code>Organica.loomGridThumb(model)</code> and canvas formats use <code>Organica.aspectIcon(w, h)</code>. A placeholder option (empty value: "Presets…") is never a row; with nothing to pick, the menu shows the tool's disabled hint option.</p>
       <div class="ds-example" style="max-width:280px">
         <div id="ds-selpick-host"></div>
         <select id="ds-selpick-sel" class="panel-select"><option value="circle">Circle</option><option value="square">Square</option><option value="star">Star</option></select>
       </div>
+      <div class="ds-example" style="max-width:280px">
+        <div id="ds-selpick-preview-host"></div>
+        <select id="ds-selpick-preview-sel" class="panel-select"><option value="">Choose a treatment…</option><option value="threshold">Threshold</option><option value="bayer">Bayer 4×4</option><option value="fs">Floyd–Steinberg</option></select>
+      </div>
+      <table>
+        <thead><tr><th>Dropdown</th><th>Size</th><th>Thumbnail</th></tr></thead>
+        <tbody>
+          <tr><td>Radial, Pulsar</td><td>preview</td><td>the scene through <code>buildScene</code> + <code>drawSceneCanvas</code> (Pulsar: a frame a third into its loop)</td></tr>
+          <tr><td>Warping, Komorebi</td><td>preview</td><td>the preset through the tool's own pure field/compositor, cache bypassed</td></tr>
+          <tr><td>Halide, Pollen, Colornet, Mote</td><td>preview</td><td>the preset applied to <code>Organica.previewImage</code> by the real dither / stipple / separation engine</td></tr>
+          <tr><td>TuneSutra saved palettes</td><td>preview</td><td>the colours themselves, one band each</td></tr>
+          <tr><td>Loom grids (Loom, Flexible Visual System, Trellis)</td><td>preview</td><td><code>Organica.loomGridThumb</code>; a built-in recipe is generated by the real generator</td></tr>
+          <tr><td>Canvas formats (Loom, Membrane, Vortex, Flexible Visual System)</td><td>icon</td><td><code>Organica.aspectIcon</code>: the format's aspect; Custom is dashed</td></tr>
+          <tr><td>Murmur, Loom grid type, Flexible Visual System seed type</td><td>icon</td><td>motion diagram / shape pictogram</td></tr>
+          <tr><td>Rhizome graphs, Genesis arc type, Flexible Visual System recipes</td><td>none (yet)</td><td>not a look, or the name says it; recipes are deferred (rendering one rewrites the whole tool state)</td></tr>
+        </tbody>
+      </table>
       <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"seedtype-picker"</span>&gt;&lt;/<span class="tag">div</span>&gt;
 &lt;<span class="tag">select</span> <span class="attr">id</span>=<span class="str">"sel-seed-type"</span>&gt;…&lt;/<span class="tag">select</span>&gt;   <span class="attr">/* hidden by the picker */</span>
 
@@ -1078,7 +1098,13 @@ const picker = Organica.selectPicker(sel, host, {
   ariaLabel: 'Seed type',
   registry: { circle: { name: 'Circle', icon: '&lt;svg viewBox="0 0 26 26"&gt;…&lt;/svg&gt;' } }
 });
-sel.value = 'star'; picker.refresh();   <span class="attr">/* after a programmatic change */</span></pre>
+sel.value = 'star'; picker.refresh();   <span class="attr">/* after a programmatic change */</span>
+
+<span class="attr">/* preview size: lazy, rendered by the tool's own engine */</span>
+Organica.selectPicker(sel, host, { size: 'preview', registry: {
+  oak: { name: 'Oak plank', thumb: () =&gt; presetThumb(PRESETS.oak) }   <span class="attr">/* → dataURL / markup / Promise */</span>
+} });
+picker.invalidate('oak');   <span class="attr">/* after the preset is re-saved */</span></pre>
     </section>
 
     <section class="ds-entry" id="seg-ctrl">
@@ -1709,7 +1735,21 @@ document.querySelectorAll('#slider input[type=range]').forEach(r => {
 })();
 </script>
 <script>
-/* the select-picker demo is built before the self-check, which asserts its measures */
+/* the select-picker demos are built before the self-check, which asserts their measures.
+   The preview demo is real: the standard test image through the shared Organica.dither. */
+Organica.selectPicker(document.getElementById('ds-selpick-preview-sel'), document.getElementById('ds-selpick-preview-host'), {
+  ariaLabel: 'Demo (preview size)', size: 'preview',
+  registry: Object.fromEntries(['threshold', 'bayer', 'fs'].map(k => [k, { name: { threshold: 'Threshold', bayer: 'Bayer 4×4', fs: 'Floyd–Steinberg' }[k], thumb: () => {
+    const cw = 60, ch = 40, src = Organica.previewImage(cw, ch).data, gray = new Float32Array(cw * ch);
+    for (let i = 0; i < gray.length; i++) gray[i] = src[i * 4] / 255;
+    const D = Organica.dither;
+    const cells = k === 'threshold' ? D.threshold(gray, cw, ch) : k === 'bayer' ? D.ordered(gray, cw, ch, 4) : D.errorDiffusion(gray, cw, ch, D.FS_KERNEL, true);
+    const c = document.createElement('canvas'); c.width = 120; c.height = 80; const g = c.getContext('2d');
+    g.fillStyle = '#f5f2ec'; g.fillRect(0, 0, 120, 80); g.fillStyle = '#0a0a0a';
+    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) if (cells[y * cw + x]) g.fillRect(x * 2, y * 2, 2, 2);
+    return c.toDataURL();
+  } }])),
+});
 Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getElementById('ds-selpick-host'), {
   ariaLabel: 'Demo',
   registry: {
@@ -1772,6 +1812,9 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
   };
   assert('.ctrl-row',   { minHeight: '26px' });                       // --row-h
   assert('#ds-selpick-host .preset-trigger', { minHeight: '32px', paddingTop: '4px', paddingBottom: '4px', paddingLeft: '4px' });   // even air round the 22px thumbnail
+  assert('#ds-selpick-preview-host .preset-trigger', { minHeight: '32px', paddingTop: '4px', paddingLeft: '4px' });   // preview size keeps the same trigger
+  assert('#ds-selpick-host .pt-ico', { width: '22px', height: '22px' });
+  assert('#ds-selpick-preview-host.presets--preview', { position: 'relative' });   // the preview class is applied
   assert('.panel-select', { fontSize: '10px', borderRadius: '2px' }); // --t-control-size
   // THE FIELD — base, alias, lg, code (header.css)
   assert('#ds-field-matrix .org-field:not(.org-field--lg):not(.org-field--code)', { minHeight: '26px', fontSize: '10px', borderTopLeftRadius: '2px' });

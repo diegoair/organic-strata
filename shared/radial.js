@@ -17,7 +17,7 @@
  *     BP, BUILTIN_PRESETS,                    // preset factory + the 17 Book-of-Shapes snapshots
  *     buildScene(P, W, H),                    // camelCase P → tagged primitive set
  *     sceneSVG(prim, P),                      // preview === export string
- *     drawSceneCanvas(ctx, prim, P, scale),   // Canvas2D, same primitives
+ *     drawSceneCanvas(ctx, prim, P, scale, minLinePx?),   // Canvas2D, same primitives
  *     buildPoints, warpPoint, arcPathD,       // internals, exposed for completeness
  *   }
  *
@@ -315,8 +315,13 @@
   }
 
   // ── Canvas — same primitives. ──
-  function drawSceneCanvas(ctx, prim, P, scale) {
+  // minLinePx (optional): the thinnest a 1-unit stroke may get on the device.
+  // Default 0 = today's exact render. A picker thumbnail draws the 760-unit
+  // field at ~0.1× — 1-unit lines would be ~0.1px and vanish — so it asks for
+  // a floor (~0.6px) to keep line-based presets readable.
+  function drawSceneCanvas(ctx, prim, P, scale, minLinePx) {
     const { polygonsStroke, polylines, lines, polygonsFill, arcs, marks, W, H } = prim;
+    const LW = Math.max(1, (minLinePx || 0) / (scale || 1));
     ctx.save();
     ctx.scale(scale, scale);
     ctx.fillStyle = P.paper;
@@ -329,7 +334,7 @@
       ctx.translate(-cx, -cy);
     }
     ctx.lineJoin = 'round';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = LW;
     ctx.strokeStyle = P.ink;
     const trace = (arr, close) => {
       ctx.beginPath();
@@ -342,8 +347,8 @@
     lines.forEach(l => { trace(l, false); ctx.stroke(); });
     ctx.fillStyle = P.ink;
     polygonsFill.forEach(poly => { trace(poly, true); ctx.fill(); });
-    arcs.forEach(a => { ctx.lineWidth = a.sw; ctx.stroke(new Path2D(a.d)); });
-    ctx.lineWidth = 1;
+    arcs.forEach(a => { ctx.lineWidth = Math.max(a.sw, LW); ctx.stroke(new Path2D(a.d)); });
+    ctx.lineWidth = LW;
     marks.forEach(m => {
       if (m.shape === 'line') {
         let ang = Math.atan2(m.y - H / 2, m.x - W / 2);

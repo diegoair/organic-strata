@@ -96,6 +96,7 @@
 
     <div class="panel-section">
       <h3>Preset</h3>
+      <div id="preset-picker"></div>
       <select class="panel-select" id="sel-preset" aria-label="Preset" onchange="applyPreset(this.value)"></select>
       <div class="row-btns">
         <button class="mini-btn" onclick="savePreset()">Save</button>
@@ -335,6 +336,7 @@
 
 <script src="/shared/palette.js"></script>
 <script src="/shared/noise.js"></script>
+<script src="/shared/select-picker.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // KOMOREBI — 木漏れ日, "sunlight leaking through trees"
@@ -884,22 +886,24 @@ function groundPoint(px, py, w, h, P) {
   return [gx, gy, u, v];
 }
 // ── PARAMS ──
-function buildParams() {
+// Reads a readState()-shaped object (default: the live controls), so a
+// preset turns into render params with no DOM churn (preset thumbnails).
+function buildParams(s = readState()) {
   return {
-    pattern: ctrl('sel-pattern').value,
-    useCookie: seg('seg-source') === 'cookie',
-    scale: val('rg-scale'), density: val('rg-density'), edge: val('rg-soft'),
-    ratio: val('rg-ratio'), densityVar: val('rg-clump'), leafDetail: val('rg-leafdetail'),
-    sizeRange: val('rg-sizerange'), merge: val('rg-merge'),
-    rake: val('rg-rake'), rakeAngle: val('rg-rakeangle'),
-    seed: val('rg-seed'),
-    windAmt: val('rg-wind'), windMode: seg('seg-wind') === 'sway' ? 0 : 1,
-    persp: val('rg-persp'), penumbra: val('rg-penumbra'), gain: val('rg-gain'), lift: val('rg-lift'),
-    haze: val('rg-haze'), grain: val('rg-grain'), vignette: val('rg-vig'), bands: val('rg-bands'),
-    colSun: Organica.hexToRGB255(ctrl('hex-sun').value),
-    colSky: Organica.hexToRGB255(ctrl('hex-sky').value),
-    colGround: Organica.hexToRGB255(ctrl('hex-ground').value),
-    colShadow: Organica.hexToRGB255(ctrl('hex-shadow').value),
+    pattern: s['sel-pattern'],
+    useCookie: s['seg-source'] === 'cookie',
+    scale: +s['rg-scale'], density: +s['rg-density'], edge: +s['rg-soft'],
+    ratio: +s['rg-ratio'], densityVar: +s['rg-clump'], leafDetail: +s['rg-leafdetail'],
+    sizeRange: +s['rg-sizerange'], merge: +s['rg-merge'],
+    rake: +s['rg-rake'], rakeAngle: +s['rg-rakeangle'],
+    seed: +s['rg-seed'],
+    windAmt: +s['rg-wind'], windMode: s['seg-wind'] === 'sway' ? 0 : 1,
+    persp: +s['rg-persp'], penumbra: +s['rg-penumbra'], gain: +s['rg-gain'], lift: +s['rg-lift'],
+    haze: +s['rg-haze'], grain: +s['rg-grain'], vignette: +s['rg-vig'], bands: +s['rg-bands'],
+    colSun: Organica.hexToRGB255(s['c-sun']),
+    colSky: Organica.hexToRGB255(s['c-sky']),
+    colGround: Organica.hexToRGB255(s['c-ground']),
+    colShadow: Organica.hexToRGB255(s['c-shadow']),
     cookieGen,
   };
 }
@@ -916,10 +920,10 @@ function buildParams() {
 // ─────────────────────────────────────────────
 
 let occCache = { key: '', buf: null };
-function computeOcclusion(w, h, P) {
+function computeOcclusion(w, h, P, noCache) {   // noCache: a thumbnail must not evict the preview's buffer
   const key = [P.pattern, P.useCookie, P.scale, P.density, P.edge, P.ratio, P.densityVar,
     P.leafDetail, P.sizeRange, P.merge, P.rake, P.rakeAngle, P.seed, P.windAmt, P.windMode, P.persp, w, h, P.cookieGen].join('|');
-  if (occCache.key === key) return occCache.buf;
+  if (!noCache && occCache.key === key) return occCache.buf;
   const buf = new Float32Array(w * h);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -927,7 +931,7 @@ function computeOcclusion(w, h, P) {
       buf[y * w + x] = canopyValue(g[0], g[1], P);
     }
   }
-  occCache = { key, buf };
+  if (!noCache) occCache = { key, buf };
   return buf;
 }
 
@@ -961,8 +965,13 @@ function boxBlur(src, w, h, radius) {
 function renderFrame(w, h) {
   const P = buildParams();
   canvas.width = w; canvas.height = h;
+  ctx2d.putImageData(renderImage(w, h, P), 0, 0);
+}
 
-  const rawOcc = computeOcclusion(w, h, P);
+// The whole compositor as a pure function of (size, params) → ImageData —
+// the canvas and the preset thumbnails share it, so a thumbnail can't drift.
+function renderImage(w, h, P, noCache) {
+  const rawOcc = computeOcclusion(w, h, P, noCache);
   // The /5 calibration: a dense box blur over a radius is a much stronger
   // low-pass than the old GPU's 14-tap Monte-Carlo disc sample at the same
   // nominal radius (14 sparse taps under-sample fine noise and leave visible
@@ -972,7 +981,7 @@ function renderFrame(w, h) {
   for (let i = 0; i < w * h; i++) litSrc[i] = 1 - rawOcc[i];
   const litBuf = boxBlur(litSrc, w, h, radiusPx);
 
-  const img = ctx2d.createImageData(w, h);
+  const img = new ImageData(w, h);
   const data = img.data;
   const gain = Math.max(P.gain, 0.01);
   for (let i = 0; i < w * h; i++) {
@@ -1040,7 +1049,7 @@ function renderFrame(w, h) {
     }
   }
 
-  ctx2d.putImageData(img, 0, 0);
+  return img;
 }
 
 // ── RENDER SCHEDULING — no continuous animation loop (wind is frozen), so a
@@ -1429,6 +1438,18 @@ const BUILTIN_PRESETS = {
 const PRESETS = Organica.presetStore('komorebi', 'organica_komorebi_presets');
 const PRESET_KEY = PRESETS.key;
 function userPresets() { return PRESETS.read(); }
+// ── Preset picker — preview thumbnails (Organica.selectPicker): each preset
+//    (over the Forest Floor baseline, exactly as applyPreset merges it)
+//    through the same renderImage as the canvas, at 120×80, occlusion
+//    uncached so the preview's buffer is untouched. Lazy + cached. ──
+function presetThumb(p) {
+  const P = buildParams(Object.assign({}, BUILTIN_PRESETS['Forest Floor'], p));
+  const c = document.createElement('canvas'); c.width = 120; c.height = 80;
+  c.getContext('2d').putImageData(renderImage(120, 80, P, true), 0, 0);
+  return c.toDataURL();
+}
+const presetRegistry = {};
+let presetPicker = null;
 function populatePresets(select) {
   const sel = ctrl('sel-preset');
   const user = userPresets();
@@ -1442,6 +1463,10 @@ function populatePresets(select) {
   add('Built-in', Object.keys(BUILTIN_PRESETS));
   add('Saved', Object.keys(user));
   if (select) sel.value = select;
+  Object.keys(presetRegistry).forEach(k => delete presetRegistry[k]);
+  Object.entries(Object.assign({}, BUILTIN_PRESETS, user)).forEach(([n, p]) => { presetRegistry[n] = { name: n.replace(/</g, '&lt;'), thumb: () => presetThumb(p) }; });
+  if (!presetPicker) presetPicker = Organica.selectPicker(sel, ctrl('preset-picker'), { registry: presetRegistry, size: 'preview', ariaLabel: 'Preset' });
+  else presetPicker.refresh();
 }
 function applyPreset(name) {
   const p = BUILTIN_PRESETS[name] || userPresets()[name];
@@ -1464,6 +1489,7 @@ function confirmSavePreset() {
   const all = userPresets();
   all[name] = readState();
   PRESETS.write(all);
+  if (presetPicker) presetPicker.invalidate(name);   // an overwrite re-renders its thumbnail
   populatePresets(name);
   setStatus('active', 'Saved preset · ' + name);
   cancelSavePreset();

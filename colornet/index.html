@@ -181,6 +181,7 @@
 
     <div class="panel-section">
       <h3>Preset <span class="hint">settings only</span></h3>
+      <div id="preset-picker"></div>
       <select class="panel-select" id="sel-preset" aria-label="Preset"></select>
       <div id="preset-name-row" style="display:none;margin-top:var(--space-3)">
         <input class="panel-input panel-input--full" id="preset-name" placeholder="Preset name" aria-label="Preset name">
@@ -362,6 +363,7 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/palette.js"></script>
+<script src="/shared/select-picker.js"></script>
 <script src="/shared/print-size.js"></script>
 <script src="/shared/print-size-panel.js"></script>
 <script src="/shared/plate-export.js"></script>
@@ -556,7 +558,8 @@ function applyImageFilters(octx, W, H) {
 }
 
 function computeBands(img, bands, detail) {
-  const ar = img.naturalWidth / img.naturalHeight;
+  // an <img> or a canvas (the preset thumbnails separate a canvas test image)
+  const ar = (img.naturalWidth || img.width) / (img.naturalHeight || img.height);
   const W = ar >= 1 ? detail : Math.max(2, Math.round(detail * ar));
   const H = ar >= 1 ? Math.max(2, Math.round(detail / ar)) : detail;
 
@@ -1491,7 +1494,7 @@ function drawThumb(cv, ch) {
   g.globalAlpha = ch.opacity / 100;
   if (ch.screenMode === 'am' || ch.screenMode === 'noise' || ch.screenMode === 'dither') {
     g.setTransform(s, 0, 0, s, (26 - w) / 2, (26 - h) / 2);
-    if (ch.screenMode === 'am') drawAmDots(g, ch, ch.color);
+    if (ch.screenMode === 'am') drawAmDots(g, ch, ch.color, amDotsOf(ch));   // dots are the caller's since drawAmDots gained Print mode — this call was never updated (threw on any AM preset + image)
     else if (ch.screenMode === 'noise') drawCircleDots(g, computeNoiseDots(ch), ch.color);
     else drawSquareDots(g, computeDitherDots(ch), ch.color);
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -2473,31 +2476,7 @@ function applyPreset(name) {
     separate(false);
     // The masks come from whatever image is loaded now; only the settings
     // come from the preset — that is the whole point of storing config only.
-    p.channels.forEach((sc, i) => {
-      const ch = S.channels[i]; if (!ch) return;
-      Object.assign(ch, {
-        name: sc.name, on: sc.on, color: sc.color, opacity: sc.opacity, blend: sc.blend,
-        tx: sc.tx, ty: sc.ty, scale: sc.scale, rot: sc.rot, flipH: sc.flipH, flipV: sc.flipV,
-        // Backfilled for presets saved before AM Screening existed — 'flat'
-        // reproduces exactly what those presets always rendered.
-        screenMode: sc.screenMode || 'flat',
-        screenAngle: sc.screenAngle != null ? sc.screenAngle : ch.screenAngle,
-        screenFreq: sc.screenFreq != null ? sc.screenFreq : ch.screenFreq,
-        dotShape: sc.dotShape || 'circle',
-        noiseType: sc.noiseType || ch.noiseType,
-        noiseSize: sc.noiseSize != null ? sc.noiseSize : ch.noiseSize,
-        noiseDots: sc.noiseDots || ch.noiseDots,
-        noiseStdDev: sc.noiseStdDev != null ? sc.noiseStdDev : ch.noiseStdDev,
-        ditherAlgo: sc.ditherAlgo || ch.ditherAlgo,
-        ditherSize: sc.ditherSize != null ? sc.ditherSize : ch.ditherSize,
-        ditherLevel: sc.ditherLevel != null ? sc.ditherLevel : ch.ditherLevel,
-        bayerLevel: sc.bayerLevel != null ? sc.bayerLevel : ch.bayerLevel,
-        patternFormId: sc.patternFormId !== undefined ? sc.patternFormId : ch.patternFormId,
-        edgeRoughen: sc.edgeRoughen != null ? sc.edgeRoughen : ch.edgeRoughen,
-        edgeScale: sc.edgeScale != null ? sc.edgeScale : ch.edgeScale,
-      });
-      ch.tint = null; ch._amKey = null; ch._noiseKey = null; ch._ditherKey = null; ch._roughKey = null;
-    });
+    p.channels.forEach((sc, i) => { const ch = S.channels[i]; if (ch) applyChannelPreset(ch, sc); });
     buildChannelUI(); syncTransformPanel(); render();
     setStatus('active', 'Preset "' + name + '" applied');
   } else {
@@ -2506,14 +2485,81 @@ function applyPreset(name) {
   Organica.enhanceSliders(ctrl('panel'));
 }
 
+// One preset channel's settings onto a freshly separated channel — used by
+// applyPreset() and the preset thumbnails alike, so they can't disagree.
+function applyChannelPreset(ch, sc) {
+  Object.assign(ch, {
+    name: sc.name, on: sc.on, color: sc.color, opacity: sc.opacity, blend: sc.blend,
+    tx: sc.tx, ty: sc.ty, scale: sc.scale, rot: sc.rot, flipH: sc.flipH, flipV: sc.flipV,
+    // Backfilled for presets saved before AM Screening existed — 'flat'
+    // reproduces exactly what those presets always rendered.
+    screenMode: sc.screenMode || 'flat',
+    screenAngle: sc.screenAngle != null ? sc.screenAngle : ch.screenAngle,
+    screenFreq: sc.screenFreq != null ? sc.screenFreq : ch.screenFreq,
+    dotShape: sc.dotShape || 'circle',
+    noiseType: sc.noiseType || ch.noiseType,
+    noiseSize: sc.noiseSize != null ? sc.noiseSize : ch.noiseSize,
+    noiseDots: sc.noiseDots || ch.noiseDots,
+    noiseStdDev: sc.noiseStdDev != null ? sc.noiseStdDev : ch.noiseStdDev,
+    ditherAlgo: sc.ditherAlgo || ch.ditherAlgo,
+    ditherSize: sc.ditherSize != null ? sc.ditherSize : ch.ditherSize,
+    ditherLevel: sc.ditherLevel != null ? sc.ditherLevel : ch.ditherLevel,
+    bayerLevel: sc.bayerLevel != null ? sc.bayerLevel : ch.bayerLevel,
+    patternFormId: sc.patternFormId !== undefined ? sc.patternFormId : ch.patternFormId,
+    edgeRoughen: sc.edgeRoughen != null ? sc.edgeRoughen : ch.edgeRoughen,
+    edgeScale: sc.edgeScale != null ? sc.edgeScale : ch.edgeScale,
+  });
+  ch.tint = null; ch._amKey = null; ch._noiseKey = null; ch._ditherKey = null; ch._roughKey = null;
+}
+
+// ── Preset picker — preview thumbnails (Organica.selectPicker): each preset
+//    separates THE standard test image (Organica.previewImage — the same
+//    subject in every image tool) with its own bands/detail/filters and
+//    screens each channel with its own settings, through the SAME
+//    computeBands → buildPlan → renderToCanvas pipeline. Borrows S for the
+//    duration and restores it in `finally` — Batch's own precedent; it is
+//    synchronous, so nothing paints in between. Lazy + cached. ──
+const THUMB_KEYS = ['img', 'W', 'H', 'channels', 'selId', 'bands', 'detail', 'bg',
+  'imgGray', 'imgBrightness', 'imgContrast', 'imgDenoise', 'imgSharpen', 'imgSharpenAmt', 'imgGamma', 'imgFilterHue'];
+let thumbSource = null;
+function presetThumb(p) {
+  if (!thumbSource) {
+    thumbSource = document.createElement('canvas'); thumbSource.width = 360; thumbSource.height = 240;
+    thumbSource.getContext('2d').putImageData(Organica.previewImage(360, 240), 0, 0);
+  }
+  const saved = {};
+  THUMB_KEYS.forEach(k => { saved[k] = S[k]; });
+  try {
+    Object.assign(S, {
+      bg: p.bg, imgGray: p.imgGray || 'luminanceHD', imgBrightness: p.imgBrightness || 0, imgContrast: p.imgContrast || 0,
+      imgDenoise: !!p.imgDenoise, imgSharpen: !!p.imgSharpen, imgSharpenAmt: p.imgSharpenAmt != null ? p.imgSharpenAmt : 100,
+      imgGamma: !!p.imgGamma, imgFilterHue: p.imgFilterHue || 0,
+    });
+    const result = computeBands(thumbSource, p.bands, p.detail);
+    S.img = thumbSource; S.W = result.W; S.H = result.H;
+    S.channels = result.channels;
+    (p.channels || []).forEach((sc, i) => { const ch = S.channels[i]; if (ch) applyChannelPreset(ch, sc); });
+    const c = renderToCanvas(buildPlan(120 / S.W));
+    return c.toDataURL();
+  } finally {
+    THUMB_KEYS.forEach(k => { S[k] = saved[k]; });
+  }
+}
+const presetRegistry = {};
+let presetPicker = null;
+
 function populatePresets(select) {
   const sel = ctrl('sel-preset');
   const builtin = Object.keys(BUILTIN_PRESETS);
   const own = Object.keys(userPresets());
   sel.innerHTML = '<option value="">— none —</option>' +
     `<optgroup label="Built-in">${builtin.map(n => `<option value="${n}">${n}</option>`).join('')}</optgroup>` +
-    (own.length ? `<optgroup label="Yours">${own.map(n => `<option value="${n}">${n}</option>`).join('')}</optgroup>` : '');
+    (own.length ? `<optgroup label="Saved">${own.map(n => `<option value="${n}">${n}</option>`).join('')}</optgroup>` : '');
   if (select) sel.value = select;
+  Object.keys(presetRegistry).forEach(k => delete presetRegistry[k]);
+  Object.entries(allPresets()).forEach(([n, p]) => { presetRegistry[n] = { name: n.replace(/</g, '&lt;'), thumb: () => presetThumb(p) }; });
+  if (!presetPicker) presetPicker = Organica.selectPicker(sel, ctrl('preset-picker'), { registry: presetRegistry, size: 'preview', ariaLabel: 'Preset' });
+  else presetPicker.refresh();
 }
 ctrl('sel-preset').addEventListener('change', e => { if (e.target.value) applyPreset(e.target.value); });
 
@@ -2537,6 +2583,7 @@ function savePresetConfirm() {
   const all = userPresets(); all[name] = readState();
   PRESETS.write(all);
   ctrl('preset-name-row').style.display = 'none';
+  if (presetPicker) presetPicker.invalidate(name);   // an overwrite re-renders its thumbnail
   populatePresets(name);
   setStatus('active', 'Preset "' + name + '" saved');
 }

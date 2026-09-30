@@ -335,7 +335,8 @@ function svgToHomes(text) {
   let tool = meta.tool;
   if (!tool) {
     const rects = root.getElementsByTagName('rect').length, gs = root.querySelectorAll('g[transform]').length;
-    tool = rects > gs * 2 && rects > 20 ? 'halide' : gs ? (root.querySelector('g[transform] > g, g[transform] > use') ? 'spore' : 'pollen') : 'pollen';
+    tool = root.querySelector('use') ? 'spore'            // older Spore exports: <symbol> + <use>
+      : rects > gs * 2 && rects > 20 ? 'halide' : gs ? (root.querySelector('g[transform] > g') ? 'spore' : 'pollen') : 'pollen';
     tool = tool + '?';   // heuristic — shown as such
   }
   const isHalide = tool.startsWith('halide');
@@ -471,6 +472,24 @@ function svgToHomes(text) {
         continue;
       }
       if (t === 'g' && !el.hasAttribute('transform')) { walk(el, M, p); continue; }   // a colour/region wrapper
+      if (t === 'use') {                                 // older Spore exports: <use href="#mk" x y width height transform>
+        const ref = (el.getAttribute('href') || el.getAttributeNS('http://www.w3.org/1999/xlink', 'href') || '').replace(/^#/, '');
+        const target = ref && doc.getElementById(ref);
+        if (!target) continue;
+        const ux = +el.getAttribute('x') || 0, uy = +el.getAttribute('y') || 0;
+        // the use's own transform, then its x/y, then (a <symbol>) viewBox → the width×height box
+        let Mu = mul(mul(M, parseTransform(el.getAttribute('transform'))), [1, 0, 0, 1, ux, uy]);
+        const svb = target.localName === 'symbol' ? nums(target.getAttribute('viewBox')) : [];
+        if (svb.length === 4) {
+          const bw = +el.getAttribute('width') || svb[2], bh = +el.getAttribute('height') || svb[3];
+          Mu = mul(Mu, [bw / svb[2], 0, 0, bh / svb[3], -svb[0] * bw / svb[2], -svb[1] * bh / svb[3]]);
+        }
+        const parts = [];
+        if (target.localName === 'symbol' || target.localName === 'g') collect(target, ID, p, parts);
+        else if (DRAWABLE.has(target.localName)) { const g = elGeom(target); if (g) parts.push({ g, M: ID, p: readPaint(target, p) }); }
+        mark(parts, Mu, p.opacity);
+        continue;
+      }
       if (isHalide && (t === 'rect' || t === 'path')) { halideCells(el, M, p); continue; }
       if (t === 'g') {                                   // Pollen / Spore: one transformed group = one mark
         const Mg = mul(M, parseTransform(el.getAttribute('transform')));

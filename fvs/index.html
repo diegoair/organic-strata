@@ -1257,6 +1257,7 @@
     <div class="panel-section">
       <h3>Canvas <span class="hint" id="symbol-canvas-hint"></span></h3>
       <div class="ctrl-row">
+        <div id="symcanvas-picker"></div>
         <select class="panel-select" id="sel-symcanvas-preset" aria-label="Canvas format" style="flex:1"></select>
       </div>
       <div class="ctrl-row">
@@ -1302,6 +1303,7 @@
       <details class="fvs-more" style="margin-top:var(--space-3)">
       <summary class="hint">More grids</summary>
       <div class="ctrl-row">
+        <div id="symbol-loom-picker"></div>
         <select class="panel-select" id="sel-symbol-loom-preset" aria-label="Load a grid saved in Loom" style="flex:1">
           <option value="">Load a grid…</option>
         </select>
@@ -6194,6 +6196,7 @@ function loadSymbolGrid(model) {
 // (canvas.fvsFrame), so saving/loading a Symbol and the Grid tier need no new
 // field. Drawing units: px for Screen, px at 96 dpi of the physical size for
 // Print (A4 = 794 × 1123) — the Export converts to the real size.
+let symCanvasPicker = null;   // the canvas-format thumbnail picker — built once the <select> is filled (below)
 const SYMCANVAS_PRESETS = {   // Loom's CANVAS_PRESETS (loom/js/canvas-manager.js) + 9:16 and A3
   'Square 1:1': { w: 1080, h: 1080, unit: 'px' },
   'Portrait 4:5': { w: 1080, h: 1350, unit: 'px' },
@@ -6261,6 +6264,7 @@ function readSymbolCanvas() {
 }
 function applySymbolCanvasToUI(cv) {
   ctrl('sel-symcanvas-preset').value = cv.preset in SYMCANVAS_PRESETS ? cv.preset : 'Custom';
+  if (symCanvasPicker) symCanvasPicker.refresh();
   setSymbolCanvasMode(cv.mode || 'screen');
   if (cv.unit && cv.unit !== 'px') ctrl('sel-symcanvas-unit').value = cv.unit;
   ctrl('num-symcanvas-w').value = cv.pw; ctrl('num-symcanvas-h').value = cv.ph;
@@ -6360,6 +6364,13 @@ async function generateSymbolGridInCanvas() {
 function symbolCanvasOf(model) { return model && model.canvas && model.canvas.fvsFrame ? model.canvas.fvsFrame : null; }
 
 ctrl('sel-symcanvas-preset').innerHTML = Object.keys(SYMCANVAS_PRESETS).map(n => `<option>${n}</option>`).join('') + '<option>Custom</option>';
+// Thumbnail picker (Organica.selectPicker, 26px icons): each format as a
+// rectangle at its own aspect; Custom is dashed.
+symCanvasPicker = Organica.selectPicker(ctrl('sel-symcanvas-preset'), ctrl('symcanvas-picker'), {
+  ariaLabel: 'Canvas format',
+  registry: Object.assign(Object.fromEntries(Object.entries(SYMCANVAS_PRESETS).map(([n, p]) => [n, { name: n, icon: Organica.aspectIcon(p.w, p.h) }])),
+    { Custom: { name: 'Custom', icon: Organica.aspectIcon(1, 1, { dashed: true }) } }),
+});
 ctrl('sel-symgrid-gen').innerHTML = Object.entries(SYMGRID_GENS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
 ctrl('sel-symgrid-gen').value = 'bento';
 renderSymgridParams();
@@ -6431,9 +6442,10 @@ ctrl('seg-symcanvas-mode').addEventListener('click', e => {
   if (b.dataset.mode === 'print') ctrl('sel-symcanvas-unit').value = 'mm';
   setSymbolCanvasMode(b.dataset.mode);
   ctrl('sel-symcanvas-preset').value = 'Custom';
+  if (symCanvasPicker) symCanvasPicker.refresh();
   syncSymbolCanvasHint();
 });
-['num-symcanvas-w', 'num-symcanvas-h'].forEach(id => ctrl(id).addEventListener('input', () => { ctrl('sel-symcanvas-preset').value = 'Custom'; syncSymbolCanvasHint(); }));
+['num-symcanvas-w', 'num-symcanvas-h'].forEach(id => ctrl(id).addEventListener('input', () => { ctrl('sel-symcanvas-preset').value = 'Custom'; if (symCanvasPicker) symCanvasPicker.refresh(); syncSymbolCanvasHint(); }));
 ['sel-symcanvas-unit', 'num-symcanvas-dpi', 'num-symcanvas-bleed'].forEach(id => ctrl(id).addEventListener('input', () => { setSymbolCanvasMode(readSymbolCanvas().mode); syncSymbolCanvasHint(); }));
 ctrl('rg-symcanvas-margin').addEventListener('input', e => { ctrl('v-symcanvas-margin').textContent = e.target.value; });
 syncSymbolCanvasHint();
@@ -8461,6 +8473,8 @@ window.addEventListener('keydown', e => {
 // it straight so a grid designed in /loom/ is one click away here, no JSON
 // upload. Merged with the two inlined built-in exports.
 const LOOM_GRID_STORE = Organica.presetStore('loom');
+const symbolLoomRegistry = {};
+let symbolLoomPicker = null;
 function populateSymbolLoomPresets() {
   const sel = ctrl('sel-symbol-loom-preset');
   const prev = sel.value;
@@ -8477,6 +8491,15 @@ function populateSymbolLoomPresets() {
     sel.appendChild(og);
   }
   if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+  // Thumbnail picker (Organica.selectPicker, preview size): each grid as its
+  // cell outlines at its own aspect (shared Organica.loomGridThumb) — saved
+  // grids are named by whoever saved them, the picture says what they are.
+  Object.keys(symbolLoomRegistry).forEach(k => delete symbolLoomRegistry[k]);
+  symbolLoomRegistry.__bento = { name: 'Bento (built-in)', thumb: () => Organica.loomGridThumb(SYMBOL_GRID_PRESETS.bento) };
+  symbolLoomRegistry.__hex = { name: 'Hexagonal (built-in)', thumb: () => Organica.loomGridThumb(SYMBOL_GRID_PRESETS.hexagonal) };
+  names.forEach(n => { symbolLoomRegistry['saved:' + n] = { name: n.replace(/</g, '&lt;'), thumb: () => Organica.loomGridThumb(saved[n]) }; });
+  if (!symbolLoomPicker) symbolLoomPicker = Organica.selectPicker(sel, ctrl('symbol-loom-picker'), { registry: symbolLoomRegistry, size: 'preview', ariaLabel: 'Load a Loom grid' });
+  else { symbolLoomPicker.invalidate(); }
 }
 
 // ── Wiring ──

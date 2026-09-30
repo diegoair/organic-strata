@@ -372,7 +372,13 @@ One component, `.org-btn` in `shared/header.css`: sizes `--sm` (`--slo-h`, 20) �
 
 ## 5d. Fields (Sep 29, 2026)
 
-One component, `.org-field` in `shared/header.css` ("THE FIELD"), for text/number inputs, selects and textareas — THE BUTTON's measures: display face, `--t-control-size`, `--row-h` tall (`--lg` 32), `--panel` fill, `--border-strong`, `--radius-sm`; hover `--mid`, focus `--ink`. Modifiers `--lg`, `--block`, `--code` (mono). Aliases: `.panel-select`, `.panel-input`, `.color-hex`, `.org-select` (deltas in panel.css). The select-picker trigger is 26px with the same border. Audit: `/design-system/_control-audit.html?kind=fields` (347 fields, 24 looks → 317 in one look; the rest documented exceptions).
+One component, `.org-field` in `shared/header.css` ("THE FIELD"), for text/number inputs, selects and textareas — THE BUTTON's measures: display face, `--t-control-size`, `--row-h` tall (`--lg` 32), `--panel` fill, `--border-strong`, `--radius-sm`; hover `--mid`, focus `--ink`. Modifiers `--lg`, `--block`, `--code` (mono). Aliases: `.panel-select`, `.panel-input`, `.color-hex`, `.org-select` (deltas in panel.css). The select-picker trigger has the same border and type but is 32px (`--space-8`), so its thumbnail sits in even `--space-1` air.
+
+**The thumbnail select picker** (`Organica.selectPicker`, `shared/select-picker.js` + `.presets*` in panel.css; live reference `/design-system/#select-picker`). A dropdown gets thumbnails only when all three hold: (1) the options differ *visibly*, (2) the name doesn't predict the look (any user-named saved preset qualifies), and (3) the image comes from the tool's **own renderer**, never a drawing of it. Size follows what differs:
+- **icon** (default) is a 26×26 `currentColor` pictogram for structure (shape kinds, aspect ratios via `Organica.aspectIcon`, motion diagrams). It follows `--ink`.
+- **preview** (`size:'preview'`) is a 3:2 rendered image for look and texture (dither, stipple, grain, light, palettes, grids via `Organica.loomGridThumb`): 60×40 in the menu, 33×22 in the trigger. It is content, so it stays light in dark mode.
+
+Thumbnails are lazy (`thumb:` renders when the menu first opens, one per frame, cached; `invalidate(key)` after a re-save). Image-effect tools all render on the same subject, `Organica.previewImage`. Placeholder options (empty value) are never rows; with nothing to pick, the menu shows the tool's disabled hint option. The Sep 30, 2026 audit applied it to Radial, Pulsar, Warping, Halide, Pollen, Colornet, Komorebi, Mote (moved off its own custom list), TuneSutra, Loom, Flexible Visual System, Trellis, Membrane and Vortex. Rhizome graphs and the Genesis arc type don't qualify; Flexible Visual System's built-in recipes are deferred. Audit: `/design-system/_control-audit.html?kind=fields` (347 fields, 24 looks → 317 in one look; the rest documented exceptions).
 
 ## 5e. Working with AI — governance (Sep 30, 2026)
 

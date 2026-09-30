@@ -769,7 +769,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
    a preview either way. .pt-ico/.pi-ico accept either an <img> (a real
    rendered thumbnail) or inline <svg> (a static icon) as their content.
    ═══════════════════════════════════════════════════════════ */
-.presets { position: relative; }
+.presets { position: relative; flex: 1 1 auto; min-width: 0; }   /* fills a .ctrl-row (flex) instead of shrinking to its label */
 /* Living Path and Sinew each carried a full local copy of this component
    with values that had drifted. Reconciled 2026-09-06 per property, not per
    file — three of their deltas were right and are promoted here, three were
@@ -810,6 +810,16 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 .pi-ico { width: 26px; height: 26px; flex: 0 0 26px; }
 .pt-ico img, .pi-ico img { width: 100%; height: 100%; display: block; object-fit: cover; image-rendering: pixelated; }
 .pt-ico svg, .pi-ico svg { width: 100%; height: 100%; display: block; color: var(--ink); }
+.pt-ico[hidden] { display: none; }   /* a placeholder option ("Presets…") shows its text only */
+/* PREVIEW size (selectPicker size:'preview') — for presets whose difference
+   is look/texture, which a 26px square turns to grey (dither, stipple,
+   grain, light, palettes, grids). A 3:2 rendered image: 60×40 in the menu,
+   33×22 in the trigger. The air stays even: the trigger keeps its 32px and
+   --space-1 inset, a row its --space-2 on every side. Content, so it stays
+   light in dark mode; smooth scaling (the pixelated rule is for icons). */
+.presets--preview .pt-ico { width: 33px; flex-basis: 33px; }
+.preset-menu--preview .pi-ico { width: 60px; height: 40px; flex: 0 0 60px; }
+.presets--preview .pt-ico img, .preset-menu--preview .pi-ico img { image-rendering: auto; object-fit: cover; }
 .pt-name { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pt-chev { color: var(--mid); font-size: var(--fs-small); }
 .preset-menu {

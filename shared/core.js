@@ -285,6 +285,75 @@
   };
 
   // ═══════════════════════════════════════════════════════════
+  // PICKER THUMBNAILS — shared sources for Organica.selectPicker entries
+  // (shared/select-picker.js). See its header for WHEN a dropdown earns
+  // thumbnails; these are the three sources more than one tool needs.
+  // ═══════════════════════════════════════════════════════════
+
+  // A saved/built-in Loom grid as a 60×40 'preview' thumbnail: the cell
+  // outlines at the grid's own aspect, in currentColor (a structural
+  // drawing, so it follows --ink in both themes). Accepts anything
+  // loadLoomGrid accepts ({canvas, grid, cells}); returns '' if it can't
+  // be read. Used by Loom, Flexible Visual System and Trellis.
+  Organica.loomGridThumb = function (input) {
+    let g;
+    try { g = Organica.loadLoomGrid(input); } catch (e) { return ''; }
+    const cw = g.canvas.width || g.canvas.displayWidth || 1, ch = g.canvas.height || g.canvas.displayHeight || 1;
+    const W = 60, H = 40, pad = 3;
+    const k = Math.min((W - 2 * pad) / cw, (H - 2 * pad) / ch);
+    const ox = (W - cw * k) / 2, oy = (H - ch * k) / 2;
+    const f = v => Math.round(v * 100) / 100;
+    let d = '';
+    g.cells.forEach(c => {
+      if (c.shape === 'polygon' && c.points) {
+        d += 'M' + c.points.map(p => f(ox + p[0] * k) + ' ' + f(oy + p[1] * k)).join('L') + 'Z';
+      } else if (c.width > 0 && c.height > 0) {
+        d += `M${f(ox + c.x * k)} ${f(oy + c.y * k)}h${f(c.width * k)}v${f(c.height * k)}h${f(-c.width * k)}Z`;
+      }
+    });
+    return `<svg viewBox="0 0 ${W} ${H}" fill="none" stroke="currentColor" stroke-linejoin="round">` +
+      `<rect x="${f(ox)}" y="${f(oy)}" width="${f(cw * k)}" height="${f(ch * k)}" stroke-opacity="0.3" stroke-width="0.6"/>` +
+      `<path d="${d}" stroke-width="0.7" fill="currentColor" fill-opacity="0.06"/></svg>`;
+  };
+
+  // A canvas-size option as a 26px 'icon': a rectangle at the format's own
+  // aspect ratio (dashed = Custom). Loom / Membrane / Vortex / FVS canvas
+  // presets — "1:1 vs 9:16" at a glance, which the name alone makes you
+  // decode.
+  Organica.aspectIcon = function (w, h, opts) {
+    opts = opts || {};
+    const max = 18, k = max / Math.max(w || 1, h || 1);
+    const rw = Math.max(3, (w || 1) * k), rh = Math.max(3, (h || 1) * k);
+    const x = (26 - rw) / 2, y = (26 - rh) / 2, f = v => Math.round(v * 10) / 10;
+    return `<svg viewBox="0 0 26 26" fill="currentColor" stroke="currentColor" stroke-width="1.2">` +
+      `<rect x="${f(x)}" y="${f(y)}" width="${f(rw)}" height="${f(rh)}" rx="1" fill-opacity="0.12"${opts.dashed ? ' stroke-dasharray="2 1.6"' : ''}/></svg>`;
+  };
+
+  // THE standard test subject for image-effect presets (Halide, Pollen,
+  // Colornet, Mote): every preset thumbnail renders the SAME picture, so
+  // the list compares effects like for like. A light→dark ramp (every
+  // tone), a soft dark blob (a gradient mass), a hard-edged bright disc
+  // (edge handling) and one thin dark stroke (fine detail). Grey RGBA
+  // ImageData, deterministic.
+  Organica.previewImage = function (W, H) {
+    const img = new ImageData(W, H), d = img.data;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const u = x / W, v = y / H;
+      let t = 0.03 + 0.6 * u;                                         // ramp: near-white left → mid-dark right
+      const bx = (u - 0.7) / 0.2, by = (v - 0.46) / 0.32;             // (mostly mid-tones — where a dither/screen/stipple shows its texture)
+      t += 0.32 * Math.exp(-(bx * bx + by * by));                     // soft dark blob, darkest ~0.95
+      const dx = (u - 0.24) * W, dy = (v - 0.42) * H, rr = Math.min(W, H) * 0.22;
+      if (dx * dx + dy * dy < rr * rr) t = 0.04;                      // hard-edged bright disc
+      const sy = 0.84 - 0.18 * Math.sin(u * Math.PI);                 // thin dark stroke (an arc)
+      if (Math.abs(v - sy) * H < Math.max(0.8, H * 0.018)) t = 0.95;
+      const g = Math.round(255 * (1 - Math.min(1, Math.max(0, t))));
+      const i = (y * W + x) * 4;
+      d[i] = d[i + 1] = d[i + 2] = g; d[i + 3] = 255;
+    }
+    return img;
+  };
+
+  // ═══════════════════════════════════════════════════════════
   // FIGMA
   //
   // The one formal contract between Organica tools and the plugin:

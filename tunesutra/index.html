@@ -173,6 +173,7 @@
 
     <div class="panel-section">
       <h3>Save</h3>
+      <div id="preset-picker"></div>
       <select class="panel-select" id="preset-select" aria-label="Preset" onchange="applyPreset(this.value)"></select>
       <div class="row-btns">
         <button class="mini-btn" id="btn-preset-save">Save</button>
@@ -227,6 +228,7 @@
 <script src="/shared/auth-badge.js"></script>
 <script src="/shared/store.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/select-picker.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────
 // TuneSutra — colour-harmony palette generator.
@@ -721,11 +723,29 @@ function sendToFigma() { Organica.sendToFigma(svgString(1), 'TuneSutra'); }
 // ── PRESETS ──
 const PRESETS = Organica.store('tunesutra');
 function userPresets() { return PRESETS.read(); }
+// ── Preset picker — preview thumbnails (Organica.selectPicker): a saved
+//    palette IS its colours, so its thumbnail is the colours themselves —
+//    one band per colour, in order, true hex (a name like "Autumn 3" says
+//    nothing; the bands say everything). An SVG, sharp at any size. ──
+function paletteThumb(colors) {
+  const cs = (colors || []).filter(Boolean);
+  if (!cs.length) return '';
+  const w = 60 / cs.length;
+  return '<svg viewBox="0 0 60 40" preserveAspectRatio="none">' +
+    cs.map((c, i) => `<rect x="${(i * w).toFixed(2)}" y="0" width="${(w + 0.05).toFixed(2)}" height="40" fill="${String(c).replace(/[^#\w(),.% ]/g, '')}"/>`).join('') + '</svg>';
+}
+const presetRegistry = {};
+let presetPicker = null;
 function populatePresets(select) {
   const sel = ctrl('preset-select');
   const all = userPresets();
+  const esc = n => String(n).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
   sel.innerHTML = '<option value="">Presets…</option>' + Object.keys(all).map(name =>
-    `<option value="${name}"${name === select ? ' selected' : ''}>${name}</option>`).join('');
+    `<option value="${esc(name)}"${name === select ? ' selected' : ''}>${esc(name)}</option>`).join('');
+  Object.keys(presetRegistry).forEach(k => delete presetRegistry[k]);
+  Object.entries(all).forEach(([n, p]) => { presetRegistry[n] = { name: esc(n), icon: paletteThumb(p.colors) }; });
+  if (!presetPicker) presetPicker = Organica.selectPicker(sel, ctrl('preset-picker'), { registry: presetRegistry, size: 'preview', ariaLabel: 'Preset' });
+  else presetPicker.refresh();
 }
 function applyPreset(name) {
   if (!name) return;

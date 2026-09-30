@@ -134,6 +134,7 @@
 
     <div class="panel-section">
       <h3>Grid <span class="hint">fill &amp; animate a saved Loom grid</span></h3>
+      <div id="grid-picker"></div>
       <select class="panel-select" id="sel-grid" aria-label="Load a Loom grid" onchange="onGridPresetChange(this.value)">
         <option value="">Load a grid…</option>
       </select>
@@ -240,6 +241,7 @@
 <script src="/shared/auth-badge.js"></script>
 <script src="/shared/store.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/select-picker.js"></script>
 <script src="/shared/recorder.js"></script>
 <script src="/shared/noise.js"></script>
 <script src="/shared/tracks.js"></script>
@@ -317,6 +319,8 @@ function loadGrid(model) {
 }
 
 const LOOM_GRID_STORE = Organica.presetStore('loom');
+const gridRegistry = {};
+let gridPicker = null;
 function populateGridPresets() {
   const sel = ctrl('sel-grid');
   const prev = sel.value;
@@ -334,6 +338,12 @@ function populateGridPresets() {
     sel.appendChild(o);
   }
   if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+  // Thumbnail picker (Organica.selectPicker, preview size): each saved grid
+  // as its cell outlines at its own aspect (shared Organica.loomGridThumb).
+  Object.keys(gridRegistry).forEach(k => delete gridRegistry[k]);
+  names.forEach(n => { gridRegistry[n] = { name: n.replace(/</g, '&lt;'), thumb: () => Organica.loomGridThumb(saved[n]) }; });
+  if (!gridPicker) gridPicker = Organica.selectPicker(sel, ctrl('grid-picker'), { registry: gridRegistry, size: 'preview', ariaLabel: 'Load a Loom grid' });
+  else gridPicker.invalidate();
 }
 function onGridPresetChange(name) {
   if (!name) return;

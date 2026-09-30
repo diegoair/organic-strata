@@ -442,6 +442,12 @@ Object.keys(CANVAS_PRESETS).forEach(name => {
   opt.value = name; opt.textContent = name;
   ctrl('sel-canvas-preset').appendChild(opt);
 });
+// Thumbnail picker (Organica.selectPicker, 26px icons): each format as a
+// rectangle at its own aspect; "Custom…" is the placeholder (text only).
+const canvasPresetPicker = Organica.selectPicker(ctrl('sel-canvas-preset'), ctrl('canvas-preset-picker'), {
+  ariaLabel: 'Canvas preset',
+  registry: Object.fromEntries(Object.entries(CANVAS_PRESETS).map(([n, p]) => [n, { name: n, icon: Organica.aspectIcon(p.width, p.height) }])),
+});
 function applyCanvasSize(w, h) {
   w = clampCanvasSize(w); h = clampCanvasSize(h);
   ctrl('num-canvas-width').value = w;
@@ -460,10 +466,12 @@ ctrl('sel-canvas-preset').addEventListener('change', e => {
 });
 ctrl('num-canvas-width').addEventListener('change', e => {
   ctrl('sel-canvas-preset').value = '';   // typing a custom size stops claiming to be a preset
+  canvasPresetPicker.refresh();
   applyCanvasSize(parseFloat(e.target.value), state.H);
 });
 ctrl('num-canvas-height').addEventListener('change', e => {
   ctrl('sel-canvas-preset').value = '';
+  canvasPresetPicker.refresh();
   applyCanvasSize(state.W, parseFloat(e.target.value));
 });
 

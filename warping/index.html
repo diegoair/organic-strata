@@ -86,6 +86,7 @@
 
     <div class="panel-section">
       <h3>Preset</h3>
+      <div id="preset-picker"></div>
       <select class="panel-select" id="sel-preset" aria-label="Preset" onchange="applyPreset(this.value)"></select>
       <div class="row-btns">
         <button class="mini-btn" onclick="savePreset()">Save</button>
@@ -258,6 +259,7 @@
 
 <script src="/shared/palette.js"></script>
 <script src="/shared/noise.js"></script>
+<script src="/shared/select-picker.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // WARPING — domain-warped value-noise / Worley pattern generator.
@@ -396,18 +398,26 @@ function fieldValue(x, y, P) {
 }
 
 // ── PARAMS ──
-function buildParams() {
+// The defaults a preset falls back to for any key it omits — applyState()
+// and the preset thumbnails read the same table, so they can't disagree.
+const STATE_DEFAULTS = { pattern: 'wood', rings: 7, squash: 1, grain: 0.25, veinfreq: 8, turb: 0.8,
+  cellscale: 4, jitter: 0.85, wallwidth: 0.18, contourscale: 1.6, levels: 14, linewidth: 0.10,
+  sharp: 1.6, warpamt: 0, warpscale: 0.6, bands: 0, seed: 4, ink: '#3c2a1c', paper: '#e8d3ab' };
+// Reads a readState()-shaped object (default: the live controls), so a
+// preset turns into render params with no DOM churn (preset thumbnails).
+function buildParams(s = readState()) {
+  s = Object.assign({}, STATE_DEFAULTS, s);
   return {
-    pattern: ctrl('sel-pattern').value,
-    rings: val('rg-rings'), squash: val('rg-squash'), grainAmt: val('rg-grain'),
-    veinFreq: val('rg-veinfreq'), turb: val('rg-turb'),
-    cellScale: val('rg-cellscale'), jitter: val('rg-jitter'), wallWidth: val('rg-wallwidth'),
-    contourScale: val('rg-contourscale'), levels: val('rg-levels'), lineWidth: val('rg-linewidth'),
-    sharp: val('rg-sharp'),
-    warpAmt: val('rg-warpamt'), warpScale: val('rg-warpscale'),
-    bands: val('rg-bands'), seed: val('rg-seed'),
-    ink: Organica.hexToRGB255(ctrl('hex-ink').value),
-    paper: Organica.hexToRGB255(ctrl('hex-paper').value),
+    pattern: s.pattern,
+    rings: +s.rings, squash: +s.squash, grainAmt: +s.grain,
+    veinFreq: +s.veinfreq, turb: +s.turb,
+    cellScale: +s.cellscale, jitter: +s.jitter, wallWidth: +s.wallwidth,
+    contourScale: +s.contourscale, levels: +s.levels, lineWidth: +s.linewidth,
+    sharp: +s.sharp,
+    warpAmt: +s.warpamt, warpScale: +s.warpscale,
+    bands: +s.bands, seed: +s.seed,
+    ink: Organica.hexToRGB255(s.ink),
+    paper: Organica.hexToRGB255(s.paper),
   };
 }
 
@@ -415,11 +425,11 @@ function buildParams() {
 // tweaks (cheap) don't repay the noise-evaluation cost that a shape change
 // (Pattern/Warp/Rings/…) does. ──
 let fieldCache = { key: '', buf: null };
-function computeField(w, h, P) {
+function computeField(w, h, P, noCache) {   // noCache: a thumbnail must not evict the preview's field
   const key = [P.pattern, P.rings, P.squash, P.grainAmt, P.veinFreq, P.turb, P.cellScale,
     P.jitter, P.wallWidth, P.contourScale, P.levels, P.lineWidth, P.sharp,
     P.warpAmt, P.warpScale, P.seed, w, h].join('|');
-  if (fieldCache.key === key) return fieldCache.buf;
+  if (!noCache && fieldCache.key === key) return fieldCache.buf;
   const buf = new Float32Array(w * h);
   const worldScale = 20;
   const m = Math.min(w, h);
@@ -437,15 +447,14 @@ function computeField(w, h, P) {
       buf[y * w + x] = clamp(fieldValue(gx, gy, P), 0, 1);
     }
   }
-  fieldCache = { key, buf };
+  if (!noCache) fieldCache = { key, buf };
   return buf;
 }
 
-function renderFrame(w, h) {
-  const P = buildParams();
-  canvas.width = w; canvas.height = h;
-  const field = computeField(w, h, P);
-  const img = ctx2d.createImageData(w, h);
+// field → pixels (bands + Ink/Paper). One function for the canvas and the
+// preset thumbnails, so a thumbnail can't drift from the tool.
+function fieldToImageData(field, P, w, h) {
+  const img = new ImageData(w, h);
   const data = img.data;
   const ink = P.ink, paper = P.paper;
   const bands = P.bands;
@@ -458,7 +467,14 @@ function renderFrame(w, h) {
     data[idx + 2] = mix(paper[2], ink[2], v);
     data[idx + 3] = 255;
   }
-  ctx2d.putImageData(img, 0, 0);
+  return img;
+}
+
+function renderFrame(w, h) {
+  const P = buildParams();
+  canvas.width = w; canvas.height = h;
+  const field = computeField(w, h, P);
+  ctx2d.putImageData(fieldToImageData(field, P, w, h), 0, 0);
 }
 
 let renderQueued = false;
@@ -599,15 +615,16 @@ function readState() {
   };
 }
 function applyState(s) {
+  const D = STATE_DEFAULTS;
   const set = (id, v, dflt) => { ctrl(id).value = v != null ? v : dflt; };
-  ctrl('sel-pattern').value = s.pattern || 'wood';
-  set('rg-rings', s.rings, 7); set('rg-squash', s.squash, 1); set('rg-grain', s.grain, 0.25);
-  set('rg-veinfreq', s.veinfreq, 8); set('rg-turb', s.turb, 0.8);
-  set('rg-cellscale', s.cellscale, 4); set('rg-jitter', s.jitter, 0.85); set('rg-wallwidth', s.wallwidth, 0.18);
-  set('rg-contourscale', s.contourscale, 1.6); set('rg-levels', s.levels, 14); set('rg-linewidth', s.linewidth, 0.10);
-  set('rg-sharp', s.sharp, 1.6);
-  set('rg-warpamt', s.warpamt, 0); set('rg-warpscale', s.warpscale, 0.6);
-  set('rg-bands', s.bands, 0); set('rg-seed', s.seed, 4);
+  ctrl('sel-pattern').value = s.pattern || D.pattern;
+  set('rg-rings', s.rings, D.rings); set('rg-squash', s.squash, D.squash); set('rg-grain', s.grain, D.grain);
+  set('rg-veinfreq', s.veinfreq, D.veinfreq); set('rg-turb', s.turb, D.turb);
+  set('rg-cellscale', s.cellscale, D.cellscale); set('rg-jitter', s.jitter, D.jitter); set('rg-wallwidth', s.wallwidth, D.wallwidth);
+  set('rg-contourscale', s.contourscale, D.contourscale); set('rg-levels', s.levels, D.levels); set('rg-linewidth', s.linewidth, D.linewidth);
+  set('rg-sharp', s.sharp, D.sharp);
+  set('rg-warpamt', s.warpamt, D.warpamt); set('rg-warpscale', s.warpscale, D.warpscale);
+  set('rg-bands', s.bands, D.bands); set('rg-seed', s.seed, D.seed);
   ['rg-rings', 'rg-squash', 'rg-grain', 'rg-veinfreq', 'rg-turb', 'rg-cellscale', 'rg-jitter',
    'rg-wallwidth', 'rg-contourscale', 'rg-levels', 'rg-linewidth', 'rg-sharp', 'rg-warpamt',
    'rg-warpscale', 'rg-seed'].forEach(id => syncVal(ctrl(id), 'v-' + id.slice(3)));
@@ -637,15 +654,27 @@ function userPresets() { return presetStoreObj().read(); }
 function allPresets() { return Object.assign({}, BUILTIN_PRESETS, userPresets()); }
 let currentPresetName = null;
 
+// ── Preset picker — preview thumbnails (Organica.selectPicker): each preset's
+//    real field (computeField, uncached) through the same fieldToImageData
+//    as the canvas, at 120×80. Lazy + cached by the picker. ──
+function presetThumb(p) {
+  const P = buildParams(p), W = 120, H = 80;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  c.getContext('2d').putImageData(fieldToImageData(computeField(W, H, P, true), P, W, H), 0, 0);
+  return c.toDataURL();
+}
+const presetRegistry = {};
+let presetPicker = null;
 function populatePresets(select) {
-  const sel = ctrl('sel-preset');
-  sel.innerHTML = '';
-  Object.keys(allPresets()).forEach(name => {
-    const opt = document.createElement('option');
-    opt.value = name; opt.textContent = name;
-    sel.appendChild(opt);
-  });
+  const sel = ctrl('sel-preset'), user = userPresets();
+  const opt = n => `<option value="${n.replace(/"/g, '&quot;')}">${n.replace(/</g, '&lt;')}</option>`;
+  sel.innerHTML = '<optgroup label="Built-in">' + Object.keys(BUILTIN_PRESETS).map(opt).join('') + '</optgroup>' +
+    (Object.keys(user).length ? '<optgroup label="Saved">' + Object.keys(user).map(opt).join('') + '</optgroup>' : '');
   if (select) sel.value = select;
+  Object.keys(presetRegistry).forEach(k => delete presetRegistry[k]);
+  Object.entries(allPresets()).forEach(([n, p]) => { presetRegistry[n] = { name: n.replace(/</g, '&lt;'), thumb: () => presetThumb(p) }; });
+  if (!presetPicker) presetPicker = Organica.selectPicker(sel, ctrl('preset-picker'), { registry: presetRegistry, size: 'preview', ariaLabel: 'Preset' });
+  else presetPicker.refresh();
 }
 function applyPreset(name) {
   const p = allPresets()[name];
@@ -668,6 +697,7 @@ function confirmSavePreset() {
   all[name] = readState();
   presetStoreObj().write(all);
   currentPresetName = name;
+  if (presetPicker) presetPicker.invalidate(name);   // an overwrite re-renders its thumbnail
   populatePresets(name);
   setStatus('active', 'Saved preset · ' + name);
   cancelSavePreset();

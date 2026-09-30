@@ -232,6 +232,7 @@
     <!-- PRESETS (load a starting style) -->
     <div class="panel-section">
       <h3>Presets <span class="hint">start from a style</span></h3>
+      <div id="preset-picker"></div>
       <select class="panel-select" id="preset-select" aria-label="Preset" onchange="applyPreset(this.value)">
         <option value="">— Select —</option>
       </select>
@@ -532,6 +533,7 @@
 <script src="/shared/print-size-panel.js"></script>
 <script src="/shared/plate-export.js"></script>
 <script src="/shared/pollen-engine.js"></script>
+<script src="/shared/select-picker.js"></script>
 <script src="/genesis/forms.js"></script>
 <script>
 // ─────────────────────────────────────────────
@@ -862,13 +864,50 @@ function setState(s) {
 const PRESETS = Organica.presetStore('pollen', 'pollen-presets');
 const PRESET_KEY = PRESETS.key;
 function userPresets() { return PRESETS.read(); }
+// ── Preset picker — preview thumbnails (Organica.selectPicker): each preset
+//    stipples THE standard test image (Organica.previewImage — the same
+//    subject in every image tool) through the real engine (PE.computePoints,
+//    seeded) and Pollen's own paintPoints: 240×160 work field, painted at
+//    half scale onto 120×80, so spacing and mark size read true. The flow
+//    field is swapped in for the paint and restored. Lazy + cached. ──
+async function presetThumb(s) {
+  const W0 = 240, H0 = 160, W = 120, H = 80;
+  const { v, ck } = stateReader(s);
+  const P = pointParams(s);
+  const field = PE.buildField(Organica.previewImage(W0, H0).data, W0, H0,
+    { invert: ck('ck-invert'), gamma: v('sl-gamma'), contrast: v('sl-contrast') });
+  const spS = v('sl-sp-scale') || 1, minSp = v('sl-sp-min') * spS;
+  const pts = await PE.computePoints({
+    field, minSp, maxSp: Math.max(minSp, v('sl-sp-max') * spS),
+    phases: Math.min(8, v('sl-phases') || 8), maxPoints: 4000, rng: Organica.mulberry32(7),
+  });
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const saved = [fieldB, fieldW, fieldH];
+  fieldB = field.data; fieldW = W0; fieldH = H0;
+  try { paintPoints(c.getContext('2d'), pts, P, W, H, ck('ck-aa'), P.ink, P.bg, W / W0); }
+  finally { [fieldB, fieldW, fieldH] = saved; }
+  return c.toDataURL();
+}
+const presetRegistry = {};
+let presetPicker = null;
 function populatePresets(sel) {
   const u = userPresets();
-  const opt = ['<option value="">— Select —</option>'];
-  Object.keys(BUILTIN_PRESETS).forEach(n => opt.push(`<option value="b:${n}">${n}</option>`));
-  Object.keys(u).forEach(n => opt.push(`<option value="u:${n}">${n} ★</option>`));
+  const esc = n => String(n).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const opt = ['<option value="">— Select —</option>', '<optgroup label="Built-in">'];
+  Object.keys(BUILTIN_PRESETS).forEach(n => opt.push(`<option value="b:${esc(n)}">${esc(n)}</option>`));
+  opt.push('</optgroup>');
+  if (Object.keys(u).length) {
+    opt.push('<optgroup label="Saved">');
+    Object.keys(u).forEach(n => opt.push(`<option value="u:${esc(n)}">${esc(n)}</option>`));
+    opt.push('</optgroup>');
+  }
   ctrl('preset-select').innerHTML = opt.join('');
   if (sel) ctrl('preset-select').value = sel;
+  Object.keys(presetRegistry).forEach(k => delete presetRegistry[k]);
+  Object.entries(BUILTIN_PRESETS).forEach(([n, p]) => { presetRegistry['b:' + n] = { name: esc(n), thumb: () => presetThumb(p) }; });
+  Object.entries(u).forEach(([n, p]) => { presetRegistry['u:' + n] = { name: esc(n), thumb: () => presetThumb(p) }; });
+  if (!presetPicker) presetPicker = Organica.selectPicker(ctrl('preset-select'), ctrl('preset-picker'), { registry: presetRegistry, size: 'preview', ariaLabel: 'Preset' });
+  else presetPicker.refresh();
 }
 function applyPreset(v) {
   if (!v) return;
@@ -888,6 +927,7 @@ function confirmSavePreset() {
   if (!name) return;
   const u = userPresets(); u[name] = getState();
   PRESETS.write(u);
+  if (presetPicker) presetPicker.invalidate('u:' + name);   // an overwrite re-renders its thumbnail
   populatePresets('u:' + name);
   cancelSavePreset();
 }
@@ -898,7 +938,7 @@ function cancelSavePreset() {
 }
 function deletePreset() {
   const v = ctrl('preset-select').value;
-  if (!v || v.slice(0, 1) !== 'u') { alert('Select a saved preset (★) to delete.'); return; }
+  if (!v || v.slice(0, 1) !== 'u') { setStatus('error', 'Select one of your saved presets to delete.'); return; }
   const u = userPresets(); delete u[v.slice(2)];
   PRESETS.write(u);
   populatePresets('');
@@ -1084,23 +1124,39 @@ async function computePoints() {
 }
 
 // ── POINT APPEARANCE PARAMETERS (read live from the Point Type panel) ──
-function pointParams() {
-  const sc = val('sl-scale') || 1;   // global size multiplier (baked into sizes)
-  const rmx = rmxOn ? rmxForms.filter(Boolean) : null;
+// The live controls by default; a preset thumbnail passes a getState()-shaped
+// object, and any key it omits falls back to that control's own HTML
+// default — so a preset renders the same whatever is dialled in right now.
+function stateReader(s) {
   return {
-    shape: pointType,
+    v:  id => s ? parseFloat(s[id] !== undefined ? s[id] : ctrl(id).defaultValue) : val(id),
+    ck: id => s ? (s[id] !== undefined ? !!s[id] : ctrl(id).defaultChecked) : ctrl(id).checked,
+  };
+}
+function pointParams(s) {
+  const { v, ck } = stateReader(s);
+  const sc = v('sl-scale') || 1;   // global size multiplier (baked into sizes)
+  const on = s ? !!s.rmxOn : rmxOn, forms = s ? (s.rmxForms || []) : rmxForms;
+  const rmx = on ? forms.filter(Boolean) : null;
+  const cm = s ? (s.colorMode || 'solid') : colorMode;
+  return {
+    shape: s ? remapPointType(s.pointType || 'g:seed-breath') : pointType,
     rmx: (rmx && rmx.length >= 2) ? rmx : null,
-    sizeMin: val('sl-size') * sc, sizeMax: val('sl-size-max') * sc, sizeRange: ctrl('ck-size-range').checked,
-    width: val('sl-width') || 1, length: val('sl-length') || 1,
-    strokeLen: val('sl-stroke-len') || 10, strokeSeg: val('sl-stroke-seg') || 10,
-    strokeWarp: val('sl-stroke-warp') || 0, strokeRound: ctrl('ck-stroke-round').checked,
-    strokeStyle,
-    angleMin: val('sl-angle'), angleMax: val('sl-angle-max'),
-    angleRange: ctrl('ck-angle-range').checked, angleRandom: ctrl('ck-angle-random').checked,
-    angleFlow: ctrl('ck-angle-flow').checked,
-    lightDropout: (val('sl-dropout') || 0) / 100,
-    colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value, alpha: clamp255(ctrl('a-ink').value) / 255,
-    palette: colorMode === 'rmx' ? rmxColors.slice() : null, rmxMap: rmxColorMap
+    sizeMin: v('sl-size') * sc, sizeMax: v('sl-size-max') * sc, sizeRange: ck('ck-size-range'),
+    width: v('sl-width') || 1, length: v('sl-length') || 1,
+    strokeLen: v('sl-stroke-len') || 10, strokeSeg: v('sl-stroke-seg') || 10,
+    strokeWarp: v('sl-stroke-warp') || 0, strokeRound: ck('ck-stroke-round'),
+    strokeStyle: s ? (s.strokeStyle || 'line') : strokeStyle,
+    angleMin: v('sl-angle'), angleMax: v('sl-angle-max'),
+    angleRange: ck('ck-angle-range'), angleRandom: ck('ck-angle-random'),
+    angleFlow: ck('ck-angle-flow'),
+    lightDropout: (v('sl-dropout') || 0) / 100,
+    colorMode: cm,
+    ink: s ? (s.ink || '#0a0a0a') : ctrl('hex-ink').value, bg: s ? (s.bg || '#f5f2ec') : ctrl('hex-bg').value,
+    alpha: clamp255(s ? (s.alpha255 !== undefined ? s.alpha255 : ctrl('a-ink').defaultValue) : ctrl('a-ink').value) / 255,
+    palette: cm === 'rmx' ? (s ? (s.rmxColors || rmxColors) : rmxColors).slice() : null,
+    rmxMap: s ? (s.rmxColorMap || 'tone') : rmxColorMap,
+    overpaint: s ? ck('ck-overpaint') : undefined,   // undefined → paintPoints reads the live checkbox
   };
 }
 
@@ -1267,7 +1323,7 @@ function paintPoints(g, pts, P, W, H, aa, ink, bg, unit, forceInk) {
   g.fillStyle = bg; g.fillRect(0, 0, W, H);
   g.lineJoin = 'round';
   // Overpaint: overlapping marks accumulate tone (multiply). Best with Alpha < 1.
-  if (ctrl('ck-overpaint').checked) g.globalCompositeOperation = 'multiply';
+  if (P.overpaint !== undefined ? P.overpaint : ctrl('ck-overpaint').checked) g.globalCompositeOperation = 'multiply';
   const perPoint = !forceInk && (P.colorMode === 'adaptive' || P.colorMode === 'rmx');
   if (forceInk) {
     g.fillStyle = g.strokeStyle = forceInk;

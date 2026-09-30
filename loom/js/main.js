@@ -40,6 +40,12 @@ function populateCanvasPresets() {
     opt.value = name; opt.textContent = name;
     sel.appendChild(opt);
   });
+  // Thumbnail picker (Organica.selectPicker, 26px icons): each format as a
+  // rectangle at its own aspect — "1:1 vs 4:5" at a glance. "Custom…" is
+  // the placeholder (no preset), so the trigger shows its text only.
+  const registry = {};
+  Object.entries(CANVAS_PRESETS).forEach(([n, p]) => { registry[n] = { name: n, icon: Organica.aspectIcon(p.width, p.height) }; });
+  Organica.selectPicker(sel, ctrl('canvas-preset-picker'), { registry, ariaLabel: 'Canvas preset' });
 }
 // ── Output mode: Screen (px, today's behaviour) vs Print (a real
 // physical unit + DPI + bleed) — an explicit, always-visible choice
@@ -878,17 +884,38 @@ function paramsWithGap(grid) {
   return params;
 }
 
+// A grid preset's thumbnail (shared Organica.loomGridThumb — the cell
+// outlines at the grid's own aspect). A saved grid carries its cells; a
+// built-in carries only its recipe, so it's generated here exactly as
+// build() would (createCanvas → GENERATORS[type].generate) — the same
+// generator, not a drawing of one.
+function gridPresetThumb(model) {
+  if (model.cells && model.cells.length) return Organica.loomGridThumb(model);
+  try {
+    const mc = model.canvas, m = mc.margin || 0;
+    const canvas = createCanvas({ width: mc.displayWidth, height: mc.displayHeight, unit: mc.unit || 'px',
+      marginTop: mc.marginTop ?? m, marginRight: mc.marginRight ?? m, marginBottom: mc.marginBottom ?? m, marginLeft: mc.marginLeft ?? m });
+    const { grid, cells } = GENERATORS[model.grid.type].generate(paramsWithGap(model.grid), innerRect(canvas));
+    return Organica.loomGridThumb({ canvas, grid, cells });
+  } catch (e) { return ''; }
+}
+const gridPresetRegistry = {};
+let gridPresetPicker = null;
 function populateSavedGrids() {
   const sel = ctrl('sel-saved-grids');
   const cur = sel.value;
   const presets = allGridPresets();
-  sel.innerHTML = '<option value="">Load saved…</option>';
-  Object.keys(presets).sort().forEach(name => {
-    const opt = document.createElement('option');
-    opt.value = name; opt.textContent = name;
-    sel.appendChild(opt);
-  });
+  const saved = gridPresetStore.read();
+  const esc = n => String(n).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const opt = n => `<option value="${esc(n)}">${esc(n)}</option>`;
+  sel.innerHTML = '<option value="">Load saved…</option>' +
+    '<optgroup label="Built-in">' + Object.keys(BUILTIN_GRID_PRESETS).map(opt).join('') + '</optgroup>' +
+    (Object.keys(saved).length ? '<optgroup label="Saved">' + Object.keys(saved).sort().map(opt).join('') + '</optgroup>' : '');
   if (presets[cur]) sel.value = cur;
+  Object.keys(gridPresetRegistry).forEach(k => delete gridPresetRegistry[k]);
+  Object.entries(presets).forEach(([n, model]) => { gridPresetRegistry[n] = { name: esc(n), thumb: () => gridPresetThumb(model) }; });
+  if (!gridPresetPicker) gridPresetPicker = Organica.selectPicker(sel, ctrl('saved-grids-picker'), { registry: gridPresetRegistry, size: 'preview', ariaLabel: 'Saved grids' });
+  else gridPresetPicker.refresh();
 }
 function saveGridPreset() {
   const name = ctrl('txt-save-name').value.trim();
@@ -902,6 +929,7 @@ function saveGridPreset() {
   populateSavedGrids();
   populateOverlayGrids();
   ctrl('sel-saved-grids').value = name;
+  if (gridPresetPicker) { gridPresetPicker.invalidate(name); gridPresetPicker.refresh(); }   // an overwrite re-renders its thumbnail
   setStatus('active', `Saved "${name}"`);
 }
 function deleteGridPreset() {

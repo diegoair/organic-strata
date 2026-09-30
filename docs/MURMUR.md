@@ -31,7 +31,7 @@ Output: a **video loop** (MP4 / WebM).
 | Source | What becomes a particle | Drawn as |
 |---|---|---|
 | **Pollen** | each point's `<g transform>` (a Genesis form, an upload, a stroke), or each field streamline `<path>` | a plain dot uses the batched **circle** path. Any other form becomes a vector **shape**: Path2D, plus oval primitives |
-| **Spore** | each mark's `<g transform="translate rotate scale translate">` | circle or vector shape, with the mark's colour and opacity |
+| **Spore** | each mark's `<g transform="translate rotate scale translate">`, or, in older exports, each `<use href="#mk" x y width height transform>` of a `<symbol>` (resolved through the symbol's viewBox) | circle or vector shape, with the mark's colour and opacity |
 | **Halide** | each **dither cell**. Merged `<rect>` runs are split back into `block × block` cells; a "Simplify shapes" path is read back into cells | squares |
 
 - **Screen-mode exports only.** Print-mode files (mm / in documents with crop

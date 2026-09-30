@@ -98,6 +98,7 @@
 
     <div class="panel-section">
       <h3>Preset</h3>
+      <div id="preset-picker"></div>
       <select class="panel-select" id="sel-preset" aria-label="Preset" onchange="applyPreset(this.value)"></select>
       <div class="row-btns">
         <button class="mini-btn" onclick="savePreset()">Save</button>
@@ -391,6 +392,7 @@
 <script src="/shared/palette.js"></script>
 <script src="/shared/noise.js"></script>
 <script src="/shared/radial.js"></script>
+<script src="/shared/select-picker.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // RADIAL — one tool for the Book of Shapes "radial" family. A polar
@@ -470,48 +472,51 @@ function syncPanelRows() {
 const SIZE = 760;
 
 // ── PARAMS ──
-function buildParams() {
+// Reads a readState()-shaped object (default: the live controls), so a
+// preset turns into render params with no DOM churn — the preset picker's
+// thumbnails call buildParams(preset).
+function buildParams(s = readState()) {
   return {
-    placement: ctrl('sel-placement').value,
-    modulation: ctrl('sel-modulation').value,
-    render: ctrl('sel-render').value,
-    markShape: ctrl('sel-markshape').value,
-    lineDir: ctrl('sel-linedir').value,
-    sizeMode: ctrl('sel-sizemode').value,
-    diagonals: ctrl('ck-diagonals').checked,
-    sides: Math.round(val('rg-sides')),
-    rings: Math.round(val('rg-rings')),
-    innerFrac: val('rg-inner'),
-    radiusFrac: val('rg-radius'),
-    ringCurve: val('rg-ringcurve'),
-    count: Math.round(val('rg-count')),
-    spread: val('rg-spread'),
-    arms: Math.round(val('rg-arms')),
-    perArm: Math.round(val('rg-perarm')),
-    twist: val('rg-twist'),
-    petals: Math.round(val('rg-petals')),
-    petalDepth: val('rg-petaldepth'),
-    shear: val('rg-shear'),
-    warpAmt: val('rg-warpamt'),
-    warpScale: val('rg-warpscale'),
-    fillScale: val('rg-fillscale'),
-    threshold: val('rg-threshold'),
-    markSize: val('rg-marksize'),
-    sizeAmt: val('rg-sizeamt'),
-    arcCount: Math.round(val('rg-arccount')),
-    arcMin: val('rg-arcmin'),
-    arcMax: val('rg-arcmax'),
-    arcGrowth: val('rg-arcgrowth'),
-    arcGap: val('rg-arcgap'),
-    arcSpan: val('rg-arcspan'),
-    arcBias: val('rg-arcbias'),
-    loopCount: Math.round(val('rg-loopcount')),
-    loopRadius: val('rg-loopradius'),
-    loopNoise: val('rg-loopnoise'),
-    jitter: val('rg-jitter'),
-    seed: Math.round(val('rg-seed')),
-    ink: ctrl('hex-ink').value,
-    paper: ctrl('hex-paper').value,
+    placement: s.placement,
+    modulation: s.modulation,
+    render: s.render,
+    markShape: s.markshape,
+    lineDir: s.linedir,
+    sizeMode: s.sizemode,
+    diagonals: !!s.diagonals,
+    sides: Math.round(+s.sides),
+    rings: Math.round(+s.rings),
+    innerFrac: +s.inner,
+    radiusFrac: +s.radius,
+    ringCurve: +s.ringcurve,
+    count: Math.round(+s.count),
+    spread: +s.spread,
+    arms: Math.round(+s.arms),
+    perArm: Math.round(+s.perarm),
+    twist: +s.twist,
+    petals: Math.round(+s.petals),
+    petalDepth: +s.petaldepth,
+    shear: +s.shear,
+    warpAmt: +s.warpamt,
+    warpScale: +s.warpscale,
+    fillScale: +s.fillscale,
+    threshold: +s.threshold,
+    markSize: +s.marksize,
+    sizeAmt: +s.sizeamt,
+    arcCount: Math.round(+s.arccount),
+    arcMin: +s.arcmin,
+    arcMax: +s.arcmax,
+    arcGrowth: +s.arcgrowth,
+    arcGap: +s.arcgap,
+    arcSpan: +s.arcspan,
+    arcBias: +s.arcbias,
+    loopCount: Math.round(+s.loopcount),
+    loopRadius: +s.loopradius,
+    loopNoise: +s.loopnoise,
+    jitter: +s.jitter,
+    seed: Math.round(+s.seed),
+    ink: s.ink,
+    paper: s.paper,
   };
 }
 
@@ -592,15 +597,30 @@ function userPresets() { return presetStoreObj().read(); }
 function allPresets() { return Object.assign({}, BUILTIN_PRESETS, userPresets()); }
 let currentPresetName = null;
 
+// ── Preset picker — preview thumbnails (Organica.selectPicker): each preset
+//    drawn by the real pipeline (buildScene + drawSceneCanvas), its square
+//    field centred on its own paper. Lazy + cached by the picker. ──
+function presetThumb(p) {
+  const P = buildParams(Object.assign({}, BUILTIN_PRESETS['Broken Ring'], p));
+  const c = document.createElement('canvas'); c.width = 120; c.height = 80;
+  const g = c.getContext('2d');
+  g.fillStyle = P.paper; g.fillRect(0, 0, 120, 80);
+  g.translate(20, 0);
+  drawSceneCanvas(g, buildScene(P, SIZE, SIZE), P, 80 / SIZE, 1.2);   // 1.2 canvas px = ~0.6 css px at the 60×40 display
+  return c.toDataURL();
+}
+const presetRegistry = {};
+let presetPicker = null;
 function populatePresets(select) {
-  const sel = ctrl('sel-preset');
-  sel.innerHTML = '';
-  Object.keys(allPresets()).forEach(name => {
-    const opt = document.createElement('option');
-    opt.value = name; opt.textContent = name;
-    sel.appendChild(opt);
-  });
+  const sel = ctrl('sel-preset'), user = userPresets();
+  const opt = n => `<option value="${n.replace(/"/g, '&quot;')}">${n.replace(/</g, '&lt;')}</option>`;
+  sel.innerHTML = '<optgroup label="Built-in">' + Object.keys(BUILTIN_PRESETS).map(opt).join('') + '</optgroup>' +
+    (Object.keys(user).length ? '<optgroup label="Saved">' + Object.keys(user).map(opt).join('') + '</optgroup>' : '');
   if (select) sel.value = select;
+  Object.keys(presetRegistry).forEach(k => delete presetRegistry[k]);
+  Object.entries(allPresets()).forEach(([n, p]) => { presetRegistry[n] = { name: n.replace(/</g, '&lt;'), thumb: () => presetThumb(p) }; });
+  if (!presetPicker) presetPicker = Organica.selectPicker(sel, ctrl('preset-picker'), { registry: presetRegistry, size: 'preview', ariaLabel: 'Preset' });
+  else presetPicker.refresh();
 }
 function applyPreset(name) {
   const p = allPresets()[name];
@@ -624,6 +644,7 @@ function confirmSavePreset() {
   all[name] = readState();
   presetStoreObj().write(all);
   currentPresetName = name;
+  if (presetPicker) presetPicker.invalidate(name);   // an overwrite re-renders its thumbnail
   populatePresets(name);
   setStatus('active', 'Saved preset · ' + name);
   cancelSavePreset();

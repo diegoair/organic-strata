@@ -130,6 +130,7 @@
 
     <div class="panel-section">
       <h3>Scene</h3>
+      <div id="scene-picker"></div>
       <select class="panel-select" id="sel-scene" aria-label="Scene" onchange="loadScene(this.value)"></select>
       <div class="row-btns">
         <button class="mini-btn" onclick="saveScene()">Save</button>
@@ -469,6 +470,7 @@
 <script src="/shared/noise.js"></script>
 <script src="/shared/tracks.js"></script>
 <script src="/shared/radial.js"></script>
+<script src="/shared/select-picker.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // PULSAR — a generative Motion tool over Radial. It drives Radial's parameter
@@ -538,48 +540,50 @@ function syncPanelRows() {
 }
 
 // camelCase P for Organica.radial.buildScene — identical to radial's buildParams()
-function buildParams() {
+// Reads a readState()-shaped object (default: the live controls) — the
+// scene picker's thumbnails call buildParams(state) with no DOM churn.
+function buildParams(s = readState()) {
   return {
-    placement: ctrl('sel-placement').value,
-    modulation: ctrl('sel-modulation').value,
-    render: ctrl('sel-render').value,
-    markShape: ctrl('sel-markshape').value,
-    lineDir: ctrl('sel-linedir').value,
-    sizeMode: ctrl('sel-sizemode').value,
-    diagonals: ctrl('ck-diagonals').checked,
-    sides: Math.round(val('rg-sides')),
-    rings: Math.round(val('rg-rings')),
-    innerFrac: val('rg-inner'),
-    radiusFrac: val('rg-radius'),
-    ringCurve: val('rg-ringcurve'),
-    count: Math.round(val('rg-count')),
-    spread: val('rg-spread'),
-    arms: Math.round(val('rg-arms')),
-    perArm: Math.round(val('rg-perarm')),
-    twist: val('rg-twist'),
-    petals: Math.round(val('rg-petals')),
-    petalDepth: val('rg-petaldepth'),
-    shear: val('rg-shear'),
-    warpAmt: val('rg-warpamt'),
-    warpScale: val('rg-warpscale'),
-    fillScale: val('rg-fillscale'),
-    threshold: val('rg-threshold'),
-    markSize: val('rg-marksize'),
-    sizeAmt: val('rg-sizeamt'),
-    arcCount: Math.round(val('rg-arccount')),
-    arcMin: val('rg-arcmin'),
-    arcMax: val('rg-arcmax'),
-    arcGrowth: val('rg-arcgrowth'),
-    arcGap: val('rg-arcgap'),
-    arcSpan: val('rg-arcspan'),
-    arcBias: val('rg-arcbias'),
-    loopCount: Math.round(val('rg-loopcount')),
-    loopRadius: val('rg-loopradius'),
-    loopNoise: val('rg-loopnoise'),
-    jitter: val('rg-jitter'),
-    seed: Math.round(val('rg-seed')),
-    ink: ctrl('hex-ink').value,
-    paper: ctrl('hex-paper').value,
+    placement: s.placement,
+    modulation: s.modulation,
+    render: s.render,
+    markShape: s.markshape,
+    lineDir: s.linedir,
+    sizeMode: s.sizemode,
+    diagonals: !!s.diagonals,
+    sides: Math.round(+s.sides),
+    rings: Math.round(+s.rings),
+    innerFrac: +s.inner,
+    radiusFrac: +s.radius,
+    ringCurve: +s.ringcurve,
+    count: Math.round(+s.count),
+    spread: +s.spread,
+    arms: Math.round(+s.arms),
+    perArm: Math.round(+s.perarm),
+    twist: +s.twist,
+    petals: Math.round(+s.petals),
+    petalDepth: +s.petaldepth,
+    shear: +s.shear,
+    warpAmt: +s.warpamt,
+    warpScale: +s.warpscale,
+    fillScale: +s.fillscale,
+    threshold: +s.threshold,
+    markSize: +s.marksize,
+    sizeAmt: +s.sizeamt,
+    arcCount: Math.round(+s.arccount),
+    arcMin: +s.arcmin,
+    arcMax: +s.arcmax,
+    arcGrowth: +s.arcgrowth,
+    arcGap: +s.arcgap,
+    arcSpan: +s.arcspan,
+    arcBias: +s.arcbias,
+    loopCount: Math.round(+s.loopcount),
+    loopRadius: +s.loopradius,
+    loopNoise: +s.loopnoise,
+    jitter: +s.jitter,
+    seed: Math.round(+s.seed),
+    ink: s.ink,
+    paper: s.paper,
   };
 }
 
@@ -906,18 +910,37 @@ function sceneStore() { return Organica.presetStore('pulsar'); }
 function userScenes() { return sceneStore().read(); }
 function allScenes() { return Object.assign({}, PULSAR_SCENES, userScenes()); }
 
+// ── Scene picker — preview thumbnails (Organica.selectPicker): each scene
+//    as a real frame a third of the way into its loop — its base Radial
+//    state + base overrides, through the same composeP (tracks, spin, zoom)
+//    and drawSceneCanvas the canvas uses. Lazy + cached by the picker. ──
+function sceneThumb(sc) {
+  const st = Object.assign({}, sc.preset ? BUILTIN_PRESETS[sc.preset] : (sc.state || {}));
+  if (sc.base) for (const k in sc.base) st[k.replace(/^rg-/, '')] = sc.base[k];
+  const tracks = (sc.tracks || []).filter(t => t && t.param);
+  if (sc.rotate && sc.rotate.on) tracks.push({ param: 'rotate', wave: 'spin', amount: sc.rotate.turns || 1, period: 1, phase: 0, ease: 'linear' });
+  if (sc.zoom && sc.zoom.on) tracks.push({ param: 'zoom', wave: sc.zoom.wave || 'sine', amount: sc.zoom.amt != null ? sc.zoom.amt : 0.15, period: 1, phase: 0, ease: 'inOut' });
+  const P = composeP(buildParams(Object.assign({}, BUILTIN_PRESETS['Broken Ring'], st)), tracks, 0.35);
+  const c = document.createElement('canvas'); c.width = 120; c.height = 80;
+  const g = c.getContext('2d');
+  g.fillStyle = P.paper; g.fillRect(0, 0, 120, 80);
+  g.translate(20, 0);
+  drawSceneCanvas(g, buildScene(P, SIZE, SIZE), P, 80 / SIZE, 1.2);   // 1.2 canvas px = ~0.6 css px at 60×40
+  return c.toDataURL();
+}
+const sceneRegistry = {};
+let scenePicker = null;
 function populateScenes(select) {
-  const sel = ctrl('sel-scene');
-  sel.innerHTML = '';
-  const blank = document.createElement('option');
-  blank.value = ''; blank.textContent = '— (custom)';
-  sel.appendChild(blank);
-  Object.keys(allScenes()).forEach(name => {
-    const o = document.createElement('option');
-    o.value = name; o.textContent = name;
-    sel.appendChild(o);
-  });
-  sel.value = select || '';
+  const sel = ctrl('sel-scene'), user = userScenes();
+  const opt = n => `<option value="${n.replace(/"/g, '&quot;')}">${n.replace(/</g, '&lt;')}</option>`;
+  sel.innerHTML = '<option value="">— (custom)</option>' +
+    '<optgroup label="Built-in">' + Object.keys(PULSAR_SCENES).map(opt).join('') + '</optgroup>' +
+    (Object.keys(user).length ? '<optgroup label="Saved">' + Object.keys(user).map(opt).join('') + '</optgroup>' : '');
+  sel.value = select || currentSceneName || '';   // a cloud-sync re-populate keeps the loaded scene
+  Object.keys(sceneRegistry).forEach(k => delete sceneRegistry[k]);
+  Object.entries(allScenes()).forEach(([n, sc]) => { sceneRegistry[n] = { name: n.replace(/</g, '&lt;'), thumb: () => sceneThumb(sc) }; });
+  if (!scenePicker) scenePicker = Organica.selectPicker(sel, ctrl('scene-picker'), { registry: sceneRegistry, size: 'preview', ariaLabel: 'Scene' });
+  else scenePicker.refresh();
 }
 function padTracks(list) { const o = (list || []).slice(0, NTRACKS); while (o.length < NTRACKS) o.push({ param: '' }); return o; }
 
@@ -969,6 +992,7 @@ function confirmSaveScene() {
   };
   sceneStore().write(all);
   currentSceneName = name;
+  if (scenePicker) scenePicker.invalidate(name);   // an overwrite re-renders its thumbnail
   populateScenes(name);
   setStatus('active', 'Saved scene · ' + name);
   cancelSaveScene();

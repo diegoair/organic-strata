@@ -167,6 +167,7 @@
 
     <div class="panel-section">
       <h3>Presets <span class="hint">start from a style</span></h3>
+      <div id="preset-picker"></div>
       <select class="panel-select" id="preset-select" aria-label="Preset" onchange="applyPreset(this.value)">
         <option value="">— Select —</option>
       </select>
@@ -345,6 +346,7 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/palette.js"></script>
+<script src="/shared/select-picker.js"></script>
 <script src="/shared/print-size.js"></script>
 <script src="/shared/print-size-panel.js"></script>
 <script>
@@ -563,6 +565,34 @@ const BUILTIN_PRESETS = {
 const PRESETS = Organica.presetStore('halide', 'halide-presets');
 const PRESET_KEY = PRESETS.key;
 function userPresets() { return PRESETS.read(); }
+// ── Preset picker — preview thumbnails (Organica.selectPicker): each preset
+//    dithers THE standard test image (Organica.previewImage — the same subject
+//    in every image tool) with its own tone, algorithm, Bayer size, serpentine
+//    and ink/paper, through the shared Organica.dither the canvas uses. The
+//    cell grid scales with the preset's Resolution, so coarse reads coarse. ──
+function presetThumb(p) {
+  const W = 120, H = 80;
+  const cw = Math.max(24, Math.min(120, Math.round(40 * (p.res || 128) / 128))), ch = Math.round(cw * H / W);
+  const src = Organica.previewImage(cw, ch).data, gray = new Float32Array(cw * ch);
+  for (let i = 0; i < gray.length; i++) {
+    let l = src[i * 4] / 255;
+    if (p.invert) l = 1 - l;
+    gray[i] = processLuma(l, p.gamma != null ? p.gamma : 1, p.contrast || 0, p.bias || 0);
+  }
+  const alg = p.alg || 'fs';
+  const cells = alg === 'fs' ? ditherErrorDiffusion(gray, cw, ch, FS_KERNEL, p.serp !== false)
+    : alg === 'atkinson' ? ditherErrorDiffusion(gray, cw, ch, ATKINSON_KERNEL, !!p.serp)
+    : alg === 'bayer' ? ditherBayer(gray, cw, ch, p.bayer || 4)
+    : ditherThreshold(gray, cw, ch);
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'), k = W / cw;
+  g.fillStyle = p.paper || '#ffffff'; g.fillRect(0, 0, W, H);
+  g.fillStyle = p.ink || '#0a0a0a';
+  for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) if (cells[y * cw + x]) g.fillRect(x * k, y * k, k + 0.02, k + 0.02);
+  return c.toDataURL();
+}
+const presetRegistry = {};
+let presetPicker = null;
 function populatePresets() {
   const sel = document.getElementById('preset-select');
   const cur = sel.value;
@@ -575,6 +605,10 @@ function populatePresets() {
     sel.appendChild(og);
   });
   sel.value = cur in { ...BUILTIN_PRESETS, ...userPresets() } ? cur : '';
+  Object.keys(presetRegistry).forEach(k => delete presetRegistry[k]);
+  Object.entries({ ...BUILTIN_PRESETS, ...userPresets() }).forEach(([n, p]) => { presetRegistry[n] = { name: n.replace(/</g, '&lt;'), thumb: () => presetThumb(p) }; });
+  if (!presetPicker) presetPicker = Organica.selectPicker(sel, document.getElementById('preset-picker'), { registry: presetRegistry, size: 'preview', ariaLabel: 'Preset' });
+  else presetPicker.refresh();
 }
 function applyPreset(name) {
   if (!name) return;
@@ -626,8 +660,10 @@ function confirmSavePreset() {
     transparent: ctrl('ck-transparent').checked,
   };
   PRESETS.write(u);
+  if (presetPicker) presetPicker.invalidate(name);   // an overwrite re-renders its thumbnail
   populatePresets();
   document.getElementById('preset-select').value = name;
+  if (presetPicker) presetPicker.refresh();
   cancelSavePreset();
 }
 function cancelSavePreset() {
@@ -713,12 +749,11 @@ function drawOriented(g, destW, destH) {
   g.restore();
 }
 
-function processLuma(l) {
-  const gamma = val('sl-gamma');
+// Tone: the live sliders by default; a preset thumbnail passes its own.
+function processLuma(l, gamma = val('sl-gamma'), c = val('sl-contrast'), bias = val('sl-bias')) {
   if (gamma !== 1) l = Math.pow(Math.max(0, l), gamma);
-  const c = val('sl-contrast');
   if (c) { const cc = c * 2.55, f = (259 * (cc + 255)) / (255 * (259 - cc)); l = f * (l - 0.5) + 0.5; }
-  l += val('sl-bias') / 100;
+  l += bias / 100;
   return Math.max(0, Math.min(1, l));
 }
 
