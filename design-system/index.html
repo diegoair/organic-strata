@@ -238,6 +238,29 @@
   }
 
 
+
+  /* Working with AI — the governance flow (drawn from the page's own tokens, both themes) */
+  .ds-gov-scroll { overflow-x: auto; margin: 0 0 var(--space-5); }
+  .ds-gov { display: block; width: 100%; min-width: 640px; height: auto; }
+  .ds-gov .n-human rect { fill: var(--ink); stroke: var(--ink); }
+  .ds-gov .n-human text { fill: var(--paper); }
+  .ds-gov .n-ai rect { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }
+  .ds-gov .n-auto rect { fill: var(--panel); stroke: var(--border-strong); stroke-width: 1.2; stroke-dasharray: 5 4; }
+  .ds-gov text { fill: var(--ink); font-family: var(--font-display); }
+  .ds-gov .t { font-size: 14px; font-weight: 600; }
+  .ds-gov .s { font-size: 10.5px; font-family: var(--font-mono); opacity: .78; }
+  .ds-gov .k { font-size: 9.5px; font-family: var(--font-mono); letter-spacing: .12em; opacity: .7; }
+  .ds-gov .edge { fill: none; stroke: var(--border-strong); stroke-width: 1.5; }
+  .ds-gov .edge.back { stroke-dasharray: 3 5; }
+  .ds-gov .arrow { fill: var(--border-strong); }
+  .ds-gov .elabel { font-family: var(--font-mono); font-size: 10px; fill: var(--mid); }
+  .ds-gov-legend { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); font-size: var(--fs-small); color: var(--mid); margin: 0 0 var(--space-6); }
+  .ds-gov-legend span { display: inline-flex; align-items: center; gap: var(--space-2); }
+  .ds-gov-legend i { display: inline-block; width: var(--space-7); height: var(--space-4); border-radius: var(--radius-sm); }
+  .ds-gov-legend .l-human { background: var(--ink); }
+  .ds-gov-legend .l-ai { border: 1.5px solid var(--ink); }
+  .ds-gov-legend .l-auto { background: var(--panel); border: 1.2px dashed var(--border-strong); }
+
   /* ── Typography specimen (.ty-*) — the section documents type, so its own chrome is tokens only ── */
   .ty-badge {
     display: inline-block; white-space: nowrap;
@@ -507,6 +530,7 @@
       <a href="#tool-palette">Per-tool palette contract</a>
       <a href="#adding-tokens">Adding a token or class</a>
       <a href="#common-mistakes">Common mistakes</a>
+      <a href="#ai-workflow">Working with AI</a>
       <a href="#self-check">Self-check</a>
     </div>
   </nav>
@@ -1515,6 +1539,55 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
         <div class="ds-mistake__title">A capture-phase listener catching a descendant's own event</div>
         <p>Living Path closed its (position:fixed) preset menu whenever <code>.panel.right</code> fired a <code>scroll</code> event, registered with <code>useCapture:true</code> so it would still catch the panel scrolling out from under the menu. But a capture-phase listener on an ancestor fires for <em>any</em> descendant's own matching event too — including the menu's own internal list scrolling once it had enough presets to overflow (Raster's 24; Vector's 5 never did, which is why this went unnoticed). The fix isn't removing capture, it's checking <code>e.target</code> inside the handler and ignoring events that originated inside the element you don't want to react to. Found by actually scrolling the menu, not by reading the listener — it looked correct on the page.</p>
       </div>
+    </section>
+
+    <section class="ds-entry ds-prose" id="ai-workflow">
+      <h2>Working with AI — governance</h2>
+      <p class="ds-desc"><strong>The system lives in code, and an AI coding agent works on it as a collaborator.</strong> It audits, proposes, builds and verifies; people make the design decisions. This entry is the contract: the loop every change follows, who decides what, and the checks that keep the agent's speed from turning into drift. The same content is published as a shareable page, <a href="https://claude.ai/artifact/2YDV3hau2WR9dZVejTieoh">Organica and AI</a>.</p>
+      <div class="ds-usage"><strong>Rules live in</strong><span>CLAUDE.md (read at the start of every session)</span><strong>Decisions logged in</strong><span>CLAUDE.md session notes</span><span>docs/SESSION-LOG.md</span><strong>Audit pages</strong><span>_control-audit.html</span><span>_dark-audit.html</span></div>
+      <h3>The loop</h3>
+      <ol>
+        <li><strong>Audit.</strong> The agent builds a page that loads every tool and measures what is really rendered, not what the docs claim (<a href="/design-system/_control-audit.html">buttons &amp; fields</a>, <a href="/design-system/_dark-audit.html">dark mode</a>).</li>
+        <li><strong>Propose.</strong> One consolidated component or token set, often with a visual mock and the trade-offs laid out.</li>
+        <li><strong>Decide.</strong> The owner chooses: case, sizes, scope, any new token. Open questions come back as explicit choices.</li>
+        <li><strong>Build &amp; migrate.</strong> Written once from tokens; old class names stay as aliases so no tool breaks.</li>
+        <li><strong>Verify.</strong> Lint, the Flexible Visual System regression, this page's self-check, and a look in the browser in light and dark.</li>
+        <li><strong>Document.</strong> This reference, the written docs, and a session note with the reason behind the change.</li>
+      </ol>
+      <h3>Who acts, and where the gates are</h3>
+      <div class="ds-gov-scroll"><svg class="ds-gov" viewBox="0 0 810 292" role="img" aria-labelledby="ds-gov-t ds-gov-d">
+        <title id="ds-gov-t">Governance flow</title>
+        <desc id="ds-gov-d">Eight steps: people request, the AI agent audits and proposes, the owner decides, the AI builds and migrates, automated checks run, people review a preview, the owner gives the go to production, then the deploy is verified and the reference and log are updated, which feeds the next request.</desc>
+        <defs><marker id="ds-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+        <path class="edge" d="M180 69 H209" marker-end="url(#ds-ah)"/><path class="edge" d="M385 69 H414" marker-end="url(#ds-ah)"/><path class="edge" d="M590 69 H619" marker-end="url(#ds-ah)"/><path class="edge" d="M710 108 V194" marker-end="url(#ds-ah)"/><path class="edge" d="M625 239 H596" marker-end="url(#ds-ah)"/><path class="edge" d="M420 239 H391" marker-end="url(#ds-ah)"/><path class="edge" d="M215 239 H186" marker-end="url(#ds-ah)"/><path class="edge back" d="M95 200 V114" marker-end="url(#ds-ah)"/><g class="n-human"><rect x="10" y="30" width="170" height="78" rx="3"/><text class="k" x="22" y="50">01 · PEOPLE</text><text class="t" x="22" y="72">Request</text><text class="s" x="22" y="92">plain language</text></g><g class="n-ai"><rect x="215" y="30" width="170" height="78" rx="3"/><text class="k" x="227" y="50">02 · AI AGENT</text><text class="t" x="227" y="72">Audit &amp; propose</text><text class="s" x="227" y="92">measures, mocks</text></g><g class="n-human"><rect x="420" y="30" width="170" height="78" rx="3"/><text class="k" x="432" y="50">03 · OWNER GATE</text><text class="t" x="432" y="72">Decide</text><text class="s" x="432" y="92">scope, look, new tokens</text></g><g class="n-ai"><rect x="625" y="30" width="170" height="78" rx="3"/><text class="k" x="637" y="50">04 · AI AGENT</text><text class="t" x="637" y="72">Build &amp; migrate</text><text class="s" x="637" y="92">tokens, aliases kept</text></g><g class="n-auto"><rect x="625" y="200" width="170" height="78" rx="3"/><text class="k" x="637" y="220">05 · AUTOMATED</text><text class="t" x="637" y="242">Checks</text><text class="s" x="637" y="262">lint · tests · self-check</text></g><g class="n-human"><rect x="420" y="200" width="170" height="78" rx="3"/><text class="k" x="432" y="220">06 · PEOPLE</text><text class="t" x="432" y="242">Review preview</text><text class="s" x="432" y="262">screenshots, local run</text></g><g class="n-human"><rect x="215" y="200" width="170" height="78" rx="3"/><text class="k" x="227" y="220">07 · OWNER GATE</text><text class="t" x="227" y="242">Go to production</text><text class="s" x="227" y="262">explicit "commit in prod"</text></g><g class="n-auto"><rect x="10" y="200" width="170" height="78" rx="3"/><text class="k" x="22" y="220">08 · AUTOMATED + AI</text><text class="t" x="22" y="242">Verify &amp; record</text><text class="s" x="22" y="262">deploy check, docs, log</text></g><text class="elabel" x="102" y="158">next request</text><text class="elabel" x="717" y="158">then</text>
+      </svg></div>
+      <div class="ds-gov-legend"><span><i class="l-human"></i>People · the owner's two gates are 03 and 07</span><span><i class="l-ai"></i>AI agent</span><span><i class="l-auto"></i>Automated checks · a failure sends the change back to 04</span></div>
+      <h3>Decision rights</h3>
+      <table>
+        <tr><th>Change</th><th>Proposed by</th><th>Decided by</th><th>Enforced by</th></tr>
+        <tr><td>New or changed token</td><td>AI agent or a teammate</td><td><strong>Owner</strong></td><td>Rules file (ask first) · css-lint on raw values</td></tr>
+        <tr><td>New shared component</td><td>AI agent, after an audit</td><td><strong>Owner</strong></td><td>An entry on this page + its self-check assertions</td></tr>
+        <tr><td>Exception to a component</td><td>AI agent or a teammate</td><td><strong>Owner</strong>, written down</td><td>The entry's "Not this component" note</td></tr>
+        <tr><td>One-off style inside a tool</td><td>—</td><td><strong>Not allowed</strong></td><td>css-lint · the audit pages</td></tr>
+        <tr><td>Anything new</td><td>—</td><td>Must work in light and dark</td><td>Dark-mode audit · the contrast self-check</td></tr>
+        <tr><td>Release to production</td><td>Anyone can ask</td><td><strong>Owner</strong>, explicit go</td><td>Pre-commit checks · preview · deploy verification</td></tr>
+      </table>
+      <h3>Guardrails</h3>
+      <ul>
+        <li><strong>Tokens only.</strong> css-lint blocks raw colours in the shared sheets and off-scale radii; a new token needs the owner's approval.</li>
+        <li><strong>Regression suite.</strong> 379 cases hash the Flexible Visual System's exported SVGs; a change that alters an export fails before it ships.</li>
+        <li><strong>A reference that checks itself.</strong> This page renders from the real CSS and fails loudly (sizes, faces, dark contrast) — see <a href="#self-check">Self-check</a>.</li>
+        <li><strong>Release gates.</strong> Local first, preview second, production only on "commit in prod"; the deploy is verified afterwards (<code>scripts/smoke.py</code>).</li>
+        <li><strong>Both themes.</strong> Every new component, token and style works in light and dark before it ships.</li>
+      </ul>
+      <h3>How a teammate works with it</h3>
+      <ol>
+        <li><strong>Ask in plain language</strong> — "audit the fields", "make the menu smaller", "add dark mode".</li>
+        <li><strong>Review the proposal</strong> — a mock or a short plan, with the real choices framed as questions.</li>
+        <li><strong>Check it</strong> — screenshots and test results in the thread; the change runs locally to open and try.</li>
+        <li><strong>Release it</strong> — preview, then production on an explicit go.</li>
+      </ol>
+      <p>Everyone gets the same collaborator with the same standards: the standing rules (tokens only, both themes, ask before a new token, how releases work) live in <code>CLAUDE.md</code>, which the agent reads at the start of every session. <strong>Sources of truth, in order:</strong> <code>shared/tokens.css</code> → the shared component sheets → this page, rendered from them → the rules file and the decision log.</p>
     </section>
 
     <section class="ds-entry ds-prose" id="self-check">

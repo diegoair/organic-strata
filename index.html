@@ -53,77 +53,15 @@
       position: relative;
       min-height: calc(100vh - var(--header-h));
       display: grid;
-      grid-template-rows: 1fr auto;
+      grid-template-rows: 1fr;
       padding: var(--space-7) var(--space-8) var(--space-8);
       gap: var(--space-7);
-    }
-    .hub-hero__bottom {
-      display: flex; justify-content: space-between; align-items: flex-end;
-      gap: var(--space-8); flex-wrap: wrap;
     }
     .hub-hero__field { position: relative; min-height: 0; }
     .hub-hero__field canvas {
       position: absolute; inset: 0; width: 100%; height: 100%;
       cursor: crosshair; touch-action: none;
     }
-    .hub-hero__lead {
-      max-width: 34ch;
-      font-family: var(--font-display);
-      font-size: var(--t-h2-size);
-      font-weight: var(--w-medium);
-      line-height: var(--t-h2-lh);
-      letter-spacing: var(--t-h2-ls);
-      text-wrap: balance;
-    }
-    .hub-hero__lead em { font-style: normal; color: var(--mid); }
-    .hub-hero__meta {
-      display: flex; gap: var(--space-7);
-      font-family: var(--t-num-font);
-      font-variant-numeric: var(--t-num-variant);
-      letter-spacing: var(--t-num-ls);
-      font-size: var(--fs-small);
-      color: var(--mid);
-    }
-    .hub-hero__meta b { display: block; font-size: var(--t-h3-size); color: var(--ink); font-weight: var(--w-semibold); }
-    .hub-scroll {
-      font-family: var(--font-mono); font-size: var(--fs-small);
-      color: var(--ink); text-decoration: none; letter-spacing: var(--ls-wider);
-      display: inline-flex; align-items: center; gap: var(--space-3);
-    }
-    .hub-scroll::after {
-      content: ''; width: var(--space-7); height: 1px; background: var(--ink);
-      animation: hubPulse 2.4s cubic-bezier(.5,0,.2,1) infinite;
-      transform-origin: left;
-    }
-    @keyframes hubPulse { 0%,100% { transform: scaleX(.3); } 50% { transform: scaleX(1); } }
-
-    /* ── marquee: the modules, as a moving band ─────────────── */
-    /* the marquee and the CTA are always-dark bands: they carry data-theme="dark",
-       so they read --paper/--ink from the dark palette in BOTH page themes (an
-       --ink slab would turn into a glaring light slab in dark mode) */
-    .hub-marquee {
-      border-block: 1px solid var(--border-strong);
-      background: var(--paper); color: var(--ink);
-      overflow: hidden; white-space: nowrap;
-      padding: var(--space-5) 0;
-    }
-    .hub-marquee__track {
-      display: inline-flex; gap: var(--space-8);
-      animation: hubMarquee 48s linear infinite;
-      font-family: var(--font-display);
-      font-size: var(--t-display-size);
-      font-weight: var(--w-bold);
-      line-height: var(--lh-none);
-      letter-spacing: var(--ls-display);
-    }
-    .hub-marquee__track span { display: inline-flex; align-items: center; gap: var(--space-8); }
-    .hub-marquee__track span::after {
-      content: ''; width: .42em; height: .42em; border-radius: 50%;
-      background: var(--accent-warm);
-    }
-    .hub-marquee__track span:nth-child(3n)::after { border-radius: 0; transform: rotate(45deg); background: var(--ink); }
-    .hub-marquee__track span:nth-child(3n+1)::after { background: transparent; border: 2px solid var(--ink); }
-    @keyframes hubMarquee { to { transform: translateX(-50%); } }
 
     /* ── 2. gallery ──────────────────────────────────────────── */
     .hub-section { padding: var(--space-8); }
@@ -295,6 +233,9 @@
     @keyframes hubWind  { 0% { transform: translateX(-30%); opacity: 0; } 20%,80% { opacity: 1; } 100% { transform: translateX(60%); opacity: 0; } }
     @keyframes hubSpin  { to { transform: rotate(360deg); } }
 
+    /* the CTA is an always-dark band: it carries data-theme="dark", so it reads
+       --paper/--ink from the dark palette in BOTH page themes (an --ink slab would
+       turn into a glaring light slab in dark mode) */
     .hub-cta {
       display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: center;
       padding: var(--space-8); margin: 0 var(--space-8) var(--space-8);
@@ -352,21 +293,7 @@
       <h1 id="hub-title" class="hub-sr">Organica</h1>
       <canvas id="hub-hero" aria-hidden="true"></canvas>
     </div>
-    <div class="hub-hero__bottom">
-      <p class="hub-hero__lead">A grammar for making marks — <em>rules that grow infinite variations and still speak one language.</em></p>
-      <div class="hub-hero__meta" aria-label="Organica in numbers">
-        <span><b id="hub-count-tools">23</b>tools</span>
-        <span><b>8</b>modules</span>
-        <span><b>6</b>motion patterns</span>
-        <span><b>∞</b>variations</span>
-      </div>
-      <a class="hub-scroll" href="#work">Scroll</a>
-    </div>
   </section>
-
-  <div class="hub-marquee" aria-hidden="true" data-theme="dark">
-    <div class="hub-marquee__track" id="hub-marquee"></div>
-  </div>
 
   <!-- ── 2. gallery ── -->
   <section class="hub-section" id="work" aria-labelledby="hub-work-title">
@@ -490,10 +417,6 @@
     document.addEventListener('organica:theme', function () { HERO_INK = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim(); });
     var DPR = Math.min(window.devicePixelRatio || 1, 2);
 
-    // tool count from the mega-menu data: the six groups + Rhizome (explorations are not tools)
-    var count = (Organica.tools || []).reduce(function (n, g) { return n + g.items.length; }, 0)
-      + (Organica.toolsPipeline ? 1 : 0);
-    if (count) document.getElementById('hub-count-tools').textContent = count;
 
     // "All tools" opens the header's mega menu
     document.getElementById('hub-all-tools').addEventListener('click', function (e) {
@@ -502,10 +425,6 @@
       if (b) b.click();   // the header is sticky, so the menu opens right where you are
     });
 
-    // marquee — the modules, twice so the loop is seamless
-    var mods = ['Form', 'Canvas', 'Grid', 'Color', 'Typography', 'Motion', 'Scale', 'Rhizome'];
-    var mq = document.getElementById('hub-marquee');
-    mq.innerHTML = mods.concat(mods).map(function (m) { return '<span>' + m + '</span>'; }).join('');
 
     // ── run a draw loop only while its canvas is on screen ──
     function loop(canvas, draw) {

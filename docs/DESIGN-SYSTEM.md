@@ -374,6 +374,10 @@ One component, `.org-btn` in `shared/header.css`: sizes `--sm` (`--slo-h`, 20) �
 
 One component, `.org-field` in `shared/header.css` ("THE FIELD"), for text/number inputs, selects and textareas — THE BUTTON's measures: display face, `--t-control-size`, `--row-h` tall (`--lg` 32), `--panel` fill, `--border-strong`, `--radius-sm`; hover `--mid`, focus `--ink`. Modifiers `--lg`, `--block`, `--code` (mono). Aliases: `.panel-select`, `.panel-input`, `.color-hex`, `.org-select` (deltas in panel.css). The select-picker trigger is 26px with the same border. Audit: `/design-system/_control-audit.html?kind=fields` (347 fields, 24 looks → 317 in one look; the rest documented exceptions).
 
+## 5e. Working with AI — governance (Sep 30, 2026)
+
+The design system is maintained with an AI coding agent as a collaborator; it never holds a decision. **Loop:** audit (the agent measures what every tool really renders — `/design-system/_control-audit.html`, `_dark-audit.html`) → propose (one consolidated component/token set, often with a mock) → **decide (owner)** → build & migrate (tokens only, old classes kept as aliases) → verify (css-lint, the Flexible Visual System regression, the design-system self-check, light + dark in a browser) → document (this file, the live reference, a session note). **Two owner gates:** what gets built, and what ships ("commit in prod"). **Decision rights:** new/changed token, new shared component, exceptions → the owner decides; one-off styles in a tool → not allowed (css-lint, audits); anything new → must work in both themes; release → owner, explicit go. **Rules** live in `CLAUDE.md`, read by the agent at every session start, so every teammate works with the same collaborator and standards. Live version with the governance flow: the design system's "Working with AI" entry; shareable page: https://claude.ai/artifact/2YDV3hau2WR9dZVejTieoh
+
 ## 6. Accessible names
 
 **Every interactive control needs a name a screen reader can announce.** A
