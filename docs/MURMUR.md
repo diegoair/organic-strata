@@ -40,7 +40,7 @@ Output: a **video loop** (MP4 / WebM).
   `<metadata id="organica">{"tool":"…"}</metadata>` block into their Screen SVG
   (Halide adds `block` and `paper`). Older files without it are recognised by
   shape (rects → Halide, nested transformed groups → Spore, otherwise Pollen).
-  The Source panel then shows the tool as *guessed*.
+  The status line then shows the tool as *guessed*.
 - A **full-canvas `<rect>`** is the background: it sets Paper and is not
   animated. Halide's paper-coloured regions are skipped too.
 - **Cap: 60,000 marks.** Above that the file is refused, with the count.
@@ -106,7 +106,7 @@ the params JSON on the clipboard, ready to paste into the hub hero's
 
 ## 4. Playback, loop, export
 
-- **Floatbar:** Play / Pause (also Space), Replay entrance, Loop, Export.
+- **Floatbar:** **＋** (open an SVG — or drop one on the canvas; hover it for the file name, mark count and parse time; the status line shows the tool, mark count and size), Play / Pause (also Space), Replay entrance, Loop, Export.
 - **Loop (s):** every periodic motion (wave, breath, noise drift, scripted
   pointer, cycle forces) snaps to a whole number of cycles in this length. Noise
   travels on a circle through the field (Komorebi / Pulsar's trick). 0 means
