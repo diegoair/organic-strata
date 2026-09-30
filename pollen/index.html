@@ -1533,6 +1533,7 @@ function buildPointsMarkup(pts, unit, opts) {
 function buildSVG(pts, W, H, unit, opts) {
   opts = opts || {};
   let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  s += `<metadata id="organica">${JSON.stringify({ tool: 'pollen' })}</metadata>`;   // Murmur reads this
   if (!opts.forceInk) s += `<rect width="${W}" height="${H}" fill="${ctrl('hex-bg').value}"/>`;
   s += buildPointsMarkup(pts, unit, opts);
   return s + '</svg>';

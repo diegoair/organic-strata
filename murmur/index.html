@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en" data-theme-support>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Murmur — Organica</title>
+<link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="/shared/vendor/ibm-plex-mono-regular.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/mobile-gate.css">
+<style>
+  :root {
+    --tool: #d4762a;   /* amber — unclaimed hue; a murmuration at dusk */
+  }
+  #main-canvas:not(.visible) { display: none; }
+  #main-canvas { cursor: crosshair; touch-action: none; transform: none; }
+  .src-meta { font-size: var(--fs-small); color: var(--mid); margin-top: var(--space-2); line-height: 1.6; }
+  .src-meta b { color: var(--ink); font-weight: 500; }
+  .src-err { color: var(--danger); }
+  .mode-row { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+  .mode-row .mini-btn { flex: 1 1 30%; }
+</style>
+<script src="/shared/pattern-init.js"></script>
+</head>
+<body>
+<div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
+
+<header class="org-header" role="banner">
+  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><menu-icon state="menu" size="20" line-cap="square"></menu-icon></button>
+  <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ Murmur</span></a>
+  <div class="org-header__spacer"></div>
+  <div class="org-header__actions">
+    <button class="org-btn" onclick="ctrl('file-input').click()">Open SVG…</button>
+  </div>
+</header>
+
+<!-- Playback + Loop + Export in the shared bottom-centre floating toolbar. -->
+<div class="org-floatbar" role="toolbar" aria-label="Playback">
+  <button class="org-floatbar__btn" id="btn-playpause" aria-label="Pause">
+    <svg class="ico" id="ico-play" viewBox="0 0 16 16" fill="none" aria-hidden="true" style="display:none"><path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor"/></svg>
+    <svg class="ico" id="ico-pause" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4" y="3.5" width="2.6" height="9" rx="0.6" fill="currentColor"/><rect x="9.4" y="3.5" width="2.6" height="9" rx="0.6" fill="currentColor"/></svg>
+  </button>
+  <button class="org-floatbar__btn" id="btn-replay" aria-label="Replay entrance" title="Replay the entrance">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.6 2.2v2.6h2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-loop" aria-label="Loop length">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8a5 5 0 0 1 8.5-3.5M13 8a5 5 0 0 1-8.5 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M11 2.5v2.5H8.5M5 13.5V11h2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="loop-popover" aria-label="Loop options">
+      <div class="org-popover__title">Loop</div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="rg-loop">Length</label>
+        <input type="range" id="rg-loop" min="0" max="30" step="1" value="8" style="flex:1">
+        <span class="org-out" id="loop-label">8s</span>
+      </div>
+      <p class="org-popover__hint">Seconds per loop. Every periodic motion (wave, breath, drift, scripted pointer, cycle forces) snaps to whole cycles of this length, so a recording loops seamlessly. 0 = free-running (recordings then use the Cycle period).</p>
+    </div>
+  </div>
+
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Video</div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-size">Size</label>
+        <select class="org-select" id="sel-size" onchange="updateSizeReadout()">
+          <option value="0">Source</option>
+          <option value="1080" selected>1080 long edge</option>
+          <option value="2160">2160 (4K) long edge</option>
+          <option value="3840">3840 long edge</option>
+        </select>
+      </div>
+      <div class="org-popover__row">
+        <span class="org-popover__label">Output</span>
+        <span class="org-out" id="out-size">&mdash;</span>
+      </div>
+      <label class="check-row"><input type="checkbox" id="ck-entrance"><span>Start with the entrance</span></label>
+      <p class="org-popover__hint">Off: the field is pre-rolled one loop, so the recording is a seamless loop. On: it opens with the marks flying in (one-shot).</p>
+      <div class="org-popover__divider"></div>
+      <div class="org-formats">
+        <button class="org-btn org-btn--primary" id="btn-video" onclick="toggleRecording()">Record loop</button>
+      </div>
+      <p class="org-popover__hint">MP4 or WebM, browser-dependent. Records in real time, re-rendered at the chosen size (marks are vector, so it stays crisp).</p>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <div id="canvas-wrap">
+    <div id="drop-hint">
+      <div class="drop-icon">+</div>
+      <p>Drop an SVG exported from<br>Pollen, Spore or Halide</p>
+    </div>
+    <canvas id="main-canvas" class="org-stage" aria-label="Animated mark field"></canvas>
+  </div>
+
+  <div id="panel">
+    <div class="panel-section">
+      <h3>Source <span class="hint">Screen-mode SVG</span></h3>
+      <button class="upload-btn" onclick="ctrl('file-input').click()">Open SVG…</button>
+      <div class="src-meta" id="src-meta">Pollen, Spore or Halide export — each mark becomes a particle on a spring to its place.</div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Motion <span class="hint">start from a pattern</span></h3>
+      <div class="mode-row" id="mode-row"></div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Preset</h3>
+      <select class="panel-select" id="sel-preset" onchange="applyPreset(this.value)"></select>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="savePreset()">Save</button>
+        <button class="mini-btn" onclick="deletePreset()">Delete</button>
+        <button class="mini-btn" id="btn-copy" onclick="copyParams()" title="Copy the params as JSON — paste into the hub hero's HERO_PARAMS">Copy params</button>
+      </div>
+    </div>
+
+    <div id="swarm-controls"></div>
+
+    <div class="panel-section">
+      <h3>Background</h3>
+      <div class="color-row">
+        <span class="color-name">Paper</span>
+        <div class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-bg" aria-label="Background colour"></button>
+          <input type="color" id="cp-bg" value="#ffffff">
+        </div>
+        <input class="color-hex" id="hex-bg" value="#ffffff">
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" class="org-file-input" accept=".svg,image/svg+xml" onchange="loadFile(this)">
+
+<script src="/shared/vendor/supabase-js.min.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/canvas.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/auth-badge.js"></script>
+<script src="/shared/store.js"></script>
+<script src="/shared/palette.js"></script>
+<script src="/shared/tracks.js"></script>
+<script src="/shared/recorder.js"></script>
+<script src="/shared/swarm.js"></script>
+
+<script>
+// ─────────────────────────────────────────────
+// MURMUR — a Pollen / Spore / Halide SVG export, animated.
+// Every mark of the SVG becomes a particle hung on a spring to its own
+// place (Organica.swarm, shared/swarm.js — the hub hero's engine). The
+// settled frame IS the source SVG; the motion is everything around it.
+//
+// One draw path: paint(ctx, scale) serves the preview and the recording —
+// only the canvas backing size differs.
+// ─────────────────────────────────────────────
+
+function ctrl(id) { return document.getElementById(id); }
+function val(id)  { return parseFloat(ctrl(id).value); }
+const setStatus = Organica.status();
+const canvas = ctrl('main-canvas');
+const ctx = canvas.getContext('2d');
+const MAX_MARKS = 60000;
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+let src = null;          // { W, H, homes, styles, bg, tool, name, count }
+let swarm = null;
+let params = Object.assign({}, Organica.swarm.DEFAULTS, { loop: 8 });
+let clock = 0, lastNow = 0, playing = true, recording = false;
+const pointer = { x: -1e4, y: -1e4, down: false };
+
+// ═══════════════ SVG → marks ═══════════════
+// Pure parsing, no layout: a transform parser, a path-extent parser, and a
+// paint resolver. Every transformed <g> (Pollen / Spore: one per mark) is
+// decomposed into position · angle · scale (· aspect) around its own centre;
+// its inner geometry becomes Path2Ds shared by every mark with the same
+// shape. Halide's rects are split back into its dither cells.
+
+const NUM = /-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi;
+const nums = s => (String(s || '').match(NUM) || []).map(Number);
+const ID = [1, 0, 0, 1, 0, 0];
+function mul(A, B) {
+  return [A[0] * B[0] + A[2] * B[1], A[1] * B[0] + A[3] * B[1],
+          A[0] * B[2] + A[2] * B[3], A[1] * B[2] + A[3] * B[3],
+          A[0] * B[4] + A[2] * B[5] + A[4], A[1] * B[4] + A[3] * B[5] + A[5]];
+}
+const apply = (M, x, y) => [M[0] * x + M[2] * y + M[4], M[1] * x + M[3] * y + M[5]];
+function parseTransform(str) {
+  let M = ID;
+  if (!str) return M;
+  const re = /(matrix|translate|scale|rotate|skewX|skewY)\s*\(([^)]*)\)/g;
+  let m;
+  while ((m = re.exec(str))) {
+    const v = nums(m[2]);
+    let T = ID;
+    if (m[1] === 'matrix' && v.length === 6) T = v;
+    else if (m[1] === 'translate') T = [1, 0, 0, 1, v[0] || 0, v[1] || 0];
+    else if (m[1] === 'scale') T = [v[0], 0, 0, v.length > 1 ? v[1] : v[0], 0, 0];
+    else if (m[1] === 'rotate') {
+      const a = (v[0] || 0) * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+      T = [c, s, -s, c, 0, 0];
+      if (v.length === 3) T = mul(mul([1, 0, 0, 1, v[1], v[2]], T), [1, 0, 0, 1, -v[1], -v[2]]);
+    }
+    else if (m[1] === 'skewX') T = [1, 0, Math.tan(v[0] * Math.PI / 180), 1, 0, 0];
+    else if (m[1] === 'skewY') T = [1, Math.tan(v[0] * Math.PI / 180), 0, 1, 0, 0];
+    M = mul(M, T);
+  }
+  return M;
+}
+
+// Extent of a path's d (end + control points — plenty for a centre).
+const TOK = /[a-df-zA-DF-Z]|-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/g;
+const ARGS = { M: 2, L: 2, T: 2, H: 1, V: 1, C: 6, S: 4, Q: 4, A: 7 };
+function pathPoints(d, add) {
+  const tk = d.match(TOK) || [];
+  let i = 0, cmd = '', x = 0, y = 0, sx = 0, sy = 0;
+  const isCmd = t => /^[a-zA-Z]$/.test(t);
+  while (i < tk.length) {
+    if (isCmd(tk[i])) cmd = tk[i++];
+    const C = cmd.toUpperCase(), rel = cmd !== C;
+    if (C === 'Z') { x = sx; y = sy; if (i < tk.length && !isCmd(tk[i])) i++; continue; }
+    const n = ARGS[C];
+    if (!n || i + n > tk.length) break;
+    const v = [];
+    for (let k = 0; k < n; k++) { if (isCmd(tk[i])) return; v.push(+tk[i++]); }
+    if (C === 'H') { x = rel ? x + v[0] : v[0]; add(x, y); }
+    else if (C === 'V') { y = rel ? y + v[0] : v[0]; add(x, y); }
+    else if (C === 'A') { x = rel ? x + v[5] : v[5]; y = rel ? y + v[6] : v[6]; add(x, y); }
+    else {
+      const x0 = x, y0 = y;
+      for (let k = 0; k < n; k += 2) { const px = rel ? x0 + v[k] : v[k], py = rel ? y0 + v[k + 1] : v[k + 1]; add(px, py); x = px; y = py; }
+      if (C === 'M') { sx = x; sy = y; cmd = rel ? 'l' : 'L'; }
+    }
+  }
+}
+
+// One drawable element → { d, pts } in its own coords, or null.
+function elGeom(el) {
+  const t = el.localName, a = k => parseFloat(el.getAttribute(k)) || 0;
+  const pts = [];
+  if (t === 'circle' || t === 'ellipse') {
+    const cx = a('cx'), cy = a('cy'), rx = t === 'circle' ? a('r') : a('rx'), ry = t === 'circle' ? a('r') : a('ry');
+    if (!(rx > 0) || !(ry > 0)) return null;
+    pts.push([cx - rx, cy - ry], [cx + rx, cy + ry]);
+    return { d: `M${cx - rx} ${cy}A${rx} ${ry} 0 1 0 ${cx + rx} ${cy}A${rx} ${ry} 0 1 0 ${cx - rx} ${cy}Z`, pts,
+             circle: rx === ry ? rx : 0, ell: [cx, cy, rx, ry] };
+  }
+  if (t === 'rect') {
+    const x = a('x'), y = a('y'), w = a('width'), h = a('height');
+    if (!(w > 0) || !(h > 0)) return null;
+    pts.push([x, y], [x + w, y + h]);
+    return { d: `M${x} ${y}h${w}v${h}h${-w}Z`, pts };
+  }
+  if (t === 'line') {
+    pts.push([a('x1'), a('y1')], [a('x2'), a('y2')]);
+    return { d: `M${a('x1')} ${a('y1')}L${a('x2')} ${a('y2')}`, pts };
+  }
+  if (t === 'polygon' || t === 'polyline') {
+    const v = nums(el.getAttribute('points'));
+    if (v.length < 4) return null;
+    for (let k = 0; k + 1 < v.length; k += 2) pts.push([v[k], v[k + 1]]);
+    return { d: 'M' + v.join(' ') + (t === 'polygon' ? 'Z' : ''), pts };
+  }
+  if (t === 'path') {
+    const d = el.getAttribute('d');
+    if (!d) return null;
+    pathPoints(d, (x, y) => pts.push([x, y]));
+    return pts.length ? { d, pts } : null;
+  }
+  return null;
+}
+const DRAWABLE = new Set(['circle', 'ellipse', 'rect', 'line', 'polygon', 'polyline', 'path']);
+const SKIP = new Set(['metadata', 'title', 'desc', 'defs', 'style', 'clipPath', 'mask', 'linearGradient', 'radialGradient', 'pattern', 'symbol', 'script']);
+
+// Paint inheritance. `var(--ink)` / `inherit` (Genesis forms) → inherit.
+const PAINT_KEYS = ['fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'fill-rule'];
+function readPaint(el, inh) {
+  const o = Object.assign({}, inh);
+  const style = {};
+  (el.getAttribute('style') || '').split(';').forEach(kv => { const i = kv.indexOf(':'); if (i > 0) style[kv.slice(0, i).trim()] = kv.slice(i + 1).trim(); });
+  PAINT_KEYS.forEach(k => {
+    const v = style[k] != null ? style[k] : el.getAttribute(k);
+    if (v == null || v === '' || /var\(|inherit/.test(v)) return;
+    o[k] = v === 'currentColor' ? inh.fill : v;
+  });
+  const op = parseFloat(style.opacity != null ? style.opacity : el.getAttribute('opacity'));
+  if (!isNaN(op)) o.opacity = (inh.opacity == null ? 1 : inh.opacity) * op;
+  return o;
+}
+
+// Colour canonicaliser (+ optional quantiser when a file has too many colours).
+const _cc = document.createElement('canvas').getContext('2d');
+const colourCache = new Map();
+let quantize = false;
+function colour(c) {
+  if (!c || c === 'none' || c === 'transparent') return null;
+  const key = c + (quantize ? '|q' : '');
+  if (colourCache.has(key)) return colourCache.get(key);
+  _cc.fillStyle = '#000'; _cc.fillStyle = c;
+  let out = _cc.fillStyle;
+  if (quantize && out[0] === '#') {
+    const q = h => Math.min(255, Math.round(parseInt(h, 16) / 17) * 17).toString(16).padStart(2, '0');
+    out = '#' + q(out.slice(1, 3)) + q(out.slice(3, 5)) + q(out.slice(5, 7));
+  }
+  colourCache.set(key, out);
+  return out;
+}
+
+function svgToHomes(text) {
+  const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+  const root = doc.documentElement;
+  if (!root || root.localName !== 'svg' || doc.getElementsByTagName('parsererror').length) throw new Error('Not a valid SVG file.');
+  if (/(mm|cm|in)\s*$/.test(root.getAttribute('width') || '')) throw new Error('This looks like a Print-mode export (physical units). Export in Screen mode and drop that file.');
+  let meta = {};
+  const mEl = root.querySelector('metadata#organica, metadata');
+  if (mEl) { try { meta = JSON.parse(mEl.textContent) || {}; } catch (e) { meta = {}; } }
+
+  const vb = nums(root.getAttribute('viewBox'));
+  const W = vb.length === 4 ? vb[2] : parseFloat(root.getAttribute('width')) || 0;
+  const H = vb.length === 4 ? vb[3] : parseFloat(root.getAttribute('height')) || 0;
+  if (!(W > 0 && H > 0)) throw new Error('The SVG has no size (viewBox or width/height).');
+  const R0 = vb.length === 4 ? [1, 0, 0, 1, -vb[0], -vb[1]] : ID;
+
+  const uniq = new Set();
+  root.querySelectorAll('[fill],[stroke]').forEach(e => { uniq.add(e.getAttribute('fill')); uniq.add(e.getAttribute('stroke')); });
+  quantize = uniq.size > 256;
+
+  // Detect the source when the file predates <metadata>.
+  let tool = meta.tool;
+  if (!tool) {
+    const rects = root.getElementsByTagName('rect').length, gs = root.querySelectorAll('g[transform]').length;
+    tool = rects > gs * 2 && rects > 20 ? 'halide' : gs ? (root.querySelector('g[transform] > g, g[transform] > use') ? 'spore' : 'pollen') : 'pollen';
+    tool = tool + '?';   // heuristic — shown as such
+  }
+  const isHalide = tool.startsWith('halide');
+
+  const hx = [], hy = [], rr = [], ang = [], sty = [], geo = [];
+  const styles = [], styleIx = new Map(), shapeCache = new Map();
+  let bg = null, count = 0;
+  const paper = meta.paper ? colour(meta.paper) : null;
+  function styleOf(key, make) {
+    let i = styleIx.get(key);
+    if (i == null) { i = styles.length; styles.push(make()); styleIx.set(key, i); }
+    return i;
+  }
+  function guard(add) { count += add; if (count > MAX_MARKS) throw new Error(`Too many marks (${count.toLocaleString()}+, the cap is ${MAX_MARKS.toLocaleString()}). Export with fewer points / a lower resolution.`); }
+  function push(x, y, r, a, s, g) { hx.push(x); hy.push(y); rr.push(r); ang.push(a); sty.push(s); geo.push(g || null); }
+
+  // ── Halide: cells ──
+  let block = +meta.block || 0;
+  if (isHalide && !block) {
+    let mn = Infinity;
+    root.querySelectorAll('rect').forEach(r => { const w = parseFloat(r.getAttribute('width')), h = parseFloat(r.getAttribute('height')); if (w > 0 && w < W) mn = Math.min(mn, w); if (h > 0 && h < H) mn = Math.min(mn, h); });
+    block = isFinite(mn) ? mn : 4;
+  }
+  function halideCells(el, M, paint) {
+    const c = colour(paint.fill && paint.fill !== 'none' ? paint.fill : paint.stroke);
+    if (!c || c === paper || c === bg) return;
+    const si = styleOf('sq|' + c, () => ({ kind: 'square', color: c }));
+    const half = block / 2;
+    if (el.localName === 'rect') {
+      const x = +el.getAttribute('x') || 0, y = +el.getAttribute('y') || 0, w = +el.getAttribute('width'), h = +el.getAttribute('height');
+      const nx = Math.max(1, Math.round(w / block)), ny = Math.max(1, Math.round(h / block));
+      guard(nx * ny);
+      for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+        const p = apply(M, x + (i + .5) * block, y + (j + .5) * block);
+        push(p[0], p[1], half, 0, si);
+      }
+    } else if (el.localName === 'path') {
+      // "Simplify shapes": one evenodd path per region → read the cells back.
+      const cw = Math.ceil(W / block), ch = Math.ceil(H / block);
+      const oc = document.createElement('canvas'); oc.width = cw; oc.height = ch;
+      const o = oc.getContext('2d');
+      o.setTransform(M[0] / block, M[1] / block, M[2] / block, M[3] / block, M[4] / block, M[5] / block);
+      o.fill(new Path2D(el.getAttribute('d')), paint['fill-rule'] || 'nonzero');
+      const data = o.getImageData(0, 0, cw, ch).data;
+      for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) {
+        if (data[(j * cw + i) * 4 + 3] > 127) { guard(1); push((i + .5) * block, (j + .5) * block, half, 0, si); }
+      }
+    }
+  }
+
+  // ── a mark: everything drawable under `el`, placed by M ──
+  function collect(node, M, inh, out) {
+    for (const ch of node.children) {
+      if (SKIP.has(ch.localName)) continue;
+      const Mc = ch.hasAttribute('transform') ? mul(M, parseTransform(ch.getAttribute('transform'))) : M;
+      const p = readPaint(ch, inh);
+      if (ch.localName === 'g' || ch.localName === 'svg') collect(ch, Mc, p, out);
+      else if (DRAWABLE.has(ch.localName)) { const g = elGeom(ch); if (g) out.push({ g, M: Mc, p }); }
+    }
+  }
+  function mark(parts, M, alpha) {
+    if (!parts.length) return;
+    // centre of the parts in the mark's own (inner) coords
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    parts.forEach(pt => pt.g.pts.forEach(q => { const t = apply(pt.M, q[0], q[1]); x0 = Math.min(x0, t[0]); y0 = Math.min(y0, t[1]); x1 = Math.max(x1, t[0]); y1 = Math.max(y1, t[1]); }));
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    // decompose M's linear part: rotation · scale(sx, sy) (no skew in these exports)
+    const sx = Math.hypot(M[0], M[1]) || 1, a = Math.atan2(M[1], M[0]);
+    const aspect = +(((M[0] * M[3] - M[1] * M[2]) / sx) / sx).toFixed(3) || 1;
+    const home = apply(M, cx, cy);
+    const al = +(alpha == null ? 1 : alpha).toFixed(2);
+    // A lone filled circle (Pollen / Spore's default dot) → the batched circle
+    // kind: one path per colour, and exactly the rasterisation of the source.
+    if (parts.length === 1 && parts[0].g.circle && aspect === 1) {
+      const pt = parts[0], f = colour(pt.p.fill), s = colour(pt.p.stroke);
+      const L = pt.M, k = Math.hypot(L[0], L[1]);
+      if (f && !s && Math.abs(k - Math.hypot(L[2], L[3])) < 1e-6) {
+        const si = styleOf('c|' + f + '|' + al, () => ({ kind: 'circle', color: f, alpha: al }));
+        guard(1);
+        push(home[0], home[1], pt.g.circle * k * sx, 0, si);
+        return;
+      }
+    }
+    // Geometry is baked at the first mark's own scale (b0), so every mark
+    // draws with a transform near 1 — a 100-unit form drawn at ×0.02 loses
+    // ~15% of its ink to curve flattening at that scale (measured).
+    const gkey = parts.map(pt => pt.g.d + '@' + pt.M.map(v => +v.toFixed(3)).join(',')).join(';') + '#' + cx.toFixed(2) + ',' + cy.toFixed(2);
+    let G = shapeCache.get(gkey);
+    if (!G) {
+      const b0 = sx;
+      G = { b0, paths: parts.map(pt => {
+        const L = mul(mul([b0, 0, 0, b0, 0, 0], [1, 0, 0, 1, -cx, -cy]), pt.M);
+        // An axis-aligned circle/ellipse stays an ellipse primitive: Chrome
+        // rasterises a lone oval with its own AA, as the source SVG does; the
+        // same oval as a general Path2D comes out ~8% lighter at 3–4 px.
+        if (pt.g.ell && Math.abs(L[1]) < 1e-9 && Math.abs(L[2]) < 1e-9) {
+          const e = pt.g.ell, c0 = apply(L, e[0], e[1]);
+          return [c0[0], c0[1], Math.abs(e[2] * L[0]), Math.abs(e[3] * L[3])];
+        }
+        const path = new Path2D();
+        path.addPath(new Path2D(pt.g.d), new DOMMatrix(L));
+        return path;
+      }) };
+      shapeCache.set(gkey, G);
+    }
+    const g = G.paths, b0 = G.b0;
+    const paints = parts.map(pt => {
+      const f = colour(pt.p.fill), s = colour(pt.p.stroke);
+      const o = {};
+      if (f) { o.fill = f; if (pt.p['fill-rule'] === 'evenodd') o.rule = 'evenodd'; }
+      if (s) { o.stroke = s; o.lw = (parseFloat(pt.p['stroke-width']) || 1) * b0; o.cap = pt.p['stroke-linecap'] || 'butt'; o.join = pt.p['stroke-linejoin'] || 'miter'; }
+      return o;
+    });
+    const key = JSON.stringify(paints) + '|' + al + '|' + aspect + '|' + b0;
+    const size = Math.max(x1 - x0, y1 - y0) / 2 * b0;
+    const si = styleOf(key, () => ({ kind: 'shape', paints, alpha: al, aspect, size,
+      color: paints[0].fill || paints[0].stroke || '#000' }));
+    guard(1);
+    push(home[0], home[1], sx / b0, a, si, g);
+  }
+
+  const DEF = { fill: '#000', stroke: 'none', 'stroke-width': '1' };
+  function walk(node, M, inh) {
+    for (const el of node.children) {
+      const t = el.localName;
+      if (SKIP.has(t)) continue;
+      const p = readPaint(el, inh);
+      // a full-canvas rect = the background, not a mark
+      if (t === 'rect' && !el.hasAttribute('transform') && (+el.getAttribute('x') || 0) <= 0 && (+el.getAttribute('y') || 0) <= 0 &&
+          (/%$/.test(el.getAttribute('width') || '') || +el.getAttribute('width') >= W - 0.5) &&
+          (/%$/.test(el.getAttribute('height') || '') || +el.getAttribute('height') >= H - 0.5)) {
+        if (!bg) bg = colour(p.fill);
+        continue;
+      }
+      if (t === 'g' && !el.hasAttribute('transform')) { walk(el, M, p); continue; }   // a colour/region wrapper
+      if (isHalide && (t === 'rect' || t === 'path')) { halideCells(el, M, p); continue; }
+      if (t === 'g') {                                   // Pollen / Spore: one transformed group = one mark
+        const Mg = mul(M, parseTransform(el.getAttribute('transform')));
+        const parts = [];
+        collect(el, ID, p, parts);
+        mark(parts, Mg, p.opacity);
+        continue;
+      }
+      if (t === 'circle' && !el.hasAttribute('transform')) {  // a plain dot — the fast path
+        const f = colour(p.fill);
+        if (!f) { const g = elGeom(el); if (g) mark([{ g, M: ID, p }], M, p.opacity); continue; }
+        const r = +el.getAttribute('r') || 0; if (!(r > 0)) continue;
+        const al = p.opacity == null ? 1 : +p.opacity.toFixed(2);
+        const si = styleOf('c|' + f + '|' + al, () => ({ kind: 'circle', color: f, alpha: al }));
+        const c = apply(M, +el.getAttribute('cx') || 0, +el.getAttribute('cy') || 0);
+        guard(1); push(c[0], c[1], r * Math.hypot(M[0], M[1]), 0, si);
+        continue;
+      }
+      if (DRAWABLE.has(t)) {                            // e.g. Pollen's field streamlines: absolute paths
+        const g = elGeom(el);
+        if (g) mark([{ g, M: el.hasAttribute('transform') ? parseTransform(el.getAttribute('transform')) : ID, p }], M, p.opacity);
+      }
+    }
+  }
+  walk(root, R0, readPaint(root, DEF));
+  if (!hx.length) throw new Error('Found no marks in this SVG.');
+  return { W, H, tool, bg: bg || paper, count: hx.length, styles,
+           homes: { hx, hy, r: rr, angle: ang, style: sty, geo } };
+}
+
+// ═══════════════ Loading ═══════════════
+function loadFile(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  input.value = '';
+  setStatus('busy', 'Reading ' + f.name + '…');
+  f.text().then(text => {
+    const t0 = performance.now();
+    let s;
+    try { s = svgToHomes(text); }
+    catch (e) {
+      ctrl('src-meta').innerHTML = '<span class="src-err">' + e.message + '</span>';
+      setStatus('', e.message);
+      return;
+    }
+    s.name = f.name;
+    src = s;
+    if (s.bg) swBg.set(s.bg);
+    buildSwarm();
+    const TOOLS = { pollen: 'Pollen', spore: 'Spore', halide: 'Halide' };
+    const guess = s.tool.endsWith('?');
+    const tname = TOOLS[s.tool.replace('?', '')] || s.tool;
+    ctrl('src-meta').innerHTML = `<b>${s.name.replace(/</g, '&lt;')}</b><br>${tname}${guess ? ' (guessed — no metadata)' : ''} · ${s.count.toLocaleString()} marks · ${s.styles.length} style${s.styles.length === 1 ? '' : 's'}<br>${Math.round(s.W)} × ${Math.round(s.H)} · parsed in ${Math.round(performance.now() - t0)} ms`;
+    ctrl('drop-hint').classList.add('hidden');
+    canvas.classList.add('visible');
+    fitCanvas();
+    updateSizeReadout();
+    setStatus('active', s.count.toLocaleString() + ' marks');
+  });
+}
+
+function buildSwarm() {
+  if (!src) return;
+  swarm = Organica.swarm.create({
+    homes: src.homes, styles: src.styles, W: src.W, H: src.H,
+    params, unit: Math.max(src.W, src.H) / 1200, seed: 7,
+  });
+  clock = 0;
+}
+
+// ═══════════════ Canvas sizing + the one draw path ═══════════════
+let viewScale = 1;
+function fitCanvas() {
+  if (!src || recording) return;
+  const wrap = ctrl('canvas-wrap'), cs = getComputedStyle(wrap);
+  const aw = wrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const ah = wrap.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  viewScale = Math.max(0.01, Math.min(aw / src.W, ah / src.H));
+  const cw = Math.round(src.W * viewScale), ch = Math.round(src.H * viewScale);
+  canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
+  canvas.width = Math.round(cw * DPR); canvas.height = Math.round(ch * DPR);
+}
+new ResizeObserver(fitCanvas).observe(ctrl('canvas-wrap'));
+
+function paint() {
+  const k = canvas.width / src.W;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = swBg.get();
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.setTransform(k, 0, 0, k, 0, 0);
+  swarm.draw(ctx);
+}
+
+function frame(now) {
+  const dt = lastNow ? Math.min(0.1, (now - lastNow) / 1000) : 0;
+  lastNow = now;
+  if (swarm) {
+    if (playing) clock += dt;
+    swarm.advance(clock, pointer.x > -1e3 ? pointer : null);
+    paint();
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// Pointer → source units
+function pos(e) {
+  if (!src) return;
+  const r = canvas.getBoundingClientRect();
+  pointer.x = (e.clientX - r.left) / r.width * src.W;
+  pointer.y = (e.clientY - r.top) / r.height * src.H;
+}
+canvas.addEventListener('pointermove', pos);
+canvas.addEventListener('pointerdown', e => { pos(e); pointer.down = true; });
+addEventListener('pointerup', () => { pointer.down = false; });
+canvas.addEventListener('pointerleave', () => { pointer.x = pointer.y = -1e4; pointer.down = false; });
+
+// ═══════════════ Params: modes, panel, presets ═══════════════
+function setParams(p) {
+  params = Object.assign({}, Organica.swarm.DEFAULTS, p, { loop: val('rg-loop') });
+  ui.sync(params);
+  if (swarm) { swarm.setParams(params); }
+}
+const ui = Organica.swarm.panel(ctrl('swarm-controls'), params, (k, v) => {
+  params[k] = v;
+  if (swarm) swarm.setParams(params);
+  if (k === 'entrance' || k === 'staggerBy' || k === 'stagger') replay();
+}, 'sw-');
+
+(function buildModes() {
+  const row = ctrl('mode-row');
+  const all = Object.assign({ Default: {} }, Organica.swarm.MODES);
+  Object.keys(all).forEach(name => {
+    const b = document.createElement('button');
+    b.className = 'mini-btn'; b.textContent = name;
+    b.addEventListener('click', () => {
+      row.querySelectorAll('.mini-btn').forEach(x => x.classList.toggle('active', x === b));
+      setParams(all[name]); replay();
+    });
+    row.appendChild(b);
+  });
+})();
+
+function replay() { if (swarm) { swarm.reset(); clock = 0; } }
+
+const PRESETS = Organica.store('murmur');
+function userPresets() { return PRESETS.read(); }
+function populatePresets(select) {
+  const sel = ctrl('sel-preset'), all = userPresets();
+  const names = Object.keys(all).sort();
+  sel.innerHTML = '<option value="">' + (names.length ? 'Choose a preset…' : 'No saved presets') + '</option>' +
+    names.map(n => `<option value="${n.replace(/"/g, '&quot;')}">${n.replace(/</g, '&lt;')}</option>`).join('');
+  if (select) sel.value = select;
+}
+function savePreset() {
+  const name = prompt('Preset name'); if (!name) return;
+  const all = userPresets();
+  all[name] = { params: Organica.swarm.diff(params), loop: val('rg-loop'), bg: swBg.get() };
+  PRESETS.write(all); populatePresets(name);
+  setStatus('active', 'Saved “' + name + '”');
+}
+function deletePreset() {
+  const name = ctrl('sel-preset').value; if (!name) return;
+  const all = userPresets(); delete all[name];
+  PRESETS.write(all); populatePresets();
+}
+function applyPreset(name) {
+  const p = userPresets()[name]; if (!p) return;
+  if (p.loop != null) { ctrl('rg-loop').value = p.loop; syncLoop(); }
+  if (p.bg) swBg.set(p.bg);
+  setParams(p.params || {}); replay();
+}
+function copyParams() {
+  const txt = JSON.stringify(Organica.swarm.diff(Object.assign({}, params, { loop: Organica.swarm.DEFAULTS.loop })));
+  const b = ctrl('btn-copy');
+  navigator.clipboard.writeText(txt).then(() => { b.textContent = 'Copied'; }, () => prompt('Copy:', txt));
+  setTimeout(() => { b.textContent = 'Copy params'; }, 1400);
+}
+PRESETS.pull().then(() => populatePresets());
+PRESETS.onSync(() => populatePresets());
+
+const swBg = Organica.palette.swatch('bg', { initial: '#ffffff', onChange: () => {} });
+
+// ═══════════════ Floatbar: play / replay / loop ═══════════════
+function setPlaying(on) {
+  playing = on;
+  ctrl('ico-play').style.display = on ? 'none' : '';
+  ctrl('ico-pause').style.display = on ? '' : 'none';
+  ctrl('btn-playpause').setAttribute('aria-label', on ? 'Pause' : 'Play');
+}
+ctrl('btn-playpause').addEventListener('click', () => setPlaying(!playing));
+ctrl('btn-replay').addEventListener('click', () => { replay(); setPlaying(true); });
+addEventListener('keydown', e => {
+  if (e.target.closest('input,select,textarea')) return;
+  if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
+});
+function syncLoop() {
+  const v = Math.round(val('rg-loop'));
+  ctrl('loop-label').textContent = v ? v + 's' : '∞';
+  params.loop = v;
+  if (swarm) swarm.setParams({ loop: v });
+}
+ctrl('rg-loop').addEventListener('input', syncLoop);
+
+// ═══════════════ Export: video ═══════════════
+function exportDims() {
+  if (!src) return null;
+  const L = +ctrl('sel-size').value;
+  const k = L ? L / Math.max(src.W, src.H) : 1;
+  // even dimensions — H.264 refuses odd sizes
+  return { w: Math.round(src.W * k / 2) * 2, h: Math.round(src.H * k / 2) * 2 };
+}
+function updateSizeReadout() {
+  const d = exportDims();
+  ctrl('out-size').textContent = d ? `${d.w} × ${d.h} px` : '—';
+}
+function loopSeconds() { return params.loop > 0 ? params.loop : Math.max(1, params.cycle); }
+
+let recLoop = 0;
+const recorder = Organica.recorder({
+  canvas, tool: 'murmur',
+  duration: () => recLoop,
+  durationPadMs: 90,
+  bitrate: () => { const d = exportDims(); return Math.min(120e6, Math.round(d.w * d.h * 30 * 0.2)); },
+  onStart: () => {
+    const d = exportDims();
+    recording = true;
+    canvas.width = d.w; canvas.height = d.h;         // re-render at export size; CSS size unchanged
+    swarm.setParams({ loop: recLoop });
+    swarm.reset();
+    if (ctrl('ck-entrance').checked) clock = 0;
+    // Pre-roll two whole loops so every spring has forgotten the start —
+    // measured: frame L ≡ frame 2L to within 0.002 grey levels on average.
+    else { swarm.settle(); swarm.advance(2 * recLoop, null, true); clock = 2 * recLoop; }
+    setPlaying(true);
+  },
+  onStatus: (phase, msg) => {
+    if (phase === 'recording') setStatus('busy', 'Recording ' + recLoop + 's…');
+    else setStatus(phase === 'error' ? '' : 'active', msg);
+  },
+  onStateChange: isRec => {
+    ctrl('btn-video').textContent = isRec ? 'Stop recording' : 'Record loop';
+    if (!isRec) { recording = false; swarm.setParams({ loop: params.loop }); fitCanvas(); }
+  },
+});
+function toggleRecording() {
+  if (!swarm) { setStatus('', 'Open an SVG first'); return; }
+  recLoop = loopSeconds();
+  recorder.toggle();
+}
+
+// ═══════════════ Init ═══════════════
+Organica.canvasDropZone({
+  wrap: ctrl('canvas-wrap'), dropIcon: '.drop-icon', fileInput: 'file-input',
+  accept: 'image/svg',   // MIME prefix
+  onFile: input => loadFile(input),
+});
+Organica.popover(ctrl('btn-loop'), ctrl('loop-popover'));
+Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+populatePresets();
+syncLoop();
+setStatus('', 'Drop a Pollen, Spore or Halide SVG to begin');
+Organica.autoLabelPanel(document);
+Organica.enhanceSliders(document);
+</script>
+<script src="/shared/tools.js"></script>
+<script src="/shared/menu-icon.js"></script>
+<script src="/shared/header.js"></script>
+</body>
+</html>

@@ -1196,7 +1196,10 @@ function buildSVGInner(block) {
 }
 function buildSVG(block) {
   const { outW, outH } = outputDims(block);
+  // <metadata>: lets Murmur (and any reader) know the source + cell size.
+  const meta = JSON.stringify({ tool: 'halide', block, paper: ctrl('hex-paper').value });
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${outW} ${outH}">`
+       + `<metadata id="organica">${meta}</metadata>`
        + buildSVGInner(block) + '</svg>';
 }
 function r2(n) { return Math.round(n * 100) / 100; }

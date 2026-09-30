@@ -1098,6 +1098,7 @@ function buildSporeSVG(overrides) {
   const { innerSVG, bb, bbMax } = sporeMarksContext(d);
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  svg += `<metadata id="organica">${JSON.stringify({ tool: 'spore' })}</metadata>`;   // Murmur reads this
   if (!overrides.forceColor) svg += `<rect width="${W}" height="${H}" fill="${bgColor}"/>`;
   svg += buildSporeMarksMarkup(marks, innerSVG, bb, bbMax, overrides);
   svg += '</svg>';

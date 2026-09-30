@@ -83,6 +83,10 @@
       "destination": "/mote/$1"
     },
     {
+      "source": "/murmur/(.*)",
+      "destination": "/murmur/$1"
+    },
+    {
       "source": "/trellis/(.*)",
       "destination": "/trellis/$1"
     },
