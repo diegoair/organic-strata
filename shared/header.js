@@ -171,12 +171,27 @@
       b.title = dark ? 'Switch to light' : 'Switch to dark';
       b.innerHTML = dark ? SUN : MOON;
     }
-    b.addEventListener('click', function () {
-      var dark = root.getAttribute('data-theme') !== 'dark';
+    /* The switch itself — one synchronous DOM change, so a View Transition can snapshot around it. */
+    function swap(dark) {
       if (dark) root.setAttribute('data-theme', 'dark'); else root.removeAttribute('data-theme');
       try { localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light'); } catch (e) { /* not persisted */ }
       sync();
       document.dispatchEvent(new CustomEvent('organica:theme', { detail: { dark: dark } }));
+    }
+    /* Circular reveal from the button (the View Transitions technique of Magic UI's AnimatedThemeToggler,
+       ported to vanilla — Oct 1, 2026). Falls back to the instant swap where the API is missing or the
+       user prefers reduced motion. The default cross-fade is switched off in header.css. */
+    b.addEventListener('click', function () {
+      var dark = root.getAttribute('data-theme') !== 'dark';
+      var still = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!document.startViewTransition || still) { swap(dark); return; }
+      var r = b.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+      var radius = Math.hypot(Math.max(x, global.innerWidth - x), Math.max(y, global.innerHeight - y));
+      var t = document.startViewTransition(function () { swap(dark); });
+      t.ready.then(function () {
+        root.animate({ clipPath: ['circle(0px at ' + x + 'px ' + y + 'px)', 'circle(' + radius + 'px at ' + x + 'px ' + y + 'px)'] },
+          { duration: 400, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' });
+      }, function () { /* transition skipped — the swap already ran */ });
     });
     header.appendChild(b);
     sync();
