@@ -17,7 +17,7 @@ to the eye.
 - **Colours** 3–7. Each colour is an item `{ id, name, hex, lock }`. The `id` is
   stable for the colour's life; the **name** is what the token key is built
   from (`Warm Clay` → `warm-clay`; a repeated name gets `-2`, `-3`).
-- **Select a colour** by clicking it on the sheet (bar segment or garment zone).
+- **Select a colour** by clicking its card on the sheet (or a bar segment / garment zone).
   The chips in the panel open the system colour picker directly.
 - **Harmony** + **Generate** rebuild every colour except the first and any
   marked **Keep on Generate**. The first colour is the seed. Hue is rotated in
@@ -40,13 +40,16 @@ to the eye.
 
 One scene list (`buildScene()`) draws the preview, the SVG and the PNG.
 
-1. **Top block** — *Bar* (colours in 60/…-style proportions), *Garment*
-   (3 colours only) or *Gradient*.
-2. **Scales** — ten steps per colour, 0–900. Every step sits at a fixed
-   perceived lightness (`Organica.color.SCALE_L`), so step 500 is the same
-   lightness in every row. The picked colour is kept unchanged on its nearest
-   step (outlined). Chroma keeps the pick's share of the gamut at each
-   lightness and never exceeds the pick's own.
+1. **Colour cards** — one rounded card per colour: the colour, its name and
+   hex. Click a card to select that colour.
+2. **Scales** — under each card, that colour's ten steps, 0–900. Every step
+   sits at a fixed perceived lightness (`Organica.color.SCALE_L`), so step 500
+   is the same lightness for every colour. The picked colour is kept unchanged
+   on its nearest step (outlined). Chroma keeps the pick's share of the gamut at
+   each lightness and never exceeds the pick's own.
+   Then an **example** of the palette in use, chosen by the View switch: *Bar*
+   (the colours in 60/…-style proportions) or *Garment* (3 colours only). In the
+   *Gradient* view the gradient comes first and there is no example.
 3. **Contrast grid** — each cell sets the row's colour as text on the column's,
    with the WCAG ratio under it (`· close` marks a pair under ΔE 6).
 

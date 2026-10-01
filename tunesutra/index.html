@@ -281,7 +281,7 @@
 
     <div class="panel-section">
       <h3>Scale</h3>
-      <p class="org-panel__hint">Ten steps per colour, 0–900. Each step is the same perceived lightness in every row, so rows are interchangeable. Your colour sits unchanged on its nearest step (outlined).</p>
+      <p class="org-panel__hint">Ten steps under each colour, 0–900. A step is the same perceived lightness for every colour, so colours are interchangeable step for step. Your colour sits unchanged on its nearest step (outlined).</p>
     </div>
 
     <div class="panel-section">
@@ -683,12 +683,14 @@ function bindFieldEditor() {
 }
 
 // ── STAGE — one scene list feeds the preview and every export (WYSIWYG) ──
-// Top: the proportional bar (any N, 3–7) or the garment pictogram (the
-// reference book's own 3-zone illustration — only meaningful at N=3).
-// Then one 0–900 scale per colour, then the contrast grid.
-const VB_W = 900, BAR_Y = 24, BAR_H = 90, BAR_X0 = 20, BAR_X1 = 880;
+// Top: one card per colour with its 0–900 scale beneath it. Then an example
+// of the palette in use — the proportional bar (any N) or the garment
+// pictogram (N=3 only) — then the contrast grid. In the Gradient view the
+// gradient comes first and there is no example.
+const VB_W = 900, BAR_Y = 24, BAR_H = 44, BAR_X0 = 20, BAR_X1 = 880;
+const CARD_MAX_W = 150, CARD_GAP = 14, CARD_COLOUR_H = 96, CARD_H = 134, CARD_R = 14, STEP_H = 20, STEP_GAP = 2;
 const SW_W = 76, SW_GAP = 6, SW_H = 40, SW_PITCH = SW_W + SW_GAP;
-const ROW_H = 90, GRID_HEAD_H = 14, GRID_ROW_H = SW_H + 22;
+const GRID_HEAD_H = 14, GRID_ROW_H = SW_H + 22;
 
 // Garment geometry — local 0..326 x 0..670 box, from a vector Diego supplied
 // ("Group 34.svg"): a tall rectangular body, a trapezoid hem that flares
@@ -709,7 +711,7 @@ const GARMENT_ZONES = [
   { role: 2, d: 'M243,670 L204.90,584.5 L281.11,584.5 Z' },
 ];
 const GARMENT_W = GARMENT_LOCAL_W * GARMENT_SCALE, GARMENT_H = GARMENT_LOCAL_H * GARMENT_SCALE;
-const GARMENT_X = (VB_W - GARMENT_W) / 2, GARMENT_Y = BAR_Y;
+const GARMENT_X = (VB_W - GARMENT_W) / 2;
 
 function isGarmentView() { return state.view === 'garment' && count() === 3; }
 
@@ -1160,13 +1162,14 @@ function sheetTheme() {
     ink: Organica.contentColor('--ink'),
     mid: Organica.contentColor('--mid'),
     paper: Organica.contentColor('--paper'),
+    panel: Organica.contentColor('--panel'),
     font: getComputedStyle(document.body).fontFamily,
   };
 }
 function readableOn(hex, T) { return C.contrast(hex, T.ink) >= C.contrast(hex, T.paper) ? T.ink : T.paper; }
 
 // → { W, H, paper, font, items[] }. Items are plain data:
-//   { t:'rect', x, y, w, h, fill, stroke?, sw?, role?, title? }
+//   { t:'rect', x, y, w, h, fill, r?, stroke?, sw?, role?, title? }   (r = corner radius)
 //   { t:'path', d, tf:{x,y,s}, fill, stroke?, sw?, role?, title? }
 //   { t:'text', x, y, s, size, fill, anchor }
 //   { t:'grad', x, y } — the gradient block, drawn by gradMarkup / drawGrad
@@ -1178,46 +1181,62 @@ function buildScene() {
   const text = (x, y, s, size, fill, anchor) => items.push({ t: 'text', x: x, y: y, s: String(s), size: size, fill: fill, anchor: anchor || 'start' });
   const weights = roleWeights(n);
   const garment = isGarmentView(), gradient = state.view === 'gradient';
+  let y = BAR_Y;
 
   if (gradient) {
-    items.push({ t: 'grad', x: BAR_X0, y: BAR_Y });
-    text(BAR_X0, BAR_Y + GRAD_H + 14, gradLegend(), 10, T.mid);
-  } else if (garment) {
-    GARMENT_ZONES.forEach(z => items.push({
-      t: 'path', d: z.d, tf: { x: GARMENT_X, y: GARMENT_Y, s: GARMENT_SCALE }, fill: cols[z.role], stroke: T.paper, sw: 2,
-      role: z.role, title: `${dispName(z.role)}, ${weights[z.role].toFixed(0)}%, ${cols[z.role]}`,
-    }));
-  } else {
-    let x = BAR_X0;
-    const barW = BAR_X1 - BAR_X0;
-    weights.forEach((w, i) => {
-      const segW = (w / 100) * barW, hex = cols[i];
-      rect(x, BAR_Y, segW, BAR_H, hex, { stroke: T.paper, sw: 2, role: i, title: `${dispName(i)}, ${w.toFixed(0)}%, ${hex}` });
-      if (segW > 46) {
-        const on = readableOn(hex, T);
-        text(x + segW / 2, BAR_Y + BAR_H / 2 - 4, w.toFixed(0) + '%', 13, on, 'middle');
-        text(x + segW / 2, BAR_Y + BAR_H / 2 + 12, hex, 11, on, 'middle');
-      }
-      x += segW;
-    });
+    items.push({ t: 'grad', x: BAR_X0, y: y });
+    text(BAR_X0, y + GRAD_H + 14, gradLegend(), 10, T.mid);
+    y += GRAD_H + GRAD_LEGEND_H + 30;
   }
 
-  // Scales
-  const scaleY = (gradient ? BAR_Y + GRAD_H + GRAD_LEGEND_H : (garment ? GARMENT_Y + GARMENT_H : BAR_Y + BAR_H)) + 60;
-  const swX0 = (VB_W - (10 * SW_PITCH - SW_GAP)) / 2;
-  for (let i = 0; i < n; i++) {
-    const rowY = scaleY + i * ROW_H;
-    text(BAR_X0, rowY - 24, dispName(i), 11, T.mid);
-    tokenScale(cols[i]).forEach((s, j) => {
-      const sx = swX0 + j * SW_PITCH;
-      rect(sx, rowY, SW_W, SW_H, s.hex, Object.assign({ title: `${dispName(i)} ${s.step} — ${s.hex}` }, s.anchor ? { stroke: T.ink, sw: 2 } : null));
-      text(sx + SW_W / 2, rowY - 6, s.step, 10, T.mid, 'middle');
-      text(sx + SW_W / 2, rowY + SW_H + 12, s.hex, 9, T.mid, 'middle');
+  // Colour cards — one per colour: the colour, its name and hex — and under
+  // each card that colour's own 0–900 scale. Clicking a card selects it.
+  const cw = Math.min(CARD_MAX_W, (BAR_X1 - BAR_X0 - (n - 1) * CARD_GAP) / n), cx0 = (VB_W - (n * cw + (n - 1) * CARD_GAP)) / 2;
+  const fit = (str, w, size) => { const max = Math.max(3, Math.floor(w / (size * 0.62))); return str.length > max ? str.slice(0, max - 1) + '…' : str; };
+  cols.forEach((hex, i) => {
+    const x = cx0 + i * (cw + CARD_GAP), r = CARD_R;
+    rect(x, y, cw, CARD_H, T.panel, { r: r });
+    items.push({
+      t: 'path', tf: { x: 0, y: 0, s: 1 }, fill: hex, role: i, title: `${dispName(i)} ${hex}`,
+      d: `M${num(x)} ${y + CARD_COLOUR_H}V${y + r}Q${num(x)} ${y} ${num(x + r)} ${y}H${num(x + cw - r)}Q${num(x + cw)} ${y} ${num(x + cw)} ${y + r}V${y + CARD_COLOUR_H}Z`,
     });
+    text(x + 12, y + CARD_COLOUR_H + 16, fit(dispName(i), cw - 24, 11), 11, T.ink);
+    text(x + 12, y + CARD_COLOUR_H + 29, hex, 10, T.mid);
+    const sy = y + CARD_H + 12;
+    tokenScale(hex).forEach((st, j) => {
+      const ry = sy + j * (STEP_H + STEP_GAP), on = readableOn(st.hex, T);
+      rect(x, ry, cw, STEP_H, st.hex, Object.assign({ r: 3, title: `${dispName(i)} ${st.step} — ${st.hex}` }, st.anchor ? { stroke: T.ink, sw: 2 } : null));
+      text(x + 8, ry + 14, st.step, 9, on);
+      text(x + cw - 8, ry + 14, st.hex, 9, on, 'end');
+    });
+  });
+  y += CARD_H + 12 + 10 * (STEP_H + STEP_GAP) + 30;
+
+  // An example of the palette in use: in proportion, or on the garment.
+  if (!gradient) {
+    text(BAR_X0, y, garment ? 'Example — on a garment' : 'Example — in proportion', 11, T.mid);
+    y += 12;
+    if (garment) {
+      GARMENT_ZONES.forEach(z => items.push({
+        t: 'path', d: z.d, tf: { x: GARMENT_X, y: y, s: GARMENT_SCALE }, fill: cols[z.role], stroke: T.paper, sw: 2,
+        role: z.role, title: `${dispName(z.role)}, ${weights[z.role].toFixed(0)}%, ${cols[z.role]}`,
+      }));
+      y += GARMENT_H + 34;
+    } else {
+      let x = BAR_X0;
+      const barW = BAR_X1 - BAR_X0;
+      weights.forEach((w, i) => {
+        const segW = (w / 100) * barW, hex = cols[i];
+        rect(x, y, segW, BAR_H, hex, { stroke: T.paper, sw: 2, role: i, title: `${dispName(i)}, ${w.toFixed(0)}%, ${hex}` });
+        if (segW > 46) text(x + segW / 2, y + BAR_H / 2 + 4, w.toFixed(0) + '%', 12, readableOn(hex, T), 'middle');
+        x += segW;
+      });
+      y += BAR_H + 34;
+    }
   }
 
   // Contrast grid — each cell sets the row's colour as text on the column's.
-  const gridY = scaleY + n * ROW_H;
+  const gridY = y;
   text(BAR_X0, gridY, 'Contrast — text colour (rows) on background (columns)', 11, T.mid);
   const gx0 = (VB_W - ((n + 1) * SW_PITCH - SW_GAP)) / 2, headY = gridY + 16, rowsY = headY + GRID_HEAD_H + SW_GAP;
   cols.forEach((hex, j) => rect(gx0 + (j + 1) * SW_PITCH, headY, SW_W, GRID_HEAD_H, hex));
@@ -1252,7 +1271,7 @@ function sceneMarkup(scene, interactive) {
       (live ? ` class="bar-seg${active ? ' role-active' : ''}" data-i="${it.role}" tabindex="0" role="button" aria-pressed="${active}"` : '');
     const title = interactive && it.title ? `<title>${esc(it.title)}</title>` : '';
     if (it.t === 'path') return `<path d="${it.d}" transform="translate(${num(it.tf.x)},${num(it.tf.y)}) scale(${it.tf.s})" ${attrs}>${title}</path>`;
-    return `<rect x="${num(it.x)}" y="${num(it.y)}" width="${num(it.w)}" height="${num(it.h)}" ${attrs}>${title}</rect>`;
+    return `<rect x="${num(it.x)}" y="${num(it.y)}" width="${num(it.w)}" height="${num(it.h)}"${it.r ? ` rx="${it.r}"` : ''} ${attrs}>${title}</rect>`;
   }).join('');
 }
 function drawScene(scene, c, scale) {
@@ -1262,7 +1281,7 @@ function drawScene(scene, c, scale) {
     if (it.t === 'grad') { c.save(); c.translate(it.x, it.y); drawGrad(c, scale || 1); c.restore(); return; }
     if (it.t === 'text') {
       c.font = `${it.size}px ${scene.font}`;
-      c.textAlign = it.anchor === 'middle' ? 'center' : 'left';
+      c.textAlign = it.anchor === 'middle' ? 'center' : (it.anchor === 'end' ? 'right' : 'left');
       c.fillStyle = it.fill;
       c.fillText(it.s, it.x, it.y);
       return;
@@ -1270,7 +1289,7 @@ function drawScene(scene, c, scale) {
     c.save();
     let p;
     if (it.t === 'path') { c.translate(it.tf.x, it.tf.y); c.scale(it.tf.s, it.tf.s); p = new Path2D(it.d); }
-    else { p = new Path2D(); p.rect(it.x, it.y, it.w, it.h); }
+    else { p = new Path2D(); if (it.r && p.roundRect) p.roundRect(it.x, it.y, it.w, it.h, it.r); else p.rect(it.x, it.y, it.w, it.h); }
     if (it.fill !== 'none') { c.fillStyle = it.fill; c.fill(p); }
     if (it.stroke) { c.strokeStyle = it.stroke; c.lineWidth = it.sw; c.stroke(p); }
     c.restore();
