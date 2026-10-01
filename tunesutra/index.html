@@ -227,6 +227,7 @@
 <script src="/shared/auth.js"></script>
 <script src="/shared/auth-badge.js"></script>
 <script src="/shared/store.js"></script>
+<script src="/shared/color.js"></script>
 <script src="/shared/palette.js"></script>
 <script src="/shared/select-picker.js"></script>
 <script>
@@ -238,77 +239,26 @@
 // same geometry via Path2D/fillRect at scale. If an export can disagree
 // with the on-screen stage, the tool is broken.
 //
-// Colour-space conversions below (rgbToHsb/hsbToRgb/rgbToCmyk/cmykToRgb/
-// rgbToHsl/hslToRgb) were all written locally at first: the repo had
-// hex<->RGB shared already, but no RGB->HSB, no HSL either direction, no
-// CMYK anywhere. CMYK has since been PROMOTED to core.js (2026-08-27,
-// Colornet became the second consumer) and the two functions below are now
-// thin aliases onto it. HSB/HSL stay local — still single-consumer, same
-// "promote at the second real consumer, never speculatively" rule.
+// Colour-space conversions (rgbToHsb/hsbToRgb/rgbToCmyk/cmykToRgb/
+// rgbToHsl/hslToRgb) were all written here first: the repo had hex<->RGB
+// shared already, but no RGB->HSB, no HSL either direction, no CMYK
+// anywhere. All of them have since been PROMOTED — CMYK to core.js
+// (2026-08-27, Colornet the second consumer), HSB/HSL to shared/color.js
+// (2026-10-01, Membrane the second consumer) — and the functions below are
+// thin aliases, so every call site here is untouched.
 // ─────────────────────────────────────────────────────────────
 
 function ctrl(id) { return document.getElementById(id); }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function round(v) { return Math.round(v); }
 
-// ── COLOUR CONVERSIONS ──
-function rgbToHsb(r, g, b) {
-  r /= 255; g /= 255; b /= 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
-  let h = 0;
-  if (d !== 0) {
-    if (max === r) h = 60 * (((g - b) / d) % 6);
-    else if (max === g) h = 60 * ((b - r) / d + 2);
-    else h = 60 * ((r - g) / d + 4);
-  }
-  if (h < 0) h += 360;
-  const s = max === 0 ? 0 : d / max;
-  return { h: round(h), s: round(s * 100), b: round(max * 100) };
-}
-function hsbToRgb(h, s, v) {
-  s /= 100; v /= 100;
-  const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;
-  let r1, g1, b1;
-  if (h < 60) [r1, g1, b1] = [c, x, 0];
-  else if (h < 120) [r1, g1, b1] = [x, c, 0];
-  else if (h < 180) [r1, g1, b1] = [0, c, x];
-  else if (h < 240) [r1, g1, b1] = [0, x, c];
-  else if (h < 300) [r1, g1, b1] = [x, 0, c];
-  else [r1, g1, b1] = [c, 0, x];
-  return { r: round((r1 + m) * 255), g: round((g1 + m) * 255), b: round((b1 + m) * 255) };
-}
-// CMYK promoted to shared/core.js on 2026-08-27, when Colornet
-// (print separation) became the second consumer these comments were waiting
-// for. Kept as thin local aliases so every existing call site here is
-// untouched — the implementation is now shared, not duplicated.
+// ── COLOUR CONVERSIONS — aliases onto the shared implementations ──
+function rgbToHsb(r, g, b) { return Organica.color.rgbToHsb(r, g, b); }
+function hsbToRgb(h, s, v) { return Organica.color.hsbToRgb(h, s, v); }
 function rgbToCmyk(r, g, b) { return Organica.rgbToCmyk(r, g, b); }
 function cmykToRgb(c, m, y, k) { return Organica.cmykToRgb(c, m, y, k); }
-function rgbToHsl(r, g, b) {
-  r /= 255; g /= 255; b /= 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
-  let h = 0;
-  if (d !== 0) {
-    if (max === r) h = 60 * (((g - b) / d) % 6);
-    else if (max === g) h = 60 * ((b - r) / d + 2);
-    else h = 60 * ((r - g) / d + 4);
-  }
-  if (h < 0) h += 360;
-  const l = (max + min) / 2;
-  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
-  return { h, s: s * 100, l: l * 100 };
-}
-function hslToRgb(h, s, l) {
-  s /= 100; l /= 100;
-  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
-  let r1, g1, b1;
-  if (h < 60) [r1, g1, b1] = [c, x, 0];
-  else if (h < 120) [r1, g1, b1] = [x, c, 0];
-  else if (h < 180) [r1, g1, b1] = [0, c, x];
-  else if (h < 240) [r1, g1, b1] = [0, x, c];
-  else if (h < 300) [r1, g1, b1] = [x, 0, c];
-  else [r1, g1, b1] = [c, 0, x];
-  return { r: round((r1 + m) * 255), g: round((g1 + m) * 255), b: round((b1 + m) * 255) };
-}
+function rgbToHsl(r, g, b) { return Organica.color.rgbToHsl(r, g, b); }
+function hslToRgb(h, s, l) { return Organica.color.hslToRgb(h, s, l); }
 function hexFromRgb(r, g, b) { return Organica.rgbToHex(r, g, b); }
 
 // ── STATE ──

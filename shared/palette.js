@@ -49,7 +49,11 @@
   // ── colour-mapping math (score 0..1 → colour) ──────────────────────────────
   function lerp(a, b, t) { return a + (b - a) * t; }
   function rgbToHex(rgb) { return Organica.rgbToHex(rgb[0], rgb[1], rgb[2]); }
-  function mixHex(hexA, hexB, t) {
+  // space 'oklab' → perceptual mix (shared/color.js; no muddy midpoint). Opt-in:
+  // the default stays the gamma-sRGB lerp every existing export was made with,
+  // and a tool that has not loaded color.js falls back to it.
+  function mixHex(hexA, hexB, t, space) {
+    if (space === 'oklab' && Organica.color) return Organica.color.mix(hexA, hexB, t);
     const a = Organica.hexToRGB255(hexA), b = Organica.hexToRGB255(hexB);
     return rgbToHex([lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)]);
   }
@@ -71,7 +75,7 @@
     }
     return null;   // 'tone' — no single discrete index
   }
-  function rmxColor(score, rnd, colors, submode) {
+  function rmxColor(score, rnd, colors, submode, space) {
     const n = colors.length;
     if (n <= 0) return '#000000';
     const idx = rmxIndex(score, rnd, colors, submode);
@@ -80,7 +84,7 @@
     const s = Math.max(0, Math.min(1, score));
     const pos = s * (n - 1), i0 = Math.max(0, Math.min(n - 1, Math.floor(pos))),
       i1 = Math.min(n - 1, i0 + 1), frac = pos - i0;
-    return mixHex(colors[i0], colors[i1], frac);
+    return mixHex(colors[i0], colors[i1], frac, space);
   }
 
   palette.rmxIndex = rmxIndex;
@@ -93,13 +97,14 @@
   // rmx: opts.colors[] (dark→bright), opts.submode 'tone'|'posterize'|'random'|'tonernd',
   //      opts.rnd 0..1 caller-seeded and threaded through (do NOT pass a fresh
   //      Math.random() per render — seed once and reuse, or colours reshuffle).
+  // opts.space: 'oklab' blends perceptually (needs shared/color.js); omitted = sRGB, as before.
   palette.colorAt = function (score, opts) {
     opts = opts || {};
     const mode = opts.mode || 'solid';
     if (mode === 'solid') return opts.ink || '#000000';
-    if (mode === 'adaptive') return mixHex(opts.ink || '#000000', opts.paper || '#ffffff', Math.max(0, Math.min(1, score)));
+    if (mode === 'adaptive') return mixHex(opts.ink || '#000000', opts.paper || '#ffffff', Math.max(0, Math.min(1, score)), opts.space);
     const colors = opts.colors && opts.colors.length ? opts.colors : [opts.ink || '#000000', opts.paper || '#ffffff'];
-    return rmxColor(score, opts.rnd == null ? 0.5 : opts.rnd, colors, opts.submode || 'tone');
+    return rmxColor(score, opts.rnd == null ? 0.5 : opts.rnd, colors, opts.submode || 'tone', opts.space);
   };
   palette.mix = mixHex;
 
