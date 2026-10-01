@@ -28,6 +28,8 @@ Output: a **video loop** (MP4 / WebM).
 
 ## 2. Input — which SVGs work
 
+> The parser lives in `shared/marks-svg.js` (`Organica.marksSVG.parse`) since Oct 1, 2026 — extracted verbatim when the gallery became its second consumer.
+
 | Source | What becomes a particle | Drawn as |
 |---|---|---|
 | **Pollen** | each point's `<g transform>` (a Genesis form, an upload, a stroke), or each field streamline `<path>` | a plain dot uses the batched **circle** path. Any other form becomes a vector **shape**: Path2D, plus oval primitives |

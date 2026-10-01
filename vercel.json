@@ -95,6 +95,10 @@
       "destination": "/dapple/$1"
     },
     {
+      "source": "/gallery/(.*)",
+      "destination": "/gallery/$1"
+    },
+    {
       "source": "/trellis/(.*)",
       "destination": "/trellis/$1"
     },

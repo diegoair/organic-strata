@@ -158,15 +158,7 @@ const EXPECT = 'komorebi', SRC_NAME = 'Komorebi', THUMB = 'leaf';
 
 let src = null;          // { W, H, name, ... } the parsed model
 let engine = null;
-let params = Object.assign({}, BF.DEFAULTS, {
-  "flow": 0.35,
-  "wave": 0.8,
-  "waveLen": 1,
-  "waveAngle": 20,
-  "amp": 14,
-  "scale": 0.9,
-  "smooth": 3
-});
+let params = Object.assign({}, BF.DEFAULTS, BF.PRESETS['dapple'][Object.keys(BF.PRESETS['dapple'])[0]]);
 let clock = 0, lastNow = 0, playing = true, recording = false;
 
 // ═══════════════ Loading ═══════════════
@@ -249,15 +241,7 @@ function setParam(k, v) {
 }
 const ui = BF.panel(ctrl('bf-controls'), params, setParam, 'bf-');
 function setParams(p) {
-  params = Object.assign({}, BF.DEFAULTS, {
-  "flow": 0.35,
-  "wave": 0.8,
-  "waveLen": 1,
-  "waveAngle": 20,
-  "amp": 14,
-  "scale": 0.9,
-  "smooth": 3
-}, p, { loop: val('rg-loop') });
+  params = Object.assign({}, BF.DEFAULTS, p, { loop: val('rg-loop') });
   ui.sync(params);
   if (engine) engine.setParams(params);
 }
@@ -266,57 +250,7 @@ function setParams(p) {
 //    motions and the user's saved ones (Organica.store('dapple')). Values are
 //    'b:<name>' / 'u:<name>'. Each thumbnail is the real engine on a small
 //    synthetic model, amplitude exaggerated, source outline in a hairline. ──
-const BUILTINS = {
-  "Sway": {
-    "flow": 0.35,
-    "wave": 0.8,
-    "waveLen": 1,
-    "waveAngle": 20,
-    "amp": 14,
-    "scale": 0.9,
-    "smooth": 3
-  },
-  "Drift": {
-    "flow": 0.8,
-    "wave": 0.5,
-    "waveLen": 1.2,
-    "waveAngle": 0,
-    "amp": 22,
-    "scale": 0.7,
-    "smooth": 3
-  },
-  "Rustle": {
-    "flow": 0.2,
-    "rustle": 1,
-    "amp": 14,
-    "scale": 1.6,
-    "cycles": 2,
-    "smooth": 2
-  },
-  "Flicker": {
-    "flow": 0.25,
-    "flicker": 0.9,
-    "amp": 6,
-    "cycles": 3,
-    "stagger": 0.2,
-    "smooth": 3
-  },
-  "Gust": {
-    "flow": 0.5,
-    "wave": 1,
-    "waveLen": 0.5,
-    "waveAngle": 0,
-    "rustle": 0.4,
-    "amp": 28,
-    "stagger": 0.3,
-    "smooth": 3
-  },
-  "Source": {
-    "flow": 0,
-    "amp": 0,
-    "smooth": 0
-  }
-};
+const BUILTINS = BF.PRESETS['dapple'];   // shared/bandfield.js — the gallery reads the same table
 
 const PRESETS = Organica.store('dapple');
 function userPresets() { return PRESETS.read(); }

@@ -17,7 +17,7 @@
     { group: 'Colour',         items: [['TuneSutra', '/tunesutra/'], ['Colornet', '/colornet/']] },
     { group: 'Type & vector',  items: [['Living Path', '/livingpath/'], ['Apostate', '/apostate/'], ['Sinew', '/sinew/']] },
     { group: 'Motion',         items: [['Pulsar', '/pulsar/'], ['Membrane', '/membrane/'], ['Vortex', '/vortex/'], ['Mycel', '/mycel/'], ['Blob Boundary', '/blob-boundary/']] },
-    { group: 'Animate an export', items: [['Murmur', '/murmur/'], ['Undertow', '/undertow/'], ['Dapple', '/dapple/']] }
+    { group: 'Animate an export', items: [['Murmur', '/murmur/'], ['Undertow', '/undertow/'], ['Dapple', '/dapple/'], ['Gallery', '/gallery/']] }
   ];
   Organica.toolsPipeline = ['Rhizome', '/rhizome/'];
   Organica.explorations = [['Camo Cells', '/loom/_test-camo-cells.html'], ['Slice Reposition', '/loom/_test-slice-reposition.html'], ['Mix Restructure', '/loom/_test-mix-restructure.html'], ['Flow Field', '/explorations/flow-field/']];

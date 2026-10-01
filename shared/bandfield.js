@@ -400,5 +400,25 @@
     return c.toDataURL('image/png');
   }
 
-  Organica.bandField = { parse, prepare, create, panel, diff, thumb, DEFAULTS, SCHEMA, BUDGET, LATTICE };
+  // ═══════════════ built-in presets — ONE source for the tools and the gallery ═══════════════
+  const PRESETS = {
+    undertow: {   // Warping's animator: contours that flow, tide, ripple, slide
+      'Flow':   { flow: 1, amp: 18, scale: 1.2, smooth: 2 },
+      'Tide':   { flow: 0.25, wave: 0.9, waveLen: 0.55, waveAngle: 90, breathe: 0.35, amp: 16, smooth: 3 },
+      'Ripple': { flow: 0.15, wave: 1, waveLen: 0.14, waveAngle: 30, amp: 9, cycles: 2, smooth: 2 },
+      'Marble': { flow: 0.7, swirl: 0.9, scale: 0.9, amp: 12, smooth: 3, stagger: 0.15 },
+      'Strata': { flow: 0.6, amp: 20, scale: 0.8, stagger: 0.45, smooth: 2 },
+      'Source': { flow: 0, amp: 0, smooth: 0 },
+    },
+    dapple: {     // Komorebi's animator: light through leaves
+      'Sway':    { flow: 0.35, wave: 0.8, waveLen: 1, waveAngle: 20, amp: 14, scale: 0.9, smooth: 3 },
+      'Drift':   { flow: 0.8, wave: 0.5, waveLen: 1.2, waveAngle: 0, amp: 22, scale: 0.7, smooth: 3 },
+      'Rustle':  { flow: 0.2, rustle: 1, amp: 14, scale: 1.6, cycles: 2, smooth: 2 },
+      'Flicker': { flow: 0.25, flicker: 0.9, amp: 6, cycles: 3, stagger: 0.2, smooth: 3 },
+      'Gust':    { flow: 0.5, wave: 1, waveLen: 0.5, waveAngle: 0, rustle: 0.4, amp: 28, stagger: 0.3, smooth: 3 },
+      'Source':  { flow: 0, amp: 0, smooth: 0 },
+    },
+  };
+
+  Organica.bandField = { parse, prepare, create, panel, diff, thumb, DEFAULTS, SCHEMA, PRESETS, BUDGET, LATTICE };
 })(typeof window !== 'undefined' ? window : this);

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en" data-theme-support>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gallery — Organica</title>
+<link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="/shared/vendor/ibm-plex-mono-regular.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/mobile-gate.css">
+<style>
+  /* GALLERY — real exports from the static tools (Pollen, Halide, Warping, Komorebi), animated live by their
+     twins (Murmur, Undertow, Dapple). The sheets are WORK, so the grid carries data-theme="light" and stays light
+     in dark mode; the chrome around it follows the theme. Tokens only. */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: var(--fs-base); }
+  main { padding: var(--space-8); max-width: 1500px; margin: 0 auto; }
+  .g-head {
+    display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-7); flex-wrap: wrap;
+    border-top: 1px solid var(--ink); padding-top: var(--space-5); margin-bottom: var(--space-6);
+  }
+  .g-title { font-family: var(--font-display); font-size: var(--t-h1-size); font-weight: var(--t-h1-weight); line-height: var(--t-h1-lh); letter-spacing: var(--t-h1-ls); margin: 0; }
+  .g-lede { max-width: 62ch; margin: 0 0 var(--space-7); font-size: var(--fs-medium); line-height: var(--lh-snug, 1.45); }
+  .g-flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); margin: 0 0 var(--space-8); padding: 0; list-style: none; }
+  .g-flow li { border-top: 1px solid var(--border-strong); padding-top: var(--space-3); font-size: var(--fs-small); color: var(--mid); }
+  .g-flow b { display: block; font-family: var(--font-display); font-size: var(--fs-medium); color: var(--ink); margin-bottom: var(--space-1); }
+  .g-flow a { color: var(--ink); }
+  .g-ctl { display: flex; gap: var(--space-3); align-items: center; }
+  .g-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); }
+  .g-tile {
+    position: relative; display: block; overflow: hidden;
+    aspect-ratio: 3 / 2; background: var(--paper);
+    border: 1px solid var(--ink); border-radius: var(--radius-sm);
+    color: inherit; text-decoration: none;
+    opacity: 0; transform: translateY(var(--space-6));
+    transition: opacity .8s ease, transform .8s cubic-bezier(.2, .7, .2, 1);
+  }
+  .g-tile.is-in { opacity: 1; transform: none; }
+  .g-tile canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .g-tile:focus-visible { outline: 2px solid var(--ink); outline-offset: var(--space-1); }
+  .g-num, .g-cap span {
+    background: var(--paper); color: var(--ink);
+    padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm);
+    font-family: var(--font-mono); font-size: var(--fs-small);
+  }
+  .g-num { position: absolute; top: var(--space-3); left: var(--space-3); font-variant-numeric: var(--t-num-variant); }
+  .g-cap {
+    position: absolute; left: var(--space-3); right: var(--space-3); bottom: var(--space-3);
+    display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); pointer-events: none;
+  }
+  .g-cap span:last-child { opacity: 0; transform: translateX(var(--space-3)); transition: opacity .3s ease, transform .3s ease; }
+  .g-tile:hover .g-cap span:last-child, .g-tile:focus-visible .g-cap span:last-child { opacity: 1; transform: none; }
+  .g-state { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-mono); font-size: var(--fs-small); color: var(--mid); padding: var(--space-5); text-align: center; }
+  @media (max-width: 1100px) { .g-grid, .g-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (prefers-reduced-motion: reduce) { .g-tile { transition: none; opacity: 1; transform: none; } }
+</style>
+<script src="/shared/pattern-init.js"></script>
+</head>
+<body>
+<div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
+
+<header class="org-header" role="banner">
+  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><menu-icon state="menu" size="20" line-cap="square"></menu-icon></button>
+  <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ Gallery</span></a>
+  <div class="org-header__spacer"></div>
+</header>
+
+<main>
+  <div class="g-head">
+    <h1 class="g-title">Animated exports</h1>
+    <div class="g-ctl"><button class="org-btn" id="btn-pause" type="button" aria-pressed="false">Pause all</button></div>
+  </div>
+  <p class="g-lede">Every tile is a real SVG exported from a static tool, set moving live by its animated twin. The tool transforms an image; the animator moves the result. Hover a stipple or dither tile to push the marks; click any tile to open its animator.</p>
+
+  <ul class="g-flow">
+    <li><b>Murmur</b>Pollen / Halide stipple and dither: every mark on a spring. <a href="/murmur/">Open Murmur ↗</a></li>
+    <li><b>Undertow</b>Warping's contours: the edges flow, tide, ripple and slide. <a href="/undertow/">Open Undertow ↗</a></li>
+    <li><b>Dapple</b>Komorebi's canopy: light that sways, rustles and flickers. <a href="/dapple/">Open Dapple ↗</a></li>
+  </ul>
+
+  <div class="g-grid" id="grid" data-theme="light"><!-- the work stays light in dark mode --></div>
+</main>
+
+<script>window.ORGANICA_PUBLIC = true; /* like the hub: open to signed-out visitors; the tools stay gated */</script>
+<script src="/shared/vendor/supabase-js.min.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/tracks.js"></script>
+<script src="/shared/marks-svg.js"></script>
+<script src="/shared/swarm.js"></script>
+<script src="/shared/bandfield.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/auth-badge.js"></script>
+<script>
+(function () {
+  'use strict';
+  var S = Organica.swarm, M = S.MODES, BF = Organica.bandField, UP = BF.PRESETS.undertow, DP = BF.PRESETS.dapple;
+  var LOOP = 8;                                            // seconds — every tile loops seamlessly
+  var DPR = Math.min(window.devicePixelRatio || 1, 2);
+  var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Preset parameters come from the tools themselves: Murmur's modes (shared/swarm.js) and the band
+  // presets (shared/bandfield.js). 'Tide' is Murmur's own curated pattern, minus its entrance.
+  var TIDE = { waveAmp: 16, waveSpeed: 1.2, waveScale: 0.008, drift: 6, damping: 0.88 };
+  var TILES = [
+    { src: 'pollen-dots',     from: 'Pollen',   tool: 'Murmur',   href: '/murmur/',   preset: 'Drift',   kind: 'marks', params: M.Drift },
+    { src: 'warping-wood',    from: 'Warping',  tool: 'Undertow', href: '/undertow/', preset: 'Flow',    kind: 'bands', expect: 'warping', params: UP.Flow },
+    { src: 'komorebi-birch',  from: 'Komorebi', tool: 'Dapple',   href: '/dapple/',   preset: 'Sway',    kind: 'bands', expect: 'komorebi', params: DP.Sway },
+    { src: 'halide-atkinson', from: 'Halide',   tool: 'Murmur',   href: '/murmur/',   preset: 'Pulse',   kind: 'marks', params: M.Pulse },
+    { src: 'warping-marble',  from: 'Warping',  tool: 'Undertow', href: '/undertow/', preset: 'Marble',  kind: 'bands', expect: 'warping', params: UP.Marble },
+    { src: 'komorebi-palm',   from: 'Komorebi', tool: 'Dapple',   href: '/dapple/',   preset: 'Flicker', kind: 'bands', expect: 'komorebi', params: DP.Flicker },
+    { src: 'halide-bayer',    from: 'Halide',   tool: 'Murmur',   href: '/murmur/',   preset: 'Tide',    kind: 'marks', params: TIDE },
+    { src: 'warping-cells',   from: 'Warping',  tool: 'Undertow', href: '/undertow/', preset: 'Strata',  kind: 'bands', expect: 'warping', params: UP.Strata },
+  ];
+
+  var grid = document.getElementById('grid');
+  var playing = !still;
+
+  // ── build the tiles (empty until they scroll near) ──
+  TILES.forEach(function (t, i) {
+    var a = document.createElement('a');
+    a.className = 'g-tile'; a.href = t.href;
+    a.setAttribute('aria-label', t.from + ' export animated by ' + t.tool + ' — ' + t.preset + ' preset. Open ' + t.tool + '.');
+    a.style.transitionDelay = (i % 3) * 0.08 + 's';
+    t.canvas = document.createElement('canvas'); t.canvas.setAttribute('aria-hidden', 'true');
+    t.ctx = t.canvas.getContext('2d');
+    a.appendChild(t.canvas);
+    a.insertAdjacentHTML('beforeend',
+      '<span class="g-num">' + String(i + 1).padStart(2, '0') + '</span>' +
+      '<span class="g-cap"><span>' + t.from + ' → ' + t.tool + ' · ' + t.preset + '</span><span>Open ↗</span></span>');
+    t.state = document.createElement('div'); t.state.className = 'g-state'; t.state.textContent = 'Loading…';
+    a.appendChild(t.state);
+    t.el = a; t.clock = 0; t.ready = false; t.visible = false; t.started = false;
+    t.pointer = { x: -1e4, y: -1e4, down: false };
+    grid.appendChild(a);
+  });
+
+  // ── load one tile: fetch the sample export, parse it with the tool's own parser, create the engine ──
+  function start(t) {
+    if (t.started) return; t.started = true;
+    fetch('/gallery/samples/' + t.src + '.svg').then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); }).then(function (text) {
+      if (t.kind === 'marks') {
+        var s = Organica.marksSVG.parse(text);
+        t.W = s.W; t.H = s.H; t.bg = s.bg || '#ffffff';
+        t.sw = S.create({ homes: s.homes, styles: s.styles, W: s.W, H: s.H,
+          params: Object.assign({}, S.DEFAULTS, t.params, { loop: LOOP }), unit: Math.max(s.W, s.H) / 1200, seed: 7 });
+        t.sw.settle(); t.sw.advance(2 * LOOP, null, true); t.clock = 2 * LOOP;   // pre-roll, as Murmur's recorder does
+      } else {
+        var m = BF.parse(text, { expect: t.expect });
+        t.W = m.W; t.H = m.H;
+        t.bf = BF.create({ model: m, params: Object.assign({}, BF.DEFAULTS, t.params, { loop: LOOP }) });
+      }
+      t.el.style.aspectRatio = t.W + ' / ' + t.H;
+      t.state.remove();
+      t.ready = true; size(t); paint(t);
+    }).catch(function (e) {
+      console.error('[gallery]', t.src, e);
+      t.state.textContent = 'Could not load ' + t.src + ' — ' + e.message;
+    });
+  }
+
+  function size(t) {
+    var w = Math.max(1, Math.round(t.el.clientWidth * DPR)), h = Math.round(w * t.H / t.W);
+    if (t.canvas.width !== w || t.canvas.height !== h) { t.canvas.width = w; t.canvas.height = h; }
+  }
+  new ResizeObserver(function (es) { es.forEach(function (e) { TILES.forEach(function (t) { if (t.el === e.target && t.ready) { size(t); paint(t); } }); }); })
+    .observe(grid);
+  TILES.forEach(function (t) { new ResizeObserver(function () { if (t.ready) { size(t); paint(t); } }).observe(t.el); });
+
+  function paint(t) {
+    var c = t.ctx, k = t.canvas.width / t.W;
+    if (t.kind === 'marks') {
+      c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = t.bg; c.fillRect(0, 0, t.canvas.width, t.canvas.height);
+      c.setTransform(k, 0, 0, k, 0, 0); t.sw.draw(c);
+    } else {
+      c.setTransform(k, 0, 0, k, 0, 0); t.bf.draw(c);
+    }
+  }
+
+  // ── pointer: marks tiles are pushed by the hover, like Murmur ──
+  TILES.forEach(function (t) {
+    if (t.kind !== 'marks') return;
+    t.el.addEventListener('pointermove', function (e) { var r = t.canvas.getBoundingClientRect(); t.pointer.x = (e.clientX - r.left) / r.width * t.W; t.pointer.y = (e.clientY - r.top) / r.height * t.H; });
+    t.el.addEventListener('pointerleave', function () { t.pointer.x = t.pointer.y = -1e4; });
+  });
+
+  // ── one rAF loop for every visible, loaded tile ──
+  var last = 0;
+  function frame(now) {
+    var dt = last ? Math.min(0.1, (now - last) / 1000) : 0; last = now;
+    TILES.forEach(function (t) {
+      if (!t.ready || !t.visible) return;
+      if (playing) t.clock += dt;
+      if (t.kind === 'marks') t.sw.advance(t.clock, t.pointer.x > -1e3 ? t.pointer : null);
+      else t.bf.advance(t.clock);
+      paint(t);
+    });
+    if (playing) requestAnimationFrame(frame);
+  }
+  function play() { if (!playing) return; last = 0; requestAnimationFrame(frame); }
+
+  // visibility: reveal, lazy-load, and only animate what is on screen
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      var t = TILES.filter(function (x) { return x.el === e.target; })[0];
+      t.visible = e.isIntersecting;
+      if (e.isIntersecting) { t.el.classList.add('is-in'); start(t); }
+    });
+  }, { rootMargin: '200px' });
+  TILES.forEach(function (t) { io.observe(t.el); });
+
+  // reduced motion: a single still frame per tile (the loop never runs); everything else animates
+  var btn = document.getElementById('btn-pause');
+  function syncBtn() { btn.textContent = playing ? 'Pause all' : 'Play all'; btn.setAttribute('aria-pressed', String(!playing)); }
+  btn.addEventListener('click', function () { playing = !playing; syncBtn(); if (playing) play(); });
+  if (still) { playing = false; syncBtn(); document.querySelectorAll('.g-tile').forEach(function (el) { el.classList.add('is-in'); }); }
+  else { syncBtn(); play(); }
+  // while paused, tiles that finish loading still need their first frame — paint() on load already does it
+})();
+</script>
+<script src="/shared/tools.js"></script>
+<script src="/shared/menu-icon.js"></script>
+<script src="/shared/header.js"></script>
+</body>
+</html>
