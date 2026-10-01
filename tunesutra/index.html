@@ -107,11 +107,12 @@
           <button class="seg-btn" data-v="7">7</button>
         </div>
       </div>
+      <div class="sub-label">View</div>
       <div class="ctrl-row">
-        <span class="ctrl-label">View</span>
-        <div class="seg-ctrl" id="seg-view">
+        <div class="seg-ctrl" id="seg-view" role="group" aria-label="View">
           <button class="seg-btn active" data-v="bar">Bar</button>
           <button class="seg-btn" data-v="garment" id="btn-view-garment" title="Available at 3 colours">Garment</button>
+          <button class="seg-btn" data-v="gradient">Gradient</button>
         </div>
       </div>
       <div class="ctrl-row">
@@ -181,6 +182,58 @@
     </div>
 
     <div class="panel-section">
+      <h3>Gradient</h3>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Type</span>
+        <div class="seg-ctrl" id="seg-gtype">
+          <button class="seg-btn active" data-v="linear">Linear</button>
+          <button class="seg-btn" data-v="radial">Radial</button>
+          <button class="seg-btn" data-v="conic">Conic</button>
+        </div>
+      </div>
+      <div class="ctrl-row" id="row-gangle">
+        <div class="ctrl-label">Angle</div>
+        <input type="range" id="rg-gangle" min="0" max="360" step="1" value="90">
+        <span class="ctrl-val" id="v-gangle">90</span>
+      </div>
+      <div class="sub-label">Stops</div>
+      <div class="rmx-palette" id="grad-stops"></div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Adds the paper as the last stop: on screen the gradient fades to the sheet, in print the last ink thins out to bare paper and gets no plate of its own.">Fade to paper</div>
+        <input type="checkbox" id="ck-gpaper">
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label" title="Screen: a smooth gradient with grain on top. Print: the same gradient as flat cells of pure ink, one plate per ink.">Output</span>
+        <div class="seg-ctrl" id="seg-gout">
+          <button class="seg-btn active" data-v="screen">Screen</button>
+          <button class="seg-btn" data-v="print">Print</button>
+        </div>
+      </div>
+      <div class="ctrl-row" id="row-gamount">
+        <div class="ctrl-label">Grain</div>
+        <input type="range" id="rg-gamount" min="0" max="100" step="1" value="25">
+        <span class="ctrl-val" id="v-gamount">25</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Grain size</div>
+        <input type="range" id="rg-gsize" min="1" max="12" step="1" value="3">
+        <span class="ctrl-val" id="v-gsize">3</span>
+      </div>
+      <div class="ctrl-row" id="row-gpattern">
+        <span class="ctrl-label">Pattern</span>
+        <div class="seg-ctrl" id="seg-gpattern">
+          <button class="seg-btn active" data-v="noise">Noise</button>
+          <button class="seg-btn" data-v="ordered">Ordered</button>
+        </div>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Seed</div>
+        <input type="number" class="panel-input" id="in-gseed" min="0" max="9999" step="1" value="1">
+      </div>
+      <p class="org-panel__hint" id="grad-hint"></p>
+    </div>
+
+    <div class="panel-section">
       <h3>Scale</h3>
       <p class="org-panel__hint">Ten steps per colour, 0–900. Each step is the same perceived lightness in every row, so rows are interchangeable. Your colour sits unchanged on its nearest step (outlined).</p>
     </div>
@@ -222,6 +275,12 @@
         <button class="org-btn" id="btn-export-css">CSS</button>
         <button class="org-btn" id="btn-export-json">JSON</button>
       </div>
+      <div class="org-popover__title">Gradient only</div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-export-grad-png">PNG</button>
+        <button class="org-btn" id="btn-export-grad-svg">SVG</button>
+        <button class="org-btn" id="btn-export-plates" title="One SVG per ink, black on transparent. Print output only.">Plates</button>
+      </div>
       <div class="org-popover__divider"></div>
       <div class="org-popover__row">
         <label class="org-popover__label" for="sel-export-scale">Scale</label>
@@ -244,6 +303,7 @@
 <script src="/shared/color.js"></script>
 <script src="/shared/palette.js"></script>
 <script src="/shared/select-picker.js"></script>
+<script src="/shared/plate-export.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────
 // TuneSutra — colour-harmony palette generator.
@@ -287,8 +347,21 @@ const state = {
   harmony: 'analogous',
   spread: 0,          // lightness spread, in OKLCH L points (0–30)
   activeIndex: 0,
-  view: 'bar',        // 'bar' | 'garment' — garment only meaningful at 3 colours
+  view: 'bar',        // 'bar' | 'garment' | 'gradient' — garment only meaningful at 3 colours
   items: [],
+  // The gradient: stops are colours in their own right (picked from this
+  // palette or any saved one), so reordering the palette never reorders them.
+  grad: {
+    type: 'linear',   // 'linear' | 'radial' | 'conic'
+    angle: 90,        // CSS convention: 0 = to top, 90 = to right; conic starts here
+    stops: ['#c93ed6', '#c9863e'],
+    paper: false,     // fade to paper: the sheet's paper as a last, plate-less stop
+    out: 'screen',    // 'screen' (smooth + grain) | 'print' (cells of pure ink)
+    amount: 25,       // screen grain strength, 0–100
+    size: 3,          // grain / cell size in sheet units
+    pattern: 'noise', // print threshold: 'noise' (stochastic) | 'ordered' (Bayer 8×8)
+    seed: 1,
+  },
 };
 
 function newId() { return 'c-' + Math.random().toString(36).slice(2, 8); }
@@ -384,11 +457,11 @@ function applyHarmony() {
 const undoStack = [];
 let lastUndo = { kind: '', t: 0 };
 function snapshot() {
-  return JSON.stringify({ items: state.items, harmony: state.harmony, spread: state.spread, view: state.view, activeIndex: state.activeIndex });
+  return JSON.stringify({ items: state.items, harmony: state.harmony, spread: state.spread, view: state.view, activeIndex: state.activeIndex, grad: state.grad });
 }
 function pushUndo(kind) {
   const now = Date.now();
-  const burst = (kind === 'edit' || kind === 'name' || kind === 'spread') && lastUndo.kind === kind && now - lastUndo.t < 1200;
+  const burst = (kind === 'edit' || kind === 'name' || kind === 'spread' || kind === 'grad') && lastUndo.kind === kind && now - lastUndo.t < 1200;
   lastUndo = { kind: kind, t: now };
   if (burst) return;
   undoStack.push(snapshot());
@@ -444,7 +517,7 @@ function highlightActiveChip() { chips.setActive(state.activeIndex); }
 // own native picker is the thing being dragged.
 function commit(rebuildChips) {
   if (count() !== 3 && state.view === 'garment') state.view = 'bar';   // the garment view only exists at 3 colours
-  if (rebuildChips) chips.setColors(colors());
+  if (rebuildChips) { chips.setColors(colors()); gradChips.setColors(state.grad.stops); }
   highlightActiveChip();
   scaleCache.clear();
   syncCountSeg();
@@ -458,6 +531,7 @@ function syncControls() {
   ctrl('sel-harmony').value = state.harmony;
   ctrl('rg-spread').value = state.spread;
   ctrl('v-spread').textContent = state.spread;
+  syncGradControls();
 }
 
 // ── DISTINCTNESS — which pairs are too close to tell apart ──
@@ -574,6 +648,214 @@ const GARMENT_X = (VB_W - GARMENT_W) / 2, GARMENT_Y = BAR_Y;
 
 function isGarmentView() { return state.view === 'garment' && count() === 3; }
 
+// ── GRADIENT + GRAIN ──
+// One definition (state.grad), two renderings:
+//   Screen — a smooth gradient interpolated in OKLab, with luminance grain on
+//            top. A raster: it exports as PNG (or a PNG inside the SVG).
+//   Print  — the same gradient as a grid of cells, each one PURE ink: between
+//            two stops a cell takes the nearer or the farther ink by a
+//            threshold, so the blend is made of dots, not of mixed colour.
+//            Real vector, and one path per ink — which is exactly a plate.
+// Kept local: TuneSutra is the only consumer (promote at the second one).
+const GRAD_W = BAR_X1 - BAR_X0, GRAD_H = 300, GRAD_LEGEND_H = 18, PRINT_MIN_CELL = 3;
+
+// Integer-lattice hash → 0..1. (shared/noise.js's hash2 is built for
+// continuous coordinates; on whole-number cells it repeats every 50.)
+function cellHash(x, y, seed) {
+  let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(seed + 1, 1274126177);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+const BAYER8 = [
+  [0, 32, 8, 40, 2, 34, 10, 42], [48, 16, 56, 24, 50, 18, 58, 26], [12, 44, 4, 36, 14, 46, 6, 38], [60, 28, 52, 20, 62, 30, 54, 22],
+  [3, 35, 11, 43, 1, 33, 9, 41], [51, 19, 59, 27, 49, 17, 57, 25], [15, 47, 7, 39, 13, 45, 5, 37], [63, 31, 55, 23, 61, 29, 53, 21],
+];
+
+// The stops actually drawn: the chosen colours, plus the paper when fading.
+function gradStops() {
+  const stops = state.grad.stops.map(hex => ({ hex: hex, paper: false }));
+  if (state.grad.paper) stops.push({ hex: Organica.contentColor('--paper'), paper: true });
+  return stops;
+}
+// Position along the gradient, 0..1, for a point of a w×h box.
+function gradField(g, w, h) {
+  const cx = w / 2, cy = h / 2;
+  if (g.type === 'radial') { const r = Math.hypot(w, h) / 2; return (x, y) => Math.hypot(x - cx, y - cy) / r; }
+  if (g.type === 'conic') {
+    return (x, y) => { const a = Math.atan2(x - cx, -(y - cy)) * 180 / Math.PI - g.angle; return (((a % 360) + 360) % 360) / 360; };
+  }
+  const rad = g.angle * Math.PI / 180, dx = Math.sin(rad), dy = -Math.cos(rad);
+  const len = Math.abs(w * dx) + Math.abs(h * dy) || 1;
+  return (x, y) => ((x - cx) * dx + (y - cy) * dy) / len + 0.5;
+}
+
+// Screen: a canvas of w×h sheet units at `scale` pixels per unit. The grain
+// cell scales with it, so ×1 and ×4 show the same grain, only sharper.
+function gradCanvas(g, w, h, scale) {
+  const W = Math.round(w * scale), H = Math.round(h * scale);
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d'), img = ctx.createImageData(W, H), px = img.data;
+  const stops = gradStops(), k = stops.length, N = 512, lut = new Uint8Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const pos = i / (N - 1) * (k - 1), a = Math.min(k - 2, Math.floor(pos));
+    const rgb = Organica.hexToRGB255(C.mix(stops[a].hex, stops[a + 1].hex, pos - a));
+    lut[i * 3] = rgb[0]; lut[i * 3 + 1] = rgb[1]; lut[i * 3 + 2] = rgb[2];
+  }
+  const field = gradField(g, w, h), cell = Math.max(1, g.size * scale), amp = g.amount / 100 * 72;
+  for (let y = 0, o = 0; y < H; y++) {
+    const gy = Math.floor(y / cell);
+    for (let x = 0; x < W; x++, o += 4) {
+      const t = clamp(field((x + 0.5) / scale, (y + 0.5) / scale), 0, 1), i = Math.round(t * (N - 1)) * 3;
+      const n = amp ? (cellHash(Math.floor(x / cell), gy, g.seed) - 0.5) * 2 * amp : 0;
+      px[o] = lut[i] + n; px[o + 1] = lut[i + 1] + n; px[o + 2] = lut[i + 2] + n; px[o + 3] = 255;   // Uint8ClampedArray clamps
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return cv;
+}
+
+// Print: → [{ hex, paper, d, cells }] — one entry per stop, `d` the SVG path
+// of every cell that ink owns (rows run-length merged), in w×h sheet units.
+function gradPlates(g, w, h) {
+  const stops = gradStops(), k = stops.length, cell = Math.max(PRINT_MIN_CELL, g.size);
+  const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell), field = gradField(g, w, h);
+  const out = stops.map(s => ({ hex: s.hex, paper: s.paper, d: [], cells: 0 }));
+  for (let r = 0; r < rows; r++) {
+    const y0 = r * cell, y1 = Math.min(h, y0 + cell);
+    let run = -1, c0 = 0;
+    for (let c = 0; c <= cols; c++) {
+      let ink = -1;
+      if (c < cols) {
+        const t = clamp(field(Math.min(w, (c + 0.5) * cell), (y0 + y1) / 2), 0, 1);
+        const pos = t * (k - 1), a = Math.min(k - 2, Math.floor(pos));
+        const thr = g.pattern === 'ordered' ? (BAYER8[r & 7][c & 7] + 0.5) / 64 : cellHash(c, r, g.seed);
+        ink = (pos - a) > thr ? a + 1 : a;
+      }
+      if (ink !== run) {
+        if (run >= 0) { out[run].d.push(`M${c0 * cell} ${y0}H${Math.min(w, c * cell)}V${y1}H${c0 * cell}Z`); out[run].cells += c - c0; }
+        run = ink; c0 = c;
+      }
+    }
+  }
+  out.forEach(p => { p.d = p.d.join(''); });
+  return out;
+}
+
+// Both renderings are cached on the definition: selecting a colour or
+// renaming one re-renders the sheet, but must not re-run 250k pixels.
+const gradCache = { key: '', url: '', plates: null };
+function gradKey(scale) { return JSON.stringify([state.grad, gradStops(), scale]); }
+function gradScreenURL(scale) {
+  const key = 'screen' + gradKey(scale);
+  if (gradCache.key !== key) { gradCache.key = key; gradCache.url = gradCanvas(state.grad, GRAD_W, GRAD_H, scale).toDataURL('image/png'); }
+  return gradCache.url;
+}
+function gradPrintPlates() {
+  const key = 'print' + gradKey(1);
+  if (gradCache.key !== key) { gradCache.key = key; gradCache.plates = gradPlates(state.grad, GRAD_W, GRAD_H); }
+  return gradCache.plates;
+}
+function gradLegend() {
+  const g = state.grad, kind = g.type === 'radial' ? 'Radial' : (g.type === 'conic' ? 'Conic from ' + g.angle + '°' : 'Linear ' + g.angle + '°');
+  return kind + ' · ' + gradStops().map(s => s.paper ? 'paper' : s.hex).join(' → ') + ' · ' +
+    (g.out === 'print' ? 'print, ' + g.pattern + ' cells of ' + Math.max(PRINT_MIN_CELL, g.size) : 'screen, grain ' + g.amount + ' at ' + g.size) + ' · seed ' + g.seed;
+}
+// The gradient's inner SVG / canvas drawing, in its own 0..GRAD_W × 0..GRAD_H box.
+function gradMarkup(screenScale, plateOnly) {
+  if (state.grad.out !== 'print') return `<image width="${GRAD_W}" height="${GRAD_H}" preserveAspectRatio="none" href="${gradScreenURL(screenScale)}"/>`;
+  return '<g shape-rendering="crispEdges">' + gradPrintPlates().map((p, i) =>
+    (p.paper || !p.d || (plateOnly != null && plateOnly !== i)) ? '' : `<path fill="${plateOnly != null ? '#000000' : p.hex}" d="${p.d}"/>`).join('') + '</g>';
+}
+function drawGrad(c, scale) {
+  if (state.grad.out !== 'print') { c.drawImage(gradCanvas(state.grad, GRAD_W, GRAD_H, scale), 0, 0, GRAD_W, GRAD_H); return; }
+  gradPrintPlates().forEach(p => { if (p.paper || !p.d) return; c.fillStyle = p.hex; c.fill(new Path2D(p.d)); });
+}
+
+function syncGradControls() {
+  const g = state.grad, seg = (id, v) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
+  seg('seg-gtype', g.type); seg('seg-gout', g.out); seg('seg-gpattern', g.pattern);
+  ctrl('rg-gangle').value = g.angle; ctrl('v-gangle').textContent = g.angle;
+  ctrl('rg-gamount').value = g.amount; ctrl('v-gamount').textContent = g.amount;
+  ctrl('rg-gsize').value = g.size; ctrl('v-gsize').textContent = g.size;
+  ctrl('in-gseed').value = g.seed;
+  ctrl('ck-gpaper').checked = g.paper;
+  ctrl('row-gangle').style.display = g.type === 'radial' ? 'none' : '';
+  ctrl('row-gamount').style.display = g.out === 'print' ? 'none' : '';
+  ctrl('row-gpattern').style.display = g.out === 'print' ? '' : 'none';
+  ctrl('btn-export-plates').disabled = g.out !== 'print';
+  const inks = g.stops.length;
+  ctrl('grad-hint').textContent = g.out === 'print'
+    ? inks + (inks === 1 ? ' ink' : ' inks') + ' → ' + inks + ' plates. Every cell is one pure ink' + (g.paper ? ', or bare paper.' : '.')
+    : 'A smooth blend with grain on top — a raster. Switch to Print for flat inks you can separate.';
+}
+// Any gradient control shows the gradient: adjusting one you cannot see is no use.
+function gradChanged() {
+  if (state.view !== 'gradient') state.view = 'gradient';
+  syncGradControls();
+  syncViewSeg();
+  renderStage();
+  syncUndo();
+}
+let gradChips = null;
+function initGradient() {
+  gradChips = Organica.palette.swatch(ctrl('grad-stops'), {
+    colors: state.grad.stops,
+    min: 2,
+    max: 5,
+    palettes: () => [{ name: 'This palette', colors: state.items.map((it, i) => ({ name: dispName(i), hex: it.hex })) }],
+    onChange: cols => { pushUndo('grad'); state.grad.stops = cols; gradChanged(); },
+  });
+  const segBind = (id, key) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => {
+    if (state.grad[key] === b.dataset.v) return;
+    pushUndo('grad-' + key); state.grad[key] = b.dataset.v; gradChanged();
+  }));
+  segBind('seg-gtype', 'type'); segBind('seg-gout', 'out'); segBind('seg-gpattern', 'pattern');
+  [['rg-gangle', 'angle'], ['rg-gamount', 'amount'], ['rg-gsize', 'size']].forEach(([id, key]) => ctrl(id).addEventListener('input', e => {
+    pushUndo('grad'); state.grad[key] = +e.target.value; gradChanged();
+  }));
+  ctrl('in-gseed').addEventListener('input', e => { pushUndo('grad'); state.grad.seed = clamp(Math.round(+e.target.value || 0), 0, 9999); gradChanged(); });
+  ctrl('ck-gpaper').addEventListener('change', e => { pushUndo('grad-paper'); state.grad.paper = e.target.checked; gradChanged(); });
+}
+
+// ── gradient-only exports ──
+function gradSVGString(plateOnly) {
+  const meta = plateOnly == null ? `<metadata id="organica">${esc(JSON.stringify({ tool: 'tunesutra', kind: 'gradient', gradient: state.grad }))}</metadata>` : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${GRAD_W} ${GRAD_H}" width="${GRAD_W}" height="${GRAD_H}">${meta}${gradMarkup(4, plateOnly)}</svg>`;
+}
+function exportGradSVG() { Organica.downloadText(gradSVGString(null), Organica.stamp('tunesutra-gradient', 'svg'), 'image/svg+xml'); }
+function gradPNGCanvas(scale) {
+  if (state.grad.out !== 'print') return gradCanvas(state.grad, GRAD_W, GRAD_H, scale);
+  const cv = document.createElement('canvas');
+  cv.width = GRAD_W * scale; cv.height = GRAD_H * scale;
+  const c = cv.getContext('2d');
+  c.fillStyle = Organica.contentColor('--paper');
+  c.fillRect(0, 0, cv.width, cv.height);
+  c.scale(scale, scale);
+  drawGrad(c, scale);
+  return cv;
+}
+function exportGradPNG() {
+  const url = gradPNGCanvas(+ctrl('sel-export-scale').value).toDataURL('image/png');
+  Organica.download(Organica.dataURLToBlob(url), Organica.stamp('tunesutra-gradient', 'png'));
+}
+// One SVG per ink, black on transparent — the paper stop gets none.
+function exportPlates() {
+  if (state.grad.out !== 'print') return;
+  const plates = gradPrintPlates(), t = Date.now();
+  Organica.plateExport.run(plates.length, {
+    build: i => (plates[i].paper || !plates[i].d) ? null
+      : { blob: new Blob([gradSVGString(i)], { type: 'image/svg+xml' }), filename: 'tunesutra-' + t + '-plate' + (i + 1) + '-' + plates[i].hex.slice(1) + '.svg' },
+  });
+}
+function gradCSS() {
+  const g = state.grad, list = gradStops().map(s => s.hex).join(', ');
+  if (g.type === 'radial') return `radial-gradient(circle farthest-corner at center in oklab, ${list})`;
+  if (g.type === 'conic') return `conic-gradient(from ${g.angle}deg in oklab, ${list})`;
+  return `linear-gradient(${g.angle}deg in oklab, ${list})`;
+}
+
+
 // The sheet is always drawn in the light theme's colours, whatever the
 // chrome theme (Organica.contentColor), and its text in the page's own font
 // resolved to a literal family list so an exported file carries it.
@@ -591,15 +873,19 @@ function readableOn(hex, T) { return C.contrast(hex, T.ink) >= C.contrast(hex, T
 //   { t:'rect', x, y, w, h, fill, stroke?, sw?, role?, title? }
 //   { t:'path', d, tf:{x,y,s}, fill, stroke?, sw?, role?, title? }
 //   { t:'text', x, y, s, size, fill, anchor }
+//   { t:'grad', x, y } — the gradient block, drawn by gradMarkup / drawGrad
 // `role` marks a shape that selects a colour when clicked on screen.
 function buildScene() {
   const T = sheetTheme(), n = count(), cols = colors(), items = [];
   const rect = (x, y, w, h, fill, extra) => items.push(Object.assign({ t: 'rect', x: x, y: y, w: w, h: h, fill: fill }, extra));
   const text = (x, y, s, size, fill, anchor) => items.push({ t: 'text', x: x, y: y, s: String(s), size: size, fill: fill, anchor: anchor || 'start' });
   const weights = roleWeights(n);
-  const garment = isGarmentView();
+  const garment = isGarmentView(), gradient = state.view === 'gradient';
 
-  if (garment) {
+  if (gradient) {
+    items.push({ t: 'grad', x: BAR_X0, y: BAR_Y });
+    text(BAR_X0, BAR_Y + GRAD_H + 14, gradLegend(), 10, T.mid);
+  } else if (garment) {
     GARMENT_ZONES.forEach(z => items.push({
       t: 'path', d: z.d, tf: { x: GARMENT_X, y: GARMENT_Y, s: GARMENT_SCALE }, fill: cols[z.role], stroke: T.paper, sw: 2,
       role: z.role, title: `${dispName(z.role)}, ${weights[z.role].toFixed(0)}%, ${cols[z.role]}`,
@@ -620,7 +906,7 @@ function buildScene() {
   }
 
   // Scales
-  const scaleY = (garment ? GARMENT_Y + GARMENT_H : BAR_Y + BAR_H) + 60;
+  const scaleY = (gradient ? BAR_Y + GRAD_H + GRAD_LEGEND_H : (garment ? GARMENT_Y + GARMENT_H : BAR_Y + BAR_H)) + 60;
   const swX0 = (VB_W - (10 * SW_PITCH - SW_GAP)) / 2;
   for (let i = 0; i < n; i++) {
     const rowY = scaleY + i * ROW_H;
@@ -660,6 +946,7 @@ function num(v) { return +(+v).toFixed(2); }
 function sceneMarkup(scene, interactive) {
   const font = esc(scene.font.replace(/"/g, "'"));
   return scene.items.map(it => {
+    if (it.t === 'grad') return `<g transform="translate(${it.x},${it.y})">${gradMarkup(interactive ? 1 : 2)}</g>`;
     if (it.t === 'text') {
       return `<text x="${num(it.x)}" y="${num(it.y)}" font-family="${font}" font-size="${it.size}" fill="${it.fill}"${it.anchor !== 'start' ? ` text-anchor="${it.anchor}"` : ''}>${esc(it.s)}</text>`;
     }
@@ -671,10 +958,11 @@ function sceneMarkup(scene, interactive) {
     return `<rect x="${num(it.x)}" y="${num(it.y)}" width="${num(it.w)}" height="${num(it.h)}" ${attrs}>${title}</rect>`;
   }).join('');
 }
-function drawScene(scene, c) {
+function drawScene(scene, c, scale) {
   c.fillStyle = scene.paper;
   c.fillRect(0, 0, scene.W, scene.H);
   scene.items.forEach(it => {
+    if (it.t === 'grad') { c.save(); c.translate(it.x, it.y); drawGrad(c, scale || 1); c.restore(); return; }
     if (it.t === 'text') {
       c.font = `${it.size}px ${scene.font}`;
       c.textAlign = it.anchor === 'middle' ? 'center' : 'left';
@@ -752,7 +1040,7 @@ function pngCanvas(scale) {
   canvas.height = scene.H * scale;
   const c = canvas.getContext('2d');
   c.scale(scale, scale);
-  drawScene(scene, c);
+  drawScene(scene, c, scale);
   return canvas;
 }
 function exportPNG() {
@@ -779,6 +1067,8 @@ function exportCSS() {
       css += `  --tunesutra-${key}-${s.step}: ${s.hex};\n`;
     });
   });
+  // Grain is not expressible in CSS — this is the smooth gradient only.
+  css += `  --tunesutra-gradient: ${gradCSS()};\n`;
   css += '}\n';
   Organica.downloadText(css, Organica.stamp('tunesutra', 'css'), 'text/css');
 }
@@ -791,6 +1081,8 @@ function exportJSON() {
       obj.tunesutra[key][s.step] = { $value: s.hex, $type: 'color' };
     });
   });
+  const stops = gradStops();
+  obj.tunesutra.gradient = { $type: 'gradient', $value: stops.map((st, i) => ({ color: st.hex, position: +(i / (stops.length - 1)).toFixed(4) })) };
   Organica.downloadText(JSON.stringify(obj, null, 2), Organica.stamp('tunesutra', 'json'), 'application/json');
 }
 function sendToFigma() { Organica.sendToFigma(svgString(1), 'TuneSutra'); }
@@ -837,6 +1129,8 @@ function applyPreset(name) {
   state.harmony = p.harmony || 'analogous';
   state.spread = p.spread || 0;
   state.activeIndex = 0;
+  // A palette saved before gradients existed gets one between its first two colours.
+  state.grad = Object.assign(JSON.parse(GRAD_DEFAULT), p.gradient || { stops: colors().slice(0, 2) });
   syncControls();
   commit(true);
 }
@@ -862,6 +1156,7 @@ function confirmSavePreset() {
     names: state.items.map((it, i) => dispName(i)),
     ids: state.items.map(it => it.id),
     locks: state.items.map(it => !!it.lock),
+    gradient: JSON.parse(JSON.stringify(state.grad)),
     savedAt: new Date().toISOString(),
   };
   PRESETS.write(all);
@@ -878,7 +1173,9 @@ function deletePreset() {
 }
 
 // ── INIT ──
+const GRAD_DEFAULT = JSON.stringify(state.grad);
 initChips();
+initGradient();
 bindFieldEditor();
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 
@@ -916,6 +1213,9 @@ ctrl('btn-export-png').addEventListener('click', exportPNG);
 ctrl('btn-export-svg').addEventListener('click', exportSVG);
 ctrl('btn-export-css').addEventListener('click', exportCSS);
 ctrl('btn-export-json').addEventListener('click', exportJSON);
+ctrl('btn-export-grad-png').addEventListener('click', exportGradPNG);
+ctrl('btn-export-grad-svg').addEventListener('click', exportGradSVG);
+ctrl('btn-export-plates').addEventListener('click', exportPlates);
 
 ctrl('btn-preset-save').addEventListener('click', beginSavePreset);
 ctrl('btn-preset-delete').addEventListener('click', deletePreset);

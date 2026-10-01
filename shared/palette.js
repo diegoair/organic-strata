@@ -29,6 +29,8 @@
  *   Either shape also gets a small "Pick from a palette" button (palette.pick →
  *   palette.library(): the palettes saved in TuneSutra + the built-in sets).
  *   opts.library: false leaves it out. Its menu CSS is in panel.css.
+ *   Generate mode also takes opts.palettes: () => [{ name, colors:[{name,hex}] }]
+ *   — the tool's own unsaved palettes, listed first (TuneSutra's gradient stops).
  *
  *   Both shapes return the SAME object:
  *     { get, set, getColors, setColors(arr, {notify}), setActive(i), rebuild }
@@ -208,6 +210,7 @@
           e.stopPropagation();
           palette.pick(lib, {
             max: max,
+            extra: opts.palettes,
             // one colour: add it while there is room, otherwise it replaces the last chip
             onPick: hex => { if (colors.length < max) { colors.push(hex); rebuild(); onChange(colors.slice(), colors.length - 1, 'add'); } else setColors(colors.slice(0, max - 1).concat(hex), { notify: true }); },
             onPickAll: hexes => setColors(hexes, { notify: true }),
@@ -336,7 +339,7 @@
   }
   function fillMenu(opts) {
     menu.innerHTML = '';
-    palette.library().forEach(pal => {
+    (opts.extra ? opts.extra() : []).concat(palette.library()).forEach(pal => {
       const whole = opts.onPickAll && pal.colors.length <= (opts.max || 8);
       const head = document.createElement(whole ? 'button' : 'div');
       head.className = whole ? 'preset-item' : 'pi-group';
