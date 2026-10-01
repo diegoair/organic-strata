@@ -25,8 +25,8 @@ to the eye.
   pages of a colour-scheme book (role order: body, hem, collar, trim).
   They are the book's own combinations: fine as a working reference, but decide
   whether they should ship to other users before the tool is opened up.
-- A card shows the palette in proportion, or on the garment when the palette was
-  saved in the Garment view.
+- A card shows the palette in proportion, or on its figure when the palette was
+  saved in the Figure view.
 
 The address says where you are: no hash = the library, `#new`, `#p=<name>` (a
 saved palette), `#c=<collection>/<id>` (a copy of a built-in). **← All
@@ -74,10 +74,25 @@ One scene list (`buildScene()`) draws the preview, the SVG and the PNG.
    on its nearest step (outlined). Chroma keeps the pick's share of the gamut at
    each lightness and never exceeds the pick's own.
    Then an **example** of the palette in use, chosen by the View switch: *Bar*
-   (the colours in 60/…-style proportions) or *Garment* (3 or 4 colours: body, hem,
-   collar, and — with a fourth colour — the two trim triangles; a zone too pale
-   to see on the paper gets a hairline). In the
+   (the colours in 60/…-style proportions) or *Figure* (3 or 4 colours). In the
    *Gradient* view the gradient comes first and there is no example.
+
+   **Figures** (`tunesutra/figures.js`, data) show the palette in proportion on a
+   drawing: each colour owns zones of a fixed share of the visible area. The
+   **Garment** is the reference, measured: Base 52.0% · Secondary 32.2% ·
+   Accent 10.9% · trim 4.8% (with 3 colours the trim takes the Accent:
+   52 / 32 / 16). The others were drawn from a few parameters and tuned to the
+   same shares, within 0.2 points:
+   - **House** (isometric) — walls / roof / door and windows / chimney and plinth
+   - **Room** (isometric corner) — walls / floor / sofa / cushion and picture
+   - **Poster** — ground / disc / band / dot and rule
+
+   The line under the figure gives the shares as measured from the drawing
+   (`TUNESUTRA_FIGURE_SHARES`), and `node scripts/test-figures.mjs` fails if a
+   figure drifts more than 1 point. The chosen figure is saved with the palette
+   and drawn on its library card. A zone too pale to see on the paper gets a
+   hairline. This is a trial: the garment stays beside the new figures until one
+   is chosen to replace it.
 3. **Contrast grid** — each cell sets the row's colour as text on the column's,
    with the WCAG ratio under it (`· close` marks a pair under ΔE 6).
 

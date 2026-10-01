@@ -149,8 +149,13 @@
         <div class="ctrl-row">
           <div class="seg-ctrl">
             <button class="seg-btn active" data-v="bar">Bar</button>
-            <button class="seg-btn" data-v="garment" id="btn-view-garment" title="Available at 3 or 4 colours">Garment</button>
+            <button class="seg-btn" data-v="garment" id="btn-view-garment" title="Available at 3 or 4 colours">Figure</button>
           </div>
+        </div>
+        <div class="ctrl-row" id="row-figure">
+          <span class="ctrl-label" title="The drawing the palette is shown on. Every figure gives each colour the same share of its area.">Figure</span>
+          <div id="figure-picker"></div>
+          <select class="panel-select" id="sel-figure" aria-label="Figure"></select>
         </div>
         <div class="ctrl-row">
           <div class="seg-ctrl">
@@ -393,6 +398,7 @@
 <script src="/shared/select-picker.js"></script>
 <script src="/shared/plate-export.js"></script>
 <script src="/tunesutra/collections.js"></script>
+<script src="/tunesutra/figures.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────
 // TuneSutra — colour-harmony palette generator.
@@ -436,7 +442,8 @@ const state = {
   harmony: 'analogous',
   spread: 0,          // lightness spread, in OKLCH L points (0–30)
   activeIndex: 0,
-  view: 'bar',        // 'bar' | 'garment' | 'gradient' | 'system' — garment only at 3 or 4 colours
+  view: 'bar',        // 'bar' | 'garment' (= the figure view) | 'gradient' | 'system' — figure only at 3 or 4 colours
+  figure: 'garment',  // which figure the figure view draws — an id from tunesutra/figures.js
   items: [],
   // The gradient: stops are colours in their own right (picked from this
   // palette or any saved one), so reordering the palette never reorders them.
@@ -556,7 +563,7 @@ function applyHarmony() {
 const undoStack = [];
 let lastUndo = { kind: '', t: 0 };
 function snapshot() {
-  return JSON.stringify({ items: state.items, harmony: state.harmony, spread: state.spread, view: state.view, activeIndex: state.activeIndex, grad: state.grad, sys: state.sys });
+  return JSON.stringify({ items: state.items, harmony: state.harmony, spread: state.spread, view: state.view, figure: state.figure, activeIndex: state.activeIndex, grad: state.grad, sys: state.sys });
 }
 function pushUndo(kind) {
   const now = Date.now();
@@ -723,40 +730,35 @@ function bindFieldEditor() {
 
 // ── STAGE — one scene list feeds the preview and every export (WYSIWYG) ──
 // Top: one card per colour with its 0–900 scale beneath it. Then an example
-// of the palette in use — the proportional bar (any N) or the garment
-// pictogram (3 or 4 colours) — then the contrast grid. In the Gradient view the
+// of the palette in use — the proportional bar (any N) or a figure (garment,
+// house, room, poster; 3 or 4 colours) — then the contrast grid. In the Gradient view the
 // gradient comes first and there is no example.
 const VB_W = 900, BAR_Y = 24, BAR_H = 44, BAR_X0 = 20, BAR_X1 = 880;
 const CARD_MAX_W = 150, CARD_GAP = 14, CARD_COLOUR_H = 96, CARD_H = 134, CARD_R = 14, STEP_H = 20, STEP_GAP = 2;
 const SW_W = 76, SW_GAP = 6, SW_H = 40, SW_PITCH = SW_W + SW_GAP;
 const GRID_HEAD_H = 14, GRID_ROW_H = SW_H + 22;
 
-// Garment geometry — local 0..326 x 0..670 box, from a vector Diego supplied
-// ("Group 34.svg"): a tall rectangular body, a trapezoid hem that flares
-// wider below it, and a V-neck collar triangle, plus two bottom-corner
-// accent triangles. The source file uses 3 fills across its 5 shapes — the
-// collar triangle and both bottom corners share one — which is the direct
-// signal that all three belong to the SAME role (Accent) in a 3-colour
-// palette. With 4 colours the two bottom triangles (the trim) take the
-// fourth, as in the book's own four-colour studies. The garment view exists
-// at 3 or 4 colours (see isGarmentView()). Scaled 0.75x.
-const GARMENT_LOCAL_W = 326, GARMENT_LOCAL_H = 670, GARMENT_SCALE = 0.75;
-// role order: 0 Base (body), 1 Secondary (hem), 2 Accent (collar notch),
-// and the trim (both bottom triangles): colour 4 when there is one, else Accent.
-const GARMENT_ZONES = [
-  { role: 0, d: 'M48,61 L278,61 L278,467 L48,467 Z' },
-  { role: 1, d: 'M48.15,428 L277.85,428 L326,584 L0,584 Z' },
-  { role: 2, d: 'M162.5,241 L81.53,60.25 L243.47,60.25 Z' },
-  { role: 2, trim: true, d: 'M82,670 L43.89,584.5 L120.11,584.5 Z' },
-  { role: 2, trim: true, d: 'M243,670 L204.90,584.5 L281.11,584.5 Z' },
-];
+// Figures — the palette shown IN PROPORTION on a drawing: each role owns zones
+// of a fixed share of the visible area (tunesutra/figures.js: the Garment is
+// the reference, every other figure is tuned to its shares). Every figure is
+// drawn at the same height; with 4 colours the trim zones take the fourth,
+// with 3 they share the Accent. The figure view exists at 3 or 4 colours.
+// (The view's stored id stays 'garment' — saved palettes and the built-in
+// collections carry it — and which figure is drawn is state.figure.)
+const FIGURES = window.TUNESUTRA_FIGURES, FIG_H = 502.5;
+function currentFigure() { return FIGURES.find(f => f.id === state.figure) || FIGURES[0]; }
+function figureById(id) { return FIGURES.find(f => f.id === id) || FIGURES[0]; }
+function zoneD(z) { return z.d || (z.d = 'M' + z.pts.map(p => p[0] + ' ' + p[1]).join('L') + 'Z'); }
+// Measured once per figure: [base, secondary, accent, trim] in % of the visible area.
+const shareCache = {};
+function figureShares(fig, n) {
+  const s4 = shareCache[fig.id] || (shareCache[fig.id] = window.TUNESUTRA_FIGURE_SHARES(fig));
+  return n === 4 ? s4 : [s4[0], s4[1], s4[2] + s4[3]];
+}
 function garmentFits(n) { return n === 3 || n === 4; }
 function zoneRole(z, n) { return z.trim && n === 4 ? 3 : z.role; }
 // A zone too pale to see on the paper gets a hairline, as the book draws it.
 function paleOnPaper(hex) { return C.contrast(hex, '#ffffff') < 1.12; }
-const GARMENT_W = GARMENT_LOCAL_W * GARMENT_SCALE, GARMENT_H = GARMENT_LOCAL_H * GARMENT_SCALE;
-const GARMENT_X = (VB_W - GARMENT_W) / 2;
-
 function isGarmentView() { return state.view === 'garment' && garmentFits(count()); }
 
 // ── GRADIENT + GRAIN ──
@@ -1215,7 +1217,7 @@ function readableOn(hex, T) { return C.contrast(hex, T.ink) >= C.contrast(hex, T
 
 // → { W, H, paper, font, items[] }. Items are plain data:
 //   { t:'rect', x, y, w, h, fill, r?, stroke?, sw?, role?, title? }   (r = corner radius)
-//   { t:'path', d, tf:{x,y,s}, fill, stroke?, sw?, role?, title? }
+//   { t:'path', d, tf:{x,y,s}, fill, stroke?, sw?, role?, quiet?, title? }
 //   { t:'text', x, y, s, size, fill, anchor }
 //   { t:'grad', x, y } — the gradient block, drawn by gradMarkup / drawGrad
 // `role` marks a shape that selects a colour when clicked on screen.
@@ -1259,17 +1261,24 @@ function buildScene() {
 
   // An example of the palette in use: in proportion, or on the garment.
   if (!gradient) {
-    text(BAR_X0, y, garment ? 'Example — on a garment' : 'Example — in proportion', 11, T.mid);
+    const fig = currentFigure();
+    text(BAR_X0, y, garment ? 'Example — ' + fig.name.toLowerCase() : 'Example — in proportion', 11, T.mid);
     y += 12;
     if (garment) {
-      GARMENT_ZONES.forEach(z => {
+      // Same height for every figure; strokes are set in the figure's own units
+      // so they come out the same weight on the sheet whatever its scale.
+      const k = FIG_H / fig.h, fx = (VB_W - fig.w * k) / 2, shares = figureShares(fig, n);
+      fig.zones.forEach(z => {
         const r = zoneRole(z, n), pale = paleOnPaper(cols[r]);
         items.push({
-          t: 'path', d: z.d, tf: { x: GARMENT_X, y: y, s: GARMENT_SCALE }, fill: cols[r], stroke: pale ? T.border : T.paper, sw: pale ? 1.5 : 2,
-          role: r, title: `${dispName(r)}, ${weights[r].toFixed(0)}%, ${cols[r]}`,
+          t: 'path', d: zoneD(z), tf: { x: fx, y: y, s: k }, fill: cols[r], stroke: pale ? T.border : T.paper, sw: (pale ? 1.125 : 1.5) / k,
+          role: r, quiet: true, title: `${dispName(r)}, ${shares[r].toFixed(0)}% of the figure, ${cols[r]}`,
         });
       });
-      y += GARMENT_H + 34;
+      y += FIG_H + 18;
+      // The shares are measured from the drawing, not declared.
+      text(VB_W / 2, y, shares.map((v, r) => `${dispName(r)} ${v.toFixed(0)}%`).join('  ·  '), 10, T.mid, 'middle');
+      y += 34;
     } else {
       let x = BAR_X0;
       const barW = BAR_X1 - BAR_X0;
@@ -1314,7 +1323,8 @@ function sceneMarkup(scene, interactive) {
     if (it.t === 'text') {
       return `<text x="${num(it.x)}" y="${num(it.y)}" font-family="${font}" font-size="${it.size}" fill="${it.fill}"${it.anchor !== 'start' ? ` text-anchor="${it.anchor}"` : ''}>${esc(it.s)}</text>`;
     }
-    const live = interactive && it.role != null, active = it.role === state.activeIndex;
+    // quiet: clickable, but never outlined as the selection — a figure has many zones per colour
+    const live = interactive && it.role != null, active = it.role === state.activeIndex && !it.quiet;
     const attrs = `fill="${it.fill}"` + (it.stroke ? ` stroke="${it.stroke}" stroke-width="${it.sw}"` : '') +
       (live ? ` class="bar-seg${active ? ' role-active' : ''}" data-i="${it.role}" tabindex="0" role="button" aria-pressed="${active}"` : '');
     const title = interactive && it.title ? `<title>${esc(it.title)}</title>` : '';
@@ -1370,6 +1380,8 @@ function syncViewSeg() {
   const garmentBtn = ctrl('btn-view-garment');
   garmentBtn.disabled = !garmentFits(count());
   garmentBtn.title = garmentFits(count()) ? '' : 'Available at 3 or 4 colours';
+  ctrl('row-figure').style.display = garmentFits(count()) ? '' : 'none';
+  if (ctrl('sel-figure').value !== state.figure) { ctrl('sel-figure').value = state.figure; if (figurePicker) figurePicker.refresh(); }
 }
 function setView(view) {
   if (view === 'garment' && !garmentFits(count())) return;
@@ -1386,6 +1398,33 @@ function setCount(n) {
   while (count() > n) state.items.pop();
   state.activeIndex = clamp(state.activeIndex, 0, n - 1);
   commit(true);
+}
+
+// Figure picker — a pictogram per figure, drawn from its own zones: the darker
+// the tone, the smaller that role's share.
+let figurePicker = null;
+function initFigurePicker() {
+  const sel = ctrl('sel-figure'), registry = {}, tone = [0.28, 0.55, 0.8, 1];
+  sel.innerHTML = FIGURES.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('');
+  FIGURES.forEach(f => {
+    const side = Math.max(f.w, f.h), ox = (side - f.w) / 2, oy = (side - f.h) / 2;
+    registry[f.id] = {
+      name: esc(f.name),
+      icon: `<svg viewBox="${-ox} ${-oy} ${side} ${side}">` + f.zones.map(z => `<path d="${zoneD(z)}" fill="currentColor" fill-opacity="${tone[z.trim ? 3 : z.role]}"/>`).join('') + '</svg>',
+    };
+  });
+  sel.value = state.figure;
+  figurePicker = Organica.selectPicker(sel, ctrl('figure-picker'), { registry: registry, ariaLabel: 'Figure' });
+  sel.addEventListener('change', () => {
+    if (sel.value === state.figure && state.view === 'garment') return;
+    pushUndo('figure');
+    state.figure = sel.value;
+    state.view = 'garment';   // choosing a figure shows it
+    figurePicker.refresh();
+    syncViewSeg();
+    renderStage();
+    syncUndo();
+  });
 }
 
 // ── EXPORT ──
@@ -1490,6 +1529,7 @@ function loadPaletteData(p) {
   state.spread = p.spread || 0;
   state.activeIndex = 0;
   state.view = p.view === 'garment' && garmentFits(state.items.length) ? 'garment' : 'bar';
+  state.figure = figureById(p.figure).id;   // a palette saved before figures existed was on the garment
   // A palette saved before gradients existed gets one between its first two colours.
   state.grad = Object.assign(JSON.parse(GRAD_DEFAULT), p.gradient || { stops: colors().slice(0, 2) });
   state.sys = Object.assign(JSON.parse(SYS_DEFAULT), p.system || {}, { preview: state.sys.preview });
@@ -1530,6 +1570,7 @@ function confirmSavePreset() {
     gradient: JSON.parse(JSON.stringify(state.grad)),
     system: Object.assign(JSON.parse(JSON.stringify(state.sys)), { preview: false }),
     view: isGarmentView() ? 'garment' : 'bar',
+    figure: state.figure,
     savedAt: new Date().toISOString(),
   };
   PRESETS.write(all);
@@ -1568,8 +1609,9 @@ function refreshTitle() {
 function paletteArt(p) {
   const cols = (p.colors || []).map(c => Organica.normalizeHex(c, '#888888'));
   if (p.view === 'garment' && garmentFits(cols.length)) {
-    return `<svg viewBox="-70 -40 ${GARMENT_LOCAL_W + 140} ${GARMENT_LOCAL_H + 80}" aria-hidden="true">` +
-      GARMENT_ZONES.map(z => { const hex = cols[zoneRole(z, cols.length)]; return `<path d="${z.d}" fill="${hex}"${paleOnPaper(hex) ? ' stroke="var(--border)" stroke-width="3"' : ''}/>`; }).join('') + '</svg>';
+    const fig = figureById(p.figure), pad = fig.h * 0.06;
+    return `<svg viewBox="${-pad} ${-pad} ${fig.w + 2 * pad} ${fig.h + 2 * pad}" aria-hidden="true">` +
+      fig.zones.map(z => { const hex = cols[zoneRole(z, cols.length)]; return `<path d="${zoneD(z)}" fill="${hex}" stroke="${paleOnPaper(hex) ? 'var(--border)' : 'var(--paper)'}" stroke-width="${fig.h / 220}"/>`; }).join('') + '</svg>';
   }
   const w = roleWeights(cols.length);
   return cols.map((c, i) => `<span style="flex:${w[i].toFixed(2)};background:${c}"></span>`).join('');
@@ -1588,7 +1630,7 @@ function renderHome() {
     mine.map(n => cardHTML('#p=' + encodeURIComponent(n), n, all[n])).join('') + '</div></section>';
   (window.TUNESUTRA_COLLECTIONS || []).forEach(col => {
     html += `<section class="ts-group"><h2 class="ts-group__title">${esc(col.name)}</h2><p class="ts-group__note">${esc(col.note || '')}</p><div class="ts-grid">` +
-      col.palettes.map(pal => cardHTML('#c=' + encodeURIComponent(col.id + '/' + pal.id), pal.name, { colors: pal.colors, view: col.view })).join('') + '</div></section>';
+      col.palettes.map(pal => cardHTML('#c=' + encodeURIComponent(col.id + '/' + pal.id), pal.name, { colors: pal.colors, view: col.view, figure: col.figure })).join('') + '</div></section>';
   });
   ctrl('home').innerHTML = html;
 }
@@ -1606,7 +1648,7 @@ function route() {
   else if (h.indexOf('c=') === 0) {
     const parts = h.slice(2).split('/'), col = (window.TUNESUTRA_COLLECTIONS || []).find(c => c.id === parts[0]);
     const pal = col && col.palettes.find(x => x.id === parts[1]);
-    if (pal) { p = { colors: pal.colors, names: pal.names, view: col.view }; suggest = pal.name; }
+    if (pal) { p = { colors: pal.colors, names: pal.names, view: col.view, figure: col.figure }; suggest = pal.name; }
   }
   if (!p || !Array.isArray(p.colors) || p.colors.length < 3) { showHome(true); renderHome(); return; }
   loadPaletteData(p);
@@ -1634,6 +1676,7 @@ const GRAD_DEFAULT = JSON.stringify(state.grad), SYS_DEFAULT = JSON.stringify(st
 initChips();
 initGradient();
 initSystem();
+initFigurePicker();
 bindFieldEditor();
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 
