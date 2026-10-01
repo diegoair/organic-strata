@@ -52,8 +52,8 @@
   font-size: var(--fs-base);
   padding: 0;
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.82);
-  color: #000;
+  background: var(--panel);
+  color: var(--ink);
   border: none;
 }
 

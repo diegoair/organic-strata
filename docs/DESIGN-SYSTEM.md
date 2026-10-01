@@ -284,6 +284,14 @@ light/dark palette suited to what it renders (Halide is a darkroom, Komorebi is
 a forest floor). What **is** systematic is the **accent per tool**, used on the
 hub nav and as the tool's identity colour.
 
+**Content colour has one source since Oct 1, 2026: TuneSutra.** The colours a
+tool draws *with* (inks, papers, RMX strips) are user data, not chrome, and stay
+out of the tokens file — but they are no longer typed per tool. A palette saved
+in TuneSutra is available from the *Pick from a palette* button on every colour
+control (`Organica.palette.library()`, see `docs/SHARED-COMPONENTS.md` §2 and
+`docs/TUNESUTRA.md`). Each tool's own default ink / paper is unchanged for now;
+generating the chrome tokens themselves from a palette is planned, not built.
+
 | Tool | Accent | Reading |
 |---|---|---|
 | Genesis | `#c8f060` | acid green — organic vitality (Creator's own `#5fc9b4` teal retired Aug 27, 2026 — merged into Genesis, see CLAUDE.md) |

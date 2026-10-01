@@ -81,6 +81,40 @@ tools. **CSS custom props:** `--rmx-cell-w/h`, `--rmx-cell-radius`, `--rmx-cell-
 `--rmx-palette-mb`, `--icon-btn-w/h` (TuneSutra sets the first four for its 30×26 rounded
 cell; Spore/Pollen set `--rmx-palette-mb: 0`).
 
+### The palette library (Oct 1, 2026)
+
+Every swatch — attach or generate — gets a small **Pick from a palette** button
+(`opts.library: false` leaves it out). It opens one shared menu,
+`Organica.palette.pick(trigger, { onPick(hex), onPickAll(hexes)?, max?, extra? })`,
+listing `Organica.palette.library()`:
+
+- the palettes saved in **TuneSutra** — read from `Organica.store('tunesutra')`,
+  the way FVS and Trellis read Loom's store (no second copy to keep in sync);
+- the built-in sets (today: Riso's 21 standard inks, screen approximations).
+
+A single row takes one colour. A chip strip adds the clicked colour (or replaces
+the last chip when full), and loads a whole palette when its name is clicked
+(offered only when the palette fits `max`). `opts.palettes: () => [...]` on a
+strip lists a tool's own unsaved palettes first. The menu CSS (`.pal-chips`,
+`.pal-link`) is in `panel.css`, because single-swatch tools do not link
+`palette.css`. Generate-mode `onChange` now passes a 4th argument on `'remove'`:
+the index that was removed.
+
+Not yet on the component: FVS's variant rows / cell colour, Colornet's channel
+cards, Camo Turing's layer cards — bare `<input type=color>` inside dynamic
+cards.
+
+### Colour maths — `shared/color.js` (`Organica.color`)
+
+Load after `core.js`, before `palette.js`. Pure functions, no CSS:
+OKLab / OKLCH ↔ hex with chroma-reduction gamut mapping, `mix` (perceptual),
+`contrast` / `luminance` (WCAG), `deltaE`, `scale(hex)` (10 steps at fixed
+perceived lightness), and HSB / HSL (moved from TuneSutra; Membrane delegates
+too). `palette.mix(a, b, t, 'oklab')` and `palette.colorAt(…, { space: 'oklab' })`
+opt in to the perceptual blend; the default stays gamma-sRGB so existing exports
+do not change. Tests: `node scripts/test-color.mjs`. Consumers today: TuneSutra,
+Membrane.
+
 ### Adoption table
 
 | Tool | `palette.js` | `palette.css` | swatch attach (single) | swatch generate (RMX) | `colorAt` |
