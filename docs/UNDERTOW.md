@@ -71,7 +71,7 @@ full-canvas band never pulls in from the edge and exposes the ground.
 
 ### Presets
 
-Flow, Tide, Ripple, Marble, Strata, Source (the file as exported), plus your own
+Flow, Tide, Ripple, Marble, Strata, **Relief** (Stagger 0.5 + Swirl + a slow wave: the layers slide against each other and read as depth), Source (the file as exported), plus your own
 (**Save** / **Delete**, stored with `Organica.store('undertow')`). Each thumbnail
 is the real engine on a small synthetic model, amplitude exaggerated ×4, the
 source outline as a hairline.

@@ -408,6 +408,7 @@
       'Ripple': { flow: 0.15, wave: 1, waveLen: 0.14, waveAngle: 30, amp: 9, cycles: 2, smooth: 2 },
       'Marble': { flow: 0.7, swirl: 0.9, scale: 0.9, amp: 12, smooth: 3, stagger: 0.15 },
       'Strata': { flow: 0.6, amp: 20, scale: 0.8, stagger: 0.45, smooth: 2 },
+      'Relief': { flow: 0.5, wave: 0.6, waveLen: 0.7, waveAngle: 60, swirl: 0.5, breathe: 0.2, amp: 20, scale: 0.9, stagger: 0.5, smooth: 3 },   // layers slide against each other: depth
       'Source': { flow: 0, amp: 0, smooth: 0 },
     },
     dapple: {     // Komorebi's animator: light through leaves
@@ -416,6 +417,7 @@
       'Rustle':  { flow: 0.2, rustle: 1, amp: 14, scale: 1.6, cycles: 2, smooth: 2 },
       'Flicker': { flow: 0.25, flicker: 0.9, amp: 6, cycles: 3, stagger: 0.2, smooth: 3 },
       'Gust':    { flow: 0.5, wave: 1, waveLen: 0.5, waveAngle: 0, rustle: 0.4, amp: 28, stagger: 0.3, smooth: 3 },
+      'Canopy':  { flow: 0.5, wave: 0.8, waveLen: 1, waveAngle: 20, rustle: 0.4, amp: 20, scale: 0.9, stagger: 0.5, flicker: 0.5, smooth: 3 },   // layered leaves, light pulsing at each depth
       'Source':  { flow: 0, amp: 0, smooth: 0 },
     },
   };

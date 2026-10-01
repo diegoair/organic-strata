@@ -52,6 +52,7 @@ export (→ Undertow), curved paths, empty files, over 220,000 points.
 | **Rustle** | fine, fast edge shimmer over a still frame (2 cycles per loop) |
 | **Flicker** | bands' opacity pulses at staggered phases (3 cycles): light comes and goes |
 | **Gust** | a strong wave plus rustle, bands lagging each other |
+| **Canopy** | Stagger 0.5 + Flicker 0.5 over a sway and rustle: layered leaves, light pulsing at each depth |
 | **Source** | the file as exported |
 
 Every control is the engine's (Amplitude, Cycles, Scale, Flow, Wave,
