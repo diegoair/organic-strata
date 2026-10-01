@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme-support>
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -265,9 +265,9 @@ body {
 
   <div id="stage">
     <div id="empty-hint">load a font to begin</div>
-    <svg id="board" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" style="display:none"></svg>
-    <canvas id="glyphCanvas" hidden></canvas>
-    <div id="specEdit" contenteditable="plaintext-only" spellcheck="false"
+    <svg id="board" data-theme="light" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" style="display:none"></svg>
+    <canvas id="glyphCanvas" data-theme="light" hidden></canvas>
+    <div id="specEdit" data-theme="light" contenteditable="plaintext-only" spellcheck="false"
          autocapitalize="off" autocorrect="off" aria-label="Specimen text — type to edit" hidden></div>
     <div class="lp-phrases" id="phrases" role="group" aria-label="Specimen phrases" hidden></div>
   </div>

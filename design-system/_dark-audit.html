@@ -92,11 +92,14 @@ function islands(doc) {
   const win = doc.defaultView, out = [];
   const parse = (c) => { const m = c.match(/rgba?\(([^)]+)\)/); if (!m) return null; const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1]; };
   for (const el of doc.body.querySelectorAll('*')) {
-    if (el.closest('.org-stage, [data-theme="light"], canvas, svg, img, video, .mobile-gate')) continue;
+    if (el.closest('.org-stage, [data-theme="light"], canvas, svg, img, video, .mobile-gate, .rmx-color')) continue;   /* .rmx-color = a user's colour chip (content) */
     const r = el.getBoundingClientRect(); if (r.width * r.height < 900 || r.width < 1) continue;
     const cs = win.getComputedStyle(el); const c = parse(cs.backgroundColor); if (!c || c[3] < 0.6) continue;
     let hidden = false; for (let e = el; e; e = e.parentElement) { const s = win.getComputedStyle(e); if (s.display === 'none' || s.visibility === 'hidden' || +s.opacity === 0) { hidden = true; break; } } if (hidden) continue;
     const lum = (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
+    /* an --ink-filled control (primary button, active segment) is inverted ON PURPOSE — light in dark mode */
+    const ink = parse(win.getComputedStyle(el).getPropertyValue('--ink').replace(/^\s*#([0-9a-f]{6})\s*$/i, (m, h) => 'rgb(' + [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16)).join(',') + ')'));
+    if (ink && ink[0] === c[0] && ink[1] === c[1] && ink[2] === c[2]) continue;
     if (lum > 0.75) out.push({ sel: el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : ''), bg: cs.backgroundColor, size: Math.round(r.width) + '×' + Math.round(r.height) });
   }
   return out;
@@ -108,6 +111,8 @@ function load(url, dark) {
     f.onload = () => setTimeout(() => {
       const d = f.contentDocument, root = d.documentElement;
       const opted = root.hasAttribute('data-theme-support');
+      /* no transitions: a colour mid-fade reads as a contrast failure (a forced-dark page flips its theme AFTER load) */
+      const nt = d.createElement('style'); nt.textContent = '*,*::before,*::after{transition:none!important;animation:none!important}'; d.head.appendChild(nt);
       if (dark && !opted) root.setAttribute('data-theme', 'dark');
       setTimeout(() => {
         let res2;
