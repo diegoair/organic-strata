@@ -254,7 +254,7 @@
   left: 0; right: 0;
   top: 100%;
   z-index: 200;
-  grid-template-columns: repeat(6, minmax(0, 1fr));   /* 6 groups = one row (Sep 29, 2026 regroup — was 9 groups in 3 rows) */
+  grid-template-columns: repeat(7, minmax(0, 1fr));   /* 7 groups = one row (Sep 29 regroup was 9 groups in 3 rows; "Animate an export" added Oct 2026) */
   padding: var(--space-5) var(--space-5) 0;
   background: var(--paper);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);

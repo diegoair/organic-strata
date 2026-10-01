@@ -4,7 +4,8 @@
    Load BEFORE header.js.
 
    Grouped (Sep 29, 2026) by what you start from, left → right the way work flows:
-   shape → source image → pattern → colour → type → motion. One row of six columns,
+   shape → source image → pattern → colour → type → motion → animate an export (Murmur / Undertow / Dapple
+   take an SVG exported by Pollen·Spore·Halide / Warping / Komorebi, Oct 2026). One row of seven columns,
    at most five links each. Rhizome is not one tool among the others — it chains
    them — so it lives in the menu's foot (toolsPipeline), with the explorations. */
 (function (global) {
@@ -15,7 +16,8 @@
     { group: 'Patterns',       items: [['Warping', '/warping/'], ['Camo Turing', '/camo-turing/'], ['Radial', '/radial/'], ['Komorebi', '/komorebi/']] },
     { group: 'Colour',         items: [['TuneSutra', '/tunesutra/'], ['Colornet', '/colornet/']] },
     { group: 'Type & vector',  items: [['Living Path', '/livingpath/'], ['Apostate', '/apostate/'], ['Sinew', '/sinew/']] },
-    { group: 'Motion',         items: [['Pulsar', '/pulsar/'], ['Membrane', '/membrane/'], ['Vortex', '/vortex/'], ['Mycel', '/mycel/'], ['Blob Boundary', '/blob-boundary/'], ['Murmur', '/murmur/']] }
+    { group: 'Motion',         items: [['Pulsar', '/pulsar/'], ['Membrane', '/membrane/'], ['Vortex', '/vortex/'], ['Mycel', '/mycel/'], ['Blob Boundary', '/blob-boundary/']] },
+    { group: 'Animate an export', items: [['Murmur', '/murmur/'], ['Undertow', '/undertow/'], ['Dapple', '/dapple/']] }
   ];
   Organica.toolsPipeline = ['Rhizome', '/rhizome/'];
   Organica.explorations = [['Camo Cells', '/loom/_test-camo-cells.html'], ['Slice Reposition', '/loom/_test-slice-reposition.html'], ['Mix Restructure', '/loom/_test-mix-restructure.html'], ['Flow Field', '/explorations/flow-field/']];

@@ -302,6 +302,8 @@ hub nav and as the tool's identity colour.
 | Mycel | `#8a7355` | mushroom taupe |
 | Colornet | `#4a5fc7` | cornflower blue-violet |
 | Blob Boundary | `#8a8a28` | mustard gold |
+| Undertow | `#8a4f7d` | plum — the pull beneath a surface (Warping's animator; hue ~315, unclaimed) |
+| Dapple | `#d0905a` | sun-through-leaves amber (Komorebi's animator; lighter than Murmur's `#d4762a`) |
 | Mote | `#2f9e8f` | sea-green teal — the Motion band's cool accent (hue ~172, between Flexible Visual System's green and Camo Turing's cyan) |
 
 The palette spans green → yellow → orange → blue → violet → teal. When adding a
@@ -323,6 +325,7 @@ ship date — each `.nav__group` carries a `group-label`:
 | Generative patterns | Komorebi, Camo Turing, Warping, Radial |
 | Stippling & marks | Spore, Pollen |
 | Motion & growth | Membrane, Vortex, Pulsar, Mycel, Mote, Blob Boundary |
+| Animate an export | Murmur, Undertow, Dapple |
 | Workflow & pipelines | Rhizome |
 | Explorations | (prototype pages, not full tools) |
 

@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en" data-theme-support>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Undertow — Organica</title>
+<link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="/shared/vendor/ibm-plex-mono-regular.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/mobile-gate.css">
+<style>
+  :root {
+    --tool: #8a4f7d;   /* plum — unclaimed hue; the pull beneath a surface */
+  }
+  #main-canvas:not(.visible) { display: none; }
+  #main-canvas { touch-action: none; transform: none; }
+</style>
+<script src="/shared/pattern-init.js"></script>
+</head>
+<body>
+<div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
+
+<header class="org-header" role="banner">
+  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><menu-icon state="menu" size="20" line-cap="square"></menu-icon></button>
+  <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ Undertow</span></a>
+  <div class="org-header__spacer"></div>
+</header>
+
+<!-- Open + Playback + Loop + Export in the shared bottom-centre floating toolbar. -->
+<div class="org-floatbar" role="toolbar" aria-label="Source and playback">
+  <button class="org-floatbar__btn" id="btn-open" aria-label="Open an SVG" title="Open a Screen-mode SVG exported from Warping">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
+
+  <button class="org-floatbar__btn" id="btn-playpause" aria-label="Pause">
+    <svg class="ico" id="ico-play" viewBox="0 0 16 16" fill="none" aria-hidden="true" style="display:none"><path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor"/></svg>
+    <svg class="ico" id="ico-pause" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4" y="3.5" width="2.6" height="9" rx="0.6" fill="currentColor"/><rect x="9.4" y="3.5" width="2.6" height="9" rx="0.6" fill="currentColor"/></svg>
+  </button>
+  <button class="org-floatbar__btn" id="btn-replay" aria-label="Restart" title="Restart the loop">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.6 2.2v2.6h2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-loop" aria-label="Loop length">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8a5 5 0 0 1 8.5-3.5M13 8a5 5 0 0 1-8.5 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M11 2.5v2.5H8.5M5 13.5V11h2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="loop-popover" aria-label="Loop options">
+      <div class="org-popover__title">Loop</div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="rg-loop">Length</label>
+        <input type="range" id="rg-loop" min="1" max="30" step="1" value="8" style="flex:1">
+        <span class="org-out" id="loop-label">8s</span>
+      </div>
+      <p class="org-popover__hint">Seconds per loop. Every term of the motion is periodic in this length (Cycles = whole turns per loop), and the frame at the end is exactly the frame at the start — so a recording loops seamlessly, with no pre-roll.</p>
+    </div>
+  </div>
+
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Video</div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-size">Size</label>
+        <select class="org-select" id="sel-size" onchange="updateSizeReadout()">
+          <option value="0">Source</option>
+          <option value="1080" selected>1080 long edge</option>
+          <option value="2160">2160 (4K) long edge</option>
+          <option value="3840">3840 long edge</option>
+        </select>
+      </div>
+      <div class="org-popover__row">
+        <span class="org-popover__label">Output</span>
+        <span class="org-out" id="out-size">&mdash;</span>
+      </div>
+      <div class="org-popover__divider"></div>
+      <div class="org-formats">
+        <button class="org-btn org-btn--primary" id="btn-video" onclick="toggleRecording()">Record loop</button>
+      </div>
+      <p class="org-popover__hint">MP4 or WebM, browser-dependent. Records one loop in real time, re-rendered at the chosen size (the bands are vector, so it stays crisp).</p>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <div id="canvas-wrap">
+    <div id="drop-hint">
+      <div class="drop-icon">+</div>
+      <p>Drop an SVG exported from<br>Warping</p>
+    </div>
+    <canvas id="main-canvas" class="org-stage" aria-label="Animated tone bands"></canvas>
+  </div>
+
+  <div id="panel">
+    <div class="panel-section">
+      <h3>Preset <span class="hint">motion + your own</span></h3>
+      <div id="preset-picker"></div>
+      <select class="panel-select" id="sel-preset" aria-label="Preset" onchange="applyPreset(this.value)"></select>
+      <div class="row-btns">
+        <button class="mini-btn" onclick="savePreset()">Save</button>
+        <button class="mini-btn" onclick="deletePreset()">Delete</button>
+      </div>
+    </div>
+
+    <div id="bf-controls"></div>
+  </div>
+</div>
+
+<input type="file" id="file-input" class="org-file-input" accept=".svg,image/svg+xml" onchange="loadFile(this)">
+
+<script src="/shared/vendor/supabase-js.min.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/canvas.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/auth-badge.js"></script>
+<script src="/shared/store.js"></script>
+<script src="/shared/recorder.js"></script>
+<script src="/shared/bandfield.js"></script>
+<script src="/shared/select-picker.js"></script>
+
+<script>
+// ─────────────────────────────────────────────
+// Undertow — a Warping SVG export, animated.
+// Warping poses a still — wood grain, marble, cellular, contours. Undertow sets its edges moving.
+// The export is one ground <rect> plus cumulative evenodd band paths; every
+// boundary vertex is moved by ONE displacement field (Organica.bandField,
+// shared/bandfield.js), so the stacked bands keep nesting while their edges
+// flow. Rest state (Amplitude 0, Smooth 0) IS the source SVG. The frame is a
+// pure function of time, so a loop is seamless by construction.
+//
+// One draw path: paint() serves the preview and the recording — only the
+// canvas backing size differs.
+// ─────────────────────────────────────────────
+
+function ctrl(id) { return document.getElementById(id); }
+function val(id)  { return parseFloat(ctrl(id).value); }
+const setStatus = Organica.status();
+const canvas = ctrl('main-canvas');
+const ctx = canvas.getContext('2d');
+const BF = Organica.bandField;
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+const EXPECT = 'warping', SRC_NAME = 'Warping', THUMB = 'warm';
+
+let src = null;          // { W, H, name, ... } the parsed model
+let engine = null;
+let params = Object.assign({}, BF.DEFAULTS, {
+  "flow": 1,
+  "amp": 14,
+  "scale": 1.4,
+  "smooth": 2
+});
+let clock = 0, lastNow = 0, playing = true, recording = false;
+
+// ═══════════════ Loading ═══════════════
+// Errors MUST go through setStatus('error', …): Organica.status shows a
+// notice only for 'error' / 'busy' — '' and 'active' are silent by design.
+function loadFile(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  input.value = '';
+  if (!/\.svg$/i.test(f.name) && !/svg/.test(f.type)) {
+    setStatus('error', `“${f.name}” is not an SVG. Undertow opens Screen-mode SVG exports from Warping.`);
+    return;
+  }
+  setStatus('busy', 'Reading ' + f.name + '…');
+  f.text().then(text => {
+    const t0 = performance.now();
+    let model, eng;
+    try {
+      model = BF.parse(text, { expect: EXPECT, expectName: SRC_NAME });
+      eng = BF.create({ model, params });
+    } catch (e) {
+      console.error('[undertow] could not load', f.name, e);
+      setStatus('error', e.message);
+      return;
+    }
+    model.name = f.name;
+    src = model; engine = eng;
+    clock = 0;
+    const info = `${model.meta && model.meta.tool ? SRC_NAME : SRC_NAME + ' (no metadata)'} · ${eng.bandCount} bands · ${eng.vertices.toLocaleString()} points${eng.thinned ? ' (detail reduced to fit)' : ''} · ${Math.round(model.W)} × ${Math.round(model.H)}`;
+    ctrl('btn-open').title = `${model.name}\n${info} · parsed in ${Math.round(performance.now() - t0)} ms\nClick to open another SVG`;
+    ctrl('drop-hint').classList.add('hidden');
+    canvas.classList.add('visible');
+    fitCanvas();
+    updateSizeReadout();
+    setStatus('active', info);
+  }).catch(e => {
+    console.error('[undertow] could not load', f.name, e);
+    setStatus('error', 'Could not load “' + f.name + '”: ' + e.message);
+  });
+}
+
+// ═══════════════ Canvas sizing + the one draw path ═══════════════
+function fitCanvas() {
+  if (!src || recording) return;
+  const wrap = ctrl('canvas-wrap'), cs = getComputedStyle(wrap);
+  const aw = wrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const ah = wrap.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  const s = Math.max(0.01, Math.min(aw / src.W, ah / src.H));
+  const cw = Math.round(src.W * s), ch = Math.round(src.H * s);
+  canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
+  canvas.width = Math.round(cw * DPR); canvas.height = Math.round(ch * DPR);
+}
+new ResizeObserver(fitCanvas).observe(ctrl('canvas-wrap'));
+
+function paint() {
+  const k = canvas.width / src.W;
+  ctx.setTransform(k, 0, 0, k, 0, 0);
+  engine.draw(ctx);
+}
+function frame(now) {
+  const dt = lastNow ? Math.min(0.1, (now - lastNow) / 1000) : 0;
+  lastNow = now;
+  if (engine) {
+    if (playing) clock += dt;
+    engine.advance(clock);
+    paint();
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ═══════════════ Params: panel + presets ═══════════════
+// Smooth / Detail rebuild the geometry (up to ~120k points) — debounced.
+let rebuildTimer = 0;
+function setParam(k, v) {
+  params[k] = v;
+  if (!engine) return;
+  if (k === 'smooth' || k === 'detail') { clearTimeout(rebuildTimer); rebuildTimer = setTimeout(() => engine.setParams({ [k]: v }), 90); }
+  else engine.setParams({ [k]: v });
+}
+const ui = BF.panel(ctrl('bf-controls'), params, setParam, 'bf-');
+function setParams(p) {
+  params = Object.assign({}, BF.DEFAULTS, {
+  "flow": 1,
+  "amp": 14,
+  "scale": 1.4,
+  "smooth": 2
+}, p, { loop: val('rg-loop') });
+  ui.sync(params);
+  if (engine) engine.setParams(params);
+}
+
+// ── PRESETS — one thumbnail picker (Organica.selectPicker): the built-in
+//    motions and the user's saved ones (Organica.store('undertow')). Values are
+//    'b:<name>' / 'u:<name>'. Each thumbnail is the real engine on a small
+//    synthetic model, amplitude exaggerated, source outline in a hairline. ──
+const BUILTINS = {
+  "Flow": {
+    "flow": 1,
+    "amp": 18,
+    "scale": 1.2,
+    "smooth": 2
+  },
+  "Tide": {
+    "flow": 0.25,
+    "wave": 0.9,
+    "waveLen": 0.55,
+    "waveAngle": 90,
+    "breathe": 0.35,
+    "amp": 16,
+    "smooth": 3
+  },
+  "Ripple": {
+    "flow": 0.15,
+    "wave": 1,
+    "waveLen": 0.14,
+    "waveAngle": 30,
+    "amp": 9,
+    "cycles": 2,
+    "smooth": 2
+  },
+  "Marble": {
+    "flow": 0.7,
+    "swirl": 0.9,
+    "scale": 0.9,
+    "amp": 12,
+    "smooth": 3,
+    "stagger": 0.15
+  },
+  "Strata": {
+    "flow": 0.6,
+    "amp": 20,
+    "scale": 0.8,
+    "stagger": 0.45,
+    "smooth": 2
+  },
+  "Source": {
+    "flow": 0,
+    "amp": 0,
+    "smooth": 0
+  }
+};
+
+const PRESETS = Organica.store('undertow');
+function userPresets() { return PRESETS.read(); }
+const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+let presetPicker = null;
+const registry = {};   // one object, refilled in place — selectPicker keeps a reference to it
+function populatePresets(select) {
+  const sel = ctrl('sel-preset'), all = userPresets();
+  const cur = select || sel.value || 'b:' + Object.keys(BUILTINS)[0];
+  const names = Object.keys(all).sort();
+  Object.keys(registry).forEach(k => delete registry[k]);
+  Object.keys(BUILTINS).forEach(n => { registry['b:' + n] = { name: n, thumb: () => BF.thumb(BUILTINS[n], THUMB) }; });
+  names.forEach(n => { registry['u:' + n] = { name: esc(n), thumb: () => BF.thumb((all[n] && all[n].params) || {}, THUMB) }; });
+  sel.innerHTML = '<optgroup label="Built-in">' + Object.keys(BUILTINS).map(n => `<option value="b:${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>' +
+    (names.length ? '<optgroup label="Saved">' + names.map(n => `<option value="u:${esc(n)}">${esc(n)}</option>`).join('') + '</optgroup>' : '');
+  sel.value = [...sel.options].some(o => o.value === cur) ? cur : 'b:' + Object.keys(BUILTINS)[0];
+  if (!presetPicker) presetPicker = Organica.selectPicker(sel, ctrl('preset-picker'), { registry, size: 'preview', ariaLabel: 'Preset' });
+  else { presetPicker.refresh(); presetPicker.invalidate(); }
+}
+function savePreset() {
+  const name = prompt('Preset name'); if (!name) return;
+  const all = userPresets();
+  all[name] = { params: BF.diff(params), loop: val('rg-loop') };
+  PRESETS.write(all);
+  populatePresets('u:' + name);
+  setStatus('active', 'Saved “' + name + '”');
+}
+function deletePreset() {
+  const v = ctrl('sel-preset').value;
+  if (!v.startsWith('u:')) { setStatus('error', 'Built-in presets can’t be deleted — pick one of your saved presets.'); return; }
+  const all = userPresets(); delete all[v.slice(2)];
+  PRESETS.write(all); populatePresets('b:' + Object.keys(BUILTINS)[0]);
+}
+function applyPreset(v) {
+  if (!v) return;
+  if (v.startsWith('b:')) { setParams(BUILTINS[v.slice(2)] || {}); clock = 0; return; }
+  const p = userPresets()[v.slice(2)]; if (!p) return;
+  if (p.loop != null) { ctrl('rg-loop').value = p.loop; syncLoop(); }
+  setParams(p.params || {}); clock = 0;
+}
+PRESETS.pull().then(() => populatePresets());
+PRESETS.onSync(() => populatePresets());
+
+// ═══════════════ Floatbar: play / restart / loop ═══════════════
+function setPlaying(on) {
+  playing = on;
+  ctrl('ico-play').style.display = on ? 'none' : '';
+  ctrl('ico-pause').style.display = on ? '' : 'none';
+  ctrl('btn-playpause').setAttribute('aria-label', on ? 'Pause' : 'Play');
+}
+ctrl('btn-playpause').addEventListener('click', () => setPlaying(!playing));
+ctrl('btn-replay').addEventListener('click', () => { clock = 0; setPlaying(true); });
+addEventListener('keydown', e => {
+  if (e.target.closest('input,select,textarea')) return;
+  if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
+});
+function syncLoop() {
+  const v = Math.max(1, Math.round(val('rg-loop')));
+  ctrl('loop-label').textContent = v + 's';
+  params.loop = v;
+  if (engine) engine.setParams({ loop: v });
+}
+ctrl('rg-loop').addEventListener('input', syncLoop);
+
+// ═══════════════ Export: video ═══════════════
+function exportDims() {
+  if (!src) return null;
+  const L = +ctrl('sel-size').value;
+  const k = L ? L / Math.max(src.W, src.H) : 1;
+  // even dimensions — H.264 refuses odd sizes
+  return { w: Math.round(src.W * k / 2) * 2, h: Math.round(src.H * k / 2) * 2 };
+}
+function updateSizeReadout() {
+  const d = exportDims();
+  ctrl('out-size').textContent = d ? `${d.w} × ${d.h} px` : '—';
+}
+
+let recLoop = 0;
+const recorder = Organica.recorder({
+  canvas, tool: 'undertow',
+  duration: () => recLoop,
+  durationPadMs: 90,
+  bitrate: () => { const d = exportDims(); return Math.min(120e6, Math.round(d.w * d.h * 30 * 0.2)); },
+  onStart: () => {
+    const d = exportDims();
+    recording = true;
+    canvas.width = d.w; canvas.height = d.h;         // re-render at export size; CSS size unchanged
+    clock = 0;                                        // the frame is a pure function of time: start at 0, no pre-roll
+    setPlaying(true);
+  },
+  onStatus: (phase, msg) => {
+    if (phase === 'recording') setStatus('busy', 'Recording ' + recLoop + 's…');
+    else setStatus(phase === 'error' ? 'error' : 'active', msg);
+  },
+  onStateChange: isRec => {
+    ctrl('btn-video').textContent = isRec ? 'Stop recording' : 'Record loop';
+    if (!isRec) { recording = false; fitCanvas(); }
+  },
+});
+function toggleRecording() {
+  if (!engine) { setStatus('error', 'Open an SVG first — the ＋ in the toolbar.'); return; }
+  recLoop = Math.max(1, params.loop);
+  recorder.toggle();
+}
+
+// ═══════════════ Init ═══════════════
+ctrl('btn-open').addEventListener('click', () => ctrl('file-input').click());
+Organica.canvasDropZone({
+  wrap: ctrl('canvas-wrap'), dropIcon: '.drop-icon', fileInput: 'file-input',
+  accept: '',   // any type — some systems give an .svg an empty MIME type; loadFile checks it
+  onFile: input => loadFile(input),
+});
+Organica.popover(ctrl('btn-loop'), ctrl('loop-popover'));
+Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+populatePresets();
+syncLoop();
+setStatus('', 'Drop a Warping SVG to begin');
+Organica.autoLabelPanel(document);
+Organica.enhanceSliders(document);
+</script>
+<script src="/shared/tools.js"></script>
+<script src="/shared/menu-icon.js"></script>
+<script src="/shared/header.js"></script>
+</body>
+</html>

@@ -321,6 +321,10 @@ function svgToHomes(text) {
   const mEl = root.querySelector('metadata#organica, metadata');
   if (mEl) { try { meta = JSON.parse(mEl.textContent) || {}; } catch (e) { meta = {}; } }
 
+  // Tone-band exports (stacked evenodd paths, not marks) have their own animators.
+  const BAND_TWINS = { warping: ['Warping', 'Undertow', '/undertow/'], komorebi: ['Komorebi', 'Dapple', '/dapple/'] };
+  if (BAND_TWINS[meta.tool]) { const t = BAND_TWINS[meta.tool]; throw new Error(`This is a ${t[0]} export (tone bands, not marks) — open it in ${t[1]} (${t[2]}), which animates it.`); }
+
   const vb = nums(root.getAttribute('viewBox'));
   const W = vb.length === 4 ? vb[2] : parseFloat(root.getAttribute('width')) || 0;
   const H = vb.length === 4 ? vb[3] : parseFloat(root.getAttribute('height')) || 0;

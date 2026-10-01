@@ -87,6 +87,14 @@
       "destination": "/murmur/$1"
     },
     {
+      "source": "/undertow/(.*)",
+      "destination": "/undertow/$1"
+    },
+    {
+      "source": "/dapple/(.*)",
+      "destination": "/dapple/$1"
+    },
+    {
       "source": "/trellis/(.*)",
       "destination": "/trellis/$1"
     },
