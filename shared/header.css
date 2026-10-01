@@ -577,7 +577,7 @@
   font-size: var(--t-control-size);
   font-weight: var(--t-control-weight);
   letter-spacing: var(--ls-normal);
-  background: var(--panel);
+  background: var(--control-bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   color: var(--ink);

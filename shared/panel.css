@@ -210,11 +210,11 @@
    a11y, disabled/hidden and every tool's own 'input' events must keep
    working untouched.
 
-   THE LIQUID IS INK, THE WELL IS --track-bg. Bencho draws a white liquid
+   THE LIQUID IS INK, THE WELL IS --control-bg. Bencho draws a white liquid
    in a grey well; on our off-white panels that vanishes (a full slider
    reads as an empty one), so the moving surface takes --ink — the same
    neutral value-fill every Organica slider has always used — on the
-   shared --track-bg housing. The well is a recess and gets no shadow: a
+   shared --control-bg housing. The well is a recess and gets no shadow: a
    recess with a drop shadow is a hole that is somehow also on top. The
    handle is THE knob, the same definition as the switch's droplet: a round
    --paper droplet (--knob-size = 0.78 of the track, same air all round),
@@ -263,7 +263,7 @@ input[type=range]::-webkit-slider-runnable-track {
   height: 100%;
   border-radius: var(--slo-r);
   background-image: var(--slo-dots),
-    var(--sedge, linear-gradient(90deg, var(--ink) var(--slo-x), var(--track-bg) var(--slo-x)));
+    var(--sedge, linear-gradient(90deg, var(--ink) var(--slo-x), var(--control-bg) var(--slo-x)));
   background-size: var(--slo-x) 2px, 100% 100%;   /* dots: only as wide as the fill */
   background-position: 0 50%, 0 0;
   background-repeat: no-repeat, no-repeat;
@@ -273,7 +273,7 @@ input[type=range]::-moz-range-track {
   height: 100%;
   border-radius: var(--slo-r);
   background-image: var(--slo-dots),
-    var(--sedge, linear-gradient(90deg, var(--ink) var(--slo-x), var(--track-bg) var(--slo-x)));
+    var(--sedge, linear-gradient(90deg, var(--ink) var(--slo-x), var(--control-bg) var(--slo-x)));
   background-size: var(--slo-x) 2px, 100% 100%;   /* dots: only as wide as the fill */
   background-position: 0 50%, 0 0;
   background-repeat: no-repeat, no-repeat;
@@ -367,11 +367,11 @@ input[type=range]:focus-visible::-moz-range-track {
   margin: 0;
   border: 0;
   border-radius: var(--radius-sm);
-  /* the SWITCH's own definition: --track-bg off (the slider's well), --ink
+  /* the SWITCH's own definition: --control-bg off (the slider's well), --ink
      on, no border, the colour easing 320ms — the checkbox is the same
      object, smaller (Sep 29, 2026; it used to be a --border-strong box that
      took --tool). */
-  background: var(--track-bg);
+  background: var(--control-bg);
   cursor: pointer;
   transform: scale(var(--hw, 1));      /* the hover swell (Organica.liquidCheck) */
   transition: background-color 320ms ease;
@@ -443,7 +443,7 @@ input[type=range]:focus-visible::-moz-range-track {
    browser at device resolution.
 
    BLACK AND WHITE. The TRACK carries the state and the droplet is along
-   for the ride: OFF is --track-bg (the slider's own well) and ON is --ink,
+   for the ride: OFF is --control-bg (the slider's own well) and ON is --ink,
    the droplet --paper in both, OPAQUE. No hue (a switch does not need one
    to say it is on): the switch no longer takes --tool. Bencho's off track
    is white on a grey stage; a tool's panel is WHITE, so a white track
@@ -470,7 +470,7 @@ input[type=range]:focus-visible::-moz-range-track {
   height: var(--slo-h);
   border: 0;
   border-radius: 999px;                  /* always a pill */
-  background: var(--track-bg);           /* OFF = the slider's own well, so it reads on a white panel */
+  background: var(--control-bg);         /* OFF = the slider's own well (both are the control surface) */
   touch-action: none;
   transition: background-color 320ms ease;
 }
@@ -797,7 +797,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
      sat 5px from the left but only 2px from the top/bottom (Sep 30, 2026). */
   display: flex; align-items: center; gap: var(--space-3); width: 100%;
   font-family: var(--font-display); font-size: var(--t-control-size); min-height: var(--space-8); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
-  cursor: pointer; background: var(--panel); color: var(--ink);
+  cursor: pointer; background: var(--control-bg); color: var(--ink);
   border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
   transition: border-color .14s;
 }
@@ -823,7 +823,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 .pt-name { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pt-chev { color: var(--mid); font-size: var(--fs-small); }
 .preset-menu {
-  position: fixed; z-index: 40; background: var(--panel); border: 1px solid var(--border);
+  position: fixed; z-index: 40; background: var(--control-bg); border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: 0 10px 28px rgba(0,0,0,0.22); padding: var(--space-2); overflow-y: auto;
   display: flex; flex-direction: column; gap: var(--space-1);

@@ -504,6 +504,13 @@ html {
      that would read differently against every panel colour. */
   --track-bg: color-mix(in srgb, var(--ink) 10%, var(--panel));
 
+  /* The CONTROL surface (Oct 1, 2026) — the ground of an editable control:
+     fields, selects, thumbnail pickers and their menus. A role token like
+     --panel / --track-bg, not a step on the grey scale: it is mixed from each
+     tool's own --ink into its own --paper (5%), so it is a quiet neutral
+     lighter than the panel it sits on, in either theme. */
+  --control-bg: color-mix(in srgb, var(--ink) 5%, var(--paper));
+
   /* ── GREY SCALE — the scale of black (Sep 29, 2026) ──────────────
      Ten steps from --paper (0) to --ink (900): step N is N/10 of --ink
      mixed into --paper. Derived, not typed, so it follows each tool's own

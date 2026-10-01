@@ -1092,7 +1092,7 @@
       const len = W * Math.cos(phi) + H * Math.abs(Math.sin(phi));
       const pos = len / 2 + (x - W / 2) * Math.cos(phi);
       range.style.setProperty('--sedge',
-        'linear-gradient(' + (90 + phi * 180 / Math.PI).toFixed(2) + 'deg, var(--ink) ' + pos.toFixed(2) + 'px, var(--track-bg) ' + pos.toFixed(2) + 'px)');
+        'linear-gradient(' + (90 + phi * 180 / Math.PI).toFixed(2) + 'deg, var(--ink) ' + pos.toFixed(2) + 'px, var(--control-bg) ' + pos.toFixed(2) + 'px)');
       leaning = true;
     };
     const rest = () => !held && Math.abs(hv) < 0.01 && Math.abs(fv) < 0.01 && Math.abs(val - fill) < 0.02;
