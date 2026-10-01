@@ -29,13 +29,16 @@
   #stage-wrap {
     flex: 1;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    /* Not align-items:center — a sheet taller than the area would overflow
+       upward, where scrolling cannot reach. margin:auto on the sheet centres
+       it when there is room and starts it at the top when there is not. */
+    align-items: flex-start;
     background: var(--canvas-grid), var(--canvas-bg);
     padding: 32px;
     overflow: auto;
   }
   #stage-svg {
+    margin: auto;
     max-width: 100%;
     height: auto;
     background: var(--paper);
