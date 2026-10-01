@@ -21,8 +21,10 @@
  *     { initial, onChange(hex, rgb255) }.
  *   target is an HTMLElement    → GENERATE mode. Builds .rmx-color chips into it.
  *     opts.max > 1 ⇒ RMX strip with + / × ;  opts.max ≤ 1 ⇒ one bare chip.
- *     opts: { colors, min=1, max=8, activeIndex, onChange(colors, index, action) }
- *     where action ∈ 'edit' | 'add' | 'remove' | 'set'.
+ *     opts: { colors, min=1, max=8, activeIndex, onChange(colors, index, action, removedAt) }
+ *     where action ∈ 'edit' | 'add' | 'remove' | 'set'. On 'remove', index is the chip to
+ *     select next and removedAt is the chip that went (a caller keeping per-colour data
+ *     in a parallel list needs the second; the first cannot tell 0 from 1).
  *
  *   Both shapes return the SAME object:
  *     { get, set, getColors, setColors(arr, {notify}), setActive(i), rebuild }
@@ -213,7 +215,7 @@
       colors.splice(i, 1);
       if (activeIndex >= colors.length) activeIndex = colors.length - 1;
       rebuild();
-      onChange(colors.slice(), Math.max(0, i - 1), 'remove');
+      onChange(colors.slice(), Math.max(0, i - 1), 'remove', i);   // 4th arg: the index that was removed
     }
     function setColors(arr, o) {
       colors = arr.slice(0, max);

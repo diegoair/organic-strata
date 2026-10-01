@@ -41,15 +41,13 @@
     background: var(--paper);
     box-shadow: var(--stage-shadow);
   }
-  .bar-seg { cursor: pointer; stroke: var(--paper); stroke-width: 2; }
+  /* Everything drawn on the sheet carries its own fill / stroke / font as
+     attributes (see buildScene) so the export is self-contained. Only the
+     on-screen selection state lives here. */
+  .bar-seg { cursor: pointer; }
   .bar-seg.role-active { stroke: var(--ink); stroke-width: 3; }
   .bar-seg:focus-visible { outline: 2px solid var(--tool); outline-offset: -2px; }
-  .bar-label { font-family: var(--font); font-size: 13px; fill: var(--ink); pointer-events: none; }
-  .bar-sub   { font-family: var(--font); font-size: 11px; fill: var(--mid); pointer-events: none; }
-  .scale-sw  { cursor: default; }
-  .scale-step { font-family: var(--font); font-size: 10px; fill: var(--mid); text-anchor: middle; }
-  .scale-hex  { font-family: var(--font); font-size: 9px;  fill: var(--mid); text-anchor: middle; }
-  .scale-anchor { stroke: var(--ink); stroke-width: 2; }
+  #stage-svg text { pointer-events: none; }
 
   /* ── PANEL — colour field groups not covered by panel.css ── */
   .field-group { display: flex; gap: var(--space-2); margin-bottom: var(--space-3); }
@@ -127,14 +125,30 @@
           <option value="tetradic">Tetradic (square)</option>
         </select>
       </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="How far apart in lightness the generated colours sit. 0 = every colour at the base colour's own lightness.">Lightness spread</div>
+        <input type="range" id="rg-spread" min="0" max="30" step="1" value="0">
+        <span class="ctrl-val" id="v-spread">0</span>
+      </div>
       <div class="row-btns">
-        <button class="mini-btn" id="btn-generate">Generate</button>
+        <button class="mini-btn" id="btn-generate" title="Rebuild every unlocked colour from the first one">Generate</button>
+        <button class="mini-btn" id="btn-undo" title="Undo (⌘Z)" disabled>Undo</button>
       </div>
       <div class="rmx-palette" id="rmx-palette"></div>
+      <p class="org-panel__hint" id="distinct-hint"></p>
     </div>
 
     <div class="panel-section">
       <h3>Colour <span class="hint" id="active-role-label">Base</span></h3>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Name</div>
+        <input type="text" class="panel-select" id="txt-name" aria-label="Colour name" maxlength="40" style="flex:1">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="A kept colour is not replaced when you press Generate.">Keep on Generate</div>
+        <input type="checkbox" id="ck-lock">
+      </div>
 
       <div class="color-row">
         <span class="color-name">Hex</span>
@@ -168,7 +182,7 @@
 
     <div class="panel-section">
       <h3>Scale</h3>
-      <p class="org-panel__hint">10-step 0–900 scale per colour, HSL lightness only — hue and saturation held from the picked colour, anchored at step 500.</p>
+      <p class="org-panel__hint">Ten steps per colour, 0–900. Each step is the same perceived lightness in every row, so rows are interchangeable. Your colour sits unchanged on its nearest step (outlined).</p>
     </div>
 
     <div class="panel-section">
@@ -234,10 +248,11 @@
 // ─────────────────────────────────────────────────────────────
 // TuneSutra — colour-harmony palette generator.
 //
-// WYSIWYG rule: #stage-svg's own innerHTML IS the export SVG's inner
-// content (stageMarkup(), called once, used for both). PNG re-draws the
-// same geometry via Path2D/fillRect at scale. If an export can disagree
-// with the on-screen stage, the tool is broken.
+// WYSIWYG rule: buildScene() returns one list of plain shapes and text;
+// the on-screen SVG, the exported SVG and the PNG are all drawn from that
+// list (sceneMarkup / drawScene). Every item carries its own paint and font,
+// so an exported file needs nothing from this page's CSS. If an export can
+// disagree with the on-screen stage, the tool is broken.
 //
 // Colour-space conversions (rgbToHsb/hsbToRgb/rgbToCmyk/cmykToRgb/
 // rgbToHsl/hslToRgb) were all written here first: the repo had hex<->RGB
@@ -262,147 +277,225 @@ function hslToRgb(h, s, l) { return Organica.color.hslToRgb(h, s, l); }
 function hexFromRgb(r, g, b) { return Organica.rgbToHex(r, g, b); }
 
 // ── STATE ──
+// One item per colour. `id` is stable for the colour's whole life (renaming
+// or reordering never changes it); `name` is what the designer calls it and
+// what the token key is built from; `lock` keeps it through Generate.
+const C = Organica.color;
 const ROLE_NAMES = ['Base', 'Secondary', 'Accent', 'Accent 2', 'Accent 3', 'Accent 4', 'Accent 5'];
+const DISTINCT_MIN = 6;   // OKLab ΔE×100 — below this two swatches read as one colour at a glance
 const state = {
-  n: 3,
   harmony: 'analogous',
+  spread: 0,          // lightness spread, in OKLCH L points (0–30)
   activeIndex: 0,
-  colors: ['#c93ed6', '#c9863e', '#3ec9a8'],
-  view: 'bar',   // 'bar' | 'garment' — garment only meaningful at n===3
+  view: 'bar',        // 'bar' | 'garment' — garment only meaningful at 3 colours
+  items: [],
 };
 
+function newId() { return 'c-' + Math.random().toString(36).slice(2, 8); }
 function roleName(i) { return ROLE_NAMES[i] || ('Accent ' + (i - 1)); }
+// A new colour takes the first role name nobody is using — after a removal,
+// position i's own role name may already belong to a colour further along.
+function freshName(i) {
+  const used = state.items.map(it => it.name);
+  for (let k = i; k < i + 20; k++) if (used.indexOf(roleName(k)) < 0) return roleName(k);
+  return roleName(i);
+}
+function makeItem(hex, i) { return { id: newId(), name: freshName(i), hex: hex, lock: false }; }
+function colors() { return state.items.map(it => it.hex); }
+function count() { return state.items.length; }
+function dispName(i) { return (state.items[i].name || '').trim() || roleName(i); }
 function roleWeights(n) {
   const raw = Array.from({ length: n }, (_, i) => Math.pow(0.6, i));
   const sum = raw.reduce((a, b) => a + b, 0);
   return raw.map(v => (v / sum) * 100);
 }
+state.items = ['#c93ed6', '#c9863e', '#3ec9a8'].map(makeItem);
 
-// ── HARMONY GENERATION ──
-function generateHarmony() {
-  const [r0, g0, b0] = Organica.hexToRGB255(state.colors[0]);
-  const base = rgbToHsl(r0, g0, b0);
-  const n = state.n;
-  let hues;
-  switch (state.harmony) {
-    case 'monochromatic': hues = [base.h]; break;
-    case 'analogous': {
-      const spread = (n - 1) * 7.5;
-      hues = Array.from({ length: n }, (_, i) => base.h - spread + i * (spread * 2 / Math.max(1, n - 1)));
-      break;
-    }
-    case 'complementary': hues = [base.h, base.h + 180]; break;
-    case 'splitComplementary': hues = [base.h, base.h + 150, base.h + 210]; break;
-    case 'triadic': hues = [base.h, base.h + 120, base.h + 240]; break;
-    case 'tetradic': hues = [base.h, base.h + 90, base.h + 180, base.h + 270]; break;
-    default: hues = [base.h];
-  }
-  hues = hues.map(h => ((h % 360) + 360) % 360);
-
-  // Alternating lighter/darker offsets from the anchor (step 500), always
-  // a multiple of 100 so it indexes tokenScale()'s 10-step array exactly —
-  // a fractional step (the first version used `500 - i*130`) indexes an
-  // array with a non-integer key and silently returns undefined, which
-  // then throws reading .hex off it. Covers n up to 7.
-  const MONO_OFFSETS = [0, -100, 100, -200, 200, -300, 300];
-  const colors = [];
-  for (let i = 0; i < n; i++) {
-    if (state.harmony === 'monochromatic') {
-      const step = clamp(500 + MONO_OFFSETS[i], 0, 900);
-      colors.push(tokenScale(state.colors[0])[step / 100].hex);
-    } else if (i < hues.length) {
-      const rgb = hslToRgb(hues[i], base.s, base.l);
-      colors.push(hexFromRgb(rgb.r, rgb.g, rgb.b));
-    } else {
-      // Role beyond the algorithm's natural hue count: reuse one of the
-      // natural hues at base lightness, then pick a lighter/darker step
-      // off its own token scale — ties the "extra colours" rule to the
-      // same lightness infra as the 0-900 scale instead of a second one.
-      // The step must advance a full cycle later than the hue does, not
-      // on the same i%2 parity — with only 2 natural hues (Complementary)
-      // alternating step by i%2 repeats the exact same (hue,step) pair
-      // every other extra role, producing outright duplicate colours by
-      // n=5 (found by testing every harmony at n=7, not assumed).
-      const extra = i - hues.length;
-      const h = hues[extra % hues.length];
-      const cycle = Math.floor(extra / hues.length);
-      const stepLevels = [700, 300, 800, 200, 600, 400];
-      const step = stepLevels[cycle % stepLevels.length];
-      const seedRgb = hslToRgb(h, base.s, base.l);
-      const seedHex = hexFromRgb(seedRgb.r, seedRgb.g, seedRgb.b);
-      colors.push(tokenScale(seedHex)[step / 100].hex);
-    }
-  }
-  return colors;
-}
-
-// ── TOKEN SCALE (0–900) ──
+// ── TOKEN SCALE (0–900) — Organica.color.scale: fixed perceptual lightness
+//    per step, the picked colour kept on its nearest step (the anchor). ──
 const scaleCache = new Map();
 function tokenScale(hex) {
-  if (scaleCache.has(hex)) return scaleCache.get(hex);
-  const [r, g, b] = Organica.hexToRGB255(hex);
-  const { h, s, l } = rgbToHsl(r, g, b);
-  const L0 = l + (100 - l) * 0.94;
-  const L900 = l * 0.24;
-  const steps = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900].map(step => {
-    const L = step <= 500 ? L0 + (l - L0) * (step / 500) : l + (L900 - l) * ((step - 500) / 400);
-    const rgb = hslToRgb(h, s, clamp(L, 0, 100));
-    return { step, hex: hexFromRgb(rgb.r, rgb.g, rgb.b) };
-  });
-  scaleCache.set(hex, steps);
-  return steps;
+  if (!scaleCache.has(hex)) scaleCache.set(hex, C.scale(hex));
+  return scaleCache.get(hex);
 }
+// Scale indices ordered by distance from the anchor — the "next shade of
+// this colour" sequence used for extra roles and for Monochromatic.
+function around(anchor, lighterFirst) {
+  const out = [];
+  for (let d = 1; d <= 9; d++) {
+    const lighter = anchor - d, darker = anchor + d;
+    (lighterFirst ? [lighter, darker] : [darker, lighter]).forEach(i => { if (i >= 0 && i <= 9) out.push(i); });
+  }
+  return out;
+}
+function derive(hex, k, lighterFirst) {
+  const sc = tokenScale(hex), order = around(sc.findIndex(s => s.anchor), lighterFirst);
+  return sc[order[k % order.length]].hex;
+}
+function nextColour() {
+  const cols = colors(), last = cols[cols.length - 1];
+  for (let k = 0; k < 9; k++) { const hex = derive(last, k, false); if (cols.indexOf(hex) < 0) return hex; }
+  return derive(last, 0, false);
+}
+
+// ── HARMONY GENERATION — hue rotated in OKLCH, so every generated colour has
+//    the base colour's perceived lightness (plus the Lightness spread, if any)
+//    and as much of its chroma as that hue can hold. The first colour is the
+//    seed and is never rewritten: pressing Generate twice gives the same set. ──
+const HARMONY_HUES = {
+  complementary: [0, 180],
+  splitComplementary: [0, 150, 210],
+  triadic: [0, 120, 240],
+  tetradic: [0, 90, 180, 270],
+};
+function generateHarmony() {
+  const n = count(), baseHex = state.items[0].hex, base = C.hexToOklch(baseHex);
+  if (state.harmony === 'monochromatic') {
+    return Array.from({ length: n }, (_, i) => i === 0 ? baseHex : derive(baseHex, i - 1, true));
+  }
+  // Analogous fans out either side of the base (0, +15, −15, +30, −30 …).
+  const offs = state.harmony === 'analogous'
+    ? Array.from({ length: n }, (_, i) => (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 15)
+    : (HARMONY_HUES[state.harmony] || [0]);
+  const m = offs.length, kmax = Math.max(1, Math.ceil((m - 1) / 2)), dir = base.l > 0.6 ? -1 : 1;
+  const hueAt = i => (base.h + offs[i] + 360) % 360;
+  const natural = offs.map((off, i) => {
+    if (i === 0) return baseHex;
+    const k = Math.ceil(i / 2) / kmax, sign = (i % 2 ? 1 : -1) * dir;
+    const l = state.spread ? clamp(base.l + sign * k * state.spread / 100, 0.25, 0.95) : base.l;
+    return C.oklchToHex(l, base.c, hueAt(i));
+  });
+  // Roles beyond the rule's own hue count reuse those hues in turn, each one
+  // a further step along that hue's scale, so no two come out identical.
+  return Array.from({ length: n }, (_, i) => {
+    if (i < m) return natural[i];
+    const extra = i - m, hi = extra % m;
+    const seed = hi === 0 ? baseHex : C.oklchToHex(base.l, base.c, hueAt(hi));
+    return derive(seed, Math.floor(extra / m), false);
+  });
+}
+function applyHarmony() {
+  const gen = generateHarmony();
+  state.items.forEach((it, i) => { if (i && !it.lock) it.hex = gen[i]; });
+}
+
+// ── UNDO — JSON snapshots, checkpoints only. Bursts of the same continuous
+//    edit (dragging the picker, typing a name, the spread slider) coalesce. ──
+const undoStack = [];
+let lastUndo = { kind: '', t: 0 };
+function snapshot() {
+  return JSON.stringify({ items: state.items, harmony: state.harmony, spread: state.spread, view: state.view, activeIndex: state.activeIndex });
+}
+function pushUndo(kind) {
+  const now = Date.now();
+  const burst = (kind === 'edit' || kind === 'name' || kind === 'spread') && lastUndo.kind === kind && now - lastUndo.t < 1200;
+  lastUndo = { kind: kind, t: now };
+  if (burst) return;
+  undoStack.push(snapshot());
+  if (undoStack.length > 60) undoStack.shift();
+  syncUndo();
+}
+function undo() {
+  const s = undoStack.pop();
+  if (!s) return;
+  Object.assign(state, JSON.parse(s));
+  lastUndo = { kind: '', t: 0 };
+  syncControls();
+  commit(true);
+}
+function syncUndo() { ctrl('btn-undo').disabled = !undoStack.length; }
 
 // ── PALETTE CHIPS (shared component) ──
 let chips = null;
 function initChips() {
   chips = Organica.palette.swatch(ctrl('rmx-palette'), {
-    colors: state.colors,
+    colors: colors(),
     min: 3,
     max: 7,
-    onChange: (colors, index, kind) => {
+    onChange: (cols, index, kind, removedAt) => {
       // Role selection happens by clicking a bar segment (renderStage()'s
       // .bar-seg handlers), not the chips — a chip's native colour input
       // covers its whole clickable area, so a chip-level click handler
-      // can never fire (e.target is always the input); direct colour
-      // editing via the native picker still works fine independently.
-      state.colors = colors;
-      state.n = colors.length;
-      if (kind !== 'edit') syncCountSeg();
-      if (kind === 'add') { state.activeIndex = index; }
-      else if (kind === 'remove') { state.activeIndex = clamp(state.activeIndex, 0, colors.length - 1); }
-      scaleCache.clear();
-      refreshFieldEditor();
-      renderStage();
-      updateStatus();
-      highlightActiveChip();
+      // can never fire (e.target is always the input).
+      if (kind === 'set') return;
+      pushUndo(kind);
+      if (kind === 'edit') {
+        state.items[index].hex = cols[index];
+        commit(false);   // no chip rebuild: it would close the open native picker mid-drag
+        return;
+      }
+      if (kind === 'add') {
+        state.items.push(makeItem(nextColour(), state.items.length));
+        state.activeIndex = state.items.length - 1;
+      } else if (kind === 'remove') {
+        state.items.splice(removedAt, 1);
+        state.activeIndex = clamp(state.activeIndex, 0, state.items.length - 1);
+      }
+      commit(true);
     },
   });
 }
-// The shared Palette component (Organica.palette.swatch generate mode) owns
-// the .chip-active class — setActive(i) toggles it and re-applies it after
-// any rebuild(), so this no longer reaches into rmx-palette.children.
+// The shared Palette component owns the .chip-active class — setActive(i)
+// toggles it and re-applies it after any rebuild().
 function highlightActiveChip() { chips.setActive(state.activeIndex); }
 
-// ── ACTIVE-ROLE FIELD EDITOR ──
-let writing = false; // re-entrancy guard against the .value= triggering our own listeners
-function setActiveColor(hex) {
-  hex = Organica.normalizeHex(hex, state.colors[state.activeIndex]);
-  state.colors[state.activeIndex] = hex;
-  chips.setColors(state.colors);
+// One refresh path for every change. rebuildChips=false only while a chip's
+// own native picker is the thing being dragged.
+function commit(rebuildChips) {
+  if (count() !== 3 && state.view === 'garment') state.view = 'bar';   // the garment view only exists at 3 colours
+  if (rebuildChips) chips.setColors(colors());
   highlightActiveChip();
   scaleCache.clear();
+  syncCountSeg();
+  syncViewSeg();
   refreshFieldEditor();
   renderStage();
+  refreshHints();
+  syncUndo();
+}
+function syncControls() {
+  ctrl('sel-harmony').value = state.harmony;
+  ctrl('rg-spread').value = state.spread;
+  ctrl('v-spread').textContent = state.spread;
+}
+
+// ── DISTINCTNESS — which pairs are too close to tell apart ──
+function closePairs() {
+  const cols = colors(), out = [];
+  for (let i = 0; i < cols.length; i++) for (let j = i + 1; j < cols.length; j++) {
+    const d = C.deltaE(cols[i], cols[j]);
+    if (d < DISTINCT_MIN) out.push({ i: i, j: j, d: d });
+  }
+  return out;
+}
+function refreshHints() {
+  const pairs = closePairs();
+  ctrl('distinct-hint').textContent = pairs.length
+    ? 'Hard to tell apart: ' + pairs.map(p => dispName(p.i) + ' and ' + dispName(p.j)).join('; ') + '.'
+    : 'Every colour is distinct from the others.';
+}
+
+// ── ACTIVE-COLOUR FIELD EDITOR ──
+let writing = false; // re-entrancy guard against the .value= triggering our own listeners
+function setActiveColor(hex) {
+  hex = Organica.normalizeHex(hex, state.items[state.activeIndex].hex);
+  pushUndo('edit');
+  state.items[state.activeIndex].hex = hex;
+  commit(true);
 }
 function refreshFieldEditor() {
-  const hex = state.colors[state.activeIndex];
+  const it = state.items[state.activeIndex], hex = it.hex;
   const [r, g, b] = Organica.hexToRGB255(hex);
   const hsb = rgbToHsb(r, g, b);
   const cmyk = rgbToCmyk(r, g, b);
 
   writing = true;
-  ctrl('active-role-label').textContent = roleName(state.activeIndex);
+  ctrl('active-role-label').textContent = dispName(state.activeIndex);
+  if (document.activeElement !== ctrl('txt-name')) ctrl('txt-name').value = it.name;
+  ctrl('txt-name').placeholder = roleName(state.activeIndex);
+  // The first colour is the seed every harmony is built from — always kept.
+  ctrl('ck-lock').checked = state.activeIndex === 0 || it.lock;
+  ctrl('ck-lock').disabled = state.activeIndex === 0;
   ctrl('cp-active').value = hex;
   ctrl('hex-active').value = hex;
   ctrl('sw-active').style.background = hex;
@@ -415,6 +508,20 @@ function bindFieldEditor() {
   ctrl('cp-active').addEventListener('input', e => setActiveColor(e.target.value));
   ctrl('hex-active').addEventListener('change', e => setActiveColor(e.target.value));
   ctrl('sw-active').addEventListener('click', () => ctrl('cp-active').click());
+
+  ctrl('txt-name').addEventListener('input', e => {
+    if (writing) return;
+    pushUndo('name');
+    state.items[state.activeIndex].name = e.target.value;
+    ctrl('active-role-label').textContent = dispName(state.activeIndex);
+    renderStage();
+    refreshHints();
+  });
+  ctrl('ck-lock').addEventListener('change', e => {
+    if (writing) return;
+    pushUndo('lock');
+    state.items[state.activeIndex].lock = e.target.checked;
+  });
 
   ['f-r', 'f-g', 'f-b'].forEach(id => ctrl(id).addEventListener('input', () => {
     if (writing) return;
@@ -435,32 +542,25 @@ function bindFieldEditor() {
   }));
 }
 
-// ── STAGE — one function feeds preview + every export (WYSIWYG) ──
-// Two views: the proportional bar (generalizes to any N, 3–7) and the
-// garment pictogram (the reference book's own 3-zone illustration,
-// recreated from Diego's photo — only meaningful at N=3, since the
-// 4th-zone/N>3 garment split was explicitly deferred to a later phase).
+// ── STAGE — one scene list feeds the preview and every export (WYSIWYG) ──
+// Top: the proportional bar (any N, 3–7) or the garment pictogram (the
+// reference book's own 3-zone illustration — only meaningful at N=3).
+// Then one 0–900 scale per colour, then the contrast grid.
 const VB_W = 900, BAR_Y = 24, BAR_H = 90, BAR_X0 = 20, BAR_X1 = 880;
-const SW_W = 76, SW_GAP = 6, SW_H = 40;
-const SCALE_START_Y_BAR = BAR_Y + BAR_H + 60;
-const ROW_H = 90;
+const SW_W = 76, SW_GAP = 6, SW_H = 40, SW_PITCH = SW_W + SW_GAP;
+const ROW_H = 90, GRID_HEAD_H = 14, GRID_ROW_H = SW_H + 22;
 
-// Garment geometry — local 0..326 x 0..670 box, replacing the earlier
-// photographed-reference shape with a vector Diego supplied directly
+// Garment geometry — local 0..326 x 0..670 box, from a vector Diego supplied
 // ("Group 34.svg"): a tall rectangular body, a trapezoid hem that flares
-// wider below it, and a V-neck collar triangle — plus two new bottom-
-// corner accent triangles the earlier shape didn't have. The source file
-// itself only uses 3 fills across its 5 shapes (body / hem / everything
-// else in black) — the collar triangle and both bottom corners share
-// that one black fill, which is the direct signal that all three belong
-// to the SAME role (Accent) rather than inventing a 4th zone; the
-// garment view is deliberately capped at N=3 (see isGarmentView()).
-// Scaled 0.75x and centred at the top of the stage.
+// wider below it, and a V-neck collar triangle, plus two bottom-corner
+// accent triangles. The source file uses 3 fills across its 5 shapes — the
+// collar triangle and both bottom corners share one — which is the direct
+// signal that all three belong to the SAME role (Accent); the garment view
+// is deliberately capped at N=3 (see isGarmentView()). Scaled 0.75x and
+// centred at the top of the stage.
 const GARMENT_LOCAL_W = 326, GARMENT_LOCAL_H = 670, GARMENT_SCALE = 0.75;
-// role order in the garment: 0 Base (body), 1 Secondary (hem),
-// 2 Accent (collar notch + both bottom-corner triangles) — shared by
-// garmentMarkup() (SVG/on-screen) and exportPNG() (Canvas Path2D) so the
-// two render paths can't drift apart from each other.
+// role order: 0 Base (body), 1 Secondary (hem), 2 Accent (collar notch +
+// both bottom-corner triangles).
 const GARMENT_ZONES = [
   { role: 0, d: 'M48,61 L278,61 L278,467 L48,467 Z' },
   { role: 1, d: 'M48.15,428 L277.85,428 L326,584 L0,584 Z' },
@@ -470,70 +570,133 @@ const GARMENT_ZONES = [
 ];
 const GARMENT_W = GARMENT_LOCAL_W * GARMENT_SCALE, GARMENT_H = GARMENT_LOCAL_H * GARMENT_SCALE;
 const GARMENT_X = (VB_W - GARMENT_W) / 2, GARMENT_Y = BAR_Y;
-const SCALE_START_Y_GARMENT = GARMENT_Y + GARMENT_H + 60;
 
-function scaleStartY() { return isGarmentView() ? SCALE_START_Y_GARMENT : SCALE_START_Y_BAR; }
-function isGarmentView() { return state.view === 'garment' && state.n === 3; }
+function isGarmentView() { return state.view === 'garment' && count() === 3; }
 
-function barMarkup() {
-  const weights = roleWeights(state.n);
-  let parts = [];
-  let x = BAR_X0;
-  const barW = BAR_X1 - BAR_X0;
-  weights.forEach((w, i) => {
-    const segW = (w / 100) * barW;
-    const hex = state.colors[i];
-    parts.push(`<rect class="bar-seg${i === state.activeIndex ? ' role-active' : ''}" data-i="${i}" x="${x.toFixed(2)}" y="${BAR_Y}" width="${segW.toFixed(2)}" height="${BAR_H}" fill="${hex}" tabindex="0" role="button" aria-pressed="${i === state.activeIndex}"><title>${roleName(i)} colour, ${w.toFixed(0)}%, ${hex}</title></rect>`);
-    if (segW > 46) {
-      parts.push(`<text class="bar-label" x="${(x + segW / 2).toFixed(2)}" y="${BAR_Y + BAR_H / 2 - 4}" text-anchor="middle">${w.toFixed(0)}%</text>`);
-      parts.push(`<text class="bar-sub" x="${(x + segW / 2).toFixed(2)}" y="${BAR_Y + BAR_H / 2 + 12}" text-anchor="middle">${hex}</text>`);
-    }
-    x += segW;
-  });
-  return parts.join('');
+// The sheet is always drawn in the light theme's colours, whatever the
+// chrome theme (Organica.contentColor), and its text in the page's own font
+// resolved to a literal family list so an exported file carries it.
+function sheetTheme() {
+  return {
+    ink: Organica.contentColor('--ink'),
+    mid: Organica.contentColor('--mid'),
+    paper: Organica.contentColor('--paper'),
+    font: getComputedStyle(document.body).fontFamily,
+  };
 }
+function readableOn(hex, T) { return C.contrast(hex, T.ink) >= C.contrast(hex, T.paper) ? T.ink : T.paper; }
 
-function garmentMarkup() {
-  const weights = roleWeights(3);
-  const parts = GARMENT_ZONES.map(z => {
-    const hex = state.colors[z.role];
-    return `<path class="bar-seg${z.role === state.activeIndex ? ' role-active' : ''}" data-i="${z.role}" d="${z.d}" fill="${hex}" tabindex="0" role="button" aria-pressed="${z.role === state.activeIndex}"><title>${roleName(z.role)} colour, ${weights[z.role].toFixed(0)}%, ${hex}</title></path>`;
-  });
-  return `<g transform="translate(${GARMENT_X},${GARMENT_Y}) scale(${GARMENT_SCALE})">${parts.join('')}</g>`;
-}
+// → { W, H, paper, font, items[] }. Items are plain data:
+//   { t:'rect', x, y, w, h, fill, stroke?, sw?, role?, title? }
+//   { t:'path', d, tf:{x,y,s}, fill, stroke?, sw?, role?, title? }
+//   { t:'text', x, y, s, size, fill, anchor }
+// `role` marks a shape that selects a colour when clicked on screen.
+function buildScene() {
+  const T = sheetTheme(), n = count(), cols = colors(), items = [];
+  const rect = (x, y, w, h, fill, extra) => items.push(Object.assign({ t: 'rect', x: x, y: y, w: w, h: h, fill: fill }, extra));
+  const text = (x, y, s, size, fill, anchor) => items.push({ t: 'text', x: x, y: y, s: String(s), size: size, fill: fill, anchor: anchor || 'start' });
+  const weights = roleWeights(n);
+  const garment = isGarmentView();
 
-function scaleRowsMarkup(startY) {
-  const n = state.n;
-  let parts = [];
-  const totalSwW = 10 * SW_W + 9 * SW_GAP;
-  const swX0 = (VB_W - totalSwW) / 2;
-  for (let i = 0; i < n; i++) {
-    const rowY = startY + i * ROW_H;
-    parts.push(`<text class="bar-sub" x="${BAR_X0}" y="${rowY - 24}">${roleName(i)}</text>`);
-    const scale = tokenScale(state.colors[i]);
-    scale.forEach((s, j) => {
-      const sx = swX0 + j * (SW_W + SW_GAP);
-      const isAnchor = s.step === 500;
-      parts.push(`<rect class="scale-sw${isAnchor ? ' scale-anchor' : ''}" x="${sx.toFixed(2)}" y="${rowY}" width="${SW_W}" height="${SW_H}" fill="${s.hex}"><title>${roleName(i)} ${s.step} — ${s.hex}</title></rect>`);
-      parts.push(`<text class="scale-step" x="${(sx + SW_W / 2).toFixed(2)}" y="${rowY - 6}">${s.step}</text>`);
-      parts.push(`<text class="scale-hex" x="${(sx + SW_W / 2).toFixed(2)}" y="${rowY + SW_H + 12}">${s.hex}</text>`);
+  if (garment) {
+    GARMENT_ZONES.forEach(z => items.push({
+      t: 'path', d: z.d, tf: { x: GARMENT_X, y: GARMENT_Y, s: GARMENT_SCALE }, fill: cols[z.role], stroke: T.paper, sw: 2,
+      role: z.role, title: `${dispName(z.role)}, ${weights[z.role].toFixed(0)}%, ${cols[z.role]}`,
+    }));
+  } else {
+    let x = BAR_X0;
+    const barW = BAR_X1 - BAR_X0;
+    weights.forEach((w, i) => {
+      const segW = (w / 100) * barW, hex = cols[i];
+      rect(x, BAR_Y, segW, BAR_H, hex, { stroke: T.paper, sw: 2, role: i, title: `${dispName(i)}, ${w.toFixed(0)}%, ${hex}` });
+      if (segW > 46) {
+        const on = readableOn(hex, T);
+        text(x + segW / 2, BAR_Y + BAR_H / 2 - 4, w.toFixed(0) + '%', 13, on, 'middle');
+        text(x + segW / 2, BAR_Y + BAR_H / 2 + 12, hex, 11, on, 'middle');
+      }
+      x += segW;
     });
   }
-  return parts.join('');
+
+  // Scales
+  const scaleY = (garment ? GARMENT_Y + GARMENT_H : BAR_Y + BAR_H) + 60;
+  const swX0 = (VB_W - (10 * SW_PITCH - SW_GAP)) / 2;
+  for (let i = 0; i < n; i++) {
+    const rowY = scaleY + i * ROW_H;
+    text(BAR_X0, rowY - 24, dispName(i), 11, T.mid);
+    tokenScale(cols[i]).forEach((s, j) => {
+      const sx = swX0 + j * SW_PITCH;
+      rect(sx, rowY, SW_W, SW_H, s.hex, Object.assign({ title: `${dispName(i)} ${s.step} — ${s.hex}` }, s.anchor ? { stroke: T.ink, sw: 2 } : null));
+      text(sx + SW_W / 2, rowY - 6, s.step, 10, T.mid, 'middle');
+      text(sx + SW_W / 2, rowY + SW_H + 12, s.hex, 9, T.mid, 'middle');
+    });
+  }
+
+  // Contrast grid — each cell sets the row's colour as text on the column's.
+  const gridY = scaleY + n * ROW_H;
+  text(BAR_X0, gridY, 'Contrast — text colour (rows) on background (columns)', 11, T.mid);
+  const gx0 = (VB_W - ((n + 1) * SW_PITCH - SW_GAP)) / 2, headY = gridY + 16, rowsY = headY + GRID_HEAD_H + SW_GAP;
+  cols.forEach((hex, j) => rect(gx0 + (j + 1) * SW_PITCH, headY, SW_W, GRID_HEAD_H, hex));
+  cols.forEach((fg, i) => {
+    const ry = rowsY + i * GRID_ROW_H;
+    rect(gx0, ry, SW_W, SW_H, fg);
+    cols.forEach((bg, j) => {
+      if (i === j) return;
+      const cx = gx0 + (j + 1) * SW_PITCH;
+      rect(cx, ry, SW_W, SW_H, bg, { title: `${dispName(i)} on ${dispName(j)} — ${C.contrast(fg, bg).toFixed(2)}:1` });
+      text(cx + SW_W / 2, ry + SW_H / 2 + 5, 'Aa', 15, fg, 'middle');
+      text(cx + SW_W / 2, ry + SW_H + 12, C.contrast(fg, bg).toFixed(1) + ':1' + (C.deltaE(fg, bg) < DISTINCT_MIN ? ' · close' : ''), 9, T.mid, 'middle');
+    });
+  });
+
+  return { W: VB_W, H: rowsY + n * GRID_ROW_H + 8, paper: T.paper, font: T.font, items: items };
 }
 
-function stageMarkup() {
-  const top = isGarmentView() ? garmentMarkup() : barMarkup();
-  return top + scaleRowsMarkup(scaleStartY());
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function num(v) { return +(+v).toFixed(2); }
+// interactive=true adds what only the on-screen sheet needs (selection class,
+// keyboard focus, tooltips); the export gets geometry and paint, nothing else.
+function sceneMarkup(scene, interactive) {
+  const font = esc(scene.font.replace(/"/g, "'"));
+  return scene.items.map(it => {
+    if (it.t === 'text') {
+      return `<text x="${num(it.x)}" y="${num(it.y)}" font-family="${font}" font-size="${it.size}" fill="${it.fill}"${it.anchor !== 'start' ? ` text-anchor="${it.anchor}"` : ''}>${esc(it.s)}</text>`;
+    }
+    const live = interactive && it.role != null, active = it.role === state.activeIndex;
+    const attrs = `fill="${it.fill}"` + (it.stroke ? ` stroke="${it.stroke}" stroke-width="${it.sw}"` : '') +
+      (live ? ` class="bar-seg${active ? ' role-active' : ''}" data-i="${it.role}" tabindex="0" role="button" aria-pressed="${active}"` : '');
+    const title = interactive && it.title ? `<title>${esc(it.title)}</title>` : '';
+    if (it.t === 'path') return `<path d="${it.d}" transform="translate(${num(it.tf.x)},${num(it.tf.y)}) scale(${it.tf.s})" ${attrs}>${title}</path>`;
+    return `<rect x="${num(it.x)}" y="${num(it.y)}" width="${num(it.w)}" height="${num(it.h)}" ${attrs}>${title}</rect>`;
+  }).join('');
 }
-
-function stageHeight(n) { return scaleStartY() + n * ROW_H + 20; }
+function drawScene(scene, c) {
+  c.fillStyle = scene.paper;
+  c.fillRect(0, 0, scene.W, scene.H);
+  scene.items.forEach(it => {
+    if (it.t === 'text') {
+      c.font = `${it.size}px ${scene.font}`;
+      c.textAlign = it.anchor === 'middle' ? 'center' : 'left';
+      c.fillStyle = it.fill;
+      c.fillText(it.s, it.x, it.y);
+      return;
+    }
+    c.save();
+    let p;
+    if (it.t === 'path') { c.translate(it.tf.x, it.tf.y); c.scale(it.tf.s, it.tf.s); p = new Path2D(it.d); }
+    else { p = new Path2D(); p.rect(it.x, it.y, it.w, it.h); }
+    c.fillStyle = it.fill;
+    c.fill(p);
+    if (it.stroke) { c.strokeStyle = it.stroke; c.lineWidth = it.sw; c.stroke(p); }
+    c.restore();
+  });
+}
 
 function renderStage() {
-  const h = stageHeight(state.n);
+  const scene = buildScene();
   const svg = ctrl('stage-svg');
-  svg.setAttribute('viewBox', `0 0 ${VB_W} ${h}`);
-  svg.innerHTML = stageMarkup();
+  svg.setAttribute('viewBox', `0 0 ${scene.W} ${scene.H}`);
+  svg.innerHTML = sceneMarkup(scene, true);
   svg.querySelectorAll('.bar-seg').forEach(el => {
     el.addEventListener('click', () => selectRole(+el.dataset.i));
     el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectRole(+el.dataset.i); } });
@@ -548,109 +711,70 @@ function selectRole(i) {
 
 // ── MODE / HARMONY / VIEW CONTROLS ──
 function syncCountSeg() {
-  ctrl('seg-count').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', +b.dataset.v === state.n));
+  ctrl('seg-count').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', +b.dataset.v === count()));
 }
 function syncViewSeg() {
   ctrl('seg-view').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === state.view));
   const garmentBtn = ctrl('btn-view-garment');
-  garmentBtn.disabled = state.n !== 3;
-  garmentBtn.title = state.n === 3 ? '' : 'Available at 3 colours';
+  garmentBtn.disabled = count() !== 3;
+  garmentBtn.title = count() === 3 ? '' : 'Available at 3 colours';
 }
 function setView(view) {
-  if (view === 'garment' && state.n !== 3) return;
+  if (view === 'garment' && count() !== 3) return;
   state.view = view;
   syncViewSeg();
   renderStage();
 }
 function setCount(n) {
   n = clamp(n, 3, 7);
-  const cur = state.colors.slice();
-  while (cur.length < n) cur.push(tokenScale(cur[cur.length - 1])[7].hex);
-  while (cur.length > n) cur.pop();
-  state.colors = cur;
-  state.n = n;
+  if (n === count()) return;
+  pushUndo('count');
+  while (count() < n) state.items.push(makeItem(nextColour(), count()));
+  while (count() > n) state.items.pop();
   state.activeIndex = clamp(state.activeIndex, 0, n - 1);
-  if (n !== 3 && state.view === 'garment') state.view = 'bar';   // the garment view only exists at n===3 — fall back rather than leave a stale, invalid view selected
-  chips.setColors(state.colors);
-  highlightActiveChip();
-  scaleCache.clear();
-  syncCountSeg();
-  syncViewSeg();
-  refreshFieldEditor();
-  renderStage();
-  updateStatus();
-}
-function updateStatus() {
-  const label = ctrl('sel-harmony').selectedOptions[0].textContent;
-  setStatus('', state.n + ' colours · ' + label);
+  commit(true);
 }
 
 // ── EXPORT ──
 function svgString(scale) {
   scale = scale || 1;
-  const h = stageHeight(state.n);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VB_W} ${h}" width="${VB_W * scale}" height="${h * scale}"><rect x="0" y="0" width="${VB_W}" height="${h}" fill="var(--paper, #ffffff)"/>${stageMarkup()}</svg>`;
+  const scene = buildScene();
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${scene.W} ${scene.H}" width="${scene.W * scale}" height="${scene.H * scale}"><rect x="0" y="0" width="${scene.W}" height="${scene.H}" fill="${scene.paper}"/>${sceneMarkup(scene, false)}</svg>`;
 }
 function exportSVG() {
   Organica.downloadText(svgString(1), Organica.stamp('tunesutra', 'svg'), 'image/svg+xml');
 }
-function exportPNG() {
-  const scale = +ctrl('sel-export-scale').value;
-  const h = stageHeight(state.n);
+function pngCanvas(scale) {
+  const scene = buildScene();
   const canvas = document.createElement('canvas');
-  canvas.width = VB_W * scale;
-  canvas.height = h * scale;
+  canvas.width = scene.W * scale;
+  canvas.height = scene.H * scale;
   const c = canvas.getContext('2d');
   c.scale(scale, scale);
-  c.fillStyle = '#ffffff';
-  c.fillRect(0, 0, VB_W, h);
-
-  if (isGarmentView()) {
-    // Same GARMENT_ZONES garmentMarkup() draws in the SVG/on-screen stage —
-    // Path2D from the identical `d` strings, scaled/translated identically.
-    c.save();
-    c.translate(GARMENT_X, GARMENT_Y);
-    c.scale(GARMENT_SCALE, GARMENT_SCALE);
-    GARMENT_ZONES.forEach(z => {
-      c.fillStyle = state.colors[z.role];
-      c.fill(new Path2D(z.d));
-    });
-    c.restore();
-  } else {
-    const weights = roleWeights(state.n);
-    let x = BAR_X0;
-    const barW = BAR_X1 - BAR_X0;
-    weights.forEach((w, i) => {
-      const segW = (w / 100) * barW;
-      c.fillStyle = state.colors[i];
-      c.fillRect(x, BAR_Y, segW, BAR_H);
-      x += segW;
-    });
-  }
-
-  const totalSwW = 10 * SW_W + 9 * SW_GAP;
-  const swX0 = (VB_W - totalSwW) / 2;
-  for (let i = 0; i < state.n; i++) {
-    const rowY = scaleStartY() + i * ROW_H;
-    const scale10 = tokenScale(state.colors[i]);
-    scale10.forEach((s, j) => {
-      const sx = swX0 + j * (SW_W + SW_GAP);
-      c.fillStyle = s.hex;
-      c.fillRect(sx, rowY, SW_W, SW_H);
-    });
-  }
-
-  const url = canvas.toDataURL('image/png');
+  drawScene(scene, c);
+  return canvas;
+}
+function exportPNG() {
+  const url = pngCanvas(+ctrl('sel-export-scale').value).toDataURL('image/png');
   Organica.download(Organica.dataURLToBlob(url), Organica.stamp('tunesutra', 'png'));
 }
-function activeRoleKeys() {
-  return Array.from({ length: state.n }, (_, i) => roleName(i).toLowerCase().replace(/\s+/g, ''));
+// Token keys come from the colour names: "Warm Clay" → warm-clay. Two colours
+// with the same name get -2, -3 … so no key is ever written twice.
+function tokenKeys() {
+  const used = {};
+  return state.items.map((it, i) => {
+    const base = dispName(i).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || ('colour-' + (i + 1));
+    let key = base;
+    for (let k = 2; used[key]; k++) key = base + '-' + k;
+    used[key] = true;
+    return key;
+  });
 }
 function exportCSS() {
-  const keys = activeRoleKeys();
+  const keys = tokenKeys();
   let css = ':root {\n';
   keys.forEach((key, i) => {
-    tokenScale(state.colors[i]).forEach(s => {
+    tokenScale(state.items[i].hex).forEach(s => {
       css += `  --tunesutra-${key}-${s.step}: ${s.hex};\n`;
     });
   });
@@ -658,11 +782,11 @@ function exportCSS() {
   Organica.downloadText(css, Organica.stamp('tunesutra', 'css'), 'text/css');
 }
 function exportJSON() {
-  const keys = activeRoleKeys();
+  const keys = tokenKeys();
   const obj = { tunesutra: {} };
   keys.forEach((key, i) => {
     obj.tunesutra[key] = {};
-    tokenScale(state.colors[i]).forEach(s => {
+    tokenScale(state.items[i].hex).forEach(s => {
       obj.tunesutra[key][s.step] = { $value: s.hex, $type: 'color' };
     });
   });
@@ -677,8 +801,8 @@ function userPresets() { return PRESETS.read(); }
 //    palette IS its colours, so its thumbnail is the colours themselves —
 //    one band per colour, in order, true hex (a name like "Autumn 3" says
 //    nothing; the bands say everything). An SVG, sharp at any size. ──
-function paletteThumb(colors) {
-  const cs = (colors || []).filter(Boolean);
+function paletteThumb(cols) {
+  const cs = (cols || []).filter(Boolean);
   if (!cs.length) return '';
   const w = 40 / cs.length;
   return '<svg viewBox="0 0 40 40" preserveAspectRatio="none">' +
@@ -689,7 +813,6 @@ let presetPicker = null;
 function populatePresets(select) {
   const sel = ctrl('preset-select');
   const all = userPresets();
-  const esc = n => String(n).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
   sel.innerHTML = '<option value="">Presets…</option>' + Object.keys(all).map(name =>
     `<option value="${esc(name)}"${name === select ? ' selected' : ''}>${esc(name)}</option>`).join('');
   Object.keys(presetRegistry).forEach(k => delete presetRegistry[k]);
@@ -697,23 +820,24 @@ function populatePresets(select) {
   if (!presetPicker) presetPicker = Organica.selectPicker(sel, ctrl('preset-picker'), { registry: presetRegistry, size: 'preview', ariaLabel: 'Preset' });
   else presetPicker.refresh();
 }
+// A preset saved before names / ids / locks existed has only { n, harmony,
+// colors } — it loads with the default role names and fresh ids.
 function applyPreset(name) {
   if (!name) return;
-  const all = userPresets();
-  const p = all[name];
-  if (!p) return;
-  state.n = p.n;
-  state.harmony = p.harmony;
-  state.colors = p.colors.slice();
+  const p = userPresets()[name];
+  if (!p || !p.colors || p.colors.length < 3) return;
+  pushUndo('preset');
+  state.items = p.colors.slice(0, 7).map((hex, i) => ({
+    id: (p.ids && p.ids[i]) || newId(),
+    name: (p.names && p.names[i]) || roleName(i),
+    hex: Organica.normalizeHex(hex, '#888888'),
+    lock: !!(p.locks && p.locks[i]),
+  }));
+  state.harmony = p.harmony || 'analogous';
+  state.spread = p.spread || 0;
   state.activeIndex = 0;
-  ctrl('sel-harmony').value = p.harmony;
-  chips.setColors(state.colors);
-  syncCountSeg();
-  highlightActiveChip();
-  scaleCache.clear();
-  refreshFieldEditor();
-  renderStage();
-  updateStatus();
+  syncControls();
+  commit(true);
 }
 function beginSavePreset() {
   ctrl('preset-save-row').style.display = 'flex';
@@ -730,9 +854,13 @@ function confirmSavePreset() {
   if (!name) return;
   const all = userPresets();
   all[name] = {
-    n: state.n,
+    n: count(),
     harmony: state.harmony,
-    colors: state.colors.slice(),
+    spread: state.spread,
+    colors: colors(),
+    names: state.items.map((it, i) => dispName(i)),
+    ids: state.items.map(it => it.id),
+    locks: state.items.map(it => !!it.lock),
     savedAt: new Date().toISOString(),
   };
   PRESETS.write(all);
@@ -751,7 +879,6 @@ function deletePreset() {
 // ── INIT ──
 initChips();
 bindFieldEditor();
-const setStatus = Organica.status();
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 
 ctrl('seg-count').querySelectorAll('.seg-btn').forEach(btn => {
@@ -760,18 +887,28 @@ ctrl('seg-count').querySelectorAll('.seg-btn').forEach(btn => {
 ctrl('seg-view').querySelectorAll('.seg-btn').forEach(btn => {
   btn.addEventListener('click', () => setView(btn.dataset.v));
 });
-ctrl('sel-harmony').addEventListener('change', () => { state.harmony = ctrl('sel-harmony').value; updateStatus(); });
+ctrl('sel-harmony').addEventListener('change', () => { state.harmony = ctrl('sel-harmony').value; });
 ctrl('btn-generate').addEventListener('click', () => {
   state.harmony = ctrl('sel-harmony').value;
-  const generated = generateHarmony();
-  state.colors = generated;
-  chips.setColors(state.colors);
-  state.activeIndex = 0;
-  highlightActiveChip();
-  scaleCache.clear();
-  refreshFieldEditor();
-  renderStage();
-  updateStatus();
+  pushUndo('generate');
+  applyHarmony();
+  commit(true);
+});
+// The spread slider regenerates as it moves — a slider that waited for
+// Generate would feel dead. Kept colours are untouched, as with Generate.
+ctrl('rg-spread').addEventListener('input', e => {
+  pushUndo('spread');
+  state.spread = +e.target.value;
+  ctrl('v-spread').textContent = state.spread;
+  applyHarmony();
+  commit(true);
+});
+ctrl('btn-undo').addEventListener('click', undo);
+document.addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z') return;
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && e.target.type !== 'range' && e.target.type !== 'checkbox') return;   // let a text field undo its own typing
+  e.preventDefault();
+  undo();
 });
 
 ctrl('btn-export-png').addEventListener('click', exportPNG);
@@ -785,12 +922,8 @@ ctrl('btn-preset-confirm').addEventListener('click', confirmSavePreset);
 ctrl('btn-preset-cancel').addEventListener('click', cancelSavePreset);
 ctrl('txt-preset-name').addEventListener('keydown', e => { if (e.key === 'Enter') confirmSavePreset(); if (e.key === 'Escape') cancelSavePreset(); });
 
-syncCountSeg();
-syncViewSeg();
-highlightActiveChip();
-refreshFieldEditor();
-renderStage();
-updateStatus();
+syncControls();
+commit(false);
 populatePresets();
 Organica.autoLabelPanel(document);
 
