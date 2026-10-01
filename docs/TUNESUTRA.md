@@ -20,8 +20,11 @@ to the eye.
   **New palette** card.
 - **Built-in collections** (`tunesutra/collections.js`, data) — read-only. Opening
   one loads a *copy* into the editor; **Save** keeps it with your own palettes.
-  Today: *Garment studies — violet*, 12 three-colour studies transcribed from a
-  photographed book page (colours in role order: body, hem, collar).
+  Today: *Garment studies — violet* (12 three-colour studies) and *Garment
+  studies — green* (12 four-colour studies), transcribed from two photographed
+  pages of a colour-scheme book (role order: body, hem, collar, trim).
+  They are the book's own combinations: fine as a working reference, but decide
+  whether they should ship to other users before the tool is opened up.
 - A card shows the palette in proportion, or on the garment when the palette was
   saved in the Garment view.
 
@@ -71,7 +74,9 @@ One scene list (`buildScene()`) draws the preview, the SVG and the PNG.
    on its nearest step (outlined). Chroma keeps the pick's share of the gamut at
    each lightness and never exceeds the pick's own.
    Then an **example** of the palette in use, chosen by the View switch: *Bar*
-   (the colours in 60/…-style proportions) or *Garment* (3 colours only). In the
+   (the colours in 60/…-style proportions) or *Garment* (3 or 4 colours: body, hem,
+   collar, and — with a fourth colour — the two trim triangles; a zone too pale
+   to see on the paper gets a hairline). In the
    *Gradient* view the gradient comes first and there is no example.
 3. **Contrast grid** — each cell sets the row's colour as text on the column's,
    with the WCAG ratio under it (`· close` marks a pair under ΔE 6).

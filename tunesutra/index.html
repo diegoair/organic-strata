@@ -149,7 +149,7 @@
         <div class="ctrl-row">
           <div class="seg-ctrl">
             <button class="seg-btn active" data-v="bar">Bar</button>
-            <button class="seg-btn" data-v="garment" id="btn-view-garment" title="Available at 3 colours">Garment</button>
+            <button class="seg-btn" data-v="garment" id="btn-view-garment" title="Available at 3 or 4 colours">Garment</button>
           </div>
         </div>
         <div class="ctrl-row">
@@ -436,7 +436,7 @@ const state = {
   harmony: 'analogous',
   spread: 0,          // lightness spread, in OKLCH L points (0–30)
   activeIndex: 0,
-  view: 'bar',        // 'bar' | 'garment' | 'gradient' — garment only meaningful at 3 colours
+  view: 'bar',        // 'bar' | 'garment' | 'gradient' | 'system' — garment only at 3 or 4 colours
   items: [],
   // The gradient: stops are colours in their own right (picked from this
   // palette or any saved one), so reordering the palette never reorders them.
@@ -618,7 +618,7 @@ function highlightActiveChip() { chips.setActive(state.activeIndex); }
 // One refresh path for every change. rebuildChips=false only while a chip's
 // own native picker is the thing being dragged.
 function commit(rebuildChips) {
-  if (count() !== 3 && state.view === 'garment') state.view = 'bar';   // the garment view only exists at 3 colours
+  if (!garmentFits(count()) && state.view === 'garment') state.view = 'bar';   // the garment view only exists at 3 or 4 colours
   if (rebuildChips) { chips.setColors(colors()); gradChips.setColors(state.grad.stops); }
   highlightActiveChip();
   scaleCache.clear();
@@ -724,7 +724,7 @@ function bindFieldEditor() {
 // ── STAGE — one scene list feeds the preview and every export (WYSIWYG) ──
 // Top: one card per colour with its 0–900 scale beneath it. Then an example
 // of the palette in use — the proportional bar (any N) or the garment
-// pictogram (N=3 only) — then the contrast grid. In the Gradient view the
+// pictogram (3 or 4 colours) — then the contrast grid. In the Gradient view the
 // gradient comes first and there is no example.
 const VB_W = 900, BAR_Y = 24, BAR_H = 44, BAR_X0 = 20, BAR_X1 = 880;
 const CARD_MAX_W = 150, CARD_GAP = 14, CARD_COLOUR_H = 96, CARD_H = 134, CARD_R = 14, STEP_H = 20, STEP_GAP = 2;
@@ -736,23 +736,28 @@ const GRID_HEAD_H = 14, GRID_ROW_H = SW_H + 22;
 // wider below it, and a V-neck collar triangle, plus two bottom-corner
 // accent triangles. The source file uses 3 fills across its 5 shapes — the
 // collar triangle and both bottom corners share one — which is the direct
-// signal that all three belong to the SAME role (Accent); the garment view
-// is deliberately capped at N=3 (see isGarmentView()). Scaled 0.75x and
-// centred at the top of the stage.
+// signal that all three belong to the SAME role (Accent) in a 3-colour
+// palette. With 4 colours the two bottom triangles (the trim) take the
+// fourth, as in the book's own four-colour studies. The garment view exists
+// at 3 or 4 colours (see isGarmentView()). Scaled 0.75x.
 const GARMENT_LOCAL_W = 326, GARMENT_LOCAL_H = 670, GARMENT_SCALE = 0.75;
-// role order: 0 Base (body), 1 Secondary (hem), 2 Accent (collar notch +
-// both bottom-corner triangles).
+// role order: 0 Base (body), 1 Secondary (hem), 2 Accent (collar notch),
+// and the trim (both bottom triangles): colour 4 when there is one, else Accent.
 const GARMENT_ZONES = [
   { role: 0, d: 'M48,61 L278,61 L278,467 L48,467 Z' },
   { role: 1, d: 'M48.15,428 L277.85,428 L326,584 L0,584 Z' },
   { role: 2, d: 'M162.5,241 L81.53,60.25 L243.47,60.25 Z' },
-  { role: 2, d: 'M82,670 L43.89,584.5 L120.11,584.5 Z' },
-  { role: 2, d: 'M243,670 L204.90,584.5 L281.11,584.5 Z' },
+  { role: 2, trim: true, d: 'M82,670 L43.89,584.5 L120.11,584.5 Z' },
+  { role: 2, trim: true, d: 'M243,670 L204.90,584.5 L281.11,584.5 Z' },
 ];
+function garmentFits(n) { return n === 3 || n === 4; }
+function zoneRole(z, n) { return z.trim && n === 4 ? 3 : z.role; }
+// A zone too pale to see on the paper gets a hairline, as the book draws it.
+function paleOnPaper(hex) { return C.contrast(hex, '#ffffff') < 1.12; }
 const GARMENT_W = GARMENT_LOCAL_W * GARMENT_SCALE, GARMENT_H = GARMENT_LOCAL_H * GARMENT_SCALE;
 const GARMENT_X = (VB_W - GARMENT_W) / 2;
 
-function isGarmentView() { return state.view === 'garment' && count() === 3; }
+function isGarmentView() { return state.view === 'garment' && garmentFits(count()); }
 
 // ── GRADIENT + GRAIN ──
 // One definition (state.grad), two renderings:
@@ -1202,6 +1207,7 @@ function sheetTheme() {
     mid: Organica.contentColor('--mid'),
     paper: Organica.contentColor('--paper'),
     panel: Organica.contentColor('--panel'),
+    border: Organica.contentColor('--border'),
     font: getComputedStyle(document.body).fontFamily,
   };
 }
@@ -1256,10 +1262,13 @@ function buildScene() {
     text(BAR_X0, y, garment ? 'Example — on a garment' : 'Example — in proportion', 11, T.mid);
     y += 12;
     if (garment) {
-      GARMENT_ZONES.forEach(z => items.push({
-        t: 'path', d: z.d, tf: { x: GARMENT_X, y: y, s: GARMENT_SCALE }, fill: cols[z.role], stroke: T.paper, sw: 2,
-        role: z.role, title: `${dispName(z.role)}, ${weights[z.role].toFixed(0)}%, ${cols[z.role]}`,
-      }));
+      GARMENT_ZONES.forEach(z => {
+        const r = zoneRole(z, n), pale = paleOnPaper(cols[r]);
+        items.push({
+          t: 'path', d: z.d, tf: { x: GARMENT_X, y: y, s: GARMENT_SCALE }, fill: cols[r], stroke: pale ? T.border : T.paper, sw: pale ? 1.5 : 2,
+          role: r, title: `${dispName(r)}, ${weights[r].toFixed(0)}%, ${cols[r]}`,
+        });
+      });
       y += GARMENT_H + 34;
     } else {
       let x = BAR_X0;
@@ -1359,11 +1368,11 @@ function syncCountSeg() {
 function syncViewSeg() {
   ctrl('seg-view').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === state.view));
   const garmentBtn = ctrl('btn-view-garment');
-  garmentBtn.disabled = count() !== 3;
-  garmentBtn.title = count() === 3 ? '' : 'Available at 3 colours';
+  garmentBtn.disabled = !garmentFits(count());
+  garmentBtn.title = garmentFits(count()) ? '' : 'Available at 3 or 4 colours';
 }
 function setView(view) {
-  if (view === 'garment' && count() !== 3) return;
+  if (view === 'garment' && !garmentFits(count())) return;
   if (view === 'system') loadToolAccents();
   state.view = view;
   syncViewSeg();
@@ -1480,7 +1489,7 @@ function loadPaletteData(p) {
   state.harmony = p.harmony || 'analogous';
   state.spread = p.spread || 0;
   state.activeIndex = 0;
-  state.view = p.view === 'garment' && state.items.length === 3 ? 'garment' : 'bar';
+  state.view = p.view === 'garment' && garmentFits(state.items.length) ? 'garment' : 'bar';
   // A palette saved before gradients existed gets one between its first two colours.
   state.grad = Object.assign(JSON.parse(GRAD_DEFAULT), p.gradient || { stops: colors().slice(0, 2) });
   state.sys = Object.assign(JSON.parse(SYS_DEFAULT), p.system || {}, { preview: state.sys.preview });
@@ -1558,9 +1567,9 @@ function refreshTitle() {
 }
 function paletteArt(p) {
   const cols = (p.colors || []).map(c => Organica.normalizeHex(c, '#888888'));
-  if (p.view === 'garment' && cols.length === 3) {
+  if (p.view === 'garment' && garmentFits(cols.length)) {
     return `<svg viewBox="-70 -40 ${GARMENT_LOCAL_W + 140} ${GARMENT_LOCAL_H + 80}" aria-hidden="true">` +
-      GARMENT_ZONES.map(z => `<path d="${z.d}" fill="${cols[z.role]}"/>`).join('') + '</svg>';
+      GARMENT_ZONES.map(z => { const hex = cols[zoneRole(z, cols.length)]; return `<path d="${z.d}" fill="${hex}"${paleOnPaper(hex) ? ' stroke="var(--border)" stroke-width="3"' : ''}/>`; }).join('') + '</svg>';
   }
   const w = roleWeights(cols.length);
   return cols.map((c, i) => `<span style="flex:${w[i].toFixed(2)};background:${c}"></span>`).join('');

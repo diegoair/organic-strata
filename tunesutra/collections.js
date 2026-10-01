@@ -3,8 +3,9 @@
    A built-in palette is read-only: opening one loads a copy into the editor,
    and Save stores that copy with the user's own palettes.
 
-   `colors` are in TuneSutra's role order — Base, Secondary, Accent. For a
-   garment study that is body, hem, collar (the source lists collar first).
+   `colors` are in TuneSutra's role order — Base, Secondary, Accent, Accent 2.
+   For a garment study that is body, hem, collar, trim (the source lists the
+   collar first; a three-colour study has no trim colour of its own).
    `view` is the example the editor opens on.
 
    garment-violet — transcribed (Oct 1, 2026) from a photographed page of a
@@ -12,7 +13,12 @@
    violet, RGB values as printed. The three named ones carry the page's own
    captions, translated. Two values were hard to read in the photo and should
    be checked against the page: violet-01's accent (186-186-186) and
-   violet-05's secondary (248-117-157). */
+   violet-05's secondary (248-117-157).
+
+   garment-green — same book, a second photographed page (Oct 1, 2026): 12
+   four-colour studies around green. To check against the page: green-04's
+   body (read as 116-139-116) and trim (read as 179-204-236; the last number
+   was unclear — 236 matches the swatch and the printed CMYK 35-15-0-0). */
 window.TUNESUTRA_COLLECTIONS = [
   {
     id: 'garment-violet',
@@ -32,6 +38,26 @@ window.TUNESUTRA_COLLECTIONS = [
       { id: 'stimulating', name: 'Stimulating', colors: ['#5f238d', '#74c476', '#d40039'] },
       { id: 'luxurious', name: 'Luxurious', colors: ['#5f238d', '#000000', '#ff7f00'] },
       { id: 'graceful', name: 'Graceful', colors: ['#ca8290', '#6a3387', '#ead8e3'] },
+    ],
+  },
+  {
+    id: 'garment-green',
+    name: 'Garment studies — green',
+    note: 'Twelve four-colour studies. Body, hem, collar, trim.',
+    view: 'garment',
+    palettes: [
+      { id: 'green-01', name: 'Green 01', colors: ['#119352', '#0e3915', '#c0e6b8', '#99c197'] },
+      { id: 'green-02', name: 'Green 02', colors: ['#74c476', '#fff200', '#ffffff', '#addb5d'] },
+      { id: 'green-03', name: 'Green 03', colors: ['#73b81d', '#e31a2a', '#fff200', '#67c3b7'] },
+      { id: 'green-04', name: 'Green 04', colors: ['#748b74', '#c0e6b8', '#90c19c', '#b3ccec'] },
+      { id: 'green-05', name: 'Green 05', colors: ['#c0e6b8', '#dedede', '#f9dfe2', '#fff27c'] },
+      { id: 'green-06', name: 'Green 06', colors: ['#c0e6b8', '#ffffff', '#8cc919', '#333333'] },
+      { id: 'green-07', name: 'Green 07', colors: ['#c0e6b8', '#333333', '#fff23f', '#dedede'] },
+      { id: 'green-08', name: 'Green 08', colors: ['#bfa90b', '#c0e6b8', '#e6f5a4', '#d0c28e'] },
+      { id: 'green-09', name: 'Green 09', colors: ['#c0e6b8', '#fdd9cd', '#fbaec1', '#cfb3d7'] },
+      { id: 'lively', name: 'Lively', colors: ['#119352', '#ff7f00', '#d40039', '#fff23f'] },
+      { id: 'dynamic', name: 'Dynamic', colors: ['#000000', '#119352', '#fff200', '#e5000d'] },
+      { id: 'youth', name: 'Youth', colors: ['#349c53', '#395999', '#fff27c', '#ffffff'] },
     ],
   },
 ];
