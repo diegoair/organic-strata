@@ -12,7 +12,7 @@
  *
  * usage:
  *   const picker = Organica.selectPicker(selectEl, hostEl, {
- *     registry: { key: { name: 'Triangle', icon: '<svg viewBox="0 0 26 26">…</svg>' } },
+ *     registry: { key: { name: 'Triangle', icon: '<svg viewBox="0 0 40 40">…</svg>' } },
  *     ariaLabel: 'Seed type',
  *     size: 'preview',            // optional — see below
  *   });
@@ -21,12 +21,14 @@
  *
  * WHEN TO GIVE A DROPDOWN THUMBNAILS (the design-system rule): only when the
  * options differ visibly, the name doesn't predict the look, and the image
- * comes from the tool's own renderer. Size follows what differs:
- *   icon    (default) 26×26 pictogram in `currentColor` — structure: shape
- *           kinds, aspect ratios, motion diagrams. Takes --ink in both themes.
- *   preview (size:'preview') 60×40 in the menu, 33×22 in the trigger — look
- *           and texture: dither, stipple, grain, light, palettes, grids. A
- *           rendered image (content colours — stays light in dark mode).
+ * comes from the tool's own renderer. EVERY thumbnail is a square — 22px in
+ * the trigger, 40px in the menu. What differs is the content:
+ *   icon    (default) a pictogram in `currentColor` — structure: shape kinds,
+ *           aspect ratios, motion diagrams. Takes --ink in both themes. Aspect
+ *           icons / grids keep their true ratio, letterboxed inside the square.
+ *   preview (size:'preview') a rendered image, drawn square at source (or
+ *           centre-cropped) — look and texture: dither, stipple, grain,
+ *           light, palettes. Content colours — stays light in dark mode.
  *
  * Registry entry: { name, icon } — icon is SVG/HTML markup — or
  *   { name, thumb: () => string | Promise<string> } — rendered LAZILY: only

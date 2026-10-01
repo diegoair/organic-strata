@@ -290,7 +290,7 @@
   // thumbnails; these are the three sources more than one tool needs.
   // ═══════════════════════════════════════════════════════════
 
-  // A saved/built-in Loom grid as a 60×40 'preview' thumbnail: the cell
+  // A saved/built-in Loom grid as a square 'preview' thumbnail (40-unit box): the cell
   // outlines at the grid's own aspect, in currentColor (a structural
   // drawing, so it follows --ink in both themes). Accepts anything
   // loadLoomGrid accepts ({canvas, grid, cells}); returns '' if it can't
@@ -299,7 +299,7 @@
     let g;
     try { g = Organica.loadLoomGrid(input); } catch (e) { return ''; }
     const cw = g.canvas.width || g.canvas.displayWidth || 1, ch = g.canvas.height || g.canvas.displayHeight || 1;
-    const W = 60, H = 40, pad = 3;
+    const W = 40, H = 40, pad = 3;   // square slot; the grid keeps its own aspect, letterboxed
     const k = Math.min((W - 2 * pad) / cw, (H - 2 * pad) / ch);
     const ox = (W - cw * k) / 2, oy = (H - ch * k) / 2;
     const f = v => Math.round(v * 100) / 100;
@@ -316,17 +316,29 @@
       `<path d="${d}" stroke-width="0.7" fill="currentColor" fill-opacity="0.06"/></svg>`;
   };
 
-  // A canvas-size option as a 26px 'icon': a rectangle at the format's own
-  // aspect ratio (dashed = Custom). Loom / Membrane / Vortex / FVS canvas
+  // A canvas-size option as a square 'icon' (40-unit box): a rectangle at the format's own
+  // aspect ratio, letterboxed in the square (dashed = Custom). Loom / Membrane / Vortex / FVS canvas
   // presets — "1:1 vs 9:16" at a glance, which the name alone makes you
   // decode.
   Organica.aspectIcon = function (w, h, opts) {
     opts = opts || {};
-    const max = 18, k = max / Math.max(w || 1, h || 1);
-    const rw = Math.max(3, (w || 1) * k), rh = Math.max(3, (h || 1) * k);
-    const x = (26 - rw) / 2, y = (26 - rh) / 2, f = v => Math.round(v * 10) / 10;
-    return `<svg viewBox="0 0 26 26" fill="currentColor" stroke="currentColor" stroke-width="1.2">` +
+    const max = 28, k = max / Math.max(w || 1, h || 1);
+    const rw = Math.max(4, (w || 1) * k), rh = Math.max(4, (h || 1) * k);
+    const x = (40 - rw) / 2, y = (40 - rh) / 2, f = v => Math.round(v * 10) / 10;
+    return `<svg viewBox="0 0 40 40" fill="currentColor" stroke="currentColor" stroke-width="1.6">` +
       `<rect x="${f(x)}" y="${f(y)}" width="${f(rw)}" height="${f(rh)}" rx="1" fill-opacity="0.12"${opts.dashed ? ' stroke-dasharray="2 1.6"' : ''}/></svg>`;
+  };
+
+  // Centre-crop a rendered thumbnail canvas to a square PNG data URL (80px
+  // by default = 2× the 40px menu slot). Picker thumbnails are all square;
+  // image tools keep rendering their 3:2 test field (so stipple/dither density
+  // stays calibrated) and crop it here. A canvas already square is just scaled.
+  Organica.squareThumb = function (src, size) {
+    size = size || 80;
+    const s = Math.min(src.width, src.height);
+    const c = document.createElement('canvas'); c.width = c.height = size;
+    c.getContext('2d').drawImage(src, (src.width - s) / 2, (src.height - s) / 2, s, s, 0, 0, size, size);
+    return c.toDataURL('image/png');
   };
 
   // THE standard test subject for image-effect presets (Halide, Pollen,

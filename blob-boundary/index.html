@@ -399,15 +399,15 @@
     buildTimeline();
   }
   // ── Preset picker — preview thumbnails (Organica.selectPicker): the preset's
-  //    three mask shapes as a strip of three frames, each one frame of the
+  //    middle mask shape as one square frame — one frame of the
   //    tool's own logic — the same seeded lattice as buildLattice(), the same
   //    SHAPES geometry, the same straddle test as classify() (Path2D hit-test
   //    on the same path instead of isPointInFill), in the preset's colours. ──
   const hit = document.createElement('canvas').getContext('2d');
   function presetThumb(s) {
-    const c = document.createElement('canvas'); c.width = 120; c.height = 80;
+    const c = document.createElement('canvas'); c.width = 80; c.height = 80;
     const g = c.getContext('2d');
-    g.fillStyle = s.bg; g.fillRect(0, 0, 120, 80);
+    g.fillStyle = s.bg; g.fillRect(0, 0, 80, 80);
     const spacing = +s.spacing, baseR = +s.radius, jitter = +s.jitter;
     const band = +s.band, edgeScale = +s.scale, samples = Math.max(1, +s.samples);
     let seed = 7;
@@ -417,10 +417,10 @@
       const jx = (rand() - 0.5) * spacing * jitter, jy = (rand() - 0.5) * spacing * jitter;
       pts.push([x + jx, y + jy]);
     }
-    [s.shape1, s.shape2, s.shape3].filter(k => SHAPES[k]).forEach((key, k) => {
-      const path = new Path2D(SHAPES[key].d()), sc = 40 / W, ox = k * 40, oy = 20;
+    [s.shape2, s.shape1, s.shape3].filter(k => SHAPES[k]).slice(0, 1).forEach((key) => {
+      const path = new Path2D(SHAPES[key].d()), sc = 80 / W, ox = 0, oy = 0;
       g.save();
-      g.beginPath(); g.rect(ox, oy, 40, 40); g.clip();
+      g.beginPath(); g.rect(ox, oy, 80, 80); g.clip();
       g.translate(ox, oy); g.scale(sc, sc);
       g.fillStyle = s.mask; g.fill(path);
       g.fillStyle = s.dot;

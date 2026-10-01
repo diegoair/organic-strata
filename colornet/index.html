@@ -2540,7 +2540,7 @@ function presetThumb(p) {
     S.channels = result.channels;
     (p.channels || []).forEach((sc, i) => { const ch = S.channels[i]; if (ch) applyChannelPreset(ch, sc); });
     const c = renderToCanvas(buildPlan(120 / S.W));
-    return c.toDataURL();
+    return Organica.squareThumb(c);
   } finally {
     THUMB_KEYS.forEach(k => { S[k] = saved[k]; });
   }

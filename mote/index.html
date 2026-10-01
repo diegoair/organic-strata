@@ -1235,7 +1235,7 @@ async function renderThumb(P, W, H) {
   const saved = curField; curField = field;
   paintPoints(c.getContext('2d'), pts, presetToParams(P), W, H, { unit: 1, bg: P.bg || '#f4f1e8' });
   curField = saved;
-  return c.toDataURL('image/png');
+  return Organica.squareThumb(c);
 }
 // ── Preset picker — the shared thumbnail dropdown (Organica.selectPicker,
 //    size 'preview'): each preset stippled by renderThumb above, rendered

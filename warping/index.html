@@ -661,7 +661,7 @@ function presetThumb(p) {
   const P = buildParams(p), W = 120, H = 80;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   c.getContext('2d').putImageData(fieldToImageData(computeField(W, H, P, true), P, W, H), 0, 0);
-  return c.toDataURL();
+  return Organica.squareThumb(c);
 }
 const presetRegistry = {};
 let presetPicker = null;

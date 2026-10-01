@@ -730,8 +730,8 @@ function userPresets() { return PRESETS.read(); }
 function paletteThumb(colors) {
   const cs = (colors || []).filter(Boolean);
   if (!cs.length) return '';
-  const w = 60 / cs.length;
-  return '<svg viewBox="0 0 60 40" preserveAspectRatio="none">' +
+  const w = 40 / cs.length;
+  return '<svg viewBox="0 0 40 40" preserveAspectRatio="none">' +
     cs.map((c, i) => `<rect x="${(i * w).toFixed(2)}" y="0" width="${(w + 0.05).toFixed(2)}" height="40" fill="${String(c).replace(/[^#\w(),.% ]/g, '')}"/>`).join('') + '</svg>';
 }
 const presetRegistry = {};

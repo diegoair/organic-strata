@@ -602,11 +602,10 @@ let currentPresetName = null;
 //    field centred on its own paper. Lazy + cached by the picker. ──
 function presetThumb(p) {
   const P = buildParams(Object.assign({}, BUILTIN_PRESETS['Broken Ring'], p));
-  const c = document.createElement('canvas'); c.width = 120; c.height = 80;
+  const c = document.createElement('canvas'); c.width = 80; c.height = 80;
   const g = c.getContext('2d');
-  g.fillStyle = P.paper; g.fillRect(0, 0, 120, 80);
-  g.translate(20, 0);
-  drawSceneCanvas(g, buildScene(P, SIZE, SIZE), P, 80 / SIZE, 1.2);   // 1.2 canvas px = ~0.6 css px at the 60×40 display
+  g.fillStyle = P.paper; g.fillRect(0, 0, 80, 80);
+  drawSceneCanvas(g, buildScene(P, SIZE, SIZE), P, 80 / SIZE, 1.2);   // the square field fills the square slot; 1.2 canvas px = ~0.6 css px at 40px
   return c.toDataURL();
 }
 const presetRegistry = {};

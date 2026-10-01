@@ -589,7 +589,7 @@ function presetThumb(p) {
   g.fillStyle = p.paper || '#ffffff'; g.fillRect(0, 0, W, H);
   g.fillStyle = p.ink || '#0a0a0a';
   for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) if (cells[y * cw + x]) g.fillRect(x * k, y * k, k + 0.02, k + 0.02);
-  return c.toDataURL();
+  return Organica.squareThumb(c);
 }
 const presetRegistry = {};
 let presetPicker = null;

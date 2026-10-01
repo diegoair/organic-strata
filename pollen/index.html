@@ -899,7 +899,7 @@ async function presetThumb(s) {
   fieldB = field.data; fieldW = W0; fieldH = H0;
   try { paintPoints(c.getContext('2d'), pts, P, W, H, ck('ck-aa'), P.ink, P.bg, W / W0); }
   finally { [fieldB, fieldW, fieldH] = saved; }
-  return c.toDataURL();
+  return Organica.squareThumb(c);
 }
 const presetRegistry = {};
 let presetPicker = null;
