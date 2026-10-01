@@ -12,6 +12,29 @@ to the eye.
 
 ---
 
+## 0. The library (home)
+
+`/tunesutra/` opens on the palette library: every palette as a card.
+
+- **Your palettes** — everything you have saved, newest first, plus a
+  **New palette** card.
+- **Built-in collections** (`tunesutra/collections.js`, data) — read-only. Opening
+  one loads a *copy* into the editor; **Save** keeps it with your own palettes.
+  Today: *Garment studies — violet*, 12 three-colour studies transcribed from a
+  photographed book page (colours in role order: body, hem, collar).
+- A card shows the palette in proportion, or on the garment when the palette was
+  saved in the Garment view.
+
+The address says where you are: no hash = the library, `#new`, `#p=<name>` (a
+saved palette), `#c=<collection>/<id>` (a copy of a built-in). **← All
+palettes** in the panel goes back; with unsaved changes it asks for a second
+click. Saving again under the same name overwrites; deleting the palette on
+screen returns to the library.
+
+To add a collection from another page of the book: send the photo — the values
+are read from the printed RGB numbers and added to `collections.js`. There is no
+in-app photo reader.
+
 ## 1. The palette
 
 - **Colours** 3–7. Each colour is an item `{ id, name, hex, lock }`. The `id` is

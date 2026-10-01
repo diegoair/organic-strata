@@ -49,6 +49,34 @@
   .bar-seg:focus-visible { outline: 2px solid var(--tool); outline-offset: -2px; }
   #stage-svg text { pointer-events: none; }
 
+  /* ── HOME — the palette library: every saved palette and built-in
+     collection as a card. The page opens here; a card opens the editor. ── */
+  #home {
+    flex: 1;
+    overflow: auto;
+    background: var(--canvas-grid), var(--canvas-bg);
+    padding: var(--space-8);
+  }
+  .ts-group { margin-bottom: var(--space-8); }
+  .ts-group__title { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: var(--w-medium); margin-bottom: var(--space-2); }
+  .ts-group__note { font-size: var(--fs-small); color: var(--mid); margin-bottom: var(--space-5); }
+  .ts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-8) * 5), 1fr)); gap: var(--space-5); }
+  .ts-card {
+    display: flex; flex-direction: column; overflow: hidden;
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
+    background: var(--panel); color: var(--ink); text-decoration: none;
+  }
+  .ts-card:hover { border-color: var(--ink); }
+  .ts-card:focus-visible { outline: 2px solid var(--tool); outline-offset: 2px; }
+  /* The art is the palette itself — content, so it stays on light paper in dark mode. */
+  .ts-card__art { display: flex; aspect-ratio: 1 / 1; background: var(--paper); }
+  .ts-card__art svg { width: 100%; height: 100%; }
+  .ts-card__label { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3) var(--space-4); }
+  .ts-card__name { font-family: var(--font-display); font-size: var(--fs-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ts-card__meta { font-size: var(--fs-micro); color: var(--mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ts-card--new { border-style: dashed; background: none; }
+  .ts-card--new .ts-card__art { background: none; align-items: center; justify-content: center; font-size: var(--fs-xl); color: var(--mid); }
+
   /* ── PANEL — colour field groups not covered by panel.css ── */
   .field-group { display: flex; gap: var(--space-2); margin-bottom: var(--space-3); }
   .field-mini { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -89,12 +117,18 @@
   <div class="org-header__spacer"></div>
 </header>
 
+<main id="home" style="display:none" aria-label="Palettes"></main>
+
 <div id="app">
   <div id="stage-wrap">
     <svg id="stage-svg" data-theme="light" viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>
 
   <div id="panel" class="org-panel">
+    <div class="panel-section">
+      <button class="mini-btn" id="btn-home">← All palettes</button>
+      <p class="org-panel__hint" id="palette-title"></p>
+    </div>
     <div class="panel-section">
       <h3>Palette</h3>
       <div class="ctrl-row">
@@ -355,6 +389,7 @@
 <script src="/shared/palette.js"></script>
 <script src="/shared/select-picker.js"></script>
 <script src="/shared/plate-export.js"></script>
+<script src="/tunesutra/collections.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────
 // TuneSutra — colour-harmony palette generator.
@@ -527,6 +562,7 @@ function pushUndo(kind) {
   if (burst) return;
   undoStack.push(snapshot());
   if (undoStack.length > 60) undoStack.shift();
+  if (!dirty) { dirty = true; refreshTitle(); }
   syncUndo();
 }
 function undo() {
@@ -1431,11 +1467,7 @@ function populatePresets(select) {
 }
 // A preset saved before names / ids / locks existed has only { n, harmony,
 // colors } — it loads with the default role names and fresh ids.
-function applyPreset(name) {
-  if (!name) return;
-  const p = userPresets()[name];
-  if (!p || !p.colors || p.colors.length < 3) return;
-  pushUndo('preset');
+function loadPaletteData(p) {
   state.items = p.colors.slice(0, 7).map((hex, i) => ({
     id: (p.ids && p.ids[i]) || newId(),
     name: (p.names && p.names[i]) || roleName(i),
@@ -1445,16 +1477,26 @@ function applyPreset(name) {
   state.harmony = p.harmony || 'analogous';
   state.spread = p.spread || 0;
   state.activeIndex = 0;
+  state.view = p.view === 'garment' && state.items.length === 3 ? 'garment' : 'bar';
   // A palette saved before gradients existed gets one between its first two colours.
   state.grad = Object.assign(JSON.parse(GRAD_DEFAULT), p.gradient || { stops: colors().slice(0, 2) });
   state.sys = Object.assign(JSON.parse(SYS_DEFAULT), p.system || {}, { preview: state.sys.preview });
+}
+// The panel's own preset picker: swap to another saved palette in place.
+function applyPreset(name) {
+  if (!name) return;
+  const p = userPresets()[name];
+  if (!p || !p.colors || p.colors.length < 3) return;
+  pushUndo('preset');
+  loadPaletteData(p);
+  setCurrent(name, '');
   syncControls();
   commit(true);
 }
 function beginSavePreset() {
   ctrl('preset-save-row').style.display = 'flex';
   ctrl('preset-save-actions').style.display = 'flex';
-  ctrl('txt-preset-name').value = '';
+  ctrl('txt-preset-name').value = currentName || suggestedName;   // saving again under the same name overwrites it
   ctrl('txt-preset-name').focus();
 }
 function cancelSavePreset() {
@@ -1475,9 +1517,11 @@ function confirmSavePreset() {
     locks: state.items.map(it => !!it.lock),
     gradient: JSON.parse(JSON.stringify(state.grad)),
     system: Object.assign(JSON.parse(JSON.stringify(state.sys)), { preview: false }),
+    view: isGarmentView() ? 'garment' : 'bar',
     savedAt: new Date().toISOString(),
   };
   PRESETS.write(all);
+  setCurrent(name, '');
   populatePresets(name);
   cancelSavePreset();
 }
@@ -1488,6 +1532,89 @@ function deletePreset() {
   delete all[name];
   PRESETS.write(all);
   populatePresets();
+  if (name === currentName) { dirty = false; location.hash = ''; }   // the palette on screen is gone — back to the library
+}
+
+// ── HOME + ROUTING ──
+// The page has two faces: the library (every palette as a card) and the
+// editor (one palette). The hash says which:
+//   (none)        the library
+//   #new          the editor on a fresh palette
+//   #p=<name>     the editor on a saved palette
+//   #c=<col>/<id> the editor on a COPY of a built-in palette (Save keeps it)
+let currentName = '', suggestedName = '', dirty = false;
+function setCurrent(name, suggest) {
+  currentName = name; suggestedName = suggest; dirty = false;
+  if (name) history.replaceState(null, '', '#p=' + encodeURIComponent(name));
+  refreshTitle();
+}
+function refreshTitle() {
+  ctrl('palette-title').textContent = currentName ? currentName + (dirty ? ' — unsaved changes' : '')
+    : (suggestedName ? suggestedName + ' — a copy, not saved yet' : 'New palette — not saved yet');
+  ctrl('btn-home').textContent = '← All palettes';
+}
+function paletteArt(p) {
+  const cols = (p.colors || []).map(c => Organica.normalizeHex(c, '#888888'));
+  if (p.view === 'garment' && cols.length === 3) {
+    return `<svg viewBox="-70 -40 ${GARMENT_LOCAL_W + 140} ${GARMENT_LOCAL_H + 80}" aria-hidden="true">` +
+      GARMENT_ZONES.map(z => `<path d="${z.d}" fill="${cols[z.role]}"/>`).join('') + '</svg>';
+  }
+  const w = roleWeights(cols.length);
+  return cols.map((c, i) => `<span style="flex:${w[i].toFixed(2)};background:${c}"></span>`).join('');
+}
+function cardHTML(href, name, p) {
+  return `<a class="ts-card" href="${href}"><span class="ts-card__art" data-theme="light">${paletteArt(p)}</span>` +
+    `<span class="ts-card__label"><span class="ts-card__name">${esc(name)}</span><span class="ts-card__meta">${esc(p.colors.join(' '))}</span></span></a>`;
+}
+function renderHome() {
+  const all = userPresets();
+  const mine = Object.keys(all).filter(n => all[n] && Array.isArray(all[n].colors) && all[n].colors.length >= 3)
+    .sort((a, b) => String(all[b].savedAt || '').localeCompare(String(all[a].savedAt || '')));
+  let html = '<section class="ts-group"><h2 class="ts-group__title">Your palettes</h2>' +
+    `<p class="ts-group__note">${mine.length ? mine.length + (mine.length === 1 ? ' palette' : ' palettes') + ', newest first.' : 'None yet. Start a new one, or open a built-in palette and save your own copy.'}</p><div class="ts-grid">` +
+    '<a class="ts-card ts-card--new" href="#new"><span class="ts-card__art" aria-hidden="true">+</span><span class="ts-card__label"><span class="ts-card__name">New palette</span><span class="ts-card__meta">start from three colours</span></span></a>' +
+    mine.map(n => cardHTML('#p=' + encodeURIComponent(n), n, all[n])).join('') + '</div></section>';
+  (window.TUNESUTRA_COLLECTIONS || []).forEach(col => {
+    html += `<section class="ts-group"><h2 class="ts-group__title">${esc(col.name)}</h2><p class="ts-group__note">${esc(col.note || '')}</p><div class="ts-grid">` +
+      col.palettes.map(pal => cardHTML('#c=' + encodeURIComponent(col.id + '/' + pal.id), pal.name, { colors: pal.colors, view: col.view })).join('') + '</div></section>';
+  });
+  ctrl('home').innerHTML = html;
+}
+function showHome(home) {
+  ctrl('home').style.display = home ? '' : 'none';
+  ctrl('app').style.display = home ? 'none' : '';
+  document.querySelector('.org-floatbar').style.display = home ? 'none' : '';
+}
+function route() {
+  let h = '';
+  try { h = decodeURIComponent(location.hash.slice(1)); } catch (e) { h = ''; }
+  let p = null, name = '', suggest = '';
+  if (h === 'new') p = { colors: ['#c93ed6', '#c9863e', '#3ec9a8'] };
+  else if (h.indexOf('p=') === 0) { name = h.slice(2); p = userPresets()[name]; }
+  else if (h.indexOf('c=') === 0) {
+    const parts = h.slice(2).split('/'), col = (window.TUNESUTRA_COLLECTIONS || []).find(c => c.id === parts[0]);
+    const pal = col && col.palettes.find(x => x.id === parts[1]);
+    if (pal) { p = { colors: pal.colors, names: pal.names, view: col.view }; suggest = pal.name; }
+  }
+  if (!p || !Array.isArray(p.colors) || p.colors.length < 3) { showHome(true); renderHome(); return; }
+  loadPaletteData(p);
+  undoStack.length = 0;
+  lastUndo = { kind: '', t: 0 };
+  currentName = name; suggestedName = suggest; dirty = false;
+  showHome(false);
+  ctrl('panel').scrollTop = 0;
+  ctrl('stage-wrap').scrollTop = 0;
+  syncControls();
+  populatePresets(name);
+  commit(true);
+  refreshTitle();
+}
+// Leaving with unsaved changes takes two clicks: the first one says so.
+let leaveArmed = 0;
+function goHome() {
+  if (dirty && Date.now() - leaveArmed > 4000) { leaveArmed = Date.now(); ctrl('btn-home').textContent = 'Unsaved changes — click again to leave'; return; }
+  dirty = false;
+  location.hash = '';
 }
 
 // ── INIT ──
@@ -1544,16 +1671,22 @@ ctrl('btn-preset-confirm').addEventListener('click', confirmSavePreset);
 ctrl('btn-preset-cancel').addEventListener('click', cancelSavePreset);
 ctrl('txt-preset-name').addEventListener('keydown', e => { if (e.key === 'Enter') confirmSavePreset(); if (e.key === 'Escape') cancelSavePreset(); });
 
+ctrl('btn-home').addEventListener('click', goHome);
+window.addEventListener('hashchange', route);
 syncControls();
 commit(false);
 populatePresets();
+route();
 Organica.autoLabelPanel(document);
 
 // Cloud sync (shared/store.js): auth.js auto-gates the page; here we just
 // hydrate presets from Supabase and re-render the list whenever a pull /
 // background flush lands.
-PRESETS.pull().then(() => populatePresets());
-PRESETS.onSync(() => populatePresets());
+// A palette opened by link may not be in this device's cache yet: once the
+// pull lands, try the route again if we fell back to the library.
+const onLibrary = () => ctrl('home').style.display !== 'none';
+PRESETS.pull().then(() => { populatePresets(currentName); if (onLibrary()) route(); });
+PRESETS.onSync(() => { populatePresets(currentName); if (onLibrary()) renderHome(); });
 </script>
 <script src="/shared/tools.js"></script>
 <script src="/shared/menu-icon.js"></script>
