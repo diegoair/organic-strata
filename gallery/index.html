@@ -22,8 +22,6 @@
     border-top: 1px solid var(--ink); padding-top: var(--space-5); margin-bottom: var(--space-6);
   }
   .g-title { font-family: var(--font-display); font-size: var(--t-h1-size); font-weight: var(--t-h1-weight); line-height: var(--t-h1-lh); letter-spacing: var(--t-h1-ls); margin: 0; }
-  .g-head--sub { margin-top: var(--space-9, var(--space-8)); }
-  .g-title--sub { font-size: var(--t-h2-size, var(--fs-large)); font-weight: var(--t-h2-weight, var(--w-medium)); }
   .g-lede { max-width: 62ch; margin: 0 0 var(--space-7); font-size: var(--fs-medium); line-height: var(--lh-snug, 1.45); }
   .g-flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); margin: 0 0 var(--space-8); padding: 0; list-style: none; }
   .g-flow li { border-top: 1px solid var(--border-strong); padding-top: var(--space-3); font-size: var(--fs-small); color: var(--mid); }
@@ -83,12 +81,6 @@
   </ul>
 
   <div class="g-grid" id="grid" data-theme="light"><!-- the work stays light in dark mode --></div>
-
-  <div class="g-head g-head--sub">
-    <h2 class="g-title g-title--sub">Which one felt 3D?</h2>
-  </div>
-  <p class="g-lede">The same Warping exports, moved by the presets whose motion reads as depth: folded drapery, a breathing relief, rings lifting off the surface. Tell me the number you remember.</p>
-  <div class="g-grid" id="grid2" data-theme="light"></div>
 </main>
 
 <script>window.ORGANICA_PUBLIC = true; /* like the hub: open to signed-out visitors; the tools stay gated */</script>
@@ -122,16 +114,9 @@
     { src: 'komorebi-palm',   from: 'Komorebi', tool: 'Dapple',   href: '/dapple/',   preset: 'Flicker', kind: 'bands', expect: 'komorebi', params: DP.Flicker },
     { src: 'halide-bayer',    from: 'Halide',   tool: 'Murmur',   href: '/murmur/',   preset: 'Tide',    kind: 'marks', params: TIDE },
     { src: 'warping-cells',   from: 'Warping',  tool: 'Undertow', href: '/undertow/', preset: 'Strata',  kind: 'bands', expect: 'warping', params: UP.Strata },
-    // — the depth candidates (second grid) —
-    { grid: 2, src: 'warping-wood',   from: 'Warping', tool: 'Undertow', href: '/undertow/', preset: 'Marble', kind: 'bands', expect: 'warping', params: UP.Marble },
-    { grid: 2, src: 'warping-wood',   from: 'Warping', tool: 'Undertow', href: '/undertow/', preset: 'Tide',   kind: 'bands', expect: 'warping', params: UP.Tide },
-    { grid: 2, src: 'warping-wood',   from: 'Warping', tool: 'Undertow', href: '/undertow/', preset: 'Ripple', kind: 'bands', expect: 'warping', params: UP.Ripple },
-    { grid: 2, src: 'warping-marble', from: 'Warping', tool: 'Undertow', href: '/undertow/', preset: 'Strata', kind: 'bands', expect: 'warping', params: UP.Strata },
-    { grid: 2, src: 'warping-marble', from: 'Warping', tool: 'Undertow', href: '/undertow/', preset: 'Tide',   kind: 'bands', expect: 'warping', params: UP.Tide },
-    { grid: 2, src: 'warping-cells',  from: 'Warping', tool: 'Undertow', href: '/undertow/', preset: 'Marble', kind: 'bands', expect: 'warping', params: UP.Marble },
   ];
 
-  var grids = { 1: document.getElementById('grid'), 2: document.getElementById('grid2') };
+  var grid = document.getElementById('grid');
   var playing = !still;
 
   // ── build the tiles (empty until they scroll near) ──
@@ -150,7 +135,7 @@
     a.appendChild(t.state);
     t.el = a; t.clock = 0; t.ready = false; t.visible = false; t.started = false;
     t.pointer = { x: -1e4, y: -1e4, down: false };
-    grids[t.grid || 1].appendChild(a);
+    grid.appendChild(a);
   });
 
   // ── load one tile: fetch the sample export, parse it with the tool's own parser, create the engine ──
@@ -182,7 +167,7 @@
     if (t.canvas.width !== w || t.canvas.height !== h) { t.canvas.width = w; t.canvas.height = h; }
   }
   new ResizeObserver(function (es) { es.forEach(function (e) { TILES.forEach(function (t) { if (t.el === e.target && t.ready) { size(t); paint(t); } }); }); })
-    .observe(grids[1]);
+    .observe(grid);
   TILES.forEach(function (t) { new ResizeObserver(function () { if (t.ready) { size(t); paint(t); } }).observe(t.el); });
 
   function paint(t) {
