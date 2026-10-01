@@ -105,11 +105,44 @@ Built-in: **Riso standard inks (approx.)** — 21 inks. The hex values are scree
 approximations of real inks (public riso-colors list); check them against your
 printer's own chart before relying on them.
 
-## 6. Not built yet
+## 6. System — the interface's own colours
+
+The **System** view proposes Organica's chrome tokens from the palette and shows
+them beside today's. It writes nothing: the result is a file to review.
+
+- **Neutral** — which colour's hue tints the greys (panel, borders, labels), or
+  *Today's warm grey*. **Tint** 0–100: 50 = today's amount, 0 = pure grey.
+- **Canvas dot** — the hue of the dot grid behind the sheet.
+- The ten existing roles are derived for **light and dark** (`--ink`, `--paper`,
+  `--mid`, `--accent`, `--accent-hover`, `--panel`, `--border`,
+  `--border-strong`, `--danger`, `--canvas-dot`) at today's own lightness
+  levels; text and boundary roles are then pushed until they clear the rule
+  (text ≥ 4.5:1, boundaries ≥ 3:1, on both `--paper` and `--panel`). Light
+  `--paper` stays `#ffffff` (it is also the sheet). No new token names.
+  With *Today's warm grey* at Tint 50 the proposal is today's palette (every
+  role within ΔE 0.7).
+- **Tool accents** — every tool page's own `--tool`, read live. *Keep hues*
+  gives them all one **Lightness** and **Chroma** and keeps each hue; *Even hues*
+  also spaces the hues evenly, in today's order. The sheet lists each accent's
+  contrast on light and on dark paper; `*` marks one that is under 3:1 today
+  (six were on Oct 1, 2026: Flexible Visual System, Pollen, Komorebi, Living
+  Path, Apostate, Dapple).
+- **Preview on this page** applies the proposal to TuneSutra's own interface, in
+  whichever theme is on. Not saved; no other page changes. The sheet stays light.
+- **Export → System proposal → CSS** gives the two theme rules for
+  `shared/tokens.css` (each changed value with its old one in a comment) and a
+  commented list of `--tool` per tool. **JSON** gives the same as tokens.
+
+To adopt a proposal: paste the values over the same properties in the THEMES
+rules of `shared/tokens.css`, mirror them in `shared/tokens.json`, set each
+tool's `--tool`, then run `/design-system/_dark-audit.html` on every page.
+
+## 7. Not built yet
 
 - A real physical size / DPI for the gradient (the shared Screen/Print size
   panel) and registration marks on plates.
-- Interface colours (`shared/tokens.css`) generated from a palette.
+- Applying a System proposal automatically (it is a manual, reviewed paste), and
+  the derived tokens outside the ten roles (`--accent-warm`, `--stage-shadow`).
 - Screen-print ink sets beyond Riso; a free-text ink reference per colour.
 - The colour inputs of FVS variant rows, Colornet channel cards and Camo Turing
   layer cards are still bare system pickers, without the palette button.

@@ -108,11 +108,18 @@
         </div>
       </div>
       <div class="sub-label">View</div>
-      <div class="ctrl-row">
-        <div class="seg-ctrl" id="seg-view" role="group" aria-label="View">
-          <button class="seg-btn active" data-v="bar">Bar</button>
-          <button class="seg-btn" data-v="garment" id="btn-view-garment" title="Available at 3 colours">Garment</button>
-          <button class="seg-btn" data-v="gradient">Gradient</button>
+      <div id="seg-view" role="group" aria-label="View">
+        <div class="ctrl-row">
+          <div class="seg-ctrl">
+            <button class="seg-btn active" data-v="bar">Bar</button>
+            <button class="seg-btn" data-v="garment" id="btn-view-garment" title="Available at 3 colours">Garment</button>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <div class="seg-ctrl">
+            <button class="seg-btn" data-v="gradient">Gradient</button>
+            <button class="seg-btn" data-v="system" title="The interface's own colours, derived from this palette">System</button>
+          </div>
         </div>
       </div>
       <div class="ctrl-row">
@@ -234,6 +241,45 @@
     </div>
 
     <div class="panel-section">
+      <h3>System</h3>
+      <p class="org-panel__hint">A proposal for Organica's own interface colours, shown beside today's. Nothing changes until the exported file is reviewed and pasted into the tokens.</p>
+      <div class="ctrl-row">
+        <span class="ctrl-label" title="Which colour's hue tints the greys: panel, borders, labels.">Neutral</span>
+        <select class="panel-select" id="sel-sys-neutral" aria-label="Neutral hue from"></select>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="How much of that hue the greys carry. 50 = today's amount, 0 = pure grey.">Tint</div>
+        <input type="range" id="rg-sys-tint" min="0" max="100" step="1" value="50">
+        <span class="ctrl-val" id="v-sys-tint">50</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label" title="The hue of the dot grid behind the sheet.">Canvas dot</span>
+        <select class="panel-select" id="sel-sys-dot" aria-label="Canvas dot hue from"></select>
+      </div>
+      <div class="sub-label">Tool accents</div>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-sys-mode" role="group" aria-label="Tool accent hues">
+          <button class="seg-btn active" data-v="keep" title="Each tool keeps its own hue; lightness and chroma become the same">Keep hues</button>
+          <button class="seg-btn" data-v="even" title="Hues are also spaced evenly round the wheel, in today's order">Even hues</button>
+        </div>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Lightness</div>
+        <input type="range" id="rg-sys-accl" min="45" max="75" step="1" value="60">
+        <span class="ctrl-val" id="v-sys-accl">60</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Chroma</div>
+        <input type="range" id="rg-sys-accc" min="4" max="22" step="1" value="13">
+        <span class="ctrl-val" id="v-sys-accc">13</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Shows the proposal on this page's own interface, in whichever theme is on. Not saved, and no other page is affected.">Preview on this page</div>
+        <input type="checkbox" id="ck-sys-preview">
+      </div>
+    </div>
+
+    <div class="panel-section">
       <h3>Scale</h3>
       <p class="org-panel__hint">Ten steps per colour, 0–900. Each step is the same perceived lightness in every row, so rows are interchangeable. Your colour sits unchanged on its nearest step (outlined).</p>
     </div>
@@ -280,6 +326,11 @@
         <button class="org-btn" id="btn-export-grad-png">PNG</button>
         <button class="org-btn" id="btn-export-grad-svg">SVG</button>
         <button class="org-btn" id="btn-export-plates" title="One SVG per ink, black on transparent. Print output only.">Plates</button>
+      </div>
+      <div class="org-popover__title">System proposal</div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-export-sys-css" title="The two theme rules for shared/tokens.css + one --tool per tool">CSS</button>
+        <button class="org-btn" id="btn-export-sys-json">JSON</button>
       </div>
       <div class="org-popover__divider"></div>
       <div class="org-popover__row">
@@ -361,6 +412,16 @@ const state = {
     size: 3,          // grain / cell size in sheet units
     pattern: 'noise', // print threshold: 'noise' (stochastic) | 'ordered' (Bayer 8×8)
     seed: 1,
+  },
+  // The System view: how the interface's own tokens are derived from this palette.
+  sys: {
+    neutral: 'today', // a colour id (its hue tints the greys) | 'today' = the current warm grey
+    tint: 50,         // 0–100; 50 = today's amount of tint
+    dot: 'today',     // a colour id for the canvas dot grid | 'today' = the current cyan
+    mode: 'keep',     // tool accents: 'keep' each tool's hue | 'even' re-space them round the wheel
+    accL: 60,         // tool-accent lightness (OKLCH L ×100)
+    accC: 13,         // tool-accent chroma (OKLCH C ×100)
+    preview: false,   // apply the proposal to this page only — never saved
   },
 };
 
@@ -457,11 +518,11 @@ function applyHarmony() {
 const undoStack = [];
 let lastUndo = { kind: '', t: 0 };
 function snapshot() {
-  return JSON.stringify({ items: state.items, harmony: state.harmony, spread: state.spread, view: state.view, activeIndex: state.activeIndex, grad: state.grad });
+  return JSON.stringify({ items: state.items, harmony: state.harmony, spread: state.spread, view: state.view, activeIndex: state.activeIndex, grad: state.grad, sys: state.sys });
 }
 function pushUndo(kind) {
   const now = Date.now();
-  const burst = (kind === 'edit' || kind === 'name' || kind === 'spread' || kind === 'grad') && lastUndo.kind === kind && now - lastUndo.t < 1200;
+  const burst = (kind === 'edit' || kind === 'name' || kind === 'spread' || kind === 'grad' || kind === 'sys') && lastUndo.kind === kind && now - lastUndo.t < 1200;
   lastUndo = { kind: kind, t: now };
   if (burst) return;
   undoStack.push(snapshot());
@@ -471,7 +532,9 @@ function pushUndo(kind) {
 function undo() {
   const s = undoStack.pop();
   if (!s) return;
+  const preview = state.sys.preview;   // a view setting, not a change to undo
   Object.assign(state, JSON.parse(s));
+  state.sys.preview = preview;
   lastUndo = { kind: '', t: 0 };
   syncControls();
   commit(true);
@@ -523,8 +586,10 @@ function commit(rebuildChips) {
   syncCountSeg();
   syncViewSeg();
   refreshFieldEditor();
+  syncSysControls();
   renderStage();
   refreshHints();
+  applySysPreview();
   syncUndo();
 }
 function syncControls() {
@@ -856,6 +921,237 @@ function gradCSS() {
 }
 
 
+// ── SYSTEM — the interface's own colours, derived from this palette ──
+// A PROPOSAL, shown beside today's values. Nothing here is loaded by any page:
+// the output is a file to review and paste into shared/tokens.css (and one
+// --tool per tool page). The chrome must paint before any store or network,
+// and a saved palette must never be able to break the interface.
+//
+// Roles are the existing ones — no new token names. Lightness targets are
+// today's own (measured in OKLCH), so with Neutral = "Today's warm grey" and
+// Tint 50 the proposal lands on today's palette; the text and boundary roles
+// are then pushed until they clear the contrast rule (text ≥ 4.5:1,
+// boundaries ≥ 3:1, on both --paper and --panel).
+const SYS_ROLES = ['ink', 'paper', 'mid', 'accent', 'accent-hover', 'panel', 'border', 'border-strong', 'danger', 'canvas-dot'];
+const SYS_RULE = { ink: 4.5, mid: 4.5, accent: 4.5, danger: 4.5, 'border-strong': 3 };   // role → required contrast; the rest are decorative
+const SYS_ACCENT_MIN = 3;   // a tool accent draws focus rings and active outlines: a boundary
+
+let sysProbes = null;
+function sysToday() {
+  if (!sysProbes) {
+    sysProbes = ['light', 'dark'].map(theme => {
+      const el = document.createElement('span');
+      el.setAttribute('data-theme', theme);
+      el.hidden = true;
+      document.body.appendChild(el);
+      return el;
+    });
+  }
+  const read = el => { const cs = getComputedStyle(el), o = {}; SYS_ROLES.forEach(r => { o[r] = Organica.normalizeHex(cs.getPropertyValue('--' + r).trim(), '#000000'); }); return o; };
+  return { light: read(sysProbes[0]), dark: read(sysProbes[1]) };
+}
+function sysHueOf(ref, fallbackHex) {
+  const it = state.items.find(x => x.id === ref);
+  return C.hexToOklch(it ? it.hex : fallbackHex).h;
+}
+// Walk lightness away from the surfaces until the contrast rule holds on all of them.
+function sysSolve(l, c, h, surfaces, target, dir) {
+  for (let i = 0; i < 70 && l > 0.02 && l < 0.98; i++, l += dir * 0.01) {
+    const hex = C.oklchToHex(l, c, h);
+    if (Math.min.apply(null, surfaces.map(s => C.contrast(hex, s))) >= target) return hex;
+  }
+  return C.oklchToHex(clamp(l, 0, 1), c, h);
+}
+function sysProposed() {
+  const s = state.sys, today = sysToday(), t = s.tint / 50;   // 1 = today's amount of tint
+  const nh = sysHueOf(s.neutral, today.light.panel), dh = sysHueOf(s.dot, today.light['canvas-dot']);
+  const n = (l, c) => C.oklchToHex(l, c * t, nh);
+  const light = { paper: '#ffffff', panel: n(0.937, 0.008), ink: n(0.145, 0.004), accent: n(0.285, 0.004), 'accent-hover': n(0.321, 0.004), border: n(0.835, 0.024) };
+  const lightS = [light.paper, light.panel];
+  light['border-strong'] = sysSolve(0.62, 0.052 * t, nh, lightS, 3, -1);
+  light.mid = sysSolve(0.50, 0.021 * t, nh, lightS, 4.5, -1);
+  light.danger = sysSolve(0.487, 0.141, 31, lightS, 4.5, -1);
+  light['canvas-dot'] = C.oklchToHex(0.871, 0.061, dh);
+  const dark = { paper: n(0.181, 0.004), panel: n(0.235, 0.008), ink: n(0.937, 0.008), accent: n(0.876, 0.010), 'accent-hover': n(0.784, 0.015), border: n(0.335, 0.013) };
+  const darkS = [dark.paper, dark.panel];
+  dark['border-strong'] = sysSolve(0.557, 0.033 * t, nh, darkS, 3, 1);
+  dark.mid = sysSolve(0.695, 0.019 * t, nh, darkS, 4.5, 1);
+  dark.danger = sysSolve(0.677, 0.140, 32, darkS, 4.5, 1);
+  dark['canvas-dot'] = C.oklchToHex(0.392, 0.038, dh);
+  return { light: light, dark: dark };
+}
+function sysWorst(hex, set) { return Math.min(C.contrast(hex, set.paper), C.contrast(hex, set.panel)); }
+
+// Tool accents: read each tool page's own --tool (same-origin fetch, once).
+let toolAccents = null, toolAccentsLoading = false;
+function loadToolAccents() {
+  if (toolAccents || toolAccentsLoading) return;
+  toolAccentsLoading = true;
+  const list = [];
+  (Organica.tools || []).forEach(g => g.items.forEach(it => list.push(it)));
+  if (Organica.toolsPipeline) list.push(Organica.toolsPipeline);
+  Promise.all(list.map(it => fetch(it[1]).then(r => r.ok ? r.text() : '').catch(() => '').then(html => {
+    const m = html.match(/--tool:\s*(#[0-9a-fA-F]{6})/);
+    return m ? { name: it[0], href: it[1], hex: m[1].toLowerCase() } : null;
+  }))).then(found => {
+    toolAccents = found.filter(Boolean);
+    toolAccentsLoading = false;
+    if (state.view === 'system') renderStage();
+    if (state.sys.preview) applySysPreview();
+  });
+}
+// keep: every tool keeps its own hue; only lightness and chroma are made the
+// same. even: hues are also re-spaced evenly round the wheel, in today's order.
+function sysAccents() {
+  if (!toolAccents) return [];
+  const s = state.sys, L = s.accL / 100, Cc = s.accC / 100;
+  const hues = toolAccents.map(a => C.hexToOklch(a.hex).h);
+  let target = hues;
+  if (s.mode === 'even') {
+    const order = hues.map((h, i) => i).sort((a, b) => hues[a] - hues[b]), step = 360 / hues.length;
+    target = hues.slice();
+    order.forEach((idx, k) => { target[idx] = (hues[order[0]] + k * step) % 360; });
+  }
+  return toolAccents.map((a, i) => Object.assign({ proposed: C.oklchToHex(L, Cc, target[i]) }, a));
+}
+
+// The System sheet: role table (light + dark, today beside proposed), a small
+// mock of the chrome in each theme, then the tool accents.
+function buildSystemScene(T) {
+  const items = [], today = sysToday(), prop = sysProposed();
+  const rect = (x, y, w, h, fill, extra) => items.push(Object.assign({ t: 'rect', x: x, y: y, w: w, h: h, fill: fill }, extra));
+  const text = (x, y, s, size, fill, anchor) => items.push({ t: 'text', x: x, y: y, s: String(s), size: size, fill: fill, anchor: anchor || 'start' });
+  const edge = { stroke: T.mid, sw: 0.5 };
+  const COLS = [{ key: 'light', x: 150, label: 'Light' }, { key: 'dark', x: 520, label: 'Dark' }];
+
+  text(BAR_X0, 36, 'Interface colours — today beside the proposal', 13, T.ink);
+  COLS.forEach(col => { text(col.x, 50, col.label, 11, T.ink); text(col.x, 63, 'today', 9, T.mid); text(col.x + 70, 63, 'proposed', 9, T.mid); });
+  SYS_ROLES.forEach((role, r) => {
+    const y = 70 + r * 30;
+    text(BAR_X0, y + 15, '--' + role, 11, T.ink);
+    COLS.forEach(col => {
+      const was = today[col.key][role], now = prop[col.key][role], rule = SYS_RULE[role];
+      rect(col.x, y, 62, 22, was, Object.assign({ title: `--${role} today ${was}` }, edge));
+      rect(col.x + 70, y, 62, 22, now, Object.assign({ title: `--${role} proposed ${now}` }, edge));
+      text(col.x + 142, y + 10, now + (now === was ? ' · same' : ''), 10, T.ink);
+      if (rule) {
+        const a = sysWorst(was, today[col.key]), b = sysWorst(now, prop[col.key]);
+        text(col.x + 142, y + 21, `${a.toFixed(1)} → ${b.toFixed(1)}:1 (needs ${rule})` + (a < rule ? ' · today fails' : ''), 9, T.mid);
+      }
+    });
+  });
+
+  // Mock chrome
+  const mockY = 70 + SYS_ROLES.length * 30 + 26;
+  text(BAR_X0, mockY - 8, 'How the proposal looks', 11, T.mid);
+  const mine = sysAccents().find(a => a.href === '/tunesutra/');
+  [{ set: prop.light, x: BAR_X0 }, { set: prop.dark, x: BAR_X0 + 440 }].forEach(m => {
+    const s = m.set, x = m.x, w = 420, h = 132, px = x + w - 150;
+    rect(x, mockY, w, h, s.paper, { stroke: s['border-strong'], sw: 1 });
+    for (let dy = 14; dy < h; dy += 16) for (let dx = 14; dx < w - 150; dx += 16) rect(x + dx, mockY + dy, 1.6, 1.6, s['canvas-dot']);
+    rect(px, mockY, 150, h, s.panel);
+    rect(px, mockY, 1, h, s.border);
+    text(px + 12, mockY + 22, 'Section', 12, s.ink);
+    text(px + 12, mockY + 42, 'label', 10, s.mid);
+    rect(px + 60, mockY + 31, 78, 16, Organica.palette.mix(s.paper, s.ink, 0.05), { stroke: s['border-strong'], sw: 1 });
+    text(px + 66, mockY + 42, '#0a0a0a', 9, s.ink);
+    rect(px + 12, mockY + 58, 126, 22, s.accent);
+    text(px + 75, mockY + 73, 'Button', 10, s.paper, 'middle');
+    text(px + 12, mockY + 100, 'Not a valid colour', 10, s.danger);
+    rect(px + 12, mockY + 108, 126, 14, 'none', { stroke: mine ? mine.proposed : s.ink, sw: 2 });
+    rect(x + 60, mockY + 30, 150, 72, '#ffffff', { stroke: s.border, sw: 1 });   // the sheet stays light in both themes
+  });
+
+  // Tool accents
+  const accY = mockY + 132 + 36, acc = sysAccents();
+  text(BAR_X0, accY - 8, 'Tool accents — today, then proposed (contrast on light paper · on dark paper, needs ' + SYS_ACCENT_MIN + ')', 11, T.mid);
+  if (!acc.length) text(BAR_X0, accY + 16, 'Reading each tool’s accent…', 10, T.mid);
+  const cw = 172, ch = 42, per = 5;
+  acc.forEach((a, i) => {
+    const x = BAR_X0 + (i % per) * cw, y = accY + Math.floor(i / per) * ch;
+    rect(x, y, 26, 26, a.hex, { title: a.name + ' today ' + a.hex });
+    rect(x + 28, y, 26, 26, a.proposed, { title: a.name + ' proposed ' + a.proposed });
+    text(x + 60, y + 10, a.name.length > 17 ? a.name.slice(0, 16) + '…' : a.name, 10, T.ink);
+    const wasL = C.contrast(a.hex, today.light.paper), wasD = C.contrast(a.hex, today.dark.paper);
+    text(x + 60, y + 22, a.proposed + ' · ' + C.contrast(a.proposed, prop.light.paper).toFixed(1) + ' · ' + C.contrast(a.proposed, prop.dark.paper).toFixed(1) +
+      (Math.min(wasL, wasD) < SYS_ACCENT_MIN ? ' *' : ''), 9, T.mid);
+  });
+  const endY = accY + Math.ceil(Math.max(1, acc.length) / per) * ch;
+  text(BAR_X0, endY + 10, '* today’s accent is under ' + SYS_ACCENT_MIN + ':1 in one of the two themes', 9, T.mid);
+  return { W: VB_W, H: endY + 28, paper: T.paper, font: T.font, items: items };
+}
+
+// ── System outputs ──
+function systemCSS() {
+  const p = sysProposed(), today = sysToday(), acc = sysAccents();
+  const block = (set, was) => SYS_ROLES.map(r => `  --${r}: ${set[r]};${set[r] === was[r] ? '' : '   /* was ' + was[r] + ' */'}`).join('\n');
+  return '/* Generated by TuneSutra · System, ' + new Date().toISOString().slice(0, 10) + '.\n' +
+    '   A proposal: review it, then paste these values over the same properties in\n' +
+    '   shared/tokens.css (the THEMES rules) and set each tool page\'s own --tool. */\n\n' +
+    ':root,\n[data-theme="light"],\n[data-theme="dark"] .org-stage {\n' + block(p.light, today.light) + '\n}\n\n' +
+    ':root[data-theme="dark"],\n[data-theme="dark"] {\n' + block(p.dark, today.dark) + '\n}\n\n' +
+    '/* Tool accents — one --tool in each tool page\'s own :root\n' +
+    acc.map(a => `   ${a.href.padEnd(18)} --tool: ${a.proposed};   was ${a.hex}`).join('\n') + '\n*/\n';
+}
+function systemJSON() {
+  const p = sysProposed(), tok = hex => ({ $type: 'color', $value: hex }), group = set => { const o = {}; SYS_ROLES.forEach(r => { o[r] = tok(set[r]); }); return o; };
+  const accent = {};
+  sysAccents().forEach(a => { accent[a.href.replace(/\//g, '')] = tok(a.proposed); });
+  return JSON.stringify({ color: { light: group(p.light), dark: group(p.dark), accent: accent } }, null, 2);
+}
+function exportSystemCSS() { Organica.downloadText(systemCSS(), Organica.stamp('tunesutra-system', 'css'), 'text/css'); }
+function exportSystemJSON() { Organica.downloadText(systemJSON(), Organica.stamp('tunesutra-system', 'json'), 'application/json'); }
+
+// Preview on this page only: the proposal as inline custom properties on
+// <html>, for whichever theme is showing. The sheet is marked
+// data-theme="light", so it keeps the real light palette. Never saved.
+function applySysPreview() {
+  const root = document.documentElement, on = state.sys.preview;
+  const set = on ? sysProposed()[root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'] : null;
+  SYS_ROLES.forEach(r => { if (on) root.style.setProperty('--' + r, set[r]); else root.style.removeProperty('--' + r); });
+  const mine = on && sysAccents().find(a => a.href === '/tunesutra/');
+  if (mine) root.style.setProperty('--tool', mine.proposed); else root.style.removeProperty('--tool');
+}
+
+function syncSysControls() {
+  const s = state.sys;
+  const fill = (id, first, cur) => {
+    ctrl(id).innerHTML = `<option value="today">${first}</option>` + state.items.map((it, i) => `<option value="${it.id}">${esc(dispName(i))}</option>`).join('');
+    ctrl(id).value = state.items.some(it => it.id === cur) ? cur : 'today';
+  };
+  fill('sel-sys-neutral', 'Today’s warm grey', s.neutral);
+  fill('sel-sys-dot', 'Today’s cyan', s.dot);
+  ctrl('rg-sys-tint').value = s.tint; ctrl('v-sys-tint').textContent = s.tint;
+  ctrl('rg-sys-accl').value = s.accL; ctrl('v-sys-accl').textContent = s.accL;
+  ctrl('rg-sys-accc').value = s.accC; ctrl('v-sys-accc').textContent = s.accC;
+  ctrl('seg-sys-mode').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === s.mode));
+  ctrl('ck-sys-preview').checked = s.preview;
+}
+function sysChanged() {
+  if (state.view !== 'system') state.view = 'system';
+  loadToolAccents();
+  syncSysControls();
+  syncViewSeg();
+  renderStage();
+  applySysPreview();
+  syncUndo();
+}
+function initSystem() {
+  [['sel-sys-neutral', 'neutral'], ['sel-sys-dot', 'dot']].forEach(([id, key]) => ctrl(id).addEventListener('change', e => {
+    pushUndo('sys-' + key); state.sys[key] = e.target.value; sysChanged();
+  }));
+  [['rg-sys-tint', 'tint'], ['rg-sys-accl', 'accL'], ['rg-sys-accc', 'accC']].forEach(([id, key]) => ctrl(id).addEventListener('input', e => {
+    pushUndo('sys'); state.sys[key] = +e.target.value; sysChanged();
+  }));
+  ctrl('seg-sys-mode').querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => {
+    if (state.sys.mode === b.dataset.v) return;
+    pushUndo('sys-mode'); state.sys.mode = b.dataset.v; sysChanged();
+  }));
+  ctrl('ck-sys-preview').addEventListener('change', e => { state.sys.preview = e.target.checked; sysChanged(); });
+  // The header's theme button flips <html data-theme>: re-apply for the other theme.
+  new MutationObserver(() => { if (state.sys.preview) applySysPreview(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+}
+
 // The sheet is always drawn in the light theme's colours, whatever the
 // chrome theme (Organica.contentColor), and its text in the page's own font
 // resolved to a literal family list so an exported file carries it.
@@ -877,6 +1173,7 @@ function readableOn(hex, T) { return C.contrast(hex, T.ink) >= C.contrast(hex, T
 // `role` marks a shape that selects a colour when clicked on screen.
 function buildScene() {
   const T = sheetTheme(), n = count(), cols = colors(), items = [];
+  if (state.view === 'system') return buildSystemScene(T);
   const rect = (x, y, w, h, fill, extra) => items.push(Object.assign({ t: 'rect', x: x, y: y, w: w, h: h, fill: fill }, extra));
   const text = (x, y, s, size, fill, anchor) => items.push({ t: 'text', x: x, y: y, s: String(s), size: size, fill: fill, anchor: anchor || 'start' });
   const weights = roleWeights(n);
@@ -974,8 +1271,7 @@ function drawScene(scene, c, scale) {
     let p;
     if (it.t === 'path') { c.translate(it.tf.x, it.tf.y); c.scale(it.tf.s, it.tf.s); p = new Path2D(it.d); }
     else { p = new Path2D(); p.rect(it.x, it.y, it.w, it.h); }
-    c.fillStyle = it.fill;
-    c.fill(p);
+    if (it.fill !== 'none') { c.fillStyle = it.fill; c.fill(p); }
     if (it.stroke) { c.strokeStyle = it.stroke; c.lineWidth = it.sw; c.stroke(p); }
     c.restore();
   });
@@ -1010,6 +1306,7 @@ function syncViewSeg() {
 }
 function setView(view) {
   if (view === 'garment' && count() !== 3) return;
+  if (view === 'system') loadToolAccents();
   state.view = view;
   syncViewSeg();
   renderStage();
@@ -1131,6 +1428,7 @@ function applyPreset(name) {
   state.activeIndex = 0;
   // A palette saved before gradients existed gets one between its first two colours.
   state.grad = Object.assign(JSON.parse(GRAD_DEFAULT), p.gradient || { stops: colors().slice(0, 2) });
+  state.sys = Object.assign(JSON.parse(SYS_DEFAULT), p.system || {}, { preview: state.sys.preview });
   syncControls();
   commit(true);
 }
@@ -1157,6 +1455,7 @@ function confirmSavePreset() {
     ids: state.items.map(it => it.id),
     locks: state.items.map(it => !!it.lock),
     gradient: JSON.parse(JSON.stringify(state.grad)),
+    system: Object.assign(JSON.parse(JSON.stringify(state.sys)), { preview: false }),
     savedAt: new Date().toISOString(),
   };
   PRESETS.write(all);
@@ -1173,9 +1472,10 @@ function deletePreset() {
 }
 
 // ── INIT ──
-const GRAD_DEFAULT = JSON.stringify(state.grad);
+const GRAD_DEFAULT = JSON.stringify(state.grad), SYS_DEFAULT = JSON.stringify(state.sys);
 initChips();
 initGradient();
+initSystem();
 bindFieldEditor();
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 
@@ -1216,6 +1516,8 @@ ctrl('btn-export-json').addEventListener('click', exportJSON);
 ctrl('btn-export-grad-png').addEventListener('click', exportGradPNG);
 ctrl('btn-export-grad-svg').addEventListener('click', exportGradSVG);
 ctrl('btn-export-plates').addEventListener('click', exportPlates);
+ctrl('btn-export-sys-css').addEventListener('click', exportSystemCSS);
+ctrl('btn-export-sys-json').addEventListener('click', exportSystemJSON);
 
 ctrl('btn-preset-save').addEventListener('click', beginSavePreset);
 ctrl('btn-preset-delete').addEventListener('click', deletePreset);
