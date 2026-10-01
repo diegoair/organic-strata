@@ -190,7 +190,7 @@
       var t = document.startViewTransition(function () { swap(dark); });
       t.ready.then(function () {
         root.animate({ clipPath: ['circle(0px at ' + x + 'px ' + y + 'px)', 'circle(' + radius + 'px at ' + x + 'px ' + y + 'px)'] },
-          { duration: 400, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' });
+          { duration: 200, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)', pseudoElement: '::view-transition-new(root)' });
       }, function () { /* transition skipped — the swap already ran */ });
     });
     header.appendChild(b);

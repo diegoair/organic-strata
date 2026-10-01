@@ -201,6 +201,7 @@
 .org-theme:hover { background: var(--gray-100); }
 /* Theme-switch reveal (header.js): the new theme is clipped open from the button by script, so the
    browser's default cross-fade must be off and the new snapshot must sit on top. */
+::view-transition-group(root) { animation: none; }   /* else the group runs its own 250ms and the transition finishes late */
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
 ::view-transition-new(root) { z-index: 2; }
 ::view-transition-old(root) { z-index: 1; }
