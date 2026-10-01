@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme-support>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -48,7 +48,7 @@
   .rz-node {
     position: absolute; width: 240px;
     background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-lg);
-    box-shadow: 0 4px 16px rgba(0,0,0,.08); user-select: none; z-index: 2;
+    box-shadow: 0 4px 16px rgba(0,0,0,.18); user-select: none; z-index: 2;
   }
   .rz-node.is-selected { outline: 2px solid var(--tool); outline-offset: 1px; }
   .rz-node.is-multi-selected { outline: 2px dashed var(--tool); outline-offset: 1px; }
@@ -59,7 +59,7 @@
   #marquee-rect { fill: rgba(122,156,94,.12); stroke: var(--tool); stroke-width: 1; stroke-dasharray: 3 3; display: none; }
   .rz-node__header {
     padding: var(--space-3) var(--space-4); cursor: grab; font-weight: var(--w-medium);
-    background: #f2f6ee; border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--tool) 12%, var(--panel)); border-bottom: 1px solid var(--border);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0; font-size: var(--fs-small);
   }
   .rz-node__ports { padding: var(--space-2) 0; }
@@ -69,7 +69,7 @@
   .rz-port-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--paper); border: 2px solid var(--mid); flex-shrink: 0; cursor: crosshair; }
   .rz-node__preview {
     margin: var(--space-2) var(--space-4); min-height: 60px; max-height: 100px;
-    border: 1px solid #eee2ce; border-radius: var(--radius-md); background: #faf8f3;
+    border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper);
     display: flex; align-items: center; justify-content: center; overflow: hidden;
     font-size: var(--fs-small); color: var(--mid);
   }

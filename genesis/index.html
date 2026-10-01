@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme-support>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -37,21 +37,20 @@
        ══════════════════════════════════════════════════════════════ */
 
     :root {
-      --bg: #ffffff;
-      --surface: #eceae4;
-      --surface-raised: #e3dfd6;
-      --bg-cell: #eceae4;   /* seed-tile background */
-      --ink-muted: #696256; /* the unified AA-passing value (see the July 26 contrast pass) */
-      --ink-faint: #a89e8c;
-      --accent: #0a0a0a;
+      /* Genesis names its palette roles differently (--bg / --surface /
+         --ink-muted …). They are ALIASES of the shared tokens (tokens.css),
+         so both themes work: dark flips --paper/--panel/--mid/--ink and these
+         follow. (Before Oct 1, 2026 they were light literals, with --paper /
+         --mid / --panel pointing back at them — which pinned the page light.)
+         The artboard stays a light work surface: #art / #draw-canvas carry
+         data-theme="light" and read --panel/--ink directly. */
+      --bg: var(--paper);
+      --surface: var(--panel);
+      --surface-raised: color-mix(in srgb, var(--panel), var(--ink) 6%);
+      --ink-muted: var(--mid);
+      --ink-faint: color-mix(in srgb, var(--mid), var(--paper) 20%);
+      --bg-cell: #eceae4;   /* seed-tile background — content, fixed (animations.css contract) */
 
-      /* Palette contract for shared/header.css — this page names
-         the same roles differently (--bg/--surface/--ink-muted), so alias
-         rather than rename. Without --paper the primary button painted its
-         label in nothing and rendered as a solid black box. */
-      --paper: var(--bg);
-      --mid: var(--ink-muted);
-      --panel: var(--surface);
       /* Genesis's own identity colour. shared/tokens.json records
          #c8f060, but that lime is unreadable as a 2px focus ring on white —
          this is the same darkened green the hub itself already uses for the
@@ -91,7 +90,7 @@
     .lib-sets .seg--sets .seg-btn:first-child { border-left: none; }
     .lib-sets .seg--sets .seg-btn:hover { color: var(--ink); }
     .lib-sets .seg--sets .seg-btn.active { background: var(--ink); color: var(--bg); border-color: transparent; }
-    .lib-sets .seg--sets .seg-btn .n { opacity: .45; margin-left: 5px; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+    .lib-sets .seg--sets .seg-btn .n { opacity: .65; margin-left: 5px; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
     .lib-sets #btn-new-set, .lib-sets #btn-manage-sets {
       width: 24px; height: 24px; background: transparent; border: 1px solid var(--border);
       color: var(--ink-muted); cursor: pointer; line-height: 1; display: flex;
@@ -188,7 +187,7 @@
     /* ─── Artboard (Draw / Import / Generate) ───────────────── */
     .stage { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--canvas-grid), var(--canvas-bg); }
     .artwrap { position: relative; }
-    #art { display: block; width: 460px; height: 460px; background: var(--surface); box-shadow: var(--stage-shadow); cursor: crosshair; }   /* the stage: shared shadow, no border */
+    #art { display: block; width: 460px; height: 460px; background: var(--panel); box-shadow: var(--stage-shadow); cursor: crosshair; }   /* the stage: shared shadow, no border */
     #art.notdraw { cursor: default; }
     /* Paper.js's own input surface for Draw mode — sits exactly over #art
        (same 460x460 box) so its project coordinates share the artboard's
@@ -410,12 +409,12 @@
       <!-- CREATE / EDIT: the artboard -->
       <div class="stage" data-modes="create edit">
         <div class="artwrap">
-          <svg id="art" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <svg id="art" data-theme="light" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
             <g id="grid-layer"></g>
             <g id="seed-layer"></g>
             <g id="handles-layer"></g>
           </svg>
-          <canvas id="draw-canvas" class="active" width="460" height="460"></canvas>
+          <canvas id="draw-canvas" data-theme="light" class="active" width="460" height="460"></canvas>
           <div class="art-hint" id="art-hint">Click on the artboard to add points</div>
         </div>
       </div>

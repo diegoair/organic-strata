@@ -91,6 +91,7 @@ export function createNodeCard(node, nodeType, nodeInputs, { zoomPanRef, portEls
 
   const preview = document.createElement('div');
   preview.className = 'rz-node__preview';
+  preview.setAttribute('data-theme', 'light');   // the node's output is WORK (dark-ink SVG / light-paper raster) — it stays a light well in dark mode
   el.appendChild(preview);
 
   const status = document.createElement('div');
