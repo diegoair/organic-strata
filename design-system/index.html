@@ -531,6 +531,7 @@
       <a href="#adding-tokens">Adding a token or class</a>
       <a href="#common-mistakes">Common mistakes</a>
       <a href="#ai-workflow">Working with AI</a>
+      <a href="#test-gallery">Test gallery</a>
       <a href="#self-check">Self-check</a>
     </div>
   </nav>
@@ -1621,6 +1622,18 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
         <li><strong>Release it</strong> — preview, then production on an explicit go.</li>
       </ol>
       <p>Everyone gets the same collaborator with the same standards: the standing rules (tokens only, both themes, ask before a new token, how releases work) live in <code>CLAUDE.md</code>, which the agent reads at the start of every session. <strong>Sources of truth, in order:</strong> <code>shared/tokens.css</code> → the shared component sheets → this page, rendered from them → the rules file and the decision log.</p>
+    </section>
+
+    <section class="ds-entry ds-prose" id="test-gallery">
+      <h2>Test gallery</h2>
+      <p class="ds-desc">A <strong>development log</strong>, not a showcase. When we test an animation — a real SVG exported from a static tool (Pollen, Halide, Warping, Komorebi) moved live by its animator (Murmur, Undertow, Dapple) — a tile that is worth keeping goes into <a href="/gallery/">the test gallery</a>, with the preset, its parameters and a one-line note on why, so a test is never lost and never has to be re-derived from a chat thread.</p>
+      <ol>
+        <li><strong>Reachable only from here.</strong> Not in the tools menu, not on the hub. <code>scripts/check.py</code> fails if any other page links to <code>/gallery/</code>; the page is <code>noindex</code> and signed-in like this one.</li>
+        <li><strong>Kept light, on purpose.</strong> The budget lives in <code>gallery/budget.json</code> and is enforced by <code>scripts/check.py</code> and shown on the page: at most <strong>16 tiles</strong>, <strong>2 MB</strong> of samples in total, <strong>300 KB</strong> per sample, a <strong>40 KB</strong> page. Tiles load only when they scroll into view and only visible ones animate. A sample no tile uses fails the check — delete it.</li>
+        <li><strong>One tile = one test.</strong> A real export (not a synthetic drawing), one preset, a date and a note. Samples are generated from the tools themselves and kept small (a low grid width, 2–6 bands, a few thousand marks). Retire tiles that have served their purpose instead of raising the budget; raise it only deliberately, in a commit that says why.</li>
+        <li><strong>Presets come from the tools.</strong> The gallery reads the same tables as Undertow, Dapple and Murmur (<code>shared/bandfield.js</code>, <code>shared/swarm.js</code>), so a tile is always the tool's own behaviour.</li>
+      </ol>
+      <div class="ds-usage"><strong>Open</strong><span><a href="/gallery/">/gallery/</a></span><strong>Defined in</strong><span>gallery/index.html</span><span>gallery/budget.json</span><span>gallery/samples/</span><span>scripts/check.py</span></div>
     </section>
 
     <section class="ds-entry ds-prose" id="self-check">

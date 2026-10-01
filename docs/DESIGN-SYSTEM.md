@@ -326,6 +326,8 @@ ship date — each `.nav__group` carries a `group-label`:
 | Stippling & marks | Spore, Pollen |
 | Motion & growth | Membrane, Vortex, Pulsar, Mycel, Mote, Blob Boundary |
 | Animate an export | Murmur, Undertow, Dapple |
+
+> **Test gallery** (`/gallery/`, Oct 1, 2026) is not a tool and not in this menu: a development log of the animation tests we keep (one tile = one real export + one animator preset + a date and a note). Reachable only from the design system (`#test-gallery`); budget in `gallery/budget.json` (16 tiles, 2 MB samples, 300 KB per sample, 40 KB page), enforced by `scripts/check.py`, which also fails if any other page links to it.
 | Workflow & pipelines | Rhizome |
 | Explorations | (prototype pages, not full tools) |
 

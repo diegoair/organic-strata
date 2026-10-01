@@ -3,15 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gallery — Organica</title>
+<title>Test gallery — Organica</title>
+<meta name="robots" content="noindex">
 <link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="preload" href="/shared/vendor/ibm-plex-mono-regular.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/mobile-gate.css">
 <style>
-  /* GALLERY — real exports from the static tools (Pollen, Halide, Warping, Komorebi), animated live by their
-     twins (Murmur, Undertow, Dapple). The sheets are WORK, so the grid carries data-theme="light" and stays light
+  /* TEST GALLERY (development log) — real exports from the static tools (Pollen, Halide, Warping, Komorebi), animated
+     live by their twins (Murmur, Undertow, Dapple). Reachable ONLY from the design system; budget in gallery/budget.json,
+     enforced by scripts/check.py. The sheets are WORK, so the grid carries data-theme="light" and stays light
      in dark mode; the chrome around it follows the theme. Tokens only. */
   * { box-sizing: border-box; }
   html, body { margin: 0; }
@@ -23,10 +25,14 @@
   }
   .g-title { font-family: var(--font-display); font-size: var(--t-h1-size); font-weight: var(--t-h1-weight); line-height: var(--t-h1-lh); letter-spacing: var(--t-h1-ls); margin: 0; }
   .g-lede { max-width: 62ch; margin: 0 0 var(--space-7); font-size: var(--fs-medium); line-height: var(--lh-snug, 1.45); }
-  .g-flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); margin: 0 0 var(--space-8); padding: 0; list-style: none; }
-  .g-flow li { border-top: 1px solid var(--border-strong); padding-top: var(--space-3); font-size: var(--fs-small); color: var(--mid); }
-  .g-flow b { display: block; font-family: var(--font-display); font-size: var(--fs-medium); color: var(--ink); margin-bottom: var(--space-1); }
-  .g-flow a { color: var(--ink); }
+  .g-budget { margin: 0 0 var(--space-6); font-family: var(--font-mono); font-size: var(--fs-small); color: var(--mid); }
+  .g-budget b { color: var(--ink); font-weight: var(--w-medium); }
+  .g-budget .over { color: var(--danger); }
+  .g-sub { font-family: var(--font-display); font-size: var(--t-h2-size, var(--fs-large)); font-weight: var(--t-h2-weight, var(--w-medium)); margin: var(--space-8) 0 var(--space-4); border-top: 1px solid var(--ink); padding-top: var(--space-5); }
+  .g-log { width: 100%; border-collapse: collapse; font-size: var(--fs-small); }
+  .g-log th, .g-log td { text-align: left; vertical-align: top; padding: var(--space-2) var(--space-4) var(--space-2) 0; border-bottom: 1px solid var(--border); }
+  .g-log th { font-family: var(--font-display); color: var(--mid); font-weight: var(--w-medium); }
+  .g-log code { font-family: var(--font-mono); font-size: var(--fs-micro); color: var(--mid); word-break: break-word; }
   .g-ctl { display: flex; gap: var(--space-3); align-items: center; }
   .g-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); }
   .g-tile {
@@ -53,7 +59,7 @@
   .g-cap span:last-child { opacity: 0; transform: translateX(var(--space-3)); transition: opacity .3s ease, transform .3s ease; }
   .g-tile:hover .g-cap span:last-child, .g-tile:focus-visible .g-cap span:last-child { opacity: 1; transform: none; }
   .g-state { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-mono); font-size: var(--fs-small); color: var(--mid); padding: var(--space-5); text-align: center; }
-  @media (max-width: 1100px) { .g-grid, .g-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 1100px) { .g-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (prefers-reduced-motion: reduce) { .g-tile { transition: none; opacity: 1; transform: none; } }
 </style>
 <script src="/shared/pattern-init.js"></script>
@@ -69,21 +75,18 @@
 
 <main>
   <div class="g-head">
-    <h1 class="g-title">Animated exports</h1>
-    <div class="g-ctl"><button class="org-btn" id="btn-pause" type="button" aria-pressed="false">Pause all</button></div>
+    <h1 class="g-title">Test gallery</h1>
+    <div class="g-ctl"><a class="org-btn" href="/design-system/#test-gallery">← Design system</a><button class="org-btn" id="btn-pause" type="button" aria-pressed="false">Pause all</button></div>
   </div>
-  <p class="g-lede">Every tile is a real SVG exported from a static tool, set moving live by its animated twin. The tool transforms an image; the animator moves the result. Hover a stipple or dither tile to push the marks; click any tile to open its animator.</p>
-
-  <ul class="g-flow">
-    <li><b>Murmur</b>Pollen / Halide stipple and dither: every mark on a spring. <a href="/murmur/">Open Murmur ↗</a></li>
-    <li><b>Undertow</b>Warping's contours: the edges flow, tide, ripple and slide. <a href="/undertow/">Open Undertow ↗</a></li>
-    <li><b>Dapple</b>Komorebi's canopy: light that sways, rustles and flickers. <a href="/dapple/">Open Dapple ↗</a></li>
-  </ul>
+  <p class="g-lede">A development log, not a showcase: every tile is one test, a real SVG export from a static tool moved live by its animator (Murmur, Undertow, Dapple). Add a tile when a test is worth keeping, with a note saying why. The page is kept light on purpose — see the budget below — and is reachable only from the design system.</p>
+  <p class="g-budget" id="budget" aria-live="polite"></p>
 
   <div class="g-grid" id="grid" data-theme="light"><!-- the work stays light in dark mode --></div>
+
+  <h2 class="g-sub">Test log</h2>
+  <table class="g-log" id="log"><thead><tr><th>#</th><th>Test</th><th>Preset</th><th>Parameters (vs defaults)</th><th>Sample</th><th>Date</th><th>Note</th></tr></thead><tbody></tbody></table>
 </main>
 
-<script>window.ORGANICA_PUBLIC = true; /* like the hub: open to signed-out visitors; the tools stay gated */</script>
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
 <script src="/shared/noise.js"></script>
@@ -106,18 +109,18 @@
   // presets (shared/bandfield.js). 'Tide' is Murmur's own curated pattern, minus its entrance.
   var TIDE = { waveAmp: 16, waveSpeed: 1.2, waveScale: 0.008, drift: 6, damping: 0.88 };
   var TILES = [
-    { src: 'pollen-dots',     from: 'Pollen',   tool: 'Murmur',   href: '/murmur/',   preset: 'Drift',   kind: 'marks', params: M.Drift },
-    { src: 'warping-wood',    from: 'Warping',  tool: 'Undertow', href: '/undertow/', preset: 'Flow',    kind: 'bands', expect: 'warping', params: UP.Flow },
-    { src: 'komorebi-birch',  from: 'Komorebi', tool: 'Dapple',   href: '/dapple/',   preset: 'Sway',    kind: 'bands', expect: 'komorebi', params: DP.Sway },
-    { src: 'halide-atkinson', from: 'Halide',   tool: 'Murmur',   href: '/murmur/',   preset: 'Pulse',   kind: 'marks', params: M.Pulse },
-    { src: 'warping-marble',  from: 'Warping',  tool: 'Undertow', href: '/undertow/', preset: 'Marble',  kind: 'bands', expect: 'warping', params: UP.Marble },
-    { src: 'komorebi-palm',   from: 'Komorebi', tool: 'Dapple',   href: '/dapple/',   preset: 'Flicker', kind: 'bands', expect: 'komorebi', params: DP.Flicker },
-    { src: 'halide-bayer',    from: 'Halide',   tool: 'Murmur',   href: '/murmur/',   preset: 'Tide',    kind: 'marks', params: TIDE },
-    { src: 'warping-cells',   from: 'Warping',  tool: 'Undertow', href: '/undertow/', preset: 'Strata',  kind: 'bands', expect: 'warping', params: UP.Strata },
-    { src: 'warping-wood',    from: 'Warping',  tool: 'Undertow', href: '/undertow/', preset: 'Relief',  kind: 'bands', expect: 'warping', params: UP.Relief },
-    { src: 'komorebi-birch',  from: 'Komorebi', tool: 'Dapple',   href: '/dapple/',   preset: 'Canopy',  kind: 'bands', expect: 'komorebi', params: DP.Canopy },
-    { src: 'warping-cells',   from: 'Warping',  tool: 'Undertow', href: '/undertow/', preset: 'Relief',  kind: 'bands', expect: 'warping', params: UP.Relief },
-    { src: 'komorebi-palm',   from: 'Komorebi', tool: 'Dapple',   href: '/dapple/',   preset: 'Canopy',  kind: 'bands', expect: 'komorebi', params: DP.Canopy },
+    { src: 'pollen-dots',     from: 'Pollen',   tool: 'Murmur',   href: '/murmur/',   preset: 'Drift',   kind: 'marks', params: M.Drift, date: '2026-10-01', note: 'Murmur on a Pollen stipple (1.4k marks); parser moved to shared/marks-svg.js, parse fingerprint identical' },
+    { src: 'warping-wood',    from: 'Warping',  tool: 'Undertow', href: '/undertow/', preset: 'Flow',    kind: 'bands', expect: 'warping', params: UP.Flow, date: '2026-10-01', note: 'first Undertow load; rest frame = source SVG (0 px diff), loop exact at t = 0/8/16 s' },
+    { src: 'komorebi-birch',  from: 'Komorebi', tool: 'Dapple',   href: '/dapple/',   preset: 'Sway',    kind: 'bands', expect: 'komorebi', params: DP.Sway, date: '2026-10-01', note: 'first Dapple load; 60 fps on a 155k-point export once closePath() was dropped' },
+    { src: 'halide-atkinson', from: 'Halide',   tool: 'Murmur',   href: '/murmur/',   preset: 'Pulse',   kind: 'marks', params: M.Pulse, date: '2026-10-01', note: 'Halide cells as marks (8,130)' },
+    { src: 'warping-marble',  from: 'Warping',  tool: 'Undertow', href: '/undertow/', preset: 'Marble',  kind: 'bands', expect: 'warping', params: UP.Marble, date: '2026-10-01', note: 'Stagger 0.15 + Swirl: layered drapery — a depth candidate' },
+    { src: 'komorebi-palm',   from: 'Komorebi', tool: 'Dapple',   href: '/dapple/',   preset: 'Flicker', kind: 'bands', expect: 'komorebi', params: DP.Flicker, date: '2026-10-01', note: 'band opacity pulse, 3 cycles per loop' },
+    { src: 'halide-bayer',    from: 'Halide',   tool: 'Murmur',   href: '/murmur/',   preset: 'Tide',    kind: 'marks', params: TIDE, date: '2026-10-01', note: 'Murmur\'s Tide pattern without its entrance' },
+    { src: 'warping-cells',   from: 'Warping',  tool: 'Undertow', href: '/undertow/', preset: 'Strata',  kind: 'bands', expect: 'warping', params: UP.Strata, date: '2026-10-01', note: 'Stagger 0.45: the layers lag each other' },
+    { src: 'warping-wood',    from: 'Warping',  tool: 'Undertow', href: '/undertow/', preset: 'Relief',  kind: 'bands', expect: 'warping', params: UP.Relief, date: '2026-10-01', note: 'new preset: Stagger 0.5 + Swirl + a slow wave — depth by layers sliding' },
+    { src: 'komorebi-birch',  from: 'Komorebi', tool: 'Dapple',   href: '/dapple/',   preset: 'Canopy',  kind: 'bands', expect: 'komorebi', params: DP.Canopy, date: '2026-10-01', note: 'new preset: Stagger 0.5 + Flicker 0.5 — the run measured at 60 fps' },
+    { src: 'warping-cells',   from: 'Warping',  tool: 'Undertow', href: '/undertow/', preset: 'Relief',  kind: 'bands', expect: 'warping', params: UP.Relief, date: '2026-10-01', note: 'Relief on a cellular pattern' },
+    { src: 'komorebi-palm',   from: 'Komorebi', tool: 'Dapple',   href: '/dapple/',   preset: 'Canopy',  kind: 'bands', expect: 'komorebi', params: DP.Canopy, date: '2026-10-01', note: 'Canopy on a palm canopy' },
   ];
 
   var grid = document.getElementById('grid');
@@ -142,10 +145,18 @@
     grid.appendChild(a);
   });
 
+  // one fetch per SAMPLE (several tiles reuse an export); the budget readout counts each sample once
+  var samples = {};
+  function sample(src) {
+    if (!samples[src]) samples[src] = fetch('/gallery/samples/' + src + '.svg').then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); }).then(function (text) { loadedBytes += text.length; renderBudget(); return text; });
+    return samples[src];
+  }
+
   // ── load one tile: fetch the sample export, parse it with the tool's own parser, create the engine ──
   function start(t) {
     if (t.started) return; t.started = true;
-    fetch('/gallery/samples/' + t.src + '.svg').then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); }).then(function (text) {
+    sample(t.src).then(function (text) {
+      t.logRow.querySelector('.kb').textContent = Math.round(text.length / 1024) + ' KB';
       if (t.kind === 'marks') {
         var s = Organica.marksSVG.parse(text);
         t.W = s.W; t.H = s.H; t.bg = s.bg || '#ffffff';
@@ -183,6 +194,22 @@
       c.setTransform(k, 0, 0, k, 0, 0); t.bf.draw(c);
     }
   }
+
+  // ── budget readout + the test log ──
+  var budget = null, loadedBytes = 0;
+  function renderBudget() {
+    var el = document.getElementById('budget'); if (!budget) return;
+    var n = TILES.length, over = n > budget.maxTiles;
+    el.innerHTML = 'Budget (gallery/budget.json, enforced by scripts/check.py): <b' + (over ? ' class="over"' : '') + '>' + n + ' / ' + budget.maxTiles + '</b> tiles · samples ≤ ' + budget.maxTotalKB + ' KB total, ≤ ' + budget.maxSampleKB + ' KB each · loaded so far <b>' + Math.round(loadedBytes / 1024) + ' KB</b> (tiles load as they scroll into view).';
+  }
+  fetch('/gallery/budget.json').then(function (r) { return r.json(); }).then(function (b) { budget = b; renderBudget(); }).catch(function () {});
+  var logBody = document.querySelector('#log tbody');
+  function diffOf(t) { var o = {}; var D = t.kind === 'marks' ? S.DEFAULTS : BF.DEFAULTS; Object.keys(t.params).forEach(function (k) { if (t.params[k] !== D[k]) o[k] = t.params[k]; }); return JSON.stringify(o).replace(/"/g, ''); }
+  TILES.forEach(function (t, i) {
+    var tr = document.createElement('tr'); t.logRow = tr;
+    tr.innerHTML = '<td>' + String(i + 1).padStart(2, '0') + '</td><td>' + t.from + ' → <a href="' + t.href + '">' + t.tool + '</a></td><td>' + t.preset + '</td><td><code>' + diffOf(t) + '</code></td><td><code>' + t.src + '.svg</code> <span class="kb"></span></td><td>' + (t.date || '') + '</td><td>' + (t.note || '') + '</td>';
+    logBody.appendChild(tr);
+  });
 
   // ── pointer: marks tiles are pushed by the hover, like Murmur ──
   TILES.forEach(function (t) {

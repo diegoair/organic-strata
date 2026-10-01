@@ -138,6 +138,34 @@ if dead:
 else:
     ok(f"{len(menu_links)} menu links all resolve")
 
+# 4c. test gallery: size budget + reachable only from the design system ----------
+# /gallery/ is a DEVELOPMENT page that logs the tests we run (a tile = one real export + one animator
+# preset). Rule (Oct 1, 2026): keep it light, and link to it from the design system only.
+print("test gallery")
+budget = json.load(open("gallery/budget.json"))
+gal = open("gallery/index.html", encoding="utf-8").read()
+tiles = len(re.findall(r"^\s*\{ src: '", gal, re.M))
+samples = sorted(f for f in os.listdir("gallery/samples") if f.endswith(".svg"))
+sizes = {f: os.path.getsize("gallery/samples/" + f) for f in samples}
+total_kb = sum(sizes.values()) / 1024
+page_kb = os.path.getsize("gallery/index.html") / 1024
+bad = False
+if tiles > budget["maxTiles"]: fail(f"gallery has {tiles} tiles; budget is {budget['maxTiles']} (gallery/budget.json)"); bad = True
+if total_kb > budget["maxTotalKB"]: fail(f"gallery samples total {total_kb:.0f} KB; budget is {budget['maxTotalKB']} KB"); bad = True
+for f, n in sizes.items():
+    if n / 1024 > budget["maxSampleKB"]: fail(f"gallery/samples/{f} is {n/1024:.0f} KB; per-sample budget is {budget['maxSampleKB']} KB"); bad = True
+if page_kb > budget["maxPageKB"]: fail(f"gallery/index.html is {page_kb:.0f} KB; budget is {budget['maxPageKB']} KB"); bad = True
+used = set(re.findall(r"src: '([\w-]+)'", gal))
+orphans = [f for f in samples if f[:-4] not in used]
+if orphans: fail(f"gallery samples not used by any tile (delete them or add a tile): {orphans}"); bad = True
+linkers = []
+for f in tracked(".html", ".js"):
+    if f.startswith(("gallery/", "design-system/", "scratchpad/")): continue
+    if "/gallery/" in open(f, encoding="utf-8", errors="replace").read(): linkers.append(f)
+if linkers: fail(f"/gallery/ may be linked from the design system only; also linked from: {linkers}"); bad = True
+if "/gallery/" not in open("design-system/index.html", encoding="utf-8").read(): fail("design-system/index.html must link to /gallery/"); bad = True
+if not bad: ok(f"{tiles}/{budget['maxTiles']} tiles · samples {total_kb:.0f}/{budget['maxTotalKB']} KB · page {page_kb:.0f}/{budget['maxPageKB']} KB · design-system link only")
+
 # 5. css-lint ------------------------------------------------------------------
 print("css-lint")
 r = subprocess.run([sys.executable, "scripts/css-lint.py"], capture_output=True, text=True)

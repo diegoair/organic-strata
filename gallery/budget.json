@@ -1,0 +1,7 @@
+{
+  "maxTiles": 16,
+  "maxTotalKB": 2048,
+  "maxSampleKB": 300,
+  "maxPageKB": 40,
+  "note": "Development test gallery budget. Enforced by scripts/check.py; shown on /gallery/. Raise it deliberately, in a commit that says why."
+}
