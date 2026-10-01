@@ -840,6 +840,16 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 .pi-name { flex: 1; line-height: 1.2; }
 .pi-group { font-size: var(--fs-micro); color: var(--mid); padding: var(--space-2) var(--space-2) 0; }
 
+/* PALETTE LIBRARY MENU — Organica.palette.pick (palette.js). A .preset-menu
+   whose rows are a palette name and its colours; each colour is a
+   .color-swatch button. Lives here, not in palette.css: single-swatch tools
+   do not link that sheet. */
+.pal-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-2); }
+.pal-chips .color-swatch:hover,
+.pal-chips .color-swatch:focus-visible { outline: 1px solid var(--ink); outline-offset: 1px; }
+.pal-link { font-size: var(--fs-micro); color: var(--mid); padding: var(--space-2); }
+.pal-link:hover { color: var(--ink); }
+
 /* ═══════════════════════════════════════════════════════════
    ALIASES — Living Path and Sinew name their rows .row / .val.
    Mapping beats renaming: their JS keeps working untouched.

@@ -412,6 +412,7 @@ function initChips() {
     colors: colors(),
     min: 3,
     max: 7,
+    library: false,   // this tool is where palettes are made — its own Save section loads them, with their names
     onChange: (cols, index, kind, removedAt) => {
       // Role selection happens by clicking a bar segment (renderStage()'s
       // .bar-seg handlers), not the chips — a chip's native colour input

@@ -26,6 +26,10 @@
  *     select next and removedAt is the chip that went (a caller keeping per-colour data
  *     in a parallel list needs the second; the first cannot tell 0 from 1).
  *
+ *   Either shape also gets a small "Pick from a palette" button (palette.pick →
+ *   palette.library(): the palettes saved in TuneSutra + the built-in sets).
+ *   opts.library: false leaves it out. Its menu CSS is in panel.css.
+ *
  *   Both shapes return the SAME object:
  *     { get, set, getColors, setColors(arr, {notify}), setActive(i), rebuild }
  *   so every prior call style keeps working (swatch set/get and
@@ -137,16 +141,20 @@
     if (randomBtn) randomBtn.addEventListener('click', () => set(Organica.randomHex()));
     if (sw) sw.addEventListener('click', () => cp.click());
 
+    // "Pick from a palette" — one small button at the end of the colour row.
+    if (opts.library !== false && hexEl.parentNode) {
+      const lib = libraryButton('icon-btn');
+      (randomBtn && randomBtn.parentNode === hexEl.parentNode ? randomBtn : hexEl).insertAdjacentElement('afterend', lib);
+      lib.addEventListener('click', e => { e.stopPropagation(); palette.pick(lib, { onPick: set }); });
+    }
+
     if (opts.initial) set(opts.initial);
 
     return {
       set,
       get: () => hexEl.value,
       getColors: () => [hexEl.value],
-      setColors: (arr, o) => {
-        if (arr && arr.length) set(arr[0]);
-        if (o && o.notify) onChange(hexEl.value, Organica.hexToRGB255(hexEl.value));
-      },
+      setColors: (arr) => { if (arr && arr.length) set(arr[0]); },   // set() already notifies — a second onChange here fired every listener twice
       setActive: function () {},
       rebuild: function () {},
     };
@@ -194,6 +202,19 @@
         add.addEventListener('click', addColor);
         wrap.appendChild(add);
       }
+      if (opts.library !== false) {
+        const lib = libraryButton('rmx-add');
+        lib.addEventListener('click', e => {
+          e.stopPropagation();
+          palette.pick(lib, {
+            max: max,
+            // one colour: add it while there is room, otherwise it replaces the last chip
+            onPick: hex => { if (colors.length < max) { colors.push(hex); rebuild(); onChange(colors.slice(), colors.length - 1, 'add'); } else setColors(colors.slice(0, max - 1).concat(hex), { notify: true }); },
+            onPickAll: hexes => setColors(hexes, { notify: true }),
+          });
+        });
+        wrap.appendChild(lib);
+      }
     }
 
     function setColor(i, hex) {
@@ -240,6 +261,142 @@
       rebuild,
     };
   }
+
+  // ── the palette library ────────────────────────────────────────────────────
+  // What every colour control can pick from: the palettes saved in TuneSutra
+  // (its own preset store — read here the way FVS and Trellis read Loom's),
+  // then the built-in sets. palette.library() → [{ id, name, builtin,
+  // colors: [{ id, name, hex }] }], synchronous, from the local cache.
+  //
+  // Built-in: Riso's 21 standard inks. Hex values are SCREEN APPROXIMATIONS of
+  // real inks (names + values from the public riso-colors list,
+  // github.com/mattdesl/riso-colors) — a starting point, never a proof.
+  const RISO_STANDARD = [
+    ['Black', '#000000'], ['Burgundy', '#914e72'], ['Blue', '#0078bf'], ['Green', '#00a95c'],
+    ['Medium Blue', '#3255a4'], ['Bright Red', '#f15060'], ['RisoFederal Blue', '#3d5588'], ['Purple', '#765ba7'],
+    ['Teal', '#00838a'], ['Flat Gold', '#bb8b41'], ['Hunter Green', '#407060'], ['Red', '#ff665e'],
+    ['Brown', '#925f52'], ['Yellow', '#ffe800'], ['Marine Red', '#d2515e'], ['Orange', '#ff6c2f'],
+    ['Fluorescent Pink', '#ff48b0'], ['Light Gray', '#88898a'], ['Metallic Gold', '#ac936e'], ['Crimson', '#e45d50'],
+    ['Fluorescent Orange', '#ff7477'],
+  ];
+  const BUILTIN = [{
+    id: 'riso-standard', name: 'Riso standard inks (approx.)', builtin: true,
+    colors: RISO_STANDARD.map(c => ({ id: 'riso-' + c[0].toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: c[0], hex: c[1] })),
+  }];
+  function libraryStore() {
+    const make = Organica.store || Organica.presetStore;
+    return make ? make('tunesutra') : null;
+  }
+  palette.library = function () {
+    let all = {};
+    try { const st = libraryStore(); all = st ? st.read() : {}; } catch (e) { all = {}; }
+    const user = Object.keys(all).filter(name => all[name] && Array.isArray(all[name].colors)).map(name => {
+      const p = all[name];
+      return {
+        id: 'user:' + name, name: name, builtin: false,
+        colors: p.colors.map((hex, i) => ({ id: (p.ids && p.ids[i]) || null, name: (p.names && p.names[i]) || '', hex: Organica.normalizeHex(hex, '#888888') })),
+      };
+    });
+    return user.concat(BUILTIN);
+  };
+
+  // ── palette.pick(trigger, { onPick(hex), onPickAll(hexes)?, max? }) ─────────
+  // One menu for the whole page, placed under the trigger. Each palette is a
+  // name and its colours; a colour is a button. With onPickAll, a palette that
+  // fits (≤ max colours) can also be taken whole by clicking its name.
+  let menu = null, menuFor = null, pulled = false;
+  const LIB_ICON = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><rect x="2" y="2" width="5" height="5" fill="currentColor"/><rect x="9" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="2" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="9" width="5" height="5" fill="currentColor"/></svg>';
+  function libraryButton(cls) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = cls + ' pal-btn';
+    b.title = 'Pick from a palette';
+    b.setAttribute('aria-label', 'Pick from a palette');
+    b.setAttribute('aria-haspopup', 'dialog');
+    b.setAttribute('aria-expanded', 'false');
+    b.innerHTML = LIB_ICON;
+    return b;
+  }
+  function closeMenu(returnFocus) {
+    if (!menu || menu.hidden) return;
+    menu.hidden = true;
+    if (menuFor) { menuFor.setAttribute('aria-expanded', 'false'); if (returnFocus) menuFor.focus(); }
+    menuFor = null;
+  }
+  function ensureMenu() {
+    if (menu) return;
+    menu = document.createElement('div');
+    menu.className = 'preset-menu pal-menu';
+    menu.hidden = true;
+    menu.setAttribute('role', 'dialog');
+    menu.setAttribute('aria-label', 'Palettes');
+    document.body.appendChild(menu);
+    document.addEventListener('click', e => { if (!menu.hidden && !menu.contains(e.target)) closeMenu(false); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(true); });
+  }
+  function fillMenu(opts) {
+    menu.innerHTML = '';
+    palette.library().forEach(pal => {
+      const whole = opts.onPickAll && pal.colors.length <= (opts.max || 8);
+      const head = document.createElement(whole ? 'button' : 'div');
+      head.className = whole ? 'preset-item' : 'pi-group';
+      head.textContent = pal.name;
+      if (whole) {
+        head.type = 'button';
+        head.title = 'Use all ' + pal.colors.length + ' colours';
+        head.addEventListener('click', () => { opts.onPickAll(pal.colors.map(c => c.hex), pal); closeMenu(true); });
+      }
+      menu.appendChild(head);
+      const chips = document.createElement('div');
+      chips.className = 'pal-chips';
+      pal.colors.forEach(c => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'color-swatch';
+        chip.style.background = c.hex;
+        chip.title = (c.name ? c.name + ' ' : '') + c.hex;
+        chip.setAttribute('aria-label', chip.title);
+        chip.addEventListener('click', () => { opts.onPick(c.hex, c, pal); closeMenu(true); });
+        chips.appendChild(chip);
+      });
+      menu.appendChild(chips);
+    });
+    if (global.location && !/^\/tunesutra\//.test(global.location.pathname)) {
+      const link = document.createElement('a');
+      link.className = 'pal-link';
+      link.href = '/tunesutra/';
+      link.textContent = 'Make a palette in TuneSutra';
+      menu.appendChild(link);
+    }
+  }
+  function placeMenu(trigger) {
+    const t = trigger.getBoundingClientRect(), gap = 5, margin = 12;
+    const below = global.innerHeight - t.bottom - margin, above = t.top - margin;
+    const w = Math.min(global.innerWidth - 2 * margin, 236);
+    menu.style.width = w + 'px';
+    menu.style.left = Math.max(margin, Math.min(t.right - w, global.innerWidth - margin - w)) + 'px';
+    if (below >= 200 || below >= above) { menu.style.top = (t.bottom + gap) + 'px'; menu.style.bottom = 'auto'; menu.style.maxHeight = Math.max(160, below) + 'px'; }
+    else { menu.style.bottom = (global.innerHeight - t.top + gap) + 'px'; menu.style.top = 'auto'; menu.style.maxHeight = Math.max(160, above) + 'px'; }
+  }
+  palette.pick = function (trigger, opts) {
+    ensureMenu();
+    if (!menu.hidden && menuFor === trigger) { closeMenu(true); return; }
+    closeMenu(false);
+    fillMenu(opts);
+    placeMenu(trigger);
+    menu.hidden = false;
+    menuFor = trigger;
+    trigger.setAttribute('aria-expanded', 'true');
+    const first = menu.querySelector('button');
+    if (first) first.focus();
+    // The cache may be stale or empty on this device: refresh once from the
+    // cloud (a no-op when signed out) and repaint the open menu.
+    const st = libraryStore();
+    if (!pulled && st && st.pull) {
+      pulled = true;
+      st.pull().then(() => { if (!menu.hidden && menuFor === trigger) { fillMenu(opts); placeMenu(trigger); } }, () => {});
+    }
+  };
 
   Organica.palette = palette;
 })(typeof window !== 'undefined' ? window : this);
