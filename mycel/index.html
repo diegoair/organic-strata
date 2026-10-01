@@ -222,6 +222,7 @@
 
     <div class="panel-section">
       <h3>Save</h3>
+      <div id="preset-picker"></div>
       <select class="panel-select" id="preset-select" aria-label="Preset" onchange="applyPreset(this.value)"></select>
       <div class="row-btns">
         <button class="mini-btn" id="btn-preset-save">Save</button>
@@ -280,6 +281,7 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/noise.js"></script>
+<script src="/shared/select-picker.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────
 // Mycel — organic branching-network generator.
@@ -513,13 +515,13 @@ function generateSpaceColonization(points, rootIndices, params) {
 }
 
 // ── SHARED EDGE → PATH RENDERING ──
-function edgeToPathD(edge, seedOffset) {
+function edgeToPathD(edge, seedOffset, wobble = state.curveWobble) {   // wobble: a preset thumbnail passes its own
   const mx = (edge.from.x + edge.to.x) / 2, my = (edge.from.y + edge.to.y) / 2;
   const dx = edge.to.x - edge.from.x, dy = edge.to.y - edge.from.y;
   const len = Math.hypot(dx, dy) || 1;
   const px = -dy / len, py = dx / len;
   const n = Organica.noise.simplex2(mx * 0.01 + seedOffset, my * 0.01 + seedOffset);
-  const bow = n * len * state.curveWobble * 0.5;
+  const bow = n * len * wobble * 0.5;
   const cx = mx + px * bow, cy = my + py * bow;
   return `M${edge.from.x.toFixed(2)},${edge.from.y.toFixed(2)} Q${cx.toFixed(2)},${cy.toFixed(2)} ${edge.to.x.toFixed(2)},${edge.to.y.toFixed(2)}`;
 }
@@ -537,8 +539,8 @@ function catmullSegD(p0, p1, p2, p3) {
   const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
   return `C ${c1x.toFixed(2)},${c1y.toFixed(2)} ${c2x.toFixed(2)},${c2y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
 }
-function chainToPathD(pts, seedOffset) {
-  if (pts.length < 3) return edgeToPathD({ from: pts[0], to: pts[1] }, seedOffset);
+function chainToPathD(pts, seedOffset, wobble = state.curveWobble) {
+  if (pts.length < 3) return edgeToPathD({ from: pts[0], to: pts[1] }, seedOffset, wobble);
   let d = `M ${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)} `;
   const n = pts.length;
   for (let i = 0; i < n - 1; i++) {
@@ -758,11 +760,37 @@ function exportPNG() {
 // ── PRESETS ──
 const PRESETS = Organica.presetStore('mycel');
 function userPresets() { return PRESETS.read(); }
+// ── Preset picker — preview thumbnails (Organica.selectPicker): each saved
+//    network regrown by the SAME generator (Radiate / MST / Space colonisation,
+//    pure functions of points + roots + params), split by buildChains and
+//    curved by chainToPathD with the preset's own seed and wobble — then drawn
+//    like the export (branches, tips, roots) in currentColor. ──
+function presetThumb(p) {
+  const pts = (p.points || []).map(pt => ({ ...pt })), roots = (p.rootIndices || []).slice();
+  const net = p.mode === 'radiate' ? generateRadiate(pts, roots)
+    : p.mode === 'mst' ? generateMST(pts, roots)
+    : generateSpaceColonization(pts, roots, p.spaceColonization || state.spaceColonization);
+  const off = (p.seed || 0) * 0.137, wob = p.curveWobble != null ? p.curveWobble : state.curveWobble;
+  const chains = buildChains(roots, pts, net.edges);
+  const d = chains.map(c => chainToPathD(c.pts, off, wob)).join(' ');
+  const dot = (q, r) => `<circle cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="${r}"/>`;
+  const tips = chains.filter(c => c.isLeaf).map(c => dot(c.pts[c.pts.length - 1], 14)).join('');
+  const cores = roots.map(i => pts[i] ? dot(pts[i], 26) : '').join('');
+  return `<svg viewBox="0 0 ${VB} ${VB}" fill="none" stroke="currentColor" stroke-linecap="round">` +
+    `<path d="${d}" stroke-width="1.3" vector-effect="non-scaling-stroke"/><g fill="currentColor" stroke="none">${tips}${cores}</g></svg>`;
+}
+const presetRegistry = {};
+let presetPicker = null;
 function populatePresets(select) {
   const sel = ctrl('preset-select');
   const all = userPresets();
+  const esc = n => String(n).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
   sel.innerHTML = '<option value="">Presets…</option>' + Object.keys(all).map(name =>
-    `<option value="${name}"${name === select ? ' selected' : ''}>${name}</option>`).join('');
+    `<option value="${esc(name)}"${name === select ? ' selected' : ''}>${esc(name)}</option>`).join('');
+  Object.keys(presetRegistry).forEach(k => delete presetRegistry[k]);
+  Object.entries(all).forEach(([n, p]) => { presetRegistry[n] = { name: esc(n), thumb: () => presetThumb(p) }; });
+  if (!presetPicker) presetPicker = Organica.selectPicker(sel, ctrl('preset-picker'), { registry: presetRegistry, size: 'preview', ariaLabel: 'Preset' });
+  else presetPicker.refresh();
 }
 function applyPreset(name) {
   if (!name) return;
@@ -801,6 +829,7 @@ function confirmSavePreset() {
     duration: state.duration, playMode: state.playMode, savedAt: new Date().toISOString(),
   };
   PRESETS.write(all);
+  if (presetPicker) presetPicker.invalidate(name);   // an overwrite re-renders its thumbnail
   populatePresets(name);
   cancelSavePreset();
 }
