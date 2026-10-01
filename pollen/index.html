@@ -44,7 +44,7 @@
   /* Placement block — these controls recompute the point field (↻ Refresh) */
   .panel-section.placement { border-top: 2px solid var(--mid); }
   .panel-section.placement h3 { color: var(--accent); }
-  .panel-section.placement h3 .hint { color: var(--pollen); }
+  .panel-section.placement h3 .hint { color: color-mix(in srgb, var(--pollen) 55%, var(--ink)); }   /* the identity hue, darkened to ≥4.5:1 on the panel (was 2.3:1) */
   /* Shape library grid (SVG marks) */
   #shape-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-1); }
   .shape-thumb {

@@ -111,6 +111,9 @@ than a landscape picture — see §15.
 
 ## 5. Wind
 
+> **Stale (Oct 1, 2026).** The current tool has no wind clock, no Pause/Play and no loop: *Sway* and *Drift* are two **static** warp shapes (`windOffset(x, y, k, P)` takes no time). This section describes the pre-rewrite GLSL tool. Motion now lives in **Dapple** (`docs/DAPPLE.md`), which animates the exported SVG.
+
+
 - **Sway** — purely periodic motion (built from a single phase angle). Because the whole
   field returns exactly to its start after one period, **the WebM export loops seamlessly**
   (see §9). Set **Loop** to the period in seconds.
@@ -172,6 +175,9 @@ proportional to Height — the same geometry that blurs the shadows also paralla
 
 ## 10. Export
 
+> **Stale (Oct 1, 2026).** There is no WebM export (`btn-rec` is disabled: "Coming back once wind animation ships"). PNG/JPG/SVG/Figma are current. For video, export the SVG and animate it in **Dapple** (`docs/DAPPLE.md`).
+
+
 Everything exports **WYSIWYG** — one render function feeds the preview, the raster exports,
 the video and the SVG source, so what you see is what you get. **Export Scale** (top bar,
 ×1–×4) multiplies the resolution; a hard cap keeps the longest side ≤ 6000 px.
@@ -229,6 +235,9 @@ from the previous look — it is layered over the *Forest Floor* baseline):
 ---
 
 ## 13. Top bar & interaction
+
+> **Stale (Oct 1, 2026).** Pause/Play and Reset (rewind the wind clock) do not exist in the current tool — there is no clock. See §17 for what the Canvas2D tool has.
+
 
 - **Pause / Play** — freeze or resume the wind clock.
 - **Reset (↺)** — rewind the wind clock to 0.
