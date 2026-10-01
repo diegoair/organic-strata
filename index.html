@@ -601,7 +601,7 @@
     function clear(ctx, w, h, theme) { ctx.fillStyle = BG[theme]; ctx.fillRect(0, 0, w, h); }
 
     var SKETCHES = [
-      { span: 's-a', tool: 'Pollen', href: '/pollen/', label: 'Blue-noise stipple', theme: 'light',
+      { span: 's-a', tool: 'Pollen → Murmur', href: '/murmur/', label: 'Stipple, animated', theme: 'light',
         draw: function (ctx, w, h, t) {
           clear(ctx, w, h, 'light'); ctx.fillStyle = INK;
           var s = 7;
@@ -615,8 +615,8 @@
           }
         } },
       { span: 's-b', tool: 'Camo Turing', href: '/camo-turing/', label: 'Reaction–diffusion', theme: 'dark', draw: grayScott() },
-      { span: 's-c', tool: 'Loom', href: '/loom/', label: 'Solved grids', theme: 'light', draw: loomGrid() },
-      { span: 's-d', tool: 'Radial', href: '/radial/', label: 'Polar field · rose', theme: 'warm',
+      { span: 's-c', tool: 'Loom → Trellis', href: '/trellis/', label: 'Grids, animated', theme: 'light', draw: loomGrid() },
+      { span: 's-d', tool: 'Radial → Pulsar', href: '/pulsar/', label: 'Polar field, animated', theme: 'warm',
         draw: function (ctx, w, h, t) {
           clear(ctx, w, h, 'warm'); ctx.strokeStyle = PAPER; ctx.lineWidth = 1.2;
           var cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.46, k = 5 + Math.round(2 * Math.sin(t * .2));
@@ -632,8 +632,8 @@
           }
         } },
       { span: 's-e', tool: 'Genesis', href: '/genesis/', label: 'Base seeds', theme: 'seeds' },
-      { span: 's-f', tool: 'Halide', href: '/halide/', label: '1-bit ordered dither', theme: 'light', draw: dither() },
-      { span: 's-g', tool: 'Warping', href: '/warping/', label: 'Domain-warped contours', theme: 'dark',
+      { span: 's-f', tool: 'Halide → Murmur', href: '/murmur/', label: '1-bit dither, animated', theme: 'light', draw: dither() },
+      { span: 's-g', tool: 'Warping', href: '/warping/', label: 'Contours · motion preview', theme: 'dark',
         draw: function (ctx, w, h, t) {
           clear(ctx, w, h, 'dark'); ctx.strokeStyle = PAPER; ctx.lineWidth = 1;
           for (var l = 0; l < 34; l++) {
@@ -649,7 +649,7 @@
         } },
       { span: 's-h', tool: 'Vortex', href: '/vortex/', label: 'Conical helix', theme: 'light', draw: vortex() },
       { span: 's-i', tool: 'Mycel', href: '/mycel/', label: 'Growth by tracing', theme: 'light', draw: mycel() },
-      { span: 's-j', tool: 'Komorebi', href: '/komorebi/', label: 'Light through leaves', theme: 'dark',
+      { span: 's-j', tool: 'Komorebi', href: '/komorebi/', label: 'Light · motion preview', theme: 'dark',
         draw: function (ctx, w, h, t) {
           clear(ctx, w, h, 'dark'); ctx.fillStyle = PAPER;
           var s = 10;

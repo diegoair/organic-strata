@@ -569,6 +569,7 @@ function buildSVG() {
   const block = outW / W;
 
   let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${outW}" height="${outH}" viewBox="0 0 ${outW} ${outH}">`;
+  s += `<metadata id="organica">${JSON.stringify({ tool: 'warping', bands, W, H })}</metadata>`;   // lets the animated twin recognise the file (W×H = trace grid; cell = width / W)
   s += `<rect width="100%" height="100%" fill="${bandColor[0]}"/>`;
   let paths = 1;
   const mask = new Uint8Array(W * H);
