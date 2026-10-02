@@ -8526,7 +8526,11 @@ function renderCellContentOverlayTiles() {
       btn.setAttribute('aria-label', 'Use the Element — ' + label);
       btn.innerHTML = buildSeedPreviewSVG(live, r, fh, fv, 72);
       btn.addEventListener('click', () => {
-        const sp = seedForSnapshot();
+        const sp = JSON.parse(JSON.stringify(seedForSnapshot()));
+        // A layer that follows the cell colour would take a different ink in every cell (the Symbol's
+        // colour rule) and vanish wherever that ink is also another layer's own. Here it is pinned to
+        // the ink the Element step shows it in — the palette's first — so every cell shows all layers.
+        if (sp.type === 'stack') sp.layers.forEach(l => { if (l.ink == null || l.ink === 'cell') l.ink = 0; });
         contentTarget()(cell => ({
           source: 'seed', seedType: sp.type, seedParams: JSON.parse(JSON.stringify(sp)), color: cell.color || null, colourway: null,
           rotation: r, flipH: fh, flipV: fv,

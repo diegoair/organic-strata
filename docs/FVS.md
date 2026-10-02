@@ -197,7 +197,9 @@ its cells.
     *Choose…* applies to the whole selection.
 - **Choose content** — the **Element** itself (as it is, or in the six states of the Element
   step's strip: 90° / 180° / 270° / Flip H / Flip V / Flip H+V — the cell keeps the Element's
-  settings as they are at that moment, layers included), a saved Component or **Empty**, with an **Apply to all
+  settings as they are at that moment, layers included; a layer that follows the cell colour
+  is pinned to the palette's first ink, the one the Element step shows it in, so no layer
+  disappears into another), a saved Component or **Empty**, with an **Apply to all
   cells** switch. The plain default Seeds are no longer offered as Symbol content (old Symbols with
   Seed cells, and the Figure tier's lattices, still render them).
 - **Cell properties** — rotation, flip, fit, scale, padding, anchor, **Lock**,
