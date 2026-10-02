@@ -1,6 +1,6 @@
 // Headless check for shared/fvs-field.js (Organica.fvsField): the data it bakes
 // so that it can run alone must equal what the rest of the system produces.
-//   ELEMENTS  = Organica.shapes' own paths
+//   ELEMENTS  = Organica.shapes' own paths (truchet, arc, triangle, circle)
 //   BUILTIN   = the library's built-in combinations through fvsField.resolve()
 // Run: node scripts/test-fvs-field.mjs   — exits 1 on a mismatch.
 //      node scripts/test-fvs-field.mjs --print   prints the BUILTIN literal to paste.
@@ -41,6 +41,8 @@ let failed = 0;
 function check(label, ok) { if (!ok) failed++; console.log((ok ? '  ok   ' : '  FAIL ') + label); }
 check('ELEMENTS.truchet = shapes.arcTruchetGeometry(3, 0.5).d', F.ELEMENTS.truchet === want.truchet);
 check('ELEMENTS.arc = shapes.arcGeometry(42).d', F.ELEMENTS.arc === want.arc);
+check('ELEMENTS.triangle = shapes.triangleGeometry(100, 100, 0).d', F.ELEMENTS.triangle === O.shapes.triangleGeometry(100, 100, 0).d);
+check('ELEMENTS.circle = shapes.circleGeometry(90).d', F.ELEMENTS.circle === O.shapes.circleGeometry(90).d);
 check('BUILTIN = the built-in combinations, resolved (' + want.builtin.length + ')',
   JSON.stringify(JSON.parse(JSON.stringify(F.BUILTIN))) === JSON.stringify(want.builtin));
 check('palettes() with the library loaded returns the live library', F.palettes().length >= want.builtin.length);

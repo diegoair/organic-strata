@@ -148,28 +148,33 @@ The back-compat aliases (`Organica.createColorSwatch` / `createPaletteChips` /
 ## 2b. FVS field — `shared/fvs-field.js` (+ `fvs-field.css`)
 
 A decorative full-screen field made with the Flexible Visual System, under a
-page. A shared component by the owner's decision (Oct 2, 2026) with one
-consumer, `/404.html` — an exception to "extract at the second consumer",
-recorded in `docs/DESIGN-DECISIONS.md` §2.
+page. A shared component by the owner's decision (Oct 2, 2026). Two consumers:
+`/404.html` (the numerals "404") and `/sign-in/` (circles spelling WELCOME TO
+ORGANICA among triangles). Decisions: `docs/DESIGN-DECISIONS.md` §2.
 
 ```js
 var field = Organica.fvsField.mount(host, {
   motion: 'arrival' | 'rules',   // Organica.fvsField.MOTIONS
   numerals: true,                // the "404" mask (16 × 8 cells)
-  band: el,                      // with numerals: the box the mask fills (.org-fvs-field__band)
-  centre: el,                    // without numerals: the element the grid centres on
+  text: 'WELCOME TO\nORGANICA',  // or: words, 3 × 5 cell alphabet A–Z 0–9 (fvsField.textMask)
+  elements: { cell: 'triangle', mark: 'circle' },   // truchet | arc | triangle | circle; default = the motion's own
+  hold: false,                   // default true (404): the words' cells never arrive / obey
+  band: el,                      // with numerals / text: the box the mask fills (.org-fvs-field__band)
+  centre: el,                    // with neither: the element the grid centres on
   above: headerEl, below: footerEl,   // no cell above / below these
   palette: Organica.fvsField.palettes()[i],   // { name, paper, inks[], mark, dark }; omit → currentColor
 });
 field.stop();                    // stops timers + observer, empties the host
+var n = Organica.fvsField.visit('organica.<page>.visit');   // per-browser visit count → alternate motion / palette
 ```
 
 - **Standalone** (Oct 2, 2026, "dobbiamo renderla più leggera"): no other
   script is needed — the 404 loads this file alone (38 KB of script on the
   page, the module 21 KB, instead of ~250 KB). What it would take from the rest
-  of the system is baked in and public: `Organica.fvsField.ELEMENTS` (the two
-  paths = `Organica.shapes.arcTruchetGeometry(3, 0.5).d` and
-  `arcGeometry(42).d`), `.BUILTIN` (the library's three built-in combinations,
+  of the system is baked in and public: `Organica.fvsField.ELEMENTS` (four
+  paths: truchet = `Organica.shapes.arcTruchetGeometry(3, 0.5).d`, arc =
+  `arcGeometry(42).d`, triangle = `triangleGeometry(100,100,0)`, circle =
+  `circleGeometry(90)`), `.BUILTIN` (the library's three built-in combinations,
   already through `.resolve()`), and a local copy of core's `mulberry32`.
 - **Kept honest by a test**: `node scripts/test-fvs-field.mjs` (run by
   `scripts/check.py`, "fvs-field baked data") fails when `ELEMENTS` / `BUILTIN`
@@ -177,6 +182,13 @@ field.stop();                    // stops timers + observer, empties the host
   prints the `BUILTIN` literal to paste. The built-in combinations now live in
   three places — `tunesutra/collections.js` ↔ `palette.js` `COMBINATIONS`
   (by hand) ↔ `fvs-field.js` `BUILTIN` (test-enforced).
+- **Load order trap**: standalone, but on a page that also loads `core.js`
+  (the sign-in, the design system) it must come **after** core — core's last
+  line reassigns the `Organica` namespace and would drop `fvsField`.
+- **Big grids**: past 800 cells only a share (800/n) forms through the filter
+  in Arrival, the rest fade in (`.org-fvs-field__own`); blur / ripple scale
+  down under 47px cells. Sign-in: 1,683 cells, ~4 s, ~41 fps avg (Chromium,
+  1440×900).
 - **Optional**: with `color.js` + `palette.js` loaded (after `core.js`),
   `palettes()` reads the live library — saved TuneSutra palettes too — and
   `.resolve(entry)` works on any library entry. Without them `palettes()`

@@ -9,14 +9,17 @@
 <link rel="stylesheet" href="/shared/icons.css">
 <script src="/shared/pattern-init.js"></script>   <!-- applies the saved theme (no header here, so no toggle — it follows the choice made elsewhere) -->
 <link rel="stylesheet" href="/shared/auth-card.css">
+<link rel="stylesheet" href="/shared/fvs-field.css">
 <style>
-  html, body { height: 100%; margin: 0; }
+  html { height: 100%; }
+  body { min-height: 100%; margin: 0; }
   body {
     box-sizing: border-box;
     font-family: var(--font);
     background: var(--canvas-grid), var(--canvas-bg);   /* the page ground — never --panel (interface chrome) */
     color: var(--ink);
     display: flex;
+    flex-direction: column;   /* the band the words fill, then the card */
     align-items: center;
     justify-content: center;
     padding: var(--space-6);
@@ -24,6 +27,11 @@
 </style>
 </head>
 <body>
+  <!-- The ground: a full-screen Flexible Visual System field (shared/fvs-field.js, /design-system/#fvs-field), the
+       same as the 404's. Circles spell WELCOME TO ORGANICA among triangles in the band above the card; each visit shows the other
+       motion (Arrival / Rules) and the next built-in palette. -->
+  <div class="org-fvs-field" id="field" aria-hidden="true"></div>
+  <div class="org-fvs-field__band" id="field-band" aria-hidden="true"></div>
   <div class="org-auth-card">
     <p class="org-auth-card__brand">Organica</p>
     <p class="org-auth-card__sub">Private beta — sign in to continue.</p>
@@ -50,6 +58,17 @@
 
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/fvs-field.js"></script>   <!-- after core.js: core's last line reassigns the namespace -->
+<script>
+(function () {
+  var F = Organica.fvsField, n = F.visit('organica.signin.visit'), pals = F.palettes();
+  F.mount(document.getElementById('field'), {
+    motion: n % 2 ? 'arrival' : 'rules', text: 'WELCOME TO\nORGANICA',
+    elements: { cell: 'triangle', mark: 'circle' }, hold: false,   // circles spell the words among triangles
+    band: document.getElementById('field-band'), palette: pals[n % pals.length],
+  });
+})();
+</script>
 <script src="/shared/icons.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>

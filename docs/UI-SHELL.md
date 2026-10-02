@@ -31,7 +31,7 @@ Halide, Komorebi and, in spirit, Living Path):
 |---|---|---|---|
 | **Tool** | anything with a canvas and controls — the drawing above | `shell.css` | `shared/_template.html` |
 | **Page** | anything that reads or lists (legal, admin, the test gallery) | `page.css` | an existing page — §6 |
-| **Auth card** | the sign-in card, alone on the page | `auth-card.css` | `/sign-in/` |
+| **Auth card** | the sign-in card, alone on the page (on an FVS field since Oct 2, 2026) | `auth-card.css` | `/sign-in/` |
 
 Two documented variants, not templates of their own: an **own-surface** tool has
 the Tool chrome (header, floatbar, `#panel`, mobile gate) but its own canvas
@@ -700,8 +700,18 @@ not the column's closing line — and the **header shows no pattern switcher and
 no theme button** (hidden by the sheet; the saved theme still applies). The
 header and the footer each take an element-scoped `data-theme` from the
 palette's ground. Markup, options, the two motions and the colour rule:
-[`/design-system/#fvs-field`](/design-system/#fvs-field). Not for the sign-in —
-its animation is undecided (`docs/DESIGN-DECISIONS.md` O-13).
+[`/design-system/#fvs-field`](/design-system/#fvs-field).
+
+**The sign-in stands on the same field** (decided Oct 2, 2026 — O-13), and stays
+the Auth card template: no header, no footer. `<body>` is a flex column
+(`min-height: 100%`) holding the `.org-fvs-field` layer, the
+`.org-fvs-field__band`, then `.org-auth-card`; `fvs-field.css` is linked after
+`auth-card.css`; `fvs-field.js` loads right **after** `core.js` (core's last
+line reassigns the `Organica` namespace — on a page that loads both, the field
+script must come second). Circles spell WELCOME TO ORGANICA among triangles
+(`text`, `elements: { cell: 'triangle', mark: 'circle' }`, `hold: false`); each
+visit shows the other motion and the next built-in palette
+(`localStorage['organica.signin.visit']`).
 
 ---
 

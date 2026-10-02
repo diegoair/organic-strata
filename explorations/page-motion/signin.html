@@ -11,13 +11,15 @@
 <script src="/shared/pattern-init.js"></script>
 <link rel="stylesheet" href="/shared/auth-card.css">
 <style>
-  html, body { height: 100%; margin: 0; }
+  html { height: 100%; }
+  body { min-height: 100%; margin: 0; }
   body {
     box-sizing: border-box;
     font-family: var(--font);
     background: var(--canvas-grid), var(--canvas-bg);
     color: var(--ink);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     padding: var(--space-6);
@@ -26,8 +28,9 @@
 <link rel="stylesheet" href="/shared/fvs-field.css">
 </head>
 <body>
-  <!-- A copy of /sign-in/ (no Supabase, the buttons do nothing) + the motion layer. ?p=a (Arrival) | ?p=b (Rules). -->
-  <div class="org-fvs-field" id="pm" aria-hidden="true"></div>
+  <!-- A copy of /sign-in/ (no Supabase, the buttons do nothing) + the motion layer. the same as /sign-in/. ?p=a (Arrival) | ?p=b (Rules), ?pal=<n> pin them. -->
+  <div class="org-fvs-field" id="field" aria-hidden="true"></div>
+  <div class="org-fvs-field__band" id="field-band" aria-hidden="true"></div>
   <div class="org-auth-card">
     <p class="org-auth-card__brand">Organica</p>
     <p class="org-auth-card__sub">Private beta — sign in to continue.</p>
@@ -53,8 +56,15 @@
 
 <script src="/shared/fvs-field.js"></script>
 <script>
-  Organica.fvsField.mount(document.getElementById('pm'),
-    { motion: /[?&]p=b\b/.test(location.search) ? 'rules' : 'arrival', centre: document.querySelector('.org-auth-card') });
+(function () {
+  var F = Organica.fvsField, q = location.search, n = F.visit('organica.signin.visit'), pals = F.palettes();
+  var pin = /[?&]p=([ab])\b/.exec(q), pinPal = /[?&]pal=(\d+)/.exec(q);
+  F.mount(document.getElementById('field'), {
+    motion: (pin ? pin[1] === 'a' : n % 2) ? 'arrival' : 'rules', text: 'WELCOME TO\nORGANICA',
+    elements: { cell: 'triangle', mark: 'circle' }, hold: false,   // circles spell the words among triangles
+    band: document.getElementById('field-band'), palette: pals[(pinPal ? +pinPal[1] : n) % pals.length],
+  });
+})();
 </script>
 </body>
 </html>

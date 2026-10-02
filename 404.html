@@ -54,9 +54,7 @@
 <script src="/shared/fvs-field.js"></script>
 <script>
 (function () {
-  var q = location.search, n = 0;
-  try { n = (+localStorage.getItem('organica.404.visit') || 0) + 1; localStorage.setItem('organica.404.visit', String(n)); }
-  catch (e) { n = Math.floor(Math.random() * 60); }
+  var q = location.search, n = Organica.fvsField.visit('organica.404.visit');
   var pin = /[?&]p=([ab])\b/.exec(q), pinPal = /[?&]pal=(\d+)/.exec(q);
   var pals = Organica.fvsField.palettes(), pal = pals[(pinPal ? +pinPal[1] : n) % pals.length];
   var header = document.querySelector('.org-header'), foot = document.querySelector('.org-page__foot');

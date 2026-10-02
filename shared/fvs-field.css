@@ -37,6 +37,9 @@
   margin-bottom: var(--space-7);
 }
 
+/* A cell of a big grid that arrives without the filter fades in at its turn. */
+.org-fvs-field__own { transition: opacity var(--dur-slow) var(--ease-out); }
+
 /* A cell under the rules motion turns about its own centre (the Arc's box is the whole cell). */
 .org-fvs-field__cell {
   transform-box: fill-box;
