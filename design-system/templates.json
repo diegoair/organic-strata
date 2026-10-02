@@ -319,7 +319,7 @@
      "surface": "#canvas-wrap",
      "stage": "#stage",
      "floatbar": true,
-     "headerActions": 1
+     "headerActions": 0
     },
     {
      "page": "/murmur/",

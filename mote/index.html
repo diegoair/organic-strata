@@ -78,9 +78,6 @@
   <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><menu-icon state="menu" size="20" line-cap="square"></menu-icon></button>
   <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ Mote</span></a>
   <div class="org-header__spacer"></div>
-  <div class="org-header__actions">
-    <button class="org-btn" id="btn-kiosk" onclick="toggleKiosk()">Fullscreen</button>
-  </div>
 </header>
 
 <div id="app">
@@ -328,6 +325,11 @@
       <div class="org-popover__row"><span class="org-popover__label">Output</span><span class="org-out" id="out-size">—</span></div>
     </div>
   </div>
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
+  <!-- Fullscreen / kiosk — a view toggle, so it sits after Export (moved from the header Oct 2, 2026). -->
+  <button class="org-floatbar__btn" id="btn-kiosk" aria-label="Fullscreen" aria-description="Kiosk mode: hides the interface, the canvas fills the screen. Press k or Esc to leave." onclick="toggleKiosk()">
+    <svg class="ico" data-icon="fullscreen" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg>
+  </button>
   <span class="org-floatbar__sep" aria-hidden="true"></span>
   <span id="perf" aria-hidden="true">
     <span><b id="pf-ms">–</b><i>ms</i></span>

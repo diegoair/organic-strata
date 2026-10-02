@@ -213,10 +213,8 @@ def lint(f, row, p):
         elif p.app_children[-1][1].get('id') != 'panel': bad('panel-last', '#panel must be the last child of #app (the panel is on the right)')
         if not own and f != STARTER and not any(a.get('id') == 'canvas-wrap' or 'org-canvas-wrap' in c for _, a, c in p.app_children):
             bad('surface', 'the surface must be #canvas-wrap or carry class="org-canvas-wrap" — a local copy of the canvas region drifts (or list the page in OWN_SURFACE)')
-        for e in p.elems:
-            if e[0] == 'button' and any('org-header' in pc for _, _, pc in e[3]) and \
-               re.search(r'export', (e[1].get('id') or '') + ' ' + (e[1].get('aria-label') or ''), re.I):
-                bad('export-in-header', 'Export belongs in the floatbar, not the header')
+        if row.get('headerActions'):
+            bad('header-actions', f"{row['headerActions']} action button(s) in the header — a tool's header is identity only; Open, playback, Export and view toggles live in the floatbar")
 
     if f == '404.html' and any('auth.js' in s for s, _ in p.scripts):
         bad('public', 'the 404 never loads auth.js — a signed-out visitor with a wrong link must see it, not the sign-in')

@@ -789,7 +789,7 @@ Honest list of where the tools still disagree:
   pattern) — **Still** (PNG / SVG), **Video — single** (Record / Render),
   **Video — batch** (Master + 5 by-ratio social `sz-*` checkboxes + Crop/Fit seg
   → Export batch, one `.mp4` per size) — plus FPS / Format / **Size** (HD→8K) /
-  Length / Output rows. Header carries a **Fullscreen** action → `body.kiosk`
+  Length / Output rows. The floatbar carries a **Fullscreen** icon (after Export; it was a header button until Oct 2, 2026) → `body.kiosk`
   (hides header/panel/floatbar, canvas on `#000`, Fullscreen API, `k` toggles).
   Local rules: the hide-until-a-source rule, `#perf`, `#progress-bar` / `#note`,
   and the `body.kiosk` block.
