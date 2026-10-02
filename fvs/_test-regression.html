@@ -340,6 +340,39 @@ async function battery() {
     setComponentGrid('square2x2'); setTier('component');
   }
 
+  // 10f — Colourways: schemes from the palette + its shade scales, contrast-solved
+  {
+    const C = Organica.color;
+    const base = { colors: ['#5f238d', '#74c476', '#d40039'], paper: '#ffffeb', colorRule: { mode: 'index', offset: 0 } };
+    const grid = { kind: 'square', cols: 2, rows: 2, cellSize: 160, gap: 0 };
+    const list = buildColourways(base, grid, 4);
+    const ok = cw => [...new Set(cw.colors)].every((a, i, arr) => C.contrast(a, cwGround(cw.paper)) >= CW_MIN_CONTRAST && arr.every((b, j) => j === i || C.deltaE(a, b) >= C.DISTINCT_MIN));
+    put('clr:scheme:list', H(list.map(cw => [cw.label, cw.paper, cw.colors.join(' '), cw.colorRule.mode, cw.colorRule.offset].join(';')).join('|')));
+    put('clr:scheme:rules', [list.length, list[0].label, list.slice(1).every(ok), new Set(list.map(cw => cw.scheme)).size].join(','));
+    // a pale ink moves along its own scale (hue kept) until it reads on the paper
+    const solved = cwSolve(['#74c476'], '#ffffeb')[0];
+    put('clr:solve', [solved, C.contrast('#74c476', '#ffffeb') < 3, C.contrast(solved, '#ffffeb') >= 3, Math.abs(C.hexToOklch(solved).h - C.hexToOklch('#74c476').h) < 6, cwSolve(['#888888', '#8a8a8a'], '#ffffff').join(' ')].join(','));
+    put('clr:accent', (() => { const a = list.find(cw => cw.scheme === 'accent'); return a ? [a.colors.length, a.colorRule.mode, new Set(a.colors).size].join(',') : 'none'; })());
+    // in the gallery: one candidate per colourway, each thumbnail in its own colours; saved with them; picking one adopts it
+    const inks0 = state.colors, paper0 = state.paperColor, rule0 = state.colorRule;
+    setTier('component'); chg('sel-seed-type', 'arc'); setComponentGrid('square2x2'); chg('sel-rule', 'checkerboard'); generate();
+    state.colors = base.colors.slice(); state.colorRule = { ...base.colorRule }; buildPalette(); setPaperUI(base.paper);
+    state.selectedId = state.components[0].id; state.selectionExplicit = true;
+    generateColourways();
+    const papers = [...document.querySelectorAll('#gallery .fvs-thumb')].map(b => (b.innerHTML.match(/<rect width="[\d.]+" height="[\d.]+" fill="(#[0-9a-f]+)"/) || [])[1]);
+    const dark = state.components.find(c => c.colourway.scheme === 'dark');
+    const entry = buildLibraryEntryFor(dark);
+    put('colourway:gallery', [state.components.length === list.length, papers.join('') === list.map(cw => cw.paper).join(''), state.colors.join('') === base.colors.join('')].join(','));
+    put('colourway:save', [entry.paperColor === dark.colourway.paper, entry.colors.join('') === dark.colourway.colors.join(''), state.paperColor === base.paper].join(','));
+    state.selectedId = dark.id; adoptColourway(dark); renderGallery();
+    const adopted = state.paperColor === dark.colourway.paper && state.colors.join('') === dark.colourway.colors.join('');
+    state.colors = ['#111111']; buildPalette(); refreshColourViews();
+    put('colourway:adopt', [adopted, getSelectedComponent().colourway.label, state.components.filter(c => c.colourway.scheme === 'custom').length].join(','));
+    undoComponents();
+    state.colors = inks0; state.colorRule = rule0; buildPalette(); syncColorRuleUI(); setPaperUI(paper0);
+    chg('sel-rule', 'identity'); generate();
+  }
+
   // 11 — Cell properties colour override, Undo, rename, quadrant hint
   chg('sel-seed-type', 'arc'); chg('sel-element-fillmode', 'fill');
   setTier('symbol');
