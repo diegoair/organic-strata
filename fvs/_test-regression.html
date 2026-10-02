@@ -307,6 +307,23 @@ async function battery() {
       const two = suggestSymbols({ seed: 5, weights: { cont: 0.6, bal: 0.3, sur: 0.3, col: 0.4 }, fit: 'fill' });
       const off = suggestSymbols({ seed: 5, weights: { cont: 0.6, bal: 0.3, sur: 0.3 }, fit: 'fill' });
       put('suggest:colour:two', [two.length > 0, two.every(x => x.score.col != null && x.score.col >= 0 && x.score.col <= 1), new Set(two.map(x => x.score.col.toFixed(3))).size > 1, off.every(x => x.score.col != null)].join(','));
+      // Recolour (test): a cell may take one of its Component's colourways; off = exactly as before
+      const rc = suggestSymbols({ seed: 5, weights: { cont: 0.6, bal: 0.3, sur: 0.3, col: 0.4 }, fit: 'fill', recolour: true });
+      const again = suggestSymbols({ seed: 5, weights: { cont: 0.6, bal: 0.3, sur: 0.3, col: 0.4 }, fit: 'fill', recolour: false });
+      const hit = rc.find(x => x.cells.some(c => c.colourway));
+      let drawn = false, kept = false;
+      if (hit) {
+        const cells0 = state.symbolCells;
+        state.symbolCells = hit.cells.map(c => ({ ...c }));
+        const cw = state.symbolCells.find(c => c.colourway).colourway;
+        const svg = buildSymbolSVG();
+        drawn = svg.includes(`fill="${cw.paper}"`) && cw.colors.every(h => svg.includes(h));
+        // "More like this" keeps a recoloured cell it does not re-draw
+        const more2 = suggestSymbols({ seed: 2, base: candFromCells(state.symbolCells), weights: { cont: 0.6, bal: 0.3, sur: 0.3 }, fit: 'fill', recolour: false });
+        kept = more2.length > 0 && more2.every(x => x.cells.some(c => c.colourway));
+        state.symbolCells = cells0;
+      }
+      put('recolour:cell', [rc.length > 0, !!hit, drawn, kept, suggestColourways('zz-t-wave').length, again.map(x => x.cells.some(c => c.colourway)).includes(true), JSON.stringify(again.map(x => x.cells)) === JSON.stringify(two.map(x => x.cells))].join(','));
       state.symbolPool = pool0;
     }
     for (const [g, prm] of [['triangular', { cols: 6 }], ['hexagonal', { cols: 5 }], ['radial', {}], ['circular', { cols: 5 }]]) {
