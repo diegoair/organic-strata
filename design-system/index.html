@@ -1017,16 +1017,28 @@
       <div class="ds-example ds-example--column">
         <div id="ds-page-demo" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-md)">
           <div class="org-page__col" id="ds-page-col" style="--page-col-w:320px">
-            <div class="org-prose org-prose--compact" style="background:var(--paper);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--space-6)">
-              <h4>.org-page__col</h4>
-              <p>One centred column on the page ground. Running text inside it goes on <code>.org-prose</code>.</p>
-            </div>
+            <article class="org-page__card org-prose org-prose--compact" id="ds-page-card">
+              <h4>.org-page__card</h4>
+              <p>A paper card on the page ground, inside the centred <code>.org-page__col</code>. Running text goes on <code>.org-prose</code>.</p>
+            </article>
+            <footer class="org-page__foot" id="ds-page-foot">
+              <span>© Organica</span>
+              <nav aria-label="Legal and reference (example)"><a href="#template-page" aria-current="page">Privacy</a><a href="#template-page">Terms</a><a href="#template-page">Design System</a></nav>
+            </footer>
           </div>
         </div>
       </div>
       <pre class="ds-code">&lt;<span class="tag">body</span> <span class="attr">class</span>=<span class="str">"org-page"</span>&gt;                       <span class="attr">&lt;!-- grey ground; add org-page--paper for a paper ground --&gt;</span>
   &lt;<span class="tag">header</span> <span class="attr">class</span>=<span class="str">"org-header"</span>&gt;…&lt;/<span class="tag">header</span>&gt;
-  &lt;<span class="tag">main</span> <span class="attr">class</span>=<span class="str">"org-page__col"</span>&gt;…&lt;/<span class="tag">main</span>&gt;           <span class="attr">&lt;!-- + org-page__col--wide / --full --&gt;</span>
+  &lt;<span class="tag">main</span> <span class="attr">class</span>=<span class="str">"org-page__col"</span>&gt;                  <span class="attr">&lt;!-- + org-page__col--wide / --full --&gt;</span>
+    &lt;<span class="tag">article</span> <span class="attr">class</span>=<span class="str">"org-page__card org-prose"</span>&gt;…&lt;/<span class="tag">article</span>&gt;   <span class="attr">&lt;!-- optional paper card --&gt;</span>
+    &lt;<span class="tag">footer</span> <span class="attr">class</span>=<span class="str">"org-page__foot"</span>&gt;
+      &lt;<span class="tag">span</span>&gt;© Organica&lt;/<span class="tag">span</span>&gt;
+      &lt;<span class="tag">nav</span> <span class="attr">aria-label</span>=<span class="str">"Legal and reference"</span>&gt;
+        &lt;<span class="tag">a</span> <span class="attr">href</span>=<span class="str">"/privacy"</span>&gt;Privacy&lt;/<span class="tag">a</span>&gt; &lt;<span class="tag">a</span> <span class="attr">href</span>=<span class="str">"/terms"</span>&gt;Terms&lt;/<span class="tag">a</span>&gt; &lt;<span class="tag">a</span> <span class="attr">href</span>=<span class="str">"/design-system/"</span>&gt;Design System&lt;/<span class="tag">a</span>&gt;
+      &lt;/<span class="tag">nav</span>&gt;
+    &lt;/<span class="tag">footer</span>&gt;
+  &lt;/<span class="tag">main</span>&gt;
 &lt;/<span class="tag">body</span>&gt;</pre>
       <table>
         <tr><th>Column</th><th>Class</th><th>Width</th><th>For</th></tr>
@@ -1035,6 +1047,15 @@
         <tr><td>Full</td><td><code>.org-page__col--full</code></td><td>1500px</td><td>A gallery or a grid of work</td></tr>
       </table>
       <p>The widths are the component's own geometry (<code>--page-col-w</code>, like <code>--panel-w</code> and <code>--auth-card-w</code>), not steps on the spacing scale. A public reading page (privacy, terms) has no mobile gate — a policy has to be readable on a phone; a signed-in page that needs a desktop (the gallery) adds it.</p>
+      <h3>The card and the footer</h3>
+      <table>
+        <tr><th>Part</th><th>Class</th><th>Rule</th></tr>
+        <tr><td>Card</td><td><code>.org-page__card</code></td><td>A paper sheet on the grey ground, for a page that is one block of text (privacy, terms, the 404). Optional: a data page or a gallery sits on the ground directly.</td></tr>
+        <tr><td>Footer</td><td><code>.org-page__foot</code></td><td><strong>One footer, the same three links wherever a page has one</strong> (privacy, terms, the 404, the hub): Privacy · Terms · Design System, after “© Organica”. The current page's link carries <code>aria-current="page"</code>. It closes the column; the hub, which has no column, adds its own padding. Tools have no footer — the canvas takes the whole viewport.</td></tr>
+      </table>
+      <p>A button inside the card stays <em>outside</em> <code>.org-prose</code> (as on the 404): prose styles every bare <code>&lt;a&gt;</code> as an underlined ink link, which would erase a primary button's label.</p>
+      <h3>The error page</h3>
+      <p><code>/404.html</code> is this template with a card and the footer, and it is public — it loads no <code>auth.js</code>, so a signed-out visitor with a wrong link sees it rather than the sign-in. The host serves it for any address that matches no file and no rewrite. There is no separate page for other status codes: the suite is static files, and 404 is the only error a visitor can reach.</p>
       <h3>Variant — own layout</h3>
       <table id="ds-tpl-layout"><tr><th>Page</th><th>Why its layout is its own</th></tr></table>
     </section>
@@ -1916,7 +1937,7 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
         <tr><td><code>tokens.css</code></td><td>Typeface, weights, type scale, spacing scale, radius scale, the surface palette (<code>--ink</code>/<code>--paper</code>/<code>--mid</code>/<code>--accent</code>/<code>--panel</code>/<code>--border</code>), <code>--accent-warm</code>, <code>--danger</code>, <code>--track-bg</code>, the <code>.mt-*</code>/<code>.mb-*</code>/<code>.u-flex1</code>/<code>.u-hidden</code> utilities</td><td>nothing — load first, always</td></tr>
         <tr><td><code>icons.css</code></td><td><code>.ico</code> — the stroke and the five sizes of every <a href="#icons">registry icon</a></td><td>tokens.css</td></tr>
         <tr><td><code>header.css</code></td><td>The header shell (identity/context/status/actions), <code>.org-btn</code> and its modifiers, <code>.org-popover</code></td><td>tokens.css</td></tr>
-        <tr><td><code>page.css</code></td><td>The <a href="#template-page">Page template</a>'s skeleton — reset, <code>body.org-page</code>, the <code>.org-page__col</code> column and its widths. Never together with <code>shell.css</code> (this page excepted: it links every sheet to render the examples).</td><td>tokens.css</td></tr>
+        <tr><td><code>page.css</code></td><td>The <a href="#template-page">Page template</a>'s skeleton — reset, <code>body.org-page</code>, the <code>.org-page__col</code> column and its widths, <code>.org-page__card</code>, <code>.org-page__foot</code>. Never together with <code>shell.css</code> (this page excepted: it links every sheet to render the examples).</td><td>tokens.css</td></tr>
         <tr><td><code>prose.css</code> <em>(opt-in)</em></td><td><code>.org-prose</code> — bare headings, paragraphs, lists, links, code and tables for pages that read</td><td>tokens.css</td></tr>
         <tr><td><code>auth-card.css</code></td><td>The sign-in card (<code>.org-auth-card</code>) — linked only by <code>/sign-in</code> and this page</td><td>tokens.css</td></tr>
         <tr><td><code>panel.css</code></td><td>The right-hand control sidebar — section/sub-label/row, slider, select/input/color-row, segmented control, <code>.upload-btn</code>/<code>.org-file-input</code>, <code>.org-modal</code>, <code>.org-layer-card</code></td><td>tokens.css</td></tr>
@@ -2275,6 +2296,8 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
       if (got !== want) bad(sel + ' { ' + prop + ': ' + got + ' } — documented as ' + want);
     }
   };
+  assert('#ds-page-foot', { display: 'flex', fontSize: '10px' });   // the one footer (page.css)
+  assert('#ds-page-card', { borderTopLeftRadius: '8px' });          // --radius-lg
   assert('.ctrl-row',   { minHeight: '26px' });                       // --row-h
   assert('#ds-selpick-host .preset-trigger', { minHeight: '32px', paddingTop: '4px', paddingBottom: '4px', paddingLeft: '4px' });   // even air round the 22px thumbnail
   assert('#ds-selpick-preview-host .preset-trigger', { minHeight: '32px', paddingTop: '4px', paddingLeft: '4px' });   // preview size keeps the same trigger

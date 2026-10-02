@@ -59,7 +59,17 @@ for p in paths:
         bad += 1
     except Exception as e:  # noqa
         print(f"  ✗ ERR            {p}  {e}"); bad += 1
+# An address that does not exist must answer 404 WITH our page (404.html), not the host's default.
+try:
+    opener.open(urllib.request.Request(BASE + "/this-page-does-not-exist", headers=HDR), timeout=20)
+    print("  ✗ 200            /this-page-does-not-exist  (expected 404)"); bad += 1
+except urllib.error.HTTPError as e:
+    ours = e.code == 404 and b"org-page__card" in e.read()
+    print(f"  {'✓' if ours else '✗'} {e.code}            /this-page-does-not-exist" + ("" if ours else "  (not the Organica 404 page)"))
+    bad += not ours
+except Exception as e:  # noqa
+    print(f"  ✗ ERR            /this-page-does-not-exist  {e}"); bad += 1
 if protected:
     print("\nDeployment is behind Vercel auth — set VERCEL_PROTECTION_BYPASS or fetch via the Vercel MCP.")
-print(f"\n{'SMOKE FAILED' if bad else 'SMOKE OK'} — {len(paths)-bad}/{len(paths)} at {BASE}")
+print(f"\n{'SMOKE FAILED' if bad else 'SMOKE OK'} — {len(paths)+1-bad}/{len(paths)+1} at {BASE}")
 sys.exit(1 if bad else 0)

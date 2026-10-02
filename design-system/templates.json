@@ -633,6 +633,25 @@
    "skeletonSheet": "page.css",
    "pages": [
     {
+     "page": "/404.html",
+     "file": "404.html",
+     "template": "page",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "page",
+      "prose"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": true,
+     "column": "reading",
+     "prose": true
+    },
+    {
      "page": "/admin/",
      "file": "admin/index.html",
      "template": "page",
@@ -704,6 +723,7 @@
       "tokens",
       "icons",
       "header",
+      "page",
       "mobile-gate"
      ],
      "modules": false,

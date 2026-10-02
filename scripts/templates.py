@@ -41,7 +41,7 @@ OWN_SURFACE = {   # tool chrome, own canvas surface — no shell.css
     'rhizome': 'an infinite node canvas, no sheet',
     'genesis': 'library grid + Paper.js artboard; retiring, left alone by decision',
 }
-OWN_LAYOUT = {    # page chrome, own layout (the design system links page.css only for its live specimen)
+OWN_LAYOUT = {    # page chrome, own layout (the hub links page.css for the footer, the design system for its specimens)
     '': 'the hub: a stipple hero, a gallery and full-bleed sections',
     'design-system': 'the reference layout: a 232px section nav beside the content',
 }
@@ -112,7 +112,7 @@ def pages():
     for f in subprocess.run(['git', 'ls-files', '--cached', '--others', '--exclude-standard', '*.html'],
                             capture_output=True, text=True).stdout.split():
         if SKIP.search(f) or not os.path.exists(f): continue
-        if not (f == 'index.html' or f.endswith('/index.html')): continue
+        if not (f in ('index.html', '404.html') or f.endswith('/index.html')): continue
         src = open(f, errors='replace').read()
         if len(src) < 3000 and re.search(r'http-equiv="refresh"|location\.replace', src): continue   # thin redirects
         out.append(f)
@@ -120,7 +120,7 @@ def pages():
 
 
 def name_of(f):
-    return '' if f == 'index.html' else f.rsplit('/', 1)[0]
+    return '' if f == 'index.html' else f.rsplit('/', 1)[0] if '/' in f else f[:-5]
 
 
 def sheet(href):
@@ -155,7 +155,7 @@ def describe(f):
     hdr_buttons = [e for e in p.elems if e[0] == 'button' and any('org-header__actions' in pc for _, _, pc in e[3])
                    and not any('org-popover' in pc for _, _, pc in e[3])]
     row = {
-        'page': '/' + (name + '/' if name else ''),
+        'page': '/' + f if '/' not in f and f != 'index.html' else '/' + (name + '/' if name else ''),
         'file': f,
         'template': template,
         'variant': variant,
@@ -218,6 +218,8 @@ def lint(f, row, p):
                re.search(r'export', (e[1].get('id') or '') + ' ' + (e[1].get('aria-label') or ''), re.I):
                 bad('export-in-header', 'Export belongs in the floatbar, not the header')
 
+    if f == '404.html' and any('auth.js' in s for s, _ in p.scripts):
+        bad('public', 'the 404 never loads auth.js — a signed-out visitor with a wrong link must see it, not the sign-in')
     if row['template'] == 'page' and row['variant'] is None:
         if 'page' not in sheets: bad('sheets', 'a page links page.css')
         if 'shell' in sheets: bad('sheets', 'a page never links shell.css — it pins <body> to the viewport and the page cannot scroll')
