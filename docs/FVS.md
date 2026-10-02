@@ -195,8 +195,10 @@ its cells.
   - **Manual** — click a cell to select it; drag to select several; ⌘-click (Ctrl-click on
     Windows; Shift also works) adds or removes a cell. Every Cell-properties change and
     *Choose…* applies to the whole selection.
-- **Choose content** — a saved Component or **Empty**, with an **Apply to all
-  cells** switch. Seeds are no longer offered as Symbol content (old Symbols with
+- **Choose content** — the **Element** itself (as it is, or in the six states of the Element
+  step's strip: 90° / 180° / 270° / Flip H / Flip V / Flip H+V — the cell keeps the Element's
+  settings as they are at that moment, layers included), a saved Component or **Empty**, with an **Apply to all
+  cells** switch. The plain default Seeds are no longer offered as Symbol content (old Symbols with
   Seed cells, and the Figure tier's lattices, still render them).
 - **Cell properties** — rotation, flip, fit, scale, padding, anchor, **Lock**,
   and **Colour**: *Follow palette* (default) or an explicit override (a palette

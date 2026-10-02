@@ -241,7 +241,7 @@
      anywhere on the canvas), so this is a plain fixed-position dialog. */
   /* Backdrop + panel skeleton come from .org-modal / .org-modal__* in
      panel.css. Local: the tile size inside these two dialogs. */
-  #symbol-content-overlay__seeds .fvs-library-item, #symbol-content-overlay__components .fvs-library-item { width: 76px; height: 76px; }
+  #symbol-content-overlay__seeds .fvs-library-item, #symbol-content-overlay__element .fvs-library-item, #symbol-content-overlay__components .fvs-library-item { width: 76px; height: 76px; }
   #underlying-component-overlay-tiles .fvs-library-item { width: 76px; height: 76px; }
 
   #symbol-frame svg .symbol-marquee { fill: rgba(51,153,255,0.12); stroke: #3399ff; stroke-width: 1; stroke-dasharray: 4 3; }
@@ -1948,6 +1948,10 @@
     <div id="content-sec-seeds">
       <div class="sub-label">Seeds</div>
       <div id="symbol-content-overlay__seeds" class="fvs-library"></div>
+    </div>
+    <div id="content-sec-element">
+      <div class="sub-label">Element <span class="hint">the current shape, as it is and in its six turns and flips</span></div>
+      <div id="symbol-content-overlay__element" class="fvs-library"></div>
     </div>
     <div id="content-sec-components">
       <div class="sub-label" style="margin-top:var(--space-3)">Components</div>
@@ -8507,7 +8511,39 @@ function renderCellContentOverlayTiles() {
     item.append(btn, cap);
     compWrap.appendChild(item);
   }
-  // Seeds are not Symbol content any more: the Seeds list and the filter stay hidden.
+  // The Element itself as cell content: as it is, and in the six states of the Element
+  // step's own preview strip. The cell keeps the Element's settings as they are now
+  // (seedParams, like Cell properties → Use Element) and the turn / flip of the tile.
+  const elSec = ctrl('content-sec-element'), elTiles = ctrl('symbol-content-overlay__element');
+  elTiles.innerHTML = '';
+  elSec.style.display = contentOverlayPoolMode || elementIsEmpty() ? 'none' : '';
+  if (!contentOverlayPoolMode && !elementIsEmpty()) {
+    const live = getSeed();
+    [[0, false, false, 'As it is'], ...SEED_PREVIEW_STATES].forEach(([r, fh, fv, label]) => {
+      const btn = document.createElement('button');
+      btn.className = 'fvs-library-item';
+      btn.title = 'Element · ' + label;
+      btn.setAttribute('aria-label', 'Use the Element — ' + label);
+      btn.innerHTML = buildSeedPreviewSVG(live, r, fh, fv, 72);
+      btn.addEventListener('click', () => {
+        const sp = seedForSnapshot();
+        contentTarget()(cell => ({
+          source: 'seed', seedType: sp.type, seedParams: JSON.parse(JSON.stringify(sp)), color: cell.color || null, colourway: null,
+          rotation: r, flipH: fh, flipV: fv,
+          fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0,
+        }));
+        closeCellContentOverlay();
+        renderCellPropertiesPanel();
+      });
+      const item = document.createElement('div');
+      const cap = document.createElement('span');
+      cap.className = 'fvs-library-caption';
+      cap.textContent = label;
+      item.append(btn, cap);
+      elTiles.appendChild(item);
+    });
+  }
+  // The plain default Seeds are not Symbol content any more: that list and the filter stay hidden.
   ctrl('content-sec-seeds').style.display = 'none';
   ctrl('seg-content-filter').style.display = 'none';
   Organica.autoLabelPanel(ctrl('symbol-content-overlay'));
