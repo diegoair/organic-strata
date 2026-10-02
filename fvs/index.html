@@ -1522,6 +1522,7 @@
       <div id="library-empty" class="fvs-library-empty">Nothing saved yet.</div>
       <div id="fvs-library" class="fvs-library"></div>
       <button class="mini-btn" id="btn-save-library" style="width:100%">Save selected to library</button>
+      <button class="mini-btn" id="btn-save-all-library" style="width:100%;margin-top:var(--space-2)">Save all to library</button>
       <div id="library-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
         <input type="text" class="panel-select" id="txt-library-name" placeholder="Name this component" aria-label="Name this component" style="flex:1">
       </div>
@@ -1529,7 +1530,6 @@
         <button class="mini-btn" id="btn-library-confirm">Save</button>
         <button class="mini-btn" id="btn-library-cancel">Cancel</button>
       </div>
-      <p class="org-panel__hint">A saved entry is a full snapshot — Seed (incl. an upload's own shape), Grid, Palette, and the exact generated arrangement — not just a link back to the current controls. Click a tile to load it back exactly as saved.</p>
     </div>
     </div>
 
@@ -1730,9 +1730,12 @@
         <p class="org-panel__hint">Places the pool's Components by a rule — which one goes in each cell follows its column/row, ring, sector or band (the n-th class takes the n-th Component). Random picks by weight. Locked cells stay. Then refine transforms with Rule, or single cells in Manual.</p>
       </div>
       <div id="symbol-manual-block" style="display:none">
-        <p class="org-panel__hint">Click a cell on the canvas to select it and choose its content. Shift-click, or click-and-drag, to select more than one cell.</p>
+        <p class="org-panel__hint">Click a cell on the canvas to select it and choose its content. Drag to select several cells; ⌘-click (Ctrl-click on Windows) adds or removes a cell. Click one of the selected cells to choose content for all of them; every change below applies to the whole selection.</p>
         <div id="symbol-cell-empty" class="fvs-library-empty">No cell selected.</div>
         <div id="symbol-cell-props" style="display:none">
+          <div class="ctrl-row"><div class="ctrl-label">Selected</div>
+            <span class="ctrl-val" id="symbol-cellprop-count" style="flex:1;text-align:left"></span>
+          </div>
           <div class="ctrl-row"><div class="ctrl-label">Content</div>
             <span class="ctrl-val" id="symbol-cellprop-content-label" style="flex:1;text-align:left">—</span>
             <button class="mini-btn" id="btn-cellprop-choose">Choose…</button>
@@ -5143,6 +5146,32 @@ function quickSaveComponentToLibrary(compId) {
   renderGallery();
 }
 
+// Every candidate in the gallery at once — the same entry and "<rule> <time>"
+// name as the quick-save above, one LIBRARY.write for the whole batch. A
+// candidate whose saved entry still exists is skipped, so a second click
+// adds nothing; the selection is left as it is.
+function saveAllComponentsToLibrary() {
+  const all = LIBRARY.read();
+  const time = new Date().toLocaleTimeString();
+  let added = 0;
+  state.components.forEach(comp => {
+    if (comp.savedName && all[comp.savedName]) return;
+    const entry = buildLibraryEntryFor(comp);
+    if (!entry) return;
+    const base = comp.ruleSource + ' ' + time;
+    let name = base, i = 2;
+    while (all[name]) name = `${base} (${i++})`;
+    all[name] = entry;
+    comp.savedName = name;
+    addSavedToPool(name);
+    added++;
+  });
+  if (!added) return;
+  LIBRARY.write(all);
+  renderLibrary();
+  renderGallery();
+}
+
 // The saved ✓'s own hover-delete affordance — removes the library entry
 // this candidate was saved as (reuses removeLibraryEntry, the same one
 // the Library section's own "×" tile calls), then clears the marker so
@@ -7605,7 +7634,8 @@ let trackLabelsRaf = 0;
 
 function renderSymbol() {
   renderSymbolCanvasOnly();
-  if (ctrl('sel-symbol-fill').value === 'manual') renderCellPropertiesPanel();
+  if (ctrl('sel-symbol-fill').value === 'manual' || state.symbolSelection.size) renderCellPropertiesPanel();
+  else syncManualBlock();
 }
 
 // Click-to-select on the rendered Symbol itself (Strata's Refine editor
@@ -7613,7 +7643,7 @@ function renderSymbol() {
 // #symbol-frame, which survives every re-render (only its innerHTML is
 // replaced), so this binds exactly once rather than being re-attached
 // per render. Plain click replaces the selection with just this cell;
-// Shift-click toggles this cell into/out of a multi-cell selection.
+// ⌘/Ctrl-click (or Shift-click) toggles this cell into/out of a multi-cell selection.
 // Mouse position → the SVG's own internal 0..size coordinate space (same
 // technique Creator's old draw-mode artLoc() used) — needed both for a
 // plain click (was it inside a cell?) and for the marquee rectangle,
@@ -7817,6 +7847,7 @@ function bindSymbolCanvasSelection() {
   const frame = ctrl('symbol-frame');
   const THRESHOLD = 5;
   let dragStart = null, dragMoved = false, dragBase = [];
+  const addKey = e => e.metaKey || e.ctrlKey || e.shiftKey;   // ⌘ (Ctrl on Windows) or Shift: add to / remove from the selection
 
   frame.addEventListener('mousedown', e => {
     if (e.button !== 0) return;
@@ -7825,7 +7856,7 @@ function bindSymbolCanvasSelection() {
     e.preventDefault(); // no native text/seed drag while marquee-selecting
     dragStart = pt;
     dragMoved = false;
-    dragBase = e.shiftKey ? Array.from(state.symbolSelection) : [];
+    dragBase = addKey(e) ? Array.from(state.symbolSelection) : [];
   });
 
   frame.addEventListener('mousemove', e => {
@@ -7863,7 +7894,7 @@ function bindSymbolCanvasSelection() {
       // this feature was explicitly modelled on. A plain click missing
       // this was a real gap, not just an unhandled case: with a selection
       // already active, clicking empty canvas silently left it in place.
-      if (!e.shiftKey && state.symbolSelection.size > 0) {
+      if (!addKey(e) && state.symbolSelection.size > 0) {
         state.symbolSelection.clear();
         renderSymbolCanvasOnly();
         renderCellPropertiesPanel();
@@ -7871,13 +7902,18 @@ function bindSymbolCanvasSelection() {
       return;
     }
     const i = parseInt(el.getAttribute('data-cell-index'), 10);
-    if (e.shiftKey) {
+    if (addKey(e)) {
       state.symbolSelection.has(i) ? state.symbolSelection.delete(i) : state.symbolSelection.add(i);
       renderSymbolCanvasOnly();
       renderCellPropertiesPanel();
     } else {
-      state.symbolSelection.clear();
-      state.symbolSelection.add(i);
+      // A plain click on a cell that is already part of a multi-selection keeps the
+      // whole selection (and opens the content overlay for all of it) — otherwise
+      // "select three, click to choose" silently collapsed to the clicked cell.
+      if (!(state.symbolSelection.size > 1 && state.symbolSelection.has(i))) {
+        state.symbolSelection.clear();
+        state.symbolSelection.add(i);
+      }
       renderSymbolCanvasOnly();
       renderCellPropertiesPanel();
       openCellContentOverlay();
@@ -7948,11 +7984,19 @@ function syncCellColourUI(cell, isComponent) {
   if (custom) inp.value = cur;
   ctrl('row-cellprop-color-override').style.display = cur ? '' : 'none';
 }
+// Cell properties belong to the selection, not to the Fill mode: the block
+// shows in Manual, and in any other mode as soon as cells are selected.
+function syncManualBlock() {
+  ctrl('symbol-manual-block').style.display = (ctrl('sel-symbol-fill').value === 'manual' || state.symbolSelection.size > 0) ? '' : 'none';
+}
 function renderCellPropertiesPanel() {
+  syncManualBlock();
   const hasSelection = state.symbolSelection.size > 0 && state.symbolGrid;
   ctrl('symbol-cell-empty').style.display = hasSelection ? 'none' : '';
   ctrl('symbol-cell-props').style.display = hasSelection ? '' : 'none';
   if (!hasSelection) return;
+  const n = state.symbolSelection.size;
+  ctrl('symbol-cellprop-count').textContent = `${n} cell${n === 1 ? '' : 's'}`;
 
   const first = state.symbolCells[Math.min(...state.symbolSelection)];
   const isComponent = first.source === 'component';
@@ -7999,7 +8043,7 @@ function renderCellPropertiesPanel() {
 }
 
 // ── Choose-content overlay — opened by a plain click on a cell (or the
-// docked panel's own Choose… button for a Shift-click/drag-built multi-
+// docked panel's own Choose… button for a ⌘-click/drag-built multi-
 // selection). Picking a tile applies the same fresh defaults regardless
 // of source type (scale 100%, Fill, no padding, centred anchor) — a
 // predictable clean slate every time content is assigned, not whatever
@@ -8174,7 +8218,7 @@ function applyRuleState(s) {
   ctrl('symbol-rule-block').style.display = ctrl('sel-symbol-fill').value === 'rule' ? '' : 'none';
   ctrl('symbol-generate-block').style.display = ctrl('sel-symbol-fill').value === 'generate' ? '' : 'none';
   ctrl('symbol-suggest-block').style.display = ctrl('sel-symbol-fill').value === 'suggest' ? '' : 'none';
-  ctrl('symbol-manual-block').style.display = ctrl('sel-symbol-fill').value === 'manual' ? '' : 'none';
+  syncManualBlock();
   syncSymbolRuleUI();
 }
 
@@ -8913,7 +8957,7 @@ ctrl('chk-symbol-clip').addEventListener('change', e => {
 ctrl('sel-symbol-fill').addEventListener('change', e => {
   ctrl('symbol-generate-block').style.display = e.target.value === 'generate' ? '' : 'none';
   ctrl('symbol-suggest-block').style.display = e.target.value === 'suggest' ? '' : 'none';
-  ctrl('symbol-manual-block').style.display = e.target.value === 'manual' ? '' : 'none';
+  syncManualBlock();
   ctrl('symbol-rule-block').style.display = e.target.value === 'rule' ? '' : 'none';
   if (e.target.value === 'manual') renderCellPropertiesPanel();
   if (e.target.value === 'rule') syncSymbolRuleUI();
@@ -10560,6 +10604,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && ctrl('unde
 
 
 ctrl('btn-save-library').addEventListener('click', saveToLibrary);
+ctrl('btn-save-all-library').addEventListener('click', saveAllComponentsToLibrary);
 ctrl('btn-library-confirm').addEventListener('click', confirmSaveToLibrary);
 ctrl('btn-library-cancel').addEventListener('click', cancelSaveToLibrary);
 ctrl('txt-library-name').addEventListener('keydown', e => {

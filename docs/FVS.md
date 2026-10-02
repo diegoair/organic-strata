@@ -190,7 +190,9 @@ its cells.
     Component. Fit: Fill the cell or Contain. Locked cells stay.
   - **Rule** — transforms only (Oscillator, Checkerboard, Rows, Columns, Radial,
     Wave, Orientation, Random), lock-aware, with Reset & apply to all.
-  - **Manual** — click cells (Shift-click or drag to multi-select).
+  - **Manual** — click a cell to select it; drag to select several; ⌘-click (Ctrl-click on
+    Windows; Shift also works) adds or removes a cell. Every Cell-properties change and
+    *Choose…* applies to the whole selection.
 - **Choose content** — a saved Component or **Empty**, with an **Apply to all
   cells** switch. Seeds are no longer offered as Symbol content (old Symbols with
   Seed cells, and the Figure tier's lattices, still render them).
