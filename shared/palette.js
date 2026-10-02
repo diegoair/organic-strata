@@ -27,7 +27,8 @@
  *     in a parallel list needs the second; the first cannot tell 0 from 1).
  *
  *   Either shape also gets a small "Pick from a palette" button (palette.pick →
- *   palette.library(): the palettes saved in TuneSutra + the built-in sets).
+ *   palette.library(): the palettes saved in TuneSutra + the built-in sets —
+ *   three colour combinations and the Riso standard inks).
  *   opts.library: false leaves it out. Its menu CSS is in panel.css.
  *   Generate mode also takes opts.palettes: () => [{ name, colors:[{name,hex}] }]
  *   — the tool's own unsaved palettes, listed first (TuneSutra's gradient stops).
@@ -282,10 +283,23 @@
     ['Fluorescent Pink', '#ff48b0'], ['Light Gray', '#88898a'], ['Metallic Gold', '#ac936e'], ['Crimson', '#e45d50'],
     ['Fluorescent Orange', '#ff7477'],
   ];
-  const BUILTIN = [{
+  // Three three-colour combinations Diego picked (Oct 2, 2026) from TuneSutra's
+  // "Garment studies — violet" collection, offered in every tool without having
+  // to save them first. Role order: Base, Secondary, Accent. The values mirror
+  // tunesutra/collections.js (same ids) — change both together.
+  const COMBINATIONS = [
+    ['violet-06', 'Violet 06', ['#fba79d', '#cfb3d7', '#f9dfe2']],
+    ['stimulating', 'Stimulating', ['#5f238d', '#74c476', '#d40039']],
+    ['violet-07', 'Violet 07', ['#ead8e3', '#ccece8', '#fffab8']],
+  ];
+  const ROLE_NAMES = ['Base', 'Secondary', 'Accent'];
+  const BUILTIN = COMBINATIONS.map(c => ({
+    id: 'combo-' + c[0], name: c[1], builtin: true,
+    colors: c[2].map((hex, i) => ({ id: 'combo-' + c[0] + '-' + ROLE_NAMES[i].toLowerCase(), name: ROLE_NAMES[i], hex: hex })),
+  })).concat([{
     id: 'riso-standard', name: 'Riso standard inks (approx.)', builtin: true,
     colors: RISO_STANDARD.map(c => ({ id: 'riso-' + c[0].toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: c[0], hex: c[1] })),
-  }];
+  }]);
   function libraryStore() {
     const make = Organica.store || Organica.presetStore;
     return make ? make('tunesutra') : null;

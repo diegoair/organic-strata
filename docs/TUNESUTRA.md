@@ -147,7 +147,9 @@ built-in sets (`Organica.palette.library()`):
 - on a chip strip: click a colour to add it (or replace the last one when the
   strip is full), or a palette's name to load it whole.
 
-Built-in: **Riso standard inks (approx.)** — 21 inks. The hex values are screen
+Built-in: three combinations available in every tool without saving them first
+— **Violet 06**, **Stimulating**, **Violet 07** — and **Riso standard inks
+(approx.)** — 21 inks. The hex values are screen
 approximations of real inks (public riso-colors list); check them against your
 printer's own chart before relying on them.
 

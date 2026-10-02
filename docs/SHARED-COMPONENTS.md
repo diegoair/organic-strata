@@ -90,7 +90,10 @@ listing `Organica.palette.library()`:
 
 - the palettes saved in **TuneSutra** — read from `Organica.store('tunesutra')`,
   the way FVS and Trellis read Loom's store (no second copy to keep in sync);
-- the built-in sets (today: Riso's 21 standard inks, screen approximations).
+- the built-in sets: three three-colour combinations Diego chose from TuneSutra's
+  violet collection (*Violet 06*, *Stimulating*, *Violet 07* — mirrored from
+  `tunesutra/collections.js`, change both together), then Riso's 21 standard
+  inks (screen approximations).
 
 A single row takes one colour. A chip strip adds the clicked colour (or replaces
 the last chip when full), and loads a whole palette when its name is clicked
