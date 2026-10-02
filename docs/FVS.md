@@ -27,7 +27,7 @@ one before.
 |---|---|---|
 | **Element** | The Seed shape and how it is drawn | a Seed type, its extras, Appearance, Palette |
 | **Component** | A small cell arrangement (2×2, 3×3, 4×4 or an imported Loom grid) | the Element, placed by a **rule** |
-| **Symbol** | A larger grid whose every cell holds a Seed or a saved Component | a Square N×M grid (2–8) or a Loom grid |
+| **Symbol** | A larger grid whose every cell holds a Seed or a saved Component | a grid generated in the canvas, or a loaded JSON grid |
 | **Grid** | A Symbol, or a saved Component, tiled 2×2 / 3×3 / 4×4 / Loom | the previous step's output |
 
 **Tile in Grid** (Component step) tiles the selected Component directly in the
@@ -172,9 +172,20 @@ its cells.
 - **Symbol grid** — *Generate grid in canvas* runs one of Loom's own generators
   (Rectangular, Bento, Wave, Masonry, Hexagonal, Triangular, Diamond, Circular,
   Radial, Organic, Fractal, Spiral — `loom/js/generators/registry.js`, imported as
-  ES modules) inside the canvas margin, gap 0 so cells meet. *Other grids* keeps a
-  saved Loom grid, the ready-made Bento/Hexagonal, Square N×M, Triangle and upload;
-  those keep the old square frame. The preview fits any proportion.
+  ES modules) inside the canvas margin, gap 0 so cells meet. **Load JSON grid** loads
+  a grid file exported from Loom; it keeps its own frame. (The former *More grids*
+  block — saved Loom grids, ready-made Bento/Hexagonal, Square N×M, Triangle — was
+  removed Oct 2, 2026.) The preview fits any proportion.
+- **The first grid** — while the Symbol is empty and the pool holds Components, the
+  middle of the page shows one **Generate** button (the design system's primary
+  button). It runs the same thing as *Generate grid in canvas* (canvas, generator and
+  parameters are read from the panel). The Symbol is built underneath at once; over
+  it, one pane per cell of the grid shows a filtered copy of the Symbol that goes
+  from blank paper to a few blurred, high-contrast, rippling masses and then to
+  sharp, one cell after another in a scattered order, drawn anew each run (1 s per cell, the whole sweep
+  about 2 s; nothing with *reduce motion*). Preview only — nothing of it reaches the
+  export, and the panes take no clicks. Once a
+  grid exists the button does not come back.
 - **Resize columns and rows by dragging** — on any rect grid that has tracks
   (Rectangular, Bento, Wave, a plain square…) each inner border shows a dashed
   handle on the preview (never exported). Drag it: the two tracks either side trade
@@ -309,7 +320,7 @@ The order of the palette is the role (Base, Secondary, Accent…), as in TuneSut
 
 ### Triangle lattices, Empty cells, Orientation, Tier and Mirror (Sep 20, 2026)
 
-- **Triangle grid** (Symbol → Grid section): an exact triangular lattice of 2–8 rows
+- **Triangle grid** (its Symbol button was removed Oct 2, 2026 — use the Triangular generator or a loaded JSON grid; the Grid step's Triangle layouts remain): an exact triangular lattice of 2–8 rows
   (row *r* holds 2r+1 alternating up/down cells). Placement is centred on each cell's
   bounding box, not its centroid.
 - **Empty** — a Choose-content tile that leaves the cell blank (a deliberate hole);

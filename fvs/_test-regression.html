@@ -95,8 +95,7 @@ async function battery() {
 
   // 5 — Symbol Square 5×5 + Checkerboard rule (default, Rotate A/B, Swap)
   setTier('symbol');
-  chg('sel-symbol-square-cols', '5'); chg('sel-symbol-square-rows', '5');
-  ctrl('btn-symbol-grid-square').click();
+  loadSymbolGrid(squareLoomModel(5, 5));
   state.symbolCells = state.symbolCells.map(c => ({ ...c, source: 'seed', seedType: 'arc', rotation: 0, fitMode: 'fill', color: null }));
   chg('sel-symbol-fill', 'rule'); chg('sel-symbol-rule', 'checkerboard');
   const rot = () => { applySymbolRule({ resetAll: true }); return state.symbolCells.map(c => c.rotation).join(','); };
@@ -393,7 +392,7 @@ async function battery() {
   // 11 — Cell properties colour override, Undo, rename, quadrant hint
   chg('sel-seed-type', 'arc'); chg('sel-element-fillmode', 'fill');
   setTier('symbol');
-  chg('sel-symbol-square-cols', '5'); chg('sel-symbol-square-rows', '5'); ctrl('btn-symbol-grid-square').click();
+  loadSymbolGrid(squareLoomModel(5, 5));
   state.colors = ['#e8321e', '#0a9a3e']; buildPalette();
   state.symbolCells = state.symbolCells.map(c => ({ ...c, source: 'seed', seedType: 'arc', fitMode: 'fill', color: null }));
   const count = (svg, c) => (svg.match(new RegExp(c, 'gi')) || []).length;
@@ -447,7 +446,7 @@ async function battery() {
   chg('sel-seed-type', 'arc'); chg('sel-element-fillmode', 'fill');
   setTier('symbol');
   ['bento', 'hex'].forEach(k => {
-    ctrl('btn-symbol-grid-' + k).click();
+    loadSymbolGrid(SYMBOL_GRID_PRESETS[k === 'hex' ? 'hexagonal' : 'bento']);
     state.symbolCells = state.symbolCells.map(c => ({ ...c, source: 'seed', seedType: 'arc', rotation: 0, flipH: false, flipV: false, scale: 1, fitMode: 'fill', color: null }));
     put('symbol:' + k + ':cells', state.symbolCells.length);
     put('symbol:' + k + ':svg', buildSymbolSVG());

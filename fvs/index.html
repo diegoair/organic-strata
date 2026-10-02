@@ -287,6 +287,15 @@
     .fvs-flyout__tool::before, .fvs-flyout__tool > span { transition: none; }
   }
 
+  /* ── The first grid: Generate, in the middle of the empty Symbol ──
+     The button is the design system's own (.org-btn--primary --lg); this
+     class only lets it leave when the run starts. The arrival itself is
+     runSymbolArrival() — an SVG filter per cell, written in the script.
+     Once a grid exists the button never comes back. */
+  .fvs-gen-go { transition: opacity 220ms ease, border-color 0.15s, background 0.15s; }
+  .fvs-gen-go[data-loading="true"] { opacity: 0; pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { .fvs-gen-go { transition-duration: 1ms; } }
+
   /* Choose-content overlay — no existing modal component in this codebase
      (Organica.popover is anchored-to-a-button, not a fit for a click
      anywhere on the canvas), so this is a plain fixed-position dialog. */
@@ -1395,33 +1404,7 @@
       <div id="symgrid-gen-params"></div>
       <button class="panel-btn" id="btn-symgrid-generate" style="width:100%">Generate grid in canvas</button>
       <div id="symgrid-gen-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
-      <details class="fvs-more" style="margin-top:var(--space-3)">
-      <summary class="hint">More grids</summary>
-      <div class="ctrl-row">
-        <div id="symbol-loom-picker"></div>
-        <select class="panel-select" id="sel-symbol-loom-preset" aria-label="Load a grid saved in Loom" style="flex:1">
-          <option value="">Load a grid…</option>
-        </select>
-      </div>
-      <div class="row-btns">
-        <button class="mini-btn" id="btn-symbol-grid-bento">Bento (Loom)</button>
-        <button class="mini-btn" id="btn-symbol-grid-hex">Hexagonal (Loom)</button>
-      </div>
-      <div class="ctrl-row">
-        <span class="ctrl-label">Square grid</span>
-        <select class="panel-select" id="sel-symbol-square-cols" aria-label="Square grid columns"></select>
-        <span class="hint">×</span>
-        <select class="panel-select" id="sel-symbol-square-rows" aria-label="Square grid rows"></select>
-        <button class="mini-btn" id="btn-symbol-grid-square">Create</button>
-      </div>
-      <div class="ctrl-row">
-        <span class="ctrl-label">Triangle grid</span>
-        <select class="panel-select" id="sel-symbol-tri-n" aria-label="Triangle grid side (rows)"></select>
-        <span class="hint">rows</span>
-        <button class="mini-btn" id="btn-symbol-grid-tri">Create</button>
-      </div>
-      <button class="mini-btn" id="btn-symbol-grid-upload" style="width:100%;margin-top:var(--space-2)">Upload Loom grid JSON…</button>
-      </details>
+      <button class="mini-btn" id="btn-symbol-grid-upload" style="width:100%;margin-top:var(--space-2)">Load JSON grid</button>
       <div id="symbol-grid-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       <label class="check-row org-switch" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-symbol-grid-outline"><span>Show loaded grid</span></label>
       <label class="check-row org-switch"><input type="checkbox" id="chk-symbol-clip" checked><span>Clip to cell</span></label>
@@ -1431,7 +1414,7 @@
     </div>
 
     <input type="file" id="file-seed" accept=".svg,image/svg+xml" aria-label="Upload SVG seed" class="org-file-input">
-    <input type="file" id="file-loom-grid" accept=".json,application/json" aria-label="Upload Loom grid JSON" class="org-file-input">
+    <input type="file" id="file-loom-grid" accept=".json,application/json" aria-label="Load JSON grid" class="org-file-input">
 
     <div class="tier-block" data-tier="component">
     <div class="panel-section">
@@ -6651,10 +6634,133 @@ symCanvasPicker = Organica.selectPicker(ctrl('sel-symcanvas-preset'), ctrl('symc
     { Custom: { name: 'Custom', icon: Organica.aspectIcon(1, 1, { dashed: true }) } }),
 });
 ctrl('sel-symgrid-gen').innerHTML = Object.entries(SYMGRID_GENS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
-ctrl('sel-symgrid-gen').value = 'bento';
+ctrl('sel-symgrid-gen').value = 'rectangular';
 renderSymgridParams();
 ctrl('sel-symgrid-gen').addEventListener('change', () => { ctrl('symgrid-gen-error').style.display = 'none'; renderSymgridParams(); });
 ctrl('btn-symgrid-generate').addEventListener('click', generateSymbolGridInCanvas);
+// ── The arrival, after Bencho's Generate (MIT — THIRD-PARTY-NOTICES.md) ──
+// The Symbol is built whole and sharp, underneath. Over it, in the live
+// preview only (never in the export — that string is built separately), goes
+// a layer with one pane per cell of the grid in use: the cell's own paper,
+// and on it a filtered COPY OF THE WHOLE SYMBOL cut to that cell. The whole
+// Symbol, not the cell's own group: a blur that only knows one cell fades to
+// nothing at the cell's edge and frames every cell in paper, where shapes
+// that were drawn to meet across the edge should stay joined while they form.
+// A cell arrives the way a generated image does, the large decisions first
+// and the fine ones last:
+//   · SHAPES. Heavily blurred and pushed hard in contrast, the cell is a few
+//     clean glassy masses — where the ink is, nothing more. The contrast is
+//     what makes them shapes rather than fog.
+//   · FORM. The blur lets go on a slow curve and the contrast eases back to
+//     the Symbol's own, so the shapes find their edges. A low drifting ripple
+//     keeps the surface liquid while it happens.
+// Contrast turns about the PAPER rather than mid-grey: about 0.5 the paper
+// went to white and the card was a glowing sheet that snapped back at the
+// end. About the paper, the ground holds and the ink deepens. With no paper
+// (transparent) the same slope goes on the alpha instead.
+// The filter is identity by the time a pane leaves, so leaving shows nothing.
+// Cells start `step` apart, in a scattered order; `step` is the sweep
+// divided by the cell count (clamped), so a 4-cell grid does not crawl and a
+// 200-cell one does not take ten seconds. One rAF loop for all of them, and
+// it parks itself when the last cell has landed. Lengths are Bencho's, in
+// screen pixels, converted to the svg's user units at the start.
+const GEN_ARRIVE = { cell: 1000, sweep: 1200, stepMin: 4, stepMax: 60, blur: 20, contrast: 2.4, ripple: 50 };
+let genArrivalStop = null;
+function runSymbolArrival() {
+  if (genArrivalStop) genArrivalStop();
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const svg = ctrl('symbol-frame').querySelector('svg');
+  if (!svg) return;
+  const groups = [...svg.querySelectorAll('g[data-cell-index]')].sort((a, b) => a.dataset.cellIndex - b.dataset.cellIndex);
+  const n = groups.length;
+  if (!n) return;
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v)), mix = (a, b, t) => a + (b - a) * t;
+  const smooth = (a, b, v) => { const u = clamp((v - a) / (b - a), 0, 1); return u * u * (3 - 2 * u); };
+  const px = 1 / (svg.getScreenCTM().a || 1);   // one screen pixel, in user units
+  const paper = isPaperNone(state.paperColor) ? null : hexKey(state.paperColor);
+  const P = paper ? [1, 3, 5].map(o => parseInt(paper.slice(o, o + 2), 16) / 255) : null;
+  const NS = 'http://www.w3.org/2000/svg';
+  const mk = (tag, attrs, parent) => { const el = document.createElementNS(NS, tag); for (const k in attrs) el.setAttribute(k, attrs[k]); parent.appendChild(el); return el; };
+  const uid = 'fvs-gen-' + nextDrawId();
+  const layer = mk('g', { id: uid, 'pointer-events': 'none' }, svg);
+  const defs = mk('defs', {}, layer);
+  // The copy: the drawing as it stands, without the guides and the metadata. Its clip paths keep their ids — the
+  // same definitions twice in one document, so either one resolves to the same shape.
+  const src = mk('g', { id: uid + '-src' }, defs);
+  [...svg.children].forEach(c => { if (c !== layer && c.tagName !== 'metadata' && !c.classList.contains('sym-track') && !c.classList.contains('symbol-marquee')) src.appendChild(c.cloneNode(true)); });
+  const cells = groups.map((g, i) => {
+    const hit = g.firstElementChild, bb = hit.getBBox();
+    // the cell's own outline: its clip (which carries the overdraw past the edge) when "Clip to cell" is on, else its hit shape
+    let clip = g.getAttribute('clip-path');
+    if (!clip) { const cp = mk('clipPath', { id: `${uid}-c${i}` }, defs); cp.appendChild(hit.cloneNode(false)); clip = `url(#${uid}-c${i})`; }
+    const f = mk('filter', { id: `${uid}-f${i}`, filterUnits: 'userSpaceOnUse', 'color-interpolation-filters': 'sRGB' }, defs);
+    const turb = mk('feTurbulence', { type: 'fractalNoise', numOctaves: '2', seed: String(7 + i), result: 'n' }, f);
+    const disp = mk('feDisplacementMap', { in: 'SourceGraphic', in2: 'n', xChannelSelector: 'R', yChannelSelector: 'G', result: 'd' }, f);
+    const blur = mk('feGaussianBlur', { in: 'd' }, f);
+    const ct = mk('feComponentTransfer', {}, f);
+    const funcs = (paper ? ['R', 'G', 'B'] : ['A']).map(c => mk('feFunc' + c, { type: 'linear' }, ct));
+    const pane = mk('g', { 'clip-path': clip }, layer);
+    if (paper) mk('rect', { x: bb.x - 2 * px, y: bb.y - 2 * px, width: bb.width + 4 * px, height: bb.height + 4 * px, fill: paper }, pane);
+    // nothing to cover the finished cell with: it waits, hidden, for its pane — and so does its own ground, a
+    // sibling group that carries the same clip (the only thing that says whose it is)
+    const own = paper ? [] : [g, ...(g.getAttribute('clip-path') ? [...svg.children].filter(c => c !== g && c.tagName === 'g' && c.getAttribute('clip-path') === g.getAttribute('clip-path')) : [])];
+    own.forEach(el => { el.style.opacity = '0'; });
+    const pic = mk('g', { opacity: '0' }, pane);
+    mk('use', { href: `#${uid}-src` }, mk('g', { filter: `url(#${uid}-f${i})` }, pic));
+    return { own, bb, f, turb, disp, blur, funcs, pane, pic, rank: i, done: false };
+  });
+  // Scattered: each cell draws its place in the queue (Fisher–Yates on the ranks), a new draw every run. Read
+  // top to bottom the sweep was a wipe; out of order it is a picture being decided in several places at once.
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)), r = cells[i].rank; cells[i].rank = cells[j].rank; cells[j].rank = r; }
+  const step = clamp(GEN_ARRIVE.sweep / n, GEN_ARRIVE.stepMin, GEN_ARRIVE.stepMax);
+  let raf = 0, t0 = 0, left = n;
+  const land = c => { if (c.done) return; c.done = true; left--; c.pane.remove(); c.f.remove(); c.own.forEach(el => { el.style.opacity = ''; }); };
+  const stop = () => { cancelAnimationFrame(raf); cells.forEach(land); layer.remove(); genArrivalStop = null; };
+  const tick = now => {
+    if (!t0) t0 = now;
+    if (!svg.isConnected) return stop();   // the preview was redrawn under the run: it is sharp already
+    cells.forEach(c => {
+      if (c.done) return;
+      const t = (now - t0 - c.rank * step) / GEN_ARRIVE.cell;
+      if (t <= 0) return;
+      if (t >= 1) return land(c);
+      // one long rise, no pulse: a picture that dims and brightens before it has started reads as hesitating
+      const haze = smooth(0, 0.3, t), form = smooth(0.1, 0.82, t);
+      // blur falls fast at first and then crawls through the small radii, which is where the detail actually lives
+      const sd = mix(GEN_ARRIVE.blur, 0, 1 - Math.pow(1 - form, 2.2)) * px;
+      const k = mix(GEN_ARRIVE.contrast, 1, form);
+      const warp = (GEN_ARRIVE.ripple / 100) * 32 * Math.pow(1 - smooth(0.05, 0.9, t), 1.5) * px;
+      // a slow drift in the noise so the water moves rather than sitting as a fixed distortion
+      const fq = (0.006 + 0.0018 * Math.sin(t * 4.4)) / px;
+      // the filter only works on the cell and as far past it as the blur and the ripple can reach — it shrinks as they do
+      const m = 2.5 * sd + warp + px;
+      c.f.setAttribute('x', (c.bb.x - m).toFixed(1)); c.f.setAttribute('y', (c.bb.y - m).toFixed(1));
+      c.f.setAttribute('width', (c.bb.width + 2 * m).toFixed(1)); c.f.setAttribute('height', (c.bb.height + 2 * m).toFixed(1));
+      c.turb.setAttribute('baseFrequency', `${fq.toFixed(5)} ${(fq * 1.3).toFixed(5)}`);
+      c.disp.setAttribute('scale', warp.toFixed(2));
+      c.blur.setAttribute('stdDeviation', Math.max(0.001, sd).toFixed(3));
+      c.funcs.forEach((fn, j) => { const pivot = P ? P[j] : 0.5; fn.setAttribute('slope', k.toFixed(3)); fn.setAttribute('intercept', (pivot - pivot * k).toFixed(3)); });
+      c.pic.setAttribute('opacity', (haze * mix(0.7, 1, form)).toFixed(3));
+    });
+    if (left > 0) raf = requestAnimationFrame(tick); else stop();
+  };
+  genArrivalStop = stop;
+  raf = requestAnimationFrame(tick);
+}
+// The first grid, from the middle of the page: the same run as the panel's
+// button (canvas, generator and its parameters are read from the panel), with
+// the button's leave before it and the arrival after it. Delegated —
+// the frame's innerHTML is rewritten on every render.
+ctrl('symbol-frame').addEventListener('click', async e => {
+  const btn = e.target.closest('.fvs-gen-go');
+  if (!btn || btn.dataset.loading === 'true') return;
+  const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  btn.dataset.loading = 'true';
+  if (!still) await new Promise(r => setTimeout(r, 200));   // let it leave before the frame is rewritten
+  await generateSymbolGridInCanvas();
+  if (!state.symbolGrid) { if (btn.isConnected) btn.dataset.loading = 'false'; return; }   // refused: the reason is under the panel's button
+  runSymbolArrival();
+});
 // Mirrors Trellis's refCellSize() (trellis/index.html) — a sensible starting
 // size for newly-"Fixed" content, so switching TO fixed doesn't leave every
 // cell's content looking randomly sized. getSymbolGrid(), not state.symbolGrid
@@ -7261,6 +7367,7 @@ function renderSymbolPool() {
   }).join('');
   const n = pal.length;
   ctrl('symbol-pool-hint').textContent = n ? `${n} in the pool` : (libraryNames(LIBRARY.read()).length ? 'none yet' : 'save Components first');
+  if (!state.symbolGrid && state.activeTier === 'symbol') renderSymbolCanvasOnly();   // the empty state's Generate needs a pool
 }
 ctrl('symbol-pool').addEventListener('change', e => {
   const i = e.target.dataset.palWeight;
@@ -8053,7 +8160,11 @@ function renderSymbolCanvasOnly() {
   const frame = ctrl('symbol-frame');
   const grid = getSymbolGrid();
   if (!grid) {
-    frame.innerHTML = '<p style="color:var(--mid);font-size:var(--fs-small)">Pick a grid to begin.</p>';
+    // With Components in the pool the empty Symbol is one button: Generate
+    // (see .fvs-gen-go in the stylesheet). Without any there is nothing to build from yet.
+    frame.innerHTML = poolEntries().length
+      ? '<button type="button" class="org-btn org-btn--primary org-btn--lg fvs-gen-go" id="btn-symbol-first-generate">Generate</button>'
+      : '<p style="color:var(--mid);font-size:var(--fs-small)">Pick a grid to begin.</p>';
     ctrl('symbol-cellcount-hint').textContent = '0 cells';
     setStatus('', 'No symbol grid loaded');
     return;
@@ -8931,7 +9042,7 @@ function setTier(tier) {
       const lib = LIBRARY.read();
       state.symbolPool = libraryNames(lib).sort((a, b) => String(lib[b].savedAt || '').localeCompare(String(lib[a].savedAt || ''))).slice(0, 8).map(name => ({ name, weight: 1 }));
     }
-    renderSymbolPool(); populateSymbolLoomPresets(); renderSymbol(); renderSymbolLibrary();
+    renderSymbolPool(); renderSymbol(); renderSymbolLibrary();
   }
   else if (tier === 'element') { renderSeedPreview(); }
   else if (tier === 'figure') { renderFigureTier(); }
@@ -9010,40 +9121,6 @@ window.addEventListener('keydown', e => {
   else if (e.key === '-' || e.key === '_') { e.preventDefault(); galleryZoomTo(galleryZoom / 1.2); }
   else if (e.key === '0') { e.preventDefault(); galleryZoomTo(1); }
 });
-
-// Loom publishes every saved grid to localStorage 'organica.loom.presets'
-// as a full buildModel() object — directly Organica.loadLoomGrid-able. Read
-// it straight so a grid designed in /loom/ is one click away here, no JSON
-// upload. Merged with the two inlined built-in exports.
-const LOOM_GRID_STORE = Organica.presetStore('loom');
-const symbolLoomRegistry = {};
-let symbolLoomPicker = null;
-function populateSymbolLoomPresets() {
-  const sel = ctrl('sel-symbol-loom-preset');
-  const prev = sel.value;
-  let saved = {};
-  try { saved = LOOM_GRID_STORE.read() || {}; } catch (e) { saved = {}; }
-  sel.innerHTML = '<option value="">Load a grid…</option>';
-  const add = (label, key) => { const o = document.createElement('option'); o.value = key; o.textContent = label; sel.appendChild(o); };
-  add('Bento (built-in)', '__bento');
-  add('Hexagonal (built-in)', '__hex');
-  const names = Object.keys(saved);
-  if (names.length) {
-    const og = document.createElement('optgroup'); og.label = 'Saved in Loom';
-    names.forEach(n => { const o = document.createElement('option'); o.value = 'saved:' + n; o.textContent = n; og.appendChild(o); });
-    sel.appendChild(og);
-  }
-  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
-  // Thumbnail picker (Organica.selectPicker, preview size): each grid as its
-  // cell outlines at its own aspect (shared Organica.loomGridThumb) — saved
-  // grids are named by whoever saved them, the picture says what they are.
-  Object.keys(symbolLoomRegistry).forEach(k => delete symbolLoomRegistry[k]);
-  symbolLoomRegistry.__bento = { name: 'Bento (built-in)', thumb: () => Organica.loomGridThumb(SYMBOL_GRID_PRESETS.bento) };
-  symbolLoomRegistry.__hex = { name: 'Hexagonal (built-in)', thumb: () => Organica.loomGridThumb(SYMBOL_GRID_PRESETS.hexagonal) };
-  names.forEach(n => { symbolLoomRegistry['saved:' + n] = { name: n.replace(/</g, '&lt;'), thumb: () => Organica.loomGridThumb(saved[n]) }; });
-  if (!symbolLoomPicker) symbolLoomPicker = Organica.selectPicker(sel, ctrl('symbol-loom-picker'), { registry: symbolLoomRegistry, size: 'preview', ariaLabel: 'Load a Loom grid' });
-  else { symbolLoomPicker.invalidate(); }
-}
 
 // ── Wiring ──
 // Triangle Type is a derived shortcut, not stored state: picking one writes
@@ -9387,9 +9464,7 @@ ctrl('ck-element-rounded').addEventListener('change', onAppearanceChange);
   ctrl('rg-element-' + k).addEventListener('input', e => { ctrl('v-element-' + k).textContent = e.target.value; onAppearanceChange(); });
 });
 
-// Shared hidden file input between Components' own Grid section and
-// Symbols' Grid section — a flag set right before .click() tells the
-// one 'change' handler which state field to populate.
+// Load JSON grid — a grid exported from Loom (or any Organica.loadLoomGrid-able JSON).
 ctrl('btn-symbol-grid-upload').addEventListener('click', () => ctrl('file-loom-grid').click());
 ctrl('file-loom-grid').addEventListener('change', e => {
   const file = e.target.files[0];
@@ -9397,29 +9472,6 @@ ctrl('file-loom-grid').addEventListener('change', e => {
   e.target.value = '';
 });
 
-ctrl('btn-symbol-grid-bento').addEventListener('click', () => loadSymbolGrid(SYMBOL_GRID_PRESETS.bento));
-ctrl('btn-symbol-grid-hex').addEventListener('click', () => loadSymbolGrid(SYMBOL_GRID_PRESETS.hexagonal));
-// 5-8: above a maxed-out Component (4×4), capped below Figure scale — see CLAUDE.md session note.
-['sel-symbol-square-cols', 'sel-symbol-square-rows'].forEach(id => {
-  const sel = ctrl(id);
-  for (let n = 5; n <= 8; n++) sel.add(new Option(n, n, false, n === 5));
-});
-ctrl('btn-symbol-grid-square').addEventListener('click', () =>
-  loadSymbolGrid(squareLoomModel(+ctrl('sel-symbol-square-cols').value, +ctrl('sel-symbol-square-rows').value)));
-for (let n = 5; n <= 8; n++) ctrl('sel-symbol-tri-n').add(new Option(n, n, false, n === 5));
-ctrl('btn-symbol-grid-tri').addEventListener('click', () => loadSymbolGrid(triangleLoomModel(+ctrl('sel-symbol-tri-n').value)));
-ctrl('sel-symbol-loom-preset').addEventListener('change', e => {
-  const v = e.target.value;
-  if (!v) return;
-  try {
-    if (v === '__bento') loadSymbolGrid(SYMBOL_GRID_PRESETS.bento);
-    else if (v === '__hex') loadSymbolGrid(SYMBOL_GRID_PRESETS.hexagonal);
-    else if (v.startsWith('saved:')) loadSymbolGrid(LOOM_GRID_STORE.read()[v.slice(6)]);
-  } catch (err) {
-    ctrl('symbol-grid-error').textContent = err.message || 'Could not load that grid.';
-    ctrl('symbol-grid-error').style.display = '';
-  }
-});
 ctrl('chk-symbol-grid-outline').addEventListener('change', renderSymbolCanvasOnly);
 ctrl('chk-symbol-cover-preview').addEventListener('change', renderSymbolCanvasOnly);
 ctrl('chk-symbol-track-guides').addEventListener('change', renderSymbolCanvasOnly);
@@ -11136,7 +11188,6 @@ Organica.autoLabelPanel(document);
 // Cloud sync (shared/store.js): hydrate component + symbol libraries from Supabase.
 LIBRARY.pull().then(() => { pruneAutoLibraryEntries(); renderLibrary(); });        LIBRARY.onSync(() => renderLibrary());
 SYMBOL_LIBRARY.pull().then(() => renderSymbolLibrary()); SYMBOL_LIBRARY.onSync(() => renderSymbolLibrary());
-LOOM_GRID_STORE.pull();
 // Genesis library (seed picker) — hydrate the cache from Supabase; the picker
 // reads it live each time it opens, so no re-render needed here.
 Organica.store.library.pull();
