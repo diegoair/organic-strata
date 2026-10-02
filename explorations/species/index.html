@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en" data-theme-support>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Species — Organica exploration</title>
+<link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/palette.css">
+<link rel="stylesheet" href="/shared/mobile-gate.css">
+<style>
+:root {
+  --tool: #2d8fd0;   /* header focus ring — open-water blue, this tool's identity colour (provisional) */
+}
+
+/* Reset, body, #app and the centred canvas region (#stage → .org-canvas-wrap)
+   come from shell.css. #view is the one bespoke surface: its aspect follows
+   the chosen Format, set from JS. CSS-transformed by Organica.canvasZoomHud —
+   never touches the bitmap, so it cannot affect PNG / video / SVG export. */
+#view {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  box-shadow: var(--stage-shadow);
+}
+</style>
+<script src="/shared/pattern-init.js"></script>
+</head>
+<body>
+<div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
+
+<header class="org-header" role="banner">
+  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><menu-icon state="menu" size="20" line-cap="square"></menu-icon></button>
+  <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ Species · exploration</span></a>
+  <div class="org-header__spacer"></div>
+</header>
+
+<!-- Playback + Export in the shared bottom-centre floating toolbar. -->
+<div class="org-floatbar" role="toolbar" aria-label="Playback">
+  <button class="org-floatbar__btn" id="btn-playpause" aria-label="Play">
+    <svg class="ico" id="ico-playpause" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor"/></svg>
+  </button>
+  <button class="org-floatbar__btn" id="btn-stop" aria-label="Stop">
+    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1" fill="currentColor"/></svg>
+  </button>
+
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-loop" aria-label="Loop">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8a5 5 0 0 1 8.5-3.5M13 8a5 5 0 0 1-8.5 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M11 2.5v2.5H8.5M5 13.5V11h2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="loop-popover" aria-label="Loop options">
+      <div class="org-popover__title">Loop</div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="rg-loop-seconds">Length</label>
+        <input type="range" id="rg-loop-seconds" min="2" max="20" step="1" value="6" style="flex:1">
+        <span class="org-out" id="loop-label">6s</span>
+      </div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="rg-cycles">Cycles</label>
+        <input type="range" id="rg-cycles" min="1" max="6" step="1" value="2" style="flex:1">
+        <span class="org-out" id="cycles-label">2</span>
+      </div>
+      <p class="org-popover__hint">Every periodic motion runs a whole number of cycles per loop, so frame 0 and the last frame match — the loop is seamless. Video export uses the loop length.</p>
+    </div>
+  </div>
+
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
+
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" onclick="exportSVG()">SVG</button>
+        <button class="org-btn" onclick="exportPNG()">PNG</button>
+        <button class="org-btn" id="btn-video" onclick="toggleRecording()">Video</button>
+      </div>
+      <p class="org-popover__hint">
+        <b>Flat</b> render exports real <code>&lt;path&gt;</code>s. <b>Lit</b> render is
+        shaded per pixel (no colour segments) so its SVG embeds a PNG — use Flat when you
+        need vector.
+      </p>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-scale">PNG scale</label>
+        <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
+          <option value="1">&times;1</option>
+          <option value="2" selected>&times;2</option>
+          <option value="3">&times;3</option>
+        </select>
+      </div>
+      <div class="org-popover__row">
+        <span class="org-popover__label">Output</span>
+        <span class="org-out" id="out-size">&mdash;</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <div id="stage" class="org-canvas-wrap">
+    <canvas id="view" class="org-stage"></canvas>
+  </div>
+
+  <div id="panel">
+
+    <div class="panel-section">
+      <h3>Organism <span class="hint">one skeleton, three bodies</span></h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-morph">
+          <button class="seg-btn active" data-v="flower">Flower</button>
+          <button class="seg-btn" data-v="jelly">Jellyfish</button>
+          <button class="seg-btn" data-v="fish">Fish</button>
+        </div>
+      </div>
+      <select class="panel-select" id="sel-preset" aria-label="Preset"></select>
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-preset-save">Save</button>
+        <button class="mini-btn" id="btn-preset-delete">Delete</button>
+        <button class="mini-btn" id="btn-reseed">Reseed</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Form <span class="hint">the genome</span></h3>
+      <div class="ctrl-row" id="row-head">
+        <div class="seg-ctrl" id="seg-head">
+          <button class="seg-btn" data-v="pods">Egg lobes</button>
+          <button class="seg-btn" data-v="surface">Creased surface</button>
+        </div>
+      </div>
+      <div id="form-sliders"></div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Per-lobe random variation (flower).">Jitter</div>
+        <input type="range" id="rg-jitter" min="0" max="0.6" step="0.01" value="0">
+        <span class="ctrl-val" id="v-jitter">0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Seed</div>
+        <input type="range" id="rg-seed" min="1" max="999" step="1" value="7">
+        <span class="ctrl-val" id="v-seed">7</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Skin <span class="hint">colour ramp over the surface</span></h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-skin">
+          <button class="seg-btn active" data-v="surface">Along surface</button>
+          <button class="seg-btn" data-v="facing">Facing angle</button>
+        </div>
+      </div>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-ramp" aria-label="Ramp"></select>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Facing angle: how fast colour moves from the toward-camera colour to the silhouette colour.">Face curve</div>
+        <input type="range" id="rg-facepow" min="0.4" max="4" step="0.05" value="1.5">
+        <span class="ctrl-val" id="v-facepow">1.5</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Facing angle: how much of the stem the ramp covers, from the head down.">Stem fade</div>
+        <input type="range" id="rg-stemfade" min="0.1" max="1" step="0.01" value="0.3">
+        <span class="ctrl-val" id="v-stemfade">0.3</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Slides the ramp across the surface. Whole turns loop.">Phase</div>
+        <input type="range" id="rg-rampphase" min="0" max="1" step="0.01" value="0">
+        <span class="ctrl-val" id="v-rampphase">0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Scale</div>
+        <input type="range" id="rg-rampscale" min="0.3" max="3" step="0.05" value="1">
+        <span class="ctrl-val" id="v-rampscale">1</span>
+      </div>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-bg" aria-label="Background">
+          <option value="flat">Flat paper</option>
+          <option value="reel">Reel gradient</option>
+        </select>
+      </div>
+      <div class="color-row">
+        <span class="color-name">Paper</span>
+        <div class="color-swatch-wrap">
+          <button class="color-swatch" id="sw-paper" aria-label="Paper colour"></button>
+          <input type="color" id="cp-paper" value="#d9ddf0">
+        </div>
+        <input class="color-hex" id="hex-paper" value="#d9ddf0">
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Render <span class="hint">same form, two renderers</span></h3>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-shade">
+          <button class="seg-btn" data-v="flat">Flat · vector</button>
+          <button class="seg-btn active" data-v="lit">Lit · 3D</button>
+        </div>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Posterise colour into this many steps (0 = continuous). Fewer steps = smaller SVG and a print-ready, banded look.">Levels</div>
+        <input type="range" id="rg-levels" min="0" max="16" step="1" value="0">
+        <span class="ctrl-val" id="v-levels">0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Gloss</div>
+        <input type="range" id="rg-gloss" min="0" max="1" step="0.01" value="0.6">
+        <span class="ctrl-val" id="v-gloss">0.6</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Light °</div>
+        <input type="range" id="rg-light" min="-180" max="180" step="1" value="-35">
+        <span class="ctrl-val" id="v-light">-35</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="0 = orthographic, 1 = full perspective.">Perspective</div>
+        <input type="range" id="rg-persp" min="0" max="1" step="0.01" value="0.6">
+        <span class="ctrl-val" id="v-persp">0.6</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Camera</h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Yaw °</div>
+        <input type="range" id="rg-yaw" min="-180" max="180" step="1" value="0">
+        <span class="ctrl-val" id="v-yaw">0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Pitch °</div>
+        <input type="range" id="rg-pitch" min="-89" max="89" step="1" value="18">
+        <span class="ctrl-val" id="v-pitch">18</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Slides the framing up/down in model units.">Pan Y</div>
+        <input type="range" id="rg-pany" min="-1.5" max="1.5" step="0.01" value="0">
+        <span class="ctrl-val" id="v-pany">0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Zoom</div>
+        <input type="range" id="rg-zoom" min="0.4" max="3" step="0.01" value="1">
+        <span class="ctrl-val" id="v-zoom">1</span>
+      </div>
+      <div class="ctrl-row">
+        <select class="panel-select" id="sel-format" aria-label="Format">
+          <option value="1080x1080">Square 1:1</option>
+          <option value="1080x1350">Portrait 4:5</option>
+          <option value="1080x1920" selected>Story 9:16</option>
+          <option value="1920x1080">Landscape 16:9</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Motion <span class="hint">press Play</span></h3>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="How strongly the nature-based behaviour moves the form.">Amount</div>
+        <input type="range" id="rg-amount" min="0" max="1.6" step="0.05" value="1">
+        <span class="ctrl-val" id="v-amount">1</span>
+      </div>
+      <p class="panel-hint" id="motion-note"></p>
+    </div>
+
+  </div><!-- /panel -->
+</div>
+
+<script src="/shared/vendor/supabase-js.min.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/canvas.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/auth-badge.js"></script>
+<script src="/shared/store.js"></script>
+<script src="/shared/palette.js"></script>
+<script src="/shared/recorder.js"></script>
+<script src="/explorations/species/species.js"></script>
+
+<script>
+// ─────────────────────────────────────────────
+// SPECIES — parametric organisms (flower · jellyfish · fish)
+// One scene() call serves the preview, PNG, SVG and every video frame.
+// ─────────────────────────────────────────────
+const SP = Organica.species;
+function ctrl(id) { return document.getElementById(id); }
+function val(id)  { return parseFloat(ctrl(id).value); }
+const setStatus = Organica.status();
+
+const MOTION_NOTES = {
+  flower: 'Head nods on the stem, lobes breathe, the colour ramp drifts one full turn per cycle.',
+  jelly:  'Asymmetric pulse — fast power stroke, slow recovery — with tentacles lagging the bell.',
+  fish:   'A travelling wave runs down the body; amplitude grows toward the tail (Envelope exp.).',
+};
+
+// ── state ──
+let morph = 'flower';
+let P = SP.defaults('flower');
+let curT = 0, playing = false, animated = false, raf = 0, t0 = 0;
+let loopSec = 6;
+const canvas = ctrl('view');
+const ctx = canvas.getContext('2d');
+let FW = 1080, FH = 1920;
+
+// ── panel: form sliders are generated from the morphology's schema ──
+function formSchema() { return SP.SCHEMA[morph].filter(s => !s.for || (s.for === 'pods') === !!P.pods); }
+function buildFormSliders() {
+  const box = ctrl('form-sliders');
+  box.innerHTML = '';
+  formSchema().forEach(s => {
+    const row = document.createElement('div');
+    row.className = 'ctrl-row';
+    row.innerHTML = '<div class="ctrl-label">' + s.label + '</div>' +
+      '<input type="range" id="fs-' + s.key + '" min="' + s.min + '" max="' + s.max + '" step="' + s.step + '" value="' + P[s.key] + '">' +
+      '<span class="ctrl-val" id="fv-' + s.key + '">' + P[s.key] + '</span>';
+    box.appendChild(row);
+  });
+  Organica.autoLabelPanel(box);
+  Organica.enhanceSliders(box);
+}
+function writeUI() {
+  formSchema().forEach(s => { const e = ctrl('fs-' + s.key); if (e) { e.value = P[s.key]; ctrl('fv-' + s.key).textContent = P[s.key]; } });
+  [['jitter', 'rg-jitter'], ['seed', 'rg-seed'], ['rampPhase', 'rg-rampphase'], ['rampScale', 'rg-rampscale'], ['facePow', 'rg-facepow'], ['stemFade', 'rg-stemfade']].forEach(([k, id]) => {
+    ctrl(id).value = P[k]; ctrl('v-' + id.slice(3)).textContent = P[k];
+  });
+  ctrl('sel-ramp').value = P.ramp; setSeg('seg-skin', P.skin || 'surface');
+  ctrl('row-head').style.display = morph === 'flower' ? '' : 'none'; setSeg('seg-head', P.pods ? 'pods' : 'surface');
+  document.querySelectorAll('#panel input[type=range]').forEach(e => e.dispatchEvent(new Event('organica-sync')));
+}
+function readForm() {
+  formSchema().forEach(s => {
+    const e = ctrl('fs-' + s.key); if (!e) return;
+    const v = parseFloat(e.value); P[s.key] = s.int ? Math.round(v) : v;
+    ctrl('fv-' + s.key).textContent = e.value;
+  });
+  P.jitter = val('rg-jitter'); P.seed = Math.round(val('rg-seed'));
+  P.rampPhase = val('rg-rampphase'); P.rampScale = val('rg-rampscale');
+  P.ramp = ctrl('sel-ramp').value; P.skin = seg('seg-skin');
+  P.facePow = val('rg-facepow'); P.stemFade = val('rg-stemfade');
+}
+function syncLabels() {
+  ['jitter','seed','rampphase','rampscale','facepow','stemfade','levels','gloss','light','persp','yaw','pitch','pany','zoom','amount']
+    .forEach(k => { const e = ctrl('rg-' + k); if (e) ctrl('v-' + k).textContent = e.value; });
+}
+function seg(id) { return ctrl(id).querySelector('.seg-btn.active').dataset.v; }
+function setSeg(id, v) { ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v)); }
+
+function view() {
+  return {
+    yaw: val('rg-yaw'), pitch: val('rg-pitch'), zoom: val('rg-zoom'), shade: seg('seg-shade'),
+    persp: seg('seg-shade') === 'flat' ? 0 : val('rg-persp'), light: val('rg-light'), gloss: val('rg-gloss'),
+    levels: Math.round(val('rg-levels')), ramp: P.ramp, rampPhase: 0, rampScale: P.rampScale,
+    skin: P.skin, facePow: P.facePow, stemFade: P.stemFade, stemBands: P.stemBands || 0, stemPhase: 0, panY: val('rg-pany'),
+  };
+}
+function paper() { return ctrl('sel-bg').value === 'reel' ? 'reel' : ctrl('hex-paper').value; }
+
+// ── THE render path ──
+function frameP(tNorm) {
+  return animated ? SP.motion(morph, P, tNorm, { cycles: val('rg-cycles'), amount: val('rg-amount') }) : P;
+}
+function sceneAt(tNorm, W, H) {
+  const Q = frameP(tNorm);
+  const V = view(); V.rampPhase = Q.rampPhase; V.stemPhase = Q.stemPhase || 0;
+  const mesh = SP.build(morph, Q);
+  return SP.scene(mesh, V, W, H);
+}
+// Lit = smooth per-pixel shading (no visible colour segments); Flat = vector quads (real SVG export).
+function isSmooth() { return seg('seg-shade') === 'lit'; }
+function paintTo(g, tNorm, k) {
+  const Q = frameP(tNorm), V = view(); V.rampPhase = Q.rampPhase; V.stemPhase = Q.stemPhase || 0;
+  const mesh = SP.build(morph, Q);
+  if (isSmooth()) { SP.drawSmooth(g, mesh, V, FW, FH, paper(), k); return mesh.quads.length + ' quads, smooth'; }
+  const sc = SP.scene(mesh, V, FW, FH); SP.drawItems(g, sc, paper(), k); return sc.count + ' quads · ' + sc.items.length + ' paths';
+}
+function renderFrameAt(tNorm) {
+  curT = tNorm;
+  const t1 = performance.now();
+  const what = paintTo(ctx, tNorm, 1);
+  if (!playing) setStatus('active', morph + ' · ' + what + ' · ' + Math.round(performance.now() - t1) + ' ms');
+}
+let stillQueued = false;
+function scheduleStill() {
+  if (playing || stillQueued) return;
+  stillQueued = true;
+  requestAnimationFrame(() => { stillQueued = false; renderFrameAt(curT); });
+}
+
+// ── playback ──
+function loopFrame(now) {
+  if (!playing) return;
+  renderFrameAt((((now - t0) / 1000) / loopSec) % 1);
+  raf = requestAnimationFrame(loopFrame);
+}
+function play(fromStart) {
+  animated = true;
+  if (fromStart) curT = 0;
+  t0 = performance.now() - curT * loopSec * 1000;
+  playing = true; setPlayIcon(true);
+  cancelAnimationFrame(raf); raf = requestAnimationFrame(loopFrame);
+  setStatus('active', 'Playing');
+}
+function pausePlayback() { playing = false; cancelAnimationFrame(raf); setPlayIcon(false); setStatus('active', 'Paused · t=' + curT.toFixed(2)); }
+function stopPlayback() { playing = false; animated = false; cancelAnimationFrame(raf); setPlayIcon(false); curT = 0; renderFrameAt(0); }
+function togglePlayPause() { playing ? pausePlayback() : play(false); }
+const ICO_PLAY = '<path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor"/>';
+const ICO_PAUSE = '<path d="M5 3.5h2.2v9H5zM8.8 3.5H11v9H8.8z" fill="currentColor"/>';
+function setPlayIcon(on) {
+  ctrl('ico-playpause').innerHTML = on ? ICO_PAUSE : ICO_PLAY;
+  ctrl('btn-playpause').setAttribute('aria-label', on ? 'Pause' : 'Play');
+}
+
+// ── format / canvas sizing ──
+function applyFormat() {
+  const [w, h] = ctrl('sel-format').value.split('x').map(Number);
+  FW = w; FH = h; canvas.width = w; canvas.height = h;
+  // fit the stage: height-limited for portrait, width-limited for landscape
+  canvas.style.aspectRatio = w + ' / ' + h;
+  canvas.style.height = w >= h ? 'auto' : 'min(100%, calc(100vh - 12rem))';
+  canvas.style.width = w >= h ? 'min(100%, calc((100vh - 12rem) * ' + (w / h) + '))' : 'auto';
+  updateSizeReadout();
+  scheduleStill();
+}
+
+// ── morphology / presets ──
+const VIEW_IDS = { pitch: 'rg-pitch', yaw: 'rg-yaw', zoom: 'rg-zoom', persp: 'rg-persp', gloss: 'rg-gloss', light: 'rg-light', panY: 'rg-pany' };
+// A preset may carry `_view` (camera / lighting / background); it is applied then stripped from P.
+function takeView() {
+  const v = P._view; delete P._view;
+  ctrl('sel-bg').value = (v && v.bg) || 'flat';
+  if (v) Object.keys(VIEW_IDS).forEach(k => { if (v[k] != null) ctrl(VIEW_IDS[k]).value = v[k]; });
+  else ctrl('rg-pany').value = 0;
+}
+function setMorph(m, presetName) {
+  morph = m; setSeg('seg-morph', m);
+  const base = SP.defaults(m);
+  const first = presetName || Object.keys(SP.PRESETS[m])[0];
+  P = Object.assign(base, SP.PRESETS[m][first] || {});
+  // sensible camera per morphology
+  const cam = { flower: [0, 40, 1.5], jelly: [0, 14, 1.3], fish: [-25, 16, 0.85] }[m];
+  ctrl('rg-yaw').value = cam[0]; ctrl('rg-pitch').value = cam[1]; ctrl('rg-zoom').value = cam[2];
+  ctrl('rg-gloss').value = 0.6; ctrl('rg-persp').value = 0.6; ctrl('rg-light').value = -35; takeView();
+  ctrl('motion-note').textContent = MOTION_NOTES[m];
+  buildFormSliders(); populatePresets(first); writeUI(); syncLabels(); scheduleStill();
+}
+const STORE = Organica.store('species');
+function userPresets() { const all = STORE.read(); return Object.keys(all).filter(k => all[k].morph === morph).reduce((o, k) => (o[k] = all[k], o), {}); }
+function populatePresets(sel) {
+  const el = ctrl('sel-preset'), up = userPresets();
+  el.innerHTML = '<optgroup label="Built-in">' + Object.keys(SP.PRESETS[morph]).map(n => '<option value="b:' + n + '">' + n + '</option>').join('') + '</optgroup>' +
+    (Object.keys(up).length ? '<optgroup label="Saved">' + Object.keys(up).map(n => '<option value="u:' + n + '">' + n + '</option>').join('') + '</optgroup>' : '');
+  if (sel) el.value = (sel.indexOf(':') > 0 ? sel : 'b:' + sel);
+}
+function applyPreset(v) {
+  const [kind, name] = [v.slice(0, 1), v.slice(2)];
+  const base = SP.defaults(morph);
+  if (kind === 'b') P = Object.assign(base, SP.PRESETS[morph][name]);
+  else { const s = userPresets()[name]; if (s) P = Object.assign(base, s.P); }
+  takeView();
+  writeUI(); syncLabels(); scheduleStill();
+}
+function savePreset() {
+  const name = prompt('Preset name'); if (!name) return;
+  readForm();
+  const all = STORE.read(); all[name] = { morph, P: Object.assign({}, P) }; STORE.write(all);
+  populatePresets('u:' + name);
+}
+function deletePreset() {
+  const v = ctrl('sel-preset').value; if (v.slice(0, 1) !== 'u') return;
+  const all = STORE.read(); delete all[v.slice(2)]; STORE.write(all); populatePresets();
+}
+STORE.pull().then(() => populatePresets(ctrl('sel-preset').value));
+STORE.onSync(() => populatePresets(ctrl('sel-preset').value));
+
+// ── export ──
+function updateSizeReadout() {
+  const k = parseInt(ctrl('sel-scale').value, 10) || 2;
+  ctrl('out-size').textContent = (FW * k) + ' × ' + (FH * k);
+}
+function exportSVG() {
+  if (isSmooth()) {
+    const Q = frameP(curT), V = view(); V.rampPhase = Q.rampPhase; V.stemPhase = Q.stemPhase || 0;
+    const svg = SP.smoothSVG(SP.build(morph, Q), V, FW, FH, paper(), 1);
+    Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('species-' + morph, 'svg'));
+    setStatus('active', 'SVG saved · smooth mode embeds a PNG — switch Render to Flat for real vector paths');
+    return;
+  }
+  const sc = sceneAt(curT, FW, FH);
+  const svg = SP.itemsSVG(sc, paper());
+  Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('species-' + morph, 'svg'));
+  setStatus('active', 'SVG saved · ' + sc.count + ' quads → ' + sc.items.length + ' paths · ' + Math.round(svg.length / 1024) + ' KB');
+}
+function exportPNG() {
+  const k = parseInt(ctrl('sel-scale').value, 10) || 2;
+  const c = document.createElement('canvas'); c.width = FW * k; c.height = FH * k;
+  paintTo(c.getContext('2d'), curT, k);
+  Organica.download(Organica.dataURLToBlob(c.toDataURL('image/png')), Organica.stamp('species-' + morph, 'png'));
+  setStatus('active', c.width + '×' + c.height + ' · PNG saved');
+}
+let recorder = null;
+function toggleRecording() { if (recorder) recorder.toggle(); }
+
+// ── wiring ──
+ctrl('seg-morph').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b && b.dataset.v !== morph) setMorph(b.dataset.v); });
+ctrl('seg-skin').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b) { setSeg('seg-skin', b.dataset.v); readForm(); scheduleStill(); } });
+ctrl('sel-bg').addEventListener('change', scheduleStill);
+ctrl('seg-head').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b) { readForm(); P.pods = b.dataset.v === 'pods' ? 1 : 0; buildFormSliders(); writeUI(); syncLabels(); scheduleStill(); } });
+ctrl('seg-shade').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b) { setSeg('seg-shade', b.dataset.v); scheduleStill(); } });
+ctrl('sel-preset').addEventListener('change', e => applyPreset(e.target.value));
+ctrl('btn-preset-save').addEventListener('click', savePreset);
+ctrl('btn-preset-delete').addEventListener('click', deletePreset);
+ctrl('btn-reseed').addEventListener('click', () => { ctrl('rg-seed').value = 1 + Math.floor(Math.random() * 998); readForm(); syncLabels(); scheduleStill(); });
+ctrl('sel-format').addEventListener('change', applyFormat);
+ctrl('panel').addEventListener('input', () => { readForm(); syncLabels(); scheduleStill(); });
+ctrl('panel').addEventListener('change', () => { readForm(); scheduleStill(); });
+ctrl('btn-playpause').addEventListener('click', togglePlayPause);
+ctrl('btn-stop').addEventListener('click', stopPlayback);
+ctrl('rg-loop-seconds').addEventListener('input', () => { loopSec = Math.round(val('rg-loop-seconds')); ctrl('loop-label').textContent = loopSec + 's'; if (playing) { t0 = performance.now() - curT * loopSec * 1000; } });
+ctrl('rg-cycles').addEventListener('input', () => { ctrl('cycles-label').textContent = ctrl('rg-cycles').value; scheduleStill(); });
+document.addEventListener('keydown', e => { if (e.code === 'Space' && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); togglePlayPause(); } });
+
+// ── init ──
+ctrl('sel-ramp').innerHTML = Object.keys(SP.RAMPS).map(k => '<option value="' + k + '">' + k[0].toUpperCase() + k.slice(1) + '</option>').join('');
+Organica.palette.swatch('paper', { initial: '#d9ddf0', onChange: () => scheduleStill() });
+Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+Organica.popover(ctrl('btn-loop'), ctrl('loop-popover'));
+recorder = Organica.recorder({
+  canvas, tool: 'species', duration: () => loopSec, durationPadMs: 90,
+  onStart: () => play(true),
+  onStatus: (phase, msg) => { if (phase === 'recording') setStatus('busy', 'Recording ' + loopSec + 's…'); else setStatus(phase === 'error' ? '' : 'active', msg); },
+  onStateChange: (on) => { ctrl('btn-video').textContent = on ? 'Stop rec' : 'Video'; },
+});
+Organica.canvasZoomHud({ canvas, wrap: ctrl('stage'), min: 0.3, max: 6, hud: null, level: null });
+applyFormat();
+setMorph('flower');
+updateSizeReadout();
+Organica.autoLabelPanel(document);
+Organica.enhanceSliders(document);
+</script>
+<script src="/shared/tools.js"></script>
+<script src="/shared/menu-icon.js"></script>
+<script src="/shared/header.js"></script>
+</body>
+</html>

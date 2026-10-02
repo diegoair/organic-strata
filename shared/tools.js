@@ -20,5 +20,5 @@
     { group: 'Animate an export', items: [['Murmur', '/murmur/'], ['Undertow', '/undertow/'], ['Dapple', '/dapple/']] }
   ];
   Organica.toolsPipeline = ['Rhizome', '/rhizome/'];
-  Organica.explorations = [['Camo Cells', '/loom/_test-camo-cells.html'], ['Slice Reposition', '/loom/_test-slice-reposition.html'], ['Mix Restructure', '/loom/_test-mix-restructure.html'], ['Flow Field', '/explorations/flow-field/']];
+  Organica.explorations = [['Camo Cells', '/loom/_test-camo-cells.html'], ['Slice Reposition', '/loom/_test-slice-reposition.html'], ['Mix Restructure', '/loom/_test-mix-restructure.html'], ['Flow Field', '/explorations/flow-field/'], ['Species', '/explorations/species/']];
 })(typeof window !== 'undefined' ? window : this);
