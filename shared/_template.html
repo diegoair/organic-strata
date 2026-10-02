@@ -1,29 +1,34 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme-support>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>New Tool — Organica</title>
 
-<!-- Shared sheets, in load-bearing order (docs/UI-SHELL.md §2):
-     tokens → header → panel → floatbar → shell → palette.
+<!-- THE TOOL TEMPLATE — /design-system/#template-tool. scripts/check.py lints this file with the
+     same skeleton rules as every tool, so it cannot go stale again.
+     Shared sheets, in load-bearing order (docs/UI-SHELL.md §2):
+     tokens → icons → header → panel → floatbar → shell → palette → seeds-panel → mobile-gate.
      Each later sheet can override the one before without !important.
-     Drop palette.css if this tool has no colour picker. -->
+     Drop palette.css if this tool has no colour picker. data-theme-support on <html> opts the
+     page into dark mode: build from tokens only and check both themes. -->
 <link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="preload" href="/shared/vendor/ibm-plex-mono-regular.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/shell.css">
 <link rel="stylesheet" href="/shared/palette.css">
+<link rel="stylesheet" href="/shared/mobile-gate.css">
 <style>
   :root {
     /* The surface palette (--ink/--paper/--mid/--accent/--panel/--border)
        and color-scheme are defaults in tokens.css. Declare only
        --tool — this tool's identity hue, which drives the header focus
-       ring. Pick an unclaimed hue: check the --tool registry in the hub
-       nav + docs/UI-SHELL.md §6b before choosing. Override --ink here only
+       ring. Pick an unclaimed hue: check the accent table in
+       docs/DESIGN-SYSTEM.md §5 (and add yours to it) before choosing. Override --ink here only
        for a genuine reason (the warm-black trio uses #241b14). */
     --tool: #8aa054;
   }
@@ -42,48 +47,59 @@
 </head>
 <body>
 
-<!-- ══ HEADER — identity · context · status · max 3 actions ══
-     Everything else belongs closer to what it acts on: export settings in
-     the popover, playback on the canvas. See docs/UI-SHELL.md §4b. -->
+<!-- First child of <body>: every tool assumes desktop width and a mouse. -->
+<div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
+
+<!-- ══ HEADER — identity only ══
+     The nav button, the logo, the status line and the account badge. No actions here: Open,
+     playback and Export live in the floatbar, next to the canvas they act on (docs/UI-SHELL.md §4b). -->
 <header class="org-header" role="banner">
   <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><menu-icon state="menu" size="20" line-cap="square"></menu-icon></button>
   <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ New Tool</span></a>
-
   <div class="org-header__spacer"></div>
+</header>
 
+<!-- ══ FLOATBAR — Open · (playback) · Export, fixed bottom-centre over the canvas ══
+     A direct child of <body>. Icon-only buttons: an aria-label, never a title. Icons are the
+     registry's drawings (shared/icons.js) — paste the markup with data-icon, or build it with
+     Organica.icons.get(name). Canonical order: /design-system/#floatbar. -->
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <button class="org-floatbar__btn" id="btn-open" aria-label="Open an image" onclick="document.getElementById('file-input').click()">
+    <svg class="ico" data-icon="folder-open" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 4A1 1 0 0 1 2.5 3h2.8l1 1.3H13.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4Z"/></svg>
+  </button>
 
-  <div class="org-header__actions">
-    <button class="org-btn" onclick="document.getElementById('file-input').click()">Open…</button>
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
 
-    <div class="org-popover-wrap">
-      <button class="org-btn" id="btn-export">Export <svg class="ico ico--xs" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></button>
-      <div class="org-popover" id="export-popover" aria-label="Export options">
-        <div class="org-popover__title">Format</div>
-        <div class="org-formats">
-          <button class="org-btn" onclick="exportPNG()">PNG</button>
-          <button class="org-btn" onclick="exportSVG()">SVG</button>
-        </div>
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
+      <svg class="ico chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" onclick="exportPNG()">PNG</button>
+        <button class="org-btn" onclick="exportSVG()">SVG</button>
+        <button class="org-btn" onclick="sendToFigma()">Figma</button>
+      </div>
 
-        <div class="org-popover__divider"></div>
+      <div class="org-popover__divider"></div>
 
-        <div class="org-popover__row">
-          <label class="org-popover__label" for="sel-scale">Scale</label>
-          <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
-            <option value="1">&times;1</option>
-            <option value="2" selected>&times;2</option>
-            <option value="4">&times;4</option>
-          </select>
-        </div>
-        <div class="org-popover__row">
-          <span class="org-popover__label">Output</span>
-          <span class="org-out" id="out-size">&mdash;</span>
-        </div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-scale">Scale</label>
+        <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
+          <option value="1">&times;1</option>
+          <option value="2" selected>&times;2</option>
+          <option value="4">&times;4</option>
+        </select>
+      </div>
+      <div class="org-popover__row">
+        <span class="org-popover__label">Output</span>
+        <span class="org-out" id="out-size">&mdash;</span>
       </div>
     </div>
-
-    <button class="org-btn org-btn--primary" onclick="sendToFigma()">&rarr; Figma</button>
   </div>
-</header>
+</div>
 
 <div id="app">
 
@@ -102,7 +118,10 @@
 
     <div class="panel-section">
       <h3>Preset</h3>
-      <select class="panel-select" id="sel-preset" onchange="applyPreset(this.value)"></select>
+      <!-- The thumbnail picker (Organica.selectPicker) renders into the host and hides the
+           native <select>, which stays the source of truth for the value. -->
+      <div id="preset-picker"></div>
+      <select class="panel-select" id="sel-preset" aria-label="Preset" onchange="applyPreset(this.value)"></select>
       <div class="row-btns">
         <button class="mini-btn" onclick="savePreset()">Save</button>
         <button class="mini-btn" onclick="deletePreset()" data-armed="Confirm?">Delete</button>
@@ -152,12 +171,14 @@
      (Organica.recorder — see pulsar/vortex/membrane/camo-turing). -->
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/icons.js"></script>
 <script src="/shared/canvas.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
 <script src="/shared/auth-badge.js"></script>
 <script src="/shared/store.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/select-picker.js"></script>
 <!-- <script src="/shared/recorder.js"></script> -->
 <!-- <script src="/shared/seeds-panel.js"></script>  (+ its CSS above) -->
 
@@ -206,7 +227,23 @@ async function savePreset() {
   PRESETS.write(all); populatePresets(name);
 }
 function deletePreset() { /* … */ }
-function populatePresets(select) { /* … */ }
+// The picker keeps a reference to `registry`: refill it in place, then refresh().
+// Each entry is { name, thumb() } — the thumbnail comes from this tool's OWN renderer
+// (size:'preview'), or omit thumb for a plain list. Rule: /design-system/#select-picker.
+let presetPicker = null;
+const registry = {};
+function populatePresets(select) {
+  const sel = ctrl('sel-preset'), names = Object.keys(userPresets()).sort();
+  Object.keys(registry).forEach(k => delete registry[k]);
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');   // names are user text
+  names.forEach(n => { registry[n] = { name: esc(n) }; });
+  sel.innerHTML = names.length
+    ? names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')
+    : '<option value="" disabled selected>No saved presets yet</option>';
+  if (select) sel.value = select;
+  if (!presetPicker) presetPicker = Organica.selectPicker(sel, ctrl('preset-picker'), { registry, ariaLabel: 'Preset' });
+  else presetPicker.refresh();
+}
 function applyPreset(name) { /* … */ }
 function readState() { return {}; }
 

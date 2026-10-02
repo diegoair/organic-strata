@@ -195,7 +195,8 @@ for page in all_pages():
             fail('token-noise', f'{page}: redeclares {tok} at its tokens.css default ({val})')
 
 # ── 3. Every tool links the shared sheets in the documented order ─────
-ORDER = ['tokens', 'header', 'panel', 'floatbar', 'shell', 'palette', 'seeds-panel', 'mobile-gate']
+ORDER = ['tokens', 'icons', 'header', 'page', 'prose', 'auth-card', 'panel', 'floatbar', 'shell',
+         'palette', 'seeds-panel', 'mobile-gate']      # scripts/templates.py keeps the same list
 for page in all_pages():
     src = open(page, errors='ignore').read()
     got = re.findall(r'<link rel="stylesheet" href="/shared/([a-z-]+)\.css">', src)

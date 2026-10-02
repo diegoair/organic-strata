@@ -1,0 +1,804 @@
+{
+ "$generated": "by scripts/templates.py from the pages themselves — do not edit by hand",
+ "order": [
+  "tokens",
+  "icons",
+  "header",
+  "page",
+  "prose",
+  "auth-card",
+  "panel",
+  "floatbar",
+  "shell",
+  "palette",
+  "seeds-panel",
+  "mobile-gate"
+ ],
+ "templates": {
+  "tool": {
+   "starter": "/shared/_template.html",
+   "skeletonSheet": "shell.css",
+   "pages": [
+    {
+     "page": "/apostate/",
+     "file": "apostate/index.html",
+     "template": "tool",
+     "variant": "own surface",
+     "why": "three-column board (character picker · glyph · panel)",
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": null,
+     "stage": null,
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/blob-boundary/",
+     "file": "blob-boundary/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": "#art",
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/camo-turing/",
+     "file": "camo-turing/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "palette",
+      "seeds-panel",
+      "mobile-gate"
+     ],
+     "modules": true,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": null,
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/colornet/",
+     "file": "colornet/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": "#view-canvas",
+     "floatbar": true,
+     "headerActions": 2
+    },
+    {
+     "page": "/dapple/",
+     "file": "dapple/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": "#main-canvas",
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/fvs/",
+     "file": "fvs/index.html",
+     "template": "tool",
+     "variant": "own surface",
+     "why": "a step-nav row above #app and its own gallery / symbol surfaces",
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "palette",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": null,
+     "stage": null,
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/genesis/",
+     "file": "genesis/index.html",
+     "template": "tool",
+     "variant": "own surface",
+     "why": "library grid + Paper.js artboard; retiring, left alone by decision",
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": null,
+     "stage": null,
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/halide/",
+     "file": "halide/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": "#main-canvas",
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/komorebi/",
+     "file": "komorebi/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": "#view-canvas",
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/livingpath/",
+     "file": "livingpath/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": "#board",
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/loom/",
+     "file": "loom/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "mobile-gate"
+     ],
+     "modules": true,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": null,
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/membrane/",
+     "file": "membrane/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "palette",
+      "seeds-panel",
+      "mobile-gate"
+     ],
+     "modules": true,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": null,
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/mote/",
+     "file": "mote/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "palette",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": "#stage",
+     "floatbar": true,
+     "headerActions": 1
+    },
+    {
+     "page": "/murmur/",
+     "file": "murmur/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": "#main-canvas",
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/mycel/",
+     "file": "mycel/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#stage-wrap (.org-canvas-wrap)",
+     "stage": null,
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/pollen/",
+     "file": "pollen/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "palette",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": "#main-canvas",
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/pulsar/",
+     "file": "pulsar/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#stage (.org-canvas-wrap)",
+     "stage": null,
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/radial/",
+     "file": "radial/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#stage (.org-canvas-wrap)",
+     "stage": null,
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/rhizome/",
+     "file": "rhizome/index.html",
+     "template": "tool",
+     "variant": "own surface",
+     "why": "an infinite node canvas, no sheet",
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "mobile-gate"
+     ],
+     "modules": true,
+     "dark": true,
+     "public": false,
+     "surface": null,
+     "stage": null,
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/sinew/",
+     "file": "sinew/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "palette",
+      "seeds-panel",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": "#board",
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/spore/",
+     "file": "spore/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "palette",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": "#main-canvas",
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/trellis/",
+     "file": "trellis/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "palette",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#stage (.org-canvas-wrap)",
+     "stage": null,
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/tunesutra/",
+     "file": "tunesutra/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "palette",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#stage-wrap (.org-canvas-wrap)",
+     "stage": null,
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/undertow/",
+     "file": "undertow/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": "#main-canvas",
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/vortex/",
+     "file": "vortex/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "palette",
+      "mobile-gate"
+     ],
+     "modules": true,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": null,
+     "floatbar": true,
+     "headerActions": 0
+    },
+    {
+     "page": "/warping/",
+     "file": "warping/index.html",
+     "template": "tool",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "panel",
+      "floatbar",
+      "shell",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "surface": "#canvas-wrap",
+     "stage": "#view-canvas",
+     "floatbar": true,
+     "headerActions": 0
+    }
+   ]
+  },
+  "page": {
+   "starter": null,
+   "skeletonSheet": "page.css",
+   "pages": [
+    {
+     "page": "/admin/",
+     "file": "admin/index.html",
+     "template": "page",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "page"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "column": "wide",
+     "prose": false
+    },
+    {
+     "page": "/design-system/",
+     "file": "design-system/index.html",
+     "template": "page",
+     "variant": "own layout",
+     "why": "the reference layout: a 232px section nav beside the content",
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "page",
+      "prose",
+      "auth-card",
+      "panel",
+      "floatbar",
+      "shell",
+      "palette",
+      "seeds-panel"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": true,
+     "column": null,
+     "prose": true
+    },
+    {
+     "page": "/gallery/",
+     "file": "gallery/index.html",
+     "template": "page",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "page",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "column": "full",
+     "prose": false
+    },
+    {
+     "page": "/",
+     "file": "index.html",
+     "template": "page",
+     "variant": "own layout",
+     "why": "the hub: a stipple hero, a gallery and full-bleed sections",
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": true,
+     "column": null,
+     "prose": false
+    },
+    {
+     "page": "/privacy/",
+     "file": "privacy/index.html",
+     "template": "page",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "page",
+      "prose"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": true,
+     "column": "reading",
+     "prose": true
+    },
+    {
+     "page": "/terms/",
+     "file": "terms/index.html",
+     "template": "page",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "page",
+      "prose"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": true,
+     "column": "reading",
+     "prose": true
+    }
+   ]
+  },
+  "auth-card": {
+   "starter": null,
+   "skeletonSheet": "auth-card.css",
+   "pages": [
+    {
+     "page": "/sign-in/",
+     "file": "sign-in/index.html",
+     "template": "auth-card",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "auth-card"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": true
+    }
+   ]
+  }
+ },
+ "allow": [
+  {
+   "page": "genesis",
+   "rule": "app",
+   "why": "retiring — left alone by decision"
+  },
+  {
+   "page": "genesis",
+   "rule": "floatbar-child",
+   "why": "retiring — left alone by decision"
+  },
+  {
+   "page": "genesis",
+   "rule": "panel-last",
+   "why": "retiring — left alone by decision"
+  },
+  {
+   "page": "genesis",
+   "rule": "tail-scripts",
+   "why": "retiring — left alone by decision"
+  },
+  {
+   "page": "rhizome",
+   "rule": "tail-scripts",
+   "why": "native ES modules: every shared script loads in <head>, before the module graph"
+  }
+ ]
+}

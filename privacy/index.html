@@ -8,15 +8,11 @@
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
-<link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/page.css">
 <link rel="stylesheet" href="/shared/prose.css">
 <style>
-  body { background: var(--panel); color: var(--ink); font-family: var(--font); }
-  .doc {
-    max-width: 660px;
-    margin: 0 auto;
-    padding: var(--space-8) var(--space-6) var(--space-6);
-  }
+  /* The column, the ground and the reset come from page.css (the Page template). Only the card
+     and the foot line are this page's own — two consumers (privacy, terms), so they stay local. */
   .doc__card {
     background: var(--paper);
     border: 1px solid var(--border);
@@ -24,8 +20,7 @@
     padding: var(--space-8) var(--space-7);
   }
   .doc__foot {
-    max-width: 660px;
-    margin: var(--space-5) auto 0;
+    margin-top: var(--space-5);
     padding: 0 var(--space-7);
     font-size: var(--fs-small);
     color: var(--mid);
@@ -34,14 +29,14 @@
 </style>
 <script src="/shared/pattern-init.js"></script>
 </head>
-<body>
+<body class="org-page">
 <header class="org-header" role="banner">
   <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><menu-icon state="menu" size="20" line-cap="square"></menu-icon></button>
   <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ Privacy</span></a>
   <div class="org-header__spacer"></div>
 </header>
 
-<div class="doc">
+<main class="org-page__col">
   <article class="doc__card org-prose">
     <h1>Privacy Policy</h1>
     <p class="org-prose__meta">Last updated 2 September 2026 · Private beta</p>
@@ -145,8 +140,8 @@
     <h2>Contact</h2>
     <p>Questions about this policy or your data: <strong>[contact email]</strong>.</p>
   </article>
-</div>
-<p class="doc__foot">© Organica · <a href="/terms">Terms</a> · <a href="/">Home</a></p>
+  <p class="doc__foot">© Organica · <a href="/terms">Terms</a> · <a href="/">Home</a></p>
+</main>
 <script src="/shared/tools.js"></script>
 <script src="/shared/menu-icon.js"></script>
 <script src="/shared/header.js"></script>

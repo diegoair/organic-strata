@@ -52,7 +52,9 @@ python3 scripts/ds-audit.py                # registry drift + raw-value map of e
 python3 scripts/ds-audit.py --tool <dir>   # every raw value in one page, file:line
 python3 scripts/ds-audit.py --diff [REF]   # raw values ADDED since REF (default HEAD); exit 1 = new debt
 python3 scripts/css-lint.py                # structural rules (shadowed shared classes, load order, radii, shared hex)
-python3 scripts/check.py                   # everything the pre-commit hook runs (icons registry included)
+python3 scripts/templates.py --check       # every page's skeleton against its template (tool / page / auth-card)
+python3 scripts/templates.py --list        # which page is on which template, and its surface / column
+python3 scripts/check.py                   # everything the pre-commit hook runs (icons registry, templates included)
 ```
 
 In the browser (dev server `frontend-static` from `.claude/launch.json`, via `preview_start`):
@@ -64,8 +66,9 @@ modules with no `.org-stage`. Check light and dark (`<html data-theme="dark">`).
 Local dev is never auth-gated (only `/admin/` redirects, by owner check). To measure many
 pages at once, load them as same-origin iframes at a fixed 1440×900 — parked off-screen, never
 `display:none` — and read them in one `javascript_tool` call, forcing the theme per frame.
-No instrument reads page **skeletons** (landmarks, body order, script order): for that, write
-a throwaway script in the scratchpad and say what it measured.
+Page **skeletons** (sheets, body order, `#app` children, script order) are read by
+`scripts/templates.py`; its deliberate deviations are `OWN_SURFACE` / `OWN_LAYOUT` / `ALLOW`
+— an entry there is a standing exception only if the ledger §3 has it too.
 
 ```bash
 python3 scripts/ds-audit.py --uses <name>  # who uses a class, token, icon or Organica.* API, per file
@@ -92,6 +95,7 @@ reference. Verify the line before you cite it — this map ages.
 | Status line, notice, `Organica.prompt/confirm`, `dirty`, `shortcuts`, `contentColor` | `shared/panel.css` / `shell.css` | `shared/core.js` | `#notice` `#behaviours` |
 | Icons | `shared/icons.css` | `shared/icons.js` (the registry) | `#icons` |
 | Colour swatch, RMX chips, palette library | `shared/palette.css` (+ `.color-*` in `panel.css`) | `shared/palette.js`, `shared/color.js` | `#palette-chips` |
+| Templates: Tool (`shell.css`, starter `shared/_template.html`) · Page (`page.css`: `body.org-page` > `.org-page__col`) · Auth card (`auth-card.css`) | `shared/shell.css` · `shared/page.css` · `shared/auth-card.css` | `scripts/templates.py` → `design-system/templates.json` | `#templates` `#template-tool` `#template-page` `#sign-in` |
 | Canvas stage, zoom HUD, drop zone | `shared/shell.css` | `shared/canvas.js` | `#canvas-stage` `#shell` |
 | Seeds panel · Print size · Plates · Recorder | `seeds-panel.css` | `seeds-panel.js` · `print-size-panel.js` · `plate-export.js` · `recorder.js` | `#seeds-panel` |
 | Presets and saved work | — | `Organica.store(tool)` in `shared/store.js` — **cloud-synced**. A per-browser preference (a device id, a view state) is a plain `localStorage['organica.<tool>.<thing>']` instead; registry in `docs/SHARED-LIBRARY.md` §4 | — |

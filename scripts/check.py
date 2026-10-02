@@ -9,6 +9,7 @@ Fast, no dependencies beyond python3 + node. Exits 1 on any failure.
   3. JS syntax     — every inline <script> in every */index.html, and every tracked .js
                      (modules under a js/ folder are checked as ES modules)
   4. Local refs    — every /shared/... and /genesis/... href/src in an HTML file exists
+  4d. templates    — every page's skeleton matches its template; design-system/templates.json is current
   5. icons         — every <svg data-icon> equals its shared/icons.js drawing; no new bare 16-grid <svg>
   6. css-lint      — scripts/css-lint.py must be clean
 """
@@ -188,6 +189,18 @@ for f in tracked(".html", ".js"):
         elif 'viewBox="0 0 16 16"' in attr and "data-icon-slot" not in attr and "${" not in inner:
             fail(f"{f}:{line} inline 16-grid <svg> without data-icon — add the drawing to shared/icons.js and use Organica.icons.get() / data-icon"); bad_icons = True
 if not bad_icons: ok(f"{n_icons} inline icons match the registry ({len(reg)} drawings)")
+
+# 4d. page templates — skeleton lint + the generated inventory -------------------
+# Three templates (tool / page / auth-card). scripts/templates.py lints every page and the starter
+# (shared/_template.html) against its template, and fails when design-system/templates.json — what
+# /design-system/#templates renders — no longer matches the pages. (Oct 2, 2026, decision O-10.)
+print("page templates")
+r = subprocess.run([sys.executable, "scripts/templates.py", "--check"], capture_output=True, text=True)
+for l in (r.stdout + r.stderr).strip().split("\n"):
+    if l.strip().startswith("✗"): fail(l.strip()[2:])
+    elif l.strip(): print(l)
+if r.returncode and not any(l.strip().startswith("✗") for l in (r.stdout + r.stderr).split("\n")):
+    fail("templates.py failed:\n" + (r.stdout + r.stderr).strip()[-600:])   # a crash must not pass
 
 # 5. css-lint ------------------------------------------------------------------
 print("css-lint")

@@ -1,0 +1,50 @@
+/* ─────────────────────────────────────────────────────────────
+   ORGANICA — page.css
+   The PAGE template's skeleton: a header and one scrolling column.
+   The counterpart of shell.css, which is the TOOL template's skeleton
+   (a body pinned to the viewport, #app, a canvas and a panel).
+
+   Why it exists (template audit, Oct 2, 2026): the pages that read or
+   list — privacy, terms, admin, the test gallery — each carried their
+   own column wrapper (.doc 660 / .wrap 1040 / main 1500) and their own
+   body rule. Privacy and terms linked shell.css for its reset and so
+   inherited `body { height: 100vh; overflow: hidden }`: 2773px of
+   policy in a viewport that could not scroll. Admin had met the same
+   problem and overrode it by hand.
+
+   A page links THIS sheet and never shell.css.
+
+       <body class="org-page">                    grey ground (--panel)
+       <body class="org-page org-page--paper">    paper ground
+         <header class="org-header">…</header>
+         <main class="org-page__col">…</main>     660px — a reading column
+         <main class="org-page__col org-page__col--wide">   1040px — a data page
+         <main class="org-page__col org-page__col--full">   1500px — a gallery
+
+   The widths are this component's own geometry (--page-col-w, like
+   --auth-card-w and --panel-w), not tokens on the global scale.
+
+   Load order: tokens → icons → header → THIS → prose (opt-in) →
+   mobile-gate (opt-in) → the page's own <style>. Depends on tokens.css.
+   ───────────────────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; padding: 0; }
+
+.org-page {
+  min-height: 100vh;
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs-base);
+}
+.org-page--paper { background: var(--paper); }
+
+.org-page__col {
+  --page-col-w: 660px;
+  max-width: var(--page-col-w);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6);
+}
+.org-page__col--wide { --page-col-w: 1040px; }
+.org-page__col--full { --page-col-w: 1500px; padding: var(--space-8); }

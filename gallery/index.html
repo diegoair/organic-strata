@@ -10,16 +10,14 @@
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/page.css">
 <link rel="stylesheet" href="/shared/mobile-gate.css">
 <style>
   /* TEST GALLERY (development log) — real exports from the static tools (Pollen, Halide, Warping, Komorebi), animated
      live by their twins (Murmur, Undertow, Dapple). Reachable ONLY from the design system; budget in gallery/budget.json,
      enforced by scripts/check.py. The sheets are WORK, so the grid carries data-theme="light" and stays light
      in dark mode; the chrome around it follows the theme. Tokens only. */
-  * { box-sizing: border-box; }
-  html, body { margin: 0; }
-  body { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: var(--fs-base); }
-  main { padding: var(--space-8); max-width: 1500px; margin: 0 auto; }
+  /* Ground, reset and the 1500px column come from page.css (the Page template, --paper + --full). */
   .g-head {
     display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-7); flex-wrap: wrap;
     border-top: 1px solid var(--ink); padding-top: var(--space-5); margin-bottom: var(--space-6);
@@ -65,7 +63,7 @@
 </style>
 <script src="/shared/pattern-init.js"></script>
 </head>
-<body>
+<body class="org-page org-page--paper">
 <div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
 
 <header class="org-header" role="banner">
@@ -74,7 +72,7 @@
   <div class="org-header__spacer"></div>
 </header>
 
-<main>
+<main class="org-page__col org-page__col--full">
   <div class="g-head">
     <h1 class="g-title">Test gallery</h1>
     <div class="g-ctl"><a class="org-btn" href="/design-system/#test-gallery">← Design system</a><button class="org-btn" id="btn-pause" type="button" aria-pressed="false">Pause all</button></div>

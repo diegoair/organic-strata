@@ -26,8 +26,6 @@
 
   /* Reset, body, surface-palette tokens, #app and #canvas-wrap all come from
      the shared sheets — only real deltas below. */
-  #app { height: calc(100vh - var(--header-h, 40px)); }
-
   /* No Organica.createZoomPan here (see main.js's own header) — Vortex's
      own 3D camera (drag-orbit / Shift-drag-roll / Camera distance) is
      the ONLY zoom/pan mechanism, so there is deliberately no zoom-hud
@@ -36,8 +34,6 @@
   #canvas-wrap canvas { display: block; cursor: grab; box-shadow: var(--stage-shadow); }   /* the stage */
   #canvas-wrap canvas.orbiting { cursor: grabbing; }
   #tool-label { position: absolute; left: var(--space-4); bottom: var(--space-4); font-size: var(--fs-micro); color: #f6e8c3; opacity: 0.6; pointer-events: none; }
-
-  #panel { background: var(--panel); }   /* override — Vortex's panel keeps the grey --panel, not paper */
 
   /* Panel shell, .icon-btn, .rmx-* chips and the .color-* row are all shared
      (panel.css / palette.css). */

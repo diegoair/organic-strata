@@ -37,9 +37,9 @@
   --tool: var(--ink);
 
   --header-h: 64px;              /* the bar on every tool/page: a 32px row (= the nav button) inside --space-6 top and
-                                    bottom. It sits IN FLOW, so every canvas starts below it. The hub is the one page
-                                    that overrides it (110px, a roomier bar) — see index.html's :root. */
-  --header-pad-y: var(--space-6);  /* vertical padding of the bar; the hub raises it with --header-h */
+                                    bottom. It sits IN FLOW, so every canvas starts below it. Every page runs this
+                                    value (measured Oct 2, 2026 — the hub no longer overrides it). */
+  --header-pad-y: var(--space-6);  /* vertical padding of the bar */
 }
 
 /* ═══════════════════════════════════════════════════════════

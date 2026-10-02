@@ -8,10 +8,9 @@
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
-<link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/page.css">
 <style>
-  body { background: var(--panel); color: var(--ink); font-family: var(--font); overflow: auto; height: auto; }
-  .wrap { max-width: 1040px; margin: 0 auto; padding: var(--space-8) var(--space-6) var(--space-8); }
+  /* Ground, reset and the 1040px column come from page.css (the Page template, --wide). */
   /* Dense data page, not a reading page — uses the role tokens directly rather than .org-prose. */
   h1 { font-size: var(--t-h4-size); font-weight: var(--t-h4-weight); line-height: var(--t-h4-lh); margin: 0 0 var(--space-2); }
   .sub { color: var(--mid); font-size: var(--fs-base); margin: 0 0 var(--space-7); }
@@ -51,14 +50,14 @@
 </style>
 <script src="/shared/pattern-init.js"></script>
 </head>
-<body>
+<body class="org-page">
 <header class="org-header" role="banner">
   <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><menu-icon state="menu" size="20" line-cap="square"></menu-icon></button>
   <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ Admin</span></a>
   <div class="org-header__spacer"></div>
 </header>
 
-<div class="wrap">
+<main class="org-page__col org-page__col--wide">
   <h1>Admin</h1>
   <p class="sub">User management for the private beta. Owner-only.</p>
   <p id="status">Checking access…</p>
@@ -95,7 +94,7 @@
       </div>
     </section>
   </div>
-</div>
+</main>
 
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>

@@ -41,22 +41,30 @@ scale, and it does not happen unless someone already suspects a problem.
 1. Start from `shared/_template.html`. **Never copy a neighbouring tool** —
    that is how every divergence in the audit began.
 2. Link the shared sheets **in this order**, then your own `<style>` last:
-   `tokens` → `header` → `panel` → `floatbar` → `shell` → `palette`(opt-in)
-   → `seeds-panel`(opt-in) → `mobile-gate`.
+   `tokens` → `icons` → `header` → `panel` → `floatbar` → `shell` →
+   `palette`(opt-in) → `seeds-panel`(opt-in) → `mobile-gate`.
    Order is load-bearing: tokens first so you can override without
-   `!important`, your own sheet last so your deltas win.
+   `!important`, your own sheet last so your deltas win. (The full list, pages
+   included — `page`, `prose`, `auth-card` sit between `header` and `panel` —
+   is `ORDER` in `scripts/templates.py` and `scripts/css-lint.py`.)
 3. Your `:root` declares **`--tool` and nothing else**, unless an override is
    genuine — and then it carries a one-line comment saying why. Never
    redeclare `--ink`/`--paper`/`--mid`/`--accent`/`--panel`/`--border` at
    their default values; that was pure noise in three tools.
 4. Add the `.mobile-gate` div as the first child of `<body>`. Every tool
    assumes desktop width and a mouse.
-5. Register `--tool` in `docs/DESIGN-SYSTEM.md` §5 and in the hub nav in the
+5. Register `--tool` in `docs/DESIGN-SYSTEM.md` §5 and add the tool to
+   `shared/tools.js` (the mega menu — the hub has no nav of its own) in the
    **same commit** as the tool itself.
+6. Run `python3 scripts/templates.py` and commit `design-system/templates.json`
+   with the tool. `scripts/check.py` lints the skeleton against the Tool
+   template (and lints the starter itself) and fails on a stale inventory.
 
-Legal, auth and documentation pages (`privacy/`, `terms/`, `sign-in/`,
-`design-system/`) deliberately skip 4 — a phone visitor must be able to read a
-privacy policy. The lint knows about that exclusion.
+Legal, admin, auth and documentation pages (`privacy/`, `terms/`, `admin/`,
+`sign-in/`, `design-system/`) deliberately skip 4 — a phone visitor must be able
+to read a privacy policy. They are not tools: they are the **Page** and **Auth
+card** templates (`shared/page.css`, never `shell.css` — `docs/UI-SHELL.md` §6
+"Starting a new page"), and the lint applies those rules to them instead.
 
 ## (b) Migrating a tool onto a shared component
 

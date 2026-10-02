@@ -1,29 +1,47 @@
 # Organica — The UI Shell
 
 > Studio Rann · Organica · The standard tool layout
-> Last updated: July 25, 2026
-> Reference implementation: `shared/_template.html`
+> Last updated: October 2, 2026
+> Reference implementation: `shared/_template.html` · page inventory: `/design-system/#templates`
 
 ---
 
 ## 1. What the shell is
 
-Five of Organica's tools — Spore, Pollen, Halide, Komorebi, and (in spirit)
-Living Path — share the same layout:
+Every Organica tool has the same layout (it began with five — Spore, Pollen,
+Halide, Komorebi and, in spirit, Living Path):
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│ TOPBAR   logo · actions · status · export scale · export │  40px, fixed
+│ HEADER   nav · logo / Tool · · · · account · patterns    │  64px (--header-h), in flow
 ├───────────────────────────────────┬──────────────────────┤
 │                                   │                      │
 │  CANVAS                           │  PANEL               │
 │  the artwork, centred             │  controls, scrolls   │
-│  drop target, zoom/pan            │  240–244px           │
+│  drop target, zoom/pan            │  248px (--panel-w)   │
 │                                   │                      │
-├───────────────────────────────────┴──────────────────────┤
-│ HUD  bottom-left, over the canvas                        │
-└──────────────────────────────────────────────────────────┘
+│  HUD bottom-left   [ FLOATBAR ]   │                      │
+└───────────────────────────────────┴──────────────────────┘
+   the floatbar: Open · playback · Export, fixed bottom-centre
 ```
+
+### Three templates (decided Oct 2, 2026 — `docs/DESIGN-DECISIONS.md` O-6)
+
+| Template | For | Skeleton sheet | Start from |
+|---|---|---|---|
+| **Tool** | anything with a canvas and controls — the drawing above | `shell.css` | `shared/_template.html` |
+| **Page** | anything that reads or lists (legal, admin, the test gallery) | `page.css` | an existing page — §6 |
+| **Auth card** | the sign-in card, alone on the page | `auth-card.css` | `/sign-in/` |
+
+Two documented variants, not templates of their own: an **own-surface** tool has
+the Tool chrome (header, floatbar, `#panel`, mobile gate) but its own canvas
+surface, so it does not link `shell.css`; an **own-layout** page has the page
+chrome but not the `page.css` column. Which page is which, and why, is never
+typed in a document: `scripts/templates.py` reads the pages and writes
+`design-system/templates.json`, and [`/design-system/#templates`](/design-system/#templates)
+renders it. `scripts/check.py` fails when a page's skeleton leaves its template
+or the JSON is out of date. The rest of this document is the **Tool** template,
+except where it says Page.
 
 Until now this was **coherence by copy-paste**: Spore introduced it, Pollen
 refined it, Halide and Komorebi cloned Pollen's `<style>` block almost verbatim
@@ -37,7 +55,8 @@ copy to start a new tool from.
 **Superseded.** This section used to argue *"why a template and not a shared
 stylesheet"* — that each tool tunes its own palette so a shared `shell.css`
 would need an override for nearly every rule. That prediction was wrong and
-the decision went the other way: `shared/shell.css` shipped, 19 pages link it,
+the decision went the other way: `shared/shell.css` shipped, every page on the
+Tool template links it (the list is generated — `/design-system/#template-tool`),
 and the per-tool overrides amount to a handful of real deltas each. The
 paragraph sat here contradicting §2 for a month. Kept as a note rather than
 deleted because "the template will diverge" is a live risk in the *other*
@@ -51,6 +70,7 @@ In `<head>`, **in this order**:
 
 ```html
 <link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
@@ -58,7 +78,18 @@ In `<head>`, **in this order**:
 <!-- opt-in, in this order after shell: palette.css, seeds-panel.css -->
 <link rel="stylesheet" href="/shared/mobile-gate.css">
 <style> /* only the tool's own content — its --tool accent + one-off components */ </style>
+<script src="/shared/pattern-init.js"></script>   <!-- theme + canvas pattern before first paint -->
 ```
+
+A **page** links `tokens` → `icons` → `header` → `page` (→ `prose` for running
+text) and never `panel` / `floatbar` / `shell`: `shell.css` pins `<body>` to the
+viewport, which is how privacy and terms once could not scroll.
+
+The full order, for any combination, is one list —
+`tokens → icons → header → page → prose → auth-card → panel → floatbar → shell → palette → seeds-panel → mobile-gate`
+— kept in `scripts/templates.py` and `scripts/css-lint.py` (`ORDER`), and both
+fail a page that links them out of order. `<html>` carries `data-theme-support`
+on every template.
 
 **The authoritative list of shared files, what each owns and who must link
 it, lives in one place:** [`/design-system/` § File architecture](/design-system/#file-architecture).
@@ -72,12 +103,15 @@ box-sizing reset, the flex-column `<body>`, `#app`, the centred
 `#canvas-wrap` stage area, `.org-stage` (the canvas element's shadow +
 `.zoomed`/`.panning`/`.picking` cursor states — add `class="org-stage"` to
 the canvas, its id varies per tool), `#zoom-hud` and `#drop-hint`. Before
-it, all 17 tools carried their own ~30-line copy. A tool keeps only its
+it, every tool (17 then) carried its own ~30-line copy. A tool keeps only its
 genuine deltas locally (`#canvas-wrap { padding: 0 }` for edge-to-edge
 canvases, a bespoke `#stage-frame` — but never a different stage shadow: since
-Sep 29, 2026 that is `--stage-shadow`, one value everywhere). Genesis
-(3-column shell), Rhizome and Flexible Visual System (own canvas surfaces) don't link it;
-they still get the reset + surface palette from tokens.
+Sep 29, 2026 that is `--stage-shadow`, one value everywhere). The own-surface
+tools (Apostate, Flexible Visual System, Rhizome, Genesis — `OWN_SURFACE` in
+`scripts/templates.py`, each with its reason) don't link it; they still get the
+surface palette from tokens. Mycel and TuneSutra name their region `#stage-wrap`
+and Pulsar / Radial / Trellis `#stage`; all five carry `class="org-canvas-wrap"`,
+the same rule under a class, and keep only real deltas local.
 
 `floatbar.css` is the shared bottom-centre floating action bar
 (`.org-floatbar`, `.org-popover`) that Export (and any playback controls)
@@ -94,10 +128,21 @@ Before the tool's own `<script>`:
 
 ```html
 <script src="/shared/core.js"></script>
+<script src="/shared/icons.js"></script>
+<!-- then what the tool uses: canvas.js, palette.js, select-picker.js, recorder.js … -->
+```
+
+and, as the last shared scripts before `</body>` (every template but the auth card):
+
+```html
+<script src="/shared/tools.js"></script>
+<script src="/shared/menu-icon.js"></script>
+<script src="/shared/header.js"></script>
 ```
 
 Order is load-bearing: tokens first so the tool can override without
 `!important`; core before the tool script so `Organica.*` exists at parse time.
+The complete, current list is `shared/_template.html` — linted by the same rules.
 
 If the tool places Genesis forms, also:
 
@@ -180,8 +225,8 @@ This section used to say each tool sets its own hex, on the theory tools
 would diverge; 15 of 17 shipped byte-identical values, so they moved to
 one place. A tool now declares only:
 
-- **`--tool`** — its identity hue, matching the hub nav accent (drives the
-  header focus ring). See `docs/DESIGN-SYSTEM.md` §5.
+- **`--tool`** — its identity hue (tints the tool's primary action and
+  accents). See `docs/DESIGN-SYSTEM.md` §5.
 - the rare genuine override — `--ink: #241b14` for the warm-black trio
   (Warping / Radial / Pulsar), `--mid: #726a5e` for Blob Boundary.
 
@@ -237,7 +282,7 @@ rather than annotated.
 - Every text on the canvas surface uses `var(--font)`; text drawn on a `<canvas>`
   reads `--font` at draw time (`shared/glyph-editor.js`).
 
-### Panel (240–244px, `overflow-y: auto`)
+### Panel (`--panel-w`, 248px, `overflow-y: auto`)
 
 | Class | What |
 |---|---|
@@ -265,8 +310,9 @@ Replaces five divergent bars. Full audit and rationale in this section.
 
 ### The rule
 
-**One header, no variants** (v2, Sep 29, 2026): transparent, **110px** (`--header-h`), no border, `--space-8` top/bottom
-padding, **in flow** — it costs 66px of canvas, and pages that do height maths read `--header-h`.
+**One header, no variants** (v2, Sep 29, 2026): transparent, **64px** (`--header-h`: a 32px row inside `--header-pad-y`
+= `--space-6` top and bottom), no border, **in flow** — every canvas starts below it, and pages that do height maths read `--header-h`
+(never a typed fallback).
 Left → right: **nav button** (opens the mega menu) · **logo mark** (placeholder) · **name** + `/ Page` · spacer ·
 **Sign Up / Login** (signed out) or the **account control** · the **4 pattern circles**.
 Everything else moves closer to what it acts on. Live reference: the design system's Header, Account control,
@@ -278,13 +324,13 @@ The mega menu (Sep 29, 2026 regroup): one row of six groups by what you start fr
 ```html
 <head> … <script src="/shared/pattern-init.js"></script> </head>
 <header class="org-header" role="banner">
-  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega">…hamburger svg…</button>
+  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><menu-icon state="menu" size="20" line-cap="square"></menu-icon></button>
   <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ Tool</span></a>
   <div class="org-header__spacer"></div>
   <!-- JS appends: .org-mega + .org-pattern (header.js), .org-header__auth | .org-account (auth-badge.js) -->
 </header>
 …
-<script src="/shared/tools.js"></script><script src="/shared/header.js"></script>   <!-- before </body> -->
+<script src="/shared/tools.js"></script><script src="/shared/menu-icon.js"></script><script src="/shared/header.js"></script>   <!-- last, before </body> -->
 ```
 
 Wire the behaviours:
@@ -294,7 +340,7 @@ const setStatus = Organica.status();   // 'error' / 'busy' show a Notice; 'activ
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 ```
 
-**New tool:** add its link to the hub nav **and** one line in `shared/tools.js` (`scripts/check.py` fails otherwise).
+**New tool:** one line in `shared/tools.js` — the mega menu is the only tool navigation (the hub has no nav of its own since Sep 29, 2026); `scripts/check.py` fails if a link doesn't resolve.
 **Not** on the header: the sign-in page (a centred card), the archived `genesis/archive/indicators-55.html`.
 The old variants (`--tool` / `--editor` / `--catalog`), the context slot and the status slot are gone.
 
@@ -362,7 +408,7 @@ not inside a column. Library originally had it inside `.canvas-area`, which
 squeezed it into the middle column; the grid now uses
 `height: calc(100vh - var(--header-h))` and the header is its sibling.
 
-Catalog pages inherit `body{padding:48px}` from `page.css` for the form
+Catalog pages inherit `body{padding:48px}` from `genesis/page.css` (the archive's own sheet — not `shared/page.css`, the Page template) for the form
 grid; there the header escapes with `margin: -48px -48px 32px` plus
 `position: sticky` rather than dropping the padding the grid needs.
 
@@ -596,14 +642,48 @@ blank or preview-sized file. Komorebi hit this; the fix is in its export path.
 
 ## 6. Starting a new tool
 
-1. Copy `shared/_template.html` to `<tool>/index.html`.
-2. Replace the tool name in `<title>` and `.logo`.
-3. Set the palette (§3) and add the identity colour.
-4. Add the tool to `index.html` (nav link + accent class), `vercel.json`
-   (rewrite), `README.md` and `CLAUDE.md`.
-5. Register the accent in `docs/DESIGN-SYSTEM.md` §5.
+Before step 1: `/ds consult <what is about to be built>` — the build brief says
+what already exists and must be reused.
+
+1. Copy `shared/_template.html` to `<tool>/index.html`. Never copy a neighbour.
+   The template is linted with the same skeleton rules as every tool, so it is
+   current by construction.
+2. Replace the tool name in `<title>` and in the header logo (`/ New Tool`).
+3. Declare `--tool` and nothing else (§3) — check the hue against
+   `docs/DESIGN-SYSTEM.md` §5 first, and register it there in the same change.
+4. Navigation: one line in `shared/tools.js` (the mega menu). There is no nav
+   link to add in `index.html`. Then `vercel.json` (rewrite), `README.md` and
+   `CLAUDE.md` (Tools table, Repo Structure).
+5. Keep the skeleton: `.mobile-gate` first in `<body>`, the header with no
+   actions, `.org-floatbar` a direct child of `<body>` with Open · playback ·
+   Export, `#app` = the canvas region then `#panel` last.
 6. Canvas: keep the template's `#canvas-wrap` + `class="org-stage"` on the sheet (§4 Canvas rules) —
    no local canvas-area background, no local stage shadow, no font outside `--font`.
+7. `python3 scripts/templates.py` — regenerates `design-system/templates.json`,
+   which is what puts the tool in `/design-system/#templates` and in the
+   generated "Used in" lists. Commit the JSON with the tool.
+8. `python3 scripts/check.py` — the "page templates" step lints the skeleton
+   and fails if the JSON is stale. Then `/ds review` before the commit.
+
+A tool that genuinely needs its own canvas surface is an entry in `OWN_SURFACE`
+(`scripts/templates.py`) with its reason **and** a line in
+`docs/DESIGN-DECISIONS.md` §3 — the owner's decision, not a way to pass the lint.
+
+### Starting a new page
+
+For anything that reads or lists. There is no starter file; the smallest real
+examples are `privacy/index.html` (reading) and `admin/index.html` (data).
+
+1. `<html lang="en" data-theme-support>`; link `tokens` → `icons` → `header` →
+   `page` (→ `prose` for running text). Never `shell.css`.
+2. `<body class="org-page">` (grey ground) or `class="org-page org-page--paper"`.
+3. The shared header, then one column: `<main class="org-page__col">` (660,
+   reading) · `org-page__col--wide` (1040, data) · `org-page__col--full` (1500,
+   gallery). The widths are the component's own `--page-col-w` — do not type
+   another one.
+4. `pattern-init.js` in `<head>`; `tools.js` → `menu-icon.js` → `header.js` last.
+5. No mobile gate unless the page is unusable on a phone (the test gallery opts in).
+6. `python3 scripts/templates.py`, then `python3 scripts/check.py`.
 
 ---
 
@@ -626,9 +706,9 @@ discovered its own accent hex collided with Strata/Membrane's only after
 shipping. Follow every line here in the same session as the migration —
 "do it later" is exactly how the first two gaps happened.
 
-- [ ] **Shell**: link the 5 shared CSS files in the load-bearing order
-  (`tokens.css` → `header.css` → `panel.css`
-  → `floatbar.css` → `shell.css`), add a real
+- [ ] **Shell**: link the Tool template's sheets in the load-bearing order
+  (`tokens.css` → `icons.css` → `header.css` → `panel.css`
+  → `floatbar.css` → `shell.css` → `mobile-gate.css`, §2), add a real
   `<header class="org-header">` with the logo linking to
   `/`, put `class="org-stage"` on the canvas element, and migrate panel
   markup onto the shared `.panel-section`/`.ctrl-row`/`.panel-select`/
@@ -642,21 +722,18 @@ shipping. Follow every line here in the same session as the migration —
   Critical Rules), never for spacing/type/UI chrome.
 - [ ] **Accent — check the collision BEFORE picking, not after.** Grep the
   full registry in one shot:
-  `grep -rhoP "^\s*--tool:\s*#[0-9a-fA-F]{6}" */index.html` plus
-  `grep -oP "nav__link--\w+:hover \{ color: #[0-9a-fA-F]{6}" index.html`
+  `grep -rhoP "^\s*--tool:\s*#[0-9a-fA-F]{6}" */index.html` (or the accent list
+  `python3 scripts/ds-audit.py` prints)
   — plot the hues, find a real open gap, and say so in a comment next to
   the chosen hex (see `blob-boundary/index.html`'s own `--tool` comment
   for the pattern). An exploration's own placeholder accent is not a
   hint — it was picked with zero collision-checking and often does
   collide (`#e94f37`, Blob Boundary's own original placeholder, collided
   with both Strata's and Membrane's warm-red band).
-- [ ] **Hub nav**: add the real link in the correct thematic
-  `.nav__group` (not "Explorations") with its own accent hover rule, AND
-  **remove the link from the "Explorations" group** — a promoted tool
-  does not stay listed twice. (An earlier session note said to leave the
-  exploration link in place "for now"; the current repo state shows both
-  Membrane's and Vortex's were in fact removed, just never documented
-  as a deliberate step — this bullet makes that the documented rule.)
+- [ ] **Navigation**: add the tool to its thematic group in
+  `shared/tools.js` (the mega menu — the hub has had no nav of its own since
+  Sep 29, 2026) AND **remove it from `Organica.explorations`** — a promoted
+  tool does not stay listed twice.
 - [ ] **`vercel.json`**: add the tool's own rewrite entry, matching every
   other production tool. `explorations/` itself never needed one (Vercel's
   default static serving covers it), which is exactly why this step is
@@ -675,6 +752,9 @@ shipping. Follow every line here in the same session as the migration —
   note describing what changed structurally versus the original
   exploration (which shared components it adopted, what accent it picked
   and why, what if anything was deliberately NOT carried over).
+- [ ] **Inventory**: `python3 scripts/templates.py`, commit
+  `design-system/templates.json`; `python3 scripts/check.py` must pass its
+  "page templates" step.
 - [ ] **Verify**: fresh tab, 0 controls without an accessible name
   (`Organica.autoLabelPanel` wired in), console clean, the tool renders
   and behaves identically to the exploration it came from unless a
@@ -688,8 +768,8 @@ Honest list of where the tools still disagree:
 
 - **App shell** — resolved 2026-08-30. `shell.css` owns the reset,
   `body`, `#app`, `#canvas-wrap`, `.org-stage`, `#zoom-hud`, `#drop-hint`;
-  14 tools link it (all but Genesis / Rhizome / Flexible Visual System, which keep their own
-  canvas surface but still get the surface palette). This also retired the
+  every tool links it but the four own-surface ones (§1; the list is generated,
+  `/design-system/#template-tool`). This also retired the
   "Panel width — 240 vs 244 vs 260" item (one `--panel-w: 248px` token in
   `panel.css`) and the "Zoom/pan CSS still inline in Spore /
   Pollen / Halide" item.
@@ -699,8 +779,8 @@ Honest list of where the tools still disagree:
   it is a bigger job than a rename.
 - **Living Path** is fully retrofitted onto the shared panel component via
   its own documented aliases (`.sec`/`.row`/`.group-label`).
-- **Mote** (promoted from `scratchpad/mote.html` Sep 1, 2026) links all 5
-  shared sheets and uses the standard header / panel / floatbar / `.org-stage`
+- **Mote** (promoted from `scratchpad/mote.html` Sep 1, 2026) links the Tool
+  template's sheets and uses the standard header / panel / floatbar / `.org-stage`
   classes with the shared `#canvas-wrap` surround (white + dot grid: `--canvas-grid`, `--canvas-bg`)
   (the prototype's near-black stage was dropped Sep 1 as off-system). Source
   (open-file `＋`, webcam, mirror) lives in the floatbar, which also carries a
@@ -719,8 +799,8 @@ Honest list of where the tools still disagree:
   `createPaletteChips` / `Organica.Palette.colorAt` aliases were removed. Membrane's
   `rmxColorAt` and Camo Turing's export `rmxLerpColor` deliberately stay separate
   (different colour lineage — see `SHARED-COMPONENTS.md` §3). `shared/_template.html`
-  was refreshed to the current conventions on 2026-08-30 (links all 5 sheets,
-  uses `Organica.palette.swatch`, no more `syncColor`).
+  was refreshed to the current conventions on 2026-08-30 (uses
+  `Organica.palette.swatch`, no more `syncColor`) and again on Oct 2, 2026 (below).
 - **Layer card** — resolved 2026-08-30. Camo Turing's `.layer-card` and
   Colornet's `.chan-card` were first aliased onto `.org-layer-card`, then
   renamed to it outright the same day (Colornet's `.chan-card--armed` →
@@ -729,7 +809,18 @@ Honest list of where the tools still disagree:
   own dot / name / opacity / thumbnail controls local.
 - **Zoom/pan JS** — resolved 2026-08-30. Spore, Pollen and Halide's inline
   copies are gone; all three call `Organica.createZoomPan` now.
+- **Templates** — resolved Oct 2, 2026 (`docs/DESIGN-DECISIONS.md` O-6 … O-10).
+  Privacy / terms / admin / gallery are on `page.css` (privacy and terms scroll
+  again); Membrane's and Vortex's grey `#panel` and stale `#app` height are gone;
+  Mycel's and TuneSutra's `#stage-wrap` is `.org-canvas-wrap`; the starter
+  template is current (dark-mode opt-in, icons, mobile gate first, no header
+  actions, Open + Export in the floatbar, `selectPicker`) and linted; Spore's
+  duplicate `id`, Camo Turing's raw panel width and Apostate's gate position
+  are fixed.
+- **Still open** (no decision needed — `docs/DESIGN-DECISIONS.md` §4 is the
+  list): Camo Turing links `/genesis/animations.css`; Living Path loads
+  opentype.js from a CDN; Colornet has two action buttons in the header.
 
 ---
 
-*Organica System v0.1 · July 25, 2026*
+*Organica System · October 2, 2026*
