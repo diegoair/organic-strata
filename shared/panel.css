@@ -1003,12 +1003,10 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 @media (hover: hover) { .org-disclosure__head:hover { color: var(--ink); } }
 .org-disclosure__label { flex: 1; text-align: left; }
 .org-disclosure__body { padding-top: var(--space-2); }
-.org-disclosure::details-content {
-  display: grid; grid-template-rows: 0fr; overflow: hidden;
-  transition: grid-template-rows var(--dur-base) var(--ease-out), content-visibility var(--dur-base) allow-discrete;
-}
-.org-disclosure[open]::details-content { grid-template-rows: 1fr; }
-.org-disclosure__body { min-height: 0; overflow: hidden; }
+/* The native <details> body slide is JS (Organica.disclosure in core.js, Web Animations on the body's height):
+   ::details-content only exists in Chrome 131+ / Safari 18.4+, so the same motion is driven for every browser.
+   overflow is hidden only WHILE it animates (so focus rings are never clipped at rest). */
+.org-disclosure.is-closing > .org-disclosure__head .org-chev { transform: none; }   /* the chevron turns back as the body closes, not after */
 /* class-driven body (JS toggles .is-open, no <details>): wrap the body in .org-disclosure__panel */
 .org-disclosure__panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-base) var(--ease-out); }
 .is-open > .org-disclosure__panel { grid-template-rows: 1fr; }
@@ -1082,3 +1080,21 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 .org-layer-card--flush.is-collapsible:not(.is-open) > .org-layer-card__content { display: none; }
 .org-layer-card__actions { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
 .org-layer-card__actions .is-danger { margin-left: auto; color: var(--danger); }
+
+/* Removable preset row (Organica.presetPicker — a user's own preset): the row + a sibling delete button. */
+.preset-row { position: relative; display: flex; }
+.preset-row > .preset-item { flex: 1; padding-right: calc(var(--slo-h) + var(--space-3)); }
+.pi-del {
+  position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%);
+  width: var(--slo-h); height: var(--slo-h); display: grid; place-items: center;
+  border: 0; border-radius: var(--radius-sm); background: none; color: var(--mid); cursor: pointer; padding: 0;
+  transition: background-color var(--dur-fast), color var(--dur-fast);
+}
+@media (hover: hover) { .pi-del:hover { background: var(--track-bg); color: var(--ink); } }
+
+/* ── Layer card: interaction tiers (appended Oct 2) ───────────
+   hover = the --track-bg wash on the head; selection (.active) = an --ink border —
+   never the same cue. The toggle may be a real <button> (Camo Turing). */
+.org-layer-card--flush.active { border-color: var(--ink); }
+button.org-layer-card__toggle { padding: 0; background: transparent; cursor: pointer; }
+@media (hover: hover) { .org-layer-card--flush > .org-layer-card__head:hover { background: var(--track-bg); } }

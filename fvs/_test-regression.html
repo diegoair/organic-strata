@@ -811,9 +811,9 @@ async function battery() {
     chg('sel-seed-type', 'circle');
     put('content:single', [!document.getElementById('sel-element-content'), !document.getElementById('btn-pick-underlying-element'), ctrl('layers-list').children.length].join(','));
     addLayer();
-    const row = i => document.querySelector(`#layers-list .fvs-layer[data-layer="${i}"]`);
+    const row = i => document.querySelector(`#layers-list .org-layer-card[data-layer="${i}"]`);
     const act = (i, a) => row(i).querySelector(`[data-layer-act="${a}"]`).click();
-    put('layers:ui:row', [...document.querySelectorAll('#layers-list .fvs-layer')].map(r => r.dataset.layer + ':' + r.querySelector('.fvs-layer__name').textContent + ':' + !!r.querySelector('.fvs-layer__icon svg')).join('|') + '|place-under:' + ctrl('layer-place-block').previousElementSibling.dataset.layer);
+    put('layers:ui:row', [...document.querySelectorAll('#layers-list .org-layer-card')].map(r => r.dataset.layer + ':' + r.querySelector('.org-layer-card__title').textContent + ':' + !!r.querySelector('.fvs-layer__icon svg')).join('|') + '|place-under:' + ctrl('layer-place-block').parentElement.dataset.layer);
     const filledSvg = buildSeedPreviewSVG(getSeed(), 0, false, false, 100);
     act(1, 'role');   // fill → container (Subtraction mask)
     const subSvg = buildSeedPreviewSVG(getSeed(), 0, false, false, 100);
@@ -827,7 +827,7 @@ async function battery() {
     // the eye: a hidden top layer draws exactly the stack without it, and is left out of colour variants
     const bottomOnly = (() => { const sd = getSeed(); return buildSeedPreviewSVG({ ...sd, layers: [sd.layers[0]] }, 0, false, false, 100); })();
     act(1, 'eye');
-    put('layers:hidden', [state.layers.items[1].hidden === true, H(norm(buildSeedPreviewSVG(getSeed(), 0, false, false, 100))) === H(norm(bottomOnly)), fillLayers().length, row(1).classList.contains('is-hidden')].join(','));
+    put('layers:hidden', [state.layers.items[1].hidden === true, H(norm(buildSeedPreviewSVG(getSeed(), 0, false, false, 100))) === H(norm(bottomOnly)), fillLayers().length, row(1).classList.contains('is-off')].join(','));
     act(1, 'eye');
     // Element → Component continuity: every stack drawing owns its clip/mask ids. With one id per SHAPE,
     // url(#id) hit the first copy in the page — the hidden Element previews — and every Component
@@ -916,7 +916,7 @@ async function battery() {
     // changing the Seed shape renames the active layer's card at once, not on the next layer switch
     {
       selectLayer(1);
-      const lbl = () => document.querySelector('#layers-list .fvs-layer[data-layer="1"] .fvs-layer__name').textContent;
+      const lbl = () => document.querySelector('#layers-list .org-layer-card[data-layer="1"] .org-layer-card__title').textContent;
       const t0 = state.layers.items[1].seed.type;
       chg('sel-seed-type', 'cross');
       const afterMenu = lbl();

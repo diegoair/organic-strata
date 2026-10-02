@@ -1829,6 +1829,38 @@
     return { add: function (s) { list.push(s); return s; }, list: list, show: show };
   })();
 
+  /* Organica.disclosure — the body slide of <details class="org-disclosure"> (Oct 2, 2026).
+     Self-running. A native <details> hides its body the instant it closes and shows it the instant it
+     opens, and ::details-content (the CSS way to animate it) is Chrome 131+ / Safari 18.4+ only — so
+     the click is taken over and the body's height is animated with Web Animations (every browser):
+     open → set [open], 0 → full height; close → full → 0, THEN remove [open]. Duration / easing come
+     from --dur-base / --ease-out; with reduced motion (the tokens are 1ms) the native toggle runs untouched. */
+  (function () {
+    function token(name, fallback) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback; }
+    document.addEventListener('click', function (e) {
+      var sum = e.target.closest && e.target.closest('details.org-disclosure > summary');
+      if (!sum || !sum.parentElement.querySelector(':scope > .org-disclosure__body') || !sum.parentElement.animate) return;
+      var d = sum.parentElement, body = d.querySelector(':scope > .org-disclosure__body');
+      var ms = parseFloat(token('--dur-base', '220ms'));
+      if (!(ms > 20)) return;                              // reduced motion / no token → the native toggle
+      e.preventDefault();
+      if (d.__anim) d.__anim.cancel();
+      var opening = !d.open, ease = token('--ease-out', 'ease-out');
+      body.style.overflow = 'hidden';
+      var from, to, pad = getComputedStyle(body).paddingTop;   // padding animates with the height or a 0-height body would keep its top padding visible
+      if (opening) { d.open = true; from = 0; to = body.scrollHeight; d.classList.remove('is-closing'); }
+      else { from = body.offsetHeight; to = 0; d.classList.add('is-closing'); }
+      var shut = { height: '0px', paddingTop: '0px', paddingBottom: '0px' }, full = { height: (opening ? to : from) + 'px', paddingTop: pad, paddingBottom: getComputedStyle(body).paddingBottom };
+      var a = d.__anim = body.animate(opening ? [shut, full] : [full, shut], { duration: ms, easing: ease });
+      var done = function () {
+        if (d.__anim !== a) return;
+        d.__anim = null; body.style.overflow = '';
+        if (!opening) { d.open = false; d.classList.remove('is-closing'); }
+      };
+      a.onfinish = done; a.oncancel = function () { if (d.__anim === a) { d.__anim = null; body.style.overflow = ''; } };
+    });
+  })();
+
   /* Organica.armed — two-click confirm for a destructive button (Oct 2, 2026).
      Mark the button data-armed (optionally data-armed="Sure?"): the first click arms it
      (label swaps, .is-armed = --danger ink), a second click within ARM_MS runs the

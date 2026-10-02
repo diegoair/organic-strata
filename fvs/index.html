@@ -398,40 +398,27 @@
   .fg-report .fg-bad { color: var(--danger); }
   .fg-json { width: 100%; min-height: 120px; }   /* look from THE FIELD (org-field--code, header.css) */
 
-  /* ── Layers panel (Element): one lean row per layer, Figma-style ──
-     FVS-local classes (the shared .org-layer-card stays as Colornet / Camo Turing use it). */
+  /* ── Layers panel (Element): one .org-layer-card--flush per layer (panel.css) ──
+     Local: the stack, the title button reset, the colour swatch, hover-reveal delete,
+     and the per-layer placement block that lives in the active card's content. */
   .fvs-layers-head { display: inline-flex; align-items: center; gap: var(--space-2); }
   .fvs-layers { display: flex; flex-direction: column; }
-  #btn-layer-add { border: 0; color: var(--mid); border-radius: var(--radius-sm); }
-  @media (hover: hover) { #btn-layer-add:hover { color: var(--ink); background: var(--track-bg); } }
   .fvs-layers:empty { display: none; }
-  .fvs-layer { display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); border-radius: var(--radius-sm); cursor: default; }
-  .fvs-layer.active { background: var(--control-bg); }   /* selected: the ground of an editable control, as the dropdowns */
-  .fvs-layer:hover, .fvs-layer.active:hover { background: var(--track-bg); }   /* hover: a darker grey */
-  .fvs-layer.active .fvs-layer__name { font-weight: var(--w-medium); }
-  .fvs-layer.active + .fvs-layer__place { border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
-  .fvs-layer.active:has(+ .fvs-layer__place) { border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
-  .fvs-layer.is-hidden .fvs-layer__icon, .fvs-layer.is-hidden .fvs-layer__name { opacity: 0.35; }
-  .fvs-layer.drop-above { box-shadow: inset 0 2px 0 var(--ink); }
-  .fvs-layer.drop-below { box-shadow: inset 0 -2px 0 var(--ink); }
-  .fvs-layer.dragging { opacity: 0.4; }
-  .fvs-layer:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
-  .fvs-layer__grip { width: 10px; height: 18px; display: flex; align-items: center; justify-content: center; color: var(--mid); cursor: grab; flex-shrink: 0; }
+  .fvs-layers .org-layer-card { margin-bottom: var(--space-1); }
+  .fvs-layers .org-layer-card__head { gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); }
+  .fvs-layers .org-layer-card:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
   .fvs-layer__main { all: unset; flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); cursor: pointer; padding: var(--space-1) 0; }
+  .fvs-layer__main:focus-visible, .fvs-layer__swatch:focus-visible { outline: 2px solid var(--ink); }
   .fvs-layer__icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; }
   .fvs-layer__icon svg { width: 100%; height: 100%; }
-  .fvs-layer__name { font-size: var(--fs-small); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .fvs-layer__btn { all: unset; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: var(--mid); cursor: pointer; border-radius: var(--radius-sm); flex-shrink: 0; }
-  @media (hover: hover) { .fvs-layer__btn:hover { color: var(--ink); } }
-  .fvs-layer__btn:focus-visible, .fvs-layer__swatch:focus-visible { outline: 2px solid var(--ink); }
-  .fvs-layer__btn svg { width: 13px; height: 13px; }
+  .fvs-layer__main .org-layer-card__title { font-size: var(--fs-small); font-weight: var(--w-regular); letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fvs-layer__swatch { all: unset; width: 14px; height: 14px; margin: 0 var(--space-1); border-radius: 50%; background: var(--sw); cursor: pointer; flex-shrink: 0; }
   .fvs-layer__swatch.is-cell { background: linear-gradient(135deg, var(--sw) 50%, var(--paper) 50%); }
   .fvs-layer__swatch:disabled { opacity: 0.25; cursor: default; }
   .fvs-layer__del { opacity: 0; }
   @media (hover: none) { .fvs-thumb-quicksave, .fvs-thumb-edit, .fvs-layer__del { opacity: 1; } }   /* touch has no hover to reveal them */
-  .fvs-layer:hover .fvs-layer__del, .fvs-layer.active .fvs-layer__del, .fvs-layer__del:focus-visible { opacity: 1; }
-  .fvs-layer__place { display: flex; flex-direction: column; padding: 0 var(--space-2) var(--space-1) var(--space-6); background: var(--control-bg); border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+  .org-layer-card:hover .fvs-layer__del, .org-layer-card.active .fvs-layer__del, .fvs-layer__del:focus-visible { opacity: 1; }
+  .fvs-layer__place { display: flex; flex-direction: column; padding-top: 0; }
   .fvs-layer__place .ctrl-row { margin-bottom: 0; min-height: var(--space-7); gap: var(--space-2); }
   /* the block already sits on --control-bg: its sliders' wells take the next step down, or they would vanish into it */
   .fvs-layer__place input[type=range] { --control-bg: var(--track-bg); }
@@ -688,7 +675,7 @@
       <h3>Layers <span class="fvs-layers-head"><span class="hint" id="layers-hint">single shape</span><button type="button" class="icon-btn" id="btn-layer-add" aria-label="Add layer" title="Add a layer on top"><svg class="ico ico--sm" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button></span></h3>
       <div id="layers-list" class="fvs-layers" role="list" aria-label="Layers, top first"></div>
       <!-- Moved under the ACTIVE layer row by renderLayersUI (the node, so its listeners stay). -->
-      <div id="layer-place-block" class="fvs-layer__place" style="display:none">
+      <div id="layer-place-block" class="org-layer-card__content fvs-layer__place" style="display:none">
         <div class="ctrl-row"><div class="ctrl-label" title="Move X — shifts this layer inside the Element; 100 is a full cell.">X</div><input type="range" id="rg-layer-mx" min="-100" max="100" step="1" value="0" aria-label="Move X"><span class="ctrl-val" id="v-layer-mx">0</span></div>
         <div class="ctrl-row"><div class="ctrl-label" title="Move Y">Y</div><input type="range" id="rg-layer-my" min="-100" max="100" step="1" value="0" aria-label="Move Y"><span class="ctrl-val" id="v-layer-my">0</span></div>
         <div class="ctrl-row"><div class="ctrl-label" title="Scale">Size</div><input type="range" id="rg-layer-scale" min="0.1" max="2" step="0.01" value="1" aria-label="Scale"><span class="ctrl-val" id="v-layer-scale">1</span></div>
@@ -5647,14 +5634,14 @@ function moveLayer(i, dir) {
 }
 // Layer-row pictograms — from the shared registry (Organica.icons).
 const LAYER_ICONS = {
-  grip: Organica.icons.get('grip'),
-  eye: Organica.icons.get('eye'),
-  eyeOff: Organica.icons.get('eye-off'),
-  trash: Organica.icons.get('trash'),
+  grip: Organica.icons.get('grip', { size: 'sm' }),
+  eye: Organica.icons.get('eye', { size: 'sm' }),
+  eyeOff: Organica.icons.get('eye-off', { size: 'sm' }),
+  trash: Organica.icons.get('trash', { size: 'sm' }),
   // role pictograms: solid disc = Filled · disc keeping stripes inside = Subtraction mask · square with a disc hole = Mask
-  fill: Organica.icons.get('role-fill'),
-  container: Organica.icons.get('role-container'),
-  mask: Organica.icons.get('role-mask'),
+  fill: Organica.icons.get('role-fill', { size: 'sm' }),
+  container: Organica.icons.get('role-container', { size: 'sm' }),
+  mask: Organica.icons.get('role-mask', { size: 'sm' }),
 };
 const LAYER_ROLE_ORDER = ['fill', 'container', 'mask'];
 const layerName = l => (SEED_ICONS[l.seed.type] || {}).name || (SEED_TYPES[l.seed.type] || {}).label || l.seed.type;
@@ -5676,17 +5663,19 @@ function renderLayersUI() {
     const l = L.items[i], on = i === L.active, role = l.role || 'fill', isFill = role === 'fill';
     const tint = isFill ? layerInkColor(l, colorAt(0)) : 'var(--mid)', cell = l.ink == null || l.ink === 'cell';
     const icon = (SEED_ICONS[l.seed.type] || SEED_ICONS.custom).icon;
-    return `<div class="fvs-layer${on ? ' active' : ''}${l.hidden ? ' is-hidden' : ''}" data-layer="${i}" role="listitem" tabindex="-1" draggable="true" title="Drag to reorder · ⌥↑ / ⌥↓">
-      <span class="fvs-layer__grip" aria-hidden="true">${LAYER_ICONS.grip}</span>
-      <button type="button" class="fvs-layer__main" data-layer-act="select" aria-pressed="${on}" aria-label="Edit layer ${i + 1}: ${layerName(l)}"><span class="fvs-layer__icon" style="color:${tint}">${icon}</span><span class="fvs-layer__name">${layerName(l)}</span></button>
-      <button type="button" class="fvs-layer__btn" data-layer-act="eye" aria-pressed="${!l.hidden}" aria-label="${l.hidden ? 'Show' : 'Hide'} layer" title="${l.hidden ? 'Hidden — click to show' : 'Hide this layer'}">${l.hidden ? LAYER_ICONS.eyeOff : LAYER_ICONS.eye}</button>
-      <button type="button" class="fvs-layer__btn" data-layer-act="role" aria-label="Role: ${LAYER_ROLES[role]} — click to change" title="${LAYER_ROLES[role]} — ${role === 'fill' ? 'paints its own ink' : role === 'mask' ? 'cuts its shape out of the layers below' : 'keeps the layers below only inside its shape'}. Click: ${LAYER_ROLES[LAYER_ROLE_ORDER[(LAYER_ROLE_ORDER.indexOf(role) + 1) % 3]]}">${LAYER_ICONS[role]}</button>
+    return `<div class="org-layer-card org-layer-card--flush is-draggable ${l.hidden ? 'is-off' : 'is-on'}${on ? ' active' : ''}" data-layer="${i}" role="listitem" tabindex="-1">
+      <div class="org-layer-card__head" draggable="true" title="Drag to reorder · ⌥↑ / ⌥↓">
+      <span class="org-layer-card__grip" aria-hidden="true">${LAYER_ICONS.grip}</span>
+      <button type="button" class="fvs-layer__main" data-layer-act="select" aria-pressed="${on}" aria-label="Edit layer ${i + 1}: ${layerName(l)}"><span class="fvs-layer__icon" style="color:${tint}">${icon}</span><span class="org-layer-card__title">${layerName(l)}</span></button>
+      <button type="button" class="org-btn org-btn--sm org-btn--icon" data-layer-act="eye" aria-pressed="${!l.hidden}" aria-label="${l.hidden ? 'Show' : 'Hide'} layer" title="${l.hidden ? 'Hidden — click to show' : 'Hide this layer'}">${l.hidden ? LAYER_ICONS.eyeOff : LAYER_ICONS.eye}</button>
+      <button type="button" class="org-btn org-btn--sm org-btn--icon" data-layer-act="role" aria-label="Role: ${LAYER_ROLES[role]} — click to change" title="${LAYER_ROLES[role]} — ${role === 'fill' ? 'paints its own ink' : role === 'mask' ? 'cuts its shape out of the layers below' : 'keeps the layers below only inside its shape'}. Click: ${LAYER_ROLES[LAYER_ROLE_ORDER[(LAYER_ROLE_ORDER.indexOf(role) + 1) % 3]]}">${LAYER_ICONS[role]}</button>
       <button type="button" class="fvs-layer__swatch${cell ? ' is-cell' : ''}" data-layer-act="ink" style="--sw:${isFill ? layerInkColor(l, colorAt(0)) : 'var(--border)'}" aria-label="Colour: ${cell ? 'follow cell colour' : 'Ink ' + (l.ink + 1)}" title="${isFill ? (cell ? 'Follows the cell colour' : 'Ink ' + (l.ink + 1)) + ' — click to change' : 'Mask layers have no colour'}"${isFill ? '' : ' disabled'}></button>
-      <button type="button" class="fvs-layer__btn fvs-layer__del" data-layer-act="del" aria-label="Delete layer" title="Delete layer">${LAYER_ICONS.trash}</button>
+      <button type="button" class="org-btn org-btn--sm org-btn--icon fvs-layer__del" data-layer-act="del" aria-label="Delete layer" title="Delete layer">${LAYER_ICONS.trash}</button>
+      </div>
     </div>`;
   }).join('');
-  const activeRow = list.querySelector(`.fvs-layer[data-layer="${L.active}"]`);
-  if (activeRow) activeRow.after(place);   // Move / Size / Rotate live under the layer they edit
+  const activeRow = list.querySelector(`.org-layer-card[data-layer="${L.active}"]`);
+  if (activeRow) activeRow.appendChild(place);   // Move / Size / Rotate live under the layer they edit
   const pl = layerPlace(L.items[L.active]);
   [['mx', pl.mx], ['my', pl.my], ['scale', pl.scale], ['rotate', pl.rotate]].forEach(([k, v]) => { ctrl('rg-layer-' + k).value = v; ctrl('v-layer-' + k).textContent = v; });
 }
@@ -5731,7 +5720,7 @@ ctrl('layer-ink-pop').addEventListener('click', e => {
   const i = layerInkPopFor;
   closeLayerInkPop();
   layersChanged();
-  const sw = ctrl('layers-list').querySelector(`.fvs-layer[data-layer="${i}"] [data-layer-act="ink"]`); if (sw) sw.focus();
+  const sw = ctrl('layers-list').querySelector(`.org-layer-card[data-layer="${i}"] [data-layer-act="ink"]`); if (sw) sw.focus();
 });
 document.addEventListener('click', e => { if (layerInkPopFor != null && !e.target.closest('#layer-ink-pop, [data-layer-act="ink"]')) closeLayerInkPop(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && layerInkPopFor != null) closeLayerInkPop(); });
@@ -5754,37 +5743,37 @@ ctrl('layers-list').addEventListener('click', e => {
 });
 // Keyboard: ⌥↑ / ⌥↓ on a row moves the layer up / down the stack.
 ctrl('layers-list').addEventListener('keydown', e => {
-  const row = e.target.closest('.fvs-layer');
+  const row = e.target.closest('.org-layer-card');
   if (!row || !e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
   e.preventDefault();
   const i = +row.dataset.layer, to = i + (e.key === 'ArrowUp' ? 1 : -1);
   moveLayerTo(i, to);
-  const moved = ctrl('layers-list').querySelector(`.fvs-layer[data-layer="${Math.max(0, Math.min(state.layers.items.length - 1, to))}"] .fvs-layer__main`); if (moved) moved.focus();
+  const moved = ctrl('layers-list').querySelector(`.org-layer-card[data-layer="${Math.max(0, Math.min(state.layers.items.length - 1, to))}"] .fvs-layer__main`); if (moved) moved.focus();
 });
 // Drag and drop: drop on a row's upper half = above it, lower half = below it.
 let layerDragFrom = null;
 ctrl('layers-list').addEventListener('dragstart', e => {
-  const row = e.target.closest && e.target.closest('.fvs-layer');
+  const row = e.target.closest && e.target.closest('.org-layer-card');
   if (!row) return;
   layerDragFrom = +row.dataset.layer;
-  row.classList.add('dragging');
+  row.classList.add('is-dragging');
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', String(layerDragFrom));
 });
-const clearLayerDropMarks = () => ctrl('layers-list').querySelectorAll('.drop-above, .drop-below, .dragging').forEach(r => r.classList.remove('drop-above', 'drop-below', 'dragging'));
+const clearLayerDropMarks = () => ctrl('layers-list').querySelectorAll('.drop-before, .drop-after, .is-dragging').forEach(r => r.classList.remove('drop-before', 'drop-after', 'is-dragging'));
 ctrl('layers-list').addEventListener('dragover', e => {
-  const row = e.target.closest && e.target.closest('.fvs-layer');
+  const row = e.target.closest && e.target.closest('.org-layer-card');
   if (layerDragFrom == null || !row) return;
   e.preventDefault();
-  const r = row.getBoundingClientRect(), above = e.clientY < r.top + r.height / 2;
-  ctrl('layers-list').querySelectorAll('.drop-above, .drop-below').forEach(x => x.classList.remove('drop-above', 'drop-below'));
-  row.classList.add(above ? 'drop-above' : 'drop-below');
+  const r = (row.querySelector('.org-layer-card__head') || row).getBoundingClientRect(), above = e.clientY < r.top + r.height / 2;
+  ctrl('layers-list').querySelectorAll('.drop-before, .drop-after').forEach(x => x.classList.remove('drop-before', 'drop-after'));
+  row.classList.add(above ? 'drop-before' : 'drop-after');
 });
 ctrl('layers-list').addEventListener('drop', e => {
-  const row = e.target.closest && e.target.closest('.fvs-layer');
+  const row = e.target.closest && e.target.closest('.org-layer-card');
   if (layerDragFrom == null || !row) return;
   e.preventDefault();
-  const t = +row.dataset.layer, r = row.getBoundingClientRect(), above = e.clientY < r.top + r.height / 2;
+  const t = +row.dataset.layer, r = (row.querySelector('.org-layer-card__head') || row).getBoundingClientRect(), above = e.clientY < r.top + r.height / 2;
   // rows are listed top first: "above" a row = a higher stack index
   let to = above ? t + 1 : t;
   if (layerDragFrom < to) to--;

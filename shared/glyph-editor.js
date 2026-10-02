@@ -224,7 +224,7 @@
       const { x, y } = evtPx(e);
       // advance-width line grab
       const ax = advance * view.s + view.ox;
-      if (Math.abs(x - ax) < 6 && !pick(x, y)) { drag = { kind: 'advance' }; snapshot(); canvasEl.setPointerCapture(e.pointerId); return; }
+      if (Math.abs(x - ax) < 6 && !pick(x, y)) { drag = { kind: 'advance', start: advance }; snapshot(); canvasEl.setPointerCapture(e.pointerId); return; }
       const hit = pick(x, y);
       if (hit) {
         sel = hit; drag = { kind: 'node', c: hit.c, i: hit.i, moved: false, last: toModel(x, y) };
@@ -246,7 +246,10 @@
     canvasEl.addEventListener('pointerup', (e) => {
       if (!drag) return;
       const wasAdvance = drag.kind === 'advance';
-      const moved = drag.moved || wasAdvance;
+      // grabbing the advance line without changing it is not an edit: no commit (so no "unsaved work"), and its undo snapshot is dropped
+      const advChanged = wasAdvance && advance !== drag.start;
+      if (wasAdvance && !advChanged) undoStack.pop();
+      const moved = drag.moved || advChanged;
       drag = null;
       try { canvasEl.releasePointerCapture(e.pointerId); } catch (x) {}
       if (moved) { commit(); }

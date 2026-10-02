@@ -313,6 +313,7 @@ body {
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
 <script src="/shared/icons.js"></script>
+<script src="/shared/select-picker.js"></script>
 <script src="/shared/canvas.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
@@ -2400,63 +2401,33 @@ function presetIconSVG(preset){
   const svg = `<svg viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"><rect width="1000" height="1000" fill="#fff"/>${shape}</svg>`;
   ICON_CACHE[key] = svg; return svg;
 }
-function updatePresetTrigger(){
-  const ico=$('ptIco'), nm=$('ptName'); if(!ico) return;
-  nm.textContent = CURRENT_PRESET || 'Choose a preset…';
-  const p = CURRENT_PRESET && presetDef(CURRENT_PRESET);
-  ico.innerHTML = (p && FONT) ? presetIconSVG(p) : '';
-}
-function populatePresetMenu(){
-  const m=$('presetMenu'); if(!m) return; m.innerHTML='';
-  const addRow=(p, deletable)=>{
-    const row=document.createElement('button');
-    row.className='preset-item'+(p.name===CURRENT_PRESET?' on':'');
-    row.innerHTML=`<span class="pi-ico">${FONT?presetIconSVG(p):''}</span><span class="pi-name">${p.name}<span class="pc-hint">${p.hint||''}</span></span>`;
-    row.addEventListener('click', ()=>{ applyCreativePreset(p); m.hidden=true; populatePresetMenu(); });
-    if(deletable){
-      const del=document.createElement('button'); del.className='mini'; del.textContent='×'; del.title='Delete preset';
-      del.style.cssText='margin-left:auto;padding:0 6px';
-      del.addEventListener('click', e=>{ e.stopPropagation(); const all=userPresets(); delete all[p.name]; PRESET_STORE.write(all);
-        if(CURRENT_PRESET===p.name){ CURRENT_PRESET=null; updatePresetTrigger(); } populatePresetMenu(); });
-      row.appendChild(del);
-    }
-    m.appendChild(row);
-  };
-  CREATIVE_PRESETS.forEach(p=> addRow(p, false));
-  const mineNames = Object.keys(userPresets());
-  if(mineNames.length){
-    const h=document.createElement('div'); h.className='pi-name';
-    h.style.cssText='padding:var(--space-2) var(--space-3);color:var(--mid);letter-spacing:.12em';
-    h.textContent='YOURS'; m.appendChild(h);
-    mineNames.forEach(n=> addRow({name:n, ...userPresets()[n]}, true));
-  }
-}
-// position the fixed menu under the trigger, capped to the viewport so the
-// scrolling side panel never clips it (flips above if there's more room up
-// top) — same layout math as Living Path's positionPresetMenu().
-function positionPresetMenu(){
-  const t=$('presetTrigger').getBoundingClientRect(), m=$('presetMenu'), gap=5, margin=12;
-  const below=window.innerHeight-t.bottom-margin, above=t.top-margin;
-  m.style.left=t.left+'px'; m.style.width=t.width+'px';
-  if(below>=200 || below>=above){ m.style.top=(t.bottom+gap)+'px'; m.style.bottom='auto'; m.style.maxHeight=Math.max(160,below)+'px'; }
-  else { m.style.bottom=(window.innerHeight-t.top+gap)+'px'; m.style.top='auto'; m.style.maxHeight=Math.max(160,above)+'px'; }
-}
+let PRESET_PICKER=null;   // Organica.presetPicker — the one picker (built-in + "Yours", delete, thumbnails)
+function updatePresetTrigger(){ if(PRESET_PICKER) PRESET_PICKER.refresh(); }
+function populatePresetMenu(){ if(PRESET_PICKER) PRESET_PICKER.rebuild(); }
 function buildPresets(){
   const host=$('presets'); if(!host) return;
-  host.innerHTML = `<button class="preset-trigger" id="presetTrigger">
-      <span class="pt-ico" id="ptIco"></span><span class="pt-name" id="ptName">Choose a preset…</span><span class="pt-chev"><svg class="ico ico--xs pt-chev-ico" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></span>
-    </button><div class="preset-menu" id="presetMenu" hidden></div>
+  host.innerHTML = `<div id="presetHost"></div>
     <button class="mini-btn" id="btnOpenSave" style="margin-top:var(--space-2);width:100%">+ save current look</button>
     <div class="row" id="savePresetRow" style="display:none;margin-top:var(--space-2);gap:var(--space-2)">
       <input id="newPresetName" class="panel-input panel-input--full" placeholder="name this look" style="flex:1">
       <button class="mini-btn" id="btnSavePreset">Save</button>
     </div>`;
+  const esc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  PRESET_PICKER=Organica.presetPicker({
+    host:$('presetHost'), ariaLabel:'Preset',
+    builtin:()=>CREATIVE_PRESETS.map(p=>({name:p.name, html:esc(p.name)+(p.hint?`<span class="pc-hint">${esc(p.hint)}</span>`:'')})),
+    user:()=>Object.keys(userPresets()),
+    thumb:name=>{ const p=presetDef(name); return (p && FONT) ? presetIconSVG(p) : ''; },
+    current:()=>(CURRENT_PRESET && presetDef(CURRENT_PRESET)) ? CURRENT_PRESET : null,
+    label:()=>'Choose a preset…',
+    sig:()=>FONT?('f'+(FONT.glyphs?FONT.glyphs.length:0)):'nofont',
+    onPick:name=>{ const p=presetDef(name); if(p) applyCreativePreset(p); },
+    onRemove:name=>{ const all=userPresets(); delete all[name]; PRESET_STORE.write(all); if(CURRENT_PRESET===name){ CURRENT_PRESET=null; updatePresetTrigger(); } }
+  });
   // .row is display:flex (shared/panel.css) with no [hidden] override — the
   // same "[hidden] must beat display:flex" gotcha .preset-menu's own CSS
   // comment already documents — so this row toggles via style.display, not
   // the hidden attribute, which would silently stay visible.
-  $('presetTrigger').addEventListener('click', e=>{ e.stopPropagation();
-    const m=$('presetMenu'); if(m.hidden){ populatePresetMenu(); positionPresetMenu(); m.hidden=false; } else m.hidden=true; });
   $('btnOpenSave').addEventListener('click', ()=>{
     $('savePresetRow').style.display='flex'; $('btnOpenSave').hidden=true; $('newPresetName').focus();
   });
@@ -2472,9 +2443,6 @@ function buildPresets(){
   $('newPresetName').addEventListener('keydown', e=>{ if(e.key==='Enter') doSave(); });
   updatePresetTrigger();
 }
-document.addEventListener('click', e=>{
-  const m=$('presetMenu'); if(m && !m.hidden && !e.target.closest('.presets') && !e.target.closest('#presetMenu')) m.hidden=true;
-});
 
 /* ============================================================
    EXPORT — OTF (a Worker running the SAME point-space pipeline

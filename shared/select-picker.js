@@ -110,8 +110,9 @@
 
     function refresh() {
       const placeholder = !sel.value;
-      icoEl.hidden = placeholder;
-      icoEl.innerHTML = placeholder ? '' : iconOf(sel.value);
+      const empty = placeholder && opts.emptyIcon ? opts.emptyIcon() : '';   // a tool may draw the placeholder (Living Path's live "Custom" stack)
+      icoEl.hidden = placeholder && !empty;
+      icoEl.innerHTML = placeholder ? empty : iconOf(sel.value);
       nameEl.innerHTML = labelOf(sel.value);
     }
     function keys() {
@@ -135,7 +136,7 @@
         row.type = 'button';
         row.className = 'preset-item' + (key === sel.value ? ' on' : '');
         row.setAttribute('role', 'option'); row.setAttribute('aria-selected', String(key === sel.value));
-        row.innerHTML = `<span class="pi-ico"></span><span class="pi-name">${labelOf(key)}</span>`;
+        row.innerHTML = `<span class="pi-ico"></span><span class="pi-name">${(registry[key] && registry[key].rowHtml) || labelOf(key)}</span>`;   // rowHtml: a richer row label (name + hint) than the trigger shows
         const ico = row.querySelector('.pi-ico');
         ico.dataset.key = key;
         ico.innerHTML = iconOf(key);
@@ -145,7 +146,15 @@
           refresh();
           closeMenu(true);
         });
-        menu.appendChild(row);
+        if (registry[key] && registry[key].removable && opts.onRemove) {
+          // a removable row (a user's own preset): the row + a sibling delete button — a button cannot nest a button
+          const wrap = document.createElement('div'); wrap.className = 'preset-row';
+          const del = document.createElement('button');
+          del.type = 'button'; del.className = 'pi-del'; del.setAttribute('aria-label', 'Delete ' + (optOf(key) ? optOf(key).textContent : key));
+          del.innerHTML = '<svg class="ico ico--xs" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+          del.addEventListener('click', e => { e.stopPropagation(); opts.onRemove(key); });
+          wrap.append(row, del); menu.appendChild(wrap);
+        } else menu.appendChild(row);
       });
       // Nothing to pick: say why (a disabled option is the tool's own hint,
       // e.g. "No saved grids yet — design one in /loom/") instead of an empty box.
@@ -178,7 +187,7 @@
       trigger.setAttribute('aria-expanded', 'false');
       if (returnFocus) trigger.focus();
     }
-    const items = () => [...menu.querySelectorAll('.preset-item')];
+    const items = () => [...menu.querySelectorAll('.preset-item, .pi-del')];
     trigger.addEventListener('click', e => { e.stopPropagation(); if (menu.hidden) openMenu(); else closeMenu(false); });
     trigger.addEventListener('keydown', e => {
       if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && menu.hidden) {
@@ -209,5 +218,53 @@
     }
     refresh();
     return { refresh, invalidate };
+  };
+
+  /* Organica.presetPicker — the preset dropdown of the tools that keep BUILT-IN and the user's OWN
+     presets side by side (Living Path, Sinew, Apostate): one picker, no hand-wired menu.
+       Organica.presetPicker({ host, ariaLabel,
+         builtin: () => [{name, html?}],        // html = optional richer markup for the MENU row only (the trigger shows the plain name)
+         user: () => [names],                    // listed under "Yours", each with a delete button
+         thumb: name => svgMarkup,               // lazy, cached; call picker.invalidate() when its inputs change
+         current: () => name | null,             // the active preset, or null (placeholder shows)
+         label: () => 'Choose a preset…',        // the placeholder text ("Custom", "None — original font"…)
+         emptyThumb: () => svgMarkup | '',       // the placeholder's own thumbnail (Living Path's live stack)
+         sig: () => string,                      // optional — a change invalidates every cached thumbnail
+         onPick: name => …, onRemove: name => … })
+       → { refresh(), rebuild(), invalidate() } — refresh() after the active preset or the label changes,
+       rebuild() after the preset LIST changes (save / delete). */
+  Organica.presetPicker = function (o) {
+    const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const sel = document.createElement('select'), registry = {};
+    let picker = null, lastSig = o.sig ? o.sig() : '';
+    function fill() {
+      sel.innerHTML = ''; Object.keys(registry).forEach(k => delete registry[k]);
+      const ph = document.createElement('option'); ph.value = ''; ph.textContent = o.label(); sel.appendChild(ph);
+      o.builtin().forEach(b => {
+        const opt = document.createElement('option'); opt.value = b.name; opt.textContent = b.name; sel.appendChild(opt);
+        registry[b.name] = { name: esc(b.name), rowHtml: b.html, thumb: () => o.thumb(b.name) };
+      });
+      const mine = o.user();
+      if (mine.length) {
+        const g = document.createElement('optgroup'); g.label = 'Yours';
+        mine.forEach(n => { const opt = document.createElement('option'); opt.value = n; opt.textContent = n; g.appendChild(opt); registry[n] = { name: esc(n), thumb: () => o.thumb(n), removable: true }; });
+        sel.appendChild(g);
+      }
+      sel.value = o.current() || '';
+    }
+    fill();
+    picker = Organica.selectPicker(sel, o.host, { registry, ariaLabel: o.ariaLabel || 'Preset', emptyIcon: o.emptyThumb,
+      onRemove: name => { o.onRemove(name); api.rebuild(); } });
+    sel.addEventListener('change', () => { if (sel.value) o.onPick(sel.value); });
+    const api = {
+      refresh() {
+        const sig = o.sig ? o.sig() : '';
+        if (sig !== lastSig) { lastSig = sig; picker.invalidate(); }
+        sel.options[0].textContent = o.label(); sel.value = o.current() || ''; picker.refresh();
+      },
+      rebuild() { fill(); picker.invalidate(); },
+      invalidate(k) { picker.invalidate(k); },
+    };
+    return api;
   };
 })(window);

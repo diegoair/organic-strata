@@ -368,6 +368,7 @@
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
 <script src="/shared/icons.js"></script>
+<script src="/shared/select-picker.js"></script>
 <script src="/shared/canvas.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
@@ -746,58 +747,38 @@ function stackIcon(){
   const svg=iconFor(GROUPS.raster, GROUPS.vector, getContourSmooth(), outlineWidth, outlineRings, outlineGap);
   ICON_CACHE[key]=svg; return svg;
 }
-function updatePresetTrigger(){
-  const ico=$('#ptIco'), nm=$('#ptName'); if(!ico) return;
+let PRESET_PICKER=null;   // Organica.presetPicker — the one picker (built-in + "Yours", delete, thumbnails)
+function presetState(){
   const custom = !(CURRENT_PRESET && presetDef(CURRENT_PRESET));
   const idle = custom && (typeof stackIsIdentity==='function') && stackIsIdentity() && outlineWidth<=0;
-  nm.textContent = !window.__FONT ? 'Choose a preset…' : idle ? 'None — original font' : custom ? 'Custom' : CURRENT_PRESET;
-  ico.innerHTML = custom ? (window.__FONT ? stackIcon() : '') : presetIcon(CURRENT_PRESET);
-  const sr=$('#savePresetRow'); if(sr) sr.hidden = !custom || !window.__FONT;
+  return {custom, idle};
+}
+function updatePresetTrigger(){
+  const sr=$('#savePresetRow'); if(sr){ const {custom}=presetState(); sr.hidden = !custom || !window.__FONT; }
+  if(PRESET_PICKER) PRESET_PICKER.refresh();
 }
 // a hand edit → the stack no longer matches a preset
 function markCustom(){ STACK_REV++; if(CURRENT_PRESET!==null) CURRENT_PRESET=null; updatePresetTrigger(); }
-function populatePresetMenu(){
-  const m=$('#presetMenu'); if(!m) return; m.innerHTML='';
-  const add=(name)=>{
-    const row=document.createElement('button'); row.className='preset-item'+(name===CURRENT_PRESET?' on':'');
-    row.innerHTML=`<span class="pi-ico">${presetIcon(name)}</span><span class="pi-name">${name}</span>`;
-    row.addEventListener('click',()=>{ applyPreset(name); m.hidden=true; populatePresetMenu(); });
-    return row;
-  };
-  Object.keys(PRESETS.raster).forEach(n=> m.appendChild(add(n)));
-  const mine=Object.keys(userPresets());
-  if(mine.length){
-    const h=document.createElement('div'); h.className='pi-name'; h.style.cssText='padding:var(--space-2) var(--space-3);color:var(--mid);letter-spacing:.12em';
-    h.textContent='YOURS'; m.appendChild(h);
-    mine.forEach(n=>{
-      const row=add(n);
-      const del=document.createElement('button'); del.className='mini'; del.textContent='×';
-      del.style.cssText='margin-left:auto;padding:0 6px'; del.title='Delete preset';
-      del.addEventListener('click',e=>{ e.stopPropagation(); const all=userPresets(); delete all[n]; PRESET_STORE.write(all); populatePresetMenu(); });
-      row.appendChild(del); m.appendChild(row);
-    });
-  }
-}
-// position the fixed menu under the trigger, capped to the viewport so the
-// scrolling side panel never clips it (flips above if there's more room up top)
-function positionPresetMenu(){
-  const t=$('#presetTrigger').getBoundingClientRect(), m=$('#presetMenu'), gap=5, margin=12;
-  const below=window.innerHeight-t.bottom-margin, above=t.top-margin;
-  m.style.left=t.left+'px'; m.style.width=t.width+'px';
-  if(below>=200 || below>=above){ m.style.top=(t.bottom+gap)+'px'; m.style.bottom='auto'; m.style.maxHeight=Math.max(160,below)+'px'; }
-  else { m.style.bottom=(window.innerHeight-t.top+gap)+'px'; m.style.top='auto'; m.style.maxHeight=Math.max(160,above)+'px'; }
-}
+function populatePresetMenu(){ if(PRESET_PICKER) PRESET_PICKER.rebuild(); }   // after the preset LIST changes
 function buildPresets(){
   const host=$('#presets');
-  host.innerHTML=`<button class="preset-trigger" id="presetTrigger">
-      <span class="pt-ico" id="ptIco"></span><span class="pt-name" id="ptName">Choose a preset…</span><span class="pt-chev"><svg class="ico ico--xs pt-chev-ico" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></span>
-    </button><div class="preset-menu" id="presetMenu" hidden></div>
+  host.innerHTML=`<div id="presetHost"></div>
     <div class="row" id="savePresetRow" hidden style="margin-top:var(--space-2); gap:var(--space-2)">
       <input id="newPresetName" class="panel-input" placeholder="name this look" style="flex:1">
       <button class="mini-btn" id="btnSavePreset">Save</button>
     </div>`;
-  $('#presetTrigger').addEventListener('click',e=>{ e.stopPropagation();
-    const m=$('#presetMenu'); if(m.hidden){ populatePresetMenu(); positionPresetMenu(); m.hidden=false; } else m.hidden=true; });
+  PRESET_PICKER=Organica.presetPicker({
+    host:$('#presetHost'), ariaLabel:'Preset',
+    builtin:()=>Object.keys(PRESETS.raster).map(name=>({name})),
+    user:()=>Object.keys(userPresets()),
+    thumb:presetIcon,
+    current:()=>(CURRENT_PRESET && presetDef(CURRENT_PRESET)) ? CURRENT_PRESET : null,
+    label:()=>{ const {custom,idle}=presetState(); return !window.__FONT ? 'Choose a preset…' : idle ? 'None — original font' : custom ? 'Custom' : CURRENT_PRESET; },
+    emptyThumb:()=>{ const {custom}=presetState(); return (custom && window.__FONT) ? stackIcon() : ''; },
+    sig:fontSig,
+    onPick:name=>applyPreset(name),
+    onRemove:name=>{ const all=userPresets(); delete all[name]; PRESET_STORE.write(all); if(CURRENT_PRESET===name){ CURRENT_PRESET=null; updatePresetTrigger(); } }
+  });
   const doSave=()=>{
     const name=($('#newPresetName').value||'').trim(); if(!name) return;
     if(PRESETS.raster[name]){ statusEl.textContent='that name is a built-in preset'; return; }
@@ -805,7 +786,7 @@ function buildPresets(){
     const all=userPresets(); all[name]={fx, smooth:getContourSmooth(), outline:outlineWidth, outlineRings, outlineGap};
     PRESET_STORE.write(all);
     $('#newPresetName').value='';
-    CURRENT_PRESET=name; updatePresetTrigger(); populatePresetMenu();
+    CURRENT_PRESET=name; populatePresetMenu(); updatePresetTrigger();
     statusEl.textContent='✓ preset saved';
   };
   $('#btnSavePreset').addEventListener('click',doSave);
@@ -2386,18 +2367,7 @@ fetch('/shared/vendor/archivo-black.ttf')
   .then(buf => loadFontBuffer(buf, 'Archivo Black'))
   .catch(()=>{ /* leave the #empty state — user loads a font via + */ });
 
-// close the preset menu on outside click, scroll (fixed menu) or resize.
-// The scroll listener is on #panel with capture:true so it also
-// catches scrolling on the panel's ancestors/siblings — but that capture
-// phase fires for ANY descendant's own scroll too, including the preset
-// menu's own internal list once it has more items than fit (Raster has
-// 24). Without the target check below, scrolling inside the menu closed
-// it immediately instead of scrolling it — found by testing the actual
-// scroll gesture, not by reading the listener.
-const closeMenu=()=>{ const m=$('#presetMenu'); if(m && !m.hidden) m.hidden=true; };
-document.addEventListener('click',e=>{ const m=$('#presetMenu'); if(m && !m.hidden && !e.target.closest('.presets') && !e.target.closest('#presetMenu')) m.hidden=true; });
-window.addEventListener('resize',closeMenu);
-document.getElementById('panel').addEventListener('scroll',e=>{ if(!e.target.closest('#presetMenu')) closeMenu(); },true);
+// (the preset menu closes itself — outside click, scroll, resize, Esc — in Organica.selectPicker)
 
 // ── Transform row (rotate/slant/stretch) — mirrors the effect stack's own
 //    slider wiring; instant (no raster/vector gating touches it) ──

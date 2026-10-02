@@ -29,22 +29,17 @@
      this tool links — the local copy here was byte-identical to it (its
      repeat(4, 1fr) is exactly what --seeds-grid-cols already defaults to).
      .upload-btn, .icon-btn and the .rmx-* chips are shared too. */
-  /* .org-layer-card / __head / __body skeleton is in panel.css
-     (aliased alongside .org-layer-card). Camo Turing's own inner controls: */
+  /* Layer cards are the shared .org-layer-card--flush (panel.css). Local: the
+     title button's reset, the colour dot (a second on/off, not the card's own),
+     and the per-layer blend / opacity / colour rows. */
+  .layer-name { text-align: left; background: none; border: none; font-family: inherit; color: var(--ink); cursor: pointer; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .layer-dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--border-strong, var(--border)); background: none; flex-shrink: 0; padding: 0; cursor: pointer; }
   .layer-dot.on { background: var(--tool, var(--ink)); }
-  .layer-name { flex: 1; text-align: left; background: none; border: none; font-family: var(--font); font-size: var(--fs-small); color: var(--ink); cursor: pointer; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .layer-name.active { font-weight: var(--w-semibold); }
+  .layer-row { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
   .layer-blend-select { flex-shrink: 0; }
   .layer-opacity { flex: 1; }
   .layer-opacity-val { font-size: var(--fs-micro); color: var(--mid); min-width: 28px; text-align: right; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
   .layer-color-hint { font-size: var(--fs-micro); color: var(--mid); }
-  .layer-base-row {
-    display: block; width: 100%; text-align: left; border: 1px solid var(--border);
-    padding: var(--space-2); margin-bottom: var(--space-2); background: var(--panel);
-    color: var(--mid);
-  }
-  .layer-base-row.active { border-color: var(--tool, var(--ink)); color: var(--ink); font-weight: var(--w-semibold); }
 
   /* Preset/Transformer picker CSS now lives in shared/panel.css
      (.presets/.preset-trigger/.preset-menu/.pi-ico/.pi-name/...) —
@@ -1685,56 +1680,59 @@ function buildLayersUI() {
   // Once a layer is selected, the Feed/Kill sliders point at it — this row
   // is the only way back to editing the base pattern's own params without
   // switching Layers off entirely (which also hides the whole stack).
-  const baseRow = document.createElement('button');
-  baseRow.className = 'layer-name layer-base-row' + (activeLayerId == null ? ' active' : '');
-  baseRow.textContent = 'Base pattern';
+  const baseRow = document.createElement('div');
+  baseRow.className = 'org-layer-card org-layer-card--flush' + (activeLayerId == null ? ' active' : '');
+  baseRow.innerHTML = '<div class="org-layer-card__head"><button class="org-layer-card__title layer-name layer-base-row" aria-pressed="' + (activeLayerId == null) + '">Base pattern</button></div>';
   baseRow.title = "Edit the base pattern's own Feed/Kill/dA/dB above";
-  baseRow.addEventListener('click', () => setActiveLayer(null));
+  baseRow.querySelector('.org-layer-card__head').addEventListener('click', () => setActiveLayer(null));
   host.appendChild(baseRow);
   extraLayers.forEach(layer => {
     const card = document.createElement('div');
-    card.className = 'org-layer-card' + (layer.id === activeLayerId ? ' active' : '');
+    card.className = 'org-layer-card org-layer-card--flush ' + (layer.on ? 'is-on' : 'is-off') + (layer.id === activeLayerId ? ' active' : '');
     card.innerHTML = `
       <div class="org-layer-card__head">
-        <button class="layer-dot${layer.on ? ' on' : ''}" title="On/off" aria-label="${layer.name} on/off"></button>
-        <button class="layer-name${layer.id === activeLayerId ? ' active' : ''}" title="Edit this layer's Feed/Kill/dA/dB above">${layer.name}</button>
-        <button class="icon-btn" title="Move up" aria-label="Move ${layer.name} up"><svg class="ico ico--md" data-icon="arrow-up" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3M4.5 6.5 8 3l3.5 3.5"/></svg></button>
-        <button class="icon-btn" title="Move down" aria-label="Move ${layer.name} down"><svg class="ico ico--md" data-icon="arrow-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M4.5 9.5 8 13l3.5-3.5"/></svg></button>
-        <button class="icon-btn" title="Remove" aria-label="Remove ${layer.name}"><svg class="ico ico--md" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+        <button class="org-layer-card__toggle" title="On/off" aria-pressed="${layer.on}" aria-label="${layer.name} on/off">${Organica.icons.get('check', { size: 'xs' })}</button>
+        <button class="org-layer-card__title layer-name" aria-pressed="${layer.id === activeLayerId}" title="Edit this layer's Feed/Kill/dA/dB above">${layer.name}</button>
       </div>
-      <div class="org-layer-card__body">
-        <select class="panel-select layer-blend-select" title="Blend mode" aria-label="${layer.name} blend mode">
-          ${LAYER_BLENDS.map(b => `<option value="${b}"${b === layer.blend ? ' selected' : ''}>${b[0].toUpperCase()}${b.slice(1)}</option>`).join('')}
-        </select>
-        <input type="range" class="layer-opacity" min="0" max="100" step="1" value="${Math.round(layer.opacity * 100)}" aria-label="${layer.name} opacity">
-        <span class="layer-opacity-val">${Math.round(layer.opacity * 100)}%</span>
-      </div>
-      <div class="org-layer-card__body">
-        <select class="panel-select layer-preset-select" title="Preset (sets this layer's own Feed/Kill)" aria-label="${layer.name} preset">
-          <option value=""${layer.presetName ? '' : ' selected'}>Custom (f ${layer.f.toFixed(4)} / k ${layer.k.toFixed(4)})</option>
-          <optgroup label="Built-in">
-            ${Object.keys(BUILTIN_PRESETS).map(n => `<option value="${n}"${n === layer.presetName ? ' selected' : ''}>${n}</option>`).join('')}
-          </optgroup>
-          ${Object.keys(userPresets()).length ? `<optgroup label="Saved">${Object.keys(userPresets()).map(n => `<option value="${n}"${n === layer.presetName ? ' selected' : ''}>${n}</option>`).join('')}</optgroup>` : ''}
-        </select>
-      </div>
-      <div class="org-layer-card__body">
-        <button class="layer-dot${layer.colorOn ? ' on' : ''}" title="Colour on/off" aria-label="${layer.name} colour on/off"></button>
-        <span class="color-swatch-wrap" style="width:18px;height:18px">
-          <button class="color-swatch" style="background:${layer.color}" title="Layer colour" aria-label="${layer.name} colour"></button>
-          <input type="color" value="${layer.color}" aria-label="${layer.name} colour value">
-        </span>
-        <span class="layer-color-hint">Tints where this layer is active</span>
+      <div class="org-layer-card__content">
+        <div class="layer-row" style="margin-top:0">
+          <select class="panel-select layer-blend-select" title="Blend mode" aria-label="${layer.name} blend mode">
+            ${LAYER_BLENDS.map(b => `<option value="${b}"${b === layer.blend ? ' selected' : ''}>${b[0].toUpperCase()}${b.slice(1)}</option>`).join('')}
+          </select>
+          <input type="range" class="layer-opacity" min="0" max="100" step="1" value="${Math.round(layer.opacity * 100)}" aria-label="${layer.name} opacity">
+          <span class="layer-opacity-val">${Math.round(layer.opacity * 100)}%</span>
+        </div>
+        <div class="layer-row">
+          <select class="panel-select layer-preset-select" title="Preset (sets this layer's own Feed/Kill)" aria-label="${layer.name} preset">
+            <option value=""${layer.presetName ? '' : ' selected'}>Custom (f ${layer.f.toFixed(4)} / k ${layer.k.toFixed(4)})</option>
+            <optgroup label="Built-in">
+              ${Object.keys(BUILTIN_PRESETS).map(n => `<option value="${n}"${n === layer.presetName ? ' selected' : ''}>${n}</option>`).join('')}
+            </optgroup>
+            ${Object.keys(userPresets()).length ? `<optgroup label="Saved">${Object.keys(userPresets()).map(n => `<option value="${n}"${n === layer.presetName ? ' selected' : ''}>${n}</option>`).join('')}</optgroup>` : ''}
+          </select>
+        </div>
+        <div class="layer-row">
+          <button class="layer-dot${layer.colorOn ? ' on' : ''}" title="Colour on/off" aria-pressed="${!!layer.colorOn}" aria-label="${layer.name} colour on/off"></button>
+          <span class="color-swatch-wrap" style="width:18px;height:18px">
+            <button class="color-swatch" style="background:${layer.color}" title="Layer colour" aria-label="${layer.name} colour"></button>
+            <input type="color" value="${layer.color}" aria-label="${layer.name} colour value">
+          </span>
+          <span class="layer-color-hint">Tints where this layer is active</span>
+        </div>
+        <div class="org-layer-card__actions">
+          <button class="icon-btn" data-act="up" title="Move up" aria-label="Move ${layer.name} up">${Organica.icons.get('arrow-up', { size: 'md' })}</button>
+          <button class="icon-btn" data-act="down" title="Move down" aria-label="Move ${layer.name} down">${Organica.icons.get('arrow-down', { size: 'md' })}</button>
+          <button class="icon-btn is-danger" data-act="del" title="Remove" aria-label="Remove ${layer.name}">${Organica.icons.get('close', { size: 'md' })}</button>
+        </div>
       </div>`;
-    card.querySelector('.layer-dot').addEventListener('click', e => { e.stopPropagation(); toggleLayerOn(layer.id); });
+    card.querySelector('.org-layer-card__toggle').addEventListener('click', e => { e.stopPropagation(); toggleLayerOn(layer.id); });
     card.querySelector('.layer-name').addEventListener('click', () => setActiveLayer(layer.id));
-    const [upBtn, downBtn, removeBtn] = card.querySelectorAll('.org-layer-card__head .icon-btn');
-    upBtn.addEventListener('click', e => { e.stopPropagation(); moveLayer(layer.id, -1); });
-    downBtn.addEventListener('click', e => { e.stopPropagation(); moveLayer(layer.id, 1); });
-    removeBtn.addEventListener('click', e => { e.stopPropagation(); removeLayer(layer.id); });
+    card.querySelector('[data-act=up]').addEventListener('click', e => { e.stopPropagation(); moveLayer(layer.id, -1); });
+    card.querySelector('[data-act=down]').addEventListener('click', e => { e.stopPropagation(); moveLayer(layer.id, 1); });
+    card.querySelector('[data-act=del]').addEventListener('click', e => { e.stopPropagation(); removeLayer(layer.id); });
     card.querySelector('.layer-blend-select').addEventListener('change', e => setLayerBlend(layer.id, e.target.value));
     card.querySelector('.layer-preset-select').addEventListener('change', e => { if (e.target.value) applyPresetToLayer(layer.id, e.target.value); });
-    card.querySelectorAll('.org-layer-card__body .layer-dot')[0].addEventListener('click', e => { e.stopPropagation(); toggleLayerColor(layer.id); });
+    card.querySelector('.layer-dot').addEventListener('click', e => { e.stopPropagation(); toggleLayerColor(layer.id); });
     const colorInput = card.querySelector('.color-swatch-wrap input[type=color]');
     colorInput.addEventListener('input', e => {
       setLayerColor(layer.id, e.target.value);

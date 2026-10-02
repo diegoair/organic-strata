@@ -176,6 +176,7 @@
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
 <script src="/shared/icons.js"></script>
+<script src="/shared/select-picker.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
 <script src="/shared/auth-badge.js"></script>
@@ -295,37 +296,24 @@ function presetIcon(name){
   if(smp) ICON_CACHE[key]=svg;
   return svg;
 }
-function updatePresetTrigger(){
-  const ico=$('#ptIco'), nm=$('#ptName'); if(!ico) return;
-  const name=(CURRENT_PRESET && PRESETS[TECH][CURRENT_PRESET])?CURRENT_PRESET:null;
-  nm.textContent=name||'Choose a preset…';
-  ico.innerHTML=name?presetIcon(name):'';
-}
+let PRESET_PICKER=null;   // Organica.presetPicker — the one picker
+function updatePresetTrigger(){ if(PRESET_PICKER) PRESET_PICKER.refresh(); }
 function markCustom(){ if(CURRENT_PRESET!==null){ CURRENT_PRESET=null; updatePresetTrigger(); } }
-function populatePresetMenu(){
-  const m=$('#presetMenu'); m.innerHTML='';
-  Object.keys(PRESETS[TECH]).forEach(name=>{
-    const row=document.createElement('button'); row.className='preset-item'+(name===CURRENT_PRESET?' on':'');
-    row.innerHTML=`<span class="pi-ico">${presetIcon(name)}</span><span class="pi-name">${name}</span>`;
-    row.addEventListener('click',()=>{ applyPreset(name); $('#presetMenu').hidden=true; populatePresetMenu(); });
-    m.appendChild(row);
-  });
-}
-function positionPresetMenu(){
-  const t=$('#presetTrigger').getBoundingClientRect(), m=$('#presetMenu'), gap=5, margin=12;
-  const below=window.innerHeight-t.bottom-margin, above=t.top-margin;
-  m.style.left=t.left+'px'; m.style.width=t.width+'px';
-  if(below>=200 || below>=above){ m.style.top=(t.bottom+gap)+'px'; m.style.bottom='auto'; m.style.maxHeight=Math.max(160,below)+'px'; }
-  else { m.style.bottom=(window.innerHeight-t.top+gap)+'px'; m.style.top='auto'; m.style.maxHeight=Math.max(160,above)+'px'; }
-}
+function populatePresetMenu(){ if(PRESET_PICKER) PRESET_PICKER.rebuild(); }
 function buildPresets(){
-  const host=$('#presets');
-  host.innerHTML=`<button class="preset-trigger" id="presetTrigger">
-      <span class="pt-ico" id="ptIco"></span><span class="pt-name" id="ptName">Choose a preset…</span><span class="pt-chev"><svg class="ico ico--xs pt-chev-ico" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></span>
-    </button><div class="preset-menu" id="presetMenu" hidden></div>`;
-  $('#presetTrigger').addEventListener('click',e=>{ e.stopPropagation();
-    const m=$('#presetMenu'); if(m.hidden){ populatePresetMenu(); positionPresetMenu(); m.hidden=false; } else m.hidden=true; });
-  updatePresetTrigger();
+  if(PRESET_PICKER){ PRESET_PICKER.rebuild(); PRESET_PICKER.refresh(); return; }   // built once: a new picker per call would pile up document listeners
+  const host=$('#presets'); host.innerHTML='';
+  PRESET_PICKER=Organica.presetPicker({
+    host, ariaLabel:'Preset',
+    builtin:()=>Object.keys(PRESETS[TECH]).map(name=>({name})),
+    user:()=>[],
+    thumb:presetIcon,
+    current:()=>(CURRENT_PRESET && PRESETS[TECH][CURRENT_PRESET]) ? CURRENT_PRESET : null,
+    label:()=>'Choose a preset…',
+    sig:()=>TECH+':'+(SRC?'src':'sample'),
+    onPick:name=>applyPreset(name),
+    onRemove:()=>{}
+  });
 }
 function switchTech(tech){
   if(tech===TECH) return;
@@ -580,12 +568,6 @@ $('#tgNodes').addEventListener('click',function(){ showNodes=!showNodes; this.cl
 // Ink/Paper — the shared Palette component (attach mode).
 const swatches = {};
 ['ink','bg'].forEach(k=>{ swatches[k]=Organica.palette.swatch(k,{ initial:$('#hex-'+k).value, onChange: repaint }); });
-
-// close the preset menu on outside click, scroll (fixed menu) or resize.
-const closeMenu=()=>{ const m=$('#presetMenu'); if(m && !m.hidden) m.hidden=true; };
-document.addEventListener('click',e=>{ const m=$('#presetMenu'); if(m && !m.hidden && !e.target.closest('.presets') && !e.target.closest('#presetMenu')) m.hidden=true; });
-window.addEventListener('resize',closeMenu);
-document.getElementById('panel').addEventListener('scroll',e=>{ if(!e.target.closest('#presetMenu')) closeMenu(); },true);
 
 // boot
 buildPresets();
