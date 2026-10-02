@@ -690,8 +690,9 @@ The same template on a full-screen Flexible Visual System field instead of the
 dot pattern: `<body class="org-page org-page--field">`, `fvs-field.css` linked
 after `page.css` / `prose.css`, a `<div class="org-fvs-field" aria-hidden="true">`
 after the header, a `<div class="org-fvs-field__band" aria-hidden="true">` in the
-column above the card, and `core.js → color.js → palette.js → shapes.js →
-fvs-field.js` before the page's own script, which calls
+column above the card, and `fvs-field.js` — standalone, no `core.js` or any
+other script needed (`color.js` + `palette.js` only to offer the saved palettes
+too) — before the page's own script, which calls
 `Organica.fvsField.mount(host, { motion, numerals, band, above, below, palette })`.
 Two things differ from the plain Page: the **footer is a direct child of
 `<body>`**, after `</main>` — a bar with the header's height and side padding,

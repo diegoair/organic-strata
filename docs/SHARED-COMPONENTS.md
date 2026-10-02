@@ -164,10 +164,25 @@ var field = Organica.fvsField.mount(host, {
 field.stop();                    // stops timers + observer, empties the host
 ```
 
-- **Depends on** `Organica.shapes` (`arcTruchetGeometry`, `arcGeometry`),
-  `Organica.mulberry32` (core), and — only for `palettes()` —
-  `Organica.palette.library()` + `Organica.color` (`contrast`, `stepFor`).
-  Load order: `core → color → palette → shapes → fvs-field`.
+- **Standalone** (Oct 2, 2026, "dobbiamo renderla più leggera"): no other
+  script is needed — the 404 loads this file alone (38 KB of script on the
+  page, the module 21 KB, instead of ~250 KB). What it would take from the rest
+  of the system is baked in and public: `Organica.fvsField.ELEMENTS` (the two
+  paths = `Organica.shapes.arcTruchetGeometry(3, 0.5).d` and
+  `arcGeometry(42).d`), `.BUILTIN` (the library's three built-in combinations,
+  already through `.resolve()`), and a local copy of core's `mulberry32`.
+- **Kept honest by a test**: `node scripts/test-fvs-field.mjs` (run by
+  `scripts/check.py`, "fvs-field baked data") fails when `ELEMENTS` / `BUILTIN`
+  drift from what `shapes.js` / `palette.js` / `color.js` produce; `--print`
+  prints the `BUILTIN` literal to paste. The built-in combinations now live in
+  three places — `tunesutra/collections.js` ↔ `palette.js` `COMBINATIONS`
+  (by hand) ↔ `fvs-field.js` `BUILTIN` (test-enforced).
+- **Optional**: with `color.js` + `palette.js` loaded (after `core.js`),
+  `palettes()` reads the live library — saved TuneSutra palettes too — and
+  `.resolve(entry)` works on any library entry. Without them `palettes()`
+  returns `BUILTIN`.
+- **On a page without `core.js`** the mega menu is `header.js`'s no-core
+  fallback (no Escape to close) — as on privacy and terms.
 - **Paired CSS** `fvs-field.css`: `.org-fvs-field`, `__band` (component-local
   `--fvs-field-band-h`), `__svg`, `__cell`, and the Page variant
   `.org-page--field` (footer as a bar outside the column; no pattern switcher or

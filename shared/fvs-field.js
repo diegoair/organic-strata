@@ -34,22 +34,31 @@
                     inks[], mark, dark } — see resolve(). A palette is content:
                     the same in light and dark. Without one, fill =
                     currentColor and follows the theme.
-   Organica.fvsField.palettes()  the palette library (Organica.palette.library:
-                    the palettes saved in TuneSutra + the built-in
-                    combinations), each resolved to a ground and its inks.
+   Organica.fvsField.palettes()  the built-in combinations, resolved to a ground
+                    and its inks — or, where color.js + palette.js are loaded,
+                    the whole library (Organica.palette.library: the palettes
+                    saved in TuneSutra + the built-ins).
+   Organica.fvsField.resolve(entry)  one library entry → { name, paper, inks,
+                    mark, dark } (needs color.js).
 
    Inline SVG. Runs only its own timers, pauses while the tab is hidden,
    rebuilds on resize. prefers-reduced-motion = the settled picture, nothing
    moves (and the motion tokens the rules transition uses collapse to 1ms).
-   Paired CSS: fvs-field.css. Load AFTER core.js + color.js + palette.js +
-   shapes.js (color + palette only for palettes()).
+   Paired CSS: fvs-field.css.
+
+   STANDALONE — no other script is needed (the 404 loads this file alone).
+   What it would take from the rest of the system is baked in below and kept
+   honest by `node scripts/test-fvs-field.mjs` (run by scripts/check.py):
+     ELEMENTS  the two Elements' paths = Organica.shapes' own output
+     BUILTIN   the library's built-in combinations, resolved
+   Where color.js + palette.js ARE loaded (a tool, the design system),
+   palettes() reads the live library instead — the saved palettes too.
    Used by: /404.html. Reference: /design-system/#fvs-field.
    ───────────────────────────────────────────────────────────── */
 (function () {
   'use strict';
   var Organica = window.Organica = window.Organica || {};
   var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var S = Organica.shapes;
   var NS = 'http://www.w3.org/2000/svg';
   function mk(tag, attrs, parent) {
     var el = document.createElementNS(NS, tag);
@@ -60,6 +69,29 @@
   function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
   function mix(a, b, t) { return a + (b - a) * t; }
   function smooth(a, b, v) { var u = clamp((v - a) / (b - a), 0, 1); return u * u * (3 - 2 * u); }
+
+  // The two Elements, in FVS's 0..100 cell box — Organica.shapes.arcTruchetGeometry(3, 0.5).d and
+  // Organica.shapes.arcGeometry(42).d, baked (shapes.js is ~97 KB for these two strings).
+  var ELEMENTS = {
+    truchet: 'M 33.333,100 A 16.667,16.667 0 0 1 66.667,100 L 58.333,100 A 8.333,8.333 0 0 0 41.667,100 ZM 16.667,100 A 33.333,33.333 0 0 1 83.333,100 L 75,100 A 25,25 0 0 0 25,100 ZM 0,100 A 50,50 0 0 1 100,100 L 91.667,100 A 41.667,41.667 0 0 0 8.333,100 ZM 33.333,0 A 16.667,16.667 0 0 0 66.667,0 L 58.333,0 A 8.333,8.333 0 0 1 41.667,0 ZM 16.667,0 A 33.333,33.333 0 0 0 83.333,0 L 75,0 A 25,25 0 0 1 25,0 ZM 0,0 A 50,50 0 0 0 100,0 L 91.667,0 A 41.667,41.667 0 0 1 8.333,0 Z',
+    arc: 'M 100,0 A 100,100 0 0,1 0,100 L 0,58.00000000000001 A 58.00000000000001,58.00000000000001 0 0,0 58.00000000000001,0 Z',
+  };
+  // The library's built-in combinations (shared/palette.js COMBINATIONS), already through resolve().
+  var BUILTIN = [
+    {name: 'Violet 06', paper: '#f9dfe2', inks: ['#da887f', '#b296b9'], mark: '#93789a', dark: false},
+    {name: 'Stimulating', paper: '#74c476', inks: ['#d40039', '#5f238d'], mark: '#5f238d', dark: false},
+    {name: 'Violet 07', paper: '#fffab8', inks: ['#8aa9a5', '#ad9ca6'], mark: '#8e7e88', dark: false},
+  ];
+  // core.js's mulberry32, so the rules motion needs no core
+  function mulberry32(seed) {
+    var t = seed >>> 0;
+    return function () {
+      t |= 0; t = (t + 0x6D2B79F5) | 0;
+      var r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
 
   // "404" on a 16 × 8 grid: 4 × 6 numerals, one cell of pattern all round.
   // Even both ways, so Radial's 2 × 2 blocks close into whole rings.
@@ -137,7 +169,7 @@
     var T = clock();
     var g = layout(host, opts), pal = opts.palette, svg = frame(host, g, 'org-fvs-field__svg', pal);
     var uid = 'ff' + Math.random().toString(36).slice(2, 7);
-    var d = S.arcTruchetGeometry(3, 0.5).d, k = g.cell / 100;
+    var d = ELEMENTS.truchet, k = g.cell / 100;
     var defs = mk('defs', {}, svg);
     var src = mk('g', {}, defs);                            // the Symbol, sharp — every cell a group a pane can copy
     var shown = mk('g', {}, svg), layer = mk('g', {}, svg);
@@ -247,8 +279,8 @@
     var g = layout(host, opts), pal = opts.palette, svg = frame(host, g, 'org-fvs-field__svg', pal);
     // the ruled cells share the palette's quieter inks, one per 2 × 2 block; the numerals carry its strongest one
     var ruleInks = pal ? (pal.inks.length > 1 ? pal.inks.slice(0, -1) : pal.inks) : null;
-    var d = S.arcGeometry(42).d, k = g.cell / 100;
-    var rng = Organica.mulberry32(404);
+    var d = ELEMENTS.arc, k = g.cell / 100;
+    var rng = mulberry32(404);
     g.cells.forEach(function (c) {
       var at = mk('g', { transform: 'translate(' + c.x + ' ' + c.y + ') scale(' + k + ')' }, svg);
       c.path = mk('path', { d: d, 'class': 'org-fvs-field__cell' }, at);
@@ -312,8 +344,9 @@
              dark: K.contrast(paper, '#ffffff') > K.contrast(paper, '#000000') };
   }
   Organica.fvsField = {
-    MOTIONS: Object.keys(MOTIONS),
+    MOTIONS: Object.keys(MOTIONS), ELEMENTS: ELEMENTS, BUILTIN: BUILTIN, resolve: resolve,
     palettes: function () {
+      if (!Organica.color || !Organica.palette || !Organica.palette.library) return BUILTIN.slice();
       return Organica.palette.library().filter(function (p) { return p.colors.length >= 2 && p.colors.length <= 7; }).map(resolve);
     },
     mount: function (host, opts) {

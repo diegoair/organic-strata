@@ -210,6 +210,14 @@ if r.returncode:
 else:
     ok("clean")
 
+# 6. fvs-field: the data it bakes to run alone = what shapes / palette / color produce
+print("fvs-field baked data")
+r = subprocess.run(["node", "scripts/test-fvs-field.mjs"], capture_output=True, text=True)
+if r.returncode:
+    fail("fvs-field: baked data out of date:\n" + "\n".join("      " + l for l in (r.stdout + r.stderr).strip().split("\n")[-8:]))
+else:
+    ok("ELEMENTS and BUILTIN match shapes.js / palette.js / color.js")
+
 print()
 if fails:
     print(f"FAILED — {len(fails)} problem(s). Fix before committing.")

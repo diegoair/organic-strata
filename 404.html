@@ -27,7 +27,8 @@
      standing on a full-screen Flexible Visual System field (shared/fvs-field.js, /design-system/#fvs-field):
      the numerals fill the band above the card; the header and the footer are two bars of clear ground, and the
      header carries no pattern switcher and no theme button (the field covers the ground; the saved theme still applies).
-     Each visit shows the other motion (Arrival / Rules) and the next palette of the library;
+     Each visit shows the other motion (Arrival / Rules) and the next built-in palette. The field's script
+     stands alone (no core / color / palette / shapes here — about 20 KB instead of 250);
      ?p=a|b and ?pal=<n> pin them. -->
 <div class="org-fvs-field" id="field" aria-hidden="true"></div>
 <main class="org-page__col">
@@ -50,10 +51,6 @@
     <a href="/design-system/">Design System</a>
   </nav>
 </footer>
-<script src="/shared/core.js"></script>
-<script src="/shared/color.js"></script>
-<script src="/shared/palette.js"></script>
-<script src="/shared/shapes.js"></script>
 <script src="/shared/fvs-field.js"></script>
 <script>
 (function () {
