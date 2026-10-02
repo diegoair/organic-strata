@@ -76,6 +76,11 @@ directly against the license banner in each vendored file, August 27, 2026.
 - **Source**: https://github.com/Omnibus-Type/ArchivoBlack (Omnibus-Type). Copyright 2017 The Archivo Black Project Authors.
 - **License**: SIL Open Font License 1.1 — permits bundling/embedding in software, including commercial use; the only real restriction is not selling the font file standalone and preserving its Reserved Font Name if modified (it isn't, here). Same terms as Manrope above.
 
+### Bencho (interface patterns)
+- **Used in**: `shared/floatbar.css` + `Organica.floatbarPill` in `shared/core.js` (the glass icon bar and its travelling indicator, after Bencho's IconBar) and the Anchor flyout in `fvs/index.html` (after Bencho's canvas toolbar: the rise animation, the selected pad that arrives, the concentric corners). Re-typed in plain CSS/JS with this project's tokens — no file is copied whole and nothing is vendored; several of Bencho's own comments are kept because they explain the numbers.
+- **Source**: https://bencho.dev
+- **License**: MIT — https://bencho.dev/licence. *(To do: paste the copyright line and the MIT text from that page here; they were not available when this entry was written.)*
+
 ---
 
 No other third-party code is vendored in this repository. `shared/*.js` / `.css` and every tool's own code are original work.

@@ -1499,7 +1499,7 @@
   // ── Floatbar indicator pill ──────────────────────────────────
   // Drives shared/floatbar.css's .org-floatbar__ind: one wash that travels
   // between the bar's buttons. Target = the hovered / focused button, else
-  // the first pressed / open toggle, else hidden. Two phases (Bencho's
+  // the open toggle, else the first pressed one, else hidden. Two phases (Bencho's
   // IconBar): the pill first stretches across the union of the old and new
   // slot, then settles onto the new one and overshoots on landing.
   // Delegated + self-mounting so every bar in every tool works with zero
@@ -1508,8 +1508,11 @@
     const bars = new WeakMap();
     const BTN = '.org-floatbar__btn';
 
+    // An OPEN toggle (its popover / flyout is showing) outranks a pressed one: the pill has to
+    // stay on the button whose panel you are in, not jump back to an earlier pressed button
+    // the moment the pointer leaves it for the panel.
     function restTarget(bar) {
-      return bar.querySelector(BTN + '[aria-pressed="true"], ' + BTN + '[aria-expanded="true"]');
+      return bar.querySelector(BTN + '[aria-expanded="true"]') || bar.querySelector(BTN + '[aria-pressed="true"]');
     }
     function measure(bar, btn) {
       const b = bar.getBoundingClientRect(), r = btn.getBoundingClientRect();

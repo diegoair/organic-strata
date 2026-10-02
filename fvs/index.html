@@ -229,12 +229,63 @@
   #btn-sympool-add { width: 100%; }
   .fvs-library-item.is-in-pool { outline: 2px solid var(--tool); }
 
-  .symbol-anchor-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; width: 84px; }
-  .symbol-anchor-btn { width: 26px; height: 26px; padding: 0; border: 1px solid var(--border); background: var(--paper); cursor: pointer; position: relative; }
-  .symbol-anchor-btn:hover { border-color: var(--mid); }
-  .symbol-anchor-btn.active { border-color: var(--tool); background: var(--tool); }
-  .symbol-anchor-btn span { position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; border-radius: 50%; background: var(--ink); transform: translate(-50%, -50%); }
-  .symbol-anchor-btn.active span { background: #fff; }
+  /* ── Floatbar flyout (Anchor) ── after Bencho's canvas toolbar (MIT, bencho.dev/licence), in plain CSS.
+     The interaction is the point: the button's face IS the last choice (the dot's position), a click
+     opens the rest as a small pane above the bar, and picking one closes it — no title, no text.
+     Bencho's tokens, mapped to ours: --pane / --pane-thumb / --g-* are the floatbar's own (this sits
+     inside .org-floatbar and inherits them) · --ink → --ink · --pick (the "tool in your hand" pad) →
+     --tool · --inlay (hover) → --pane-thumb · --bar-slot → --space-7 · --bar-pad → --space-1.
+     FVS-local until a second floatbar needs a flyout; then it moves to shared/floatbar.css. */
+  .fvs-flyout {
+    position: absolute; left: 50%; bottom: calc(100% + var(--space-4)); z-index: 4;
+    display: none; grid-template-columns: repeat(3, var(--space-7));
+    padding: var(--space-1);
+    border-radius: var(--radius-lg);
+    /* A backdrop-filter inside the bar only sees the bar, not the page: the pane cannot frost what is
+       behind it, so it is nearly opaque instead of the bar's 75%. */
+    background: color-mix(in srgb, var(--paper) 94%, transparent);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, var(--g-spec)), 0 8px 28px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08);
+  }
+  /* A rise you can follow: longer and gentler than a pop, the fade on its own slower ramp so the
+     fade is what you notice and the movement is what carries it. */
+  .fvs-flyout[data-open="true"] { display: grid; animation: fvs-flyout-rise 300ms cubic-bezier(0.22, 1.14, 0.36, 1) both; }
+  @keyframes fvs-flyout-rise {
+    from { opacity: 0; transform: translateX(-50%) translateY(9px) scale(0.965); }
+    55%  { opacity: 1; }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  }
+  .fvs-flyout__tool {
+    position: relative; width: var(--space-7); height: var(--space-7);
+    display: grid; place-items: center; padding: 0; border: 0;
+    border-radius: var(--radius-md);   /* the pane's corner less the padding between them: concentric */
+    background: transparent; color: var(--ink); cursor: pointer;
+    transition: background 200ms ease;
+  }
+  .fvs-flyout__tool:hover { background: var(--pane-thumb); }
+  /* The selected pad ARRIVES: its own layer (scaling the button would take the mark with it),
+     opening from 0.72 on a curve that goes just past 1. */
+  .fvs-flyout__tool::before {
+    content: ""; position: absolute; inset: 0; z-index: 0; border-radius: inherit;
+    background: var(--tool); opacity: 0; scale: 0.72;
+    transition: opacity 140ms ease, scale 300ms cubic-bezier(0.3, 1.42, 0.4, 1);
+    pointer-events: none;
+  }
+  /* the mark rides over its own pad, and lifts a hair with it */
+  .fvs-flyout__tool > span {
+    position: relative; z-index: 1; width: var(--space-1); height: var(--space-1); border-radius: 50%;
+    background: currentColor;
+    transition: scale 300ms cubic-bezier(0.3, 1.42, 0.4, 1);
+  }
+  .fvs-flyout__tool[data-on="true"] { color: var(--paper); }
+  .fvs-flyout__tool[data-on="true"]:hover { background: transparent; }
+  .fvs-flyout__tool[data-on="true"]::before { opacity: 1; scale: 1; }
+  .fvs-flyout__tool[data-on="true"] > span { scale: 1.05; }
+  .fvs-flyout__tool:active > span { scale: 0.92; transition-duration: 90ms; }   /* pressed, it yields before it lights */
+  .fvs-flyout__tool:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+  @media (prefers-reduced-motion: reduce) {
+    .fvs-flyout[data-open="true"] { animation-duration: 1ms; }
+    .fvs-flyout__tool::before, .fvs-flyout__tool > span { transition: none; }
+  }
 
   /* Choose-content overlay — no existing modal component in this codebase
      (Organica.popover is anchored-to-a-button, not a fit for a click
@@ -449,6 +500,29 @@
   </div>
   <!-- Symbol-tier action — hand the live Symbol to the ★ Figure tier as its first level. Shown only on that tier by setTier(). -->
   <div id="fb-symbol-actions" class="fvs-fb-group" style="display:none">
+    <!-- Fit in cell: acts on the selected cells, or on every cell when none is selected (the tooltip says which).
+         Each icon is a wide cell and what a round content does in it: whole inside it, stretched to it,
+         larger than it (cropped), or its own size whatever the cell (dashed cell). Line icons, like the rest of the bar. -->
+    <button class="org-floatbar__btn" id="btn-symbol-fit-all-contain" data-fit-name="Contain" aria-pressed="false" aria-label="Contain · all cells">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.6" stroke="currentColor" stroke-width="1.3"/></svg>
+    </button>
+    <button class="org-floatbar__btn" id="btn-symbol-fit-all-fill" data-fit-name="Fill" aria-pressed="false" aria-label="Fill · all cells">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1" stroke="currentColor" stroke-width="1.3"/><ellipse cx="8" cy="8" rx="4.4" ry="2.6" stroke="currentColor" stroke-width="1.3"/></svg>
+    </button>
+    <button class="org-floatbar__btn" id="btn-symbol-fit-all-cover" data-fit-name="Cover" aria-pressed="false" aria-label="Cover · all cells">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M4.67 3.5A5.6 5.6 0 0 0 4.67 12.5M11.33 3.5A5.6 5.6 0 0 1 11.33 12.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+    </button>
+    <button class="org-floatbar__btn" id="btn-symbol-fit-all-fixed" data-fit-name="Fixed size" aria-pressed="false" aria-label="Fixed size · all cells">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="2 2.1"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/></svg>
+    </button>
+    <div class="org-popover-wrap">
+      <button class="org-floatbar__btn" id="btn-symbol-anchor" aria-label="Anchor · all cells">
+        <svg class="ico" id="ico-symbol-anchor" viewBox="0 0 16 16" fill="none" aria-hidden="true"></svg>
+      </button>
+      <!-- the flyout: nine positions, nothing else; picking one closes it (the button's face shows it) -->
+      <div class="fvs-flyout" id="symbol-anchor-popover" aria-label="Anchor position"><span id="symbol-fitall-anchor-grid" style="display:contents"></span></div>
+    </div>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
     <button class="org-floatbar__btn" id="btn-symbol-to-figure" aria-label="Build a Figure from this Symbol">
       <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.8" y="4.5" width="6" height="6" stroke="currentColor" stroke-width="1.3"/><path d="M8.5 7.5h2.2M9.6 6.2l1.3 1.3-1.3 1.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 4.2l.7 1.5 1.6.2-1.2 1.1.3 1.6-1.4-.8-1.4.8.3-1.6-1.2-1.1 1.6-.2z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
     </button>
@@ -1353,17 +1427,6 @@
       <label class="check-row org-switch"><input type="checkbox" id="chk-symbol-clip" checked><span>Clip to cell</span></label>
       <label class="check-row org-switch"><input type="checkbox" id="chk-symbol-cover-preview"><span>Show cover crop</span></label>
       <label class="check-row org-switch"><input type="checkbox" id="chk-symbol-track-guides" checked><span>Show column/row guides</span></label>
-      <div class="ctrl-row" style="margin-top:var(--space-2)"><div class="ctrl-label">Fit (all cells)</div></div>
-      <div class="row-btns">
-        <button class="mini-btn" id="btn-symbol-fit-all-contain">Contain</button>
-        <button class="mini-btn" id="btn-symbol-fit-all-fill">Fill</button>
-      </div>
-      <div class="row-btns" style="margin-top:var(--space-2)">
-        <button class="mini-btn" id="btn-symbol-fit-all-cover">Cover</button>
-        <button class="mini-btn" id="btn-symbol-fit-all-fixed">Fixed</button>
-      </div>
-      <div class="ctrl-row" style="margin-top:var(--space-2)"><div class="ctrl-label">Anchor (all cells)</div></div>
-      <div id="symbol-fitall-anchor-grid" class="symbol-anchor-grid" role="group" aria-label="Anchor position for every cell"></div>
     </div>
     </div>
 
@@ -1743,7 +1806,7 @@
         <p class="org-panel__hint">Places the pool's Components by a rule — which one goes in each cell follows its column/row, ring, sector or band (the n-th class takes the n-th Component). Random picks by weight. Locked cells stay. Then refine transforms with Rule, or single cells in Manual.</p>
       </div>
       <div id="symbol-manual-block" style="display:none">
-        <p class="org-panel__hint">Click a cell on the canvas to select it and choose its content. Drag to select several cells; ⌘-click (Ctrl-click on Windows) adds or removes a cell. Click one of the selected cells to choose content for all of them; every change below applies to the whole selection.</p>
+        <p class="org-panel__hint">Click a cell on the canvas to select it; drag to select several; ⌘-click (Ctrl-click on Windows) adds or removes a cell. Click a selected cell again — or double-click a cell — to choose its content, for the whole selection. Every change below applies to the selection.</p>
         <div id="symbol-cell-empty" class="fvs-library-empty">No cell selected.</div>
         <div id="symbol-cell-props" style="display:none">
           <div class="ctrl-row"><div class="ctrl-label">Selected</div>
@@ -1812,8 +1875,6 @@
             <input type="range" id="rg-cellprop-padding" min="0" max="40" step="1" value="0">
             <span class="ctrl-val" id="v-cellprop-padding">0</span>
           </div>
-          <div class="sub-label" style="margin-top:var(--space-2)">Anchor</div>
-          <div id="symbol-anchor-grid" class="symbol-anchor-grid" role="group" aria-label="Anchor position"></div>
           <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-cellprop-lock"><span>Lock cell (rule skips it)</span></label>
         </div>
       </div>
@@ -6605,42 +6666,105 @@ function symbolMedianCellSize() {
   const cells = resolveGridCells(grid);
   return cells.length ? Math.round(median(cells.map(c => Math.min(c.cellW, c.cellH)))) || 100 : 100;
 }
+// Fit (floatbar, Symbol step) and Anchor (Symbol grid section) act on the SELECTION when there is one,
+// on every cell when there is none — one control for both, the label says which.
+// (Cell properties → Fit / Anchor write the same fields, on the selection.)
+let symbolAnchorPopover = null;   // the floatbar Anchor popover (set at boot)
+const fitTargetIndices = () => (state.symbolSelection.size ? [...state.symbolSelection] : state.symbolCells.map((_, i) => i)).filter(i => state.symbolCells[i]);
+const fitTargetWrite = patch => (state.symbolSelection.size ? applyToSelection : applyToAllCells)(patch);
+// The label names the target; a button is pressed only when EVERY target cell holds that value (mixed = none).
+// What a Fit button would write into a cell — the one definition the buttons and their enabled state share.
+function fitPatch(fitMode) {
+  const patch = { fitMode };
+  if (fitMode === 'fixed') patch.fixedSize = symbolMedianCellSize();
+  if (fitMode === 'cover') patch.coverAxis = 'auto';   // a fresh Cover always starts from the safe, guaranteed-no-gaps baseline
+  return patch;
+}
+// The natural size a cell's content is placed with (as buildSymbolItems does): 100 for a Seed,
+// the Component's own frame otherwise. null = nothing to place (Empty, or a missing Component).
+function cellNaturalSize(cell, lib) {
+  if (!cell || cell.source === 'empty') return null;
+  if (cell.source !== 'component') return 100;
+  const entry = lib[cell.componentName];
+  if (!entry) return null;
+  const nd = frameDims(entry.grid);
+  return nd.w === nd.h ? frameSize(entry.grid) : { w: nd.w, h: nd.h };
+}
+const samePlacement = (a, b) => ['scaleX', 'scaleY', 'offsetX', 'offsetY'].every(k => Math.abs(a[k] - b[k]) < 1e-6);
+function syncFitAnchorUI() {
+  const n = state.symbolSelection.size, who = n ? `${n} selected cell${n === 1 ? '' : 's'}` : 'all cells';
+  // Fit and Anchor are about a CONTENT in its cell. They read (pressed state, anchor position) and
+  // are enabled from the target cells that hold something, and each control is on only when using
+  // it would actually change the drawing of at least one of them:
+  //  · no content at all (Empty cells, no grid yet) → everything off;
+  //  · Contain / Fill / Cover that would place every target exactly as it is placed now → that
+  //    icon off (a round content in a square cell: the three are the same picture);
+  //  · Anchor when no target has room to move in (the content is exactly its cell) → off.
+  const grid = getSymbolGrid(), lib = LIBRARY.read(), res = grid ? resolveGridCells(grid) : [];
+  const targets = fitTargetIndices().map(i => ({ cell: state.symbolCells[i], box: res[i], nat: cellNaturalSize(state.symbolCells[i], lib) })).filter(t => t.box && t.nat);
+  const cells = targets.map(t => t.cell);
+  const nothing = cells.length === 0;
+  const why = nothing ? (state.symbolGrid ? ' — nothing to fit (empty)' : ' — no grid yet') : '';
+  const placeOf = (t, patch) => resolveCellPlacement(t.box.cellW, t.box.cellH, t.nat, { ...t.cell, ...(patch || {}) });
+  const shared = fn => (cells.length && cells.every(c => fn(c) === fn(cells[0])) ? fn(cells[0]) : null);
+  const fit = shared(c => c.fitMode || 'contain'), ax = shared(c => c.anchorX || 0), ay = shared(c => c.anchorY || 0);
+  // the Fit buttons live in the floatbar: their tooltip (aria-label) names the target
+  ['contain', 'fill', 'cover', 'fixed'].forEach(f => {
+    const b = ctrl('btn-symbol-fit-all-' + f), patch = nothing ? null : fitPatch(f);
+    // Fixed is never "the same": even when it starts at the size the content already has, it changes
+    // what the cell does next (its own Size, whatever the cell becomes).
+    const same = !nothing && f !== 'fixed' && fit !== f && targets.every(t => samePlacement(placeOf(t), placeOf(t, patch)));
+    if (b.getAttribute('aria-pressed') !== String(fit === f)) b.setAttribute('aria-pressed', String(fit === f));
+    const label = b.dataset.fitName + ' · ' + who + (nothing ? why : same ? ' — same result as now' : '');
+    if (b.getAttribute('aria-label') !== label) b.setAttribute('aria-label', label);
+    if (b.disabled !== (nothing || same)) b.disabled = nothing || same;
+  });
+  // Anchor (floatbar button + flyout): the icon is the position itself — a dot in a cell, a dash
+  // when the target cells differ.
+  const still = !nothing && targets.every(t => samePlacement(placeOf(t, { anchorX: -1, anchorY: -1 }), placeOf(t, { anchorX: 1, anchorY: 1 })));
+  const anchorOff = nothing || still;
+  const aLabel = 'Anchor · ' + who + (nothing ? why : still ? ' — no effect: the content is exactly its cell' : '');
+  if (ctrl('btn-symbol-anchor').getAttribute('aria-label') !== aLabel) ctrl('btn-symbol-anchor').setAttribute('aria-label', aLabel);
+  if (ctrl('btn-symbol-anchor').disabled !== anchorOff) ctrl('btn-symbol-anchor').disabled = anchorOff;
+  if (anchorOff && symbolAnchorPopover) symbolAnchorPopover.close();
+  ctrl('symbol-fitall-anchor-grid').querySelectorAll('.fvs-flyout__tool').forEach(b => {
+    const on = String(ax != null && ay != null && +b.dataset.ax === ax && +b.dataset.ay === ay);
+    if (b.dataset.on !== on) b.dataset.on = on;
+  });
+  const mark = ax != null && ay != null
+    ? `<circle cx="${8 + ax * 3}" cy="${8 + ay * 3}" r="1.5" fill="currentColor"/>`
+    : '<path d="M6 8h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>';
+  const ico = '<rect x="2.5" y="2.5" width="11" height="11" rx="1" stroke="currentColor" stroke-width="1.3"/>' + mark;
+  if (ctrl('ico-symbol-anchor').innerHTML !== ico) ctrl('ico-symbol-anchor').innerHTML = ico;
+}
 function applyFitToAllCells(fitMode) {
   if (!state.symbolGrid) return;
-  const fixedSize = fitMode === 'fixed' ? symbolMedianCellSize() : undefined;
-  applyToAllCells(cell => {
-    const patch = { fitMode };
-    if (fitMode === 'fixed') patch.fixedSize = fixedSize;
-    if (fitMode === 'cover') patch.coverAxis = 'auto';   // fresh bulk Cover always starts from the safe, guaranteed-no-gaps baseline
-    return patch;
-  });
-  // applyToAllCells() only re-renders the canvas — the docked Cell properties
-  // panel (if a cell is selected) has its own #sel-cellprop-fit readout that
-  // would otherwise go stale, same reason every other applyToSelection() call
-  // site pairs it with an explicit re-sync.
-  if (state.symbolSelection.size) renderCellPropertiesPanel();
+  const patch = fitPatch(fitMode);
+  fitTargetWrite(() => ({ ...patch }));
+  // the write only re-renders the canvas — the docked Cell properties panel has its
+  // own #sel-cellprop-fit readout, and these buttons their pressed state: re-sync both.
+  renderCellPropertiesPanel();
 }
 ['contain', 'fill', 'cover', 'fixed'].forEach(fit =>
   ctrl('btn-symbol-fit-all-' + fit).addEventListener('click', () => applyFitToAllCells(fit)));
-// Bulk anchor: which part of a cropped/overflowing cell's content shows —
-// meaningful for Cover (which part gets kept) and Fixed (which part
-// overflows) alike, independent of the Fit buttons above. Reuses the exact
-// anchor-grid component already built for Cell Properties (ANCHOR_POSITIONS,
-// .symbol-anchor-grid/.symbol-anchor-btn CSS) — no active-state tracking,
-// same one-shot-action choice already made for the Fit buttons (cells can
-// end up with mixed anchors after this, same as they can with mixed fits).
+// Anchor: which part of a cropped / overflowing cell's content shows — meaningful for Cover
+// (which part is kept), Fixed (which part overflows) and Contain (where it sits), not for Fill.
+// One control: the floatbar button and its flyout (.fvs-flyout), on the selection or on every cell.
 function applyAnchorToAllCells(ax, ay) {
   if (!state.symbolGrid) return;
-  applyToAllCells({ anchorX: ax, anchorY: ay });
-  if (state.symbolSelection.size) renderCellPropertiesPanel();
+  fitTargetWrite({ anchorX: ax, anchorY: ay });
+  renderCellPropertiesPanel();
 }
 function buildFitAllAnchorGrid() {
   const wrap = ctrl('symbol-fitall-anchor-grid');
   wrap.innerHTML = ANCHOR_POSITIONS.map(([ax, ay]) =>
-    `<button type="button" class="symbol-anchor-btn" data-ax="${ax}" data-ay="${ay}" aria-label="Anchor all cells ${ax < 0 ? 'left' : ax > 0 ? 'right' : 'center'} ${ay < 0 ? 'top' : ay > 0 ? 'bottom' : 'middle'}"><span></span></button>`
+    `<button type="button" class="fvs-flyout__tool" data-on="false" data-ax="${ax}" data-ay="${ay}" aria-label="Anchor ${ax < 0 ? 'left' : ax > 0 ? 'right' : 'center'} ${ay < 0 ? 'top' : ay > 0 ? 'bottom' : 'middle'}"><span></span></button>`
   ).join('');
-  wrap.querySelectorAll('.symbol-anchor-btn').forEach(btn => btn.addEventListener('click', () =>
-    applyAnchorToAllCells(parseInt(btn.dataset.ax, 10), parseInt(btn.dataset.ay, 10))));
+  wrap.querySelectorAll('.fvs-flyout__tool').forEach(btn => btn.addEventListener('click', () => {
+    applyAnchorToAllCells(parseInt(btn.dataset.ax, 10), parseInt(btn.dataset.ay, 10));
+    // the pad arrives, then the flyout closes — the button's face now shows the choice
+    setTimeout(() => { if (symbolAnchorPopover) symbolAnchorPopover.close(); ctrl('btn-symbol-anchor').focus(); }, 220);
+  }));
 }
 ctrl('sel-symcanvas-preset').addEventListener('change', () => {
   const p = SYMCANVAS_PRESETS[ctrl('sel-symcanvas-preset').value];
@@ -7967,14 +8091,14 @@ let trackLabelsRaf = 0;
 function renderSymbol() {
   renderSymbolCanvasOnly();
   if (ctrl('sel-symbol-fill').value === 'manual' || state.symbolSelection.size) renderCellPropertiesPanel();
-  else syncManualBlock();
+  else { syncManualBlock(); syncFitAnchorUI(); }
 }
 
 // Click-to-select on the rendered Symbol itself (Strata's Refine editor
 // uses the same click-a-shape-on-canvas convention) — delegated on
 // #symbol-frame, which survives every re-render (only its innerHTML is
 // replaced), so this binds exactly once rather than being re-attached
-// per render. Plain click replaces the selection with just this cell;
+// per render. Plain click selects just this cell (a click on a selected cell opens Choose content);
 // ⌘/Ctrl-click (or Shift-click) toggles this cell into/out of a multi-cell selection.
 // Mouse position → the SVG's own internal 0..size coordinate space (same
 // technique Creator's old draw-mode artLoc() used) — needed both for a
@@ -8008,8 +8132,8 @@ function rectsIntersect(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
-// Plain click (no movement) keeps the original select-and-open-overlay
-// behaviour; movement past a small threshold switches to a live marquee
+// Plain click (no movement) selects — or opens Choose content on a cell that is
+// already selected; movement past a small threshold switches to a live marquee
 // instead — same moved-past-a-few-pixels-means-a-drag distinction
 // Creator's own old draw-mode click handler used (downPt/moved). mouseup
 // is bound on window, not the frame, so releasing outside the canvas
@@ -8239,16 +8363,18 @@ function bindSymbolCanvasSelection() {
       renderSymbolCanvasOnly();
       renderCellPropertiesPanel();
     } else {
-      // A plain click on a cell that is already part of a multi-selection keeps the
-      // whole selection (and opens the content overlay for all of it) — otherwise
-      // "select three, click to choose" silently collapsed to the clicked cell.
-      if (!(state.symbolSelection.size > 1 && state.symbolSelection.has(i))) {
+      // A plain click SELECTS; a click on a cell that is already selected (alone or in a
+      // group — so also the second click of a double-click) opens Choose content for the
+      // whole selection. Selecting a cell to change its Fit, Anchor or turn must not pop
+      // the content picker in the way.
+      const again = state.symbolSelection.has(i);
+      if (!again) {
         state.symbolSelection.clear();
         state.symbolSelection.add(i);
       }
       renderSymbolCanvasOnly();
       renderCellPropertiesPanel();
-      openCellContentOverlay();
+      if (again) openCellContentOverlay();
     }
   });
 }
@@ -8268,25 +8394,6 @@ function applyToSelection(patch) {
 }
 
 const ANCHOR_POSITIONS = [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
-function buildAnchorGrid() {
-  const wrap = ctrl('symbol-anchor-grid');
-  wrap.innerHTML = ANCHOR_POSITIONS.map(([ax, ay], i) =>
-    `<button type="button" class="symbol-anchor-btn" data-ax="${ax}" data-ay="${ay}" aria-label="Anchor ${ax < 0 ? 'left' : ax > 0 ? 'right' : 'center'} ${ay < 0 ? 'top' : ay > 0 ? 'bottom' : 'middle'}"><span></span></button>`
-  ).join('');
-  wrap.querySelectorAll('.symbol-anchor-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const ax = parseInt(btn.dataset.ax, 10), ay = parseInt(btn.dataset.ay, 10);
-      applyToSelection({ anchorX: ax, anchorY: ay });
-      syncAnchorGridUI(ax, ay);
-    });
-  });
-}
-function syncAnchorGridUI(ax, ay) {
-  ctrl('symbol-anchor-grid').querySelectorAll('.symbol-anchor-btn').forEach(btn => {
-    btn.classList.toggle('active', parseInt(btn.dataset.ax, 10) === ax && parseInt(btn.dataset.ay, 10) === ay);
-  });
-}
-
 // Replaces the old one-row-per-cell list entirely: ONE shared panel that
 // reflects/edits whatever is currently selected (state.symbolSelection).
 // The panel markup itself is static HTML (see index.html) — no rebuild
@@ -8323,6 +8430,7 @@ function syncManualBlock() {
 }
 function renderCellPropertiesPanel() {
   syncManualBlock();
+  syncFitAnchorUI();
   const hasSelection = state.symbolSelection.size > 0 && state.symbolGrid;
   ctrl('symbol-cell-empty').style.display = hasSelection ? 'none' : '';
   ctrl('symbol-cell-props').style.display = hasSelection ? '' : 'none';
@@ -8366,7 +8474,6 @@ function renderCellPropertiesPanel() {
   ctrl('symbol-cellprop-seedparams-label').textContent = first.seedParams ? 'Element settings' : 'Default';
   ctrl('rg-cellprop-padding').value = Math.round((first.padding || 0) * 100);
   ctrl('v-cellprop-padding').textContent = ctrl('rg-cellprop-padding').value;
-  syncAnchorGridUI(first.anchorX || 0, first.anchorY || 0);
   ctrl('chk-cellprop-lock').checked = !!first.locked;
 
   const firstIndex = Math.min(...state.symbolSelection);
@@ -9365,8 +9472,9 @@ bindSymbolTrackDrag();
 // window resize needs its own reposition pass, cheap enough to run on every
 // frame of it.
 new ResizeObserver(() => { if (state.symbolGrid) renderTrackLabelsOverlay(); }).observe(ctrl('symbol-frame'));
-buildAnchorGrid();
 buildFitAllAnchorGrid();
+symbolAnchorPopover = Organica.popover(ctrl('btn-symbol-anchor'), ctrl('symbol-anchor-popover'));
+syncFitAnchorUI();
 ctrl('btn-cellprop-choose').addEventListener('click', openCellContentOverlay);
 ctrl('btn-rule-choose-content').addEventListener('click', openCellContentOverlayForAll);
 ctrl('btn-content-overlay-close').addEventListener('click', closeCellContentOverlay);

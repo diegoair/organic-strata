@@ -193,8 +193,9 @@ its cells.
   - **Rule** — transforms only (Oscillator, Checkerboard, Rows, Columns, Radial,
     Wave, Orientation, Random), lock-aware, with Reset & apply to all.
   - **Manual** — click a cell to select it; drag to select several; ⌘-click (Ctrl-click on
-    Windows; Shift also works) adds or removes a cell. Every Cell-properties change and
-    *Choose…* applies to the whole selection.
+    Windows; Shift also works) adds or removes a cell. A click only selects: **click a
+    selected cell again, or double-click a cell, to open Choose content** for the whole
+    selection. Every Cell-properties change, Fit, Anchor and *Choose…* applies to the selection.
 - **Choose content** — the **Element** itself (as it is, or in the six states of the Element
   step's strip: 90° / 180° / 270° / Flip H / Flip V / Flip H+V — the cell keeps the Element's
   settings as they are at that moment, layers included; a layer that follows the cell colour
@@ -202,10 +203,32 @@ its cells.
   disappears into another), a saved Component or **Empty**, with an **Apply to all
   cells** switch. The plain default Seeds are no longer offered as Symbol content (old Symbols with
   Seed cells, and the Figure tier's lattices, still render them).
-- **Cell properties** — rotation, flip, fit, scale, padding, anchor, **Lock**,
+- **Cell properties** — rotation, flip, fit, scale, padding, **Lock**,
   and **Colour**: *Follow palette* (default) or an explicit override (a palette
   colour or a free one). An override is flagged, and **Reset** returns the cell
   to the palette.
+- **Fit and Anchor** — in the floatbar of the Symbol step, one control for both scopes: with
+  cells selected on the canvas they act on the **selection**; with none selected, on **every
+  cell**. The tooltip names the target ("Cover · 2 selected cells" / "Cover · all cells").
+  - **Fit**: four line icons — Contain / Fill / Cover / Fixed size (a wide cell and what a round
+    content does in it; Fixed has a dashed cell). An icon is pressed only when every target
+    cell holds that value (mixed = none). Cover resets Cover axis to Auto; Fixed starts from
+    the median cell size.
+  - **Anchor**: one button after the Fit icons; a click raises a small flyout with the nine
+    positions and nothing else, and picking one closes it. The button's icon is the
+    position itself (a dot in a cell, a dash when the target cells differ). Anchor shows only
+    where the content does not match its cell (Cover, Fixed, Contain): when every target cell
+    is on Fill at 100% the button is disabled (its tooltip says why) and an open grid closes. This is the only Anchor control — the
+    grids in the Symbol grid section and in Cell properties were removed.
+  A control is on only when using it would change the drawing of at least one target cell
+  (the same rule with or without a selection):
+  - no content at all (Empty cells, no grid yet) → Fit and Anchor off; in a mixed group they
+    read the cells that hold something;
+  - Contain / Fill / Cover that would place every target exactly as it is now → that icon off,
+    its tooltip says "same result as now" (a round content in a square cell: the three are the
+    same picture). Fixed size stays available — it changes what the cell does next (its own Size);
+  - Anchor when no target has room to move in (the content is exactly its cell) → off. Both write the same per-cell fields as Cell
+  properties → Fit.
 
 - **No seams.** Cells never show a light line where they meet: nested Components'
   papers are painted first under all ink, and each cell's content and clip reach
