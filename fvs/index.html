@@ -532,6 +532,22 @@
       <div class="fvs-flyout" id="symbol-anchor-popover" aria-label="Anchor position"><span id="symbol-fitall-anchor-grid" style="display:contents"></span></div>
     </div>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
+    <!-- View: four independent toggles (they were switches in the panel's Symbol grid section). Each icon is a
+         cell and the thing it turns on: the grid's own lines, content cut at the cell's edge, the part a Cover
+         crops away (dashed, past the cell), the column/row guides (dashed lines). Only the guides start on. -->
+    <button class="org-floatbar__btn" id="btn-symbol-view-outline" data-view="outline" aria-pressed="false" aria-label="Show loaded grid">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M6.17 2.5v11M9.83 2.5v11M2.5 6.17h11M2.5 9.83h11" stroke="currentColor" stroke-width="1.3"/></svg>
+    </button>
+    <button class="org-floatbar__btn" id="btn-symbol-view-clip" data-view="clip" aria-pressed="false" aria-label="Clip to cell">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M6.5 13A6.5 6.5 0 0 1 13 6.5" stroke="currentColor" stroke-width="1.3"/></svg>
+    </button>
+    <button class="org-floatbar__btn" id="btn-symbol-view-cover" data-view="cover" aria-pressed="false" aria-label="Show cover crop">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4" y="5" width="8" height="6" rx="1" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="2 2.05"/></svg>
+    </button>
+    <button class="org-floatbar__btn" id="btn-symbol-view-guides" data-view="guides" aria-pressed="true" aria-label="Show column/row guides">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 1.5v13M1.5 10h13" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="2 2.1"/></svg>
+    </button>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
     <button class="org-floatbar__btn" id="btn-symbol-to-figure" aria-label="Build a Figure from this Symbol">
       <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.8" y="4.5" width="6" height="6" stroke="currentColor" stroke-width="1.3"/><path d="M8.5 7.5h2.2M9.6 6.2l1.3 1.3-1.3 1.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 4.2l.7 1.5 1.6.2-1.2 1.1.3 1.6-1.4-.8-1.4.8.3-1.6-1.2-1.1 1.6-.2z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
     </button>
@@ -1406,10 +1422,6 @@
       <div id="symgrid-gen-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
       <button class="mini-btn" id="btn-symbol-grid-upload" style="width:100%;margin-top:var(--space-2)">Load JSON grid</button>
       <div id="symbol-grid-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
-      <label class="check-row org-switch" style="margin-top:var(--space-2)"><input type="checkbox" id="chk-symbol-grid-outline"><span>Show loaded grid</span></label>
-      <label class="check-row org-switch"><input type="checkbox" id="chk-symbol-clip" checked><span>Clip to cell</span></label>
-      <label class="check-row org-switch"><input type="checkbox" id="chk-symbol-cover-preview"><span>Show cover crop</span></label>
-      <label class="check-row org-switch"><input type="checkbox" id="chk-symbol-track-guides" checked><span>Show column/row guides</span></label>
     </div>
     </div>
 
@@ -2117,7 +2129,8 @@ const state = {
   symbolSuggestions: [],   // the last Suggest gallery ({label, score, cells}), tied to the current grid
   symbolSelection: new Set(),   // cell indices, Manual mode's click-to-select — never persisted (editing-session-only)
   symbolMarqueeRect: null,      // {x,y,w,h} in the canvas's own 0..size space, live during a drag-select — preview-only, never persisted or exported
-  symbolClipEnabled: true,      // Symbol-level: clip each cell's content to its own bounds (rect/polygon). OFF allows deliberate bleed; persisted per saved Symbol.
+  symbolClipEnabled: false,     // Symbol-level: clip each cell's content to its own bounds (rect/polygon). OFF (the default since the toggles moved to the floatbar) allows bleed; persisted per saved Symbol.
+  symbolView: { outline: false, cover: false, guides: true },   // preview-only overlays, toggled from the floatbar: the loaded grid's lines, the cover-crop preview, the column/row guides
 };
 
 // ── Palette — centralised colour assignment (moved out of Seed, which
@@ -6443,8 +6456,8 @@ function loadSymbolGrid(model) {
   state.symbolSuggestions = []; ctrl('symbol-suggest-gallery').innerHTML = '';   // proposals belong to the previous grid
   state.symbolCells = defaultSymbolCells(getSymbolGrid());
   state.symbolSelection.clear();
-  state.symbolClipEnabled = true;
-  ctrl('chk-symbol-clip').checked = true;
+  state.symbolClipEnabled = false;   // a new grid starts on the default
+  syncSymbolViewUI();
   ctrl('symbol-grid-error').style.display = 'none';
   renderSymbol();
 }
@@ -7089,7 +7102,11 @@ function symbolSVGFromItems(items) {
   const grid = getSymbolGrid();
   if (!grid) return '';
   const F = symbolFrame(grid);
-  const bleed = symbolBleed(F), centers = resolveGridCells(grid);
+  // The overdraw belongs to the clip: clipped, a cell's content reaches a hair past its edge and the clip (pushed
+  // out the same hair) decides where it stops, so neighbours overlap instead of leaving a seam. Unclipped there is
+  // nothing to stop it — the Symbol's reach and the nested Component's add up, and every cell is drawn about 0.2%
+  // of the page too large, over its neighbours and past the grid. So unclipped content is drawn at its true size.
+  const bleed = state.symbolClipEnabled ? symbolBleed(F) : 0, centers = resolveGridCells(grid);
   let defs = '';
   let papers = '';   // every nested Component's own paper, painted before any ink
   let body = '';
@@ -7131,7 +7148,7 @@ function symbolSVGFromItems(items) {
         cellPts = `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${rawCell.width.toFixed(2)}" height="${rawCell.height.toFixed(2)}"/>`;
       }
     }
-    // "Clip to cell" (state.symbolClipEnabled, default on): each cell's
+    // "Clip to cell" (state.symbolClipEnabled, default off): each cell's
     // content can't bleed past its own real boundary — reuses the exact
     // same rect/polygon geometry as the invisible hit-shape above, just
     // referenced as a clipPath instead. Off restores the pre-feature
@@ -7167,7 +7184,7 @@ function drawSymbolCanvas(ctx) {
   fillPaper(ctx, state.paperColor, 0, 0, F.w, F.h);
   if (!grid) return;
   const items = buildSymbolItems().filter(Boolean);
-  const bleed = symbolBleed(F), centers = resolveGridCells(grid);
+  const bleed = state.symbolClipEnabled ? symbolBleed(F) : 0, centers = resolveGridCells(grid);   // see symbolSVGFromItems
   // "Clip to cell" mirror of buildSymbolSVG()'s <clipPath> (the same bled outline)
   // and the same bled content, so preview/PNG and SVG export can't disagree.
   const enter = it => {
@@ -8173,11 +8190,11 @@ function renderSymbolCanvasOnly() {
   ctrl('symbol-cellcount-hint').textContent = count + (count === 1 ? ' cell' : ' cells');
   let svg = buildSymbolSVG();
   let overlay = '';
-  if (ctrl('chk-symbol-grid-outline').checked) overlay += buildGridOutlineSVG();
+  if (state.symbolView.outline) overlay += buildGridOutlineSVG();
   overlay += buildSelectionOutlineSVG();
-  if (ctrl('chk-symbol-track-guides').checked) overlay += buildTrackHandlesSVG();
+  if (state.symbolView.guides) overlay += buildTrackHandlesSVG();
   if (trackDrag) overlay += buildOverflowOutlineSVG();
-  if (ctrl('chk-symbol-cover-preview').checked) overlay += buildCoverCropPreviewSVG();
+  if (state.symbolView.cover) overlay += buildCoverCropPreviewSVG();
   if (state.symbolMarqueeRect) {
     const r = state.symbolMarqueeRect;
     overlay += `<rect class="symbol-marquee" x="${r.x.toFixed(2)}" y="${r.y.toFixed(2)}" width="${r.w.toFixed(2)}" height="${r.h.toFixed(2)}"/>`;
@@ -8319,7 +8336,7 @@ function buildTrackHandlesSVG() {
 function renderTrackLabelsOverlay() {
   const old = document.getElementById('sym-track-labels');
   if (old) old.remove();
-  if (!ctrl('chk-symbol-track-guides').checked) return;
+  if (!state.symbolView.guides) return;
   const g = symbolTrackGrid();
   if (!g) return;
   const frame = ctrl('symbol-frame'), svgEl = frame.querySelector('svg');
@@ -8879,7 +8896,7 @@ function applySymbolLibraryEntryToUI(entry) {
   // filled to true, matching withPlacementDefaults' own convention of
   // restoring exactly the pre-feature behaviour for anything not saved.
   state.symbolClipEnabled = entry.clipEnabled !== false;
-  ctrl('chk-symbol-clip').checked = state.symbolClipEnabled;
+  syncSymbolViewUI();
   applyAppearanceToUI(entry.appearance);
   applyRuleState(entry.rule);
   renderSymbol();
@@ -9472,14 +9489,24 @@ ctrl('file-loom-grid').addEventListener('change', e => {
   e.target.value = '';
 });
 
-ctrl('chk-symbol-grid-outline').addEventListener('change', renderSymbolCanvasOnly);
-ctrl('chk-symbol-cover-preview').addEventListener('change', renderSymbolCanvasOnly);
-ctrl('chk-symbol-track-guides').addEventListener('change', renderSymbolCanvasOnly);
-ctrl('chk-symbol-clip').addEventListener('change', e => {
-  state.symbolClipEnabled = e.target.checked;
+// The floatbar's View toggles. Three are preview overlays (state.symbolView); Clip to cell is the Symbol's own
+// setting (state.symbolClipEnabled — it is in the export and saved with the Symbol), kept in the same row
+// because it is switched the same way.
+function syncSymbolViewUI() {
+  document.querySelectorAll('#fb-symbol-actions [data-view]').forEach(b => {
+    const k = b.dataset.view;
+    b.setAttribute('aria-pressed', String(k === 'clip' ? state.symbolClipEnabled : state.symbolView[k]));
+  });
+}
+document.querySelectorAll('#fb-symbol-actions [data-view]').forEach(b => b.addEventListener('click', () => {
+  const k = b.dataset.view;
+  if (k === 'clip') state.symbolClipEnabled = !state.symbolClipEnabled;
+  else state.symbolView[k] = !state.symbolView[k];
+  syncSymbolViewUI();
   renderSymbolCanvasOnly();
-  renderCellPropertiesPanel();
-});
+  if (k === 'clip') renderCellPropertiesPanel();
+}));
+syncSymbolViewUI();
 
 ctrl('sel-symbol-fill').addEventListener('change', e => {
   ctrl('symbol-generate-block').style.display = e.target.value === 'generate' ? '' : 'none';
@@ -9814,7 +9841,7 @@ function runSealedSymbolLevel(first) {
   if (first.cells.length !== getSymbolGrid().cells.length) throw new Error(`The adopted Symbol has ${first.cells.length} cells but its grid has ${getSymbolGrid().cells.length}`);
   state.symbolCells = first.cells.map(c => withPlacementDefaults(JSON.parse(JSON.stringify(c))));
   state.symbolClipEnabled = first.clip !== false;
-  ctrl('chk-symbol-clip').checked = state.symbolClipEnabled;
+  syncSymbolViewUI();
   renderSymbol();
 }
 // The Symbol step as a sealed symbol level (null when there is no Symbol grid yet).

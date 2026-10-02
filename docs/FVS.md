@@ -176,6 +176,12 @@ its cells.
   a grid file exported from Loom; it keeps its own frame. (The former *More grids*
   block — saved Loom grids, ready-made Bento/Hexagonal, Square N×M, Triangle — was
   removed Oct 2, 2026.) The preview fits any proportion.
+- **View toggles (floatbar)** — four icon buttons in the Symbol step's floatbar (on =
+  the icon at full strength, as everywhere in the bar): **Show loaded grid** (the grid's own lines), **Clip to
+  cell** (content cut at the cell's edge — the one that is in the export and saved
+  with the Symbol), **Show cover crop** (what a Cover fit crops away) and **Show
+  column/row guides**. Only the guides start on; a new grid starts unclipped (it
+  started clipped until Oct 2, 2026 — saved Symbols keep what they were saved with).
 - **The first grid** — while the Symbol is empty and the pool holds Components, the
   middle of the page shows one **Generate** button (the design system's primary
   button). It runs the same thing as *Generate grid in canvas* (canvas, generator and

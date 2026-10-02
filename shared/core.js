@@ -1530,6 +1530,9 @@
     function go(bar, target) {
       const st = bars.get(bar);
       if (!st) return;
+      // Already on its way there: a second call for the same button (a toggle's aria-pressed flipping under the
+      // pointer wakes the observer) would measure from the stretched box and run the stretch again.
+      if (target && st.target === target && st.ind.dataset.phase === 'stretch') return;
       clearTimeout(st.timer);
       if (!target || !target.getClientRects().length) {
         st.target = null;
@@ -1562,7 +1565,7 @@
       ind.dataset.on = 'false';
       ind.dataset.phase = 'idle';
       bar.insertBefore(ind, bar.firstChild);
-      bars.set(bar, { ind, cur: null, target: null, timer: 0, hover: null });
+      bars.set(bar, { ind, cur: null, target: null, timer: 0, rest: 0, hover: null });
       go(bar, restTarget(bar));
       // toggles flipping, buttons hidden/enabled → re-rest the pill
       new MutationObserver(recs => {
@@ -1583,6 +1586,7 @@
       mount(bar);
       const st = bars.get(bar);
       if (btn.disabled) return;
+      clearTimeout(st.rest);
       st.hover = btn;
       go(bar, btn);
     }
@@ -1594,7 +1598,11 @@
       const to = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest(BTN);
       if (to && bar.contains(to)) return;       // moving to another button: pointerover handles it
       st.hover = null;
-      go(bar, restTarget(bar));
+      // Not at once: between two buttons the pointer crosses a gap or a separator, and going home from there
+      // sent the pill off toward the pressed toggle and back — a lurch on every pass. It goes home only if no
+      // other button has taken it by then.
+      clearTimeout(st.rest);
+      st.rest = setTimeout(() => { if (!st.hover) go(bar, restTarget(bar)); }, 120);
     }
     document.addEventListener('pointerover', e => { if (e.pointerType !== 'touch') point(e); });
     document.addEventListener('pointerout', e => { if (e.pointerType !== 'touch') leave(e); });

@@ -392,5 +392,6 @@
   "bridge:sealed": "true,true",
   "bridge:form": "adopted,true",
   "bridge:invalid": "264277c4",
-  "bridge:button": "figure,1,loomModel,true"
+  "bridge:button": "figure,1,loomModel,true",
+  "symbol:clip:default": "795af5e1"
 }

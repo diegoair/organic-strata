@@ -50,6 +50,13 @@ async function battery() {
     chg('sel-element-fillmode', 'fill'); setComponentGrid('square2x2');
   };
 
+  // The cases below were recorded with "Clip to cell" on, which was the default until the toggles moved to the
+  // floatbar (a new grid now starts unclipped). They still test the clipped drawing — the harder path — so the
+  // battery pins it: every grid it loads, directly or through the page's own code, comes back clipped. The
+  // default itself is the last case (symbol:clip:default), on the page's real loadSymbolGrid.
+  const loadSymbolGrid0 = loadSymbolGrid;
+  window.loadSymbolGrid = m => { loadSymbolGrid0(m); state.symbolClipEnabled = true; syncSymbolViewUI(); };
+
   // 1 — every Seed type at its defaults
   reset();
   // controls the battery itself edits later — start every run from the page defaults
@@ -1147,6 +1154,11 @@ async function battery() {
   // tidy the throw-away tiles the recipes wrote into the Component library
   const lib = LIBRARY.read(); Object.keys(lib).filter(k => k.startsWith('Tile · recipe-')).forEach(k => delete lib[k]); LIBRARY.write(lib);
   reset();
+  // the default of a new grid: unclipped, and the drawing carries no clip path
+  window.loadSymbolGrid = loadSymbolGrid0;
+  setTier('symbol'); loadSymbolGrid(squareLoomModel(2, 2));
+  put('symbol:clip:default', [state.symbolClipEnabled, /<clipPath/.test(buildSymbolSVG()), JSON.stringify(state.symbolView)].join(','));
+  setTier('component');
   return out;
 }
 
