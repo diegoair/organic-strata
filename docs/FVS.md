@@ -286,7 +286,9 @@ pasted, copied or saved. It replaces the current Element, palette and Symbol/Gri
 - **Levels of levels**: any number (up to three) of grid levels can follow the first; each
   grid's finished figure — rotation and mirror included — becomes the tile of the next
   (`levels: [symbol, grid, grid, …]`, an optional `transform` per grid level, the recipe's own
-  `transform` belongs to the last). A guard stops at 20 000 shapes.
+  `transform` belongs to the last). A guard stops at 40 000 shapes
+  (filled cells × tiles × mirror copies, multiplied through every Grid level): above that the
+  recipe is refused with the exact count instead of drawing.
 - **Hexagonal lattices** (`{type:'hexagon', rings:n}`): cells know their `ring` and `sector`;
   poses are multiples of 30° and `rotate: 'sector'` turns each cell by 60° × its sector
   (rosettes). Three presets.
