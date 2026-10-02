@@ -344,7 +344,7 @@
   #btn-layer-add:hover { color: var(--ink); background: var(--panel); }
   .fvs-layers:empty { display: none; }
   .fvs-layer { display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); border-radius: var(--radius-sm); cursor: default; }
-  .fvs-layer.active { background: var(--panel); }   /* selected: light grey */
+  .fvs-layer.active { background: var(--control-bg); }   /* selected: the ground of an editable control, as the dropdowns */
   .fvs-layer:hover, .fvs-layer.active:hover { background: var(--track-bg); }   /* hover: a darker grey */
   .fvs-layer.active .fvs-layer__name { font-weight: var(--w-medium); }
   .fvs-layer.active + .fvs-layer__place { border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
@@ -368,9 +368,12 @@
   .fvs-layer__swatch:disabled { opacity: 0.25; cursor: default; }
   .fvs-layer__del { opacity: 0; }
   .fvs-layer:hover .fvs-layer__del, .fvs-layer.active .fvs-layer__del, .fvs-layer__del:focus-visible { opacity: 1; }
-  .fvs-layer__place { display: flex; flex-direction: column; padding: 0 var(--space-2) var(--space-1) var(--space-6); background: var(--panel); border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+  .fvs-layer__place { display: flex; flex-direction: column; padding: 0 var(--space-2) var(--space-1) var(--space-6); background: var(--control-bg); border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
   .fvs-layer__place .ctrl-row { margin-bottom: 0; min-height: var(--space-7); gap: var(--space-2); }
-  .fvs-layer__place .ctrl-label { min-width: 0; width: auto; flex: 0 0 26px; }
+  /* the block already sits on --control-bg: its sliders' wells take the next step down, or they would vanish into it */
+  .fvs-layer__place input[type=range] { --control-bg: var(--track-bg); }
+  .fvs-layer__place .ctrl-label { min-width: 0; width: auto; flex: 0 0 calc(var(--space-7) * 2); }   /* wide enough for "Stroke W", so every slider of the card lines up */
+  .fvs-layer__place .check-row { margin: 0 0 var(--space-1); }
   .fvs-layer__place .ctrl-val { flex: 0 0 22px; }
   .fvs-ink-pop { position: fixed; z-index: 40; display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: 180px; padding: var(--space-3); background: var(--paper); border-radius: var(--radius-md); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15); }
   .fvs-ink-pop[hidden] { display: none; }
@@ -1171,6 +1174,10 @@
 
     <div class="panel-section">
       <h3>Appearance</h3>
+      <!-- What belongs to ONE layer (Style, Stroke, Width, Length). With a single shape it stays
+           here; once the Element has layers renderLayersUI moves this node into the active
+           layer's own card, under X / Y / Size / Rot (the node, so its listeners stay). -->
+      <div id="element-look-block">
       <div class="ctrl-row">
         <div class="ctrl-label">Style</div>
         <select class="panel-select" id="sel-element-fillmode" aria-label="Element style">
@@ -1196,6 +1203,8 @@
         <input type="range" id="rg-element-l" min="0.25" max="2" step="0.05" value="1">
         <span class="ctrl-val" id="v-element-l">1</span>
       </div>
+      </div>
+      <div class="sub-label" id="element-wide-label" style="display:none" title="Scale, Move and Fit act on the whole Element. One layer's own style, stretch, size and position are in its card under Layers.">Whole Element — all layers</div>
       <div class="ctrl-row">
         <div class="ctrl-label" title="Uniform size of the shape itself, before it is placed in any cell.">Scale</div>
         <input type="range" id="rg-element-scale" min="0.1" max="5" step="0.01" value="1">
@@ -5591,6 +5600,9 @@ function renderLayersUI() {
   place.style.display = L ? '' : 'none';
   ctrl('layers-section').appendChild(place);   // park it before the list is rebuilt
   ctrl('layer-inks-row').style.display = L ? '' : 'none';   // the colour-variants toggle only means something for a stack
+  ctrl('element-wide-label').style.display = L ? '' : 'none';   // Appearance Scale / Move are Element-wide: say so once there are layers
+  // the per-layer look lives in the layer's card; with a single shape it is back in Appearance
+  if (L) place.appendChild(ctrl('element-look-block')); else ctrl('element-wide-label').before(ctrl('element-look-block'));
   if (ctrl('sel-rule').value === 'exhaustive') syncExhaustiveHint();
   ctrl('layers-hint').textContent = L ? L.items.length + ' · top first' : 'single shape';
   ctrl('seed-layer-hint').textContent = L ? 'editing ' + layerName(L.items[L.active]) : '';

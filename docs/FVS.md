@@ -69,9 +69,11 @@ Grid step without saving it first.
   skipped everywhere, exports and colour variants included) · **role icon** — click cycles
   Filled → Subtraction mask → Mask (§6a) · **colour dot** — opens the palette: *follow cell
   colour* or an ink (off for mask layers) · **bin** on hover. The active row opens **X / Y /
-  Size / Rot** (the layer's own placement) right under it. Each layer also has its own
-  **Style, Stroke W, Rounded caps, Width and Length**: with layers, those Appearance controls
-  edit the active layer only. Appearance **Scale and Move** still move the whole Element.
+  Size / Rot** (the layer's own placement) right under it, followed by the layer's own
+  **Style, Stroke W, Rounded caps, Width and Length** — with layers these controls sit in the
+  layer's card, not in Appearance. Appearance then keeps only what acts on the **whole
+  Element** (Scale, Move, Fit), under a "Whole Element — all layers" label. With a single
+  shape everything is in Appearance, as before.
 - **Appearance** — Style **Fill / Stroke**, Width / Length, **Scale, Move X/Y**
   and **⤢ Fit to canvas** (one-shot). **Inner seed** adds nested copies
   (Count, Ratio, Anchor).
