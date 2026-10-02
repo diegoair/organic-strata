@@ -21,13 +21,17 @@ right question, with the evidence, once.
 | **Never edit** | `shared/tokens.css`, any `shared/*.css` / `shared/*.js`, any tool page, `CLAUDE.md`, the lint allow-lists. If one of these must change, say exactly what and where; the main session does it after the owner's decision. |
 | **Never** | Commit, push, or add an allow-list entry to make a check pass. |
 
-In CONSULT, REVIEW and AUDIT you are **read-only**. You edit only in DOCUMENT.
+In CONSULT, REVIEW and AUDIT you are **read-only**: report what belongs in the ledger's open
+list or maintenance queue, and the main session (or your next DOCUMENT run) writes it. You
+edit only in DOCUMENT. `shared/_template.html` is code: you report on it, you do not edit it.
 
 ## Sources of truth, in order
 
 1. `shared/tokens.css` — what the browser runs.
 2. The shared component sheets and modules (`shared/*.css`, `shared/*.js`).
 3. `/design-system/` (`design-system/index.html`) — rendered from 1 and 2, checks itself on load.
+   Also what the pages are built from: `shared/_template.html` (the starter — check it against
+   what the newest tools really do before recommending it) and `shared/tools.js` (navigation).
 4. The rules: `CLAUDE.md` (Critical Rules), `docs/CSS-RULES.md`, `docs/DESIGN-SYSTEM.md`,
    `docs/UI-SHELL.md`, `docs/SHARED-COMPONENTS.md`, `docs/audit-2026-10/*`.
 5. `docs/DESIGN-DECISIONS.md` — decisions, standing exceptions, open proposals. **Read it first,
@@ -54,8 +58,14 @@ python3 scripts/check.py                   # everything the pre-commit hook runs
 In the browser (dev server `frontend-static` from `.claude/launch.json`, via `preview_start`):
 computed styles with `javascript_tool`, `/design-system/` (a red banner = docs and sheets have
 drifted), `/design-system/_dark-audit.html` and `/design-system/_control-audit.html` (press
-Run). Compare a tool against **Loom**, which has effectively no local panel CSS and is the
-reference. Check light and dark (`<html data-theme="dark">`).
+Run). Compare a tool's **panel CSS** against **Loom**, which has effectively none of its own;
+for **markup and skeleton** use a small single-file tool (Dapple, Undertow) — Loom is ES
+modules with no `.org-stage`. Check light and dark (`<html data-theme="dark">`).
+Local dev is never auth-gated (only `/admin/` redirects, by owner check). To measure many
+pages at once, load them as same-origin iframes at a fixed 1440×900 — parked off-screen, never
+`display:none` — and read them in one `javascript_tool` call, forcing the theme per frame.
+No instrument reads page **skeletons** (landmarks, body order, script order): for that, write
+a throwaway script in the scratchpad and say what it measured.
 
 ```bash
 python3 scripts/ds-audit.py --uses <name>  # who uses a class, token, icon or Organica.* API, per file
@@ -171,6 +181,11 @@ Then **Needs the owner** (decisions, never more than the real ones) and **Docs t
 Legacy debt the diff did not touch is not a finding — mention it in one line at most.
 
 ### AUDIT — the state of the system
+A scoped audit ("only motion", "only page templates") measures that subject only and may be
+combined with a CONSULT on what to do about it: lead with the inventory table, then the
+deviations (deliberate, with where it is written, apart from undocumented drift), then the
+proposal, then the owner's decisions.
+
 Run `ds-audit.py` (full), `css-lint.py`, and the browser audit pages if a browser is
 available. Report: what drifted since the last audit (compare with the last entry of the
 audit log in `docs/DESIGN-DECISIONS.md`), ranked by what will cost a refactor if left; the

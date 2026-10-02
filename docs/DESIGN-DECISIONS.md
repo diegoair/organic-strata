@@ -14,10 +14,15 @@
 
 Each entry is a question that can be answered in a word. Newest first.
 
-*Diego, Oct 2, 2026: O-1 … O-5 noted, to be decided later — do not act on the recommendations until he answers.*
+*Diego, Oct 2, 2026: O-1 … O-5 noted, to be decided later — do not act on the recommendations until he answers. O-6 … O-10 (templates) asked the same day.*
 
 | # | Opened | Question | Options · recommendation | Evidence |
 |---|---|---|---|---|
+| O-6 | 2026-10-02 | **Page templates: three (Tool · Page · Auth card), with the own-surface tools (Apostate, FVS, Rhizome, Genesis) as documented variants of Tool, not a fourth?** | **Yes** (recommended — the four share no skeleton with each other and measure the same as Tool: panel 248 at x=1192, floatbar 16px from the bottom) · or a fourth "own surface" template | Template audit, 33 pages: Tool 22 · own-surface 4 · Page 5 (privacy, terms, admin, gallery, hub) · Auth card 1 · the design-system layout as a one-off |
+| O-7 | 2026-10-02 | **Promote one shared page column (a class + a width modifier) and migrate `.doc` / `.wrap` / the gallery's `main`?** | **Yes** (recommended — four local copies, four different body rules, and two of them cannot scroll) · or fix locally and document as-is | `privacy/index.html:11`, `terms/index.html:11` link `shell.css` → `body { height:100vh; overflow:hidden }`; `admin/index.html:13` overrides it by hand |
+| O-8 | 2026-10-02 | **Membrane / Vortex panel is `--panel` grey; the other 23 tools are paper white. Fix or standing exception?** | **Fix** (recommended — 2 pages against 23; also a stale `var(--header-h, 40px)` fallback) · or exception | local `#panel` / `#app` rules in `membrane/index.html`, `vortex/index.html` |
+| O-9 | 2026-10-02 | **Mycel / TuneSutra `#stage-wrap` is a local copy of the canvas region. Move to `.org-canvas-wrap` or exception?** | **Fix, low priority** (recommended) · or exception. Apostate's 3-column grid is recorded as a standing exception either way | `mycel/index.html:25-29`, `tunesutra/index.html:26-30`, `apostate/index.html:30-33` |
+| O-10 | 2026-10-02 | **A skeleton lint per template (sheet order incl. `icons`, mobile gate first, `#app` = surface + `#panel`, floatbar a body child, no Export in the header, `data-theme-support`), blocking in `check.py`, and applied to `shared/_template.html` too?** | **Yes, after the template is refreshed** (recommended — nothing lints the template today and a tool copied from it fails css-lint) · or documentation only | `scripts/css-lint.py:21` excludes `shared/`; `ORDER` at `:198` has no `icons` |
 | O-1 | 2026-10-02 | **`--hit-min: 24px`** was added in the audit's long tail as a new token "to confirm". Keep it? | **Keep** (recommended — it is used by Loom, Rhizome, the glyph editor and Mycel, and has a `/design-system/#hit-areas` entry) · or replace with `--space-7` (same 24px, but a spacing step, not a role) | `shared/tokens.css:357`; `docs/DESIGN-SYSTEM.md` never names it |
 | O-2 | 2026-10-02 | **`shared/tokens.json` calls itself the single source of truth and is stale.** What is it? | **A mirror of `tokens.css` for Figma** (recommended — the live reference already says `tokens.css` is first; then bring the JSON in line once and let `ds-audit.py` keep it there) · or the real source, and `tokens.css` is regenerated from it (a build step the project does not have) | `ds-audit.py`: says Manrope / `weight.light 300` / `size.display`; `lineHeight.tight` 1.2 vs 1.15; 10 scale tokens and 8 tool accents missing; 4 accents differ from what the pages run |
 | O-3 | 2026-10-02 | **Four tool accents differ between the docs and the pages** (Halide and Spore both run `#5a7a96`; Pollen `#c8a83a`; Genesis `#6a9c2e`). Which side is right? | **The pages** (recommended — they are what users see; then the doc table and the JSON follow) · or the doc values, and the pages change. Separately: Halide and Spore share one accent — intended? | `docs/DESIGN-SYSTEM.md` §5 lists `#7a9cb8`, `#a0c8f0`, `#e8c84a`, `#c8f060` |
@@ -61,8 +66,8 @@ executable half of this list — an exception lives there **and** here, or it is
 
 ## 4. Maintenance queue
 
-Drift that needs no decision — only doing. The agent adds to it in REVIEW / AUDIT / CONSULT and
-strikes an item in DOCUMENT.
+Drift that needs no decision — only doing. The agent reports items in REVIEW / AUDIT / CONSULT (read-only modes — the main session
+writes them here) and strikes them in DOCUMENT.
 
 | Found | What | Where |
 |---|---|---|
@@ -71,6 +76,11 @@ strikes an item in DOCUMENT.
 | 2026-10-02 | The floatbar example in the live reference uses inline SVGs with stroke attributes and types "Export ▾" as a glyph — it predates the icon registry, so it cannot be copied from. Its "Used in" list omits Mote, Dapple, Undertow, Murmur, Trellis. | `design-system/index.html` `#floatbar` |
 | 2026-10-02 | `#behaviours` says the thumbnail picker has no Esc; it has. | `design-system/index.html` `#behaviours`, `shared/select-picker.js` |
 | 2026-10-02 | `.org-out`, `.org-panel`, `.org-theme` exist in the shared sheets with no mention in the live reference. | `ds-audit.py` |
+| 2026-10-02 | **`/privacy/` and `/terms/` cannot scroll** — they link `shell.css`, which fixes the body at 100vh with `overflow: hidden`; content is 2773px / 1691px. Measured in the browser: no scrolling element at all. Public legal pages. | `privacy/index.html:11`, `terms/index.html:11` |
+| 2026-10-02 | `shared/_template.html` is stale: no `data-theme-support`, no `icons.css` / `icons.js` / `select-picker.js`, no `mobile-gate.css` and no `.mobile-gate` div (a copy fails css-lint), Open / Export / Figma in the header (24 of 26 tools have Export in the floatbar), links `floatbar.css` with no `.org-floatbar`, a native preset `<select>`. | `shared/_template.html:2`, `:14-19`, `:55-85`, `:105`, `:153-160` |
+| 2026-10-02 | `docs/UI-SHELL.md` disagrees with the measure: §1 draws a 40px topbar ("Last updated July 25"), §6 steps 2 and 4 still say `.logo` and a nav link in `index.html` (navigation is `shared/tools.js`), `shell.css` linkers given as 19 / 17 / 14 in three places (measured: 22 tools + 4 pages). | `docs/UI-SHELL.md:41`, `:74`, §6, §7 |
+| 2026-10-02 | Live reference "Used in" lists are typed and short: `#shell` lists 13 (22 measured), `#panel-shell` 13 (25 measured); `#file-architecture` says "Eight" files, has 9 rows, `shared/` has 11 sheets (`icons.css`, `prose.css` have no row). | `design-system/index.html` |
+| 2026-10-02 | Small skeleton drift: Spore has two `id` attributes on one element; Camo Turing types `#panel { width: 248px }` instead of `--panel-w` and links `/genesis/animations.css`; Living Path loads opentype.js from a CDN (Apostate uses the vendored copy); Colornet has two header action buttons; Apostate's `.mobile-gate` is the last body child; `CLAUDE.md` names `shared/canvas-preset-grid.css`, which does not exist. | `spore/index.html:200`, others in the template audit |
 | 2026-10-02 | A stacked "choice list with a current item" inside a popover now has two instances (Rhizome's add-node menu, Mote's camera list when built). Propose promotion at the third (`docs/CSS-RULES.md` (d)). | `rhizome/index.html` `#add-node-menu .org-formats` |
 
 ## 5. Audit log
@@ -79,4 +89,5 @@ One line per full audit (`python3 scripts/ds-audit.py`), so the next one can say
 
 | Date | Tokens | Undocumented | Unused | tokens.json gone / differ / missing | Accents not in doc | Raw values — strict | to judge | Note |
 |---|---|---|---|---|---|---|---|---|
+| 2026-10-02 | — | — | — | — | — | — | — | **Scoped audit: page templates.** 33 production pages measured (links, scripts, body landmarks; geometry at 1440×900 in light and dark). Three templates + 4 own-surface variants + 1 one-off; 9 of 22 Tool pages deviate from the canonical skeleton; the starter template is stale. Proposal: a "Templates" group in the live reference (`#templates`, `#template-tool`, `#template-page`, existing `#sign-in`), a generated `design-system/templates.json`, a skeleton lint. Waits on O-6 … O-10. |
 | 2026-10-02 | 143 | 1 | 4 | 3 / 6 / 10 (+8 accents) | 10 | 88 | 77 | First run. Strict debt is concentrated: Genesis 27 (known), design-system page 16, home page 13 (keyframe `ms`), FVS 6 (motion). `docs/DESIGN-SYSTEM.md` §1 still describes one typeface and says "Last updated: August 26". |
