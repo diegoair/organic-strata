@@ -694,6 +694,34 @@ async function battery() {
     put('play:neighbours:det', (JSON.stringify(n1) === JSON.stringify(n2)) + ',' + (JSON.stringify(n1) !== JSON.stringify(n3)));
     let bad = 0, differ = 0; n1.forEach(c => { try { validateFigureRecipe(c.recipe); runFigureRecipe(JSON.parse(JSON.stringify(c.recipe)), { keepTier: true }); } catch (e) { bad++; } if (JSON.stringify(c.recipe) !== JSON.stringify(base)) differ++; });
     put('play:neighbours:valid', [n1.length >= 6 && n1.length <= 9, bad, differ === n1.length].join(','));
+    // colour moves: a turned hue and a colourway stay readable on the paper (3:1), a colourway keeps the
+    // number of inks, the colour rule needs two inks; the checks report contrast and distinct inks
+    {
+      const C = Organica.color, mut = n => FIGURE_MUTATIONS.find(m => m.name === n);
+      const readable = d => d.element.colors.every(h => C.contrast(h, d.element.paper || '#ffffff') >= CW_MIN_CONTRAST);
+      let hueOK = true, cwOK = true, changed = 0;
+      for (let sd = 1; sd <= 8; sd++) {
+        const h = figureMutateOnce(base, mut('Other hue'), mulberry32(sd)), w = figureMutateOnce(base, mut('Other colourway'), mulberry32(sd));
+        if (h) { changed++; if (!readable(h) || h.element.colors.length !== base.element.colors.length) hueOK = false; }
+        if (w) { changed++; if (!readable(w) || w.element.colors.length !== base.element.colors.length) cwOK = false; }
+      }
+      const two = JSON.parse(JSON.stringify(base)); two.element.colors = ['#e8321e', '#1e5be8'];
+      const ruled = figureMutateOnce(two, mut('Other colour rule'), mulberry32(3));
+      const grey = JSON.parse(JSON.stringify(base)); grey.element.colors = ['#000000'];
+      const hued = figureMutateOnce(grey, mut('Other hue'), mulberry32(2));
+      put('play:colour', [hueOK, cwOK, changed > 8, figureMutateOnce(base, mut('Other colour rule'), mulberry32(3)) === null, !!ruled && ruled.element.colorRule.mode !== 'index' && ruled.element.colors.length === 2, !!hued && C.hexToOklch(hued.element.colors[0]).c > 0.05, typeof FG_INKS === 'undefined'].join(','));
+      const svgB = runFigureRecipe(JSON.parse(JSON.stringify(base)), { keepTier: true });
+      const rowsB = figureChecks(base, svgB).filter(r => /Inks/.test(r.label));
+      const pale = JSON.parse(JSON.stringify(two)); pale.element.colors = ['#fff3a0', '#fff0a8'];
+      const rowsP = figureChecks(pale, runFigureRecipe(JSON.parse(JSON.stringify(pale)), { keepTier: true })).filter(r => /Inks/.test(r.label));
+      put('fig:checks:colour', [rowsB.length, rowsB.every(r => r.ok), rowsP.length, rowsP.map(r => r.ok).join('/')].join(','));
+      // the form keeps the recipe's other inks and its colour rule
+      const three = JSON.parse(JSON.stringify(base)); three.element.colors = ['#e8321e', '#1e5be8', '#0a9a3e']; three.element.colorRule = { mode: 'rows', offset: 1 };
+      applyFigureRecipe(three, { noHistory: true });
+      const back = figureRecipeFromForm();
+      put('fig:form:inks', [back.element.colors.join(' '), back.element.colorRule && back.element.colorRule.mode].join(','));
+      applyFigureRecipe(JSON.parse(JSON.stringify(base)), { noHistory: true });
+    }
     const allLocked = { element: true, symbol: true, rules: true, grid: true, transform: true };
     put('play:shuffle:alllocked', figureShuffle(base, allLocked, 3) === null);
     const onlyTransform = { element: true, symbol: true, rules: true, grid: true };

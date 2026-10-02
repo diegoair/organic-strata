@@ -9799,7 +9799,10 @@ function isFormRule(r) {
 }
 function figureRecipeFromForm() {
   const v = id => ctrl(id).value, lat = v('fg-lattice');
-  const el = { type: v('fg-seed'), style: v('fg-style'), colors: [v('fg-ink')], paper: v('fg-paper') };
+  // the form shows one ink: the recipe's other inks and its colour rule are kept
+  const curEl = (state.figureRecipe && state.figureRecipe.element) || {};
+  const el = { type: v('fg-seed'), style: v('fg-style'), colors: [v('fg-ink'), ...(curEl.colors || []).slice(1)], paper: v('fg-paper') };
+  if (curEl.colorRule) el.colorRule = { ...curEl.colorRule };
   if (el.type === 'arc') el.params = { 'rg-thickness': 100 };
   let first;
   const cur0 = state.figureRecipe && state.figureRecipe.levels[0];
@@ -10177,7 +10180,12 @@ function renderFigureToolbar() {
 // through validateFigureRecipe, so every result is a valid recipe.
 const FG_LOCK_GROUPS = [['element', 'Element'], ['symbol', 'Symbol'], ['rules', 'Rules'], ['grid', 'Grid'], ['transform', 'Mirror / Rotate']];
 const FG_SEED_POOL = ['triangle', 'arc', 'star', 'polygon', 'blob', 'chevron', 'cross', 'lens', 'roundedrect', 'drop', 'circle', 'wedge'];
-const FG_INKS = ['#f0301f', '#0a9a3e', '#1e5be8', '#e8321e', '#111111', '#c2551b', '#7a3ec9'];
+// Colour moves come from colour theory, not a fixed list: a hue turned by a harmony
+// angle (OKLCH, lightness and chroma kept), a colourway of the recipe's own palette
+// (COLOUR_SCHEMES — its shade scales), another colour rule. Each result is solved
+// against the paper (cwSolve), so an ink never ends up unreadable.
+const FG_HUE_TURNS = [30, -30, 60, -60, 120, -120, 180];   // analogous · split · triadic · complementary
+const fgBaseColours = d => ({ colors: (d.element.colors && d.element.colors.length ? d.element.colors : ['#000000']).map(hexKey), paper: d.element.paper ? hexKey(d.element.paper) : '#ffffff', colorRule: { ...DEFAULT_COLOR_RULE, ...(d.element.colorRule || {}) } });
 const fgPick = (a, rng) => a[Math.floor(rng() * a.length)];
 function fgLastGridTransform(d) {
   const g = d.levels.length - 1; if (g < 1) return null;
@@ -10186,7 +10194,22 @@ function fgLastGridTransform(d) {
 function fgSymbol(d) { return d.levels[0].kind === 'symbol' && !isSealedSymbol(d.levels[0]) ? d.levels[0] : null; }
 const FIGURE_MUTATIONS = [
   { group: 'element', name: 'Other Seed', fn: (d, rng) => { const cur = d.element.type, t = fgPick(FG_SEED_POOL.filter(x => x !== cur), rng); d.element.type = t; if (t === 'arc') d.element.params = { 'rg-thickness': 100 }; else delete d.element.params; delete d.element.strokeW; if (d.element.style === 'stroke') d.element.strokeW = 4; return true; } },
-  { group: 'element', name: 'Other ink', fn: (d, rng) => { const cur = (d.element.colors || [])[0]; d.element.colors = [fgPick(FG_INKS.filter(x => x !== cur), rng)]; return true; } },
+  { group: 'element', name: 'Other hue', fn: (d, rng) => {
+      const C = Organica.color, b = fgBaseColours(d), turn = fgPick(FG_HUE_TURNS, rng), grey = Math.round(rng() * 12) * 30;
+      const turned = b.colors.map(h => { const o = C.hexToOklch(h); return o.c < 0.03 ? C.oklchToHex(Math.min(0.7, Math.max(0.5, o.l)), 0.16, grey) : C.oklchToHex(o.l, o.c, (o.h + turn + 360) % 360); });   // a grey has no hue to turn: it is given one
+      const solved = cwSolve(turned, b.paper);
+      if (!solved) return false;
+      d.element.colors = solved; return true; } },
+  { group: 'element', name: 'Other colourway', fn: (d, rng) => {
+      const b = fgBaseColours(d), all = buildColourways(b, null, 0).slice(1);
+      const same = all.filter(cw => cw.colors.length === b.colors.length), pool = same.length ? same : all;   // keep the number of inks when a scheme allows it
+      if (!pool.length) return false;
+      const cw = fgPick(pool, rng);
+      d.element.colors = cw.colors.slice(); d.element.paper = cw.paper; return true; } },
+  { group: 'element', name: 'Other colour rule', fn: (d, rng) => {
+      const b = fgBaseColours(d);
+      if (b.colors.length < 2) return false;
+      d.element.colorRule = { mode: fgPick(Object.keys(COLOR_RULES).filter(m => m !== b.colorRule.mode), rng), offset: b.colorRule.offset || 0 }; return true; } },
   { group: 'element', name: 'Fill ↔ Stroke', fn: d => { if (d.element.style === 'stroke') { d.element.style = 'fill'; delete d.element.strokeW; } else { d.element.style = 'stroke'; d.element.strokeW = 4; } return true; } },
   { group: 'symbol', name: 'Bigger / smaller layout', fn: (d, rng) => { const s2 = fgSymbol(d); if (!s2) return false; const l = s2.lattice, key = l.type === 'triangle' ? 'rows' : l.type === 'hexagon' ? 'rings' : 'cols', lo = l.type === 'hexagon' ? 1 : 2, hi = l.type === 'hexagon' ? 3 : l.type === 'triangle' ? 5 : 4; const v = l[key] + (rng() < 0.5 ? -1 : 1); if (v < lo || v > hi) return false; l[key] = v; if (l.type === 'square') l.rows = v; return true; } },
   { group: 'rules', name: 'Toggle a class', fn: (d, rng) => { const s2 = fgSymbol(d); if (!s2) return false; s2.rules = s2.rules || []; const l = s2.lattice;
@@ -10425,7 +10448,7 @@ function renderFigureStepPanel() {
       buildSeedPreviewSVG({ type: k, ...SYMBOL_SEED_DEFAULTS }, 0, false, false, 44).replace(/<rect [^>]*\/>/, ''))));
     row('Style', sel([['fill', 'Fill'], ['stroke', 'Stroke']], def.element.style || 'fill', v => figureMutate(d => { d.element.style = v; }), 'Style'));
     const ink = document.createElement('input'); ink.type = 'color'; ink.value = hexKey((def.element.colors || ['#000000'])[0]); ink.className = 'fg-color';
-    ink.addEventListener('change', () => figureMutate(d => { d.element.colors = [ink.value]; })); row('Ink', ink);
+    ink.addEventListener('change', () => figureMutate(d => { d.element.colors = [ink.value, ...(d.element.colors || []).slice(1)]; })); row('Ink', ink);
     const pap = document.createElement('input'); pap.type = 'color'; pap.value = hexKey(def.element.paper || '#ffffff'); pap.className = 'fg-color';
     pap.addEventListener('change', () => figureMutate(d => { d.element.paper = pap.value; })); row('Paper', pap);
     (FG_SEED_MAIN[def.element.type] || []).forEach(([pid, label]) => {
@@ -10527,6 +10550,10 @@ function figureChecks(def, svg) {
   const expected = stats.reduce((acc, st) => acc * st.tiles * st.copies, slots);
   add(paths === expected, 'Shapes drawn = filled slots × tiles × mirror copies (per level)', `${paths} of ${expected}`);
   add(svg.length < 400000, 'File size is reasonable', Math.round(svg.length / 1024) + ' KB');
+  // colour, read from what was drawn with (the live palette after the run)
+  const cm = cwMetrics({ colors: state.colors.map(hexKey), paper: state.paperColor });
+  add(cm.minContrast >= CW_MIN_CONTRAST, `Inks read on the paper (${CW_MIN_CONTRAST}:1 or more)`, cm.minContrast.toFixed(1) + ':1');
+  if (cm.minDeltaE != null) add(cm.minDeltaE >= Organica.color.DISTINCT_MIN, 'Inks are distinct', 'ΔE ' + Math.round(cm.minDeltaE));
   return out;
 }
 function renderFigureReport(rows, extra) {
