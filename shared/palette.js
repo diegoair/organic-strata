@@ -322,7 +322,7 @@
   // name and its colours; a colour is a button. With onPickAll, a palette that
   // fits (≤ max colours) can also be taken whole by clicking its name.
   let menu = null, menuFor = null, pulled = false;
-  const LIB_ICON = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><rect x="2" y="2" width="5" height="5" fill="currentColor"/><rect x="9" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="2" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="9" width="5" height="5" fill="currentColor"/></svg>';
+  const LIB_ICON = '<svg class="ico ico--sm" data-icon="grid" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg>';
   function libraryButton(cls) {
     const b = document.createElement('button');
     b.type = 'button';

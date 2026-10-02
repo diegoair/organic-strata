@@ -10,6 +10,7 @@
      before this tool's own inline <script>, so Organica.* exists at parse time. -->
 <link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
@@ -52,7 +53,7 @@
   #zoom-hud { position: fixed; left: var(--space-5); bottom: var(--space-5); z-index: 30; background: var(--ink); color: var(--paper); font-family: var(--font); font-size: var(--fs-micro); letter-spacing: 0.1em; padding: var(--space-2) var(--space-4); display: none; align-items: center; gap: var(--space-3); user-select: none; }
   #zoom-hud.visible { display: flex; }
   #zoom-hud .zoom-reset { all: unset; cursor: pointer; opacity: 0.6; font: inherit; letter-spacing: inherit; }
-  #zoom-hud .zoom-reset:hover { opacity: 1; }
+  @media (hover: hover) { #zoom-hud .zoom-reset:hover { opacity: 1; } }
   #gallery-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: var(--space-3); color: var(--mid); font-size: var(--fs-small); text-align: center; }
   #gallery { display: none; flex-wrap: wrap; justify-content: center; gap: var(--space-5); align-content: flex-start; max-width: 100%; }
   #gallery.visible { display: flex; }
@@ -70,7 +71,7 @@
     width: var(--thumb-w, 96px); height: var(--thumb-h, 96px); flex-shrink: 0;
     border: 1px solid var(--border);
     cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center;
-    transition: border-color 0.12s, box-shadow 0.12s;
+    transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
   }
   /* Selection (thin 1px + ring) and "saved to Library" (thick 3px, below)
      are two distinct, unrelated states and must stay visually distinct —
@@ -102,10 +103,10 @@
     border-radius: 50%; border: 1px solid var(--border); background: var(--paper); color: var(--ink);
     display: flex; align-items: center; justify-content: center;
     font-size: var(--fs-small); line-height: 1; padding: 0; cursor: pointer;
-    opacity: 0; transition: opacity 0.12s, border-color 0.12s, background 0.12s, color 0.12s;
+    opacity: 0; transition: opacity var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
   }
   .fvs-thumb-wrap:hover .fvs-thumb-quicksave, .fvs-thumb-quicksave:focus-visible { opacity: 1; }
-  .fvs-thumb-quicksave:hover { border-color: var(--tool); background: var(--tool); color: var(--paper); }
+  @media (hover: hover) { .fvs-thumb-quicksave:hover { border-color: var(--ink); background: var(--ink); color: var(--paper); } }
   .fvs-thumb-quicksave.saved { opacity: 1; border-color: var(--tool); background: var(--tool); color: var(--paper); }
   /* Hovering an already-saved ✓ previews the delete it's about to do. */
   .fvs-thumb-quicksave.saved.delete-hover { border-color: var(--danger); background: var(--danger); color: var(--paper); }
@@ -117,14 +118,14 @@
     border-radius: 50%; border: 1px solid var(--border); background: var(--paper); color: var(--ink);
     display: flex; align-items: center; justify-content: center;
     padding: 0; cursor: pointer;
-    opacity: 0; transition: opacity 0.12s, border-color 0.12s, background 0.12s, color 0.12s;
+    opacity: 0; transition: opacity var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
   }
   .fvs-thumb-wrap:hover .fvs-thumb-edit, .fvs-thumb-edit:focus-visible { opacity: 1; }
   .fvs-thumb-edit:hover { border-color: var(--ink); background: var(--ink); color: var(--paper); }
   .fvs-thumb-caption, .fvs-library-caption { font-size: var(--fs-micro); color: var(--mid); line-height: var(--lh-snug); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fvs-library-caption { display: block; width: 76px; margin-top: var(--space-1); }
   .fvs-library-rename { width: 64px; padding: 0; border: 0; background: none; text-align: left; cursor: text; font-family: var(--font); }
-  .fvs-library-rename:hover { color: var(--ink); }
+  @media (hover: hover) { .fvs-library-rename:hover { color: var(--ink); } }
   .fvs-library-rename-input { width: 64px; margin-top: var(--space-1); }
 
   /* .icon-btn + .rmx-* chip CSS now in shared/palette.css.
@@ -160,7 +161,7 @@
      at each of the 4 render sites: renderLibrary, the two underlying-component
      pickers, the Choose-content overlay's Components tab). */
   .fvs-library-item { position: relative; width: 64px; height: 64px; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; padding: 0; background: none; }
-  .fvs-library-item:hover { border-color: var(--mid); }
+  @media (hover: hover) { .fvs-library-item:hover { border-color: var(--ink); } }
   .fvs-library-item svg { width: 100%; height: 100%; display: block; }
   .fvs-library-item .rmx-x { position: absolute; top: 0; right: 0; }
   .fvs-library-item.selected { border-color: var(--tool); box-shadow: 0 0 0 1px var(--tool); }
@@ -267,14 +268,14 @@
   .fvs-flyout__tool::before {
     content: ""; position: absolute; inset: 0; z-index: 0; border-radius: inherit;
     background: var(--tool); opacity: 0; scale: 0.72;
-    transition: opacity 140ms ease, scale 300ms cubic-bezier(0.3, 1.42, 0.4, 1);
+    transition: opacity 140ms ease, scale 300ms var(--ease-overshoot);
     pointer-events: none;
   }
   /* the mark rides over its own pad, and lifts a hair with it */
   .fvs-flyout__tool > span {
     position: relative; z-index: 1; width: var(--space-1); height: var(--space-1); border-radius: 50%;
     background: currentColor;
-    transition: scale 300ms cubic-bezier(0.3, 1.42, 0.4, 1);
+    transition: scale 300ms var(--ease-overshoot);
   }
   .fvs-flyout__tool[data-on="true"] { color: var(--paper); }
   .fvs-flyout__tool[data-on="true"]:hover { background: transparent; }
@@ -292,7 +293,7 @@
      class only lets it leave when the run starts. The arrival itself is
      runSymbolArrival() — an SVG filter per cell, written in the script.
      Once a grid exists the button never comes back. */
-  .fvs-gen-go { transition: opacity 220ms ease, border-color 0.15s, background 0.15s; }
+  .fvs-gen-go { transition: opacity 220ms ease, border-color var(--dur-fast), background var(--dur-fast); }
   .fvs-gen-go[data-loading="true"] { opacity: 0; pointer-events: none; }
   @media (prefers-reduced-motion: reduce) { .fvs-gen-go { transition-duration: 1ms; } }
 
@@ -340,7 +341,7 @@
   .fg-strip__bar { display: flex; gap: var(--space-2); }
   .fg-pipeline { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; justify-content: center; }
   .fg-card { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; font: inherit; font-size: var(--fs-small); color: var(--ink); position: relative; }
-  .fg-card:hover { border-color: var(--tool); }
+  @media (hover: hover) { .fg-card:hover { border-color: var(--ink); } }
   .fg-card[aria-selected="true"] { border-color: var(--tool); outline: 2px solid var(--tool); }
   .fg-card img { width: 64px; height: 64px; object-fit: contain; display: block; background: var(--paper); }
   .fg-card.dragover { border-style: dashed; border-color: var(--tool); }
@@ -361,14 +362,15 @@
   .fg-chip { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--panel); font-size: var(--fs-micro); }
   .fg-chip[data-off="true"] > .fg-chip__text { opacity: 0.45; text-decoration: line-through; }
   .fg-chip button { border: 0; background: none; cursor: pointer; color: var(--mid); font: inherit; padding: 0 var(--space-1); }
-  .fg-chip button:hover:not(:disabled) { color: var(--ink); }
+  @media (hover: hover) { .fg-chip button:hover:not(:disabled) { color: var(--ink); } }
   .fg-chip button:disabled { opacity: 0.3; cursor: default; }
   .fg-advanced > summary { cursor: pointer; padding: var(--space-3) var(--space-4); font-size: var(--fs-small); color: var(--mid); }
   .fg-adopted { margin-bottom: var(--space-3); border: 1px solid var(--border); background: var(--paper); }
   .fg-adopted img { display: block; width: 100%; height: auto; }
   .fg-thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: var(--space-2); margin-bottom: var(--space-3); }
   .fg-thumb { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-1); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font: inherit; color: var(--ink); }
-  .fg-thumb:hover, .fg-thumb[aria-pressed="true"] { border-color: var(--tool); }
+  @media (hover: hover) { .fg-thumb:hover { border-color: var(--ink); } }
+  .fg-thumb[aria-pressed="true"] { border-color: var(--tool); }
   .fg-thumb svg { width: 100%; aspect-ratio: 1; display: block; }
   .fg-thumb span { font-size: var(--fs-micro); color: var(--mid); text-align: center; }
   input.fg-color { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
@@ -401,7 +403,7 @@
   .fvs-layers-head { display: inline-flex; align-items: center; gap: var(--space-2); }
   .fvs-layers { display: flex; flex-direction: column; }
   #btn-layer-add { border: 0; color: var(--mid); border-radius: var(--radius-sm); }
-  #btn-layer-add:hover { color: var(--ink); background: var(--panel); }
+  @media (hover: hover) { #btn-layer-add:hover { color: var(--ink); background: var(--track-bg); } }
   .fvs-layers:empty { display: none; }
   .fvs-layer { display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); border-radius: var(--radius-sm); cursor: default; }
   .fvs-layer.active { background: var(--control-bg); }   /* selected: the ground of an editable control, as the dropdowns */
@@ -420,13 +422,14 @@
   .fvs-layer__icon svg { width: 100%; height: 100%; }
   .fvs-layer__name { font-size: var(--fs-small); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fvs-layer__btn { all: unset; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: var(--mid); cursor: pointer; border-radius: var(--radius-sm); flex-shrink: 0; }
-  .fvs-layer__btn:hover { color: var(--ink); }
+  @media (hover: hover) { .fvs-layer__btn:hover { color: var(--ink); } }
   .fvs-layer__btn:focus-visible, .fvs-layer__swatch:focus-visible { outline: 2px solid var(--ink); }
   .fvs-layer__btn svg { width: 13px; height: 13px; }
   .fvs-layer__swatch { all: unset; width: 14px; height: 14px; margin: 0 var(--space-1); border-radius: 50%; background: var(--sw); cursor: pointer; flex-shrink: 0; }
   .fvs-layer__swatch.is-cell { background: linear-gradient(135deg, var(--sw) 50%, var(--paper) 50%); }
   .fvs-layer__swatch:disabled { opacity: 0.25; cursor: default; }
   .fvs-layer__del { opacity: 0; }
+  @media (hover: none) { .fvs-thumb-quicksave, .fvs-thumb-edit, .fvs-layer__del { opacity: 1; } }   /* touch has no hover to reveal them */
   .fvs-layer:hover .fvs-layer__del, .fvs-layer.active .fvs-layer__del, .fvs-layer__del:focus-visible { opacity: 1; }
   .fvs-layer__place { display: flex; flex-direction: column; padding: 0 var(--space-2) var(--space-1) var(--space-6); background: var(--control-bg); border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
   .fvs-layer__place .ctrl-row { margin-bottom: 0; min-height: var(--space-7); gap: var(--space-2); }
@@ -483,14 +486,14 @@
   <!-- Element-tier actions — hidden on the other tiers by setTier(). display:contents keeps the buttons direct flex items of the floatbar. -->
   <div id="fb-element-actions" class="fvs-fb-group">
     <button class="org-floatbar__btn" id="btn-reset-seed" aria-label="Reset seed shape">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M3 2.5v3h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="ico" data-icon="reset" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.65"/><path d="M3 2.3V6h3.7"/></svg>
     </button>
     <button class="org-floatbar__btn" id="btn-upload-seed" aria-label="Upload SVG">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 10.5V2.5M8 2.5 5 5.5M8 2.5l3 3M2.5 9.5v3a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="ico" data-icon="upload" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 9.2V2M5.3 4.7 8 2l2.7 2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
     </button>
     <div class="org-popover-wrap">
       <button class="org-floatbar__btn" id="btn-browse-creator" aria-label="Creator library">
-        <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+        <svg class="ico" data-icon="grid" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg>
       </button>
       <div class="org-popover" id="creator-library-popover" aria-label="Creator library">
         <div class="org-popover__title">Creator library</div>
@@ -503,7 +506,7 @@
   <!-- Component-tier action — undo the last Generate / Clear / Add / Tile. Shown only on that tier by setTier(). -->
   <div id="fb-component-actions" class="fvs-fb-group" style="display:none">
     <button class="org-floatbar__btn" id="btn-undo-components" aria-label="Undo (⌘Z)" disabled>
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5.5 3 2.5 6l3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 6h6.5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="ico" data-icon="undo" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3 2.5 6l3 3"/><path d="M3 6h6.5a3.5 3.5 0 0 1 0 7H6"/></svg>
     </button>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
   </div>
@@ -513,20 +516,20 @@
          Each icon is a wide cell and what a round content does in it: whole inside it, stretched to it,
          larger than it (cropped), or its own size whatever the cell (dashed cell). Line icons, like the rest of the bar. -->
     <button class="org-floatbar__btn" id="btn-symbol-fit-all-contain" data-fit-name="Contain" aria-pressed="false" aria-label="Contain · all cells">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.6" stroke="currentColor" stroke-width="1.3"/></svg>
+      <svg class="ico" data-icon="fvs-contain" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><circle cx="8" cy="8" r="2.6"/></svg>
     </button>
     <button class="org-floatbar__btn" id="btn-symbol-fit-all-fill" data-fit-name="Fill" aria-pressed="false" aria-label="Fill · all cells">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1" stroke="currentColor" stroke-width="1.3"/><ellipse cx="8" cy="8" rx="4.4" ry="2.6" stroke="currentColor" stroke-width="1.3"/></svg>
+      <svg class="ico" data-icon="fvs-fill" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><ellipse cx="8" cy="8" rx="4.4" ry="2.6"/></svg>
     </button>
     <button class="org-floatbar__btn" id="btn-symbol-fit-all-cover" data-fit-name="Cover" aria-pressed="false" aria-label="Cover · all cells">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M4.67 3.5A5.6 5.6 0 0 0 4.67 12.5M11.33 3.5A5.6 5.6 0 0 1 11.33 12.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <svg class="ico" data-icon="fvs-cover" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><path d="M4.67 3.5A5.6 5.6 0 0 0 4.67 12.5M11.33 3.5A5.6 5.6 0 0 1 11.33 12.5"/></svg>
     </button>
     <button class="org-floatbar__btn" id="btn-symbol-fit-all-fixed" data-fit-name="Fixed size" aria-pressed="false" aria-label="Fixed size · all cells">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="2 2.1"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/></svg>
+      <svg class="ico" data-icon="fvs-fixed" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1" stroke-dasharray="2 2.1"/><circle cx="8" cy="8" r="2"/></svg>
     </button>
     <div class="org-popover-wrap">
       <button class="org-floatbar__btn" id="btn-symbol-anchor" aria-label="Anchor · all cells">
-        <svg class="ico" id="ico-symbol-anchor" viewBox="0 0 16 16" fill="none" aria-hidden="true"></svg>
+        <svg class="ico" id="ico-symbol-anchor" data-icon-slot viewBox="0 0 16 16" fill="none" aria-hidden="true"></svg>
       </button>
       <!-- the flyout: nine positions, nothing else; picking one closes it (the button's face shows it) -->
       <div class="fvs-flyout" id="symbol-anchor-popover" aria-label="Anchor position"><span id="symbol-fitall-anchor-grid" style="display:contents"></span></div>
@@ -536,27 +539,27 @@
          cell and the thing it turns on: the grid's own lines, content cut at the cell's edge, the part a Cover
          crops away (dashed, past the cell), the column/row guides (dashed lines). Only the guides start on. -->
     <button class="org-floatbar__btn" id="btn-symbol-view-outline" data-view="outline" aria-pressed="false" aria-label="Show loaded grid">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M6.17 2.5v11M9.83 2.5v11M2.5 6.17h11M2.5 9.83h11" stroke="currentColor" stroke-width="1.3"/></svg>
+      <svg class="ico" data-icon="fvs-grid" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M6.17 2.5v11M9.83 2.5v11M2.5 6.17h11M2.5 9.83h11"/></svg>
     </button>
     <button class="org-floatbar__btn" id="btn-symbol-view-clip" data-view="clip" aria-pressed="false" aria-label="Clip to cell">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M6.5 13A6.5 6.5 0 0 1 13 6.5" stroke="currentColor" stroke-width="1.3"/></svg>
+      <svg class="ico" data-icon="fvs-clip" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1"/><path d="M6.5 13A6.5 6.5 0 0 1 13 6.5"/></svg>
     </button>
     <button class="org-floatbar__btn" id="btn-symbol-view-cover" data-view="cover" aria-pressed="false" aria-label="Show cover crop">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4" y="5" width="8" height="6" rx="1" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="2 2.05"/></svg>
+      <svg class="ico" data-icon="fvs-crop" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="5" width="8" height="6" rx="1"/><circle cx="8" cy="8" r="6.2" stroke-dasharray="2 2.05"/></svg>
     </button>
     <button class="org-floatbar__btn" id="btn-symbol-view-guides" data-view="guides" aria-pressed="true" aria-label="Show column/row guides">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 1.5v13M1.5 10h13" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="2 2.1"/></svg>
+      <svg class="ico" data-icon="fvs-guides" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1.5v13M1.5 10h13" stroke-dasharray="2 2.1"/></svg>
     </button>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
     <button class="org-floatbar__btn" id="btn-symbol-to-figure" aria-label="Build a Figure from this Symbol">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.8" y="4.5" width="6" height="6" stroke="currentColor" stroke-width="1.3"/><path d="M8.5 7.5h2.2M9.6 6.2l1.3 1.3-1.3 1.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 4.2l.7 1.5 1.6.2-1.2 1.1.3 1.6-1.4-.8-1.4.8.3-1.6-1.2-1.1 1.6-.2z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
+      <svg class="ico" data-icon="fvs-to-figure" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.8" y="4.5" width="6" height="6"/><path d="M8.5 7.5h2.2M9.6 6.2l1.3 1.3-1.3 1.3"/><path d="M13 4.2l.7 1.5 1.6.2-1.2 1.1.3 1.6-1.4-.8-1.4.8.3-1.6-1.2-1.1 1.6-.2z"/></svg>
     </button>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
   </div>
   <div class="org-popover-wrap">
     <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="ico" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
+      <svg class="ico chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
     </button>
     <div class="org-popover" id="export-popover" aria-label="Export options">
       <div class="org-popover__title">Format</div>
@@ -682,7 +685,7 @@
 
     <div class="tier-block active" data-tier="element">
     <div class="panel-section" id="layers-section">
-      <h3>Layers <span class="fvs-layers-head"><span class="hint" id="layers-hint">single shape</span><button type="button" class="icon-btn" id="btn-layer-add" aria-label="Add layer" title="Add a layer on top"><svg viewBox="0 0 16 16" width="11" height="11"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></span></h3>
+      <h3>Layers <span class="fvs-layers-head"><span class="hint" id="layers-hint">single shape</span><button type="button" class="icon-btn" id="btn-layer-add" aria-label="Add layer" title="Add a layer on top"><svg class="ico ico--sm" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button></span></h3>
       <div id="layers-list" class="fvs-layers" role="list" aria-label="Layers, top first"></div>
       <!-- Moved under the ACTIVE layer row by renderLayersUI (the node, so its listeners stay). -->
       <div id="layer-place-block" class="fvs-layer__place" style="display:none">
@@ -1513,7 +1516,7 @@
           <div class="ctrl-label">Seed</div>
           <input type="number" class="panel-select" id="num-seed" value="1" min="0" max="999999" step="1" style="width:70%">
           <button class="icon-btn" id="btn-seed-random" title="Random seed" aria-label="Random seed">
-            <svg viewBox="0 0 16 16" width="11" height="11"><path d="M13 8a5 5 0 1 1-1.6-3.65" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M13 2.3V6h-3.7" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg class="ico ico--sm" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>
           </button>
         </div>
       </div>
@@ -1625,7 +1628,7 @@
           <input type="color" id="cp-paper" value="#ffffff">
         </span>
         <input class="color-hex" id="hex-paper" value="#ffffff" maxlength="7">
-        <button type="button" class="icon-btn" id="btn-paper-clear" aria-pressed="false" aria-label="Transparent paper" title="Transparent paper — no background in any step or export (PNG keeps the alpha, SVG has no paper rectangle)"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M2 2h4v4H2zM10 2h4v4h-4zM6 6h4v4H6zM2 10h4v4H2zM10 10h4v4h-4z" fill="currentColor"/><rect x="2" y="2" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1"/></svg></button>
+        <button type="button" class="icon-btn" id="btn-paper-clear" aria-pressed="false" aria-label="Transparent paper" title="Transparent paper — no background in any step or export (PNG keeps the alpha, SVG has no paper rectangle)"><svg class="ico ico--sm" data-icon="fvs-transparent" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2h4v4H2zM10 2h4v4h-4zM6 6h4v4H6zM2 10h4v4H2zM10 10h4v4h-4z"/><rect x="2" y="2" width="12" height="12"/></svg></button>
       </div>
     </div>
 
@@ -1748,7 +1751,7 @@
           <div class="ctrl-label">Seed</div>
           <input type="number" class="panel-select" id="num-rule-seed" value="1" min="0" max="999999" step="1" style="width:70%">
           <button class="icon-btn" id="btn-rule-seed-random" title="Random seed" aria-label="Random seed">
-            <svg viewBox="0 0 16 16" width="11" height="11"><path d="M13 8a5 5 0 1 1-1.6-3.65" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M13 2.3V6h-3.7" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg class="ico ico--sm" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>
           </button>
         </div>
         <button class="mini-btn" id="btn-rule-choose-content" style="width:100%">Set content for all cells…</button>
@@ -1770,7 +1773,7 @@
           <div class="ctrl-label">Seed</div>
           <input type="number" class="panel-select" id="num-sug-seed" value="1" min="0" max="999999" step="1" aria-label="Suggestion seed">
           <button class="icon-btn" id="btn-sug-seed-random" title="Random seed" aria-label="Random suggestion seed">
-            <svg viewBox="0 0 16 16" width="11" height="11"><path d="M13 8a5 5 0 1 1-1.6-3.65" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M13 2.3V6h-3.7" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg class="ico ico--sm" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>
           </button>
         </div>
         <label class="check-row"><input type="checkbox" id="chk-sug-recolour"><span>Recolour cells (test)</span></label>
@@ -1794,7 +1797,7 @@
           <div class="ctrl-label">Seed</div>
           <input type="number" class="panel-select" id="num-symbol-seed" value="1" min="0" max="999999" step="1" style="width:70%">
           <button class="icon-btn" id="btn-symbol-seed-random" title="Random seed" aria-label="Random seed">
-            <svg viewBox="0 0 16 16" width="11" height="11"><path d="M13 8a5 5 0 1 1-1.6-3.65" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M13 2.3V6h-3.7" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg class="ico ico--sm" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>
           </button>
         </div>
         <button class="mini-btn" id="btn-symbol-regenerate" style="width:100%">Arrange</button>
@@ -1987,7 +1990,7 @@
       <span id="symbol-content-overlay__title" class="org-modal__title">Choose content</span>
       <label class="check-row" style="margin:0 auto 0 var(--space-3)"><input type="checkbox" id="chk-content-overlay-all"><span>Apply to all cells</span></label>
       <button class="icon-btn" id="btn-content-overlay-close" aria-label="Close">
-        <svg viewBox="0 0 16 16" width="11" height="11"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <svg class="ico ico--sm" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>
       </button>
     </div>
     <div class="ctrl-row"><div class="ctrl-label">New content fit</div>
@@ -2022,7 +2025,7 @@
     <div id="underlying-component-overlay__header" class="org-modal__header">
       <span class="org-modal__title">Pick underlying component</span>
       <button class="icon-btn" id="btn-underlying-overlay-close" aria-label="Close">
-        <svg viewBox="0 0 16 16" width="11" height="11"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <svg class="ico ico--sm" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>
       </button>
     </div>
     <div id="underlying-component-overlay-empty" class="fvs-library-empty">No saved Components yet — build one first.</div>
@@ -2032,6 +2035,7 @@
 
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/icons.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
 <script src="/shared/auth-badge.js"></script>
@@ -4430,7 +4434,7 @@ function renderGallery() {
     editBtn.className = 'fvs-thumb-edit';
     editBtn.setAttribute('aria-label', 'Edit component structure');
     editBtn.title = 'Edit component structure';
-    editBtn.innerHTML = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M11.3 2.3l2.4 2.4L5.2 13.2l-3.1.6.6-3.1 8.6-8.4z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    editBtn.innerHTML = '<svg class="ico ico--sm" data-icon="pencil" viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 2.5 13.5 5.5 6 13H3v-3l7.5-7.5Z"/></svg>';
     editBtn.addEventListener('click', e => { e.stopPropagation(); enterComponentEditMode(comp.id); });
     const cap = document.createElement('span');
     cap.className = 'fvs-thumb-caption';
@@ -5641,17 +5645,16 @@ function moveLayer(i, dir) {
   if (L.active === i) L.active = j; else if (L.active === j) L.active = i;
   layersChanged();
 }
-// Layer-row pictograms (16px, currentColor).
-const LI = (inner, extra) => `<svg viewBox="0 0 16 16" aria-hidden="true" ${extra || 'fill="currentColor"'}>${inner}</svg>`;
+// Layer-row pictograms — from the shared registry (Organica.icons).
 const LAYER_ICONS = {
-  grip: LI('<circle cx="6" cy="4" r="1.2"/><circle cx="10" cy="4" r="1.2"/><circle cx="6" cy="8" r="1.2"/><circle cx="10" cy="8" r="1.2"/><circle cx="6" cy="12" r="1.2"/><circle cx="10" cy="12" r="1.2"/>'),
-  eye: LI('<path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/>', 'fill="none" stroke="currentColor" stroke-width="1.3"'),
-  eyeOff: LI('<path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z"/><path d="M2.5 13.5l11-11"/>', 'fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"'),
-  trash: LI('<path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/>', 'fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"'),
+  grip: Organica.icons.get('grip'),
+  eye: Organica.icons.get('eye'),
+  eyeOff: Organica.icons.get('eye-off'),
+  trash: Organica.icons.get('trash'),
   // role pictograms: solid disc = Filled · disc keeping stripes inside = Subtraction mask · square with a disc hole = Mask
-  fill: LI('<circle cx="8" cy="8" r="5.5"/>'),
-  container: LI('<circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 10.5l6-6M6 12l6-6M3.8 8.2l4.4-4.4" stroke="currentColor" stroke-width="1.1"/>', 'fill="none"'),
-  mask: LI('<path fill-rule="evenodd" d="M2 2h12v12H2z M8 4.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7z"/>'),
+  fill: Organica.icons.get('role-fill'),
+  container: Organica.icons.get('role-container'),
+  mask: Organica.icons.get('role-mask'),
 };
 const LAYER_ROLE_ORDER = ['fill', 'container', 'mask'];
 const layerName = l => (SEED_ICONS[l.seed.type] || {}).name || (SEED_TYPES[l.seed.type] || {}).label || l.seed.type;
@@ -7378,7 +7381,7 @@ function renderSymbolPool() {
     const nm = p.name.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
     const box = fitThumbBox(frameDims(LIBRARY.read()[p.name].grid).w, frameDims(LIBRARY.read()[p.name].grid).h, 64);
     return `<div><div style="position:relative"><span class="fvs-library-item" style="width:${box.w}px;height:${box.h}px;display:block" title="${nm}">${componentThumbSVG(p.name)}</span>
-      <button class="rmx-x" style="position:absolute;top:0;right:0" data-pal-remove="${i}" aria-label="Remove ${nm} from the pool" title="Remove">×</button></div>
+      <button class="rmx-x" style="position:absolute;top:0;right:0" data-pal-remove="${i}" aria-label="Remove ${nm} from the pool"><svg class="ico ico--xs" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
       <span class="fvs-library-caption" title="${nm}">${nm}</span>
       <select class="panel-select fvs-sympool__w" data-pal-weight="${i}" aria-label="Weight of ${nm}">${[1, 2, 3, 4, 5].map(w => `<option value="${w}"${w === (p.weight || 1) ? ' selected' : ''}>×${w}</option>`).join('')}</select></div>`;
   }).join('');
@@ -11005,7 +11008,7 @@ function renderVariantRows() {
       + `<input type="color" aria-label="Variant ${i + 1} ink">`
       + `<input type="color" aria-label="Variant ${i + 1} paper">`
       + `<input type="number" class="panel-input" min="1" max="20" aria-label="Variant ${i + 1} stroke width">`
-      + `<button class="mini-btn" aria-label="Remove variant ${i + 1}">×</button>`;
+      + `<button class="mini-btn" aria-label="Remove variant ${i + 1}"><svg class="ico ico--sm" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>`;
     const [sel, col, pap, num, del] = row.children;
     sel.value = v.style; col.value = v.ink; num.value = v.strokeW; pap.value = v.paper || (isPaperNone(state.paperColor) ? '#ffffff' : state.paperColor);
     pap.title = 'Paper for this variant';

@@ -339,6 +339,38 @@ html {
   --space-7:  24px;
   --space-8:  32px;
 
+  /* ── ICONS ───────────────────────────────────────────────
+     Approved Oct 2, 2026. One drawing grid (16×16, live area 2–14), one stroke
+     weight (1.3 — the suite's de-facto standard), one size ladder. Icons are
+     styled by .ico (shared/icons.css), never per-icon; change --icon-stroke
+     and every icon in the suite changes with it. */
+  --icon-stroke: 1.3;
+  --icon-xs:  10px;   /* disclosure chevrons, close in a notice */
+  --icon-sm:  12px;   /* inline in a mini button / row */
+  --icon-md:  14px;   /* .org-btn--icon, panel buttons */
+  --icon-lg:  16px;   /* floatbar, header — the native size of the 16-grid */
+  --icon-xl:  20px;   /* empty states, tiles */
+
+  /* ── MOTION ──────────────────────────────────────────────
+     Approved Oct 2, 2026 (UI motion audit — docs/audit-2026-10/MOTION.md).
+     Interface motion only; the generative engines own their own timing.
+     Always list the properties (never `transition: all`). Under
+     prefers-reduced-motion every duration below collapses to 1ms (1, not 0,
+     so transitionend still fires) — see the media block at the end of :root. */
+  --dur-instant:  90ms;    /* press, list-row hover */
+  --dur-fast:    150ms;    /* hover wash: colour / border / bg / opacity */
+  --dur-base:    220ms;    /* notice, popover, hint, pill stretch, theme reveal */
+  --dur-slow:    320ms;    /* switch colour, flyout, glyph fade, caption slide */
+  --dur-settle:  420ms;    /* overshoot landings: pill, menu icon */
+  --dur-reveal:  800ms;    /* scroll reveals */
+  --dur-stagger:  80ms;    /* per-item reveal offset */
+  --ease-standard:       ease;
+  --ease-out:            cubic-bezier(0.2, 0.7, 0.2, 1);       /* enters, reveals */
+  --ease-glide:          cubic-bezier(0.32, 0.72, 0.24, 1);    /* travel (floatbar glyph + pill stretch) */
+  --ease-overshoot-soft: cubic-bezier(0.28, 1.28, 0.36, 1);    /* settle with a little give */
+  --ease-overshoot:      cubic-bezier(0.3, 1.42, 0.4, 1);      /* pads, menu icon */
+  --ease-in-out:         cubic-bezier(0.4, 0, 0.2, 1);         /* loops, symmetric moves */
+
   /* Control heights — moved here from panel.css (Sep 29, 2026) so the one button system
      (header.css) can size from them on pages that don't load the panel. */
   --row-h: 26px;                                   /* every control row, so columns align · the default button */
@@ -548,4 +580,13 @@ html {
   --canvas-dot: #2e4a55;      /* the cyan dot, dimmed to the same quietness on black */
   --stage-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);   /* the sheet still has to lift off a dark ground */
   color-scheme: dark;
+}
+
+/* Reduced motion — one switch for every tokenised transition. 1ms (not 0)
+   keeps transitionend firing. JS springs and keyframes keep their own guards. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-instant: 1ms; --dur-fast: 1ms; --dur-base: 1ms; --dur-slow: 1ms;
+    --dur-settle: 1ms; --dur-reveal: 1ms; --dur-stagger: 0ms;
+  }
 }

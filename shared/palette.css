@@ -67,7 +67,8 @@
   cursor: pointer;
   line-height: 1;
 }
-.rmx-add:hover { border-color: var(--accent); color: var(--accent); }
+@media (hover: hover) { .rmx-add:hover { border-color: var(--ink); color: var(--ink); background: var(--track-bg); } }
+.rmx-add { transition: border-color var(--dur-fast), background-color var(--dur-fast), color var(--dur-fast); }
 
 /* NOTE: .icon-btn moved to panel.css (2026-09-06). It is a generic panel
    control, not a palette one — 7 consumers, and colornet used it without

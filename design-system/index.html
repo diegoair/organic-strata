@@ -10,6 +10,7 @@
      If a token or class changes in shared/, this page changes with it. -->
 <link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/prose.css">
 <link rel="stylesheet" href="/shared/auth-card.css">
@@ -464,6 +465,35 @@
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+  /* ── ICONS / MOTION / STATES entries (audit, Oct 2 2026) ── */
+  .ds-icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: var(--space-2); margin: var(--space-4) 0; }
+  .ds-icon {
+    display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
+    padding: var(--space-3) var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-md);
+    color: var(--ink); background: var(--panel);
+  }
+  .ds-icon span { font-size: var(--fs-xs); color: var(--mid); text-align: center; }
+  .ds-sub { font-size: var(--t-section-size); font-weight: var(--t-section-weight); color: var(--mid); margin: var(--space-6) 0 var(--space-3); }
+  .ds-tag { font-size: var(--fs-xs); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 0 var(--space-2); margin-left: var(--space-2); font-weight: var(--w-regular); }
+  .ds-motion { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--space-4); align-items: start; }
+  .ds-motion__cell { display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; position: relative; }
+  .ds-m-hover { transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease; }
+  .ds-m-press { transition: transform var(--dur-fast) ease; }
+  .ds-m-press:active { transform: scale(.92); transition-duration: var(--dur-instant); }
+  .ds-m-pop { opacity: 0; transform: translateY(var(--space-2)) scale(.965); pointer-events: none; padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--paper); font-size: var(--fs-sm);
+    transition: opacity var(--dur-fast) ease, transform var(--dur-fast) ease; }
+  .ds-m-pop.open { opacity: 1; transform: none; transition-duration: var(--dur-base); transition-timing-function: var(--ease-out); }
+  .ds-m-chev { display: inline-block; transition: transform var(--dur-fast) ease; }
+  [aria-expanded="true"] .ds-m-chev { transform: rotate(90deg); }
+  .ds-m-disc { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-base) var(--ease-out); font-size: var(--fs-sm); }
+  .ds-m-disc > div { overflow: hidden; }
+  .ds-m-disc.open { grid-template-rows: 1fr; }
+  .ds-m-bar { width: 100%; height: var(--space-1); background: var(--track-bg); border-radius: var(--radius-sm); overflow: hidden; }
+  .ds-m-bar i { display: block; height: 100%; background: var(--ink); transform: scaleX(0); transform-origin: left; }
+  .ds-m-dot { width: var(--space-5); height: var(--space-5); border-radius: 50%; background: var(--ink); transition: transform var(--dur-settle) var(--ease-overshoot-soft); }
+  .ds-m-dot.go { transform: translateX(120px); }
 </style>
 <script src="/shared/pattern-init.js"></script>
 </head>
@@ -519,6 +549,14 @@
       <a href="#floatbar">Floating toolbar</a>
       <a href="#popover">Popover</a>
       <a href="#notice">Notice</a>
+    </div>
+    <div class="ds-nav__group">
+      <div class="ds-nav__title">Icons, motion &amp; behaviour</div>
+      <a href="#icons">Icons</a>
+      <a href="#motion">Motion</a>
+      <a href="#states">States &amp; selection</a>
+      <a href="#hover">Hover &amp; pressed</a>
+      <a href="#behaviours">Behaviours</a>
     </div>
     <div class="ds-nav__group">
       <div class="ds-nav__title">Utilities</div>
@@ -843,7 +881,7 @@
           <div class="org-modal__panel" style="--org-modal-w:280px;max-height:none">
             <div class="org-modal__header">
               <span class="org-modal__title">Choose content</span>
-              <button class="icon-btn" aria-label="Close">&times;</button>
+              <button class="icon-btn" aria-label="Close"><svg class="ico ico--sm" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
             </div>
             <div class="sub-label">A dialog body goes here.</div>
           </div>
@@ -1191,8 +1229,8 @@ Organica.seedsPanel({
           <button class="org-btn" aria-pressed="true">Pressed</button>
           <button class="org-btn" disabled>Disabled</button>
           <button class="org-btn org-btn--primary" disabled>Primary, disabled</button>
-          <button class="org-btn org-btn--icon" aria-label="Add"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg></button>
-          <button class="org-btn org-btn--icon org-btn--sm org-btn--ghost" aria-label="Close">×</button>
+          <button class="org-btn org-btn--icon" aria-label="Add"><svg class="ico" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
+          <button class="org-btn org-btn--icon org-btn--sm org-btn--ghost" aria-label="Close"><svg class="ico ico--sm" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
           <span class="ctrl-label" style="margin-left:var(--space-4)">states · icon</span>
         </div>
         <div style="max-width:280px;display:flex;flex-direction:column;gap:var(--space-2)">
@@ -1473,6 +1511,192 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
                    keep style="display:none" so clearing it works */</span></pre>
     </section>
 
+    <!-- ═══════════════════ ICONS, MOTION & BEHAVIOUR (audit, Oct 2 2026) ═══════════════════ -->
+    <h1 class="ds-group-title">Icons, motion &amp; behaviour</h1>
+
+    <section class="ds-entry" id="icons">
+      <h2>Icons</h2>
+      <p class="ds-desc"><strong>One registry, one grid, one weight.</strong> Every chrome icon is drawn once in <code>shared/icons.js</code> on a <code>16×16</code> grid (live area 2–14), stroked in <code>currentColor</code> with round caps and joins, and styled only by <code>.ico</code> in <code>shared/icons.css</code>. Weight is <code>--icon-stroke</code> (1.3) measured in <em>screen</em> pixels (non-scaling stroke), so an icon looks equally heavy at 10, 14 or 16px; size is a token. Change <code>--icon-stroke</code> and the whole suite follows. The audit found ~181 hand-pasted icons collapsing to ~65 drawings; they now collapse to the catalogue below.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/icons.js</span><span>shared/icons.css</span><strong>Tokens</strong><span>--icon-stroke</span><span>--icon-xs 10</span><span>--icon-sm 12</span><span>--icon-md 14</span><span>--icon-lg 16</span><span>--icon-xl 20</span><strong>Not here</strong><span>26-grid pictograms (seeds, generators, aspect icons, Murmur presets)</span><span>export serialisers</span><span>Google logo</span><span>&lt;menu-icon&gt;</span><strong>Out of scope</strong><span>Genesis (retiring) keeps its own inline icons</span></div>
+      <div id="ds-icon-groups"></div>
+      <div class="ds-example">
+        <span class="ctrl-label">sizes</span>
+        <svg class="ico ico--xs" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
+        <svg class="ico ico--sm" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
+        <svg class="ico ico--md" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
+        <svg class="ico ico--lg" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
+        <svg class="ico ico--xl" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
+        <span class="ctrl-label" style="margin-left:var(--space-4)">xs · sm · md · lg · xl — one drawing, the same 1.3px line</span>
+      </div>
+      <pre class="ds-code"><span class="attr">/* JS */</span>   Organica.icons.get(<span class="str">'download'</span>)            <span class="attr">// → the full &lt;svg class="ico" data-icon="download" …&gt;</span>
+          Organica.icons.get(<span class="str">'close'</span>, {size:<span class="str">'sm'</span>})      <span class="attr">// size modifier: xs sm md lg xl</span>
+          Organica.icons.register(<span class="str">'mine'</span>, <span class="str">'&lt;path d="…"/&gt;'</span>)   <span class="attr">// a tool-local extension</span>
+<span class="attr">/* HTML */</span> &lt;<span class="tag">i</span> <span class="attr">data-icon</span>=<span class="str">"download"</span>&gt;&lt;/<span class="tag">i</span>&gt;               <span class="attr">// placeholder, filled by Organica.icons.mount()</span>
+          &lt;<span class="tag">svg</span> <span class="attr">class</span>=<span class="str">"ico"</span> <span class="attr">data-icon</span>=<span class="str">"download"</span> <span class="attr">viewBox</span>=<span class="str">"0 0 16 16"</span> <span class="attr">aria-hidden</span>=<span class="str">"true"</span>&gt;…&lt;/<span class="tag">svg</span>&gt;
+          <span class="attr">/* inline markup is allowed (no flash, no JS) — scripts/check.py fails if its drawing drifts from the registry */</span>
+<span class="attr">/* the button carries the name, never the icon */</span>
+&lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-btn org-btn--icon"</span> <span class="attr">aria-label</span>=<span class="str">"Export"</span>&gt;…&lt;/<span class="tag">button</span>&gt;</pre>
+      <p class="ds-note ds-note--titled"><strong>Meanings are exclusive.</strong> <code>refresh</code> (clockwise) = run again, reseed, replay · <code>reset</code> (counter-clockwise) = back to defaults · <code>close</code> = dismiss or remove an item · <code>trash</code> = delete permanently · <code>eraser</code> = clear a canvas (never a bin) · <code>plus</code> = add, never "open a file" (<code>folder-open</code>) · <code>download</code> = Export, <code>upload</code> = Import · filled: play / pause / stop / grip only. <code>×</code> <code>+</code> <code>↑</code> <code>↓</code> <code>✓</code> <code>▾</code> <code>▸</code> are never typed as characters (<code>×1</code> as multiplication in a value is text, not an icon).</p>
+      <p class="ds-note ds-note--titled"><strong>Adding an icon.</strong> Draw it on 16×16, live area 2–14, no stroke attributes, <code>currentColor</code> only; add one line to <code>shared/icons.js</code> under the right group; use it. Filled shapes carry <code>fill="currentColor" stroke="none"</code> themselves. A name that already says what you need wins over a new drawing. Tool-specific families (<code>fvs-*</code>, <code>phrase-*</code>, <code>role-*</code>, the glyph-editor set) live in the same file under their own heading.</p>
+      <p class="ds-note ds-note--titled"><strong>What changed (Oct 2, 2026).</strong> 156 inline icons across 28 tools were replaced by registry markup, byte-checked. Variants that drew the same meaning differently now draw once: undo 4→1, trash 5→1, circular arrow 6→2 (refresh vs reset), dice 3→1, pencil 3→1, export arrow 3→1, close 3→1; pause is always filled; stop always rounded; "open a file" is the folder everywhere; Sinew's <code>↑ ↓ ×</code> and Camo Turing / Colornet / Living Path / FVS / Mycel removers are icons with labels; the <code>.drop-icon</code> is now <code>role="button" tabindex="0"</code> with a label and Enter / Space. Weight went from five values (1.2–1.6) to one. Full inventory: <code>docs/audit-2026-10/ICONS.md</code>.</p>
+    </section>
+
+    <section class="ds-entry" id="motion">
+      <h2>Motion</h2>
+      <p class="ds-desc"><strong>Interface motion, not the generative engines.</strong> What the suite does today, the canonical spec each pattern should converge on, and the scale proposed to get there. <strong>The scale below is live in <code>tokens.css</code></strong> (approved Oct 2, 2026): every duration collapses to 1ms under <code>prefers-reduced-motion</code>. The shared sheets and the tools now reference these tokens instead of raw milliseconds; list the animated properties, never <code>transition: all</code>.</p>
+      <div class="ds-usage"><strong>Today</strong><span>~58 <code>transition:</code> · ~17 UI <code>@keyframes</code> · 99 bare <code>ease</code> · 15 distinct <code>cubic-bezier</code> · ~24 raw durations for ~6 intents</span></div>
+
+      <h3 class="ds-sub">Scale <span class="ds-tag">tokens</span></h3>
+      <table class="ds-table">
+        <tr><th>Token</th><th>Value</th><th>Replaced</th><th>Use</th></tr>
+        <tr><td>--dur-instant</td><td>90ms</td><td>85 · 90 · 100ms</td><td>press, list-row hover</td></tr>
+        <tr><td>--dur-fast</td><td>150ms</td><td>.12 · .14 · .15 · .16s</td><td>hover wash — colour / border / bg / opacity (~50 uses)</td></tr>
+        <tr><td>--dur-base</td><td>220ms</td><td>180–220ms</td><td>notice, popover, hint, pill stretch, theme reveal</td></tr>
+        <tr><td>--dur-slow</td><td>320ms</td><td>250–320ms</td><td>switch colour, flyout, glyph fade, caption slide</td></tr>
+        <tr><td>--dur-settle</td><td>420ms</td><td>400–420ms</td><td>overshoot landings (pill, menu icon)</td></tr>
+        <tr><td>--dur-reveal / --dur-stagger</td><td>800ms / 80ms</td><td>.8 · .9s / .08s</td><td>scroll reveal, per-item offset</td></tr>
+        <tr><td>--ease-standard</td><td>ease</td><td>99 bare <code>ease</code></td><td>default</td></tr>
+        <tr><td>--ease-out</td><td>cubic-bezier(.2,.7,.2,1)</td><td>hub, gallery, theme reveal</td><td>enters, reveals</td></tr>
+        <tr><td>--ease-glide</td><td>cubic-bezier(.32,.72,.24,1)</td><td>floatbar glyph + pill stretch</td><td>travel</td></tr>
+        <tr><td>--ease-overshoot-soft</td><td>cubic-bezier(.28,1.28,.36,1)</td><td>1.14 · 1.28 · 1.34 curves</td><td>settle with a little give</td></tr>
+        <tr><td>--ease-overshoot</td><td>cubic-bezier(.3,1.42,.4,1)</td><td>1.42 · 1.45 curves</td><td>pad / menu icon</td></tr>
+        <tr><td>--ease-in-out</td><td>cubic-bezier(.4,0,.2,1)</td><td>loops, symmetric moves</td><td>looping pulses, symmetric travel</td></tr>
+      </table>
+      <p class="ds-note"><strong>One reduced-motion switch.</strong> Every <code>--dur-*</code> is <code>1ms</code> under <code>prefers-reduced-motion</code> (1ms, not 0, so <code>transitionend</code> still fires), which neutralises the transitions that had no guard; the hand-written guards remain only for JS springs and keyframes. The floatbar pill's <code>--ind-*</code> now point at these tokens.</p>
+
+      <h3 class="ds-sub">Live demos <span class="ds-tag">real tokens</span></h3>
+      <div class="ds-example ds-motion" id="ds-motion-demo">
+        <div class="ds-motion__cell"><button class="org-btn ds-m-hover">Hover wash</button><span class="ctrl-label">fast · standard</span></div>
+        <div class="ds-motion__cell"><button class="org-btn ds-m-press">Press scale</button><span class="ctrl-label">instant → fast</span></div>
+        <div class="ds-motion__cell"><button class="org-btn" id="ds-m-pop-btn">Popover</button><div class="ds-m-pop" id="ds-m-pop">Opacity + rise, base · out</div><span class="ctrl-label">base · out (close: fast)</span></div>
+        <div class="ds-motion__cell"><button class="org-btn" id="ds-m-disc-btn" aria-expanded="false"><span class="ds-m-chev">›</span> Disclosure</button><div class="ds-m-disc" id="ds-m-disc"><div>Height via grid 0fr → 1fr, never <code>height</code></div></div><span class="ctrl-label">fast chevron · base body</span></div>
+        <div class="ds-motion__cell"><button class="org-btn" id="ds-m-bar-btn">Run progress</button><div class="ds-m-bar"><i id="ds-m-bar"></i></div><span class="ctrl-label">transform: scaleX, not width</span></div>
+        <div class="ds-motion__cell"><button class="org-btn" id="ds-m-over-btn">Overshoot</button><span class="ds-m-dot" id="ds-m-dot"></span><span class="ctrl-label">settle · overshoot-soft</span></div>
+      </div>
+
+      <h3 class="ds-sub">Pattern catalogue</h3>
+      <table class="ds-table">
+        <tr><th>Pattern</th><th>Canonical spec</th><th>Reduced motion</th><th>Where / state</th></tr>
+        <tr><td>Hover wash</td><td>bg / border / colour, fast · standard, listed props (never <code>all</code>)</td><td>tokens → 1ms</td><td>everywhere — today 8 timings, 0.085 s → .25 s</td></tr>
+        <tr><td>Glyph quiet → full</td><td>opacity on the glyph, not the button; slow · glide</td><td>guarded</td><td>floatbar.css — ok</td></tr>
+        <tr><td>Pill slide</td><td>stretch base · glide, settle settle · overshoot-soft; move to <code>transform</code> + scaleX</td><td>guarded</td><td>floatbar — animates <code>width</code> today</td></tr>
+        <tr><td>Press scale</td><td>scale .92, instant in / fast out</td><td>omit</td><td>only FVS flyout pad; candidate for all buttons</td></tr>
+        <tr><td>Popover / mega / account menu open</td><td>opacity + translateY(space-2) + scale .97 → 1, base · out; close fast · standard</td><td>tokens → 1ms</td><td><strong>done</strong> (header.css, floatbar.css for the upward popover) · the modal scrim still instant</td></tr>
+        <tr><td>Notice</td><td>enter base · out; exit fast</td><td>guarded</td><td><strong>done</strong> — <code>noticeClose()</code> sets <code>data-closing</code>, removes after 150ms</td></tr>
+        <tr><td>Armed confirm</td><td>colour → danger, fast; one timeout (3000ms); one class <code>.is-armed</code></td><td>none needed</td><td>4 timeouts, 3 styles</td></tr>
+        <tr><td>Disclosure</td><td>chevron rotate fast; body grid-rows base · out</td><td>1ms</td><td>chevron only; body is display:none</td></tr>
+        <tr><td>Spring (slider / switch / checkbox)</td><td>JS spring 170 / 21.5 / .9, colour slow</td><td>rigid</td><td>core.js — canonical</td></tr>
+        <tr><td>Spinner / progress</td><td>spinner rotate 600ms linear; bar scaleX fast linear; busy pulse 1000ms</td><td>static</td><td>Pollen, Spore and Mote bars now <code>transform: scaleX</code> (done); Living Path's <code>procFill</code> and the floatbar pill still animate <code>width</code> (the pill would distort its rounded ends under scaleX)</td></tr>
+        <tr><td>Scroll reveal</td><td>opacity + translateY(space-6), reveal · out, stagger × (i%3)</td><td>shown, no motion</td><td>copy-pasted in hub + gallery → <code>Organica.reveal()</code></td></tr>
+        <tr><td>Symbol arrival (FVS)</td><td>per-cell blur → contrast → ripple, 1000ms/cell</td><td>skipped</td><td>fvs — no cell cap</td></tr>
+        <tr><td>Theme reveal</td><td>circular clip-path from the toggle, base · out</td><td>instant</td><td>header.js — ok</td></tr>
+        <tr><td>Zoom HUD autohide</td><td>fade fast in / base out after 1s idle</td><td>—</td><td>display toggle today (Camo Turing fades)</td></tr>
+      </table>
+      <p class="ds-note ds-note--titled"><strong>Problems to fix.</strong> <code>transition: all</code> / bare-time shorthand in Genesis, Living Path, Sinew. <code>width</code> animated on the floatbar pill and the Pollen / Spore / Mote progress bars. Camo Turing's <code>transform .08s</code> on the zoom canvas restarts on every wheel write. Timers that must equal a token (<code>setTimeout 150</code> vs <code>--ind-stretch</code> 190 ms; FVS 200 vs 220) should read the computed value or use <code>transitionend</code>. Permanent <code>will-change</code> on large stages. <code>getComputedStyle</code> per slider paint. Full report and rollout order: <code>docs/audit-2026-10/MOTION.md</code>.</p>
+    </section>
+
+    <section class="ds-entry" id="states">
+      <h2>States &amp; selection</h2>
+      <p class="ds-desc"><strong>One vocabulary for interactive state.</strong> Today the same idea is spelled six ways and the focus ring is scoped by ancestor (header, popover, panel), so the floatbar has none. The contract below is what the shared sheets should converge on.</p>
+      <table class="ds-table">
+        <tr><th>State</th><th>Contract</th><th>Today</th></tr>
+        <tr><td>Selected / on</td><td><code>aria-pressed</code> (toggle) · <code>aria-selected</code> (list/tab) · <code>aria-current</code> (nav). The tool keeps its visual class (<code>.active</code> · <code>.on</code> · <code>.selected</code>); <code>Organica.a11y</code> (core.js, self-running) mirrors it into <code>aria-pressed</code> on every <code>.seg-btn</code>, <code>.shape-thumb</code>, <code>.mark-thumb</code>, <code>.fvs-thumb</code> and names each <code>.seg-ctrl</code> as a <code>role="group"</code> from its row label</td><td><strong>done</strong> — the six class spellings remain visual only; new work writes ARIA first</td></tr>
+        <tr><td>Hover</td><td>3 tiers: <em>outline control</em> (border → ink, panel fill) · <em>list row</em> (track-bg) · <em>icon / ghost</em> (colour)</td><td>10 spellings: ink / mid / tool / accent borders, track-bg, panel, gray-100, surface, opacity</td></tr>
+        <tr><td>Pressed (<code>:active</code>)</td><td>scale .98 on the button family, seg, chips</td><td>only range inputs, FVS flyout, layer head</td></tr>
+        <tr><td>Focus-visible</td><td>one ring on every focusable, 2px, <code>--ink</code> (not <code>--tool</code>) — panel, header, popover, mega menu, HUD, floatbar (with its tooltip on <code>:focus-visible</code>), checkboxes, TuneSutra cards</td><td>scoped to header / popover / panel; <code>--tool</code> ring is &lt; 3:1 on white for Pollen 2.30, Living Path 2.64, Dapple 2.69, Komorebi 2.90, FVS 2.97</td></tr>
+        <tr><td>Disabled</td><td>opacity .35, <code>aria-describedby</code> says why</td><td>defined; floatbar 0.35</td></tr>
+        <tr><td>Armed</td><td><code>[data-armed]</code> on the button (<code>Organica.armed</code> in core.js): first click arms — label swaps, <code>.is-armed</code> = <code>--danger</code>; second click within <code>Organica.ARM_MS</code> (3000) runs the real handler; blur, Esc or the timeout disarm</td><td><strong>done</strong> for preset delete in 14 tools + the template; Genesis, Living Path, Apostate, admin, TuneSutra's leave-guard keep their own for now</td></tr>
+      </table>
+      <h3 class="ds-sub">Armed two-click (live)</h3>
+      <div class="ds-example">
+        <button class="org-btn org-btn--danger" id="ds-armed" type="button">Delete preset</button>
+        <span class="ctrl-label" id="ds-armed-note">first click arms, second click confirms, 3 s to disarm</span>
+      </div>
+      <p class="ds-note"><strong>Preset delete is now two-click everywhere</strong> (<code>data-armed</code> on 14 tools and on <code>_template.html</code>, so new tools inherit it). Use the same attribute for any destructive button; style comes from <code>.is-armed</code> in panel.css.</p>
+    </section>
+
+    <section class="ds-entry" id="hover">
+      <h2>Hover &amp; pressed</h2>
+      <p class="ds-desc"><strong>Three tiers, one wash.</strong> The hover audit (<code>docs/audit-2026-10/HOVER.md</code>) found ten spellings of "hover", three different fills for the same gesture (<code>--panel</code>, <code>--gray-100</code>, <code>--track-bg</code>), no <code>:active</code> state, no touch guard and one cascade bug that blanked disabled buttons on hover. The rule now: <strong>the hover fill is <code>--track-bg</code></strong>, the hover border is <code>--ink</code> (never <code>--tool</code>, <code>--accent</code> or <code>--border</code> — they fail 3:1), inverse controls go to <code>--accent-hover</code>, pressed is one grey step further, every hover rule sits behind <code>@media (hover: hover)</code> and excludes disabled.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/header.css (.org-btn family)</span><span>shared/panel.css (.seg-btn, .preset-*)</span><strong>Tokens</strong><span>--track-bg</span><span>--accent-hover</span><span>--gray-200</span><span>--gray-700</span><span>--dur-fast</span><span>--dur-instant</span></div>
+      <table class="ds-table">
+        <tr><th>Tier</th><th>Components</th><th>Hover</th><th>Pressed</th><th>Selected</th></tr>
+        <tr><td>1 · Outline control</td><td><code>.org-btn</code> family, <code>.upload-btn</code>, <code>.seg-btn</code>, <code>.org-tabs</code>, <code>.preset-trigger</code>, thumbs / tiles with a border, drop zones, dashed "+" tiles</td><td>border → <code>--ink</code>, fill → <code>--track-bg</code></td><td>fill → <code>--gray-200</code></td><td>fill <code>--ink</code> / text <code>--paper</code>; hover → <code>--accent-hover</code>; pressed → <code>--gray-700</code></td></tr>
+        <tr><td>2 · List row</td><td>mega link, account item, <code>.preset-item</code>, popover rows, palette-library rows, layer rows</td><td>fill → <code>--track-bg</code>, <code>--dur-instant</code>; focus-visible mirrors the fill</td><td><code>--gray-200</code></td><td>border → <code>--ink</code> (selection is a border, hover is a fill — they never collide)</td></tr>
+        <tr><td>3 · Icon / ghost</td><td>header nav, theme button, notice close, <code>.org-btn--ghost</code>, icon-only buttons, remove ×, zoom reset</td><td>fill → <code>--track-bg</code>, colour <code>--mid</code> → <code>--ink</code></td><td><code>--gray-200</code></td><td><code>aria-expanded</code> / <code>aria-pressed</code> keep the wash</td></tr>
+        <tr><td>Switch · checkbox</td><td><code>.org-switch</code>, <code>.check-row</code></td><td>OFF → <code>--gray-200</code>; ON → <code>--accent-hover</code> (was <code>--gray-900</code>, 1.25:1 = invisible); the droplet swell stays the primary cue</td><td>spring</td><td>checked</td></tr>
+        <tr><td>Slider · fields</td><td><code>input[type=range]</code>, <code>.org-field</code></td><td>slider: cursor grab → grabbing; field: border <code>--border-strong</code> → <code>--mid</code>, <code>--ink</code> on focus</td><td>—</td><td>—</td></tr>
+        <tr><td>Floatbar</td><td><code>.org-floatbar__btn</code></td><td>glyph 0.6 → 1 and the travelling pill; tooltip also on <code>:focus-visible</code></td><td>—</td><td><code>aria-pressed</code> keeps the pill</td></tr>
+      </table>
+      <div class="ds-example ds-example--column" id="ds-hover-demo">
+        <div class="row-btns" style="flex:none;margin:0;align-items:center;flex-wrap:wrap;gap:var(--space-3)">
+          <button class="org-btn">Outline</button>
+          <button class="org-btn org-btn--primary">Inverse</button>
+          <button class="org-btn org-btn--ghost">Ghost</button>
+          <button class="org-btn org-btn--danger">Danger</button>
+          <button class="org-btn" disabled>Disabled — no hover</button>
+          <button class="org-btn org-btn--primary" disabled>Disabled inverse</button>
+          <span class="ctrl-label" style="margin-left:var(--space-4)">hover · press each</span>
+        </div>
+        <div class="seg-ctrl" style="max-width:260px"><button class="seg-btn active">One</button><button class="seg-btn">Two</button><button class="seg-btn">Three</button><button class="seg-btn" disabled>Off</button></div>
+      </div>
+      <pre class="ds-code"><span class="attr">/* the guard — copy for any new interactive component */</span>
+@media (hover: hover) {
+  .thing:hover<span class="attr">:where(:not(:disabled):not([aria-disabled="true"]))</span> { border-color: var(--ink); background: var(--track-bg); }
+}
+.thing:active:where(:not(:disabled)) { background: var(--gray-200); }
+.thing:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }   <span class="attr">/* one ring colour — never --tool */</span>
+.thing:disabled { opacity: .42; cursor: not-allowed; }
+<span class="attr">/* :where() adds no specificity, so a variant (.on, --danger) still wins by order */</span></pre>
+      <h3 class="ds-sub">Contrast (WCAG, light / dark)</h3>
+      <table class="ds-table">
+        <tr><th>Hover fill on its ground</th><th>Ratio</th><th>Verdict</th></tr>
+        <tr><td><code>--panel</code> on paper</td><td>1.20 / 1.12</td><td>weak — retired as a hover fill</td></tr>
+        <tr><td><code>--panel</code> on <code>--control-bg</code> (preset menu)</td><td>1.08 / 1.01</td><td>invisible in dark — fixed (<code>--track-bg</code>)</td></tr>
+        <tr><td><code>--track-bg</code> on paper / control-bg</td><td>1.49 / 1.47 · 1.34 / 1.33</td><td>the strongest existing wash — the one</td></tr>
+        <tr><td>ON switch hover <code>--gray-900</code> vs ink</td><td>1.25 / 1.23</td><td>invisible — fixed (<code>--accent-hover</code> 1.57 / 1.64)</td></tr>
+        <tr><td><code>--border</code> hover (account trigger)</td><td>1.66 / 1.56</td><td>not a 3:1 boundary — fixed (<code>--border-strong</code> 3.65 / 3.97)</td></tr>
+        <tr><td><code>--tool</code> as a hover border</td><td>12 of 26 tools &lt; 3:1 in one theme</td><td>replaced by <code>--ink</code> on the preset trigger; thumbs / cards still to do</td></tr>
+      </table>
+      <p class="ds-note ds-note--titled"><strong>Applied (Oct 2, 2026).</strong> Shared: the <code>.org-btn</code> family with ghost / danger / pressed variants, <code>.org-tabs</code>, <code>.seg-btn</code>, <code>.preset-trigger</code> / <code>.preset-item</code>, switch and checkbox ON hover, header nav / theme / account / mega links / notice close, <code>.drop-icon</code>, <code>.upload-btn</code>, <code>.rmx-add</code>, zoom reset, and a floor focus ring on every focusable (<code>:where()</code>, header.css). Tools: Pollen / Spore thumbs and slots (hover = <code>--ink</code> border, selected = border + inner ring, so they no longer look alike), FVS library items / cards / thumbs / layer add / quick-save / chips, Living Path and Apostate phrase buttons (the 1px lift is gone) and drop zone (<code>--ink</code>, not <code>--tool</code>), Colornet icon buttons and pattern cells, TuneSutra <code>.rmx-add</code>, admin buttons. All sit behind <code>@media (hover: hover)</code>; FVS quick-save / edit / delete and the zoom reset are visible at rest on touch (<code>@media (hover: none)</code>). Prose links thicken their underline on hover; a disabled floatbar button no longer lifts its glyph or shows a tooltip; the disabled-hover cascade bug is gone.</p>
+      <p class="ds-note ds-note--titled"><strong>Left on purpose.</strong> <code>.hud-btn</code> (a fixed content-on-canvas skin, raw hex in both themes), canvas / SVG hit areas (FVS cell and handle hovers, Living Path <code>.fam-hit</code>, Loom track handles — they use <code>--tool</code> as a fill tint, not a boundary), the FVS flyout tools, the info-tip bubble, <code>.pt-dot</code>. Genesis (retiring). <strong>Not verified:</strong> the pane could not drive a real pointer, so hover states were checked by rule inspection and the full regression, not by eye.</p>
+    </section>
+
+    <section class="ds-entry" id="behaviours">
+      <h2>Behaviours</h2>
+      <p class="ds-desc">Patterns the suite relies on that were documented only in CLAUDE.md or nowhere. Each row says what the rule is and where it is still broken.</p>
+      <h3 class="ds-sub">Keyboard</h3>
+      <table class="ds-table">
+        <tr><th>Key</th><th>Does</th><th>Where</th><th>Gap</th></tr>
+        <tr><td>Space</td><td>play / pause</td><td>Membrane, Mote, Murmur, Dapple, Undertow</td><td>not Pulsar, Trellis, Vortex, Camo Turing, Blob Boundary; Dapple / Undertow / Murmur now skip a focused button, link or summary</td></tr>
+        <tr><td>⌘ / Ctrl Z</td><td>undo</td><td>Genesis, FVS, Rhizome, TuneSutra</td><td>Apostate / Living Path glyph editor have a button only; Halide, Spore, Colornet, Loom none</td></tr>
+        <tr><td>⌘ / Ctrl + − 0</td><td>browser page zoom</td><td>—</td><td>no longer captured by <code>createZoomPan</code> (WCAG 1.4.4); the canvas zooms with the wheel, the HUD and double-click reset</td></tr>
+        <tr><td>K</td><td>kiosk</td><td>Mote</td><td>does not guard ⌘K</td></tr>
+        <tr><td>Delete / Backspace</td><td>remove selection</td><td>Genesis, Rhizome</td><td>—</td></tr>
+        <tr><td>Esc</td><td>close popover / notice</td><td>shared</td><td>closes all at once, even inside a dialog; the thumbnail picker has no Esc</td></tr>
+        <tr><td>Shift-click · drag · Space-drag</td><td>multi-select · marquee · pan</td><td>FVS, Rhizome</td><td>not listed in the UI</td></tr>
+      </table>
+      <h3 class="ds-sub">Floatbar contract</h3>
+      <p class="ds-note">Order: <strong>Open · transport (Play/Pause · Stop · Replay) · tool extras · Export</strong>; Genesis: <strong>Create · Edit · Save · Back(=Undo) · Delete · Library · Export</strong>. No <code>title</code> on floatbar buttons — the tooltip is generated from <code>aria-label</code>; longer explanations go in <code>aria-description</code> (done in Dapple, Murmur, Undertow, Pollen, Spore). Verbs drift: Restart / Replay entrance / Reset / Reseed / Refresh / Render all mean "run again" in different tools; Undo / Back; <code>⌘Z</code> is written three ways. Pick: <em>Render</em> (compute), <em>Replay</em> (animation), <em>Reset</em> (defaults), <em>Reseed</em> (new random), <em>Undo</em>.</p>
+      <h3 class="ds-sub">Components built 3–8 ways</h3>
+      <table class="ds-table">
+        <tr><th>Job</th><th>Variants today</th><th>Direction</th></tr>
+        <tr><td>Thumbnail tile</td><td><code>.shape-thumb</code>, <code>.mark-thumb</code>, <code>.form-tile</code>, <code>.fvs-thumb</code>; <code>&lt;div onclick&gt;</code> — Genesis Library (retiring), the shared seeds panel (<code>role=button</code>, no tabindex), Pollen, Spore are still not keyboard-operable</td><td><strong>done</strong> for the shared thumbs: <code>Organica.a11y</code> gives them <code>role=button</code>, <code>tabindex=0</code>, <code>aria-pressed</code> and Enter / Space; Genesis tiles are left (retiring)</td></tr>
+        <tr><td>Thumbnail select picker</td><td>now <code>aria-haspopup="listbox"</code> / <code>aria-expanded</code>, <code>role=listbox</code> + <code>option</code>, ↑ ↓ Home End, Esc returns focus to the trigger, Tab closes, closes on scroll / resize (the menu is fixed-positioned), and opening it closes any other dropdown</td><td><strong>done</strong> (<code>shared/select-picker.js</code>; <code>transformer.js</code>'s own copy is not updated)</td></tr>
+        <tr><td>Popovers</td><td>one dropdown open at a time: <code>Organica.popover</code> keeps an active-popover registry and a <code>organica:dropdown-open</code> event that select-pickers also honour; enter and exit are animated (base · out in, fast out) with <code>@starting-style</code> + <code>allow-discrete</code> on <code>.org-popover</code>, <code>.org-account__menu</code>, <code>.org-mega</code> and its scrim</td><td><strong>done</strong></td></tr>
+        <tr><td>Preset save</td><td>inline row in 9, <code>prompt()</code> in 6, <code>alert()</code> in Spore + FVS</td><td>one preset bar; <code>setStatus('error')</code></td></tr>
+        <tr><td>Remove ×</td><td>≥ 8 implementations (<code>.icon-btn</code>, <code>.sm-del</code>, <code>.rmx-x</code>, <code>.fg-card__x</code>, <code>.fvs-layer__del</code>…)</td><td><code>org-btn--icon org-btn--sm</code> + <code>close</code> icon</td></tr>
+        <tr><td>Layer / list card</td><td><code>.org-layer-card</code>, <code>.layer</code>, <code>.fvs-layer</code>, <code>.trk</code>, camo <code>.layer-*</code></td><td>promote <code>.org-layer-card</code></td></tr>
+        <tr><td>Disclosure</td><td><code>&lt;details&gt;</code>, <code>.fx-cat-head</code> (<code>.collapsed</code> vs <code>.open</code>), <code>.layer.open</code>, 4 different chevrons</td><td>one <code>&lt;details&gt;</code> component + the <code>chevron-right</code> icon</td></tr>
+        <tr><td>Progress / busy</td><td>3 local bars, Pollen overlay + spinner, Living Path scrim + pill + bar, busy Notice</td><td><code>.org-progress</code> + the Notice; rule for which</td></tr>
+        <tr><td>Empty state</td><td>6 spellings in FVS, Colornet, Rhizome, admin, picker</td><td><code>.org-empty</code></td></tr>
+        <tr><td>Tooltip</td><td>floatbar <code>::after</code>, native <code>title</code> (Loom 93, FVS 104…), Camo Turing <code>.info-tip</code></td><td>promote <code>.info-tip</code>; <code>title</code> for redundant hints only</td></tr>
+        <tr><td>Modal</td><td><code>Organica.modal</code> (core.js, self-running): when an <code>.org-modal</code> becomes visible it remembers the opener, focuses the panel, traps Tab, closes on Esc (clicks its Close button) and returns focus; tools keep toggling <code>style.display</code></td><td><strong>done</strong> for the 4 modals; no <code>inert</code> on the page behind yet</td></tr>
+        <tr><td>Unsaved work</td><td>no <code>beforeunload</code>; only TuneSutra warns</td><td>shared dirty-state helper</td></tr>
+      </table>
+      <p class="ds-note ds-note--titled"><strong>Priorities (Oct 2, 2026).</strong> Fixed: keyboard operability of tiles and pickers, <code>aria-pressed</code> on seg controls, the global ⌘± zoom override, the floatbar focus ring and a ring colour that passes 3:1, Space shortcuts swallowing a focused button, popover registry, modal focus. Token discipline is otherwise better than the docs suggest (css-lint is clean; raw values outside Genesis are a handful: Loom 13 font-sizes / 19 spacings / 25 hex, Rhizome <code>.rz-*</code> greys). Reduced motion: Murmur, Dapple, Undertow, Mote, Membrane, Camo Turing, Blob Boundary and Vortex now start paused / on a still frame (Pulsar, Trellis, Komorebi already did not autoplay); Play and every export still work. Untested under a real reduced-motion setting. Full table of 34 findings, state matrix and lint suggestions: <code>docs/audit-2026-10/BEHAVIOURS.md</code>. Nothing here was run in Safari or Firefox.</p>
+    </section>
+
     <!-- ═══════════════════ MAINTAINING THE SYSTEM ═══════════════════ -->
     <h1 class="ds-group-title">Maintaining the system</h1>
 
@@ -1651,6 +1875,7 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
 </div>
 
 <script src="/shared/core.js"></script>
+<script src="/shared/icons.js"></script>
 <script src="/shared/select-picker.js"></script>
 <script>
 /* Section headers: turn each flat .ds-usage (<strong>label</strong><span>…</span>…) into
@@ -1936,6 +2161,28 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
       fails.map(f => f[1]).join(' · ');
     document.querySelector('.ds-content, main')?.prepend(el);
   }
+})();
+</script>
+<script>
+(function(){
+  var GROUPS=[['General',/^(plus|minus|close|check|chevron-.*|arrow-.*)$/],['File / IO',/^(download|upload|folder-open|video)$/],['History / run',/^(undo|redo|refresh|reset|loop|dice|play|pause|stop)$/],['Edit',/^(trash|eraser|pencil|copy|eye|eye-off|grip|invert)$/],['Views',/^(grid|full-family|sun|moon|mirror|align-.*)$/],['Glyph editor',/^(edit-points|add-point|handles|outline|legible)$/],['Flexible Visual System',/^fvs-/],['Living Path phrases · layer roles',/^(phrase|role)-/]];
+  var host=document.getElementById('ds-icon-groups'); if(!host||!window.Organica||!Organica.icons) return;
+  var names=Organica.icons.names(), used={};
+  host.innerHTML=GROUPS.map(function(g){
+    var m=names.filter(function(n){return g[1].test(n)&&!used[n]&&(used[n]=1);});
+    if(!m.length) return '';
+    return '<h3 class="ds-sub">'+g[0]+'</h3><div class="ds-icons" role="list">'+m.map(function(n){return '<div class="ds-icon" role="listitem">'+Organica.icons.get(n,{size:'xl'})+'<span>'+n+'</span></div>';}).join('')+'</div>';
+  }).join('');
+  var $=function(id){return document.getElementById(id);};
+  var pop=$('ds-m-pop'); $('ds-m-pop-btn').onclick=function(){pop.classList.toggle('open');};
+  var dB=$('ds-m-disc-btn'),d=$('ds-m-disc'); dB.onclick=function(){var o=d.classList.toggle('open');dB.setAttribute('aria-expanded',o);};
+  $('ds-m-bar-btn').onclick=function(){var b=$('ds-m-bar');b.style.transition='none';b.style.transform='scaleX(0)';b.getBoundingClientRect();
+    var rm=matchMedia('(prefers-reduced-motion: reduce)').matches;b.style.transition=rm?'none':'transform 1500ms linear';b.style.transform='scaleX(1)';};
+  $('ds-m-over-btn').onclick=function(){$('ds-m-dot').classList.toggle('go');};
+  var a=$('ds-armed'),t;
+  a.onclick=function(){ if(a.classList.contains('is-armed')){clearTimeout(t);a.classList.remove('is-armed');a.textContent='Deleted (demo)';setTimeout(function(){a.textContent='Delete preset';},1200);return;}
+    a.classList.add('is-armed');a.textContent='Click again to confirm';t=setTimeout(function(){a.classList.remove('is-armed');a.textContent='Delete preset';},3000);};
+  a.onblur=function(){clearTimeout(t);a.classList.remove('is-armed');a.textContent='Delete preset';};
 })();
 </script>
 <script src="/shared/tools.js"></script>

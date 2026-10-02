@@ -9,6 +9,7 @@
      can override without !important, core before the tool script. -->
 <link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
@@ -64,7 +65,7 @@
    reorder/delete glyphs sit inside an already-bordered card, so a second
    border would double up), sized via the component's own tuning vars. */
 .icon-btn { border-color: transparent; color: var(--mid); }   /* ghost: the card already has a border */
-.icon-btn:hover { border-color: transparent; color: var(--ink); }
+@media (hover: hover) { .icon-btn:hover:not(:disabled) { border-color: transparent; color: var(--ink); background: var(--track-bg); } }
 .chan-opacity { flex: 1; min-width: 0; }
 .chan-val { font-size: var(--fs-micro); color: var(--mid); min-width: 30px; text-align: right; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
 .chan-cmyk { font-size: var(--fs-micro); color: var(--mid); font-family: var(--font-display); font-variant-numeric: tabular-nums; margin-left: auto; }
@@ -84,7 +85,7 @@
 .pe-cell {
   aspect-ratio: 1; border: 1px solid var(--border); cursor: pointer; background: #fff;
 }
-.pe-cell:hover { outline: 2px solid var(--tool); outline-offset: -2px; }
+.pe-cell:hover { outline: 2px solid var(--ink); outline-offset: -2px; }
 </style>
 <script src="/shared/pattern-init.js"></script>
 </head>
@@ -110,8 +111,8 @@
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
   <div class="org-popover-wrap">
     <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="ico" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
+      <svg class="ico chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
     </button>
     <div class="org-popover" id="export-popover" aria-label="Export options">
       <div class="org-popover__title">Format</div>
@@ -170,7 +171,7 @@
 
   <div id="canvas-wrap">
     <div id="drop-hint">
-      <div class="drop-icon" id="drop-icon" role="button" tabindex="0" aria-label="Open an image">+</div>
+      <div class="drop-icon" id="drop-icon" role="button" tabindex="0" aria-label="Open an image"><svg class="ico ico--xl" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></div>
       <p>Drop an image<br>or click to open</p>
     </div>
     <canvas id="view-canvas" class="org-stage"></canvas>
@@ -192,7 +193,7 @@
       </div>
       <div class="row-btns">
         <button class="mini-btn" id="btn-preset-save">Save</button>
-        <button class="mini-btn" id="btn-preset-delete">Delete</button>
+        <button class="mini-btn" id="btn-preset-delete" data-armed="Confirm?">Delete</button>
       </div>
       <p class="panel-note">
         A preset stores the configuration — channel count, detail, colours,
@@ -356,6 +357,7 @@
 
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/icons.js"></script>
 <script src="/shared/canvas.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
@@ -1526,9 +1528,9 @@ function buildChannelUI() {
         <button class="chan-dot${ch.on ? ' on' : ''}" aria-label="${ch.name} visible"></button>
         <canvas class="chan-thumb" aria-label="Select ${ch.name}"></canvas>
         <button class="chan-name" aria-label="${swapLabel}">${ch.name}</button>
-        <button class="icon-btn" data-act="up" aria-label="Move ${ch.name} up">↑</button>
-        <button class="icon-btn" data-act="down" aria-label="Move ${ch.name} down">↓</button>
-        <button class="icon-btn" data-act="del" aria-label="Remove ${ch.name}">×</button>
+        <button class="icon-btn" data-act="up" aria-label="Move ${ch.name} up"><svg class="ico ico--md" data-icon="arrow-up" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3M4.5 6.5 8 3l3.5 3.5"/></svg></button>
+        <button class="icon-btn" data-act="down" aria-label="Move ${ch.name} down"><svg class="ico ico--md" data-icon="arrow-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M4.5 9.5 8 13l3.5-3.5"/></svg></button>
+        <button class="icon-btn" data-act="del" aria-label="Remove ${ch.name}"><svg class="ico ico--md" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
       </div>
       <div class="org-layer-card__body">
         <span class="color-swatch-wrap" style="width:18px;height:18px">

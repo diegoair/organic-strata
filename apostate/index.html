@@ -8,6 +8,7 @@
 <script src="/shared/vendor/opentype.min.js"></script>
 <link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
@@ -83,7 +84,7 @@ body {
   padding: 6px 0;
   cursor: pointer;
 }
-#charset button:hover { background: var(--panel); }
+@media (hover: hover) { #charset button:hover { background: var(--track-bg); } }
 #charset button.active { background: var(--ink); color: var(--paper); }
 #stage {
   position: relative;
@@ -134,7 +135,7 @@ body {
   font: inherit; color: var(--ink); text-transform: uppercase; letter-spacing: .06em;
   font-size: var(--fs-small); font-weight: var(--w-semibold); margin-bottom: var(--space-3);
 }
-.fx-cat-head .chev { transition: transform .15s; }
+.fx-cat-head .chev { transition: transform var(--dur-fast); }
 .fx-cat-head.collapsed .chev { transform: rotate(-90deg); }
 .fx-cat-body.collapsed { display: none; }
 .fx-cat-head .cat-tag { color: var(--tool); }
@@ -145,10 +146,10 @@ body {
   width:22px; height:22px; padding:0; border-radius:var(--radius-sm);
   display:flex; align-items:center; justify-content:center;
   border:1px solid var(--border-strong, var(--border)); background:var(--panel); color:var(--mid);
-  cursor:pointer; transition:background .12s, border-color .12s, color .12s, transform .12s;
+  cursor:pointer; transition:background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), transform var(--dur-fast);
 }
 .lp-phrase-btn svg{width:13px; height:13px; display:block}
-.lp-phrase-btn:hover{border-color:var(--ink); color:var(--ink); transform:translateY(-1px)}
+@media (hover: hover) { .lp-phrase-btn:hover{border-color:var(--ink); color:var(--ink); background:var(--track-bg)} }
 /* .presets/.preset-trigger/.pt-ico/.pt-name/.pt-chev/.preset-menu/
    .preset-item/.pi-ico/.pi-name are shared/panel.css — the same thumbnail
    dropdown Living Path/Sinew/Camo Turing use. .pc-hint is local: a short
@@ -168,7 +169,7 @@ body {
 
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
   <button class="org-floatbar__btn" id="btn-open-font" aria-label="Load a font (OTF / TTF)">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+    <svg class="ico" data-icon="folder-open" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 4A1 1 0 0 1 2.5 3h2.8l1 1.3H13.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4Z"/></svg>
   </button>
 
   <div class="org-floatbar__sep"></div>
@@ -176,9 +177,9 @@ body {
   <!-- type-tester controls (specimen only — hidden in family/glyph view) -->
   <div class="fb-tester" id="fb-tester" role="group" aria-label="Type tester controls" hidden>
     <div class="seg-ctrl" role="group" aria-label="Align">
-      <button class="seg-btn" data-align="left" aria-pressed="false" aria-label="Align left"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M1 5h9M1 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
-      <button class="seg-btn" data-align="center" aria-pressed="true" aria-label="Align centre"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M3.5 5h9M2 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
-      <button class="seg-btn" data-align="right" aria-pressed="false" aria-label="Align right"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M1 1.5h14M6 5h9M3 8.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+      <button class="seg-btn" data-align="left" aria-pressed="false" aria-label="Align left"><svg class="ico" data-icon="align-left" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 3.5h14M1 7h9M1 10.5h12"/></svg></button>
+      <button class="seg-btn" data-align="center" aria-pressed="true" aria-label="Align centre"><svg class="ico" data-icon="align-center" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 3.5h14M3.5 7h9M2 10.5h12"/></svg></button>
+      <button class="seg-btn" data-align="right" aria-pressed="false" aria-label="Align right"><svg class="ico" data-icon="align-right" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 3.5h14M6 7h9M3 10.5h12"/></svg></button>
     </div>
     <button class="seg-btn" id="tbCaps" aria-pressed="false">CAPS</button>
   </div>
@@ -186,57 +187,57 @@ body {
   <div class="org-floatbar__sep"></div>
 
   <button class="org-floatbar__btn" id="tgFamily" aria-label="Full Family" aria-pressed="false">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 2.5v11M2.5 8h11" stroke="currentColor" stroke-width="1.3"/></svg>
+    <svg class="ico" data-icon="full-family" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M8 2.5v11M2.5 8h11"/></svg>
   </button>
 
   <button class="org-floatbar__btn" id="btn-edit-points" aria-label="Edit points" aria-pressed="false" hidden>
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 13.5 6 12l6.2-6.2a1.4 1.4 0 0 0 0-2L11.7 3.3a1.4 1.4 0 0 0-2 0L3.5 9.5l-1 4Z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10.5" cy="4.8" r="1" fill="currentColor"/></svg>
+    <svg class="ico" data-icon="edit-points" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 13.5 6 12l6.2-6.2a1.4 1.4 0 0 0 0-2L11.7 3.3a1.4 1.4 0 0 0-2 0L3.5 9.5l-1 4Z"/><circle cx="10.5" cy="4.8" r="1"/></svg>
   </button>
 
   <div class="org-floatbar__sep"></div>
 
   <button class="org-floatbar__btn" id="gtUndo" aria-label="Undo" hidden>
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 4v4h4M4 8a5 5 0 1 1 1.5 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <svg class="ico" data-icon="undo" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3 2.5 6l3 3"/><path d="M3 6h6.5a3.5 3.5 0 0 1 0 7H6"/></svg>
   </button>
 
   <button class="org-floatbar__btn" id="gtReset" aria-label="Reset glyph" hidden>
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+    <svg class="ico" data-icon="reset" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.65"/><path d="M3 2.3V6h3.7"/></svg>
   </button>
 
   <button class="org-floatbar__btn" id="gtAddPt" aria-label="Add point mode" aria-pressed="false" hidden>
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 2"/><path d="M8 5.5v5M5.5 8h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+    <svg class="ico" data-icon="add-point" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke-dasharray="2 2"/><path d="M8 5.5v5M5.5 8h5"/></svg>
   </button>
 
   <div class="org-floatbar__sep"></div>
 
   <button class="org-floatbar__btn" id="btn-show-handles" aria-label="Show handles" aria-pressed="true" hidden>
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 12 8 4l5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="12" r="1.4" fill="currentColor"/><circle cx="8" cy="4" r="1.4" fill="currentColor"/><circle cx="13" cy="12" r="1.4" fill="currentColor"/></svg>
+    <svg class="ico" data-icon="handles" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 12 8 4l5 8"/><circle cx="3" cy="12" r="1.4"/><circle cx="8" cy="4" r="1.4"/><circle cx="13" cy="12" r="1.4"/></svg>
   </button>
 
   <button class="org-floatbar__btn" id="btn-show-outline" aria-label="Outline" aria-pressed="false" hidden>
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg>
+    <svg class="ico" data-icon="outline" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1.5"/></svg>
   </button>
 
   <div class="org-floatbar__sep"></div>
 
   <button class="org-floatbar__btn" id="btn-legible" aria-label="Keep randomize legible" aria-pressed="true">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 12V4M3 4h6M3 8h4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 12V6.5c0-1 .6-1.5 1.5-1.5s1.5.5 1.5 1.5V12M10.5 9h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <svg class="ico" data-icon="legible" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 12V4M3 4h6M3 8h4.5"/><path d="M10.5 12V6.5c0-1 .6-1.5 1.5-1.5s1.5.5 1.5 1.5V12M10.5 9h3"/></svg>
   </button>
 
   <button class="org-floatbar__btn" id="btn-randomize" aria-label="Randomize">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.3"/><circle cx="5.5" cy="5.5" r="1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1" fill="currentColor"/><circle cx="8" cy="8" r="1" fill="currentColor"/></svg>
+    <svg class="ico" data-icon="dice" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><circle cx="5.5" cy="5.5" r=".9" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r=".9" fill="currentColor" stroke="none"/><circle cx="10.5" cy="10.5" r=".9" fill="currentColor" stroke="none"/></svg>
   </button>
 
   <button class="org-floatbar__btn" id="btn-reset-all" aria-label="Reset">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13 4.8A5.5 5.5 0 1 0 14 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M13.3 1.5v3.5H9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <svg class="ico" data-icon="reset" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.65"/><path d="M3 2.3V6h3.7"/></svg>
   </button>
 
   <div class="org-floatbar__sep"></div>
 
   <div class="org-popover-wrap">
     <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="ico" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
+      <svg class="ico chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
     </button>
     <div class="org-popover" id="export-popover" aria-label="Export options">
       <div class="org-popover__title">Format</div>
@@ -281,7 +282,7 @@ body {
     </div>
 
     <div class="panel-section">
-      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Transform</span><span class="chev">&#9660;</span></button>
+      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Transform</span><svg class="ico ico--xs chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></button>
       <div id="specimen-size-row" hidden>
         <div class="ctrl-row"><div class="ctrl-label">Size</div><input type="range" id="tbSize" min="24" max="240" step="1" value="96"><span class="ctrl-val" id="tbSizeVal">96</span></div>
         <div class="ctrl-row"><div class="ctrl-label">Track</div><input type="range" id="tbTrack" min="-40" max="400" step="5" value="0"><span class="ctrl-val" id="tbTrackVal">0</span></div>
@@ -290,17 +291,17 @@ body {
     </div>
 
     <div class="panel-section">
-      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Distort</span><span class="chev">&#9660;</span></button>
+      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Distort</span><svg class="ico ico--xs chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></button>
       <div class="fx-cat-body" id="cat-blasphemy"></div>
     </div>
 
     <div class="panel-section">
-      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Break</span><span class="chev">&#9660;</span></button>
+      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Break</span><svg class="ico ico--xs chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></button>
       <div class="fx-cat-body" id="cat-damnation"></div>
     </div>
 
     <div class="panel-section">
-      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Texture</span><span class="chev">&#9660;</span></button>
+      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Texture</span><svg class="ico ico--xs chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></button>
       <div class="fx-cat-body" id="cat-texture"></div>
     </div>
   </div>
@@ -312,6 +313,7 @@ body {
 
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/icons.js"></script>
 <script src="/shared/canvas.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
@@ -2442,7 +2444,7 @@ function positionPresetMenu(){
 function buildPresets(){
   const host=$('presets'); if(!host) return;
   host.innerHTML = `<button class="preset-trigger" id="presetTrigger">
-      <span class="pt-ico" id="ptIco"></span><span class="pt-name" id="ptName">Choose a preset…</span><span class="pt-chev">▾</span>
+      <span class="pt-ico" id="ptIco"></span><span class="pt-name" id="ptName">Choose a preset…</span><span class="pt-chev"><svg class="ico ico--xs pt-chev-ico" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></span>
     </button><div class="preset-menu" id="presetMenu" hidden></div>
     <button class="mini-btn" id="btnOpenSave" style="margin-top:var(--space-2);width:100%">+ save current look</button>
     <div class="row" id="savePresetRow" style="display:none;margin-top:var(--space-2);gap:var(--space-2)">
@@ -2685,7 +2687,7 @@ const phraseBtn = document.createElement('button');
 phraseBtn.type = 'button'; phraseBtn.className = 'lp-phrase-btn';
 phraseBtn.setAttribute('aria-label', 'Generate a random test phrase');
 phraseBtn.title = 'Generate a random test phrase';
-phraseBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><circle cx="5.5" cy="5.5" r="0.9" fill="currentColor" stroke="none"/><circle cx="10.5" cy="10.5" r="0.9" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="0.9" fill="currentColor" stroke="none"/></svg>';
+phraseBtn.innerHTML = '<svg class="ico" data-icon="dice" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><circle cx="5.5" cy="5.5" r=".9" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r=".9" fill="currentColor" stroke="none"/><circle cx="10.5" cy="10.5" r=".9" fill="currentColor" stroke="none"/></svg>';
 phraseBtn.addEventListener('click', ()=>{ specimenString = randomSillyPhrase(); specEdit.textContent = specimenString; render(); });
 phrasesEl.appendChild(phraseBtn);
 window.addEventListener('resize', ()=>{ if(VIEW==='tester') syncSpecEditBox(); else if(VIEW==='glyph') sizeGlyphCanvas(); });

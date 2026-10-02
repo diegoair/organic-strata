@@ -7,6 +7,7 @@
 <link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="preload" href="/shared/vendor/ibm-plex-mono-regular.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
@@ -32,26 +33,26 @@
 
 <!-- Open + Playback + Loop + Export in the shared bottom-centre floating toolbar. -->
 <div class="org-floatbar" role="toolbar" aria-label="Source and playback">
-  <button class="org-floatbar__btn" id="btn-open" aria-label="Open an SVG" title="Open a Screen-mode SVG exported from Komorebi">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  <button class="org-floatbar__btn" id="btn-open" aria-label="Open an SVG" aria-description="Open a Screen-mode SVG exported from Komorebi">
+    <svg class="ico" data-icon="folder-open" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 4A1 1 0 0 1 2.5 3h2.8l1 1.3H13.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4Z"/></svg>
   </button>
 
   <span class="org-floatbar__sep" aria-hidden="true"></span>
 
   <button class="org-floatbar__btn" id="btn-playpause" aria-label="Pause">
-    <svg class="ico" id="ico-play" viewBox="0 0 16 16" fill="none" aria-hidden="true" style="display:none"><path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor"/></svg>
-    <svg class="ico" id="ico-pause" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4" y="3.5" width="2.6" height="9" rx="0.6" fill="currentColor"/><rect x="9.4" y="3.5" width="2.6" height="9" rx="0.6" fill="currentColor"/></svg>
+    <svg class="ico" data-icon="play" id="ico-play" style="display:none" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor" stroke="none"/></svg>
+    <svg class="ico" data-icon="pause" id="ico-pause" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="3.5" width="2.6" height="9" rx=".6" fill="currentColor" stroke="none"/><rect x="9.4" y="3.5" width="2.6" height="9" rx=".6" fill="currentColor" stroke="none"/></svg>
   </button>
-  <button class="org-floatbar__btn" id="btn-replay" aria-label="Restart" title="Restart the loop">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.6 2.2v2.6h2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <button class="org-floatbar__btn" id="btn-replay" aria-label="Restart" aria-description="Restart the loop">
+    <svg class="ico" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>
   </button>
 
   <span class="org-floatbar__sep" aria-hidden="true"></span>
 
   <div class="org-popover-wrap">
     <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-loop" aria-label="Loop length">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8a5 5 0 0 1 8.5-3.5M13 8a5 5 0 0 1-8.5 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M11 2.5v2.5H8.5M5 13.5V11h2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="ico" data-icon="loop" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 0 1 8.5-3.5M13 8a5 5 0 0 1-8.5 3.5"/><path d="M11 2.5V5H8.5M5 13.5V11h2.5"/></svg>
+      <svg class="ico chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
     </button>
     <div class="org-popover" id="loop-popover" aria-label="Loop options">
       <div class="org-popover__title">Loop</div>
@@ -68,8 +69,8 @@
 
   <div class="org-popover-wrap">
     <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="ico" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
+      <svg class="ico chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
     </button>
     <div class="org-popover" id="export-popover" aria-label="Export options">
       <div class="org-popover__title">Video</div>
@@ -98,7 +99,7 @@
 <div id="app">
   <div id="canvas-wrap">
     <div id="drop-hint">
-      <div class="drop-icon">+</div>
+      <div class="drop-icon" role="button" tabindex="0" aria-label="Open an SVG"><svg class="ico ico--xl" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></div>
       <p>Drop an SVG exported from<br>Komorebi</p>
     </div>
     <canvas id="main-canvas" class="org-stage" aria-label="Animated tone bands"></canvas>
@@ -111,7 +112,7 @@
       <select class="panel-select" id="sel-preset" aria-label="Preset" onchange="applyPreset(this.value)"></select>
       <div class="row-btns">
         <button class="mini-btn" onclick="savePreset()">Save</button>
-        <button class="mini-btn" onclick="deletePreset()">Delete</button>
+        <button class="mini-btn" onclick="deletePreset()" data-armed="Confirm?">Delete</button>
       </div>
     </div>
 
@@ -123,6 +124,7 @@
 
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/icons.js"></script>
 <script src="/shared/noise.js"></script>
 <script src="/shared/canvas.js"></script>
 <script src="/shared/supabase.js"></script>
@@ -159,7 +161,9 @@ const EXPECT = 'komorebi', SRC_NAME = 'Komorebi', THUMB = 'leaf';
 let src = null;          // { W, H, name, ... } the parsed model
 let engine = null;
 let params = Object.assign({}, BF.DEFAULTS, BF.PRESETS['dapple'][Object.keys(BF.PRESETS['dapple'])[0]]);
-let clock = 0, lastNow = 0, playing = true, recording = false;
+// prefers-reduced-motion: no autoplay — start on the rest frame; Play still works
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let clock = 0, lastNow = 0, playing = !REDUCED, recording = false;
 
 // ═══════════════ Loading ═══════════════
 // Errors MUST go through setStatus('error', …): Organica.status shows a
@@ -302,9 +306,10 @@ function setPlaying(on) {
   ctrl('btn-playpause').setAttribute('aria-label', on ? 'Pause' : 'Play');
 }
 ctrl('btn-playpause').addEventListener('click', () => setPlaying(!playing));
+if (REDUCED) setPlaying(false);
 ctrl('btn-replay').addEventListener('click', () => { clock = 0; setPlaying(true); });
 addEventListener('keydown', e => {
-  if (e.target.closest('input,select,textarea')) return;
+  if (e.target.closest('input,select,textarea,button,a,summary,[role=button]')) return;
   if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
 });
 function syncLoop() {

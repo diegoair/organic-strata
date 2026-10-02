@@ -52,7 +52,7 @@
    (Space Grotesk has none, font-synthesis is off) it stays upright. strong = --w-semibold. */
 .org-prose em, .org-prose i { font-style: italic; }
 .org-prose a { color: var(--ink); text-decoration: underline; text-underline-offset: 0.18em; }
-.org-prose a:hover { color: var(--accent); }
+.org-prose a:hover { text-decoration-thickness: 2px; }   /* --accent was indistinguishable from --ink: the underline thickens instead */
 
 /* Optional roles, as classes on a <p>/<span>. */
 .org-prose__lead    { font-size: var(--t-body-lg-size); }

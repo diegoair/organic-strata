@@ -524,3 +524,12 @@ Typefaces (Sep 29, 2026) — **two families, split by role**:
   borders, fills, progress): as text it is 4.6:1 on white, 3.8:1 on `--panel`, 2.7:1 on a dark
   overlay. Text that must stand out uses `--ink` (or `--paper` on dark), with the accent beside it.
 - Never convey meaning by colour alone (WCAG 1.4.1).
+
+## Icons, motion tokens and behaviours (Oct 2, 2026)
+
+- **Icons** — `shared/icons.js` (registry, `Organica.icons`) + `shared/icons.css` (`.ico`). 16×16 grid, `currentColor`, stroke `--icon-stroke` (1.3) in screen px, sizes `--icon-xs/sm/md/lg/xl`. Never paste an inline chrome `<svg>`; `scripts/check.py` enforces it. Live catalogue: `/design-system/#icons`.
+- **Motion** — `--dur-instant/fast/base/slow/settle/reveal/stagger` and `--ease-standard/out/glide/overshoot-soft/overshoot/in-out` in `tokens.css` / `tokens.json`; durations collapse to 1ms under `prefers-reduced-motion`. Catalogue and demos: `#motion`.
+- **States and behaviours** — selected = ARIA, one focus ring, armed two-click (`[data-armed]`), keyboard table, floatbar order: `#states`, `#behaviours`.
+- The full audit that produced these: `docs/audit-2026-10/`.
+- **Hover and pressed** — three tiers, one wash (`--track-bg`), border hover `--ink`, `:active` one grey step, every hover rule behind `@media (hover: hover)` and `:where(:not(:disabled))`. See `/design-system/#hover` and `docs/audit-2026-10/HOVER.md`.
+- **Shared behaviours (core.js, self-running):** `Organica.a11y` (ARIA mirrors of class state, keyboard on `[role=button]`), `Organica.modal` (focus management), one-dropdown-at-a-time, `Organica.armed`.

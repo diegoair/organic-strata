@@ -61,9 +61,9 @@
     sel.style.display = 'none';
     host.classList.add('presets');
     if (opts.size === 'preview') host.classList.add('presets--preview');
-    host.innerHTML = `<button type="button" class="preset-trigger" id="${id}-trigger" aria-label="${opts.ariaLabel || 'Choose'}">
-        <span class="pt-ico" id="${id}-ico"></span><span class="pt-name" id="${id}-name"></span><span class="pt-chev">▾</span>
-      </button><div class="preset-menu" id="${id}-menu" hidden></div>`;
+    host.innerHTML = `<button type="button" class="preset-trigger" id="${id}-trigger" aria-label="${opts.ariaLabel || 'Choose'}" aria-haspopup="listbox" aria-expanded="false">
+        <span class="pt-ico" id="${id}-ico"></span><span class="pt-name" id="${id}-name"></span><span class="pt-chev"><svg class="ico ico--xs pt-chev-ico" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></span>
+      </button><div class="preset-menu" id="${id}-menu" role="listbox" aria-label="${opts.ariaLabel || 'Choose'}" hidden></div>`;
     const trigger = host.querySelector('#' + id + '-trigger'), menu = host.querySelector('#' + id + '-menu');
     const icoEl = host.querySelector('#' + id + '-ico'), nameEl = host.querySelector('#' + id + '-name');
     if (opts.size === 'preview') menu.classList.add('preset-menu--preview');
@@ -134,6 +134,7 @@
         const row = document.createElement('button');
         row.type = 'button';
         row.className = 'preset-item' + (key === sel.value ? ' on' : '');
+        row.setAttribute('role', 'option'); row.setAttribute('aria-selected', String(key === sel.value));
         row.innerHTML = `<span class="pi-ico"></span><span class="pi-name">${labelOf(key)}</span>`;
         const ico = row.querySelector('.pi-ico');
         ico.dataset.key = key;
@@ -142,7 +143,7 @@
           sel.value = key;
           sel.dispatchEvent(new Event('change', { bubbles: true }));
           refresh();
-          menu.hidden = true;
+          closeMenu(true);
         });
         menu.appendChild(row);
       });
@@ -165,13 +166,42 @@
       if (below >= 200 || below >= above) { menu.style.top = (t.bottom + gap) + 'px'; menu.style.bottom = 'auto'; menu.style.maxHeight = Math.max(160, below) + 'px'; }
       else { menu.style.bottom = (global.innerHeight - t.top + gap) + 'px'; menu.style.top = 'auto'; menu.style.maxHeight = Math.max(160, above) + 'px'; }
     }
-    trigger.addEventListener('click', e => {
-      e.stopPropagation();
-      if (menu.hidden) { populate(); position(); menu.hidden = false; } else menu.hidden = true;
+    // open / close — one place, so ARIA, focus and the "one dropdown at a time" rule can't drift
+    function openMenu() {
+      document.dispatchEvent(new CustomEvent('organica:dropdown-open', { detail: host }));
+      populate(); position(); menu.hidden = false;
+      trigger.setAttribute('aria-expanded', 'true');
+    }
+    function closeMenu(returnFocus) {
+      if (menu.hidden) return;
+      menu.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+      if (returnFocus) trigger.focus();
+    }
+    const items = () => [...menu.querySelectorAll('.preset-item')];
+    trigger.addEventListener('click', e => { e.stopPropagation(); if (menu.hidden) openMenu(); else closeMenu(false); });
+    trigger.addEventListener('keydown', e => {
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && menu.hidden) {
+        e.preventDefault(); openMenu();
+        const it = items(); (it.find(x => x.classList.contains('on')) || it[0] || trigger).focus();
+      }
+    });
+    menu.addEventListener('keydown', e => {
+      const it = items(), i = it.indexOf(document.activeElement);
+      if (e.key === 'ArrowDown') { e.preventDefault(); (it[i + 1] || it[0]).focus(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); (it[i - 1] || it[it.length - 1]).focus(); }
+      else if (e.key === 'Home') { e.preventDefault(); it[0] && it[0].focus(); }
+      else if (e.key === 'End') { e.preventDefault(); it.length && it[it.length - 1].focus(); }
+      else if (e.key === 'Escape') { e.stopPropagation(); closeMenu(true); }
+      else if (e.key === 'Tab') closeMenu(false);
     });
     document.addEventListener('click', e => {
-      if (!menu.hidden && !host.contains(e.target) && !menu.contains(e.target)) menu.hidden = true;
+      if (!menu.hidden && !host.contains(e.target) && !menu.contains(e.target)) closeMenu(false);
     });
+    document.addEventListener('organica:dropdown-open', e => { if (e.detail !== host) closeMenu(false); });
+    // the menu is position:fixed from the trigger's rect — it would float away from it on resize / scroll
+    global.addEventListener('resize', () => closeMenu(false));
+    document.addEventListener('scroll', e => { if (!menu.hidden && !menu.contains(e.target)) closeMenu(false); }, true);
     function invalidate(key) {
       if (key == null) cache.clear(); else cache.delete(key);
       refresh();

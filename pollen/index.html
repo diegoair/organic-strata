@@ -6,6 +6,7 @@
 <title>Pollen — Organica</title>
 <link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/icons.css">
   <link rel="stylesheet" href="/shared/header.css">
   <link rel="stylesheet" href="/shared/panel.css">
   <link rel="stylesheet" href="/shared/floatbar.css">
@@ -52,11 +53,11 @@
     aspect-ratio: 1; border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; background: var(--panel); padding: var(--space-2);
-    transition: border-color 0.12s, background 0.12s;
+    transition: border-color var(--dur-fast), background var(--dur-fast);
     overflow: hidden;
   }
-  .shape-thumb:hover { border-color: var(--accent); }
-  .shape-thumb.selected { border-color: var(--ink); background: var(--panel); }
+  @media (hover: hover) { .shape-thumb:hover { border-color: var(--ink); } }
+  .shape-thumb.selected { border-color: var(--ink); background: var(--panel); box-shadow: inset 0 0 0 1px var(--ink); }   /* hover = border, selected = border + inner ring */
   .shape-thumb svg { width: 100%; height: 100%; display: block; }
   .thumb-num {
     position: absolute; top: 1px; right: 2px;
@@ -69,9 +70,9 @@
     position: relative; aspect-ratio: 1; border: 1px dashed var(--border);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; background: var(--panel); padding: var(--space-2); overflow: hidden;
-    transition: border-color 0.12s, background 0.12s;
+    transition: border-color var(--dur-fast), background var(--dur-fast);
   }
-  .rmx-slot:hover { border-color: var(--accent); }
+  @media (hover: hover) { .rmx-slot:hover { border-color: var(--ink); } }
   .rmx-slot.filled { border-style: solid; }
   .rmx-slot.active { border-color: var(--ink); background: var(--panel); }
   .rmx-slot svg { width: 100%; height: 100%; display: block; }
@@ -117,8 +118,10 @@
     bottom: 0; left: 0;
     height: 2px;
     background: var(--pollen);
-    width: 0%;
-    transition: width 0.1s;
+    width: 100%;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--dur-fast) linear;
     pointer-events: none;
   }
 
@@ -157,7 +160,7 @@
 <!-- FLOATING TOOLBAR — Open / Export / Figma, fixed bottom-centre over the canvas -->
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
   <button class="org-floatbar__btn" aria-label="Open image" onclick="document.getElementById('file-input').click()">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M1.5 4A1 1 0 0 1 2.5 3h2.8l1 1.3H13.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+    <svg class="ico" data-icon="folder-open" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 4A1 1 0 0 1 2.5 3h2.8l1 1.3H13.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4Z"/></svg>
   </button>
 
   <div class="org-floatbar__sep"></div>
@@ -165,19 +168,19 @@
   <!-- Refresh / Stop — moved from the on-canvas #compute-bar into the floatbar
        (Sep 30, 2026, same as Spore). Same ids, so markDirty()/clearDirty()/
        computePoints()'s enable/disable logic is untouched. -->
-  <button class="org-floatbar__btn" id="btn-refresh" onclick="refresh()" disabled aria-label="Refresh" title="Refresh">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.6 2.2v2.6h2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <button class="org-floatbar__btn" id="btn-refresh" onclick="refresh()" disabled aria-label="Refresh">
+    <svg class="ico" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>
   </button>
-  <button class="org-floatbar__btn" id="btn-stop" onclick="stopCompute()" disabled aria-label="Stop computing" title="Stop">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1" fill="currentColor"/></svg>
+  <button class="org-floatbar__btn" id="btn-stop" onclick="stopCompute()" disabled aria-label="Stop computing">
+    <svg class="ico" data-icon="stop" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1" fill="currentColor" stroke="none"/></svg>
   </button>
 
   <div class="org-floatbar__sep"></div>
 
   <div class="org-popover-wrap">
     <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" disabled aria-label="Export">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="ico" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
+      <svg class="ico chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
     </button>
     <div class="org-popover" id="export-popover" aria-label="Export options">
       <div class="org-popover__title">Format</div>
@@ -225,7 +228,7 @@
   <!-- LEFT: IMAGE / PREVIEW -->
   <div id="canvas-wrap">
     <div id="drop-hint">
-      <div class="drop-icon">+</div>
+      <div class="drop-icon" role="button" tabindex="0" aria-label="Open an image"><svg class="ico ico--xl" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></div>
       <p>Drop an image here<br>or click Open…</p>
     </div>
     <canvas id="main-canvas" class="org-stage"></canvas>
@@ -249,7 +252,7 @@
       </select>
       <div class="row-btns">
         <button class="mini-btn" onclick="savePreset()">Save</button>
-        <button class="mini-btn" onclick="deletePreset()">Delete</button>
+        <button class="mini-btn" onclick="deletePreset()" data-armed="Confirm?">Delete</button>
       </div>
       <div id="preset-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
         <input type="text" class="panel-select" id="txt-preset-name" placeholder="Name this preset" aria-label="Name this preset" style="flex:1">
@@ -279,9 +282,9 @@
         <span>RMX · remix by tone</span>
       </label>
       <div id="rmx-slots" class="rmx-slots" style="display:none">
-        <div class="rmx-slot" data-slot="0" onclick="rmxSelectSlot(0)"><span class="rmx-plus">+</span></div>
-        <div class="rmx-slot" data-slot="1" onclick="rmxSelectSlot(1)"><span class="rmx-plus">+</span></div>
-        <div class="rmx-slot" data-slot="2" onclick="rmxSelectSlot(2)"><span class="rmx-plus">+</span></div>
+        <div class="rmx-slot" data-slot="0" onclick="rmxSelectSlot(0)"><svg class="ico ico--sm rmx-plus" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></div>
+        <div class="rmx-slot" data-slot="1" onclick="rmxSelectSlot(1)"><svg class="ico ico--sm rmx-plus" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></div>
+        <div class="rmx-slot" data-slot="2" onclick="rmxSelectSlot(2)"><svg class="ico ico--sm rmx-plus" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></div>
       </div>
       <div id="rmx-hint" class="sub-label" style="display:none; margin-top: var(--space-2)">dark → mid → bright</div>
 
@@ -415,7 +418,7 @@
         </span>
         <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7">
         <button class="icon-btn" id="btn-random-ink" title="Random colour">
-          <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
+          <svg class="ico ico--sm" data-icon="dice" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><circle cx="5.5" cy="5.5" r=".9" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r=".9" fill="currentColor" stroke="none"/><circle cx="10.5" cy="10.5" r=".9" fill="currentColor" stroke="none"/></svg>
         </button>
       </div>
       <!-- BACKGROUND colour -->
@@ -427,7 +430,7 @@
         </span>
         <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7">
         <button class="icon-btn" id="btn-random-bg" title="Random colour">
-          <svg viewBox="0 0 16 16" width="11" height="11"><rect x="2" y="2" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.5" cy="5.5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1.1" fill="currentColor"/></svg>
+          <svg class="ico ico--sm" data-icon="dice" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><circle cx="5.5" cy="5.5" r=".9" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r=".9" fill="currentColor" stroke="none"/><circle cx="10.5" cy="10.5" r=".9" fill="currentColor" stroke="none"/></svg>
         </button>
       </div>
       <!-- Point Alpha (native picker has no alpha) -->
@@ -533,6 +536,7 @@
 <!-- Centralized Organica shape library (window.ORGANIC_FORMS) shared with Genesis -->
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/icons.js"></script>
 <script src="/shared/canvas.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
@@ -760,7 +764,7 @@ function buildRmxSlots() {
     const key = rmxForms[i];
     el.classList.toggle('active', i === rmxSlot);
     el.classList.toggle('filled', !!key);
-    el.innerHTML = key ? shapeSVG(key).replace(/currentColor/g, '#0a0a0a') : '<span class="rmx-plus">+</span>';
+    el.innerHTML = key ? shapeSVG(key).replace(/currentColor/g, '#0a0a0a') : '<svg class="ico ico--sm rmx-plus" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>';
     el.title = key ? 'Tone ' + (i + 1) + ' · ' + key + ' (click to clear)' : 'Empty slot — click, then pick a symbol';
   }
   updateStrokeControls();
@@ -1093,7 +1097,7 @@ async function computePoints() {
   computing = true;
   ctrl('btn-stop').disabled = false;
   setStatus('rendering', 'Placing points…');
-  ctrl('progress-bar').style.width = '0%';
+  ctrl('progress-bar').style.transform = 'scaleX(0)';
 
   const spMul = val('sl-sp-scale') || 1;   // master spacing: scales min+max, keeps ratio
   const minSp = val('sl-sp-min') * spMul;
@@ -1117,7 +1121,7 @@ async function computePoints() {
     hideBand: hideBand(),
     isCancelled: () => token !== computeToken,
     onProgress: (frac, n) => {
-      ctrl('progress-bar').style.width = Math.round(frac * 100) + '%';
+      ctrl('progress-bar').style.transform = 'scaleX(' + frac + ')';
       ctrl('vl-total').textContent = n.toLocaleString();
     },
   });
@@ -1125,8 +1129,8 @@ async function computePoints() {
   points = placed;
   computing = false;
   ctrl('btn-stop').disabled = true;
-  ctrl('progress-bar').style.width = '100%';
-  setTimeout(() => { ctrl('progress-bar').style.width = '0%'; }, 500);
+  ctrl('progress-bar').style.transform = 'scaleX(1)';
+  setTimeout(() => { ctrl('progress-bar').style.transform = 'scaleX(0)'; }, 500);
   clearDirty();
   ctrl('vl-total').textContent = points.length.toLocaleString();
   ['btn-export', 'btn-save-png','btn-save-jpg','btn-save-svg'].forEach(id => ctrl(id).disabled = false);

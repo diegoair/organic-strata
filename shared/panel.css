@@ -374,7 +374,7 @@ input[type=range]:focus-visible::-moz-range-track {
   background: var(--control-bg);
   cursor: pointer;
   transform: scale(var(--hw, 1));      /* the hover swell (Organica.liquidCheck) */
-  transition: background-color 320ms ease;
+  transition: background-color var(--dur-slow) ease;
 }
 :is(.check-row, .org-check) input[type=checkbox]:checked,
 .ctrl-row > input[type=checkbox]:checked { background: var(--ink); }
@@ -387,7 +387,7 @@ input[type=range]:focus-visible::-moz-range-track {
 .ctrl-row > input[type=checkbox]:not(:checked):not(:disabled):hover { background: var(--gray-200); }
 .check-row:hover input[type=checkbox]:checked:not(:disabled),
 .org-check:hover input[type=checkbox]:checked:not(:disabled),
-.ctrl-row > input[type=checkbox]:checked:not(:disabled):hover { background: var(--gray-900); }
+.ctrl-row > input[type=checkbox]:checked:not(:disabled):hover { background: var(--accent-hover); }
 /* The tick: an L rotated 45deg, sized from the box, and ALWAYS present —
    its scale is the spring's (Organica.liquidCheck, core.js), the same three
    springs as the switch's droplet: --cx is how far it has sprung in (0..1,
@@ -412,7 +412,7 @@ input[type=range]:focus-visible::-moz-range-track {
              scale(calc(var(--cx, 1) * var(--csx, 1)), calc(var(--cx, 1) * var(--csy, 1)));
 }
 :is(.check-row, .org-check) input[type=checkbox]:focus-visible,
-.ctrl-row > input[type=checkbox]:focus-visible { outline: 1px solid var(--tool, var(--ink)); outline-offset: 2px; }
+.ctrl-row > input[type=checkbox]:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
 /* DISABLED — not a 35% ghost. Fading --track-bg to 35% left an unchecked box
    a near-invisible pale square; it is drawn instead, from the grey scale: the
    unchecked box is --gray-100 with a hairline ring (--border) so its shape
@@ -472,12 +472,12 @@ input[type=range]:focus-visible::-moz-range-track {
   border-radius: 999px;                  /* always a pill */
   background: var(--control-bg);         /* OFF = the slider's own well (both are the control surface) */
   touch-action: none;
-  transition: background-color 320ms ease;
+  transition: background-color var(--dur-slow) ease;
 }
 .check-row.org-switch input[type=checkbox]:checked { background: var(--ink); border-color: transparent; }
 /* hover, as the checkbox: one step darker on the grey scale, and the droplet swells */
 .check-row.org-switch:hover input[type=checkbox]:not(:checked):not(:disabled) { background: var(--gray-200); }
-.check-row.org-switch:hover input[type=checkbox]:checked:not(:disabled) { background: var(--gray-900); }
+.check-row.org-switch:hover input[type=checkbox]:checked:not(:disabled) { background: var(--accent-hover); }
 .check-row.org-switch input[type=checkbox]::after,
 .check-row.org-switch input[type=checkbox]:checked::after {
   content: '';
@@ -495,7 +495,7 @@ input[type=range]:focus-visible::-moz-range-track {
      property would re-interpolate every frame it writes, and what you would
      see is the easing, not the spring. Only the colour eases. */
   transform: translateX(calc(var(--lx, 0) * var(--sw-travel))) scale(var(--lsx, 1), var(--lsy, 1));
-  transition: background-color 320ms ease;
+  transition: background-color var(--dur-slow) ease;
 }
 .check-row.org-switch input[type=checkbox]:checked::after {
   background: var(--paper);
@@ -536,14 +536,19 @@ input[type=range]:focus-visible::-moz-range-track {
   color: var(--accent);
   cursor: pointer;
   margin-left: -1px;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--dur-fast), color var(--dur-fast);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .seg-btn:first-child { margin-left: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
 .seg-btn:last-child  { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.seg-btn:hover { color: var(--ink); }
+.seg-btn:disabled { opacity: 0.42; cursor: not-allowed; }
+@media (hover: hover) {
+  .seg-btn:hover:not(:disabled):not(.active):not([aria-pressed="true"]) { background: var(--track-bg); color: var(--ink); }
+  .seg-btn:is(.active, [aria-pressed="true"]):hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+}
+.seg-btn:active:not(:disabled):not(.active):not([aria-pressed="true"]) { background: var(--gray-200); }
 .seg-btn.active,
 .seg-btn[aria-pressed="true"] {
   background: var(--ink);
@@ -659,7 +664,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 
 /* .upload-btn is an alias of THE BUTTON (--block, header.css); its delta: the dashed "drop here" border. */
 .upload-btn { border-style: dashed; color: var(--mid); }
-.upload-btn:hover { border-style: dashed; color: var(--ink); }
+@media (hover: hover) { .upload-btn:hover:not(:disabled) { border-style: dashed; color: var(--ink); } }
 
 .org-file-input {
   position: absolute;
@@ -753,7 +758,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 /* Focus — one visible ring for every control in the panel */
 #panel :focus-visible,
 .org-panel :focus-visible {
-  outline: 2px solid var(--tool, var(--ink));
+  outline: 2px solid var(--ink);   /* not --tool: it fails 3:1 against several tools' paper (Pollen 2.3, Living Path 2.6, Dapple 2.7…) */
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -799,9 +804,9 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
   font-family: var(--font-display); font-size: var(--t-control-size); min-height: var(--space-8); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
   cursor: pointer; background: var(--control-bg); color: var(--ink);
   border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
-  transition: border-color .14s;
+  transition: border-color var(--dur-fast);
 }
-.preset-trigger:hover { border-color: var(--tool, var(--ink)); }
+@media (hover: hover) { .preset-trigger:hover:not(:disabled) { border-color: var(--ink); } }   /* not --tool: it fails 3:1 on 12 of 26 tools */
 .pt-ico, .pi-ico {
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   overflow: hidden; background: var(--paper);
@@ -835,8 +840,10 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
   border-radius: var(--radius-sm); text-align: left;
   font-family: var(--font); font-size: var(--fs-small); color: var(--ink);
 }
-.preset-item:hover { background: var(--panel); border-color: var(--border); }
-.preset-item.on { border-color: var(--tool, var(--ink)); }
+@media (hover: hover) { .preset-item:hover { background: var(--track-bg); } }   /* --panel was 1.01:1 on the menu's own ground in dark = invisible */
+.preset-item:focus-visible { background: var(--track-bg); }
+.preset-item { transition: background-color var(--dur-instant); }
+.preset-item.on { border-color: var(--ink); }   /* selection = border, hover = fill: they never collide */
 .pi-name { flex: 1; line-height: 1.2; }
 .pi-group { font-size: var(--fs-micro); color: var(--mid); padding: var(--space-2) var(--space-2) 0; }
 
@@ -906,3 +913,6 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
    ═══════════════════════════════════════════════════════════ */
 .org-num { font-family: var(--t-num-font); font-variant-numeric: var(--t-num-variant); letter-spacing: var(--t-num-ls); }
 .org-truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Armed two-click confirm (Organica.armed, [data-armed]) — one look for every destructive button. */
+.mini-btn.is-armed, .org-btn.is-armed, .panel-btn.is-armed { color: var(--danger); border-color: var(--danger); }

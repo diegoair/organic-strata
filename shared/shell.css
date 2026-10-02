@@ -110,7 +110,7 @@ body {
   gap: var(--space-5);
   pointer-events: none;
   opacity: 1;
-  transition: opacity 0.3s;
+  transition: opacity var(--dur-slow);
 }
 #drop-hint.hidden { opacity: 0; }
 
@@ -127,9 +127,9 @@ body {
   font-size: var(--fs-xl);
   pointer-events: auto;
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
+  transition: border-color var(--dur-fast), color var(--dur-fast);
 }
-.drop-icon:hover { border-color: var(--ink); color: var(--ink); }
+@media (hover: hover) { .drop-icon:hover { border-color: var(--ink); color: var(--ink); background: var(--track-bg); } }
 
 #drop-hint p {
   font-size: var(--fs-small);
@@ -167,9 +167,10 @@ body {
   pointer-events: auto;
   cursor: pointer;
   opacity: 0.6;
-  transition: opacity 0.15s;
+  transition: opacity var(--dur-fast);
 }
-#zoom-hud .zoom-reset:hover { opacity: 1; }
+@media (hover: hover) { #zoom-hud .zoom-reset:hover { opacity: 1; } }
+@media (hover: none) { #zoom-hud .zoom-reset { opacity: 1; } }   /* touch has no hover to reveal it */
 
 /* ═══════════════════════════════════════════════════════════
    ON-CANVAS CONTROL BAR — Spore + Pollen's identical top-left
@@ -195,4 +196,4 @@ body {
   border-color: rgba(245, 242, 236, 0.24);
 }
 .hud-btn:hover:not(:disabled) { border-color: #f5f2ec; background: rgba(10, 10, 10, 0.95); }
-.hud-btn:focus-visible { outline: 2px solid var(--tool); outline-offset: 2px; }
+.hud-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }

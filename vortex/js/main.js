@@ -91,12 +91,14 @@ const sketch = (p) => {
     applySeed();   // reads state.p.noiseSeed — must run after createCanvas gives us a real instance to call it on
   };
 
+  const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   p.draw = () => {
     if (state.phase === 'resting') {
       renderFrame(p);
       const cx = state.W / 2, cy = state.H / 2;
       const b = seedLineBounds(cx, cy);
-      if (p.mouseX > b.x0 && p.mouseX < b.x1 && p.mouseY > b.y0 && p.mouseY < b.y1) {
+      // reduced motion: hovering does not start the growth — the Play button still does
+      if (!REDUCED && p.mouseX > b.x0 && p.mouseX < b.x1 && p.mouseY > b.y0 && p.mouseY < b.y1) {
         enterTransitioning();
         updatePlayPauseIcon();
       }

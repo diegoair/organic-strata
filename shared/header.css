@@ -75,9 +75,9 @@
   border-radius: var(--radius-md);
   color: var(--ink);
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background-color var(--dur-fast);
 }
-.org-header__nav:hover { background: var(--panel); }
+@media (hover: hover) { .org-header__nav:hover { background: var(--track-bg); } }
 .org-header__nav menu-icon { --color: var(--ink); }   /* the hamburger — shared/menu-icon.js */
 
 
@@ -179,9 +179,9 @@
   background: none;
   color: var(--mid);
   cursor: pointer;
-  transition: background-color 0.15s, color 0.15s;
+  transition: background-color var(--dur-fast), color var(--dur-fast);
 }
-.org-notice__close:hover { background: var(--track-bg); color: var(--ink); }
+@media (hover: hover) { .org-notice__close:hover { background: var(--track-bg); color: var(--ink); } }
 @media (prefers-reduced-motion: reduce) {
   .org-notice { animation: none; }
   .org-notice[data-kind="busy"] .org-notice__dot { animation: none; }
@@ -198,14 +198,15 @@
   padding: 0; border: 0; border-radius: 50%;   /* a circle — the pill exception */
   background: transparent; color: var(--ink); cursor: pointer;
 }
-.org-theme:hover { background: var(--gray-100); }
+@media (hover: hover) { .org-theme:hover { background: var(--track-bg); } }
+.org-theme { transition: background-color var(--dur-fast); }
 /* Theme-switch reveal (header.js): the new theme is clipped open from the button by script, so the
    browser's default cross-fade must be off and the new snapshot must sit on top. */
 ::view-transition-group(root) { animation: none; }   /* else the group runs its own 250ms and the transition finishes late */
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
 ::view-transition-new(root) { z-index: 2; }
 ::view-transition-old(root) { z-index: 1; }
-.org-theme svg { width: var(--space-6); height: var(--space-6); fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.org-theme svg { width: var(--icon-lg); height: var(--icon-lg); }
 
 /* ── Pattern switcher — four round previews of the canvas pattern (shared/header.js) ── */
 .org-pattern { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; }
@@ -217,7 +218,7 @@
   background-color: var(--paper);
   background-repeat: repeat;
   cursor: pointer;
-  transition: outline-color 0.15s;
+  transition: outline-color var(--dur-fast);
 }
 .org-pattern__dot[data-pattern="dots"]  { background-image: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1.4px); background-size: var(--space-2) var(--space-2); background-position: center; }
 .org-pattern__dot[data-pattern="grid"]  { background-image: linear-gradient(var(--canvas-dot) 1px, transparent 1px), linear-gradient(90deg, var(--canvas-dot) 1px, transparent 1px); background-size: var(--space-2) var(--space-2); background-position: center; }
@@ -288,9 +289,9 @@
   line-height: var(--lh-snug);
   color: var(--ink);
   text-decoration: none;
-  transition: background-color 0.085s ease-out;
+  transition: background-color var(--dur-instant);
 }
-.org-mega__link:hover { background: var(--track-bg); }
+@media (hover: hover) { .org-mega__link:hover { background: var(--track-bg); } }
 .org-mega__links { min-width: 0; }
 /* Where you are: bolder. (Pinterest's dark "current" pill lived in a Shortcuts column — removed.) */
 .org-mega__link[aria-current="page"] { font-weight: var(--w-bold); }
@@ -309,7 +310,8 @@
 .org-mega__foot b { font-weight: var(--w-bold); margin-right: var(--space-2); }
 .org-mega__foot-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--space-4); }
 .org-mega__foot-link { color: var(--ink); text-decoration: none; border-radius: var(--radius-md); padding: var(--space-1) var(--space-2); margin: 0 calc(var(--space-2) * -1); }
-.org-mega__foot-link:hover { background: var(--track-bg); }
+@media (hover: hover) { .org-mega__foot-link:hover { background: var(--track-bg); } }
+.org-mega__foot-link { transition: background-color var(--dur-instant); }
 .org-mega__foot-link[aria-current="page"] { font-weight: var(--w-bold); }
 /* narrower windows: two rows of three */
 @media (max-width: 1100px) {
@@ -345,7 +347,8 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.org-account__trigger:hover { border-color: var(--border); }
+@media (hover: hover) { .org-account__trigger:hover { border-color: var(--border-strong); } }
+.org-account__trigger { transition: border-color var(--dur-fast); }   /* --border is 1.66:1 — not a visible boundary change */
 .org-account__avatar {
   width: 20px;
   height: 20px;
@@ -403,9 +406,10 @@
   cursor: pointer;
   text-decoration: none;
 }
-.org-account__item:hover { background: var(--panel); }
+@media (hover: hover) { .org-account__item:hover:not(:disabled) { background: var(--track-bg); } }
+.org-account__item { transition: background-color var(--dur-instant); }
 .org-account__item--danger { color: var(--danger); }
-.org-account__item:disabled { opacity: 0.5; cursor: default; }
+.org-account__item:disabled { opacity: 0.5; cursor: not-allowed; }
 @media (max-width: 640px) { .org-account__name { display: none; } }
 
 /* ═══════════════════════════════════════════════════════════
@@ -449,12 +453,18 @@
   cursor: pointer;
   white-space: nowrap;
   text-decoration: none;
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  transition: border-color var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
 }
 /* the base sets display, which would beat the browser's own [hidden] rule — a button hidden with
    the attribute (Sinew's vector→raster chain, …) must stay hidden */
 :is(.org-btn, .mini-btn, .panel-btn, .upload-btn, .icon-btn, .hud-btn)[hidden] { display: none; }
-.org-btn:hover, .mini-btn:hover, .upload-btn:hover, .icon-btn:hover { border-color: var(--ink); background: var(--panel); }
+/* HOVER — tier 1, "outline control" (docs: design-system #hover). Every hover rule sits behind
+   @media (hover: hover) so touch never gets a sticky wash, and behind :where(:not(:disabled)…) —
+   :where() adds no specificity, so the variants below still win by order, and a disabled
+   button can no longer be repainted (it used to lose its fill on hover). One wash token. */
+@media (hover: hover) {
+  :is(.org-btn, .mini-btn, .upload-btn, .icon-btn):hover:where(:not(:disabled):not([aria-disabled="true"])) { border-color: var(--ink); background: var(--track-bg); }
+}
 
 /* sizes */
 .org-btn--sm, .icon-btn { --btn-h: var(--slo-h); padding: 0 var(--space-3); }
@@ -469,13 +479,23 @@
   border-color: var(--ink);
 }
 .org-btn--primary, .panel-btn { font-weight: var(--w-medium); }
-.org-btn--primary:hover, .panel-btn:hover,
-.org-btn.on:hover, .org-btn.active:hover, .org-btn[aria-pressed="true"]:hover,
-.mini-btn.on:hover, .mini-btn.active:hover, .mini-btn[aria-pressed="true"]:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+@media (hover: hover) {
+  :is(.org-btn--primary, .panel-btn, .org-btn.on, .org-btn.active, .org-btn[aria-pressed="true"],
+      .mini-btn.on, .mini-btn.active, .mini-btn[aria-pressed="true"]):hover:where(:not(:disabled):not([aria-disabled="true"])) { background: var(--accent-hover); border-color: var(--accent-hover); }
+}
 .org-btn--ghost { border-color: transparent; }
-.org-btn--ghost:hover { border-color: transparent; background: var(--panel); }
+@media (hover: hover) {
+  .org-btn--ghost:hover:where(:not(:disabled):not([aria-disabled="true"])) { border-color: transparent; background: var(--track-bg); }
+}
 .org-btn--danger { color: var(--danger); border-color: var(--danger); }
-.org-btn--danger:hover { background: var(--danger); border-color: var(--danger); color: var(--paper); }
+@media (hover: hover) {
+  .org-btn--danger:hover:where(:not(:disabled):not([aria-disabled="true"])) { background: var(--danger); border-color: var(--danger); color: var(--paper); }
+}
+/* PRESSED (:active) — one grey step past hover; the inverse variants one step darker. */
+:is(.org-btn, .mini-btn, .upload-btn, .icon-btn):active:where(:not(:disabled):not([aria-disabled="true"])) { background: var(--gray-200); transition-duration: var(--dur-instant); }
+:is(.org-btn--primary, .panel-btn, .org-btn.on, .org-btn.active, .org-btn[aria-pressed="true"],
+    .mini-btn.on, .mini-btn.active, .mini-btn[aria-pressed="true"]):active:where(:not(:disabled):not([aria-disabled="true"])) { background: var(--gray-700); border-color: var(--gray-700); }
+.org-btn--danger:active:where(:not(:disabled):not([aria-disabled="true"])) { background: var(--danger); color: var(--paper); filter: brightness(0.9); }
 
 /* shapes */
 .org-btn--icon, .icon-btn { width: var(--btn-h); padding: 0; }
@@ -483,11 +503,10 @@
 .org-btn--block, .panel-btn, .upload-btn { width: 100%; }
 
 /* A disabled control must say WHY (aria-describedby / data-why). Opacity kept
-   above 0.4 so the label stays readable; no hover response. */
+   above 0.4 so the label stays readable; no hover or pressed response (the hover rules above
+   exclude it, so the old ":disabled:hover" reset rules are gone). */
 .org-btn:disabled, .org-btn[aria-disabled="true"],
 .mini-btn:disabled, .panel-btn:disabled, .upload-btn:disabled, .icon-btn:disabled, .hud-btn:disabled { opacity: 0.42; cursor: not-allowed; }
-.org-btn:disabled:hover, .mini-btn:disabled:hover, .icon-btn:disabled:hover { border-color: var(--border-strong); background: none; }
-.org-btn--primary:disabled:hover, .panel-btn:disabled:hover { background: var(--ink); border-color: var(--ink); }
 
 /* .org-sep retired 2026-09-06 — 0 consumers, superseded by
    .org-floatbar__sep when the actions moved out of the header. */
@@ -499,7 +518,7 @@
 .org-header :focus-visible,
 .org-popover :focus-visible,
 .org-mega :focus-visible {
-  outline: 2px solid var(--tool);
+  outline: 2px solid var(--ink);   /* one ring colour everywhere: --tool fails 3:1 on several tools' paper */
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -590,7 +609,7 @@
   min-height: var(--field-h);
   padding: 0 var(--space-2);
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color var(--dur-fast);
 }
 :is(.org-field, .panel-select, .panel-input, .color-hex, .org-select):hover { border-color: var(--mid); }
 :is(.org-field, .panel-select, .panel-input, .color-hex, .org-select):focus { border-color: var(--ink); }
@@ -646,6 +665,10 @@ textarea.org-field { padding: var(--space-2); line-height: var(--lh-snug); resiz
   z-index: 1;
 }
 
+@media (hover: hover) {
+  .org-tabs .org-btn[aria-pressed="true"]:hover:where(:not(:disabled):not([aria-disabled="true"])) { background: var(--accent-hover); border-color: var(--accent-hover); }
+}
+
 /* ═══════════════════════════════════════════════════════════
    RESPONSIVE
    At 700px the old bar didn't overflow — flex just squeezed items until the
@@ -663,4 +686,49 @@ textarea.org-field { padding: var(--space-2); line-height: var(--lh-snug); resiz
   .org-btn { padding: 0 var(--space-3); }
   .org-pattern { gap: var(--space-2); }
   .org-pattern__dot { width: var(--space-5); height: var(--space-5); }
+}
+
+/* ── Enter + exit motion for the three dropdown surfaces (Oct 2, 2026) ──────────
+   Popover, account menu and mega menu used to flip display:none ↔ block, so they
+   snapped in and out. `display` is now a discrete transition (allow-discrete), so the
+   panel stays rendered while it fades on the way OUT, and @starting-style gives the
+   way IN. Open = base · out; close = fast · standard. Browsers without
+   @starting-style / allow-discrete keep the old instant behaviour. Under
+   prefers-reduced-motion the --dur-* tokens are 1ms, so it is instant there too. */
+.org-popover, .org-account__menu, .org-mega, .org-mega__backdrop {
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-standard),
+              transform var(--dur-fast) var(--ease-standard),
+              display var(--dur-fast) allow-discrete;
+}
+.org-popover, .org-account__menu { transform: translateY(calc(var(--space-2) * -1)) scale(0.97); transform-origin: top right; }
+.org-mega { transform: translateY(calc(var(--space-2) * -1)); }
+.org-mega__backdrop { transform: none; }
+.org-popover[data-open="true"], .org-account__menu[data-open="true"], .org-mega[data-open="true"],
+.org-mega[data-open="true"] ~ .org-mega__backdrop {
+  opacity: 1;
+  transform: none;
+  transition-duration: var(--dur-base);
+  transition-timing-function: var(--ease-out);
+}
+@starting-style {
+  .org-popover[data-open="true"], .org-account__menu[data-open="true"] { opacity: 0; transform: translateY(calc(var(--space-2) * -1)) scale(0.97); }
+  .org-mega[data-open="true"] { opacity: 0; transform: translateY(calc(var(--space-2) * -1)); }
+  .org-mega[data-open="true"] ~ .org-mega__backdrop { opacity: 0; }
+}
+
+/* Notice exit — Organica.noticeClose() sets data-closing, then removes it after --dur-fast. */
+.org-notice[data-closing="true"] { animation: org-notice-out var(--dur-fast) var(--ease-standard) forwards; }
+@keyframes org-notice-out {
+  from { opacity: 1; transform: translate(-50%, -50%); }
+  to   { opacity: 0; transform: translate(-50%, calc(-50% + var(--space-3))); }
+}
+@media (prefers-reduced-motion: reduce) { .org-notice[data-closing="true"] { animation: none; } }
+
+/* GLOBAL FOCUS RING (Oct 2, 2026) — a floor under the scoped rules above (header / popover / panel / floatbar):
+   any focusable element anywhere gets the one ring. :where() = zero specificity, so every scoped rule still wins;
+   tools that had hover but no focus-visible of their own (admin, Apostate, Colornet, Loom, Mycel, Spore…) inherit it. */
+:where(button, a[href], summary, select, input:not([type="range"]), textarea, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }

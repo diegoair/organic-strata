@@ -297,7 +297,7 @@
     const icon = key => key ? ((registry[key] && registry[key].icon) || '') : noneIcon;
 
     hostEl.innerHTML = `<button class="preset-trigger" id="${id}-trigger" aria-label="${opts.ariaLabel || 'Preset'}">
-        <span class="pt-ico" id="${id}-ico"></span><span class="pt-name" id="${id}-name"></span><span class="pt-chev">▾</span>
+        <span class="pt-ico" id="${id}-ico"></span><span class="pt-name" id="${id}-name"></span><span class="pt-chev"><svg class="ico ico--xs pt-chev-ico" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></span>
       </button><div class="preset-menu" id="${id}-menu" hidden></div>`;
     const trigger = document.getElementById(id + '-trigger'), menu = document.getElementById(id + '-menu');
     const icoEl = document.getElementById(id + '-ico'), nameEl = document.getElementById(id + '-name');

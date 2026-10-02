@@ -6,6 +6,7 @@
 <title>Sinew · Organica</title>
 <link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
@@ -45,7 +46,7 @@
 }
 .layer.on .layer-head .tog{background:var(--tool); border-color:var(--tool); color:var(--ink)}
 .layer-head b{flex:1; font-size:var(--fs-base); font-weight:var(--w-medium); letter-spacing:.04em}
-.layer-head .chev{font-size:var(--fs-micro); color:var(--mid); transition:.16s}
+.layer-head .chev{font-size:var(--fs-micro); color:var(--mid); transition:transform var(--dur-fast)}
 .layer.open .layer-head .chev{transform:rotate(90deg)}
 .layer-body{padding:var(--space-1) var(--space-4) 11px; display:none}
 .layer.open .layer-body{display:block}
@@ -102,15 +103,15 @@
 <!-- FLOATING TOOLBAR — Reset / Export, fixed bottom-centre over the canvas -->
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
   <button class="org-floatbar__btn" id="reset" aria-label="Reset effects">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13 4.8A5.5 5.5 0 1 0 14 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M13.3 1.5v3.5H9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <svg class="ico" data-icon="reset" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.65"/><path d="M3 2.3V6h3.7"/></svg>
   </button>
 
   <div class="org-floatbar__sep"></div>
 
   <div class="org-popover-wrap">
     <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="ico" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
+      <svg class="ico chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
     </button>
     <div class="org-popover" id="export-popover" aria-label="Export options">
       <div class="org-popover__title">Format</div>
@@ -193,6 +194,7 @@
 <!-- core BEFORE the tool script, per docs/UI-SHELL.md -->
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/icons.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
 <script src="/shared/auth-badge.js"></script>
@@ -338,7 +340,7 @@ function positionPresetMenu(){
 function buildPresets(){
   const host=$('#presets');
   host.innerHTML=`<button class="preset-trigger" id="presetTrigger">
-      <span class="pt-ico" id="ptIco"></span><span class="pt-name" id="ptName">Choose a preset…</span><span class="pt-chev">▾</span>
+      <span class="pt-ico" id="ptIco"></span><span class="pt-name" id="ptName">Choose a preset…</span><span class="pt-chev"><svg class="ico ico--xs pt-chev-ico" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></span>
     </button><div class="preset-menu" id="presetMenu" hidden></div>`;
   $('#presetTrigger').addEventListener('click',e=>{ e.stopPropagation();
     const m=$('#presetMenu'); if(m.hidden){ populatePresetMenu(); positionPresetMenu(); m.hidden=false; } else m.hidden=true; });
@@ -363,11 +365,11 @@ function buildLayerEl(grp, layer, idx, reg){
       <span class="val">${layer.params[key]}</span></div>`;
   });
   body+=`<div class="row" style="margin-top:var(--space-2); gap:var(--space-2)">
-    <button class="org-btn org-btn--sm" data-act="up" ${idx===0?'disabled':''}>↑</button>
-    <button class="org-btn org-btn--sm" data-act="down" ${idx===grp.layers.length-1?'disabled':''}>↓</button>
+    <button class="org-btn org-btn--sm" data-act="up" aria-label="Move layer up" ${idx===0?'disabled':''}><svg class="ico ico--sm" data-icon="arrow-up" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3M4.5 6.5 8 3l3.5 3.5"/></svg></button>
+    <button class="org-btn org-btn--sm" data-act="down" aria-label="Move layer down" ${idx===grp.layers.length-1?'disabled':''}><svg class="ico ico--sm" data-icon="arrow-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M4.5 9.5 8 13l3.5-3.5"/></svg></button>
     <button class="org-btn org-btn--sm" data-act="del" style="margin-left:auto; color:var(--danger)">remove</button></div>`;
   el.innerHTML=`<div class="layer-head">
-      <div class="tog">✓</div><b>${def.name}</b><span class="chev">▶</span>
+      <div class="tog"><svg class="ico ico--xs" data-icon="check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg></div><b>${def.name}</b><svg class="ico ico--xs chev" data-icon="chevron-right" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg>
     </div><div class="layer-body">${body}</div>`;
   el.querySelector('.tog').addEventListener('click',e=>{ e.stopPropagation(); layer.on=!layer.on; markCustom(); renderStack(); render(); });
   el.querySelector('.layer-head').addEventListener('click',()=>{ layer.open=!layer.open; renderStack(); });
@@ -392,9 +394,9 @@ function renderStack(){
       const blend = gi===0
         ? '<span class="gbase">base group</span>'
         : `<select class="blendsel org-field">${BLENDS.map(m=>`<option ${grp.blend===m?'selected':''}>${m}</option>`).join('')}</select>`;
-      const del = groups.length>1 ? '<button class="org-btn org-btn--sm gdel">×</button>' : '';
+      const del = groups.length>1 ? '<button class="org-btn org-btn--sm gdel" aria-label="Delete group"><svg class="ico ico--sm" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>' : '';
       const gh=document.createElement('div'); gh.className='group-head';
-      gh.innerHTML=`<div class="tog gtog">✓</div>${blend}<span class="gsp"></span>${del}`;
+      gh.innerHTML=`<div class="tog gtog"><svg class="ico ico--xs" data-icon="check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg></div>${blend}<span class="gsp"></span>${del}`;
       gh.querySelector('.gtog').addEventListener('click',()=>{ grp.on=!grp.on; markCustom(); renderStack(); render(); });
       const bs=gh.querySelector('.blendsel'); if(bs) bs.addEventListener('change',e=>{ grp.blend=e.target.value; markCustom(); render(); });
       const gd=gh.querySelector('.gdel'); if(gd) gd.addEventListener('click',()=>{ groups.splice(groups.indexOf(grp),1); markCustom(); renderStack(); render(); });

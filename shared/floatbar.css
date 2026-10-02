@@ -81,10 +81,10 @@
   --g-edge-far: 0.45;
   --g-spec: 0.8;
   /* the indicator's clocks, as Bencho tuned them (50 = these numbers) */
-  --ind-stretch: 190ms;
-  --ind-settle: 420ms;
-  --ind-move: cubic-bezier(0.28, 1.28, 0.36, 1);
-  --ind-size: cubic-bezier(0.24, 1.34, 0.38, 1);
+  --ind-stretch: var(--dur-base);
+  --ind-settle: var(--dur-settle);
+  --ind-move: var(--ease-overshoot-soft);
+  --ind-size: var(--ease-overshoot-soft);
 
   background: var(--pane);
   -webkit-backdrop-filter: blur(var(--g-blur)) saturate(var(--g-sat)) brightness(var(--g-bright));
@@ -149,22 +149,22 @@
   background: var(--pane-thumb);
   opacity: 0;
   pointer-events: none;
-  will-change: transform, width;
+  will-change: transform;
 }
 .org-floatbar__ind[data-on="true"] { opacity: 1; }
 .org-floatbar__ind[data-phase="stretch"] {
   transition:
-    transform var(--ind-stretch) cubic-bezier(0.32, 0.72, 0.24, 1),
-    width var(--ind-stretch) cubic-bezier(0.32, 0.72, 0.24, 1),
-    opacity 160ms;
+    transform var(--ind-stretch) var(--ease-glide),
+    width var(--ind-stretch) var(--ease-glide),
+    opacity var(--dur-fast);
 }
 .org-floatbar__ind[data-phase="settle"] {
   transition:
     transform var(--ind-settle) var(--ind-move),
     width var(--ind-settle) var(--ind-size),
-    opacity 160ms;
+    opacity var(--dur-fast);
 }
-.org-floatbar__ind[data-phase="idle"] { transition: opacity 160ms; }
+.org-floatbar__ind[data-phase="idle"] { transition: opacity var(--dur-fast); }
 
 .org-floatbar__btn {
   position: relative;   /* tooltip anchor — see the :hover::after rule below */
@@ -182,7 +182,7 @@
   color: var(--ink);
   cursor: pointer;
   flex-shrink: 0;
-  transition: color 0.15s;
+  transition: color var(--dur-fast);
 }
 .org-floatbar__btn svg { display: block; flex-shrink: 0; }
 /* Resting glyphs are quiet; hover / focus / an on-toggle bring them to
@@ -191,7 +191,7 @@
 .org-floatbar__btn > svg,
 .org-floatbar__btn > span {
   opacity: 0.6;
-  transition: opacity 260ms cubic-bezier(0.32, 0.72, 0.24, 1);
+  transition: opacity var(--dur-slow) var(--ease-glide);
 }
 .org-floatbar__btn:hover > svg,
 .org-floatbar__btn:hover > span,
@@ -202,8 +202,9 @@
 .org-floatbar__btn[aria-expanded="true"] > svg,
 .org-floatbar__btn[aria-expanded="true"] > span,
 .org-floatbar__btn.is-armed > svg { opacity: 1; }
-.org-floatbar__btn .ico { width: 16px; height: 16px; }
-.org-floatbar__btn .chev { width: 7px; height: 7px; margin-left: 1px; }
+.org-floatbar__btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }   /* one ring colour on every tool — --tool fails 3:1 on several */
+.org-floatbar__btn .ico { width: var(--icon-lg); height: var(--icon-lg); }
+.org-floatbar__btn .chev { width: var(--icon-xs); height: var(--icon-xs); margin-left: 1px; }
 
 /* Instant styled tooltip for the icon-only buttons — reads the button's
    own aria-label, so there's one label to maintain and it doubles as the
@@ -213,7 +214,7 @@
    font-size is pinned to --fs-small (10px, the shared scale) — a bare
    var() without a token that every tool defines would inherit an
    inconsistent size per tool. */
-.org-floatbar__btn[aria-label]:not([aria-expanded="true"]):hover::after {
+.org-floatbar__btn[aria-label]:not([aria-expanded="true"]):is(:hover, :focus-visible)::after {
   content: attr(aria-label);
   position: absolute;
   bottom: calc(100% + var(--space-3));
@@ -235,6 +236,9 @@
 /* No hover tile — the travelling indicator is the hover/active state.
    Armed (two-click destructive, .is-armed) = --danger ink. */
 .org-floatbar__btn.is-armed { color: var(--danger); }
+/* a disabled button neither lifts its glyph nor shows its tooltip on hover / focus */
+.org-floatbar__btn:disabled > svg, .org-floatbar__btn:disabled > span { opacity: 0.6; }
+.org-floatbar__btn:disabled::after { display: none; }
 .org-floatbar__btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* Wider hit area for a two-glyph button (icon + dropdown chevron) */
@@ -266,8 +270,11 @@
   right: auto;
   bottom: calc(100% + var(--space-3));
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateY(var(--space-2)) scale(0.97);   /* opens upward: rises into place */
+  transform-origin: bottom center;
 }
+.org-floatbar .org-popover[data-open="true"] { transform: translateX(-50%); }
+@starting-style { .org-floatbar .org-popover[data-open="true"] { transform: translateX(-50%) translateY(var(--space-2)) scale(0.97); } }
 
 /* Small screens: let the bar shrink to content width without spilling
    past the viewport edge (it's centred, not edge-anchored). */
@@ -295,4 +302,4 @@
 .fb-val { min-width: 2.5ch; font-size: var(--fs-small); font-weight: var(--w-regular); color: var(--ink); text-align: right; }
 .fb-tester .seg-ctrl { flex: 0 0 auto; }
 .fb-tester .seg-btn { min-width: 28px; padding: 0 var(--space-2); font-size: var(--fs-micro); }
-.fb-tester .seg-btn svg { width: 14px; height: 10px; display: block; margin: 0 auto; }
+.fb-tester .seg-btn svg { width: var(--icon-md); height: var(--icon-md); display: block; margin: 0 auto; }

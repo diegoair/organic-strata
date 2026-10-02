@@ -9,6 +9,7 @@
      header/floatbar/panel — load-bearing order, docs/UI-SHELL.md §2/§4b/§4c. -->
 <link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
@@ -44,7 +45,7 @@
 <!-- ══ FLOATBAR — the one transport control this tool has ══ -->
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
   <button class="org-floatbar__btn" id="btn-playpause" aria-label="Pause">
-    <svg class="ico" id="ico-playpause" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 3.5v9M11 3.5v9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    <svg class="ico" data-icon="pause" id="ico-playpause" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="3.5" width="2.6" height="9" rx=".6" fill="currentColor" stroke="none"/><rect x="9.4" y="3.5" width="2.6" height="9" rx=".6" fill="currentColor" stroke="none"/></svg>
   </button>
 </div>
 
@@ -68,7 +69,7 @@
       <select class="panel-select" id="sel-preset" aria-label="Preset"></select>
       <div class="row-btns">
         <button class="mini-btn" id="btn-preset-save">Save</button>
-        <button class="mini-btn" id="btn-preset-delete">Delete</button>
+        <button class="mini-btn" id="btn-preset-delete" data-armed="Confirm?">Delete</button>
       </div>
     </div>
 
@@ -167,6 +168,7 @@
 <!-- Core BEFORE the tool script so Organica.* exists at parse time. -->
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/icons.js"></script>
 <script src="/shared/select-picker.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
@@ -491,6 +493,8 @@
   buildLattice();
   buildTimeline();
   setStatus('', 'Cycling');
+  // prefers-reduced-motion: start paused on the first shape (no autoplay); Play still works
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) ctrl('btn-playpause').click();
   requestAnimationFrame(tick);
 
   Organica.autoLabelPanel(document);

@@ -743,12 +743,8 @@
     });
     canvas.addEventListener('dblclick', reset);
 
-    global.addEventListener('keydown', e => {
-      if (!(e.metaKey || e.ctrlKey)) return;
-      if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomBy(1.2); }
-      else if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomBy(1 / 1.2); }
-      else if (e.key === '0') { e.preventDefault(); reset(); }
-    });
+    // ⌘/Ctrl + − 0 are NOT captured: they stay the browser's own page zoom (WCAG 1.4.4). The HUD
+    // buttons and double-click reset the canvas.
 
     apply();
     return {
@@ -794,7 +790,7 @@
     const text = document.createElement('span'); text.className = 'org-notice__text'; text.textContent = message;
     const x = document.createElement('button');
     x.type = 'button'; x.className = 'org-notice__close'; x.setAttribute('aria-label', 'Dismiss');
-    x.innerHTML = '<svg viewBox="0 0 10 10" width="10" height="10" fill="none" aria-hidden="true"><path d="M2 2l6 6M8 2L2 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
+    x.innerHTML = '<svg class="ico ico--xs" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
     x.addEventListener('click', () => Organica.noticeClose());
     el.append(dot, text, x);
     document.body.appendChild(el);
@@ -809,7 +805,12 @@
   };
   Organica.noticeClose = function () {
     clearTimeout(noticeTimer);
-    if (noticeEl) { noticeEl.remove(); noticeEl = null; }
+    if (noticeEl) {
+      const el = noticeEl; noticeEl = null;
+      if (global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches) { el.remove(); return; }
+      el.dataset.closing = 'true';                       // exit animation (header.css), then remove
+      setTimeout(() => el.remove(), 150);
+    }
   };
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && noticeEl) Organica.noticeClose(); });
 
@@ -832,10 +833,15 @@
   // always forgets: aria-expanded on the trigger, Escape to dismiss,
   // click-outside to dismiss, and returning focus to the trigger on close
   // so keyboard users don't get dropped at the top of the document.
+  let activePopover = null;   // one popover open at a time: opening B closes A (didn't hold in Safari / Firefox, which don't focus a clicked button)
   Organica.popover = function (triggerEl, panelEl) {
     let open = false;
+    const self = { close: () => close(false), get isOpen() { return open; } };
 
     function setOpen(next) {
+      if (next && activePopover && activePopover !== self) activePopover.close();
+      if (next) document.dispatchEvent(new CustomEvent('organica:dropdown-open', { detail: panelEl }));
+      activePopover = next ? self : (activePopover === self ? null : activePopover);
       open = next;
       panelEl.dataset.open = String(open);
       triggerEl.setAttribute('aria-expanded', String(open));
@@ -862,6 +868,8 @@
       if (!open) return;
       if (!panelEl.contains(e.target) && e.target !== triggerEl) close(false);
     });
+    // a select-picker (or another dropdown) opening closes this popover
+    document.addEventListener('organica:dropdown-open', e => { if (open && e.detail !== panelEl) close(false); });
 
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') close(true);
@@ -873,7 +881,7 @@
       if (open && !panelEl.contains(e.relatedTarget) && e.relatedTarget !== triggerEl) close(false);
     });
 
-    return { close: () => close(false), get isOpen() { return open; } };
+    return self;
   };
 
   // ═══════════════════════════════════════════════════════════
@@ -1611,6 +1619,149 @@
     const boot = () => document.querySelectorAll('.org-floatbar').forEach(mount);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
     return { mount };
+  })();
+
+
+  /* Organica.a11y — keyboard + state semantics for the thumb / segmented controls that
+     were built as <div onclick> or class-only toggles (Oct 2, 2026 audit, findings 1–3).
+     Self-running (DOMContentLoaded + a throttled MutationObserver); nothing to call.
+       · .seg-ctrl            → role="group", named from its row label; each .seg-btn gets
+                                aria-pressed, kept in sync with .active / .on / .selected
+       · .shape-thumb / .mark-thumb / .fvs-thumb → role="button", tabindex=0, aria-pressed
+       · any [role=button] that is not a <button> → Enter / Space activate it
+     The visual state stays the tool's own class; ARIA mirrors it. */
+  Organica.a11y = (function () {
+    var ON = /(^|\s)(active|on|selected|is-active)(\s|$)/;
+    var isOn = function (el) { return ON.test(el.getAttribute('class') || '') || el.getAttribute('aria-selected') === 'true'; };
+    var seq = 0;
+    function syncPressed(el) { el.setAttribute('aria-pressed', isOn(el) ? 'true' : 'false'); }
+    function enhance(root) {
+      root = root || document;
+      root.querySelectorAll('.seg-ctrl:not([data-a11y])').forEach(function (g) {
+        g.setAttribute('data-a11y', '1');
+        if (!g.hasAttribute('role') && !g.hasAttribute('aria-label') && !g.hasAttribute('aria-labelledby')) {
+          var row = g.closest('.ctrl-row, .panel-row, .row, .param-row, .check-row, .org-popover__row') || g.parentElement;
+          var lab = row && row.querySelector('.ctrl-label, .panel-label, .group-label, .param-name, label');
+          if (lab && lab.textContent.trim()) {
+            if (!lab.id) lab.id = 'organica-seg-label-' + (++seq);
+            g.setAttribute('role', 'group'); g.setAttribute('aria-labelledby', lab.id);
+          }
+        }
+        g.querySelectorAll('.seg-btn').forEach(function (b) { if (!b.hasAttribute('aria-pressed') && !b.hasAttribute('aria-selected')) syncPressed(b); });
+      });
+      root.querySelectorAll('.shape-thumb:not([data-a11y]), .mark-thumb:not([data-a11y]), .fvs-thumb:not([data-a11y])').forEach(function (t) {
+        t.setAttribute('data-a11y', '1');
+        if (t.tagName !== 'BUTTON') {
+          if (!t.hasAttribute('role')) t.setAttribute('role', 'button');
+          if (!t.hasAttribute('tabindex')) t.setAttribute('tabindex', '0');
+        }
+        if (!t.hasAttribute('aria-label') && t.getAttribute('title')) t.setAttribute('aria-label', t.getAttribute('title'));
+        if (!t.hasAttribute('aria-pressed')) syncPressed(t);
+      });
+    }
+    var SYNC = '.seg-btn, .shape-thumb, .mark-thumb, .fvs-thumb';
+    var pending = false;
+    function schedule() { if (pending) return; pending = true; requestAnimationFrame(function () { pending = false; enhance(document); }); }
+    function start() {
+      enhance(document);
+      new MutationObserver(function (muts) {
+        var again = false;
+        for (var i = 0; i < muts.length; i++) {
+          var m = muts[i], t = m.target;
+          if (t.nodeType !== 1 || (t.closest && t.closest('svg, canvas'))) continue;
+          if (m.type === 'attributes') {
+            if (t.matches && t.matches(SYNC) && t.hasAttribute('aria-pressed') && !t.hasAttribute('data-aria-own')) syncPressed(t);
+          } else again = true;
+        }
+        if (again) schedule();
+      }).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+    }
+    document.addEventListener('keydown', function (e) {
+      if (e.defaultPrevented || (e.key !== 'Enter' && e.key !== ' ')) return;
+      var el = e.target;
+      if (!el || el.tagName === 'BUTTON' || el.getAttribute('role') !== 'button') return;
+      e.preventDefault(); el.click();
+    });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+    return { enhance: enhance };
+  })();
+
+  /* Organica.modal — focus management for every .org-modal (Oct 2, 2026 audit, finding 18).
+     Self-running: tools keep toggling the overlay's style.display exactly as before; this
+     watches for it to become visible and then (1) remembers the opener, (2) moves focus
+     into the panel, (3) traps Tab inside it, (4) closes on Escape (clicks the modal's own
+     Close button, else hides it), (5) returns focus to the opener when it closes. */
+  Organica.modal = (function () {
+    var state = new WeakMap();   // overlay → {opener}
+    var FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    var visible = function (m) { return m.style.display !== 'none' && getComputedStyle(m).display !== 'none'; };
+    function onVisible(m) {
+      if (state.has(m)) return;
+      var panel = m.querySelector('.org-modal__panel') || m;
+      state.set(m, { opener: document.activeElement });
+      var first = panel.querySelector(FOCUSABLE);
+      if (!panel.hasAttribute('tabindex')) panel.setAttribute('tabindex', '-1');
+      (first || panel).focus({ preventScroll: true });
+    }
+    function onHidden(m) {
+      var st = state.get(m); if (!st) return;
+      state.delete(m);
+      if (st.opener && document.contains(st.opener) && st.opener.focus) st.opener.focus({ preventScroll: true });
+    }
+    function check(m) { if (visible(m)) onVisible(m); else onHidden(m); }
+    function watch(m) {
+      if (m.__orgModal) return; m.__orgModal = true;
+      new MutationObserver(function () { check(m); }).observe(m, { attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
+      check(m);
+    }
+    document.addEventListener('keydown', function (e) {
+      var open = Array.prototype.filter.call(document.querySelectorAll('.org-modal'), function (m) { return state.has(m); }).pop();
+      if (!open) return;
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        var x = open.querySelector('[aria-label="Close"], .org-modal__close, [data-modal-close]');
+        if (x) x.click(); else open.style.display = 'none';
+      } else if (e.key === 'Tab') {
+        var f = Array.prototype.filter.call(open.querySelectorAll(FOCUSABLE), function (el) { return el.offsetParent !== null; });
+        if (!f.length) { e.preventDefault(); return; }
+        var a = document.activeElement, i = f.indexOf(a);
+        if (e.shiftKey && (i <= 0)) { e.preventDefault(); f[f.length - 1].focus(); }
+        else if (!e.shiftKey && (i === f.length - 1 || i === -1)) { e.preventDefault(); f[0].focus(); }
+      }
+    }, true);
+    function start() { document.querySelectorAll('.org-modal').forEach(watch); }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+    return { watch: watch };
+  })();
+
+  /* Organica.armed — two-click confirm for a destructive button (Oct 2, 2026).
+     Mark the button data-armed (optionally data-armed="Sure?"): the first click arms it
+     (label swaps, .is-armed = --danger ink), a second click within ARM_MS runs the
+     button's own handler; blur, Escape or the timeout disarm. One behaviour, one
+     timeout, one class — replaces the five per-tool versions. */
+  Organica.ARM_MS = 3000;
+  (function () {
+    var timers = new WeakMap();
+    function disarm(b) {
+      clearTimeout(timers.get(b)); timers.delete(b);
+      if (!b.classList.contains('is-armed')) return;
+      b.classList.remove('is-armed');
+      if (b.dataset.armLabel != null) { b.textContent = b.dataset.armLabel; delete b.dataset.armLabel; }
+    }
+    function arm(b) {
+      b.dataset.armLabel = b.textContent;
+      b.textContent = b.getAttribute('data-armed') || 'Confirm?';
+      b.classList.add('is-armed');
+      timers.set(b, setTimeout(function () { disarm(b); }, Organica.ARM_MS));
+    }
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('[data-armed]');
+      if (!b || b.disabled) return;
+      if (b.classList.contains('is-armed')) { disarm(b); return; }     // second click: let the real handler run
+      e.preventDefault(); e.stopImmediatePropagation(); arm(b);
+    }, true);
+    document.addEventListener('focusout', function (e) { var b = e.target.closest && e.target.closest('[data-armed].is-armed'); if (b) disarm(b); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') document.querySelectorAll('[data-armed].is-armed').forEach(disarm); });
   })();
 
   global.Organica = Organica;

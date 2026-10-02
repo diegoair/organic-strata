@@ -6,6 +6,7 @@
 <title>Spore — Organica</title>
 <link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/icons.css">
   <link rel="stylesheet" href="/shared/header.css">
   <link rel="stylesheet" href="/shared/panel.css">
   <link rel="stylesheet" href="/shared/floatbar.css">
@@ -44,14 +45,14 @@
     justify-content: center;
     cursor: pointer;
     background: var(--panel);
-    transition: border-color 0.12s, background 0.12s;
+    transition: border-color var(--dur-fast), background var(--dur-fast);
     padding: var(--space-1);
     position: relative;
     overflow: hidden;
   }
 
-  .mark-thumb:hover { border-color: var(--accent); }
-  .mark-thumb.selected { border-color: var(--ink); background: var(--panel); }
+  @media (hover: hover) { .mark-thumb:hover { border-color: var(--ink); } }
+  .mark-thumb.selected { border-color: var(--ink); background: var(--panel); box-shadow: inset 0 0 0 1px var(--ink); }
   .mark-thumb .thumb-num {
     position: absolute; top: 1px; right: 2px;
     font-size: var(--fs-micro); line-height: 1; color: var(--mid); pointer-events: none;
@@ -104,8 +105,10 @@
     bottom: 0; left: 0;
     height: 2px;
     background: var(--ink);
-    width: 0%;
-    transition: width 0.1s;
+    width: 100%;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--dur-fast) linear;
     pointer-events: none;
   }
 
@@ -138,7 +141,7 @@
 <!-- FLOATING TOOLBAR — Open / Export / Figma, fixed bottom-centre over the canvas -->
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
   <button class="org-floatbar__btn" aria-label="Open image" onclick="document.getElementById('file-input').click()">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M1.5 4A1 1 0 0 1 2.5 3h2.8l1 1.3H13.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+    <svg class="ico" data-icon="folder-open" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 4A1 1 0 0 1 2.5 3h2.8l1 1.3H13.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4Z"/></svg>
   </button>
 
   <div class="org-floatbar__sep"></div>
@@ -146,19 +149,19 @@
   <!-- Render / Stop — moved from the on-canvas #compute-bar into the floatbar
        (Sep 30, 2026): the playback-style verbs live with Open and Export.
        Same ids, so doRender()/finishRender()'s enable/disable logic is untouched. -->
-  <button class="org-floatbar__btn" id="btn-refresh" onclick="triggerRender()" disabled aria-label="Render" title="Render">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.6 2.2v2.6h2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <button class="org-floatbar__btn" id="btn-refresh" onclick="triggerRender()" disabled aria-label="Render">
+    <svg class="ico" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>
   </button>
-  <button class="org-floatbar__btn" id="btn-stop" onclick="stopRender()" disabled aria-label="Stop rendering" title="Stop">
-    <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1" fill="currentColor"/></svg>
+  <button class="org-floatbar__btn" id="btn-stop" onclick="stopRender()" disabled aria-label="Stop rendering">
+    <svg class="ico" data-icon="stop" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1" fill="currentColor" stroke="none"/></svg>
   </button>
 
   <div class="org-floatbar__sep"></div>
 
   <div class="org-popover-wrap">
     <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" disabled aria-label="Export">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-      <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="ico" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
+      <svg class="ico chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
     </button>
     <div class="org-popover" id="export-popover" aria-label="Export options">
       <div class="org-popover__title">Format</div>
@@ -206,7 +209,7 @@
   <!-- CANVAS -->
   <div id="canvas-wrap" id="drop-zone">
     <div id="drop-hint">
-      <div class="drop-icon">+</div>
+      <div class="drop-icon" role="button" tabindex="0" aria-label="Open an image"><svg class="ico ico--xl" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></div>
       <p>Drop an image here<br>or click Open</p>
     </div>
     <canvas id="main-canvas" class="org-stage"></canvas>
@@ -363,6 +366,7 @@
 <!-- Centralized Organica shape library (window.ORGANIC_FORMS), shared with Genesis/Pollen -->
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/icons.js"></script>
 <script src="/shared/canvas.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>
@@ -695,7 +699,7 @@ async function doRender() {
   points.sort((a, b) => a.luma - b.luma);
 
   setStatus('rendering', 'Rendering…');
-  document.getElementById('progress-bar').style.width = '0%';
+  document.getElementById('progress-bar').style.transform = 'scaleX(0)';
 
   const total = points.length;
   let drawn = 0;
@@ -752,7 +756,7 @@ async function doRender() {
     }
 
     drawn += (end - start);
-    document.getElementById('progress-bar').style.width = (drawn/total*100) + '%';
+    document.getElementById('progress-bar').style.transform = 'scaleX(' + (drawn/total) + ')';
 
     if (end < total) {
       await new Promise(r => setTimeout(r, 0));
@@ -866,8 +870,8 @@ function drawSvgElement(ctx, el, color, scale) {
 function finishRender(stopped) {
   isRendering = false;
   document.getElementById('btn-stop').disabled = true;
-  document.getElementById('progress-bar').style.width = '100%';
-  setTimeout(() => { document.getElementById('progress-bar').style.width = '0%'; }, 600);
+  document.getElementById('progress-bar').style.transform = 'scaleX(1)';
+  setTimeout(() => { document.getElementById('progress-bar').style.transform = 'scaleX(0)'; }, 600);
 
   if (!stopped) {
     const count = window._lastRenderData?.marks?.length || 0;

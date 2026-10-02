@@ -56,7 +56,7 @@
     <button class="org-btn" onclick="document.getElementById('file-input').click()">Open…</button>
 
     <div class="org-popover-wrap">
-      <button class="org-btn" id="btn-export">Export &#9662;</button>
+      <button class="org-btn" id="btn-export">Export <svg class="ico ico--xs" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></button>
       <div class="org-popover" id="export-popover" aria-label="Export options">
         <div class="org-popover__title">Format</div>
         <div class="org-formats">
@@ -90,7 +90,7 @@
   <!-- ══ CANVAS — drop target, zoom/pan, HUD ══ -->
   <div id="canvas-wrap">
     <div id="drop-hint">
-      <div class="drop-icon">+</div>
+      <div class="drop-icon" role="button" tabindex="0" aria-label="Open a file"><svg class="ico ico--xl" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></div>
       <p>Drop an image<br>or click to open</p>
     </div>
     <canvas id="main-canvas" class="org-stage"></canvas>
@@ -105,7 +105,7 @@
       <select class="panel-select" id="sel-preset" onchange="applyPreset(this.value)"></select>
       <div class="row-btns">
         <button class="mini-btn" onclick="savePreset()">Save</button>
-        <button class="mini-btn" onclick="deletePreset()">Delete</button>
+        <button class="mini-btn" onclick="deletePreset()" data-armed="Confirm?">Delete</button>
       </div>
     </div>
 

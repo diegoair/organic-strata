@@ -9,7 +9,8 @@ Fast, no dependencies beyond python3 + node. Exits 1 on any failure.
   3. JS syntax     — every inline <script> in every */index.html, and every tracked .js
                      (modules under a js/ folder are checked as ES modules)
   4. Local refs    — every /shared/... and /genesis/... href/src in an HTML file exists
-  5. css-lint      — scripts/css-lint.py must be clean
+  5. icons         — every <svg data-icon> equals its shared/icons.js drawing; no new bare 16-grid <svg>
+  6. css-lint      — scripts/css-lint.py must be clean
 """
 import json, os, re, subprocess, sys, tempfile
 
@@ -165,6 +166,28 @@ for f in tracked(".html", ".js"):
 if linkers: fail(f"/gallery/ may be linked from the design system only; also linked from: {linkers}"); bad = True
 if "/gallery/" not in open("design-system/index.html", encoding="utf-8").read(): fail("design-system/index.html must link to /gallery/"); bad = True
 if not bad: ok(f"{tiles}/{budget['maxTiles']} tiles · samples {total_kb:.0f}/{budget['maxTotalKB']} KB · page {page_kb:.0f}/{budget['maxPageKB']} KB · design-system link only")
+
+# 4b. icons — one registry (shared/icons.js) ---------------------------------------
+print("icons")
+reg = json.loads(subprocess.run(["node", "-e", "console.log(JSON.stringify(require('./shared/icons.js')))"], capture_output=True, text=True).stdout or "{}")
+ICON_EXEMPT = ("genesis/", "explorations/", "archive/", "design-system/", "docs/", "shared/icons.js", "index.html")
+sq = lambda t: re.sub(r"\s+", " ", t).strip()
+n_icons = 0; bad_icons = False
+for f in tracked(".html", ".js"):
+    if f.startswith(ICON_EXEMPT[:-1]) or f == "index.html" or "/_test" in f or "/vendor/" in f: continue
+    t = open(f, encoding="utf-8", errors="ignore").read()
+    for m in re.finditer(r"<svg\b([^>]*)>([\s\S]*?)</svg>", t):
+        attr, inner = m.group(1), m.group(2)
+        line = t[:m.start()].count("\n") + 1
+        dm = re.search(r'data-icon="([^"]+)"', attr)
+        if dm:
+            n_icons += 1
+            name = dm.group(1)
+            if name not in reg: fail(f"{f}:{line} data-icon=\"{name}\" is not in shared/icons.js"); bad_icons = True
+            elif sq(inner) != sq(reg[name]): fail(f"{f}:{line} data-icon=\"{name}\" drawing differs from shared/icons.js (edit the registry, then re-paste)"); bad_icons = True
+        elif 'viewBox="0 0 16 16"' in attr and "data-icon-slot" not in attr and "${" not in inner:
+            fail(f"{f}:{line} inline 16-grid <svg> without data-icon — add the drawing to shared/icons.js and use Organica.icons.get() / data-icon"); bad_icons = True
+if not bad_icons: ok(f"{n_icons} inline icons match the registry ({len(reg)} drawings)")
 
 # 5. css-lint ------------------------------------------------------------------
 print("css-lint")
