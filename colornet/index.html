@@ -95,18 +95,19 @@
   <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ Colornet</span></a>
 
   <div class="org-header__spacer"></div>
-
-
-  <div class="org-header__actions">
-    <button class="org-btn" id="btn-open">Open…</button>
-    <button class="org-btn" id="btn-batch">Batch…</button>
-  </div>
 </header>
 
-<!-- Export lives in the shared bottom-centre floatbar, not the header —
-     the product-wide convention (Warping/FVS/Loom/Camo Turing). No → Figma
+<!-- Open and Export live in the shared bottom-centre floatbar, not the header — the product-wide
+     convention (the Tool template). Batch is a kind of export (several images in, one PNG each
+     out), so it is a section of the Export popover, like Mote's "Video — batch". No → Figma
      button; sendToFigma() stays defined for when it returns as a popover tab. -->
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <button class="org-floatbar__btn" id="btn-open" aria-label="Open an image">
+    <svg class="ico" data-icon="folder-open" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 4A1 1 0 0 1 2.5 3h2.8l1 1.3H13.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4Z"/></svg>
+  </button>
+
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
+
   <div class="org-popover-wrap">
     <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
       <svg class="ico" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
@@ -134,6 +135,18 @@
       <p class="org-popover__hint">
         One grayscale plate per visible channel — ink black on white, the
         transform applied, ready as a screen/riso separation.
+      </p>
+
+      <div class="org-popover__divider"></div>
+
+      <div class="org-popover__title">Batch</div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-batch">Choose images…</button>
+      </div>
+      <p class="org-popover__hint">
+        Applies this separation — the same channels, colours, screening and transforms — to
+        several other images, and saves one PNG of each at the scale below. The image you
+        have open is not changed. Dropping several images on the canvas does the same.
       </p>
 
       <div class="org-popover__divider"></div>

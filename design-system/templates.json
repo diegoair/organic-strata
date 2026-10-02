@@ -110,7 +110,7 @@
      "surface": "#canvas-wrap",
      "stage": "#view-canvas",
      "floatbar": true,
-     "headerActions": 2
+     "headerActions": 0
     },
     {
      "page": "/dapple/",
