@@ -1915,7 +1915,7 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
     <section class="ds-entry ds-prose" id="ai-workflow">
       <h2>Working with AI — governance</h2>
       <p class="ds-desc"><strong>The system lives in code, and an AI coding agent works on it as a collaborator.</strong> It audits, proposes, builds and verifies; people make the design decisions. This entry is the contract: the loop every change follows, who decides what, and the checks that keep the agent's speed from turning into drift. The same content is published as a shareable page, <a href="https://claude.ai/artifact/2YDV3hau2WR9dZVejTieoh">Organica and AI</a>.</p>
-      <div class="ds-usage"><strong>Rules live in</strong><span>CLAUDE.md (read at the start of every session)</span><strong>Decisions logged in</strong><span>CLAUDE.md session notes</span><span>docs/SESSION-LOG.md</span><strong>Audit pages</strong><span>_control-audit.html</span><span>_dark-audit.html</span></div>
+      <div class="ds-usage"><strong>Rules live in</strong><span>CLAUDE.md (read at the start of every session)</span><strong>Steward</strong><span>.claude/agents/design-system.md (/ds)</span><strong>Decisions logged in</strong><span>docs/DESIGN-DECISIONS.md</span><span>CLAUDE.md session notes</span><span>docs/SESSION-LOG.md</span><strong>Audit pages</strong><span>_control-audit.html</span><span>_dark-audit.html</span></div>
       <h3>The loop</h3>
       <ol>
         <li><strong>Audit.</strong> The agent builds a page that loads every tool and measures what is really rendered, not what the docs claim (<a href="/design-system/_control-audit.html">buttons &amp; fields</a>, <a href="/design-system/_dark-audit.html">dark mode</a>).</li>
@@ -1925,6 +1925,16 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
         <li><strong>Verify.</strong> Lint, the Flexible Visual System regression, this page's self-check, and a look in the browser in light and dark.</li>
         <li><strong>Document.</strong> This reference, the written docs, and a session note with the reason behind the change.</li>
       </ol>
+      <h3>The steward</h3>
+      <p>The loop has a dedicated agent, <code>design-system</code>, that the working agent calls at three points — it measures, advises and documents, and it never decides or edits tool code.</p>
+      <table>
+        <tr><th>Mode</th><th>When</th><th>What comes back</th></tr>
+        <tr><td><strong>Consult</strong></td><td>Before anything is built</td><td>A build brief: the component, tokens and icons to reuse, and the gaps that are the owner's to decide</td></tr>
+        <tr><td><strong>Review</strong></td><td>Before a commit that touches UI</td><td>Pass, pass with notes, or block — each finding with its line, the rule and the fix</td></tr>
+        <tr><td><strong>Document</strong></td><td>After a decision or a shipped change</td><td>The written docs, this page, <code>tokens.json</code> and the ledger brought in line</td></tr>
+        <tr><td><strong>Audit</strong></td><td>On request</td><td>What drifted since the last audit, in numbers, ranked by what will cost a refactor</td></tr>
+      </table>
+      <p>Its instrument is <code>scripts/ds-audit.py</code>: drift between <code>tokens.css</code>, <code>tokens.json</code>, the written docs and this page, a map of raw values per page, and <code>--diff</code>, which fails when a change <em>adds</em> a raw value where a token exists. Its ledger is <code>docs/DESIGN-DECISIONS.md</code>: open questions, decisions, standing exceptions.</p>
       <h3>Who acts, and where the gates are</h3>
       <div class="ds-gov-scroll"><svg class="ds-gov" viewBox="0 0 810 292" role="img" aria-labelledby="ds-gov-t ds-gov-d">
         <title id="ds-gov-t">Governance flow</title>
