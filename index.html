@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/icons.css">
   <link rel="stylesheet" href="/shared/header.css">
+  <link rel="stylesheet" href="/shared/page.css">
   <link rel="stylesheet" href="/shared/mobile-gate.css">
   <style>
     /* ═══════════════════════════════════════════════════════════
@@ -260,14 +261,8 @@
     }
     /* the CTA buttons are THE BUTTON (org-btn --lg, header.css) */
 
-    .hub-foot {
-      display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-5);
-      padding: var(--space-7) var(--space-8) var(--space-8);
-      font-size: var(--fs-small); color: var(--mid);
-    }
-    .hub-foot nav { display: flex; gap: var(--space-5); }
-    .hub-foot a { color: var(--mid); text-decoration: none; }
-    .hub-foot a:hover { color: var(--ink); }
+    /* The footer is the shared .org-page__foot (page.css); the hub is full-bleed, so it adds its own padding. */
+    .hub-foot { margin-top: 0; padding: var(--space-7) var(--space-8) var(--space-8); }
 
     @media (max-width: 900px) {
       .hub-gallery { grid-template-columns: repeat(2, 1fr); }
@@ -393,7 +388,7 @@
     <button type="button" class="org-btn org-btn--lg" id="hub-all-tools">All tools</button>
   </div>
 
-  <footer class="hub-foot">
+  <footer class="org-page__foot hub-foot">
     <span>© Organica</span>
     <nav aria-label="Legal and reference">
       <a href="/privacy">Privacy</a>

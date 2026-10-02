@@ -10,23 +10,6 @@
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/page.css">
 <link rel="stylesheet" href="/shared/prose.css">
-<style>
-  /* The column, the ground and the reset come from page.css (the Page template). Only the card
-     and the foot line are this page's own — two consumers (privacy, terms), so they stay local. */
-  .doc__card {
-    background: var(--paper);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: var(--space-8) var(--space-7);
-  }
-  .doc__foot {
-    margin-top: var(--space-5);
-    padding: 0 var(--space-7);
-    font-size: var(--fs-small);
-    color: var(--mid);
-  }
-  .doc__foot a { color: var(--mid); }
-</style>
 <script src="/shared/pattern-init.js"></script>
 </head>
 <body class="org-page">
@@ -37,7 +20,7 @@
 </header>
 
 <main class="org-page__col">
-  <article class="doc__card org-prose">
+  <article class="org-page__card org-prose">
     <h1>Privacy Policy</h1>
     <p class="org-prose__meta">Last updated 2 September 2026 · Private beta</p>
 
@@ -140,7 +123,14 @@
     <h2>Contact</h2>
     <p>Questions about this policy or your data: <strong>[contact email]</strong>.</p>
   </article>
-  <p class="doc__foot">© Organica · <a href="/terms">Terms</a> · <a href="/">Home</a></p>
+  <footer class="org-page__foot">
+    <span>© Organica</span>
+    <nav aria-label="Legal and reference">
+      <a href="/privacy" aria-current="page">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/design-system/">Design System</a>
+    </nav>
+  </footer>
 </main>
 <script src="/shared/tools.js"></script>
 <script src="/shared/menu-icon.js"></script>

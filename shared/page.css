@@ -20,6 +20,12 @@
          <main class="org-page__col">…</main>     660px — a reading column
          <main class="org-page__col org-page__col--wide">   1040px — a data page
          <main class="org-page__col org-page__col--full">   1500px — a gallery
+           <article class="org-page__card org-prose">…</article>   optional: a paper card
+           <footer class="org-page__foot">            the one footer: © + legal / reference links
+             <span>© Organica</span>
+             <nav aria-label="Legal and reference"><a href="/privacy">Privacy</a>…</nav>
+           </footer>
+         </main>
 
    The widths are this component's own geometry (--page-col-w, like
    --auth-card-w and --panel-w), not tokens on the global scale.
@@ -48,3 +54,31 @@
 }
 .org-page__col--wide { --page-col-w: 1040px; }
 .org-page__col--full { --page-col-w: 1500px; padding: var(--space-8); }
+
+/* The card — a paper sheet on the grey ground, for a page whose content is one block of text
+   (privacy, terms, the 404). Promoted Oct 2, 2026 from the local .doc__card at its third consumer. */
+.org-page__card {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8) var(--space-7);
+}
+
+/* The footer — one line under the column: the mark on the left, the legal / reference links
+   on the right. Promoted Oct 2, 2026 from the hub's .hub-foot and the .doc__foot of privacy
+   and terms, when the 404 page became its third consumer. Mark the current page's link with
+   aria-current="page". */
+.org-page__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+  font-size: var(--fs-small);
+  color: var(--mid);
+}
+.org-page__foot nav { display: flex; flex-wrap: wrap; gap: var(--space-5); }
+.org-page__foot a { color: var(--mid); text-decoration: none; transition: color var(--dur-instant); }
+.org-page__foot a[aria-current="page"] { color: var(--ink); }
+/* a text link: ink + underline on hover (docs/audit-2026-10/HOVER.md) */
+@media (hover: hover) { .org-page__foot a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 0.18em; } }
