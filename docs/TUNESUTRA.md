@@ -185,6 +185,15 @@ To adopt a proposal: paste the values over the same properties in the THEMES
 rules of `shared/tokens.css`, mirror them in `shared/tokens.json`, set each
 tool's `--tool`, then run `/design-system/_dark-audit.html` on every page.
 
+### Used by Flexible Visual System (Oct 2, 2026)
+
+FVS builds its **Colourways** from a palette's main colours and their shade scales
+(`Organica.color.scale`), and scores colour in **Suggest** (`contrast`, `deltaE`). It
+copies hex values — it keeps no link to the palette, so changing a palette here does not
+change saved FVS work. `DISTINCT_MIN` and the role shares (`roleShares`, the 0.6 rule of
+the Bar view) now live in `shared/color.js`; TuneSutra reads them from there. See
+`docs/FVS.md` §6b.
+
 ## 7. Not built yet
 
 - A real physical size / DPI for the gradient (the shared Screen/Print size

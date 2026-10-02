@@ -235,6 +235,47 @@ its cells.
   and the caption omits it. On hexagons/triangles a square Component is deformed
   into the cell, so continuity is an approximation.
 
+### 6b. Colour — measured and generated (Oct 2, 2026)
+
+FVS reads colour with `Organica.color` (`shared/color.js`: OKLCH, WCAG `contrast`,
+`deltaE`, the 0–900 `scale` — the same steps TuneSutra shows). Colours stay plain hex
+everywhere: a palette is a source, never a link, and saved work never changes on its own.
+The order of the palette is the role (Base, Secondary, Accent…), as in TuneSutra.
+
+- **Suggest measures colour.** The mask also keeps *which* ink each point is. On a shared
+  edge the same colour on both sides counts fully, two distinct inks count half, and two
+  inks too close to tell apart (ΔE under 6) count nothing. A fourth slider, **Colour**,
+  scores the ink areas: a clear hierarchy (largest first, against the role shares
+  51 / 31 / 18…), each ink spread over the page, neighbouring inks distinct. The caption
+  shows `continuity N% · colour N%`. With one ink in the pool nothing changes.
+- **Colourways** (Component → Rule → *Colourways of the selection*). Colour variants of the
+  selected Component from the palette's main colours and their shade scales, by named
+  schemes: **Roles** (and its turns), **Tonal** (steps of one colour on its step 100),
+  **Tint ground** (paper = Base 100), **Dark ground** (paper = Base 900), **Accent** (Base
+  everywhere, the Accent on the share of cells nearest its role share), **Pair** (the two
+  mains furthest apart). Every result is *solved*: an ink under 3:1 on its paper moves
+  along its own scale — hue kept — to the nearest step that reaches it; inks closer than
+  ΔE 6 are moved apart; a scheme that cannot be solved is dropped. The gallery shows one
+  candidate per colourway, each in its own colours (caption: scheme · contrast · ΔE). The
+  first is the palette as it is. Picking one makes it the live palette; saving (also *Save
+  all*) stores its colours. Editing the palette by hand turns the selected one into *Custom*.
+- **Recolour cells (test)** in Suggest. Each pool Component offers up to three of its
+  colourways (the ones that keep its number of inks and its colour rule) and the search
+  picks Component × turn × colourway. A recoloured cell carries `colourway {colors, paper}`
+  and shows "· recoloured" in Cell properties; choosing content again clears it. Off by
+  default; a large grid searches a narrower beam.
+- **Figure.** *Shuffle* / *Variations* no longer draw from a fixed list of inks: **Other
+  hue** turns every ink by a harmony angle in OKLCH (±30°, ±60°, ±120°, 180°; a grey is
+  given a hue), **Other colourway** applies one of the schemes above to the recipe's own
+  palette, **Other colour rule** changes how the inks are spread. Two checks were added:
+  *Inks read on the paper (3:1 or more)* and *Inks are distinct*. The form and the Ink field
+  keep the recipe's other inks and its colour rule.
+- **Limits.** Continuity samples a 64 px mask, so an anti-aliased edge pixel can be read as
+  the neighbouring ink. The Colour hierarchy is by area, whatever colour is the largest — it
+  does not ask that the *Base* be the largest. Recolour tends to converge on one tonal
+  colourway (the same colour on every edge scores highest). Colourways are judged on the
+  Component's own paper, not on the Symbol's.
+
 ---
 
 ### Triangle lattices, Empty cells, Orientation, Tier and Mirror (Sep 20, 2026)
