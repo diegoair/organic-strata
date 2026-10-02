@@ -138,15 +138,17 @@
   }
 
   function confirmDeleteAccount() {
-    var yes = global.prompt(
-      'This permanently deletes your account and everything you have saved — ' +
-      'seeds, presets, all of it. This cannot be undone.\n\n' +
-      'Type DELETE to confirm.');
-    if (yes !== 'DELETE') return;
+    Organica.prompt({
+      title: 'Delete account',
+      message: 'This permanently deletes your account and everything you have saved — seeds, presets, all of it. This cannot be undone.',
+      label: 'Type DELETE to confirm.', ok: 'Delete account'
+    }).then(function (yes) { if (yes === 'DELETE') doDelete(); });
+  }
+  function doDelete() {
     var sb = Organica.sb;
     if (!sb) return;
     sb.rpc('delete_own_account').then(function (r) {
-      if (r.error) { global.alert('Could not delete: ' + r.error.message); return; }
+      if (r.error) { Organica.notice('Could not delete: ' + r.error.message, { kind: 'error' }); return; }
       Organica.auth.signOut();
     });
   }

@@ -149,62 +149,7 @@
      local Strata-port .toggle was removed Sep 29, 2026. Rows keep .toggle-name so
      Organica.autoLabelPanel still names them from the sibling label. */
 
-  .info-tip {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 13px; height: 13px;
-    margin-left: 4px;
-    border-radius: 50%;
-    border: 1px solid var(--border-strong);
-    color: var(--mid);
-    font-size: var(--fs-micro);
-    font-style: italic;
-    font-family: var(--font);
-    cursor: help;
-    flex-shrink: 0;
-  }
-  .info-tip:hover, .info-tip:focus-visible { border-color: var(--ink); color: var(--ink); }
-  .info-tip-bubble {
-    /* display:none (not visibility:hidden) — a visibility:hidden box still
-       takes up layout space, and this bubble is wide (190px) centered on a
-       13px icon, so an icon anywhere near the panel's right edge made it
-       overflow the panel horizontally EVEN WHILE HIDDEN. That overflow, in
-       turn, made the browser draw a real native (unstyled) horizontal
-       scrollbar across the whole panel — visible as a stray brown/olive bar
-       at the panel's bottom edge, found by testing. display:none removes it
-       from layout entirely until hovered, which fixes that at the root
-       instead of clipping the panel (clipping was tried first and reverted
-       — see git history — because an ancestor with overflow:hidden can stop
-       Chrome from opening the native <input type=color> picker triggered
-       from inside it, which would have traded one bug for a worse one). The
-       cost: no fade transition on open, since a property can't transition
-       from display:none — an accepted, minor trade for not touching #panel.
-    */
-    display: none;
-    position: absolute;
-    bottom: calc(100% + 7px);
-    left: 50%;
-    transform: translateX(-50%);
-    width: max-content;
-    max-width: 190px;
-    background: var(--ink);
-    color: var(--paper);
-    font-family: var(--font);
-    font-style: normal;
-    font-weight: var(--w-regular);
-    font-size: var(--fs-micro);
-    line-height: 1.4;
-    padding: var(--space-2);
-    border-radius: var(--radius-sm);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-    pointer-events: none;
-    z-index: 20;
-  }
-  .info-tip:hover .info-tip-bubble, .info-tip:focus-visible .info-tip-bubble {
-    display: block;
-  }
+  /* .org-tip (the info bubble) is shared/panel.css — promoted from Camo Turing's old .info-tip. */
 </style>
 <script src="/shared/pattern-init.js"></script>
 </head>
@@ -356,7 +301,7 @@
           <input type="checkbox" id="ck-twoshape" onchange="syncTwoShapeRows()">
           <span>Two seeds</span>
         </label>
-        <span class="info-tip" tabindex="0" role="note" aria-label="Seed A doesn't grow — it just resists Seed B's growth wherever the two overlap.">i<span class="info-tip-bubble" aria-hidden="true">Seed A doesn't grow — it just resists Seed B's growth wherever the two overlap.</span></span>
+        <span class="org-tip" tabindex="0" role="note" aria-label="Seed A doesn't grow — it just resists Seed B's growth wherever the two overlap.">i<span class="org-tip__bubble" aria-hidden="true">Seed A doesn't grow — it just resists Seed B's growth wherever the two overlap.</span></span>
       </div>
       <div id="seedsrc-a-block" style="display:none">
         <div class="ctrl-label" style="margin-bottom: var(--space-1)">Seed A</div>
@@ -522,7 +467,7 @@
       <h3>Pattern <span class="hint" id="pattern-hint">Gray-Scott, GPU-live</span></h3>
       <div class="presets" id="presets"></div>
       <div class="check-row org-switch" style="margin-top: var(--space-2)"><span class="toggle-name">Reset seed on preset change
-          <span class="info-tip" tabindex="0" role="note" aria-label="Off: presets only change the chemistry, so the pattern keeps evolving live. On: each preset reseeds fresh.">i<span class="info-tip-bubble" aria-hidden="true">Off: presets only change the chemistry, so the pattern keeps evolving live. On: each preset reseeds fresh.</span></span>
+          <span class="org-tip" tabindex="0" role="note" aria-label="Off: presets only change the chemistry, so the pattern keeps evolving live. On: each preset reseeds fresh.">i<span class="org-tip__bubble" aria-hidden="true">Off: presets only change the chemistry, so the pattern keeps evolving live. On: each preset reseeds fresh.</span></span>
         </span><input type="checkbox" id="ck-reset-on-preset"></div>
       <div class="ctrl-row" style="margin-top: var(--space-4)">
         <div class="ctrl-label" title="Feed rate — how fast chemical A is replenished.">Feed (f)</div>
@@ -589,7 +534,7 @@
     <div class="panel-section">
       <h3>Compare <span class="hint">diff vs. a snapshot</span></h3>
       <div class="check-row org-switch"><span class="toggle-name">Diff overlay
-          <span class="info-tip" tabindex="0" role="note" aria-label="Shows how much the field has changed since your last Snapshot — Ink where it moved a lot, Paper where it barely moved.">i<span class="info-tip-bubble" aria-hidden="true">Shows how much the field has changed since your last Snapshot — Ink where it moved a lot, Paper where it barely moved.</span></span>
+          <span class="org-tip" tabindex="0" role="note" aria-label="Shows how much the field has changed since your last Snapshot — Ink where it moved a lot, Paper where it barely moved.">i<span class="org-tip__bubble" aria-hidden="true">Shows how much the field has changed since your last Snapshot — Ink where it moved a lot, Paper where it barely moved.</span></span>
         </span><input type="checkbox" id="ck-diff" onchange="toggleDiffOverlay()"></div>
       <button class="mini-btn" style="width:100%; margin-top: var(--space-2)" onclick="snapshotDiff()">Snapshot</button>
       <div class="org-popover__divider" style="margin: var(--space-3) 0"></div>
@@ -664,6 +609,7 @@
 <!-- Transformer — centralized raster effect-stack module (see the file's
      own header): field algorithms ported from Living Path's RFX, canvas
      adapters, and the thumbnail-picker UI. -->
+<script src="/shared/select-picker.js"></script>
 <script src="/shared/transformer.js"></script>
 <!-- Genesis forms — "port as data" per CLAUDE.md; shared verbatim with Genesis/Pollen/Camouflage. -->
 <script src="/genesis/forms.js"></script>
@@ -3553,6 +3499,7 @@ camoRecorder = Organica.recorder({
     btn.classList.toggle('org-btn--primary', isRec);
   },
 });
+Organica.shortcuts.add({ keys: 'Space', label: 'Play / pause', group: 'Playback', run: () => ctrl('btn-playpause').click() });
 window.ctrl = ctrl;
 window.togglePlay = togglePlay;
 window.resetSim = resetSim;
@@ -3658,7 +3605,7 @@ Organica.enhanceSliders(document);
   if (!panelEl) return;
   const MARGIN = 10;
   function clamp(tip) {
-    const bubble = tip.querySelector('.info-tip-bubble');
+    const bubble = tip.querySelector('.org-tip__bubble');
     if (!bubble) return;
     bubble.style.transform = 'translateX(-50%)';
     const bubbleRect = bubble.getBoundingClientRect();
@@ -3669,11 +3616,11 @@ Organica.enhanceSliders(document);
     if (shift) bubble.style.transform = `translateX(calc(-50% + ${shift}px))`;
   }
   panelEl.addEventListener('mouseover', (e) => {
-    const tip = e.target.closest('.info-tip');
+    const tip = e.target.closest('.org-tip');
     if (tip) clamp(tip);
   });
   panelEl.addEventListener('focusin', (e) => {
-    const tip = e.target.closest('.info-tip');
+    const tip = e.target.closest('.org-tip');
     if (tip) clamp(tip);
   });
 })();

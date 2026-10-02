@@ -33,13 +33,7 @@
   display: block;
 }
 
-/* Track slots — a compact repeated block */
-.trk {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2);
-  margin-bottom: var(--space-2);
-}
+/* Track slots — a compact repeated block: .org-layer-card (shared/panel.css) + this hook */
 .trk .panel-select { margin-bottom: var(--space-1); }
 .mode-row { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .mode-row .mini-btn { flex: 1 1 40%; }
@@ -722,7 +716,7 @@ function buildTrackSlots() {
   host.innerHTML = '';
   for (let i = 0; i < NTRACKS; i++) {
     const d = document.createElement('div');
-    d.className = 'trk';
+    d.className = 'org-layer-card trk';
     d.innerHTML =
       '<select class="panel-select" id="trk' + i + '-param" aria-label="Track ' + (i + 1) + ' parameter"></select>' +
       '<div class="trk-body" id="trk' + i + '-body">' +
@@ -1148,6 +1142,7 @@ setStatus('active', 'Ready');
 Organica.autoLabelPanel(document);
 Organica.enhanceSliders(document);
 
+Organica.shortcuts.add({ keys: 'Space', label: 'Play / pause', group: 'Playback', run: () => ctrl('btn-playpause').click() });
 ctrl('btn-playpause').addEventListener('click', togglePlayPause);
 ctrl('btn-stop').addEventListener('click', stopPlayback);
 ctrl('btn-scene-confirm').addEventListener('click', confirmSaveScene);

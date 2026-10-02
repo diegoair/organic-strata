@@ -351,6 +351,11 @@ html {
   --icon-lg:  16px;   /* floatbar, header — the native size of the 16-grid */
   --icon-xl:  20px;   /* empty states, tiles */
 
+  /* ── HIT AREAS ──────────────────────────────────────────
+     WCAG 2.5.8 (AA): an interactive target is at least 24×24 CSS px unless spaced. A mark on a
+     canvas / SVG can be smaller than that — its HIT area cannot (see design-system #hit-areas). */
+  --hit-min: 24px;
+
   /* ── MOTION ──────────────────────────────────────────────
      Approved Oct 2, 2026 (UI motion audit — docs/audit-2026-10/MOTION.md).
      Interface motion only; the generative engines own their own timing.

@@ -1698,7 +1698,14 @@
     function onVisible(m) {
       if (state.has(m)) return;
       var panel = m.querySelector('.org-modal__panel') || m;
-      state.set(m, { opener: document.activeElement });
+      var inerted = [];   // the page behind goes inert: no Tab, no click, hidden from assistive tech
+      for (var n = m; n && n !== document.body; n = n.parentElement) {
+        Array.prototype.forEach.call(n.parentElement.children, function (c) {
+          if (c === n || /^(SCRIPT|STYLE|LINK|TEMPLATE)$/.test(c.tagName) || c.hasAttribute('inert') || c.classList.contains('org-modal') || c.classList.contains('org-notice')) return;
+          c.setAttribute('inert', ''); inerted.push(c);
+        });
+      }
+      state.set(m, { opener: document.activeElement, inerted: inerted });
       var first = panel.querySelector(FOCUSABLE);
       if (!panel.hasAttribute('tabindex')) panel.setAttribute('tabindex', '-1');
       (first || panel).focus({ preventScroll: true });
@@ -1706,6 +1713,7 @@
     function onHidden(m) {
       var st = state.get(m); if (!st) return;
       state.delete(m);
+      (st.inerted || []).forEach(function (c) { c.removeAttribute('inert'); });
       if (st.opener && document.contains(st.opener) && st.opener.focus) st.opener.focus({ preventScroll: true });
     }
     function check(m) { if (visible(m)) onVisible(m); else onHidden(m); }
@@ -1731,7 +1739,94 @@
     }, true);
     function start() { document.querySelectorAll('.org-modal').forEach(watch); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
-    return { watch: watch };
+    return { watch: watch, release: onHidden };   // release(m): a modal removed from the DOM must give the page back
+  })();
+
+  /* Organica.prompt / Organica.confirm — the one in-page dialog (Oct 2, 2026 audit).
+     Replaces window.prompt() / confirm() / alert(): those block the page, throw in some
+     embedded contexts (Rhizome's bridge iframes) and look like nothing else in the suite.
+       Organica.prompt({title, label, value, ok}) → Promise<string|null>
+       Organica.confirm({title, message, ok, danger}) → Promise<boolean>
+     Built on .org-modal, so Organica.modal gives it focus-in, a Tab trap, Esc and focus
+     return for free. Enter confirms; Esc / Cancel / the backdrop resolve null / false. */
+  function orgDialog(o, withInput) {
+    return new Promise(function (resolve) {
+      var m = document.createElement('div');
+      m.className = 'org-modal'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true');
+      m.setAttribute('aria-label', o.title || (withInput ? 'Enter a value' : 'Confirm')); m.style.display = 'flex';
+      var esc = function (t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+      m.innerHTML = '<div class="org-modal__panel" style="--org-modal-w:340px">'
+        + '<div class="org-modal__header"><span class="org-modal__title">' + esc(o.title || (withInput ? 'Name' : 'Are you sure?')) + '</span></div>'
+        + (o.message ? '<p class="panel-hint" style="margin:0 0 var(--space-4)">' + esc(o.message) + '</p>' : '')
+        + (withInput ? '<label class="org-popover__label" style="display:block;margin-bottom:var(--space-2)">' + esc(o.label || '') + '</label><input class="org-field org-field--block" type="text" value="' + esc(o.value || '') + '" autocomplete="off">' : '')
+        + '<div class="row-btns" style="margin:var(--space-4) 0 0;justify-content:flex-end;gap:var(--space-2)">'
+        + '<button type="button" class="org-btn" data-modal-close>Cancel</button>'
+        + '<button type="button" class="org-btn ' + (o.danger ? 'org-btn--danger' : 'org-btn--primary') + '" data-ok>' + esc(o.ok || (withInput ? 'Save' : 'Confirm')) + '</button></div></div>';
+      var input = m.querySelector('input'), done = false;
+      function finish(v) { if (done) return; done = true; if (Organica.modal) Organica.modal.release(m); m.remove(); resolve(v); }
+      m.querySelector('[data-ok]').addEventListener('click', function () { finish(withInput ? input.value.trim() || null : true); });
+      m.querySelector('[data-modal-close]').addEventListener('click', function () { finish(withInput ? null : false); });
+      m.addEventListener('mousedown', function (e) { if (e.target === m) finish(withInput ? null : false); });
+      m.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); m.querySelector('[data-ok]').click(); } });
+      document.body.appendChild(m);
+      if (Organica.modal) Organica.modal.watch(m);
+      if (input) { input.focus(); input.select(); }
+    });
+  }
+  Organica.prompt = function (o) { return orgDialog(o || {}, true); };
+  Organica.confirm = function (o) { return orgDialog(o || {}, false); };
+
+  /* Organica.dirty — unsaved-work guard (Oct 2, 2026 audit). A tool calls
+       Organica.dirty.set('glyph-edits', true)  when work exists that a reload would lose,
+       Organica.dirty.set('glyph-edits', false) once it is saved / exported / reset.
+     While any key is set the browser's own "leave site?" prompt guards unload. Nothing else. */
+  Organica.dirty = (function () {
+    var keys = {};
+    var any = function () { return Object.keys(keys).length > 0; };
+    global.addEventListener('beforeunload', function (e) { if (any()) { e.preventDefault(); e.returnValue = ''; } });
+    return { set: function (k, on) { if (on) keys[k] = 1; else delete keys[k]; }, get any() { return any(); } };
+  })();
+
+  /* Organica.shortcuts — one registry for a tool's keyboard shortcuts (Oct 2, 2026 audit).
+       Organica.shortcuts.add({ keys: 'Space', label: 'Play / pause', group: 'Playback', run: fn })
+     `run` is optional (a shortcut the tool already handles can just be listed). The registry
+     owns the guard (never fires inside an input / select / textarea / contenteditable, nor on a
+     focused button / link / summary for Space & Enter) and `?` opens the list in a dialog. */
+  Organica.shortcuts = (function () {
+    var list = [];
+    var typing = function (t) { return !!(t && t.closest && t.closest('input, select, textarea, [contenteditable=""], [contenteditable="true"]')); };
+    var onControl = function (t) { return !!(t && t.closest && t.closest('button, a[href], summary, [role="button"]')); };
+    function match(s, e) {
+      var k = s.keys, mod = /^(⌘|Ctrl\+)/.test(k), key = k.replace(/^(⌘|Ctrl\+)(Shift\+)?/, '');
+      if (mod !== (e.metaKey || e.ctrlKey)) return false;
+      if (/Shift\+/.test(k) !== e.shiftKey && mod) return false;
+      return key === 'Space' ? e.code === 'Space' : key.toLowerCase() === (e.key || '').toLowerCase();
+    }
+    document.addEventListener('keydown', function (e) {
+      if (e.defaultPrevented || typing(e.target)) return;
+      if (e.key === '?' && !e.metaKey && !e.ctrlKey) { e.preventDefault(); show(); return; }
+      for (var i = 0; i < list.length; i++) {
+        var s = list[i]; if (!s.run || !match(s, e)) continue;
+        if ((s.keys === 'Space' || s.keys === 'Enter') && onControl(e.target)) return;
+        e.preventDefault(); s.run(e); return;
+      }
+    });
+    function show() {
+      if (!list.length || document.querySelector('.org-modal[data-shortcuts]')) return;
+      var groups = {}; list.forEach(function (s) { (groups[s.group || 'General'] = groups[s.group || 'General'] || []).push(s); });
+      var html = Object.keys(groups).map(function (g) {
+        return '<div class="ctrl-label" style="margin:var(--space-3) 0 var(--space-1)">' + g + '</div>' + groups[g].map(function (s) {
+          return '<div class="row-btns" style="margin:0;justify-content:space-between"><span>' + s.label + '</span><code>' + s.keys + '</code></div>'; }).join(''); }).join('');
+      var m = document.createElement('div'); m.className = 'org-modal'; m.dataset.shortcuts = '1'; m.style.display = 'flex';
+      m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true'); m.setAttribute('aria-label', 'Keyboard shortcuts');
+      m.innerHTML = '<div class="org-modal__panel" style="--org-modal-w:340px"><div class="org-modal__header"><span class="org-modal__title">Keyboard shortcuts</span>'
+        + '<button class="org-btn org-btn--icon org-btn--sm org-btn--ghost" aria-label="Close">' + (Organica.icons ? Organica.icons.get('close', { size: 'sm' }) : '×') + '</button></div>' + html + '</div>';
+      var close = function () { if (Organica.modal) Organica.modal.release(m); m.remove(); };
+      m.querySelector('[aria-label="Close"]').addEventListener('click', close);
+      m.addEventListener('mousedown', function (e) { if (e.target === m) close(); });
+      document.body.appendChild(m); if (Organica.modal) Organica.modal.watch(m);
+    }
+    return { add: function (s) { list.push(s); return s; }, list: list, show: show };
   })();
 
   /* Organica.armed — two-click confirm for a destructive button (Oct 2, 2026).

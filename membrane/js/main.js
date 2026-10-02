@@ -399,14 +399,7 @@ ctrl('btn-playpause').addEventListener('click', togglePlayPause);
 // slider" behaviour on a focused range input, not steal either one.
 // Also prevents the page's own default Space-scrolls-the-page action,
 // which would otherwise fire since #panel is a real scrollable region.
-document.addEventListener('keydown', e => {
-  if (e.code !== 'Space' && e.key !== ' ') return;
-  const t = document.activeElement;
-  const tag = t && t.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
-  e.preventDefault();
-  togglePlayPause();
-});
+Organica.shortcuts.add({ keys: 'Space', label: 'Play / pause', group: 'Playback', run: togglePlayPause });
 ctrl('btn-clear').addEventListener('click', () => paintBackground());
 ctrl('btn-reseed').addEventListener('click', () => reseedCurrent());
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));

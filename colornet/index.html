@@ -41,7 +41,6 @@
 /* .org-layer-card / .active / __head / __body skeleton is in panel.css
    (aliased alongside .org-layer-card). Colornet's local additions: a
    rounded corner, the armed-for-swap state, and every control below. */
-.org-layer-card { border-radius: var(--radius-sm); }
 .chan-armed { border-color: var(--accent-warm); border-style: dashed; }
 .chan-thumb {
   width: 26px; height: 26px; flex: 0 0 26px;
@@ -69,7 +68,6 @@
 .chan-opacity { flex: 1; min-width: 0; }
 .chan-val { font-size: var(--fs-micro); color: var(--mid); min-width: 30px; text-align: right; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
 .chan-cmyk { font-size: var(--fs-micro); color: var(--mid); font-family: var(--font-display); font-variant-numeric: tabular-nums; margin-left: auto; }
-.chan-empty { font-size: var(--fs-micro); color: var(--mid); line-height: var(--lh-snug); }
 .chan-am-row { padding-left: var(--space-2); }
 .chan-am-label { font-size: var(--fs-micro); color: var(--mid); flex: 0 0 52px; }
 
@@ -279,7 +277,7 @@
       <p class="panel-note">
         One-click classic offset-print setup: every channel to AM Screening at its own angle (15/75/0/45° per plate), avoiding moiré the same way real 4-colour print does.
       </p>
-      <div id="chan-stack"><p class="chan-empty">No image loaded yet.</p></div>
+      <div id="chan-stack"><p class="org-empty">No image loaded yet.</p></div>
     </div>
 
     <div class="panel-section" id="sec-transform" style="display:none">
@@ -1515,7 +1513,7 @@ function buildChannelUI() {
   const host = ctrl('chan-stack');
   host.innerHTML = '';
   if (!S.channels.length) {
-    host.innerHTML = '<p class="chan-empty">No image loaded yet.</p>';
+    host.innerHTML = '<p class="org-empty">No image loaded yet.</p>';
     return;
   }
   S.channels.forEach((ch, idx) => {

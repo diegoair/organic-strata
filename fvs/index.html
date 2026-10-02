@@ -165,7 +165,7 @@
   .fvs-library-item svg { width: 100%; height: 100%; display: block; }
   .fvs-library-item .rmx-x { position: absolute; top: 0; right: 0; }
   .fvs-library-item.selected { border-color: var(--tool); box-shadow: 0 0 0 1px var(--tool); }
-  .fvs-library-empty { font-size: var(--fs-micro); color: var(--mid); margin-bottom: var(--space-2); }
+  #panel .org-empty { margin-bottom: var(--space-2); }
 
   /* Element ↔ Component ↔ Symbol ↔ Grid tier switch — same
      show/hide-by-data-attribute convention Genesis Creator's own
@@ -497,7 +497,7 @@
       </button>
       <div class="org-popover" id="creator-library-popover" aria-label="Creator library">
         <div class="org-popover__title">Creator library</div>
-        <div id="creator-library-empty" class="fvs-library-empty">No saved Seeds found — save one in Creator first.</div>
+        <div id="creator-library-empty" class="org-empty">No saved Seeds found — save one in Creator first.</div>
         <div id="creator-library-tiles" class="fvs-library"></div>
       </div>
     </div>
@@ -1590,7 +1590,7 @@
 
     <div class="panel-section">
       <h3>Library <span class="hint">saved for reuse</span></h3>
-      <div id="library-empty" class="fvs-library-empty">Nothing saved yet.</div>
+      <div id="library-empty" class="org-empty">Nothing saved yet.</div>
       <div id="fvs-library" class="fvs-library"></div>
       <button class="mini-btn" id="btn-save-library" style="width:100%">Save selected to library</button>
       <button class="mini-btn" id="btn-save-all-library" style="width:100%;margin-top:var(--space-2)">Save all to library</button>
@@ -1805,7 +1805,7 @@
       </div>
       <div id="symbol-manual-block" style="display:none">
         <p class="org-panel__hint">Click a cell on the canvas to select it; drag to select several; ⌘-click (Ctrl-click on Windows) adds or removes a cell. Click a selected cell again — or double-click a cell — to choose its content, for the whole selection. Every change below applies to the selection.</p>
-        <div id="symbol-cell-empty" class="fvs-library-empty">No cell selected.</div>
+        <div id="symbol-cell-empty" class="org-empty">No cell selected.</div>
         <div id="symbol-cell-props" style="display:none">
           <div class="ctrl-row"><div class="ctrl-label">Selected</div>
             <span class="ctrl-val" id="symbol-cellprop-count" style="flex:1;text-align:left"></span>
@@ -1880,7 +1880,7 @@
 
     <div class="panel-section">
       <h3>Symbol library <span class="hint">saved for reuse</span></h3>
-      <div id="symbol-library-empty" class="fvs-library-empty">Nothing saved yet.</div>
+      <div id="symbol-library-empty" class="org-empty">Nothing saved yet.</div>
       <div id="fvs-symbol-library" class="fvs-library"></div>
       <button class="mini-btn" id="btn-save-symbol-library" style="width:100%">Save symbol to library</button>
       <div id="symbol-library-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
@@ -2014,7 +2014,7 @@
     </div>
     <div id="content-sec-components">
       <div class="sub-label" style="margin-top:var(--space-3)">Components</div>
-      <div id="symbol-content-overlay__components-empty" class="fvs-library-empty">No saved Components yet — build one in the Component step first.</div>
+      <div id="symbol-content-overlay__components-empty" class="org-empty">No saved Components yet — build one in the Component step first.</div>
       <div id="symbol-content-overlay__components" class="fvs-library"></div>
     </div>
   </div>
@@ -2028,7 +2028,7 @@
         <svg class="ico ico--sm" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>
       </button>
     </div>
-    <div id="underlying-component-overlay-empty" class="fvs-library-empty">No saved Components yet — build one first.</div>
+    <div id="underlying-component-overlay-empty" class="org-empty">No saved Components yet — build one first.</div>
     <div id="underlying-component-overlay-tiles" class="fvs-library"></div>
   </div>
 </div>
@@ -8521,6 +8521,7 @@ function applyToSelection(patch) {
     if (!cell) return;
     Object.assign(cell, typeof patch === 'function' ? patch(cell) : patch);
   });
+  Organica.dirty.set('fvs-symbol', true);   // hand-edited cells live only in memory until saved to the Symbol library
   renderSymbolCanvasOnly();
 }
 
@@ -8637,6 +8638,7 @@ function applyToAllCells(patch) {
     if (!cell) return;
     Object.assign(cell, typeof patch === 'function' ? patch(cell) : patch);
   });
+  Organica.dirty.set('fvs-symbol', true);
   renderSymbolCanvasOnly();
 }
 function contentTarget() { return ctrl('chk-content-overlay-all').checked ? applyToAllCells : applyToSelection; }
@@ -8862,6 +8864,7 @@ function confirmSaveSymbolToLibrary() {
   const all = SYMBOL_LIBRARY.read();
   all[name] = entry;
   SYMBOL_LIBRARY.write(all);
+  Organica.dirty.set('fvs-symbol', false);
   cancelSaveSymbolToLibrary();
   renderSymbolLibrary();
 }
@@ -8885,6 +8888,7 @@ function applySymbolLibraryEntryToUI(entry) {
   if (entry.pool || entry.palette) { state.symbolPool = (entry.pool || entry.palette).map(p => ({ ...p })); renderSymbolPool(); }
   if (entry.arrange) { ctrl('sel-sym-arrange').value = entry.arrange.rule; ctrl('sel-sym-arrange-fit').value = entry.arrange.fit; ctrl('num-symbol-seed').value = entry.arrange.seed; }
   state.symbolCells = entry.cells.map(c => withPlacementDefaults({ ...c }));
+  Organica.dirty.set('fvs-symbol', false);   // a loaded saved Symbol matches the library
   state.symbolSelection.clear();
   state.colors = entry.colors.map(hexKey);
   state.colorRule = { ...DEFAULT_COLOR_RULE, ...(entry.colorRule || {}) };
@@ -9084,6 +9088,13 @@ function setTier(tier) {
 //     (`panStart`). Double-click / ⌘0 / "reset" = 100%.
 //   · Component gallery: zoom = thumbnail size (galleryZoom → the --thumb-w/h
 //     vars), so the grid reflows and still scrolls with its scrollbar.
+// Keyboard shortcuts — list-only (each is handled by its own listener below); `?` shows them.
+[['⌘Z', 'Undo (Component, Figure, Freehand)', 'Edit'], ['⌘⇧Z', 'Redo (Figure)', 'Edit'],
+ ['Space (hold)', 'Pan a zoomed view', 'View'], ['⌘ + / − / 0', 'Gallery zoom in / out / reset', 'View'],
+ ['Space', 'Figure: shuffle', 'Figure'], ['V', 'Figure: variations', 'Figure'], ['[ / ]', 'Figure: nudge size', 'Figure'],
+ ['1–6', 'Figure: pick a paint tool', 'Figure'], ['R / m / M', 'Figure: rotate / mirror V / mirror H the handle target', 'Figure'],
+ ['Esc', 'Close gallery / overlay', 'General']
+].forEach(([keys, label, group]) => Organica.shortcuts.add({ keys, label, group }));
 var fvsPanKey = false;
 var fvsIsTypingTarget = t => t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
 document.addEventListener('keydown', e => {
@@ -10332,6 +10343,7 @@ function figureMutate(fn, opts) {
   fn(d);
   try { validateFigureRecipe(d); } catch (e) { ctrl('fg-json-error').textContent = e.message; ctrl('fg-json-error').style.display = ''; ctrl('fg-advanced').open = true; return false; }
   applyFigureRecipe(d, opts || {});
+  Organica.dirty.set('fvs-figure', true);   // a hand-edited figure recipe is memory-only until its JSON is copied
   return !ctrl('fg-json-error').textContent || ctrl('fg-json-error').style.display === 'none';
 }
 
@@ -10890,7 +10902,7 @@ function drawFigureRef(fm, rm) {
   ctrl('fg-liveseed').addEventListener('change', onForm);
   ctrl('fg-hexcentre').addEventListener('change', onForm);
   ctrl('fg-json-apply').addEventListener('click', () => { try { applyFigureRecipe(JSON.parse(ctrl('fg-json').value), { resetStep: true }); } catch (e) { ctrl('fg-json-error').textContent = e.message; ctrl('fg-json-error').style.display = ''; } });
-  ctrl('fg-json-copy').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText(ctrl('fg-json').value); });
+  ctrl('fg-json-copy').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText(ctrl('fg-json').value); Organica.dirty.set('fvs-figure', false); });
   ctrl('fg-json-save').addEventListener('click', () => Organica.downloadText(ctrl('fg-json').value, Organica.stamp('fvs-figure', 'json'), 'application/json'));
   ctrl('fg-ref-load').addEventListener('click', () => ctrl('fg-ref-file').click());
   ctrl('fg-ref-file').addEventListener('change', e => {
@@ -11162,7 +11174,7 @@ ctrl('file-recipe').addEventListener('change', e => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
   const reader = new FileReader();
-  reader.onload = () => { try { applyRecipe(JSON.parse(reader.result)); } catch (err) { alert('Recipe not loaded: ' + err.message); } };
+  reader.onload = () => { try { applyRecipe(JSON.parse(reader.result)); } catch (err) { setStatus('error', 'Recipe not loaded: ' + err.message); } };
   reader.readAsText(f);
 });
 

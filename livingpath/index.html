@@ -53,17 +53,6 @@
   /* ── effect stack — fixed blocks in collapsible category sections,
        drag a header to reorder within its section ── */
   .fx-cat{margin-bottom:var(--space-3)}
-  .fx-cat-head{
-    display:flex; align-items:center; gap:var(--space-2); width:100%;
-    padding:var(--space-2) var(--space-2); background:none; border:none;
-    font-family:var(--font); font-size:var(--fs-small); font-weight:var(--w-semibold);
-    letter-spacing:.08em; text-transform:uppercase; color:var(--mid);
-    cursor:pointer; border-bottom:1px solid var(--border);
-  }
-  @media (hover: hover) { .fx-cat-head:hover{color:var(--ink)} }
-  .fx-cat-chev{font-size:var(--fs-small); transition:transform var(--dur-fast)}
-  .fx-cat.is-open .fx-cat-chev{transform:rotate(90deg)}
-  .fx-cat-label{flex:1; text-align:left}
   .fx-cat-count{
     font-size:var(--fs-small); font-weight:var(--w-semibold); letter-spacing:0;
     color:var(--paper); background:var(--tool);
@@ -76,24 +65,11 @@
      Raster) has no top margin so it doesn't add a gap under "Effect stack" */
   .fx-engine-div{
     font-size:var(--fs-micro); font-weight:var(--w-semibold); letter-spacing:.14em; text-transform:uppercase;
-    color:var(--tool); margin:var(--space-4) 0 var(--space-2); padding-top:var(--space-3);
+    color:var(--mid); margin:var(--space-4) 0 var(--space-2); padding-top:var(--space-3);   /* --tool purple was 2.64:1 on white (dark-audit, Oct 2) */
     border-top:1px solid var(--border);
   }
   .fx-engine-div:first-child{margin-top:0; padding-top:0; border-top:none}
-  .layer{
-    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-sm);
-    margin-bottom:var(--space-2); overflow:hidden; transition:opacity var(--dur-fast);
-  }
-  .layer--idle{opacity:.42}
-  .layer.is-dragging{opacity:.35}
-  .layer.drop-before{box-shadow:inset 0 3px 0 var(--tool)}
-  .layer.drop-after{box-shadow:inset 0 -3px 0 var(--tool)}
-  .layer-head{display:flex; align-items:center; gap:var(--space-2); padding:var(--space-2) var(--space-4); cursor:grab; user-select:none}
-  .layer-head:active{cursor:grabbing}
-  .layer--fixed .layer-head{cursor:default}
-  .layer-head .drag{color:var(--mid); font-size:var(--fs-medium); letter-spacing:-2px}
-  .layer-head b{flex:1; font-size:var(--fs-base); font-weight:var(--w-medium); letter-spacing:.04em}
-  .layer-body{padding:var(--space-1) var(--space-4) 10px}
+  /* effect blocks — .org-layer-card--flush (shared/panel.css); LP adds only the drag/idle state hooks */
   /* The presets picker (.presets/.preset-trigger/.pt-ico/.pi-ico/.pt-name/
      .pt-chev/.preset-menu/.preset-item/.pi-name) is shared/panel.css. */
   /* ── canvas/preview ── */
@@ -106,8 +82,6 @@
        font sheet — one boxed cell per glyph, name + Unicode caption ── */
   #canvas-wrap.family{overflow-y:auto; overflow-x:hidden; align-items:flex-start}
   #canvas-wrap.family #board{max-width:none; max-height:none; box-shadow:none}
-  .empty{text-align:center; color:var(--mid)}
-  .empty p{font-size:var(--fs-medium); line-height:1.7}
   .mini{font-size:var(--fs-small); padding:var(--space-2) var(--space-4); background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; color:var(--ink)}
   .hint{font-size:var(--fs-small); color:var(--mid); line-height:1.6; margin-top:var(--space-3)}
   /* Variable · Masters — compact CRUD rows; the add-axis form wraps its tiny inputs */
@@ -189,15 +163,15 @@
   }
   @keyframes procPulse{0%,100%{opacity:.72}50%{opacity:1}}
   #procOverlay::before, #procOverlay::after{
-    content:''; position:absolute; left:0; width:0; height:5px;
-    background:var(--ink);
+    content:''; position:absolute; left:0; width:100%; height:5px;
+    background:var(--ink); transform:scaleX(0); transform-origin:left;
     /* one left→right sweep, then hold solid until idle() hides the overlay
        (re-triggered each time #procOverlay goes display:none → flex) */
-    animation:procFill .55s ease-out forwards;
+    animation:procFill var(--dur-slow) var(--ease-out) forwards;
   }
   #procOverlay::before{top:var(--line-top, 0px)}
   #procOverlay::after{top:calc(var(--line-bot, 100%) - 5px)}
-  @keyframes procFill{from{width:0}to{width:100%}}
+  @keyframes procFill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
   /* transient message pill (errors / results), top-centre of the stage */
   #toast{
     position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:11;
@@ -315,8 +289,8 @@
     <div id="toast" role="status" aria-live="polite" hidden></div>
     <!-- processing: grey-out + centred message pill + a loading line on the canvas' top & bottom edge -->
     <div id="procOverlay" hidden><span id="procMsg"></span></div>
-    <div class="empty" id="empty">
-      <p>Click <b>+</b> in the toolbar, or drop a font anywhere.</p>
+    <div class="org-empty org-empty--stage" id="empty">
+      <p class="org-empty__hint">Click <b>+</b> in the toolbar, or drop a font anywhere.</p>
     </div>
     <div id="zoom-hud">
       <span id="zoom-level">100%</span>
@@ -843,7 +817,7 @@ function buildPresets(){
 let DRAG_IDX=null, DRAG_CAT=null;
 function buildLayerBlock(layer){
   const def=defFor(layer.type), el=document.createElement('div');
-  el.className='layer'+(isIdentity(layer)?' layer--idle':'');
+  el.className='org-layer-card org-layer-card--flush is-draggable'+(isIdentity(layer)?' is-idle':'');
   el.dataset.cat=LP_CAT_OF[layer.type];
   const gidx=()=>layersFor(layer.type).indexOf(layer);
   let body='';
@@ -852,17 +826,17 @@ function buildLayerBlock(layer){
       <input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${layer.params[key]}">
       <span class="val">${layer.params[key]}</span></div>`;
   });
-  el.innerHTML=`<div class="layer-head"><span class="drag" aria-hidden="true">⠿</span><b>${def.name}</b></div>
-    <div class="layer-body">${body}</div>`;
+  el.innerHTML=`<div class="org-layer-card__head"><span class="org-layer-card__grip"><svg class="ico ico--xs" data-icon="grip" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6" cy="4" r="1.2" fill="currentColor" stroke="none"/><circle cx="10" cy="4" r="1.2" fill="currentColor" stroke="none"/><circle cx="6" cy="8" r="1.2" fill="currentColor" stroke="none"/><circle cx="10" cy="8" r="1.2" fill="currentColor" stroke="none"/><circle cx="6" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="10" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg></span><b class="org-layer-card__title">${def.name}</b></div>
+    <div class="org-layer-card__content">${body}</div>`;
   el.querySelectorAll('input[type=range]').forEach(inp=>{
     inp.addEventListener('input',()=>{
       layer.params[inp.dataset.k]=+inp.value; inp.nextElementSibling.textContent=inp.value;
-      el.classList.toggle('layer--idle', isIdentity(layer));
+      el.classList.toggle('is-idle', isIdentity(layer));
       markCustom(); render();
     });
   });
   // only the header initiates a drag — the sliders in the body stay usable
-  const head=el.querySelector('.layer-head');
+  const head=el.querySelector('.org-layer-card__head');
   head.draggable=true;
   head.addEventListener('dragstart',e=>{ DRAG_IDX=gidx(); DRAG_CAT=el.dataset.cat; el.classList.add('is-dragging');
     e.dataTransfer.effectAllowed='move';
@@ -888,9 +862,9 @@ function buildLayerBlock(layer){
 function buildOutlineBlock(){
   const el=document.createElement('div');
   const active=outlineWidth>0;
-  el.className='layer layer--fixed'+(active?'':' layer--idle');
-  el.innerHTML=`<div class="layer-head"><b>Outline</b></div>
-    <div class="layer-body">
+  el.className='org-layer-card org-layer-card--flush'+(active?'':' is-idle');
+  el.innerHTML=`<div class="org-layer-card__head"><b class="org-layer-card__title">Outline</b></div>
+    <div class="org-layer-card__content">
       <div class="row"><div class="ctrl-label">Width</div>
         <input type="range" data-k="width" min="0" max="24" step="1" value="${outlineWidth}">
         <span class="val">${outlineWidth}</span></div>
@@ -907,7 +881,7 @@ function buildOutlineBlock(){
       if(inp.dataset.k==='width') outlineWidth=v;
       else if(inp.dataset.k==='rings') outlineRings=v;
       else outlineGap=v;
-      el.classList.toggle('layer--idle', !(outlineWidth>0));
+      el.classList.toggle('is-idle', !(outlineWidth>0));
       markCustom(); render();
     });
   });
@@ -935,10 +909,10 @@ function renderStack(){
     const sec=document.createElement('div');
     sec.className='fx-cat'+(open?' is-open':'');
     const head=document.createElement('button');
-    head.type='button'; head.className='fx-cat-head';
+    head.type='button'; head.className='org-disclosure__head';
     head.setAttribute('aria-expanded', open?'true':'false');
-    head.innerHTML=`<svg class="ico ico--xs fx-cat-chev" data-icon="chevron-right" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg>
-      <span class="fx-cat-label">${cat.label}</span>
+    head.innerHTML=`<svg class="ico ico--xs org-chev" data-icon="chevron-right" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg>
+      <span class="org-disclosure__label">${cat.label}</span>
       ${n?`<span class="fx-cat-count">${n}</span>`:''}`;
     head.addEventListener('click',()=>{ LP_CAT_OPEN[cat.id]=!catIsOpen(cat); renderStack(); });
     sec.appendChild(head);
@@ -1260,7 +1234,7 @@ function glyphEd(){
     paper:()=>$('#cp-bg').value,
     metrics: glyphMetrics(),
     addMode: ()=>_addPt,
-    onChange: ()=>{ _editRev++; _familyCache.sig=''; syncGlyphTools(); },
+    onChange: ()=>{ _editRev++; Organica.dirty.set('lvp-edits',true); _familyCache.sig=''; syncGlyphTools(); },
   }));
 }
 function sizeGlyphCanvas(){
@@ -1289,7 +1263,7 @@ function mountGlyphEditor(){
         g.contours = subsToLoose(em);
         g.advance  = gl ? glyphAdvance(gl) : g.advance;
         g.baked = true; g.edited = true;
-        _editRev++; _familyCache.sig='';
+        _editRev++; Organica.dirty.set('lvp-edits',true); _familyCache.sig='';
       }
     }
   }
@@ -1487,7 +1461,7 @@ function loadFontBuffer(buf, name){
 function seedFontSource(name){
   const font=window.__FONT; if(!font) return;
   _familyCache={sig:'', glyphs:null};            // new font → drop the per-glyph geometry cache
-  _gmodel=null; _editRev++;                       // …and the glyph model (rebuilt lazily for the new font)
+  _gmodel=null; _editRev++; Organica.dirty.set('lvp-edits',false);   // …and the glyph model (rebuilt lazily for the new font)
   applyPendingEdits();                            // rehydrate outline edits + variable model from a just-loaded .lvp
   const p=font.getPath('Agr', 0, 0, 700);          // y-down em units — only a fallback when CACHE is null
   const subs=fromOTCommands(p.commands);
@@ -2053,7 +2027,7 @@ function loadProject(txt){
   // outline edits + the variable model: a .lvp carries no font, so stash +
   // apply on the next font load (or now, if a font is already loaded). The
   // model is discarded first so a prior session's edits / masters don't linger.
-  _gmodel = null; _editRev++; _familyCache.sig='';
+  _gmodel = null; _editRev++; Organica.dirty.set('lvp-edits',false); _familyCache.sig='';
   _pendingEdits = (p.edits && Object.keys(p.edits).length) ? p.edits : null;
   _pendingVar   = (p.variable && (p.variable.axes||[]).length) ? p.variable : null;
   if((_pendingEdits || _pendingVar) && window.__FONT) applyPendingEdits();
@@ -2116,6 +2090,7 @@ $('#exUFO').addEventListener('click', async function(){
   this.textContent=lbl; this.disabled=false;
 });
 $('#saveProj').addEventListener('click',()=>{
+  Organica.dirty.set('lvp-edits',false);   // the .lvp carries the edits + variable model
   download(new Blob([projectJSON()],{type:'application/json'}), (($('#exName').value||'LivingPath').replace(/\s+/g,'-'))+'.lvp');
 });
 (function(){ const inp=document.createElement('input'); inp.type='file'; inp.accept='.lvp,application/json'; inp.hidden=true; document.body.appendChild(inp);
@@ -2140,6 +2115,10 @@ board.addEventListener('click', e=>{
   const uni=+r.getAttribute('data-uni');
   if(Number.isFinite(uni)) openGlyphOne(String.fromCodePoint(uni));
 });
+// Keyboard shortcuts — list-only; the glyph editor canvas and the Esc handler own them.
+[['Esc', 'Deselect node, then leave the glyph view', 'Glyph editor'], ['← → ↑ ↓', 'Nudge selected node (Shift = 10×)', 'Glyph editor'],
+ ['Delete / Backspace', 'Delete selected node', 'Glyph editor'], ['Enter', 'Toggle corner / smooth', 'Glyph editor']
+].forEach(([keys, label, group]) => Organica.shortcuts.add({ keys, label, group }));
 // Esc leaves the single-glyph view for the normal tester (specimen untouched) —
 // but in the outline editor a first Esc only deselects a node (the editor's own
 // canvas keydown handles that), so defer to it when something is selected
@@ -2243,14 +2222,14 @@ $('#varAddAxis').addEventListener('click',()=>{
     if(!(mx>mn)){ toast('✗ max must be greater than min'); return; }
     m.addAxis({ tag, name:($('#axf-name').value||'').trim()||tag,
       min:mn, default:Math.max(mn,Math.min(mx,df)), max:mx });
-    f.remove(); _familyCache.sig=''; renderVar(); render();
+    Organica.dirty.set('lvp-edits',true); f.remove(); _familyCache.sig=''; renderVar(); render();
   });
 });
 $('#varAddMaster').addEventListener('click',()=>{
   const m=gmodel(); if(!m) return;
   if(!m.axes.length){ toast('✗ add an axis first'); return; }
   if(m.locIsMaster(m.loc)>=0){ toast('✗ a master already sits at this location'); return; }
-  const idx=m.addMaster(masterLabel(m.loc), { ...m.loc });
+  const idx=m.addMaster(masterLabel(m.loc), { ...m.loc }); Organica.dirty.set('lvp-edits',true);
   m.editMasterIdx=idx;
   _familyCache.sig=''; renderVar(); render();
 });
@@ -2265,7 +2244,7 @@ $('#varBake').addEventListener('click', async function(){
       glyphKeys: m.glyphOrder, presetRef: CURRENT_PRESET || null,
       onProgress:(i,n)=>{ if(performance.now()-t0>PROC_GRACE) busy(`baking master ${i}/${n}…`); },
     });
-    idle(); _editRev++; _familyCache.sig='';
+    idle(); _editRev++; Organica.dirty.set('lvp-edits',true); _familyCache.sig='';
     toast(`✓ ${r.direct} direct · ${r.reprojected} reprojected · ${r.staticOnly} skipped`);
     renderVar(); render();
   }catch(e){ idle(); toast('✗ '+e.message); }

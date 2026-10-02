@@ -916,3 +916,169 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 
 /* Armed two-click confirm (Organica.armed, [data-armed]) — one look for every destructive button. */
 .mini-btn.is-armed, .org-btn.is-armed, .panel-btn.is-armed { color: var(--danger); border-color: var(--danger); }
+
+
+/* ═══════════════════════════════════════════════════════════
+   Shared behaviours (Oct 2, 2026 — audit #19 #20 #21 #22 #25 #31)
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Empty state: .org-empty ─────────────────────────────────
+   One look for "nothing here yet". Inline (default) = a quiet mid-grey note in
+   a panel list; --stage = centred on the canvas. Copy rule: say what is missing
+   and the way to fill it, in one or two short lines ("Nothing saved yet." /
+   "Click + in the toolbar, or drop a font anywhere."). The title is optional
+   and only for a stage state that names the tool or the object.
+     <div class="org-empty">Nothing saved yet.</div>   (or with <p class="org-empty__hint">)
+     <div class="org-empty org-empty--stage">
+       <p class="org-empty__title">Sinew</p><p class="org-empty__hint">…</p>
+       <button class="org-empty__action org-btn">Open</button></div> */
+.org-empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); color: var(--mid); font-size: var(--fs-small); line-height: var(--lh-snug); }   /* bare text works too (JS may set textContent) */
+.org-empty[hidden] { display: none; }
+.org-empty__title { margin: 0; font-family: var(--font-display); font-size: var(--fs-medium); font-weight: var(--w-medium); color: var(--ink); }
+.org-empty__hint { margin: 0; }
+.org-empty__action { margin-top: var(--space-2); }
+.org-empty--stage { align-items: center; text-align: center; }
+.org-empty--stage .org-empty__title { font-size: var(--fs-4xl); font-weight: var(--w-bold); margin-bottom: var(--space-3); }
+.org-empty--stage .org-empty__hint { font-size: var(--fs-medium); line-height: var(--lh-normal); }
+
+/* ── Progress: .org-progress, .org-spinner ───────────────────
+   When to use which:
+   · bar     a job with a KNOWN fraction on the stage (Pollen/Spore/Mote render,
+             Mote batch). Sits on the bottom edge of the positioned stage and does
+             not block anything.
+   · Notice  (Organica.status → .org-notice) a state change or result the person
+             must read: busy → ok / error. Use for work without a fraction, and
+             for every error.
+   · overlay a short blocking recompute on the canvas (a pill with .org-spinner,
+             Pollen "Recomputing…"; Living Path's scrim) — only when the preview
+             is stale and must not be touched.
+   .org-progress is a track-less 2px bar; set the fraction with
+   style.setProperty('--p', 0..1) or style.transform = 'scaleX(f)' (both work —
+   the bar scales from its left edge). Give it role="progressbar" only when it
+   is the sole signal. Colour defaults to --tool; override with --progress-color.
+   Under reduced motion the --dur tokens are 1ms, so it steps instead of glides. */
+.org-progress {
+  position: absolute; left: 0; bottom: 0; width: 100%; height: 2px;
+  background: var(--progress-color, var(--tool));
+  transform: scaleX(var(--p, 0)); transform-origin: left;
+  transition: transform var(--dur-fast) linear;
+  pointer-events: none;
+}
+.org-spinner {
+  display: inline-block; flex: 0 0 auto;
+  width: var(--icon-xs); height: var(--icon-xs); box-sizing: border-box;
+  border: calc(var(--icon-stroke) * 1px) solid currentColor; border-top-color: transparent;
+  border-radius: 50%;   /* a circle, not a corner radius */
+  animation: org-spin 600ms linear infinite;
+}
+@keyframes org-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .org-spinner { animation: none; border-top-color: currentColor; opacity: 0.6; }   /* a static ring */
+}
+
+/* ── Disclosure: .org-disclosure, .org-chev ──────────────────
+   One collapsible section. <details>/<summary> is the native form (keyboard,
+   Find-in-page and the open state for free); the head carries a chevron-right
+   that turns 90° (--dur-fast) when open, the body opens with grid-template-rows
+   0fr → 1fr (--dur-base --ease-out) via ::details-content (Chrome 131+, Safari
+   18.4+; elsewhere it simply snaps). Reduced motion: the tokens are 1ms.
+     <details class="org-disclosure">
+       <summary class="org-disclosure__head"><i data-icon="chevron-right" data-size="xs" class="org-chev"></i>
+         <span class="org-disclosure__label">Advanced</span></summary>
+       <div class="org-disclosure__body">…</div></details>
+   .org-chev alone is the shared chevron for a hand-rolled head (a button whose
+   JS toggles state): it rotates when it is in a [open] summary, a head directly
+   under .is-open, or inside an element with aria-expanded="true". Keep the state hook on the element
+   the JS already toggles. */
+.org-chev { flex: 0 0 auto; color: var(--mid); transition: transform var(--dur-fast) var(--ease-standard); }
+:is([open] > summary, .is-open > .org-disclosure__head, .is-open > .org-layer-card__head, [aria-expanded="true"]) .org-chev { transform: rotate(90deg); }
+.org-disclosure__head {
+  display: flex; align-items: center; gap: var(--space-2); cursor: pointer; list-style: none; user-select: none;
+  width: 100%; box-sizing: border-box; margin: 0; background: none; border: 0; text-align: left;   /* resets, so a <button> head matches a <summary> */
+  padding: var(--space-2) var(--space-2); border-bottom: 1px solid var(--border);
+  font-family: var(--font-display); font-size: var(--fs-small); font-weight: var(--w-semibold);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--mid);
+}
+.org-disclosure__head::-webkit-details-marker { display: none; }
+@media (hover: hover) { .org-disclosure__head:hover { color: var(--ink); } }
+.org-disclosure__label { flex: 1; text-align: left; }
+.org-disclosure__body { padding-top: var(--space-2); }
+.org-disclosure::details-content {
+  display: grid; grid-template-rows: 0fr; overflow: hidden;
+  transition: grid-template-rows var(--dur-base) var(--ease-out), content-visibility var(--dur-base) allow-discrete;
+}
+.org-disclosure[open]::details-content { grid-template-rows: 1fr; }
+.org-disclosure__body { min-height: 0; overflow: hidden; }
+/* class-driven body (JS toggles .is-open, no <details>): wrap the body in .org-disclosure__panel */
+.org-disclosure__panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-base) var(--ease-out); }
+.is-open > .org-disclosure__panel { grid-template-rows: 1fr; }
+.org-disclosure__panel > * { min-height: 0; overflow: hidden; }
+
+/* ── Tooltip: .org-tip ───────────────────────────────────────
+   Policy: the native `title` attribute is for REDUNDANT hints only — a label
+   that already says it (an icon button whose aria-label matches, a truncated
+   name). Anything non-obvious (what a control does, a consequence, a unit, why
+   it is disabled) uses .org-tip, because `title` cannot be reached by keyboard
+   or touch. Promoted from Camo Turing's .info-tip. The bubble shows on :hover
+   and :focus-visible. The bubble can overflow a clipping panel near its edge:
+   it is display:none until shown (no layout cost); if the tip sits within
+   ~100px of a scrolling panel's edge, clamp it as Camo Turing does.
+     <span class="org-tip" tabindex="0" role="note" aria-label="Full text">i
+       <span class="org-tip__bubble" aria-hidden="true">Full text</span></span> */
+.org-tip {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: var(--space-5); height: var(--space-5); margin-left: var(--space-1); flex-shrink: 0;
+  border-radius: 50%;   /* a circle */
+  border: 1px solid var(--border-strong); color: var(--mid);
+  font-size: var(--fs-micro); font-style: italic; font-family: var(--font); cursor: help;
+}
+.org-tip:hover, .org-tip:focus-visible { border-color: var(--ink); color: var(--ink); }
+.org-tip__bubble {
+  display: none;   /* not visibility:hidden — a hidden but laid-out wide bubble made the panel scroll horizontally */
+  position: absolute; bottom: calc(100% + var(--space-2)); left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: 190px; z-index: 20; pointer-events: none;
+  background: var(--ink); color: var(--paper);
+  font-family: var(--font); font-style: normal; font-weight: var(--w-regular);
+  font-size: var(--fs-micro); line-height: var(--lh-snug); text-align: left;
+  padding: var(--space-2); border-radius: var(--radius-sm); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+.org-tip:hover .org-tip__bubble, .org-tip:focus-visible .org-tip__bubble { display: block; }
+
+/* ── Layer / list card: .org-layer-card (extended) ───────────
+   The base card (border, padding, margin, --tool when .active) is above.
+   Added: the flush collapsible variant used by Living Path + Sinew effect layers,
+   and the track slot used by Pulsar + Trellis (just the base card, no head).
+     <div class="org-layer-card org-layer-card--flush is-on is-open">
+       <div class="org-layer-card__head">
+         <span class="org-layer-card__grip">grip icon</span>       (optional, drag handle)
+         <span class="org-layer-card__toggle">check icon</span>    (optional on/off, .is-on fills it)
+         <b class="org-layer-card__title">Name</b>
+         <svg class="ico ico--xs org-chev">chevron-right</svg>      (optional, turns when .is-open)
+       </div>
+       <div class="org-layer-card__content">controls…
+         <div class="org-layer-card__actions">up · down · remove icon buttons</div></div></div>
+   State classes on the card: .is-on / .is-off (dim .5) / .is-idle (dim .42,
+   no visible effect) / .is-open / .is-dragging / .drop-before / .drop-after. */
+.org-layer-card { border-radius: var(--radius-sm); }
+.org-layer-card--flush { padding: 0; overflow: hidden; background: var(--panel); transition: opacity var(--dur-fast); }
+.org-layer-card--flush .org-layer-card__head { padding: var(--space-2) var(--space-4); user-select: none; }
+.org-layer-card--flush.is-collapsible > .org-layer-card__head { cursor: pointer; }
+.org-layer-card--flush.is-draggable > .org-layer-card__head { cursor: grab; }
+.org-layer-card--flush.is-draggable > .org-layer-card__head:active { cursor: grabbing; }
+.org-layer-card.is-off { opacity: 0.5; }
+.org-layer-card.is-idle { opacity: 0.42; }
+.org-layer-card.is-dragging { opacity: 0.35; }
+.org-layer-card.drop-before { box-shadow: inset 0 3px 0 var(--tool); }
+.org-layer-card.drop-after { box-shadow: inset 0 -3px 0 var(--tool); }
+.org-layer-card__title { flex: 1; font-size: var(--fs-base); font-weight: var(--w-medium); letter-spacing: 0.04em; }
+.org-layer-card__grip { display: inline-flex; color: var(--mid); }
+.org-layer-card__toggle {
+  display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  width: var(--space-5); height: var(--space-5); box-sizing: border-box;
+  border: 1.5px solid var(--mid); border-radius: var(--radius-md); color: transparent;
+}
+.org-layer-card.is-on > .org-layer-card__head .org-layer-card__toggle { background: var(--tool); border-color: var(--tool); color: var(--ink); }
+.org-layer-card__content { padding: var(--space-1) var(--space-4) var(--space-4); }
+.org-layer-card--flush.is-collapsible:not(.is-open) > .org-layer-card__content { display: none; }
+.org-layer-card__actions { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+.org-layer-card__actions .is-danger { margin-left: auto; color: var(--danger); }

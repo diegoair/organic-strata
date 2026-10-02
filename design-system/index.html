@@ -534,7 +534,7 @@
       <a href="#toggle">Checkbox &amp; switch</a>
       <a href="#panel-controls">Fields — input, select &amp; color row</a>
       <a href="#palette-chips">Palette — RMX chip strip</a>
-      <a href="#select-picker">Thumbnail picker</a>
+      <a href="#select-picker">Picker</a>
       <a href="#seg-ctrl">Segmented control</a>
       <a href="#seeds-panel">Seeds panel</a>
     </div>
@@ -556,6 +556,8 @@
       <a href="#motion">Motion</a>
       <a href="#states">States &amp; selection</a>
       <a href="#hover">Hover &amp; pressed</a>
+      <a href="#hit-areas">Hit areas</a>
+      <a href="#shared-states">Empty · progress · disclosure · tip</a>
       <a href="#behaviours">Behaviours</a>
     </div>
     <div class="ds-nav__group">
@@ -887,6 +889,22 @@
           </div>
         </div>
       </div>
+      <h3 class="ds-sub">Behaviour <span class="ds-tag">Organica.modal</span></h3>
+      <p class="ds-note">Self-running (core.js) for every <code>.org-modal</code>: when it becomes visible it <strong>remembers the opener, focuses the panel, makes the rest of the page <code>inert</code>, traps Tab, closes on Esc</strong> (it clicks the modal's own <code>[aria-label="Close"]</code> / <code>[data-modal-close]</code>, else hides it) and <strong>returns focus to the opener</strong> when it closes. Tools keep toggling <code>style.display</code> exactly as before. A dialog always has a Close (icon, top right) or a Cancel; the primary action sits bottom right, Cancel to its left; a destructive action is <code>org-btn--danger</code>.</p>
+      <table class="ds-table">
+        <tr><th>Surface</th><th>When</th></tr>
+        <tr><td>Notice</td><td>a result or an error that needs no decision (<code>Organica.status</code> / <code>notice</code>)</td></tr>
+        <tr><td>Popover</td><td>a few related controls anchored to a trigger (Export, Loop) — dismisses itself</td></tr>
+        <tr><td>Modal</td><td>a decision or a choice that blocks the work (Choose content, Pattern editor); one question → <code>Organica.prompt</code> / <code>Organica.confirm</code></td></tr>
+        <tr><td>Armed button</td><td>a one-step destructive action on something small (delete a preset)</td></tr>
+      </table>
+      <h3 class="ds-sub">Prompt &amp; confirm <span class="ds-tag">replaces prompt() / alert() / confirm()</span></h3>
+      <p class="ds-note"><code>Organica.prompt({title, label, value, ok})</code> → <code>Promise&lt;string|null&gt;</code> and <code>Organica.confirm({title, message, ok, danger})</code> → <code>Promise&lt;boolean&gt;</code>. Built on <code>.org-modal</code> (so all the behaviour above applies), Enter confirms, Esc / Cancel / the backdrop resolve <code>null</code> / <code>false</code>. Native <code>prompt()</code> blocks the page and throws in embedded contexts (Rhizome's bridge iframes); native <code>alert()</code> is a Notice (<code>setStatus('error', …)</code>).</p>
+      <div class="ds-example">
+        <button class="org-btn" id="ds-prompt-btn">Organica.prompt</button>
+        <button class="org-btn org-btn--danger" id="ds-confirm-btn">Organica.confirm</button>
+        <span class="ctrl-label" id="ds-dialog-out">result appears here</span>
+      </div>
       <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-modal"</span> <span class="attr">role</span>=<span class="str">"dialog"</span> <span class="attr">aria-modal</span>=<span class="str">"true"</span> <span class="attr">style</span>=<span class="str">"display:none"</span>&gt;
   &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-modal__panel"</span>&gt;
     &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-modal__header"</span>&gt;
@@ -1104,10 +1122,26 @@ Organica.palette.swatch(<span class="attr">wrapEl</span>, {
     </section>
 
     <section class="ds-entry" id="select-picker">
-      <h2>Thumbnail select picker</h2>
+      <h2>Picker</h2>
       <p class="ds-desc">A dropdown whose rows carry a square thumbnail — for choices a name alone doesn't convey (shape kinds, grid types). Built by <code>Organica.selectPicker(selectEl, hostEl, { registry, ariaLabel })</code>. <strong>The real <code>&lt;select&gt;</code> stays in the DOM (hidden) and stays the source of truth:</strong> picking a row sets <code>select.value</code> and dispatches a real <code>change</code> event, so every existing <code>.value</code> read/write and <code>change</code> listener keeps working. After changing the value or the options from code, call <code>picker.refresh()</code>. Options missing from the registry (added at runtime) still get a row, with a generic icon. Icons use <code>currentColor</code> so <code>--ink</code> comes from the component, never a hardcoded colour. The classes (<code>.presets</code>, <code>.preset-trigger</code>, <code>.pt-ico</code>, <code>.pi-ico</code>, <code>.preset-menu</code>, <code>.preset-item</code>) live in <code>panel.css</code>; Genesis, Camo Turing, Living Path, Sinew and Apostate use the same classes hand-wired.</p>
       <p class="ds-note"><strong>Measures.</strong> Every thumbnail sits in even air: the trigger is <code>--space-8</code> (32px) tall so its 22px <code>.pt-ico</code> has <code>--space-1</code> of padding on top, bottom and left (1 + 4 + 22 + 4 + 1); each menu row is 56px so its 40px <code>.pi-ico</code> has <code>--space-2</code> on every side. <strong>Every thumbnail is a square: 22px in the trigger, 40px in the menu</strong>, whatever its kind (Oct 1, 2026 — before, icons were 26px and previews a 3:2 60×40 / 33×22). The trigger was <code>--row-h</code> (26px) until Sep 30, 2026 — 5px of air on the left but only 2px above and below. Options inside an <code>&lt;optgroup&gt;</code> are listed under the group's label (<code>.pi-group</code>).</p>
       <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><span>shared/select-picker.js</span><strong>Used in</strong><span>Flexible Visual System (Seed type, Canvas format, Loom grids, Built-in recipes)</span><span>Loom (Grid type, Canvas preset, Saved grids)</span><span>Murmur (Preset)</span><span>Undertow (Preset)</span><span>Dapple (Preset)</span><span>Radial (Preset)</span><span>Pulsar (Scene)</span><span>Warping (Preset)</span><span>Halide (Preset)</span><span>Pollen (Preset)</span><span>Colornet (Preset)</span><span>Komorebi (Preset)</span><span>Mote (Preset)</span><span>TuneSutra (Saved palettes)</span><span>Trellis (Loom grid)</span><span>Membrane (Canvas preset)</span><span>Vortex (Canvas preset)</span><span>Mycel (Saved networks)</span><span>Blob Boundary (Saved presets)</span></div>
+      <h3 class="ds-sub">The one picker <span class="ds-tag">spec</span></h3>
+      <table class="ds-table">
+        <tr><th>Choice</th><th>Use</th><th>Why</th></tr>
+        <tr><td>2–4 mutually exclusive options, short labels, all visible at once</td><td><code>.seg-ctrl</code></td><td>one click, state always visible</td></tr>
+        <tr><td>5+ options, or longer labels, <em>text only</em></td><td>native <code>&lt;select class="panel-select"&gt;</code></td><td>the OS list is free, accessible and keyboard-complete</td></tr>
+        <tr><td>Options whose <em>look</em> is the choice (shape, grid, texture, palette, saved preset)</td><td><code>Organica.selectPicker</code></td><td>the only dropdown with a thumbnail; the hidden <code>&lt;select&gt;</code> stays the source of truth</td></tr>
+      </table>
+      <table class="ds-table">
+        <tr><th>Part</th><th>Contract</th></tr>
+        <tr><td>Trigger</td><td><code>button.preset-trigger</code> — <code>aria-haspopup="listbox"</code>, <code>aria-expanded</code>, 32px, 22px square thumb, name, chevron-down icon (<code>ico--xs</code>). Hover border <code>--ink</code> (tier 1), focus ring <code>--ink</code>, disabled .42 / not-allowed.</td></tr>
+        <tr><td>Menu</td><td><code>div.preset-menu[role=listbox]</code>, <code>position: fixed</code> from the trigger rect, opens below (above if there is no room), max-height fills the viewport, groups via <code>optgroup</code> → <code>.pi-group</code>. Rows <code>button.preset-item[role=option][aria-selected]</code>, 56px, 40px square thumb; hover = <code>--track-bg</code> fill, selected = <code>--ink</code> border (never the same cue).</td></tr>
+        <tr><td>Keyboard</td><td><kbd>↓</kbd>/<kbd>↑</kbd> on the trigger opens and focuses the selected row · <kbd>↓ ↑ Home End</kbd> move · <kbd>Enter</kbd>/<kbd>Space</kbd> picks · <kbd>Esc</kbd> closes and returns focus to the trigger · <kbd>Tab</kbd> closes.</td></tr>
+        <tr><td>Dismissal</td><td>outside click, scroll or resize (the menu is fixed-positioned), or any other dropdown opening — one dropdown is open at a time across pickers, popovers and menus (<code>organica:dropdown-open</code>).</td></tr>
+        <tr><td>Data</td><td><code>registry[key] = { name, icon | thumb }</code>; <code>picker.refresh()</code> after changing the select from code, <code>picker.invalidate(key)</code> after re-saving a preset.</td></tr>
+        <tr><td>Adapters</td><td><code>Organica.Transformer.buildPicker</code> (Camo Turing, Genesis) is now a thin adapter over this picker — it maps its "none" entry to a real option and reports <code>''</code>. Living Path, Sinew and Apostate still hand-wire the same classes and are the remaining consumers to move onto it.</td></tr>
+      </table>
       <p class="ds-note"><strong>When a dropdown gets thumbnails.</strong> Only when all three hold: the options differ <em>visibly</em> (the look is the choice); the name doesn't predict the look ("Burl wood" vs "Oak plank", or any user-named saved preset); and the image comes from the tool's <em>own renderer</em>, never a drawing of it, which could mislead. A graph's wiring (Rhizome) or a name that already says the shape (Genesis arc type) doesn't qualify.</p>
       <p class="ds-note"><strong>One square, two contents.</strong> <code>icon</code> (default): a pictogram in <code>currentColor</code> for <em>structure</em> (shape kinds, aspect ratios, motion diagrams), which takes <code>--ink</code> in both themes. <code>size: 'preview'</code>: a rendered image for <em>look and texture</em> (dither, stipple, grain, light, palettes), drawn <em>square at source</em> or centre-cropped to a square (<code>Organica.squareThumb(canvas)</code> → an 80px PNG, 2× the menu slot) — image tools keep rendering their 3:2 test field so stipple/dither density stays calibrated, then crop. A flat pictogram would turn a dither to grey, which is why previews exist. <strong>Where the ratio is the information</strong> (canvas formats via <code>Organica.aspectIcon</code>, grids via <code>Organica.loomGridThumb</code>) the shape keeps its true aspect, <em>letterboxed inside the square</em> — never cropped. Previews are content, so they stay light in dark mode.</p>
       <p class="ds-note"><strong>Where thumbnails come from.</strong> A registry entry gives <code>icon</code> (markup) or <code>thumb: () =&gt; markup | dataURL | Promise</code>. A thumb renders <em>lazily</em>: only when the menu first opens, paced one per frame so opening is instant, then cached; <code>picker.invalidate(key)</code> after a preset is re-saved. Every image-effect tool (Halide, Pollen, Colornet, Mote) renders on the <em>same subject</em>, <code>Organica.previewImage(w, h)</code>, so presets compare like for like. Grids use <code>Organica.loomGridThumb(model)</code> and canvas formats use <code>Organica.aspectIcon(w, h)</code>. A placeholder option (empty value: "Presets…") is never a row; with nothing to pick, the menu shows the tool's disabled hint option.</p>
@@ -1579,12 +1613,12 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
         <tr><th>Pattern</th><th>Canonical spec</th><th>Reduced motion</th><th>Where / state</th></tr>
         <tr><td>Hover wash</td><td>bg / border / colour, fast · standard, listed props (never <code>all</code>)</td><td>tokens → 1ms</td><td>everywhere — today 8 timings, 0.085 s → .25 s</td></tr>
         <tr><td>Glyph quiet → full</td><td>opacity on the glyph, not the button; slow · glide</td><td>guarded</td><td>floatbar.css — ok</td></tr>
-        <tr><td>Pill slide</td><td>stretch base · glide, settle settle · overshoot-soft; move to <code>transform</code> + scaleX</td><td>guarded</td><td>floatbar — animates <code>width</code> today</td></tr>
+        <tr><td>Pill slide</td><td>stretch base · glide, settle settle · overshoot-soft; animates <code>transform</code> + <code>width</code></td><td>guarded</td><td>floatbar — <strong>kept on <code>width</code> on purpose</strong>: measured 60 fps through 12 hover moves (233 frames, longest 17.7 ms, none over 20 ms) with the glass backdrop on, and <code>scaleX</code> would squash its rounded ends</td></tr>
         <tr><td>Press scale</td><td>scale .92, instant in / fast out</td><td>omit</td><td>only FVS flyout pad; candidate for all buttons</td></tr>
         <tr><td>Popover / mega / account menu open</td><td>opacity + translateY(space-2) + scale .97 → 1, base · out; close fast · standard</td><td>tokens → 1ms</td><td><strong>done</strong> (header.css, floatbar.css for the upward popover) · the modal scrim still instant</td></tr>
         <tr><td>Notice</td><td>enter base · out; exit fast</td><td>guarded</td><td><strong>done</strong> — <code>noticeClose()</code> sets <code>data-closing</code>, removes after 150ms</td></tr>
         <tr><td>Armed confirm</td><td>colour → danger, fast; one timeout (3000ms); one class <code>.is-armed</code></td><td>none needed</td><td>4 timeouts, 3 styles</td></tr>
-        <tr><td>Disclosure</td><td>chevron rotate fast; body grid-rows base · out</td><td>1ms</td><td>chevron only; body is display:none</td></tr>
+        <tr><td>Disclosure</td><td>chevron rotate fast; body grid-rows base · out</td><td><code>.org-disclosure</code> / <code>.org-chev</code> — <strong>done</strong> (chevron everywhere; body slide on native <code>&lt;details&gt;</code>)</td></tr>
         <tr><td>Spring (slider / switch / checkbox)</td><td>JS spring 170 / 21.5 / .9, colour slow</td><td>rigid</td><td>core.js — canonical</td></tr>
         <tr><td>Spinner / progress</td><td>spinner rotate 600ms linear; bar scaleX fast linear; busy pulse 1000ms</td><td>static</td><td>Pollen, Spore and Mote bars now <code>transform: scaleX</code> (done); Living Path's <code>procFill</code> and the floatbar pill still animate <code>width</code> (the pill would distort its rounded ends under scaleX)</td></tr>
         <tr><td>Scroll reveal</td><td>opacity + translateY(space-6), reveal · out, stagger × (i%3)</td><td>shown, no motion</td><td>copy-pasted in hub + gallery → <code>Organica.reveal()</code></td></tr>
@@ -1662,13 +1696,90 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
       <p class="ds-note ds-note--titled"><strong>Left on purpose.</strong> <code>.hud-btn</code> (a fixed content-on-canvas skin, raw hex in both themes), canvas / SVG hit areas (FVS cell and handle hovers, Living Path <code>.fam-hit</code>, Loom track handles — they use <code>--tool</code> as a fill tint, not a boundary), the FVS flyout tools, the info-tip bubble, <code>.pt-dot</code>. Genesis (retiring). <strong>Not verified:</strong> the pane could not drive a real pointer, so hover states were checked by rule inspection and the full regression, not by eye.</p>
     </section>
 
+    <section class="ds-entry" id="shared-states">
+      <h2>Empty · progress · disclosure · tip</h2>
+      <p class="ds-desc">Four small components that each existed 3–6 times under different names (audit findings 19, 20, 21, 25). All in <code>shared/panel.css</code>, tokens only, both themes, reduced motion via the <code>--dur-*</code> collapse.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>Used in</strong><span>.org-empty — FVS, Colornet, Living Path, Sinew</span><span>.org-progress — Pollen, Spore, Mote, Living Path</span><span>.org-disclosure / .org-chev — Living Path, Apostate, Sinew</span><span>.org-tip — Camo Turing</span></div>
+
+      <h3 class="ds-sub">Empty state <span class="ds-tag">.org-empty</span></h3>
+      <div class="ds-example ds-example--column">
+        <div class="org-empty">Nothing saved yet. Save a palette to see it here.</div>
+        <div class="org-empty org-empty--stage" style="padding:var(--space-6) 0"><p class="org-empty__title">Sinew</p><p class="org-empty__hint">Drop an SVG, or pick a form from Genesis.</p></div>
+      </div>
+      <p class="ds-note"><strong>Rule.</strong> Say what is missing and how to fill it, in one or two short lines; a title only for a stage state that names the tool. Bare text works (JS can set <code>textContent</code>); <code>[hidden]</code> hides it. Not an empty state: an inline "—" inside a node card (Rhizome), a muted table cell (admin).</p>
+
+      <h3 class="ds-sub">Progress &amp; spinner <span class="ds-tag">.org-progress · .org-spinner</span></h3>
+      <div class="ds-example ds-example--column">
+        <div style="position:relative;height:var(--space-8);border:1px solid var(--border);border-radius:var(--radius-sm)"><div class="org-progress" style="--p:0.62;--progress-color:var(--ink)"></div></div>
+        <div class="row-btns" style="margin:0;align-items:center"><span class="org-spinner" aria-hidden="true"></span><span class="ctrl-label">recomputing…</span></div>
+      </div>
+      <table class="ds-table">
+        <tr><th>Signal</th><th>Use</th></tr>
+        <tr><td>Bar <code>.org-progress</code></td><td>a job with a known fraction — a 2px track-less bar at the foot of a positioned stage, <code>transform: scaleX(var(--p))</code>, <code>--dur-fast</code> linear; colour <code>--progress-color</code> (default <code>--tool</code>). Set with <code>style.setProperty('--p', f)</code> or <code>style.transform</code>. Add <code>role="progressbar"</code> only when it is the sole signal.</td></tr>
+        <tr><td>Notice <code>Organica.status('busy' | 'error' …)</code></td><td>state changes, results, every error, and work with no fraction</td></tr>
+        <tr><td>Overlay pill + <code>.org-spinner</code></td><td>a short blocking recompute where the preview is stale; the spinner is a 10px ring, 600ms linear, a static ring under reduced motion</td></tr>
+      </table>
+
+      <h3 class="ds-sub">Disclosure <span class="ds-tag">.org-disclosure · .org-chev</span></h3>
+      <div class="ds-example ds-example--column" style="max-width:320px">
+        <details class="org-disclosure"><summary class="org-disclosure__head"><svg class="ico ico--xs org-chev" data-icon="chevron-right" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg><span class="org-disclosure__label">Advanced</span></summary><div class="org-disclosure__body"><p class="sub-label" style="margin:0">Native <code>&lt;details&gt;</code>: the body animates <code>grid-template-rows</code> 0fr → 1fr.</p></div></details>
+      </div>
+      <p class="ds-note"><strong>Two forms.</strong> Native <code>&lt;details class="org-disclosure"&gt;</code> (the body slide uses <code>::details-content</code> — Chrome 131+, Safari 18.4+; elsewhere it snaps) and a class-driven one for JS that toggles <code>.is-open</code> (wrap the body in <code>.org-disclosure__panel</code>). <code>.org-chev</code> alone is the one chevron for a hand-rolled head: it turns 90° inside <code>[open] &gt; summary</code>, under <code>.is-open</code> or in an <code>aria-expanded="true"</code> element. Living Path and Sinew rebuild their DOM on every toggle, so they take the chevron but not the body slide; FVS "Advanced" and Mote's <code>.flow-adv</code> are native <code>&lt;details&gt;</code> and are the next to adopt it.</p>
+
+      <h3 class="ds-sub">Tooltip <span class="ds-tag">.org-tip</span></h3>
+      <div class="ds-example"><span class="org-tip" tabindex="0" role="note" aria-label="Seeds the first frame">i<span class="org-tip__bubble" aria-hidden="true">Seeds the first frame</span></span><span class="ctrl-label" style="margin-left:var(--space-4)">hover or Tab to it</span></div>
+      <table class="ds-table">
+        <tr><th>System</th><th>For</th></tr>
+        <tr><td>Floatbar tooltip (<code>::after</code> from <code>aria-label</code>)</td><td>icon-only floatbar buttons — instant, shown on hover and <code>:focus-visible</code></td></tr>
+        <tr><td><code>.org-tip</code></td><td>anything non-obvious in a panel: a focusable 14px "i", <code>role="note"</code>, bubble on hover and focus, <code>--ink</code> on <code>--paper</code>, 190px max</td></tr>
+        <tr><td>native <code>title</code></td><td>redundant hints only (a label that already says it) — it cannot be reached by keyboard or touch, and it is never used on a floatbar button</td></tr>
+      </table>
+
+      <h3 class="ds-sub">Layer / list card <span class="ds-tag">.org-layer-card (extended)</span></h3>
+      <div class="ds-example ds-example--column" style="max-width:320px">
+        <div class="org-layer-card org-layer-card--flush is-on is-open"><div class="org-layer-card__head">
+          <span class="org-layer-card__grip"><svg class="ico ico--sm" data-icon="grip" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6" cy="4" r="1.2" fill="currentColor" stroke="none"/><circle cx="10" cy="4" r="1.2" fill="currentColor" stroke="none"/><circle cx="6" cy="8" r="1.2" fill="currentColor" stroke="none"/><circle cx="10" cy="8" r="1.2" fill="currentColor" stroke="none"/><circle cx="6" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="10" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg></span>
+          <b class="org-layer-card__title">Twist</b><svg class="ico ico--xs org-chev" data-icon="chevron-right" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg></div></div>
+      </div>
+      <p class="ds-note"><strong>Parts.</strong> <code>.org-layer-card</code> (<code>.active</code>) with <code>__head</code>, <code>__body</code>; <code>--flush</code> (no padding, <code>--panel</code> ground) with <code>__grip</code>, <code>__toggle</code>, <code>__title</code>, <code>__content</code>, <code>__actions</code> (<code>.is-danger</code> right-aligns a remove). State classes: <code>.is-on</code> · <code>.is-off</code> (.5) · <code>.is-idle</code> (.42) · <code>.is-open</code> · <code>.is-dragging</code> · <code>.drop-before</code> / <code>.drop-after</code>. Reorder and remove are icon buttons (<code>arrow-up</code>, <code>arrow-down</code>, <code>close</code>, each with an <code>aria-label</code>). Migrated: Colornet, Sinew and Living Path layers, Pulsar and Trellis tracks. Not yet: Camo Turing <code>.layer-*</code> and FVS <code>.fvs-layer</code> (large JS-built templates).</p>
+    </section>
+
+    <section class="ds-entry" id="hit-areas">
+      <h2>Hit areas on canvas &amp; SVG</h2>
+      <p class="ds-desc"><strong>The mark and the target are two different sizes.</strong> A point, handle, port or track on a canvas is often smaller than a fingertip — its <em>visible</em> size is a drawing decision, its <em>hit</em> size is not: every interactive mark has a target of at least <code>--hit-min</code> (24 px, WCAG 2.5.8 AA) around it. The token is new (Oct 2, 2026) and lives in <code>tokens.css</code>.</p>
+      <div class="ds-usage"><strong>Token</strong><span>--hit-min 24px</span><strong>Applies to</strong><span>SVG marks · canvas points · drag handles · node ports · tracks</span><strong>Not</strong><span>buttons, rows and tiles — they are already ≥ 24 px (--slo-h 20 is the one smaller control: the compact slider row, which relies on the spacing exception)</span></div>
+      <table class="ds-table">
+        <tr><th>Rule</th><th>How</th></tr>
+        <tr><td>Grow the hit, not the mark</td><td>DOM element: a <code>::before</code> / <code>::after</code> pseudo-element on the mark, <code>inset: calc((visible − var(--hit-min)) / 2)</code>, transparent. SVG: <code>stroke: transparent; stroke-width: …; pointer-events: all</code> (or a second, transparent, larger shape). Canvas: the pick radius in the hit-test (<code>HANDLE_HIT</code>), nearest point inside it wins.</td></tr>
+        <tr><td>Feedback on the hit, drawn on the mark</td><td>hover / focus changes the <em>visible</em> mark (fill tint or stroke), never the invisible hit area. A tint may use <code>--tool</code> as a <em>fill</em> (8–18 % opacity — a wash, not a boundary); a boundary or outline is <code>--ink</code>.</td></tr>
+        <tr><td>Cursor says what it does</td><td><code>pointer</code> activate · <code>crosshair</code> start a connection · <code>col-resize</code> / <code>row-resize</code> a track · <code>grab</code> / <code>grabbing</code> a draggable · <code>move</code> a placed object. Never <code>default</code> on a hit target.</td></tr>
+        <tr><td>Marks that scale with the stage</td><td>an SVG handle sized in <em>user units</em> (FVS figure handles are 4 % of the figure) is ≥ 24 px only above a stage size: set the size in screen px with <code>vector-effect: non-scaling-stroke</code> + a stroke, or accept the floor and document it.</td></tr>
+        <tr><td>Tiny and dense (point clouds)</td><td>where 24 px targets would overlap, the spacing exception applies — target + gap ≥ 24 px — and the nearest-wins pick resolves ties.</td></tr>
+        <tr><td>Keyboard</td><td>a mark that does something a pointer can also reach is focusable (<code>tabindex="0"</code>, <code>role="button"</code>, Enter / Space — <code>Organica.a11y</code>) or has an equivalent control in the panel.</td></tr>
+      </table>
+      <h3 class="ds-sub">Audit</h3>
+      <table class="ds-table">
+        <tr><th>Where</th><th>Mark → hit</th><th>Status</th></tr>
+        <tr><td>Loom — track handles</td><td>9 px wash → 24 px (<code>::before</code>)</td><td><strong>fixed</strong></td></tr>
+        <tr><td>Rhizome — port dots</td><td>10 px → 24 px (<code>::after</code>)</td><td><strong>fixed</strong></td></tr>
+        <tr><td>Glyph editor (Living Path, Apostate) — outline points</td><td>pick radius 9 → 12 px (24 px target)</td><td><strong>fixed</strong></td></tr>
+        <tr><td>Mycel — point dots</td><td>r = 7 → ~24 px (transparent stroke, <code>pointer-events: all</code>)</td><td><strong>fixed</strong></td></tr>
+        <tr><td>FVS — Symbol tracks</td><td><code>.sym-track__hit</code> already a dedicated transparent rect</td><td>ok</td></tr>
+        <tr><td>FVS — Figure handles (mirror, rotate)</td><td>4 % of the figure → ≈ 28 px at a 700 px stage, below 24 px under ~600 px</td><td>documented floor</td></tr>
+        <tr><td>Living Path — Full Family cells</td><td>whole glyph cell (<code>.fam-hit</code>)</td><td>ok</td></tr>
+        <tr><td>Colornet — pattern editor cells</td><td>grid cells, size by the grid</td><td>ok at the shipped grid sizes</td></tr>
+        <tr><td>Rhizome — wires</td><td>2 px line → 24 px (a transparent sibling path carries the click; hover thickens the line)</td><td><strong>fixed</strong></td></tr>
+      </table>
+      <p class="ds-note ds-note--titled"><strong>Dark-mode audit (Oct 2, 2026).</strong> <code>_dark-audit.html</code> run over all 30 production pages, forced-dark included, after the icon / motion / hover / component work: no dark island on any page and no new contrast failure. One real finding, fixed — Living Path's "Raster · texture" / "Vector · instant" dividers were <code>--tool</code> purple at 2.64:1 on white, now <code>--mid</code>. False positives the audit still lists: the home hero words (read mid-reveal at opacity .12), Membrane / Vortex <code>#tool-label</code> (cream text on the black canvas, which the audit measures against paper), Living Path / Apostate <code>#specEdit</code> (deliberately transparent text over an overlay), and disabled cards at opacity .42 (disabled text is exempt). The audit still cannot see canvas contents or export hashes.</p>
+    </section>
+
     <section class="ds-entry" id="behaviours">
       <h2>Behaviours</h2>
       <p class="ds-desc">Patterns the suite relies on that were documented only in CLAUDE.md or nowhere. Each row says what the rule is and where it is still broken.</p>
       <h3 class="ds-sub">Keyboard</h3>
       <table class="ds-table">
         <tr><th>Key</th><th>Does</th><th>Where</th><th>Gap</th></tr>
-        <tr><td>Space</td><td>play / pause</td><td>Membrane, Mote, Murmur, Dapple, Undertow</td><td>not Pulsar, Trellis, Vortex, Camo Turing, Blob Boundary; Dapple / Undertow / Murmur now skip a focused button, link or summary</td></tr>
+        <tr><td>Space</td><td>play / pause</td><td>Membrane, Murmur, Dapple, Undertow, Pulsar, Trellis, Vortex, Camo Turing, Blob Boundary</td><td>all through <code>Organica.shortcuts</code>, which skips inputs and a focused button / link / summary (Trellis: inert until content loads)</td></tr>
         <tr><td>⌘ / Ctrl Z</td><td>undo</td><td>Genesis, FVS, Rhizome, TuneSutra</td><td>Apostate / Living Path glyph editor have a button only; Halide, Spore, Colornet, Loom none</td></tr>
         <tr><td>⌘ / Ctrl + − 0</td><td>browser page zoom</td><td>—</td><td>no longer captured by <code>createZoomPan</code> (WCAG 1.4.4); the canvas zooms with the wheel, the HUD and double-click reset</td></tr>
         <tr><td>K</td><td>kiosk</td><td>Mote</td><td>does not guard ⌘K</td></tr>
@@ -1676,6 +1787,8 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
         <tr><td>Esc</td><td>close popover / notice</td><td>shared</td><td>closes all at once, even inside a dialog; the thumbnail picker has no Esc</td></tr>
         <tr><td>Shift-click · drag · Space-drag</td><td>multi-select · marquee · pan</td><td>FVS, Rhizome</td><td>not listed in the UI</td></tr>
       </table>
+      <h3 class="ds-sub">Shortcut registry <span class="ds-tag">Organica.shortcuts</span></h3>
+      <p class="ds-note">One place a tool declares its keys: <code>Organica.shortcuts.add({ keys: 'Space', label: 'Play / pause', group: 'Playback', run: fn })</code> (<code>run</code> optional — a shortcut the tool already handles can just be listed). The registry owns the guard (never inside an input, select, textarea or contenteditable; Space and Enter never steal a focused button) and <kbd>?</kbd> opens the list in a dialog. Keys are written <code>Space</code>, <code>⌘Z</code>, <code>⌘Shift+Z</code>, <code>k</code>. Registered in Membrane, Mote, Murmur, Dapple, Undertow, Pulsar, Trellis, Vortex, Camo Turing, Blob Boundary, FVS, Rhizome, TuneSutra, Living Path, Apostate.</p>
       <h3 class="ds-sub">Floatbar contract</h3>
       <p class="ds-note">Order: <strong>Open · transport (Play/Pause · Stop · Replay) · tool extras · Export</strong>; Genesis: <strong>Create · Edit · Save · Back(=Undo) · Delete · Library · Export</strong>. No <code>title</code> on floatbar buttons — the tooltip is generated from <code>aria-label</code>; longer explanations go in <code>aria-description</code> (done in Dapple, Murmur, Undertow, Pollen, Spore). Verbs drift: Restart / Replay entrance / Reset / Reseed / Refresh / Render all mean "run again" in different tools; Undo / Back; <code>⌘Z</code> is written three ways. Pick: <em>Render</em> (compute), <em>Replay</em> (animation), <em>Reset</em> (defaults), <em>Reseed</em> (new random), <em>Undo</em>.</p>
       <h3 class="ds-sub">Components built 3–8 ways</h3>
@@ -1684,15 +1797,15 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
         <tr><td>Thumbnail tile</td><td><code>.shape-thumb</code>, <code>.mark-thumb</code>, <code>.form-tile</code>, <code>.fvs-thumb</code>; <code>&lt;div onclick&gt;</code> — Genesis Library (retiring), the shared seeds panel (<code>role=button</code>, no tabindex), Pollen, Spore are still not keyboard-operable</td><td><strong>done</strong> for the shared thumbs: <code>Organica.a11y</code> gives them <code>role=button</code>, <code>tabindex=0</code>, <code>aria-pressed</code> and Enter / Space; Genesis tiles are left (retiring)</td></tr>
         <tr><td>Thumbnail select picker</td><td>now <code>aria-haspopup="listbox"</code> / <code>aria-expanded</code>, <code>role=listbox</code> + <code>option</code>, ↑ ↓ Home End, Esc returns focus to the trigger, Tab closes, closes on scroll / resize (the menu is fixed-positioned), and opening it closes any other dropdown</td><td><strong>done</strong> (<code>shared/select-picker.js</code>; <code>transformer.js</code>'s own copy is not updated)</td></tr>
         <tr><td>Popovers</td><td>one dropdown open at a time: <code>Organica.popover</code> keeps an active-popover registry and a <code>organica:dropdown-open</code> event that select-pickers also honour; enter and exit are animated (base · out in, fast out) with <code>@starting-style</code> + <code>allow-discrete</code> on <code>.org-popover</code>, <code>.org-account__menu</code>, <code>.org-mega</code> and its scrim</td><td><strong>done</strong></td></tr>
-        <tr><td>Preset save</td><td>inline row in 9, <code>prompt()</code> in 6, <code>alert()</code> in Spore + FVS</td><td>one preset bar; <code>setStatus('error')</code></td></tr>
+        <tr><td>Preset save</td><td>inline name row in 9 tools; the others (Blob Boundary, Dapple, Murmur, Sinew, Undertow, the template) now use <code>await Organica.prompt()</code>; <code>alert()</code> in Spore and FVS is <code>setStatus('error', …)</code>; account deletion in auth-badge uses prompt + notice</td><td><strong>done</strong> — no native dialog is left outside Genesis</td></tr>
         <tr><td>Remove ×</td><td>≥ 8 implementations (<code>.icon-btn</code>, <code>.sm-del</code>, <code>.rmx-x</code>, <code>.fg-card__x</code>, <code>.fvs-layer__del</code>…)</td><td><code>org-btn--icon org-btn--sm</code> + <code>close</code> icon</td></tr>
-        <tr><td>Layer / list card</td><td><code>.org-layer-card</code>, <code>.layer</code>, <code>.fvs-layer</code>, <code>.trk</code>, camo <code>.layer-*</code></td><td>promote <code>.org-layer-card</code></td></tr>
+        <tr><td>Layer / list card</td><td><code>.org-layer-card</code>, <code>.layer</code>, <code>.fvs-layer</code>, <code>.trk</code>, camo <code>.layer-*</code></td><td>extended <code>.org-layer-card</code> — <strong>done</strong> for 5 tools; Camo Turing and FVS layers left</td></tr>
         <tr><td>Disclosure</td><td><code>&lt;details&gt;</code>, <code>.fx-cat-head</code> (<code>.collapsed</code> vs <code>.open</code>), <code>.layer.open</code>, 4 different chevrons</td><td>one <code>&lt;details&gt;</code> component + the <code>chevron-right</code> icon</td></tr>
-        <tr><td>Progress / busy</td><td>3 local bars, Pollen overlay + spinner, Living Path scrim + pill + bar, busy Notice</td><td><code>.org-progress</code> + the Notice; rule for which</td></tr>
-        <tr><td>Empty state</td><td>6 spellings in FVS, Colornet, Rhizome, admin, picker</td><td><code>.org-empty</code></td></tr>
-        <tr><td>Tooltip</td><td>floatbar <code>::after</code>, native <code>title</code> (Loom 93, FVS 104…), Camo Turing <code>.info-tip</code></td><td>promote <code>.info-tip</code>; <code>title</code> for redundant hints only</td></tr>
+        <tr><td>Progress / busy</td><td>3 local bars, Pollen overlay + spinner, Living Path scrim + pill + bar, busy Notice</td><td><code>.org-progress</code> + <code>.org-spinner</code> + the Notice, with a rule for which — <strong>done</strong></td></tr>
+        <tr><td>Empty state</td><td>6 spellings in FVS, Colornet, Rhizome, admin, picker</td><td><code>.org-empty</code> — <strong>done</strong></td></tr>
+        <tr><td>Tooltip</td><td>floatbar <code>::after</code>, native <code>title</code> (Loom 93, FVS 104…), Camo Turing <code>.info-tip</code></td><td><code>.org-tip</code> for non-obvious, floatbar tooltip for icons, <code>title</code> for redundant hints — <strong>done</strong></td></tr>
         <tr><td>Modal</td><td><code>Organica.modal</code> (core.js, self-running): when an <code>.org-modal</code> becomes visible it remembers the opener, focuses the panel, traps Tab, closes on Esc (clicks its Close button) and returns focus; tools keep toggling <code>style.display</code></td><td><strong>done</strong> for the 4 modals; no <code>inert</code> on the page behind yet</td></tr>
-        <tr><td>Unsaved work</td><td>no <code>beforeunload</code>; only TuneSutra warns</td><td>shared dirty-state helper</td></tr>
+        <tr><td>Unsaved work</td><td><code>Organica.dirty.set(key, bool)</code> arms the browser's own leave-site prompt while any key is set. Wired where work is NOT autosaved and would be lost: TuneSutra (palette), Living Path (<code>lvp-edits</code>, cleared by Save .lvp / load), Apostate (<code>glyph-edits</code>, cleared by .otf export / font load), FVS (<code>fvs-symbol</code> hand edits, <code>fvs-figure</code>), Rhizome (<code>graph</code>, = history can undo). Deliberately not wired: generators and settings (they have presets), loaded files, FVS Component gallery (seeded, ⌘Z)</td><td><strong>done</strong> — whether each flag fires after a real edit is unverified</td></tr>
       </table>
       <p class="ds-note ds-note--titled"><strong>Priorities (Oct 2, 2026).</strong> Fixed: keyboard operability of tiles and pickers, <code>aria-pressed</code> on seg controls, the global ⌘± zoom override, the floatbar focus ring and a ring colour that passes 3:1, Space shortcuts swallowing a focused button, popover registry, modal focus. Token discipline is otherwise better than the docs suggest (css-lint is clean; raw values outside Genesis are a handful: Loom 13 font-sizes / 19 spacings / 25 hex, Rhizome <code>.rz-*</code> greys). Reduced motion: Murmur, Dapple, Undertow, Mote, Membrane, Camo Turing, Blob Boundary and Vortex now start paused / on a still frame (Pulsar, Trellis, Komorebi already did not autoplay); Play and every export still work. Untested under a real reduced-motion setting. Full table of 34 findings, state matrix and lint suggestions: <code>docs/audit-2026-10/BEHAVIOURS.md</code>. Nothing here was run in Safari or Firefox.</p>
     </section>
@@ -2179,6 +2292,8 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
   $('ds-m-bar-btn').onclick=function(){var b=$('ds-m-bar');b.style.transition='none';b.style.transform='scaleX(0)';b.getBoundingClientRect();
     var rm=matchMedia('(prefers-reduced-motion: reduce)').matches;b.style.transition=rm?'none':'transform 1500ms linear';b.style.transform='scaleX(1)';};
   $('ds-m-over-btn').onclick=function(){$('ds-m-dot').classList.toggle('go');};
+  $('ds-prompt-btn').onclick=function(){Organica.prompt({title:'Save preset',label:'Name',value:'My preset'}).then(function(v){$('ds-dialog-out').textContent='prompt → '+JSON.stringify(v);});};
+  $('ds-confirm-btn').onclick=function(){Organica.confirm({title:'Delete preset',message:'This cannot be undone.',ok:'Delete',danger:true}).then(function(v){$('ds-dialog-out').textContent='confirm → '+v;});};
   var a=$('ds-armed'),t;
   a.onclick=function(){ if(a.classList.contains('is-armed')){clearTimeout(t);a.classList.remove('is-armed');a.textContent='Deleted (demo)';setTimeout(function(){a.textContent='Delete preset';},1200);return;}
     a.classList.add('is-armed');a.textContent='Click again to confirm';t=setTimeout(function(){a.classList.remove('is-armed');a.textContent='Delete preset';},3000);};

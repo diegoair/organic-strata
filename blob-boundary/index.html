@@ -342,6 +342,7 @@
     if (!playing) tl.pause();
   }
 
+  Organica.shortcuts.add({ keys: 'Space', label: 'Play / pause', group: 'Playback', run: () => ctrl('btn-playpause').click() });
   ctrl('btn-playpause').addEventListener('click', () => {
     playing = !playing;
     if (tl) playing ? tl.play() : tl.pause();
@@ -459,8 +460,8 @@
     if (!presetPicker) presetPicker = Organica.selectPicker(sel, ctrl('preset-picker'), { registry: presetRegistry, size: 'preview', ariaLabel: 'Preset' });
     else presetPicker.refresh();
   }
-  ctrl('btn-preset-save').addEventListener('click', () => {
-    const name = prompt('Preset name');
+  ctrl('btn-preset-save').addEventListener('click', async () => {
+    const name = await Organica.prompt({ title: 'Save preset', label: 'Preset name' });
     if (!name) return;
     const all = PRESETS.read();
     all[name] = readState();

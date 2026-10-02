@@ -41,8 +41,7 @@
     color: var(--ink); font-family: var(--font-display); font-variant-numeric: tabular-nums; }
   #perf i { font-size: var(--fs-micro); font-weight: var(--w-regular); font-style: normal;
     color: var(--mid); letter-spacing: 0.04em; }
-  #progress-bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; transform: scaleX(0); transform-origin: left;
-    background: var(--accent-warm); transition: transform var(--dur-fast) linear; }
+  #progress-bar { --progress-color: var(--accent-warm); }   /* .org-progress, shared/panel.css */
   #note { position: absolute; left: var(--space-3); top: var(--space-3);
     max-width: 260px; font-size: var(--fs-small); color: var(--paper);   /* was --accent-warm: 2.7:1 on the dark overlay */
     background: rgba(10, 10, 10, 0.82); padding: 3px 7px;
@@ -93,7 +92,7 @@
     </div>
     <canvas id="stage" class="org-stage"></canvas>
     <div id="note"></div>
-    <div id="progress-bar"></div>
+    <div id="progress-bar" class="org-progress"></div>
     <div id="zoom-hud"><span id="zoom-level">100%</span><span class="zoom-reset" onclick="resetZoom()">reset</span></div>
   </div>
 
@@ -1401,9 +1400,7 @@ function toggleKiosk() {
 document.addEventListener('fullscreenchange', () => {
   if (!document.fullscreenElement) document.body.classList.remove('kiosk');
 });
-document.addEventListener('keydown', e => {
-  if (e.key === 'k' && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) { e.preventDefault(); toggleKiosk(); }
-});
+Organica.shortcuts.add({ keys: 'k', label: 'Kiosk / fullscreen', group: 'View', run: toggleKiosk });
 
 // ── INIT ──────────────────────────────────────────────────────
 Organica.popover($('btn-export'), $('export-popover'));

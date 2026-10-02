@@ -274,8 +274,8 @@ function populatePresets(select) {
   if (!presetPicker) presetPicker = Organica.selectPicker(sel, ctrl('preset-picker'), { registry, size: 'preview', ariaLabel: 'Preset' });
   else { presetPicker.refresh(); presetPicker.invalidate(); }
 }
-function savePreset() {
-  const name = prompt('Preset name'); if (!name) return;
+async function savePreset() {
+  const name = await Organica.prompt({ title: 'Save preset', label: 'Preset name' }); if (!name) return;
   const all = userPresets();
   all[name] = { params: BF.diff(params), loop: val('rg-loop') };
   PRESETS.write(all);
@@ -308,10 +308,7 @@ function setPlaying(on) {
 ctrl('btn-playpause').addEventListener('click', () => setPlaying(!playing));
 if (REDUCED) setPlaying(false);
 ctrl('btn-replay').addEventListener('click', () => { clock = 0; setPlaying(true); });
-addEventListener('keydown', e => {
-  if (e.target.closest('input,select,textarea,button,a,summary,[role=button]')) return;
-  if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
-});
+Organica.shortcuts.add({ keys: 'Space', label: 'Play / pause', group: 'Playback', run: () => setPlaying(!playing) });
 function syncLoop() {
   const v = Math.max(1, Math.round(val('rg-loop')));
   ctrl('loop-label').textContent = v + 's';

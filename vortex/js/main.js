@@ -246,6 +246,7 @@ ctrl('num-seed').addEventListener('change', e => {
 ctrl('btn-seed-random').addEventListener('click', randomizeSeed);
 
 // ── Floatbar: Play/Pause, Reset, Reseed, Export ──
+Organica.shortcuts.add({ keys: 'Space', label: 'Play / pause', group: 'Playback', run: () => ctrl('btn-playpause').click() });
 ctrl('btn-playpause').addEventListener('click', togglePlayPause);
 updatePlayPauseIcon();
 ctrl('btn-reset').addEventListener('click', resetToRest);

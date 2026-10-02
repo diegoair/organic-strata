@@ -33,23 +33,7 @@
 /* .row/.row .val are aliased to .ctrl-row/.ctrl-val by shared/panel.css —
    only genuine local deltas stay here. */
 .row .ctrl-label{flex:0 0 76px; min-width:0; overflow:hidden; text-overflow:ellipsis}
-/* ── effect layers ── */
-.layer{
-  background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-sm);
-  margin-bottom:var(--space-3); overflow:hidden;
-}
-.layer.off{opacity:.5}
-.layer-head{display:flex; align-items:center; gap:var(--space-3); padding:var(--space-3) var(--space-4); cursor:pointer; user-select:none}
-.layer-head .tog{
-  width:15px; height:15px; flex:0 0 15px; border:1.5px solid var(--mid); border-radius:var(--radius-md);
-  display:flex; align-items:center; justify-content:center; font-size:var(--fs-small); color:var(--paper);
-}
-.layer.on .layer-head .tog{background:var(--tool); border-color:var(--tool); color:var(--ink)}
-.layer-head b{flex:1; font-size:var(--fs-base); font-weight:var(--w-medium); letter-spacing:.04em}
-.layer-head .chev{font-size:var(--fs-micro); color:var(--mid); transition:transform var(--dur-fast)}
-.layer.open .layer-head .chev{transform:rotate(90deg)}
-.layer-body{padding:var(--space-1) var(--space-4) 11px; display:none}
-.layer.open .layer-body{display:block}
+/* ── effect layers — .org-layer-card--flush (shared/panel.css) ── */
 /* The presets picker (.presets/.preset-trigger/.pt-ico/.pi-ico/.pt-name/
    .pt-chev/.preset-menu/.preset-item/.pi-name) is shared/panel.css. The
    local copy that used to sit here was reconciled into it 2026-09-06 —
@@ -78,9 +62,6 @@
    keeps occupying a flex box and shoves the empty state off-centre. */
 #board{max-width:92%; max-height:92%; display:none}
 #board.show{display:block}
-.empty{text-align:center; color:var(--mid)}
-.empty .big{font-family:var(--font); font-weight:var(--w-bold); font-size:var(--fs-4xl); color:var(--ink); margin-bottom:var(--space-3)}
-.empty p{font-size:var(--fs-medium); line-height:1.7}
 .gridtoggle{position:absolute; top:14px; right:16px; display:flex; gap:var(--space-2)}
 /* the old local .mini is THE BUTTON now (org-btn org-btn--sm, header.css; .on = pressed) */
 .hint{font-size:var(--fs-small); color:var(--mid); line-height:1.6; margin-top:var(--space-3)}
@@ -132,9 +113,9 @@
       <button class="org-btn org-btn--sm" id="tgNodes">nodes</button>
     </div>
     <svg id="board" class="org-stage" viewBox="0 0 1000 1000"></svg>
-    <div class="empty" id="empty">
-      <div class="big">Sinew</div>
-      <p>Load an <b>SVG</b> or a <b>Genesis form</b><br>then stack organic effects on the curve.</p>
+    <div class="org-empty org-empty--stage" id="empty">
+      <p class="org-empty__title">Sinew</p>
+      <p class="org-empty__hint">Load an <b>SVG</b> or a <b>Genesis form</b><br>then stack organic effects on the curve.</p>
     </div>
   </main>
 
@@ -357,22 +338,22 @@ function switchTech(tech){
 function buildLayerEl(grp, layer, idx, reg){
   const def=reg[layer.type];
   const el=document.createElement('div');
-  el.className='layer'+(layer.on?' on':' off')+(layer.open?' open':'');
+  el.className='org-layer-card org-layer-card--flush is-collapsible'+(layer.on?' is-on':' is-off')+(layer.open?' is-open':'');
   let body='';
   def.controls.forEach(([key,label,min,max,step])=>{
     body+=`<div class="row"><div class="ctrl-label">${label}</div>
       <input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${layer.params[key]}">
       <span class="val">${layer.params[key]}</span></div>`;
   });
-  body+=`<div class="row" style="margin-top:var(--space-2); gap:var(--space-2)">
-    <button class="org-btn org-btn--sm" data-act="up" aria-label="Move layer up" ${idx===0?'disabled':''}><svg class="ico ico--sm" data-icon="arrow-up" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3M4.5 6.5 8 3l3.5 3.5"/></svg></button>
-    <button class="org-btn org-btn--sm" data-act="down" aria-label="Move layer down" ${idx===grp.layers.length-1?'disabled':''}><svg class="ico ico--sm" data-icon="arrow-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M4.5 9.5 8 13l3.5-3.5"/></svg></button>
-    <button class="org-btn org-btn--sm" data-act="del" style="margin-left:auto; color:var(--danger)">remove</button></div>`;
-  el.innerHTML=`<div class="layer-head">
-      <div class="tog"><svg class="ico ico--xs" data-icon="check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg></div><b>${def.name}</b><svg class="ico ico--xs chev" data-icon="chevron-right" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg>
-    </div><div class="layer-body">${body}</div>`;
-  el.querySelector('.tog').addEventListener('click',e=>{ e.stopPropagation(); layer.on=!layer.on; markCustom(); renderStack(); render(); });
-  el.querySelector('.layer-head').addEventListener('click',()=>{ layer.open=!layer.open; renderStack(); });
+  body+=`<div class="org-layer-card__actions">
+    <button class="org-btn org-btn--sm org-btn--icon" data-act="up" aria-label="Move layer up" ${idx===0?'disabled':''}><svg class="ico ico--sm" data-icon="arrow-up" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3M4.5 6.5 8 3l3.5 3.5"/></svg></button>
+    <button class="org-btn org-btn--sm org-btn--icon" data-act="down" aria-label="Move layer down" ${idx===grp.layers.length-1?'disabled':''}><svg class="ico ico--sm" data-icon="arrow-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M4.5 9.5 8 13l3.5-3.5"/></svg></button>
+    <button class="org-btn org-btn--sm org-btn--icon is-danger" data-act="del" aria-label="Remove layer"><svg class="ico ico--sm" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>`;
+  el.innerHTML=`<div class="org-layer-card__head">
+      <div class="org-layer-card__toggle"><svg class="ico ico--xs" data-icon="check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg></div><b class="org-layer-card__title">${def.name}</b><svg class="ico ico--xs org-chev" data-icon="chevron-right" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg>
+    </div><div class="org-layer-card__content">${body}</div>`;
+  el.querySelector('.org-layer-card__toggle').addEventListener('click',e=>{ e.stopPropagation(); layer.on=!layer.on; markCustom(); renderStack(); render(); });
+  el.querySelector('.org-layer-card__head').addEventListener('click',()=>{ layer.open=!layer.open; renderStack(); });
   el.querySelectorAll('input[type=range]').forEach(inp=>{
     inp.addEventListener('input',()=>{ layer.params[inp.dataset.k]=+inp.value; inp.nextElementSibling.textContent=inp.value; markCustom(); render(); });
   });
@@ -572,8 +553,8 @@ function populateUserPresets(){
   sel.innerHTML='<option value="">Your presets…</option>'
     + Object.keys(all).map(n=>`<option value="${n}">${n}</option>`).join('');
 }
-$('#btnSavePreset').addEventListener('click',()=>{
-  const name=prompt('Preset name'); if(!name) return;
+$('#btnSavePreset').addEventListener('click',async()=>{
+  const name=await Organica.prompt({title:'Save preset',label:'Preset name'}); if(!name) return;
   const all=USER_PRESETS.read(); all[name]=stateSnapshot();
   USER_PRESETS.write(all); populateUserPresets();
   $('#selUserPreset').value=name;

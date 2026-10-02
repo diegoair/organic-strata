@@ -34,11 +34,6 @@
     font-family: var(--font); font-size: var(--fs-small); letter-spacing: 0.08em; border-radius: var(--radius-sm); z-index: 20; pointer-events: none;
   }
   #recompute-overlay.visible { display: flex; }
-  #recompute-overlay .spinner {
-    width: 10px; height: 10px; border: 1.5px solid rgba(255,255,255,0.35);
-    border-top-color: #fff; border-radius: 50%; animation: pollen-spin 0.6s linear infinite;
-  }
-  @keyframes pollen-spin { to { transform: rotate(360deg); } }
 
   /* ── RIGHT PANEL ── */
 
@@ -112,17 +107,9 @@
     display: block;
   }
 
-  /* progress bar */
+  /* progress bar — .org-progress (shared/panel.css); JS sets style.transform = scaleX(f) */
   #progress-bar {
-    position: absolute;
-    bottom: 0; left: 0;
-    height: 2px;
-    background: var(--pollen);
-    width: 100%;
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform var(--dur-fast) linear;
-    pointer-events: none;
+    --progress-color: var(--pollen);
   }
 
   /* visually-hidden file input (Safari opens the picker only if it's rendered) */
@@ -232,12 +219,12 @@
       <p>Drop an image here<br>or click Open…</p>
     </div>
     <canvas id="main-canvas" class="org-stage"></canvas>
-    <div id="recompute-overlay"><span class="spinner"></span>Recomputing…</div>
+    <div id="recompute-overlay"><span class="org-spinner"></span>Recomputing…</div>
     <div id="zoom-hud">
       <span id="zoom-level">100%</span>
       <span class="zoom-reset" onclick="resetZoom()">Reset</span>
     </div>
-    <div id="progress-bar"></div>
+    <div id="progress-bar" class="org-progress"></div>
   </div>
 
   <!-- RIGHT: CONTROLS -->

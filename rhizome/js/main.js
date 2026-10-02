@@ -65,6 +65,7 @@ function commitHistory() {
 }
 
 function updateHistoryButtons() {
+  Organica.dirty.set('graph', history.canUndo());   // the graph is memory-only: any edit past the first snapshot is unsaved work until saved as a preset
   const undoBtn = document.getElementById('btn-undo');
   const redoBtn = document.getElementById('btn-redo');
   if (undoBtn) undoBtn.disabled = !history.canUndo();
@@ -294,6 +295,9 @@ bindPortInteractions({
   onRejected: (msg) => setStatus('error', msg),
 });
 
+[['Delete / Backspace', 'Delete selection', 'Edit'], ['⌘Z', 'Undo', 'Edit'], ['⌘⇧Z', 'Redo', 'Edit']]
+  .forEach(([keys, label, group]) => Organica.shortcuts.add({ keys, label, group }));
+
 // ── Delete key — removes the selected node(s) or the selected wire.
 //    Ignored while typing in any text field/select so Delete/Backspace
 //    still works normally inside the inspector panel's own controls. ──
@@ -360,6 +364,7 @@ document.getElementById('btn-save-preset').addEventListener('click', () => {
   const store = PRESETS.read();
   store[name] = model;
   PRESETS.write(store);
+  Organica.dirty.set('graph', false);
   nameInput.value = '';
   refreshPresetList();
 });
@@ -378,6 +383,7 @@ document.getElementById('sel-preset').addEventListener('change', (e) => {
   if (!saved) return;
   loadGraphState(saved.nodes, saved.edges);
   commitHistory();
+  Organica.dirty.set('graph', false);
 });
 Organica.popover(document.getElementById('btn-graph-menu'), document.getElementById('graph-popover'));
 refreshPresetList();

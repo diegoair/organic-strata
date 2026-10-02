@@ -401,8 +401,8 @@ function populatePresets(select) {
   if (!presetPicker) presetPicker = Organica.selectPicker(sel, ctrl('preset-picker'), { registry, ariaLabel: 'Preset' });
   else presetPicker.refresh();
 }
-function savePreset() {
-  const name = prompt('Preset name'); if (!name) return;
+async function savePreset() {
+  const name = await Organica.prompt({ title: 'Save preset', label: 'Preset name' }); if (!name) return;
   const all = userPresets();
   all[name] = { params: Organica.swarm.diff(params), loop: val('rg-loop'), bg: swBg.get() };
   PRESETS.write(all);
@@ -427,7 +427,7 @@ function applyPreset(v) {
 function copyParams() {
   const txt = JSON.stringify(Organica.swarm.diff(Object.assign({}, params, { loop: Organica.swarm.DEFAULTS.loop })));
   const b = ctrl('btn-copy');
-  navigator.clipboard.writeText(txt).then(() => { b.textContent = 'Copied'; }, () => prompt('Copy:', txt));
+  navigator.clipboard.writeText(txt).then(() => { b.textContent = 'Copied'; }, () => Organica.prompt({ title: 'Copy params', label: 'Copy this text', value: txt, ok: 'Done' }));
   setTimeout(() => { b.textContent = 'Copy params'; }, 1400);
 }
 PRESETS.pull().then(() => populatePresets());
@@ -445,10 +445,7 @@ function setPlaying(on) {
 ctrl('btn-playpause').addEventListener('click', () => setPlaying(!playing));
 if (REDUCED) setPlaying(false);
 ctrl('btn-replay').addEventListener('click', () => { replay(); setPlaying(true); });
-addEventListener('keydown', e => {
-  if (e.target.closest('input,select,textarea,button,a,summary,[role=button]')) return;
-  if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
-});
+Organica.shortcuts.add({ keys: 'Space', label: 'Play / pause', group: 'Playback', run: () => setPlaying(!playing) });
 function syncLoop() {
   const v = Math.round(val('rg-loop'));
   ctrl('loop-label').textContent = v ? v + 's' : '∞';

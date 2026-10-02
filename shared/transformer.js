@@ -285,54 +285,28 @@
   // as Pattern's own preset-trigger/preset-menu in panel.css.
   // Static SVG icons, not live-simulated thumbnails — see file header.
   // ═══════════════════════════════════════════════════════════
-  let pickerSeq = 0;
+  // buildPicker is now a thin adapter over THE picker (Organica.selectPicker, shared/select-picker.js):
+  // one listbox, one keyboard model, one set of ARIA. It only maps this registry's "none"
+  // (empty key) onto a real option and reports the active key back as ''.
   T.buildPicker = function (hostEl, registry, opts) {
     opts = opts || {};
-    const noneLabel = opts.noneLabel || 'None';
+    if (!Organica.selectPicker) throw new Error('Organica.Transformer.buildPicker needs shared/select-picker.js');
+    const NONE = '__none__';
     const noneIcon = opts.noneIcon || '<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2.5 2.5"/></svg>';
-    const id = 'txpick' + (pickerSeq++);
+    const reg = opts.noNone ? Object.assign({}, registry)
+      : Object.assign({ [NONE]: { name: opts.noneLabel || 'None', icon: noneIcon } }, registry);
+    const sel = document.createElement('select');
+    Object.keys(reg).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = (reg[k] && reg[k].name) || k; sel.appendChild(o); });
     let active = opts.initial || '';
-
-    const label = key => key ? ((registry[key] && registry[key].name) || key) : noneLabel;
-    const icon = key => key ? ((registry[key] && registry[key].icon) || '') : noneIcon;
-
-    hostEl.innerHTML = `<button class="preset-trigger" id="${id}-trigger" aria-label="${opts.ariaLabel || 'Preset'}">
-        <span class="pt-ico" id="${id}-ico"></span><span class="pt-name" id="${id}-name"></span><span class="pt-chev"><svg class="ico ico--xs pt-chev-ico" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></span>
-      </button><div class="preset-menu" id="${id}-menu" hidden></div>`;
-    const trigger = document.getElementById(id + '-trigger'), menu = document.getElementById(id + '-menu');
-    const icoEl = document.getElementById(id + '-ico'), nameEl = document.getElementById(id + '-name');
-
-    function updateTrigger() { icoEl.innerHTML = icon(active); nameEl.textContent = label(active); }
-    function populateMenu() {
-      menu.innerHTML = '';
-      (opts.noNone ? Object.keys(registry) : ['', ...Object.keys(registry)]).forEach(key => {
-        const row = document.createElement('button');
-        row.className = 'preset-item' + (key === active ? ' on' : '');
-        row.innerHTML = `<span class="pi-ico">${icon(key)}</span><span class="pi-name">${label(key)}</span>`;
-        row.addEventListener('click', () => { setActive(key); menu.hidden = true; });
-        menu.appendChild(row);
-      });
-    }
-    function positionMenu() {
-      const t = trigger.getBoundingClientRect(), gap = 5, margin = 12;
-      const below = window.innerHeight - t.bottom - margin, above = t.top - margin;
-      menu.style.left = t.left + 'px'; menu.style.width = t.width + 'px';
-      if (below >= 160 || below >= above) { menu.style.top = (t.bottom + gap) + 'px'; menu.style.bottom = 'auto'; menu.style.maxHeight = Math.max(120, below) + 'px'; }
-      else { menu.style.bottom = (window.innerHeight - t.top + gap) + 'px'; menu.style.top = 'auto'; menu.style.maxHeight = Math.max(120, above) + 'px'; }
-    }
+    sel.value = active || (opts.noNone ? Object.keys(reg)[0] : NONE);
+    const picker = Organica.selectPicker(sel, hostEl, { registry: reg, ariaLabel: opts.ariaLabel || 'Preset' });
+    sel.addEventListener('change', () => { active = sel.value === NONE ? '' : sel.value; if (opts.onChange) opts.onChange(active); });
     function setActive(key) {
-      active = key;
-      updateTrigger();
-      if (opts.onChange) opts.onChange(key);
+      active = key || '';
+      sel.value = active || (opts.noNone ? Object.keys(reg)[0] : NONE);
+      picker.refresh();
+      if (opts.onChange) opts.onChange(active);
     }
-    trigger.addEventListener('click', e => {
-      e.stopPropagation();
-      if (menu.hidden) { populateMenu(); positionMenu(); menu.hidden = false; } else menu.hidden = true;
-    });
-    document.addEventListener('click', e => {
-      if (!menu.hidden && !hostEl.contains(e.target) && !menu.contains(e.target)) menu.hidden = true;
-    });
-    updateTrigger();
     return { getActive: () => active, setActive };
   };
 

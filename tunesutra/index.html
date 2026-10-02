@@ -571,7 +571,7 @@ function pushUndo(kind) {
   if (burst) return;
   undoStack.push(snapshot());
   if (undoStack.length > 60) undoStack.shift();
-  if (!dirty) { dirty = true; refreshTitle(); }
+  if (!dirty) { setDirty(true); refreshTitle(); }
   syncUndo();
 }
 function undo() {
@@ -1584,7 +1584,7 @@ function deletePreset() {
   delete all[name];
   PRESETS.write(all);
   populatePresets();
-  if (name === currentName) { dirty = false; location.hash = ''; }   // the palette on screen is gone — back to the library
+  if (name === currentName) { setDirty(false); location.hash = ''; }   // the palette on screen is gone — back to the library
 }
 
 // ── HOME + ROUTING ──
@@ -1595,8 +1595,9 @@ function deletePreset() {
 //   #p=<name>     the editor on a saved palette
 //   #c=<col>/<id> the editor on a COPY of a built-in palette (Save keeps it)
 let currentName = '', suggestedName = '', dirty = false;
+function setDirty(v) { dirty = v; Organica.dirty.set('palette', v); }
 function setCurrent(name, suggest) {
-  currentName = name; suggestedName = suggest; dirty = false;
+  currentName = name; suggestedName = suggest; setDirty(false);
   if (name) history.replaceState(null, '', '#p=' + encodeURIComponent(name));
   refreshTitle();
 }
@@ -1653,7 +1654,7 @@ function route() {
   loadPaletteData(p);
   undoStack.length = 0;
   lastUndo = { kind: '', t: 0 };
-  currentName = name; suggestedName = suggest; dirty = false;
+  currentName = name; suggestedName = suggest; setDirty(false);
   showHome(false);
   ctrl('panel').scrollTop = 0;
   ctrl('stage-wrap').scrollTop = 0;
@@ -1666,7 +1667,7 @@ function route() {
 let leaveArmed = 0;
 function goHome() {
   if (dirty && Date.now() - leaveArmed > 4000) { leaveArmed = Date.now(); ctrl('btn-home').textContent = 'Unsaved changes — click again to leave'; return; }
-  dirty = false;
+  setDirty(false);
   location.hash = '';
 }
 
@@ -1701,6 +1702,7 @@ ctrl('rg-spread').addEventListener('input', e => {
   applyHarmony();
   commit(true);
 });
+Organica.shortcuts.add({ keys: '⌘Z', label: 'Undo', group: 'Edit' });
 ctrl('btn-undo').addEventListener('click', undo);
 document.addEventListener('keydown', e => {
   if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z') return;

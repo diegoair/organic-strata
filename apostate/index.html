@@ -135,8 +135,7 @@ body {
   font: inherit; color: var(--ink); text-transform: uppercase; letter-spacing: .06em;
   font-size: var(--fs-small); font-weight: var(--w-semibold); margin-bottom: var(--space-3);
 }
-.fx-cat-head .chev { transition: transform var(--dur-fast); }
-.fx-cat-head.collapsed .chev { transform: rotate(-90deg); }
+/* the chevron is the shared .org-chev (shared/panel.css), driven by aria-expanded */
 .fx-cat-body.collapsed { display: none; }
 .fx-cat-head .cat-tag { color: var(--tool); }
 .griddler-sub { padding-left: var(--space-3); border-left: 2px solid var(--border); margin: var(--space-2) 0 var(--space-3); }
@@ -282,7 +281,7 @@ body {
     </div>
 
     <div class="panel-section">
-      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Transform</span><svg class="ico ico--xs chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></button>
+      <button class="fx-cat-head" aria-expanded="true" onclick="toggleCat(this)"><span>Transform</span><svg class="ico ico--xs org-chev" data-icon="chevron-right" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg></button>
       <div id="specimen-size-row" hidden>
         <div class="ctrl-row"><div class="ctrl-label">Size</div><input type="range" id="tbSize" min="24" max="240" step="1" value="96"><span class="ctrl-val" id="tbSizeVal">96</span></div>
         <div class="ctrl-row"><div class="ctrl-label">Track</div><input type="range" id="tbTrack" min="-40" max="400" step="5" value="0"><span class="ctrl-val" id="tbTrackVal">0</span></div>
@@ -291,17 +290,17 @@ body {
     </div>
 
     <div class="panel-section">
-      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Distort</span><svg class="ico ico--xs chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></button>
+      <button class="fx-cat-head" aria-expanded="true" onclick="toggleCat(this)"><span>Distort</span><svg class="ico ico--xs org-chev" data-icon="chevron-right" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg></button>
       <div class="fx-cat-body" id="cat-blasphemy"></div>
     </div>
 
     <div class="panel-section">
-      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Break</span><svg class="ico ico--xs chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></button>
+      <button class="fx-cat-head" aria-expanded="true" onclick="toggleCat(this)"><span>Break</span><svg class="ico ico--xs org-chev" data-icon="chevron-right" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg></button>
       <div class="fx-cat-body" id="cat-damnation"></div>
     </div>
 
     <div class="panel-section">
-      <button class="fx-cat-head" onclick="toggleCat(this)"><span>Texture</span><svg class="ico ico--xs chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></button>
+      <button class="fx-cat-head" aria-expanded="true" onclick="toggleCat(this)"><span>Texture</span><svg class="ico ico--xs org-chev" data-icon="chevron-right" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg></button>
       <div class="fx-cat-body" id="cat-texture"></div>
     </div>
   </div>
@@ -1744,7 +1743,7 @@ function loadFontBuffer(buf, name){
   let font; try{ font=opentype.parse(buf); }catch(e){ setStatus('error','✗ could not parse font'); return; }
   FONT=font;
   window.__FONT_BUF = buf.slice(0);   // opentype.parse can detach views; keep a copy for the FontFace overlay
-  _gmodel = null;                     // new font -> drop the per-glyph node-edit cache
+  _gmodel = null; Organica.dirty.set('glyph-edits',false);   // new font -> drop the per-glyph node-edit cache
   try{
     if(window.__APOSTATE_FACE) document.fonts.delete(window.__APOSTATE_FACE);
     window.__APOSTATE_FACE = new FontFace('apostate-specimen', window.__FONT_BUF);
@@ -2031,7 +2030,7 @@ function glyphEd(){
     paper: ()=>getComputedStyle(document.body).getPropertyValue('--paper')||'#f5f2ec',
     metrics: glyphMetrics(),
     addMode: ()=>_addPt,
-    onChange: ()=>{},
+    onChange: ()=>{ Organica.dirty.set('glyph-edits',true); },   // node edits live only in memory until exported as .otf
     guideLineWidth: 1.5,
     guideFontSize: 13,
   }));
@@ -2071,6 +2070,7 @@ function mountGlyphEditor(){
    ============================================================ */
 function toggleCat(btn){
   btn.classList.toggle('collapsed');
+  btn.setAttribute('aria-expanded', btn.classList.contains('collapsed') ? 'false' : 'true');
   btn.nextElementSibling.classList.toggle('collapsed');
 }
 function buildPanel(){
@@ -2561,6 +2561,7 @@ async function exportOTF(){
     license:'All rights reserved.'});
   const buf=font.toArrayBuffer();
   Organica.download(new Blob([buf],{type:'font/otf'}), name.replace(/\s+/g,'-')+'.otf');
+  Organica.dirty.set('glyph-edits',false);
   setStatus('','✓ exported .otf');
 }
 function exportSVG(){
@@ -2634,6 +2635,10 @@ $('gtReset').addEventListener('click', function(){
   if(m&&key){ const g=m.masters[0].glyph(key); g.baked=false; g.edited=false; }
   render();   // re-mount -> re-bakes through the CURRENT live stack
 });
+// Keyboard shortcuts — list-only; the glyph editor canvas and the Esc handler own them.
+[['Esc', 'Deselect node, then leave the glyph view', 'Glyph editor'], ['← → ↑ ↓', 'Nudge selected node (Shift = 10×)', 'Glyph editor'],
+ ['Delete / Backspace', 'Delete selected node', 'Glyph editor'], ['Enter', 'Toggle corner / smooth', 'Glyph editor']
+].forEach(([keys, label, group]) => Organica.shortcuts.add({ keys, label, group }));
 $('gtAddPt').addEventListener('click', function(){ _addPt=!_addPt; this.setAttribute('aria-pressed', String(_addPt)); });
 document.addEventListener('keydown', e=>{
   if(e.key==='Escape' && VIEW==='glyph'){

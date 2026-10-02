@@ -33,6 +33,7 @@ export class WireLayer {
   constructor(svgEl, onWireClick) {
     this.svgEl = svgEl;
     this.paths = new Map();
+    this.hits = new Map();   // edge id → the transparent --hit-min-wide path that carries the click (the visible wire is 2px)
     this.pendingPath = null;
     this.onWireClick = onWireClick || null;
     this.selectedEdgeId = null;
@@ -49,17 +50,26 @@ export class WireLayer {
       if (!path) {
         path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('class', 'rz-wire');
-        path.style.pointerEvents = 'stroke';   // clickable along the stroke, not just its bbox
-        if (this.onWireClick) path.addEventListener('click', (e) => { e.stopPropagation(); this.onWireClick(edge.id); });
+        path.style.pointerEvents = 'none';     // the wider hit path below takes the pointer
+        const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        hit.setAttribute('class', 'rz-wire-hit');
+        hit.style.pointerEvents = 'stroke';    // clickable along a 24px-wide stroke, not just the 2px line (--hit-min)
+        hit.addEventListener('mouseenter', () => path.classList.add('is-hover'));
+        hit.addEventListener('mouseleave', () => path.classList.remove('is-hover'));
+        if (this.onWireClick) hit.addEventListener('click', (e) => { e.stopPropagation(); this.onWireClick(edge.id); });
         this.svgEl.appendChild(path);
+        this.svgEl.appendChild(hit);
         this.paths.set(edge.id, path);
+        this.hits.set(edge.id, hit);
       }
       path.classList.toggle('is-selected', edge.id === this.selectedEdgeId);
       const a = portCenter(fromEl, graphEl, zoom), b = portCenter(toEl, graphEl, zoom);
-      path.setAttribute('d', wirePathD(a.x, a.y, b.x, b.y));
+      const d = wirePathD(a.x, a.y, b.x, b.y);
+      path.setAttribute('d', d);
+      this.hits.get(edge.id).setAttribute('d', d);
     }
     for (const [id, path] of this.paths) {
-      if (!seen.has(id)) { path.remove(); this.paths.delete(id); }
+      if (!seen.has(id)) { path.remove(); this.paths.delete(id); const h = this.hits.get(id); if (h) h.remove(); this.hits.delete(id); }
     }
   }
 

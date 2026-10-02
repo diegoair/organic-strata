@@ -132,6 +132,9 @@
   transition: background var(--dur-fast) ease;
 }
 .track-handle--col { top: 0; bottom: 0; width: 9px; margin-left: -4.5px; cursor: col-resize; }
+.track-handle::before { content: ''; position: absolute; }   /* the visible wash stays 9px; the hit area grows to --hit-min */
+.track-handle--col::before { top: 0; bottom: 0; left: calc((9px - var(--hit-min)) / 2); right: calc((9px - var(--hit-min)) / 2); }
+.track-handle--row::before { left: 0; right: 0; top: calc((9px - var(--hit-min)) / 2); bottom: calc((9px - var(--hit-min)) / 2); }
 .track-handle--row { left: 0; right: 0; height: 9px; margin-top: -4.5px; cursor: row-resize; }
 .track-handle:hover, .track-handle.dragging { background: rgba(51, 153, 255, 0.35); }
 

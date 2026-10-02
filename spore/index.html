@@ -99,18 +99,8 @@
   /* .cm-btn is THE BUTTON now (header.css; .active = pressed) — the class stays as the JS hook */
   .cm-btn { padding: 0; }
 
-  /* Progress bar */
-  #progress-bar {
-    position: absolute;
-    bottom: 0; left: 0;
-    height: 2px;
-    background: var(--ink);
-    width: 100%;
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform var(--dur-fast) linear;
-    pointer-events: none;
-  }
+  /* Progress bar — .org-progress (shared/panel.css); JS sets style.transform = scaleX(f) */
+  #progress-bar { --progress-color: var(--ink); }
 
 
   /* scrollbar */
@@ -217,7 +207,7 @@
       <span id="zoom-level">100%</span>
       <span class="zoom-reset" onclick="resetZoom()">Reset</span>
     </div>
-    <div id="progress-bar"></div>
+    <div id="progress-bar" class="org-progress"></div>
   </div>
 
   <!-- PANEL -->
@@ -942,7 +932,7 @@ function exportPNG() {
     return;
   }
   const d = window._lastRenderData;
-  if (!d) { alert('Render first.'); return; }
+  if (!d) { setStatus('error', 'Render first.'); return; }
   const { W, H, bgColor, marks, markSvg } = d;
   const p = printRasterDims(W);
 
@@ -987,7 +977,7 @@ function exportPNG() {
 // ─────────────────────────────────────────────
 function exportJPG() {
   const d = window._lastRenderData;
-  if (!d) { alert('Render first.'); return; }
+  if (!d) { setStatus('error', 'Render first.'); return; }
   const { W, H, bgColor, marks, markSvg } = d;
   const isPrint = printSizePanel.getMode() === 'print';
 
@@ -1239,7 +1229,7 @@ function exportPlatesRaster() {
 // ─────────────────────────────────────────────
 function sendToFigma() {
   const d = window._lastRenderData;
-  if (!d) { alert('Render first.'); return; }
+  if (!d) { setStatus('error', 'Render first.'); return; }
 
   // Build SVG if not already built
   if (!window._lastSVG) exportSVGString();

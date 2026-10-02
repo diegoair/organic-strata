@@ -199,8 +199,9 @@ const swInk = Organica.palette.swatch('ink', {
 //    legacy-key migration, first-login upsert. read()/write() stay sync. ──
 const PRESETS = Organica.store('newtool');
 function userPresets() { return PRESETS.read(); }
-function savePreset() {
-  const name = prompt('Preset name'); if (!name) return;
+// Never window.prompt()/alert()/confirm(): use Organica.prompt / Organica.confirm (async) and setStatus('error', …).
+async function savePreset() {
+  const name = await Organica.prompt({ title: 'Save preset', label: 'Preset name' }); if (!name) return;
   const all = userPresets(); all[name] = readState();
   PRESETS.write(all); populatePresets(name);
 }

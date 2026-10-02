@@ -28,7 +28,7 @@
 
   const FALLOFF = 6;              // soft-drag reaches ±this many points along the contour
   const SIGMA = 3;
-  const HANDLE_HIT = 9;           // px pick radius
+  const HANDLE_HIT = 12;          // px pick radius → a 24px target (--hit-min, WCAG 2.5.8); the nearest point within it wins
   const UNDO_CAP = 40;
 
   function clone(contours) {

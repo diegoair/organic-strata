@@ -47,7 +47,7 @@
   .tip { fill: var(--tool); }
   .tip.orphan { fill: none; stroke: var(--tool); stroke-width: 1; stroke-dasharray: 2 2; }
   .core { fill: var(--tool); transform-box: fill-box; transform-origin: center; }
-  .pt-dot { fill: var(--mid); opacity: 0.5; cursor: pointer; }
+  .pt-dot { fill: var(--mid); opacity: 0.5; cursor: pointer; stroke: transparent; stroke-width: 10px; pointer-events: all; }   /* r=7 mark, ~24px hit area */
   .pt-dot.is-root { fill: var(--tool); opacity: 1; }
   .pt-dot:hover { opacity: 0.9; }
 
