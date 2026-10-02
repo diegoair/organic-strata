@@ -196,8 +196,14 @@
      the SVG fits inside it (viewBox, preserveAspectRatio meet), never overflowing.
      position:relative anchors the track-% label overlay (a real HTML sibling,
      not SVG text — see renderTrackLabelsOverlay). */
-  #symbol-frame { position: relative; align-self: stretch; flex: 1; min-width: 0; min-height: 0; box-sizing: border-box; padding: var(--space-5); display: flex; align-items: center; justify-content: center; }
-  #symbol-frame svg { width: 100%; height: 100%; display: block; }
+  #symbol-frame { position: relative; align-self: stretch; flex: 1; min-width: 0; min-height: 0; box-sizing: border-box; padding: var(--space-5); display: flex; align-items: center; justify-content: center; container-type: size; }
+  /* The sheet's box IS the canvas: the largest box of the canvas's own
+     proportions (--sym-ar = width / height, set by renderSymbolCanvasOnly)
+     that fits the frame. It used to be stretched to the whole frame with the
+     canvas letterboxed inside, which went unseen on the old flat grey area;
+     on the dotted canvas area, with the stage shadow on the svg, the empty
+     bands read as the page grid running through the sheet. */
+  #symbol-frame svg { width: min(100cqw, 100cqh * var(--sym-ar, 1)); height: min(100cqh, 100cqw / var(--sym-ar, 1)); display: block; }
   #symbol-frame svg [data-cell-index] { cursor: pointer; }
   /* Column / row borders of a rectangular grid — drag to resize (preview only, never exported). */
   #symbol-frame svg .sym-track__hit { fill: transparent; }
@@ -259,7 +265,12 @@
   #component-edit-toolbar { display: flex; align-items: center; gap: var(--space-3); width: min(60vh, 70vw); }
   #component-edit-toolbar .hint { flex: 1; text-align: center; }
   #component-edit-toolbar #btn-component-edit-save { width: auto; padding: 0 var(--space-4); }
-  #component-edit-frame svg { width: 100%; height: 100%; display: block; }
+  /* Same rule as the Symbol sheet (see #symbol-frame svg): the sheet's box is
+     the component's own proportions (--comp-ar, set by renderComponentEditCanvas),
+     fitted in the square frame — a 4×2 component is a 2:1 sheet, not a square
+     one with the dotted page showing above and below its paper. */
+  #component-edit-frame { container-type: size; }
+  #component-edit-frame svg { width: min(100cqw, 100cqh * var(--comp-ar, 1)); height: min(100cqh, 100cqw / var(--comp-ar, 1)); display: block; }
   #component-edit-frame [data-cell-index] { cursor: pointer; }
   #component-edit-frame [data-cell-index]:hover { fill: color-mix(in srgb, var(--tool) 8%, transparent); }
 
@@ -4462,6 +4473,7 @@ function renderComponentEditCanvas() {
   const body = withAppearance(state.componentEditDefaultAppearance, () => buildComponentSVGBody(items, seed, size));
   const hit = componentEditHitLayer(items, size);
   const dims = resolvedComponentDims(size);
+  ctrl('component-edit-frame').style.setProperty('--comp-ar', (dims.w / dims.h).toFixed(5));   // the sheet's box takes the component's proportions
   ctrl('component-edit-frame').innerHTML =
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dims.w} ${dims.h}">${body}${hit}</svg>`;
   const cell = state.componentEditSelectedCell;
@@ -7575,10 +7587,21 @@ function renderSymbolCanvasOnly() {
     overlay += `<rect class="symbol-marquee" x="${r.x.toFixed(2)}" y="${r.y.toFixed(2)}" width="${r.w.toFixed(2)}" height="${r.h.toFixed(2)}"/>`;
   }
   if (overlay) svg = svg.replace('</svg>', overlay + '</svg>');
+  const F = symbolFrame(grid);
+  frame.style.setProperty('--sym-ar', (F.w / F.h).toFixed(5));   // the sheet's box takes the canvas's proportions (see #symbol-frame svg)
   frame.innerHTML = svg;
   renderTrackLabelsOverlay();
+  // …and once more when this step's layout has settled. A render can run while
+  // the Suggest strip above is momentarily empty: the frame is then taller, the
+  // labels are measured against that, and the strip is refilled before the
+  // browser paints — so the frame ends at its old size, the ResizeObserver
+  // (which compares sizes between frames) never fires, and the labels stay
+  // where the sheet was. Found on wide canvases, where the sheet re-centres.
+  cancelAnimationFrame(trackLabelsRaf);
+  trackLabelsRaf = requestAnimationFrame(renderTrackLabelsOverlay);
   setStatus('active', `Symbol · ${count} cells`);
 }
+let trackLabelsRaf = 0;
 
 function renderSymbol() {
   renderSymbolCanvasOnly();
