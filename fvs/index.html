@@ -8504,13 +8504,23 @@ function bindSymbolCanvasSelection() {
 // every currently-selected cell, then re-renders the canvas only — the
 // panel's own controls don't need to rebuild themselves on every edit,
 // only the rendered result changes.
+// Writes a patch into a cell and says whether anything actually changed (a click on "Fill" when every cell
+// already is Fill is not an edit — it must not arm the leave-site prompt).
+function patchCell(cell, patch) {
+  const p = typeof patch === 'function' ? patch(cell) : patch;
+  let changed = false;
+  for (const k of Object.keys(p)) if (JSON.stringify(cell[k]) !== JSON.stringify(p[k])) { changed = true; break; }
+  Object.assign(cell, p);
+  return changed;
+}
 function applyToSelection(patch) {
+  let changed = false;
   state.symbolSelection.forEach(i => {
     const cell = state.symbolCells[i];
     if (!cell) return;
-    Object.assign(cell, typeof patch === 'function' ? patch(cell) : patch);
+    if (patchCell(cell, patch)) changed = true;
   });
-  Organica.dirty.set('fvs-symbol', true);   // hand-edited cells live only in memory until saved to the Symbol library
+  if (changed) Organica.dirty.set('fvs-symbol', true);   // hand-edited cells live only in memory until saved to the Symbol library
   renderSymbolCanvasOnly();
 }
 
@@ -8623,11 +8633,12 @@ function openCellContentOverlayForAll() {
 // Write a content patch to every cell (used when "Apply to all cells" is
 // armed) — the sibling of applyToSelection().
 function applyToAllCells(patch) {
+  let changed = false;
   state.symbolCells.forEach(cell => {
     if (!cell) return;
-    Object.assign(cell, typeof patch === 'function' ? patch(cell) : patch);
+    if (patchCell(cell, patch)) changed = true;
   });
-  Organica.dirty.set('fvs-symbol', true);
+  if (changed) Organica.dirty.set('fvs-symbol', true);
   renderSymbolCanvasOnly();
 }
 function contentTarget() { return ctrl('chk-content-overlay-all').checked ? applyToAllCells : applyToSelection; }
