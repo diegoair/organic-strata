@@ -1694,7 +1694,9 @@
   Organica.modal = (function () {
     var state = new WeakMap();   // overlay → {opener}
     var FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-    var visible = function (m) { return m.style.display !== 'none' && getComputedStyle(m).display !== 'none'; };
+    // Only a real overlay counts: an inline specimen (the design system's #modal demo is
+    // position:relative) must not take focus or make the page behind it inert.
+    var visible = function (m) { if (m.style.display === 'none') return false; var cs = getComputedStyle(m); return cs.display !== 'none' && cs.position === 'fixed'; };
     function onVisible(m) {
       if (state.has(m)) return;
       var panel = m.querySelector('.org-modal__panel') || m;
