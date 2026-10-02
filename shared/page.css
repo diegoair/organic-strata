@@ -14,8 +14,11 @@
 
    A page links THIS sheet and never shell.css.
 
-       <body class="org-page">                    grey ground (--panel)
-       <body class="org-page org-page--paper">    paper ground
+       <body class="org-page">                    the canvas ground: paper + the dot pattern
+                                                  (--canvas-grid), like the hub and every tool's
+                                                  canvas area; follows the header's pattern switcher
+       <body class="org-page org-page--paper">    flat paper, no pattern — for a page whose
+                                                  content sits on the ground itself (tables, a grid)
          <header class="org-header">…</header>
          <main class="org-page__col">…</main>     660px — a reading column
          <main class="org-page__col org-page__col--wide">   1040px — a data page
@@ -39,12 +42,15 @@
 
 .org-page {
   min-height: 100vh;
-  background: var(--panel);
+  /* Never --panel: that grey is interface chrome (docs/UI-SHELL.md §3). The ground of a page is
+     the same surface as the hub and the canvas area; fixed, so the pattern does not scroll. */
+  background: var(--canvas-grid), var(--canvas-bg);
+  background-attachment: fixed;
   color: var(--ink);
   font-family: var(--font);
   font-size: var(--fs-base);
 }
-.org-page--paper { background: var(--paper); }
+.org-page--paper { background: var(--canvas-bg); }
 
 .org-page__col {
   --page-col-w: 660px;
@@ -55,7 +61,7 @@
 .org-page__col--wide { --page-col-w: 1040px; }
 .org-page__col--full { --page-col-w: 1500px; padding: var(--space-8); }
 
-/* The card — a paper sheet on the grey ground, for a page whose content is one block of text
+/* The card — a paper sheet on the page ground (its fill is what keeps the pattern out of the text), for a page whose content is one block of text
    (privacy, terms, the 404). Promoted Oct 2, 2026 from the local .doc__card at its third consumer. */
 .org-page__card {
   background: var(--paper);

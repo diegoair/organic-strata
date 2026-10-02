@@ -676,7 +676,7 @@ examples are `privacy/index.html` (reading) and `admin/index.html` (data).
 
 1. `<html lang="en" data-theme-support>`; link `tokens` → `icons` → `header` →
    `page` (→ `prose` for running text). Never `shell.css`.
-2. `<body class="org-page">` (grey ground) or `class="org-page org-page--paper"`.
+2. `<body class="org-page">` (the canvas ground: paper + the dot pattern, like the hub — never `--panel`) or `class="org-page org-page--paper"` (flat paper, for content that sits on the ground itself).
 3. The shared header, then one column: `<main class="org-page__col">` (660,
    reading) · `org-page__col--wide` (1040, data) · `org-page__col--full` (1500,
    gallery). The widths are the component's own `--page-col-w` — do not type

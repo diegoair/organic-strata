@@ -1015,7 +1015,7 @@
       <p class="ds-desc">A header and one column that scrolls with the document. For anything that reads or lists: legal text, the admin tables, the test gallery. <strong>A page never links <code>shell.css</code></strong> — that sheet pins <code>&lt;body&gt;</code> to the viewport, which is right for a tool and left the privacy policy and the terms unable to scroll until Oct 2, 2026.</p>
       <div class="ds-usage"><strong>Skeleton</strong><span>shared/page.css</span><strong>With</strong><span>shared/prose.css for running text</span><strong>Used by</strong><span data-tpl-pages="page:standard">—</span></div>
       <div class="ds-example ds-example--column">
-        <div id="ds-page-demo" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-md)">
+        <div id="ds-page-demo" style="background:var(--canvas-grid), var(--canvas-bg);border:1px solid var(--border);border-radius:var(--radius-md)">
           <div class="org-page__col" id="ds-page-col" style="--page-col-w:320px">
             <article class="org-page__card org-prose org-prose--compact" id="ds-page-card">
               <h4>.org-page__card</h4>
@@ -1028,7 +1028,7 @@
           </div>
         </div>
       </div>
-      <pre class="ds-code">&lt;<span class="tag">body</span> <span class="attr">class</span>=<span class="str">"org-page"</span>&gt;                       <span class="attr">&lt;!-- grey ground; add org-page--paper for a paper ground --&gt;</span>
+      <pre class="ds-code">&lt;<span class="tag">body</span> <span class="attr">class</span>=<span class="str">"org-page"</span>&gt;                       <span class="attr">&lt;!-- the canvas ground (paper + pattern); add org-page--paper for flat paper --&gt;</span>
   &lt;<span class="tag">header</span> <span class="attr">class</span>=<span class="str">"org-header"</span>&gt;…&lt;/<span class="tag">header</span>&gt;
   &lt;<span class="tag">main</span> <span class="attr">class</span>=<span class="str">"org-page__col"</span>&gt;                  <span class="attr">&lt;!-- + org-page__col--wide / --full --&gt;</span>
     &lt;<span class="tag">article</span> <span class="attr">class</span>=<span class="str">"org-page__card org-prose"</span>&gt;…&lt;/<span class="tag">article</span>&gt;   <span class="attr">&lt;!-- optional paper card --&gt;</span>
@@ -1040,6 +1040,7 @@
     &lt;/<span class="tag">footer</span>&gt;
   &lt;/<span class="tag">main</span>&gt;
 &lt;/<span class="tag">body</span>&gt;</pre>
+      <p><strong>The ground.</strong> A page sits on the same surface as the hub and every tool's canvas area: <code>var(--canvas-grid), var(--canvas-bg)</code> — paper with the dot pattern, which follows the header's <a href="#pattern-switcher">pattern switcher</a> and goes near-black in dark. <strong>Never <code>--panel</code></strong>: that grey is interface chrome (privacy, terms and the first 404 used it until Oct 2, 2026). A page whose content sits on the ground itself — the admin tables, the gallery grid — takes <code>org-page--paper</code>: the same paper, no pattern.</p>
       <table>
         <tr><th>Column</th><th>Class</th><th>Width</th><th>For</th></tr>
         <tr><td>Reading</td><td><code>.org-page__col</code></td><td>660px</td><td>Legal and long-form text, with <code>.org-prose</code></td></tr>
@@ -1050,7 +1051,7 @@
       <h3>The card and the footer</h3>
       <table>
         <tr><th>Part</th><th>Class</th><th>Rule</th></tr>
-        <tr><td>Card</td><td><code>.org-page__card</code></td><td>A paper sheet on the grey ground, for a page that is one block of text (privacy, terms, the 404). Optional: a data page or a gallery sits on the ground directly.</td></tr>
+        <tr><td>Card</td><td><code>.org-page__card</code></td><td>A paper sheet on the page ground — its fill keeps the pattern out of the text — for a page that is one block of text (privacy, terms, the 404). Optional: a data page or a gallery sits on the ground directly.</td></tr>
         <tr><td>Footer</td><td><code>.org-page__foot</code></td><td><strong>One footer, the same three links wherever a page has one</strong> (privacy, terms, the 404, the hub): Privacy · Terms · Design System, after “© Organica”. The current page's link carries <code>aria-current="page"</code>. It closes the column; the hub, which has no column, adds its own padding. Tools have no footer — the canvas takes the whole viewport.</td></tr>
       </table>
       <p>A button inside the card stays <em>outside</em> <code>.org-prose</code> (as on the 404): prose styles every bare <code>&lt;a&gt;</code> as an underlined ink link, which would erase a primary button's label.</p>
