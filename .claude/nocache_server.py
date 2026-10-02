@@ -20,6 +20,19 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
         super().end_headers()
 
+    # Vercel serves /404.html for any address that matches no file and no
+    # rewrite; do the same here, so a wrong address shows the real page.
+    def send_error(self, code, message=None, explain=None):
+        if code == 404 and self.command == 'GET' and os.path.isfile('404.html'):
+            body = open('404.html', 'rb').read()
+            self.send_response(404)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        super().send_error(code, message, explain)
+
 class ReusableServer(socketserver.TCPServer):
     allow_reuse_address = True
 

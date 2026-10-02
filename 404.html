@@ -11,9 +11,10 @@
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/page.css">
 <link rel="stylesheet" href="/shared/prose.css">
+<link rel="stylesheet" href="/shared/fvs-field.css">
 <script src="/shared/pattern-init.js"></script>
 </head>
-<body class="org-page">
+<body class="org-page org-page--field">
 <header class="org-header" role="banner">
   <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><menu-icon state="menu" size="20" line-cap="square"></menu-icon></button>
   <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ Not found</span></a>
@@ -22,8 +23,15 @@
 
 <!-- The 404. Vercel serves /404.html for any address that matches no file and no rewrite.
      Public (no auth.js): a signed-out visitor with a wrong link must see this, not a sign-in.
-     On the Page template (reading column + card + footer) — /design-system/#template-page. -->
+     On the Page template (header + reading column + card + footer) — /design-system/#template-page —
+     standing on a full-screen Flexible Visual System field (shared/fvs-field.js, /design-system/#fvs-field):
+     the numerals fill the band above the card; the header and the footer are two bars of clear ground, and the
+     header carries no pattern switcher and no theme button (the field covers the ground; the saved theme still applies).
+     Each visit shows the other motion (Arrival / Rules) and the next palette of the library;
+     ?p=a|b and ?pal=<n> pin them. -->
+<div class="org-fvs-field" id="field" aria-hidden="true"></div>
 <main class="org-page__col">
+  <div class="org-fvs-field__band" id="field-band" aria-hidden="true"></div>
   <article class="org-page__card">
     <div class="org-prose">
       <p class="org-prose__caption">Error 404</p>
@@ -32,15 +40,45 @@
     </div>
     <a class="org-btn org-btn--lg org-btn--primary mt-6" href="/">Go to the home page</a>
   </article>
-  <footer class="org-page__foot">
-    <span>© Organica</span>
-    <nav aria-label="Legal and reference">
-      <a href="/privacy">Privacy</a>
-      <a href="/terms">Terms</a>
-      <a href="/design-system/">Design System</a>
-    </nav>
-  </footer>
 </main>
+<!-- the footer is the header's counterpart here: a bar across the page, outside the column -->
+<footer class="org-page__foot">
+  <span>© Organica</span>
+  <nav aria-label="Legal and reference">
+    <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
+    <a href="/design-system/">Design System</a>
+  </nav>
+</footer>
+<script src="/shared/core.js"></script>
+<script src="/shared/color.js"></script>
+<script src="/shared/palette.js"></script>
+<script src="/shared/shapes.js"></script>
+<script src="/shared/fvs-field.js"></script>
+<script>
+(function () {
+  var q = location.search, n = 0;
+  try { n = (+localStorage.getItem('organica.404.visit') || 0) + 1; localStorage.setItem('organica.404.visit', String(n)); }
+  catch (e) { n = Math.floor(Math.random() * 60); }
+  var pin = /[?&]p=([ab])\b/.exec(q), pinPal = /[?&]pal=(\d+)/.exec(q);
+  var pals = Organica.fvsField.palettes(), pal = pals[(pinPal ? +pinPal[1] : n) % pals.length];
+  var header = document.querySelector('.org-header'), foot = document.querySelector('.org-page__foot');
+  // the header and the footer stand on the palette's ground, not on the theme's: they take the ink that ground needs
+  [header, foot].forEach(function (el) { el.setAttribute('data-theme', pal.dark ? 'dark' : 'light'); });
+  // …but the mega menu is a child of the header and opens over the page: it keeps the page's own theme
+  function menuTheme() {
+    var menu = header.querySelector('.org-mega');
+    if (menu) menu.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+  }
+  addEventListener('load', menuTheme);
+  document.addEventListener('organica:theme', menuTheme);
+  Organica.fvsField.mount(document.getElementById('field'), {
+    motion: (pin ? pin[1] === 'a' : n % 2) ? 'arrival' : 'rules',
+    numerals: true, band: document.getElementById('field-band'),
+    above: header, below: foot, palette: pal,
+  });
+})();
+</script>
 <script src="/shared/tools.js"></script>
 <script src="/shared/menu-icon.js"></script>
 <script src="/shared/header.js"></script>

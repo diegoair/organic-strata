@@ -117,6 +117,7 @@ organica.<tool>.<thing>
 | `organica.komorebi.presets` | Komorebi | user-saved presets |
 | `organica.library.forms` | Genesis Library **+** Creator (shared) | user-created form sets |
 | `organica.library.view` | Genesis Library | last `{ activeSetId, filter }` — restores which set + Type filter was showing. Optional, value-whitelisted on read, no migration; deliberately separate from `organica.library.forms` so a corrupt view blob can't endanger library data |
+| `organica.404.visit` | `/404.html` | a visit counter (an integer as a string). Each visit shows the other motion of the FVS field (odd = Arrival, even = Rules) and the next palette of the library (`n % palettes`). A per-browser preference: plain `localStorage`, not synced, no migration; when storage is unavailable the page picks at random. `?p=a` / `?p=b` and `?pal=<n>` override it without writing |
 
 ### Legacy keys and migration
 

@@ -45,7 +45,7 @@ scale, and it does not happen unless someone already suspects a problem.
    `palette`(opt-in) → `seeds-panel`(opt-in) → `mobile-gate`.
    Order is load-bearing: tokens first so you can override without
    `!important`, your own sheet last so your deltas win. (The full list, pages
-   included — `page`, `prose`, `auth-card` sit between `header` and `panel` —
+   included — `page`, `prose`, `auth-card`, `fvs-field` sit between `header` and `panel` —
    is `ORDER` in `scripts/templates.py` and `scripts/css-lint.py`.)
 3. Your `:root` declares **`--tool` and nothing else**, unless an override is
    genuine — and then it carries a one-line comment saying why. Never

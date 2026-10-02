@@ -145,6 +145,41 @@ The back-compat aliases (`Organica.createColorSwatch` / `createPaletteChips` /
 
 ---
 
+## 2b. FVS field — `shared/fvs-field.js` (+ `fvs-field.css`)
+
+A decorative full-screen field made with the Flexible Visual System, under a
+page. A shared component by the owner's decision (Oct 2, 2026) with one
+consumer, `/404.html` — an exception to "extract at the second consumer",
+recorded in `docs/DESIGN-DECISIONS.md` §2.
+
+```js
+var field = Organica.fvsField.mount(host, {
+  motion: 'arrival' | 'rules',   // Organica.fvsField.MOTIONS
+  numerals: true,                // the "404" mask (16 × 8 cells)
+  band: el,                      // with numerals: the box the mask fills (.org-fvs-field__band)
+  centre: el,                    // without numerals: the element the grid centres on
+  above: headerEl, below: footerEl,   // no cell above / below these
+  palette: Organica.fvsField.palettes()[i],   // { name, paper, inks[], mark, dark }; omit → currentColor
+});
+field.stop();                    // stops timers + observer, empties the host
+```
+
+- **Depends on** `Organica.shapes` (`arcTruchetGeometry`, `arcGeometry`),
+  `Organica.mulberry32` (core), and — only for `palettes()` —
+  `Organica.palette.library()` + `Organica.color` (`contrast`, `stepFor`).
+  Load order: `core → color → palette → shapes → fvs-field`.
+- **Paired CSS** `fvs-field.css`: `.org-fvs-field`, `__band` (component-local
+  `--fvs-field-band-h`), `__svg`, `__cell`, and the Page variant
+  `.org-page--field` (footer as a bar outside the column; no pattern switcher or
+  theme button in the header). Sheet order: after `auth-card`, before `panel`.
+- **Behaviour**: inline SVG, own timers only, pauses while the tab is hidden,
+  rebuilds on host resize, `prefers-reduced-motion` = the settled picture.
+- **Colour rule, motions, markup**: `/design-system/#fvs-field` (live demo).
+- **Known duplication**: the arrival lives twice — `fvs/index.html`
+  `runSymbolArrival` and this module (queued in the ledger §4).
+
+---
+
 ## 3. Backlog — concerns queued for the same treatment
 
 | Concern | State today | Canonical target |

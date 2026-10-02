@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en" data-theme-support>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page motion · two proposals — Organica</title>
+<meta name="robots" content="noindex">
+<link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/icons.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/page.css">
+<link rel="stylesheet" href="/shared/prose.css">
+<script src="/shared/pattern-init.js"></script>
+<style>
+  .pm-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-7);
+    margin-top: var(--space-7);
+  }
+  .pm-cell { min-width: 0; }
+  .pm-cell__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-5);
+    margin-bottom: var(--space-3);
+    font-size: var(--fs-base);
+  }
+  .pm-cell__head b { font-family: var(--font-display); font-weight: var(--w-medium); }
+  .pm-cell__head a { color: var(--mid); }
+  .pm-cell iframe {
+    --pm-frame-h: 600px;            /* this page's own geometry */
+    display: block;
+    width: 100%;
+    height: var(--pm-frame-h);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--paper);
+  }
+  .pm-note { color: var(--mid); margin-top: var(--space-3); font-size: var(--fs-base); }
+  @media (max-width: 900px) { .pm-grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body class="org-page">
+<header class="org-header" role="banner">
+  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><menu-icon state="menu" size="20" line-cap="square"></menu-icon></button>
+  <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ Page motion</span></a>
+  <div class="org-header__spacer"></div>
+</header>
+
+<main class="org-page__col org-page__col--full">
+  <div class="org-prose">
+    <p class="org-prose__caption">Exploration · Flexible Visual System</p>
+    <h1>Motion for the 404 and the sign-in</h1>
+    <p>One Element in every cell of a grid, each cell's turn set by a rule. The 404 uses both proposals, full screen, in the colours of a palette from the library: every visit shows the other one and the next palette. The frames are live — open one to see it full size.</p>
+  </div>
+
+  <div class="pm-grid">
+    <section class="pm-cell">
+      <div class="pm-cell__head"><span><b>404 · Arrival</b> — palette “Stimulating”</span><a href="/404.html?p=a&pal=1">Open</a></div>
+      <iframe src="/404.html?p=a&pal=1" title="404, Arrival"></iframe>
+      <p class="pm-note">Element: Arc truchet · rule: Checkerboard 0° / 90°, the ink alternating with the turn. The grid arrives the way a Symbol does after Generate (blur → contrast → sharp, cells in a scattered order). The numerals are the cells that never finish arriving; the rest keeps changing, one cell at a time.</p>
+    </section>
+    <section class="pm-cell">
+      <div class="pm-cell__head"><span><b>404 · Rules</b> — palette “Violet 06”</span><a href="/404.html?p=b&pal=0">Open</a></div>
+      <iframe src="/404.html?p=b&pal=0" title="404, Rules"></iframe>
+      <p class="pm-note">Element: Arc (a quarter ring). Every cell turns in quarter turns as the grid moves through the named rules — Radial → Checkerboard → Pinwheel → Identity, one every 6 s. The numerals are the cells that never obey the rule, in the palette's strongest ink.</p>
+    </section>
+  </div>
+  <p class="pm-note">Colour: the ground is the palette colour that leaves the others the most contrast; an ink keeps its hue and moves along its own shade scale only as far as it must (1.8:1 for the pattern, 3:1 for the numerals in Rules). Palettes come from the library — the ones saved in TuneSutra, then the three built-in combinations. <a href="/404.html">Open the 404 as a visitor gets it</a> and reload to see it alternate; <code>?p=a|b</code> and <code>?pal=0…</code> pin a motion and a palette. The module is <code>shared/fvs-field.js</code> (<code>Organica.fvsField</code>); the page is the real <code>/404.html</code>.</p>
+
+  <div class="org-prose mt-8">
+    <p class="org-prose__caption">On hold</p>
+    <h2>Sign-in — not decided</h2>
+  </div>
+  <div class="pm-grid">
+    <section class="pm-cell">
+      <div class="pm-cell__head"><span><b>Sign-in · Arrival</b></span><a href="signin.html?p=a">Open</a></div>
+      <iframe src="signin.html?p=a" title="Sign-in, Arrival"></iframe>
+    </section>
+    <section class="pm-cell">
+      <div class="pm-cell__head"><span><b>Sign-in · Rules</b></span><a href="signin.html?p=b">Open</a></div>
+      <iframe src="signin.html?p=b" title="Sign-in, Rules"></iframe>
+    </section>
+  </div>
+</main>
+<script src="/shared/tools.js"></script>
+<script src="/shared/menu-icon.js"></script>
+<script src="/shared/header.js"></script>
+<script>
+  // The frames read the saved theme only on load — pass a flip of the moon button on to them.
+  document.addEventListener('organica:theme', function (e) {
+    document.querySelectorAll('.pm-cell iframe').forEach(function (f) {
+      var d = f.contentDocument; if (!d) return;
+      if (e.detail && e.detail.dark) d.documentElement.setAttribute('data-theme', 'dark');
+      else d.documentElement.removeAttribute('data-theme');
+      d.dispatchEvent(new CustomEvent('organica:theme', { detail: e.detail }));
+    });
+  });
+</script>
+</body>
+</html>

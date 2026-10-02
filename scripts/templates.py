@@ -32,7 +32,7 @@ STARTER = 'shared/_template.html'
 SKIP = re.compile(r'^(explorations|archive|scratchpad|\.claude|genesis/archive|figma-plugin|docs)/|(^|/)_')
 
 # The sheets a template is made of, in load-bearing order (each may override the one before).
-ORDER = ['tokens', 'icons', 'header', 'page', 'prose', 'auth-card', 'panel', 'floatbar', 'shell',
+ORDER = ['tokens', 'icons', 'header', 'page', 'prose', 'auth-card', 'fvs-field', 'panel', 'floatbar', 'shell',
          'palette', 'seeds-panel', 'mobile-gate']      # scripts/css-lint.py keeps the same list
 
 OWN_SURFACE = {   # tool chrome, own canvas surface — no shell.css

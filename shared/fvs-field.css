@@ -1,0 +1,69 @@
+/* ─────────────────────────────────────────────────────────────
+   ORGANICA — fvs-field.css
+   The paired sheet of shared/fvs-field.js (Organica.fvsField): the field
+   layer, the band the numerals fill, the cell, and the Page variant that
+   stands on a field. Tokens only; --fvs-field-band-h is this component's
+   own geometry (like --page-col-w), not a scale value.
+
+   Markup (a Page on a field — /404.html):
+     <body class="org-page org-page--field">
+       <header class="org-header">…</header>
+       <div class="org-fvs-field" aria-hidden="true"></div>
+       <main class="org-page__col">
+         <div class="org-fvs-field__band" aria-hidden="true"></div>
+         <article class="org-page__card">…</article>
+       </main>
+       <footer class="org-page__foot">…</footer>     ← a bar, outside the column
+
+   Load AFTER page.css (+ prose.css). Reference: /design-system/#fvs-field.
+   ───────────────────────────────────────────────────────────── */
+
+/* The field: a fixed layer over the page ground, under everything; it never takes the pointer.
+   Its ground is the palette's (set by the script); with no palette it is transparent and the
+   cells take this colour — decorative, so it does not compete with what stands on it. */
+.org-fvs-field {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  color: var(--border);
+}
+.org-fvs-field__svg { display: block; }
+
+/* The band: an empty box in the column, above the card — the numerals fill it. */
+.org-fvs-field__band {
+  --fvs-field-band-h: 42vh;
+  height: var(--fvs-field-band-h);
+  margin-bottom: var(--space-7);
+}
+
+/* A cell under the rules motion turns about its own centre (the Arc's box is the whole cell). */
+.org-fvs-field__cell {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform var(--dur-settle) var(--ease-overshoot-soft);
+}
+
+/* A Page on a field: the column fills the viewport and the footer leaves it to become the header's
+   counterpart — a bar across the foot of the page, the same height and side padding as the header.
+   The two bars frame the pattern, each on clear ground. The header carries no pattern switcher (the
+   field covers the ground it would change) and no theme button (the palette is the same in both
+   themes; the saved theme still applies to the card and the menu). */
+.org-page--field { display: flex; flex-direction: column; }
+.org-page--field .org-page__col { flex: 1; width: 100%; }
+.org-page--field > .org-page__foot {
+  flex-shrink: 0;
+  align-items: center;
+  height: var(--header-h);
+  margin-top: 0;
+  padding: 0 var(--space-7);
+}
+.org-page--field .org-pattern,
+.org-page--field .org-theme { display: none; }
+
+/* On a palette's ground the secondary text takes the ink: --mid is tuned for --paper / the canvas
+   ground and falls under 4.5:1 on a saturated colour (2.8:1 on the "Stimulating" green). The
+   script gives the header and the footer the theme scope the ground needs (data-theme). */
+.org-page--field .org-header__logo,
+.org-page--field .org-page__foot,
+.org-page--field .org-page__foot a { color: var(--ink); }

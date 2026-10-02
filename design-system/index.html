@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="/shared/page.css">
 <link rel="stylesheet" href="/shared/prose.css">
 <link rel="stylesheet" href="/shared/auth-card.css">
+<link rel="stylesheet" href="/shared/fvs-field.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/shell.css">
@@ -178,6 +179,10 @@
     gap: var(--space-5);
   }
   .ds-example--column { flex-direction: column; align-items: stretch; }
+  /* #fvs-field demo: the real field is a fixed full-screen layer under the page (z-index -1); here it is
+     boxed in the entry, with its own stacking, at the numerals' own 16 × 8 proportion. */
+  .org-fvs-field.ds-fvsf-demo { position: relative; inset: auto; z-index: 0; isolation: isolate; width: 100%; aspect-ratio: 2 / 1; border-radius: var(--radius-md); overflow: hidden; }
+  .ds-fvsf-controls { width: var(--panel-w); max-width: 100%; }
   .ds-example--dark { background: var(--ink); }
 
   /* Dark mode entry — the same mini tool, once per theme */
@@ -531,6 +536,7 @@
       <a href="#templates">The three templates</a>
       <a href="#template-tool">Tool</a>
       <a href="#template-page">Page</a>
+      <a href="#fvs-field">Page on a field (FVS field)</a>
       <a href="#sign-in">Auth card (sign-in)</a>
     </div>
     <div class="ds-nav__group">
@@ -1056,9 +1062,94 @@
       </table>
       <p>A button inside the card stays <em>outside</em> <code>.org-prose</code> (as on the 404): prose styles every bare <code>&lt;a&gt;</code> as an underlined ink link, which would erase a primary button's label.</p>
       <h3>The error page</h3>
-      <p><code>/404.html</code> is this template with a card and the footer, and it is public — it loads no <code>auth.js</code>, so a signed-out visitor with a wrong link sees it rather than the sign-in. The host serves it for any address that matches no file and no rewrite. There is no separate page for other status codes: the suite is static files, and 404 is the only error a visitor can reach.</p>
+      <p><code>/404.html</code> is this template with a card and the footer, and it is public — it loads no <code>auth.js</code>, so a signed-out visitor with a wrong link sees it rather than the sign-in. The host serves it for any address that matches no file and no rewrite. There is no separate page for other status codes: the suite is static files, and 404 is the only error a visitor can reach. Since Oct 2, 2026 it is also the one consumer of the variant below.</p>
+      <h3>Variant — a Page on a field</h3>
+      <p><code>body.org-page.org-page--field</code> (in <code>shared/fvs-field.css</code>, linked after <code>page.css</code> / <code>prose.css</code>): the same header, column, card and footer, standing on a full-screen <a href="#fvs-field">FVS field</a> instead of the dot pattern. Two things differ from the plain Page. <strong>The footer leaves the column</strong>: it is a direct child of <code>&lt;body&gt;</code>, after <code>&lt;/main&gt;</code> — a bar across the foot of the page, the header's counterpart, with the header's height (<code>--header-h</code>) and side padding (<code>--space-7</code>), so its first element lines up with the header's; inside the 660 column it did not space correctly against the full-width header. <strong>The header carries no pattern switcher and no theme button</strong>: the field covers the ground the switcher would change, and a palette is the same in both themes. The saved theme still applies — the card and the mega menu follow it; only the controls are gone. The two bars frame the pattern, each on clear ground — no cell lies above the header's bottom edge or below the footer's top edge. It is a variant of this template, not a fourth one: the skeleton lint holds it to every Page rule. Used by <code>/404.html</code> only; markup, options and the colour rule are in the <a href="#fvs-field">next entry</a>.</p>
       <h3>Variant — own layout</h3>
       <table id="ds-tpl-layout"><tr><th>Page</th><th>Why its layout is its own</th></tr></table>
+    </section>
+
+    <section class="ds-entry ds-prose" id="fvs-field">
+      <h2>FVS field — a Page on a field</h2>
+      <p class="ds-desc">A decorative field made with the Flexible Visual System: one Element in every cell of a grid, each cell's turn set by a named rule, moving the way FVS itself moves. It lies <em>under</em> a page as a fixed full-screen layer, never takes the pointer, and is hidden from assistive technology (<code>aria-hidden="true"</code>). With <code>numerals</code> the grid spells “404” through the cells that do not behave. It is the ground of the <a href="#template-page">Page</a> variant <code>.org-page--field</code>. <strong>Not for a tool's canvas</strong> — that is the tool's own work surface — and not on the sign-in: its animation is an open question (<code>docs/DESIGN-DECISIONS.md</code> O-13; the two proposals are in <code>explorations/page-motion/</code>).</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/fvs-field.css</span><span>shared/fvs-field.js — Organica.fvsField</span><strong>Load after</strong><span>core.js → color.js → palette.js → shapes.js</span><strong>Sheet after</strong><span>page.css (+ prose.css)</span><strong>Used in</strong><span>/404.html</span><strong>Decided</strong><span>docs/DESIGN-DECISIONS.md, Oct 2, 2026</span></div>
+      <div class="ds-example ds-example--column">
+        <div class="ds-fvsf-controls">
+          <div class="ctrl-row">
+            <span class="ctrl-label">Motion</span>
+            <div class="seg-ctrl" id="ds-fvsf-motion">
+              <button class="seg-btn active" type="button" data-motion="arrival">Arrival</button>
+              <button class="seg-btn" type="button" data-motion="rules">Rules</button>
+            </div>
+          </div>
+          <div class="ctrl-row">
+            <label class="ctrl-label" for="ds-fvsf-palette">Palette</label>
+            <select class="panel-select" id="ds-fvsf-palette"><option value="">None — follows the theme</option></select>
+          </div>
+        </div>
+        <div class="org-fvs-field ds-fvsf-demo" id="ds-fvsf-demo" aria-hidden="true"></div>
+      </div>
+      <p class="ds-note"><strong>The demo is boxed.</strong> It is the real <code>Organica.fvsField.mount()</code>, with <code>numerals: true</code> and the host as its own band, in a 2 : 1 box (the numerals' 16 × 8 grid) instead of the fixed full-screen layer; it runs only while this entry is on screen. With no palette the cells take <code>--border</code> and follow the theme; a palette is the same in light and dark. The real thing, full screen: <a href="/404.html?p=a&amp;pal=1">/404.html?p=a&amp;pal=1</a> (Arrival) · <a href="/404.html?p=b&amp;pal=0">/404.html?p=b&amp;pal=0</a> (Rules). <code>pal</code> counts through the library — the palettes saved in TuneSutra first, then the built-in combinations — so the same number shows a different palette in a browser with saved palettes.</p>
+
+      <h3>Markup</h3>
+      <pre class="ds-code">&lt;<span class="tag">body</span> <span class="attr">class</span>=<span class="str">"org-page org-page--field"</span>&gt;
+  &lt;<span class="tag">header</span> <span class="attr">class</span>=<span class="str">"org-header"</span>&gt;…&lt;/<span class="tag">header</span>&gt;
+  &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-fvs-field"</span> <span class="attr">aria-hidden</span>=<span class="str">"true"</span>&gt;&lt;/<span class="tag">div</span>&gt;          <span class="attr">&lt;!-- the field: fixed, inset 0, z-index -1, no pointer --&gt;</span>
+  &lt;<span class="tag">main</span> <span class="attr">class</span>=<span class="str">"org-page__col"</span>&gt;
+    &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-fvs-field__band"</span> <span class="attr">aria-hidden</span>=<span class="str">"true"</span>&gt;&lt;/<span class="tag">div</span>&gt;  <span class="attr">&lt;!-- an empty box above the card: the numerals fill it --&gt;</span>
+    &lt;<span class="tag">article</span> <span class="attr">class</span>=<span class="str">"org-page__card"</span>&gt;…&lt;/<span class="tag">article</span>&gt;
+  &lt;/<span class="tag">main</span>&gt;
+  &lt;<span class="tag">footer</span> <span class="attr">class</span>=<span class="str">"org-page__foot"</span>&gt;…&lt;/<span class="tag">footer</span>&gt;                 <span class="attr">&lt;!-- a bar, OUTSIDE the column: the header's counterpart --&gt;</span>
+&lt;/<span class="tag">body</span>&gt;
+
+<span class="attr">// after core.js, color.js, palette.js, shapes.js, fvs-field.js</span>
+var field = Organica.fvsField.mount(document.querySelector('.org-fvs-field'), {
+  motion: 'arrival',                                      <span class="attr">// or 'rules'</span>
+  numerals: true, band: document.querySelector('.org-fvs-field__band'),
+  above: header, below: footer,                           <span class="attr">// clear ground for each</span>
+  palette: Organica.fvsField.palettes()[0],
+});
+field.stop();                                             <span class="attr">// stops every timer and empties the host</span></pre>
+      <table>
+        <tr><th>Class</th><th>What it is</th></tr>
+        <tr><td><code>.org-fvs-field</code></td><td>The host: <code>position: fixed; inset: 0; z-index: -1; pointer-events: none</code>. Its ground is the palette's (set by the script); with no palette it is transparent and the cells take <code>color: var(--border)</code>.</td></tr>
+        <tr><td><code>.org-fvs-field__band</code></td><td>The box the numerals fill, in the column above the card. Its height is the component's own geometry, <code>--fvs-field-band-h</code> (42vh) — like <code>--page-col-w</code>, not a step on a scale.</td></tr>
+        <tr><td><code>.org-fvs-field__svg</code> · <code>__cell</code></td><td>Written by the script. A cell under the rules motion turns about its own centre, on <code>--dur-settle</code> / <code>--ease-overshoot-soft</code>, delayed in <code>--dur-stagger</code> steps.</td></tr>
+        <tr><td><code>.org-page--field</code></td><td>On <code>&lt;body&gt;</code>, with <code>.org-page</code>: the column fills the viewport; the footer, a direct child of <code>&lt;body&gt;</code>, becomes a bar (<code>height: var(--header-h)</code>, <code>padding: 0 var(--space-7)</code>, centred on its cross axis); the header's pattern switcher and theme button are hidden; the logo label and the footer text take <code>--ink</code> instead of <code>--mid</code> (see below).</td></tr>
+      </table>
+
+      <h3>Organica.fvsField</h3>
+      <table>
+        <tr><th>Call / option</th><th>Value</th><th>Does</th></tr>
+        <tr><td><code>mount(host, opts)</code></td><td>→ <code>{ stop() }</code></td><td>Builds the field in <code>host</code> (a sized block element) and rebuilds it when the host's size changes. <code>stop()</code> stops every timer, disconnects the observer and empties the host.</td></tr>
+        <tr><td><code>opts.motion</code></td><td><code>'arrival'</code> (default) · <code>'rules'</code></td><td>Which of the two motions. The names are in <code>Organica.fvsField.MOTIONS</code>.</td></tr>
+        <tr><td><code>opts.numerals</code></td><td>boolean</td><td>The “404” mask: a 16 × 8 block of cells (4 × 6 numerals, one cell of pattern all round).</td></tr>
+        <tr><td><code>opts.band</code></td><td>element</td><td>With numerals: the element whose box the mask fills (cell = the smaller of band height ÷ 8 and host width ÷ 16); the grid runs on from it over the whole host at the same cell size. Defaults to the host.</td></tr>
+        <tr><td><code>opts.centre</code></td><td>element</td><td>Without numerals: the element the grid centres on (a card). Cell = the host's longer side ÷ 14, held between 64 and 112px.</td></tr>
+        <tr><td><code>opts.above</code> · <code>opts.below</code></td><td>element</td><td>No cell lies above the bottom of <code>above</code> (a header) or below the top of <code>below</code> (a footer). The ground runs under them; the pattern does not.</td></tr>
+        <tr><td><code>opts.palette</code></td><td>one entry of <code>palettes()</code></td><td><code>{ name, paper, inks[], mark, dark }</code>. Without one the cells are <code>currentColor</code> and follow the theme.</td></tr>
+        <tr><td><code>palettes()</code></td><td>→ array</td><td>The palette library (<code>Organica.palette.library()</code>: the palettes saved in TuneSutra, then the built-in combinations), limited to palettes of 2–7 colours, each resolved to a ground and its inks.</td></tr>
+      </table>
+
+      <h3>The two motions</h3>
+      <table>
+        <tr><th>Motion</th><th>Element · rule</th><th>What moves</th><th>The numerals</th></tr>
+        <tr><td><strong>Arrival</strong></td><td>Arc truchet · Checkerboard 0° / 90°, the ink alternating with the turn</td><td>FVS's own Generate arrival (the Symbol step's first grid, after Bencho): each cell forms out of a blurred, hard-contrast mass into its sharp shape, cells in a scattered order, at most 140 forming at a time. Then one cell at a time takes a quarter turn and re-forms.</td><td>The cells that never finish arriving — they stay a liquid haze.</td></tr>
+        <tr><td><strong>Rules</strong></td><td>Arc (a quarter ring; four under Radial close into a ring)</td><td>Every cell turns in quarter turns, the short way round, as the grid moves from one named rule to the next — Radial → Checkerboard → Pinwheel → Identity — in a wave across the grid.</td><td>The cells that never obey the rule — always a quarter turn off, in the palette's strongest ink.</td></tr>
+      </table>
+      <p>The 404 shows <strong>both, alternating per visit</strong>, and the next palette of the library each time: a counter in <code>localStorage['organica.404.visit']</code> (a per-browser preference, not synced; a random pick when storage is unavailable). <code>?p=a</code> / <code>?p=b</code> pins the motion (Arrival / Rules) and <code>?pal=&lt;n&gt;</code> the palette.</p>
+
+      <h3>Colour — a palette is content</h3>
+      <ol>
+        <li><strong>Fixed in both themes.</strong> A palette is the page's content, like a tool's ink and paper: it does not flip with dark mode. Only a field with no palette follows the theme.</li>
+        <li><strong>The ground</strong> is the palette colour that leaves the others the most contrast (the one whose least contrast against the rest is highest).</li>
+        <li><strong>The pattern's inks</strong> keep their hue and move along their own shade scale (<code>Organica.color.stepFor</code>) only as far as they must to reach <strong>1.8 : 1</strong> on the ground — the field is decoration, it must not compete with the card.</li>
+        <li><strong>The numerals' ink</strong> in the rules motion (<code>mark</code>, the strongest ink) reaches <strong>3 : 1</strong>: it is the message.</li>
+      </ol>
+      <h3>The header and the footer on a field</h3>
+      <p>The page keeps the template's header and footer, as two bars of the same height (<code>--header-h</code>, 64px) and the same side padding (<code>--space-7</code> — the footer's first element starts at x = 24, like the header's). The footer is a direct child of <code>&lt;body&gt;</code> here, not of the column. The header shows no <a href="#pattern-switcher">pattern switcher</a> and no theme button (<code>.org-page--field .org-pattern, .org-page--field .org-theme { display: none }</code>); the saved theme is still applied before first paint by <code>pattern-init.js</code>, so the card and the menu follow it. Each bar stands on a strip of clear ground (<code>opts.above</code> / <code>opts.below</code>) and takes an <strong>element-scoped <code>data-theme</code></strong> from the palette's ground — <code>dark</code> when the ground takes light text (<code>palette.dark</code>), <code>light</code> otherwise — whatever the page's own theme is. The logo label and the footer text take <code>--ink</code> instead of <code>--mid</code>: <code>--mid</code> is tuned for paper and falls under 4.5 : 1 on a saturated ground (2.8 : 1 on the “Stimulating” green). The <a href="#mega-menu">mega menu</a> is a child of the header but opens over the page, so it is given the <em>page's</em> theme back (<code>data-theme</code> on <code>.org-mega</code>, kept in sync on <code>load</code> and on the <code>organica:theme</code> event).</p>
+      <h3>Motion and cost</h3>
+      <p>The field runs only its own timers, pauses while the tab is hidden, and rebuilds when its host is resized. Under <code>prefers-reduced-motion</code> nothing moves: the settled picture is drawn once (Arrival: the pattern sharp, the numerals held as a still haze; Rules: the grid under Radial, the numerals a quarter turn off), and the motion tokens the rules transition uses collapse to 1ms. The page pays for <code>core.js</code>, <code>color.js</code>, <code>palette.js</code> and <code>shapes.js</code> to draw it — a lighter path is queued in the ledger.</p>
     </section>
 
     <h1 class="ds-group-title">Panel</h1>
@@ -1932,7 +2023,7 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
 
     <section class="ds-entry ds-prose" id="file-architecture">
       <h2>File architecture</h2>
-      <p class="ds-desc"><strong>Twelve</strong> shared sheets, each owning one concern. Which ones a page links follows from its <a href="#templates">template</a>. Order matters — a later file may reference tokens an earlier one defines, and a tool's own <code>&lt;style&gt;</code> comes last so its deltas win without <code>!important</code>. <strong>This table is the single source of truth for the list</strong>; <code>docs/UI-SHELL.md</code> and <code>docs/SHARED-COMPONENTS.md</code> link here rather than restating it. They used to each carry their own copy, which is why the repo held four different answers to "what is the shared CSS system" — five, seven, eight, and one that omitted <code>mobile-gate.css</code> entirely.</p>
+      <p class="ds-desc"><strong>Thirteen</strong> shared sheets, each owning one concern. Which ones a page links follows from its <a href="#templates">template</a>. Order matters — a later file may reference tokens an earlier one defines, and a tool's own <code>&lt;style&gt;</code> comes last so its deltas win without <code>!important</code>. <strong>This table is the single source of truth for the list</strong>; <code>docs/UI-SHELL.md</code> and <code>docs/SHARED-COMPONENTS.md</code> link here rather than restating it. They used to each carry their own copy, which is why the repo held four different answers to "what is the shared CSS system" — five, seven, eight, and one that omitted <code>mobile-gate.css</code> entirely.</p>
       <table>
         <tr><th>File</th><th>Owns</th><th>Depends on</th></tr>
         <tr><td><code>tokens.css</code></td><td>Typeface, weights, type scale, spacing scale, radius scale, the surface palette (<code>--ink</code>/<code>--paper</code>/<code>--mid</code>/<code>--accent</code>/<code>--panel</code>/<code>--border</code>), <code>--accent-warm</code>, <code>--danger</code>, <code>--track-bg</code>, the <code>.mt-*</code>/<code>.mb-*</code>/<code>.u-flex1</code>/<code>.u-hidden</code> utilities</td><td>nothing — load first, always</td></tr>
@@ -1941,6 +2032,7 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
         <tr><td><code>page.css</code></td><td>The <a href="#template-page">Page template</a>'s skeleton — reset, <code>body.org-page</code>, the <code>.org-page__col</code> column and its widths, <code>.org-page__card</code>, <code>.org-page__foot</code>. Never together with <code>shell.css</code> (this page excepted: it links every sheet to render the examples).</td><td>tokens.css</td></tr>
         <tr><td><code>prose.css</code> <em>(opt-in)</em></td><td><code>.org-prose</code> — bare headings, paragraphs, lists, links, code and tables for pages that read</td><td>tokens.css</td></tr>
         <tr><td><code>auth-card.css</code></td><td>The sign-in card (<code>.org-auth-card</code>) — linked only by <code>/sign-in</code> and this page</td><td>tokens.css</td></tr>
+        <tr><td><code>fvs-field.css</code> <em>(opt-in)</em></td><td>The <a href="#fvs-field">FVS field</a> — <code>.org-fvs-field</code>, <code>__band</code>, <code>__svg</code>, <code>__cell</code> — and the Page variant that stands on it, <code>.org-page--field</code>. Paired with <code>shared/fvs-field.js</code>. Linked only by <code>/404.html</code> and this page.</td><td>tokens.css, page.css</td></tr>
         <tr><td><code>panel.css</code></td><td>The right-hand control sidebar — section/sub-label/row, slider, select/input/color-row, segmented control, <code>.upload-btn</code>/<code>.org-file-input</code>, <code>.org-modal</code>, <code>.org-layer-card</code></td><td>tokens.css</td></tr>
         <tr><td><code>floatbar.css</code></td><td>The bottom-centre floating action bar and its popover-anchoring override</td><td>tokens.css, header.css (reuses <code>.org-popover</code>/<code>.org-btn</code>)</td></tr>
         <tr><td><code>shell.css</code></td><td>The <a href="#template-tool">Tool template</a>'s skeleton — reset, <code>&lt;body&gt;</code>, <code>#app</code>, <code>#canvas-wrap</code>, <code>.org-stage</code> + zoom-cursor states, <code>#zoom-hud</code>, <code>#drop-hint</code>, <code>#compute-bar</code>/<code>.hud-btn</code></td><td>tokens.css</td></tr>
@@ -2120,6 +2212,11 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
 <script src="/shared/core.js"></script>
 <script src="/shared/icons.js"></script>
 <script src="/shared/select-picker.js"></script>
+<!-- color → palette → shapes → fvs-field: only for the #fvs-field demo -->
+<script src="/shared/color.js"></script>
+<script src="/shared/palette.js"></script>
+<script src="/shared/shapes.js"></script>
+<script src="/shared/fvs-field.js"></script>
 <script>
 /* Section headers: turn each flat .ds-usage (<strong>label</strong><span>…</span>…) into
    label/value rows, and stamp each group title with its entry count (read by ::before). */
@@ -2299,6 +2396,14 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
   };
   assert('#ds-page-foot', { display: 'flex', fontSize: '10px' });   // the one footer (page.css)
   assert('#ds-page-card', { borderTopLeftRadius: '8px' });          // --radius-lg
+  /* the FVS field (fvs-field.css): the real layer is fixed, under everything, and never takes the pointer —
+     probed on a bare element, because the demo in the entry is boxed on purpose */
+  {
+    const probe = document.createElement('div'); probe.className = 'org-fvs-field'; probe.id = 'ds-fvsf-probe'; document.body.appendChild(probe);
+    assert('#ds-fvsf-probe', { position: 'fixed', zIndex: '-1', pointerEvents: 'none' });
+    probe.remove();
+  }
+  assert('#ds-fvsf-demo', { position: 'relative', pointerEvents: 'none' });   // the boxed demo still never takes the pointer
   assert('.ctrl-row',   { minHeight: '26px' });                       // --row-h
   assert('#ds-selpick-host .preset-trigger', { minHeight: '32px', paddingTop: '4px', paddingBottom: '4px', paddingLeft: '4px' });   // even air round the 22px thumbnail
   assert('#ds-selpick-preview-host .preset-trigger', { minHeight: '32px', paddingTop: '4px', paddingLeft: '4px' });   // preview size keeps the same trigger
@@ -2430,6 +2535,35 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
   a.onclick=function(){ if(a.classList.contains('is-armed')){clearTimeout(t);a.classList.remove('is-armed');a.textContent='Deleted (demo)';setTimeout(function(){a.textContent='Delete preset';},1200);return;}
     a.classList.add('is-armed');a.textContent='Click again to confirm';t=setTimeout(function(){a.classList.remove('is-armed');a.textContent='Delete preset';},3000);};
   a.onblur=function(){clearTimeout(t);a.classList.remove('is-armed');a.textContent='Delete preset';};
+})();
+</script>
+<script>
+/* FVS field demo — the real Organica.fvsField in a boxed host. It runs only while the entry is on
+   screen (mount on enter, stop() on leave), so the page pays nothing for it elsewhere. */
+(function () {
+  var host = document.getElementById('ds-fvsf-demo'), F = window.Organica && Organica.fvsField;
+  var seg = document.getElementById('ds-fvsf-motion'), sel = document.getElementById('ds-fvsf-palette');
+  if (!host || !F || !seg || !sel) return;
+  var pals = []; try { pals = F.palettes(); } catch (e) { pals = []; }
+  pals.forEach(function (p, i) { var o = document.createElement('option'); o.value = String(i); o.textContent = p.name; sel.appendChild(o); });
+  var motion = 'arrival', field = null, seen = false;
+  function stop() { if (field) { field.stop(); field = null; } }
+  function start() {
+    stop();
+    if (!seen) return;
+    field = F.mount(host, { motion: motion, numerals: true, band: host, palette: sel.value === '' ? null : pals[+sel.value] });
+  }
+  seg.addEventListener('click', function (e) {
+    var b = e.target.closest('.seg-btn'); if (!b) return;
+    motion = b.dataset.motion;
+    seg.querySelectorAll('.seg-btn').forEach(function (x) { x.classList.toggle('active', x === b); });
+    start();
+  });
+  sel.addEventListener('change', start);
+  new IntersectionObserver(function (entries) {
+    seen = entries[entries.length - 1].isIntersecting;
+    if (seen) start(); else stop();
+  }).observe(host);
 })();
 </script>
 <script>

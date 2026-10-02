@@ -86,7 +86,7 @@ text) and never `panel` / `floatbar` / `shell`: `shell.css` pins `<body>` to the
 viewport, which is how privacy and terms once could not scroll.
 
 The full order, for any combination, is one list —
-`tokens → icons → header → page → prose → auth-card → panel → floatbar → shell → palette → seeds-panel → mobile-gate`
+`tokens → icons → header → page → prose → auth-card → fvs-field → panel → floatbar → shell → palette → seeds-panel → mobile-gate`
 — kept in `scripts/templates.py` and `scripts/css-lint.py` (`ORDER`), and both
 fail a page that links them out of order. `<html>` carries `data-theme-support`
 on every template.
@@ -684,6 +684,23 @@ examples are `privacy/index.html` (reading) and `admin/index.html` (data).
 4. `pattern-init.js` in `<head>`; `tools.js` → `menu-icon.js` → `header.js` last.
 5. No mobile gate unless the page is unusable on a phone (the test gallery opts in).
 6. `python3 scripts/templates.py`, then `python3 scripts/check.py`.
+
+**Variant — a Page on a field** (Oct 2, 2026; `/404.html` is the one consumer).
+The same template on a full-screen Flexible Visual System field instead of the
+dot pattern: `<body class="org-page org-page--field">`, `fvs-field.css` linked
+after `page.css` / `prose.css`, a `<div class="org-fvs-field" aria-hidden="true">`
+after the header, a `<div class="org-fvs-field__band" aria-hidden="true">` in the
+column above the card, and `core.js → color.js → palette.js → shapes.js →
+fvs-field.js` before the page's own script, which calls
+`Organica.fvsField.mount(host, { motion, numerals, band, above, below, palette })`.
+Two things differ from the plain Page: the **footer is a direct child of
+`<body>`**, after `</main>` — a bar with the header's height and side padding,
+not the column's closing line — and the **header shows no pattern switcher and
+no theme button** (hidden by the sheet; the saved theme still applies). The
+header and the footer each take an element-scoped `data-theme` from the
+palette's ground. Markup, options, the two motions and the colour rule:
+[`/design-system/#fvs-field`](/design-system/#fvs-field). Not for the sign-in —
+its animation is undecided (`docs/DESIGN-DECISIONS.md` O-13).
 
 ---
 

@@ -7,6 +7,7 @@
   "page",
   "prose",
   "auth-card",
+  "fvs-field",
   "panel",
   "floatbar",
   "shell",
@@ -643,7 +644,8 @@
       "icons",
       "header",
       "page",
-      "prose"
+      "prose",
+      "fvs-field"
      ],
      "modules": false,
      "dark": true,
@@ -682,6 +684,7 @@
       "page",
       "prose",
       "auth-card",
+      "fvs-field",
       "panel",
       "floatbar",
       "shell",
