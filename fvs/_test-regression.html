@@ -289,6 +289,26 @@ async function battery() {
     const changed = more.map(sg => sg.cells.filter((c, i) => c.componentName !== state.symbolCells[i].componentName || c.rotation !== state.symbolCells[i].rotation || c.flipH !== state.symbolCells[i].flipH).length);
     put('suggest:more', [more.length > 0, Math.max(...changed) < state.symbolCells.length / 2, more.every(sg => JSON.stringify(sg.cells[0]) === l0)].join(','));
     state.symbolCells.forEach(c => { c.locked = false; });
+    // colour on a shared edge: the same ink > two distinct inks > two inks too close to tell apart;
+    // without a colour table it is the plain ink/paper score; one ink = no Colour score at all
+    {
+      const fake = pl => ({ pal: pl, share: pl.map(() => 0.5) });
+      const A = fake(['#ffffff', '#e8321e']), B = fake(['#ffffff', '#e8321e']), Cb = fake(['#ffffff', '#1e5be8']), D = fake(['#ffffff', '#d4301c']);
+      const T = suggestColourTable({ A, B, Cb, D });
+      const one = [1, 1, 1, 1];
+      put('suggest:colour:edge', [pairScore(one, one, A, B, T).s, pairScore(one, one, A, Cb, T).s, pairScore(one, one, A, D, T).s, pairScore(one, one).s].map(v => v.toFixed(2)).join(','));
+      put('clr:relation', [T.hexes.length, T.inks, T.rel[A.gid[1]][B.gid[1]], T.rel[A.gid[1]][D.gid[1]], T.rel[A.gid[1]][Cb.gid[1]]].join(','));
+      put('suggest:colour:mono', sug[0].score.col === null);
+      const libC = LIBRARY.read();
+      libC['zz-t-wave-b'] = { ...JSON.parse(JSON.stringify(libC['zz-t-wave'])), colors: ['#1e5be8'] };
+      LIBRARY.write(libC);
+      const pool0 = state.symbolPool;
+      state.symbolPool = [{ name: 'zz-t-wave', weight: 1 }, { name: 'zz-t-wave-b', weight: 1 }];
+      const two = suggestSymbols({ seed: 5, weights: { cont: 0.6, bal: 0.3, sur: 0.3, col: 0.4 }, fit: 'fill' });
+      const off = suggestSymbols({ seed: 5, weights: { cont: 0.6, bal: 0.3, sur: 0.3 }, fit: 'fill' });
+      put('suggest:colour:two', [two.length > 0, two.every(x => x.score.col != null && x.score.col >= 0 && x.score.col <= 1), new Set(two.map(x => x.score.col.toFixed(3))).size > 1, off.every(x => x.score.col != null)].join(','));
+      state.symbolPool = pool0;
+    }
     for (const [g, prm] of [['triangular', { cols: 6 }], ['hexagonal', { cols: 5 }], ['radial', {}], ['circular', { cols: 5 }]]) {
       loadSymbolGrid(await symbolGridModel(g, prm, cv));
       const G = suggestGridContext();
@@ -315,7 +335,7 @@ async function battery() {
     }
     put('symbol:seams', seams.join(','));
     state.colors = inks0; state.paperColor = paper0; buildPalette();
-    const lib2 = LIBRARY.read(); ['zz-t-arc', 'zz-t-ring', 'zz-t-wave', 'zz-t-solid'].forEach(n => delete lib2[n]); LIBRARY.write(lib2);
+    const lib2 = LIBRARY.read(); ['zz-t-arc', 'zz-t-ring', 'zz-t-wave', 'zz-t-wave-b', 'zz-t-solid'].forEach(n => delete lib2[n]); LIBRARY.write(lib2);
     state.symbolGrid = prevGrid; state.symbolCells = prevCells; state.symbolPool = prevPal;
     setComponentGrid('square2x2'); setTier('component');
   }

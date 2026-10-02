@@ -437,7 +437,7 @@ function hexFromRgb(r, g, b) { return Organica.rgbToHex(r, g, b); }
 // what the token key is built from; `lock` keeps it through Generate.
 const C = Organica.color;
 const ROLE_NAMES = ['Base', 'Secondary', 'Accent', 'Accent 2', 'Accent 3', 'Accent 4', 'Accent 5'];
-const DISTINCT_MIN = 6;   // OKLab ΔE×100 — below this two swatches read as one colour at a glance
+const DISTINCT_MIN = C.DISTINCT_MIN;   // OKLab ΔE×100 — below this two swatches read as one colour at a glance
 const state = {
   harmony: 'analogous',
   spread: 0,          // lightness spread, in OKLCH L points (0–30)
@@ -483,11 +483,7 @@ function makeItem(hex, i) { return { id: newId(), name: freshName(i), hex: hex, 
 function colors() { return state.items.map(it => it.hex); }
 function count() { return state.items.length; }
 function dispName(i) { return (state.items[i].name || '').trim() || roleName(i); }
-function roleWeights(n) {
-  const raw = Array.from({ length: n }, (_, i) => Math.pow(0.6, i));
-  const sum = raw.reduce((a, b) => a + b, 0);
-  return raw.map(v => (v / sum) * 100);
-}
+function roleWeights(n) { return C.roleShares(n); }
 state.items = ['#c93ed6', '#c9863e', '#3ec9a8'].map(makeItem);
 
 // ── TOKEN SCALE (0–900) — Organica.color.scale: fixed perceptual lightness

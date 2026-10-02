@@ -104,5 +104,21 @@ const near = (a, b, eps) => Math.abs(a - b) <= eps;
   check('HSB magenta', p.r === 255 && p.g === 0 && p.b === 255 && raw[0] === 255);
 }
 
+// 7. Palette use: role shares, the contrast-solved step.
+{
+  const w = C.roleShares(3);
+  check('roleShares: sums to 100, each 0.6 of the one before', near(w[0] + w[1] + w[2], 100, 1e-9) && near(w[1] / w[0], 0.6, 1e-9) && near(w[2] / w[1], 0.6, 1e-9), w.map(v => v.toFixed(1)).join(' / '));
+  check('DISTINCT_MIN is 6', C.DISTINCT_MIN === 6);
+  const keep = C.stepFor('#1e5be8', '#ffffff', 3);
+  check('stepFor: a pick that already passes is kept', keep && keep.hex === '#1e5be8');
+  const pale = C.stepFor('#f0e040', '#ffffff', 3);
+  check('stepFor: a pale pick moves along its own scale until it passes', pale && pale.hex !== '#f0e040' && C.contrast(pale.hex, '#ffffff') >= 3, pale ? pale.step + ' ' + pale.hex : 'null');
+  const sc = C.scale('#f0e040'), at = sc.findIndex(s => s.anchor), got = sc.findIndex(s => s.hex === pale.hex);
+  check('stepFor: it is the nearest passing step', sc.every((s, i) => Math.abs(i - at) >= Math.abs(got - at) || C.contrast(s.hex, '#ffffff') < 3));
+  check('stepFor: null when no step can pass', C.stepFor('#888888', '#888888', 21) === null);
+  const hue = C.hexToOklch(pale.hex).h, src = C.hexToOklch('#f0e040').h;
+  check('stepFor: hue held', Math.abs(hue - src) < 6, Math.abs(hue - src).toFixed(2) + '°');
+}
+
 console.log(failed ? '\n' + failed + ' check(s) failed' : '\nall checks passed');
 process.exit(failed ? 1 : 0);

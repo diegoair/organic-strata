@@ -26,6 +26,10 @@
  *   contrast(hexA, hexB)       → WCAG contrast ratio 1..21
  *   deltaE(hexA, hexB)         → OKLab distance ×100 (≈2 = just noticeable)
  *   scale(hex, opts)           → 10 steps 0…900, see below
+ *   DISTINCT_MIN               → 6: under this deltaE two swatches read as one colour
+ *   roleShares(n)              → [%…] area share per palette role (Base, Secondary, Accent…)
+ *   stepFor(hex, against, min) → { step, hex } — the scale step nearest the pick that
+ *                                reaches WCAG contrast `min` on `against`, or null
  *   rgbToHsb / hsbToRgb / rgbToHsl / hslToRgb — moved verbatim from TuneSutra
  *   hsbToRgbRaw(h, s, v)       → [r, g, b] unrounded floats (Membrane's shape)
  *
@@ -173,6 +177,40 @@
       const c = Math.min(share * color.maxChroma(L, src.h), src.c);
       return { step: step, hex: color.oklchToHex(L, c, src.h), l: L, anchor: false };
     });
+  };
+
+  // ── Palette use — moved from tunesutra/index.html at the 2nd consumer (FVS) ──
+  // Below this deltaE two swatches read as one colour at a glance.
+  color.DISTINCT_MIN = 6;
+
+  // Area share per role, in %: each role takes 0.6 of the one before it
+  // (3 colours → 51 / 31 / 18), the proportion a palette is shown in.
+  color.roleShares = function (n) {
+    const raw = [];
+    for (let i = 0; i < n; i++) raw.push(Math.pow(0.6, i));
+    const sum = raw.reduce(function (a, b) { return a + b; }, 0);
+    return raw.map(function (v) { return (v / sum) * 100; });
+  };
+
+  // The step of the pick's own scale, nearest to the pick, that reaches the
+  // contrast on `against` — the pick itself when it already does. Hue is kept
+  // (it is the same row of the scale); null when no step is enough.
+  color.stepFor = function (hex, against, minContrast) {
+    const sc = color.scale(hex);
+    const at = sc.findIndex(function (s) { return s.anchor; });
+    for (let d = 0; d < sc.length; d++) {
+      const hits = [];
+      [at - d, at + d].forEach(function (i) {
+        if (i < 0 || i >= sc.length || (d === 0 && hits.length)) return;
+        const c = color.contrast(sc[i].hex, against);
+        if (c >= minContrast) hits.push({ step: sc[i].step, hex: sc[i].hex, c: c });
+      });
+      if (hits.length) {
+        hits.sort(function (a, b) { return b.c - a.c; });
+        return { step: hits[0].step, hex: hits[0].hex };
+      }
+    }
+    return null;
   };
 
   // ── HSB / HSL — moved verbatim from tunesutra/index.html (2nd consumer:
