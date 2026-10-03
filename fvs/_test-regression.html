@@ -822,7 +822,8 @@ async function battery() {
     act(1, 'role');   // container → mask
     const maskSvg = buildSeedPreviewSVG(getSeed(), 0, false, false, 100);
     put('content:mask', [state.layers.items[1].role, /<mask /.test(maskSvg), H(norm(maskSvg)) !== H(norm(filledSvg))].join(','));
-    act(1, 'role');   // mask → fill
+    act(1, 'role');   // mask → pattern
+    act(1, 'role');   // pattern → fill
     put('layers:roleCycle', state.layers.items[1].role + ',' + (H(norm(buildSeedPreviewSVG(getSeed(), 0, false, false, 100))) === H(norm(filledSvg))));
     // the eye: a hidden top layer draws exactly the stack without it, and is left out of colour variants
     const bottomOnly = (() => { const sd = getSeed(); return buildSeedPreviewSVG({ ...sd, layers: [sd.layers[0]] }, 0, false, false, 100); })();

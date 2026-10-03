@@ -1267,12 +1267,40 @@
            here; once the Element has layers renderLayersUI moves this node into the active
            layer's own card, under X / Y / Size / Rot (the node, so its listeners stay). -->
       <div id="element-look-block">
-      <div class="ctrl-row">
+      <div class="ctrl-row" id="element-style-row">
         <div class="ctrl-label">Style</div>
         <select class="panel-select" id="sel-element-fillmode" aria-label="Element style">
           <option value="fill" selected>Fill</option>
           <option value="stroke">Stroke</option>
+          <option value="pattern">Pattern</option>
         </select>
+      </div>
+      <!-- Pattern fill (Style = Pattern) — and the params of a Pattern layer (role). Vector lines/dots in the Element's box, clipped to the shape. -->
+      <div id="element-pattern-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Pattern</div>
+          <select class="panel-select" id="sel-element-pattern" aria-label="Pattern">
+            <option value="lines" selected>Lines</option>
+            <option value="crosshatch">Crosshatch</option>
+            <option value="dots">Dots</option>
+            <option value="concentric">Concentric</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Distance between lines / dots / rings, in the Element's 0–100 box.">Spacing</div>
+          <input type="range" id="rg-element-patspacing" min="3" max="30" step="0.5" value="8">
+          <span class="ctrl-val" id="v-element-patspacing">8</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Line width, or dot diameter.">Weight</div>
+          <input type="range" id="rg-element-patweight" min="0.5" max="20" step="0.5" value="2">
+          <span class="ctrl-val" id="v-element-patweight">2</span>
+        </div>
+        <div class="ctrl-row" id="element-patangle-row">
+          <div class="ctrl-label" title="Direction of the lines, or rotation of the dot grid.">Angle</div>
+          <input type="range" id="rg-element-patangle" min="-90" max="90" step="1" value="45">
+          <span class="ctrl-val" id="v-element-patangle">45</span>
+        </div>
       </div>
       <div id="element-stroke-block" style="display:none">
         <div class="ctrl-row">
@@ -1553,6 +1581,44 @@
         <button class="mini-btn" id="btn-clear-gallery">Clear</button>
       </div>
       <button class="mini-btn" id="btn-colourways" style="width:100%;margin-top:var(--space-1)" title="Colour variants of the selected component, from the palette and its shade scales — every ink readable on its paper (3:1) and distinct from the others">Colourways of the selection</button>
+    </div>
+
+    <!-- Ground pattern (test) — a vector pattern on the Paper, behind the Elements. Saved with the Component's appearance. -->
+    <div class="panel-section">
+      <h3>Ground <span class="hint">pattern behind the Elements</span></h3>
+      <div class="ctrl-row"><div class="ctrl-label">Pattern</div>
+        <select class="panel-select" id="sel-ground-pattern" aria-label="Ground pattern">
+          <option value="none" selected>None (plain Paper)</option>
+          <option value="lines">Lines</option>
+          <option value="crosshatch">Crosshatch</option>
+          <option value="dots">Dots</option>
+          <option value="concentric">Concentric</option>
+        </select>
+      </div>
+      <div id="ground-block" style="display:none">
+        <div class="seg-ctrl" id="seg-ground-scope" role="group" aria-label="Ground scope">
+          <button type="button" class="seg-btn active" data-scope="frame" aria-pressed="true" title="One pattern across the whole Component, never turned">Whole frame</button>
+          <button type="button" class="seg-btn" data-scope="cell" aria-pressed="false" title="One pattern per cell, turned and flipped with the cell by the rule">Per cell</button>
+        </div>
+        <div class="ctrl-row"><div class="ctrl-label">Ink</div>
+          <select class="panel-select" id="sel-ground-ink" aria-label="Ground ink"></select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="In the cell's 0–100 units, same as the Element's pattern.">Spacing</div>
+          <input type="range" id="rg-ground-patspacing" min="3" max="30" step="0.5" value="6">
+          <span class="ctrl-val" id="v-ground-patspacing">6</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Line width, or dot diameter.">Weight</div>
+          <input type="range" id="rg-ground-patweight" min="0.5" max="20" step="0.5" value="1">
+          <span class="ctrl-val" id="v-ground-patweight">1</span>
+        </div>
+        <div class="ctrl-row" id="ground-patangle-row">
+          <div class="ctrl-label">Angle</div>
+          <input type="range" id="rg-ground-patangle" min="-90" max="90" step="1" value="-45">
+          <span class="ctrl-val" id="v-ground-patangle">-45</span>
+        </div>
+      </div>
     </div>
 
     <div class="panel-section">
@@ -2197,9 +2263,11 @@ function buildPalette() {
     onChange: (colors) => {
       state.colors = colors.map(hexKey);
       syncColorRuleUI();
+      syncGroundInkOptions();
       refreshColourViews();
     },
   });
+  syncGroundInkOptions();
 }
 
 function syncColorRuleUI() {
@@ -3758,6 +3826,106 @@ function componentBoundaryClipContent(items, geo, half) {
 // the shape params — shared/shape-appearance.js owns the actual attribute /
 // transform strings so Genesis Create and this tool can't drift apart.
 const DEFAULT_APPEARANCE = { fillMode: 'fill', strokeW: 4, rounded: true, w: 1, l: 1, scale: 1, mx: 0, my: 0 };
+// Pattern fill (Style = Pattern, or a Pattern layer): its own keys, so entries
+// saved before it existed read the defaults.
+const PATTERN_DEFAULTS = { patType: 'lines', patSpacing: 8, patWeight: 2, patAngle: 45 };
+const PATTERN_KEYS = Object.keys(PATTERN_DEFAULTS);
+const patternOf = lk => { const o = {}; PATTERN_KEYS.forEach(k => { o[k] = lk && lk[k] != null ? lk[k] : PATTERN_DEFAULTS[k]; }); return o; };
+function readPatternControls() {
+  return { patType: ctrl('sel-element-pattern').value, patSpacing: val('rg-element-patspacing'), patWeight: val('rg-element-patweight'), patAngle: val('rg-element-patangle') };
+}
+function showPatternControls(lk) {
+  const p = patternOf(lk);
+  ctrl('sel-element-pattern').value = p.patType;
+  [['patspacing', p.patSpacing], ['patweight', p.patWeight], ['patangle', p.patAngle]].forEach(([k, v]) => { ctrl('rg-element-' + k).value = v; ctrl('v-element-' + k).textContent = v; });
+}
+// Which look blocks show: Stroke W for Stroke; the pattern block for Style = Pattern
+// or a Pattern layer (whose Style means nothing — it has no shape of its own).
+function syncLookBlocks() {
+  const L = state.layers, patRole = !!(L && (L.items[L.active].role || 'fill') === 'pattern');
+  const fm = ctrl('sel-element-fillmode').value;
+  ctrl('element-style-row').style.display = patRole ? 'none' : '';
+  ctrl('element-stroke-block').style.display = !patRole && fm === 'stroke' ? '' : 'none';
+  ctrl('element-pattern-block').style.display = patRole || fm === 'pattern' ? '' : 'none';
+  ctrl('element-patangle-row').style.display = ctrl('sel-element-pattern').value === 'concentric' ? 'none' : '';
+}
+// Ground (Component): a pattern on the Paper, behind the Elements — `null` = plain
+// Paper. Lives in the appearance object so a saved Component keeps its own.
+// scope 'frame' = one pattern across the frame; 'cell' = one per cell, in the
+// cell's own frame, so the rule turns/flips it with the Element.
+function readGroundControls() {
+  const type = ctrl('sel-ground-pattern').value;
+  if (type === 'none') return null;
+  const inkV = ctrl('sel-ground-ink').value;
+  return { patType: type, patSpacing: val('rg-ground-patspacing'), patWeight: val('rg-ground-patweight'), patAngle: val('rg-ground-patangle'),
+    ink: inkV === 'cell' ? 'cell' : +inkV, scope: ctrl('seg-ground-scope').querySelector('.seg-btn.active').dataset.scope };
+}
+function syncGroundInkOptions(selected) {
+  const sel = ctrl('sel-ground-ink'), cur = selected != null ? String(selected) : sel.value;
+  sel.innerHTML = state.colors.map((c, i) => `<option value="${i}">Ink ${i + 1}</option>`).join('') + '<option value="cell">Cell colour (per cell)</option>';
+  sel.value = [...sel.options].some(o => o.value === cur) ? cur : String(Math.max(0, state.colors.length - 1));
+}
+function showGroundControls(g) {
+  ctrl('sel-ground-pattern').value = g ? g.patType : 'none';
+  if (g) {
+    [['patspacing', g.patSpacing], ['patweight', g.patWeight], ['patangle', g.patAngle]].forEach(([k, v]) => { ctrl('rg-ground-' + k).value = v; ctrl('v-ground-' + k).textContent = v; });
+    ctrl('seg-ground-scope').querySelectorAll('.seg-btn').forEach(b => { const on = b.dataset.scope === (g.scope || 'frame'); b.classList.toggle('active', on); b.setAttribute('aria-pressed', on); });
+  }
+  syncGroundInkOptions(g ? g.ink : null);
+  syncGroundBlock();
+}
+function syncGroundBlock() {
+  const type = ctrl('sel-ground-pattern').value;
+  ctrl('ground-block').style.display = type === 'none' ? 'none' : '';
+  ctrl('ground-patangle-row').style.display = type === 'concentric' ? 'none' : '';
+}
+const groundInk = (g, cellColor) => {
+  if (g.ink === 'cell') return cellColor;
+  const pal = inkPaletteOverride || state.colors;
+  return pal[((g.ink % pal.length) + pal.length) % pal.length];
+};
+// One cell's frame (no per-cell Scale — the ground fills the cell, not the shape).
+const groundCellMatrix = (it, halfX, halfY) => {
+  const fit = it.cellSize / 100;
+  return { x: halfX + it.cx, y: halfY + it.cy, r: it.rotation, sx: (it.flipH ? -1 : 1) * fit, sy: (it.flipV ? -1 : 1) * fit };
+};
+function groundSVG(items, w, h) {
+  const g = getElementAppearance().ground;
+  if (!g || !items.length) return '';
+  const id = 'gnd' + nextDrawId();
+  if (g.scope === 'cell') {
+    const pg = patternGeometry(g, { cx: 50, cy: 50, r: 50 * Math.SQRT2 });
+    // one clip rect in each cell's own user space (userSpaceOnUse resolves per referencing <g>)
+    return `<clipPath id="${id}"><rect width="100" height="100"/></clipPath>` + items.map(it => {
+      const m = groundCellMatrix(it, w / 2, h / 2);
+      return `<g transform="translate(${m.x.toFixed(2)},${m.y.toFixed(2)}) rotate(${m.r}) scale(${m.sx.toFixed(4)},${m.sy.toFixed(4)}) translate(-50,-50)"><g clip-path="url(#${id})"><path d="${pg.d}" ${patternAttrs(pg, groundInk(g, it.color))}/></g></g>`;
+    }).join('');
+  }
+  const k = items[0].cellSize / 100, pg = patternGeometry(g, { cx: w / 2 / k, cy: h / 2 / k, r: Math.hypot(w, h) / 2 / k });
+  return `<clipPath id="${id}"><rect width="${w}" height="${h}"/></clipPath><g clip-path="url(#${id})"><g transform="scale(${k.toFixed(4)})"><path d="${pg.d}" ${patternAttrs(pg, groundInk(g, items[0].color))}/></g></g>`;
+}
+function paintGroundCanvas(ctx, items, w, h) {
+  const g = getElementAppearance().ground;
+  if (!g || !items.length) return;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.clip();
+  if (g.scope === 'cell') {
+    const pg = patternGeometry(g, { cx: 50, cy: 50, r: 50 * Math.SQRT2 });
+    for (const it of items) {
+      const m = groundCellMatrix(it, w / 2, h / 2);
+      ctx.save();
+      ctx.translate(m.x, m.y); ctx.rotate(m.r * Math.PI / 180); ctx.scale(m.sx, m.sy); ctx.translate(-50, -50);
+      ctx.beginPath(); ctx.rect(0, 0, 100, 100); ctx.clip();
+      paintPatternCanvas(ctx, pg, groundInk(g, it.color));
+      ctx.restore();
+    }
+  } else {
+    const k = items[0].cellSize / 100;
+    ctx.scale(k, k);
+    paintPatternCanvas(ctx, patternGeometry(g, { cx: w / 2 / k, cy: h / 2 / k, r: Math.hypot(w, h) / 2 / k }), groundInk(g, items[0].color));
+  }
+  ctx.restore();
+}
 // While set, getElementAppearance() returns it instead of the live controls —
 // how a saved Component/Symbol (and the nested Components inside a Symbol)
 // renders with the appearance it was SAVED with, not whatever the Element
@@ -3779,7 +3947,9 @@ function applyAppearanceToUI(app) {
   ctrl('rg-element-w').value = a.w; ctrl('v-element-w').textContent = a.w;
   ctrl('rg-element-l').value = a.l; ctrl('v-element-l').textContent = a.l;
   ['scale', 'mx', 'my'].forEach(k => { ctrl('rg-element-' + k).value = a[k]; ctrl('v-element-' + k).textContent = a[k]; });
-  ctrl('element-stroke-block').style.display = a.fillMode === 'stroke' ? '' : 'none';
+  showPatternControls(a);
+  showGroundControls(a.ground);
+  syncLookBlocks();
   // A loaded stack whose layers predate per-layer looks: they take this appearance
   // as their own, so the live Element keeps the Width/Length it was saved with.
   if (state.layers) {
@@ -3800,6 +3970,8 @@ function getElementAppearance() {
     scale: val('rg-element-scale'),
     mx: val('rg-element-mx'),
     my: val('rg-element-my'),
+    ...readPatternControls(),
+    ground: readGroundControls(),
   };
 }
 
@@ -3808,7 +3980,7 @@ function getElementAppearance() {
 // the cell centre) + an ink + a role. Painted bottom→top: 'fill' paints,
 // 'container' clips everything below it to its outline, 'mask' knocks its
 // outline out of everything below it. Layers above are never affected.
-const LAYER_ROLES = { fill: 'Filled', mask: 'Mask', container: 'Subtraction mask' };   // same words as the Element's Content select
+const LAYER_ROLES = { fill: 'Filled', mask: 'Mask', container: 'Subtraction mask', pattern: 'Pattern' };   // same words as the Element's Content select
 const layerPlace = l => ({ mx: 0, my: 0, scale: 1, rotate: 0, ...(l.place || {}) });
 // Style, Stroke W, Rounded caps, Width and Length are per layer (`l.look`) —
 // a Segment layer strokes and a stretched layer stretches without touching the
@@ -3816,9 +3988,9 @@ const layerPlace = l => ({ mx: 0, my: 0, scale: 1, rotate: 0, ...(l.place || {})
 // own place). A layer saved before this has no `look`: it follows the Element's
 // Style, and its Width/Length ride on the Element-wide stretch as they did then.
 // An Export "Variants" row (variantAppearance) still overrides Style/Stroke W.
-const LOOK_KEYS = ['fillMode', 'strokeW', 'rounded', 'w', 'l'];
+const LOOK_KEYS = ['fillMode', 'strokeW', 'rounded', 'w', 'l', ...PATTERN_KEYS];
 function layerLook(l, a) {
-  return { fillMode: a.fillMode, strokeW: a.strokeW, rounded: a.rounded, w: 1, l: 1, ...(l.look || {}), ...(variantAppearance || {}) };
+  return { fillMode: a.fillMode, strokeW: a.strokeW, rounded: a.rounded, w: 1, l: 1, ...patternOf(a), ...(l.look || {}), ...(variantAppearance || {}) };
 }
 const lookStretch = lk => (lk.w !== 1 || lk.l !== 1 ? ` scale(${lk.w},${lk.l})` : '');
 // place → norm-fit, as ONE transform string (a <clipPath>/<mask> child must be a bare <path>, no <g>).
@@ -3881,6 +4053,61 @@ function stackUid(geo) {
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
   return 'stk' + (h >>> 0).toString(36);
 }
+// ── Pattern fill (test) ──────────────────────────────────────────────
+// Lines / Crosshatch / Dots / Concentric as plain vector geometry in the
+// Element's own 0..100 box — clipped to a shape (Style = Pattern) or to the
+// layers below (a Pattern layer). Real paths, no <pattern>/bitmap, so an SVG
+// export stays one ink per path for print. Anchored at the box centre so the
+// patterns of stacked layers line up; `ext` = the circle {cx,cy,r} to cover.
+// Returns {d, mode: 'stroke'|'fill', w}.
+const _patCache = new Map();
+function patternGeometry(pat, ext) {
+  const p = patternOf(pat), s = Math.max(1, +p.patSpacing), w = Math.max(0.1, +p.patWeight);
+  const r = ext.r + s, cx = ext.cx, cy = ext.cy, f = v => v.toFixed(2);
+  const key = [p.patType, s, w, p.patAngle, f(cx), f(cy), f(r)].join('|');
+  if (_patCache.has(key)) return _patCache.get(key);
+  let d = '', mode = 'stroke';
+  const lines = deg => {
+    const a = deg * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux;
+    const dx = cx - 50, dy = cy - 50, cn = dx * nx + dy * ny, cu = dx * ux + dy * uy;
+    for (let k = Math.floor((cn - r) / s); k <= Math.ceil((cn + r) / s); k++) {
+      const o = k * s, bx = 50 + nx * o, by = 50 + ny * o;
+      d += `M${f(bx + ux * (cu - r))} ${f(by + uy * (cu - r))}L${f(bx + ux * (cu + r))} ${f(by + uy * (cu + r))}`;
+    }
+  };
+  if (p.patType === 'crosshatch') { lines(p.patAngle); lines(p.patAngle + 90); }
+  else if (p.patType === 'dots') {
+    mode = 'fill';
+    const a = p.patAngle * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a), rd = w / 2;
+    const dx = cx - 50, dy = cy - 50, lx = dx * ca + dy * sa, ly = -dx * sa + dy * ca;   // ext centre in grid space
+    for (let j = Math.floor((ly - r) / s); j <= Math.ceil((ly + r) / s); j++) {
+      for (let i = Math.floor((lx - r) / s); i <= Math.ceil((lx + r) / s); i++) {
+        const gx = i * s, gy = j * s;
+        if ((gx - lx) ** 2 + (gy - ly) ** 2 > r * r) continue;
+        const x = 50 + gx * ca - gy * sa, y = 50 + gx * sa + gy * ca;
+        d += `M${f(x - rd)} ${f(y)}a${f(rd)} ${f(rd)} 0 1 0 ${f(2 * rd)} 0a${f(rd)} ${f(rd)} 0 1 0 ${f(-2 * rd)} 0`;
+      }
+    }
+  } else if (p.patType === 'concentric') {
+    for (let k = 1; k * s <= r * 2; k++) { const R = k * s; d += `M${f(cx - R)} ${f(cy)}a${f(R)} ${f(R)} 0 1 0 ${f(2 * R)} 0a${f(R)} ${f(R)} 0 1 0 ${f(-2 * R)} 0`; }
+  } else lines(p.patAngle);
+  const out = { d, mode, w };
+  if (_patCache.size > 200) _patCache.clear();
+  _patCache.set(key, out);
+  return out;
+}
+const patternAttrs = (pg, color) => pg.mode === 'fill' ? `fill="${color}"` : `fill="none" stroke="${color}" stroke-width="${pg.w}" stroke-linecap="butt"`;
+function paintPatternCanvas(ctx, pg, color) {
+  const path = new Path2D(pg.d);
+  if (pg.mode === 'fill') { ctx.fillStyle = color; ctx.fill(path); }
+  else { ctx.strokeStyle = color; ctx.lineWidth = pg.w; ctx.lineCap = 'butt'; ctx.stroke(path); }
+}
+// The circle a placed shape can reach: its 0..100 box, moved/scaled/stretched, any rotation.
+const placedExt = (mx, my, scale, w, l) => ({ cx: 50 + (mx || 0), cy: 50 + (my || 0), r: 50 * Math.SQRT2 * (scale == null ? 1 : scale) * Math.max(w || 1, l || 1) });
+// A Pattern layer covers the whole Element box (in its own placed frame).
+const patternLayerFrame = pl => `translate(${(50 + pl.mx).toFixed(3)},${(50 + pl.my).toFixed(3)}) rotate(${pl.rotate}) scale(${pl.scale}) translate(-50,-50)`;
+const patternLayerExt = pl => ({ cx: 50, cy: 50, r: 100 / Math.max(0.1, pl.scale) });
+
 let _stackDrawSeq = 0;
 // The same per-drawing suffix for the Component Role and Symbol "Clip to cell" ids —
 // both are drawn many times in one page (gallery, library, suggestions, hidden steps).
@@ -3894,21 +4121,40 @@ function stackPathMarkup(geo, color, forceFill) {
   // mask doesn't apply, so every Component thumbnail lost its Subtraction
   // mask / Mask. The `-<n>` suffix makes each drawing reference its own defs.
   const uid = stackUid(geo) + '-' + (++_stackDrawSeq).toString(36);
-  let out = '';
-  geo.layers.forEach((l, i) => {
-    const g = l.geo, t = layerTransformAttr(l, g), role = l.role || 'fill';
-    if (!g.d) return;
-    if (role === 'container') {
-      out = `<clipPath id="${uid}-${i}"><path d="${g.d}" transform="${t}"${g.fillRule ? ` clip-rule="${g.fillRule}"` : ''}/></clipPath><g clip-path="url(#${uid}-${i})">${out}</g>`;
-    } else if (role === 'mask') {
-      out = `<mask id="${uid}-${i}" maskUnits="userSpaceOnUse" x="-100" y="-100" width="300" height="300"><rect x="-100" y="-100" width="300" height="300" fill="white"/>`
-        + `<path d="${g.d}" transform="${t}" fill="black"${g.fillRule ? ` fill-rule="${g.fillRule}"` : ''}/></mask><g mask="url(#${uid}-${i})">${out}</g>`;
-    } else {
-      const lk = layerLook(l, a), fm = forceFill ? 'fill' : lk.fillMode;
-      const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: fm, color: forceFill ? color : layerInkColor(l, color), strokeW: lk.strokeW, rounded: lk.rounded });
-      out += `<g transform="${t}"><path d="${g.d}" ${attrs}${g.fillRule && fm === 'fill' ? ` fill-rule="${g.fillRule}"` : ''}/></g>`;
-    }
-  });
+  // `upto` layers from the bottom; `white` = the silhouette pass a Pattern layer's
+  // mask is made of (every ink white, so it is a plain luminance mask — no mask-type).
+  const body = (upto, white, pre) => {
+    let out = '';
+    geo.layers.slice(0, upto).forEach((l, i) => {
+      const g = l.geo, t = layerTransformAttr(l, g), role = l.role || 'fill', id = `${uid}-${pre}${i}`;
+      if (role === 'pattern') {
+        if (forceFill) return;   // a boundary silhouette is the shapes below, unchanged
+        const pl = layerPlace(l), pg = patternGeometry(layerLook(l, a), patternLayerExt(pl));
+        if (!pg.d) return;
+        out = `<mask id="${id}" maskUnits="userSpaceOnUse" x="-100" y="-100" width="300" height="300">${body(i, true, pre + i + 'w')}</mask>`
+          + `${out}<g mask="url(#${id})"><g transform="${patternLayerFrame(pl)}"><path d="${pg.d}" ${patternAttrs(pg, white ? '#fff' : layerInkColor(l, color))}/></g></g>`;
+        return;
+      }
+      if (!g.d) return;
+      if (role === 'container') {
+        out = `<clipPath id="${id}"><path d="${g.d}" transform="${t}"${g.fillRule ? ` clip-rule="${g.fillRule}"` : ''}/></clipPath><g clip-path="url(#${id})">${out}</g>`;
+      } else if (role === 'mask') {
+        out = `<mask id="${id}" maskUnits="userSpaceOnUse" x="-100" y="-100" width="300" height="300"><rect x="-100" y="-100" width="300" height="300" fill="white"/>`
+          + `<path d="${g.d}" transform="${t}" fill="black"${g.fillRule ? ` fill-rule="${g.fillRule}"` : ''}/></mask><g mask="url(#${id})">${out}</g>`;
+      } else {
+        const lk = layerLook(l, a), fm = forceFill ? 'fill' : lk.fillMode, ink = white ? '#fff' : forceFill ? color : layerInkColor(l, color);
+        if (fm === 'pattern') {
+          const pl = layerPlace(l), pg = patternGeometry(lk, placedExt(pl.mx, pl.my, pl.scale, lk.w, lk.l));
+          out += `<clipPath id="${id}p"><path d="${g.d}" transform="${t}"${g.fillRule ? ` clip-rule="${g.fillRule}"` : ''}/></clipPath><g clip-path="url(#${id}p)"><path d="${pg.d}" ${patternAttrs(pg, ink)}/></g>`;
+          return;
+        }
+        const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: fm, color: ink, strokeW: lk.strokeW, rounded: lk.rounded });
+        out += `<g transform="${t}"><path d="${g.d}" ${attrs}${g.fillRule && fm === 'fill' ? ` fill-rule="${g.fillRule}"` : ''}/></g>`;
+      }
+    });
+    return out;
+  };
+  const out = body(geo.layers.length, false, '');
   if (appearanceIsIdentity(a)) return out;
   return `<g transform="${Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a))}">${out}</g>`;
 }
@@ -3929,13 +4175,28 @@ function paintStackCanvas(ctx, geo, color) {
   }
   for (const l of geo.layers) {
     const g = l.geo, role = l.role || 'fill', pl = layerPlace(l);
+    const lk = layerLook(l, a);
+    if (role === 'pattern') {
+      // kept only where the layers below already painted (the SVG's silhouette mask)
+      const pg = patternGeometry(lk, patternLayerExt(pl));
+      tc.save();
+      tc.globalCompositeOperation = 'source-atop';
+      tc.translate(50 + pl.mx, 50 + pl.my); tc.rotate(pl.rotate * Math.PI / 180); tc.scale(pl.scale, pl.scale); tc.translate(-50, -50);
+      paintPatternCanvas(tc, pg, layerInkColor(l, color));
+      tc.restore();
+      continue;
+    }
     if (!g.d) continue;
     tc.save();
-    const lk = layerLook(l, a);
+    const box = tc.getTransform();   // the Element box — where a pattern fill is laid out
     tc.translate(50 + pl.mx, 50 + pl.my); tc.rotate(pl.rotate * Math.PI / 180); tc.scale(pl.scale, pl.scale); tc.scale(lk.w, lk.l); tc.translate(-50, -50);
     tc.translate(g.normTx * g.normScale, g.normTy * g.normScale); tc.scale(g.normScale, g.normScale);
     const path = new Path2D(g.d);
-    if (role === 'fill') {
+    if (role === 'fill' && lk.fillMode === 'pattern') {
+      tc.clip(path, g.fillRule || 'nonzero');
+      tc.setTransform(box);
+      paintPatternCanvas(tc, patternGeometry(lk, placedExt(pl.mx, pl.my, pl.scale, lk.w, lk.l)), layerInkColor(l, color));
+    } else if (role === 'fill') {
       const op = Organica.shapeAppearance.applyCanvasStyle(tc, { fillMode: lk.fillMode, color: layerInkColor(l, color), strokeW: lk.strokeW, rounded: lk.rounded });
       paintPath(tc, op, path, g);
     } else {
@@ -3952,6 +4213,18 @@ function paintStackCanvas(ctx, geo, color) {
 function paintGeoCanvas(ctx, geo, path, color) {
   if (geo.layers) { paintStackCanvas(ctx, geo, color); return; }
   const a = getElementAppearance();
+  if (a.fillMode === 'pattern') {
+    // ctx = box · stretch · norm (the callers' order); clip there, then lay the
+    // pattern out in the box itself so Width/Length don't distort its spacing.
+    ctx.save();
+    ctx.clip(path, (geo && geo.fillRule) || 'nonzero');
+    let box = ctx.getTransform().multiply(new DOMMatrix().translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale).scale(geo.normScale).inverse());
+    if (!appearanceIsIdentity(a)) { const s = a.scale == null ? 1 : a.scale; box = box.multiply(new DOMMatrix().translate(50 + (a.mx || 0), 50 + (a.my || 0)).scale(a.w * s, a.l * s).translate(-50, -50).inverse()); }
+    ctx.setTransform(box);
+    paintPatternCanvas(ctx, patternGeometry(a, placedExt(a.mx, a.my, a.scale, a.w, a.l)), color);
+    ctx.restore();
+    return;
+  }
   paintPath(ctx, Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: a.fillMode, color, strokeW: a.strokeW, rounded: a.rounded }), path, geo);
 }
 
@@ -3962,6 +4235,13 @@ function paintGeoCanvas(ctx, geo, path, color) {
 function elementPathMarkup(geo, color, forceFill) {
   if (geo.layers) return stackPathMarkup(geo, color, forceFill);
   const a = getElementAppearance();
+  if (a.fillMode === 'pattern' && !forceFill) {
+    // clip = the shape through stretch + norm; the pattern itself sits in the plain box
+    const normT = `translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})`;
+    const t = appearanceIsIdentity(a) ? normT : `${Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a))} ${normT}`;
+    const id = 'pat' + nextDrawId(), pg = patternGeometry(a, placedExt(a.mx, a.my, a.scale, a.w, a.l));
+    return `<clipPath id="${id}"><path d="${geo.d}" transform="${t}"${geo.fillRule ? ` clip-rule="${geo.fillRule}"` : ''}/></clipPath><g clip-path="url(#${id})"><path d="${pg.d}" ${patternAttrs(pg, color)}/></g>`;
+  }
   const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: forceFill ? 'fill' : a.fillMode, color, strokeW: a.strokeW, rounded: a.rounded });
   const norm = `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
     + `<path d="${geo.d}" ${attrs}${geo.fillRule && !forceFill ? ` fill-rule="${geo.fillRule}"` : ''}/></g>`;
@@ -4038,6 +4318,7 @@ function drawComponentCanvas(ctx, items, seed, size) {
 
   if (!under) {
     fillPaper(ctx, state.paperColor, 0, 0, dims.w, dims.h);
+    paintGroundCanvas(ctx, items, dims.w, dims.h);
     drawItemsPlain(ctx, items, geo, path, dims.w, dims.h);
     return;
   }
@@ -4138,6 +4419,7 @@ function buildComponentSVGBody(items, seed, size) {
         + `<g mask="url(#${uid})"><rect width="${size2}" height="${size2}" fill="${state.paperColor}"/>${underWrapped}</g>`;
     }
   } else {
+    body += groundSVG(items, dims.w, dims.h);   // on the Paper, under every Element
     for (const it of items) {
       const fit = it.cellSize / 100;
       const sx = (it.flipH ? -1 : 1) * it.scale * fit;
@@ -5563,7 +5845,7 @@ function syncActiveLayer() {
   l.look = readLookControls();
 }
 function readLookControls() {
-  return { fillMode: ctrl('sel-element-fillmode').value, strokeW: val('rg-element-strokew'), rounded: ctrl('ck-element-rounded').checked, w: val('rg-element-w'), l: val('rg-element-l') };
+  return { fillMode: ctrl('sel-element-fillmode').value, strokeW: val('rg-element-strokew'), rounded: ctrl('ck-element-rounded').checked, w: val('rg-element-w'), l: val('rg-element-l'), ...readPatternControls() };
 }
 // Style / Stroke W / Rounded / Width / Length show the active layer's own look.
 function showLayerStyle(l) {
@@ -5574,7 +5856,8 @@ function showLayerStyle(l) {
   ctrl('ck-element-rounded').checked = lk.rounded;
   ctrl('rg-element-w').value = lk.w; ctrl('v-element-w').textContent = lk.w;
   ctrl('rg-element-l').value = lk.l; ctrl('v-element-l').textContent = lk.l;
-  ctrl('element-stroke-block').style.display = lk.fillMode === 'stroke' ? '' : 'none';
+  showPatternControls(lk);
+  syncLookBlocks();
 }
 const newLayerId = () => 'l' + Math.random().toString(36).slice(2, 7);
 function layersChanged() { renderLayersUI(); renderGallery(); renderSeedPreview(); }
@@ -5642,8 +5925,9 @@ const LAYER_ICONS = {
   fill: Organica.icons.get('role-fill', { size: 'sm' }),
   container: Organica.icons.get('role-container', { size: 'sm' }),
   mask: Organica.icons.get('role-mask', { size: 'sm' }),
+  pattern: Organica.icons.get('role-pattern', { size: 'sm' }),
 };
-const LAYER_ROLE_ORDER = ['fill', 'container', 'mask'];
+const LAYER_ROLE_ORDER = ['fill', 'container', 'mask', 'pattern'];
 const layerName = l => (SEED_ICONS[l.seed.type] || {}).name || (SEED_TYPES[l.seed.type] || {}).label || l.seed.type;
 function renderLayersUI() {
   const list = ctrl('layers-list'), L = state.layers, place = ctrl('layer-place-block');
@@ -5660,15 +5944,15 @@ function renderLayersUI() {
   if (!L) { list.innerHTML = ''; return; }
   // Top layer first, like every layer panel.
   list.innerHTML = L.items.map((l, i) => i).reverse().map(i => {
-    const l = L.items[i], on = i === L.active, role = l.role || 'fill', isFill = role === 'fill';
+    const l = L.items[i], on = i === L.active, role = l.role || 'fill', isFill = role === 'fill' || role === 'pattern';   // both paint an ink
     const tint = isFill ? layerInkColor(l, colorAt(0)) : 'var(--mid)', cell = l.ink == null || l.ink === 'cell';
     const icon = (SEED_ICONS[l.seed.type] || SEED_ICONS.custom).icon;
     return `<div class="org-layer-card org-layer-card--flush is-draggable ${l.hidden ? 'is-off' : 'is-on'}${on ? ' active' : ''}" data-layer="${i}" role="listitem" tabindex="-1">
-      <div class="org-layer-card__head" draggable="true" title="Drag to reorder · ⌥↑ / ⌥↓">
+      <div class="org-layer-card__head" title="Drag to reorder · ⌥↑ / ⌥↓">
       <span class="org-layer-card__grip" aria-hidden="true">${LAYER_ICONS.grip}</span>
       <button type="button" class="fvs-layer__main" data-layer-act="select" aria-pressed="${on}" aria-label="Edit layer ${i + 1}: ${layerName(l)}"><span class="fvs-layer__icon" style="color:${tint}">${icon}</span><span class="org-layer-card__title">${layerName(l)}</span></button>
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-layer-act="eye" aria-pressed="${!l.hidden}" aria-label="${l.hidden ? 'Show' : 'Hide'} layer" title="${l.hidden ? 'Hidden — click to show' : 'Hide this layer'}">${l.hidden ? LAYER_ICONS.eyeOff : LAYER_ICONS.eye}</button>
-      <button type="button" class="org-btn org-btn--sm org-btn--icon" data-layer-act="role" aria-label="Role: ${LAYER_ROLES[role]} — click to change" title="${LAYER_ROLES[role]} — ${role === 'fill' ? 'paints its own ink' : role === 'mask' ? 'cuts its shape out of the layers below' : 'keeps the layers below only inside its shape'}. Click: ${LAYER_ROLES[LAYER_ROLE_ORDER[(LAYER_ROLE_ORDER.indexOf(role) + 1) % 3]]}">${LAYER_ICONS[role]}</button>
+      <button type="button" class="org-btn org-btn--sm org-btn--icon" data-layer-act="role" aria-label="Role: ${LAYER_ROLES[role]} — click to change" title="${LAYER_ROLES[role]} — ${role === 'fill' ? 'paints its own ink' : role === 'mask' ? 'cuts its shape out of the layers below' : role === 'pattern' ? 'paints a pattern over the layers below, only where they are' : 'keeps the layers below only inside its shape'}. Click: ${LAYER_ROLES[LAYER_ROLE_ORDER[(LAYER_ROLE_ORDER.indexOf(role) + 1) % LAYER_ROLE_ORDER.length]]}">${LAYER_ICONS[role]}</button>
       <button type="button" class="fvs-layer__swatch${cell ? ' is-cell' : ''}" data-layer-act="ink" style="--sw:${isFill ? layerInkColor(l, colorAt(0)) : 'var(--border)'}" aria-label="Colour: ${cell ? 'follow cell colour' : 'Ink ' + (l.ink + 1)}" title="${isFill ? (cell ? 'Follows the cell colour' : 'Ink ' + (l.ink + 1)) + ' — click to change' : 'Mask layers have no colour'}"${isFill ? '' : ' disabled'}></button>
       <button type="button" class="org-btn org-btn--sm org-btn--icon fvs-layer__del" data-layer-act="del" aria-label="Delete layer" title="Delete layer">${LAYER_ICONS.trash}</button>
       </div>
@@ -5683,6 +5967,7 @@ function toggleLayerHidden(i) { const l = state.layers.items[i]; if (l.hidden) d
 function cycleLayerRole(i) {
   const l = state.layers.items[i];
   l.role = LAYER_ROLE_ORDER[(LAYER_ROLE_ORDER.indexOf(l.role || 'fill') + 1) % LAYER_ROLE_ORDER.length];
+  syncLookBlocks();
   layersChanged();
 }
 // Move a layer from stack index `from` to `to` (0 = bottom); the active layer stays the same object.
@@ -5750,38 +6035,63 @@ ctrl('layers-list').addEventListener('keydown', e => {
   moveLayerTo(i, to);
   const moved = ctrl('layers-list').querySelector(`.org-layer-card[data-layer="${Math.max(0, Math.min(state.layers.items.length - 1, to))}"] .fvs-layer__main`); if (moved) moved.focus();
 });
-// Drag and drop: drop on a row's upper half = above it, lower half = below it.
+// Drag to reorder — a pointer drag, not native HTML5 drag and drop: the native one
+// would not start from the layer's name (a <button>) in Safari/Firefox, and
+// behaved differently per browser. Press on a row's head, move 4px, drop on another
+// row: its upper half = above it, lower half = below it.
 let layerDragFrom = null;
-ctrl('layers-list').addEventListener('dragstart', e => {
-  const row = e.target.closest && e.target.closest('.org-layer-card');
-  if (!row) return;
-  layerDragFrom = +row.dataset.layer;
-  row.classList.add('is-dragging');
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('text/plain', String(layerDragFrom));
-});
 const clearLayerDropMarks = () => ctrl('layers-list').querySelectorAll('.drop-before, .drop-after, .is-dragging').forEach(r => r.classList.remove('drop-before', 'drop-after', 'is-dragging'));
-ctrl('layers-list').addEventListener('dragover', e => {
-  const row = e.target.closest && e.target.closest('.org-layer-card');
-  if (layerDragFrom == null || !row) return;
-  e.preventDefault();
+// Where a drop on `row` sends the dragged layer: the half of the row's head picks
+// above/below; a drop that would leave it where it is (the lower half of the row
+// just above it — with two layers, half of every row) takes the row's place instead.
+function layerDropTarget(e, row) {
+  const t = +row.dataset.layer, from = layerDragFrom;
   const r = (row.querySelector('.org-layer-card__head') || row).getBoundingClientRect(), above = e.clientY < r.top + r.height / 2;
-  ctrl('layers-list').querySelectorAll('.drop-before, .drop-after').forEach(x => x.classList.remove('drop-before', 'drop-after'));
-  row.classList.add(above ? 'drop-before' : 'drop-after');
-});
-ctrl('layers-list').addEventListener('drop', e => {
-  const row = e.target.closest && e.target.closest('.org-layer-card');
-  if (layerDragFrom == null || !row) return;
-  e.preventDefault();
-  const t = +row.dataset.layer, r = (row.querySelector('.org-layer-card__head') || row).getBoundingClientRect(), above = e.clientY < r.top + r.height / 2;
   // rows are listed top first: "above" a row = a higher stack index
   let to = above ? t + 1 : t;
-  if (layerDragFrom < to) to--;
-  const from = layerDragFrom;
-  layerDragFrom = null; clearLayerDropMarks();
-  moveLayerTo(from, Math.max(0, Math.min(state.layers.items.length - 1, to)));
+  if (from < to) to--;
+  if (to === from && t !== from) to = t;
+  to = Math.max(0, Math.min(state.layers.items.length - 1, to));
+  return { to, before: to > from || (to === from && above) };
+}
+let layerPress = null;   // {from, x, y, id, moved}
+const layerRowAt = e => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.closest('#layers-list .org-layer-card'); };
+ctrl('layers-list').addEventListener('pointerdown', e => {
+  const head = e.button === 0 && e.target.closest('.org-layer-card__head');
+  // the eye / role / ink / delete buttons keep their own click
+  if (!head || !state.layers || e.target.closest('[data-layer-act]:not([data-layer-act="select"])')) return;
+  layerPress = { from: +head.parentElement.dataset.layer, x: e.clientX, y: e.clientY, id: e.pointerId, moved: false };
 });
-ctrl('layers-list').addEventListener('dragend', () => { layerDragFrom = null; clearLayerDropMarks(); });
+window.addEventListener('pointermove', e => {
+  if (!layerPress || e.pointerId !== layerPress.id) return;
+  if (!layerPress.moved) {
+    if (Math.hypot(e.clientX - layerPress.x, e.clientY - layerPress.y) < 4) return;
+    layerPress.moved = true;
+    layerDragFrom = layerPress.from;
+    const row = ctrl('layers-list').querySelector(`.org-layer-card[data-layer="${layerDragFrom}"]`);
+    if (row) row.classList.add('is-dragging');
+  }
+  e.preventDefault();
+  const sel = window.getSelection && window.getSelection(); if (sel && sel.rangeCount) sel.removeAllRanges();
+  ctrl('layers-list').querySelectorAll('.drop-before, .drop-after').forEach(x => x.classList.remove('drop-before', 'drop-after'));
+  const row = layerRowAt(e);
+  if (row && +row.dataset.layer !== layerDragFrom) row.classList.add(layerDropTarget(e, row).before ? 'drop-before' : 'drop-after');
+});
+window.addEventListener('pointerup', e => {
+  if (!layerPress || e.pointerId !== layerPress.id) return;
+  const press = layerPress; layerPress = null;
+  if (!press.moved) return;   // a plain click — selects the layer as before
+  const row = layerRowAt(e), from = layerDragFrom;
+  const to = row && +row.dataset.layer !== from ? layerDropTarget(e, row).to : from;
+  layerDragFrom = null; clearLayerDropMarks();
+  // the click that follows this pointerup is the end of a drag, not a "select"
+  // (it fires in the same task, so the swallow is gone by the next tick either way)
+  const swallow = ev => { ev.stopPropagation(); ev.preventDefault(); };
+  window.addEventListener('click', swallow, { capture: true, once: true });
+  setTimeout(() => window.removeEventListener('click', swallow, true), 0);
+  moveLayerTo(from, to);
+});
+window.addEventListener('pointercancel', () => { layerPress = null; layerDragFrom = null; clearLayerDropMarks(); });
 ['mx', 'my', 'scale', 'rotate'].forEach(k => ctrl('rg-layer-' + k).addEventListener('input', e => {
   if (!state.layers) return;
   const l = state.layers.items[state.layers.active];
@@ -7120,7 +7430,9 @@ function symbolSVGFromItems(items) {
       }
       const tf = `translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(${(-nhx).toFixed(2)},${(-nhy).toFixed(2)})`;
       cellMarkup = `<g transform="${tf}">${inner}</g>`;
-      paperMarkup = `<g transform="${tf}"><rect width="${it.nestedW}" height="${it.nestedH}" fill="${it.nestedPaper}"/></g>`;
+      // the nested Component's own Ground pattern sits on its paper, under all ink
+      const ground = withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => groundSVG(it.nestedItems, it.nestedW, it.nestedH)));
+      paperMarkup = `<g transform="${tf}"><rect width="${it.nestedW}" height="${it.nestedH}" fill="${it.nestedPaper}"/>${ground}</g>`;
     }
     // An invisible hit-shape covering the cell's FULL boundary (not just
     // whatever the content happens to draw) — without this, clicking the
@@ -7208,6 +7520,7 @@ function drawSymbolCanvas(ctx) {
     enter(it);
     nestedFrame(it);
     fillPaper(ctx, it.nestedPaper, 0, 0, it.nestedW, it.nestedH);
+    withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paintGroundCanvas(ctx, it.nestedItems, it.nestedW, it.nestedH)));
     ctx.restore();
   }
   // pass 2 — ink
@@ -9352,7 +9665,7 @@ ctrl('btn-browse-creator').addEventListener('click', () => { if (creatorPopover.
 // re-renders all of them (the inactive tiers' DOM is just hidden, not gone).
 function onAppearanceChange() {
   if (state.layers) state.layers.items[state.layers.active].look = readLookControls();
-  ctrl('element-stroke-block').style.display = ctrl('sel-element-fillmode').value === 'stroke' ? '' : 'none';
+  syncLookBlocks();
   renderSeedPreview();
   renderGallery();
   renderSymbol();
@@ -9491,7 +9804,17 @@ document.addEventListener('keydown', e => {
 let fhResizeT = 0;
 window.addEventListener('resize', () => { clearTimeout(fhResizeT); fhResizeT = setTimeout(syncFreehandEditor, 120); });
 ctrl('ck-element-rounded').addEventListener('change', onAppearanceChange);
-['strokew', 'w', 'l', 'scale', 'mx', 'my'].forEach(k => {
+ctrl('sel-element-pattern').addEventListener('change', onAppearanceChange);
+ctrl('sel-ground-pattern').addEventListener('change', () => { syncGroundBlock(); onAppearanceChange(); });
+ctrl('sel-ground-ink').addEventListener('change', onAppearanceChange);
+['patspacing', 'patweight', 'patangle'].forEach(k => ctrl('rg-ground-' + k).addEventListener('input', e => { ctrl('v-ground-' + k).textContent = e.target.value; onAppearanceChange(); }));
+ctrl('seg-ground-scope').addEventListener('click', e => {
+  const b = e.target.closest('.seg-btn'); if (!b) return;
+  ctrl('seg-ground-scope').querySelectorAll('.seg-btn').forEach(x => { x.classList.toggle('active', x === b); x.setAttribute('aria-pressed', x === b); });
+  onAppearanceChange();
+});
+syncGroundInkOptions();
+['strokew', 'w', 'l', 'scale', 'mx', 'my', 'patspacing', 'patweight', 'patangle'].forEach(k => {
   ctrl('rg-element-' + k).addEventListener('input', e => { ctrl('v-element-' + k).textContent = e.target.value; onAppearanceChange(); });
 });
 
