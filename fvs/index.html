@@ -178,6 +178,27 @@
   .fvs-library-item svg { width: 100%; height: 100%; display: block; }
   .fvs-library-item .rmx-x { position: absolute; top: 0; right: 0; }
   .fvs-library-item.selected { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+  /* Library rail (test): a floating left rail — one toggle pane + a sibling glass panel (never nested: a
+     backdrop-filter child would blur only its parent). Both are .org-floatbar so the glass, rim, dark values
+     and fallback come from shared/floatbar.css; only the geometry is overridden here. */
+  #fvs-rail, #fvs-rail-panel { left: var(--space-5); top: 20vh; bottom: auto; transform: none; height: auto; flex-direction: column; align-items: stretch; z-index: 150; }
+  #fvs-rail { width: 3rem; height: 3rem; padding: 0; align-items: center; justify-content: center; }
+  #fvs-rail-panel { left: calc(var(--space-5) + 3rem + var(--space-3)); max-height: 60vh; padding: var(--space-3); border-radius: var(--radius-lg);
+    opacity: 0; visibility: hidden; pointer-events: none; transform: translateX(calc(-1 * var(--space-4)));
+    transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), visibility 0s linear var(--dur-base); }
+  #fvs-rail-panel[data-open="true"] { opacity: 1; visibility: visible; pointer-events: auto; transform: none; transition-delay: 0s; }
+  #fvs-rail-panel.is-dragging-away { opacity: 0.5; }
+  #fvs-rail .org-floatbar__btn[aria-label]:not([aria-expanded="true"]):is(:hover,:focus-visible)::after { bottom: auto; left: calc(100% + var(--space-3)); top: 50%; transform: translateY(-50%); }
+  .fvs-rail__scroll { overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-3); scrollbar-width: thin; }
+  .fvs-rail__grid { display: grid; grid-template-columns: repeat(2, auto); gap: var(--space-2); justify-content: start; }
+  .fvs-rail__empty { color: var(--mid); font-size: var(--fs-small); margin: 0; }
+  .fvs-rail__hint { color: var(--mid); font-size: var(--fs-micro); margin: 0; }
+  .fvs-rail__grid .fvs-library-item { background: var(--paper); touch-action: none; }
+  .fvs-rail__grid .fvs-library-item.is-dragging { opacity: 0.35; }
+  .fvs-rail-ghost { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; width: 4rem; height: 4rem; background: var(--paper); border: 1px solid var(--border-strong); box-shadow: var(--stage-shadow); }
+  .fvs-rail-ghost svg { width: 100%; height: 100%; display: block; }
+  body.is-rail-dragging { cursor: grabbing; user-select: none; }
+  #symbol-frame g[data-cell-index].is-drop > :first-child { stroke: var(--ink); stroke-width: var(--space-1); vector-effect: non-scaling-stroke; fill: color-mix(in srgb, var(--ink) 8%, transparent); }
   #panel .org-empty { margin-bottom: var(--space-2); }
 
   /* Element ↔ Component ↔ Symbol ↔ Grid tier switch — same
@@ -619,6 +640,17 @@
       </div>
       <input type="file" id="file-recipe" accept=".json,application/json" aria-label="Load Flexible Visual System recipe" class="org-file-input">
     </div>
+  </div>
+</div>
+
+<div class="org-floatbar" id="fvs-rail" role="toolbar" aria-label="Library" aria-orientation="vertical">
+  <button class="org-floatbar__btn" id="btn-rail" aria-label="Library" aria-expanded="false" aria-controls="fvs-rail-panel" data-icon-slot></button>
+</div>
+<div class="org-floatbar" id="fvs-rail-panel" role="region" aria-label="Saved Elements and Components" inert>
+  <div class="fvs-rail__scroll">
+    <div><div class="sub-label">Elements</div><div class="fvs-rail__grid" id="rail-elements"></div></div>
+    <div><div class="sub-label">Components</div><div class="fvs-rail__grid" id="rail-components"></div></div>
+    <p class="fvs-rail__hint" id="rail-hint"></p>
   </div>
 </div>
 
@@ -4166,7 +4198,7 @@ function removeSavedElement(name) {
   elementLibraryChanged();
   onAppearanceChange();   // a Paper tile that pointed at it falls back to nothing / the live Element
 }
-function elementLibraryChanged() { renderElementLibrary(); syncGroundTileOptions(); mountElementQuickSaves(); }
+function elementLibraryChanged() { renderElementLibrary(); syncGroundTileOptions(); mountElementQuickSaves(); renderLibraryRail(); }
 // The corner circle (the Component gallery's quick-save): + saves this view,
 // ✓ = already saved, hovering ✓ offers remove.
 function elementQuickSaveButton(rot, flipH, flipV, label) {
@@ -6594,6 +6626,7 @@ function closeUnderlyingComponentPicker() {
 }
 
 function renderLibrary() {
+  renderLibraryRail();
   const all = LIBRARY.read();
   const names = libraryNames(all);
   ctrl('library-empty').style.display = names.length ? 'none' : '';
@@ -9719,6 +9752,7 @@ function setTier(tier) {
   ctrl('fb-element-actions').style.display = tier === 'element' ? '' : 'none';
   ctrl('fb-component-actions').style.display = tier === 'component' ? '' : 'none';
   ctrl('fb-symbol-actions').style.display = tier === 'symbol' ? '' : 'none';
+  syncRailTier(tier);
   syncQuadrantHint();
   creatorPopover.close();
   ctrl('fg-rules-panel').style.display = tier === 'figure' ? '' : 'none';
@@ -11900,6 +11934,135 @@ syncRuleAvailability();
 syncRuleUI();
 renderSymbol();
 renderSymbolLibrary();
+// ── Library rail (test) ── a floating left rail of saved Elements + Components. On the Symbol tab a tile
+// is dragged onto a cell (pointer drag, the Layers pattern) — or clicked / Enter to put it in the
+// selected cells. Place-only: renaming and removing stay in the right-bar libraries.
+const railPanel = ctrl('fvs-rail-panel'), railBtn = ctrl('btn-rail');
+const railIsOpen = () => railPanel.dataset.open === 'true';
+function setRailOpen(open, opts) {
+  railPanel.dataset.open = open ? 'true' : 'false';
+  railPanel.toggleAttribute('inert', !open);
+  railBtn.setAttribute('aria-expanded', String(open));
+  railBtn.innerHTML = Organica.icons.get(open ? 'chevron-left' : 'grid', { size: 'lg' });
+  if (open) renderLibraryRail();
+  else if (opts && opts.focus) railBtn.focus();
+  try { localStorage.setItem('organica.fvs.rail', open ? '1' : '0'); } catch (e) { /* private window */ }
+}
+function railTile(kind, name, svg, w, h) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'fvs-library-item';
+  b.dataset.railKind = kind; b.dataset.railName = name;
+  b.setAttribute('aria-label', (kind === 'element' ? 'Element ' : 'Component ') + name);
+  if (w) { b.style.width = w + 'px'; b.style.height = h + 'px'; }
+  b.innerHTML = svg;
+  return b;
+}
+function renderLibraryRail() {
+  if (!railIsOpen()) return;   // drawn when it opens
+  const els = ctrl('rail-elements'), comps = ctrl('rail-components');
+  els.innerHTML = ''; comps.innerHTML = '';
+  const elAll = ELEMENT_LIB.read(), elNames = Object.keys(elAll || {});
+  elNames.forEach(n => { const e = elAll[n]; const svg = e.thumb || (e.tile ? tileThumbSVG(e.tile) : ''); els.appendChild(railTile('element', n, svg)); });
+  const cAll = LIBRARY.read(), cNames = libraryNames(cAll);
+  cNames.forEach(n => { const size = frameDims(cAll[n].grid), box = fitThumbBox(size.w, size.h, 64); comps.appendChild(railTile('component', n, componentThumbSVG(n), box.w, box.h)); });
+  [[els, elNames], [comps, cNames]].forEach(([g, list]) => { if (!list.length) g.innerHTML = '<p class="fvs-rail__empty">None saved yet</p>'; });
+  ctrl('rail-hint').textContent = state.activeTier === 'symbol' ? 'Drag onto a cell, or select cells and click' : 'Drop works on the Symbol tab';
+}
+railBtn.addEventListener('click', () => setRailOpen(!railIsOpen()));
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || e.defaultPrevented) return;
+  if (railDrag) { cancelRailDrag(); return; }
+  const a = document.activeElement, inRail = a && (a.closest('#fvs-rail') || a.closest('#fvs-rail-panel'));
+  if (railIsOpen() && (inRail || !a || a === document.body)) setRailOpen(false, { focus: true });   // an Escape meant for a field or popover stays theirs
+});
+
+// What a tile puts in a cell — the same patches as the Choose-content overlay.
+function railPatch(kind, name) {
+  if (kind === 'component') {
+    if (!LIBRARY.read()[name]) return null;
+    return { source: 'component', componentName: name, colourway: null, rotation: 0, flipH: false, flipV: false, fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 };
+  }
+  const entry = ELEMENT_LIB.read()[name];
+  if (!entry || !entry.seed) return null;
+  const sp = JSON.parse(JSON.stringify(entry.seed)), o = entry.orientation || {};
+  if (sp.type === 'stack') sp.layers.forEach(l => { if (l.ink == null || l.ink === 'cell') l.ink = 0; });
+  return { source: 'seed', seedType: sp.type, seedParams: sp, color: null, colourway: null, rotation: o.rotation || 0, flipH: !!o.flipH, flipV: !!o.flipV, fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 };
+}
+// A cell inside the selection takes the whole selection; any other cell takes only itself.
+function railApply(kind, name, idx) {
+  if (state.activeTier !== 'symbol') return;
+  const patch = railPatch(kind, name);
+  if (!patch) return;
+  if (idx != null && !state.symbolSelection.has(idx)) {
+    const cell = state.symbolCells[idx];
+    if (!cell) return;
+    if (patchCell(cell, patch)) Organica.dirty.set('fvs-symbol', true);
+    renderSymbolCanvasOnly();
+  } else if (state.symbolSelection.size) {
+    applyToSelection(patch);
+  } else return;
+  renderCellPropertiesPanel();
+}
+
+let railPress = null, railDrag = null;   // {kind,name,tile,x,y,id} / {ghost,idx}
+const railCellAt = e => { const el = document.elementFromPoint(e.clientX, e.clientY); const g = el && el.closest('#symbol-frame [data-cell-index]'); return g; };
+const clearRailDrop = () => document.querySelectorAll('#symbol-frame .is-drop').forEach(g => g.classList.remove('is-drop'));
+function cancelRailDrag() {
+  if (railDrag) railDrag.ghost.remove();
+  if (railPress && railPress.tile) railPress.tile.classList.remove('is-dragging');
+  railPress = null; railDrag = null; clearRailDrop(); document.body.classList.remove('is-rail-dragging');
+  railPanel.classList.remove('is-dragging-away');
+}
+railPanel.addEventListener('pointerdown', e => {
+  const tile = e.button === 0 && e.target.closest('.fvs-library-item');
+  if (!tile || state.activeTier !== 'symbol') return;
+  railPress = { kind: tile.dataset.railKind, name: tile.dataset.railName, tile, x: e.clientX, y: e.clientY, id: e.pointerId };
+});
+window.addEventListener('pointermove', e => {
+  if (!railPress || e.pointerId !== railPress.id) return;
+  if (!railDrag) {
+    if (Math.hypot(e.clientX - railPress.x, e.clientY - railPress.y) < 4) return;
+    const ghost = document.createElement('div');
+    ghost.className = 'fvs-rail-ghost';
+    ghost.innerHTML = railPress.tile.innerHTML;
+    document.body.appendChild(ghost);   // never inside the rail: a backdrop-filter ancestor would re-anchor position:fixed
+    railDrag = { ghost, idx: null };
+    railPress.tile.classList.add('is-dragging');
+    document.body.classList.add('is-rail-dragging');
+    railPanel.classList.add('is-dragging-away');   // out of the way, still there
+  }
+  e.preventDefault();
+  railDrag.ghost.style.transform = `translate3d(${e.clientX - 32}px, ${e.clientY - 32}px, 0)`;
+  const g = railCellAt(e), idx = g ? +g.dataset.cellIndex : null;
+  if (idx !== railDrag.idx) { clearRailDrop(); if (g) g.classList.add('is-drop'); railDrag.idx = idx; }
+});
+window.addEventListener('pointerup', e => {
+  if (!railPress || e.pointerId !== railPress.id) return;
+  const press = railPress, drag = railDrag;
+  const idx = drag ? drag.idx : null;
+  cancelRailDrag();
+  if (!drag) return;   // a plain click: handled by the click listener below
+  const swallow = ev => { ev.stopPropagation(); ev.preventDefault(); };
+  window.addEventListener('click', swallow, { capture: true, once: true });
+  setTimeout(() => window.removeEventListener('click', swallow, true), 0);
+  if (idx != null && !Number.isNaN(idx)) railApply(press.kind, press.name, idx);
+});
+window.addEventListener('pointercancel', cancelRailDrag);
+railPanel.addEventListener('click', e => {
+  const tile = e.target.closest('.fvs-library-item');
+  if (tile) railApply(tile.dataset.railKind, tile.dataset.railName, null);   // also Enter on a focused tile
+});
+function syncRailTier(tier) {
+  const show = tier !== 'figure';
+  ctrl('fvs-rail').style.display = show ? '' : 'none';
+  railPanel.style.display = show ? '' : 'none';
+  if (!show && railIsOpen()) setRailOpen(false);
+  renderLibraryRail();
+}
+let railWasOpen = false; try { railWasOpen = localStorage.getItem('organica.fvs.rail') === '1'; } catch (e) { /* ignore */ }
+setRailOpen(railWasOpen);
+
 renderGallery();
 renderSeedPreview();
 pruneAutoLibraryEntries();
