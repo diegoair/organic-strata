@@ -128,9 +128,6 @@
   .fvs-thumb-edit:hover, .fvs-thumb-tile:hover { border-color: var(--ink); background: var(--ink); color: var(--paper); }
   .fvs-thumb-caption, .fvs-library-caption { font-size: var(--fs-micro); color: var(--mid); line-height: var(--lh-snug); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fvs-library-caption { display: block; width: 76px; margin-top: var(--space-1); }
-  .fvs-library-rename { width: 64px; padding: 0; border: 0; background: none; text-align: left; cursor: text; font-family: var(--font); }
-  @media (hover: hover) { .fvs-library-rename:hover { color: var(--ink); } }
-  .fvs-library-rename-input { width: 64px; margin-top: var(--space-1); }
 
   /* .icon-btn + .rmx-* chip CSS now in shared/palette.css.
      .fvs-library-item .rmx-x below reuses the shared .rmx-x for the
@@ -181,9 +178,10 @@
   /* Library rail (test): a floating left rail — one toggle pane + a sibling glass panel (never nested: a
      backdrop-filter child would blur only its parent). Both are .org-floatbar so the glass, rim, dark values
      and fallback come from shared/floatbar.css; only the geometry is overridden here. */
-  #fvs-rail, #fvs-rail-panel { left: var(--space-5); top: 20vh; bottom: auto; transform: none; height: auto; flex-direction: column; align-items: stretch; z-index: 150; }
-  #fvs-rail { width: 3rem; height: 3rem; padding: 0; align-items: center; justify-content: center; }
-  #fvs-rail-panel { left: calc(var(--space-5) + 3rem + var(--space-3)); max-height: 60vh; padding: var(--space-3); border-radius: var(--radius-lg);
+  #fvs-rail-dock { position: fixed; left: var(--space-5); top: 50%; transform: translateY(-50%); z-index: 150; display: flex; align-items: center; gap: var(--space-3); pointer-events: none; }
+  #fvs-rail, #fvs-rail-panel { position: relative; left: auto; top: auto; bottom: auto; transform: none; height: auto; flex-direction: column; align-items: stretch; pointer-events: auto; }
+  #fvs-rail { width: 3rem; padding: var(--space-2) 0; align-items: center; justify-content: center; gap: var(--space-1); }
+  #fvs-rail-panel { max-height: 60vh; padding: var(--space-3); border-radius: var(--radius-lg);
     opacity: 0; visibility: hidden; pointer-events: none; transform: translateX(calc(-1 * var(--space-4)));
     transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), visibility 0s linear var(--dur-base); }
   #fvs-rail-panel[data-open="true"] { opacity: 1; visibility: visible; pointer-events: auto; transform: none; transition-delay: 0s; }
@@ -193,6 +191,13 @@
   .fvs-rail__grid { display: grid; grid-template-columns: repeat(2, auto); gap: var(--space-2); justify-content: start; }
   .fvs-rail__empty { color: var(--mid); font-size: var(--fs-small); margin: 0; }
   .fvs-rail__hint { color: var(--mid); font-size: var(--fs-micro); margin: 0; }
+  .fvs-rail__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+  .fvs-rail__tile { position: relative; }
+  .fvs-rail__rename { left: 0; right: auto; }
+  .fvs-rail__tile .rmx-x { opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+  .fvs-rail__tile .rmx-x::before { content: ''; position: absolute; inset: calc(-1 * var(--space-2)); }   /* reach --hit-min without growing the 13px chip */
+  @media (hover: hover) { .fvs-rail__tile:hover .rmx-x, .fvs-rail__tile:focus-within .rmx-x { opacity: 1; } }
+  @media (hover: none) { .fvs-rail__tile .rmx-x { opacity: 1; } }
   .fvs-rail__grid .fvs-library-item { background: var(--paper); touch-action: none; }
   .fvs-rail__grid .fvs-library-item.is-dragging { opacity: 0.35; }
   .fvs-rail-ghost { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; width: 4rem; height: 4rem; background: var(--paper); border: 1px solid var(--border-strong); box-shadow: var(--stage-shadow); }
@@ -643,14 +648,18 @@
   </div>
 </div>
 
-<div class="org-floatbar" id="fvs-rail" role="toolbar" aria-label="Library" aria-orientation="vertical">
-  <button class="org-floatbar__btn" id="btn-rail" aria-label="Library" aria-expanded="false" aria-controls="fvs-rail-panel" data-icon-slot></button>
-</div>
-<div class="org-floatbar" id="fvs-rail-panel" role="region" aria-label="Saved Elements and Components" inert>
-  <div class="fvs-rail__scroll">
-    <div><div class="sub-label">Elements</div><div class="fvs-rail__grid" id="rail-elements"></div></div>
-    <div><div class="sub-label">Components</div><div class="fvs-rail__grid" id="rail-components"></div></div>
-    <p class="fvs-rail__hint" id="rail-hint"></p>
+<div id="fvs-rail-dock" role="group" aria-label="Library rail">
+  <div class="org-floatbar" id="fvs-rail" role="toolbar" aria-label="Library" aria-orientation="vertical">
+    <button class="org-floatbar__btn" id="btn-rail" aria-label="Library" aria-expanded="false" aria-controls="fvs-rail-panel" data-icon-slot></button>
+    <button class="org-floatbar__btn" id="btn-rail-save" aria-label="Save to library" data-icon-slot></button>
+  </div>
+  <div class="org-floatbar" id="fvs-rail-panel" role="region" aria-label="Saved Elements, Components and Symbols" inert>
+    <div class="fvs-rail__scroll">
+      <div><div class="sub-label">Elements</div><div class="fvs-rail__grid" id="rail-elements"></div></div>
+      <div><div class="fvs-rail__head"><div class="sub-label">Components</div><button type="button" class="mini-btn" id="btn-rail-save-all">Save all</button></div><div class="fvs-rail__grid" id="rail-components"></div></div>
+      <div><div class="sub-label">Symbols</div><div class="fvs-rail__grid" id="rail-symbols"></div></div>
+      <p class="fvs-rail__hint" id="rail-hint"></p>
+    </div>
   </div>
 </div>
 
@@ -1426,11 +1435,6 @@
       <p class="org-panel__hint" id="split-status"></p>
       <p class="org-panel__hint" id="split-recipe-hint" style="display:none">Press All to edit the original shape's sliders again.</p>
     </div>
-    <div class="panel-section" id="element-library-section">
-      <h3>Saved Elements <span class="hint">click = Paper tile</span></h3>
-      <div id="element-library-empty" class="org-empty">None yet — hover the Element or a view above it and click +.</div>
-      <div id="element-library" class="fvs-library"></div>
-    </div>
     <div class="panel-section">
       <h3>Start from a recipe</h3>
       <div class="ctrl-row">
@@ -1653,20 +1657,6 @@
       </div>
     </div>
 
-    <div class="panel-section">
-      <h3>Library <span class="hint">saved for reuse</span></h3>
-      <div id="library-empty" class="org-empty">Nothing saved yet.</div>
-      <div id="fvs-library" class="fvs-library"></div>
-      <button class="mini-btn" id="btn-save-library" style="width:100%">Save selected to library</button>
-      <button class="mini-btn" id="btn-save-all-library" style="width:100%;margin-top:var(--space-2)">Save all to library</button>
-      <div id="library-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
-        <input type="text" class="panel-select" id="txt-library-name" placeholder="Name this component" aria-label="Name this component" style="flex:1">
-      </div>
-      <div id="library-save-actions" class="row-btns" style="display:none">
-        <button class="mini-btn" id="btn-library-confirm">Save</button>
-        <button class="mini-btn" id="btn-library-cancel">Cancel</button>
-      </div>
-    </div>
     </div>
 
     <div class="panel-section" id="fg-rules-panel" style="display:none">
@@ -2000,20 +1990,6 @@
       </div>
     </div>
 
-    <div class="panel-section">
-      <h3>Symbol library <span class="hint">saved for reuse</span></h3>
-      <div id="symbol-library-empty" class="org-empty">Nothing saved yet.</div>
-      <div id="fvs-symbol-library" class="fvs-library"></div>
-      <button class="mini-btn" id="btn-save-symbol-library" style="width:100%">Save symbol to library</button>
-      <div id="symbol-library-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
-        <input type="text" class="panel-select" id="txt-symbol-library-name" placeholder="Name this symbol" aria-label="Name this symbol" style="flex:1">
-      </div>
-      <div id="symbol-library-save-actions" class="row-btns" style="display:none">
-        <button class="mini-btn" id="btn-symbol-library-confirm">Save</button>
-        <button class="mini-btn" id="btn-symbol-library-cancel">Cancel</button>
-      </div>
-      <p class="org-panel__hint">Saved separately from the Component Library above — a Symbol snapshot is its own canvas, grid, palette and per-cell Components, not one Seed repeated.</p>
-    </div>
     </div>
 
     <div class="tier-block" data-tier="figure">
@@ -4152,11 +4128,15 @@ function savedElementBySig(sig) {
   const all = ELEMENT_LIB.read();
   return Object.keys(all).find(n => all[n] && all[n].tile && (all[n].sig || tileSig(all[n].tile)) === sig) || null;   // an entry saved before `sig` existed is matched by its shape
 }
-function saveElementVariant(rot, flipH, flipV, label) {
+function defaultElementName(label) {
+  const type = getSeed().type;
+  return (state.layers ? 'Stack' : ((SEED_ICONS[type] || {}).name || type)) + (label && label !== '0°' ? ' · ' + label : '') + ' ' + new Date().toLocaleTimeString();
+}
+function saveElementVariant(rot, flipH, flipV, label, chosen) {
   const tile = orientedElementTile(rot, flipH, flipV);
   if (!tile) return;
-  const all = ELEMENT_LIB.read(), type = getSeed().type;
-  let name = (state.layers ? 'Stack' : ((SEED_ICONS[type] || {}).name || type)) + (label && label !== '0°' ? ' · ' + label : '') + ' ' + new Date().toLocaleTimeString();
+  const all = ELEMENT_LIB.read();
+  let name = chosen || defaultElementName(label);
   while (all[name]) name += '′';
   all[name] = { tile, sig: tileSig(tile), thumb: elementVariantSVG(rot, flipH, flipV), colors: state.colors.slice(), paperColor: state.paperColor, orientation: { rotation: rot, flipH, flipV }, seed: seedForSnapshot(), appearance: getElementAppearance(), savedAt: new Date().toISOString() };
   ELEMENT_LIB.write(all);
@@ -4198,7 +4178,7 @@ function removeSavedElement(name) {
   elementLibraryChanged();
   onAppearanceChange();   // a Paper tile that pointed at it falls back to nothing / the live Element
 }
-function elementLibraryChanged() { renderElementLibrary(); syncGroundTileOptions(); mountElementQuickSaves(); renderLibraryRail(); }
+function elementLibraryChanged() { syncGroundTileOptions(); mountElementQuickSaves(); renderLibraryRail(); }
 // The corner circle (the Component gallery's quick-save): + saves this view,
 // ✓ = already saved, hovering ✓ offers remove.
 function elementQuickSaveButton(rot, flipH, flipV, label) {
@@ -4243,33 +4223,6 @@ function mountElementQuickSaves() {
 function tileThumbSVG(t) {
   const g = t.geo, attrs = Organica.shapeAppearance.styleAttrs({ fillMode: t.style.fillMode, color: 'var(--ink)', strokeW: t.style.strokeW, rounded: t.style.rounded });
   return `<svg viewBox="-6 -6 112 112" aria-hidden="true"><g transform="${tileNormAttr(g)}"><path d="${g.d}" ${attrs}${g.fillRule && t.style.fillMode !== 'stroke' ? ` fill-rule="${g.fillRule}"` : ''}/></g></svg>`;
-}
-function renderElementLibrary() {
-  const all = ELEMENT_LIB.read(), names = libraryNamesAll(all), wrap = ctrl('element-library');
-  ctrl('element-library-empty').style.display = names.length ? 'none' : '';
-  wrap.innerHTML = '';
-  for (const name of names) {
-    const e = all[name];
-    if (!e || !e.tile) continue;
-    const tile = document.createElement('div');
-    tile.style.position = 'relative';
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'fvs-library-item';
-    btn.title = name + ' — use as the Paper tile';
-    btn.setAttribute('aria-label', 'Use ' + name + ' as the Paper tile');
-    btn.innerHTML = e.thumb || tileThumbSVG(e.tile);   // its own colours (saved before thumbs existed: the silhouette)
-    btn.addEventListener('click', () => useAsPaperTile('saved:' + name));
-    const x = document.createElement('button');
-    x.type = 'button';
-    x.className = 'rmx-x';
-    x.innerHTML = Organica.icons.get('close', { size: 'xs' });
-    x.title = 'Remove';
-    x.setAttribute('aria-label', 'Remove saved Element ' + name);
-    x.addEventListener('click', ev => { ev.stopPropagation(); removeSavedElement(name); });
-    tile.append(btn, x);
-    wrap.appendChild(tile);
-  }
 }
 // Click on a saved Element: Paper pattern on, Pattern = Element, this tile.
 function useAsPaperTile(src) {
@@ -5985,7 +5938,7 @@ function libraryEntryFromLive(comp) {
 }
 function buildLibraryEntry() { return buildLibraryEntryFor(getSelectedComponent()); }
 
-// The same "<rule> <time>" convention saveToLibrary() pre-fills the name
+// The same "<rule> <time>" convention the rail's Save pre-fills the name
 // row with — quick-save just commits it immediately instead of asking.
 // Two quick-saves in the same second (or off two candidates that share a
 // rule) would otherwise collide and silently overwrite one another, so a
@@ -6012,11 +5965,11 @@ function uniqueLibraryName(base) {
 // becomes a delete toggle (deleteQuickSavedComponent below) — a fresh save
 // always mints a new entry (or dedupes), it never silently overwrites an
 // existing one.
-function quickSaveComponentToLibrary(compId) {
+function quickSaveComponentToLibrary(compId, chosen) {
   const comp = state.components.find(c => c.id === compId);
   const entry = buildLibraryEntryFor(comp);
   if (!entry) return;
-  const name = uniqueLibraryName(comp.ruleSource + ' ' + new Date().toLocaleTimeString());
+  const name = uniqueLibraryName(chosen || comp.ruleSource + ' ' + new Date().toLocaleTimeString());
   const all = LIBRARY.read();
   all[name] = entry;
   LIBRARY.write(all);
@@ -6064,43 +6017,6 @@ function deleteQuickSavedComponent(compId) {
   removeLibraryEntry(comp.savedName);
   comp.savedName = null;
   renderGallery();
-}
-
-// A native prompt() is a real, silent failure point: it throws (rather
-// than returning null) in several embedding contexts an Organica tool
-// can legitimately run inside — the same pattern (Camo Turing, Komorebi,
-// Halide, Warping, Pollen all call prompt() for "save preset") likely
-// has the identical latent bug, flagged separately rather than fixed
-// blind here since it's out of this tool's own scope. FVS's own naming
-// step is now a plain inline row instead, which works everywhere.
-function saveToLibrary() {
-  const comp = getSelectedComponent();
-  if (!comp) return;
-  ctrl('txt-library-name').value = comp.ruleSource + ' ' + new Date().toLocaleTimeString();
-  ctrl('library-save-row').style.display = '';
-  ctrl('library-save-actions').style.display = '';
-  ctrl('txt-library-name').focus();
-  ctrl('txt-library-name').select();
-}
-
-function confirmSaveToLibrary() {
-  const name = ctrl('txt-library-name').value.trim();
-  if (!name) return;
-  const entry = buildLibraryEntry();
-  if (!entry) return;
-  const all = LIBRARY.read();
-  all[name] = entry;
-  LIBRARY.write(all);
-  addSavedToPool(name);
-  const cur = getSelectedComponent(); if (cur) cur.savedName = name;
-  cancelSaveToLibrary();
-  renderLibrary();
-}
-
-function cancelSaveToLibrary() {
-  ctrl('library-save-row').style.display = 'none';
-  ctrl('library-save-actions').style.display = 'none';
-  ctrl('txt-library-name').value = '';
 }
 
 function removeLibraryEntry(name) {
@@ -6625,71 +6541,14 @@ function closeUnderlyingComponentPicker() {
   ctrl('underlying-component-overlay').style.display = 'none';
 }
 
-function renderLibrary() {
-  renderLibraryRail();
-  const all = LIBRARY.read();
-  const names = libraryNames(all);
-  ctrl('library-empty').style.display = names.length ? 'none' : '';
-  const wrap = ctrl('fvs-library');
-  wrap.innerHTML = '';
-  for (const name of names) {
-    const entry = all[name];
-    const items = buildComponentItems({ cells: entry.component.cells }, entry.grid);
-    const size = frameDims(entry.grid);
-    // Render with the ENTRY's own saved colours/paper, not the live
-    // Palette state — a library thumbnail must never drift just because
-    // the panel keeps getting edited after saving.
-    const savedColorAt = entryInkAt(entry);
-    const itemsWithSavedColor = items.map((it, i) => ({ ...it, color: savedColorAt(i) }));
-    const svgStr = withEntryInks(entry.colors, () => withAppearance(entry.appearance, () => buildComponentSVGWithPaper(itemsWithSavedColor, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName)));
-    const btn = document.createElement('button');
-    btn.className = 'fvs-library-item';
-    const box = fitThumbBox(size.w, size.h, 64);
-    btn.style.width = box.w + 'px'; btn.style.height = box.h + 'px';
-    btn.setAttribute('aria-label', 'Load saved component ' + name);
-    btn.title = name;
-    btn.innerHTML = svgStr;
-    btn.addEventListener('click', () => applyLibraryEntryToUI(entry));
-    const x = document.createElement('button');
-    x.className = 'rmx-x'; x.innerHTML = Organica.icons.get('close', { size: 'xs' });
-    x.setAttribute('aria-label', 'Remove saved component ' + name);
-    x.addEventListener('click', e => { e.stopPropagation(); removeLibraryEntry(name); });
-    const holder = document.createElement('div');
-    const cap = document.createElement('button');
-    cap.className = 'fvs-library-caption fvs-library-rename';
-    cap.textContent = name; cap.title = 'Rename';
-    cap.setAttribute('aria-label', 'Rename saved component ' + name);
-    cap.addEventListener('click', () => beginRenameLibraryEntry(cap, name));
-    const tile = document.createElement('div');
-    tile.style.position = 'relative';
-    tile.appendChild(btn); tile.appendChild(x);
-    holder.append(tile, cap);
-    wrap.appendChild(holder);
-  }
-}
+function renderLibrary() { renderLibraryRail(); }
 
-// Inline rename: the caption becomes an input (Enter confirms, Esc/blur cancels
-// — same keys as the save-name row). No native prompt().
-function beginRenameLibraryEntry(cap, oldName) {
-  const inp = document.createElement('input');
-  inp.type = 'text'; inp.className = 'panel-select fvs-library-rename-input'; inp.value = oldName;
-  inp.setAttribute('aria-label', 'New name for ' + oldName);
-  let done = false;
-  const finish = ok => {
-    if (done) return; done = true;
-    const v = inp.value.trim();
-    if (ok && v && v !== oldName) renameLibraryEntry(oldName, v); else renderLibrary();
-  };
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter') finish(true); else if (e.key === 'Escape') finish(false); });
-  inp.addEventListener('blur', () => finish(false));
-  cap.replaceWith(inp); inp.focus(); inp.select();
-}
 // Renames a saved Component and repoints everything that names it: saved
 // Symbols' cells, the live Symbol, Container/Mask references, the Grid pick.
 function renameLibraryEntry(oldName, newName) {
   const all = LIBRARY.read();
   if (!all[oldName]) return;
-  if (all[newName]) { renderLibrary(); ctrl('library-empty').textContent = `"${newName}" already exists.`; ctrl('library-empty').style.display = ''; return; }
+  if (all[newName]) return;   // the rail's rename dialog asks again on a clash
   all[newName] = all[oldName]; delete all[oldName];
   Object.values(all).forEach(e => { if (e.underlyingComponentName === oldName) e.underlyingComponentName = newName; });
   LIBRARY.write(all);
@@ -6701,7 +6560,6 @@ function renameLibraryEntry(oldName, newName) {
   if (state.fvsGridComponentName === oldName) state.fvsGridComponentName = newName;
   renderLibrary(); renderSymbolLibrary();
   if (state.symbolGrid) renderSymbol();
-  ctrl('library-empty').textContent = 'Nothing saved yet.';
 }
 
 // buildComponentSVG always reads state.paperColor/componentRole/
@@ -9543,34 +9401,17 @@ function buildSymbolLibraryEntry() {
   };
 }
 
-function saveSymbolToLibrary() {
-  if (!state.symbolGrid) return;
-  ctrl('txt-symbol-library-name').value = 'Symbol ' + new Date().toLocaleTimeString();
-  ctrl('symbol-library-save-row').style.display = '';
-  ctrl('symbol-library-save-actions').style.display = '';
-  ctrl('txt-symbol-library-name').focus();
-  ctrl('txt-symbol-library-name').select();
-}
-
-function confirmSaveSymbolToLibrary() {
-  const name = ctrl('txt-symbol-library-name').value.trim();
-  if (!name) return;
+function saveSymbolAs(chosen) {
   const entry = buildSymbolLibraryEntry();
   if (!entry) return;
   const all = SYMBOL_LIBRARY.read();
+  let name = chosen;
+  for (let i = 2; all[name]; i++) name = `${chosen} (${i})`;
   all[name] = entry;
   SYMBOL_LIBRARY.write(all);
   Organica.dirty.set('fvs-symbol', false);
-  cancelSaveSymbolToLibrary();
   renderSymbolLibrary();
 }
-
-function cancelSaveSymbolToLibrary() {
-  ctrl('symbol-library-save-row').style.display = 'none';
-  ctrl('symbol-library-save-actions').style.display = 'none';
-  ctrl('txt-symbol-library-name').value = '';
-}
-
 function removeSymbolLibraryEntry(name) {
   const all = SYMBOL_LIBRARY.read();
   delete all[name];
@@ -9605,41 +9446,20 @@ function applySymbolLibraryEntryToUI(entry) {
   renderSymbol();
 }
 
-function renderSymbolLibrary() {
-  const all = SYMBOL_LIBRARY.read();
-  const names = Object.keys(all);
-  ctrl('symbol-library-empty').style.display = names.length ? 'none' : '';
-  const wrap = ctrl('fvs-symbol-library');
-  wrap.innerHTML = '';
-  for (const name of names) {
-    const entry = all[name];
-    // Render each thumbnail against the ENTRY's own saved state, not
-    // the live one — same rule as Components' own library thumbnails.
-    const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, rule: state.colorRule, paper: state.paperColor, clip: state.symbolClipEnabled };
-    state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
-    state.symbolCells = entry.cells;
-    state.colors = entry.colors;
-    state.colorRule = entry.colorRule || DEFAULT_COLOR_RULE;
-    state.paperColor = entry.paperColor;
-    state.symbolClipEnabled = entry.clipEnabled !== false;
-    const svgStr = withAppearance(entry.appearance, buildSymbolSVG);
-    state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.colorRule = prev.rule; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip;
-
-    const btn = document.createElement('button');
-    btn.className = 'fvs-library-item';
-    btn.setAttribute('aria-label', 'Load saved symbol ' + name);
-    btn.title = name;
-    btn.innerHTML = svgStr;
-    btn.addEventListener('click', () => applySymbolLibraryEntryToUI(entry));
-    const x = document.createElement('button');
-    x.className = 'rmx-x'; x.innerHTML = Organica.icons.get('close', { size: 'xs' });
-    x.setAttribute('aria-label', 'Remove saved symbol ' + name);
-    x.addEventListener('click', e => { e.stopPropagation(); removeSymbolLibraryEntry(name); });
-    const holder = document.createElement('div');
-    holder.style.position = 'relative';
-    holder.appendChild(btn); holder.appendChild(x);
-    wrap.appendChild(holder);
-  }
+function renderSymbolLibrary() { renderLibraryRail(); }
+// A saved Symbol's thumbnail, drawn against the ENTRY's own saved state, not the live one —
+// same rule as the Components' own library thumbnails.
+function symbolEntryThumbSVG(entry) {
+  const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, rule: state.colorRule, paper: state.paperColor, clip: state.symbolClipEnabled };
+  state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
+  state.symbolCells = entry.cells;
+  state.colors = entry.colors;
+  state.colorRule = entry.colorRule || DEFAULT_COLOR_RULE;
+  state.paperColor = entry.paperColor;
+  state.symbolClipEnabled = entry.clipEnabled !== false;
+  const svgStr = withAppearance(entry.appearance, buildSymbolSVG);
+  state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.colorRule = prev.rule; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip;
+  return svgStr;
 }
 
 function exportSymbol(format) {
@@ -10193,7 +10013,6 @@ ctrl('sel-ground-pattern').addEventListener('change', () => { syncGroundBlock();
 ctrl('sel-ground-ink').addEventListener('change', onAppearanceChange);
 ['sel-ground-tile', 'sel-ground-layout', 'sel-ground-turn'].forEach(id => ctrl(id).addEventListener('change', () => { syncGroundTileNote(); onAppearanceChange(); }));
 ctrl('rg-ground-patsize').addEventListener('input', e => { ctrl('v-ground-patsize').textContent = e.target.value; onAppearanceChange(); });
-renderElementLibrary();
 ['patspacing', 'patweight', 'patangle'].forEach(k => ctrl('rg-ground-' + k).addEventListener('input', e => { ctrl('v-ground-' + k).textContent = e.target.value; syncGroundTileNote(); onAppearanceChange(); }));
 syncGroundInkOptions();
 ['strokew', 'w', 'l', 'scale', 'mx', 'my', 'patspacing', 'patweight', 'patangle'].forEach(k => {
@@ -10332,14 +10151,6 @@ ctrl('btn-cellprop-useseed').addEventListener('click', () => {
 });
 ctrl('btn-cellprop-defseed').addEventListener('click', () => { applyToSelection({ seedParams: undefined }); renderCellPropertiesPanel(); });
 ctrl('chk-cellprop-lock').addEventListener('change', e => applyToSelection({ locked: e.target.checked }));
-
-ctrl('btn-save-symbol-library').addEventListener('click', saveSymbolToLibrary);
-ctrl('btn-symbol-library-confirm').addEventListener('click', confirmSaveSymbolToLibrary);
-ctrl('btn-symbol-library-cancel').addEventListener('click', cancelSaveSymbolToLibrary);
-ctrl('txt-symbol-library-name').addEventListener('keydown', e => {
-  if (e.key === 'Enter') confirmSaveSymbolToLibrary();
-  if (e.key === 'Escape') cancelSaveSymbolToLibrary();
-});
 
 ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(btn => {
   btn.addEventListener('click', () => setTier(btn.dataset.tier));
@@ -11914,15 +11725,6 @@ ctrl('underlying-component-overlay').addEventListener('click', e => { if (e.targ
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && ctrl('underlying-component-overlay').style.display !== 'none') closeUnderlyingComponentPicker(); });
 
 
-ctrl('btn-save-library').addEventListener('click', saveToLibrary);
-ctrl('btn-save-all-library').addEventListener('click', saveAllComponentsToLibrary);
-ctrl('btn-library-confirm').addEventListener('click', confirmSaveToLibrary);
-ctrl('btn-library-cancel').addEventListener('click', cancelSaveToLibrary);
-ctrl('txt-library-name').addEventListener('keydown', e => {
-  if (e.key === 'Enter') confirmSaveToLibrary();
-  if (e.key === 'Escape') cancelSaveToLibrary();
-});
-
 // ── Init ──
 buildPalette();
 syncColorRuleUI();
@@ -11938,7 +11740,7 @@ renderSymbolLibrary();
 // is dragged onto a cell (pointer drag, the Layers pattern) — or clicked / Enter to put it in the
 // selected cells. Place-only: renaming and removing stay in the right-bar libraries.
 const railPanel = ctrl('fvs-rail-panel'), railBtn = ctrl('btn-rail');
-const railIsOpen = () => railPanel.dataset.open === 'true';
+function railIsOpen() { return ctrl('fvs-rail-panel').dataset.open === 'true'; }   // a function: renderLibrary() reaches it during init
 function setRailOpen(open, opts) {
   railPanel.dataset.open = open ? 'true' : 'false';
   railPanel.toggleAttribute('inert', !open);
@@ -11948,26 +11750,52 @@ function setRailOpen(open, opts) {
   else if (opts && opts.focus) railBtn.focus();
   try { localStorage.setItem('organica.fvs.rail', open ? '1' : '0'); } catch (e) { /* private window */ }
 }
+const railSaveBtn = ctrl('btn-rail-save');
+// One tile: the thumbnail button plus (siblings, so a click on them never starts a drag) rename and remove.
 function railTile(kind, name, svg, w, h) {
+  const tile = document.createElement('div');
+  tile.className = 'fvs-rail__tile';
   const b = document.createElement('button');
   b.type = 'button';
   b.className = 'fvs-library-item';
   b.dataset.railKind = kind; b.dataset.railName = name;
-  b.setAttribute('aria-label', (kind === 'element' ? 'Element ' : 'Component ') + name);
+  b.title = name;
+  b.setAttribute('aria-label', railTileVerb(kind) + ' ' + name);
   if (w) { b.style.width = w + 'px'; b.style.height = h + 'px'; }
   b.innerHTML = svg;
-  return b;
+  const ren = document.createElement('button');
+  ren.type = 'button'; ren.className = 'rmx-x fvs-rail__rename'; ren.dataset.railRename = '1';
+  ren.innerHTML = Organica.icons.get('pencil', { size: 'xs' });
+  ren.setAttribute('aria-label', 'Rename ' + name);
+  const x = document.createElement('button');
+  x.type = 'button'; x.className = 'rmx-x'; x.dataset.railRemove = '1';
+  x.innerHTML = Organica.icons.get('close', { size: 'xs' });
+  x.setAttribute('aria-label', 'Remove ' + name);
+  tile.append(b, ren, x);
+  return tile;
+}
+// What a click on a tile does depends on the tab: the aria-label says which.
+function railTileVerb(kind) {
+  const t = state.activeTier;
+  if (kind === 'symbol') return 'Load Symbol';
+  if (t === 'symbol') return 'Place ' + (kind === 'element' ? 'Element' : 'Component') + ' in the selected cells —';
+  return kind === 'element' ? 'Use Element as Paper tile —' : 'Load Component';
 }
 function renderLibraryRail() {
   if (!railIsOpen()) return;   // drawn when it opens
-  const els = ctrl('rail-elements'), comps = ctrl('rail-components');
-  els.innerHTML = ''; comps.innerHTML = '';
-  const elAll = ELEMENT_LIB.read(), elNames = Object.keys(elAll || {});
-  elNames.forEach(n => { const e = elAll[n]; const svg = e.thumb || (e.tile ? tileThumbSVG(e.tile) : ''); els.appendChild(railTile('element', n, svg)); });
+  const els = ctrl('rail-elements'), comps = ctrl('rail-components'), syms = ctrl('rail-symbols');
+  [els, comps, syms].forEach(g => { g.innerHTML = ''; });
+  const elAll = ELEMENT_LIB.read(), elNames = Object.keys(elAll || {}).filter(n => elAll[n] && elAll[n].tile);
+  elNames.forEach(n => { const e = elAll[n]; els.appendChild(railTile('element', n, e.thumb || tileThumbSVG(e.tile))); });
   const cAll = LIBRARY.read(), cNames = libraryNames(cAll);
   cNames.forEach(n => { const size = frameDims(cAll[n].grid), box = fitThumbBox(size.w, size.h, 64); comps.appendChild(railTile('component', n, componentThumbSVG(n), box.w, box.h)); });
-  [[els, elNames], [comps, cNames]].forEach(([g, list]) => { if (!list.length) g.innerHTML = '<p class="fvs-rail__empty">None saved yet</p>'; });
-  ctrl('rail-hint').textContent = state.activeTier === 'symbol' ? 'Drag onto a cell, or select cells and click' : 'Drop works on the Symbol tab';
+  const sAll = SYMBOL_LIBRARY.read(), sNames = Object.keys(sAll || {});
+  sNames.forEach(n => syms.appendChild(railTile('symbol', n, symbolEntryThumbSVG(sAll[n]))));
+  [[els, elNames], [comps, cNames], [syms, sNames]].forEach(([g, list]) => { if (!list.length) g.innerHTML = '<p class="fvs-rail__empty">None saved yet</p>'; });
+  ctrl('btn-rail-save-all').style.display = state.activeTier === 'component' ? '' : 'none';
+  const hint = ctrl('rail-hint');
+  hint.textContent = state.activeTier === 'symbol' ? 'Drag onto a cell, or select cells and click' : '';
+  hint.style.display = hint.textContent ? '' : 'none';
 }
 railBtn.addEventListener('click', () => setRailOpen(!railIsOpen()));
 document.addEventListener('keydown', e => {
@@ -12016,7 +11844,7 @@ function cancelRailDrag() {
 }
 railPanel.addEventListener('pointerdown', e => {
   const tile = e.button === 0 && e.target.closest('.fvs-library-item');
-  if (!tile || state.activeTier !== 'symbol') return;
+  if (!tile || state.activeTier !== 'symbol' || tile.dataset.railKind === 'symbol') return;
   railPress = { kind: tile.dataset.railKind, name: tile.dataset.railName, tile, x: e.clientX, y: e.clientY, id: e.pointerId };
 });
 window.addEventListener('pointermove', e => {
@@ -12049,14 +11877,97 @@ window.addEventListener('pointerup', e => {
   if (idx != null && !Number.isNaN(idx)) railApply(press.kind, press.name, idx);
 });
 window.addEventListener('pointercancel', cancelRailDrag);
+// Rename: the one centred dialog; a taken name asks again.
+async function railRename(kind, name) {
+  const store = kind === 'element' ? ELEMENT_LIB : kind === 'symbol' ? SYMBOL_LIBRARY : LIBRARY;
+  let label = 'New name', next;
+  for (;;) {
+    next = await Organica.prompt({ title: 'Rename', label, value: next || name, ok: 'Rename' });
+    if (!next || next === name) return;
+    if (!store.read()[next]) break;
+    label = `"${next}" already exists — choose another`;
+  }
+  if (kind === 'component') {
+    renameLibraryEntry(name, next);
+    state.components.forEach(c => { if (c.savedName === name) c.savedName = next; });
+    renderGallery();
+    return;
+  }
+  const all = store.read();
+  if (!all[name]) return;
+  const livePaper = kind === 'element' && paperPatternOn && ctrl('sel-ground-tile').value === 'saved:' + name;
+  all[next] = all[name]; delete all[name];
+  store.write(all);
+  if (kind === 'element') {
+    // a Paper tile names its Element ('saved:<name>'): repoint the live one and every saved appearance
+    const from = JSON.stringify('saved:' + name), to = JSON.stringify('saved:' + next);
+    [LIBRARY, SYMBOL_LIBRARY].forEach(st => {
+      const lib = st.read(); let hit = false;
+      Object.keys(lib).forEach(k => { const j = JSON.stringify(lib[k]); if (j.includes(from)) { lib[k] = JSON.parse(j.split(from).join(to)); hit = true; } });
+      if (hit) st.write(lib);
+    });
+    elementLibraryChanged();
+    if (livePaper) useAsPaperTile('saved:' + next);
+  } else renderLibraryRail();
+}
+function railRemove(kind, name) {
+  if (kind === 'element') removeSavedElement(name);
+  else if (kind === 'symbol') removeSymbolLibraryEntry(name);
+  else { removeLibraryEntry(name); renderGallery(); }   // the gallery's saved ✓ follows
+}
+function railUse(kind, name) {
+  const t = state.activeTier;
+  if (kind === 'symbol') {
+    const e = SYMBOL_LIBRARY.read()[name];
+    if (!e) return;
+    if (Organica.dirty.any && state.symbolGrid) { Organica.confirm({ title: 'Replace the Symbol?', message: 'The Symbol on the canvas has unsaved changes.', ok: 'Replace', danger: true }).then(ok => { if (ok) { setTier('symbol'); applySymbolLibraryEntryToUI(e); } }); return; }
+    setTier('symbol'); applySymbolLibraryEntryToUI(e);
+    return;
+  }
+  if (t === 'symbol') { railApply(kind, name, null); return; }
+  if (kind === 'element') { useAsPaperTile('saved:' + name); return; }
+  const e = LIBRARY.read()[name];
+  if (e) { if (t !== 'component') setTier('component'); applyLibraryEntryToUI(e); }
+}
 railPanel.addEventListener('click', e => {
-  const tile = e.target.closest('.fvs-library-item');
-  if (tile) railApply(tile.dataset.railKind, tile.dataset.railName, null);   // also Enter on a focused tile
+  const tile = e.target.closest('.fvs-rail__tile');
+  if (!tile) return;
+  const it = tile.querySelector('.fvs-library-item'), kind = it.dataset.railKind, name = it.dataset.railName;
+  if (e.target.closest('[data-rail-remove]')) railRemove(kind, name);
+  else if (e.target.closest('[data-rail-rename]')) railRename(kind, name);
+  else railUse(kind, name);   // also Enter on a focused tile
+});
+ctrl('btn-rail-save-all').addEventListener('click', saveAllComponentsToLibrary);
+
+// Save: what it saves depends on the tab — the Element's current view, the selected Component, the Symbol.
+function railSaveTarget() {
+  const t = state.activeTier;
+  if (t === 'element') { if (elementIsEmpty()) return null; const v = currentElementView(), vi = elementViewIndex(), lbl = vi >= 0 ? SEED_PREVIEW_STATES[vi][3] : '0°'; return { title: 'Save Element', value: defaultElementName(lbl), save: n => saveElementVariant(v.r, v.fh, v.fv, lbl, n) }; }
+  if (t === 'component') { const c = getSelectedComponent(); if (!c) return null; return { title: 'Save Component', value: c.ruleSource + ' ' + new Date().toLocaleTimeString(), save: n => quickSaveComponentToLibrary(c.id, n) }; }
+  if (t === 'symbol') { if (!state.symbolGrid) return null; return { title: 'Save Symbol', value: 'Symbol ' + new Date().toLocaleTimeString(), save: n => saveSymbolAs(n) }; }
+  return null;
+}
+function syncRailSave() {
+  const tgt = railSaveTarget(), what = { element: 'Element', component: 'Component', symbol: 'Symbol' }[state.activeTier] || '';
+  railSaveBtn.disabled = !tgt;
+  railSaveBtn.setAttribute('aria-label', 'Save ' + what + ' to library');
+}
+railSaveBtn.innerHTML = Organica.icons.get('plus', { size: 'lg' });
+ctrl('fvs-rail').addEventListener('pointerenter', syncRailSave);
+ctrl('fvs-rail').addEventListener('focusin', syncRailSave);
+railSaveBtn.addEventListener('click', async () => {
+  const tgt = railSaveTarget();
+  if (!tgt) return;
+  const name = await Organica.prompt({ title: tgt.title, label: 'Name', value: tgt.value, ok: 'Save' });
+  if (!name) return;
+  tgt.save(name);
+  if (!railIsOpen()) setRailOpen(true);   // show it landing
+  renderLibraryRail();
 });
 function syncRailTier(tier) {
   const show = tier !== 'figure';
-  ctrl('fvs-rail').style.display = show ? '' : 'none';
-  railPanel.style.display = show ? '' : 'none';
+  ctrl('fvs-rail-dock').style.display = show ? '' : 'none';
+  syncRailSave();
   if (!show && railIsOpen()) setRailOpen(false);
   renderLibraryRail();
 }
