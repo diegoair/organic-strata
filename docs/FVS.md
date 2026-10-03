@@ -91,7 +91,15 @@ Grid step without saving it first.
   the layer's card. They show whenever any layer uses Pattern (Style or role).
 - **Reset seed shape** (floatbar) puts the current shape's controls back to
   their defaults without touching Appearance or Palette.
-- The strip above the frame shows the Element at 0/90/180/270° and each flip.
+- The strip above the frame shows the Element at 0/90/180/270° and each flip. **Click a view**
+  to show it on the big canvas (a viewing choice — the Element and later steps are unchanged;
+  the Element export exports the view shown; Freehand drawing and Split's cut grid show 0°).
+- **Saved Elements** (Oct 3, 2026 — a test). Every view and the big frame carry two hover
+  circles: **save** (+ → ✓ once saved, hovering ✓ removes it — the same circle as the Component
+  gallery) and **pattern** (save this view if needed and make it the **Paper tile**; pressed when it
+  is the current tile). A saved Element keeps its shape in that orientation (rotation / flip baked
+  in), its colours (thumbnail) and its tile silhouette; it is not edited, only used or removed.
+  They are listed under **Saved Elements** (click = use as the Paper tile).
 
 ---
 
@@ -111,6 +119,14 @@ Grid step without saving it first.
   size. Saved with the appearance: a saved Component keeps its own Paper + texture, also inside
   Symbol cells (in its saved inks). Not covered yet: the bleed strip of a Print export (plain
   Paper colour) and the Figure tab. The icon is the shared Palette's opt-in `opts.pattern`.
+  **Pattern = Element (tile)**: a shape repeated as the texture in ONE ink — **Tile** (a thumbnail
+  dropdown: the Current Element, a Saved Element, or a Genesis seed — the 13 Base Seeds plus this
+  browser's Genesis library, each turned into one filled outline), **Layout** (Grid / Brick /
+  Half-drop), **Turn** (None / Alternate 0°·180° / Quarter pinwheel), **Size** (% of the spacing),
+  Spacing, Angle. Weight hides: the tile uses the Element's Fill, or its Stroke. At most 2,500
+  tiles per canvas (the spacing is raised, with a note). SVG: one `<path>` in `<defs>` + one `<use>`
+  per tile. A saved Component / Symbol keeps a **snapshot** of the tile; the live Paper follows the
+  Element.
 - **Colour by** decides which ink each cell gets: cell order, Checkerboard, By
   row, By column, Diagonal bands, By quadrant; **Start at** picks the leading
   colour. *By quadrant* splits the grid at its middle — on a grid with an odd

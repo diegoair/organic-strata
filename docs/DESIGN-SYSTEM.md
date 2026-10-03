@@ -1,7 +1,7 @@
 # Organica — Design System
 
 > Studio Rann · Organica · Typography, tokens, and the Figma mapping
-> Last updated: October 3, 2026 (Palette swatch `opts.pattern`; icon count 66 with `pattern`)
+> Last updated: October 3, 2026 (RMX chips draw `close` / `plus` from the registry; icon count 67 with `swap`; earlier the same day: Palette swatch `opts.pattern`, `pattern`)
 > (§5f, templates, added; the "Page on a field" variant and the FVS field added to it the same day. §1 and §3 — one typeface — and the §5 accent
 > table are **known stale**: the two-typeface rule is in the appendix at the end, and the rewrite is
 > queued in `docs/DESIGN-DECISIONS.md` §4; it waits on O-2 / O-3.)
@@ -566,7 +566,8 @@ Typefaces (Sep 29, 2026) — **two families, split by role**:
 
 ## Icons, motion tokens and behaviours (Oct 2, 2026)
 
-- **Icons** — `shared/icons.js` (registry, `Organica.icons`) + `shared/icons.css` (`.ico`). 16×16 grid, `currentColor`, stroke `--icon-stroke` (1.3) in screen px, sizes `--icon-xs/sm/md/lg/xl`. Never paste an inline chrome `<svg>`; `scripts/check.py` enforces it. 66 drawings (Oct 3, 2026 — `role-pattern` added for FVS's fourth layer role, then `pattern` for the Palette swatch's texture toggle — two names, two meanings: a layer that *is* a pattern vs. a texture *over* a colour; tool families `fvs-*`, `phrase-*`, `role-*` sit in the same file). Live catalogue: `/design-system/#icons`.
+- **Icons** — `shared/icons.js` (registry, `Organica.icons`) + `shared/icons.css` (`.ico`). 16×16 grid, `currentColor`, stroke `--icon-stroke` (1.3) in screen px, sizes `--icon-xs/sm/md/lg/xl`. Never paste an inline chrome `<svg>`; `scripts/check.py` enforces it. 67 drawings (Oct 3, 2026 — `role-pattern` added for FVS's fourth layer role, then `pattern` for the Palette swatch's texture toggle — two names, two meanings: a layer that *is* a pattern vs. a texture *over* a colour; then `swap`, two opposed arrows, for "exchange these two" (FVS figure card); tool families `fvs-*`, `phrase-*`, `role-*` sit in the same file). Live catalogue: `/design-system/#icons`.
+- **No typed glyphs as icons** (applied Oct 3, 2026): the RMX chip strip (`shared/palette.js`) draws `close` (xs) on `.rmx-x` and `plus` (sm) on `.rmx-add` — `palette.css` no longer sizes text there, it flex-centres the icon (measured 0px off-centre); a page must load `shared/icons.js` before `palette.js` or the two buttons are empty (they keep their `aria-label`). FVS: library remove × → `close`, figure card × → `close` and ⇄ → `swap`, rule chip ○● → `eye` / `eye-off` with `aria-pressed`, ↑↓ → `arrow-up` / `arrow-down`. FVS's quick-save circle (Component gallery, Element views, Element frame) is one 20px builder with `plus` / `check` / `close` at sm and a `--hit-min` `::before` hit area. Provisional choices behind this are open in `docs/DESIGN-DECISIONS.md` §1 (O-14 … O-18).
 - **Layer card reorder** — `.org-layer-card--flush.is-draggable` with `.is-dragging` / `.drop-before` / `.drop-after`. Two implementations behind the same classes: FVS a pointer drag (since Oct 3, 2026), Living Path native HTML5 drag-and-drop. No shared reorder helper yet (maintenance queue, `docs/DESIGN-DECISIONS.md` §4).
 - **Motion** — `--dur-instant/fast/base/slow/settle/reveal/stagger` and `--ease-standard/out/glide/overshoot-soft/overshoot/in-out` in `tokens.css` / `tokens.json`; durations collapse to 1ms under `prefers-reduced-motion`. Catalogue and demos: `#motion`.
 - **States and behaviours** — selected = ARIA, one focus ring, armed two-click (`[data-armed]`), keyboard table, floatbar order: `#states`, `#behaviours`.

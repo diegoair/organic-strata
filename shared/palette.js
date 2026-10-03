@@ -20,7 +20,7 @@
  *     For the labelled .color-row pattern most tools hand-write. opts:
  *     { initial, onChange(hex, rgb255) }.
  *   target is an HTMLElement    → GENERATE mode. Builds .rmx-color chips into it.
- *     opts.max > 1 ⇒ RMX strip with + / × ;  opts.max ≤ 1 ⇒ one bare chip.
+ *     opts.max > 1 ⇒ RMX strip with plus / close icons (needs shared/icons.js loaded first);  opts.max ≤ 1 ⇒ one bare chip.
  *     opts: { colors, min=1, max=8, activeIndex, onChange(colors, index, action, removedAt) }
  *     where action ∈ 'edit' | 'add' | 'remove' | 'set'. On 'remove', index is the chip to
  *     select next and removedAt is the chip that went (a caller keeping per-colour data
@@ -218,8 +218,7 @@
         if (colors.length > min) {
           const x = document.createElement('button');
           x.className = 'rmx-x';
-          x.textContent = '×';
-          x.title = 'Remove';
+          x.innerHTML = Organica.icons ? Organica.icons.get('close', { size: 'xs' }) : '';
           x.setAttribute('aria-label', 'Remove colour ' + (i + 1));
           x.addEventListener('click', e => { e.preventDefault(); removeColor(i); });
           chip.appendChild(x);
@@ -229,7 +228,7 @@
       if (colors.length < max) {
         const add = document.createElement('button');
         add.className = 'rmx-add';
-        add.textContent = '+';
+        add.innerHTML = Organica.icons ? Organica.icons.get('plus', { size: 'sm' }) : '';
         add.title = 'Add colour';
         add.setAttribute('aria-label', 'Add palette colour');
         add.addEventListener('click', addColor);

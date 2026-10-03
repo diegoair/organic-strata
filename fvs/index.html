@@ -95,14 +95,14 @@
   /* "Quick save to library" — a rounded + over the thumbnail's own
      top-right corner. Hidden until hover/focus so it doesn't compete with
      the shape underneath the rest of the time — EXCEPT once saved
-     (.saved, driven by comp.savedName), where it stays a permanent ✓
+     (.saved, driven by comp.savedName), where it stays a permanent check-icon
      indicator, visible with no hover needed, that persists across
      re-renders. */
   .fvs-thumb-quicksave {
-    position: absolute; top: 4px; right: 4px; width: 20px; height: 20px;
+    position: absolute; top: var(--space-1); right: var(--space-1); width: 20px; height: 20px;
     border-radius: 50%; border: 1px solid var(--border); background: var(--paper); color: var(--ink);
     display: flex; align-items: center; justify-content: center;
-    font-size: var(--fs-small); line-height: 1; padding: 0; cursor: pointer;
+    padding: 0; cursor: pointer;
     opacity: 0; transition: opacity var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
   }
   .fvs-thumb-wrap:hover .fvs-thumb-quicksave, .fvs-thumb-quicksave:focus-visible { opacity: 1; }
@@ -110,18 +110,21 @@
   .fvs-thumb-quicksave.saved { opacity: 1; border-color: var(--tool); background: var(--tool); color: var(--paper); }
   /* Hovering an already-saved ✓ previews the delete it's about to do. */
   .fvs-thumb-quicksave.saved.delete-hover { border-color: var(--danger); background: var(--danger); color: var(--paper); }
+  /* Hit area: the 20px circle keeps its size, the target grows to --hit-min (#hit-areas). */
+  .fvs-thumb-quicksave::before, .fvs-thumb-edit::before, .fvs-thumb-tile::before { content: ''; position: absolute; inset: calc((20px - var(--hit-min)) / 2); }
   /* Edit-structure — same hover-reveal circle as quick-save, one slot to
      its left (4px + 20px + 3px gap), neutral --ink on hover rather than
      --tool's green so it reads as a distinct action from Save. */
-  .fvs-thumb-edit {
-    position: absolute; top: 4px; right: 27px; width: 20px; height: 20px;
+  .fvs-thumb-edit, .fvs-thumb-tile {
+    position: absolute; top: var(--space-1); right: calc(var(--space-1) + 20px + 3px); width: 20px; height: 20px;
     border-radius: 50%; border: 1px solid var(--border); background: var(--paper); color: var(--ink);
     display: flex; align-items: center; justify-content: center;
     padding: 0; cursor: pointer;
     opacity: 0; transition: opacity var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
   }
-  .fvs-thumb-wrap:hover .fvs-thumb-edit, .fvs-thumb-edit:focus-visible { opacity: 1; }
-  .fvs-thumb-edit:hover { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+  .fvs-thumb-wrap:hover .fvs-thumb-edit, .fvs-thumb-edit:focus-visible, .fvs-thumb-tile:focus-visible { opacity: 1; }
+  .fvs-thumb-tile[aria-pressed="true"] { opacity: 1; border-color: var(--tool); background: var(--tool); color: var(--paper); }
+  .fvs-thumb-edit:hover, .fvs-thumb-tile:hover { border-color: var(--ink); background: var(--ink); color: var(--paper); }
   .fvs-thumb-caption, .fvs-library-caption { font-size: var(--fs-micro); color: var(--mid); line-height: var(--lh-snug); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fvs-library-caption { display: block; width: 76px; margin-top: var(--space-1); }
   .fvs-library-rename { width: 64px; padding: 0; border: 0; background: none; text-align: left; cursor: text; font-family: var(--font); }
@@ -141,12 +144,20 @@
   #rule-total-hint.over-cap { color: var(--danger); }
 
   .fvs-fb-group { display: contents; }
-  #seedtype-picker { width: 100%; }
+  #seedtype-picker, #ground-tile-picker { width: 100%; }
   .fvs-error { color: var(--danger); }
   .fvs-seed-preview-wrap { width: min(60vh, 70vw); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
   .fvs-seed-preview { display: flex; justify-content: center; align-items: flex-start; gap: var(--space-2); width: 100%; }
   .fvs-seed-tile { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); flex: 1 1 0; min-width: 0; }
-  .fvs-seed-tile svg { width: 100%; height: auto; aspect-ratio: 1; border: 1px solid var(--border); display: block; }   /* height:auto: the SVG's own height="…" attribute would otherwise pin it, and aspect-ratio only fills in a dimension left auto */
+  .fvs-seed-tile__box > svg { width: 100%; height: auto; aspect-ratio: 1; border: 1px solid var(--border); display: block; }   /* height:auto: the SVG's own height="…" attribute would otherwise pin it, and aspect-ratio only fills in a dimension left auto */
+  /* Element quick-save: the Component gallery's corner circle, on each strip tile and the big frame */
+  .fvs-seed-tile__box { position: relative; width: 100%; }
+  .fvs-seed-tile__box:hover :is(.fvs-thumb-quicksave, .fvs-thumb-tile), .fvs-element-frame:hover > :is(.fvs-thumb-quicksave, .fvs-thumb-tile) { opacity: 1; }
+  .fvs-element-frame > :is(.fvs-thumb-quicksave, .fvs-thumb-tile) { z-index: 1; }
+  .fvs-seed-tile[data-view] { cursor: pointer; }
+  @media (hover: hover) { .fvs-seed-tile[data-view]:hover .fvs-seed-tile__box > svg { border-color: var(--ink); } }
+  .fvs-seed-tile.is-selected .fvs-seed-tile__box > svg { border-color: var(--tool); box-shadow: 0 0 0 1px var(--tool); }
+  .fvs-seed-tile.is-selected .fvs-seed-tile__label { color: var(--ink); }
   .fvs-seed-tile__label { font-size: var(--fs-small); color: var(--mid); text-align: center; }
 
   .fvs-library { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
@@ -345,9 +356,9 @@
   .fg-card[aria-selected="true"] { border-color: var(--tool); outline: 2px solid var(--tool); }
   .fg-card img { width: 64px; height: 64px; object-fit: contain; display: block; background: var(--paper); }
   .fg-card.dragover { border-style: dashed; border-color: var(--tool); }
-  .fg-card__x { position: absolute; top: 0; right: 0; padding: 0 var(--space-2); background: none; border: 0; color: var(--mid); cursor: pointer; font: inherit; }
+  .fg-card__x { position: absolute; top: 0; right: 0; padding: 0 var(--space-2); background: none; border: 0; color: var(--mid); cursor: pointer; display: inline-flex; align-items: center; }
   .fg-card__x:hover { color: var(--danger); }
-  .fg-card__sw { position: absolute; top: 0; left: 0; padding: 0 var(--space-2); background: none; border: 0; color: var(--mid); cursor: pointer; font: inherit; }
+  .fg-card__sw { position: absolute; top: 0; left: 0; padding: 0 var(--space-2); background: none; border: 0; color: var(--mid); cursor: pointer; display: inline-flex; align-items: center; }
   .fg-card__sw:hover { color: var(--tool); }
   .fg-arrow { color: var(--mid); }
   .fg-gallery { width: min(100%, 720px); max-height: 60vh; overflow: auto; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
@@ -361,7 +372,7 @@
   #fg-chips .fg-chip { justify-content: space-between; }
   .fg-chip { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--panel); font-size: var(--fs-micro); }
   .fg-chip[data-off="true"] > .fg-chip__text { opacity: 0.45; text-decoration: line-through; }
-  .fg-chip button { border: 0; background: none; cursor: pointer; color: var(--mid); font: inherit; padding: 0 var(--space-1); }
+  .fg-chip button { border: 0; background: none; cursor: pointer; color: var(--mid); display: inline-flex; align-items: center; padding: 0 var(--space-1); }
   @media (hover: hover) { .fg-chip button:hover:not(:disabled) { color: var(--ink); } }
   .fg-chip button:disabled { opacity: 0.3; cursor: default; }
   .fg-advanced > summary { cursor: pointer; padding: var(--space-3) var(--space-4); font-size: var(--fs-small); color: var(--mid); }
@@ -416,7 +427,7 @@
   .fvs-layer__swatch.is-cell { background: linear-gradient(135deg, var(--sw) 50%, var(--paper) 50%); }
   .fvs-layer__swatch:disabled { opacity: 0.25; cursor: default; }
   .fvs-layer__del { opacity: 0; }
-  @media (hover: none) { .fvs-thumb-quicksave, .fvs-thumb-edit, .fvs-layer__del { opacity: 1; } }   /* touch has no hover to reveal them */
+  @media (hover: none) { .fvs-thumb-quicksave, .fvs-thumb-edit, .fvs-thumb-tile, .fvs-layer__del { opacity: 1; } }   /* touch has no hover to reveal them */
   .org-layer-card:hover .fvs-layer__del, .org-layer-card.active .fvs-layer__del, .fvs-layer__del:focus-visible { opacity: 1; }
   .fvs-layer__place { display: flex; flex-direction: column; padding-top: 0; }
   .fvs-layer__place .ctrl-row { margin-bottom: 0; min-height: var(--space-7); gap: var(--space-2); }
@@ -434,7 +445,7 @@
 
   /* Transparent paper: the toggle next to Paper, and a checkerboard behind every preview so "no paper" reads as such. */
   #btn-paper-clear.is-on { color: var(--paper); background: var(--ink); border-color: var(--ink); }
-  body.paper-clear #element-svg svg, body.paper-clear .fvs-seed-tile svg, body.paper-clear .fvs-thumb svg,
+  body.paper-clear #element-svg svg, body.paper-clear .fvs-seed-tile__box > svg, body.paper-clear .fvs-thumb svg,
   body.paper-clear #component-edit-frame svg, body.paper-clear #symbol-frame svg, body.paper-clear #figure-frame svg {
     background: repeating-conic-gradient(var(--panel) 0 25%, var(--paper) 0 50%) 0 0 / var(--space-6) var(--space-6);
   }
@@ -1381,6 +1392,11 @@
       <p class="org-panel__hint" id="split-status"></p>
       <p class="org-panel__hint" id="split-recipe-hint" style="display:none">Press All to edit the original shape's sliders again.</p>
     </div>
+    <div class="panel-section" id="element-library-section">
+      <h3>Saved Elements <span class="hint">click = Paper tile</span></h3>
+      <div id="element-library-empty" class="org-empty">None yet — hover the Element or a view above it and click +.</div>
+      <div id="element-library" class="fvs-library"></div>
+    </div>
     <div class="panel-section">
       <h3>Start from a recipe</h3>
       <div class="ctrl-row">
@@ -1653,7 +1669,35 @@
             <option value="crosshatch">Crosshatch</option>
             <option value="dots">Dots</option>
             <option value="concentric">Concentric</option>
+            <option value="element">Element (tile)</option>
           </select>
+        </div>
+        <!-- Pattern = Element: a shape repeated as the texture, one ink. -->
+        <div id="ground-tile-block" hidden>
+          <div class="ctrl-row"><div class="ctrl-label" title="The shape repeated: the current Element, a saved Element, or a Genesis seed">Tile</div>
+            <div id="ground-tile-picker"></div>
+            <select class="panel-select" id="sel-ground-tile" aria-label="Tile shape"></select>
+          </div>
+          <div class="ctrl-row"><div class="ctrl-label" title="Grid · Brick (every other row shifted half) · Half-drop (every other column shifted half)">Layout</div>
+            <select class="panel-select" id="sel-ground-layout" aria-label="Tile layout">
+              <option value="grid" selected>Grid</option>
+              <option value="brick">Brick</option>
+              <option value="halfdrop">Half-drop</option>
+            </select>
+          </div>
+          <div class="ctrl-row"><div class="ctrl-label" title="None · Alternate (0° / 180° in a checkerboard) · Quarter (0 / 90 / 180 / 270 in a pinwheel)">Turn</div>
+            <select class="panel-select" id="sel-ground-turn" aria-label="Tile turn">
+              <option value="none" selected>None</option>
+              <option value="alternate">Alternate</option>
+              <option value="quarter">Quarter</option>
+            </select>
+          </div>
+          <div class="ctrl-row">
+            <div class="ctrl-label" title="The tile's size, in % of the spacing.">Size</div>
+            <input type="range" id="rg-ground-patsize" min="10" max="100" step="1" value="70">
+            <span class="ctrl-val" id="v-ground-patsize">70</span>
+          </div>
+          <p class="org-panel__hint" id="ground-tile-note" hidden></p>
         </div>
         <div class="ctrl-row"><div class="ctrl-label">Ink</div>
           <select class="panel-select" id="sel-ground-ink" aria-label="Paper pattern ink"></select>
@@ -1663,7 +1707,7 @@
           <input type="range" id="rg-ground-patspacing" min="1.5" max="30" step="0.5" value="4">
           <span class="ctrl-val" id="v-ground-patspacing">4</span>
         </div>
-        <div class="ctrl-row">
+        <div class="ctrl-row" id="ground-patweight-row">
           <div class="ctrl-label" title="Line width, or dot diameter.">Weight</div>
           <input type="range" id="rg-ground-patweight" min="0.25" max="20" step="0.25" value="0.75">
           <span class="ctrl-val" id="v-ground-patweight">0.75</span>
@@ -2095,6 +2139,7 @@
 <script src="/shared/shape-appearance.js"></script>
 <script src="/shared/select-picker.js"></script>
 <script src="/shared/vendor/paper-full.min.js"></script>
+<script src="/genesis/forms.js"></script><!-- the 13 Base Seeds, as data — Paper tile sources -->
 <script src="/shared/vendor/kiwi.min.js"></script>
 <script src="/shared/paper.js"></script>
 <script src="/shared/circle-advanced.js"></script>
@@ -2129,6 +2174,10 @@ const printSizePanel = Organica.printSizePanel(document.getElementById('print-si
   },
 });
 
+// Paper tile dropdown (Organica.selectPicker) — declared up here: renderSeedPreview, which
+// refreshes its "Current Element" thumbnail, runs during boot before the tile code below.
+const TILE_PICK_REG = {};
+let tilePicker = null;
 const state = {
   components: [],   // [{id, ruleSource, cells:[{rotation,flipH,flipV,scale,content} x4]}]
                      // cell.content: null (default, follow the shared Element) or
@@ -3850,7 +3899,9 @@ function syncLookBlocks() {
 let paperPatternOn = false;
 function readGroundControls() {
   if (!paperPatternOn) return null;
-  return { patType: ctrl('sel-ground-pattern').value, patSpacing: val('rg-ground-patspacing'), patWeight: val('rg-ground-patweight'), patAngle: val('rg-ground-patangle'), ink: +ctrl('sel-ground-ink').value || 0 };
+  const g = { patType: ctrl('sel-ground-pattern').value, patSpacing: val('rg-ground-patspacing'), patWeight: val('rg-ground-patweight'), patAngle: val('rg-ground-patangle'), ink: +ctrl('sel-ground-ink').value || 0 };
+  if (g.patType === 'element') Object.assign(g, { src: ctrl('sel-ground-tile').value || 'element', layout: ctrl('sel-ground-layout').value, turn: ctrl('sel-ground-turn').value, patSize: val('rg-ground-patsize') });
+  return g;
 }
 function syncGroundInkOptions(selected) {
   const sel = ctrl('sel-ground-ink'), cur = selected != null ? String(selected) : sel.value;
@@ -3861,14 +3912,338 @@ function showGroundControls(g) {
   paperPatternOn = !!g;
   if (g) {
     ctrl('sel-ground-pattern').value = g.patType;
-    [['patspacing', g.patSpacing], ['patweight', g.patWeight], ['patangle', g.patAngle]].forEach(([k, v]) => { ctrl('rg-ground-' + k).value = v; ctrl('v-ground-' + k).textContent = v; });
+    [['patspacing', g.patSpacing], ['patweight', g.patWeight], ['patangle', g.patAngle], ['patsize', g.patSize == null ? 70 : g.patSize]].forEach(([k, v]) => { ctrl('rg-ground-' + k).value = v; ctrl('v-ground-' + k).textContent = v; });
+    ctrl('sel-ground-layout').value = g.layout || 'grid';
+    ctrl('sel-ground-turn').value = g.turn || 'none';
+    syncGroundTileOptions(g.src);
   }
   syncGroundInkOptions(g && g.ink !== 'cell' ? g.ink : null);
   if (typeof paperSwatch !== 'undefined') paperSwatch.setPattern(paperPatternOn);
   syncGroundBlock();
 }
 function syncGroundBlock() {
-  ctrl('ground-patangle-row').style.display = ctrl('sel-ground-pattern').value === 'concentric' ? 'none' : '';
+  const type = ctrl('sel-ground-pattern').value, tile = type === 'element';
+  ctrl('ground-patangle-row').style.display = type === 'concentric' ? 'none' : '';
+  ctrl('ground-tile-block').hidden = !tile;
+  ctrl('ground-patweight-row').style.display = tile ? 'none' : '';   // a tile's weight is the Element's own (Fill, or its Stroke W)
+  if (tile) syncGroundTileOptions();
+}
+
+// ── Element as tile (Paper pattern = Element) ─────────────────────────
+// The tile is a flat silhouette in ONE ink: the current Element (all its fill
+// layers as one shape — stackGeometry's union), a saved Element, or a Genesis
+// seed. A saved Component / Symbol keeps a SNAPSHOT of the tile (appearanceSnapshot,
+// at save time), so editing the Element later never changes saved work; the live
+// Paper follows the Element as you edit it.
+const ELEMENT_LIB = Organica.presetStore('fvs-element');
+const TILE_CAP = 2500;   // tiles per canvas — past it the spacing is raised (and said so)
+const _genesisTileCache = new Map();
+function liveElementTile() {
+  const seed = getSeed();
+  if (!seed || !SEED_TYPES[seed.type]) return null;
+  const geo = SEED_TYPES[seed.type].geometry(seed);
+  if (!geo || !geo.d) return null;
+  // One silhouette: Stroke only for a single shape whose Style is Stroke; a stack / Fill / Pattern is a fill.
+  const fm = ctrl('sel-element-fillmode').value, stroke = !state.layers && fm === 'stroke';
+  return { geo: { d: geo.d, fillRule: geo.fillRule || null, normTx: geo.normTx, normTy: geo.normTy, normScale: geo.normScale },
+    style: stroke ? { fillMode: 'stroke', strokeW: val('rg-element-strokew'), rounded: ctrl('ck-element-rounded').checked } : { fillMode: 'fill' } };
+}
+function resolveTile(g) {
+  if (!g) return null;
+  if (g.tile) return g.tile;
+  const src = g.src || 'element';
+  if (src.startsWith('saved:')) { const e = ELEMENT_LIB.read()[src.slice(6)]; return e ? e.tile : null; }
+  if (src.startsWith('genesis:')) {
+    const id = src.slice(8);
+    if (!_genesisTileCache.has(id)) {
+      const f = genesisTileForms().find(x => x.id === id);
+      let geo = null;
+      try { geo = f ? svgToTileGeo(f.svg) : null; } catch (e) { geo = null; }
+      _genesisTileCache.set(id, geo ? { geo, style: { fillMode: 'fill' } } : null);
+    }
+    return _genesisTileCache.get(id);
+  }
+  return liveElementTile();
+}
+// Genesis seeds offered as tiles: the 13 Base Seeds (genesis/forms.js) + the user's
+// own Genesis library in this browser (getCreatorLibraryForms), by id, no duplicates.
+function genesisTileForms() {
+  const out = [], seen = new Set();
+  for (const [id, e] of Object.entries(window.ORGANIC_SEEDS || {})) { out.push({ id, name: e.label || id, svg: e.svg }); seen.add(id); }
+  for (const f of getCreatorLibraryForms()) if (f && f.svg && !seen.has(f.id)) { out.push(f); seen.add(f.id); }
+  return out;
+}
+// A whole Genesis SVG → ONE filled outline in the 0..100 box: every shape with its
+// transform (Paper.js importSVG, shapes expanded), strokes turned into outlines
+// (strokeToShapeD), all united — so multi-shape seeds (flower bloom: 9 ellipses)
+// and stroked ones (sun's rays, line) tile as they look, as a real path.
+function svgToTileGeo(svg) {
+  const scope = splitPaperScope();
+  const root = scope.project.importSVG(ensureSvgNamespace(String(svg).replace(/var\(--ink\)/g, '#000')), { expandShapes: true, insert: false });
+  const parts = [];
+  root.getItems({ match: it => (it instanceof scope.Path || it instanceof scope.CompoundPath) && !(it.parent instanceof scope.CompoundPath) }).forEach(it => {
+    const c = it.clone({ insert: false });
+    if (it.parent) c.transform(it.parent.globalMatrix);
+    // SVG's default fill is black even on a <line>: only a shape with area is filled; any stroke is outlined
+    const filled = it.fillColor && it.fillColor.alpha !== 0 && Math.abs(it.area) > 1e-6, stroked = it.strokeColor && it.strokeColor.alpha !== 0 && it.strokeWidth > 0;
+    if (filled) parts.push(c.pathData);
+    if (stroked) { const r = strokeToShapeD(c.pathData, it.strokeWidth * Math.abs(it.parent ? it.parent.globalMatrix.scaling.x : 1)); if (r) parts.push(r); }
+    c.remove();
+  });
+  root.remove();
+  if (!parts.length) return null;
+  let acc = null;
+  for (const d of parts) {
+    const p = new scope.CompoundPath({ pathData: d, insert: false });
+    acc = acc ? acc.unite(p, { insert: false }) : p;
+  }
+  const b = acc.bounds, d = acc.pathData;
+  acc.remove();
+  if (!d || !(b.width > 0 || b.height > 0)) return null;
+  const ns = 100 / Math.max(b.width, b.height);
+  return { d, fillRule: null, normScale: ns, normTx: -b.x + (100 - b.width * ns) / 2 / ns, normTy: -b.y + (100 - b.height * ns) / 2 / ns };
+}
+// What a save stores: the appearance with the tile frozen into it.
+function appearanceSnapshot() {
+  const a = getElementAppearance();
+  if (!a.ground || a.ground.patType !== 'element' || a.ground.tile) return a;
+  const t = resolveTile(a.ground);
+  return t ? { ...a, ground: { ...a.ground, tile: t } } : a;
+}
+function syncGroundTileOptions(selected) {
+  const sel = ctrl('sel-ground-tile'), cur = selected != null ? selected : sel.value;
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const saved = libraryNamesAll(ELEMENT_LIB.read()), gen = genesisTileForms();
+  // tiny silhouette of each tile in the dropdown (icon thumbnails, currentColor)
+  Object.keys(TILE_PICK_REG).forEach(k => delete TILE_PICK_REG[k]);
+  TILE_PICK_REG.element = { name: 'Current Element', thumb: () => tileIconSVG(liveElementTile()) };
+  saved.forEach(n => { const e = ELEMENT_LIB.read()[n]; TILE_PICK_REG['saved:' + n] = { name: esc(n), icon: tileIconSVG(e && e.tile) }; });
+  gen.forEach(f => { TILE_PICK_REG['genesis:' + f.id] = { name: esc(f.name || f.id), thumb: () => tileIconSVG(resolveTile({ src: 'genesis:' + f.id })) }; });
+  sel.innerHTML = '<option value="element">Current Element</option>'
+    + (saved.length ? `<optgroup label="Saved Elements">${saved.map(n => `<option value="saved:${esc(n)}">${esc(n)}</option>`).join('')}</optgroup>` : '')
+    + (gen.length ? `<optgroup label="Genesis seeds">${gen.map(f => `<option value="genesis:${esc(f.id)}">${esc(f.name || f.id)}</option>`).join('')}</optgroup>` : '');
+  sel.value = [...sel.options].some(o => o.value === cur) ? cur : 'element';
+  if (!tilePicker) tilePicker = Organica.selectPicker(sel, ctrl('ground-tile-picker'), { registry: TILE_PICK_REG, ariaLabel: 'Tile shape' });
+  tilePicker.invalidate();
+}
+function tileIconSVG(t) {
+  if (!t || !t.geo || !t.geo.d) return '';
+  const g = t.geo, attrs = Organica.shapeAppearance.styleAttrs({ fillMode: t.style.fillMode, color: 'currentColor', strokeW: t.style.strokeW, rounded: t.style.rounded });
+  return `<svg viewBox="-6 -6 112 112" aria-hidden="true"><g transform="${tileNormAttr(g)}"><path d="${g.d}" ${attrs}${g.fillRule && t.style.fillMode !== 'stroke' ? ` fill-rule="${g.fillRule}"` : ''}/></g></svg>`;
+}
+const libraryNamesAll = all => Object.keys(all || {});
+// The tiles across a w×h canvas, in the canvas's 1/100-of-short-side units (k):
+// a lattice rotated by Angle about the centre, Brick / Half-drop offsets, Turn.
+function elementTileLayout(g, w, h) {
+  const k = Math.min(w, h) / 100, cx = w / 2 / k, cy = h / 2 / k, r = Math.hypot(w, h) / 2 / k;
+  let s = Math.max(1, +g.patSpacing || 8), capped = false;
+  const est = Math.pow(2 * r / s + 2, 2);
+  if (est > TILE_CAP) { s *= Math.sqrt(est / TILE_CAP); capped = true; }
+  const a = (+g.patAngle || 0) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+  const n = Math.ceil(r / s) + 1, tiles = [], odd = v => ((v % 2) + 2) % 2;
+  const PIN = [[0, 90], [270, 180]];
+  for (let j = -n; j <= n; j++) {
+    for (let i = -n; i <= n; i++) {
+      const gx = i * s + (g.layout === 'brick' && odd(j) ? s / 2 : 0);
+      const gy = j * s + (g.layout === 'halfdrop' && odd(i) ? s / 2 : 0);
+      if (gx * gx + gy * gy > (r + s) * (r + s)) continue;
+      const turn = g.turn === 'alternate' ? odd(i + j) * 180 : g.turn === 'quarter' ? PIN[odd(j)][odd(i)] : 0;
+      tiles.push({ x: cx + gx * ca - gy * sa, y: cy + gx * sa + gy * ca, rot: (+g.patAngle || 0) + turn });
+    }
+  }
+  return { k, size: s * Math.max(0.05, (g.patSize == null ? 70 : +g.patSize) / 100), tiles, capped, spacing: s };
+}
+const tileNormAttr = geo => `translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})`;
+function elementTileSVG(g, w, h, clipId) {
+  const t = resolveTile(g);
+  if (!t || !t.geo || !t.geo.d) return '';
+  const L = elementTileLayout(g, w, h), ink = groundInk(g), id = clipId + 't', sc = L.size / 100;
+  const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: t.style.fillMode, color: ink, strokeW: t.style.strokeW, rounded: t.style.rounded })
+    + (t.geo.fillRule && t.style.fillMode !== 'stroke' ? ` fill-rule="${t.geo.fillRule}"` : '');
+  const uses = L.tiles.map(p => `<use href="#${id}" transform="translate(${p.x.toFixed(2)},${p.y.toFixed(2)}) rotate(${p.rot}) scale(${sc.toFixed(4)}) translate(-50,-50)"/>`).join('');
+  return `<defs><path id="${id}" d="${t.geo.d}" transform="${tileNormAttr(t.geo)}" ${attrs}/></defs>`
+    + `<clipPath id="${clipId}"><rect width="${w}" height="${h}"/></clipPath><g clip-path="url(#${clipId})"><g transform="scale(${L.k.toFixed(4)})">${uses}</g></g>`;
+}
+function paintElementTileCanvas(ctx, g, w, h) {
+  const t = resolveTile(g);
+  if (!t || !t.geo || !t.geo.d) return;
+  const L = elementTileLayout(g, w, h), sc = L.size / 100, path = new Path2D(t.geo.d), geo = t.geo;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.clip();
+  ctx.scale(L.k, L.k);
+  const op = Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: t.style.fillMode, color: groundInk(g), strokeW: t.style.strokeW, rounded: t.style.rounded });
+  for (const p of L.tiles) {
+    ctx.save();
+    ctx.translate(p.x, p.y); ctx.rotate(p.rot * Math.PI / 180); ctx.scale(sc, sc); ctx.translate(-50, -50);
+    ctx.translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale); ctx.scale(geo.normScale, geo.normScale);
+    paintPath(ctx, op, path, geo);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+// Says so when the tile count hit the cap (the live Paper only).
+function syncGroundTileNote() {
+  const g = readGroundControls(), note = ctrl('ground-tile-note');
+  if (!g || g.patType !== 'element') { note.hidden = true; return; }
+  const L = elementTileLayout(g, 100, 100);
+  note.hidden = !L.capped;
+  if (L.capped) note.textContent = `Spacing raised to ${L.spacing.toFixed(1)} — at most ${TILE_CAP.toLocaleString()} tiles per canvas.`;
+}
+
+// ── Saved Elements — the Element as it is now, kept for reuse (Paper tile).
+// Same store mechanism as the Component library (Organica.presetStore), its own
+// key; a saved Element is not edited — only used, or removed.
+// One orientation of the live Element as a tile: rotation / flip baked into the path
+// (about the box centre, after the norm fit) — a saved variant is its own shape.
+function orientedElementTile(rot, flipH, flipV) {
+  const t = liveElementTile();
+  if (!t || (!rot && !flipH && !flipV)) return t;
+  const g = t.geo, scope = splitPaperScope();
+  const cp = importAsPaperShape(scope, g.d, g.fillRule);
+  const m = new scope.Matrix().translate(50, 50).rotate(rot).scale(flipH ? -1 : 1, flipV ? -1 : 1).translate(-50, -50)
+    .translate(g.normTx * g.normScale, g.normTy * g.normScale).scale(g.normScale);
+  cp.transform(m);
+  const d = cp.pathData; cp.remove();
+  const style = t.style.fillMode === 'stroke' ? { ...t.style, strokeW: t.style.strokeW * g.normScale } : t.style;
+  return { geo: { d, fillRule: g.fillRule || null, normTx: 0, normTy: 0, normScale: 1 }, style };
+}
+// Same shape + style = same variant (drives the ✓).
+function tileSig(t) {
+  const str = JSON.stringify([t.geo.d, t.geo.fillRule, t.geo.normTx, t.geo.normTy, t.geo.normScale, t.style]);
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return 'el' + (h >>> 0).toString(36);
+}
+function savedElementBySig(sig) {
+  const all = ELEMENT_LIB.read();
+  return Object.keys(all).find(n => all[n] && all[n].tile && (all[n].sig || tileSig(all[n].tile)) === sig) || null;   // an entry saved before `sig` existed is matched by its shape
+}
+function saveElementVariant(rot, flipH, flipV, label) {
+  const tile = orientedElementTile(rot, flipH, flipV);
+  if (!tile) return;
+  const all = ELEMENT_LIB.read(), type = getSeed().type;
+  let name = (state.layers ? 'Stack' : ((SEED_ICONS[type] || {}).name || type)) + (label && label !== '0°' ? ' · ' + label : '') + ' ' + new Date().toLocaleTimeString();
+  while (all[name]) name += '′';
+  all[name] = { tile, sig: tileSig(tile), thumb: elementVariantSVG(rot, flipH, flipV), colors: state.colors.slice(), orientation: { rotation: rot, flipH, flipV }, seed: seedForSnapshot(), appearance: getElementAppearance(), savedAt: new Date().toISOString() };
+  ELEMENT_LIB.write(all);
+  elementLibraryChanged();
+  return name;
+}
+// The Element as drawn — its own inks (Palette, layer inks), this orientation, no paper —
+// kept with a saved Element as its thumbnail.
+function elementVariantSVG(rot, flipH, flipV) {
+  const seed = getSeed(), geo = SEED_TYPES[seed.type].geometry(seed);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true"><g transform="translate(50,50) rotate(${rot}) scale(${flipH ? -1 : 1},${flipV ? -1 : 1}) translate(-50,-50)">${elementPathMarkup(geo, colorAt(0))}</g></svg>`;
+}
+// The second circle on the Element frame / views: save this view (if it isn't yet)
+// and make it the Paper's tile — Paper pattern on, Pattern = Element.
+function elementTileButton(rot, flipH, flipV, label) {
+  const t = orientedElementTile(rot, flipH, flipV);
+  const savedName = t ? savedElementBySig(tileSig(t)) : null;
+  const g = readGroundControls(), on = !!(savedName && g && g.patType === 'element' && g.src === 'saved:' + savedName);
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'fvs-thumb-tile';
+  b.setAttribute('aria-pressed', String(on));
+  const lbl = on ? 'This view is the Paper tile' : 'Use this view' + (label && label !== '0°' ? ' (' + label + ')' : '') + ' as the Paper tile';
+  b.setAttribute('aria-label', lbl); b.title = lbl;
+  b.innerHTML = Organica.icons.get('pattern', { size: 'sm' });
+  b.disabled = !t;
+  b.addEventListener('click', e => {
+    e.stopPropagation();
+    const name = savedName || saveElementVariant(rot, flipH, flipV, label);
+    if (name) useAsPaperTile('saved:' + name);
+  });
+  return b;
+}
+function removeSavedElement(name) {
+  const all = ELEMENT_LIB.read();
+  delete all[name];
+  ELEMENT_LIB.write(all);
+  elementLibraryChanged();
+  onAppearanceChange();   // a Paper tile that pointed at it falls back to nothing / the live Element
+}
+function elementLibraryChanged() { renderElementLibrary(); syncGroundTileOptions(); mountElementQuickSaves(); }
+// The corner circle (the Component gallery's quick-save): + saves this view,
+// ✓ = already saved, hovering ✓ offers remove.
+function elementQuickSaveButton(rot, flipH, flipV, label) {
+  const t = orientedElementTile(rot, flipH, flipV);
+  const savedName = t ? savedElementBySig(tileSig(t)) : null;
+  const b = quickSaveButton({
+    savedName,
+    labelSave: 'Save the Element' + (label && label !== '0°' ? ' at ' + label : '') + ' to Saved Elements',
+    labelSaved: 'Saved as ' + savedName,
+    labelRemove: 'Remove from Saved Elements',
+    onSave: () => saveElementVariant(rot, flipH, flipV, label),
+    onRemove: () => removeSavedElement(savedName),
+  });
+  b.disabled = !t;
+  return b;
+}
+// THE quick-save circle (Component gallery + Element views): + saves, a persistent
+// ✓ once saved, hovering the ✓ offers remove (×). One builder so the two never drift.
+function quickSaveButton({ savedName, labelSave, labelSaved, labelRemove, onSave, onRemove }) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'fvs-thumb-quicksave' + (savedName ? ' saved' : '');
+  const show = (icon, label) => { b.innerHTML = Organica.icons.get(icon, { size: 'sm' }); b.setAttribute('aria-label', label); b.title = label; };
+  show(savedName ? 'check' : 'plus', savedName ? labelSaved : labelSave);
+  if (savedName) {
+    b.addEventListener('mouseenter', () => { show('close', labelRemove); b.classList.add('delete-hover'); });
+    b.addEventListener('mouseleave', () => { show('check', labelSaved); b.classList.remove('delete-hover'); });
+  }
+  b.addEventListener('click', e => { e.stopPropagation(); if (savedName) onRemove(); else onSave(); });
+  return b;
+}
+function mountElementQuickSaves() {
+  if (elementIsEmpty()) { ctrl('element-frame').querySelectorAll(':scope > .fvs-thumb-quicksave, :scope > .fvs-thumb-tile').forEach(x => x.remove()); return; }
+  const boxes = ctrl('seed-preview').querySelectorAll('.fvs-seed-tile__box');
+  SEED_PREVIEW_STATES.forEach(([r, fh, fv, label], i) => { const box = boxes[i]; if (box) { box.querySelectorAll('.fvs-thumb-quicksave, .fvs-thumb-tile').forEach(x => x.remove()); box.append(elementTileButton(r, fh, fv, label), elementQuickSaveButton(r, fh, fv, label)); } });
+  const frame = ctrl('element-frame');
+  frame.querySelectorAll(':scope > .fvs-thumb-quicksave, :scope > .fvs-thumb-tile').forEach(x => x.remove());
+  const v = currentElementView(), vi = elementViewIndex(), lbl = vi >= 0 ? SEED_PREVIEW_STATES[vi][3] : '0°';
+  frame.append(elementTileButton(v.r, v.fh, v.fv, lbl), elementQuickSaveButton(v.r, v.fh, v.fv, lbl));
+  if (tilePicker) tilePicker.invalidate('element');   // the "Current Element" thumbnail follows the Element
+}
+function tileThumbSVG(t) {
+  const g = t.geo, attrs = Organica.shapeAppearance.styleAttrs({ fillMode: t.style.fillMode, color: 'var(--ink)', strokeW: t.style.strokeW, rounded: t.style.rounded });
+  return `<svg viewBox="-6 -6 112 112" aria-hidden="true"><g transform="${tileNormAttr(g)}"><path d="${g.d}" ${attrs}${g.fillRule && t.style.fillMode !== 'stroke' ? ` fill-rule="${g.fillRule}"` : ''}/></g></svg>`;
+}
+function renderElementLibrary() {
+  const all = ELEMENT_LIB.read(), names = libraryNamesAll(all), wrap = ctrl('element-library');
+  ctrl('element-library-empty').style.display = names.length ? 'none' : '';
+  wrap.innerHTML = '';
+  for (const name of names) {
+    const e = all[name];
+    if (!e || !e.tile) continue;
+    const tile = document.createElement('div');
+    tile.style.position = 'relative';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'fvs-library-item';
+    btn.title = name + ' — use as the Paper tile';
+    btn.setAttribute('aria-label', 'Use ' + name + ' as the Paper tile');
+    btn.innerHTML = e.thumb || tileThumbSVG(e.tile);   // its own colours (saved before thumbs existed: the silhouette)
+    btn.addEventListener('click', () => useAsPaperTile('saved:' + name));
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'rmx-x';
+    x.innerHTML = Organica.icons.get('close', { size: 'xs' });
+    x.title = 'Remove';
+    x.setAttribute('aria-label', 'Remove saved Element ' + name);
+    x.addEventListener('click', ev => { ev.stopPropagation(); removeSavedElement(name); });
+    tile.append(btn, x);
+    wrap.appendChild(tile);
+  }
+}
+// Click on a saved Element: Paper pattern on, Pattern = Element, this tile.
+function useAsPaperTile(src) {
+  paperPatternOn = true;
+  paperSwatch.setPattern(true);
+  ctrl('sel-ground-pattern').value = 'element';
+  syncGroundBlock();
+  syncGroundTileOptions(src);
+  onAppearanceChange();
 }
 const groundInk = g => {
   const pal = inkPaletteOverride || state.colors, i = g.ink === 'cell' || g.ink == null ? 0 : +g.ink;
@@ -3878,12 +4253,14 @@ const paperPatternGeo = (g, w, h) => { const k = Math.min(w, h) / 100; return { 
 function paperPatternSVG(w, h) {
   const g = getElementAppearance().ground;
   if (!g || !(w > 0) || !(h > 0)) return '';
+  if (g.patType === 'element') return elementTileSVG(g, w, h, 'gnd' + nextDrawId());
   const id = 'gnd' + nextDrawId(), { k, pg } = paperPatternGeo(g, w, h);
   return `<clipPath id="${id}"><rect width="${w}" height="${h}"/></clipPath><g clip-path="url(#${id})"><g transform="scale(${k.toFixed(4)})"><path d="${pg.d}" ${patternAttrs(pg, groundInk(g))}/></g></g>`;
 }
 function paintPaperPatternCanvas(ctx, w, h) {
   const g = getElementAppearance().ground;
   if (!g || !(w > 0) || !(h > 0)) return;
+  if (g.patType === 'element') { paintElementTileCanvas(ctx, g, w, h); return; }
   const { k, pg } = paperPatternGeo(g, w, h);
   ctx.save();
   ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.clip();
@@ -4470,14 +4847,15 @@ function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size) {
 // The 0°/no-flip state is dropped on purpose: it's pixel-identical to the big
 // canvas below (same seed, same transform, just smaller) — showing it twice added no information.
 const SEED_PREVIEW_STATES = [
-  [90, false, false, '90°'], [180, false, false, '180°'], [270, false, false, '270°'],
+  [0, false, false, '0°'], [90, false, false, '90°'], [180, false, false, '180°'], [270, false, false, '270°'],
   [0, true, false, 'Flip H'], [0, false, true, 'Flip V'], [0, true, true, 'Flip H+V'],
 ];
 function renderSeedPreview() {
   const seed = getSeed();
   ctrl('seed-preview').innerHTML = SEED_PREVIEW_STATES
-    .map(([r, fh, fv, label]) => `<div class="fvs-seed-tile">${buildSeedPreviewSVG(seed, r, fh, fv, 48)}<span class="fvs-seed-tile__label">${label}</span></div>`).join('');
+    .map(([r, fh, fv, label], i) => `<div class="fvs-seed-tile${i === elementViewIndex() ? ' is-selected' : ''}" role="button" tabindex="0" data-view="${i}" aria-pressed="${i === elementViewIndex()}" aria-label="Show the Element at ${label}"><div class="fvs-seed-tile__box">${buildSeedPreviewSVG(seed, r, fh, fv, 48)}</div><span class="fvs-seed-tile__label">${label}</span></div>`).join('');
   renderElementFrame(seed);
+  mountElementQuickSaves();
 }
 
 // Split's cut grid — a dashed frame + centre cross showing exactly where the
@@ -4523,25 +4901,41 @@ function buildSplitGridOverlaySVG(size) {
 // Element tier's own big canvas — a single live preview of the current
 // Seed at 0°, on its own stage. Reuses buildSeedPreviewSVG (the same
 // geometry the 7-tile strip below uses) at a larger size.
+// The view shown on the big Element canvas: one of the strip's orientations (a
+// viewing choice — the Element itself, and every later step, stay as they are).
+// Drawing (Freehand) and Split's cut grid work upright only, so they show 0°.
+let elementView = { r: 0, fh: false, fv: false };
+function elementViewLocked() { return ctrl('sel-seed-type').value === 'freehand' || (ctrl('chk-split-grid') && ctrl('chk-split-grid').checked); }
+function currentElementView() { return elementViewLocked() ? { r: 0, fh: false, fv: false } : elementView; }
+function elementViewIndex() {
+  const v = currentElementView();
+  return SEED_PREVIEW_STATES.findIndex(([r, fh, fv]) => r === v.r && fh === v.fh && fv === v.fv);
+}
+function setElementView(i) {
+  const st = SEED_PREVIEW_STATES[i];
+  if (!st) return;
+  elementView = { r: st[0], fh: st[1], fv: st[2] };
+  renderSeedPreview();
+}
 function renderElementFrame(seed) {
   const frame = ctrl('element-frame');
   if (!frame) return;
-  const sd = seed || getSeed();
-  let svg = buildSeedPreviewSVG(sd.type === 'freehand' ? { ...sd, type: 'freehandraw' } : sd, 0, false, false, 400);
+  const sd = seed || getSeed(), v = currentElementView();
+  let svg = buildSeedPreviewSVG(sd.type === 'freehand' ? { ...sd, type: 'freehandraw' } : sd, v.r, v.fh, v.fv, 400);
   const overlay = buildSplitGridOverlaySVG(400);
   if (overlay) svg = svg.replace('</svg>', overlay + '</svg>');
   ctrl('element-svg').innerHTML = svg;
 }
 
 function exportElement(format) {
-  const seed = getSeed();
+  const seed = getSeed(), v = currentElementView();   // the view on the canvas, as shown
   if (format === 'svg') {
-    Organica.download(new Blob([buildSeedPreviewSVG(seed, 0, false, false, 400)], { type: 'image/svg+xml' }), Organica.stamp('fvs-element', 'svg'));
+    Organica.download(new Blob([buildSeedPreviewSVG(seed, v.r, v.fh, v.fv, 400)], { type: 'image/svg+xml' }), Organica.stamp('fvs-element', 'svg'));
     return;
   }
   const scale = parseInt(ctrl('sel-export-scale').value, 10);
   const size = 400 * scale;
-  const svgStr = buildSeedPreviewSVG(seed, 0, false, false, size);
+  const svgStr = buildSeedPreviewSVG(seed, v.r, v.fh, v.fv, size);
   const svgBlob = new Blob([svgStr], { type: 'image/svg+xml' });
   const url = URL.createObjectURL(svgBlob);
   const img = new Image();
@@ -4636,27 +5030,13 @@ function renderGallery() {
     // Hovering that ✓ swaps it to a delete "×" (mouseenter/leave, not CSS
     // content, since the label/title need to change too for a11y) — a
     // click then removes the saved entry instead of re-saving it.
-    const quickSave = document.createElement('button');
-    quickSave.type = 'button';
-    quickSave.className = 'fvs-thumb-quicksave' + (comp.savedName ? ' saved' : '');
-    const qsLabelSaved = `Saved to library as "${comp.savedName}"`;
-    quickSave.setAttribute('aria-label', comp.savedName ? qsLabelSaved : 'Save to library');
-    quickSave.title = comp.savedName ? qsLabelSaved : 'Save to library';
-    quickSave.textContent = comp.savedName ? '✓' : '+';
-    if (comp.savedName) {
-      quickSave.addEventListener('mouseenter', () => {
-        quickSave.textContent = '×'; quickSave.classList.add('delete-hover');
-        quickSave.setAttribute('aria-label', 'Remove from library'); quickSave.title = 'Remove from library';
-      });
-      quickSave.addEventListener('mouseleave', () => {
-        quickSave.textContent = '✓'; quickSave.classList.remove('delete-hover');
-        quickSave.setAttribute('aria-label', qsLabelSaved); quickSave.title = qsLabelSaved;
-      });
-    }
-    quickSave.addEventListener('click', e => {
-      e.stopPropagation();
-      if (comp.savedName) deleteQuickSavedComponent(comp.id);
-      else quickSaveComponentToLibrary(comp.id);
+    const quickSave = quickSaveButton({
+      savedName: comp.savedName,
+      labelSave: 'Save to library',
+      labelSaved: `Saved to library as "${comp.savedName}"`,
+      labelRemove: 'Remove from library',
+      onSave: () => quickSaveComponentToLibrary(comp.id),
+      onRemove: () => deleteQuickSavedComponent(comp.id),
     });
     // Hover-only edit — sits directly left of the save circle, same reveal
     // behaviour. Jumps into Manual mode pre-loaded with THIS candidate's
@@ -5557,7 +5937,7 @@ function buildLibraryEntryFor(comp) {
 function libraryEntryFromLive(comp) {
   return {
     seed: seedWithLayerInks(seedForSnapshot(), comp.layerInks),
-    appearance: getElementAppearance(),
+    appearance: appearanceSnapshot(),
     grid: getGrid(),
     colors: state.colors.slice(),
     colorRule: { ...state.colorRule },
@@ -6076,7 +6456,7 @@ renderLayersUI();
 // purely the in-session Element/Component working state.
 function snapshotComponentElementState() {
   return {
-    seed: seedForSnapshot(), appearance: getElementAppearance(),
+    seed: seedForSnapshot(), appearance: appearanceSnapshot(),
     loomGrid: state.loomGrid ? JSON.parse(JSON.stringify(state.loomGrid)) : null,
     gridCols: ctrl('rg-grid-cols').value, gridRows: ctrl('rg-grid-rows').value,
     cellSize: ctrl('rg-cellsize').value, gap: ctrl('rg-gap').value,
@@ -6232,7 +6612,7 @@ function renderLibrary() {
     btn.innerHTML = svgStr;
     btn.addEventListener('click', () => applyLibraryEntryToUI(entry));
     const x = document.createElement('button');
-    x.className = 'rmx-x'; x.textContent = '×'; x.title = 'Remove';
+    x.className = 'rmx-x'; x.innerHTML = Organica.icons.get('close', { size: 'xs' });
     x.setAttribute('aria-label', 'Remove saved component ' + name);
     x.addEventListener('click', e => { e.stopPropagation(); removeLibraryEntry(name); });
     const holder = document.createElement('div');
@@ -9036,7 +9416,7 @@ function renderCellContentOverlayTiles() {
   elSec.style.display = contentOverlayPoolMode || elementIsEmpty() ? 'none' : '';
   if (!contentOverlayPoolMode && !elementIsEmpty()) {
     const live = getSeed();
-    [[0, false, false, 'As it is'], ...SEED_PREVIEW_STATES].forEach(([r, fh, fv, label]) => {
+    [[0, false, false, 'As it is'], ...SEED_PREVIEW_STATES.slice(1)].forEach(([r, fh, fv, label]) => {   // the strip's own 0° is "As it is" here
       const btn = document.createElement('button');
       btn.className = 'fvs-library-item';
       btn.title = 'Element · ' + label;
@@ -9116,7 +9496,7 @@ function buildSymbolLibraryEntry() {
     colorRule: { ...state.colorRule },
     paperColor: state.paperColor,
     clipEnabled: state.symbolClipEnabled,
-    appearance: getElementAppearance(),
+    appearance: appearanceSnapshot(),
     rule: readRuleState(),
     pool: state.symbolPool.map(p => ({ ...p })),   // was "palette" — renamed to avoid clashing with the colour Palette; `applySymbolLibraryEntryToUI` still reads the old key too
     arrange: { rule: ctrl('sel-sym-arrange').value, fit: ctrl('sel-sym-arrange-fit').value, seed: ctrl('num-symbol-seed').value },
@@ -9213,7 +9593,7 @@ function renderSymbolLibrary() {
     btn.innerHTML = svgStr;
     btn.addEventListener('click', () => applySymbolLibraryEntryToUI(entry));
     const x = document.createElement('button');
-    x.className = 'rmx-x'; x.textContent = '×'; x.title = 'Remove';
+    x.className = 'rmx-x'; x.innerHTML = Organica.icons.get('close', { size: 'xs' });
     x.setAttribute('aria-label', 'Remove saved symbol ' + name);
     x.addEventListener('click', e => { e.stopPropagation(); removeSymbolLibraryEntry(name); });
     const holder = document.createElement('div');
@@ -9769,9 +10149,12 @@ let fhResizeT = 0;
 window.addEventListener('resize', () => { clearTimeout(fhResizeT); fhResizeT = setTimeout(syncFreehandEditor, 120); });
 ctrl('ck-element-rounded').addEventListener('change', onAppearanceChange);
 ctrl('sel-element-pattern').addEventListener('change', onAppearanceChange);
-ctrl('sel-ground-pattern').addEventListener('change', () => { syncGroundBlock(); onAppearanceChange(); });
+ctrl('sel-ground-pattern').addEventListener('change', () => { syncGroundBlock(); syncGroundTileNote(); onAppearanceChange(); });
 ctrl('sel-ground-ink').addEventListener('change', onAppearanceChange);
-['patspacing', 'patweight', 'patangle'].forEach(k => ctrl('rg-ground-' + k).addEventListener('input', e => { ctrl('v-ground-' + k).textContent = e.target.value; onAppearanceChange(); }));
+['sel-ground-tile', 'sel-ground-layout', 'sel-ground-turn'].forEach(id => ctrl(id).addEventListener('change', () => { syncGroundTileNote(); onAppearanceChange(); }));
+ctrl('rg-ground-patsize').addEventListener('input', e => { ctrl('v-ground-patsize').textContent = e.target.value; onAppearanceChange(); });
+renderElementLibrary();
+['patspacing', 'patweight', 'patangle'].forEach(k => ctrl('rg-ground-' + k).addEventListener('input', e => { ctrl('v-ground-' + k).textContent = e.target.value; syncGroundTileNote(); onAppearanceChange(); }));
 syncGroundInkOptions();
 ['strokew', 'w', 'l', 'scale', 'mx', 'my', 'patspacing', 'patweight', 'patangle'].forEach(k => {
   ctrl('rg-element-' + k).addEventListener('input', e => { ctrl('v-element-' + k).textContent = e.target.value; onAppearanceChange(); });
@@ -9970,6 +10353,12 @@ ctrl('seg-split-quadrant').addEventListener('click', e => {
   if (b.dataset.q === 'whole') splitElementReset(); else toggleSplitQuadrant(b.dataset.q);
 });
 ctrl('chk-split-grid').addEventListener('change', renderSeedPreview);
+// A strip tile shows that view on the big canvas (its save circle keeps its own click).
+ctrl('seed-preview').addEventListener('click', e => {
+  if (e.target.closest('.fvs-thumb-quicksave')) return;
+  const t = e.target.closest('.fvs-seed-tile[data-view]');
+  if (t) setElementView(+t.dataset.view);
+});
 ctrl('btn-split-save').addEventListener('click', savePieceAsSeed);
 ctrl('btn-seed-random').addEventListener('click', () => { ctrl('num-seed').value = Math.floor(Math.random() * 1e6); });
 
@@ -10507,13 +10896,13 @@ function renderFigurePipeline(def, steps, finalSVG) {
     b.innerHTML = figureCardHTML(c.label, c.svg);
     b.addEventListener('click', () => setFigureStep(id));
     if (c.level === 0) {   // the first level: a Symbol or a Component — one click to swap
-      const isSym = def.levels[0].kind === 'symbol', sw = document.createElement('button'); sw.type = 'button'; sw.className = 'fg-card__sw'; sw.textContent = '⇄';
+      const isSym = def.levels[0].kind === 'symbol', sw = document.createElement('button'); sw.type = 'button'; sw.className = 'fg-card__sw'; sw.innerHTML = Organica.icons.get('swap', { size: 'xs' });
       sw.setAttribute('aria-label', isSym ? 'Use a Component instead' : 'Use a Symbol instead'); sw.title = sw.getAttribute('aria-label');
       sw.addEventListener('click', e => { e.stopPropagation(); figureMutate(d => { d.levels[0] = figureFirstLevelOf(isSym ? 'component' : 'triangle'); }, { resetStep: true }); });
       b.appendChild(sw);
     }
     if (c.level > 0) {   // a Grid level: removable and draggable
-      const x = document.createElement('button'); x.type = 'button'; x.className = 'fg-card__x'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove this Grid');
+      const x = document.createElement('button'); x.type = 'button'; x.className = 'fg-card__x'; x.innerHTML = Organica.icons.get('close', { size: 'xs' }); x.setAttribute('aria-label', 'Remove this Grid');
       x.addEventListener('click', e => { e.stopPropagation(); const d = JSON.parse(JSON.stringify(def)); d.levels.splice(c.level, 1); applyFigureRecipe(d); });
       b.appendChild(x); b.draggable = true;
       b.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', String(c.level)); });
@@ -10881,12 +11270,12 @@ function renderFigureChips() {
   rules.forEach((r, i) => {
     const c = document.createElement('span'); c.className = 'fg-chip'; c.setAttribute('role', 'listitem'); c.dataset.off = String(!!r.off);
     c.innerHTML = `<span class="fg-chip__text">${describeRule(r)}</span>`;
-    const btn = (label, title, fn, disabled) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.title = title; b.setAttribute('aria-label', title); b.disabled = !!disabled; b.addEventListener('click', fn); c.appendChild(b); };
+    const btn = (icon, title, fn, disabled, pressed) => { const b = document.createElement('button'); b.type = 'button'; b.innerHTML = Organica.icons.get(icon, { size: 'xs' }); if (pressed != null) b.setAttribute('aria-pressed', String(pressed)); b.title = title; b.setAttribute('aria-label', title); b.disabled = !!disabled; b.addEventListener('click', fn); c.appendChild(b); };
     const edit = fn => () => figureMutate(d => fn(d.levels[0].rules));
-    btn(r.off ? '○' : '●', r.off ? 'Switch this rule on' : 'Switch this rule off', edit(rs => { if (rs[i].off) delete rs[i].off; else rs[i].off = true; }));
-    btn('↑', 'Earlier (rules apply in order; later ones win)', edit(rs => { [rs[i - 1], rs[i]] = [rs[i], rs[i - 1]]; }), i === 0);
-    btn('↓', 'Later', edit(rs => { [rs[i + 1], rs[i]] = [rs[i], rs[i + 1]]; }), i === rules.length - 1);
-    btn('×', 'Delete this rule', edit(rs => { rs.splice(i, 1); }));
+    btn(r.off ? 'eye-off' : 'eye', r.off ? 'Switch this rule on' : 'Switch this rule off', edit(rs => { if (rs[i].off) delete rs[i].off; else rs[i].off = true; }), false, !r.off);
+    btn('arrow-up', 'Earlier (rules apply in order; later ones win)', edit(rs => { [rs[i - 1], rs[i]] = [rs[i], rs[i - 1]]; }), i === 0);
+    btn('arrow-down', 'Later', edit(rs => { [rs[i + 1], rs[i]] = [rs[i], rs[i + 1]]; }), i === rules.length - 1);
+    btn('close', 'Delete this rule', edit(rs => { rs.splice(i, 1); }));
     box.appendChild(c);
   });
 }

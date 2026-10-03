@@ -62,7 +62,8 @@ const ink = Organica.palette.swatch('ink', { initial: '#1c1c1c', onChange: repai
 //   onChange(hex, rgb255) — the legacy 2-arg signature.
 
 // GENERATE — target is an HTMLElement. Builds .rmx-color chips into it.
-//   Needs palette.css. opts.max > 1 ⇒ RMX strip with + / × .
+//   Needs palette.css + icons.js (loaded before palette.js). opts.max > 1 ⇒ RMX strip
+//   with plus / close icons from the registry (no typed glyphs since Oct 3, 2026).
 const rmx = Organica.palette.swatch(wrapEl, {
   colors: state.colors, min: 2, max: 8,
   onChange: (colors, index, action) => { state.colors = colors; },   // action: edit|add|remove|set

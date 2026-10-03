@@ -48,8 +48,9 @@
   right: 0;
   width: 13px;
   height: 13px;
-  line-height: 11px;
-  font-size: var(--fs-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 0;
   cursor: pointer;
   background: var(--panel);
@@ -63,9 +64,10 @@
   border: 1px dashed var(--border);
   background: none;
   color: var(--mid);
-  font-size: var(--fs-large);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  line-height: 1;
 }
 @media (hover: hover) { .rmx-add:hover { border-color: var(--ink); color: var(--ink); background: var(--track-bg); } }
 .rmx-add { transition: border-color var(--dur-fast), background-color var(--dur-fast), color var(--dur-fast); }
