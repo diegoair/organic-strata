@@ -12,6 +12,7 @@ Fast, no dependencies beyond python3 + node. Exits 1 on any failure.
   4d. templates    — every page's skeleton matches its template; design-system/templates.json is current
   5. icons         — every <svg data-icon> equals its shared/icons.js drawing; no new bare 16-grid <svg>
   6. css-lint      — scripts/css-lint.py must be clean
+  7. session log   — docs/SESSION-LOG.md is append-only: never fewer notes than at HEAD
 """
 import json, os, re, subprocess, sys, tempfile
 
@@ -217,6 +218,24 @@ if r.returncode:
     fail("fvs-field: baked data out of date:\n" + "\n".join("      " + l for l in (r.stdout + r.stderr).strip().split("\n")[-8:]))
 else:
     ok("ELEMENTS and BUILTIN match shapes.js / palette.js / color.js")
+
+# 7. session log: append-only. On Sep 29, 2026 a commit overwrote docs/SESSION-LOG.md with only
+#    its own new notes (640 lines -> 2) and twelve commits did the same before anyone noticed.
+#    A note may be edited; the log may never hold FEWER notes than the last commit's.
+print("session log")
+def _notes(text):
+    return sum(1 for l in text.split("\n") if l.startswith("- **"))
+try:
+    _head = subprocess.run(["git", "show", "HEAD:docs/SESSION-LOG.md"], capture_output=True, text=True).stdout
+    _now = open("docs/SESSION-LOG.md", encoding="utf-8").read()
+    if _notes(_now) < _notes(_head):
+        fail(f"docs/SESSION-LOG.md lost notes ({_notes(_head)} at HEAD -> {_notes(_now)}): append to it, never rewrite it")
+    elif not _now.startswith("# Organica — Session Log"):
+        fail("docs/SESSION-LOG.md lost its header — append to the existing file, never rewrite it")
+    else:
+        ok(f"{_notes(_now)} notes, none lost")
+except OSError as e:
+    fail(f"docs/SESSION-LOG.md: {e}")
 
 print()
 if fails:
