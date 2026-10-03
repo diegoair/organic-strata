@@ -98,7 +98,7 @@ Grid step without saving it first.
   circles: **save** (+ → ✓ once saved, hovering ✓ removes it — the same circle as the Component
   gallery) and **pattern** (save this view if needed and make it the **Paper tile**; pressed when it
   is the current tile). A saved Element keeps its shape in that orientation (rotation / flip baked
-  in), its colours (thumbnail) and its tile silhouette; it is not edited, only used or removed.
+  in), its colours and Paper colour (thumbnail) and its tile silhouette; it is not edited, only used or removed.
   They are listed under **Saved Elements** (click = use as the Paper tile).
 
 ---

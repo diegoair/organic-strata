@@ -156,7 +156,8 @@
   .fvs-element-frame > :is(.fvs-thumb-quicksave, .fvs-thumb-tile) { z-index: 1; }
   .fvs-seed-tile[data-view] { cursor: pointer; }
   @media (hover: hover) { .fvs-seed-tile[data-view]:hover .fvs-seed-tile__box > svg { border-color: var(--ink); } }
-  .fvs-seed-tile.is-selected .fvs-seed-tile__box > svg { border-color: var(--tool); box-shadow: 0 0 0 1px var(--tool); }
+  /* the shown view: an --ink ring (the system's "pressed" colour) — --tool's green read 2.97:1 on the light canvas, under the 3:1 boundary rule */
+  .fvs-seed-tile.is-selected .fvs-seed-tile__box > svg { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
   .fvs-seed-tile.is-selected .fvs-seed-tile__label { color: var(--ink); }
   .fvs-seed-tile__label { font-size: var(--fs-small); color: var(--mid); text-align: center; }
 
@@ -4124,7 +4125,7 @@ function saveElementVariant(rot, flipH, flipV, label) {
   const all = ELEMENT_LIB.read(), type = getSeed().type;
   let name = (state.layers ? 'Stack' : ((SEED_ICONS[type] || {}).name || type)) + (label && label !== '0°' ? ' · ' + label : '') + ' ' + new Date().toLocaleTimeString();
   while (all[name]) name += '′';
-  all[name] = { tile, sig: tileSig(tile), thumb: elementVariantSVG(rot, flipH, flipV), colors: state.colors.slice(), orientation: { rotation: rot, flipH, flipV }, seed: seedForSnapshot(), appearance: getElementAppearance(), savedAt: new Date().toISOString() };
+  all[name] = { tile, sig: tileSig(tile), thumb: elementVariantSVG(rot, flipH, flipV), colors: state.colors.slice(), paperColor: state.paperColor, orientation: { rotation: rot, flipH, flipV }, seed: seedForSnapshot(), appearance: getElementAppearance(), savedAt: new Date().toISOString() };
   ELEMENT_LIB.write(all);
   elementLibraryChanged();
   return name;
@@ -4133,7 +4134,8 @@ function saveElementVariant(rot, flipH, flipV, label) {
 // kept with a saved Element as its thumbnail.
 function elementVariantSVG(rot, flipH, flipV) {
   const seed = getSeed(), geo = SEED_TYPES[seed.type].geometry(seed);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true"><g transform="translate(50,50) rotate(${rot}) scale(${flipH ? -1 : 1},${flipV ? -1 : 1}) translate(-50,-50)">${elementPathMarkup(geo, colorAt(0))}</g></svg>`;
+  const paper = isPaperNone(state.paperColor) ? '' : `<rect width="100" height="100" fill="${state.paperColor}"/>`;   // its Paper colour too (not the texture)
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true">${paper}<g transform="translate(50,50) rotate(${rot}) scale(${flipH ? -1 : 1},${flipV ? -1 : 1}) translate(-50,-50)">${elementPathMarkup(geo, colorAt(0))}</g></svg>`;
 }
 // The second circle on the Element frame / views: save this view (if it isn't yet)
 // and make it the Paper's tile — Paper pattern on, Pattern = Element.
