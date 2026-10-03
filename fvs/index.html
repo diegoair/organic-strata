@@ -188,9 +188,9 @@
   #fvs-rail-panel.is-dragging-away { opacity: 0.5; }
   #fvs-rail .org-floatbar__btn[aria-label]:not([aria-expanded="true"]):is(:hover,:focus-visible)::after { bottom: auto; left: calc(100% + var(--space-3)); top: 50%; transform: translateY(-50%); }
   .fvs-rail__scroll { overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-3); scrollbar-width: thin; }
-  .fvs-rail__grid { display: grid; grid-template-columns: repeat(2, auto); gap: var(--space-2); justify-content: start; }
+  .fvs-rail__grid { display: grid; grid-template-columns: repeat(3, auto); gap: var(--space-2); justify-content: start; }
   .fvs-rail__empty { color: var(--mid); font-size: var(--fs-small); margin: 0; }
-  .fvs-rail__scroll { min-height: 0; }
+  .fvs-rail__scroll { min-height: 0; overflow-x: hidden; }
   .fvs-rail__foot { padding-top: var(--space-3); display: flex; }
   #fvs-rail-panel[data-rail-tier="symbol"] .fvs-library-item:not([data-rail-kind="symbol"]) { cursor: grab; }
   .fvs-rail__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
@@ -200,9 +200,9 @@
   .fvs-rail__tile .rmx-x::before { content: ''; position: absolute; inset: calc(-1 * var(--space-2)); }   /* reach --hit-min without growing the 13px chip */
   @media (hover: hover) { .fvs-rail__tile:hover .rmx-x, .fvs-rail__tile:focus-within .rmx-x { opacity: 1; } }
   @media (hover: none) { .fvs-rail__tile .rmx-x { opacity: 1; } }
-  .fvs-rail__grid .fvs-library-item { background: var(--paper); touch-action: none; }
+  .fvs-rail__grid .fvs-library-item { width: 3rem; height: 3rem; background: var(--paper); touch-action: none; }
   .fvs-rail__grid .fvs-library-item.is-dragging { opacity: 0.35; }
-  .fvs-rail-ghost { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; width: 4rem; height: 4rem; background: var(--paper); border: 1px solid var(--border-strong); box-shadow: var(--stage-shadow); }
+  .fvs-rail-ghost { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; width: 3rem; height: 3rem; background: var(--paper); border: 1px solid var(--border-strong); box-shadow: var(--stage-shadow); }
   .fvs-rail-ghost svg { width: 100%; height: 100%; display: block; }
   body.is-rail-dragging { cursor: grabbing; user-select: none; }
   #symbol-frame g[data-cell-index].is-drop > :first-child { stroke: var(--ink); stroke-width: var(--space-1); vector-effect: non-scaling-stroke; fill: color-mix(in srgb, var(--ink) 8%, transparent); }
@@ -11790,7 +11790,7 @@ function renderLibraryRail() {
   const elAll = ELEMENT_LIB.read(), elNames = Object.keys(elAll || {}).filter(n => elAll[n] && elAll[n].tile);
   elNames.forEach(n => { const e = elAll[n]; els.appendChild(railTile('element', n, e.thumb || tileThumbSVG(e.tile))); });
   const cAll = LIBRARY.read(), cNames = libraryNames(cAll);
-  cNames.forEach(n => { const size = frameDims(cAll[n].grid), box = fitThumbBox(size.w, size.h, 64); comps.appendChild(railTile('component', n, componentThumbSVG(n), box.w, box.h)); });
+  cNames.forEach(n => { const size = frameDims(cAll[n].grid), box = fitThumbBox(size.w, size.h, 48); comps.appendChild(railTile('component', n, componentThumbSVG(n), box.w, box.h)); });
   const sAll = SYMBOL_LIBRARY.read(), sNames = Object.keys(sAll || {});
   sNames.forEach(n => syms.appendChild(railTile('symbol', n, symbolEntryThumbSVG(sAll[n]))));
   [[els, elNames], [comps, cNames], [syms, sNames]].forEach(([g, list]) => { if (!list.length) g.innerHTML = '<p class="fvs-rail__empty">None saved yet</p>'; });
@@ -11860,7 +11860,7 @@ window.addEventListener('pointermove', e => {
     railPanel.classList.add('is-dragging-away');   // out of the way, still there
   }
   e.preventDefault();
-  railDrag.ghost.style.transform = `translate3d(${e.clientX - 32}px, ${e.clientY - 32}px, 0)`;
+  railDrag.ghost.style.transform = `translate3d(${e.clientX - 24}px, ${e.clientY - 24}px, 0)`;
   const g = railCellAt(e), idx = g ? +g.dataset.cellIndex : null;
   if (idx !== railDrag.idx) { clearRailDrop(); if (g) g.classList.add('is-drop'); railDrag.idx = idx; }
 });
