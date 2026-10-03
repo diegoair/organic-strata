@@ -11939,16 +11939,16 @@ railPanel.addEventListener('click', e => {
 });
 ctrl('btn-rail-save-all').addEventListener('click', saveAllComponentsToLibrary);
 
-// Save: what it saves depends on the tab — the Element's current view, the selected Component, the Symbol.
+// Save: what it saves depends on the tab — the selected Component or the Symbol (Elements save from their own views).
 function railSaveTarget() {
   const t = state.activeTier;
-  if (t === 'element') { if (elementIsEmpty()) return null; const v = currentElementView(), vi = elementViewIndex(), lbl = vi >= 0 ? SEED_PREVIEW_STATES[vi][3] : '0°'; return { title: 'Save Element', value: defaultElementName(lbl), save: n => saveElementVariant(v.r, v.fh, v.fv, lbl, n) }; }
   if (t === 'component') { const c = getSelectedComponent(); if (!c) return null; return { title: 'Save Component', value: c.ruleSource + ' ' + new Date().toLocaleTimeString(), save: n => quickSaveComponentToLibrary(c.id, n) }; }
   if (t === 'symbol') { if (!state.symbolGrid) return null; return { title: 'Save Symbol', value: 'Symbol ' + new Date().toLocaleTimeString(), save: n => saveSymbolAs(n) }; }
   return null;
 }
 function syncRailSave() {
-  const tgt = railSaveTarget(), what = { element: 'Element', component: 'Component', symbol: 'Symbol' }[state.activeTier] || '';
+  const tgt = railSaveTarget(), what = { component: 'Component', symbol: 'Symbol' }[state.activeTier] || '';
+  railSaveBtn.style.display = state.activeTier === 'element' ? 'none' : '';   // Elements save from their own views (the + circle), not from here
   railSaveBtn.disabled = !tgt;
   railSaveBtn.setAttribute('aria-label', 'Save ' + what + ' to library');
 }
