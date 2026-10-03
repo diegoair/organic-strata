@@ -1310,8 +1310,8 @@
       <!-- The Element's pattern (Style = Pattern on any layer, and every Pattern-role layer): ONE set of settings for the whole Element, here in Appearance even with layers — a layer only picks its Style. -->
       <div id="element-pattern-block" style="display:none">
         <div class="ctrl-row">
-          <div class="ctrl-label">Pattern</div>
-          <select class="panel-select" id="sel-element-pattern" aria-label="Pattern">
+          <div class="ctrl-label">Type</div>
+          <select class="panel-select" id="sel-element-pattern" aria-label="Pattern type">
             <option value="lines" selected>Lines</option>
             <option value="crosshatch">Crosshatch</option>
             <option value="dots">Dots</option>
@@ -6284,6 +6284,9 @@ function renderLayersUI() {
   ctrl('element-wide-label').style.display = L ? '' : 'none';   // Appearance Scale / Move are Element-wide: say so once there are layers
   // the per-layer look lives in the layer's card; with a single shape it is back in Appearance
   if (L) place.appendChild(ctrl('element-look-block')); else ctrl('element-wide-label').before(ctrl('element-look-block'));
+  // The pattern settings sit right under Style (single shape) or above the Element-wide controls (layers)
+  if (L) ctrl('element-wide-label').before(ctrl('element-pattern-block'));
+  else ctrl('element-style-row').after(ctrl('element-pattern-block'));
   if (ctrl('sel-rule').value === 'exhaustive') syncExhaustiveHint();
   ctrl('layers-hint').textContent = L ? L.items.length + ' · top first' : 'single shape';
   ctrl('seed-layer-hint').textContent = L ? 'editing ' + layerName(L.items[L.active]) : '';
