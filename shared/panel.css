@@ -106,6 +106,10 @@
   color: var(--mid);
   flex-shrink: 0;
 }
+/* A long title hint wraps inside the panel (right-aligned) instead of pushing past its edge —
+   flex-shrink: 0 let FVS's "also affects the fixed-pattern Rules below" overflow the panel
+   and raise a horizontal scrollbar. Short hints are unchanged (they never need to shrink). */
+.panel-section h3 .hint { flex-shrink: 1; min-width: 0; text-align: right; }
 
 /* 2 — SUB-LABEL */
 .sub-label {
