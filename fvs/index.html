@@ -190,7 +190,9 @@
   .fvs-rail__scroll { overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-3); scrollbar-width: thin; }
   .fvs-rail__grid { display: grid; grid-template-columns: repeat(2, auto); gap: var(--space-2); justify-content: start; }
   .fvs-rail__empty { color: var(--mid); font-size: var(--fs-small); margin: 0; }
-  .fvs-rail__hint { color: var(--mid); font-size: var(--fs-micro); margin: 0; }
+  .fvs-rail__scroll { min-height: 0; }
+  .fvs-rail__foot { padding-top: var(--space-3); display: flex; }
+  #fvs-rail-panel[data-rail-tier="symbol"] .fvs-library-item:not([data-rail-kind="symbol"]) { cursor: grab; }
   .fvs-rail__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
   .fvs-rail__tile { position: relative; }
   .fvs-rail__rename { left: 0; right: auto; }
@@ -651,15 +653,14 @@
 <div id="fvs-rail-dock" role="group" aria-label="Library rail">
   <div class="org-floatbar" id="fvs-rail" role="toolbar" aria-label="Library" aria-orientation="vertical">
     <button class="org-floatbar__btn" id="btn-rail" aria-label="Library" aria-expanded="false" aria-controls="fvs-rail-panel" data-icon-slot></button>
-    <button class="org-floatbar__btn" id="btn-rail-save" aria-label="Save to library" data-icon-slot></button>
   </div>
   <div class="org-floatbar" id="fvs-rail-panel" role="region" aria-label="Saved Elements, Components and Symbols" inert>
     <div class="fvs-rail__scroll">
       <div><div class="sub-label">Elements</div><div class="fvs-rail__grid" id="rail-elements"></div></div>
       <div><div class="fvs-rail__head"><div class="sub-label">Components</div><button type="button" class="mini-btn" id="btn-rail-save-all">Save all</button></div><div class="fvs-rail__grid" id="rail-components"></div></div>
       <div><div class="sub-label">Symbols</div><div class="fvs-rail__grid" id="rail-symbols"></div></div>
-      <p class="fvs-rail__hint" id="rail-hint"></p>
     </div>
+    <div class="fvs-rail__foot"><button type="button" class="mini-btn" id="btn-rail-save-lib">Save to library</button></div>
   </div>
 </div>
 
@@ -11750,7 +11751,7 @@ function setRailOpen(open, opts) {
   else if (opts && opts.focus) railBtn.focus();
   try { localStorage.setItem('organica.fvs.rail', open ? '1' : '0'); } catch (e) { /* private window */ }
 }
-const railSaveBtn = ctrl('btn-rail-save');
+const railSaveBtn = ctrl('btn-rail-save-lib');
 // One tile: the thumbnail button plus (siblings, so a click on them never starts a drag) rename and remove.
 function railTile(kind, name, svg, w, h) {
   const tile = document.createElement('div');
@@ -11782,6 +11783,7 @@ function railTileVerb(kind) {
   return kind === 'element' ? 'Use Element as Paper tile —' : 'Load Component';
 }
 function renderLibraryRail() {
+  ctrl('fvs-rail-panel').dataset.railTier = state.activeTier;   // the Symbol tab's tiles drag (grab cursor)
   if (!railIsOpen()) return;   // drawn when it opens
   const els = ctrl('rail-elements'), comps = ctrl('rail-components'), syms = ctrl('rail-symbols');
   [els, comps, syms].forEach(g => { g.innerHTML = ''; });
@@ -11793,9 +11795,6 @@ function renderLibraryRail() {
   sNames.forEach(n => syms.appendChild(railTile('symbol', n, symbolEntryThumbSVG(sAll[n]))));
   [[els, elNames], [comps, cNames], [syms, sNames]].forEach(([g, list]) => { if (!list.length) g.innerHTML = '<p class="fvs-rail__empty">None saved yet</p>'; });
   ctrl('btn-rail-save-all').style.display = state.activeTier === 'component' ? '' : 'none';
-  const hint = ctrl('rail-hint');
-  hint.textContent = state.activeTier === 'symbol' ? 'Drag onto a cell, or select cells and click' : '';
-  hint.style.display = hint.textContent ? '' : 'none';
 }
 railBtn.addEventListener('click', () => setRailOpen(!railIsOpen()));
 document.addEventListener('keydown', e => {
@@ -11946,21 +11945,17 @@ function railSaveTarget() {
   return null;
 }
 function syncRailSave() {
-  const tgt = railSaveTarget(), what = 'Symbol';
-  railSaveBtn.style.display = state.activeTier === 'symbol' ? '' : 'none';   // Elements and Components save from their own thumbnails (the + circle); only a Symbol has no such circle
-  railSaveBtn.disabled = !tgt;
-  railSaveBtn.setAttribute('aria-label', 'Save ' + what + ' to library');
+  // Symbol only: Elements and Components save from their own thumbnails (the + circle)
+  ctrl('fvs-rail-panel').querySelector('.fvs-rail__foot').style.display = state.activeTier === 'symbol' ? '' : 'none';
+  railSaveBtn.disabled = !railSaveTarget();
 }
-railSaveBtn.innerHTML = Organica.icons.get('plus', { size: 'lg' });
-ctrl('fvs-rail').addEventListener('pointerenter', syncRailSave);
-ctrl('fvs-rail').addEventListener('focusin', syncRailSave);
+ctrl('fvs-rail-panel').addEventListener('pointerenter', syncRailSave);
 railSaveBtn.addEventListener('click', async () => {
   const tgt = railSaveTarget();
   if (!tgt) return;
   const name = await Organica.prompt({ title: tgt.title, label: 'Name', value: tgt.value, ok: 'Save' });
   if (!name) return;
   tgt.save(name);
-  if (!railIsOpen()) setRailOpen(true);   // show it landing
   renderLibraryRail();
 });
 function syncRailTier(tier) {
