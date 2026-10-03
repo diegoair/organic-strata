@@ -26,6 +26,11 @@
  *     select next and removedAt is the chip that went (a caller keeping per-colour data
  *     in a parallel list needs the second; the first cannot tell 0 from 1).
  *
+ *   Attach mode also takes opts.pattern = { panel, on, onToggle(on), label, title } —
+ *   opt-in: a Pattern icon at the end of the row that shows the tool's own pattern
+ *   controls (`panel`, placed right under the row) and reports on/off. Returned
+ *   object: setPattern(on). Only Flexible Visual System's Paper uses it so far.
+ *
  *   Either shape also gets a small "Pick from a palette" button (palette.pick →
  *   palette.library(): the palettes saved in TuneSutra + the built-in sets —
  *   three colour combinations and the Riso standard inks).
@@ -151,10 +156,35 @@
       lib.addEventListener('click', e => { e.stopPropagation(); palette.pick(lib, { onPick: set }); });
     }
 
+    // opts.pattern (opt-in, attach mode): a "Pattern" icon at the end of the row that
+    // shows / hides the tool's own pattern controls (`panel`, moved right under the row)
+    // and reports on/off. Paper = colour + texture. The tool draws the pattern itself;
+    // tools that don't pass it are unchanged.
+    let setPattern = function () {};
+    if (opts.pattern && opts.pattern.panel && hexEl.parentNode) {
+      const row = hexEl.parentNode, panel = opts.pattern.panel;
+      const pb = document.createElement('button');
+      pb.type = 'button';
+      pb.className = 'org-btn org-btn--sm org-btn--icon pal-pattern-btn';   // pressed = the shared ink fill ([aria-pressed="true"])
+      pb.setAttribute('aria-label', opts.pattern.label || 'Pattern');
+      pb.title = opts.pattern.title || 'Pattern — a texture over this colour';
+      pb.innerHTML = Organica.icons ? Organica.icons.get('pattern', { size: 'sm' }) : '';
+      row.appendChild(pb);
+      row.insertAdjacentElement('afterend', panel);
+      setPattern = on => { on = !!on; pb.setAttribute('aria-pressed', String(on)); panel.hidden = !on; };
+      setPattern(!!opts.pattern.on);
+      pb.addEventListener('click', () => {
+        const on = pb.getAttribute('aria-pressed') !== 'true';
+        setPattern(on);
+        if (opts.pattern.onToggle) opts.pattern.onToggle(on);
+      });
+    }
+
     if (opts.initial) set(opts.initial);
 
     return {
       set,
+      setPattern,
       get: () => hexEl.value,
       getColors: () => [hexEl.value],
       setColors: (arr) => { if (arr && arr.length) set(arr[0]); },   // set() already notifies — a second onChange here fired every listener twice

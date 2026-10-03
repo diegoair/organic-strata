@@ -81,6 +81,17 @@ tools. **CSS custom props:** `--rmx-cell-w/h`, `--rmx-cell-radius`, `--rmx-cell-
 `--rmx-palette-mb`, `--icon-btn-w/h` (TuneSutra sets the first four for its 30×26 rounded
 cell; Spore/Pollen set `--rmx-palette-mb: 0`).
 
+### A texture on a colour — `opts.pattern` (Oct 3, 2026)
+
+Attach mode only, opt-in: `Organica.palette.swatch('paper', { …, pattern: { panel,
+on, onToggle(on), label, title } })` appends a **Pattern** icon button at the end of
+the colour row (`org-btn org-btn--sm org-btn--icon pal-pattern-btn`, icon `pattern`,
+`aria-pressed`, `aria-label` = `label` || "Pattern"), moves `panel` (the tool's own
+controls, a block carrying the `hidden` attribute) right under the row and shows /
+hides it; the returned object gains `setPattern(on)` (for loading a saved state —
+it does not call `onToggle`). The component owns the toggle and the placement only;
+the tool owns the pattern's controls and draws it. One consumer: FVS's Paper.
+
 ### The palette library (Oct 1, 2026)
 
 Every swatch — attach or generate — gets a small **Pick from a palette** button

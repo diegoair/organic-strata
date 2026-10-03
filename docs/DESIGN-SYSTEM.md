@@ -1,7 +1,7 @@
 # Organica — Design System
 
 > Studio Rann · Organica · Typography, tokens, and the Figma mapping
-> Last updated: October 3, 2026 (icon count + layer-card reorder in the Icons/behaviours section)
+> Last updated: October 3, 2026 (Palette swatch `opts.pattern`; icon count 66 with `pattern`)
 > (§5f, templates, added; the "Page on a field" variant and the FVS field added to it the same day. §1 and §3 — one typeface — and the §5 accent
 > table are **known stale**: the two-typeface rule is in the appendix at the end, and the rewrite is
 > queued in `docs/DESIGN-DECISIONS.md` §4; it waits on O-2 / O-3.)
@@ -295,6 +295,15 @@ control (`Organica.palette.library()`, see `docs/SHARED-COMPONENTS.md` §2 and
 `docs/TUNESUTRA.md`). Each tool's own default ink / paper is unchanged for now;
 generating the chrome tokens themselves from a palette is planned, not built.
 
+**A colour may carry a texture (Oct 3, 2026).** `Organica.palette.swatch` attach
+mode takes an opt-in `opts.pattern = { panel, on, onToggle(on), label, title }`:
+a **Pattern** icon button (`pattern`, `org-btn org-btn--sm org-btn--icon`,
+`aria-pressed`) at the end of the colour row, which moves the tool's own
+`panel` right under the row and toggles its `hidden`; the returned object gains
+`setPattern(on)`. The tool draws the pattern itself — the component only owns
+the toggle and the placement. Tools that do not pass it are unchanged. One
+consumer: FVS's **Paper** (Paper = colour + texture; see `docs/DESIGN-DECISIONS.md` §2).
+
 | Tool | Accent | Reading |
 |---|---|---|
 | Genesis | `#c8f060` | acid green — organic vitality (Creator's own `#5fc9b4` teal retired Aug 27, 2026 — merged into Genesis, see CLAUDE.md) |
@@ -557,7 +566,7 @@ Typefaces (Sep 29, 2026) — **two families, split by role**:
 
 ## Icons, motion tokens and behaviours (Oct 2, 2026)
 
-- **Icons** — `shared/icons.js` (registry, `Organica.icons`) + `shared/icons.css` (`.ico`). 16×16 grid, `currentColor`, stroke `--icon-stroke` (1.3) in screen px, sizes `--icon-xs/sm/md/lg/xl`. Never paste an inline chrome `<svg>`; `scripts/check.py` enforces it. 65 drawings (Oct 3, 2026 — `role-pattern` added for FVS's fourth layer role; tool families `fvs-*`, `phrase-*`, `role-*` sit in the same file). Live catalogue: `/design-system/#icons`.
+- **Icons** — `shared/icons.js` (registry, `Organica.icons`) + `shared/icons.css` (`.ico`). 16×16 grid, `currentColor`, stroke `--icon-stroke` (1.3) in screen px, sizes `--icon-xs/sm/md/lg/xl`. Never paste an inline chrome `<svg>`; `scripts/check.py` enforces it. 66 drawings (Oct 3, 2026 — `role-pattern` added for FVS's fourth layer role, then `pattern` for the Palette swatch's texture toggle — two names, two meanings: a layer that *is* a pattern vs. a texture *over* a colour; tool families `fvs-*`, `phrase-*`, `role-*` sit in the same file). Live catalogue: `/design-system/#icons`.
 - **Layer card reorder** — `.org-layer-card--flush.is-draggable` with `.is-dragging` / `.drop-before` / `.drop-after`. Two implementations behind the same classes: FVS a pointer drag (since Oct 3, 2026), Living Path native HTML5 drag-and-drop. No shared reorder helper yet (maintenance queue, `docs/DESIGN-DECISIONS.md` §4).
 - **Motion** — `--dur-instant/fast/base/slow/settle/reveal/stagger` and `--ease-standard/out/glide/overshoot-soft/overshoot/in-out` in `tokens.css` / `tokens.json`; durations collapse to 1ms under `prefers-reduced-motion`. Catalogue and demos: `#motion`.
 - **States and behaviours** — selected = ARIA, one focus ring, armed two-click (`[data-armed]`), keyboard table, floatbar order: `#states`, `#behaviours`.

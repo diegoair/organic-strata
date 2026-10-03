@@ -86,7 +86,9 @@ Grid step without saving it first.
   The pattern is laid out in the Element's 0–100 box, anchored at its centre: Width / Length
   stretch the shape, not the spacing, and stacked layers' patterns line up. It turns with the
   cell in Component and Symbol (a Checkerboard 0°/90° alternates the line direction). With
-  layers it is per layer, like Style.
+  layers, each layer picks its own Style, but the pattern's settings (Pattern / Spacing /
+  Weight / Angle) are **one set for the whole Element**, always here in Appearance — never in
+  the layer's card. They show whenever any layer uses Pattern (Style or role).
 - **Reset seed shape** (floatbar) puts the current shape's controls back to
   their defaults without touching Appearance or Palette.
 - The strip above the frame shows the Element at 0/90/180/270° and each flip.
@@ -100,6 +102,15 @@ Grid step without saving it first.
   **transparent** everywhere (every step, thumbnail, saved Component/Symbol and export):
   SVG gets `fill="none"`, PNG keeps the alpha, and the previews show a checkerboard behind.
   Click it again (or pick a colour) to get the previous Paper colour back.
+- **Paper = colour + texture** (Oct 3, 2026 — a test). The **Pattern** icon at the end of the
+  Paper row switches a texture on over the Paper colour: **Pattern** (Lines / Crosshatch /
+  Dots / Concentric), **Ink** (a palette ink), **Spacing / Weight / Angle**, opening right under
+  the row; click it again for plain Paper. It always covers the **whole canvas** in every step —
+  the Element preview and its strip, the Component, the Symbol frame — under everything else.
+  Spacing is in 1/100 of the canvas's short side, so the same settings look alike at every
+  size. Saved with the appearance: a saved Component keeps its own Paper + texture, also inside
+  Symbol cells (in its saved inks). Not covered yet: the bleed strip of a Print export (plain
+  Paper colour) and the Figure tab. The icon is the shared Palette's opt-in `opts.pattern`.
 - **Colour by** decides which ink each cell gets: cell order, Checkerboard, By
   row, By column, Diagonal bands, By quadrant; **Start at** picks the leading
   colour. *By quadrant* splits the grid at its middle — on a grid with an odd
@@ -161,15 +172,6 @@ Generate produces a gallery of candidates; click one to select it.
   the Element's own; quick-saving one stores its own inks. Above 512 results the
   first 512 are shown and the gallery says how many exist (Exhaustive's hint gives
   the product too).
-- **Ground** (Oct 3, 2026 — a test) — a pattern on the Paper, behind the Elements:
-  **Pattern** None (plain Paper, default) / Lines / Crosshatch / Dots / Concentric;
-  **Whole frame** (one pattern across the Component, never turned) or **Per cell** (one per
-  cell, in the cell's frame — turned and flipped with the cell by the rule, so Mirror gives
-  chevrons / diamonds); **Ink** (a palette ink, or *Cell colour* — the cell's own Element
-  colour); **Spacing / Weight / Angle** in the cell's 0–100 units, the same as the Element's
-  Pattern. It is saved with the Component's appearance, so a saved Component keeps its own
-  ground — in the library, in the pool and inside every **Symbol** cell that holds it (in that
-  Component's saved inks). Not drawn while the Component's Role is Container or Mask.
 - **Role** — a Component can be a *Container* or *Mask* over another saved one.
 - **Undo** (floatbar, ⌘Z) — the last 20 Generate / Add / Clear / Tile / recipe
   steps of the gallery. It never touches the Seed.
@@ -444,11 +446,11 @@ A layer's **role icon** (on its row) sets how it acts on the **layers below** it
 - **Filled** (solid disc) — the layer paints its own ink (default).
 - **Subtraction mask** (striped disc) — keeps the layers below only inside the layer's shape.
 - **Mask** (square with a hole) — cuts the layer's shape out of every layer below it.
-- **Pattern** (diagonal hatch, Oct 3, 2026) — paints a pattern (Pattern / Spacing / Weight /
-  Angle, in the layer's card, which hides Style) in the layer's ink over the layers below,
-  only where they are painted. Its Seed is ignored; its X / Y / Size / Rot move, scale and
-  rotate the pattern. An ink near the Paper colour gives lines cut through the shapes below.
-  In SVG it is a luminance mask made of the layers below drawn white; on canvas `source-atop`.
+- **Pattern** (diagonal hatch, Oct 3, 2026) — a mask made of the pattern: its lines / dots are
+  **cut out of every layer below** (real transparency — the Paper and its texture show through).
+  It uses the Element's pattern settings (Appearance) and has no ink; its card hides Style, and
+  its Seed is ignored. Its X / Y / Size / Rot move, scale and rotate the pattern. SVG: a `<mask>`
+  (white, pattern in black); canvas: `destination-out`.
 
 It works in every step (Component, Symbol, Grid, export) because it is the layer stack itself.
 The old Element **Content** section (and before it, *Pick underlying component…*) was removed

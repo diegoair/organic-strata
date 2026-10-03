@@ -86,6 +86,7 @@
     'role-fill':     '<circle cx="8" cy="8" r="5.5"' + F + '/>',
     'role-container':'<circle cx="8" cy="8" r="5.5"/><path d="M4.5 10.5l6-6M6 12l6-6M3.8 8.2l4.4-4.4"/>',
     'role-mask':     '<path fill-rule="evenodd" d="M2 2h12v12H2z M8 4.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7z"' + F + '/>',
+    'pattern':       '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M2.5 8.5l6-6M2.5 13.5l11-11M7.5 13.5l6-6"/>',
     'role-pattern':  '<path d="M2 6l4-4M2 10l8-8M2 14l12-12M6 14l8-8M10 14l4-4"/>',
     /* ── Flexible Visual System ──────────────────────── */
     'fvs-contain':   '<rect x="1.5" y="3.5" width="13" height="9" rx="1"/><circle cx="8" cy="8" r="2.6"/>',

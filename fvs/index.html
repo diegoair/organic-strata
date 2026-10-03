@@ -1275,7 +1275,26 @@
           <option value="pattern">Pattern</option>
         </select>
       </div>
-      <!-- Pattern fill (Style = Pattern) — and the params of a Pattern layer (role). Vector lines/dots in the Element's box, clipped to the shape. -->
+      <div id="element-stroke-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Stroke W</div>
+          <input type="range" id="rg-element-strokew" min="1" max="20" step="1" value="4">
+          <span class="ctrl-val" id="v-element-strokew">4</span>
+        </div>
+        <label class="check-row"><input type="checkbox" id="ck-element-rounded" checked><span>Rounded caps</span></label>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Stretches the shape itself horizontally, before it is placed in any cell — the per-cell Scale in Component/Symbol stays uniform.">Width</div>
+        <input type="range" id="rg-element-w" min="0.25" max="2" step="0.05" value="1">
+        <span class="ctrl-val" id="v-element-w">1</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Stretches the shape itself vertically, before it is placed in any cell.">Length</div>
+        <input type="range" id="rg-element-l" min="0.25" max="2" step="0.05" value="1">
+        <span class="ctrl-val" id="v-element-l">1</span>
+      </div>
+      </div>
+      <!-- The Element's pattern (Style = Pattern on any layer, and every Pattern-role layer): ONE set of settings for the whole Element, here in Appearance even with layers — a layer only picks its Style. -->
       <div id="element-pattern-block" style="display:none">
         <div class="ctrl-row">
           <div class="ctrl-label">Pattern</div>
@@ -1301,25 +1320,6 @@
           <input type="range" id="rg-element-patangle" min="-90" max="90" step="1" value="45">
           <span class="ctrl-val" id="v-element-patangle">45</span>
         </div>
-      </div>
-      <div id="element-stroke-block" style="display:none">
-        <div class="ctrl-row">
-          <div class="ctrl-label">Stroke W</div>
-          <input type="range" id="rg-element-strokew" min="1" max="20" step="1" value="4">
-          <span class="ctrl-val" id="v-element-strokew">4</span>
-        </div>
-        <label class="check-row"><input type="checkbox" id="ck-element-rounded" checked><span>Rounded caps</span></label>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label" title="Stretches the shape itself horizontally, before it is placed in any cell — the per-cell Scale in Component/Symbol stays uniform.">Width</div>
-        <input type="range" id="rg-element-w" min="0.25" max="2" step="0.05" value="1">
-        <span class="ctrl-val" id="v-element-w">1</span>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label" title="Stretches the shape itself vertically, before it is placed in any cell.">Length</div>
-        <input type="range" id="rg-element-l" min="0.25" max="2" step="0.05" value="1">
-        <span class="ctrl-val" id="v-element-l">1</span>
-      </div>
       </div>
       <div class="sub-label" id="element-wide-label" style="display:none" title="Scale, Move and Fit act on the whole Element. One layer's own style, stretch, size and position are in its card under Layers.">Whole Element — all layers</div>
       <div class="ctrl-row">
@@ -1583,44 +1583,6 @@
       <button class="mini-btn" id="btn-colourways" style="width:100%;margin-top:var(--space-1)" title="Colour variants of the selected component, from the palette and its shade scales — every ink readable on its paper (3:1) and distinct from the others">Colourways of the selection</button>
     </div>
 
-    <!-- Ground pattern (test) — a vector pattern on the Paper, behind the Elements. Saved with the Component's appearance. -->
-    <div class="panel-section">
-      <h3>Ground <span class="hint">pattern behind the Elements</span></h3>
-      <div class="ctrl-row"><div class="ctrl-label">Pattern</div>
-        <select class="panel-select" id="sel-ground-pattern" aria-label="Ground pattern">
-          <option value="none" selected>None (plain Paper)</option>
-          <option value="lines">Lines</option>
-          <option value="crosshatch">Crosshatch</option>
-          <option value="dots">Dots</option>
-          <option value="concentric">Concentric</option>
-        </select>
-      </div>
-      <div id="ground-block" style="display:none">
-        <div class="seg-ctrl" id="seg-ground-scope" role="group" aria-label="Ground scope">
-          <button type="button" class="seg-btn active" data-scope="frame" aria-pressed="true" title="One pattern across the whole Component, never turned">Whole frame</button>
-          <button type="button" class="seg-btn" data-scope="cell" aria-pressed="false" title="One pattern per cell, turned and flipped with the cell by the rule">Per cell</button>
-        </div>
-        <div class="ctrl-row"><div class="ctrl-label">Ink</div>
-          <select class="panel-select" id="sel-ground-ink" aria-label="Ground ink"></select>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="In the cell's 0–100 units, same as the Element's pattern.">Spacing</div>
-          <input type="range" id="rg-ground-patspacing" min="3" max="30" step="0.5" value="6">
-          <span class="ctrl-val" id="v-ground-patspacing">6</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Line width, or dot diameter.">Weight</div>
-          <input type="range" id="rg-ground-patweight" min="0.5" max="20" step="0.5" value="1">
-          <span class="ctrl-val" id="v-ground-patweight">1</span>
-        </div>
-        <div class="ctrl-row" id="ground-patangle-row">
-          <div class="ctrl-label">Angle</div>
-          <input type="range" id="rg-ground-patangle" min="-90" max="90" step="1" value="-45">
-          <span class="ctrl-val" id="v-ground-patangle">-45</span>
-        </div>
-      </div>
-    </div>
-
     <div class="panel-section">
       <h3>Role</h3>
       <div class="ctrl-row"><div class="ctrl-label">Role</div>
@@ -1682,6 +1644,35 @@
         </span>
         <input class="color-hex" id="hex-paper" value="#ffffff" maxlength="7">
         <button type="button" class="icon-btn" id="btn-paper-clear" aria-pressed="false" aria-label="Transparent paper" title="Transparent paper — no background in any step or export (PNG keeps the alpha, SVG has no paper rectangle)"><svg class="ico ico--sm" data-icon="fvs-transparent" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2h4v4H2zM10 2h4v4h-4zM6 6h4v4H6zM2 10h4v4H2zM10 10h4v4h-4z"/><rect x="2" y="2" width="12" height="12"/></svg></button>
+      </div>
+      <!-- Paper pattern — the texture laid over the Paper colour across the whole canvas, in every step. Shown by the Pattern icon on the Paper row (Organica.palette.swatch's opts.pattern). Saved with the appearance. -->
+      <div id="paper-pattern-block" hidden>
+        <div class="ctrl-row"><div class="ctrl-label">Pattern</div>
+          <select class="panel-select" id="sel-ground-pattern" aria-label="Paper pattern">
+            <option value="lines" selected>Lines</option>
+            <option value="crosshatch">Crosshatch</option>
+            <option value="dots">Dots</option>
+            <option value="concentric">Concentric</option>
+          </select>
+        </div>
+        <div class="ctrl-row"><div class="ctrl-label">Ink</div>
+          <select class="panel-select" id="sel-ground-ink" aria-label="Paper pattern ink"></select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="In 1/100 of the canvas's short side.">Spacing</div>
+          <input type="range" id="rg-ground-patspacing" min="1.5" max="30" step="0.5" value="4">
+          <span class="ctrl-val" id="v-ground-patspacing">4</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Line width, or dot diameter.">Weight</div>
+          <input type="range" id="rg-ground-patweight" min="0.25" max="20" step="0.25" value="0.75">
+          <span class="ctrl-val" id="v-ground-patweight">0.75</span>
+        </div>
+        <div class="ctrl-row" id="ground-patangle-row">
+          <div class="ctrl-label">Angle</div>
+          <input type="range" id="rg-ground-patangle" min="-90" max="90" step="1" value="-45">
+          <span class="ctrl-val" id="v-ground-patangle">-45</span>
+        </div>
       </div>
     </div>
 
@@ -3846,84 +3837,58 @@ function syncLookBlocks() {
   const fm = ctrl('sel-element-fillmode').value;
   ctrl('element-style-row').style.display = patRole ? 'none' : '';
   ctrl('element-stroke-block').style.display = !patRole && fm === 'stroke' ? '' : 'none';
-  ctrl('element-pattern-block').style.display = patRole || fm === 'pattern' ? '' : 'none';
+  const usesPattern = L ? L.items.some((l, i) => (l.role || 'fill') === 'pattern' || (i === L.active ? fm : (l.look && l.look.fillMode)) === 'pattern') : fm === 'pattern';
+  ctrl('element-pattern-block').style.display = usesPattern ? '' : 'none';
   ctrl('element-patangle-row').style.display = ctrl('sel-element-pattern').value === 'concentric' ? 'none' : '';
 }
-// Ground (Component): a pattern on the Paper, behind the Elements — `null` = plain
-// Paper. Lives in the appearance object so a saved Component keeps its own.
-// scope 'frame' = one pattern across the frame; 'cell' = one per cell, in the
-// cell's own frame, so the rule turns/flips it with the Element.
+// Paper pattern (the "Ground"): a pattern laid over the Paper, always covering the
+// whole canvas, under everything else — in every step (Element preview, Component,
+// Symbol, each nested Component's own paper). Switched on by the Pattern icon on the
+// Palette's Paper row. `null` = plain Paper. Saved in the appearance object, so a
+// saved Component / Symbol keeps its own. Units: 1/100 of the canvas's short side,
+// so the same settings look alike on the Element preview, a Component and a Symbol.
+let paperPatternOn = false;
 function readGroundControls() {
-  const type = ctrl('sel-ground-pattern').value;
-  if (type === 'none') return null;
-  const inkV = ctrl('sel-ground-ink').value;
-  return { patType: type, patSpacing: val('rg-ground-patspacing'), patWeight: val('rg-ground-patweight'), patAngle: val('rg-ground-patangle'),
-    ink: inkV === 'cell' ? 'cell' : +inkV, scope: ctrl('seg-ground-scope').querySelector('.seg-btn.active').dataset.scope };
+  if (!paperPatternOn) return null;
+  return { patType: ctrl('sel-ground-pattern').value, patSpacing: val('rg-ground-patspacing'), patWeight: val('rg-ground-patweight'), patAngle: val('rg-ground-patangle'), ink: +ctrl('sel-ground-ink').value || 0 };
 }
 function syncGroundInkOptions(selected) {
   const sel = ctrl('sel-ground-ink'), cur = selected != null ? String(selected) : sel.value;
-  sel.innerHTML = state.colors.map((c, i) => `<option value="${i}">Ink ${i + 1}</option>`).join('') + '<option value="cell">Cell colour (per cell)</option>';
+  sel.innerHTML = state.colors.map((c, i) => `<option value="${i}">Ink ${i + 1}</option>`).join('');
   sel.value = [...sel.options].some(o => o.value === cur) ? cur : String(Math.max(0, state.colors.length - 1));
 }
 function showGroundControls(g) {
-  ctrl('sel-ground-pattern').value = g ? g.patType : 'none';
+  paperPatternOn = !!g;
   if (g) {
+    ctrl('sel-ground-pattern').value = g.patType;
     [['patspacing', g.patSpacing], ['patweight', g.patWeight], ['patangle', g.patAngle]].forEach(([k, v]) => { ctrl('rg-ground-' + k).value = v; ctrl('v-ground-' + k).textContent = v; });
-    ctrl('seg-ground-scope').querySelectorAll('.seg-btn').forEach(b => { const on = b.dataset.scope === (g.scope || 'frame'); b.classList.toggle('active', on); b.setAttribute('aria-pressed', on); });
   }
-  syncGroundInkOptions(g ? g.ink : null);
+  syncGroundInkOptions(g && g.ink !== 'cell' ? g.ink : null);
+  if (typeof paperSwatch !== 'undefined') paperSwatch.setPattern(paperPatternOn);
   syncGroundBlock();
 }
 function syncGroundBlock() {
-  const type = ctrl('sel-ground-pattern').value;
-  ctrl('ground-block').style.display = type === 'none' ? 'none' : '';
-  ctrl('ground-patangle-row').style.display = type === 'concentric' ? 'none' : '';
+  ctrl('ground-patangle-row').style.display = ctrl('sel-ground-pattern').value === 'concentric' ? 'none' : '';
 }
-const groundInk = (g, cellColor) => {
-  if (g.ink === 'cell') return cellColor;
-  const pal = inkPaletteOverride || state.colors;
-  return pal[((g.ink % pal.length) + pal.length) % pal.length];
+const groundInk = g => {
+  const pal = inkPaletteOverride || state.colors, i = g.ink === 'cell' || g.ink == null ? 0 : +g.ink;
+  return pal[((i % pal.length) + pal.length) % pal.length];
 };
-// One cell's frame (no per-cell Scale — the ground fills the cell, not the shape).
-const groundCellMatrix = (it, halfX, halfY) => {
-  const fit = it.cellSize / 100;
-  return { x: halfX + it.cx, y: halfY + it.cy, r: it.rotation, sx: (it.flipH ? -1 : 1) * fit, sy: (it.flipV ? -1 : 1) * fit };
-};
-function groundSVG(items, w, h) {
+const paperPatternGeo = (g, w, h) => { const k = Math.min(w, h) / 100; return { k, pg: patternGeometry(g, { cx: w / 2 / k, cy: h / 2 / k, r: Math.hypot(w, h) / 2 / k }) }; };
+function paperPatternSVG(w, h) {
   const g = getElementAppearance().ground;
-  if (!g || !items.length) return '';
-  const id = 'gnd' + nextDrawId();
-  if (g.scope === 'cell') {
-    const pg = patternGeometry(g, { cx: 50, cy: 50, r: 50 * Math.SQRT2 });
-    // one clip rect in each cell's own user space (userSpaceOnUse resolves per referencing <g>)
-    return `<clipPath id="${id}"><rect width="100" height="100"/></clipPath>` + items.map(it => {
-      const m = groundCellMatrix(it, w / 2, h / 2);
-      return `<g transform="translate(${m.x.toFixed(2)},${m.y.toFixed(2)}) rotate(${m.r}) scale(${m.sx.toFixed(4)},${m.sy.toFixed(4)}) translate(-50,-50)"><g clip-path="url(#${id})"><path d="${pg.d}" ${patternAttrs(pg, groundInk(g, it.color))}/></g></g>`;
-    }).join('');
-  }
-  const k = items[0].cellSize / 100, pg = patternGeometry(g, { cx: w / 2 / k, cy: h / 2 / k, r: Math.hypot(w, h) / 2 / k });
-  return `<clipPath id="${id}"><rect width="${w}" height="${h}"/></clipPath><g clip-path="url(#${id})"><g transform="scale(${k.toFixed(4)})"><path d="${pg.d}" ${patternAttrs(pg, groundInk(g, items[0].color))}/></g></g>`;
+  if (!g || !(w > 0) || !(h > 0)) return '';
+  const id = 'gnd' + nextDrawId(), { k, pg } = paperPatternGeo(g, w, h);
+  return `<clipPath id="${id}"><rect width="${w}" height="${h}"/></clipPath><g clip-path="url(#${id})"><g transform="scale(${k.toFixed(4)})"><path d="${pg.d}" ${patternAttrs(pg, groundInk(g))}/></g></g>`;
 }
-function paintGroundCanvas(ctx, items, w, h) {
+function paintPaperPatternCanvas(ctx, w, h) {
   const g = getElementAppearance().ground;
-  if (!g || !items.length) return;
+  if (!g || !(w > 0) || !(h > 0)) return;
+  const { k, pg } = paperPatternGeo(g, w, h);
   ctx.save();
   ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.clip();
-  if (g.scope === 'cell') {
-    const pg = patternGeometry(g, { cx: 50, cy: 50, r: 50 * Math.SQRT2 });
-    for (const it of items) {
-      const m = groundCellMatrix(it, w / 2, h / 2);
-      ctx.save();
-      ctx.translate(m.x, m.y); ctx.rotate(m.r * Math.PI / 180); ctx.scale(m.sx, m.sy); ctx.translate(-50, -50);
-      ctx.beginPath(); ctx.rect(0, 0, 100, 100); ctx.clip();
-      paintPatternCanvas(ctx, pg, groundInk(g, it.color));
-      ctx.restore();
-    }
-  } else {
-    const k = items[0].cellSize / 100;
-    ctx.scale(k, k);
-    paintPatternCanvas(ctx, patternGeometry(g, { cx: w / 2 / k, cy: h / 2 / k, r: Math.hypot(w, h) / 2 / k }), groundInk(g, items[0].color));
-  }
+  ctx.scale(k, k);
+  paintPatternCanvas(ctx, pg, groundInk(g));
   ctx.restore();
 }
 // While set, getElementAppearance() returns it instead of the live controls —
@@ -3988,9 +3953,11 @@ const layerPlace = l => ({ mx: 0, my: 0, scale: 1, rotate: 0, ...(l.place || {})
 // own place). A layer saved before this has no `look`: it follows the Element's
 // Style, and its Width/Length ride on the Element-wide stretch as they did then.
 // An Export "Variants" row (variantAppearance) still overrides Style/Stroke W.
-const LOOK_KEYS = ['fillMode', 'strokeW', 'rounded', 'w', 'l', ...PATTERN_KEYS];
+const LOOK_KEYS = ['fillMode', 'strokeW', 'rounded', 'w', 'l'];
+// The pattern's settings are Element-wide (Appearance), never a layer's own: a look
+// saved with pattern keys (Oct 3 test build) is overridden by the Element's.
 function layerLook(l, a) {
-  return { fillMode: a.fillMode, strokeW: a.strokeW, rounded: a.rounded, w: 1, l: 1, ...patternOf(a), ...(l.look || {}), ...(variantAppearance || {}) };
+  return { fillMode: a.fillMode, strokeW: a.strokeW, rounded: a.rounded, w: 1, l: 1, ...(l.look || {}), ...patternOf(a), ...(variantAppearance || {}) };
 }
 const lookStretch = lk => (lk.w !== 1 || lk.l !== 1 ? ` scale(${lk.w},${lk.l})` : '');
 // place → norm-fit, as ONE transform string (a <clipPath>/<mask> child must be a bare <path>, no <g>).
@@ -4121,40 +4088,35 @@ function stackPathMarkup(geo, color, forceFill) {
   // mask doesn't apply, so every Component thumbnail lost its Subtraction
   // mask / Mask. The `-<n>` suffix makes each drawing reference its own defs.
   const uid = stackUid(geo) + '-' + (++_stackDrawSeq).toString(36);
-  // `upto` layers from the bottom; `white` = the silhouette pass a Pattern layer's
-  // mask is made of (every ink white, so it is a plain luminance mask — no mask-type).
-  const body = (upto, white, pre) => {
-    let out = '';
-    geo.layers.slice(0, upto).forEach((l, i) => {
-      const g = l.geo, t = layerTransformAttr(l, g), role = l.role || 'fill', id = `${uid}-${pre}${i}`;
-      if (role === 'pattern') {
-        if (forceFill) return;   // a boundary silhouette is the shapes below, unchanged
-        const pl = layerPlace(l), pg = patternGeometry(layerLook(l, a), patternLayerExt(pl));
-        if (!pg.d) return;
-        out = `<mask id="${id}" maskUnits="userSpaceOnUse" x="-100" y="-100" width="300" height="300">${body(i, true, pre + i + 'w')}</mask>`
-          + `${out}<g mask="url(#${id})"><g transform="${patternLayerFrame(pl)}"><path d="${pg.d}" ${patternAttrs(pg, white ? '#fff' : layerInkColor(l, color))}/></g></g>`;
+  let out = '';
+  geo.layers.forEach((l, i) => {
+    const g = l.geo, t = layerTransformAttr(l, g), role = l.role || 'fill', id = `${uid}-${i}`;
+    if (role === 'pattern') {
+      // a mask made of the pattern: its lines / dots are cut out of every layer below
+      if (forceFill) return;   // a boundary silhouette is the shapes below, unchanged
+      const pl = layerPlace(l), pg = patternGeometry(layerLook(l, a), patternLayerExt(pl));
+      if (!pg.d) return;
+      out = `<mask id="${id}" maskUnits="userSpaceOnUse" x="-100" y="-100" width="300" height="300"><rect x="-100" y="-100" width="300" height="300" fill="white"/>`
+        + `<g transform="${patternLayerFrame(pl)}"><path d="${pg.d}" ${patternAttrs(pg, 'black')}/></g></mask><g mask="url(#${id})">${out}</g>`;
+      return;
+    }
+    if (!g.d) return;
+    if (role === 'container') {
+      out = `<clipPath id="${id}"><path d="${g.d}" transform="${t}"${g.fillRule ? ` clip-rule="${g.fillRule}"` : ''}/></clipPath><g clip-path="url(#${id})">${out}</g>`;
+    } else if (role === 'mask') {
+      out = `<mask id="${id}" maskUnits="userSpaceOnUse" x="-100" y="-100" width="300" height="300"><rect x="-100" y="-100" width="300" height="300" fill="white"/>`
+        + `<path d="${g.d}" transform="${t}" fill="black"${g.fillRule ? ` fill-rule="${g.fillRule}"` : ''}/></mask><g mask="url(#${id})">${out}</g>`;
+    } else {
+      const lk = layerLook(l, a), fm = forceFill ? 'fill' : lk.fillMode, ink = forceFill ? color : layerInkColor(l, color);
+      if (fm === 'pattern') {
+        const pl = layerPlace(l), pg = patternGeometry(lk, placedExt(pl.mx, pl.my, pl.scale, lk.w, lk.l));
+        out += `<clipPath id="${id}p"><path d="${g.d}" transform="${t}"${g.fillRule ? ` clip-rule="${g.fillRule}"` : ''}/></clipPath><g clip-path="url(#${id}p)"><path d="${pg.d}" ${patternAttrs(pg, ink)}/></g>`;
         return;
       }
-      if (!g.d) return;
-      if (role === 'container') {
-        out = `<clipPath id="${id}"><path d="${g.d}" transform="${t}"${g.fillRule ? ` clip-rule="${g.fillRule}"` : ''}/></clipPath><g clip-path="url(#${id})">${out}</g>`;
-      } else if (role === 'mask') {
-        out = `<mask id="${id}" maskUnits="userSpaceOnUse" x="-100" y="-100" width="300" height="300"><rect x="-100" y="-100" width="300" height="300" fill="white"/>`
-          + `<path d="${g.d}" transform="${t}" fill="black"${g.fillRule ? ` fill-rule="${g.fillRule}"` : ''}/></mask><g mask="url(#${id})">${out}</g>`;
-      } else {
-        const lk = layerLook(l, a), fm = forceFill ? 'fill' : lk.fillMode, ink = white ? '#fff' : forceFill ? color : layerInkColor(l, color);
-        if (fm === 'pattern') {
-          const pl = layerPlace(l), pg = patternGeometry(lk, placedExt(pl.mx, pl.my, pl.scale, lk.w, lk.l));
-          out += `<clipPath id="${id}p"><path d="${g.d}" transform="${t}"${g.fillRule ? ` clip-rule="${g.fillRule}"` : ''}/></clipPath><g clip-path="url(#${id}p)"><path d="${pg.d}" ${patternAttrs(pg, ink)}/></g>`;
-          return;
-        }
-        const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: fm, color: ink, strokeW: lk.strokeW, rounded: lk.rounded });
-        out += `<g transform="${t}"><path d="${g.d}" ${attrs}${g.fillRule && fm === 'fill' ? ` fill-rule="${g.fillRule}"` : ''}/></g>`;
-      }
-    });
-    return out;
-  };
-  const out = body(geo.layers.length, false, '');
+      const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: fm, color: ink, strokeW: lk.strokeW, rounded: lk.rounded });
+      out += `<g transform="${t}"><path d="${g.d}" ${attrs}${g.fillRule && fm === 'fill' ? ` fill-rule="${g.fillRule}"` : ''}/></g>`;
+    }
+  });
   if (appearanceIsIdentity(a)) return out;
   return `<g transform="${Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a))}">${out}</g>`;
 }
@@ -4177,12 +4139,12 @@ function paintStackCanvas(ctx, geo, color) {
     const g = l.geo, role = l.role || 'fill', pl = layerPlace(l);
     const lk = layerLook(l, a);
     if (role === 'pattern') {
-      // kept only where the layers below already painted (the SVG's silhouette mask)
+      // the pattern cut out of everything below (the SVG's <mask>)
       const pg = patternGeometry(lk, patternLayerExt(pl));
       tc.save();
-      tc.globalCompositeOperation = 'source-atop';
+      tc.globalCompositeOperation = 'destination-out';
       tc.translate(50 + pl.mx, 50 + pl.my); tc.rotate(pl.rotate * Math.PI / 180); tc.scale(pl.scale, pl.scale); tc.translate(-50, -50);
-      paintPatternCanvas(tc, pg, layerInkColor(l, color));
+      paintPatternCanvas(tc, pg, '#000');
       tc.restore();
       continue;
     }
@@ -4318,7 +4280,7 @@ function drawComponentCanvas(ctx, items, seed, size) {
 
   if (!under) {
     fillPaper(ctx, state.paperColor, 0, 0, dims.w, dims.h);
-    paintGroundCanvas(ctx, items, dims.w, dims.h);
+    paintPaperPatternCanvas(ctx, dims.w, dims.h);
     drawItemsPlain(ctx, items, geo, path, dims.w, dims.h);
     return;
   }
@@ -4348,6 +4310,7 @@ function drawComponentCanvas(ctx, items, seed, size) {
     ctx.save();
     ctx.clip(boundaryPath);
     fillPaper(ctx, under.paperColor, 0, 0, size, size);
+    withAppearance(under.appearance, () => paintPaperPatternCanvas(ctx, size, size));
     ctx.save();
     ctx.scale(fitScale, fitScale);
     withEntryInks(under.colors, () => withAppearance(under.appearance, () => drawItemsPlain(ctx, under.items, underGeo, underPath, under.size)));
@@ -4360,9 +4323,11 @@ function drawComponentCanvas(ctx, items, seed, size) {
     // confirmed for Creator: "empty" wherever nothing else is beneath,
     // a genuine hole wherever there is.
     fillPaper(ctx, state.paperColor, 0, 0, size, size);
+    paintPaperPatternCanvas(ctx, size, size);
     ctx.save();
     ctx.scale(fitScale, fitScale);
     fillPaper(ctx, under.paperColor, 0, 0, under.size, under.size);
+    withEntryInks(under.colors, () => withAppearance(under.appearance, () => paintPaperPatternCanvas(ctx, under.size, under.size)));
     withEntryInks(under.colors, () => withAppearance(under.appearance, () => drawItemsPlain(ctx, under.items, underGeo, underPath, under.size)));
     ctx.restore();
     ctx.save();
@@ -4388,7 +4353,7 @@ function buildComponentSVGBody(items, seed, size) {
   // mask the paper rect moves inside the masked group below instead —
   // otherwise the "hole" would only remove the underlying layer and still
   // show opaque paper underneath, not a genuine hole.
-  let body = (under && state.componentRole === 'mask') ? '' : `<rect width="${dims.w}" height="${dims.h}" fill="${state.paperColor}"/>`;
+  let body = (under && state.componentRole === 'mask') ? '' : `<rect width="${dims.w}" height="${dims.h}" fill="${state.paperColor}"/>` + paperPatternSVG(dims.w, dims.h);
 
   if (under) {
     // Role active — resolvedComponentDims already forced dims.w === dims.h,
@@ -4397,7 +4362,7 @@ function buildComponentSVGBody(items, seed, size) {
     const size2 = dims.w, half = size2 / 2;
     const underGeo = SEED_TYPES[under.seed.type].geometry(under.seed);
     const fitScale = size2 / under.size;
-    let underBody = `<rect width="${under.size}" height="${under.size}" fill="${under.paperColor}"/>`;
+    let underBody = `<rect width="${under.size}" height="${under.size}" fill="${under.paperColor}"/>` + withEntryInks(under.colors, () => withAppearance(under.appearance, () => paperPatternSVG(under.size, under.size)));
     for (const it of under.items) {
       const fit = it.cellSize / 100;
       const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
@@ -4416,10 +4381,9 @@ function buildComponentSVGBody(items, seed, size) {
     } else {
       body += `<mask id="${uid}" maskUnits="userSpaceOnUse" x="0" y="0" width="${size2}" height="${size2}">`
         + `<rect width="${size2}" height="${size2}" fill="white"/>${componentBoundaryMaskContent(items, geo, half)}</mask>`
-        + `<g mask="url(#${uid})"><rect width="${size2}" height="${size2}" fill="${state.paperColor}"/>${underWrapped}</g>`;
+        + `<g mask="url(#${uid})"><rect width="${size2}" height="${size2}" fill="${state.paperColor}"/>${paperPatternSVG(size2, size2)}${underWrapped}</g>`;
     }
   } else {
-    body += groundSVG(items, dims.w, dims.h);   // on the Paper, under every Element
     for (const it of items) {
       const fit = it.cellSize / 100;
       const sx = (it.flipH ? -1 : 1) * it.scale * fit;
@@ -4500,7 +4464,7 @@ function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size) {
   const body = `<g transform="translate(${half},${half}) rotate(${rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
     + elementPathMarkup(geo, colorAt(0)) + `</g>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
-    + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${body}</svg>`;
+    + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${paperPatternSVG(size, size)}${body}</svg>`;
 }
 
 // The 0°/no-flip state is dropped on purpose: it's pixel-identical to the big
@@ -5845,7 +5809,7 @@ function syncActiveLayer() {
   l.look = readLookControls();
 }
 function readLookControls() {
-  return { fillMode: ctrl('sel-element-fillmode').value, strokeW: val('rg-element-strokew'), rounded: ctrl('ck-element-rounded').checked, w: val('rg-element-w'), l: val('rg-element-l'), ...readPatternControls() };
+  return { fillMode: ctrl('sel-element-fillmode').value, strokeW: val('rg-element-strokew'), rounded: ctrl('ck-element-rounded').checked, w: val('rg-element-w'), l: val('rg-element-l') };
 }
 // Style / Stroke W / Rounded / Width / Length show the active layer's own look.
 function showLayerStyle(l) {
@@ -5856,7 +5820,6 @@ function showLayerStyle(l) {
   ctrl('ck-element-rounded').checked = lk.rounded;
   ctrl('rg-element-w').value = lk.w; ctrl('v-element-w').textContent = lk.w;
   ctrl('rg-element-l').value = lk.l; ctrl('v-element-l').textContent = lk.l;
-  showPatternControls(lk);
   syncLookBlocks();
 }
 const newLayerId = () => 'l' + Math.random().toString(36).slice(2, 7);
@@ -5944,7 +5907,7 @@ function renderLayersUI() {
   if (!L) { list.innerHTML = ''; return; }
   // Top layer first, like every layer panel.
   list.innerHTML = L.items.map((l, i) => i).reverse().map(i => {
-    const l = L.items[i], on = i === L.active, role = l.role || 'fill', isFill = role === 'fill' || role === 'pattern';   // both paint an ink
+    const l = L.items[i], on = i === L.active, role = l.role || 'fill', isFill = role === 'fill';
     const tint = isFill ? layerInkColor(l, colorAt(0)) : 'var(--mid)', cell = l.ink == null || l.ink === 'cell';
     const icon = (SEED_ICONS[l.seed.type] || SEED_ICONS.custom).icon;
     return `<div class="org-layer-card org-layer-card--flush is-draggable ${l.hidden ? 'is-off' : 'is-on'}${on ? ' active' : ''}" data-layer="${i}" role="listitem" tabindex="-1">
@@ -5952,7 +5915,7 @@ function renderLayersUI() {
       <span class="org-layer-card__grip" aria-hidden="true">${LAYER_ICONS.grip}</span>
       <button type="button" class="fvs-layer__main" data-layer-act="select" aria-pressed="${on}" aria-label="Edit layer ${i + 1}: ${layerName(l)}"><span class="fvs-layer__icon" style="color:${tint}">${icon}</span><span class="org-layer-card__title">${layerName(l)}</span></button>
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-layer-act="eye" aria-pressed="${!l.hidden}" aria-label="${l.hidden ? 'Show' : 'Hide'} layer" title="${l.hidden ? 'Hidden — click to show' : 'Hide this layer'}">${l.hidden ? LAYER_ICONS.eyeOff : LAYER_ICONS.eye}</button>
-      <button type="button" class="org-btn org-btn--sm org-btn--icon" data-layer-act="role" aria-label="Role: ${LAYER_ROLES[role]} — click to change" title="${LAYER_ROLES[role]} — ${role === 'fill' ? 'paints its own ink' : role === 'mask' ? 'cuts its shape out of the layers below' : role === 'pattern' ? 'paints a pattern over the layers below, only where they are' : 'keeps the layers below only inside its shape'}. Click: ${LAYER_ROLES[LAYER_ROLE_ORDER[(LAYER_ROLE_ORDER.indexOf(role) + 1) % LAYER_ROLE_ORDER.length]]}">${LAYER_ICONS[role]}</button>
+      <button type="button" class="org-btn org-btn--sm org-btn--icon" data-layer-act="role" aria-label="Role: ${LAYER_ROLES[role]} — click to change" title="${LAYER_ROLES[role]} — ${role === 'fill' ? 'paints its own ink' : role === 'mask' ? 'cuts its shape out of the layers below' : role === 'pattern' ? 'cuts its pattern out of the layers below' : 'keeps the layers below only inside its shape'}. Click: ${LAYER_ROLES[LAYER_ROLE_ORDER[(LAYER_ROLE_ORDER.indexOf(role) + 1) % LAYER_ROLE_ORDER.length]]}">${LAYER_ICONS[role]}</button>
       <button type="button" class="fvs-layer__swatch${cell ? ' is-cell' : ''}" data-layer-act="ink" style="--sw:${isFill ? layerInkColor(l, colorAt(0)) : 'var(--border)'}" aria-label="Colour: ${cell ? 'follow cell colour' : 'Ink ' + (l.ink + 1)}" title="${isFill ? (cell ? 'Follows the cell colour' : 'Ink ' + (l.ink + 1)) + ' — click to change' : 'Mask layers have no colour'}"${isFill ? '' : ' disabled'}></button>
       <button type="button" class="org-btn org-btn--sm org-btn--icon fvs-layer__del" data-layer-act="del" aria-label="Delete layer" title="Delete layer">${LAYER_ICONS.trash}</button>
       </div>
@@ -7431,7 +7394,7 @@ function symbolSVGFromItems(items) {
       const tf = `translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(${(-nhx).toFixed(2)},${(-nhy).toFixed(2)})`;
       cellMarkup = `<g transform="${tf}">${inner}</g>`;
       // the nested Component's own Ground pattern sits on its paper, under all ink
-      const ground = withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => groundSVG(it.nestedItems, it.nestedW, it.nestedH)));
+      const ground = withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paperPatternSVG(it.nestedW, it.nestedH)));
       paperMarkup = `<g transform="${tf}"><rect width="${it.nestedW}" height="${it.nestedH}" fill="${it.nestedPaper}"/>${ground}</g>`;
     }
     // An invisible hit-shape covering the cell's FULL boundary (not just
@@ -7478,7 +7441,7 @@ function symbolSVGFromItems(items) {
   const meta = { tool: 'FVS-Symbol', cells: items.length, exportedAt: new Date().toISOString() };
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${F.w}" height="${F.h}" viewBox="0 0 ${F.w} ${F.h}">`
     + `<metadata>${JSON.stringify(meta)}</metadata>` + (defs ? `<defs>${defs}</defs>` : '')
-    + `<rect width="${F.w}" height="${F.h}" fill="${state.paperColor}"/>` + papers + body + `</svg>`;
+    + `<rect width="${F.w}" height="${F.h}" fill="${state.paperColor}"/>` + paperPatternSVG(F.w, F.h) + papers + body + `</svg>`;
 }
 
 function drawSymbolCanvas(ctx) {
@@ -7486,6 +7449,7 @@ function drawSymbolCanvas(ctx) {
   const F = grid ? symbolFrame(grid) : { w: 0, h: 0, X: v => v, Y: v => v };
   ctx.clearRect(0, 0, F.w, F.h);
   fillPaper(ctx, state.paperColor, 0, 0, F.w, F.h);
+  paintPaperPatternCanvas(ctx, F.w, F.h);
   if (!grid) return;
   const items = buildSymbolItems().filter(Boolean);
   const bleed = state.symbolClipEnabled ? symbolBleed(F) : 0, centers = resolveGridCells(grid);   // see symbolSVGFromItems
@@ -7520,7 +7484,7 @@ function drawSymbolCanvas(ctx) {
     enter(it);
     nestedFrame(it);
     fillPaper(ctx, it.nestedPaper, 0, 0, it.nestedW, it.nestedH);
-    withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paintGroundCanvas(ctx, it.nestedItems, it.nestedW, it.nestedH)));
+    withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paintPaperPatternCanvas(ctx, it.nestedW, it.nestedH)));
     ctx.restore();
   }
   // pass 2 — ink
@@ -9808,11 +9772,6 @@ ctrl('sel-element-pattern').addEventListener('change', onAppearanceChange);
 ctrl('sel-ground-pattern').addEventListener('change', () => { syncGroundBlock(); onAppearanceChange(); });
 ctrl('sel-ground-ink').addEventListener('change', onAppearanceChange);
 ['patspacing', 'patweight', 'patangle'].forEach(k => ctrl('rg-ground-' + k).addEventListener('input', e => { ctrl('v-ground-' + k).textContent = e.target.value; onAppearanceChange(); }));
-ctrl('seg-ground-scope').addEventListener('click', e => {
-  const b = e.target.closest('.seg-btn'); if (!b) return;
-  ctrl('seg-ground-scope').querySelectorAll('.seg-btn').forEach(x => { x.classList.toggle('active', x === b); x.setAttribute('aria-pressed', x === b); });
-  onAppearanceChange();
-});
 syncGroundInkOptions();
 ['strokew', 'w', 'l', 'scale', 'mx', 'my', 'patspacing', 'patweight', 'patangle'].forEach(k => {
   ctrl('rg-element-' + k).addEventListener('input', e => { ctrl('v-element-' + k).textContent = e.target.value; onAppearanceChange(); });
@@ -9966,6 +9925,8 @@ ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(btn => {
 const repaintPaper = () => { renderGallery(); renderSeedPreview(); if (state.symbolGrid) renderSymbolCanvasOnly(); };
 const paperSwatch = Organica.palette.swatch('paper', {
   initial: '#ffffff',
+  // Paper = colour + an optional pattern (the texture over it): the Pattern icon on the row
+  pattern: { panel: ctrl('paper-pattern-block'), onToggle: on => { paperPatternOn = on; onAppearanceChange(); } },
   // picking a colour always means an opaque paper again
   onChange: (hex) => { state.paperColor = hexKey(hex); syncPaperClearUI(); repaintPaper(); },
 });

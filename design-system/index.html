@@ -1340,6 +1340,7 @@ Organica.palette.swatch(<span class="attr">wrapEl</span>, {
   colors: state.colors, min: 2, max: 8,
   onChange: (colors) =&gt; { state.colors = colors; render(); }
 });</pre>
+      <p class="ds-note"><strong>A colour with a texture — <code>opts.pattern</code></strong> (attach mode, opt-in, Oct 3, 2026). <code>Organica.palette.swatch('paper', { pattern: { panel, on, onToggle(on), label, title } })</code> adds a <strong>Pattern</strong> icon button (<code>pattern</code> from the registry, <code>org-btn org-btn--sm org-btn--icon</code>, <code>aria-pressed</code> — pressed is the shared ink fill) at the end of the <code>.color-row</code>, moves the tool's own <code>panel</code> right under the row and toggles its <code>hidden</code> attribute; the returned object gains <code>setPattern(on)</code> (sets the state without calling <code>onToggle</code>, for loading a saved one). The component owns the toggle and the placement; the tool owns the pattern's controls and draws it. Tools that don't pass it are unchanged. Used by: Flexible Visual System's Paper (Paper = colour + texture).</p>
     </section>
 
     <section class="ds-entry" id="select-picker">
