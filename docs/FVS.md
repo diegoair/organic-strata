@@ -64,19 +64,29 @@ Grid step without saving it first.
   fill the whole canvas, not the central 60%. Going back to another shape gives 0.6 back; a
   placement you set by hand is always kept.
 - **Layers** — a multi-layer Element, one lean row per layer (top first), with **+** in the
-  section header. Each row: **⠿** drag to reorder (or ⌥↑ / ⌥↓ on a focused row) · the shape's
+  section header. Each row: **⠿** drag to reorder — press anywhere on the row's head (grip or
+  name), move, drop on another row (upper half = above it, lower half = below; a drop that would
+  leave it in place takes that row's place, so two layers always swap) — or ⌥↑ / ⌥↓ on a focused row · the shape's
   icon tinted with its ink + its name (click = edit it) · **eye** to hide it (a hidden layer is
   skipped everywhere, exports and colour variants included) · **role icon** — click cycles
-  Filled → Subtraction mask → Mask (§6a) · **colour dot** — opens the palette: *follow cell
+  Filled → Subtraction mask → Mask → Pattern (§6a) · **colour dot** — opens the palette: *follow cell
   colour* or an ink (off for mask layers) · **bin** on hover. The active row opens **X / Y /
   Size / Rot** (the layer's own placement) right under it, followed by the layer's own
   **Style, Stroke W, Rounded caps, Width and Length** — with layers these controls sit in the
   layer's card, not in Appearance. Appearance then keeps only what acts on the **whole
   Element** (Scale, Move, Fit), under a "Whole Element — all layers" label. With a single
   shape everything is in Appearance, as before.
-- **Appearance** — Style **Fill / Stroke**, Width / Length, **Scale, Move X/Y**
+- **Appearance** — Style **Fill / Stroke / Pattern**, Width / Length, **Scale, Move X/Y**
   and **⤢ Fit to canvas** (one-shot). **Inner seed** adds nested copies
   (Count, Ratio, Anchor).
+- **Pattern** (Style, Oct 3, 2026 — a test) — the shape filled with **Lines / Crosshatch /
+  Dots / Concentric** in its ink, set by **Spacing** (between lines / dots / rings), **Weight**
+  (line width or dot diameter) and **Angle** (hidden for Concentric). Real vector paths clipped
+  to the shape (no SVG `<pattern>`, no bitmap), so an export stays one ink per path for print.
+  The pattern is laid out in the Element's 0–100 box, anchored at its centre: Width / Length
+  stretch the shape, not the spacing, and stacked layers' patterns line up. It turns with the
+  cell in Component and Symbol (a Checkerboard 0°/90° alternates the line direction). With
+  layers it is per layer, like Style.
 - **Reset seed shape** (floatbar) puts the current shape's controls back to
   their defaults without touching Appearance or Palette.
 - The strip above the frame shows the Element at 0/90/180/270° and each flip.
@@ -151,6 +161,15 @@ Generate produces a gallery of candidates; click one to select it.
   the Element's own; quick-saving one stores its own inks. Above 512 results the
   first 512 are shown and the gallery says how many exist (Exhaustive's hint gives
   the product too).
+- **Ground** (Oct 3, 2026 — a test) — a pattern on the Paper, behind the Elements:
+  **Pattern** None (plain Paper, default) / Lines / Crosshatch / Dots / Concentric;
+  **Whole frame** (one pattern across the Component, never turned) or **Per cell** (one per
+  cell, in the cell's frame — turned and flipped with the cell by the rule, so Mirror gives
+  chevrons / diamonds); **Ink** (a palette ink, or *Cell colour* — the cell's own Element
+  colour); **Spacing / Weight / Angle** in the cell's 0–100 units, the same as the Element's
+  Pattern. It is saved with the Component's appearance, so a saved Component keeps its own
+  ground — in the library, in the pool and inside every **Symbol** cell that holds it (in that
+  Component's saved inks). Not drawn while the Component's Role is Container or Mask.
 - **Role** — a Component can be a *Container* or *Mask* over another saved one.
 - **Undo** (floatbar, ⌘Z) — the last 20 Generate / Add / Clear / Tile / recipe
   steps of the gallery. It never touches the Seed.
@@ -418,13 +437,18 @@ The tab is a workspace, not a form:
 
 - An assistant can produce the recipe from an image: see `.claude/skills/fvs-figure-from-image`.
 
-## 6a. Layer roles: Mask / Subtraction mask
+## 6a. Layer roles: Mask / Subtraction mask / Pattern
 
 A layer's **role icon** (on its row) sets how it acts on the **layers below** it:
 
 - **Filled** (solid disc) — the layer paints its own ink (default).
 - **Subtraction mask** (striped disc) — keeps the layers below only inside the layer's shape.
 - **Mask** (square with a hole) — cuts the layer's shape out of every layer below it.
+- **Pattern** (diagonal hatch, Oct 3, 2026) — paints a pattern (Pattern / Spacing / Weight /
+  Angle, in the layer's card, which hides Style) in the layer's ink over the layers below,
+  only where they are painted. Its Seed is ignored; its X / Y / Size / Rot move, scale and
+  rotate the pattern. An ink near the Paper colour gives lines cut through the shapes below.
+  In SVG it is a luminance mask made of the layers below drawn white; on canvas `source-atop`.
 
 It works in every step (Component, Symbol, Grid, export) because it is the layer stack itself.
 The old Element **Content** section (and before it, *Pick underlying component…*) was removed
