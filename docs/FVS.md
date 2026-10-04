@@ -566,6 +566,17 @@ on Sep 28, 2026 — the role now lives only on the row.
   a thumbnail to **rename it inline** (Enter confirms, Esc cancels). Renaming
   repoints saved Symbols, Container/Mask references and the Grid pick.
 - **Symbol library** — saved separately.
+- **Rectangular Components take their block** (Oct 4, 2026). On a regular rectangular Symbol
+  grid (every column × row once — Rectangular and its kin; not polygons, not merged bento cells)
+  a Component occupies the Symbol cells its proportion asks for: columns × rows reduced by their
+  common factor — 1×4 → 1×4 cells, 2×4 → 1×2, 2×3 → 2×3; a square Component (1×1 … 4×4) stays in
+  one cell. A turn of 90° / 270° swaps the block. Arrange places blocks top-left first and skips
+  the cells a block covers (they become empty holes under it); placing a Component from the rail
+  or Choose content does the same where it fits. Where a block does not fit — the grid's edge, a
+  cell already covered, a locked cell — the Component sits in its own cell, reduced, as before.
+  Stored as `span: true` on the anchor cell; the block is resolved at draw time
+  (`symbolSpanLayout`), so preview, SVG, PNG, selection and hits agree. Suggest and polygon / Loom
+  grids stay one cell per Component for now. Symbols saved before this are unchanged.
 - **A Symbol from Elements only** (Oct 4, 2026). With no saved Component, Generate builds the
   grid anyway and fills it from the **saved Elements** (the latest 8, weight ×1, `elementPool()`),
   each placed as from the library rail. Arrange rules work as with Components; Suggest reads

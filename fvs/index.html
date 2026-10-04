@@ -7990,14 +7990,89 @@ function handleSymbolGridUpload(file) {
 // identical transform layer around them — real vector, two levels deep.
 // scaleX/scaleY already carry the flip sign, so render only ever consumes
 // them directly — no separate flip check downstream.
+// ── Modular spans (Oct 4, 2026) ─────────────────────────────────────
+// A rectangular Component takes the Symbol cells its proportion asks for: its
+// columns × rows reduced (1×4 → 1×4, 2×4 → 1×2, 2×3 → 2×3; a square one stays
+// 1×1). Only on a regular rectangular Symbol grid (every column × row once — the
+// Rectangular generator and its kin; never polygons, never merged bento cells).
+// A cell opts in with `span: true` (Arrange and manual placement set it); where
+// the block does not fit — the grid's edge, a cell already covered, a locked
+// cell — the Component sits in its own cell, reduced, as before.
+let _symLattice = { key: null, lat: null };
+function symbolLattice(grid) {
+  if (!grid || grid.cellShape === 'polygon' || !grid.cells || !grid.cells.length) return null;
+  if (_symLattice.key === grid.cells) return _symLattice.lat;
+  const r3 = v => Math.round(v * 1000) / 1000;
+  const xs = [...new Set(grid.cells.map(c => r3(c.x)))].sort((a, b) => a - b);
+  const ys = [...new Set(grid.cells.map(c => r3(c.y)))].sort((a, b) => a - b);
+  const at = new Array(xs.length * ys.length).fill(-1), col = [], row = [];
+  let ok = xs.length * ys.length === grid.cells.length;
+  grid.cells.forEach((c, i) => {
+    const ci = xs.indexOf(r3(c.x)), ri = ys.indexOf(r3(c.y)), k = ri * xs.length + ci;
+    if (!ok || ci < 0 || ri < 0 || at[k] !== -1) { ok = false; return; }
+    at[k] = i; col[i] = ci; row[i] = ri;
+  });
+  const lat = ok ? { cols: xs.length, rows: ys.length, at: (c, r) => (c < 0 || r < 0 || c >= xs.length || r >= ys.length) ? -1 : at[r * xs.length + c], col, row } : null;
+  _symLattice = { key: grid.cells, lat };
+  return lat;
+}
+const _gcd = (a, b) => b ? _gcd(b, a % b) : a;
+// The block a Component asks for, in Symbol cells, at this turn (90°/270° swap it).
+function componentSpanOf(name, rotation) {
+  const entry = name && LIBRARY.read()[name];
+  const g = entry && entry.grid;
+  if (!g || g.kind === 'loom' || !g.cols) return [1, 1];
+  const c = g.cols, r = g.rows || g.cols, k = _gcd(c, r);
+  const q = (((rotation || 0) % 360) + 360) % 360;
+  return (q === 90 || q === 270) ? [r / k, c / k] : [c / k, r / k];
+}
+// The cells of a block anchored at cell i, or null when it does not fit.
+function spanBlock(lat, i, span, taken, cells) {
+  const c0 = lat.col[i], r0 = lat.row[i], out = [];
+  for (let r = r0; r < r0 + span[1]; r++) for (let c = c0; c < c0 + span[0]; c++) {
+    const k = lat.at(c, r);
+    if (k < 0 || (taken && taken[k] != null && taken[k] !== i) || (k !== i && cells && cells[k] && cells[k].locked)) return null;
+    out.push(k);
+  }
+  return out;
+}
+// Who covers whom in the current Symbol: covered[k] = the anchor's index;
+// region[i] = the anchor's block as a resolved centre + a raw rect.
+function symbolSpanLayout(grid, cells) {
+  const out = { covered: {}, region: {} };
+  const lat = symbolLattice(grid);
+  if (!lat) return out;
+  const taken = {}, centers = resolveGridCells(grid);
+  cells.forEach((cell, i) => {
+    if (!cell || taken[i] != null || cell.source !== 'component' || !cell.span) return;
+    const sp = componentSpanOf(cell.componentName, cell.rotation);
+    if (sp[0] * sp[1] <= 1) return;
+    const block = spanBlock(lat, i, sp, taken, cells);
+    if (!block) return;
+    block.forEach(k => { taken[k] = i; if (k !== i) out.covered[k] = i; });
+    const a = centers[block[0]], b = centers[block[block.length - 1]];
+    const x0 = a.cx - a.cellW / 2, y0 = a.cy - a.cellH / 2, x1 = b.cx + b.cellW / 2, y1 = b.cy + b.cellH / 2;
+    const ra = grid.cells[block[0]], rb = grid.cells[block[block.length - 1]];
+    out.region[i] = {
+      c: { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, cellW: x1 - x0, cellH: y1 - y0, cellSize: Math.min(x1 - x0, y1 - y0) },
+      raw: { x: ra.x, y: ra.y, width: rb.x + rb.width - ra.x, height: rb.y + rb.height - ra.y },
+    };
+  });
+  return out;
+}
+function currentSpanLayout() { const g = getSymbolGrid(); return g ? symbolSpanLayout(g, state.symbolCells) : { covered: {}, region: {} }; }
+
 function buildSymbolItems() {
   const grid = getSymbolGrid();
   if (!grid) return [];
   const centers = resolveGridCells(grid);
   const F = symbolFrame(grid);
   const library = LIBRARY.read();
+  const L = symbolSpanLayout(grid, state.symbolCells);
   return state.symbolCells.map((rawCell, i) => {
-    const c = centers[i];
+    if (L.covered[i] != null) return null;   // inside another cell's Component block
+    const reg = L.region[i];
+    const c = reg ? reg.c : centers[i];
     if (!c || !rawCell) return null;
     // A cell missing a field (an older entry, a hand-built one) draws with the
     // defaults instead of writing "rotate(undefined)" into the SVG.
@@ -8035,7 +8110,7 @@ function buildSymbolItems() {
         .map((it, j) => ({ ...it, color: savedColorAt(j) }));
       const place = resolveCellPlacement(c.cellW, c.cellH, nestedW === nestedH ? nestedSize : { w: nestedW, h: nestedH }, cell);
       return {
-        type: 'component', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
+        type: 'component', index: i, region: reg || null, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
         scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
         nestedItems, nestedSeed: entry.seed, nestedSize, nestedW, nestedH, nestedPaper: own.paperColor, nestedColors: own.colors, nestedAppearance: { ...entry.appearance, ...(variantAppearance || {}) },
       };
@@ -8202,7 +8277,7 @@ function symbolSVGFromItems(items) {
     // empty margin a Contain-fit shape leaves inside a non-square cell
     // hit nothing at all, since a plain <g> has no hit-test area of its
     // own in SVG. fill="transparent" (not "none") is what gives it one.
-    const rawCell = grid.cells[it.index];
+    const rawCell = (it.region && it.region.raw) || grid.cells[it.index];   // a spanning Component: its whole block
     let hit = '', cellPts = '';
     if (rawCell) {
       if (grid.cellShape === 'polygon') {
@@ -8228,7 +8303,7 @@ function symbolSVGFromItems(items) {
       defs += `<clipPath id="clip-cell-${it.index}-${drawId}">${clipShape}</clipPath>`;
       clipAttr = ` clip-path="url(#clip-cell-${it.index}-${drawId})"`;
     }
-    const c = centers[it.index];
+    const c = (it.region && it.region.c) || centers[it.index];
     if (c && it.type !== 'missing') {
       const k = cellBleed(c, bleed), ox = F.bx + c.cx, oy = F.by + c.cy;
       const wrap = m => `<g transform="translate(${ox.toFixed(2)},${oy.toFixed(2)}) scale(${k.kx.toFixed(5)},${k.ky.toFixed(5)}) translate(${(-ox).toFixed(2)},${(-oy).toFixed(2)})">${m}</g>`;
@@ -8256,7 +8331,7 @@ function drawSymbolCanvas(ctx) {
   // "Clip to cell" mirror of buildSymbolSVG()'s <clipPath> (the same bled outline)
   // and the same bled content, so preview/PNG and SVG export can't disagree.
   const enter = it => {
-    const rawCell = grid.cells[it.index];
+    const rawCell = (it.region && it.region.raw) || grid.cells[it.index];   // a spanning Component: its whole block
     const clipping = state.symbolClipEnabled && rawCell;
     ctx.save();
     if (clipping) {
@@ -8266,7 +8341,7 @@ function drawSymbolCanvas(ctx) {
       else ctx.rect(o.x, o.y, o.w, o.h);
       ctx.clip();
     }
-    const c = centers[it.index];
+    const c = (it.region && it.region.c) || centers[it.index];
     if (c && it.type !== 'missing') {
       const k = cellBleed(c, bleed), ox = F.bx + c.cx, oy = F.by + c.cy;
       ctx.translate(ox, oy); ctx.scale(k.kx, k.ky); ctx.translate(-ox, -oy);
@@ -8408,18 +8483,27 @@ function arrangeCells(grid, cells, pal, ruleId, seed, fit) {
   const rng = mulberry32(seed);
   const ctxs = symbolCellContext(grid);
   const k = ruleId === 'checker' ? Math.min(2, pal.length) : pal.length;
+  const lat = symbolLattice(grid), taken = {};   // modular spans: a rectangular Component takes its block (symbolSpanLayout)
   return resolveGridCells(grid).map((c, i) => {
     const prev = cells[i];
     if (prev && prev.locked) return prev;
+    if (taken[i] != null) return { source: 'empty', rotation: 0, flipH: false, flipV: false, scale: 1, color: null, fitMode: fit, fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false };   // inside a block
     const ctx = ctxs[i];
     const pick = rule.cls ? pal[((rule.cls(ctx, k) % k) + k) % k] : weightedPick(pal, rng);
     if (pick.kind === 'element') {
       const el = railPatch('element', pick.name);
       if (el) return { ...el, rotation: (el.rotation || 0) + (ctx.orient === 'down' ? 180 : 0), fitMode: fit, fixedSize: 100, scale: 1, padding: 0, anchorX: 0, anchorY: 0, locked: false };
     }
+    const rotation = ctx.orient === 'down' ? 180 : 0;
+    let span = false;
+    if (lat) {
+      const sp = componentSpanOf(pick.name, rotation);
+      const block = sp[0] * sp[1] > 1 ? spanBlock(lat, i, sp, taken, cells) : null;
+      if (block) { block.forEach(b => { taken[b] = i; }); span = true; }   // doesn't fit → its own cell, reduced
+    }
     return {
-      source: 'component', componentName: pick.name,
-      rotation: ctx.orient === 'down' ? 180 : 0, flipH: false, flipV: false, scale: 1, color: null,
+      source: 'component', componentName: pick.name, span,
+      rotation, flipH: false, flipV: false, scale: 1, color: null,
       fitMode: fit, fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false,
     };
   });
@@ -9168,8 +9252,10 @@ function buildSelectionOutlineSVG() {
   if (!grid || state.symbolSelection.size === 0) return '';
   const F = symbolFrame(grid);
   let s = '<g fill="none" stroke="#ff3d7f" stroke-width="2.5">';
-  grid.cells.forEach((c, i) => {
-    if (!state.symbolSelection.has(i)) return;
+  const L = symbolSpanLayout(grid, state.symbolCells);
+  grid.cells.forEach((c0, i) => {
+    if (!state.symbolSelection.has(i) || L.covered[i] != null) return;
+    const c = L.region[i] ? L.region[i].raw : c0;
     if (grid.cellShape === 'polygon') {
       const pts = c.points.map(p => `${F.X(p[0]).toFixed(2)},${F.Y(p[1]).toFixed(2)}`).join(' ');
       s += `<polygon points="${pts}"/>`;
@@ -9189,8 +9275,9 @@ function buildEmptyCellHitsSVG() {
   if (!grid || !state.symbolCells.some(c => c && c.source === 'empty')) return '';
   const F = symbolFrame(grid);
   let s = '';
+  const L = symbolSpanLayout(grid, state.symbolCells);
   grid.cells.forEach((c, i) => {
-    const cell = state.symbolCells[i]; if (!cell || cell.source !== 'empty') return;
+    const cell = state.symbolCells[i]; if (!cell || cell.source !== 'empty' || L.covered[i] != null) return;   // a covered cell belongs to its block
     if (grid.cellShape === 'polygon') s += `<g data-cell-index="${i}"><polygon points="${c.points.map(p => `${F.X(p[0]).toFixed(2)},${F.Y(p[1]).toFixed(2)}`).join(' ')}" fill="transparent"/></g>`;
     else s += `<g data-cell-index="${i}"><rect x="${F.X(c.x).toFixed(2)}" y="${F.Y(c.y).toFixed(2)}" width="${c.width.toFixed(2)}" height="${c.height.toFixed(2)}" fill="transparent"/></g>`;
   });
@@ -9817,7 +9904,7 @@ function renderCellContentOverlayTiles() {
     btn.innerHTML = svgStr;
     btn.addEventListener('click', () => {
       contentTarget()({
-        source: 'component', componentName: name, colourway: null,
+        source: 'component', componentName: name, span: true, colourway: null,   // a rectangular Component takes its block where it fits
         rotation: 0, flipH: false, flipV: false,
         fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0,
       });
@@ -12400,7 +12487,7 @@ document.addEventListener('keydown', e => {
 function railPatch(kind, name) {
   if (kind === 'component') {
     if (!LIBRARY.read()[name]) return null;
-    return { source: 'component', componentName: name, ownColors: null, ownPaper: null, ownAppearance: null, colourway: null, rotation: 0, flipH: false, flipV: false, fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 };
+    return { source: 'component', componentName: name, span: true, ownColors: null, ownPaper: null, ownAppearance: null, colourway: null, rotation: 0, flipH: false, flipV: false, fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 };
   }
   const entry = ELEMENT_LIB.read()[name];
   if (!entry || !entry.seed) return null;
