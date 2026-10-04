@@ -65,7 +65,7 @@ Grid step without saving it first.
   - **Dashes + Dash gap**: Arc and Arc truchet's Segments + Segment gap.
   - **Thickness**: Chevron / Cross Arm width, Arc truchet Arc ratio.
   - **Bands**: Arc truchet Arc count.
-  - **Hole**: the hole of Wedge and of Circle → Ring. Star keeps *Inner radius* (its point depth).
+  - **Hole**: the hole of Wedge. Circle → Ring says **Opening**, so it is not confused with Perforated's *Holes*. Star keeps *Inner radius* (its point depth).
 
   These labels are FVS's own (`FVS_EXTRAS_LABELS`; the order of rows built from the shared table:
   `FVS_SEED_ORDER`). The shared table keeps its labels for Genesis. Ids and saved keys are
