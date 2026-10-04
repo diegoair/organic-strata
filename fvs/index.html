@@ -266,12 +266,7 @@
   .sym-track-label { position: absolute; font-family: var(--font-display); font-size: var(--fs-micro); font-weight: var(--w-regular); font-variant-numeric: tabular-nums; color: var(--track-accent); white-space: nowrap; }
   .sym-track-label--col { transform: translate(-50%, -100%); }
   .sym-track-label--row { transform: translate(-100%, -50%); }
-  .fvs-sympool { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
-  .fvs-sympool__w { width: 64px; margin-top: var(--space-1); }
-  .fvs-sympool:empty { display: none; }
   #split-status:empty { display: none; }
-  #btn-sympool-add { width: 100%; }
-  .fvs-library-item.is-in-pool { outline: 2px solid var(--tool); }
 
   /* ── Floatbar flyout (Anchor) ── after Bencho's canvas toolbar (MIT, bencho.dev/licence), in plain CSS.
      The interaction is the point: the button's face IS the last choice (the dot's position), a click
@@ -1749,11 +1744,6 @@
     </div>
 
     <div class="tier-block" data-tier="symbol">
-    <div class="panel-section">
-      <h3>Components <span class="hint" id="symbol-pool-hint">none yet</span></h3>
-      <div id="symbol-pool" class="fvs-sympool"></div>
-      <button class="mini-btn" id="btn-sympool-add">+ Add Components…</button>
-    </div>
     <div class="panel-section">
       <h3>Fill</h3>
       <div class="ctrl-row">
@@ -7907,17 +7897,6 @@ function addSavedToPool(name) {
   if (state.symbolPool.length >= 8) state.symbolPool.shift();
   state.symbolPool.push({ name, weight: 1 });
 }
-function togglePoolComponent(name) {
-  const i = state.symbolPool.findIndex(p => p.name === name);
-  if (i >= 0) state.symbolPool.splice(i, 1);
-  else if (state.symbolPool.length < 8) state.symbolPool.push({ name, weight: 1 });
-  renderSymbolPool();
-}
-function openPoolPicker() {
-  contentOverlayPoolMode = true;
-  renderCellContentOverlayTiles();
-  ctrl('symbol-content-overlay').style.display = 'flex';
-}
 function componentThumbSVG(name) {
   const entry = LIBRARY.read()[name];
   if (!entry) return '';
@@ -7925,33 +7904,13 @@ function componentThumbSVG(name) {
   const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
   return withEntryInks(entry.colors, () => buildComponentSVGWithPaper(items, entry.seed, frameDims(entry.grid), entry.paperColor, entry.role, entry.underlyingComponentName));
 }
+// The Symbol's pool (what Arrange / Suggest draw from) is automatic since the right-bar section was removed:
+// the latest 8 saved Components (addSavedToPool), each at weight ×1. This keeps it honest — a deleted or
+// renamed Component drops out — and redraws the empty state, whose Generate needs a pool.
 function renderSymbolPool() {
-  const wrap = ctrl('symbol-pool');
-  const pal = poolEntries();
-  state.symbolPool = pal;   // drop entries whose Component was deleted
-  // Same tile as the right-bar Library (.fvs-library-item / .fvs-library-caption /
-  // .rmx-x); the weight select stays underneath since the pool needs it.
-  wrap.innerHTML = pal.map((p, i) => {
-    const nm = p.name.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-    const box = fitThumbBox(frameDims(LIBRARY.read()[p.name].grid).w, frameDims(LIBRARY.read()[p.name].grid).h, 64);
-    return `<div><div style="position:relative"><span class="fvs-library-item" style="width:${box.w}px;height:${box.h}px;display:block" title="${nm}">${componentThumbSVG(p.name)}</span>
-      <button class="rmx-x" style="position:absolute;top:0;right:0" data-pal-remove="${i}" aria-label="Remove ${nm} from the pool"><svg class="ico ico--xs" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
-      <span class="fvs-library-caption" title="${nm}">${nm}</span>
-      <select class="panel-select fvs-sympool__w" data-pal-weight="${i}" aria-label="Weight of ${nm}">${[1, 2, 3, 4, 5].map(w => `<option value="${w}"${w === (p.weight || 1) ? ' selected' : ''}>×${w}</option>`).join('')}</select></div>`;
-  }).join('');
-  const n = pal.length;
-  ctrl('symbol-pool-hint').textContent = n ? `${n} in the pool` : (libraryNames(LIBRARY.read()).length ? 'none yet' : 'save Components first');
-  if (!state.symbolGrid && state.activeTier === 'symbol') renderSymbolCanvasOnly();   // the empty state's Generate needs a pool
+  state.symbolPool = poolEntries();
+  if (!state.symbolGrid && state.activeTier === 'symbol') renderSymbolCanvasOnly();
 }
-ctrl('symbol-pool').addEventListener('change', e => {
-  const i = e.target.dataset.palWeight;
-  if (i != null) state.symbolPool[+i].weight = +e.target.value;
-});
-ctrl('symbol-pool').addEventListener('click', e => {
-  const b = e.target.closest('[data-pal-remove]');
-  if (b) { state.symbolPool.splice(+b.dataset.palRemove, 1); renderSymbolPool(); }
-});
-ctrl('btn-sympool-add').addEventListener('click', openPoolPicker);
 ctrl('sel-sym-arrange').innerHTML = Object.entries(SYMBOL_ARRANGE).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
 
 // ── Suggestion engine ────────────────────────────────────────────
@@ -9236,15 +9195,11 @@ function syncContentFilter() {
 }
 function closeCellContentOverlay() {
   ctrl('symbol-content-overlay').style.display = 'none';
-  contentOverlayPoolMode = false;
   ctrl('chk-content-overlay-all').checked = false;   // disarm so a later single-cell edit isn't hijacked
 }
 
-// The overlay has two jobs: fill the selected cell(s) (a Component or Empty —
-// a Symbol is built from saved Components only, so the raw Seeds are no
-// longer offered; old Symbols with Seed cells still render), or, in pool
-// mode, toggle Components in and out of the Symbol's pool.
-let contentOverlayPoolMode = false;
+// The overlay fills the selected cell(s) with a Component or Empty — a Symbol is built from saved
+// Components only, so the raw Seeds are no longer offered; old Symbols with Seed cells still render.
 // Which fitMode fresh content picked from this overlay gets — sticky for the
 // session (same convention as contentFilter below), not reset on close: a
 // deliberate visible choice, unlike "Apply to all cells" which IS reset
@@ -9254,9 +9209,7 @@ let contentOverlayFit = 'fill';
 function renderCellContentOverlayTiles() {
   const toAll = ctrl('chk-content-overlay-all').checked;
   const count = state.symbolSelection.size;
-  ctrl('symbol-content-overlay__title').textContent = contentOverlayPoolMode ? 'Components for this Symbol'
-    : toAll ? 'Choose content for all cells' : count > 1 ? `Choose content for ${count} cells` : 'Choose content';
-  ctrl('chk-content-overlay-all').parentElement.style.display = contentOverlayPoolMode ? 'none' : '';
+  ctrl('symbol-content-overlay__title').textContent = toAll ? 'Choose content for all cells' : count > 1 ? `Choose content for ${count} cells` : 'Choose content';
 
   const elWrap = ctrl('symbol-content-overlay__seeds');
   elWrap.innerHTML = '';
@@ -9295,7 +9248,7 @@ function renderCellContentOverlayTiles() {
   ctrl('symbol-content-overlay__components-empty').style.display = libNames.length ? 'none' : '';
   const compWrap = ctrl('symbol-content-overlay__components');
   compWrap.innerHTML = '';
-  if (!contentOverlayPoolMode) compWrap.appendChild(emptyBtn);
+  compWrap.appendChild(emptyBtn);
   for (const name of libNames) {
     const entry = library[name];
     const size = frameDims(entry.grid);
@@ -9312,11 +9265,7 @@ function renderCellContentOverlayTiles() {
     btn.title = name;
     btn.setAttribute('aria-label', 'Use Component ' + name);
     btn.innerHTML = svgStr;
-    if (contentOverlayPoolMode) {
-      btn.classList.toggle('is-in-pool', state.symbolPool.some(p => p.name === name));
-      btn.setAttribute('aria-pressed', String(btn.classList.contains('is-in-pool')));
-      btn.addEventListener('click', () => { togglePoolComponent(name); renderCellContentOverlayTiles(); });
-    } else btn.addEventListener('click', () => {
+    btn.addEventListener('click', () => {
       contentTarget()({
         source: 'component', componentName: name, colourway: null,
         rotation: 0, flipH: false, flipV: false,
@@ -9337,8 +9286,8 @@ function renderCellContentOverlayTiles() {
   // (seedParams, like Cell properties → Use Element) and the turn / flip of the tile.
   const elSec = ctrl('content-sec-element'), elTiles = ctrl('symbol-content-overlay__element');
   elTiles.innerHTML = '';
-  elSec.style.display = contentOverlayPoolMode || elementIsEmpty() ? 'none' : '';
-  if (!contentOverlayPoolMode && !elementIsEmpty()) {
+  elSec.style.display = elementIsEmpty() ? 'none' : '';
+  if (!elementIsEmpty()) {
     const live = getSeed();
     [[0, false, false, 'As it is'], ...SEED_PREVIEW_STATES.slice(1)].forEach(([r, fh, fv, label]) => {   // the strip's own 0° is "As it is" here
       const btn = document.createElement('button');

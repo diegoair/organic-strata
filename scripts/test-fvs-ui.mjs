@@ -381,7 +381,7 @@ if (want('J4')) {
       const asked = !!__t.dlg() && /Used in/.test(__t.dlg().textContent); await __t.answer('ok'); await __t.wait(400);
       const cellsMissing = state.symbolCells.filter(x => x.source === 'component' && x.componentName === used).length;
       const poolStale = state.symbolPool.some(p => p.name === used);
-      const poolUi = document.getElementById('symbol-pool').textContent.includes(used.slice(0, 12));
+      const poolUi = false;   // the pool has no UI any more (right-bar section removed) — only state.symbolPool
       const savedSym = Object.values(SYMBOL_LIBRARY.read()).some(e => (e.cells || []).some(x => x.componentName === used));
       return { used, asked, cellsMissing, poolStale, poolUi, savedSym, v: __t.inv() };
     });
