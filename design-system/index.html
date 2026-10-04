@@ -584,6 +584,7 @@
       <a href="#adding-tokens">Adding a token or class</a>
       <a href="#common-mistakes">Common mistakes</a>
       <a href="#ai-workflow">Working with AI</a>
+      <a href="#open-audits">Open audits</a>
       <a href="#test-gallery">Test gallery</a>
       <a href="#self-check">Self-check</a>
     </div>
@@ -600,6 +601,7 @@
       change a value in <code>shared/</code> and this page changes with it,
       same as every tool.
     </p>
+    <p class="ds-note"><strong>Open audit, waiting for decisions:</strong> <a href="/design-system/_colour-audit.html">Colour &amp; naming audit</a> (Oct 4, 2026) — colour controls tool by tool, the colour picker, TuneSutra → tools, feature names. All open audits: <a href="#open-audits">Open audits</a>.</p>
 
     <!-- ═══════════════════ FOUNDATIONS ═══════════════════ -->
     <h1 class="ds-group-title">Foundations</h1>
@@ -1339,7 +1341,7 @@ data-viscosity  data-momentum  data-tilt</pre>
     <section class="ds-entry" id="palette-chips">
       <h2>Palette — RMX chip strip</h2>
       <p class="ds-desc">A variable-length list of colours — add, remove, recolour. The other half of the Palette component (the <code>.color-row</code> above is the single-swatch half). Built by <code>Organica.palette.swatch(&lt;element&gt;, { colors, min, max, onChange })</code>; the single swatch is the same call with a string prefix.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/palette.css</span><span>shared/palette.js</span><strong>Used in</strong><span>Camo Turing, Membrane, Vortex, Flexible Visual System, TuneSutra, Pollen, Spore</span></div>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/palette.css</span><span>shared/palette.js</span><strong>Used in</strong><span>Camo Turing, Membrane, Vortex, Flexible Visual System, TuneSutra, Pollen, Spore</span><strong>Under review</strong><span><a href="/design-system/_colour-audit.html">Colour &amp; naming audit</a></span></div>
       <div class="ds-example" style="max-width:280px">
         <div class="rmx-palette">
           <label class="rmx-color" style="background:#1a1a2e"></label>
@@ -2169,7 +2171,7 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
     <section class="ds-entry ds-prose" id="ai-workflow">
       <h2>Working with AI — governance</h2>
       <p class="ds-desc"><strong>The system lives in code, and an AI coding agent works on it as a collaborator.</strong> It audits, proposes, builds and verifies; people make the design decisions. This entry is the contract: the loop every change follows, who decides what, and the checks that keep the agent's speed from turning into drift. The same content is published as a shareable page, <a href="https://claude.ai/artifact/2YDV3hau2WR9dZVejTieoh">Organica and AI</a>.</p>
-      <div class="ds-usage"><strong>Rules live in</strong><span>CLAUDE.md (read at the start of every session)</span><strong>Steward</strong><span>.claude/agents/design-system.md (/ds)</span><strong>Decisions logged in</strong><span>docs/DESIGN-DECISIONS.md</span><span>CLAUDE.md session notes</span><span>docs/SESSION-LOG.md</span><strong>Audit pages</strong><span>_control-audit.html</span><span>_dark-audit.html</span></div>
+      <div class="ds-usage"><strong>Rules live in</strong><span>CLAUDE.md (read at the start of every session)</span><strong>Steward</strong><span>.claude/agents/design-system.md (/ds)</span><strong>Decisions logged in</strong><span>docs/DESIGN-DECISIONS.md</span><span>CLAUDE.md session notes</span><span>docs/SESSION-LOG.md</span><strong>Audit pages</strong><span>_control-audit.html</span><span>_dark-audit.html</span><span>_colour-audit.html</span></div>
       <h3>The loop</h3>
       <ol>
         <li><strong>Audit.</strong> The agent builds a page that loads every tool and measures what is really rendered, not what the docs claim (<a href="/design-system/_control-audit.html">buttons &amp; fields</a>, <a href="/design-system/_dark-audit.html">dark mode</a>).</li>
@@ -2223,6 +2225,15 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
         <li><strong>Release it</strong> — preview, then production on an explicit go.</li>
       </ol>
       <p>Everyone gets the same collaborator with the same standards: the standing rules (tokens only, both themes, ask before a new token, how releases work) live in <code>CLAUDE.md</code>, which the agent reads at the start of every session. <strong>Sources of truth, in order:</strong> <code>shared/tokens.css</code> → the shared component sheets → this page, rendered from them → the rules file and the decision log.</p>
+    </section>
+
+    <section class="ds-entry ds-prose" id="open-audits">
+      <h2>Open audits</h2>
+      <p class="ds-desc">Audits waiting for the owner's decisions. Each one is a dev page that loads the real tools and shows what they actually render, next to a proposal and the questions to answer. Once decided, the choices go into <code>docs/DESIGN-DECISIONS.md</code> and the audit is closed here.</p>
+      <ol>
+        <li><strong><a href="/design-system/_colour-audit.html">Colour &amp; naming audit</a></strong> (Oct 4, 2026). Every tool's colour controls side by side, shown live, the A–J patterns and a tool × capability matrix. Proposal: one <code>Organica.palette.control({kind})</code> component in five variants (<code>single · well · inks · stops · pick</code>). Then the colour picker (what the native picker does per browser, the best pickers and libraries, a recommendation), how TuneSutra's palettes should reach the tools (copy, link, roles, suite palette — phased), and the feature-naming inventory (Format, Seed, Render, Scale, Reset, Palette…). <strong>49 decisions</strong> to take on the page (12 component, 8 picker, 13 TuneSutra link, 16 naming). The naming answers become the UI glossary, <code>docs/UI-COPY.md</code>, which the design-system agent applies as content designer.</li>
+      </ol>
+      <div class="ds-usage"><strong>Open</strong><span><a href="/design-system/_colour-audit.html">_colour-audit.html</a></span><strong>Written record</strong><span>docs/audit-2026-10/COLOUR.md</span><span>docs/UI-COPY.md</span><span>docs/DESIGN-DECISIONS.md O-20 … O-23</span><strong>Closed audits</strong><span><a href="/design-system/_control-audit.html">_control-audit.html</a></span><span><a href="/design-system/_dark-audit.html">_dark-audit.html</a></span></div>
     </section>
 
     <section class="ds-entry ds-prose" id="test-gallery">

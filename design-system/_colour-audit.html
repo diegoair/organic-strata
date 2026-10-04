@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Colour & naming audit</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/icons.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/palette.css">
+<style>
+  /* Dev-only page (underscore prefix, like _control-audit.html). Oct 4, 2026.
+     Audit + consult of the colour controls and of the feature names across the
+     tools, as a decision sheet for Diego: (1) the shared component as it is,
+     built live by Organica.palette; (2) every tool's real colour section, shown
+     live — the tool is loaded in a same-origin frame and clipped to that panel
+     section; (3) the proposal; (4) the colour picker research; (5) how TuneSutra's
+     palettes reach the tools; (6) the decisions, choosable here and copied out
+     as text. Choices persist in localStorage['organica.ds.colour-audit']. */
+  body { margin: 0; font-family: var(--font); font-size: var(--fs-base); line-height: var(--lh-normal); color: var(--ink); background: var(--panel); }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: var(--space-7) var(--space-6) var(--space-8); }
+  h1 { font-family: var(--font-display); font-size: var(--fs-3xl); line-height: var(--lh-tight); margin: 0 0 var(--space-2); }
+  h2 { font-family: var(--font-display); font-size: var(--fs-xl); margin: var(--space-8) 0 var(--space-2); padding-top: var(--space-4); border-top: 1px solid var(--border-strong); }
+  h3 { font-family: var(--font-display); font-size: var(--fs-medium); margin: var(--space-5) 0 var(--space-2); }
+  p, li { max-width: 72ch; }
+  .lede { color: var(--mid); margin: 0 0 var(--space-4); }
+  code { font-family: var(--font-mono); font-size: var(--fs-small); }
+  a { color: inherit; }
+  .toc { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-size: var(--fs-small); margin: var(--space-4) 0; }
+  .bar { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; margin: var(--space-3) 0; }
+  .btn { font: inherit; font-family: var(--font-display); font-size: var(--fs-small); padding: var(--space-2) var(--space-4); border: 1px solid var(--border-strong); background: var(--paper); color: var(--ink); border-radius: var(--radius-sm); cursor: pointer; }
+  .btn:hover { border-color: var(--ink); }
+  .muted { color: var(--mid); }
+  .small { font-size: var(--fs-small); }
+  .micro { font-size: var(--fs-micro); }
+
+  .card { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-5); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--space-4); }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-4); }
+  .problems { counter-reset: p; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-4); }
+  .problems .card::before { counter-increment: p; content: counter(p); font-family: var(--font-display); font-size: var(--fs-2xl); font-weight: var(--w-bold); display: block; color: var(--mid); }
+
+  .tag { display: inline-block; font-family: var(--font-mono); font-size: var(--fs-micro); padding: 0 var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); margin: 0 var(--space-1) var(--space-1) 0; white-space: nowrap; }
+  .tag--warn { border-color: var(--danger); color: var(--danger); }
+  .tag--pat { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  /* live specimen of the shared component — a slice of a real #panel */
+  .specimen { width: var(--panel-w); background: var(--paper); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
+  .specimen .panel-section { border-bottom: 0; }
+
+  /* tool cards */
+  .tool { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-5); align-items: start; margin-bottom: var(--space-4); }
+  .tool__name { font-family: var(--font-display); font-size: var(--fs-large); font-weight: var(--w-bold); margin: 0; }
+  .tool__meta { margin: var(--space-2) 0 var(--space-3); }
+  .tool dl { display: grid; grid-template-columns: 11ch 1fr; gap: var(--space-1) var(--space-3); margin: 0; font-size: var(--fs-small); }
+  .tool dt { color: var(--mid); }
+  .tool dd { margin: 0; }
+  .tool ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); font-size: var(--fs-small); }
+  .live { display: flex; gap: var(--space-3); flex-wrap: wrap; justify-content: flex-end; }
+  .clip { position: relative; overflow: hidden; width: var(--panel-w); height: 120px; background: var(--paper); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
+  .clip iframe { position: absolute; left: 0; top: 0; width: 1440px; height: 900px; border: 0; transform-origin: 0 0; }
+  .clip__cap { font-size: var(--fs-micro); color: var(--mid); margin-top: var(--space-1); max-width: var(--panel-w); }
+  .clip__msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: var(--space-3); font-size: var(--fs-micro); color: var(--mid); background: var(--paper); z-index: 1; }
+  .clip--cover::after { content: ""; position: absolute; inset: 0; } /* look, don't touch — unless Interact is on */
+  body.interact .clip--cover::after { display: none; }
+
+  table { border-collapse: collapse; width: 100%; font-size: var(--fs-small); background: var(--paper); }
+  th, td { border: 1px solid var(--border); padding: var(--space-1) var(--space-2); text-align: left; vertical-align: top; }
+  th { font-family: var(--font-display); font-weight: var(--w-semibold); background: var(--panel); position: sticky; top: 0; }
+  .matrix td { text-align: center; }
+  .matrix td:first-child, .matrix th:first-child { text-align: left; white-space: nowrap; }
+  .scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+
+  /* decisions */
+  .dec { margin-bottom: var(--space-3); }
+  .dec__q { font-family: var(--font-display); font-weight: var(--w-semibold); margin: 0 0 var(--space-1); }
+  .dec__ctx { font-size: var(--fs-small); color: var(--mid); margin: 0 0 var(--space-2); }
+  .dec__opts { display: flex; flex-direction: column; gap: var(--space-1); }
+  .dec__opts label { display: flex; gap: var(--space-2); align-items: baseline; font-size: var(--fs-small); cursor: pointer; }
+  .dec__opts input[type=radio] { position: static; opacity: 1; pointer-events: auto; margin: 0; }
+  .rec { font-family: var(--font-mono); font-size: var(--fs-micro); color: var(--mid); }
+  .dec__note { width: 100%; margin-top: var(--space-2); font: inherit; font-size: var(--fs-small); padding: var(--space-1) var(--space-2); border: 1px solid var(--border); background: var(--paper); color: var(--ink); border-radius: var(--radius-sm); }
+  .dec.is-set { border-color: var(--ink); }
+  #count { font-family: var(--font-mono); font-size: var(--fs-small); }
+  .from { font-family: var(--font-mono); font-size: var(--fs-micro); color: var(--mid); }
+  @media (max-width: 760px) { .tool { grid-template-columns: 1fr; } .live { justify-content: flex-start; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Colour &amp; naming audit</h1>
+<p class="lede">October 4, 2026 · HEAD <code>491eb47</code> · dev page, not in production. Tool by tool: what the colour controls look like and what they do, to decide on <strong>one shared component with its variants</strong>. Then: the colour picker itself, how TuneSutra's palettes should reach the tools, and what we call the same features across tools.</p>
+<div class="bar">
+  <button class="btn" id="theme">Light / dark</button>
+  <button class="btn" id="interact">Interact with previews: off</button>
+  <button class="btn" id="loadall">Load all previews</button>
+</div>
+<nav class="toc">
+  <a href="#summary">1 · Summary</a><a href="#today">2 · The component today</a><a href="#patterns">3 · Patterns</a>
+  <a href="#tools">4 · Tool by tool</a><a href="#matrix-h">5 · Matrix</a><a href="#proposal">6 · Proposal</a>
+  <a href="#picker">7 · The colour picker</a><a href="#tunesutra">8 · TuneSutra → tools</a>
+  <a href="#decisions">9 · Colour decisions</a><a href="#names">10 · Names</a><a href="#export">11 · Your choices</a>
+</nav>
+
+<!-- 1 -->
+<h2 id="summary">1 · Summary</h2>
+<p>The one component <strong>already exists</strong>: <code>Organica.palette.swatch</code>, in two shapes — <em>attach</em> (one labelled row: 19 tools, 37 rows) and <em>generate</em> (the multi-colour chip strip, “RMX”: 8 tools). Plus two opt-ins: the “Pick from a palette” library menu and <code>opts.pattern</code> (FVS Paper only). We converge by <strong>extending it</strong>, not by starting over. Four problems:</p>
+<div class="problems">
+  <div class="card"><strong>Four kinds of colour control live outside it.</strong> The bare colour well in layer / channel cards and in variant rows (Camo Turing, Colornet, FVS, Trellis); “choose one of the current inks” (4 different UIs inside FVS); the mode / mapping block hand-copied in 5 tools; TuneSutra's editor.</div>
+  <div class="card"><strong>Weak accessibility.</strong> Every row has an invisible tab stop (the hidden native input), three controls share one name, two tools announce a different name than the visible label, and the library menu ignores “one dropdown open at a time”.</div>
+  <div class="card"><strong>The reference does not show what runs.</strong> <code>/design-system/</code> has only static markup for the row and the chips: no well, no input, no library button.</div>
+  <div class="card"><strong>The names disagree.</strong> 4 words for the foreground colour (Ink / Point / Mark / Dots), 4 for the ground (Paper / Background / BG / Color), 6 section titles, two spellings (Color / Colour).</div>
+</div>
+
+<!-- 2 -->
+<h2 id="today">2 · The component today — built live</h2>
+<p class="muted small">These rows are built here by <code>shared/palette.js</code> with the real CSS of <code>panel.css</code> / <code>palette.css</code>. Click a swatch to see your browser's native picker (§7), try the grid button (library) and the chips.</p>
+<div class="grid3">
+  <div>
+    <h3>attach · single row</h3>
+    <div class="specimen" id="spec-single"><div class="panel-section"><h3>Colour</h3>
+      <div class="color-row"><span class="color-name">Ink</span><span class="color-swatch-wrap"><button type="button" class="color-swatch" id="sw-demoink"></button><input type="color" id="cp-demoink" value="#1a1a1a"></span><input type="text" class="color-hex" id="hex-demoink" value="#1a1a1a" maxlength="7"></div>
+      <div class="color-row"><span class="color-name">Paper</span><span class="color-swatch-wrap"><button type="button" class="color-swatch" id="sw-demopaper"></button><input type="color" id="cp-demopaper" value="#f4f1ea"></span><input type="text" class="color-hex" id="hex-demopaper" value="#f4f1ea" maxlength="7"></div>
+    </div></div>
+    <p class="micro muted">19 tools. Label · well (invisible native input on top) · hex · library. Optional: random dice (<code>#btn-random-*</code>), pattern.</p>
+  </div>
+  <div>
+    <h3>generate · chip strip (RMX)</h3>
+    <div class="specimen"><div class="panel-section"><h3>Palette</h3><div id="spec-chips" class="rmx-palette"></div></div></div>
+    <p class="micro muted">8 tools. Add / remove, min–max, library. No hex, no reorder, no random. <span id="chips-out"></span></p>
+  </div>
+  <div>
+    <h3>attach · Paper + pattern (opt-in)</h3>
+    <div class="specimen" id="spec-pattern"><div class="panel-section"><h3>Palette</h3>
+      <div class="color-row"><span class="color-name">Paper</span><span class="color-swatch-wrap"><button type="button" class="color-swatch" id="sw-demopat"></button><input type="color" id="cp-demopat" value="#f4f1ea"></span><input type="text" class="color-hex" id="hex-demopat" value="#f4f1ea" maxlength="7"></div>
+      <div id="demo-pattern-block" hidden>
+        <div class="ctrl-row"><div class="ctrl-label">Pattern</div>
+          <select class="panel-select" id="demo-pat-kind" aria-label="Paper pattern"><option value="lines" selected>Lines</option><option value="crosshatch">Crosshatch</option><option value="dots">Dots</option><option value="concentric">Concentric</option></select></div>
+        <div class="ctrl-row"><div class="ctrl-label">Ink</div>
+          <select class="panel-select" id="demo-pat-ink" aria-label="Paper pattern ink"><option value="#1f2a44">Ink 1</option><option value="#d4762a">Ink 2</option><option value="#e9c46a">Ink 3</option></select></div>
+        <div class="ctrl-row"><div class="ctrl-label">Spacing</div><input type="range" id="demo-pat-sp" min="4" max="20" step="1" value="8"><span class="ctrl-val" id="demo-pat-sp-v">8</span></div>
+      </div>
+    </div></div>
+    <svg id="demo-pat-preview" viewBox="0 0 120 60"  role="img" aria-label="Paper with its pattern" style="display:block;width:var(--panel-w);aspect-ratio:2;margin-top:var(--space-2);border:1px solid var(--border-strong);border-radius:var(--radius-sm)"></svg>
+    <p class="micro muted">FVS only today (<code>opts.pattern = {panel, on, onToggle, label, title}</code>, ledger Oct 3: <em>Paper = colour + texture</em>). The Pattern icon is appended to the row and moves the tool's own <code>panel</code> under it; the component only shows / hides it and reports on/off — the tool draws the pattern. Press the pattern icon. FVS also adds a “Transparent paper” icon on the same row by hand (a local <code>.is-on</code>, ledger §4).</p>
+  </div>
+  <div>
+    <h3>What is missing (measured)</h3>
+    <ul class="small">
+      <li>Tab: <strong>4 stops for one colour</strong> (well, invisible input, hex, library). Try Tab in the Ink row.</li>
+      <li>Accessible name: “Ink” / “Ink” / “Ink” on all three controls in 12 tools.</li>
+      <li>Active chip: a class only, no <code>aria-pressed</code>; <code>.rmx-x</code> / <code>.rmx-add</code> lack <code>type="button"</code>.</li>
+      <li>Well 18×18, chip ✕ 13×13 — under <code>--hit-min</code> (24).</li>
+      <li>Library icon pasted as an SVG string (<code>palette.js:354</code>) instead of <code>Organica.icons.get('grid')</code>.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- 3 -->
+<h2 id="patterns">3 · The patterns that exist</h2>
+<p class="muted small">Every way a tool asks for a colour today. The letters come back on the tool cards.</p>
+<div class="scroll"><table>
+  <thead><tr><th>Pattern</th><th>What it is</th><th>Tools</th><th>On the component?</th></tr></thead>
+  <tbody id="pat-rows"></tbody>
+</table></div>
+
+<!-- 4 -->
+<h2 id="tools">4 · Tool by tool</h2>
+<p class="muted small">On the right, the tool's real panel section, loaded from the tool and clipped (it loads as you scroll). Where the RMX block is hidden at load, the preview switches it on. With “Interact” on you can use it.</p>
+<div id="tool-cards"></div>
+<h3>No colour controls</h3>
+<p class="small">Loom (grid colours fixed in CSS) · Undertow · Dapple · Apostate (ink / paper from the theme) · Mycel (ink = <code>--tool</code>) · Rhizome (a <code>color</code> port type declared, never used) · Genesis (the old picker in <code>genesis-creator.js</code> is dead code) · Gallery · Hub.</p>
+
+<!-- 5 -->
+<h2 id="matrix-h">5 · Matrix</h2>
+<div class="scroll"><table class="matrix" id="matrix"></table></div>
+<p class="micro muted">● = present · numbers = min–max colours · ✎ = hand-wired, outside the component.</p>
+
+<!-- 6 -->
+<h2 id="proposal">6 · Proposal — one component, five variants</h2>
+<p>Same namespace <code>Organica.palette</code>, one new entry point; <code>swatch()</code> stays as an alias (string → <code>single</code>, element → <code>inks</code>), so no existing call breaks. Element ids and preset keys (<code>cp-bg</code>, <code>rmx</code>, <code>state.bg</code>) do not change.</p>
+<div class="card"><pre class="small" style="margin:0;white-space:pre-wrap"><code>Organica.palette.control(target, {
+  kind: 'single' | 'well' | 'inks' | 'stops' | 'pick',
+  role: 'ink' | 'paper' | '&lt;custom&gt;',      // visible label + every accessible name
+  label, value | values, min, max,
+  from: () =&gt; hexes, custom: true,           // 'pick' only
+  modes: ['solid','adaptive','inks'], mapping: true,   // 'inks' only (D8)
+  accessories: { library: true, random: false, none: false, pattern: {…} },
+  onChange(value, detail), onCommit(value)    // onCommit = one Undo step (§7)
+}) → { el, get, set, getColors, setColors, setActive, setPattern, destroy }</code></pre></div>
+<p class="small">Parts every variant shares: the <strong>well</strong> (one tab stop; the native input gets <code>tabindex=-1</code> + <code>aria-hidden</code>; name “‹Label› colour, #hex”) · the <strong>hex field</strong> (“‹Label› hex”) · <strong>accessories</strong> as <code>.org-btn--icon</code> (library, random, none / transparent, pattern). Buildable from JS as well as attached to existing markup. Every well opens <strong>the same picker</strong> (§7). The library menu joins <code>organica:dropdown-open</code>, gets arrow keys, takes its sizes from tokens.</p>
+<div class="scroll"><table>
+  <thead><tr><th>Variant</th><th>What it is</th><th>Today's UIs that map to it</th><th>Migration</th></tr></thead>
+  <tbody>
+    <tr><td><code>single</code></td><td>Label + well + hex + accessories</td><td>Every <code>.color-row</code>: 19 tools, 37 rows, Komorebi's and Blob Boundary's role rows included</td><td><strong>Easy.</strong> The a11y and icon fixes land inside <code>palette.js</code>, no markup change.</td></tr>
+    <tr><td><code>well</code></td><td>Well only; hex inside the picker</td><td>Colornet channels, Camo Turing layers, FVS Figure / variants / custom cell colour, Trellis A/B</td><td><strong>Easy–medium.</strong> Needs the JS-built form; deletes 3 local FVS rules and Trellis's <code>type=hidden</code> trick.</td></tr>
+    <tr><td><code>inks</code></td><td>Variable list (the RMX strip) + optional mode and mapping</td><td>Pollen, Spore, Camo Turing, Mote, Membrane (strip + mode block); Vortex, FVS, Trellis (strip only)</td><td>Strip: <strong>as is</strong>. The mode / mapping block = decision D8.</td></tr>
+    <tr><td><code>stops</code></td><td>Ordered list where order is meaning</td><td>TuneSutra gradient stops</td><td><code>inks</code> + <code>ordered:true</code>. Positions later.</td></tr>
+    <tr><td><code>pick</code></td><td>Choose one of the current inks (+ custom)</td><td>FVS: layer ink popover, cell colour, Paper-pattern ink, “Start at”</td><td><strong>Decision D9</strong> — one tool today.</td></tr>
+    <tr><td class="muted">not a variant</td><td>Full editor RGB / HSB / CMYK, name, lock</td><td>TuneSutra active colour</td><td>Stays local (one consumer); its well becomes <code>single</code>.</td></tr>
+    <tr><td class="muted">not a variant</td><td>Ink + Paper pair</td><td>Most tools</td><td>Two <code>single</code>s with fixed roles; a “pair” with swap = D10.</td></tr>
+  </tbody>
+</table></div>
+<h3>Fixes that need no decision</h3>
+<ul class="small">
+  <li><code>.rmx-add</code> reads <code>--rmx-cell-w/h/radius/border</code> → TuneSutra can drop its re-declared <code>.rmx-x</code> / <code>.rmx-add</code> (and its two <code>css-lint.py</code> exceptions).</li>
+  <li>Library icon from <code>Organica.icons.get('grid')</code>; <code>type="button"</code> on <code>.rmx-x</code> / <code>.rmx-add</code>; native input out of the Tab order.</li>
+  <li>Colornet and Murmur: the row says Paper, the accessible name says “Background colour” — align.</li>
+  <li><code>maxlength="7"</code> missing on the hex in 8 tools; Sinew links <code>palette.css</code> without using it; local <code>toHex</code> / <code>hexToRgb</code> in Pollen, Warping, Komorebi, Membrane.</li>
+  <li>A row with several accessories squeezes the hex: FVS Paper (Transparent + library + Pattern) leaves the hex <strong>42px</strong> wide and cuts the value (measured). The component should own the accessory slots and keep the hex readable (e.g. accessories overflow into the picker, or the hex keeps a minimum width).</li>
+  <li>Same label, different maths: “Posterize” in Membrane (own <code>rmxColorAt</code>) and Camo Turing (GLSL, floor) does not give the result of <code>palette.colorAt</code> (round) in Spore / Pollen / Mote.</li>
+</ul>
+
+<!-- 7 -->
+<h2 id="picker">7 · The colour picker</h2>
+<h3>What it is today</h3>
+<p>Every colour in the suite is edited in <strong>the browser's native picker</strong>. The visible 18×18 swatch is a button that forwards its click to a hidden <code>&lt;input type="color"&gt;</code> (<code>palette.js:150</code>, <code>cp.click()</code>); a chip is a <code>&lt;label&gt;</code> around a real input. <code>panel.css</code> hides every colour input (<code>opacity:0; position:absolute; pointer-events:none</code>); the <code>.color-swatch-wrap</code> exists only so the invisible input sits under the swatch — Chrome anchors its popup to the <em>input's</em> rect. The component listens to <code>input</code> only (every drag step reaches the tool; there is no “commit”). Values are 8-bit sRGB hex only — no alpha, no OKLCH, even though <code>shared/color.js</code> has every OKLCH conversion, gamut mapping and contrast. 49 static colour inputs across ~20 tools, more built at runtime.</p>
+<div class="scroll"><table>
+  <thead><tr><th>Browser</th><th>What the user gets</th></tr></thead>
+  <tbody>
+    <tr><td>Chrome / Edge · macOS</td><td>The system Colors window (NSColorPanel): a floating OS window, not anchored, tabs for wheel / sliders / palettes / pencils, system eyedropper; alpha hidden.</td></tr>
+    <tr><td>Chrome / Edge · Windows, Linux</td><td>Chromium's own popup anchored to the input: saturation/value field, hue slider, eyedropper, HEX / RGB / HSL readout.</td></tr>
+    <tr><td>Safari · macOS</td><td>A small popover of suggested swatches + “Show Colors…” → the system Colors window. Since Safari 18.4 honours <code>alpha</code> and <code>colorspace="display-p3"</code>.</td></tr>
+    <tr><td>Firefox</td><td>macOS: the system Colors window · Windows: the old Win32 ChooseColor dialog · Linux: the GTK chooser.</td></tr>
+  </tbody>
+</table></div>
+<h3>Its limits</h3>
+<ol class="small">
+  <li><strong>sRGB hex only.</strong> No alpha, no wide gamut (except Safari ≥ 18.4 with the new attributes).</li>
+  <li><strong>No perceptual model at the moment of picking.</strong> The suite thinks in OKLCH (equal-lightness scales, contrast); the picker does not.</li>
+  <li><strong>OS-owned, not themable.</strong> Ignores <code>data-theme</code> and the tokens; looks different on every OS and browser (a floating window on macOS, an anchored popup on Windows Chrome, a 1990s dialog on Windows Firefox).</li>
+  <li><strong>The library, recent colours and contrast hints cannot live inside it</strong> — which is why “Pick from a palette” is a separate button.</li>
+  <li><strong>Fragile opening.</strong> <code>.click()</code> on an invisible input depends on its position; <code>showPicker()</code> is the sanctioned API (Baseline since 2022, allowed in cross-origin iframes for colour — relevant to Rhizome's bridges).</li>
+  <li><strong>No commit.</strong> Only <code>input</code> is listened to, so there is no clean Undo step; on macOS the Colors window keeps sending values after focus moved.</li>
+</ol>
+<p class="small muted">Where the platform is going: <code>&lt;input type=color alpha colorspace&gt;</code> ships in Safari 18.4+ only (not Chrome, not Firefox, Oct 2026) and still brings no OKLCH and no theming. The EyeDropper API is Chromium-only. Sources: <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/input/color">MDN input color</a> · <a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/showPicker">showPicker</a> · <a href="https://caniuse.com/wf-input-color-alpha">caniuse alpha</a> · <a href="https://caniuse.com/mdn-api_eyedropper">caniuse EyeDropper</a> · <a href="https://webkit.org/?p=16900">WebKit, Safari 18.4</a> · <a href="https://m.wiki.mozilla.org/QA/Desktop_Firefox/input-type-color">Firefox QA</a>.</p>
+
+<h3>What the best pickers do</h3>
+<div class="scroll"><table>
+  <thead><tr><th>Product</th><th>Model</th><th>What makes it good for artists</th></tr></thead>
+  <tbody>
+    <tr><td>Figma</td><td>S/B square + hue + alpha, format dropdown, eyedropper, document colours and library styles in the same popover</td><td>Swatches and variables right in the picker. Still no OKLCH (plugins fill it).</td></tr>
+    <tr><td>Illustrator / Photoshop</td><td>Large SB field + hue, H/S/B + RGB / Lab / CMYK fields, Swatches panel</td><td>Out-of-gamut warnings; old / new chip.</td></tr>
+    <tr><td>Adobe Color</td><td>Harmony wheel with linked handles + per-colour sliders</td><td>Harmony first — close to TuneSutra.</td></tr>
+    <tr><td>Procreate</td><td>Disc, Classic, Harmony, Value, Palettes; current / previous chip; history</td><td>One colour, several views; a recent-colours row; tap a palette to pick.</td></tr>
+    <tr><td>Affinity</td><td>Wheel / box, sliders in several models, swatch panels incl. recent</td><td>Recent swatches always visible.</td></tr>
+    <tr><td>Coolors</td><td>Palette strip, per-colour lock, tap → hex + shades</td><td>Locks + generation (TuneSutra has Keep on Generate).</td></tr>
+    <tr><td><a href="https://oklch.com">oklch.com</a></td><td>Three gradient L / C / H sliders showing the gamut edge + a C×L plane</td><td>Perceptual: you see where a hue runs out of chroma.</td></tr>
+    <tr><td>Material / Radix / Tailwind</td><td>Fixed tonal scales (50–900), pick a step</td><td>“Pick a step on a scale” — Organica already has <code>color.scale</code>.</td></tr>
+  </tbody>
+</table></div>
+<h3>Framework-free libraries</h3>
+<div class="scroll"><table>
+  <thead><tr><th>Library</th><th>Model</th><th>Size</th><th>Licence</th><th>Alpha · swatches · eyedropper</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><a href="https://github.com/web-padawan/vanilla-colorful">vanilla-colorful</a></td><td>Web components: SV field + hue (+ alpha), hex input</td><td>2.7 KB</td><td>MIT</td><td>yes · no · no</td><td>ARIA sliders, keyboard, <code>::part()</code> theming. No OKLCH. Smallest and cleanest — the best reference.</td></tr>
+    <tr><td><a href="https://github.com/mdbassit/Coloris">Coloris</a></td><td>Popover on a text input: SV + hue + alpha + swatches</td><td>~8–10 KB (est.)</td><td>MIT</td><td>yes · yes · no</td><td>Keyboard + screen reader, dark theme. Own DOM / CSS to re-tokenise; attaches to text inputs, not swatch buttons.</td></tr>
+    <tr><td><a href="https://github.com/simonwep/pickr">Pickr</a></td><td>SV + hue + opacity, swatches, 3 themes</td><td>~8 KB (est.)</td><td>MIT</td><td>yes · yes · no</td><td>Feature-frozen; the author advises building your own.</td></tr>
+    <tr><td><a href="https://github.com/jaames/iro.js">iro.js</a></td><td>Wheel / box / sliders, multi-handle</td><td>~9 KB</td><td>MPL-2.0</td><td>yes · no · no</td><td>On hiatus.</td></tr>
+    <tr><td><a href="https://webawesome.com/docs/components/color-picker/">Web Awesome</a> / Spectrum</td><td>Full component / primitives</td><td>heavy (Lit + base)</td><td>MIT / Apache</td><td>yes · yes · yes</td><td>Would bring a second design system.</td></tr>
+  </tbody>
+</table></div>
+<h3>What makes a picker simple for artists</h3>
+<ol class="small">
+  <li><strong>Swatches first</strong>: open on the palettes in use and the library; the free picker is the second step.</li>
+  <li><strong>Recent colours</strong>: the last 8–12 picks, shared across tools.</li>
+  <li><strong>Live while dragging, commit on release</strong>: one clean Undo step.</li>
+  <li><strong>Paste anything</strong>: <code>#abc</code>, <code>abc</code>, <code>rgb()</code>, <code>oklch()</code>.</li>
+  <li><strong>Perceptual sliders</strong>: OKLCH lightness means the same across hues; show the gamut edge.</li>
+  <li><strong>Context</strong>: a contrast badge against the Paper (3:1 / 4.5:1) and “too close to ink n” (ΔE &lt; 6).</li>
+  <li><strong>Old / new chip</strong>, <strong>eyedropper</strong> where it exists (hidden, not disabled, elsewhere), <strong>few modes</strong>.</li>
+</ol>
+<h3>Recommendation</h3>
+<div class="grid3">
+  <div class="card"><strong>(a) Keep native</strong><p class="small">Zero cost; OS-dependent UX, no theming, no OKLCH, library outside. Even if it stays: call <code>showPicker()</code> with <code>click()</code> as fallback, listen to <code>change</code> for commit / Undo, accept pasted CSS colours in the hex field.</p></div>
+  <div class="card" style="border-color:var(--ink)"><strong>(b) Our own popover picker — recommended</strong><p class="small">Built on <code>shared/color.js</code> + <code>Organica.popover</code> (Escape, outside click, focus return, one open at a time, both themes for free). Top: the palette library + recent row. Below: a 2D field + hue strip, <strong>HSB</strong> by default with an <strong>OKLCH</strong> toggle (gamut edge from <code>color.maxChroma</code>), hex paste, contrast chip against Paper, old / new chip, EyeDropper on Chromium, and “System picker…” → <code>showPicker()</code> as the escape hatch. ~6–10 KB, no dependency; ~1–2 days + ~1 day of cross-browser testing. Same <code>onChange</code> contracts, plus <code>onCommit</code>. Keyboard pattern modelled on vanilla-colorful (<code>role="slider"</code>, arrows / Shift / PageUp / Home / End).</p></div>
+  <div class="card"><strong>(c) Vendor a library</strong><p class="small">vanilla-colorful as the field + hue core inside our popover saves the fiddliest pointer / keyboard work, but it is HSV-only — the OKLCH plane would still be ours. Coloris is complete but brings its own DOM / CSS and no OKLCH. Avoid Pickr (frozen), iro.js (hiatus), Web Awesome / Spectrum (a second design system).</p></div>
+</div>
+<p class="small muted">A new component: the design-system CONSULT gate applies before building. Facts from the sources above; the recommendation and the effort estimate are judgement.</p>
+
+<!-- 8 -->
+<h2 id="tunesutra">8 · TuneSutra → tools: how palettes should reach the tools</h2>
+<h3>Today</h3>
+<ul class="small">
+  <li><strong>What TuneSutra stores</strong>: palettes in <code>Organica.store('tunesutra')</code>, <strong>keyed by name</strong> (Supabase key <code>(user, tool, name)</code>): <code>colors[]</code> hex, <code>names[]</code>, <code>ids[]</code> (each colour has a stable <code>c-xxxxxx</code> id), locks, harmony, gradient, system. <strong>The palette itself has no stable id</strong> — saving under a new name writes a new record, so a rename would orphan any reference. Roles are positional (Base, Secondary, Accent, Accent 2…); <strong>there is no Paper or Ink role</strong>. Role shares come from <code>color.roleShares</code> (3 colours = 51 / 31 / 18 %).</li>
+  <li><strong>What it exports</strong>: CSS custom properties <code>--tunesutra-&lt;name&gt;-&lt;step&gt;</code> for every 0–900 step, DTCG JSON (<code>&lt;name&gt;.&lt;step&gt;</code>, no role layer), gradient PNG / SVG, plates. The System view proposes chrome tokens for <code>shared/tokens.css</code> but is a proposal only — nothing loads it at runtime, by design (a saved palette must never break the interface).</li>
+  <li><strong>How tools get it</strong>: <code>palette.library()</code> reads the local cache synchronously (your palettes + 3 built-in combinations + 21 Riso inks); <code>palette.pick()</code> pulls from the cloud once per page. The picked palette and colour are <strong>thrown away — only the hex is kept</strong>. Tool presets store plain hex.</li>
+  <li><strong>When a palette changes later</strong>: nothing happens in the tools. No <code>storage</code> listener, no <code>BroadcastChannel</code>; <code>store.onSync</code> fires in the same tab only, so a tool open while you save in TuneSutra does not even see the new palette until reload.</li>
+  <li><strong>Drift</strong>: the 3 built-in combinations are re-typed in <code>palette.js</code> and <code>tunesutra/collections.js</code> (different ids), held together by a comment. <code>fvsField.palettes()</code> is the only consumer that resolves roles automatically (by contrast). Rhizome's <code>color</code> port type is unused.</li>
+</ul>
+<h3>Options</h3>
+<div class="scroll"><table>
+  <thead><tr><th>Option</th><th>How it works</th><th>Cost</th><th>Risk</th></tr></thead>
+  <tbody>
+    <tr><td><strong>A · Copy, better</strong></td><td>“Use palette” fills a whole tool at once — Paper, Ink, inks[] — through a per-tool role map (default: by contrast like <code>fvsField</code>, inks in role-share order). Still copied by value.</td><td>Small, all in <code>palette.js</code></td><td>Low; later edits never propagate.</td></tr>
+    <tr><td><strong>B · Linked palette</strong></td><td>Tools store <code>{ref: {palette, colour | role, step?}, hex}</code>; live update via <code>storage</code> / <code>BroadcastChannel</code> + <code>onSync</code>; states Linked / Detached (you edited the hex) / Missing (palette deleted → keep the last hex). Export always uses the hex resolved at that moment. Needs a stable palette id first.</td><td>Medium–large: every tool's preset code (~19)</td><td>Silent changes to saved work; preview / thumbnail drift; regression hashes.</td></tr>
+    <tr><td><strong>C · Roles</strong></td><td>Palettes gain explicit roles (Paper, Ink, Base, Accent…); each tool maps its slots to roles (Komorebi: Sun = Accent, Ground = Base…). Works with A (one-shot) or B (a ref by role survives reorder).</td><td>Medium</td><td>Role meaning differs per tool — needs a preview / override.</td></tr>
+    <tr><td><strong>D · Suite palette</strong></td><td>One “active palette” across the suite, chosen in TuneSutra. As the picker's first entry (cheap) or auto-followed by tools (expensive, opt-in only).</td><td>Small / large</td><td>Auto-follow recolours every open tool.</td></tr>
+    <tr><td><strong>E · DTCG interchange</strong></td><td>Import / export a DTCG token file in tools and Figma; a Rhizome “Palette” node.</td><td>Small–medium</td><td>Low; useful only outside the suite.</td></tr>
+    <tr><td><strong>F · Scale steps</strong></td><td>References like <code>accent-300</code> resolved by <code>color.scale</code> (FVS colourways already use steps).</td><td>Extends B / C</td><td>A change to <code>scale()</code> moves every linked colour — version it.</td></tr>
+  </tbody>
+</table></div>
+<h3>Recommendation — phased</h3>
+<ol class="small">
+  <li><strong>Phase 0 · hygiene, no UX change</strong>: a stable <code>id</code> on TuneSutra palettes (backfilled; the name stays the store key); generate the built-in combinations from <code>collections.js</code> (or test they match in <code>check.py</code>); refresh the library on <code>storage</code> events and window focus.</li>
+  <li><strong>Phase 1 · A + light C</strong>: “Use palette” in the picker fills a whole tool through a role map; copy by value, so presets and exports stay byte-stable; the last palette you chose in TuneSutra pinned at the top (“Suite palette”).</li>
+  <li><strong>Phase 2 · B, opt-in</strong>: linked colours with a Linked / Detached / Missing badge on the well; the hex is always stored and always used for export. Pilot in FVS (it already has roles and colourways) and Pollen.</li>
+  <li><strong>Phase 3 · as needed</strong>: DTCG import, a Rhizome Palette node, scale-step references.</li>
+</ol>
+<p class="small muted">Keep the System view a proposal — never wired live. Facts from the code (<code>tunesutra/index.html</code>, <code>shared/palette.js</code>, <code>shared/store.js</code>, <code>shared/color.js</code>, <code>shared/fvs-field.js</code>); options and phases are judgement.</p>
+
+<!-- 9 -->
+<h2 id="decisions">9 · Decisions — colour</h2>
+<p class="muted small">The first option is the recommended one. Choose, add a note if needed; choices stay in this browser and are copied out from §11.</p>
+<h3>The component <span class="from">from the design-system CONSULT</span></h3>
+<div class="grid2" id="dec-colour"></div>
+<h3>The picker <span class="from">from the picker research</span></h3>
+<div class="grid2" id="dec-picker"></div>
+<h3>TuneSutra → tools <span class="from">from the TuneSutra exploration</span></h3>
+<div class="grid2" id="dec-link"></div>
+
+<!-- 10 -->
+<h2 id="names">10 · Feature names</h2>
+<p>What we call the same thing across tools (visible text: section titles, labels, buttons, aria-labels, options). Element ids and preset keys never change — only the text.</p>
+<p class="small muted">The answers here become the glossary in <code>docs/UI-COPY.md</code>, which the design-system agent applies as content designer (CONSULT gives the strings, REVIEW checks every new one).</p>
+<h3>The biggest conflicts</h3>
+<div class="scroll"><table>
+  <thead><tr><th>Word</th><th>Different meanings today</th></tr></thead>
+  <tbody id="conflicts"></tbody>
+</table></div>
+<h3>Decisions — names <span class="from">proposals from the naming inventory, not yet reviewed by the design-system agent</span></h3>
+<div class="grid2" id="dec-names"></div>
+<h3>The full inventory</h3>
+<div id="names-inv"></div>
+
+<!-- 11 -->
+<h2 id="export">11 · Your choices</h2>
+<div class="bar"><button class="btn" id="copy">Copy choices as text</button><button class="btn" id="clear">Clear</button><span id="count"></span></div>
+<textarea id="out" class="dec__note" rows="14" readonly></textarea>
+<p class="micro muted">Paste the text in the chat: it becomes the ledger entry (<code>docs/DESIGN-DECISIONS.md</code>), the glossary update and the migration plan.</p>
+</div>
+
+<script src="/shared/core.js"></script>
+<script src="/shared/icons.js"></script>
+<script src="/shared/color.js"></script>
+<script src="/shared/palette.js"></script>
+<script>
+(function () {
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ── theme + interact ── */
+$('#theme').onclick = () => { const r = document.documentElement; r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : 'dark'; };
+$('#interact').onclick = e => { const on = document.body.classList.toggle('interact'); e.target.textContent = 'Interact with previews: ' + (on ? 'on' : 'off'); };
+
+/* ── 2 · live shared component ── */
+try {
+  Organica.palette.swatch('demoink', { initial: '#1a1a1a' });
+  Organica.palette.swatch('demopaper', { initial: '#f4f1ea' });
+  Organica.palette.swatch($('#spec-chips'), { colors: ['#1f2a44', '#d4762a', '#e9c46a', '#f4f1ea'], min: 2, max: 5,
+    onChange: (c, i, a) => { $('#chips-out').textContent = 'onChange → ' + a + ' · ' + c.join(' '); } });
+  if (Organica.autoLabelPanel) Organica.autoLabelPanel(document.querySelector('#spec-single'));
+  // Paper + pattern: the real opts.pattern opt-in; the preview is drawn here, as a tool would.
+  const patState = { on: false };
+  const drawPat = () => {
+    const paper = $('#hex-demopat').value || '#f4f1ea', ink = $('#demo-pat-ink').value, k = $('#demo-pat-kind').value, sp = +$('#demo-pat-sp').value;
+    $('#demo-pat-sp-v').textContent = sp;
+    let g = '';
+    if (patState.on) {
+      if (k === 'lines' || k === 'crosshatch') { for (let x = -60; x < 180; x += sp) g += `<line x1="${x}" y1="60" x2="${x + 60}" y2="0"/>`; }
+      if (k === 'crosshatch') { for (let x = -60; x < 180; x += sp) g += `<line x1="${x}" y1="0" x2="${x + 60}" y2="60"/>`; }
+      if (k === 'dots') { for (let y = sp / 2; y < 60; y += sp) for (let x = sp / 2; x < 120; x += sp) g += `<circle cx="${x}" cy="${y}" r="${sp / 6}" fill="${ink}" stroke="none"/>`; }
+      if (k === 'concentric') { for (let r = sp; r < 140; r += sp) g += `<circle cx="60" cy="30" r="${r}" fill="none"/>`; }
+    }
+    $('#demo-pat-preview').innerHTML = `<rect width="120" height="60" fill="${paper}"/><g stroke="${ink}" stroke-width="0.8" fill="none">${g}</g>`;
+  };
+  const patSw = Organica.palette.swatch('demopat', { initial: '#f4f1ea', onChange: drawPat,
+    pattern: { panel: $('#demo-pattern-block'), on: false, onToggle: on => { patState.on = on; drawPat(); } } });
+  ['#demo-pat-kind', '#demo-pat-ink', '#demo-pat-sp'].forEach(id => $(id).addEventListener('input', drawPat));
+  drawPat();
+  if (Organica.autoLabelPanel) Organica.autoLabelPanel(document.querySelector('#spec-pattern'));
+} catch (err) { console.error(err); }
+
+/* ── 3 · patterns ── */
+const PATTERNS = [
+  ['A', 'Single row', 'Label + well + hex + library (<code>swatch(\'id\')</code>)', 'spore, pollen, halide, komorebi, camo, warping, membrane, vortex, fvs (Paper), radial, pulsar, mote, murmur, colornet, blob-boundary, livingpath, sinew, trellis', 'yes'],
+  ['A+', 'Row + accessories', 'Random dice: pollen, camo, membrane, vortex · <strong>Pattern</strong> (opts.pattern — Paper = colour + texture, demo in §2) + transparent: fvs Paper · hidden hex: trellis tracks', '—', 'yes (options)'],
+  ['B', 'Foreground / ground pair', 'A×2. Names: Ink/Paper, Mark/BG, Point/BG, Point/Paper, Ink/Background. Swap: pollen, halide (button), livingpath (floatbar “Invert”)', 'most tools', 'yes, swap is local'],
+  ['C', 'N fixed role rows', 'Sun/Sky/Ground/Shadow · Background/Mask/Dots', 'komorebi (4), blob-boundary (3)', 'yes'],
+  ['D', 'Chip strip', 'Editable list, add/remove, min–max, library; no reorder', 'spore, pollen, camo, membrane (2–5) · mote, vortex (2–8) · fvs, trellis (1–8) · tunesutra (3–7, library off; gradient stops 2–5)', 'yes'],
+  ['E', 'Colour mode + mapping', 'Solid / Adaptive / RMX + “Mapping” + strip D', 'pollen, camo, mote (segmented) · spore (button grid) · membrane (select)', '✎ 5 hand copies'],
+  ['F', 'Choose a palette index', 'Not a hex: “which ink”', 'fvs (Colour by, Start at, Paper-pattern ink, layer ink popover, cell colour) · tunesutra System', '✎ 4 UIs in FVS'],
+  ['G', 'Visible native input', 'The browser\'s own square, no hex', 'fvs variants, Figure, custom cell colour', '✎ 3 identical CSS rules'],
+  ['H', 'Well in a layer card', 'No hex, no library; colornet + read-only CMYK', 'camo (layers), colornet (channels)', '✎'],
+  ['I', 'Full editor', 'Hex + RGB + HSB + CMYK + name + lock', 'tunesutra', '✎ (one consumer)'],
+  ['J', 'Two animated colours', 'Colour cycle A → B', 'trellis (tracks)', 'yes, with the hidden-hex trick'],
+];
+$('#pat-rows').innerHTML = PATTERNS.map(p => `<tr><td><span class="tag tag--pat">${p[0]}</span> ${p[1]}</td><td>${p[2]}</td><td class="small">${p[3]}</td><td>${p[4]}</td></tr>`).join('');
+
+/* ── 4 · tools ── */
+// sections: panel <h3> text prefixes to clip. setup(doc, win): reveal hidden colour blocks.
+const clickRmx = sel => (doc) => { const b = doc.querySelector(sel); if (b) b.click(); };
+const TOOLS = [
+  { id: 'spore', name: 'Spore', sections: ['Color'], setup: doc => { const b = [...doc.querySelectorAll('.cm-btn')].find(x => x.textContent.trim() === 'RMX'); if (b) b.click(); },
+    title: 'Color', labels: 'Mark · BG', pats: 'A B D E', api: 'attach ×2 + generate (2–5)',
+    notes: ['Modes as a button grid: Solid / Adaptive / Image / Multi / RMX (local CSS <code>.cm-btn</code>).', 'The only tool with the label <em>after</em> the hex.', '“Opacity” 0.1–1. In RMX the Mark row disappears.'] },
+  { id: 'pollen', name: 'Pollen', sections: ['Color'], setup: clickRmx('[data-val="rmx"]'),
+    title: 'Color', labels: 'Point · BG', pats: 'A+ B D E', api: 'attach ×2 (+dice) + generate (2–5)',
+    notes: ['Mode as a segmented control. “Swap colors”. “Alpha” 0–255.', '<code>.rmx-slot</code> here are <em>shape</em> slots, not colours: a name collision.'] },
+  { id: 'halide', name: 'Halide', sections: ['Color', 'Image'],
+    title: 'Color (+ Image)', labels: 'Ink · Paper · “Color” (background fill)', pats: 'A B', api: 'attach ×3',
+    notes: ['“Swap colors”, “Paper is transparent” checkbox.', 'The background fill is labelled just “Color”, its title “Background colour”.'] },
+  { id: 'komorebi', name: 'Komorebi', sections: ['Colour'],
+    title: 'Colour', labels: 'Sun · Sky · Ground · Shadow', pats: 'C', api: 'attach ×4', notes: ['Named roles: legitimate with ≥3 roles.'] },
+  { id: 'camo-turing', name: 'Camo Turing', sections: ['Palette', 'Layers'], setup: clickRmx('[data-v="rmx"]'),
+    title: 'Palette', labels: 'Ink · Paper', pats: 'A+ D E H', api: 'attach ×2 (+dice) + generate (2–5) + hand-wired layer wells',
+    notes: ['The mapping select is labelled “Palette” (like the strip) and sits before the chips.', 'Its hint says Solid = “Duotone everywhere else”; elsewhere Duotone is an Adaptive preset.', 'Layers: <code>.layer-dot</code> + a bare well, hand-wired.'] },
+  { id: 'warping', name: 'Warping', sections: ['Tone'], title: 'Tone', labels: 'Ink · Paper', pats: 'B', api: 'attach ×2', notes: ['Section titled “Tone”.'] },
+  { id: 'membrane', name: 'Membrane', sections: ['Palette'], setup: doc => { const s = [...doc.querySelectorAll('select')].find(x => x.querySelector('option[value="rmx"]')); if (s) { s.value = 'rmx'; s.dispatchEvent(new Event('change', { bubbles: true })); } },
+    title: 'Palette', labels: 'Ink · Background', pats: 'A+ D E', api: 'attach ×2 (+dice) + generate (2–5)',
+    notes: ['“Color mode” select: Single ink / Rainbow / Sample from image / RMX (multi-colour).', 'RMX with its own maths (<code>rmxColorAt</code>), not <code>palette.colorAt</code>.', 'The Ink row stays visible where it does nothing.'] },
+  { id: 'vortex', name: 'Vortex', sections: ['Palette'], title: 'Palette', labels: 'Background', pats: 'D A+', api: 'generate (2–8) + attach (+dice)', notes: ['No mode: segments cycle the colours by index.'] },
+  { id: 'fvs', name: 'Flexible Visual System', sections: ['Palette', 'Layers'], setup: doc => { const b = doc.querySelector('.pal-pattern-btn'); if (b && b.getAttribute('aria-pressed') !== 'true') b.click(); },
+    title: 'Palette', labels: 'Paper · Colour by · Start at · Ink n', pats: 'D A+ F G', api: 'generate (1–8) + attach with pattern + 4 “choose ink” UIs + native inputs',
+    notes: ['The richest tool: Colour by (cell / rows / checkerboard…), Colourways, variants in Export.', 'Layer ink = a hand-made popover of circles (<code>.fvs-ink-pop</code>, outside <code>Organica.popover</code>).', 'Three identical CSS rules make the native input visible.', 'Sections depend on the step: the preview forces them visible, and opens the Paper pattern (the Pattern icon on the Paper row).', 'Paper row carries three accessories (Transparent, library, Pattern): the hex field shrinks to <strong>42px</strong> and cuts “#ffffff” (measured) — the row needs a rule for how many accessories fit.'] },
+  { id: 'radial', name: 'Radial', sections: ['Colour & seed'], title: 'Colour & seed', labels: 'Ink · Paper', pats: 'B', api: 'attach ×2', notes: ['A section mixing colour and the numeric seed.'] },
+  { id: 'pulsar', name: 'Pulsar', sections: ['Palette'], title: 'Palette', labels: 'Ink · Paper', pats: 'B', api: 'attach ×2', notes: ['“Palette” here is just Ink + Paper.'] },
+  { id: 'mote', name: 'Mote', sections: ['Colour'], setup: clickRmx('[data-v="rmx"]'),
+    title: 'Colour', labels: 'Point · Paper', pats: 'B D E', api: 'attach ×2 + generate (2–8)',
+    notes: ['Modes: Solid / <strong>Adapt</strong> / RMX / Video.', 'Mapping in lower case with different words: “tone (lerp) · posterize (bands) · random · tone + jitter”.', '“Alpha” 10–100. Hides nothing in RMX.'] },
+  { id: 'murmur', name: 'Murmur', sections: ['Background'], title: 'Background', labels: 'Paper', pats: 'A', api: 'attach ×1',
+    notes: ['Section “Background”, row “Paper”, accessible name “Background colour”.', 'The particles have no colour control.'] },
+  { id: 'tunesutra', name: 'TuneSutra', sections: ['Palette', 'Colour', 'Gradient'], setup: (doc, win) => { win.location.hash = '#new'; },
+    title: 'Palette · Colour · Gradient', labels: 'Hex · Name · Stops', pats: 'D I', api: 'generate (3–7, library off) + hand-wired editor + stops (2–5)',
+    notes: ['The source of colour: the other tools\' library reads its palettes (§8).', 'Colour row labelled “Hex”, input before the button, swatch wired twice.', '<code>.rmx-x</code> / <code>.rmx-add</code> re-declared (the tuning variables cannot reach them).'] },
+  { id: 'colornet', name: 'Colornet', sections: ['Channels', 'Background'], title: 'Channels · Background', labels: 'Paper (+ one colour per channel)', pats: 'H A', api: 'hand-wired channel wells + attach ×1',
+    notes: ['Channel: bare well + CMYK readout; “Random Colors” and “Shuffle” (reorders channels).', 'Section “Background”, row “Paper”, name “Background colour”.', 'Channels need name, on/off, opacity, order, transform: the chip strip cannot carry them (comment at the top of the file).'] },
+  { id: 'blob-boundary', name: 'Blob Boundary', sections: ['Colour'], title: 'Colour', labels: 'Background · Mask · Dots', pats: 'C', api: 'attach ×3', notes: ['aria “Open dot colour picker”: a fourth naming pattern.'] },
+  { id: 'livingpath', name: 'Living Path', sections: ['Colour'], title: 'Colour', labels: 'Ink · Paper', pats: 'B', api: 'attach ×2', notes: ['Swap in the floatbar: “Invert — swap Ink / Paper”.'] },
+  { id: 'sinew', name: 'Sinew', sections: ['Source view'], title: 'Source view', labels: 'Ink · Paper', pats: 'B', api: 'attach ×2', notes: ['Links <code>palette.css</code> without using it.'] },
+  { id: 'trellis', name: 'Trellis', sections: ['Palette', 'Motion'], title: 'Palette (+ Motion)', labels: 'Paper · Colours A/B', pats: 'D A J', api: 'generate (1–8) + attach + 2 attach per track with hidden hex',
+    notes: ['“Colour cycle”: two wells A/B made with <code>&lt;input type=hidden&gt;</code> as the hex — a faked “well” variant.'] },
+];
+$('#tool-cards').innerHTML = TOOLS.map(t => `
+  <div class="card tool" id="t-${t.id}">
+    <div>
+      <p class="tool__name"><a href="/${t.id}/" target="_blank" rel="noopener">${esc(t.name)}</a></p>
+      <div class="tool__meta">${t.pats.split(' ').map(p => `<span class="tag tag--pat">${p}</span>`).join('')}</div>
+      <dl><dt>Section</dt><dd>${esc(t.title)}</dd><dt>Labels</dt><dd>${esc(t.labels)}</dd><dt>API</dt><dd>${esc(t.api)}</dd></dl>
+      <ul>${t.notes.map(n => `<li>${n}</li>`).join('')}</ul>
+    </div>
+    <div class="live">${t.sections.map((s, i) => `
+      <div><div class="clip clip--cover" data-tool="${t.id}" data-sec="${esc(s)}" data-i="${i}"><div class="clip__msg">preview loading…</div></div><div class="clip__cap">${esc(t.name)} · ${esc(s)}</div></div>`).join('')}
+    </div>
+  </div>`).join('');
+
+/* live clip: load the tool in a same-origin frame, find the panel section by
+   its <h3>, scroll the panel to it, translate the frame so only it shows. */
+const MAX_H = 560;
+function headingText(h) { return [...h.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join(' ').replace(/\s+/g, ' ').trim(); }
+function findSection(doc, name) {
+  const hs = [...doc.querySelectorAll('#panel h3, .org-panel h3, .panel-section h3')];
+  const n = name.toLowerCase();
+  const h = hs.find(x => headingText(x).toLowerCase() === n) || hs.find(x => headingText(x).toLowerCase().startsWith(n));
+  return h ? (h.closest('.panel-section') || h.parentElement) : null;
+}
+function reveal(el, win) {
+  for (let a = el; a && a !== win.document.body; a = a.parentElement) {
+    if (win.getComputedStyle(a).display === 'none') a.style.display = 'block';
+    if (a.hidden) a.hidden = false;
+  }
+}
+const queue = []; let running = 0; const MAXRUN = 2;
+function pump() { while (running < MAXRUN && queue.length) { running++; queue.shift()().finally(() => { running--; pump(); }); } }
+// one frame per clip — each section needs its own panel scroll position.
+function loadFrame(id, host) {
+  return new Promise(resolve => {
+    queue.push(() => new Promise(done => {
+      const f = document.createElement('iframe');
+      f.src = '/' + id + '/'; f.setAttribute('tabindex', '-1'); f.setAttribute('aria-hidden', 'true');
+      f.style.cssText = 'position:absolute;left:0;top:0;width:1440px;height:900px;border:0;visibility:hidden';
+      f.onload = () => setTimeout(() => {
+        try { const tool = TOOLS.find(t => t.id === id); if (tool.setup) tool.setup(f.contentDocument, f.contentWindow); } catch (e) { console.warn(id, e); }
+        setTimeout(() => { resolve(f); done(); }, 500);
+      }, 1200);
+      host.appendChild(f); // never move a frame after this — re-parenting reloads it
+    }));
+    pump();
+  });
+}
+function mountClip(clip) {
+  if (clip.dataset.state) return; clip.dataset.state = 'loading';
+  const id = clip.dataset.tool, sec = clip.dataset.sec;
+  const getFrame = loadFrame(id, clip);
+  getFrame.then(f => {
+    const doc = f.contentDocument, win = f.contentWindow;
+    const el = doc && findSection(doc, sec);
+    const msg = clip.querySelector('.clip__msg');
+    if (!el) { msg.textContent = 'section “' + sec + '” not found in this state'; clip.dataset.state = 'missing'; f.remove(); return; }
+    f.style.width = '1440px';
+    reveal(el, win);
+    // scroll the section's own scroller by hand: scrollIntoView would also
+    // scroll this page (it walks up through the frame).
+    for (let a = el.parentElement; a && a !== doc.documentElement; a = a.parentElement) {
+      const oy = win.getComputedStyle(a).overflowY;
+      if ((oy === 'auto' || oy === 'scroll') && a.scrollHeight > a.clientHeight) {
+        a.scrollTop += el.getBoundingClientRect().top - a.getBoundingClientRect().top; break;
+      }
+    }
+    const r = el.getBoundingClientRect();
+    const h = Math.min(Math.ceil(r.height), MAX_H);
+    clip.style.width = Math.ceil(r.width) + 'px'; clip.style.height = h + 'px';
+    f.style.cssText = 'position:absolute;left:0;top:0;width:1440px;height:900px;border:0;transform:translate(' + (-r.left) + 'px,' + (-r.top) + 'px)';
+    msg.remove(); clip.dataset.state = 'ok';
+    if (r.height > MAX_H) clip.nextElementSibling.textContent += ' · cut at ' + MAX_H + 'px (section ' + Math.round(r.height) + 'px)';
+  });
+}
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { io.unobserve(e.target); mountClip(e.target); } }), { rootMargin: '400px' });
+document.querySelectorAll('.clip').forEach(c => io.observe(c));
+$('#loadall').onclick = () => document.querySelectorAll('.clip').forEach(c => { io.unobserve(c); mountClip(c); });
+
+/* ── 5 · matrix ── */
+const CAPS = ['Single row', 'Pair', 'Roles ≥3', 'Chips (min–max)', 'Colour mode', 'Mapping', 'Dice', 'Swap', 'Transparent', 'Pattern', 'Library', 'Choose ink', 'Bare well', 'Alpha'];
+const M = {
+  spore:        ['●', '●', '', '2–5', '✎', '●', '', '', '', '', '●', '', '', 'Opacity'],
+  pollen:       ['●', '●', '', '2–5', '✎', '●', '●', '●', '', '', '●', '', '', 'Alpha 0–255'],
+  halide:       ['●', '●', '', '', '', '', '', '●', '☐', '', '●', '', '', ''],
+  komorebi:     ['●', '', '4', '', '', '', '', '', '', '', '●', '', '', ''],
+  'camo-turing':['●', '●', '', '2–5', '✎', '● “Palette”', '●', '', '', '', '●', '', '✎ layer', 'layer %'],
+  warping:      ['●', '●', '', '', '', '', '', '', '', '', '●', '', '', ''],
+  membrane:     ['●', '●', '', '2–5', '✎ select', '●', '●', '', '', '', '●', '', '', 'Stroke alpha'],
+  vortex:       ['●', '', '', '2–8', '', '', '●', '', '', '', '●', '', '', ''],
+  fvs:          ['●', '', '', '1–8', '', 'Colour by', '', '', '● icon', '● Paper', '●', '✎ ×4', '✎ ×3', ''],
+  radial:       ['●', '●', '', '', '', '', '', '', '', '', '●', '', '', ''],
+  pulsar:       ['●', '●', '', '', '', '', '', '', '', '', '●', '', '', ''],
+  mote:         ['●', '●', '', '2–8', '✎', '● lower case', '', '', '', '', '●', '', '', 'Alpha 10–100'],
+  murmur:       ['●', '', '', '', '', '', '', '', '', '', '●', '', '', ''],
+  tunesutra:    ['✎', '', '', '3–7', '', '', '', '', '', '', 'off', '✎ System', '', ''],
+  colornet:     ['●', '', '', '', '', '', 'all', '', '', '', '●', '', '✎ channel', 'coverage %'],
+  'blob-boundary':['●', '', '3', '', '', '', '', '', '', '', '●', '', '', ''],
+  livingpath:   ['●', '●', '', '', '', '', '', 'floatbar', '', '', '●', '', '', ''],
+  sinew:        ['●', '●', '', '', '', '', '', '', '', '', '●', '', '', ''],
+  trellis:      ['●', '', '', '1–8', '', '', '', '', '', '', '●', '', 'faked A/B', ''],
+};
+$('#matrix').innerHTML = '<thead><tr><th>Tool</th>' + CAPS.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>' +
+  TOOLS.map(t => `<tr><td><a href="#t-${t.id}">${esc(t.name)}</a></td>${M[t.id].map(v => `<td>${esc(v)}</td>`).join('')}</tr>`).join('') + '</tbody>';
+
+/* ── 9/10 · decisions ── */
+const DEC_COLOUR = [
+  ['D1', 'Shape of the one component', 'Today: swatch() in two shapes. A new entry point control({kind}) with swatch() as an alias breaks no call.',
+    ['Extend Organica.palette with control({kind}); swatch() stays as an alias', 'Separate functions per variant', 'Leave swatch() as it is']],
+  ['D2', 'Foreground colour name', 'Today: Ink (9 tools) · Point (Pollen, Mote) · Mark (Spore) · Dots (Blob Boundary).',
+    ['“Ink” everywhere; role names allowed with ≥3 roles (Komorebi, Blob Boundary)', 'Keep Point / Mark / Dots where they are']],
+  ['D3', 'Ground colour name', 'Today: Paper (12) · Background (Vortex, Membrane, Blob Boundary) · BG (Pollen, Spore) · “Color” (Halide fill).',
+    ['“Paper” everywhere; Halide\'s replacement fill = “Background fill”', '“Background” everywhere']],
+  ['D4', 'Colour section title', 'Today: Palette (7) · Color (3) · Colour (4) · Colour & seed · Background · Tone · Source view.',
+    ['“Colour”; “Palette” reserved for named saved sets', '“Palette”']],
+  ['D5', 'Spelling in UI copy', 'Today “Color” in Spore, Pollen, Halide, Membrane, Colornet; “Colour” everywhere else, in every palette.js aria-label and in the docs.',
+    ['Colour (UK)', 'Color (US)']],
+  ['D6', 'Label of the multi-colour mode', 'Today “RMX” (4 tools), “RMX (multi-colour)” (Membrane). The internal value rmx does not change.',
+    ['“Inks”', 'Keep “RMX”', '“Multi”']],
+  ['D7', 'Modes and assignment labels', 'Today: Adaptive / Adapt, Single ink / Solid, “Mapping” / “Palette” / “Colour by”, Mote\'s options lower case with other words.',
+    ['Solid · Adaptive · Inks; “Colour by”: Tone · Posterize · Random · Tone + random (Mote aligns)', 'Keep per tool']],
+  ['D8', 'Promote the mode / mapping block', '5 hand-written copies (Pollen, Spore, Camo Turing, Mote, Membrane) into kind:\'inks\'.',
+    ['Yes', 'No']],
+  ['D9', 'Shared “pick” variant (choose one of the inks)', 'Today it exists only in FVS, with 4 different UIs.',
+    ['Not yet: first one .fvs- component, promote at the second tool', 'Promote now']],
+  ['D10', 'Ink + Paper “pair” with swap / contrast', 'Swap today in Pollen, Halide (button) and Living Path (floatbar).',
+    ['No: two singles', 'Yes: a pair variant with swap and a contrast readout']],
+  ['D11', 'Well hit area', 'Well 18×18, chip ✕ 13×13; --hit-min = 24 (O-1, parked).',
+    ['A 24px hit box around an 18px visible well', 'Keep 18px']],
+  ['D12', 'Active-chip ring', '--tool measures 4.08:1 in TuneSutra but 2.97:1 with the FVS accent (under 3:1).',
+    ['--ink, as FVS since Oct 3', 'Keep --tool']],
+];
+const DEC_PICKER = [
+  ['P1', 'Which picker', 'Today the browser\'s native picker: OS-owned, unthemable, sRGB hex only, library outside it (§7).',
+    ['Our own popover on shared/color.js + Organica.popover', 'Vendor vanilla-colorful as the field core inside our popover', 'Keep the native picker (with the quick fixes)']],
+  ['P2', 'Model of the 2D field', 'HSB is what artists know; OKLCH is what the suite computes in (equal lightness across hues).',
+    ['HSB by default, OKLCH toggle with the gamut edge', 'OKLCH only', 'HSB only']],
+  ['P3', 'What the picker opens on', 'Figma, Procreate, Affinity open on swatches; the free field is the second step.',
+    ['Palettes + recent colours on top, field below', 'Field first, palettes in a tab']],
+  ['P4', 'Recent colours', 'The last 8–12 picks.',
+    ['Shared across all tools', 'Per tool', 'None']],
+  ['P5', 'Alpha in the picker', 'Print / plate exports assume opaque inks; transparency today is a tool slider (Opacity / Alpha).',
+    ['No — opacity stays a tool control', 'Yes, opt-in per control']],
+  ['P6', 'Contrast chip against the Paper', 'color.contrast + “too close to ink n” (ΔE < 6) shown while picking.',
+    ['Yes', 'No']],
+  ['P7', 'Escape hatch to the system picker', '“System picker…” → showPicker(): the OS Colors window and its eyedropper on macOS.',
+    ['Yes', 'No']],
+  ['P8', 'Quick fixes to the native picker now', 'showPicker() with click() fallback, listen to change for commit / Undo, accept pasted CSS colours in the hex field — useful whatever P1 says.',
+    ['Yes, now', 'No, wait for the new picker']],
+];
+const DEC_LINK = [
+  ['T1', 'Live links or copies', 'Today tools copy the hex; later edits in TuneSutra never reach them.',
+    ['Copies now, opt-in links later (phased)', 'Copies only', 'Links now']],
+  ['T2', 'A stable palette id', 'Palettes are keyed by name; a rename would orphan any reference.',
+    ['Yes, add it now (backfilled)', 'No']],
+  ['T3', 'Explicit Paper / Ink roles in a palette', 'Roles today are positional (Base, Secondary, Accent…); no Paper or Ink.',
+    ['Yes', 'No — tools resolve them by contrast']],
+  ['T4', 'Default slot mapping on “Use palette”', 'How a palette fills Paper / Ink / inks[] in a tool.',
+    ['By contrast (like fvsField), inks in role-share order', 'By position']],
+  ['T5', 'A suite (active) palette', 'One palette chosen in TuneSutra that the tools offer first.',
+    ['Yes, as the picker\'s first entry', 'Yes, tools auto-follow it (opt-in)', 'No']],
+  ['T6', 'Palette edited in TuneSutra: linked colours…', 'Only matters once links exist (T1).',
+    ['Ask (“palette changed — update?”)', 'Update silently']],
+  ['T7', 'Palette deleted: linked colours…', '',
+    ['Keep their last hex, marked Missing', 'Fall back to the tool default']],
+  ['T8', 'Presets store a reference besides the hex', 'Exports always use the hex resolved at that moment.',
+    ['Yes', 'No']],
+  ['T9', 'Scale steps as references (accent-300)', 'Resolved by color.scale; a change to scale() would move them.',
+    ['Later', 'Yes, now']],
+  ['T10', 'Built-in combinations mirror (palette.js ↔ collections.js)', 'Re-typed in two places today, held by a comment.',
+    ['Generate it from collections.js', 'Test that they match in check.py']],
+  ['T11', 'DTCG import into tools', '',
+    ['Later', 'Yes']],
+  ['T12', 'Rhizome “Palette” node', 'The color port type exists, unused.',
+    ['Later', 'Yes']],
+  ['T13', 'Pilot tools for links', '',
+    ['FVS + Pollen', 'Other (note)']],
+];
+const DEC_NAMES = [
+  ['N1', '“Format”', 'File type in the Export popover (~19 tools) · canvas aspect (Komorebi, Camo Turing, Warping) · video codec (Mote).',
+    ['“Format” = file type only; the aspect section is “Canvas”', 'Keep as is']],
+  ['N2', 'Canvas size section', 'Canvas (Loom, Membrane, Vortex, FVS, Apostate) · Format (Warping, Komorebi, Camo Turing) · Resolution (Camo Turing, simulation grid) · Scene (Pulsar, which are presets).',
+    ['“Canvas” everywhere; Resolution only for a simulation grid', 'Keep per tool']],
+  ['N3', 'Aspect preset names', '“Wide 16:9 / Landscape 3:2” (Komorebi, Camo, Warping) vs “Landscape 16:9 / Widescreen 3:2” (canvas-size-panel, Mote); “Vertical 9:16” vs “Portrait”.',
+    ['Those of shared/canvas-size-panel.js + Mote (Square 1:1, Portrait 4:5, Vertical 9:16, Landscape 16:9, Widescreen 3:2)', 'Those of Komorebi / Warping']],
+  ['N4', '“Seed”', 'A random number (10 tools) · a shape (Genesis, FVS, Membrane) · initial conditions (Camo Turing).',
+    ['“Seed” = the shape (Organica\'s vocabulary); the number = “Random seed”; Camo Turing = “Drop marks”', '“Seed” = the number; the shape = “Shape”', 'Leave']],
+  ['N5', '“Render”', 'Run the computation (Spore) · a look section (Pollen, Radial, Pulsar) · video export (Mote) · stroke rendering (Membrane). Pollen calls Spore\'s Render button “Refresh”.',
+    ['“Render” = the compute action only (Spore + Pollen aligned); the look section = “Draw”', 'Keep']],
+  ['N6', '“Scale”', 'Export multiplier (~16) · colour scale (TuneSutra) · noise / motion scale (Undertow, Trellis, Loom, Genesis). Export split between “Scale” and “PNG scale”.',
+    ['Export = “Scale” everywhere; noise = “Noise scale”; TuneSutra = “Shades”', 'Keep']],
+  ['N7', '“Reset”', 'Zoom (6 tools) · restart a simulation (Camo) · everything (Apostate) · controls (Colornet, FVS); plus Restart, Replay entrance, Reset to rest, Clear canvas.',
+    ['“Reset” = back to defaults (as in the icon rule); start over = “Restart”; zoom = “Fit”; empty = “Clear”', 'Keep']],
+  ['N8', 'Saved settings', 'Preset · Presets · Scene · Look · Library · Saved; placeholders “Name this preset” / “Preset name” / “New preset name” / “name this look”; Mote confirms with “OK”.',
+    ['Title “Presets”, placeholder “Preset name”, confirm “Save”; Library stays for Genesis / FVS (objects, not settings)', 'Title “Preset” (singular)']],
+  ['N9', 'Random', 'Randomize (Loom, Apostate) / Randomise (Colornet) · Reseed · Shuffle (reorders!) · Random colour.',
+    ['“Randomise” (UK, consistent with Colour) and “Shuffle” only for reordering', '“Randomize” (US)']],
+  ['N10', 'Importing a Loom grid', '7 names: Load a Loom grid · Load a grid… · Upload Loom grid JSON · + Upload Loom JSON · Load Loom grid… · Loom import · Load JSON grid.',
+    ['“Load Loom grid”', '“Import Loom grid”']],
+  ['N11', 'Opening a source file', 'Open image / Open photo / Open an image / Open an SVG / Upload SVG / + Upload image / Import SVG file / Load a font.',
+    ['“Open …” for the main source (Open image, Open SVG, Open font); “Add …” for one more item', 'Keep']],
+  ['N12', 'Transparency', '“Opacity” 0.1–1 (Spore, Loom) · “Alpha” 0–255 (Pollen) · “Alpha” 10–100 (Mote) · “Stroke alpha” 5–255 (Membrane).',
+    ['“Opacity” in %, 0–100, everywhere', '“Alpha”']],
+  ['N13', 'Invert / swap', '“Swap colors” (Pollen, Halide) · “Invert — swap Ink / Paper” (Living Path) · “Invert” = invert the image luminance (Spore, Pollen, Halide, Mote).',
+    ['“Swap Ink / Paper” for colours; “Invert image” for luminance', 'Keep']],
+  ['N14', 'Recording / playback', '“Stop recording” vs “Stop rec” (Pulsar, Trellis); “Play / Pause” (Mote) vs “Play / pause”.',
+    ['Whole words, sentence case: “Stop recording”, “Play / pause”', 'Keep']],
+  ['N15', 'Capitals', 'Sentence case almost everywhere; Title Case in “Color Filter”, “Random Colors”, “Save to Library”, “Full Family View”, “Colour Base”, “Track Breathe”.',
+    ['Sentence case everywhere; capitals only for FVS / Genesis domain nouns (Seed, Element, Symbol, Component, Figure) — and “My seeds” consistent', 'Keep']],
+  ['N16', 'Italian strings in the UI', '“Built-in — copia salvata in My Seeds” (Genesis), “Groviera · corner bites” (pathfx).',
+    ['Translate to English (“Groviera” stays as typoclast\'s proper name)', 'Keep']],
+];
+const ALL = DEC_COLOUR.concat(DEC_PICKER, DEC_LINK, DEC_NAMES);
+const KEY = 'organica.ds.colour-audit';
+let state = {}; try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} render(); };
+function decCard(d) {
+  const [id, q, ctx, opts] = d, s = state[id] || {};
+  return `<div class="card dec${s.c != null ? ' is-set' : ''}" data-id="${id}">
+    <p class="dec__q">${id} · ${esc(q)}</p>
+    ${ctx ? `<p class="dec__ctx">${esc(ctx)}</p>` : ''}
+    <div class="dec__opts">${opts.map((o, i) => `<label><input type="radio" name="${id}" value="${i}"${s.c === i ? ' checked' : ''}><span>${esc(o)}${i === 0 ? ' <span class="rec">recommended</span>' : ''}</span></label>`).join('')}</div>
+    <input class="dec__note" placeholder="Note (optional)" value="${esc(s.n || '')}">
+  </div>`;
+}
+$('#dec-colour').innerHTML = DEC_COLOUR.map(decCard).join('');
+$('#dec-picker').innerHTML = DEC_PICKER.map(decCard).join('');
+$('#dec-link').innerHTML = DEC_LINK.map(decCard).join('');
+$('#dec-names').innerHTML = DEC_NAMES.map(decCard).join('');
+document.addEventListener('change', e => {
+  const card = e.target.closest('.dec'); if (!card || e.target.type !== 'radio') return;
+  const id = card.dataset.id; state[id] = Object.assign({}, state[id], { c: +e.target.value }); card.classList.add('is-set'); save();
+});
+document.addEventListener('input', e => {
+  const card = e.target.closest('.dec'); if (!card || !e.target.classList.contains('dec__note')) return;
+  const id = card.dataset.id; state[id] = Object.assign({}, state[id], { n: e.target.value }); save();
+});
+function render() {
+  const lines = ['Colour & naming audit — Diego\'s choices (' + new Date().toISOString().slice(0, 10) + ')', ''];
+  let n = 0;
+  ALL.forEach(([id, q, , opts]) => {
+    const s = state[id]; if (!s || (s.c == null && !s.n)) return; n++;
+    lines.push(id + ' · ' + q + ': ' + (s.c != null ? opts[s.c] : '—') + (s.n ? '  [note: ' + s.n + ']' : ''));
+  });
+  $('#out').value = n ? lines.join('\n') : 'No choices yet.';
+  $('#count').textContent = n + ' / ' + ALL.length + ' decided';
+}
+render();
+$('#copy').onclick = () => { $('#out').select(); (navigator.clipboard ? navigator.clipboard.writeText($('#out').value) : Promise.reject()).catch(() => document.execCommand('copy')); };
+$('#clear').onclick = () => { state = {}; save(); document.querySelectorAll('.dec input[type=radio]').forEach(r => r.checked = false); document.querySelectorAll('.dec__note').forEach(i => i.value = ''); document.querySelectorAll('.dec').forEach(c => c.classList.remove('is-set')); };
+
+/* ── 10 · conflicts + inventory ── */
+const CONFLICTS = [
+  ['Format', 'file type (Export, ~19 tools) · canvas aspect (Komorebi, Camo Turing, Warping) · codec (Mote)'],
+  ['Seed', 'random number (10 tools) · a shape (Genesis, FVS, Membrane) · initial conditions (Camo Turing)'],
+  ['Render', 'compute (Spore) · look section (Pollen, Radial, Pulsar) · video export (Mote) · stroke rendering (Membrane)'],
+  ['Scale', 'export multiplier (~16) · colour scale (TuneSutra) · noise / motion scale (Undertow, Trellis, Loom, Genesis)'],
+  ['Reset', 'zoom · restart a simulation · everything · controls — plus Restart / Replay entrance / Reset to rest / Clear canvas for similar things'],
+  ['Palette', 'section title (7 tools) · the RMX strip label (Spore, Pollen) · a mapping select (Camo Turing) · a saved palette (TuneSutra, library)'],
+  ['Invert', 'invert the image luminance (Spore, Pollen, Halide, Mote) · swap ink / paper (Living Path)'],
+  ['Shuffle', 'reorder (Loom “Sequential / Shuffle”, Colornet channels) — never “random colours”, but next to “Random Colors” it reads like it'],
+  ['Duotone', 'a preset in Adaptive mode (Pollen, Mote) · = Solid according to Camo Turing\'s hint'],
+  ['Zoom', 'the view zoom (everywhere) · a motion parameter (Pulsar)'],
+];
+$('#conflicts').innerHTML = CONFLICTS.map(c => `<tr><td><strong>${c[0]}</strong></td><td>${c[1]}</td></tr>`).join('');
+const INV = [
+  ['Ground', [['Paper', 'halide, camo-turing, warping, membrane (js), fvs, radial, pulsar, mote, murmur, colornet, livingpath, sinew, trellis'], ['Background', 'membrane, vortex, murmur (title), colornet (title), blob-boundary'], ['BG', 'spore, pollen'], ['Ground', 'komorebi (role), fvs (Tint ground / Dark ground)'], ['Color', 'halide (background fill)']]],
+  ['Foreground', [['Ink', 'halide, camo-turing, warping, membrane, fvs, radial, pulsar, livingpath, sinew, template'], ['Point / Point colour', 'pollen, mote'], ['Mark', 'spore'], ['Dots / Mask', 'blob-boundary'], ['Sun / Sky / Shadow', 'komorebi']]],
+  ['Multi-colour', [['RMX', 'spore, pollen, camo-turing, mote'], ['RMX (multi-colour)', 'membrane'], ['Multi (a separate mode)', 'spore'], ['Mapping', 'spore, pollen, membrane, mote'], ['Palette (as mapping)', 'camo-turing'], ['Colour by', 'fvs']]],
+  ['Colour section title', [['Palette', 'camo-turing, membrane, vortex, fvs, pulsar, trellis, tunesutra'], ['Color', 'spore, pollen, halide'], ['Colour', 'komorebi, mote, blob-boundary, livingpath'], ['Colour & seed', 'radial'], ['Background', 'murmur, colornet'], ['Tone', 'warping'], ['Source view', 'sinew']]],
+  ['Presets', [['Preset', 'komorebi, warping, radial, mote, murmur, undertow, dapple, colornet, blob-boundary'], ['Presets', 'pollen, halide, livingpath, sinew, apostate'], ['Scene', 'pulsar'], ['Look', 'apostate, livingpath'], ['Library', 'fvs, genesis'], ['Save / Your palettes', 'mycel, tunesutra']]],
+  ['Source', [['Open image / photo / an image', 'spore, pollen, halide, colornet'], ['Open an SVG', 'murmur, undertow, dapple'], ['Load a font', 'livingpath, apostate'], ['Import SVG file / Upload SVG', 'genesis, fvs, pollen, spore'], ['Source / Input / Image (section)', 'genesis, murmur… / sinew / halide, pollen']]],
+  ['Playback', [['Play / pause (toggle)', 'camo-turing, membrane, vortex, murmur, undertow, dapple, blob-boundary, trellis'], ['Play + Stop', 'pulsar, trellis, mote'], ['Loop length / Length / Loop', 'pulsar, murmur, undertow, dapple, trellis'], ['Cycles / Cycle duration / Duration / Period', 'bandfield, blob-boundary, mycel, swarm'], ['Motion / Playback / Temporal / Motion mode (section)', 'membrane, trellis / mycel / vortex / pulsar']]],
+  ['Density / detail', [['Resolution', 'halide, camo-turing, membrane'], ['Density', 'spore, komorebi'], ['Detail', 'komorebi, mote, colornet, bandfield'], ['Spacing', 'spore, pollen, fvs, blob-boundary'], ['Grain', 'komorebi, warping, tunesutra'], ['Cell size / Frequency', 'warping, fvs / loom, fvs']]],
+  ['Layers', [['Layers', 'camo-turing, fvs'], ['Channels', 'colornet'], ['Plates / Separations', 'spore, pollen, fvs, tunesutra / colornet'], ['Bands', 'komorebi, warping, fvs'], ['Effect stack / Stack', 'livingpath, sinew / fvs'], ['Tracks', 'pulsar, trellis']]],
+  ['The stamped unit', [['Symbols', 'spore, pollen (fvs “Symbol grid”)'], ['Marks', 'mote, swarm, komorebi (“Drop mark”)'], ['Seed shape', 'membrane'], ['Shape / Element / Component / Figure', 'fvs'], ['Points', 'mycel']]],
+];
+$('#names-inv').innerHTML = '<div class="grid2">' + INV.map(([c, rows]) => `<div class="card"><h3 style="margin-top:0">${esc(c)}</h3><table><tbody>${rows.map(r => `<tr><td><strong>${esc(r[0])}</strong></td><td class="small">${esc(r[1])}</td></tr>`).join('')}</tbody></table></div>`).join('') + '</div>';
+})();
+</script>
+</body>
+</html>

@@ -1,12 +1,12 @@
 ---
 name: ds
-description: Run the design-system agent. `/ds consult <what is about to be built>` for a build brief before any UI work, `/ds review` to check the current diff before a commit, `/ds audit` for the state of the system, `/ds document <what changed / what was decided>` to update the docs, the live reference and the decision register. Use when Diego asks to check something against the design system, or before/after UI work.
+description: Run the design-system agent. `/ds consult <what is about to be built>` for a build brief before any UI work, `/ds review` to check the current diff before a commit, `/ds audit` for the state of the system, `/ds document <what changed / what was decided>` to update the docs, the live reference and the decision register. It also owns UI copy (labels, titles, options, aria names — `docs/UI-COPY.md`); `/ds audit copy` inventories the words. Use when Diego asks to check something against the design system or the wording of the UI, or before/after UI work.
 ---
 
 # /ds — the design-system agent
 
 The agent is defined in `.claude/agents/design-system.md`; its ledger is
-`docs/DESIGN-DECISIONS.md`; its instrument is `scripts/ds-audit.py`.
+`docs/DESIGN-DECISIONS.md`; its instrument is `scripts/ds-audit.py`; its copy rules and glossary are `docs/UI-COPY.md`.
 
 1. Take the mode from the first word of the arguments (`consult` / `review` / `audit` /
    `document`). No argument: `review` if the working tree has UI changes
