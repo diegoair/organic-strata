@@ -473,6 +473,11 @@ uppercase elements**, and two markup vocabularies (`.ctrl-row` vs `.row`).
 4. **One row height** (`--row-h: 26px`) so controls align down the column.
 5. **Nothing below `--fs-micro` (9px)** — Spore and Pollen had 6px index
    numerals and 8px captions.
+6. **A divider separates every two sections.** `.panel-section` draws it
+   underneath; it is dropped only at the panel's end (`#panel` / `.org-panel`,
+   also one wrapper deep) and inside a popover — never just because a section is
+   the last of its wrapper (Oct 4, 2026). A wrapper followed only by hidden
+   siblings leaves a line at the panel's end; CSS cannot skip `display:none`.
 
 ### Type
 

@@ -71,7 +71,17 @@
   border-bottom: 1px solid var(--border);
   padding: var(--panel-pad) var(--space-6);
 }
-.panel-section:last-child { border-bottom: 0; }
+/* The divider is dropped only where a section really ends something: the
+   panel's own last section (also one wrapper deep — a tool's mode/step block,
+   a shared component's host) and a section inside a popover. A section that is
+   the last of a wrapper with more sections after it keeps its line (it used to
+   lose it: FVS → Palette, Apostate Canvas → Presets, Murmur Cycle → Background).
+   :where() keeps the specificity at (0,2,0), so tools' class overrides still win.
+   CSS cannot skip display:none siblings: a wrapper followed only by hidden ones
+   (FVS's inactive steps) leaves a line at the panel's end. */
+:where(#panel, .org-panel) > .panel-section:last-child,
+:where(#panel, .org-panel) > :where(:last-child) > .panel-section:last-child,
+:where(.org-popover) .panel-section:last-child { border-bottom: 0; }
 
 /* 1 — SECTION TITLE
    Sentence case, no tracking. Was 12px/600 uppercase with 0.1em tracking,
