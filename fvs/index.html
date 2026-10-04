@@ -8676,6 +8676,24 @@ function buildSelectionOutlineSVG() {
   return s + '</g>';
 }
 
+// A padlock in the corner of every locked cell (preview-only, like the outlines — never in the export).
+// Drawn in chrome tokens so it shows on any paper; sized from the cell, 14–28 px.
+function buildLockedCellsSVG() {
+  const grid = getSymbolGrid();
+  if (!grid || !state.symbolCells.some(c => c && c.locked)) return '';
+  const F = symbolFrame(grid);
+  let s = '<g class="symbol-locks" stroke="var(--ink)" stroke-width="1.2" stroke-linecap="round">';
+  grid.cells.forEach((c, i) => {
+    const cell = state.symbolCells[i]; if (!cell || !cell.locked) return;
+    let x, y, m;
+    if (grid.cellShape === 'polygon') { const xs = c.points.map(p => F.X(p[0])), ys = c.points.map(p => F.Y(p[1])); x = Math.min(...xs); y = Math.min(...ys); m = Math.min(Math.max(...xs) - x, Math.max(...ys) - y); }
+    else { x = F.X(c.x); y = F.Y(c.y); m = Math.min(c.width, c.height); }
+    const k = Math.min(32, Math.max(18, m * 0.22)) / 18, pad = k * 10;
+    s += `<g transform="translate(${(x + pad).toFixed(2)},${(y + pad).toFixed(2)}) scale(${k.toFixed(3)})" vector-effect="non-scaling-stroke"><circle cx="5" cy="6.5" r="9" fill="var(--paper)"/><path d="M2.5 5.5V4a2.5 2.5 0 0 1 5 0v1.5" fill="none"/><rect x="1" y="5.5" width="8" height="6" rx="1.2" fill="var(--ink)"/></g>`;
+  });
+  return s + '</g>';
+}
+
 // Only meaningful while a border drag is actually happening — see the
 // `if (trackDrag)` gate at its one call site in renderSymbolCanvasOnly().
 // Skipped while Clip to cell is on, same guard cellOverflowInfo()'s own
@@ -8753,6 +8771,7 @@ function renderSymbolCanvasOnly() {
   let overlay = '';
   if (state.symbolView.outline) overlay += buildGridOutlineSVG();
   overlay += buildSelectionOutlineSVG();
+  overlay += buildLockedCellsSVG();
   if (state.symbolView.guides) overlay += buildTrackHandlesSVG();
   if (trackDrag) overlay += buildOverflowOutlineSVG();
   if (state.symbolView.cover) overlay += buildCoverCropPreviewSVG();
@@ -11765,9 +11784,8 @@ renderSymbolLibrary();
 // Without ?ab the app behaves as shipped (rm off, lock current, ring cur, rail overlay); with it the panel at the
 // bottom-left switches every variant live and the URL records the choice. Temporary: delete once chosen.
 const AB_Q = new URLSearchParams(location.search), AB_ON = AB_Q.has('ab');
-const AB = { rm: AB_Q.get('rm') || (AB_ON ? 'warn' : 'off'), lock: AB_Q.get('lock') || (AB_ON ? 'refuse' : 'current'), ring: AB_Q.get('ring') || (AB_ON ? 'a' : 'cur'), rail: AB_Q.get('rail') || (AB_ON ? 'autoclose' : 'overlay') };
+const AB = { lock: AB_Q.get('lock') || (AB_ON ? 'refuse' : 'current'), ring: AB_Q.get('ring') || (AB_ON ? 'a' : 'cur'), rail: AB_Q.get('rail') || (AB_ON ? 'dock' : 'overlay') };
 const AB_OPTS = {
-  rm: ['Remove a used Component', [['off', 'A · as now (no guard)'], ['warn', 'B · warn, then clean up'], ['refuse', 'C · refuse while used']]],
   lock: ['Rail drop on a locked cell', [['current', 'A · as now (overwrites)'], ['refuse', 'B · lock refuses']]],
   ring: ['Drop target outline', [['cur', 'A · as now (--ink)'], ['a', 'B · paper halo + ink'], ['c', 'C · ink from the paper']]],
   rail: ['Open rail over the stage', [['overlay', 'A · as now (overlay)'], ['autoclose', 'B · closes after use'], ['dock', 'C · pushes the stage']]],
@@ -11791,8 +11809,23 @@ if (AB_ON) {
   const pn = document.createElement('div');
   pn.id = 'ab-panel'; pn.setAttribute('role', 'group'); pn.setAttribute('aria-label', 'A/B test of the proposed fixes');
   pn.innerHTML = '<div class="sub-label">A/B · proposed fixes</div>' + Object.entries(AB_OPTS).map(([k, [label, opts]]) => `<div class="ctrl-row"><div class="ctrl-label">${label}</div><select class="panel-select" data-ab="${k}" aria-label="${label}">${opts.map(([v, l]) => `<option value="${v}"${AB[k] === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`).join('')
-    + '<div class="ctrl-row"><div class="ctrl-label">Symbol paper</div><select class="panel-select" id="ab-paper" aria-label="Symbol paper"><option value="">Keep</option><option value="#ffffff">White</option><option value="#1a1a1a">Dark #1a1a1a</option><option value="#264653">Teal #264653</option></select></div><code id="ab-code"></code>';
+    + '<div class="ctrl-row"><div class="ctrl-label">Symbol paper</div><select class="panel-select" id="ab-paper" aria-label="Symbol paper"><option value="">Keep</option><option value="#ffffff">White</option><option value="#1a1a1a">Dark #1a1a1a</option><option value="#264653">Teal #264653</option></select></div>'
+    + '<div class="ctrl-row"><button type="button" class="mini-btn" id="ab-lock">Lock / unlock selected cells</button></div>'
+    + '<div class="ctrl-row"><button type="button" class="mini-btn" id="ab-pin">Show / hide the drop outline on the selection</button></div><code id="ab-code"></code>';
   document.body.appendChild(pn);
+  pn.addEventListener('click', e => {
+    if (e.target.id === 'ab-lock') {
+      const idx = [...state.symbolSelection]; if (!idx.length) { railNotice('Select a cell first'); return; }
+      const on = !idx.every(i => state.symbolCells[i] && state.symbolCells[i].locked);
+      idx.forEach(i => { if (state.symbolCells[i]) state.symbolCells[i].locked = on; });
+      renderSymbolCanvasOnly(); renderCellPropertiesPanel();
+    }
+    if (e.target.id === 'ab-pin') {
+      const fr = ctrl('symbol-frame'), had = fr.querySelector('.is-drop, .is-drop-locked');
+      clearRailDrop();
+      if (!had) { fr.style.setProperty('--drop-ink', dropInkFor(state.paperColor)); [...state.symbolSelection].forEach(i => { const g = fr.querySelector(`[data-cell-index="${i}"]`); if (g) markRailDrop(g); }); }
+    }
+  });
   pn.addEventListener('change', e => {
     const k = e.target.dataset.ab;
     if (k) { AB[k] = e.target.value; abApply(); if (k === 'rail') { if (AB.rail === 'dock' && !railIsOpen()) setRailOpen(true); else syncRailDock(); } }
@@ -12002,15 +12035,10 @@ function componentUsage(name) {
 }
 async function railRemoveComponent(name) {
   const u = componentUsage(name), where = `${u.cells} cell(s), ${u.syms} saved Symbol(s), ${u.under} Container/Mask`;
-  if (AB.rm !== 'off' && u.total) {
-    if (AB.rm === 'refuse') { railNotice(`In use (${where}) — can't remove`); return; }
-    if (!(await Organica.confirm({ title: 'Remove this Component?', message: `Used in ${where}. Its cells in the open Symbol become empty; saved Symbols keep a missing marker.`, ok: 'Remove', danger: true }))) return;
-  }
+  if (u.total && !(await Organica.confirm({ title: 'Remove this Component?', message: `Used in ${where}. Its cells in the open Symbol become empty; saved Symbols keep a missing marker.`, ok: 'Remove', danger: true }))) return;
   removeLibraryEntry(name);
-  if (AB.rm !== 'off') {
-    (state.symbolCells || []).forEach(c => { if (c && c.source === 'component' && c.componentName === name) Object.assign(c, { source: 'empty', componentName: null }); });
-    if (state.underlyingComponentName === name) state.underlyingComponentName = null;
-  }
+  (state.symbolCells || []).forEach(c => { if (c && c.source === 'component' && c.componentName === name) Object.assign(c, { source: 'empty', componentName: null }); });
+  if (state.underlyingComponentName === name) state.underlyingComponentName = null;
   renderSymbolPool(); if (state.symbolGrid) renderSymbolCanvasOnly(); renderGallery();
 }
 function railRemove(kind, name) {
@@ -12071,6 +12099,7 @@ function syncRailTier(tier) {
 }
 let railWasOpen = false; try { railWasOpen = localStorage.getItem('organica.fvs.rail') === '1'; } catch (e) { /* ignore */ }
 setRailOpen(railWasOpen);
+if (AB_ON && AB.rail === 'dock' && !railIsOpen()) setRailOpen(true);
 document.addEventListener('pointerdown', e => { if (AB.rail === 'autoclose' && railIsOpen() && !e.target.closest('#fvs-rail-dock, .org-modal, #ab-panel, .fvs-rail-ghost')) setRailOpen(false); }, true);
 abApply();
 
