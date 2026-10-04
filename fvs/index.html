@@ -189,7 +189,7 @@
   #fvs-rail .org-floatbar__btn[aria-label]:not([aria-expanded="true"]):is(:hover,:focus-visible)::after { bottom: auto; left: calc(100% + var(--space-3)); top: 50%; transform: translateY(-50%); }
   .fvs-rail__scroll { overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-3); scrollbar-width: thin; }
   .fvs-rail__grid { display: grid; grid-template-columns: repeat(2, auto); gap: var(--space-2); justify-content: start; }
-  .fvs-rail__empty { color: var(--mid); font-size: var(--fs-small); margin: 0; }
+  #fvs-rail-panel.is-empty { display: none; }
   .fvs-rail__scroll { min-height: 0; overflow-x: hidden; }
   .fvs-rail__foot { padding-top: var(--space-3); display: flex; }
   #fvs-rail-panel[data-rail-tier="symbol"] .fvs-library-item:not([data-rail-kind="symbol"]) { cursor: grab; }
@@ -658,9 +658,9 @@
   </div>
   <div class="org-floatbar" id="fvs-rail-panel" role="region" aria-label="Saved Elements, Components and Symbols" inert>
     <div class="fvs-rail__scroll">
-      <div><div class="sub-label">Elements</div><div class="fvs-rail__grid" id="rail-elements"></div></div>
-      <div><div class="fvs-rail__head"><div class="sub-label">Components</div><button type="button" class="mini-btn" id="btn-rail-save-all">Save all</button></div><div class="fvs-rail__grid" id="rail-components"></div></div>
-      <div><div class="sub-label">Symbols</div><div class="fvs-rail__grid" id="rail-symbols"></div></div>
+      <div id="rail-g-elements"><div class="sub-label">Elements</div><div class="fvs-rail__grid" id="rail-elements"></div></div>
+      <div id="rail-g-components"><div class="fvs-rail__head"><div class="sub-label">Components</div><button type="button" class="mini-btn" id="btn-rail-save-all">Save all</button></div><div class="fvs-rail__grid" id="rail-components"></div></div>
+      <div id="rail-g-symbols"><div class="sub-label">Symbols</div><div class="fvs-rail__grid" id="rail-symbols"></div></div>
     </div>
     <p class="fvs-rail__note" id="rail-note" role="status" aria-live="polite"></p>
     <div class="fvs-rail__foot"><button type="button" class="mini-btn" id="btn-rail-save-lib">Save library</button></div>
@@ -730,7 +730,7 @@
 
     <div class="tier-block active" data-tier="element">
     <div class="panel-section" id="layers-section">
-      <h3>Layers <span class="fvs-layers-head"><span class="hint" id="layers-hint">single shape</span><button type="button" class="icon-btn" id="btn-layer-add" aria-label="Add layer" title="Add a layer on top"><svg class="ico ico--sm" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button></span></h3>
+      <h3>Layers <span class="fvs-layers-head"><span class="hint" id="layers-hint">Add new layer</span><button type="button" class="icon-btn" id="btn-layer-add" aria-label="Add layer" title="Add a layer on top"><svg class="ico ico--sm" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button></span></h3>
       <div id="layers-list" class="fvs-layers" role="list" aria-label="Layers, top first"></div>
       <!-- Moved under the ACTIVE layer row by renderLayersUI (the node, so its listeners stay). -->
       <div id="layer-place-block" class="org-layer-card__content fvs-layer__place" style="display:none">
@@ -6241,7 +6241,7 @@ function renderLayersUI() {
   if (L) ctrl('element-wide-label').before(ctrl('element-pattern-block'));
   else ctrl('element-style-row').after(ctrl('element-pattern-block'));
   if (ctrl('sel-rule').value === 'exhaustive') syncExhaustiveHint();
-  ctrl('layers-hint').textContent = L ? L.items.length + ' · top first' : 'single shape';
+  ctrl('layers-hint').textContent = L ? L.items.length + ' · top first' : 'Add new layer';
   ctrl('seed-layer-hint').textContent = L ? 'editing ' + layerName(L.items[L.active]) : '';
   if (!L) { list.innerHTML = ''; return; }
   // Top layer first, like every layer panel.
@@ -11808,8 +11808,12 @@ function renderLibraryRail() {
   cNames.forEach(n => { const size = frameDims(cAll[n].grid), box = fitThumbBox(size.w, size.h, 48); comps.appendChild(railTile('component', n, componentThumbSVG(n), box.w, box.h)); });
   const sAll = SYMBOL_LIBRARY.read(), sNames = Object.keys(sAll || {});
   sNames.forEach(n => syms.appendChild(railTile('symbol', n, symbolEntryThumbSVG(sAll[n]))));
-  [[els, elNames], [comps, cNames], [syms, sNames]].forEach(([g, list]) => { if (!list.length) g.innerHTML = '<p class="fvs-rail__empty">None saved yet</p>'; });
-  ctrl('btn-rail-save-all').style.display = state.activeTier === 'component' ? '' : 'none';
+  // An empty group is not shown (no "None saved yet"); Components stays on its own tab for Save all.
+  const onComp = state.activeTier === 'component', visible = [['elements', elNames.length], ['components', cNames.length || onComp], ['symbols', sNames.length]];
+  visible.forEach(([k, on]) => { ctrl('rail-g-' + k).style.display = on ? '' : 'none'; });
+  ctrl('btn-rail-save-all').style.display = onComp ? '' : 'none';
+  // nothing to show at all (and no Save footer) → no empty glass box beside the toggle
+  ctrl('fvs-rail-panel').classList.toggle('is-empty', !visible.some(([, on]) => on) && state.activeTier !== 'symbol');
 }
 railBtn.addEventListener('click', () => setRailOpen(!railIsOpen()));
 document.addEventListener('keydown', e => {

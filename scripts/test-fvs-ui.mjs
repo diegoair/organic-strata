@@ -161,10 +161,15 @@ console.log(`FVS UI test · theme=${THEME} · out=${OUT}`);
 
 // ════════════ J1 — Element ════════════
 if (want('J1')) {
-  await test('J1.1', 'rail starts empty, opens and closes (aria/inert)', async c => {
-    const s = await ev(async () => { await __t.openRail(); const a = [document.getElementById('rail-elements').textContent, document.getElementById('rail-components').textContent, document.getElementById('rail-symbols').textContent]; const open = railIsOpen(); document.getElementById('btn-rail').click(); await __t.wait(350); return { a, open, closed: !railIsOpen(), inert: document.getElementById('fvs-rail-panel').hasAttribute('inert') }; });
-    expect(c, s.a.every(t => /None saved yet/.test(t)), 'empty states missing: ' + s.a.join('/'));
-    expect(c, s.open && s.closed && s.inert, 'open/close/inert wrong');
+  await test('J1.1', 'empty rail: no "None saved yet", no empty panel; opens and closes (aria/inert)', async c => {
+    const s = await ev(async () => {
+      await __t.openRail(); const txt = document.getElementById('fvs-rail-panel').textContent; const p = document.getElementById('fvs-rail-panel');
+      const groups = ['elements', 'components', 'symbols'].map(k => getComputedStyle(document.getElementById('rail-g-' + k)).display);
+      const out = { none: /None saved yet/.test(txt), groups, panelDisplay: getComputedStyle(p).display, open: railIsOpen() };
+      document.getElementById('btn-rail').click(); await __t.wait(350); out.closed = !railIsOpen(); out.inert = p.hasAttribute('inert'); return out;
+    });
+    expect(c, !s.none, 'still prints "None saved yet"'); expect(c, s.groups.every(d => d === 'none'), 'empty groups are shown: ' + s.groups.join('/'));
+    expect(c, s.panelDisplay === 'none', 'an empty glass panel is shown beside the toggle'); expect(c, s.open && s.closed && s.inert, 'open/close/inert wrong');
     await invariants(c, 'J1.1');
   });
   await test('J1.2', 'Save Element with the real + circle → rail tile; click = Paper tile', async c => {
