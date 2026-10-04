@@ -1468,15 +1468,6 @@
       </div>
       <button class="mini-btn" id="btn-fit-seed" style="width:100%" title="Measures the shape once and sets Scale + Move so it fills the cell, centred.">Fit to canvas</button>
     </div>
-
-    <div class="panel-section">
-      <h3>Start from a recipe</h3>
-      <div class="ctrl-row">
-        <div id="builtin-recipe-picker"></div>
-        <select class="panel-select" id="sel-builtin-recipe" aria-label="Built-in recipe"></select>
-      </div>
-      <button class="mini-btn" id="btn-builtin-recipe" style="width:100%">Build it</button>
-    </div>
     </div>
 
     <div class="tier-block" data-tier="symbol">
@@ -2251,8 +2242,8 @@ const state = {
   splitCombinedRaw: null,     // the raw (unfitted) concatenated `d` of the currently-kept quadrants — reused by "Save piece as Seed"
   preFigureSnapshot: null,   // Element+Component state captured right before entering Figure — see setTier()
   // The Grid tier's own page is gone — buildFvsGridSVG()/getFvsGrid() are kept as
-  // page-less helpers (Figure recipes and the legacy "Start from a recipe" tile
-  // step both still tile), reading this plain config object instead of DOM controls.
+  // page-less helpers (Figure recipes and the regression suite's v1 recipe
+  // fixtures both still tile), reading this plain config object instead of DOM controls.
   fvsGridConfig: { type: 'square4x4', cellSize: 110, gap: 0, altFlip: false, rot: 0, mirror: 'none' },
   fvsGridComponentName: null,  // when set, the Grid tiles this saved Component directly (componentTileEntry) instead of a Symbol
   fvsGridSymbolName: null,   // name of the saved Symbol (SYMBOL_LIBRARY entry) currently tiled
@@ -7172,8 +7163,8 @@ function symbolFrame(grid) {
 }
 
 // ── Grid tiling — page-less now (no standalone tier/nav/export); kept as an
-// internal helper for Figure recipes ({kind:'grid'} levels) and the legacy
-// "Start from a recipe" tile step. Reads state.fvsGridConfig instead of DOM
+// internal helper for Figure recipes ({kind:'grid'} levels) and the v1
+// recipe fixtures (BUILTIN_RECIPES). Reads state.fvsGridConfig instead of DOM
 // controls, since there's no longer a panel for those controls to live in. ──
 
 function getFvsGrid() {
@@ -7207,7 +7198,7 @@ function componentTileEntry(name) {
 
 // Auto-saves the selected Component to the library (once, by id) and points
 // the (page-less) Grid helper at it — used internally by Figure recipes and
-// the legacy "Start from a recipe" tile step, never by a visible page anymore.
+// the v1 recipe fixtures (BUILTIN_RECIPES), never by a visible page anymore.
 function tileSelectedInGrid() {
   const comp = getSelectedComponent();
   if (!comp) return;
@@ -10810,9 +10801,11 @@ function exportByTierName(tier, format) {
   if (tier === 'element') return exportElement(format);
   return exportSelected(format);
 }
-// ── Built-in recipes — one click builds a whole chain from scratch (Element →
-// Component → colours → Grid), so a starting point never has to be saved
-// first. Each `cells()` reuses the same builders the rule dropdown uses, so a
+// ── Built-in recipes, v1 — no longer in the UI (the Element panel's "Start from a
+// recipe" was removed Oct 4, 2026: its tiled results showed on no page; the same 7
+// live in Figure as "Classic · …", FIGURE_RECIPES_V1_AS_V2). Kept as fixtures for
+// fvs/_test-regression.html, which builds Element → Component → colours → Grid
+// from them and checks each v1 result equals its v2 twin. Each `cells()` reuses the same builders the rule dropdown uses, so a
 // recipe is exactly what the matching rule would generate.
 const LEAF_CELLS = () => buildCheckerboardCells(stateFrom(180, false, false, 1), stateFrom(0, false, false, 1));
 const BUILTIN_RECIPES = [
@@ -12024,48 +12017,6 @@ function drawFigureRef(fm, rm) {
   ctrl('fg-ref-opacity').addEventListener('input', e => { ctrl('v-fg-ref-opacity').textContent = e.target.value; ctrl('figure-ref-canvas').style.opacity = String(e.target.value / 100); });
   syncFigureFormUI();
 })();
-// A recipe's thumbnail — what "Build it" would produce, drawn by the SAME
-// renderer a saved Component's thumbnail uses (componentThumbSVG's path:
-// buildComponentItems → entryInkAt → withEntryInks + withAppearance →
-// buildComponentSVGWithPaper), on a synthetic entry: a neutral seed
-// (SYMBOL_SEED_DEFAULTS + the recipe's own params), a 2×2 square grid,
-// the recipe's inks, colour rule and fill/stroke. Nothing live is touched —
-// the with* helpers and buildComponentSVGWithPaper restore what they borrow.
-// A tiled recipe repeats that Component N×N with "Alternate flip" mirroring
-// tiles by (col + row) parity, exactly as buildFvsGridSVG places them.
-function recipeThumbSVG(def) {
-  const params = {};
-  Object.entries(def.element.params || {}).forEach(([id, v]) => { params[id.replace(/^rg-/, '').replace(/-([a-z])/g, (m, c) => c.toUpperCase())] = v; });
-  const seed = { type: def.element.type, ...SYMBOL_SEED_DEFAULTS, ...params };
-  const grid = { kind: 'square', cols: 2, rows: 2, cellSize: 100, gap: 0 };
-  const entry = { grid, colors: def.colors, colorRule: { ...DEFAULT_COLOR_RULE, ...(def.colorRule || {}) } };
-  const inkAt = entryInkAt(entry);
-  const items = buildComponentItems({ cells: def.component.cells() }, grid).map((it, j) => ({ ...it, color: inkAt(j) }));
-  const app = { fillMode: def.style || 'fill', ...(def.strokeW ? { strokeW: def.strokeW } : {}) };
-  const svg = withAppearance(app, () => withEntryInks(def.colors, () =>
-    buildComponentSVGWithPaper(items, seed, frameDims(grid), state.paperColor, 'normal', null)));
-  if (!def.tile) return svg;
-  const n = +((def.tile.type || '').match(/(\d)x\d/) || [0, 2])[1];
-  const vb = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/), W = +vb[1], H = +vb[2];
-  const inner = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '').replace(/<metadata>[\s\S]*?<\/metadata>/, '');
-  let body = '';
-  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
-    const flip = def.tile.altFlip && (c + r) % 2 === 1;
-    body += `<g transform="translate(${c * W},${r * H})${flip ? ` translate(${W},0) scale(-1,1)` : ''}">${inner}</g>`;
-  }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n * W} ${n * H}">${body}</svg>`;
-}
-(function initBuiltinRecipes() {
-  const sel = ctrl('sel-builtin-recipe');
-  BUILTIN_RECIPES.forEach(r => sel.add(new Option(r.label, r.id)));
-  // Thumbnail picker (Organica.selectPicker, preview size): each recipe as
-  // what it builds — a name like "Leaf wave, two inks" is decoded at a glance.
-  const registry = {};
-  BUILTIN_RECIPES.forEach(r => { registry[r.id] = { name: r.label, thumb: () => recipeThumbSVG(r) }; });
-  Organica.selectPicker(sel, ctrl('builtin-recipe-picker'), { registry, size: 'preview', ariaLabel: 'Built-in recipe' });
-  ctrl('btn-builtin-recipe').addEventListener('click', () => runBuiltinRecipe(BUILTIN_RECIPES.find(x => x.id === sel.value)));
-})();
-
 // ── Variants / Plates / Recipe ─────────────────────────────────────
 // One geometry, many outputs. tierSVG() is the single SVG builder for
 // the active tier (the same functions the normal SVG export uses), so a

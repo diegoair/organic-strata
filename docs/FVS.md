@@ -584,8 +584,10 @@ Organica Figma plugin, like Spore/Pollen/Halide).
 - **Plates** — one black-on-transparent file per ink, with registration marks in
   Print mode (needs a bleed of at least 8 mm).
 - **Recipe** — save/load everything needed to rebuild the work as one JSON file.
-- **Start from a recipe** builds Element → Component → colours → Grid in one
-  click (circle, leaf block/wave/outline/two-ink, pinwheel, kaleidoscope).
+- **Starting points** live in the Figure tab (New figure… → the "Classic · …" seven:
+  circle, leaf block/wave/outline/two-ink, pinwheel, kaleidoscope), where the whole
+  chain incl. the Grid repeat is visible. The Element panel's "Start from a recipe"
+  was removed Oct 4, 2026 — it landed on Component and its repeats showed nowhere.
 
 ---
 
