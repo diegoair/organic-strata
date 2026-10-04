@@ -7875,7 +7875,7 @@ function syncFitAnchorUI() {
   //  · Contain / Fill / Cover that would place every target exactly as it is placed now → that
   //    icon off (a round content in a square cell: the three are the same picture);
   //  · Anchor when no target has room to move in (the content is exactly its cell) → off.
-  const grid = getSymbolGrid(), lib = LIBRARY.read(), res = grid ? resolveGridCells(grid) : [];
+  const grid = getSymbolGrid(), lib = LIBRARY.read(), res = grid ? symbolCellBoxes(grid) : [];   // a spanning Component is fitted in its block
   const targets = fitTargetIndices().map(i => ({ cell: state.symbolCells[i], box: res[i], nat: cellNaturalSize(state.symbolCells[i], lib) })).filter(t => t.box && t.nat);
   const cells = targets.map(t => t.cell);
   const nothing = cells.length === 0;
@@ -8059,6 +8059,12 @@ function symbolSpanLayout(grid, cells) {
     };
   });
   return out;
+}
+// The box each Symbol cell's content is placed in: its own cell, or — for a
+// spanning Component — its whole block; null for a cell inside a block.
+function symbolCellBoxes(grid) {
+  const res = resolveGridCells(grid), L = symbolSpanLayout(grid, state.symbolCells);
+  return res.map((c, i) => L.covered[i] != null ? null : (L.region[i] ? L.region[i].c : c));
 }
 function currentSpanLayout() { const g = getSymbolGrid(); return g ? symbolSpanLayout(g, state.symbolCells) : { covered: {}, region: {} }; }
 
@@ -9292,10 +9298,11 @@ function buildOverflowOutlineSVG() {
   const grid = getSymbolGrid();
   if (!grid || state.symbolClipEnabled) return '';
   const F = symbolFrame(grid);
-  const resolvedCells = resolveGridCells(grid);
+  const resolvedCells = symbolCellBoxes(grid), L = symbolSpanLayout(grid, state.symbolCells);
   let s = '<g fill="none" stroke="var(--danger)" stroke-width="2.5" stroke-dasharray="5 3">';
-  grid.cells.forEach((c, i) => {
+  grid.cells.forEach((c0, i) => {
     if (!cellOverflowInfo(i, resolvedCells)) return;
+    const c = L.region[i] ? L.region[i].raw : c0;
     if (grid.cellShape === 'polygon') {
       const pts = c.points.map(p => `${F.X(p[0]).toFixed(2)},${F.Y(p[1]).toFixed(2)}`).join(' ');
       s += `<polygon points="${pts}"/>`;
