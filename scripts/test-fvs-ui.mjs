@@ -204,6 +204,22 @@ if (want('J1')) {
   });
 }
 
+if (want('J1')) {
+  await test('J1.4', 'each shape remembers its own Appearance (Arc does not inherit the Square\'s)', async c => {
+    const r = await ev(async () => {
+      const wait = __t.wait, g = id => document.getElementById(id).value, chg = __t.chg; setTier('element'); await wait(250);
+      chg('sel-seed-type', 'roundedrect'); await wait(150); chg('sel-element-fillmode', 'stroke'); chg('rg-element-strokew', 9); chg('rg-element-w', 1.5); chg('rg-element-scale', 1.4); await wait(100);
+      chg('sel-seed-type', 'arc'); await wait(250); const arc = { style: g('sel-element-fillmode'), w: g('rg-element-w'), scale: g('rg-element-scale') };
+      chg('sel-element-fillmode', 'pattern'); chg('rg-element-scale', 0.8); await wait(100);
+      chg('sel-seed-type', 'roundedrect'); await wait(250); const sq = { style: g('sel-element-fillmode'), w: g('rg-element-w'), scale: g('rg-element-scale') };
+      chg('sel-seed-type', 'arc'); await wait(250); const arc2 = { style: g('sel-element-fillmode'), scale: g('rg-element-scale') };
+      return { arc, sq, arc2 };
+    });
+    expect(c, r.arc.style === 'fill' && r.arc.w === '1' && r.arc.scale === '1', 'a shape opened for the first time did not start from defaults: ' + JSON.stringify(r.arc));
+    expect(c, r.sq.style === 'stroke' && r.sq.w === '1.5' && r.sq.scale === '1.4', 'going back did not restore the Square: ' + JSON.stringify(r.sq));
+    expect(c, r.arc2.style === 'pattern' && r.arc2.scale === '0.8', 'going back did not restore the Arc: ' + JSON.stringify(r.arc2));
+  });
+}
 // ════════════ J2 — Component ════════════
 if (want('J2')) {
   await test('J2.1', 'generate, quick-save (real click), Save all, rail lists them', async c => {

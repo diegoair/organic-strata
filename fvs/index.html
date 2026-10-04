@@ -3075,7 +3075,7 @@ function useSvgAsSeed(svgString) {
     opt.value = 'custom'; opt.textContent = 'Custom (uploaded)';
     ctrl('sel-seed-type').appendChild(opt);
   }
-  ctrl('sel-seed-type').value = 'custom';
+  ctrl('sel-seed-type').value = 'custom'; lastShapeType = 'custom';
   syncSeedUI();
   if (state.layers) { syncActiveLayer(); renderLayersUI(); }   // the active layer's card shows "Custom" at once
   ctrl('seed-upload-error').style.display = 'none';
@@ -3870,6 +3870,10 @@ function componentBoundaryClipContent(items, geo, half) {
 // the shape params — shared/shape-appearance.js owns the actual attribute /
 // transform strings so Genesis Create and this tool can't drift apart.
 const DEFAULT_APPEARANCE = { fillMode: 'fill', strokeW: 4, rounded: true, w: 1, l: 1, scale: 1, mx: 0, my: 0 };
+// Each shape remembers its own Appearance (single shape only): switching Square → Arc must not make Arc
+// inherit the Square's Style / Stroke / Width / Length / Scale / Move / Pattern. A shape opened for the first
+// time starts from defaults; going back restores what it had. `var`: loaders reach these before the handler is defined.
+var shapeLooks = {}, lastShapeType = null;
 // Pattern fill (Style = Pattern, or a Pattern layer): its own keys, so entries
 // saved before it existed read the defaults.
 const PATTERN_DEFAULTS = { patType: 'lines', patSpacing: 8, patWeight: 2, patAngle: 45 };
@@ -4264,6 +4268,7 @@ function withAppearance(app, fn) {
   try { return fn(); } finally { appearanceOverride = prev; }
 }
 function applyAppearanceToUI(app) {
+  shapeLooks = {};   // a loaded look replaces whatever the shapes remembered
   const a = { ...DEFAULT_APPEARANCE, ...(app || {}) };
   ctrl('sel-element-fillmode').value = a.fillMode;
   ctrl('rg-element-strokew').value = a.strokeW; ctrl('v-element-strokew').textContent = a.strokeW;
@@ -6040,12 +6045,12 @@ function applySeedToPanel(seed) {
   renderLayersUI();
 }
 function applyPanelSeedRaw(seed) {
-  ctrl('sel-seed-type').value = seed.type;
+  ctrl('sel-seed-type').value = seed.type; lastShapeType = seed.type;
   if (seed.type === 'custom' && !ctrl('sel-seed-type').querySelector('option[value="custom"]')) {
     const opt = document.createElement('option');
     opt.value = 'custom'; opt.textContent = 'Custom (uploaded)';
     ctrl('sel-seed-type').appendChild(opt);
-    ctrl('sel-seed-type').value = 'custom';
+    ctrl('sel-seed-type').value = 'custom'; lastShapeType = 'custom';
   }
   state.customSeed = seed.customSeed || null;
   ctrl('rg-base').value = seed.base; ctrl('v-base').textContent = seed.base;
@@ -9954,8 +9959,27 @@ ctrl('sel-inner-anchor').addEventListener('change', () => { renderGallery(); ren
 // setting only (remembered on the layer itself), never the other layers'.
 let roundedBeforeSegment = null;
 const NEW_LAYER_SCALE = 0.6;   // a new layer starts smaller so it shows on top of the one below (addLayer)
+function readShapeLook() {
+  return { fillMode: ctrl('sel-element-fillmode').value, strokeW: val('rg-element-strokew'), rounded: ctrl('ck-element-rounded').checked, w: val('rg-element-w'), l: val('rg-element-l'),
+    scale: val('rg-element-scale'), mx: val('rg-element-mx'), my: val('rg-element-my'), ...readPatternControls() };
+}
+function applyShapeLook(look) {   // the Element's own look — not the Paper (ground), which belongs to the whole Element
+  const a = { ...DEFAULT_APPEARANCE, ...PATTERN_DEFAULTS, ...(look || {}) };
+  ctrl('sel-element-fillmode').value = a.fillMode;
+  ctrl('rg-element-strokew').value = a.strokeW; ctrl('v-element-strokew').textContent = a.strokeW;
+  ctrl('ck-element-rounded').checked = a.rounded;
+  ['w', 'l', 'scale', 'mx', 'my'].forEach(k => { ctrl('rg-element-' + k).value = a[k]; ctrl('v-element-' + k).textContent = a[k]; });
+  showPatternControls(a);
+  syncLookBlocks();
+}
 ctrl('sel-seed-type').addEventListener('change', () => {
   const type = ctrl('sel-seed-type').value, ck = ctrl('ck-element-rounded');
+  if (!state.layers && lastShapeType && lastShapeType !== type) {
+    shapeLooks[lastShapeType] = readShapeLook();
+    applyShapeLook(shapeLooks[type]);   // undefined → defaults
+    onAppearanceChange();
+  }
+  lastShapeType = type;
   const layer = state.layers ? state.layers.items[state.layers.active] : null;
   // A Segment layer is a canvas pattern (Repeat X/Y tile the whole cell): if the
   // layer still has its untouched new-layer placement, give it the full canvas —
@@ -9981,6 +10005,7 @@ ctrl('sel-seed-type').addEventListener('change', () => {
     ck.checked = saved; onAppearanceChange();
   }
 });
+lastShapeType = ctrl('sel-seed-type').value;   // the shape the panel starts on
 
 ctrl('ck-fh-close').addEventListener('change', e => { if (fhEditor) fhEditor.setClosed(e.target.checked); });
 ctrl('ck-fh-smooth').addEventListener('change', e => { if (fhEditor) fhEditor.setSmooth(e.target.checked); });
