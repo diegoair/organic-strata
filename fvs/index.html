@@ -4631,12 +4631,24 @@ function saveElementVariant(rot, flipH, flipV, label, chosen) {
   elementLibraryChanged();
   return name;
 }
-// The Element as drawn — its own inks (Palette, layer inks), this orientation, no paper —
-// kept with a saved Element as its thumbnail.
+// The Element as drawn — its own inks (Palette, layer inks), this orientation, on its
+// Paper (colour + texture, as the Element frame shows it) — kept with a saved Element as
+// its thumbnail. data-paper="2" marks a thumbnail that already carries the texture.
 function elementVariantSVG(rot, flipH, flipV) {
   const seed = getSeed(), geo = SEED_TYPES[seed.type].geometry(seed);
-  const paper = isPaperNone(state.paperColor) ? '' : `<rect width="100" height="100" fill="${state.paperColor}"/>`;   // its Paper colour too (not the texture)
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true">${paper}<g transform="translate(50,50) rotate(${rot}) scale(${flipH ? -1 : 1},${flipV ? -1 : 1}) translate(-50,-50)">${elementPathMarkup(geo, colorAt(0))}</g></svg>`;
+  const paper = (isPaperNone(state.paperColor) ? '' : `<rect width="100" height="100" fill="${state.paperColor}"/>`) + paperPatternSVG(100, 100);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true" data-paper="2">${paper}<g transform="translate(50,50) rotate(${rot}) scale(${flipH ? -1 : 1},${flipV ? -1 : 1}) translate(-50,-50)">${elementPathMarkup(geo, colorAt(0))}</g></svg>`;
+}
+// A saved Element's thumbnail for the library. Thumbnails saved before Oct 4, 2026 drew
+// the Paper colour only: their texture is added back here from the entry's own saved
+// appearance and palette (nothing is rewritten in the store).
+function savedElementThumb(e) {
+  if (!e.thumb) return tileThumbSVG(e.tile);
+  if (/data-paper="2"/.test(e.thumb) || !e.appearance || !e.appearance.ground) return e.thumb;
+  const pat = withEntryInks(e.colors, () => withAppearance(e.appearance, () => paperPatternSVG(100, 100)));
+  if (!pat) return e.thumb;
+  const at = e.thumb.indexOf('<g transform=');
+  return at < 0 ? e.thumb : e.thumb.slice(0, at) + pat + e.thumb.slice(at);
 }
 // The second circle on the Element frame / views: save this view (if it isn't yet)
 // and make it the Paper's tile — Paper pattern on, Pattern = Element.
@@ -12324,7 +12336,7 @@ function renderLibraryRail() {
   const els = ctrl('rail-elements'), comps = ctrl('rail-components'), syms = ctrl('rail-symbols');
   [els, comps, syms].forEach(g => { g.innerHTML = ''; });
   const elAll = ELEMENT_LIB.read(), elNames = Object.keys(elAll || {}).filter(n => elAll[n] && elAll[n].tile);
-  elNames.forEach(n => { const e = elAll[n]; els.appendChild(railTile('element', n, e.thumb || tileThumbSVG(e.tile))); });
+  elNames.forEach(n => { const e = elAll[n]; els.appendChild(railTile('element', n, savedElementThumb(e))); });
   const cAll = LIBRARY.read(), cNames = libraryNames(cAll);
   cNames.forEach(n => { const size = frameDims(cAll[n].grid), box = fitThumbBox(size.w, size.h, 48); comps.appendChild(railTile('component', n, componentThumbSVG(n), box.w, box.h)); });
   const sAll = SYMBOL_LIBRARY.read(), sNames = Object.keys(sAll || {});
