@@ -4685,7 +4685,7 @@ function removeSavedElement(name) {
   elementLibraryChanged();
   onAppearanceChange();   // a Paper tile that pointed at it falls back to nothing / the live Element
 }
-function elementLibraryChanged() { syncGroundTileOptions(); mountElementQuickSaves(); renderLibraryRail(); }
+function elementLibraryChanged() { syncGroundTileOptions(); mountElementQuickSaves(); renderLibraryRail(); renderSymbolPool(); }   // an empty Symbol can now build from Elements
 // The corner circle (the Component gallery's quick-save): + saves this view,
 // ✓ = already saved, hovering ✓ offers remove.
 function elementQuickSaveButton(rot, flipH, flipV, label) {
@@ -7660,11 +7660,11 @@ async function generateSymbolGridInCanvas() {
   // with nothing saved yet there is nothing to fill the grid with, so don't
   // build one at all. Centred canvas message, same "Pick a grid to begin."
   // pattern renderSymbolCanvasOnly() already uses for the no-grid state.
-  if (!libraryNames(LIBRARY.read()).length) {
+  if (!libraryNames(LIBRARY.read()).length && !elementPool().length) {
     ctrl('symgrid-gen-error').style.display = 'none';
-    ctrl('symbol-frame').innerHTML = '<p style="color:var(--mid);font-size:var(--fs-small)">No component saved.<br>Build one in the Component tier first.</p>';
+    ctrl('symbol-frame').innerHTML = '<p style="color:var(--mid);font-size:var(--fs-small)">Nothing saved yet.<br>Save an Element or a Component first.</p>';
     ctrl('symbol-cellcount-hint').textContent = '0 cells';
-    setStatus('error', 'No saved Components');
+    setStatus('error', 'No saved Components or Elements');
     return;
   }
   try {
@@ -7681,6 +7681,7 @@ async function generateSymbolGridInCanvas() {
     // above) with no visible explanation at all.
     renderSymbolPool();
     if (poolEntries().length) { if (ctrl('sel-symbol-fill').value === 'suggest') runSuggest(false); else generateSymbolCells(); }
+    else if (elementPool().length) generateSymbolCells();   // Elements only: Arrange (Suggest reads Components)
     else {
       ctrl('symgrid-gen-error').textContent = 'The grid built, but the Components pool is empty (a saved Component may have been renamed or deleted) — cells were left on a plain placeholder shape. Add Components to the pool below, then Arrange.';
       ctrl('symgrid-gen-error').style.display = '';
@@ -8364,6 +8365,16 @@ function poolEntries() {
   const lib = LIBRARY.read();
   return state.symbolPool.filter(p => lib[p.name]);
 }
+// With no saved Component, a Symbol is built from the saved Elements instead: the
+// latest 8, weight ×1, each placed as it would be from the library rail (its own
+// palette, used under Colour by → Element's own colours). Components win when any exist.
+function elementPool() {
+  const all = ELEMENT_LIB.read();
+  return Object.keys(all || {}).filter(n => all[n] && all[n].seed)
+    .sort((a, b) => String(all[b].savedAt || '').localeCompare(String(all[a].savedAt || '')))
+    .slice(0, 8).map(name => ({ name, weight: 1, kind: 'element' }));
+}
+const symbolSource = () => { const c = poolEntries(); return c.length ? c : elementPool(); };
 function weightedPick(pal, rng) {
   const total = pal.reduce((t, p) => t + (p.weight || 1), 0);
   let r = rng() * total;
@@ -8387,6 +8398,10 @@ function arrangeCells(grid, cells, pal, ruleId, seed, fit) {
     if (prev && prev.locked) return prev;
     const ctx = ctxs[i];
     const pick = rule.cls ? pal[((rule.cls(ctx, k) % k) + k) % k] : weightedPick(pal, rng);
+    if (pick.kind === 'element') {
+      const el = railPatch('element', pick.name);
+      if (el) return { ...el, rotation: (el.rotation || 0) + (ctx.orient === 'down' ? 180 : 0), fitMode: fit, fixedSize: 100, scale: 1, padding: 0, anchorX: 0, anchorY: 0, locked: false };
+    }
     return {
       source: 'component', componentName: pick.name,
       rotation: ctx.orient === 'down' ? 180 : 0, flipH: false, flipV: false, scale: 1, color: null,
@@ -8397,8 +8412,8 @@ function arrangeCells(grid, cells, pal, ruleId, seed, fit) {
 function generateSymbolCells() {
   const grid = getSymbolGrid();
   if (!grid) return;
-  const pal = poolEntries();
-  if (!pal.length) { setStatus('error', 'Add Components to the pool first'); return; }
+  const pal = symbolSource();
+  if (!pal.length) { setStatus('error', 'Save a Component or an Element first'); return; }
   state.symbolSelection.clear();
   state.symbolCells = arrangeCells(grid, state.symbolCells, pal, ctrl('sel-sym-arrange').value,
     parseInt(ctrl('num-symbol-seed').value, 10) || 0, ctrl('sel-sym-arrange-fit').value);
@@ -8942,7 +8957,10 @@ function renderSuggestGallery(currentIdx) {
 }
 function runSuggest(more) {
   if (!state.symbolGrid) return;
-  if (!poolEntries().length) { ctrl('sug-hint').textContent = 'Add Components to the pool first (Components section above).'; return; }
+  if (!poolEntries().length) {
+    if (elementPool().length) { generateSymbolCells(); ctrl('sug-hint').textContent = 'Suggest reads saved Components — with Elements only the cells were arranged.'; return; }
+    ctrl('sug-hint').textContent = 'Add Components to the pool first (Components section above).'; return;
+  }
   const base = more ? candFromCells(state.symbolCells) : null;
   if (more && base.some(c => !c)) { runSuggest(false); return; }
   setStatus('active', 'Suggesting…');
@@ -9228,7 +9246,7 @@ function renderSymbolCanvasOnly() {
   if (!grid) {
     // With Components in the pool the empty Symbol is one button: Generate
     // (see .fvs-gen-go in the stylesheet). Without any there is nothing to build from yet.
-    frame.innerHTML = poolEntries().length
+    frame.innerHTML = symbolSource().length
       ? '<button type="button" class="org-btn org-btn--primary org-btn--lg fvs-gen-go" id="btn-symbol-first-generate">Generate</button>'
       : '<p style="color:var(--mid);font-size:var(--fs-small)">Pick a grid to begin.</p>';
     ctrl('symbol-cellcount-hint').textContent = '0 cells';
@@ -10031,8 +10049,8 @@ const STEP_EXPORT_HINTS = {
 
 function updateStepHint(tier) {
   let msg = '';
-  if (tier === 'symbol' && libraryNames(LIBRARY.read()).length === 0) {
-    msg = 'No saved Components yet — a Symbol is built from saved Components: save some in the Component step first.';
+  if (tier === 'symbol' && libraryNames(LIBRARY.read()).length === 0 && !elementPool().length) {
+    msg = 'Nothing saved yet — a Symbol is built from saved Components or Elements: save some first.';
   }
   ctrl('stepnav-hint').textContent = msg;
 }

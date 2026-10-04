@@ -566,6 +566,11 @@ on Sep 28, 2026 — the role now lives only on the row.
   a thumbnail to **rename it inline** (Enter confirms, Esc cancels). Renaming
   repoints saved Symbols, Container/Mask references and the Grid pick.
 - **Symbol library** — saved separately.
+- **A Symbol from Elements only** (Oct 4, 2026). With no saved Component, Generate builds the
+  grid anyway and fills it from the **saved Elements** (the latest 8, weight ×1, `elementPool()`),
+  each placed as from the library rail. Arrange rules work as with Components; Suggest reads
+  Components only, so with Elements alone the cells are arranged (the hint says so). As soon as a
+  Component is saved, the pool is the Components again.
 - **Saved Elements in a Symbol keep their colours** (Oct 4, 2026). A saved Element placed
   from the library rail carries the palette it was saved with (`cell.ownColors`). With
   **Colour by → Element's own colours** — the first option and the default — the cell draws
