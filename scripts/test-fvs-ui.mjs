@@ -288,8 +288,7 @@ if (want('J3')) {
     const r = await ev(() => { state.symbolSelection.clear(); state.symbolCells[9].locked = true; return state.symbolCells[9].componentName; });
     await dragTile('component', 9);
     const after = await ev(() => state.symbolCells[9].componentName);
-    c.notes.push(`locked cell 9: ${r} → ${after} (${r === after ? 'lock respected' : 'LOCK IGNORED by a rail drop — spec decision'})`);
-    if (r !== after) { c.ok = false; }
+    c.notes.push(`locked cell 9: ${r} → ${after} — decision 2026-10-04: a rail drop overwrites a locked cell (the lock only protects against Arrange/Suggest/Delete)`);
     await ev(() => { state.symbolCells[9].locked = false; });
   });
   await test('J3.7', 'drag a Symbol tile / drag on the Component tab must not start a drag', async c => {
@@ -335,16 +334,18 @@ if (want('J4')) {
       setTier('symbol'); await __t.wait(400); await __t.openRail();
       const used = state.symbolCells.find(x => x.source === 'component').componentName;
       saveSymbolAs('Uses ' + used); await __t.wait(200);
-      __t.tile('component', used).parentElement.querySelector('[data-rail-remove]').click(); await __t.wait(400);
+      __t.tile('component', used).parentElement.querySelector('[data-rail-remove]').click(); await __t.wait(300);
+      const asked = !!__t.dlg() && /Used in/.test(__t.dlg().textContent); await __t.answer('ok'); await __t.wait(400);
       const cellsMissing = state.symbolCells.filter(x => x.source === 'component' && x.componentName === used).length;
       const poolStale = state.symbolPool.some(p => p.name === used);
       const poolUi = document.getElementById('symbol-pool').textContent.includes(used.slice(0, 12));
       const savedSym = Object.values(SYMBOL_LIBRARY.read()).some(e => (e.cells || []).some(x => x.componentName === used));
-      return { used, cellsMissing, poolStale, poolUi, savedSym, v: __t.inv() };
+      return { used, asked, cellsMissing, poolStale, poolUi, savedSym, v: __t.inv() };
     });
     if (r.skip) { c.notes.push('not enough Components'); return; }
-    expect(c, r.cellsMissing === 0, `${r.cellsMissing} live cell(s) still reference the removed "${r.used}" (H2: no warning, no cleanup)`);
-    expect(c, r.savedSym === false, 'a saved Symbol still references the removed Component (H2)');
+    expect(c, r.asked, 'removing a used Component did not ask for confirmation (decision 1 = B)');
+    expect(c, r.cellsMissing === 0, `${r.cellsMissing} live cell(s) still reference the removed "${r.used}"`);
+    if (r.savedSym) c.notes.push('by decision: saved Symbols keep a missing marker for the removed Component');
     expect(c, !r.poolStale && !r.poolUi, 'pool still lists / renders the removed Component (H3)');
     await shot('J4.1');
   });
@@ -422,7 +423,7 @@ if (want('D')) {
       return out;
     });
     const bad = Object.entries(r.ratios).filter(([, v]) => v < 3).map(([k, v]) => `${k}:${v}`);
-    expect(c, !bad.length, `.is-drop stroke --ink (${r.ink}) < 3:1 on Symbol paper(s) ${bad.join(', ')} — invisible drop target (H10)`);
+    if (bad.length) c.notes.push(`ACCEPTED by owner 2026-10-04 (outline kept as is): .is-drop stroke --ink (${r.ink}) < 3:1 on Symbol paper(s) ${bad.join(', ')}`);
     c.notes.push(JSON.stringify(r.ratios));
   });
   await test('D.6', 'z-order: rail above stage; modal above ghost/rail; dock gap is click-through', async c => {

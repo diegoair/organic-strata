@@ -205,18 +205,9 @@
   .fvs-rail-ghost { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; width: 3rem; height: 3rem; background: var(--paper); border: 1px solid var(--border-strong); box-shadow: var(--stage-shadow); }
   .fvs-rail-ghost svg { width: 100%; height: 100%; display: block; }
   body.is-rail-dragging { cursor: grabbing; user-select: none; }
-  /* Drop target outline — A/B (?ab): cur = chrome --ink; a = paper halo under an ink line; c = ink computed from the Symbol paper */
-  #symbol-frame[data-ring="cur"] g[data-cell-index].is-drop > :first-child { stroke: var(--ink); stroke-width: var(--space-1); vector-effect: non-scaling-stroke; fill: color-mix(in srgb, var(--ink) 8%, transparent); }
-  #symbol-frame[data-ring="a"] .fvs-drop-ring { fill: none; vector-effect: non-scaling-stroke; pointer-events: none; stroke: var(--paper); stroke-width: calc(var(--space-1) * 2); }
-  #symbol-frame[data-ring="a"] g[data-cell-index].is-drop > .fvs-drop-ring + * { stroke: var(--ink); stroke-width: var(--space-1); vector-effect: non-scaling-stroke; fill: color-mix(in srgb, var(--ink) 8%, transparent); }
-  #symbol-frame[data-ring="c"] g[data-cell-index].is-drop > :first-child { stroke: var(--drop-ink); stroke-width: var(--space-1); vector-effect: non-scaling-stroke; fill: color-mix(in srgb, var(--drop-ink) 8%, transparent); }
-  #symbol-frame g[data-cell-index].is-drop-locked > :first-child { stroke: var(--danger); stroke-width: var(--space-1); vector-effect: non-scaling-stroke; stroke-dasharray: var(--space-2) var(--space-1); fill: none; }
+  #symbol-frame g[data-cell-index].is-drop > :first-child { stroke: var(--ink); stroke-width: var(--space-1); vector-effect: non-scaling-stroke; fill: color-mix(in srgb, var(--ink) 8%, transparent); }
   .fvs-rail__note { margin: var(--space-2) 0 0; font-size: var(--fs-small); color: var(--danger); }
   .fvs-rail__note:empty { margin: 0; }   /* always rendered (a live region), no space when empty */
-  body.rail-docked #canvas-wrap { padding-left: var(--rail-pad); }
-  #ab-panel { position: fixed; left: var(--space-5); bottom: var(--space-5); z-index: 160; width: 20rem; padding: var(--space-3); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--stage-shadow); display: flex; flex-direction: column; gap: var(--space-2); }
-  #ab-panel .ctrl-row { margin: 0; }
-  #ab-panel code { font-size: var(--fs-micro); color: var(--mid); word-break: break-all; }
   #panel .org-empty { margin-bottom: var(--space-2); }
 
   /* Element ↔ Component ↔ Symbol ↔ Grid tier switch — same
@@ -8676,24 +8667,6 @@ function buildSelectionOutlineSVG() {
   return s + '</g>';
 }
 
-// A padlock in the corner of every locked cell (preview-only, like the outlines — never in the export).
-// Drawn in chrome tokens so it shows on any paper; sized from the cell, 14–28 px.
-function buildLockedCellsSVG() {
-  const grid = getSymbolGrid();
-  if (!grid || !state.symbolCells.some(c => c && c.locked)) return '';
-  const F = symbolFrame(grid);
-  let s = '<g class="symbol-locks" stroke="var(--ink)" stroke-width="1.2" stroke-linecap="round">';
-  grid.cells.forEach((c, i) => {
-    const cell = state.symbolCells[i]; if (!cell || !cell.locked) return;
-    let x, y, m;
-    if (grid.cellShape === 'polygon') { const xs = c.points.map(p => F.X(p[0])), ys = c.points.map(p => F.Y(p[1])); x = Math.min(...xs); y = Math.min(...ys); m = Math.min(Math.max(...xs) - x, Math.max(...ys) - y); }
-    else { x = F.X(c.x); y = F.Y(c.y); m = Math.min(c.width, c.height); }
-    const k = Math.min(32, Math.max(18, m * 0.22)) / 18, pad = k * 10;
-    s += `<g transform="translate(${(x + pad).toFixed(2)},${(y + pad).toFixed(2)}) scale(${k.toFixed(3)})" vector-effect="non-scaling-stroke"><circle cx="5" cy="6.5" r="9" fill="var(--paper)"/><path d="M2.5 5.5V4a2.5 2.5 0 0 1 5 0v1.5" fill="none"/><rect x="1" y="5.5" width="8" height="6" rx="1.2" fill="var(--ink)"/></g>`;
-  });
-  return s + '</g>';
-}
-
 // Only meaningful while a border drag is actually happening — see the
 // `if (trackDrag)` gate at its one call site in renderSymbolCanvasOnly().
 // Skipped while Clip to cell is on, same guard cellOverflowInfo()'s own
@@ -8771,7 +8744,6 @@ function renderSymbolCanvasOnly() {
   let overlay = '';
   if (state.symbolView.outline) overlay += buildGridOutlineSVG();
   overlay += buildSelectionOutlineSVG();
-  overlay += buildLockedCellsSVG();
   if (state.symbolView.guides) overlay += buildTrackHandlesSVG();
   if (trackDrag) overlay += buildOverflowOutlineSVG();
   if (state.symbolView.cover) overlay += buildCoverCropPreviewSVG();
@@ -11780,59 +11752,6 @@ syncRuleAvailability();
 syncRuleUI();
 renderSymbol();
 renderSymbolLibrary();
-// ── A/B test of the proposed fixes (?ab) ── remove-a-used-Component / locked-cell drop / drop ring / rail over the stage.
-// Without ?ab the app behaves as shipped (rm off, lock current, ring cur, rail overlay); with it the panel at the
-// bottom-left switches every variant live and the URL records the choice. Temporary: delete once chosen.
-const AB_Q = new URLSearchParams(location.search), AB_ON = AB_Q.has('ab');
-const AB = { lock: AB_Q.get('lock') || (AB_ON ? 'refuse' : 'current'), ring: AB_Q.get('ring') || (AB_ON ? 'a' : 'cur'), rail: AB_Q.get('rail') || (AB_ON ? 'dock' : 'overlay') };
-const AB_OPTS = {
-  lock: ['Rail drop on a locked cell', [['current', 'A · as now (overwrites)'], ['refuse', 'B · lock refuses']]],
-  ring: ['Drop target outline', [['cur', 'A · as now (--ink)'], ['a', 'B · paper halo + ink'], ['c', 'C · ink from the paper']]],
-  rail: ['Open rail over the stage', [['overlay', 'A · as now (overlay)'], ['autoclose', 'B · closes after use'], ['dock', 'C · pushes the stage']]],
-};
-function abApply() {
-  ctrl('symbol-frame').dataset.ring = AB.ring;
-  syncRailDock();
-  if (AB_ON) { const q = new URLSearchParams(location.search); Object.keys(AB).forEach(k => q.set(k, AB[k])); history.replaceState(null, '', '?' + q.toString()); const c = document.getElementById('ab-code'); if (c) c.textContent = '?' + q.toString(); }
-}
-function syncRailDock() {
-  const open = railIsOpen() && AB.rail === 'dock', panel = ctrl('fvs-rail-panel');
-  document.body.classList.toggle('rail-docked', open);
-  if (open) document.body.style.setProperty('--rail-pad', (ctrl('fvs-rail-dock').getBoundingClientRect().left + panel.offsetLeft + panel.offsetWidth + 14) + 'px');
-}
-// Ink for the drop outline, chosen against the Symbol's own paper (content colour, not chrome).
-function dropInkFor(paper) {
-  const g = isPaperNone(paper) ? '#ffffff' : paper, C = Organica.color;
-  return C.contrast('#000000', g) >= C.contrast('#ffffff', g) ? '#000000' : '#ffffff';
-}
-if (AB_ON) {
-  const pn = document.createElement('div');
-  pn.id = 'ab-panel'; pn.setAttribute('role', 'group'); pn.setAttribute('aria-label', 'A/B test of the proposed fixes');
-  pn.innerHTML = '<div class="sub-label">A/B · proposed fixes</div>' + Object.entries(AB_OPTS).map(([k, [label, opts]]) => `<div class="ctrl-row"><div class="ctrl-label">${label}</div><select class="panel-select" data-ab="${k}" aria-label="${label}">${opts.map(([v, l]) => `<option value="${v}"${AB[k] === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`).join('')
-    + '<div class="ctrl-row"><div class="ctrl-label">Symbol paper</div><select class="panel-select" id="ab-paper" aria-label="Symbol paper"><option value="">Keep</option><option value="#ffffff">White</option><option value="#1a1a1a">Dark #1a1a1a</option><option value="#264653">Teal #264653</option></select></div>'
-    + '<div class="ctrl-row"><button type="button" class="mini-btn" id="ab-lock">Lock / unlock selected cells</button></div>'
-    + '<div class="ctrl-row"><button type="button" class="mini-btn" id="ab-pin">Show / hide the drop outline on the selection</button></div><code id="ab-code"></code>';
-  document.body.appendChild(pn);
-  pn.addEventListener('click', e => {
-    if (e.target.id === 'ab-lock') {
-      const idx = [...state.symbolSelection]; if (!idx.length) { railNotice('Select a cell first'); return; }
-      const on = !idx.every(i => state.symbolCells[i] && state.symbolCells[i].locked);
-      idx.forEach(i => { if (state.symbolCells[i]) state.symbolCells[i].locked = on; });
-      renderSymbolCanvasOnly(); renderCellPropertiesPanel();
-    }
-    if (e.target.id === 'ab-pin') {
-      const fr = ctrl('symbol-frame'), had = fr.querySelector('.is-drop, .is-drop-locked');
-      clearRailDrop();
-      if (!had) { fr.style.setProperty('--drop-ink', dropInkFor(state.paperColor)); [...state.symbolSelection].forEach(i => { const g = fr.querySelector(`[data-cell-index="${i}"]`); if (g) markRailDrop(g); }); }
-    }
-  });
-  pn.addEventListener('change', e => {
-    const k = e.target.dataset.ab;
-    if (k) { AB[k] = e.target.value; abApply(); if (k === 'rail') { if (AB.rail === 'dock' && !railIsOpen()) setRailOpen(true); else syncRailDock(); } }
-    if (e.target.id === 'ab-paper' && e.target.value) { state.paperColor = hexKey(e.target.value); setPaperUI(e.target.value); if (state.symbolGrid) renderSymbol(); }
-  });
-}
-
 // ── Library rail (test) ── a floating left rail of saved Elements + Components. On the Symbol tab a tile
 // is dragged onto a cell (pointer drag, the Layers pattern) — or clicked / Enter to put it in the
 // selected cells. Place-only: renaming and removing stay in the right-bar libraries.
@@ -11845,7 +11764,6 @@ function setRailOpen(open, opts) {
   railBtn.innerHTML = Organica.icons.get(open ? 'chevron-left' : 'grid', { size: 'lg' });
   if (open) renderLibraryRail();
   else if (opts && opts.focus) railBtn.focus();
-  syncRailDock();
   try { localStorage.setItem('organica.fvs.rail', open ? '1' : '0'); } catch (e) { /* private window */ }
 }
 const railSaveBtn = ctrl('btn-rail-save-lib');
@@ -11918,34 +11836,21 @@ function railApply(kind, name, idx) {
   if (state.activeTier !== 'symbol') return;
   const patch = railPatch(kind, name);
   if (!patch) return;
-  const refuseLocked = AB.lock === 'refuse';
   if (idx != null && !state.symbolSelection.has(idx)) {
     const cell = state.symbolCells[idx];
     if (!cell) return;
-    if (refuseLocked && cell.locked) { railNotice('That cell is locked'); return; }
     if (patchCell(cell, patch)) Organica.dirty.set('fvs-symbol', true);
     renderSymbolCanvasOnly();
   } else if (state.symbolSelection.size) {
-    const skipped = refuseLocked ? [...state.symbolSelection].filter(i => state.symbolCells[i] && state.symbolCells[i].locked).length : 0;
-    applyToSelection(cell => (refuseLocked && cell.locked ? {} : patch));
-    if (skipped) railNotice(`${skipped} locked cell(s) left unchanged`);
+    applyToSelection(patch);
   } else { railNotice('Select a cell first, or drag onto one'); return; }
   renderCellPropertiesPanel();
-  if (AB.rail === 'autoclose') setRailOpen(false);
 }
 
 let railPress = null, railDrag = null;   // {kind,name,tile,x,y,id} / {ghost,idx}
 const railCellAt = e => { const el = document.elementFromPoint(e.clientX, e.clientY); const g = el && el.closest('#symbol-frame [data-cell-index]'); return g; };
-const clearRailDrop = () => {
-  document.querySelectorAll('#symbol-frame .is-drop, #symbol-frame .is-drop-locked').forEach(g => g.classList.remove('is-drop', 'is-drop-locked'));
-  document.querySelectorAll('#symbol-frame .fvs-drop-ring').forEach(x => x.remove());
-};
-function markRailDrop(g) {
-  const cell = state.symbolCells[+g.dataset.cellIndex];
-  if (AB.lock === 'refuse' && cell && cell.locked) { g.classList.add('is-drop-locked'); return; }
-  g.classList.add('is-drop');
-  if (AB.ring === 'a' && g.firstElementChild) { const h = g.firstElementChild.cloneNode(false); h.removeAttribute('id'); h.classList.add('fvs-drop-ring'); g.insertBefore(h, g.firstElementChild); }
-}
+const clearRailDrop = () => document.querySelectorAll('#symbol-frame .is-drop').forEach(g => g.classList.remove('is-drop'));
+
 function cancelRailDrag() {
   if (railDrag) railDrag.ghost.remove();
   if (railPress && railPress.tile) railPress.tile.classList.remove('is-dragging');
@@ -11969,12 +11874,11 @@ window.addEventListener('pointermove', e => {
     railPress.tile.classList.add('is-dragging');
     document.body.classList.add('is-rail-dragging');
     railPanel.classList.add('is-dragging-away');   // out of the way, still there
-    ctrl('symbol-frame').style.setProperty('--drop-ink', dropInkFor(state.paperColor));
   }
   e.preventDefault();
   railDrag.ghost.style.transform = `translate3d(${e.clientX - 24}px, ${e.clientY - 24}px, 0)`;
   const g = railCellAt(e), idx = g ? +g.dataset.cellIndex : null;
-  if (idx !== railDrag.idx) { clearRailDrop(); if (g) markRailDrop(g); railDrag.idx = idx; }
+  if (idx !== railDrag.idx) { clearRailDrop(); if (g) g.classList.add('is-drop'); railDrag.idx = idx; }
 });
 window.addEventListener('pointerup', e => {
   if (!railPress || e.pointerId !== railPress.id) return;
@@ -12099,9 +12003,6 @@ function syncRailTier(tier) {
 }
 let railWasOpen = false; try { railWasOpen = localStorage.getItem('organica.fvs.rail') === '1'; } catch (e) { /* ignore */ }
 setRailOpen(railWasOpen);
-if (AB_ON && AB.rail === 'dock' && !railIsOpen()) setRailOpen(true);
-document.addEventListener('pointerdown', e => { if (AB.rail === 'autoclose' && railIsOpen() && !e.target.closest('#fvs-rail-dock, .org-modal, #ab-panel, .fvs-rail-ghost')) setRailOpen(false); }, true);
-abApply();
 
 renderGallery();
 renderSeedPreview();

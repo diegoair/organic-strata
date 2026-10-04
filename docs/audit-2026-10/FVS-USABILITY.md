@@ -79,7 +79,16 @@ JS: when `.is-drop` is set, insert a sibling `<rect class="fvs-drop-ring">` of t
 
 **F7** — one `railNotice(text)` that writes to a `role="status"` line in the panel foot ("Select a cell first", "Component no longer exists").
 
-## 3. Owner decisions
+## 3. Owner decisions — resolved 2026-10-04 (A/B on `?ab`, harness since removed)
+| # | Decision |
+|---|---|
+| O-1 | **Warn** before removing a used Component (confirm with counts); its cells in the open Symbol become empty; saved Symbols keep a missing marker. Rail × only. |
+| O-2 | A rail drop **overwrites** a locked cell (as now); no padlock badge, no lock rework. |
+| O-3 | Drop outline **as now** (`--ink`); the dark-paper contrast gap is accepted. |
+| O-4 | Open rail stays an **overlay** (as now). |
+| — | Delete/Backspace empties selected cells (locked skipped) — added. |
+
+Original questions, for the record:
 | # | Question | Recommendation |
 |---|---|---|
 | O-1 | Removing a used Component: warn (confirm with counts) or refuse? | warn |
