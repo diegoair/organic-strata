@@ -315,6 +315,17 @@
 
 <!-- 9 -->
 <h2 id="decisions">9 · Decisions — colour</h2>
+<h3 id="decided">Already decided since the audit</h3>
+<div class="scroll"><table>
+  <thead><tr><th>Date</th><th>Decision</th><th>Where</th></tr></thead>
+  <tbody>
+    <tr><td>Oct 4, 2026</td><td><strong>FVS · Colour by gains “Element's own colours”, the first option and the default.</strong> A saved Element placed in a Symbol cell from the library always carries the palette it was saved with (<code>cell.ownColors</code>). Under this rule the cell draws in it — the first ink for a single shape, every layer's ink for a stack (like a Component's own palette). Choose any other rule (By cell order, Checkerboard…) and every cell, saved Elements included, follows it on the current palette. Cells without a saved Element, and Component-step cells, fall back to By cell order. Cell properties → Colour still overrides one cell; Colourways and the Figure shuffle never pick this rule. Before it, a saved Element always took the Colour by colour of its position, so it changed colour once placed. A first version — a “Keep own colours” switch in the library rail — shipped the same day and was replaced by this.</td><td><code>fvs/index.html</code> (<code>COLOR_RULES.own</code>, <code>DEFAULT_COLOR_RULE</code>, <code>cellOwnInks</code>, <code>railPatch</code>) · <code>docs/FVS.md</code> §7 · ledger §2 · commit <code>8aec96d</code></td></tr>
+    <tr><td>Oct 4, 2026</td><td><strong>FVS · saved Element thumbnails show the Paper texture</strong>, not just its colour (they looked blank on a patterned Paper). Older thumbnails get the texture at render time from their own saved appearance.</td><td><code>elementVariantSVG</code>, <code>savedElementThumb</code> · commit <code>37d1fc9</code></td></tr>
+    <tr><td>Oct 4, 2026</td><td><strong>The fixes that needed no decision</strong> (§6): one tab stop per colour, “‹Label› colour / hex” names, chip buttons, library icon + menu keys, TuneSutra's strips on the tuning variables, hex <code>maxlength</code>, hex helpers → core.</td><td>§6 · commit <code>91b896e</code></td></tr>
+  </tbody>
+</table></div>
+<p class="micro muted">Related open questions: D7 (the mode / “Colour by” labels — the new option keeps the “Colour by” term and sentence case) and D9 (a shared “pick” variant — unchanged).</p>
+<h3>Open</h3>
 <p class="muted small">The first option is the recommended one. Choose, add a note if needed; choices stay in this browser and are copied out from §11.</p>
 <h3>The component <span class="from">from the design-system CONSULT</span></h3>
 <div class="grid2" id="dec-colour"></div>
@@ -426,8 +437,8 @@ const TOOLS = [
     notes: ['“Color mode” select: Single ink / Rainbow / Sample from image / RMX (multi-colour).', 'RMX with its own maths (<code>rmxColorAt</code>), not <code>palette.colorAt</code>.', 'The Ink row stays visible where it does nothing.'] },
   { id: 'vortex', name: 'Vortex', sections: ['Palette'], title: 'Palette', labels: 'Background', pats: 'D A+', api: 'generate (2–8) + attach (+dice)', notes: ['No mode: segments cycle the colours by index.'] },
   { id: 'fvs', name: 'Flexible Visual System', sections: ['Palette', 'Layers'], setup: doc => { const b = doc.querySelector('.pal-pattern-btn'); if (b && b.getAttribute('aria-pressed') !== 'true') b.click(); },
-    title: 'Palette', labels: 'Paper · Colour by · Start at · Ink n', pats: 'D A+ F G', api: 'generate (1–8) + attach with pattern + 4 “choose ink” UIs + native inputs',
-    notes: ['The richest tool: Colour by (cell / rows / checkerboard…), Colourways, variants in Export.', 'Layer ink = a hand-made popover of circles (<code>.fvs-ink-pop</code>, outside <code>Organica.popover</code>).', 'Three identical CSS rules make the native input visible.', 'Sections depend on the step: the preview forces them visible, and opens the Paper pattern (the Pattern icon on the Paper row).', 'Paper row carries three accessories (Transparent, library, Pattern): the hex field shrinks to <strong>42px</strong> and cuts “#ffffff” (measured) — the row needs a rule for how many accessories fit.'] },
+    title: 'Palette', labels: 'Paper · Colour by (default: Element\'s own colours) · Start at · Ink n', pats: 'D A+ F G', api: 'generate (1–8) + attach with pattern + 4 “choose ink” UIs + native inputs',
+    notes: ['The richest tool: Colour by (cell / rows / checkerboard…), Colourways, variants in Export.', '<strong>Decided Oct 4:</strong> Colour by → “Element\'s own colours” is the default — a saved Element keeps the palette it was saved with in a Symbol cell (<a href="#decided">§9</a>).', 'Layer ink = a hand-made popover of circles (<code>.fvs-ink-pop</code>, outside <code>Organica.popover</code>).', 'Three identical CSS rules make the native input visible.', 'Sections depend on the step: the preview forces them visible, and opens the Paper pattern (the Pattern icon on the Paper row).', 'Paper row carries three accessories (Transparent, library, Pattern): the hex field shrinks to <strong>42px</strong> and cuts “#ffffff” (measured) — the row needs a rule for how many accessories fit.'] },
   { id: 'radial', name: 'Radial', sections: ['Colour & seed'], title: 'Colour & seed', labels: 'Ink · Paper', pats: 'B', api: 'attach ×2', notes: ['A section mixing colour and the numeric seed.'] },
   { id: 'pulsar', name: 'Pulsar', sections: ['Palette'], title: 'Palette', labels: 'Ink · Paper', pats: 'B', api: 'attach ×2', notes: ['“Palette” here is just Ink + Paper.'] },
   { id: 'mote', name: 'Mote', sections: ['Colour'], setup: clickRmx('[data-v="rmx"]'),

@@ -257,3 +257,12 @@ chip's `aria-pressed` and the 24px hit area (D11 / D12, with the migration).
 no raw values; browser — TuneSutra strip metrics, Colornet names / tab order / maxlength, the
 library menu's keys and its closing when Export opens, Warping's SVG export; no console error
 besides the dev server's favicon 404. Not verified: Safari / Firefox.
+
+## 10. Decided since the audit
+
+- **Oct 4, 2026 — FVS, Colour by → "Element's own colours" (first option, default).** A saved
+  Element placed in a Symbol cell keeps the palette it was saved with (`cell.ownColors`):
+  first ink for a shape, every layer's ink for a stack; any other rule colours every cell by
+  that rule. Before, a saved Element took the Colour by colour of its cell. Replaced a
+  same-day "Keep own colours" rail switch. `docs/FVS.md` §7, ledger §2, commit `8aec96d`.
+- **Oct 4, 2026 — FVS, saved Element thumbnails show the Paper texture** (commit `37d1fc9`).
