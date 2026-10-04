@@ -92,6 +92,18 @@ Grid step without saving it first.
   first to keep only Cut out. Implementation: `hollowGeometry` (Paper.js, memoised; the inscribed
   circle in plain JS, `inscribedCircle`); prototype measurements in
   `docs/audit-2026-10/FVS-ELEMENT-DUPLICATES.md` §5–7 (the dev page was removed after it shipped by mistake).
+- **Irregularity** (Oct 4, 2026 — under Cut out, per shape type, per layer with layers) makes any
+  outline irregular, with a **Seed** (same seed, same shape) and two **Modes**: *Corners* — each
+  corner gets a seeded offset and the sides between corners stay straight (hand-cut paper; a corner
+  is where the outline turns > 35° within ±3 % of its length, sharp or rounded); *Outline* — the
+  whole edge ripples, **Waves** = how many ripples run around it. A shape with no corners (Circle,
+  Blob) always ripples, so Mode hides there. Amplitude: Irregularity % of the inscribed radius
+  (half of it for Outline). Applied before Cut out and Copies (the rim and the copies follow the
+  irregular outline); the shape may poke out of its cell, like Scale above 1. It replaces the five
+  shape-own Irregularity + Seed pairs (Triangle, Arc, Wedge, Polygon, Star — two different
+  behaviours under one name) and Polygon / Star *Angle jitter*; those stay hidden for old snapshots,
+  never converted (different formulas), with the Seed-panel note. Blob keeps its own Amount for now —
+  Blob = Circle + Irregularity (Outline) is a later decision.
 - **Copies** (was *Inner seed*, renamed Oct 4, 2026) — nested copies of the shape. Ratio and
   Anchor show only with Count > 0. Two behaviours, set by Cut out:
   - **Cut out 0** — the original alternating bands (byte-identical to before). Ratio = each copy's

@@ -219,3 +219,34 @@ Result on 10 shapes × 20 pairs: **no merge anywhere**. Fewer than 4 rings only 
 | Ripples from a corner | Arc / Wedge | Anchor Apex |
 | Plain ring | any | Copies 0 |
 | Nested stars / flowers | Star / lobed Circle | — |
+
+---
+
+## 8. Irregularity — one for every shape (Oct 4, 2026)
+
+**Why (as explained to Diego).**
+- Five shape-own copies with two different behaviours under one name:
+  - vertex jitter (Triangle, Polygon, Star);
+  - edge wobble (Arc, Wedge, Blob).
+- Plus Angle jitter on Polygon and Star.
+- Nine shapes and Freehand/uploads had none.
+- Up to 4 sliders per shape.
+
+**Built** (approved: two modes, under Cut out). `irregularGeometry` works on the flattened outline:
+- **Corners**: seeded offsets at detected corners, blended along the outline, so straight sides stay straight. A single corner (a drop's tip) fades to the far side.
+- **Outline**: a normal offset along a periodic Catmull-Rom wave with `irrWaves` bumps.
+- Amplitude: Irregularity % of the inscribed radius in Corners, half of it in Outline. Corners was first at half; doubled to match the old Triangle at the same value.
+- Order: base → Irregularity → Cut out → Copies.
+- No prototype page: compared in the console against today's controls.
+
+**Verified.**
+- 13 shapes × both modes, under 1 ms each.
+- Circle and Blob are detected as cornerless, so they use Outline only.
+- No dead control in either mode.
+- Per-shape memory, Reset, and the legacy triangle render the same, with the note.
+- SVG = canvas 0 px with Irregularity + Cut out + Copies.
+- Regression 395/395.
+
+**Open.**
+- Blob vs Circle + Irregularity.
+- Self-intersections at high Irregularity on thin shapes (Chevron, Segment) are possible; not clamped.
