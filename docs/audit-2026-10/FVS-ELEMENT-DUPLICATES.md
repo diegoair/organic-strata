@@ -167,3 +167,55 @@ Dev page `fvs/_proto-hollow.html` (not linked; open it on the dev server). It lo
 - Arc truchet speed.
 - Irregularity + Seed as one generic control (§2d), not started.
 - Safari/Firefox.
+
+---
+
+## 7. Cut out × Copies — analysis and the rational UX (Oct 4, 2026)
+
+**Rename (Diego).** *Hollow* → **Cut out**, inverted: 0 = solid, higher = thinner rim, no jump. Before, the slider was the wall thickness: 0 = solid, 1 = thinnest, 95 = nearly solid again. Cut out is remembered per shape type, like Width / Length.
+
+**Analysis of Cut out + Inner seed (option C as first built).** Copies of the cut-out rim, scaled by Ratio and united. Matrix of Ratio 30–90 × Cut out 1–90 with 3 copies on circle, triangle and drop:
+- Separate rings **only when Cut out > Ratio**: 6 of 24 pairs, identical on all three shapes.
+- Elsewhere the copies landed on the previous rim and only shrank the hole — a duplicate of Cut out.
+- Near the threshold: fragments. A crescent in the drop, bars in the rectangle, a real 1.2-unit gap in the triangle, because its centroid is not equidistant from its edges.
+- Cut out 0 → 1 jumps from alternating bands to a solid shape. This stays, so that old saves don't change.
+
+**A+B (Diego).**
+- A: each copy fits inside the previous hole.
+- B: the copies shrink toward the inscribed-circle centre.
+
+Two refinements, from measurement:
+1. Estimating the hole as "Cut out %" failed on stars (tips far beyond the inradius).
+2. "Farthest point" failed on long and concave shapes (a rectangle's short side, a cross's arms).
+
+So the fit is now the largest scale at which the whole outline still lies in the hole, by bisection.
+
+Result on 10 shapes × 20 pairs: **no merge anywhere**. Fewer than 4 rings only where the copies become microscopic (low Cut out / low Spacing). 8 ms average, 32 ms max.
+
+**UX (design-system CONSULT → Diego chose option B).**
+- Cut out stays in Appearance. *Inner seed* → **Copies**.
+- Ratio and Anchor hide at Count 0.
+- With Cut out on:
+  - Ratio reads **Spacing**.
+  - Anchor offers Inner centre / Apex.
+  - The Anchor row hides when only Inner centre is left.
+- New Anchor option **Inner centre** for Cut out 0 too.
+- Rejected:
+  - A, one "Rings" section: it reverses the Appearance placement and conflicts with layers.
+  - C, Copies per layer: needs a data migration.
+
+**Verified.**
+- Cut out 0 + Copies byte-identical to production on 108 cases (12 shapes × 3 anchors × 3 Count/Ratio). The regression suite has no Inner seed cases.
+- FVS regression 395/395.
+
+**Use cases** (see the session reply):
+
+| Use case | Shape | Settings |
+|---|---|---|
+| Target | Circle | Cut out 50–70, Copies 2–3 |
+| Contour lines | Blob / Drop | Cut out 85–92, Copies 5–8, Spacing 80–90 |
+| Passe-partout | Rounded rect | Cut out 75–85, Copies 1 |
+| Tunnel | Triangle / Rounded rect | Copies 3–4 |
+| Ripples from a corner | Arc / Wedge | Anchor Apex |
+| Plain ring | any | Copies 0 |
+| Nested stars / flowers | Star / lobed Circle | — |

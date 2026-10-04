@@ -79,20 +79,32 @@ Grid step without saving it first.
 - **Appearance** — Style **Fill / Stroke / Pattern**, Width / Length, **Scale, Move X/Y,
   Rotate** and **⤢ Fit to canvas** (one-shot). Rotate turns the Element about its centre,
   after Width / Length (a stretched shape turns as a whole — the same order as a layer's
-  own Rot). **Hollow** (0–95, beside Width / Length — so with layers it is in the layer's card,
-  each layer its own) cuts the shape to a wall of **even thickness** along its whole outline, as a %
-  of the shape's inradius: every Seed, Freehand and an uploaded SVG alike. With **Inner seed** on,
-  the copies are the hollowed shape, scaled and united (Diego's option C, Oct 4, 2026 — the walls
-  thin toward the centre with the copies; "a wall along every edge" was the alternative, rejected
-  because it duplicates Style → Stroke and does nothing once the wall is wider than half a band).
-  It replaces the six shape-own *Outline (hollow)* sliders (Triangle, Polygon, Star, Rounded rect,
-  Lens, Blob), which scaled the shape toward its centre — even only on a triangle or a regular
-  polygon (×1.53 at a lens tip, ×0.73 in a star's valley). Those stay hidden for old snapshots and
-  are never converted (the picture would change by up to 9 %); the Seed panel's note says so and
-  Reset seed shape clears them. Such an old Element hollowed again with Hollow gets both (its own
-  Outline first, then the even wall) — Reset seed shape first to keep only Hollow. Implementation: `hollowGeometry` (Paper.js, memoised; prototype
-  and measurements in `fvs/_proto-hollow.html`, `docs/audit-2026-10/FVS-ELEMENT-DUPLICATES.md` §5–6).
-  **Inner seed** adds nested copies (Count, Ratio, Anchor).
+  own Rot). **Cut out** (0–95, beside Width / Length — remembered per shape type like them, and
+  per layer with layers; prototyped as "Hollow", renamed and inverted by Diego) cuts the middle out
+  of the shape and leaves a rim of **even thickness** along its whole outline: 0 is solid, higher
+  cuts more away (95 = a thin rim; the rim is 100 − Cut out % of the shape's inradius). Every
+  Seed, Freehand and an uploaded SVG alike. It replaces the six shape-own *Outline (hollow)*
+  sliders (Triangle, Polygon, Star, Rounded rect, Lens, Blob), which scaled the shape toward its
+  centre — even only on a triangle or a regular polygon (×1.53 at a lens tip, ×0.73 in a star's
+  valley). Those stay hidden for old snapshots and are never converted (the picture would change
+  by up to 9 %); the Seed panel's note says so and Reset seed shape clears them. Such an old
+  Element cut out again gets both (its own Outline first, then the even rim) — Reset seed shape
+  first to keep only Cut out. Implementation: `hollowGeometry` (Paper.js, memoised; the inscribed
+  circle in plain JS, `inscribedCircle`); prototype and measurements in `fvs/_proto-hollow.html`,
+  `docs/audit-2026-10/FVS-ELEMENT-DUPLICATES.md` §5–7.
+- **Copies** (was *Inner seed*, renamed Oct 4, 2026) — nested copies of the shape. Ratio and
+  Anchor show only with Count > 0. Two behaviours, set by Cut out:
+  - **Cut out 0** — the original alternating bands (byte-identical to before). Ratio = each copy's
+    size as a % of the previous one; Anchor Bbox centre / Centroid / **Inner centre** (centre of the
+    largest inscribed circle — the evenest bands) / Apex (Arc, Wedge).
+  - **Cut out > 0** (Diego's choices C, then "A+B") — the copies are the cut-out rim, each one
+    **fitted inside the previous copy's hole** (the largest scale at which its whole outline still
+    lies in the hole, measured) and shrunk toward the Inner centre, so rings never merge on any
+    shape. Ratio reads **Spacing** there: how much of that hole the next copy fills (high = rings
+    packed close, low = spaced out). Anchor offers Inner centre / Apex only, and hides when Inner
+    centre is the only choice. Before A+B only 6 of 24 Ratio × Cut out pairs gave separate rings —
+    the rest only shrank the hole or left fragments.
+
 - **One control per job** (Oct 4, 2026 — `docs/audit-2026-10/FVS-ELEMENT-DUPLICATES.md`).
   The shape sliders that did what Appearance already does are gone: Circle / Polygon / Star
   **Radius** (= Scale), Wedge / Chevron **Squash** (= Length), the per-shape **Rotate** of

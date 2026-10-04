@@ -1314,7 +1314,7 @@
           <span class="ctrl-val" id="v-blob-radius">60</span>
         </div>
       </div>
-      <p class="org-panel__hint" id="seed-legacy-note" style="display:none">This shape keeps a size, rotation or outline saved before these controls moved to Appearance. Reset seed shape clears it.</p>
+      <p class="org-panel__hint" id="seed-legacy-note" style="display:none">This shape keeps a size, rotation or outline saved before these controls moved to Appearance (Scale, Rotate, Cut out). Reset seed shape clears it.</p>
       <div id="seed-upload-error" class="org-panel__hint fvs-error" style="display:none"></div>
     </div>
 
@@ -1351,9 +1351,9 @@
         <span class="ctrl-val" id="v-element-l">1</span>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label" title="Hollows the shape: a wall of even thickness along its whole outline, as a % of the shape's inradius — 0 is solid. Real geometry, unlike Style → Stroke; with Inner seed on, the copies are the hollowed shape.">Hollow</div>
-        <input type="range" id="rg-element-hollow" min="0" max="95" step="1" value="0">
-        <span class="ctrl-val" id="v-element-hollow">0</span>
+        <div class="ctrl-label" title="Cuts the middle out of the shape, leaving a rim of even thickness along its whole outline — 0 is solid, higher cuts more away (95 leaves a thin rim). Real geometry, unlike Style → Stroke; with Copies on, the copies are the cut-out shape.">Cut out</div>
+        <input type="range" id="rg-element-cutout" min="0" max="95" step="1" value="0">
+        <span class="ctrl-val" id="v-element-cutout">0</span>
       </div>
       </div>
       <!-- The Element's pattern (Style = Pattern on any layer, and every Pattern-role layer): ONE set of settings for the whole Element, here in Appearance even with layers — a layer only picks its Style. -->
@@ -1408,22 +1408,25 @@
     </div>
 
     <div class="panel-section">
-      <h3>Inner seed</h3>
+      <h3>Copies</h3>
+      <!-- Was "Inner seed" (renamed Oct 4, 2026). Ratio / Anchor show only with Count > 0; with Appearance →
+           Cut out on, Ratio reads "Spacing" and Anchor offers only Inner centre / Apex — syncCopiesRows(). -->
       <div class="ctrl-row">
-        <div class="ctrl-label" title="Nested copies of the shape drawn inside itself, alternating ring and gap. 0 turns it off.">Count</div>
+        <div class="ctrl-label" id="lbl-inner-count" title="Nested copies of the shape drawn inside itself, alternating ring and gap. 0 turns it off.">Count</div>
         <input type="range" id="rg-inner-count" min="0" max="8" step="1" value="0">
         <span class="ctrl-val" id="v-inner-count">0</span>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label" title="Each copy's size as a % of the previous one (70 → 70%, 49%, 34%…).">Ratio</div>
+        <div class="ctrl-label" id="lbl-inner-ratio" title="Each copy's size as a % of the previous one (70 → 70%, 49%, 34%…).">Ratio</div>
         <input type="range" id="rg-inner-ratio" min="10" max="95" step="1" value="70">
         <span class="ctrl-val" id="v-inner-ratio">70</span>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label" title="Where the copies are centred. Centroid keeps the rings evenly spaced on shapes whose bounding-box centre is off-centre (Triangle, Drop, Chevron). Apex (Arc, Wedge only) centres them on the pivot / tip, so the copies stay concentric with the shape.">Anchor</div>
-        <select class="panel-select" id="sel-inner-anchor" aria-label="Inner seed anchor">
+        <div class="ctrl-label" title="Where the copies are centred. Centroid keeps the rings evenly spaced on shapes whose bounding-box centre is off-centre (Triangle, Drop, Chevron). Inner centre = the centre of the largest circle that fits inside the shape (the evenest gaps). Apex (Arc, Wedge only) centres them on the pivot / tip, so the copies stay concentric with the shape.">Anchor</div>
+        <select class="panel-select" id="sel-inner-anchor" aria-label="Copies anchor">
           <option value="bbox" selected>Bbox centre</option>
           <option value="centroid">Centroid</option>
+          <option value="incentre">Inner centre</option>
           <option value="apex">Apex</option>
         </select>
       </div>
@@ -2541,17 +2544,19 @@ function withInnerCopies(geo, p, apex) {
   const bb = pathBBox(geo.d);
   if (!bb) return geo;
   const ap = p.innerAnchor === 'apex' && apex ? apex(p) : null;   // Arc / Wedge pivot in the shape's own d-space
-  const ctr = ap ? { x: ap[0], y: ap[1] } : p.innerAnchor === 'centroid' || p.innerAnchor === 'apex' ? pathCentroid(geo.d, bb) : { x: bb.x + bb.width / 2, y: bb.y + bb.height / 2 };
+  const ctr = ap ? { x: ap[0], y: ap[1] } : p.innerAnchor === 'incentre' ? inscribedCircle(geo) : p.innerAnchor === 'centroid' || p.innerAnchor === 'apex' ? pathCentroid(geo.d, bb) : { x: bb.x + bb.width / 2, y: bb.y + bb.height / 2 };
   const cx = ctr.x, cy = ctr.y;
   let d = geo.d;
   for (let k = 1; k <= n; k++) d += ' ' + Organica.shapes.scalePathAbout(geo.d, Math.pow(ratio, k), cx, cy);
   return { ...geo, d, fillRule: 'evenodd' };
 }
-// ── Hollow (Oct 4, 2026): ONE constant-thickness wall for every shape ──
+// ── Cut out (Oct 4, 2026 — named "Hollow" while prototyped): ONE constant-thickness rim for every shape ──
+// The panel's Cut out c (0–95) is the Seed param `cutOut`; the rim it leaves is (100 − c) % of the inradius,
+// so the slider runs solid → thinner and thinner rim with no jump (Diego chose the word and the direction).
 // Replaces the six shape-own "Outline (hollow)" sliders (Triangle, Polygon, Star, Rounded rect, Lens,
 // Blob), which scaled the shape toward its centre — an even wall only on a triangle or a regular polygon
 // (measured up to ×1.53 at a lens tip, ×0.73 in a star's valleys). Here: the part of the shape within
-// t of its own outline, t = `hollow` % of the shape's inradius (the unit the old sliders used). Built
+// t of its own outline, t = a % of the shape's inradius (the unit the old sliders used). Built
 // with Paper.js on the visible silhouette (a self-crossing pentagram gets no wall along its inner
 // lines): a quad per flattened edge + a disc per vertex, united pairwise (one compound read as nonzero
 // flipped the ring on convex shapes with long edges), then shape ∩ band. Flattening error ≤ 3% of t.
@@ -2562,7 +2567,7 @@ const paperLeaves = item => item.children && item.children.length ? item.childre
 // Largest inscribed circle (the unit of Hollow's %): a 48×48 grid, then two finer passes around the best
 // point. Distances and inside-tests run in plain JS on the silhouette flattened to ≤0.05 — Paper's own
 // getNearestPoint on curves cost ~0.35 ms a call (≈500 ms for a lobed Circle); this is a few ms.
-function inradiusOf(shape, scope) {
+function inradiusOf(shape, scope) {   // → { r, x, y }: the largest inscribed circle
   const polys = paperLeaves(shape).map(l => { const c = l.clone({ insert: false }); try { c.flatten(0.05); } catch (e) { /* straight */ } const pts = c.segments.map(sg => [sg.point.x, sg.point.y]); c.remove(); return pts; }).filter(p => p.length > 2);
   const inside = (x, y) => {   // nonzero winding — Paper's boolean output is wound so holes cancel
     let w = 0;
@@ -2601,7 +2606,22 @@ function inradiusOf(shape, scope) {
       if (d > best) { best = d; bx = x; by = y; }
     }
   }
-  return best;
+  return { r: best, x: bx, y: by };
+}
+// The largest inscribed circle of a geometry's visible silhouette (its own d-space), memoised by d.
+function inscribedCircle(geo) {
+  const rKey = geo.d + '|' + (geo.fillRule || '');
+  let c = _inradiusCache.get(rKey);
+  if (c) return c;
+  const scope = splitPaperScope();
+  const raw = importAsPaperShape(scope, geo.d, geo.fillRule);
+  const shape = raw.unite(raw.clone({ insert: false }), { insert: false });
+  raw.remove();
+  c = inradiusOf(shape, scope);
+  shape.remove();
+  if (_inradiusCache.size > 200) _inradiusCache.clear();
+  _inradiusCache.set(rKey, c);
+  return c;
 }
 function hollowGeometry(geo, pct) {
   if (!geo || !geo.d || !(pct > 0)) return geo;
@@ -2613,14 +2633,8 @@ function hollowGeometry(geo, pct) {
     const raw = importAsPaperShape(scope, geo.d, geo.fillRule);
     const shape = raw.unite(raw.clone({ insert: false }), { insert: false });
     raw.remove();
-    const rKey = geo.d + '|' + (geo.fillRule || '');
-    let r = _inradiusCache.get(rKey);
-    if (r == null) {
-      r = inradiusOf(shape, scope);
-      if (_inradiusCache.size > 200) _inradiusCache.clear();
-      _inradiusCache.set(rKey, r);
-    }
-    const t = Math.min(95, pct) / 100 * r, tol = Math.min(0.3, Math.max(0.03, t * 0.03));
+    const r = inscribedCircle(geo).r;
+    const t = Math.min(99, pct) / 100 * r, tol = Math.min(0.3, Math.max(0.03, t * 0.03));
     const pieces = [];
     for (const leaf of paperLeaves(shape)) {
       const c = leaf.clone({ insert: false });
@@ -2673,24 +2687,54 @@ function hollowGeometry(geo, pct) {
   _hollowCache.set(key, res);
   return { ...geo, ...res };
 }
-// Inner seed on a hollowed shape (Diego's choice C): the copies ARE the hollowed shape, scaled toward the
-// same anchor as on the solid one, and UNITED (evenodd would turn every overlap of a thick wall white).
-function withInnerHollowCopies(h, base, p, apex) {
+// Inner seed on a cut-out shape (Diego's choice C, then "A+B", Oct 4, 2026): the copies ARE the cut-out
+// shape, UNITED (evenodd would turn every overlap of a thick rim white), and
+//  A — Ratio is measured inside the previous copy's hole: each copy is Ratio × (the hole's share, Cut out %)
+//      of the one before, so a copy always sits inside the hole and the rings never merge (before: only
+//      6 of 24 Ratio × Cut out pairs gave separate rings, the rest only shrank the hole or left fragments);
+//  B — the copies shrink toward the centre of the largest inscribed circle, so the gaps stay even on a
+//      triangle, a drop, a star… (the bbox / centroid of those shapes is not equidistant from the outline).
+//      Apex (Arc / Wedge) still pivots on the shape's own tip.
+function withInnerHollowCopies(h, base, p, apex, cut) {
   const n = Math.round((p && p.innerCount) || 0);
   if (!(n > 0) || !h || !h.d || !base || !base.d) return h;
   const ratio = Math.min(0.95, Math.max(0.1, (p.innerRatio == null ? 70 : p.innerRatio) / 100));
-  const bb = pathBBox(base.d);
-  if (!bb) return h;
   const ap = p.innerAnchor === 'apex' && apex ? apex(p) : null;
-  const ctr = ap ? { x: ap[0], y: ap[1] } : p.innerAnchor === 'centroid' || p.innerAnchor === 'apex' ? pathCentroid(base.d, bb) : { x: bb.x + bb.width / 2, y: bb.y + bb.height / 2 };
+  const ic = ap ? null : inscribedCircle(base);
+  const ctr = ap ? { x: ap[0], y: ap[1] } : { x: ic.x, y: ic.y };
   const key = 'inner|' + h.d + '|' + n + '|' + ratio + '|' + ctr.x + ',' + ctr.y;
   if (_hollowCache.has(key)) return { ...h, ..._hollowCache.get(key) };
   let d = h.d;
   try {
     const scope = splitPaperScope();
     let u = new scope.CompoundPath(h.d);
+    // The largest scale at which the whole outline, shrunk toward the centre, still lies inside the hole —
+    // found by bisection on the flattened outline and hole (plain JS). Measured, not assumed from Cut out:
+    // a star's tips, a long rectangle's short side or a cross's arms make the hole fit very differently.
+    const flat = l => { const c = l.clone({ insert: false }); try { c.flatten(0.25); } catch (e) { /* straight */ } const pts = c.segments.map(sg => [sg.point.x, sg.point.y]); c.remove(); return pts; };
+    const all = paperLeaves(u), outer = all.reduce((a, b) => Math.abs(b.area) > Math.abs(a.area) ? b : a);
+    const holePolys = all.filter(l => l.clockwise !== outer.clockwise).map(flat).filter(q => q.length > 2);
+    const outerPts = flat(outer);
+    const inHole = (x, y) => holePolys.some(P => {
+      let w = 0;
+      for (let i = 0, m = P.length; i < m; i++) {
+        const a = P[i], b = P[(i + 1) % m];
+        if (a[1] <= y) { if (b[1] > y && (b[0] - a[0]) * (y - a[1]) - (x - a[0]) * (b[1] - a[1]) > 0) w++; }
+        else if (b[1] <= y && (b[0] - a[0]) * (y - a[1]) - (x - a[0]) * (b[1] - a[1]) < 0) w--;
+      }
+      return w !== 0;
+    });
+    const fits = sc => outerPts.every(q => inHole(ctr.x + (q[0] - ctr.x) * sc, ctr.y + (q[1] - ctr.y) * sc));
+    let fit = 0;
+    if (holePolys.length && inHole(ctr.x, ctr.y)) {
+      let lo = 0, hi = 1;
+      for (let it = 0; it < 14; it++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
+      fit = lo;
+    }
+    if (!(fit > 0)) fit = Math.min(95, Math.max(1, cut)) / 100;   // no hole around the centre (thick rim, off-centre apex) — the plain estimate
+    const step = ratio * Math.min(1, fit);
     for (let k = 1; k <= n; k++) {
-      const cp = new scope.CompoundPath(Organica.shapes.scalePathAbout(h.d, Math.pow(ratio, k), ctr.x, ctr.y));
+      const cp = new scope.CompoundPath(Organica.shapes.scalePathAbout(h.d, Math.pow(step, k), ctr.x, ctr.y));
       const next = u.unite(cp, { insert: false }); u.remove(); cp.remove(); u = next;
     }
     d = u.pathData; u.remove();
@@ -2705,9 +2749,9 @@ for (const k of Object.keys(SEED_TYPES)) {
   const g0 = SEED_TYPES[k].geometry, inner = !INNER_UNSUPPORTED.has(k);
   SEED_TYPES[k].geometry = p => {
     const base = g0(p);
-    if (!(p && p.hollow > 0)) return inner ? withInnerCopies(base, p, INNER_APEX[k]) : base;   // Hollow 0 → byte-identical to before
-    const h = hollowGeometry(base, p.hollow);
-    return inner ? withInnerHollowCopies(h, base, p, INNER_APEX[k]) : h;
+    if (!(p && p.cutOut > 0)) return inner ? withInnerCopies(base, p, INNER_APEX[k]) : base;   // Cut out 0 → byte-identical to before
+    const h = hollowGeometry(base, 100 - Math.min(95, p.cutOut));   // Cut out c → a rim of (100 − c) % of the inradius: 0 solid, more = thinner rim, no jump
+    return inner ? withInnerHollowCopies(h, base, p, INNER_APEX[k], p.cutOut) : h;
   };
 }
 
@@ -2915,7 +2959,7 @@ const SYMBOL_ROUNDEDRECT = { rrWidth: 100, rrHeight: 100, rrCorner: 0 };
 const SYMBOL_CHEVRON = { chevNotch: 40, chevArm: 55 };
 const SYMBOL_CROSS = { crossArmWidth: 35, crossArmLength: 100 };
 const SYMBOL_LENS = { lensWidth: 50 };
-const SYMBOL_INNER = { innerCount: 0, innerRatio: 70, innerAnchor: 'bbox', hollow: 0 };   // Symbols stay plain shapes
+const SYMBOL_INNER = { innerCount: 0, innerRatio: 70, innerAnchor: 'bbox', cutOut: 0 };   // Symbols stay plain shapes
 const SYMBOL_TRIANGLE = { triApex: 0, triCorner: 0, triCurve: 0, triIrregular: 0, triSeed: 1, triOutline: 0 };   // Symbols stay a plain triangle
 // Symbols cells carry no per-seed params of their own (same as they already
 // ignore Base/Height/Thickness) — one merged params object covers every
@@ -3030,8 +3074,29 @@ function syncLegacyNote() {
   const kept = RETIRED_SEED.some(([k, def]) => RETIRED_PREFIX[k.match(/^[a-z]+/)[0]] === type && sd[k] != null && sd[k] !== def);
   ctrl('seed-legacy-note').style.display = kept ? '' : 'none';
 }
+// Copies (ex Inner seed) follow Appearance → Cut out (Diego's option B, Oct 4, 2026). Cut out 0: the legacy
+// alternating bands, Ratio = each copy's size. Cut out > 0: copies of the rim, each fitted inside the previous
+// one's hole — Ratio then reads "Spacing" (how much of that hole the next copy fills) and Anchor offers only
+// Inner centre / Apex (the geometry ignores Bbox / Centroid there, withInnerHollowCopies). Ratio + Anchor hide
+// at Count 0. Labels and options only: the stored keys stay innerCount / innerRatio / innerAnchor.
+function syncCopiesRows() {
+  const on = val('rg-inner-count') > 0, cut = val('rg-element-cutout') > 0;
+  const hasApex = !!INNER_APEX[ctrl('sel-seed-type').value];
+  ctrl('rg-inner-ratio').closest('.ctrl-row').style.display = on ? '' : 'none';
+  ctrl('sel-inner-anchor').closest('.ctrl-row').style.display = on && (!cut || hasApex) ? '' : 'none';   // with Cut out, no apex → Inner centre is the only choice
+  const lr = ctrl('lbl-inner-ratio'), lc = ctrl('lbl-inner-count');
+  lr.textContent = cut ? 'Spacing' : 'Ratio';
+  lr.title = cut ? 'How much of the previous copy\'s hole the next copy fills — high packs the rings close together, low spaces them out. Rings never merge.'
+    : 'Each copy\'s size as a % of the previous one (70 → 70%, 49%, 34%…).';
+  lc.title = cut ? 'Copies of the cut-out shape nested inside its hole, one inside the next. 0 turns it off.'
+    : 'Nested copies of the shape drawn inside itself, alternating ring and gap. 0 turns it off.';
+  const sel = ctrl('sel-inner-anchor');
+  ['bbox', 'centroid'].forEach(v => { const o = sel.querySelector('option[value="' + v + '"]'); o.hidden = o.disabled = cut; });   // Safari ignores `hidden` on an <option> — disabled too
+  if (cut && (sel.value === 'bbox' || sel.value === 'centroid')) sel.value = 'incentre';   // same picture — Cut out already ignores them
+}
 function syncDependentRows() {
   syncCircleRows();
+  syncCopiesRows();
   syncLegacyNote();
   SEED_DEPENDS.forEach(([id, on]) => {
     const el = ctrl(id), row = el && el.closest('.ctrl-row');
@@ -3207,7 +3272,7 @@ function getPanelSeed() {
     innerCount: val('rg-inner-count'),
     innerRatio: val('rg-inner-ratio'),
     innerAnchor: ctrl('sel-inner-anchor').value,
-    hollow: val('rg-element-hollow'),
+    cutOut: val('rg-element-cutout'),
     thickness: val('rg-thickness'),
     arcCount: val('rg-arc-count'),
     arcRatio: val('rg-arc-ratio') / 100,
@@ -6165,7 +6230,7 @@ function syncSeedUI() {
     ctrl('inner-unsupported').style.display = off ? '' : 'none';
     const hasApex = !!INNER_APEX[type], sel = ctrl('sel-inner-anchor');
     sel.querySelector('option[value="apex"]').disabled = !hasApex;
-    if (!hasApex && sel.value === 'apex') { sel.value = 'centroid'; renderGallery(); renderSeedPreview(); } }
+    if (!hasApex && sel.value === 'apex') { sel.value = val('rg-element-cutout') > 0 ? 'incentre' : 'centroid'; renderGallery(); renderSeedPreview(); } }
   syncDependentRows();
   seedPicker.refresh();
   syncFreehandEditor();
@@ -6398,7 +6463,7 @@ function applyPanelSeedRaw(seed) {
   // and fall back to each control's own default (identical to the old shape).
   ctrl('sel-arc-pivot').value = seed.arcPivot || 'corner';
   ctrl('sel-inner-anchor').value = seed.innerAnchor || 'bbox';
-  [['innerCount', 'rg-inner-count', 'v-inner-count', 0], ['innerRatio', 'rg-inner-ratio', 'v-inner-ratio', 70], ['hollow', 'rg-element-hollow', 'v-element-hollow', 0],
+  [['innerCount', 'rg-inner-count', 'v-inner-count', 0], ['innerRatio', 'rg-inner-ratio', 'v-inner-ratio', 70], ['cutOut', 'rg-element-cutout', 'v-element-cutout', 0],
    ['triCorner', 'rg-tri-corner', 'v-tri-corner', 0], ['triCurve', 'rg-tri-curve', 'v-tri-curve', 0], ['triIrregular', 'rg-tri-irregular', 'v-tri-irregular', 0],
    ['triSeed', 'rg-tri-seed', 'v-tri-seed', 1], ['triOutline', 'rg-tri-outline', 'v-tri-outline', 0],
    ['truCore', 'rg-tru-core', 'v-tru-core', 0], ['truSpread', 'rg-tru-spread', 'v-tru-spread', 180], ['truReach', 'rg-tru-reach', 'v-tru-reach', 100], ['truRamp', 'rg-tru-ramp', 'v-tru-ramp', 0],
@@ -10096,6 +10161,7 @@ function syncExtrasTypes() { Object.values(SEED_EXTRAS).forEach(sh => { if (sh.t
 buildSeedExtras();
 // Any edit in the Seed panel may reveal / hide a dependent row (SEED_DEPENDS).
 ['input', 'change'].forEach(ev => ctrl('sel-seed-type').closest('.panel-section').addEventListener(ev, syncDependentRows));
+['input', 'change'].forEach(ev => ctrl('rg-inner-count').closest('.panel-section').addEventListener(ev, syncCopiesRows));
 
 // Polygon Type is a derived shortcut for Sides. Triangle and Square were dropped (Oct 4, 2026) — they are
 // Seeds of their own (Triangle, Rounded rect); a snapshot with 3 or 4 sides reads Custom.
@@ -10207,7 +10273,7 @@ CIRCLE_PARAMS.forEach(([k, id]) => {
 // the readout + gallery + preview and the slider fill (core.js delegate) follows.
 function resetSeedShape() {
   const type = ctrl('sel-seed-type').value;
-  ['rg-inner-count', 'rg-inner-ratio', 'rg-element-hollow'].forEach(id => {   // Inner seed + Hollow belong to the Seed, whatever its shape
+  ['rg-inner-count', 'rg-inner-ratio', 'rg-element-cutout'].forEach(id => {   // Copies + Cut out belong to the Seed, whatever its shape
     const el = ctrl(id);
     if (el.value !== el.defaultValue) { el.value = el.defaultValue; el.dispatchEvent(new Event('input', { bubbles: true })); }
   });
@@ -10271,7 +10337,7 @@ let roundedBeforeSegment = null;
 const NEW_LAYER_SCALE = 0.6;   // a new layer starts smaller so it shows on top of the one below (addLayer)
 function readShapeLook() {
   return { fillMode: ctrl('sel-element-fillmode').value, strokeW: val('rg-element-strokew'), rounded: ctrl('ck-element-rounded').checked, w: val('rg-element-w'), l: val('rg-element-l'),
-    scale: val('rg-element-scale'), mx: val('rg-element-mx'), my: val('rg-element-my'), rotate: val('rg-element-rotate'), ...readPatternControls() };
+    scale: val('rg-element-scale'), mx: val('rg-element-mx'), my: val('rg-element-my'), rotate: val('rg-element-rotate'), cutOut: val('rg-element-cutout'), ...readPatternControls() };
 }
 function applyShapeLook(look) {   // the Element's own look — not the Paper (ground), which belongs to the whole Element
   const a = { ...DEFAULT_APPEARANCE, ...PATTERN_DEFAULTS, ...(look || {}) };
@@ -10279,6 +10345,9 @@ function applyShapeLook(look) {   // the Element's own look — not the Paper (g
   ctrl('rg-element-strokew').value = a.strokeW; ctrl('v-element-strokew').textContent = a.strokeW;
   ctrl('ck-element-rounded').checked = a.rounded;
   ['w', 'l', 'scale', 'mx', 'my', 'rotate'].forEach(k => { ctrl('rg-element-' + k).value = a[k]; ctrl('v-element-' + k).textContent = a[k]; });
+  // Cut out is a Seed param, but it sits with Width / Length and is remembered per shape like them (Diego, Oct 4, 2026):
+  // a shape opened for the first time starts solid, going back restores its own.
+  { const h = look && look.cutOut != null ? look.cutOut : 0; ctrl('rg-element-cutout').value = h; ctrl('v-element-cutout').textContent = h; }
   showPatternControls(a);
   syncLookBlocks();
 }
@@ -10336,8 +10405,8 @@ ctrl('sel-ground-ink').addEventListener('change', onAppearanceChange);
 ctrl('rg-ground-patsize').addEventListener('input', e => { ctrl('v-ground-patsize').textContent = e.target.value; onAppearanceChange(); });
 ['patspacing', 'patweight', 'patangle'].forEach(k => ctrl('rg-ground-' + k).addEventListener('input', e => { ctrl('v-ground-' + k).textContent = e.target.value; syncGroundTileNote(); onAppearanceChange(); }));
 syncGroundInkOptions();
-// Hollow is a Seed parameter (getPanelSeed → every renderer, each layer its own), shown here beside Width / Length.
-ctrl('rg-element-hollow').addEventListener('input', e => { ctrl('v-element-hollow').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+// Cut out is a Seed parameter (getPanelSeed → every renderer, each layer its own), shown here beside Width / Length.
+ctrl('rg-element-cutout').addEventListener('input', e => { ctrl('v-element-cutout').textContent = e.target.value; syncCopiesRows(); renderGallery(); renderSeedPreview(); });
 ['strokew', 'w', 'l', 'scale', 'mx', 'my', 'rotate', 'patspacing', 'patweight', 'patangle'].forEach(k => {
   ctrl('rg-element-' + k).addEventListener('input', e => { ctrl('v-element-' + k).textContent = e.target.value; onAppearanceChange(); });
 });
