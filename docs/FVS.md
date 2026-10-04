@@ -576,7 +576,9 @@ on Sep 28, 2026 — the role now lives only on the row.
   **Colour by → Element's own colours** — the first option and the default — the cell draws
   in it: its first ink for the shape, every layer's ink for a stack (through `withEntryInks`,
   like a Component's own palette). Pick any other rule (By cell order, Checkerboard…) and every
-  cell, saved Elements included, follows that rule on the current palette. Cells without a
+  cell, saved Elements included, follows that rule on the current palette. Under the default the cell also
+  draws the Element's own **Paper** (colour + texture, `cell.ownPaper` / `cell.ownAppearance`) under it,
+  in the Element's frame — as its library thumbnail shows it, like a Component's paper. Cells without a
   saved Element, and every Component-step cell, are coloured by cell order under the default.
   Cell properties → Colour still overrides a single cell. A saved Component always keeps its
   own palette.
