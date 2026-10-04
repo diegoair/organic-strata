@@ -70,9 +70,13 @@ Grid step without saving it first.
   These labels are FVS's own (`FVS_EXTRAS_LABELS`; the order of rows built from the shared table:
   `FVS_SEED_ORDER`). The shared table keeps its labels for Genesis. Ids and saved keys are
   unchanged.
-  **Split** closes the Shape section (its own section until Oct 4, 2026). It is a real geometric
-  cut whose result is a new shape: the picker turns Custom, and **Save piece as Seed** keeps it.
-  With layers it cuts the whole stack into one shape, and a hint says so.
+  **Split** sits right under the shape picker (its own section until Oct 4, 2026):
+  - One row: Split · All / TL / TR / BL / BR, then *Show cut grid*.
+  - **Save piece as Seed** shows only while a piece is cut.
+  - It is a real geometric cut whose result is a new shape: the picker turns Custom.
+  - It sits under the picker on purpose. Cutting hides the shape's own rows, which are below it, so the chips never move under the pointer. At the end of the section they jumped up ~256 px on the first cut.
+  - With layers it cuts the whole stack into one shape, and a hint says so.
+  - The status line is for problems only. The pressed chips say what is kept.
 - **Segment** is a filled bar: *Length*, *Thickness* (% of the cell, default 8) and
   *Round ends* (off by default — square ends). It shows in Fill style like any other
   shape; picking it turns *Rounded caps* off (they only matter in Stroke, where the bar is

@@ -758,6 +758,22 @@
           <option value="wedge">Wedge</option>
         </select>
       </div>
+      <!-- Split (its own section until Oct 4, 2026): a real geometric cut whose result IS a new shape (the picker turns
+           Custom; "Save piece as Seed" keeps it). Right under the picker on purpose: cutting hides the shape's own rows,
+           which sit BELOW it, so the chips never move under the pointer. With layers it cuts the whole stack into one shape. -->
+      <div class="ctrl-row"><div class="ctrl-label" title="A real geometric cut: keep one or more quarters of the shape. The result is a new shape (Custom); All gives the original back.">Split</div>
+        <div class="seg-ctrl" id="seg-split-quadrant" role="group" aria-label="Keep one or more quadrants of the Element">
+          <button type="button" class="seg-btn active" data-q="whole" aria-pressed="true" title="Restore the whole shape">All</button>
+          <button type="button" class="seg-btn" data-q="tl" aria-pressed="false">TL</button>
+          <button type="button" class="seg-btn" data-q="tr" aria-pressed="false">TR</button>
+          <button type="button" class="seg-btn" data-q="bl" aria-pressed="false">BL</button>
+          <button type="button" class="seg-btn" data-q="br" aria-pressed="false">BR</button>
+        </div>
+      </div>
+      <label class="check-row"><input type="checkbox" id="chk-split-grid"><span>Show cut grid</span></label>
+      <p class="org-panel__hint" id="split-layers-hint" style="display:none">Split cuts all layers into one shape.</p>
+      <button class="mini-btn" id="btn-split-save" style="width:100%; display:none">Save piece as Seed…</button>
+      <p class="org-panel__hint" id="split-status"></p>
       <div id="seed-triangle-block">
         <div class="ctrl-row">
           <div class="ctrl-label" title="Shortcut that sets Base, Height and Apex X. Reads Custom as soon as you move any of them by hand.">Type</div>
@@ -1317,25 +1333,6 @@
       </div>
       <p class="org-panel__hint" id="seed-legacy-note" style="display:none">This shape keeps a size, rotation, outline or irregularity saved before these controls moved to Look &amp; place (Scale, Rotate, Cut out, Irregularity). Reset seed shape clears it.</p>
       <div id="seed-upload-error" class="org-panel__hint fvs-error" style="display:none"></div>
-      <!-- Split (its own section until Oct 4, 2026): a real geometric cut whose result IS a new shape — the picker turns
-           Custom and "Save piece as Seed" keeps it — so it closes the Shape section. With layers it cuts the whole stack into one shape. -->
-      <div class="sub-label" title="A real geometric cut: keep one or more quarters of the shape.">Split</div>
-      <p class="org-panel__hint" id="split-layers-hint" style="display:none">Cuts all layers into one shape.</p>
-      <div class="ctrl-row"><div class="ctrl-label">Keep</div>
-        <div class="seg-ctrl" id="seg-split-quadrant" role="group" aria-label="Keep one or more quadrants of the Element">
-          <button type="button" class="seg-btn active" data-q="whole" aria-pressed="true" title="Restore the whole shape">All</button>
-          <button type="button" class="seg-btn" data-q="tl" aria-pressed="false">TL</button>
-          <button type="button" class="seg-btn" data-q="tr" aria-pressed="false">TR</button>
-          <button type="button" class="seg-btn" data-q="bl" aria-pressed="false">BL</button>
-          <button type="button" class="seg-btn" data-q="br" aria-pressed="false">BR</button>
-        </div>
-      </div>
-      <div class="ctrl-row"><div class="ctrl-label">Cut grid</div>
-        <label class="check-row"><input type="checkbox" id="chk-split-grid"><span>Show cut grid</span></label>
-      </div>
-      <button class="mini-btn" id="btn-split-save" style="width:100%" disabled>Save piece as Seed…</button>
-      <p class="org-panel__hint" id="split-status"></p>
-      <p class="org-panel__hint" id="split-recipe-hint" style="display:none">Press All to edit the original shape's sliders again.</p>
     </div>
 
     <div class="panel-section">
@@ -6189,15 +6186,13 @@ function clearGallery() {
 // shape never restores stale data. state.splitKeep is the live multi-select
 // set (empty = whole shape); state.splitCache memoises splitElementGeometry's
 // Paper.js work per pre-split seed so toggling chips is cheap.
-const SPLIT_QNAMES = { tl: 'top-left', tr: 'top-right', bl: 'bottom-left', br: 'bottom-right' };
 function syncSplitUI() {
   ctrl('seg-split-quadrant').querySelectorAll('.seg-btn').forEach(b => {
     const q = b.dataset.q;
     const on = q === 'whole' ? state.splitKeep.size === 0 : state.splitKeep.has(q);
     b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
   });
-  ctrl('btn-split-save').disabled = state.splitKeep.size === 0;
-  ctrl('split-recipe-hint').style.display = state.splitKeep.size > 0 ? '' : 'none';
+  ctrl('btn-split-save').style.display = state.splitKeep.size === 0 ? 'none' : '';   // below the chips: appearing never moves them
 }
 // Whichever pre-split seed is live right now (freshly snapshotted the first
 // time a chip is toggled on, reused across further toggles while it's ours).
@@ -6215,7 +6210,7 @@ function splitElementReset() {
   state.splitCache = null; state.splitCombinedRaw = null; state.splitKeep.clear();
   renderGallery(); renderSeedPreview();
   syncSplitUI();
-  status.textContent = 'Whole shape.';
+  status.textContent = '';   // the All chip says it
 }
 function toggleSplitQuadrant(q) {
   if (state.splitKeep.has(q)) state.splitKeep.delete(q); else state.splitKeep.add(q);
@@ -6253,7 +6248,7 @@ function splitElementApply() {
   state.splitApplied = state.customSeed;
   renderGallery(); renderSeedPreview();
   syncSplitUI();
-  status.textContent = 'Kept ' + kept.map(p => SPLIT_QNAMES[p.id]).join(' + ') + '. All restores the original shape.';
+  status.textContent = '';   // the pressed chips say what is kept; the line is for problems only
 }
 function savePieceAsSeed() {
   const status = ctrl('split-status');
