@@ -51,13 +51,15 @@
   // already does, pulled out so FVS can apply just this piece (no rotation/
   // move) around its own 50-centred 0..100 box instead of Genesis's
   // 100-centred 0..200 one.
-  // `opts` = {scale=1, mx=0, my=0}: a uniform scale multiplied into w/l and a
-  // move (in the same 0..100 box units) applied after it. Omitted / all-default
-  // → the exact string the 3-arg call always produced.
+  // `opts` = {scale=1, mx=0, my=0, rotate=0}: a uniform scale multiplied into
+  // w/l, a rotation (degrees, about the centre, applied AFTER the stretch — a
+  // stretched shape turns as a whole, same order as an FVS layer's own place)
+  // and a move (in the same 0..100 box units) applied last. Omitted /
+  // all-default → the exact string the 3-arg call always produced.
   function stretchTransformAttr(w, l, center, opts) {
-    const o = opts || {}, s = o.scale == null ? 1 : o.scale, mx = o.mx || 0, my = o.my || 0;
-    if (s === 1 && !mx && !my) return `translate(${center},${center}) scale(${w},${l}) translate(${-center},${-center})`;
-    return `translate(${center + mx},${center + my}) scale(${w * s},${l * s}) translate(${-center},${-center})`;
+    const o = opts || {}, s = o.scale == null ? 1 : o.scale, mx = o.mx || 0, my = o.my || 0, r = o.rotate || 0;
+    if (s === 1 && !mx && !my && !r) return `translate(${center},${center}) scale(${w},${l}) translate(${-center},${-center})`;
+    return `translate(${center + mx},${center + my})${r ? ` rotate(${r})` : ''} scale(${w * s},${l * s}) translate(${-center},${-center})`;
   }
 
   Organica.shapeAppearance = { styleAttrs, applyCanvasStyle, stretchTransformAttr };

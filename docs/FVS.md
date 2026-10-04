@@ -74,11 +74,31 @@ Grid step without saving it first.
   Size / Rot** (the layer's own placement) right under it, followed by the layer's own
   **Style, Stroke W, Rounded caps, Width and Length** — with layers these controls sit in the
   layer's card, not in Appearance. Appearance then keeps only what acts on the **whole
-  Element** (Scale, Move, Fit), under a "Whole Element — all layers" label. With a single
+  Element** (Scale, Move, Rotate, Fit), under a "Whole Element — all layers" label. With a single
   shape everything is in Appearance, as before.
-- **Appearance** — Style **Fill / Stroke / Pattern**, Width / Length, **Scale, Move X/Y**
-  and **⤢ Fit to canvas** (one-shot). **Inner seed** adds nested copies
-  (Count, Ratio, Anchor).
+- **Appearance** — Style **Fill / Stroke / Pattern**, Width / Length, **Scale, Move X/Y,
+  Rotate** and **⤢ Fit to canvas** (one-shot). Rotate turns the Element about its centre,
+  after Width / Length (a stretched shape turns as a whole — the same order as a layer's
+  own Rot). **Inner seed** adds nested copies (Count, Ratio, Anchor).
+- **One control per job** (Oct 4, 2026 — `docs/audit-2026-10/FVS-ELEMENT-DUPLICATES.md`).
+  The shape sliders that did what Appearance already does are gone: Circle / Polygon / Star
+  **Radius** (= Scale), Wedge / Chevron **Squash** (= Length), the per-shape **Rotate** of
+  Wedge, Polygon, Star, Rounded rect, Chevron, Cross, Lens, Drop and Circle (= Rotate), and
+  Blob **Radius** (it never changed the shape — the blob is fitted to the cell). Arc *Start
+  angle* and Segment *Angle* stay (they are part of the shape: the arc's start relative to its
+  pivot, the bar's direction inside its tiles). Also gone: the Arc and Wedge **Ring** types
+  (a full ring is Circle → Interior Ring; Arc's never closed — Sweep stops at 350°), Polygon's
+  **Triangle / Square** types (Seeds of their own) and Cross's **X** (a Plus with Rotate 45).
+  A control that changes nothing until another one moves is hidden until then (one table,
+  `SEED_DEPENDS`: Seed without Irregularity, a gap with one segment, a corner style with no
+  corner…). Rounded rect's Type now sets Corner radius on every preset.
+  **Old snapshots**: their inputs still exist, hidden (`#seed-legacy`), so a saved Element
+  renders exactly as saved. When one is opened for editing, `foldLegacySeed` moves each value
+  into Appearance (single shape) or the layer's own Size / Rot / Length (stack) and resets the
+  seed key — only when sampling both pictures says they are the same; anything that would
+  change (a shape that refits after rotating, a Stroke whose width would scale with Scale, a
+  Squash under a rotation) keeps its old value. Saved Components and Symbols never go through
+  this: they draw from their stored seed, unchanged (regression 395/395).
 - **Pattern** (Style, Oct 3, 2026 — a test) — the shape filled with **Lines / Crosshatch /
   Dots / Concentric** in its ink, set by **Spacing** (between lines / dots / rings), **Weight**
   (line width or dot diameter) and **Angle** (hidden for Concentric). Real vector paths clipped

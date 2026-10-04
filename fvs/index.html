@@ -833,7 +833,6 @@
             <option value="quarter" selected>Quarter</option>
             <option value="half">Half</option>
             <option value="threequarter">Three-quarter</option>
-            <option value="ring">Ring</option>
             <option value="custom">Custom</option>
           </select>
         </div>
@@ -869,7 +868,7 @@
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Same seed, same wobble.">Seed</div>
-          <input type="range" id="rg-arc-seed" min="1" max="99" step="1" value="1">
+          <input type="range" id="rg-arc-seed" min="1" max="999" step="1" value="1">
           <span class="ctrl-val" id="v-arc-seed">1</span>
         </div>
       </div>
@@ -954,17 +953,11 @@
           <span class="ctrl-val" id="v-wedge-inner">0</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Scales the wedge vertically only — 100 is a plain circular sector, lower flattens it into an ellipse.">Squash</div>
-          <input type="range" id="rg-wedge-squash" min="30" max="100" step="1" value="100">
-          <span class="ctrl-val" id="v-wedge-squash">100</span>
-        </div>
-        <div class="ctrl-row">
           <div class="ctrl-label" title="Shortcut that sets Angle and Inner radius. Reads Custom as soon as you move either by hand.">Type</div>
           <select class="panel-select" id="sel-wedge-type" aria-label="Wedge type">
             <option value="quarter" selected>Quarter</option>
             <option value="half">Half</option>
             <option value="threequarter">Three-quarter</option>
-            <option value="ring">Ring</option>
             <option value="custom">Custom</option>
           </select>
         </div>
@@ -972,11 +965,6 @@
           <div class="ctrl-label" title="Rounds every corner, including the apex (needs Angle below 180 for the apex). No effect at 360°.">Corner rounding</div>
           <input type="range" id="rg-wedge-round" min="0" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-wedge-round">0</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Rotates the wedge about the cell centre, in degrees.">Rotate</div>
-          <input type="range" id="rg-wedge-rotate" min="-180" max="180" step="1" value="0">
-          <span class="ctrl-val" id="v-wedge-rotate">0</span>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Bows the two straight edges — positive outward, negative inward. No effect at 360°.">Edge curvature</div>
@@ -990,16 +978,14 @@
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Same seed, same wobble.">Seed</div>
-          <input type="range" id="rg-wedge-seed" min="1" max="99" step="1" value="1">
+          <input type="range" id="rg-wedge-seed" min="1" max="999" step="1" value="1">
           <span class="ctrl-val" id="v-wedge-seed">1</span>
         </div>
       </div>
       <div id="seed-polygon-block" style="display:none">
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Shortcut that sets Sides (and Rotate for Square). Reads Custom as soon as you move either by hand.">Type</div>
+          <div class="ctrl-label" title="Shortcut that sets Sides. Reads Custom as soon as you move it by hand. (Triangle and Square are Seeds of their own: Triangle, Rounded rect.)">Type</div>
           <select class="panel-select" id="sel-poly-type" aria-label="Polygon type">
-            <option value="triangle">Triangle</option>
-            <option value="square">Square</option>
             <option value="pentagon">Pentagon</option>
             <option value="hexagon" selected>Hexagon</option>
             <option value="octagon">Octagon</option>
@@ -1040,11 +1026,6 @@
           <span class="ctrl-val" id="v-poly-outline">0</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Rotates the polygon about the cell centre, in degrees.">Rotate</div>
-          <input type="range" id="rg-poly-rotate" min="-180" max="180" step="1" value="0">
-          <span class="ctrl-val" id="v-poly-rotate">0</span>
-        </div>
-        <div class="ctrl-row">
           <div class="ctrl-label" title="Jitters each vertex's own radius — 0 stays a perfectly regular polygon.">Irregularity</div>
           <input type="range" id="rg-poly-irregular" min="0" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-poly-irregular">0</span>
@@ -1058,11 +1039,6 @@
           <div class="ctrl-label" title="Same seed always reproduces the same irregular silhouette.">Seed</div>
           <input type="range" id="rg-poly-seed" min="1" max="999" step="1" value="1">
           <span class="ctrl-val" id="v-poly-seed">1</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Size of the polygon inside its cell — 100 touches the edges.">Radius</div>
-          <input type="range" id="rg-poly-radius" min="10" max="100" step="1" value="100">
-          <span class="ctrl-val" id="v-poly-radius">100</span>
         </div>
       </div>
       <div id="seed-star-block" style="display:none">
@@ -1085,11 +1061,6 @@
           <div class="ctrl-label" title="Same seed always reproduces the same irregular silhouette.">Seed</div>
           <input type="range" id="rg-star-seed" min="1" max="999" step="1" value="1">
           <span class="ctrl-val" id="v-star-seed">1</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Size of the star inside its cell — 100 touches the edges.">Radius</div>
-          <input type="range" id="rg-star-radius" min="10" max="100" step="1" value="100">
-          <span class="ctrl-val" id="v-star-radius">100</span>
         </div>
       </div>
       <div id="seed-roundedrect-block" style="display:none">
@@ -1120,11 +1091,6 @@
           <input type="range" id="rg-chev-arm" min="20" max="80" step="1" value="55">
           <span class="ctrl-val" id="v-chev-arm">55</span>
         </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Scales the chevron vertically only, centred — 100 is the full-height ribbon, lower flattens it.">Squash</div>
-          <input type="range" id="rg-chev-squash" min="30" max="100" step="1" value="100">
-          <span class="ctrl-val" id="v-chev-squash">100</span>
-        </div>
       </div>
       <div id="seed-cross-block" style="display:none">
         <div class="ctrl-row">
@@ -1151,20 +1117,10 @@
         </div>
       </div>
       <div id="seed-circle-block" style="display:none">
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="100 touches the cell's edges. Use Width/Length in Appearance for an ellipse.">Radius</div>
-          <input type="range" id="rg-circle-radius" min="5" max="100" step="1" value="100">
-          <span class="ctrl-val" id="v-circle-radius">100</span>
-        </div>
         <div class="ctrl-row" id="row-circle-round">
           <div class="ctrl-label" title="0 = a true circle, 100 = a near-square squircle.">Roundness</div>
           <input type="range" id="rg-circle-round" min="0" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-circle-round">0</span>
-        </div>
-        <div class="ctrl-row" id="row-circle-rotate">
-          <div class="ctrl-label" title="Turns a squircle or the lobes; Holes and Slices follow. No visible effect on a plain circle.">Rotate</div>
-          <input type="range" id="rg-circle-rotate" min="0" max="359" step="1" value="0">
-          <span class="ctrl-val" id="v-circle-rotate">0</span>
         </div>
         <div class="ctrl-row" id="row-circle-lobes">
           <div class="ctrl-label" title="0 = smooth. 2+ gives the outline that many soft waves (flower / soft gear).">Lobes</div>
@@ -1287,11 +1243,6 @@
       </div>
       <div id="seed-blob-block" style="display:none">
         <div class="ctrl-row">
-          <div class="ctrl-label">Radius</div>
-          <input type="range" id="rg-blob-radius" min="5" max="100" step="1" value="60">
-          <span class="ctrl-val" id="v-blob-radius">60</span>
-        </div>
-        <div class="ctrl-row">
           <div class="ctrl-label" title="How far the outline wobbles from a perfect circle.">Amount</div>
           <input type="range" id="rg-blob-amount" min="0" max="100" step="1" value="40">
           <span class="ctrl-val" id="v-blob-amount">40</span>
@@ -1311,6 +1262,58 @@
         </div>
         <p class="org-panel__hint">Click on the artboard to add points; drag a point or handle to reshape it. The stage shows the drawing as you make it; every later step (Component, Symbol, Grid) uses it fitted to the cell.</p>
       </div>
+      <!-- Legacy inputs: controls retired Oct 4, 2026 because Appearance does the same job (Radius = Scale,
+           Squash = Length, a shape's own Rotate = Appearance Rotate; Blob Radius never changed the shape).
+           Kept, never shown, so an older snapshot still round-trips through getPanelSeed(); foldLegacySeed()
+           moves their values into Appearance on load whenever the result is identical. -->
+      <div id="seed-legacy" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Scales the wedge vertically only — 100 is a plain circular sector, lower flattens it into an ellipse.">Squash</div>
+          <input type="range" id="rg-wedge-squash" min="30" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-wedge-squash">100</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Rotates the wedge about the cell centre, in degrees.">Rotate</div>
+          <input type="range" id="rg-wedge-rotate" min="-180" max="180" step="1" value="0">
+          <span class="ctrl-val" id="v-wedge-rotate">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Rotates the polygon about the cell centre, in degrees.">Rotate</div>
+          <input type="range" id="rg-poly-rotate" min="-180" max="180" step="1" value="0">
+          <span class="ctrl-val" id="v-poly-rotate">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Size of the polygon inside its cell — 100 touches the edges.">Radius</div>
+          <input type="range" id="rg-poly-radius" min="10" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-poly-radius">100</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Size of the star inside its cell — 100 touches the edges.">Radius</div>
+          <input type="range" id="rg-star-radius" min="10" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-star-radius">100</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Scales the chevron vertically only, centred — 100 is the full-height ribbon, lower flattens it.">Squash</div>
+          <input type="range" id="rg-chev-squash" min="30" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-chev-squash">100</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="100 touches the cell's edges. Use Width/Length in Appearance for an ellipse.">Radius</div>
+          <input type="range" id="rg-circle-radius" min="5" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-circle-radius">100</span>
+        </div>
+        <div class="ctrl-row" id="row-circle-rotate">
+          <div class="ctrl-label" title="Turns a squircle or the lobes; Holes and Slices follow. No visible effect on a plain circle.">Rotate</div>
+          <input type="range" id="rg-circle-rotate" min="0" max="359" step="1" value="0">
+          <span class="ctrl-val" id="v-circle-rotate">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Radius</div>
+          <input type="range" id="rg-blob-radius" min="5" max="100" step="1" value="60">
+          <span class="ctrl-val" id="v-blob-radius">60</span>
+        </div>
+      </div>
+      <p class="org-panel__hint" id="seed-legacy-note" style="display:none">This shape keeps a size or rotation saved before these controls moved to Appearance. Reset seed shape clears it.</p>
       <div id="seed-upload-error" class="org-panel__hint fvs-error" style="display:none"></div>
     </div>
 
@@ -1374,7 +1377,7 @@
           <span class="ctrl-val" id="v-element-patangle">45</span>
         </div>
       </div>
-      <div class="sub-label" id="element-wide-label" style="display:none" title="Scale, Move and Fit act on the whole Element. One layer's own style, stretch, size and position are in its card under Layers.">Whole Element — all layers</div>
+      <div class="sub-label" id="element-wide-label" style="display:none" title="Scale, Move, Rotate and Fit act on the whole Element. One layer's own style, stretch, size and position are in its card under Layers.">Whole Element — all layers</div>
       <div class="ctrl-row">
         <div class="ctrl-label" title="Uniform size of the shape itself, before it is placed in any cell.">Scale</div>
         <input type="range" id="rg-element-scale" min="0.1" max="5" step="0.01" value="1">
@@ -1389,6 +1392,11 @@
         <div class="ctrl-label" title="Shifts the shape inside its cell — 100 is a full cell height.">Move Y</div>
         <input type="range" id="rg-element-my" min="-100" max="100" step="1" value="0">
         <span class="ctrl-val" id="v-element-my">0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Turns the whole Element about its centre, in degrees (after Width / Length).">Rotate</div>
+        <input type="range" id="rg-element-rotate" min="-180" max="180" step="1" value="0">
+        <span class="ctrl-val" id="v-element-rotate">0</span>
       </div>
       <button class="mini-btn" id="btn-fit-seed" style="width:100%" title="Measures the shape once and sets Scale + Move so it fills the cell, centred.">Fit to canvas</button>
     </div>
@@ -2756,11 +2764,11 @@ const SYMBOL_TRIANGLE = { triApex: 0, triCorner: 0, triCurve: 0, triIrregular: 0
 const SEED_EXTRAS = {
   star: { prefix: "star", rows: Organica.shapes.EXTRAS.star, type: { label: "Star type", title: "Shortcut that sets Points, Inner radius, Edge curvature and Tip rounding. Reads Custom as soon as you move any of them by hand.",
     presets: { star: ["Star", {"rg-star-points": 5, "rg-star-inner": 45, "rg-star-curve": 0, "rg-star-tip": 0}], burst: ["Burst", {"rg-star-points": 12, "rg-star-inner": 70, "rg-star-curve": 0, "rg-star-tip": 0}], sparkle: ["Sparkle", {"rg-star-points": 4, "rg-star-inner": 20, "rg-star-curve": -50, "rg-star-tip": 0}], badge: ["Badge", {"rg-star-points": 12, "rg-star-inner": 88, "rg-star-curve": 0, "rg-star-tip": 40}] } } },
-  roundedrect: { prefix: "rr", rows: Organica.shapes.EXTRAS.roundedrect, type: { label: "Rounded rect type", title: "Shortcut that sets Width and Height (Pill also Corner radius). Reads Custom as soon as you move them by hand.",
-    presets: { square: ["Square", {"rg-rr-width": 100, "rg-rr-height": 100}], landscape: ["Landscape", {"rg-rr-width": 100, "rg-rr-height": 60}], portrait: ["Portrait", {"rg-rr-width": 60, "rg-rr-height": 100}], pill: ["Pill", {"rg-rr-width": 100, "rg-rr-height": 50, "rg-rr-corner": 100}] } } },
+  roundedrect: { prefix: "rr", rows: Organica.shapes.EXTRAS.roundedrect, type: { label: "Rounded rect type", title: "Shortcut that sets Width, Height and Corner radius. Reads Custom as soon as you move any of them by hand.",
+    presets: { square: ["Square", {"rg-rr-width": 100, "rg-rr-height": 100, "rg-rr-corner": 0}], landscape: ["Landscape", {"rg-rr-width": 100, "rg-rr-height": 60, "rg-rr-corner": 0}], portrait: ["Portrait", {"rg-rr-width": 60, "rg-rr-height": 100, "rg-rr-corner": 0}], pill: ["Pill", {"rg-rr-width": 100, "rg-rr-height": 50, "rg-rr-corner": 100}] } } },
   chevron: { prefix: "chev", rows: Organica.shapes.EXTRAS.chevron },
-  cross: { prefix: "cross", rows: Organica.shapes.EXTRAS.cross, type: { label: "Cross type", title: "Shortcut that sets Arms and Rotate. Reads Custom as soon as you move them by hand.",
-    presets: { plus: ["Plus", {"rg-cross-arms": 4, "rg-cross-rotate": 0}], x: ["X", {"rg-cross-arms": 4, "rg-cross-rotate": 45}], y: ["Y", {"rg-cross-arms": 3, "rg-cross-rotate": 0}], asterisk: ["Asterisk", {"rg-cross-arms": 6, "rg-cross-rotate": 0}] } } },
+  cross: { prefix: "cross", rows: Organica.shapes.EXTRAS.cross, type: { label: "Cross type", title: "Shortcut that sets Arms. Reads Custom as soon as you move it by hand. (An X is a Plus with Appearance → Rotate 45.)",
+    presets: { plus: ["Plus", {"rg-cross-arms": 4}], y: ["Y", {"rg-cross-arms": 3}], asterisk: ["Asterisk", {"rg-cross-arms": 6}] } } },
   lens: { prefix: "lens", rows: Organica.shapes.EXTRAS.lens },
   segment: { prefix: "seg", rows: Organica.shapes.EXTRAS.segment },
   drop: { prefix: "drop", rows: Organica.shapes.EXTRAS.drop },
@@ -2823,6 +2831,122 @@ function syncCircleRows() {
   show('cutpos', trim === 'cut'); show('cutangle', trim === 'cut');
   show('biteradius', trim === 'bite'); show('biteoffset', trim === 'bite'); show('biteangle', trim === 'bite');
   show('slices', trim === 'slices'); show('slicegap', trim === 'slices');
+}
+
+// Every other shape follows the same dead-control rule: a row that changes nothing until another
+// control moves stays hidden until then (Seed without Irregularity, a gap with one segment, a corner
+// style with no corner…). One table, read after every Seed-panel edit and every load.
+const SEED_DEPENDS = [
+  ['rg-tri-seed', () => val('rg-tri-irregular') > 0],
+  ['rg-arc-seed', () => val('rg-arc-irregular') > 0],
+  ['rg-arc-gap', () => val('rg-arc-segs') > 1],
+  ['rg-tru-gap', () => val('rg-tru-segs') > 1],
+  ['rg-wedge-seed', () => val('rg-wedge-irregular') > 0],
+  ['rg-poly-seed', () => val('rg-poly-irregular') > 0 || val('rg-poly-skew') > 0],
+  ['sel-poly-style', () => val('rg-poly-corner') > 0],
+  ['rg-star-seed', () => val('rg-star-irregular') > 0 || val('rg-star-skew') > 0],
+  ['sel-star-style', () => val('rg-star-tip') > 0 || val('rg-star-valley') > 0],
+  ['sel-rr-style', () => val('rg-rr-corner') > 0],
+  ['sel-rr-mask', () => val('rg-rr-corner') > 0],
+  ['sel-chev-style', () => val('rg-chev-round') > 0],
+  ['rg-chev-gap', () => val('rg-chev-stack') > 1],
+  ['sel-cross-style', () => val('rg-cross-corner') > 0],
+  ['rg-seg-cycles', () => val('rg-seg-wave') > 0],
+  ['rg-seg-gap', () => val('rg-seg-dashes') > 1],
+  ['rg-seg-spacing', () => val('rg-seg-lines') > 1],
+  // Space X/Y squeeze each tile's copy along that axis — nothing to squeeze on a flat (or upright) bar
+  ['rg-seg-spaceX', () => val('rg-seg-repeatX') > 1 && (Math.abs(val('rg-seg-angle')) !== 90 || segHasBody())],
+  ['rg-seg-spaceY', () => val('rg-seg-repeatY') > 1 && (val('rg-seg-angle') !== 0 || segHasBody())],
+];
+const segHasBody = () => val('rg-seg-bend') !== 0 || val('rg-seg-wave') > 0 || val('rg-seg-lines') > 1 || val('rg-seg-rays') > 1;
+// key prefix → Seed type, for the retired keys (RETIRED_SEED) — the note only speaks about the shape on screen
+const RETIRED_PREFIX = { circle: 'circle', poly: 'polygon', star: 'star', blob: 'blob', wedge: 'wedge', chev: 'chevron', rr: 'roundedrect', cross: 'cross', lens: 'lens', drop: 'drop' };
+function syncLegacyNote() {
+  const type = ctrl('sel-seed-type').value, sd = getPanelSeed();
+  const kept = RETIRED_SEED.some(([k, def]) => RETIRED_PREFIX[k.match(/^[a-z]+/)[0]] === type && sd[k] != null && sd[k] !== def);
+  ctrl('seed-legacy-note').style.display = kept ? '' : 'none';
+}
+function syncDependentRows() {
+  syncCircleRows();
+  syncLegacyNote();
+  SEED_DEPENDS.forEach(([id, on]) => {
+    const el = ctrl(id), row = el && el.closest('.ctrl-row');
+    if (row) row.style.display = on() ? '' : 'none';
+  });
+}
+
+// ── Retired controls (Oct 4, 2026) → Appearance, on load ──────────────
+// Radius (Circle / Polygon / Star) = Scale, Squash (Wedge / Chevron) = Length and a shape's own Rotate =
+// Appearance Rotate, so those rows are gone from the panel (their inputs live on, hidden, in #seed-legacy).
+// A snapshot saved with one of them is converted when it is loaded for editing: the value moves into the
+// placement (Appearance for a single shape, the layer's own place/look in a stack) and the seed key goes
+// back to its default — but ONLY when the two pictures are the same, checked by sampling both shapes on a
+// 64×64 grid. Anything that would change (a refit after rotating, a Stroke whose width would scale…) keeps
+// its legacy value, so it renders exactly as it was saved. Saved Components / Symbols never go through
+// here: they render from their stored seed, unchanged.
+const RETIRED_SEED = [
+  // [seed key, default, kind]
+  ['blobRadius', 60, 'dead'],   // the blob is always fitted to the cell, so its radius only ever moved a Stroke's relative width
+  ['circleRadius', 100, 'scale'], ['polyRadius', 100, 'scale'], ['starRadius', 100, 'scale'],
+  ['wedgeSquash', 100, 'length'], ['chevSquash', 100, 'length'],
+  ['wedgeRotate', 0, 'rotate'], ['polyRotate', 0, 'rotate'], ['circleRotate', 0, 'rotate'], ['starRotate', 0, 'rotate'],
+  ['rrRotate', 0, 'rotate'], ['chevRotate', 0, 'rotate'], ['crossRotate', 0, 'rotate'], ['lensRotate', 0, 'rotate'], ['dropRotate', 0, 'rotate'],
+];
+// Does `geoA` placed by `pa` cover the same points as `geoB` placed by `pb`? (pa/pb = appearance-shaped)
+function samePicture(geoA, pa, geoB, pb) {
+  if (!geoA || !geoB || !geoA.d || !geoB.d) return false;
+  const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('style', 'position:absolute;width:0;height:0;visibility:hidden');
+  const mk = g => { const el = document.createElementNS(NS, 'path'); el.setAttribute('d', g.d); if (g.fillRule) el.setAttribute('fill-rule', g.fillRule); svg.appendChild(el); return el; };
+  const full = (g, a) => appearanceMatrix({ ...DEFAULT_APPEARANCE, ...a }).translate(g.normTx * g.normScale, g.normTy * g.normScale).scale(g.normScale).inverse();
+  const A = mk(geoA), B = mk(geoB), ia = full(geoA, pa), ib = full(geoB, pb);
+  document.body.appendChild(svg);
+  let bad = 0;
+  try {
+    const N = 64, pt = svg.createSVGPoint();
+    for (let i = 0; i < N && bad <= 2; i++) for (let j = 0; j < N; j++) {
+      const x = -20 + (i + 0.5) * 140 / N, y = -20 + (j + 0.5) * 140 / N;
+      const qa = ia.transformPoint({ x, y }), qb = ib.transformPoint({ x, y });
+      pt.x = qa.x; pt.y = qa.y; const inA = A.isPointInFill(pt);
+      pt.x = qb.x; pt.y = qb.y; const inB = B.isPointInFill(pt);
+      if (inA !== inB) bad++;
+    }
+  } catch (e) { bad = Infinity; }
+  document.body.removeChild(svg);
+  return bad <= 2;   // a sample landing exactly on the outline may fall either way
+}
+// seed: one shape's params · place: {scale, rotate, w, l, fillMode} → the converted pair (new objects).
+function foldRetiredShape(seed, place) {
+  if (!seed || !SEED_TYPES[seed.type]) return { seed, place };
+  let sd = { ...seed }, pl = { ...place };
+  const geo = s => { try { return SEED_TYPES[s.type].geometry(s); } catch (e) { return null; } };
+  for (const [k, def, kind] of RETIRED_SEED) {
+    const v = sd[k];
+    if (v == null || v === def) continue;
+    if (kind === 'dead') { if (pl.fillMode !== 'stroke') sd[k] = def; continue; }   // fitted away by the shape itself — invisible, except as the outline's relative width
+    const next = { ...sd, [k]: def }, np = { ...pl };
+    if (kind === 'scale') { if (pl.fillMode === 'stroke') continue; np.scale = +((pl.scale == null ? 1 : pl.scale) * v / 100).toFixed(4); }
+    else if (kind === 'length') { if (pl.fillMode === 'stroke' || pl.rotate) continue; np.l = +((pl.l == null ? 1 : pl.l) * v / 100).toFixed(4); }
+    else { if (pl.rotate || (pl.w == null ? 1 : pl.w) !== (pl.l == null ? 1 : pl.l)) continue; let r = ((v % 360) + 540) % 360 - 180; np.rotate = r; }
+    if (samePicture(geo(sd), pl, geo(next), np)) { sd = next; pl = np; }
+  }
+  return { seed: sd, place: pl };
+}
+// A whole snapshot: single shape → Appearance, stack → each layer's place (scale/rotate) + look (Length).
+function foldLegacySeed(seed, app) {
+  if (!seed) return { seed, app };
+  if (seed.type === 'stack' && Array.isArray(seed.layers)) {
+    const layers = seed.layers.map(l => {
+      if (!l.look) return l;   // a layer from before per-layer looks rides the Element-wide stretch — leave it as saved
+      const pl0 = layerPlace(l), lk = { w: 1, l: 1, ...(l.look || {}) };
+      const { seed: s2, place } = foldRetiredShape(l.seed, { scale: pl0.scale, rotate: pl0.rotate, w: lk.w, l: lk.l, fillMode: lk.fillMode || (app && app.fillMode) });
+      return { ...l, seed: s2, place: { ...pl0, scale: place.scale, rotate: place.rotate }, look: { ...l.look, l: place.l } };
+    });
+    return { seed: { ...seed, layers }, app };
+  }
+  const a = { ...DEFAULT_APPEARANCE, ...(app || {}) };
+  const { seed: s2, place } = foldRetiredShape(seed, a);
+  return { seed: s2, app: app ? { ...app, scale: place.scale, rotate: place.rotate, l: place.l } : (place.scale !== 1 || place.rotate || place.l !== 1 ? { ...a, scale: place.scale, rotate: place.rotate, l: place.l } : app) };
 }
 
 // The Seed as a snapshot stores it: freehand also carries its editable
@@ -3847,8 +3971,14 @@ function resolveUnderlyingComponent(name) {
 // <clipPath> can hold as one of several direct children (their combined
 // areas union automatically, per spec).
 // Scale + Move ride on the same Element-level transform as Width/Length.
-const stretchOpts = a => ({ scale: a.scale, mx: a.mx, my: a.my });
-const appearanceIsIdentity = a => a.w === 1 && a.l === 1 && (a.scale == null || a.scale === 1) && !a.mx && !a.my;
+const stretchOpts = a => ({ scale: a.scale, mx: a.mx, my: a.my, rotate: a.rotate });
+const appearanceIsIdentity = a => a.w === 1 && a.l === 1 && (a.scale == null || a.scale === 1) && !a.mx && !a.my && !a.rotate;
+// The Element-level transform (Width/Length · Scale · Rotate · Move about the box centre) as a matrix —
+// the canvas twin of shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a)).
+function appearanceMatrix(a) {
+  const s = a.scale == null ? 1 : a.scale;
+  return new DOMMatrix().translate(50 + (a.mx || 0), 50 + (a.my || 0)).rotate(a.rotate || 0).scale(a.w * s, a.l * s).translate(-50, -50);
+}
 // Deliberately still `geo` here, not resolveItemGeo(it, geo) — a per-cell
 // content override (Component Edit mode) changes what a cell PAINTS, not
 // the Container/Mask boundary silhouette, which stays the shared Element's
@@ -3869,7 +3999,7 @@ function componentBoundaryClipContent(items, geo, half) {
 // Read live from the Element tier's own controls, same way getSeed() reads
 // the shape params — shared/shape-appearance.js owns the actual attribute /
 // transform strings so Genesis Create and this tool can't drift apart.
-const DEFAULT_APPEARANCE = { fillMode: 'fill', strokeW: 4, rounded: true, w: 1, l: 1, scale: 1, mx: 0, my: 0 };
+const DEFAULT_APPEARANCE = { fillMode: 'fill', strokeW: 4, rounded: true, w: 1, l: 1, scale: 1, mx: 0, my: 0, rotate: 0 };
 // Each shape remembers its own Appearance (single shape only): switching Square → Arc must not make Arc
 // inherit the Square's Style / Stroke / Width / Length / Scale / Move / Pattern. A shape opened for the first
 // time starts from defaults; going back restores what it had. `var`: loaders reach these before the handler is defined.
@@ -4275,7 +4405,7 @@ function applyAppearanceToUI(app) {
   ctrl('ck-element-rounded').checked = a.rounded;
   ctrl('rg-element-w').value = a.w; ctrl('v-element-w').textContent = a.w;
   ctrl('rg-element-l').value = a.l; ctrl('v-element-l').textContent = a.l;
-  ['scale', 'mx', 'my'].forEach(k => { ctrl('rg-element-' + k).value = a[k]; ctrl('v-element-' + k).textContent = a[k]; });
+  ['scale', 'mx', 'my', 'rotate'].forEach(k => { ctrl('rg-element-' + k).value = a[k]; ctrl('v-element-' + k).textContent = a[k]; });
   showPatternControls(a);
   showGroundControls(a.ground);
   syncLookBlocks();
@@ -4299,6 +4429,7 @@ function getElementAppearance() {
     scale: val('rg-element-scale'),
     mx: val('rg-element-mx'),
     my: val('rg-element-my'),
+    rotate: val('rg-element-rotate'),
     ...readPatternControls(),
     ground: readGroundControls(),
   };
@@ -4545,7 +4676,7 @@ function paintGeoCanvas(ctx, geo, path, color) {
     ctx.save();
     ctx.clip(path, (geo && geo.fillRule) || 'nonzero');
     let box = ctx.getTransform().multiply(new DOMMatrix().translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale).scale(geo.normScale).inverse());
-    if (!appearanceIsIdentity(a)) { const s = a.scale == null ? 1 : a.scale; box = box.multiply(new DOMMatrix().translate(50 + (a.mx || 0), 50 + (a.my || 0)).scale(a.w * s, a.l * s).translate(-50, -50).inverse()); }
+    if (!appearanceIsIdentity(a)) box = box.multiply(appearanceMatrix(a).inverse());
     ctx.setTransform(box);
     paintPatternCanvas(ctx, patternGeometry(a, placedExt(a.mx, a.my, a.scale, a.w, a.l)), color);
     ctx.restore();
@@ -4583,8 +4714,7 @@ function paintPath(ctx, op, path, geo) { if (op === 'fill') ctx.fill(path, (geo 
 function applyElementStretchCanvas(ctx) {
   const a = getElementAppearance();
   if (appearanceIsIdentity(a)) return;
-  const s = a.scale == null ? 1 : a.scale;
-  ctx.translate(50 + (a.mx || 0), 50 + (a.my || 0)); ctx.scale(a.w * s, a.l * s); ctx.translate(-50, -50);
+  ctx.transform(...(m => [m.a, m.b, m.c, m.d, m.e, m.f])(appearanceMatrix(a)));
 }
 
 // Mask's own content tolerates <g> wrapping fine (confirmed directly,
@@ -4661,7 +4791,7 @@ function drawComponentCanvas(ctx, items, seed, size) {
     const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
     const m = new DOMMatrix()
       .translate(half + it.cx, half + it.cy).rotate(it.rotation).scale(sx, sy).translate(-50, -50)
-      .translate(50 + (boundaryApp.mx || 0), 50 + (boundaryApp.my || 0)).scale(boundaryApp.w * (boundaryApp.scale == null ? 1 : boundaryApp.scale), boundaryApp.l * (boundaryApp.scale == null ? 1 : boundaryApp.scale)).translate(-50, -50)
+      .multiply(appearanceMatrix(boundaryApp))
       .translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale).scale(geo.normScale, geo.normScale);
     boundaryPath.addPath(path, m);
   }
@@ -5172,8 +5302,7 @@ function selectComponentEditCell(i) {
   state.componentEditSelectedCell = i;
   const cell = state.componentEditCells[i];
   if (cell.content) {
-    applySeedToPanel(cell.content.seedParams);
-    applyAppearanceToUI(cell.content.appearance || state.componentEditDefaultAppearance);
+    applyElementSnapshot(cell.content.seedParams, cell.content.appearance || state.componentEditDefaultAppearance);
   }
   const compBlock = document.querySelector('.tier-block[data-tier="component"]');
   const elBlock = document.querySelector('.tier-block[data-tier="element"]');
@@ -5868,7 +5997,7 @@ function syncSeedUI() {
     const hasApex = !!INNER_APEX[type], sel = ctrl('sel-inner-anchor');
     sel.querySelector('option[value="apex"]').disabled = !hasApex;
     if (!hasApex && sel.value === 'apex') { sel.value = 'centroid'; renderGallery(); renderSeedPreview(); } }
-  syncCircleRows();
+  syncDependentRows();
   seedPicker.refresh();
   syncFreehandEditor();
 }
@@ -6032,6 +6161,12 @@ function removeLibraryEntry(name) {
 // exact same restore logic without also touching grid/palette/role, which
 // applyLibraryEntryToUI does right after this. Pure refactor: byte-identical
 // behaviour, verified against the regression suite.
+// Seed + Appearance of a saved Element into the panel, retired controls converted first (foldLegacySeed).
+function applyElementSnapshot(seed, app) {
+  const f = foldLegacySeed(seed, app);
+  applySeedToPanel(f.seed);
+  applyAppearanceToUI(f.app);
+}
 function applySeedToPanel(seed) {
   if (seed && seed.type === 'stack' && Array.isArray(seed.layers) && seed.layers.length) {
     const items = seed.layers.map(l => JSON.parse(JSON.stringify(l)));
@@ -6120,7 +6255,7 @@ function applyPanelSeedRaw(seed) {
     const v = seed[cap(k)] != null ? seed[cap(k)] : def;
     ctrl('rg-circle-' + id).value = v; ctrl('v-circle-' + id).textContent = v;
   });
-  syncCircleRows();
+  syncDependentRows();
   if (seed.type === 'freehand') {
     state.freehand = { data: seed.freehandData || null, raw: seed.freehandRaw || '', seed: seed.customSeed || null };
     if (fhEditor) { if (state.freehand.data) fhEditor.load(state.freehand.data); else fhEditor.clear(); }
@@ -6422,8 +6557,7 @@ function snapshotComponentElementState() {
   };
 }
 function restoreComponentElementState(snap) {
-  applySeedToPanel(snap.seed);
-  applyAppearanceToUI(snap.appearance);
+  applyElementSnapshot(snap.seed, snap.appearance);
   state.loomGrid = snap.loomGrid;
   ctrl('rg-grid-cols').value = snap.gridCols; ctrl('v-grid-cols').textContent = snap.gridCols;
   ctrl('rg-grid-rows').value = snap.gridRows; ctrl('v-grid-rows').textContent = snap.gridRows;
@@ -6455,8 +6589,7 @@ function restoreComponentElementState(snap) {
 }
 
 function applyLibraryEntryToUI(entry) {
-  applySeedToPanel(entry.seed);
-  applyAppearanceToUI(entry.appearance);
+  applyElementSnapshot(entry.seed, entry.appearance);
 
   setComponentGrid(entry.grid, { silent: true });
   if (entry.grid.kind !== 'loom') {
@@ -9706,7 +9839,7 @@ ctrl('sel-tru-type').addEventListener('change', e => {
 ctrl('sel-tru-fans').addEventListener('change', () => { syncTruType(); renderGallery(); renderSeedPreview(); });
 Object.values(TRU_IDS).concat(['rg-tru-gap']).forEach(id => ctrl(id).addEventListener('input', syncTruType));
 // Arc Type is a derived shortcut for Sweep, same idea as Triangle Type.
-const ARC_PRESETS = { quarter: 90, half: 180, threequarter: 270, ring: 350 };
+const ARC_PRESETS = { quarter: 90, half: 180, threequarter: 270 };   // no 'ring' (Oct 4, 2026): Sweep stops at 350, so it was never closed — a full ring is Circle → Interior Ring
 function syncArcType() {
   const cur = val('rg-arc-sweep');
   ctrl('sel-arc-type').value = Object.keys(ARC_PRESETS).find(k => ARC_PRESETS[k] === cur) || 'custom';
@@ -9722,7 +9855,7 @@ ctrl('rg-thickness').addEventListener('input', e => { ctrl('v-thickness').textCo
 ctrl('rg-arc-count').addEventListener('input', e => { ctrl('v-arc-count').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-arc-ratio').addEventListener('input', e => { ctrl('v-arc-ratio').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 // Wedge Type is a derived shortcut for Angle + Inner radius (same idea as Arc Type).
-const WEDGE_PRESETS = { quarter: [90, 0], half: [180, 0], threequarter: [270, 0], ring: [360, 50] };
+const WEDGE_PRESETS = { quarter: [90, 0], half: [180, 0], threequarter: [270, 0] };   // 'ring' dropped Oct 4, 2026 — the same annulus as Circle → Interior Ring; Angle 360 still makes it
 function syncWedgeType() {
   const cur = [val('rg-wedge-angle'), val('rg-wedge-inner')];
   ctrl('sel-wedge-type').value = Object.keys(WEDGE_PRESETS).find(k => WEDGE_PRESETS[k].every((v, i) => v === cur[i])) || 'custom';
@@ -9739,6 +9872,9 @@ ctrl('sel-wedge-type').addEventListener('change', e => {
 ctrl('rg-wedge-angle').addEventListener('input', e => { ctrl('v-wedge-angle').textContent = e.target.value; syncWedgeType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-wedge-inner').addEventListener('input', e => { ctrl('v-wedge-inner').textContent = e.target.value; syncWedgeType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-wedge-squash').addEventListener('input', e => { ctrl('v-wedge-squash').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
+// A shape's own Rotate (shared/shapes.js EXTRAS, also read by Genesis) is retired in FVS — Appearance → Rotate
+// does it for every shape. The row is still built, into the hidden #seed-legacy, so old snapshots round-trip.
+const FVS_RETIRED_EXTRAS = new Set(['starRotate', 'rrRotate', 'chevRotate', 'crossRotate', 'lensRotate', 'dropRotate']);
 // Build the extras rows into each shape's block, then wire them (label readout,
 // derived Type shortcut, re-render). Called once at boot, before the first render.
 function buildSeedExtras() {
@@ -9755,7 +9891,7 @@ function buildSeedExtras() {
         const inp = document.createElement('input'); inp.type = 'range'; inp.id = xrId(sh, r); inp.min = r.min; inp.max = r.max; inp.step = 1; inp.setAttribute('value', r.def); inp.value = r.def; row.appendChild(inp);
         const out = document.createElement('span'); out.className = 'ctrl-val'; out.id = 'v-' + sh.prefix + '-' + r.id; out.textContent = r.def; row.appendChild(out);
       }
-      block.appendChild(row);
+      (FVS_RETIRED_EXTRAS.has(r.key) ? ctrl('seed-legacy') : block).appendChild(row);
     });
     if (sh.type) {
       const row = document.createElement('div'); row.className = 'ctrl-row';
@@ -9769,7 +9905,7 @@ function buildSeedExtras() {
         Object.entries(p[1]).forEach(([id, v]) => { ctrl(id).value = v; const vv = ctrl(id.replace(/^rg-/, 'v-')); if (vv) vv.textContent = v; });
         renderGallery(); renderSeedPreview();
       });
-      Object.keys(Object.values(sh.type.presets)[0][1]).forEach(id => ctrl(id).addEventListener('input', () => syncExtrasType(sh)));
+      [...new Set(Object.values(sh.type.presets).flatMap(p => Object.keys(p[1])))].forEach(id => ctrl(id).addEventListener('input', () => syncExtrasType(sh)));   // every key any preset sets, not just the first preset's
     }
     sh.rows.forEach(r => {
       const el = ctrl(xrId(sh, r));
@@ -9788,12 +9924,15 @@ function syncExtrasType(sh) {
 }
 function syncExtrasTypes() { Object.values(SEED_EXTRAS).forEach(sh => { if (sh.type) syncExtrasType(sh); }); }
 buildSeedExtras();
+// Any edit in the Seed panel may reveal / hide a dependent row (SEED_DEPENDS).
+['input', 'change'].forEach(ev => ctrl('sel-seed-type').closest('.panel-section').addEventListener(ev, syncDependentRows));
 
-// Polygon Type is a derived shortcut for Sides (+ Rotate for Square, so it stands upright);
+// Polygon Type is a derived shortcut for Sides. Triangle and Square were dropped (Oct 4, 2026) — they are
+// Seeds of their own (Triangle, Rounded rect); a snapshot with 3 or 4 sides reads Custom.
 // Step is capped by Sides (a star polygon {n/k} needs k < n/2).
-const POLY_PRESETS = { triangle: [3, 0], square: [4, 45], pentagon: [5, 0], hexagon: [6, 0], octagon: [8, 0] };
+const POLY_PRESETS = { pentagon: [5], hexagon: [6], octagon: [8] };
 function syncPolyType() {
-  const cur = [val('rg-poly-sides'), val('rg-poly-rotate')];
+  const cur = [val('rg-poly-sides')];
   ctrl('sel-poly-type').value = Object.keys(POLY_PRESETS).find(k => POLY_PRESETS[k].every((v, i) => v === cur[i])) || 'custom';
 }
 function syncPolyStepMax() {
@@ -9804,7 +9943,7 @@ function syncPolyStepMax() {
 ctrl('sel-poly-type').addEventListener('change', e => {
   const p = POLY_PRESETS[e.target.value];
   if (!p) return;
-  [['rg-poly-sides', 'v-poly-sides'], ['rg-poly-rotate', 'v-poly-rotate']].forEach(([id, vid], i) => { ctrl(id).value = p[i]; ctrl(vid).textContent = p[i]; });
+  [['rg-poly-sides', 'v-poly-sides']].forEach(([id, vid], i) => { ctrl(id).value = p[i]; ctrl(vid).textContent = p[i]; });
   syncPolyStepMax(); renderGallery(); renderSeedPreview();
 });
 ctrl('sel-poly-style').addEventListener('change', () => { renderGallery(); renderSeedPreview(); });
@@ -9906,7 +10045,8 @@ function resetSeedShape() {
   if (type === 'freehand') { if (fhEditor) fhEditor.clear(); return; }
   const block = document.getElementById('seed-' + type + '-block');
   if (!block) return;
-  block.querySelectorAll('input, select').forEach(el => {
+  // the shape's own block + the retired (hidden) inputs, so an old snapshot's leftover Rotate/Radius resets too
+  [...block.querySelectorAll('input, select'), ...ctrl('seed-legacy').querySelectorAll('input, select')].forEach(el => {
     if (el.type === 'checkbox') { if (el.checked !== el.defaultChecked) { el.checked = el.defaultChecked; el.dispatchEvent(new Event('change', { bubbles: true })); } return; }
     if (el.tagName === 'SELECT') {
       const i = Math.max(0, Array.from(el.options).findIndex(o => o.defaultSelected));
@@ -9915,7 +10055,7 @@ function resetSeedShape() {
     }
     if (el.value !== el.defaultValue) { el.value = el.defaultValue; el.dispatchEvent(new Event('input', { bubbles: true })); }
   });
-  syncCircleRows(); renderGallery(); renderSeedPreview();
+  syncDependentRows(); renderGallery(); renderSeedPreview();
 }
 ctrl('btn-reset-seed').addEventListener('click', resetSeedShape);
 
@@ -9961,14 +10101,14 @@ let roundedBeforeSegment = null;
 const NEW_LAYER_SCALE = 0.6;   // a new layer starts smaller so it shows on top of the one below (addLayer)
 function readShapeLook() {
   return { fillMode: ctrl('sel-element-fillmode').value, strokeW: val('rg-element-strokew'), rounded: ctrl('ck-element-rounded').checked, w: val('rg-element-w'), l: val('rg-element-l'),
-    scale: val('rg-element-scale'), mx: val('rg-element-mx'), my: val('rg-element-my'), ...readPatternControls() };
+    scale: val('rg-element-scale'), mx: val('rg-element-mx'), my: val('rg-element-my'), rotate: val('rg-element-rotate'), ...readPatternControls() };
 }
 function applyShapeLook(look) {   // the Element's own look — not the Paper (ground), which belongs to the whole Element
   const a = { ...DEFAULT_APPEARANCE, ...PATTERN_DEFAULTS, ...(look || {}) };
   ctrl('sel-element-fillmode').value = a.fillMode;
   ctrl('rg-element-strokew').value = a.strokeW; ctrl('v-element-strokew').textContent = a.strokeW;
   ctrl('ck-element-rounded').checked = a.rounded;
-  ['w', 'l', 'scale', 'mx', 'my'].forEach(k => { ctrl('rg-element-' + k).value = a[k]; ctrl('v-element-' + k).textContent = a[k]; });
+  ['w', 'l', 'scale', 'mx', 'my', 'rotate'].forEach(k => { ctrl('rg-element-' + k).value = a[k]; ctrl('v-element-' + k).textContent = a[k]; });
   showPatternControls(a);
   syncLookBlocks();
 }
@@ -10026,7 +10166,7 @@ ctrl('sel-ground-ink').addEventListener('change', onAppearanceChange);
 ctrl('rg-ground-patsize').addEventListener('input', e => { ctrl('v-ground-patsize').textContent = e.target.value; onAppearanceChange(); });
 ['patspacing', 'patweight', 'patangle'].forEach(k => ctrl('rg-ground-' + k).addEventListener('input', e => { ctrl('v-ground-' + k).textContent = e.target.value; syncGroundTileNote(); onAppearanceChange(); }));
 syncGroundInkOptions();
-['strokew', 'w', 'l', 'scale', 'mx', 'my', 'patspacing', 'patweight', 'patangle'].forEach(k => {
+['strokew', 'w', 'l', 'scale', 'mx', 'my', 'rotate', 'patspacing', 'patweight', 'patangle'].forEach(k => {
   ctrl('rg-element-' + k).addEventListener('input', e => { ctrl('v-element-' + k).textContent = e.target.value; onAppearanceChange(); });
 });
 
