@@ -90,8 +90,8 @@ Grid step without saving it first.
   by up to 9 %); the Seed panel's note says so and Reset seed shape clears them. Such an old
   Element cut out again gets both (its own Outline first, then the even rim) — Reset seed shape
   first to keep only Cut out. Implementation: `hollowGeometry` (Paper.js, memoised; the inscribed
-  circle in plain JS, `inscribedCircle`); prototype and measurements in `fvs/_proto-hollow.html`,
-  `docs/audit-2026-10/FVS-ELEMENT-DUPLICATES.md` §5–7.
+  circle in plain JS, `inscribedCircle`); prototype measurements in
+  `docs/audit-2026-10/FVS-ELEMENT-DUPLICATES.md` §5–7 (the dev page was removed after it shipped by mistake).
 - **Copies** (was *Inner seed*, renamed Oct 4, 2026) — nested copies of the shape. Ratio and
   Anchor show only with Count > 0. Two behaviours, set by Cut out:
   - **Cut out 0** — the original alternating bands (byte-identical to before). Ratio = each copy's
@@ -134,8 +134,11 @@ Grid step without saving it first.
   layers, each layer picks its own Style, but the pattern's settings (Pattern / Spacing /
   Weight / Angle) are **one set for the whole Element**, always here in Appearance — never in
   the layer's card. They show whenever any layer uses Pattern (Style or role).
-- **Reset seed shape** (floatbar) puts the current shape's controls back to
-  their defaults without touching Appearance or Palette.
+- **Reset seed shape** (floatbar) brings the current shape back to how it opens the first time
+  (Diego, Oct 4, 2026): its own controls, Copies, and its Appearance — Style, Stroke, Width, Length,
+  Cut out, Scale, Move, Rotate, the pattern settings (the same defaults a shape switch starts from).
+  With layers it resets only the active layer's own look (Style, Stroke, Width, Length, Cut out), not
+  its place nor the whole-Element Scale / Move / Rotate. Palette and Paper are never touched.
 - The strip above the frame shows the Element at 0/90/180/270° and each flip. **Click a view**
   to show it on the big canvas (a viewing choice — the Element and later steps are unchanged;
   the Element export exports the view shown; Freehand drawing and Split's cut grid show 0°).

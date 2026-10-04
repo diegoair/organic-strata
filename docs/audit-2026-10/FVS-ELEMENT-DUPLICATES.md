@@ -106,7 +106,7 @@ Before any of this ships: a design-system CONSULT (the panel changes), FVS regre
 
 ## 5. Prototype — one Hollow for every shape (Oct 4, 2026)
 
-Dev page `fvs/_proto-hollow.html` (not linked; open it on the dev server). It loads `/fvs/` in a hidden frame and uses the real `SEED_TYPES` and FVS's Paper.js scope. FVS itself is unchanged.
+Dev page `fvs/_proto-hollow.html` — **removed Oct 4, 2026** (it reached prod with the feature by mistake; Diego: not needed). Recover it from git (`49ea6b2`) if ever useful. It loads `/fvs/` in a hidden frame and uses the real `SEED_TYPES` and FVS's Paper.js scope. FVS itself is unchanged.
 
 **Algorithm.**
 1. Take the shape's visible silhouette, resolved by uniting it with itself, so a self-crossing pentagram gets no wall along its inner lines.
