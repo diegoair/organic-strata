@@ -79,8 +79,19 @@ the tool's job (`getColors()[0]` for `ink`/`paper`, `getColors()` for `colors[]`
 
 **Load:** after `core.js`. Link `palette.css` only in generate-mode
 tools. **CSS custom props:** `--rmx-cell-w/h`, `--rmx-cell-radius`, `--rmx-cell-border`,
-`--rmx-palette-mb`, `--icon-btn-w/h` (TuneSutra sets the first four for its 30×26 rounded
-cell; Spore/Pollen set `--rmx-palette-mb: 0`).
+`--rmx-palette-mb`, `--icon-btn-w/h`. Set the `--rmx-cell-*` props **on the strip** (its id or
+`.rmx-palette`): the chips and the add / library buttons (`.rmx-add`) all read them — TuneSutra
+sets the first four on `#rmx-palette, #grad-stops` for its 30×26 rounded cell and has no local
+`.rmx-*` rule since Oct 4, 2026; Spore/Pollen set `--rmx-palette-mb: 0`.
+
+**Accessibility (Oct 4, 2026):** in attach mode the swatch button is the keyboard control — the
+native input gets `tabindex=-1` + `aria-hidden` when a swatch exists (one tab stop per colour), and
+the swatch / hex are named "‹Label› colour" / "‹Label› hex" from the row's `.color-name` unless
+the tool named them. Call `palette.swatch` **before** `Organica.autoLabelPanel` (true in every tool
+today): the other way round, autoLabel gives both the bare row label first. The library menu takes
+part in "one dropdown open at a time" (`organica:dropdown-open`) and has arrow / Home / End keys.
+A colour row inside an `Organica.popover` would close that popover when the library menu opens (the
+menu lives in `<body>`) — teach the popover about child menus the first time that is needed.
 
 ### A texture on a colour — `opts.pattern` (Oct 3, 2026)
 

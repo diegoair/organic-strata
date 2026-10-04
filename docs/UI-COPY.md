@@ -28,6 +28,7 @@ a raw hex does — it just shows up in a user's head instead of in the CSS.
 6. **The visible label is contained in the accessible name** (WCAG 2.5.3). A row labelled
    "Paper" is not announced as "Background colour". Prefer `Organica.autoLabelPanel` over
    hand-written names; when hand-written, use one pattern: "‹Label› colour", "‹Label› hex".
+   (`Organica.palette.swatch` applies this pattern to every colour row since Oct 4, 2026.)
 7. **Verbs for actions, nouns for settings.** A button says what happens ("Render",
    "Restart", "Export"); a row says what it sets ("Spacing", "Opacity").
 8. **Same action, same verb**: Reset = back to defaults · Restart = run again from the

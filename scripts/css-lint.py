@@ -81,9 +81,6 @@ ALLOW_SHADOW = {
         'org-layer-card': 'single-property delta (--radius-sm), not a redefinition',
     },
     'tunesutra/index.html': {
-        'rmx-color': 'sized purely through the documented --rmx-cell-* tuning vars',
-        'rmx-x': 'genuine visual variant — repositioned, translucent, borderless',
-        'rmx-add': 'genuine visual variant — 30x26 dashed add-chip',
         'seg-btn': ':disabled state only, not a redefinition',
     },
     'membrane/index.html': {'upload-btn': 'bottom-margin delta only'},

@@ -214,7 +214,7 @@
           <button class="color-swatch" id="sw-ink" aria-label="Point colour"></button>
           <input type="color" id="cp-ink" value="#1c1c1c">
         </div>
-        <input class="color-hex" id="hex-ink" value="#1c1c1c">
+        <input class="color-hex" maxlength="7" id="hex-ink" value="#1c1c1c">
       </div>
       <div class="color-row">
         <span class="color-name">Paper</span>
@@ -222,7 +222,7 @@
           <button class="color-swatch" id="sw-paper" aria-label="Paper colour"></button>
           <input type="color" id="cp-paper" value="#f4f1e8">
         </div>
-        <input class="color-hex" id="hex-paper" value="#f4f1e8">
+        <input class="color-hex" maxlength="7" id="hex-paper" value="#f4f1e8">
       </div>
       <div class="ctrl-row"><div class="ctrl-label">Alpha</div><input type="range" id="a-ink" min="10" max="100" step="1" value="100"><span class="ctrl-val" data-for="a-ink">100</span></div>
       <div class="ctrl-row" id="row-minink" hidden><div class="ctrl-label" title="Adapt only: stops a mark blending all the way to the Paper colour, so saturated bright areas keep visible marks.">Min ink</div><input type="range" id="sl-minink" min="0" max="80" step="1" value="0"><span class="ctrl-val" data-for="sl-minink">0</span></div>

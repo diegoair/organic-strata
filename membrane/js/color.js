@@ -5,9 +5,9 @@
    place to live instead of being re-derived per renderer.
    ───────────────────────────────────────────────────────────── */
 
+// shared/core.js owns the hex parse (normalised: a bad value reads as black, not NaN)
 export function hexToRgb(hex) {
-  const n = parseInt(hex.replace('#', ''), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  return Organica.hexToRGB255(hex);
 }
 
 // Standard HSB→RGB, 0-255 out. p5's own colorMode(HSB) was considered and

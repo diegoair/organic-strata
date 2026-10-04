@@ -231,3 +231,29 @@ go into `docs/UI-COPY.md`; the design-system agent applies them as content desig
 49, on `/design-system/_colour-audit.html` §9–§10, each with a recommended first option:
 D1–D12 component (CONSULT) · P1–P8 picker · T1–T13 TuneSutra link · N1–N16 names. Ledger:
 O-20 … O-23.
+
+## 9. Applied — the fixes that needed no decision (Oct 4, 2026)
+
+| Fix | Where |
+|---|---|
+| `.rmx-add` reads `--rmx-cell-border` / `--rmx-cell-radius` and does not shrink; the tuning variables are set on the strip so chips and the add / library buttons follow them | `shared/palette.css` |
+| TuneSutra: no local `.rmx-*` rule; `--rmx-cell-*` set on `#rmx-palette, #grad-stops`; its three `css-lint.py` allow entries removed. Measured after: 30×26, radius 2px, `--border-strong` (unchanged). Visible delta: the ✕ is the shared one (corner, square) | `tunesutra/index.html`, `scripts/css-lint.py` |
+| One tab stop per colour: the native input gets `tabindex=-1` + `aria-hidden` when a swatch button forwards to it (left reachable when there is no swatch) | `shared/palette.js` attach mode |
+| Names "‹Label› colour" (swatch) and "‹Label› hex" (field) from the row's `.color-name`, unless the tool named them (`docs/UI-COPY.md` rule 6); not on a hidden hex; a row already called "Color" is not "Color colour". Spore / Pollen read "BG colour" until D3 | `shared/palette.js` attach mode |
+| `type="button"` on `.rmx-x` / `.rmx-add`; the chip `<label>`'s duplicate name removed | `shared/palette.js` generate mode |
+| Library icon from `Organica.icons.get('grid')` (the literal kept only as a fallback) | `shared/palette.js` |
+| Library menu: joins `organica:dropdown-open` (closes when another dropdown opens and closes the others; a colour row inside a popover would close it — none today), arrow / Home / End keys, Tab closes | `shared/palette.js` |
+| Colornet, Murmur: the Paper row is announced "Paper colour" / "Paper hex" (section titles wait for D3 / D4) | `colornet/index.html`, `murmur/index.html` |
+| `maxlength="7"` on every hex field | Komorebi, Warping, Radial, Mote, Murmur, Colornet, Blob Boundary, Trellis, TuneSutra, `shared/_template.html` |
+| Unused `palette.css` link removed (`design-system/templates.json` regenerated) | `sinew/index.html` |
+| `toHex` → `Organica.rgbToHex` (identical clamp + round); `hexToRgb` → `Organica.hexToRGB255` | Warping, Komorebi, `membrane/js/color.js` |
+
+**Left on purpose**: Pollen's `toHex` (truncates rather than rounds — changing it changes
+output); the FVS Paper hex squeezed to 42px (how many accessories a row holds belongs to D1);
+the "Posterize" maths in Membrane / Camo Turing (changes output — a decision); the active
+chip's `aria-pressed` and the 24px hit area (D11 / D12, with the migration).
+
+**Reviewed** by the design-system agent (PASS WITH NOTES; its notes applied). **Verified**: FVS regression 395/395; `check.py`; `css-lint.py` clean; `ds-audit.py --diff`
+no raw values; browser — TuneSutra strip metrics, Colornet names / tab order / maxlength, the
+library menu's keys and its closing when Export opens, Warping's SVG export; no console error
+besides the dev server's favicon 404. Not verified: Safari / Firefox.

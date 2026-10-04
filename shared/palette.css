@@ -6,7 +6,9 @@
  * .color-* rules stay in panel.css.
  *
  * Consolidated from 5+ byte-parallel tool-local copies. Tune per tool with
- * the custom properties (e.g. TuneSutra: --rmx-cell-w/h + --rmx-cell-radius).
+ * the custom properties (e.g. TuneSutra: --rmx-cell-w/h + --rmx-cell-radius +
+ * --rmx-cell-border), set on the strip (.rmx-palette or its id): the chips AND
+ * the add / library buttons read them, so a tuned strip needs no local rule.
  * ───────────────────────────────────────────────────────────────────────────── */
 
 .rmx-palette {
@@ -61,7 +63,9 @@
 .rmx-add {
   width: var(--rmx-cell-w, 36px);
   height: var(--rmx-cell-h, 28px);
-  border: 1px dashed var(--border);
+  flex-shrink: 0;
+  border: 1px dashed var(--rmx-cell-border, var(--border));
+  border-radius: var(--rmx-cell-radius, 0);
   background: none;
   color: var(--mid);
   display: flex;

@@ -584,9 +584,15 @@
       <a href="#adding-tokens">Adding a token or class</a>
       <a href="#common-mistakes">Common mistakes</a>
       <a href="#ai-workflow">Working with AI</a>
-      <a href="#open-audits">Open audits</a>
       <a href="#test-gallery">Test gallery</a>
       <a href="#self-check">Self-check</a>
+    </div>
+    <div class="ds-nav__group">
+      <div class="ds-nav__title">Audits</div>
+      <a href="#open-audits">Open audits</a>
+      <a href="/design-system/_colour-audit.html">Colour &amp; naming audit</a>
+      <a href="/design-system/_control-audit.html">Button &amp; field audit</a>
+      <a href="/design-system/_dark-audit.html">Dark-mode audit</a>
     </div>
   </nav>
 
@@ -1340,7 +1346,7 @@ data-viscosity  data-momentum  data-tilt</pre>
 
     <section class="ds-entry" id="palette-chips">
       <h2>Palette — RMX chip strip</h2>
-      <p class="ds-desc">A variable-length list of colours — add, remove, recolour. The other half of the Palette component (the <code>.color-row</code> above is the single-swatch half). Built by <code>Organica.palette.swatch(&lt;element&gt;, { colors, min, max, onChange })</code>; the single swatch is the same call with a string prefix.</p>
+      <p class="ds-desc">A variable-length list of colours — add, remove, recolour. The other half of the Palette component (the <code>.color-row</code> above is the single-swatch half). Built by <code>Organica.palette.swatch(&lt;element&gt;, { colors, min, max, onChange })</code>; the single swatch is the same call with a string prefix. Tune a strip with <code>--rmx-cell-w/h/radius/border</code> set <em>on the strip</em> (its id or <code>.rmx-palette</code>): the chips and the add / library buttons all read them (TuneSutra, since Oct 4). In a single row the native input is out of the tab order (the swatch is the control) and the swatch / hex are named “‹Label› colour” / “‹Label› hex” — call <code>palette.swatch</code> before <code>Organica.autoLabelPanel</code>.</p>
       <div class="ds-usage"><strong>Defined in</strong><span>shared/palette.css</span><span>shared/palette.js</span><strong>Used in</strong><span>Camo Turing, Membrane, Vortex, Flexible Visual System, TuneSutra, Pollen, Spore</span><strong>Under review</strong><span><a href="/design-system/_colour-audit.html">Colour &amp; naming audit</a></span></div>
       <div class="ds-example" style="max-width:280px">
         <div class="rmx-palette">

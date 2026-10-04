@@ -147,13 +147,13 @@
     <p class="micro muted">FVS only today (<code>opts.pattern = {panel, on, onToggle, label, title}</code>, ledger Oct 3: <em>Paper = colour + texture</em>). The Pattern icon is appended to the row and moves the tool's own <code>panel</code> under it; the component only shows / hides it and reports on/off — the tool draws the pattern. Press the pattern icon. FVS also adds a “Transparent paper” icon on the same row by hand (a local <code>.is-on</code>, ledger §4).</p>
   </div>
   <div>
-    <h3>What is missing (measured)</h3>
+    <h3>What was missing (measured) → now</h3>
     <ul class="small">
-      <li>Tab: <strong>4 stops for one colour</strong> (well, invisible input, hex, library). Try Tab in the Ink row.</li>
-      <li>Accessible name: “Ink” / “Ink” / “Ink” on all three controls in 12 tools.</li>
-      <li>Active chip: a class only, no <code>aria-pressed</code>; <code>.rmx-x</code> / <code>.rmx-add</code> lack <code>type="button"</code>.</li>
-      <li>Well 18×18, chip ✕ 13×13 — under <code>--hit-min</code> (24).</li>
-      <li>Library icon pasted as an SVG string (<code>palette.js:354</code>) instead of <code>Organica.icons.get('grid')</code>.</li>
+      <li>Tab: <s>4 stops for one colour</s> → <strong>3</strong> (swatch, hex, library) since Oct 4. Try Tab in the Ink row.</li>
+      <li>Accessible name: <s>“Ink” ×3</s> → “Ink colour” / “Ink hex”.</li>
+      <li><code>.rmx-x</code> / <code>.rmx-add</code> → <code>type="button"</code>. Still open: the active chip is a class only, no <code>aria-pressed</code> (D12 / migration).</li>
+      <li>Still open: well 18×18, chip ✕ 13×13 — under <code>--hit-min</code> (24) (D11).</li>
+      <li>Library icon → <code>Organica.icons.get('grid')</code>; the menu now joins “one dropdown open at a time” and has arrow keys.</li>
     </ul>
   </div>
 </div>
@@ -203,14 +203,16 @@
     <tr><td class="muted">not a variant</td><td>Ink + Paper pair</td><td>Most tools</td><td>Two <code>single</code>s with fixed roles; a “pair” with swap = D10.</td></tr>
   </tbody>
 </table></div>
-<h3>Fixes that need no decision</h3>
+<h3>Fixes that need no decision — applied Oct 4, 2026</h3>
 <ul class="small">
-  <li><code>.rmx-add</code> reads <code>--rmx-cell-w/h/radius/border</code> → TuneSutra can drop its re-declared <code>.rmx-x</code> / <code>.rmx-add</code> (and its two <code>css-lint.py</code> exceptions).</li>
-  <li>Library icon from <code>Organica.icons.get('grid')</code>; <code>type="button"</code> on <code>.rmx-x</code> / <code>.rmx-add</code>; native input out of the Tab order.</li>
-  <li>Colornet and Murmur: the row says Paper, the accessible name says “Background colour” — align.</li>
-  <li><code>maxlength="7"</code> missing on the hex in 8 tools; Sinew links <code>palette.css</code> without using it; local <code>toHex</code> / <code>hexToRgb</code> in Pollen, Warping, Komorebi, Membrane.</li>
-  <li>A row with several accessories squeezes the hex: FVS Paper (Transparent + library + Pattern) leaves the hex <strong>42px</strong> wide and cuts the value (measured). The component should own the accessory slots and keep the hex readable (e.g. accessories overflow into the picker, or the hex keeps a minimum width).</li>
-  <li>Same label, different maths: “Posterize” in Membrane (own <code>rmxColorAt</code>) and Camo Turing (GLSL, floor) does not give the result of <code>palette.colorAt</code> (round) in Spore / Pollen / Mote.</li>
+  <li>✓ <code>.rmx-add</code> reads <code>--rmx-cell-border</code> / <code>--rmx-cell-radius</code> (and no longer shrinks). TuneSutra sets the tuning variables on its two strips (<code>#rmx-palette</code>, <code>#grad-stops</code>) and has <strong>no local <code>.rmx-*</code> rule</strong> any more; its three <code>css-lint.py</code> exceptions are gone. Measured after: add button and chips 30×26, radius 2px, <code>--border-strong</code>, as before. Visible delta: TuneSutra's ✕ is now the shared one (in the corner, square).</li>
+  <li>✓ One tab stop per colour in a row: the native input has <code>tabindex=-1</code> + <code>aria-hidden</code> when a swatch button forwards to it. Names that keep the label and tell the controls apart: “Ink colour” (swatch) and “Ink hex” (field), unless the tool named them itself. Known: Spore / Pollen now read “BG colour” — the label itself waits for D3; Halide's “Color” row reads “Color” / “Color hex” until D5. Try Tab in §2.</li>
+  <li>✓ Chip buttons: <code>type="button"</code> on <code>.rmx-x</code> / <code>.rmx-add</code>; the chip's duplicate name removed. Library icon from <code>Organica.icons.get('grid')</code>.</li>
+  <li>✓ Library menu: one dropdown open at a time (joins <code>organica:dropdown-open</code>; a colour row inside a popover would close that popover — none exists today, noted in <code>docs/SHARED-COMPONENTS.md</code>), arrow / Home / End keys, Tab closes.</li>
+  <li>✓ Colornet and Murmur: the Paper row is announced “Paper colour” / “Paper hex” (was “Background colour”). The section titles stay until D3 / D4.</li>
+  <li>✓ <code>maxlength="7"</code> on the hex in Komorebi, Warping, Radial, Mote, Murmur, Colornet, Blob Boundary, Trellis, TuneSutra and the tool starter <code>shared/_template.html</code>. Sinew no longer links the unused <code>palette.css</code>. Warping / Komorebi <code>toHex</code> → <code>Organica.rgbToHex</code> (identical maths); Membrane <code>hexToRgb</code> → <code>Organica.hexToRGB255</code>.</li>
+  <li class="muted">Left on purpose: Pollen's <code>toHex</code> (truncates instead of rounding — changing it changes output); the hex squeezed to 42px on FVS Paper by three accessories (how many accessories a row holds is part of D1); the different “Posterize” maths in Membrane / Camo Turing (changes output — needs a decision); the active chip's <code>aria-pressed</code> and the 24px hit area (D11 / D12, part of the migration).</li>
+  <li class="muted">Design-system REVIEW: PASS WITH NOTES, notes applied. Verified: FVS regression 395/395, <code>check.py</code>, <code>css-lint.py</code> clean, <code>ds-audit.py --diff</code> no raw values; in the browser TuneSutra strip metrics, Colornet names / tab order / maxlength, the library menu's keys and closing when Export opens, Warping's SVG export.</li>
 </ul>
 
 <!-- 7 -->

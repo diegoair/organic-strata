@@ -148,6 +148,23 @@
     hexEl.addEventListener('input', e => { if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) set(e.target.value); });
     if (randomBtn) randomBtn.addEventListener('click', () => set(Organica.randomHex()));
     if (sw) sw.addEventListener('click', () => cp.click());
+    // One tab stop per colour: the swatch button is the keyboard control (it
+    // forwards to the native picker), so the invisible native input leaves the
+    // tab order and the accessibility tree.
+    if (sw) {   // without a swatch button the native input is the only control — leave it reachable
+      cp.tabIndex = -1;
+      cp.setAttribute('aria-hidden', 'true');
+    }
+    // Names that keep the visible label and tell the two controls apart
+    // ("Ink colour", "Ink hex" — docs/UI-COPY.md rule 6). A name the tool
+    // wrote itself is kept.
+    const nameEl = hexEl.parentNode && hexEl.parentNode.querySelector('.color-name, .ctrl-label');
+    const rowName = nameEl ? nameEl.textContent.trim() : '';
+    if (rowName) {
+      const base = /colou?r$/i.test(rowName) ? rowName : rowName + ' colour';   // a row labelled "Color" is not "Color colour"
+      if (sw && !sw.getAttribute('aria-label') && !sw.getAttribute('aria-labelledby')) sw.setAttribute('aria-label', base);
+      if (hexEl.type !== 'hidden' && !hexEl.getAttribute('aria-label') && !hexEl.getAttribute('aria-labelledby')) hexEl.setAttribute('aria-label', rowName + ' hex');
+    }
 
     // "Pick from a palette" — one small button at the end of the colour row.
     if (opts.library !== false && hexEl.parentNode) {
@@ -208,7 +225,6 @@
         const chip = document.createElement('label');
         chip.className = 'rmx-color' + (i === activeIndex ? ' chip-active' : '');
         chip.style.background = col;
-        chip.setAttribute('aria-label', 'Palette colour ' + (i + 1));
         const input = document.createElement('input');
         input.type = 'color';
         input.value = col;
@@ -217,6 +233,7 @@
         chip.appendChild(input);
         if (colors.length > min) {
           const x = document.createElement('button');
+          x.type = 'button';
           x.className = 'rmx-x';
           x.innerHTML = Organica.icons ? Organica.icons.get('close', { size: 'xs' }) : '';
           x.setAttribute('aria-label', 'Remove colour ' + (i + 1));
@@ -227,6 +244,7 @@
       });
       if (colors.length < max) {
         const add = document.createElement('button');
+        add.type = 'button';
         add.className = 'rmx-add';
         add.innerHTML = Organica.icons ? Organica.icons.get('plus', { size: 'sm' }) : '';
         add.title = 'Add colour';
@@ -351,7 +369,9 @@
   // name and its colours; a colour is a button. With onPickAll, a palette that
   // fits (≤ max colours) can also be taken whole by clicking its name.
   let menu = null, menuFor = null, pulled = false;
-  const LIB_ICON = '<svg class="ico ico--sm" data-icon="grid" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg>';
+  // the library icon comes from the registry (shared/icons.js 'grid'); the
+  // literal is only the fallback for a page that loads palette.js without it.
+  const LIB_ICON_FALLBACK = '<svg class="ico ico--sm" data-icon="grid" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg>';
   function libraryButton(cls) {
     const b = document.createElement('button');
     b.type = 'button';
@@ -360,7 +380,7 @@
     b.setAttribute('aria-label', 'Pick from a palette');
     b.setAttribute('aria-haspopup', 'dialog');
     b.setAttribute('aria-expanded', 'false');
-    b.innerHTML = LIB_ICON;
+    b.innerHTML = Organica.icons ? Organica.icons.get('grid', { size: 'sm' }) : LIB_ICON_FALLBACK;
     return b;
   }
   function closeMenu(returnFocus) {
@@ -379,6 +399,18 @@
     document.body.appendChild(menu);
     document.addEventListener('click', e => { if (!menu.hidden && !menu.contains(e.target)) closeMenu(false); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(true); });
+    // one dropdown open at a time: another dropdown opening closes this menu
+    document.addEventListener('organica:dropdown-open', e => { if (e.detail !== menu) closeMenu(false); });
+    // arrow keys move through the menu's buttons (palette names and colours)
+    menu.addEventListener('keydown', e => {
+      const it = [...menu.querySelectorAll('button, a[href]')], i = it.indexOf(document.activeElement);
+      if (!it.length) return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); (it[i + 1] || it[0]).focus(); }
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); (it[i - 1] || it[it.length - 1]).focus(); }
+      else if (e.key === 'Home') { e.preventDefault(); it[0].focus(); }
+      else if (e.key === 'End') { e.preventDefault(); it[it.length - 1].focus(); }
+      else if (e.key === 'Tab') closeMenu(false);
+    });
   }
   function fillMenu(opts) {
     menu.innerHTML = '';
@@ -428,6 +460,11 @@
     ensureMenu();
     if (!menu.hidden && menuFor === trigger) { closeMenu(true); return; }
     closeMenu(false);
+    // One dropdown open at a time: tell the select-pickers and popovers to close.
+    // (A popover hosting this trigger would close too — the menu lives in <body>,
+    // so its clicks and focus are "outside" that popover anyway. Teach
+    // Organica.popover about child menus when a colour row first goes in one.)
+    document.dispatchEvent(new CustomEvent('organica:dropdown-open', { detail: menu }));
     fillMenu(opts);
     placeMenu(trigger);
     menu.hidden = false;

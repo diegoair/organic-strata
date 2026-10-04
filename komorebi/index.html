@@ -256,7 +256,7 @@
           <button class="color-swatch" id="sw-sun"></button>
           <input type="color" id="cp-sun" value="#ffe9b0">
         </span>
-        <input class="color-hex" id="hex-sun" value="#ffe9b0">
+        <input class="color-hex" maxlength="7" id="hex-sun" value="#ffe9b0">
       </div>
       <div class="color-row">
         <span class="color-name">Sky</span>
@@ -264,7 +264,7 @@
           <button class="color-swatch" id="sw-sky"></button>
           <input type="color" id="cp-sky" value="#cfe0c0">
         </span>
-        <input class="color-hex" id="hex-sky" value="#cfe0c0">
+        <input class="color-hex" maxlength="7" id="hex-sky" value="#cfe0c0">
       </div>
       <div class="color-row">
         <span class="color-name">Ground</span>
@@ -272,7 +272,7 @@
           <button class="color-swatch" id="sw-ground"></button>
           <input type="color" id="cp-ground" value="#b99a63">
         </span>
-        <input class="color-hex" id="hex-ground" value="#b99a63">
+        <input class="color-hex" maxlength="7" id="hex-ground" value="#b99a63">
       </div>
       <div class="color-row">
         <span class="color-name">Shadow</span>
@@ -280,7 +280,7 @@
           <button class="color-swatch" id="sw-shadow"></button>
           <input type="color" id="cp-shadow" value="#2b2718">
         </span>
-        <input class="color-hex" id="hex-shadow" value="#2b2718">
+        <input class="color-hex" maxlength="7" id="hex-shadow" value="#2b2718">
       </div>
     </div>
 
@@ -1168,10 +1168,7 @@ function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
 // ─────────────────────────────────────────────
 const contoursToPathD = Organica.contoursToPathD;
 
-function toHex(r, g, b) {
-  const c = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
-  return '#' + c(r) + c(g) + c(b);
-}
+const toHex = Organica.rgbToHex;   // shared/core.js — the same clamp + round
 
 function buildSVG() {
   const detailW = parseInt(ctrl('sel-svgdetail').value, 10);

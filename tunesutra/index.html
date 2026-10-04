@@ -77,25 +77,13 @@
   .field-mini__tag { font-size: var(--fs-micro); color: var(--mid); text-align: center; }
   .field-mini input { width: 100%; text-align: center; padding: 0 2px; }
 
-  /* RMX chip CSS is shared/palette.css. TuneSutra tunes the cell
-     (30×26, rounded, strong border) via the custom props; its rounded
-     flex-centred +/× buttons stay local. */
-  .rmx-color { --rmx-cell-w: 30px; --rmx-cell-h: 26px;
+  /* RMX chip CSS is shared/palette.css. TuneSutra tunes both strips
+     (palette + gradient stops: 30×26, rounded, strong border) through the
+     documented custom props, set on the strip so the add / library buttons
+     follow the chips. No local .rmx-* rule. */
+  #rmx-palette, #grad-stops { --rmx-cell-w: 30px; --rmx-cell-h: 26px;
     --rmx-cell-radius: var(--radius-sm);
     --rmx-cell-border: var(--border-strong, var(--border)); }
-  .rmx-x {
-    position: absolute; top: 1px; right: 1px; width: 13px; height: 13px;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--panel); color: var(--ink);
-    border: none; border-radius: 2px; cursor: pointer; padding: 0;
-  }
-  .rmx-add {
-    width: 30px; height: 26px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--mid); background: none;
-    border: 1px dashed var(--border-strong, var(--border)); border-radius: var(--radius-sm); cursor: pointer;
-  }
-  @media (hover: hover) { .rmx-add:hover { border-color: var(--ink); color: var(--ink); background: var(--track-bg); } }
 
   .role-name { font-size: var(--fs-small); color: var(--mid); margin-bottom: var(--space-2); }
   .seg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -195,7 +183,7 @@
         <span class="color-name">Hex</span>
         <div class="color-swatch-wrap"><input type="color" id="cp-active" value="#c93ed6"></div>
         <button class="color-swatch" id="sw-active" aria-label="Open colour picker" onclick="ctrl('cp-active').click()"></button>
-        <input class="color-hex" id="hex-active" value="#c93ed6" aria-label="Hex value">
+        <input class="color-hex" id="hex-active" value="#c93ed6" maxlength="7" aria-label="Hex value">
       </div>
 
       <div class="sub-label">RGB</div>

@@ -229,7 +229,7 @@
           <button class="color-swatch" id="sw-ink"></button>
           <input type="color" id="cp-ink" value="#241b14">
         </span>
-        <input class="color-hex" id="hex-ink" value="#241b14">
+        <input class="color-hex" maxlength="7" id="hex-ink" value="#241b14">
       </div>
       <div class="color-row">
         <span class="color-name">Paper</span>
@@ -237,7 +237,7 @@
           <button class="color-swatch" id="sw-paper"></button>
           <input type="color" id="cp-paper" value="#f5f2ec">
         </span>
-        <input class="color-hex" id="hex-paper" value="#f5f2ec">
+        <input class="color-hex" maxlength="7" id="hex-paper" value="#f5f2ec">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label">Seed</div>
@@ -531,10 +531,7 @@ function exportPNG() { exportRaster('image/png', 'png'); }
 function exportJPG() { exportRaster('image/jpeg', 'jpg', 0.95); }
 
 const contoursToPathD = Organica.contoursToPathD;
-function toHex(r, g, b) {
-  const c = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
-  return '#' + c(r) + c(g) + c(b);
-}
+const toHex = Organica.rgbToHex;   // shared/core.js — the same clamp + round
 const SVG_DETAIL = 600;
 function buildSVG() {
   const bands = Math.max(2, Math.round(val('rg-bands')) || 6);
