@@ -79,6 +79,7 @@ const shot = async name => {
 };
 // Real mouse: move, press, move in steps, (optionally hold), release.
 const mouse = (type, x, y, extra = {}) => cdp('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons: type === 'mouseReleased' || type === 'mouseMoved' && !extra.down ? 0 : 1, clickCount: type === 'mouseMoved' ? 0 : 1, ...extra });
+const clickAt = p => click(p.x, p.y);
 const hover = async (x, y) => { await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'none', buttons: 0 }); await sleep(60); };
 const click = async (x, y) => { await hover(x, y); await mouse('mousePressed', x, y); await mouse('mouseReleased', x, y); await sleep(80); };
 async function drag(from, to, { steps = 10, esc = false, release = true } = {}) {
@@ -328,6 +329,43 @@ if (want('J3')) {
       state.symbolCells[2].locked = false; return out;
     });
     expect(c, r.emptied, 'selected cells not emptied'); expect(c, r.lockedKept, 'locked cell was emptied'); expect(c, r.typingSafe, 'Backspace in a field emptied a cell');
+  });
+}
+
+if (want('J3')) {
+  await test('J3.10', 'BUG 1 · an emptied cell (Delete) can still be selected and dropped on', async c => {
+    const r = await ev(async () => {
+      state.symbolSelection = new Set([5, 6]); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true })); await __t.wait(250);
+      return { empty: [5, 6].every(i => state.symbolCells[i].source === 'empty'), hit: [5, 6].map(i => !!__t.cellEl(i)) };
+    });
+    expect(c, r.empty, 'Delete did not empty the cells'); expect(c, r.hit.every(Boolean), 'an empty cell has no [data-cell-index] hit shape (cannot be clicked or dropped on)');
+    await ev(async () => { await __t.openRail(); });
+    const g = await ev(() => { const t = __t.tile('component'), e = __t.cellEl(5); return t && e ? { from: __t.center(t), to: __t.center(e) } : null; });
+    expect(c, !!g, 'no tile / cell to drag');
+    if (g) { await drag(g.from, g.to); const after = await ev(() => state.symbolCells[5].source); expect(c, after === 'component', 'drop onto an emptied cell did nothing (source ' + after + ')'); }
+    const click = await ev(() => { state.symbolSelection.clear(); const e = __t.cellEl(6); return e ? __t.center(e) : null; });
+    if (click) { await sleep(50); await ev(() => { }); await clickAt(click); const sel = await ev(() => [...state.symbolSelection]); expect(c, sel.includes(6), 'clicking an emptied cell does not select it'); }
+    await invariants(c, 'J3.10');
+  });
+}
+if (want('J2')) {
+  await test('J2.4', 'BUG 2 · a Component edited in Component Edit mode draws its own Elements when placed in a Symbol', async c => {
+    const r = await ev(async () => {
+      const wait = __t.wait; setTier('element'); __t.chg('sel-seed-type', 'arc'); await wait(150); setTier('component'); await wait(300);
+      __t.chg('rg-grid-cols', 2); __t.chg('rg-grid-rows', 2); __t.chg('sel-rule', 'identity'); document.getElementById('btn-generate').click(); await wait(350);
+      const base = state.components[0]; enterComponentEditMode(base.id); await wait(250); selectComponentEditCell(0); await wait(150); __t.chg('sel-seed-type', 'star'); await wait(250);
+      saveComponentEditAsNew(); await wait(300);
+      const edited = state.components.find(x => x.ruleSource === 'edited'); if (!edited) return { err: 'edit did not produce a Component' };
+      quickSaveComponentToLibrary(edited.id, 'T edited'); quickSaveComponentToLibrary(base.id, 'T base'); await wait(150);
+      setTier('symbol'); await wait(400); document.getElementById('btn-symgrid-generate').click(); for (let i = 0; i < 40 && !(state.symbolCells && state.symbolCells.length); i++) await wait(100); await wait(800);
+      const svgOf = name => { state.symbolCells.forEach(cl => Object.assign(cl, { source: 'component', componentName: name, rotation: 0, flipH: false, flipV: false, scale: 1, fitMode: 'contain' })); return buildSymbolSVG(); };
+      const a = svgOf('T base'), b = svgOf('T edited');
+      let cv = ''; try { const o = document.createElement('canvas'); o.width = o.height = 200; const cx = o.getContext('2d'); drawSymbolCanvas(cx); cv = 'ok'; } catch (e) { cv = 'threw ' + e.message; }
+      return { differ: __t.hashSvg(a) !== __t.hashSvg(b), hasContent: edited.cells.some(x => x.content), cv };
+    });
+    expect(c, !r.err, r.err); if (r.err) return;
+    expect(c, r.hasContent, 'edited Component carries no per-cell content (test setup)'); expect(c, r.differ, 'a Component edited cell-by-cell renders IDENTICALLY to the original in the Symbol (per-cell Elements ignored)');
+    expect(c, r.cv === 'ok', 'canvas export path: ' + r.cv);
   });
 }
 

@@ -7672,7 +7672,9 @@ function symbolSVGFromItems(items) {
       for (const ni of it.nestedItems) {
         const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);   // the Component's own cells overlap too
         const nsx = (ni.flipH ? -1 : 1) * ni.scale * nfit * nk, nsy = (ni.flipV ? -1 : 1) * ni.scale * nfit * nk;
-        inner += withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => seedMarkupSVG(nhx + ni.cx, nhy + ni.cy, ni.rotation, nsx, nsy, geo, ni.color)));
+        // a cell the Component was edited in (Component Edit mode) carries its own Element + Appearance: draw that, not the Component's one shared Element
+        const niGeo = ni.content ? resolveItemGeo(ni, geo) : geo, niApp = ni.content && ni.content.appearance ? ni.content.appearance : it.nestedAppearance;
+        inner += withEntryInks(it.nestedColors, () => withAppearance(niApp, () => seedMarkupSVG(nhx + ni.cx, nhy + ni.cy, ni.rotation, nsx, nsy, niGeo, ni.color)));
       }
       const tf = `translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(${(-nhx).toFixed(2)},${(-nhy).toFixed(2)})`;
       cellMarkup = `<g transform="${tf}">${inner}</g>`;
@@ -7814,10 +7816,13 @@ function drawSymbolCanvas(ctx) {
         const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);
         ctx.scale((ni.flipH ? -1 : 1) * ni.scale * nfit * nk, (ni.flipV ? -1 : 1) * ni.scale * nfit * nk);
         ctx.translate(-50, -50);
+        const niGeo = ni.content ? resolveItemGeo(ni, geo) : geo, niPath = ni.content ? new Path2D(niGeo.d) : path, keepApp = appearanceOverride;
+        if (ni.content && ni.content.appearance) appearanceOverride = { ...DEFAULT_APPEARANCE, ...ni.content.appearance };
         applyElementStretchCanvas(ctx);
-        ctx.translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale);
-        ctx.scale(geo.normScale, geo.normScale);
-        paintGeoCanvas(ctx, geo, path, ni.color);
+        ctx.translate(niGeo.normTx * niGeo.normScale, niGeo.normTy * niGeo.normScale);
+        ctx.scale(niGeo.normScale, niGeo.normScale);
+        paintGeoCanvas(ctx, niGeo, niPath, ni.color);
+        appearanceOverride = keepApp;
         ctx.restore();
       }
       appearanceOverride = prevOverride; inkPaletteOverride = prevInks;
@@ -8667,6 +8672,22 @@ function buildSelectionOutlineSVG() {
   return s + '</g>';
 }
 
+// An EMPTY cell draws nothing, so buildSymbolSVG gives it no <g data-cell-index> and a click or a drop
+// found nothing to land on (after Delete / Choose → Empty / removing a Component, those cells were dead).
+// Preview-only invisible hit shape per empty cell — never in the export.
+function buildEmptyCellHitsSVG() {
+  const grid = getSymbolGrid();
+  if (!grid || !state.symbolCells.some(c => c && c.source === 'empty')) return '';
+  const F = symbolFrame(grid);
+  let s = '';
+  grid.cells.forEach((c, i) => {
+    const cell = state.symbolCells[i]; if (!cell || cell.source !== 'empty') return;
+    if (grid.cellShape === 'polygon') s += `<g data-cell-index="${i}"><polygon points="${c.points.map(p => `${F.X(p[0]).toFixed(2)},${F.Y(p[1]).toFixed(2)}`).join(' ')}" fill="transparent"/></g>`;
+    else s += `<g data-cell-index="${i}"><rect x="${F.X(c.x).toFixed(2)}" y="${F.Y(c.y).toFixed(2)}" width="${c.width.toFixed(2)}" height="${c.height.toFixed(2)}" fill="transparent"/></g>`;
+  });
+  return s;
+}
+
 // Only meaningful while a border drag is actually happening — see the
 // `if (trackDrag)` gate at its one call site in renderSymbolCanvasOnly().
 // Skipped while Clip to cell is on, same guard cellOverflowInfo()'s own
@@ -8741,7 +8762,7 @@ function renderSymbolCanvasOnly() {
   const count = resolveGridCells(grid).length;
   ctrl('symbol-cellcount-hint').textContent = count + (count === 1 ? ' cell' : ' cells');
   let svg = buildSymbolSVG();
-  let overlay = '';
+  let overlay = buildEmptyCellHitsSVG();
   if (state.symbolView.outline) overlay += buildGridOutlineSVG();
   overlay += buildSelectionOutlineSVG();
   if (state.symbolView.guides) overlay += buildTrackHandlesSVG();
