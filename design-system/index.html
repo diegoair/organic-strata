@@ -1190,6 +1190,21 @@ field.stop();                                             <span class="attr">// 
   &lt;<span class="tag">h3</span>&gt;Section title &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"hint"</span>&gt;optional&lt;/<span class="tag">span</span>&gt;&lt;/<span class="tag">h3</span>&gt;
   &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"sub-label"</span>&gt;Sub-label&lt;/<span class="tag">div</span>&gt;
 &lt;/<span class="tag">div</span>&gt;</pre>
+      <h3 class="ds-sub">Dividers</h3>
+      <p class="ds-desc">A live <code>.org-panel</code>: two sections in a wrapper, then one more. The wrapper's last section keeps its line because another section follows; only the panel's last one drops it. The self-check asserts this, plus the two other places a line is dropped (a wrapper that ends the panel, a section in a popover).</p>
+      <div class="ds-example ds-example--column">
+        <div class="org-panel" id="ds-pd-panel">
+          <div>
+            <div class="panel-section" id="ds-pd-a"><h3>In a wrapper</h3></div>
+            <div class="panel-section" id="ds-pd-b"><h3>Last of the wrapper <span class="hint">keeps its line</span></h3></div>
+          </div>
+          <div class="panel-section" id="ds-pd-c"><h3>Last of the panel <span class="hint">no line</span></h3></div>
+        </div>
+        <div hidden>
+          <div class="org-panel"><div class="panel-section"></div><div><div class="panel-section" id="ds-pd-end"></div></div></div>
+          <div class="org-popover"><div class="panel-section" id="ds-pd-pop"></div></div>
+        </div>
+      </div>
     </section>
 
     <section class="ds-entry" id="panel-row">
@@ -2431,6 +2446,12 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
   }
   assert('#ds-fvsf-demo', { position: 'relative', pointerEvents: 'none' });   // the boxed demo still never takes the pointer
   assert('.ctrl-row',   { minHeight: '26px' });                       // --row-h
+  // panel dividers (panel.css): a line under every section, dropped only where it really ends something
+  assert('#ds-pd-a', { borderBottomWidth: '1px' });
+  assert('#ds-pd-b', { borderBottomWidth: '1px' });     // last of its wrapper, but another section follows
+  assert('#ds-pd-c', { borderBottomWidth: '0px' });     // the panel's last section
+  assert('#ds-pd-end', { borderBottomWidth: '0px' });   // last of a wrapper that ends the panel
+  assert('#ds-pd-pop', { borderBottomWidth: '0px' });   // a section in a popover
   assert('#ds-selpick-host .preset-trigger', { minHeight: '32px', paddingTop: '4px', paddingBottom: '4px', paddingLeft: '4px' });   // even air round the 22px thumbnail
   assert('#ds-selpick-preview-host .preset-trigger', { minHeight: '32px', paddingTop: '4px', paddingLeft: '4px' });   // preview size keeps the same trigger
   assert('#ds-selpick-host .pt-ico', { width: '22px', height: '22px' });
