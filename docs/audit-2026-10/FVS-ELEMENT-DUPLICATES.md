@@ -101,3 +101,38 @@ Before any of this ships: a design-system CONSULT (the panel changes), FVS regre
 - **§2c:** Polygon's Triangle / Square types and Cross's X type removed. Wedge vs Arc-Centre: both kept for now (each has controls the other lacks).
 - **Old snapshots:** the retired inputs live on, hidden, in `#seed-legacy`; `foldLegacySeed` moves a value into Appearance / the layer's place on load only when a 64×64 point sample of both pictures agrees. 66 single-shape cases + a 2-layer stack measured: identical (rotated rectangles differ only in anti-aliasing — same vertices).
 - Checks: FVS regression 395/395, SVG = canvas (0 px) with Rotate in fill / stroke / pattern, `ds-audit --diff` clean, `check.py` passes.
+
+---
+
+## 5. Prototype — one Hollow for every shape (Oct 4, 2026)
+
+Dev page `fvs/_proto-hollow.html` (not linked; open it on the dev server). It loads `/fvs/` in a hidden frame and uses the real `SEED_TYPES` and FVS's Paper.js scope. FVS itself is unchanged.
+
+**Algorithm.**
+1. Take the shape's visible silhouette, resolved by uniting it with itself, so a self-crossing pentagram gets no wall along its inner lines.
+2. Measure the inradius by sampling. Wall t = Thickness % × inradius, the same unit as today's Outline sliders.
+3. Build the band around every outline, holes included: one quad per flattened edge plus one disc per vertex, united pairwise. The flattening tolerance is ≤ 3% of t.
+4. Hollow = shape ∩ band.
+
+**Measured** on 17 cases at 8 / 30 / 80 / 95 %. Wall = inner-edge distance to the outline, min–max as × target:
+
+| | Today's Outline | Generic Hollow |
+|---|---|---|
+| Triangle, Hexagon | 1.02–1.03 (exact: these are the shapes a homothety handles) | 1.00–1.00 |
+| Triangle rounded + curved, Lens | up to **1.53** (thick at the tips) | 1.00–1.02 |
+| Polygon curved + irregular, Blob | 0.87–1.22, 0.91–1.21 | 1.00–1.02 |
+| Star, Star burst | down to **0.73** (thin at the valleys) | 1.00–1.00 |
+| Cross, Chevron, Drop, Arc, Wedge, Circle with lobes, Circle + Inner seed, Pentagram | **none today** | 0.97–1.02 |
+
+- Pixels differing from today's Outline: 1.4–9.2 % of the shape. That gap is exactly the uneven wall today's Outline has.
+- Time: 4–60 ms per shape; Circle with 6 lobes ≈ 350 ms (many curve points). A real build would cache by `d + t` like `pathBBox`, so a slider drag only recomputes on change.
+
+**Two bugs found and fixed while building it:**
+- One compound "band" read as nonzero made Paper flip the ring on convex shapes with long edges (the hole came out filled). The band is now united pairwise.
+- A fixed 0.3 flattening tolerance gave ±19 % walls on thin walls. It now scales with t.
+
+**Open, for the real build (Diego):**
+- Where Hollow sits. Proposed: Appearance, beside Rotate, so it works on every shape, layer and uploaded SVG.
+- Whether the six shape-own Outline sliders retire. They can't fold 1:1: the picture changes up to 9 %. They would stay hidden for old snapshots, like Radius / Rotate.
+- Whether Inner seed rings also get walls. Today: yes, every outline does.
+- Performance budget on Symbol-size grids, where the cache matters.
