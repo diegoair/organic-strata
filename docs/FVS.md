@@ -79,7 +79,20 @@ Grid step without saving it first.
 - **Appearance** — Style **Fill / Stroke / Pattern**, Width / Length, **Scale, Move X/Y,
   Rotate** and **⤢ Fit to canvas** (one-shot). Rotate turns the Element about its centre,
   after Width / Length (a stretched shape turns as a whole — the same order as a layer's
-  own Rot). **Inner seed** adds nested copies (Count, Ratio, Anchor).
+  own Rot). **Hollow** (0–95, beside Width / Length — so with layers it is in the layer's card,
+  each layer its own) cuts the shape to a wall of **even thickness** along its whole outline, as a %
+  of the shape's inradius: every Seed, Freehand and an uploaded SVG alike. With **Inner seed** on,
+  the copies are the hollowed shape, scaled and united (Diego's option C, Oct 4, 2026 — the walls
+  thin toward the centre with the copies; "a wall along every edge" was the alternative, rejected
+  because it duplicates Style → Stroke and does nothing once the wall is wider than half a band).
+  It replaces the six shape-own *Outline (hollow)* sliders (Triangle, Polygon, Star, Rounded rect,
+  Lens, Blob), which scaled the shape toward its centre — even only on a triangle or a regular
+  polygon (×1.53 at a lens tip, ×0.73 in a star's valley). Those stay hidden for old snapshots and
+  are never converted (the picture would change by up to 9 %); the Seed panel's note says so and
+  Reset seed shape clears them. Such an old Element hollowed again with Hollow gets both (its own
+  Outline first, then the even wall) — Reset seed shape first to keep only Hollow. Implementation: `hollowGeometry` (Paper.js, memoised; prototype
+  and measurements in `fvs/_proto-hollow.html`, `docs/audit-2026-10/FVS-ELEMENT-DUPLICATES.md` §5–6).
+  **Inner seed** adds nested copies (Count, Ratio, Anchor).
 - **One control per job** (Oct 4, 2026 — `docs/audit-2026-10/FVS-ELEMENT-DUPLICATES.md`).
   The shape sliders that did what Appearance already does are gone: Circle / Polygon / Star
   **Radius** (= Scale), Wedge / Chevron **Squash** (= Length), the per-shape **Rotate** of

@@ -803,11 +803,6 @@
           <input type="range" id="rg-tri-seed" min="1" max="999" step="1" value="1">
           <span class="ctrl-val" id="v-tri-seed">1</span>
         </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Hollow ring — wall thickness as a % of the triangle's inradius, so 0 is solid. This is real geometry, separate from Style → Stroke.">Outline (hollow)</div>
-          <input type="range" id="rg-tri-outline" min="0" max="95" step="1" value="0">
-          <span class="ctrl-val" id="v-tri-outline">0</span>
-        </div>
       </div>
       <div id="seed-arc-block" style="display:none">
         <div class="ctrl-row">
@@ -1019,11 +1014,6 @@
           <div class="ctrl-label" title="Bows every edge — positive outward, negative inward.">Edge curvature</div>
           <input type="range" id="rg-poly-curve" min="-100" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-poly-curve">0</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Hollow ring — wall thickness as a % of the polygon's inradius, so 0 is solid. Real geometry, separate from Style → Stroke. Ignored when Step is above 1.">Outline (hollow)</div>
-          <input type="range" id="rg-poly-outline" min="0" max="95" step="1" value="0">
-          <span class="ctrl-val" id="v-poly-outline">0</span>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Jitters each vertex's own radius — 0 stays a perfectly regular polygon.">Irregularity</div>
@@ -1263,10 +1253,21 @@
         <p class="org-panel__hint">Click on the artboard to add points; drag a point or handle to reshape it. The stage shows the drawing as you make it; every later step (Component, Symbol, Grid) uses it fitted to the cell.</p>
       </div>
       <!-- Legacy inputs: controls retired Oct 4, 2026 because Appearance does the same job (Radius = Scale,
-           Squash = Length, a shape's own Rotate = Appearance Rotate; Blob Radius never changed the shape).
+           Squash = Length, a shape's own Rotate = Appearance Rotate; Blob Radius never changed the shape) — and,
+           the same day, the six shape-own Outline (hollow) sliders, replaced by Appearance → Hollow.
            Kept, never shown, so an older snapshot still round-trips through getPanelSeed(); foldLegacySeed()
            moves their values into Appearance on load whenever the result is identical. -->
       <div id="seed-legacy" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Hollow ring — wall thickness as a % of the triangle's inradius, so 0 is solid. This is real geometry, separate from Style → Stroke.">Outline (hollow)</div>
+          <input type="range" id="rg-tri-outline" min="0" max="95" step="1" value="0">
+          <span class="ctrl-val" id="v-tri-outline">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Hollow ring — wall thickness as a % of the polygon's inradius, so 0 is solid. Real geometry, separate from Style → Stroke. Ignored when Step is above 1.">Outline (hollow)</div>
+          <input type="range" id="rg-poly-outline" min="0" max="95" step="1" value="0">
+          <span class="ctrl-val" id="v-poly-outline">0</span>
+        </div>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Scales the wedge vertically only — 100 is a plain circular sector, lower flattens it into an ellipse.">Squash</div>
           <input type="range" id="rg-wedge-squash" min="30" max="100" step="1" value="100">
@@ -1313,7 +1314,7 @@
           <span class="ctrl-val" id="v-blob-radius">60</span>
         </div>
       </div>
-      <p class="org-panel__hint" id="seed-legacy-note" style="display:none">This shape keeps a size or rotation saved before these controls moved to Appearance. Reset seed shape clears it.</p>
+      <p class="org-panel__hint" id="seed-legacy-note" style="display:none">This shape keeps a size, rotation or outline saved before these controls moved to Appearance. Reset seed shape clears it.</p>
       <div id="seed-upload-error" class="org-panel__hint fvs-error" style="display:none"></div>
     </div>
 
@@ -1348,6 +1349,11 @@
         <div class="ctrl-label" title="Stretches the shape itself vertically, before it is placed in any cell.">Length</div>
         <input type="range" id="rg-element-l" min="0.25" max="2" step="0.05" value="1">
         <span class="ctrl-val" id="v-element-l">1</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Hollows the shape: a wall of even thickness along its whole outline, as a % of the shape's inradius — 0 is solid. Real geometry, unlike Style → Stroke; with Inner seed on, the copies are the hollowed shape.">Hollow</div>
+        <input type="range" id="rg-element-hollow" min="0" max="95" step="1" value="0">
+        <span class="ctrl-val" id="v-element-hollow">0</span>
       </div>
       </div>
       <!-- The Element's pattern (Style = Pattern on any layer, and every Pattern-role layer): ONE set of settings for the whole Element, here in Appearance even with layers — a layer only picks its Style. -->
@@ -2541,10 +2547,168 @@ function withInnerCopies(geo, p, apex) {
   for (let k = 1; k <= n; k++) d += ' ' + Organica.shapes.scalePathAbout(geo.d, Math.pow(ratio, k), cx, cy);
   return { ...geo, d, fillRule: 'evenodd' };
 }
+// ── Hollow (Oct 4, 2026): ONE constant-thickness wall for every shape ──
+// Replaces the six shape-own "Outline (hollow)" sliders (Triangle, Polygon, Star, Rounded rect, Lens,
+// Blob), which scaled the shape toward its centre — an even wall only on a triangle or a regular polygon
+// (measured up to ×1.53 at a lens tip, ×0.73 in a star's valleys). Here: the part of the shape within
+// t of its own outline, t = `hollow` % of the shape's inradius (the unit the old sliders used). Built
+// with Paper.js on the visible silhouette (a self-crossing pentagram gets no wall along its inner
+// lines): a quad per flattened edge + a disc per vertex, united pairwise (one compound read as nonzero
+// flipped the ring on convex shapes with long edges), then shape ∩ band. Flattening error ≤ 3% of t.
+// Prototype + measurements: fvs/_proto-hollow.html, docs/audit-2026-10/FVS-ELEMENT-DUPLICATES.md §5.
+// Memoised by d + fill-rule + %, the inradius by d alone, so a Hollow drag only rebuilds the band.
+const _hollowCache = new Map(), _inradiusCache = new Map();
+const paperLeaves = item => item.children && item.children.length ? item.children.flatMap(paperLeaves) : [item];
+// Largest inscribed circle (the unit of Hollow's %): a 48×48 grid, then two finer passes around the best
+// point. Distances and inside-tests run in plain JS on the silhouette flattened to ≤0.05 — Paper's own
+// getNearestPoint on curves cost ~0.35 ms a call (≈500 ms for a lobed Circle); this is a few ms.
+function inradiusOf(shape, scope) {
+  const polys = paperLeaves(shape).map(l => { const c = l.clone({ insert: false }); try { c.flatten(0.05); } catch (e) { /* straight */ } const pts = c.segments.map(sg => [sg.point.x, sg.point.y]); c.remove(); return pts; }).filter(p => p.length > 2);
+  const inside = (x, y) => {   // nonzero winding — Paper's boolean output is wound so holes cancel
+    let w = 0;
+    for (const P of polys) for (let i = 0, n = P.length; i < n; i++) {
+      const a = P[i], b = P[(i + 1) % n];
+      if (a[1] <= y) { if (b[1] > y && (b[0] - a[0]) * (y - a[1]) - (x - a[0]) * (b[1] - a[1]) > 0) w++; }
+      else if (b[1] <= y && (b[0] - a[0]) * (y - a[1]) - (x - a[0]) * (b[1] - a[1]) < 0) w--;
+    }
+    return w !== 0;
+  };
+  const dist = (x, y) => {
+    let m = Infinity;
+    for (const P of polys) for (let i = 0, n = P.length; i < n; i++) {
+      const a = P[i], b = P[(i + 1) % n], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+      const u = L2 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / L2)) : 0;
+      const ex = a[0] + u * dx - x, ey = a[1] + u * dy - y, d2 = ex * ex + ey * ey;
+      if (d2 < m) m = d2;
+    }
+    return Math.sqrt(m);
+  };
+  const b = shape.bounds, N = 48;
+  let best = 0, bx = 0, by = 0, sx = b.width / N, sy = b.height / N;
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+    const x = b.x + (i + 0.5) * sx, y = b.y + (j + 0.5) * sy;
+    if (!inside(x, y)) continue;
+    const d = dist(x, y);
+    if (d > best) { best = d; bx = x; by = y; }
+  }
+  for (let pass = 0; pass < 2; pass++) {   // refine: 7×7 around the best point, a third of the step each time
+    sx /= 3; sy /= 3;
+    const cx = bx, cy = by;
+    for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++) {
+      const x = cx + i * sx, y = cy + j * sy;
+      if (!inside(x, y)) continue;
+      const d = dist(x, y);
+      if (d > best) { best = d; bx = x; by = y; }
+    }
+  }
+  return best;
+}
+function hollowGeometry(geo, pct) {
+  if (!geo || !geo.d || !(pct > 0)) return geo;
+  const key = geo.d + '|' + (geo.fillRule || '') + '|' + pct;
+  if (_hollowCache.has(key)) return { ...geo, ..._hollowCache.get(key) };
+  let res = null;
+  try {
+    const scope = splitPaperScope();
+    const raw = importAsPaperShape(scope, geo.d, geo.fillRule);
+    const shape = raw.unite(raw.clone({ insert: false }), { insert: false });
+    raw.remove();
+    const rKey = geo.d + '|' + (geo.fillRule || '');
+    let r = _inradiusCache.get(rKey);
+    if (r == null) {
+      r = inradiusOf(shape, scope);
+      if (_inradiusCache.size > 200) _inradiusCache.clear();
+      _inradiusCache.set(rKey, r);
+    }
+    const t = Math.min(95, pct) / 100 * r, tol = Math.min(0.3, Math.max(0.03, t * 0.03));
+    const pieces = [];
+    for (const leaf of paperLeaves(shape)) {
+      const c = leaf.clone({ insert: false });
+      try { c.flatten(tol); } catch (e) { /* already straight */ }
+      const pts = c.segments.map(sg => [sg.point.x, sg.point.y]);
+      c.remove();
+      const n = pts.length;
+      if (n < 3) continue;
+      for (let i = 0; i < n; i++) {
+        const a = pts[i], bb = pts[(i + 1) % n], dx = bb[0] - a[0], dy = bb[1] - a[1], L = Math.hypot(dx, dy);
+        if (L < 1e-6) continue;
+        const nx = -dy / L * t, ny = dx / L * t;
+        const q = new scope.Path({ segments: [[a[0] + nx, a[1] + ny], [bb[0] + nx, bb[1] + ny], [bb[0] - nx, bb[1] - ny], [a[0] - nx, a[1] - ny]], closed: true, insert: false });
+        q.clockwise = true; pieces.push(q);
+        // Two quads leave a wedge-shaped crack at a turning vertex, from the vertex right through the wall.
+        // A real corner gets a disc; on a flattened curve (turn under 8°) two thin triangles close the
+        // wedge on either side instead — polygons keep the booleans fast, and what they leave out (the
+        // sliver between the wedge's chord and its arc, ≈ t·θ²/8) stays under 0.25 % of t.
+        const pv = pts[(i - 1 + n) % n], ux = a[0] - pv[0], uy = a[1] - pv[1], Lu = Math.hypot(ux, uy);
+        const turn = Lu < 1e-6 ? Math.PI : Math.abs(Math.atan2(ux * dy - uy * dx, ux * dx + uy * dy));
+        if (turn > 0.14) { const disc = new scope.Path.Circle({ center: a, radius: t, insert: false }); disc.clockwise = true; pieces.push(disc); }
+        else if (turn > 1e-4) {
+          const px = -uy / Lu * t, py = ux / Lu * t;   // the previous edge's normal
+          for (const sg of [1, -1]) {
+            const tri = new scope.Path({ segments: [a, [a[0] + sg * px, a[1] + sg * py], [a[0] + sg * nx, a[1] + sg * ny]], closed: true, insert: false });
+            tri.clockwise = true; pieces.push(tri);
+          }
+        }
+      }
+    }
+    if (t > 0 && pieces.length) {
+      let layer = pieces;
+      while (layer.length > 1) {
+        const next = [];
+        for (let i = 0; i < layer.length; i += 2) {
+          if (i + 1 >= layer.length) { next.push(layer[i]); continue; }
+          next.push(layer[i].unite(layer[i + 1], { insert: false }));
+          layer[i].remove(); layer[i + 1].remove();
+        }
+        layer = next;
+      }
+      const out = shape.intersect(layer[0], { insert: false });
+      res = { d: out.pathData, fillRule: undefined };
+      out.remove(); layer[0].remove();
+    }
+    shape.remove();
+  } catch (e) { res = null; }
+  if (!res || !res.d) return geo;
+  if (_hollowCache.size > 200) _hollowCache.clear();
+  _hollowCache.set(key, res);
+  return { ...geo, ...res };
+}
+// Inner seed on a hollowed shape (Diego's choice C): the copies ARE the hollowed shape, scaled toward the
+// same anchor as on the solid one, and UNITED (evenodd would turn every overlap of a thick wall white).
+function withInnerHollowCopies(h, base, p, apex) {
+  const n = Math.round((p && p.innerCount) || 0);
+  if (!(n > 0) || !h || !h.d || !base || !base.d) return h;
+  const ratio = Math.min(0.95, Math.max(0.1, (p.innerRatio == null ? 70 : p.innerRatio) / 100));
+  const bb = pathBBox(base.d);
+  if (!bb) return h;
+  const ap = p.innerAnchor === 'apex' && apex ? apex(p) : null;
+  const ctr = ap ? { x: ap[0], y: ap[1] } : p.innerAnchor === 'centroid' || p.innerAnchor === 'apex' ? pathCentroid(base.d, bb) : { x: bb.x + bb.width / 2, y: bb.y + bb.height / 2 };
+  const key = 'inner|' + h.d + '|' + n + '|' + ratio + '|' + ctr.x + ',' + ctr.y;
+  if (_hollowCache.has(key)) return { ...h, ..._hollowCache.get(key) };
+  let d = h.d;
+  try {
+    const scope = splitPaperScope();
+    let u = new scope.CompoundPath(h.d);
+    for (let k = 1; k <= n; k++) {
+      const cp = new scope.CompoundPath(Organica.shapes.scalePathAbout(h.d, Math.pow(ratio, k), ctr.x, ctr.y));
+      const next = u.unite(cp, { insert: false }); u.remove(); cp.remove(); u = next;
+    }
+    d = u.pathData; u.remove();
+  } catch (e) { /* keep the single hollow */ }
+  const res = { d, fillRule: undefined };
+  if (_hollowCache.size > 200) _hollowCache.clear();
+  _hollowCache.set(key, res);
+  return { ...h, ...res };
+}
 for (const k of Object.keys(SEED_TYPES)) {
-  if (k === 'freehandraw' || INNER_UNSUPPORTED.has(k)) continue;   // the raw drawing stage view stays untouched
-  const g0 = SEED_TYPES[k].geometry;
-  SEED_TYPES[k].geometry = p => withInnerCopies(g0(p), p, INNER_APEX[k]);
+  if (k === 'freehandraw') continue;   // the raw drawing stage view stays untouched
+  const g0 = SEED_TYPES[k].geometry, inner = !INNER_UNSUPPORTED.has(k);
+  SEED_TYPES[k].geometry = p => {
+    const base = g0(p);
+    if (!(p && p.hollow > 0)) return inner ? withInnerCopies(base, p, INNER_APEX[k]) : base;   // Hollow 0 → byte-identical to before
+    const h = hollowGeometry(base, p.hollow);
+    return inner ? withInnerHollowCopies(h, base, p, INNER_APEX[k]) : h;
+  };
 }
 
 // ── Split Element into 4 quadrant pieces — a true path-boolean clip
@@ -2751,7 +2915,7 @@ const SYMBOL_ROUNDEDRECT = { rrWidth: 100, rrHeight: 100, rrCorner: 0 };
 const SYMBOL_CHEVRON = { chevNotch: 40, chevArm: 55 };
 const SYMBOL_CROSS = { crossArmWidth: 35, crossArmLength: 100 };
 const SYMBOL_LENS = { lensWidth: 50 };
-const SYMBOL_INNER = { innerCount: 0, innerRatio: 70, innerAnchor: 'bbox' };   // Symbols stay plain shapes
+const SYMBOL_INNER = { innerCount: 0, innerRatio: 70, innerAnchor: 'bbox', hollow: 0 };   // Symbols stay plain shapes
 const SYMBOL_TRIANGLE = { triApex: 0, triCorner: 0, triCurve: 0, triIrregular: 0, triSeed: 1, triOutline: 0 };   // Symbols stay a plain triangle
 // Symbols cells carry no per-seed params of their own (same as they already
 // ignore Base/Height/Thickness) — one merged params object covers every
@@ -2860,7 +3024,7 @@ const SEED_DEPENDS = [
 ];
 const segHasBody = () => val('rg-seg-bend') !== 0 || val('rg-seg-wave') > 0 || val('rg-seg-lines') > 1 || val('rg-seg-rays') > 1;
 // key prefix → Seed type, for the retired keys (RETIRED_SEED) — the note only speaks about the shape on screen
-const RETIRED_PREFIX = { circle: 'circle', poly: 'polygon', star: 'star', blob: 'blob', wedge: 'wedge', chev: 'chevron', rr: 'roundedrect', cross: 'cross', lens: 'lens', drop: 'drop' };
+const RETIRED_PREFIX = { tri: 'triangle', circle: 'circle', poly: 'polygon', star: 'star', blob: 'blob', wedge: 'wedge', chev: 'chevron', rr: 'roundedrect', cross: 'cross', lens: 'lens', drop: 'drop' };
 function syncLegacyNote() {
   const type = ctrl('sel-seed-type').value, sd = getPanelSeed();
   const kept = RETIRED_SEED.some(([k, def]) => RETIRED_PREFIX[k.match(/^[a-z]+/)[0]] === type && sd[k] != null && sd[k] !== def);
@@ -2891,6 +3055,9 @@ const RETIRED_SEED = [
   ['wedgeSquash', 100, 'length'], ['chevSquash', 100, 'length'],
   ['wedgeRotate', 0, 'rotate'], ['polyRotate', 0, 'rotate'], ['circleRotate', 0, 'rotate'], ['starRotate', 0, 'rotate'],
   ['rrRotate', 0, 'rotate'], ['chevRotate', 0, 'rotate'], ['crossRotate', 0, 'rotate'], ['lensRotate', 0, 'rotate'], ['dropRotate', 0, 'rotate'],
+  // The shape-own Outlines scaled the shape toward its centre; Hollow keeps an even wall, so the picture
+  // changes (up to 9 %) — never converted: an old snapshot keeps its Outline, hidden, and the note says so.
+  ['triOutline', 0, 'keep'], ['polyOutline', 0, 'keep'], ['starOutline', 0, 'keep'], ['rrOutline', 0, 'keep'], ['lensOutline', 0, 'keep'], ['blobOutline', 0, 'keep'],
 ];
 // Does `geoA` placed by `pa` cover the same points as `geoB` placed by `pb`? (pa/pb = appearance-shaped)
 function samePicture(geoA, pa, geoB, pb) {
@@ -2923,6 +3090,7 @@ function foldRetiredShape(seed, place) {
   for (const [k, def, kind] of RETIRED_SEED) {
     const v = sd[k];
     if (v == null || v === def) continue;
+    if (kind === 'keep') continue;
     if (kind === 'dead') { if (pl.fillMode !== 'stroke') sd[k] = def; continue; }   // fitted away by the shape itself — invisible, except as the outline's relative width
     const next = { ...sd, [k]: def }, np = { ...pl };
     if (kind === 'scale') { if (pl.fillMode === 'stroke') continue; np.scale = +((pl.scale == null ? 1 : pl.scale) * v / 100).toFixed(4); }
@@ -3039,6 +3207,7 @@ function getPanelSeed() {
     innerCount: val('rg-inner-count'),
     innerRatio: val('rg-inner-ratio'),
     innerAnchor: ctrl('sel-inner-anchor').value,
+    hollow: val('rg-element-hollow'),
     thickness: val('rg-thickness'),
     arcCount: val('rg-arc-count'),
     arcRatio: val('rg-arc-ratio') / 100,
@@ -6229,7 +6398,7 @@ function applyPanelSeedRaw(seed) {
   // and fall back to each control's own default (identical to the old shape).
   ctrl('sel-arc-pivot').value = seed.arcPivot || 'corner';
   ctrl('sel-inner-anchor').value = seed.innerAnchor || 'bbox';
-  [['innerCount', 'rg-inner-count', 'v-inner-count', 0], ['innerRatio', 'rg-inner-ratio', 'v-inner-ratio', 70],
+  [['innerCount', 'rg-inner-count', 'v-inner-count', 0], ['innerRatio', 'rg-inner-ratio', 'v-inner-ratio', 70], ['hollow', 'rg-element-hollow', 'v-element-hollow', 0],
    ['triCorner', 'rg-tri-corner', 'v-tri-corner', 0], ['triCurve', 'rg-tri-curve', 'v-tri-curve', 0], ['triIrregular', 'rg-tri-irregular', 'v-tri-irregular', 0],
    ['triSeed', 'rg-tri-seed', 'v-tri-seed', 1], ['triOutline', 'rg-tri-outline', 'v-tri-outline', 0],
    ['truCore', 'rg-tru-core', 'v-tru-core', 0], ['truSpread', 'rg-tru-spread', 'v-tru-spread', 180], ['truReach', 'rg-tru-reach', 'v-tru-reach', 100], ['truRamp', 'rg-tru-ramp', 'v-tru-ramp', 0],
@@ -9874,7 +10043,8 @@ ctrl('rg-wedge-inner').addEventListener('input', e => { ctrl('v-wedge-inner').te
 ctrl('rg-wedge-squash').addEventListener('input', e => { ctrl('v-wedge-squash').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 // A shape's own Rotate (shared/shapes.js EXTRAS, also read by Genesis) is retired in FVS — Appearance → Rotate
 // does it for every shape. The row is still built, into the hidden #seed-legacy, so old snapshots round-trip.
-const FVS_RETIRED_EXTRAS = new Set(['starRotate', 'rrRotate', 'chevRotate', 'crossRotate', 'lensRotate', 'dropRotate']);
+const FVS_RETIRED_EXTRAS = new Set(['starRotate', 'rrRotate', 'chevRotate', 'crossRotate', 'lensRotate', 'dropRotate',
+  'starOutline', 'rrOutline', 'lensOutline', 'blobOutline']);   // + the shape-own Outlines → Appearance → Hollow
 // Build the extras rows into each shape's block, then wire them (label readout,
 // derived Type shortcut, re-render). Called once at boot, before the first render.
 function buildSeedExtras() {
@@ -10037,7 +10207,7 @@ CIRCLE_PARAMS.forEach(([k, id]) => {
 // the readout + gallery + preview and the slider fill (core.js delegate) follows.
 function resetSeedShape() {
   const type = ctrl('sel-seed-type').value;
-  ['rg-inner-count', 'rg-inner-ratio'].forEach(id => {   // Inner seed belongs to the Seed, whatever its shape
+  ['rg-inner-count', 'rg-inner-ratio', 'rg-element-hollow'].forEach(id => {   // Inner seed + Hollow belong to the Seed, whatever its shape
     const el = ctrl(id);
     if (el.value !== el.defaultValue) { el.value = el.defaultValue; el.dispatchEvent(new Event('input', { bubbles: true })); }
   });
@@ -10166,6 +10336,8 @@ ctrl('sel-ground-ink').addEventListener('change', onAppearanceChange);
 ctrl('rg-ground-patsize').addEventListener('input', e => { ctrl('v-ground-patsize').textContent = e.target.value; onAppearanceChange(); });
 ['patspacing', 'patweight', 'patangle'].forEach(k => ctrl('rg-ground-' + k).addEventListener('input', e => { ctrl('v-ground-' + k).textContent = e.target.value; syncGroundTileNote(); onAppearanceChange(); }));
 syncGroundInkOptions();
+// Hollow is a Seed parameter (getPanelSeed → every renderer, each layer its own), shown here beside Width / Length.
+ctrl('rg-element-hollow').addEventListener('input', e => { ctrl('v-element-hollow').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ['strokew', 'w', 'l', 'scale', 'mx', 'my', 'rotate', 'patspacing', 'patweight', 'patangle'].forEach(k => {
   ctrl('rg-element-' + k).addEventListener('input', e => { ctrl('v-element-' + k).textContent = e.target.value; onAppearanceChange(); });
 });

@@ -136,3 +136,34 @@ Dev page `fvs/_proto-hollow.html` (not linked; open it on the dev server). It lo
 - Whether the six shape-own Outline sliders retire. They can't fold 1:1: the picture changes up to 9 %. They would stay hidden for old snapshots, like Radius / Rotate.
 - Whether Inner seed rings also get walls. Today: yes, every outline does.
 - Performance budget on Symbol-size grids, where the cache matters.
+
+---
+
+## 6. Hollow shipped in FVS (Oct 4, 2026)
+
+**Decided by Diego.**
+1. Hollow goes in Appearance.
+2. The six Outlines retire, hidden for old snapshots.
+3. Inner seed + Hollow follows option **C**: the copies are the hollowed shape. A and C were compared on 8 Seeds at the same absolute wall. A puts the same wall on every edge, which nearly duplicates Style → Stroke, and at 40 % A's bands stay solid, so Hollow has no visible effect.
+
+**Built.**
+- `hollowGeometry(geo, pct)` and `withInnerHollowCopies` (copies **united**, not evenodd — evenodd turned every overlap of a thick wall white). They are wired into every `SEED_TYPES` geometry. Hollow 0 is byte-identical to before (regression 395/395).
+- The value is a Seed param `hollow`, so every renderer and every layer gets it.
+- The control sits in the look block after Length. That means it is in Appearance with one shape, and in the layer's card with layers. This is a deliberate placement, not beside Rotate: Hollow changes one shape, Rotate turns the whole Element.
+
+**Fixed against the prototype.**
+- I tried dropping the vertex discs on gentle turns to speed things up. It opened a crack through the wall (wall down to ×0.08), because the wedge between two quads starts at the vertex.
+- Gentle turns now get two thin triangles instead of a disc. They are polygons, so the booleans stay fast, and the error is ≤ 0.25 % of t.
+
+**Measured (real build).**
+- Wall ±3 % on 14 cases at 8 / 30 / 80 %. Arc truchet at 8 % reaches 0.90–1.09: its bands are very thin.
+- SVG = canvas: 0 px in fill / pattern, 2 px in stroke, with Rotate and Inner seed on.
+- Per-layer values and the legacy note + Reset checked.
+- Speed. The inradius was first sampled with Paper's `getNearestPoint` (~500 ms on a lobed Circle). It now runs in plain JS on the silhouette flattened to 0.05, with two refining passes: 0–5 ms. It is also closer to exact: triangle 30.80 vs the true 30.90 (Paper grid: 30.21).
+  - Dragging any Seed slider with Hollow 30: 4–41 ms per step on every shape except **Arc truchet, 230–650 ms** (dozens of curved bands to unite).
+  - Dragging Hollow itself: 1–20 ms.
+
+**Open.**
+- Arc truchet speed.
+- Irregularity + Seed as one generic control (§2d), not started.
+- Safari/Firefox.
