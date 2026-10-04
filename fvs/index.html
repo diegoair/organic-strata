@@ -737,7 +737,7 @@
       <div id="layer-ink-pop" class="fvs-ink-pop" role="dialog" aria-label="Layer colour" hidden></div>
     </div>
     <div class="panel-section">
-      <h3>Seed <span class="hint" id="seed-layer-hint"></span></h3>
+      <h3>Shape <span class="hint" id="seed-layer-hint"></span></h3>
       <div class="ctrl-row">
         <div id="seedtype-picker"></div>
         <select class="panel-select" id="sel-seed-type" aria-label="Seed type">
@@ -760,6 +760,15 @@
       </div>
       <div id="seed-triangle-block">
         <div class="ctrl-row">
+          <div class="ctrl-label" title="Shortcut that sets Base, Height and Apex X. Reads Custom as soon as you move any of them by hand.">Type</div>
+          <select class="panel-select" id="sel-tri-type" aria-label="Triangle type">
+            <option value="isosceles">Isosceles</option>
+            <option value="right">Right</option>
+            <option value="equilateral">Equilateral</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
           <div class="ctrl-label">Base</div>
           <input type="range" id="rg-base" min="10" max="100" step="1" value="100">
           <span class="ctrl-val" id="v-base">100</span>
@@ -775,16 +784,7 @@
           <span class="ctrl-val" id="v-tri-apex">50</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Shortcut that sets Base, Height and Apex X. Reads Custom as soon as you move any of them by hand.">Type</div>
-          <select class="panel-select" id="sel-tri-type" aria-label="Triangle type">
-            <option value="isosceles">Isosceles</option>
-            <option value="right">Right</option>
-            <option value="equilateral">Equilateral</option>
-            <option value="custom">Custom</option>
-          </select>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Rounds the three corners.">Corner radius</div>
+          <div class="ctrl-label" title="Rounds the three corners.">Rounding</div>
           <input type="range" id="rg-tri-corner" min="0" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-tri-corner">0</span>
         </div>
@@ -796,9 +796,13 @@
       </div>
       <div id="seed-arc-block" style="display:none">
         <div class="ctrl-row">
-          <div class="ctrl-label">Thickness</div>
-          <input type="range" id="rg-thickness" min="1" max="100" step="1" value="100">
-          <span class="ctrl-val" id="v-thickness">100</span>
+          <div class="ctrl-label" title="Shortcut that sets Sweep. Reads Custom as soon as you move Sweep by hand.">Type</div>
+          <select class="panel-select" id="sel-arc-type" aria-label="Arc type">
+            <option value="quarter" selected>Quarter</option>
+            <option value="half">Half</option>
+            <option value="threequarter">Three-quarter</option>
+            <option value="custom">Custom</option>
+          </select>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Corner = a quarter-style wedge pivoting on the cell's top-left corner (the classic Arc). Centre = pivots on the middle, starting straight up.">Pivot</div>
@@ -813,13 +817,9 @@
           <span class="ctrl-val" id="v-arc-sweep">90</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Shortcut that sets Sweep. Reads Custom as soon as you move Sweep by hand.">Type</div>
-          <select class="panel-select" id="sel-arc-type" aria-label="Arc type">
-            <option value="quarter" selected>Quarter</option>
-            <option value="half">Half</option>
-            <option value="threequarter">Three-quarter</option>
-            <option value="custom">Custom</option>
-          </select>
+          <div class="ctrl-label">Thickness</div>
+          <input type="range" id="rg-thickness" min="1" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-thickness">100</span>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Rotates the arc in place (degrees, added to the pivot's own start angle).">Start angle</div>
@@ -827,39 +827,29 @@
           <span class="ctrl-val" id="v-arc-start">0</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Rounds the arc's ends — 100 is a full semicircular cap (needs Thickness below 100).">End rounding</div>
+          <div class="ctrl-label" title="Rounds the arc's ends — 100 is a full semicircular cap (needs Thickness below 100).">Rounding</div>
           <input type="range" id="rg-arc-round" min="0" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-arc-round">0</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Splits the arc into separate dashes.">Segments</div>
-          <input type="range" id="rg-arc-segs" min="1" max="24" step="1" value="1">
-          <span class="ctrl-val" id="v-arc-segs">1</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Gap between segments, as a % of a segment's length.">Segment gap</div>
-          <input type="range" id="rg-arc-gap" min="0" max="80" step="1" value="20">
-          <span class="ctrl-val" id="v-arc-gap">20</span>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Thins the band toward one end (positive: toward the end, negative: toward the start) — comet and crescent shapes.">Taper</div>
           <input type="range" id="rg-arc-taper" min="-100" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-arc-taper">0</span>
         </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Splits the arc into separate dashes.">Dashes</div>
+          <input type="range" id="rg-arc-segs" min="1" max="24" step="1" value="1">
+          <span class="ctrl-val" id="v-arc-segs">1</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Gap between dashes, as a % of a dash's length.">Dash gap</div>
+          <input type="range" id="rg-arc-gap" min="0" max="80" step="1" value="20">
+          <span class="ctrl-val" id="v-arc-gap">20</span>
+        </div>
       </div>
       <div id="seed-arctruchet-block" style="display:none">
         <div class="ctrl-row">
-          <div class="ctrl-label">Arc count</div>
-          <input type="range" id="rg-arc-count" min="3" max="12" step="1" value="5">
-          <span class="ctrl-val" id="v-arc-count">5</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Band thickness ÷ gap.">Arc ratio</div>
-          <input type="range" id="rg-arc-ratio" min="10" max="95" step="1" value="70">
-          <span class="ctrl-val" id="v-arc-ratio">70</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Shortcut that sets Fans, Count, Ratio, Core and Rounding. Reads Custom as soon as you change any of the truchet controls by hand.">Type</div>
+          <div class="ctrl-label" title="Shortcut that sets Fans, Bands, Thickness, Core and Rounding. Reads Custom as soon as you change any of the truchet controls by hand.">Type</div>
           <select class="panel-select" id="sel-tru-type" aria-label="Arc truchet type">
             <option value="butterfly" selected>Butterfly</option>
             <option value="rainbow">Rainbow</option>
@@ -874,6 +864,16 @@
             <option value="2" selected>Opposed</option>
             <option value="1">Single</option>
           </select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Number of bands in each fan.">Bands</div>
+          <input type="range" id="rg-arc-count" min="3" max="12" step="1" value="5">
+          <span class="ctrl-val" id="v-arc-count">5</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Band thickness ÷ gap.">Thickness</div>
+          <input type="range" id="rg-arc-ratio" min="10" max="95" step="1" value="70">
+          <span class="ctrl-val" id="v-arc-ratio">70</span>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Starts the bands away from the pivot, leaving a hollow centre (horseshoe / halo).">Core</div>
@@ -891,6 +891,11 @@
           <span class="ctrl-val" id="v-tru-reach">100</span>
         </div>
         <div class="ctrl-row">
+          <div class="ctrl-label" title="Rounds every band end — 100 is a full semicircular cap.">Rounding</div>
+          <input type="range" id="rg-tru-round" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-tru-round">0</span>
+        </div>
+        <div class="ctrl-row">
           <div class="ctrl-label" title="Positive: bands get thicker toward the rim. Negative: thinner.">Thickness ramp</div>
           <input type="range" id="rg-tru-ramp" min="-100" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-tru-ramp">0</span>
@@ -901,34 +906,19 @@
           <span class="ctrl-val" id="v-tru-curve">0</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Rounds every band end — 100 is a full semicircular cap.">End rounding</div>
-          <input type="range" id="rg-tru-round" min="0" max="100" step="1" value="0">
-          <span class="ctrl-val" id="v-tru-round">0</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Splits each band into dashes.">Segments</div>
+          <div class="ctrl-label" title="Splits each band into dashes.">Dashes</div>
           <input type="range" id="rg-tru-segs" min="1" max="8" step="1" value="1">
           <span class="ctrl-val" id="v-tru-segs">1</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Gap between segments, as a % of a segment's length.">Segment gap</div>
+          <div class="ctrl-label" title="Gap between dashes, as a % of a dash's length.">Dash gap</div>
           <input type="range" id="rg-tru-gap" min="0" max="80" step="1" value="20">
           <span class="ctrl-val" id="v-tru-gap">20</span>
         </div>
       </div>
       <div id="seed-wedge-block" style="display:none">
         <div class="ctrl-row">
-          <div class="ctrl-label">Angle</div>
-          <input type="range" id="rg-wedge-angle" min="10" max="360" step="1" value="90">
-          <span class="ctrl-val" id="v-wedge-angle">90</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="0 = solid pie, higher = a ring segment.">Inner radius</div>
-          <input type="range" id="rg-wedge-inner" min="0" max="95" step="1" value="0">
-          <span class="ctrl-val" id="v-wedge-inner">0</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label" title="Shortcut that sets Angle and Inner radius. Reads Custom as soon as you move either by hand.">Type</div>
+          <div class="ctrl-label" title="Shortcut that sets Angle and Hole. Reads Custom as soon as you move either by hand.">Type</div>
           <select class="panel-select" id="sel-wedge-type" aria-label="Wedge type">
             <option value="quarter" selected>Quarter</option>
             <option value="half">Half</option>
@@ -937,7 +927,17 @@
           </select>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Rounds every corner, including the apex (needs Angle below 180 for the apex). No effect at 360°.">Corner rounding</div>
+          <div class="ctrl-label">Angle</div>
+          <input type="range" id="rg-wedge-angle" min="10" max="360" step="1" value="90">
+          <span class="ctrl-val" id="v-wedge-angle">90</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="0 = solid pie, higher = a ring segment.">Hole</div>
+          <input type="range" id="rg-wedge-inner" min="0" max="95" step="1" value="0">
+          <span class="ctrl-val" id="v-wedge-inner">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Rounds every corner, including the apex (needs Angle below 180 for the apex). No effect at 360°.">Rounding</div>
           <input type="range" id="rg-wedge-round" min="0" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-wedge-round">0</span>
         </div>
@@ -968,12 +968,12 @@
           <span class="ctrl-val" id="v-poly-step">1</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label">Corner radius</div>
+          <div class="ctrl-label">Rounding</div>
           <input type="range" id="rg-poly-corner" min="0" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-poly-corner">0</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="How the corners are cut when Corner radius is above 0.">Corner style</div>
+          <div class="ctrl-label" title="How the corners are cut when Rounding is above 0.">Rounding style</div>
           <select class="panel-select" id="sel-poly-style" aria-label="Polygon corner style">
             <option value="round" selected>Round</option>
             <option value="chamfer">Chamfer</option>
@@ -1010,7 +1010,7 @@
           <span class="ctrl-val" id="v-rr-height">100</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="0 = sharp rect, 100 = a full stadium/capsule.">Corner radius</div>
+          <div class="ctrl-label" title="0 = sharp rect, 100 = a full stadium/capsule.">Rounding</div>
           <input type="range" id="rg-rr-corner" min="0" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-rr-corner">0</span>
         </div>
@@ -1022,14 +1022,14 @@
           <span class="ctrl-val" id="v-chev-notch">40</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="The ribbon's own thickness — outer legs always reach the cell's bottom corners.">Arm width</div>
+          <div class="ctrl-label" title="The ribbon's own thickness — outer legs always reach the cell's bottom corners.">Thickness</div>
           <input type="range" id="rg-chev-arm" min="20" max="80" step="1" value="55">
           <span class="ctrl-val" id="v-chev-arm">55</span>
         </div>
       </div>
       <div id="seed-cross-block" style="display:none">
         <div class="ctrl-row">
-          <div class="ctrl-label">Arm width</div>
+          <div class="ctrl-label" title="How thick each arm is.">Thickness</div>
           <input type="range" id="rg-cross-armwidth" min="5" max="50" step="1" value="35">
           <span class="ctrl-val" id="v-cross-armwidth">35</span>
         </div>
@@ -1039,7 +1039,7 @@
           <span class="ctrl-val" id="v-cross-armlength">100</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Rounds all 12 corners, including the 8 inward crooks between arms.">Corner radius</div>
+          <div class="ctrl-label" title="Rounds all 12 corners, including the 8 inward crooks between arms.">Rounding</div>
           <input type="range" id="rg-cross-corner" min="0" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-cross-corner">0</span>
         </div>
@@ -1077,7 +1077,7 @@
           </select>
         </div>
         <div class="ctrl-row" id="row-circle-inner">
-          <div class="ctrl-label">Inner radius</div>
+          <div class="ctrl-label" title="Size of the hole in the middle of the ring.">Hole</div>
           <input type="range" id="rg-circle-inner" min="5" max="95" step="1" value="50">
           <span class="ctrl-val" id="v-circle-inner">50</span>
         </div>
@@ -1300,7 +1300,7 @@
           <span class="ctrl-val" id="v-chev-squash">100</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="100 touches the cell's edges. Use Width/Length in Appearance for an ellipse.">Radius</div>
+          <div class="ctrl-label" title="100 touches the cell's edges. Use Width/Length in Look &amp; place for an ellipse.">Radius</div>
           <input type="range" id="rg-circle-radius" min="5" max="100" step="1" value="100">
           <span class="ctrl-val" id="v-circle-radius">100</span>
         </div>
@@ -1315,12 +1315,31 @@
           <span class="ctrl-val" id="v-blob-radius">60</span>
         </div>
       </div>
-      <p class="org-panel__hint" id="seed-legacy-note" style="display:none">This shape keeps a size, rotation, outline or irregularity saved before these controls moved to Appearance (Scale, Rotate, Cut out, Irregularity). Reset seed shape clears it.</p>
+      <p class="org-panel__hint" id="seed-legacy-note" style="display:none">This shape keeps a size, rotation, outline or irregularity saved before these controls moved to Look &amp; place (Scale, Rotate, Cut out, Irregularity). Reset seed shape clears it.</p>
       <div id="seed-upload-error" class="org-panel__hint fvs-error" style="display:none"></div>
+      <!-- Split (its own section until Oct 4, 2026): a real geometric cut whose result IS a new shape — the picker turns
+           Custom and "Save piece as Seed" keeps it — so it closes the Shape section. With layers it cuts the whole stack into one shape. -->
+      <div class="sub-label" title="A real geometric cut: keep one or more quarters of the shape.">Split</div>
+      <p class="org-panel__hint" id="split-layers-hint" style="display:none">Cuts all layers into one shape.</p>
+      <div class="ctrl-row"><div class="ctrl-label">Keep</div>
+        <div class="seg-ctrl" id="seg-split-quadrant" role="group" aria-label="Keep one or more quadrants of the Element">
+          <button type="button" class="seg-btn active" data-q="whole" aria-pressed="true" title="Restore the whole shape">All</button>
+          <button type="button" class="seg-btn" data-q="tl" aria-pressed="false">TL</button>
+          <button type="button" class="seg-btn" data-q="tr" aria-pressed="false">TR</button>
+          <button type="button" class="seg-btn" data-q="bl" aria-pressed="false">BL</button>
+          <button type="button" class="seg-btn" data-q="br" aria-pressed="false">BR</button>
+        </div>
+      </div>
+      <div class="ctrl-row"><div class="ctrl-label">Cut grid</div>
+        <label class="check-row"><input type="checkbox" id="chk-split-grid"><span>Show cut grid</span></label>
+      </div>
+      <button class="mini-btn" id="btn-split-save" style="width:100%" disabled>Save piece as Seed…</button>
+      <p class="org-panel__hint" id="split-status"></p>
+      <p class="org-panel__hint" id="split-recipe-hint" style="display:none">Press All to edit the original shape's sliders again.</p>
     </div>
 
     <div class="panel-section">
-      <h3>Appearance</h3>
+      <h3>Look &amp; place</h3>
       <!-- What belongs to ONE layer (Style, Stroke, Width, Length). With a single shape it stays
            here; once the Element has layers renderLayersUI moves this node into the active
            layer's own card, under X / Y / Size / Rot (the node, so its listeners stay). -->
@@ -1352,11 +1371,6 @@
         <span class="ctrl-val" id="v-element-l">1</span>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label" title="Cuts the middle out of the shape, leaving a rim of even thickness along its whole outline — 0 is solid, higher cuts more away (95 leaves a thin rim). Real geometry, unlike Style → Stroke; with Copies on, the copies are the cut-out shape.">Cut out</div>
-        <input type="range" id="rg-element-cutout" min="0" max="95" step="1" value="0">
-        <span class="ctrl-val" id="v-element-cutout">0</span>
-      </div>
-      <div class="ctrl-row">
         <div class="ctrl-label" title="Makes the outline irregular — 0 keeps it clean. Same seed, same shape.">Irregularity</div>
         <input type="range" id="rg-element-irregular" min="0" max="100" step="1" value="0">
         <span class="ctrl-val" id="v-element-irregular">0</span>
@@ -1378,6 +1392,34 @@
         <input type="range" id="rg-element-irrseed" min="1" max="999" step="1" value="1">
         <span class="ctrl-val" id="v-element-irrseed">1</span>
       </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Cuts the middle out of the shape, leaving a rim of even thickness along its whole outline — 0 is solid, higher cuts more away (95 leaves a thin rim). Real geometry, unlike Style → Stroke; with Copies on, the copies are the cut-out shape.">Cut out</div>
+        <input type="range" id="rg-element-cutout" min="0" max="95" step="1" value="0">
+        <span class="ctrl-val" id="v-element-cutout">0</span>
+      </div>
+      <!-- Copies (was "Inner seed", renamed Oct 4, 2026; its own section until the same day — now here, right after Cut out,
+           which drives it, and with layers in the layer's card like Cut out). Ratio / Anchor show only with Count > 0; with Appearance →
+           Cut out on, Ratio reads "Spacing" and Anchor offers only Inner centre / Apex — syncCopiesRows(). -->
+      <div class="ctrl-row">
+        <div class="ctrl-label" id="lbl-inner-count" title="Nested copies of the shape drawn inside itself, alternating ring and gap. 0 turns it off.">Copies</div>
+        <input type="range" id="rg-inner-count" min="0" max="8" step="1" value="0">
+        <span class="ctrl-val" id="v-inner-count">0</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" id="lbl-inner-ratio" title="Each copy's size as a % of the previous one (70 → 70%, 49%, 34%…).">Ratio</div>
+        <input type="range" id="rg-inner-ratio" min="10" max="95" step="1" value="70">
+        <span class="ctrl-val" id="v-inner-ratio">70</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Where the copies are centred. Centroid keeps the rings evenly spaced on shapes whose bounding-box centre is off-centre (Triangle, Drop, Chevron). Inner centre = the centre of the largest circle that fits inside the shape (the evenest gaps). Apex (Arc, Wedge only) centres them on the pivot / tip, so the copies stay concentric with the shape.">Anchor</div>
+        <select class="panel-select" id="sel-inner-anchor" aria-label="Copies anchor">
+          <option value="bbox" selected>Bbox centre</option>
+          <option value="centroid">Centroid</option>
+          <option value="incentre">Inner centre</option>
+          <option value="apex">Apex</option>
+        </select>
+      </div>
+      <p class="org-panel__hint" id="inner-unsupported" style="display:none">Not available for this shape — its copies would cross instead of nest.</p>
       </div>
       <!-- The Element's pattern (Style = Pattern on any layer, and every Pattern-role layer): ONE set of settings for the whole Element, here in Appearance even with layers — a layer only picks its Style. -->
       <div id="element-pattern-block" style="display:none">
@@ -1430,50 +1472,6 @@
       <button class="mini-btn" id="btn-fit-seed" style="width:100%" title="Measures the shape once and sets Scale + Move so it fills the cell, centred.">Fit to canvas</button>
     </div>
 
-    <div class="panel-section">
-      <h3>Copies</h3>
-      <!-- Was "Inner seed" (renamed Oct 4, 2026). Ratio / Anchor show only with Count > 0; with Appearance →
-           Cut out on, Ratio reads "Spacing" and Anchor offers only Inner centre / Apex — syncCopiesRows(). -->
-      <div class="ctrl-row">
-        <div class="ctrl-label" id="lbl-inner-count" title="Nested copies of the shape drawn inside itself, alternating ring and gap. 0 turns it off.">Count</div>
-        <input type="range" id="rg-inner-count" min="0" max="8" step="1" value="0">
-        <span class="ctrl-val" id="v-inner-count">0</span>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label" id="lbl-inner-ratio" title="Each copy's size as a % of the previous one (70 → 70%, 49%, 34%…).">Ratio</div>
-        <input type="range" id="rg-inner-ratio" min="10" max="95" step="1" value="70">
-        <span class="ctrl-val" id="v-inner-ratio">70</span>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label" title="Where the copies are centred. Centroid keeps the rings evenly spaced on shapes whose bounding-box centre is off-centre (Triangle, Drop, Chevron). Inner centre = the centre of the largest circle that fits inside the shape (the evenest gaps). Apex (Arc, Wedge only) centres them on the pivot / tip, so the copies stay concentric with the shape.">Anchor</div>
-        <select class="panel-select" id="sel-inner-anchor" aria-label="Copies anchor">
-          <option value="bbox" selected>Bbox centre</option>
-          <option value="centroid">Centroid</option>
-          <option value="incentre">Inner centre</option>
-          <option value="apex">Apex</option>
-        </select>
-      </div>
-      <p class="org-panel__hint" id="inner-unsupported" style="display:none">Not available for this shape — its copies would cross instead of nest.</p>
-    </div>
-
-    <div class="panel-section">
-      <h3>Split <span class="hint">a real geometric cut</span></h3>
-      <div class="ctrl-row"><div class="ctrl-label">Keep</div>
-        <div class="seg-ctrl" id="seg-split-quadrant" role="group" aria-label="Keep one or more quadrants of the Element">
-          <button type="button" class="seg-btn active" data-q="whole" aria-pressed="true" title="Restore the whole shape">All</button>
-          <button type="button" class="seg-btn" data-q="tl" aria-pressed="false">TL</button>
-          <button type="button" class="seg-btn" data-q="tr" aria-pressed="false">TR</button>
-          <button type="button" class="seg-btn" data-q="bl" aria-pressed="false">BL</button>
-          <button type="button" class="seg-btn" data-q="br" aria-pressed="false">BR</button>
-        </div>
-      </div>
-      <div class="ctrl-row"><div class="ctrl-label">Cut grid</div>
-        <label class="check-row"><input type="checkbox" id="chk-split-grid"><span>Show cut grid</span></label>
-      </div>
-      <button class="mini-btn" id="btn-split-save" style="width:100%" disabled>Save piece as Seed…</button>
-      <p class="org-panel__hint" id="split-status"></p>
-      <p class="org-panel__hint" id="split-recipe-hint" style="display:none">Press All to edit the original shape's sliders again.</p>
-    </div>
     <div class="panel-section">
       <h3>Start from a recipe</h3>
       <div class="ctrl-row">
@@ -3105,10 +3103,10 @@ const SYMBOL_TRIANGLE = { triApex: 0, triCorner: 0, triCurve: 0, triIrregular: 0
 const SEED_EXTRAS = {
   star: { prefix: "star", rows: Organica.shapes.EXTRAS.star, type: { label: "Star type", title: "Shortcut that sets Points, Inner radius, Edge curvature and Tip rounding. Reads Custom as soon as you move any of them by hand.",
     presets: { star: ["Star", {"rg-star-points": 5, "rg-star-inner": 45, "rg-star-curve": 0, "rg-star-tip": 0}], burst: ["Burst", {"rg-star-points": 12, "rg-star-inner": 70, "rg-star-curve": 0, "rg-star-tip": 0}], sparkle: ["Sparkle", {"rg-star-points": 4, "rg-star-inner": 20, "rg-star-curve": -50, "rg-star-tip": 0}], badge: ["Badge", {"rg-star-points": 12, "rg-star-inner": 88, "rg-star-curve": 0, "rg-star-tip": 40}] } } },
-  roundedrect: { prefix: "rr", rows: Organica.shapes.EXTRAS.roundedrect, type: { label: "Rounded rect type", title: "Shortcut that sets Width, Height and Corner radius. Reads Custom as soon as you move any of them by hand.",
+  roundedrect: { prefix: "rr", rows: Organica.shapes.EXTRAS.roundedrect, type: { label: "Rounded rect type", title: "Shortcut that sets Width, Height and Rounding. Reads Custom as soon as you move any of them by hand.",
     presets: { square: ["Square", {"rg-rr-width": 100, "rg-rr-height": 100, "rg-rr-corner": 0}], landscape: ["Landscape", {"rg-rr-width": 100, "rg-rr-height": 60, "rg-rr-corner": 0}], portrait: ["Portrait", {"rg-rr-width": 60, "rg-rr-height": 100, "rg-rr-corner": 0}], pill: ["Pill", {"rg-rr-width": 100, "rg-rr-height": 50, "rg-rr-corner": 100}] } } },
   chevron: { prefix: "chev", rows: Organica.shapes.EXTRAS.chevron },
-  cross: { prefix: "cross", rows: Organica.shapes.EXTRAS.cross, type: { label: "Cross type", title: "Shortcut that sets Arms. Reads Custom as soon as you move it by hand. (An X is a Plus with Appearance → Rotate 45.)",
+  cross: { prefix: "cross", rows: Organica.shapes.EXTRAS.cross, type: { label: "Cross type", title: "Shortcut that sets Arms. Reads Custom as soon as you move it by hand. (An X is a Plus with Look & place → Rotate 45.)",
     presets: { plus: ["Plus", {"rg-cross-arms": 4}], y: ["Y", {"rg-cross-arms": 3}], asterisk: ["Asterisk", {"rg-cross-arms": 6}] } } },
   lens: { prefix: "lens", rows: Organica.shapes.EXTRAS.lens },
   segment: { prefix: "seg", rows: Organica.shapes.EXTRAS.segment },
@@ -6748,6 +6746,7 @@ function renderLayersUI() {
   if (ctrl('sel-rule').value === 'exhaustive') syncExhaustiveHint();
   ctrl('layers-hint').textContent = L ? L.items.length + ' · top first' : 'Add new layer';
   ctrl('seed-layer-hint').textContent = L ? 'editing ' + layerName(L.items[L.active]) : '';
+  ctrl('split-layers-hint').style.display = L ? '' : 'none';   // Split takes the whole stack
   if (!L) { list.innerHTML = ''; return; }
   // Top layer first, like every layer panel.
   list.innerHTML = L.items.map((l, i) => i).reverse().map(i => {
@@ -10252,6 +10251,20 @@ ctrl('rg-wedge-squash').addEventListener('input', e => { ctrl('v-wedge-squash').
 const FVS_RETIRED_EXTRAS = new Set(['starRotate', 'rrRotate', 'chevRotate', 'crossRotate', 'lensRotate', 'dropRotate',
   'starOutline', 'rrOutline', 'lensOutline', 'blobOutline',   // + the shape-own Outlines → Appearance → Cut out
   'starSkew']);   // + Star's Angle jitter → Appearance → Irregularity
+// One name per idea across every shape (Oct 4, 2026): FVS's own labels for a few shared rows — the shared table
+// keeps its own, Genesis reads it. key → [label, title?].
+const FVS_EXTRAS_LABELS = {
+  starStyle: ['Rounding style'], rrStyle: ['Rounding style'],
+  chevRound: ['Rounding'], chevStyle: ['Rounding style', 'How corners are cut when Rounding is above 0.'],
+  crossStyle: ['Rounding style', 'How corners are cut when Rounding is above 0.'],
+};
+// The same row order in every Seed: Type · proportions · rounding (then its style, then curvature) · the shape's
+// own details · repeats inside the shape. Blocks whose rows come partly from the shared table are re-ordered here.
+const FVS_SEED_ORDER = {
+  roundedrect: ['sel-rr-type', 'rg-rr-width', 'rg-rr-height', 'rg-rr-skew', 'rg-rr-corner', 'sel-rr-style', 'sel-rr-mask', 'rg-rr-curve'],
+  cross: ['sel-cross-type', 'rg-cross-arms', 'rg-cross-armwidth', 'rg-cross-armlength', 'rg-cross-corner', 'sel-cross-style', 'rg-cross-taper', 'sel-cross-tip'],
+  blob: ['rg-blob-amount', 'rg-blob-freq', 'rg-blob-smooth', 'rg-blob-seed'],
+};
 // Build the extras rows into each shape's block, then wire them (label readout,
 // derived Type shortcut, re-render). Called once at boot, before the first render.
 function buildSeedExtras() {
@@ -10259,9 +10272,10 @@ function buildSeedExtras() {
     const block = ctrl('seed-' + shape + '-block');
     sh.rows.forEach(r => {
       const row = document.createElement('div'); row.className = 'ctrl-row';
-      const lab = document.createElement('div'); lab.className = 'ctrl-label'; lab.textContent = r.label; if (r.title) lab.title = r.title; row.appendChild(lab);
+      const [label, title] = FVS_EXTRAS_LABELS[r.key] || [r.label, r.title];
+      const lab = document.createElement('div'); lab.className = 'ctrl-label'; lab.textContent = label; if (title || r.title) lab.title = title || r.title; row.appendChild(lab);
       if (r.kind === 'select') {
-        const sel = document.createElement('select'); sel.className = 'panel-select'; sel.id = xrId(sh, r); sel.setAttribute('aria-label', sh.prefix + ' ' + r.label);
+        const sel = document.createElement('select'); sel.className = 'panel-select'; sel.id = xrId(sh, r); sel.setAttribute('aria-label', sh.prefix + ' ' + label);
         r.options.forEach(([v, t]) => { const o = new Option(t, v); if (v === r.def) o.defaultSelected = true; sel.appendChild(o); });
         sel.value = r.def; row.appendChild(sel);
       } else {
@@ -10293,6 +10307,10 @@ function buildSeedExtras() {
       });
     });
   });
+  Object.entries(FVS_SEED_ORDER).forEach(([shape, ids]) => {
+    const block = ctrl('seed-' + shape + '-block');
+    ids.forEach(id => block.appendChild(ctrl(id).closest('.ctrl-row')));
+  });
 }
 function syncExtrasType(sh) {
   const sel = ctrl('sel-' + sh.prefix + '-type'); if (!sel) return;
@@ -10303,7 +10321,7 @@ function syncExtrasTypes() { Object.values(SEED_EXTRAS).forEach(sh => { if (sh.t
 buildSeedExtras();
 // Any edit in the Seed panel may reveal / hide a dependent row (SEED_DEPENDS).
 ['input', 'change'].forEach(ev => ctrl('sel-seed-type').closest('.panel-section').addEventListener(ev, syncDependentRows));
-['input', 'change'].forEach(ev => ctrl('rg-inner-count').closest('.panel-section').addEventListener(ev, syncCopiesRows));
+['rg-inner-count', 'rg-inner-ratio', 'sel-inner-anchor'].forEach(id => ['input', 'change'].forEach(ev => ctrl(id).addEventListener(ev, syncCopiesRows)));   // on the inputs: they travel into a layer's card with the look block
 
 // Polygon Type is a derived shortcut for Sides. Triangle and Square were dropped (Oct 4, 2026) — they are
 // Seeds of their own (Triangle, Rounded rect); a snapshot with 3 or 4 sides reads Custom.
@@ -11763,11 +11781,11 @@ const FG_ICONS = {
 const FG_GRID_TYPES = [['tier1', 'Tier'], ['tier2', 'Tier ×2'], ['tri2', 'Triangle 2'], ['tri3', 'Triangle 3'], ['square2x2', 'Square 2×2'], ['square3x3', 'Square 3×3']];
 // The two or three settings of each Seed that change it most (control id → label); ranges come from the controls themselves.
 const FG_SEED_MAIN = {
-  triangle: [['rg-tri-apex', 'Apex'], ['rg-tri-corner', 'Corner']], arc: [['rg-thickness', 'Thickness'], ['rg-arc-sweep', 'Sweep']],
-  arctruchet: [['rg-arc-count', 'Arcs'], ['rg-arc-ratio', 'Ratio']], wedge: [['rg-wedge-angle', 'Angle'], ['rg-wedge-inner', 'Hole']],
-  polygon: [['rg-poly-sides', 'Sides'], ['rg-poly-corner', 'Corner']], star: [['rg-star-points', 'Points'], ['rg-star-inner', 'Inner radius']],
-  roundedrect: [['rg-rr-width', 'Width'], ['rg-rr-corner', 'Corner']], chevron: [['rg-chev-notch', 'Notch'], ['rg-chev-arm', 'Arm']],
-  cross: [['rg-cross-armwidth', 'Arm width'], ['rg-cross-corner', 'Corner']], lens: [['rg-lens-width', 'Width']],
+  triangle: [['rg-tri-apex', 'Apex'], ['rg-tri-corner', 'Rounding']], arc: [['rg-thickness', 'Thickness'], ['rg-arc-sweep', 'Sweep']],
+  arctruchet: [['rg-arc-count', 'Bands'], ['rg-arc-ratio', 'Thickness']], wedge: [['rg-wedge-angle', 'Angle'], ['rg-wedge-inner', 'Hole']],
+  polygon: [['rg-poly-sides', 'Sides'], ['rg-poly-corner', 'Rounding']], star: [['rg-star-points', 'Points'], ['rg-star-inner', 'Inner radius']],
+  roundedrect: [['rg-rr-width', 'Width'], ['rg-rr-corner', 'Rounding']], chevron: [['rg-chev-notch', 'Notch'], ['rg-chev-arm', 'Thickness']],
+  cross: [['rg-cross-armwidth', 'Thickness'], ['rg-cross-corner', 'Rounding']], lens: [['rg-lens-width', 'Width']],
   circle: [['rg-circle-radius', 'Radius'], ['rg-circle-lobes', 'Lobes']], drop: [['rg-drop-radius', 'Size'], ['rg-drop-tail', 'Tail']],
   blob: [['rg-blob-amount', 'Wobble'], ['rg-blob-seed', 'Variation']],
 };

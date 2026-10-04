@@ -25,7 +25,7 @@ one before.
 
 | Step | What you make | Built from |
 |---|---|---|
-| **Element** | The Seed shape and how it is drawn | a Seed type, its extras, Appearance, Palette |
+| **Element** | The Seed shape and how it is drawn | a Seed type, its extras, Look & place, Palette |
 | **Component** | A small cell arrangement (2×2, 3×3, 4×4 or an imported Loom grid) | the Element, placed by a **rule** |
 | **Symbol** | A larger grid whose every cell holds a Seed or a saved Component | a grid generated in the canvas, or a loaded JSON grid |
 | **Grid** | A Symbol, or a saved Component, tiled 2×2 / 3×3 / 4×4 / Loom | the previous step's output |
@@ -51,6 +51,28 @@ Grid step without saving it first.
   Seeds picked from the **Creator library** (Genesis). Each type has its own
   *extras* — corner styles, curvature, outline, twist and so on — listed from
   one shared table (`Organica.shapes.EXTRAS`), the same one Genesis Create uses.
+- **Shape** (the section, was *Seed*, renamed Oct 4, 2026). Every Seed lists its controls in the
+  same order:
+  1. **Type** (the preset shortcut).
+  2. Proportions.
+  3. **Rounding**, then **Rounding style**, then Edge curvature.
+  4. The shape's own details (taper, twist, lean…).
+  5. Repeats inside the shape (Dashes, Petals, Stack, Lines, Rays…).
+
+  One name per idea, in every shape:
+  - **Rounding**: was Corner radius / Corner rounding / End rounding. Star keeps Tip / Valley rounding.
+  - **Rounding style**: was Corner style.
+  - **Dashes + Dash gap**: Arc and Arc truchet's Segments + Segment gap.
+  - **Thickness**: Chevron / Cross Arm width, Arc truchet Arc ratio.
+  - **Bands**: Arc truchet Arc count.
+  - **Hole**: the hole of Wedge and of Circle → Ring. Star keeps *Inner radius* (its point depth).
+
+  These labels are FVS's own (`FVS_EXTRAS_LABELS`; the order of rows built from the shared table:
+  `FVS_SEED_ORDER`). The shared table keeps its labels for Genesis. Ids and saved keys are
+  unchanged.
+  **Split** closes the Shape section (its own section until Oct 4, 2026). It is a real geometric
+  cut whose result is a new shape: the picker turns Custom, and **Save piece as Seed** keeps it.
+  With layers it cuts the whole stack into one shape, and a hint says so.
 - **Segment** is a filled bar: *Length*, *Thickness* (% of the cell, default 8) and
   *Round ends* (off by default — square ends). It shows in Fill style like any other
   shape; picking it turns *Rounded caps* off (they only matter in Stroke, where the bar is
@@ -73,10 +95,10 @@ Grid step without saving it first.
   colour* or an ink (off for mask layers) · **bin** on hover. The active row opens **X / Y /
   Size / Rot** (the layer's own placement) right under it, followed by the layer's own
   **Style, Stroke W, Rounded caps, Width and Length** — with layers these controls sit in the
-  layer's card, not in Appearance. Appearance then keeps only what acts on the **whole
+  layer's card, not in Look & place. Look & place then keeps only what acts on the **whole
   Element** (Scale, Move, Rotate, Fit), under a "Whole Element — all layers" label. With a single
-  shape everything is in Appearance, as before.
-- **Appearance** — Style **Fill / Stroke / Pattern**, Width / Length, **Scale, Move X/Y,
+  shape everything is in Look & place, as before.
+- **Look & place** (was *Appearance*, renamed Oct 4, 2026) — Style **Fill / Stroke / Pattern**, Width / Length, **Scale, Move X/Y,
   Rotate** and **⤢ Fit to canvas** (one-shot). Rotate turns the Element about its centre,
   after Width / Length (a stretched shape turns as a whole — the same order as a layer's
   own Rot). **Cut out** (0–95, beside Width / Length — remembered per shape type like them, and
@@ -87,7 +109,7 @@ Grid step without saving it first.
   sliders (Triangle, Polygon, Star, Rounded rect, Lens, Blob), which scaled the shape toward its
   centre — even only on a triangle or a regular polygon (×1.53 at a lens tip, ×0.73 in a star's
   valley). Those stay hidden for old snapshots and are never converted (the picture would change
-  by up to 9 %); the Seed panel's note says so and Reset seed shape clears them. Such an old
+  by up to 9 %); the Shape panel's note says so and Reset seed shape clears them. Such an old
   Element cut out again gets both (its own Outline first, then the even rim) — Reset seed shape
   first to keep only Cut out. Implementation: `hollowGeometry` (Paper.js, memoised; the inscribed
   circle in plain JS, `inscribedCircle`); prototype measurements in
@@ -102,10 +124,12 @@ Grid step without saving it first.
   irregular outline); the shape may poke out of its cell, like Scale above 1. It replaces the five
   shape-own Irregularity + Seed pairs (Triangle, Arc, Wedge, Polygon, Star — two different
   behaviours under one name) and Polygon / Star *Angle jitter*; those stay hidden for old snapshots,
-  never converted (different formulas), with the Seed-panel note. Blob stays a Seed type with its own Amount
+  never converted (different formulas), with the Shape-panel note. Blob stays a Seed type with its own Amount
   (Diego, Oct 4, 2026), even though Circle + Irregularity (Outline) can draw a similar shape.
-- **Copies** (was *Inner seed*, renamed Oct 4, 2026) — nested copies of the shape. Ratio and
-  Anchor show only with Count > 0. Two behaviours, set by Cut out:
+- **Copies** (was *Inner seed*, renamed Oct 4, 2026) — nested copies of the shape. Since the same day
+  it is not a section of its own: the **Copies** row sits in Look & place right after Cut out, which drives it
+  (with layers, in the layer's card like Cut out). Order there follows the computation: Width, Length,
+  Irregularity, Cut out, Copies. Ratio and Anchor show only with Copies > 0. Two behaviours, set by Cut out:
   - **Cut out 0** — the original alternating bands (byte-identical to before). Ratio = each copy's
     size as a % of the previous one; Anchor Bbox centre / Centroid / **Inner centre** (centre of the
     largest inscribed circle — the evenest bands) / Apex (Arc, Wedge).
@@ -118,7 +142,7 @@ Grid step without saving it first.
     the rest only shrank the hole or left fragments.
 
 - **One control per job** (Oct 4, 2026 — `docs/audit-2026-10/FVS-ELEMENT-DUPLICATES.md`).
-  The shape sliders that did what Appearance already does are gone: Circle / Polygon / Star
+  The shape sliders that did what Look & place already does are gone: Circle / Polygon / Star
   **Radius** (= Scale), Wedge / Chevron **Squash** (= Length), the per-shape **Rotate** of
   Wedge, Polygon, Star, Rounded rect, Chevron, Cross, Lens, Drop and Circle (= Rotate), and
   Blob **Radius** (it never changed the shape — the blob is fitted to the cell). Arc *Start
@@ -128,10 +152,10 @@ Grid step without saving it first.
   **Triangle / Square** types (Seeds of their own) and Cross's **X** (a Plus with Rotate 45).
   A control that changes nothing until another one moves is hidden until then (one table,
   `SEED_DEPENDS`: Seed without Irregularity, a gap with one segment, a corner style with no
-  corner…). Rounded rect's Type now sets Corner radius on every preset.
+  corner…). Rounded rect's Type now sets Rounding on every preset.
   **Old snapshots**: their inputs still exist, hidden (`#seed-legacy`), so a saved Element
   renders exactly as saved. When one is opened for editing, `foldLegacySeed` moves each value
-  into Appearance (single shape) or the layer's own Size / Rot / Length (stack) and resets the
+  into Look & place (single shape) or the layer's own Size / Rot / Length (stack) and resets the
   seed key — only when sampling both pictures says they are the same; anything that would
   change (a shape that refits after rotating, a Stroke whose width would scale with Scale, a
   Squash under a rotation) keeps its old value. Saved Components and Symbols never go through
@@ -144,10 +168,10 @@ Grid step without saving it first.
   stretch the shape, not the spacing, and stacked layers' patterns line up. It turns with the
   cell in Component and Symbol (a Checkerboard 0°/90° alternates the line direction). With
   layers, each layer picks its own Style, but the pattern's settings (Pattern / Spacing /
-  Weight / Angle) are **one set for the whole Element**, always here in Appearance — never in
+  Weight / Angle) are **one set for the whole Element**, always here in Look & place — never in
   the layer's card. They show whenever any layer uses Pattern (Style or role).
 - **Reset seed shape** (floatbar) brings the current shape back to how it opens the first time
-  (Diego, Oct 4, 2026): its own controls, Copies, and its Appearance — Style, Stroke, Width, Length,
+  (Diego, Oct 4, 2026): its own controls, Copies, and its Look & place — Style, Stroke, Width, Length,
   Cut out, Scale, Move, Rotate, the pattern settings (the same defaults a shape switch starts from).
   With layers it resets only the active layer's own look (Style, Stroke, Width, Length, Cut out), not
   its place nor the whole-Element Scale / Move / Rotate. Palette and Paper are never touched.
@@ -524,7 +548,7 @@ A layer's **role icon** (on its row) sets how it acts on the **layers below** it
 - **Mask** (square with a hole) — cuts the layer's shape out of every layer below it.
 - **Pattern** (diagonal hatch, Oct 3, 2026) — a mask made of the pattern: its lines / dots are
   **cut out of every layer below** (real transparency — the Paper and its texture show through).
-  It uses the Element's pattern settings (Appearance) and has no ink; its card hides Style, and
+  It uses the Element's pattern settings (Look & place) and has no ink; its card hides Style, and
   its Seed is ignored. Its X / Y / Size / Rot move, scale and rotate the pattern. SVG: a `<mask>`
   (white, pattern in black); canvas: `destination-out`.
 
