@@ -313,6 +313,20 @@ if (want('J3')) {
   });
 }
 
+if (want('J3')) {
+  await test('J3.9', 'Delete / Backspace empties the selected Symbol cells (locked skipped; not while typing)', async c => {
+    const r = await ev(async () => {
+      const key = (k, t = document.body) => { const e = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }); t.dispatchEvent(e); return e; };
+      state.symbolSelection = new Set([1, 2, 3]); state.symbolCells[2].locked = true; state.symbolCells[1].source = state.symbolCells[3].source = 'component'; renderSymbolCanvasOnly(); await __t.wait(100);
+      key('Delete'); await __t.wait(120);
+      const out = { emptied: [1, 3].every(i => state.symbolCells[i].source === 'empty'), lockedKept: state.symbolCells[2].source !== 'empty' };
+      state.symbolCells[4].source = 'component'; state.symbolSelection = new Set([4]); key('Backspace', document.getElementById('num-symbol-seed')); out.typingSafe = state.symbolCells[4].source === 'component';
+      state.symbolCells[2].locked = false; return out;
+    });
+    expect(c, r.emptied, 'selected cells not emptied'); expect(c, r.lockedKept, 'locked cell was emptied'); expect(c, r.typingSafe, 'Backspace in a field emptied a cell');
+  });
+}
+
 // ════════════ J4 — cross-step stress ════════════
 if (want('J4')) {
   await test('J4.1', 'remove a Component that is placed in cells / pool / a saved Symbol (H2, H3)', async c => {

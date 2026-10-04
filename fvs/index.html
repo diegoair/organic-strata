@@ -9625,9 +9625,19 @@ function setTier(tier) {
  ['Space (hold)', 'Pan a zoomed view', 'View'], ['⌘ + / − / 0', 'Gallery zoom in / out / reset', 'View'],
  ['Space', 'Figure: shuffle', 'Figure'], ['V', 'Figure: variations', 'Figure'], ['[ / ]', 'Figure: nudge size', 'Figure'],
  ['1–6', 'Figure: pick a paint tool', 'Figure'], ['R / m / M', 'Figure: rotate / mirror V / mirror H the handle target', 'Figure'],
+ ['Delete / ⌫', 'Symbol: empty the selected cells', 'Edit'],
  ['Esc', 'Close gallery / overlay', 'General']
 ].forEach(([keys, label, group]) => Organica.shortcuts.add({ keys, label, group }));
 var fvsPanKey = false;
+// Delete / Backspace on selected Symbol cells = the Choose-content → Empty tile (the cell goes blank).
+document.addEventListener('keydown', e => {
+  if ((e.key !== 'Delete' && e.key !== 'Backspace') || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (state.activeTier !== 'symbol' || !state.symbolSelection.size) return;
+  if (fvsIsTypingTarget(e.target) || (e.target.closest && e.target.closest('.org-modal, #symbol-content-overlay'))) return;
+  e.preventDefault();   // Backspace must not navigate back
+  applyToSelection(cell => (cell.locked ? {} : { source: 'empty', rotation: 0, flipH: false, flipV: false, fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 }));
+  renderCellPropertiesPanel();
+});
 var fvsIsTypingTarget = t => t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
 document.addEventListener('keydown', e => {
   if (e.code === 'Space' && fvsZoomActive() && !fvsIsTypingTarget(e.target)) {
