@@ -102,8 +102,8 @@ Grid step without saving it first.
   irregular outline); the shape may poke out of its cell, like Scale above 1. It replaces the five
   shape-own Irregularity + Seed pairs (Triangle, Arc, Wedge, Polygon, Star — two different
   behaviours under one name) and Polygon / Star *Angle jitter*; those stay hidden for old snapshots,
-  never converted (different formulas), with the Seed-panel note. Blob keeps its own Amount for now —
-  Blob = Circle + Irregularity (Outline) is a later decision.
+  never converted (different formulas), with the Seed-panel note. Blob stays a Seed type with its own Amount
+  (Diego, Oct 4, 2026), even though Circle + Irregularity (Outline) can draw a similar shape.
 - **Copies** (was *Inner seed*, renamed Oct 4, 2026) — nested copies of the shape. Ratio and
   Anchor show only with Count > 0. Two behaviours, set by Cut out:
   - **Cut out 0** — the original alternating bands (byte-identical to before). Ratio = each copy's

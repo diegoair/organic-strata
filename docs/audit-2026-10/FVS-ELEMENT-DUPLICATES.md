@@ -248,5 +248,5 @@ Result on 10 shapes × 20 pairs: **no merge anywhere**. Fewer than 4 rings only 
 - Regression 395/395.
 
 **Open.**
-- Blob vs Circle + Irregularity.
+- ~~Blob vs Circle + Irregularity.~~ Decided by Diego: **Blob stays** (Oct 4, 2026).
 - Self-intersections at high Irregularity on thin shapes (Chevron, Segment) are possible; not clamped.
