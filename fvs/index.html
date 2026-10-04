@@ -194,7 +194,6 @@
   .fvs-rail__foot { padding-top: var(--space-3); display: flex; }
   #fvs-rail-panel[data-rail-tier="symbol"] .fvs-library-item:not([data-rail-kind="symbol"]) { cursor: grab; }
   .fvs-rail__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
-  #fvs-rail-panel:not([data-rail-tier="symbol"]) #rail-el-own-row { display: none; }   /* placing Elements only happens in the Symbol step */
   .fvs-rail__tile { position: relative; }
   .fvs-rail__rename { left: 0; right: auto; }
   .fvs-rail__tile .rmx-x { opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
@@ -654,7 +653,7 @@
   </div>
   <div class="org-floatbar" id="fvs-rail-panel" role="region" aria-label="Saved Elements, Components and Symbols" inert>
     <div class="fvs-rail__scroll">
-      <div id="rail-g-elements"><div class="fvs-rail__head"><div class="sub-label">Elements</div><label class="check-row org-switch" id="rail-el-own-row"><input type="checkbox" id="chk-rail-el-own" aria-label="Keep own colours when placing an Element"><span>Keep own colours</span></label></div><div class="fvs-rail__grid" id="rail-elements"></div></div>
+      <div id="rail-g-elements"><div class="sub-label">Elements</div><div class="fvs-rail__grid" id="rail-elements"></div></div>
       <div id="rail-g-components"><div class="fvs-rail__head"><div class="sub-label">Components</div><button type="button" class="mini-btn" id="btn-rail-save-all">Save all</button></div><div class="fvs-rail__grid" id="rail-components"></div></div>
       <div id="rail-g-symbols"><div class="sub-label">Symbols</div><div class="fvs-rail__grid" id="rail-symbols"></div></div>
     </div>
@@ -2277,7 +2276,11 @@ function colorAt(i) { return state.colors[i % state.colors.length]; }
 // behaviour (cell i → colour i, wrapping); the others read the cell's grid
 // position so a multi-ink pattern follows the structure (checker parity,
 // rows, columns, diagonals, quadrants) instead of the row-major order.
+// `own` (the default, Oct 4, 2026): a saved Element placed in a Symbol cell keeps the
+// palette it was saved with (cell.ownColors); every other cell — and every Component
+// cell — is coloured by cell order.
 const COLOR_RULES = {
+  own:      { label: "Element's own colours", fn: (i) => i },
   index:    { label: 'By cell order',  fn: (i) => i },
   checker:  { label: 'Checkerboard',   fn: (i, c) => c.col + c.row },
   rows:     { label: 'By row',         fn: (i, c) => c.row },
@@ -2285,7 +2288,7 @@ const COLOR_RULES = {
   diagonal: { label: 'Diagonal bands', fn: (i, c) => c.col + c.row },
   quadrant: { label: 'By quadrant',    fn: (i, c) => (c.col * 2 >= c.cols ? 1 : 0) + (c.row * 2 >= c.rows ? 2 : 0) },
 };
-const DEFAULT_COLOR_RULE = { mode: 'index', offset: 0 };
+const DEFAULT_COLOR_RULE = { mode: 'own', offset: 0 };
 state.colorRule = { ...DEFAULT_COLOR_RULE };
 // `checker` alternates between two neighbours only, whatever the palette size.
 function paletteInk(colors, rule, i, cr) {
@@ -2299,7 +2302,7 @@ function paletteInk(colors, rule, i, cr) {
 // col/row of every cell of a Component/Symbol grid (binning fallback, so it
 // works for square and Loom grids alike). Null when the rule needs no position.
 function colorRuleCR(grid, rule) {
-  if (!grid || !rule || rule.mode === 'index') return null;
+  if (!grid || !rule || rule.mode === 'index' || rule.mode === 'own') return null;
   try { return Organica.shapes.cellColRow(grid, null, null); } catch (e) { return null; }
 }
 // Ink of cell i under the LIVE palette + rule.
@@ -2316,11 +2319,14 @@ function entryInkAt(entry) {
 let _symCR = { key: null, rule: null, cr: null };
 function symbolCR() {
   const g = state.symbolGrid, r = state.colorRule.mode;
-  if (_symCR.key !== g || _symCR.rule !== r) _symCR = { key: g, rule: r, cr: r === 'index' ? null : colorRuleCR(getSymbolGrid(), state.colorRule) };
+  if (_symCR.key !== g || _symCR.rule !== r) _symCR = { key: g, rule: r, cr: (r === 'index' || r === 'own') ? null : colorRuleCR(getSymbolGrid(), state.colorRule) };
   return _symCR.cr;
 }
+// "Element's own colours": the cell's saved Element palette, when it has one.
+const cellOwnInks = cell => (state.colorRule.mode === 'own' && cell.ownColors && cell.ownColors.length) ? cell.ownColors : null;
 function cellInk(cell, i) {
-  const p = ruleInk(i, symbolCR());
+  const own = cellOwnInks(cell);
+  const p = own ? own[0] : ruleInk(i, symbolCR());
   // null = follow the palette; anything else is an explicit override set in Cell properties
   // (legacy colours that merely pinned the palette value are released when a saved Symbol loads).
   return cell.color ? cell.color : p;
@@ -6032,7 +6038,7 @@ const COLOUR_SCHEMES = {
     if (m.length < 2 || ctx.count < 2) return [];
     const base = m[0], acc = m[m.length >= 3 ? 2 : 1], want = Organica.color.roleShares(3)[2] / 100;
     let best = null;
-    [[base, acc], [base, base, acc], [base, base, base, acc]].forEach(colors => Object.keys(COLOR_RULES).forEach(mode => {
+    [[base, acc], [base, base, acc], [base, base, base, acc]].forEach(colors => Object.keys(COLOR_RULES).filter(m => m !== 'own').forEach(mode => {
       for (let offset = 0; offset < colors.length; offset++) {
         const rule = { mode, offset }, cr = colorRuleCR(ctx.grid, rule);
         let hit = 0;
@@ -8039,7 +8045,7 @@ function buildSymbolItems() {
     return {
       type: 'seed', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
       scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
-      color: cellInk(cell, i), geo, inks: cell.ownColors || null,   // inks: a saved Element's own palette ("Keep own colours")
+      color: cellInk(cell, i), geo, inks: cellOwnInks(cell),   // inks: a saved Element's own palette (Colour by → Element's own colours)
     };
   }).filter(Boolean);
 }
@@ -9603,7 +9609,7 @@ function syncCellColourUI(cell, isComponent) {
   const inp = ctrl('in-cellprop-color');
   inp.style.display = custom ? '' : 'none';
   if (custom) inp.value = cur;
-  ctrl('row-cellprop-color-override').style.display = (cur || cell.ownColors) ? '' : 'none';
+  ctrl('row-cellprop-color-override').style.display = cur ? '' : 'none';
 }
 // Cell properties belong to the selection, not to the Fill mode: the block
 // shows in Manual, and in any other mode as soon as cells are selected.
@@ -10733,7 +10739,7 @@ ctrl('sel-cellprop-color').addEventListener('change', e => {
   renderCellPropertiesPanel();
 });
 ctrl('in-cellprop-color').addEventListener('input', e => applyToSelection({ color: hexKey(e.target.value) }));
-ctrl('btn-cellprop-color-reset').addEventListener('click', () => { applyToSelection({ color: null, ownColors: null }); renderCellPropertiesPanel(); });
+ctrl('btn-cellprop-color-reset').addEventListener('click', () => { applyToSelection({ color: null }); renderCellPropertiesPanel(); });
 ctrl('btn-cellprop-useseed').addEventListener('click', () => {
   const sp = seedForSnapshot();
   applyToSelection(cell => ({ seedParams: cell.source === 'seed' ? JSON.parse(JSON.stringify(sp)) : undefined, seedType: cell.source === 'seed' ? sp.type : cell.seedType }));
@@ -11579,7 +11585,7 @@ const FIGURE_MUTATIONS = [
   { group: 'element', name: 'Other colour rule', fn: (d, rng) => {
       const b = fgBaseColours(d);
       if (b.colors.length < 2) return false;
-      d.element.colorRule = { mode: fgPick(Object.keys(COLOR_RULES).filter(m => m !== b.colorRule.mode), rng), offset: b.colorRule.offset || 0 }; return true; } },
+      d.element.colorRule = { mode: fgPick(Object.keys(COLOR_RULES).filter(m => m !== b.colorRule.mode && m !== 'own'), rng), offset: b.colorRule.offset || 0 }; return true; } },
   { group: 'element', name: 'Fill ↔ Stroke', fn: d => { if (d.element.style === 'stroke') { d.element.style = 'fill'; delete d.element.strokeW; } else { d.element.style = 'stroke'; d.element.strokeW = 4; } return true; } },
   { group: 'symbol', name: 'Bigger / smaller layout', fn: (d, rng) => { const s2 = fgSymbol(d); if (!s2) return false; const l = s2.lattice, key = l.type === 'triangle' ? 'rows' : l.type === 'hexagon' ? 'rings' : 'cols', lo = l.type === 'hexagon' ? 1 : 2, hi = l.type === 'hexagon' ? 3 : l.type === 'triangle' ? 5 : 4; const v = l[key] + (rng() < 0.5 ? -1 : 1); if (v < lo || v > hi) return false; l[key] = v; if (l.type === 'square') l.rows = v; return true; } },
   { group: 'rules', name: 'Toggle a class', fn: (d, rng) => { const s2 = fgSymbol(d); if (!s2) return false; s2.rules = s2.rules || []; const l = s2.lattice;
@@ -12358,7 +12364,6 @@ document.addEventListener('keydown', e => {
 });
 
 // What a tile puts in a cell — the same patches as the Choose-content overlay.
-let railElementOwnColours = false; try { railElementOwnColours = localStorage.getItem('organica.fvs.elementOwnColours') === '1'; } catch (e) { /* ignore */ }
 function railPatch(kind, name) {
   if (kind === 'component') {
     if (!LIBRARY.read()[name]) return null;
@@ -12368,13 +12373,12 @@ function railPatch(kind, name) {
   if (!entry || !entry.seed) return null;
   const sp = JSON.parse(JSON.stringify(entry.seed)), o = entry.orientation || {};
   if (sp.type === 'stack') sp.layers.forEach(l => { if (l.ink == null || l.ink === 'cell') l.ink = 0; });
-  // "Keep own colours": the cell takes the palette the Element was saved with — its ink as
-  // the cell colour (the same override Cell properties → Colour writes) and, for a stack,
-  // every layer's ink from that palette (ownColors, drawn like a Component's own palette).
-  // Off (default): the cell follows the Symbol's Colour by. An entry saved without colours
-  // falls back to following.
-  const own = railElementOwnColours && entry.colors && entry.colors.length ? entry.colors.slice() : null;
-  return { source: 'seed', seedType: sp.type, seedParams: sp, color: own ? own[0] : null, ownColors: own, colourway: null, rotation: o.rotation || 0, flipH: !!o.flipH, flipV: !!o.flipV, fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 };
+  // The cell carries the palette the Element was saved with (ownColors). It is used while
+  // Colour by is "Element's own colours" (the default): its first ink for the shape, every
+  // layer's ink for a stack (drawn like a Component's own palette). Any other rule colours
+  // the cell like the rest. An entry saved without colours follows the rule.
+  const own = entry.colors && entry.colors.length ? entry.colors.slice() : null;
+  return { source: 'seed', seedType: sp.type, seedParams: sp, color: null, ownColors: own, colourway: null, rotation: o.rotation || 0, flipH: !!o.flipH, flipV: !!o.flipV, fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 };
 }
 // A cell inside the selection takes the whole selection; any other cell takes only itself.
 function railApply(kind, name, idx) {
@@ -12547,12 +12551,6 @@ function syncRailTier(tier) {
   renderLibraryRail();
 }
 let railWasOpen = false; try { railWasOpen = localStorage.getItem('organica.fvs.rail') === '1'; } catch (e) { /* ignore */ }
-// "Keep own colours" — a per-browser preference (what it produces, cell.color / ownColors, is saved with the Symbol).
-ctrl('chk-rail-el-own').checked = railElementOwnColours;
-ctrl('chk-rail-el-own').addEventListener('change', e => {
-  railElementOwnColours = e.target.checked;
-  try { localStorage.setItem('organica.fvs.elementOwnColours', railElementOwnColours ? '1' : '0'); } catch (err) { /* private window */ }
-});
 setRailOpen(railWasOpen);
 
 renderGallery();

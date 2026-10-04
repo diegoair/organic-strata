@@ -566,15 +566,15 @@ on Sep 28, 2026 — the role now lives only on the row.
   a thumbnail to **rename it inline** (Enter confirms, Esc cancels). Renaming
   repoints saved Symbols, Container/Mask references and the Grid pick.
 - **Symbol library** — saved separately.
-- **Library rail → Elements → Keep own colours** (Symbol step only, Oct 4, 2026). Off (default):
-  a saved Element placed in a cell is a shape — its colour follows the Symbol's **Colour by** on
-  the current palette (`cellInk`), and a stack's layers take the current palette's inks. On: the
-  cell keeps the palette the Element was saved with — its first ink as the cell colour (the same
-  override Cell properties → Colour writes, `cell.color`) and, for a stack, every layer's ink
-  from that palette (`cell.ownColors`, drawn through `withEntryInks` like a Component's own
-  palette). The cell shows "● Overrides the palette"; **Reset** clears both and the cell follows
-  Colour by again. A per-browser preference (`organica.fvs.elementOwnColours`); the result is
-  saved with the Symbol. A saved Component always keeps its own palette.
+- **Saved Elements in a Symbol keep their colours** (Oct 4, 2026). A saved Element placed
+  from the library rail carries the palette it was saved with (`cell.ownColors`). With
+  **Colour by → Element's own colours** — the first option and the default — the cell draws
+  in it: its first ink for the shape, every layer's ink for a stack (through `withEntryInks`,
+  like a Component's own palette). Pick any other rule (By cell order, Checkerboard…) and every
+  cell, saved Elements included, follows that rule on the current palette. Cells without a
+  saved Element, and every Component-step cell, are coloured by cell order under the default.
+  Cell properties → Colour still overrides a single cell. A saved Component always keeps its
+  own palette.
 - Entries named `Tile · …` are working copies made by *Tile in Grid* and the
   recipes; they are marked `auto`, hidden from every list, and pruned at start.
 
