@@ -8119,7 +8119,12 @@ function symbolSpanLayout(grid, cells) {
     const a = centers[block[0]], b = centers[block[block.length - 1]];
     const x0 = a.cx - a.cellW / 2, y0 = a.cy - a.cellH / 2, x1 = b.cx + b.cellW / 2, y1 = b.cy + b.cellH / 2;
     const ra = grid.cells[block[0]], rb = grid.cells[block[block.length - 1]];
+    // the block's own column widths / row heights, in order — its cells can differ (a border dragged by hand)
+    const colW = [], rowH = [];
+    for (let k = 0; k < sp[0]; k++) colW.push(centers[block[k]].cellW);
+    for (let k = 0; k < sp[1]; k++) rowH.push(centers[block[k * sp[0]]].cellH);
     out.region[i] = {
+      colW, rowH,
       // fixedK: the block's length in cells along its long side — Fixed size is a size PER CELL, so a 1×2
       // block holds its Component at the same scale per module as a square Component in one cell.
       c: { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, cellW: x1 - x0, cellH: y1 - y0, cellSize: Math.min(x1 - x0, y1 - y0), fixedK: Math.max(sp[0], sp[1]) },
@@ -8127,6 +8132,31 @@ function symbolSpanLayout(grid, cells) {
     };
   });
   return out;
+}
+// A spanning Component whose block cells differ in size (a border dragged by hand): each of its modules
+// goes in its own cell instead of the whole Component being spread evenly over the block. The frame is
+// cut in as many bands as the block has cells along each axis; a band takes its cell's share of the
+// block, and the modules in it move / stretch with it (kx, ky = the module's extra scale, read by the SVG
+// and canvas drawers). Follows the cell's turn and flips (which frame axis lies along which block axis,
+// and in which direction). Equal cells → the items come back untouched (same drawing as before).
+function modulesToBlockCells(items, W, H, reg, cell) {
+  const rot = ((cell.rotation || 0) % 360 + 360) % 360, swap = rot === 90 || rot === 270;
+  // world direction of the frame's x / y axes after flip + turn: +1 / −1 along the block axis they lie on
+  const dirX = (cell.flipH ? -1 : 1) * (rot === 0 || rot === 90 ? 1 : -1), dirY = (cell.flipV ? -1 : 1) * (rot === 0 || rot === 270 ? 1 : -1);
+  const bandsFor = (sizes, dir) => { const t = sizes.reduce((a, b) => a + b, 0) || 1, p = sizes.map(v => v / t); return dir < 0 ? p.reverse() : p; };
+  const px = bandsFor(swap ? reg.rowH : reg.colW, dirX), py = bandsFor(swap ? reg.colW : reg.rowH, dirY);
+  const even = p => p.every(v => Math.abs(v - 1 / p.length) < 1e-6);
+  if (even(px) && even(py)) return items;
+  const remap = (u, p) => {   // u in 0..1 along the frame → its new place, and the band's stretch
+    const n = p.length, b = Math.min(n - 1, Math.max(0, Math.floor(u * n))), t = u * n - b;
+    let start = 0; for (let k = 0; k < b; k++) start += p[k];
+    return { u: start + t * p[b], k: p[b] * n };
+  };
+  return items.map(it => {
+    const mx = remap((it.cx + W / 2) / W, px), my = remap((it.cy + H / 2) / H, py);
+    const nr = ((it.rotation || 0) % 360 + 360) % 360, nswap = nr === 90 || nr === 270;   // a turned module: its own x is the frame's y
+    return { ...it, cx: mx.u * W - W / 2, cy: my.u * H - H / 2, kx: nswap ? my.k : mx.k, ky: nswap ? mx.k : my.k };
+  });
 }
 // resolveCellPlacement in a box that may be a spanning block: Fixed size scales by the block's length
 // in cells (fixedK), everything else is unchanged. Every placement on the Symbol goes through here.
@@ -8186,8 +8216,9 @@ function buildSymbolItems() {
       // A cell may recolour its Component (cell.colourway, written by Suggest's Recolour).
       const own = cell.colourway ? { ...entry, colors: cell.colourway.colors, paperColor: cell.colourway.paper } : entry;
       const savedColorAt = entryInkAt(own);
-      const nestedItems = buildComponentItems({ cells: entry.component.cells }, entry.grid)
+      let nestedItems = buildComponentItems({ cells: entry.component.cells }, entry.grid)
         .map((it, j) => ({ ...it, color: savedColorAt(j) }));
+      if (reg) nestedItems = modulesToBlockCells(nestedItems, nestedW, nestedH, reg, cell);
       const place = placeInBox(c, nestedW === nestedH ? nestedSize : { w: nestedW, h: nestedH }, cell);
       return {
         type: 'component', index: i, region: reg || null, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
@@ -8341,7 +8372,7 @@ function symbolSVGFromItems(items) {
       let inner = '';
       for (const ni of it.nestedItems) {
         const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);   // the Component's own cells overlap too
-        const nsx = (ni.flipH ? -1 : 1) * ni.scale * nfit * nk, nsy = (ni.flipV ? -1 : 1) * ni.scale * nfit * nk;
+        const nsx = (ni.flipH ? -1 : 1) * ni.scale * nfit * nk * (ni.kx || 1), nsy = (ni.flipV ? -1 : 1) * ni.scale * nfit * nk * (ni.ky || 1);   // kx/ky: a module stretched to its own block cell
         // a cell the Component was edited in (Component Edit mode) carries its own Element + Appearance: draw that, not the Component's one shared Element
         const niGeo = ni.content ? resolveItemGeo(ni, geo) : geo, niApp = ni.content && ni.content.appearance ? ni.content.appearance : it.nestedAppearance;
         inner += withEntryInks(it.nestedColors, () => withAppearance(niApp, () => seedMarkupSVG(nhx + ni.cx, nhy + ni.cy, ni.rotation, nsx, nsy, niGeo, ni.color)));
@@ -8492,7 +8523,7 @@ function drawSymbolCanvas(ctx) {
         ctx.translate(nhx + ni.cx, nhy + ni.cy);
         ctx.rotate(ni.rotation * Math.PI / 180);
         const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);
-        ctx.scale((ni.flipH ? -1 : 1) * ni.scale * nfit * nk, (ni.flipV ? -1 : 1) * ni.scale * nfit * nk);
+        ctx.scale((ni.flipH ? -1 : 1) * ni.scale * nfit * nk * (ni.kx || 1), (ni.flipV ? -1 : 1) * ni.scale * nfit * nk * (ni.ky || 1));
         ctx.translate(-50, -50);
         const niGeo = ni.content ? resolveItemGeo(ni, geo) : geo, niPath = ni.content ? new Path2D(niGeo.d) : path, keepApp = appearanceOverride;
         if (ni.content && ni.content.appearance) appearanceOverride = { ...DEFAULT_APPEARANCE, ...ni.content.appearance };

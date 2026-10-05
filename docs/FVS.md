@@ -647,7 +647,13 @@ the Element, Component and Symbol steps (not on ★ Figure).
   (`symbolSpanLayout`), so preview, SVG, PNG, selection and hits agree. Fit acts on the whole block;
   **Fixed size** is a size *per cell*, so a block multiplies it by its length in cells along its
   long side (`fixedK`, `placeInBox`) — a 1×2 Component in Fixed keeps the same scale per module as
-  a square one in a single cell (until Oct 5, 2026 it shrank to half its block). Suggest and polygon / Loom
+  a square one in a single cell (until Oct 5, 2026 it shrank to half its block).
+  **Each module in its own cell** (Oct 5, 2026): when the block's cells differ in size (a border
+  dragged by hand, a Wave grid), the Component's modules follow them — module 1 in cell 1, module 2
+  in cell 2 — instead of being spread evenly over the block (`modulesToBlockCells`: the frame is cut
+  in one band per block cell, each band takes its cell's share and its modules move / stretch with
+  it; follows the cell's turn and flips). Equal cells draw exactly as before. SVG and PNG agree
+  (0 differing pixels measured). Suggest and polygon / Loom
   grids stay one cell per Component for now. Symbols saved before this are unchanged.
 - **A Symbol from Elements only** (Oct 4, 2026). With no saved Component, Fill the grid builds the
   grid anyway and fills it from the **saved Elements** (the latest 8, weight ×1, `elementPool()`),
