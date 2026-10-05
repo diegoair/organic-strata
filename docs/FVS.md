@@ -422,7 +422,8 @@ its cells.
   seed. The first is put on the sheet at once.
 - **Variations (floatbar)** (Oct 5, 2026) — the icon next to Generate (`variations`,
   `#btn-sug-dock`), with the count in a small ink-on-paper circle at its top right (99+ cap;
-  accessible name *12 variations*). Shown once Suggest has variations, hidden otherwise. It opens
+  accessible name *12 variations*). Always in the bar: with no variations it is disabled
+  (`aria-disabled`, tooltip *Variations — none yet*, no badge). It opens
   a glass strip of 48px thumbnails anchored just above the floatbar and centred with it
   (`#fvs-sug-panel`, a sibling of the bar; its bottom measured from the bar on open; scrolls
   sideways, the wheel over it never zooms the sheet); the current one has the tool-colour border.

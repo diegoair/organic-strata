@@ -236,6 +236,7 @@
     box-sizing: border-box; border-radius: 999px;   /* stadium: half its height */
     background: var(--ink); color: var(--paper); font: var(--w-medium) var(--fs-micro)/1 var(--font-display); font-variant-numeric: tabular-nums;
     display: grid; place-items: center; pointer-events: none; }
+  .fvs-count-badge[hidden] { display: none; }
   .fvs-suggest__item { flex: none; display: flex; background: none; border: 1px solid transparent; border-radius: var(--radius-sm); padding: var(--space-1); cursor: pointer; }
   .fvs-suggest__item svg { height: 3rem; width: auto; display: block; box-shadow: 0 0 0 1px var(--border); }
   .fvs-suggest__item.is-current { border-color: var(--tool); }
@@ -550,13 +551,13 @@
   <!-- Symbol-tier actions. Shown only on that tier by setTier(). -->
   <div id="fb-symbol-actions" class="fvs-fb-group" style="display:none">
     <!-- Generate: fills the empty grid (Suggest / Arrange). aria-disabled + the reason in its label (the tooltip)
-         when nothing is saved or the grid already has content. Variations: shown once Suggest has some. -->
+         when nothing is saved or the grid already has content. Variations: always there, aria-disabled until Suggest has some (the badge shows how many). -->
     <button class="org-floatbar__btn" id="btn-symbol-generate" aria-label="Generate">
       <svg class="ico" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>
     </button>
-    <button class="org-floatbar__btn" id="btn-sug-dock" aria-label="Variations" aria-expanded="false" aria-controls="fvs-sug-panel" style="display:none">
+    <button class="org-floatbar__btn" id="btn-sug-dock" aria-label="Variations — none yet" aria-disabled="true" aria-expanded="false" aria-controls="fvs-sug-panel">
       <svg class="ico" data-icon="variations" viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="3.5" width="7" height="9" rx="1"/><path d="M2 5v6M14 5v6"/></svg>
-      <b class="fvs-count-badge" id="sug-dock-count" aria-hidden="true"></b>
+      <b class="fvs-count-badge" id="sug-dock-count" aria-hidden="true" hidden></b>
     </button>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
     <!-- Clear: every cell empty, the grid kept. Hold to confirm (data-hold, core.js); a bare click falls back to two clicks. Shown with the grid, disabled while every cell is empty. -->
@@ -9099,10 +9100,12 @@ function suggestSymbols(opts = {}) {
 
 function renderSuggestGallery(currentIdx) {
   const wrap = ctrl('fvs-sug-panel'), n = state.symbolSuggestions.length;
-  ctrl('btn-sug-dock').style.display = n ? '' : 'none';
-  if (!n) { wrap.innerHTML = ''; setSugDockOpen(false); return; }
+  const vb = ctrl('btn-sug-dock');
+  vb.setAttribute('aria-disabled', String(!n));
+  ctrl('sug-dock-count').hidden = !n;
+  if (!n) { wrap.innerHTML = ''; setSugDockOpen(false); vb.setAttribute('aria-label', 'Variations — none yet'); return; }
   ctrl('sug-dock-count').textContent = n > 99 ? '99+' : String(n);
-  ctrl('btn-sug-dock').setAttribute('aria-label', n + (n === 1 ? ' variation' : ' variations'));
+  vb.setAttribute('aria-label', n + (n === 1 ? ' variation' : ' variations'));
   syncSugDock();
   const prev = state.symbolCells;
   wrap.innerHTML = '';
@@ -9162,7 +9165,7 @@ function setSugDockOpen(open, opts) {
     if (cur) { cur.scrollIntoView({ inline: 'nearest', block: 'nearest' }); if (opts && opts.focus) cur.focus({ preventScroll: true }); }
   } else if (opts && opts.focus) ctrl('btn-sug-dock').focus();
 }
-ctrl('btn-sug-dock').addEventListener('click', e => setSugDockOpen(!sugDockIsOpen(), { focus: e.detail === 0 }));   // keyboard opens with focus on the current variation
+ctrl('btn-sug-dock').addEventListener('click', e => { if (e.currentTarget.getAttribute('aria-disabled') === 'true') return; setSugDockOpen(!sugDockIsOpen(), { focus: e.detail === 0 }); });   // keyboard opens with focus on the current variation
 ctrl('fvs-sug-panel').addEventListener('wheel', e => e.stopPropagation(), { passive: true });   // scrolling the strip never zooms the sheet
 document.addEventListener('organica:dropdown-open', e => { if (e.detail !== ctrl('fvs-sug-panel') && sugDockIsOpen()) setSugDockOpen(false); });   // Export / Anchor opened: make room
 
