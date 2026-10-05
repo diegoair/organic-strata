@@ -609,6 +609,10 @@ the Element, Component and Symbol steps (not on ★ Figure).
   **closed** when the page loads (Oct 5, 2026): its open state is no longer remembered,
   `localStorage['organica.fvs.rail']` is not read or written any more, and the old key is left in
   place, as the localStorage rule asks.
+- **It never covers the work** (Oct 5, 2026): while the panel is open, the work area reserves its
+  width (`#canvas-wrap`'s left padding up to the panel's right edge + `--space-5`, `syncRailSpace`),
+  so the Component gallery and the Symbol sheet move right and re-centre instead of sitting under
+  it; closing gives the space back.
 - **Three groups** — Elements, Components, Symbols, two thumbnails per row. An empty group is
   hidden; Components stays visible on the Component step (for *Save all*).
 - **A click on a tile depends on the step** (the tile's `aria-label` says which):

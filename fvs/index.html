@@ -43,7 +43,7 @@
 
   /* No zoom/pan — the gallery is a static, scrollable grid of thumbnails,
      not a single pannable canvas (there is no one canvas to zoom). */
-  #canvas-wrap { flex: 1; overflow-y: auto; background: var(--canvas-grid), var(--canvas-bg); padding: var(--space-7); }
+  #canvas-wrap { flex: 1; overflow-y: auto; background: var(--canvas-grid), var(--canvas-bg); padding: var(--space-7); padding-left: max(var(--space-7), var(--fvs-rail-reserve, 0px)); }   /* the open Library rail never covers the work: its width is reserved (syncRailSpace) */
   /* Zoom (wheel / ⌘+ ⌘− ⌘0) — the suite-wide Organica.createZoomPan. FVS doesn't
      load shell.css (own canvas surface), so the stage + HUD rules it needs live here,
      mirroring shell.css's .org-stage / #zoom-hud. Pan = Space / ⌥ / middle-button drag. */
@@ -12528,7 +12528,20 @@ function setRailOpen(open, opts) {
   railBtn.innerHTML = Organica.icons.get(open ? 'chevron-left' : 'grid', { size: 'lg' });
   if (open) renderLibraryRail();
   else if (opts && opts.focus) railBtn.focus();
+  syncRailSpace();
 }
+// The open rail takes its width from the work area instead of lying over the Component gallery /
+// the Symbol sheet: #canvas-wrap's left padding reserves up to the panel's right edge (+ a gap),
+// measured without the panel's entry transform (offset*, not getBoundingClientRect).
+function syncRailSpace() {
+  const wrap = ctrl('canvas-wrap'), dock = ctrl('fvs-rail-dock'), railPanel = ctrl('fvs-rail-panel');   // ctrl(): it can run during init, before the const
+  const open = railPanel.dataset.open === 'true' && !railPanel.classList.contains('is-empty') && dock.style.display !== 'none';
+  if (!open) { wrap.style.removeProperty('--fvs-rail-reserve'); return; }
+  const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--space-5')) || 0;
+  const right = dock.offsetLeft + railPanel.offsetLeft + railPanel.offsetWidth - wrap.getBoundingClientRect().left;
+  wrap.style.setProperty('--fvs-rail-reserve', Math.max(0, Math.round(right + gap)) + 'px');
+}
+window.addEventListener('resize', () => syncRailSpace());
 const railSaveBtn = ctrl('btn-rail-save-lib');
 // One tile: the thumbnail button plus (siblings, so a click on them never starts a drag) rename and remove.
 function railTile(kind, name, svg, w, h) {
@@ -12577,6 +12590,7 @@ function renderLibraryRail() {
   ctrl('btn-rail-save-all').style.display = onComp ? '' : 'none';
   // nothing to show at all (and no Save footer) → no empty glass box beside the toggle
   ctrl('fvs-rail-panel').classList.toggle('is-empty', !visible.some(([, on]) => on) && state.activeTier !== 'symbol');
+  syncRailSpace();   // its contents (and so its width) changed
 }
 railBtn.addEventListener('click', () => setRailOpen(!railIsOpen()));
 document.addEventListener('keydown', e => {
