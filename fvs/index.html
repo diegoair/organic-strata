@@ -556,7 +556,7 @@
   </div>
   <!-- Symbol-tier action — hand the live Symbol to the ★ Figure tier as its first level. Shown only on that tier by setTier(). -->
   <div id="fb-symbol-actions" class="fvs-fb-group" style="display:none">
-    <!-- Clear: every cell empty, the grid kept. Hold to confirm (data-hold, core.js); a bare click falls back to two clicks. Shown only while a cell has content. -->
+    <!-- Clear: every cell empty, the grid kept. Hold to confirm (data-hold, core.js); a bare click falls back to two clicks. Shown with the grid, disabled while every cell is empty. -->
     <button class="org-floatbar__btn" id="btn-symbol-clear" aria-label="Clear Symbol — hold to confirm" data-hold="Clear Symbol — click again to confirm" style="display:none">
       <svg class="ico" data-icon="eraser" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 13.5 2.7 10a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.4 0l3.2 3.2a1 1 0 0 1 0 1.4L8.5 13.5"/><path d="M6.5 13.5h7"/></svg>
     </button>
@@ -7775,7 +7775,7 @@ ctrl('btn-symbol-clear').addEventListener('click', () => {
   state.symbolMarqueeRect = null;
   ctrl('symgrid-gen-error').style.display = 'none';
   renderSymbol();
-  ctrl('btn-symbol-first-generate').focus({ preventScroll: true });   // the Clear button is gone now: focus goes to Generate, over the empty grid
+  ctrl('btn-symbol-first-generate').focus({ preventScroll: true });   // Clear is disabled now: focus goes to Generate, over the empty grid
 });
 // ── The arrival, after Bencho's Generate (MIT — THIRD-PARTY-NOTICES.md) ──
 // The Symbol is built whole and sharp, underneath. Over it, in the live
@@ -9454,7 +9454,8 @@ function buildCoverCropPreviewSVG() {
 function renderSymbolCanvasOnly() {
   const frame = ctrl('symbol-frame');
   const grid = getSymbolGrid();
-  ctrl('btn-symbol-clear').style.display = ctrl('sep-symbol-clear').style.display = grid && symbolHasContent() ? '' : 'none';
+  ctrl('btn-symbol-clear').style.display = ctrl('sep-symbol-clear').style.display = grid ? '' : 'none';
+  ctrl('btn-symbol-clear').disabled = !symbolHasContent();   // an empty grid: the icon stays, disabled (nothing to clear)
   syncSymbolStart();
   if (!grid) {
     // No grid yet: the empty grid is being built from the panel (buildEmptySymbolGrid, on entering the step).

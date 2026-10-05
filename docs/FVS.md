@@ -327,7 +327,8 @@ its cells.
   disabled (`aria-disabled`) and the line reads *Save an Element or a Component first: the
   grid is filled from them.*
 - **Clear Symbol (floatbar)** (Oct 5, 2026) — an `eraser` icon, first in the Symbol
-  step's floatbar and followed by a separator, shown only while a cell has content. **Hold to
+  step's floatbar and followed by a separator, shown with the grid and **disabled while every
+  cell is empty** (nothing to clear). **Hold to
   confirm** (`data-hold`, Oct 5, 2026): press and hold 1 s (or Space / Enter) — a red ring
   fills round the button; let go early and nothing happens. Its tooltip reads *Clear Symbol —
   hold to confirm*. A plain click (voice control, switch access) falls back to two clicks
