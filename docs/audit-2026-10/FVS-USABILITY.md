@@ -108,7 +108,7 @@ Original questions, for the record:
 7. Dark theme: Symbol stage, thumbnails and ghost stay light (content ground never flips).
 8. Viewport height ≤ 600: the dock (`top: 50%`) and `max-height: 60vh` must not clip the foot.
 9. One dropdown at a time (`organica:dropdown-open`): opening the rail should close an open popover.
-10. `organica.fvs.rail` registered in `docs/SHARED-LIBRARY.md` §4.
+10. ~~`organica.fvs.rail` registered in `docs/SHARED-LIBRARY.md` §4.~~ No longer applicable (Oct 5, 2026, bc15888): the rail always starts closed and the key is no longer read or written.
 
 ## 5. Coverage and limits
 - Run: light theme; 16 journey cases (J1–J4), 9 DS cases (D.1–D.9), 160 variants. Dark theme was exercised only by `D.9` (screenshots + computed styles); re-run journeys with `--theme dark`.

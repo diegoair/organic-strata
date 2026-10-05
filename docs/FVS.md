@@ -316,7 +316,14 @@ its cells.
   sharp, one cell after another in a scattered order, drawn anew each run (1 s per cell, the whole sweep
   about 2 s; nothing with *reduce motion*). Preview only — nothing of it reaches the
   export, and the panes take no clicks. Once a
-  grid exists the button does not come back.
+  grid exists the button goes away until the Symbol is cleared (below).
+- **Clear Symbol (floatbar)** (Oct 5, 2026) — an `eraser` icon, first in the Symbol
+  step's floatbar and followed by a separator, shown only while a grid exists. Two clicks
+  (`Organica.armed`: the first click turns it red and its tooltip reads *Clear Symbol —
+  click again to confirm*; blur, Esc or 3 s disarm it). It removes the generated grid,
+  its cells, the selection and the suggestion gallery, so the Symbol is empty again and
+  shows the **Generate** button. The panel's canvas and generator settings are kept,
+  so Generate runs the same set-up again. Saved Symbols are not touched.
 - **Resize columns and rows by dragging** — on any rect grid that has tracks
   (Rectangular, Bento, Wave, a plain square…) each inner border shows a dashed
   handle on the preview (never exported). Drag it: the two tracks either side trade
@@ -561,6 +568,11 @@ The old Element **Content** section (and before it, *Pick underlying component�
 on Sep 28, 2026 — the role now lives only on the row.
 
 ## 7. Libraries
+
+- **Library rail** — the floating rail on the left (`#fvs-rail`) always starts **closed**
+  when the page loads (Oct 5, 2026). Its open state is no longer remembered:
+  `localStorage['organica.fvs.rail']` is not read or written any more, and the old key is
+  left in place, as the localStorage rule asks.
 
 - **Component library** — save the selected Component; click the caption under
   a thumbnail to **rename it inline** (Enter confirms, Esc cancels). Renaming
