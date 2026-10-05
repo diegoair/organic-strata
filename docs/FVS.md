@@ -638,6 +638,12 @@ the Element, Component and Symbol steps (not on ★ Figure).
     **dragged** onto a cell (a drop on a selected cell fills the whole selection);
   - on the other steps, a Component tile loads it on the Component step, and an Element tile
     becomes the Paper tile (*Paper Pattern = Element*).
+- **Double-click to edit** (Oct 5, 2026) — double-click an Element tile and the Element step opens
+  with it loaded (its shape, layers, look, palette and Paper); double-click a Component tile and the
+  Component step opens with it. A mouse single click waits a moment (≈0.2 s) for a possible second
+  click, so double-clicking never also places the tile or makes it the Paper tile; Enter on a focused
+  tile and a Symbol tile act at once. An Element saved without its settings can be placed, not edited
+  (the rail says so).
 - **Saving** — Elements and Components save from their own thumbnails (the quick-save circle);
   *Save all* (Components group) saves every Component in the gallery, skipping those already
   saved. The Symbol saves from the rail's footer, **Save library**, which asks for a name

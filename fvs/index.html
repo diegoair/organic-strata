@@ -12892,13 +12892,37 @@ function railUse(kind, name) {
   const e = LIBRARY.read()[name];
   if (e) { if (t !== 'component') setTier('component'); applyLibraryEntryToUI(e); }
 }
+// Double-click an Element or a Component tile → open it in its own step to edit it (Diego, Oct 5, 2026).
+// A tile's single click already does something (place it, use it as the Paper tile, load it), so a mouse
+// click waits a moment for a possible second one instead of doing both; the keyboard (Enter, detail 0)
+// and a Symbol tile (its click already opens it) act at once.
+const RAIL_DBL_MS = 220;   // under the usual double-click interval
+let railClickTimer = 0;
+function openSavedElement(name) {
+  const e = ELEMENT_LIB.read()[name];
+  if (!e || !e.seed) { railNotice('This Element was saved without its settings — it can be placed, not edited'); return; }
+  setTier('element');
+  applyElementSnapshot(e.seed, e.appearance || null);
+  if (e.colors && e.colors.length) { state.colors = e.colors.map(hexKey); buildPalette(); }
+  setPaperUI(e.paperColor || '#ffffff');
+  onAppearanceChange(); renderGallery(); renderSeedPreview();
+}
+function openSavedComponent(name) {
+  const e = LIBRARY.read()[name];
+  if (!e) return;
+  setTier('component');
+  applyLibraryEntryToUI(e);
+}
 railPanel.addEventListener('click', e => {
   const tile = e.target.closest('.fvs-rail__tile');
   if (!tile) return;
   const it = tile.querySelector('.fvs-library-item'), kind = it.dataset.railKind, name = it.dataset.railName;
-  if (e.target.closest('[data-rail-remove]')) railRemove(kind, name);
-  else if (e.target.closest('[data-rail-rename]')) railRename(kind, name);
-  else railUse(kind, name);   // also Enter on a focused tile
+  if (e.target.closest('[data-rail-remove]')) { railRemove(kind, name); return; }
+  if (e.target.closest('[data-rail-rename]')) { railRename(kind, name); return; }
+  if (kind === 'symbol' || e.detail === 0) { railUse(kind, name); return; }   // a Symbol / Enter on a focused tile
+  clearTimeout(railClickTimer);
+  if (e.detail >= 2) { (kind === 'element' ? openSavedElement : openSavedComponent)(name); return; }
+  railClickTimer = setTimeout(() => railUse(kind, name), RAIL_DBL_MS);
 });
 ctrl('btn-rail-save-all').addEventListener('click', saveAllComponentsToLibrary);
 
