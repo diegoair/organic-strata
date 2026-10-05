@@ -537,6 +537,11 @@
   </div>
   <!-- Symbol-tier action — hand the live Symbol to the ★ Figure tier as its first level. Shown only on that tier by setTier(). -->
   <div id="fb-symbol-actions" class="fvs-fb-group" style="display:none">
+    <!-- Clear: back to the empty Symbol (the Generate button). Two clicks (Organica.armed); shown only once a grid exists. -->
+    <button class="org-floatbar__btn" id="btn-symbol-clear" aria-label="Clear Symbol" data-armed="Clear Symbol — click again to confirm" style="display:none">
+      <svg class="ico" data-icon="eraser" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 13.5 2.7 10a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.4 0l3.2 3.2a1 1 0 0 1 0 1.4L8.5 13.5"/><path d="M6.5 13.5h7"/></svg>
+    </button>
+    <span class="org-floatbar__sep" id="sep-symbol-clear" aria-hidden="true" style="display:none"></span>
     <!-- Fit in cell: acts on the selected cells, or on every cell when none is selected (the tooltip says which).
          Each icon is a wide cell and what a round content does in it: whole inside it, stretched to it,
          larger than it (cropped), or its own size whatever the cell (dashed cell). Line icons, like the rest of the bar. -->
@@ -1888,7 +1893,7 @@
         </div>
         <button class="mini-btn" id="btn-rule-choose-content" style="width:100%">Set content for all cells…</button>
         <button class="mini-btn" id="btn-symbol-apply-rule" style="width:100%;margin-top:var(--space-1)">Apply rule</button>
-        <button class="mini-btn" id="btn-symbol-reset-rule" style="width:100%;margin-top:var(--space-1)">Reset &amp; apply to all</button>
+        <button class="mini-btn" id="btn-symbol-clear-rule" style="width:100%;margin-top:var(--space-1)">Reset &amp; apply to all</button>
         <p class="org-panel__hint">The rule fills every cell's transform from its column/row (Oscillator / Checkerboard / Rows / Columns) or its position (Radial / Wave / Random). Content is never changed — set it once with Choose content → "Apply to all". Edit individual cells afterward in Manual; lock a cell there so <em>Apply rule</em> skips it. <em>Reset &amp; apply to all</em> ignores locks.</p>
       </div>
 
@@ -7707,6 +7712,18 @@ ctrl('sel-symgrid-gen').value = 'rectangular';
 renderSymgridParams();
 ctrl('sel-symgrid-gen').addEventListener('change', () => { ctrl('symgrid-gen-error').style.display = 'none'; renderSymgridParams(); });
 ctrl('btn-symgrid-generate').addEventListener('click', generateSymbolGridInCanvas);
+// Clear: drop the generated grid and its cells — the Symbol is empty again and shows its Generate button.
+// The panel's canvas / generator settings stay, so Generate runs the same set-up again.
+ctrl('btn-symbol-clear').addEventListener('click', () => {
+  if (genArrivalStop) genArrivalStop();
+  state.symbolGrid = null;
+  state.symbolCells = [];
+  state.symbolSuggestions = []; ctrl('symbol-suggest-gallery').innerHTML = '';
+  state.symbolSelection.clear();
+  state.symbolMarqueeRect = null;
+  ctrl('symgrid-gen-error').style.display = 'none';
+  renderSymbol();
+});
 // ── The arrival, after Bencho's Generate (MIT — THIRD-PARTY-NOTICES.md) ──
 // The Symbol is built whole and sharp, underneath. Over it, in the live
 // preview only (never in the export — that string is built separately), goes
@@ -9352,6 +9369,7 @@ function buildCoverCropPreviewSVG() {
 function renderSymbolCanvasOnly() {
   const frame = ctrl('symbol-frame');
   const grid = getSymbolGrid();
+  ctrl('btn-symbol-clear').style.display = ctrl('sep-symbol-clear').style.display = grid ? '' : 'none';
   if (!grid) {
     // With Components in the pool the empty Symbol is one button: Generate
     // (see .fvs-gen-go in the stylesheet). Without any there is nothing to build from yet.
@@ -10785,7 +10803,7 @@ ctrl('btn-symbol-seed-random').addEventListener('click', () => { ctrl('num-symbo
 ctrl('sel-symbol-rule').addEventListener('change', syncSymbolRuleUI);
 ctrl('chk-rule-scale').addEventListener('change', syncSymbolRuleUI);
 ctrl('btn-symbol-apply-rule').addEventListener('click', () => applySymbolRule());
-ctrl('btn-symbol-reset-rule').addEventListener('click', () => applySymbolRule({ resetAll: true }));
+ctrl('btn-symbol-clear-rule').addEventListener('click', () => applySymbolRule({ resetAll: true }));
 ctrl('btn-rule-seed-random').addEventListener('click', () => { ctrl('num-rule-seed').value = Math.floor(Math.random() * 1e6); applySymbolRule(); });
 let ruleApplyQueued = false;
 function scheduleRuleApply() {
@@ -12431,7 +12449,6 @@ function setRailOpen(open, opts) {
   railBtn.innerHTML = Organica.icons.get(open ? 'chevron-left' : 'grid', { size: 'lg' });
   if (open) renderLibraryRail();
   else if (opts && opts.focus) railBtn.focus();
-  try { localStorage.setItem('organica.fvs.rail', open ? '1' : '0'); } catch (e) { /* private window */ }
 }
 const railSaveBtn = ctrl('btn-rail-save-lib');
 // One tile: the thumbnail button plus (siblings, so a click on them never starts a drag) rename and remove.
@@ -12677,8 +12694,7 @@ function syncRailTier(tier) {
   if (!show && railIsOpen()) setRailOpen(false);
   renderLibraryRail();
 }
-let railWasOpen = false; try { railWasOpen = localStorage.getItem('organica.fvs.rail') === '1'; } catch (e) { /* ignore */ }
-setRailOpen(railWasOpen);
+setRailOpen(false);   // always starts closed — the saved library stays out of the way until asked for (was restored from organica.fvs.rail)
 
 renderGallery();
 renderSeedPreview();

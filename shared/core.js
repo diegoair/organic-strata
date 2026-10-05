@@ -1876,10 +1876,12 @@
       if (!b.classList.contains('is-armed')) return;
       b.classList.remove('is-armed');
       if (b.dataset.armLabel != null) { b.textContent = b.dataset.armLabel; delete b.dataset.armLabel; }
+      if (b.dataset.armAria != null) { b.setAttribute('aria-label', b.dataset.armAria); delete b.dataset.armAria; }
     }
     function arm(b) {
-      b.dataset.armLabel = b.textContent;
-      b.textContent = b.getAttribute('data-armed') || 'Confirm?';
+      // An icon button keeps its icon: the confirm text goes to its aria-label (the floatbar tooltip reads it).
+      if (b.querySelector('svg')) { b.dataset.armAria = b.getAttribute('aria-label') || ''; b.setAttribute('aria-label', b.getAttribute('data-armed') || 'Confirm?'); }
+      else { b.dataset.armLabel = b.textContent; b.textContent = b.getAttribute('data-armed') || 'Confirm?'; }
       b.classList.add('is-armed');
       timers.set(b, setTimeout(function () { disarm(b); }, Organica.ARM_MS));
     }
