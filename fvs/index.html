@@ -220,7 +220,7 @@
   #canvas-wrap .tier-view[data-tier="element"].active { flex-direction: column; gap: var(--space-5); }
   #canvas-wrap .tier-view[data-tier="component"].active { flex-direction: column; gap: var(--space-3); }
   #canvas-wrap .tier-view[data-tier="symbol"].active { flex-direction: column; }
-  /* Proposals dock (Symbol, Suggest) — the Library rail's pattern turned horizontal: a toggle pill + a sibling
+  /* Variations dock (Symbol, Suggest) — the Library rail's pattern turned horizontal: a toggle pill + a sibling
      glass panel, both .org-floatbar (glass, rim, dark values from shared/floatbar.css), docked top-centre over
      the Symbol view and out of the layout flow, so the sheet is never pushed down. Starts collapsed. */
   #canvas-wrap .tier-view[data-tier="symbol"] { position: relative; }
@@ -713,11 +713,11 @@
       </div>
     </div>
     <div class="tier-view" data-tier="symbol">
-      <div id="fvs-sug-dock" class="fvs-sug-dock" role="group" aria-label="Proposals" hidden>
+      <div id="fvs-sug-dock" class="fvs-sug-dock" role="group" aria-label="Variations" hidden>
         <div class="org-floatbar" id="fvs-sug-bar">
-          <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-sug-dock" aria-expanded="false" aria-controls="fvs-sug-panel"><span id="sug-dock-count"></span><span id="sug-dock-chev" data-icon-slot></span></button>
+          <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-sug-dock" aria-expanded="false" aria-controls="fvs-sug-panel"><svg class="ico" data-icon="variations" viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="3.5" width="7" height="9" rx="1"/><path d="M2 5v6M14 5v6"/></svg><span id="sug-dock-count"></span><span id="sug-dock-chev" data-icon-slot></span></button>
         </div>
-        <div class="org-floatbar fvs-suggest" id="fvs-sug-panel" role="region" aria-label="Suggested Symbols" inert></div>
+        <div class="org-floatbar fvs-suggest" id="fvs-sug-panel" role="region" aria-label="Symbol variations" inert></div>
       </div>
       <div id="symbol-frame"></div>
     </div>
@@ -7530,7 +7530,7 @@ function polyOrient(points) {
 
 function loadSymbolGrid(model) {
   state.symbolGrid = Organica.loadLoomGrid(model);
-  state.symbolSuggestions = []; renderSuggestGallery();   // proposals belong to the previous grid
+  state.symbolSuggestions = []; renderSuggestGallery();   // variations belong to the previous grid
   state.symbolCells = defaultSymbolCells(getSymbolGrid());
   state.symbolSelection.clear();
   state.symbolClipEnabled = false;   // a new grid starts on the default
@@ -9048,7 +9048,7 @@ function suggestSymbols(opts = {}) {
       const rate = 0.08 + 0.12 * r();
       const keep = cand.map((ch, i) => fixed[i] || r() >= rate);   // only the re-drawn cells get a new Component + turn
       cand.forEach((ch, i) => { if (!keep[i]) cand[i] = { name: weightedPick(pal, r).name, r: 0, fh: false }; });
-      add(refineTurns(G, cand, fit, anByName, r, keep, T, CWs), 'Variation');
+      add(refineTurns(G, cand, fit, anByName, r, keep, T, CWs), 'Like the current');
     }
   } else {
     for (const [id, rule] of Object.entries(SYMBOL_ARRANGE)) {
@@ -9076,7 +9076,7 @@ function renderSuggestGallery(currentIdx) {
   const wrap = ctrl('fvs-sug-panel'), n = state.symbolSuggestions.length;
   ctrl('fvs-sug-dock').hidden = !n;
   if (!n) { wrap.innerHTML = ''; setSugDockOpen(false); return; }
-  ctrl('sug-dock-count').textContent = n + (n === 1 ? ' proposal' : ' proposals');
+  ctrl('sug-dock-count').textContent = n + (n === 1 ? ' variation' : ' variations');
   syncSugDock();
   const prev = state.symbolCells;
   wrap.innerHTML = '';
@@ -9087,7 +9087,7 @@ function renderSuggestGallery(currentIdx) {
     btn.className = 'fvs-suggest__item' + (i === currentIdx ? ' is-current' : '');
     btn.type = 'button';
     btn.innerHTML = svg;
-    const cap = `Use proposal ${i + 1}: ${sg.label}${sg.score.edges ? ` · continuity ${Math.round(sg.score.match * 100)}%` : ''}${sg.score.col != null ? ` · colour ${Math.round(sg.score.col * 100)}%` : ''}`;
+    const cap = `Use variation ${i + 1}: ${sg.label}${sg.score.edges ? ` · continuity ${Math.round(sg.score.match * 100)}%` : ''}${sg.score.col != null ? ` · colour ${Math.round(sg.score.col * 100)}%` : ''}`;
     btn.setAttribute('aria-label', cap); btn.title = cap;
     btn.addEventListener('click', () => {
       state.symbolCells = sg.cells.map(c => ({ ...c }));
@@ -9115,7 +9115,7 @@ function runSuggest(more) {
   renderSuggestGallery(more ? -1 : 0);
   if (more && state.symbolSuggestions.length) setSugDockOpen(true);   // More like this applies nothing — show what it found
 }
-// The proposals dock: collapsed by default (proposal 1 is already on the sheet); not remembered across visits.
+// The variations dock: collapsed by default (variation 1 is already on the sheet); not remembered across visits.
 function sugDockIsOpen() { return ctrl('fvs-sug-panel').dataset.open === 'true'; }
 function syncSugDock() {
   const open = sugDockIsOpen(), btn = ctrl('btn-sug-dock');
@@ -9133,7 +9133,7 @@ function setSugDockOpen(open, opts) {
     if (cur) { cur.scrollIntoView({ inline: 'nearest', block: 'nearest' }); if (opts && opts.focus) cur.focus({ preventScroll: true }); }
   } else if (opts && opts.focus) ctrl('btn-sug-dock').focus();
 }
-ctrl('btn-sug-dock').addEventListener('click', e => setSugDockOpen(!sugDockIsOpen(), { focus: e.detail === 0 }));   // keyboard opens with focus on the current proposal
+ctrl('btn-sug-dock').addEventListener('click', e => setSugDockOpen(!sugDockIsOpen(), { focus: e.detail === 0 }));   // keyboard opens with focus on the current variation
 ctrl('fvs-sug-panel').addEventListener('wheel', e => e.stopPropagation(), { passive: true });   // scrolling the strip never zooms the sheet
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape' || e.defaultPrevented || !sugDockIsOpen()) return;
@@ -9664,7 +9664,7 @@ function bindSymbolTrackDrag() {
     if (!trackDrag) return;
     frame.classList.remove('is-resizing-' + trackDrag.axis);
     trackDrag = null;
-    state.symbolSuggestions = []; renderSuggestGallery();   // proposals were drawn for the old proportions
+    state.symbolSuggestions = []; renderSuggestGallery();   // variations were drawn for the old proportions
     renderSymbol();
   }, true);
 }
