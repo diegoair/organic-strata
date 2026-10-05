@@ -307,7 +307,7 @@ its cells.
   with the Symbol), **Show cover crop** (what a Cover fit crops away) and **Show
   column/row guides**. Only the guides start on; a new grid starts unclipped (it
   started clipped until Oct 2, 2026 — saved Symbols keep what they were saved with).
-- **The first grid** — while the Symbol is empty and the pool holds Components, the
+- **The first grid** — while the Symbol is empty and there is something to build from (a saved Component, or else a saved Element), the
   middle of the page shows one **Generate** button (the design system's primary
   button). It runs the same thing as *Generate grid in canvas* (canvas, generator and
   parameters are read from the panel). The Symbol is built underneath at once; over
@@ -330,9 +330,11 @@ its cells.
   size, the total stays, the cells keep their content, and a track never goes below
   4% of the grid. On *Rectangular* the Column / Row weights fields follow live
   (mean 1, two decimals), so *Generate grid in canvas* reproduces the proportions.
-- **Components (palette)** — the saved Components the Symbol is built from, each
-  with a weight (×1–×5). *+ Add Components…* opens the library to toggle them; a
-  first visit starts with the three most recently saved.
+- **Components pool** — the saved Components the Symbol is built from. It fills itself, with no
+  panel section (the *Components · N in the pool* section with its weights and *+ Add Components…*
+  was removed on Oct 4, 2026, `40b71e8`): the first Symbol visit takes the 8 most recently saved,
+  weight ×1, and a Component saved later joins it straight away (the oldest leaves when 8 are in).
+  With no saved Component the pool is the saved Elements instead (§7).
 - **Fill**
   - **Suggest** (default) — proposes whole Symbols from the palette (§6a).
   - **Arrange (palette)** — places the palette by a rule: Random (by weight),
@@ -569,15 +571,34 @@ on Sep 28, 2026 — the role now lives only on the row.
 
 ## 7. Libraries
 
-- **Library rail** — the floating rail on the left (`#fvs-rail`) always starts **closed**
-  when the page loads (Oct 5, 2026). Its open state is no longer remembered:
-  `localStorage['organica.fvs.rail']` is not read or written any more, and the old key is
-  left in place, as the localStorage rule asks.
+The saved Elements, Components and Symbols live in one place: the **Library rail**, the
+floating rail on the left (`#fvs-rail` + `#fvs-rail-panel`). The right-sidebar Component and
+Symbol libraries were removed when the rail arrived (Oct 3, 2026, `edafc4d`). The rail is shown on
+the Element, Component and Symbol steps (not on ★ Figure).
 
-- **Component library** — save the selected Component; click the caption under
-  a thumbnail to **rename it inline** (Enter confirms, Esc cancels). Renaming
-  repoints saved Symbols, Container/Mask references and the Grid pick.
-- **Symbol library** — saved separately.
+- **Open / close** — the Library icon opens it; the icon or Esc closes it. It always starts
+  **closed** when the page loads (Oct 5, 2026): its open state is no longer remembered,
+  `localStorage['organica.fvs.rail']` is not read or written any more, and the old key is left in
+  place, as the localStorage rule asks.
+- **Three groups** — Elements, Components, Symbols, two thumbnails per row. An empty group is
+  hidden; Components stays visible on the Component step (for *Save all*).
+- **A click on a tile depends on the step** (the tile's `aria-label` says which):
+  - a **Symbol** tile loads that Symbol on the Symbol step (asks first if the Symbol on the
+    canvas has unsaved changes);
+  - on the **Symbol** step, an Element or Component tile goes into the selected cells — or is
+    **dragged** onto a cell (a drop on a selected cell fills the whole selection);
+  - on the other steps, a Component tile loads it on the Component step, and an Element tile
+    becomes the Paper tile (*Paper Pattern = Element*).
+- **Saving** — Elements and Components save from their own thumbnails (the quick-save circle);
+  *Save all* (Components group) saves every Component in the gallery, skipping those already
+  saved. The Symbol saves from the rail's footer, **Save library**, which asks for a name
+  (Symbol step only, enabled once a grid exists).
+- **Rename / remove** on each tile (pencil and ×, shown on hover or focus). Rename opens a dialog
+  and asks again if the name is taken. Renaming a Component repoints saved Symbols, the Symbol
+  pool, Container/Mask references and the Grid pick; renaming an Element repoints every Paper
+  tile that names it. Removing a Component that is in use asks first and says where it is used
+  (cells, saved Symbols, Container/Mask): its cells in the open Symbol become empty, saved
+  Symbols keep a missing marker.
 - **Rectangular Components take their block** (Oct 4, 2026). On a regular rectangular Symbol
   grid (every column × row once — Rectangular and its kin; not polygons, not merged bento cells)
   a Component occupies the Symbol cells its proportion asks for: columns × rows reduced by their
