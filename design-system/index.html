@@ -1708,27 +1708,57 @@ Organica.fvsField.mount(field, {
     <section class="ds-entry" id="floatbar">
       <h2>Floating toolbar</h2>
       <p class="ds-desc">Fixed bottom-centre <em>over the canvas</em>, not the browser viewport — offset by half the panel's width so it centres on the visible working area. Content is per-tool (icon buttons in whatever combination that tool needs); the shell, icon sizing, states and hover tooltip are shared.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/floatbar.css</span><strong>Used in</strong><span>Genesis</span><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Living Path</span><span>Camo Turing</span><span>Warping</span><span>Loom</span><span>Radial</span><span>Pulsar</span><span>Membrane</span><span>Vortex</span><span>Mycel</span><span>Flexible Visual System</span><span>TuneSutra</span><span>Colornet</span><span>Blob Boundary</span><span>Rhizome</span></div>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/floatbar.css</span><strong>JS</strong><span>Organica.floatbarPill — core.js</span><strong>Used in</strong><span>Genesis</span><span>Spore</span><span>Pollen</span><span>Halide</span><span>Komorebi</span><span>Living Path</span><span>Sinew</span><span>Apostate</span><span>Camo Turing</span><span>Warping</span><span>Loom</span><span>Radial</span><span>Pulsar</span><span>Membrane</span><span>Vortex</span><span>Mycel</span><span>Mote</span><span>Murmur</span><span>Undertow</span><span>Dapple</span><span>Trellis</span><span>Flexible Visual System</span><span>TuneSutra</span><span>Colornet</span><span>Blob Boundary</span><span>Rhizome</span></div>
       <div class="ds-example" style="justify-content:center">
-        <div class="org-floatbar" style="position:static;transform:none">
-          <button class="org-floatbar__btn" aria-label="Open">
-            <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M1.5 4A1 1 0 0 1 2.5 3h2.8l1 1.3H13.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-          </button>
-          <div class="org-floatbar__sep"></div>
-          <button class="org-floatbar__btn org-floatbar__btn--wide" aria-label="Export">
-            <svg class="ico" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-            <svg class="chev" viewBox="0 0 8 5" fill="none" aria-hidden="true"><path d="M1 1l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
+        <div class="org-floatbar" id="ds-floatbar" role="toolbar" aria-label="Actions" style="position:static;transform:none">
+          <span class="org-floatbar__group" role="group" aria-label="File">
+            <button class="org-floatbar__btn" aria-label="Open">
+              <svg class="ico" data-icon="folder-open" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 4A1 1 0 0 1 2.5 3h2.8l1 1.3H13.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4Z"/></svg>
+            </button>
+            <button class="org-floatbar__btn org-floatbar__btn--wide" aria-label="Export">
+              <svg class="ico" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
+              <svg class="ico chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+            </button>
+          </span>
+          <span class="org-floatbar__sep" aria-hidden="true"></span>
+          <span class="org-floatbar__group" role="group" aria-label="Align">
+            <button class="org-floatbar__btn" id="ds-fb-pressed" aria-pressed="true" aria-label="Align left">
+              <svg class="ico" data-icon="align-left" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 3.5h14M1 7h9M1 10.5h12"/></svg>
+            </button>
+            <button class="org-floatbar__btn" aria-pressed="false" aria-label="Align right">
+              <svg class="ico" data-icon="align-right" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 3.5h14M6 7h9M3 10.5h12"/></svg>
+            </button>
+          </span>
+          <span class="org-floatbar__sep" aria-hidden="true"></span>
+          <span class="org-floatbar__group" role="group" aria-label="View">
+            <button class="org-floatbar__btn" aria-pressed="true" aria-label="Show handles">
+              <svg class="ico" data-icon="handles" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 12 8 4l5 8"/><circle cx="3" cy="12" r="1.4"/><circle cx="8" cy="4" r="1.4"/><circle cx="13" cy="12" r="1.4"/></svg>
+            </button>
+            <button class="org-floatbar__btn" aria-pressed="true" aria-label="Show outline">
+              <svg class="ico" data-icon="outline" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1.5"/></svg>
+            </button>
+          </span>
         </div>
       </div>
-      <p class="ds-note" style="text-align:center">hover along the bar — the indicator travels; the tooltip reads the <code>aria-label</code></p>
+      <p class="ds-note" style="text-align:center">three sections: <strong>File</strong> (actions — hover only), <strong>Align</strong> (a choice, one pressed), <strong>View</strong> (independent toggles, both pressed). Hover along the bar — the indicator travels and the pressed washes stay; the tooltip reads the <code>aria-label</code></p>
       <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-floatbar"</span> <span class="attr">role</span>=<span class="str">"toolbar"</span> <span class="attr">aria-label</span>=<span class="str">"Actions"</span>&gt;
-  &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-floatbar__btn"</span> <span class="attr">aria-label</span>=<span class="str">"Open"</span>&gt;…svg…&lt;/<span class="tag">button</span>&gt;
-  &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-floatbar__sep"</span>&gt;&lt;/<span class="tag">div</span>&gt;
-  &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-floatbar__btn org-floatbar__btn--wide"</span> <span class="attr">aria-label</span>=<span class="str">"Export"</span>&gt;…svg…&lt;/<span class="tag">button</span>&gt;
+  &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"org-floatbar__group"</span> <span class="attr">role</span>=<span class="str">"group"</span> <span class="attr">aria-label</span>=<span class="str">"File"</span>&gt;
+    &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-floatbar__btn"</span> <span class="attr">aria-label</span>=<span class="str">"Open"</span>&gt;…icon…&lt;/<span class="tag">button</span>&gt;
+    &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-floatbar__btn org-floatbar__btn--wide"</span> <span class="attr">aria-label</span>=<span class="str">"Export"</span>&gt;…icon + chevron-down…&lt;/<span class="tag">button</span>&gt;
+  &lt;/<span class="tag">span</span>&gt;
+  &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"org-floatbar__sep"</span> <span class="attr">aria-hidden</span>=<span class="str">"true"</span>&gt;&lt;/<span class="tag">span</span>&gt;
+  &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"org-floatbar__group"</span> <span class="attr">role</span>=<span class="str">"group"</span> <span class="attr">aria-label</span>=<span class="str">"Align"</span>&gt;
+    &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-floatbar__btn"</span> <span class="attr">aria-pressed</span>=<span class="str">"true"</span> <span class="attr">aria-label</span>=<span class="str">"Align left"</span>&gt;…&lt;/<span class="tag">button</span>&gt;
+    &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-floatbar__btn"</span> <span class="attr">aria-pressed</span>=<span class="str">"false"</span> <span class="attr">aria-label</span>=<span class="str">"Align right"</span>&gt;…&lt;/<span class="tag">button</span>&gt;
+  &lt;/<span class="tag">span</span>&gt;
+  &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"org-floatbar__sep"</span> <span class="attr">aria-hidden</span>=<span class="str">"true"</span>&gt;&lt;/<span class="tag">span</span>&gt;
+  &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"org-floatbar__group"</span> <span class="attr">role</span>=<span class="str">"group"</span> <span class="attr">aria-label</span>=<span class="str">"View"</span>&gt;
+    &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-floatbar__btn"</span> <span class="attr">aria-pressed</span>=<span class="str">"true"</span> <span class="attr">aria-label</span>=<span class="str">"Show handles"</span>&gt;…&lt;/<span class="tag">button</span>&gt;
+    &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-floatbar__btn"</span> <span class="attr">aria-pressed</span>=<span class="str">"true"</span> <span class="attr">aria-label</span>=<span class="str">"Show outline"</span>&gt;…&lt;/<span class="tag">button</span>&gt;
+  &lt;/<span class="tag">span</span>&gt;
 &lt;/<span class="tag">div</span>&gt;</pre>
       <p class="ds-note"><strong>Tooltip</strong> — every <code>.org-floatbar__btn</code> shows an instant styled tooltip on hover via <code>::after { content: attr(aria-label) }</code>. One source of truth: the <code>aria-label</code> is both the a11y name and the visible tip. <strong>Do not add a native <code>title</code></strong> — it stacks a second, slow, unstyled tooltip on top. Font is pinned to <code>--fs-small</code> (10px) so it can't inherit a per-tool size; it's suppressed while the button's popover is open (<code>[aria-expanded="true"]</code>).</p>
-      <p class="ds-note"><strong>Glass icon bar (Sep 29, 2026, after Bencho's IconBar)</strong> — a full-pill glass pane (<code>--paper 75%</code> + backdrop blur + graded lit rim) with <strong>no tile behind buttons</strong>. Glyphs rest at 60% opacity; one indicator wash (<code>.org-floatbar__ind</code>, injected by <code>Organica.floatbarPill</code> in <code>core.js</code>) travels to the hovered/focused button in two elastic phases (stretch, then settle with overshoot) and rests on a pressed/open toggle. <strong>Active</strong> = <code>aria-pressed="true"</code> / <code>aria-expanded="true"</code>; <strong>armed</strong> (<code>.is-armed</code>) = <code>--danger</code> ink. Don't restyle these per tool — Genesis, Apostate and Living Path each carried an inverted-tile override that was removed. Bencho's tokens (<code>--pane</code>, <code>--g-*</code>, <code>--ind-*</code>) are defined locally on <code>.org-floatbar</code>, mapped to our tokens; the pill radius is the token rules' pill exception.</p>
+      <p class="ds-note"><strong>Glass icon bar (Sep 29, 2026, after Bencho's IconBar)</strong> — a full-pill glass pane (<code>--paper 75%</code> + backdrop blur + graded lit rim) with <strong>no tile behind buttons</strong>. Glyphs rest at 60% opacity; one indicator wash (<code>.org-floatbar__ind</code>, injected by <code>Organica.floatbarPill</code> in <code>core.js</code>) travels to the hovered/focused button in two elastic phases (stretch, then settle with overshoot) and rests only on an open toggle (<code>aria-expanded="true"</code>). <strong>Pressed</strong> (<code>aria-pressed="true"</code>) carries its own static <code>--pane-thumb</code> wash (since Oct 5, 2026), so an "on" state never vanishes when you hover another button and any number of toggles can show at once; hovering a pressed button stacks the two washes. <strong>Behaviour per section</strong>, read from the ARIA already on the buttons: actions (no <code>aria-pressed</code>) = hover only · a choice (one pressed) and toggles (any pressed) = their own wash + the pill on hover · an open panel = the pill rests there. Sections are <code>.org-floatbar__group</code> (<code>role="group"</code> + <code>aria-label</code>, a real flex box — never <code>display: contents</code>, Safari drops its role) with <code>.org-floatbar__sep</code> between them. The 8% wash edge stays under 3:1 by decision (the glyph's opacity and <code>aria-pressed</code> also carry the state); <strong>armed</strong> (<code>.is-armed</code>) = <code>--danger</code> ink. Don't restyle these per tool — Genesis, Apostate and Living Path each carried an inverted-tile override that was removed. Bencho's tokens (<code>--pane</code>, <code>--g-*</code>, <code>--ind-*</code>) are defined locally on <code>.org-floatbar</code>, mapped to our tokens; the pill radius is the token rules' pill exception.</p>
       <p class="ds-note">Centring formula: <code>left: calc(50% - var(--floatbar-offset, var(--panel-w, 248px)) / 2)</code>. A tool whose panel is <em>not</em> <code>--panel-w</code> wide sets <code>--floatbar-offset</code> to its own width; Genesis (260px) is the only one that does.<br>
       It used to read <code>var(--panel-w, var(--panel-width-right, 248px))</code>, described here as "the nested fallback covers Genesis". It could not: <code>panel.css</code> sets <code>--panel-w</code> on <code>:root</code> unconditionally and Genesis links <code>panel.css</code>, so the inner fallback was unreachable and Genesis's bar sat 6px off-centre for as long as the rule existed. <strong>A fallback chain cannot detect "this tool is different" — only an explicit opt-in can.</strong></p>
     </section>
@@ -2497,6 +2527,11 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
   assert('#ds-btn-matrix .org-btn--lg', { minHeight: '32px', fontSize: '12px' });
   assert('#ds-btn-matrix .panel-btn', { minHeight: '26px', fontWeight: '500' });
   assert('#ds-btn-matrix .org-btn--icon', { width: '26px' });
+  { // the floatbar: a pressed button keeps its own wash (floatbar.css, Oct 5, 2026)
+    const el = document.getElementById('ds-fb-pressed');
+    if (!el) bad('no demo on this page for #ds-fb-pressed');
+    else { const bg = getComputedStyle(el).backgroundColor; if (bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') bad('#ds-fb-pressed (aria-pressed="true") has no background — documented as var(--pane-thumb)'); }
+  }
   assert('.color-swatch', { width: '18px', height: '18px', borderRadius: '2px' });
   assert('.org-header', { height: '64px', backgroundColor: 'rgba(0, 0, 0, 0)', borderBottomWidth: '0px' }); // --header-h, transparent, no rule
   assert('.org-header__nav', { width: '32px', height: '32px', borderTopWidth: '0px' });
