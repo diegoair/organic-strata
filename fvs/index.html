@@ -7691,6 +7691,7 @@ async function generateSymbolGridInCanvas() {
     if (!model.cells.length) throw new Error('No cells — make the canvas larger or lower the counts.');
     ctrl('symgrid-gen-error').style.display = 'none';
     loadSymbolGrid(model);
+    clipByDefaultForShape();
     fillSymbolCells();
   } catch (e) {
     ctrl('symgrid-gen-error').textContent = /unsatisfiable/i.test(e.message) ? 'The canvas is too small for this grid — enlarge it or reduce columns/rows.' : e.message;
@@ -7707,6 +7708,13 @@ function fillSymbolCells() {
     ctrl('symgrid-gen-error').style.display = '';
   }
 }
+// A new grid of polygon cells (hexagons, triangles, Voronoi…) starts with Clip to cell ON: there, Cover and
+// Stretch size the content to the cell's bounding box and would spill into the neighbours. Rect grids keep
+// the default (off). Only for grids built from the panel — a saved Symbol keeps what it was saved with.
+function clipByDefaultForShape() {
+  state.symbolClipEnabled = !!state.symbolGrid && state.symbolGrid.cellShape === 'polygon';
+  syncSymbolViewUI();
+}
 // ── The empty Symbol: the panel's grid with every cell empty ──
 const emptySymbolCell = () => ({ source: 'empty', rotation: 0, flipH: false, flipV: false, scale: 1, color: null, fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false });
 const symbolHasContent = () => (state.symbolCells || []).some(c => c && c.source !== 'empty');
@@ -7719,6 +7727,7 @@ async function buildEmptySymbolGrid() {
     if (!model.cells.length) throw new Error('No cells — make the canvas larger or lower the counts.');
     ctrl('symgrid-gen-error').style.display = 'none';
     loadSymbolGrid(model);
+    clipByDefaultForShape();
     state.symbolCells = state.symbolCells.map(emptySymbolCell);
     renderSymbol();
   } catch (e) {
@@ -7942,11 +7951,12 @@ function syncFitAnchorUI() {
   //    icon off (a round content in a square cell: the three are the same picture);
   //  · Anchor when no target has room to move in (the content is exactly its cell) → off.
   const grid = getSymbolGrid(), lib = LIBRARY.read(), res = grid ? symbolCellBoxes(grid) : [];   // a spanning Component is fitted in its block
-  const targets = fitTargetIndices().map(i => ({ cell: state.symbolCells[i], box: res[i], nat: cellNaturalSize(state.symbolCells[i], lib) })).filter(t => t.box && t.nat);
+  const L0 = grid ? symbolSpanLayout(grid, state.symbolCells) : { region: {} };
+  const targets = fitTargetIndices().map(i => ({ cell: state.symbolCells[i], box: res[i], nat: cellNaturalSize(state.symbolCells[i], lib), poly: L0.region[i] ? null : cellPolygon(grid, i) })).filter(t => t.box && t.nat);
   const cells = targets.map(t => t.cell);
   const nothing = cells.length === 0;
   const why = nothing ? (state.symbolGrid ? ' — nothing to fit (empty)' : ' — no grid yet') : '';
-  const placeOf = (t, patch) => placeInBox(t.box, t.nat, { ...t.cell, ...(patch || {}) });
+  const placeOf = (t, patch) => placeInBox(t.box, t.nat, { ...t.cell, ...(patch || {}) }, t.poly, t.poly ? cellSeedOutline(t.cell) : null);
   const shared = fn => (cells.length && cells.every(c => fn(c) === fn(cells[0])) ? fn(cells[0]) : null);
   const fit = shared(c => c.fitMode || 'contain'), ax = shared(c => c.anchorX || 0), ay = shared(c => c.anchorY || 0);
   // the Fit buttons live in the floatbar: their tooltip (aria-label) names the target
@@ -8160,9 +8170,72 @@ function modulesToBlockCells(items, W, H, reg, cell) {
 }
 // resolveCellPlacement in a box that may be a spanning block: Fixed size scales by the block's length
 // in cells (fixedK), everything else is unchanged. Every placement on the Symbol goes through here.
-function placeInBox(c, natural, cell) {
+function placeInBox(c, natural, cell, poly, outline) {
   const k = c && c.fixedK > 1 && cell.fitMode === 'fixed' ? c.fixedK : 1;
-  return resolveCellPlacement(c.cellW, c.cellH, natural, k === 1 ? cell : { ...cell, fixedSize: (cell.fixedSize || 100) * k });
+  const place = resolveCellPlacement(c.cellW, c.cellH, natural, k === 1 ? cell : { ...cell, fixedSize: (cell.fixedSize || 100) * k });
+  return poly && cell.fitMode === 'contain' ? containInPolygon(c, natural, cell, poly, place, outline) : place;
+}
+// The real outline of a Seed's shape, as points about its 0..100 box centre (as drawn: the geometry's own
+// normalisation), sampled along the path — so Contain in a polygon fits the SHAPE (a turned triangle, a star),
+// not its square box. Cached per path. null → the box is used (a stack of layers, no DOM).
+const outlineCache = new Map();
+let outlineProbe = null;
+function seedOutline(geo) {
+  if (!geo || geo.layers || !geo.d || typeof document === 'undefined') return null;
+  const key = geo.d + '|' + geo.normTx + '|' + geo.normTy + '|' + geo.normScale;
+  if (outlineCache.has(key)) return outlineCache.get(key);
+  if (!outlineProbe) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('aria-hidden', 'true'); svg.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+    outlineProbe = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    svg.appendChild(outlineProbe); document.body.appendChild(svg);
+  }
+  let pts = null;
+  try {
+    outlineProbe.setAttribute('d', geo.d);
+    const len = outlineProbe.getTotalLength(), N = 64, ns = geo.normScale || 1, tx = (geo.normTx || 0) * ns, ty = (geo.normTy || 0) * ns;
+    pts = [];
+    for (let n = 0; n < N; n++) { const q = outlineProbe.getPointAtLength(len * n / N); pts.push([tx + q.x * ns - 50, ty + q.y * ns - 50]); }
+  } catch (e) { pts = null; }
+  if (outlineCache.size > 500) outlineCache.clear();
+  outlineCache.set(key, pts);
+  return pts;
+}
+function cellSeedOutline(cell) {
+  if (!cell || cell.source !== 'seed' || !SEED_TYPES[cell.seedType]) return null;
+  return seedOutline(SEED_TYPES[cell.seedType].geometry(cell.seedParams || SYMBOL_SEED_DEFAULTS));
+}
+// A polygon cell's points relative to its centre (the point content is placed about); null on a rect grid.
+function cellPolygon(grid, i) {
+  const raw = grid && grid.cellShape === 'polygon' && grid.cells[i];
+  return raw && raw.points && raw.centroid ? raw.points.map(p => [p[0] - raw.centroid[0], p[1] - raw.centroid[1]]) : null;
+}
+// Contain in a polygon cell (hexagon, triangle, Voronoi…): the content's box — turned with the cell — must
+// lie inside the SHAPE, not only inside its bounding box (a square contained in a hexagon's box sticks out
+// of its slanted sides). The largest scale that fits, found by bisection at the cell's centre, then the
+// Anchor slides it towards its side as far as it stays inside. It only shrinks what would stick out.
+function containInPolygon(c, natural, cell, poly, place, outline) {
+  const inside = (x, y) => { let r = false; for (let a = 0, b = poly.length - 1; a < poly.length; b = a++) { const [xa, ya] = poly[a], [xb, yb] = poly[b]; if ((ya > y) !== (yb > y) && x < (xb - xa) * (y - ya) / (yb - ya) + xa) r = !r; } return r; };
+  const base = resolveCellPlacement(c.cellW, c.cellH, natural, { ...cell, scale: 1, anchorX: 0, anchorY: 0 });
+  const W = natural.w || natural, H = natural.h || natural, rad = (cell.rotation || 0) * Math.PI / 180, cos = Math.cos(rad), sin = Math.sin(rad);
+  // the content's points about its centre, in its natural units: the real outline (a Seed) or its box corners
+  const pts = outline && outline.length ? outline.map(([x, y]) => [x * W / 100, y * H / 100]) : [[-W / 2, -H / 2], [W / 2, -H / 2], [W / 2, H / 2], [-W / 2, H / 2]];
+  const sx0 = Math.abs(base.scaleX) * (cell.flipH ? -1 : 1), sy0 = Math.abs(base.scaleY) * (cell.flipV ? -1 : 1);
+  const fits = (k, ox, oy) => pts.every(([px, py]) => { const x = px * sx0 * k, y = py * sy0 * k; return inside(ox + x * cos - y * sin, oy + x * sin + y * cos); });
+  // Contain only shrinks what sticks out: the requested size (the box's contain × the cell's Scale) if it
+  // already fits the shape, else the largest size that does. A Scale < 1 that fits is left as it is.
+  const user = cell.scale == null ? 1 : cell.scale;
+  let k = user;
+  if (!fits(user, 0, 0)) { let lo = 0, hi = user; for (let n = 0; n < 24; n++) { const m = (lo + hi) / 2; if (fits(m, 0, 0)) lo = m; else hi = m; } k = lo * 0.999; }
+  let ox = 0, oy = 0;
+  const ax = cell.anchorX || 0, ay = cell.anchorY || 0;
+  if (ax || ay) {   // slide towards the anchor while it still fits
+    const R = Math.max(c.cellW, c.cellH);
+    let a = 0, b = 1;
+    for (let n = 0; n < 24; n++) { const m = (a + b) / 2; if (fits(k, ax * R * m, ay * R * m)) a = m; else b = m; }
+    ox = ax * R * a; oy = ay * R * a;
+  }
+  return { ...place, scaleX: base.scaleX * k, scaleY: base.scaleY * k, offsetX: ox, offsetY: oy };
 }
 // The box each Symbol cell's content is placed in: its own cell, or — for a
 // spanning Component — its whole block; null for a cell inside a block.
@@ -8219,7 +8292,7 @@ function buildSymbolItems() {
       let nestedItems = buildComponentItems({ cells: entry.component.cells }, entry.grid)
         .map((it, j) => ({ ...it, color: savedColorAt(j) }));
       if (reg) nestedItems = modulesToBlockCells(nestedItems, nestedW, nestedH, reg, cell);
-      const place = placeInBox(c, nestedW === nestedH ? nestedSize : { w: nestedW, h: nestedH }, cell);
+      const place = placeInBox(c, nestedW === nestedH ? nestedSize : { w: nestedW, h: nestedH }, cell, reg ? null : cellPolygon(grid, i));
       return {
         type: 'component', index: i, region: reg || null, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
         scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
@@ -8228,7 +8301,7 @@ function buildSymbolItems() {
     }
     // a cell may carry the Element's own settings (seedParams); otherwise the plain default shape
     const geo = SEED_TYPES[cell.seedType].geometry(cell.seedParams || SYMBOL_SEED_DEFAULTS);
-    const place = placeInBox(c, 100, cell);
+    const place = placeInBox(c, 100, cell, cellPolygon(grid, i), cellPolygon(grid, i) && cell.fitMode === 'contain' ? seedOutline(geo) : null);
     return {
       type: 'seed', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
       scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
@@ -8272,7 +8345,8 @@ function cellOverflowInfo(index, resolvedCells) {
     natural = nd.w === nd.h ? frameSize(entry.grid) : { w: nd.w, h: nd.h };
   }
   if (cell.source === 'empty') return false;
-  const place = placeInBox(c, natural, cell);
+  const poly = currentSpanLayout().region[index] ? null : cellPolygon(grid, index);
+  const place = placeInBox(c, natural, cell, poly, poly ? cellSeedOutline(cell) : null);
   const itemW = (natural.w || natural) * place.scaleX, itemH = (natural.h || natural) * place.scaleY;
   return itemW > c.cellW + 0.01 || itemH > c.cellH + 0.01;
 }

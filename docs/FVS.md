@@ -309,7 +309,10 @@ its cells.
   column/row guides (rectangular grids) and the dashed outlines of empty cells (every grid shape;
   on a rectangular grid only the outer frame, the guides already draw the inner borders). Off = a
   clean sheet; cells still highlight on hover and drag. Only the guides start on; a new grid starts unclipped (it
-  started clipped until Oct 2, 2026 — saved Symbols keep what they were saved with).
+  started clipped until Oct 2, 2026 — saved Symbols keep what they were saved with) — except a grid of
+  **polygon cells** (hexagons, triangles, Voronoi…), which starts with **Clip to cell on** (Oct 5, 2026):
+  there Cover and Stretch size the content to the cell's bounding box and would spill into the
+  neighbours.
 - **The empty Symbol is its grid** (Oct 5, 2026 — grid first, content second). Entering the
   Symbol step with no grid builds the panel's grid (canvas, generator, parameters) with every
   cell **empty**: each one drawn with a dashed outline while *Show guides* is on (`--border-strong`, the file's 6 5 dash;
@@ -405,6 +408,14 @@ its cells.
   0.1% of the page past its border (the Component's own cells too), so neighbours
   overlap instead of touching. With *Stretch*, a polygon cell's content is centred on
   the cell's box, not its centroid (a hexagon cut by the margin stays covered).
+- **Contain in a polygon cell** (Oct 5, 2026) fits the content inside the
+  cell's SHAPE, not its bounding box: the real outline of a Seed (sampled along its path; a Component's
+  frame) turned with the cell must lie inside the polygon. It only shrinks what would stick out — the
+  requested size (the box's contain × the cell's Scale) if it already fits, else the largest that does
+  (a square in a 216 × 187 hexagon: 137, was 187 and spilled into the neighbours; that spill, clipped,
+  was the white diamonds at the hexagons' side corners). Anchor slides it towards its side as far as it
+  stays inside. Cover / Stretch / Fixed still use the box (Clip to cell does the cut). Rect grids are
+  unchanged; the classic hex Figures are byte-identical (their content already fit).
 
 ### 6a. Suggest — how the variations are made
 
