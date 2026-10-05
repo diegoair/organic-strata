@@ -242,18 +242,17 @@
 .org-hold-ring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transform: rotate(-90deg); overflow: visible; }
 .org-floatbar__btn > .org-hold-ring { opacity: 1; }   /* not the glyph's resting 0.6, also during the run-back */
 .org-hold-ring circle { fill: none; stroke: var(--danger); stroke-width: 2px; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
-/* …and an eraser erases with its tip while it is held: the tip travels along the line under it
-   (the trace), scrubbing as it goes, and the trace is rubbed out left to right over the hold — gone
+/* …and an eraser erases with its tip while it is held: it stays where it is (centred), its tip
+   scrubs, and the line under it (the trace) is rubbed out towards the tip over the hold — gone
    when the hold completes. --hold-ms is set on the button by core.js (Organica.HOLD_MS). Transform
    only; off under reduced motion (the ring alone says how long to hold). */
 @media (prefers-reduced-motion: no-preference) {
   .org-floatbar__btn.is-holding > .ico[data-icon="eraser"] { overflow: visible; }
   .org-floatbar__btn.is-holding > .ico[data-icon="eraser"] > path:first-child { transform-box: view-box; transform-origin: 6px 13.5px;
-    animation: org-erase-travel var(--hold-ms) linear forwards, org-erase-scrub var(--dur-instant) var(--ease-in-out) infinite alternate; }
-  .org-floatbar__btn.is-holding > .ico[data-icon="eraser"] > path:last-child { transform-box: fill-box; transform-origin: 100% 50%;
+    animation: org-erase-scrub var(--dur-instant) var(--ease-in-out) infinite alternate; }
+  .org-floatbar__btn.is-holding > .ico[data-icon="eraser"] > path:last-child { transform-box: fill-box; transform-origin: 0 50%;
     animation: org-erase-trace var(--hold-ms) linear forwards; }
 }
-@keyframes org-erase-travel { to { translate: 6px 0; } }
 @keyframes org-erase-scrub { from { rotate: -6deg; } to { rotate: 3deg; } }
 @keyframes org-erase-trace { to { transform: scaleX(0); } }
 /* a disabled button neither lifts its glyph nor shows its tooltip on hover / focus */
