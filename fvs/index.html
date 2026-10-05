@@ -9123,11 +9123,12 @@ function renderSuggestGallery(currentIdx) {
     btn.innerHTML = svg;
     const cap = `Use variation ${i + 1}: ${sg.label}${sg.score.edges ? ` · continuity ${Math.round(sg.score.match * 100)}%` : ''}${sg.score.col != null ? ` · colour ${Math.round(sg.score.col * 100)}%` : ''}`;
     btn.setAttribute('aria-label', cap); btn.title = cap;
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', e => {
       state.symbolCells = sg.cells.map(c => ({ ...c }));
       state.symbolSelection.clear();
       renderSymbol();
       wrap.querySelectorAll('.fvs-suggest__item').forEach((b, k) => b.classList.toggle('is-current', k === i));
+      setSugDockOpen(false, { focus: e.detail === 0 });   // picked: the strip closes (focus back on the Variations button from the keyboard)
     });
     wrap.appendChild(btn);
   });

@@ -433,7 +433,7 @@ its cells.
   (`#fvs-sug-panel`, a sibling of the bar; its bottom measured from the bar on open; scrolls
   sideways, the wheel over it never zooms the sheet); the current one has the tool-colour border.
   The score is in each thumbnail's tooltip and accessible name ("Use variation 3: Continuity
-  search · continuity 97% · colour 97%"). Click one to take it; **More like this** re-draws
+  search · continuity 97% · colour 97%"). Click one to take it (the strip closes); **More like this** re-draws
   8–20% of the cells of the current Symbol and re-turns them, and opens the strip (it applies
   nothing by itself). Esc, another floatbar flyout, or leaving the step closes it; not remembered
   between visits. Locked cells are always kept. (Until Oct 5 it was a pill top-centre over the
