@@ -266,3 +266,10 @@ besides the dev server's favicon 404. Not verified: Safari / Firefox.
   that rule. Before, a saved Element took the Colour by colour of its cell. Replaced a
   same-day "Keep own colours" rail switch. `docs/FVS.md` §7, ledger §2, commit `8aec96d`.
 - **Oct 4, 2026 — FVS, saved Element thumbnails show the Paper texture** (commit `37d1fc9`).
+- **Oct 4, 2026 — FVS, saved Elements in a Symbol cell draw their own Paper + texture**
+  (`ownPaper` / `ownAppearance`, under Element's own colours; commit `5181628`).
+- **Oct 4, 2026 — FVS, a Symbol from saved Elements alone** when no Component is saved
+  (Arrange from the latest 8; Suggest stays Components-only; commit `47bde38`).
+- **Oct 4, 2026 — FVS, rectangular Components take their modular block** in a regular
+  rectangular Symbol grid (cols × rows reduced; square = 1 cell; does not fit → one cell,
+  reduced); Fit / Anchor / overflow measure the block (commits `d2a1d91`, `d160d2c`).
